@@ -1,0 +1,9 @@
+# Arxiu complet del xat antic.
+# Pot contenir informacio sensible i no s'ha de penjar a cap repositori
+# sense confirmacio explicita.
+xat-original/
+
+# Fitxers temporals de sistema/editor.
+Thumbs.db
+desktop.ini
+~$*
