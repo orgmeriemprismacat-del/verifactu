@@ -4,6 +4,12 @@
 
 ## 1. Bases de dades
 
+El sistema actual esta fet amb PHP i JavaScript sobre MySQL i diverses bases de dades. La separacio principal a efectes documentals es:
+
+- BD web/ecommerce: dades operatives de compra, inscripcions, pagaments i factures historiques;
+- BD intranet: gestio interna, usuaris, rols, entitats, responsables, apartats i processos administratius;
+- BD fiscal/SIF: nova base de dades fiscal per VERI*FACTU, que ha de ser la font de veritat fiscal quan entri en funcionament.
+
 ### BD web/ecommerce
 
 Contingut:
@@ -14,6 +20,7 @@ Contingut:
 - descomptes;
 - codis promocionals;
 - regals;
+- TPV virtuals i identificadors de pagament;
 - dades operatives de la web.
 
 ### BD intranet
@@ -79,6 +86,16 @@ Contingut:
 - `descomptes_grup`
 - taula de codis promocionals, pendent de documentar
 - taula de regals, pendent de documentar
+
+Camps actuals especialment rellevants detectats al xat antic:
+
+- `inscripcions.IDPAG`: identificador de pagament i de l'enllac de pagament;
+- `inscripcions.FACTURA_RELACIONADA`: vincle historic amb la factura o agrupacio de factura;
+- `inscripcions.A_PAGAR`: total esperat;
+- `inscripcions.PAGAMENT`: import real pagat o acumulat;
+- `inscripcions.DATA PAG`: data de pagament quan Redsys confirma o quan es valida transferencia des de la intranet;
+- `factures.NUM_COMANDA`: comanda Redsys / `Ds_Order`;
+- camps de descompte com `TIPUS_DESCOMPTE` i `VALID_DESC`, quan apliquen.
 
 ## 3. Taules noves proposades
 

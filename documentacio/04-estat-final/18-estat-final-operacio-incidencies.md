@@ -56,6 +56,9 @@ Tipus:
 - PDF fallit;
 - pagament sense factura;
 - factura sense pagament;
+- factura abans de cobrament pendent de pagament;
+- devolucio feta sense rectificativa o rectificativa pendent;
+- pagament fraccionat amb intents Redsys repetits;
 - duplicat Redsys;
 - incidencia de dades.
 
@@ -94,6 +97,8 @@ Camps minims recomanats:
 - `UPDATED_AT`
 - `RESOLVED_AT`
 - `RESOLUTION_NOTES`
+
+La incidencia ha de poder apuntar a factura, pagament o operacio d'origen. Aixo es important en casos com pagaments fraccionats, transferencies que paguen diverses factures, saldos/compensacions i factures abans de cobrament.
 
 Estats recomanats:
 

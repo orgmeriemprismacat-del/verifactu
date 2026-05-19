@@ -35,3 +35,44 @@ Els xats llargs poden saturar el context. Els fitxers permeten continuar amb xat
 Impacte:
 Cada xat ha de llegir nomes els fitxers que necessita i actualitzar els fitxers de control abans de tancar.
 
+## 2026-05-19 - Ordre inicial de revisio del xat antic
+
+Decisio:
+El xat pont revisara el xat antic per blocs en aquest ordre:
+
+1. Context actual de PrisMa i canals reals.
+2. Fluxos de facturacio i casos especials.
+3. Pagaments, Redsys, callbacks i conciliacio.
+4. Base de dades, hash chain, concurrencia i idempotencia.
+5. Pantalles, permisos i operacio interna.
+6. Compliment AEAT i declaracio responsable.
+7. Correus, plantilles, PDF/QR i notificacions.
+8. Proves, produccio, auditoria documental i governanca.
+
+Motiu:
+La primera cerca tematica del xat antic mostra que aquests blocs concentren la informacio operativa i tecnica amb mes risc de quedar dispersa: canals reals, facturacio, pagaments, BD/concurrencia, pantalles, compliment, comunicacions i posada en produccio.
+
+Impacte:
+El xat pont no intentara completar tota la documentacio de cop. Cada bloc es buscara al xat antic amb termes concrets, es comparara amb els documents existents i nomes s'actualitzaran els fitxers afectats.
+
+## 2026-05-19 - Bloc 1 revisat: context actual de PrisMa
+
+Decisio:
+Incorporar als documents de context que el sistema actual es PHP/JavaScript sense framework principal, amb MySQL i diverses bases de dades, i que abans del SIF els canals web/ecommerce, TPV virtuals i intranet podien intervenir en la generacio de factures.
+
+Motiu:
+El xat antic contenia matisos importants sobre el funcionament real: TPV virtuals per tipus de venda, vendes manuals des de la intranet, factures generades quan hi ha pagament, PDF no sempre generat al moment, receptors diversos i volum variable fins a 2000 factures/dia.
+
+Impacte:
+La documentacio de context ja explica millor per que el SIF ha de centralitzar la decisio fiscal final i per que cal separar dades de client/contacte, dades fiscals, pagament i factura.
+
+## 2026-05-19 - Bloc 2 revisat: fluxos de facturacio i casos especials
+
+Decisio:
+Completar els fluxos amb matisos recuperats del xat antic: `IDPAG` pot tenir diversos intents Redsys, una transferencia pot pagar diverses factures, una compensacio pot ser saldo o descompte, les factures abans de cobrament son factures reals si s'emeten, i no s'han d'utilitzar proformes fiscals ambigues.
+
+Motiu:
+El xat antic contenia detalls operatius que afecten idempotencia, rectificatives, devolucions, canvis de curs, saldos i incidencies. Sense aquests matisos, el SIF podria documentar be el cas ideal pero perdre casos reals de PrisMa.
+
+Impacte:
+El document de fluxos diferencia millor factura, pagament, compensacio, devolucio, factura abans de cobrament i document no fiscal. Les incidencies finals tambe contemplen pagaments fraccionats, devolucions pendents i factures abans de cobrament impagades.

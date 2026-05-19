@@ -7,17 +7,19 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Copiar documentacio recuperada a `documentacio/`.
 - [x] Copiar xat antic a `xat-original/`.
 - [x] Crear fitxers de control a `00-control/`.
-- [ ] Obrir xat pont.
-- [ ] Fer primera revisio del xat antic per temes.
+- [x] Obrir xat pont.
+- [x] Fer primera revisio inicial del xat antic per temes.
+- [x] Proposar ordre de revisio per blocs.
 
 ## Revisio per arees
 
-- [ ] Context actual de PrisMa revisat contra el xat antic.
-- [ ] Casos de facturacio revisats contra el xat antic.
+- [x] Context actual de PrisMa revisat contra el xat antic.
+- [x] Casos de facturacio revisats contra el xat antic.
 - [ ] Pagaments, Redsys i `pay.prisma.cat` revisats contra el xat antic.
 - [ ] Base de dades i relacions revisades contra el xat antic.
 - [ ] Compliment AEAT i declaracio responsable revisats contra el xat antic.
 - [ ] Pantalles, permisos i operacio interna revisats contra el xat antic.
+- [ ] Correus, plantilles, PDF/QR i notificacions revisats contra el xat antic.
 - [ ] Proves, produccio i governanca revisades contra el xat antic.
 
 ## Documents clau
@@ -43,4 +45,3 @@ Una area es pot marcar com a revisada quan:
 - les diferencies importants s'han incorporat o justificat;
 - `registre-decisions.md` recull les decisions noves;
 - `estat-projecte.md` diu que l'area esta revisada.
-

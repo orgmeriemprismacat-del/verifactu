@@ -19,6 +19,14 @@ Aquest document descriu com funciona el sistema complet de PrisMa en relacio amb
 
 No es un inventari de canvis. Es la documentacio operativa del sistema.
 
+## 1.1. Context tecnic resumit
+
+El sistema actual esta programat en PHP i JavaScript, sense framework PHP principal, amb base de dades MySQL i diverses bases de dades separades.
+
+La intranet interna gestiona molta part de l'arquitectura operativa i fiscal actual. La web/ecommerce, els TPV virtuals i la intranet han pogut intervenir en el proces de facturacio abans de la implantacio del SIF central.
+
+El projecte VERI*FACTU no parteix d'un producte tancat extern, sino d'un sistema propi que s'ha d'adaptar gradualment sense reescriure tota la web i la intranet de cop.
+
 ## 2. Actors principals
 
 ### Alumne
@@ -43,6 +51,8 @@ Pot:
 - pagar un grup;
 - rebre factura;
 - rebre comunicacions.
+
+Els receptors o participants poden ser particulars, empreses, escoles, entitats o estrangers. Aixo obliga a separar clarament dades de client/contacte i dades fiscals de facturacio.
 
 ### Administracio interna
 
@@ -80,6 +90,9 @@ Funcio:
 
 Gestiona:
 
+- cursos online;
+- tallers;
+- jornades;
 - inscripcio;
 - dades de l'alumne;
 - seleccio de curs;
@@ -89,6 +102,16 @@ Gestiona:
 - regals;
 - packs;
 - grups.
+
+Els TPV son virtuals i existeixen segons tipus de venda o flux:
+
+- curs;
+- pack;
+- regal;
+- descompte per grup;
+- cas particular USOC;
+- taller;
+- jornada.
 
 Amb VERI*FACTU:
 
@@ -104,6 +127,7 @@ Gestiona:
 - inscripcions;
 - entitats;
 - pagaments;
+- vendes manuals quan una empresa, escola, responsable o particular contacta directament amb PrisMa;
 - factures manuals;
 - factures abans de cobrar;
 - marca de factura electronica, quan correspongui;
@@ -162,6 +186,21 @@ el PDF/QR fiscal i la persistencia immutable han de recaure en el SIF.
 ```
 
 Per tant, el projecte VERI*FACTU no defensa una arquitectura de facturacio distribuida, sino una migracio cap a un SIF central on els canals nomes proposen operacions facturables.
+
+Situacio real identificada al xat antic:
+
+- quan es paga per TPV, actualment es pot generar factura;
+- la intranet tambe genera factures quan es passen pagaments, quan una empresa demana factura o quan cal gestionar un cas manual;
+- puntualment pot haver-hi factures generades manualment des de base de dades;
+- actualment no sempre es genera PDF al moment de crear la factura;
+- les dades de client i les dades fiscals han estat barrejades en alguns fluxos;
+- el nou pas de dades de facturacio abans de pagar s'ha d'afegir per reduir rectificatives per nom, NIF/CIF o rao social.
+
+Volum i concurrencia observats:
+
+- el volum pot variar molt segons epoca: 1, 30, 300 o fins a 2000 factures al dia;
+- poden coincidir molts pagaments simultanis;
+- els TPV treballen amb connexio estable, pero si hi ha desquadraments es revisen des de la intranet o conciliacio.
 
 ## 4. Cicle de vida simplificat
 
