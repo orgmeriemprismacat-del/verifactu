@@ -41,6 +41,8 @@ Ha de mostrar:
 - factures emeses avui/mes/any;
 - registres AEAT pendents, acceptats, rebutjats o en retry;
 - incidencies obertes per prioritat;
+- callbacks Redsys rebuts, duplicats i pendents de conciliacio;
+- pagaments TPV/transferencia pendents de factura o assignacio;
 - cua PDF/QR pendent;
 - ultima factura emesa;
 - estat general de connexio AEAT;
@@ -65,6 +67,8 @@ Ha de permetre:
 - cercar per UUID;
 - cercar per NIF/CIF receptor;
 - cercar per `FACTURA_RELACIONADA`;
+- cercar per `Ds_Order` / `NUM_COMANDA`;
+- cercar per `IDPAG`;
 - filtrar per estat factura;
 - filtrar per estat AEAT;
 - filtrar per estat cobrament;
@@ -135,6 +139,9 @@ Tipus:
 - pagament cobrat sense factura;
 - factura pendent sense cobrament;
 - callback Redsys duplicat;
+- callback Redsys validat pero no conciliat;
+- fitxer TPV amb pagament sense factura o amb diverses candidates;
+- transferencia registrada contra factura incorrecta;
 - dades fiscals incompletes;
 - exportacio requerida;
 - revisio manual.
@@ -251,6 +258,9 @@ Ha d'incloure:
 - series actives;
 - mode VERI*FACTU;
 - endpoints AEAT;
+- endpoints Redsys actius, URLs de retorn i callbacks de `pay.prisma.cat`;
+- mapa de URLs antigues cap a canals nous de pagament;
+- estat de subdomini `pay.prisma.cat` i SSL;
 - certificat digital o configuracio segura associada;
 - parametres de retries;
 - rutes de documents;

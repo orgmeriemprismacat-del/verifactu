@@ -45,6 +45,18 @@ Redsys callback
 
 El callback Redsys no ha de calcular `A2026/x` ni inserir directament a `web.factures`.
 
+### 2.1. Dades recuperades del codi actual
+
+El xat antic incloia fragments de `realitzaPagamentAutomatic.php` que concreten el flux actual:
+
+- rep per `GET` valors com `codiCurs`, `dni`, `import`, `frac`, `idPag` i `order`;
+- envia un correu intern amb DNI, import, fraccio, `IDPAG` i `ORDER`;
+- desa `Ds_Order` a `web.factures.NUM_COMANDA`;
+- insereix la factura historica amb camps com `factura_relacionada`, `tipus`, `ANY`, `ORDRE`, `NUM`, `DATA`, `data_pagament`, `num_comanda`, `RAO`, `CIF`, `ADRECA`, `CP`, `POBLACIO`, `CONCEPTE1`, `CONCEPTE2`, `IMPORT`, `ENTITAT`, `FORMA_PAGAMENT`, `CURS` i `HORES`;
+- actualitza dades de pagament a `web.inscripcions`.
+
+Aquests valors serveixen per identificar l'origen operatiu i per mantenir compatibilitat, pero no poden ser la prova fiscal principal. En la migracio, l'import i l'ordre fiscalment sensibles han de venir de les dades signades Redsys i el numero de factura l'ha de decidir el SIF.
+
 ## 3. Validacio real de Redsys
 
 En el codi actual es calcula `$firma`, pero cal assegurar que es compara amb `$signatureRecibida` abans de tocar BD.
@@ -239,6 +251,21 @@ Aquest endpoint:
 | Compensacio sobre factura existent | `registerPayment()` |
 | Devolucio | rectificativa + `registerPayment(REFUND)` |
 
+### 8.1. Canals TPV i URL identificats
+
+El xat antic confirma que hi ha diversos canals o URLs de pagament que poden acabar entrant pel mateix ecosistema Redsys/TPV:
+
+- curs individual;
+- regal de curs;
+- pack;
+- grup de persones;
+- taller o jornada;
+- cas USOC, amb part pagada per alumne i part pagada per entitat;
+- empresa/responsable;
+- morositat, reclamacio o diferencia pendent.
+
+Cada canal ha de conservar `source_channel`, `source_type`, `source_id`, `IDPAG` i referencia Redsys/TPV. La migracio no ha de reduir-los a un unic cas generic de curs, perque canvien receptor, linies, permisos de consulta i criteri de conciliacio.
+
 ## 9. Idempotencia per cas
 
 | Cas | Clau idempotent orientativa |
@@ -359,3 +386,55 @@ Objectiu:
 - si hi ha cobrament sense factura, crear incidencia i permetre accio controlada.
 
 No ha de crear factures duplicades.
+
+## 17. Passar pagaments i transferencies
+
+L'apartat actual de la intranet `Passar pagaments` valida pagaments manuals, transferencies i regularitzacions. El xat antic confirma que, despres de validar el pagament, el flux final ha de cridar el SIF.
+
+Regla final:
+
+```text
+pagament manual / transferencia / compensacio
+    -> validar usuari, data, metode, import i referencia
+    -> buscar factura SIF existent
+    -> si existeix factura real: registerPayment()
+    -> si no existeix factura i cal factura: issueInvoice()
+    -> sincronitzar camps operatius historics nomes com a resum
+```
+
+En el sistema actual, quan hi ha factura abans de pagar, es pot detectar buscant factura historica amb `E_FACT = 1`, CIF/entitat i opcions de seleccio si hi ha mes d'una candidata. En el SIF aquesta logica s'ha de substituir per:
+
+- `EMESA_ABANS_COBRAMENT = 1` per saber que la factura real ja existeix;
+- `UUID_FACTURA` i `FACTURA_RELACIONADA` com a claus de relacio;
+- seleccio explicita si hi ha mes d'una factura candidata;
+- registre de cobrament amb `registerPayment()`, sense generar un nou numero fiscal.
+
+## 18. Migracio de callbacks i URLs de pagament
+
+La confirmacio de pagament i la programacio TPV s'han de moure de `prisma.cat` cap a `pay.prisma.cat`.
+
+Regla:
+
+```text
+URL antiga o intranet
+    -> pot iniciar o redirigir el flux
+pay.prisma.cat
+    -> controla pagament, callback, conciliacio i crida SIF
+SIF
+    -> decideix factura, registre fiscal, PDF/QR i estat cobrament
+```
+
+Les URLs antigues poden quedar temporalment com a redireccions o clients, pero no com a font de veritat fiscal. La migracio ha de conservar una taula o mapa intern de rutes antigues, canal, `source_type`, `IDPAG` i endpoint nou per poder auditar incidencies.
+
+## 19. Visibilitat de factura i PDF despres del pagament
+
+El PDF exacte generat en el moment d'emissio s'ha de conservar en un espai controlat de `pay.prisma.cat`. Quan el pagament correspon a una factura d'empresa, grup o responsable, l'alumne no ha de veure automaticament la factura si no n'era el receptor fiscal.
+
+Regla:
+
+```text
+consulta de factura/PDF/QR
+    -> comprovar receptor fiscal i permisos
+    -> si factura de grup o empresa: visible al responsable autoritzat
+    -> si factura individual: visible al receptor o usuari autoritzat
+```

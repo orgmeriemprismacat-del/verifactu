@@ -1,6 +1,6 @@
 # Estat del projecte VERI*FACTU
 
-Ultima actualitzacio: 2026-05-19
+Ultima actualitzacio: 2026-06-01
 
 ## Objectiu
 
@@ -21,7 +21,8 @@ Adaptar el sistema de facturacio de PrisMa a VERI*FACTU mitjancant un SIF centra
 - El xat pont ja ha fet un inventari inicial del xat antic per cerques tematiques, sense carregar el JSONL complet.
 - Bloc 1 revisat: context actual de PrisMa i canals reals. S'han incorporat matisos de stack tecnic, TPV virtuals, receptors, estat actual de factura/PDF, camps operatius i volum/concurrencia.
 - Bloc 2 revisat: fluxos de facturacio i casos especials. S'han incorporat matisos sobre `IDPAG`, intents Redsys, transferencies, compensacions, factura abans de cobrament, proformes, canvis de curs, baixes, devolucions i rectificatives.
-- La prioritat immediata es continuar amb el bloc 3: pagaments, Redsys, callbacks i conciliacio.
+- Bloc 3 revisat: pagaments, Redsys, callbacks i conciliacio. S'han incorporat matisos sobre `realitzaPagamentAutomatic.php`, parametres reals del callback, `Ds_Order`/`NUM_COMANDA`, canals TPV, `Passar pagaments`, migracio a `pay.prisma.cat`, conciliacio i visibilitat de factura/PDF.
+- La prioritat immediata es continuar amb el bloc 4: base de dades, hash chain, concurrencia i idempotencia.
 
 ## Decisions base ja assumides
 
@@ -65,10 +66,10 @@ Temes amb mes risc de contenir detalls pendents de contrast:
 
 ## Proper pas recomanat
 
-Continuar el xat pont pel tercer bloc de revisio:
+Continuar el xat pont pel quart bloc de revisio:
 
 ```text
-Pagaments, Redsys, callbacks i conciliacio.
+Base de dades, hash chain, concurrencia i idempotencia.
 ```
 
 ## Com s'ha de tancar cada sessio

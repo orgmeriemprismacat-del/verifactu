@@ -126,7 +126,7 @@ Documents actualitzats:
 
 ### Pagaments, Redsys i pay.prisma.cat
 
-Estat: pendent
+Estat: incorporat parcialment al bloc 3; queda obert el detall final de SQL/implementacio quan es revisi base de dades i concurrencia.
 
 Que cal buscar:
 
@@ -140,6 +140,28 @@ Documents relacionats:
 
 - `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
 - `documentacio/04-estat-final/25-panell-sif-pay-prisma.md`
+
+Informacio trobada i incorporada:
+
+- `realitzaPagamentAutomatic.php` rep valors com `codiCurs`, `dni`, `import`, `frac`, `idPag` i `order`;
+- el codi actual envia correu intern de pagament automatic amb DNI, import, fraccio, `IDPAG` i `ORDER`;
+- `Ds_Order` es conserva historicament a `web.factures.NUM_COMANDA`;
+- el callback actual insereix a `web.factures` camps fiscals i operatius i actualitza `web.inscripcions`;
+- les dades signades Redsys (`Ds_Order`, `Ds_Amount`) han de prevaldre sobre imports o ordres rebuts per `GET`;
+- hi ha diversos canals TPV: curs individual, regal, pack, grup, taller/jornada, USOC, empresa/responsable, morositat, reclamacio o diferencia pendent;
+- `Passar pagaments` ha de validar transferencia, pagament manual o compensacio i cridar `registerPayment()` o `issueInvoice()` segons si ja existeix factura SIF;
+- la deteccio historica de factura abans de pagar basada en `E_FACT` s'ha de substituir per `EMESA_ABANS_COBRAMENT`, `UUID_FACTURA` i `FACTURA_RELACIONADA`;
+- la confirmacio de pagament i callbacks s'han de moure de `prisma.cat` a `pay.prisma.cat`;
+- les URLs antigues poden quedar com a redireccions o clients, pero no com a font fiscal;
+- la conciliacio de fitxer TPV ha de buscar `redsys_notifications`, `payment_transaction`, factura i assignacio abans de crear res;
+- el PDF exacte generat en emissio s'ha de conservar en espai controlat de `pay.prisma.cat`;
+- les factures d'empresa, grup o responsable no han de ser visibles automaticament a l'alumne si no n'es receptor fiscal.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/04-estat-final/25-panell-sif-pay-prisma.md`
+- `documentacio/04-estat-final/17-estat-final-bd-relacions.md`
 
 ### Base de dades i relacions
 
