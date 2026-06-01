@@ -44,6 +44,31 @@ Cada pantalla pot tenir:
 - JS de pantalla;
 - crides AJAX a metodes o endpoints auxiliars.
 
+### Mecanisme actual de permisos
+
+El xat antic confirma que la intranet ja te un sistema de permisos basat en rols per apartat:
+
+- `apartats.ROLS_VISUALITZAR`;
+- `apartats.ROLS_EDITAR`;
+- `apartats.ROLS_ENVIAR_MSG`;
+- `usuaris.ROLS`.
+
+També s'han identificat els punts tecnics:
+
+- `consultaRolsEdiicio($page)` consulta els rols d'edicio de la pagina; es conserva el nom real encara que tingui la grafia `Ediicio`;
+- `consultaRolsUsuari()` consulta els rols de l'usuari autenticat;
+- el JavaScript calcula `tePermisEdicio` comparant rols de pagina i rols d'usuari;
+- `general.js` carrega menu, usuari, rols i modals globals.
+
+Regla de migracio:
+
+```text
+Els permisos visuals del JS no son suficients per accions fiscals.
+Cada endpoint AJAX o SIF ha de tornar a validar permisos al servidor.
+```
+
+Les accions fiscals critiques no s'han de protegir nomes amagant icones o botons. Han d'exigir validacio de sessio, rol, estat de factura i motiu.
+
 ## Consulta - Modifica alumne
 
 Estat actual conegut:
@@ -791,6 +816,40 @@ Pendent:
 ### Certificat
 
 No afecta directament la fiscalitat, pero cal mantenir coherencia amb baixes, morositat i estat de curs.
+
+## Reclamacions i morositat
+
+El xat antic concreta la sequencia operativa de reclamacions:
+
+```text
+abans de comencar curs
+    -> ha d'existir un primer pagament o justificacio
+segona setmana de curs
+    -> si no ha pagat res i no hi ha justificacio, es pot donar de baixa
+final de curs
+    -> es reclama el pendent
+una setmana despres
+    -> nova reclamacio
+un mes despres
+    -> nova reclamacio
+despres
+    -> es considera morositat i es continua reclamant
+```
+
+Cada fase te apartat propi a la intranet:
+
+- `/facturacio/primera-reclamacio/`;
+- `/facturacio/baixes/`;
+- `/facturacio/recordatori-pagament/`;
+- `/facturacio/reclamacio-final/`;
+- `/facturacio/morosos/`.
+
+Regla VERI*FACTU:
+
+- morositat no es baixa;
+- marcar un alumne com a moros no rectifica automaticament la factura;
+- la factura continua existint mentre no hi hagi devolucio, rectificativa o decisio fiscal posterior;
+- les reclamacions han de quedar com a events operatius amb import total, import pagat, import pendent, fase, data, missatge i estat.
 
 ## Apartat VERI*FACTU de la intranet principal
 

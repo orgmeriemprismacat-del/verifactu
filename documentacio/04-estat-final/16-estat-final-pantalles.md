@@ -374,6 +374,43 @@ Flux final:
 - nomes quan hi ha decisio economica es genera l'impacte fiscal que correspongui;
 - la baixa per si sola no ha de modificar una factura emesa.
 
+## 8.1. Intranet - Reclamacions i morositat
+
+Pantalles actuals relacionades:
+
+| URL actual | Funcio |
+| --- | --- |
+| `/facturacio/primera-reclamacio/` | Primera reclamacio de pagament. |
+| `/facturacio/baixes/` | Revisio de baixes de segona setmana. |
+| `/facturacio/recordatori-pagament/` | Recordatori de pagament final. |
+| `/facturacio/reclamacio-final/` | Reclamacio final. |
+| `/facturacio/morosos/` | Control de morositat. |
+
+Flux final:
+
+- abans de començar el curs, ha d'existir un primer pagament o justificacio;
+- a la segona setmana, si no hi ha pagament ni justificacio, es pot tramitar baixa administrativa;
+- al final del curs, una setmana despres i un mes despres es poden registrar reclamacions;
+- si continua pendent, l'estat passa a morositat;
+- la morositat no anul·la ni rectifica una factura per si sola.
+
+Pantalla final de reclamacions/morositat:
+
+- mostrar import total, import pagat i import pendent;
+- mostrar fase de reclamacio;
+- mostrar dates de reclamacio;
+- mostrar missatges enviats o pendents;
+- mostrar factura associada i estat cobrament SIF;
+- permetre registrar nova reclamacio amb usuari, data i motiu;
+- permetre obrir `Passar pagaments` o factura associada quan correspongui;
+- crear incidencia si hi ha incoherencia entre estat de curs, pagament i factura.
+
+No ha de permetre:
+
+- tocar imports d'una factura emesa;
+- donar per resolt un pendent fiscal sense `registerPayment()`, compensacio, devolucio o rectificativa;
+- marcar baixa administrativa com si fos rectificativa automatica.
+
 ## 9. Intranet - Passar pagaments
 
 URL actual:

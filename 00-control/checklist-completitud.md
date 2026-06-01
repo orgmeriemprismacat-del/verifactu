@@ -18,7 +18,7 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Pagaments, Redsys i `pay.prisma.cat` revisats contra el xat antic.
 - [x] Base de dades i relacions revisades contra el xat antic.
 - [ ] Compliment AEAT i declaracio responsable revisats contra el xat antic.
-- [ ] Pantalles, permisos i operacio interna revisats contra el xat antic.
+- [x] Pantalles, permisos i operacio interna revisats contra el xat antic.
 - [ ] Correus, plantilles, PDF/QR i notificacions revisats contra el xat antic.
 - [ ] Proves, produccio i governanca revisades contra el xat antic.
 

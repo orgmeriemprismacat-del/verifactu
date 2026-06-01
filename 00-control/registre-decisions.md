@@ -98,3 +98,14 @@ El xat antic contenia decisions tecniques concretes sobre concurrencia i integri
 
 Impacte:
 La documentacio diferencia millor esquema parcial existent i disseny final. El SIF queda definit com a BD fiscal transaccional, amb `fiscal_sequence` per numeracio, `fiscal_chain_state` per hash chain global, `fiscal_queue` amb payload de reintent, claus uniques idempotents i permisos BD alineats amb la immutabilitat fiscal.
+
+## 2026-06-01 - Bloc 5 revisat: pantalles, permisos i operacio
+
+Decisio:
+Completar la documentacio de pantalles i permisos amb detalls recuperats del xat antic: la intranet actual usa `apartats.ROLS_VISUALITZAR`, `ROLS_EDITAR`, `ROLS_ENVIAR_MSG`, `usuaris.ROLS`, `consultaRolsEdiicio`, `consultaRolsUsuari` i `tePermisEdicio`; aquests permisos visuals s'han de mantenir com a ajuda d'interficie, pero les accions fiscals critiques s'han de validar sempre al servidor/SIF.
+
+Motiu:
+El xat antic contenia matisos humans i operatius que no poden quedar diluits: Isa pot donar suport i consultar, pero no es rol fiscal ordinari; Meriem, Adam i Pablo concentren les accions fiscals diaries; la morositat i les reclamacions tenen pantalles i fases especifiques, pero no rectifiquen factures automaticament.
+
+Impacte:
+El manual intern passa de llista pendent a regles operatives base. Les pantalles queden millor delimitades: Consulta - Modifica alumne inicia accions, Passar pagaments registra o concilia pagaments, Consulta - Edita - Anula factura es transforma en accions controlades, i l'apartat `VERI*FACTU` de la intranet mostra indicador i accessos sense substituir el panell SIF.

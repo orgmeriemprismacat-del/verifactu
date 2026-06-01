@@ -67,6 +67,36 @@ Notes:
 - Meriem hi te acces com a responsable tecnica, desenvolupadora i gestio d'incidencies.
 - Isa pot consultar informacio d'alumnes quan dona suport, pero no es rol fiscal ordinari.
 
+### 4.1.1. Implementacio actual de permisos
+
+La intranet actual guarda permisos per apartat a `apartats`:
+
+- `ROLS_VISUALITZAR`;
+- `ROLS_EDITAR`;
+- `ROLS_ENVIAR_MSG`.
+
+I guarda rols d'usuari a `usuaris.ROLS`.
+
+La logica actual identificada es:
+
+- `consultaRolsEdiicio($page)` retorna els rols d'edicio de la pagina;
+- `consultaRolsUsuari()` retorna els rols de l'usuari;
+- el JS compara rols i calcula `tePermisEdicio`;
+- les pantalles poden mostrar o ocultar accions segons aquest resultat.
+
+Regla SIF:
+
+```text
+El permis visual no autoritza per si sol una accio fiscal.
+El servidor ha de validar rol, sessio, estat fiscal i motiu abans d'executar.
+```
+
+Per tant:
+
+- el front pot desactivar icones o botons;
+- l'endpoint AJAX o API SIF ha de repetir la validacio;
+- qualsevol accio critica ha de deixar log d'usuari, data, pantalla/origen i motiu.
+
 ### 4.2. Cursos
 
 Inclou apartats de gestio i consulta de cursos.
@@ -98,6 +128,12 @@ Accessos:
 | Reclamacions | Meriem, Adam, Pablo |
 | Apartats concrets vinculats a inici de cursos/Moodle | Isa, quan cal per la seva tasca |
 | Resta d'apartats de gestio de cursos | Meriem i Pablo, segons operativa interna |
+
+Regla sobre morositat:
+
+- marcar morositat o registrar una reclamacio no modifica una factura emesa;
+- una baixa administrativa tampoc genera rectificativa automatica;
+- el pagament posterior, saldo, devolucio o rectificativa s'ha de tramitar pel flux fiscal corresponent.
 
 ### 4.4. Tasques propies de Meriem
 

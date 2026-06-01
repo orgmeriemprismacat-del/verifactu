@@ -224,7 +224,7 @@ Documents relacionats:
 
 ### Pantalles, permisos i operacio interna
 
-Estat: pendent
+Estat: incorporat parcialment al bloc 5; queda obert per a captures finals i matriu detallada de permisos quan s'implementin pantalles.
 
 Que cal buscar:
 
@@ -236,6 +236,28 @@ Que cal buscar:
 - qui ha de poder veure, corregir o exportar informacio.
 
 Documents relacionats:
+
+- `documentacio/03-canvis-pendents/07-pantalles-intranet.md`
+- `documentacio/04-estat-final/16-estat-final-pantalles.md`
+- `documentacio/05-governanca-operacio/21-seguretat-permisos-accessos.md`
+- `documentacio/05-governanca-operacio/22-manual-operatiu-intern.md`
+
+Informacio trobada i incorporada:
+
+- rutes d'intranet ja identificades: alumnes, factures, pagaments, factura abans de cobrar, entitats, validar descomptes i pantalles de reclamacio/morositat;
+- permisos actuals basats en `apartats.ROLS_VISUALITZAR`, `ROLS_EDITAR`, `ROLS_ENVIAR_MSG` i `usuaris.ROLS`;
+- `consultaRolsEdiicio($page)` retorna rols d'edicio de pagina; es conserva el nom real malgrat la grafia;
+- `consultaRolsUsuari()` retorna rols de l'usuari;
+- `tePermisEdicio` es calcula al JS comparant rols, pero les accions fiscals han de validar-se tambe al servidor;
+- Isa pot consultar i donar suport, especialment Moodle/Secretaria, pero no es rol fiscal ordinari;
+- Meriem, Adam i Pablo concentren les accions fiscals critiques del dia a dia;
+- `Consulta - Modifica alumne` es pantalla de consulta i inici d'accions, no lloc per editar factures emeses;
+- `Consulta - Edita - Anula factura` s'ha de convertir en consulta, rectificativa, devolucio, marca `E_FACT`, PDF i historial;
+- la morositat segueix fases: primer pagament o justificacio abans del curs, revisio segona setmana, reclamacio final, una setmana despres, un mes despres i morositat;
+- morositat no es baixa i no rectifica factura per si sola;
+- l'apartat `VERI*FACTU` de la intranet ha de mostrar indicador visual i resum, pero la resolucio oficial viu al SIF.
+
+Documents actualitzats:
 
 - `documentacio/03-canvis-pendents/07-pantalles-intranet.md`
 - `documentacio/04-estat-final/16-estat-final-pantalles.md`
