@@ -44,8 +44,8 @@ Contingut:
 Estat:
 
 ```text
-BD nova pendent de crear/implantar com a SIF central.
-No es considera una BD historica existent.
+Hi ha una BD de dades fiscals parcial/experimental creada durant el projecte.
+La implantacio final com a SIF central encara s'ha de consolidar.
 ```
 
 Contingut:
@@ -59,6 +59,13 @@ Contingut:
 - pagaments fiscals;
 - rectificatives;
 - relacions fiscals amb origen.
+
+Notes recuperades del xat antic:
+
+- inicialment hi havia taules fiscals com `errors_verifactu`, `factura`, `factura_log`, `factura_registres`, `reg_pagament` i `session_log`;
+- algunes definicions inicials feien servir `ENGINE=MyISAM`, `UUID varchar(12)` i imports `double`;
+- posteriorment es va indicar que les taules s'havien passat a `InnoDB` i que ja s'havia afegit idempotencia;
+- el model final ha de considerar aquestes taules com a punt de partida o transicio, no com a esquema fiscal definitiu.
 
 ## 2. Taules actuals conegudes
 
@@ -112,6 +119,8 @@ Camps actuals especialment rellevants detectats al xat antic:
 - `payment_transaction`
 - `payment_allocation`
 - `fact_rels`
+- `redsys_notifications`
+- `errors_verifactu`, si es reutilitza com a taula d'incidencies SIF
 
 ### BD intranet
 
@@ -120,6 +129,19 @@ Camps actuals especialment rellevants detectats al xat antic:
 - `baixa_inscripcio`
 - `reclamacio_pagament`
 - `credit_balance`, preferiblement a BD fiscal si s'utilitza per compensar factures futures
+
+## 3.1. Deutes de migracio detectats
+
+La BD fiscal parcial no s'ha de prendre literalment com a disseny final.
+
+Cal revisar i migrar:
+
+- `UUID varchar(12)` cap a UUID complet `CHAR(36)` o format equivalent validat;
+- imports `double` cap a `DECIMAL(12,2)`;
+- taules que hagin estat `MyISAM` cap a `InnoDB`;
+- `reg_pagament` cap a `payment_transaction` i `payment_allocation`, conservant-lo com a historic si cal;
+- `factura_log` i `session_log` cap a un registre d'events auditable o com a historic;
+- `errors_verifactu` cap a taula d'incidencies SIF o mantenir-la amb camps ampliats i valors tipificats.
 
 ## 4. Relacions principals
 

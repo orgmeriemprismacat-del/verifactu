@@ -165,7 +165,7 @@ Documents actualitzats:
 
 ### Base de dades i relacions
 
-Estat: pendent
+Estat: incorporat parcialment al bloc 4; queda obert per al SQL final, grants MySQL exactes i migracio historica quan s'implementi.
 
 Que cal buscar:
 
@@ -178,6 +178,27 @@ Que cal buscar:
 
 Documents relacionats:
 
+- `documentacio/04-estat-final/05-model-bd-sif.md`
+- `documentacio/04-estat-final/17-estat-final-bd-relacions.md`
+- `documentacio/05-governanca-operacio/24-diccionari-camps-i-valors.md`
+
+Informacio trobada i incorporada:
+
+- existia una BD fiscal parcial amb `errors_verifactu`, `factura`, `factura_log`, `factura_registres`, `reg_pagament`, `session_log`, `fiscal_queue` i `fiscal_sequence`;
+- l'esquema inicial contenia `MyISAM`, `UUID varchar(12)` i imports `double`, que s'han de tractar com a deutes de migracio;
+- al xat antic es va indicar que les taules s'havien passat a `InnoDB` i que s'havia afegit `IDEMPOTENCY_KEY`;
+- `reg_pagament` representa intents/registres antics de passarel·la i el model final el substitueix per `payment_transaction` i `payment_allocation`;
+- `errors_verifactu` pot reutilitzar-se com a taula d'incidencies SIF si s'amplia i es tipifiquen valors;
+- la hash chain ha de ser global per tot el SIF, no separada per serie;
+- `FISCAL_ORDER` es l'ordre fiscal temporal global i `NUM_SEQ`/`NUM_VISIBLE` son numeracio humana per serie i any;
+- `fiscal_sequence` bloqueja numeracio per serie/any i `fiscal_chain_state` bloqueja l'estat global de la cadena;
+- no s'ha de fer `SELECT MAX(NUM)+1`;
+- `fiscal_queue` ha de conservar payload o referencia suficient per reintentar sense reconstruir des de dades vives;
+- a la BD ningu ha d'editar factures emeses directament; els updates s'han de bloquejar a nivell d'app i permisos MySQL.
+
+Documents actualitzats:
+
+- `documentacio/02-context-i-estat-actual/13-mapa-bases-dades-i-taules.md`
 - `documentacio/04-estat-final/05-model-bd-sif.md`
 - `documentacio/04-estat-final/17-estat-final-bd-relacions.md`
 - `documentacio/05-governanca-operacio/24-diccionari-camps-i-valors.md`

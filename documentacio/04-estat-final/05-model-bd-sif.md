@@ -195,6 +195,9 @@ inscripcio posterior del destinatari sense nova factura
 | `fact_rels` | SIF / dades fiscals | Enllac entre `FACTURA_RELACIONADA`, origen operatiu, IDPAG, Ds_Order i UUID de factura. |
 | `redsys_notifications` | SIF o web/pay segons implantacio | Dedupe de callbacks Redsys per `DS_ORDER`, estat i import signat. |
 | `credit_balance` | Preferentment SIF si s'aplica a factures | Saldo a favor utilitzable com compensacio posterior i traçable fiscalment. |
+| `errors_verifactu` | SIF / dades fiscals, si es reutilitza | Incidencies i errors SIF/AEAT/processos fiscals, amb estat de resolucio i referencia afectada. |
+| `factura_log` / `session_log` | Historic o transicio | Logs antics que poden migrar-se a registre d'events auditable si cal conservar traça. |
+| `reg_pagament` | Historic o transicio | Intents o registres antics de passarel·la; el model final els substitueix per `payment_transaction` i `payment_allocation`. |
 | `notificacions` | Intranet | Avisos visibles a la intranet quan fallen retries, AEAT o processos SIF. |
 | `motiu_canvi` | Intranet | Taula nova VERI*FACTU per tipificar motius de canvi, especialment canvis de curs. |
 | `canvi_curs` | Intranet | Historic operatiu de canvis: curs antic/nou, imports, descomptes, despeses, motiu i usuari. |
@@ -202,6 +205,33 @@ inscripcio posterior del destinatari sense nova factura
 | `reclamacio_pagament` | Intranet | Historic de reclamacions i morositat, sense modificar la factura emesa. |
 
 Les taules de packs, regals i codis promocionals ja existeixen o existeixen parcialment a la web/ecommerce. La seva logica es mantindra operativa, pero el SIF nomes rebra la foto fiscal congelada: preu base, descompte aplicat, motiu visible, motiu intern i total final.
+
+### 4.2. Notes sobre la BD fiscal parcial existent
+
+El xat antic confirma que ja s'havia creat una BD de dades fiscals parcial amb taules com:
+
+- `errors_verifactu`;
+- `factura`;
+- `factura_log`;
+- `factura_registres`;
+- `reg_pagament`;
+- `session_log`;
+- `fiscal_queue`;
+- `fiscal_sequence`.
+
+També confirma dos punts de migracio importants:
+
+- inicialment hi havia definicions `MyISAM`, `UUID varchar(12)` i imports `double`;
+- posteriorment es va indicar que ja s'havia passat tot a `InnoDB` i que s'havia afegit idempotencia.
+
+Regla per al model final:
+
+```text
+La BD parcial es font de context i migracio.
+El SIF final ha d'usar InnoDB, UUID complet, imports DECIMAL i claus uniques idempotents.
+```
+
+Les taules antigues no han de continuar decidint numeracio, hash chain, cobrament fiscal ni estat VERI*FACTU final. Poden conservar-se com a historic o migrar-se a taules finals.
 
 ## 5. Taules actuals que cal documentar amb detall
 
@@ -640,6 +670,25 @@ Responsabilitat:
 - `fiscal_sequence` evita col·lisions de numeracio per serie/any;
 - `fiscal_chain_state` controla l'ultima posicio global de la cadena hash.
 
+Decisio recuperada del xat antic:
+
+```text
+La cadena hash del SIF es global.
+No hi ha una hash chain per serie.
+FISCAL_ORDER es l'ordre fiscal temporal global.
+NUM_SEQ / NUM_VISIBLE son la numeracio humana per serie i any.
+```
+
+Exemple:
+
+```text
+FISCAL_ORDER 1001 -> A2026/000010
+FISCAL_ORDER 1002 -> R2026/000002
+FISCAL_ORDER 1003 -> A2026/000011
+```
+
+Per tant, el hash s'encadena sobre `FISCAL_ORDER`, no sobre `NUM_SEQ`.
+
 Regla transaccional obligatoria:
 
 ```text
@@ -655,6 +704,7 @@ START TRANSACTION
     bloquejar fiscal_sequence per TIPUS_SERIE + ANY_FACT amb FOR UPDATE
     bloquejar fiscal_chain_state ID=1 amb FOR UPDATE
     incrementar NUM_SEQ
+    incrementar LAST_FISCAL_ORDER
     calcular NUM_VISIBLE
     calcular HASH_FACT amb LAST_HASH
     inserir factura
@@ -682,7 +732,7 @@ No es recomana obtenir el hash anterior amb:
 ```sql
 SELECT HASH_FACT
 FROM factura_registres
-ORDER BY ID DESC
+ORDER BY FISCAL_ORDER DESC
 LIMIT 1
 FOR UPDATE;
 ```
@@ -827,6 +877,7 @@ CREATE TABLE fiscal_queue (
     UUID_FACTURA CHAR(36) NOT NULL,
     IDEMPOTENCY_KEY VARCHAR(100) NOT NULL UNIQUE,
 
+    PAYLOAD_JSON JSON NULL,
     STATUS VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     ATTEMPTS TINYINT NOT NULL DEFAULT 0,
     NEXT_RETRY DATETIME NULL,
@@ -855,6 +906,8 @@ CREATE TABLE factura_documents (
     FOREIGN KEY (UUID_FACTURA) REFERENCES factura(UUID_FACTURA)
 ) ENGINE=InnoDB;
 ```
+
+`PAYLOAD_JSON` permet conservar la peticio fiscal o les dades necessaries per reintentar l'enviament sense reconstruir-la a partir de dades vives. Si el payload complet ja queda congelat a `factura_registres.PAYLOAD_JSON`, la cua pot guardar nomes una copia tecnica reduida o una referencia clara al registre fiscal.
 
 ### 8.9. `redsys_notifications`
 
@@ -921,12 +974,41 @@ fiscal_queue = enviament/retry AEAT
 factura_documents = PDF/XML/QR immutable
 ```
 
-## 11. Pendent de completar
+## 11. Permisos MySQL i bloqueig d'updates
+
+El xat antic va fixar una regla clara:
+
+```text
+A la BD, ningu edita dades fiscals d'una factura emesa directament.
+Les dades es poden preparar o corregir a la intranet abans d'emetre.
+Despres d'emetre, el canvi fiscal va per rectificativa, event o moviment controlat.
+```
+
+Criteri tecnic:
+
+- l'usuari normal de l'aplicacio/intranet no ha de tenir `UPDATE` ni `DELETE` directe sobre factures emeses;
+- el SIF ha de ser l'unica capa amb permisos d'escriptura controlada sobre taules fiscals finals;
+- les rectificatives es creen per flux d'aplicacio autoritzat, no per edicio SQL directa;
+- les taules immutables (`factura`, `factura_linia`, `factura_registres`, `factura_documents`) nomes admeten correccions mitjancant registres nous relacionats;
+- els canvis d'estat tecnic (`ESTAT_AEAT`, retries, errors) s'han de limitar a processos SIF o accions administratives amb log;
+- Meriem conserva l'administracio tecnica de BD, pero l'operativa ordinaria no ha de dependre d'edicio manual.
+
+Permisos orientatius:
+
+| Usuari BD | Lectura | Escriptura |
+| --- | --- | --- |
+| intranet operativa | Consulta limitada de resum i relacions | No escriu factures fiscals finals. |
+| api_sif | Taules SIF necessaries | Inserts i updates controlats per flux SIF. |
+| proces_sif | Cues, documents, retries, incidencies | Nomes processos automatics predefinits. |
+| auditor_readonly | Consulta fiscal/exportacio | Cap escriptura. |
+| admin_bd | Administracio tecnica | Reservat a Meriem / manteniment controlat. |
+
+## 12. Pendent de completar
 
 - Revisar SQL final de `fact_rels` abans d'implantacio.
 - Confirmar foreign keys possibles entre esquemes.
 - Estrategia si MySQL no permet FK entre BDs segons configuracio.
-- Permisos MySQL per usuari SIF, usuari intranet i usuari lectura.
+- Noms finals dels usuaris MySQL i grants exactes.
 - Migracio de `web.factures` historic.
 - Taules de codis promocionals.
 - Taules de regals.

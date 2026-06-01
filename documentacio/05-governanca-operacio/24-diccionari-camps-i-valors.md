@@ -36,6 +36,31 @@ Definir camps, significat, valors permesos i taula on viuen.
 - `COMPENSACIO`
 - `MANUAL`
 
+### fiscal_queue.STATUS
+
+- `PENDING`: pendent de processar.
+- `PROCESSING`: agafat per un proces automatic.
+- `RETRY`: pendent de reintent.
+- `SENT`: enviat correctament.
+- `FAILED`: fallit despres dels reintents previstos.
+
+### factura_registres.ESTAT_ENVIO
+
+- `PENDING`: registre fiscal creat, pendent d'enviament.
+- `SENT`: enviat a AEAT.
+- `ACCEPTED`: acceptat.
+- `REJECTED`: rebutjat.
+- `RETRY`: pendent de reintent.
+- `FAILED`: fallida tecnica o funcional no resolta.
+
+### redsys_notifications.STATUS
+
+- `RECEIVED`: callback rebut.
+- `VALIDATED`: signatura i dades basiques validades.
+- `DUPLICATE`: `DS_ORDER` ja processat o ja registrat.
+- `PROCESSED`: callback conciliat i aplicat al SIF.
+- `ERROR`: callback amb error tecnic o funcional.
+
 ### fact_rels.SOURCE_TYPE
 
 - `INSCRIPCIO`
@@ -56,6 +81,14 @@ Definir camps, significat, valors permesos i taula on viuen.
 - `EXPIRED`
 - `PAID`
 - `REPLACED`
+
+### SIF_DB_ROLE
+
+- `INTRANET_OPERATIVA`: consulta dades necessaries i no modifica factures fiscals emeses.
+- `API_SIF`: crea factures, registres, pagaments i relacions mitjancant fluxos controlats.
+- `PROCESS_SIF`: processa cues, documents, retries i incidencies automatiques.
+- `AUDITOR_READONLY`: consulta sense escriptura.
+- `ADMIN_BD`: administracio tecnica reservada.
 
 ## 3. Regla general
 

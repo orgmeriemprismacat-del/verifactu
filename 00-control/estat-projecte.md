@@ -22,7 +22,8 @@ Adaptar el sistema de facturacio de PrisMa a VERI*FACTU mitjancant un SIF centra
 - Bloc 1 revisat: context actual de PrisMa i canals reals. S'han incorporat matisos de stack tecnic, TPV virtuals, receptors, estat actual de factura/PDF, camps operatius i volum/concurrencia.
 - Bloc 2 revisat: fluxos de facturacio i casos especials. S'han incorporat matisos sobre `IDPAG`, intents Redsys, transferencies, compensacions, factura abans de cobrament, proformes, canvis de curs, baixes, devolucions i rectificatives.
 - Bloc 3 revisat: pagaments, Redsys, callbacks i conciliacio. S'han incorporat matisos sobre `realitzaPagamentAutomatic.php`, parametres reals del callback, `Ds_Order`/`NUM_COMANDA`, canals TPV, `Passar pagaments`, migracio a `pay.prisma.cat`, conciliacio i visibilitat de factura/PDF.
-- La prioritat immediata es continuar amb el bloc 4: base de dades, hash chain, concurrencia i idempotencia.
+- Bloc 4 revisat: base de dades, hash chain, concurrencia i idempotencia. S'han incorporat matisos sobre BD fiscal parcial, `errors_verifactu`, `reg_pagament`, `factura_log`, `session_log`, migracio de `UUID varchar(12)` i `double`, `InnoDB`, `IDEMPOTENCY_KEY`, `FISCAL_ORDER`, hash chain global, `fiscal_queue.PAYLOAD_JSON` i permisos MySQL contra updates de factures emeses.
+- La prioritat immediata es continuar amb el bloc 5: pantalles, permisos i operacio interna.
 
 ## Decisions base ja assumides
 
@@ -66,10 +67,10 @@ Temes amb mes risc de contenir detalls pendents de contrast:
 
 ## Proper pas recomanat
 
-Continuar el xat pont pel quart bloc de revisio:
+Continuar el xat pont pel cinque bloc de revisio:
 
 ```text
-Base de dades, hash chain, concurrencia i idempotencia.
+Pantalles, permisos i operacio interna.
 ```
 
 ## Com s'ha de tancar cada sessio

@@ -18,6 +18,8 @@ Descriure el model final de dades quan el SIF estigui implementat.
 - assignacions a `payment_allocation`;
 - documents a `factura_documents`;
 - registres fiscals a `factura_registres`.
+- hash chain global unica per tot el SIF;
+- idempotencia amb claus uniques per operacio facturable, pagament i cua.
 
 ## 3. Estats tipificats
 
@@ -122,3 +124,67 @@ Els camps historics continuen sent utils per migracio, consulta i compatibilitat
 - `EMESA_ABANS_COBRAMENT` indica factura real emesa abans de cobrar.
 
 La BD fiscal final no ha de dependre d'actualitzacions directes sobre aquests camps per crear factures o cobrar-les. Les actualitzacions historiques han de venir despres de `issueInvoice()` o `registerPayment()`.
+
+## 8. Sequencia, hash chain i concurrencia
+
+Hi ha dues sequencies diferents:
+
+```text
+fiscal_sequence
+    -> numeracio humana per serie i any
+    -> exemple: A2026/000010, R2026/000002
+
+fiscal_chain_state / FISCAL_ORDER
+    -> ordre fiscal temporal global
+    -> exemple: 1001, 1002, 1003
+```
+
+La hash chain no segueix `NUM_SEQ`. Segueix `FISCAL_ORDER`.
+
+Exemple:
+
+```text
+FISCAL_ORDER 1001 -> A2026/000010
+FISCAL_ORDER 1002 -> R2026/000002
+FISCAL_ORDER 1003 -> A2026/000011
+```
+
+Regla de concurrencia:
+
+- `fiscal_sequence` es bloqueja per `TIPUS_SERIE + ANY_FACT`;
+- `fiscal_chain_state` es bloqueja com a fila unica global;
+- la factura, linies, registre fiscal, cua i relacions s'insereixen dins la mateixa transaccio;
+- no es pot fer `SELECT MAX(NUM)+1`;
+- no es pot reconstruir el hash anterior des d'una lectura no bloquejada.
+
+Ordre de bloqueig recomanat:
+
+```text
+1. idempotencia
+2. fiscal_sequence
+3. fiscal_chain_state
+4. inserts finals
+```
+
+## 9. Idempotencia per taula
+
+| Taula | Clau idempotent / unica | Risc que evita |
+| --- | --- | --- |
+| `factura` | `IDEMPOTENCY_KEY UNIQUE` | Dues factures per la mateixa operacio facturable. |
+| `payment_transaction` | `IDEMPOTENCY_KEY UNIQUE` | Doble cobrament registrat per reintent o doble clic. |
+| `fiscal_queue` | `IDEMPOTENCY_KEY UNIQUE` | Dues entrades AEAT per la mateixa factura. |
+| `redsys_notifications` | `DS_ORDER UNIQUE` | Reprocessar el mateix callback Redsys. |
+| `factura_registres` | `FISCAL_ORDER UNIQUE` | Fork o duplicacio d'ordre fiscal. |
+
+Una mateixa `IDPAG` pot tenir mes d'un intent de pagament. Per això la idempotencia no pot dependre nomes d'`IDPAG`.
+
+## 10. Permisos i immutabilitat BD
+
+Regla final:
+
+```text
+Factura emesa = no UPDATE/DELETE manual.
+Canvi fiscal = rectificativa, event o moviment nou.
+```
+
+L'aplicacio ha de bloquejar l'edicio directa i els permisos MySQL han d'impedir que l'usuari operatiu pugui modificar factures emeses. Abans d'emetre factura, les dades fiscals es preparen des de la intranet o el flux de pagament. Despres d'emetre, el SIF conserva el snapshot i qualsevol canvi queda traçat.
