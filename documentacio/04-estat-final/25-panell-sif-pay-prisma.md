@@ -190,7 +190,11 @@ Ha de mostrar:
 - hash del fitxer;
 - data generacio;
 - estat;
-- si s'ha enviat per correu.
+- si s'ha enviat per correu;
+- destinatari o tipus de destinatari quan sigui rellevant;
+- si s'ha generat enllac segur;
+- darrera data d'enviament o consulta;
+- incidencia associada si la generacio o enviament ha fallat.
 
 Accions:
 
@@ -377,6 +381,31 @@ Ha de permetre:
 - conservar log de resolucio.
 
 La intranet principal pot mostrar notificacions d'aquestes incidencies, pero la resolucio oficial s'ha de fer al SIF.
+
+## 5.1. Incidencia, notificacio, avis i indicador
+
+Definicio operativa:
+
+- `incidencia SIF`: registre oficial d'un problema fiscal, tecnic o documental. Te tipus, estat, prioritat, responsable i historial d'accions.
+- `notificacio`: avis persistent per a usuaris interns, generat des del SIF o des de la intranet quan cal visibilitat.
+- `avis`: missatge puntual en una pantalla, correu o retorn d'accio.
+- `indicador`: marca visual de pendents que apareix al menu o apartat `VERI*FACTU`.
+
+Regles:
+
+- la incidencia es resol sempre al SIF;
+- la notificacio pot avisar, pero no resol per si sola;
+- l'avis explica un estat a la persona usuaria;
+- l'indicador nomes resumeix volum o urgencia pendent.
+
+Evitar el terme `comptador` per a aquesta funcio, perque pot confondre's amb numeracio fiscal o series.
+
+Exemples:
+
+- PDF/QR no generat: `incidencia SIF` i indicador pendent a la intranet.
+- Error AEAT amb retries fallits: `incidencia SIF` d'alta prioritat i notificacio interna.
+- URL de pagament individual inactiva per factura d'empresa: avis a la pantalla i, si hi ha incoherencia, incidencia.
+- Correu de factura pendent de document: notificacio o cua d'enviament, segons criticitat.
 
 ## 6. Relacio amb la intranet principal
 

@@ -292,7 +292,7 @@ Documents actualitzats:
 
 ### Correus, plantilles, PDF i notificacions
 
-Estat: pendent
+Estat: incorporat parcialment al bloc 7; queda obert el mapa detallat de cada correu per pantalla/metode quan es revisin apartats concrets de codi.
 
 Que cal buscar:
 
@@ -303,6 +303,28 @@ Que cal buscar:
 - relacio entre PDF, QR i estat SIF.
 
 Documents relacionats:
+
+- `documentacio/03-canvis-pendents/08-correus-i-plantilles.md`
+- `documentacio/03-canvis-pendents/11-inventari-canvis-pendents.md`
+- `documentacio/04-estat-final/16-estat-final-pantalles.md`
+- `documentacio/04-estat-final/25-panell-sif-pay-prisma.md`
+
+Informacio trobada i incorporada:
+
+- els correus actuals no surten tots de `Template`: hi ha `Template`, correus directes en PHP i correus tecnics o futurs del SIF;
+- `realitzaPagamentAutomatic.php` envia un correu intern de "pagament automatic" amb DNI, import, fraccio, `IDPAG` i `ORDER`, pero aixo es diagnosi interna i no prova que la factura SIF estigui emesa;
+- les plantilles de reclamacio i morositat inclouen casos de baixa, certificat, responsable d'entitat, deutes antics i imports reservats;
+- s'han detectat metodes addicionals de comunicats: `getTemplate_Comunicat_aPuntComencar`, `getTemplate_Comunicat_AulesObertes`, `getTemplate_Comunicat_IA`, `getTemplate_Comunicat_OberturaAules` i `getTemplate_Comunicat_ServeiAtencio`;
+- `[DESPESES_GESTIO]` i `[PAGAMENT]` apareixen dins plantilles i s'han de confirmar dins l'esquema intern de placeholders;
+- qualsevol correu amb `[URL_PAGAMENT]` o URL construida manualment queda dins l'abast de migracio a `pay.prisma.cat`;
+- una factura d'empresa/responsable pendent pot tenir URL de pagament, pero ha de ser la URL d'empresa/responsable i no la individual de l'alumne;
+- si ja existeix factura, el pagament posterior ha d'anar a `registerPayment()`, no a una nova factura duplicada;
+- el PDF de factura nova ha de sortir de `factura_documents`, amb hash, i no de regeneracio lliure sobre dades vives;
+- el PDF/QR pot anar en cua; si falla, es crea incidencia SIF i no es desfà la factura;
+- l'enllac segur ha de consultar el SIF i permisos, sense exposar rutes internes;
+- nomenclatura acordada: `incidencia SIF`, `notificacio`, `avis` i `indicador`; evitar `comptador`.
+
+Documents actualitzats:
 
 - `documentacio/03-canvis-pendents/08-correus-i-plantilles.md`
 - `documentacio/03-canvis-pendents/11-inventari-canvis-pendents.md`

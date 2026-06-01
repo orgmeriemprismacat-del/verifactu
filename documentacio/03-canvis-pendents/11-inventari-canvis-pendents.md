@@ -114,10 +114,20 @@ Cada generacio de factura ha de enviar correus segons cas:
 - participant, si correspon;
 - gestio interna.
 
-Decisio pendent:
+Decisio:
 
-- adjuntar PDF;
-- o enviar enllac segur.
+- adjuntar PDF nomes si el document ja existeix a `factura_documents` i correspon exactament a la factura emesa;
+- enviar enllac segur quan calgui control de permisos, consulta posterior o quan el PDF/QR encara estigui en cua;
+- no enviar correu de factura emesa abans que el SIF retorni `UUID_FACTURA` i `NUM_VISIBLE`;
+- si el PDF/QR falla, crear incidencia SIF i no desfer la factura.
+
+El correu de factura ha de diferenciar si comunica:
+
+- factura emesa i document disponible;
+- factura emesa amb document pendent;
+- factura abans de cobrament;
+- pagament pendent;
+- incidencia fiscal o documental.
 
 ## 9.1. Correus amb enllac de pagament
 
@@ -139,11 +149,19 @@ Canvi necessari:
 
 - substituir URL antiga per URL controlada de `pay.prisma.cat`;
 - tipificar el tipus d'URL: individu, pack, grup, regal, empresa, USOC, diferencia, reclamacio o morositat;
+- mantenir URL propia d'empresa/responsable quan una factura d'empresa pendent de cobrament s'ha de pagar per aquest canal;
+- desactivar o substituir la URL individual si la inscripcio esta coberta per factura d'empresa/responsable;
 - assegurar que el pagament posterior crida `registerPayment()` si la factura ja existeix;
 - assegurar que no es genera factura duplicada des d'un correu/reintent;
 - afegir opcio de veure factura/PDF/QR quan el destinatari ja ha pagat o quan la factura ja consta com emesa;
 - revisar el text del correu per evitar que una persona que ja ha pagat torni a clicar una URL de pagament;
 - si es reprograma l'apartat, moure el correu a `Template`.
+
+Correus tecnics:
+
+- el correu intern de `realitzaPagamentAutomatic.php` amb DNI, import, fraccio, `IDPAG` i `ORDER` es diagnosi interna;
+- no prova que la factura fiscal estigui emesa;
+- en el flux final ha de quedar com a log/notificacio o enviar-se nomes despres de validar Redsys i registrar l'estat real al SIF.
 
 ## 10. Pagaments fraccionats i recordatoris
 
@@ -292,6 +310,15 @@ Cal implementar:
 - resum d'incidencies pendents a la intranet;
 - gestio oficial de la incidencia al panell SIF.
 
+Nomenclatura:
+
+- `incidencia SIF`: problema real registrat al SIF, amb estat, prioritat, responsable i log.
+- `notificacio`: avis persistent guardat per mostrar a usuaris interns.
+- `avis`: text puntual dins una pantalla o correu.
+- `indicador`: marca visual de pendents a l'apartat `VERI*FACTU`.
+
+Evitar `comptador` per a aquests avisos, per no confondre'l amb numeracio fiscal o series.
+
 ## 22. Declaracio responsable i documentacio
 
 Cal mantenir:
@@ -335,6 +362,13 @@ Decisio:
 - la generacio PDF/QR pot anar en cua o worker;
 - el sistema retorna factura creada encara que el PDF es generi immediatament despres;
 - si falla PDF, es crea incidencia, no es desfà la factura.
+
+Impacte sobre correus i consultes:
+
+- el correu amb adjunt PDF espera que `factura_documents` tingui el document correcte;
+- si no es vol esperar, es pot enviar enllac segur a la consulta de factura amb estat de document pendent;
+- l'enllac segur no exposa rutes internes ni fitxers publics sense control;
+- el PDF/QR consultat per alumne, empresa o responsable ha de sortir del SIF i respectar permisos de visibilitat.
 
 ## 26. Crear panell intern del SIF a pay.prisma.cat/sif
 

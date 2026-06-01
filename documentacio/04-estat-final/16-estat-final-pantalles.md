@@ -301,6 +301,7 @@ També ha de mostrar:
 - relacio amb `FACTURA_RELACIONADA`;
 - UUID de factura o referencia interna SIF;
 - document PDF disponible i hash si es mostra en vista tecnica;
+- estat de generacio PDF/QR: disponible, pendent, error o no aplicable per factura historica;
 - si es factura historica no VERI*FACTU;
 - pagaments assignats a la factura.
 
@@ -308,6 +309,7 @@ Accions permeses:
 
 - descarregar PDF;
 - obrir QR o veure'l dins el PDF;
+- obrir enllac segur de consulta si el receptor hi te permis;
 - obrir rectificatives relacionades;
 - marcar factura electronica nomes si el rol ho permet.
 
@@ -318,6 +320,14 @@ No ha de permetre:
 - editar imports;
 - regenerar PDF sense log;
 - anul·lar factura sense flux de rectificativa.
+
+Regles PDF/QR:
+
+- les factures noves del SIF han d'incorporar QR i text associat segons l'especificacio AEAT vigent;
+- el PDF visible ha de sortir de `factura_documents`, no de dades vives regenerades sense control;
+- si el PDF/QR esta pendent de cua, la pantalla mostra l'estat i no ofereix un document antic o reconstruït;
+- si hi ha error de PDF/QR, la pantalla enllaca la incidencia SIF corresponent;
+- el QR no substitueix el registre fiscal ni l'enviament AEAT.
 
 ## 7. Intranet - Canvi de curs
 
@@ -589,6 +599,12 @@ Pantalla final:
 - estat de pagament si correspon;
 - no mostrar factures de grup/empresa no visibles.
 
+Regles de visibilitat:
+
+- l'alumne pot veure factures on sigui receptor fiscal o estigui autoritzat segons relacio documentada;
+- una factura d'empresa, grup o responsable no es visible automaticament a tots els participants;
+- si la factura existeix pero el PDF/QR esta pendent, es mostra estat pendent o enllac segur, no un PDF regenerat.
+
 ## 11.0. Empresa/responsable
 
 L'empresa o responsable no te acces a la intranet principal.
@@ -599,6 +615,12 @@ Si ha de consultar factures, s'haura de fer per:
 - enllac segur;
 - gestio interna des del SIF/intranet;
 - o un futur espai especific, si es decideix crear-lo.
+
+Regles:
+
+- l'enllac segur ha de validar token/permis i consultar el SIF;
+- pot permetre veure factura, estat de cobrament, PDF/QR i URL de pagament d'empresa/responsable si encara esta pendent;
+- no ha de redirigir cap a la URL individual d'un alumne quan la factura pendent es d'empresa/responsable.
 
 ## 11.1. Intranet principal - acces VERI*FACTU
 
@@ -618,6 +640,13 @@ Aquest apartat ha de mostrar:
 - estat general de cua AEAT, si cal.
 
 Les dades han de venir del SIF.
+
+Nomenclatura visual:
+
+- `indicador`: marca visual al menu o titol.
+- `avis`: text puntual a la pantalla.
+- `notificacio`: avis guardat i recuperable.
+- `incidencia SIF`: registre oficial que es resol al panell SIF.
 
 ## 12. Captures
 

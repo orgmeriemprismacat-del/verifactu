@@ -120,3 +120,14 @@ El xat antic contenia decisions importants que podien quedar massa implicites: n
 
 Impacte:
 `documentacio-sif-aeat.md`, `declaracio-responsable-sif-prisma.md`, el registre de versions i la checklist de produccio deixen mes clar que cal abans de produccio: abast normatiu confirmat, terminis aplicables, certificat/apoderament, PDF/QR/XML, proves, declaracio accessible dins del SIF i registre de versio activa. El proper bloc passa a ser correus, plantilles, PDF/QR i notificacions.
+
+## 2026-06-01 - Bloc 7 revisat: correus, plantilles, PDF/QR i notificacions
+
+Decisio:
+Documentar que els correus del sistema es divideixen en tres grups: correus amb `Template`, correus directes en PHP i correus nous/tecnics del SIF. No es migraran tots els correus antics a `Template` de cop, pero qualsevol correu reprogramat per VERI*FACTU o que contingui URL de pagament, factura, PDF/QR o incidencia fiscal ha de quedar tipificat i condicionat a l'estat real del SIF.
+
+Motiu:
+El xat antic contenia detalls dispersos que podien provocar errors si no quedaven documentats: el correu intern de `realitzaPagamentAutomatic.php` nomes es diagnosi i no prova fiscal; una factura d'empresa pendent pot tenir URL de pagament propia; una URL individual s'ha de desactivar o substituir quan hi ha factura d'empresa/responsable; el PDF antic no s'ha de regenerar des de dades vives; el PDF/QR pot anar en cua; i els avisos interns s'han de distingir d'incidencies SIF reals.
+
+Impacte:
+`08-correus-i-plantilles.md`, `11-inventari-canvis-pendents.md`, `16-estat-final-pantalles.md` i `25-panell-sif-pay-prisma.md` deixen clar quan es pot enviar un correu de factura, quan cal adjuntar PDF, quan cal enllac segur, com tractar el PDF/QR pendent o fallit, i com usar `incidencia SIF`, `notificacio`, `avis` i `indicador`. El proper bloc passa a ser proves, produccio, auditoria documental i governanca.

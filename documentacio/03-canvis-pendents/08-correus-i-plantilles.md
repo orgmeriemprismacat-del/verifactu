@@ -21,6 +21,19 @@ Situacio real:
 - els fitxers PHP de pantalla i els AJAX acostumen a cridar metodes de `Intranet.php`, i dins aquests metodes hi ha el subject, destinatari, CC/BCC, adjunts i moment real d'enviament;
 - per tant, la documentacio de correus s'ha de fer apartat per apartat, lligant: pantalla -> JS -> AJAX -> metode `Intranet.php` -> correu enviat.
 
+Classificacio recuperada del xat antic:
+
+1. Correus amb `Template`: reclamacions finals, control de morosos, comunicats, certificats i anul·lacions de curs.
+2. Correus directes en PHP: HTML, subject, destinataris i enviament construits dins el metode o flux concret; poden fer servir `MailSMTP`, `MailSMTPComvive`, `MailSMTPComviveBBCC`, `Mail` o enviament directe.
+3. Correus nous o tecnics del SIF: pagament acceptat/denegat, factura emesa, factura abans de cobrament, rectificativa i incidencia fiscal.
+
+Regla:
+
+```text
+VERI*FACTU no obliga a passar tots els correus antics a Template de cop.
+Si un correu es reprograma per motius SIF, s'ha de normalitzar i documentar.
+```
+
 Classes de suport relacionades:
 
 - `Date`: formata dates en catala i formats curts/llargs.
@@ -34,6 +47,33 @@ Apunt tecnic:
 - si es reprograma un apartat de manera important per VERI*FACTU, s'aprofitara per portar els correus directes d'aquell apartat a `Template`, sempre que no compliqui el desplegament.
 
 El constructor de `Intranet.php` confirma que les condicions de molts correus no viuen dins `Template`, sino dins consultes i metodes de la classe `Intranet`.
+
+### 1.1. Correu tecnic de pagament automatic
+
+Al xat antic es va detectar que `realitzaPagamentAutomatic.php` envia un correu intern/tecnic de "pagament automatic" amb dades com:
+
+- DNI;
+- import;
+- fraccio;
+- `IDPAG`;
+- `ORDER` o numero de comanda.
+
+Lectura VERI*FACTU:
+
+- aquest correu serveix per avis o diagnosi interna, no com a prova fiscal de factura emesa;
+- no pot substituir el registre de Redsys, el registre de pagament ni la factura SIF;
+- si es manté, s'ha d'enviar nomes quan la notificacio Redsys estigui validada o quedar substituit per log/notificacio interna;
+- si el pagament queda confirmat pero la factura SIF falla, el correu o avis ha de dir "factura pendent/incidencia", no "factura creada".
+
+Flux futur esperat:
+
+```text
+Redsys confirma pagament
+-> es valida signatura, import i ordre
+-> es registra o deduplica payment_transaction
+-> el SIF decideix issueInvoice() o registerPayment()
+-> nomes despres es comunica pagament/factura/incidencia segons estat real
+```
 
 Claus de consulta relacionades amb reclamacio/pagament detectades:
 
@@ -87,6 +127,8 @@ Placeholders detectats:
 | `[METHOD_PAY]` | Metode de pagament. |
 | `[NOM_RESPONSABLE]` | Nom del responsable d'entitat/grup. |
 | `[URL_PAGAMENT]` | Enllac de pagament. |
+| `[DESPESES_GESTIO]` | Despeses de gestio esmentades en plantilles de baixa/reclamacio. |
+| `[PAGAMENT]` | Import ja pagat o reservat per a una edicio futura segons plantilla. |
 | `[TEXT_MES_EDICIO]` | Mes de l'edicio en text. |
 | `[DATA_SESSIO1]` | Data llarga de la primera sessio. |
 | `[HORA_SESSIO1]` | Hora de la primera sessio. |
@@ -95,12 +137,7 @@ Placeholders detectats:
 | `[NOM_CURS_AULA_OBERTA]` | Nom de l'aula oberta. |
 | `[ID_MDL_AULA_BERTA]` | ID Moodle de l'aula oberta. |
 
-Placeholders detectats dins plantilles pero no inclosos encara a l'esquema inicial:
-
-- `[DESPESES_GESTIO]`
-- `[PAGAMENT]`
-
-Cal afegir-los a l'esquema de `Template` quan es revisi la classe.
+Els placeholders `[DESPESES_GESTIO]` i `[PAGAMENT]` s'han detectat dins plantilles existents i s'han d'incorporar formalment a l'esquema de `Template` si encara no hi son.
 
 ## 3. Tipus de correu
 
@@ -164,7 +201,12 @@ Metodes amb relacio indirecta:
 | --- | --- |
 | `getTemplate_Secretaria_AnularCurs_Alumne($dates, $pagament)` | Comunicacio a l'alumne quan s'anul·la un curs. |
 | `getTemplate_Secretaria_EnviarCertificat_Alumne()` | Enviament de certificat. |
+| `getTemplate_Comunicat_aPuntComencar()` | Comunicat de curs a punt de començar. |
+| `getTemplate_Comunicat_AulesObertes()` | Comunicat relacionat amb aules obertes. |
 | `getTemplate_Comunicat_Certificat()` | Comunicat de certificat. |
+| `getTemplate_Comunicat_IA()` | Comunicat relacionat amb IA o servei especific. |
+| `getTemplate_Comunicat_OberturaAules()` | Comunicat d'obertura d'aules. |
+| `getTemplate_Comunicat_ServeiAtencio()` | Comunicat de servei d'atencio. |
 | `getTemplate_Comunicat_Tancament($cas1)` | Tancament de curs. |
 
 Impacte VERI*FACTU:
@@ -172,6 +214,18 @@ Impacte VERI*FACTU:
 - anul·lar curs o donar baixa no implica per si sol rectificativa automatica;
 - si hi ha retorn, saldo o canvi economic, s'haura de generar el flux fiscal separat;
 - el certificat depen de coherencia entre estat academic, pagament i morositat, pero no genera factura.
+
+### 4.4. Textos sensibles dins plantilles de reclamacio
+
+El xat antic mostra que algunes plantilles de reclamacio final poden comunicar baixa del curs, reserva d'import per a una edicio futura, despeses de gestio o suspensio de certificat.
+
+Regles:
+
+- una plantilla pot comunicar una decisio administrativa o academica, pero no crea ni modifica una factura;
+- si es parla d'import reservat, el SIF ha de tenir un moviment equivalent de saldo/compensacio o una decisio documentada;
+- si es parla de despeses de gestio, aquestes no poden quedar nomes com a text de correu si tenen impacte economic;
+- la baixa administrativa no implica rectificativa automatica;
+- la morositat i la reclamacio no alteren imports d'una factura ja emesa.
 
 ## 5. Regles per adaptar correus al SIF
 
@@ -182,6 +236,8 @@ Impacte VERI*FACTU:
 - Aixo inclou correus amb placeholder `[URL_PAGAMENT]` i correus on la URL estigui construida directament dins el PHP.
 - Les URLs de pagament dels correus han de passar a `pay.prisma.cat` quan el flux corresponent estigui migrat.
 - El correu ha de conservar el tipus d'URL de pagament: individu, pack, grup, regal, empresa, USOC, diferencia de canvi de curs, reclamacio o morositat.
+- Si existeix una factura d'empresa/responsable pendent de cobrament, el correu pot tenir URL de pagament, pero ha de ser la URL correcta d'empresa/responsable, no la URL individual de l'alumne.
+- Un enllac de pagament enviat per correu ha d'estar tipificat i ha de saber si quan es paga s'ha de fer `issueInvoice()` o nomes `registerPayment()` contra una factura existent.
 - Si el destinatari ja ha pagat o el correu es pot reobrir despres del pagament, el missatge ha de donar opcio a consultar la factura corresponent, amb enllac segur o acces a PDF/QR quan el SIF ja hagi generat el document.
 - Un correu pot contenir una URL de pagament, una URL de consulta de factura, o totes dues si el cas ho requereix; el text ha d'evitar que l'usuari pagui dues vegades.
 - No enviar correu de factura emesa abans que el SIF retorni `UUID_FACTURA` i `NUM_VISIBLE`.
@@ -199,15 +255,51 @@ Impacte VERI*FACTU:
   - rectificativa;
   - incidencia fiscal.
 
+### 5.1. PDF, QR i enllac segur
+
+Regles documentals:
+
+- el PDF de factura nova no s'ha de regenerar des de dades vives cada vegada que algu el consulta;
+- el SIF ha de generar el PDF en emissio o en una cua immediata posterior i conservar-lo a `factura_documents` amb hash;
+- el QR i el text associat s'han d'incorporar a la factura segons l'especificacio AEAT vigent;
+- en mode VERI*FACTU, el QR permet al receptor cotejar la factura a la seu electronica de l'AEAT;
+- el contingut tecnic del QR ha d'incloure, com a minim, la URL de coteig/remissio i les dades fiscals exigides per la normativa vigent: NIF emissor, numero/serie de factura, data d'expedicio i import total;
+- si el PDF/QR encara esta en cua, el correu de factura pot esperar o enviar un enllac segur que mostri l'estat "document pendent";
+- si la generacio de PDF/QR falla, s'ha de crear incidencia SIF i no s'ha de desfer la factura.
+
+Fonts oficials revisades el 2026-06-01:
+
+- BOE, Orden HAC/1177/2024, capitol VIII sobre QR i frase associada: `https://www.boe.es/diario_boe/txt.php?id=BOE-A-2024-22138`
+- AEAT, FAQ sobre QR, factura verificable i factura electronica: `https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/posibilidad-remision-informacion-factura-parte-receptor.html`
+
+Regla d'enllac segur:
+
+```text
+L'enllac segur consulta el SIF i els permisos.
+No exposa rutes internes ni fitxers publics sense control.
+```
+
+### 5.2. Incidencia, notificacio, avis i indicador
+
+Nomenclatura acordada al xat antic:
+
+- `incidencia SIF`: problema real registrat al SIF, amb estat, prioritat, responsable i log.
+- `notificacio`: avis persistent guardat per mostrar a usuaris interns.
+- `avis`: text puntual mostrat a una pantalla o correu.
+- `indicador`: marca visual o nombre de pendents a l'apartat `VERI*FACTU`.
+
+Evitar el terme `comptador` per a aquesta funcio, perque pot confondre's amb numeracio fiscal o comptadors de serie.
+
 ## 6. Pendents
 
 - Per cada apartat revisat, documentar el mapa real: PHP de pantalla, JS, AJAX, metode `Intranet.php`, plantilla o codi directe, subject, destinatari, CC/BCC, adjunts i moment d'enviament.
 - Quan es revisi un apartat, incorporar el JS/AJAX aportat i contrastar-lo amb el metode corresponent de `Intranet.php`.
 - Localitzar tots els correus que contenen `[URL_PAGAMENT]`, `URL_PAGAMENT`, `href` a pagament o URLs TPV construides manualment.
 - Documentar tambe tots els correus que han d'afegir enllac per consultar factura quan el pagament ja esta fet.
-- Afegir `[DESPESES_GESTIO]` i `[PAGAMENT]` a l'esquema intern de placeholders si encara no hi son.
+- Confirmar al codi de `Template` que `[DESPESES_GESTIO]` i `[PAGAMENT]` existeixen a l'esquema intern de placeholders.
 - Revisar quins correus han d'adjuntar PDF i quins han d'enviar enllac segur.
 - Identificar correus construits directament dins PHP i decidir si es migren a `Template` quan es reprogrami l'apartat afectat.
+- Mapar el correu intern de `realitzaPagamentAutomatic.php` i decidir si queda com a log/notificacio SIF.
 
 ### 6.1. Primer apartat a mapar: Consulta - Modifica alumne
 
