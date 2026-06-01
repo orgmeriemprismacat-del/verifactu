@@ -131,3 +131,14 @@ El xat antic contenia detalls dispersos que podien provocar errors si no quedave
 
 Impacte:
 `08-correus-i-plantilles.md`, `11-inventari-canvis-pendents.md`, `16-estat-final-pantalles.md` i `25-panell-sif-pay-prisma.md` deixen clar quan es pot enviar un correu de factura, quan cal adjuntar PDF, quan cal enllac segur, com tractar el PDF/QR pendent o fallit, i com usar `incidencia SIF`, `notificacio`, `avis` i `indicador`. El proper bloc passa a ser proves, produccio, auditoria documental i governanca.
+
+## 2026-06-01 - Bloc 8 revisat: proves, produccio, auditoria documental i governanca
+
+Decisio:
+Documentar que el pas a produccio del SIF requereix un entorn de proves/preproduccio separat, paquet go/no-go, regressions critiques i expedient d'evidencies. Cap prova pot consumir numeracio productiva ni crear factura real abans de la decisio de produccio. Un cop emesa una factura productiva, no es fa rollback fiscal: es conserva i es corregeix amb registres posteriors si cal.
+
+Motiu:
+El xat antic contenia criteris importants que no podien quedar nomes com a conversa: el projecte necessita demostrar idempotencia, concurrencia, bloqueig d'accions destructives antigues, PDF/QR, AEAT retry, permisos, backups, restauracio i activacio de versio. Tambe deixava clar que VERI*FACTU PrisMa es un projecte de mesos, amb Meriem com a capacitat principal de desenvolupament fiscal/SIF, i que aquesta planificacio es governanca interna, no document AEAT.
+
+Impacte:
+`09-checklist-posada-en-produccio.md`, `20-pla-proves-validacio-sif.md`, `19-registre-versions-i-canvis-sif.md`, `14-pla-documentacio-i-auditoria.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` incorporen criteris de preproduccio, backups, go/no-go, versio `0.3-BORRADOR`, activacio `1.0.0`, evidencies i ordre de xats especialitzats. La revisio transversal del xat antic queda completada i el treball ha de continuar per xats especialitzats.

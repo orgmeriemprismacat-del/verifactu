@@ -40,6 +40,32 @@ No tots els documents de projecte han d'estar publicats dins del SIF, pero si co
 - proves de Redsys, PDF, QR, AEAT i reintents;
 - registre d'incidencies.
 
+### 3.1. Expedient de posada en produccio
+
+Abans d'activar la primera versio productiva del SIF, cal conservar un expedient intern de posada en produccio.
+
+Aquest expedient no substitueix la declaracio responsable, pero dona suport auditor a la decisio de go/no-go.
+
+Contingut minim:
+
+- versio activada i commit/paquet desplegat;
+- migracions SQL aplicades;
+- checklist de posada en produccio tancat;
+- proves executades i resultat;
+- evidencies de Redsys, AEAT, PDF/QR, exportacions, permisos i reintents;
+- captura de versio activa i declaracio accessible dins `pay.prisma.cat/sif`;
+- backup previ i criteri de restauracio;
+- incidencies obertes i valoracio de severitat;
+- decisio final de produccio;
+- responsable tecnica i revisio de direccio/responsable legal.
+
+Regla:
+
+```text
+No es fa rollback d'una factura emesa.
+Es pot revertir codi o configuracio, pero les factures emeses es conserven i les correccions es fan amb registres posteriors.
+```
+
 ## 4. Que podria demanar l'AEAT en inspeccio
 
 Cal estar preparats per facilitar:
@@ -156,6 +182,8 @@ Es pot crear un perfil `AUDITOR_FISCAL` o `AEAT_READONLY` de nomes lectura, acti
 - manual operatiu intern;
 - captures finals;
 - decisions fiscals i tecniques del projecte.
+
+La planificacio interna del projecte, com ara estimacions de mesos, disponibilitat setmanal o repartiment de tasques, s'ha de conservar com a governanca interna. No forma part de la declaracio responsable ni ha d'apareixer com a requisit AEAT, excepte si es vol justificar calendari, riscos o prioritzacio davant direccio.
 
 ## 11. Referencies
 

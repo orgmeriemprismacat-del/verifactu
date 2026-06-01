@@ -54,6 +54,23 @@ No hi ha declaracio signada sense versio concreta.
 No cal signar canvis menors mentre el SIF esta en desenvolupament.
 ```
 
+### 4.1. Condicions de preproduccio `0.3-BORRADOR`
+
+La versio `0.3-BORRADOR` no es signable, pero ha de servir com a punt de validacio abans de preparar `1.0.0`.
+
+Per arribar a `0.3-BORRADOR` caldria tenir:
+
+- BD fiscal de proves separada o mode test verificat;
+- numeracio de proves separada de la productiva;
+- Redsys en mode test o simulador;
+- entorn AEAT de prova si correspon i esta disponible;
+- PDF/QR/XML o documents fiscals equivalents generats en proves;
+- panell `pay.prisma.cat/sif` accessible en mode intern;
+- registre de versions visible;
+- declaracio responsable en esborrany associada a la versio;
+- paquet inicial d'evidencies de proves;
+- incidencies classificades per bloquejants i no bloquejants.
+
 ## 5. Condicions per marcar una versio com activa
 
 Una versio nomes es pot marcar com activa quan:
@@ -67,6 +84,21 @@ Una versio nomes es pot marcar com activa quan:
 - la declaracio responsable de la versio esta disponible dins del SIF si la versio es productiva;
 - la responsable tecnica valida que el SIF esta preparat;
 - direccio/responsable legal revisa o signa quan correspongui.
+
+Per a una versio productiva, la decisio d'activacio ha d'indicar:
+
+| Camp | Contingut |
+| --- | --- |
+| Versio | Codi exacte activat. |
+| Commit/paquet | Referencia tecnica desplegada. |
+| Migracio BD | Identificador o resum de migracions aplicades. |
+| Checklist | Enllac o referencia al checklist de produccio. |
+| Proves | Paquet de proves go/no-go executat. |
+| Backups | Data de backup i prova de restauracio o control equivalent. |
+| Certificat/apoderament | Estat i prova d'us quan correspongui. |
+| Declaracio responsable | Document associat a la versio. |
+| Decisio | `GO`, `GO AMB LIMITACIONS` o `NO-GO`. |
+| Responsables | Validacio tecnica i revisio legal/direccio. |
 
 ## 6. Canvis que poden requerir nova declaracio o annex
 
@@ -100,3 +132,18 @@ Abans de tancar la versio `1.0.0`, cal completar:
 - proves executades;
 - incidencies conegudes;
 - criteri final sobre punts fiscals sensibles pendents de validacio externa.
+
+## 8. Evidencia de canvis
+
+Cada canvi de versio ha de conservar, com a minim:
+
+- resum funcional del canvi;
+- motiu del canvi;
+- afectacio sobre facturacio, AEAT, PDF/QR/XML, permisos o dades;
+- migracions SQL aplicades;
+- proves executades;
+- incidencies obertes o tancades;
+- captures o exports si el canvi afecta pantalles o documents;
+- declaracio responsable nova, annex o justificacio de per que no cal.
+
+Els canvis purament interns o visuals poden quedar registrats sense nova declaracio responsable, sempre que no alterin el comportament fiscal, la conservacio, la traçabilitat, la inalterabilitat, l'enviament AEAT ni els permisos.

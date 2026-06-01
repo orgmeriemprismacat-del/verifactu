@@ -333,7 +333,7 @@ Documents actualitzats:
 
 ### Proves, produccio i governanca
 
-Estat: pendent
+Estat: incorporat parcialment al bloc 8; queda obert per executar proves reals, configurar certificat/apoderament, desplegar preproduccio i tancar paquet go/no-go quan hi hagi codi.
 
 Que cal buscar:
 
@@ -348,5 +348,29 @@ Documents relacionats:
 
 - `documentacio/03-canvis-pendents/09-checklist-posada-en-produccio.md`
 - `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+Informacio trobada i incorporada:
+
+- abans de produccio cal un periode de proves/preproduccio;
+- el SIF central ha de concentrar numeracio, hash chain, cua AEAT i reintents;
+- si PDF, correu o AEAT fallen despres d'emetre factura, no es desfà la factura: es crea incidencia i retry;
+- cal provar que accions antigues no modifiquen factures emeses tocant `A_PAGAR`, movent pagaments o editant receptor/import/concepte;
+- cap script antic, cron, importador, Moodle o API externa ha de crear o modificar factura fiscal sense passar pel SIF;
+- les proves han de separar BD o mode test, numeracio de prova, Redsys test/simulador i AEAT test si correspon;
+- les factures de prova han de quedar clarament separades de la numeracio fiscal productiva;
+- cal conservar evidencia de versio, declaracio, proves, captures, permisos, exportacions, logs, PDF/XML/QR, hash, backups i restauracio;
+- el panell `pay.prisma.cat/sif` ha de ser font oficial de versio, declaracio, documents, registres, logs, incidencies i evidencies;
+- la planificacio interna realista es de 4 a 8 mesos, amb 6 mesos plausible si hi ha treball sostingut;
+- el ritme de treball ha de comptar amb uns 3 dies reals/setmana per VERI*FACTU i un dijous enfocat a tancament/QA si es fa servir aquest calendari;
+- Meriem concentra el desenvolupament fiscal/SIF; suport extern pot ajudar en Moodle, incidencies o tasques PHP/JS senzilles, pero no substituir la responsabilitat de l'arquitectura fiscal.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/09-checklist-posada-en-produccio.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/05-governanca-operacio/19-registre-versions-i-canvis-sif.md`
+- `documentacio/00-index-i-pla/14-pla-documentacio-i-auditoria.md`
 - `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
 - `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`

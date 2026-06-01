@@ -98,10 +98,11 @@
 | Versions | COBERT | `05-governanca-operacio/19-registre-versions-i-canvis-sif.md` | Registre real de desplegaments. |
 | Permisos i rols | DISSENY COBERT | `05-governanca-operacio/21-seguretat-permisos-accessos.md` | No es fara matriu exhaustiva inicial; falta aplicar permisos en codi, BD i pantalles. |
 | Rol auditor/AEAT | PARCIAL | `05-governanca-operacio/21-seguretat-permisos-accessos.md` | Procediment d'activacio temporal i registre d'accessos. |
-| Certificat digital AEAT | PENDENT | `03-canvis-pendents/09-checklist-posada-en-produccio.md` | Confirmar certificat, ubicacio segura i proves. |
+| Certificat digital AEAT | PENDENT | `03-canvis-pendents/09-checklist-posada-en-produccio.md` | Confirmar certificat o apoderament de l'entitat, ubicacio segura, permisos d'us i prova amb entorn AEAT quan correspongui. |
 | Subdomini/SSL pay.prisma.cat | PARCIAL | `03-canvis-pendents/06-integracio-redsys-pay-prisma.md` | Configuracio real gestionada per Meriem i prova SSL. |
-| Backups | PENDENT | `03-canvis-pendents/09-checklist-posada-en-produccio.md` | Pla de backup BD fiscal + documents. |
-| Proves i validacio | PARCIAL | `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Convertir proves en casos executables. |
+| Preproduccio / entorn de proves | DISSENY COBERT | `03-canvis-pendents/09-checklist-posada-en-produccio.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Implementar BD o mode test separat, numeracio de proves, Redsys test/simulador i AEAT test si correspon. |
+| Backups | PARCIAL | `03-canvis-pendents/09-checklist-posada-en-produccio.md` | Pla de backup BD fiscal + documents ja definit a nivell de criteri; falta implementacio real i prova de restauracio. |
+| Proves i validacio | DISSENY COBERT | `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Convertir proves en casos executables, executar paquet go/no-go i conservar evidencia real. |
 | Manual operatiu intern | PARCIAL | `05-governanca-operacio/22-manual-operatiu-intern.md` | Omplir procediments per Adam/Pablo/gestio. |
 | Captures finals | PENDENT | `05-governanca-operacio/23-annex-captures-pantalla.md` | Afegir quan hi hagi pantalles implementades. |
 | Diccionari camps/valors | PARCIAL | `05-governanca-operacio/24-diccionari-camps-i-valors.md` | Afegir tots els valors finals de BD. |
@@ -120,3 +121,11 @@ Aquest apartat es una llista interna de control, no un bloqueig per continuar tr
 8. Correus i plantilles: destinataris, adjunt/enllaç segur i casos especials.
 9. Intranet alumne/empresa: consulta PDF/QR i privacitat.
 10. Aplicacio dels permisos documentats en codi, BD i pantalles.
+
+## 9. Governanca interna i planificacio
+
+| Cas | Estat | Documents principals | Falta completar |
+| --- | --- | --- | --- |
+| Estimacio global del projecte | DECISIO | `00-index-i-pla/27-informe-auditoria-documental.md` | Es conserva com a criteri intern de planificacio: projecte de 4 a 8 mesos reals, 6 mesos plausible, no com a document AEAT. |
+| Disponibilitat real de desenvolupament | DECISIO | `00-index-i-pla/27-informe-auditoria-documental.md` | La planificacio ha de comptar aproximadament 3 dies reals/setmana per VERI*FACTU i evitar tractar dijous com a dia dispers. |
+| Capacitat de l'equip | DECISIO | `00-index-i-pla/27-informe-auditoria-documental.md`, `05-governanca-operacio/21-seguretat-permisos-accessos.md` | Meriem concentra desenvolupament fiscal/SIF; suport extern pot ajudar Moodle, incidencies o HTML/PHP/JS simple, pero no assumir arquitectura fiscal. |

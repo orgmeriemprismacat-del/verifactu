@@ -20,7 +20,7 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Compliment AEAT i declaracio responsable revisats contra el xat antic.
 - [x] Pantalles, permisos i operacio interna revisats contra el xat antic.
 - [x] Correus, plantilles, PDF/QR i notificacions revisats contra el xat antic.
-- [ ] Proves, produccio i governanca revisades contra el xat antic.
+- [x] Proves, produccio i governanca revisades contra el xat antic.
 
 ## Documents clau
 

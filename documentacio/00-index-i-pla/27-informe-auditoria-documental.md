@@ -199,6 +199,23 @@ Opcions:
 
 Les proves no han de contaminar la numeracio fiscal productiva.
 
+## 2.2. Lectura correcta de "falta"
+
+En aquest informe, "falta" no sempre vol dir que el tema sigui desconegut.
+
+Pot voler dir tres coses diferents:
+
+- falta implementar-ho en codi o BD;
+- falta executar-ho i conservar evidencia real;
+- falta transcriure-ho de forma auditable dins els documents, encara que al xat antic ja s'hagi explicat.
+
+Exemple important:
+
+```text
+Les captures actuals de Consulta - Modifica alumne, dades del curs, dades de pagament, canvi, baixa i veure factura ja existeixen o ja s'han comentat.
+El que falta son les captures finals post-VERI*FACTU, amb versio, data, pantalla final i evidencia de permisos.
+```
+
 ## 3. Que ja esta prou ben decidit
 
 Aquests punts estan suficientment definits a nivell conceptual:
@@ -425,7 +442,9 @@ Criteri decidit:
 
 ### 4.6. Proves i evidencies
 
-El pla de proves existeix com a document, pero encara ha de convertir-se en casos executables.
+El pla de proves existeix com a document i, despres del bloc 8 del xat pont, ja incorpora criteris de preproduccio, regressions critiques i paquet go/no-go.
+
+Tot i aixi, encara ha de convertir-se en casos executables amb evidencia real.
 
 Cal tenir proves per:
 
@@ -464,6 +483,45 @@ El panell SIF esta ben plantejat, pero falta definir com es veura i com es conse
 - historial de canvis de versio;
 - fitxers PDF/XML/QR amb hash;
 - logs de processos automatics del SIF.
+
+### 4.8. Planificacio i capacitat interna
+
+El xat antic va deixar una estimacio interna rellevant per governanca, no per compliment AEAT.
+
+Lectura prudent:
+
+```text
+VERI*FACTU PrisMa no es nomes afegir un QR.
+Es arquitectura fiscal, migracio, refactor de pantalles destructives, integracio Redsys/AEAT, proves, regressions, documentacio i operacio.
+```
+
+Estimacio orientativa recuperada:
+
+| Bloc de treball | Rang aproximat |
+| --- | --- |
+| Arquitectura fiscal base: ledger, hash, cua, idempotencia, retries | 3-5 setmanes |
+| Integracio real VERI*FACTU / AEAT | 2-4 setmanes |
+| Refactor d'accions que avui modifiquen dades fiscals | 1-2 mesos |
+| UI administrativa i panell SIF | 1 mes |
+| Correus, PDF, QR i exportacions | 2-3 setmanes |
+| QA, regressions i proves | 1-2 mesos en paral·lel |
+| Migracio i desplegament a `pay.prisma.cat` | 1-3 setmanes |
+
+Conclusio interna:
+
+```text
+4 a 8 mesos reals es una estimacio raonable.
+6 mesos es un escenari plausible si es treballa de forma sostinguda.
+```
+
+Restriccions de capacitat:
+
+- Meriem concentra desenvolupament, arquitectura fiscal, documentacio i decisions operatives del SIF;
+- el projecte no s'ha de planificar com si hi hagues un equip complet dedicat;
+- suport extern pot ajudar en Moodle, incidencies, HTML/PHP/JS senzill o tasques acotades, pero no s'hauria de comptar com a responsable de facturacio fiscal, Redsys, AEAT o arquitectura SIF;
+- si el ritme real es dilluns, dimecres i dijous, el dijous hauria de reservar-se a tancament VERI*FACTU: QA, estabilitzacio, revisio i acabats, no reunions disperses.
+
+Aquesta informacio no s'ha d'incloure a la declaracio responsable. Serveix per prioritzar, justificar terminis i evitar promeses internes irreals.
 
 ## 5. Riscos auditors actuals
 
@@ -571,6 +629,21 @@ Per cada apartat s'hauria de tancar:
 - errors/incidencies;
 - correus;
 - proves.
+
+## 8.1. Criteri per passar a xats especialitzats
+
+Amb el bloc 8 revisat, el xat pont pot considerar completada la primera recuperacio transversal del xat antic.
+
+El pas seguent no hauria de ser continuar ampliant el xat pont indefinidament, sino obrir xats especialitzats per convertir documentacio parcial en procediments executables.
+
+Ordre recomanat:
+
+1. Xat especialitzat de pantalles i procediments reals d'intranet/ecommerce.
+2. Xat especialitzat de BD/SQL i migracio fiscal.
+3. Xat especialitzat de Redsys, `pay.prisma.cat` i conciliacio.
+4. Xat especialitzat de proves, preproduccio i paquet go/no-go.
+
+Cada xat especialitzat hauria de llegir `00-control/mapa-xats.md`, aquest informe, la matriu de cobertura i els documents del seu apartat.
 
 ## 9. Veredicte
 

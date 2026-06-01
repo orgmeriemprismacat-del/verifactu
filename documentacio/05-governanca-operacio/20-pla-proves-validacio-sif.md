@@ -17,6 +17,20 @@ Validar que el SIF garanteix:
 - permisos i bloquejos;
 - integracio Redsys, transferencia i compensacions.
 
+## 1.1. Principis de prova
+
+Les proves del SIF s'han de preparar com a casos executables i repetibles, no nomes com a llista d'intencions.
+
+Principis:
+
+- cap prova pot consumir numeracio fiscal productiva;
+- les dades de prova han d'estar separades de les factures reals;
+- si es fan servir dades reals, han d'estar anonimitzades o duplicades en un entorn controlat;
+- Redsys s'ha de provar en mode test o amb simulador quan no es vulgui provocar cobrament real;
+- l'entorn AEAT de prova s'ha d'utilitzar si esta disponible i correspon al tipus d'integracio;
+- cada prova ha de generar evidencia conservable;
+- una prova fallida no es corregeix manualment sense deixar incidencia i resultat.
+
 ## 2. Proves minimes
 
 - curs individual Redsys;
@@ -54,6 +68,19 @@ Cada prova haura de guardar:
 - resultat obtingut;
 - captura o log;
 - incidencia si falla.
+
+Fitxa minima per convertir una prova en executable:
+
+| Camp | Contingut |
+| --- | --- |
+| ID prova | Identificador estable, per exemple `SIF-RED-001`. |
+| Area | Redsys, factura, rectificativa, AEAT, permisos, PDF/QR, exportacio, etc. |
+| Objectiu | Que es vol demostrar. |
+| Dades entrada | Inscripcio, import, receptor, pagament, estat previ i usuari. |
+| Passos | Accions concretes a executar. |
+| Resultat esperat | Estat final de factura, pagament, documents, cua i logs. |
+| Evidencia | Captura, export, log, hash, PDF, registre AEAT o incidencia. |
+| Bloquejant | Si impedeix o no el pas a produccio. |
 
 ## 4. Escenari de proves abans de produccio
 
@@ -148,3 +175,44 @@ S'ha d'executar almenys per:
 - transferencia;
 - factura abans de cobrament;
 - rectificativa.
+
+## 6. Proves de regressio recuperades del xat antic
+
+El xat antic va insistir que el risc no es nomes crear factures noves, sino impedir que els mecanismes antics segueixin modificant dades fiscals sense control.
+
+S'han d'afegir proves especifiques per demostrar que:
+
+- no es pot corregir una factura emesa modificant `A_PAGAR`, receptor, concepte o imports sense rectificativa/event;
+- no es poden moure pagaments entre inscripcions de manera que alteri una factura ja emesa;
+- `Passar pagaments` no crea factura duplicada si ja existeix factura SIF;
+- `Generar factura abans de pagar` crea factura real pendent de cobrament i el pagament posterior entra per `registerPayment()`;
+- una URL individual de pagament queda bloquejada o substituida quan la factura correspon a empresa/responsable;
+- els scripts antics, importadors, cron o eines Moodle no creen ni modifiquen factures fiscals;
+- Moodle i altres APIs externes no tenen efecte fiscal directe;
+- si el PDF/QR falla despres de la factura, la factura no es desfà i es crea incidencia SIF;
+- si l'enviament AEAT falla, es conserva cua/retry i incidencia sense duplicar factura;
+- un usuari sense permisos no pot executar accions fiscals critiques encara que vegi el boto o conegui l'endpoint;
+- Meriem pot resoldre incidencia SIF o activar versio, pero Adam/Pablo/gestio no poden saltar controls de SIF;
+- Isa pot fer suport segons rol, pero no queda com a operadora fiscal ordinaria.
+
+## 7. Paquet de proves go/no-go
+
+Abans de produccio s'ha de tancar un paquet go/no-go amb:
+
+- identificador de versio provada;
+- commit o paquet desplegat;
+- migracions SQL aplicades;
+- entorn utilitzat;
+- llista de proves executades;
+- resultat de cada prova;
+- incidencies obertes i severitat;
+- decisio final: `GO`, `GO AMB LIMITACIONS` o `NO-GO`;
+- responsable tecnica;
+- revisio de direccio/responsable legal quan correspongui.
+
+Regla:
+
+```text
+Una versio no passa a produccio nomes perque compila o perque el flux ideal funciona.
+Ha de superar els casos critics, regressions i evidencies minimes.
+```
