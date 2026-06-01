@@ -24,7 +24,8 @@ Adaptar el sistema de facturacio de PrisMa a VERI*FACTU mitjancant un SIF centra
 - Bloc 3 revisat: pagaments, Redsys, callbacks i conciliacio. S'han incorporat matisos sobre `realitzaPagamentAutomatic.php`, parametres reals del callback, `Ds_Order`/`NUM_COMANDA`, canals TPV, `Passar pagaments`, migracio a `pay.prisma.cat`, conciliacio i visibilitat de factura/PDF.
 - Bloc 4 revisat: base de dades, hash chain, concurrencia i idempotencia. S'han incorporat matisos sobre BD fiscal parcial, `errors_verifactu`, `reg_pagament`, `factura_log`, `session_log`, migracio de `UUID varchar(12)` i `double`, `InnoDB`, `IDEMPOTENCY_KEY`, `FISCAL_ORDER`, hash chain global, `fiscal_queue.PAYLOAD_JSON` i permisos MySQL contra updates de factures emeses.
 - Bloc 5 revisat: pantalles, permisos i operacio interna. S'han incorporat matisos sobre rutes d'intranet, `ROLS_VISUALITZAR`, `ROLS_EDITAR`, `ROLS_ENVIAR_MSG`, `consultaRolsEdiicio`, `consultaRolsUsuari`, `tePermisEdicio`, permisos d'Isa, accions critiques, reclamacions, morositat i apartat `VERI*FACTU` de la intranet.
-- La prioritat immediata es continuar amb el bloc 6: compliment AEAT i declaracio responsable.
+- Bloc 6 revisat: compliment AEAT i declaracio responsable. S'han incorporat criteris sobre abast normatiu, terminis AEAT verificats, model 036, versio `0.1-BORRADOR` no signable, versio `1.0.0` signable, certificat digital de l'entitat, productor/titular, rol de Meriem, punts fiscals sensibles i cicle de versions.
+- La prioritat immediata es continuar amb el bloc 7: correus, plantilles, PDF/QR i notificacions.
 
 ## Decisions base ja assumides
 
@@ -68,10 +69,10 @@ Temes amb mes risc de contenir detalls pendents de contrast:
 
 ## Proper pas recomanat
 
-Continuar el xat pont pel sise bloc de revisio:
+Continuar el xat pont pel sete bloc de revisio:
 
 ```text
-Compliment AEAT i declaracio responsable.
+Correus, plantilles, PDF/QR i notificacions.
 ```
 
 ## Com s'ha de tancar cada sessio

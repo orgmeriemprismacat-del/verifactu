@@ -109,3 +109,14 @@ El xat antic contenia matisos humans i operatius que no poden quedar diluits: Is
 
 Impacte:
 El manual intern passa de llista pendent a regles operatives base. Les pantalles queden millor delimitades: Consulta - Modifica alumne inicia accions, Passar pagaments registra o concilia pagaments, Consulta - Edita - Anula factura es transforma en accions controlades, i l'apartat `VERI*FACTU` de la intranet mostra indicador i accessos sense substituir el panell SIF.
+
+## 2026-06-01 - Bloc 6 revisat: compliment AEAT i declaracio responsable
+
+Decisio:
+Completar la documentacio de compliment AEAT amb criteris recuperats del xat antic i contrastats amb fonts oficials AEAT/BOE: la declaracio responsable actual es `0.1-BORRADOR` i no s'ha de signar; la primera versio productiva signable prevista es `1.0.0`; el sistema es documenta com a desenvolupament intern per a us propi d'Associacio PrisMa, amb Meriem com a responsable tecnica, funcional, documental i de desenvolupament, sense convertir-la per defecte en productora externa persona fisica.
+
+Motiu:
+El xat antic contenia decisions importants que podien quedar massa implicites: no cal signar el borrador, no cal comunicar l'opcio `VERI*FACTU` via model 036 segons FAQ AEAT vigent, el certificat digital es de l'entitat, la declaracio final ha d'esperar a una versio instal·lada i verificable, i els punts fiscals interpretatius s'han de marcar com a criteris interns pendents de validacio externa si no hi ha assessor fiscal.
+
+Impacte:
+`documentacio-sif-aeat.md`, `declaracio-responsable-sif-prisma.md`, el registre de versions i la checklist de produccio deixen mes clar que cal abans de produccio: abast normatiu confirmat, terminis aplicables, certificat/apoderament, PDF/QR/XML, proves, declaracio accessible dins del SIF i registre de versio activa. El proper bloc passa a ser correus, plantilles, PDF/QR i notificacions.

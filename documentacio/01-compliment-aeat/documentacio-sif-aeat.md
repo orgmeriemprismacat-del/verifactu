@@ -61,6 +61,52 @@ c. Sant Hipolit, 16, bxs. 2a
 17003 Girona
 ```
 
+## 1.1. Abast normatiu i aplicabilitat
+
+En la revisio del xat antic es va identificar que, abans de signar cap declaracio responsable, cal conservar una comprovacio formal de l'abast normatiu aplicable a l'entitat.
+
+Criteri de partida del projecte:
+
+- el SIF dona suport a la facturacio propia d'Associacio PrisMa;
+- el sistema emet factures completes des d'un sistema informatic propi;
+- l'entitat esta identificada amb NIF `G17881988` i domicili a Girona;
+- el sistema es planteja per territori comu i modalitat `VERI*FACTU`.
+
+Comprovacions pendents abans de signar la versio `1.0.0`:
+
+- confirmar amb gestoria o documentacio interna si Associacio PrisMa presenta Impost sobre Societats;
+- confirmar que l'entitat no esta adscrita al SII;
+- confirmar que no queda subjecta a normativa foral basca o navarresa;
+- confirmar que no existeix resolucio especifica d'exempcio o autoritzacio que alteri l'obligacio de facturar amb SIF adaptat.
+
+Segons la nota informativa de l'AEAT actualitzada el 26/03/2026, els terminis generals d'adaptacio son:
+
+- entitats que presenten Impost sobre Societats: abans de l'1 de gener de 2027;
+- resta d'obligats tributaris afectats: abans de l'1 de juliol de 2027.
+
+Per prudencia documental, la data aplicable a PrisMa s'haura de confirmar abans de tancar el calendari final de posada en produccio.
+
+## 1.2. Modalitat VERI*FACTU i model 036
+
+La modalitat prevista del SIF PrisMa es `VERI*FACTU`.
+
+Segons la FAQ de l'AEAT sobre sistemes `VERI*FACTU`, no cal comunicar en el model 036 que es remetran registres de facturacio mitjancant un SIF en modalitat `VERI*FACTU`. L'opcio es produeix pel fet d'iniciar sistematicament la remissio dels registres de facturacio.
+
+Regla interna:
+
+```text
+No es crea una tasca de model 036 per activar VERI*FACTU,
+tret que una revisio normativa posterior ho exigeixi.
+```
+
+Quan el SIF comenci a remetre registres de facturacio, el panell haura de conservar:
+
+- data del primer enviament efectiu;
+- mode actiu del SIF;
+- versio activa;
+- declaracio responsable associada;
+- certificat o configuracio d'identificacio electronica usada.
+
 ## 2. Objectiu del SIF
 
 El SIF PrisMa centralitza la generacio de factures i registres fiscals derivats dels canals de venda i gestio de PrisMa. Els casos operatius es documenten de forma detallada en la documentacio interna del projecte i en els documents funcionals especifics.
@@ -463,6 +509,26 @@ Els rols documentats no limiten la feina real de la responsable tecnica. Serveix
 
 Nota: que Meriem Abjil Bajja assumeixi la direccio tecnica, funcional i operativa del projecte no implica, per defecte, que actuï com a productora externa persona fisica. El sistema es documenta com a desenvolupament intern per a us propi de l'Associacio PrisMa, llevat que en el futur es decideixi formalment una altra figura.
 
+## 13.3. Criteris interns pendents de validacio externa
+
+El xat antic va deixar constancia que PrisMa no disposava en aquell moment d'un assessor fiscal dedicat al projecte. Per tant, la documentacio pot fixar criteris interns de treball, pero els punts interpretatius s'han de mantenir com a pendents de validacio externa si mes endavant es disposa de gestoria, assessor o revisio especialitzada.
+
+Punts marcats com a especialment sensibles:
+
+- tipus de rectificativa per canvi de NIF, rao social o dades fiscals;
+- tractament de factura abans de cobrament quan queda impagada;
+- compensacions, saldos a favor i ajustos manuals;
+- cursos exempts d'IVA i mencio exacta d'exempcio;
+- privacitat en el text visible de descomptes o situacions personals sensibles.
+
+Mencio d'exempcio IVA indicada per PrisMa com a text actual:
+
+```text
+Factura exempta d'IVA d'acord amb l'article 20.1.9 de la Llei 37/1992, de 28 de desembre, de l'Impost sobre el Valor Afegit (formacio i reciclatge professionals realitzats per entitats privades autoritzades per a l'exercici de les activitats).
+```
+
+Aquest text es conserva com a criteri intern conegut, pendent de contrastar si canvia la normativa, el tipus de servei o el criteri fiscal aplicable.
+
 ## 14. Declaracio Responsable
 
 La declaracio responsable del sistema informatic haura d'estar disponible de forma visible i accessible dins del propi sistema o en document electronic associat.
@@ -471,9 +537,45 @@ Ha de declarar, per la versio concreta del SIF, que el sistema compleix la norma
 
 La declaracio signable es mantindra en un document separat.
 
+### 14.1. Cicle de vida de la declaracio
+
+La declaracio responsable actual es un borrador documental i no s'ha de signar encara.
+
+Cicle decidit:
+
+```text
+0.1-BORRADOR -> document viu durant desenvolupament
+0.2-BORRADOR -> quan s'incorpori Redsys/pay.prisma.cat
+0.3-BORRADOR -> quan s'incorporin PDF/QR/XML i proves principals
+1.0.0 -> primera versio productiva signable
+1.1.x -> canvis rellevants posteriors, amb nova declaracio o annex si afecta compliment
+```
+
+No cal signar cada petit canvi de desenvolupament. La signatura s'ha de fer quan existeixi una versio concreta, instal·lada, verificable i preparada per entrar en produccio.
+
+### 14.2. Condicions abans de signar
+
+Abans de signar la declaracio responsable `1.0.0`, cal tenir:
+
+- versio exacta del SIF;
+- domini i subdomini configurats;
+- components finals identificats;
+- BD fiscal en estat productiu;
+- endpoints i processos del SIF verificats;
+- generacio PDF/QR/XML definida;
+- certificat digital de l'entitat o apoderament configurat;
+- proves principals executades i conservades;
+- dades completes de signatura: data, lloc, NIF de la persona signant per direccio i carrec;
+- declaracio responsable accessible dins del propi SIF.
+
+Quan una versio signada evolucioni amb canvis rellevants de compliment, s'haura d'obrir una nova versio documental i vincular-la al registre de versions del SIF.
+
 ## 15. Referencies Oficials
 
 - AEAT - Certificacion de los sistemas informaticos: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/cuestiones-generales/certificacion-sistemas-informaticos_.html
 - BOE - Orden HAC/1177/2024, articulo 15, contenido de la declaracion responsable: https://www.boe.es/buscar/act.php?id=BOE-A-2024-22138
 - AEAT - Ejemplos de declaraciones responsables: https://sede.agenciatributaria.gob.es/static_files/Sede/Tema/IVA/Verifactu/EjemplosDeclaracionResponsable%28V0.5.1%29.pdf
 - AEAT - Modalidades de cumplimiento VERI*FACTU / NO VERI*FACTU: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/cuestiones-generales/modalidades-cumplimiento-obligaciones.html
+- AEAT - Nota informativa de ampliacion de plazo de adaptacion SIF: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/nota-informativa-ampliacion-plazo-adaptacion-facturacion.html
+- AEAT - Quienes estan obligados y que operaciones se incluyen: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/cuestiones-generales/quienes-estan-obligados-que-operaciones-incluyen.html
+- AEAT - FAQ sistemas VERI*FACTU y modelo 036: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/sistemas-verifactu.html

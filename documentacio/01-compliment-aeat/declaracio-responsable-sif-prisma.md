@@ -1,6 +1,19 @@
 # DECLARACION RESPONSABLE DEL SISTEMA INFORMATICO DE FACTURACION
 
-> Borrador signable. Cal completar les dades identificatives, versio exacta, components definitius i data/lloc de signatura abans de signar. Aquest document s'ha preparat seguint l'estructura de l'article 15 de l'Orden HAC/1177/2024.
+> Borrador de futura declaracio signable. No es signable encara: cal completar les dades identificatives, versio exacta, components definitius i data/lloc de signatura abans de signar. Aquest document s'ha preparat seguint l'estructura de l'article 15 de l'Orden HAC/1177/2024.
+
+## Nota previa - BORRADOR NO FIRMABLE TODAVIA
+
+Este documento es una plantilla viva de trabajo. No debe firmarse como declaracion definitiva hasta que exista una version concreta, instalada, verificable y preparada para produccion del SIF PrisMa.
+
+Criterio interno acordado:
+
+```text
+0.1-BORRADOR = documento de trabajo
+1.0.0 = primera version productiva firmable
+```
+
+No es necesario firmar cada cambio durante el desarrollo. Si despues de una version firmada hay cambios relevantes que afecten al cumplimiento, a los componentes de facturacion, a la modalidad de funcionamiento o a los registros conservados, se preparara una nueva version de declaracion o un anexo versionado.
 
 ## 1.a) Nombre del sistema informatico a que se refiere esta declaracion responsable
 
@@ -93,18 +106,22 @@ No aplica en la configuracion prevista, al tratarse de un sistema producido para
 ## 1.h) Nombre y apellidos de la persona o razon social de la entidad productora del sistema informatico
 
 ```text
-Entidad productora del sistema informatico:
+Entidad productora/titular interna del sistema informatico:
 Associacio PrisMa
 
 Desarrollo interno y responsable tecnica del proyecto:
 Meriem Abjil Bajja
 ```
 
+Nota: el sistema se documenta como desarrollo interno para uso propio de Associacio PrisMa. La mencion de Meriem Abjil Bajja identifica la direccion tecnica, funcional, documental y de desarrollo del proyecto, pero no implica por defecto que actue como productora externa persona fisica, salvo decision formal futura.
+
 ## 1.i) Numero de identificacion fiscal de la persona o entidad productora
 
 ```text
 NIF/CIF de la entidad productora/titular: G17881988
-NIF de la responsable tecnica del proyecto: 77922662L
+
+Dato interno de responsable tecnica, si se conserva como contacto tecnico:
+Meriem Abjil Bajja - NIF 77922662L
 ```
 
 ## 1.j) Direccion postal completa de contacto de la persona o entidad productora
@@ -116,7 +133,7 @@ c. Sant Hipolit, 16, bxs. 2a
 Girona
 Espana
 
-Direccion de contacto de la responsable tecnica:
+Direccion de contacto tecnico de la responsable del proyecto, si se decide mantenerla en el expediente:
 C/ Pont, 29
 17486 Castello d'Empuries
 Girona
@@ -177,8 +194,28 @@ El sistema se desarrolla internamente para uso propio de Associacio PrisMa. La r
 La documentacion tecnica y funcional del sistema se conserva en documento separado bajo el titulo "Documentacio 2 - Funcionament del SIF PrisMa per compliment AEAT / VERI*FACTU".
 ```
 
+## Anexo - Pendientes antes de preparar la version firmable
+
+Antes de convertir este borrador en declaracion responsable definitiva de la version `1.0.0`, falta completar o confirmar:
+
+```text
+- Identificador exacto de version y fecha de version.
+- Fecha y lugar de firma.
+- NIF y cargo exacto de Adam Carmona o de la persona que firme por direccion.
+- Componentes definitivos del SIF en produccion.
+- Dominio/subdominio y SSL definitivamente configurados.
+- Certificado digital de la entidad o apoderamiento usado para AEAT.
+- Endpoints, WSDL/servicios AEAT y configuracion tecnica final.
+- Generacion y conservacion de PDF/XML/QR.
+- Pruebas principales ejecutadas y evidencias conservadas.
+- Declaracion responsable accesible dentro del propio SIF.
+- Revision de puntos fiscales sensibles si se dispone de asesoria externa.
+```
+
 ## Anexo - Referencias normativas usadas para preparar este borrador
 
 - AEAT - Certificacion de los sistemas informaticos: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/cuestiones-generales/certificacion-sistemas-informaticos_.html
 - BOE - Orden HAC/1177/2024, articulo 15: https://www.boe.es/buscar/act.php?id=BOE-A-2024-22138
 - AEAT - Ejemplos de declaraciones responsables: https://sede.agenciatributaria.gob.es/static_files/Sede/Tema/IVA/Verifactu/EjemplosDeclaracionResponsable%28V0.5.1%29.pdf
+- AEAT - Nota informativa de plazos de adaptacion SIF: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/nota-informativa-ampliacion-plazo-adaptacion-facturacion.html
+- AEAT - FAQ sistemas VERI*FACTU y modelo 036: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/sistemas-verifactu.html

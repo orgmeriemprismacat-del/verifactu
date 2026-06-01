@@ -205,7 +205,7 @@ Documents actualitzats:
 
 ### Compliment AEAT i declaracio responsable
 
-Estat: pendent
+Estat: incorporat parcialment al bloc 6; queda obert per a revisio final quan existeixi la versio `1.0.0`, el certificat/apoderament estigui configurat i es disposi de proves reals.
 
 Que cal buscar:
 
@@ -221,6 +221,32 @@ Documents relacionats:
 - `documentacio/01-compliment-aeat/documentacio-sif-aeat.md`
 - `documentacio/01-compliment-aeat/declaracio-responsable-sif-prisma.md`
 - `documentacio/05-governanca-operacio/19-registre-versions-i-canvis-sif.md`
+
+Informacio trobada i incorporada:
+
+- el xat antic va separar tres peces: document intern de projecte, document tecnic/organitzatiu per AEAT i declaracio responsable signable;
+- la declaracio responsable actual s'ha de tractar com a `0.1-BORRADOR`, no com a document final signable;
+- la primera versio productiva signable prevista es `1.0.0`;
+- no cal signar cada canvi durant desenvolupament; els canvis rellevants posteriors poden requerir nova declaracio o annex versionat;
+- Associacio PrisMa queda com a entitat productora/titular interna del sistema per a us propi;
+- Meriem Abjil Bajja queda com a responsable tecnica, funcional, documental, de desenvolupament, manteniment i posada en operativa, sense quedar identificada per defecte com a productora externa persona fisica;
+- Adam Carmona queda com a responsable legal/direccio i signant/revisor quan correspongui;
+- Pablo Martori Delupi queda com a operador de gestio/facturacio sensible quan el flux ho permeti;
+- el certificat digital indicat al xat antic es el certificat de l'entitat;
+- falta completar el NIF/carrec d'Adam, data i lloc de signatura abans de la declaracio definitiva;
+- segons FAQ AEAT vigent revisada el 2026-06-01, no cal comunicar l'opcio `VERI*FACTU` via model 036;
+- segons nota AEAT revisada el 2026-06-01, els terminis generals son 1 de gener de 2027 per entitats que presenten Impost sobre Societats i 1 de juliol de 2027 per la resta d'obligats afectats;
+- cal confirmar formalment l'abast aplicable a PrisMa: Impost sobre Societats o altre regim, no SII, no normativa foral i sense exempcio especifica;
+- sense assessor fiscal dedicat, els criteris interns es poden documentar, pero els punts interpretatius han de quedar pendents de validacio externa si mes endavant es possible;
+- punts sensibles marcats: rectificatives per canvi de dades fiscals, factura abans de cobrament no pagada, compensacions/saldos, mencio d'exempcio IVA i textos visibles de descomptes sensibles;
+- text actual d'exempcio IVA indicat per PrisMa: "Factura exempta d'IVA d'acord amb l'article 20.1.9 de la Llei 37/1992...".
+
+Documents actualitzats:
+
+- `documentacio/01-compliment-aeat/documentacio-sif-aeat.md`
+- `documentacio/01-compliment-aeat/declaracio-responsable-sif-prisma.md`
+- `documentacio/05-governanca-operacio/19-registre-versions-i-canvis-sif.md`
+- `documentacio/03-canvis-pendents/09-checklist-posada-en-produccio.md`
 
 ### Pantalles, permisos i operacio interna
 
