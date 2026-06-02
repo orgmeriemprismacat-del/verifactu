@@ -322,6 +322,49 @@ Subfluxos que surten d'aquesta pantalla:
 - veure factura: lectura de factura, PDF, QR, rectificatives i estats;
 - certificat: consulta o emissio de certificat, sense impacte fiscal directe.
 
+#### 3.1.0. Revisio especialitzada i criteri de tancament
+
+La revisio especialitzada del xat antic confirma que `Consulta - Modifica alumne` es la pantalla central d'events sobre inscripcions.
+
+No ha de quedar documentada com a pantalla que "arregla" factures. Ha de quedar documentada com a pantalla que:
+
+- consulta estat academic, economic i fiscal;
+- mostra accions disponibles segons estat i permisos;
+- inicia fluxos controlats;
+- deriva cap al SIF o cap a pantalles especialitzades quan hi ha impacte fiscal.
+
+Mapa de decisio dels subfluxos:
+
+| Subflux | Genera factura | Genera pagament | Genera rectificativa | Criteri final |
+| --- | --- | --- | --- | --- |
+| Dades personals | No | No | No directament | Canvia dades operatives. Si afecta factura emesa, obre flux de rectificativa de dades fiscals. |
+| Dades del curs | No | No | No | Consulta academica/administrativa. |
+| Dades de pagament | No directament | Pot iniciar registre | No directament | Ha de deixar de ser editor lliure de `A_PAGAR`, `PAGAMENT`, `DATA PAG`, `IDPAG` i `FACTURA_RELACIONADA`. |
+| Canvi de curs | Pot preparar factura/diferencia | Pot preparar cobrament | Pot preparar rectificativa | Recalcula import, descompte i despeses; exigeix motiu i previsualitzacio fiscal. |
+| Baixa | No en el primer pas | No | No automatica | Primer baixa administrativa; despres retorn, saldo o no retorn. |
+| Veure factura | No | No | No | Nomes lectura, PDF/QR i estats; accions de rectificar/anul·lar viuen a `/alumnes/factura/`. |
+| Certificat | No | No | No | Sense impacte fiscal directe. |
+
+Proves que ha de tenir aquest apartat:
+
+- editar dades personals amb factura emesa i comprovar que la factura no canvia;
+- intentar modificar `A_PAGAR` amb factura emesa i comprovar que exigeix motiu i flux fiscal;
+- veure una factura historica i comprovar etiqueta `historic no VERI*FACTU`;
+- veure una factura SIF i comprovar UUID, PDF/QR, estat cobrament i estat AEAT;
+- canvi de curs a import superior, inferior i mateix import;
+- canvi de curs on el descompte original deixa d'aplicar;
+- baixa sense pagament, baixa amb retorn, baixa amb saldo i baixa sense retorn;
+- alumne moros amb URL de pagament activa o alternativa;
+- factura d'empresa/responsable vinculada a inscripcio individual sense URL individual duplicada.
+
+Pendent de codi per acabar la fitxa executable:
+
+- ordre real d'updates i validacions de `guardarDadesPagament_modalsresultatCerca()`;
+- ordre real de `realitzarCanviCurs_modalCanviCurs()`;
+- ordre real de `confirmaBaixa_modalDonarBaixa()`;
+- diferenciacio final de `generaFactura()` per factura historica i factura SIF;
+- missatges exactes que veura l'usuari quan una icona esta desactivada.
+
 #### 3.1.1. Dades del curs
 
 Decisio:
@@ -743,6 +786,86 @@ Pendent d'incorporar:
 - criteri final de compensacio/saldo;
 - si `BANC` es taula tancada, llista fixa o text lliure.
 
+#### 3.2.1. Revisio especialitzada i criteri de tancament
+
+El xat antic aporta tres riscos que han de quedar tancats abans d'implementar:
+
+- el sistema actual pot "passar pagament" i, si cal, crear o actualitzar factura historica dins `efectuarPagament()`;
+- el modal de confirmacio de factura existent parla d'actualitzar la factura, pero amb SIF final nomes s'ha de registrar cobrament contra la factura ja emesa;
+- `efact` en aquesta pantalla no es la marca fiscal `E_FACT`, i s'ha de reanomenar o blindar per evitar decisions fiscals equivocades.
+
+Taula de decisio final:
+
+| Cas | Decisio SIF |
+| --- | --- |
+| Cerca per DNI, codi regal o factura | Acceptar nomes un criteri, validar al servidor i conservar auditoria de cerca quan deriva en accio fiscal. |
+| Pagament manual amb factura SIF existent | `registerPayment()` contra `UUID_FACTURA`; no modificar receptor, import, concepte ni numero. |
+| Factura emesa abans de cobrament | `registerPayment()` i actualitzacio d'estat de cobrament; no crear factura nova. |
+| Venda facturable sense factura | `issueInvoice()` + `registerPayment()` dins una operacio idempotent. |
+| Compensacio o saldo | Crear moviment identificat i assignacio; no escriure nomes `PAGAT`. |
+| TPV autoritzat no conciliat | Crear incidencia o proposta de conciliacio; no marcar pagat automaticament sense clau estable. |
+| Devolucio TPV | Flux de devolucio/rectificativa o incidencia, segons factura i estat; no simple import negatiu ocult. |
+| Pagament superior al pendent o amb diferencia residual | Bloqueig o incidencia amb motiu; no update silencios. |
+
+Regles d'implementacio:
+
+- substituir el `GET` de `efectuarPagament.php` per una accio servidor/SIF amb `POST`, sessio, permisos i token;
+- recalcular pendent al servidor amb dades SIF, no confiar en el recalcul visual de `PAGAT`;
+- guardar usuari, data, metode, origen, import, referencia, observacio i idempotency key;
+- separar sincronitzacio operativa antiga (`updPay*`, `updDate*`, `updFracc*`) de la font fiscal final (`payment_transaction` i `payment_allocation`);
+- mantenir compatibilitat visual nomes despres que el SIF hagi acceptat l'operacio.
+
+#### 3.2.2. Revisio especialitzada de Transferencia validada a intranet
+
+El xat antic confirma el cas operatiu: quan un pagament es fa per transferencia, administracio el valida des de `Passar pagaments` i, a partir d'aquell moment, el flux final ha de cridar el SIF.
+
+Informacio recuperada del codi antic:
+
+- el JS `aplicarPagament()` envia a `ajax/alumnes/efectuarPagament.php` per `GET` els camps `id`, `numFact`, `tipus`, `pagament`, `dataPag`, `banc`, `obs` i `efact`;
+- `efectuarPagament.php` deserialitza sessio i crida `efectuarPagament($idTipus, $tipus, $pagament, $dataPag, $banc, $obs, $numFact, $efact)`;
+- si `efact == 0`, `efectuarPagament()` calcula any fiscal, tipus `A` o `R` segons signe de l'import, `buscarLastOrdreFact`, `numFact`, data actual i deriva per tipus: `R` regal, `G` grup, `P` pack o `I` inscripcio;
+- si `efact != 0`, deriva a `efectuarPagamentFacturaGenerada($numFact, $tipus, $obs, $dataPagament, $importPag, $formaPagament)`;
+- `mostrarModalConfPag($numFact)` consulta `buscarInfoFacturaByNum`, busca responsable d'entitat amb `buscarRespEntitatByCIF` i mostra un avis historic dient que s'actualitzara la factura i s'enviara o no missatge a l'entitat;
+- `efectuarPagamentFacturaGenerada()` consulta `buscarPagamentsByFact`, recupera `A_PAGAR`, `PAGAMENT`, `FACTURA_RELACIONADA`, `FRACCIO`, `pag_observacions`, `IDPAG`, `cif` i `E_FACT`, i calcula `pendentPagar = A_PAGAR - PAGAMENT - importPag`;
+- si la factura correspon a pack, extreu `PACK|id` de `OBSERVACIONS` i consulta `cnsDadesCursPack`; si no, consulta `buscarInfoEdGrupByFact`;
+- el codi historic actualitza `factures` amb `updFactGenerada`: `data_pagament`, `IMPORT` i `FORMA_PAGAMENT` segons `NUM`;
+- despres reparteix l'import sobre els membres de la factura amb `searchMembresFactRel`, `updPayInscr` i `updDateInscr`, omplint `DATA PAG` nomes quan cada registre queda totalment pagat;
+- si queda fraccionat, afegeix `(<import> EUR <data>)` a `FRACCIO` i usa `updFraccBDByFact`;
+- el correu de confirmacio a l'entitat/responsable informa concepte, correu, import, resultat acceptat, data i import pendent si n'hi ha.
+
+Decisio SIF:
+
+```text
+transferencia validada a intranet
+    -> validar permis, sessio, import, data, metode, observacio i referencia si existeix
+    -> recalcular pendent al servidor
+    -> si factura SIF existent: registerPayment()
+    -> si no hi ha factura i el cobrament crea obligacio fiscal: issueInvoice() + registerPayment()
+    -> sincronitzar PAGAMENT, DATA PAG, FRACCIO i factures historiques nomes com a resum
+```
+
+El comportament historic `updFactGenerada` no pot modificar una factura VERI*FACTU ja emesa. En el SIF, el cobrament per transferencia es un `payment_transaction` amb `METODE = TRANSFERENCIA` o el banc/metode final, i es vincula a la factura amb `payment_allocation`.
+
+Idempotencia recomanada si no hi ha referencia bancaria externa:
+
+```text
+TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}
+```
+
+Si hi ha referencia bancaria, aquesta ha de prevaldre:
+
+```text
+TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}
+```
+
+Pendent especific:
+
+- recuperar o confirmar els cossos de `buscarInfomacioPagament.php` i `mostrarModalInfoPag.php`;
+- definir llista final de `BANC`/metodes i correspondencia amb `payment_transaction.METODE`;
+- decidir si la referencia bancaria sera obligatoria en transferencies d'import alt o d'empresa;
+- implementar bloqueig de doble clic/reintent i comprovacio de pagament duplicat;
+- provar transferencia parcial, transferencia que tanca una factura abans de cobrament, transferencia contra factura d'empresa/responsable i transferencia amb import superior al pendent.
+
 ### 3.3. Generar factura abans de pagar
 
 URL / fitxer:
@@ -896,6 +1019,45 @@ Regla de pantalla final:
 - pas 2: receptor fiscal, concepte visible, linies calculades, import total, observacions, marca `EMESA_ABANS_COBRAMENT`;
 - pas 3: factura emesa, numero visible, estat AEAT, estat cobrament pendent, PDF/QR i enllac de pagament si toca;
 - si falla SIF, crear incidencia a `errors_verifactu` i notificacio interna, no crear una factura local alternativa.
+
+#### 3.3.1. Revisio especialitzada i criteri de tancament
+
+Aquest flux queda definit com a emissio fiscal abans del cobrament, no com a proforma ni com a factura electronica per defecte.
+
+Taula de decisio final:
+
+| Cas | Decisio SIF |
+| --- | --- |
+| Inscripcions del mateix curs i edicio, sense factura previa | `issueInvoice()` amb `EMESA_ABANS_COBRAMENT = 1`. |
+| Inscripcio ja vinculada a factura SIF | Bloquejar o mostrar factura existent; no emetre duplicat. |
+| Inscripcions de cursos o edicions diferents | Bloquejar al servidor, encara que el JS ja ho hagi bloquejat. |
+| Receptor fiscal empresa/responsable | Guardar snapshot fiscal complet i relacio amb entitat origen. |
+| Dades d'entitat insuficients | Bloquejar emissio i demanar correccio abans de crear factura. |
+| Reintent, doble clic o recarrega | Retornar la mateixa factura per idempotencia, no crear-ne una altra. |
+| Pagament posterior | `registerPayment()` contra la factura existent. |
+| Necessitat de factura electronica | Accio separada `E_FACT`, no automatica en aquest flux. |
+
+Regles d'implementacio:
+
+- reinicialitzar `idsInsc` abans de recalcular el pas 2 o, millor, reconstruir la seleccio al servidor;
+- no acceptar `preuTotal`, `concepte1`, `concepte2`, `cursos` o `edicions` com a font fiscal sense recalcul;
+- convertir `empresa` de text visible a ID intern i snapshot fiscal;
+- substituir respostes HTML amb cerca de `error` per resposta estructurada;
+- garantir que `concepte2` estigui resolt abans de cridar `issueInvoice()`;
+- corregir o eliminar punts fragils com `rerrorFunction` i comprovacions d'error sobre variables equivocades;
+- eliminar el patro `descarregaFactura.php` + `eliminarArxiu.php` per documents SIF nous;
+- conservar la factura encara que falli PDF/QR o AEAT, obrint incidencia o cua de retry.
+
+Proves minimes:
+
+- emissio correcta d'una factura abans de cobrament;
+- reintent de la mateixa operacio sense duplicar factura;
+- inscripcio ja facturada bloquejada;
+- barreja de cursos o edicions bloquejada al servidor;
+- entitat sense dades fiscals suficients bloquejada;
+- PDF/QR servit des de document immutable;
+- pagament posterior registrat amb `registerPayment()`;
+- URL individual desactivada quan la factura es d'empresa/responsable.
 
 ### 3.4. Consulta - Edita - Anula factura
 
@@ -1117,7 +1279,40 @@ Permisos:
 Pendent d'incorporar:
 
 - cataleg de motius que el sistema convertira en tipus de rectificativa;
-- cos exacte de `anularFactura()` per saber l'ordre d'updates, creacio de factura negativa i text de retorn que mostra al modal.
+- validar contra el codi productiu el cos complet de `anularFactura()` i l'ordre final d'updates, sabent que el xat antic ja confirma la creacio historica d'una factura `R` negativa i l'actualitzacio posterior de resums d'inscripcio.
+
+#### 3.4.1. Revisio especialitzada i criteri de tancament
+
+El xat antic confirma que el punt mes sensible no es la consulta, sino les accions que avui modifiquen una factura ja emesa:
+
+- `guardarDadesFactura_Factures()` fa `updDadesFact` i modifica directament dades de `web.factures`;
+- `anularFactura()` crea una factura historica `R` amb numeracio local `R{any}/{ordre}`, import negatiu i dades copiades de la factura original;
+- despres de crear la factura `R`, el flux toca imports i observacions d'inscripcions per reflectir el retorn;
+- el modal antic ja avisava, encara que comentat, que una factura relacionada amb diverses inscripcions podia requerir ajust manual de pagaments;
+- l'antic camp `A TORNAR` no diferencia devolucio real, saldo intern, compensacio o rectificativa fiscal.
+
+Decisio funcional final:
+
+| Cas | Accio final |
+| --- | --- |
+| Consulta de factura | Lectura de factura original, rectificatives, pagaments, devolucions, PDF/QR i estat AEAT. |
+| Canvi de receptor o dades fiscals | Rectificativa/substitucio amb motiu; mai `updDadesFact` sobre factura SIF emesa. |
+| Canvi de concepte o import | Rectificativa per diferencia o substitucio segons cataleg de motius. |
+| Anul·lacio total | Rectificativa SIF vinculada a l'original i registre de devolucio o saldo. |
+| Retorn parcial | Rectificativa parcial i `payment_transaction` de devolucio, saldo o compensacio. |
+| Factura historica no VERI*FACTU | Consulta i marca historica; no es converteix en precedent per modificar factures SIF. |
+| Marca `E_FACT` | Accio administrativa separada amb usuari, data, motiu i log. |
+| PDF | Consulta de `factura_documents`; els PDFs antics s'etiqueten com a historics o copia. |
+
+Regles d'implementacio:
+
+- eliminar o bloquejar l'us SIF de `guardarDadesFactura_Factures.php` per a factures emeses;
+- substituir `anularFactura_Factures.php` per una accio SIF amb `POST`, idempotencia i validacio servidor;
+- no recalcular imports amb `floatval`; els imports han d'anar amb decimal controlat;
+- no actualitzar `PAGAMENT` o `DATA PAG` d'inscripcio com a font fiscal principal; el resum d'inscripcio s'ha de derivar de pagaments, assignacions, devolucions i rectificatives;
+- quan hi ha diverses inscripcions en una factura, el sistema ha de mostrar i guardar assignacions abans de confirmar;
+- cada rectificativa o devolucio ha de conservar factura original, usuari, data, motiu, import, document generat i estat AEAT;
+- `E_FACT` no es clona automaticament des de la factura original sense una politica explicita.
 
 ### 3.5. Analitzar fitxer TPV
 
@@ -1232,6 +1427,42 @@ Pendent d'incorporar:
 - decidir si l'ultim analisi continua guardant-se a `fitxers/analisis-fitxer.txt` o si passa a taula SIF/log d'auditoria;
 - criteri de reprocessament segur.
 
+#### 3.5.1. Revisio especialitzada i criteri de tancament
+
+El fitxer TPV no ha de ser nomes una comprovacio visual. En el SIF final, cada pujada i cada linia han de deixar rastre auditable.
+
+Resposta actual:
+
+| `state` | Significat actual | Tractament final |
+| --- | --- | --- |
+| `1` | Sense incidencies visibles. | Registrar analisi amb hash del fitxer, usuari, data, total de linies i resultat. |
+| `2` | Hi ha pagaments sense factura o sense conciliacio. | Crear incidencies o propostes de conciliacio amb enllac a alumne/factura. |
+| `0` | Format incorrecte o error de validacio. | Rebutjar fitxer i conservar error tecnic sense tocar pagaments. |
+
+Regles finals:
+
+- validar extensio, MIME, capçalera i estructura, no nomes nombre de camps;
+- conservar hash del fitxer o resum equivalent, usuari que l'ha pujat i data/hora;
+- generar clau idempotent de linia amb origen, data, comanda, import, titular, tipus i referencia quan existeixi;
+- buscar primer `payment_transaction` existent abans de proposar `registerPayment()`;
+- no usar `fitxers/analisis-fitxer.txt` com a unic registre d'auditoria;
+- tractar imports amb `DECIMAL`, no amb `floatval`;
+- no rebutjar NIF/CIF valids nomes per `intval($cif)`;
+- confirmar i corregir el possible bug d'assignacio `if ( $resposta->msg = "" )`;
+- definir si una devolucio TPV obre rectificativa, devolucio de pagament, saldo o incidencia.
+
+Proves minimes:
+
+- fitxer correcte sense incidencies;
+- fitxer correcte amb un pagament no conciliat;
+- fitxer amb format incorrecte;
+- reprocessament del mateix fitxer;
+- mateixa linia amb factura existent;
+- mateixa linia amb venda sense factura;
+- devolucio TPV;
+- NIF/CIF amb lletra inicial;
+- imports amb decimals i diferencia residual.
+
 ### 3.6. Ecommerce
 
 Funcio:
@@ -1249,6 +1480,222 @@ Canvis VERI*FACTU:
 - no crear factura local en callback;
 - cridar SIF;
 - gestionar packs, grups, regals, USOC i codis promocionals.
+
+#### 3.8.1. Revisio especialitzada de Redsys curs normal
+
+El curs normal pagat per Redsys queda com a patro base de migracio dels callbacks.
+
+Flux antic recuperat:
+
+- `realitzaPagamentAutomatic.php` rep `Ds_MerchantParameters` i `Ds_Signature`;
+- calcula signatura Redsys, pero cal verificar que es compara abans de tocar BD;
+- usa `IDPAG` per carregar una inscripcio existent;
+- si Redsys autoritza (`Ds_Response` entre `0` i `99`), calcula factura local `A{any}/{ordre}`;
+- insereix a `web.factures`;
+- guarda `Ds_Order` a `NUM_COMANDA`;
+- actualitza `PAGAMENT`, `FACTURA_RELACIONADA`, `DATA PAG` i `FRACCIO`;
+- envia correus interns de pagament automatic.
+
+Flux final:
+
+| Situacio | Accio SIF |
+| --- | --- |
+| Redsys acceptat, sense factura previa real | `issueInvoice()` amb `source_channel = REDSYS`, `source_type = CURS` i una linia de curs. |
+| Redsys acceptat, amb factura abans de cobrament | `registerPayment()` contra la factura existent. |
+| Callback duplicat mateix `DS_ORDER` | Retornar resultat idempotent sense efectes nous. |
+| Mateix `IDPAG` amb diversos `DS_ORDER` | Tractar com intents o fraccions diferents segons estat; no deduplicar nomes per `IDPAG`. |
+| Signatura incorrecta | Rebutjar i registrar incidencia tecnica, sense tocar factura ni pagament. |
+| Import signat no coincideix | Incidencia o conciliacio manual, no emissio automatica. |
+
+Regla:
+
+```text
+El callback Redsys no calcula numero fiscal, no insereix a web.factures i no decideix PDF.
+El SIF retorna UUID_FACTURA, numero visible, estat AEAT, estat cobrament i document/cua PDF.
+```
+
+#### 3.8.2. Revisio especialitzada de Grups
+
+El grup de persones queda com a cas de pagament amb multiples inscripcions i receptor fiscal diferent del participant individual.
+
+Informacio recuperada:
+
+- una empresa o persona pot pagar per N participants;
+- cada participant te una fila a `inscripcions`;
+- si el grup es d'una escola o empresa, el receptor fiscal es l'entitat;
+- si el grup es d'amics o particular, el receptor fiscal pot ser el responsable particular;
+- el preu per participant surt de `descomptes_grup`;
+- el nom del participant pot sortir a la linia;
+- el DNI nomes s'ha d'imprimir si es necessari per justificacio, i preferentment queda com a dada interna o annex.
+
+Consultes i taules identificades:
+
+- `TIPUS_INSC = G` identifica inscripcions de grup;
+- `respGrups` relaciona responsable i `IDPAG`;
+- `buscarPersRespGrup2` busca grups per DNI de responsable o participant i agrupa per `IDPAG`;
+- `buscarPersGrup` llista participants del grup;
+- `buscarPagamentsGrup` agrega `A_PAGAR`, `PAGAMENT`, `FACTURA_RELACIONADA`, fraccions i observacions per `IDPAG`;
+- `searchMembresGrup` i `searchMembresGrup2` recorren membres del grup per aplicar pagaments en l'operativa historica;
+- `updPayInscr`, `updDateInscr` i `updFraccBD` actualitzen l'estat operatiu de les inscripcions.
+
+Flux final:
+
+| Situacio | Accio SIF |
+| --- | --- |
+| Grup pagat per Redsys sense factura previa real | `issueInvoice()` amb `source_channel = REDSYS`, `source_type = GRUP` i una linia per participant. |
+| Grup amb factura abans de cobrament | `registerPayment()` contra la factura existent. |
+| Grup pagat per empresa/responsable des d'intranet | `issueInvoice()` o `registerPayment()` segons si la factura ja existeix. |
+| Afegir participant despres d'emetre factura real | Rectificativa o factura complementaria, no modificacio directa de la factura original. |
+| Treure participant despres d'emetre factura real | Rectificativa o devolucio/saldo segons el cas fiscal. |
+
+Regla:
+
+```text
+1 pagament de grup
+    -> 1 factura al receptor fiscal
+    -> una linia per participant
+    -> `SOURCE_TYPE = INSCRIPCIO`
+    -> `SOURCE_ID = inscripcions.ID`
+```
+
+La visibilitat queda restringida: els participants no han de veure la factura completa del grup si inclou altres persones; nomes l'empresa o responsable autoritzat la pot consultar.
+
+#### 3.8.3. Revisio especialitzada de Regals
+
+El regal queda com a venda facturada al comprador, amb inscripcio posterior del destinatari sense factura nova.
+
+Informacio recuperada:
+
+- paga qui regala el curs;
+- el receptor de factura es el comprador;
+- el destinatari es la persona indicada al formulari, pero no omple les seves dades d'inscripcio fins que bescanvia el codi;
+- el comprador tria curs, pot posar dedicatoria i introdueix les seves dades de facturacio;
+- el sistema genera un codi regal;
+- quan el destinatari bescanvia el codi, es crea o completa inscripcio sense emetre una segona factura.
+
+Consultes i taules identificades:
+
+- `regal` conserva el registre operatiu del regal;
+- `buscarRegNoPayByCodi` cerca regals pendents de factura per `CODI` i `FACT_REL = 0`;
+- `buscarRegNoPayByDni` cerca regals pendents per `NIFC` i `FACT_REL = 0`;
+- `buscarRegalById` recupera `NOM_CURS`, `CCURS`, `NOMC`, `NIFC`, `MAILC`, adreca, `CODI`, `FACT_REL`, `ORIGEN` i `DESTI`;
+- `updFactRegal` actualitza `regal.FACT_REL` amb la factura relacionada;
+- el modal historic mostra `ORIGEN`, `DESTI`, `CODI REGAL` i `CURS REGAL`;
+- el correu historic de confirmacio inclou el codi i enllaç a la targeta regal PDF.
+
+Flux final:
+
+| Situacio | Accio SIF |
+| --- | --- |
+| Regal pagat per Redsys sense factura previa real | `issueInvoice()` amb `source_channel = REDSYS`, `source_type = REGAL`, `source_id = regal.ID` i una linia al comprador. |
+| Callback duplicat del mateix regal i `DS_ORDER` | Retornar resultat idempotent sense efectes nous. |
+| Cerca/pagament manual de regal pendent | `issueInvoice()` o `registerPayment()` segons si ja existeix factura SIF. |
+| Bescanvi posterior del codi | Crear/vincular inscripcio del destinatari sense factura nova. |
+| Codi caducat, ja bescanviat o incoherent | Incidencia operativa, no emissio fiscal automatica. |
+
+Regla:
+
+```text
+1 pagament de regal
+    -> 1 factura al comprador
+    -> `SOURCE_TYPE = REGAL`
+    -> `SOURCE_ID = regal.ID`
+    -> codi regal
+    -> inscripcio posterior del destinatari sense factura nova
+```
+
+La targeta regal pot continuar sent un document comercial; la factura fiscal immutable ha de sortir del SIF i de `factura_documents`.
+
+#### 3.8.4. Revisio especialitzada d'USOC
+
+USOC queda com a cas de descompte/validacio manual i doble factura per dos pagadors reals.
+
+Informacio recuperada:
+
+- el canal TPV historic es `curs afiliat d'USOC`;
+- `TIPUS_DESC = 4` identifica `Afiliat USOC`;
+- el descompte indicat al xat antic es del 25%;
+- la validacio es manual a la intranet, despres de confirmar afiliacio amb USOC;
+- `VALID_DESC = 0` significa pendent de validar, `1` validat i valid, `2` validat i no valid;
+- el concepte historic podia incloure que el pagament de la diferencia el realitza l'entitat USOC;
+- en el cas recuperat, l'alumne paga inicialment 10 euros i USOC paga la diferencia;
+- el cas especial `Altres: Curs gratüit USOC` pot usar el parametre `anticipi-preu-usoc`.
+
+Consultes, camps i pantalles identificades:
+
+- `inscripcions.TIPUS_DESC` i `inscripcions.VALID_DESC` governen el tipus i estat de validacio;
+- `cnsAlumnDescNoValidat` carrega inscripcions amb descompte pendent;
+- `__mostrarPage_Inici_ValidarDescomptes` avisa si hi ha descomptes pendents;
+- `__mostrarPage_Alumnes_ValidarDescomptes` mostra la llista i etiqueta `Afiliat USOC`;
+- `updValidDescByInsc` actualitza validacio;
+- `updValidDescByInscPreu` pot actualitzar `TIPUS_DESC`, `VALID_DESC` i `A_PAGAR`;
+- els missatges historics informen l'alumne si USOC confirma l'afiliacio o si no consta l'afiliacio.
+
+Flux final:
+
+| Situacio | Accio SIF / operativa |
+| --- | --- |
+| Alumne marca afiliacio USOC | Guardar `TIPUS_DESC = 4`, `VALID_DESC = 0` i no emetre amb descompte fins validacio. |
+| Afiliacio validada | Congelar descompte/preu, generar o habilitar pagament de la part alumne. |
+| Afiliacio denegada | Recalcular import sense descompte i no generar factura USOC. |
+| Alumne paga part per Redsys | `issueInvoice()` a l'alumne per l'import real pagat. |
+| USOC paga diferencia | `issueInvoice()` a USOC per la diferencia, vinculada a la mateixa inscripcio i factura alumne. |
+| Doble callback o reintent | Retornar resultat idempotent sense duplicar cap de les dues factures. |
+
+Regla:
+
+```text
+TIPUS_DESC = 4
+    -> validacio manual USOC
+    -> alumne paga part i rep factura alumne
+    -> USOC paga diferencia i rep factura USOC
+    -> dues factures ordinàries relacionades internament
+```
+
+La factura d'USOC no es una rectificativa ni un complement informal de la factura de l'alumne. Es una factura fiscal separada amb receptor fiscal USOC, snapshot propi i relacio interna amb la inscripcio i la factura de l'alumne.
+
+#### 3.8.5. Revisio especialitzada de Codis promocionals
+
+Els codis promocionals queden com a logica operativa d'ecommerce/intranet que afecta el preu final, pero no com a canal fiscal propi.
+
+Informacio recuperada:
+
+- un client pot introduir un codi al camp `Codi promocional` del formulari d'inscripcio;
+- `descomptes.TIPUS` de l'11 al 99 identifica promocions temporals;
+- les promocions temporals s'apliquen directament segons la taula `descomptes`;
+- els codis promocionals tenen logica propia i poden venir de `promocions`;
+- `promocions` conte com a minim `CODI_DESCOMPTE`, `DNI`, `MES`, `CURS`, `PERCENTATGE`, `USED`, `DATAI` i `DATAF`;
+- hi ha codis personals tipus `MACABODETITULAR#...`, indicats com a personals, intransferibles, d'un sol us i valids fins a una data;
+- en canvis de curs, el codi o promocio pot quedar consumit o tancat amb `updDataFPromocio`.
+
+Consultes i updates identificats:
+
+- `cnsSiTePromocioDispo` busca codis disponibles per patró, DNI, `USED = 0` i vigencia activa;
+- `updDataFPromocio` tanca una promocio posant `DATAF = CURRENT_TIME`;
+- en el flux de promocio de docents novells, es consulta `recent_titulat` per `ID_INSC` i `VALIDAT = 1`;
+- el correu historic pot comunicar un codi `MACABODETITULAR#...` i indicar import de descompte i data de validesa.
+
+Flux final:
+
+| Situacio | Accio SIF / operativa |
+| --- | --- |
+| Codi valid abans de pagar | Guardar snapshot de codi, import/percentatge, base i total final abans de Redsys. |
+| Codi invalid/caducat/usat abans de pagar | Recalcular sense codi o demanar revisio abans d'emetre. |
+| Redsys cobra import amb codi aplicat | `issueInvoice()` amb linia que conserva `desc_origen = CODI_PROMO` i `desc_codi_promo`. |
+| Promocio temporal `descomptes.TIPUS` 11-99 | `issueInvoice()` amb linia que conserva `DESC_ID`, percentatge/preu i vigencia usada. |
+| Codi caduca o queda usat despres d'emetre | No afecta factura emesa; la linia fiscal ja es immutable. |
+| Canvi de curs despres d'emetre | Rectificativa/factura nova segons import/concepte; no recalcul silencios de la factura original. |
+
+Regla:
+
+```text
+codi promocional validat
+    -> snapshot de descompte
+    -> factura_linia amb CODI_PROMO
+    -> factura immutable encara que promocions canviï
+```
+
+El text visible de factura ha de ser generic, per exemple `Descompte promocional aplicat`, i el codi pot quedar com a dada interna si no cal mostrar-lo al PDF.
 
 ### 3.9. Gestio de factura electronica
 
@@ -1517,6 +1964,53 @@ Canvi necessari per VERI*FACTU: crear menu, indicador visual i accessos
 Endpoint SIF: GET /api/sif/summary, GET /api/incidents?status=open
 Notes: la intranet resumeix i enllaça; el SIF conserva i gestiona
 ```
+
+### 3.12. Intranet alumne, empresa/responsable i accessos de factura
+
+Aquest apartat no es una pantalla de gestio fiscal, sino una capa de consulta externa amb permisos estrictes.
+
+Informacio recuperada del xat antic:
+
+- la visibilitat per alumne/empresa es un flux nou; ara no es veu com a circuit complet;
+- l'alumne no ha de veure factures pagades per una empresa;
+- si una empresa paga un grup, cada participant no pot veure la factura completa;
+- nomes l'empresa o responsable pot veure la factura d'empresa/grup;
+- els PDFs s'han de conservar en un espai no public de `pay.prisma.cat`;
+- la intranet ha de servir PDFs amb permisos, sense donar la ruta directa;
+- `factura_documents` controla PDF/XML/QR, hash, estat d'enviament i document disponible;
+- l'apartat `VERI*FACTU` de la intranet principal nomes resumeix i enllaça amb el SIF.
+
+Taula de decisio final:
+
+| Cas | Decisio |
+| --- | --- |
+| Alumne amb factura individual propia | Pot veure factura, estat de pagament i PDF/QR si el document existeix. |
+| Alumne amb inscripcio pagada per empresa/responsable | Pot veure estat administratiu/cobertura, pero no la factura completa si no n'es receptor fiscal. |
+| Grup pagat per empresa | Participants no veuen la factura completa; empresa/responsable si, per correu, enllac segur o espai futur. |
+| Empresa/responsable amb factura pendent | Pot rebre URL de pagament d'empresa/responsable, no URL individual de l'alumne. |
+| PDF/QR pendent o fallit | Mostrar estat pendent/incidencia; no regenerar document amb dades vives. |
+| Apartat `VERI*FACTU` intranet | Mostrar indicador, resum i accessos; la resolucio oficial viu a `pay.prisma.cat/sif`. |
+
+Regles d'implementacio:
+
+- l'endpoint de document ha de comprovar sessio o token, relacio amb receptor, estat del document i permisos;
+- els tokens d'enllac segur han de ser d'us acotat, revocables o amb caducitat, i no han d'incloure paths interns;
+- l'alumne no ha de rebre dades fiscals completes d'una empresa o d'altres participants del grup;
+- l'empresa/responsable no entra a la intranet principal;
+- qualsevol enllac de correu ha de consultar el SIF abans de mostrar PDF/QR o URL de pagament;
+- cada accio de consulta externa ha de ser lectura: no genera factura, pagament, rectificativa ni marca `E_FACT`;
+- si el document falta a `factura_documents`, cal mostrar estat o incidencia SIF.
+
+Proves minimes:
+
+- alumne consulta factura individual propia;
+- alumne intenta veure factura d'empresa/grup i queda bloquejat;
+- responsable consulta factura d'empresa per enllac segur;
+- participant de grup nomes veu estat de cobertura, no dades completes de factura;
+- PDF pendent mostra estat i no regenera document;
+- path intern de document no es visible al navegador;
+- token caducat, invalid o d'una altra factura queda rebutjat;
+- apartat `VERI*FACTU` mostra resum i enllaça al panell SIF sense permetre resolucio local.
 
 ## 4. Canals TPV identificats
 

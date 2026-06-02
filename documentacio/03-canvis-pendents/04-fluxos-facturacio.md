@@ -58,6 +58,53 @@ Matissos operatius recuperats del xat antic:
 - una compensacio pot ser saldo a favor o descompte, pero fiscalment s'ha de tipificar en el SIF;
 - si una persona paga de mes, es pregunta si vol devolucio o deixar saldo per una altra inscripcio.
 
+## Transferencia validada a intranet
+
+El xat antic confirma que, quan un pagament es fa per transferencia, administracio el valida a l'apartat `Passar pagaments` de la intranet i des d'alla s'ha de cridar el SIF.
+
+Flux final:
+
+```text
+transferencia rebuda
+    -> administracio localitza factura, alumne, grup, pack o regal a Passar pagaments
+    -> informa import, data, banc/metode, observacions i referencia si existeix
+    -> servidor recalcula pendent i valida permisos
+    -> si factura SIF existent: registerPayment()
+    -> si no hi ha factura i el cas es facturable: issueInvoice() + registerPayment()
+    -> sincronitzacio historica de PAGAMENT, DATA PAG i FRACCIO nomes com a resum
+```
+
+Informacio recuperada del codi antic:
+
+- `efectuarPagament.php` rep `id`, `tipus`, `pagament`, `dataPag`, `banc`, `obs`, `numFact` i `efact`;
+- `efact == 0` crea factura historica nova i deriva per tipus `R`, `G`, `P` o `I`;
+- `efact != 0` crida `efectuarPagamentFacturaGenerada()`, pensat per factura ja generada;
+- el cami de factura generada usa `buscarPagamentsByFact`, `updFactGenerada`, `searchMembresFactRel`, `updPayInscr`, `updDateInscr` i `updFraccBDByFact`;
+- `mostrarModalConfPag()` avisava historicament que s'actualitzaria la factura i es podria enviar correu a l'entitat/responsable.
+
+Regla VERI*FACTU:
+
+```text
+factura ja emesa
+    -> no s'actualitza import, numero, receptor ni concepte
+    -> el cobrament es registra a payment_transaction
+    -> la vinculacio es registra a payment_allocation
+```
+
+Si la transferencia paga parcialment, el SIF ha de conservar el moviment real i l'assignacio parcial. `FRACCIO` pot quedar com a camp historic sincronitzat, pero no com a prova fiscal primaria.
+
+Idempotencia:
+
+```text
+TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}
+```
+
+Si la referencia no existeix:
+
+```text
+TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}
+```
+
 ## Curs normal Redsys
 
 Estat actual:
@@ -134,7 +181,8 @@ Estat actual conegut:
 - si hi ha un sol pagament, actualment pot acabar en una sola factura;
 - si es fracciona o es gestiona manualment, pot haver-hi mes d'una factura;
 - el preu del pack surt de la taula de preus relacionada amb la taula de packs;
-- el descompte del 25% s'aplica sempre al segon curs.
+- el descompte del 25% s'aplica sempre al segon curs;
+- el fraccionament o la divisio excepcional del pack nomes ha de ser una accio d'intranet, no una opcio que pugui escollir el client a ecommerce.
 
 Estat final:
 
@@ -151,11 +199,17 @@ Idempotencia orientativa:
 REDSYS|PACK|IDPAG:{IDPAG}|ORDER:{DS_ORDER}
 ```
 
+Criteri per excepcions:
+
+- si el pack te un sol pagament real, es genera una sola factura amb totes les linies del pack;
+- si excepcionalment intranet registra mes d'un pagament real, es genera una factura per cada pagament real, amb idempotencia propia i sense partir un mateix `DS_ORDER` en diverses factures;
+- les dues inscripcions del pack continuen vinculades pel mateix `IDPAG`, pero la deduplicacio de callback es fa amb `DS_ORDER`.
+
 Pendent de tancar:
 
 - SQL/estructura exacta de taules de pack;
-- camps de preu base i descompte per linia;
-- exemple complet de factura_linia per pack;
+- camps de preu base i descompte per linia, validats contra el SQL real;
+- exemple real de `factura_linia` per pack provat amb dades de preproduccio;
 - correu associat.
 
 ## Grup
@@ -175,6 +229,14 @@ Motiu:
 
 La factura de grup pot estar a nom d'una escola/empresa o d'un responsable particular.
 
+Estat actual conegut:
+
+- una empresa o persona pot pagar per N participants;
+- hi ha una fila a `inscripcions` per participant;
+- el receptor fiscal no sempre es empresa/escola: si el grup es d'una escola o empresa, la factura va a l'entitat; si es un grup d'amics o particular, pot anar a un responsable particular;
+- el preu per participant surt de `descomptes_grup`;
+- el nom del participant pot sortir a la linia; el DNI es conserva internament i nomes s'imprimeix si es imprescindible per justificacio.
+
 ## Regal
 
 Regla:
@@ -193,6 +255,8 @@ Estat actual conegut:
 - rep un codi per bescanviar;
 - el destinatari omple les seves dades mes endavant quan bescanvia el codi;
 - la factura va al comprador, no al beneficiari.
+- en el moment de la compra encara no hi ha inscripcio definitiva del destinatari;
+- el registre operatiu del regal conserva comprador, curs, codi regal, origen, desti i `FACT_REL`.
 
 Estat final:
 
@@ -210,6 +274,14 @@ Idempotencia orientativa:
 REDSYS|REGAL|IDPAG:{IDPAG}|ORDER:{DS_ORDER}
 ```
 
+Regla de bescanvi:
+
+- la venda del regal es factura una sola vegada al comprador;
+- el SIF rep `SOURCE_TYPE = REGAL` i `SOURCE_ID = regal.ID`;
+- el codi regal pot aparèixer al concepte visible de la linia;
+- quan el destinatari bescanvia el codi, es crea o completa la inscripcio sense generar factura nova;
+- la relacio entre regal, factura i inscripcio posterior s'ha de conservar a `fact_rels` o taula equivalent, no recalcular a partir de dades vives.
+
 Pendent de tancar:
 
 - SQL/estructura exacta de taules de regals;
@@ -223,6 +295,18 @@ Regla:
 
 - l'alumne paga la seva part i rep factura per aquesta part;
 - USOC paga la diferencia i rep factura per la diferencia.
+
+Matisos recuperats del xat antic:
+
+- el cas actual es `curs afiliat d'USOC`;
+- `TIPUS_DESC = 4` identifica el descompte `Afiliat USOC`;
+- `VALID_DESC` controla la validacio: `0` no validat, `1` validat i valid, `2` validat i no valid;
+- el descompte USOC es del 25% i es valida manualment a la intranet despres de confirmar afiliacio amb USOC;
+- el text historic de concepte indicava que el pagament de la diferencia el realitza l'entitat USOC;
+- en el cas normal recuperat, l'alumne fa un primer pagament de 10 euros i USOC paga la diferencia;
+- hi ha un cas especial historic `Altres: Curs gratüit USOC` que pot usar el parametre `anticipi-preu-usoc`.
+
+La factura de l'alumne i la factura d'USOC han de compartir referencia interna a la mateixa inscripcio/curs, pero no s'han de fusionar en una sola factura amb dos pagadors.
 
 ## Factura abans de cobrament
 
@@ -363,6 +447,7 @@ Regles:
 - `lines` sempre inclou imports base, descompte, exempcio IVA i total final.
 - `payment` nomes s'inclou si el pagament i la factura neixen al mateix flux.
 - si la factura ja existia, no s'envia `issueInvoice()`: s'envia `registerPayment()`.
+- els codis promocionals no son un `source_type` de factura: son dades de descompte congelades dins la linia.
 
 ### Curs normal
 
@@ -408,7 +493,17 @@ Normalment:
 - linia 1: primer curs, sense descompte pack;
 - linia 2: segon curs, amb `DESC_ORIGEN = PACK` i descompte del 25%;
 - cada linia apunta a la seva `inscripcions.ID`;
-- el preu del pack surt de les taules de pack/preu existents, pendent d'incorporar al document quan es passi el SQL.
+- el preu del pack surt de les taules de pack/preu existents, pendent d'incorporar al document quan es passi el SQL;
+- si hi ha fraccionament excepcional via intranet, cada pagament real te factura/idempotencia propia i les linies/imports han de coincidir amb el snapshot fiscal aprovat.
+
+Exemple orientatiu:
+
+| Linia | Origen | Preu base | Descompte | Total |
+| --- | --- | ---: | ---: | ---: |
+| Curs A | `SOURCE_TYPE = INSCRIPCIO`, `SOURCE_ID = inscripcions.ID` | 120,00 | 0,00 | 120,00 |
+| Curs B | `SOURCE_TYPE = INSCRIPCIO`, `SOURCE_ID = inscripcions.ID`, `DESC_ORIGEN = PACK` | 120,00 | 30,00 | 90,00 |
+
+Total factura d'exemple: 210,00.
 
 ### Grup de persones
 
@@ -431,6 +526,22 @@ La factura va al receptor fiscal:
 
 La linia ha d'identificar el participant prou per justificacio interna. El nom del participant pot sortir a la factura. El DNI nomes s'ha de mostrar si es necessari per justificacio; si no, es pot conservar internament vinculat a `SOURCE_ID = inscripcions.ID`.
 
+Regla recuperada del xat antic:
+
+- `TIPUS_INSC = G` identifica inscripcions de grup;
+- `IDPAG` agrupa els membres del grup;
+- `respGrups` relaciona el responsable amb el `IDPAG`;
+- `descomptes_grup` aporta el preu/descompte per participant;
+- cada linia de factura ha de portar `SOURCE_TYPE = INSCRIPCIO` i `SOURCE_ID = inscripcions.ID`;
+- si FUNDAE/Tripartita exigeix identificacio forta, el DNI pot quedar a `factura_linia` o en annex intern, pero no s'ha d'imprimir per defecte.
+
+Exemple orientatiu:
+
+| Linia | Origen | Text visible | Dada interna |
+| --- | --- | --- | --- |
+| Participant 1 | `SOURCE_TYPE = INSCRIPCIO`, `SOURCE_ID = inscripcions.ID` | Curs X - Participant: Maria Exemple | DNI intern si cal justificacio |
+| Participant 2 | `SOURCE_TYPE = INSCRIPCIO`, `SOURCE_ID = inscripcions.ID` | Curs X - Participant: Joan Exemple | DNI intern si cal justificacio |
+
 ### Regal
 
 Idempotencia:
@@ -451,9 +562,19 @@ La factura:
 - `SOURCE_TYPE = REGAL`;
 - `SOURCE_ID = ID_REGAL`;
 - concepte visible: `Regal curs ...` o `Regal curs de X hores`;
+- pot incloure `CODI REGAL` com a dada visible o interna segons criteri de comunicacio;
 - destinatari: no es receptor de factura en el moment de compra.
 
 Quan el destinatari bescanvia el codi, es crea o completa inscripcio, pero no es crea una factura nova.
+
+Consultes actuals identificades:
+
+- `buscarRegNoPayByCodi` localitza regals pendents de factura per `CODI`;
+- `buscarRegNoPayByDni` localitza regals pendents de factura per NIF del comprador;
+- `buscarRegalById` recupera curs, comprador, adreca, codi, `FACT_REL`, `ORIGEN` i `DESTI`;
+- `updFactRegal` actualitza `regal.FACT_REL` amb la factura relacionada.
+
+El SIF final no ha de dependre nomes de `FACT_REL`: ha de conservar `UUID_FACTURA`, idempotencia, relacio amb `regal.ID` i vincle posterior amb la inscripcio del destinatari quan es bescanviï.
 
 ### USOC
 
@@ -469,7 +590,9 @@ Factura alumne:
 - receptor: alumne;
 - import final: import pagat per l'alumne;
 - linia amb preu base i descompte visible generic;
-- motiu intern: `TIPUS_DESC = 4 / USOC`.
+- motiu intern: `TIPUS_DESC = 4 / USOC`;
+- `VALID_DESC = 1` abans d'aplicar el descompte USOC i abans d'emetre factura amb import reduit;
+- si `VALID_DESC = 2` o afiliacio no confirmada, cal recalcular sense descompte abans de pagar/facturar.
 
 Factura USOC:
 
@@ -477,6 +600,48 @@ Factura USOC:
 - import: diferencia assumida per USOC;
 - linia vinculada al curs/alumne i convocatoria;
 - relacio interna amb la factura de l'alumne i la inscripcio.
+
+Idempotencia orientativa:
+
+```text
+REDSYS|USOC_ALUMNE|IDPAG:{IDPAG}|ORDER:{DS_ORDER}
+INTRANET|USOC_ENTITAT|ID_INSC:{ID_INSC}|FACT_ALUMNE:{UUID_FACTURA_ALUMNE}
+```
+
+La part d'USOC no pot deduir-se nomes de la diferencia entre `A_PAGAR` i `PAGAMENT` sense snapshot: el SIF ha de conservar import base, import pagat per l'alumne, import assumit per USOC, `TIPUS_DESC`, `VALID_DESC`, data/usuari de validacio i receptor fiscal complet d'USOC.
+
+### Codis promocionals i promocions temporals
+
+Regla:
+
+```text
+ecommerce/intranet valida promocio
+    -> calcula preu/descompte
+    -> SIF congela resultat a factura_linia
+```
+
+El SIF no ha de validar si un codi promocional es valid, caducat o usat. Aquesta validacio es fa abans de cridar `issueInvoice()`.
+
+Informacio recuperada:
+
+- els codis promocionals es poden introduir al camp `Codi promocional` del formulari d'inscripcio;
+- `promocions` conserva `CODI_DESCOMPTE`, `DNI`, `MES`, `CURS`, `PERCENTATGE`, `USED`, `DATAI` i `DATAF`;
+- `cnsSiTePromocioDispo` comprova codi, DNI, `USED = 0` i vigencia `DATAI/DATAF`;
+- `updDataFPromocio` pot tancar la vigencia posant `DATAF = CURRENT_TIME`;
+- `MACABODETITULAR#...` es un exemple de codi personal i intransferible, d'un sol us i valid fins a una data;
+- `descomptes.TIPUS` de l'11 al 99 identifica promocions temporals per dates.
+
+La linia fiscal ha de conservar:
+
+- `desc_origen = CODI_PROMO` o `PROMOCIO_TEMPORAL`;
+- codi aplicat, si existeix;
+- percentatge o import fix;
+- import descomptat;
+- text visible generic;
+- base i total final;
+- referencia interna a `promocions` o `descomptes`, si existeix.
+
+Si el codi caduca o es marca usat despres d'emetre factura, la factura no canvia. Si el codi es declara invalid abans d'emetre, cal recalcular sense el descompte o obrir incidencia.
 
 ### Factura manual
 

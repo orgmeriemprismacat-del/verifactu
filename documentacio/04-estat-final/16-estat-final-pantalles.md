@@ -197,6 +197,28 @@ Impacte fiscal:
 - qualsevol accio amb impacte fiscal ha de quedar registrada amb usuari, data, motiu i referencia d'inscripcio/factura.
 - les dades editables actuals de pagament han de quedar separades entre dades operatives de la inscripcio i moviments fiscals/pagaments del SIF.
 
+### 4.1. Criteri de captura i prova final
+
+Per considerar finalitzada la pantalla `Consulta / Modifica alumne`, l'annex de captures haura d'incloure:
+
+- vista general de dades personals, inscripcions pendents, inscripcions acabades i observacions;
+- modal de dades del curs;
+- modal de dades de pagament amb URL activa, URL inactiva i motiu;
+- modal de canvi de curs amb import recalculat, descompte, despeses de gestio, diferencia i accio fiscal prevista;
+- modal de baixa amb decisio pendent, retorn, saldo o no retorn;
+- vista de factura historica no VERI*FACTU;
+- vista de factura SIF amb UUID, numero visible, estat AEAT, estat cobrament, PDF/QR i rectificatives;
+- vista de certificat.
+
+La prova final ha de demostrar:
+
+- editar dades personals no modifica cap factura ja emesa;
+- les icones desactivades no executen accio ni per UI ni per endpoint;
+- veure factura es nomes lectura;
+- canvi de curs i baixa creen event o deriven cap al flux fiscal correcte;
+- una factura d'empresa/grup no es mostra com a factura individual de cada alumne participant;
+- una inscripcio coberta per factura d'empresa/responsable no conserva URL individual duplicable.
+
 ## 5. Intranet - Dades pagament
 
 Regla de redisseny obligatoria:
@@ -469,6 +491,26 @@ Despres de registrar pagament:
 - crear incidencia si hi ha duplicat, import inconsistent o factura no localitzada.
 - no enviar correu de factura definitiva fins que el SIF hagi generat la factura i el document quan el cas requereixi emissio nova.
 
+### 9.0. Criteri de captura i prova final
+
+La captura final d'aquesta pantalla ha de demostrar que el bloc TPV i el bloc de cerca/pagament conviuen sense barrejar responsabilitats:
+
+- analisi TPV amb darrer fitxer, estat, incidencies i enllacos de revisio;
+- cerca amb un sol criteri actiu (`NIF/NIE`, `CODI REGAL` o `NUM FACTURA`);
+- selector `ALUMNE / GRUP`;
+- fila amb pendent calculat pel SIF, metode, data, observacions i origen;
+- avis clar quan existeix factura SIF o factura abans de cobrament;
+- accio final descrita com a registre de pagament, no edicio de factura;
+- incidencia visible si el pagament es duplicat, no conciliat o inconsistent.
+
+Prova final associada:
+
+- confirmar pagament d'una factura ja emesa i comprovar que nomes es crea `payment_transaction`;
+- confirmar pagament d'una factura abans de cobrament i comprovar que no es genera factura nova;
+- pujar TPV amb incidencia i comprovar que queda com a revisio manual;
+- repetir el mateix TPV i comprovar idempotencia;
+- intentar cridar l'accio sense permisos o amb dades manipulades i comprovar bloqueig de servidor.
+
 ## 9.1. Intranet - Entitats i responsables
 
 URL actual:
@@ -537,6 +579,30 @@ Resultat final:
 - PDF/QR immutable;
 - si posteriorment es paga, el flux sera `registerPayment()`.
 
+### 10.0. Criteri de captura i prova final
+
+La captura final ha de mostrar un flux de tres passos comprensible:
+
+- seleccio d'inscripcions candidates;
+- receptor fiscal complet, linies fiscals, concepte visible, import total i avis de factura abans de cobrament;
+- factura emesa amb numero visible, estat AEAT, estat cobrament pendent, PDF/QR i enllac de pagament quan correspongui.
+
+Ha de quedar visible que:
+
+- la factura ja existeix encara que no estigui pagada;
+- `EMESA_ABANS_COBRAMENT = 1` no implica `E_FACT = 1`;
+- les inscripcions relacionades ja no han de tenir una URL individual que pugui duplicar el cobrament;
+- el pagament posterior es fa contra aquesta factura.
+
+Prova final associada:
+
+- generar factura amb dues inscripcions del mateix curs i edicio;
+- intentar repetir l'emissio i comprovar idempotencia;
+- intentar incloure inscripcio ja facturada i comprovar bloqueig;
+- intentar barrejar cursos o edicions i comprovar bloqueig de servidor;
+- descarregar PDF i comprovar que surt de document immutable;
+- registrar el pagament posterior i comprovar que nomes es fa `registerPayment()`.
+
 ## 10.1. Intranet - Consulta - Edita - Anula factura
 
 URL actual:
@@ -585,6 +651,29 @@ No permetre:
 - anul·lar sense motiu i sense factura rectificativa quan correspongui.
 - regenerar PDF de factura nova a partir de dades vives.
 
+### 10.1.0. Criteri de captura i prova final
+
+La captura final d'aquest apartat ha de demostrar:
+
+- cerca per DNI/NIE, email, factura relacionada i numero de factura;
+- diferenciacio entre factura SIF, factura historica, factura ordinaria i rectificativa;
+- vista de factura original amb rectificatives vinculades;
+- estat de cobrament, import retornat, saldo o devolucio;
+- PDF/QR immutable llegit de document SIF;
+- accio separada de marcar/desmarcar `E_FACT`;
+- historial amb usuari, data, motiu i document creat.
+
+Proves minimes:
+
+- intent d'edicio directa d'una factura SIF bloquejat al servidor;
+- rectificativa de dades fiscals amb motiu obligatori;
+- rectificativa d'import total i parcial;
+- anul·lacio amb devolucio i amb saldo;
+- factura amb diverses inscripcions i assignacio visible d'import retornat;
+- consulta de PDF antic etiquetat com a historic o copia;
+- usuari sense permis intentant rectificar, anul·lar o marcar `E_FACT`;
+- cap accio destructiva executada per `GET`.
+
 ## 11. Intranet personalitzada de l'alumne
 
 L'alumne no es un rol de la intranet principal.
@@ -604,6 +693,7 @@ Regles de visibilitat:
 - l'alumne pot veure factures on sigui receptor fiscal o estigui autoritzat segons relacio documentada;
 - una factura d'empresa, grup o responsable no es visible automaticament a tots els participants;
 - si la factura existeix pero el PDF/QR esta pendent, es mostra estat pendent o enllac segur, no un PDF regenerat.
+- si la inscripcio esta coberta per una empresa/responsable, l'alumne pot veure l'estat de cobertura, pero no la factura completa si no n'es receptor fiscal.
 
 ## 11.0. Empresa/responsable
 
@@ -621,6 +711,7 @@ Regles:
 - l'enllac segur ha de validar token/permis i consultar el SIF;
 - pot permetre veure factura, estat de cobrament, PDF/QR i URL de pagament d'empresa/responsable si encara esta pendent;
 - no ha de redirigir cap a la URL individual d'un alumne quan la factura pendent es d'empresa/responsable.
+- el PDF s'ha de servir des d'espai no public de `pay.prisma.cat`, sense exposar ruta directa.
 
 ## 11.1. Intranet principal - acces VERI*FACTU
 
@@ -647,6 +738,25 @@ Nomenclatura visual:
 - `avis`: text puntual a la pantalla.
 - `notificacio`: avis guardat i recuperable.
 - `incidencia SIF`: registre oficial que es resol al panell SIF.
+
+## 11.2. Criteri de visibilitat i prova final
+
+El xat antic confirma aquesta regla base:
+
+```text
+factura pagada per alumne -> alumne pot veure-la
+factura pagada per empresa/grup -> nomes empresa/responsable
+participant -> no veu factura completa de grup/empresa
+```
+
+La captura final ha de demostrar:
+
+- alumne amb factura individual propia i PDF/QR visible;
+- alumne amb inscripcio coberta per empresa/responsable sense factura completa visible;
+- empresa/responsable consultant factura per enllac segur;
+- PDF/QR servit des del SIF o `factura_documents` sense ruta directa;
+- estat pendent si PDF/QR encara no existeix;
+- apartat `VERI*FACTU` amb indicador, resum i enllac al panell SIF.
 
 ## 12. Captures
 

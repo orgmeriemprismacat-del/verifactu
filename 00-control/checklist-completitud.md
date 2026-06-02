@@ -36,6 +36,24 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [ ] `documentacio/04-estat-final/25-panell-sif-pay-prisma.md` esta complet.
 - [ ] `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md` esta complet.
 
+## Xats especialitzats
+
+- [x] Xat 5 / `Consulta - Modifica alumne` revisat com a subbloc especialitzat.
+- [x] Xat 5 / `Passar pagaments` i analisi TPV revisats com a subbloc especialitzat.
+- [x] Xat 5 / `Generar factura abans de pagar` revisat com a subbloc especialitzat.
+- [x] Xat 5 / `Consulta - Edita - Anula factura` revisat com a subbloc especialitzat.
+- [x] Xat 5 / Intranet alumne, empresa/responsable i acces `VERI*FACTU` revisats com a subbloc especialitzat.
+
+## Blocs especialitzats de canals i casos
+
+- [x] `Redsys curs normal` revisat com a bloc especialitzat.
+- [x] `Packs` revisat com a bloc especialitzat.
+- [x] `Grups` revisat com a bloc especialitzat.
+- [x] `Regals` revisat com a bloc especialitzat.
+- [x] `USOC` revisat com a bloc especialitzat.
+- [x] `Codis promocionals` revisat com a bloc especialitzat.
+- [x] `Transferencia validada a intranet` revisat com a bloc especialitzat.
+
 ## Criteri per marcar una area com a tancada
 
 Una area es pot marcar com a revisada quan:

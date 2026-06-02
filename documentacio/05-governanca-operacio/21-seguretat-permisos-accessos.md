@@ -97,6 +97,87 @@ Per tant:
 - l'endpoint AJAX o API SIF ha de repetir la validacio;
 - qualsevol accio critica ha de deixar log d'usuari, data, pantalla/origen i motiu.
 
+### 4.1.2. Consulta - Modifica alumne
+
+La pantalla `Consulta - Modifica alumne` te accions de nivells diferents.
+
+| Accio | Acces orientatiu | Regla fiscal |
+| --- | --- | --- |
+| Consultar fitxa, inscripcions i observacions | Meriem, Adam, Pablo, Isa quan dona suport | Consulta sense efecte fiscal. |
+| Editar dades personals operatives | Segons rol intern d'edicio | No modifica factures emeses. Si afecta dades fiscals d'una factura, cal flux separat de rectificativa. |
+| Veure dades del curs | Meriem, Adam, Pablo, Isa quan dona suport | Consulta academica/administrativa. |
+| Obrir dades de pagament | Meriem, Adam, Pablo | No pot ser editor lliure de pagaments fiscals. |
+| Iniciar canvi de curs | Meriem, Adam, Pablo | Requereix motiu, recalcul i validacio de servidor; pot derivar a rectificativa, saldo, retorn o nou cobrament. |
+| Iniciar baixa | Meriem, Adam, Pablo | Baixa administrativa inicial; no rectifica factura automaticament. |
+| Veure factura | Meriem, Adam, Pablo; Isa nomes si el suport ho requereix i el rol ho permet | Nomes lectura; sense edicio directa. |
+| Veure certificat | Meriem, Adam, Pablo, Isa quan dona suport | Sense impacte fiscal directe. |
+
+Les icones amb baixa opacitat nomes indiquen que l'accio no esta disponible a la UI. El servidor ha de bloquejar igualment l'accio si l'usuari intenta cridar l'endpoint directament.
+
+### 4.1.3. Passar pagaments i TPV
+
+`Passar pagaments` i `Analitzar fitxer TPV` son accions critiques perque poden crear o registrar cobraments fiscals.
+
+| Accio | Acces orientatiu | Regla de seguretat |
+| --- | --- | --- |
+| Veure pantalla `/alumnes/pagaments/` | Meriem, Adam, Pablo | Acces limitat a rols fiscals/administratius. |
+| Cercar pagaments | Meriem, Adam, Pablo | Validar criteri unic i registrar accio quan deriva en pagament. |
+| Registrar pagament manual o transferencia | Meriem, Adam, Pablo | Validacio servidor/SIF, idempotencia i log obligatori. |
+| Pujar fitxer TPV | Meriem, Adam, Pablo | Validar fitxer, usuari, hash i resultat d'analisi. |
+| Resoldre incidencia TPV/SIF | Meriem; Adam/Pablo segons rol final | Motiu obligatori i traça d'auditoria. |
+| Consulta de suport sense accio fiscal | Isa nomes si el rol ho permet | Sense registre de pagament ni pujada TPV. |
+
+Regles:
+
+- cap dada de pagament critica ha de quedar autoritzada nomes pel front;
+- l'accio final no ha d'anar per `GET` amb import, data, banc o observacions;
+- cada registre ha de conservar usuari, data, origen, import, metode, referencia i motiu quan calgui;
+- el reprocessament TPV ha de ser idempotent;
+- el nom `efact` de la pantalla no pot decidir permisos ni confondre's amb `E_FACT`.
+
+### 4.1.4. Generar factura abans de cobrament
+
+La pantalla `/alumnes/genera-factura-abans-pagar/` crea una factura fiscal real i per tant es una accio critica.
+
+| Accio | Acces orientatiu | Regla de seguretat |
+| --- | --- | --- |
+| Cercar inscripcions candidates | Meriem, Adam, Pablo | Consulta operativa; si deriva en emissio, queda auditada. |
+| Seleccionar inscripcions | Meriem, Adam, Pablo | Validacio servidor de curs, edicio, import i factura previa. |
+| Seleccionar entitat/receptor | Meriem, Adam, Pablo | Cal ID intern i snapshot fiscal complet. |
+| Emetre factura abans de cobrament | Meriem, Adam, Pablo | `issueInvoice()` amb permisos, idempotencia i log. |
+| Descarregar PDF/QR | Meriem, Adam, Pablo | Document immutable del SIF; no regeneracio lliure. |
+| Marcar `E_FACT` | Meriem, Adam, Pablo | Accio separada, no automatica en aquest flux. |
+
+Regles:
+
+- el front no pot ser l'unic punt que impedeix barrejar cursos, edicions o inscripcions ja facturades;
+- el servidor ha de bloquejar emissio sense receptor fiscal complet;
+- l'emissio ha de conservar usuari, origen, inscripcions, receptor, import, motiu/observacions i idempotency key;
+- si el PDF/QR falla, no es desfà la factura, es crea incidencia SIF;
+- Isa pot consultar dades de suport nomes si el rol ho permet, pero no emet aquesta factura.
+
+### 4.1.5. Consulta - Edita - Anula factura
+
+La pantalla `/alumnes/factura/` tracta factures ja emeses i per tant les accions de canvi son critiques.
+
+| Accio | Acces orientatiu | Regla de seguretat |
+| --- | --- | --- |
+| Consultar factura i PDF/QR | Meriem, Adam, Pablo | Nomes lectura; les factures historiques s'etiqueten com a no VERI*FACTU quan calgui. |
+| Rectificar dades fiscals | Meriem, Adam, Pablo | Accio SIF amb motiu, validacio servidor, log i factura rectificativa/substitutiva. |
+| Rectificar import | Meriem, Adam, Pablo | Calcul servidor, decimal controlat, enllac a factura original i estat AEAT. |
+| Registrar devolucio o saldo | Meriem, Adam, Pablo | Ha de vincular-se a pagament, factura i rectificativa; no es resol amb `GET`. |
+| Marcar/desmarcar `E_FACT` | Meriem, Adam, Pablo | Accio administrativa separada amb usuari, data i motiu. |
+| Editar factura SIF emesa directament | Cap rol | Prohibit; `updDadesFact` no pot aplicar-se a factures SIF. |
+| Esborrar factura o PDF | Cap rol | Prohibit; nomes rectificatives i documents immutables. |
+
+Regles:
+
+- el servidor ha de validar permisos encara que el JS amagui o desactivi icones;
+- cap rectificativa, anul·lacio, devolucio o marca `E_FACT` ha d'anar per `GET`;
+- cal registrar motiu, usuari, data, factura original, factura nova i estat de l'accio;
+- si hi ha diverses inscripcions vinculades, el sistema ha de validar assignacions abans de confirmar;
+- l'antic nom `.confirma-baixa` no s'ha d'usar com a criteri funcional o de permisos.
+
 ### 4.2. Cursos
 
 Inclou apartats de gestio i consulta de cursos.
@@ -165,11 +246,13 @@ Pot consultar:
 - pagaments propis;
 - factures visibles a nom seu;
 - PDF/QR si la factura li correspon.
+- estat de cobertura o pagament quan una empresa/responsable ha pagat la inscripcio, sense veure la factura completa.
 
 No pot veure:
 
 - factures de grup o empresa on no sigui receptor fiscal;
 - factures completes d'una empresa/responsable que paga per diversos participants.
+- paths interns de documents fiscals.
 
 ### 5.2. Empresa o responsable
 
@@ -181,6 +264,28 @@ Si ha de consultar factures, es fara per:
 - enllac segur;
 - gestio interna;
 - o futur espai especific, si es decideix crear-lo.
+
+Pot consultar:
+
+- factures on l'empresa/responsable sigui receptor fiscal o contacte autoritzat;
+- estat de cobrament;
+- PDF/QR servit pel SIF;
+- URL de pagament d'empresa/responsable si la factura esta pendent.
+
+No pot:
+
+- entrar a la intranet principal;
+- veure dades internes d'alumnes fora de la relacio necessaria amb la factura;
+- modificar factura, pagament, rectificativa o marca `E_FACT`;
+- rebre una ruta directa a fitxers fiscals.
+
+Regles d'enllac segur:
+
+- token validat al servidor;
+- relacio token-factura-receptor comprovada abans de servir document;
+- caducitat o revocacio si es defineix;
+- cap path intern dins la URL;
+- registre d'acces si el document fiscal ho requereix.
 
 ## 6. Rols del SIF
 
@@ -244,6 +349,34 @@ No pot:
 - resoldre incidencies funcionals;
 - canviar configuracio sense ordre tecnica;
 - actuar sense log.
+
+### 8.1. Callback Redsys
+
+El callback Redsys es un proces servidor, no una accio manual d'usuari.
+
+Pot:
+
+- rebre notificacio Redsys a l'endpoint configurat;
+- validar signatura, `Ds_Response`, `Ds_Order` i `Ds_Amount`;
+- registrar `redsys_notifications`;
+- cridar `issueInvoice()` o `registerPayment()` segons si hi ha factura previa real;
+- crear incidencia tecnica si la notificacio no es pot conciliar;
+- sincronitzar resum operatiu d'inscripcio despres de resposta SIF.
+
+No pot:
+
+- confiar en imports o ordres rebuts per `GET`;
+- calcular numero fiscal local;
+- inserir directament a `web.factures` per a factures SIF;
+- actualitzar `PAGAMENT`, `DATA PAG`, `FACTURA_RELACIONADA` o `FRACCIO` abans que el SIF accepti l'operacio;
+- enviar correu de factura com si fos prova fiscal si el SIF no ha retornat document o estat controlat.
+
+Regles de seguretat:
+
+- secrets Redsys fora de codi font quan es desplegui la versio final;
+- endpoint amb TLS i origen/configuracio controlada;
+- idempotencia obligatoria per `DS_ORDER`;
+- logs tecnics sense exposar dades sensibles innecessaries.
 
 ## 9. BD fiscal
 

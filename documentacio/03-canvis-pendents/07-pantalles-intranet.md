@@ -135,6 +135,53 @@ Icones identificades:
 - veure factura;
 - veure certificat.
 
+### Revisio especialitzada del subbloc
+
+Revisio feta despres de tancar el xat pont general.
+
+Conclusio:
+
+```text
+Consulta - Modifica alumne esta identificada.
+No cal tornar a descobrir la pantalla.
+El que cal ara es convertir-la en especificacio executable, proves i captures finals.
+```
+
+El xat antic confirma el mapa funcional de la pantalla:
+
+| Element | Estat actual explicat | Criteri VERI*FACTU |
+| --- | --- | --- |
+| Dades personals | Bloc amb boto d'edicio. | Modifica dades operatives; no toca factures emeses. Si cal corregir dades fiscals d'una factura, s'obre rectificativa/substitucio. |
+| Inscripcions pendents | Taula amb `TIPUS`, `ANY`, `MES`, `CURS`, `INSCRIT`, `TITOL` i `ACCIONS`. | Ha de separar estat academic, cobrament, factura i AEAT. |
+| Inscripcions acabades | Mateixa estructura que pendents. | Ha de mostrar historic, factura SIF o factura historica no VERI*FACTU segons cas. |
+| Observacions generals | Bloc d'observacions de l'alumne. | Seguiment administratiu, no registre fiscal. |
+| Icona 1 | Informacio de l'alumne/inscripcio. | Consulta; no modifica fiscalitat. |
+| Icona 2 | Canvi de curs. | Ha d'obrir flux amb recalcul, motiu, previsualitzacio fiscal i registre d'event. |
+| Icona 3 | Baixa. | Baixa administrativa inicial; no rectificativa automatica. |
+| Icona 4 | Veure factura. | Nomes lectura i descarrega PDF; factura nova des de `factura_documents`. |
+| Icona 5 | Veure certificat. | Sense impacte fiscal directe. |
+| Icones amb baixa opacitat | Accio no disponible. | La desactivacio visual s'ha de repetir com a validacio de servidor/SIF. |
+
+Punts especifics recuperats:
+
+- quan l'alumne es moros, la pantalla pot permetre consultar factura si hi ha part pagada i veure que s'ha pagat;
+- l'anul·lacio o rectificativa no s'ha de resoldre des d'aquesta fitxa, sino a `Consulta - Edita - Anula factura`;
+- en canvi de curs, el sistema actual recalcula automaticament `A_PAGAR` segons el descompte original i si encara aplica al nou curs;
+- les despeses de gestio del canvi de curs es calculen automaticament, pero poden ser editables en casos puntuals;
+- l'`A_PAGAR` tambe pot ser editable en casos puntuals, pero amb SIF ha de portar motiu i impacte fiscal;
+- la URL de pagament que es veu a dades de pagament s'ha de moure a `pay.prisma.cat`;
+- la visualitzacio actual de factura es de lectura i descarrega PDF;
+- el concepte de factura historica surt de camps estructurats de `web.factures`, especialment `concepte1` i `concepte2`;
+- si hi ha part pagada i canvi a curs mes barat, Adam fa el retorn manualment i la rectificativa es genera des de l'apartat de factura;
+- les despeses de gestio actualment estan incloses dins l'import final, pero en el SIF conve convertir-les en linia explicita quan generin factura nova o diferencia.
+
+Criteri per donar el subbloc per tancat documentalment:
+
+- guardar captures finals de vista general, dades del curs, dades de pagament, canvi de curs, baixa, veure factura i certificat;
+- indicar per cada icona quan esta activa, quan queda desactivada i quin missatge/motiu es mostra;
+- documentar el cos real dels metodes que encara faltin: `guardarDadesPagament_modalsresultatCerca()`, `realitzarCanviCurs_modalCanviCurs()`, `confirmaBaixa_modalDonarBaixa()` i `generaFactura()`;
+- convertir cada subflux en proves: dades personals amb factura emesa, dades de pagament amb factura existent, canvi de curs mes car/barat/mateix import, baixa amb retorn/saldo/no retorn, veure factura historica i veure factura SIF.
+
 Taules i dades implicades:
 
 - `inscripcions`, com a origen principal de dades de l'alumne, estat academic, imports, pagaments i relacio amb factura;
@@ -470,6 +517,44 @@ Accio SIF:
 - PDF/QR a `factura_documents`;
 - si falla SIF, crear incidencia a `errors_verifactu`, no generar factura alternativa local.
 
+### Revisio especialitzada del subbloc
+
+El xat antic confirma que aquesta pantalla emet una factura real abans del cobrament, normalment per empresa, responsable o situacio on cal factura previa per poder cobrar.
+
+Detalls recuperats de la pantalla actual:
+
+- la cerca es fa per `NIF/NIE` i crida `mostrarInformacioInscripcio_generaFactura.php` per `GET`;
+- el JS copia cel·les HTML de la taula de resultats cap a `INSCRIPCIONS RELACIONADES AMB LA FACTURA A GENERAR`;
+- el boto `+` es desactiva afegint `no-disponible` i traient `add-inscripcio`;
+- el boto de treure inscripcio torna a activar el boto `+` original;
+- `continue-pas-2` comprova `tePermisEdicio`, curs unic i edicio unica;
+- `preuTotal`, `cursos`, `edicions`, `concepte1` i `concepte2` es calculen al navegador;
+- `concepte2` depen d'una crida AJAX a `calcularTextData.php`;
+- `continue-pas-3` envia `empresa`, `concepte1`, `concepte2`, `preu`, `cursos`, `edicions`, `inscripcions` i `observacions` a `generaFacturaElectronica_Factures.php`;
+- despres de crear factura, el JS consulta dades finals i inscripcions relacionades;
+- la previsualitzacio i descarrega passen per `modalConsultaFactura_Factures()` i `descarregaFactura.php`.
+
+Riscos concrets recuperats:
+
+- `idsInsc` s'omple amb `push()` quan es continua al pas 2; si l'usuari torna enrere o repeteix el pas, pot acumular IDs duplicats si no es reinicialitza;
+- `entitatMarcada` guarda text visible, no snapshot fiscal ni ID intern obligatori;
+- la comprovacio d'errors a la resposta de dades de factura pot mirar la variable equivocada si no es revisa el JS final;
+- hi ha una crida de fallada escrita com `rerrorFunction`, que s'ha de confirmar/corregir en implementacio;
+- el servidor rep valors construits al client i ha de recalcular-ho tot abans d'emetre;
+- `descarregaFactura.php` regenera PDF i `eliminarArxiu.php` rep `filename` per `GET` i fa `unlink($filename)`;
+- el nom `generaFacturaElectronica` pot confondre's amb `E_FACT`, pero aquest flux no marca factura electronica per defecte.
+
+Criteri de tancament del subbloc:
+
+- la pantalla final ha de mostrar clarament `Factura emesa abans de cobrament`;
+- la seleccio d'entitat ha de desar ID intern i snapshot fiscal complet;
+- les inscripcions seleccionades s'han de validar al servidor: estat, curs, edicio, import, receptor i factura previa;
+- la factura resultant ha de tenir `EMESA_ABANS_COBRAMENT = 1` i `E_FACT = 0` per defecte;
+- cada inscripcio ha de quedar vinculada a la factura SIF per `fact_rels`;
+- les URLs individuals de pagament han de quedar bloquejades o substituides quan el pagament correspon a la factura d'empresa/responsable;
+- el PDF/QR s'ha de servir de `factura_documents`, no regenerar-se des de dades vives;
+- el pagament posterior ha d'entrar per `Passar pagaments` o URL de factura i fer nomes `registerPayment()`.
+
 ## Genera/Edita entitats
 
 URL:
@@ -704,6 +789,40 @@ Accions finals esperades:
 - marcar/desmarcar `E_FACT`;
 - consultar historial d'accions.
 
+### Revisio especialitzada del subbloc
+
+Informacio concreta recuperada del xat antic:
+
+- `guardarDadesFactura_Factures()` executa `updDadesFact` sobre `web.factures`, retorna text pla `OK` i no demana motiu, tipus de rectificativa ni log fiscal;
+- l'edicio directa modifica `factura_relacionada`, rao, CIF, adreca, CP, poblacio, `concepte1`, `concepte2` i observacions de la factura existent;
+- `modalAnularFactura_Factures($id)` obre el modal amb `A TORNAR` inicialitzat a l'import de la factura i `DATA DEVOLUCIO` amb la data actual;
+- el codi antic contenia un avis comentat per factures relacionades amb mes d'una inscripcio: calia ajustar pagaments manualment a `inscripcions`, cosa que amb SIF ha de passar a assignacions, devolucions o saldo controlat;
+- `anularFactura($idFact, $tornar, $dataDevol, $obsDev)` crea una factura historica `R{any}/{ordre}` amb import negatiu, copia dades fiscals/conceptes de l'original i conserva la mateixa `factura_relacionada`;
+- despres de la factura `R`, el flux antic actualitza resums economics d'inscripcio amb `updInscAnulFact`, `updInscAnulFact2`, `updInscDataPagAnulFact`, `updInscFraccAnulFact` i `updObsFact`;
+- la rectificativa historica clona el valor `E_FACT` de la factura original, pero en el SIF final la marca `E_FACT` ha de ser una accio administrativa separada i auditada;
+- l'accio JS `.confirma-baixa` executa anul·lacio de factura i pot confondre's amb baixa d'inscripcio.
+
+Criteri SIF per tancar aquest subbloc:
+
+- la pantalla passa a ser centre de control de factures emeses, no editor directe;
+- les factures SIF han de quedar en lectura per a receptor, concepte, import, numeracio, data, PDF/QR i registre AEAT;
+- qualsevol canvi de receptor, concepte o import ha de crear rectificativa/substitucio amb motiu estructurat;
+- anul·lacio total o parcial ha de generar rectificativa quan pertoqui i registrar devolucio, saldo o compensacio contra pagaments reals;
+- si una factura te diverses inscripcions vinculades, la pantalla ha de mostrar assignacions i imports afectats abans de confirmar;
+- els endpoints destructius no han d'anar per `GET` ni acceptar imports lliures sense validacio servidor;
+- els PDFs nous no es regeneren amb dades vives; es llegeixen de `factura_documents`;
+- les factures historiques no VERI*FACTU poden ser consultades, pero s'han d'etiquetar com a historiques i no poden usar-se com a model de modificacio SIF.
+
+Proves finals especifiques:
+
+- intentar editar una factura SIF i comprovar que no es fa `updDadesFact`;
+- rectificar dades fiscals amb motiu i verificar nova factura/registre relacionat;
+- rectificar import total i parcial amb devolucio o saldo vinculat;
+- anul·lar una factura amb diverses inscripcions i revisar assignacions;
+- marcar i desmarcar `E_FACT` amb usuari, data i motiu;
+- descarregar PDF/QR immutable sense regeneracio;
+- bloquejar anul·lacio o rectificativa si l'usuari no te permis servidor.
+
 ## Pagaments i analisi TPV
 
 URL:
@@ -813,6 +932,59 @@ Pendent:
 - taula o llista de bancs/metodes;
 - regles exactes per imports parcials, fraccions i compensacions.
 
+### Revisio especialitzada del subbloc
+
+El xat antic confirma que aquesta pantalla concentra dos fluxos que s'han de tractar separats encara que comparteixin URL:
+
+1. analisi de fitxer TPV per detectar pagaments cobrats pel banc que no consten conciliats;
+2. pas manual de pagaments, transferencies, regals, grups, fraccions o regularitzacions.
+
+Regles recuperades del JS actual:
+
+- la cerca nomes pot tenir un criteri informat: `NIF/NIE`, `CODI REGAL` o `NUM FACTURA`;
+- el selector `ALUMNE / GRUP` envia `tipusInsc = I` o `tipusInsc = G`;
+- el formulari TPV envia `fitxer-tpv` amb `FormData` i espera JSON;
+- `state = 1` significa analisi sense incidencies;
+- `state = 2` mostra `registresPagErrors` i enllacos cap a alumne o factura;
+- `state = 0` indica format o validacio incorrecta;
+- els enllacos d'incidencia obren `alumnes/mostrar-alumne/#/{dni}` o `alumnes/factura/#/{dni}`.
+
+Regles recuperades del PHP actual:
+
+- `efectuarPagament.php` rep `id`, `tipus`, `pagament`, `dataPag`, `banc`, `obs`, `numFact` i `efact`;
+- `mostrarModalConfPag.php` carrega dades de `web.factures` i avisa que el sistema "actualitzara la factura";
+- aquest text i comportament no poden passar al SIF final com a actualitzacio de factura emesa;
+- el flux final ha de dir "registrar pagament contra factura existent" quan ja hi ha factura;
+- el camp `efact` d'aquesta pantalla s'ha de reanomenar o documentar com a `te_factura_generada` o equivalent, per no confondre'l amb la marca fiscal `E_FACT`;
+- els imports, data, banc i observacions no han de viatjar per `GET` en el disseny final.
+
+Subcas recuperat: transferencia validada a intranet.
+
+- si `efact == 0`, `efectuarPagament()` encara calcula factura historica i deriva per tipus `R`, `G`, `P` o `I`;
+- si `efact != 0`, crida `efectuarPagamentFacturaGenerada()` i el sistema antic actualitza `factures.data_pagament`, `factures.IMPORT` i `FORMA_PAGAMENT` amb `updFactGenerada`;
+- aquest mateix flux reparteix l'import entre membres de la factura amb `searchMembresFactRel`, `updPayInscr` i `updDateInscr`;
+- si el cobrament queda parcial, actualitza `FRACCIO` amb `updFraccBDByFact`;
+- en pantalla final SIF, aquest subcas s'ha de mostrar com a registre de cobrament contra factura, no com a edicio de factura.
+
+Canvis especifics de pantalla per transferencia:
+
+- mostrar si la factura trobada ja es SIF, historica o factura abans de cobrament;
+- mostrar pendent recalculat al servidor abans de permetre confirmar;
+- demanar metode/banc i referencia bancaria quan correspongui;
+- avisar si `NUM FACTURA` apunta a factura anul·lada, rectificada totalment o coberta per una altra assignacio;
+- despres de confirmar, mostrar `UUID_PAYMENT`, factura assignada i estat de cobrament.
+
+Criteri de tancament del subbloc:
+
+- revisar o recuperar els cossos de `buscarInfomacioPagament.php` i `mostrarModalInfoPag.php`;
+- conservar com a recuperats documentalment `mostrarModalConfPag.php`, `efectuarPagament.php`, `efectuarPagamentFacturaGenerada()` i `analitzarFitxerTPV.php`;
+- definir la llista final de `BANC`/metodes i la correspondencia amb `payment_transaction.method`;
+- definir idempotencia per `IDPAG`, referencia bancaria/TPV, `DS_ORDER`, import, data i origen;
+- provar que una factura existent no es duplica i nomes rep `registerPayment()`;
+- provar que una factura abans de cobrament queda pendent fins que es registra el cobrament;
+- provar que un TPV reprocessat no crea moviments duplicats;
+- provar que les incidencies TPV queden registrades i no es resolen amb updates silenciosos.
+
 ### Certificat
 
 No afecta directament la fiscalitat, pero cal mantenir coherencia amb baixes, morositat i estat de curs.
@@ -850,6 +1022,40 @@ Regla VERI*FACTU:
 - marcar un alumne com a moros no rectifica automaticament la factura;
 - la factura continua existint mentre no hi hagi devolucio, rectificativa o decisio fiscal posterior;
 - les reclamacions han de quedar com a events operatius amb import total, import pagat, import pendent, fase, data, missatge i estat.
+
+## Intranet alumne, empresa/responsable i accessos externs
+
+Aquest subbloc regula qui pot veure factures i documents fora de la intranet principal.
+
+Informacio recuperada del xat antic:
+
+- actualment aquesta visibilitat externa encara no existeix com a flux complet nou;
+- una factura pagada per l'alumne pot ser visible a l'alumne;
+- una factura pagada per empresa, grup o responsable no ha de ser visible automaticament als participants;
+- si una empresa paga un grup, cada participant no pot veure la factura completa;
+- la factura d'empresa/grup nomes la pot veure l'empresa o responsable autoritzat;
+- el PDF generat en emissio s'ha de guardar en un espai no public de `pay.prisma.cat`;
+- la intranet o l'enllac segur han de servir el document amb comprovacio de permisos, no donar mai la ruta directa del fitxer.
+
+Regles de visibilitat:
+
+| Cas | Visible per alumne | Visible per empresa/responsable | Criteri |
+| --- | --- | --- | --- |
+| Factura individual a nom de l'alumne | Si | No, excepte autoritzacio documentada | L'alumne pot consultar PDF/QR i estat si la factura li correspon. |
+| Factura d'empresa/responsable per una inscripcio | No automaticament | Si | L'alumne pot veure que la inscripcio esta coberta, pero no la factura completa si no n'es receptor. |
+| Factura de grup amb diversos participants | No | Si | Proteccio de dades i privacitat dels altres participants. |
+| Factura historica no VERI*FACTU | Segons receptor i relacio | Segons receptor i relacio | Etiqueta historica; no es regenera PDF. |
+| PDF/QR pendent | Estat visible, no PDF improvisat | Estat visible, no PDF improvisat | Esperar `factura_documents` o mostrar incidencia/pendent. |
+
+Canvis necessaris:
+
+- crear o adaptar la consulta de factures visibles de la intranet personalitzada de l'alumne;
+- crear endpoint d'enllac segur per empresa/responsable quan calgui enviar factura o URL de pagament;
+- validar token, receptor, relacio amb factura i estat del document abans de servir PDF/QR;
+- no exposar rutes internes ni paths de `factura_documents`;
+- mostrar estat de factura, cobrament i PDF/QR sense donar accions fiscals;
+- registrar acces a documents fiscals quan sigui necessari per auditoria;
+- distingir clarament "inscripcio coberta per empresa/responsable" de "factura visible per l'alumne".
 
 ## Apartat VERI*FACTU de la intranet principal
 

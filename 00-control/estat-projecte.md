@@ -1,6 +1,6 @@
 # Estat del projecte VERI*FACTU
 
-Ultima actualitzacio: 2026-06-01
+Ultima actualitzacio: 2026-06-02
 
 ## Objectiu
 
@@ -28,6 +28,17 @@ Adaptar el sistema de facturacio de PrisMa a VERI*FACTU mitjancant un SIF centra
 - Bloc 7 revisat: correus, plantilles, PDF/QR i notificacions. S'han incorporat criteris sobre grups reals de correus, `Template`, correus directes en PHP, correu tecnic de `realitzaPagamentAutomatic.php`, URLs de pagament a `pay.prisma.cat`, enllac segur, PDF/QR en cua, `factura_documents` i nomenclatura `incidencia SIF`/`notificacio`/`avis`/`indicador`.
 - Bloc 8 revisat: proves, produccio, auditoria documental i governanca. S'han incorporat criteris sobre entorn de preproduccio separat, go/no-go, regressions critiques, evidencies de prova, backups/restauracio, no rollback de factures emeses, versio `0.3-BORRADOR`, activacio de `1.0.0` i planificacio interna realista.
 - La revisio transversal del xat antic per blocs queda completada. La prioritat immediata passa a ser obrir xats especialitzats per convertir la documentacio parcial en procediments executables, SQL, pantalles, proves i evidencies.
+- Xat especialitzat d'intranet iniciat: subbloc `Consulta - Modifica alumne` revisat. S'ha consolidat que la pantalla es fitxa central d'alumne i inici d'accions, no editor de factures emeses. Queden pendents els cossos reals de metodes, implementacio final, proves i captures finals.
+- Xat especialitzat d'intranet continuat: subbloc `Passar pagaments / Analitzar fitxer TPV` revisat. S'ha consolidat el criteri SIF per registrar cobraments, evitar factures duplicades, auditar TPV, separar `efact` de `E_FACT` i exigir idempotencia. Queden pendents cossos reals de cerca/modal info, implementacio final, proves i captures finals.
+- Xat especialitzat d'intranet continuat: subbloc `Generar factura abans de pagar` revisat. S'ha consolidat que aquest flux emet factura real pendent de cobrament, amb `EMESA_ABANS_COBRAMENT = 1`, `E_FACT = 0` per defecte, snapshot fiscal del receptor, idempotencia i pagament posterior per `registerPayment()`. Queden pendents implementacio final, proves i captures finals.
+- Xat especialitzat d'intranet continuat: subbloc `Intranet alumne, empresa/responsable i acces VERI*FACTU` revisat. S'ha consolidat que l'alumne nomes veu factures propies, que les factures d'empresa/grup nomes son visibles per empresa/responsable autoritzat, i que l'apartat `VERI*FACTU` de la intranet nomes resumeix i enllaça amb el panell SIF.
+- Bloc especialitzat de pagaments continuat: `Redsys curs normal` revisat. S'ha consolidat que `realitzaPagamentAutomatic.php` no ha de calcular numero ni inserir a `web.factures`; el callback ha de validar signatura/import, deduplicar `DS_ORDER` i cridar `issueInvoice()` o `registerPayment()` segons si existeix factura real.
+- Bloc especialitzat de pagaments continuat: `Packs` revisat. S'ha consolidat que el pack normal agrupa dues inscripcions amb el mateix `IDPAG`, genera una factura per pagament real, una linia per curs i el descompte `PACK` del 25% al segon curs. Queden pendents SQL real de pack/preus, implementacio SIF, proves i captures finals.
+- Bloc especialitzat de pagaments continuat: `Grups` revisat. S'ha consolidat que el grup genera una factura per pagament real, una linia per participant, receptor fiscal empresa/escola o responsable particular i DNI intern excepte justificacio. Queden pendents implementacio SIF, SQL final de `descomptes_grup`/`respGrups`, proves i captures finals.
+- Bloc especialitzat de pagaments continuat: `Regals` revisat. S'ha consolidat que el regal factura al comprador, usa `SOURCE_TYPE = REGAL`, genera codi de bescanvi i crea/vincula la inscripcio posterior del destinatari sense segona factura. Queden pendents implementacio SIF, SQL final de `regal`/`FACT_REL`, proves i captures finals.
+- Bloc especialitzat de pagaments continuat: `USOC` revisat. S'ha consolidat que l'afiliacio USOC es valida manualment (`TIPUS_DESC = 4`, `VALID_DESC`), que l'alumne rep factura per la seva part i USOC rep factura per la diferencia. Queden pendents implementacio SIF, dades fiscals completes d'USOC, proves/captures i decisio final sobre `anticipi-preu-usoc`.
+- Bloc especialitzat de pagaments continuat: `Codis promocionals` revisat. S'ha consolidat que el codi es valida a ecommerce/intranet, que `promocions` conserva codi, DNI, us i vigencia, i que el SIF nomes congela el resultat fiscal dins `factura_linia`. Queden pendents implementacio, SQL final de `promocions`, proves/captures i criteri final de visibilitat del codi al PDF.
+- Bloc especialitzat de pagaments continuat: `Transferencia validada a intranet` revisat. S'ha recuperat el cami antic de `efectuarPagamentFacturaGenerada()` i s'ha consolidat que una transferencia sobre factura existent ha d'anar per `registerPayment()` i `payment_allocation`, sense modificar la factura emesa. Queden pendents implementacio SIF, referencia bancaria/BANC final, proves/captures i cossos de cerca/modal info.
 
 ## Decisions base ja assumides
 
@@ -71,13 +82,13 @@ Temes amb mes risc de contenir detalls pendents de contrast:
 
 ## Proper pas recomanat
 
-Obrir el primer xat especialitzat segons el mapa de xats i la matriu de cobertura:
+Continuar la revisio especialitzada amb el bloc seguent:
 
 ```text
-Pantalles i procediments reals d'intranet/ecommerce.
+Compensacio/saldo.
 ```
 
-Alternativament, si la prioritat tecnica es reduir risc abans de pantalles, obrir un xat especialitzat de BD/SQL i migracio fiscal.
+Motiu: un cop revisada la transferencia validada a intranet, el seguent cas parcial de pagament es la compensacio/saldo, que ha de distingir saldo a favor, descompte, devolucio i assignacio fiscal.
 
 ## Com s'ha de tancar cada sessio
 

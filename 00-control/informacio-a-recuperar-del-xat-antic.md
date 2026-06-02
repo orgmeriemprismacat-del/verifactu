@@ -163,6 +163,228 @@ Documents actualitzats:
 - `documentacio/04-estat-final/25-panell-sif-pay-prisma.md`
 - `documentacio/04-estat-final/17-estat-final-bd-relacions.md`
 
+#### Bloc especialitzat: Redsys curs normal
+
+Estat: incorporat com a bloc especialitzat de pagaments; queda obert per implementar `redsys_notifications`, substituir `realitzaPagamentAutomatic.php`, executar proves Redsys i confirmar payload final en codi.
+
+Informacio concreta recuperada i consolidada:
+
+- `realitzaPagamentAutomatic.php` es el callback historic de Redsys per curs normal;
+- el fitxer llegeix `Ds_SignatureVersion`, `Ds_MerchantParameters` i `Ds_Signature`;
+- calcula `$firma = createMerchantSignatureNotif(...)` i ha de comparar-la amb `Ds_Signature` abans de tocar BD;
+- recupera `Ds_Order`, `Ds_Date`, `Ds_Hour`, `Ds_Amount` i `Ds_Response`;
+- considera autoritzada la transaccio quan `Ds_Response` esta entre `0` i `99`;
+- busca la inscripcio per `IDPAG` i estats `INSC CURS` `0`, `1` o `M`;
+- recupera `FACTURA_RELACIONADA`, `A_PAGAR`, `PAGAMENT` i `FRACCIO` per decidir el comportament antic;
+- el bloc `Generem la factura` calcula `factura_relacionada`, `ANY`, `ORDRE` i `NUM`;
+- si no hi ha factura relacionada, busca l'ultim valor de `factura_relacionada`; si ja hi havia pagament, reutilitza la relacio;
+- genera `A{any}/{ordre}` i insereix directament a `web.factures`;
+- desa `Ds_Order` a `NUM_COMANDA`;
+- actualitza `web.inscripcions` amb `PAGAMENT`, `FACTURA_RELACIONADA`, `DATA PAG` i `FRACCIO`;
+- el flux final ha de substituir aquest bloc per `issueInvoice()` o `registerPayment()`;
+- `IDPAG` no es clau idempotent suficient, perque pot haver-hi diversos intents Redsys o fraccionaments; `DS_ORDER` deduplica callback, i la decisio funcional considera factura previa real.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/05-governanca-operacio/21-seguretat-permisos-accessos.md`
+- `documentacio/05-governanca-operacio/22-manual-operatiu-intern.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+#### Bloc especialitzat: Packs
+
+Estat: incorporat com a bloc especialitzat de pagaments; queda obert per incorporar SQL real de pack/preus, implementar payload final de `issueInvoice()`, executar proves i afegir captures finals.
+
+Informacio concreta recuperada i consolidada:
+
+- el pack normal inclou 2 cursos;
+- es crea una inscripcio per cada curs;
+- les inscripcions del mateix pack comparteixen `IDPAG`;
+- el futur desitjat es factura amb linies, no dues factures per decisio del client;
+- si hi ha un sol pagament real, el SIF genera una sola factura amb una linia per curs;
+- si excepcionalment intranet registra mes d'un pagament real, cada pagament te factura/idempotencia propia;
+- el preu del pack surt de la taula de preus relacionada amb la taula de packs;
+- el descompte del 25% s'aplica sempre al segon curs;
+- `DESC_ORIGEN = PACK` s'aplica nomes a la linia del curs amb descompte;
+- cada linia apunta a la seva `inscripcions.ID`;
+- la idempotencia es `REDSYS|PACK|IDPAG:{IDPAG}|ORDER:{DS_ORDER}`;
+- `buscarPagamentsPack` agrupa per `IDPAG`;
+- `buscarInfoPack` consulta `info_pack`;
+- `cnsInscsPack` i `cnsDadesCursPack` identifiquen les inscripcions i dades de curs que alimenten les linies fiscals.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/04-fluxos-facturacio.md`
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+#### Bloc especialitzat: Grups
+
+Estat: incorporat com a bloc especialitzat de pagaments; queda obert per implementar payload final de grup, validar SQL real de `descomptes_grup`/`respGrups`, executar proves i afegir captures finals.
+
+Informacio concreta recuperada i consolidada:
+
+- una empresa o persona pot pagar per N participants;
+- hi ha una fila a `inscripcions` per participant;
+- `TIPUS_INSC = G` identifica inscripcions de grup;
+- `IDPAG` agrupa el grup i els seus membres;
+- `respGrups` relaciona responsable i `IDPAG`;
+- el receptor fiscal es escola/empresa si el grup es d'una entitat, o responsable particular si es un grup d'amics/particular;
+- el preu per participant surt de `descomptes_grup`;
+- la factura futura es una factura per pagament real amb una linia per participant;
+- el nom del participant pot sortir a la linia, especialment per FUNDAE/Tripartita;
+- el DNI del participant queda intern o en annex i nomes s'imprimeix si hi ha justificacio;
+- `buscarPersRespGrup2` busca grups per DNI de responsable o participant;
+- `buscarPersGrup` llista participants per `IDPAG`;
+- `buscarPagamentsGrup` agrupa deutes/pagaments de grup per `IDPAG`;
+- `searchMembresGrup` i `searchMembresGrup2` recorren membres per aplicar pagaments en l'operativa historica;
+- els participants no han de veure la factura completa del grup si conte altres persones.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/04-fluxos-facturacio.md`
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+#### Bloc especialitzat: Transferencia validada a intranet
+
+Estat: incorporat com a bloc especialitzat; queda obert per implementacio SIF, proves reals, captures finals, referencia bancaria/BANC final i cossos de cerca/modal info.
+
+Que cal buscar:
+
+- `transferencia`, `Passar pagaments`, `efectuarPagament`, `efectuarPagamentFacturaGenerada`;
+- `mostrarModalConfPag`, `buscarPagamentsByFact`, `updFactGenerada`;
+- `searchMembresFactRel`, `updPayInscr`, `updDateInscr`, `updFraccBDByFact`;
+- `dataPag`, `banc`, `obs`, `numFact`, `efact`;
+- criteri de factura ja generada, fraccio i correu a entitat/responsable.
+
+Documents relacionats:
+
+- `documentacio/03-canvis-pendents/04-fluxos-facturacio.md`
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/03-canvis-pendents/07-pantalles-intranet.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/04-estat-final/05-model-bd-sif.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+Informacio trobada i incorporada:
+
+- quan un pagament es fa per transferencia, administracio el valida a `Passar pagaments` i des d'alla s'ha de cridar el SIF;
+- `ajax/alumnes/efectuarPagament.php` rep per `GET` `id`, `tipus`, `pagament`, `dataPag`, `banc`, `obs`, `numFact` i `efact`;
+- `efectuarPagament()` separa `efact == 0` (crear factura historica per `R/G/P/I`) i `efact != 0` (factura ja generada);
+- `mostrarModalConfPag()` consulta `buscarInfoFacturaByNum`, busca entitat/responsable amb `buscarRespEntitatByCIF` i mostra avís historic d'actualitzar factura;
+- `efectuarPagamentFacturaGenerada()` usa `buscarPagamentsByFact`, recupera `A_PAGAR`, `PAGAMENT`, `FACTURA_RELACIONADA`, `FRACCIO`, `IDPAG`, `cif` i `E_FACT`;
+- el codi historic fa `updFactGenerada` sobre `web.factures` i despres reparteix import amb `searchMembresFactRel`, `updPayInscr`, `updDateInscr` i `updFraccBDByFact`;
+- el SIF substitueix aquest comportament per `payment_transaction` i `payment_allocation`;
+- una factura VERI*FACTU ja emesa no es modifica quan arriba la transferencia; nomes es registra cobrament;
+- si no hi ha factura i el cobrament crea obligacio fiscal, cal `issueInvoice()` + `registerPayment()` idempotent;
+- la idempotencia recomanada es `TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}` o, si no hi ha referencia, `TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}`.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/04-fluxos-facturacio.md`
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/03-canvis-pendents/07-pantalles-intranet.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/04-estat-final/05-model-bd-sif.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+#### Bloc especialitzat: Codis promocionals
+
+Estat: incorporat parcialment al bloc especialitzat; queda obert per implementacio, SQL final, proves reals i captures finals.
+
+Que cal buscar:
+
+- camp `Codi promocional` del formulari d'inscripcio;
+- `promocions.CODI_DESCOMPTE`, `DNI`, `MES`, `CURS`, `PERCENTATGE`, `USED`, `DATAI`, `DATAF`;
+- promocions temporals a `descomptes.TIPUS` 11-99;
+- consultes `cnsSiTePromocioDispo` i `updDataFPromocio`;
+- codis `MACABODETITULAR#...`;
+- promocio de docents novells i `recent_titulat`;
+- decisio SIF sobre snapshot de linia i no revalidacio del codi.
+
+Documents relacionats:
+
+- `documentacio/00-index-i-pla/documentacio-verifactu.md`
+- `documentacio/04-estat-final/05-model-bd-sif.md`
+- `documentacio/03-canvis-pendents/04-fluxos-facturacio.md`
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+Informacio trobada i incorporada:
+
+- el client pot introduir un codi promocional al formulari d'inscripcio;
+- ara mateix a la factura antiga no sempre surt el detall del descompte, nomes l'import final ja aplicat;
+- `descomptes.TIPUS` indica que de l'11 al 99 son promocions temporals;
+- les promocions temporals es calculen segons la taula `descomptes`;
+- `promocions` conserva codi, DNI, curs/edicio, percentatge, us i vigencia;
+- `cnsSiTePromocioDispo` valida `CODI_DESCOMPTE LIKE ?`, DNI, `USED = 0`, `DATAI <= CURRENT_TIME` i `DATAF >= CURRENT_TIME`;
+- `updDataFPromocio` tanca vigencia amb `DATAF = CURRENT_TIME` per codi/DNI actiu;
+- `MACABODETITULAR#...` es un exemple de codi personal i intransferible, d'un sol us i valid fins a una data concreta;
+- el flux de docents novells comprova `recent_titulat` per `ID_INSC` i `VALIDAT = 1` abans de comunicar el codi;
+- el SIF no ha de validar si el codi es valid, caducat o usat: ha de rebre la foto fiscal ja calculada;
+- `factura_linia` ha de conservar `desc_origen = CODI_PROMO`, `desc_codi_promo`, import/percentatge, text visible i total final;
+- si el codi caduca o queda usat despres d'emetre, la factura no canvia;
+- si el codi es invalid abans de pagar/facturar, cal recalcular sense codi o obrir incidencia.
+
+Documents actualitzats:
+
+- `documentacio/00-index-i-pla/documentacio-verifactu.md`
+- `documentacio/04-estat-final/05-model-bd-sif.md`
+- `documentacio/03-canvis-pendents/04-fluxos-facturacio.md`
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+#### Bloc especialitzat: Regals
+
+Estat: incorporat com a bloc especialitzat de pagaments; queda obert per implementar payload final de regal, validar SQL real de `regal`/`FACT_REL`, executar proves i afegir captures finals.
+
+Informacio concreta recuperada i consolidada:
+
+- paga qui regala el curs;
+- la factura va al comprador, no al beneficiari;
+- el comprador tria curs o tipus de curs;
+- el comprador pot posar dedicatoria;
+- el comprador introdueix les seves dades de facturacio;
+- el destinatari encara no omple dades d'inscripcio en el moment de compra;
+- es genera un codi regal per bescanviar;
+- quan el destinatari bescanvia el codi, crea o completa inscripcio sense factura nova;
+- `SOURCE_TYPE = REGAL` i `SOURCE_ID = regal.ID`;
+- `buscarRegNoPayByCodi` cerca regals pendents per `CODI` i `FACT_REL = 0`;
+- `buscarRegNoPayByDni` cerca regals pendents per `NIFC`;
+- `buscarRegalById` recupera curs, comprador, adreca, codi, `FACT_REL`, `ORIGEN` i `DESTI`;
+- `updFactRegal` actualitza `regal.FACT_REL` amb la factura relacionada historica;
+- el modal historic mostra `ORIGEN`, `DESTI`, `CODI REGAL` i `CURS REGAL`;
+- el correu historic envia el codi regal i enllaç a la targeta regal PDF;
+- el missatge historic indica validesa d'un any des de la compra.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/04-fluxos-facturacio.md`
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
 ### Base de dades i relacions
 
 Estat: incorporat parcialment al bloc 4; queda obert per al SQL final, grants MySQL exactes i migracio historica quan s'implementi.
@@ -290,6 +512,154 @@ Documents actualitzats:
 - `documentacio/05-governanca-operacio/21-seguretat-permisos-accessos.md`
 - `documentacio/05-governanca-operacio/22-manual-operatiu-intern.md`
 
+#### Subbloc especialitzat: Consulta - Modifica alumne
+
+Estat: incorporat com a subbloc especialitzat d'intranet; queda obert per revisar cossos reals de metodes, implementar pantalla final, executar proves i afegir captures finals.
+
+Informacio concreta recuperada i consolidada:
+
+- pantalla amb dades personals, inscripcions pendents, inscripcions acabades i observacions generals;
+- cinc icones per inscripcio: informacio, canvi de curs, baixa, veure factura i certificat;
+- les icones amb baixa opacitat no es poden clicar, pero el SIF ha de validar igualment al servidor;
+- si l'alumne es moros, es pot consultar factura si hi ha part pagada i veure que s'ha pagat;
+- veure factura des d'aquesta pantalla es nomes lectura i descarrega PDF;
+- la factura historica usa camps estructurats de `web.factures`, especialment `concepte1` i `concepte2`;
+- el canvi de curs recalcula automaticament `A_PAGAR` segons curs nou, descompte original i si aquest descompte encara aplica;
+- les despeses de gestio del canvi de curs es calculen automaticament, pero poden editar-se en casos puntuals;
+- `A_PAGAR` pot ser editable en casos puntuals, pero amb SIF ha de portar motiu i impacte fiscal;
+- la URL de pagament de dades de pagament s'ha de moure a `pay.prisma.cat`;
+- si hi ha part pagada i el canvi es a curs mes barat, Adam fa el retorn manual i la rectificativa es tramita des de `Consulta - Edita - Anula factura`;
+- les despeses de gestio actualment estan dins l'import final, pero en el SIF convé convertir-les en linia explicita quan generin factura nova o diferencia.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/07-pantalles-intranet.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/04-estat-final/16-estat-final-pantalles.md`
+- `documentacio/05-governanca-operacio/21-seguretat-permisos-accessos.md`
+- `documentacio/05-governanca-operacio/22-manual-operatiu-intern.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+#### Subbloc especialitzat: Passar pagaments / Analitzar fitxer TPV
+
+Estat: incorporat com a subbloc especialitzat d'intranet; queda obert per revisar cossos reals de cerca/modal info, implementar endpoint/API SIF, executar proves i afegir captures finals.
+
+Informacio concreta recuperada i consolidada:
+
+- la pantalla combina `ANALITZA FITXER` i `CERCA`, pero el flux final ha de separar analisi TPV, incidencia, emissio i registre de pagament;
+- el JS de cerca exigeix exactament un criteri: `NIF/NIE`, `CODI REGAL` o `NUM FACTURA`;
+- el selector d'inscripcio envia `I` per alumne i `G` per grup;
+- `#formTPV` envia `fitxer-tpv` per `POST` amb `FormData`;
+- `analitzarFitxerTPV.php` retorna `state = 1`, `state = 2` amb `registresPagErrors`, o `state = 0`;
+- les incidencies TPV poden obrir alumne o factura amb enllacos interns;
+- `efectuarPagament.php` rep import, data, banc, observacions, factura i `efact`;
+- `mostrarModalConfPag.php` avisa que s'actualitzara la factura, pero en SIF final s'ha de substituir per registre de cobrament contra factura existent;
+- `efact` es ambigu i no s'ha de confondre amb la marca fiscal `E_FACT`;
+- si hi ha factura SIF existent o factura abans de cobrament, el flux final es `registerPayment()`;
+- si no hi ha factura i la venda es facturable, el flux final es `issueInvoice()` + `registerPayment()`;
+- el TPV final ha de conservar auditoria de fitxer/linia, hash o resum, usuari, idempotencia i incidencies;
+- `fitxers/analisis-fitxer.txt` no pot ser l'unica evidencia del darrer analisi;
+- els pagaments manuals o transferencies han de validar permisos al servidor i no enviar dades critiques per `GET`.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/07-pantalles-intranet.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/04-estat-final/16-estat-final-pantalles.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/05-governanca-operacio/21-seguretat-permisos-accessos.md`
+- `documentacio/05-governanca-operacio/22-manual-operatiu-intern.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+#### Subbloc especialitzat: Generar factura abans de pagar
+
+Estat: incorporat com a subbloc especialitzat d'intranet; queda obert per implementar `issueInvoice()`, revisar JS/AJAX final, executar proves i afegir captures finals.
+
+Informacio concreta recuperada i consolidada:
+
+- la pantalla actual cerca per `NIF/NIE` i selecciona inscripcions candidates amb el boto `+`;
+- el JS copia cel·les HTML de la taula de resultats a la taula d'inscripcions relacionades;
+- el sistema evita afegir dues vegades la mateixa fila canviant classes del boto, pero el servidor ho ha de validar igualment;
+- `idsInsc` es construeix amb `push()` en continuar al pas 2 i pot duplicar IDs si es repeteix el pas sense reinicialitzar;
+- la pantalla exigeix mateix curs i mateixa edicio, pero aquesta validacio es client i s'ha de repetir al servidor;
+- `preuTotal`, `concepte1`, `concepte2`, `cursos` i `edicions` es calculen al navegador i no poden ser font fiscal unica;
+- `concepte2` depen de `calcularTextData.php` i d'una crida asincrona;
+- `generaFacturaElectronica_Factures.php` rep `empresa`, `concepte1`, `concepte2`, `preu`, `cursos`, `edicions`, `inscripcions` i `observacions`;
+- `empresa` es text visible en el JS actual i s'ha de convertir en ID intern i snapshot fiscal del receptor;
+- el nom `generarFacturaElectronica_Alumnes` no significa `E_FACT = 1`; aquest flux crea factura abans de cobrament;
+- la factura final ha de tenir `EMESA_ABANS_COBRAMENT = 1` i `E_FACT = 0` per defecte;
+- `descarregaFactura.php` regenera el PDF amb `generaFactura($id, true)` i `eliminarArxiu.php` fa `unlink($filename)` amb `filename` rebut per `GET`;
+- en el SIF final, el PDF/QR ha de sortir de `factura_documents` i el pagament posterior ha de ser `registerPayment()`.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/07-pantalles-intranet.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/04-estat-final/16-estat-final-pantalles.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/05-governanca-operacio/21-seguretat-permisos-accessos.md`
+- `documentacio/05-governanca-operacio/22-manual-operatiu-intern.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+#### Subbloc especialitzat: Consulta - Edita - Anula factura
+
+Estat: incorporat com a subbloc especialitzat d'intranet; queda obert per implementar rectificatives SIF, cataleg de motius, bloqueig d'edicio directa, proves i captures finals.
+
+Informacio concreta recuperada i consolidada:
+
+- la pantalla actual permet cercar per `NIF/NIE`, email, factura relacionada i numero de factura;
+- `guardarDadesFactura_Factures()` crida `updDadesFact`, modifica directament `web.factures` i retorna `OK` sense motiu fiscal ni historial;
+- l'edicio directa inclou receptor, CIF, adreca, CP, poblacio, conceptes i observacions;
+- `modalAnularFactura_Factures($id)` omple `A TORNAR` amb l'import de la factura i `DATA DEVOLUCIO` amb la data actual;
+- el codi antic contenia un avis comentat per factures amb diverses inscripcions relacionades, que indicava ajust manual de pagaments i observacions;
+- `anularFactura($idFact, $tornar, $dataDevol, $obsDev)` crea una factura historica `R{any}/{ordre}` amb import negatiu, dades fiscals copiades i la mateixa `factura_relacionada`;
+- despres de crear la factura `R`, el flux antic actualitza resums d'inscripcio amb `updInscAnulFact`, `updInscAnulFact2`, `updInscDataPagAnulFact`, `updInscFraccAnulFact` i `updObsFact`;
+- la classe JS `.confirma-baixa` s'usa per anul·lar factura i no ha de condicionar noms o permisos finals;
+- `E_FACT` es gestiona en aquesta pantalla, pero ha de ser accio administrativa separada i no clonacio automatica sense criteri;
+- el PDF antic pot ser consultat, pero el SIF final ha de llegir PDF/QR de `factura_documents`.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/07-pantalles-intranet.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/04-estat-final/16-estat-final-pantalles.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/05-governanca-operacio/21-seguretat-permisos-accessos.md`
+- `documentacio/05-governanca-operacio/22-manual-operatiu-intern.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+#### Subbloc especialitzat: Intranet alumne, empresa/responsable i acces VERI*FACTU
+
+Estat: incorporat com a subbloc especialitzat d'intranet; queda obert per implementar consulta externa, enllacos segurs, endpoint de documents, proves i captures finals.
+
+Informacio concreta recuperada i consolidada:
+
+- la visibilitat de factures a la intranet de l'alumne i empresa/responsable es un flux nou; el xat antic deia que ara no es veu;
+- una factura pagada per l'alumne pot ser visible a l'alumne;
+- una factura pagada per empresa, grup o responsable no ha de ser visible automaticament als participants;
+- si una empresa paga un grup, cada participant no pot veure la factura completa amb tots els participants;
+- nomes l'empresa o responsable autoritzat pot veure la factura d'empresa/grup;
+- el PDF exacte generat en emissio s'ha de conservar en un espai no public de `pay.prisma.cat`;
+- la intranet o l'enllac segur han de servir el PDF/QR amb permisos, no donar la ruta directa;
+- `factura_documents` controla document, hash, estat de generacio i enviament;
+- si el PDF/QR esta pendent o ha fallat, es mostra estat o incidencia, no es regenera des de dades vives;
+- l'apartat `VERI*FACTU` de la intranet principal ha de mostrar indicador/resum i enllacos, pero la resolucio oficial viu a `pay.prisma.cat/sif`.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/07-pantalles-intranet.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/04-estat-final/16-estat-final-pantalles.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/05-governanca-operacio/21-seguretat-permisos-accessos.md`
+- `documentacio/05-governanca-operacio/22-manual-operatiu-intern.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
 ### Correus, plantilles, PDF i notificacions
 
 Estat: incorporat parcialment al bloc 7; queda obert el mapa detallat de cada correu per pantalla/metode quan es revisin apartats concrets de codi.
@@ -372,5 +742,53 @@ Documents actualitzats:
 - `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
 - `documentacio/05-governanca-operacio/19-registre-versions-i-canvis-sif.md`
 - `documentacio/00-index-i-pla/14-pla-documentacio-i-auditoria.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+#### Bloc especialitzat: USOC
+
+Estat: incorporat parcialment al bloc especialitzat; queda obert per implementacio, dades fiscals completes d'USOC, proves reals i captures finals.
+
+Que cal buscar:
+
+- canal TPV `curs afiliat d'USOC`;
+- `TIPUS_DESC = 4`, `VALID_DESC` i validacio manual;
+- import que paga l'alumne i import/diferencia que paga USOC;
+- textos de concepte i correu associats;
+- pantalla/metodes de validar descomptes;
+- cas especial `Altres: Curs gratüit USOC` i `anticipi-preu-usoc`;
+- relacio entre factura alumne, factura USOC i inscripcio.
+
+Documents relacionats:
+
+- `documentacio/03-canvis-pendents/04-fluxos-facturacio.md`
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
+- `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
+- `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`
+
+Informacio trobada i incorporada:
+
+- `curs afiliat d'USOC` es un canal/URL TPV propi;
+- `TIPUS_DESC = 4` identifica `Afiliat USOC`;
+- `VALID_DESC` diferencia pendent de validar, validat valid i validat no valid;
+- el descompte USOC recuperat es del 25%;
+- la validacio es manual a l'apartat `validar descomptes` de la intranet, despres de confirmar afiliacio amb USOC;
+- el cas confirmat fiscalment es de dues factures: alumne paga la seva part i rep factura; USOC paga la diferencia i rep factura;
+- el cas habitual recuperat indicava primer pagament de l'alumne de 10 euros i segon pagament de la diferencia per USOC;
+- el concepte historic podia incloure `El pagament de la diferencia el realitza l'entitat USOC`;
+- `cnsAlumnDescNoValidat` localitza inscripcions amb descompte pendent;
+- `__mostrarPage_Inici_ValidarDescomptes` i `__mostrarPage_Alumnes_ValidarDescomptes` controlen la pantalla/llista de validacio;
+- `updValidDescByInsc` i `updValidDescByInscPreu` actualitzen validacio i poden recalcular `A_PAGAR`;
+- els missatges historics informen l'alumne si USOC confirma l'afiliacio o si no consta;
+- `Altres: Curs gratüit USOC` i `anticipi-preu-usoc` queden marcats com a cas especial pendent de decisio final.
+
+Documents actualitzats:
+
+- `documentacio/03-canvis-pendents/04-fluxos-facturacio.md`
+- `documentacio/03-canvis-pendents/06-integracio-redsys-pay-prisma.md`
+- `documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md`
+- `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md`
 - `documentacio/00-index-i-pla/26-matriu-cobertura-casos.md`
 - `documentacio/00-index-i-pla/27-informe-auditoria-documental.md`

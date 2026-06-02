@@ -142,3 +142,135 @@ El xat antic contenia criteris importants que no podien quedar nomes com a conve
 
 Impacte:
 `09-checklist-posada-en-produccio.md`, `20-pla-proves-validacio-sif.md`, `19-registre-versions-i-canvis-sif.md`, `14-pla-documentacio-i-auditoria.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` incorporen criteris de preproduccio, backups, go/no-go, versio `0.3-BORRADOR`, activacio `1.0.0`, evidencies i ordre de xats especialitzats. La revisio transversal del xat antic queda completada i el treball ha de continuar per xats especialitzats.
+
+## 2026-06-01 - Xat especialitzat intranet: Consulta - Modifica alumne
+
+Decisio:
+Tractar `Consulta - Modifica alumne` com a pantalla central de consulta i inici d'accions sobre inscripcions, no com a pantalla per editar factures emeses. Les cinc icones queden consolidades com: informacio, canvi de curs, baixa, veure factura i certificat. Veure factura es nomes lectura; canvi de curs i baixa poden derivar a fluxos fiscals, pero no modifiquen factures silenciosament.
+
+Motiu:
+El xat antic contenia una explicacio molt concreta de la pantalla, de les captures aportades, de la baixa opacitat de les icones, de la URL de pagament, de `A_PAGAR`, de descomptes i despeses de gestio en canvi de curs, i del fet que Adam fa el retorn manual quan hi ha curs mes barat amb part pagada. Aquesta informacio ja estava parcialment documentada, pero calia convertir-la en criteri executable i proves.
+
+Impacte:
+`07-pantalles-intranet.md`, `10-procediments-intranet-ecommerce.md`, `16-estat-final-pantalles.md`, `21-seguretat-permisos-accessos.md`, `22-manual-operatiu-intern.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el subbloc preparat per implementacio, captures finals i proves. El seguent subbloc recomanat es `Passar pagaments / Analitzar fitxer TPV`.
+
+## 2026-06-01 - Xat especialitzat intranet: Passar pagaments i TPV
+
+Decisio:
+Tractar `Passar pagaments / Analitzar fitxer TPV` com el subbloc critic de conciliacio de cobraments. La pantalla pot buscar deutes per un sol criteri i pot analitzar TPV, pero el SIF final ha de separar cerca, proposta de conciliacio, emissio de factura quan calgui i registre de pagament. Una factura existent o emesa abans de cobrament no s'actualitza: rep `registerPayment()`.
+
+Motiu:
+El xat antic contenia detalls concrets dels endpoints, del JSON de TPV, del modal de confirmacio, de `efectuarPagament()` i de la confusio potencial entre `efact` i `E_FACT`. Sense aquesta capa, el sistema podia mantenir l'habitud antiga d'actualitzar factures o marcar `PAGAT` sense auditoria fiscal suficient.
+
+Impacte:
+`07-pantalles-intranet.md`, `10-procediments-intranet-ecommerce.md`, `16-estat-final-pantalles.md`, `20-pla-proves-validacio-sif.md`, `21-seguretat-permisos-accessos.md`, `22-manual-operatiu-intern.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el subbloc preparat per implementacio, proves i captures. El seguent subbloc recomanat es `Generar factura abans de pagar`.
+
+## 2026-06-01 - Xat especialitzat intranet: Generar factura abans de pagar
+
+Decisio:
+Tractar `Generar factura abans de pagar` com a emissio fiscal real abans del cobrament. El flux final ha de cridar `issueInvoice()` amb `EMESA_ABANS_COBRAMENT = 1`, conservar relacions amb les inscripcions, snapshot fiscal del receptor i idempotencia. No marca `E_FACT` automaticament, i el pagament posterior ha d'anar per `registerPayment()`.
+
+Motiu:
+El xat antic contenia detalls de pantalla i JS que fan aquest punt delicat: `idsInsc` pot acumular-se, l'entitat es text visible, el preu i conceptes surten del client, `concepte2` depen d'una crida asincrona, i el PDF es regenera/destrueix amb fitxers temporals. Sense criteri SIF, es podria crear factura duplicada quan posteriorment es passa el pagament.
+
+Impacte:
+`07-pantalles-intranet.md`, `10-procediments-intranet-ecommerce.md`, `16-estat-final-pantalles.md`, `20-pla-proves-validacio-sif.md`, `21-seguretat-permisos-accessos.md`, `22-manual-operatiu-intern.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el subbloc preparat per implementacio, proves i captures. El seguent subbloc recomanat es `Consulta - Edita - Anula factura`.
+
+## 2026-06-02 - Xat especialitzat intranet: Consulta - Edita - Anula factura
+
+Decisio:
+Tractar `Consulta - Edita - Anula factura` com a centre de control de factures ja emeses, no com a pantalla d'edicio directa. El flux final ha de bloquejar `updDadesFact` per a factures SIF, substituir `anularFactura()` historica per rectificatives SIF, i vincular qualsevol retorn a devolucio, saldo o compensacio amb pagament i factura original.
+
+Motiu:
+El xat antic ha recuperat codi concret: `guardarDadesFactura_Factures()` modifica `web.factures` directament i retorna `OK`; `anularFactura()` crea una factura `R` negativa amb numeracio local i actualitza resums d'inscripcio; el modal antic ja avisava del risc de multiples inscripcions relacionades. Sense aquesta decisio, el sistema podria continuar corregint factures emeses amb updates manuals i sense rastre fiscal suficient.
+
+Impacte:
+`07-pantalles-intranet.md`, `10-procediments-intranet-ecommerce.md`, `16-estat-final-pantalles.md`, `20-pla-proves-validacio-sif.md`, `21-seguretat-permisos-accessos.md`, `22-manual-operatiu-intern.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el subbloc preparat per implementacio, cataleg de motius, proves i captures. El seguent subbloc recomanat es `Intranet alumne, empresa/responsable i acces VERI*FACTU`.
+
+## 2026-06-02 - Xat especialitzat intranet: Intranet alumne, empresa/responsable i acces VERI*FACTU
+
+Decisio:
+Tractar la intranet de l'alumne, els accessos d'empresa/responsable i l'apartat `VERI*FACTU` com a capa de consulta i visibilitat, no com a espai de gestio fiscal. L'alumne pot veure factures individuals propies; les factures d'empresa o grup nomes son visibles per l'empresa/responsable autoritzat. L'apartat `VERI*FACTU` de la intranet resumeix i enllaça, pero la resolucio oficial viu a `pay.prisma.cat/sif`.
+
+Motiu:
+El xat antic va deixar una decisio de privacitat molt concreta: l'alumne no ha de veure factures pagades per una empresa, ni una factura completa de grup amb altres participants; nomes l'empresa/responsable pot veure-la. Tambe va fixar que els PDFs s'han de guardar en espai no public de `pay.prisma.cat` i servir-se amb permisos, sense exposar ruta directa.
+
+Impacte:
+`07-pantalles-intranet.md`, `10-procediments-intranet-ecommerce.md`, `16-estat-final-pantalles.md`, `20-pla-proves-validacio-sif.md`, `21-seguretat-permisos-accessos.md`, `22-manual-operatiu-intern.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen definit el criteri de visibilitat, enllac segur, PDF/QR, token/permis i resum `VERI*FACTU`. El seguent bloc recomanat es `Redsys curs normal`.
+
+## 2026-06-02 - Bloc especialitzat: Redsys curs normal
+
+Decisio:
+Tractar `Redsys curs normal` com el patro base de migracio dels callbacks de pagament. `realitzaPagamentAutomatic.php` no ha de calcular numero fiscal ni inserir a `web.factures`; ha de validar signatura i import Redsys, registrar/deduplicar `DS_ORDER`, carregar la inscripcio per `IDPAG` i decidir entre `issueInvoice()` o `registerPayment()`.
+
+Motiu:
+El xat antic recupera el flux real: el callback actual llegeix `Ds_MerchantParameters`, calcula signatura, busca inscripcio per `IDPAG`, genera `A{any}/{ordre}`, insereix a `factures` i actualitza `PAGAMENT`, `FACTURA_RELACIONADA`, `DATA PAG` i `FRACCIO`. Aquest patró pot duplicar factura o pagament si Redsys repeteix notificacio, si hi ha fraccionaments o si ja existeix factura abans de cobrament.
+
+Impacte:
+`06-integracio-redsys-pay-prisma.md`, `10-procediments-intranet-ecommerce.md`, `20-pla-proves-validacio-sif.md`, `21-seguretat-permisos-accessos.md`, `22-manual-operatiu-intern.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el flux preparat per implementacio i proves. El seguent bloc recomanat es `Packs`.
+
+## 2026-06-02 - Bloc especialitzat: Packs
+
+Decisio:
+Tractar `Packs` com una variant Redsys amb multiples linies: una factura per pagament real, una linia per curs/inscripcio, agrupacio per `IDPAG` i descompte `PACK` del 25% aplicat al segon curs. Si intranet registra un fraccionament excepcional, cada pagament real ha de tenir factura/idempotencia propia; ecommerce no ha de permetre dividir el pack en diverses factures.
+
+Motiu:
+El xat antic confirma que el pack normal inclou 2 cursos, crea una inscripcio per curs, comparteix `IDPAG`, obtene el preu de taules pack/preu i aplica el descompte sempre al segon curs. Les consultes actuals `buscarPagamentsPack`, `buscarInfoPack`, `cnsInscsPack` i `cnsDadesCursPack` identifiquen el punt operatiu que cal convertir en snapshot fiscal abans de cridar el SIF.
+
+Impacte:
+`04-fluxos-facturacio.md`, `06-integracio-redsys-pay-prisma.md`, `20-pla-proves-validacio-sif.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el cas pack preparat per implementacio i proves. El seguent bloc recomanat es `Grups`.
+
+## 2026-06-02 - Bloc especialitzat: Grups
+
+Decisio:
+Tractar `Grups` com una variant amb multiples inscripcions i receptor fiscal no necessariament igual al participant: una factura per pagament real, una linia per participant, receptor empresa/escola o responsable particular, i DNI del participant nomes visible si hi ha justificacio documentada.
+
+Motiu:
+El xat antic confirma que una empresa o persona paga per N participants, que cada participant te una fila a `inscripcions`, que el preu per participant surt de `descomptes_grup` i que la factura de grup necessita linies per participant per justificacions tipus FUNDAE/Tripartita. Les consultes `buscarPersRespGrup2`, `buscarPersGrup`, `buscarPagamentsGrup`, `searchMembresGrup` i `searchMembresGrup2` mostren que l'operativa historica gira al voltant de `TIPUS_INSC = G`, `IDPAG` i `respGrups`.
+
+Impacte:
+`04-fluxos-facturacio.md`, `06-integracio-redsys-pay-prisma.md`, `10-procediments-intranet-ecommerce.md`, `20-pla-proves-validacio-sif.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el cas grup preparat per implementacio i proves. El seguent bloc recomanat es `Regals`.
+
+## 2026-06-02 - Bloc especialitzat: Regals
+
+Decisio:
+Tractar `Regals` com una venda facturada al comprador: una factura per pagament real, `SOURCE_TYPE = REGAL`, `SOURCE_ID = regal.ID`, codi regal i bescanvi posterior del destinatari sense generar una segona factura.
+
+Motiu:
+El xat antic confirma que paga qui regala el curs, que la factura va al comprador, que el destinatari encara no omple dades d'inscripcio en el moment de compra i que rep un codi per bescanviar. Les consultes `buscarRegNoPayByCodi`, `buscarRegNoPayByDni`, `buscarRegalById` i `updFactRegal` mostren que l'operativa historica gira al voltant de la taula `regal`, `CODI`, `FACT_REL`, `ORIGEN` i `DESTI`.
+
+Impacte:
+`04-fluxos-facturacio.md`, `06-integracio-redsys-pay-prisma.md`, `10-procediments-intranet-ecommerce.md`, `20-pla-proves-validacio-sif.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el cas regal preparat per implementacio i proves. El seguent bloc recomanat es `USOC`.
+
+## 2026-06-02 - Bloc especialitzat: USOC
+
+Decisio:
+Tractar `USOC` com un cas de validacio manual i doble factura ordinaria: l'alumne rep factura per la part que paga i USOC rep factura per la diferencia que assumeix. `TIPUS_DESC = 4` identifica `Afiliat USOC` i `VALID_DESC` ha d'estar validat abans d'aplicar el descompte i emetre factura amb import reduit.
+
+Motiu:
+El xat antic confirma que `curs afiliat d'USOC` era un canal TPV propi, que el descompte USOC es valida a l'apartat `validar descomptes` de la intranet, que el cas habitual tenia un primer pagament de l'alumne de 10 euros i un segon pagament de la diferencia per USOC, i que el concepte podia indicar que el pagament de la diferencia el realitza l'entitat USOC. Tambe s'han identificat `cnsAlumnDescNoValidat`, `updValidDescByInsc`, `updValidDescByInscPreu` i el cas especial `Altres: Curs gratüit USOC` amb `anticipi-preu-usoc`.
+
+Impacte:
+`04-fluxos-facturacio.md`, `06-integracio-redsys-pay-prisma.md`, `10-procediments-intranet-ecommerce.md`, `20-pla-proves-validacio-sif.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el cas USOC preparat per implementacio i proves. El seguent bloc recomanat es `Codis promocionals`.
+
+## 2026-06-02 - Bloc especialitzat: Codis promocionals
+
+Decisio:
+Tractar els codis promocionals i promocions temporals com a logica operativa pre-factura. Ecommerce/intranet valida codi, DNI, us i vigencia; el SIF no revalida el codi, nomes congela el resultat fiscal dins `factura_linia` amb import/percentatge, text visible, codi o referencia interna i total final.
+
+Motiu:
+El xat antic confirma que els clients poden introduir un codi al camp `Codi promocional`, que `descomptes.TIPUS` 11-99 identifica promocions temporals, i que `promocions` conserva `CODI_DESCOMPTE`, `DNI`, `MES`, `CURS`, `PERCENTATGE`, `USED`, `DATAI` i `DATAF`. Tambe s'han recuperat `cnsSiTePromocioDispo`, `updDataFPromocio`, l'exemple `MACABODETITULAR#...` i la decisio que si el codi caduca o queda usat despres d'emetre, la factura no canvia.
+
+Impacte:
+`documentacio-verifactu.md`, `05-model-bd-sif.md`, `04-fluxos-facturacio.md`, `06-integracio-redsys-pay-prisma.md`, `10-procediments-intranet-ecommerce.md`, `20-pla-proves-validacio-sif.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el cas preparat per implementacio i proves. El seguent bloc recomanat es `Transferencia validada a intranet`.
+
+## 2026-06-02 - Bloc especialitzat: Transferencia validada a intranet
+
+Decisio:
+Tractar la transferencia validada des de `Passar pagaments` com a registre de cobrament, no com a edicio de factura. Si la factura SIF ja existeix, el flux final ha de fer `registerPayment()` i `payment_allocation`; si no existeix factura i el cobrament crea obligacio fiscal, ha de fer `issueInvoice()` + `registerPayment()` dins una operacio idempotent.
+
+Motiu:
+El xat antic confirma que la transferencia es valida a la intranet i que `efectuarPagament.php` envia `id`, `tipus`, `pagament`, `dataPag`, `banc`, `obs`, `numFact` i `efact`. S'ha recuperat el cami `efact != 0`: `efectuarPagamentFacturaGenerada()` usa `buscarPagamentsByFact`, `updFactGenerada`, `searchMembresFactRel`, `updPayInscr`, `updDateInscr` i `updFraccBDByFact`. Aquest comportament historic queda substituit per `payment_transaction` i `payment_allocation`, perque una factura VERI*FACTU emesa no pot modificar import, data de pagament o forma de pagament com a part de la factura.
+
+Impacte:
+`04-fluxos-facturacio.md`, `06-integracio-redsys-pay-prisma.md`, `10-procediments-intranet-ecommerce.md`, `07-pantalles-intranet.md`, `05-model-bd-sif.md`, `20-pla-proves-validacio-sif.md`, `26-matriu-cobertura-casos.md` i `27-informe-auditoria-documental.md` deixen el cas preparat per implementacio i proves. El seguent bloc recomanat es `Compensacio/saldo`.

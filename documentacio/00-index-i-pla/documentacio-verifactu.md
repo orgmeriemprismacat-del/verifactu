@@ -486,6 +486,55 @@ Tipus principals:
 - grup: taula `descomptes_grup`;
 - codis promocionals: logica propia.
 
+### 11.1. Codis promocionals i promocions temporals
+
+Del xat antic es recupera aquesta distincio:
+
+- `descomptes.TIPUS` de l'11 al 99 s'utilitza per promocions temporals;
+- el codi promocional introduït pel client te logica propia i pot venir de la taula `promocions`;
+- el SIF no valida si el codi es vigent, caducat o usat: aixo ho fa ecommerce/intranet abans de facturar;
+- el SIF conserva el resultat fiscal final dins `factura_linia`.
+
+Consultes/criteris recuperats:
+
+```text
+cnsSiTePromocioDispo:
+  promocions.CODI_DESCOMPTE LIKE ?
+  DNI = ?
+  USED = 0
+  DATAI <= CURRENT_TIME
+  DATAF >= CURRENT_TIME
+
+updDataFPromocio:
+  UPDATE promocions SET DATAF = CURRENT_TIME
+  WHERE CODI_DESCOMPTE LIKE ?
+    AND DNI = ?
+    AND USED = 0
+    AND DATAI <= CURRENT_TIME
+    AND DATAF >= CURRENT_TIME
+```
+
+Exemple recuperat de promocio/codi:
+
+```text
+MACABODETITULAR#...
+Codi personal i intransferible
+Un sol us
+Valid fins a una data concreta
+```
+
+Quan es crea la factura, la linia ha de guardar:
+
+- `desc_origen = CODI_PROMO` o `PROMOCIO_TEMPORAL`;
+- `desc_codi_promo`, si existeix;
+- `desc_id` o referencia operativa, si existeix;
+- percentatge o import fix aplicat;
+- import descomptat;
+- text visible generic, per exemple `Descompte promocional aplicat`;
+- total final.
+
+Si el codi caduca o queda marcat com usat despres d'emetre la factura, la factura no canvia. Si el codi es detecta invalid abans de pagar/facturar, s'ha de recalcular l'import sense el codi o demanar revisio abans d'emetre.
+
 Text visible recomanat:
 
 ```text

@@ -304,6 +304,16 @@ $rao = $nom . ' ' . $cognoms;
 
 si l'usuari ja ha confirmat dades fiscals.
 
+També ha d'usar el snapshot de preu/descompte calculat abans de Redsys. Si l'usuari ha aplicat un codi promocional:
+
+- ecommerce/intranet valida `CODI_DESCOMPTE`, DNI, `USED` i vigencia;
+- el snapshot guarda codi, percentatge/import, text visible i total final;
+- Redsys cobra l'import final signat;
+- el callback no revalida el codi ni recalcula el descompte;
+- `issueInvoice()` rep la linia amb `desc_origen = CODI_PROMO` o `PROMOCIO_TEMPORAL`.
+
+Si la validacio del codi falla abans de Redsys, no s'ha d'enviar a pagar amb aquell import. Si el codi caduca o es marca usat despres d'emetre, la factura queda igual perquè ja conserva el snapshot fiscal.
+
 ## 11. Flux Redsys curs normal
 
 ```text
@@ -319,6 +329,64 @@ si l'usuari ja ha confirmat dades fiscals.
 10. actualitzar inscripcions i fact_rels
 11. enviar correus
 ```
+
+### 11.1. Revisio especialitzada del flux curs normal
+
+Informacio concreta recuperada del xat antic sobre `realitzaPagamentAutomatic.php`:
+
+- el fitxer rep la notificacio de Redsys i crea l'objecte `RedsysAPI`;
+- llegeix `Ds_SignatureVersion`, `Ds_MerchantParameters` i `Ds_Signature`;
+- calcula `$firma = $miObj->createMerchantSignatureNotif($kc, $datos)`;
+- recupera `Ds_Order`, `Ds_Date`, `Ds_Hour`, `Ds_Amount` i `Ds_Response`;
+- considera autoritzada la transaccio quan `Ds_Response` esta entre `0` i `99`;
+- cerca la inscripcio per `IDPAG` i estats `INSC CURS` `0`, `1` o `M`;
+- recupera dades operatives de la inscripcio: `ID`, `ANY`, `MES`, `CURS`, nom, cognoms, DNI, correu, adreca, CP, poblacio, `FACTURA_RELACIONADA`, `A_PAGAR`, `PAGAMENT` i `FRACCIO`;
+- envia correus interns de "pagament automatic" amb DNI, import, fraccio, `IDPAG` i `ORDER`;
+- el bloc antic `Generem la factura` calcula `factura_relacionada`, `ANY`, `ORDRE` i `NUM` localment;
+- si no hi ha `FACTURA_RELACIONADA`, busca l'ultim valor a `factures` i en crea un de nou;
+- si ja hi havia pagament anterior, reutilitza la mateixa `FACTURA_RELACIONADA`;
+- genera el numero visible amb `$numFact = "A".$anyFiscal."/".$ordreFact`;
+- construeix receptor amb `$rao = $nom." ".$cognoms` i `$cif = $dni`;
+- genera conceptes de factura a partir del curs, convocatòria, jornada i fraccionament;
+- insereix directament a `web.factures` amb `num_comanda = $order`, `FORMA_PAGAMENT = TPV` i `ENTITAT = Asso`;
+- actualitza `web.inscripcions` amb `PAGAMENT`, `FACTURA_RELACIONADA`, `DATA PAG` i `FRACCIO`.
+
+Lectura SIF:
+
+- el callback Redsys actual barreja notificacio, conciliacio, emissio fiscal, actualitzacio d'inscripcio i correus;
+- la signatura calculada s'ha de comparar obligatoriament amb `Ds_Signature` abans de tocar BD;
+- l'import per facturar ha de sortir de `Ds_Amount` signat, no de `$_GET['import']`;
+- `Ds_Order` ha d'entrar primer a `redsys_notifications` i actuar com a deduplicacio de callback;
+- `IDPAG` no es clau unica de factura, perque pot tenir diversos intents Redsys, pagaments fraccionats o pagament denegat i despres acceptat;
+- el bloc `SELECT ordre FROM factures... INSERT INTO factures...` s'ha de substituir per la decisio `issueInvoice()` o `registerPayment()`;
+- `web.inscripcions` nomes s'ha d'actualitzar despres que el SIF retorni `UUID_FACTURA`, numero visible i estat de cobrament;
+- els correus a client o interns no han de ser prova que la factura SIF existeix.
+
+Criteri final per curs normal:
+
+```text
+Redsys confirma pagament
+    -> validar signatura i resposta
+    -> registrar redsys_notifications
+    -> si DS_ORDER duplicat, retornar sense efecte nou
+    -> carregar inscripcio i snapshot fiscal vinculat a IDPAG
+    -> si hi ha factura SIF previa real, registerPayment()
+    -> si no hi ha factura SIF previa, issueInvoice() + payment_transaction
+    -> sincronitzar resum operatiu d'inscripcio
+    -> generar o consultar PDF/QR
+    -> enviar correus segons estat SIF
+```
+
+Proves de tancament:
+
+- callback valid crea una sola factura i un cobrament;
+- callback duplicat amb el mateix `DS_ORDER` no duplica factura ni pagament;
+- signatura incorrecta no toca BD fiscal ni operativa;
+- `Ds_Amount` diferent de l'import esperat obre incidencia i no factura automaticament;
+- mateix `IDPAG` amb `DS_ORDER` diferent per fraccionament no es tracta com a duplicat simple;
+- pagament denegat i despres acceptat amb el mateix `IDPAG` nomes processa l'autoritzat;
+- factura abans de cobrament existent rep `registerPayment()`, no una factura nova;
+- la sincronitzacio amb `inscripcions` es posterior a l'acceptacio del SIF.
 
 ## 12. Flux Redsys pack
 
@@ -336,6 +404,28 @@ Idempotencia:
 REDSYS|PACK|IDPAG:{IDPAG}|ORDER:{DS_ORDER}
 ```
 
+Regla recuperada del xat antic:
+
+- el pack normal inclou 2 cursos;
+- es crea una inscripcio per cada curs;
+- les inscripcions del mateix pack comparteixen `IDPAG`;
+- el futur desitjat es una factura per pagament real, amb una linia per curs;
+- el descompte de pack del 25% s'aplica a la linia del segon curs;
+- `SOURCE_TYPE = INSCRIPCIO` i `SOURCE_ID = inscripcions.ID` en cada linia;
+- `DESC_ORIGEN = PACK` nomes a la linia on s'aplica el descompte.
+
+Lectura operativa actual:
+
+- `buscarPagamentsPack` agrupa pagaments pendents per `IDPAG`;
+- `buscarInfoPack` consulta `info_pack`;
+- `cnsInscsPack` i `cnsDadesCursPack` identifiquen les inscripcions i dades de curs que han d'entrar a les linies fiscals.
+
+Cas excepcional:
+
+- si intranet registra mes d'un pagament real d'un pack fraccionat, el SIF ha de crear una factura per pagament real;
+- el client ecommerce no ha de poder escollir dividir el pack en factures diferents;
+- un callback duplicat del mateix `DS_ORDER` no pot crear una segona factura ni duplicar linies.
+
 ## 13. Flux Redsys grup
 
 ```text
@@ -346,6 +436,27 @@ REDSYS|PACK|IDPAG:{IDPAG}|ORDER:{DS_ORDER}
 ```
 
 El nom del participant pot sortir a la linia. El DNI nomes hauria d'apareixer si cal per justificacio.
+
+Regla recuperada del xat antic:
+
+- una empresa o persona paga per N participants;
+- hi ha una fila a `inscripcions` per participant;
+- el receptor fiscal pot ser escola/empresa o responsable particular;
+- el preu per participant surt de `descomptes_grup`;
+- la factura te una linia per participant, sobretot per justificacio FUNDAE/Tripartita;
+- cada linia apunta a `SOURCE_TYPE = INSCRIPCIO` i `SOURCE_ID = inscripcions.ID`;
+- el nom del participant pot sortir al text visible de la linia;
+- el DNI del participant es guarda com a dada interna o annex si cal, pero no s'imprimeix per defecte.
+
+Lectura operativa actual:
+
+- `TIPUS_INSC = G` identifica inscripcions de grup;
+- `buscarPersRespGrup2` uneix `inscripcions` amb `respGrups` per `IDPAG` i permet buscar pel DNI del responsable o del participant;
+- `buscarPersGrup` llista participants del grup per `IDPAG`;
+- `buscarPagamentsGrup` agrupa imports i pagaments per `IDPAG`;
+- `searchMembresGrup` i `searchMembresGrup2` reparteixen el pagament entre membres del grup en l'operativa historica.
+
+La migracio a `pay.prisma.cat` ha de substituir aquest repartiment directe sobre `inscripcions` per `payment_transaction`, `payment_allocation`, linies fiscals congelades i sincronitzacio posterior.
 
 ## 14. Flux Redsys regal
 
@@ -358,6 +469,26 @@ comprador paga regal
     -> bescanvi posterior
     -> inscripcio del destinatari sense factura nova
 ```
+
+Regla recuperada del xat antic:
+
+- paga qui regala el curs;
+- el destinatari es la persona indicada al formulari, pero encara no omple les seves dades d'inscripcio;
+- el comprador tria curs, pot posar dedicatoria i posa les seves dades de facturacio;
+- la factura va al comprador, no al beneficiari;
+- es genera un codi regal per bescanviar;
+- quan el destinatari bescanvia el codi i crea la inscripcio, no es genera una factura nova.
+
+Lectura operativa actual:
+
+- `buscarRegNoPayByCodi` cerca a `regal` per `CODI` i `FACT_REL = 0`;
+- `buscarRegNoPayByDni` cerca regals pendents per NIF del comprador (`NIFC`);
+- `buscarRegalById` recupera `NOM_CURS`, `CCURS`, `NOMC`, `NIFC`, `MAILC`, adreca, `CODI`, `FACT_REL`, `ORIGEN` i `DESTI`;
+- `updFactRegal` marca el regal amb la factura relacionada historica;
+- el correu historic de confirmacio envia el codi i enllaça la targeta regal PDF;
+- el codi regal te validesa operativa d'un any des de la compra segons el missatge actual.
+
+La migracio a `pay.prisma.cat` ha de conservar el codi regal, la relacio amb la factura SIF i la posterior inscripcio del destinatari. El PDF de targeta regal pot continuar com a document comercial, pero la factura/PDF fiscal ha de sortir de `factura_documents`.
 
 ## 15. Flux USOC
 
@@ -372,6 +503,28 @@ USOC paga diferencia
 ```
 
 Son dues factures si hi ha dos pagadors/receptors reals.
+
+Detalls recuperats:
+
+- el canal historic es `curs afiliat d'USOC`;
+- el text de concepte podia indicar: `El pagament de la diferencia el realitza l'entitat USOC`;
+- el descompte intern es `TIPUS_DESC = 4 / Afiliat USOC`;
+- `VALID_DESC` diferencia pendent, validat valid i validat no valid;
+- la validacio es manual a intranet, despres de consultar o confirmar l'afiliacio amb USOC;
+- en el cas habitual recuperat, l'alumne paga un anticipi/import parcial de 10 euros i USOC cobreix la diferencia;
+- pot existir el cas especial `Altres: Curs gratüit USOC`, amb parametre operatiu `anticipi-preu-usoc`.
+
+Flux final recomanat:
+
+| Moment | Accio |
+| --- | --- |
+| Alumne sol·licita descompte USOC | Guardar `TIPUS_DESC = 4`, `VALID_DESC = 0` i bloquejar emissio amb descompte fins validacio. |
+| Intranet valida afiliacio | Actualitzar `VALID_DESC = 1`, congelar preu/descompte i preparar URL o pagament alumne. |
+| Redsys cobra part alumne | `issueInvoice()` a l'alumne amb idempotencia `REDSYS|USOC_ALUMNE|IDPAG:{IDPAG}|ORDER:{DS_ORDER}`. |
+| USOC paga diferencia | `issueInvoice()` a USOC amb relacio interna a inscripcio i factura alumne. |
+| Afiliacio denegada | Recalcular sense descompte, informar l'alumne i no crear factura USOC. |
+
+La factura d'USOC no ha de sortir com a rectificativa de la factura de l'alumne: es una factura ordinaria separada per un pagador/receptor diferent. Les dues factures han de quedar relacionades per traçabilitat interna i proves.
 
 ## 16. Analisi fitxer TPV
 
@@ -400,6 +553,43 @@ pagament manual / transferencia / compensacio
     -> si existeix factura real: registerPayment()
     -> si no existeix factura i cal factura: issueInvoice()
     -> sincronitzar camps operatius historics nomes com a resum
+```
+
+Subcas recuperat del xat antic: transferencia validada sobre factura ja generada.
+
+En el codi antic, `efectuarPagament.php` rep `id`, `tipus`, `pagament`, `dataPag`, `banc`, `obs`, `numFact` i `efact`. Quan `efact != 0`, `efectuarPagament()` crida `efectuarPagamentFacturaGenerada()`.
+
+Aquest cami historic fa:
+
+- cerca `buscarPagamentsByFact` per `NUM`;
+- recupera `A_PAGAR`, `PAGAMENT`, `FACTURA_RELACIONADA`, `FRACCIO`, `IDPAG`, `cif` i `E_FACT`;
+- calcula pendent amb `A_PAGAR - PAGAMENT - importPag`;
+- actualitza `web.factures` amb `updFactGenerada` (`data_pagament`, `IMPORT`, `FORMA_PAGAMENT`);
+- reparteix l'import per membres de la factura amb `searchMembresFactRel`, `updPayInscr` i `updDateInscr`;
+- actualitza `FRACCIO` amb `updFraccBDByFact` si queda pagament parcial;
+- envia correu de confirmacio a entitat/responsable quan aplica.
+
+Traduccio SIF:
+
+```text
+transferencia confirmada
+    -> payment_transaction(METODE=TRANSFERENCIA, DATA_MOVIMENT=dataPag, IMPORT=pagament)
+    -> payment_allocation contra UUID_FACTURA existent
+    -> actualitzacio historica nomes despres de resposta correcta
+```
+
+`updFactGenerada` queda prohibit com a mecanisme fiscal sobre factura VERI*FACTU: no pot canviar import, data de pagament ni forma de pagament de la factura emesa. La data i metode del cobrament viuen a `payment_transaction`.
+
+Idempotencia recomanada:
+
+```text
+TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}
+```
+
+Si no hi ha referencia bancaria:
+
+```text
+TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}
 ```
 
 En el sistema actual, quan hi ha factura abans de pagar, es pot detectar buscant factura historica amb `E_FACT = 1`, CIF/entitat i opcions de seleccio si hi ha mes d'una candidata. En el SIF aquesta logica s'ha de substituir per:

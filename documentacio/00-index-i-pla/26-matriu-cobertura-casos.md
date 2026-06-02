@@ -14,15 +14,15 @@
 
 | Cas | Estat | Documents principals | Falta completar |
 | --- | --- | --- | --- |
-| Curs normal Redsys | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/06-integracio-redsys-pay-prisma.md` | Implementar substitucio de `realitzaPagamentAutomatic.php`, executar proves amb callback duplicat i confirmar payload final en codi. |
+| Curs normal Redsys | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/06-integracio-redsys-pay-prisma.md`, `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Subbloc especialitzat revisat. `realitzaPagamentAutomatic.php` identificat: signatura, `DS_ORDER`, `IDPAG`, `INSERT INTO factures` i updates d'inscripcio. Falta implementacio SIF i proves. |
 | Taller | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md` | Aplicar com a variant de curs amb concepte propi i provar URL/payload especific. |
 | Jornada | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md` | Aplicar com a variant de curs amb concepte propi i provar URL/payload especific. |
-| Pack | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `04-estat-final/15-estat-final-sistema.md` | Falta incorporar esquema real de taules pack/preus i provar factura amb dues linies. |
-| Grup de persones | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `04-estat-final/15-estat-final-sistema.md` | Falta concretar pantalla/codi real i criteri final de DNI visible o nomes intern. |
-| Regal | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md` | Falta incorporar SQL/taules reals de regals i provar bescanvi sense factura nova. |
-| USOC | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md` | Implementar flux alumne + USOC i documentar dades fiscals de l'entitat USOC. |
+| Pack | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/06-integracio-redsys-pay-prisma.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md`, `04-estat-final/15-estat-final-sistema.md` | Subbloc especialitzat revisat. Regla final: una factura per pagament real, una linia per curs, `IDPAG` agrupa inscripcions i `DESC_ORIGEN = PACK` al segon curs. Falta SQL real de pack/preus, implementacio i proves/captures. |
+| Grup de persones | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/06-integracio-redsys-pay-prisma.md`, `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md`, `04-estat-final/15-estat-final-sistema.md` | Subbloc especialitzat revisat. Regla final: una factura per pagament real, una linia per participant, receptor empresa/escola o responsable particular, DNI intern excepte justificacio. Falta implementacio, SQL final `descomptes_grup`/`respGrups` i proves/captures. |
+| Regal | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/06-integracio-redsys-pay-prisma.md`, `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Subbloc especialitzat revisat. Regla final: factura al comprador, `SOURCE_TYPE = REGAL`, codi regal i bescanvi posterior sense factura nova. Falta implementacio, validacio SQL final de `regal`/`FACT_REL`, proves/captures i criteri final de targeta regal PDF. |
+| USOC | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/06-integracio-redsys-pay-prisma.md`, `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Subbloc especialitzat revisat. Regla final: afiliacio USOC validada manualment, factura alumne per la seva part i factura USOC per la diferencia. Falta implementar, confirmar dades fiscals d'USOC, proves/captures i tractament final de `anticipi-preu-usoc`. |
 | Empresa/responsable paga inscripcions | DISSENY COBERT | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/11-inventari-canvis-pendents.md` | Implementar factura abans de cobrament, URL empresa i registre posterior del pagament amb `registerPayment()`. |
-| Transferencia validada a intranet | PARCIAL | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/07-pantalles-intranet.md` | Pantalla, JS/AJAX i consultes internes de pagament identificades; `efectuarPagament()` documentat. Falta cos de cerca/modal pagament, ordre d'updates i flux SIF final. |
+| Transferencia validada a intranet | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/06-integracio-redsys-pay-prisma.md`, `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/07-pantalles-intranet.md`, `04-estat-final/05-model-bd-sif.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Subbloc especialitzat revisat. Recuperats `mostrarModalConfPag()`, `efectuarPagament()`, `efectuarPagamentFacturaGenerada()`, `buscarPagamentsByFact`, `updFactGenerada`, `searchMembresFactRel` i fraccions. Falta implementar SIF, referencia bancaria/BANC final, proves/captures i cossos de cerca/modal info. |
 | Compensacio/saldo | PARCIAL | `03-canvis-pendents/04-fluxos-facturacio.md`, `04-estat-final/05-model-bd-sif.md` | Criteri fiscal final de quan neix saldo i quan genera rectificativa. |
 | Pagaments fraccionats | PARCIAL | `03-canvis-pendents/11-inventari-canvis-pendents.md` | Payloads, idempotencia per cada pagament i visualitzacio de factures/parcialitats. |
 | Pagament morositat/reclamacio | PARCIAL | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/08-correus-i-plantilles.md` | Rutes, plantilles i consultes internes de reclamacio identificades; falten metodes concrets, JS/AJAX i URL especifica de pagament. |
@@ -48,10 +48,10 @@
 | --- | --- | --- | --- |
 | Descompte Alumne PrisMa | PARCIAL | `00-index-i-pla/documentacio-verifactu.md` | Document de descomptes amb formula i snapshot final. |
 | Carnet Jove | PARCIAL | `00-index-i-pla/documentacio-verifactu.md` | Documentar API/verificacio i text visible a factura. |
-| USOC descompte/validacio | PARCIAL | `00-index-i-pla/documentacio-verifactu.md` | Relacio validacio intranet + factures alumne/USOC. |
+| USOC descompte/validacio | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | `TIPUS_DESC = 4`, `VALID_DESC` i validacio manual identificats. Falta implementar pantalla final i evidencies reals. |
 | Discapacitat/familia nombrosa/monoparental/violencia genere | PARCIAL | `00-index-i-pla/documentacio-verifactu.md` | Confirmar text generic visible i motiu intern sensible. |
-| Promocions temporals | PARCIAL | `00-index-i-pla/documentacio-verifactu.md` | SQL complet i criteri de data/pagament. |
-| Codi promocional | PARCIAL | Notes de projecte | La logica esta descrita; falta esquema SQL, snapshot fiscal i proves de percentatge/import fix. |
+| Promocions temporals | DISSENY COBERT | `00-index-i-pla/documentacio-verifactu.md`, `03-canvis-pendents/04-fluxos-facturacio.md`, `04-estat-final/05-model-bd-sif.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Subbloc especialitzat revisat. `descomptes.TIPUS` 11-99 i snapshot de `factura_linia` definits. Falta SQL final, implementacio i proves/captures. |
+| Codi promocional | DISSENY COBERT | `00-index-i-pla/documentacio-verifactu.md`, `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Subbloc especialitzat revisat. `promocions`, `CODI_DESCOMPTE`, `USED`, `DATAI/DATAF`, `MACABODETITULAR#...` i `DESC_CODI_PROMO` identificats. Falta implementacio, SQL final i proves/captures. |
 | Descompte grup | PARCIAL | `03-canvis-pendents/04-fluxos-facturacio.md` | Relacio `descomptes_grup`, linia per participant i preu per participant. |
 | Descompte excepcional per canvi de curs | PARCIAL | `03-canvis-pendents/11-inventari-canvis-pendents.md` | Formulari/motiu intern i text visible. |
 | Linies de factura | COBERT | `04-estat-final/05-model-bd-sif.md` | SQL definitiu i exemples per cada cas. |
@@ -60,20 +60,20 @@
 
 | Apartat | Estat | Documents principals | Falta completar |
 | --- | --- | --- | --- |
-| Consulta - Modifica alumne | DISSENY COBERT | `03-canvis-pendents/07-pantalles-intranet.md`, `03-canvis-pendents/10-procediments-intranet-ecommerce.md` | Captures actuals rebudes; falta implementar pantalla final i afegir captures finals. |
+| Consulta - Modifica alumne | DISSENY COBERT | `03-canvis-pendents/07-pantalles-intranet.md`, `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `04-estat-final/16-estat-final-pantalles.md` | Subbloc especialitzat revisat. Captures actuals rebudes; falta implementar pantalla final, revisar cossos reals de metodes, executar proves i afegir captures finals. |
 | Dades del curs / dades pagament | DISSENY COBERT | `03-canvis-pendents/07-pantalles-intranet.md` | Captures actuals rebudes; falta implementar estats finals de URL/factura/pagament. |
 | Canvi de curs | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/07-pantalles-intranet.md` | Criteri fiscal definit; falta tancar taula canvi_curs/motiu_canvi i programar previsualitzacio. |
 | Baixa | DISSENY COBERT | `03-canvis-pendents/04-fluxos-facturacio.md`, `03-canvis-pendents/07-pantalles-intranet.md` | Criteri baixa/saldo/devolucio definit; falta correus i pantalla final. |
 | Veure factura | DISSENY COBERT | `03-canvis-pendents/07-pantalles-intranet.md` | Captura actual rebuda; falta implementar vista final amb VERI*FACTU/no VERI*FACTU, PDF i QR. |
-| Passar pagaments | PARCIAL | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/07-pantalles-intranet.md` | URL, pantalla, JS/AJAX i consultes internes documentades; `efectuarPagament()` i `mostrarModalConfPag()` identificats. Falta PHP de cerca/modal info, condicions exactes i migracio SIF. |
-| Generar factura abans de pagar | DISSENY COBERT | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/07-pantalles-intranet.md` | URL, PHP, JS i AJAX actuals documentats; falta substituir generacio local per SIF i validar `EMESA_ABANS_COBRAMENT`. |
-| Consulta - Edita - Anula factura | PARCIAL | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/07-pantalles-intranet.md` | URL, captures, JS/AJAX i wrappers `Intranet.php` documentats. Falta transformar edicio/anul·lacio en rectificatives SIF i bloquejar edicio directa. |
-| Analitzar fitxer TPV / comprovar IDPAGs | PARCIAL | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/07-pantalles-intranet.md` | Format CSV i codi actual de conciliacio documentats. Falta migrar conciliacio contra SIF/payment_transaction i criteri de reprocessament segur. |
+| Passar pagaments | DISSENY COBERT | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/07-pantalles-intranet.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Subbloc especialitzat revisat. Queden pendents cossos reals de cerca/modal info, implementacio SIF, proves i captures finals. |
+| Generar factura abans de pagar | DISSENY COBERT | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/07-pantalles-intranet.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Subbloc especialitzat revisat. Queden pendents implementacio SIF, proves, captures finals i comprovacio dels cossos finals de metodes. |
+| Consulta - Edita - Anula factura | DISSENY COBERT | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/07-pantalles-intranet.md`, `04-estat-final/16-estat-final-pantalles.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Subbloc especialitzat revisat. `updDadesFact` i `anularFactura()` historica identificats; queden pendents implementacio SIF, cataleg de motius, proves i captures finals. |
+| Analitzar fitxer TPV / comprovar IDPAGs | DISSENY COBERT | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `03-canvis-pendents/07-pantalles-intranet.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md` | Format CSV, resposta JSON, riscos, auditoria i criteri de reprocessament documentats. Falta implementacio i proves reals. |
 | Factures manuals | PARCIAL | `03-canvis-pendents/11-inventari-canvis-pendents.md` | Pantalla, permisos, linies i correus. |
 | Descarrega factures/registres | PARCIAL | `03-canvis-pendents/11-inventari-canvis-pendents.md`, `04-estat-final/25-panell-sif-pay-prisma.md` | Formats export i permisos. |
-| Apartat VERI*FACTU intranet | COBERT | `03-canvis-pendents/07-pantalles-intranet.md`, `04-estat-final/25-panell-sif-pay-prisma.md` | Implementacio UI i endpoint resum. |
-| Intranet alumne | PARCIAL | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `04-estat-final/16-estat-final-pantalles.md` | Pantalla final, permisos, PDF/QR. |
-| Empresa/responsable | DECISIO | `04-estat-final/16-estat-final-pantalles.md`, `05-governanca-operacio/21-seguretat-permisos-accessos.md` | No te acces a la intranet principal; consulta per correu, enllac segur o espai especific futur si es decideix. |
+| Apartat VERI*FACTU intranet | DISSENY COBERT | `03-canvis-pendents/07-pantalles-intranet.md`, `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `04-estat-final/25-panell-sif-pay-prisma.md` | Subbloc especialitzat revisat. Ha de mostrar indicador/resum i enllacar al panell SIF; falta implementacio UI, endpoint resum i captures finals. |
+| Intranet alumne | DISSENY COBERT | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `04-estat-final/16-estat-final-pantalles.md`, `05-governanca-operacio/20-pla-proves-validacio-sif.md`, `05-governanca-operacio/21-seguretat-permisos-accessos.md` | Subbloc especialitzat revisat. Alumne veu factures propies; no veu factures completes d'empresa/grup si no n'es receptor. Falta implementacio i proves. |
+| Empresa/responsable | DISSENY COBERT | `03-canvis-pendents/10-procediments-intranet-ecommerce.md`, `04-estat-final/16-estat-final-pantalles.md`, `05-governanca-operacio/21-seguretat-permisos-accessos.md`, `05-governanca-operacio/22-manual-operatiu-intern.md` | Subbloc especialitzat revisat. No te acces a la intranet principal; consulta per correu, enllac segur o espai especific futur, amb PDF servit per permisos. |
 | Intranet tutor | DECISIO | `04-estat-final/16-estat-final-pantalles.md` | Confirmar que no te impacte fiscal. |
 
 ## 6. Panell SIF pay.prisma.cat/sif
@@ -111,16 +111,19 @@
 
 Aquest apartat es una llista interna de control, no un bloqueig per continuar treballant. Els punts es van tancant a mesura que es revisa cada apartat amb pantalla, JS/AJAX, metode de `Intranet.php`, taules, correus i permisos.
 
-1. `Passar pagaments`: pantalla, JS/AJAX i consultes internes actuals identificats; falta PHP de cerca/modal info, condicions exactes i flux `issueInvoice()`/`registerPayment()`.
-2. `Consulta - Edita - Anula factura`: captures, JS/AJAX i wrappers actuals identificats; falta rectificatives, devolucions i bloqueig d'edicio directa.
-3. `Generar factura abans de pagar`: codi actual JS/AJAX identificat; falta implementar SIF, idempotencia, `EMESA_ABANS_COBRAMENT` i URL empresa.
-4. `Analitzar fitxer TPV`: format actual i conciliacio contra `web.factures` identificats; falta conciliacio amb Redsys/SIF i reprocessament segur.
-5. Codis promocionals: SQL, logica, snapshot i factura_linia.
-6. Regals: SQL, codi regal, comprador, destinatari i bescanvi.
-7. Packs: SQL, relacio inscripcions, preu pack i descompte.
-8. Correus i plantilles: destinataris, adjunt/enllaç segur i casos especials.
-9. Intranet alumne/empresa: consulta PDF/QR i privacitat.
-10. Aplicacio dels permisos documentats en codi, BD i pantalles.
+1. `Passar pagaments` i transferencia validada a intranet: subblocs especialitzats revisats; falta PHP de cerca/modal info, referencia bancaria/BANC final, implementacio SIF i proves.
+2. `Consulta - Edita - Anula factura`: subbloc especialitzat revisat; falta implementar rectificatives SIF, devolucions/saldo, cataleg de motius, bloqueig d'edicio directa i proves.
+3. `Generar factura abans de pagar`: subbloc especialitzat revisat; falta implementar SIF, idempotencia, `EMESA_ABANS_COBRAMENT`, URL empresa i proves.
+4. `Analitzar fitxer TPV`: subbloc especialitzat revisat; falta implementar conciliacio amb Redsys/SIF, auditoria de fitxer i reprocessament segur.
+5. `Redsys curs normal`: subbloc especialitzat revisat; falta substituir `realitzaPagamentAutomatic.php`, implementar `redsys_notifications`, `issueInvoice()`/`registerPayment()` i proves.
+6. Packs: subbloc especialitzat revisat; falta SQL real de pack/preus, implementacio SIF i proves/captures.
+7. Grups: subbloc especialitzat revisat; falta implementacio SIF, proves/captures i validacio final de SQL `descomptes_grup`/`respGrups`.
+8. Regals: subbloc especialitzat revisat; falta implementacio SIF, proves/captures, SQL final de `regal` i criteri de targeta regal PDF.
+9. USOC: subbloc especialitzat revisat; falta implementacio, dades fiscals d'USOC, proves/captures i decisio final sobre `anticipi-preu-usoc`.
+10. Codis promocionals: subbloc especialitzat revisat; falta implementacio, SQL final de `promocions`, proves/captures i criteri final de visibilitat del codi al PDF.
+11. Correus i plantilles: destinataris, adjunt/enllaç segur i casos especials.
+12. Intranet alumne/empresa: subbloc especialitzat revisat; falta implementar consulta externa, enllacos segurs, endpoint de documents i captures.
+13. Aplicacio dels permisos documentats en codi, BD i pantalles.
 
 ## 9. Governanca interna i planificacio
 

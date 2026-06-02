@@ -206,6 +206,8 @@ inscripcio posterior del destinatari sense nova factura
 
 Les taules de packs, regals i codis promocionals ja existeixen o existeixen parcialment a la web/ecommerce. La seva logica es mantindra operativa, pero el SIF nomes rebra la foto fiscal congelada: preu base, descompte aplicat, motiu visible, motiu intern i total final.
 
+Per codis promocionals, `promocions` continua sent la taula operativa de validacio/consum del codi. `factura_linia` conserva el snapshot final amb `DESC_CODI_PROMO`, `DESC_IMPORT`, `DESC_TEXT_VISIBLE` i total de linia. Cap factura emesa es recalcula si despres `promocions.USED` canvia o si `DATAF` expira.
+
 ### 4.2. Notes sobre la BD fiscal parcial existent
 
 El xat antic confirma que ja s'havia creat una BD de dades fiscals parcial amb taules com:
@@ -643,6 +645,15 @@ El SIF no recalcula la logica de descompte.
 El SIF rep i congela la foto fiscal del preu, descompte i total.
 ```
 
+Per codis promocionals:
+
+```text
+ecommerce/intranet valida CODI_DESCOMPTE, DNI, vigencia i us
+    -> calcula preu final
+    -> SIF rep `DESC_CODI_PROMO`, import/percentatge i text visible
+    -> factura_linia queda immutable
+```
+
 ### 8.3. Sequencia i hash chain
 
 ```sql
@@ -835,6 +846,27 @@ Responsabilitat:
 - `payment_transaction`: cobrament, retorn o compensacio real.
 - `payment_allocation`: com s'aplica aquell moviment a una o diverses factures.
 
+Regla especifica per transferencies validades a intranet:
+
+- `METODE` ha de distingir `TRANSFERENCIA` o el banc/metode final normalitzat;
+- `DATA_MOVIMENT` es la data real de pagament informada a intranet, no la data d'emissio de factura;
+- `REFERENCIA_BANCARIA` s'ha d'omplir sempre que el banc aporti una referencia usable;
+- si la transferencia paga una factura SIF existent, nomes es crea `payment_transaction` i `payment_allocation`;
+- si el sistema antic necessita `PAGAMENT`, `DATA PAG`, `FRACCIO` o `factures.data_pagament`, aquests camps nomes es poden sincronitzar despres de l'acceptacio del SIF;
+- `updFactGenerada` queda com a comportament historic a substituir, mai com a update fiscal final sobre factura emesa.
+
+Idempotencia recomanada:
+
+```text
+TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}
+```
+
+Si no hi ha referencia:
+
+```text
+TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}
+```
+
 ### 8.7. `fact_rels`
 
 Nom final decidit: `fact_rels`.
@@ -1010,7 +1042,7 @@ Permisos orientatius:
 - Estrategia si MySQL no permet FK entre BDs segons configuracio.
 - Noms finals dels usuaris MySQL i grants exactes.
 - Migracio de `web.factures` historic.
-- Taules de codis promocionals.
+- Taules de codis promocionals: estructura exacta final pendent, pero s'ha recuperat criteri operatiu de `promocions`.
 - Taules de regals.
 - Taules de packs.
 - Indexos finals segons consultes reals.
