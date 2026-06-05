@@ -339,6 +339,7 @@ Valors recomanats:
 ```text
 ESTAT_FACTURA = ISSUED / RECTIFIED / CANCELLED
 ESTAT_AEAT = PENDING / SENT / ACCEPTED / REJECTED / RETRY / FAILED
+ESTAT_COBRAMENT = PENDING / PARTIAL / PAID / OVERPAID / PARTIALLY_REFUNDED / REFUNDED
 ```
 
 Separacio important:
@@ -402,6 +403,8 @@ PDF/XML/QR i hash del fitxer.
 
 Cobrament, devolucio o compensacio.
 
+No forma part de la hash chain fiscal si nomes registra cobrament sobre una factura ja emesa. Si el moviment economic obliga a crear una factura o rectificativa, aquesta emissio es fa amb `issueInvoice()` o amb el flux de rectificativa, i nomes aquest registre fiscal entra a la cadena.
+
 ### 6.9. `payment_allocation`
 
 Assignacio d'un moviment economic a una o diverses factures.
@@ -424,26 +427,32 @@ Objectiu:
 - permetre rectificatives, pagaments parcials, factures d'empresa/grup i historic;
 - controlar visibilitat a alumne.
 
-Proposta inicial:
+Estructura final:
 
 ```sql
 CREATE TABLE fact_rels (
     ID BIGINT AUTO_INCREMENT PRIMARY KEY,
-    FACTURA_RELACIONADA INT NOT NULL,
     UUID_FACTURA CHAR(36) NOT NULL,
-    ID_INSC INT NULL,
+    FACTURA_RELACIONADA INT NULL,
+    SOURCE_TYPE VARCHAR(30) NOT NULL,
+    SOURCE_ID BIGINT NULL,
+    RELATION_TYPE VARCHAR(30) NOT NULL DEFAULT 'ORIGIN',
     ID_FACTURA_LINIA BIGINT NULL,
-    TIPUS_RELACIO VARCHAR(30) NOT NULL,
-    -- INSCRIPCIO / PACK / GRUP / REGAL / EMPRESA / RECTIFICATIVA / HISTORIC
-    VISIBLE_ALUMNE TINYINT(1) NOT NULL DEFAULT 1,
     IDPAG INT NULL,
     DS_ORDER VARCHAR(40) NULL,
+    VISIBLE_ALUMNE TINYINT(1) NOT NULL DEFAULT 1,
     CREATED_AT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    KEY idx_fact_rel (FACTURA_RELACIONADA),
-    KEY idx_uuid_factura (UUID_FACTURA),
-    KEY idx_id_insc (ID_INSC)
+
+    FOREIGN KEY (UUID_FACTURA) REFERENCES factura(UUID_FACTURA),
+    FOREIGN KEY (ID_FACTURA_LINIA) REFERENCES factura_linia(ID),
+    KEY idx_source (SOURCE_TYPE, SOURCE_ID),
+    KEY idx_idpag (IDPAG),
+    KEY idx_ds_order (DS_ORDER),
+    KEY idx_factura_relacionada (FACTURA_RELACIONADA)
 ) ENGINE=InnoDB;
 ```
+
+`SOURCE_TYPE` i `SOURCE_ID` apunten a l'origen operatiu quan existeix una clau estable. `FACTURA_RELACIONADA`, `IDPAG` i `DS_ORDER` es mantenen com a ponts de compatibilitat amb la BD antiga i amb Redsys, pero no substitueixen `UUID_FACTURA`.
 
 ## 7. Taules noves o revisades de BD intranet
 
@@ -530,9 +539,9 @@ crear saldo -> credit_balance
 usar saldo -> payment_transaction COMPENSATION + payment_allocation
 ```
 
-## 8. SQL inicial proposat del SIF
+## 8. SQL base tancat del SIF
 
-Aquest SQL es la base inicial de treball. Pot requerir ajustos de noms, indexos o foreign keys segons la configuracio final de MySQL i la separacio real entre bases de dades.
+Aquest SQL es la base tecnica tancada per al disseny del SIF. Pot requerir ajustos menors de noms fisics, indexos o grants segons la configuracio final de MySQL, pero les responsabilitats de taula, claus idempotents i relacions principals no han de canviar sense nova decisio documentada.
 
 ### 8.1. `factura`
 
@@ -554,7 +563,7 @@ CREATE TABLE factura (
 
     EMESA_ABANS_COBRAMENT TINYINT(1) NOT NULL DEFAULT 0,
     E_FACT TINYINT(1) NOT NULL DEFAULT 0,
-    ESTAT_COBRAMENT VARCHAR(20) NOT NULL DEFAULT 'PENDENT',
+    ESTAT_COBRAMENT VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     ESTAT_FACTURA VARCHAR(20) NOT NULL DEFAULT 'ISSUED',
     ESTAT_AEAT VARCHAR(20) NOT NULL DEFAULT 'PENDING',
 
@@ -621,9 +630,11 @@ CREATE TABLE factura_linia (
     TOTAL_LINIA DECIMAL(12,2) NOT NULL,
 
     SOURCE_TYPE VARCHAR(30) NULL,
-    SOURCE_ID INT NULL,
+    SOURCE_ID BIGINT NULL,
 
-    FOREIGN KEY (UUID_FACTURA) REFERENCES factura(UUID_FACTURA)
+    FOREIGN KEY (UUID_FACTURA) REFERENCES factura(UUID_FACTURA),
+    UNIQUE KEY uq_factura_linia_ordre (UUID_FACTURA, ORDRE),
+    KEY idx_linia_source (SOURCE_TYPE, SOURCE_ID)
 ) ENGINE=InnoDB;
 ```
 
@@ -711,7 +722,8 @@ Flux correcte dins `issueInvoice()`:
 
 ```text
 START TRANSACTION
-    comprovar idempotency_key
+    comprovar IDEMPOTENCY_KEY de factura
+    si ja existeix, retornar la factura existent sense efecte nou
     bloquejar fiscal_sequence per TIPUS_SERIE + ANY_FACT amb FOR UPDATE
     bloquejar fiscal_chain_state ID=1 amb FOR UPDATE
     incrementar NUM_SEQ
@@ -724,10 +736,14 @@ START TRANSACTION
     actualitzar fiscal_sequence
     actualitzar fiscal_chain_state
     inserir fiscal_queue
+    inserir fact_rels
+    si el cobrament neix en el mateix flux, inserir payment_transaction i payment_allocation
 COMMIT
 ```
 
 El bloqueig de `fiscal_sequence` evita duplicats de numeracio. El bloqueig de `fiscal_chain_state` evita forks de hash chain.
+
+Quan Redsys o una transferencia confirmada creen factura i cobrament alhora, el payload d'`issueInvoice()` pot incloure un bloc `payment`. En aquest cas el SIF crea la factura, el registre fiscal i el moviment economic dins la mateixa transaccio. Quan la factura ja existeix, no es torna a cridar `issueInvoice()`: es crida `registerPayment()`.
 
 Ordre recomanat de bloqueig per reduir deadlocks:
 
@@ -815,16 +831,23 @@ CREATE TABLE payment_transaction (
 
     TIPUS_MOVIMENT VARCHAR(20) NOT NULL,
     METODE VARCHAR(30) NOT NULL,
+    SOURCE_CHANNEL VARCHAR(30) NOT NULL,
     IMPORT DECIMAL(12,2) NOT NULL,
     DATA_MOVIMENT DATETIME NOT NULL,
 
+    PROVIDER_REF VARCHAR(100) NULL,
     DS_ORDER VARCHAR(40) NULL,
     IDPAG INT NULL,
     REFERENCIA_BANCARIA VARCHAR(100) NULL,
+    PAYLOAD_HASH CHAR(64) NULL,
 
     ESTAT VARCHAR(20) NOT NULL DEFAULT 'CONFIRMED',
     NOTES TEXT NULL,
-    CREATED_AT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    CREATED_AT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    KEY idx_payment_provider (METODE, PROVIDER_REF),
+    KEY idx_payment_ds_order (DS_ORDER),
+    KEY idx_payment_idpag (IDPAG)
 ) ENGINE=InnoDB;
 
 CREATE TABLE payment_allocation (
@@ -837,7 +860,9 @@ CREATE TABLE payment_allocation (
     CREATED_AT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (UUID_PAYMENT) REFERENCES payment_transaction(UUID_PAYMENT),
-    FOREIGN KEY (UUID_FACTURA) REFERENCES factura(UUID_FACTURA)
+    FOREIGN KEY (UUID_FACTURA) REFERENCES factura(UUID_FACTURA),
+    UNIQUE KEY uq_payment_factura_tipus (UUID_PAYMENT, UUID_FACTURA, TIPUS_ASSIGNACIO),
+    KEY idx_allocation_factura (UUID_FACTURA)
 ) ENGINE=InnoDB;
 ```
 
@@ -845,6 +870,25 @@ Responsabilitat:
 
 - `payment_transaction`: cobrament, retorn o compensacio real.
 - `payment_allocation`: com s'aplica aquell moviment a una o diverses factures.
+
+Flux correcte dins `registerPayment()`:
+
+```text
+START TRANSACTION
+    comprovar IDEMPOTENCY_KEY de pagament
+    si ja existeix, retornar payment_transaction i allocations existents sense efecte nou
+    validar metode, import, data, signe i referencia externa
+    localitzar factura o factures per UUID_FACTURA, FACTURA_RELACIONADA, IDPAG, DS_ORDER o seleccio explicita
+    bloquejar les factures afectades amb FOR UPDATE
+    comprovar que no es modifiquen totals, receptor, linies ni hash de cap factura emesa
+    inserir payment_transaction
+    inserir payment_allocation per cada factura afectada
+    recalcular ESTAT_COBRAMENT de les factures afectades
+    registrar event/auditoria SIF
+COMMIT
+```
+
+`registerPayment()` no genera numero fiscal, no modifica `factura_linia`, no crea `factura_registres` i no actualitza `fiscal_chain_state`. El seu ambit es economic i d'auditoria. Si durant la conciliacio es detecta que no existeix factura i el cobrament crea obligacio fiscal, el flux correcte es `issueInvoice()` amb bloc `payment` dins la mateixa operacio idempotent.
 
 Regla especifica per transferencies validades a intranet:
 
@@ -881,7 +925,8 @@ CREATE TABLE fact_rels (
     UUID_FACTURA CHAR(36) NOT NULL,
     FACTURA_RELACIONADA INT NULL,
     SOURCE_TYPE VARCHAR(30) NOT NULL,
-    SOURCE_ID INT NOT NULL,
+    SOURCE_ID BIGINT NULL,
+    RELATION_TYPE VARCHAR(30) NOT NULL DEFAULT 'ORIGIN',
     ID_FACTURA_LINIA BIGINT NULL,
     IDPAG INT NULL,
     DS_ORDER VARCHAR(40) NULL,
@@ -889,8 +934,10 @@ CREATE TABLE fact_rels (
     CREATED_AT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (UUID_FACTURA) REFERENCES factura(UUID_FACTURA),
+    FOREIGN KEY (ID_FACTURA_LINIA) REFERENCES factura_linia(ID),
     KEY idx_source (SOURCE_TYPE, SOURCE_ID),
     KEY idx_idpag (IDPAG),
+    KEY idx_ds_order (DS_ORDER),
     KEY idx_factura_relacionada (FACTURA_RELACIONADA)
 ) ENGINE=InnoDB;
 ```
@@ -900,6 +947,14 @@ Responsabilitat:
 - vincular factura amb inscripcio, pack, grup, regal, entitat o historic;
 - conservar compatibilitat amb `FACTURA_RELACIONADA`;
 - controlar visibilitat a l'alumne.
+
+Regla amb BD antiga:
+
+```text
+La BD fiscal no depen de foreign keys contra web/intranet.
+La relacio amb BD antiga es logica i auditada per fact_rels.
+Els camps historics es poden sincronitzar com a resum nomes despres de l'exit del SIF.
+```
 
 ### 8.8. Cua AEAT i documents
 
@@ -1037,12 +1092,9 @@ Permisos orientatius:
 
 ## 12. Pendent de completar
 
-- Revisar SQL final de `fact_rels` abans d'implantacio.
-- Confirmar foreign keys possibles entre esquemes.
-- Estrategia si MySQL no permet FK entre BDs segons configuracio.
 - Noms finals dels usuaris MySQL i grants exactes.
 - Migracio de `web.factures` historic.
 - Taules de codis promocionals: estructura exacta final pendent, pero s'ha recuperat criteri operatiu de `promocions`.
 - Taules de regals.
 - Taules de packs.
-- Indexos finals segons consultes reals.
+- Indexos addicionals segons consultes reals de produccio.

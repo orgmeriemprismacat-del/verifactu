@@ -906,7 +906,7 @@ Regla final:
 
 ```text
 Factura existent -> registerPayment()
-Factura inexistent i venda facturable -> issueInvoice() + registerPayment()
+Factura inexistent i venda facturable -> issueInvoice() amb bloc payment
 Factura abans de cobrament -> nomes registerPayment()
 ```
 

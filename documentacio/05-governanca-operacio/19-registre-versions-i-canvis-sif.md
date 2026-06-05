@@ -100,6 +100,56 @@ Per a una versio productiva, la decisio d'activacio ha d'indicar:
 | Decisio | `GO`, `GO AMB LIMITACIONS` o `NO-GO`. |
 | Responsables | Validacio tecnica i revisio legal/direccio. |
 
+### 5.1. Expedient go/no-go de versio
+
+Cada versio candidata a produccio ha de tenir un expedient de validacio associat.
+
+Contingut minim:
+
+- referencia exacta de codi o paquet desplegat;
+- resum de migracions SQL aplicades;
+- entorn on s'han executat les proves;
+- paquet de proves go/no-go amb IDs i resultats;
+- evidencies principals: captures, logs, exports, PDF/QR/XML, hashes i consultes;
+- acta o fitxa de backup i restauracio;
+- incidencies obertes, tancades i severitat;
+- decisio final `GO`, `GO AMB LIMITACIONS` o `NO-GO`;
+- limitacions acceptades, si n'hi ha, amb responsable i data de revisio;
+- declaracio responsable o esborrany associat a la versio.
+
+Regla:
+
+```text
+Una versio pot estar desplegada tecnicament i continuar sense estar activa fiscalment.
+La versio nomes es activa quan te registre, proves, evidencies, backups/restauracio i decisio go/no-go.
+```
+
+### 5.2. Paquet documental de la versio `1.0.0`
+
+La versio `1.0.0` sera la primera versio productiva signable. No es pot activar nomes amb el codi desplegat: ha de tenir un paquet documental minim.
+
+Paquet requerit:
+
+- registre de versio `1.0.0` complet;
+- referencia tecnica del paquet desplegat o commit equivalent;
+- migracions BD aplicades i estat de BD fiscal productiva;
+- domini/subdomini final i SSL verificat;
+- mode actiu `VERI*FACTU`;
+- certificat digital de l'entitat o apoderament configurat/provat;
+- declaracio responsable completa, sense camps pendents, associada a `1.0.0`;
+- decisio sobre qui signa formalment per l'entitat i si hi ha vistiplau tecnic separat;
+- declaracio responsable accessible dins de `pay.prisma.cat/sif`;
+- proves go/no-go executades i evidencia conservada;
+- estat de PDF/QR/XML i remissio AEAT;
+- incidencies bloquejants tancades o justificades.
+
+Regla:
+
+```text
+No hi ha versio productiva signable sense paquet documental.
+No hi ha paquet documental complet sense certificat/apoderament i declaracio accessible dins del SIF.
+```
+
 ## 6. Canvis que poden requerir nova declaracio o annex
 
 Poden requerir nova declaracio responsable, annex o actualitzacio signada:
@@ -131,7 +181,9 @@ Abans de tancar la versio `1.0.0`, cal completar:
 - NIF i carrec complet de la persona que signa per direccio;
 - proves executades;
 - incidencies conegudes;
-- criteri final sobre punts fiscals sensibles pendents de validacio externa.
+- criteri final sobre punts fiscals sensibles pendents de validacio externa;
+- decisio final sobre productor/titular intern, contacte tecnic i signant formal de la declaracio;
+- referencia interna o hash del document de declaracio responsable signat, si es conserva al SIF.
 
 ## 8. Evidencia de canvis
 

@@ -86,6 +86,20 @@ Segons la nota informativa de l'AEAT actualitzada el 26/03/2026, els terminis ge
 
 Per prudencia documental, la data aplicable a PrisMa s'haura de confirmar abans de tancar el calendari final de posada en produccio.
 
+Fonts oficials comprovades en aquesta revisio normativa documental (2026-06-02):
+
+- AEAT, preguntes generals sobre qui esta obligat i quines operacions s'inclouen, pagina actualitzada el 26/03/2026.
+- AEAT, modalitats de compliment `VERI*FACTU` i no `VERI*FACTU`, pagina actualitzada el 26/03/2026.
+- AEAT, certificacio dels sistemes informatics i declaracio responsable, pagina actualitzada el 26/03/2026.
+- AEAT, nota informativa d'ampliacio de termini d'adaptacio SIF, pagina actualitzada el 26/03/2026.
+- BOE, Orden HAC/1177/2024, article 15 i articles relacionats.
+
+Criteri documental:
+
+- aquest document no substitueix una validacio fiscal externa;
+- les comprovacions d'abast normatiu s'han de conservar com a evidencia interna abans de signar la versio `1.0.0`;
+- si una gestoria, assessor o revisio especialitzada modifica algun criteri, s'haura d'obrir una decisio nova al registre de decisions i actualitzar la declaracio responsable si afecta la versio signable.
+
 ## 1.2. Modalitat VERI*FACTU i model 036
 
 La modalitat prevista del SIF PrisMa es `VERI*FACTU`.
@@ -106,6 +120,13 @@ Quan el SIF comenci a remetre registres de facturacio, el panell haura de conser
 - versio activa;
 - declaracio responsable associada;
 - certificat o configuracio d'identificacio electronica usada.
+
+Regles addicionals de modalitat:
+
+- el SIF PrisMa es documenta com a modalitat `VERI*FACTU`;
+- un cop iniciada la remissio `VERI*FACTU`, la renuncia o canvi de modalitat s'haura de tractar com a canvi rellevant de compliment i no com a opcio operativa menor;
+- en modalitat `VERI*FACTU`, la signatura electronica dels registres remesos no es documenta com a requisit ordinari del flux, pero el sistema igualment ha de disposar de certificat digital de l'entitat o apoderament/configuracio equivalent per identificar-se i operar davant AEAT;
+- si en el futur PrisMa operes en modalitat no `VERI*FACTU`, o si calgues respondre requeriments en un escenari diferent, s'hauria d'obrir una revisio especifica de firma electronica, registre d'events i conservacio.
 
 ## 2. Objectiu del SIF
 
@@ -428,6 +449,32 @@ El document:
 
 El QR i el text corresponent s'han d'incloure segons especificacions AEAT per factures verificables.
 
+### 11.1. Camps fiscals minims del registre d'alta i QR
+
+El SIF ha de conservar les dades fiscals necessaries per construir el registre de facturacio d'alta, el PDF/QR i l'enviament `VERI*FACTU`.
+
+Com a minim, el disseny documental i tecnic ha de cobrir:
+
+- NIF i nom/rao social de l'emissor;
+- NIF i nom/rao social del destinatari quan correspongui;
+- indicacio de tercer o destinatari expedidor material, si algun dia aplica;
+- serie, numero i data d'expedicio de la factura;
+- data d'operacio o data de pagament anticipat si es diferent de la data d'expedicio;
+- tipus de factura, incloent factura completa/simplificada si en el futur es fes servir;
+- marca de rectificativa i identificacio de la factura rectificada quan sigui preceptiu;
+- descripcio general de les operacions;
+- import total;
+- regim o regims aplicats a les operacions;
+- inversio del subjecte passiu si algun dia aplica;
+- base imposable, tipus impositiu, quota IVA, recarrec d'equivalencia si algun dia aplica;
+- causa d'exempcio o no subjeccio quan no hi hagi IVA repercutit;
+- referencia al registre fiscal anterior i a la seva huella/hash quan correspongui;
+- identificacio del sistema informatic, versio i productor/titular intern;
+- data, hora, minut, segon i hus horari de generacio del registre;
+- URL i dades necessaries del QR: NIF emissor, serie/numero, data expedicio i import total.
+
+El detall dels noms interns d'aquests camps es mantindra al diccionari `24-diccionari-camps-i-valors.md`.
+
 ## 12. Seguretat i Permisos
 
 Objectiu:
@@ -509,7 +556,46 @@ Els rols documentats no limiten la feina real de la responsable tecnica. Serveix
 
 Nota: que Meriem Abjil Bajja assumeixi la direccio tecnica, funcional i operativa del projecte no implica, per defecte, que actuï com a productora externa persona fisica. El sistema es documenta com a desenvolupament intern per a us propi de l'Associacio PrisMa, llevat que en el futur es decideixi formalment una altra figura.
 
-## 13.3. Criteris interns pendents de validacio externa
+## 13.3. Productor/titular intern i contacte tecnic
+
+Per a la documentacio interna i la declaracio responsable, el criteri de treball es:
+
+```text
+Productor/titular intern del sistema:
+Associacio PrisMa
+
+Obligat tributari usuari del sistema:
+Associacio PrisMa
+
+Responsable tecnica, funcional, documental i de desenvolupament:
+Meriem Abjil Bajja
+
+Responsable legal / direccio que revisa o signa quan correspongui:
+Adam Carmona o la persona que representi formalment l'entitat
+```
+
+Quan la normativa parla de productor del sistema informatic, aquest projecte documenta Associacio PrisMa com a productora/titular interna del SIF desenvolupat per a us propi.
+
+Meriem Abjil Bajja queda identificada com a responsable tecnica i contacte intern del projecte. Aquesta identificacio no s'ha de confondre amb una comercialitzacio externa del SIF ni amb una responsabilitat com a productora externa persona fisica, tret que en el futur es decideixi formalment una altra estructura.
+
+Per preparar la declaracio `1.0.0` signable caldra decidir si les dades personals de contacte tecnic de Meriem consten dins de la declaracio publica/signada o si es conserven nomes a l'expedient intern del projecte.
+
+## 13.4. Certificat digital, apoderament i secrets
+
+El SIF necessita una configuracio d'identificacio electronica per operar amb AEAT.
+
+Criteri de treball:
+
+- prioritat: certificat digital de l'entitat Associacio PrisMa;
+- alternativa si escau: apoderament o mecanisme equivalent admis per AEAT;
+- el certificat, claus privades i secrets tecnics no han de quedar al codi font, repositori, webroot ni logs;
+- el panell SIF ha de mostrar l'estat funcional del certificat o apoderament sense exposar secrets;
+- abans d'activar `1.0.0`, cal provar l'ús del certificat/apoderament en l'entorn que correspongui i conservar evidencia;
+- si el certificat caduca, no es configura o falla, s'ha de generar incidencia SIF abans que afecti factures productives.
+
+En modalitat `VERI*FACTU`, aquesta configuracio s'entén com a autenticacio/identificacio per remetre registres i operar amb AEAT. No s'ha de confondre amb la signatura electronica XAdES de registres, que queda com a materia especifica de modalitat no `VERI*FACTU` o d'escenaris que ho exigeixin.
+
+## 13.5. Criteris interns pendents de validacio externa
 
 El xat antic va deixar constancia que PrisMa no disposava en aquell moment d'un assessor fiscal dedicat al projecte. Per tant, la documentacio pot fixar criteris interns de treball, pero els punts interpretatius s'han de mantenir com a pendents de validacio externa si mes endavant es disposa de gestoria, assessor o revisio especialitzada.
 

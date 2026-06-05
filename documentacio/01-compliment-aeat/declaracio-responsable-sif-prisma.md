@@ -15,6 +15,8 @@ Criterio interno acordado:
 
 No es necesario firmar cada cambio durante el desarrollo. Si despues de una version firmada hay cambios relevantes que afecten al cumplimiento, a los componentes de facturacion, a la modalidad de funcionamiento o a los registros conservados, se preparara una nueva version de declaracion o un anexo versionado.
 
+La version firmable `1.0.0` debera generarse como documento cerrado, con datos completos, version instalada y verificable, responsable firmante identificado, fecha/lugar de firma y referencia a la version activa publicada dentro del propio SIF. Este borrador no debe reutilizarse para firma sin revisar y sustituir todos los campos pendientes.
+
 ## 1.a) Nombre del sistema informatico a que se refiere esta declaracion responsable
 
 ```text
@@ -103,6 +105,14 @@ No esta previsto como producto multiempresa para terceros ni para varios obligad
 No aplica en la configuracion prevista, al tratarse de un sistema producido para operar en modalidad VERI*FACTU.
 ```
 
+Criterio documental:
+
+```text
+En modalidad VERI*FACTU no se documenta como requisito ordinario la firma electronica XAdES de los registros remitidos.
+El SIF si debera disponer de certificado digital de la entidad, apoderamiento o configuracion equivalente admitida para identificacion/remision ante AEAT.
+Si en el futuro el sistema dejara de operar como VERI*FACTU, esta seccion deberia revisarse antes de firmar una nueva declaracion.
+```
+
 ## 1.h) Nombre y apellidos de la persona o razon social de la entidad productora del sistema informatico
 
 ```text
@@ -115,6 +125,15 @@ Meriem Abjil Bajja
 
 Nota: el sistema se documenta como desarrollo interno para uso propio de Associacio PrisMa. La mencion de Meriem Abjil Bajja identifica la direccion tecnica, funcional, documental y de desarrollo del proyecto, pero no implica por defecto que actue como productora externa persona fisica, salvo decision formal futura.
 
+Criterio para la version firmable:
+
+```text
+Productor/titular interno del SIF: Associacio PrisMa.
+Responsable tecnica/documental y contacto interno del proyecto: Meriem Abjil Bajja.
+```
+
+Antes de firmar `1.0.0` se debera decidir si los datos personales del contacto tecnico constan en la declaracion firmada o si se conservan solo en el expediente interno del proyecto.
+
 ## 1.i) Numero de identificacion fiscal de la persona o entidad productora
 
 ```text
@@ -122,6 +141,14 @@ NIF/CIF de la entidad productora/titular: G17881988
 
 Dato interno de responsable tecnica, si se conserva como contacto tecnico:
 Meriem Abjil Bajja - NIF 77922662L
+```
+
+La version firmable debera evitar ambiguedad entre:
+
+```text
+- NIF/CIF de la entidad productora/titular.
+- NIF de la persona fisica que firma o actua como contacto tecnico.
+- NIF del obligado tributario usuario del SIF, que en este proyecto coincide con Associacio PrisMa.
 ```
 
 ## 1.j) Direccion postal completa de contacto de la persona o entidad productora
@@ -139,6 +166,8 @@ C/ Pont, 29
 Girona
 Espana
 ```
+
+Si la version firmable se prepara como declaracion de la entidad productora/titular interna, se podra conservar la direccion tecnica personal en el expediente interno y no necesariamente en el documento publico/signado, salvo que se decida incluirla como contacto tecnico.
 
 ## 1.k) Manifestacion de cumplimiento
 
@@ -159,6 +188,8 @@ Fecha: [INDICAR FECHA]
 ```
 
 ## 1.m) Datos identificativos y firma de la persona que suscribe la declaracion responsable
+
+En la version `1.0.0` firmable se debera confirmar quien suscribe formalmente la declaracion en nombre de la entidad productora/titular interna. La firma tecnica de Meriem puede conservarse como visto bueno interno o anexo documental, pero no sustituye la firma o validacion que corresponda a la representacion legal de Associacio PrisMa.
 
 Responsable tecnica / gestora del proyecto:
 
@@ -194,6 +225,25 @@ El sistema se desarrolla internamente para uso propio de Associacio PrisMa. La r
 La documentacion tecnica y funcional del sistema se conserva en documento separado bajo el titulo "Documentacio 2 - Funcionament del SIF PrisMa per compliment AEAT / VERI*FACTU".
 ```
 
+## Anexo - Criterio documental para preparar la version 1.0.0 firmable
+
+La version firmable no consistira en cambiar solo el codigo de version. Antes de prepararla se debera cerrar un paquete documental de firma:
+
+```text
+1. Version exacta 1.0.0 registrada en el SIF.
+2. Componentes reales instalados y verificables.
+3. Declaracion responsable completa, sin campos [INDICAR].
+4. Certificado digital de la entidad o apoderamiento configurado/probado.
+5. Evidencias de pruebas principales conservadas.
+6. PDF/QR/XML y remision VERI*FACTU preparados o probados.
+7. Declaracion accesible dentro del propio SIF.
+8. Identificacion de quien firma por la entidad y cargo exacto.
+9. Decision sobre datos de contacto tecnico incluidos en declaracion o expediente interno.
+10. Registro de version y decision GO/NO-GO asociada.
+```
+
+La declaracion firmada debera quedar vinculada a la version activa y conservarse en formato legible, preferiblemente PDF firmado o documento electronico equivalente, dentro de `pay.prisma.cat/sif`.
+
 ## Anexo - Pendientes antes de preparar la version firmable
 
 Antes de convertir este borrador en declaracion responsable definitiva de la version `1.0.0`, falta completar o confirmar:
@@ -210,6 +260,9 @@ Antes de convertir este borrador en declaracion responsable definitiva de la ver
 - Pruebas principales ejecutadas y evidencias conservadas.
 - Declaracion responsable accesible dentro del propio SIF.
 - Revision de puntos fiscales sensibles si se dispone de asesoria externa.
+- Decision final sobre firma unica por direccion o firma tecnica + firma de direccion.
+- Decision final sobre incluir datos personales del contacto tecnico en la declaracion firmada o conservarlos solo en expediente interno.
+- Huella/hash o referencia interna del documento firmado, si el SIF la conserva como evidencia documental.
 ```
 
 ## Anexo - Referencias normativas usadas para preparar este borrador

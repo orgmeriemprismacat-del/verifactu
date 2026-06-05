@@ -1,6 +1,6 @@
 # Estat del projecte VERI*FACTU
 
-Ultima actualitzacio: 2026-06-02
+Ultima actualitzacio: 2026-06-05
 
 ## Objectiu
 
@@ -39,6 +39,19 @@ Adaptar el sistema de facturacio de PrisMa a VERI*FACTU mitjancant un SIF centra
 - Bloc especialitzat de pagaments continuat: `USOC` revisat. S'ha consolidat que l'afiliacio USOC es valida manualment (`TIPUS_DESC = 4`, `VALID_DESC`), que l'alumne rep factura per la seva part i USOC rep factura per la diferencia. Queden pendents implementacio SIF, dades fiscals completes d'USOC, proves/captures i decisio final sobre `anticipi-preu-usoc`.
 - Bloc especialitzat de pagaments continuat: `Codis promocionals` revisat. S'ha consolidat que el codi es valida a ecommerce/intranet, que `promocions` conserva codi, DNI, us i vigencia, i que el SIF nomes congela el resultat fiscal dins `factura_linia`. Queden pendents implementacio, SQL final de `promocions`, proves/captures i criteri final de visibilitat del codi al PDF.
 - Bloc especialitzat de pagaments continuat: `Transferencia validada a intranet` revisat. S'ha recuperat el cami antic de `efectuarPagamentFacturaGenerada()` i s'ha consolidat que una transferencia sobre factura existent ha d'anar per `registerPayment()` i `payment_allocation`, sense modificar la factura emesa. Queden pendents implementacio SIF, referencia bancaria/BANC final, proves/captures i cossos de cerca/modal info.
+- Arquitectura tecnica SIF tancada: `issueInvoice()` queda com l'unic flux que assigna numero fiscal, crea linies, registre fiscal, hash chain, cua AEAT i relacions; `registerPayment()` queda limitat a moviments economics sobre factura existent, sense numero fiscal ni hash chain. Quan factura i cobrament neixen junts, el criteri final es `issueInvoice()` amb bloc `payment` dins la mateixa operacio idempotent.
+- Model BD SIF consolidat: `fact_rels` queda com a pont logic amb BD antiga, sense foreign keys entre BD fiscal i BD web/intranet; `payment_transaction`, `payment_allocation`, `factura_linia`, `fiscal_chain_state`, `fiscal_queue` i valors controlats queden alineats entre model, relacions i diccionari.
+- Entrada de pagaments al SIF definida: Redsys entra per callback a `pay.prisma.cat` i es deduplica a `redsys_notifications`; transferencies i pagaments manuals entren per `Passar pagaments`; fitxers TPV generen analisi/conciliacio auditada; el moviment economic real viu a `payment_transaction` i l'assignacio a factura viu a `payment_allocation`.
+- Bloc especialitzat de proves i posada en produccio revisat: el checklist i el pla de proves ja tenen criteris executables de `GO`, `GO AMB LIMITACIONS` i `NO-GO`, bateria bloquejant amb IDs, fitxa d'evidencia, criteri de captures, backups/restauracio, incidencies i checklist final d'activacio. Queda pendent executar-ho en preproduccio/produccio i conservar evidencies reals.
+- Fluxos fiscals especials tancats: compensacio/saldo, pagaments fraccionats, rectificatives, devolucions, baixes, canvis de curs, factura manual i migracio de factures historiques queden definits com a fluxos separats. Cap d'aquests casos es resol modificant imports, dates o factures emeses; passen per `issueInvoice()`, `registerPayment()`, `payment_transaction`, `payment_allocation`, `credit_balance`, rectificatives o migracio `NO_VERIFACTU` segons el cas.
+- Bloc normatiu/documental revisat: documentacio SIF AEAT, declaracio responsable, registre de versions, permisos i diccionari han quedat reforcats amb criteri de fonts oficials, versio `1.0.0` signable, certificat digital/apoderament, productor/titular intern, rol auditor nomes lectura i camps fiscals minims del registre d'alta, QR, AEAT, documents i declaracio.
+- Pla d'implementacio tecnica del SIF creat: `documentacio/00-index-i-pla/29-pla-implementacio-tecnica-sif.md` converteix l'arquitectura tancada en fases executables, fitxers a crear, proves amb runner PHP propi, migracions SQL, endpoints interns, Redsys, documents, incidencies i preflight.
+- Codi del Drive copiat com a referencia local a `codi-drive/`, sense copiar fitxers `parametres-connexio*` amb credencials. La copia inclou callbacks Redsys, pagaments automatics, `apiRedsys.php`, connexions sense parametres i el flux antic `Intranet.php`/`efectuarPagament.php`.
+- Fase 0 i Fase 1 iniciades al repo de treball sense Composer: creats `sif/src/autoload.php`, `sif/tests/run-tests.php`, `sif/tests/Support/Assert.php`, `sif/config/sif.php`, bootstrap de tests, helper de BD, migracio SQL del nucli SIF, seed inicial, runner de migracions i test estructural d'esquema. No s'han pogut executar proves perque PHP no esta disponible al PATH d'aquest entorn.
+- Fase 2 preparada al repo de treball: creades les classes `ConnectionFactory`, `TransactionRunner`, `UuidGenerator` i `SifException`, amb proves unitàries test-first per UUID, excepcions i transaccions. Les proves no s'han pogut executar per manca de PHP al PATH.
+- Fase 3 preparada al repo de treball: creats `InvoicePayloadValidator` i `PaymentPayloadValidator`, amb proves unitàries test-first per payloads vàlids, camps obligatoris, serie de factura, tipus de moviment i assignacions. Les proves no s'han pogut executar per manca de PHP al PATH.
+- Task 4 de la Fase 4 preparada al repo de treball: creat `HashCalculator` per calcular el hash fiscal intern de manera estable i canonica, amb `previous_hash`, ordenacio recursiva d'arrays associatius i conservacio de l'ordre de les llistes com `factura_linia`. Les proves unitàries del hash no s'han pogut executar per manca de PHP al PATH.
+- Task 5 de la Fase 4 preparada al repo de treball: creats `FiscalSequenceRepository`, `InvoiceRepository`, `InvoiceService`, fixtures, test d'integracio `IssueInvoiceTest`, suport `TestDatabase::fresh()` i runner amb carpeta `Integration`. El primer `issueInvoice()` ja queda codificat per numeracio fiscal, factura, linies, registre fiscal, hash chain, cua AEAT, `fact_rels` i reutilitzacio per `IDEMPOTENCY_KEY`. Les proves no s'han pogut executar per manca de PHP al PATH.
 
 ## Decisions base ja assumides
 
@@ -82,13 +95,14 @@ Temes amb mes risc de contenir detalls pendents de contrast:
 
 ## Proper pas recomanat
 
-Continuar la revisio especialitzada amb el bloc seguent:
+Completar la verificacio executable de Fase 0, Fase 1, Fase 2, Fase 3 i Tasks 4/5 de Fase 4 amb PHP disponible:
 
 ```text
-Compensacio/saldo.
+php sif/tests/run-tests.php
+SIF_ENV=test php sif/scripts/run-migrations.php
 ```
 
-Motiu: un cop revisada la transferencia validada a intranet, el seguent cas parcial de pagament es la compensacio/saldo, que ha de distingir saldo a favor, descompte, devolucio i assignacio fiscal.
+Motiu: l'estructura, el SQL, la infraestructura comuna, els validators, el hash fiscal intern i el primer esquelet executable d'`issueInvoice()` ja estan creats sense dependencia de Composer, pero falta executar la verificacio real amb PHP i una BD de test configurada. Un cop passi aquesta base, el seguent pas tecnic sera continuar la Fase 4 amb Task 6: idempotencia i concurrencia seqüencial d'`issueInvoice()`.
 
 ## Com s'ha de tancar cada sessio
 

@@ -55,6 +55,7 @@ Principis:
 - consulta d'incidencies SIF;
 - consulta intranet alumne;
 - consulta intranet empresa/responsable.
+- entrada unica de pagaments: Redsys, transferencia, TPV, `payment_transaction` i `payment_allocation`.
 
 ## 3. Evidencia de prova
 
@@ -203,7 +204,7 @@ Aquest subbloc queda pendent d'execucio, pero el criteri de prova queda definit:
 - cerca de pagament amb mes d'un criteri informat: bloqueig;
 - pagament manual contra factura SIF existent: nomes `registerPayment()`;
 - pagament contra factura abans de cobrament: nomes cobrament, sense factura nova;
-- venda sense factura i facturable: `issueInvoice()` + `registerPayment()`;
+- venda sense factura i facturable: `issueInvoice()` amb bloc `payment` dins la mateixa operacio idempotent;
 - doble clic o reintent de la mateixa accio: sense duplicar pagament;
 - pagament superior al pendent: bloqueig o incidencia amb motiu;
 - pagament de grup, pack, regal i fraccio: relacio correcta amb origen i factura;
@@ -220,7 +221,7 @@ Aquest subbloc queda pendent d'execucio, pero el criteri de prova queda definit:
 
 - transferencia contra factura SIF existent: crea `payment_transaction` i `payment_allocation`, sense modificar import, receptor, concepte ni numero de factura;
 - transferencia contra factura abans de cobrament: nomes registra cobrament i canvia estat de cobrament, sense crear factura nova;
-- transferencia sense factura previa i venda facturable: fa `issueInvoice()` + `registerPayment()` en una operacio idempotent;
+- transferencia sense factura previa i venda facturable: fa `issueInvoice()` amb bloc `payment` en una operacio idempotent;
 - transferencia parcial: conserva import real, deixa pendent calculat pel SIF i sincronitza `FRACCIO` historic nomes com a resum;
 - transferencia que tanca el pendent: omple estat de cobrament final i, si es sincronitza `DATA PAG`, ho fa nomes despres de resposta correcta del SIF;
 - import superior al pendent: bloqueig o incidencia amb motiu i sense update silencios;
@@ -230,6 +231,28 @@ Aquest subbloc queda pendent d'execucio, pero el criteri de prova queda definit:
 - `updFactGenerada` historic no s'executa com a font fiscal final sobre factura emesa;
 - distribucio antiga per `searchMembresFactRel` queda substituida per assignacions explicites a `payment_allocation`;
 - correu a entitat/responsable nomes s'envia quan el cobrament i, si cal, la factura/PDF/QR estan en estat coherent.
+
+### 6.1.2. Proves d'entrada unica de pagaments
+
+Aquest bloc comprova que Redsys, transferencies i fitxers TPV no creen camins fiscals paral·lels.
+
+Proves:
+
+- callback Redsys amb signatura valida registra `redsys_notifications` i, si el pagament es autoritzat, crea o reutilitza un unic `payment_transaction`;
+- callback Redsys denegat registra notificacio, pero no crea factura ni `payment_transaction`;
+- callback Redsys amb signatura incorrecta queda rebutjat abans de tocar BD fiscal o operativa;
+- callback duplicat amb el mateix `DS_ORDER` no duplica factura, `payment_transaction`, `payment_allocation` ni numeracio fiscal;
+- mateix `IDPAG` amb dos `DS_ORDER` diferents no es deduplica nomes per `IDPAG`; es classifica com intent, fraccio o incidencia segons estat;
+- `payment_transaction.PROVIDER_REF` queda alineat amb `redsys_notifications.DS_ORDER` quan el cobrament ve de Redsys;
+- transferencia amb referencia bancaria repetida retorna resultat idempotent i no duplica moviment;
+- transferencia sense referencia bancaria usa clau alternativa `FACT/DATA/IMPORT/BANC` i bloqueja doble clic/reintent;
+- fitxer TPV pujat dues vegades conserva hash/resum i no duplica cap moviment;
+- linia TPV amb cobrament clar i factura pendent proposa `registerPayment()`, pero no escriu directament a `web.factures`;
+- linia TPV amb cobrament clar i venda facturable sense factura proposa `issueInvoice()` amb bloc `payment` nomes si origen, import i receptor quadren;
+- linia TPV amb import, titular o diverses candidates obre incidencia i no factura automaticament;
+- una transferencia que cobreix diverses factures crea un sol `payment_transaction` i diverses `payment_allocation`;
+- una factura cobrada amb diversos moviments recalcula estat de cobrament des de `payment_allocation`, no des de `web.inscripcions.PAGAMENT`;
+- la sincronitzacio de `PAGAMENT`, `DATA PAG`, `FRACCIO`, `FACTURA_RELACIONADA` o `NUM_COMANDA` nomes passa despres de resposta correcta del SIF.
 
 ### 6.2. Proves especifiques de Generar factura abans de pagar
 
@@ -404,3 +427,59 @@ Regla:
 Una versio no passa a produccio nomes perque compila o perque el flux ideal funciona.
 Ha de superar els casos critics, regressions i evidencies minimes.
 ```
+
+### 7.1. Bateria bloquejant per a preproduccio
+
+Aquest conjunt es el minim que ha d'estar executat abans d'una decisio `GO` o `GO AMB LIMITACIONS`.
+
+| ID | Area | Prova | Resultat esperat | Evidencia minima |
+| --- | --- | --- | --- | --- |
+| `SIF-PRE-001` | Preproduccio | Verificar BD, numeracio, documents, logs i incidencies separats de produccio. | Cap dada de prova apareix en produccio i cap factura productiva consumeix numeracio de prova. | Captura configuracio, consulta BD i log d'emissio de prova. |
+| `SIF-INV-001` | Immutabilitat | Emetre factura i intentar canviar receptor/import/concepte des d'app, endpoint antic i usuari BD no SIF. | Tots els intents queden bloquejats o registrats com a incidencia; la factura no canvia. | Captures d'intent, error servidor/BD i log d'auditoria. |
+| `SIF-IDEM-001` | Idempotencia | Repetir la mateixa operacio amb la mateixa `IDEMPOTENCY_KEY`. | Retorna la mateixa factura o estat duplicat controlat, sense nou numero fiscal. | Requests, respostes, consulta `factura` i `fiscal_sequence`. |
+| `SIF-CON-001` | Concurrencia | Llançar emissions simultanies. | Numeros fiscals unics, `FISCAL_ORDER` lineal i hash chain coherent. | Script/log de concurrencia, consulta numeracio i hash chain. |
+| `SIF-RED-001` | Redsys | Callback valid de curs normal. | Crea factura/cobrament una sola vegada i sincronitza historic nomes despres de resposta SIF. | Payload signat, registre `redsys_notifications`, factura, pagament i PDF/QR. |
+| `SIF-RED-002` | Redsys | Repetir callback amb el mateix `DS_ORDER`. | No duplica factura ni pagament; queda resposta idempotent o duplicat registrat. | Dos logs de callback i una sola factura/pagament. |
+| `SIF-PAY-001` | Pagaments | Registrar transferencia contra factura SIF existent. | Crea `payment_transaction` i `payment_allocation`; no modifica dades fiscals de factura. | Captura pantalla, log SIF i consulta factura/pagament. |
+| `SIF-FAC-001` | Factura abans de cobrament | Emetre factura real pendent i cobrar posteriorment. | `EMESA_ABANS_COBRAMENT = 1`, factura no duplicada i cobrament posterior per `registerPayment()`. | Factura, relacions, pagament posterior i PDF/QR. |
+| `SIF-REC-001` | Rectificativa | Rectificar dades fiscals o import amb motiu. | Nova rectificativa vinculada a original; original immutable. | Factura original, rectificativa, motiu, PDF/QR i log. |
+| `SIF-DOC-001` | PDF/QR/XML | Generar document fiscal i verificar hash. | Document guardat a `factura_documents`; hash reproduible; no es regenera des de dades vives. | Fitxer, hash, captura consulta i registre document. |
+| `SIF-AEA-001` | AEAT | Provocar error d'enviament i retry. | Es crea incidencia/cua, no es duplica factura i el retry queda auditat. | Registre `fiscal_queue`, incidencia i log de retry. |
+| `SIF-PER-001` | Permisos | Usuari sense permis executa accio fiscal critica o endpoint conegut. | Acces rebutjat al servidor i registrat si correspon. | Captura/error HTTP, log de permisos i usuari. |
+| `SIF-VIS-001` | Visibilitat | Alumne intenta veure factura de grup/empresa on no es receptor. | No veu PDF complet ni dades fiscals alienes. | Captura alumne, captura empresa/responsable autoritzat i log d'acces si existeix. |
+| `SIF-BCK-001` | Backup/restauracio | Restaurar BD fiscal i documents en entorn separat. | Factures, pagaments, documents, hash i cues restauren coherents sense reactivar processos. | Acta de restauracio, consultes i captura factura restaurada. |
+| `SIF-EXP-001` | Exportacio | Generar export fiscal de prova. | Export complet, traçable a versio i entorn, sense dades productives si es prova. | Fitxer exportat, hash o resum i captura del panell. |
+
+### 7.2. Resultat de cada prova
+
+Cada execucio ha de quedar marcada amb un dels estats:
+
+| Estat | Significat | Efecte |
+| --- | --- | --- |
+| `PASS` | El resultat coincideix amb l'esperat i hi ha evidencia. | Pot comptar per go/no-go. |
+| `FAIL` | El resultat no coincideix o falta control fiscal. | Obre incidencia; si es bloquejant, implica `NO-GO`. |
+| `BLOCKED` | La prova no es pot executar per falta d'entorn, dada, credencial o component. | No pot comptar com a superada. |
+| `N/A JUSTIFICAT` | No aplica a la versio provada i hi ha justificacio escrita. | Pot acceptar-se nomes si no afecta el flux productiu activat. |
+
+Regla:
+
+```text
+Una prova sense evidencia conservada no compta com a PASS.
+```
+
+### 7.3. Fitxa d'evidencia recomanada
+
+Per cada ID de prova s'ha de conservar una fitxa curta:
+
+| Camp | Exemple |
+| --- | --- |
+| ID prova | `SIF-RED-002` |
+| Versio | `0.3-BORRADOR` o `1.0.0` |
+| Entorn | `PREPROD` |
+| Data/hora | `2026-06-02 10:30` |
+| Responsable | Persona que executa la prova |
+| Dades d'entrada | `IDPAG`, `DS_ORDER`, import, receptor o factura de prova |
+| Resultat esperat | No duplicar factura ni pagament |
+| Resultat obtingut | `PASS`, `FAIL`, `BLOCKED` o `N/A JUSTIFICAT` |
+| Evidencies | Captures, logs, exports, hashes, PDF/QR/XML |
+| Incidencia | ID d'incidencia si falla o queda pendent |

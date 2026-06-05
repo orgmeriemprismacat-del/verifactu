@@ -7,3 +7,15 @@ xat-original/
 Thumbs.db
 desktop.ini
 ~$*
+
+# Configuracio local del SIF.
+.env
+.env.*
+!.env.example
+sif/var/
+
+# Fitxers de connexio antics amb credencials.
+parametres-connexio*.php
+parametres_connexio.php
+codi-drive/**/parametres-connexio*.php
+codi-drive/**/parametres_connexio.php

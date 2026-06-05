@@ -22,13 +22,13 @@ Hi ha quatre nivells diferents:
 | Decisions d'arquitectura | Bastant cobert | SIF centralitzat, BD fiscal nova, hash chain, idempotencia, PDF immutable i panell SIF estan ben decidits. |
 | Casuistica funcional | Parcial | S'han explicat molts casos i alguns tenen captures o flux explicat, pero no tots estan convertits en procediments documentats. |
 | Model de dades | Bastant avancat | Ja hi ha gairebe totes les taules, relacions i responsabilitats principals. Falta tancar SQL definitiu, indexos, camps finals i diccionari complet. |
-| Evidencia auditora | Parcial | Hi ha captures actuals, criteris tecnics i payloads base. Falten captures finals del sistema implementat, proves executades, exemples de factures reals i logs reals. |
+| Evidencia auditora | Parcial | Hi ha captures actuals, criteris tecnics, payloads base i paquet go/no-go documentat. Falten captures finals del sistema implementat, proves executades, exemples de factures reals, backups restaurats i logs reals. |
 
 Resposta curta:
 
 ```text
 Tenim prou documentacio per continuar dissenyant i implementant.
-No tenim encara prou documentacio per signar la versio final del SIF ni per superar una auditoria completa sense explicacions verbals addicionals.
+No tenim encara prou evidencia real per signar la versio final del SIF ni per superar una auditoria completa sense explicacions verbals addicionals.
 ```
 
 ## 2. Criteri utilitzat
@@ -444,7 +444,12 @@ Criteri decidit:
 
 El pla de proves existeix com a document i, despres del bloc 8 del xat pont, ja incorpora criteris de preproduccio, regressions critiques i paquet go/no-go.
 
-Tot i aixi, encara ha de convertir-se en casos executables amb evidencia real.
+Actualitzacio 2026-06-02:
+
+```text
+El bloc de proves i posada en produccio ja te criteris executables de go/no-go, bateria bloquejant, fitxa d'evidencia, criteri de captures, backups/restauracio i checklist final.
+El que falta ja no es definir que s'ha de provar, sino executar-ho en preproduccio/produccio i conservar evidencia real.
+```
 
 Cal tenir proves per:
 
@@ -467,6 +472,15 @@ Cal tenir proves per:
 - descompte sensible amb text generic;
 - exportacio fiscal;
 - usuari sense permisos intentant editar factura emesa.
+
+Per auditoria final, cada prova critica haura de poder enllacar:
+
+- ID de prova;
+- versio del SIF;
+- entorn;
+- resultat `PASS`, `FAIL`, `BLOCKED` o `N/A JUSTIFICAT`;
+- captura, log, export, PDF/QR/XML, hash o acta de restauracio;
+- incidencia associada si falla.
 
 ### 4.7. Evidencia dins del SIF
 
@@ -1031,7 +1045,7 @@ Resultat:
 - `efectuarPagamentFacturaGenerada()` usa `buscarPagamentsByFact`, `updFactGenerada`, `searchMembresFactRel`, `updPayInscr`, `updDateInscr` i `updFraccBDByFact`;
 - el comportament historic `updFactGenerada` queda substituit per `payment_transaction` i `payment_allocation`;
 - una factura VERI*FACTU emesa no canvia import, receptor, concepte ni numero quan arriba una transferencia;
-- si no hi ha factura i el cas es facturable, el flux final fa `issueInvoice()` + `registerPayment()` de manera idempotent.
+- si no hi ha factura i el cas es facturable, el flux final fa `issueInvoice()` amb bloc `payment` de manera idempotent.
 
 Pendent:
 
@@ -1054,7 +1068,8 @@ Auditoria documental actual: PARCIAL.
 
 El projecte esta ben orientat i els riscos principals estan identificats.
 La documentacio encara depen massa de coneixement verbal de Meriem.
-Cal convertir la casuistica coneguda en procediments, taules, permisos, proves i evidencies.
+La part de proves, preproduccio, go/no-go, backups, restauracio, incidencies i evidencies ja te criteri documental executable.
+Encara cal convertir la resta de casuistica en procediments, taules i permisos finals, i sobretot executar proves reals amb evidencies.
 ```
 
 Fonts normatives de referencia:

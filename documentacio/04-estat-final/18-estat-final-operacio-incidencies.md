@@ -25,9 +25,84 @@ Descriure com funcionara el sistema en produccio:
 - crea registre fiscal;
 - actualitza hash chain;
 - crea cua AEAT;
+- crea relacions `fact_rels`;
+- pot crear `payment_transaction` i `payment_allocation` si factura i cobrament neixen en el mateix flux;
 - retorna numero i UUID.
 
-## 3. PDF/QR
+Si la factura ja existeix per la mateixa `IDEMPOTENCY_KEY`, retorna la factura existent i no crea cap numero fiscal nou.
+
+## 3. Registre de pagament
+
+`registerPayment()`:
+
+- valida metode, import, data, referencia i permisos;
+- comprova idempotencia de pagament;
+- localitza factura o factures existents;
+- crea `payment_transaction`;
+- crea `payment_allocation`;
+- recalcula `ESTAT_COBRAMENT`;
+- registra event/auditoria;
+- sincronitza camps historics nomes com a resum operatiu quan cal.
+
+No crea numero fiscal, no modifica hash chain, no crea registre fiscal i no modifica linies, totals ni receptor fiscal de cap factura emesa. Si el cobrament no te factura previa i crea obligacio fiscal, el flux correcte es `issueInvoice()` amb bloc de pagament.
+
+## 4. Fluxos fiscals especials
+
+### 4.1. Pagaments fraccionats
+
+Cada fraccio es registra com un moviment economic propi. La factura conserva el total emes i el SIF calcula l'estat de cobrament amb `payment_allocation`.
+
+Estats finals possibles:
+
+- `PENDENT`;
+- `PARCIAL`;
+- `COBRADA`;
+- `RETORNADA_PARCIAL`;
+- `RETORNADA_TOTAL`;
+- `COMPENSADA_PARCIAL`;
+- `COMPENSADA_TOTAL`.
+
+Una notificacio Redsys repetida no pot crear nova factura ni duplicar cobrament: el sistema retorna el moviment ja registrat per la mateixa idempotencia.
+
+### 4.2. Compensacio i saldo
+
+Una compensacio es registra com moviment economic `COMPENSATION`. Si prove d'un saldo, ha d'estar vinculada a `credit_balance`.
+
+Regles:
+
+- saldo nou per baixa/devolucio: crea credit i rectificativa si redueix una factura emesa;
+- us futur del saldo: `payment_transaction` + `payment_allocation`;
+- descompte abans d'emetre: es congela a `factura_linia`;
+- ajust posterior sobre factura emesa: rectificativa o factura complementaria.
+
+### 4.3. Devolucions
+
+Una devolucio es registra com `REFUND` i s'assigna a la factura o linia afectada. Si redueix una factura emesa, s'ha de crear rectificativa vinculada.
+
+La devolucio pot venir de Redsys, transferencia o registre manual. El sistema ha de conservar metode, data, referencia, import, usuari i relacio amb baixa, canvi de curs o incidencia si aplica.
+
+### 4.4. Rectificatives
+
+Les rectificatives usen serie `R`, tenen relacio directa amb la factura rectificada i indiquen motiu i mode:
+
+- `DIFERENCIES`;
+- `SUBSTITUCIO`.
+
+La pantalla antiga d'anulacio no pot modificar factures emeses: ha d'iniciar un flux de rectificativa SIF amb permisos.
+
+### 4.5. Baixes i canvis de curs
+
+Una baixa marca la inscripcio i espera decisio economica del client: retorn, saldo o no retorn. No genera rectificativa automatica.
+
+Un canvi de curs conserva historic. Si el canvi afecta servei, import, descompte, despeses de gestio o concepte d'una factura emesa, el SIF ha de crear rectificativa, complementaria o diferencia pendent.
+
+### 4.6. Factura manual i migracio historica
+
+La factura manual es un flux `issueInvoice()` iniciat per usuari autoritzat. No es permet alta manual a `web.factures`.
+
+Les factures historiques migrades es consulten com `NO_VERIFACTU` i no entren a hash chain ni cua AEAT retroactivament. Una rectificativa nova sobre historic, si cal, es crea com operacio SIF nova amb referencia clara a la factura antiga.
+
+## 5. PDF/QR
 
 La generacio de PDF/QR pot anar en cua.
 
@@ -38,7 +113,7 @@ Si falla:
 - es notifica al panell SIF;
 - es pot mostrar avís a la intranet.
 
-## 4. Enviament AEAT
+## 6. Enviament AEAT
 
 La cua AEAT:
 
@@ -47,7 +122,7 @@ La cua AEAT:
 - marca acceptats/rebutjats;
 - genera notificacions si falla.
 
-## 5. Notificacions
+## 7. Notificacions
 
 Tipus:
 
@@ -61,8 +136,13 @@ Tipus:
 - pagament fraccionat amb intents Redsys repetits;
 - duplicat Redsys;
 - incidencia de dades.
+- compensacio aplicada sense credit o motiu;
+- saldo antic pendent de revisio;
+- canvi de curs amb diferencia no cobrada;
+- factura historica amb relacio incompleta;
+- factura manual pendent de document o correu.
 
-## 6. Gestio d'incidencies SIF
+## 8. Gestio d'incidencies SIF
 
 Les incidencies del SIF s'han de guardar a la BD fiscal/SIF.
 
@@ -100,6 +180,16 @@ Camps minims recomanats:
 
 La incidencia ha de poder apuntar a factura, pagament o operacio d'origen. Aixo es important en casos com pagaments fraccionats, transferencies que paguen diverses factures, saldos/compensacions i factures abans de cobrament.
 
+També ha de poder apuntar a:
+
+- baixa;
+- canvi de curs;
+- credit/saldo;
+- devolucio;
+- rectificativa;
+- factura historica migrada;
+- factura manual.
+
 Estats recomanats:
 
 - `OPEN`
@@ -110,7 +200,7 @@ Estats recomanats:
 
 Cada canvi d'estat ha de generar un event/log.
 
-## 7. Acces d'auditoria / AEAT
+## 9. Acces d'auditoria / AEAT
 
 El sistema ha de permetre consultar la informacio amb transcendencia tributaria separada d'informacio confidencial no fiscal.
 
@@ -123,7 +213,7 @@ Recomanacio:
 - amb registre d'accessos;
 - sense permis per crear, editar, anul·lar o rectificar.
 
-## 8. Versions
+## 10. Versions
 
 Primera versio signable:
 

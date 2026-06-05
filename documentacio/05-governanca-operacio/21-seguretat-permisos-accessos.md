@@ -391,6 +391,20 @@ Criteris:
 - usuari SIF amb permisos controlats;
 - administracio BD reservada a Meriem.
 
+### 9.1. Certificat digital, apoderament i secrets
+
+El certificat digital de l'entitat, l'apoderament o qualsevol credencial equivalent per operar amb AEAT s'ha de tractar com a secret tecnic critic.
+
+Regles:
+
+- no es guarda en repositori, webroot, fitxers publics ni logs;
+- no es mostra mai complet en pantalla;
+- nomes Meriem o el proces automatic autoritzat poden configurar-lo o provar-lo tecnicament;
+- el panell SIF pot mostrar estat, caducitat, entorn i ultima prova, pero no claus privades ni contrasenyes;
+- produccio i proves han de quedar separades;
+- qualsevol error, caducitat o absencia de certificat/apoderament abans de `1.0.0` ha de generar incidencia SIF bloquejant o prebloquejant;
+- la configuracio usada per remetre a AEAT ha de quedar vinculada a la versio activa i a la declaracio responsable corresponent.
+
 ## 10. Acces documental dins del SIF
 
 La declaracio responsable i la informacio de versio han d'estar accessibles dins del SIF de forma rapida, clara i llegible.
@@ -431,3 +445,11 @@ Prohibicions:
 - no pot resoldre incidencies;
 - no pot generar rectificatives;
 - no pot accedir a dades no fiscals innecessaries.
+
+Activacio del rol:
+
+- usuari temporal o restringit, creat nomes si cal per auditoria, inspeccio o revisio fiscal;
+- permisos de lectura/exportacio limitats a documentacio, registres fiscals, documents, logs i incidencies fiscalment necessaries;
+- acces registrat amb usuari, data, IP si es conserva, accio i export realitzada;
+- caducitat o desactivacio manual en acabar la revisio;
+- cap acces a secrets tecnics, certificat digital, claus privades, contrasenyes, dades academiques no necessaries o pantalles d'edicio.

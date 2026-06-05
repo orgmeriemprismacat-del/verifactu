@@ -209,19 +209,20 @@ factura original UUID
 
 ## 5. Decisions pendents
 
-- Si `canvi_curs` i `baixa_inscripcio` han de tenir copia/resum a BD fiscal.
-- Si hi ha foreign keys entre BDs o relacio logica per UUID/ID.
-- Com migrar `web.factures` historica.
-- Com conservar compatibilitat amb `FACTURA_RELACIONADA`.
+- Pla detallat de migracio de `web.factures` historica, incloent marca d'historic no VERI*FACTU i validacio de numeracio antiga.
+- Inventari fisic final de taules de packs, regals i codis promocionals abans de fer SQL de migracio.
 
 ## 6. Decisions preses
 
 - `fact_rels` es crea de nou per substituir la connexio antiga de factures relacionades.
+- No es faran foreign keys entre BD fiscal i BD web/intranet. La relacio amb la BD antiga sera logica, auditada i basada en `UUID_FACTURA`, `SOURCE_TYPE`, `SOURCE_ID`, `FACTURA_RELACIONADA`, `IDPAG` i `DS_ORDER`.
 - `E_FACT` es mantindra per factura electronica, si cal.
 - Es creara `EMESA_ABANS_COBRAMENT` per distingir factura real emesa abans de cobrar.
 - Generar factura abans de pagar implica `EMESA_ABANS_COBRAMENT = 1`, pero no implica automaticament `E_FACT = 1`.
 - Ha d'existir una accio/opcio separada per marcar una factura com a factura electronica (`E_FACT = 1`) quan correspongui.
 - No s'utilitzen proformes fiscals: si un document porta numero fiscal, sera factura real.
 - Les factures antigues de `web.factures` es migraran al SIF com a historic no VERI*FACTU.
-- La relacio nova entre inscripcions i factures sera per `FACTURA_RELACIONADA` + `UUID_FACTURA` dins `fact_rels`.
+- Les factures noves VERI*FACTU no s'han de crear a `web.factures`; si cal compatibilitat, els camps antics nomes es poden sincronitzar com a resum despres de l'exit del SIF.
+- La relacio nova entre inscripcions i factures sera per `fact_rels`, conservant `FACTURA_RELACIONADA` com a agrupacio historica i `UUID_FACTURA` com a clau fiscal real.
+- `canvi_curs` i `baixa_inscripcio` viuran com a events operatius a intranet. La BD fiscal nomes conservara relacio o resum quan generin factura, rectificativa, devolucio, saldo o compensacio.
 - Tots els imports nous del SIF han de ser `DECIMAL(12,2)` o equivalent, no `float` ni `double`.

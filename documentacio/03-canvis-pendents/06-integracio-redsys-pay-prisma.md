@@ -45,7 +45,34 @@ Redsys callback
 
 El callback Redsys no ha de calcular `A2026/x` ni inserir directament a `web.factures`.
 
-### 2.1. Dades recuperades del codi actual
+### 2.1. Contracte d'entrada de pagaments al SIF
+
+Tots els pagaments han d'entrar al SIF per una de tres portes controlades:
+
+| Porta d'entrada | Origen | Primer registre obligatori | Accio fiscal possible |
+| --- | --- | --- | --- |
+| Callback Redsys | `pay.prisma.cat` rep notificacio servidor-servidor | `redsys_notifications` per `DS_ORDER` | `issueInvoice()` amb bloc `payment` o `registerPayment()` |
+| Passar pagaments | Intranet valida transferencia/manual/regularitzacio | `payment_transaction` amb idempotencia i usuari | `registerPayment()` o `issueInvoice()` amb bloc `payment` |
+| Conciliacio TPV | Fitxer TPV/banc pujat a intranet/SIF | registre d'analisi + proposta de conciliacio | cap accio automatica si hi ha dubte; accio controlada posterior |
+
+Regla:
+
+```text
+notificacio Redsys != cobrament fiscal definitiu
+analisi TPV != registre de pagament definitiu
+payment_transaction = moviment economic acceptat pel SIF
+payment_allocation = assignacio del moviment a una o mes factures
+```
+
+Per tant:
+
+- `redsys_notifications` conserva la notificacio, l'estat i la deduplicacio del callback Redsys;
+- `payment_transaction` conserva el moviment economic real quan el pagament queda acceptat o registrat;
+- `payment_allocation` vincula el moviment a `UUID_FACTURA`, totalment o parcialment;
+- `web.inscripcions.PAGAMENT`, `DATA PAG`, `FRACCIO`, `FACTURA_RELACIONADA` i `web.factures.NUM_COMANDA` poden sincronitzar-se com a compatibilitat, pero no son la font fiscal primaria;
+- si factura i cobrament neixen junts, la crida publica ha de ser `issueInvoice()` amb bloc `payment` dins la mateixa operacio idempotent.
+
+### 2.2. Dades recuperades del codi actual
 
 El xat antic incloia fragments de `realitzaPagamentAutomatic.php` que concreten el flux actual:
 
@@ -106,6 +133,19 @@ callback Redsys rebut
     -> si DS_ORDER duplicat: sortir sense tornar a processar
     -> si nou: continuar flux
 ```
+
+`DS_ORDER` deduplica la notificacio Redsys, pero no substitueix la clau fiscal completa del cas. Un mateix `IDPAG` pot tenir diversos `DS_ORDER` per intents, fraccions o reintents, i una mateixa factura pot acabar tenint diversos moviments economics. Per a pagaments acceptats, `payment_transaction.PROVIDER = REDSYS` i `payment_transaction.PROVIDER_REF = DS_ORDER` han de quedar alineats amb `redsys_notifications.DS_ORDER`.
+
+Estats orientatius de `redsys_notifications`:
+
+| Estat | Significat | Accio |
+| --- | --- | --- |
+| `RECEIVED` | Notificacio rebuda i pendent de validar/processar. | No crea factura ni pagament per si sola. |
+| `INVALID_SIGNATURE` | Signatura incorrecta. | Bloquejar i crear incidencia tecnica si cal. |
+| `DENIED` | Redsys informa resposta no autoritzada. | No crear factura ni `payment_transaction`. |
+| `DUPLICATE` | `DS_ORDER` ja registrat. | Retornar resultat idempotent o marcar duplicat sense efecte nou. |
+| `PROCESSED` | Pagament acceptat i conciliat amb factura/pagament SIF. | Ha d'existir relacio amb factura i/o `payment_transaction`. |
+| `INCIDENT` | Import, origen o receptor incoherent. | Crear incidencia SIF i no facturar automaticament. |
 
 ## 5. Bloc que s'ha de substituir
 
@@ -194,7 +234,7 @@ Resposta esperada:
   "uuid_factura": "...",
   "num_visible": "A2026/000123",
   "estat_aeat": "PENDING",
-  "estat_cobrament": "COBRADA",
+  "estat_cobrament": "PAID",
   "idempotency_reused": false
 }
 ```
@@ -371,7 +411,7 @@ Redsys confirma pagament
     -> si DS_ORDER duplicat, retornar sense efecte nou
     -> carregar inscripcio i snapshot fiscal vinculat a IDPAG
     -> si hi ha factura SIF previa real, registerPayment()
-    -> si no hi ha factura SIF previa, issueInvoice() + payment_transaction
+    -> si no hi ha factura SIF previa, issueInvoice() amb bloc payment
     -> sincronitzar resum operatiu d'inscripcio
     -> generar o consultar PDF/QR
     -> enviar correus segons estat SIF

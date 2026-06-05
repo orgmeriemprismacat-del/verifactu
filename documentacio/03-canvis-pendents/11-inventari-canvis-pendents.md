@@ -85,6 +85,14 @@ Afegir apartat per:
 - cridar SIF;
 - enviar correus.
 
+Criteri tancat:
+
+- una factura manual no s'insereix directament a `web.factures`;
+- sempre passa per `issueInvoice()`;
+- si neix cobrada, el payload inclou `payment`;
+- si neix pendent, el cobrament posterior va per `registerPayment()`;
+- ha de conservar usuari intern, snapshot fiscal, linies i relacio amb entitat/responsable si n'hi ha.
+
 ## 8.1. Entitats i responsables d'entitat
 
 L'apartat actual:
@@ -180,6 +188,14 @@ Cal adaptar-los per mostrar:
 - enllac actiu/inactiu;
 - saldo/compensacio si existeix.
 
+Criteri tancat:
+
+- cada fraccio es `payment_transaction`;
+- cada assignacio parcial es `payment_allocation`;
+- el mateix `IDPAG` pot tenir diversos intents Redsys i diversos `DS_ORDER`;
+- la deduplicacio Redsys es fa per `DS_ORDER`;
+- `FRACCIO` i camps antics nomes queden com a resum operatiu sincronitzat.
+
 ## 11. Optimitzacio BD
 
 Tasques:
@@ -224,6 +240,13 @@ Cal:
 - registrar despeses de gestio;
 - generar factura/rectificativa/compensacio segons cas.
 
+Criteri tancat:
+
+- si no hi ha factura emesa, es pot ajustar la inscripcio amb historic i log;
+- si hi ha factura emesa i canvia servei, import, concepte o descompte, cal rectificativa o factura complementaria;
+- si el nou curs es mes car, la diferencia pendent es paga amb URL controlada i `SOURCE_TYPE = CANVI_CURS_DIFERENCIA`;
+- si el nou curs es mes barat, cal decisio de client: retorn, saldo o no retorn justificat.
+
 ## 15. Canvi de curs amb curs mes car o mes barat
 
 Casos:
@@ -233,6 +256,13 @@ Casos:
 - pagaments traslladats;
 - mes d'un canvi consecutiu;
 - descompte reaplicat o recalculat.
+
+Criteri tancat:
+
+- el primer canvi pot ser gratuit si la politica interna ho permet;
+- canvis posteriors poden generar despeses de gestio;
+- el descompte original s'intenta reaplicar i, si no correspon, es recalcula;
+- qualsevol rebaixa excepcional ha de tenir motiu intern i descompte/ajust documentat.
 
 ## 16. Descompte excepcional per canvi de curs
 
@@ -247,6 +277,12 @@ Canvi necessari:
 - mostrar text visible generic si cal;
 - evitar modificar nomes import final sense rastre.
 
+Criteri tancat:
+
+- el descompte excepcional per canvi de curs no pot ser nomes una modificacio d'`A_PAGAR`;
+- ha de quedar congelat a linia o relacio d'ajust amb origen `DESCOMPTE_INCIDENCIA`, `DESCOMPTE_COMERCIAL` o `AJUST_MANUAL`;
+- si s'aplica despres d'una factura emesa, genera rectificativa quan redueix el que ja estava facturat.
+
 ## 17. Anulacio/baixa de curs
 
 Flux nou:
@@ -256,6 +292,24 @@ Flux nou:
 - client decideix retorn/saldo/no retorn;
 - Adam/Pablo registren devolucio o saldo;
 - rectificativa quan pertoqui.
+
+Criteri tancat:
+
+- la baixa es un event sobre inscripcio i no genera rectificativa automatica;
+- la devolucio es `payment_transaction` de tipus `REFUND`;
+- el saldo es `credit_balance` i quan s'usa es `COMPENSATION`;
+- si devolucio o saldo redueixen una factura emesa, cal rectificativa vinculada;
+- els saldos per baixa no caduquen automaticament, pero secretaria pot revisar saldos molt antics.
+
+## 17.1. Compensacio, saldo i devolucions
+
+Criteri tancat:
+
+- compensacio/saldo no son edicions d'import;
+- si existeixen abans d'emetre, es reflecteixen en linies/descomptes congelats;
+- si neixen despres d'emetre i redueixen servei o import, cal rectificativa;
+- una devolucio total o parcial s'ha de registrar com moviment economic i vincular amb factura original, baixa/canvi si aplica i rectificativa;
+- un pagament duplicat no crea factura nova: genera devolucio, saldo o incidencia segons decisio interna.
 
 ## 18. Migracio a pay.prisma.cat
 
@@ -343,6 +397,13 @@ Decisio:
 - conservar relacio amb `FACTURA_RELACIONADA`;
 - vincular-les a `fact_rels`;
 - no generar registres VERI*FACTU retroactivament.
+
+Criteri tancat:
+
+- la migracio no entra a la hash chain nova;
+- les consultes han d'indicar clarament `VERIFACTU` o `NO_VERIFACTU`;
+- una rectificativa nova sobre factura historica, si cal, es crea com operacio SIF nova amb referencia a l'historic;
+- la migracio ha d'incloure control de totals per any/serie, numeracio, imports i incidencies.
 
 ## 24. fact_rels
 

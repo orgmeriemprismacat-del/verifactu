@@ -26,6 +26,28 @@ Regla:
 Cap prova pot consumir numeracio fiscal productiva ni crear factures reals si encara no s'ha decidit activar produccio.
 ```
 
+### 0.1. Criteri formal de decisio
+
+La decisio de posada en produccio ha de quedar registrada com una de les tres opcions seguents:
+
+| Decisio | Quan es pot usar | Condicions |
+| --- | --- | --- |
+| `GO` | El SIF pot activar-se en produccio. | Totes les proves bloquejants passen, no hi ha incidencies critiques obertes, backups/restauracio estan provats i la versio te expedient complet. |
+| `GO AMB LIMITACIONS` | Es pot activar amb abast limitat i controls manuals temporals. | Les incidencies obertes no afecten numeracio, hash chain, AEAT, PDF/QR, permisos, cobrament o immutabilitat fiscal. Les limitacions han de tenir responsable i data de revisio. |
+| `NO-GO` | No es pot activar. | Qualsevol prova bloquejant falla o no te evidencia, falta preproduccio separada, no s'ha provat restauracio, hi ha dubtes de certificat/apoderament, o no es pot demostrar que les factures emeses no es modifiquen. |
+
+Incidencies sempre bloquejants abans de produccio:
+
+- duplicat de numero fiscal;
+- ruptura o incoherencia de hash chain;
+- `issueInvoice()` no idempotent;
+- callback Redsys duplicat que duplica factura o pagament;
+- factura emesa editable des d'app, endpoint antic o BD amb usuari no autoritzat;
+- PDF/QR/XML no generat ni registrat com a incidencia controlada;
+- error AEAT sense cua, retry o incidencia;
+- backup o restauracio no verificats;
+- falta de registre de versio o declaracio responsable preparada per a la versio productiva.
+
 ## Blocs de checklist
 
 - Certificat digital de l'entitat: disponibilitat, ubicacio segura, permisos d'us i proves de connexio AEAT.
@@ -68,6 +90,16 @@ Abans del primer desplegament productiu:
 - [ ] Dades reals anonimitzades o duplicades en entorn controlat quan calgui.
 - [ ] Procediment per netejar proves sense tocar historics productius.
 - [ ] Regla escrita per impedir que `issueInvoice()` en mode proves crei factura productiva.
+- [ ] Paquet de dades de preproduccio definit: curs normal, pack, grup, regal, USOC, transferencia, factura abans de cobrament i rectificativa.
+- [ ] Usuari provador, usuari sense permisos i usuari auditor/lectura preparats.
+- [ ] Fitxers de captures i logs separats per versio i entorn.
+- [ ] Criteri per promocionar configuracio de preproduccio a produccio revisat, sense copiar dades de prova.
+
+Condicio minima:
+
+```text
+La preproduccio ha de demostrar el comportament fiscal; no serveix nomes com a servidor on "obre la pantalla".
+```
 
 ## 2. Checklist tecnic abans de produccio
 
@@ -126,6 +158,17 @@ No es fa rollback de factures emeses.
 Es pot revertir codi, pero els registres fiscals creats es conserven i es corregeixen amb registres posteriors si cal.
 ```
 
+### 3.1. Prova minima de restauracio
+
+La prova de restauracio ha de fer-se en entorn separat i ha de demostrar:
+
+- restauracio de BD fiscal fins a un punt temporal conegut;
+- restauracio de documents fiscals associats (`PDF`, `QR`, `XML` o equivalent);
+- coherencia entre `factura`, `factura_linia`, `factura_registres`, `fiscal_queue`, `factura_documents`, `payment_transaction`, `payment_allocation` i `fact_rels`;
+- consulta d'una factura restaurada amb el mateix numero, UUID, hash i document;
+- verificacio que la restauracio no reactiva enviaments AEAT o callbacks Redsys com si fossin nous;
+- registre de data, responsable, origen del backup, entorn de restauracio i resultat.
+
 ## 4. Evidencies minimes a conservar
 
 Per a la versio productiva:
@@ -183,7 +226,102 @@ Punts fiscals sensibles a revisar abans de signar o activar produccio:
 - mencio exacta d'exempcio IVA per cursos;
 - text visible de descomptes per evitar dades sensibles.
 
-## 5. Fonts oficials revisades
+## 5. Expedient de captures i evidencies
+
+Cada versio candidata a produccio ha de tenir un expedient propi, per exemple:
+
+```text
+evidencies/
+  SIF-PRISMA-0.3-BORRADOR/
+  SIF-PRISMA-1.0.0/
+```
+
+Cada captura o log ha d'incloure al nom o a la fitxa:
+
+- ID de prova;
+- versio;
+- entorn (`TEST`, `PREPROD` o `PROD`);
+- data;
+- pantalla, endpoint o proces;
+- usuari o rol;
+- resultat (`PASS`, `FAIL`, `INCIDENCIA`);
+- referencia a factura, pagament, cua o incidencia si existeix.
+
+Captures minimes abans de `1.0.0`:
+
+- panell `pay.prisma.cat/sif` amb versio activa o candidata;
+- dashboard amb incidencies visibles;
+- emissio de factura ordinaria amb PDF/QR;
+- callback Redsys acceptat i callback duplicat;
+- factura abans de cobrament i cobrament posterior;
+- rectificativa vinculada a factura original;
+- incidencia AEAT amb retry;
+- incidencia PDF/QR;
+- bloqueig d'usuari sense permisos;
+- intranet alumne sense visibilitat de factura de grup/empresa;
+- export fiscal de prova;
+- registre de backups/restauracio.
+
+## 6. Incidencies i criteri de bloqueig
+
+Durant preproduccio i posada en produccio, tota incidencia ha de quedar classificada:
+
+| Severitat | Exemple | Efecte en go/no-go |
+| --- | --- | --- |
+| `CRITICA` | Duplicat fiscal, hash chain incorrecte, factura editable, callback duplicat que factura dues vegades. | Sempre `NO-GO`. |
+| `ALTA` | PDF/QR fallit sense recuperacio, AEAT sense retry, permisos incomplets, backup no restaurable. | `NO-GO` fins a resolucio o prova compensatoria forta. |
+| `MITJANA` | Captura pendent, text de correu millorable, export no critic incomplet. | Pot permetre `GO AMB LIMITACIONS` si no afecta compliment fiscal. |
+| `BAIXA` | Millora visual o aclariment documental sense impacte fiscal. | No bloqueja, pero queda registrada. |
+
+Cada incidencia ha de tenir:
+
+- identificador;
+- data d'obertura;
+- versio i entorn;
+- origen: prova, usuari, AEAT, Redsys, PDF/QR, backup, permisos o operacio;
+- descripcio;
+- severitat;
+- responsable;
+- estat;
+- evidencia associada;
+- criteri de tancament.
+
+## 7. Checklist final d'activacio productiva
+
+La decisio final s'ha de revisar en aquest ordre:
+
+### 7.1. Abans del dia d'activacio
+
+- [ ] Versio candidata registrada.
+- [ ] Migracions SQL aplicades i verificades en preproduccio.
+- [ ] Paquet de proves bloquejants executat amb resultat `PASS`.
+- [ ] Incidencies `CRITICA` i `ALTA` tancades.
+- [ ] Backups configurats i prova de restauracio documentada.
+- [ ] Certificat/apoderament revisat i provat quan correspongui.
+- [ ] Declaracio responsable de `1.0.0` preparada, no signada fins que la versio sigui verificable.
+- [ ] Captures finals principals guardades.
+- [ ] Pla de comunicacio interna preparat: qui pot emetre, qui resol incidencies i qui decideix aturada.
+
+### 7.2. Dia d'activacio
+
+- [ ] Backup immediat abans del desplegament.
+- [ ] Codi/paquet desplegat coincideix amb la versio registrada.
+- [ ] Configuracio productiva revisada: BD, numeracio, AEAT, Redsys, PDF/QR, secrets i permisos.
+- [ ] Primera prova controlada en produccio validada sense consumir dades ficticies.
+- [ ] Panell SIF accessible i amb versio activa visible.
+- [ ] Logs d'emissio, pagament, documents, AEAT i incidencies visibles.
+- [ ] Decisio `GO`, `GO AMB LIMITACIONS` o `NO-GO` registrada.
+
+### 7.3. Despres de l'activacio
+
+- [ ] Revisio de primeres factures productives.
+- [ ] Revisio de callbacks Redsys reals.
+- [ ] Revisio de cua AEAT i respostes.
+- [ ] Revisio de generacio PDF/QR.
+- [ ] Revisio d'indicadors i incidencies de la intranet.
+- [ ] Evidencia final de versio activa i declaracio responsable associada.
+
+## 8. Fonts oficials revisades
 
 Revisio feta el 2026-06-01:
 

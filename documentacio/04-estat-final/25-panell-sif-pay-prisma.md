@@ -22,6 +22,7 @@ La URL exacta pot ajustar-se quan la responsable tecnica configuri el subdomini 
 SIF PrisMa
     Dashboard
     Factures
+    Pagaments i conciliacio
     Registres AEAT
     Incidencies
     Documents
@@ -91,6 +92,41 @@ No ha de permetre:
 
 - editar una factura emesa directament;
 - canviar imports, receptor o concepte sense rectificativa/event.
+
+### 3.2.1. Pagaments i conciliacio
+
+Objectiu:
+
+- consultar i conciliar els moviments economics que entren al SIF.
+
+Ha de permetre:
+
+- cercar per `DS_ORDER`, `NUM_COMANDA`, `IDPAG`, referencia bancaria, referencia TPV, UUID de factura, NIF/CIF, import i periode;
+- veure notificacions Redsys rebudes, duplicades, denegades, invalides, processades o en incidencia;
+- veure `payment_transaction` i `payment_allocation` associats a cada factura;
+- veure pagaments TPV/transferencia pendents d'assignacio;
+- veure pagaments cobrats sense factura o sense origen clar;
+- veure factures pendents de cobrament;
+- consultar l'historial d'analisis de fitxers TPV amb hash/resum, usuari, data i resultat;
+- obrir incidencia quan una linia TPV, transferencia o callback no quadra;
+- proposar `registerPayment()` o `issueInvoice()` amb bloc `payment` nomes quan la coincidencia sigui suficient i el rol ho permeti.
+
+No ha de permetre:
+
+- crear una factura duplicada per un `DS_ORDER` ja processat;
+- convertir automaticament una linia TPV amb dubtes en factura;
+- modificar `web.factures` o `web.inscripcions` com a font fiscal;
+- assignar un cobrament a una factura sense log d'usuari/proces i clau idempotent.
+
+Vistes recomanades:
+
+| Vista | Contingut |
+| --- | --- |
+| Callbacks Redsys | `redsys_notifications`, signatura, resposta, `DS_ORDER`, import, estat i relacio amb transaccio/factura. |
+| Moviments economics | `payment_transaction`, metode, provider, referencia, import, data, estat i idempotencia. |
+| Assignacions | `payment_allocation`, factura, import assignat, pendent i estat de cobrament. |
+| Conciliacio TPV | fitxers pujats, linies conciliades, duplicades, pendents o en incidencia. |
+| Transferencies | moviments manuals, referencia bancaria, usuari validador i factura assignada. |
 
 ## 3.3. Registres AEAT
 

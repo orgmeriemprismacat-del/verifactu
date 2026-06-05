@@ -17,7 +17,7 @@ Descriure el model final de dades quan el SIF estigui implementat.
 - pagaments a `payment_transaction`;
 - assignacions a `payment_allocation`;
 - documents a `factura_documents`;
-- registres fiscals a `factura_registres`.
+- registres fiscals a `factura_registres`;
 - hash chain global unica per tot el SIF;
 - idempotencia amb claus uniques per operacio facturable, pagament i cua.
 
@@ -37,6 +37,15 @@ Descriure el model final de dades quan el SIF estigui implementat.
 - `REJECTED`
 - `RETRY`
 - `FAILED`
+
+### factura.ESTAT_COBRAMENT
+
+- `PENDING`
+- `PARTIAL`
+- `PAID`
+- `OVERPAID`
+- `PARTIALLY_REFUNDED`
+- `REFUNDED`
 
 ### fiscal_queue.STATUS
 
@@ -58,6 +67,21 @@ Descriure el model final de dades quan el SIF estigui implementat.
 - `TRANSFERENCIA`
 - `COMPENSACIO`
 - `MANUAL`
+
+### payment_transaction.ESTAT
+
+- `CONFIRMED`
+- `PENDING_REVIEW`
+- `CANCELLED`
+- `ERROR`
+
+### payment_allocation.TIPUS_ASSIGNACIO
+
+- `INVOICE_PAYMENT`
+- `PARTIAL_PAYMENT`
+- `REFUND`
+- `COMPENSATION`
+- `ADJUSTMENT`
 
 ### redsys_notifications.STATUS
 
@@ -84,13 +108,42 @@ E_FACT = 1
     factura marcada com a factura electronica.
 ```
 
-## 6. Relacions finals
+## 6. Contracte funcional SIF
+
+### `issueInvoice()`
+
+`issueInvoice()` crea una factura fiscal nova i es l'unic flux que pot assignar numero fiscal, crear linies fiscals, crear registre fiscal, actualitzar hash chain i inserir la cua AEAT.
+
+Operacions dins la mateixa transaccio:
+
+```text
+IDEMPOTENCY_KEY factura
+    -> fiscal_sequence
+    -> fiscal_chain_state
+    -> factura
+    -> factura_linia
+    -> factura_registres
+    -> fiscal_queue
+    -> fact_rels
+    -> payment_transaction/payment_allocation si el cobrament neix en el mateix flux
+```
+
+Si el retry arriba amb la mateixa `IDEMPOTENCY_KEY`, el SIF retorna la factura existent i no crea numero nou.
+
+### `registerPayment()`
+
+`registerPayment()` registra un moviment economic sobre factura existent. Crea `payment_transaction` i `payment_allocation`, recalcula `factura.ESTAT_COBRAMENT` i deixa event/auditoria.
+
+No crea numero fiscal, no modifica linies ni receptor, no crea `factura_registres`, no actualitza `fiscal_chain_state` i no envia res nou a AEAT. Si durant la conciliacio no existeix factura i el cobrament crea obligacio fiscal, el flux correcte es `issueInvoice()` amb bloc `payment`, no `registerPayment()` sol.
+
+## 7. Relacions finals
 
 Relacio Redsys / TPV / SIF:
 
 ```text
 redsys_notifications.DS_ORDER
-    -> payment_transaction.PROVIDER_REF / DS_ORDER
+    -> payment_transaction.DS_ORDER
+    -> payment_transaction.PROVIDER_REF
     -> payment_allocation.UUID_FACTURA
     -> factura.UUID_FACTURA
 ```
@@ -103,6 +156,14 @@ IDPAG / ID_INSC / FACTURA_RELACIONADA
     -> factura.UUID_FACTURA
 ```
 
+Relacio de linia:
+
+```text
+factura_linia.ID
+    -> fact_rels.ID_FACTURA_LINIA
+    -> origen operatiu concret quan la relacio es de linia
+```
+
 Regles:
 
 - `DS_ORDER` ha de ser unic a `redsys_notifications` per evitar reprocessar callbacks;
@@ -110,10 +171,12 @@ Regles:
 - una mateixa `IDPAG` pot tenir diversos intents Redsys amb `DS_ORDER` diferents;
 - `payment_transaction` representa el moviment economic real o la compensacio;
 - `payment_allocation` aplica el moviment a una o mes factures;
+- `fact_rels` es el pont fiscal amb BD antiga i conserva `SOURCE_TYPE`, `SOURCE_ID`, `FACTURA_RELACIONADA`, `IDPAG`, `DS_ORDER` i visibilitat;
+- no es creen foreign keys entre BD fiscal i BD web/intranet; la integritat fiscal es controla pel SIF i per `fact_rels`;
 - la factura no s'ha de buscar nomes per dades de receptor o import quan existeixin `UUID_FACTURA`, `FACTURA_RELACIONADA`, `IDPAG` o `DS_ORDER`;
 - si hi ha diverses candidates, el sistema ha de crear incidencia o requerir seleccio explicita.
 
-## 7. Relacio amb taules historiques
+## 8. Relacio amb taules historiques
 
 Els camps historics continuen sent utils per migracio, consulta i compatibilitat:
 
@@ -125,7 +188,9 @@ Els camps historics continuen sent utils per migracio, consulta i compatibilitat
 
 La BD fiscal final no ha de dependre d'actualitzacions directes sobre aquests camps per crear factures o cobrar-les. Les actualitzacions historiques han de venir despres de `issueInvoice()` o `registerPayment()`.
 
-## 8. Sequencia, hash chain i concurrencia
+La sincronitzacio cap a `web.inscripcions` o `web.factures` nomes pot ser resum operatiu o compatibilitat. La font de veritat per factures VERI*FACTU es `dades_fiscals.factura` i taules relacionades.
+
+## 9. Sequencia, hash chain i concurrencia
 
 Hi ha dues sequencies diferents:
 
@@ -166,7 +231,7 @@ Ordre de bloqueig recomanat:
 4. inserts finals
 ```
 
-## 9. Idempotencia per taula
+## 10. Idempotencia per taula
 
 | Taula | Clau idempotent / unica | Risc que evita |
 | --- | --- | --- |
@@ -178,7 +243,20 @@ Ordre de bloqueig recomanat:
 
 Una mateixa `IDPAG` pot tenir mes d'un intent de pagament. Per això la idempotencia no pot dependre nomes d'`IDPAG`.
 
-## 10. Permisos i immutabilitat BD
+Claus recomanades:
+
+| Operacio | Patró |
+| --- | --- |
+| Redsys curs | `REDSYS|CURS|IDPAG:{IDPAG}|ORDER:{DS_ORDER}` |
+| Redsys pack | `REDSYS|PACK|IDPAG:{IDPAG}|ORDER:{DS_ORDER}` |
+| Redsys grup | `REDSYS|GRUP|IDPAG:{IDPAG}|ORDER:{DS_ORDER}` |
+| Regal | `REDSYS|REGAL|ID:{ID_REGAL}|ORDER:{DS_ORDER}` |
+| Factura abans de cobrament | `INTRANET|FACTURA_ABANS_COBRAMENT|REL:{FACTURA_RELACIONADA}|TOTAL:{TOTAL}` |
+| Transferencia amb referencia | `TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}` |
+| Transferencia sense referencia | `TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}` |
+| Compensacio/saldo | `COMPENSATION|CREDIT:{UUID_CREDIT}|FACT:{UUID_FACTURA}|IMPORT:{IMPORT}` |
+
+## 11. Permisos i immutabilitat BD
 
 Regla final:
 

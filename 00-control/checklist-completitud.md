@@ -24,10 +24,11 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 
 ## Documents clau
 
-- [ ] `documentacio/README.md` reflecteix l'estat actual.
-- [ ] `documentacio/00-index-i-pla/documentacio-verifactu.md` esta actualitzat.
+- [x] `documentacio/README.md` reflecteix l'estat actual.
+- [x] `documentacio/00-index-i-pla/documentacio-verifactu.md` esta actualitzat.
+- [x] `documentacio/00-index-i-pla/29-pla-implementacio-tecnica-sif.md` creat com a pla tecnic executable del nucli SIF.
 - [ ] `documentacio/01-compliment-aeat/documentacio-sif-aeat.md` esta complet.
-- [ ] `documentacio/01-compliment-aeat/declaracio-responsable-sif-prisma.md` esta revisat.
+- [x] `documentacio/01-compliment-aeat/declaracio-responsable-sif-prisma.md` esta revisat.
 - [ ] `documentacio/02-context-i-estat-actual/12-documentacio-sistema-ecommerce-intranet-sif.md` esta complet.
 - [ ] `documentacio/02-context-i-estat-actual/13-mapa-bases-dades-i-taules.md` esta complet.
 - [ ] `documentacio/03-canvis-pendents/11-inventari-canvis-pendents.md` esta al dia.
@@ -35,6 +36,63 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [ ] `documentacio/04-estat-final/15-estat-final-sistema.md` esta complet.
 - [ ] `documentacio/04-estat-final/25-panell-sif-pay-prisma.md` esta complet.
 - [ ] `documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md` esta complet.
+
+## Preparacio normativa i documental
+
+- [x] Fonts oficials AEAT/BOE comprovades per al bloc normatiu del SIF.
+- [x] Criteri de versio `0.1-BORRADOR` no signable i `1.0.0` signable reforcat.
+- [x] Paquet documental minim per activar/signar `1.0.0` definit.
+- [x] Criteri productor/titular intern documentat: Associacio PrisMa; Meriem com a responsable tecnica/documental; direccio com a signant o representacio legal quan correspongui.
+- [x] Certificat digital de l'entitat o apoderament documentat com a requisit de configuracio/prova abans de produccio.
+- [x] Rol auditor/AEAT nomes lectura reforcat amb acces temporal, logs i prohibicions.
+- [x] Camps fiscals minims del registre d'alta, QR, AEAT, documents fiscals i declaracio responsable incorporats al diccionari.
+- [ ] Dades reals de signatura de direccio completades.
+- [ ] Certificat digital/apoderament configurat i provat amb evidencia real.
+- [ ] Declaracio responsable `1.0.0` generada com a document tancat i signable.
+- [ ] Declaracio responsable signada publicada dins del SIF.
+- [ ] Decisio final sobre dades personals del contacte tecnic en document signat o expedient intern.
+
+## Arquitectura tecnica SIF
+
+- [x] Contracte `issueInvoice()` tancat: numeracio fiscal, linies, registre fiscal, hash chain, cua AEAT, relacions i idempotencia.
+- [x] Contracte `registerPayment()` tancat: moviment economic, assignacio, estat de cobrament i auditoria sense numero fiscal ni hash chain.
+- [x] Criteri tancat per factura i cobrament nascuts junts: `issueInvoice()` amb bloc `payment` dins una unica operacio idempotent.
+- [x] `fact_rels` consolidat com a relacio logica auditada amb BD antiga, sense foreign keys entre BD fiscal i BD web/intranet.
+- [x] Valors controlats ampliats per cobrament, pagaments, assignacions, origins, descomptes i relacions.
+- [x] Contracte d'entrada de pagaments definit: Redsys -> `redsys_notifications`, transferencies/manuals -> `payment_transaction`, TPV -> analisi/conciliacio, assignacions -> `payment_allocation`.
+- [x] Pla d'implementacio tecnica creat a partir de l'arquitectura tancada, amb fases per `issueInvoice()`, `registerPayment()`, idempotencia, hash chain, taules fiscals i relacio amb BD antiga.
+
+## Implementacio tecnica SIF
+
+- [x] Pla d'implementacio tecnica documentat.
+- [x] Codi necessari del Drive copiat a `codi-drive/` com a referencia local, sense fitxers de parametres amb credencials.
+- [x] Fase 0 preparada al repo de treball sense Composer: autoload propi, runner de proves PHP pur, config SIF i bootstrap de tests.
+- [x] Fase 1 preparada al repo de treball: migracio SQL, seed, runner i test estructural d'esquema.
+- [x] Fase 2 preparada al repo de treball: `ConnectionFactory`, `TransactionRunner`, `UuidGenerator`, `SifException` i proves unitàries corresponents.
+- [x] Fase 3 preparada al repo de treball: `InvoicePayloadValidator`, `PaymentPayloadValidator` i proves unitàries corresponents.
+- [x] Task 4 de Fase 4 preparada al repo de treball: `HashCalculator` i proves unitàries de hash fiscal intern.
+- [x] Task 5 de Fase 4 preparada al repo de treball: `FiscalSequenceRepository`, `InvoiceRepository`, `InvoiceService`, fixtures i test d'integracio d'`issueInvoice()`.
+- [ ] Fase 0 executada amb PHP real: `php sif/tests/run-tests.php` carrega autoload i runner.
+- [ ] Fase 1 executada amb PHP/MySQL de test: test d'esquema i migracio aplicats.
+- [ ] Fase 2 executada amb runner propi: proves unitàries de UUID, excepcions i transaccions.
+- [ ] Fase 3 executada amb runner propi: proves unitàries de validators de factura i pagament.
+- [ ] Task 4 de Fase 4 executada amb runner propi: proves unitàries de hash fiscal intern.
+- [ ] Task 5 de Fase 4 executada amb runner propi i MySQL de test: emissio basica i reutilitzacio per `IDEMPOTENCY_KEY`.
+- [ ] Serveis `issueInvoice()` i `registerPayment()` implementats i provats.
+- [ ] Redsys, documents, incidencies, legacy sync i preflight implementats i provats.
+
+## Proves, preproduccio i posada en produccio
+
+- [x] Criteris `GO`, `GO AMB LIMITACIONS` i `NO-GO` documentats.
+- [x] Bateria bloquejant de proves amb IDs i evidencies minimes definida.
+- [x] Fitxa d'evidencia i criteri de captures finals definits.
+- [x] Prova minima de backup/restauracio definida.
+- [x] Classificacio d'incidencies i efecte en go/no-go definits.
+- [x] Checklist final d'activacio productiva definit.
+- [ ] Entorn de preproduccio o mode test separat implementat.
+- [ ] Bateria go/no-go executada amb evidencia real.
+- [ ] Captures finals i logs reals incorporats a l'expedient de versio.
+- [ ] Backup i restauracio executats i documentats amb acta real.
 
 ## Xats especialitzats
 
@@ -53,6 +111,17 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] `USOC` revisat com a bloc especialitzat.
 - [x] `Codis promocionals` revisat com a bloc especialitzat.
 - [x] `Transferencia validada a intranet` revisat com a bloc especialitzat.
+
+## Fluxos fiscals especials
+
+- [x] `Compensacio/saldo` tancat com a flux fiscal separat.
+- [x] `Pagaments fraccionats` tancats amb criteri d'idempotencia i assignacio.
+- [x] `Rectificatives` tancades amb serie `R`, motiu i mode.
+- [x] `Devolucions` tancades com a `REFUND` + rectificativa quan pertoqui.
+- [x] `Baixes` tancades com a event administratiu amb decisio posterior retorn/saldo/no retorn.
+- [x] `Canvis de curs` tancats amb historic, diferencia, retorn/saldo i despeses/descomptes documentats.
+- [x] `Factura manual` tancada com a flux `issueInvoice()` des d'intranet autoritzada.
+- [x] `Migracio de factures historiques` tancada com a historic `NO_VERIFACTU` sense registre retroactiu.
 
 ## Criteri per marcar una area com a tancada
 

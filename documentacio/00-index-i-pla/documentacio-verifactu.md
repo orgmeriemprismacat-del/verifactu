@@ -19,6 +19,7 @@ Aquest document funciona com a document mare. La documentacio detallada es repar
 - `14-pla-documentacio-i-auditoria.md`: pla documental, que ha d'estar disponible al SIF i que es conserva com a evidencia.
 - `26-matriu-cobertura-casos.md`: matriu de cobertura de casos documentats, parcials i pendents.
 - `27-informe-auditoria-documental.md`: informe d'auditoria documental sobre si la documentacio actual es suficient.
+- `29-pla-implementacio-tecnica-sif.md`: pla d'implementacio tecnica del SIF, amb fases, fitxers, proves i criteris de validacio.
 - `../04-estat-final/15-estat-final-sistema.md`: estat final esperat del sistema complet.
 - `../04-estat-final/16-estat-final-pantalles.md`: estat final de pantalles d'intranet, ecommerce, intranet alumne i consulta.
 - `../04-estat-final/17-estat-final-bd-relacions.md`: model final de BD i relacions entre bases de dades.
@@ -49,6 +50,7 @@ Aquest document intern no pressuposa que una persona externa conegui el funciona
 10. `../05-governanca-operacio/19-registre-versions-i-canvis-sif.md`
 11. `../05-governanca-operacio/21-seguretat-permisos-accessos.md`
 12. `../05-governanca-operacio/24-diccionari-camps-i-valors.md`
+13. `29-pla-implementacio-tecnica-sif.md`
 
 Els documents de `../03-canvis-pendents/` no formen part de la lectura principal externa. Serveixen com a documentacio interna de projecte per planificar, executar i controlar els canvis fins arribar a l'estat final.
 
@@ -261,6 +263,15 @@ Serveix per:
 - devolucions parcials;
 - compensacions.
 
+Regla:
+
+```text
+payment_transaction = moviment economic real o compensacio
+payment_allocation = aplicacio del moviment a una o diverses factures
+```
+
+Un pagament no modifica linies, receptor, totals ni hash d'una factura emesa. Si nomes es cobra una factura existent, es registra amb `registerPayment()`.
+
 ### fact_rels
 
 Relacio entre factura fiscal i origen de negoci.
@@ -275,6 +286,16 @@ Pot vincular:
 - rectificacio.
 
 Ha de permetre indicar si la factura es visible o no a l'alumne.
+
+Conserva els ponts amb la BD antiga:
+
+- `SOURCE_TYPE` i `SOURCE_ID`;
+- `FACTURA_RELACIONADA`;
+- `IDPAG`;
+- `DS_ORDER`;
+- `ID_FACTURA_LINIA`, quan la relacio afecta una linia concreta.
+
+No hi ha foreign keys entre BD fiscal i BD web/intranet. La integritat fiscal la controla el SIF amb UUIDs i relacions auditades.
 
 Exemple:
 
@@ -324,17 +345,20 @@ Exemples:
 ```text
 REDSYS|CURS|IDPAG:123|ORDER:999999
 REDSYS|PACK|IDPAG:123|ORDER:999999
-TRANSFERENCIA|REF:ABC123|DATA:2026-05-15
-INTRANET|FACTURA_ABANS_PAGAR|GRUP:456
+TRANSFERENCIA|REF:ABC123
+TRANSFERENCIA|FACT:A2026/000010|DATA:2026-05-15|IMPORT:120.00|BANC:CAIXA
+INTRANET|FACTURA_ABANS_COBRAMENT|REL:456|TOTAL:120.00
 ```
 
 No es pot usar nomes `ID_INSC`, perque una inscripcio pot tenir diversos pagaments, fraccionaments, canvis o compensacions.
+
+Tampoc es pot usar nomes `IDPAG`, perque un mateix `IDPAG` pot tenir diversos intents Redsys, `DS_ORDER` diferents, fraccionaments o pagaments denegats i despres acceptats.
 
 ## 7. Endpoints del SIF
 
 ### POST /api/factures/issue
 
-Crea una factura fiscal nova.
+Crea una factura fiscal nova. Es l'unic flux que pot assignar numero fiscal, crear linies fiscals, crear `factura_registres`, actualitzar la hash chain i inserir la cua AEAT.
 
 Casos:
 
@@ -345,6 +369,21 @@ Casos:
 - factura manual;
 - factura abans de cobrar;
 - rectificativa.
+
+Flux transaccional resumit:
+
+```text
+issueInvoice()
+    -> comprova idempotencia
+    -> bloqueja fiscal_sequence
+    -> bloqueja fiscal_chain_state
+    -> crea factura i factura_linia
+    -> crea factura_registres i fiscal_queue
+    -> crea fact_rels
+    -> si el cobrament neix en el mateix flux, crea payment_transaction i payment_allocation
+```
+
+Si es rep un retry amb la mateixa `IDEMPOTENCY_KEY`, retorna la factura existent i no genera cap numero nou.
 
 ### POST /api/payments/register
 
@@ -357,6 +396,20 @@ Casos:
 - pagament parcial;
 - compensacio;
 - devolucio.
+
+Flux transaccional resumit:
+
+```text
+registerPayment()
+    -> comprova idempotencia de pagament
+    -> localitza factura o factures per UUID, FACTURA_RELACIONADA, IDPAG, DS_ORDER o seleccio explicita
+    -> crea payment_transaction
+    -> crea payment_allocation
+    -> recalcula ESTAT_COBRAMENT
+    -> registra event/auditoria
+```
+
+`registerPayment()` no assigna numero fiscal, no crea registre fiscal, no modifica la hash chain i no toca linies, totals ni receptor fiscal.
 
 Regla clau:
 

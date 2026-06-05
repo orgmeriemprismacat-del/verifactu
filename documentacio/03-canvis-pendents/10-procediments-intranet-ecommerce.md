@@ -753,11 +753,28 @@ Regla operativa mes concreta:
 
 - si la inscripcio te factura SIF existent, el boto de confirmar pagament crida `registerPayment()`;
 - si la factura es `EMESA_ABANS_COBRAMENT = 1`, nomes es registra cobrament contra aquella factura;
-- si no hi ha factura i el pagament correspon a una venda que s'ha de facturar, el flux ha de fer `issueInvoice()` i despres `registerPayment()` dins una operacio controlada;
+- si no hi ha factura i el pagament correspon a una venda que s'ha de facturar, el flux ha de fer `issueInvoice()` amb bloc `payment` dins una operacio controlada;
 - si el pagament es una compensacio, s'ha de registrar el moviment i l'assignacio, no fer un simple canvi de `PAGAT`;
 - si el registre ve d'un fitxer TPV, la conciliacio ha de buscar primer transaccio existent per referencia/IDPAG abans de crear res;
 - si el registre s'informa manualment, cal guardar usuari, data, metode, import i motiu/observacio;
 - els camps antics `PAGAMENT`, `DATA PAG`, `BANC`, `PAGAT` i `OBSERVACIONS` poden quedar sincronitzats com a compatibilitat, pero la font fiscal ha de ser `payment_transaction` i `payment_allocation`.
+
+Contracte d'entrada SIF des de `Passar pagaments`:
+
+| Tipus d'entrada | Clau de deduplicacio | Primer efecte SIF | Accio posterior |
+| --- | --- | --- | --- |
+| Transferencia amb referencia bancaria | `TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}` | `payment_transaction` | `payment_allocation` contra factura existent o `issueInvoice()` amb bloc `payment` |
+| Transferencia sense referencia | `TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}` | `payment_transaction` | revisio de duplicats abans d'assignar |
+| Pagament manual/regularitzacio | `MANUAL|{USUARI}|{ORIGEN}|{DATA}|{IMPORT}|{MOTIU}` | `payment_transaction` | assignacio explicita i log d'usuari |
+| Pagament TPV conciliat manualment | `TPV|ORDER:{DS_ORDER}|IMPORT:{IMPORT}` o clau de linia TPV | `payment_transaction` si no existia | assignacio o incidencia segons coincidencies |
+
+`payment_transaction` ha de guardar com a minim origen, metode, import, data del moviment, referencia externa, usuari o proces, estat i clau idempotent. `payment_allocation` ha de guardar quina part d'aquest moviment s'aplica a cada factura. Aixi es pot representar:
+
+- una factura cobrada amb diversos pagaments;
+- una transferencia que cobreix diverses factures;
+- un pagament parcial;
+- una devolucio o compensacio que no modifica la factura original;
+- un reintent o doble clic que retorna el mateix resultat sense duplicar el moviment.
 
 Errors que han de generar alerta o incidencia:
 
@@ -801,7 +818,7 @@ Taula de decisio final:
 | Cerca per DNI, codi regal o factura | Acceptar nomes un criteri, validar al servidor i conservar auditoria de cerca quan deriva en accio fiscal. |
 | Pagament manual amb factura SIF existent | `registerPayment()` contra `UUID_FACTURA`; no modificar receptor, import, concepte ni numero. |
 | Factura emesa abans de cobrament | `registerPayment()` i actualitzacio d'estat de cobrament; no crear factura nova. |
-| Venda facturable sense factura | `issueInvoice()` + `registerPayment()` dins una operacio idempotent. |
+| Venda facturable sense factura | `issueInvoice()` amb bloc `payment` dins una operacio idempotent. |
 | Compensacio o saldo | Crear moviment identificat i assignacio; no escriure nomes `PAGAT`. |
 | TPV autoritzat no conciliat | Crear incidencia o proposta de conciliacio; no marcar pagat automaticament sense clau estable. |
 | Devolucio TPV | Flux de devolucio/rectificativa o incidencia, segons factura i estat; no simple import negatiu ocult. |
@@ -840,7 +857,7 @@ transferencia validada a intranet
     -> validar permis, sessio, import, data, metode, observacio i referencia si existeix
     -> recalcular pendent al servidor
     -> si factura SIF existent: registerPayment()
-    -> si no hi ha factura i el cobrament crea obligacio fiscal: issueInvoice() + registerPayment()
+    -> si no hi ha factura i el cobrament crea obligacio fiscal: issueInvoice() amb bloc payment
     -> sincronitzar PAGAMENT, DATA PAG, FRACCIO i factures historiques nomes com a resum
 ```
 
@@ -1418,9 +1435,34 @@ Conciliacio final:
 - si existeix, no duplicar;
 - si no existeix, buscar factura SIF per `IDPAG`, `DS_ORDER`, `FACTURA_RELACIONADA`, import o relacio amb inscripcio;
 - si troba factura pendent de cobrament, proposar `registerPayment()`;
-- si troba inscripcio sense factura, proposar `issueInvoice()` + `registerPayment()` nomes si el cas ho permet;
+- si troba inscripcio sense factura, proposar `issueInvoice()` amb bloc `payment` nomes si el cas ho permet;
 - si hi ha import diferent, factura anul·lada, receptor diferent o multiples coincidencies, crear incidencia/revisio manual;
 - guardar resultat de cada analisi per auditoria interna.
+
+Contracte final de conciliacio TPV:
+
+```text
+fitxer TPV pujat
+    -> validar fitxer i calcular hash/resum
+    -> normalitzar cada linia a DECIMAL, data, tipus, DS_ORDER/comanda, titular i import
+    -> buscar redsys_notifications per DS_ORDER
+    -> buscar payment_transaction per PROVIDER_REF o clau de linia
+    -> buscar factura SIF o origen operatiu si encara no hi ha transaccio
+    -> classificar linia: conciliada, duplicada, pendent d'assignacio, pendent d'emissio o incidencia
+    -> no tocar web.factures ni web.inscripcions fins que una accio SIF sigui acceptada
+```
+
+Resultats possibles per linia TPV:
+
+| Resultat | Criteri | Accio |
+| --- | --- | --- |
+| `CONCILIADA` | Existeix notificacio/transaccio/factura coherent. | Registrar auditoria de comprovacio. |
+| `DUPLICADA` | La mateixa clau TPV ja esta registrada. | No crear nou moviment. |
+| `PENDENT_ASSIGNACIO` | Hi ha cobrament clar i factura SIF pendent. | Proposar `registerPayment()`. |
+| `PENDENT_EMISSIO` | Hi ha cobrament clar i venda facturable sense factura. | Proposar `issueInvoice()` amb bloc `payment`, si el cas ho permet. |
+| `INCIDENCIA` | Import, titular, factura, estat o multiples candidats no quadren. | Crear incidencia SIF/manual. |
+
+La conciliacio TPV pot ajudar a detectar callbacks perduts o no processats, pero no substitueix la validacio del callback Redsys ni converteix automaticament una linia del fitxer en factura.
 
 Pendent d'incorporar:
 

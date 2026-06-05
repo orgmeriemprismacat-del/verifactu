@@ -18,6 +18,9 @@
 - Baixa.
 - Morositat i reclamacions.
 - Proformes o documents previs no fiscals.
+- Pagaments fraccionats.
+- Factura manual.
+- Migracio de factures historiques.
 
 Nota de cobertura:
 
@@ -25,6 +28,15 @@ Nota de cobertura:
 Els fluxos de curs normal Redsys, pack i regal ja estan explicats funcionalment.
 El que falta no es coneixement del cas, sino deixar-los tancats amb payload SIF,
 taules definitives, idempotencia exacta, correus i proves.
+```
+
+Tancament de criteri:
+
+```text
+Compensacio/saldo, pagaments fraccionats, rectificatives, devolucions,
+baixes, canvis de curs, factura manual i migracio historica queden definits
+com a fluxos fiscals separats. Cap d'aquests casos pot resoldre's tocant
+imports, dates o factures emeses directament.
 ```
 
 ## Regles generals ja definides
@@ -58,6 +70,39 @@ Matissos operatius recuperats del xat antic:
 - una compensacio pot ser saldo a favor o descompte, pero fiscalment s'ha de tipificar en el SIF;
 - si una persona paga de mes, es pregunta si vol devolucio o deixar saldo per una altra inscripcio.
 
+## Contracte general d'entrada de pagaments
+
+El SIF ha de separar quatre fets que en el sistema antic podien quedar barrejats:
+
+| Fet | Que significa | Taula/font principal |
+| --- | --- | --- |
+| Notificacio Redsys | Redsys ha enviat una resposta tecnica del TPV. | `redsys_notifications` |
+| Analisi TPV | Un fitxer del TPV/banc s'ha pujat i s'ha comparat. | registre d'analisi/auditoria SIF |
+| Moviment economic | PrisMa considera que hi ha un cobrament, devolucio o compensacio real. | `payment_transaction` |
+| Assignacio a factura | El moviment queda vinculat a una o mes factures. | `payment_allocation` |
+
+Flux unic:
+
+```text
+entrada de pagament
+    -> validar origen, permis, signatura o evidencia
+    -> deduplicar amb clau estable
+    -> identificar factura SIF existent o origen facturable
+    -> si factura existent: registerPayment()
+    -> si no hi ha factura i el cobrament crea obligacio fiscal: issueInvoice() amb bloc payment
+    -> si hi ha dubte: incidencia/proposta de conciliacio, sense actualitzar camps fiscals antics
+    -> sincronitzar BD antiga nomes com a resum posterior
+```
+
+Criteris:
+
+- Redsys entra per callback a `pay.prisma.cat`; el primer registre es `redsys_notifications` per `DS_ORDER`.
+- Les transferencies i pagaments manuals entren per `Passar pagaments`; el primer registre economic es `payment_transaction`, amb usuari, metode, import, data, referencia i clau idempotent.
+- El fitxer TPV no emet ni registra pagaments per si sol si hi ha qualsevol ambiguitat; crea analisi, incidencies o propostes de conciliacio.
+- `payment_transaction.PROVIDER_REF` ha de conservar `DS_ORDER`, referencia bancaria, referencia TPV o clau interna equivalent.
+- `payment_allocation` permet pagament parcial, una transferencia que cobreix diverses factures o diversos moviments sobre la mateixa factura.
+- `IDPAG` identifica l'origen operatiu, pero no deduplica per si sol.
+
 ## Transferencia validada a intranet
 
 El xat antic confirma que, quan un pagament es fa per transferencia, administracio el valida a l'apartat `Passar pagaments` de la intranet i des d'alla s'ha de cridar el SIF.
@@ -70,7 +115,7 @@ transferencia rebuda
     -> informa import, data, banc/metode, observacions i referencia si existeix
     -> servidor recalcula pendent i valida permisos
     -> si factura SIF existent: registerPayment()
-    -> si no hi ha factura i el cas es facturable: issueInvoice() + registerPayment()
+    -> si no hi ha factura i el cas es facturable: issueInvoice() amb bloc payment
     -> sincronitzacio historica de PAGAMENT, DATA PAG i FRACCIO nomes com a resum
 ```
 
@@ -104,6 +149,95 @@ Si la referencia no existeix:
 ```text
 TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}
 ```
+
+## Pagaments fraccionats
+
+Regla:
+
+```text
+cada moviment real de cobrament es registra una vegada
+una factura pot quedar pendent, parcialment cobrada o cobrada
+una factura no es duplica per cada fraccio
+```
+
+Un pagament fraccionat pot venir de Redsys, transferencia, efectiu registrat a intranet o compensacio. El SIF ha de separar:
+
+- import total facturat;
+- imports cobrats;
+- imports pendents;
+- data limit o calendari de pagament;
+- enllac de pagament actiu/inactiu;
+- factura o factures assignades.
+
+Si encara no hi ha factura i el cobrament crea obligacio fiscal, el flux correcte es:
+
+```text
+issueInvoice() amb bloc payment del primer cobrament
+```
+
+Si la factura ja existeix:
+
+```text
+registerPayment()
+payment_allocation parcial
+recalcular ESTAT_COBRAMENT
+```
+
+Idempotencia:
+
+```text
+REDSYS|{SOURCE_TYPE}|IDPAG:{IDPAG}|ORDER:{DS_ORDER}
+TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}
+MANUAL|FRACCIO|ID_INSC:{ID_INSC}|DATA:{DATA}|IMPORT:{IMPORT}|USUARI:{ID_USUARI}
+COMPENSACIO|UUID_CREDIT:{UUID_CREDIT}|FACT:{UUID_FACTURA}|IMPORT:{IMPORT}
+```
+
+Regles especials:
+
+- el mateix `IDPAG` pot tenir diversos intents Redsys i diversos `DS_ORDER`;
+- la deduplicacio Redsys es fa per `DS_ORDER`, no nomes per `IDPAG`;
+- si una notificacio Redsys es repeteix, es retorna l'estat ja registrat;
+- `FRACCIO` pot quedar sincronitzat com a resum historic, pero la prova primaria es `payment_transaction` + `payment_allocation`;
+- els recordatoris de pagament han de mostrar factura, cobrat, pendent, data limit i URL controlada de `pay.prisma.cat`.
+
+## Compensacio i saldo
+
+Regla:
+
+```text
+compensacio no es edicio d'import
+saldo no es descompte silencios
+```
+
+Una compensacio pot representar:
+
+- `SALDO_A_FAVOR`: credit creat per una baixa, devolucio no monetaria o pagament de mes;
+- `DESCOMPTE_COMERCIAL`: rebaixa concedida abans d'emetre factura;
+- `DESCOMPTE_INCIDENCIA`: ajust per incidencia o canvi imputable a PrisMa;
+- `BECA_INTERNA`: import assumit internament;
+- `AJUST_MANUAL`: regularitzacio autoritzada amb motiu documentat.
+
+Criteri fiscal:
+
+- si s'aplica abans d'emetre factura, queda congelada com a descompte o linia ajustada dins `factura_linia`;
+- si neix despres d'una factura emesa i redueix el servei o l'import facturat, cal rectificativa;
+- si es un saldo disponible per usar en una factura futura, queda registrat com `credit_balance`;
+- quan s'usa el saldo, es registra un moviment economic `COMPENSATION` i una `payment_allocation`;
+- no es modifica `A_PAGAR`, `PAGAMENT` o `IMPORT` sense motiu, log i relacio fiscal.
+
+Saldo per baixa:
+
+```text
+baixa confirmada
+client decideix saldo
+crear credit_balance a nom del titular economic habitual
+rectificativa si la factura original queda reduida o anul·lada
+factura futura usa saldo com COMPENSATION
+```
+
+El titular habitual del saldo sera l'alumne/client que ha pagat. Si el pagador real es empresa/responsable, el saldo ha de quedar a nom del receptor economic que PrisMa decideixi i amb justificacio interna.
+
+Els saldos per baixa no caduquen automaticament. Si secretaria detecta saldo molt antic, per exemple superior a 5 anys, el cas s'ha de revisar manualment abans d'usar-lo o tancar-lo.
 
 ## Curs normal Redsys
 
@@ -362,6 +496,35 @@ Matisos del funcionament actual:
 - si hi ha part pagada i el nou curs es mes barat, el retorn el fa Adam manualment i despres es genera la rectificativa quan pertoqui;
 - si el curs canvia pero l'import es igual, igualment cal rectificativa si la factura ja no descriu el servei real.
 
+Flux final:
+
+```text
+canvi de curs sol·licitat
+registrar historic de canvi
+comparar curs antic/nou, imports, descomptes i pagat
+si no hi ha factura emesa -> ajustar inscripcio i pagament pendent amb log
+si hi ha factura emesa i canvia servei/import -> rectificativa o complementaria
+si nou curs mes car -> crear diferencia pendent i URL de pagament
+si nou curs mes barat -> decidir retorn o saldo
+si hi ha despeses de gestio -> linia o motiu intern documentat
+```
+
+La taula d'historic de canvis de curs ha de conservar com a minim:
+
+- inscripcio origen i desti;
+- curs/edicio/grup antic i nou;
+- import antic i nou;
+- descompte antic i nou;
+- diferencia;
+- despeses de gestio;
+- motiu;
+- usuari que fa el canvi;
+- data;
+- factura original;
+- rectificativa, factura complementaria o pagament de diferencia relacionat.
+
+Quan el pagament posterior correspon a una diferencia per canvi de curs, el callback Redsys o `Passar pagaments` ha de detectar el registre de canvi i registrar el cobrament amb `SOURCE_TYPE = CANVI_CURS_DIFERENCIA`, no com si fos una nova inscripcio ordinaria.
+
 ## Baixa
 
 Regla:
@@ -399,6 +562,77 @@ en factura futura: usar saldo com COMPENSATION
 ```
 
 Si no hi ha devolucio ni saldo i la factura original continua corresponent a un servei prestat o import no retornable, la factura pot quedar igual.
+
+## Devolucio
+
+Regla:
+
+```text
+la devolucio es un moviment economic
+la rectificativa es la correccio fiscal
+```
+
+Les devolucions poden fer-se per Redsys, transferencia o manualment. Adam/Pablo poden executar o registrar la devolucio segons el procediment intern, i la rectificativa es genera despres del retorn de diners o de la decisio economica confirmada.
+
+Flux final:
+
+```text
+devolucio aprovada
+executar o registrar retorn real
+crear payment_transaction TIPUS_MOVIMENT = REFUND
+assignar refund a factura/linia afectada
+generar rectificativa si redueix o anul·la l'import facturat
+vincular baixa/canvi/incidencia amb factura original i rectificativa
+notificar segons plantilla o enllac segur
+```
+
+Casos:
+
+- devolucio total: rectificativa total o per substitucio segons criteri fiscal;
+- devolucio parcial: rectificativa parcial, idealment vinculada a la linia afectada si es pot identificar;
+- devolucio + saldo: es poden combinar `REFUND` i `credit_balance` si el client vol retornar una part i deixar una altra com saldo;
+- pagament duplicat: si no hi ha servei nou, no crea factura nova; es registra incidencia/pagament duplicat i devolucio o saldo.
+
+Idempotencia orientativa:
+
+```text
+REFUND|FACT:{UUID_FACTURA}|METODE:{METODE}|DATA:{DATA}|IMPORT:{IMPORT}|REF:{REFERENCIA}
+```
+
+## Rectificatives
+
+Regla:
+
+```text
+qualsevol canvi fiscal posterior a una factura emesa es resol amb rectificativa,
+factura complementaria o event economic auditat, mai amb update silencios.
+```
+
+S'admeten dos modes de disseny:
+
+- `DIFERENCIES`: rectifica nomes l'import o linies afectades;
+- `SUBSTITUCIO`: substitueix fiscalment una factura per una versio correcta, util per dades fiscals o errors de receptor/concepte quan correspongui.
+
+Motius controlats:
+
+- `DADES_FISCALS`;
+- `DEVOLUCIO_TOTAL`;
+- `DEVOLUCIO_PARCIAL`;
+- `CANVI_CURS`;
+- `CANVI_CONCEPTE`;
+- `BAIXA`;
+- `AJUST_IMPORT`;
+- `DESCOMPTE_POSTERIOR`;
+- `ERROR_OPERATIU`;
+- `MIGRACIO_HISTORICA`.
+
+Regles:
+
+- `R` te serie i numeracio propia;
+- cada rectificativa apunta directament a la factura rectificada;
+- `FACTURA_RELACIONADA` pot conservar-se com a agrupacio historica, pero no substitueix la relacio directa;
+- canvi de nom/NIF/CIF/rao social despres d'emetre factura es tracta com rectificativa per substitucio o criteri fiscal validat;
+- anul·lacio historica deixa de ser una factura negativa lliure: passa per motiu, mode i relacio directa.
 
 ## Morositat
 
@@ -664,6 +898,33 @@ Sempre ha d'incloure:
 - responsable intern que l'emet;
 - correu o enllac segur al receptor quan correspongui.
 
+Flux final:
+
+```text
+usuari autoritzat obre factura manual
+tria entitat/responsable existent o introdueix dades fiscals manuals
+afegeix linies estructurades
+el servidor valida permisos i imports
+issueInvoice()
+SIF retorna UUID i numero fiscal
+es genera document/enllac segur
+es notifica client/empresa/gestio interna segons cas
+```
+
+Regles:
+
+- no es pot crear factura manual escrivint directament a `web.factures`;
+- la factura manual tambe entra a hash chain, cua AEAT i `factura_documents`;
+- el receptor fiscal es snapshot, encara que provingui de `entitats` o `entitats_resp`;
+- si la factura manual neix cobrada, el payload inclou `payment`;
+- si neix pendent, el cobrament posterior va per `registerPayment()`.
+
+Idempotencia orientativa:
+
+```text
+INTRANET|MANUAL|USUARI:{ID_USUARI}|DATA:{DATA}|HASH_LINIES:{HASH}
+```
+
 ### Factura abans de cobrar
 
 Regla:
@@ -710,6 +971,32 @@ Estat actual i canvi necessari:
 - amb VERI*FACTU cal suportar rectificativa per substitucio o per diferencies segons el cas;
 - el vincle historic `FACTURA_RELACIONADA` agrupa factures relacionades, pero no substitueix la relacio directa entre factura rectificativa i factura rectificada;
 - el tipus concret de rectificativa per canvis de dades fiscals s'ha de validar amb criteri fiscal abans de produccio.
+
+### Migracio de factures historiques
+
+Regla:
+
+```text
+les factures historiques es migren com a historic no VERI*FACTU
+no es generen registres VERI*FACTU retroactivament
+```
+
+Objectiu:
+
+- conservar `web.factures` i la numeracio original;
+- marcar origen historic i estat `NO_VERIFACTU`;
+- conservar PDF antic si existeix o marca de document no immutable si no existeix;
+- vincular factures historiques a `fact_rels`;
+- conservar `FACTURA_RELACIONADA`, inscripcions, pagaments i relacions operatives;
+- impedir que la migracio alteri numeracio fiscal nova;
+- separar clarament factures historiques de factures emeses pel SIF.
+
+Regles:
+
+- una factura historica no entra a hash chain nova;
+- una rectificativa nova sobre factura historica, si cal en produccio, s'ha de tractar com a operacio SIF nova amb referencia a l'historic;
+- les consultes han de mostrar si una factura es `VERIFACTU` o `NO_VERIFACTU`;
+- la migracio ha de tenir informe de control: totals per any/serie, primer/ultim numero, imports i incidencies.
 
 ## Fluxos del panell SIF
 

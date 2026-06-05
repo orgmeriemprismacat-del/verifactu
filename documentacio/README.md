@@ -9,6 +9,7 @@
 - `00-index-i-pla/26-matriu-cobertura-casos.md`: control de cobertura de casos documentats, parcials i pendents.
 - `00-index-i-pla/27-informe-auditoria-documental.md`: revisio auditora de si la documentacio actual es suficient.
 - `00-index-i-pla/28-revisio-apunts-altres-ias.md`: annex intern de triatge d'apunts provinents d'altres converses d'IA. Triage tancat; no es document principal del SIF.
+- `00-index-i-pla/29-pla-implementacio-tecnica-sif.md`: pla tecnic executable per implementar el nucli SIF a partir de l'arquitectura tancada.
 
 ## 2. Compliment AEAT
 
@@ -27,7 +28,7 @@
 - `03-canvis-pendents/06-integracio-redsys-pay-prisma.md`: Redsys i migracio a `pay.prisma.cat`.
 - `03-canvis-pendents/07-pantalles-intranet.md`: canvis necessaris a pantalles actuals.
 - `03-canvis-pendents/08-correus-i-plantilles.md`: correus i plantilles.
-- `03-canvis-pendents/09-checklist-posada-en-produccio.md`: checklist abans de produccio.
+- `03-canvis-pendents/09-checklist-posada-en-produccio.md`: checklist abans de produccio, criteris go/no-go, preproduccio, evidencies, backups/restauracio i activacio final.
 - `03-canvis-pendents/10-procediments-intranet-ecommerce.md`: procediments per apartats.
 - `03-canvis-pendents/11-inventari-canvis-pendents.md`: inventari general de canvis.
 
@@ -42,11 +43,11 @@
 
 ## 6. Governanca i operacio
 
-- `05-governanca-operacio/19-registre-versions-i-canvis-sif.md`: versions i canvis.
-- `05-governanca-operacio/20-pla-proves-validacio-sif.md`: proves i validacions.
+- `05-governanca-operacio/19-registre-versions-i-canvis-sif.md`: versions, canvis i expedient go/no-go de cada versio candidata.
+- `05-governanca-operacio/20-pla-proves-validacio-sif.md`: proves i validacions, amb bateria bloquejant i fitxes d'evidencia.
 - `05-governanca-operacio/21-seguretat-permisos-accessos.md`: rols, seguretat i permisos.
 - `05-governanca-operacio/22-manual-operatiu-intern.md`: manual intern.
-- `05-governanca-operacio/23-annex-captures-pantalla.md`: annex de captures.
+- `05-governanca-operacio/23-annex-captures-pantalla.md`: annex de captures i evidencies visuals finals.
 - `05-governanca-operacio/24-diccionari-camps-i-valors.md`: camps i valors controlats.
 
 ## 7. Documents que s'han de penjar o fer accessibles dins del SIF
@@ -58,11 +59,15 @@ Aquests documents o pantalles equivalents han d'estar accessibles dins del SIF, 
 - Declaracio responsable signada de la versio activa del SIF.
   - Font actual: `01-compliment-aeat/declaracio-responsable-sif-prisma.md`
   - Format final recomanat: PDF signat i llegible.
+  - Estat actual: borrador no signable fins que existeixi versio `1.0.0` instal·lada, verificable i preparada per produccio.
 - Identificacio de la versio activa del SIF.
   - Font actual: `05-governanca-operacio/19-registre-versions-i-canvis-sif.md`
   - Ha d'indicar nom del SIF, codi intern, versio, data d'entrada en produccio i responsable.
 - Consulta/exportacio dels registres fiscals, documents i logs conservats pel SIF.
   - No es nomes un document: ha de ser funcionalitat del SIF.
+- Estat del certificat digital de l'entitat o apoderament/configuracio equivalent usada per remetre a AEAT.
+  - No ha de mostrar secrets, claus privades ni contrasenyes.
+  - Ha de permetre veure estat funcional, caducitat, entorn i ultima prova.
 
 Ubicacio decidida:
 
@@ -82,6 +87,8 @@ La intranet principal tindra un apartat `VERI*FACTU` amb un indicador visual de 
 La intranet pot consultar o mostrar dades del SIF, pero les dades, documents, registres i incidencies han de sortir del SIF/BD fiscal, no de fitxers manuals desconnectats.
 
 Es pot crear un perfil d'auditoria o AEAT de nomes lectura, amb accés temporal i restringit a informacio fiscal, si es requereix en una inspeccio. No ha de permetre modificar res.
+
+La versio `1.0.0` no s'ha de considerar preparada per signar si no existeix un paquet documental minim: registre de versio, declaracio responsable completa, certificat/apoderament provat, PDF/QR/XML o equivalents verificats, proves go/no-go i decisio formal d'activacio.
 
 ### 7.2. Recomanats dins del SIF, almenys per administradors
 

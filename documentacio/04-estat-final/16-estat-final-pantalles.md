@@ -478,7 +478,7 @@ Accio final:
 
 - si hi ha factura SIF existent, `registerPayment()`;
 - si hi ha factura abans de cobrament, nomes `registerPayment()`;
-- si no hi ha factura i la venda s'ha de facturar, `issueInvoice()` + `registerPayment()`;
+- si no hi ha factura i la venda s'ha de facturar, `issueInvoice()` amb bloc `payment` dins la mateixa operacio idempotent;
 - si hi ha compensacio o saldo, registrar moviment identificat i assignacio.
 - si ve d'un fitxer TPV, conciliar primer amb transaccio existent abans de crear nous registres;
 - si es manual, registrar usuari, data, metode, import i observacio.
