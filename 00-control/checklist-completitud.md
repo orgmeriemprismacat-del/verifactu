@@ -78,6 +78,8 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Fase 7 preparada al repo de treball: `JsonResponse` i endpoints interns `factures/issue` i `payments/register`.
 - [x] Fase 8 preparada al repo de treball: `RedsysNotificationRepository`, `RedsysCallbackService`, endpoint `redsys/callback` segur per defecte i proves de deduplicacio `DS_ORDER`.
 - [x] Fase 9 preparada al repo de treball: `DocumentRepository`, `IncidentRepository`, proves de documents/incidencies i reforç de cua AEAT amb payload congelat.
+- [x] Fase 10 preparada al repo de treball: `preflight-sif.php` i prova estàtica `PreflightScriptTest`.
+- [x] Fase 11 iniciada com a preparacio tecnica: `issueInvoice(payment)` crea factura, registre fiscal, hash chain, `payment_transaction` i `payment_allocation` en una mateixa transaccio idempotent quan factura i cobrament neixen junts.
 - [ ] Fase 0 executada amb PHP real: `php sif/tests/run-tests.php` carrega autoload i runner.
 - [ ] Fase 1 executada amb PHP/MySQL de test: test d'esquema i migracio aplicats.
 - [ ] Fase 2 executada amb runner propi: proves unitàries de UUID, excepcions i transaccions.
@@ -90,6 +92,8 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [ ] Fase 7 executada amb runner propi i servidor local PHP: endpoints interns `issue` i `register`.
 - [ ] Fase 8 executada amb runner propi i MySQL de test: `redsys_notifications`, deduplicacio `DS_ORDER` i endpoint callback.
 - [ ] Fase 9 executada amb runner propi i MySQL de test: `fiscal_queue`, `factura_documents`, `errors_verifactu` i payload fiscal congelat.
+- [ ] Fase 10 executada amb PHP/MySQL de test: `php sif/scripts/preflight-sif.php` retorna `ok=true`.
+- [ ] Fase 11 activada en preproduccio: Redsys real validat criptograficament, `issueInvoice(payment)` executat amb BD test i reintents idempotents verificats.
 - [ ] Validacio criptografica Redsys real connectada a l'endpoint abans de passar `$signatureValid = true`.
 - [ ] Serveis `issueInvoice()` i `registerPayment()` verificats amb PHP/MySQL de test.
 - [ ] Legacy sync final, preflight i bateria go/no-go implementats i provats.

@@ -1942,24 +1942,40 @@ Nota d'implementacio 2026-06-05:
 
 **Files:**
 - Create: `sif/scripts/preflight-sif.php`
+- Test: `sif/tests/Integration/PreflightScriptTest.php`
 - Test command: `php sif/scripts/preflight-sif.php`
 
-- [ ] **Step 1: Crear script de preflight**
+- [x] **Step 1: Crear script de preflight**
 
 ```php
 <?php
+require dirname(__DIR__) . '/src/autoload.php';
+
+use Prisma\Sif\Database\ConnectionFactory;
+
 $config = require dirname(__DIR__) . '/config/sif.php';
-$db = Prisma\Sif\Database\ConnectionFactory::make($config);
 
 $checks = [
-    'factura_table' => (bool) $db->query("SHOW TABLES LIKE 'factura'")->fetchColumn(),
-    'chain_state' => (int) $db->query('SELECT COUNT(*) FROM fiscal_chain_state WHERE ID = 1')->fetchColumn() === 1,
-    'queue_table' => (bool) $db->query("SHOW TABLES LIKE 'fiscal_queue'")->fetchColumn(),
-    'payments_table' => (bool) $db->query("SHOW TABLES LIKE 'payment_transaction'")->fetchColumn(),
+    'database_connectivity' => false,
+    'factura_table' => false,
+    'factura_linia_table' => false,
+    'factura_registres_table' => false,
+    'fiscal_queue_table' => false,
+    'payment_transaction_table' => false,
+    'payment_allocation_table' => false,
+    'redsys_notifications_table' => false,
+    'factura_documents_table' => false,
+    'errors_verifactu_table' => false,
+    'fiscal_chain_state_seeded' => false,
 ];
 
+$db = ConnectionFactory::make($config);
+$checks['database_connectivity'] = true;
+
+// ... comprovar taules crítiques i seed fiscal_chain_state ...
+
 $failed = array_keys(array_filter($checks, fn ($ok) => !$ok));
-echo json_encode(['ok' => count($failed) === 0, 'checks' => $checks], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), PHP_EOL;
+echo json_encode(['ok' => count($failed) === 0, 'checks' => $checks], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
 exit(count($failed) === 0 ? 0 : 1);
 ```
 
@@ -1976,11 +1992,19 @@ Expected:
 ```json
 {
   "ok": true,
+  "environment": "test",
   "checks": {
+    "database_connectivity": true,
     "factura_table": true,
-    "chain_state": true,
-    "queue_table": true,
-    "payments_table": true
+    "factura_linia_table": true,
+    "factura_registres_table": true,
+    "fiscal_queue_table": true,
+    "payment_transaction_table": true,
+    "payment_allocation_table": true,
+    "redsys_notifications_table": true,
+    "factura_documents_table": true,
+    "errors_verifactu_table": true,
+    "fiscal_chain_state_seeded": true
   }
 }
 ```
@@ -2003,6 +2027,19 @@ OK
   ...
 }
 ```
+
+Resultat local 2026-06-05:
+
+```text
+No executat: php no esta disponible al PATH d'aquest entorn.
+```
+
+Nota d'implementacio 2026-06-05:
+
+- `preflight-sif.php` carrega `sif/src/autoload.php`, usa `ConnectionFactory` i no modifica la BD.
+- El script comprova connexio, taules fiscals/economiques clau, Redsys, documents, incidencies i `fiscal_chain_state` sembrada.
+- La sortida es JSON amb `ok`, `environment`, `checks`, `failed` i `errors` quan correspongui.
+- `PreflightScriptTest` cobreix el contracte del script de manera estàtica fins que es pugui executar PHP.
 
 ## Fase 11: Integracio progressiva de canals
 
@@ -2027,6 +2064,13 @@ Duplicat mateix DS_ORDER -> resposta idempotent, sense nova factura ni pagament
 ```
 
 Proves vinculades: `SIF-RED-001`, `SIF-RED-002`, `SIF-IDEM-001`.
+
+Preparacio tecnica 2026-06-05:
+
+- [x] Preparar el nucli `issueInvoice(payment)` per crear factura, registre fiscal, hash chain, `payment_transaction` i `payment_allocation` dins la mateixa transaccio idempotent quan factura i cobrament neixen junts.
+- [x] Cablejar `sif/public/api/factures/issue.php` amb `PaymentPayloadValidator`, `PaymentRepository` i `PaymentStatusCalculator` per acceptar el bloc `payment` des de l'endpoint intern d'emissio.
+- [x] Afegir prova d'integracio per Redsys normal controlat a nivell de servei: primera crida crea factura i pagament; segon reintent amb la mateixa clau reutilitza la factura, retorna el `uuid_payment` existent i no duplica registres.
+- [ ] Activar aquest flux amb Redsys real en preproduccio. Requereix `php` disponible, BD MySQL de test, `preflight-sif.php` amb `ok=true` i validacio criptografica Redsys real abans de passar `$signatureValid = true`.
 
 - [ ] **Step 3: Activar factura abans de cobrament**
 

@@ -472,3 +472,25 @@ La factura fiscal no es nomes una fila de `factura`: necessita registre fiscal, 
 
 Impacte:
 Fase 9 queda preparada a nivell de codi i proves dins `sif/src/Repository` i `sif/tests/Integration`. No s'ha modificat la migracio perque `fiscal_queue`, `factura_documents` i `errors_verifactu` ja estaven creades a l'SQL inicial. La verificacio real queda pendent fins que `php` i una BD MySQL de test estiguin disponibles. El seguent pas tecnic es Fase 10: proves go/no-go, preflight i activacio controlada.
+
+## 2026-06-05 - Fase 10 preparada: preflight tecnic SIF
+
+Decisio:
+Preparar `sif/scripts/preflight-sif.php` com a comprovacio tecnica de nomes lectura abans de qualsevol pilot o activacio. El script carrega l'autoload propi, usa `ConnectionFactory`, comprova connexio, taules SIF clau, Redsys, documents, incidencies i seed de `fiscal_chain_state`, i retorna JSON amb `ok`, `environment`, `checks`, `failed` i `errors` quan correspongui.
+
+Motiu:
+Abans d'activar canals o fer proves go/no-go reals, cal una comprovacio rapida i repetible que detecti errors basics d'entorn, migracio o seed sense crear factures ni tocar dades fiscals. Aquesta comprovacio ha de poder executar-se al servidor sense Composer i ha de tenir sortida clara per operacio tecnica.
+
+Impacte:
+Fase 10 queda preparada a nivell de codi i prova estàtica dins `sif/scripts` i `sif/tests/Integration`. La verificacio executable real queda pendent fins que `php` i una BD MySQL de test estiguin disponibles. El seguent pas tecnic passa a ser Fase 11: integracio progressiva de canals en preproduccio, començant per validar entorn i Redsys en mode test.
+
+## 2026-06-05 - Fase 11 iniciada: `issueInvoice(payment)` per cobrament inicial
+
+Decisio:
+Preparar el nucli `issueInvoice(payment)` per als casos on factura i cobrament neixen junts, especialment Redsys normal i transferencies ja validades. El bloc `payment` opcional de la factura es valida amb `PaymentPayloadValidator` i crea `payment_transaction` i `payment_allocation` dins la mateixa transaccio que la factura, el registre fiscal, el hash chain, la cua AEAT i `fact_rels`.
+
+Motiu:
+L'arquitectura tancada estableix que quan el fet facturable i el cobrament arriben junts no s'ha de fer primer `issueInvoice()` i despres una operacio separada amb risc de desquadrament. La factura fiscal i el moviment economic inicial han de quedar en una unica operacio idempotent, mentre que `registerPayment()` continua reservat per pagaments posteriors sobre factures ja existents.
+
+Impacte:
+Fase 11 queda iniciada a nivell de servei, endpoint intern i prova d'integracio. El reintent idempotent d'`issueInvoice(payment)` retorna tambe el `uuid_payment` existent quan ja s'havia creat el moviment inicial. Encara no s'ha activat cap canal real: l'activacio en preproduccio queda condicionada a PHP disponible, BD MySQL de test, `preflight-sif.php` amb `ok=true` i validacio criptografica Redsys real connectada abans de permetre efectes fiscals o economics des del callback.

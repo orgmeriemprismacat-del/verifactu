@@ -17,6 +17,9 @@ final class HttpEndpointsTest
         Assert::stringContainsString('new InvoicePayloadValidator()', $source);
         Assert::stringContainsString('new FiscalSequenceRepository()', $source);
         Assert::stringContainsString('new InvoiceRepository(', $source);
+        Assert::stringContainsString('new PaymentPayloadValidator()', $source);
+        Assert::stringContainsString('new PaymentRepository(', $source);
+        Assert::stringContainsString('new PaymentStatusCalculator()', $source);
         Assert::stringContainsString('$service->issueInvoice($payload)', $source);
     }
 
