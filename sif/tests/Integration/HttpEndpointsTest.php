@@ -37,17 +37,25 @@ final class HttpEndpointsTest
         Assert::stringContainsString('$service->registerPayment($payload)', $source);
     }
 
-    public function testRedsysCallbackEndpointBuildsCallbackServiceButDoesNotTrustPayloadSignature(): void
+    public function testRedsysCallbackEndpointBuildsCallbackServiceWithRealSignatureValidator(): void
     {
         $source = $this->readEndpoint('api/redsys/callback.php');
 
         Assert::stringContainsString('/src/autoload.php', $source);
-        Assert::stringContainsString('JsonResponse::fromInput()', $source);
+        Assert::stringContainsString('RedsysSignatureValidator', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
         Assert::stringContainsString('new RedsysCallbackService(', $source);
         Assert::stringContainsString('new RedsysNotificationRepository()', $source);
-        Assert::stringContainsString('$signatureValid = false;', $source);
-        Assert::stringContainsString('$service->receiveCallback($db, $payload, $signatureValid)', $source);
+        Assert::stringContainsString('$validator->decodeAndVerify($_POST, $_GET)', $source);
+        Assert::stringContainsString('$service->receiveCallback($db, $payload, true)', $source);
+
+        if (str_contains($source, '$signatureValid = false;')) {
+            Assert::fail('Redsys callback endpoint must use the real signature validator once wired');
+        }
+
+        if (str_contains($source, 'JsonResponse::fromInput()')) {
+            Assert::fail('Redsys callback endpoint must read the signed Redsys POST, not JSON input');
+        }
     }
 
     public function testJsonResponseSupportsInvalidJsonAndThrowableResponses(): void

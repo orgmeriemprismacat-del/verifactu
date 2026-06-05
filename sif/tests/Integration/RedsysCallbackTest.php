@@ -40,7 +40,7 @@ final class RedsysCallbackTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_notifications')->fetchColumn());
     }
 
-    public function testAuthorizedCallbackOnlyRecordsNotification(): void
+    public function testAuthorizedCallbackOnlyValidatesNotification(): void
     {
         $db = TestDatabase::fresh();
         $service = new RedsysCallbackService(new RedsysNotificationRepository());
@@ -55,6 +55,7 @@ final class RedsysCallbackTest
         Assert::same(true, $result['ok']);
         Assert::same(false, $result['duplicate']);
         Assert::same('ORDER125', $result['ds_order']);
+        Assert::same('VALIDATED', $result['status']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_notifications')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
@@ -63,7 +64,36 @@ final class RedsysCallbackTest
         $stmt->execute(['ORDER125']);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        Assert::same('RECEIVED', $row['STATUS']);
+        Assert::same('VALIDATED', $row['STATUS']);
+        Assert::same(1, (int) $row['SIGNATURE_VALID']);
+    }
+
+    public function testDeniedCallbackRecordsErrorWithoutFiscalOrPaymentEffects(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysCallbackService(new RedsysNotificationRepository());
+
+        $result = $service->receiveCallback($db, [
+            'ds_order' => 'ORDER126',
+            'idpag' => 126,
+            'amount' => '60.00',
+            'response_code' => '0101',
+        ], true);
+
+        Assert::same(true, $result['ok']);
+        Assert::same(false, $result['duplicate']);
+        Assert::same('ORDER126', $result['ds_order']);
+        Assert::same('ERROR', $result['status']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_notifications')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+
+        $stmt = $db->prepare('SELECT STATUS, RESPONSE_CODE, SIGNATURE_VALID FROM redsys_notifications WHERE DS_ORDER = ?');
+        $stmt->execute(['ORDER126']);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('ERROR', $row['STATUS']);
+        Assert::same('0101', $row['RESPONSE_CODE']);
         Assert::same(1, (int) $row['SIGNATURE_VALID']);
     }
 }

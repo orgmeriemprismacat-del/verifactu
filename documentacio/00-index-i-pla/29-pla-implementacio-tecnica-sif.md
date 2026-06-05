@@ -1762,13 +1762,14 @@ final class RedsysNotificationRepository
         mixed $amount,
         string $responseCode,
         bool $signatureValid,
-        ?array $rawPayload = null
+        ?array $rawPayload = null,
+        string $status = 'RECEIVED'
     ): array
     {
         try {
-            $db->prepare('INSERT INTO redsys_notifications (DS_ORDER, IDPAG, IMPORT, RESPONSE_CODE, STATUS, RAW_PAYLOAD_JSON, SIGNATURE_VALID) VALUES (?, ?, ?, ?, "RECEIVED", ?, ?)')
-                ->execute([$dsOrder, $idpag, number_format((float) $amount, 2, '.', ''), $responseCode, json_encode($rawPayload), $signatureValid ? 1 : 0]);
-            return ['duplicate' => false, 'ds_order' => $dsOrder, 'status' => 'RECEIVED'];
+            $db->prepare('INSERT INTO redsys_notifications (DS_ORDER, IDPAG, IMPORT, RESPONSE_CODE, STATUS, RAW_PAYLOAD_JSON, SIGNATURE_VALID) VALUES (?, ?, ?, ?, ?, ?, ?)')
+                ->execute([$dsOrder, $idpag, number_format((float) $amount, 2, '.', ''), $responseCode, $status, json_encode($rawPayload), $signatureValid ? 1 : 0]);
+            return ['duplicate' => false, 'ds_order' => $dsOrder, 'status' => $status];
         } catch (\PDOException $e) {
             if ($e->getCode() === '23000') {
                 return ['duplicate' => true, 'ds_order' => $dsOrder, 'status' => 'DUPLICATE'];
@@ -2070,7 +2071,17 @@ Preparacio tecnica 2026-06-05:
 - [x] Preparar el nucli `issueInvoice(payment)` per crear factura, registre fiscal, hash chain, `payment_transaction` i `payment_allocation` dins la mateixa transaccio idempotent quan factura i cobrament neixen junts.
 - [x] Cablejar `sif/public/api/factures/issue.php` amb `PaymentPayloadValidator`, `PaymentRepository` i `PaymentStatusCalculator` per acceptar el bloc `payment` des de l'endpoint intern d'emissio.
 - [x] Afegir prova d'integracio per Redsys normal controlat a nivell de servei: primera crida crea factura i pagament; segon reintent amb la mateixa clau reutilitza la factura, retorna el `uuid_payment` existent i no duplica registres.
-- [ ] Activar aquest flux amb Redsys real en preproduccio. Requereix `php` disponible, BD MySQL de test, `preflight-sif.php` amb `ok=true` i validacio criptografica Redsys real abans de passar `$signatureValid = true`.
+
+Preparacio tecnica 2026-06-06:
+
+- [x] Preparar `RedsysSignatureValidator` per validar notificacions Redsys amb `Ds_MerchantParameters` i `Ds_Signature`, sense copiar el secret antic del Drive ni hardcodejar cap clau.
+- [x] Llegir la clau Redsys des de `SIF_REDSYS_MERCHANT_KEY` via `sif/config/sif.php`.
+- [x] Cablejar `sif/public/api/redsys/callback.php` per acceptar el POST real de Redsys, verificar signatura i passar al SIF nomes un payload normalitzat (`ds_order`, `idpag`, `amount`, `response_code`).
+- [x] Afegir prova unitària amb notificació Redsys signada de test que normalitza import en centims (`12000` -> `120.00`) i conserva `DS_ORDER`, `IDPAG` i `Ds_Response`.
+- [x] Classificar la notificacio signada segons `Ds_Response`: `0..99` queda `VALIDATED`; resposta no autoritzada queda `ERROR`, sempre sense crear factura ni `payment_transaction`.
+- [x] Preparar `RedsysInvoicePayloadBuilder` per construir el payload `issueInvoice(payment)` de curs normal nomes quan `redsys_notifications.STATUS = VALIDATED`, usant `DS_ORDER`/`IDPAG` signats com a font d'idempotencia i de relacio.
+- [x] Mantenir el callback sense efectes fiscals ni economics: en aquesta subfase nomes registra `redsys_notifications`; encara no crida `issueInvoice()` ni `registerPayment()`.
+- [ ] Activar aquest flux amb Redsys real en preproduccio. Requereix `php` disponible, BD MySQL de test, `SIF_REDSYS_MERCHANT_KEY` configurada, `preflight-sif.php` amb `ok=true` i prova real de signatura Redsys.
 
 - [ ] **Step 3: Activar factura abans de cobrament**
 

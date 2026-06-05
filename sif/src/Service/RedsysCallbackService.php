@@ -23,6 +23,7 @@ final class RedsysCallbackService
     public function receiveAuthorizedCallback(\PDO $db, array $signedData): array
     {
         $payload = $this->validatePayload($signedData);
+        $status = $this->statusForResponseCode($payload['response_code']);
         $record = $this->notifications->recordReceived(
             $db,
             $payload['ds_order'],
@@ -30,7 +31,8 @@ final class RedsysCallbackService
             $payload['amount'],
             $payload['response_code'],
             true,
-            $signedData
+            $signedData,
+            $status
         );
 
         return [
@@ -78,5 +80,14 @@ final class RedsysCallbackService
             'amount' => number_format((float) $payload['amount'], 2, '.', ''),
             'response_code' => $responseCode,
         ];
+    }
+
+    private function statusForResponseCode(string $responseCode): string
+    {
+        if (ctype_digit($responseCode) && (int) $responseCode >= 0 && (int) $responseCode <= 99) {
+            return 'VALIDATED';
+        }
+
+        return 'ERROR';
     }
 }

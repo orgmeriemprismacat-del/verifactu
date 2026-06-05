@@ -80,6 +80,8 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Fase 9 preparada al repo de treball: `DocumentRepository`, `IncidentRepository`, proves de documents/incidencies i reforç de cua AEAT amb payload congelat.
 - [x] Fase 10 preparada al repo de treball: `preflight-sif.php` i prova estàtica `PreflightScriptTest`.
 - [x] Fase 11 iniciada com a preparacio tecnica: `issueInvoice(payment)` crea factura, registre fiscal, hash chain, `payment_transaction` i `payment_allocation` en una mateixa transaccio idempotent quan factura i cobrament neixen junts.
+- [x] Fase 11 Redsys preparada a nivell de signatura i resposta: `RedsysSignatureValidator`, `SIF_REDSYS_MERCHANT_KEY`, prova unitària amb notificacio signada de test, classificacio `VALIDATED`/`ERROR` i callback Redsys amb POST signat sense secret hardcoded.
+- [x] Fase 11 Redsys preparada a nivell de payload: `RedsysInvoicePayloadBuilder` construeix `issueInvoice(payment)` nomes des de `redsys_notifications.STATUS = VALIDATED`.
 - [ ] Fase 0 executada amb PHP real: `php sif/tests/run-tests.php` carrega autoload i runner.
 - [ ] Fase 1 executada amb PHP/MySQL de test: test d'esquema i migracio aplicats.
 - [ ] Fase 2 executada amb runner propi: proves unitàries de UUID, excepcions i transaccions.
@@ -94,7 +96,7 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [ ] Fase 9 executada amb runner propi i MySQL de test: `fiscal_queue`, `factura_documents`, `errors_verifactu` i payload fiscal congelat.
 - [ ] Fase 10 executada amb PHP/MySQL de test: `php sif/scripts/preflight-sif.php` retorna `ok=true`.
 - [ ] Fase 11 activada en preproduccio: Redsys real validat criptograficament, `issueInvoice(payment)` executat amb BD test i reintents idempotents verificats.
-- [ ] Validacio criptografica Redsys real connectada a l'endpoint abans de passar `$signatureValid = true`.
+- [ ] Validacio criptografica Redsys real executada amb `SIF_REDSYS_MERCHANT_KEY` i notificacio de test abans de permetre `issueInvoice()` o `registerPayment()` des del callback.
 - [ ] Serveis `issueInvoice()` i `registerPayment()` verificats amb PHP/MySQL de test.
 - [ ] Legacy sync final, preflight i bateria go/no-go implementats i provats.
 

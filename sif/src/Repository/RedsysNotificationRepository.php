@@ -4,6 +4,20 @@ namespace Prisma\Sif\Repository;
 
 final class RedsysNotificationRepository
 {
+    public function findByDsOrder(\PDO $db, string $dsOrder, bool $forUpdate = false): ?array
+    {
+        $sql = 'SELECT * FROM redsys_notifications WHERE DS_ORDER = ?';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$dsOrder]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
     public function recordReceived(
         \PDO $db,
         string $dsOrder,
@@ -11,18 +25,20 @@ final class RedsysNotificationRepository
         mixed $amount,
         string $responseCode,
         bool $signatureValid,
-        ?array $rawPayload = null
+        ?array $rawPayload = null,
+        string $status = 'RECEIVED'
     ): array {
         try {
             $db->prepare(
                 'INSERT INTO redsys_notifications (
                     DS_ORDER, IDPAG, IMPORT, RESPONSE_CODE, STATUS, RAW_PAYLOAD_JSON, SIGNATURE_VALID
-                ) VALUES (?, ?, ?, ?, \'RECEIVED\', ?, ?)'
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)'
             )->execute([
                 $dsOrder,
                 $idpag,
                 number_format((float) $amount, 2, '.', ''),
                 $responseCode,
+                $status,
                 $this->encodeRawPayload($rawPayload),
                 $signatureValid ? 1 : 0,
             ]);
@@ -30,7 +46,7 @@ final class RedsysNotificationRepository
             return [
                 'duplicate' => false,
                 'ds_order' => $dsOrder,
-                'status' => 'RECEIVED',
+                'status' => $status,
             ];
         } catch (\PDOException $exception) {
             if ((string) $exception->getCode() === '23000') {

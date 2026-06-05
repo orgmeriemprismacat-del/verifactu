@@ -15,4 +15,7 @@ return [
         'invoice' => getenv('SIF_SERIES_INVOICE') ?: 'A',
         'rectification' => getenv('SIF_SERIES_RECTIFICATION') ?: 'R',
     ],
+    'redsys' => [
+        'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
+    ],
 ];

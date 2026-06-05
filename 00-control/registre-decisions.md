@@ -494,3 +494,25 @@ L'arquitectura tancada estableix que quan el fet facturable i el cobrament arrib
 
 Impacte:
 Fase 11 queda iniciada a nivell de servei, endpoint intern i prova d'integracio. El reintent idempotent d'`issueInvoice(payment)` retorna tambe el `uuid_payment` existent quan ja s'havia creat el moviment inicial. Encara no s'ha activat cap canal real: l'activacio en preproduccio queda condicionada a PHP disponible, BD MySQL de test, `preflight-sif.php` amb `ok=true` i validacio criptografica Redsys real connectada abans de permetre efectes fiscals o economics des del callback.
+
+## 2026-06-06 - Fase 11 Redsys: validacio de signatura preparada sense secret hardcoded
+
+Decisio:
+Preparar un adaptador propi `RedsysSignatureValidator` per validar notificacions Redsys amb `Ds_MerchantParameters` i `Ds_Signature`, llegint la clau des de `SIF_REDSYS_MERCHANT_KEY` i sense copiar el secret hardcodejat detectat al codi antic del Drive.
+
+Motiu:
+El callback Redsys no pot acceptar una bandera manual ni confiar en cap camp del payload abans de registrar notificacions o generar efectes fiscals/economics. La signatura ha de validar-se abans d'entrar a `redsys_notifications`, pero la clau no pot quedar al repositori ni dependre de Composer.
+
+Impacte:
+`sif/public/api/redsys/callback.php` queda cablejat per POST real de Redsys i normalitza `ds_order`, `idpag`, `amount` i `response_code` abans de cridar `RedsysCallbackService`. La prova unitària inclou una notificacio signada de test per comprovar el cami valid i la conversio d'import en centims. El servei classifica `Ds_Response`: `0..99` queda `VALIDATED` i qualsevol resposta no autoritzada queda `ERROR`, sempre sense crear factura ni `payment_transaction`. Aquesta subfase encara no activa `issueInvoice()` ni `registerPayment()` des del callback; nomes prepara el pas segur anterior. La verificacio executable queda pendent fins que PHP estigui disponible i hi hagi `SIF_REDSYS_MERCHANT_KEY` de test configurada.
+
+## 2026-06-06 - Fase 11 Redsys: payload `issueInvoice(payment)` preparat per notificacio validada
+
+Decisio:
+Preparar `RedsysInvoicePayloadBuilder` com a frontera entre una notificacio Redsys `VALIDATED` i el payload fiscal `issueInvoice(payment)` de curs normal. El builder consulta `redsys_notifications` per `DS_ORDER`, exigeix `STATUS = VALIDATED`, construeix la clau idempotent `REDSYS|CURS|IDPAG:{IDPAG}|ORDER:{DS_ORDER}`, afegeix `payment` Redsys i injecta `IDPAG`/`DS_ORDER` a `relations`.
+
+Motiu:
+Abans d'unir el callback amb emissio fiscal real, cal separar dos passos: validar/registrar Redsys i construir el payload fiscal. Això evita que una notificacio `ERROR`, `RECEIVED` o `DUPLICATE` pugui crear factura o pagament, i deixa clar que la font d'idempotencia del cas Redsys es el `DS_ORDER` signat i registrat.
+
+Impacte:
+El flux tecnic queda preparat per proves de curs normal en mode test amb un payload base construit per un adaptador futur de BD antiga. Encara no s'ha implementat la lectura real d'inscripcions/cursos del sistema antic ni s'ha cablejat el callback perquè cridi automaticament `issueInvoice()`.
