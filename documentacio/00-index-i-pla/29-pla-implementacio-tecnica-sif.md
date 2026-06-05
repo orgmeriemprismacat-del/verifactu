@@ -1143,7 +1143,9 @@ OK (1 test, 5 assertions)
 - Modify: `sif/tests/Integration/IssueInvoiceTest.php`
 - Create: `sif/tests/Integration/ConcurrencySmokeTest.php`
 
-- [ ] **Step 1: Afegir test d'idempotencia**
+Nota d'implementacio 2026-06-05: aquest task s'ha preparat amb `Prisma\Sif\Tests\Support\Assert`, helper `makeService()`, `IssueInvoiceTest::serviceFor()` public per reutilitzacio entre tests i `ConcurrencySmokeTest`. No ha requerit canvis de codi de produccio respecte al Task 5.
+
+- [x] **Step 1: Afegir test d'idempotencia**
 
 ```php
 public function testIssueInvoiceReusesSameInvoiceForSameIdempotencyKey(): void
@@ -1161,7 +1163,7 @@ public function testIssueInvoiceReusesSameInvoiceForSameIdempotencyKey(): void
 }
 ```
 
-- [ ] **Step 2: Afegir helper `makeService()` al test**
+- [x] **Step 2: Afegir helper `makeService()` al test**
 
 ```php
 private function makeService(\PDO $db): InvoiceService
@@ -1170,7 +1172,7 @@ private function makeService(\PDO $db): InvoiceService
 }
 ```
 
-- [ ] **Step 3: Crear smoke test de concurrencia seqüencial**
+- [x] **Step 3: Crear smoke test de concurrencia seqüencial**
 
 ```php
 <?php
@@ -1218,7 +1220,8 @@ php sif/tests/run-tests.php
 Expected:
 
 ```text
-OK
+[PASS] ...
+N passed, 0 failed
 ```
 
 ## Fase 5: `registerPayment()`
@@ -1232,7 +1235,9 @@ OK
 - Test: `sif/tests/Unit/PaymentStatusCalculatorTest.php`
 - Test: `sif/tests/Integration/RegisterPaymentTest.php`
 
-- [ ] **Step 1: Test de calcul d'estat de cobrament**
+Nota d'implementacio 2026-06-05: aquest task s'ha preparat amb runner PHP propi i `Prisma\Sif\Tests\Support\Assert`. `PaymentStatusCalculator` calcula amb enters en centims per evitar errors de coma flotant. `registerPayment()` crea nomes `payment_transaction` i `payment_allocation`, recalcula `ESTAT_COBRAMENT` i no crea cap registre fiscal nou a `factura_registres`.
+
+- [x] **Step 1: Test de calcul d'estat de cobrament**
 
 ```php
 <?php
@@ -1259,7 +1264,7 @@ final class PaymentStatusCalculatorTest
 }
 ```
 
-- [ ] **Step 2: Implementar calculador**
+- [x] **Step 2: Implementar calculador**
 
 ```php
 <?php
@@ -1292,7 +1297,7 @@ final class PaymentStatusCalculator
 }
 ```
 
-- [ ] **Step 3: Test de `registerPayment()` contra factura existent**
+- [x] **Step 3: Test de `registerPayment()` contra factura existent**
 
 ```php
 <?php
@@ -1349,7 +1354,7 @@ final class RegisterPaymentTest
 }
 ```
 
-- [ ] **Step 4: Implementar repositori de pagaments**
+- [x] **Step 4: Implementar repositori de pagaments**
 
 ```php
 <?php
@@ -1434,7 +1439,7 @@ final class PaymentRepository
 }
 ```
 
-- [ ] **Step 5: Implementar `PaymentService`**
+- [x] **Step 5: Implementar `PaymentService`**
 
 ```php
 <?php
@@ -1488,6 +1493,13 @@ php sif/tests/run-tests.php
 Expected:
 
 ```text
+[PASS] ...
+N passed, 0 failed
+```
+
+Expected:
+
+```text
 OK
 ```
 
@@ -1500,7 +1512,9 @@ OK
 - Create: `sif/src/Service/LegacySyncService.php`
 - Test: `sif/tests/Integration/LegacyRelationsTest.php`
 
-- [ ] **Step 1: Test de relacions**
+Nota d'implementacio 2026-06-05: aquest task s'ha preparat amb `Prisma\Sif\Tests\Support\Assert`, test de `fact_rels` i test amb `LegacySpyPdo` per verificar que la sincronitzacio legacy nomes passa quan es crida explicitament `syncAfterSifSuccess()`. `LegacySyncRepository` rep `factura_relacionada` des de la relacio SIF quan existeix i no s'integra dins `issueInvoice()` ni `registerPayment()`.
+
+- [x] **Step 1: Test de relacions**
 
 ```php
 <?php
@@ -1528,7 +1542,7 @@ final class LegacyRelationsTest
 }
 ```
 
-- [ ] **Step 2: Implementar repositori de sincronitzacio**
+- [x] **Step 2: Implementar repositori de sincronitzacio**
 
 ```php
 <?php
@@ -1544,7 +1558,7 @@ final class LegacySyncRepository
 }
 ```
 
-- [ ] **Step 3: Implementar servei de sincronitzacio**
+- [x] **Step 3: Implementar servei de sincronitzacio**
 
 ```php
 <?php
@@ -1567,7 +1581,7 @@ final class LegacySyncService
 }
 ```
 
-- [ ] **Step 4: Verificar que cap sincronitzacio corre abans del COMMIT SIF**
+- [x] **Step 4: Verificar que cap sincronitzacio corre abans del COMMIT SIF**
 
 Run:
 
@@ -1592,7 +1606,9 @@ La crida real a `syncAfterSifSuccess()` ha de quedar fora de la transaccio fisca
 - Create: `sif/public/api/payments/register.php`
 - Create: `sif/src/Http/JsonResponse.php`
 
-- [ ] **Step 1: Crear resposta JSON**
+Nota d'implementacio 2026-06-05: aquest task s'ha preparat amb `JsonResponse::fromInput()`, `JsonResponse::fromThrowable()` i test estàtic `sif/tests/Integration/HttpEndpointsTest.php`. Els endpoints construeixen `InvoiceService` i `PaymentService` amb les dependencies del SIF, pero no executen sincronitzacio legacy.
+
+- [x] **Step 1: Crear resposta JSON**
 
 ```php
 <?php
@@ -1609,7 +1625,7 @@ final class JsonResponse
 }
 ```
 
-- [ ] **Step 2: Crear endpoint d'emissio**
+- [x] **Step 2: Crear endpoint d'emissio**
 
 ```php
 <?php
@@ -1641,7 +1657,7 @@ try {
 }
 ```
 
-- [ ] **Step 3: Crear endpoint de pagament**
+- [x] **Step 3: Crear endpoint de pagament**
 
 ```php
 <?php
@@ -1704,32 +1720,34 @@ Expected:
 - Create: `sif/public/api/redsys/callback.php`
 - Test: `sif/tests/Integration/RedsysCallbackTest.php`
 
-- [ ] **Step 1: Test de callback duplicat**
+- [x] **Step 1: Test de callback duplicat**
 
 ```php
 <?php
 namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Tests\Support\TestDatabase;
+use Prisma\Sif\Tests\Support\Assert;
+use Prisma\Sif\Repository\RedsysNotificationRepository;
 
 final class RedsysCallbackTest
 {
     public function testDuplicateDsOrderDoesNotCreateSecondNotification(): void
     {
         $db = TestDatabase::fresh();
-        $repo = new \Prisma\Sif\Repository\RedsysNotificationRepository();
+        $repo = new RedsysNotificationRepository();
 
-        $first = $repo->recordReceived($db, 'ORDER123', 123, 120.00, '0000');
-        $second = $repo->recordReceived($db, 'ORDER123', 123, 120.00, '0000');
+        $first = $repo->recordReceived($db, 'ORDER123', 123, '120.00', '0000', true, ['source' => 'test']);
+        $second = $repo->recordReceived($db, 'ORDER123', 123, '120.00', '0000', true, ['source' => 'test']);
 
-        self::assertFalse($first['duplicate']);
-        self::assertTrue($second['duplicate']);
-        self::assertSame(1, (int) $db->query('SELECT COUNT(*) FROM redsys_notifications')->fetchColumn());
+        Assert::same(false, $first['duplicate']);
+        Assert::same(true, $second['duplicate']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_notifications')->fetchColumn());
     }
 }
 ```
 
-- [ ] **Step 2: Implementar repositori Redsys**
+- [x] **Step 2: Implementar repositori Redsys**
 
 ```php
 <?php
@@ -1737,15 +1755,23 @@ namespace Prisma\Sif\Repository;
 
 final class RedsysNotificationRepository
 {
-    public function recordReceived(\PDO $db, string $dsOrder, int $idpag, float $amount, string $responseCode): array
+    public function recordReceived(
+        \PDO $db,
+        string $dsOrder,
+        ?int $idpag,
+        mixed $amount,
+        string $responseCode,
+        bool $signatureValid,
+        ?array $rawPayload = null
+    ): array
     {
         try {
-            $db->prepare('INSERT INTO redsys_notifications (DS_ORDER, IDPAG, IMPORT, RESPONSE_CODE, STATUS) VALUES (?, ?, ?, ?, "RECEIVED")')
-                ->execute([$dsOrder, $idpag, number_format($amount, 2, '.', ''), $responseCode]);
-            return ['duplicate' => false, 'status' => 'RECEIVED'];
+            $db->prepare('INSERT INTO redsys_notifications (DS_ORDER, IDPAG, IMPORT, RESPONSE_CODE, STATUS, RAW_PAYLOAD_JSON, SIGNATURE_VALID) VALUES (?, ?, ?, ?, "RECEIVED", ?, ?)')
+                ->execute([$dsOrder, $idpag, number_format((float) $amount, 2, '.', ''), $responseCode, json_encode($rawPayload), $signatureValid ? 1 : 0]);
+            return ['duplicate' => false, 'ds_order' => $dsOrder, 'status' => 'RECEIVED'];
         } catch (\PDOException $e) {
             if ($e->getCode() === '23000') {
-                return ['duplicate' => true, 'status' => 'DUPLICATE'];
+                return ['duplicate' => true, 'ds_order' => $dsOrder, 'status' => 'DUPLICATE'];
             }
             throw $e;
         }
@@ -1753,33 +1779,41 @@ final class RedsysNotificationRepository
 }
 ```
 
-- [ ] **Step 3: Implementar servei Redsys**
+- [x] **Step 3: Implementar servei Redsys**
 
 ```php
 <?php
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Exception\SifException;
 
 final class RedsysCallbackService
 {
     public function __construct(private RedsysNotificationRepository $notifications) {}
+
+    public function receiveCallback(\PDO $db, array $payload, bool $signatureValid = false): array
+    {
+        if (!$signatureValid) {
+            throw SifException::validation('Invalid Redsys signature');
+        }
+
+        return $this->receiveAuthorizedCallback($db, $payload);
+    }
 
     public function receiveAuthorizedCallback(\PDO $db, array $signedData): array
     {
         $record = $this->notifications->recordReceived(
             $db,
             $signedData['ds_order'],
-            (int) $signedData['idpag'],
-            (float) $signedData['amount'],
-            $signedData['response_code']
+            isset($signedData['idpag']) ? (int) $signedData['idpag'] : null,
+            $signedData['amount'],
+            $signedData['response_code'],
+            true,
+            $signedData
         );
 
-        if ($record['duplicate']) {
-            return ['ok' => true, 'duplicate' => true];
-        }
-
-        return ['ok' => true, 'duplicate' => false];
+        return ['ok' => true, 'duplicate' => (bool) $record['duplicate']];
     }
 }
 ```
@@ -1798,27 +1832,44 @@ Expected:
 OK (1 test, 3 assertions)
 ```
 
-La validacio criptografica Redsys final s'ha de fer amb la llibreria/funcio actual usada per PrisMa, pero sempre abans de `recordReceived()` i abans de qualsevol crida a `issueInvoice()` o `registerPayment()`.
+Resultat local 2026-06-05:
+
+```text
+No executat: php no esta disponible al PATH d'aquest entorn.
+```
+
+Nota d'implementacio 2026-06-05:
+
+- `sif/tests/Integration/RedsysCallbackTest.php` cobreix deduplicacio per `DS_ORDER`, rebuig de callback sense signatura validada i absencia d'efectes sobre `factura` i `payment_transaction`.
+- `RedsysCallbackService::receiveCallback()` rep el boolea intern `$signatureValid`; no confia en cap camp del payload enviat pel client.
+- `sif/public/api/redsys/callback.php` queda cablejat pero amb `$signatureValid = false` fins que s'hi connecti la validacio Redsys real del Drive o la funcio actual de PrisMa.
+
+La validacio criptografica Redsys final s'ha de fer amb la llibreria/funcio actual usada per PrisMa, pero sempre abans de `recordReceived()` i abans de qualsevol crida a `issueInvoice()` o `registerPayment()`. El codi historic localitzat al Drive usa `inc/apiRedsys.php`, `decodeMerchantParameters()` i `createMerchantSignatureNotif()`; en activacio cal adaptar aquesta validacio sense hardcodejar secrets i sense Composer.
 
 ## Fase 9: Documents, cua AEAT i incidencies
 
 ### Task 11: Registrar cua AEAT i documents immutables
 
 **Files:**
-- Extend: `sif/src/Repository/InvoiceRepository.php`
+- Extend: `sif/tests/Integration/IssueInvoiceTest.php`
 - Create: `sif/src/Repository/DocumentRepository.php`
 - Create: `sif/src/Repository/IncidentRepository.php`
-- Test: `sif/tests/Integration/IssueInvoiceTest.php`
+- Test: `sif/tests/Integration/DocumentsAndIncidentsTest.php`
 
-- [ ] **Step 1: Afegir assert de cua AEAT i payload congelat**
+- [x] **Step 1: Afegir assert de cua AEAT i payload congelat**
 
 ```php
-$payloadJson = $db->query('SELECT PAYLOAD_JSON FROM factura_registres LIMIT 1')->fetchColumn();
-self::assertJson($payloadJson);
-self::assertSame(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue WHERE STATUS = "PENDING"')->fetchColumn());
+$recordPayload = (string) $db->query('SELECT PAYLOAD_JSON FROM factura_registres LIMIT 1')->fetchColumn();
+$queue = $db->query('SELECT IDEMPOTENCY_KEY, PAYLOAD_JSON, STATUS FROM fiscal_queue LIMIT 1')
+    ->fetch(\PDO::FETCH_ASSOC);
+
+Assert::same(JSON_ERROR_NONE, $this->jsonError($recordPayload));
+Assert::same(JSON_ERROR_NONE, $this->jsonError((string) $queue['PAYLOAD_JSON']));
+Assert::same($recordPayload, (string) $queue['PAYLOAD_JSON']);
+Assert::same('PENDING', (string) $queue['STATUS']);
 ```
 
-- [ ] **Step 2: Crear repositori de documents**
+- [x] **Step 2: Crear repositori de documents**
 
 ```php
 <?php
@@ -1826,15 +1877,19 @@ namespace Prisma\Sif\Repository;
 
 final class DocumentRepository
 {
-    public function registerDocument(\PDO $db, string $uuidFactura, string $type, string $path, string $contents): void
+    public function registerDocument(\PDO $db, string $uuidFactura, string $type, string $path, string $contents): array
     {
-        $db->prepare('INSERT INTO factura_documents (UUID_FACTURA, TIPUS, PATH_FITXER, HASH_FITXER) VALUES (?, ?, ?, ?)')
-            ->execute([$uuidFactura, $type, $path, hash('sha256', $contents)]);
+        $hash = hash('sha256', $contents);
+
+        $db->prepare('INSERT INTO factura_documents (UUID_FACTURA, TIPUS, PATH_FITXER, HASH_FITXER, ESTAT) VALUES (?, ?, ?, ?, "CREATED")')
+            ->execute([$uuidFactura, strtoupper($type), $path, $hash]);
+
+        return ['ok' => true, 'hash' => $hash];
     }
 }
 ```
 
-- [ ] **Step 3: Crear repositori d'incidencies**
+- [x] **Step 3: Crear repositori d'incidencies**
 
 ```php
 <?php
@@ -1842,15 +1897,17 @@ namespace Prisma\Sif\Repository;
 
 final class IncidentRepository
 {
-    public function open(\PDO $db, ?string $uuidFactura, string $type, string $message): void
+    public function open(\PDO $db, ?string $uuidFactura, string $type, string $message): array
     {
-        $db->prepare('INSERT INTO errors_verifactu (UUID_FACTURA, TIPUS_INCIDENCIA, ESTAT, DETAILS, CREATED_AT) VALUES (?, ?, "OPEN", ?, NOW())')
-            ->execute([$uuidFactura, $type, $message]);
+        $db->prepare('INSERT INTO errors_verifactu (UUID_FACTURA, TIPUS_INCIDENCIA, ESTAT, DETAILS) VALUES (?, ?, "OPEN", ?)')
+            ->execute([$uuidFactura, strtoupper($type), $message]);
+
+        return ['ok' => true];
     }
 }
 ```
 
-- [ ] **Step 4: Incloure `errors_verifactu` a la migracio inicial**
+- [x] **Step 4: Incloure `errors_verifactu` a la migracio inicial**
 
 ```sql
 CREATE TABLE errors_verifactu (
@@ -1865,6 +1922,19 @@ CREATE TABLE errors_verifactu (
     KEY idx_error_estat (ESTAT)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
+
+Resultat local 2026-06-05:
+
+```text
+No executat: php no esta disponible al PATH d'aquest entorn.
+```
+
+Nota d'implementacio 2026-06-05:
+
+- `InvoiceRepository` ja inseria `fiscal_queue`; la Fase 9 reforca el test per comprovar `PAYLOAD_JSON` congelat i `STATUS = PENDING`.
+- `errors_verifactu` ja estava inclosa a la migracio inicial, de manera que no s'ha modificat l'SQL en aquesta fase.
+- `DocumentRepository` registra metadades i `HASH_FITXER`, no genera ni emmagatzema el contingut del PDF/XML/QR.
+- `IncidentRepository` obre incidencies SIF a `errors_verifactu` amb estat `OPEN`.
 
 ## Fase 10: Proves go/no-go
 

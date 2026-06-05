@@ -72,14 +72,27 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Fase 3 preparada al repo de treball: `InvoicePayloadValidator`, `PaymentPayloadValidator` i proves unitàries corresponents.
 - [x] Task 4 de Fase 4 preparada al repo de treball: `HashCalculator` i proves unitàries de hash fiscal intern.
 - [x] Task 5 de Fase 4 preparada al repo de treball: `FiscalSequenceRepository`, `InvoiceRepository`, `InvoiceService`, fixtures i test d'integracio d'`issueInvoice()`.
+- [x] Task 6 de Fase 4 preparada al repo de treball: proves d'idempotencia i concurrencia seqüencial d'`issueInvoice()`.
+- [x] Fase 5 preparada al repo de treball: `PaymentStatusCalculator`, `PaymentRepository`, `PaymentService` i proves de `registerPayment()`.
+- [x] Fase 6 preparada al repo de treball: `LegacySyncRepository`, `LegacySyncService` i proves de `fact_rels`/sincronitzacio resum.
+- [x] Fase 7 preparada al repo de treball: `JsonResponse` i endpoints interns `factures/issue` i `payments/register`.
+- [x] Fase 8 preparada al repo de treball: `RedsysNotificationRepository`, `RedsysCallbackService`, endpoint `redsys/callback` segur per defecte i proves de deduplicacio `DS_ORDER`.
+- [x] Fase 9 preparada al repo de treball: `DocumentRepository`, `IncidentRepository`, proves de documents/incidencies i reforç de cua AEAT amb payload congelat.
 - [ ] Fase 0 executada amb PHP real: `php sif/tests/run-tests.php` carrega autoload i runner.
 - [ ] Fase 1 executada amb PHP/MySQL de test: test d'esquema i migracio aplicats.
 - [ ] Fase 2 executada amb runner propi: proves unitàries de UUID, excepcions i transaccions.
 - [ ] Fase 3 executada amb runner propi: proves unitàries de validators de factura i pagament.
 - [ ] Task 4 de Fase 4 executada amb runner propi: proves unitàries de hash fiscal intern.
 - [ ] Task 5 de Fase 4 executada amb runner propi i MySQL de test: emissio basica i reutilitzacio per `IDEMPOTENCY_KEY`.
-- [ ] Serveis `issueInvoice()` i `registerPayment()` implementats i provats.
-- [ ] Redsys, documents, incidencies, legacy sync i preflight implementats i provats.
+- [ ] Task 6 de Fase 4 executada amb runner propi i MySQL de test: idempotencia, numeracio lineal, ordre fiscal i hashes únics.
+- [ ] Fase 5 executada amb runner propi i MySQL de test: `registerPayment()`, `payment_transaction`, `payment_allocation` i estat de cobrament.
+- [ ] Fase 6 executada amb runner propi i MySQL de test: `fact_rels` i sincronitzacio legacy explicita post-SIF.
+- [ ] Fase 7 executada amb runner propi i servidor local PHP: endpoints interns `issue` i `register`.
+- [ ] Fase 8 executada amb runner propi i MySQL de test: `redsys_notifications`, deduplicacio `DS_ORDER` i endpoint callback.
+- [ ] Fase 9 executada amb runner propi i MySQL de test: `fiscal_queue`, `factura_documents`, `errors_verifactu` i payload fiscal congelat.
+- [ ] Validacio criptografica Redsys real connectada a l'endpoint abans de passar `$signatureValid = true`.
+- [ ] Serveis `issueInvoice()` i `registerPayment()` verificats amb PHP/MySQL de test.
+- [ ] Legacy sync final, preflight i bateria go/no-go implementats i provats.
 
 ## Proves, preproduccio i posada en produccio
 

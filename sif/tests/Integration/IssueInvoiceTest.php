@@ -18,7 +18,7 @@ final class IssueInvoiceTest
     public function testIssueInvoiceCreatesFiscalRecordAndQueue(): void
     {
         $db = TestDatabase::fresh();
-        $service = self::serviceFor($db);
+        $service = $this->makeService($db);
 
         $result = $service->issueInvoice(Fixtures::invoicePayload());
 
@@ -32,12 +32,22 @@ final class IssueInvoiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID = 1')->fetchColumn());
+
+        $recordPayload = (string) $db->query('SELECT PAYLOAD_JSON FROM factura_registres LIMIT 1')->fetchColumn();
+        $queue = $db->query('SELECT IDEMPOTENCY_KEY, PAYLOAD_JSON, STATUS FROM fiscal_queue LIMIT 1')
+            ->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same(JSON_ERROR_NONE, $this->jsonError($recordPayload));
+        Assert::same(JSON_ERROR_NONE, $this->jsonError((string) $queue['PAYLOAD_JSON']));
+        Assert::same($recordPayload, (string) $queue['PAYLOAD_JSON']);
+        Assert::same('AEAT|REDSYS|CURS|IDPAG:123|ORDER:999999', (string) $queue['IDEMPOTENCY_KEY']);
+        Assert::same('PENDING', (string) $queue['STATUS']);
     }
 
     public function testIssueInvoiceReusesExistingInvoiceForSameIdempotencyKey(): void
     {
         $db = TestDatabase::fresh();
-        $service = self::serviceFor($db);
+        $service = $this->makeService($db);
 
         $first = $service->issueInvoice(Fixtures::invoicePayload());
         $second = $service->issueInvoice(Fixtures::invoicePayload());
@@ -49,9 +59,10 @@ final class IssueInvoiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT LAST_NUM FROM fiscal_sequence WHERE TIPUS_SERIE = "A" AND ANY_FACT = 2026')->fetchColumn());
     }
 
-    private static function serviceFor(\PDO $db): InvoiceService
+    public static function serviceFor(\PDO $db): InvoiceService
     {
         return new InvoiceService(
             new TransactionRunner($db),
@@ -59,5 +70,17 @@ final class IssueInvoiceTest
             new FiscalSequenceRepository(),
             new InvoiceRepository(new UuidGenerator(), new HashCalculator())
         );
+    }
+
+    private function makeService(\PDO $db): InvoiceService
+    {
+        return self::serviceFor($db);
+    }
+
+    private function jsonError(string $json): int
+    {
+        json_decode($json, true);
+
+        return json_last_error();
     }
 }

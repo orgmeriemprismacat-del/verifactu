@@ -52,6 +52,12 @@ Adaptar el sistema de facturacio de PrisMa a VERI*FACTU mitjancant un SIF centra
 - Fase 3 preparada al repo de treball: creats `InvoicePayloadValidator` i `PaymentPayloadValidator`, amb proves unitàries test-first per payloads vàlids, camps obligatoris, serie de factura, tipus de moviment i assignacions. Les proves no s'han pogut executar per manca de PHP al PATH.
 - Task 4 de la Fase 4 preparada al repo de treball: creat `HashCalculator` per calcular el hash fiscal intern de manera estable i canonica, amb `previous_hash`, ordenacio recursiva d'arrays associatius i conservacio de l'ordre de les llistes com `factura_linia`. Les proves unitàries del hash no s'han pogut executar per manca de PHP al PATH.
 - Task 5 de la Fase 4 preparada al repo de treball: creats `FiscalSequenceRepository`, `InvoiceRepository`, `InvoiceService`, fixtures, test d'integracio `IssueInvoiceTest`, suport `TestDatabase::fresh()` i runner amb carpeta `Integration`. El primer `issueInvoice()` ja queda codificat per numeracio fiscal, factura, linies, registre fiscal, hash chain, cua AEAT, `fact_rels` i reutilitzacio per `IDEMPOTENCY_KEY`. Les proves no s'han pogut executar per manca de PHP al PATH.
+- Task 6 de la Fase 4 preparada al repo de treball: reforçat el test d'idempotencia d'`issueInvoice()` amb comprovacio de `fiscal_sequence`, exposat `IssueInvoiceTest::serviceFor()` per tests d'integracio, afegit helper `makeService()` i creat `ConcurrencySmokeTest` per comprovar numeracio, ordre fiscal i hashes únics en emissions seqüencials. Les proves no s'han pogut executar per manca de PHP al PATH.
+- Fase 5 preparada al repo de treball: creats `PaymentStatusCalculator`, `PaymentRepository`, `PaymentService`, `PaymentStatusCalculatorTest` i `RegisterPaymentTest`. `registerPayment()` valida payload, reutilitza per `IDEMPOTENCY_KEY`, crea `payment_transaction` i `payment_allocation`, recalcula `ESTAT_COBRAMENT` i no crea cap nou registre fiscal ni hash chain. Les proves no s'han pogut executar per manca de PHP al PATH.
+- Fase 6 preparada al repo de treball: creats `LegacySyncRepository`, `LegacySyncService` i `LegacyRelationsTest`. `fact_rels` conserva `FACTURA_RELACIONADA`, `IDPAG`, `DS_ORDER`, `SOURCE_TYPE` i `SOURCE_ID`; la sincronitzacio cap a `web.inscripcions` queda com a resum explicit post-SIF mitjancant `syncAfterSifSuccess()`, sense integrar-se dins `issueInvoice()` ni `registerPayment()`. Les proves no s'han pogut executar per manca de PHP al PATH.
+- Fase 7 preparada al repo de treball: creats `JsonResponse`, `sif/public/api/factures/issue.php`, `sif/public/api/payments/register.php` i `HttpEndpointsTest`. Els endpoints interns llegeixen JSON, construeixen `InvoiceService` o `PaymentService`, retornen JSON i no criden sincronitzacio legacy. Les proves i el servidor local no s'han pogut executar per manca de PHP al PATH.
+- Fase 8 preparada al repo de treball: creats `RedsysNotificationRepository`, `RedsysCallbackService`, `sif/public/api/redsys/callback.php` i `RedsysCallbackTest`. El callback Redsys es deduplica per `DS_ORDER`, exigeix validacio de signatura passada com a boolea intern abans de gravar, no confia en cap camp del payload, i en aquesta fase no crida ni `issueInvoice()` ni `registerPayment()`. L'endpoint queda segur per defecte amb `$signatureValid = false` fins a connectar la validacio real de `apiRedsys.php`/PrisMa. Les proves no s'han pogut executar per manca de PHP al PATH.
+- Fase 9 preparada al repo de treball: reforçat `IssueInvoiceTest` per comprovar `PAYLOAD_JSON` congelat a `factura_registres` i `fiscal_queue`, creats `DocumentRepository`, `IncidentRepository` i `DocumentsAndIncidentsTest`. Els documents fiscals es registren a `factura_documents` amb hash SHA-256 i estat `CREATED`; les incidencies SIF s'obren a `errors_verifactu` amb estat `OPEN`. La migracio ja incloia `errors_verifactu`, per tant no s'ha modificat SQL. Les proves no s'han pogut executar per manca de PHP al PATH.
 
 ## Decisions base ja assumides
 
@@ -95,14 +101,14 @@ Temes amb mes risc de contenir detalls pendents de contrast:
 
 ## Proper pas recomanat
 
-Completar la verificacio executable de Fase 0, Fase 1, Fase 2, Fase 3 i Tasks 4/5 de Fase 4 amb PHP disponible:
+Completar la verificacio executable de Fase 0, Fase 1, Fase 2, Fase 3, Tasks 4/5/6 de Fase 4, Fase 5, Fase 6, Fase 7, Fase 8 i Fase 9 amb PHP disponible:
 
 ```text
 php sif/tests/run-tests.php
 SIF_ENV=test php sif/scripts/run-migrations.php
 ```
 
-Motiu: l'estructura, el SQL, la infraestructura comuna, els validators, el hash fiscal intern i el primer esquelet executable d'`issueInvoice()` ja estan creats sense dependencia de Composer, pero falta executar la verificacio real amb PHP i una BD de test configurada. Un cop passi aquesta base, el seguent pas tecnic sera continuar la Fase 4 amb Task 6: idempotencia i concurrencia seqüencial d'`issueInvoice()`.
+Motiu: l'estructura, el SQL, la infraestructura comuna, els validators, el hash fiscal intern, el primer esquelet executable d'`issueInvoice()`, `registerPayment()`, la sincronitzacio legacy controlada, els endpoints interns, la porta Redsys deduplicada i els repositoris de documents/incidencies ja estan creats sense dependencia de Composer, pero falta executar la verificacio real amb PHP i una BD de test configurada. Un cop passi aquesta base, el seguent pas tecnic sera Fase 10: proves go/no-go i preflight.
 
 ## Com s'ha de tancar cada sessio
 

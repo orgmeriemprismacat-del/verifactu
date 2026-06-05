@@ -406,3 +406,69 @@ La fase anterior nomes calculava el hash; per començar a convertir l'arquitectu
 
 Impacte:
 Task 5 queda preparat a nivell de codi i proves dins `sif/src/Repository`, `sif/src/Service`, `sif/tests/Integration` i `sif/tests/Support`. La verificacio real queda pendent fins que `php` i una BD MySQL de test estiguin disponibles. El seguent pas tecnic es continuar la Fase 4 amb Task 6: idempotencia i concurrencia seqüencial d'`issueInvoice()`.
+
+## 2026-06-05 - Task 6 de Fase 4 preparada: idempotencia i ordre fiscal seqüencial
+
+Decisio:
+Preparar les proves d'idempotencia i concurrencia seqüencial d'`issueInvoice()`. El test d'idempotencia comprova que una segona crida amb el mateix `IDEMPOTENCY_KEY` reutilitza la factura existent i no incrementa `fiscal_sequence`. El smoke test seqüencial comprova 10 emissions amb numeracio lineal, `LAST_FISCAL_ORDER` lineal, ordres fiscals diferents i hashes fiscals únics.
+
+Motiu:
+Abans de passar a `registerPayment()`, el nucli d'emissio ha de demostrar que la numeracio visible i l'ordre fiscal intern avancen de manera coherent i que la idempotencia evita duplicar factures o avançar numeracio davant callbacks o reintents repetits.
+
+Impacte:
+Task 6 queda preparat a nivell de proves dins `sif/tests/Integration`. No ha requerit canvis de codi de produccio respecte al Task 5. La verificacio real queda pendent fins que `php` i una BD MySQL de test estiguin disponibles. El seguent pas tecnic es Fase 5: `registerPayment()` i estat de cobrament.
+
+## 2026-06-05 - Fase 5 preparada: `registerPayment()` i estat de cobrament
+
+Decisio:
+Preparar `registerPayment()` com a flux economic separat de l'emissio fiscal. `PaymentService` valida el payload, aplica idempotencia per `IDEMPOTENCY_KEY` i encapsula l'operacio amb `TransactionRunner`; `PaymentRepository` crea `payment_transaction` i `payment_allocation`, recalcula `ESTAT_COBRAMENT` i reutilitza pagaments existents; `PaymentStatusCalculator` calcula `PENDING`, `PARTIAL`, `PAID`, `OVERPAID`, `PARTIALLY_REFUNDED` i `REFUNDED` en centims.
+
+Motiu:
+El contracte tancat del SIF diu que `registerPayment()` no pot crear numero fiscal, hash chain ni registre fiscal. Serveix per registrar moviments economics sobre factures ja emeses i per actualitzar l'estat de cobrament auditablement, sense modificar la factura fiscal emesa.
+
+Impacte:
+Fase 5 queda preparada a nivell de codi i proves dins `sif/src/Domain`, `sif/src/Repository`, `sif/src/Service`, `sif/tests/Unit` i `sif/tests/Integration`. La verificacio real queda pendent fins que `php` i una BD MySQL de test estiguin disponibles. El seguent pas tecnic es Fase 6: relacio amb BD antiga i sincronitzacio controlada.
+
+## 2026-06-05 - Fase 6 preparada: `fact_rels` i sincronitzacio legacy controlada
+
+Decisio:
+Preparar la relacio amb BD antiga com a pont logic i resum operatiu, no com a font fiscal. `LegacyRelationsTest` comprova que `fact_rels` conserva `FACTURA_RELACIONADA`, `IDPAG`, `DS_ORDER`, `SOURCE_TYPE` i `SOURCE_ID`. `LegacySyncService::syncAfterSifSuccess()` queda com a crida explicita posterior a l'exit del SIF, i `LegacySyncRepository` actualitza nomes el resum d'`inscripcions` amb `FACTURA_RELACIONADA` si estava buida i una nota `SIF`.
+
+Motiu:
+El criteri tancat del projecte diu que no hi ha foreign keys entre BD fiscal i BD web/intranet, i que els camps antics nomes poden servir de compatibilitat operativa. La sincronitzacio no ha de correr dins `issueInvoice()` ni `registerPayment()` abans del commit fiscal, per evitar que la BD antiga sembli confirmada si el SIF falla.
+
+Impacte:
+Fase 6 queda preparada a nivell de codi i proves dins `sif/src/Repository`, `sif/src/Service` i `sif/tests/Integration`. La verificacio real queda pendent fins que `php` i una BD MySQL de test estiguin disponibles. El seguent pas tecnic es Fase 7: endpoints HTTP interns.
+
+## 2026-06-05 - Fase 7 preparada: endpoints HTTP interns
+
+Decisio:
+Preparar dos endpoints interns PHP pur: `sif/public/api/factures/issue.php` per `issueInvoice()` i `sif/public/api/payments/register.php` per `registerPayment()`. Els endpoints llegeixen JSON amb `JsonResponse::fromInput()`, construeixen els serveis SIF amb `ConnectionFactory`, `TransactionRunner` i repositoris corresponents, i retornen JSON amb `JsonResponse`.
+
+Motiu:
+El nucli SIF necessita una entrada HTTP simple per ser cridat des de callbacks, intranet o adaptadors interns sense exposar els detalls de repositoris i transaccions. Aquesta fase prepara la superfície tècnica, pero no incorpora encara autenticacio definitiva, permisos, Redsys ni sincronitzacio legacy automatica.
+
+Impacte:
+Fase 7 queda preparada a nivell de codi i proves estàtiques dins `sif/src/Http`, `sif/public/api` i `sif/tests/Integration`. La verificacio real queda pendent fins que `php`, una BD MySQL de test i un servidor local PHP estiguin disponibles. El seguent pas tecnic es Fase 8: Redsys i entrada de pagaments.
+
+## 2026-06-05 - Fase 8 preparada: Redsys i deduplicacio de callback
+
+Decisio:
+Preparar l'entrada Redsys com a registre previ i idempotent a `redsys_notifications`. `RedsysNotificationRepository` grava el callback i deduplica per `DS_ORDER`; `RedsysCallbackService` exigeix que la signatura ja hagi estat validada abans de cridar `recordReceived()`; l'endpoint `sif/public/api/redsys/callback.php` queda cablejat pero segur per defecte amb `$signatureValid = false`.
+
+Motiu:
+Redsys pot reenviar callbacks i el mateix `IDPAG` pot tenir diversos intents o `DS_ORDER`. Per evitar factures o pagaments duplicats, el primer pas auditable ha de ser registrar/deduplicar la notificacio i nomes despres, en fases d'activacio, decidir si cal cridar `issueInvoice()` o `registerPayment()`. La signatura no es pot confiar com a camp enviat pel client.
+
+Impacte:
+Fase 8 queda preparada a nivell de codi i proves dins `sif/src/Repository`, `sif/src/Service`, `sif/public/api/redsys` i `sif/tests/Integration`. La validacio criptografica final queda pendent de connectar amb la llibreria/funcio Redsys actual de PrisMa (`apiRedsys.php`, `decodeMerchantParameters()`, `createMerchantSignatureNotif()` o equivalent), sense hardcodejar secrets i sempre abans de gravar notificacions o generar efectes fiscals/economics. La verificacio real queda pendent fins que `php` i una BD MySQL de test estiguin disponibles.
+
+## 2026-06-05 - Fase 9 preparada: documents, cua AEAT i incidencies
+
+Decisio:
+Preparar la capa de conservacio documental i incidencies del SIF. `IssueInvoiceTest` comprova que el `PAYLOAD_JSON` fiscal queda congelat igual a `factura_registres` i `fiscal_queue`, amb cua `PENDING`. `DocumentRepository` registra documents fiscals a `factura_documents` amb `HASH_FITXER` SHA-256 i estat `CREATED`. `IncidentRepository` obre incidencies SIF a `errors_verifactu` amb estat `OPEN`.
+
+Motiu:
+La factura fiscal no es nomes una fila de `factura`: necessita registre fiscal, cua AEAT, documents immutables o verificables per hash i incidencies visibles quan falla PDF/QR/AEAT o qualsevol proces fiscal. Aquesta capa separa conservar metadades i hash del document de la generacio real del PDF/XML/QR, que vindra despres.
+
+Impacte:
+Fase 9 queda preparada a nivell de codi i proves dins `sif/src/Repository` i `sif/tests/Integration`. No s'ha modificat la migracio perque `fiscal_queue`, `factura_documents` i `errors_verifactu` ja estaven creades a l'SQL inicial. La verificacio real queda pendent fins que `php` i una BD MySQL de test estiguin disponibles. El seguent pas tecnic es Fase 10: proves go/no-go, preflight i activacio controlada.
