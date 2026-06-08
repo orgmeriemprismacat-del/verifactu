@@ -516,3 +516,245 @@ Abans d'unir el callback amb emissio fiscal real, cal separar dos passos: valida
 
 Impacte:
 El flux tecnic queda preparat per proves de curs normal en mode test amb un payload base construit per un adaptador futur de BD antiga. Encara no s'ha implementat la lectura real d'inscripcions/cursos del sistema antic ni s'ha cablejat el callback perquè cridi automaticament `issueInvoice()`.
+
+## 2026-06-06 - Fase 11 curs normal: snapshot legacy a payload fiscal base
+
+Decisio:
+Preparar `LegacyCourseInvoicePayloadBuilder` com a adaptador PHP pur entre les dades antigues de `inscripcions` + `curs` i el payload base de `issueInvoice()`. El builder no consulta la BD antiga: rep un snapshot, conserva receptor, NIF, adreca, correu, concepte/detall del curs, import actual del pagament, IVA exempt i relacio `INSCRIPCIO`. No usa `inscripcions.PAGAMENT` com a import de factura perquè aquest camp es pagat acumulat historic.
+
+Motiu:
+El callback Redsys real no ha de inventar dades fiscals ni dependre directament del codi antic. Cal una peça intermedia testable que separi les dades fiscals del curs de la notificacio Redsys signada. La idempotencia fiscal definitiva i el bloc `payment` continuen sortint de `RedsysInvoicePayloadBuilder`, perquè depenen de `DS_ORDER`/`IDPAG` validats.
+
+Impacte:
+El cas curs normal ja te un payload base compost amb `RedsysInvoicePayloadBuilder` i `issueInvoice(payment)` en prova d'integracio. Queden pendents la lectura real de `inscripcions`/`curs` des de la BD antiga en preproduccio, l'execucio amb PHP/MySQL de test i el cablejat final del callback només quan `preflight-sif.php` sigui `ok=true`.
+
+## 2026-06-06 - Fase 11 curs normal: lectura legacy de snapshot preparada
+
+Decisio:
+Preparar `LegacyCourseSnapshotRepository` com a adaptador de nomes lectura per recuperar la inscripcio antiga per `IDPAG` i `INSC CURS` `0`, `1` o `M`, carregar el curs per `ANY`/`MES`/`CURS` i retornar el snapshot amb l'import actual del pagament ja validat pel flux Redsys.
+
+Motiu:
+El callback antic barrejava lectura legacy, emissio fiscal, actualitzacio d'inscripcio i correus. El SIF necessita separar la lectura de dades operatives de l'emissio fiscal: primer es valida i registra Redsys, despres es carrega el snapshot antic, despres es construeix el payload, i només al final es crida `issueInvoice(payment)` o `registerPayment()`.
+
+Impacte:
+La consulta antiga de curs normal queda encapsulada i testada amb PDO espia, sense escriure a la BD antiga ni activar cap endpoint real. Encara falta composar aquesta lectura amb `redsys_notifications`, `RedsysInvoicePayloadBuilder` i `InvoiceService` en un orquestrador de preproduccio.
+
+## 2026-06-06 - Fase 11 curs normal: orquestrador de servei preparat
+
+Decisio:
+Preparar `RedsysCourseInvoiceService` per composar el flux de curs normal des d'una notificacio Redsys `VALIDATED`: valida l'estat de `redsys_notifications`, carrega snapshot legacy per `IDPAG`, construeix payload fiscal base, injecta idempotencia/pagament Redsys i delega l'emissio a `issueInvoice(payment)`.
+
+Motiu:
+Abans de cablejar cap endpoint real cal tenir una peça de servei testable que uneixi les fronteres ja creades sense tornar al patró antic de callback monolitic. Això manté separats validacio Redsys, lectura legacy, emissio fiscal i sincronitzacio posterior.
+
+Impacte:
+El curs normal Redsys queda preparat a nivell de servei amb reintent idempotent i bloqueig de notificacions `ERROR` abans de consultar legacy. El callback real continua sense efectes fiscals automatics fins que hi hagi PHP, BD MySQL de test, `preflight-sif.php` amb `ok=true` i prova Redsys real.
+
+## 2026-06-06 - Fase 11 curs normal: script manual de preproduccio preparat
+
+Decisio:
+Afegir configuracio `legacy_db` amb variables `SIF_LEGACY_DB_DSN`, `SIF_LEGACY_DB_USER` i `SIF_LEGACY_DB_PASSWORD`, ampliar `ConnectionFactory` amb `makeLegacy()` i crear `sif/scripts/process-redsys-course.php` per processar manualment un `DS_ORDER` ja registrat com a `VALIDATED`.
+
+Motiu:
+Abans d'activar el callback real cal una eina controlada per provar el flux complet amb BD SIF i BD legacy de test. La prova manual permet validar l'orquestrador sense barrejar-se amb el POST Redsys ni amb la recepcio automatica de callbacks.
+
+Impacte:
+El script nomes funciona en CLI, rebutja `SIF_ENV=production`, requereix `SIF_LEGACY_DB_*` i no parseja ni valida notificacions Redsys. L'execucio real continua pendent de PHP disponible, BD SIF/legacy de test i evidencies de preproduccio.
+
+## 2026-06-06 - Fase 11 curs normal: preflight especific Redsys curs preparat
+
+Decisio:
+Crear `sif/scripts/preflight-redsys-course.php` com a comprovacio de nomes lectura abans de processar un curs normal Redsys manualment. El script valida que l'entorn no sigui produccio, que la clau Redsys estigui configurada, que la BD SIF i la BD legacy connectin, i que existeixin les taules minimes `redsys_notifications`, `payment_transaction`, `inscripcions` i `curs`.
+
+Motiu:
+El processador manual ja pot emetre factura i pagament sobre una notificacio `VALIDATED`, per tant necessita una porta prèvia que comprovi readiness sense generar cap efecte fiscal ni economic.
+
+Impacte:
+La prova de preproduccio queda dividida en dos passos segurs: primer `preflight-sif.php` i `preflight-redsys-course.php`, despres `process-redsys-course.php DS_ORDER`. Encara no s'ha executat cap dels dos perquè aquest entorn no te PHP disponible.
+
+## 2026-06-06 - Fase 11 curs normal: preview de payload preparada
+
+Decisio:
+Crear `sif/scripts/preview-redsys-course.php` com a dry-run per construir el payload fiscal complet d'un `DS_ORDER` `VALIDATED` sense emetre factura. El script llegeix SIF i legacy, construeix snapshot, payload base i payload Redsys amb bloc `payment`, i retorna JSON amb `dry_run=true`.
+
+Motiu:
+Abans d'executar el processador manual convé revisar visualment receptor, NIF, linies, import, relacions i idempotencia. Aquesta preview redueix el risc d'emetre una factura de test amb dades mal mapejades.
+
+Impacte:
+El flux de preproduccio queda ordenat: preflight general, preflight Redsys curs, preview de payload i nomes despres processament manual. La preview no crea `factura`, `payment_transaction`, hash chain ni `fiscal_queue`.
+
+## 2026-06-06 - Fase 11 curs normal: sincronitzacio legacy opcional post-SIF
+
+Decisio:
+Fer que `RedsysCourseInvoiceService` retorni metadades de relacions per a sincronitzacio posterior i afegir l'opcio `--sync-legacy` a `sif/scripts/process-redsys-course.php`. Amb aquest flag, el script crida `LegacySyncService::syncAfterSifSuccess()` nomes despres que el SIF retorni `ok=true`.
+
+Motiu:
+La BD antiga necessita resum operatiu, pero aquesta sincronitzacio no pot formar part de `issueInvoice()` ni de la transaccio fiscal. Fer-la explicita evita que una emissio fiscal correcta quedi barrejada amb una actualitzacio legacy opcional o fallida.
+
+Impacte:
+Per defecte el processador manual nomes emet al SIF. Si es vol actualitzar el resum legacy en preproduccio, cal executar `process-redsys-course.php DS_ORDER --sync-legacy`. La sincronitzacio continua limitada al resum ja definit per `LegacySyncRepository`.
+
+## 2026-06-06 - Fase 11 factura abans de cobrament: flux preparat a nivell de prova
+
+Decisio:
+Afegir `InvoiceBeforePaymentFlowTest` per cobrir el flux `issueInvoice(emesa_abans_cobrament=1)` seguit de `registerPayment()`. La factura queda emesa i pendent de cobrament fins que arriba el pagament posterior.
+
+Motiu:
+Factura abans de cobrament ha de tenir registre fiscal, hash chain i cua AEAT en el moment d'emissio, pero el pagament posterior no ha de generar un segon registre fiscal ni renumerar res. Aquesta separacio evita confondre fet fiscal amb moviment economic.
+
+Impacte:
+El test comprova que el pagament posterior crea nomes `payment_transaction` i `payment_allocation`, actualitza `ESTAT_COBRAMENT` a `PAID` i manté estable `factura_registres`, `fiscal_queue` i `fiscal_chain_state`.
+
+## 2026-06-06 - Fase 11 transferencies manuals: payload `registerPayment()` preparat
+
+Decisio:
+Afegir `ManualPaymentPayloadBuilder` per transformar una transferencia validada manualment a `Passar pagaments` en un payload de `registerPayment()` contra una factura SIF existent. El builder normalitza import, data, canal `INTRANET`, metode `TRANSFERENCIA`, referencia bancaria, banc, notes i assignacio unica `INVOICE_PAYMENT`.
+
+Motiu:
+La pantalla antiga no ha de modificar imports, data, numero ni receptor d'una factura ja emesa. Quan administracio confirma una transferencia, el SIF ha de registrar nomes el moviment economic a `payment_transaction` i la seva assignacio a `payment_allocation`, mantenint intacte el registre fiscal i el hash chain.
+
+Impacte:
+La idempotencia queda centralitzada abans de tocar la intranet real: si hi ha referencia bancaria s'usa `TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}`; si no, s'usa `TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}`. L'activacio operativa queda pendent de PHP/MySQL de test, pantalla real de `Passar pagaments` i prova `SIF-PAY-001`.
+
+## 2026-06-06 - Fase 11 transferencies manuals: `issueInvoice(payment)` preparat per curs sense factura prèvia
+
+Decisio:
+Afegir `ManualCourseInvoicePayloadBuilder` per transformar el subcas antic `efact == 0` de curs/inscripcio normal en un payload `issueInvoice(payment)`. El builder rep snapshot legacy d'inscripcio + curs, import/data/referencia/banc validats per administracio i genera factura SIF amb `source_channel = INTRANET` i cobrament inicial dins el bloc `payment`.
+
+Motiu:
+Quan una transferencia crea l'obligacio fiscal i encara no hi ha factura SIF, no s'ha de crear una factura historica a `web.factures` ni assignar numeracio fora del SIF. La factura, linia, registre fiscal, hash chain, cua AEAT i moviment economic inicial han de quedar dins una sola operacio idempotent `issueInvoice(payment)`.
+
+Impacte:
+La idempotencia fiscal del curs manual queda separada de Redsys: amb referencia s'usa `TRANSFERENCIA|CURS|IDPAG:{IDPAG}|REF:{REFERENCIA_BANCARIA}`; sense referencia, `TRANSFERENCIA|CURS|IDPAG:{IDPAG}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}`. La prova d'integracio prepara la verificacio de `payment_transaction.PROVIDER_REF`, `REFERENCIA_BANCARIA` i `IDPAG`, però l'execucio real continua pendent de PHP/MySQL de test i pantalla real `Passar pagaments`.
+
+## 2026-06-06 - Fase 11 transferencies manuals: orquestrador de curs manual preparat
+
+Decisio:
+Afegir `ManualCourseInvoiceService` per orquestrar el subcas de curs normal validat manualment a `Passar pagaments`: rep `IDPAG` i dades del cobrament, carrega snapshot legacy de `inscripcions`/`curs`, construeix payload manual amb `ManualCourseInvoicePayloadBuilder` i crida `InvoiceService::issueInvoice()`.
+
+Motiu:
+El builder de payload resol la forma fiscal, però cal una frontera de servei que uneixi lectura legacy i emissio SIF sense recuperar el patró antic d'`efectuarPagament()`, que calculava numeracio i escrivia a `web.factures`. Aquesta peça permet provar el flux de curs manual en preproduccio abans de tocar l'endpoint/pantalla real.
+
+Impacte:
+El servei retorna `legacy_sync` com a metadades per a una sincronitzacio posterior i explicita, però no escriu a legacy. El test cobreix reintent idempotent, preservacio de `IDPAG`, `PROVIDER_REF` i referencia bancaria, i rebuig d'`IDPAG` invalid abans de consultar la BD antiga. L'execucio real continua pendent de PHP/MySQL de test.
+
+## 2026-06-06 - Fase 11 transferencies manuals: preview de curs manual preparada
+
+Decisio:
+Crear `sif/scripts/preview-manual-course.php` com a dry-run per construir el payload `issueInvoice(payment)` d'un curs manual validat a `Passar pagaments` sense emetre factura. El script rep `IDPAG`, import, data de moviment i opcionalment referencia, banc, notes i usuari.
+
+Motiu:
+Abans de processar una transferencia manual real cal poder revisar receptor, NIF, linia, import, idempotencia, relacions i bloc `payment` sense generar registre fiscal, hash chain, cua AEAT ni moviment economic.
+
+Impacte:
+El flux manual de curs queda preparat amb una comprovacio prèvia equivalent a la preview Redsys: CLI-only, rebutja `SIF_ENV=production`, connecta nomes a legacy, construeix payload i retorna JSON amb `dry_run=true`. L'execucio real continua pendent de PHP/MySQL de test i dades de preproduccio.
+
+## 2026-06-06 - Fase 11 transferencies manuals: processador manual de curs preparat
+
+Decisio:
+Crear `sif/scripts/process-manual-course.php` com a eina CLI de preproduccio per executar el flux de curs manual: rep `IDPAG`, import, data de moviment, referencia/banc/notes/usuari opcionals i crida `ManualCourseInvoiceService`.
+
+Motiu:
+Despres de la preview cal una eina controlada per fer la prova real `SIF-PAY-001` sense tocar encara la pantalla de `Passar pagaments`. Aquesta eina permet emetre al SIF amb `issueInvoice(payment)` i revisar idempotencia abans de qualsevol integracio d'intranet.
+
+Impacte:
+El script rebutja `SIF_ENV=production`, construeix serveis SIF sense Composer, no depen de Redsys i exposa `legacy_sync_executed`. La sincronitzacio legacy nomes s'executa si es passa `--sync-legacy` i el resultat SIF es `ok=true`; per defecte no escriu a la BD antiga.
+
+## 2026-06-06 - Fase 11 transferencies manuals: preflight manual de curs preparat
+
+Decisio:
+Crear `sif/scripts/preflight-manual-course.php` com a comprovacio de nomes lectura abans d'executar la preview o el processador manual de curs.
+
+Motiu:
+El flux manual de curs no necessita clau Redsys ni taula de notificacions Redsys, pero si necessita BD SIF preparada, BD legacy configurada, taules fiscals/economiques minimes, taules `inscripcions` i `curs`, i seed de `fiscal_chain_state`.
+
+Impacte:
+El preflight manual separa readiness de Redsys i readiness de `Passar pagaments`. Rebutja produccio, retorna JSON amb `checks`, `failed` i `errors`, no construeix cap servei d'emissio i no crea factures ni pagaments. L'execucio real continua pendent de PHP/MySQL de test.
+
+## 2026-06-07 - Fase 11 packs: snapshot i payload fiscal preparats
+
+Decisio:
+Afegir `LegacyPackSnapshotRepository` i `LegacyPackInvoicePayloadBuilder` com a primer tall de packs, sense scripts ni endpoints encara. El snapshot carrega inscripcions `TIPUS_INSC = 'P'` per `IDPAG`, detecta `PACK|{ID_PACK}` a `OBSERVACIONS`, consulta `info_pack` i emparella cada inscripcio amb el seu curs. El payload declara `source_type = PACK`, crea una linia per curs i conserva relacions `PACK` i `INSCRIPCIO`.
+
+Motiu:
+Els packs son el primer canal especial perquè afegeixen diverses linies sense canviar encara receptor ni visibilitat. Separar snapshot i builder permet validar fiscalment imports, descompte i relacions abans d'afegir preview/processador o tocar callbacks.
+
+Impacte:
+La idempotencia Redsys queda preparada per `REDSYS|PACK|IDPAG:{IDPAG}|ORDER:{DS_ORDER}` sense trencar el cas de curs normal, que continua usant `CURS` per defecte. El descompte del pack normal queda congelat a la segona linia amb `DESC_ORIGEN = PACK`, `DESC_MODE = PERCENT`, `DESC_PCT = 25.00` i `DESC_IMPORT`; si el snapshot aporta imports fiscals explicits, es respecten. L'execucio real continua pendent de PHP/MySQL de test i dades legacy de preproduccio.
+
+## 2026-06-07 - Fase 11 packs: circuit Redsys manual de preproduccio
+
+Decisio:
+Afegir `RedsysPackInvoiceService` i els scripts `sif/scripts/preflight-redsys-pack.php`, `sif/scripts/preview-redsys-pack.php` i `sif/scripts/process-redsys-pack.php`. El processador rep un `DS_ORDER` ja registrat com a `VALIDATED`, carrega el pack legacy, construeix el payload fiscal `PACK`, crida `issueInvoice(payment)` i permet `--sync-legacy` nomes despres d'un resultat SIF `ok=true`.
+
+Motiu:
+Despres del snapshot/payload de pack cal una prova controlada equivalent al curs normal abans de tocar el callback automatic. El pack necessita revisar especialment les dues linies, el descompte `PACK`, `fact_rels`, `payment_transaction` i la sincronitzacio de les dues inscripcions.
+
+Impacte:
+El flux de pack queda preparat per preproduccio en quatre passos: `preflight-sif.php`, `preflight-redsys-pack.php`, `preview-redsys-pack.php DS_ORDER` i `process-redsys-pack.php DS_ORDER [--sync-legacy]`. El callback real continua sense cridar aquest servei i no s'ha activat cap endpoint automatic de pack. L'execucio real continua pendent de PHP/MySQL de test, BD legacy de test i notificacio Redsys validada.
+
+## 2026-06-07 - Fase 11 packs: circuit manual de transferencia
+
+Decisio:
+Afegir `ManualPackInvoicePayloadBuilder`, `ManualPackInvoiceService` i els scripts `sif/scripts/preflight-manual-pack.php`, `sif/scripts/preview-manual-pack.php` i `sif/scripts/process-manual-pack.php`. El flux rep `IDPAG`, import, data de moviment i referencia/banc opcionals, carrega el pack legacy, construeix `issueInvoice(payment)` amb `source_channel = INTRANET` i permet `--sync-legacy` nomes despres d'un resultat SIF `ok=true`.
+
+Motiu:
+Els packs poden entrar per `Passar pagaments` igual que un curs normal. Cal una eina equivalent al curs manual abans d'integrar la pantalla real, pero preservant la factura multi-linia, el descompte `PACK`, les relacions `PACK`/`INSCRIPCIO` i la idempotencia separada de Redsys.
+
+Impacte:
+La idempotencia queda fixada com `TRANSFERENCIA|PACK|IDPAG:{IDPAG}|REF:{REFERENCIA_BANCARIA}` quan hi ha referencia i amb fallback per data/import/banc quan no n'hi ha. El builder exigeix que l'import manual coincideixi amb el total fiscal del pack abans de crear el cobrament inicial, evitant marcar com a cobrat un pack parcial. L'execucio real continua pendent de PHP/MySQL de test, BD legacy de test i validacio operativa de `Passar pagaments`.
+
+## 2026-06-08 - Fase 11 grups: snapshot i payload fiscal preparats
+
+Decisio:
+Afegir `LegacyGroupSnapshotRepository` i `LegacyGroupInvoicePayloadBuilder` com a primer tall de grups. El snapshot carrega inscripcions `TIPUS_INSC = 'G'` per `IDPAG`, responsable fiscal des de `respGrups` i dades de curs per participant. El payload declara `source_type = GRUP`, crea una linia per participant, relacio `GRUP`, relacions `INSCRIPCIO` i fixa `visible_alumne = 0`.
+
+Motiu:
+Els grups son el pas posterior als packs perquè afegeixen receptor fiscal diferent i risc de privacitat. El document tancat exigeix factura única per pagament real, linia per participant i que els participants no vegin la factura completa si conte altres persones.
+
+Impacte:
+La idempotencia Redsys queda preparada per `REDSYS|GRUP|IDPAG:{IDPAG}|ORDER:{DS_ORDER}` gracies al `source_type = GRUP`. El builder no imprimeix el DNI del participant a concepte o detall i respecta imports/descomptes explicits si el snapshot els porta. El SQL final de `descomptes_grup` continua pendent de validacio abans d'activar circuits reals Redsys/manuals de grup.
+
+## 2026-06-08 - Fase 11 regals: snapshot i payload fiscal preparats
+
+Decisio:
+Afegir `LegacyGiftSnapshotRepository` i `LegacyGiftInvoicePayloadBuilder` com a primer tall de regals. El snapshot carrega `regal` per `ID` o `CODI`, incloent comprador, curs, import, codi regal, `FACT_REL`, origen, desti i observacions. El payload declara `source_type = REGAL`, crea factura al comprador, una linia fiscal `REGAL`, relacio `REGAL` i `visible_alumne = 0`.
+
+Motiu:
+El cas de regal separa comprador fiscal i destinatari futur. La compra genera factura al comprador; el bescanvi posterior del codi crea o vincula una inscripcio sense factura nova. Cal evitar que la targeta regal comercial o l'enllac del destinatari substitueixin el PDF fiscal immutable.
+
+Impacte:
+La idempotencia base queda `LEGACY|REGAL|ID:{ID}` i la composicio Redsys queda preparada com `REDSYS|REGAL|IDPAG:NULL|ORDER:{DS_ORDER}`. El builder no crea inscripcio del destinatari ni escriu `FACT_REL`; qualsevol actualitzacio legacy queda pendent d'un servei de sincronitzacio post-SIF i de validar el SQL real de `regal`, `FACT_REL`, `ORIGEN`, `DESTI` i `CODI`.
+
+## 2026-06-08 - Fase 11 USOC: snapshot i payload fiscal preparats
+
+Decisio:
+Afegir `LegacyUsocSnapshotRepository` i `LegacyUsocInvoicePayloadBuilder` com a primer tall d'USOC. El snapshot carrega una inscripcio per `IDPAG`, exigeix `TIPUS_DESC = 4` i `VALID_DESC = 1`, carrega el curs i congela l'import pagat per l'alumne. El builder genera dos payloads separats: `USOC_ALUMNE` per la factura de l'alumne i `USOC_ENTITAT` per la factura de l'entitat.
+
+Motiu:
+USOC no es un descompte intern simple quan hi ha dos pagadors reals. L'alumne rep factura per la part pagada i l'entitat USOC rep factura ordinaria per la diferencia assumida, vinculada internament a la inscripcio i a la factura de l'alumne. No s'han d'inventar dades fiscals de l'entitat si no estan confirmades.
+
+Impacte:
+La idempotencia de l'alumne queda preparada per `REDSYS|USOC_ALUMNE|IDPAG:{IDPAG}|ORDER:{DS_ORDER}`. La factura de l'entitat queda `INTRANET|USOC_ENTITAT|ID_INSC:{ID_INSC}|FACT_ALUMNE:{UUID_FACTURA_ALUMNE}`, requereix receptor fiscal explicit i queda pendent de cobrament fins que s'hi registri un pagament. L'activacio real continua pendent de PHP/MySQL de test, dades fiscals completes d'USOC i prova de privacitat.
+
+## 2026-06-08 - Fase 11 codis promocionals: snapshot de descompte congelat a `factura_linia`
+
+Decisio:
+Ampliar `LegacyCourseInvoicePayloadBuilder` perquè el curs normal pugui rebre un bloc `discount` ja validat pel canal i congelar-lo dins el payload fiscal. El builder trasllada `import_base`, `discount`, `total` i camps `DESC_*` de linia: origen, mode, id de descompte temporal, codi promocional, percentatge, import, text visible i motiu intern.
+
+Motiu:
+Els codis promocionals no son un canal fiscal propi. Ecommerce/intranet validen vigencia, DNI, us i import abans del pagament; el SIF no ha de revalidar `promocions` ni recalcular el codi, pero si ha de conservar la foto fiscal que justifica el preu final.
+
+Impacte:
+La factura de curs normal pot conservar `CODI_PROMO` o `PROMOCIO_TEMPORAL` a `factura_linia` i queda immutable encara que el codi caduqui o quedi usat despres. Queden pendents el SQL final de `promocions`/`descomptes.TIPUS` 11-99, la decisio de visibilitat del codi concret al PDF i l'execucio real amb PHP/MySQL de test.
+
+## 2026-06-08 - Fase 11 regals: circuit Redsys manual de preproduccio
+
+Decisio:
+Afegir `RedsysGiftInvoiceService` i els scripts `sif/scripts/preflight-redsys-gift.php`, `sif/scripts/preview-redsys-gift.php` i `sif/scripts/process-redsys-gift.php`. El processador rep un `DS_ORDER` ja `VALIDATED` i un regal identificat explicitament per `--gift-id=ID` o `--gift-code=CODI`.
+
+Motiu:
+Les notificacions Redsys de regal no tenen `IDPAG`, i no s'ha d'inferir el regal a partir de l'ordre TPV. Per evitar enllaços fràgils, la prova de preproduccio exigeix indicar quin registre `regal` es factura i comprova que l'import validat per Redsys coincideixi amb `regal.IMPORT`.
+
+Impacte:
+El flux de regal queda preparat per preproduccio en quatre passos: `preflight-sif.php`, `preflight-redsys-gift.php`, `preview-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)` i `process-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)`. En aquest tall no hi ha `--sync-legacy`, no s'actualitza `regal.FACT_REL` i no es crea cap inscripcio del destinatari; el bescanvi posterior queda pendent de validacio separada.

@@ -7,6 +7,11 @@ return [
         'user' => getenv('SIF_DB_USER') ?: 'sif_test',
         'password' => getenv('SIF_DB_PASSWORD') ?: '',
     ],
+    'legacy_db' => [
+        'dsn' => getenv('SIF_LEGACY_DB_DSN') ?: '',
+        'user' => getenv('SIF_LEGACY_DB_USER') ?: '',
+        'password' => getenv('SIF_LEGACY_DB_PASSWORD') ?: '',
+    ],
     'issuer' => [
         'nif' => getenv('SIF_ISSUER_NIF') ?: 'G00000000',
         'name' => getenv('SIF_ISSUER_NAME') ?: 'Associacio PrisMa',

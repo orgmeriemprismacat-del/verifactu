@@ -30,8 +30,9 @@ final class RedsysInvoicePayloadBuilder
         $dsOrder = (string) $notification['DS_ORDER'];
         $idpag = $notification['IDPAG'] === null ? null : (int) $notification['IDPAG'];
         $amount = number_format((float) $notification['IMPORT'], 2, '.', '');
+        $sourceType = $this->invoiceSourceType($payload);
 
-        $payload['idempotency_key'] = $this->invoiceIdempotencyKey($idpag, $dsOrder);
+        $payload['idempotency_key'] = $this->invoiceIdempotencyKey($sourceType, $idpag, $dsOrder);
         $payload['source_channel'] = 'REDSYS';
         $payload['relations'] = $this->withRedsysRelations($payload['relations'] ?? [], $idpag, $dsOrder);
         $payload['payment'] = $this->withRedsysPaymentBlock($payload['payment'] ?? [], $notification, $amount);
@@ -49,8 +50,10 @@ final class RedsysInvoicePayloadBuilder
             ];
         }
 
-        $relations[0]['idpag'] = $idpag;
-        $relations[0]['ds_order'] = $dsOrder;
+        foreach ($relations as $index => $relation) {
+            $relations[$index]['idpag'] = $idpag;
+            $relations[$index]['ds_order'] = $dsOrder;
+        }
 
         return $relations;
     }
@@ -73,8 +76,15 @@ final class RedsysInvoicePayloadBuilder
         ]);
     }
 
-    private function invoiceIdempotencyKey(?int $idpag, string $dsOrder): string
+    private function invoiceIdempotencyKey(string $sourceType, ?int $idpag, string $dsOrder): string
     {
-        return 'REDSYS|CURS|IDPAG:' . ($idpag === null ? 'NULL' : (string) $idpag) . '|ORDER:' . $dsOrder;
+        return 'REDSYS|' . $sourceType . '|IDPAG:' . ($idpag === null ? 'NULL' : (string) $idpag) . '|ORDER:' . $dsOrder;
+    }
+
+    private function invoiceSourceType(array $payload): string
+    {
+        $sourceType = strtoupper(trim((string) ($payload['source_type'] ?? 'CURS')));
+
+        return $sourceType === '' ? 'CURS' : $sourceType;
     }
 }

@@ -14,6 +14,11 @@ desktop.ini
 !.env.example
 sif/var/
 
+# Importacio Trello: no guardar credencials ni fitxers locals amb tokens.
+00-control/trello-import/*.local.json
+00-control/trello-import/*.secrets.json
+00-control/trello-import/.env
+
 # Fitxers de connexio antics amb credencials.
 parametres-connexio*.php
 parametres_connexio.php

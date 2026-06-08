@@ -82,6 +82,31 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Fase 11 iniciada com a preparacio tecnica: `issueInvoice(payment)` crea factura, registre fiscal, hash chain, `payment_transaction` i `payment_allocation` en una mateixa transaccio idempotent quan factura i cobrament neixen junts.
 - [x] Fase 11 Redsys preparada a nivell de signatura i resposta: `RedsysSignatureValidator`, `SIF_REDSYS_MERCHANT_KEY`, prova unitària amb notificacio signada de test, classificacio `VALIDATED`/`ERROR` i callback Redsys amb POST signat sense secret hardcoded.
 - [x] Fase 11 Redsys preparada a nivell de payload: `RedsysInvoicePayloadBuilder` construeix `issueInvoice(payment)` nomes des de `redsys_notifications.STATUS = VALIDATED`.
+- [x] Fase 11 curs normal preparada a nivell de snapshot legacy: `LegacyCourseInvoicePayloadBuilder` converteix `inscripcions` + `curs` en payload fiscal base validable sense consultar encara la BD antiga i exigeix import actual de pagament.
+- [x] Fase 11 curs normal preparada a nivell de lectura legacy: `LegacyCourseSnapshotRepository` carrega `inscripcions` per `IDPAG`, `curs` per `ANY`/`MES`/`CURS` i retorna snapshot de nomes lectura.
+- [x] Fase 11 curs normal preparada a nivell d'orquestrador de servei: `RedsysCourseInvoiceService` compon notificacio `VALIDATED`, snapshot legacy, payload Redsys i `issueInvoice(payment)`.
+- [x] Fase 11 curs normal preparada a nivell de prova manual: `SIF_LEGACY_DB_*`, `ConnectionFactory::makeLegacy()` i `sif/scripts/process-redsys-course.php` per entorn no productiu.
+- [x] Fase 11 curs normal preparada a nivell de preflight especific: `sif/scripts/preflight-redsys-course.php` comprova entorn, Redsys, BD SIF, BD legacy i taules minimes sense escriure dades.
+- [x] Fase 11 curs normal preparada a nivell de preview: `sif/scripts/preview-redsys-course.php` construeix payload `issueInvoice(payment)` sense crear factura ni pagament.
+- [x] Fase 11 curs normal preparada a nivell de sync legacy opcional: `process-redsys-course.php DS_ORDER --sync-legacy` pot cridar `LegacySyncService` nomes despres d'exit SIF.
+- [x] Fase 11 factura abans de cobrament preparada a nivell de prova: `InvoiceBeforePaymentFlowTest` cobreix `issueInvoice(emesa_abans_cobrament=1)` + `registerPayment()` sense segon registre fiscal.
+- [x] Fase 11 transferencies manuals preparada a nivell de builder: `ManualPaymentPayloadBuilder` construeix payload de `registerPayment()` per `Passar pagaments` contra factura existent amb idempotencia per referencia bancaria o fallback factura/data/import/banc.
+- [x] Fase 11 transferencies manuals sense factura SIF prèvia preparada per curs normal: `ManualCourseInvoicePayloadBuilder` construeix payload `issueInvoice(payment)` amb idempotencia per `IDPAG`/referencia o fallback data/import/banc.
+- [x] Fase 11 transferencies manuals sense factura SIF prèvia preparada a nivell d'orquestrador: `ManualCourseInvoiceService` carrega snapshot legacy per `IDPAG` i crida `issueInvoice(payment)` sense escriure a legacy.
+- [x] Fase 11 transferencies manuals sense factura SIF prèvia preparada a nivell de preview: `sif/scripts/preview-manual-course.php` construeix payload manual de curs en dry-run sense factura, pagament ni sync legacy.
+- [x] Fase 11 transferencies manuals sense factura SIF prèvia preparada a nivell de processador manual: `sif/scripts/process-manual-course.php` executa `issueInvoice(payment)` en preproduccio i permet `--sync-legacy` opcional post-SIF.
+- [x] Fase 11 transferencies manuals sense factura SIF prèvia preparada a nivell de preflight: `sif/scripts/preflight-manual-course.php` comprova entorn, BD SIF, BD legacy, taules minimes i seed fiscal sense dependre de Redsys.
+- [x] Fase 11 packs preparada a nivell de snapshot/payload: `LegacyPackSnapshotRepository` i `LegacyPackInvoicePayloadBuilder` construeixen payload fiscal `PACK` multi-linia amb descompte `PACK` del 25% a la segona linia i relacions `PACK`/`INSCRIPCIO`.
+- [x] Fase 11 Redsys preparada per source type de pack: `RedsysInvoicePayloadBuilder` conserva `CURS` per defecte i genera `REDSYS|PACK|IDPAG:{IDPAG}|ORDER:{DS_ORDER}` quan el payload declara `source_type = PACK`.
+- [x] Fase 11 packs preparada a nivell d'orquestrador Redsys: `RedsysPackInvoiceService` compon notificacio `VALIDATED`, snapshot legacy pack, payload Redsys i `issueInvoice(payment)`.
+- [x] Fase 11 packs preparada a nivell de preproduccio manual: `preflight-redsys-pack.php`, `preview-redsys-pack.php` i `process-redsys-pack.php` permeten revisar/processar un pack validat sense activar callback automatic.
+- [x] Fase 11 packs preparada a nivell de transferencia manual: `ManualPackInvoicePayloadBuilder` i `ManualPackInvoiceService` construeixen `issueInvoice(payment)` amb `source_channel = INTRANET`, idempotencia `TRANSFERENCIA|PACK|...` i import manual igual al total fiscal del pack.
+- [x] Fase 11 packs preparada a nivell de circuit manual de `Passar pagaments`: `preflight-manual-pack.php`, `preview-manual-pack.php` i `process-manual-pack.php` permeten revisar/processar un pack manual sense Redsys i amb `--sync-legacy` opcional post-SIF.
+- [x] Fase 11 grups preparada a nivell de snapshot/payload: `LegacyGroupSnapshotRepository` i `LegacyGroupInvoicePayloadBuilder` construeixen payload fiscal `GRUP` amb receptor `respGrups`, una linia per participant i relacions `GRUP`/`INSCRIPCIO` no visibles a alumne.
+- [x] Fase 11 regals preparada a nivell de snapshot/payload: `LegacyGiftSnapshotRepository` i `LegacyGiftInvoicePayloadBuilder` construeixen payload fiscal `REGAL` amb comprador com a receptor, una linia `REGAL`, relacio `REGAL` no visible a alumne i sense crear inscripcio del destinatari.
+- [x] Fase 11 regals preparada a nivell de circuit Redsys manual: `RedsysGiftInvoiceService`, `preflight-redsys-gift.php`, `preview-redsys-gift.php` i `process-redsys-gift.php` processen un `DS_ORDER` validat i un regal explicit per `ID` o `CODI`, sense sync legacy en aquest tall.
+- [x] Fase 11 USOC preparada a nivell de snapshot/payload: `LegacyUsocSnapshotRepository` i `LegacyUsocInvoicePayloadBuilder` construeixen doble payload fiscal `USOC_ALUMNE`/`USOC_ENTITAT`, exigeixen `TIPUS_DESC = 4`, `VALID_DESC = 1` i receptor fiscal explicit per l'entitat USOC.
+- [x] Fase 11 codis promocionals preparada a nivell de payload de curs normal: `LegacyCourseInvoicePayloadBuilder` congela snapshot `discount` en totals i camps `DESC_*` de `factura_linia`, sense revalidar `promocions`.
 - [ ] Fase 0 executada amb PHP real: `php sif/tests/run-tests.php` carrega autoload i runner.
 - [ ] Fase 1 executada amb PHP/MySQL de test: test d'esquema i migracio aplicats.
 - [ ] Fase 2 executada amb runner propi: proves unitàries de UUID, excepcions i transaccions.
@@ -97,6 +122,36 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [ ] Fase 10 executada amb PHP/MySQL de test: `php sif/scripts/preflight-sif.php` retorna `ok=true`.
 - [ ] Fase 11 activada en preproduccio: Redsys real validat criptograficament, `issueInvoice(payment)` executat amb BD test i reintents idempotents verificats.
 - [ ] Validacio criptografica Redsys real executada amb `SIF_REDSYS_MERCHANT_KEY` i notificacio de test abans de permetre `issueInvoice()` o `registerPayment()` des del callback.
+- [ ] Lectura real de `inscripcions`/`curs` per curs normal connectada en preproduccio i contrastada amb el snapshot fiscal abans de Redsys.
+- [ ] Orquestrador de curs normal Redsys executat amb PHP/MySQL de test i evidencies reals abans d'activar cap endpoint.
+- [ ] `preflight-redsys-course.php` executat en preproduccio amb `ok=true`.
+- [ ] `preview-redsys-course.php DS_ORDER` executat en preproduccio i payload revisat abans de processar.
+- [ ] Script manual `process-redsys-course.php` executat en preproduccio amb `SIF_ENV=test`, BD SIF test, BD legacy test i `DS_ORDER` validat.
+- [ ] Sync legacy opcional executada en preproduccio amb `--sync-legacy` i revisio de resum antic.
+- [ ] Flux factura abans de cobrament executat en preproduccio amb PHP/MySQL de test i evidencia `SIF-FAC-001`.
+- [ ] Flux transferencia manual executat en preproduccio amb PHP/MySQL de test, pantalla `Passar pagaments` i evidencia `SIF-PAY-001`.
+- [ ] Flux transferencia manual sense factura SIF prèvia executat en preproduccio amb curs normal, PHP/MySQL de test i evidencia `SIF-PAY-001`.
+- [ ] Orquestrador manual de curs executat en preproduccio amb `IDPAG` real de test i revisio de metadades `legacy_sync`.
+- [ ] `preflight-manual-course.php` executat en preproduccio amb `ok=true`.
+- [ ] `preview-manual-course.php IDPAG AMOUNT MOVEMENT_DATE` executat en preproduccio i payload revisat abans de processar.
+- [ ] `process-manual-course.php IDPAG AMOUNT MOVEMENT_DATE` executat en preproduccio amb `SIF_ENV=test`, BD SIF test i BD legacy test.
+- [ ] Payload de pack executat amb PHP/MySQL de test i dades legacy de preproduccio abans d'activar endpoints o callback automatic de pack.
+- [ ] `preflight-redsys-pack.php` executat en preproduccio amb `ok=true`.
+- [ ] `preview-redsys-pack.php DS_ORDER` executat en preproduccio i payload multi-linia revisat abans de processar.
+- [ ] `process-redsys-pack.php DS_ORDER` executat en preproduccio amb `SIF_ENV=test`, BD SIF test i BD legacy test.
+- [ ] Sync legacy opcional de pack executada en preproduccio amb `--sync-legacy` i revisio de les dues inscripcions.
+- [ ] `preflight-manual-pack.php` executat en preproduccio amb `ok=true`.
+- [ ] `preview-manual-pack.php IDPAG AMOUNT MOVEMENT_DATE` executat en preproduccio i payload multi-linia revisat abans de processar.
+- [ ] `process-manual-pack.php IDPAG AMOUNT MOVEMENT_DATE` executat en preproduccio amb `SIF_ENV=test`, BD SIF test i BD legacy test.
+- [ ] Sync legacy opcional de pack manual executada en preproduccio amb `--sync-legacy` i revisio de les dues inscripcions.
+- [ ] SQL final de `descomptes_grup` validat i incorporat al snapshot de grup abans d'activar orquestradors Redsys/manuals de grup.
+- [ ] Payload de grup executat amb PHP/MySQL de test, dades legacy de preproduccio i prova de privacitat `VISIBLE_ALUMNE = 0`.
+- [ ] SQL final de `regal`, `FACT_REL`, `ORIGEN`, `DESTI`, `CODI` i relacio amb inscripcio posterior validat abans d'activar orquestradors Redsys/manuals de regal.
+- [ ] `preflight-redsys-gift.php`, `preview-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)` i `process-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)` executats amb PHP/MySQL de test, dades legacy de preproduccio, callback duplicat i prova de bescanvi sense segona factura.
+- [ ] Dades fiscals completes de l'entitat USOC confirmades abans d'activar cap factura `USOC_ENTITAT` real.
+- [ ] Payload USOC executat amb PHP/MySQL de test, dades legacy de preproduccio, factura alumne Redsys validada, factura entitat pendent/cobrada segons cas i prova de privacitat.
+- [ ] SQL final de `promocions`, `descomptes.TIPUS` 11-99 i punt de creacio del snapshot fiscal de promocio validats abans d'activar casos reals.
+- [ ] Curs normal amb codi promocional i promocio temporal executat amb PHP/MySQL de test, callback duplicat i verificacio de camps `DESC_*` immutables.
 - [ ] Serveis `issueInvoice()` i `registerPayment()` verificats amb PHP/MySQL de test.
 - [ ] Legacy sync final, preflight i bateria go/no-go implementats i provats.
 

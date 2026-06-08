@@ -2080,8 +2080,15 @@ Preparacio tecnica 2026-06-06:
 - [x] Afegir prova unitària amb notificació Redsys signada de test que normalitza import en centims (`12000` -> `120.00`) i conserva `DS_ORDER`, `IDPAG` i `Ds_Response`.
 - [x] Classificar la notificacio signada segons `Ds_Response`: `0..99` queda `VALIDATED`; resposta no autoritzada queda `ERROR`, sempre sense crear factura ni `payment_transaction`.
 - [x] Preparar `RedsysInvoicePayloadBuilder` per construir el payload `issueInvoice(payment)` de curs normal nomes quan `redsys_notifications.STATUS = VALIDATED`, usant `DS_ORDER`/`IDPAG` signats com a font d'idempotencia i de relacio.
+- [x] Preparar `LegacyCourseInvoicePayloadBuilder` per convertir un snapshot legacy de `inscripcions` + `curs` en payload fiscal base validable: receptor, linia de curs, import actual del pagament Redsys, IVA exempt i relacio `INSCRIPCIO`, sense consultar encara la BD antiga ni activar el callback fiscal real. El builder no usa `inscripcions.PAGAMENT` com a import de factura perquè es pagat acumulat historic.
+- [x] Preparar `LegacyCourseSnapshotRepository` per carregar el snapshot antic de curs normal per `IDPAG`: consulta `inscripcions` amb `INSC CURS` `0`, `1` o `M`, consulta `curs` per `ANY`/`MES`/`CURS`, i adjunta l'import actual del pagament validat sense escriure a la BD antiga.
+- [x] Preparar `RedsysCourseInvoiceService` com a orquestrador de servei: notificacio `VALIDATED` -> snapshot legacy -> payload fiscal base -> payload Redsys `issueInvoice(payment)` -> `InvoiceService`, amb reintent idempotent i sense escriure a legacy.
+- [x] Preparar configuracio legacy per entorn (`SIF_LEGACY_DB_DSN`, `SIF_LEGACY_DB_USER`, `SIF_LEGACY_DB_PASSWORD`) i script CLI manual `sif/scripts/process-redsys-course.php` per provar un `DS_ORDER` ja `VALIDATED` en preproduccio. El script rebutja `SIF_ENV=production` i no parseja notificacions Redsys.
+- [x] Preparar `sif/scripts/preflight-redsys-course.php` com a comprovacio de nomes lectura abans de processar curs normal: entorn no productiu, clau Redsys configurada, BD SIF, BD legacy, taules `redsys_notifications`, `payment_transaction`, `inscripcions`, `curs` i seed de `fiscal_chain_state`.
+- [x] Preparar `sif/scripts/preview-redsys-course.php` com a dry-run de payload: llegeix `DS_ORDER` `VALIDATED`, carrega snapshot legacy, construeix payload `issueInvoice(payment)` i l'imprimeix en JSON sense crear factura, pagament, hash chain ni cua fiscal.
+- [x] Preparar sincronitzacio legacy post-SIF com a opcio explicita del processador manual: `process-redsys-course.php DS_ORDER --sync-legacy` crida `LegacySyncService::syncAfterSifSuccess()` nomes despres d'un `issueInvoice(payment)` amb `ok=true`; sense el flag no escriu a legacy.
 - [x] Mantenir el callback sense efectes fiscals ni economics: en aquesta subfase nomes registra `redsys_notifications`; encara no crida `issueInvoice()` ni `registerPayment()`.
-- [ ] Activar aquest flux amb Redsys real en preproduccio. Requereix `php` disponible, BD MySQL de test, `SIF_REDSYS_MERCHANT_KEY` configurada, `preflight-sif.php` amb `ok=true` i prova real de signatura Redsys.
+- [ ] Executar aquest flux amb Redsys real en preproduccio. Requereix `php` disponible, BD MySQL de test, BD legacy de test, `SIF_REDSYS_MERCHANT_KEY` configurada, `SIF_LEGACY_DB_*` configurat, `preflight-sif.php` i `preflight-redsys-course.php` amb `ok=true`, `preview-redsys-course.php DS_ORDER` revisat i prova real de signatura Redsys.
 
 - [ ] **Step 3: Activar factura abans de cobrament**
 
@@ -2092,6 +2099,12 @@ Intranet -> issueInvoice(EMESA_ABANS_COBRAMENT=1) -> pagament posterior -> regis
 ```
 
 Prova vinculada: `SIF-FAC-001`.
+
+Preparacio tecnica 2026-06-06:
+
+- [x] Afegir `InvoiceBeforePaymentFlowTest` per verificar que una factura emesa abans de cobrar queda `EMESA_ABANS_COBRAMENT = 1`, `ESTAT_COBRAMENT = PENDING` i amb un sol registre fiscal/cua AEAT.
+- [x] Verificar a nivell de prova que el pagament posterior per `registerPayment()` crea `payment_transaction` i `payment_allocation`, marca la factura com `PAID` i no afegeix cap nou `factura_registres`, `fiscal_queue` ni ordre fiscal.
+- [ ] Executar el flux amb PHP/MySQL de test i intranet/preproduccio abans d'activar-ho operativament.
 
 - [ ] **Step 4: Activar transferencies manuals**
 
@@ -2104,15 +2117,74 @@ Passar pagaments -> venda facturable sense factura -> issueInvoice(payment)
 
 Prova vinculada: `SIF-PAY-001`.
 
-- [ ] **Step 5: Activar packs, grups, regals i USOC**
+Preparacio tecnica 2026-06-06:
+
+- [x] Afegir `ManualPaymentPayloadBuilder` per construir el payload de `registerPayment()` quan administracio valida una transferencia a `Passar pagaments` contra una factura SIF existent.
+- [x] Fixar la idempotencia documentada: amb referencia bancaria `TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}`; sense referencia, fallback `TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}`.
+- [x] Afegir prova unitària `ManualPaymentPayloadBuilderTest` per validar import normalitzat, `source_channel = INTRANET`, assignacio unica a `payment_allocation` i compatibilitat amb `PaymentPayloadValidator`.
+- [x] Afegir `ManualCourseInvoicePayloadBuilder` per al subcas `efact == 0` antic de curs/inscripcio normal: snapshot legacy + transferencia validada -> payload `issueInvoice(payment)` amb `source_channel = INTRANET`.
+- [x] Fixar idempotencia fiscal per transferencia de curs sense factura SIF prèvia: amb referencia `TRANSFERENCIA|CURS|IDPAG:{IDPAG}|REF:{REFERENCIA_BANCARIA}`; sense referencia, fallback `TRANSFERENCIA|CURS|IDPAG:{IDPAG}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}`.
+- [x] Afegir prova d'integracio `ManualCourseInvoicePayloadBuilderTest` per validar que `issueInvoice(payment)` crea factura i cobrament inicial en una sola operacio, amb `payment_transaction.PROVIDER_REF`, `REFERENCIA_BANCARIA` i `IDPAG` preservats.
+- [x] Afegir `ManualCourseInvoiceService` per orquestrar el curs manual: `IDPAG` -> `LegacyCourseSnapshotRepository` -> `ManualCourseInvoicePayloadBuilder` -> `InvoiceService::issueInvoice()`, retornant metadades `legacy_sync` sense escriure a legacy.
+- [x] Afegir prova d'integracio `ManualCourseInvoiceServiceTest` per comprovar emissio idempotent de factura i pagament manual de curs, reutilitzacio en reintent i bloqueig d'`IDPAG` invalid abans de consultar legacy.
+- [x] Afegir `sif/scripts/preview-manual-course.php` com a dry-run de preproduccio: carrega legacy per `IDPAG`, construeix payload `issueInvoice(payment)` manual i l'imprimeix en JSON sense crear factura, pagament, hash chain ni sync legacy.
+- [x] Afegir prova estàtica `ManualCoursePreviewScriptTest` per garantir que la preview es CLI-only, rebutja produccio, no construeix `InvoiceService`, no crida `issueInvoice()` i no sincronitza legacy.
+- [x] Afegir `sif/scripts/process-manual-course.php` com a processador manual de preproduccio: `IDPAG AMOUNT MOVEMENT_DATE` -> `ManualCourseInvoiceService` -> `issueInvoice(payment)`, amb `--sync-legacy` opcional nomes despres d'exit SIF.
+- [x] Afegir prova estàtica `ManualCoursePreproductionScriptTest` per garantir que el processador es CLI-only, rebutja produccio, construeix serveis SIF propis, no depen de Redsys i exposa `legacy_sync_executed`.
+- [x] Afegir `sif/scripts/preflight-manual-course.php` com a comprovacio de nomes lectura abans de preview/process manual: entorn no productiu, BD legacy configurada, BD SIF, taules fiscals/economiques minimes, taules legacy `inscripcions`/`curs` i seed de `fiscal_chain_state`.
+- [x] Afegir prova estàtica `ManualCoursePreflightScriptTest` per garantir que el preflight manual no construeix l'orquestrador, no crida `issueInvoice()` i no depen de readiness Redsys.
+- [ ] Executar `SIF-PAY-001` amb PHP/MySQL de test i pantalla real de `Passar pagaments` abans d'activar el flux operatiu.
+
+- [ ] **Step 5: Activar packs, grups, regals, USOC i codis promocionals**
 
 Ordre recomanat:
 
 ```text
-packs -> grups -> regals -> USOC
+packs -> grups -> regals -> USOC -> codis promocionals
 ```
 
-Motiu: packs nomes afegeixen diverses linies; grups afegeixen privacitat i receptor diferent; regals afegeixen comprador/destinatari; USOC afegeix doble factura.
+Motiu: packs nomes afegeixen diverses linies; grups afegeixen privacitat i receptor diferent; regals afegeixen comprador/destinatari; USOC afegeix doble factura alumne/entitat, receptor fiscal explicit per l'entitat i relacio interna amb la factura de l'alumne; codis promocionals no son canal propi, pero congelen el descompte dins `factura_linia`.
+
+Preparacio tecnica 2026-06-07:
+
+- [x] Afegir `LegacyPackInvoicePayloadBuilder` per convertir un snapshot legacy de pack en payload fiscal base `issueInvoice()`: `source_type = PACK`, una linia per curs, relacio `PACK`, relacions `INSCRIPCIO`, IVA exempt i totals agregats.
+- [x] Fixar el primer criteri fiscal de pack normal: el primer curs queda sense descompte i la segona linia queda amb `DESC_ORIGEN = PACK`, `DESC_MODE = PERCENT`, `DESC_PCT = 25.00` i `DESC_IMPORT` congelat. Si el snapshot ja aporta imports fiscals explicits, es respecten; si no, el builder aplica nomes la regla documentada del pack normal.
+- [x] Afegir `LegacyPackSnapshotRepository` com a lectura legacy read-only per `IDPAG`: carrega inscripcions `TIPUS_INSC = 'P'`, detecta `PACK|{ID_PACK}` a `OBSERVACIONS`, consulta `info_pack` i carrega `curs` per cada linia.
+- [x] Generalitzar `RedsysInvoicePayloadBuilder` perquè la idempotencia Redsys mantingui `CURS` per defecte i pugui generar `REDSYS|PACK|IDPAG:{IDPAG}|ORDER:{DS_ORDER}` quan el payload base declara `source_type = PACK`.
+- [x] Afegir proves `LegacyPackInvoicePayloadBuilderTest` i `LegacyPackSnapshotRepositoryTest` per validar payload multi-linia, descompte de pack, relacions, composicio amb Redsys validat i lectura legacy sense escriptures.
+- [x] Afegir `RedsysPackInvoiceService` per orquestrar pack Redsys en preproduccio: notificacio `VALIDATED` -> snapshot legacy pack -> payload fiscal pack -> payload Redsys `issueInvoice(payment)` -> `InvoiceService`, amb reintent idempotent i metadades `legacy_sync`.
+- [x] Afegir `sif/scripts/preview-redsys-pack.php` com a dry-run de payload: llegeix `DS_ORDER` `VALIDATED`, carrega pack legacy, construeix payload `PACK` i l'imprimeix en JSON sense crear factura, pagament, hash chain ni cua fiscal.
+- [x] Afegir `sif/scripts/process-redsys-pack.php` com a processador manual de preproduccio: executa `RedsysPackInvoiceService` amb un `DS_ORDER` ja validat, rebutja produccio, no parseja POST Redsys i permet `--sync-legacy` nomes despres d'exit SIF.
+- [x] Afegir `sif/scripts/preflight-redsys-pack.php` com a comprovacio de nomes lectura: entorn no productiu, clau Redsys, BD SIF, BD legacy, taules `factura_linia`, `fact_rels`, `payment_transaction`, `payment_allocation`, `redsys_notifications`, `inscripcions`, `curs`, `info_pack` i seed fiscal.
+- [x] Afegir proves `RedsysPackInvoiceServiceTest`, `RedsysPackPreviewScriptTest`, `RedsysPackPreproductionScriptTest` i `RedsysPackPreflightScriptTest`.
+- [x] Afegir `ManualPackInvoicePayloadBuilder` per convertir un pack legacy i una transferencia validada a `Passar pagaments` en payload `issueInvoice(payment)`: `source_channel = INTRANET`, idempotencia `TRANSFERENCIA|PACK|IDPAG:{IDPAG}|REF:{REFERENCIA_BANCARIA}` o fallback per data/import/banc, i bloc `payment` inicial.
+- [x] Afegir `ManualPackInvoiceService` per orquestrar pack manual en preproduccio: `IDPAG` -> snapshot legacy pack -> payload fiscal pack manual -> `InvoiceService::issueInvoice()`, retornant metadades `legacy_sync` sense escriure a legacy.
+- [x] Afegir `sif/scripts/preview-manual-pack.php`, `sif/scripts/process-manual-pack.php` i `sif/scripts/preflight-manual-pack.php` com a circuit manual equivalent al curs: preview dry-run, processador amb `--sync-legacy` opcional i preflight sense dependencia Redsys.
+- [x] Afegir proves `ManualPackInvoicePayloadBuilderTest`, `ManualPackInvoiceServiceTest`, `ManualPackPreviewScriptTest`, `ManualPackPreproductionScriptTest` i `ManualPackPreflightScriptTest`.
+- [x] Afegir `LegacyGroupSnapshotRepository` com a lectura legacy read-only per `IDPAG`: carrega inscripcions `TIPUS_INSC = 'G'`, responsable a `respGrups` i dades de curs per cada participant, sense escriure a la BD antiga.
+- [x] Afegir `LegacyGroupInvoicePayloadBuilder` per convertir un snapshot legacy de grup en payload fiscal base `issueInvoice()`: `source_type = GRUP`, una linia per participant, receptor fiscal responsable/empresa, relacio `GRUP`, relacions `INSCRIPCIO` i `visible_alumne = 0` per privacitat.
+- [x] Afegir proves `LegacyGroupInvoicePayloadBuilderTest` i `LegacyGroupSnapshotRepositoryTest` per validar receptor fiscal, linies per participant, descompte/import congelat quan el snapshot el porta, composicio amb Redsys `REDSYS|GRUP|...` i absencia de visibilitat completa a l'alumne.
+- [ ] Validar SQL final de `descomptes_grup` i incorporar-lo al snapshot de grup abans d'activar cap circuit real de grup. Fins aquest punt, el builder respecta imports/descomptes explicits del snapshot i el repositori nomes carrega imports ja presents a `inscripcions`.
+- [x] Afegir `LegacyGiftSnapshotRepository` com a lectura legacy read-only de `regal` per `ID` o `CODI`: carrega comprador, curs, codi regal, import, `FACT_REL`, origen/desti i observacions, sense actualitzar `FACT_REL`.
+- [x] Afegir `LegacyGiftInvoicePayloadBuilder` per convertir un snapshot legacy de regal en payload fiscal base `issueInvoice()`: `source_type = REGAL`, factura al comprador, una linia fiscal `REGAL`, relacio `REGAL`, `visible_alumne = 0` i metadades comercials del regal sense crear inscripcio del destinatari.
+- [x] Afegir proves `LegacyGiftInvoicePayloadBuilderTest` i `LegacyGiftSnapshotRepositoryTest` per validar comprador com a receptor fiscal, `SOURCE_TYPE = REGAL`, idempotencia base `LEGACY|REGAL|ID:{ID}`, composicio Redsys `REDSYS|REGAL|IDPAG:NULL|ORDER:{DS_ORDER}` i no emissio de factura al destinatari.
+- [x] Afegir `RedsysGiftInvoiceService` com a orquestrador manual de preproduccio: notificacio `VALIDATED` + regal identificat per `ID` o `CODI` -> snapshot legacy -> payload `REGAL` -> payload Redsys -> `issueInvoice(payment)`, exigint que `redsys_notifications.IMPORT` coincideixi amb `regal.IMPORT`.
+- [x] Afegir `sif/scripts/preflight-redsys-gift.php`, `sif/scripts/preview-redsys-gift.php` i `sif/scripts/process-redsys-gift.php`: preflight de nomes lectura, preview dry-run i processador CLI no productiu. El processador no parseja POST Redsys, no crida `LegacySyncService` i no actualitza `regal.FACT_REL` en aquest tall.
+- [x] Afegir proves `RedsysGiftInvoiceServiceTest`, `RedsysGiftPreviewScriptTest`, `RedsysGiftPreproductionScriptTest` i `RedsysGiftPreflightScriptTest` per validar emissio idempotent, rebuig de notificacio no validada, rebuig d'import desquadrat i contracte dels scripts.
+- [ ] Validar SQL final de `regal`, `FACT_REL`, `ORIGEN`, `DESTI`, `CODI` i relacio amb inscripcio posterior abans d'activar circuits Redsys/manuals de regal.
+- [x] Afegir `LegacyUsocSnapshotRepository` com a lectura legacy read-only per `IDPAG`: carrega inscripcio `TIPUS_DESC = 4`, exigeix `VALID_DESC = 1`, carrega `curs`, congela import pagat per l'alumne i nomes accepta import USOC si es passa explicitament al snapshot.
+- [x] Afegir `LegacyUsocInvoicePayloadBuilder` per convertir el snapshot USOC en dos payloads fiscals separats: `USOC_ALUMNE` amb `source_channel = REDSYS`, descompte visible `USOC`, relacio `INSCRIPCIO` visible a l'alumne; i `USOC_ENTITAT` amb `source_channel = INTRANET`, receptor fiscal USOC explicit, relacio `USOC_ENTITY`, `visible_alumne = 0` i idempotencia vinculada a la factura de l'alumne.
+- [x] Afegir proves `LegacyUsocInvoicePayloadBuilderTest` i `LegacyUsocSnapshotRepositoryTest` per validar doble factura, composicio Redsys `REDSYS|USOC_ALUMNE|IDPAG:{IDPAG}|ORDER:{DS_ORDER}`, factura d'entitat pendent de cobrament sense `payment_transaction`, i rebuig de descomptes no USOC o no validats.
+- [ ] Confirmar dades fiscals completes de l'entitat USOC abans d'activar cap factura `USOC_ENTITAT` real.
+- [x] Afegir suport a `LegacyCourseInvoicePayloadBuilder` per congelar codis promocionals i promocions temporals ja validades pel canal: `import_base`, `discount`, `total`, `DESC_ORIGEN`, `DESC_MODE`, `DESC_ID`, `DESC_CODI_PROMO`, `DESC_PCT`, `DESC_IMPORT`, text visible generic i motiu intern.
+- [x] Afegir proves al `LegacyCourseInvoicePayloadBuilderTest` per validar snapshot `CODI_PROMO`, persistencia dels camps `DESC_*` en `factura_linia` i promocio temporal `descomptes.TIPUS` 11-99 amb `DESC_ID`.
+- [ ] Confirmar SQL final de `promocions`, `descomptes.TIPUS` 11-99 i el punt exacte on ecommerce/intranet creen el snapshot fiscal abans de Redsys o `Passar pagaments`.
+- [ ] Executar el circuit Redsys de pack amb PHP/MySQL de test i dades legacy de preproduccio abans d'activar cap endpoint o callback automatic de pack.
+- [ ] Executar el circuit manual de pack amb PHP/MySQL de test, `Passar pagaments` i dades legacy de preproduccio abans d'integrar-lo operativament.
+- [ ] Executar el payload de grup amb PHP/MySQL de test, dades legacy de preproduccio i prova de privacitat abans d'afegir orquestradors Redsys/manuals de grup.
+- [ ] Executar `preflight-redsys-gift.php`, `preview-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)` i `process-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)` amb PHP/MySQL de test, dades legacy de preproduccio, callback duplicat i prova de bescanvi sense segona factura.
+- [ ] Executar el payload USOC amb PHP/MySQL de test, dades legacy de preproduccio, factura alumne Redsys validada, factura entitat amb receptor explicit i prova de privacitat.
+- [ ] Executar curs normal amb codi promocional i promocio temporal amb PHP/MySQL de test, callback duplicat i verificacio dels camps `DESC_*` immutables.
 
 ## Self-review del pla
 

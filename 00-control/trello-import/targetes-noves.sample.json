@@ -1,0 +1,45 @@
+{
+  "defaults": {
+    "board": "Intranet/interficies",
+    "list": "Pantalla - Passar pagaments / conciliacio SIF",
+    "labels": ["INTRANET", "PAGAMENTS", "SIF"],
+    "pos": "bottom"
+  },
+  "cards": [
+    {
+      "name": "Redissenyar cerca per permetre un sol criteri: NIF/NIE, CODI REGAL o NUM FACTURA",
+      "desc": "La pantalla Passar pagaments ha de bloquejar cerques amb cap criteri o amb mes d'un criteri informat. Criteris admesos: NIF/NIE, CODI REGAL o NUM FACTURA.",
+      "labels": ["INTRANET", "PAGAMENTS", "UI"],
+      "checklists": [
+        {
+          "name": "Criteris",
+          "items": [
+            "Bloquejar cap criteri informat",
+            "Bloquejar mes d'un criteri informat",
+            "Mostrar missatge clar a l'usuari",
+            "Validar tambe al servidor"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Mostrar decisor abans de confirmar: registerPayment(), issueInvoice() o incidencia",
+      "desc": "Abans de confirmar un pagament manual, la intranet ha de mostrar quin cami SIF s'aplicara i per que.",
+      "labels": ["INTRANET", "SIF", "PAGAMENTS"]
+    },
+    {
+      "board": "Proves/entorns/produccio",
+      "list": "Fase 11 - Redsys curs normal",
+      "name": "Executar preflight-redsys-course.php en preproduccio",
+      "desc": "Executar el preflight de Redsys curs normal amb SIF_ENV=test, BD SIF de test i BD legacy de test. Guardar sortida com evidencia.",
+      "labels": ["PREFLIGHT", "REDSYS", "CURS NORMAL", "EVIDENCIA"]
+    },
+    {
+      "board": "Proves/entorns/produccio",
+      "list": "Fase 11 - Manuals curs normal",
+      "name": "Evidencia SIF-PAY-001: transferencia contra factura SIF existent",
+      "desc": "Provar que una transferencia manual contra factura SIF existent crea payment_transaction i payment_allocation sense modificar dades fiscals de la factura.",
+      "labels": ["SIF-PAY-001", "TRANSFERENCIA", "EVIDENCIA"]
+    }
+  ]
+}
