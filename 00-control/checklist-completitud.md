@@ -78,7 +78,7 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Fase 7 preparada al repo de treball: `JsonResponse` i endpoints interns `factures/issue` i `payments/register`.
 - [x] Fase 8 preparada al repo de treball: `RedsysNotificationRepository`, `RedsysCallbackService`, endpoint `redsys/callback` segur per defecte i proves de deduplicacio `DS_ORDER`.
 - [x] Fase 9 preparada al repo de treball: `DocumentRepository`, `IncidentRepository`, proves de documents/incidencies i reforç de cua AEAT amb payload congelat.
-- [x] Fase 10 preparada al repo de treball: `preflight-sif.php` i prova estàtica `PreflightScriptTest`.
+- [x] Fase 10 preparada al repo de treball: `preflight-sif.php`, `go-no-go-preproduction.php`, `PreflightScriptTest` i `GoNoGoPreproductionScriptTest`.
 - [x] Fase 11 iniciada com a preparacio tecnica: `issueInvoice(payment)` crea factura, registre fiscal, hash chain, `payment_transaction` i `payment_allocation` en una mateixa transaccio idempotent quan factura i cobrament neixen junts.
 - [x] Fase 11 Redsys preparada a nivell de signatura i resposta: `RedsysSignatureValidator`, `SIF_REDSYS_MERCHANT_KEY`, prova unitària amb notificacio signada de test, classificacio `VALIDATED`/`ERROR` i callback Redsys amb POST signat sense secret hardcoded.
 - [x] Fase 11 Redsys preparada a nivell de payload: `RedsysInvoicePayloadBuilder` construeix `issueInvoice(payment)` nomes des de `redsys_notifications.STATUS = VALIDATED`.
@@ -90,7 +90,9 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Fase 11 curs normal preparada a nivell de preview: `sif/scripts/preview-redsys-course.php` construeix payload `issueInvoice(payment)` sense crear factura ni pagament.
 - [x] Fase 11 curs normal preparada a nivell de sync legacy opcional: `process-redsys-course.php DS_ORDER --sync-legacy` pot cridar `LegacySyncService` nomes despres d'exit SIF.
 - [x] Fase 11 factura abans de cobrament preparada a nivell de prova: `InvoiceBeforePaymentFlowTest` cobreix `issueInvoice(emesa_abans_cobrament=1)` + `registerPayment()` sense segon registre fiscal.
+- [x] Fase 11 factura abans de cobrament preparada a nivell de circuit CLI: `InvoiceBeforePaymentPayloadBuilder`, `InvoiceBeforePaymentService`, `preflight-invoice-before-payment.php`, `preview-invoice-before-payment.php` i `process-invoice-before-payment.php` emeten factura pendent de cobrament sense registrar pagament inicial.
 - [x] Fase 11 transferencies manuals preparada a nivell de builder: `ManualPaymentPayloadBuilder` construeix payload de `registerPayment()` per `Passar pagaments` contra factura existent amb idempotencia per referencia bancaria o fallback factura/data/import/banc.
+- [x] Fase 11 transferencies manuals contra factura existent preparada a nivell de circuit CLI: `ManualPaymentInvoiceRepository`, `ManualPaymentService`, `preflight-manual-payment.php`, `preview-manual-payment.php` i `process-manual-payment.php` registren `registerPayment()` per `UUID_FACTURA` o `NUM_VISIBLE` sense emetre factura ni dependre de legacy/Redsys.
 - [x] Fase 11 transferencies manuals sense factura SIF prèvia preparada per curs normal: `ManualCourseInvoicePayloadBuilder` construeix payload `issueInvoice(payment)` amb idempotencia per `IDPAG`/referencia o fallback data/import/banc.
 - [x] Fase 11 transferencies manuals sense factura SIF prèvia preparada a nivell d'orquestrador: `ManualCourseInvoiceService` carrega snapshot legacy per `IDPAG` i crida `issueInvoice(payment)` sense escriure a legacy.
 - [x] Fase 11 transferencies manuals sense factura SIF prèvia preparada a nivell de preview: `sif/scripts/preview-manual-course.php` construeix payload manual de curs en dry-run sense factura, pagament ni sync legacy.
@@ -105,6 +107,7 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Fase 11 grups preparada a nivell de snapshot/payload: `LegacyGroupSnapshotRepository` i `LegacyGroupInvoicePayloadBuilder` construeixen payload fiscal `GRUP` amb receptor `respGrups`, una linia per participant i relacions `GRUP`/`INSCRIPCIO` no visibles a alumne.
 - [x] Fase 11 regals preparada a nivell de snapshot/payload: `LegacyGiftSnapshotRepository` i `LegacyGiftInvoicePayloadBuilder` construeixen payload fiscal `REGAL` amb comprador com a receptor, una linia `REGAL`, relacio `REGAL` no visible a alumne i sense crear inscripcio del destinatari.
 - [x] Fase 11 regals preparada a nivell de circuit Redsys manual: `RedsysGiftInvoiceService`, `preflight-redsys-gift.php`, `preview-redsys-gift.php` i `process-redsys-gift.php` processen un `DS_ORDER` validat i un regal explicit per `ID` o `CODI`, sense sync legacy en aquest tall.
+- [x] Fase 11 regals preparada a nivell de circuit manual de `Passar pagaments`: `ManualGiftInvoicePayloadBuilder`, `ManualGiftInvoiceService`, `preflight-manual-gift.php`, `preview-manual-gift.php` i `process-manual-gift.php` processen un regal explicit per `ID` o `CODI`, amb import manual igual a `regal.IMPORT` i sense sync legacy en aquest tall.
 - [x] Fase 11 USOC preparada a nivell de snapshot/payload: `LegacyUsocSnapshotRepository` i `LegacyUsocInvoicePayloadBuilder` construeixen doble payload fiscal `USOC_ALUMNE`/`USOC_ENTITAT`, exigeixen `TIPUS_DESC = 4`, `VALID_DESC = 1` i receptor fiscal explicit per l'entitat USOC.
 - [x] Fase 11 codis promocionals preparada a nivell de payload de curs normal: `LegacyCourseInvoicePayloadBuilder` congela snapshot `discount` en totals i camps `DESC_*` de `factura_linia`, sense revalidar `promocions`.
 - [ ] Fase 0 executada amb PHP real: `php sif/tests/run-tests.php` carrega autoload i runner.
@@ -128,7 +131,7 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [ ] `preview-redsys-course.php DS_ORDER` executat en preproduccio i payload revisat abans de processar.
 - [ ] Script manual `process-redsys-course.php` executat en preproduccio amb `SIF_ENV=test`, BD SIF test, BD legacy test i `DS_ORDER` validat.
 - [ ] Sync legacy opcional executada en preproduccio amb `--sync-legacy` i revisio de resum antic.
-- [ ] Flux factura abans de cobrament executat en preproduccio amb PHP/MySQL de test i evidencia `SIF-FAC-001`.
+- [ ] Flux factura abans de cobrament executat en preproduccio amb PHP/MySQL de test, `preflight-invoice-before-payment.php`, `preview-invoice-before-payment.php --payload-file=payload.json`, `process-invoice-before-payment.php --payload-file=payload.json`, cobrament posterior per `registerPayment()` i evidencia `SIF-FAC-001`.
 - [ ] Flux transferencia manual executat en preproduccio amb PHP/MySQL de test, pantalla `Passar pagaments` i evidencia `SIF-PAY-001`.
 - [ ] Flux transferencia manual sense factura SIF prèvia executat en preproduccio amb curs normal, PHP/MySQL de test i evidencia `SIF-PAY-001`.
 - [ ] Orquestrador manual de curs executat en preproduccio amb `IDPAG` real de test i revisio de metadades `legacy_sync`.
@@ -153,7 +156,7 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [ ] SQL final de `promocions`, `descomptes.TIPUS` 11-99 i punt de creacio del snapshot fiscal de promocio validats abans d'activar casos reals.
 - [ ] Curs normal amb codi promocional i promocio temporal executat amb PHP/MySQL de test, callback duplicat i verificacio de camps `DESC_*` immutables.
 - [ ] Serveis `issueInvoice()` i `registerPayment()` verificats amb PHP/MySQL de test.
-- [ ] Legacy sync final, preflight i bateria go/no-go implementats i provats.
+- [ ] Legacy sync final, preflight i bateria go/no-go executats amb PHP/MySQL de test i evidencia real.
 
 ## Proves, preproduccio i posada en produccio
 

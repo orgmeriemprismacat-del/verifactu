@@ -484,6 +484,17 @@ Abans d'activar canals o fer proves go/no-go reals, cal una comprovacio rapida i
 Impacte:
 Fase 10 queda preparada a nivell de codi i prova estàtica dins `sif/scripts` i `sif/tests/Integration`. La verificacio executable real queda pendent fins que `php` i una BD MySQL de test estiguin disponibles. El seguent pas tecnic passa a ser Fase 11: integracio progressiva de canals en preproduccio, començant per validar entorn i Redsys en mode test.
 
+## 2026-06-10 - Fase 10 ampliada: bateria go/no-go de preproduccio
+
+Decisio:
+Afegir `sif/scripts/go-no-go-preproduction.php` i `GoNoGoPreproductionScriptTest`. La bateria comprova entorn no productiu, runner de proves, migracions, preflight base, connexio SIF, connexio legacy, clau Redsys, taules fiscals minimes i presencia dels circuits de preproduccio ja preparats.
+
+Motiu:
+Abans de provar canals reals cal una porta unica que digui `GO` o `NO-GO` amb checks bloquejants. Executar scripts individuals ajuda a diagnosticar, pero la decisio de pilot necessita una sortida agregada i conservable com a evidencia.
+
+Impacte:
+El script es de nomes lectura i retorna JSON amb `go_no_go_decision`, `checks`, `failed` i `errors`. No crea factures, no registra pagaments i no sincronitza legacy. La seva execucio real queda pendent fins que hi hagi PHP, BD SIF/legacy de test i clau Redsys de test configurada.
+
 ## 2026-06-05 - Fase 11 iniciada: `issueInvoice(payment)` per cobrament inicial
 
 Decisio:
@@ -605,6 +616,17 @@ Factura abans de cobrament ha de tenir registre fiscal, hash chain i cua AEAT en
 Impacte:
 El test comprova que el pagament posterior crea nomes `payment_transaction` i `payment_allocation`, actualitza `ESTAT_COBRAMENT` a `PAID` i manté estable `factura_registres`, `fiscal_queue` i `fiscal_chain_state`.
 
+## 2026-06-10 - Fase 11 factura abans de cobrament: circuit CLI de preproduccio
+
+Decisio:
+Afegir `InvoiceBeforePaymentPayloadBuilder`, `InvoiceBeforePaymentService` i els scripts `preflight-invoice-before-payment.php`, `preview-invoice-before-payment.php` i `process-invoice-before-payment.php`. El circuit llegeix un payload JSON, força `source_channel = INTRANET`, `EMESA_ABANS_COBRAMENT = 1`, idempotencia estable i rebutja qualsevol bloc `payment` inicial.
+
+Motiu:
+La intranet necessita provar `Generar factura abans de pagar` com a factura fiscal real pendent de cobrament, no com a proforma ni com a pagament implicit. Separar aquest processador del cobrament garanteix que el moviment economic posterior entra nomes per `registerPayment()`.
+
+Impacte:
+El processador pot emetre la factura pendent de cobrament en preproduccio, pero no crea `payment_transaction` ni `payment_allocation`, no toca legacy, no depen de Redsys i no activa cap endpoint real. L'execucio executable queda pendent de PHP/MySQL de test.
+
 ## 2026-06-06 - Fase 11 transferencies manuals: payload `registerPayment()` preparat
 
 Decisio:
@@ -615,6 +637,17 @@ La pantalla antiga no ha de modificar imports, data, numero ni receptor d'una fa
 
 Impacte:
 La idempotencia queda centralitzada abans de tocar la intranet real: si hi ha referencia bancaria s'usa `TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}`; si no, s'usa `TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}`. L'activacio operativa queda pendent de PHP/MySQL de test, pantalla real de `Passar pagaments` i prova `SIF-PAY-001`.
+
+## 2026-06-10 - Fase 11 transferencies manuals: circuit CLI per factura SIF existent
+
+Decisio:
+Afegir `ManualPaymentInvoiceRepository`, `ManualPaymentService` i els scripts `sif/scripts/preflight-manual-payment.php`, `sif/scripts/preview-manual-payment.php` i `sif/scripts/process-manual-payment.php`. El circuit localitza una factura SIF existent per `UUID_FACTURA` o `NUM_VISIBLE`, construeix el payload manual amb `ManualPaymentPayloadBuilder` i executa `PaymentService::registerPayment()`.
+
+Motiu:
+El cas `Passar pagaments -> factura existent` ja tenia el contracte de payload, però faltava una eina segura de preproduccio per provar-lo sense tocar la pantalla real. Acceptar `NUM_VISIBLE` evita obligar administracio a treballar amb UUIDs, i mantenir-ho en `registerPayment()` garanteix que no es crea cap registre fiscal nou.
+
+Impacte:
+El flux queda preparat amb preflight nomes SIF, preview dry-run i processador CLI no productiu. No depen de Redsys ni legacy, no construeix `InvoiceService`, no crida `issueInvoice()` i no fa sync legacy. L'activacio operativa continua pendent de PHP/MySQL de test i prova `SIF-PAY-001`.
 
 ## 2026-06-06 - Fase 11 transferencies manuals: `issueInvoice(payment)` preparat per curs sense factura prèvia
 
@@ -758,3 +791,14 @@ Les notificacions Redsys de regal no tenen `IDPAG`, i no s'ha d'inferir el regal
 
 Impacte:
 El flux de regal queda preparat per preproduccio en quatre passos: `preflight-sif.php`, `preflight-redsys-gift.php`, `preview-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)` i `process-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)`. En aquest tall no hi ha `--sync-legacy`, no s'actualitza `regal.FACT_REL` i no es crea cap inscripcio del destinatari; el bescanvi posterior queda pendent de validacio separada.
+
+## 2026-06-10 - Fase 11 regals: circuit manual de `Passar pagaments`
+
+Decisio:
+Afegir `ManualGiftInvoicePayloadBuilder`, `ManualGiftInvoiceService` i els scripts `sif/scripts/preflight-manual-gift.php`, `sif/scripts/preview-manual-gift.php` i `sif/scripts/process-manual-gift.php`. El processador rep un regal identificat per `--gift-id=ID` o `--gift-code=CODI`, import, data de moviment i referencia/banc opcionals, i construeix `issueInvoice(payment)` amb `source_channel = INTRANET`.
+
+Motiu:
+La pantalla `Passar pagaments` pot localitzar regals per codi i registrar cobraments manuals. Aquest flux no ha d'editar factures antigues ni actualitzar `regal.FACT_REL` en el mateix tall: el SIF ha d'emetre la factura al comprador i registrar el cobrament de manera idempotent abans de qualsevol sincronitzacio legacy posterior.
+
+Impacte:
+El regal manual queda preparat per preproduccio amb preflight sense Redsys, preview dry-run i processador CLI no productiu. L'import manual ha de coincidir amb `regal.IMPORT`; no hi ha `--sync-legacy`, no s'actualitza `regal.FACT_REL` i no es crea cap inscripcio del destinatari.

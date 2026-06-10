@@ -2017,6 +2017,7 @@ Run:
 ```bash
 php sif/tests/run-tests.php
 php sif/scripts/preflight-sif.php
+php sif/scripts/go-no-go-preproduction.php
 ```
 
 Expected:
@@ -2041,6 +2042,12 @@ Nota d'implementacio 2026-06-05:
 - El script comprova connexio, taules fiscals/economiques clau, Redsys, documents, incidencies i `fiscal_chain_state` sembrada.
 - La sortida es JSON amb `ok`, `environment`, `checks`, `failed` i `errors` quan correspongui.
 - `PreflightScriptTest` cobreix el contracte del script de manera estàtica fins que es pugui executar PHP.
+
+Nota d'implementacio 2026-06-10:
+
+- `go-no-go-preproduction.php` agrega una bateria bloquejant de preproduccio: entorn no productiu, preflight base, runner de proves, migracions, connexio SIF, connexio legacy, clau Redsys, taules fiscals minimes i circuits preparats de curs, pagament manual, packs i regals.
+- `GoNoGoPreproductionScriptTest` cobreix de manera estàtica que la bateria retorna `go_no_go_decision`, pot acabar en `GO`/`NO-GO`, emet JSON i no crea factures, no registra pagaments i no sincronitza legacy.
+- L'execucio real de la bateria queda pendent fins que hi hagi PHP, BD SIF/legacy de test i `SIF_REDSYS_MERCHANT_KEY` configurada.
 
 ## Fase 11: Integracio progressiva de canals
 
@@ -2104,7 +2111,10 @@ Preparacio tecnica 2026-06-06:
 
 - [x] Afegir `InvoiceBeforePaymentFlowTest` per verificar que una factura emesa abans de cobrar queda `EMESA_ABANS_COBRAMENT = 1`, `ESTAT_COBRAMENT = PENDING` i amb un sol registre fiscal/cua AEAT.
 - [x] Verificar a nivell de prova que el pagament posterior per `registerPayment()` crea `payment_transaction` i `payment_allocation`, marca la factura com `PAID` i no afegeix cap nou `factura_registres`, `fiscal_queue` ni ordre fiscal.
-- [ ] Executar el flux amb PHP/MySQL de test i intranet/preproduccio abans d'activar-ho operativament.
+- [x] Afegir `InvoiceBeforePaymentPayloadBuilder` i `InvoiceBeforePaymentService` per construir el payload de factura real pendent de cobrament, forçar `source_channel = INTRANET`, `EMESA_ABANS_COBRAMENT = 1`, idempotencia derivada de referencia i rebutjar qualsevol bloc `payment` inicial.
+- [x] Afegir circuit CLI no productiu: `preflight-invoice-before-payment.php`, `preview-invoice-before-payment.php --payload-file=payload.json` i `process-invoice-before-payment.php --payload-file=payload.json`.
+- [x] Afegir proves `InvoiceBeforePaymentServiceTest`, `InvoiceBeforePaymentPreviewScriptTest`, `InvoiceBeforePaymentPreproductionScriptTest` i `InvoiceBeforePaymentPreflightScriptTest` per assegurar que la preview/preflight no emeten factura, que el processador no registra pagaments i que no hi ha legacy/Redsys en aquest tall.
+- [ ] Executar el flux amb PHP/MySQL de test i intranet/preproduccio abans d'activar-ho operativament: `preflight-invoice-before-payment.php`, `preview-invoice-before-payment.php --payload-file=payload.json`, `process-invoice-before-payment.php --payload-file=payload.json` i cobrament posterior per `registerPayment()`.
 
 - [ ] **Step 4: Activar transferencies manuals**
 
@@ -2122,6 +2132,10 @@ Preparacio tecnica 2026-06-06:
 - [x] Afegir `ManualPaymentPayloadBuilder` per construir el payload de `registerPayment()` quan administracio valida una transferencia a `Passar pagaments` contra una factura SIF existent.
 - [x] Fixar la idempotencia documentada: amb referencia bancaria `TRANSFERENCIA|REF:{REFERENCIA_BANCARIA}`; sense referencia, fallback `TRANSFERENCIA|FACT:{NUM_FACT}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}`.
 - [x] Afegir prova unitària `ManualPaymentPayloadBuilderTest` per validar import normalitzat, `source_channel = INTRANET`, assignacio unica a `payment_allocation` i compatibilitat amb `PaymentPayloadValidator`.
+- [x] Afegir `ManualPaymentInvoiceRepository` i `ManualPaymentService` per localitzar una factura SIF existent per `UUID_FACTURA` o `NUM_VISIBLE` i executar `PaymentService::registerPayment()` amb el payload manual, sense crear cap factura nova ni tocar legacy.
+- [x] Afegir prova d'integracio `ManualPaymentServiceTest` per validar pagament manual per UUID, pagament parcial per numero visible, idempotencia per referencia bancaria, `ESTAT_COBRAMENT` recalculat i absencia de nous registres fiscals.
+- [x] Afegir `sif/scripts/preflight-manual-payment.php`, `sif/scripts/preview-manual-payment.php` i `sif/scripts/process-manual-payment.php`: preflight nomes SIF, preview dry-run del payload `registerPayment()` i processador CLI no productiu per factura existent.
+- [x] Afegir proves estàtiques `ManualPaymentPreflightScriptTest`, `ManualPaymentPreviewScriptTest` i `ManualPaymentPreproductionScriptTest` per garantir que el circuit de factura existent no depen de legacy/Redsys, no construeix `InvoiceService` i no crida `issueInvoice()`.
 - [x] Afegir `ManualCourseInvoicePayloadBuilder` per al subcas `efact == 0` antic de curs/inscripcio normal: snapshot legacy + transferencia validada -> payload `issueInvoice(payment)` amb `source_channel = INTRANET`.
 - [x] Fixar idempotencia fiscal per transferencia de curs sense factura SIF prèvia: amb referencia `TRANSFERENCIA|CURS|IDPAG:{IDPAG}|REF:{REFERENCIA_BANCARIA}`; sense referencia, fallback `TRANSFERENCIA|CURS|IDPAG:{IDPAG}|DATA:{DATA_PAG}|IMPORT:{IMPORT}|BANC:{BANC}`.
 - [x] Afegir prova d'integracio `ManualCourseInvoicePayloadBuilderTest` per validar que `issueInvoice(payment)` crea factura i cobrament inicial en una sola operacio, amb `payment_transaction.PROVIDER_REF`, `REFERENCIA_BANCARIA` i `IDPAG` preservats.
@@ -2133,7 +2147,7 @@ Preparacio tecnica 2026-06-06:
 - [x] Afegir prova estàtica `ManualCoursePreproductionScriptTest` per garantir que el processador es CLI-only, rebutja produccio, construeix serveis SIF propis, no depen de Redsys i exposa `legacy_sync_executed`.
 - [x] Afegir `sif/scripts/preflight-manual-course.php` com a comprovacio de nomes lectura abans de preview/process manual: entorn no productiu, BD legacy configurada, BD SIF, taules fiscals/economiques minimes, taules legacy `inscripcions`/`curs` i seed de `fiscal_chain_state`.
 - [x] Afegir prova estàtica `ManualCoursePreflightScriptTest` per garantir que el preflight manual no construeix l'orquestrador, no crida `issueInvoice()` i no depen de readiness Redsys.
-- [ ] Executar `SIF-PAY-001` amb PHP/MySQL de test i pantalla real de `Passar pagaments` abans d'activar el flux operatiu.
+- [ ] Executar `SIF-PAY-001` amb PHP/MySQL de test, `preflight-manual-payment.php`, `preview-manual-payment.php`, `process-manual-payment.php` i pantalla real de `Passar pagaments` abans d'activar el flux operatiu.
 
 - [ ] **Step 5: Activar packs, grups, regals, USOC i codis promocionals**
 
@@ -2171,6 +2185,10 @@ Preparacio tecnica 2026-06-07:
 - [x] Afegir `RedsysGiftInvoiceService` com a orquestrador manual de preproduccio: notificacio `VALIDATED` + regal identificat per `ID` o `CODI` -> snapshot legacy -> payload `REGAL` -> payload Redsys -> `issueInvoice(payment)`, exigint que `redsys_notifications.IMPORT` coincideixi amb `regal.IMPORT`.
 - [x] Afegir `sif/scripts/preflight-redsys-gift.php`, `sif/scripts/preview-redsys-gift.php` i `sif/scripts/process-redsys-gift.php`: preflight de nomes lectura, preview dry-run i processador CLI no productiu. El processador no parseja POST Redsys, no crida `LegacySyncService` i no actualitza `regal.FACT_REL` en aquest tall.
 - [x] Afegir proves `RedsysGiftInvoiceServiceTest`, `RedsysGiftPreviewScriptTest`, `RedsysGiftPreproductionScriptTest` i `RedsysGiftPreflightScriptTest` per validar emissio idempotent, rebuig de notificacio no validada, rebuig d'import desquadrat i contracte dels scripts.
+- [x] Afegir `ManualGiftInvoicePayloadBuilder` per transformar un snapshot `REGAL` i un cobrament validat manualment de `Passar pagaments` en `issueInvoice(payment)` amb `source_channel = INTRANET`, idempotencia per `REGAL.ID`/referencia o fallback data/import/banc, i `payment_transaction` inicial.
+- [x] Afegir `ManualGiftInvoiceService` com a orquestrador de preproduccio: regal per `ID` o `CODI` -> snapshot legacy -> payload manual -> `InvoiceService::issueInvoice()`, retornant metadades de relacio sense escriure a legacy.
+- [x] Afegir `sif/scripts/preflight-manual-gift.php`, `sif/scripts/preview-manual-gift.php` i `sif/scripts/process-manual-gift.php`: preflight de nomes lectura sense Redsys, preview dry-run i processador CLI no productiu. En aquest tall no hi ha `--sync-legacy`, no s'actualitza `regal.FACT_REL` i no es crea cap inscripcio del destinatari.
+- [x] Afegir proves `ManualGiftInvoiceServiceTest`, `ManualGiftPreviewScriptTest`, `ManualGiftPreproductionScriptTest` i `ManualGiftPreflightScriptTest` per validar emissio idempotent, cerca per `ID`/`CODI`, rebuig d'import desquadrat i contracte dels scripts manuals.
 - [ ] Validar SQL final de `regal`, `FACT_REL`, `ORIGEN`, `DESTI`, `CODI` i relacio amb inscripcio posterior abans d'activar circuits Redsys/manuals de regal.
 - [x] Afegir `LegacyUsocSnapshotRepository` com a lectura legacy read-only per `IDPAG`: carrega inscripcio `TIPUS_DESC = 4`, exigeix `VALID_DESC = 1`, carrega `curs`, congela import pagat per l'alumne i nomes accepta import USOC si es passa explicitament al snapshot.
 - [x] Afegir `LegacyUsocInvoicePayloadBuilder` per convertir el snapshot USOC en dos payloads fiscals separats: `USOC_ALUMNE` amb `source_channel = REDSYS`, descompte visible `USOC`, relacio `INSCRIPCIO` visible a l'alumne; i `USOC_ENTITAT` amb `source_channel = INTRANET`, receptor fiscal USOC explicit, relacio `USOC_ENTITY`, `visible_alumne = 0` i idempotencia vinculada a la factura de l'alumne.
@@ -2182,7 +2200,7 @@ Preparacio tecnica 2026-06-07:
 - [ ] Executar el circuit Redsys de pack amb PHP/MySQL de test i dades legacy de preproduccio abans d'activar cap endpoint o callback automatic de pack.
 - [ ] Executar el circuit manual de pack amb PHP/MySQL de test, `Passar pagaments` i dades legacy de preproduccio abans d'integrar-lo operativament.
 - [ ] Executar el payload de grup amb PHP/MySQL de test, dades legacy de preproduccio i prova de privacitat abans d'afegir orquestradors Redsys/manuals de grup.
-- [ ] Executar `preflight-redsys-gift.php`, `preview-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)` i `process-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)` amb PHP/MySQL de test, dades legacy de preproduccio, callback duplicat i prova de bescanvi sense segona factura.
+- [ ] Executar els circuits de regal amb PHP/MySQL de test i dades legacy de preproduccio: Redsys (`preflight-redsys-gift.php`, `preview-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)`, `process-redsys-gift.php DS_ORDER (--gift-id=ID|--gift-code=CODI)`) i manual (`preflight-manual-gift.php`, `preview-manual-gift.php (--gift-id=ID|--gift-code=CODI) AMOUNT MOVEMENT_DATE`, `process-manual-gift.php (--gift-id=ID|--gift-code=CODI) AMOUNT MOVEMENT_DATE`), amb prova d'import desquadrat, reintent idempotent i bescanvi sense segona factura.
 - [ ] Executar el payload USOC amb PHP/MySQL de test, dades legacy de preproduccio, factura alumne Redsys validada, factura entitat amb receptor explicit i prova de privacitat.
 - [ ] Executar curs normal amb codi promocional i promocio temporal amb PHP/MySQL de test, callback duplicat i verificacio dels camps `DESC_*` immutables.
 
