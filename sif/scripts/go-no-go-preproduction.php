@@ -36,6 +36,7 @@ $checks = [
     'legacy_inscripcions_table' => false,
     'legacy_curs_table' => false,
     'legacy_regal_table' => false,
+    'legacy_respGrups_table' => false,
     'redsys_course_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/RedsysCourseInvoiceService.php',
         'scripts/preflight-redsys-course.php',
@@ -49,6 +50,14 @@ $checks = [
         'scripts/preview-manual-payment.php',
         'scripts/process-manual-payment.php',
     ]),
+    'claim_payment_circuit_present' => allFilesPresent($baseDir, [
+        'src/Repository/ManualPaymentInvoiceRepository.php',
+        'src/Service/ClaimPaymentPayloadBuilder.php',
+        'src/Service/ClaimPaymentService.php',
+        'scripts/preflight-claim-payment.php',
+        'scripts/preview-claim-payment.php',
+        'scripts/process-claim-payment.php',
+    ]),
     'manual_installment_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/ManualInstallmentPaymentPayloadBuilder.php',
         'src/Service/ManualInstallmentPaymentService.php',
@@ -61,6 +70,12 @@ $checks = [
         'src/Service/ManualRectificationService.php',
         'scripts/preview-manual-rectification.php',
         'scripts/process-manual-rectification.php',
+    ]),
+    'manual_refund_circuit_present' => allFilesPresent($baseDir, [
+        'src/Service/ManualRefundPayloadBuilder.php',
+        'src/Service/ManualRefundService.php',
+        'scripts/preview-manual-refund.php',
+        'scripts/process-manual-refund.php',
     ]),
     'manual_invoice_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/ManualInvoicePayloadBuilder.php',
@@ -81,6 +96,15 @@ $checks = [
         'scripts/preview-manual-course.php',
         'scripts/process-manual-course.php',
     ]),
+    'credit_balance_circuit_present' => allFilesPresent($baseDir, [
+        'src/Repository/CreditBalanceRepository.php',
+        'src/Service/CreditBalancePayloadBuilder.php',
+        'src/Service/CreditBalanceService.php',
+        'scripts/preview-credit-balance.php',
+        'scripts/process-credit-balance.php',
+        'scripts/preview-credit-compensation.php',
+        'scripts/process-credit-compensation.php',
+    ]),
     'redsys_pack_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/RedsysPackInvoiceService.php',
         'scripts/preflight-redsys-pack.php',
@@ -93,6 +117,23 @@ $checks = [
         'scripts/preview-manual-pack.php',
         'scripts/process-manual-pack.php',
     ]),
+    'redsys_group_circuit_present' => allFilesPresent($baseDir, [
+        'src/Repository/LegacyGroupSnapshotRepository.php',
+        'src/Service/LegacyGroupInvoicePayloadBuilder.php',
+        'src/Service/RedsysGroupInvoiceService.php',
+        'scripts/preflight-redsys-group.php',
+        'scripts/preview-redsys-group.php',
+        'scripts/process-redsys-group.php',
+    ]),
+    'manual_group_circuit_present' => allFilesPresent($baseDir, [
+        'src/Repository/LegacyGroupSnapshotRepository.php',
+        'src/Service/LegacyGroupInvoicePayloadBuilder.php',
+        'src/Service/ManualGroupInvoicePayloadBuilder.php',
+        'src/Service/ManualGroupInvoiceService.php',
+        'scripts/preflight-manual-group.php',
+        'scripts/preview-manual-group.php',
+        'scripts/process-manual-group.php',
+    ]),
     'manual_gift_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/ManualGiftInvoiceService.php',
         'scripts/preflight-manual-gift.php',
@@ -104,6 +145,18 @@ $checks = [
         'scripts/preflight-redsys-gift.php',
         'scripts/preview-redsys-gift.php',
         'scripts/process-redsys-gift.php',
+    ]),
+    'redsys_usoc_circuit_present' => allFilesPresent($baseDir, [
+        'src/Service/RedsysUsocInvoiceService.php',
+        'scripts/preflight-redsys-usoc.php',
+        'scripts/preview-redsys-usoc.php',
+        'scripts/process-redsys-usoc.php',
+    ]),
+    'usoc_entity_circuit_present' => allFilesPresent($baseDir, [
+        'src/Service/UsocEntityInvoiceService.php',
+        'scripts/preflight-usoc-entity.php',
+        'scripts/preview-usoc-entity.php',
+        'scripts/process-usoc-entity.php',
     ]),
     'legacy_sync_present' => allFilesPresent($baseDir, [
         'src/Repository/LegacySyncRepository.php',
@@ -149,6 +202,7 @@ try {
     $checks['legacy_inscripcions_table'] = tableExists($legacyDb, 'inscripcions');
     $checks['legacy_curs_table'] = tableExists($legacyDb, 'curs');
     $checks['legacy_regal_table'] = tableExists($legacyDb, 'regal');
+    $checks['legacy_respGrups_table'] = tableExists($legacyDb, 'respGrups');
 } catch (\Throwable $exception) {
     $errors['legacy_database'] = $exception->getMessage();
 }

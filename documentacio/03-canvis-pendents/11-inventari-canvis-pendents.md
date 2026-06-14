@@ -177,6 +177,40 @@ Correus tecnics:
 - no prova que la factura fiscal estigui emesa;
 - en el flux final ha de quedar com a log/notificacio o enviar-se nomes despres de validar Redsys i registrar l'estat real al SIF.
 
+## 9.2. Pagaments de reclamacio i morositat
+
+Criteri tancat:
+
+- la morositat no es una baixa ni una rectificativa automatica;
+- la factura original continua vigent;
+- si la reclamacio acaba en cobrament, el SIF ha de registrar un pagament contra la factura existent;
+- no s'emet factura nova i no es modifica la factura reclamada.
+
+Estat tecnic 2026-06-14:
+
+- circuit CLI preparat amb `ClaimPaymentPayloadBuilder`, `ClaimPaymentService`, `preflight-claim-payment.php`, `preview-claim-payment.php` i `process-claim-payment.php`;
+- el flux localitza factura per `UUID_FACTURA` o `NUM_VISIBLE`;
+- registra `payment_transaction` `CHARGE` i `payment_allocation` `CLAIM_PAYMENT`;
+- usa idempotencia `CLAIM|REF:{REFERENCIA}` o fallback per factura/data/import/usuari quan no hi ha referencia;
+- pendent d'integrar pantalla/URL/correus finals de reclamacio, permisos i evidencies amb PHP/MySQL de test.
+
+## 9.3. Grups amb cobrament Redsys o manual
+
+Criteri tancat:
+
+- una factura de grup es una factura unica per pagament real;
+- te una linia per participant;
+- el receptor fiscal ve de `respGrups`;
+- la factura completa no es visible per defecte a cada alumne participant.
+
+Estat tecnic 2026-06-14:
+
+- snapshot/payload de grup preparat amb `LegacyGroupSnapshotRepository` i `LegacyGroupInvoicePayloadBuilder`;
+- circuit Redsys manual de preproduccio preparat amb `RedsysGroupInvoiceService`, `preflight-redsys-group.php`, `preview-redsys-group.php` i `process-redsys-group.php`;
+- circuit manual de `Passar pagaments` preparat amb `ManualGroupInvoicePayloadBuilder`, `ManualGroupInvoiceService`, `preflight-manual-group.php`, `preview-manual-group.php` i `process-manual-group.php`;
+- els processadors poden fer `--sync-legacy` nomes despres d'exit SIF;
+- pendent d'executar amb PHP/MySQL de test, validar `descomptes_grup` abans d'activacio real i preparar captures/proves de privacitat.
+
 ## 10. Pagaments fraccionats i recordatoris
 
 Hi ha molts apartats que mostren:

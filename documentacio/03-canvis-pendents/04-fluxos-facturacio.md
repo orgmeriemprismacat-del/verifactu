@@ -25,7 +25,7 @@
 Nota de cobertura:
 
 ```text
-Els fluxos de curs normal Redsys, pack i regal ja estan explicats funcionalment.
+Els fluxos de curs normal Redsys, pack, grup i regal ja estan explicats funcionalment.
 Els fluxos fiscals especials ja estan tancats a nivell de criteri i preparats
 a nivell de circuit CLI. El que falta no es coneixement del cas, sino execucio
 amb PHP/MySQL de test, pantalles finals, correus/enllacos segurs i evidencies
@@ -373,6 +373,14 @@ Estat actual conegut:
 - el preu per participant surt de `descomptes_grup`;
 - el nom del participant pot sortir a la linia; el DNI es conserva internament i nomes s'imprimeix si es imprescindible per justificacio.
 
+Estat tecnic 2026-06-14:
+
+- snapshot i payload preparats amb `LegacyGroupSnapshotRepository` i `LegacyGroupInvoicePayloadBuilder`;
+- circuit Redsys manual de preproduccio preparat amb `RedsysGroupInvoiceService`, `preflight-redsys-group.php`, `preview-redsys-group.php` i `process-redsys-group.php`;
+- circuit manual de `Passar pagaments` preparat amb `ManualGroupInvoicePayloadBuilder`, `ManualGroupInvoiceService`, `preflight-manual-group.php`, `preview-manual-group.php` i `process-manual-group.php`;
+- els processadors permeten `--sync-legacy` nomes despres d'un resultat SIF correcte;
+- pendent d'executar amb PHP/MySQL de test i de validar el SQL final de `descomptes_grup` abans d'activacio real.
+
 ## Regal
 
 Regla:
@@ -644,6 +652,25 @@ Regla:
 - factura continua existint;
 - no hi ha rectificativa nomes pel fet de reclamar;
 - cal documentar reclamacions.
+
+Quan la reclamacio acaba en cobrament d'una factura SIF existent:
+
+```text
+reclamacio/morositat
+    -> factura original continua vigent
+    -> cobrament rebut
+    -> registerPayment()
+    -> payment_allocation CLAIM_PAYMENT
+    -> recalcul ESTAT_COBRAMENT
+```
+
+Estat tecnic 2026-06-14:
+
+- circuit CLI preparat amb `ClaimPaymentPayloadBuilder`, `ClaimPaymentService`, `preflight-claim-payment.php`, `preview-claim-payment.php` i `process-claim-payment.php`;
+- localitza factura per `UUID_FACTURA` o `NUM_VISIBLE`;
+- no crea factura, no crea registre fiscal, no toca hash chain i no sincronitza legacy;
+- idempotencia `CLAIM|REF:{REFERENCIA_RECLAMACIO}` si hi ha referencia, o fallback `CLAIM|FACT:{NUM_VISIBLE}|DATA:{DATA}|IMPORT:{IMPORT}|USUARI:{USUARI}` quan no n'hi ha;
+- pendent d'integrar pantalla/URL/correus finals de reclamacio i executar PHP/MySQL de test.
 
 ## Payloads SIF per cas
 

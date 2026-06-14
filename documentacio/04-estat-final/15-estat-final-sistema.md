@@ -103,7 +103,7 @@ Un pagament pot:
 - Baixa: event administratiu; devolucio/saldo posterior.
 - Factura manual: emissio controlada des de intranet amb `issueInvoice()`.
 - Migracio historica: factures antigues conservades com `NO_VERIFACTU`, sense registre retroactiu.
-- Morositat: reclamacio sense rectificativa automatica.
+- Morositat: reclamacio sense rectificativa automatica; si arriba cobrament sobre factura existent, entra com `registerPayment()` amb assignacio `CLAIM_PAYMENT`.
 
 ## 6. Fluxos fiscals finals
 

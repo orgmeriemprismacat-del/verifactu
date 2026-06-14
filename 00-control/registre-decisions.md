@@ -945,3 +945,36 @@ El codi i el pla tecnic ja diferenciaven compensacio/saldo, pagaments fraccionat
 
 Impacte:
 El checklist marca `11-inventari-canvis-pendents.md` com al dia per aquests fluxos. La posada en marxa continua bloquejada fins que es puguin executar proves, preflights, previews/processadors i evidencies reals de preproduccio.
+
+## 2026-06-14 - Fase 11 grups: circuits Redsys i manual de preproduccio
+
+Decisio:
+Afegir els orquestradors i scripts de grup: `RedsysGroupInvoiceService`, `ManualGroupInvoicePayloadBuilder`, `ManualGroupInvoiceService`, `preflight-redsys-group.php`, `preview-redsys-group.php`, `process-redsys-group.php`, `preflight-manual-group.php`, `preview-manual-group.php` i `process-manual-group.php`.
+
+Motiu:
+El snapshot i payload de grup ja estaven preparats, pero faltava el circuit complet que consumeix una notificacio Redsys `VALIDATED` o una transferencia validada a `Passar pagaments`. El cas de grup necessita garantir receptor `respGrups`, una linia per participant, relacions no visibles a alumne i sync legacy nomes posterior a l'exit SIF.
+
+Impacte:
+El grup queda en estat `IMPLEMENTACIO TECNICA PREPARADA`. Encara no queda activat per produccio: cal executar PHP/MySQL de test, revisar `VISIBLE_ALUMNE = 0`, provar reintents idempotents, validar `--sync-legacy` i incorporar el SQL final de `descomptes_grup` abans d'activacio real.
+
+## 2026-06-14 - Fase 11 reclamacio/morositat: cobrament sense factura nova
+
+Decisio:
+Afegir `ClaimPaymentPayloadBuilder`, `ClaimPaymentService`, `preflight-claim-payment.php`, `preview-claim-payment.php` i `process-claim-payment.php` per registrar cobraments derivats de reclamacio/morositat sobre una factura SIF existent.
+
+Motiu:
+Una reclamacio no rectifica la factura ni genera factura nova. Si el client paga despres de la reclamacio, l'efecte correcte es economic: `registerPayment()` amb `payment_allocation` `CLAIM_PAYMENT`, conservant la factura original intacta.
+
+Impacte:
+El flux de morositat/reclamacio passa de `PARCIAL` a `IMPLEMENTACIO TECNICA PREPARADA` a nivell SIF. Queden pendents pantalla, URL controlada de pagament, correus/plantilles de reclamacio, permisos i execucio amb PHP/MySQL de test.
+
+## 2026-06-14 - Go/no-go ampliat per circuits fiscals preparats
+
+Decisio:
+Ampliar `sif/scripts/go-no-go-preproduction.php` perquè comprovi tambe els circuits de `credit_balance`, devolucio manual, Redsys USOC, USOC entitat, grup Redsys, grup manual i reclamacio/morositat, a mes de la taula legacy `respGrups`.
+
+Motiu:
+Alguns fluxos ja estaven implementats o preparats pero no quedaven bloquejats pel paquet go/no-go. La decisio de preproduccio ha de detectar si falta una peça de circuit abans de provar casos fiscals reals.
+
+Impacte:
+La bateria go/no-go continua sent de nomes lectura i no crea factures ni pagaments. El resultat `GO` exigira que aquests circuits estiguin presents i que l'entorn/BD compleixi els prerequisits minims abans d'un pilot controlat.

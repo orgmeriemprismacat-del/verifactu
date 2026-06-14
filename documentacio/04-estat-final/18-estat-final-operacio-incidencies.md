@@ -102,6 +102,12 @@ La factura manual es un flux `issueInvoice()` iniciat per usuari autoritzat. No 
 
 Les factures historiques migrades es consulten com `NO_VERIFACTU` i no entren a hash chain ni cua AEAT retroactivament. Una rectificativa nova sobre historic, si cal, es crea com operacio SIF nova amb referencia clara a la factura antiga.
 
+### 4.7. Morositat i reclamacions
+
+Una reclamacio no modifica ni rectifica automaticament la factura. Si la factura reclamada continua vigent i arriba un cobrament, el flux operatiu registra `registerPayment()` contra la factura existent amb assignacio `CLAIM_PAYMENT`.
+
+Aquest cobrament no crea factura nova, no crea registre fiscal, no modifica hash chain i nomes recalcula `ESTAT_COBRAMENT`. Les plantilles i URLs de reclamacio han de dirigir-se a una URL controlada de `pay.prisma.cat` o a una accio interna que acabi en aquest mateix contracte.
+
 ## 5. PDF/QR
 
 La generacio de PDF/QR pot anar en cua.
@@ -138,6 +144,7 @@ Tipus:
 - incidencia de dades.
 - compensacio aplicada sense credit o motiu;
 - saldo antic pendent de revisio;
+- reclamacio cobrada sense referencia o sense usuari intern identificat;
 - canvi de curs amb diferencia no cobrada;
 - factura historica amb relacio incompleta;
 - factura manual pendent de document o correu.

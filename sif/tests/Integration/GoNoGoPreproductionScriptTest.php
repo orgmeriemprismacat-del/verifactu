@@ -31,6 +31,13 @@ final class GoNoGoPreproductionScriptTest
         Assert::stringContainsString('historical_migration_circuit_present', $source);
         Assert::stringContainsString('manual_gift_circuit_present', $source);
         Assert::stringContainsString('redsys_course_circuit_present', $source);
+        Assert::stringContainsString('credit_balance_circuit_present', $source);
+        Assert::stringContainsString('manual_refund_circuit_present', $source);
+        Assert::stringContainsString('redsys_usoc_circuit_present', $source);
+        Assert::stringContainsString('usoc_entity_circuit_present', $source);
+        Assert::stringContainsString('redsys_group_circuit_present', $source);
+        Assert::stringContainsString('manual_group_circuit_present', $source);
+        Assert::stringContainsString('claim_payment_circuit_present', $source);
         Assert::stringContainsString('go_no_go_decision', $source);
         Assert::stringContainsString('NO-GO', $source);
         Assert::stringContainsString('GO', $source);
