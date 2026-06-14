@@ -21,6 +21,10 @@ final class ManualCoursePreviewScriptTest
         Assert::stringContainsString('new LegacyCourseSnapshotRepository()', $source);
         Assert::stringContainsString('new ManualCourseInvoicePayloadBuilder()', $source);
         Assert::stringContainsString('loadByIdpag($legacyDb, $idpag, $input[\'amount\'])', $source);
+        Assert::stringContainsString('--discount-file=discount.json', $source);
+        Assert::stringContainsString('new DiscountSnapshotFileReader()', $source);
+        Assert::stringContainsString('->read($discountFile)', $source);
+        Assert::stringContainsString('$snapshot[\'discount\'] = $discountSnapshot;', $source);
         Assert::stringContainsString('buildFromSnapshot($snapshot, $input)', $source);
         Assert::stringContainsString('preview-manual-course.php IDPAG AMOUNT MOVEMENT_DATE', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);

@@ -13,6 +13,7 @@ use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\DiscountSnapshotFileReader;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
@@ -36,21 +37,29 @@ if (($config['env'] ?? 'local') === 'production') {
 $args = array_slice($argv, 1);
 $syncLegacy = in_array('--sync-legacy', $args, true);
 $dsOrder = '';
+$discountFile = null;
 foreach ($args as $arg) {
-    if (!str_starts_with((string) $arg, '--')) {
-        $dsOrder = trim((string) $arg);
+    $arg = (string) $arg;
+    if (str_starts_with($arg, '--discount-file=')) {
+        $discountFile = trim(substr($arg, strlen('--discount-file=')));
+        continue;
+    }
+
+    if (!str_starts_with($arg, '--')) {
+        $dsOrder = trim($arg);
         break;
     }
 }
 
 if ($dsOrder === '') {
-    fwrite(STDERR, "Usage: php sif/scripts/process-redsys-course.php DS_ORDER [--sync-legacy]\n");
+    fwrite(STDERR, "Usage: php sif/scripts/process-redsys-course.php DS_ORDER [--sync-legacy] [--discount-file=discount.json]\n");
     exit(1);
 }
 
 try {
     $sifDb = ConnectionFactory::make($config);
     $legacyDb = ConnectionFactory::makeLegacy($config);
+    $discountSnapshot = (new DiscountSnapshotFileReader())->read($discountFile);
     $notifications = new RedsysNotificationRepository();
     $invoiceService = new InvoiceService(
         new TransactionRunner($sifDb),
@@ -68,7 +77,7 @@ try {
         $invoiceService
     );
 
-    $result = $service->issueFromValidatedNotification($sifDb, $legacyDb, $dsOrder);
+    $result = $service->issueFromValidatedNotification($sifDb, $legacyDb, $dsOrder, $discountSnapshot);
     $legacySync = $result['legacy_sync'] ?? ['relations' => [], 'estat_cobrament' => 'PAID'];
 
     if ($syncLegacy && ($result['ok'] ?? false) === true) {

@@ -6,6 +6,7 @@ use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\DiscountSnapshotFileReader;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
 
@@ -21,15 +22,31 @@ if (($config['env'] ?? 'local') === 'production') {
     exit(1);
 }
 
-$dsOrder = trim((string) ($argv[1] ?? ''));
+$args = array_slice($argv, 1);
+$dsOrder = '';
+$discountFile = null;
+foreach ($args as $arg) {
+    $arg = (string) $arg;
+    if (str_starts_with($arg, '--discount-file=')) {
+        $discountFile = trim(substr($arg, strlen('--discount-file=')));
+        continue;
+    }
+
+    if (!str_starts_with($arg, '--')) {
+        $dsOrder = trim($arg);
+        break;
+    }
+}
+
 if ($dsOrder === '') {
-    fwrite(STDERR, "Usage: php sif/scripts/preview-redsys-course.php DS_ORDER\n");
+    fwrite(STDERR, "Usage: php sif/scripts/preview-redsys-course.php DS_ORDER [--discount-file=discount.json]\n");
     exit(1);
 }
 
 try {
     $sifDb = ConnectionFactory::make($config);
     $legacyDb = ConnectionFactory::makeLegacy($config);
+    $discountSnapshot = (new DiscountSnapshotFileReader())->read($discountFile);
     $notifications = new RedsysNotificationRepository();
     $notification = $notifications->findByDsOrder($sifDb, $dsOrder);
 
@@ -44,6 +61,10 @@ try {
     $idpag = idpag($notification);
     $amount = amount($notification);
     $snapshot = (new LegacyCourseSnapshotRepository())->loadByIdpag($legacyDb, $idpag, $amount);
+    if ($discountSnapshot !== null) {
+        $snapshot['discount'] = $discountSnapshot;
+    }
+
     $basePayload = (new LegacyCourseInvoicePayloadBuilder())->build($snapshot);
     $payload = (new RedsysInvoicePayloadBuilder($notifications))
         ->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);

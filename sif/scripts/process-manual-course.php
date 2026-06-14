@@ -13,6 +13,7 @@ use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Service\DiscountSnapshotFileReader;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacySyncService;
@@ -35,9 +36,16 @@ if (($config['env'] ?? 'local') === 'production') {
 $args = array_slice($argv, 1);
 $syncLegacy = in_array('--sync-legacy', $args, true);
 $positionals = [];
+$discountFile = null;
 foreach ($args as $arg) {
-    if (!str_starts_with((string) $arg, '--')) {
-        $positionals[] = (string) $arg;
+    $arg = (string) $arg;
+    if (str_starts_with($arg, '--discount-file=')) {
+        $discountFile = trim(substr($arg, strlen('--discount-file=')));
+        continue;
+    }
+
+    if (!str_starts_with($arg, '--')) {
+        $positionals[] = $arg;
     }
 }
 
@@ -62,6 +70,7 @@ foreach ([
 try {
     $sifDb = ConnectionFactory::make($config);
     $legacyDb = ConnectionFactory::makeLegacy($config);
+    $discountSnapshot = (new DiscountSnapshotFileReader())->read($discountFile);
     $invoiceService = new InvoiceService(
         new TransactionRunner($sifDb),
         new InvoicePayloadValidator(),
@@ -76,7 +85,7 @@ try {
         $invoiceService
     );
 
-    $result = $service->issueFromLegacyCoursePayment($legacyDb, $idpag, $input);
+    $result = $service->issueFromLegacyCoursePayment($legacyDb, $idpag, $input, $discountSnapshot);
     $legacySync = $result['legacy_sync'] ?? ['relations' => [], 'estat_cobrament' => 'PAID'];
 
     if ($syncLegacy && ($result['ok'] ?? false) === true) {
@@ -168,7 +177,7 @@ function usage(): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/process-manual-course.php IDPAG AMOUNT MOVEMENT_DATE [--reference=REF] [--bank=BANK] [--notes=TEXT] [--created-by=USER] [--sync-legacy]\n"
+        "Usage: php sif/scripts/process-manual-course.php IDPAG AMOUNT MOVEMENT_DATE [--reference=REF] [--bank=BANK] [--notes=TEXT] [--created-by=USER] [--sync-legacy] [--discount-file=discount.json]\n"
     );
     exit(1);
 }

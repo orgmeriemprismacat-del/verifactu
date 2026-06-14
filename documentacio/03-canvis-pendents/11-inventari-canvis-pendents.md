@@ -93,6 +93,12 @@ Criteri tancat:
 - si neix pendent, el cobrament posterior va per `registerPayment()`;
 - ha de conservar usuari intern, snapshot fiscal, linies i relacio amb entitat/responsable si n'hi ha.
 
+Estat tecnic 2026-06-14:
+
+- circuit CLI preparat amb `ManualInvoicePayloadBuilder`, `ManualInvoiceService`, `preview-manual-invoice.php` i `process-manual-invoice.php`;
+- el processador rebutja produccio, no sincronitza legacy i no crida `registerPayment()` directament per al pagament inicial;
+- pendent d'executar amb PHP/MySQL de test, pantalla final, permisos, correus o enllac segur i evidencies.
+
 ## 8.1. Entitats i responsables d'entitat
 
 L'apartat actual:
@@ -195,6 +201,12 @@ Criteri tancat:
 - el mateix `IDPAG` pot tenir diversos intents Redsys i diversos `DS_ORDER`;
 - la deduplicacio Redsys es fa per `DS_ORDER`;
 - `FRACCIO` i camps antics nomes queden com a resum operatiu sincronitzat.
+
+Estat tecnic 2026-06-14:
+
+- circuit manual preparat amb `ManualInstallmentPaymentPayloadBuilder`, `ManualInstallmentPaymentService`, `preview-manual-installment.php` i `process-manual-installment.php`;
+- la fraccio manual entra com `registerPayment()` amb assignacio `INSTALLMENT_PAYMENT`;
+- pendent d'executar amb PHP/MySQL de test i integrar amb pantalla/URL final.
 
 ## 11. Optimitzacio BD
 
@@ -301,6 +313,13 @@ Criteri tancat:
 - si devolucio o saldo redueixen una factura emesa, cal rectificativa vinculada;
 - els saldos per baixa no caduquen automaticament, pero secretaria pot revisar saldos molt antics.
 
+Estat tecnic 2026-06-14:
+
+- baixa i canvi de curs queden com decisions administratives que deriven a devolucio, saldo/compensacio, diferencia pendent o rectificativa segons factura existent i import final;
+- el circuit de devolucio manual ja esta preparat amb `ManualRefundPayloadBuilder`, `ManualRefundService`, `preview-manual-refund.php` i `process-manual-refund.php`;
+- el circuit de rectificativa manual ja esta preparat amb `ManualRectificationPayloadBuilder`, `RectificationRepository`, `ManualRectificationService`, `preview-manual-rectification.php` i `process-manual-rectification.php`;
+- pendent d'executar amb PHP/MySQL de test i validar operativament els motius interns.
+
 ## 17.1. Compensacio, saldo i devolucions
 
 Criteri tancat:
@@ -310,6 +329,12 @@ Criteri tancat:
 - si neixen despres d'emetre i redueixen servei o import, cal rectificativa;
 - una devolucio total o parcial s'ha de registrar com moviment economic i vincular amb factura original, baixa/canvi si aplica i rectificativa;
 - un pagament duplicat no crea factura nova: genera devolucio, saldo o incidencia segons decisio interna.
+
+Estat tecnic 2026-06-14:
+
+- circuit de saldo/compensacio preparat amb `CreditBalancePayloadBuilder`, `CreditBalanceRepository`, `CreditBalanceService`, `preview-credit-balance.php`, `process-credit-balance.php`, `preview-credit-compensation.php` i `process-credit-compensation.php`;
+- crear saldo no crea factura ni pagament; aplicar-lo a factura existent crea `payment_transaction` `COMPENSATION` i `payment_allocation` `CREDIT_COMPENSATION`;
+- pendent d'executar amb PHP/MySQL de test i evidencies d'estat `ACTIVE`/`USED`.
 
 ## 18. Migracio a pay.prisma.cat
 
@@ -404,6 +429,13 @@ Criteri tancat:
 - les consultes han d'indicar clarament `VERIFACTU` o `NO_VERIFACTU`;
 - una rectificativa nova sobre factura historica, si cal, es crea com operacio SIF nova amb referencia a l'historic;
 - la migracio ha d'incloure control de totals per any/serie, numeracio, imports i incidencies.
+
+Estat tecnic 2026-06-14:
+
+- circuit CLI preparat amb `HistoricalInvoicePayloadBuilder`, `HistoricalInvoiceMigrationRepository`, `HistoricalInvoiceMigrationService`, `preview-historical-invoice-migration.php` i `process-historical-invoice-migration.php`;
+- conserva `NUM_VISIBLE`, serie/any/numero, receptor, totals, linies, relacio `HISTORIC_LINK` i document antic opcional amb hash;
+- marca la factura com `NO_VERIFACTU` i no crea `factura_registres`, `fiscal_queue`, `fiscal_sequence` ni canvi de hash chain;
+- pendent d'executar amb PHP/MySQL de test i preparar informe agregat de control.
 
 ## 24. fact_rels
 

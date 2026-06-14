@@ -802,3 +802,146 @@ La pantalla `Passar pagaments` pot localitzar regals per codi i registrar cobram
 
 Impacte:
 El regal manual queda preparat per preproduccio amb preflight sense Redsys, preview dry-run i processador CLI no productiu. L'import manual ha de coincidir amb `regal.IMPORT`; no hi ha `--sync-legacy`, no s'actualitza `regal.FACT_REL` i no es crea cap inscripcio del destinatari.
+
+## 2026-06-10 - Fase 11 USOC: circuit Redsys d'alumne de preproduccio
+
+Decisio:
+Afegir `RedsysUsocInvoiceService` i els scripts `sif/scripts/preflight-redsys-usoc.php`, `sif/scripts/preview-redsys-usoc.php` i `sif/scripts/process-redsys-usoc.php`. El processador rep un `DS_ORDER` ja `VALIDATED` i l'import assumit per USOC com a `--usoc-amount=AMOUNT`, carrega la inscripcio USOC validada (`TIPUS_DESC = 4`, `VALID_DESC = 1`) i emet nomes la factura `USOC_ALUMNE` amb cobrament Redsys inicial.
+
+Motiu:
+USOC necessita doble factura, pero la factura de l'entitat no s'ha d'emetre sense dades fiscals completes i confirmades. Separar el tall d'alumne permet provar idempotencia, relacio visible de l'alumne, descompte USOC congelat i cobrament Redsys sense inventar receptor fiscal de l'entitat.
+
+Impacte:
+El circuit queda preparat per preproduccio amb `preflight-redsys-usoc.php`, `preview-redsys-usoc.php DS_ORDER --usoc-amount=AMOUNT` i `process-redsys-usoc.php DS_ORDER --usoc-amount=AMOUNT`. El resultat retorna `entity_invoice_pending` amb `student_invoice_uuid`, import d'entitat i requisit de billing explicit; no hi ha `--sync-legacy`, no es crea `USOC_ENTITAT` en aquest tall i l'execucio real continua pendent de PHP/MySQL de test i dades fiscals completes d'USOC.
+
+## 2026-06-12 - Fase 11 USOC: circuit d'entitat amb billing explicit
+
+Decisio:
+Afegir `UsocEntityInvoiceService` i els scripts `sif/scripts/preflight-usoc-entity.php`, `sif/scripts/preview-usoc-entity.php` i `sif/scripts/process-usoc-entity.php`. El circuit rep un JSON explicit amb `idpag`, `student_amount`, `amount`, `student_invoice_uuid` i `billing`, carrega la inscripcio USOC validada i genera el payload/factura `USOC_ENTITAT` amb `source_channel = INTRANET`.
+
+Motiu:
+La factura d'entitat USOC no pot reutilitzar dades implicites ni inventar receptor fiscal. Separar-la en un circuit propi permet validar la factura pendent de cobrament, vinculada a la factura de l'alumne, sense barrejar-la amb el cobrament Redsys ni amb cap sincronitzacio legacy automatica.
+
+Impacte:
+El processador `process-usoc-entity.php --payload-file=payload.json` rebutja produccio, no registra pagaments, no crea `payment_transaction`/`payment_allocation` i no sincronitza legacy. La factura queda `PENDING` fins que es registri un cobrament posterior per `registerPayment()`. L'execucio real continua pendent de PHP/MySQL de test, dades fiscals completes d'USOC i revisio del payload en preproduccio.
+
+## 2026-06-12 - Fase 11 codis promocionals: snapshot explicit en Redsys curs
+
+Decisio:
+Afegir a `RedsysCourseInvoiceService` un paràmetre opcional `discountSnapshot` i permetre que `preview-redsys-course.php` i `process-redsys-course.php` rebin `--discount-file=discount.json`. El fitxer JSON representa el resultat fiscal del codi promocional o promocio temporal ja validat pel canal abans de Redsys.
+
+Motiu:
+El SIF ja sap congelar `DESC_*` a `factura_linia`, pero encara no esta tancat el SQL final de `promocions` i `descomptes.TIPUS` 11-99. Acceptar un snapshot explicit permet provar el comportament fiscal immutable sense inventar consultes ni recalcular codis dins el SIF.
+
+Impacte:
+El circuit de preproduccio pot revisar i processar un curs Redsys amb descompte promocional mitjancant `preview-redsys-course.php DS_ORDER --discount-file=discount.json` i `process-redsys-course.php DS_ORDER --discount-file=discount.json`. L'activacio real continua pendent de PHP/MySQL de test, creacio del snapshot des d'ecommerce/intranet i validacio SQL final.
+
+## 2026-06-12 - Fase 11 codis promocionals: snapshot explicit en curs manual
+
+Decisio:
+Afegir a `ManualCourseInvoiceService` un parametre opcional `discountSnapshot` i permetre que `preview-manual-course.php` i `process-manual-course.php` rebin `--discount-file=discount.json`. El mateix JSON de snapshot fiscal es pot usar quan el descompte ja ha estat validat abans d'un cobrament manual o transferencia des de la intranet.
+
+Motiu:
+Els codis promocionals no depenen del canal de cobrament. Si el pagament entra per `Passar pagaments`, el SIF ha de congelar la mateixa foto fiscal que en Redsys: base, import descomptat, percentatge/id/codi, total final i text visible, sense recalcular ni revalidar `promocions`.
+
+Impacte:
+El circuit manual de curs pot revisar i processar un descompte promocional amb `preview-manual-course.php IDPAG AMOUNT MOVEMENT_DATE --discount-file=discount.json` i `process-manual-course.php IDPAG AMOUNT MOVEMENT_DATE --discount-file=discount.json`. L'activacio real continua pendent de PHP/MySQL de test, integracio amb el punt real de creacio del snapshot i validacio SQL final.
+
+## 2026-06-12 - Fase 11 codis promocionals: lector compartit de `discount.json`
+
+Decisio:
+Afegir `DiscountSnapshotFileReader` com a lector compartit del fitxer `discount.json` i substituir les funcions locals duplicades dels scripts de curs Redsys/manual.
+
+Motiu:
+El contracte del snapshot de descompte ha de tenir una sola frontera tècnica abans d'arribar al builder fiscal. Això evita divergències entre preview i processador, i entre Redsys i `Passar pagaments`, sense canviar el criteri fiscal ni afegir consultes a `promocions`.
+
+Impacte:
+Els scripts de curs mantenen `--discount-file=discount.json`, pero la lectura i la validacio basica de fitxer/JSON passen per una classe compartida amb prova unitària. L'execucio real de la prova continua pendent de PHP al PATH.
+
+## 2026-06-12 - Fase 11 devolucions manuals: `REFUND` contra factura existent
+
+Decisio:
+Afegir `ManualRefundPayloadBuilder`, `ManualRefundService` i els scripts `sif/scripts/preview-manual-refund.php` i `sif/scripts/process-manual-refund.php`. El circuit localitza una factura SIF existent per `UUID_FACTURA` o `NUM_VISIBLE` i registra una devolucio economica amb `PaymentService::registerPayment()`.
+
+Motiu:
+Les devolucions no han de modificar la factura emesa ni crear una factura nova per si mateixes. El moviment economic de retorn ha de quedar a `payment_transaction` amb `TIPUS_MOVIMENT = REFUND` i a `payment_allocation`, mantenint intactes numero fiscal, hash chain i registre fiscal. Si fiscalment cal rectificativa, aquesta es un flux separat.
+
+Impacte:
+El circuit de preproduccio pot revisar i processar devolucions amb `preview-manual-refund.php (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE` i `process-manual-refund.php ...`. La idempotencia queda `REFUND|REF:{REFERENCIA}` o fallback per factura/data/import/banc, i `ESTAT_COBRAMENT` passa a `PARTIALLY_REFUNDED` o `REFUNDED` segons l'import retornat. L'execucio real continua pendent de PHP/MySQL de test i validacio operativa de `Passar pagaments`.
+
+## 2026-06-12 - Fase 11 compensacio/saldo: `credit_balance` i `COMPENSATION`
+
+Decisio:
+Afegir `CreditBalancePayloadBuilder`, `CreditBalanceRepository`, `CreditBalanceService` i els scripts `sif/scripts/preview-credit-balance.php`, `process-credit-balance.php`, `preview-credit-compensation.php` i `process-credit-compensation.php`. El circuit separa crear saldo a `credit_balance` d'aplicar-lo posteriorment a una factura SIF existent.
+
+Motiu:
+El saldo no es una rebaixa silenciosa ni una edicio d'una factura emesa. Quan neix un saldo, queda com a dret economic del titular; quan s'utilitza, s'ha de registrar com a moviment economic `COMPENSATION` amb metode `COMPENSACIO`, assignat a factura i sense crear un nou registre fiscal.
+
+Impacte:
+La compensacio bloqueja saldo i factura dins la mateixa transaccio, rebutja imports superiors al saldo disponible o al pendent de factura, crea `payment_transaction`/`payment_allocation` amb `CREDIT_COMPENSATION` i resta `IMPORT_DISPONIBLE` nomes en la primera execucio idempotent. Si el saldo queda a zero passa a `USED`; els reintents reutilitzen el mateix `uuid_payment`. L'execucio real continua pendent de PHP/MySQL de test.
+
+## 2026-06-12 - Fase 11 pagaments fraccionats manuals: fraccions com `registerPayment()`
+
+Decisio:
+Afegir `ManualInstallmentPaymentPayloadBuilder`, `ManualInstallmentPaymentService` i els scripts `sif/scripts/preview-manual-installment.php` i `process-manual-installment.php`. El circuit registra cada fraccio manual contra una factura SIF existent com un moviment economic propi.
+
+Motiu:
+Una factura fraccionada no s'ha de duplicar per cada cobrament. El total fiscal queda a la factura emesa i cada fraccio posterior ha de quedar a `payment_transaction` i `payment_allocation`, amb recalcul de l'estat de cobrament i sense crear nous registres fiscals.
+
+Impacte:
+La idempotencia queda `MANUAL|FRACCIO|ID_INSC:{ID_INSC}|DATA:{DATA}|IMPORT:{IMPORT}|USUARI:{USUARI}`. El moviment usa `method = MANUAL`, `source_channel = INTRANET` i assignacio `INSTALLMENT_PAYMENT`; dues fraccions successives poden portar una factura de `PARTIAL` a `PAID`, i el reintent d'una mateixa fraccio reutilitza el `uuid_payment`. L'execucio real continua pendent de PHP/MySQL de test i integracio amb pantalla/URL final.
+
+## 2026-06-12 - Fase 11 rectificatives manuals: factura serie `R`
+
+Decisio:
+Afegir `ManualRectificationPayloadBuilder`, `RectificationRepository`, `ManualRectificationService` i els scripts `sif/scripts/preview-manual-rectification.php` i `process-manual-rectification.php`. El circuit crea una factura rectificativa SIF nova contra una factura SIF existent.
+
+Motiu:
+Una factura emesa no es corregeix modificant receptor, concepte o import. La rectificativa ha d'entrar a la hash chain com una factura nova serie `R`, conservar un vincle directe amb la factura rectificada i deixar motiu/mode estructurats per auditoria i revisio fiscal.
+
+Impacte:
+El payload de rectificativa usa `series = R`, `type = R1`, receptor copiat de l'original, linia/totals amb import positiu o negatiu, relacio `RECTIFIES` i idempotencia per factura/mode/motiu/import o referencia explicita. El processador insereix `factura_rectificacio`, marca l'original com `RECTIFIED`, no registra pagament i no sincronitza legacy en aquest tall. L'execucio real continua pendent de PHP/MySQL de test i validacio fiscal puntual abans de produccio.
+
+## 2026-06-12 - Fase 11 factura manual: circuit CLI `issueInvoice()`
+
+Decisio:
+Afegir `ManualInvoicePayloadBuilder`, `ManualInvoiceService` i els scripts `sif/scripts/preview-manual-invoice.php` i `process-manual-invoice.php`. El circuit normalitza factures manuals iniciades per intranet i les envia a `InvoiceService::issueInvoice()`.
+
+Motiu:
+La factura manual no pot inserir-se directament a `web.factures` ni saltar-se numeracio, hash chain, cua AEAT o registre fiscal. Ha de tenir el mateix contracte que qualsevol factura SIF: snapshot fiscal, linies estructurades, usuari intern, idempotencia i, si neix cobrada, bloc `payment` dins la mateixa operacio fiscal.
+
+Impacte:
+El payload queda amb `source_channel = INTRANET`, `source_type = MANUAL`, `series = A`, `type = F1`, usuari intern obligatori i idempotencia per referencia o fallback `INTRANET|MANUAL|USUARI:{USUARI}|DATA:{DATA}|HASH:{HASH}`. El processador rebutja produccio, no sincronitza legacy i no crida `registerPayment()` directament; el pagament inicial, quan existeix, es registra via `issueInvoice(payment)`. L'execucio real continua pendent de PHP/MySQL de test, pantalla final, permisos, correus/enllac segur i evidencies de preproduccio.
+
+## 2026-06-12 - Fase 11 migracio historica: `NO_VERIFACTU`
+
+Decisio:
+Afegir `HistoricalInvoicePayloadBuilder`, `HistoricalInvoiceMigrationRepository`, `HistoricalInvoiceMigrationService` i els scripts `sif/scripts/preview-historical-invoice-migration.php` i `process-historical-invoice-migration.php`. El circuit importa factures historiques a les taules de consulta SIF amb marca `NO_VERIFACTU`.
+
+Motiu:
+Les factures historiques han de poder consultar-se des del SIF i relacionar-se amb inscripcions, pagaments o rectificatives futures, pero no es poden convertir retroactivament en registres VERI*FACTU. Per tant, la migracio conserva numero visible, import, receptor, linies i relacions, pero no crea hash chain, registre fiscal ni cua AEAT.
+
+Impacte:
+La importacio usa `ESTAT_FACTURA = HISTORICAL`, `ESTAT_AEAT = NO_VERIFACTU`, `SOURCE_CHANNEL = MIGRACIO`, relacio `HISTORIC_LINK` i document antic opcional amb hash i estat `ARCHIVED`. El repositori no toca `factura_registres`, `fiscal_queue`, `fiscal_sequence` ni `fiscal_chain_state`. L'execucio real continua pendent de PHP/MySQL de test, informe agregat de control, validacio de totals per any/serie i criteri final de cutover de numeracio productiva.
+
+## 2026-06-12 - Verificacio final dels fluxos fiscals especials
+
+Decisio:
+Mantenir l'estat dels fluxos fiscals especials com a `IMPLEMENTACIO TECNICA PREPARADA` fins que es puguin executar el runner PHP i les proves amb BD SIF/legacy de test.
+
+Motiu:
+La passada final ha pogut verificar estructura, fitxers, absencia de whitespace final i absencia de crides indegudes en scripts critics, pero no pot demostrar execucio de tests perque `php` no esta instal.lat o no esta disponible al PATH de l'entorn.
+
+Impacte:
+Els fluxos de compensacio/saldo, pagaments fraccionats, rectificatives, devolucions, baixes/canvis de curs, factura manual i migracio historica queden preparats per preproduccio, no per activacio productiva directa. El desbloqueig operatiu requereix executar `php sif/tests/run-tests.php`, preflights i previews/processadors amb dades de test.
+
+## 2026-06-14 - Inventari documental dels fluxos fiscals especials
+
+Decisio:
+Actualitzar `04-fluxos-facturacio.md` i `11-inventari-canvis-pendents.md` perquè deixin clar que els fluxos fiscals especials ja estan tancats a nivell de criteri i preparats a nivell de circuit tecnic, tot i que encara no estan executats en preproduccio.
+
+Motiu:
+El codi i el pla tecnic ja diferenciaven compensacio/saldo, pagaments fraccionats, rectificatives, devolucions, baixes, canvis de curs, factura manual i migracio historica, pero l'inventari encara podia llegir-se com si el criteri estigues obert. Cal separar "pendent de criteri" de "pendent d'execucio amb PHP/MySQL de test".
+
+Impacte:
+El checklist marca `11-inventari-canvis-pendents.md` com al dia per aquests fluxos. La posada en marxa continua bloquejada fins que es puguin executar proves, preflights, previews/processadors i evidencies reals de preproduccio.

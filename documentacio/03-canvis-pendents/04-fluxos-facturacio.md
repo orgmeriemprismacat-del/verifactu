@@ -1,6 +1,6 @@
 # 04 - Fluxos de facturacio
 
-> Document especific pendent de desenvolupar. Recollira els fluxos funcionals i fiscals del SIF.
+> Estat 2026-06-14: document funcional de referencia dels fluxos fiscals del SIF. Els fluxos especials ja tenen criteri tancat i circuit tecnic preparat, pero continuen pendents d'execucio amb PHP/MySQL de test i evidencies de preproduccio.
 
 ## Fluxos a documentar
 
@@ -26,8 +26,10 @@ Nota de cobertura:
 
 ```text
 Els fluxos de curs normal Redsys, pack i regal ja estan explicats funcionalment.
-El que falta no es coneixement del cas, sino deixar-los tancats amb payload SIF,
-taules definitives, idempotencia exacta, correus i proves.
+Els fluxos fiscals especials ja estan tancats a nivell de criteri i preparats
+a nivell de circuit CLI. El que falta no es coneixement del cas, sino execucio
+amb PHP/MySQL de test, pantalles finals, correus/enllacos segurs i evidencies
+de preproduccio.
 ```
 
 Tancament de criteri:
@@ -919,6 +921,15 @@ Regles:
 - si la factura manual neix cobrada, el payload inclou `payment`;
 - si neix pendent, el cobrament posterior va per `registerPayment()`.
 
+Estat tecnic 2026-06-14:
+
+- circuit CLI preparat amb `ManualInvoicePayloadBuilder`, `ManualInvoiceService`, `preview-manual-invoice.php` i `process-manual-invoice.php`;
+- `source_channel = INTRANET` i `source_type = MANUAL`;
+- usuari intern obligatori;
+- idempotencia per referencia o per usuari/data/hash del payload fiscal;
+- pagament inicial opcional dins `issueInvoice(payment)`;
+- pendent d'executar amb PHP/MySQL de test, pantalla final, permisos finals, correus o enllac segur i evidencies.
+
 Idempotencia orientativa:
 
 ```text
@@ -997,6 +1008,14 @@ Regles:
 - una rectificativa nova sobre factura historica, si cal en produccio, s'ha de tractar com a operacio SIF nova amb referencia a l'historic;
 - les consultes han de mostrar si una factura es `VERIFACTU` o `NO_VERIFACTU`;
 - la migracio ha de tenir informe de control: totals per any/serie, primer/ultim numero, imports i incidencies.
+
+Estat tecnic 2026-06-14:
+
+- circuit CLI preparat amb `HistoricalInvoicePayloadBuilder`, `HistoricalInvoiceMigrationRepository`, `HistoricalInvoiceMigrationService`, `preview-historical-invoice-migration.php` i `process-historical-invoice-migration.php`;
+- importa `NUM_VISIBLE`, serie, any, numero, receptor, totals, linies, relacio `HISTORIC_LINK` i document antic opcional amb hash;
+- marca `ESTAT_FACTURA = HISTORICAL`, `ESTAT_AEAT = NO_VERIFACTU` i `SOURCE_CHANNEL = MIGRACIO`;
+- no toca `factura_registres`, `fiscal_queue`, `fiscal_sequence` ni `fiscal_chain_state`;
+- pendent d'executar amb PHP/MySQL de test, validar totals agregats per any/serie i preparar informe de control de migracio.
 
 ## Fluxos del panell SIF
 

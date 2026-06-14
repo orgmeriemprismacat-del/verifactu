@@ -13,6 +13,7 @@ Definir camps, significat, valors permesos i taula on viuen.
 - `ISSUED`: factura emesa.
 - `RECTIFIED`: factura rectificada.
 - `CANCELLED`: factura cancel·lada/anul·lada fiscalment quan correspongui.
+- `HISTORICAL`: factura importada de l'historic, conservada per consulta i relacio, sense alta VERI*FACTU retroactiva.
 
 ### factura.ESTAT_AEAT
 
@@ -22,6 +23,7 @@ Definir camps, significat, valors permesos i taula on viuen.
 - `REJECTED`: rebutjada.
 - `RETRY`: pendent de reintent.
 - `FAILED`: fallida despres de reintents.
+- `NO_VERIFACTU`: factura historica migrada o conservada per consulta, sense registre VERI*FACTU retroactiu ni cua AEAT.
 
 ### factura.ESTAT_COBRAMENT
 
@@ -200,7 +202,7 @@ Els estats fiscals no haurien de ser text lliure. Si cal un estat nou, s'ha d'af
 ### SIF_MODE
 
 - `VERIFACTU`: modalitat prevista i activa del SIF PrisMa.
-- `NO_VERIFACTU`: no prevista per al SIF PrisMa; nomes s'hauria d'afegir si hi ha decisio formal futura i nova revisio documental.
+- `NO_VERIFACTU`: no es mode productiu del SIF PrisMa; nomes s'usa com a marca de consulta/migracio per factures historiques conservades sense registre VERI*FACTU retroactiu.
 
 ### DECLARACIO_RESPONSABLE_STATUS
 

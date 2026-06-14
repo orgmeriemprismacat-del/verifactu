@@ -24,6 +24,10 @@ final class RedsysCoursePreviewScriptTest
         Assert::stringContainsString('new LegacyCourseInvoicePayloadBuilder()', $source);
         Assert::stringContainsString('new RedsysInvoicePayloadBuilder($notifications)', $source);
         Assert::stringContainsString('loadByIdpag($legacyDb, $idpag, $amount)', $source);
+        Assert::stringContainsString('--discount-file=discount.json', $source);
+        Assert::stringContainsString('new DiscountSnapshotFileReader()', $source);
+        Assert::stringContainsString('->read($discountFile)', $source);
+        Assert::stringContainsString('$snapshot[\'discount\'] = $discountSnapshot;', $source);
         Assert::stringContainsString('buildFromValidatedNotification($sifDb, $dsOrder, $basePayload)', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
 

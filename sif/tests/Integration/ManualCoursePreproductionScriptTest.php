@@ -23,8 +23,11 @@ final class ManualCoursePreproductionScriptTest
         Assert::stringContainsString('new ManualCourseInvoicePayloadBuilder()', $source);
         Assert::stringContainsString('new LegacyCourseSnapshotRepository()', $source);
         Assert::stringContainsString('new LegacySyncService(new LegacySyncRepository())', $source);
-        Assert::stringContainsString('$service->issueFromLegacyCoursePayment($legacyDb, $idpag, $input)', $source);
+        Assert::stringContainsString('$service->issueFromLegacyCoursePayment($legacyDb, $idpag, $input, $discountSnapshot)', $source);
         Assert::stringContainsString('process-manual-course.php IDPAG AMOUNT MOVEMENT_DATE', $source);
+        Assert::stringContainsString('--discount-file=discount.json', $source);
+        Assert::stringContainsString('new DiscountSnapshotFileReader()', $source);
+        Assert::stringContainsString('->read($discountFile)', $source);
         Assert::stringContainsString('--sync-legacy', $source);
         Assert::stringContainsString('syncAfterSifSuccess(', $source);
         Assert::stringContainsString('legacy_sync_executed', $source);

@@ -14,12 +14,21 @@ final class ManualCourseInvoiceService
     ) {
     }
 
-    public function issueFromLegacyCoursePayment(\PDO $legacyDb, int $idpag, array $input): array
+    public function issueFromLegacyCoursePayment(
+        \PDO $legacyDb,
+        int $idpag,
+        array $input,
+        ?array $discountSnapshot = null
+    ): array
     {
         $idpag = $this->idpag($idpag);
         $amount = $this->amount($input);
 
         $snapshot = $this->legacySnapshots->loadByIdpag($legacyDb, $idpag, $amount);
+        if ($discountSnapshot !== null) {
+            $snapshot['discount'] = $discountSnapshot;
+        }
+
         $payload = $this->manualPayloads->buildFromSnapshot($snapshot, array_replace($input, ['idpag' => $idpag]));
         $result = $this->invoices->issueInvoice($payload);
         $result['legacy_sync'] = [

@@ -74,6 +74,60 @@ final class RedsysCourseInvoiceServiceTest
         Assert::same(400, (int) $payment['IDPAG']);
     }
 
+    public function testIssuesCourseInvoiceWithExplicitPromotionalDiscountSnapshot(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new RedsysCourseLegacySpyPdo([
+            $this->legacyInscription(),
+            $this->legacyCourse(),
+        ]);
+        $notifications = new RedsysNotificationRepository();
+        $service = $this->service($notifications, $sifDb);
+
+        $notifications->recordReceived(
+            $sifDb,
+            'ORDERPROMO400',
+            400,
+            '90.00',
+            '0000',
+            true,
+            ['source' => 'promo-test'],
+            'VALIDATED'
+        );
+
+        $result = $service->issueFromValidatedNotification($sifDb, $legacyDb, 'ORDERPROMO400', [
+            'origin' => 'CODI_PROMO',
+            'mode' => 'PERCENT',
+            'code' => 'MACABODETITULAR#400',
+            'pct' => '25.00',
+            'amount' => '30.00',
+            'base' => '120.00',
+            'text' => 'Descompte promocional aplicat',
+        ]);
+
+        Assert::same(true, $result['ok']);
+        Assert::same('PAID', $result['legacy_sync']['estat_cobrament']);
+
+        $invoice = $sifDb->query('SELECT TOTAL, DESC_IMPORT FROM factura')
+            ->fetch(\PDO::FETCH_ASSOC);
+        $line = $sifDb->query(
+            'SELECT IMPORT_BASE, DESC_ORIGEN, DESC_MODE, DESC_CODI_PROMO,
+                    DESC_PCT, DESC_IMPORT, DESC_TEXT_VISIBLE, TOTAL
+             FROM factura_linia'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('90.00', $invoice['TOTAL']);
+        Assert::same('30.00', $invoice['DESC_IMPORT']);
+        Assert::same('120.00', $line['IMPORT_BASE']);
+        Assert::same('CODI_PROMO', $line['DESC_ORIGEN']);
+        Assert::same('PERCENT', $line['DESC_MODE']);
+        Assert::same('MACABODETITULAR#400', $line['DESC_CODI_PROMO']);
+        Assert::same('25.00', $line['DESC_PCT']);
+        Assert::same('30.00', $line['DESC_IMPORT']);
+        Assert::same('Descompte promocional aplicat', $line['DESC_TEXT_VISIBLE']);
+        Assert::same('90.00', $line['TOTAL']);
+    }
+
     public function testRejectsNonValidatedNotificationBeforeLoadingLegacySnapshot(): void
     {
         $sifDb = TestDatabase::fresh();

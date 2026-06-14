@@ -66,6 +66,64 @@ final class ManualCourseInvoiceServiceTest
         Assert::same('TRF600', $payment['REFERENCIA_BANCARIA']);
     }
 
+    public function testIssuesManualCourseInvoiceWithExplicitPromotionalDiscountSnapshot(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new ManualCourseLegacySpyPdo([
+            $this->legacyInscription(),
+            $this->legacyCourse(),
+        ]);
+        $service = $this->service($sifDb);
+
+        $result = $service->issueFromLegacyCoursePayment(
+            $legacyDb,
+            600,
+            [
+                'amount' => '90.00',
+                'movement_date' => '2026-06-08 09:15:00',
+                'reference' => 'TRFPROMO600',
+                'bank' => 'CAIXA',
+            ],
+            [
+                'origin' => 'CODI_PROMO',
+                'mode' => 'PERCENT',
+                'code' => 'MACABODETITULAR#600',
+                'pct' => '25.00',
+                'amount' => '30.00',
+                'base' => '120.00',
+                'text' => 'Descompte promocional aplicat',
+            ]
+        );
+
+        Assert::same(true, $result['ok']);
+        Assert::same('PAID', $result['legacy_sync']['estat_cobrament']);
+
+        $invoice = $sifDb->query('SELECT SOURCE_CHANNEL, TOTAL, DESC_IMPORT FROM factura')
+            ->fetch(\PDO::FETCH_ASSOC);
+        $line = $sifDb->query(
+            'SELECT IMPORT_BASE, DESC_ORIGEN, DESC_MODE, DESC_CODI_PROMO,
+                    DESC_PCT, DESC_IMPORT, DESC_TEXT_VISIBLE, TOTAL
+             FROM factura_linia'
+        )->fetch(\PDO::FETCH_ASSOC);
+        $payment = $sifDb->query('SELECT METODE, IMPORT, REFERENCIA_BANCARIA FROM payment_transaction')
+            ->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('INTRANET', $invoice['SOURCE_CHANNEL']);
+        Assert::same('90.00', $invoice['TOTAL']);
+        Assert::same('30.00', $invoice['DESC_IMPORT']);
+        Assert::same('120.00', $line['IMPORT_BASE']);
+        Assert::same('CODI_PROMO', $line['DESC_ORIGEN']);
+        Assert::same('PERCENT', $line['DESC_MODE']);
+        Assert::same('MACABODETITULAR#600', $line['DESC_CODI_PROMO']);
+        Assert::same('25.00', $line['DESC_PCT']);
+        Assert::same('30.00', $line['DESC_IMPORT']);
+        Assert::same('Descompte promocional aplicat', $line['DESC_TEXT_VISIBLE']);
+        Assert::same('90.00', $line['TOTAL']);
+        Assert::same('TRANSFERENCIA', $payment['METODE']);
+        Assert::same('90.00', $payment['IMPORT']);
+        Assert::same('TRFPROMO600', $payment['REFERENCIA_BANCARIA']);
+    }
+
     public function testRejectsInvalidIdpagBeforeLoadingLegacySnapshot(): void
     {
         $legacyDb = new ManualCourseLegacySpyPdo([]);

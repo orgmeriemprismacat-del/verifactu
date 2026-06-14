@@ -5,6 +5,7 @@ require dirname(__DIR__) . '/src/autoload.php';
 use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
+use Prisma\Sif\Service\DiscountSnapshotFileReader;
 use Prisma\Sif\Service\ManualCourseInvoicePayloadBuilder;
 
 if (PHP_SAPI !== 'cli') {
@@ -21,9 +22,16 @@ if (($config['env'] ?? 'local') === 'production') {
 
 $args = array_slice($argv, 1);
 $positionals = [];
+$discountFile = null;
 foreach ($args as $arg) {
-    if (!str_starts_with((string) $arg, '--')) {
-        $positionals[] = (string) $arg;
+    $arg = (string) $arg;
+    if (str_starts_with($arg, '--discount-file=')) {
+        $discountFile = trim(substr($arg, strlen('--discount-file=')));
+        continue;
+    }
+
+    if (!str_starts_with($arg, '--')) {
+        $positionals[] = $arg;
     }
 }
 
@@ -47,7 +55,12 @@ foreach ([
 
 try {
     $legacyDb = ConnectionFactory::makeLegacy($config);
+    $discountSnapshot = (new DiscountSnapshotFileReader())->read($discountFile);
     $snapshot = (new LegacyCourseSnapshotRepository())->loadByIdpag($legacyDb, $idpag, $input['amount']);
+    if ($discountSnapshot !== null) {
+        $snapshot['discount'] = $discountSnapshot;
+    }
+
     $payload = (new ManualCourseInvoicePayloadBuilder())->buildFromSnapshot($snapshot, $input);
 
     echo json_encode([
@@ -131,7 +144,7 @@ function usage(): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/preview-manual-course.php IDPAG AMOUNT MOVEMENT_DATE [--reference=REF] [--bank=BANK] [--notes=TEXT] [--created-by=USER]\n"
+        "Usage: php sif/scripts/preview-manual-course.php IDPAG AMOUNT MOVEMENT_DATE [--reference=REF] [--bank=BANK] [--notes=TEXT] [--created-by=USER] [--discount-file=discount.json]\n"
     );
     exit(1);
 }

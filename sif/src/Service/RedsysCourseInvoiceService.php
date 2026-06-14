@@ -17,13 +17,22 @@ final class RedsysCourseInvoiceService
     ) {
     }
 
-    public function issueFromValidatedNotification(\PDO $sifDb, \PDO $legacyDb, string $dsOrder): array
+    public function issueFromValidatedNotification(
+        \PDO $sifDb,
+        \PDO $legacyDb,
+        string $dsOrder,
+        ?array $discountSnapshot = null
+    ): array
     {
         $notification = $this->validatedNotification($sifDb, $dsOrder);
         $idpag = $this->idpag($notification);
         $amount = $this->amount($notification);
 
         $snapshot = $this->legacySnapshots->loadByIdpag($legacyDb, $idpag, $amount);
+        if ($discountSnapshot !== null) {
+            $snapshot['discount'] = $discountSnapshot;
+        }
+
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
         $result = $this->invoices->issueInvoice($payload);

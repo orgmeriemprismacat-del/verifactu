@@ -49,6 +49,32 @@ $checks = [
         'scripts/preview-manual-payment.php',
         'scripts/process-manual-payment.php',
     ]),
+    'manual_installment_circuit_present' => allFilesPresent($baseDir, [
+        'src/Service/ManualInstallmentPaymentPayloadBuilder.php',
+        'src/Service/ManualInstallmentPaymentService.php',
+        'scripts/preview-manual-installment.php',
+        'scripts/process-manual-installment.php',
+    ]),
+    'manual_rectification_circuit_present' => allFilesPresent($baseDir, [
+        'src/Repository/RectificationRepository.php',
+        'src/Service/ManualRectificationPayloadBuilder.php',
+        'src/Service/ManualRectificationService.php',
+        'scripts/preview-manual-rectification.php',
+        'scripts/process-manual-rectification.php',
+    ]),
+    'manual_invoice_circuit_present' => allFilesPresent($baseDir, [
+        'src/Service/ManualInvoicePayloadBuilder.php',
+        'src/Service/ManualInvoiceService.php',
+        'scripts/preview-manual-invoice.php',
+        'scripts/process-manual-invoice.php',
+    ]),
+    'historical_migration_circuit_present' => allFilesPresent($baseDir, [
+        'src/Repository/HistoricalInvoiceMigrationRepository.php',
+        'src/Service/HistoricalInvoicePayloadBuilder.php',
+        'src/Service/HistoricalInvoiceMigrationService.php',
+        'scripts/preview-historical-invoice-migration.php',
+        'scripts/process-historical-invoice-migration.php',
+    ]),
     'manual_course_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/ManualCourseInvoiceService.php',
         'scripts/preflight-manual-course.php',
