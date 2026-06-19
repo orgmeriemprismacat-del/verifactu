@@ -978,3 +978,14 @@ Alguns fluxos ja estaven implementats o preparats pero no quedaven bloquejats pe
 
 Impacte:
 La bateria go/no-go continua sent de nomes lectura i no crea factures ni pagaments. El resultat `GO` exigira que aquests circuits estiguin presents i que l'entorn/BD compleixi els prerequisits minims abans d'un pilot controlat.
+
+## 2026-06-19 - `DS_ORDER` es resol amb una intencio de pagament creada al servidor
+
+Decisio:
+Crear `redsys_payment_intent` abans de redirigir a Redsys i usar `DS_ORDER` com a clau unica per recuperar `IDPAG`, tipus/origen, import, divisa, terminal i snapshot fiscal. El callback no pot confiar en `IDPAG` ni en imports rebuts per query string. `redsys_payment_intent`, `redsys_notifications` i `payment_transaction` representen respectivament el context previ al TPV, la notificacio rebuda i el moviment economic confirmat.
+
+Motiu:
+La signatura Redsys valida les dades del TPV, pero el vincle amb l'origen funcional ha de quedar creat al servidor abans del pagament. Sense aquest mapa, el callback actual depen d'un `IDPAG` extern i no pot seleccionar de manera segura l'orquestrador de curs, pack, grup, regal o USOC.
+
+Impacte:
+La migracio SQL i el contracte documental queden preparats. Un `DS_ORDER` repetit nomes es idempotent si coincideixen import, resposta, signatura i intencio; qualsevol discrepancia es una incidencia bloquejant. Encara cal implementar repositori/servei, integrar els punts de creacio de Redsys, connectar el callback als orquestradors i executar les proves amb PHP/MySQL.

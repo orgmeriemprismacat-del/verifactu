@@ -1,6 +1,6 @@
 # Estat del projecte VERI*FACTU
 
-Ultima actualitzacio: 2026-06-14
+Ultima actualitzacio: 2026-06-19
 
 ## Objectiu
 
@@ -103,6 +103,7 @@ Adaptar el sistema de facturacio de PrisMa a VERI*FACTU mitjancant un SIF centra
 - Fase 11 grups continuada el 2026-06-14 amb circuits de preproduccio: creats `RedsysGroupInvoiceService`, `ManualGroupInvoicePayloadBuilder`, `ManualGroupInvoiceService` i els scripts `preflight-redsys-group.php`, `preview-redsys-group.php`, `process-redsys-group.php`, `preflight-manual-group.php`, `preview-manual-group.php` i `process-manual-group.php`. El flux manté factura `GRUP` amb linies per participant, receptor `respGrups`, relacions no visibles a alumne, cobrament inicial Redsys/manual i `--sync-legacy` opcional post-SIF. L'activacio real continua pendent de PHP/MySQL de test i SQL final de `descomptes_grup`.
 - Fase 11 reclamacio/morositat preparada el 2026-06-14: creats `ClaimPaymentPayloadBuilder`, `ClaimPaymentService` i els scripts `preflight-claim-payment.php`, `preview-claim-payment.php` i `process-claim-payment.php`. El flux localitza factura SIF per `UUID_FACTURA` o `NUM_VISIBLE` i registra `registerPayment()` amb assignacio `CLAIM_PAYMENT`, sense factura nova, sense registre fiscal nou, sense hash chain i sense sync legacy. Pendent d'integrar pantalla/URL/correus finals i executar PHP/MySQL de test.
 - Fase 10 go/no-go reforçada el 2026-06-14: `go-no-go-preproduction.php` comprova tambe `credit_balance`, `manual_refund`, `redsys_usoc`, `usoc_entity`, `redsys_group`, `manual_group` i `claim_payment`, a més de les taules legacy de grup `respGrups`. Continua sent comprovacio de nomes lectura i no emet factures ni registra pagaments.
+- Bloc d'entrada de pagaments Redsys continuat el 2026-06-19: creada la migracio `redsys_payment_intent` per vincular `DS_ORDER` generat al servidor amb origen, `IDPAG`, import esperat i snapshot previ al TPV. El contracte documental ja prohibeix resoldre `IDPAG` des de query string i diferencia duplicat coherent, callback contradictori i col·lisio concurrent. Queden pendents el repositori/servei PHP, la connexio automatica del callback amb els orquestradors i les proves executables amb PHP/MySQL.
 
 ## Decisions base ja assumides
 

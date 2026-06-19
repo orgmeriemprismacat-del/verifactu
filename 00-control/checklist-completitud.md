@@ -77,6 +77,12 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Fase 6 preparada al repo de treball: `LegacySyncRepository`, `LegacySyncService` i proves de `fact_rels`/sincronitzacio resum.
 - [x] Fase 7 preparada al repo de treball: `JsonResponse` i endpoints interns `factures/issue` i `payments/register`.
 - [x] Fase 8 preparada al repo de treball: `RedsysNotificationRepository`, `RedsysCallbackService`, endpoint `redsys/callback` segur per defecte i proves de deduplicacio `DS_ORDER`.
+- [x] Contracte previ al TPV definit i migracio `redsys_payment_intent` creada amb `DS_ORDER` unic, origen, `IDPAG`, import/divisa/terminal esperats i snapshot.
+- [x] Matriu documental de callback duplicat definida: coherent i idempotent, contradictori i bloquejant, o concurrent amb relectura del resultat persistent.
+- [ ] Repositori i servei PHP de `redsys_payment_intent` implementats amb proves executables.
+- [ ] Punts de creacio Redsys de curs, pack, grup, regal i USOC connectats a `redsys_payment_intent` abans de redirigir al TPV.
+- [ ] Callback Redsys resol `DS_ORDER` al servidor, ignora `IDPAG` de query string i invoca automaticament l'orquestrador corresponent.
+- [ ] Proves de duplicat idèntic, duplicat contradictori i callback concurrent executades amb PHP/MySQL.
 - [x] Fase 9 preparada al repo de treball: `DocumentRepository`, `IncidentRepository`, proves de documents/incidencies i reforç de cua AEAT amb payload congelat.
 - [x] Fase 10 preparada al repo de treball: `preflight-sif.php`, `go-no-go-preproduction.php`, `PreflightScriptTest` i `GoNoGoPreproductionScriptTest`.
 - [x] Fase 10 go/no-go reforçada: la bateria de preproduccio comprova tambe circuits de saldo, devolucio, USOC, grups i reclamacio/morositat abans d'un pilot.

@@ -114,13 +114,15 @@ Taula proposada:
 ```sql
 CREATE TABLE redsys_notifications (
     ID BIGINT AUTO_INCREMENT PRIMARY KEY,
-    DS_ORDER VARCHAR(30) NOT NULL UNIQUE,
-    IDPAG INT NOT NULL,
-    ID_INSC INT NULL,
+    DS_ORDER VARCHAR(40) NOT NULL UNIQUE,
+    IDPAG INT NULL,
     IMPORT DECIMAL(12,2) NOT NULL,
     RESPONSE_CODE VARCHAR(10) NOT NULL,
-    STATUS VARCHAR(20) NOT NULL,
-    CREATED_AT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    STATUS VARCHAR(30) NOT NULL DEFAULT 'RECEIVED',
+    RAW_PAYLOAD_JSON JSON NULL,
+    SIGNATURE_VALID TINYINT(1) NOT NULL DEFAULT 0,
+    CREATED_AT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 ```
 
@@ -129,10 +131,23 @@ Flux:
 ```text
 callback Redsys rebut
     -> validar signatura
+    -> resoldre redsys_payment_intent per DS_ORDER
     -> INSERT redsys_notifications
-    -> si DS_ORDER duplicat: sortir sense tornar a processar
+    -> si DS_ORDER duplicat: rellegir el registre original
+        -> si import, resposta, signatura i intencio coincideixen: retornar el resultat original sense efecte nou
+        -> si algun valor difereix: marcar incidencia i no processar
     -> si nou: continuar flux
 ```
+
+El repositori no ha de convertir qualsevol SQLSTATE `23000` en un duplicat valid. Ha de comprovar que l'error del motor correspon realment a la clau unica de `DS_ORDER`, rellegir el registre existent i comparar com a minim `IMPORT`, `RESPONSE_CODE`, `SIGNATURE_VALID` i la intencio resolta. Aquesta relectura tambe cobreix dos callbacks concurrents: el que perd la insercio ha de retornar exactament el mateix resultat persistent que el primer, no un estat generic inventat.
+
+Matriu de decisio del segon callback amb el mateix `DS_ORDER`:
+
+| Segon callback | Resultat | Efecte fiscal/economic |
+|---|---|---|
+| Mateixa signatura validada, import, resposta i intencio | Idempotent; retornar estat i identificadors ja persistits. | Cap efecte nou. |
+| Import, resposta, intencio o origen diferents | `INCIDENT`/conflicte auditable. | Bloquejar factura i pagament automatics. |
+| Insercio concurrent amb dades equivalents | Rellegir despres de la col·lisio i actuar com a duplicat idempotent. | Un sol processament. |
 
 `DS_ORDER` deduplica la notificacio Redsys, pero no substitueix la clau fiscal completa del cas. Un mateix `IDPAG` pot tenir diversos `DS_ORDER` per intents, fraccions o reintents, i una mateixa factura pot acabar tenint diversos moviments economics. Per a pagaments acceptats, `payment_transaction.PROVIDER = REDSYS` i `payment_transaction.PROVIDER_REF = DS_ORDER` han de quedar alineats amb `redsys_notifications.DS_ORDER`.
 
@@ -143,7 +158,7 @@ Estats orientatius de `redsys_notifications`:
 | `RECEIVED` | Notificacio rebuda i pendent de validar/processar. | No crea factura ni pagament per si sola. |
 | `INVALID_SIGNATURE` | Signatura incorrecta. | Bloquejar i crear incidencia tecnica si cal. |
 | `DENIED` | Redsys informa resposta no autoritzada. | No crear factura ni `payment_transaction`. |
-| `DUPLICATE` | `DS_ORDER` ja registrat. | Retornar resultat idempotent o marcar duplicat sense efecte nou. |
+| `DUPLICATE` | `DS_ORDER` ja registrat i contingut coherent amb l'original. | Retornar el resultat persistent sense efecte nou. |
 | `PROCESSED` | Pagament acceptat i conciliat amb factura/pagament SIF. | Ha d'existir relacio amb factura i/o `payment_transaction`. |
 | `INCIDENT` | Import, origen o receptor incoherent. | Crear incidencia SIF i no facturar automaticament. |
 
@@ -353,6 +368,41 @@ També ha d'usar el snapshot de preu/descompte calculat abans de Redsys. Si l'us
 - `issueInvoice()` rep la linia amb `desc_origen = CODI_PROMO` o `PROMOCIO_TEMPORAL`.
 
 Si la validacio del codi falla abans de Redsys, no s'ha d'enviar a pagar amb aquell import. Si el codi caduca o es marca usat despres d'emetre, la factura queda igual perquè ja conserva el snapshot fiscal.
+
+### 10.1. Contracte de `redsys_payment_intent`
+
+Abans de redirigir l'usuari a Redsys, `pay.prisma.cat` ha de crear una intencio de pagament en `redsys_payment_intent`. Aquesta taula es el mapa servidor-servidor entre l'ordre enviada al TPV i l'origen funcional que el SIF haura de processar quan arribi el callback.
+
+| Camp | Regla |
+|---|---|
+| `UUID_INTENT` | Identificador intern immutable. |
+| `DS_ORDER` | Unic; es genera al servidor i es l'unica clau acceptada per resoldre la intencio des del callback. |
+| `IDPAG` | Identificador legacy quan existeix; pot ser `NULL` en casos com regal. |
+| `SOURCE_TYPE` / `SOURCE_ID` | Identifiquen curs, pack, grup, regal o USOC sense consultar parametres de retorn del navegador. |
+| `EXPECTED_AMOUNT` / `CURRENCY` / `TERMINAL` | Valors esperats que s'han de comparar amb la notificacio Redsys validada. |
+| `SNAPSHOT_JSON` | Dades fiscals, linies, receptor, descomptes i visibilitat confirmats abans del TPV. |
+| `STATUS` | Comenca a `PENDING`; nomes el circuit de callback el pot portar a estat final o d'incidencia. |
+| `CREATED_BY` / `EXPIRES_AT` | Traçabilitat de creacio i control d'intencions caducades. |
+
+Flux obligatori:
+
+```text
+ecommerce/intranet
+    -> genera DS_ORDER al servidor
+    -> crea redsys_payment_intent(PENDING) amb import i snapshot
+    -> envia DS_ORDER/import/divisa/terminal a Redsys
+
+callback a pay.prisma.cat
+    -> valida signatura i camps Redsys
+    -> busca redsys_payment_intent per DS_ORDER
+    -> ignora qualsevol IDPAG rebut per query string
+    -> compara import, divisa i terminal amb la intencio
+    -> registra redsys_notifications
+    -> invoca l'orquestrador indicat per SOURCE_TYPE
+    -> crea payment_transaction nomes si el cobrament queda acceptat
+```
+
+`redsys_payment_intent` no substitueix `redsys_notifications` ni `payment_transaction`: la primera conserva el context previ al TPV, la segona acredita que s'ha rebut el callback i la tercera representa el moviment economic confirmat. No s'hi defineixen claus foranes cap a les bases legacy, perque la relacio amb `IDPAG` i `SOURCE_ID` es logica i auditable, no una dependencia entre bases de dades.
 
 ## 11. Flux Redsys curs normal
 
