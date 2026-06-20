@@ -38,6 +38,13 @@ final class GoNoGoPreproductionScriptTest
         Assert::stringContainsString('redsys_group_circuit_present', $source);
         Assert::stringContainsString('manual_group_circuit_present', $source);
         Assert::stringContainsString('claim_payment_circuit_present', $source);
+        Assert::stringContainsString('redsys_async_circuit_present', $source);
+        Assert::stringContainsString('redsys_payment_intent_table', $source);
+        Assert::stringContainsString('redsys_callback_queue_table', $source);
+        Assert::stringContainsString('2026_06_19_000003_create_redsys_callback_queue.sql', $source);
+        Assert::stringContainsString('2026_06_19_000004_harden_redsys_notifications.sql', $source);
+        Assert::stringContainsString('preflight-redsys-callback-queue.php', $source);
+        Assert::stringContainsString('process-redsys-callback-queue.php', $source);
         Assert::stringContainsString('go_no_go_decision', $source);
         Assert::stringContainsString('NO-GO', $source);
         Assert::stringContainsString('GO', $source);

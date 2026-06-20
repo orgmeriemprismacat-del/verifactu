@@ -6,7 +6,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 
-final class RedsysCourseInvoiceService
+final class RedsysCourseInvoiceService implements RedsysIntentHandler
 {
     public function __construct(
         private RedsysNotificationRepository $notifications,
@@ -15,6 +15,19 @@ final class RedsysCourseInvoiceService
         private RedsysInvoicePayloadBuilder $redsysPayloads,
         private InvoiceService $invoices
     ) {
+    }
+
+    public function sourceType(): string
+    {
+        return 'CURS';
+    }
+
+    public function issueFromIntentSnapshot(\PDO $sifDb, string $dsOrder, array $snapshot): array
+    {
+        $basePayload = $this->legacyPayloads->build($snapshot);
+        $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
+
+        return $this->invoices->issueInvoice($payload);
     }
 
     public function issueFromValidatedNotification(

@@ -254,6 +254,29 @@ Proves:
 - una factura cobrada amb diversos moviments recalcula estat de cobrament des de `payment_allocation`, no des de `web.inscripcions.PAGAMENT`;
 - la sincronitzacio de `PAGAMENT`, `DATA PAG`, `FRACCIO`, `FACTURA_RELACIONADA` o `NUM_COMANDA` nomes passa despres de resposta correcta del SIF.
 
+Evidencia executable del circuit asincron Redsys:
+
+| Cas | Evidencia minima |
+| --- | --- |
+| Autoritzat | `redsys_payment_intent`, una notificacio, un job `PROCESSED`, una factura i un `payment_transaction` amb els mateixos UUID en reexecucio. |
+| Denegat | Notificacio `ERROR`, cap job, cap factura i cap pagament. |
+| Duplicat coherent | Una notificacio i un job; retorna el mateix `UUID_JOB`. |
+| Duplicat contradictori | Resposta `409`, registres originals intactes i incidencia `REDSYS_CALLBACK`. |
+| Error tecnic | Job `RETRY`, `AVAILABLE_AT` segons backoff 1/5/15/60 i lock alliberat. |
+| Lock caducat | `PROCESSING` de mes de 15 minuts torna a `RETRY` amb error de recuperacio. |
+| Concurrencia | Dues connexions PDO intenten reclamar; nomes una obté el job. |
+| Origens | `CURS`, `PACK`, `GRUP`, `REGAL` i `USOC_ALUMNE` es processen des de `SNAPSHOT_JSON`, sense connexio ni sincronitzacio legacy. |
+
+Comandes de validacio:
+
+```text
+php sif/tests/run-tests.php
+SIF_ENV=test php sif/scripts/run-migrations.php
+php sif/scripts/preflight-redsys-callback-queue.php
+php sif/scripts/process-redsys-callback-queue.php --limit=25 --worker-id=pay-prisma-1
+php sif/scripts/go-no-go-preproduction.php
+```
+
 ### 6.2. Proves especifiques de Generar factura abans de pagar
 
 Aquest subbloc queda pendent d'execucio, pero el criteri de prova queda definit:

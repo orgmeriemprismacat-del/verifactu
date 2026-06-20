@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Tests\Unit;
 
+use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Tests\Support\Assert;
 
 final class ConnectionFactoryTest
@@ -24,17 +25,12 @@ final class ConnectionFactoryTest
         }
     }
 
-    public function testConnectionFactoryCanCreateLegacyConnection(): void
+    public function testConnectionFactoryReportsMissingLegacyDsn(): void
     {
-        $source = file_get_contents(dirname(__DIR__, 2) . '/src/Database/ConnectionFactory.php');
+        $exception = Assert::throws(\RuntimeException::class, static function (): void {
+            ConnectionFactory::makeLegacy(['legacy_db' => []]);
+        });
 
-        if ($source === false) {
-            Assert::fail('Could not read ConnectionFactory');
-        }
-
-        Assert::stringContainsString('makeLegacy(array $config)', $source);
-        Assert::stringContainsString('$config[\'legacy_db\']', $source);
-        Assert::stringContainsString('Legacy DB DSN not configured', $source);
-        Assert::stringContainsString('SET NAMES utf8mb4', $source);
+        Assert::same('Legacy DB DSN not configured', $exception->getMessage());
     }
 }
