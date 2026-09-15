@@ -13,6 +13,19 @@ use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class RedsysGiftInvoiceServiceTest
 {
+    public function testSnapshotEntryRejectsMissingGiftIdBeforeNotificationLookup(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $notifications = new RedsysNotificationRepository();
+        $service = $this->service($notifications, $sifDb);
+
+        $exception = Assert::throws(SifException::class, static function () use ($sifDb, $service): void {
+            $service->issueFromIntentSnapshot($sifDb, 'ORDERGIFTINVALID', ['gift' => []]);
+        }, 422);
+
+        Assert::same('Invalid Redsys gift snapshot ID', $exception->getMessage());
+    }
+
     public function testIssuesGiftInvoiceAndPaymentFromValidatedNotificationById(): void
     {
         $sifDb = TestDatabase::fresh();

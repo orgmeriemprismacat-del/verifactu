@@ -5,6 +5,8 @@ namespace Prisma\Sif\Tests\Support;
 final class TestDatabase
 {
     private const TABLES = [
+        'redsys_callback_queue',
+        'redsys_payment_intent',
         'errors_verifactu',
         'factura_documents',
         'fiscal_queue',
@@ -39,7 +41,9 @@ final class TestDatabase
         self::assertSafeTestConfig($config);
 
         $db = self::connect();
-        $db->exec(file_get_contents(dirname(__DIR__, 2) . '/database/migrations/2026_06_02_000001_create_sif_core.sql'));
+        foreach (glob(dirname(__DIR__, 2) . '/database/migrations/*.sql') ?: [] as $migration) {
+            $db->exec(file_get_contents($migration));
+        }
         self::truncateCoreTables($db);
         $db->exec(file_get_contents(dirname(__DIR__, 2) . '/database/seeds/2026_06_02_000001_seed_sif_core.sql'));
 

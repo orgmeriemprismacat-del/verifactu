@@ -12,6 +12,11 @@ final class RedsysSignatureValidator
 
     public function decodeAndVerify(array $request, array $context = []): array
     {
+        $signatureVersion = $this->field($request, 'Ds_SignatureVersion');
+        if ($signatureVersion !== 'HMAC_SHA256_V1') {
+            throw SifException::validation('Unsupported Redsys signature version');
+        }
+
         $merchantParameters = $this->field($request, 'Ds_MerchantParameters');
         $receivedSignature = $this->field($request, 'Ds_Signature');
 
@@ -30,7 +35,7 @@ final class RedsysSignatureValidator
             throw SifException::validation('Invalid Redsys signature');
         }
 
-        return $this->toSifPayload($decoded, $request, $context);
+        return $this->toSifPayload($decoded, $request, $merchantParameters, $signatureVersion);
     }
 
     private function decodeMerchantParameters(string $merchantParameters): array
@@ -91,20 +96,38 @@ final class RedsysSignatureValidator
         return $encrypted;
     }
 
-    private function toSifPayload(array $decoded, array $request, array $context): array
+    private function toSifPayload(
+        array $decoded,
+        array $request,
+        string $merchantParameters,
+        string $signatureVersion
+    ): array
     {
         $order = $this->field($decoded, 'Ds_Order');
         $amount = $this->field($decoded, 'Ds_Amount');
         $responseCode = $this->field($decoded, 'Ds_Response');
+        $currencyCode = $this->field($decoded, 'Ds_Currency');
+        if ($currencyCode !== '978') {
+            throw SifException::validation('Unsupported Redsys currency');
+        }
+
+        $terminal = $this->field($decoded, 'Ds_Terminal');
+        if ($terminal === null || trim($terminal) === '') {
+            throw SifException::validation('Missing Redsys terminal');
+        }
 
         return [
             'ds_order' => $order,
-            'idpag' => $this->nullableInt($this->field($context, 'idPag')),
             'amount' => $this->normalizeAmount($amount),
             'response_code' => $responseCode,
+            'currency_code' => $currencyCode,
+            'currency' => 'EUR',
+            'terminal' => $terminal,
+            'signature_version' => $signatureVersion,
+            'payload_hash' => hash('sha256', $merchantParameters),
             'redsys' => [
-                'signature_version' => $this->field($request, 'Ds_SignatureVersion'),
-                'merchant_parameters' => $this->field($request, 'Ds_MerchantParameters'),
+                'signature_version' => $signatureVersion,
+                'merchant_parameters' => $merchantParameters,
                 'decoded' => $decoded,
             ],
         ];
@@ -121,19 +144,6 @@ final class RedsysSignatureValidator
         }
 
         return number_format(((int) $amount) / 100, 2, '.', '');
-    }
-
-    private function nullableInt(?string $value): ?int
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        if (!is_numeric($value)) {
-            throw SifException::validation('Invalid Redsys IDPAG');
-        }
-
-        return (int) $value;
     }
 
     private function normalizeSignature(string $signature): string

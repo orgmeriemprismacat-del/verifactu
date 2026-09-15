@@ -178,3 +178,12 @@ Abans d'acabar qualsevol xat, demanar:
 ```text
 Actualitza els fitxers de control del projecte: estat-projecte.md, registre-decisions.md i checklist-completitud.md amb el que hem decidit o completat en aquesta sessio.
 ```
+
+## 2026-06-20 - Implementacio asincrona Redsys: 9 de 9 completades
+
+- Preparat el worktree `feature/redsys-async-queue` amb PHP 8.4.22 i MySQL 8.0.40 de test.
+- Completades les nou targetes: intencions, cua durable, callback transaccional, worker, dispatcher dels cinc origens, resultat persistent, reintents/incidencies, duplicats contradictoris i operacio CLI/preflight.
+- El callback no usa `IDPAG` de query string; compara import, divisa i terminal amb la intencio i conserva els camps signats normalitzats.
+- El worker consumeix `SNAPSHOT_JSON` sense connexio ni sincronitzacio legacy automatica.
+- Verificacio: `276 passed, 0 failed`; preflight Redsys `ok=true`; migracions `000003` i `000004` aplicades sobre MySQL 8.0.40.
+- El go/no-go confirma el circuit Redsys asincron, pero continua `NO-GO` global per manca de BD legacy de preproduccio.

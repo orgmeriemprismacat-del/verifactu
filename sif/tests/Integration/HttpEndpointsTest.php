@@ -45,9 +45,15 @@ final class HttpEndpointsTest
         Assert::stringContainsString('RedsysSignatureValidator', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
         Assert::stringContainsString('new RedsysCallbackService(', $source);
+        Assert::stringContainsString('new RedsysPaymentIntentRepository()', $source);
         Assert::stringContainsString('new RedsysNotificationRepository()', $source);
-        Assert::stringContainsString('$validator->decodeAndVerify($_POST, $_GET)', $source);
+        Assert::stringContainsString('new RedsysCallbackQueueRepository(new UuidGenerator())', $source);
+        Assert::stringContainsString('$validator->decodeAndVerify($_POST)', $source);
         Assert::stringContainsString('$service->receiveCallback($db, $payload, true)', $source);
+
+        if (str_contains($source, '$_GET')) {
+            Assert::fail('Redsys callback endpoint must not use query-string fiscal context');
+        }
 
         if (str_contains($source, '$signatureValid = false;')) {
             Assert::fail('Redsys callback endpoint must use the real signature validator once wired');

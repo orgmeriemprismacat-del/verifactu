@@ -13,6 +13,19 @@ use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class RedsysUsocInvoiceServiceTest
 {
+    public function testSnapshotEntryRejectsMissingEntityAmountBeforeBuildingPayload(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $notifications = new RedsysNotificationRepository();
+        $service = $this->service($notifications, $sifDb);
+
+        $exception = Assert::throws(SifException::class, static function () use ($sifDb, $service): void {
+            $service->issueFromIntentSnapshot($sifDb, 'ORDERUSOCINVALID', ['usoc' => []]);
+        }, 422);
+
+        Assert::same('Invalid Redsys USOC entity amount snapshot', $exception->getMessage());
+    }
+
     public function testIssuesStudentInvoiceAndPaymentFromValidatedNotification(): void
     {
         $sifDb = TestDatabase::fresh();

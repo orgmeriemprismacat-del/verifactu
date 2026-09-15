@@ -1,0 +1,43 @@
+SET @ddl = IF(
+    (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'redsys_notifications'
+       AND COLUMN_NAME = 'CURRENCY_CODE') = 0,
+    'ALTER TABLE redsys_notifications ADD COLUMN CURRENCY_CODE VARCHAR(3) NULL AFTER IMPORT',
+    'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+    (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'redsys_notifications'
+       AND COLUMN_NAME = 'TERMINAL') = 0,
+    'ALTER TABLE redsys_notifications ADD COLUMN TERMINAL VARCHAR(20) NULL AFTER CURRENCY_CODE',
+    'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+    (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'redsys_notifications'
+       AND COLUMN_NAME = 'SIGNATURE_VERSION') = 0,
+    'ALTER TABLE redsys_notifications ADD COLUMN SIGNATURE_VERSION VARCHAR(30) NULL AFTER SIGNATURE_VALID',
+    'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = IF(
+    (SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'redsys_notifications'
+       AND COLUMN_NAME = 'PAYLOAD_HASH') = 0,
+    'ALTER TABLE redsys_notifications ADD COLUMN PAYLOAD_HASH CHAR(64) NULL AFTER SIGNATURE_VERSION',
+    'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
