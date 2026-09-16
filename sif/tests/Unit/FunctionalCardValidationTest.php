@@ -120,6 +120,21 @@ final class FunctionalCardValidationTest
         });
     }
 
+    public function testCardValidatorRejectsHashPrintedDifferentlyFromManifest(): void
+    {
+        $this->withTemporaryRepository(function (string $root, array $manifest): void {
+            $card = str_replace(
+                (string) $manifest['sources'][0]['sha256'],
+                str_repeat('0', 64),
+                $this->validCard()
+            );
+            $result = (new FunctionalCardValidator($root))->validate($card, $manifest);
+
+            Assert::same(false, $result['valid']);
+            Assert::same(true, $this->hasError($result, 'card manifest hash differs'));
+        });
+    }
+
     public function testReadyForProgrammingRejectsBlockingPendingClaim(): void
     {
         $this->withTemporaryRepository(function (string $root, array $manifest): void {
@@ -207,7 +222,8 @@ final class FunctionalCardValidationTest
             if ($index === 0) {
                 $lines[] = '**Estat de preparació:** NEEDS_DECISION';
             } elseif ($index === 1) {
-                $lines[] = '- SRC-001 | source.md | sha256';
+                $hash = hash('sha256', "# Canvi de curs\nRegla confirmada del cas.\n");
+                $lines[] = "- SRC-001 | `source.md` | L1-L2 | `{$hash}` | AUTORITZADA — OBJECTIU — CLEAN";
             } else {
                 $sequence = str_pad((string) ($index - 1), 3, '0', STR_PAD_LEFT);
                 $lines[] = "- [UC26-TEST-{$sequence}] [CONFIRMAT] Cas confirmat. | Fonts: SRC-001 | Bloqueja: NO";

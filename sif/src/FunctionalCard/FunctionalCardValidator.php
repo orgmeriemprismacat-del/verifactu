@@ -56,6 +56,7 @@ final class FunctionalCardValidator
         $sourceMap = $this->sourceMap($manifest, $errors);
         $inputMap = $this->inputEvidenceMap($manifest, $errors);
         $this->validateManifestHashes($sourceMap, $errors);
+        $this->validateCardManifest($markdown, $sourceMap, $errors);
 
         $claims = [];
         $seenIds = [];
@@ -312,6 +313,69 @@ final class FunctionalCardValidator
             $expected = $source['sha256'] ?? null;
             if (!is_string($expected) || $expected === '' || !hash_equals($expected, (string) hash_file('sha256', $resolved))) {
                 $errors[] = 'Manifest source hash is stale: ' . $sourceId;
+            }
+        }
+    }
+
+    private function validateCardManifest(string $markdown, array $sourceMap, array &$errors): void
+    {
+        $lines = preg_split('/\R/u', $markdown) ?: [];
+        $currentSection = 0;
+        $cardSources = [];
+
+        foreach ($lines as $lineNumber => $line) {
+            if (preg_match('/^##\s+([0-9]+)\./u', trim($line), $sectionMatch) === 1) {
+                $currentSection = (int) $sectionMatch[1];
+                continue;
+            }
+            if ($currentSection !== 2 || preg_match('/^- ((?:SRC|AUX)-[0-9]{3})\s+\|/u', trim($line), $idMatch) !== 1) {
+                continue;
+            }
+
+            $sourceId = $idMatch[1];
+            if (isset($cardSources[$sourceId])) {
+                $errors[] = sprintf('Line %d: duplicate source in card manifest: %s', $lineNumber + 1, $sourceId);
+                continue;
+            }
+
+            $parts = array_map('trim', explode('|', trim($line)));
+            if (count($parts) < 5) {
+                $errors[] = sprintf('Line %d: invalid card manifest source format', $lineNumber + 1);
+                continue;
+            }
+
+            $cardSources[$sourceId] = [
+                'path' => trim($parts[1], "` \t"),
+                'sha256' => trim($parts[3], "` \t"),
+                'validation' => trim((string) preg_split('/\s+/u', $parts[4], 2)[0]),
+                'line' => $lineNumber + 1,
+            ];
+        }
+
+        foreach ($sourceMap as $sourceId => $source) {
+            if (!isset($cardSources[$sourceId])) {
+                $errors[] = 'Card manifest is missing source: ' . $sourceId;
+                continue;
+            }
+
+            $cardSource = $cardSources[$sourceId];
+            if ($cardSource['path'] !== ($source['path'] ?? null)) {
+                $errors[] = sprintf('Line %d: card manifest path differs for %s', $cardSource['line'], $sourceId);
+            }
+
+            $expectedHash = ($source['exists'] ?? false) === true ? ($source['sha256'] ?? null) : '—';
+            if (!is_string($expectedHash) || !hash_equals($expectedHash, $cardSource['sha256'])) {
+                $errors[] = sprintf('Line %d: card manifest hash differs for %s', $cardSource['line'], $sourceId);
+            }
+
+            if ($cardSource['validation'] !== ($source['validation'] ?? null)) {
+                $errors[] = sprintf('Line %d: card manifest validation differs for %s', $cardSource['line'], $sourceId);
+            }
+        }
+
+        foreach ($cardSources as $sourceId => $cardSource) {
+            if (!isset($sourceMap[$sourceId])) {
+                $errors[] = sprintf('Line %d: card manifest contains unknown source %s', $cardSource['line'], $sourceId);
             }
         }
     }
