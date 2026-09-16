@@ -1407,3 +1407,20 @@ camp/sistema, retenció, migració de l'estat vigent, serveis/adaptadors,
 actualització dels diagrames, validació funcional i proves PHP/MySQL. No s'ha
 creat un UC independent de drets RGPD perquè només s'ha localitzat el peu legal,
 no un circuit executable complet; rectificació/propagació continuen a UC-120.
+
+## 2026-09-16 - Publicar el checkpoint funcional auditat
+
+Decisió:
+Publicar a `origin/checkpoint/sif-fase-0-4` el commit funcional `efdbeef`, amb
+les 142 fitxes, les migracions 000005 i 000006, les proves estructurals i els
+documents de traçabilitat i control associats.
+
+Motiu:
+La publicació ha estat autoritzada explícitament i les comprovacions estàtiques
+han validat estructura, manifests, referències de claus foranes, reconciliació
+de fonts, absència de canvis llegats i absència de secrets detectables.
+
+Impacte:
+El hash local i el remot coincideixen. La publicació no converteix el projecte
+en `GO`: continuen pendents l'execució de la suite PHP, l'aplicació real de les
+migracions en MySQL, la validació funcional i la prova de preproducció.

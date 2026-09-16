@@ -627,3 +627,14 @@ Una area es pot marcar com a revisada quan:
   demostrar que no existeixen efectes laterals sobre pagaments/factures.
 - [ ] Aplicar 000001..000006 i executar `CrossSystemControlSchemaTest` i la
   suite completa en PHP/MySQL de preproducció.
+
+## Publicació del checkpoint confirmat - 2026-09-16
+
+- [x] Autorització explícita rebuda per comprovar, commitejar i publicar.
+- [x] Publicat el commit funcional `efdbeef` a
+  `origin/checkpoint/sif-fase-0-4`.
+- [x] Verificat que `HEAD` i la referència remota coincideixen.
+- [x] Confirmat que la publicació no inclou `codi-drive`, `xat-original`,
+  secrets detectables ni canvis de PHP llegat.
+- [ ] Executar proves PHP/MySQL i validació de preproducció abans de retirar
+  l'estat `[NO-GO]`.

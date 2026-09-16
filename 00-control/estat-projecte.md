@@ -406,3 +406,14 @@ L'usuari reclama confirmar el registre de qualsevol gestió que afecti un pagame
   PHP ni s'han aplicat 000001..000006. L'estat continua `[NO-GO]`.
 - No s'ha carregat el JSONL antic, no s'ha modificat PHP llegat i no s'ha fet
   commit ni push.
+
+## 2026-09-16 - Publicació del checkpoint confirmat
+
+- La publicació ha estat autoritzada explícitament després de les auditories.
+- El commit funcional `efdbeef` (`feat(sif): amplia casos funcionals i model
+  transversal`) s'ha publicat a `origin/checkpoint/sif-fase-0-4` i s'ha
+  comprovat que el hash local i el remot coincideixen.
+- La publicació conté només `00-control`, `documentacio` i `sif`; no inclou
+  `codi-drive`, `xat-original`, secrets detectables ni canvis de PHP llegat.
+- Aquesta publicació és un checkpoint documental i d'esquema. PHP i MySQL no
+  estan disponibles en aquest host i, per tant, l'estat continua `[NO-GO]`.
