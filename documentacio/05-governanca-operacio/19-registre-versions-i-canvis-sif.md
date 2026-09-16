@@ -150,6 +150,39 @@ No hi ha versio productiva signable sense paquet documental.
 No hi ha paquet documental complet sense certificat/apoderament i declaracio accessible dins del SIF.
 ```
 
+### 5.3. Plantilla de versio candidata
+
+```markdown
+## Versio candidata SIF
+
+| Camp | Valor |
+| --- | --- |
+| Versio |  |
+| Tipus | BORRADOR / PREPRODUCCIO / PRODUCCIO |
+| Data proposta |  |
+| Responsable tecnica |  |
+| Responsable legal/direccio |  |
+| Paquet/commit |  |
+| Entorn desplegat |  |
+| Migracions BD |  |
+| Canvis funcionals |  |
+| Afectacio fiscal | Cap / Menor / Substancial |
+| Afecta AEAT | Si / No |
+| Afecta PDF/QR/XML | Si / No |
+| Afecta permisos | Si / No |
+| Afecta hash chain/numeracio | Si / No |
+| Proves requerides |  |
+| Campanya go/no-go associada |  |
+| Declaracio responsable | No aplica / Esborrany / Signable / Signada |
+| Estat final | Candidata / Activa / Rebutjada / Substituida |
+```
+
+Regla:
+
+```text
+Si un canvi afecta numeracio, hash chain, AEAT, PDF/QR/XML, permisos fiscals o fluxos d'emissio/rectificacio, la versio candidata ha de passar per campanya go/no-go abans de ser activa.
+```
+
 ## 6. Canvis que poden requerir nova declaracio o annex
 
 Poden requerir nova declaracio responsable, annex o actualitzacio signada:

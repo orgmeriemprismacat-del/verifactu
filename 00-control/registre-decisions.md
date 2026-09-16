@@ -308,6 +308,17 @@ La documentacio ja deia que calia provar preproduccio, idempotencia, Redsys dupl
 Impacte:
 `09-checklist-posada-en-produccio.md`, `20-pla-proves-validacio-sif.md`, `19-registre-versions-i-canvis-sif.md`, `26-matriu-cobertura-casos.md`, `27-informe-auditoria-documental.md` i `README.md` deixen el paquet preparat a nivell documental. Encara queda pendent executar-lo en un entorn de preproduccio o produccio controlada, guardar captures/logs/exports reals i associar-lo a la versio candidata.
 
+## 2026-09-16 - Plantilles operatives de proves i go/no-go
+
+Decisio:
+Afegir plantilles concretes per executar una prova, resumir una campanya go/no-go, documentar una restauracio, registrar l'acta go/no-go i descriure una versio candidata del SIF.
+
+Motiu:
+El paquet de proves ja definia criteris i IDs, pero faltava un format reutilitzable per omplir el dia que s'executin proves reals. Sense plantilla, les evidencies podrien quedar disperses, incompletes o no comparables entre versions.
+
+Impacte:
+`20-pla-proves-validacio-sif.md` incorpora fitxa d'execucio i resum de campanya; `09-checklist-posada-en-produccio.md` incorpora acta de restauracio i acta go/no-go; `19-registre-versions-i-canvis-sif.md` incorpora fitxa de versio candidata. Les plantilles encara no son evidencies reals: nomes preparen l'execucio futura.
+
 ## 2026-06-02 - Fluxos fiscals especials tancats
 
 Decisio:
@@ -1424,3 +1435,14 @@ Impacte:
 El hash local i el remot coincideixen. La publicació no converteix el projecte
 en `GO`: continuen pendents l'execució de la suite PHP, l'aplicació real de les
 migracions en MySQL, la validació funcional i la prova de preproducció.
+
+## 2026-09-16 - Proves i captures obligatories per pantalles internes
+
+Decisio:
+Afegir al pla de proves i a l'annex de captures un bloc específic per demostrar el comportament final de les pantalles internes i accessos externs abans de producció.
+
+Motiu:
+Les pantalles poden semblar correctes visualment però continuar permetent accions antigues o ambigües: editar factura, registrar pagament sense saber si crea factura, regenerar PDF, mostrar factura d'empresa a un alumne o resoldre incidències fora del SIF. Cal evidència visual i funcional abans de considerar-les preparades.
+
+Impacte:
+`20-pla-proves-validacio-sif.md` incorpora proves `SIF-PANT-*`, `SIF-VIS-002` i `SIF-AVI-*`. `23-annex-captures-pantalla.md` defineix captures mínimes per `Passar pagaments`, factura abans de cobrament, `Consulta - Edita - Anula factura`, intranet alumne, empresa/responsable i apartat `VERI*FACTU`. Aquest canvi no executa proves ni captures; només fixa què s'haurà d'evidenciar.

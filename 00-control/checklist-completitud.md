@@ -204,6 +204,11 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] Prova minima de backup/restauracio definida.
 - [x] Classificacio d'incidencies i efecte en go/no-go definits.
 - [x] Checklist final d'activacio productiva definit.
+- [x] Plantilla d'execucio de prova definida.
+- [x] Plantilla de resum de campanya go/no-go definida.
+- [x] Plantilla d'acta de restauracio definida.
+- [x] Plantilla d'acta go/no-go definida.
+- [x] Plantilla de versio candidata definida.
 - [ ] Entorn de preproduccio o mode test separat implementat.
 - [ ] Bateria go/no-go executada amb evidencia real.
 - [ ] Captures finals i logs reals incorporats a l'expedient de versio.
@@ -638,3 +643,12 @@ Una area es pot marcar com a revisada quan:
   secrets detectables ni canvis de PHP llegat.
 - [ ] Executar proves PHP/MySQL i validació de preproducció abans de retirar
   l'estat `[NO-GO]`.
+
+## Proves i captures de pantalles internes - 2026-09-16
+
+- [x] `20-pla-proves-validacio-sif.md` ampliat amb proves transversals de pantalles, avisos i bloquejos.
+- [x] `23-annex-captures-pantalla.md` ampliat amb fitxa fiscal de captura, captures mínimes i criteri de privacitat.
+- [x] Fitxers de control actualitzats amb el tall de proves/captures.
+- [ ] Executar `SIF-PANT-PAY-001`, `SIF-PANT-PAY-002`, `SIF-PANT-FAC-001`, `SIF-PANT-FACT-001`, `SIF-PANT-FACT-002`, `SIF-VIS-002`, `SIF-AVI-001` i `SIF-AVI-002`.
+- [ ] Fer captures reals de les pantalles crítiques quan existeixin en entorn implementat.
+- [ ] Vincular cada captura a ID de prova, versió SIF, rol, entorn i evidència conservada.

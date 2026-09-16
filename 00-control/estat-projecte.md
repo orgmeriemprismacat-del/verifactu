@@ -43,6 +43,7 @@ Adaptar el sistema de facturacio de PrisMa a VERI*FACTU mitjancant un SIF centra
 - Model BD SIF consolidat: `fact_rels` queda com a pont logic amb BD antiga, sense foreign keys entre BD fiscal i BD web/intranet; `payment_transaction`, `payment_allocation`, `factura_linia`, `fiscal_chain_state`, `fiscal_queue` i valors controlats queden alineats entre model, relacions i diccionari.
 - Entrada de pagaments al SIF definida: Redsys entra per callback a `pay.prisma.cat` i es deduplica a `redsys_notifications`; transferencies i pagaments manuals entren per `Passar pagaments`; fitxers TPV generen analisi/conciliacio auditada; el moviment economic real viu a `payment_transaction` i l'assignacio a factura viu a `payment_allocation`.
 - Bloc especialitzat de proves i posada en produccio revisat: el checklist i el pla de proves ja tenen criteris executables de `GO`, `GO AMB LIMITACIONS` i `NO-GO`, bateria bloquejant amb IDs, fitxa d'evidencia, criteri de captures, backups/restauracio, incidencies i checklist final d'activacio. Queda pendent executar-ho en preproduccio/produccio i conservar evidencies reals.
+- Continuacio del bloc de proves i posada en produccio: afegides plantilles operatives per executar proves, resumir campanyes go/no-go, documentar restauracions, registrar l'acta go/no-go i descriure versions candidates. Queda pendent usar aquestes plantilles amb evidencies reals quan hi hagi entorn de preproduccio i codi desplegable.
 - Fluxos fiscals especials tancats: compensacio/saldo, pagaments fraccionats, rectificatives, devolucions, baixes, canvis de curs, factura manual i migracio de factures historiques queden definits com a fluxos separats. Cap d'aquests casos es resol modificant imports, dates o factures emeses; passen per `issueInvoice()`, `registerPayment()`, `payment_transaction`, `payment_allocation`, `credit_balance`, rectificatives o migracio `NO_VERIFACTU` segons el cas.
 - Bloc normatiu/documental revisat: documentacio SIF AEAT, declaracio responsable, registre de versions, permisos i diccionari han quedat reforcats amb criteri de fonts oficials, versio `1.0.0` signable, certificat digital/apoderament, productor/titular intern, rol auditor nomes lectura i camps fiscals minims del registre d'alta, QR, AEAT, documents i declaracio.
 - Pla d'implementacio tecnica del SIF creat: `documentacio/00-index-i-pla/29-pla-implementacio-tecnica-sif.md` converteix l'arquitectura tancada en fases executables, fitxers a crear, proves amb runner PHP propi, migracions SQL, endpoints interns, Redsys, documents, incidencies i preflight.
@@ -417,3 +418,11 @@ L'usuari reclama confirmar el registre de qualsevol gestió que afecti un pagame
   `codi-drive`, `xat-original`, secrets detectables ni canvis de PHP llegat.
 - Aquesta publicació és un checkpoint documental i d'esquema. PHP i MySQL no
   estan disponibles en aquest host i, per tant, l'estat continua `[NO-GO]`.
+
+## 2026-09-16 - Proves i captures de pantalles internes preparades
+
+- Ampliat `20-pla-proves-validacio-sif.md` amb proves transversals de pantalles, avisos i bloquejos per `Passar pagaments`, `Generar factura abans de pagar`, `Consulta - Edita - Anula factura`, intranet alumne, empresa/responsable i apartat `VERI*FACTU`.
+- Ampliat `23-annex-captures-pantalla.md` amb criteris de captura fiscal, matriu de captures mínimes per pantalla crítica i criteri de privacitat.
+- Les proves noves comproven que les pantalles indiquen abans de confirmar si faran `registerPayment()`, `issueInvoice(payment)`, rectificativa/devolucio/saldo, consulta o incidencia.
+- No s'han executat captures ni proves reals; queden pendents entorn, dades, pantalles implementades i evidència conservable.
+- No s'ha carregat el JSONL antic, no s'ha modificat codi i no s'ha fet commit ni push en aquest tall.

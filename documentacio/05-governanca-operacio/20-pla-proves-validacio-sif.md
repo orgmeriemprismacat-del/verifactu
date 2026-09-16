@@ -304,6 +304,29 @@ Aquest subbloc queda pendent d'execucio, pero el criteri de prova queda definit:
 - acces a document queda registrat si s'estableix auditoria d'accessos;
 - apartat `VERI*FACTU` de la intranet mostra indicador i resum, pero no permet resoldre incidencies oficialment.
 
+### 6.4.1. Proves transversals de pantalles, avisos i bloquejos
+
+Aquest bloc comprova que les pantalles implementen el comportament definit als documents de pantalles i procediments, no nomes que el servei SIF funcioni.
+
+| ID prova | Pantalla / acces | Objectiu | Resultat esperat |
+| --- | --- | --- | --- |
+| `SIF-PANT-PAY-001` | `Passar pagaments` | Mostrar factura existent, pendent SIF, metode, data, referencia i accio prevista abans de confirmar. | La pantalla diu si fara `registerPayment()`, `issueInvoice(payment)` o incidencia, i el servidor valida el mateix. |
+| `SIF-PANT-PAY-002` | `Passar pagaments` | Confirmar que una inscripcio coberta per empresa/responsable no manté URL individual duplicable. | Avis visible i accio individual bloquejada o substituida per URL correcta. |
+| `SIF-PANT-FAC-001` | `Generar factura abans de pagar` | Mostrar que l'accio emet factura real pendent, no proforma. | Avis previ, `EMESA_ABANS_COBRAMENT = 1`, `E_FACT = 0` per defecte i pagament posterior per `registerPayment()`. |
+| `SIF-PANT-FACT-001` | `Consulta - Edita - Anula factura` | Bloquejar el llapis/edicio directa en factura SIF. | L'accio visible és rectificativa/devolucio/saldo/`E_FACT`; `updDadesFact` no s'executa per SIF. |
+| `SIF-PANT-FACT-002` | `Consulta - Edita - Anula factura` | Factura amb diverses inscripcions abans d'anul·lar o retornar. | Assignacions visibles i motiu obligatori abans de confirmar. |
+| `SIF-VIS-002` | Alumne / empresa / responsable | Comprovar avisos de visibilitat externa. | Alumne veu cobertura sense PDF complet d'empresa/grup; responsable autoritzat veu PDF/QR i URL correcta. |
+| `SIF-AVI-001` | Apartat `VERI*FACTU` | Distingir `indicador`, `avis`, `notificacio` i `incidencia SIF`. | L'indicador obre resum, l'avis explica l'estat, la notificacio es recuperable i la incidencia es resol nomes al SIF. |
+| `SIF-AVI-002` | Intranet quan SIF no respon | Evitar fals estat buit. | La pantalla mostra indisponibilitat i darrera sincronitzacio valida, sense assumir que no hi ha pendents. |
+
+Evidencia minima:
+
+- captura abans de confirmar;
+- captura del bloqueig o avis;
+- resposta servidor/API;
+- log o event auditable quan l'accio es critica;
+- consulta posterior de factura, pagament, document o incidencia.
+
 ### 6.5. Proves especifiques de Redsys curs normal
 
 Aquest subbloc queda pendent d'execucio, pero el criteri de prova queda definit:
@@ -483,3 +506,64 @@ Per cada ID de prova s'ha de conservar una fitxa curta:
 | Resultat obtingut | `PASS`, `FAIL`, `BLOCKED` o `N/A JUSTIFICAT` |
 | Evidencies | Captures, logs, exports, hashes, PDF/QR/XML |
 | Incidencia | ID d'incidencia si falla o queda pendent |
+
+### 7.4. Plantilla d'execucio d'una prova
+
+Aquesta plantilla es pot copiar per cada prova executada:
+
+```markdown
+## Execucio de prova
+
+| Camp | Valor |
+| --- | --- |
+| ID prova |  |
+| Versio SIF |  |
+| Entorn | TEST / PREPROD / PROD controlat |
+| Data i hora |  |
+| Responsable execucio |  |
+| Rol/usuari utilitzat |  |
+| Dades d'entrada |  |
+| Estat inicial |  |
+| Passos executats |  |
+| Resultat esperat |  |
+| Resultat obtingut | PASS / FAIL / BLOCKED / N/A JUSTIFICAT |
+| Evidencies associades |  |
+| Incidencia associada |  |
+| Observacions |  |
+```
+
+Regles d'us:
+
+- `Passos executats` ha de permetre repetir la prova sense preguntar a qui l'ha fet.
+- `Dades d'entrada` no ha d'exposar dades personals reals si no cal; en captures publiques internes, anonimitzar quan sigui possible.
+- `Evidencies associades` ha d'indicar fitxer, captura, log, export o hash concret.
+- Si el resultat es `FAIL` o `BLOCKED`, ha d'existir incidencia o justificacio.
+- Una prova repetida ha de conservar l'execucio anterior i afegir una nova fitxa, no sobreescriure-la.
+
+### 7.5. Resum de campanya de proves
+
+Per cada campanya de preproduccio o go/no-go s'ha de conservar un resum:
+
+| Camp | Contingut |
+| --- | --- |
+| Campanya | Per exemple `GO-NOGO-1.0.0-PREPROD-01`. |
+| Versio candidata | Codi exacte de versio. |
+| Entorn | `PREPROD`, `TEST` o produccio controlada. |
+| Data inici / final | Dates d'execucio. |
+| Responsable tecnica | Persona que valida tecnicament. |
+| Paquet desplegat | Commit, hash, etiqueta o paquet. |
+| Migracions aplicades | Identificador o resum. |
+| Total proves | Nombre total executat. |
+| `PASS` | Nombre i llista d'IDs. |
+| `FAIL` | Nombre i llista d'IDs. |
+| `BLOCKED` | Nombre i llista d'IDs. |
+| `N/A JUSTIFICAT` | Nombre i llista d'IDs. |
+| Incidencies critiques/altes | IDs i estat. |
+| Evidencies base | Carpeta o index d'evidencies. |
+| Resultat campanya | `GO`, `GO AMB LIMITACIONS` o `NO-GO`. |
+
+Regla:
+
+```text
+La decisio final no surt de la sensacio global, sino del resum de campanya mes les incidencies bloquejants.
+```

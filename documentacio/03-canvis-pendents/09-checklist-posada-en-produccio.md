@@ -169,6 +169,33 @@ La prova de restauracio ha de fer-se en entorn separat i ha de demostrar:
 - verificacio que la restauracio no reactiva enviaments AEAT o callbacks Redsys com si fossin nous;
 - registre de data, responsable, origen del backup, entorn de restauracio i resultat.
 
+#### 3.1.1. Plantilla d'acta de restauracio
+
+```markdown
+## Acta de restauracio
+
+| Camp | Valor |
+| --- | --- |
+| ID acta |  |
+| Versio SIF |  |
+| Data/hora inici |  |
+| Data/hora final |  |
+| Responsable |  |
+| Entorn restaurat |  |
+| Origen backup BD |  |
+| Origen backup documents |  |
+| Punt temporal restaurat |  |
+| Factura de mostra verificada |  |
+| UUID / numero / hash verificats |  |
+| Documents fiscals verificats | PDF / QR / XML / altres |
+| Cues o processos reactivats per error | No / Si, detall |
+| Resultat | PASS / FAIL / BLOCKED |
+| Evidencies |  |
+| Incidencia associada |  |
+```
+
+L'acta no substitueix el backup automatic. Serveix per demostrar que PrisMa sap restaurar i consultar el SIF sense alterar factures ni reprocessar events.
+
 ## 4. Evidencies minimes a conservar
 
 Per a la versio productiva:
@@ -320,6 +347,38 @@ La decisio final s'ha de revisar en aquest ordre:
 - [ ] Revisio de generacio PDF/QR.
 - [ ] Revisio d'indicadors i incidencies de la intranet.
 - [ ] Evidencia final de versio activa i declaracio responsable associada.
+
+### 7.4. Plantilla d'acta go/no-go
+
+```markdown
+## Acta go/no-go SIF
+
+| Camp | Valor |
+| --- | --- |
+| ID acta |  |
+| Versio candidata |  |
+| Data decisio |  |
+| Entorn validat |  |
+| Paquet/commit desplegat |  |
+| Migracions aplicades |  |
+| Campanya de proves |  |
+| Proves PASS |  |
+| Proves FAIL |  |
+| Proves BLOCKED |  |
+| Incidencies CRITICA obertes |  |
+| Incidencies ALTA obertes |  |
+| Backup previ verificat | Si / No |
+| Restauracio provada | Si / No |
+| Certificat/apoderament provat | Si / No / No aplica justificat |
+| Declaracio responsable preparada | Si / No |
+| Decisio | GO / GO AMB LIMITACIONS / NO-GO |
+| Limitacions acceptades |  |
+| Responsable tecnica |  |
+| Direccio/responsable legal |  |
+| Propera revisio |  |
+```
+
+Si la decisio es `GO AMB LIMITACIONS`, l'acta ha d'explicar exactament quin abast queda activat i quin queda bloquejat o sota control manual temporal.
 
 ## 8. Fonts oficials revisades
 
