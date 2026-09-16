@@ -320,6 +320,20 @@ Aquest apartat no substitueix l'esquema XML oficial d'AEAT. Serveix per assegura
 - `AEAT_AUTH_METHOD`: metode d'identificacio/remissio.
 - `AEAT_AUTH_STATUS`: estat de certificat/apoderament.
 - `FIRST_VERIFACTU_SENT_AT`: data del primer enviament efectiu `VERI*FACTU`, quan existeixi.
+- `OFFICIAL_SOURCES_REVIEWED_AT`: data de revisio de fonts AEAT/BOE usada per la versio.
+- `LEGAL_DEADLINE_CRITERION`: criteri aplicat al termini legal de l'entitat.
+- `DECLARACIO_SIGNER_NIF`: NIF de la persona que signa formalment, si es conserva a l'expedient.
+- `DECLARACIO_SIGNED_PLACE`: lloc de signatura.
+- `TECHNICAL_APPROVAL_REF`: referencia interna al vistiplau tecnic de la versio.
+- `AEAT_AUTH_SUBJECT`: titular/subjecte del certificat o representacio.
+- `AEAT_AUTH_ISSUER`: emissor del certificat o autoritat equivalent.
+- `AEAT_AUTH_SERIAL_PARTIAL`: numero de serie parcial o resum segur.
+- `AEAT_AUTH_FINGERPRINT_PARTIAL`: empremta parcial o resum segur no reutilitzable.
+- `AEAT_AUTH_VALID_UNTIL`: caducitat.
+- `AEAT_AUTH_LAST_TEST_AT`: data i hora de l'ultima prova.
+- `AEAT_AUTH_LAST_TEST_RESULT`: resultat de l'ultima prova.
+- `AUDITOR_ACCESS_EXPIRES_AT`: caducitat de l'usuari auditor temporal, si existeix.
+- `AUDITOR_EXPORT_REASON`: motiu declarat per una exportacio fiscal d'auditoria.
 
 ## 8. Traça universal d'accions sobre pagaments
 

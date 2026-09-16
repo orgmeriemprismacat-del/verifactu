@@ -428,6 +428,15 @@ Regles:
 - cal disposar d'una copia de seguretat xifrada, procediment de renovacio/rotacio, revocacio i responsable de custodia;
 - la prova valida s'ha de fer des del mateix servidor o entorn del worker, contra l'endpoint AEAT corresponent, i no es suficient comprovar el certificat des d'un navegador personal.
 
+Metadades permeses al panell o expedient, sempre sense secrets:
+
+- metode d'identificacio: certificat entitat, apoderament o representacio equivalent;
+- titular/subjecte, emissor, caducitat, entorn i estat;
+- numero de serie o empremta nomes parcial o resum segur;
+- data, hora i resultat de l'ultima prova;
+- referencia interna a la incidencia si l'estat es `ERROR`, `EXPIRED` o `REVOKED`;
+- versio SIF i declaracio responsable vinculades a aquesta configuracio.
+
 ## 10. Acces documental dins del SIF
 
 La declaracio responsable i la informacio de versio han d'estar accessibles dins del SIF de forma rapida, clara i llegible.
@@ -476,3 +485,10 @@ Activacio del rol:
 - acces registrat amb usuari, data, IP si es conserva, accio i export realitzada;
 - caducitat o desactivacio manual en acabar la revisio;
 - cap acces a secrets tecnics, certificat digital, claus privades, contrasenyes, dades academiques no necessaries o pantalles d'edicio.
+
+Controls addicionals:
+
+- tota exportacio ha d'indicar motiu, interval, tipus de dades i responsable que l'autoritza;
+- si es crea un usuari temporal, ha de tenir data de caducitat o revisio obligatoria;
+- el rol no pot accedir a pantalles d'administracio tecnica, configuracio de certificat, Redsys, secrets, backups ni edicio de permisos;
+- els accessos del rol auditor s'han de poder exportar com a evidència d'auditoria.

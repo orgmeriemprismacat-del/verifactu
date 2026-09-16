@@ -31,8 +31,9 @@ Correspon a l'entitat i a la seva direcció:
 
 - facilitar els recursos, accessos, infraestructura, temps i col·laboració interna necessaris per desenvolupar i provar el SIF;
 - proporcionar o autoritzar les dades fiscals i corporatives que hagin de constar al sistema i a la declaració responsable;
+- confirmar el termini legal aplicable a l'entitat, la no adscripció al SII, el territori fiscal aplicable i qualsevol criteri d'assessoria que pugui afectar la signatura;
 - obtenir, renovar i mantenir el certificat electrònic qualificat de l'entitat o formalitzar la representació, l'apoderament o la col·laboració social que s'utilitzi davant l'AEAT;
-- designar la persona amb representació suficient que subscriurà la declaració responsable del SIF en nom de l'entitat;
+- designar la persona amb representació suficient que subscriurà la declaració responsable del SIF en nom de l'entitat i facilitar-ne nom, NIF, càrrec i facultats;
 - reconèixer i facilitar l'autonomia de la responsable tècnica sobre l'arquitectura, el desenvolupament, els accessos administratius, les versions, les incidències i la posada en operativa del SIF;
 - sotmetre a la intervenció i conformitat expressa de la responsable tècnica qualsevol decisió o actuació que afecti el SIF o els circuits de pagament gestionats pels sistemes de l'entitat, i impedir que altres persones o proveïdors les decideixin o executin unilateralment;
 - adoptar de manera compartida, juntament amb Meriem Abjil Bajja i Pablo Martori Delupi, les decisions fiscals, jurídiques, laborals, funcionals i organitzatives relacionades amb el projecte, i deixar constància de les que afectin el compliment o l'operació;
@@ -77,8 +78,10 @@ Correspon a la responsable tècnica, amb els recursos i accessos facilitats per 
 3. Mitjançant aquest acord, l'entitat autoritza internament la responsable tècnica a instal·lar, configurar i gestionar l'ús operatiu del certificat per part del SIF, una vegada el titular o custodi legítim l'hagi facilitat i s'hagin establert les condicions de seguretat. Aquesta autorització interna no substitueix els apoderaments o habilitacions externes que siguin necessaris davant l'AEAT.
 4. El certificat i la clau privada han d'estar protegits fora del directori públic i del repositori, amb permisos mínims, contrasenya separada, còpia de seguretat xifrada i registre de renovacions.
 5. El certificat TLS de `pay.prisma.cat`, el certificat client AEAT i la signatura de la declaració responsable són elements diferents i no s'han de reutilitzar o confondre sense validació tècnica.
-6. Qualsevol pèrdua, exposició, caducitat o sospita de compromís s'ha de comunicar immediatament i pot bloquejar la posada en producció.
-7. La responsable tècnica no queda obligada a aportar un certificat personal, equips personals, comptes personals ni recursos econòmics propis per executar les funcions d'aquest acord.
+6. Abans de declarar preparada la versió `1.0.0`, el certificat, apoderament o mecanisme equivalent s'ha de provar des del servidor, usuari o worker SIF que farà la remissió, i se n'ha de conservar evidència no secreta.
+7. L'expedient només pot conservar metadades no secretes del certificat o representació: mètode, titular, emissor, caducitat, entorn, estat, empremta o número de sèrie parcial, data de prova i resultat.
+8. Qualsevol pèrdua, exposició, caducitat o sospita de compromís s'ha de comunicar immediatament i pot bloquejar la posada en producció.
+9. La responsable tècnica no queda obligada a aportar un certificat personal, equips personals, comptes personals ni recursos econòmics propis per executar les funcions d'aquest acord.
 
 ### Clàusula 6 Versions i declaració responsable del SIF
 
@@ -86,7 +89,7 @@ Correspon a la responsable tècnica, amb els recursos i accessos facilitats per 
 2. La declaració responsable del SIF ha d'identificar Associació PrisMa com a productora interna quan el desenvolupament sigui propi i per a ús propi.
 3. La declaració responsable ha de ser assumida i subscrita per Associació PrisMa com a productora interna, mitjançant una persona amb representació suficient. Ha d'indicar la data i el lloc de subscripció. La normativa no exigeix que porti signatura electrònica; per al seu expedient intern, l'entitat la formalitzarà amb una signatura visible del seu representant. La responsable tècnica emetrà el vistiplau incorporat a l'annex 1 d'aquest acord, que no substitueix la subscripció de l'entitat.
 4. No es podrà presentar com a definitiva una declaració que descrigui components no instal·lats, proves no executades o una versió que no sigui verificable.
-5. La primera versió productiva prevista, `1.0.0`, només podrà declarar-se preparada quan s'hagin tancat els camps obligatoris, les proves, el certificat o apoderament, la remissió AEAT, els documents fiscals i les incidències bloquejants, la responsable tècnica hagi emès el resultat corresponent i l'entitat hagi subscrit la declaració responsable.
+5. La primera versió productiva prevista, `1.0.0`, només podrà declarar-se preparada quan s'hagin tancat els camps obligatoris, les proves, el certificat o apoderament, la remissió AEAT, els documents fiscals, el mapa dels camps fiscals mínims, el rol auditor de només lectura i les incidències bloquejants, la responsable tècnica hagi emès el resultat corresponent i l'entitat hagi subscrit la declaració responsable.
 6. Qualsevol canvi substancial d'abast, arquitectura, modalitat fiscal, proveïdor, certificat o components s'ha de documentar, vincular a una versió i validar abans o, en una actuació urgent, immediatament després del canvi.
 
 ### Clàusula 7 Validació tècnica i entrada en producció
@@ -94,10 +97,13 @@ Correspon a la responsable tècnica, amb els recursos i accessos facilitats per 
 Abans de l'entrada en producció s'ha de conservar, com a mínim:
 
 - identificador exacte de versió i referència del codi desplegat;
+- fonts oficials AEAT/BOE revisades, amb data, i termini legal aplicable confirmat;
 - migracions de base de dades i configuració d'entorn aplicades;
 - proves executades i evidències de resultats;
-- estat del certificat o apoderament i prova d'autenticació davant l'AEAT;
+- estat del certificat o apoderament i prova d'autenticació davant l'AEAT des del worker o entorn real del SIF;
+- correspondència entre camps normatius mínims, taules internes, payload XML/AEAT, PDF/QR i proves;
 - verificació de PDF, QR, XML, cua, reintents, incidències, permisos, backups i restauració;
+- verificació del rol auditor/AEAT de només lectura, sense escriptura ni accés a secrets;
 - declaració responsable completa de la versió;
 - resultat tècnic emès i constància de les decisions compartides que afectin aspectes fiscals, jurídics, laborals o organitzatius.
 
@@ -179,6 +185,9 @@ Aquest annex forma part de l'acord, però la signatura de l'acord no implica que
 | VT-10 | Backup i restauració executats amb evidència | | |
 | VT-11 | Declaració responsable de la versió completada i accessible al SIF | | |
 | VT-12 | Incidències bloquejants tancades o inexistents | | |
+| VT-13 | Fonts oficials AEAT/BOE revisades i termini legal aplicable confirmat | | |
+| VT-14 | Mapa camp normatiu -> taula interna -> XML/PDF/QR -> prova completat | | |
+| VT-15 | Rol auditor/AEAT només lectura creat o preparat sense escriptura ni secrets | | |
 
 Estats admesos: `OK`, `NO OK`, `NO APLICA` amb justificació o `PENDENT`.
 

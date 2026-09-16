@@ -6,15 +6,20 @@ Esta declaración se ha preparado conforme al artículo 13 del Real Decreto 1007
 
 La entidad productora suscribirá la declaración indicando fecha y lugar. La normativa no exige firma electrónica para este documento. Para el expediente interno de Associació PrisMa se prevé, además, la firma visible de una persona con representación suficiente.
 
+Las fuentes AEAT/BOE se han revisado de nuevo el 16/09/2026 para esta versión candidata. Esta declaración sigue siendo un borrador: no sustituye la validación fiscal externa ni acredita por sí sola que el SIF esté implantado.
+
 ## Control previo a la suscripción
 
 Antes de retirar la indicación de borrador deben quedar completados estos puntos:
 
 - versión 1.0.0 cerrada e identificada de forma inequívoca;
+- plazo legal aplicable documentado y confirmado para Associació PrisMa;
 - componentes realmente instalados contrastados con el apartado 1.d;
 - pruebas funcionales, fiscales, de seguridad y de recuperación ejecutadas;
-- certificado o representación para la remisión a la AEAT configurado y probado;
+- certificado o representación para la remisión a la AEAT configurado y probado desde el entorno real del proceso SIF;
 - XML, hash, idempotencia, cola AEAT, PDF y QR verificados;
+- correspondencia de campos mínimos del registro de alta/anulación con tablas internas, XML y evidencias de prueba;
+- rol de auditoría/AEAT solo lectura preparado, sin acceso a secretos ni acciones de escritura;
 - incidencias bloqueantes cerradas;
 - visto bueno técnico emitido;
 - persona con representación suficiente confirmada por la entidad;
@@ -108,6 +113,16 @@ Lugar: Girona, España
 
 Este bloque se incorpora al expediente de Associació PrisMa para identificar a la persona que actúa en nombre de la entidad. No sustituye los datos obligatorios de los apartados 1.a a 1.l.
 
+Matriz interna previa:
+
+| Elemento | Criterio de esta versión candidata | Pendiente antes de firmar |
+| --- | --- | --- |
+| Entidad productora/titular interna | Associació PrisMa | Confirmar que se mantiene desarrollo interno para uso propio. |
+| Obligado tributario usuario | Associació PrisMa | Confirmar alcance fiscal aplicable, SII/no SII y territorio común. |
+| Responsable técnica/documental | Meriem Abjil Bajja | Emitir visto bueno técnico de la versión instalada. |
+| Firmante formal | Adam Carmona, o representante formal que confirme la entidad | Confirmar NIF, cargo y facultades suficientes. |
+| Certificado/apoderamiento AEAT | Certificado de entidad o representación admitida por AEAT | Probar desde el servidor o worker real y archivar evidencia no secreta. |
+
 Por Associació PrisMa
 
 Nombre y apellidos: Adam Carmona
@@ -126,5 +141,6 @@ La versión definitiva podrá incorporar como anexo el visto bueno técnico de l
 
 - Real Decreto 1007/2023, artículo 13.
 - Orden HAC/1177/2024, artículo 15.
-- Preguntas frecuentes de la AEAT sobre certificación de los sistemas informáticos.
+- Preguntas frecuentes de la AEAT sobre certificación de los sistemas informáticos y sistemas VERI*FACTU, actualizadas a 21 de julio de 2026.
+- Nota informativa de la AEAT sobre ampliación de plazos SIF y Real Decreto-ley 15/2025.
 - Ejemplos de declaraciones responsables de SIF publicados por la AEAT, versión 0.5.1.

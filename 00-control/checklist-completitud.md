@@ -652,3 +652,19 @@ Una area es pot marcar com a revisada quan:
 - [ ] Executar `SIF-PANT-PAY-001`, `SIF-PANT-PAY-002`, `SIF-PANT-FAC-001`, `SIF-PANT-FACT-001`, `SIF-PANT-FACT-002`, `SIF-VIS-002`, `SIF-AVI-001` i `SIF-AVI-002`.
 - [ ] Fer captures reals de les pantalles crítiques quan existeixin en entorn implementat.
 - [ ] Vincular cada captura a ID de prova, versió SIF, rol, entorn i evidència conservada.
+
+## Revisio normativa i documentacio signable - 2026-09-16
+
+- [x] Revisades fonts oficials AEAT/BOE actuals sobre terminis, certificacio/declaracio responsable, modalitats `VERI*FACTU`, registre d'alta, signatura i certificat/apoderament.
+- [x] Actualitzat `documentacio-sif-aeat.md` amb revisio 2026-09-16, dates 2027 i recordatori que el calendari intern no fa signable una versio.
+- [x] Reforcada `declaracio-responsable-sif-prisma.md` com a borrador candidat `1.0.0`, amb control previ i matriu interna de productor/titular, obligat usuari, responsable tecnica, signant i certificat/apoderament.
+- [x] Afegit a `19-registre-versions-i-canvis-sif.md` el control bloquejant de signatura `1.0.0`.
+- [x] Reforçat `21-seguretat-permisos-accessos.md` amb metadades permeses del certificat i controls addicionals del rol auditor/AEAT nomes lectura.
+- [x] Ampliat `24-diccionari-camps-i-valors.md` amb camps de fonts oficials, termini legal, signant, vistiplau tecnic, prova de certificat i auditoria.
+- [x] Actualitzat `documentacio/README.md` amb el control afegit per a la declaracio responsable.
+- [ ] Confirmar amb gestoria o criteri intern formal si PrisMa presenta Impost sobre Societats, no esta en SII, no esta en territori foral i quin termini legal exacte aplica.
+- [ ] Confirmar signant formal, NIF, carrec i facultats suficients abans de retirar el segell de borrador.
+- [ ] Provar certificat/apoderament des del servidor o worker SIF real i conservar evidencia no secreta.
+- [ ] Completar mapa camp normatiu -> taula/camp intern -> XML/PDF/QR -> prova per registre d'alta/anulacio.
+- [ ] Crear/provar rol auditor/AEAT nomes lectura, sense secrets ni escriptura, i amb caducitat/exportacions auditades.
+- [ ] Mantenir `1.0.0` com a no signable fins que paquet desplegat, BD, proves, certificat, auditoria, declaracio i validacio fiscal coincideixin.

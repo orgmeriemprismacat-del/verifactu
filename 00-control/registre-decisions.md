@@ -1446,3 +1446,14 @@ Les pantalles poden semblar correctes visualment però continuar permetent accio
 
 Impacte:
 `20-pla-proves-validacio-sif.md` incorpora proves `SIF-PANT-*`, `SIF-VIS-002` i `SIF-AVI-*`. `23-annex-captures-pantalla.md` defineix captures mínimes per `Passar pagaments`, factura abans de cobrament, `Consulta - Edita - Anula factura`, intranet alumne, empresa/responsable i apartat `VERI*FACTU`. Aquest canvi no executa proves ni captures; només fixa què s'haurà d'evidenciar.
+
+## 2026-09-16 - Revisio normativa AEAT/BOE i paquet signable `1.0.0`
+
+Decisio:
+Actualitzar el bloc normatiu/documental amb fonts oficials revisades el 2026-09-16 i convertir la declaracio responsable `1.0.0` en un paquet signable condicionat. La documentacio conserva Associacio PrisMa com a productora/titular interna i obligada usuaria del SIF, Meriem Abjil Bajja com a responsable tecnica/documental i Adam Carmona o representant formal de l'entitat com a signant pendent de confirmar.
+
+Motiu:
+La documentacio de juny ja contenia criteris correctes, pero calia deixar traça de fonts oficials actualitzades: AEAT FAQ actualitzades a 21/07/2026, nota de terminis amb dates 2027 segons Reial decret llei 15/2025, declaracio responsable/certificacio, modalitats VERI*FACTU i contingut del registre d'alta. Sense aquesta revisio, la declaracio podia semblar preparada per signar sense tenir certificat/apoderament provat, camps fiscals mapats, rol auditor i proves de versio.
+
+Impacte:
+`documentacio-sif-aeat.md` actualitza fonts i bloquejos; `declaracio-responsable-sif-prisma.md` incorpora control previ i matriu interna de signatura; `19-registre-versions-i-canvis-sif.md` afegeix control bloquejant de `1.0.0`; `21-seguretat-permisos-accessos.md` reforça certificat i auditor nomes lectura; `24-diccionari-camps-i-valors.md` tipifica camps de fonts oficials, signant, prova de certificat i auditoria; `README.md` resumeix el control afegit. No s'ha consultat `xat-original`, no s'ha implementat codi i no s'ha executat cap prova; el tall documental es publica amb checkpoint Git autoritzat en aquest xat.

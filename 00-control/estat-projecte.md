@@ -426,3 +426,12 @@ L'usuari reclama confirmar el registre de qualsevol gestió que afecti un pagame
 - Les proves noves comproven que les pantalles indiquen abans de confirmar si faran `registerPayment()`, `issueInvoice(payment)`, rectificativa/devolucio/saldo, consulta o incidencia.
 - No s'han executat captures ni proves reals; queden pendents entorn, dades, pantalles implementades i evidència conservable.
 - No s'ha carregat el JSONL antic, no s'ha modificat codi i no s'ha fet commit ni push en aquest tall.
+
+## 2026-09-16 - Revisio normativa i paquet signable `1.0.0`
+
+- Revisades fonts oficials AEAT/BOE del bloc SIF/VERI*FACTU: certificacio i declaracio responsable, modalitats, registre d'alta, FAQ actualitzades a 21/07/2026 i nota de terminis amb dates 2027 segons Reial decret llei 15/2025.
+- `documentacio-sif-aeat.md` queda ajustat a revisio 2026-09-16 i explicita que les fites internes no substitueixen el termini legal ni fan signable una versio.
+- `declaracio-responsable-sif-prisma.md` queda reforçada com a borrador candidat `1.0.0`, amb control previ de termini aplicable, certificat/apoderament provat des del worker, camps fiscals minims, rol auditor nomes lectura i matriu interna de signatura.
+- `19-registre-versions-i-canvis-sif.md`, `21-seguretat-permisos-accessos.md`, `24-diccionari-camps-i-valors.md` i `documentacio/README.md` incorporen el control bloquejant de signatura, metadades no secretes del certificat, controls del rol auditor i camps de versio/declaracio necessaris.
+- L'estat continua `[NO-GO]`: no hi ha versio `1.0.0` instal·lada, certificat/apoderament provat, mapa camp normatiu -> taula/XML/PDF/QR -> prova, rol auditor executat ni validacio fiscal externa.
+- No s'ha carregat `xat-original` ni s'ha modificat codi. Aquest tall documental es tanca amb checkpoint Git autoritzat en aquest xat.

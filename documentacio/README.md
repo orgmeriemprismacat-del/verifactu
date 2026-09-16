@@ -17,6 +17,8 @@
 - `01-compliment-aeat/documentacio-sif-aeat.md`: document tecnic/organitzatiu del SIF.
 - `01-compliment-aeat/declaracio-responsable-sif-prisma.md`: esborrany declaracio responsable.
 - `01-compliment-aeat/declaracio-responsable-sif-prisma-borrador.docx`: esborrany Word.
+- `01-compliment-aeat/acord-intern-responsabilitats-sif-prisma.md`: acord intern de governanca, responsabilitats, certificat i activacio de versions; no substitueix la declaracio responsable.
+- `01-compliment-aeat/vistiplau-tecnic-sif-prisma.md`: formulari de vistiplau tecnic pendent d'emissio per a la versio candidata `1.0.0`.
 
 ## 3. Context i estat actual
 
@@ -71,6 +73,7 @@ Aquests documents o pantalles equivalents han d'estar accessibles dins del SIF, 
   - Font actual: `01-compliment-aeat/declaracio-responsable-sif-prisma.md`
   - Format final recomanat: PDF signat i llegible.
   - Estat actual: borrador no signable fins que existeixi versio `1.0.0` instal·lada, verificable i preparada per produccio.
+  - Control afegit: abans de signar cal conservar revisio AEAT/BOE datada, certificat/apoderament provat, mapa de camps fiscals i rol auditor nomes lectura.
 - Identificacio de la versio activa del SIF.
   - Font actual: `05-governanca-operacio/19-registre-versions-i-canvis-sif.md`
   - Ha d'indicar nom del SIF, codi intern, versio, data d'entrada en produccio i responsable.
