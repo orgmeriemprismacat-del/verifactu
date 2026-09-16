@@ -1183,7 +1183,7 @@ Motiu:
 Cal generar especificacions útils per programar sense inventar decisions, confondre el llegat amb l'objectiu ni duplicar la documentació validada. El manifest congelat i les cites per ID, ruta, línies i hash fan comprovable l'origen de cada afirmació.
 
 Impacte:
-L'MVP queda ubicat a `sif/tools/functional-card`, amb preparador i validador CLI a `sif/scripts` i proves a `sif/tests/Unit`. No incorpora API de model, base vectorial ni interfície web. La síntesi semàntica continua a càrrec de l'assistent. Amb el PHP 8.4.22 local, els 7 fitxers PHP nous passen el lint, les 12 proves específiques passen i el manifest pilot es genera correctament. La suite global queda en `167 passed, 85 failed` per manca de connexió a la BD de test i altres errors preexistents no causats per aquest mòdul.
+L'MVP queda ubicat a `sif/tools/functional-card`, amb preparador i validador CLI a `sif/scripts` i proves a `sif/tests/Unit`. No incorpora API de model, base vectorial ni interfície web. La síntesi semàntica continua a càrrec de l'assistent. Amb el PHP 8.4.22 local, els 7 fitxers PHP nous passen el lint i les 13 proves específiques passen. El manifest pilot cobreix 23 fonts, incloses la migració `000003`, `OperationalEventRepository` i la seva prova d'esquema. La primera previsualització completa d'UC-26 conté 82 afirmacions i marca com a `CONFLICTE` el nom documental `canvi_curs` davant la taula física `course_change_event`; queda en `NEEDS_DECISION` i fora de la documentació canònica fins que els xats responsables resolguin els pendents. La suite global queda en `167 passed, 85 failed` per manca de connexió a la BD de test i altres errors preexistents no causats per aquest mòdul.
 
 ## 2026-09-15 - L'adaptació VERI*FACTU inclou la gestió i la traça, no només el pagament
 
@@ -1333,3 +1333,77 @@ Impacte:
 La protecció existeix al codi però no està provada en MySQL. Una fallada parcial
 de DDL, còpia de seguretat, recuperació i permisos continuen sent criteris de
 preproducció bloquejants.
+
+## 2026-09-16 - Modelar els cicles executables que no caben en venda/pagament genèrics
+
+Decisió:
+La decisió de completitud anterior s'amplia amb UC-113..UC-124. Importació,
+versionat mestre, capacitat, evidència sensible, dret promocional/regal, grup,
+canvi personal, renovació/repreuament, pack, entrega electrònica i estat
+acadèmic/econòmic es tracten com a cicles diferenciats. El catàleg vigent té
+124 UC numèrics i 13 variants: 137 fitxes estructurades, encara no aprovades.
+
+La persistència adopta una línia comercial explícita i el seu vincle amb
+`factura_linia`; un ledger de places; evidències múltiples amb retenció; un
+model genèric `commercial_entitlement` amb events append-only per promocions,
+regals i drets futurs; execució/fila d'importació; sol·licituds de canvi mestre
+i personal; entrega de factura electrònica; i events acadèmics amb snapshot
+econòmic. Aquesta decisió es materialitza additivament a la migració 000005.
+
+Motiu:
+El codi actual crea i modifica inscripcions des de molts punts, recalcula
+descomptes, genera codis, bescanvia regals, gestiona grups/packs, puja evidències,
+canvia cursos i Moodle i comunica canvis personals per correu. Cap d'aquestes
+responsabilitats queda resolta només centralitzant callbacks o creant factura i
+pagament. Sense estat, història i concurrència propis es perdria traçabilitat o
+es reconstruirien efectes a partir d'`IDPAG`, `A_PAGAR` o flags vius.
+
+Impacte:
+Els documents 05, 24, 33, 35, 38, 39, 40 i el nou 41, el generador i les 137
+fitxes reflecteixen el model. La migració no s'ha aplicat, els serveis/adaptadors
+no existeixen i els endpoints actius de producció no estan congelats. Per tant,
+137 fitxes no equivalen a 137 casos tancats i l'estat es manté `NO-GO` fins a
+validació funcional, fiscal, de protecció de dades i proves PHP/MySQL/preproducció.
+
+## 2026-09-16 - Tall inicial del `PaymentActionGateway`
+
+Decisió:
+Preparar el primer tall executable del gateway obligatori de traça de pagaments. `PaymentActionGateway` conserva l'event `REQUESTED` abans d'executar l'operació, bloqueja l'acció si aquest primer registre falla, confirma el resultat terminal dins la transacció de la mutació i registra `FAILED` si l'operació o l'auditoria terminal fallen. `PaymentActionEventRepository` passa a implementar `PaymentActionEventWriter` i valida accions, resultats, entorns, canals i tipus d'actor contra els valors del diccionari.
+
+Motiu:
+El pla R2 i la decisió de traça universal exigeixen fail-closed i atomicitat entre mutació i resultat terminal. Abans d'integrar pagaments reals cal disposar d'una peça comuna provable que impedeixi executar o retornar dades quan no es pot conservar la traça.
+
+Impacte:
+S'afegeixen `PaymentActionEventWriter`, `PaymentActionGateway` i proves unitàries específiques per fallada inicial del ledger, èxit, reutilització idempotent, excepció de domini i fallada de l'auditoria terminal amb rollback. No s'ha integrat encara amb `PaymentService`, consultes, Redsys, workers, CLI, migració, conciliació ni sincronització llegada. No s'han pogut executar les proves perquè no hi ha PHP al `PATH`; la verificació queda pendent en entorn amb PHP/MySQL.
+
+## 2026-09-16 - Separar consentiment, identitat, estat d'edició, adreça i reconciliació acadèmica
+
+Decisió:
+Es creen UC-125..UC-129 i una persistència pròpia per a cinc cicles. El
+consentiment comercial no és un camp de la inscripció; la identitat externa no
+es resol actualitzant un correu; cancel·lar una edició no equival a donar de
+baixa una persona; validar CP/població no pot reescriure snapshots; i comparar
+Prisma amb Moodle no és la mateixa conciliació que SIF-llegat.
+
+La migració 000006 incorpora `communication_consent` i events,
+`external_identity_link`, `identity_conflict_case`, `edition_lifecycle_event`,
+`edition_operation_impact`, `address_validation_case` i
+`academic_reconciliation_item`. Els efectes econòmics/fiscals derivats no
+s'executen en aquestes taules: es deriven als casos canònics i conserven la
+correlació.
+
+Motiu:
+El codi demana i confirma mailing des de diversos endpoints; detecta correus
+divergents entre BD i Moodle; un únic mètode anul·la/activa edicions, baixa
+alumnes, consulta factura/forma de pagament i avisa; múltiples writers acumulen
+CP/poblacions desconeguts; i hi ha comparacions massives d'usuaris/matrícules
+Prisma-Moodle. Reduir-ho a UC-120 o UC-124 perdria entrada, decisió, afectats i
+resultat propis.
+
+Impacte:
+El catàleg passa a 142 fitxes. L'esquema local passa a 60 taules creades per
+migracions. El canvi continua sent disseny no aplicat: falten autoritat per
+camp/sistema, retenció, migració de l'estat vigent, serveis/adaptadors,
+actualització dels diagrames, validació funcional i proves PHP/MySQL. No s'ha
+creat un UC independent de drets RGPD perquè només s'ha localitzat el peu legal,
+no un circuit executable complet; rectificació/propagació continuen a UC-120.

@@ -150,13 +150,15 @@ Tipus d'incidencia:
 ## 9. Fitxes funcionals, auditoria de cobertura i esquema registral
 
 - Catàleg de casos d'ús: `04-estat-final/33-casos-us-sif.md`.
-- Fitxes estructurades pendents de revisió de contingut: `06-fitxes-funcionals/README.md` i 125 fitxers `uc-*.md`.
+- Fitxes estructurades pendents de revisió de contingut: `06-fitxes-funcionals/README.md` i 142 fitxers `uc-*.md`.
 - Reconciliació de les 185 `Fitxes mare` en tres taulers:
   `04-estat-final/39-auditoria-fitxes-funcionals.md`.
 - Auditoria de buits: `04-estat-final/40-auditoria-buits-fitxes-codi-bd.md`.
 - Model físic additiu: migracions
   `sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql`
-  i `sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql`.
+  i `sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql`,
+  `2026_09_16_000005_add_operation_lifecycle_tables.sql` i
+  `2026_09_16_000006_add_cross_system_control_tables.sql`.
 - Permisos append-only: `sif/database/permissions/`.
 
 La fitxa documental no acredita que el cas estigui programat. Cal mirar

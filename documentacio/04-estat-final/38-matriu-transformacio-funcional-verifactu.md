@@ -553,8 +553,9 @@ La regla de cobertura és:
 7. un flux observat al codi pot crear un cas nou encara que no tingui targeta.
 
 El resultat auditable és `39-auditoria-fitxes-funcionals.md`: 185 targetes
-inventariades/classificades i 125 fitxes canòniques, sense declarar-les
-completes. `40-auditoria-buits-fitxes-codi-bd.md` conserva els buits descoberts.
+inventariades/classificades i 142 fitxes canòniques, sense declarar-les
+completes. Els documents 40 i 41 conserven els buits i la correspondència amb
+les superfícies executables.
 
 ## 17. Operació comercial prèvia al SIF fiscal
 
@@ -580,3 +581,42 @@ inscripció/reserva
 La migració `2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql`
 materialitza aquesta separació i completa camps fiscals documentats. No està
 aplicada ni integrada; el codi candidat continua `NO-GO`.
+
+## 18. Ampliació per cicles comercials i acadèmics detectats al codi
+
+La matriu executable del document 41 amplia la transformació amb dotze casos i
+les responsabilitats següents:
+
+| Àrea | Llegat observat | Transformació obligatòria | Casos |
+| --- | --- | --- | --- |
+| Importació d'inscripcions | Alta/CSV Moodle i estat acadèmic | Run/item idempotent, error per fila i cap cobrament inferit | UC-113, UC-124 |
+| Producte/edició | `UPDATE` de curs/aula | Versió, previsualització d'afectats i decisió per reserva oberta | UC-114 |
+| Capacitat | recomptes i flags d'obertura | reserva atòmica, expiració, alliberament i llista d'espera | UC-115 |
+| Evidències | fitxer/correu i camps de validació | custòdia protegida, hash, accés i retenció | UC-116 |
+| Promocions/drets | codi creat o marcat | ledger d'emissió, reserva, consum, expiració i reversió | UC-117 |
+| Grups | participants/tram/`IDPAG` compartit | composició mutable, línies/places i lock pre-TPV | UC-118 |
+| Regals | `regal`, `FACT_REL`, nou `IDPAG` | compra, dret, beneficiari i bescanvi separats | UC-119 |
+| Dades personals | petició per correu | expedient, aprovació, propagació i exclusió d'històrics | UC-120 |
+| Reserva caducada | regeneració d'URL | nova versió de preu/plaça, acceptació i enllaç nou | UC-121 |
+| Packs | concepte agregat | línies/components, fiscalitat i decisió de baixa parcial | UC-122 |
+| Factura electrònica | flag `E_FACT` | document, format, hash, entrega, error i retry | UC-123 |
+| Acadèmic vs econòmic | certificat/Moodle condicionats pel deute | events correlacionats sense mutar pagaments | UC-124 |
+
+Regla de migració: cap writer llegat es considera retirat perquè existeixi una
+taula nova. Cal adaptador únic, prova de no doble escriptura i evidència que la
+ruta antiga queda bloquejada o redirigida.
+
+## 19. Transformació dels controls transversals descoberts
+
+| Àrea | Llegat observat | Transformació obligatòria | Casos |
+| --- | --- | --- | --- |
+| Consentiment | `INSC_MAILING`, `mailing` i `subscriptors` amb alta/confirmació disperses | consentiment per finalitat/canal/text versionat, events i retirada propagada | UC-108, UC-125 |
+| Identitat | DNI, correu i usuari Moodle comparats puntualment | subjecte canònic, enllaços externs, conflicte i decisió sense fusionar històrics | UC-107, UC-120, UC-126 |
+| Estat d'edició | `PENDENT/ACTIU/ANUL·LAT`, baixes i correus dins un únic mètode | event d'edició, inventari d'afectats i decisió econòmica/fiscal per operació | UC-27, UC-74, UC-114, UC-127 |
+| CP/població | inserció a `poblacions_validar` sense cicle acreditat | original/proposta/regla/decisió/propagació i exclusió de snapshots emesos | UC-69, UC-120, UC-128 |
+| Prisma/Moodle | comparació de recomptes, usuaris, correus, cursos i rols | run/item de reconciliació, autoritat per camp, correcció idempotent i evidència | UC-124, UC-129 |
+
+Cap d'aquests fluxos pot escriure `PAGAMENT`, `IDPAG`, factura o registre fiscal
+com a efecte lateral. Si l'edició cancel·lada o una correcció de dades exigeix
+un efecte econòmic/fiscal, es deriva a l'ordre canònica corresponent amb la
+mateixa correlació i sense perdre el moviment o document original.

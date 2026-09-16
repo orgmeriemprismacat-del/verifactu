@@ -565,3 +565,136 @@ zona horària, dades de resposta/retry AEAT i metadades QR/VERI*FACTU.
 
 Són nullable durant la transició. Això no els converteix en opcionals de
 negoci: el validador ha d'exigir-los segons el tipus d'operació abans d'emetre.
+
+## 13. Valors dels cicles ampliats
+
+### commercial_operation_line.LINE_TYPE
+
+- `COURSE`, `WORKSHOP`, `PACK`, `PACK_COMPONENT`, `GROUP_MEMBER`, `GIFT`,
+  `SERVICE`, `ADJUSTMENT`.
+
+`PARENT_UUID_LINE` és obligatori per `PACK_COMPONENT` i nul per una línia arrel.
+
+### commercial_operation_line.STATUS
+
+- `DRAFT`, `RESERVED`, `READY`, `LOCKED`, `MATERIALISED`, `CANCELLED`,
+  `INCIDENT`.
+
+### capacity_reservation.STATUS
+
+- `HELD`, `WAITLISTED`, `CONFIRMED`, `EXPIRED`, `RELEASED`, `CANCELLED`,
+  `INCIDENT`.
+
+`HELD` ha de tenir `EXPIRES_AT`; només `CONFIRMED` consumeix plaça estable. Les
+transicions usen `LOCK_VERSION` i clau idempotent.
+
+### commercial_entitlement.ENTITLEMENT_TYPE
+
+- `PROMOTION_CODE`, `FUTURE_DISCOUNT`, `GIFT`, `COMMERCIAL_CREDIT`.
+
+### commercial_entitlement.STATUS
+
+- `ISSUED`, `ACTIVE`, `RESERVED`, `CONSUMED`, `EXPIRED`, `CANCELLED`,
+  `REVERSED`, `INCIDENT`.
+
+### commercial_entitlement_event.ACTION
+
+- `ISSUE`, `ACTIVATE`, `VALIDATE`, `RESERVE`, `RELEASE`, `CONSUME`, `EXPIRE`,
+  `CANCEL`, `REVERSE`, `TRANSFER_REJECTED`, `ACCESS_DENIED`.
+
+### enrollment_import_run.STATUS
+
+- `PENDING`, `VALIDATING`, `PROCESSING`, `PARTIAL`, `COMPLETED`, `FAILED`,
+  `CANCELLED`.
+
+### enrollment_import_item.STATUS
+
+- `PENDING`, `CREATED`, `REUSED`, `REJECTED`, `FAILED`, `SKIPPED`.
+
+### master_data_change_request.STATUS i personal_data_change_request.STATUS
+
+- `REQUESTED`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`, `APPLYING`, `PARTIAL`,
+  `COMPLETED`, `CANCELLED`, `INCIDENT`.
+
+### electronic_invoice_delivery.STATUS
+
+- `PENDING`, `GENERATING`, `READY`, `SENDING`, `DELIVERED`, `RETRY`, `FAILED`,
+  `DEAD_LETTER`, `CANCELLED`.
+
+### academic_economic_state_event.ACTION
+
+- `GRANT_ACCESS`, `REVOKE_ACCESS`, `ENROL_MOODLE`, `UNENROL_MOODLE`,
+  `MARK_PASSED`, `MARK_NOT_PASSED`, `ISSUE_CERTIFICATE`,
+  `BLOCK_CERTIFICATE`, `RECONCILE`.
+
+Els valors nous són contracte inicial de disseny. Qualsevol ampliació exigeix
+migració/documentació, compatibilitat de lectors i prova; no s'admeten valors
+lliures creats per una pantalla.
+
+## 14. Valors de consentiment, identitat i coherència entre sistemes
+
+### communication_consent.STATUS
+
+- `PENDING_CONFIRMATION`
+- `GRANTED`
+- `DENIED`
+- `WITHDRAWN`
+- `EXPIRED`
+- `SUPERSEDED`
+- `INCIDENT`
+
+`GRANTED` exigeix finalitat, canal, abast, versió del text, font, data i event
+amb `EVIDENCE_HASH`. Absència de resposta no equival a consentiment.
+
+### communication_consent_event.ACTION
+
+- `REQUEST`, `CONFIRM`, `GRANT`, `DENY`, `WITHDRAW`, `RENEW`, `EXPIRE`,
+  `SUPERSEDE`, `PROPAGATE`, `PROPAGATION_FAILED`.
+
+### external_identity_link.STATUS
+
+- `PROVISIONAL`, `VERIFIED`, `SUSPENDED`, `SUPERSEDED`, `REVOKED`, `INCIDENT`.
+
+### identity_conflict_case.STATUS i DECISION
+
+- estats: `OPEN`, `UNDER_REVIEW`, `WAITING_EVIDENCE`, `RESOLVED`, `REJECTED`,
+  `CANCELLED`, `INCIDENT`;
+- decisions: `LINK`, `KEEP_SEPARATE`, `RELINK`, `SUSPEND`, `ESCALATE`.
+
+No es permet `LINK` automàtic si la coincidència pot barrejar participants,
+pagadors, receptors, factures, pagaments o accessos acadèmics.
+
+### edition_lifecycle_event.ACTION i STATUS_AFTER
+
+- accions: `ACTIVATE`, `MARK_PENDING`, `POSTPONE`, `CLOSE`, `CANCEL`, `REOPEN`;
+- estats: `DRAFT`, `PENDING`, `ACTIVE`, `POSTPONED`, `CLOSED`, `CANCELLED`.
+
+### edition_operation_impact.REQUIRED_ACTION
+
+- `KEEP`, `MOVE_EDITION`, `CANCEL_ENROLLMENT`, `REPRICE`, `RELEASE_CAPACITY`,
+  `REVOKE_ACCESS`, `REFUND_REVIEW`, `CREDIT_REVIEW`, `FISCAL_REVIEW`,
+  `MANUAL_REVIEW`.
+
+`ECONOMIC_DECISION` i `FISCAL_DECISION` no admeten text lliure: han de
+referenciar les classificacions canòniques de devolució/saldo/compensació i de
+rectificativa/complementària/anul·lació/subsanació/cap efecte.
+
+### address_validation_case.STATUS
+
+- `PENDING`, `AUTO_MATCHED`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`,
+  `PROPAGATING`, `COMPLETED`, `CANCELLED`, `INCIDENT`.
+
+### academic_reconciliation_item.DIFFERENCE_TYPE
+
+- `MISSING_IN_PRISMA`, `MISSING_IN_MOODLE`, `EMAIL_MISMATCH`,
+  `IDENTITY_MISMATCH`, `ROLE_MISMATCH`, `ENROLMENT_MISMATCH`,
+  `COURSE_MISMATCH`, `CLASSROOM_MISMATCH`, `VISIBILITY_MISMATCH`,
+  `DUPLICATE_EXTERNAL_USER`.
+
+### academic_reconciliation_item.RESOLUTION_STATUS
+
+- `PENDING`, `AUTO_RESOLVED`, `MANUAL_REVIEW`, `RESOLVED`, `REJECTED`,
+  `RETRY`, `FAILED`, `INCIDENT`.
+
+Cada reconciliació declara autoritat per camp i sistema. No es pot usar cap
+d'aquests valors per inferir o modificar un pagament o una factura.

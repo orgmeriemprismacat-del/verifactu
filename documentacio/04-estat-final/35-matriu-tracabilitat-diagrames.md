@@ -1,6 +1,6 @@
 # Matriu de traçabilitat dels diagrames SIF PrisMa
 
-Data de tall: 2026-09-15
+Data de tall: 2026-09-16
 
 ## 1. Objectiu i abast
 
@@ -11,17 +11,17 @@ Inventari verificat:
 | Element | Base actual | Branca `feature/redsys-async-queue` | Cobertura documental |
 |---|---:|---:|---|
 | PHP totals dins `sif/` | 262 al checkout de treball actual | La comparació històrica de branca queda pendent de recalcular després de consolidar aquests canvis | 36, apartat 3 |
-| SQL totals dins `sif/database` | 6: 4 migracions, 1 seed i 1 plantilla de permisos | `redsys_callback_queue` continua addicional a la branca asíncrona | 34 i 36, apartats 3 i 8 |
+| SQL totals dins `sif/database` | 7: 5 migracions, 1 seed i 1 plantilla de permisos | `redsys_callback_queue` continua addicional a la branca asíncrona | 34 i 36, apartats 3 i 8 |
 | Classes/interfícies de producció del SIF | 76 declaracions a `sif/src` | Les classes de l'operació comercial del document 31 continuen `[DISSENY]` | 31, apartats 2-17 |
-| Classes `*Test` | 118 | Recompte actual del checkout; branca pendent de reconciliació | 31, apartat 13; 36, apartats 3 i 8 |
-| Mètodes `test*` | 261 | Inclou les proves afegides al checkout de treball | 31, apartat 13; 36, apartats 3 i 8 |
-| Fitxers PHP dins `sif/tests` | 122 | Inclou suport/runner a més de classes `*Test` | 31, apartat 13; 36, apartats 3 i 8 |
+| Classes `*Test` | 119 | Recompte actual del checkout; branca pendent de reconciliació | 31, apartat 13; 36, apartats 3 i 8 |
+| Mètodes `test*` | 265 | Inclou les proves afegides al checkout de treball | 31, apartat 13; 36, apartats 3 i 8 |
+| Fitxers PHP dins `sif/tests` | 123 | Inclou suport/runner a més de classes `*Test` | 31, apartat 13; 36, apartats 3 i 8 |
 | Classes principals del llegat | 10 als candidats; ara també `IntranetAlumne`, `IntranetTutor` i el domini comercial web | Sense canvi a la branca SIF | 31, apartats 10, 14 i 15; 37, apartat 5 |
 | Fitxers PHP de `codi-drive` | 1.920 en 7 carpetes: 25 candidats i 1.895 actuals/històrics | Sense canvi a la branca SIF | 36, apartat 4; 37, apartats 2 i 3 |
 | Scripts operatius | 58 al checkout actual | La branca asíncrona afegeix scripts de cua; recompte final pendent de fusió | 32, apartat 18, i aquesta matriu |
 | Endpoints públics | 3 | Els mateixos 3, amb canvi intern al callback | 31, apartat 7; 32, apartats 2, 23-26; 36, apartat 5 |
-| Taules creades per les migracions locals | 40 | `redsys_callback_queue` continua present només a la branca asíncrona | 34, apartats 2, 10, 15 i 16 |
-| Casos d'ús principals | 112 numèrics + 13 variants = 125 fitxes | Inclou fluxos base, asíncrons, parcials, de disseny, canal, transició, gestió, registre, auditoria de pagaments i operació comercial prèvia | 33, apartats 3-29 |
+| Taules creades per les migracions locals | 60 | `redsys_callback_queue` continua present només a la branca asíncrona | 34, apartats 2, 10, 15 i 16; 41 |
+| Casos d'ús principals | 129 numèrics + 13 variants = 142 fitxes | Inclou fluxos base, asíncrons, parcials, de disseny, canal, transició, gestió, registre, auditoria de pagaments i cicles comercials/acadèmics/transversals | 33, apartats 3-31; 41 |
 | Pantalles/apartats Trello 4 | 192 | Mateix inventari funcional | 33, apartat 22; 36, apartat 9 |
 | Targetes petites reconciliades | 13.277 | Inventari de feina, no 13.277 casos d'ús | 36, apartat 11; `30-mapa-trello-repo.md` |
 
@@ -218,6 +218,11 @@ La revisió ampliada demostra que centralitzar el pagament és només una part d
 | Enviament AEAT | Cua base sense consumidor productiu | Classes 16.2 | UC-09, UC-54, UC-77 | intents, resposta, retry i dead-letter | Bloquejant |
 | Documents | `DocumentRepository` i taula base | Classes 16.2; seqüència 43 | UC-36, UC-55, UC-78, UC-80 | jobs, documents, hashes i accessos | Parcial/pendent |
 | Comunicacions | `Template` i correus directes llegats | Classes 16.2; seqüència 43 | UC-43, UC-49, UC-58, UC-79 | outbox i intents d'entrega | Pendent |
+| Consentiment | `INSC_MAILING`, `mailing`, `subscriptors` i confirmació dispersa | No representat encara al diagrama de classes | UC-108, UC-125 | consentiment vigent + events versionats | Bloquejant |
+| Identitat entre sistemes | DNI/correu/usuaris comparats puntualment | No representat encara al diagrama de classes | UC-107, UC-120, UC-126 | enllaços externs + expedient de conflicte | Bloquejant |
+| Estat massiu d'edició | un mètode barreja estat, baixes, dades econòmiques i correus | No representat encara al diagrama de classes | UC-27, UC-74, UC-114, UC-127 | event d'edició + impacte per operació | Bloquejant |
+| Qualitat de l'adreça | cua `poblacions_validar` | No representat encara al diagrama de classes | UC-69, UC-120, UC-128 | original/proposta/regla/decisió/propagació | Pendent |
+| Reconciliació Prisma/Moodle | comparacions de recomptes, usuaris, correus, cursos i rols | No representat encara al diagrama de classes | UC-124, UC-129 | run + ítems acadèmics i resolució | Bloquejant |
 | Incidències | `IncidentRepository` i `errors_verifactu` mínims | Classes 16.2; seqüència 44 | UC-08, UC-81 | responsable, prioritat i historial | Parcial/pendent |
 | Reconciliació | `LegacySyncService` només en sentit SIF cap al llegat | Classes 16.2 | UC-53, UC-82 | runs, items, resolució i evidència | Pendent |
 | Governança | Documents de versió, proves i declaració | Classes 16.2 | UC-46, UC-83 a UC-85 | versió, declaració, export i continuïtat | Pendent |
@@ -254,14 +259,14 @@ La manca de `payment_action_event`, la impossibilitat d'escriure'l o una correla
 
 | Control | Evidència | Resultat actual |
 | --- | --- | --- |
-| Catàleg canònic | `33-casos-us-sif.md` | 112 UC numèrics + 13 variants = 125 fitxes. |
+| Catàleg canònic | `33-casos-us-sif.md` | 129 UC numèrics + 13 variants = 142 fitxes. |
 | Reconciliació del backlog funcional | `39-auditoria-fitxes-funcionals.md` | 185 `Fitxes mare` en tres taulers, inventariades/classificades; contingut encara pendent de validació claim a claim. |
-| Fitxes estructurades | `documentacio/06-fitxes-funcionals/` | 125 fitxers, 21 apartats per fitxa; no es declaren completes. |
+| Fitxes estructurades | `documentacio/06-fitxes-funcionals/` | 142 fitxers, 21 apartats per fitxa; no es declaren completes. |
 | Validació mecànica | `sif/tools/functional-card/generate-catalog.ps1 -ValidateOnly` | Comprova recompte, apartats i placeholders; no valida veritat funcional. |
-| Persistència registral | migracions `2026_09_15_000003` i `2026_09_16_000004` | 21 taules de control + 4 taules d'operació comercial i ampliació de camps fiscals. |
+| Persistència registral | migracions `2026_09_15_000003`, `2026_09_16_000004`, `000005` i `000006` | 21 taules de control + 4 taules d'operació inicial + 12 taules de cicle de vida + 8 taules transversals i ampliació de camps fiscals. |
 | Escriptura append-only | repositoris `PaymentActionEventRepository` i `OperationalEventRepository` | Validació i `INSERT`; sense mètodes d'update/delete. |
 | Permisos | `sif/database/permissions/functional-audit-roles.sql` | Plantilla sense `UPDATE`/`DELETE` per events; desplegament pendent. |
-| Proves | `FunctionalAuditSchemaTest`, `PaymentActionEventRepositoryTest` | Proves afegides; execució PHP/MySQL pendent en aquest host. |
+| Proves | `FunctionalAuditSchemaTest`, `CommercialOperationSchemaTest`, `OperationLifecycleSchemaTest`, `CrossSystemControlSchemaTest` | Proves estructurals afegides; execució PHP/MySQL pendent en aquest host. |
 
 ### 14.1. Regla de traçabilitat per fitxa
 
@@ -291,3 +296,12 @@ UC-106 a UC-112 cobreixen la reserva prèvia al pagament, duplicats
 d'inscripció, tastets gratuïts, cursos subvencionats, descompte d'amics,
 docent novell/dret futur i snapshot complet abans del TPV. La seva evidència
 prové del codi actual i no d'una deducció genèrica del flux de pagament.
+
+UC-113 a UC-124 cobreixen importació, versionat d'edicions, aforament,
+evidències, drets, grups, regals, canvis personals, renovació de reserva,
+components de pack, factura electrònica i dependència acadèmica/econòmica.
+
+UC-125 a UC-129 cobreixen consentiment de comunicacions, identitat entre
+sistemes, canvi massiu d'estat d'una edició, qualitat d'adreça i reconciliació
+Prisma/Moodle. Els diagrames 31, 32 i 34 encara no representen aquestes cinc
+extensions; aquesta absència queda explícita i no es confon amb cobertura.

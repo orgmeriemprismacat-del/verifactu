@@ -14,9 +14,10 @@ Fonts locals revisades:
 - targetes obertes `Fitxes mare` al tauler 3: **10**;
 - targetes obertes `Fitxes mare` al tauler 6: **30**;
 - total real revisat entre els tres taulers: **185**;
-- identificadors canònics actuals: **112** més **13 variants**;
-- fitxes canòniques generades: **125**;
-- casos nous descoberts directament al codi i absents del catàleg anterior: **7** (UC-106..UC-112).
+- identificadors canònics actuals: **129** més **13 variants**;
+- fitxes canòniques generades: **142**;
+- casos descoberts directament al codi en les tres passades: **24**
+  (UC-106..UC-129); els 17 darrers es documenten també a la matriu 41.
 
 La taula individual de l'apartat 2 conserva la reconciliació funcional del
 tauler 2. Les 40 targetes addicionals dels taulers 3 i 6 són principalment
@@ -241,7 +242,7 @@ Per tant, “0 sense correspondència” no equivalia a “0 funcionalitat absen
 6. cada fitxa declara dades concretes, regles, persistència, impacte fiscal/econòmic, auditoria, errors, notificacions, proves, buits i tasques;
 7. una fitxa només es pot declarar completa quan no depèn de textos genèrics i les decisions bloquejants estan resoltes.
 
-Amb aquest criteri, les 125 fitxes actuals són **esborranys estructurats**. No
+Amb aquest criteri, les 142 fitxes actuals són **esborranys estructurats**. No
 es declara encara que totes estiguin completes a nivell de contingut.
 
 ## 5. Límit de l’auditoria

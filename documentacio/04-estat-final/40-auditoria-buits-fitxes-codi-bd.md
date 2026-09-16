@@ -9,22 +9,23 @@ validava que existien fitxers i apartats, però no que cada fitxa contingués le
 regles específiques del negoci. La declaració correcta és:
 
 ```text
-125 fitxes estructurades != 125 especificacions funcionals tancades
+142 fitxes estructurades != 142 especificacions funcionals tancades
 185 targetes mare mapades != contingut de 185 targetes incorporat
 21 apartats per fitxa != dades, variants i decisions específiques resoltes
 ```
 
-La revisió ha afegit UC-106..UC-112, una capa de dades per a l'operació
-comercial prèvia a factura/pagament i els camps fiscals normatius que no
-existien físicament a les migracions. Tot el paquet continua `NO-GO`: no s'ha
-integrat encara als canals ni s'ha provat en MySQL/preproducció.
+Les tres passades han afegit UC-106..UC-129, una capa de dades per a l'operació
+comercial prèvia a factura/pagament, els seus cicles de vida i els camps
+fiscals normatius que no existien físicament a les migracions. Tot el paquet
+continua `NO-GO`: no s'ha integrat encara als canals ni s'ha provat en
+MySQL/preproducció.
 
 ## 2. Abast i mètode
 
 S'han contrastat:
 
 - els documents 01, 05, 24, 31, 33, 35, 38 i 39;
-- les 125 fitxes generades i el seu generador;
+- les 142 fitxes generades i el seu generador;
 - tres exports locals de Trello amb llista `Fitxes mare`;
 - les set carpetes de `codi-drive` (6.848 fitxers, 1.920 PHP);
 - les migracions, repositoris i proves de `sif/`;
@@ -180,3 +181,104 @@ cal demostrar:
 
 Fins aleshores, el catàleg és útil per treballar i estimar, però no acredita
 completitud funcional ni preparació productiva.
+
+## 11. Segona passada sobre superfícies executables
+
+La revisió posterior no s'ha limitat als endpoints d'inscripció inicials. S'ha
+contrastat la superfície de 1.920 PHP, els 510 mètodes d'`Intranet.php`, els 68
+de `IntranetAlumne.php` i les famílies d'escriptura més freqüents. La base
+`inscripcions` apareix en 39 escriptures de 21 fitxers de `web-actual` i en 83
+escriptures de la intranet; també hi ha mutacions recurrents de `factures`,
+`cursos`, `aula`, `promocions`, `regal`, responsables i taules Moodle.
+
+Això ha fet aflorar UC-113..UC-124. No són sinònims dels set casos anteriors:
+
+| Buit | Per què necessita cicle propi |
+| --- | --- |
+| Alta/importació manual o en lot | Una fila acadèmica no prova cobrament; cal resultat i error per fila. |
+| Canvi de curs/edició mestre | Pot afectar reserves obertes, però mai snapshots o factures emesos. |
+| Aforament i llista d'espera | Requereix reserva atòmica, caducitat i alliberament, no només un `COUNT`. |
+| Evidència de descompte | Conté dades sensibles i necessita custòdia, accés i retenció. |
+| Promoció/dret futur | Té emissió, reserva, consum, caducitat i reversió pròpies. |
+| Grup abans del cobrament | Participants, tram, places, pagador i receptor canvien abans del lock. |
+| Regal/bescanvi | Compra, dret i inscripció de beneficiari són objectes i moments diferents. |
+| Canvi de dades personals | El correu no substitueix expedient, aprovació i propagació. |
+| Reserva caducada/repreuament | Preu o plaça antics no es poden reactivar sense nova acceptació. |
+| Pack | Components necessiten línia, plaça, impost i tractament de baixa propi. |
+| Factura electrònica | `E_FACT` no acredita fitxer, format, destinatari ni entrega. |
+| Estat acadèmic/econòmic | Accés, Moodle i certificat consulten el deute però no poden mutar-lo. |
+
+El catàleg passa a 129 casos numèrics i 13 variants: 142 fitxes. Totes
+continuen `STRUCTURED_DRAFT_NEEDS_CASE_REVIEW`.
+
+## 12. Segona ampliació de base de dades
+
+La migració 000005 incorpora 12 taules additives:
+
+- `commercial_operation_line` i `operation_line_invoice_link`;
+- `capacity_reservation`;
+- `discount_evidence`;
+- `commercial_entitlement` i `commercial_entitlement_event`;
+- `enrollment_import_run` i `enrollment_import_item`;
+- `master_data_change_request` i `personal_data_change_request`;
+- `electronic_invoice_delivery`;
+- `academic_economic_state_event`.
+
+La decisió de model evita crear taules diferents per cada nom comercial de
+promoció o regal: `commercial_entitlement` conserva el tipus i la regla, i el
+ledger append-only conserva cada transició. En canvi, importació, reserva de
+places, canvi de dades i entrega electrònica es mantenen separats perquè tenen
+permisos, retenció i recuperació diferents.
+
+No s'ha aplicat la migració. La integritat sintàctica i les claus foranes s'han
+de provar en MySQL amb les migracions 000001..000006, còpia de seguretat i
+recuperació d'una fallada parcial.
+
+## 13. Què encara pot faltar
+
+Aquesta revisió redueix buits demostrables, però no autoritza dir “ja no falta
+res”. Continuen pendents:
+
+1. confirmar quines còpies, rutes, crons i virtual hosts són productius;
+2. incorporar claim a claim les 185 targetes mare;
+3. revisar altres famílies de mètodes de la intranet no relacionades per nom
+   amb inscripció/pagament però que puguin alterar dades d'origen;
+4. validar el model amb negoci, fiscalitat i protecció de dades;
+5. construir serveis, adaptadors i pantalles, i retirar writers llegats;
+6. provar PHP/MySQL, concurrència, permisos, preproducció i restauració.
+
+La matriu 41 és el control viu per no tornar a confondre cas documentat amb
+punt d'entrada migrat.
+
+## 14. Tercera passada dirigida: dependències no econòmiques amb impacte
+
+La classificació anterior encara agregava massa comportament sota “dades
+personals”, “canvi d'edició” i “Moodle”. La lectura dels mètodes concrets ha
+afegit cinc casos, UC-125..UC-129:
+
+| Buit | Evidència executable | Per què no queda cobert |
+| --- | --- | --- |
+| Consentiment de comunicacions | `mailing.php`, `mailingNou.php`, `inscripcio_mailing.php`, `INSC_MAILING`, `mailing`, `subscriptors` | UC-43/58 envien missatges però no acrediten el permís; UC-108 només l'esmentava dins el tastet. |
+| Identitat entre sistemes | comparació de correu BD/Moodle, cerques per DNI/correu i controls de duplicat | UC-120 canvia camps, però no decideix si dos identificadors pertanyen o no a la mateixa persona. |
+| Estat massiu d'edició | `desarCanvisEstatEnviarMsg_PreviIniciCursos()` actualitza edició, baixa alumnes, consulta factura/pagament i avisa | UC-27 és una baixa individual i UC-114 versiona dades mestres; cap dels dos inventaria i resol tots els afectats. |
+| Qualitat de l'adreça | writers a `poblacions_validar` en múltiples altes web | La cua detectada no conserva original/proposta/regla/decisió ni exclou snapshots emesos. |
+| Reconciliació Prisma/Moodle | comparació massiva d'usuaris, correus, rols, cursos/aules i matrícules | UC-124 regula una decisió acadèmica; no modelava execució, ítems, autoritat per camp i resolució de divergències. |
+
+La migració 000006 afegeix vuit taules additives:
+
+- `communication_consent` i `communication_consent_event`;
+- `external_identity_link` i `identity_conflict_case`;
+- `edition_lifecycle_event` i `edition_operation_impact`;
+- `address_validation_case`;
+- `academic_reconciliation_item`, vinculada a `reconciliation_run`.
+
+No s'ha creat un UC separat per a una gestió integral de drets de protecció de
+dades: el codi localitzat anuncia aquests drets als peus de correu, però no
+defineix un circuit executable complet. Les sol·licituds de rectificació i
+propagació continuen a UC-120, amb aquesta possible ampliació d'abast marcada
+per a decisió funcional.
+
+La nova migració tampoc acredita implementació. S'ha de provar amb MySQL,
+definir autoritat i retenció, migrar l'estat vigent, resoldre cues acumulades i
+demostrar que cap d'aquests adaptadors modifica pagaments o factures com a
+efecte lateral.

@@ -396,10 +396,11 @@ Una area es pot marcar com a revisada quan:
 - [x] Garantit el mode `PREVIEW` sense escriptura automàtica a documentació canònica o Trello.
 - [x] Registrada la decisió sobre despeses de gestió del canvi de curs.
 - [x] Afegides proves unitàries del preparador i el validador.
-- [x] Executar les 12 proves específiques de l'assistent amb PHP 8.4.22: `12 passed, 0 failed`.
-- [x] Generar en memòria el manifest pilot: 20 fonts existents, 18 d'autoritzades i 20 amb fragments.
+- [x] Executar les 13 proves específiques de l'assistent amb PHP 8.4.22: `13 passed, 0 failed`.
+- [x] Generar el manifest pilot: 23 fonts existents, 21 d'autoritzades i 23 amb fragments, incloses la migració i les proves d'auditoria funcional.
 - [ ] Recuperar la BD de test i resoldre els errors previs per tornar a obtenir una suite global verda; resultat actual `167 passed, 85 failed`.
-- [ ] Generar i revisar amb Xat 3 la primera fitxa completa d'UC-26 abans d'incorporar cap contingut al catàleg canònic.
+- [x] Generar la primera fitxa completa `PREVIEW` d'UC-26: 82 afirmacions i conflicte explícit entre el nom funcional antic i l'esquema físic actual.
+- [ ] Revisar amb Xat 3 les decisions fiscals pendents d'UC-26 abans d'incorporar cap contingut al catàleg canònic.
 
 ## Transformació funcional i registral - 2026-09-15
 
@@ -437,11 +438,13 @@ Una area es pot marcar com a revisada quan:
 - [x] Tipificats `ACTION`, `RESULT`, `SOURCE_ENVIRONMENT`, `SOURCE_CHANNEL` i `ACTOR_TYPE` al diccionari.
 - [x] Afegits el diagrama de classes 16.4, la seqüència 45 i UC-86.
 - [x] Validats els diagrames afectats i recompte global de 100 blocs Mermaid.
-- [ ] Crear la migració SQL de `payment_action_event`, índexs i permisos append-only.
-- [ ] Implementar `PaymentActionGateway`, servei/repositori d'auditoria i monitor de correlacions incompletes.
+- [x] Crear la migració SQL de `payment_action_event`, índexs i permisos append-only.
+- [x] Preparar `PaymentActionGateway`, `PaymentActionEventWriter` i repositori append-only inicial amb validació de valors controlats.
+- [ ] Implementar `PaymentActionAuditService` i monitor de correlacions incompletes.
 - [ ] Integrar el gateway amb `PaymentService`, consultes, conciliació, Redsys, CLI, migració i sincronització llegada.
 - [ ] Impedir escriptures directes a `payment_transaction`, `payment_allocation` i `payment_action_event` fora dels serveis autoritzats.
-- [ ] Afegir proves de cada acció/resultat i de caiguda del ledger abans de considerar el flux preparat per producció.
+- [x] Afegides proves unitàries del primer tall: fallada del ledger abans de la mutació, intent previ, event terminal, reutilització idempotent i rollback quan falla l'auditoria terminal.
+- [ ] Afegir proves de cobertura de cada acció/resultat i de caiguda del ledger en tots els canals abans de considerar el flux preparat per producció.
 
 ## 2026-09-15 - Reconciliació de l'abast complet per planificar
 
@@ -501,10 +504,11 @@ Una area es pot marcar com a revisada quan:
 - [x] Materialitzats `payment_action_event`, índexs i plantilla de permisos append-only.
 - [x] Afegits repositoris append-only inicials per accions de pagament i events operatius.
 - [x] Afegides proves d'esquema/permisos i de les invariants de resultats de pagament.
+- [x] Afegit primer tall de `PaymentActionGateway` amb proves unitàries de fail-closed, intent previ, event terminal, reutilització idempotent i rollback si falla l'auditoria terminal.
 - [x] Renderitzats correctament 14/14 blocs Mermaid del document 34, inclòs el nou ER físic.
 - [x] Confirmat que no s'ha carregat el JSONL antic, no s'ha modificat PHP llegat i no s'ha fet commit/push.
 - [ ] Revisar i aprovar les decisions `NEEDS_DECISION` indicades a les fitxes; tenir 21 apartats no converteix una decisió pendent en validada.
-- [ ] Integrar `PaymentActionGateway` i els repositoris amb `PaymentService`, consultes, Redsys, workers, CLI, migracions, conciliació i sincronització llegada.
+- [ ] Integrar `PaymentActionGateway` i els repositoris amb `PaymentService`, consultes, Redsys, workers, CLI, migracions, conciliació i sincronització llegada, sense generar falsos `FAILED` en reutilització idempotent o concurrència.
 - [ ] Implementar serveis i polítiques d'escriptura per la resta de les 21 taules, inclòs el monitor de correlacions incompletes.
 - [ ] Aplicar la migració i els rols en una BD MySQL de prova, revocar privilegis heretats incompatibles i provar restriccions/índexs.
 - [ ] Executar lint i proves PHP; no s'han pogut executar en aquesta sessió perquè l'executable PHP no està disponible al `PATH` actual.
@@ -552,3 +556,74 @@ Una area es pot marcar com a revisada quan:
   necessaris al `PATH`.
 - [ ] Mantenir estat `[NO-GO]` fins a integrar canals, permisos, AEAT,
   documents, notificacions, conciliació i proves/evidències de preproducció.
+
+## Segona auditoria de superfície executable i cicles - 2026-09-16
+
+- [x] Inventariats els volums de PHP/AJAX de les set carpetes sense carregar el
+  JSONL antic ni modificar les aplicacions llegades.
+- [x] Contrastades les escriptures principals de web/intranet i mètodes
+  d'importació, edició, aforament, descomptes, certificats, Moodle, pagament i
+  canvi de dades personals.
+- [x] Afegits UC-113..UC-124 amb entrada, regla, flux, prova, decisió bloquejant
+  i evidència específica de codi.
+- [x] Generades i validades 137 fitxes: 124 numèriques, 13 variants, 21 apartats
+  i estat honest `STRUCTURED_DRAFT_NEEDS_CASE_REVIEW`.
+- [x] Creada la matriu 41 de superfícies executables amb classificació de
+  cobertura, persistència i retirada/integració.
+- [x] Afegida la migració 000005 amb 12 taules i 16 claus foranes per cicles de
+  línies, places, evidències, drets, importacions, canvis, entrega i acadèmic.
+- [x] Actualitzats model BD, diccionari, transformació, auditoria, traçabilitat,
+  índexs i controls sense modificar els diagrames abans d'estabilitzar el model.
+- [x] Reconciliades novament 185/185 `Fitxes mare` amb 0 títols sense mapar.
+- [x] Executat `git diff --check` sense errors.
+- [ ] Confirmar amb versió/ruta/crons quins endpoints i còpies són actius a
+  producció i marcar cadascuna com a migrar, conservar, retirar o adjacent.
+- [ ] Incorporar claim a claim les 185 descripcions/checklists i validar les 137
+  fitxes amb negoci, assessoria fiscal i protecció de dades.
+- [ ] Tancar les decisions bloquejants de capacitat, retenció d'evidències,
+  drets/promocions/regals, grups, packs, factura electrònica i estat acadèmic.
+- [ ] Implementar repositoris, serveis, permisos, adaptadors i pantalles de
+  000005; impedir doble escriptura i retirar URLs/writers llegats.
+- [ ] Aplicar 000001..000005 en MySQL de preproducció, provar claus, índexs,
+  concurrència, fallada parcial, backup/restauració i backfill.
+- [ ] Executar `OperationLifecycleSchemaTest` i la suite PHP quan l'host disposi
+  de PHP/MySQL; cap validació estàtica substitueix aquesta prova.
+- [ ] Reconciliar de nou hores i calendari: qualsevol pla basat en 118 o 125
+  fitxes queda superat per aquesta ampliació.
+- [ ] Mantenir `[NO-GO]` fins que cada superfície activa tingui cas, servei,
+  persistència, prova i evidència de retirada del llegat.
+
+## Tercera auditoria de controls transversals - 2026-09-16
+
+- [x] Revisats de manera focalitzada els endpoints de mailing/confirmació, les
+  discrepàncies DNI/correu/usuaris, el canvi massiu d'estat d'edició, els
+  writers a `poblacions_validar` i les comprovacions Prisma/Moodle.
+- [x] Confirmat que proforma, morositat, duplicat `IDPAG` i entitat/responsable
+  ja tenien casos explícits i no s'han duplicat amb identificadors nous.
+- [x] Afegits UC-125..UC-129 amb entrada, regla, flux, prova, decisió bloquejant
+  i fonts específiques.
+- [x] Generades i validades 142 fitxes: 129 numèriques, 13 variants i 21
+  apartats; 0 errors als hashes dels manifests.
+- [x] Afegida la migració 000006 amb 8 taules i 8 claus foranes; comprovades 8
+  taules úniques i 0 referències a taules inexistents dins les migracions.
+- [x] Afegida `CrossSystemControlSchemaTest` i actualitzats documents 05, 24,
+  33, 35, 38, 39, 40, 41, índexs i controls.
+- [x] Confirmat 0 canvis a `codi-drive`, cap lectura del JSONL antic i cap
+  commit/push.
+- [ ] Decidir finalitats, canals, versions de text, doble confirmació, caducitat
+  i retirada del consentiment, i migrar l'estat vigent sense donar-lo per
+  consentit per defecte.
+- [ ] Definir identificador canònic i política de vinculació/separació entre
+  web, intranet, Moodle antic/nou i llegat, amb revisió de falsos positius.
+- [ ] Aprovar la matriu d'impacte d'activació/ajornament/tancament/cancel·lació
+  d'una edició per reserva, pagament, factura, grup, pack i regal.
+- [ ] Definir font de normalització i responsable de la cua
+  `poblacions_validar`, inclosa l'exclusió de factures/snapshots emesos.
+- [ ] Definir autoritat per camp i accions automàtiques/manuals de la
+  reconciliació Prisma/Moodle.
+- [ ] Actualitzar diagrames de classes, seqüència i dades quan aquest model
+  transversal sigui validat funcionalment.
+- [ ] Implementar serveis, permisos i adaptadors de 000006, migrar dades i
+  demostrar que no existeixen efectes laterals sobre pagaments/factures.
+- [ ] Aplicar 000001..000006 i executar `CrossSystemControlSchemaTest` i la
+  suite completa en PHP/MySQL de preproducció.

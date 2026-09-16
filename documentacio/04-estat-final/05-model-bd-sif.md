@@ -1173,7 +1173,7 @@ Continuen pendents:
 - Provar `sif_schema_migration` i totes les migracions contra una còpia MySQL de preproducció.
 - Migració de `web.factures` i documents històrics amb emissor jurídic conservat.
 - Estructures reals de codis promocionals, regals, packs i descomptes de grup.
-- Revisió de contingut i integració de les 125 fitxes funcionals amb serveis, pantalles i proves.
+- Revisió de contingut i integració de les 142 fitxes funcionals amb serveis, pantalles i proves.
 - Mesura d'índexs amb volum i consultes representatives de producció.
 
 ## 15. Operació comercial, parts, descomptes i enllaços de pagament
@@ -1226,3 +1226,65 @@ resposta AEAT, `STORAGE_REF`, URL/hash de QR i text VERI*FACTU.
 Les columnes noves són nullable per compatibilitat transitòria. El desplegament
 queda bloquejat fins que els writers les omplin, el backfill sigui verificat i
 les obligatòries passin a restriccions fortes segons la classificació fiscal.
+
+## 16. Línies comercials i cicles previs/posteriors
+
+La migració
+`sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql`
+completa els buits descoberts després de contrastar més superfícies executables.
+
+| Responsabilitat | Taula | Invariant |
+| --- | --- | --- |
+| Línies i components | `commercial_operation_line` | Cada curs, pack/component, regal o participant facturable té snapshot i ordre propi. |
+| Materialització fiscal | `operation_line_invoice_link` | Es pot reconstruir quina línia comercial ha originat cada `factura_linia`. |
+| Aforament | `capacity_reservation` | Plaça, quantitat, estat, venciment i versió de lock són explícits. |
+| Evidència | `discount_evidence` | Diversos fitxers amb hash, custòdia, finalitat i retenció per validació. |
+| Promoció/regal/dret | `commercial_entitlement` | El dret té titular, regla, valor, caducitat i operacions origen/consum. |
+| Història del dret | `commercial_entitlement_event` | Emissió, reserva, consum, expiració, cancel·lació i reversió són append-only. |
+| Importació | `enrollment_import_run/item` | Hash i idempotència de l'execució; estat/error per fila. |
+| Canvi mestre | `master_data_change_request` | Versió abans/després i operacions obertes afectades abans de publicar. |
+| Dades personals | `personal_data_change_request` | Sol·licitud, decisió i propagació, sense reescriure snapshots històrics. |
+| Factura electrònica | `electronic_invoice_delivery` | Format/document/destinatari/canal i resultat d'entrega acreditables. |
+| Estat acadèmic | `academic_economic_state_event` | Canvi d'accés/certificat amb snapshot econòmic consultat, no mutat. |
+
+`commercial_operation_party.PRODUCT_CODE` i `LINE_AMOUNT` queden com a camps
+transitoris de compatibilitat. El model objectiu situa producte/import a
+`commercial_operation_line` i persona/rol a `commercial_operation_party`;
+abans d'endurir restriccions cal migrar i comparar totes les files existents.
+
+La migració és disseny materialitzat, no desplegament. Falten repositoris,
+serveis, permisos, backfill, prova MySQL i política de purga per evidències.
+
+## 17. Consentiment, identitat, edicions i coherència entre sistemes
+
+La tercera auditoria executable ha demostrat que el model de cicle comercial
+encara no podia reconstruir cinc decisions transversals. La migració
+`sif/database/migrations/2026_09_16_000006_add_cross_system_control_tables.sql`
+afegeix els registres següents:
+
+| Responsabilitat | Taula | Invariant |
+| --- | --- | --- |
+| Consentiment vigent | `communication_consent` | Finalitat, canal, abast i versió del text són independents de la inscripció, pagament i factura. |
+| Història del consentiment | `communication_consent_event` | Alta, confirmació, denegació, retirada i renovació són append-only amb evidència hash. |
+| Identitats externes | `external_identity_link` | Cada usuari/identificador de sistema s'enllaça a un subjecte canònic amb vigència i verificació. |
+| Conflicte d'identitat | `identity_conflict_case` | Candidats, impacte, decisió i actor es conserven abans de vincular o separar registres. |
+| Cicle de l'edició | `edition_lifecycle_event` | Activació, ajornament, tancament o cancel·lació té snapshot, motiu i recompte d'afectats. |
+| Impacte per operació | `edition_operation_impact` | Cada operació afectada rep acció acadèmica, decisió econòmica/fiscal i resultat propis. |
+| Qualitat de l'adreça | `address_validation_case` | Entrada original, proposta normalitzada, regla, decisió i propagació són reconstruïbles. |
+| Reconciliació acadèmica | `academic_reconciliation_item` | Cada diferència Prisma/Moodle pertany a un `reconciliation_run` i conserva snapshots, resolució i resultat. |
+
+Regles de frontera:
+
+1. `communication_consent` no autoritza facturació ni es dedueix de l'alta;
+2. resoldre identitat no fusiona factures, pagaments o snapshots emesos;
+3. un event d'edició no executa implícitament devolucions o rectificatives;
+4. normalitzar una adreça només propaga a dades vives o operacions no
+   congelades;
+5. reconciliar Moodle consulta l'estat econòmic però no el muta;
+6. cada efecte econòmic o fiscal derivat usa els serveis i ledgers canònics ja
+   definits.
+
+La migració 000006 és disseny materialitzat. Falten serveis, política
+d'autoritat per camp/sistema, permisos, migració de consentiments vigents,
+resolució del cicle acumulat a `poblacions_validar`, proves MySQL i verificació
+amb negoci/protecció de dades.

@@ -244,8 +244,9 @@ Creat `00-control/pla-mvp-2026-12-31.md`: calendari, 31 tasques agrupades, depen
 - Preparada l'entrada pilot d'UC-26 `Canvi de curs` i la seva llista explícita de fonts. El resultat és `PREVIEW` i no escriu automàticament a `documentacio/` ni a Trello.
 - El generador és transversal; Xat 3 conserva l'autoritat sobre decisions funcionals i fiscals. UC-26 continua tenint com a ubicació canònica `documentacio/04-estat-final/33-casos-us-sif.md`.
 - Afegides proves unitàries del contracte d'entrada, extracció de fragments, cites autoritzades, conflictes, hash obsolet, rutes insegures i porta `READY_FOR_PROGRAMMING`.
-- Verificats els JSON, les 21 capçaleres i les 20 rutes de fonts; els 7 PHP nous passen el lint. Les 12 proves específiques de l'assistent passen i el preparador genera en memòria el manifest d'UC-26 amb 20 fonts existents, 18 d'autoritzades i fragments a totes 20.
+- Verificats els JSON, les 21 capçaleres i les 23 rutes de fonts; els 7 PHP nous passen el lint. Les 13 proves específiques de l'assistent passen i el preparador genera el manifest d'UC-26 amb 23 fonts existents, 21 d'autoritzades i fragments a totes 23.
 - La suite global s'ha executat amb el PHP 8.4.22 local i dona `167 passed, 85 failed`: els errors són principalment la connexió rebutjada a la BD de test i també hi ha assercions preexistents alienes a l'assistent. No s'ha configurat ni modificat cap BD en aquesta sessió.
+- Generada la primera fitxa completa `PREVIEW` d'UC-26 fora de `documentacio/`: 82 afirmacions classificades, inclòs el conflicte de nomenclatura `canvi_curs` versus `course_change_event`; estat `NEEDS_DECISION` per decisions fiscals, comercials, tècniques i de pantalla encara pendents dels xats responsables.
 
 ## 2026-09-15 - Revisió funcional i registral completa
 
@@ -296,9 +297,10 @@ L'usuari reclama confirmar el registre de qualsevol gestió que afecti un pagame
 - Creat `39-auditoria-fitxes-funcionals.md`, que conserva la correspondència detallada entre les 145 targetes mare i el catàleg, inclosos els elements de governança que no són casos d'ús independents.
 - Materialitzat el disseny registral amb la migració additiva `2026_09_15_000003_add_functional_audit_control.sql`: 21 taules per auditoria transversal, accions de pagament, events operatius, històrics, control fiscal, intents AEAT, documents, comunicacions, accessos, incidències, versions, exports, conciliació i evidència de restauració.
 - Afegida una plantilla de rols MySQL 8 que no concedeix `UPDATE` ni `DELETE` sobre els ledgers append-only, i repositoris append-only inicials per `payment_action_event` i `operational_event`.
-- Afegides proves estructurals d'esquema/permisos i proves unitàries de les invariants de resultat del repositori de pagaments. En aquesta execució no s'han pogut llançar perquè no hi ha cap executable PHP disponible al `PATH`; tampoc s'ha aplicat ni provat la migració contra MySQL.
+- Tall VT-37.2 iniciat: afegits `PaymentActionGateway`, `PaymentActionEventWriter` i proves unitàries de fail-closed, intent previ, event terminal, reutilització idempotent i rollback si falla l'auditoria terminal. `PaymentActionEventRepository` valida ara `ACTION`, `RESULT`, `SOURCE_ENVIRONMENT`, `SOURCE_CHANNEL` i `ACTOR_TYPE` contra el diccionari.
+- Afegides proves estructurals d'esquema/permisos i proves unitàries de les invariants de resultat del repositori i del gateway de pagaments. En aquesta execució no s'han pogut llançar perquè no hi ha cap executable PHP disponible al `PATH`; tampoc s'ha aplicat ni provat la migració contra MySQL.
 - Validacions executades: 118 fitxes, 105 casos numèrics, 21 apartats per fitxa, 145/145 targetes reconciliades, cap marcador sense resoldre i 14/14 diagrames Mermaid del document 34 renderitzats amb Mermaid CLI 11.12.0.
-- L'estat continua `[NO-GO]`: falten integrar `PaymentActionGateway` amb `PaymentService` i tots els canals, implementar el worker AEAT i els serveis de les altres taules, desplegar permisos, provar PHP/MySQL i completar preproducció i acceptació.
+- L'estat continua `[NO-GO]`: `PaymentActionGateway` existeix però falta integrar-lo amb `PaymentService` i tots els canals, implementar `PaymentActionAuditService`, el monitor, el worker AEAT i els serveis de les altres taules, desplegar permisos, provar PHP/MySQL i completar preproducció i acceptació.
 - No s'ha carregat el JSONL de `xat-original`, no s'ha modificat cap PHP de les còpies llegades i no s'ha fet commit ni push.
 
 ## 2026-09-16 - Pantalles i procediments interns convertits a especificacio operativa
@@ -348,3 +350,59 @@ L'usuari reclama confirmar el registre de qualsevol gestió que afecti un pagame
   s'han executat. L'estat continua `[NO-GO]`.
 - No s'ha carregat el JSONL de `xat-original`, no s'ha modificat PHP llegat i no
   s'ha fet commit ni push.
+
+## 2026-09-16 - Segona auditoria de buits sobre la superfície executable
+
+- Contrastats 1.920 fitxers PHP de les set carpetes, amb atenció específica als
+  510 mètodes d'`Intranet.php`, 68 d'`IntranetAlumne.php`, 256 superfícies AJAX
+  de la web i les famílies d'escriptura sobre inscripcions, cursos, factures,
+  promocions, regals, grups i Moodle.
+- Confirmats 12 cicles que encara no tenien cas/persistència suficient:
+  importació d'inscripcions, versionat d'edicions, aforament, evidències
+  sensibles, promocions/drets, grups, regals, canvi de dades personals,
+  repreuament de reserva caducada, packs, factura electrònica i coherència
+  acadèmica/econòmica.
+- Afegits UC-113..UC-124. Catàleg vigent: 124 casos numèrics + 13 variants =
+  137 fitxes, totes `STRUCTURED_DRAFT_NEEDS_CASE_REVIEW` i amb 21 apartats.
+- Creat `41-matriu-superficie-executable-casos.md`, que classifica punts
+  d'entrada com `MAPPED`, `PARTIAL`, `GAP`, `ADJACENT` o `UNKNOWN_ACTIVE` i
+  impedeix donar una ruta per migrada només perquè existeixi documentació.
+- Afegida la migració additiva 000005 amb 12 taules per línies/components,
+  vincle a línia fiscal, places, evidències, drets i events, importacions,
+  canvis mestres/personals, entrega electrònica i estat acadèmic/econòmic.
+  El total de taules creades per migracions locals passa a 52.
+- Afegida `OperationLifecycleSchemaTest` amb 3 comprovacions estructurals.
+- Validacions executades: generador 137/137, 124 casos numèrics, 21 apartats;
+  185/185 `Fitxes mare` reconciliades amb 0 sense mapar; 12/12 taules 000005,
+  16 claus foranes; `git diff --check` sense errors.
+- PHP i MySQL continuen no disponibles en aquest host: la prova PHP i
+  l'aplicació real de 000005 no s'han executat. L'estat continua `[NO-GO]`.
+- No s'ha carregat el JSONL antic, no s'ha modificat cap PHP de les aplicacions
+  llegades i no s'ha fet commit ni push.
+
+## 2026-09-16 - Tercera auditoria dirigida de controls transversals
+
+- La revisió focalitzada de consentiments, discrepàncies d'identitat,
+  cancel·lació/activació d'edicions, `poblacions_validar` i comparacions
+  Prisma/Moodle ha confirmat cinc buits diferenciats que no quedaven tancats
+  per UC-120, UC-124 o els casos de pagament.
+- Afegits UC-125..UC-129: consentiment de comunicacions, identitat entre
+  sistemes, cicle massiu d'estat d'una edició, validació/normalització
+  d'adreça i reconciliació acadèmica Prisma/Moodle.
+- Catàleg vigent: 129 casos numèrics + 13 variants = 142 fitxes, totes amb 21
+  apartats i estat `STRUCTURED_DRAFT_NEEDS_CASE_REVIEW`.
+- Ampliades les auditories 39, 40 i 41, la matriu de transformació, el model de
+  BD, el diccionari i la traçabilitat. La matriu 35 declara explícitament que
+  els diagrames encara no representen aquestes cinc extensions.
+- Afegida la migració 000006 amb 8 taules: consentiment/events, identitats i
+  conflictes, events d'edició i impactes per operació, validació d'adreça i
+  ítems de reconciliació acadèmica. El total local passa a 60 taules.
+- Afegida `CrossSystemControlSchemaTest` amb 3 comprovacions estructurals.
+- Validacions executades: generador 142/142, 129 casos numèrics, 21 apartats;
+  0 errors de hash als manifests; 8/8 taules 000006, 8 claus foranes i 0
+  referències a taules inexistents; `git diff --check` sense errors; 0 canvis a
+  `codi-drive`.
+- PHP i MySQL no estan disponibles en aquest host: no s'ha executat la suite
+  PHP ni s'han aplicat 000001..000006. L'estat continua `[NO-GO]`.
+- No s'ha carregat el JSONL antic, no s'ha modificat PHP llegat i no s'ha fet
+  commit ni push.

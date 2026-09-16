@@ -861,8 +861,110 @@ que l'operació és facturable.
 - UC-100 dona persistència pròpia als canvis sense efecte fiscal o econòmic.
 - UC-103, UC-104 i UC-105 queden sotmesos sempre a UC-86.
 
-El catàleg canònic resultant conté **112 identificadors numèrics i 13 variants
-amb sufix**, és a dir, **125 fitxes funcionals estructurades**. El document
+## 30. Segona ampliació descoberta en gestió, web i portal d'alumne
+
+La inspecció de les escriptures reals de la intranet, l'ecommerce i el portal
+d'alumne ha trobat dotze responsabilitats que no es poden donar per cobertes
+amb un cas genèric de venda, descompte o canvi de dades.
+
+| ID | Cas d'ús | Actor principal | Estat | Resultat obligatori |
+| --- | --- | --- | --- | --- |
+| UC-113 | Importar o crear inscripcions manualment o en lot sense inventar cobrament | Gestió/procés d'importació | `[LEGACY/DISSENY/BLOQUEJANT]` | Cada execució i fila conserva origen, validació, resultat i operació creada o reutilitzada; l'alta acadèmica no crea factura, pagament ni import fictici. |
+| UC-114 | Versionar canvis de producte o edició amb operacions obertes | Gestió acadèmica/validador | `[LEGACY/DISSENY/BLOQUEJANT]` | Nom, dates, hores, preu, fiscalitat i regles queden versionats; les reserves acceptades mantenen snapshot o entren en un canvi explícit, mai en una mutació silenciosa. |
+| UC-115 | Reservar i alliberar places amb aforament, caducitat i concurrència | Alumne/ecommerce/gestió | `[LEGACY/DISSENY/BLOQUEJANT]` | La plaça té titular, quantitat, estat, venciment i lock; no hi ha sobrevenda i llista d'espera, cancel·lació i expiració són transicions registrades. |
+| UC-116 | Custodiar i revisar evidències sensibles de descompte | Alumne/validador/DPO | `[LEGACY/DISSENY/BLOQUEJANT]` | Cada document té hash, custòdia protegida, finalitat, accés, decisió i termini de retenció; no queda exposat al webroot ni reduït a un correu. |
+| UC-117 | Gestionar el cicle de vida d'un codi promocional o dret futur | Gestió/ecommerce/titular | `[LEGACY/DISSENY/BLOQUEJANT]` | Emissió, titular, regla, caducitat, reserva, consum, anul·lació i reversió són idempotents i traçables; el codi no reescriu una factura emesa. |
+| UC-118 | Gestionar un grup abans d'emetre o cobrar | Responsable de grup/participants/gestió | `[LEGACY/DISSENY/BLOQUEJANT]` | Responsable, participants, cursos, tram, pagador, receptor i línies es poden preparar i validar; el snapshot es bloqueja abans del TPV i els canvis posteriors es classifiquen. |
+| UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | Comprador/beneficiari/gestió | `[LEGACY/DISSENY/BLOQUEJANT]` | Compra, emissió, lliurament, activació, validació, bescanvi, caducitat, canvi i devolució conserven titulars i imports sense confondre regal, inscripció i pagament. |
+| UC-120 | Tramitar una sol·licitud de canvi de dades personals i la seva propagació | Alumne/gestió | `[LEGACY/DISSENY/BLOQUEJANT]` | Abans/després, justificació, aprovació o rebuig, actor i sistemes afectats queden registrats; cap factura emesa ni snapshot històric es reescriu. |
+| UC-121 | Repreuar o renovar una reserva caducada abans del pagament | Pagador/ecommerce/SIF | `[DISSENY/BLOQUEJANT]` | L'operació caducada no recupera automàticament el preu antic; es genera proposta versionada, nova reserva/enllaç i acceptació explícita abans de cobrar. |
+| UC-122 | Gestionar la composició d'un pack i la indisponibilitat d'un component | Alumne/gestió/SIF | `[LEGACY/DISSENY/BLOQUEJANT]` | Cada component és una línia identificada amb plaça, preu, descompte i tractament fiscal; substitució, baixa parcial o cancel·lació tenen decisió econòmica i fiscal. |
+| UC-123 | Generar i lliurar una factura electrònica en format i canal acordats | Receptor/gestió/procés documental | `[LEGACY/DISSENY/BLOQUEJANT]` | La preferència `E_FACT` no és el document: format, versió, destinatari, consentiment, hash, lliurament, error i reintent queden acreditats. |
+| UC-124 | Reconciliar accés acadèmic i certificat amb baixa, deute i pagador de grup | Gestió/procés acadèmic | `[LEGACY/DISSENY/BLOQUEJANT]` | Estat acadèmic, accés Moodle, certificat, inscripció i estat econòmic evolucionen separadament però amb regles i events correlacionats. |
+
+### 30.1. Evidència directa
+
+- `intranet-actual/Intranet.php::pujar_Inscripcions()` dona d'alta alumnes i
+  genera fitxers per Moodle sense crear una operació econòmica explícita.
+- `desarCanvisDadesEdicio()` i `desarCanvisDadesAulaEdicio()` modifiquen dades
+  mestres de curs/edició que poden conviure amb inscripcions obertes.
+- `inscripcionOberta()` i `inscripcioVisible()` participen en obertura i
+  disponibilitat, però no constitueixen un ledger de places.
+- `sendMsgValidatCurosDescomptes()` valida documentació sensible, recalcula
+  l'import i pot crear enllaços llegats sense una custòdia/evidència completa.
+- `DescompteGrup.php`, `enviarInscripcioBescanvia.php`,
+  `enviarInscripcioPack.php`, `obtenirCorreusValidsPromo.php` i
+  `enviarImatgeCarnetInscripcio.php` implementen cicles de vida diferents que
+  no poden quedar fusionats en “aplicar descompte”.
+- `IntranetAlumne::enviarMsgSolicitantModificacioDades()` només envia un correu
+  amb el canvi sol·licitat, sense entitat persistent d'aprovació i propagació.
+- Els mètodes de superació/no superació, deute, enllaç de pagament i aula oberta
+  demostren que estat acadèmic i estat econòmic no són el mateix estat.
+
+### 30.2. Conseqüència sobre la completitud
+
+UC-95, UC-106, UC-111 i els casos de packs, grups, regals i descomptes previs
+continuen sent antecedents, però no substitueixen aquests cicles complets. La
+matriu 41 conserva la correspondència amb les superfícies executables i
+distingeix `MAPPED`, `PARTIAL`, `GAP` i `ADJACENT`.
+
+El catàleg canònic resultant conté **129 identificadors numèrics i 13 variants
+amb sufix**, és a dir, **142 fitxes funcionals estructurades**. El document
 `39-auditoria-fitxes-funcionals.md` inventaria i classifica 185 `Fitxes mare`
-en tres taulers; el document 40 explica per què això encara no acredita
-completitud de contingut.
+en tres taulers; els documents 40 i 41 expliquen per què això encara no
+acredita completitud de contingut ni cobertura executable.
+
+## 31. Tercera ampliació: registres transversals entre canals i sistemes
+
+Una tercera lectura dirigida dels mètodes i endpoints que no quedaven a la
+matriu ha identificat cinc cicles addicionals. No són pantalles noves del SIF:
+són expedients i events que impedeixen que una acció acadèmica o de dades
+personals alteri indirectament operacions, pagaments o documents sense traça.
+
+| ID | Cas d'ús | Actor principal | Estat | Resultat obligatori |
+| --- | --- | --- | --- | --- |
+| UC-125 | Gestionar consentiment de comunicacions separat de la inscripció | Persona interessada/gestió/procés de comunicacions | `[LEGACY/DISSENY/BLOQUEJANT]` | Alta, confirmació, denegació, canvi i retirada conserven finalitat, canal, abast, versió del text, font, data i evidència; cap alta acadèmica ni factura implica consentiment comercial. |
+| UC-126 | Resoldre identitat i dades de contacte en conflicte entre sistemes | Gestió/suport/persona interessada | `[LEGACY/DISSENY/BLOQUEJANT]` | Cada identificador extern queda enllaçat a un subjecte canònic o en expedient de conflicte; fusionar o separar persones no barreja inscripcions, pagaments, factures ni accessos. |
+| UC-127 | Canviar l'estat d'una edició i resoldre totes les operacions afectades | Gestió acadèmica/cobraments/responsable autoritzat | `[LEGACY/DISSENY/BLOQUEJANT]` | Activació, ajornament, tancament o cancel·lació crea un event massiu, inventaria reserves/inscripcions/factures/pagaments i exigeix una decisió individual de trasllat, devolució, saldo, rectificació o cap efecte. |
+| UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | Alumne/gestió/validador | `[LEGACY/DISSENY/BLOQUEJANT]` | Es conserva l'entrada original, la proposta normalitzada, la regla, decisió i propagació; una correcció no reescriu el receptor d'una factura o snapshot ja emès. |
+| UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | Procés acadèmic/gestió/suport | `[LEGACY/DISSENY/BLOQUEJANT]` | Cada execució registra absències, sobrants, correus divergents, curs/aula i resolució; corregir Moodle o Prisma és idempotent i no crea ni modifica pagaments o factures. |
+
+### 31.1. Evidència directa
+
+- `web-actual/ajax/mailing.php`, `mailingNou.php` i
+  `inscripcio_mailing.php` demanen consentiment, creen una sol·licitud i envien
+  confirmació, però el codi revisat no conserva una cronologia comuna de text,
+  finalitat, font i retirada.
+- `Intranet::mostrarTable_Alumnes_CorreuDiferentBDCampus()` compara el correu
+  de la inscripció amb Moodle i només deriva a un avís; les comprovacions de
+  DNI i duplicats tampoc defineixen una identitat canònica compartida.
+- `desarCanvisEstatEnviarMsg_PreviIniciCursos()` canvia curs/edició entre
+  pendent, actiu i anul·lat, dona de baixa alumnes, consulta factura i forma de
+  pagament, busca edicions futures i envia avisos. Aquest conjunt no cap en una
+  baixa individual ni en un canvi de dades mestres.
+- disset writers d'inscripció detectats introdueixen parelles desconegudes a
+  `poblacions_validar`; no s'ha trobat en el codi revisat un expedient complet
+  de revisió, normalització i propagació.
+- `mostrar_Dades_ComprovacioNombreAlumnes()` compara usuaris Prisma/Moodle i
+  els mètodes de correu/perfil detecten divergències addicionals. UC-124 regula
+  la decisió acadèmica individual; UC-129 regula la reconciliació massiva entre
+  sistemes.
+
+### 31.2. Límits per no duplicar casos
+
+- UC-125 usa l'outbox d'UC-58 per enviar, però el consentiment és el permís i
+  la seva evidència, no el missatge.
+- UC-126 pot originar UC-120, però una petició de canvi de dades no decideix si
+  dos identificadors de sistemes diferents són la mateixa persona.
+- UC-127 es recolza en UC-27, UC-28, UC-29 i UC-74 per cada afectat; el seu
+  resultat propi és l'orquestració completa i auditable de l'edició.
+- UC-128 només modifica dades vives o operacions no congelades; una dada fiscal
+  emesa conserva el seu snapshot i passa per UC-74 si requereix correcció.
+- UC-129 reutilitza `reconciliation_run`, UC-124 i els adaptadors acadèmics,
+  però no es confon amb UC-82, que reconcilia SIF i resum econòmic llegat.
+
+Els peus legals també anuncien drets d'accés, rectificació, cancel·lació i
+oposició. Amb l'evidència actual, rectificació i propagació continuen dins
+UC-120; no s'ha creat un cas independent de gestió integral de drets perquè no
+s'ha localitzat un circuit executable que en defineixi entrada, decisió i
+resultat.

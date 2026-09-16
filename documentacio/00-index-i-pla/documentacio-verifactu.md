@@ -29,12 +29,13 @@ Aquest document funciona com a document mare. La documentacio detallada es repar
 - `../04-estat-final/25-panell-sif-pay-prisma.md`: panell intern del SIF a `pay.prisma.cat`.
 - `../04-estat-final/31-diagrames-classes-sif.md`: classes implementades i de disseny, inclosa l'operació comercial prèvia.
 - `../04-estat-final/32-diagrames-sequencia-sif.md`: seqüències dels fluxos actuals, objectiu, alternatius i bloquejants.
-- `../04-estat-final/33-casos-us-sif.md`: catàleg UC-01..UC-112 i variants.
+- `../04-estat-final/33-casos-us-sif.md`: catàleg UC-01..UC-129 i variants.
 - `../04-estat-final/34-diagrames-dades-estats-sif.md`: model de dades i màquines d'estat.
 - `../04-estat-final/35-matriu-tracabilitat-diagrames.md`: traçabilitat entre codi, casos, dades i diagrames.
 - `../04-estat-final/38-matriu-transformacio-funcional-verifactu.md`: canvi complet de gestions i registres més enllà del pagament.
 - `../04-estat-final/39-auditoria-fitxes-funcionals.md`: inventari/reconciliació de 185 `Fitxes mare`.
 - `../04-estat-final/40-auditoria-buits-fitxes-codi-bd.md`: buits entre fitxes, codi i base de dades, amb estat real de completitud.
+- `../04-estat-final/41-matriu-superficie-executable-casos.md`: punts d'entrada i escriptures reals relacionats amb casos, persistència i retirada del llegat.
 - `../05-governanca-operacio/19-registre-versions-i-canvis-sif.md`: versions del SIF i canvis associats.
 - `../05-governanca-operacio/20-pla-proves-validacio-sif.md`: pla de proves i validacio abans de produccio.
 - `../05-governanca-operacio/21-seguretat-permisos-accessos.md`: seguretat, rols, permisos i bloquejos.

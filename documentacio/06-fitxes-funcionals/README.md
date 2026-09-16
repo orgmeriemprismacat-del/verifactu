@@ -129,6 +129,23 @@ Catàleg navegable generat des de `33-casos-us-sif.md`. Cada fitxa té 21 aparta
 | UC-110 | Gestionar el descompte d'amics amb dues inscripcions i un pagador | operació comercial i inscripció | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-110.md](./uc-110.md) |
 | UC-111 | Validar docent novell i generar un dret de descompte futur | operació comercial i inscripció | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-111.md](./uc-111.md) |
 | UC-112 | Congelar preu, descompte, places i classificació fiscal abans del TPV | operació comercial i inscripció | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-112.md](./uc-112.md) |
+| UC-113 | Importar o crear inscripcions manualment o en lot sense inventar cobrament | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-113.md](./uc-113.md) |
+| UC-114 | Versionar canvis de producte o edició amb operacions obertes | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-114.md](./uc-114.md) |
+| UC-115 | Reservar i alliberar places amb aforament, caducitat i concurrència | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-115.md](./uc-115.md) |
+| UC-116 | Custodiar i revisar evidències sensibles de descompte | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-116.md](./uc-116.md) |
+| UC-117 | Gestionar el cicle de vida d'un codi promocional o dret futur | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-117.md](./uc-117.md) |
+| UC-118 | Gestionar un grup abans d'emetre o cobrar | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-118.md](./uc-118.md) |
+| UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-119.md](./uc-119.md) |
+| UC-120 | Tramitar una sol·licitud de canvi de dades personals i la seva propagació | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-120.md](./uc-120.md) |
+| UC-121 | Repreuar o renovar una reserva caducada abans del pagament | cicle de vida comercial, acadèmic i documental | `[DISSENY/BLOQUEJANT]` | [uc-121.md](./uc-121.md) |
+| UC-122 | Gestionar la composició d'un pack i la indisponibilitat d'un component | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-122.md](./uc-122.md) |
+| UC-123 | Generar i lliurar una factura electrònica en format i canal acordats | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-123.md](./uc-123.md) |
+| UC-124 | Reconciliar accés acadèmic i certificat amb baixa, deute i pagador de grup | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-124.md](./uc-124.md) |
+| UC-125 | Gestionar consentiment de comunicacions separat de la inscripció | consentiment, identitat i coherència entre sistemes | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-125.md](./uc-125.md) |
+| UC-126 | Resoldre identitat i dades de contacte en conflicte entre sistemes | consentiment, identitat i coherència entre sistemes | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-126.md](./uc-126.md) |
+| UC-127 | Canviar l'estat d'una edició i resoldre totes les operacions afectades | consentiment, identitat i coherència entre sistemes | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-127.md](./uc-127.md) |
+| UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | consentiment, identitat i coherència entre sistemes | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-128.md](./uc-128.md) |
+| UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | consentiment, identitat i coherència entre sistemes | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-129.md](./uc-129.md) |
 
 ## Validació
 
