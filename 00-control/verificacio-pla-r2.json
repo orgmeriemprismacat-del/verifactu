@@ -1,0 +1,1382 @@
+{
+  "date": "2026-09-16T01:13:00.0107974+02:00",
+  "scope": "Planning coverage and arithmetic; no product tests",
+  "cases": [
+    {
+      "id": "UC-01",
+      "title": "Emetre o reutilitzar factura",
+      "owners": [
+        "VT-07",
+        "VT-08"
+      ],
+      "test": "R2-UC-01",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-02",
+      "title": "Registrar pagament sobre factura",
+      "owners": [
+        "VT-07",
+        "VT-16"
+      ],
+      "test": "R2-UC-02",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-03",
+      "title": "Processar cobrament Redsys asíncron",
+      "owners": [
+        "VT-13",
+        "VT-14"
+      ],
+      "test": "R2-UC-03",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-04",
+      "title": "Emetre factura abans de cobrar",
+      "owners": [
+        "VT-17"
+      ],
+      "test": "R2-UC-04",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-05",
+      "title": "Crear rectificativa",
+      "owners": [
+        "VT-10"
+      ],
+      "test": "R2-UC-05",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-06",
+      "title": "Registrar devolució, saldo o compensació",
+      "owners": [
+        "VT-24"
+      ],
+      "test": "R2-UC-06",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-07",
+      "title": "Consultar factura, estat i document",
+      "owners": [
+        "VT-11",
+        "VT-19",
+        "VT-21"
+      ],
+      "test": "R2-UC-07",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-08",
+      "title": "Gestionar incidència",
+      "owners": [
+        "VT-21"
+      ],
+      "test": "R2-UC-08",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-09",
+      "title": "Remetre registre a AEAT",
+      "owners": [
+        "VT-09"
+      ],
+      "test": "R2-UC-09",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-10",
+      "title": "Gestionar configuració i versió",
+      "owners": [
+        "VT-03",
+        "VT-35"
+      ],
+      "test": "R2-UC-10",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-11",
+      "title": "Importar factura històrica",
+      "owners": [
+        "VT-06"
+      ],
+      "test": "R2-UC-11",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-12",
+      "title": "Gestionar el cicle de morositat i reclamació",
+      "owners": [
+        "VT-25"
+      ],
+      "test": "R2-UC-12",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-13",
+      "title": "Orquestrar la doble facturació USOC",
+      "owners": [
+        "VT-30"
+      ],
+      "test": "R2-UC-13",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-14",
+      "title": "Comprar curs normal per Redsys",
+      "owners": [
+        "VT-15",
+        "VT-26"
+      ],
+      "test": "R2-UC-14",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-14a",
+      "title": "Comprar taller",
+      "owners": [
+        "VT-27"
+      ],
+      "test": "R2-UC-14a",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-14b",
+      "title": "Comprar jornada",
+      "owners": [
+        "VT-27"
+      ],
+      "test": "R2-UC-14b",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-15",
+      "title": "Comprar pack",
+      "owners": [
+        "VT-27"
+      ],
+      "test": "R2-UC-15",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-16",
+      "title": "Facturar grup",
+      "owners": [
+        "VT-28"
+      ],
+      "test": "R2-UC-16",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-16a",
+      "title": "Afegir participant després d'emetre",
+      "owners": [
+        "VT-28"
+      ],
+      "test": "R2-UC-16a",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-16b",
+      "title": "Treure participant després d'emetre",
+      "owners": [
+        "VT-28"
+      ],
+      "test": "R2-UC-16b",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-17",
+      "title": "Comprar regal",
+      "owners": [
+        "VT-29"
+      ],
+      "test": "R2-UC-17",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-18",
+      "title": "Bescanviar regal",
+      "owners": [
+        "VT-29"
+      ],
+      "test": "R2-UC-18",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-18a",
+      "title": "Gestionar regal caducat o duplicat",
+      "owners": [
+        "VT-29"
+      ],
+      "test": "R2-UC-18a",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-19",
+      "title": "Validar afiliació USOC",
+      "owners": [
+        "VT-30"
+      ],
+      "test": "R2-UC-19",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-19a",
+      "title": "Facturar part de l'alumne USOC",
+      "owners": [
+        "VT-30"
+      ],
+      "test": "R2-UC-19a",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-19b",
+      "title": "Facturar diferència a USOC",
+      "owners": [
+        "VT-30"
+      ],
+      "test": "R2-UC-19b",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-20",
+      "title": "Aplicar Alumne PrisMa",
+      "owners": [
+        "VT-26"
+      ],
+      "test": "R2-UC-20",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-20a",
+      "title": "Validar Carnet Jove",
+      "owners": [
+        "VT-26"
+      ],
+      "test": "R2-UC-20a",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-20b",
+      "title": "Aplicar descompte sensible",
+      "owners": [
+        "VT-26"
+      ],
+      "test": "R2-UC-20b",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-20c",
+      "title": "Aplicar promoció temporal",
+      "owners": [
+        "VT-26"
+      ],
+      "test": "R2-UC-20c",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-20d",
+      "title": "Aplicar codi promocional",
+      "owners": [
+        "VT-26"
+      ],
+      "test": "R2-UC-20d",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-21",
+      "title": "Empresa/responsable paga inscripcions",
+      "owners": [
+        "VT-17",
+        "VT-28"
+      ],
+      "test": "R2-UC-21",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-22",
+      "title": "Registrar transferència",
+      "owners": [
+        "VT-16"
+      ],
+      "test": "R2-UC-22",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-23",
+      "title": "Registrar fracció",
+      "owners": [
+        "VT-16",
+        "VT-25"
+      ],
+      "test": "R2-UC-23",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-24",
+      "title": "Registrar cobrament de reclamació",
+      "owners": [
+        "VT-25"
+      ],
+      "test": "R2-UC-24",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-25",
+      "title": "Analitzar fitxer TPV",
+      "owners": [
+        "VT-22"
+      ],
+      "test": "R2-UC-25",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-25a",
+      "title": "Comprovar IDPAG duplicats",
+      "owners": [
+        "VT-22"
+      ],
+      "test": "R2-UC-25a",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-26",
+      "title": "Canviar de curs",
+      "owners": [
+        "VT-23",
+        "VT-38"
+      ],
+      "test": "R2-UC-26",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-27",
+      "title": "Donar de baixa",
+      "owners": [
+        "VT-24",
+        "VT-38"
+      ],
+      "test": "R2-UC-27",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-28",
+      "title": "Registrar devolució",
+      "owners": [
+        "VT-24"
+      ],
+      "test": "R2-UC-28",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-29",
+      "title": "Crear saldo",
+      "owners": [
+        "VT-24"
+      ],
+      "test": "R2-UC-29",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-29a",
+      "title": "Aplicar compensació",
+      "owners": [
+        "VT-24"
+      ],
+      "test": "R2-UC-29a",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-30",
+      "title": "Anul·lar registre improcedent",
+      "owners": [
+        "VT-10"
+      ],
+      "test": "R2-UC-30",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-31",
+      "title": "Subsanar registre",
+      "owners": [
+        "VT-10"
+      ],
+      "test": "R2-UC-31",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-32",
+      "title": "Marcar o desmarcar factura electrònica",
+      "owners": [
+        "VT-31",
+        "VT-32"
+      ],
+      "test": "R2-UC-32",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-33",
+      "title": "Desactivar URL de pagament",
+      "owners": [
+        "VT-14",
+        "VT-17"
+      ],
+      "test": "R2-UC-33",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-34",
+      "title": "Consultar dashboard",
+      "owners": [
+        "VT-21"
+      ],
+      "test": "R2-UC-34",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-35",
+      "title": "Consultar registre, cadena i estat AEAT",
+      "owners": [
+        "VT-08",
+        "VT-09",
+        "VT-21"
+      ],
+      "test": "R2-UC-35",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-36",
+      "title": "Generar/consultar PDF, QR o XML",
+      "owners": [
+        "VT-11"
+      ],
+      "test": "R2-UC-36",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-37",
+      "title": "Exportar període fiscal",
+      "owners": [
+        "VT-32"
+      ],
+      "test": "R2-UC-37",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-38",
+      "title": "Configurar SIF i certificat",
+      "owners": [
+        "VT-03",
+        "VT-32"
+      ],
+      "test": "R2-UC-38",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-39",
+      "title": "Executar proves i go/no-go",
+      "owners": [
+        "VT-33"
+      ],
+      "test": "R2-UC-39",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-40",
+      "title": "Fer backup i restauració",
+      "owners": [
+        "VT-34"
+      ],
+      "test": "R2-UC-40",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-41",
+      "title": "Crear o editar entitat/responsable",
+      "owners": [
+        "VT-15",
+        "VT-17"
+      ],
+      "test": "R2-UC-41",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-42",
+      "title": "Consultar/modificar alumne",
+      "owners": [
+        "VT-19",
+        "VT-31"
+      ],
+      "test": "R2-UC-42",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-43",
+      "title": "Gestionar notificacions i recordatoris",
+      "owners": [
+        "VT-20",
+        "VT-25"
+      ],
+      "test": "R2-UC-43",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-44",
+      "title": "Consultar i mantenir `fact_rels` i origen legacy",
+      "owners": [
+        "VT-05",
+        "VT-18"
+      ],
+      "test": "R2-UC-44",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-45",
+      "title": "Activar auditor temporal",
+      "owners": [
+        "VT-32"
+      ],
+      "test": "R2-UC-45",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-46",
+      "title": "Activar versió i declaració responsable",
+      "owners": [
+        "VT-35"
+      ],
+      "test": "R2-UC-46",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-47",
+      "title": "Sincronitzar l'estat mínim cap al llegat després del commit SIF",
+      "owners": [
+        "VT-18"
+      ],
+      "test": "R2-UC-47",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-48",
+      "title": "Crear o consultar una proforma no fiscal",
+      "owners": [
+        "VT-31"
+      ],
+      "test": "R2-UC-48",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-49",
+      "title": "Enviar factura, document o avis per correu",
+      "owners": [
+        "VT-20"
+      ],
+      "test": "R2-UC-49",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-50",
+      "title": "Crear, consultar, desactivar o caducar un enllaç de pagament",
+      "owners": [
+        "VT-14",
+        "VT-19"
+      ],
+      "test": "R2-UC-50",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-51",
+      "title": "Tractar callback Redsys denegat, tardà, duplicat o contradictori",
+      "owners": [
+        "VT-13",
+        "VT-14"
+      ],
+      "test": "R2-UC-51",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-52",
+      "title": "Operar la cua Redsys",
+      "owners": [
+        "VT-13",
+        "VT-21"
+      ],
+      "test": "R2-UC-52",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-53",
+      "title": "Detectar i resoldre divergències SIF-llegat",
+      "owners": [
+        "VT-18",
+        "VT-22"
+      ],
+      "test": "R2-UC-53",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-54",
+      "title": "Operar la cua fiscal i tractar la resposta AEAT",
+      "owners": [
+        "VT-09"
+      ],
+      "test": "R2-UC-54",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-55",
+      "title": "Generar, reintentar i custodiar documents fiscals",
+      "owners": [
+        "VT-11"
+      ],
+      "test": "R2-UC-55",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-56",
+      "title": "Cercar i assignar un cobrament",
+      "owners": [
+        "VT-16"
+      ],
+      "test": "R2-UC-56",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-57",
+      "title": "Mantenir i optimitzar la BD SIF",
+      "owners": [
+        "VT-05"
+      ],
+      "test": "R2-UC-57",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-58",
+      "title": "Gestionar l'outbox de notificacions",
+      "owners": [
+        "VT-20"
+      ],
+      "test": "R2-UC-58",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-59",
+      "title": "Concedir, caducar i revocar accés auditor",
+      "owners": [
+        "VT-32"
+      ],
+      "test": "R2-UC-59",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-60",
+      "title": "Monitorar salut, cues, documents, backups i versió activa",
+      "owners": [
+        "VT-21",
+        "VT-34"
+      ],
+      "test": "R2-UC-60",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-61",
+      "title": "Consultar un import pendent i obtenir un enllaç de pagament",
+      "owners": [
+        "VT-19"
+      ],
+      "test": "R2-UC-61",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-62",
+      "title": "Iniciar factura o cobrament des de la intranet",
+      "owners": [
+        "VT-12",
+        "VT-16",
+        "VT-17"
+      ],
+      "test": "R2-UC-62",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-63",
+      "title": "Crear la intenció Redsys des de l'ecommerce",
+      "owners": [
+        "VT-13",
+        "VT-15"
+      ],
+      "test": "R2-UC-63",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-64",
+      "title": "Reconciliar la candidata amb el codi actual",
+      "owners": [
+        "VT-01",
+        "VT-04"
+      ],
+      "test": "R2-UC-64",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-65",
+      "title": "Presentar una factura o rebut de col·laborador",
+      "owners": [
+        "VT-31",
+        "VT-36"
+      ],
+      "test": "R2-UC-65",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-66",
+      "title": "Consultar i gestionar cobraments d'un col·laborador",
+      "owners": [
+        "VT-31",
+        "VT-36"
+      ],
+      "test": "R2-UC-66",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-67",
+      "title": "Externalitzar i rotar secrets de pagament",
+      "owners": [
+        "VT-03",
+        "VT-32"
+      ],
+      "test": "R2-UC-67",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-68",
+      "title": "Retirar callbacks i escriptures fiscals llegades",
+      "owners": [
+        "VT-18"
+      ],
+      "test": "R2-UC-68",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-69",
+      "title": "Confirmar i congelar dades fiscals",
+      "owners": [
+        "VT-15"
+      ],
+      "test": "R2-UC-69",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-70",
+      "title": "Modificar dades mestres després d'emetre",
+      "owners": [
+        "VT-15"
+      ],
+      "test": "R2-UC-70",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-71",
+      "title": "Registrar un canvi de curs complet",
+      "owners": [
+        "VT-23",
+        "VT-38"
+      ],
+      "test": "R2-UC-71",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-72",
+      "title": "Registrar baixa i decisió econòmica",
+      "owners": [
+        "VT-24",
+        "VT-38"
+      ],
+      "test": "R2-UC-72",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-73",
+      "title": "Documentar un ajust, descompte o despesa",
+      "owners": [
+        "VT-26",
+        "VT-38"
+      ],
+      "test": "R2-UC-73",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-74",
+      "title": "Classificar una correcció fiscal",
+      "owners": [
+        "VT-10",
+        "VT-38"
+      ],
+      "test": "R2-UC-74",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-75",
+      "title": "Crear un registre d'anul·lació",
+      "owners": [
+        "VT-10"
+      ],
+      "test": "R2-UC-75",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-76",
+      "title": "Crear un registre de subsanació",
+      "owners": [
+        "VT-10"
+      ],
+      "test": "R2-UC-76",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-77",
+      "title": "Operar enviament AEAT, retry i dead-letter",
+      "owners": [
+        "VT-09"
+      ],
+      "test": "R2-UC-77",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-78",
+      "title": "Generar i custodiar PDF, QR i XML",
+      "owners": [
+        "VT-11"
+      ],
+      "test": "R2-UC-78",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-79",
+      "title": "Enviar una comunicació fiscal auditable",
+      "owners": [
+        "VT-20"
+      ],
+      "test": "R2-UC-79",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-80",
+      "title": "Servir i registrar accés a document fiscal",
+      "owners": [
+        "VT-11",
+        "VT-19",
+        "VT-32"
+      ],
+      "test": "R2-UC-80",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-81",
+      "title": "Gestionar el cicle complet d'una incidència",
+      "owners": [
+        "VT-21"
+      ],
+      "test": "R2-UC-81",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-82",
+      "title": "Reconciliar SIF amb la BD llegada",
+      "owners": [
+        "VT-18",
+        "VT-22"
+      ],
+      "test": "R2-UC-82",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-83",
+      "title": "Registrar i activar versió i declaració",
+      "owners": [
+        "VT-35"
+      ],
+      "test": "R2-UC-83",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-84",
+      "title": "Crear un paquet fiscal d'auditoria",
+      "owners": [
+        "VT-32"
+      ],
+      "test": "R2-UC-84",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-85",
+      "title": "Executar backup, restauració i reconciliació",
+      "owners": [
+        "VT-34"
+      ],
+      "test": "R2-UC-85",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-87",
+      "title": "Validar receptor estranger o amb dades fiscals incompletes",
+      "owners": [
+        "VT-15"
+      ],
+      "test": "R2-UC-87",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-88",
+      "title": "Decidir agrupació i línies d'una factura multiconcepte",
+      "owners": [
+        "VT-07",
+        "VT-17"
+      ],
+      "test": "R2-UC-88",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-89",
+      "title": "Canviar concepte després del cobrament o emissió",
+      "owners": [
+        "VT-10",
+        "VT-38"
+      ],
+      "test": "R2-UC-89",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-90",
+      "title": "Resoldre un descompte validat després de la compra",
+      "owners": [
+        "VT-26",
+        "VT-38"
+      ],
+      "test": "R2-UC-90",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-91",
+      "title": "Aplicar descompte de grup per trams",
+      "owners": [
+        "VT-28"
+      ],
+      "test": "R2-UC-91",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-92",
+      "title": "Registrar venda manual des d'intranet o telèfon",
+      "owners": [
+        "VT-16",
+        "VT-17"
+      ],
+      "test": "R2-UC-92",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-93",
+      "title": "Canviar el receptor fiscal sol·licitat després d'una compra particular",
+      "owners": [
+        "VT-10",
+        "VT-15",
+        "VT-38"
+      ],
+      "test": "R2-UC-93",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-94",
+      "title": "Ajustar manualment l'import a pagar amb justificació",
+      "owners": [
+        "VT-26",
+        "VT-38"
+      ],
+      "test": "R2-UC-94",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-95",
+      "title": "Gestionar estat acadèmic amb deute pendent",
+      "owners": [
+        "VT-25",
+        "VT-31"
+      ],
+      "test": "R2-UC-95",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-96",
+      "title": "Concedir una pròrroga de pagament fins a la segona setmana",
+      "owners": [
+        "VT-25",
+        "VT-38"
+      ],
+      "test": "R2-UC-96",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-97",
+      "title": "Consultar històric barrejat Associació/SL",
+      "owners": [
+        "VT-06"
+      ],
+      "test": "R2-UC-97",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-98",
+      "title": "Classificar el circuit fiscal de botiga de llibres/SL",
+      "owners": [
+        "VT-36"
+      ],
+      "test": "R2-UC-98",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-99",
+      "title": "Limitar la intranet de tutors a un circuit no fiscal",
+      "owners": [
+        "VT-31",
+        "VT-32",
+        "VT-36"
+      ],
+      "test": "R2-UC-99",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-100",
+      "title": "Registrar una operació informativa o no facturable",
+      "owners": [
+        "VT-38"
+      ],
+      "test": "R2-UC-100",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-101",
+      "title": "Operar domini, TLS i separació d'entorns de `pay.prisma.cat`",
+      "owners": [
+        "VT-03"
+      ],
+      "test": "R2-UC-101",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-102",
+      "title": "Autoritzar l'accés de l'alumne sense rol d'intranet",
+      "owners": [
+        "VT-19",
+        "VT-32"
+      ],
+      "test": "R2-UC-102",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-103",
+      "title": "Delegar anul·lació o canvi de pagament web al SIF",
+      "owners": [
+        "VT-14",
+        "VT-37"
+      ],
+      "test": "R2-UC-103",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-104",
+      "title": "Gestionar un excés de cobrament",
+      "owners": [
+        "VT-07",
+        "VT-16",
+        "VT-24",
+        "VT-37"
+      ],
+      "test": "R2-UC-104",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-105",
+      "title": "Reassignar o repartir un pagament",
+      "owners": [
+        "VT-07",
+        "VT-16",
+        "VT-37"
+      ],
+      "test": "R2-UC-105",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "VT-37 when payment action; VT-38 when operational decision; VT-32 permission; VT-33 integration"
+    },
+    {
+      "id": "UC-86",
+      "title": "Registrar qualsevol accio sobre un pagament",
+      "owners": [
+        "VT-37"
+      ],
+      "test": "R2-UC-86",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "traceRule": "Mandatory all active payment channels"
+    }
+  ],
+  "actions": [
+    "CREATE_REQUEST",
+    "CREATE",
+    "IDEMPOTENCY_REUSE",
+    "DUPLICATE_DETECTED",
+    "SEARCH",
+    "VIEW",
+    "VIEW_ALLOCATIONS",
+    "EXPORT",
+    "ALLOCATE",
+    "REALLOCATE",
+    "UNALLOCATE",
+    "SPLIT_ALLOCATION",
+    "RECONCILE",
+    "MARK_PENDING_REVIEW",
+    "RESOLVE_RECONCILIATION",
+    "LINK_REFUND",
+    "LINK_COMPENSATION",
+    "LINK_CLAIM_PAYMENT",
+    "CANCEL_OPERATION",
+    "MARK_ERROR",
+    "RETRY",
+    "RECOVER_LOCK",
+    "REDSYS_CALLBACK",
+    "REDSYS_WORKER_RESULT",
+    "SYNC_LEGACY",
+    "IMPORT",
+    "ACCESS_DENIED",
+    "VALIDATION_REJECTED",
+    "IMMUTABILITY_BLOCKED"
+  ],
+  "sources": [
+    {
+      "path": "00-control/registre-decisions.md",
+      "sha256": "5C3E6B28549A685C33E0E1117A7CF92D7F77CEA37760E748C0EE0EB3560353C1",
+      "modified": "2026-09-16T01:12:59.3910029+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/38-matriu-transformacio-funcional-verifactu.md",
+      "sha256": "C9247DEC2D105FED5BAA180B4151E9B1C360C03D6BB75DA446B9A254BC68DDCE",
+      "modified": "2026-09-15T17:52:32.0090537+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/31-diagrames-classes-sif.md",
+      "sha256": "0A769AFBC4C49AC46E1476A8DF4D54D30747ED8DC936E7632FF0CFAE9D317273",
+      "modified": "2026-09-15T17:46:53.7408700+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/32-diagrames-sequencia-sif.md",
+      "sha256": "9ECA33A5EDC0E679C90BFAE64B4B58DF0C9DB991C3002426C3EEE52091FA763E",
+      "modified": "2026-09-15T17:47:10.3393733+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/33-casos-us-sif.md",
+      "sha256": "5129AE499AB7D79CE435B6678BADD0EF6A65C6612753205F93F8B4EFDC066FFD",
+      "modified": "2026-09-15T18:24:07.6041304+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/34-diagrames-dades-estats-sif.md",
+      "sha256": "A4CD6AADBCA0E94214AA77237E406FAFD735C7958254135575F4FA0DE65AC48C",
+      "modified": "2026-09-15T17:47:49.7575430+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/35-matriu-tracabilitat-diagrames.md",
+      "sha256": "CE5A71AE00E40C4D9357D98BDCE292DCCDABBDDEBE23C66C1FFCF67E3DDD9080",
+      "modified": "2026-09-15T17:48:58.6148586+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/05-model-bd-sif.md",
+      "sha256": "241FD0401CB9023A7AC4C4BE2758B5C729827797966232DD131C4737069023F3",
+      "modified": "2026-06-02T16:03:41.9546494+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/17-estat-final-bd-relacions.md",
+      "sha256": "8300A1D184F66E1EAAB84A3FD995467F75FA7FC037BE7AA39E77BFBB3245799F",
+      "modified": "2026-06-02T16:04:29.0777921+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/18-estat-final-operacio-incidencies.md",
+      "sha256": "DD48D83FA43E315343E76C92B68E8EA20E9A46C2A94F302763D5201C6EBEC24A",
+      "modified": "2026-06-18T15:00:58.8811588+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/25-panell-sif-pay-prisma.md",
+      "sha256": "1CC1D32051F60006B3DF6A1A9E50F0112066CDE686BBFE8A733DF20BA4BD79C7",
+      "modified": "2026-06-02T18:42:32.9718481+02:00"
+    },
+    {
+      "path": "documentacio/03-canvis-pendents/04-fluxos-facturacio.md",
+      "sha256": "B585EBF26F8E9AEEC2BAE5CE93A961802C385D034940453D29E8C6D7FA74BAF6",
+      "modified": "2026-06-18T15:00:58.8725998+02:00"
+    },
+    {
+      "path": "documentacio/03-canvis-pendents/09-checklist-posada-en-produccio.md",
+      "sha256": "2CB064EBCB95738E910B2E1D53AC184F24273D7D5FD7F816C458FB32A539739E",
+      "modified": "2026-06-02T18:42:15.2112279+02:00"
+    },
+    {
+      "path": "documentacio/03-canvis-pendents/10-procediments-intranet-ecommerce.md",
+      "sha256": "167291D9B8676C6459B7781439EBDE986CB929A89F53CDB4F61B33E33846E8C8",
+      "modified": "2026-06-02T18:41:48.4265419+02:00"
+    },
+    {
+      "path": "documentacio/03-canvis-pendents/11-inventari-canvis-pendents.md",
+      "sha256": "0A244B8B7173930EFD40BFF895BE2F77071861515BA26F340FC31B3D051A10DA",
+      "modified": "2026-06-18T15:00:58.8771723+02:00"
+    },
+    {
+      "path": "documentacio/03-canvis-pendents/12-matriu-pantalles-abans-despres.md",
+      "sha256": "8EB874F8945B351E80BCF09DFDE087550362620EC9357ED5197E89915E815002",
+      "modified": "2026-06-14T19:22:35.2268197+02:00"
+    },
+    {
+      "path": "documentacio/05-governanca-operacio/20-pla-proves-validacio-sif.md",
+      "sha256": "0045316601D86DFEE0D6E4CCD3664270411D6CB31B30CD68285E879D67DD8F31",
+      "modified": "2026-06-02T18:42:52.9723881+02:00"
+    },
+    {
+      "path": "documentacio/05-governanca-operacio/21-seguretat-permisos-accessos.md",
+      "sha256": "FA95E111069FCB95430248B7F1BDF3DDE7EF7E645E1FDE3D4C06F382326733B7",
+      "modified": "2026-09-14T14:03:25.5498439+02:00"
+    },
+    {
+      "path": "documentacio/05-governanca-operacio/24-diccionari-camps-i-valors.md",
+      "sha256": "A776FE92C556976399FDE612AD3D40B89ECBCC5D6BC9D0CCC05C469B4EECB461",
+      "modified": "2026-09-15T17:48:28.1904454+02:00"
+    },
+    {
+      "path": "documentacio/04-estat-final/39-auditoria-fitxes-funcionals.md",
+      "sha256": "FE7FE04313D5C6C9FC1D7A7330FC5C1658D00C4699F0C85DB99ED1E3F9593684",
+      "modified": "2026-09-15T18:31:57.0213283+02:00"
+    }
+  ],
+  "totals": {
+    "low": 826.0,
+    "probable": 1332.0,
+    "high": 2256.0,
+    "limited": 944.0
+  }
+}

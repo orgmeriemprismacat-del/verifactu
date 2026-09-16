@@ -759,6 +759,28 @@ Regla operativa mes concreta:
 - si el registre s'informa manualment, cal guardar usuari, data, metode, import i motiu/observacio;
 - els camps antics `PAGAMENT`, `DATA PAG`, `BANC`, `PAGAT` i `OBSERVACIONS` poden quedar sincronitzats com a compatibilitat, pero la font fiscal ha de ser `payment_transaction` i `payment_allocation`.
 
+Procediment intern final:
+
+1. Analitzar primer el fitxer TPV si el cobrament prove d'un extracte bancari o TPV.
+2. Buscar el pagament amb un sol criteri: `NIF/NIE`, `CODI REGAL` o `NUM FACTURA`.
+3. Revisar la fila abans de confirmar: origen, receptor, factura existent, pendent SIF, import, data, banc/metode i observacions.
+4. Si la fila te factura SIF o factura abans de cobrament, confirmar nomes `registerPayment()`.
+5. Si la fila no te factura i el cobrament crea obligacio fiscal, confirmar `issueInvoice()` amb bloc `payment`.
+6. Si hi ha diferencia, duplicat, factura d'empresa/responsable o referencia dubtosa, aturar i crear incidencia/revisio manual.
+7. Despres de confirmar, comprovar `UUID_PAYMENT`, factura vinculada, estat de cobrament i opcio de PDF/QR.
+
+Sortides esperades:
+
+| Resultat | Registre principal | Efecte sobre BD antiga | Missatge final |
+| --- | --- | --- | --- |
+| Cobrament contra factura existent | `payment_transaction` + `payment_allocation` | Sincronitzacio operativa si cal | `Pagament registrat contra factura existent.` |
+| Factura i cobrament creats junts | `factura` + `factura_linia` + `payment_transaction` + `payment_allocation` | Relacio via `fact_rels` i resum compatible | `Factura emesa i pagament registrat.` |
+| Factura abans de cobrament cobrada | `payment_transaction` + `payment_allocation` | Actualitzar estat operatiu de pendent | `Factura abans de cobrament marcada com a cobrada/parcial.` |
+| Duplicat o reprocessament | Cap registre nou; retorn idempotent | Cap update nou | `Pagament ja processat anteriorment.` |
+| Incoherencia | `errors_verifactu` o revisio manual | Cap update silencios | `Operacio aturada. Revisa la incidencia SIF.` |
+
+No es considera finalitzat un pagament fins que el SIF retorna identificador de moviment o incidencia formal.
+
 Contracte d'entrada SIF des de `Passar pagaments`:
 
 | Tipus d'entrada | Clau de deduplicacio | Primer efecte SIF | Accio posterior |
@@ -1037,6 +1059,29 @@ Regla de pantalla final:
 - pas 3: factura emesa, numero visible, estat AEAT, estat cobrament pendent, PDF/QR i enllac de pagament si toca;
 - si falla SIF, crear incidencia a `errors_verifactu` i notificacio interna, no crear una factura local alternativa.
 
+Procediment intern final:
+
+1. Cercar per `NIF/NIE` i mostrar només inscripcions candidates.
+2. Seleccionar inscripcions i validar al servidor que no hi ha factura SIF incompatible.
+3. Bloquejar barreja de curs o edicio, tant al front com al servidor.
+4. Seleccionar receptor fiscal per ID intern d'entitat/responsable i carregar snapshot complet.
+5. Recalcular linies, descomptes, concepte visible i import total al servidor.
+6. Mostrar previsualitzacio amb avis: factura real abans de cobrament, no proforma i no `E_FACT` automatica.
+7. Confirmar emissio amb `issueInvoice()` i clau d'idempotencia.
+8. Mostrar resultat: UUID, numero visible, estat AEAT, estat cobrament pendent, document PDF/QR o incidencia documental.
+9. Crear o mostrar URL de pagament de factura d'empresa/responsable si correspon.
+10. Quan arribi el pagament, derivar a `registerPayment()` contra aquesta factura.
+
+Avisos i bloquejos:
+
+| Situacio | Missatge | Accio |
+| --- | --- | --- |
+| Dades fiscals incompletes | `Falten dades fiscals del receptor. Corregeix l'entitat abans d'emetre.` | Bloquejar emissio |
+| Inscripcio ja facturada | `Aquesta inscripcio ja te factura associada.` | Obrir factura existent |
+| Reintent d'emissio | `Operacio ja processada. Es mostra la factura creada anteriorment.` | Retorn idempotent |
+| PDF/QR pendent | `Factura emesa. Document pendent de generacio.` | Crear seguiment/incidencia si falla |
+| Pagament posterior | `Registra el cobrament contra aquesta factura.` | Obrir `Passar pagaments` o URL especifica |
+
 #### 3.3.1. Revisio especialitzada i criteri de tancament
 
 Aquest flux queda definit com a emissio fiscal abans del cobrament, no com a proforma ni com a factura electronica per defecte.
@@ -1277,6 +1322,29 @@ Accions finals proposades:
 - `Marcar E_FACT`: marca administrativa de factura electronica;
 - `Veure PDF/QR`: document immutable;
 - `Veure historial`: log d'accions, usuari, data, motiu i documents creats.
+
+Procediment intern final:
+
+1. Cercar la factura per DNI/NIE, email, factura relacionada o numero visible.
+2. Obrir la fitxa i identificar si es historica no VERI*FACTU o factura SIF.
+3. Si es consulta, mostrar factura, rectificatives, pagaments, devolucions, saldo, PDF/QR i estat AEAT.
+4. Si cal corregir receptor, CIF, adreca, concepte o import, obrir accio `Rectificar`, demanar motiu i mostrar previsualitzacio.
+5. Si cal tornar diners, escollir `devolucio`, `saldo` o `compensacio`, sempre vinculat a factura i pagament original.
+6. Si hi ha diverses inscripcions relacionades, revisar assignacions abans de confirmar.
+7. Si cal marcar o desmarcar `E_FACT`, fer servir accio separada amb motiu i log.
+8. Confirmar amb endpoint SIF per `POST`, validacio servidor i idempotencia.
+9. Mostrar resultat: factura original, rectificativa o moviment creat, usuari, data, motiu i document associat.
+
+Matriu d'accio:
+
+| Necessitat operativa | Accio de pantalla | Registre final | Prohibit |
+| --- | --- | --- | --- |
+| Corregir receptor o dades fiscals | Rectificativa/substitucio | Factura rectificativa o registre SIF vinculat | `updDadesFact` sobre factura SIF |
+| Corregir import o concepte | Rectificativa d'import/concepte | Nova factura/registre relacionat | Canviar `IMPORT`, `concepte1` o `concepte2` directament |
+| Anul·lacio total | Rectificativa total + decisio economica | Rectificativa i devolucio/saldo si toca | Factura negativa historica sense tipificacio SIF |
+| Retorn parcial | Rectificativa parcial + devolucio/saldo | `payment_transaction` de sortida o saldo vinculat | Import negatiu lliure a observacions |
+| Factura electronica | Marcar/desmarcar `E_FACT` | Event auditat | Barrejar-ho amb `EMESA_ABANS_COBRAMENT` |
+| PDF/QR | Descarregar document immutable | `factura_documents` | Regenerar des de dades vives |
 
 Regla:
 
@@ -2032,6 +2100,27 @@ Taula de decisio final:
 | Empresa/responsable amb factura pendent | Pot rebre URL de pagament d'empresa/responsable, no URL individual de l'alumne. |
 | PDF/QR pendent o fallit | Mostrar estat pendent/incidencia; no regenerar document amb dades vives. |
 | Apartat `VERI*FACTU` intranet | Mostrar indicador, resum i accessos; la resolucio oficial viu a `pay.prisma.cat/sif`. |
+
+Procediment intern final:
+
+1. Rebre peticio de consulta des de intranet alumne, correu, enllac segur o gestio interna.
+2. Identificar factura i receptor fiscal al SIF.
+3. Validar sessio o token i relacio autoritzada amb la factura.
+4. Classificar la visibilitat: factura individual propia, factura empresa/responsable, factura de grup, historica o document pendent.
+5. Si es visible, servir vista de lectura amb estat de cobrament, PDF/QR i URL de pagament si correspon.
+6. Si no es visible, mostrar estat administratiu minim sense dades fiscals completes ni PDF.
+7. Registrar acces quan sigui fiscalment o tecnicament rellevant.
+8. Si falta document o token no es valid, mostrar avis i crear incidencia si cal.
+
+Sortides per tipus d'usuari:
+
+| Usuari/canal | Pot veure | No pot veure ni fer |
+| --- | --- | --- |
+| Alumne receptor de factura individual | Factura propia, estat, PDF/QR, pagament si pendent | Factures d'empresa/grup alienes |
+| Alumne participant cobert per empresa | Estat de cobertura i avis administratiu | PDF complet, dades fiscals d'empresa o altres participants |
+| Empresa/responsable autoritzat | Factura on es receptor/contacte, PDF/QR, URL de pagament de factura | Intranet principal o accions fiscals internes |
+| Enllac segur caducat/invalid | Avis de no disponibilitat | Cap dada fiscal |
+| Administracio interna | Consulta segons rol i derivacio al SIF | Exposar path intern o modificar des de consulta externa |
 
 Regles d'implementacio:
 

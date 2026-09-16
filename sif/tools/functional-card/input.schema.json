@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prisma.cat/sif/functional-card-input.schema.json",
+  "title": "Entrada del generador de fitxes funcionals SIF",
+  "type": "object",
+  "required": ["schema_version", "case", "context", "output"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "case": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]+[A-Z]?$" },
+        "title": { "type": "string", "minLength": 1 },
+        "objective": { "type": "string", "default": "UNKNOWN" },
+        "trigger": { "type": "string", "default": "UNKNOWN" },
+        "requested_by": { "type": "string", "default": "UNKNOWN" }
+      },
+      "additionalProperties": false
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "channel": { "enum": ["UNKNOWN", "INTRANET", "ECOMMERCE", "PAY_PRISMA", "API", "CLI", "MULTI_CHANNEL"] },
+        "actor": { "enum": ["UNKNOWN", "ALUMNE", "EMPRESA_RESPONSABLE", "OPERADOR", "RESPONSABLE_TECNICA", "AUTOMATIC"] },
+        "invoice_state": { "enum": ["UNKNOWN", "NONE", "DRAFT", "ISSUED", "RECTIFIED", "HISTORICAL"] },
+        "payment_state": { "enum": ["UNKNOWN", "UNPAID", "PARTIAL", "PAID", "OVERPAID", "REFUNDED"] },
+        "aeat_state": { "enum": ["UNKNOWN", "NOT_APPLICABLE", "PENDING", "ACCEPTED", "ACCEPTED_WITH_ERRORS", "REJECTED"] }
+      },
+      "additionalProperties": false
+    },
+    "entities": { "type": "array" },
+    "known_data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["field", "value"],
+        "properties": {
+          "field": { "type": "string", "minLength": 1 },
+          "value": {},
+          "source": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "variants": { "type": "array" },
+    "explicit_exclusions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["statement", "source"],
+        "properties": {
+          "statement": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "asserted_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["statement"],
+        "properties": {
+          "statement": { "type": "string", "minLength": 1 },
+          "source": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additional_sources": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "output": {
+      "type": "object",
+      "required": ["language", "mode"],
+      "properties": {
+        "language": { "const": "ca" },
+        "mode": { "const": "PREVIEW" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

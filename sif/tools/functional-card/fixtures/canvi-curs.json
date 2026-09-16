@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "case": {
+    "id": "UC-26",
+    "title": "Canvi de curs",
+    "objective": "Canviar una inscripció de curs conservant l'històric i aplicant l'acció econòmica i fiscal que correspongui.",
+    "trigger": "Un operador autoritzat inicia el canvi des de la fitxa de l'alumne.",
+    "requested_by": "projecte-verifactu-pont"
+  },
+  "context": {
+    "channel": "INTRANET",
+    "actor": "OPERADOR",
+    "invoice_state": "UNKNOWN",
+    "payment_state": "UNKNOWN",
+    "aeat_state": "UNKNOWN"
+  },
+  "entities": [
+    "alumne",
+    "inscripció origen",
+    "inscripció destí",
+    "curs origen",
+    "curs destí",
+    "factura",
+    "pagament"
+  ],
+  "known_data": [
+    {
+      "field": "canonical_use_case",
+      "value": "UC-26",
+      "source": "documentacio/04-estat-final/33-casos-us-sif.md"
+    }
+  ],
+  "variants": [
+    "sense factura emesa",
+    "mateix import amb canvi de concepte",
+    "import superior",
+    "import inferior amb devolució",
+    "import inferior amb saldo",
+    "descompte original no reaplicable",
+    "descompte excepcional",
+    "despeses de gestió",
+    "pagament parcial",
+    "factura pendent de cobrament"
+  ],
+  "explicit_exclusions": [],
+  "asserted_decisions": [
+    {
+      "statement": "Les despeses de gestió amb impacte econòmic han de figurar com una línia separada; un motiu sense import queda només a l'auditoria interna.",
+      "source": "00-control/registre-decisions.md — Governança de l'assistent generador de fitxes funcionals"
+    }
+  ],
+  "additional_sources": [],
+  "output": {
+    "language": "ca",
+    "mode": "PREVIEW"
+  }
+}

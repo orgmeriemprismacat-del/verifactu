@@ -595,6 +595,48 @@ Criteri de treball:
 
 En modalitat `VERI*FACTU`, aquesta configuracio s'entén com a autenticacio/identificacio per remetre registres i operar amb AEAT. No s'ha de confondre amb la signatura electronica XAdES de registres, que queda com a materia especifica de modalitat no `VERI*FACTU` o d'escenaris que ho exigeixin.
 
+### 13.4.1. On s'ha de configurar el certificat per a la remissio AEAT
+
+La remissio `VERI*FACTU` es una comunicacio automatica maquina a maquina mitjancant serveis web SOAP/XML. Per tant, el proces backend o worker del SIF que fa l'enviament ha de poder accedir tecnicament a un certificat electronic qualificat admès per AEAT i a la seva clau privada.
+
+Cal distingir tres elements diferents:
+
+| Element | Funcio | Ubicacio o tractament |
+| --- | --- | --- |
+| Certificat TLS de `pay.prisma.cat` | Protegeix la connexio HTTPS dels usuaris amb el servidor. | Configuracio del servidor web o proveidor de hosting. No identifica per si sol Associacio PrisMa davant AEAT. |
+| Certificat client per AEAT | Autentica el remitent en la connexio de sortida del SIF cap als serveis web AEAT. | Ha d'estar disponible per al proces servidor autoritzat, juntament amb la clau privada, mitjancant un mecanisme segur. |
+| Signatura de la declaracio responsable | Subscriu el document de certificacio de la versio del SIF. | No exigeix obligatoriament signatura electronica segons la FAQ AEAT; requereix signant, data i lloc. |
+
+Model tecnic recomanat per al projecte:
+
+- obtenir o confirmar un certificat qualificat de representant de persona juridica adequat per a Associacio PrisMa, o documentar un tercer representant/apoderat/col·laborador social admès;
+- conservar una copia exportable que inclogui certificat i clau privada, normalment en format `PKCS#12` (`.p12` o `.pfx`), si el proveidor i la llibreria d'integracio ho admeten;
+- si la llibreria SOAP/TLS exigeix `PEM`, fer la conversio nomes en un entorn controlat i protegir igualment certificat, clau i contrasenya;
+- guardar el material criptografic fora del `webroot`, fora del repositori i amb permisos de lectura limitats exclusivament a l'usuari del worker SIF;
+- guardar la contrasenya en un gestor de secrets o configuracio d'entorn protegida, mai al codi, SQL, logs o documentacio;
+- configurar PHP/OpenSSL/SOAP o la llibreria HTTP perquè presenti el certificat client en la connexio TLS de sortida a AEAT;
+- registrar al panell nomes metadades no secretes: subjecte/titular, emissor, numero de serie parcial o empremta, data de caducitat, entorn, ultima prova i estat;
+- definir copia de seguretat xifrada, responsable de custodia, procediment de renovacio/rotacio i revocacio per perdua o compromís;
+- separar configuracions i endpoints de prova i produccio, encara que l'autoritat certificadora permeti utilitzar el mateix certificat per autenticar-se;
+- provar la connexio des del mateix servidor o entorn que executara el worker, no nomes des d'un navegador o ordinador personal.
+
+El certificat no ha d'estar necessàriament importat al magatzem global del sistema operatiu. Pot quedar en un fitxer protegit fora del webroot, en un magatzem de certificats, en un gestor de secrets o en un HSM/key vault, sempre que el proces SIF pugui usar la clau privada sense exposar-la. La decisio final dependra de les capacitats del hosting Comvive i de la llibreria PHP escollida.
+
+Comprovacions a fer amb el proveidor de servidor abans de decidir el desplegament:
+
+1. El PHP del servidor disposa d'OpenSSL i client SOAP/HTTP compatible amb certificat client TLS?
+2. Es pot fer una connexio de sortida als endpoints AEAT i processar els WSDL oficials?
+3. Es pot guardar un `.p12`/`.pfx` o `PEM` fora del directori public amb permisos restringits?
+4. Es poden definir secrets d'entorn sense exposar-los al panell public ni al repositori?
+5. Quin usuari executara el worker/cua AEAT i com es limitaran els permisos de lectura?
+6. Com es fara la copia de seguretat xifrada, la renovacio i la substitucio sense aturar o exposar el servei?
+
+Fonts oficials de criteri:
+
+- AEAT, FAQ sistemes `VERI*FACTU`: la remissio es maquina a maquina i pot autenticar-se amb certificat qualificat del titular, representant, apoderat o col·laborador social.
+- AEAT, descripcio dels serveis web: la remissio usa serveis SOAP/XML i el remitent ha de disposar d'un certificat electronic qualificat reconegut.
+- AEAT, FAQ d'empreses de desenvolupament: per provar i operar el SIF cal disposar d'un certificat qualificat valid i admès instal·lat o configurat de forma utilitzable pel sistema.
+
 ## 13.5. Criteris interns pendents de validacio externa
 
 El xat antic va deixar constancia que PrisMa no disposava en aquell moment d'un assessor fiscal dedicat al projecte. Per tant, la documentacio pot fixar criteris interns de treball, pero els punts interpretatius s'han de mantenir com a pendents de validacio externa si mes endavant es disposa de gestoria, assessor o revisio especialitzada.

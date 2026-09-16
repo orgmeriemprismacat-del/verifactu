@@ -14,17 +14,27 @@ Aquest document funciona com a document mare. La documentacio detallada es repar
 - `../03-canvis-pendents/09-checklist-posada-en-produccio.md`: checklist abans d'activar el SIF.
 - `../03-canvis-pendents/10-procediments-intranet-ecommerce.md`: procediment de cada apartat de la intranet, ecommerce i canals relacionats.
 - `../03-canvis-pendents/11-inventari-canvis-pendents.md`: inventari complet de canvis detectats i pendents.
+- `../03-canvis-pendents/12-matriu-pantalles-abans-despres.md`: matriu de pantalles abans/despres amb traça a targetes Trello 4.
 - `../02-context-i-estat-actual/12-documentacio-sistema-ecommerce-intranet-sif.md`: documentacio global del sistema web, ecommerce, intranets, pagaments i SIF per a una persona externa.
 - `../02-context-i-estat-actual/13-mapa-bases-dades-i-taules.md`: mapa de bases de dades, taules existents, taules noves i relacions entre BDs.
 - `14-pla-documentacio-i-auditoria.md`: pla documental, que ha d'estar disponible al SIF i que es conserva com a evidencia.
 - `26-matriu-cobertura-casos.md`: matriu de cobertura de casos documentats, parcials i pendents.
 - `27-informe-auditoria-documental.md`: informe d'auditoria documental sobre si la documentacio actual es suficient.
 - `29-pla-implementacio-tecnica-sif.md`: pla d'implementacio tecnica del SIF, amb fases, fitxers, proves i criteris de validacio.
+- `30-mapa-trello-repo.md`: mapa de responsabilitats i traçabilitat entre Trello 1, 4, 5, 6 i el repo.
 - `../04-estat-final/15-estat-final-sistema.md`: estat final esperat del sistema complet.
 - `../04-estat-final/16-estat-final-pantalles.md`: estat final de pantalles d'intranet, ecommerce, intranet alumne i consulta.
 - `../04-estat-final/17-estat-final-bd-relacions.md`: model final de BD i relacions entre bases de dades.
 - `../04-estat-final/18-estat-final-operacio-incidencies.md`: operacio final, errors, notificacions, logs i manteniment.
 - `../04-estat-final/25-panell-sif-pay-prisma.md`: panell intern del SIF a `pay.prisma.cat`.
+- `../04-estat-final/31-diagrames-classes-sif.md`: classes implementades i de disseny, inclosa l'operació comercial prèvia.
+- `../04-estat-final/32-diagrames-sequencia-sif.md`: seqüències dels fluxos actuals, objectiu, alternatius i bloquejants.
+- `../04-estat-final/33-casos-us-sif.md`: catàleg UC-01..UC-112 i variants.
+- `../04-estat-final/34-diagrames-dades-estats-sif.md`: model de dades i màquines d'estat.
+- `../04-estat-final/35-matriu-tracabilitat-diagrames.md`: traçabilitat entre codi, casos, dades i diagrames.
+- `../04-estat-final/38-matriu-transformacio-funcional-verifactu.md`: canvi complet de gestions i registres més enllà del pagament.
+- `../04-estat-final/39-auditoria-fitxes-funcionals.md`: inventari/reconciliació de 185 `Fitxes mare`.
+- `../04-estat-final/40-auditoria-buits-fitxes-codi-bd.md`: buits entre fitxes, codi i base de dades, amb estat real de completitud.
 - `../05-governanca-operacio/19-registre-versions-i-canvis-sif.md`: versions del SIF i canvis associats.
 - `../05-governanca-operacio/20-pla-proves-validacio-sif.md`: pla de proves i validacio abans de produccio.
 - `../05-governanca-operacio/21-seguretat-permisos-accessos.md`: seguretat, rols, permisos i bloquejos.
@@ -51,6 +61,7 @@ Aquest document intern no pressuposa que una persona externa conegui el funciona
 11. `../05-governanca-operacio/21-seguretat-permisos-accessos.md`
 12. `../05-governanca-operacio/24-diccionari-camps-i-valors.md`
 13. `29-pla-implementacio-tecnica-sif.md`
+14. `../04-estat-final/40-auditoria-buits-fitxes-codi-bd.md`
 
 Els documents de `../03-canvis-pendents/` no formen part de la lectura principal externa. Serveixen com a documentacio interna de projecte per planificar, executar i controlar els canvis fins arribar a l'estat final.
 

@@ -142,6 +142,22 @@ No fer:
 
 Si hi ha dubte, crear o deixar incidencia SIF abans de tocar pagaments.
 
+Comprovacio abans de confirmar:
+
+- factura existent o no existent;
+- si es factura abans de cobrament;
+- receptor correcte: alumne, empresa, responsable, grup, regal o USOC;
+- import pendent recalculat pel SIF;
+- data i metode/banc;
+- referencia TPV o bancaria si existeix;
+- avis de duplicat o incidencia.
+
+Resultat correcte:
+
+- si ja hi havia factura, ha quedat un pagament registrat contra aquella factura;
+- si no hi havia factura i tocava facturar, ha quedat factura i pagament dins la mateixa operacio;
+- si hi havia dubte, ha quedat incidencia o revisio manual, no un update silencios.
+
 ### 4.3.3. Generar factura abans de pagar
 
 Us:
@@ -172,6 +188,23 @@ No fer:
 
 Si les dades fiscals del receptor son dubtoses, cal corregir l'entitat abans d'emetre.
 
+Comprovacio abans de confirmar:
+
+- totes les inscripcions son del mateix curs i edicio;
+- cap inscripcio ja te factura incompatible;
+- el receptor fiscal esta complet i triat per entitat/responsable correcte;
+- el concepte visible i les linies fiscals coincideixen;
+- queda clar que es factura real abans de cobrar i no proforma;
+- `E_FACT` no es marca automaticament.
+
+Resultat correcte:
+
+- factura SIF amb `EMESA_ABANS_COBRAMENT = 1`;
+- estat de cobrament pendent;
+- PDF/QR disponible o incidencia documental;
+- URL individual desactivada o substituida si el cobrament correspon a empresa/responsable;
+- pagament posterior sempre contra aquesta factura.
+
 ### 4.3.4. Consulta - Edita - Anula factura
 
 Us:
@@ -197,6 +230,23 @@ No fer:
 - canviar `PAGAMENT`, `DATA PAG`, receptor, concepte o import com a correccio fiscal manual;
 - usar observacions lliures com a substitut de motiu de rectificativa;
 - regenerar PDF des de dades vives.
+
+Comprovacio abans de confirmar una accio fiscal:
+
+- factura original identificada;
+- estat SIF o historica no VERI*FACTU;
+- motiu escrit i tipificat;
+- import afectat i assignacions si hi ha diverses inscripcions;
+- decisio economica clara: devolucio, saldo, compensacio o no retorn;
+- document o rectificativa que es generara;
+- usuari amb permis servidor.
+
+Resultat correcte:
+
+- la factura original queda conservada;
+- la rectificativa, devolucio, saldo o marca `E_FACT` queda auditada;
+- el PDF/QR surt de document immutable;
+- l'historial mostra usuari, data, motiu i accio.
 
 ### 4.4. Baixes
 
@@ -257,6 +307,13 @@ No fer:
 - redirigir una factura d'empresa pendent a URL individual d'alumne;
 - permetre accions fiscals des d'un enllac de consulta.
 
+Avisos habituals:
+
+- alumne cobert per empresa/responsable: informar cobertura, no enviar factura completa;
+- empresa/responsable amb factura pendent: enviar URL de factura d'empresa/responsable;
+- PDF/QR pendent: informar estat o incidencia, no regenerar document;
+- token caducat o invalid: no mostrar dades fiscals.
+
 ### 4.7. Apartat VERI*FACTU de la intranet
 
 Serveix per:
@@ -273,6 +330,15 @@ No serveix per:
 - canviar configuracio SIF.
 
 La resolucio oficial viu a `pay.prisma.cat/sif`.
+
+Interpretacio dels avisos:
+
+- `indicador`: hi ha pendents o avisos; cal obrir el resum;
+- `avis`: missatge puntual de pantalla;
+- `notificacio`: avis intern guardat;
+- `incidencia SIF`: problema oficial que s'ha de resoldre al panell SIF.
+
+Si el SIF no respon, no s'ha d'assumir que no hi ha pendents. Cal veure l'hora de darrera sincronitzacio valida i tornar-ho a provar o revisar el panell.
 
 ### 4.8. Redsys curs normal
 

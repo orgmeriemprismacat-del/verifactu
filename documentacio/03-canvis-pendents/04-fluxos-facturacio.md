@@ -642,7 +642,51 @@ Regles:
 - cada rectificativa apunta directament a la factura rectificada;
 - `FACTURA_RELACIONADA` pot conservar-se com a agrupacio historica, pero no substitueix la relacio directa;
 - canvi de nom/NIF/CIF/rao social despres d'emetre factura es tracta com rectificativa per substitucio o criteri fiscal validat;
-- anul·lacio historica deixa de ser una factura negativa lliure: passa per motiu, mode i relacio directa.
+- la pantalla historica d'anul·lacio deixa de crear una factura negativa lliure: primer ha d'obrir un decisor fiscal;
+- una rectificativa no elimina, esborra ni modifica el registre original.
+
+### Anul·lacio de registre AEAT i subsanacio
+
+No son sinonims:
+
+- `baixa`: event administratiu sobre una inscripcio;
+- `REFUND`: moviment economic de devolucio;
+- factura rectificativa: nova factura fiscal que corregeix efectes economics o fiscals d'una factura valida;
+- `RegistroAnulacion`: registre AEAT que deixa sense efecte un registre de facturacio improcedent;
+- subsanacio: nou registre amb el mateix identificador de factura per corregir dades quan no cal factura rectificativa.
+
+Matriu de decisio:
+
+| Situacio | Accio |
+|---|---|
+| Encara no existeix factura SIF | Cancel·lar l'operacio/enllac/inscripcio amb log; cap registre fiscal. |
+| La factura existeix i canvia import, servei, descompte, quota o causa fiscal | Factura rectificativa per diferencies o substitucio segons criteri fiscal. |
+| El registre/factura no hauria d'haver existit per operacio inexistent, duplicada o improcedent | `RegistroAnulacion`; si cal document correcte, nova alta amb numero/data que pertoqui. |
+| AEAT accepta amb error admissible i no cal rectificativa | Subsanacio del registre. |
+| AEAT rebutja el registre i no cal rectificativa | Corregir i remetre alta/anul·lacio per rebuig amb els indicadors AEAT corresponents. |
+| Es detecta despres una dada incorrecta que no exigeix rectificativa | Subsanacio amb el mateix identificador de factura. |
+
+Regles de seguretat:
+
+- la subsanacio nomes es valida quan la causa no exigeix factura rectificativa;
+- `RegistroAnulacion` entra a la cadena de registres, te huella propia i passa per cua AEAT;
+- la factura i el registre originals no s'esborren de la BD;
+- cal conservar estat AEAT global i per registre, codi/error, intent i resposta;
+- `ManualRectificationService` no cobreix per si sol `RegistroAnulacion` ni subsanacions;
+- els valors de `Subsanacion`, `RechazoPrevio` i `SinRegistroPrevio` s'han de construir segons l'operativa AEAT vigent i validar contra XSD/proves.
+
+Decisor funcional de la pantalla antiga:
+
+```text
+usuari selecciona factura/cas
+-> existeix factura SIF?
+   -> no: cancel·lacio operativa amb log
+   -> si: classificar causa
+      -> correccio economica/fiscal: rectificativa
+      -> registre improcedent: RegistroAnulacion
+      -> dada subsanable sense rectificativa: subsanacio
+      -> dubte fiscal: incidencia i bloqueig fins validacio
+```
 
 ## Morositat
 

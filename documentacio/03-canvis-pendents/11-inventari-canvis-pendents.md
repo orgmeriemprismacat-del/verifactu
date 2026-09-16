@@ -370,6 +370,35 @@ Estat tecnic 2026-06-14:
 - crear saldo no crea factura ni pagament; aplicar-lo a factura existent crea `payment_transaction` `COMPENSATION` i `payment_allocation` `CREDIT_COMPENSATION`;
 - pendent d'executar amb PHP/MySQL de test i evidencies d'estat `ACTIVE`/`USED`.
 
+## 17.2. Rectificativa, anul·lacio AEAT i subsanacio
+
+Cal substituir el concepte generic antic d'`anul·lar factura` per un decisor fiscal:
+
+- sense factura emesa: cancel·lacio operativa amb log;
+- factura valida amb correccio economica/fiscal: factura rectificativa;
+- registre improcedent o operacio inexistent: `RegistroAnulacion`;
+- dada incorrecta que no exigeix rectificativa: subsanacio;
+- registre rebutjat: correccio i remissio amb tractament de rebuig previ;
+- factura correcta necessaria despres d'anul·lar: nova alta diferenciada.
+
+Canvis pendents:
+
+- crear model/servei per `RegistroAnulacion`;
+- crear model/servei per subsanacio d'alta i anul·lacio;
+- afegir `Subsanacion`, `RechazoPrevio` i `SinRegistroPrevio` al model XML/AEAT;
+- garantir hash AEAT i encadenament per registres d'anul·lacio;
+- persistir estat global AEAT i estat per registre;
+- impedir que una rectificativa s'utilitzi per corregir errors purament registrals;
+- impedir que una subsanacio substitueixi una rectificativa obligatoria;
+- convertir `Consulta - Edita - Anula factura` en pantalla de classificacio i previsualitzacio, sense edicio directa;
+- afegir proves amb alta normal, alta rebutjada, alta acceptada amb errors, subsanacio, anul·lacio i nova alta posterior.
+
+Estat tecnic:
+
+- el circuit `ManualRectificationService` cobreix rectificatives internes preparades;
+- no existeix encara implementacio completa de `RegistroAnulacion` ni subsanacio AEAT;
+- no es pot donar aquest bloc per tancat fins validar XML/XSD, huella AEAT, cua i respostes de proves.
+
 ## 18. Migracio a pay.prisma.cat
 
 Cal traspassar:

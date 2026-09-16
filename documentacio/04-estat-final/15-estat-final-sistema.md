@@ -99,6 +99,8 @@ Un pagament pot:
 - Compensacio/saldo: moviment economic documentat, no edicio d'import.
 - Devolucio: moviment economic `REFUND` i rectificativa si redueix una factura emesa.
 - Rectificativa: serie `R`, relacio directa amb factura rectificada i mode per diferencies o substitucio.
+- Anul·lacio AEAT: registre fiscal nou que deixa sense efecte un registre improcedent, sense esborrar l'original.
+- Subsanacio: correccio registral amb el mateix identificador quan la causa no exigeix factura rectificativa.
 - Canvi de curs: event auditable amb accio fiscal si cal.
 - Baixa: event administratiu; devolucio/saldo posterior.
 - Factura manual: emissio controlada des de intranet amb `issueInvoice()`.
@@ -117,6 +119,10 @@ Regles finals:
 
 - si el canvi passa abans d'emetre factura, es pot ajustar operacio o esborrany amb log;
 - si el canvi passa despres d'emetre factura, no es modifica la factura: es genera rectificativa, complementaria, devolucio, saldo o compensacio segons cas;
+- si la factura/registre no hauria d'haver existit, el SIF genera `RegistroAnulacion` i, si cal, una nova alta correcta;
+- si l'error es subsanable sense rectificativa, el SIF genera un registre de subsanacio amb el mateix identificador;
+- una subsanacio no es pot utilitzar quan el Reglament de facturacio exigeix factura rectificativa;
+- alta, anul·lacio i subsanacio generen registres immutables, huella/encadenament i cua AEAT segons l'operativa aplicable;
 - si factura i cobrament neixen junts, `issueInvoice()` incorpora el bloc `payment`;
 - si la factura ja existeix, qualsevol cobrament posterior va per `registerPayment()`;
 - una factura emesa abans de cobrament queda pendent fins que es registri el pagament;

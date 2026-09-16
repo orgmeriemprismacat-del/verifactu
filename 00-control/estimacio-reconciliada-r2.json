@@ -1,0 +1,573 @@
+{
+  "date": "2026-09-16",
+  "kind": "Estimació inicial de gestió, no hores mesurades",
+  "assumptions": {
+    "singleOwner": true,
+    "reuseExistingCode": true,
+    "localTestsIncluded": true,
+    "crossSystemTestsSeparate": true,
+    "weeklyReserve": 0.25,
+    "limitedScopeApproved": false,
+    "userWeeklyGrossHours": 75,
+    "userWeekdayHours": 45,
+    "userWeekendHours": 30
+  },
+  "packages": [
+    {
+      "id": "VT-01",
+      "title": "Reconciliar codi i fonts",
+      "low": 12,
+      "probable": 20,
+      "high": 32,
+      "limited": 12,
+      "basis": "Identificar versió activa, reconciliar la branca Redsys i traçar lliurables; no netejar exhaustivament 25.706 targetes.",
+      "limitedScope": "Reconciliació centrada en els canals del tall.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-02",
+      "title": "Fitxes funcionals dels fluxos",
+      "low": 24,
+      "probable": 40,
+      "high": 64,
+      "limited": 24,
+      "basis": "Reutilitzar fitxes existents i completar decisions/acceptació; més feina si les variants no tenen contracte.",
+      "limitedScope": "Fitxes dels circuits activats i excepcions essencials.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-03",
+      "title": "Servidor i entorns",
+      "low": 16,
+      "probable": 24,
+      "high": 40,
+      "limited": 24,
+      "basis": "Configurar servidor, PHP/extensions, test/preproducció, workers, correu i secrets; accés disponible com a hipòtesi.",
+      "limitedScope": "Mateix entorn necessari.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-04",
+      "title": "Compatibilitat del llegat",
+      "low": 24,
+      "probable": 40,
+      "high": 72,
+      "limited": 20,
+      "basis": "Revisar i corregir PHP, sessions, includes, AJAX i recursos afectats; nombre real de regressions desconegut.",
+      "limitedScope": "Compatibilitat de rutes afectades; altres canvis amb regressió controlada.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-05",
+      "title": "BD i migracions",
+      "low": 24,
+      "probable": 40,
+      "high": 72,
+      "limited": 32,
+      "basis": "Reutilitzar migracions SIF; contrastar esquema real, imports, UUID, índexs i assaig.",
+      "limitedScope": "Migracions imprescindibles per operar.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-06",
+      "title": "Històric i transició",
+      "low": 20,
+      "probable": 32,
+      "high": 56,
+      "limited": 20,
+      "basis": "Resoldre pendents, numeració antiga, relacions i consulta; el volum i qualitat reals de dades són incerts.",
+      "limitedScope": "Convivència històrica i pendents; sense importació massiva.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-07",
+      "title": "Facturació i cobraments del nucli",
+      "low": 16,
+      "probable": 24,
+      "high": 40,
+      "limited": 24,
+      "basis": "Serveis existents: completar validacions, imports, idempotència, assignacions i proves específiques.",
+      "limitedScope": "Mateix nucli segur.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-08",
+      "title": "Registres i encadenament AEAT",
+      "low": 20,
+      "probable": 32,
+      "high": 56,
+      "limited": 32,
+      "basis": "Hash intern existent; falta acreditar/construir serialització i encadenament definitius de registres.",
+      "limitedScope": "Mateix tractament fiscal.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-09",
+      "title": "XML, certificat i cua AEAT",
+      "low": 32,
+      "probable": 56,
+      "high": 88,
+      "limited": 56,
+      "basis": "Implementació real de transport, XML, certificat, worker, respostes i recuperació no demostrada.",
+      "limitedScope": "Mateixa remissió real i recuperació.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-10",
+      "title": "Rectificatives i correccions registrals",
+      "low": 20,
+      "probable": 32,
+      "high": 52,
+      "limited": 24,
+      "basis": "Reutilitzar rectificativa interna; completar anul·lacions, subsanacions, estats i coherència transaccional.",
+      "limitedScope": "Tots els tipus necessaris, interfície tècnica restringida.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-11",
+      "title": "PDF, QR, XML i custòdia",
+      "low": 28,
+      "probable": 48,
+      "high": 80,
+      "limited": 40,
+      "basis": "Metadades existents; construir generadors, storage protegit, cua, recuperació i descàrrega.",
+      "limitedScope": "Documents funcionals amb una plantilla bàsica.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-12",
+      "title": "API, adaptadors i autorització",
+      "low": 12,
+      "probable": 16,
+      "high": 28,
+      "limited": 16,
+      "basis": "Endpoints bàsics existents; completar contracte autenticat i permisos de canal, errors i tests.",
+      "limitedScope": "Mateix control d'accés.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-13",
+      "title": "Integrar Redsys asíncron",
+      "low": 12,
+      "probable": 20,
+      "high": 36,
+      "limited": 20,
+      "basis": "Reutilitzar branca amb worker i intents; integrar, configurar i repetir proves del conjunt.",
+      "limitedScope": "Mateixa integració Redsys.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-14",
+      "title": "Cicle de pagament i enllaços",
+      "low": 16,
+      "probable": 24,
+      "high": 40,
+      "limited": 20,
+      "basis": "Caducitat, retorns, intents múltiples, terminals/entorns, doble pagament i experiència pendent/fallida.",
+      "limitedScope": "Mateixes garanties; menys variants d'experiència.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-15",
+      "title": "Web i checkout",
+      "low": 28,
+      "probable": 44,
+      "high": 72,
+      "limited": 36,
+      "basis": "Adaptar checkout real, confirmació fiscal i preus del servidor; motor i documents comptats en altres paquets.",
+      "limitedScope": "Checkout de curs amb receptor fiscal.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-16",
+      "title": "Passar pagaments",
+      "low": 32,
+      "probable": 48,
+      "high": 80,
+      "limited": 32,
+      "basis": "Cerca, modal, decisor, referència, import, parcial/múltiple, resultats i variants; reutilitza motor.",
+      "limitedScope": "Curs, factura existent, transferència i parcial; multi-factura assistida validada.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-17",
+      "title": "Factura prèvia i entitats",
+      "low": 16,
+      "probable": 24,
+      "high": 40,
+      "limited": 16,
+      "basis": "Integrar servei previ, gestió de receptor, entitats i bloqueig d'enllaços individuals.",
+      "limitedScope": "Cobrar factures prèvies i protegir URLs; alta d'empresa assistida.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-18",
+      "title": "Sincronització i retirada del llegat",
+      "low": 20,
+      "probable": 32,
+      "high": 56,
+      "limited": 32,
+      "basis": "Sync actual limitada; actualitzar resums necessaris, reintentar sense duplicar i retirar escriptures paral·leles.",
+      "limitedScope": "Mateixa coherència i transició.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-19",
+      "title": "Portal alumne i consulta",
+      "low": 12,
+      "probable": 20,
+      "high": 32,
+      "limited": 16,
+      "basis": "Adaptar consulta, URL i visibilitat de documents; no construir de zero tot el portal.",
+      "limitedScope": "Consulta essencial.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-20",
+      "title": "Correus i notificacions",
+      "low": 24,
+      "probable": 40,
+      "high": 64,
+      "limited": 28,
+      "basis": "Reutilitzar plantilles però canviar crides/estats, entrega fiable, destinatari i avisos.",
+      "limitedScope": "Confirmació i avisos essencials; altres campanyes no refetes.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-21",
+      "title": "Panell operatiu SIF",
+      "low": 32,
+      "probable": 52,
+      "high": 88,
+      "limited": 32,
+      "basis": "Consulta i accions operatives per factura/cua/document/error/versió; sense analítica avançada.",
+      "limitedScope": "Panell operatiu essencial, sense dashboard avançat.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-22",
+      "title": "Conciliació TPV",
+      "low": 20,
+      "probable": 36,
+      "high": 64,
+      "limited": 24,
+      "basis": "Adaptar importador i casos de conciliació amb fitxer real; no repetir lògica de cobrament.",
+      "limitedScope": "Conciliació assistida amb informe, sense importador automàtic complet.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-23",
+      "title": "Canvis de curs",
+      "low": 28,
+      "probable": 48,
+      "high": 80,
+      "limited": 24,
+      "basis": "Orquestració del canvi, diferències, motius, efectes acadèmics i pantalla; reutilitza saldo/rectificativa.",
+      "limitedScope": "Procediment assistit verificat; sense automatització completa de variants.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-24",
+      "title": "Baixa, devolució i saldo",
+      "low": 20,
+      "probable": 32,
+      "high": 56,
+      "limited": 28,
+      "basis": "Reutilitzar serveis; completar circuit operatiu, retorn real i conciliació, no només moviment intern.",
+      "limitedScope": "Procediment assistit amb retorn econòmic i correcció traçats.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-25",
+      "title": "Reclamacions i fraccionaments",
+      "low": 16,
+      "probable": 24,
+      "high": 40,
+      "limited": 8,
+      "basis": "Connectar saldo, venciments, recordatoris i pagament posterior; plantilles comunes a VT-20.",
+      "limitedScope": "Conservar/controlar scripts necessaris, sense redissenyar campanyes.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-26",
+      "title": "Descomptes",
+      "low": 20,
+      "probable": 32,
+      "high": 56,
+      "limited": 12,
+      "basis": "Validacions i SQL per les famílies documentades; motor de descompte i snapshot compartits.",
+      "limitedScope": "Només famílies de descompte seleccionades per al tall.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-27",
+      "title": "Tallers, jornades i packs",
+      "low": 16,
+      "probable": 24,
+      "high": 40,
+      "limited": 0,
+      "basis": "Adaptació específica de variants i packs; serveis base ja preparats, no reescriure motor comú.",
+      "limitedScope": "No activar aquestes noves vendes; pendents han de tenir solució expressa.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-28",
+      "title": "Grups i participants",
+      "low": 20,
+      "probable": 32,
+      "high": 56,
+      "limited": 0,
+      "basis": "SQL/responsable/participants, privacitat i canvis posteriors; reutilitza emissió i cobrament.",
+      "limitedScope": "No activar noves vendes de grup; pendents han de tenir solució expressa.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-29",
+      "title": "Regals i bescanvi",
+      "low": 16,
+      "probable": 24,
+      "high": 40,
+      "limited": 0,
+      "basis": "Compra, document regal, codi, bescanvi i errors; reutilitza pagament/factura comuns.",
+      "limitedScope": "No activar noves vendes de regal; bescanvis/obligacions pendents han de tenir solució expressa.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-30",
+      "title": "USOC",
+      "low": 20,
+      "probable": 32,
+      "high": 56,
+      "limited": 0,
+      "basis": "Afiliació i dues parts de facturació, dades d'entitat i integració; serveis base existents.",
+      "limitedScope": "No activar noves vendes USOC; pendents han de tenir solució expressa.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-31",
+      "title": "Regressió de funcions existents",
+      "low": 24,
+      "probable": 40,
+      "high": 72,
+      "limited": 24,
+      "basis": "Classificar 192 apartats i provar dependències de Moodle/certificats/fitxes; no són 192 pantalles a reprogramar.",
+      "limitedScope": "Regressió dels fluxos afectats; disposició de la resta.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-32",
+      "title": "Permisos, auditoria i export",
+      "low": 16,
+      "probable": 24,
+      "high": 44,
+      "limited": 20,
+      "basis": "Revisió transversal de rols, BD, auditoria i export essencial; autenticació comuna a VT-12.",
+      "limitedScope": "Mateixos controls essencials; consulta/export bàsic.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-33",
+      "title": "Acceptació integrada i correccions",
+      "low": 30,
+      "probable": 52,
+      "high": 80,
+      "limited": 36,
+      "basis": "Només regressió conjunta, UAT i correccions transversals; proves locals ja incloses en cada paquet.",
+      "limitedScope": "Acceptació completa de l'abast reduït.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-34",
+      "title": "Desplegament, restauració i seguiment",
+      "low": 20,
+      "probable": 32,
+      "high": 56,
+      "limited": 28,
+      "basis": "Assaig de tall, backup/restore, configuració final, recuperació, operació inicial; entorns base a VT-03.",
+      "limitedScope": "Mateix restore/tall segur, operació acotada.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-35",
+      "title": "Expedient i formació",
+      "low": 20,
+      "probable": 32,
+      "high": 56,
+      "limited": 28,
+      "basis": "Reutilitzar documents; completar versió/evidències, criteris, manual i formació.",
+      "limitedScope": "Mateixa documentació exigida per la versió activada.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-36",
+      "title": "Delimitar eines i ampliacions",
+      "low": 4,
+      "probable": 8,
+      "high": 16,
+      "limited": 4,
+      "basis": "Només delimitar assistent/botiga/SL/proveïdors i recollir decisions; no pressuposta una ampliació completa.",
+      "limitedScope": "Només delimitació.",
+      "confidence": "mitjana"
+    },
+    {
+      "id": "VT-37",
+      "title": "Ledger universal d’accions sobre pagaments",
+      "low": 76,
+      "probable": 120,
+      "high": 200,
+      "limited": 120,
+      "basis": "Esquema/gateway, atomicitat, connectors, cronologia, monitor i proves. Traspassos deduïts de VT-12/32/33.",
+      "limitedScope": "Mateixa garantia en canals/accions activats; cap procediment assistit sense traça.",
+      "confidence": "baixa"
+    },
+    {
+      "id": "VT-38",
+      "title": "Classificador funcional i registre operatiu comú",
+      "low": 20,
+      "probable": 32,
+      "high": 56,
+      "limited": 32,
+      "basis": "Controlador, classificador, operational_event i preview; reutilitza identitat i serveis fiscals/econòmics.",
+      "limitedScope": "Obligatori també per gestions assistides sense moviment o factura nova.",
+      "confidence": "baixa"
+    }
+  ],
+  "coverageStatus": "COVERED_FOR_ESTIMATION: document 38 sections 4/6/14 and UC catalog mapped to owners; implementation unverified; estimates provisional.",
+  "revision": "R2-registres-reconciliats",
+  "adjustments": {
+    "additions": [
+      {
+        "package": "VT-02",
+        "low": 4,
+        "probable": 8,
+        "high": 16,
+        "limited": 8,
+        "reason": "Traçabilitat cas/registre/canal i criteris d’acceptació del document 38."
+      },
+      {
+        "package": "VT-05",
+        "low": 4,
+        "probable": 8,
+        "high": 16,
+        "limited": 8,
+        "reason": "Ampliacions de factura i fact_rels; taules noves específiques pressupostades al seu propietari."
+      },
+      {
+        "package": "VT-11",
+        "low": 4,
+        "probable": 8,
+        "high": 16,
+        "limited": 8,
+        "reason": "Registre d’accés/denegació a documents amb job i versió."
+      },
+      {
+        "package": "VT-15",
+        "low": 4,
+        "probable": 8,
+        "high": 16,
+        "limited": 8,
+        "reason": "billing_profile_history i separació de snapshot emès."
+      },
+      {
+        "package": "VT-20",
+        "low": 4,
+        "probable": 8,
+        "high": 16,
+        "limited": 8,
+        "reason": "notification_delivery_attempt i transicions persistents."
+      },
+      {
+        "package": "VT-21",
+        "low": 8,
+        "probable": 12,
+        "high": 24,
+        "limited": 12,
+        "reason": "Workflow d’incidències, responsable i sif_incident_action."
+      },
+      {
+        "package": "VT-22",
+        "low": 4,
+        "probable": 8,
+        "high": 16,
+        "limited": 12,
+        "reason": "reconciliation_run/item i resolució també en procés assistit."
+      },
+      {
+        "package": "VT-23",
+        "low": 4,
+        "probable": 8,
+        "high": 16,
+        "limited": 12,
+        "reason": "course_change_event específic; reutilitza VT-38."
+      },
+      {
+        "package": "VT-24",
+        "low": 4,
+        "probable": 8,
+        "high": 16,
+        "limited": 8,
+        "reason": "enrollment_cancellation_event i decisió separada; reutilitza VT-38."
+      },
+      {
+        "package": "VT-32",
+        "low": 4,
+        "probable": 8,
+        "high": 16,
+        "limited": 8,
+        "reason": "fiscal_export persistent: criteris, fitxer/hash i accés."
+      },
+      {
+        "package": "VT-35",
+        "low": 4,
+        "probable": 8,
+        "high": 16,
+        "limited": 8,
+        "reason": "sif_version/sif_declaration en runtime amb activació."
+      }
+    ],
+    "transfers": [
+      {
+        "from": "VT-12",
+        "to": "VT-37",
+        "low": 4,
+        "probable": 8,
+        "high": 12,
+        "limited": 8,
+        "reason": "Auditoria específica del pagament a VT-37; autenticació queda a VT-12."
+      },
+      {
+        "from": "VT-32",
+        "to": "VT-37",
+        "low": 4,
+        "probable": 8,
+        "high": 12,
+        "limited": 8,
+        "reason": "Cronologia i export del ledger de pagaments a VT-37; rols i export fiscal queden a VT-32."
+      },
+      {
+        "from": "VT-33",
+        "to": "VT-37",
+        "low": 2,
+        "probable": 4,
+        "high": 8,
+        "limited": 4,
+        "reason": "Proves dedicades del ledger a VT-37; regressió conjunta queda a VT-33."
+      },
+      {
+        "from": "VT-10",
+        "to": "VT-38",
+        "low": 4,
+        "probable": 8,
+        "high": 12,
+        "limited": 8,
+        "reason": "Decisor genèric a VT-38; correccions fiscals específiques queden a VT-10."
+      }
+    ]
+  },
+  "totals": {
+    "low": 826,
+    "probable": 1332,
+    "high": 2256,
+    "limited": 944
+  }
+}

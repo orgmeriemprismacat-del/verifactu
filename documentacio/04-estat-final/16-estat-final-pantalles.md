@@ -491,6 +491,17 @@ Despres de registrar pagament:
 - crear incidencia si hi ha duplicat, import inconsistent o factura no localitzada.
 - no enviar correu de factura definitiva fins que el SIF hagi generat la factura i el document quan el cas requereixi emissio nova.
 
+Components obligatoris de la pantalla final:
+
+| Bloc | Ha de mostrar | Accio principal |
+| --- | --- | --- |
+| Analisi TPV | Fitxer, hash o referencia, darrer analisi, estat, incidencies i enllacos de revisio | Analitzar i conciliar sense crear duplicats |
+| Cerca de pagament | Un sol criteri actiu, tipus alumne/grup, resultats amb origen i pendent SIF | Obrir registre o incidencia |
+| Confirmacio | Factura existent o previsualitzacio d'emissio, import, data, metode, referencia i observacio | `registerPayment()` o `issueInvoice()` amb `payment` |
+| Resultat | UUID de factura, UUID de pagament, estat cobrament, PDF/QR o incidencia | Obrir factura, PDF/QR o incidencia SIF |
+
+Els avisos de pantalla han de dir sempre si l'accio creara factura, registrara pagament contra factura existent o aturara l'operacio per revisio.
+
 ### 9.0. Criteri de captura i prova final
 
 La captura final d'aquesta pantalla ha de demostrar que el bloc TPV i el bloc de cerca/pagament conviuen sense barrejar responsabilitats:
@@ -579,6 +590,15 @@ Resultat final:
 - PDF/QR immutable;
 - si posteriorment es paga, el flux sera `registerPayment()`.
 
+Components obligatoris de la pantalla final:
+
+| Pas | Bloc visible | Resultat esperat |
+| --- | --- | --- |
+| Seleccio | Inscripcions candidates, imports i avis de factura previa | Seleccio valida i sense duplicats |
+| Receptor | Entitat/responsable per ID intern, snapshot fiscal complet i linies | Previsualitzacio fiscal revisable |
+| Confirmacio | Avis de factura real abans de cobrament i idempotencia | `issueInvoice()` amb `EMESA_ABANS_COBRAMENT = 1` |
+| Resultat | Numero visible, UUID, estat AEAT, pendent de cobrament, PDF/QR i URL si toca | Factura emesa i pagament posterior restringit a `registerPayment()` |
+
 ### 10.0. Criteri de captura i prova final
 
 La captura final ha de mostrar un flux de tres passos comprensible:
@@ -651,6 +671,16 @@ No permetre:
 - anul·lar sense motiu i sense factura rectificativa quan correspongui.
 - regenerar PDF de factura nova a partir de dades vives.
 
+Components obligatoris de la pantalla final:
+
+| Bloc | Contingut |
+| --- | --- |
+| Cerca | DNI/NIE, email, factura relacionada, numero visible i filtres d'estat SIF/historic |
+| Fitxa | Original, rectificatives, pagaments, devolucions, saldo, estat AEAT i estat cobrament |
+| Documents | PDF/QR immutable, hash i estat de generacio quan sigui necessari |
+| Accions | Rectificar dades fiscals, rectificar import, registrar devolucio/saldo, marcar `E_FACT`, veure historial |
+| Bloquejos | Edicio directa, `GET` destructiu, regeneracio sense log i accions sense motiu |
+
 ### 10.1.0. Criteri de captura i prova final
 
 La captura final d'aquest apartat ha de demostrar:
@@ -695,6 +725,14 @@ Regles de visibilitat:
 - si la factura existeix pero el PDF/QR esta pendent, es mostra estat pendent o enllac segur, no un PDF regenerat.
 - si la inscripcio esta coberta per una empresa/responsable, l'alumne pot veure l'estat de cobertura, pero no la factura completa si no n'es receptor fiscal.
 
+Vista final per a l'alumne:
+
+- llistat de factures individuals visibles;
+- estat de cobertura quan una factura d'empresa/responsable cobreix la inscripcio;
+- estat de cobrament i document disponible quan la factura li correspon;
+- avis clar quan una factura no es visible per privacitat o per receptor fiscal;
+- cap path intern ni accio fiscal.
+
 ## 11.0. Empresa/responsable
 
 L'empresa o responsable no te acces a la intranet principal.
@@ -712,6 +750,14 @@ Regles:
 - pot permetre veure factura, estat de cobrament, PDF/QR i URL de pagament d'empresa/responsable si encara esta pendent;
 - no ha de redirigir cap a la URL individual d'un alumne quan la factura pendent es d'empresa/responsable.
 - el PDF s'ha de servir des d'espai no public de `pay.prisma.cat`, sense exposar ruta directa.
+
+Vista final per empresa/responsable:
+
+- identificacio de factura, receptor i estat de cobrament;
+- PDF/QR si el document esta disponible;
+- URL de pagament de factura d'empresa/responsable si esta pendent;
+- avis de token caducat, document pendent o permisos insuficients;
+- nomes lectura, sense rectificar, pagar parcialment fora del flux ni marcar `E_FACT`.
 
 ## 11.1. Intranet principal - acces VERI*FACTU
 
@@ -738,6 +784,17 @@ Nomenclatura visual:
 - `avis`: text puntual a la pantalla.
 - `notificacio`: avis guardat i recuperable.
 - `incidencia SIF`: registre oficial que es resol al panell SIF.
+
+Comportament final:
+
+| Element | Funcio | On es resol |
+| --- | --- | --- |
+| Indicador | Mostrar volum o urgencia de pendents | Obre resum, no resol |
+| Avis | Explicar l'estat d'una pantalla o accio | La mateixa pantalla o derivacio |
+| Notificacio | Deixar avis intern persistent | Intranet o SIF segons origen |
+| Incidencia SIF | Registrar problema fiscal, tecnic o documental | `pay.prisma.cat/sif` |
+
+Si el SIF no respon, l'apartat ha de mostrar indisponibilitat i hora de l'ultim resum valid, no un estat buit.
 
 ## 11.2. Criteri de visibilitat i prova final
 

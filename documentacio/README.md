@@ -10,6 +10,7 @@
 - `00-index-i-pla/27-informe-auditoria-documental.md`: revisio auditora de si la documentacio actual es suficient.
 - `00-index-i-pla/28-revisio-apunts-altres-ias.md`: annex intern de triatge d'apunts provinents d'altres converses d'IA. Triage tancat; no es document principal del SIF.
 - `00-index-i-pla/29-pla-implementacio-tecnica-sif.md`: pla tecnic executable per implementar el nucli SIF a partir de l'arquitectura tancada.
+- `00-index-i-pla/30-mapa-trello-repo.md`: mapa de traçabilitat entre Trello 1, 4, 5, 6 i documents del repo.
 
 ## 2. Compliment AEAT
 
@@ -40,6 +41,16 @@
 - `04-estat-final/17-estat-final-bd-relacions.md`: relacions finals entre bases de dades.
 - `04-estat-final/18-estat-final-operacio-incidencies.md`: operacio final i incidencies.
 - `04-estat-final/25-panell-sif-pay-prisma.md`: panell intern del SIF a `pay.prisma.cat`.
+- `04-estat-final/31-diagrames-classes-sif.md`: 19 diagrames d'arquitectura; classes SIF, branca asincrona, canals llegats, operació comercial prèvia i serveis pendents de gestio, registre, evidència, seguretat comuna i traça de pagaments.
+- `04-estat-final/32-diagrames-sequencia-sif.md`: 47 sequencies d'emissio, cobrament, productes, reserva/inscripció, Redsys, gestions administratives, correcció fiscal, documents, incidencies, auditoria de pagaments, migracio, operacio i AEAT pendent.
+- `04-estat-final/33-casos-us-sif.md`: actors, vistes, inventari UC-01 a UC-112 i cobertura agrupada de les 192 pantalles/apartats.
+- `04-estat-final/34-diagrames-dades-estats-sif.md`: 16 diagrames; model base SIF, model registral ampliat, operació comercial prèvia, dades llegades, numeracio/hash i cicles d'estat.
+- `04-estat-final/35-matriu-tracabilitat-diagrames.md`: prova de cobertura entre codi SIF, set còpies de `codi-drive`, proves, scripts, endpoints, taules, pantalles, casos d'us i peces pendents.
+- `04-estat-final/36-mapa-components-integracions-sif.md`: context, components, 1.920 PHP en set carpetes, desplegament, seguretat, proves i fronteres completes de pagament, gestio i control a `pay.prisma.cat`.
+- `04-estat-final/37-auditoria-comparativa-codi-drive.md`: comparació dels 25 candidats amb 1.895 PHP actuals/històrics, mutacions llegades, buits funcionals/registrals i criteri de transició al SIF.
+- `04-estat-final/38-matriu-transformacio-funcional-verifactu.md`: matriu mestra del canvi complet, més enllà del pagament: gestions, registres, pantalles, serveis pendents, prioritats i criteri de completitud.
+- `04-estat-final/39-auditoria-fitxes-funcionals.md`: reconciliació corregida de 185 `Fitxes mare` en tres taulers i límit explícit del mapatge per títol.
+- `04-estat-final/40-auditoria-buits-fitxes-codi-bd.md`: auditoria de contingut entre fitxes, codi actual, Trello i BD; buits descoberts i estat real `NO-GO`.
 
 ## 6. Governanca i operacio
 
@@ -135,3 +146,19 @@ Tipus d'incidencia:
 - dades fiscals incompletes;
 - exportacio requerida;
 - revisio manual.
+
+## 9. Fitxes funcionals, auditoria de cobertura i esquema registral
+
+- Catàleg de casos d'ús: `04-estat-final/33-casos-us-sif.md`.
+- Fitxes estructurades pendents de revisió de contingut: `06-fitxes-funcionals/README.md` i 125 fitxers `uc-*.md`.
+- Reconciliació de les 185 `Fitxes mare` en tres taulers:
+  `04-estat-final/39-auditoria-fitxes-funcionals.md`.
+- Auditoria de buits: `04-estat-final/40-auditoria-buits-fitxes-codi-bd.md`.
+- Model físic additiu: migracions
+  `sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql`
+  i `sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql`.
+- Permisos append-only: `sif/database/permissions/`.
+
+La fitxa documental no acredita que el cas estigui programat. Cal mirar
+`Estat de preparació`, `Estat d'implementació`, decisions pendents, proves i
+evidència abans de marcar cap cas com a complet o productiu.
