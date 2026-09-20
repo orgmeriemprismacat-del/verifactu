@@ -83,16 +83,15 @@ class UuidGenerator {
 class RedsysCallbackService {
  +receiveCallback(db,payload,signatureValid) array
 }
-class RedsysCallbackWorker {
- +runOne(db,workerId,now) array
+class RedsysCallbackDispatcher {
+ +process(db,job) array
 }
 RedsysPaymentIntentService --> RedsysPaymentIntentRepository : cerca/inserció
 RedsysPaymentIntentService --> UuidGenerator : UUID
 RedsysCallbackService --> RedsysPaymentIntentRepository : valida intent previ
-RedsysCallbackWorker --> RedsysCallbackService : procés posterior independent
 ```
 
-**Nota:** la relació `RedsysCallbackWorker → RedsysCallbackService` de l'última línia representa una successió conceptual d'actors, **no una crida de codi directa**. La realització PHP real del worker és via `RedsysCallbackDispatcher` i cua; [vegeu UC-03](uc-003-processar-cobrament-redsys-asincron.md).
+**Nota:** la recepció del callback i el processament del worker són fases posteriors independents. El worker invoca el despatxador i no fa una crida directa a `RedsysCallbackService`; [vegeu UC-03](uc-003-processar-cobrament-redsys-asincron.md).
 
 ## 4. Seqüència — congelar la intenció abans del TPV
 
