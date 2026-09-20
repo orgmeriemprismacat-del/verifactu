@@ -1,0 +1,143 @@
+# UC-104 · Gestionar un excés de cobrament sense atribució fictícia
+
+**Objectiu canònic:** un excés real queda **sense assignar** o passa a devolució/saldo segons una decisió autoritzada; no es força l'estat `PAID` d'una factura ni es modifica l'import fiscal per absorbir-lo. **Estat:** `PaymentService` i `PaymentRepository` creen moviments amb assignacions a factura; `ManualRefundService` registra un `REFUND` real i `CreditBalanceService` crea/aplica un crèdit. **No s'ha acreditat** un coordinador que detecti un excés i conservi un import **sense assignació a factura** en el servei actual. `PaymentPayloadValidator` exigeix almenys una assignació; `PaymentRepository::createPayment()` inserta totes les assignacions rebudes.
+
+## 1. Fitxa de cas d'ús
+
+| Dada | Contracte funcional i evidència |
+| --- | --- |
+| Actors | Operador de cobraments i responsable autoritzat per resoldre titularitat/retorn; pagador original quan sigui necessari. L'alumne inscrit pot no ser la persona que ha pagat. |
+| Entrada | Referència bancària/TPV, `UUID_PAYMENT` real si existeix, import ingressat, factura/es, receptor i pagador, total ja assignat, retorns i fons atribuïts a cada `ID_INSC`. |
+| Classificació | Diferenciar: import ingressat superior a deute; pagament duplicat **real**; notificació TPV repetida **sense segon ingrés**; transferència d'empresa per diverses factures; diners encara no identificats. No equiparar cap d'aquests casos. |
+| Saldo objectiu | `excesDisponible = importExternReal - importJaAssignat - retornExternReal - altresAplicacionsJustificades`, amb tipus de moviment/signatura correcta, decimals, moneda i locks. És fórmula de **disseny**, no càlcul executable de `PaymentService`. |
+| Persistència existent | `payment_transaction` conserva els cobraments/reemborsaments reals; `payment_allocation` exigeix factura. `credit_balance` emmagatzema saldo concedit i `payment_action_event` pot auditar petició/resultat quan l'adaptador usa el gateway. |
+| Mancança precisa | No s'ha identificat una ruta completa d'`UNALLOCATED_EXTERNAL_RECEIPT` sense factura al PHP consultat. **No** crear una assignació fictícia de l'excés només per satisfer la validació d'`allocations`. |
+| Efecte fiscal | Un pagament excessiu no implica automàticament canviar `factura.TOTAL` ni emetre factura/rectificativa; les conseqüències d'un servei/preu realment diferent requereixen UC-74. |
+| Efecte per inscripció | Només la part realment aplicada al servei es registra com `EXTERNAL → ID_INSC`; un sobrant encara no atribuït **no pertany per defecte** a cap inscripció del grup. |
+
+### 1.1. Flux objectiu
+
+1. UC-25/56 detecta que hi ha un ingrés extern acreditat superior a l'obligació identificada, i comprova referència/ordre i si `UUID_PAYMENT` ja existeix. Un callback duplicat de la mateixa operació **no** constitueix excés de caixa.
+2. El coordinador pendent identifica pagador real, factura/es, inscripcions i import ja atribuït. Per a una factura única de 100 € i un ingrés real de 120 €, separa **100 € aplicables** i **20 € pendents de decisió**, no canvia `factura.TOTAL` a 120 €.
+3. Desa un expedient amb import i origen del sobrant, estat `PENDING_DECISION` conceptual, actor i correlació; fins a implementar un model d'ingressos no assignats, la ruta actual de `PaymentService` **no cobreix aquest estat**.
+4. La persona autoritzada decideix: assignar a un altre deute acreditat del mateix pagador (UC-56), tramitar retorn **quan s'executa realment** (UC-28), o concedir saldo a titular legitimat (UC-29), amb les implicacions fiscals classificades quan pertoqui.
+5. Si s'assigna a una altra factura, es reutilitza `UUID_PAYMENT` i es registra atribució interna per les inscripcions afectades, sense crear un segon `CHARGE`. Si es retorna, `ManualRefundService` és **registre de retorn efectuat**, no ordre automàtica al banc.
+6. Si es crea saldo, `CreditBalanceService::createCredit()` pot desar-lo, però el servei **no comprova automàticament** que l'import provingui d'aquest excés concret ni registra per inscripció la sortida: enllaç, identitat del titular i ledger romanen pendents.
+7. El cas es tanca només després de conciliar ingrés inicial, trams assignats, saldo o retorn i imports individuals. `ESTAT_COBRAMENT=PAID` de la factura no tanca per si sol un excés extern encara pendent.
+
+### 1.2. Alternatives i proves
+
+| Situació | Control |
+| --- | --- |
+| Ingrés 120 €, factura 100 € | Aplicar 100 €; 20 € no assignats fins a decisió; un segon `CHARGE` de 20 € és fals. |
+| Dues notificacions per una sola operació de 100 € | UC-51/25a: un cobrament i cap excés extern. |
+| Empresa ingressa 300 € per tres factures de 100 € | Una entrada real i tres assignacions fiscals; atribucions per inscripció separades quan calgui. |
+| Es retorna el sobrant de 20 € | Registrar `REFUND` només després de la sortida efectiva i referenciar ingrés i pagador originals; no tornar l'import a qualsevol alumne del grup. |
+| Es concedeix saldo de 20 € | `credit_balance` no substitueix prova del sobrant ni rastre dels fons; l'aplicació futura serà `COMPENSATION`, no nou ingrés. |
+| Pagament existent reprocessat amb clau diferent | Comprovar referència bancària real; `PaymentService` només deduplica per clau idempotent, no detecta totes les duplicitats externes. |
+
+**Bloquejant:** persistència i conciliació d'ingressos no assignats, permissos/titularitat, verificació import retornable, idempotència entre canals i registre quantitatiu d'atribucions per inscripció. Cap prova de UC-104 executada.
+
+## 2. UML de casos d'ús
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador cobraments" as Op
+actor "Responsable autoritzada" as Resp
+rectangle "SIF · excés real de cobrament" {
+ usecase "UC-104\nGestionar excés cobrat" as Main
+ usecase "Conciliar entrada bancària única" as Find
+ usecase "Separar import aplicat i sobrant" as Split
+ usecase "UC-56\nAssignar a un altre deute" as Allocate
+ usecase "UC-28\nRegistrar retorn real" as Refund
+ usecase "UC-29\nConcedir saldo autoritzat" as Credit
+}
+Op --> Main
+Resp --> Main
+Main ..> Find : <<include>>
+Main ..> Split : <<include>>
+Resp --> Allocate
+Resp --> Refund
+Resp --> Credit
+@enduml
+```
+
+## 3. Classes — límit del model de pagaments real
+
+```mermaid
+classDiagram
+direction LR
+class OverpaymentResolutionService {
+ <<DISSENY: no implementada>>
+ +identify(uuidPayment) result
+ +resolve(caseId,decision) result
+}
+class UnallocatedReceiptRepository {
+ <<DISSENY: model no acreditat>>
+ +trackOriginAndAvailableAmount(db,receipt) result
+}
+class PaymentService {
+ <<PHP existent: exigeix allocations>>
+ +registerPayment(payload) array
+}
+class PaymentRepository {
+ <<PHP existent>>
+ +createPayment(db,payload) array
+}
+class ManualRefundService {
+ <<PHP existent: retorn executat>>
+ +registerByUuid(db,uuidFactura,input) array
+}
+class CreditBalanceService {
+ <<PHP existent>>
+ +createCredit(input) array
+}
+class EnrollmentFundMovementRepository {
+ <<PROPOSTA: no implementada>>
+ +append(db,movement) string
+}
+OverpaymentResolutionService --> UnallocatedReceiptRepository : sobrant i origen
+OverpaymentResolutionService ..> ManualRefundService : si retorn efectiu [DISSENY]
+OverpaymentResolutionService ..> CreditBalanceService : si saldo aprovat [DISSENY]
+OverpaymentResolutionService --> EnrollmentFundMovementRepository : trams atribuïts
+PaymentService --> PaymentRepository : moviment i factura
+```
+
+## 4. Seqüència — ingressat 120 €, deguts 100 € (DISSENY)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor Op as Operador
+participant S as OverpaymentResolutionService [DISSENY]
+participant B as Prova d'ingrés bancari
+participant P as PaymentService [PHP]
+participant U as UnallocatedReceiptRepository [DISSENY]
+participant L as Ledger d'inscripció [PROPOSTA]
+participant Refund as ManualRefundService [PHP]
+participant Credit as CreditBalanceService [PHP]
+Op->>S: Revisar transferència 120 €, factura F de 100 €
+S->>B: Verificar entrada única i pagador
+B-->>S: Referència i 120 € acreditats
+S->>U: Registrar origen extern i pendent 20 € [mètode pendent]
+S->>P: Registrar una sola entrada real amb atribució 100 € [model a ampliar]
+Note over P,U: La ruta PHP actual no permet reservar 20 € sense assignació fiscal
+S->>L: Atribuir 100 € a la inscripció legitimada
+alt Decideix retornar 20 € i consta sortida bancària
+ Op->>Refund: Registrar REFUND real de 20 € amb origen verificat
+ Refund-->>S: UUID_PAYMENT_REFUND
+ S->>L: Registrar sortida interna corresponent
+else Decideix crear saldo autoritzat de 20 €
+ Op->>Credit: createCredit(titular,20 €,origen)
+ Credit-->>S: UUID_CREDIT
+ S->>L: Enllaçar origen del saldo sense nou CHARGE
+else No hi ha decisió
+ S-->>Op: Sobrant pendent; factura F intacta
+end
+Note over S,L: Seqüència conceptual: no executar PaymentService amb total inconsistent 120 €/100 € com si el PHP actual resolgués el sobrant
+```
+
+## 5. Traçabilitat
+
+[UC-104 original](../06-fitxes-funcionals/uc-104.md) · [UC-56 assignació](uc-056-cercar-assignar-cobrament.md) · [UC-86 auditoria](uc-086-auditar-accio-pagament.md) · [UC-28 retorn](uc-028-registrar-devolucio.md) · [UC-29 saldo](uc-029-crear-saldo.md) · [PaymentPayloadValidator](../../sif/src/Service/PaymentPayloadValidator.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [CreditBalanceService](../../sif/src/Service/CreditBalanceService.php) · [Revisió transversal de fons](00-revisio-moviments-inscripcions.md).
