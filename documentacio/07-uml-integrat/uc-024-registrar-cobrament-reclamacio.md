@@ -50,6 +50,28 @@
 
 [Registre transversal proposat](00-revisio-moviments-inscripcions.md).
 
+### 1.4. Fases reals de reclamació i cobrament — contrast amb el xat original
+
+**Calendari i estats descrits per PrisMa, no pel ClaimPaymentService:** un primer pagament es demana abans de començar el curs i cal completar-lo en acabar. Quan una persona no paga a l'inici, es reclama l'import; amb justificació, pot continuar inscrita fins a la segona setmana (UC-96). Aleshores, si **no ha pagat res**, el procediment històric preveu una baixa administrativa; si hi ha algun import abonat, el cas pot continuar en seguiment. També hi ha recordatoris l'últim dia del curs, una setmana més tard i al cap d'un mes, i després la consideració de morositat amb noves reclamacions. Cada fase té un apartat propi a la intranet. **Aquests terminis són informació del funcionament explicat al xat**, no un cronograma automàtic acreditat ni una regla fiscal. La decisió de baixa es tramita separadament per UC-27/72; reclamar no és donar de baixa ni anul·lar la factura.
+
+**R-ACADEMIC — matrícula, deute i factura:** INSC_CURS='M' correspon a morositat en el llegat; no significa factura fiscal anul·lada, pagament negat ni absència de cobrament parcial. En els casos descrits, un participant que ha completat el curs sense pagar-lo del tot pot mantenir-se en morositat i no estar disponible l'opció ordinària de baixa; aquestes condicions d'elegibilitat són de gestió i s'han de validar al servidor. El SIF ha de distingir `ESTAT_COBRAMENT` de l'estat acadèmic i de la fase de reclamació.
+
+**R-CROSS — transferència d'un deute ja cobrat per altra via:** abans d'invocar `ClaimPaymentService` cal verificar la referència bancària, DS_ORDER/IDPAG o justificant del **cobrament efectiu**, comparar-lo també amb pagaments UC-22/23 i obrir la factura original/els imports ja aplicats. Les claus actuals `CLAIM|REF:<referència>` i `TRANSFERENCIA|REF:<referència>` no són iguals; per tant, la idempotència interna de PaymentService per **una sola clau** no prova absència de duplicat intercanal. Si el mateix ingrés ja consta, correlacionar-lo amb la reclamació i no crear un segon CHARGE; si el banc encara no l'ha confirmat, registrar seguiment, no cobrament.
+
+**R-PART — cobrament parcial:** una fracció confirmada deixa deute pendent i la reclamació continua només per l'import net encara degut, sense emetre nova factura ni reiniciar per defecte tota la seqüència de correus. Si es paga tot, actualitzar la fase de reclamació/estat acadèmic mitjançant una acció de gestió traçada, sense identificar automàticament l'estat M amb un estat fiscal. Els correus posteriors han d'utilitzar import pendent real, URL vigent i, quan correspongui, enllaç segur al PDF/QR de la factura ja emesa; no enviar recordatoris de pagament per imports cobrats.
+
+### 1.5. Proves d'acceptació de morositat i reclamació (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RC-01 | Curs sense primer pagament; excepció justificada fins a segona setmana | Pròrroga i reclamació registrades; cap CHARGE inventat. |
+| RC-02 | Segona setmana: zero pagat vs import parcial abonat | Separar decisió de baixa/seguiment de l'estat fiscal; aplicar el procediment de gestió autoritzat. |
+| RC-03 | Recordatoris últim dia, +1 setmana, +1 mes | Fase, data, import pendent i comunicació traçats, sense enviament sobre deute ja satisfet. |
+| RC-04 | Cobrament de reclamació ja registrat com a transferència o Redsys | Conciliació intercanal i cap segon CHARGE. |
+| RC-05 | Cobrament parcial d'una factura reclamada | PARTIAL i reclamació només del pendent net, sense factura fiscal nova. |
+| RC-06 | Cobrament total d'inscripció en estat M | PAID per pagament real; eventual estat acadèmic separat i auditat. |
+| RC-07 | Callback tardà després de baixa/canvi/rectificació | Registrar el fet real i revisar-ne l'assignació, sense reactivar inscripció automàticament. |
+| RC-08 | Correus de reclamació després de pagar | No repetir URL antiga; oferir document/factura amb permís i estat econòmic actualitzat. |
 ## 2. Diagrama de casos d'ús — PlantUML
 
 ```plantuml
@@ -158,6 +180,35 @@ end
 Note over CS,DB: No hi ha emissió fiscal ni rectificativa per cobrar un impagat
 ```
 
+### 4.1. Seqüència — seguiment, cobrament parcial i conciliació (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant Claims as Reclamacions intranet [integració pendent]
+participant Bank as Banc/Redsys
+participant Rec as Conciliació intercanal [DISSENY]
+participant P as ClaimPaymentService [existent]
+participant DB as BD SIF
+O->>Claims: Consultar deute, fase de reclamació i factura original
+Claims->>DB: Llegir pendent net i cobraments ja aplicats
+alt Només s'envia recordatori o hi ha promesa de pagament
+ Claims-->>O: Registrar fase/termini, sense CHARGE
+else Es comunica un ingrés
+ Claims->>Bank: Comprovar confirmació, import i identificador real
+ Claims->>Rec: Buscar mateix fet a UC-22, UC-23 i Redsys
+ alt Ingrés ja registrat
+  Claims-->>O: Correlacionar reclamació amb moviment existent
+ else Nou ingrés verificat
+  Claims->>P: registerByUuid(factura original, cobrament)
+  P->>DB: CHARGE i CLAIM_PAYMENT
+  P-->>Claims: UUID_PAYMENT
+  Claims-->>O: Pendent recalculat; reclamació segueix o es tanca
+ end
+end
+Note over Claims,Rec: Seguiment de fases, detecció intercanal i correus finals encara són integració pendent.
+```
 ## 5. Traçabilitat
 
 [Fitxa anterior UC-24](../06-fitxes-funcionals/uc-024.md) · [Catàleg UC-24](../04-estat-final/33-casos-us-sif.md) · [Fluxos de morositat](../03-canvis-pendents/04-fluxos-facturacio.md) · [ClaimPaymentService](../../sif/src/Service/ClaimPaymentService.php) · [ClaimPaymentPayloadBuilder](../../sif/src/Service/ClaimPaymentPayloadBuilder.php) · [PaymentService](../../sif/src/Service/PaymentService.php) · [ClaimPaymentServiceTest](../../sif/tests/Integration/ClaimPaymentServiceTest.php).
