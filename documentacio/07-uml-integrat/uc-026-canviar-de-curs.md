@@ -40,6 +40,39 @@
 
 **Separació d'estats:** l'event administratiu no demostra que el cobrament o la rectificativa s'hagin completat. Una operació pot tenir trasllat pendent, diferència per cobrar o incidència fiscal; els UUIDs de resultats només s'omplen quan existeixen.
 
+### 1.4. Revisió: un traspàs de fons ja cobrats no és un cobrament nou — DISSENY PENDENT
+
+Per **cada canvi** cal distingir quatre magnituds: import cobrat i atribuït a la inscripció origen; quantitat efectivament **traspassada al destí**; diferència **pendent de cobrar**; i import **retornat o convertit en saldo**. `course_change_event.DIFFERENCE_AMOUNT` recull una diferència comercial, però no registra cada traspàs. Si es transfereixen 80 € d'A a B, es necessita una fila `REALLOCATION` `A → B` vinculada al cobrament original i a l'event, **sense un segon `payment_transaction CHARGE`**. La diferència només genera `CHARGE` i una nova atribució quan es cobra efectivament. Si hi ha retorn i saldo, cada part necessita un moviment propi i cap suma de sortides pot superar l'atribució disponible a A. La factura i la correcció fiscal es tracten independentment.
+
+[Model de dades i exemple d'origen/destí](00-revisio-moviments-inscripcions.md).
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant C as Orquestrador de canvi [DISSENY]
+participant L as EnrollmentFundMovementRepository [PROPOSTA]
+participant E as OperationalEventRepository [EXISTENT]
+participant F as Classificador fiscal [PENDENT]
+participant DB as BD SIF
+O->>C: Confirmar A → B amb imports separats
+C->>L: Bloquejar i consultar atribució a A
+L-->>C: Import disponible i procedència
+C->>C: Validar transferència, retorn, saldo i diferència
+C->>E: append(event i correlació)
+opt Import traspassat al curs B
+ C->>L: append(REALLOCATION, A → B, import, pagament original)
+ L->>DB: INSERT moviment intern (no CHARGE nou)
+end
+opt Import retornat o transformat en saldo
+ C->>L: append(REFUND_EXIT o CREDIT_CREATE, A → destí, import)
+ L->>DB: INSERT assentament independent del tram executat
+end
+C->>F: Classificar correcció fiscal independent
+C-->>O: Moviments executats i diferència pendent
+Note over C,L: Orquestració i repositori de fons encara no implementats
+```
+
 ## 2. Diagrama UML de casos d'ús — contracte de negoci
 
 ```plantuml
