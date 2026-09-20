@@ -76,6 +76,23 @@ B-->>O: Moviments i pendents fiscals
 Note over B,L: Seqüència objectiu; no hi ha orquestrador complet acreditat
 ```
 
+### 1.5. Baixa llegada i reactivació d'una inscripció — contrast amb el xat original
+
+El xat original identifica INSC_CURS amb valors 0 (no matriculat), 1 (matriculat), X (baixa), C (canvi de curs) i M (morós). L'operació de baixa històrica marca primer l'estat de la inscripció; **en el moment de clicar baixa no modifica necessàriament pagament o factura ni crea una rectificativa**. Després de parlar amb el client es determina si hi ha devolució, saldo o no retorn (UC-72). Aquests codis són vocabulari del llegat aportat per l'usuària, no enums fiscals del SIF ni prova dels valors de totes les taules.
+
+**B-REV — reactivar una baixa (acció llegada declarada, adaptació SIF PENDENT):** des de la fitxa de l'alumne es pot modificar l'estat per reactivar una inscripció; això **no** desfà els efectes ja executats de la baixa. El flux objectiu ha de consultar l'event de baixa, l'estat vigent de la plaça i del curs, si hi ha retorn aprovat o executat, saldo creat/consumit, factura rectificada, deute, comunicacions i accés acadèmic. Si només canvia l'estat administratiu, autoritzar-lo segons permisos i disponibilitat i registrar **un event nou que enllaci amb la baixa anterior**. Si hi ha efectes econòmics o fiscals, rebutjar un simple canvi X→1 i obrir la regularització corresponent (UC-72/28/29/05), sense reconstruir fictíciament un cobrament o esborrar un document.
+
+**Frontera amb regals i morositat:** al xat s'explica que un regal habitualment es resol per canvi de curs i que, en determinades reclamacions, l'alumne queda en estat morós sense opció de baixa ordinària. Aquestes pautes no són una prohibició universal: l'elegibilitat final per rol, estat i cas s'ha de contrastar amb el codi i les decisions de gestió. UC-12/95/96 regeixen deute/reclamació; el valor M no és una devolució ni una anul·lació fiscal.
+
+### 1.5.1. Proves d'acceptació pròpies de baixa/reactivació (no executades)
+
+| ID | Escenari | Evidència exigible |
+| --- | --- | --- |
+| B-01 | Baixa confirmada, decisió econòmica encara pendent | Inscripció baixa, factura i cobrament originals intactes; cap REFUND automàtic. |
+| B-02 | Reactivar baixa purament administrativa | Nou event amb motiu, autor, data, baixa d'origen i plaça validada. |
+| B-03 | Reactivar després de retorn, saldo consumit o rectificativa | Impedir simple canvi d'INSC_CURS; mostrar fases i requerir regularització expressa. |
+| B-04 | Baixa o reactivació amb deute/morositat o regal | Decisió de gestió segons regles reals, no confondre X, C, M amb situació fiscal. |
+| B-05 | Callback de pagament que arriba després de la baixa | Conservar el cobrament real, obrir conciliació i no reactivar la inscripció automàticament. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -184,6 +201,30 @@ UI-->>O: Resultats i pendents correlacionats
 
 **Atenció:** `OperationalEventRepository::append()` i els serveis econòmics són codi consultat, però **la seqüència global és la proposta funcional documentada**. La baixa administrativa no garanteix que s'hagi registrat una devolució real, creat saldo o produït una rectificativa.
 
+### 4.1. Seqüència alternativa — reactivar baixa (OBJECTIU, no integració executable)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant UI as Fitxa alumne [adaptació pendent]
+participant H as Històric baixa [esquema, writer pendent]
+participant E as Fons/retorn/saldo [serveis parcials]
+participant F as Classificació fiscal [PENDENT]
+O->>UI: Reactivar inscripció en baixa
+UI->>H: Llegir baixa, estat acadèmic i plaça
+UI->>E: Consultar devolucions, saldos, cobraments i pendents
+UI->>F: Consultar factura original i rectificatives
+alt Només canvi administratiu i plaça disponible
+ UI->>H: Afegir event de reactivació vinculat a la baixa [pendent]
+ UI-->>O: Reactivació administrativa autoritzada
+else Diners o documents fiscals ja afectats
+ UI-->>O: Aturar UPDATE X→1; requerir UC-72 i operacions correctores
+else Titular, plaça o situació dubtosos
+ UI-->>O: Incidència; no modificar estats en silenci
+end
+Note over UI,F: No es reverteix cap REFUND, saldo o rectificativa per un canvi d'estat.
+```
 ## 5. Traçabilitat
 
 [Fitxa base UC-27](../06-fitxes-funcionals/uc-027.md) · [Fitxa UC-72](../06-fitxes-funcionals/uc-072.md) · [Fluxos de baixa](../03-canvis-pendents/04-fluxos-facturacio.md) · [Estat final d'operació](../04-estat-final/18-estat-final-operacio-incidencies.md) · [Seqüències del SIF](../04-estat-final/32-diagrames-sequencia-sif.md) · [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php) · [Migració d'events](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql) · [UC-28 devolució](uc-028-registrar-devolucio.md) · [UC-29 saldo](uc-029-crear-saldo.md) · [UC-05 rectificativa](uc-005-rectificar-factura.md).
