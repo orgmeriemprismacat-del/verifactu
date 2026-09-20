@@ -44,6 +44,12 @@
 
 **Proves localitzades, no executades:** `ClaimPaymentServiceTest::testRegistersClaimPaymentAgainstExistingInvoiceWithoutFiscalIssue`, `testRegistersClaimPaymentByVisibleInvoiceNumber` i `testRejectsUnknownInvoiceBeforeRegisteringClaimPayment`.
 
+### 1.3. Revisió: el cobrament reclamat s'ha d'atribuir a l'operació correcta — PENDENT
+
+`CLAIM_PAYMENT` és un tipus d'assignació **a factura**, no una assignació monetària al nivell de la inscripció reclamada. El registre de l'ingrés confirmat ha de conservar identificador de reclamació, `UUID_PAYMENT` i l'import atribuït a cada inscripció que es cobra. Si una reclamació és compartida per diverses inscripcions, l'import s'ha de repartir segons deute efectiu, no duplicar en cada inscripció. Reintentar una transferència ja registrada com a pagament ordinari no ha de crear un cobrament nou amb clau `CLAIM` diferent; la conciliació del fet bancari original és una validació pendent.
+
+[Registre transversal proposat](00-revisio-moviments-inscripcions.md).
+
 ## 2. Diagrama de casos d'ús — PlantUML
 
 ```plantuml
