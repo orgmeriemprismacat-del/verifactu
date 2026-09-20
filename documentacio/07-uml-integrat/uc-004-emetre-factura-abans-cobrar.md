@@ -66,6 +66,12 @@ La implementació d'emissió crea registres a `factura`, `factura_linia`, `factu
 
 **Pendent de demostrar per tancar funcionalment UC-04:** pantalla i accés real de l'operador; autorització al servidor; origen i fotografia de dades del receptor i de les línies; previsualització/confirmació i avís a l'operador; registre transversal d'auditoria quan correspongui; tractament d'errors en el canal; prova d'integració intranet → SIF → cobrament posterior; validació de les dades fiscals definitives.
 
+### 1.7. Revisió: factura pendent ≠ diners atribuïts — PENDENT
+
+En emetre UC-04, **no** es crea cap entrada de fons per inscripció: la factura és real, però el cobrament encara no existeix. Quan l'empresa, responsable o alumne paga, UC-02 ha de registrar el moviment confirmat i atribuir-lo explícitament a les inscripcions cobertes, conservant la mateixa factura original i la procedència del pagament. Un canvi de curs produït **entre** emissió i cobrament exigeix revisar la factura/concepte i l'assignació abans d'atribuir els diners; no s'ha d'assignar automàticament a dades vives diferents de les emeses.
+
+[Registre proposat de fons per inscripció](00-revisio-moviments-inscripcions.md).
+
 ## 2. Diagrama UML de casos d'ús (font PlantUML)
 
 El diagrama diferencia la petició inicial del cobrament posterior; `UC-01` és el nucli d'emissió reutilitzat per `UC-04`. PlantUML es conserva com a font UML editable.
