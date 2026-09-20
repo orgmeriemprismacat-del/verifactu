@@ -1,0 +1,136 @@
+# UC-53 · Detectar i resoldre divergències SIF–llegat
+
+**Objectiu:** comparar dades fiscals, econòmiques i referències d'inscripcions entre la BD fiscal del SIF i el sistema llegat, identificar els desacords, investigar-ne la causa i resoldre'ls amb **operacions traçades**. **No** utilitzar el llegat per reescriure una factura fiscal ja emesa. UC-47 és la sincronització mínima en una direcció; UC-53 és la reconciliació de **dos estats potencialment divergents**.
+
+**Estat contrastat:** existeixen `LegacySyncService`/`LegacySyncRepository` per escriure un resum al llegat, i les migracions defineixen `reconciliation_run` i `reconciliation_item`. **No s'ha identificat** un `ReconciliationService` executable que compari tots els registres i persisteixi resultats, ni una pantalla final de resolució; les classes i seqüències de reconciliació són **disseny**. El codi de UC-47 mostra dos riscos reals: `OBSERVACIONS` s'afegeix de nou en cada reintent i `FACTURA_RELACIONADA` conserva la primera dada per `COALESCE` encara que sigui contradictòria.
+
+## 1. Fitxa específica
+
+| Element | Regla del cas |
+| --- | --- |
+| Actor | Procés programat per detectar diferències i responsable tècnica/operador autoritzat per classificar i executar la reparació segons permís. |
+| Abast de comparació | `UUID_FACTURA`, `NUM_VISIBLE`, `fact_rels` i `source_id` d'inscripció, `IDPAG`/`DS_ORDER`, import fiscal, `payment_transaction`, `payment_allocation`, estats de factura/AEAT/cobrament i estat acadèmic del llegat. |
+| Font de veritat | SIF per número, línies, registres fiscals i pagaments confirmats; llegat per informació acadèmica, amb conciliació de les relacions d'origen. **Una discrepància no dóna permís per modificar directament imports fiscals.** |
+| Run de reconciliació (esquema definit) | `reconciliation_run` desa `UUID_RUN`, tipus/sistema, hash d'entrada, clau idempotent, `STATUS`, actor, correlació, inici/final i `SUMMARY_JSON`. La migració **no implementa el procés** que l'ha de poblar. |
+| Item de reconciliació (esquema definit) | `reconciliation_item` conté `UUID_ITEM`, `UUID_RUN`, tipus, referència llegat, UUID factura/pagament, `RESULT`, codi/JSON de diferència i dades de resolució; `RESOLUTION_STATUS=PENDING` per defecte. |
+| Resultat | Inventari de diferències per objecte i un expedient de resolució per cada cas, correlacionat amb operacions fiscals/econòmiques quan s'executin. |
+| Fons per inscripció | Comparar **imports ingressats i atribuïts**, no només `A_PAGAR` o una nota `OBSERVACIONS`. El ledger quantitatiu proposat encara no existeix; per tant, aquest control està pendent d'implementar completament. |
+
+### 1.1. Flux objectiu
+
+1. El procés defineix abast temporal, factures, inscripcions, pagaments i versió de dades. Calcula hash d'entrada per `reconciliation_run`, amb clau idempotent per evitar runs duplicats indistinguibles.
+2. Llegeix les dades del SIF **sense modificar-les** i enllaça identitats del llegat per `fact_rels`, identificador d'inscripció, `IDPAG` i referències externes pertinents. No presumeix correspondència 1:1 entre factura i inscripció, ni entre `IDPAG` i intent TPV.
+3. Classifica diferències específiques: factura SIF absent al llegat, relació llegada apuntant a una factura diferent, import/estat de cobrament discrepant, import compartit entre N inscripcions no atribuït, cobrament Redsys confirmat sense sincronització acadèmica, o notes `OBSERVACIONS` duplicades.
+4. Desa un `reconciliation_item` per divergència amb evidència abans/després i marca la revisió que cal. **Això és flux objectiu, no un repositori escrit localitzat al PHP actual**.
+5. La responsable selecciona una resolució: repetir una sincronització mínima idempotent al llegat, crear l'enllaç que falta, investigar un pagament, fer una operació econòmica/fiscal específica o mantenir la incidència pendent. Cada acció apunta al cas d'ús corresponent i conserva actor, motiu i UUID.
+6. La reparació del llegat no pot tocar `factura` ni alterar un registre fiscal immutable; una modificació real d'import o receptor s'ha de classificar per UC-05/30/31 quan correspongui.
+7. Es repeteix la comparació sobre els mateixos objectes i només es tanca l'item quan el resultat reconciliat està provat. **Afegir una nota SIF a `OBSERVACIONS` sense comparar la resta no és prova de resolució.**
+
+### 1.2. Matriu de discrepàncies i reparació
+
+| Discrepància | Resolució objectiu que NO s'ha de substituir per un UPDATE fiscal |
+| --- | --- |
+| `FACTURA_RELACIONADA` no apunta a la factura SIF correcta | Comprovar història llegat i `fact_rels`; si ja hi ha una relació diferent, elevar conflicte, no sobreescriure-la sense evidència. |
+| `OBSERVACIONS` conté N còpies de la mateixa referència SIF | Risc documentat de `LegacySyncRepository` no idempotent; eliminar duplicats només amb política d'edició no fiscal i traça, i corregir el writer per no reproduir-los. |
+| Factura de grup amb un participant no sincronitzat | Investigar únicament la relació/inscripció afectada; no duplicar factura o cobrament global perquè un participant falta. |
+| Transferència real assignada a factura però sense import per inscripció | En el ledger objectiu crear una atribució interna justificada de **l'UUID_PAYMENT existent**, no un `CHARGE` bancari nou. |
+| Pagament Redsys existeix en SIF però inscripció llegada en estat pendent | Conservar el pagament, investigar la sincronització/alta acadèmica, no esborrar ni tornar a cobrar la factura. |
+| Factura abans de cobrar amb `A_PAGAR` antic | Consultar `payment_transaction` i `payment_allocation`; `A_PAGAR` no prova un `REFUND` ni una entrada bancària. |
+| Resultat AEAT divergent de l'indicador visual a intranet | Consultar `factura_registres.ESTAT_AEAT` i evidència de resposta; corregir resum/indicador sense manipular registre fiscal. |
+
+**Proves necessàries, no executades:** fixtures de factura simple, pack/grup, pagament fraccionat, factura emesa abans de pagar, canvis/baixes, sync duplicada, inscripció absent i fallo entre BDs. Cal verificar `reconciliation_run`/`item` idempotents, resolució per actor i cap doble comptabilització.
+
+## 2. Diagrama UML de casos d'ús
+
+```plantuml
+@startuml
+left to right direction
+actor "Procés de comparació" as Cron
+actor "Responsable tècnica" as T
+rectangle "SIF · reconciliació" {
+ usecase "UC-53\nDetectar i resoldre divergències" as Main
+ usecase "Comparar SIF i llegat" as Compare
+ usecase "Registrar diferències i evidències" as Register
+ usecase "Executar acció específica\nde resolució" as Fix
+ usecase "Revalidar resultat" as Verify
+ usecase "UC-47\nSincronitzar resum mínim" as Sync
+}
+Cron --> Compare
+T --> Main
+Main ..> Compare : <<include>>
+Main ..> Register : <<include>>
+Main ..> Verify : <<include>> (quan es resol)
+T --> Fix
+Fix ..> Sync : <<extend>> (si és només resum llegat)
+@enduml
+```
+
+## 3. Subdiagrama de classes: codi existent i contracte pendent
+
+```mermaid
+classDiagram
+direction LR
+class ReconciliationService {
+ <<DISSENY: no acreditada al PHP>>
+ +compare(scope,snapshotHash) run
+ +resolve(itemId,action,actor) result
+}
+class ReconciliationRunRepository {
+ <<DISSENY: taules SQL definides, writer no acreditat>>
+ +create(db,scope,inputHash) run
+ +appendItem(db,difference) item
+ +closeItem(db,itemId,evidence) result
+}
+class LegacySyncService {
+ <<PHP existent>>
+ +syncAfterSifSuccess(legacyDb,relations,uuidFactura,numVisible,estatCobrament) void
+}
+class LegacySyncRepository {
+ <<PHP existent>>
+ +syncInscripcioSummary(legacyDb,idInsc,facturaRelacionada,uuidFactura,numVisible,estatCobrament) void
+}
+class IncidentRepository {
+ <<PHP existent>>
+ +open(db,uuidFactura,type,message) array
+}
+ReconciliationService --> ReconciliationRunRepository : run i divergències
+ReconciliationService --> LegacySyncService : resolució autoritzada de resum
+ReconciliationService --> IncidentRepository : anomalia bloquejant
+LegacySyncService --> LegacySyncRepository : UPDATE inscripció
+```
+
+## 4. Seqüència — detecció i resolució (DISSENY)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor T as Responsable tècnica
+participant R as ReconciliationService [DISSENY]
+participant SIF as BD SIF
+participant L as BD llegat
+participant Audit as ReconciliationRunRepository [DISSENY]
+participant Sync as LegacySyncService [PHP existent]
+participant Inc as IncidentRepository [PHP existent]
+T->>R: compare(scope,inputHash)
+R->>SIF: Llegir factura, fact_rels, registres i moviments
+R->>L: Llegir inscripcions, IDPAG, FACTURA_RELACIONADA i estats
+R->>R: Comparar UUIDs, relacions, quantitats i estats
+R->>Audit: create(run idempotent) i appendItem(differences)
+Audit-->>T: Llista d'items PENDING amb evidència
+T->>R: resolve(itemId,action,reason)
+alt Divergència només de resum llegat i acció segura
+ R->>Sync: syncAfterSifSuccess(...)
+ Note over R,Sync: El servei actual és no idempotent a OBSERVACIONS; cal reparar-lo abans de reintents
+ R->>SIF: Rellegir dades fiscals originals intactes
+ R->>L: Verificar resum real i nombre de files
+ R->>Audit: closeItem només si la comparació passa
+else Incidència fiscal/econòmica o conflicte d'identitat
+ R->>Inc: open(uuidFactura,type,message)
+ R->>Audit: Deixar PENDING fins a cas d'ús corrector/conciliació
+end
+R-->>T: Resultat i incidències pendents
+```
+
+## 5. Traçabilitat
+
+[UC-53 original](../06-fitxes-funcionals/uc-053.md) · [UC-47 codi de sincronització](uc-047-sincronitzar-estat-cap-llegat.md) · [UC-08 incidències](uc-008-gestionar-incidencia-sif.md) · [Migració reconciliation_run/item](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql) · [LegacySyncService](../../sif/src/Service/LegacySyncService.php) · [LegacySyncRepository](../../sif/src/Repository/LegacySyncRepository.php) · [Model de fons](00-revisio-moviments-inscripcions.md).
