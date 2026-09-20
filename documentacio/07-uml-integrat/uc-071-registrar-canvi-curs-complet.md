@@ -73,7 +73,7 @@ P --> Main
 Main ..> Prev : <<include>>
 Main ..> A : <<include>>
 Main ..> Ev : <<include>>
-Main ..> Funds : <<extend>> (fons ja cobrats)
+Funds ..> Main : <<extend>> (fons ja cobrats)
 O --> Pay
 O --> Ref
 O --> Credit
