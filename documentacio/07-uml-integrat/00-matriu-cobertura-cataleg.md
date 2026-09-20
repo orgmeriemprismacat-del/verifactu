@@ -1,6 +1,6 @@
 # Matriu completa de cobertura UML del catàleg SIF
 
-**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 47 de 142 casos; 95 pendents de revisió específica.** Documentat no vol dir implementat, provat ni desplegat; l'estat original és històric i s'ha de contrastar amb la fitxa nova.
+**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 48 de 142 casos; 94 pendents de revisió específica.** Documentat no vol dir implementat, provat ni desplegat. Els estats originals poden estar desactualitzats respecte del codi verificat en cada fitxa nova.
 
 ## Cobertura per domini
 
@@ -9,7 +9,7 @@
 | facturació i registre fiscal | 33 | 18 | 15 |
 | pagaments i conciliació | 30 | 14 | 16 |
 | documents, accés i comunicacions | 11 | 3 | 8 |
-| governança i operació | 29 | 6 | 23 |
+| governança i operació | 29 | 7 | 22 |
 | integració SIF | 1 | 0 | 1 |
 | venda i descomptes | 7 | 3 | 4 |
 | canvis posteriors | 2 | 2 | 0 |
@@ -33,7 +33,7 @@
 | UC-07 | Consultar factura, estat i document | `[DISSENY]` | [uc-007.md](../06-fitxes-funcionals/uc-007.md) | [Fitxa i diagrames](uc-007-consultar-factura-estat-document.md) |
 | UC-08 | Gestionar incidència | `[PARCIAL]` | [uc-008.md](../06-fitxes-funcionals/uc-008.md) | [Fitxa i diagrames](uc-008-gestionar-incidencia-sif.md) |
 | UC-09 | Remetre registre a AEAT | `[DISSENY]` | [uc-009.md](../06-fitxes-funcionals/uc-009.md) | [Fitxa i diagrames](uc-009-remetre-registre-aeat.md) |
-| UC-10 | Gestionar configuració i versió | `[DISSENY]` | [uc-010.md](../06-fitxes-funcionals/uc-010.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-10 | Gestionar configuració i versió | `[DISSENY]` | [uc-010.md](../06-fitxes-funcionals/uc-010.md) | [Fitxa i diagrames](uc-010-gestionar-configuracio-versio.md) |
 | UC-11 | Importar factura històrica | `[BASE]` | [uc-011.md](../06-fitxes-funcionals/uc-011.md) | [Fitxa i diagrames](uc-011-importar-factura-historica.md) |
 | UC-12 | Gestionar el cicle de morositat i reclamació | `[PARCIAL]` | [uc-012.md](../06-fitxes-funcionals/uc-012.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-13 | Orquestrar la doble facturació USOC | `[PARCIAL]` | [uc-013.md](../06-fitxes-funcionals/uc-013.md) | [Fitxa i diagrames](uc-013-orquestrar-doble-facturacio-usoc.md) |
@@ -167,6 +167,6 @@
 | UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-128.md](../06-fitxes-funcionals/uc-128.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-129.md](../06-fitxes-funcionals/uc-129.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 
-## Significat de «revisat»
+## Criteri de revisió
 
-Les fitxes individuals tenen anàlisi, UML de casos d'ús, classes i seqüència. La revisió diferencia PHP existent, taula SQL definida i proposta pendent; **no** és certificat de proves, integració del canal, compliment AEAT o desplegament. [Índex](README.md) · [Model de classes transversal](00-model-classes-general.md) · [Traça dels fons d'inscripció](00-revisio-moviments-inscripcions.md).
+Una fitxa específica conté anàlisi de l'acció, UML de casos d'ús, classes i seqüència, i identifica què existeix al PHP, què està definit només a SQL i què és disseny pendent. **No** acredita integració amb les pantalles, autorització de servidor, execució de proves, llibre quantitatiu de fons per inscripció ni acceptació de l'AEAT. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traçabilitat econòmica](00-revisio-moviments-inscripcions.md).
