@@ -61,7 +61,7 @@ Op --> Consult
 Audit --> Consult
 Consult ..> Auth : <<include>>
 Consult ..> Status : <<include>>
-Consult ..> Doc : <<extend>> (si sol·licita document)
+Doc ..> Consult : <<extend>> (si sol·licita document)
 Op --> Gen
 @enduml
 ```
