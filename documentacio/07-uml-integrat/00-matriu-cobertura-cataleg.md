@@ -1,6 +1,6 @@
 # Matriu completa de cobertura UML del catàleg SIF
 
-**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 41 de 142 casos; 101 pendents de revisió específica.** Documentat no vol dir implementat, provat ni desplegat. Les etiquetes d'estat original són històriques: preval la verificació de cada fitxa nova.
+**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 42 de 142 casos; 100 pendents de revisió específica.** Documentat no vol dir implementat, provat ni desplegat. Les etiquetes d'estat original són històriques: preval la verificació de cada fitxa nova.
 
 ## Cobertura per domini
 
@@ -17,7 +17,7 @@
 | circuit adjacent de col·laboradors | 2 | 0 | 2 |
 | casuística recuperada | 1 | 0 | 1 |
 | operació comercial i inscripció | 7 | 0 | 7 |
-| cicle de vida comercial, acadèmic i documental | 12 | 0 | 12 |
+| cicle de vida comercial, acadèmic i documental | 12 | 1 | 11 |
 | consentiment, identitat i coherència entre sistemes | 5 | 0 | 5 |
 
 ## Relació de tots els casos
@@ -155,7 +155,7 @@
 | UC-116 | Custodiar i revisar evidències sensibles de descompte | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-116.md](../06-fitxes-funcionals/uc-116.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-117 | Gestionar el cicle de vida d'un codi promocional o dret futur | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-117.md](../06-fitxes-funcionals/uc-117.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-118 | Gestionar un grup abans d'emetre o cobrar | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-118.md](../06-fitxes-funcionals/uc-118.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-119.md](../06-fitxes-funcionals/uc-119.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-119.md](../06-fitxes-funcionals/uc-119.md) | [Fitxa i diagrames](uc-119-cicle-complet-regal.md) |
 | UC-120 | Tramitar una sol·licitud de canvi de dades personals i la seva propagació | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-120.md](../06-fitxes-funcionals/uc-120.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-121 | Repreuar o renovar una reserva caducada abans del pagament | `[DISSENY/BLOQUEJANT]` | [uc-121.md](../06-fitxes-funcionals/uc-121.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-122 | Gestionar la composició d'un pack i la indisponibilitat d'un component | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-122.md](../06-fitxes-funcionals/uc-122.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
@@ -169,4 +169,4 @@
 
 ## Què implica la cobertura
 
-Un cas «revisat documentalment» té una fitxa específica amb UML de casos d'ús, classes i seqüència i distinció entre codi implementat i disseny pendent. **No** certifica integració amb les pantalles, autorització de servidor, execució de proves, persistència quantitativa de fons per inscripció o enviament/acceptació AEAT. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Diners per inscripció](00-revisio-moviments-inscripcions.md).
+Un cas revisat documentalment té fitxa específica i UML de casos d'ús, classes i seqüència, i separa codi implementat i disseny. No certifica pantalles/autorització, proves executades, registre quantitatiu dels fons per inscripció, enviament/acceptació AEAT o desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Diners per inscripció](00-revisio-moviments-inscripcions.md).
