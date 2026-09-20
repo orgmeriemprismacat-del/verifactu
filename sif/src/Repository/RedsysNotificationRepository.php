@@ -2,6 +2,8 @@
 
 namespace Prisma\Sif\Repository;
 
+use Prisma\Sif\Exception\SifException;
+
 final class RedsysNotificationRepository
 {
     public function findByDsOrder(\PDO $db, string $dsOrder, bool $forUpdate = false): ?array
@@ -28,30 +30,55 @@ final class RedsysNotificationRepository
         ?array $rawPayload = null,
         string $status = 'RECEIVED'
     ): array {
+        $candidate = $this->candidate(
+            $dsOrder,
+            $idpag,
+            $amount,
+            $responseCode,
+            $signatureValid,
+            $rawPayload,
+            $status
+        );
+
         try {
             $db->prepare(
                 'INSERT INTO redsys_notifications (
-                    DS_ORDER, IDPAG, IMPORT, RESPONSE_CODE, STATUS, RAW_PAYLOAD_JSON, SIGNATURE_VALID
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)'
+                    DS_ORDER, IDPAG, IMPORT, CURRENCY_CODE, TERMINAL, RESPONSE_CODE,
+                    STATUS, RAW_PAYLOAD_JSON, SIGNATURE_VALID, SIGNATURE_VERSION, PAYLOAD_HASH
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             )->execute([
-                $dsOrder,
-                $idpag,
-                number_format((float) $amount, 2, '.', ''),
-                $responseCode,
-                $status,
+                $candidate['ds_order'],
+                $candidate['idpag'],
+                $candidate['amount'],
+                $candidate['currency_code'],
+                $candidate['terminal'],
+                $candidate['response_code'],
+                $candidate['status'],
                 $this->encodeRawPayload($rawPayload),
-                $signatureValid ? 1 : 0,
+                $candidate['signature_valid'],
+                $candidate['signature_version'],
+                $candidate['payload_hash'],
             ]);
 
             return [
                 'duplicate' => false,
+                'notification_id' => (int) $db->lastInsertId(),
                 'ds_order' => $dsOrder,
                 'status' => $status,
             ];
         } catch (\PDOException $exception) {
-            if ((string) $exception->getCode() === '23000') {
+            if ((int) ($exception->errorInfo[1] ?? 0) === 1062) {
+                $existing = $this->findByDsOrder($db, $dsOrder);
+                if ($existing === null) {
+                    throw $exception;
+                }
+                if (!$this->sameNotification($existing, $candidate)) {
+                    throw SifException::conflict('Contradictory Redsys callback for existing DS_ORDER');
+                }
+
                 return [
                     'duplicate' => true,
+                    'notification_id' => (int) $existing['ID'],
                     'ds_order' => $dsOrder,
                     'status' => 'DUPLICATE',
                 ];
@@ -59,6 +86,39 @@ final class RedsysNotificationRepository
 
             throw $exception;
         }
+    }
+
+    private function candidate(
+        string $dsOrder,
+        ?int $idpag,
+        mixed $amount,
+        string $responseCode,
+        bool $signatureValid,
+        ?array $rawPayload,
+        string $status
+    ): array {
+        return [
+            'ds_order' => $dsOrder,
+            'idpag' => $idpag,
+            'amount' => number_format((float) $amount, 2, '.', ''),
+            'currency_code' => $rawPayload['currency_code'] ?? null,
+            'terminal' => $rawPayload['terminal'] ?? null,
+            'response_code' => $responseCode,
+            'status' => $status,
+            'signature_valid' => $signatureValid ? 1 : 0,
+            'signature_version' => $rawPayload['signature_version'] ?? null,
+            'payload_hash' => $rawPayload['payload_hash'] ?? null,
+        ];
+    }
+
+    private function sameNotification(array $existing, array $candidate): bool
+    {
+        return number_format((float) $existing['IMPORT'], 2, '.', '') === $candidate['amount']
+            && (string) $existing['RESPONSE_CODE'] === $candidate['response_code']
+            && (string) $existing['CURRENCY_CODE'] === (string) $candidate['currency_code']
+            && (string) $existing['TERMINAL'] === (string) $candidate['terminal']
+            && (string) $existing['SIGNATURE_VERSION'] === (string) $candidate['signature_version']
+            && hash_equals((string) $existing['PAYLOAD_HASH'], (string) $candidate['payload_hash']);
     }
 
     private function encodeRawPayload(?array $payload): ?string

@@ -13,6 +13,34 @@ use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class RedsysCourseInvoiceServiceTest
 {
+    public function testIssuesFromFrozenIntentSnapshotWithoutLegacyConnection(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $notifications = new RedsysNotificationRepository();
+        $service = $this->service($notifications, $sifDb);
+        $notifications->recordReceived(
+            $sifDb,
+            'ORDERSNAPSHOT400',
+            400,
+            '95.50',
+            '0000',
+            true,
+            ['source' => 'snapshot-test'],
+            'VALIDATED'
+        );
+
+        $snapshot = [
+            'inscription' => $this->legacyInscription(),
+            'course' => $this->legacyCourse(),
+            'payment' => ['idpag' => 400, 'amount' => '95.50'],
+        ];
+        $result = $service->issueFromIntentSnapshot($sifDb, 'ORDERSNAPSHOT400', $snapshot);
+
+        Assert::same(true, $result['ok']);
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     public function testIssuesInvoiceAndPaymentFromValidatedRedsysCourseNotification(): void
     {
         $sifDb = TestDatabase::fresh();

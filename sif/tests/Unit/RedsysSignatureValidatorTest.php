@@ -14,18 +14,19 @@ final class RedsysSignatureValidatorTest
 
         $payload = $validator->decodeAndVerify([
             'Ds_SignatureVersion' => 'HMAC_SHA256_V1',
-            'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19EYXRlIjoiMDYvMDYvMjAyNiIsIkRzX0hvdXIiOiIxMDozMCJ9',
-            'Ds_Signature' => '55hHhFcZE_jLjxU5nhlD9ozee4z8Ntz-NEs01hHd09A=',
-        ], [
-            'idPag' => '123',
+            'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19DdXJyZW5jeSI6Ijk3OCIsIkRzX1Rlcm1pbmFsIjoiMSIsIkRzX0RhdGUiOiIwNi8wNi8yMDI2IiwiRHNfSG91ciI6IjEwOjMwIn0=',
+            'Ds_Signature' => 'Sf9vai8reepW5G-M5aE8DEs6Z6UAfeRIhYh8oXS6110=',
         ]);
 
         Assert::same('ORDER123', $payload['ds_order']);
-        Assert::same(123, $payload['idpag']);
         Assert::same('120.00', $payload['amount']);
         Assert::same('0000', $payload['response_code']);
-        Assert::same('HMAC_SHA256_V1', $payload['redsys']['signature_version']);
-        Assert::same('ORDER123', $payload['redsys']['decoded']['Ds_Order']);
+        Assert::same('978', $payload['currency_code']);
+        Assert::same('EUR', $payload['currency']);
+        Assert::same('1', $payload['terminal']);
+        Assert::same('HMAC_SHA256_V1', $payload['signature_version']);
+        Assert::same('8d4b744ee7c64f817594c7102b10d191ed99a26619a9f5da4501539984d079e1', $payload['payload_hash']);
+        Assert::same(false, array_key_exists('idpag', $payload));
     }
 
     public function testMissingMerchantKeyRejectsNotificationBeforeTrustingPayload(): void

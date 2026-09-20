@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Tests\Unit;
 
+use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Tests\Support\Assert;
 
 final class ConnectionFactoryTest
@@ -24,10 +25,13 @@ final class ConnectionFactoryTest
         }
     }
 
-    public function testConnectionFactoryCanCreateLegacyConnection(): void
+    public function testConnectionFactoryReportsMissingLegacyDsn(): void
     {
-        $source = file_get_contents(dirname(__DIR__, 2) . '/src/Database/ConnectionFactory.php');
+        $exception = Assert::throws(\RuntimeException::class, static function (): void {
+            ConnectionFactory::makeLegacy(['legacy_db' => []]);
+        });
 
+<<<<<<< HEAD
         if ($source === false) {
             Assert::fail('Could not read ConnectionFactory');
         }
@@ -39,6 +43,9 @@ final class ConnectionFactoryTest
         );
         Assert::same('Legacy DB DSN not configured', $exception->getMessage());
         Assert::stringContainsString('SET NAMES utf8mb4', $source);
+=======
+        Assert::same('Legacy DB DSN not configured', $exception->getMessage());
+>>>>>>> feature/redsys-async-queue
     }
 }
 

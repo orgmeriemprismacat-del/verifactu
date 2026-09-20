@@ -6,7 +6,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 
-final class RedsysUsocInvoiceService
+final class RedsysUsocInvoiceService implements RedsysIntentHandler
 {
     public function __construct(
         private RedsysNotificationRepository $notifications,
@@ -15,6 +15,32 @@ final class RedsysUsocInvoiceService
         private RedsysInvoicePayloadBuilder $redsysPayloads,
         private InvoiceService $invoices
     ) {
+    }
+
+    public function sourceType(): string
+    {
+        return 'USOC_ALUMNE';
+    }
+
+    public function issueFromIntentSnapshot(\PDO $sifDb, string $dsOrder, array $snapshot): array
+    {
+        $entityAmount = $snapshot['usoc']['entity_amount'] ?? null;
+        if ($entityAmount === null || !is_numeric($entityAmount) || (float) $entityAmount <= 0) {
+            throw SifException::validation('Invalid Redsys USOC entity amount snapshot');
+        }
+
+        $basePayload = $this->legacyPayloads->buildStudentPayload($snapshot);
+        $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
+        $result = $this->invoices->issueInvoice($payload);
+        $result['entity_invoice_pending'] = [
+            'source_type' => 'USOC_ENTITAT',
+            'requires_explicit_billing' => true,
+            'entity_amount' => number_format((float) $entityAmount, 2, '.', ''),
+            'student_invoice_uuid' => $result['uuid_factura'],
+            'idpag' => $payload['payment']['idpag'] ?? null,
+        ];
+
+        return $result;
     }
 
     public function issueStudentFromValidatedNotification(
