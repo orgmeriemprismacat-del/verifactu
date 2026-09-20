@@ -71,6 +71,32 @@ UI->>UI: Reconciliar sumes i retornar resultat
 Note over UI,DB: Seqüència OBJECTIU: el servei actual no fa els INSERT per inscripció
 ```
 
+### 1.4. Contrast amb la pantalla real i control de doble facturació — integració pendent
+
+**Evidència del circuit antic:** la pantalla «Generar factura abans de pagar» cerca per NIF/NIE, afegeix inscripcions, suma imports A_PAGAR i només permet continuar quan les seleccionades corresponen al mateix curs i edició. Després es tria l'entitat, es revisen concepte i preu i s'emet la factura. Aquesta limitació de la pantalla històrica no prohibeix en abstracte una factura multiconcepte (UC-88). La previsualització/descàrrega antiga regenera el PDF; la futura consulta SIF ha de servir el document fiscal custodiat, no reconstruir-lo a partir de dades vives.
+
+**Variant E5-bis — empresa inscrita com a contacte i doble factura:** el xat original descriu una inscripció grupal feta per l'empresa en què el contacte ha utilitzat el CIF de l'entitat com a identificador; després d'emetre factura prèvia, la cerca per CIF a «Passar pagaments» pot iniciar indegudament una segona factura. La cerca fiscal definitiva ha d'identificar les inscripcions i llurs relacions amb UUID_FACTURA/fact_rels, IDPAG i, quan existeixi, FACTURA_RELACIONADA històric; **el CIF tot sol no identifica una factura única**. Si hi ha diverses factures legítimes del mateix CIF, cal seleccionar i validar la factura exacta, o obrir incidència; no agrupar-les ni generar-ne una altra per defecte.
+
+**Control previ d'enllaços i concurrència (contracte objectiu, NO implementació acreditada):** abans de confirmar la cobertura d'una inscripció per una factura d'empresa, verificar factura i cobraments existents, intencions Redsys pendents i enllaços individuals; impedir noves intencions individuals incompatibles al backend i coordinar el canvi d'estat amb l'emissió. La mera ocultació d'una URL al navegador no és un bloqueig. No donar per resolta la concurrència amb un ordre ingenu «emetre factura → desactivar enllaç»: un callback individual podria confirmar-se entre els dos passos. Si una intenció individual ja s'està processant, suspendre la nova emissió fins a conciliar-la. Si l'emissió fiscal s'ha confirmat però falla la sincronització amb la intranet, **conservar la factura**, registrar incidència, mantenir la restricció de nova emissió/cobrament incompatible i reprendre la sincronització de manera idempotent; no crear factura local alternativa.
+
+**Pagament posterior:** quan la factura preexistent cobreix les inscripcions, «Passar pagaments», la transferència o el callback autoritzat han de registrar i assignar el cobrament a aquell UUID_FACTURA (UC-02/22), no invocar el camí ManualGroupInvoiceService que emet una factura amb pagament inicial. Una factura pendent d'empresa pot conservar **el seu propi enllaç segur de pagament**, encara que els individuals incompatibles quedin inactius. El pagament parcial deixa PARTIAL i el cobrament total PAID sense alterar el número de factura ni crear un nou registre de venda per aquest únic cobrament.
+
+**Idempotència de negoci pendent:** reutilitzar una clau no és suficient si el receptor, el conjunt d'inscripcions, les línies o els imports han canviat; el servei ha de contrastar la petició amb el snapshot original i rebutjar un conflicte, en lloc de retornar silenciosament la factura anterior. La reutilització per clau observada a InvoiceService no acredita encara aquesta comparació integral. El document i el correu al receptor s'han de distingir de la comunicació als participants: un alumne pot veure que la seva inscripció està coberta, però no la factura completa que exposi altres participants.
+
+### 1.5. Proves d'acceptació específiques del circuit d'empresa (no executades)
+
+| ID | Escenari | Resultat que cal acreditar |
+| --- | --- | --- |
+| E21-01 | Inscripció d'empresa amb factura prèvia sense pagar | Una única factura real, PENDING i cap moviment de cobrament fictici. |
+| E21-02 | N inscripcions del mateix curs i edició | Receptor fiscal correcte, N relacions i imports verificats al servidor, no només al HTML. |
+| E21-03 | Cercar el grup pel CIF de contacte després de la factura prèvia | S'obre la factura existent per UUID/relacions i el cobrament no emet una segona factura. |
+| E21-04 | Dues factures legítimes del mateix CIF | No es confonen; selecció per inscripcions/UUID o incidència si hi ha ambigüitat. |
+| E21-05 | Inscripció ja pagada, ja facturada o amb Redsys en curs | Bloqueig de cobertura incompatible i conciliació de l'estat real abans d'emetre. |
+| E21-06 | Enllaç individual antic o callback tardà després d'assumir l'empresa el pagament | Cap segona factura; si existeix cobrament real, conservar-ne l'evidència i obrir conciliació. |
+| E21-07 | Mateixa clau idempotent amb receptor/imports/participants diferents | Conflicte explícit, sense reutilitzar un resultat econòmic incompatible. |
+| E21-08 | Dues transferències parcials sobre factura prèvia | Dos cobraments reals associats a la mateixa factura, PARTIAL i després PAID. |
+| E21-09 | Fallada de la intranet o dels enllaços després del commit fiscal | Factura conservada i incidència/reintent; ni factura local alternativa ni via individual duplicada. |
+| E21-10 | Alumne participant consulta la factura conjunta | No accedeix a dades d'altres participants; l'empresa/receptor només amb autorització del servidor. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -206,6 +232,36 @@ end
 Note over UI,SIF: Classes d'event/decisor representades com a disseny, no com a PHP executat
 ```
 
+### 4.2. Seqüència addicional — cobertura segura i callback individual concurrent (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant UI as Intranet [adaptació pendent]
+participant Guard as Control cobertura/locks [DISSENY]
+participant TPV as Intencions individuals Redsys
+participant SIF as InvoiceBeforePaymentService [existent]
+participant Q as Incidències/reconciliació [integració pendent]
+O->>UI: Seleccionar N inscripcions i receptor
+UI->>Guard: Bloquejar operació i rellegir factures/cobraments per inscripció
+Guard->>TPV: Consultar intents pendents i impedir noves vies individuals incompatibles
+alt Cobrament individual confirmat o callback en curs
+ TPV-->>UI: Estat ambigu o confirmat
+ UI->>Q: Conservar evidència i resoldre abans d'emetre
+ UI-->>O: Emissió suspesa
+else Cobertura verificable i intencions incompatibles controlades
+ UI->>SIF: issueBeforePayment(snapshot validat, sense payment)
+ SIF-->>UI: UUID_FACTURA i NUM_VISIBLE
+ alt Sincronització amb llegat fallida després del commit
+  UI->>Q: Incidència i reintent idempotent de sincronització
+  UI-->>O: Factura emesa; integració pendent, cap emissió alternativa
+ else Sincronització completada
+  UI-->>O: Factura prèvia i via de pagament de l'empresa
+ end
+end
+Note over Guard,Q: Coordinació entre BDs/callbacks és pendent: aquest diagrama no acredita atomicitat distribuïda.
+```
 ## 5. Traçabilitat
 
 [Fitxa anterior UC-21](../06-fitxes-funcionals/uc-021.md) · [Catàleg de casos](../04-estat-final/33-casos-us-sif.md) · [Fluxos de factura abans de cobrar i grup](../03-canvis-pendents/04-fluxos-facturacio.md) · [UC-04 revisada](uc-004-emetre-factura-abans-cobrar.md) · [UC-02 revisada](uc-002-registrar-cobrament-factura.md) · [InvoiceBeforePaymentService](../../sif/src/Service/InvoiceBeforePaymentService.php) · [ManualGroupInvoiceService](../../sif/src/Service/ManualGroupInvoiceService.php) · [LegacyGroupSnapshotRepository](../../sif/src/Repository/LegacyGroupSnapshotRepository.php) · [InvoiceBeforePaymentServiceTest](../../sif/tests/Integration/InvoiceBeforePaymentServiceTest.php).
