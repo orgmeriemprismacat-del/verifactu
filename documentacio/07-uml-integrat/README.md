@@ -2,9 +2,9 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 47 casos d'ús revisats
+## Mapa dels 48 casos d'ús revisats
 
-**[Model general de classes](00-model-classes-general.md)** · **[Cobertura completa dels 142 casos](00-matriu-cobertura-cataleg.md)** · **[Traçabilitat dels diners per inscripció](00-revisio-moviments-inscripcions.md)**
+**[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Diners per inscripció](00-revisio-moviments-inscripcions.md)**
 
 | ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
@@ -17,6 +17,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-07 | Consultar factura, estat i document | [Fitxa i UML](uc-007-consultar-factura-estat-document.md) | `[DISSENY]` |
 | UC-08 | Gestionar incidència | [Fitxa i UML](uc-008-gestionar-incidencia-sif.md) | `[PARCIAL]` |
 | UC-09 | Remetre registre a AEAT | [Fitxa i UML](uc-009-remetre-registre-aeat.md) | `[DISSENY]` |
+| UC-10 | Gestionar configuració i versió | [Fitxa i UML](uc-010-gestionar-configuracio-versio.md) | `[DISSENY]` |
 | UC-11 | Importar factura històrica | [Fitxa i UML](uc-011-importar-factura-historica.md) | `[BASE]` |
 | UC-13 | Orquestrar la doble facturació USOC | [Fitxa i UML](uc-013-orquestrar-doble-facturacio-usoc.md) | `[PARCIAL]` |
 | UC-14 | Comprar curs normal per Redsys | [Fitxa i UML](uc-014-comprar-curs-redsys.md) | `[ASYNC/PARCIAL]` |
@@ -56,7 +57,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-72 | Registrar baixa i decisió econòmica | [Fitxa i UML](uc-072-registrar-baixa-decisio-economica.md) | `[DISSENY/PARCIAL]` |
 | UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | [Fitxa i UML](uc-119-cicle-complet-regal.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 47/142.** Els 95 casos restants no disposen encara de fitxa UML específica revisada. L'estat original del catàleg no acredita implementació, proves ni desplegament. El registre quantitatiu proposat `enrollment_fund_movement` **no** és una migració ni un repositori PHP implementat.
+**Cobertura documental: 48/142.** Els 94 casos restants no tenen una fitxa UML individual revisada. L'estat original no acredita implementació ni desplegament; el ledger `enrollment_fund_movement` continua sent una **proposta**, no una taula o servei PHP implementats.
 
 ## Com llegir el paquet de cada acció
 
