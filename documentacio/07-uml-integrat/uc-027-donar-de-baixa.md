@@ -43,6 +43,39 @@
 
 La migració `2026_09_15_000003_add_functional_audit_control.sql` defineix `enrollment_cancellation_event` amb `UUID_CANCELLATION`, `UUID_OPERATIONAL_EVENT`, `ENROLLMENT_ID`, `CANCELLATION_REASON`, `EFFECTIVE_AT`, `ECONOMIC_DECISION`, `RETURN_AMOUNT`, `CREDIT_AMOUNT`, `NON_RETURN_REASON`, `FISCAL_DECISION`, `UUID_RECTIFYING_INVOICE`, `UUID_REFUND_PAYMENT` i `UUID_CREDIT`. L'estructura permet enllaçar la baixa, la factura rectificativa, el moviment de retorn i el saldo, però **la simple definició de la taula no acredita insercions ni desplegament**.
 
+### 1.4. Revisió: baixa administrativa i sortida de diners són accions diferents — DISSENY PENDENT
+
+La baixa, o la simple decisió d'un futur retorn, **no crea** una devolució ni una sortida del saldo de la inscripció. Quan un retorn monetari s'ha confirmat, cal una fila `INSCRIPCIÓ → EXTERNAL` vinculada al `payment_transaction REFUND`; quan es destina diner cobrat a saldo, cal una fila `INSCRIPCIÓ → CREDIT` vinculada al `UUID_CREDIT`. Si hi ha retorn parcial i saldo, es registren **dos moviments** i se'n controla la suma contra els fons disponibles. `enrollment_cancellation_event` conserva motiu, decisió i UUIDs globals, però no és el detall quantitatiu de totes les sortides. Cal validar el titular si el pagador era una empresa/responsable.
+
+[Revisió de fons per inscripció](00-revisio-moviments-inscripcions.md).
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant B as Gestió de baixa [DISSENY]
+participant R as ManualRefundService [EXISTENT]
+participant C as CreditBalanceService [EXISTENT]
+participant L as EnrollmentFundMovementRepository [PROPOSTA]
+participant DB as BD SIF
+O->>B: Confirmar baixa, imports i decisió
+alt Baixa sense diners moguts
+ B-->>O: Event administratiu; cap moviment de fons
+else Retorn real confirmat
+ B->>R: UC-28 registre REFUND
+ R-->>B: UUID_PAYMENT
+ B->>L: append(INSCRIPCIÓ → EXTERNAL, import, UUID_PAYMENT)
+ L->>DB: INSERT sortida immutable
+else Saldo creat amb diners atribuïts
+ B->>C: UC-29 createCredit()
+ C-->>B: UUID_CREDIT
+ B->>L: append(INSCRIPCIÓ → CREDIT, import, UUID_CREDIT)
+ L->>DB: INSERT sortida a saldo
+end
+B-->>O: Moviments i pendents fiscals
+Note over B,L: Seqüència objectiu; no hi ha orquestrador complet acreditat
+```
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
