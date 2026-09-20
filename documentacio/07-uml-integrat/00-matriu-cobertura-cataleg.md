@@ -1,6 +1,6 @@
 # Matriu completa de cobertura UML del catàleg SIF
 
-**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 83 de 142 casos; 59 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original es conserva com a dada històrica i pot diferir del PHP/SQL contrastat en cada fitxa.
+**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 89 de 142 casos; 53 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original és històric i pot diferir de les evidències del PHP/SQL a cada fitxa.
 
 ## Cobertura per domini
 
@@ -17,8 +17,8 @@
 | circuit adjacent de col·laboradors | 2 | 0 | 2 |
 | casuística recuperada | 1 | 0 | 1 |
 | operació comercial i inscripció | 7 | 7 | 0 |
-| cicle de vida comercial, acadèmic i documental | 12 | 11 | 1 |
-| consentiment, identitat i coherència entre sistemes | 5 | 0 | 5 |
+| cicle de vida comercial, acadèmic i documental | 12 | 12 | 0 |
+| consentiment, identitat i coherència entre sistemes | 5 | 5 | 0 |
 
 ## Relació de tots els casos
 
@@ -160,13 +160,13 @@
 | UC-121 | Repreuar o renovar una reserva caducada abans del pagament | `[DISSENY/BLOQUEJANT]` | [uc-121.md](../06-fitxes-funcionals/uc-121.md) | [Fitxa i diagrames](uc-121-repreuar-renovar-reserva-caducada.md) |
 | UC-122 | Gestionar la composició d'un pack i la indisponibilitat d'un component | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-122.md](../06-fitxes-funcionals/uc-122.md) | [Fitxa i diagrames](uc-122-composicio-pack-component-indisponible.md) |
 | UC-123 | Generar i lliurar una factura electrònica en format i canal acordats | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-123.md](../06-fitxes-funcionals/uc-123.md) | [Fitxa i diagrames](uc-123-lliurar-factura-electronica.md) |
-| UC-124 | Reconciliar accés acadèmic i certificat amb baixa, deute i pagador de grup | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-124.md](../06-fitxes-funcionals/uc-124.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-125 | Gestionar consentiment de comunicacions separat de la inscripció | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-125.md](../06-fitxes-funcionals/uc-125.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-126 | Resoldre identitat i dades de contacte en conflicte entre sistemes | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-126.md](../06-fitxes-funcionals/uc-126.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-127 | Canviar l'estat d'una edició i resoldre totes les operacions afectades | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-127.md](../06-fitxes-funcionals/uc-127.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-128.md](../06-fitxes-funcionals/uc-128.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-129.md](../06-fitxes-funcionals/uc-129.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-124 | Reconciliar accés acadèmic i certificat amb baixa, deute i pagador de grup | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-124.md](../06-fitxes-funcionals/uc-124.md) | [Fitxa i diagrames](uc-124-reconciliar-acces-certificat-baixa-deute.md) |
+| UC-125 | Gestionar consentiment de comunicacions separat de la inscripció | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-125.md](../06-fitxes-funcionals/uc-125.md) | [Fitxa i diagrames](uc-125-consentiment-comunicacions-separat.md) |
+| UC-126 | Resoldre identitat i dades de contacte en conflicte entre sistemes | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-126.md](../06-fitxes-funcionals/uc-126.md) | [Fitxa i diagrames](uc-126-identitat-contacte-conflicte-sistemes.md) |
+| UC-127 | Canviar l'estat d'una edició i resoldre totes les operacions afectades | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-127.md](../06-fitxes-funcionals/uc-127.md) | [Fitxa i diagrames](uc-127-canvi-estat-edicio-operacions-afectades.md) |
+| UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-128.md](../06-fitxes-funcionals/uc-128.md) | [Fitxa i diagrames](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) |
+| UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-129.md](../06-fitxes-funcionals/uc-129.md) | [Fitxa i diagrames](uc-129-reconciliar-prisma-moodle-matricules.md) |
 
 ## Significat de «revisat»
 
-Cada fitxa específica conté anàlisi funcional, UML de casos d'ús, classes i seqüència, i distingeix codi PHP existent, esquema SQL definit i disseny pendent. No certifica tests executats, autorització de canals, control d'aforament, ledger quantitatiu de fons per inscripció, acceptació AEAT o desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
+Cada fitxa específica conté anàlisi funcional, UML de casos d'ús, classes i seqüència, i distingeix codi PHP existent, esquema SQL definit i disseny pendent. No certifica tests executats, autorització del canal, control d'aforament, sincronització real Prisma/Moodle, ledger quantitatiu de fons per inscripció, acceptació AEAT ni desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
