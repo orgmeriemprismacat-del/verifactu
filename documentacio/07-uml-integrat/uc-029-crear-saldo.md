@@ -45,6 +45,26 @@ Si el saldo prové d'import **cobrat i atribuït** a una inscripció, la creaci�
 
 [Revisió transversal de fons](00-revisio-moviments-inscripcions.md).
 
+### 1.4. Titular, saldo antic i alta única — contrast amb el xat original
+
+**C-ORIGEN — diners cobrats o bonificació:** si el client prefereix conservar diners ingressats després d'una baixa, canvi de curs o excés de cobrament, el saldo neix de la seva decisió documentada sobre un import encara disponible. Aquest crèdit no és una segona entrada de caixa ni una reducció silenciosa d'A_PAGAR. Si la gestió concedeix un avantatge comercial **sense ingrés previ**, no atribuir-lo com si fos un crèdit procedent de diners del client: cal classificar la bonificació i els seus efectes per separat.
+
+**C-TITULAR — alumne, empresa o responsable:** el titular de `credit_balance` ha de coincidir amb qui tingui el dret econòmic justificat; quan paga una empresa, un responsable o USOC, no es pressuposa que tot el saldo pertoqui a l'alumne inscrit. Conservar origen (UUID de cobrament, factura i inscripció afectada), import cobrat disponible, event de baixa/canvi, persona que aprova, motiu i eventual rectificativa. Els camps opcionals del builder no demostren per si sols la validació d'aquestes relacions.
+
+**C-ANTIC — revisió manual, NO caducitat automàtica:** l'usuària indica que el saldo d'una baixa no caduca automàticament. Secretaria revisa manualment els saldos molt antics, **per exemple superiors a cinc anys**, abans d'utilitzar-los o decidir-ne el tractament. El llindar dels cinc anys és una pauta de revisió, **no** una data de venciment que autoritzi `EXPIRED`, eliminació del registre o pèrdua de drets per si sola. `review_after` es pot desar al builder actual, però no acredita una alerta o revisió automàtica implementada.
+
+**C-ÚNIC — doble clic/repetició:** `CreditBalanceService::createCredit()` genera un nou UUID per invocació i no acredita deduplicació per event d'origen. La pantalla ha de determinar si existeix ja un saldo procedent de la mateixa quantitat/event/inscripció i evitar una segona alta; si ja s'ha creat però ha fallat la sincronització, recuperar UUID_CREDIT existent i no repetir la conversió dels mateixos fons. Després de crear crèdit, la seva aplicació és UC-29a, no un segon `CHARGE` real.
+
+### 1.5. Proves d'acceptació addicionals (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| SA-01 | Baixa amb 80 € cobrats i decisió de saldo de 80 € | Un crèdit del titular justificat; fons d'origen disponibles reduïts sense segon CHARGE. |
+| SA-02 | Baixa pagada per una empresa | Saldo a titular econòmic justificat, no assignat automàticament a alumne. |
+| SA-03 | Crear dues vegades saldo per mateixa baixa/import | Un únic UUID_CREDIT o bloqueig de conflicte; cap duplicació de valor. |
+| SA-04 | Retorn monetari parcial i saldo de la resta | Suma de sortides acotada pels diners efectivament cobrats de l'origen. |
+| SA-05 | Saldo de més de cinc anys | Revisió manual i historial; no caducitat ni supressió automàtiques. |
+| SA-06 | Bonificació comercial sense ingrés | Classificació diferenciada; cap entrada de caixa fictícia. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
