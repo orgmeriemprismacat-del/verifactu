@@ -41,6 +41,12 @@
 
 **Proves localitzades (no executades en aquesta revisió):** `ManualRectificationServiceTest::testIssuesRectificationInvoiceAndLinksOriginalInvoice`, `testIssuesRectificationByVisibleInvoiceNumber` i `testRejectsUnknownOriginalInvoiceBeforeIssuingRectification`. No demostren recuperació davant de fallada entre emissió, vinculació i actualització de l'original.
 
+### 1.8. Revisió: correcció fiscal ≠ moviment intern o extern de fons — PENDENT
+
+UC-05 conserva factura i registre originals i emet la rectificativa; **això no crea per si mateix un `REFUND`, un traspàs entre inscripcions ni una nova entrada de caixa**. Quan la causa és un canvi de curs o una baixa, la decisió econòmica ha d'enllaçar la rectificativa a cadascun dels moviments **efectius** del saldo d'inscripció: transferència a destí, retorn real o creació de saldo. Un canvi només de receptor o concepte pot necessitar document fiscal, però no té per què alterar l'atribució econòmica. La coordinació i la recuperació entre l'emissió de la factura R, la relació fiscal i els moviments econòmics són pendents, sense suposar un únic commit existent.
+
+[Revisió transversal de fons per inscripció](00-revisio-moviments-inscripcions.md).
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
