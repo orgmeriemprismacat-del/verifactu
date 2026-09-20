@@ -42,6 +42,26 @@
 
 **Proves localitzades, no executades:** `RedsysUsocInvoiceServiceTest`, `UsocEntityInvoiceServiceTest` i preflight/preproducció respectius. Existència de proves no acredita el cicle complet de dos pagadors fins a dues factures cobrades i dos imports atribuïts.
 
+### 1.3. Validació manual, import de referència i curs gratuït USOC — contrast amb el circuit de PrisMa
+
+**U-VAL — validació abans del descompte:** el circuit descrit identifica el descompte «Afiliat USOC» amb `TIPUS_DESC=4`, però la persona que el demana pot estar pendent de comprovació (`VALID_DESC=0`). La intranet ha de confirmar manualment l'afiliació amb USOC abans d'establir `VALID_DESC=1` i permetre la compra/facturació amb aquest descompte (UC-19). Si no es confirma, el circuit ha de recalcular l'import de compra abans de l'emissió; si ja existeix factura, no corregir-ne l'import amb un UPDATE silenciós. Que el builder exigeixi `VALID_DESC=1` no acredita que la comprovació externa s'hagi dut a terme.
+
+**U-IMPORT — import observat, no tarifa universal:** el xat original i els fluxos del projecte descriuen com a cas habitual un primer pagament de **10 € de l'alumne** i el pagament de la diferència per USOC; el descompte d'afiliació es descriu com del **25 %**. Aquests valors han de sortir del preu i de les condicions confirmades **de l'operació concreta**; no es poden codificar com a constants universals en el SIF ni inferir l'import USOC simplement restant `A_PAGAR - PAGAMENT` d'un registre viu. Conservar snapshot d'import base, import de l'alumne, import assumit per USOC, descompte, condició validada, data/usuari de validació i receptors fiscals diferents.
+
+**U-GRATUÏT — variant històrica «Altres: Curs gratuït USOC»:** el xat també descriu aquest circuit especial i el paràmetre `anticipi-preu-usoc`. No presumir que segueixi la regla 10 € + diferència, ni que pugui passar directament per `RedsysUsocInvoiceService`: la ruta actual de UC-19a/19b exigeix `student_amount > 0` i `entity_amount > 0` i, per tant, **no acredita la tramitació d'un import d'alumne zero**. Cal recuperar les condicions i els imports exactes del cas especial, decidir receptor i factura(s) corresponents i preparar un circuit fiscal validat abans d'adaptar la implementació; cap factura de 0 € o CHARGE fictici no es crea per completar artificialment les dues parts.
+
+**U-ORIGEN — deute diferent d'ingrés:** emetre la factura USOC encara pendent no atribueix fons de l'entitat a la inscripció. Cada cobrament parcial de l'entitat es vincula exclusivament a la factura USOC, mentre que el CHARGE inicial Redsys de l'alumne continua pertanyent a la factura alumne. Un canvi/baixa ha de consultar les dues factures i titularitats abans de decidir reassignacions, retorns o saldos.
+
+### 1.4. Proves d'acceptació afegides (no executades)
+
+| ID | Cas | Resultat exigible |
+| --- | --- | --- |
+| US-01 | Alumne sol·licita USOC i VALID_DESC continua a 0 | Cap emissió USOC amb descompte fins a validació manual acreditada. |
+| US-02 | Afiliació denegada abans de facturar | Recalcular compra sense descompte i no crear dues factures USOC fictícies. |
+| US-03 | Cas habitual amb primer ingrés alumne de 10 € | Snapshot d'import de cada part i dues factures diferenciades, només el cobrament real de l'alumne al començament. |
+| US-04 | «Curs gratuït USOC» amb part d'alumne igual a 0 | Circuit especial pendent de decisió; no forçar builder que exigeix imports positius ni CHARGE de 0 €. |
+| US-05 | Entitat encara no ha pagat o paga parcialment | Factura entitat pendent/PARTIAL segons moviment real, factura alumne intacta. |
+| US-06 | Baixa/canvi quan alumne ha pagat i USOC deu la seva part | No retornar diners no cobrats ni confondre titulars o rectificar automàticament les dues factures. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
