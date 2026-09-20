@@ -85,7 +85,7 @@ class PersonalDataPropagationGateway {
 }
 class LegacySyncService {
  <<PHP existent: altra responsabilitat>>
- +syncInvoice(result) array
+ +syncAfterSifSuccess(legacyDb,relations,uuidFactura,numVisible,estatCobrament) void
 }
 PersonalDataChangeService --> PersonalDataChangeRepository : petició i resultats
 PersonalDataChangeService --> PersonalDataPropagationGateway : dades vigents
