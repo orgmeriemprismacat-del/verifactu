@@ -2,37 +2,48 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels casos revisats
+## Mapa dels 30 casos d'ús revisats
 
-| ID | Cas | Fitxa amb diagrama de casos d'ús, classes i seqüència | Què s'ha contrastat |
+**[Model general de classes del SIF](00-model-classes-general.md)** · **[Cobertura de tots els 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Revisió del registre de fons per inscripció](00-revisio-moviments-inscripcions.md)**
+
+| ID | Denominació del catàleg | Document específic | Estat original del catàleg |
 | --- | --- | --- | --- |
-| UC-01 | Emetre o reutilitzar una factura | [Fitxa + UML UC-01](uc-001-emetre-o-reutilitzar-factura.md) | Validador, transacció, numeració, cadena, cua, pagament inicial, idempotència i proves existents |
-| UC-02 | Registrar un pagament sobre factura existent | [Fitxa + UML UC-02](uc-002-registrar-cobrament-factura.md) | Moviment, assignacions, càlcul de l'estat, adaptador manual i proves existents |
-| UC-03 | Processar un cobrament Redsys asíncron | [Fitxa + UML UC-03](uc-003-processar-cobrament-redsys-asincron.md) | Signatura, intenció, notificació, duplicat, cua, worker, handlers, reintents i proves existents |
-| UC-04 | Emetre una factura abans de cobrar | [Fitxa + UML UC-04](uc-004-emetre-factura-abans-cobrar.md) | Constructor específic, emissió sense pagament i cobrament posterior en UC-02 |
-| UC-05 | Rectificar una factura | [Fitxa + UML UC-05](uc-005-rectificar-factura.md) | Localització original, construcció sèrie R, vinculació, estats i risc d'atomicitat |
-| UC-06 | Decidir i registrar devolució, saldo o compensació (cas mare) | [Fitxa + UML UC-06](uc-006-devolucio-saldo-compensacio.md) | Matriu de decisió, distinció dels efectes econòmics i seqüència objectiu sense classe orquestradora fictícia |
-| UC-22 | Registrar una transferència | [Fitxa + UML UC-22](uc-022-registrar-transferencia.md) | Identificació de factura, builder manual, referència, idempotència, conciliació pendent |
-| UC-23 | Registrar una fracció | [Fitxa + UML UC-23](uc-023-registrar-fraccio.md) | Import fraccionat, inscripció, usuari, idempotència de quota i càlcul del pendent |
-| UC-28 | Registrar devolució | [Fitxa + UML UC-28](uc-028-registrar-devolucio.md) | Moviment REFUND, assignació, estat de cobrament, separació respecte UC-05 |
-| UC-29 | Crear saldo | [Fitxa + UML UC-29](uc-029-crear-saldo.md) | Titular i origen, credit_balance ACTIVE, duplicats de creació no controlats en el servei revisat |
-| UC-29a | Aplicar compensació | [Fitxa + UML UC-29a](uc-029a-aplicar-compensacio.md) | Bloqueig saldo/factura, pendent, consum atòmic, idempotència i titularitat pendent |
-| UC-21 | Empresa/responsable paga inscripcions | [Fitxa + UML UC-21](uc-021-empresa-responsable-paga-inscripcions.md) | Receptor fiscal i participants, factura prèvia i cobrament posterior, distinció respecte al grup pagat inicialment |
-| UC-24 | Registrar cobrament de reclamació | [Fitxa + UML UC-24](uc-024-registrar-cobrament-reclamacio.md) | `ClaimPaymentService`, idempotència, assignació CLAIM_PAYMENT, correus i URL pendents |
-| UC-26 | Canviar de curs | [Fitxa + UML UC-26](uc-026-canviar-de-curs.md) | Regles de preu/descompte, historial, diferència i seqüència objectiu marcada no implementada |
-| UC-27 | Donar de baixa | [Fitxa + UML UC-27](uc-027-donar-de-baixa.md) | Separació entre baixa, devolució, saldo i rectificativa; event previst i components parcials |
+| UC-01 | Emetre o reutilitzar factura | [Fitxa + UML](uc-001-emetre-o-reutilitzar-factura.md) | `[BASE]` |
+| UC-02 | Registrar pagament sobre factura | [Fitxa + UML](uc-002-registrar-cobrament-factura.md) | `[BASE]` |
+| UC-03 | Processar cobrament Redsys asíncron | [Fitxa + UML](uc-003-processar-cobrament-redsys-asincron.md) | `[ASYNC]` |
+| UC-04 | Emetre factura abans de cobrar | [Fitxa + UML](uc-004-emetre-factura-abans-cobrar.md) | `[PARCIAL]` |
+| UC-05 | Crear rectificativa | [Fitxa + UML](uc-005-rectificar-factura.md) | `[PARCIAL]` |
+| UC-06 | Registrar devolució, saldo o compensació | [Fitxa + UML](uc-006-devolucio-saldo-compensacio.md) | `[PARCIAL]` |
+| UC-07 | Consultar factura, estat i document | [Fitxa + UML](uc-007-consultar-factura-estat-document.md) | `[DISSENY]` |
+| UC-08 | Gestionar incidència | [Fitxa + UML](uc-008-gestionar-incidencia-sif.md) | `[PARCIAL]` |
+| UC-09 | Remetre registre a AEAT | [Fitxa + UML](uc-009-remetre-registre-aeat.md) | `[DISSENY]` |
+| UC-13 | Orquestrar la doble facturació USOC | [Fitxa + UML](uc-013-orquestrar-doble-facturacio-usoc.md) | `[PARCIAL]` |
+| UC-14 | Comprar curs normal per Redsys | [Fitxa + UML](uc-014-comprar-curs-redsys.md) | `[ASYNC/PARCIAL]` |
+| UC-15 | Comprar pack | [Fitxa + UML](uc-015-comprar-pack.md) | `[BASE/ASYNC/PARCIAL]` |
+| UC-16 | Facturar grup | [Fitxa + UML](uc-016-facturar-grup.md) | `[BASE/ASYNC/PARCIAL]` |
+| UC-17 | Comprar regal | [Fitxa + UML](uc-017-comprar-regal.md) | `[BASE/ASYNC/PARCIAL]` |
+| UC-19a | Facturar part de l'alumne USOC | [Fitxa + UML](uc-019a-facturar-part-alumne-usoc.md) | `[BASE/ASYNC/PARCIAL]` |
+| UC-19b | Facturar diferència a USOC | [Fitxa + UML](uc-019b-facturar-part-entitat-usoc.md) | `[BASE/PARCIAL]` |
+| UC-21 | Empresa/responsable paga inscripcions | [Fitxa + UML](uc-021-empresa-responsable-paga-inscripcions.md) | `[PARCIAL]` |
+| UC-22 | Registrar transferència | [Fitxa + UML](uc-022-registrar-transferencia.md) | `[BASE/PARCIAL]` |
+| UC-23 | Registrar fracció | [Fitxa + UML](uc-023-registrar-fraccio.md) | `[BASE/PARCIAL]` |
+| UC-24 | Registrar cobrament de reclamació | [Fitxa + UML](uc-024-registrar-cobrament-reclamacio.md) | `[BASE/PARCIAL]` |
+| UC-26 | Canviar de curs | [Fitxa + UML](uc-026-canviar-de-curs.md) | `[DISSENY/PARCIAL]` |
+| UC-27 | Donar de baixa | [Fitxa + UML](uc-027-donar-de-baixa.md) | `[DISSENY/PARCIAL]` |
+| UC-28 | Registrar devolució | [Fitxa + UML](uc-028-registrar-devolucio.md) | `[BASE/PARCIAL]` |
+| UC-29 | Crear saldo | [Fitxa + UML](uc-029-crear-saldo.md) | `[BASE/PARCIAL]` |
+| UC-29a | Aplicar compensació | [Fitxa + UML](uc-029a-aplicar-compensacio.md) | `[BASE/PARCIAL]` |
+| UC-30 | Anul·lar registre improcedent | [Fitxa + UML](uc-030-anul-lar-registre-improcedent.md) | `[DISSENY]` |
+| UC-31 | Subsanar registre | [Fitxa + UML](uc-031-subsanar-registre.md) | `[DISSENY]` |
+| UC-63 | Crear la intenció Redsys des de l'ecommerce | [Fitxa + UML](uc-063-crear-intencio-redsys.md) | `[ASYNC/PARCIAL]` |
+| UC-71 | Registrar un canvi de curs complet | [Fitxa + UML](uc-071-registrar-canvi-curs-complet.md) | `[DISSENY/PARCIAL]` |
+| UC-72 | Registrar baixa i decisió econòmica | [Fitxa + UML](uc-072-registrar-baixa-decisio-economica.md) | `[DISSENY/PARCIAL]` |
 
-**Abast actual:** aquests quinze casos estan redactats i contrastats documentalment amb les classes i proves citades; **això no vol dir que tot el catàleg UC estigui complet, que s'hagin executat els tests o que els casos estiguin desplegats**.
+**Abast actual:** 30 fitxes individuals amb UML revisat i 112 casos pendents de revisió específica. Les etiquetes d'estat de la darrera columna són les del catàleg original; el codi consultat pot haver evolucionat (UC-09/30/31 ja tenen nucli executable, però no acreditació productiva). **Documentat no significa implementat ni provat**. Els documents UC-26/27/71/72 distingeixen orquestració objectiu de nuclis PHP existents.
 
-## Revisió transversal bloquejant · fons atribuïts a cada inscripció
+### Traçabilitat econòmica bloquejant
 
-**[Llegir la revisió del model, la proposta de taula i els diagrames](00-revisio-moviments-inscripcions.md).**
-
-En revisar els casos ja redactats s'ha detectat una mancança de disseny comuna: `payment_transaction` conserva el moviment extern, `payment_allocation` assigna imports a **factures** i `fact_rels` vincula fonts/participants, però no hi ha en el camí de codi revisat un llibre quantitatiu i immutable que indiqui **per cada inscripció** quin import s'ha cobrat, traspassat a una altra inscripció, retornat, convertit en saldo o aplicat des d'un saldo.
-
-La revisió proposa `enrollment_fund_movement` (nom i camps **pendents d'aprovació**) per registrar origen, destí, import, tipus i referències d'operació. **No és una migració aplicada ni una classe PHP implementada.** Les quinze fitxes inclouen ara la seva regla específica de traçabilitat; UC-21, UC-26 i UC-27 incorporen a més una seqüència objectiu amb el repositori nou clarament marcat com a PROPOSTA.
-
-**Conseqüència sobre l'estat:** les quinze fitxes són documents redactats i contrastats amb el nucli fiscal/econòmic existent, però els casos que mouen fons entre inscripcions, saldos o diverses persones **no poden considerar-se funcionalment tancats** sense validar i implementar aquesta traça o una alternativa equivalent. El traspàs intern no crea un segon `CHARGE` bancari i una factura sense cobrament no crea cap atribució de fons.
+Les accions que cobren, retornen, compensen o reassignen imports d'inscripcions han de conservar import, origen, destí i pagament original. La proposta `enrollment_fund_movement` **no és una migració ni un repositori implementats**. Un traspàs entre inscripcions no crea un segon CHARGE. [Model i invariants](00-revisio-moviments-inscripcions.md).
 
 ## Com llegir el paquet de cada acció
 
@@ -44,25 +55,9 @@ La revisió proposa `enrollment_fund_movement` (nom i camps **pendents d'aprovac
 
 **Visualització:** GitHub representa els blocs `mermaid` de classes i seqüència. Els blocs `plantuml` són la **font UML editable** dels casos d'ús, però GitHub pot mostrar-los com a codi; per obtenir-ne la imatge cal renderitzar-los amb PlantUML o incorporar-ne un SVG generat. No confondre la disponibilitat del codi del diagrama amb una imatge ja exportada.
 
-## Matriu de traçabilitat preliminar
+## Matriu de traçabilitat i pendents
 
-| Acció | Fitxa | Cas d'ús UML | Classes | Seqüència | Dependències funcionals |
-| --- | --- | --- | --- | --- | --- |
-| UC-01 | Sí | Sí | Sí | Sí | UC-04, UC-05, UC-09, UC-14… |
-| UC-02 | Sí | Sí | Sí | Sí (general + manual) | UC-04, UC-22, UC-23, UC-28 |
-| UC-03 | Sí | Sí | Sí | Sí (HTTP + worker) | UC-01, UC-02, UC-51, UC-52, UC-63 |
-| UC-04 | Sí | Sí | Sí | Sí (emissió + cobrament vinculat) | UC-01, UC-02, UC-21 |
-| UC-05 | Sí | Sí | Sí | Sí (nominal + fallada intermèdia) | UC-01, UC-28, UC-30, UC-31, UC-74 |
-| UC-06 | Sí | Sí | Sí | Sí (tria objectiu + variants en fitxes independents) | UC-28, UC-29, UC-29a, UC-05 |
-| UC-22 | Sí | Sí | Sí | Sí (transferència) | UC-02, UC-105 |
-| UC-23 | Sí | Sí | Sí | Sí (fraccions successives) | UC-02 |
-| UC-28 | Sí | Sí | Sí | Sí (devolució parcial/total) | UC-02, UC-05 |
-| UC-29 | Sí | Sí | Sí | Sí (creació saldo) | UC-29a, UC-06 |
-| UC-29a | Sí | Sí | Sí | Sí (consum i moviment) | UC-02, UC-29 |
-| UC-21 | Sí | Sí | Sí | Sí (emissió + cobrament i canvi posterior) | UC-04, UC-02, UC-05 |
-| UC-24 | Sí | Sí | Sí | Sí (cobrament reclamat) | UC-02, UC-43 |
-| UC-26 | Sí | Sí | Sí | Sí (flux objectiu; orquestrador pendent) | UC-71, UC-05, UC-28, UC-29 |
-| UC-27 | Sí | Sí | Sí | Sí (flux objectiu; orquestrador pendent) | UC-72, UC-28, UC-29, UC-05 |
+La [matriu de cobertura completa](00-matriu-cobertura-cataleg.md) vincula cada UC original amb la seva fitxa UML quan existeix i mostra els casos pendents, sense marcar com a acabat un cas perquè té una plantilla. Les dependències i fonts concretes consten a cada fitxa i al [model de classes general](00-model-classes-general.md).
 
 ## Criteris per ampliar aquest catàleg
 
