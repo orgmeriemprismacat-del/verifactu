@@ -41,6 +41,23 @@
 
 **Evidència i buit:** `LegacyGiftInvoicePayloadBuilder` registra `REGAL` a la factura de compra i no una inscripció de bescanvi. `commercial_entitlement` és **estructura de BD definida**. No s'han executat proves de bescanvi ni s'ha acreditat cap `GiftRedemptionService` al SIF.
 
+### 1.3. Alta acadèmica diferida i canvi de curs d'un regal — contrast amb el xat original
+
+**B-ALTA — moment d'identificació:** en el circuit declarat, el comprador paga i rep un codi; només quan la persona beneficiària el bescanvia completa les seves dades i es registra a `inscripcions`. El servidor ha de vincular el codi/dret de compra a la inscripció creada o confirmada, conservant comprador/receptor fiscal original i identificador de regal, sense crear una segona factura per la mera matrícula. L'operació de bescanvi no pot assumir que a UC-17 existia una inscripció definitiva o NIF fiscal del beneficiari.
+
+**B-CURS — regal que s'aplica a un altre curs:** el xat indica que, en el procediment de gestió habitual, un regal no utilitza la baixa ordinària per escollir un altre curs, sinó el **canvi de curs**. Aquest és un escenari per UC-26/71 amb l'entitlement de regal com a origen; cal comprovar elegibilitat, preu nou, diferència si n'hi ha i qui està autoritzat a decidir el canvi. **No** consumir dues vegades el codi ni registrar una nova entrada CHARGE pel preu ja pagat; si es cobra una diferència real, fer una operació de cobrament diferenciada i classificar l'event fiscal que correspongui. El xat no estableix una regla universal de retorn o caducitat de tots els regals: consultar condicions vigents i UC-18a.
+
+**B-CODI — col·lisió amb l'estat acadèmic:** un mateix codi vàlid no pot obrir dues inscripcions per un doble clic, recàrrega o petició concurrent. Una inscripció ja creada però consum pendent és un estat incomplet a reconciliar, no autorització per crear una segona inscripció. No usar el text de dedicatòria o el NIF del comprador com a identificadors únics del beneficiari. L'accés de la persona destinatària a la inscripció pròpia és separat de l'accés a la factura fiscal del comprador.
+
+### 1.4. Proves addicionals del bescanvi (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| BS-01 | Comprar un regal sense ID_INSC definitiu i bescanviar-lo després | Crear/vincular una única inscripció quan el beneficiari aporta les seves dades, sense nova factura. |
+| BS-02 | Doble clic de bescanvi del mateix codi | Reutilitzar mateixa inscripció/operació i cap segon consum. |
+| BS-03 | Regalar i canviar de curs després del bescanvi | Nou event de canvi amb dret original i diferència explícita si existeix; cap segon CHARGE pel valor ja cobrat. |
+| BS-04 | Codi reservat però falla alta de l'alumne | Incident/reconciliació o alliberament segur; cap inscripció duplicada. |
+| BS-05 | Beneficiari consulta factura original del comprador | Permís denegat si no és receptor autoritzat; visibilitat de la seva inscripció separat. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -145,6 +162,30 @@ end
 Note over S,L: Cap CHARGE nou pel valor ja cobrat a UC-17
 ```
 
+### 4.1. Seqüència — bescanvi i eventual canvi de curs (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor B as Beneficiari
+participant U as Portal de bescanvi [pendent]
+participant E as Dret de regal [esquema, writer pendent]
+participant I as Intranet/inscripcions [adaptació pendent]
+participant C as Canvi de curs UC-26/71 [orquestració pendent]
+B->>U: Codi i dades pròpies d'inscripció
+U->>E: Validar i reservar dret de compra ja pagat
+E-->>U: Compra/regal vàlids; factura del comprador conservada
+U->>I: Crear o recuperar inscripció del beneficiari
+I-->>U: ID_INSC únic
+U->>E: Consum únic i enllaç REGAL→INSCRIPCIO
+U-->>B: Inscripció confirmada, sense nova factura/CHARGE
+opt Després es demana un altre curs
+ B->>C: Sol·licitar canvi amb referència al regal
+ C->>C: Analitzar curs/preu/diferència i impacte fiscal
+ C-->>B: Resultat o regularització pendent, sense consum duplicat
+end
+Note over U,C: Bescanvi i coordinació del canvi encara no són codi SIF acreditat.
+```
 ## 5. Traçabilitat
 
 [UC-18 original](../06-fitxes-funcionals/uc-018.md) · [UC-18a original](../06-fitxes-funcionals/uc-018a.md) · [UC-17 compra](uc-017-comprar-regal.md) · [UC-119 complet original](../06-fitxes-funcionals/uc-119.md) · [Diccionari d'estats de dret comercial](../05-governanca-operacio/24-diccionari-camps-i-valors.md) · [Migració entitlement i events](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [LegacyGiftInvoicePayloadBuilder](../../sif/src/Service/LegacyGiftInvoicePayloadBuilder.php) · [Revisió de fons](00-revisio-moviments-inscripcions.md).
