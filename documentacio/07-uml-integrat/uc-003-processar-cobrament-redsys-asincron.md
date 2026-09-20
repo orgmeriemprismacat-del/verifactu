@@ -52,6 +52,12 @@
 
 **Proves localitzades, no executades:** `RedsysAsyncFlowTest::testAuthorizedCallbackIsProcessedAsynchronouslyFromSnapshot` i `testTwoConnectionsCannotClaimSameJob`, a més de proves de callback, worker, despatxador, signatura i handlers específics.
 
+### 1.3. Revisió: recepció, cobrament i atribució a participants — PENDENT
+
+El callback validat i l'encuat **no** són un assentament de diners per inscripció. Quan un handler del worker confirma una factura amb cobrament inicial, ha de conservar `DS_ORDER`, `IDPAG`, `UUID_PAYMENT` i, **per cadascuna de les inscripcions del snapshot**, l'import realment atribuït. El pagament extern és únic; el detall intern pot tenir diverses files per curs, pack, grup o finançament mixt. Una repetició de callback/worker ha de reutilitzar **tant** el cobrament **com** totes les atribucions, sense inserir línies econòmiques noves. El repositori actual crea `payment_allocation` per **factura**, no el registre quantitatiu per participant; la distribució i el control de reintents del nou ledger són **disseny pendent**.
+
+[Model de moviments per inscripció](00-revisio-moviments-inscripcions.md).
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
