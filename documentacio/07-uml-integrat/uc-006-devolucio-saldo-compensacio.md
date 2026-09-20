@@ -41,6 +41,12 @@
 - La decisió fiscal, l'autorització, la traça de titular i les comprovacions de duplicats s'han de tancar abans que una pantalla única pugui automatitzar la tria.
 - Les proves individuals dels serveis existeixen, però no demostren un orquestrador transaccional comú ni un flux complet de baixa/canvi de curs fins a cobrament i rectificació.
 
+### 1.4. Revisió: la decisió econòmica exigeix traça quantitativa per origen i destí — PENDENT
+
+La tria UC-06 ha de desglossar **cada tram d'import**: una devolució és una sortida des d'una inscripció cap a l'exterior amb un `REFUND` real; crear saldo amb diners ja cobrats mou l'atribució d'una inscripció a `credit_balance` **sense** crear un nou cobrament; aplicar saldo mou atribució de `credit_balance` a la inscripció destí i registra `COMPENSATION` a la factura corresponent. Un dret comercial atorgat sense diners ingressats s'ha de classificar separadament, sense una entrada de caixa fictícia. Cada variant conserva referència a l'event de canvi/baixa i al titular legítim. El cas mare **no** ha de crear tres moviments automàticament.
+
+[Esquema proposat i exemple de repartiment](00-revisio-moviments-inscripcions.md).
+
 ## 2. Diagrama UML de casos d'ús — alternatives independents
 
 ```plantuml
