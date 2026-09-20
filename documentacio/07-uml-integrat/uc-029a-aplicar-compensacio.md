@@ -43,6 +43,12 @@
 
 **Proves existents, no executades aquí:** `CreditBalanceServiceTest::testAppliesCreditAsCompensationAndConsumesAvailableBalanceOnce`, `testAppliesFullCreditByVisibleInvoiceNumberAndMarksCreditUsed`, `testRejectsApplyingMoreThanAvailableCredit`, `testRejectsApplyingMoreThanInvoiceOutstandingAmount`.
 
+### 1.3. Revisió: el consum del crèdit ha de tenir destí d'inscripció — PENDENT
+
+`CreditBalanceService` consumeix saldo i registra `COMPENSATION` **a la factura** en una mateixa transacció, però no conserva una fila quantitativa per cadascuna de les inscripcions beneficiàries quan una factura cobreix diverses persones. UC-29a ha de registrar `CREDIT → INSCRIPCIÓ` per cada import aplicat, amb `UUID_CREDIT`, `UUID_PAYMENT` i l'assignació a factura relacionats. La suma de les atribucions no pot superar el saldo consumit; cap consum de saldo no és un ingrés bancari nou. Cal validar titularitat del crèdit i permís d'aplicar-lo a cada participant.
+
+[Model i reconciliació proposats](00-revisio-moviments-inscripcions.md).
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
