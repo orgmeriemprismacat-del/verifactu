@@ -46,6 +46,30 @@ El builder coneix `id_insc` i l'inclou a la **clau idempotent** i a `provider_re
 
 [Proposta de registre per inscripció](00-revisio-moviments-inscripcions.md).
 
+### 1.4. Fraccionament de negoci, diversos intents i excepció de pack — contrast amb el xat original
+
+**Regla operativa declarada:** el primer pagament es fa habitualment abans de començar el curs i l'import s'ha d'haver completat en acabar-lo; si no hi ha pagament inicial, la gestió pot concedir una excepció justificada fins a la segona setmana (UC-96). Les quotes previstes, les reclamacions i l'estat de matrícula no són moviments de caixa: registrar només els cobraments realment confirmats. L'excepció, la durada i els avisos finals no es dedueixen de `ManualInstallmentPaymentService` i s'han de verificar en el circuit de gestió.
+
+**F-REDSYS — un `IDPAG`, diverses operacions bancàries:** el xat original confirma que un mateix IDPAG pot aparèixer amb diversos `DS_ORDER`, per fraccionaments o intents denegats i després acceptats. IDPAG identifica el context de l'enllaç/inscripció, **no** una clau global de deduplicació de tots els cobraments. Cada cobrament Redsys real es concilia pel `DS_ORDER` corresponent i per la notificació validada (UC-03/51), mentre que una notificació denegada no genera CHARGE. Si la fracció arriba per transferència, es verifica la referència de l'entrada bancària (UC-22); no registrar la mateixa entrada després com una fracció MANUAL addicional.
+
+**F-LEGACY — `FRACCIO` i `DATA PAG`:** al llegat, el text FRACCIO pot concatenar imports i dates dels abonaments; `PAGAMENT` acumula el pagat i `DATA PAG` pot completar-se quan la inscripció està totalment pagada. El SIF conserva cada moviment original amb data pròpia a `payment_transaction` i la seva assignació; la representació textual del llegat és només resum sincronitzat. En el modal actual «Passar pagaments» l'import introduït, la data, el banc i la columna de fracció s'han de contrastar amb la factura/inscripció real al servidor, sense derivar un CHARGE a partir d'un càlcul visual.
+
+**F-PACK — excepció que no s'ha d'esborrar:** aquest cas UC-23 descriu **diversos cobraments d'una factura ja emesa**, que no generen noves factures. En canvi, el xat original diu que, en un pack dividit excepcionalment des de la intranet, el circuit històric pot generar **més d'una factura, segons els pagaments**. La documentació final del pack també contempla una factura per cada pagament real en aquella variant excepcional. No traslladar automàticament la regla «una factura per totes les fraccions» a aquest altre circuit: cal classificar si existeix una única factura prèvia o si són operacions/parts facturables diferents (UC-15/16), amb imports, línies i justificació aprovats. **No està acreditat aquí un orquestrador que resolgui automàticament les dues variants.**
+
+**F-IDENT — identificar fraccions repetides:** la clau manual actual concatena ID_INSC, dia, import i usuari, però omet un identificador únic d'operació/quota i la factura. Dos cobraments legítims del mateix import i dia podrien fusionar-se; una petició amb mateix conjunt d'aquests camps però factura diferent també podria retornar el moviment anterior. Distingir reintent exacte d'ingrés nou, exigir clau estable per moviment confirmat, validar la relació inscripció/factura i les assignacions, i comparar el payload original per detectar conflictes. Són controls pendents d'integració, no garanties de l'implementat.
+
+### 1.5. Proves d'acceptació específiques de fraccionament (no executades)
+
+| ID | Escenari | Resultat a acreditar |
+| --- | --- | --- |
+| FR-01 | Dues fraccions reals contra una factura ja emesa | Dos UUID_PAYMENT, PARTIAL i PAID segons cobrament net; cap factura nova. |
+| FR-02 | Un IDPAG amb dos DS_ORDER legítims acceptats | Dues fraccions diferents; cap col·lapse de les dues per IDPAG. |
+| FR-03 | DS_ORDER denegat, després un altre acceptat | Cap CHARGE pel denegat; CHARGE només pel confirmat. |
+| FR-04 | Dues fraccions manuals iguals el mateix dia i usuari | Identificador diferenciat del fet real; no fusionar cobraments legítims. |
+| FR-05 | Mateixa clau manual sobre factura diferent | Conflicte de payload/relació, no reutilitzar una fracció aliena. |
+| FR-06 | Transferència ja registrada i cercada a la columna FRACCIO | Una sola entrada bancària i cap segon CHARGE de tipus MANUAL. |
+| FR-07 | Una fracció entra després de baixa, canvi o factura ja corregida | Relectura de l'estat i incidència/regularització, no imputació al destí obsolet. |
+| FR-08 | Pack excepcional dividit per decisió de la intranet | Identificar explícitament el circuit de facturació del pack, sense aplicar a cegues la regla d'UC-23. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -151,6 +175,31 @@ end
 Note over S,DB: No hi ha una segona emissió fiscal pel cobrament fraccionat
 ```
 
+### 4.1. Seqüència — quotes previstes, cobrament verificat i reintent (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant UI as Passar pagaments [adaptador pendent]
+participant R as Conciliació Redsys/banc [PENDENT]
+participant P as PaymentService [existent]
+participant DB as BD SIF
+O->>UI: Informar fracció d'una factura preexistent
+UI->>R: Verificar fet real per DS_ORDER/referència o justificant
+alt Quota prevista o intent denegat
+ UI-->>O: Mantenir pendent, cap CHARGE
+else Cobrament confirmat i nou
+ UI->>UI: Comprovar ID_INSC, factura, import restant i clau de moviment
+ UI->>P: registerPayment(CHARGE, assignació a factura preexistent)
+ P->>DB: INSERT payment_transaction i payment_allocation
+ P-->>UI: UUID_PAYMENT
+ UI-->>O: Estat PARTIAL/PAID, sense factura nova
+else Ingrés ja registrat o identificador en conflicte
+ UI-->>O: Reutilitzar moviment equivalent o obrir incidència, sense nou CHARGE
+end
+Note over UI,R: Calendari i conciliació de fraccions encara no són funcions acreditades del servei manual.
+```
 ## 5. Traçabilitat
 
 [Fitxa original UC-23](../06-fitxes-funcionals/uc-023.md) · [UC-02 revisada](uc-002-registrar-cobrament-factura.md) · [ManualInstallmentPaymentService](../../sif/src/Service/ManualInstallmentPaymentService.php) · [ManualInstallmentPaymentPayloadBuilder](../../sif/src/Service/ManualInstallmentPaymentPayloadBuilder.php) · [PaymentService](../../sif/src/Service/PaymentService.php) · [ManualInstallmentPaymentServiceTest](../../sif/tests/Integration/ManualInstallmentPaymentServiceTest.php).
