@@ -47,6 +47,30 @@ Una transferència bancària pot cobrir una o diverses inscripcions; `ManualPaym
 
 [Model i invariants de conciliació](00-revisio-moviments-inscripcions.md).
 
+### 1.4. Contrast amb «Passar pagaments» i transferència multifactura — integració pendent
+
+**Flux real de la intranet (xat original i documentació del procediment):** la persona operadora obre `/alumnes/pagaments/`, tria ALUMNE o GRUP i cerca amb **un sol criteri** entre NIF/NIE, codi regal i número de factura. La fila mostra `A PAGAR`, `PAGAT`, import nou `PAGAMENT`, `DATA PAG`, `BANC`, observacions, fracció i accions. El JS valida visualment import, data i banc i crida per `GET` a `ajax/alumnes/efectuarPagament.php`; aquest crida `efectuarPagament(...)` al llegat. Si hi ha una factura anterior, el llegat pot entrar a `efectuarPagamentFacturaGenerada(...)` i actualitzar `factures`/inscripcions. **Aquests passos són el circuit antic, no l'adaptador SIF ja implementat.** El canal final ha de passar a POST autoritzat, validació al servidor i sincronització del llegat després del commit SIF; no ha de modificar les dades fiscals de la factura emesa.
+
+**T-MULTI — una transferència real paga diverses factures ja emeses (confirmat al xat original):** després d'identificar l'ingrés bancari una sola vegada, l'operador selecciona cadascuna de les factures vigents i indica l'import exacte que se li assigna. La suma de `payment_allocation.IMPORT_ASSIGNAT` ha de coincidir amb l'import real destinat a factures; si hi ha excés o import encara no assignat, cal tramitar UC-104 sense falsejar el repartiment. Es registra **un sol `payment_transaction`** amb referència bancària original i N assignacions, evitant N cobraments bancaris ficticis. `ManualPaymentPayloadBuilder` només produeix una assignació: la distribució multifactura és un contracte objectiu d'UC-105, no una capacitat acreditada de la ruta manual UC-22. La distribució entre inscripcions d'una factura de grup, quan existeixi, també necessita l'atribució monetària detallada; `fact_rels` per si sola no la quantifica.
+
+**T-PRE — factura anterior detectada:** tant si és ordinària com `EMESA_ABANS_COBRAMENT=1`, la transferència es registra amb `registerPayment()` contra l'UUID de factura existent. Buscar per CIF, IDPAG o número visible no autoritza crear-ne una de nova quan ja hi ha cobertura de les inscripcions. Si la venda facturable encara no té factura, el circuit d'emissió simultània amb `payment` és un altre camí (UC-01), **no** una crida que faci aquest builder de factura existent.
+
+**T-DEDUP — referència i conciliació global:** abans de seleccionar el tipus `INVOICE_PAYMENT`, `INSTALLMENT_PAYMENT` o `CLAIM_PAYMENT`, cal buscar el **fet bancari original** en tots els canals i en les operacions de cobrament ja registrades. Les claus actuals `TRANSFERENCIA|REF:<ref>` i `CLAIM|REF:<ref>` poden ser diferents per al mateix ingrés; una cerca només dins la família de claus no impedeix duplicar-lo. Amb referència absent, factura+dia+import+banc és una heurística de reintent, no prova d'unicitat bancària: exigir confirmació humana/identificador propi d'entrada bancària si hi ha col·lisió possible. Una clau igual amb factures o imports nous és conflicte, no reintent equivalent; la comparació completa del payload encara no està acreditada en PaymentService.
+
+**T-FALLA — integració i correus:** si el SIF confirma `UUID_PAYMENT` però fallen els updates de resum al llegat, conservar el moviment i obrir incidència de sincronització/reintent idempotent. No tornar a registrar l'ingrés ni enviar una altra factura. Quan el pagament s'ha aplicat, el correu ha de donar accés autoritzat al document/PDF/QR de la factura corresponent; si hi ha una incidència documental, no prometre un PDF disponible.
+
+### 1.5. Proves d'acceptació addicionals (no executades)
+
+| ID | Escenari | Resultat a acreditar |
+| --- | --- | --- |
+| TR-01 | Transferència sobre factura ordinària i sobre factura prèvia d'empresa | Únic moviment associat a UUID_FACTURA existent; cap emissió fiscal repetida. |
+| TR-02 | Una entrada bancària reparteix imports entre dues factures | Un UUID_PAYMENT real, dues assignacions explícites, suma reconciliada; variant multifactura pendent d'implementar. |
+| TR-03 | Mateix ingrés cercat primer com a transferència i després com a reclamació | Detecció transversal i cap segon CHARGE, encara que canviï el prefix de la clau. |
+| TR-04 | Referència bancària igual per imports o factures diferents | Conflicte i revisió, no retorn idempotent silenciós. |
+| TR-05 | Transferència sense referència, mateix dia/import/banc | Dues operacions legítimes no es fusionen per una heurística; exigir identificador de banc o revisió. |
+| TR-06 | Transferència superior al pendent o assignacions que no sumen import disponible | No marcar pagada la factura per força; excés/pendent explicitat i UC-104. |
+| TR-07 | Error de sincronització després del commit del cobrament SIF | Moviment preservat, incidència i reintent de resum sense duplicar cobrament. |
+| TR-08 | Operador sense permís o data/import modificats al navegador | Rebuig al servidor abans de registrar cap moviment. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -153,6 +177,32 @@ else Factura existent
 end
 ```
 
+### 4.1. Seqüència — una transferència, dues factures (OBJECTIU; no implementada pel builder manual)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant UI as Passar pagaments [adaptador pendent]
+participant Bank as Evidència ingrés bancari
+participant Rec as Conciliació intercanal [DISSENY]
+participant Pay as PaymentService [existent]
+participant DB as payment_transaction/payment_allocation
+O->>UI: Registrar transferència per dues factures
+UI->>Bank: Verificar una entrada, titular, import i referència
+UI->>Rec: Buscar ingrés també en CLAIM/FRACCIO/Redsys
+alt Moviment real ja registrat
+ Rec-->>UI: UUID_PAYMENT existent o conflicte a revisar
+ UI-->>O: Reutilitzar/conciliar sense duplicar CHARGE
+else Ingrés nou i dues factures vigents
+ UI->>UI: Validar imports parcials i suma total disponible
+ UI->>Pay: registerPayment(CHARGE, allocations=[factura A, factura B])
+ Pay->>DB: Un CHARGE i dues assignacions en transacció
+ Pay-->>UI: UUID_PAYMENT únic
+ UI-->>O: Cobraments atribuïts; sincronització llegada posterior
+end
+Note over UI,Rec: La verificació bancària, la conciliació transversal i l'adaptador multifactura encara no consten com a codi integrat.
+```
 ## 5. Traçabilitat
 
 [Fitxa anterior UC-22](../06-fitxes-funcionals/uc-022.md) · [UC-02 pagament](uc-002-registrar-cobrament-factura.md) · [ManualPaymentService](../../sif/src/Service/ManualPaymentService.php) · [ManualPaymentPayloadBuilder](../../sif/src/Service/ManualPaymentPayloadBuilder.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [ManualPaymentServiceTest](../../sif/tests/Integration/ManualPaymentServiceTest.php).
