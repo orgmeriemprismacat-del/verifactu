@@ -47,6 +47,15 @@
 
 **Garanties pendents:** titularitat, disponibilitat per inscripció, política de retorn, idempotència i coordinació amb sistemes diferents. No s'ha afegit cap classe o migració real en aquesta documentació.
 
+### 1.4. Decisió diferida, saldo antic i reactivació — contrast amb el xat original
+
+**Fases del negoci declarades al xat:** (1) la baixa només modifica inicialment l'estat de la inscripció; (2) gestió consulta al client si vol retorn, saldo o no retorn; (3) el retorn bancari/manual es confirma efectivament o el client accepta la creació de saldo; (4) el SIF registra els moviments realment executats; (5) la correcció fiscal s'avalua i tramita si escau; (6) comunicacions i conciliació reflecteixen el resultat. Adam i Pablo intervenen històricament en el procediment, però els permisos finals del SIF s'han de verificar. L'ordre històric d'execució d'una rectificativa no és, per si mateix, una regla normativa general.
+
+**Saldo de baixa antic:** l'usuària estableix que els saldos de baixa **no caduquen automàticament**. Si secretaria detecta un saldo molt antic, per exemple de més de cinc anys, el revisa manualment abans d'usar-lo o tancar-lo. Això **no** estableix una caducitat exacta als cinc anys ni autoritza a esborrar el crèdit. El registre objectiu ha de conservar titular, import d'origen, ja aplicat, disponible, decisió, responsable i data de revisió. No es dona per acreditat que CreditBalanceService o la pantalla ja implementin aquesta alerta.
+
+**Reactivació després de la decisió econòmica:** abans de permetre la reversió administrativa UC-27 cal veure si el retorn és pendent o ja confirmat, si existeix saldo encara disponible o ja consumit, si hi ha compensacions i si s'ha rectificat la factura. No tornar a crear el mateix saldo ni duplicar REFUND; els diners retornats no reapareixen per reactivar una inscripció. Si la reactivació requereix una nova obligació o correcció, crear operacions noves i correlacionades, amb titular i autorització validats; mai reescriure els registres originals.
+
+**Estats funcionals de l'expedient proposats, no codis ni columnes implementats:** BAIXA_CONFIRMADA, DECISIÓ_ECONÒMICA_PENDENT, RETORN_PENDENT, RETORN_CONFIRMAT, SALDO_CREAT, REVISIÓ_FISCAL_PENDENT, TANCADA. L'estat administratiu INSC_CURS no substitueix aquest seguiment; tampoc no es declara TANCADA una baixa si falta una fase obligatòria o hi ha una incidència oberta.
 ## 2. Diagrama UML de casos d'ús — PlantUML
 
 ```plantuml
@@ -192,10 +201,55 @@ UI-->>Tit: Retorn econòmic completat
 
 **La seqüència descriu el contracte objectiu**, no un callback bancari existent ni un servei que avui coordini aquests passos.
 
+### 5.1. Seqüència — baixa, decisió diferida i eventual reactivació (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+actor T as Titular econòmic
+participant B as Expedient baixa [DISSENY]
+participant P as Registre econòmic SIF [serveis parcials]
+participant F as Revisió fiscal [PENDENT]
+O->>B: Confirmar baixa administrativa
+B-->>O: Baixa registrada; decisió econòmica PENDENT
+T->>B: Decideix retorn, saldo o no retorn
+alt Retorn aprovat però encara no efectuat
+ B-->>T: Retorn pendent; cap moviment REFUND
+else Retorn extern verificat
+ B->>P: Registrar REFUND real una única vegada
+ P-->>B: UUID_PAYMENT
+else S'accepta saldo de fons cobrats
+ B->>P: Crear crèdit del titular una única vegada
+ P-->>B: UUID_CREDIT
+else Cap retorn justificat
+ B-->>O: Decisió sense moviment de caixa
+end
+B->>F: Classificar correcció de factura, quan pertoqui
+opt Es demana reactivar la baixa
+ O->>B: Revisar efectes ja executats i plaça
+ B->>P: Consultar refunds, crèdits i compensacions
+ B-->>O: Reactivació administrativa o regularització expressa; no duplicar fons
+end
+Note over B,F: Seqüència funcional, no orquestrador implementat ni regla fiscal universal.
+```
 ## 6. Proves mínimes exigibles (no executades)
 
 Baixa sense pagament; baixa sense retorn justificat; pagador empresa; pagament parcial; baixa participant de grup; retorn pendent i posteriorment confirmat; combinació retorn+saldo; duplicate/callback tardà; error després del moviment econòmic; idempotència/reconciliació entre SIF i llegat. Per cada cas comprovar saldo abans/després per inscripció, pagament real, relacions a factura i no aparició de moviments inventats.
 
+### 6.1. Matriu de proves específiques addicionals (no executades)
+
+| ID | Escenari | Evidència exigible |
+| --- | --- | --- |
+| B72-01 | Baixa amb decisió del client encara pendent | Cap REFUND, saldo ni rectificativa automàtics per clicar baixa. |
+| B72-02 | Baixa sense cap cobrament, amb possible factura pendent | No inventar un REFUND/saldo monetari; revisar l'efecte fiscal per separat. |
+| B72-03 | Retorn aprovat, però no executat | Estat PENDENT i cap sortida econòmica fins que existeix comprovant. |
+| B72-04 | Retorn parcial i saldo en la mateixa baixa | Moviments i imports diferents, suma no superior als fons atribuïts. |
+| B72-05 | Saldo de baixa de més de cinc anys | Revisió manual per secretaria, sense caducitat ni eliminació automàtiques. |
+| B72-06 | Pagament original d'empresa o responsable | Titular de retorn/saldo validat, no atribuït per defecte a l'alumne. |
+| B72-07 | Reactivar amb retorn confirmat, saldo consumit o factura rectificada | Cap reversió de moviments per simple canvi d'estat; operacions noves correlacionades. |
+| B72-08 | Doble confirmació de baixa, retorn o creació de saldo | Idempotència i reconciliació; no duplicar crèdit ni pagament REFUND. |
+| B72-09 | Fallada de rectificativa/document després de baixa correcta | Fases pendents i incidència visibles; no declarar l'expedient complet. |
 ## 7. Traçabilitat
 
 [Fitxa anterior UC-72](../06-fitxes-funcionals/uc-072.md) · [UC-27 baixa](uc-027-donar-de-baixa.md) · [UC-06 decisió econòmica](uc-006-devolucio-saldo-compensacio.md) · [Revisió de moviments](00-revisio-moviments-inscripcions.md) · [Fluxos de facturació](../03-canvis-pendents/04-fluxos-facturacio.md) · [Operació i incidències](../04-estat-final/18-estat-final-operacio-incidencies.md) · [Migració d'events](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql) · [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php) · [ManualRefundService](../../sif/src/Service/ManualRefundService.php) · [CreditBalanceService](../../sif/src/Service/CreditBalanceService.php).
