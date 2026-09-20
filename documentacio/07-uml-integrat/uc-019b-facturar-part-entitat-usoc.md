@@ -44,6 +44,15 @@
 
 **Proves localitzades, no executades:** `UsocEntityInvoiceServiceTest` comprova el servei amb entrada explícita; manca validar el cicle integral de dues factures, cobraments, titularitat i documents.
 
+### 1.3. Diferència USOC: snapshot, receptor i cobrament posterior — contrast amb el xat original
+
+En el cas habitual explicat, l'alumne ingressa inicialment **10 €** i USOC assumeix la diferència pactada. El valor de la factura d'entitat no s'ha de recalcular com a resta del camp viu `A_PAGAR - PAGAMENT`: abans de facturar es contrasta amb el snapshot de preu base, descompte, import d'alumne, import assumit per USOC, `TIPUS_DESC=4`, `VALID_DESC=1`, validació manual i dades fiscals explícites de l'entitat. El valor de 10 € és descriptiu del cas recuperat, **no** una constant universal de la facturació USOC.
+
+Si USOC encara no ha abonat res, UC-19b emet només la seva factura **pendent**; el cobrament posterior contra el seu UUID és UC-02/22 i no torna a emetre la factura. Si una mateixa transferència real de l'entitat cobreix imports de diverses factures USOC, cal UC-105: un moviment bancari i assignacions diferenciades; `UsocEntityInvoiceService` no acredita aquest repartiment. La persona alumna no obté accés a la factura de l'entitat pel fet de compartir ID_INSC.
+
+**Variant «Curs gratuït USOC»:** la documentació històrica cita `anticipi-preu-usoc`, però no estableix en aquesta fitxa l'import exacte que hi paga l'entitat ni quin document correspon si l'alumne paga zero. Si el circuit concret té `student_amount=0`, la ruta actual UC-19b exigeix `student_amount>0` i `student_invoice_uuid`, i no pot donar-se per compatible sense un disseny específic i una classificació fiscal aprovada. No simular una factura alumne o pagament inexistents.
+
+**Proves addicionals, no executades:** factura entitat a receptor fiscal explícit i no al NIF alumne; diferència traçada al snapshot; dues factures de la mateixa inscripció amb estats de cobrament independents; dos pagaments parcials d'entitat sense nova factura; transferència multifactura concilada sense duplicar ingrés; import alumne zero desviat al circuit especial no resolt.
 ## 2. Diagrama UML de casos d'ús — factura entitat
 
 ```plantuml
