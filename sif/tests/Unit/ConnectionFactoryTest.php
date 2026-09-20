@@ -34,7 +34,11 @@ final class ConnectionFactoryTest
 
         Assert::stringContainsString('makeLegacy(array $config)', $source);
         Assert::stringContainsString('$config[\'legacy_db\']', $source);
-        Assert::stringContainsString('Legacy DB DSN not configured', $source);
+        $exception = Assert::throws(\RuntimeException::class, static fn () =>
+            \Prisma\Sif\Database\ConnectionFactory::makeLegacy(['legacy_db' => ['dsn' => '']])
+        );
+        Assert::same('Legacy DB DSN not configured', $exception->getMessage());
         Assert::stringContainsString('SET NAMES utf8mb4', $source);
     }
 }
+

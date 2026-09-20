@@ -173,7 +173,14 @@ No hi ha paquet documental complet sense certificat/apoderament i declaracio acc
 | Afecta hash chain/numeracio | Si / No |
 | Proves requerides |  |
 | Campanya go/no-go associada |  |
+| Manifest d'expedient | Ruta, ID i hash |
+| Data de congelacio de l'expedient |  |
+| Portes `G1`-`G7` | PASS / FAIL / BLOCKED |
+| Incidencies bloquejants | IDs o Cap |
+| Backup/restauracio | PASS / FAIL / BLOCKED |
 | Declaracio responsable | No aplica / Esborrany / Signable / Signada |
+| Decisio go/no-go | GO / GO AMB LIMITACIONS / NO-GO |
+| Limitacions i caducitat |  |
 | Estat final | Candidata / Activa / Rebutjada / Substituida |
 ```
 

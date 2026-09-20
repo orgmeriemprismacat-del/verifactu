@@ -435,3 +435,160 @@ L'usuari reclama confirmar el registre de qualsevol gestió que afecti un pagame
 - `19-registre-versions-i-canvis-sif.md`, `21-seguretat-permisos-accessos.md`, `24-diccionari-camps-i-valors.md` i `documentacio/README.md` incorporen el control bloquejant de signatura, metadades no secretes del certificat, controls del rol auditor i camps de versio/declaracio necessaris.
 - L'estat continua `[NO-GO]`: no hi ha versio `1.0.0` instal·lada, certificat/apoderament provat, mapa camp normatiu -> taula/XML/PDF/QR -> prova, rol auditor executat ni validacio fiscal externa.
 - No s'ha carregat `xat-original` ni s'ha modificat codi. Aquest tall documental es tanca amb checkpoint Git autoritzat en aquest xat.
+
+## 2026-09-16 - Evidencies auditables i tancament d'incidencies
+
+- `23-annex-captures-pantalla.md` incorpora nomenclatura estable, index d'evidencies, criteri de captura valida i evidencies minimes segons el tipus de prova.
+- `18-estat-final-operacio-incidencies.md` vincula les incidencies de prova amb `ID_PROVA`, `ID_EVIDENCIA` i `CLOSURE_CRITERIA`, i exigeix evidencia de reproduccio, correccio i reexecucio per tancar-les.
+- `25-panell-sif-pay-prisma.md` amplia la vista de versions amb campanyes go/no-go, incidencies bloquejants i expedients d'evidencia consultables i exportables.
+- La documentacio impedeix considerar `PASS` una prova sense evidencia i activar una versio productiva sense acta go/no-go ni registre de backup/restauracio quan siguin obligatoris.
+- Aquest tall prepara el model operatiu, pero no aporta captures ni evidencies reals. L'estat continua `[NO-GO]` fins a executar-lo en preproduccio.
+- No s'ha carregat el JSONL antic, no s'ha modificat codi i no s'ha fet commit ni push.
+
+## 2026-09-16 - Annexos de governanca i vistiplau tecnic `1.0.0`
+
+- Harmonitzats `acord-intern-responsabilitats-sif-prisma.md` i
+  `vistiplau-tecnic-sif-prisma.md` amb el paquet normatiu candidat `1.0.0`.
+- L'acord exigeix confirmar termini i criteri fiscal, identificar el signant
+  formal i provar certificat o apoderament des de l'entorn real del SIF abans
+  de considerar preparada la versio.
+- El vistiplau incorpora evidencies sobre fonts AEAT/BOE, mapa complet de camps,
+  certificat o representacio, documentacio accessible dins el SIF i rol
+  auditor/AEAT nomes lectura sense secrets ni escriptura.
+- Queda separada l'activacio tecnica dins les facultats delegades de la
+  subscripcio formal de la declaracio responsable per la persona representant
+  de l'entitat.
+- `documentacio/README.md` indexa els dos annexos. Les versions `.docx`
+  existents no s'han regenerat i no s'han de considerar sincronitzades amb
+  aquests canvis fins que es tornin a generar i verificar visualment.
+- L'estat continua `[NO-GO]`; aquest tall no confirma les dades fiscals, el
+  signant, el certificat real, el mapa de camps, el rol auditor ni les proves.
+- No s'ha carregat `xat-original`, no s'ha modificat codi i no s'ha fet commit
+  ni push en aquest tall.
+
+## 2026-09-16 - Auditoria d'executabilitat i requisits locals
+
+- Les 142 fitxes són especificacions: totes declaren
+  `STRUCTURED_DRAFT_NEEDS_CASE_REVIEW` i `NOT_COMPLETE`; no acrediten 142 casos
+  implementats.
+- Les sis migracions creen 60 taules, però 44 no tenen cap referència al PHP
+  d'execució de `sif/src`, `sif/scripts` o `sif/public`. En particular, els
+  models d'operació comercial, consentiment, identitat, edició, adreça i
+  reconciliació continuen sense serveis/adaptadors.
+- Només hi ha tres endpoints públics en aquesta branca. Emissió de factura i
+  registre de pagament no utilitzen `PaymentActionGateway`, i no s'ha trobat
+  una capa executable d'autenticació, autorització o CSRF als endpoints.
+- El codi d'execució no conté client/worker AEAT, transport XML/XSD, signatura
+  del registre, QR, anul·lació ni subsanació. Aquestes peces continuen en
+  documentació o en estat pendent.
+- El `go-no-go-preproduction.php` troba els 86 fitxers que espera, però només
+  comprova explícitament 10 de les 60 taules. `TestDatabase::fresh()` aplica
+  només la migració 000001; les proves d'esquema 000003..000006 inspeccionen
+  text SQL, no executen les migracions sobre MySQL.
+- Hi ha 119 fitxers de prova i 268 mètodes, però no es poden executar en aquest
+  host: no hi ha PHP, MySQL/MariaDB, Docker ni una distribució WSL instal·lats.
+- Per continuar la validació local cal PHP 8.4 CLI amb `openssl` i `pdo_mysql`,
+  i un MySQL 8 de prova aïllat amb BD SIF i BD legacy de prova. `mbstring` és
+  recomanable. Composer no és requisit del codi actual.
+- L'estat continua `[NO-GO]`. No s'ha carregat el JSONL antic, no s'ha
+  modificat codi i no s'ha fet commit ni push en aquesta auditoria.
+
+## 2026-09-16 - Tracabilitat de pantalles internes consolidada
+
+- La matriu de cobertura diferencia ara entre simple disseny i `ESPECIFICACIO OPERATIVA` per a `Passar pagaments`, `Generar factura abans de pagar`, `Consulta - Edita - Anula factura`, intranet alumne, empresa/responsable i avisos VERI*FACTU.
+- Cada pantalla queda enllacada amb procediment, accio SIF o control, permisos, prova identificada i captura minima.
+- L'informe d'auditoria deixa constancia que el criteri documental prioritari ja esta cobert i separa clarament el que continua pendent: implementacio real, execucio de proves i captures finals.
+- L'inventari de canvis incorpora la cadena `pantalla -> procediment -> validacio i permis -> accio SIF -> resultat -> prova -> captura` com a requisit de tancament.
+- No s'ha carregat `xat-original`, no s'ha modificat codi i no s'ha fet commit ni push.
+
+## 2026-09-16 - Registres interns d'anul·lacio i subsanacio implementats
+
+- Implementats `FiscalRecordService`, `FiscalRecordRepository` i `FiscalRecordPayloadBuilder` sobre l'esquema existent, sense migracio nova.
+- `ANULACIO` genera un registre fiscal immutable amb hash encadenat, cua AEAT idempotent i canvi de la factura a `CANCELLED`; una repeticio exacta reutilitza el resultat i una segona anul·lacio diferent es bloqueja.
+- `SUBSANACIO` conserva el mateix UUID i numero visible, no crea factura ni cobrament i cobreix `SUBSANACION`, `RECHAZO_PREVIO` i `SIN_REGISTRO_PREVIO`.
+- Els dos fluxos rebutgen factures historiques `NO_VERIFACTU`; una factura cancel·lada no admet subsanacions posteriors.
+- Afegits `preview-fiscal-record.php`, `process-fiscal-record.php` i proves d'integracio/estructura. Les comprovacions estàtiques no mostren errors, pero la suite no s'ha executat perquè PHP no esta disponible al `PATH`.
+- Continua pendent el circuit extern AEAT: XML/XSD, signatura o certificat, transport/worker, retries, resposta i dead-letter. L'estat global es manté `[NO-GO]`.
+- No s'ha carregat `xat-original` ni s'ha fet commit o push.
+
+## 2026-09-16 - Lifecycle executable de la cua fiscal AEAT
+
+- Afegits el contracte `AeatTransport`, `FiscalQueueRepository` i `FiscalQueueProcessor` per desacoblar el ledger fiscal del transport extern.
+- El worker reclama una entrada `PENDING` o `RETRY` en transaccio curta, incrementa intents i executa el transport fora del bloqueig de base de dades.
+- Una resposta valida `ACCEPTED`, `ACCEPTED_WITH_ERRORS` o `REJECTED` deixa la cua `SENT` i persisteix XML de peticio, resposta estructurada i estat AEAT a `factura_registres` i `factura`.
+- Una excepcio de transport deixa `RETRY` fins al maxim configurat i despres `DEAD_LETTER`, amb error persistent i estat fiscal `ERROR`.
+- Afegides proves amb transports dobles d'acceptacio i error permanent. No s'han executat perquè PHP continua absent del `PATH`.
+- No s'ha implementat cap transport SOAP real ni s'ha simulat homologacio: continuen pendents XML/XSD oficial, certificat o apoderament, endpoints AEAT, seguretat de secrets i prova externa.
+- L'estat global continua `[NO-GO]`; no s'ha carregat `xat-original` ni s'ha fet commit o push.
+
+## 2026-09-16 - Recuperacio de locks i lots fiscals limitats
+
+- `FiscalQueueProcessor` pot recuperar entrades `PROCESSING` amb lock caducat; el llindar minim és de 60 segons i la recuperacio deixa traça a `LAST_ERROR`.
+- Afegit `processBatch()` amb limit estricte d'1 a 100 entrades. El lot s'atura quan la cua queda buida o davant el primer error, evitant consumir tots els retries en calent.
+- Afegides proves de lot limitat, `ACCEPTED_WITH_ERRORS`, recuperacio selectiva de lock i aturada al primer error.
+- Continua pendent una planificacio temporal persistent per a retries, metriques, alertes i adaptador AEAT real.
+- PHP continua absent del `PATH`; verificacio executable pendent. No s'ha carregat `xat-original` ni s'ha fet commit o push.
+
+## 2026-09-16 - Backoff persistent de la cua fiscal
+
+- El worker ja respecta `NEXT_RETRY_AT`, camp existent a la migracio `000004`, i no reclama una entrada `RETRY` abans de la data programada.
+- Les fallades apliquen backoff exponencial amb espera base de 60 segons i maxim de 3.600 segons, tots dos configurables al constructor.
+- `DEAD_LETTER` elimina qualsevol proper retry; `SENT` i la recuperacio de locks també netegen la programacio anterior.
+- `TestDatabase` afegeix només `NEXT_RETRY_AT` quan el nucli de proves `000001` encara no el conté, sense aplicar ni donar per validades la resta de migracions.
+- Actualitzades les proves perquè demostrin que un retry futur no es reclama immediatament i que els intents posteriors requereixen tornar-lo exigible.
+- Continua pendent el planificador extern que desperti el worker, així com metriques, alertes i transport AEAT real. PHP continua absent; no s'ha fet commit o push.
+
+## 2026-09-16 - Preflight AEAT i metriques operatives
+
+- Afegit `AeatPreflight` amb controls bloquejants de PHP SOAP, DOM i OpenSSL, URLs HTTPS, XSD local llegible, certificat llegible, contrasenya present i identitat emissor/SIF completa.
+- Afegit `FiscalQueueMetricsRepository` amb comptadors per estat, entrades exigibles, locks caducats i antiguitat de la cua accionable.
+- Afegit `preflight-aeat-worker.php`, que només llegeix configuracio i cua, no envia ni processa registres, i genera alertes per `DEAD_LETTER`, volum exigible i locks orfes.
+- `sif.php` incorpora configuracio AEAT exclusivament per variables d'entorn; la contrasenya del certificat no apareix a la sortida del preflight.
+- Contrastada documentacio oficial AEAT vigent: SOAP 1.1 document/literal, HTTPS, UTF-8, certificat electronic qualificat, WSDL/XSD publicats, resposta sincronica i estats per registre `Correcto`, `AceptadoConErrores` i `Incorrecto`.
+- No s'ha activat transport real: falten certificat/apoderament, XSD local validat, identitat SIF definitiva i snapshots fiscals complets. El preflight ha de mantenir `ready_to_send=false` fins resoldre aquests bloquejos.
+- PHP continua absent del `PATH`; no s'ha executat la suite ni el preflight. No s'ha carregat `xat-original` ni s'ha fet commit o push.
+
+## 2026-09-16 - Contracte tecnic de pantalles internes preparat
+
+- Creat `documentacio/03-canvis-pendents/12-contracte-tecnic-pantalles-internes.md` com a pont entre procediments i implementacio real.
+- El contracte defineix endpoints interns proposats, context d'actor, resposta comuna, avisos estructurats i patro obligatori `preview -> confirm`.
+- `Passar pagaments`, factura abans del cobrament i rectificacio queden mapats a `ManualPaymentService`, `InvoiceBeforePaymentService` i `ManualRectificationService`.
+- Queden definits els contractes de consulta per alumne i empresa/responsable, els permisos al servidor, el resum VERI*FACTU i els criteris d'acceptacio.
+- El document s'ha indexat a `documentacio/README.md` i s'ha enllacat des del pla tecnic.
+- No s'ha carregat `xat-original`, no s'ha modificat `sif/` ni codi productiu i no s'ha fet commit ni push.
+
+## 2026-09-16 - Manifest i portes de l'expedient go/no-go
+
+- L'expedient de cada versio candidata incorpora un manifest mestre congelat, versionat i identificat per hash.
+- La decisio queda dividida en set portes: versio, integritat fiscal, canals/documents, seguretat, continuitat, incidencies i governanca.
+- `GO AMB LIMITACIONS` nomes pot excloure funcionalitats o canals no activats; no pot compensar proves bloquejants, restauracio pendent, incidencies critiques/altes ni mancances d'integritat o seguretat.
+- Les campanyes caduquen totalment o parcialment quan canvien paquet, migracions, configuracio fiscal, certificat, permisos o components que afecten els resultats.
+- El model documental queda preparat, pero el manifest i les portes encara s'han d'emplenar amb execucions reals en preproduccio. L'estat continua `[NO-GO]`.
+- No s'ha carregat el JSONL antic, no s'ha fet commit ni push.
+
+## 2026-09-16 - Fitxes UI de pantalles internes preparades
+
+- Creat `documentacio/03-canvis-pendents/13-fitxes-ui-pantalles-internes.md` amb estructura visual, camps, accions, estats i comportament responsive de les pantalles prioritaries.
+- Queden descrites `Passar pagaments`, `Generar factura abans de pagar`, `Consulta - Edita - Anula factura`, intranet alumne, empresa/responsable i indicador/avisos VERI*FACTU.
+- Les fitxes separen estat fiscal, cobrament i AEAT, exigeixen preview abans de confirmar i vinculen els botons a `available_actions` del servidor.
+- S'han definit estats de carrega, buit, error, bloqueig, manca de permisos i resultat, a mes dels minims d'accessibilitat i captures.
+- Les fitxes s'han indexat a `documentacio/README.md` i enllacat des de `16-estat-final-pantalles.md`.
+- No s'ha carregat `xat-original`, no s'ha modificat codi ni `sif/` i no s'ha fet commit ni push.
+
+## 2026-09-16 - Backlog d'implementacio de pantalles internes preparat
+
+- Creat `documentacio/03-canvis-pendents/14-backlog-implementacio-pantalles-internes.md` a partir de rutes, metodes i AJAX localitzats a la copia de la intranet.
+- Identificats els punts llegats principals: `efectuarPagament()`, variants de pagament, `generarFacturaElectronica_Alumnes()`, `updDadesFact` i `anularFactura()`.
+- El backlog separa base segura, consulta, pagaments, factura previa, rectificacio, portals externs i avisos en tasques verificables.
+- L'ordre de lliurament exigeix autenticacio, permisos, CSRF, client SIF i preview token abans d'activar mutacions.
+- La copia de `codi-drive` es conserva com a evidencia i no s'ha modificat; tampoc s'ha modificat `sif/`.
+- No s'ha carregat `xat-original` i no s'ha fet commit ni push.
+
+## 2026-09-17 - Proves i evidencies del backlog UI enllacades
+
+- Afegides les proves bloquejants `SIF-PANT-SEC-001..004` per autenticacio/autoritzacio, metode i CSRF, preview token i errors del client SIF.
+- Cada grup de tasques `UI-*` queda relacionat amb les proves funcionals corresponents i amb un paquet d'evidencia identificat.
+- Definits `EVID-UI-BASE`, `EVID-UI-PAY`, `EVID-UI-FAC`, `EVID-UI-RECT`, `EVID-UI-VIS` i `EVID-UI-AVI` amb captures i evidencia tecnica obligatoria.
+- La base segura ha de superar totes quatre proves `SIF-PANT-SEC-*` abans d'habilitar confirmacions en preproduccio.
+- Una captura de boto bloquejat no substitueix una peticio directa rebutjada, i una pantalla d'exit no substitueix la prova d'idempotencia.
+- No s'ha carregat `xat-original`, no s'ha modificat codi ni s'ha fet commit o push.

@@ -1,5 +1,7 @@
 # 22 - Manual operatiu intern
 
+> Guia de consulta diaria associada: `25-guies-rapides-pantalles-internes.md`. Resumeix passos, punts d'aturada i escalat per rol; aquest manual continua sent la referencia completa.
+
 > Manual per a l'us diari del sistema per part de gestio, secretaria, Adam, Pablo i administracio.
 
 ## 1. Objectiu

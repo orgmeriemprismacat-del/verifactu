@@ -3,6 +3,7 @@
 require dirname(__DIR__) . '/src/autoload.php';
 
 use Prisma\Sif\Database\ConnectionFactory;
+use Prisma\Sif\Database\MigrationRunner;
 
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "This script can only run from CLI.\n");
@@ -13,7 +14,10 @@ $baseDir = dirname(__DIR__);
 $config = require $baseDir . '/config/sif.php';
 $env = (string) ($config['env'] ?? 'local');
 $checks = [
-    'environment_not_production' => $env !== 'production',
+    'schema_verified' => false,
+    'php_pdo_mysql' => extension_loaded('pdo_mysql'),
+    'php_openssl' => extension_loaded('openssl'),
+    'environment_not_production' => in_array($env, ['test', 'preproduction'], true),
     'core_preflight_script_present' => is_file($baseDir . '/scripts/preflight-sif.php'),
     'tests_runner_present' => is_file($baseDir . '/tests/run-tests.php'),
     'migrations_runner_present' => is_file($baseDir . '/scripts/run-migrations.php'),
@@ -172,6 +176,9 @@ $errors = [];
 try {
     $sifDb = ConnectionFactory::make($config);
     $checks['sif_database_connectivity'] = true;
+    $schemaChecks = (new MigrationRunner($baseDir . '/database'))->inspect($sifDb);
+    $checks = array_merge($checks, $schemaChecks);
+    $checks['schema_verified'] = !in_array(false, $schemaChecks, true);
 
     foreach ([
         'factura',
@@ -211,6 +218,8 @@ $failed = array_keys(array_filter($checks, static fn (bool $ok): bool => !$ok));
 $decision = count($failed) === 0 ? 'GO' : 'NO-GO';
 $result = [
     'ok' => $decision === 'GO',
+    'scope' => 'technical_preflight_only',
+    'production_authorized' => false,
     'go_no_go_decision' => $decision,
     'environment' => $env,
     'checks' => $checks,
@@ -240,7 +249,8 @@ function allFilesPresent(string $baseDir, array $relativePaths): bool
 
 function tableExists(\PDO $db, string $table): bool
 {
-    $stmt = $db->query('SHOW TABLES LIKE ' . $db->quote($table));
+    $stmt = $db->prepare('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?');
+    $stmt->execute([$table]);
 
     return $stmt !== false && $stmt->fetchColumn() !== false;
 }
@@ -251,3 +261,6 @@ function rowExists(\PDO $db, string $sql): bool
 
     return $stmt !== false && (int) $stmt->fetchColumn() === 1;
 }
+
+
+

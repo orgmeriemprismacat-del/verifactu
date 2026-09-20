@@ -327,6 +327,32 @@ Evidencia minima:
 - log o event auditable quan l'accio es critica;
 - consulta posterior de factura, pagament, document o incidencia.
 
+### 6.4.2. Matriu de tasques UI, proves i evidencies
+
+Les proves funcionals de pantalla nomes es poden executar despres de superar la base segura comuna.
+
+| ID prova | Tasques principals | Precondicions | Evidencia tecnica minima |
+| --- | --- | --- | --- |
+| `SIF-PANT-SEC-001` | `UI-INT-001` | Sessio valida, invalida i rol insuficient | Respostes `401`/`403`, log d'acces i absencia de dades filtrades |
+| `SIF-PANT-SEC-002` | `UI-INT-001`, `UI-PAY-004` | Endpoint de mutacio disponible | `GET` rebutjat, `POST` sense CSRF rebutjat i `POST` valid acceptat |
+| `SIF-PANT-SEC-003` | `UI-INT-004` | Preview valid, caducat, reutilitzat i amb dades canviades | Token invalidat, `PREVIEW_EXPIRED`/`STATE_CHANGED` i cap doble escriptura |
+| `SIF-PANT-SEC-004` | `UI-INT-002`, `UI-INT-003` | SIF disponible, timeout i error controlat | `request_id`, codis estables, cap secret i `SIF_UNAVAILABLE` sense fals exit |
+| `SIF-PANT-PAY-001` | `UI-FACT-001..003`, `UI-PAY-001..005` | Base segura superada | Resposta preview, event `REQUESTED`/terminal, pagament i consulta posterior |
+| `SIF-PANT-PAY-002` | `UI-PAY-001..005`, `UI-VIS-002` | Cobertura empresa/responsable preparada | Bloqueig o URL correcta, log de decisio i absencia de segon cobrament |
+| `SIF-PANT-FAC-001` | `UI-PRE-001..004` | Base segura i consulta preparades | Payload sense `payment`, factura SIF, estat pendent i sync llegada posterior |
+| `SIF-PANT-FACT-001` | `UI-FACT-002..004`, `UI-RECT-001..004` | Factura SIF emesa | `available_actions`, `updDadesFact` no executat i rectificativa relacionada |
+| `SIF-PANT-FACT-002` | `UI-FACT-001..003`, `UI-RECT-001..004` | Factura amb diverses assignacions | Assignacions, motiu, preview comparatiu i resultat auditable |
+| `SIF-VIS-002` | `UI-VIS-001`, `UI-VIS-002` | Identitats i documents de prova separats | Logs d'acces/denegacio, token caducat/revocat i cap dada creuada |
+| `SIF-AVI-001` | `UI-INT-003`, `UI-AVI-001`, `UI-AVI-002` | Avisos dels quatre nivells | Resposta API i navegacio filtrada per rol |
+| `SIF-AVI-002` | `UI-INT-002`, `UI-AVI-001` | Timeout o SIF inaccessible | Estat desconegut, ultima dada valida i incidencia/log de connexio |
+
+Criteri bloquejant:
+
+- `SIF-PANT-SEC-001..004` han de ser `PASS` abans de confirmar pagaments, factures o rectificatives en preproduccio;
+- una captura de boto deshabilitat no prova autoritzacio: cal peticio directa rebutjada pel servidor;
+- una resposta visual d'exit no prova idempotencia: cal registre tecnic i consulta posterior;
+- qualsevol filtracio de dades entre alumnes, empreses o rols deixa el tall en `FAIL` i `NO-GO`.
+
 ### 6.5. Proves especifiques de Redsys curs normal
 
 Aquest subbloc queda pendent d'execucio, pero el criteri de prova queda definit:
@@ -567,3 +593,18 @@ Regla:
 ```text
 La decisio final no surt de la sensacio global, sino del resum de campanya mes les incidencies bloquejants.
 ```
+
+### 7.6. Control de completitud de la campanya
+
+Abans d'emetre l'acta go/no-go s'ha de verificar:
+
+- tots els IDs bloquejants tenen una execucio vigent per al mateix paquet i entorn;
+- cada `PASS` referencia almenys una evidencia valida;
+- cada `FAIL` o `BLOCKED` referencia una incidencia o impediment identificat;
+- cada `N/A JUSTIFICAT` identifica l'abast no activat i qui n'aprova l'exclusio;
+- les reexecucions conserven el resultat anterior i indiquen quina correccio validen;
+- els totals del resum coincideixen amb les fitxes individuals;
+- l'index d'evidencies no conte fitxers orfes ni referencies inexistents;
+- el manifest de l'expedient identifica el paquet, les migracions i la data de congelacio.
+
+Una campanya caduca i s'ha de repetir totalment o parcialment quan canvia el paquet desplegat, una migracio, la configuracio fiscal, el certificat, els permisos o qualsevol component que pugui alterar el resultat. La responsable tecnica ha de documentar quines proves es reutilitzen i per que continuen sent representatives.

@@ -242,8 +242,9 @@ Aquest checklist controla si la informacio del xat antic ja ha estat revisada i 
 - [x] `Rectificatives de negoci` tancades documentalment amb serie `R`, motiu i mode.
 - [x] Circuit tecnic de `Rectificatives` manuals preparat amb preview/process CLI, `factura_rectificacio` i factura serie `R`.
 - [x] `Rectificativa`, `RegistroAnulacion`, subsanacio, baixa i `REFUND` separats documentalment.
-- [ ] Model i servei de `RegistroAnulacion` implementats amb registre immutable, encadenament, cua AEAT i resposta.
-- [ ] Flux de subsanacio implementat amb `Subsanacion`, `RechazoPrevio`, `SinRegistroPrevio` i mateix identificador quan pertoqui.
+- [x] Model i servei intern de `RegistroAnulacion` implementats amb registre immutable, encadenament i cua AEAT idempotent.
+- [ ] Transport i resposta AEAT real de `RegistroAnulacion` implementats i provats.
+- [x] Flux intern de subsanacio implementat amb `Subsanacion`, `RechazoPrevio`, `SinRegistroPrevio` i mateix identificador.
 - [ ] Proves XML/XSD/AEAT de: alta normal, alta rebutjada, acceptada amb errors, subsanacio, anul·lacio i nova alta posterior.
 - [x] `Devolucions` tancades com a `REFUND` + rectificativa quan pertoqui.
 - [x] `Baixes` tancades com a event administratiu amb decisio posterior retorn/saldo/no retorn.
@@ -653,6 +654,19 @@ Una area es pot marcar com a revisada quan:
 - [ ] Fer captures reals de les pantalles crítiques quan existeixin en entorn implementat.
 - [ ] Vincular cada captura a ID de prova, versió SIF, rol, entorn i evidència conservada.
 
+## Evidencies auditables i incidencies de prova - 2026-09-16
+
+- [x] Nomenclatura estable de captures i evidencies definida.
+- [x] Index d'evidencies definit amb prova, versio, entorn, resultat, ubicacio i integritat.
+- [x] Criteri de captura valida definit.
+- [x] Evidencia minima definida per prova funcional, integracio, concurrencia, permisos, backup/restauracio i go/no-go.
+- [x] Incidencies vinculades a `ID_PROVA`, `ID_EVIDENCIA` i `CLOSURE_CRITERIA`.
+- [x] Criteri de tancament d'incidencia definit amb reproduccio, correccio i reexecucio.
+- [x] Panell SIF ampliat amb vista de versions, evidencies i go/no-go.
+- [ ] Crear l'index real d'evidencies de la primera campanya de preproduccio.
+- [ ] Executar les proves, conservar els artefactes i verificar-ne integritat, privacitat i accessibilitat.
+- [ ] Demostrar el tancament complet d'almenys una incidencia de prova abans de l'acta final go/no-go.
+
 ## Revisio normativa i documentacio signable - 2026-09-16
 
 - [x] Revisades fonts oficials AEAT/BOE actuals sobre terminis, certificacio/declaracio responsable, modalitats `VERI*FACTU`, registre d'alta, signatura i certificat/apoderament.
@@ -668,3 +682,151 @@ Una area es pot marcar com a revisada quan:
 - [ ] Completar mapa camp normatiu -> taula/camp intern -> XML/PDF/QR -> prova per registre d'alta/anulacio.
 - [ ] Crear/provar rol auditor/AEAT nomes lectura, sense secrets ni escriptura, i amb caducitat/exportacions auditades.
 - [ ] Mantenir `1.0.0` com a no signable fins que paquet desplegat, BD, proves, certificat, auditoria, declaracio i validacio fiscal coincideixin.
+
+## Annexos de governanca i vistiplau tecnic - 2026-09-16
+
+- [x] Harmonitzat l'acord intern amb termini aplicable, signant formal,
+  certificat/apoderament provat des de l'entorn real i criteris de `1.0.0`.
+- [x] Ampliat el vistiplau tecnic amb fonts oficials, mapa de camps, rol
+  auditor/AEAT nomes lectura i documentacio accessible dins el SIF.
+- [x] Separades l'activacio tecnica dins facultats delegades i la subscripcio
+  formal de la declaracio responsable per la representacio de l'entitat.
+- [x] Indexats l'acord intern i el vistiplau tecnic a `documentacio/README.md`.
+- [ ] Regenerar els `.docx` de l'acord i el vistiplau, verificar-los visualment
+  i confirmar que coincideixen amb les versions Markdown vigents.
+- [ ] Emplenar les evidencies VT dels dos annexos i emetre el resultat formal
+  nomes quan les comprovacions bloquejants siguin satisfactories.
+- [ ] Obtenir la recepcio i constancia de direccio sense substituir ni ampliar
+  indegudament el vistiplau tecnic o les facultats delegades.
+
+## Auditoria d'executabilitat i entorn local - 2026-09-16
+
+- [x] Confirmat que les 142 fitxes estan en
+  `STRUCTURED_DRAFT_NEEDS_CASE_REVIEW` i `NOT_COMPLETE`.
+- [x] Inventariades 60 taules de migració; 44 no tenen referència al PHP
+  d'execució inspeccionat.
+- [x] Confirmats només tres endpoints públics i absència d'integració de
+  `PaymentActionGateway` als fluxos d'emissió i pagament.
+- [x] Confirmada absència de client/worker AEAT, XML/XSD, signatura, QR,
+  anul·lació/subsanació i capa executable d'autenticació/autorització.
+- [x] Confirmat que el go/no-go comprova 10/60 taules i que
+  `TestDatabase::fresh()` només aplica 000001.
+- [x] Confirmats 119 fitxers de prova i 268 mètodes no executables en aquest
+  host per manca de PHP i MySQL.
+- [ ] Instal·lar PHP 8.4 CLI amb `openssl` i `pdo_mysql`; activar `mbstring` com
+  a extensió recomanada i afegir PHP al `PATH`.
+- [ ] Instal·lar/configurar MySQL 8 de prova amb usuari no productiu, contrasenya
+  no versionada, `sif_test` i una BD legacy de prova amb dades anonimitzades.
+- [ ] Executar lint PHP, runner complet, 000001..000006, concurrència,
+  rollback, backup/restauració i `go-no-go-preproduction.php`.
+- [ ] Ampliar `TestDatabase` i el go/no-go perquè apliquin/comprovin tot
+  l'esquema vigent, no només el nucli 000001 i 10 taules.
+- [ ] Implementar les 44 taules sense servei, integrar auditoria universal,
+  seguretat, AEAT i adaptadors de tots els entorns abans de retirar `[NO-GO]`.
+
+## Tracabilitat de pantalles internes - 2026-09-16
+
+- [x] Actualitzada la matriu de cobertura amb l'estat `ESPECIFICACIO OPERATIVA` per a les pantalles internes prioritaries.
+- [x] Enllacades les pantalles amb procediment, accio SIF o control, permisos, avisos, prova i captura minima.
+- [x] Actualitzat l'informe d'auditoria per separar cobertura documental de implementacio i validacio real.
+- [x] Incorporada a l'inventari la cadena de traçabilitat obligatoria per tancar cada pantalla.
+- [ ] Implementar les pantalles i els controls de servidor descrits.
+- [ ] Executar `SIF-PANT-PAY-*`, `SIF-PANT-FAC-001`, `SIF-PANT-FACT-*`, `SIF-VIS-002` i `SIF-AVI-*`.
+- [ ] Incorporar les captures finals i les evidencies d'auditoria de cada prova executada.
+
+## Registres fiscals d'anul·lacio i subsanacio - 2026-09-16
+
+- [x] Implementats `FiscalRecordService`, `FiscalRecordRepository` i el constructor de payloads fiscals.
+- [x] `ANULACIO` crea un registre immutable encadenat, una entrada idempotent a `fiscal_queue` i marca la factura `CANCELLED`.
+- [x] `SUBSANACIO` conserva UUID i numero visible i admet `SUBSANACION`, `RECHAZO_PREVIO` i `SIN_REGISTRO_PREVIO`.
+- [x] Bloquejades factures historiques `NO_VERIFACTU`, dobles anul·lacions diferents i subsanacions sobre factures cancel·lades.
+- [x] Afegits preview sense escriptura, processador de preproduccio i proves d'integracio/estructura.
+- [ ] Executar lint i suite PHP/MySQL; PHP continua absent del `PATH` d'aquest host.
+- [ ] Implementar XML/XSD, signatura/certificat, transport/worker AEAT, retries, resposta i dead-letter abans de considerar complet el circuit AEAT.
+
+## Lifecycle de cua AEAT - 2026-09-16
+
+- [x] Definit contracte injectat `AeatTransport` sense dependència d'un client concret.
+- [x] Implementada reclamacio transaccional de cues `PENDING` i `RETRY` amb increment d'intents.
+- [x] Implementada persistencia de `ACCEPTED`, `ACCEPTED_WITH_ERRORS` i `REJECTED` a cua, registre fiscal i factura.
+- [x] Implementats `RETRY` i `DEAD_LETTER` per excepcions de transport, amb error persistent.
+- [x] Afegides proves d'acceptacio, XML/resposta persistent, cua buida, tres intents i dead-letter.
+- [ ] Executar les proves PHP/MySQL quan PHP 8.4 i MySQL 8 estiguin disponibles.
+- [ ] Implementar i validar el constructor XML contra XSD oficial per alta, anul·lacio i subsanacio.
+- [ ] Implementar adaptador SOAP/HTTPS real amb certificat o apoderament, secrets protegits i endpoints de preproduccio.
+- [x] Afegida recuperacio explicita de locks `PROCESSING` caducats amb llindar minim de 60 segons.
+- [x] Afegit processament per lots limitat a 1..100 entrades i aturada al primer error per evitar reintents calents.
+- [x] Implementat backoff exponencial persistent amb `NEXT_RETRY_AT`, espera base i maxim configurables.
+- [ ] Afegir planificador extern del worker, metriques, alertes i operacio controlada.
+
+## Preflight i observabilitat AEAT - 2026-09-16
+
+- [x] Afegida configuracio AEAT per variables d'entorn sense versionar secrets.
+- [x] Implementat preflight bloquejant de SOAP, DOM, OpenSSL, HTTPS, WSDL, XSD, certificat, emissor i identitat SIF.
+- [x] Implementades metriques de cua per estat, registres exigibles, locks caducats i entrada accionable mes antiga.
+- [x] Implementades alertes de `DEAD_LETTER`, volum exigible i lock orfe.
+- [x] Afegit script CLI de nomes lectura que no instancia processador ni transport.
+- [x] Afegides proves de configuracio insegura, secrets no exposats, metriques i estructura del preflight.
+- [ ] Configurar PHP SOAP/DOM/OpenSSL, XSD oficial local, certificat/apoderament, emissor i identitat SIF en preproduccio.
+- [ ] Ampliar i migrar el snapshot immutable amb tots els camps exigits pel registre AEAT, inclosos data d'expedicio i dades del SIF.
+- [ ] Implementar constructor XML i adaptador SOAP només quan el snapshot anterior sigui complet i validable contra XSD.
+- [ ] Executar preflight, proves XSD i enviaments controlats al portal de proves externes abans d'autoritzar produccio.
+
+## Contracte tecnic de pantalles internes - 2026-09-16
+
+- [x] Creat i indexat el contracte tecnic de pantalles internes.
+- [x] Identificats els serveis SIF existents reutilitzables i els endpoints interns pendents.
+- [x] Definit el patro `preview -> confirm` amb idempotencia i revalidacio d'estat.
+- [x] Definits context d'actor, permisos al servidor, resposta comuna i codis d'avis.
+- [x] Definits els contractes de `Passar pagaments`, factura abans de pagar i rectificacio/anulacio.
+- [x] Definides la consulta alumne, la cobertura empresa/responsable i el resum VERI*FACTU.
+- [ ] Implementar autenticacio comuna, autoritzacio, CSRF i auditoria HTTP al repositori real.
+- [ ] Implementar els endpoints interns de consulta, preview i confirmacio.
+- [ ] Integrar les pantalles de la intranet real i executar les proves/captures bloquejants.
+
+## Manifest i portes de l'expedient go/no-go - 2026-09-16
+
+- [x] Manifest mestre de l'expedient definit amb blocs, estats i control d'integritat.
+- [x] Regla de congelacio i revisions successives del manifest definida.
+- [x] Portes `G1` a `G7` definides amb condicio, responsable i evidencia.
+- [x] Abast admissible de `GO AMB LIMITACIONS` restringit a canals o funcionalitats no activats.
+- [x] Control de completitud i caducitat de campanya definit.
+- [x] Fitxa de versio candidata ampliada amb manifest, portes, incidencies, restauracio i decisio.
+- [ ] Crear i congelar el manifest real de la candidata `1.0.0`.
+- [ ] Executar i superar `G1` a `G7` en preproduccio amb evidencies del mateix paquet.
+- [ ] Emetre acta final i registrar les aprovacions aplicables abans d'activar produccio.
+
+## Fitxes UI de pantalles internes - 2026-09-16
+
+- [x] Definida l'estructura visual comuna i els estats de carrega, buit, error, bloqueig i confirmacio.
+- [x] Preparada la fitxa UI de `Passar pagaments`.
+- [x] Preparada la fitxa UI de `Generar factura abans de pagar`.
+- [x] Preparada la fitxa UI de `Consulta - Edita - Anula factura`.
+- [x] Preparades les vistes d'intranet alumne i empresa/responsable.
+- [x] Preparats l'indicador, el resum i les severitats d'avisos VERI*FACTU.
+- [x] Definits criteris d'accessibilitat, mobil i captures obligatories.
+- [ ] Implementar les fitxes al repositori real amb `available_actions` del servidor.
+- [ ] Verificar-les en escriptori i mobil i incorporar captures anonimitzades.
+
+## Backlog d'implementacio de pantalles internes - 2026-09-16
+
+- [x] Localitzades les rutes, metodes, consultes i AJAX llegats de les tres pantalles internes.
+- [x] Documentats els riscos de `GET`, sessio serialitzada, doble escriptura i mutacio fiscal directa.
+- [x] Definida l'estrategia progressiva pantalla -> adaptador -> SIF -> sync llegada.
+- [x] Desglossades les tasques `UI-INT`, `UI-FACT`, `UI-PAY`, `UI-PRE`, `UI-RECT`, `UI-VIS` i `UI-AVI`.
+- [x] Definit l'ordre de lliurament i la definicio de fet per tasca.
+- [ ] Implementar i provar la base segura `UI-INT-001..004` al repositori real.
+- [ ] Implementar primer la consulta de factura sense mutacions.
+- [ ] Activar progressivament pagaments, factura previa, rectificacio, portals i avisos amb proves bloquejants.
+- [ ] Retirar els camins llegats nomes despres de validar equivalencia, rollback i evidencies.
+
+## Proves i evidencies del backlog UI - 2026-09-17
+
+- [x] Afegides proves bloquejants de sessio/rol, CSRF/metode, preview token i indisponibilitat SIF.
+- [x] Relacionades les tasques `UI-*` amb les proves de pantalla corresponents.
+- [x] Definits sis paquets d'evidencia amb captures i comprovacions tecniques.
+- [x] Establert que la base segura ha de passar abans d'activar qualsevol confirmacio.
+- [x] Establert que permisos i idempotencia requereixen evidencia de servidor.
+- [ ] Executar `SIF-PANT-SEC-001..004` al repositori i entorn reals.
+- [ ] Generar, indexar i calcular hashes dels paquets `EVID-UI-*`.
+- [ ] Revisar cada paquet amb responsable diferent de qui executa quan sigui possible.

@@ -1,8 +1,12 @@
 param(
+    [switch]$Generate,
     [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Generate -and $ValidateOnly) {
+    throw 'No es poden combinar -Generate i -ValidateOnly.'
+}
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 $catalogPath = Join-Path $repoRoot 'documentacio/04-estat-final/33-casos-us-sif.md'
 $outputDirectory = Join-Path $repoRoot 'documentacio/06-fitxes-funcionals'
@@ -45,23 +49,13 @@ $sourceDefinitions = [ordered]@{
     'SRC-011' = 'documentacio/04-estat-final/39-auditoria-fitxes-funcionals.md'
     'SRC-012' = 'documentacio/01-compliment-aeat/documentacio-sif-aeat.md'
     'SRC-013' = 'sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql'
+    'SRC-028' = '00-control/registre-decisions.md'
 }
 
 $codeSourceDefinitions = [ordered]@{
-    'SRC-014' = 'codi-drive/web-actual/ajax/enviarInscripcio.php'
-    'SRC-015' = 'codi-drive/web-actual/ajax/enviarInscripcioTastet.php'
-    'SRC-016' = 'codi-drive/web-actual/DescompteAmic.php'
-    'SRC-017' = 'codi-drive/intranet-actual/Intranet.php'
-    'SRC-018' = 'codi-drive/web-actual/ajax/enviarInscripcioPack.php'
-    'SRC-019' = 'codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php'
-    'SRC-020' = 'codi-drive/web-actual/DescompteGrup.php'
-    'SRC-021' = 'codi-drive/web-actual/ajax/obtenirCorreusValidsPromo.php'
-    'SRC-022' = 'codi-drive/web-actual/ajax/enviarImatgeCarnetInscripcio.php'
-    'SRC-023' = 'codi-drive/intranet-alumne-actual/IntranetAlumne.php'
     'SRC-024' = 'sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql'
-    'SRC-025' = 'codi-drive/web-actual/ajax/mailing.php'
-    'SRC-026' = 'codi-drive/web-actual/ajax/mailingNou.php'
     'SRC-027' = 'sif/database/migrations/2026_09_16_000006_add_cross_system_control_tables.sql'
+    'SRC-029' = 'sif/tools/functional-card/fixtures/canvi-curs.json'
 }
 
 $actorOverrides = @{

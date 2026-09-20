@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS enrollment_import_run (
 CREATE TABLE IF NOT EXISTS enrollment_import_item (
     ID BIGINT AUTO_INCREMENT PRIMARY KEY,
     UUID_IMPORT_RUN CHAR(36) NOT NULL,
-    ROW_NUMBER INT NOT NULL,
+    `ROW_NUMBER` INT NOT NULL,
     ROW_HASH CHAR(64) NOT NULL,
     STATUS VARCHAR(30) NOT NULL,
     ERROR_CODE VARCHAR(80) NULL,
@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS enrollment_import_item (
     INPUT_SNAPSHOT_JSON JSON NOT NULL,
     RESULT_JSON JSON NULL,
     PROCESSED_AT DATETIME NULL,
-    UNIQUE KEY uq_enrollment_import_row (UUID_IMPORT_RUN, ROW_NUMBER),
+    UNIQUE KEY uq_enrollment_import_row (UUID_IMPORT_RUN, `ROW_NUMBER`),
     UNIQUE KEY uq_enrollment_import_row_hash (UUID_IMPORT_RUN, ROW_HASH),
     KEY idx_enrollment_import_item_status (UUID_IMPORT_RUN, STATUS),
     CONSTRAINT fk_enrollment_import_item_run

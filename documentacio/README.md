@@ -34,6 +34,9 @@
 - `03-canvis-pendents/09-checklist-posada-en-produccio.md`: checklist abans de produccio, criteris go/no-go, preproduccio, evidencies, backups/restauracio i activacio final.
 - `03-canvis-pendents/10-procediments-intranet-ecommerce.md`: procediments per apartats.
 - `03-canvis-pendents/11-inventari-canvis-pendents.md`: inventari general de canvis.
+- `03-canvis-pendents/12-contracte-tecnic-pantalles-internes.md`: contracte implementable de pantalles, endpoints interns, serveis SIF, permisos, avisos, auditoria i criteris d'acceptacio.
+- `03-canvis-pendents/13-fitxes-ui-pantalles-internes.md`: fitxes visuals i d'interaccio per a pagaments, factura previa, consulta/rectificacio, portals externs i avisos VERI*FACTU.
+- `03-canvis-pendents/14-backlog-implementacio-pantalles-internes.md`: backlog ordenat per integrar les pantalles amb el codi actual, retirar mutacions llegades i validar cada tall.
 
 ## 5. Estat final
 
@@ -62,6 +65,7 @@
 - `05-governanca-operacio/22-manual-operatiu-intern.md`: manual intern.
 - `05-governanca-operacio/23-annex-captures-pantalla.md`: annex de captures i evidencies visuals finals.
 - `05-governanca-operacio/24-diccionari-camps-i-valors.md`: camps i valors controlats.
+- `05-governanca-operacio/25-guies-rapides-pantalles-internes.md`: guies de treball diari, aturada i escalat per operar les pantalles internes amb seguretat.
 
 ## 7. Documents que s'han de penjar o fer accessibles dins del SIF
 

@@ -82,7 +82,7 @@ final class ManualPackInvoicePayloadBuilderTest
     public function testBuildsFallbackIdempotencyWhenManualPackTransferHasNoReference(): void
     {
         $payload = (new ManualPackInvoicePayloadBuilder())->buildFromSnapshot(
-            $this->packSnapshot(['IDPAG' => 921]),
+            $this->packSnapshot(['idpag' => 921], ['IDPAG' => 921]),
             [
                 'amount' => '210',
                 'movement_date' => '2026-06-09',
@@ -180,3 +180,4 @@ final class ManualPackInvoicePayloadBuilderTest
         ];
     }
 }
+

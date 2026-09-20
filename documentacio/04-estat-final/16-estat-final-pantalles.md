@@ -2,6 +2,8 @@
 
 > Document d'estat final de pantalles d'intranet, ecommerce i consultes. Incloura captures quan el sistema estigui implementat.
 
+> Les estructures visuals, estats d'interaccio i captures minimes de les pantalles internes prioritaries es concreten a `../03-canvis-pendents/13-fitxes-ui-pantalles-internes.md`. El contracte d'API i serveis associat es troba a `../03-canvis-pendents/12-contracte-tecnic-pantalles-internes.md`.
+
 ## 1. Objectiu
 
 Documentar com han de quedar les pantalles finals, no nomes quins canvis cal fer.

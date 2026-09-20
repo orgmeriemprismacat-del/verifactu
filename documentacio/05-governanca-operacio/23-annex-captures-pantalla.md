@@ -121,6 +121,28 @@ Una captura pot ser complementaria, pero no substitueix un log o export quan la 
 | Empresa/responsable | Enllac segur valid, token invalid/caducat i PDF pendent | El document es serveix sense path intern i amb permisos. |
 | Apartat `VERI*FACTU` intranet | Indicador, resum, avis de SIF no disponible i enllac al panell | La intranet informa i enllaça, pero no resol incidencies oficials. |
 
+### 2.5.1. Paquets d'evidencia per tall UI
+
+Cada tall del backlog `14-backlog-implementacio-pantalles-internes.md` ha de lliurar un paquet coherent. Les captures no es poden reutilitzar entre versions si ha canviat la pantalla, el contracte API, els permisos o la logica del servei afectat.
+
+| Paquet | Proves | Captures | Evidencia no visual obligatoria |
+| --- | --- | --- | --- |
+| `EVID-UI-BASE` | `SIF-PANT-SEC-001..004` | Acces valid, denegacio neutra, CSRF rebutjat, preview caducat i SIF no disponible | Respostes HTTP, logs d'acces, codis estables i prova d'absencia d'escriptura |
+| `EVID-UI-PAY` | `SIF-PANT-PAY-001..002` | Cerca, preview, bloqueig, confirmacio i resultat | Event d'auditoria, payment/allocation, idempotencia i consulta posterior |
+| `EVID-UI-FAC` | `SIF-PANT-FAC-001` | Tres passos, avis fiscal i resultat pendent | Payload sense pagament, factura/linies, idempotencia i sync llegada |
+| `EVID-UI-RECT` | `SIF-PANT-FACT-001..002` | Original, accions, bloqueig d'edicio, comparacio i rectificativa | Relacio original-rectificativa, motiu, logs i `updDadesFact` absent |
+| `EVID-UI-VIS` | `SIF-VIS-002` | Alumne, empresa/responsable, token invalid i recurs no disponible | Logs d'acces/denegacio, abast del token i prova de no filtracio |
+| `EVID-UI-AVI` | `SIF-AVI-001..002` | Quatre severitats, resum i estat desconegut | Resposta resum, permisos per rol i error de connexio controlat |
+
+Cada paquet ha d'incloure un index amb:
+
+- versio de codi d'intranet i SIF;
+- entorn i configuracio rellevant anonimitzada;
+- IDs de prova i resultat `PASS`, `FAIL` o `BLOCKED`;
+- llista de fitxers d'evidencia amb hash;
+- incidencies obertes i decisio sobre el tall;
+- responsable que executa i responsable que revisa.
+
 ## 2.6. Criteri de privacitat de captures
 
 - Si la captura usa dades reals, cal anonimitzar DNI/NIF, correu, telefon, adreca i imports quan no siguin necessaris per entendre la prova.

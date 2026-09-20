@@ -62,6 +62,7 @@ final class CommercialOperationSchemaTest
             'QR_URL VARCHAR(500) NULL',
             'QR_DATA_HASH CHAR(64) NULL',
             'VERIFACTU_TEXT VARCHAR(255) NULL',
+            'NEXT_RETRY_AT DATETIME NULL',
         ] as $field) {
             Assert::stringContainsString($field, $sql);
         }

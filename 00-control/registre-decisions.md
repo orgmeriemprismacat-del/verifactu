@@ -1457,3 +1457,182 @@ La documentacio de juny ja contenia criteris correctes, pero calia deixar traça
 
 Impacte:
 `documentacio-sif-aeat.md` actualitza fonts i bloquejos; `declaracio-responsable-sif-prisma.md` incorpora control previ i matriu interna de signatura; `19-registre-versions-i-canvis-sif.md` afegeix control bloquejant de `1.0.0`; `21-seguretat-permisos-accessos.md` reforça certificat i auditor nomes lectura; `24-diccionari-camps-i-valors.md` tipifica camps de fonts oficials, signant, prova de certificat i auditoria; `README.md` resumeix el control afegit. No s'ha consultat `xat-original`, no s'ha implementat codi i no s'ha executat cap prova; el tall documental es publica amb checkpoint Git autoritzat en aquest xat.
+
+## 2026-09-16 - Annex de captures i evidencies auditables
+
+Decisio:
+Identificar cada captura i evidencia amb un codi estable, mantenir-ne un index i vincular les incidencies detectades durant proves amb la prova, l'evidencia i el criteri objectiu de tancament. El panell SIF ha de permetre consultar l'expedient de versio, campanya go/no-go i evidencies sense alterar-ne l'historic.
+
+Motiu:
+Una captura aillada o una incidencia marcada com a resolta no demostren per si soles que una versio sigui apta per produccio. Cal conservar context, integritat, resultat esperat i obtingut, reexecucio i traça d'aprovacio per fer la decisio reproduible i auditable.
+
+Impacte:
+`23-annex-captures-pantalla.md` defineix nomenclatura, index, validesa i evidencia minima; `18-estat-final-operacio-incidencies.md` incorpora `ID_PROVA`, `ID_EVIDENCIA` i `CLOSURE_CRITERIA`; `25-panell-sif-pay-prisma.md` amplia la vista de versions, evidencies i go/no-go. Les regles queden documentades, pero continuen pendents l'execucio en preproduccio i la generacio d'evidencies reals.
+
+## 2026-09-16 - Separar vistiplau tecnic i subscripcio formal de la declaracio
+
+Decisio:
+L'acord intern i el formulari de vistiplau passen a formar part del paquet de
+governanca de `1.0.0`. El responsable tecnic pot emetre `GO`, `GO AMB
+LIMITACIONS` o `NO-GO` i, si disposa de facultats delegades, activar la versio
+dins d'aquestes facultats. La declaracio responsable continua requerint la
+subscripcio formal del representant de l'entitat amb identitat, NIF, carrec i
+facultats confirmats.
+
+Motiu:
+El control tecnic ha de demostrar fonts i termini revisats, mapa de camps,
+prova del certificat o representacio des del worker real, documentacio
+accessible i rol auditor nomes lectura. Aquestes evidencies no substitueixen
+la representacio juridica de l'entitat ni converteixen per si soles el borrador
+en una declaracio signable.
+
+Impacte:
+S'amplien les taules de comprovacio dels dos annexos i la recepcio de direccio
+queda com a constancia, no com a substitucio del vistiplau tecnic. Els `.docx`
+homonims queden pendents de regeneracio i verificacio visual. Fins a completar
+les dades i proves bloquejants, `1.0.0` continua no signable i el projecte es
+manté en `[NO-GO]`.
+
+## 2026-09-16 - Exigir entorn PHP/MySQL i separar documentació d'implementació
+
+Decisió:
+No considerar implementat un cas perquè tingui fitxa o taula. Abans d'avançar
+cap a preproducció s'ha de disposar de PHP 8.4 CLI amb `openssl` i `pdo_mysql`,
+MySQL 8 de prova aïllat i bases SIF/legacy de prova. Composer no s'instal·la com
+a requisit perquè el projecte utilitza autoload i runner propis; WSL o Docker
+són opcionals si l'entorn natiu és reproduïble.
+
+Motiu:
+Les 142 fitxes continuen `NOT_COMPLETE`; 44 de 60 taules no apareixen al PHP
+d'execució, només existeixen tres endpoints públics, el gateway universal de
+pagaments no està integrat i no hi ha implementació executable AEAT ni capa
+d'autenticació/autorització. A més, el runner d'integració aplica només 000001
+i el go/no-go comprova 10 de 60 taules.
+
+Impacte:
+La instal·lació de l'entorn és necessària per fer lint, executar 268 mètodes de
+prova, aplicar 000001..000006, provar concurrència, permisos i restauració i
+obtenir evidència real. Instal·lar-lo no resol els buits funcionals: després
+cal implementar serveis, adaptadors, seguretat, AEAT i retirada dels writers
+llegats. L'estat es manté `[NO-GO]`.
+
+## 2026-09-16 - Estat documental i tracabilitat de pantalles internes
+
+Decisio:
+Les pantalles internes prioritaries passen de `DISSENY COBERT` a `ESPECIFICACIO OPERATIVA` quan existeix una cadena documental completa entre pantalla, procediment, validacions i permisos, accio SIF, resultat, prova i captura minima.
+
+Motiu:
+L'estat documental no ha de confondre una definicio funcional amb una implementacio validada. La nova classificacio permet reconeixer que els criteris operatius ja estan preparats sense donar per executades les proves ni per disponibles les pantalles.
+
+Impacte:
+`26-matriu-cobertura-casos.md`, `27-informe-auditoria-documental.md` i `11-inventari-canvis-pendents.md` incorporen la traçabilitat comuna. Les pantalles continuen pendents d'implementacio, proves reals i captures finals; l'estat global del projecte no canvia i continua `[NO-GO]`.
+
+## 2026-09-16 - Reutilitzar el ledger fiscal per anul·lacio i subsanacio
+
+Decisio:
+Implementar `RegistroAnulacion` i subsanacio com a registres immutables addicionals de la factura existent. Tots dos consumeixen el següent `FISCAL_ORDER`, encadenen `HASH_FACT_ANT`, persisteixen a `factura_registres` i creen una entrada idempotent a `fiscal_queue`. L'anul·lacio marca la factura `CANCELLED`; la subsanacio conserva l'identificador i l'estat de la factura.
+
+Motiu:
+L'esquema nucli ja disposa del tipus de registre, la cadena global i la cua amb clau idempotent. Crear una factura nova o un moviment de cobrament per aquests casos trencaria la separacio entre correccio registral, rectificativa de negoci i moviment economic.
+
+Impacte:
+No cal migracio nova. El servei rebutja factures historiques `NO_VERIFACTU`, dobles anul·lacions diferents i subsanacions sobre factures cancel·lades. Aquest tall prepara el registre intern i la cua, pero no equival a enviament AEAT: XML/XSD, certificat/signatura, worker, retries, resposta i dead-letter continuen pendents i el projecte es manté `[NO-GO]`.
+
+## 2026-09-16 - Separar lifecycle de cua i transport AEAT
+
+Decisio:
+Definir `AeatTransport` com a frontera injectada i implementar el lifecycle de `fiscal_queue` independentment del client SOAP. El processador només accepta els resultats normalitzats `ACCEPTED`, `ACCEPTED_WITH_ERRORS` i `REJECTED`; les excepcions es reintenten fins al maxim configurat i acaben en `DEAD_LETTER`.
+
+Motiu:
+La persistencia, idempotencia, bloqueig i politica d'errors es poden provar sense certificat ni xarxa. Acoblar ara un XML o endpoint no validat faria semblar homologat un transport que encara no disposa de mapa normatiu, XSD oficial provat ni credencials de preproduccio.
+
+Impacte:
+La cua ja pot conservar intents, error final, XML enviat i resposta estructurada sobre els camps existents. No s'afegeix script operatiu ni adaptador de xarxa fins que existeixin configuracio segura, certificat, XSD i entorn AEAT verificats. El worker base és executable amb un transport injectat, pero no autoritza cap enviament real.
+
+## 2026-09-16 - Aturar el lot fiscal al primer error
+
+Decisio:
+Limitar cada lot a un maxim de 100 entrades i aturar-lo davant el primer error de transport. Els locks `PROCESSING` abandonats es recuperen explicitament amb un llindar temporal configurable no inferior a 60 segons.
+
+Motiu:
+Si el mateix lot tornés a reclamar immediatament una entrada en `RETRY`, una caiguda temporal podria consumir tots els intents en segons i impedir avançar de manera controlada. La recuperacio explicita evita que una interrupcio del worker deixi la cua bloquejada indefinidament.
+
+Impacte:
+Cada execucio consumeix com a maxim un intent d'una entrada fallida. Encara cal un planificador extern o un camp persistent de proper intent per aplicar backoff temporal, a més de metriques i alertes d'operacio.
+
+## 2026-09-16 - Programar retries fiscals amb `NEXT_RETRY_AT`
+
+Decisio:
+Reutilitzar `fiscal_queue.NEXT_RETRY_AT`, ja definit a la migracio `000004`, per aplicar backoff exponencial persistent. Una entrada en `RETRY` només és reclamable quan la data és nul·la o ja ha vençut; el retard parteix de 60 segons i queda limitat a 3.600 segons per defecte.
+
+Motiu:
+Aturar el lot evita reintents calents dins una mateixa execucio, pero sense una data persistent qualsevol invocacio externa immediata tornaria a consumir un intent. La data a base de dades manté la politica entre processos i reinicis.
+
+Impacte:
+No cal migracio nova. El nucli de proves incorpora condicionalment només aquesta columna perquè `TestDatabase` continua aplicant `000001`; això no equival a validar `000004` completa. Encara cal un planificador extern, metriques i alertes per operar el worker.
+
+## 2026-09-16 - Preflight bloquejant abans de crear el transport AEAT
+
+Decisio:
+No construir ni activar un client SOAP que completi camps fiscals absents amb valors actuals o ficticis. Abans de qualsevol enviament, el preflight ha d'acreditar extensions PHP, HTTPS, WSDL, XSD, certificat, contrasenya no exposada, emissor i identitat SIF; les metriques de cua no poden presentar alertes bloquejants.
+
+Motiu:
+La documentacio oficial defineix SOAP 1.1 document/literal, certificat qualificat i identificacio del registre per NIF emissor, numero i data d'expedicio, a més d'encadenament, huella i dades del SIF. Els payloads actuals no conserven encara tot aquest snapshot immutable i el repositori no conte credencials ni XSD local validat.
+
+Impacte:
+S'afegeixen configuracio per entorn, preflight de nomes lectura, metriques i llindars d'alerta. `ready_to_send` queda fals per defecte. El transport real només es podrà incorporar després d'ampliar i migrar els snapshots, validar XML contra l'XSD oficial i provar certificat/apoderament en preproduccio.
+
+## 2026-09-16 - Contracte tecnic i doble fase per a operacions internes
+
+Decisio:
+Les operacions fiscals o economiques iniciades des de pantalles internes s'implementaran amb dues fases, `preview` i `confirm`. El servidor obtindra l'actor i els permisos de la sessio, calculara l'accio SIF, retornara avisos estructurats i revalidara l'estat abans d'escriure.
+
+Motiu:
+Les pantalles no poden duplicar ni decidir la logica fiscal. La doble fase permet mostrar a l'operador el resultat previst i els bloquejos sense emetre factures o registrar pagaments durant la previsualitzacio, i redueix reintents, duplicats i canvis d'estat entre lectura i confirmacio.
+
+Impacte:
+`12-contracte-tecnic-pantalles-internes.md` fixa rutes proposades, serveis SIF reutilitzables, permisos, avisos, auditoria i criteris d'acceptacio. Els endpoints HTTP de baix nivell existents no s'exposaran directament al navegador. Aquesta decisio no autoritza codi productiu al projecte pont i l'estat global continua `[NO-GO]`.
+
+## 2026-09-16 - Manifest immutable i set portes go/no-go
+
+Decisio:
+Cada versio candidata tindra un manifest mestre de l'expedient, congelat per revisio i identificat per hash. La decisio es validara mitjancant les portes `G1` versio, `G2` integritat fiscal, `G3` canals/documents, `G4` seguretat, `G5` continuitat, `G6` incidencies i `G7` governanca.
+
+Motiu:
+Les plantilles separades no garantien per si soles que totes les evidencies pertanyessin al mateix paquet, entorn i campanya. El manifest evita artefactes orfes i les portes fan visible qui valida cada condicio i quina evidencia la sustenta.
+
+Impacte:
+`GO` exigeix totes les portes superades. `GO AMB LIMITACIONS` no pot rebaixar integritat fiscal, seguretat, restauracio, incidencies bloquejants ni governanca; nomes pot deixar fora canals o funcions no activats i documentats. Els canvis materials de paquet o configuracio invaliden les proves afectades i obliguen a justificar qualsevol reutilitzacio.
+
+## 2026-09-16 - Estructura UI i accions calculades pel servidor
+
+Decisio:
+Les pantalles internes utilitzaran una estructura visual comuna i mostraran les accions permeses a partir de `available_actions` calculat pel servidor. Els estats fiscal, cobrament i AEAT es presentaran per separat, i cap accio critica s'executara directament des d'un llistat.
+
+Motiu:
+La separacio evita confondre una factura emesa amb el seu cobrament o amb la tramitacio AEAT. Les accions calculades pel servidor mantenen la UI coherent amb permisos i estat real, mentre que el patro preview/confirm permet entendre l'efecte abans d'executar-lo.
+
+Impacte:
+`13-fitxes-ui-pantalles-internes.md` es la referencia visual per implementar les sis vistes prioritaries. Inclou estats buits, errors, bloquejos, visibilitat externa, accessibilitat, mobil i captures minimes. La definicio no equival a pantalla implementada ni altera l'estat `[NO-GO]`.
+
+## 2026-09-16 - Migracio progressiva de pantalles i tall de mutacions llegades
+
+Decisio:
+La integracio de pantalles es fara progressivament per ruta: adaptador autenticat, endpoint intern preview/confirm, servei SIF, resultat immutable, sincronitzacio llegada controlada i refresc des del SIF. No es reescriura el monolit `Intranet.php` en una sola entrega.
+
+Motiu:
+El codi actual barreja HTML, SQL, decisions fiscals, correus i actualitzacions llegades. Una substitucio total augmentaria el risc de doble emissio o doble cobrament. Els talls petits permeten validar lectura i permisos abans de mutar dades.
+
+Impacte:
+El flux nou elimina dades economiques per `GET`, bloqueja l'edicio fiscal directa amb `updDadesFact` i evita usar `anularFactura()` com a anul·lacio fiscal generica. Les sincronitzacions llegades passen a ser posteriors al resultat SIF i qualsevol fallada crea divergencia sense repetir l'operacio fiscal. L'estat continua `[NO-GO]`.
+
+## 2026-09-17 - Base segura bloquejant i paquets d'evidencia UI
+
+Decisio:
+Les proves `SIF-PANT-SEC-001..004` son precondicio bloquejant per executar confirmacions de pagament, emissio o rectificacio en preproduccio. Cada tall UI ha de lliurar un paquet d'evidencia versionat que combini captures, respostes API, logs i consulta posterior.
+
+Motiu:
+Una pantalla pot ocultar un boto i continuar acceptant una peticio directa; tambe pot mostrar exit sense demostrar idempotencia o persistencia correcta. Cal provar el servidor i el resultat tecnic, no nomes l'aparenca visual.
+
+Impacte:
+El pla de proves relaciona tasques `UI-*`, precondicions i evidencia minima. L'annex defineix sis paquets `EVID-UI-*` amb index, versions, entorn, hashes, resultats i responsables. Una filtracio de dades entre subjectes o rols provoca `FAIL` i manté `[NO-GO]`.
