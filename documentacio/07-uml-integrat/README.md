@@ -17,8 +17,12 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-28 | Registrar devolució | [Fitxa + UML UC-28](uc-028-registrar-devolucio.md) | Moviment REFUND, assignació, estat de cobrament, separació respecte UC-05 |
 | UC-29 | Crear saldo | [Fitxa + UML UC-29](uc-029-crear-saldo.md) | Titular i origen, credit_balance ACTIVE, duplicats de creació no controlats en el servei revisat |
 | UC-29a | Aplicar compensació | [Fitxa + UML UC-29a](uc-029a-aplicar-compensacio.md) | Bloqueig saldo/factura, pendent, consum atòmic, idempotència i titularitat pendent |
+| UC-21 | Empresa/responsable paga inscripcions | [Fitxa + UML UC-21](uc-021-empresa-responsable-paga-inscripcions.md) | Receptor fiscal i participants, factura prèvia i cobrament posterior, distinció respecte al grup pagat inicialment |
+| UC-24 | Registrar cobrament de reclamació | [Fitxa + UML UC-24](uc-024-registrar-cobrament-reclamacio.md) | `ClaimPaymentService`, idempotència, assignació CLAIM_PAYMENT, correus i URL pendents |
+| UC-26 | Canviar de curs | [Fitxa + UML UC-26](uc-026-canviar-de-curs.md) | Regles de preu/descompte, historial, diferència i seqüència objectiu marcada no implementada |
+| UC-27 | Donar de baixa | [Fitxa + UML UC-27](uc-027-donar-de-baixa.md) | Separació entre baixa, devolució, saldo i rectificativa; event previst i components parcials |
 
-**Abast actual:** aquests onze casos estan redactats i contrastats documentalment amb les classes i proves citades; **això no vol dir que tot el catàleg UC estigui complet, que s'hagin executat els tests o que els casos estiguin desplegats**.
+**Abast actual:** aquests quinze casos estan redactats i contrastats documentalment amb les classes i proves citades; **això no vol dir que tot el catàleg UC estigui complet, que s'hagin executat els tests o que els casos estiguin desplegats**.
 
 ## Com llegir el paquet de cada acció
 
@@ -45,10 +49,14 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-28 | Sí | Sí | Sí | Sí (devolució parcial/total) | UC-02, UC-05 |
 | UC-29 | Sí | Sí | Sí | Sí (creació saldo) | UC-29a, UC-06 |
 | UC-29a | Sí | Sí | Sí | Sí (consum i moviment) | UC-02, UC-29 |
+| UC-21 | Sí | Sí | Sí | Sí (emissió + cobrament i canvi posterior) | UC-04, UC-02, UC-05 |
+| UC-24 | Sí | Sí | Sí | Sí (cobrament reclamat) | UC-02, UC-43 |
+| UC-26 | Sí | Sí | Sí | Sí (flux objectiu; orquestrador pendent) | UC-71, UC-05, UC-28, UC-29 |
+| UC-27 | Sí | Sí | Sí | Sí (flux objectiu; orquestrador pendent) | UC-72, UC-28, UC-29, UC-05 |
 
 ## Criteris per ampliar aquest catàleg
 
-- Continuar per fluxos de negoci concrets (UC-21 empresa/responsable; UC-26/71 canvi de curs; UC-27/72 baixa) i, en paral·lel, documentar els processos transversals no resolts (classificació fiscal, enviament AEAT, documents, incidències, controls d'operació).
+- Continuar pels expedients detallats UC-71 i UC-72 i pels processos transversals de canvi i baixa i, en paral·lel, documentar els processos transversals no resolts (classificació fiscal, enviament AEAT, documents, incidències, controls d'operació).
 - Revisar la cardinalitat dels actors i les relacions `include`/`extend` per cada acció, sense dibuixar una cadena automàtica on només hi ha una operació futura separada.
 - Triangular **xat pont, fitxa anterior, codi del cas i model de dades** quan hi hagi divergències; distingir sempre `codi observat`, `contracte documental` i `pendent de decisió`. Les referències al xat pont només es donaran per verificades després d'identificar-ne el fragment concret.
 - No declarar un cas tancat només perquè té els quatre apartats UML: requereix validació funcional, revisió de permisos, prova del flux d'extrem a extrem i evidència de comportament correcte a l'entorn corresponent.
