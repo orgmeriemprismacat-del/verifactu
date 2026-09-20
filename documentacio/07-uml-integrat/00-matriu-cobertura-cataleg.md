@@ -1,14 +1,14 @@
 # Matriu completa de cobertura UML del catàleg SIF
 
-**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 76 de 142 casos; 66 pendents de revisió específica.** Una fitxa revisada documentalment no acredita implementació, proves ni desplegament; els estats de les fitxes originals poden diferir del codi verificat en cada revisió nova.
+**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 83 de 142 casos; 59 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original es conserva com a dada històrica i pot diferir del PHP/SQL contrastat en cada fitxa.
 
 ## Cobertura per domini
 
 | Domini del catàleg | Total | Revisats | Pendents |
 | --- | ---: | ---: | ---: |
-| facturació i registre fiscal | 33 | 20 | 13 |
-| pagaments i conciliació | 30 | 20 | 10 |
-| documents, accés i comunicacions | 11 | 3 | 8 |
+| facturació i registre fiscal | 33 | 21 | 12 |
+| pagaments i conciliació | 30 | 22 | 8 |
+| documents, accés i comunicacions | 11 | 5 | 6 |
 | governança i operació | 29 | 7 | 22 |
 | integració SIF | 1 | 1 | 0 |
 | venda i descomptes | 7 | 7 | 0 |
@@ -17,7 +17,7 @@
 | circuit adjacent de col·laboradors | 2 | 0 | 2 |
 | casuística recuperada | 1 | 0 | 1 |
 | operació comercial i inscripció | 7 | 7 | 0 |
-| cicle de vida comercial, acadèmic i documental | 12 | 9 | 3 |
+| cicle de vida comercial, acadèmic i documental | 12 | 11 | 1 |
 | consentiment, identitat i coherència entre sistemes | 5 | 0 | 5 |
 
 ## Relació de tots els casos
@@ -68,8 +68,8 @@
 | UC-29a | Aplicar compensació | `[BASE/PARCIAL]` | [uc-029a.md](../06-fitxes-funcionals/uc-029a.md) | [Fitxa i diagrames](uc-029a-aplicar-compensacio.md) |
 | UC-30 | Anul·lar registre improcedent | `[DISSENY]` | [uc-030.md](../06-fitxes-funcionals/uc-030.md) | [Fitxa i diagrames](uc-030-anul-lar-registre-improcedent.md) |
 | UC-31 | Subsanar registre | `[DISSENY]` | [uc-031.md](../06-fitxes-funcionals/uc-031.md) | [Fitxa i diagrames](uc-031-subsanar-registre.md) |
-| UC-32 | Marcar o desmarcar factura electrònica | `[DISSENY]` | [uc-032.md](../06-fitxes-funcionals/uc-032.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-33 | Desactivar URL de pagament | `[DISSENY]` | [uc-033.md](../06-fitxes-funcionals/uc-033.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-32 | Marcar o desmarcar factura electrònica | `[DISSENY]` | [uc-032.md](../06-fitxes-funcionals/uc-032.md) | [Fitxa i diagrames](uc-032-marcar-factura-electronica.md) |
+| UC-33 | Desactivar URL de pagament | `[DISSENY]` | [uc-033.md](../06-fitxes-funcionals/uc-033.md) | [Fitxa i diagrames](uc-033-desactivar-url-pagament.md) |
 | UC-34 | Consultar dashboard | `[DISSENY]` | [uc-034.md](../06-fitxes-funcionals/uc-034.md) | [Fitxa i diagrames](uc-034-consultar-dashboard-sif.md) |
 | UC-35 | Consultar registre, cadena i estat AEAT | `[DISSENY]` | [uc-035.md](../06-fitxes-funcionals/uc-035.md) | [Fitxa i diagrames](uc-035-consultar-registre-cadena-estat-aeat.md) |
 | UC-36 | Generar/consultar PDF, QR o XML | `[PARCIAL]` | [uc-036.md](../06-fitxes-funcionals/uc-036.md) | [Fitxa i diagrames](uc-036-generar-consultar-documents.md) |
@@ -84,9 +84,9 @@
 | UC-45 | Activar auditor temporal | `[DISSENY]` | [uc-045.md](../06-fitxes-funcionals/uc-045.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-46 | Activar versió i declaració responsable | `[DISSENY]` | [uc-046.md](../06-fitxes-funcionals/uc-046.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-47 | Sincronitzar l'estat mínim cap al llegat després del commit SIF | `[BASE/PARCIAL]` | [uc-047.md](../06-fitxes-funcionals/uc-047.md) | [Fitxa i diagrames](uc-047-sincronitzar-estat-cap-llegat.md) |
-| UC-48 | Crear o consultar una proforma no fiscal | `[LEGACY/DISSENY]` | [uc-048.md](../06-fitxes-funcionals/uc-048.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-48 | Crear o consultar una proforma no fiscal | `[LEGACY/DISSENY]` | [uc-048.md](../06-fitxes-funcionals/uc-048.md) | [Fitxa i diagrames](uc-048-proforma-no-fiscal.md) |
 | UC-49 | Enviar factura, document o avis per correu | `[LEGACY/DISSENY]` | [uc-049.md](../06-fitxes-funcionals/uc-049.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-50 | Crear, consultar, desactivar o caducar un enllaç de pagament | `[DISSENY]` | [uc-050.md](../06-fitxes-funcionals/uc-050.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-50 | Crear, consultar, desactivar o caducar un enllaç de pagament | `[DISSENY]` | [uc-050.md](../06-fitxes-funcionals/uc-050.md) | [Fitxa i diagrames](uc-050-cicle-enllac-pagament.md) |
 | UC-51 | Tractar callback Redsys denegat, tardà, duplicat o contradictori | `[ASYNC]` | [uc-051.md](../06-fitxes-funcionals/uc-051.md) | [Fitxa i diagrames](uc-051-callback-redsys-anomal.md) |
 | UC-52 | Operar la cua Redsys | `[ASYNC/PARCIAL]` | [uc-052.md](../06-fitxes-funcionals/uc-052.md) | [Fitxa i diagrames](uc-052-operar-cua-redsys.md) |
 | UC-53 | Detectar i resoldre divergències SIF-llegat | `[DISSENY]` | [uc-053.md](../06-fitxes-funcionals/uc-053.md) | [Fitxa i diagrames](uc-053-detectar-resoldre-divergencies.md) |
@@ -97,7 +97,7 @@
 | UC-58 | Gestionar l'outbox de notificacions | `[DISSENY]` | [uc-058.md](../06-fitxes-funcionals/uc-058.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-59 | Concedir, caducar i revocar accés auditor | `[DISSENY]` | [uc-059.md](../06-fitxes-funcionals/uc-059.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-60 | Monitorar salut, cues, documents, backups i versió activa | `[DISSENY]` | [uc-060.md](../06-fitxes-funcionals/uc-060.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-61 | Consultar un import pendent i obtenir un enllaç de pagament | `[LEGACY/OBJECTIU]` | [uc-061.md](../06-fitxes-funcionals/uc-061.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-61 | Consultar un import pendent i obtenir un enllaç de pagament | `[LEGACY/OBJECTIU]` | [uc-061.md](../06-fitxes-funcionals/uc-061.md) | [Fitxa i diagrames](uc-061-consultar-pendent-obtenir-enllac.md) |
 | UC-62 | Iniciar factura o cobrament des de la intranet | `[LEGACY/DISSENY]` | [uc-062.md](../06-fitxes-funcionals/uc-062.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-63 | Crear la intenció Redsys des de l'ecommerce | `[ASYNC/PARCIAL]` | [uc-063.md](../06-fitxes-funcionals/uc-063.md) | [Fitxa i diagrames](uc-063-crear-intencio-redsys.md) |
 | UC-64 | Reconciliar la candidata amb el codi actual | `[CONTROL/PENDENT]` | [uc-064.md](../06-fitxes-funcionals/uc-064.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
@@ -158,8 +158,8 @@
 | UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-119.md](../06-fitxes-funcionals/uc-119.md) | [Fitxa i diagrames](uc-119-cicle-complet-regal.md) |
 | UC-120 | Tramitar una sol·licitud de canvi de dades personals i la seva propagació | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-120.md](../06-fitxes-funcionals/uc-120.md) | [Fitxa i diagrames](uc-120-canvi-dades-personals-propagacio.md) |
 | UC-121 | Repreuar o renovar una reserva caducada abans del pagament | `[DISSENY/BLOQUEJANT]` | [uc-121.md](../06-fitxes-funcionals/uc-121.md) | [Fitxa i diagrames](uc-121-repreuar-renovar-reserva-caducada.md) |
-| UC-122 | Gestionar la composició d'un pack i la indisponibilitat d'un component | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-122.md](../06-fitxes-funcionals/uc-122.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-123 | Generar i lliurar una factura electrònica en format i canal acordats | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-123.md](../06-fitxes-funcionals/uc-123.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-122 | Gestionar la composició d'un pack i la indisponibilitat d'un component | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-122.md](../06-fitxes-funcionals/uc-122.md) | [Fitxa i diagrames](uc-122-composicio-pack-component-indisponible.md) |
+| UC-123 | Generar i lliurar una factura electrònica en format i canal acordats | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-123.md](../06-fitxes-funcionals/uc-123.md) | [Fitxa i diagrames](uc-123-lliurar-factura-electronica.md) |
 | UC-124 | Reconciliar accés acadèmic i certificat amb baixa, deute i pagador de grup | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-124.md](../06-fitxes-funcionals/uc-124.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-125 | Gestionar consentiment de comunicacions separat de la inscripció | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-125.md](../06-fitxes-funcionals/uc-125.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-126 | Resoldre identitat i dades de contacte en conflicte entre sistemes | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-126.md](../06-fitxes-funcionals/uc-126.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
@@ -169,4 +169,4 @@
 
 ## Significat de «revisat»
 
-Cada fitxa específica descriu l'acció, un diagrama UML de casos d'ús, de classes i de seqüència i diferencia PHP real, taules SQL definides i disseny pendent. **No** acredita execució de proves, consentiment/autorització de canals, registre quantitatiu de fons per inscripció, acceptació de l'AEAT o desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Moviments d'inscripció](00-revisio-moviments-inscripcions.md).
+Cada fitxa específica conté anàlisi funcional, UML de casos d'ús, classes i seqüència, i distingeix codi PHP existent, esquema SQL definit i disseny pendent. No certifica tests executats, autorització de canals, control d'aforament, ledger quantitatiu de fons per inscripció, acceptació AEAT o desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
