@@ -40,6 +40,12 @@
 
 **Proves localitzades, no executades:** `ManualInstallmentPaymentServiceTest::testRegistersInstallmentsAgainstExistingInvoiceWithoutDuplicatingFiscalRecord`, `testRegistersInstallmentByVisibleInvoiceNumber` i `testRejectsUnknownInvoiceBeforeRegisteringInstallment`.
 
+### 1.3. Revisió: cada fracció també és una atribució monetària per inscripció — PENDENT
+
+El builder coneix `id_insc` i l'inclou a la **clau idempotent** i a `provider_ref`, però `PaymentRepository` no desa `ID_INSC` a `payment_transaction` ni a `payment_allocation`. UC-23 ha de crear una entrada d'atribució per **cada fracció efectivament cobrada** de la inscripció i referenciar-ne el `UUID_PAYMENT`; reintentar la mateixa fracció no torna a incrementar el seu saldo. Si el pagament cobreix quotes d'inscripcions diferents, cal desglossament explícit. Un calendari de fraccions previstes no és diner cobrat: no produeix entrades `RECEIPT_ALLOCATION` abans de la confirmació.
+
+[Proposta de registre per inscripció](00-revisio-moviments-inscripcions.md).
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
