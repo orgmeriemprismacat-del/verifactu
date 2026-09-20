@@ -2,9 +2,9 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 76 casos d'ús revisats
+## Mapa dels 83 casos d'ús revisats
 
-**[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Diners per inscripció](00-revisio-moviments-inscripcions.md)**
+**[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
 | ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
@@ -52,16 +52,21 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-29a | Aplicar compensació | [Fitxa i UML](uc-029a-aplicar-compensacio.md) | `[BASE/PARCIAL]` |
 | UC-30 | Anul·lar registre improcedent | [Fitxa i UML](uc-030-anul-lar-registre-improcedent.md) | `[DISSENY]` |
 | UC-31 | Subsanar registre | [Fitxa i UML](uc-031-subsanar-registre.md) | `[DISSENY]` |
+| UC-32 | Marcar o desmarcar factura electrònica | [Fitxa i UML](uc-032-marcar-factura-electronica.md) | `[DISSENY]` |
+| UC-33 | Desactivar URL de pagament | [Fitxa i UML](uc-033-desactivar-url-pagament.md) | `[DISSENY]` |
 | UC-34 | Consultar dashboard | [Fitxa i UML](uc-034-consultar-dashboard-sif.md) | `[DISSENY]` |
 | UC-35 | Consultar registre, cadena i estat AEAT | [Fitxa i UML](uc-035-consultar-registre-cadena-estat-aeat.md) | `[DISSENY]` |
 | UC-36 | Generar/consultar PDF, QR o XML | [Fitxa i UML](uc-036-generar-consultar-documents.md) | `[PARCIAL]` |
 | UC-47 | Sincronitzar l'estat mínim cap al llegat després del commit SIF | [Fitxa i UML](uc-047-sincronitzar-estat-cap-llegat.md) | `[BASE/PARCIAL]` |
+| UC-48 | Crear o consultar una proforma no fiscal | [Fitxa i UML](uc-048-proforma-no-fiscal.md) | `[LEGACY/DISSENY]` |
+| UC-50 | Crear, consultar, desactivar o caducar un enllaç de pagament | [Fitxa i UML](uc-050-cicle-enllac-pagament.md) | `[DISSENY]` |
 | UC-51 | Tractar callback Redsys denegat, tardà, duplicat o contradictori | [Fitxa i UML](uc-051-callback-redsys-anomal.md) | `[ASYNC]` |
 | UC-52 | Operar la cua Redsys | [Fitxa i UML](uc-052-operar-cua-redsys.md) | `[ASYNC/PARCIAL]` |
 | UC-53 | Detectar i resoldre divergències SIF-llegat | [Fitxa i UML](uc-053-detectar-resoldre-divergencies.md) | `[DISSENY]` |
 | UC-54 | Operar la cua fiscal i tractar la resposta AEAT | [Fitxa i UML](uc-054-operar-cua-fiscal-respostes.md) | `[DISSENY]` |
 | UC-55 | Generar, reintentar i custodiar documents fiscals | [Fitxa i UML](uc-055-custodiar-reintentar-documents.md) | `[PARCIAL/DISSENY]` |
 | UC-56 | Cercar i assignar un cobrament | [Fitxa i UML](uc-056-cercar-assignar-cobrament.md) | `[PARCIAL]` |
+| UC-61 | Consultar un import pendent i obtenir un enllaç de pagament | [Fitxa i UML](uc-061-consultar-pendent-obtenir-enllac.md) | `[LEGACY/OBJECTIU]` |
 | UC-63 | Crear la intenció Redsys des de l'ecommerce | [Fitxa i UML](uc-063-crear-intencio-redsys.md) | `[ASYNC/PARCIAL]` |
 | UC-71 | Registrar un canvi de curs complet | [Fitxa i UML](uc-071-registrar-canvi-curs-complet.md) | `[DISSENY/PARCIAL]` |
 | UC-72 | Registrar baixa i decisió econòmica | [Fitxa i UML](uc-072-registrar-baixa-decisio-economica.md) | `[DISSENY/PARCIAL]` |
@@ -84,8 +89,10 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | [Fitxa i UML](uc-119-cicle-complet-regal.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-120 | Tramitar una sol·licitud de canvi de dades personals i la seva propagació | [Fitxa i UML](uc-120-canvi-dades-personals-propagacio.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-121 | Repreuar o renovar una reserva caducada abans del pagament | [Fitxa i UML](uc-121-repreuar-renovar-reserva-caducada.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-122 | Gestionar la composició d'un pack i la indisponibilitat d'un component | [Fitxa i UML](uc-122-composicio-pack-component-indisponible.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-123 | Generar i lliurar una factura electrònica en format i canal acordats | [Fitxa i UML](uc-123-lliurar-factura-electronica.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 76/142.** Queden **66** casos sense fitxa UML individual revisada. Els estats del catàleg original no acrediten desplegament. El ledger `enrollment_fund_movement` continua sent **proposta**, i les taules SQL de drets/justificants/propagació encara no acrediten els serveis executables corresponents.
+**Cobertura documental: 83/142.** Els 59 casos restants encara no tenen fitxa UML individual revisada. L'estat del catàleg original no acredita implementació. El registre quantitatiu `enrollment_fund_movement` continua sent proposta; les taules `payment_link` i `electronic_invoice_delivery` estan definides a SQL però els seus serveis complets no s'han acreditat al PHP.
 
 ## Com llegir el paquet de cada acció
 
