@@ -41,6 +41,12 @@
 
 **Proves localitzades, no executades:** `ManualPaymentServiceTest::testRegistersManualPaymentAgainstExistingInvoiceByUuid`, `testRegistersManualPaymentByVisibleInvoiceNumber`, `testRejectsUnknownInvoiceBeforeRegisteringPayment`.
 
+### 1.3. Revisió: identificar l'ingrés i les inscripcions — PENDENT
+
+Una transferència bancària pot cobrir una o diverses inscripcions; `ManualPaymentPayloadBuilder` actual fa **una assignació a una factura**, sense `ID_INSC`. Abans de confirmar-la com a distribuïda cal validar import bancari i titular, decidir imports per participant i registrar **una atribució per inscripció** vinculada a la mateixa `UUID_PAYMENT` i, si pertoca, a l'assignació per factura. L'import atribuït per una transferència no ha de superar l'import real disponible ni repetir-se en una reclamació o un callback ja registrat. La distribució a diverses factures requereix contracte propi i no es pot deduir de les relacions `fact_rels`.
+
+[Model i invariants de conciliació](00-revisio-moviments-inscripcions.md).
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
