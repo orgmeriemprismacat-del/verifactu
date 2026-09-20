@@ -49,6 +49,26 @@
 
 [Model i reconciliació proposats](00-revisio-moviments-inscripcions.md).
 
+### 1.4. Autorització, dues aplicacions legítimes i destinació real — contrast amb el xat original
+
+**A-TITULAR — pagar amb saldo no és fer un descompte:** el cas d'ús consumeix fons/valor ja reconeguts en un `credit_balance` i registra un moviment `COMPENSATION`; no redueix automàticament el preu fiscal de la factura ni és un `CHARGE` bancari nou. Abans d'aplicar-lo a una factura d'empresa, grup, USOC o d'una altra persona, validar titular econòmic, consentiment i autorització de l'ús del saldo per a **cada inscripció beneficiària**; el servei actual comprova saldo i pendent de factura, però no acredita aquesta comprovació entre titulars.
+
+**A-DOBLE — dos usos de mateix import sobre la mateixa factura:** la clau actual `COMPENSACIO|UUID_CREDIT:<uuid>|FACT:<num>|IMPORT:<quantitat>` tracta dues peticions d'import igual com a una sola operació. Això és correcte per a un reintent equivalent, però pot confondre dos usos legítims si el titular decideix aplicar 20 € avui i 20 € un altre dia a la mateixa factura. El contracte objectiu requereix una referència única/versionada **d'operació confirmada**, comparació del payload original i revalidació del saldo disponible, sense perdre la idempotència d'un reintent ni permetre dos consums simultanis dels mateixos diners. La nova referència d'operació no consta acreditada en el builder existent.
+
+**A-CANVI — destí d'una compensació després de baixa o canvi:** si es crea un saldo per baixa i després s'aplica a una altra inscripció, conservar la traça `INSCRIPCIÓ_ORIGEN → CREDIT → INSCRIPCIÓ_DESTÍ` i els UUID_CREDIT/UUID_PAYMENT. Si el destinatari canvia de curs o es reactiva la baixa, no restaurar saldo consumit amb un simple UPDATE: cal classificar nous traspassos i efectes fiscals. Una compensació a factura de grup amb N participants requereix repartiment real, no atribució total a cadascú.
+
+**A-ANTIC — revisió de saldo antic:** no es caduca automàticament un saldo perquè han passat cinc anys. Quan s'hagi determinat revisió manual `review_after`, l'operador ha de revisar titular, origen, disponible i possibles moviments previs abans d'autoritzar l'ús; `CreditBalanceService` per si sol no acredita que la pantalla mostri aquesta revisió.
+
+### 1.5. Proves d'acceptació addicionals (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CO-01 | Aplicar saldo de titular empresa a factura alumne sense autorització | Denegar o requerir decisió explícita, sense consum automàtic. |
+| CO-02 | Aplicar 20 € i posteriorment uns altres 20 € legítims a mateixa factura | Dos moviments diferenciats si hi ha saldo/pendent, no fusió per clau coincident. |
+| CO-03 | Reintent del primer moviment de 20 € | Retornar el mateix UUID_PAYMENT sense segon consum del crèdit. |
+| CO-04 | Saldo de baixa aplicat a inscripció nova | Traça origen→credit→destí i un sol consum monetari. |
+| CO-05 | Saldo amb revisió manual pendent després de cinc anys | Revisió de titular/origen abans d'ús; cap expiració automàtica. |
+| CO-06 | Factura de grup amb diverses inscripcions | Repartiment quantitatiu i autorització per cada participant; no atribuir el mateix saldo sencer N vegades. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
