@@ -41,6 +41,24 @@
 
 **Proves localitzades, no executades:** `RedsysGiftInvoiceServiceTest`, `RedsysGiftPreflightScriptTest`, `RedsysGiftPreproductionScriptTest`. No demostren UC-18 ni el registre de saldo/atribució del dret de regal a la inscripció final.
 
+### 1.3. Dades de comprador, destinatari i lliurament del regal — contrast amb el xat original
+
+**Circuit narrat per PrisMa:** la persona compradora entra a «Regalar un curs», escull el curs o tipus de curs, pot escriure una **dedicatòria** i facilita les **seves dades fiscals**. Un cop pagat, rep un **codi per bescanviar**. La persona destinatària encara **no ha aportat totes les seves dades d'alumne ni disposa necessàriament d'una inscripció definitiva** en el moment de la compra; omple les dades d'inscripció més endavant, quan bescanvia el codi (UC-18). No exigir l'ID_INSC final del destinatari com a precondició d'UC-17 ni utilitzar-lo fictíciament per justificar la factura inicial.
+
+**Identitats i accés:** el comprador, la persona a qui es dedica el regal i el participant que finalment es matricula poden ser subjectes diferents. La factura es genera a nom del **comprador/receptor fiscal validat**, no del beneficiari pel fet de bescanviar. El codi i la dedicatòria pertanyen al circuit de lliurament/entitlement, no són substituts de les dades fiscals. El builder actual registra codi en el detall de la línia; abans de custodiar/servir el PDF s'ha de revisar si això exposa un codi de bescanvi utilitzable a tercers i decidir una presentació segura, amb control d'accés real al document (UC-07). L'estat `visible_alumne=0` del payload no garanteix autorització efectiva del servidor.
+
+**Comunicacions i recuperació:** distingir el missatge de confirmació de compra/factura al comprador del lliurament del codi de regal, i del correu de bescanvi/inscripció que pot arribar després al beneficiari. No adjuntar factura amb dades del comprador en una comunicació a la persona destinatària. Si Redsys ha confirmat el cobrament però falla la generació/lliurament del codi o del PDF, mantenir factura i CHARGE reals, registrar incidència/reintentar lliurament idempotent i no fer pagar de nou per recuperar el regal. El xat confirma que hi ha diversos correus/plantilles, però els destinataris, assumptes i ordre exacte de cada plantilla s'han de validar contra el codi real abans d'afirmar-los com a implementats.
+
+### 1.4. Proves específiques de compra de regal (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RG-01 | Comprador compra amb dedicatòria i beneficiari encara no inscrit | Factura a comprador, dret/codi vinculat a compra i cap matrícula fictícia. |
+| RG-02 | Beneficiari diferent del comprador | Accés al codi segons titularitat, sense visibilitat de factura/dades fiscals del comprador. |
+| RG-03 | Callback duplicat després de compra correcta | Mateixa factura, CHARGE i dret/codi; cap doble regal. |
+| RG-04 | Pagament validat i lliurament del codi fallit | Factura i moviment conservats, incidència i reintent sense nova compra. |
+| RG-05 | Factura/PDF inclou codi de bescanvi | Revisar exposició del secret i permisos; cap lliurament públic per URL deduïble. |
+| RG-06 | S'envia correu de compra i correu de bescanvi en moments diferents | Destinataris/plantilles segregats i cap duplicació de factura al bescanvi. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -173,6 +191,31 @@ end
 Note over Gift,Funds: NO crear payment_transaction CHARGE nou pel bescanvi del mateix import
 ```
 
+### 5.1. Seqüència — compra correcta però lliurament fallit (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor C as Comprador
+participant UI as Canal regal [adaptació pendent]
+participant P as Redsys/InvoiceService [nucli existent]
+participant E as Dret i codi regal [integració pendent]
+participant Mail as Notificació/PDF [integració pendent]
+C->>UI: Triar curs, dedicatòria i dades fiscals pròpies
+UI->>P: Confirmar compra Redsys i emetre factura al comprador
+P-->>UI: UUID_FACTURA i UUID_PAYMENT
+UI->>E: Associar dret de regal a la compra confirmada
+alt Codi o comunicació no lliurats
+ E-->>UI: Error de lliurament, compra existent
+ UI->>Mail: Incidència i reintent idempotent [pendent]
+ UI-->>C: Compra registrada; lliurament pendent, no segon pagament
+else Lliurament correcte
+ E-->>UI: Codi/dret disponible
+ UI->>Mail: Comunicar al comprador segons plantilla/permís
+ UI-->>C: Regal disponible per bescanvi posterior
+end
+Note over P,Mail: La compra i el bescanvi són fases diferents; aquesta seqüència no acredita un outbox de regals ja integrat.
+```
 ## 6. Traçabilitat
 
 [UC-17 original](../06-fitxes-funcionals/uc-017.md) · [UC-18 bescanvi original](../06-fitxes-funcionals/uc-018.md) · [UC-18a excepcional](../06-fitxes-funcionals/uc-018a.md) · [UC-03 Redsys](uc-003-processar-cobrament-redsys-asincron.md) · [UC-63 intenció](uc-063-crear-intencio-redsys.md) · [RedsysGiftInvoiceService](../../sif/src/Service/RedsysGiftInvoiceService.php) · [LegacyGiftInvoicePayloadBuilder](../../sif/src/Service/LegacyGiftInvoicePayloadBuilder.php) · [RedsysGiftInvoiceServiceTest](../../sif/tests/Integration/RedsysGiftInvoiceServiceTest.php).
