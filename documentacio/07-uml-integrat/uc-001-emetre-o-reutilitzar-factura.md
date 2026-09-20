@@ -39,6 +39,12 @@
 
 **Proves localitzades (no executades en aquesta revisió):** `IssueInvoiceTest::testIssueInvoiceCreatesFiscalRecordAndQueue`, `testIssueInvoiceReusesExistingInvoiceForSameIdempotencyKey`, `testIssueInvoiceWithPaymentCreatesPaymentTransactionAndAllocation`.
 
+### 1.3. Revisió de la traçabilitat dels fons per inscripció — PENDENT
+
+**Emetre una factura no és ingressar diners.** UC-01 només crea una atribució monetària per inscripció si el payload conté un cobrament inicial real i validat; si `payment=null`, el ledger proposat no rep cap `RECEIPT_ALLOCATION`. Amb cobrament inicial, l'operació ha de registrar **un sol** `payment_transaction` i atribuir-ne la quantitat exacta a cadascuna de les inscripcions d'origen, fins i tot si diverses comparteixen una factura. El camí actual d'`InvoiceService` no fa aquests assentaments per inscripció. La creació fiscal, l'assignació per factura i el detall per inscripció han de confirmar-se conjuntament quan comparteixin BD; si el canal no pot identificar el desglossament, no s'ha de suposar un repartiment equitatiu.
+
+Vegeu [revisió i model proposat de moviments per inscripció](00-revisio-moviments-inscripcions.md).
+
 ## 2. Diagrama UML de casos d'ús
 
 Font UML editable PlantUML; l'emissió abans de cobrar i les rectificatives utilitzen el nucli d'emissió però tenen fitxes diferenciades.
