@@ -50,6 +50,15 @@
 
 El codi `OperationalEventRepository::append()` persisteix `operational_event` amb `OPERATION_TYPE`, `FISCAL_IMPACT`, `ECONOMIC_IMPACT`, `REASON_CODE`, `CORRELATION_ID` i snapshots abans/després. La migració `2026_09_15_000003_add_functional_audit_control.sql` defineix `course_change_event` com a taula vinculada. `ManualRectificationService`, `PaymentService`, `ManualRefundService` i `CreditBalanceService` ofereixen **peces separades**; **no** acredita la transacció completa UC-71 ni la relació quantitativa de fons. A la fitxa original `uc-071.md` consta `NOT_COMPLETE`.
 
+### 1.5. Cadena de canvis i reversió d'un expedient — OBJECTIU PENDENT
+
+El xat original descriu canvis **consecutius** de curs, ocasionalment per corregir errors de gestió, i la possibilitat de desfer un canvi des de la fitxa de l'alumne. El contracte UC-71 ha de conservar la cadena A→B→C i determinar quin event continua vigent abans de recàlcul, retorn o cobrament. El segon canvi no pot utilitzar de nou un tram de fons ja reassignat o retornat pel primer. Una reversió crea un **nou event relacionat amb el canvi que supera** i deixa consultable tot l'històric; no elimina ni modifica els cobraments o factures anteriors.
+
+**Dades a relacionar (proposta, no camps presents acreditats en la migració):** UUID de l'event anterior i de l'event revertit; inscripcions d'origen, destí i estat vigent; imports realment atribuïts per tram; diferència pendent i diferència cobrada; eventual retorn, saldo o compensació; referències a factures i rectificatives. Per als ajustos manuals, separar import/despesa calculats d'import/despesa autoritzats, motiu i actor. Abans d'afegir columnes noves, revisar les relacions que ja es poden expressar amb course_change_event i operational_event; enrollment_fund_movement continua sent PROPOSTA, sense repositori o migració operatius acreditats.
+
+**Decisió inversa:** si A→B encara no ha generat fons, factura o correcció posterior, pot autoritzar-se una reversió només administrativa amb event nou i verificació de plaça. Si ja hi ha moviments, devolució, saldo consumit o rectificativa, l'operador ha de veure cada efecte i tramitar una regularització independent, evitant un segon CHARGE artificial o la restauració fictícia de diners retornats. Si B→C ha substituït A→B, no aplicar una reversió com si B encara fos l'estat vigent; primer resoldre la cadena real.
+
+**Callback de diferència tardà:** l'intent de cobrament creat per un canvi ja revertit o superat no pot assignar automàticament el CHARGE al curs antic. Si el banc ha cobrat, conservar el moviment i l'evidència, identificar el titular i obrir conciliació per decidir destinació/retorn/saldo sense una segona factura no relacionada.
 ## 2. Diagrama UML de casos d'ús (PlantUML)
 
 ```plantuml
@@ -215,6 +224,44 @@ end
 Note over C,L: La reexecució amb X ha de reutilitzar l'assentament, no moure diners dues vegades
 ```
 
+### 5.1. Seqüència de cadena i reversió (DISSENY)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant C as Coordinador canvi [DISSENY]
+participant H as course_change_event [esquema, writer pendent]
+participant L as Fons per inscripció [PROPOSTA]
+participant P as Pagaments/rectificatives existents
+O->>C: Desfer A→B o corregir A→B→C
+C->>H: Llegir cadena d'events i estat vigent
+C->>L: Consultar imports ja atribuïts i sortides
+C->>P: Consultar diferències cobrades, retorns, saldos, factures
+alt Reversió només administrativa
+ C->>H: Afegir event invers referenciat [integració pendent]
+ C-->>O: Nou estat i historial intacte
+else Existeixen efectes econòmics o fiscals
+ C-->>O: Mostrar trams i correccions necessàries; prohibir update directe
+ opt Usuari confirma cada regularització pertinent
+  C->>P: Tramitar nova operació específica idempotent
+  C->>H: Correlacionar resultat i pendents [writer pendent]
+ end
+else Estat vigent/plaça/titular dubtós
+ C-->>O: Incidència, cap moviment automàtic
+end
+Note over C,L: No hi ha transacció global acreditada entre BD SIF i llegat.
+```
+
+### 5.2. Proves addicionals de canvi successiu i reversió (no executades)
+
+| ID | Escenari | Criteri verificable |
+| --- | --- | --- |
+| CC-10 | A→B→C amb diferència del primer canvi parcialment cobrada | Cadena d'events i imports per tram; cap reutilització del mateix ingrés. |
+| CC-11 | Desfer A→B sense factura ni cobrament posterior | Event invers, plaça validada i historial anterior preservat. |
+| CC-12 | Desfer A→B amb saldo/refund/rectificativa ja executats | Cap UPDATE INSC_CURS directe; noves operacions amb referències als originals. |
+| CC-13 | Callback tardà de diferència d'un canvi revertit | No imputació al destí antic; evidència del cobrament i incidència. |
+| CC-14 | Dos canvis concurrents de la mateixa inscripció | Control de versió/idempotència, cap segon traspàs o doble diferència. |
 ## 6. Proves funcionals requerides (no executades)
 
 - Canvi al mateix preu però amb concepte diferent; canvi més car amb cobrament posterior; més barat amb devolució/saldo; canvi abans de la factura; canvi amb fraccions pendents; pagador empresa; primer/segon canvi i despeses de gestió.
