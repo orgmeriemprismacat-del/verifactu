@@ -44,6 +44,33 @@
 
 **Proves localitzades, no executades:** `InvoiceBeforePaymentServiceTest` acredita un flux de factura abans de cobrar sense moviment inicial; `RegisterPaymentTest` registra posteriorment un pagament sense duplicar el registre fiscal. **No són una prova d'extrem a extrem d'una empresa amb N participants i accés extern.**
 
+### 1.3. Revisió: un sol pagador, múltiples inscripcions — PENDENT
+
+L'empresa pot pagar **una sola transferència i una sola factura** que cobreixin N persones; el registre econòmic ha de conservar `UUID_PAYMENT` **únic** i atribuir explícitament a cada `ID_INSC` el seu import, curs/edició i relació a la línia/operació. `fact_rels` informa de la relació documental, però **no** quantifica el que s'ha atribuït a cada participant. La factura prèvia sense pagament no crea cap atribució. Si un participant canvia de curs o causa baixa, només es traspassa/retorna la quantitat atribuïda al seu cas, amb titular econòmic i permisos de l'empresa validats, sense modificar el cobrament global dels altres participants.
+
+[Registre proposat de moviments per inscripció](00-revisio-moviments-inscripcions.md).
+
+```mermaid
+sequenceDiagram
+autonumber
+actor E as Empresa/responsable
+participant UI as Canal autoritzat [pendent]
+participant P as PaymentService [existent]
+participant L as EnrollmentFundMovementRepository [PROPOSTA]
+participant DB as BD SIF
+E->>UI: Confirmar pagament de N inscripcions
+UI->>UI: Validar factura, titular i import de cada participant
+UI->>P: registerPayment() d'un únic CHARGE confirmat
+P->>DB: INSERT payment_transaction i payment_allocation
+P-->>UI: UUID_PAYMENT únic
+loop Cada participant amb import validat
+ UI->>L: append(EXTERNAL → inscripció, import, UUID_PAYMENT_ORIGIN)
+ L->>DB: INSERT atribució individual immutable
+end
+UI->>UI: Reconciliar sumes i retornar resultat
+Note over UI,DB: Seqüència OBJECTIU: el servei actual no fa els INSERT per inscripció
+```
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
