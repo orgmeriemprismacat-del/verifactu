@@ -24,6 +24,16 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 
 **Abast actual:** aquests quinze casos estan redactats i contrastats documentalment amb les classes i proves citades; **això no vol dir que tot el catàleg UC estigui complet, que s'hagin executat els tests o que els casos estiguin desplegats**.
 
+## Revisió transversal bloquejant · fons atribuïts a cada inscripció
+
+**[Llegir la revisió del model, la proposta de taula i els diagrames](00-revisio-moviments-inscripcions.md).**
+
+En revisar els casos ja redactats s'ha detectat una mancança de disseny comuna: `payment_transaction` conserva el moviment extern, `payment_allocation` assigna imports a **factures** i `fact_rels` vincula fonts/participants, però no hi ha en el camí de codi revisat un llibre quantitatiu i immutable que indiqui **per cada inscripció** quin import s'ha cobrat, traspassat a una altra inscripció, retornat, convertit en saldo o aplicat des d'un saldo.
+
+La revisió proposa `enrollment_fund_movement` (nom i camps **pendents d'aprovació**) per registrar origen, destí, import, tipus i referències d'operació. **No és una migració aplicada ni una classe PHP implementada.** Les quinze fitxes inclouen ara la seva regla específica de traçabilitat; UC-21, UC-26 i UC-27 incorporen a més una seqüència objectiu amb el repositori nou clarament marcat com a PROPOSTA.
+
+**Conseqüència sobre l'estat:** les quinze fitxes són documents redactats i contrastats amb el nucli fiscal/econòmic existent, però els casos que mouen fons entre inscripcions, saldos o diverses persones **no poden considerar-se funcionalment tancats** sense validar i implementar aquesta traça o una alternativa equivalent. El traspàs intern no crea un segon `CHARGE` bancari i una factura sense cobrament no crea cap atribució de fons.
+
 ## Com llegir el paquet de cada acció
 
 1. **Fitxa de cas d'ús:** actor, disparador, entrades/precondicions, passos concrets, variants, errors i postcondicions.
