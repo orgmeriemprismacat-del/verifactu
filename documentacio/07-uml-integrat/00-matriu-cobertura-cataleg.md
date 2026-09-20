@@ -1,14 +1,12 @@
 # Matriu completa de cobertura UML del catàleg SIF
 
-**Propòsit:** mostrar **tots els identificadors del catàleg original** sense fer passar els esborranys de 21 apartats per fitxes UML revisades. Origen: [README del catàleg existent](../06-fitxes-funcionals/README.md). Estat contrastat amb els fitxers presents a aquesta branca de documentació el 20/09/2026.
+**Base de comparació:** [142 fitxes originals i identificadors UC](../06-fitxes-funcionals/README.md); documentació integrada present en aquesta branca. **Cobertura documental: 30 casos amb fitxa individual i UML; 112 pendents.** Això no indica que tots els fluxos estiguin implementats, provats o tancats. L'estat «base» pertany al catàleg original i pot diferir de l'estat del codi revisat a la fitxa nova.
 
-**Cobertura actual:** **27 de 142 casos** amb fitxa específica integrada i blocs de UML d'ús, classes i seqüència. **115 casos continuen pendents de revisió específica i no se'ls atribueix un diagrama individual de manera fictícia.** Els 27 documents revisats tampoc no són declaració de desplegament ni de tests passats. Les etiquetes `[BASE]`/`[DISSENY]` de la columna «estat original» són les del catàleg preexistent, i **poden estar desactualitzades respecte del codi actual** (per exemple UC-09/30/31); cada fitxa revisada delimita les evidències que ha consultat.
+## Cobertura per domini
 
-## Cobertura per domini del catàleg original
-
-| Domini original | Casos catàleg | Amb fitxa UML revisada | Pendents |
+| Domini del catàleg | Total | Revisats | Pendents |
 | --- | ---: | ---: | ---: |
-| facturació i registre fiscal | 33 | 11 | 22 |
+| facturació i registre fiscal | 33 | 14 | 19 |
 | pagaments i conciliació | 30 | 11 | 19 |
 | documents, accés i comunicacions | 11 | 1 | 10 |
 | governança i operació | 29 | 2 | 27 |
@@ -22,54 +20,54 @@
 | cicle de vida comercial, acadèmic i documental | 12 | 0 | 12 |
 | consentiment, identitat i coherència entre sistemes | 5 | 0 | 5 |
 
-## Matriu de tots els casos
+## Relació de tots els casos
 
-| ID | Cas (denominació original) | Estat del catàleg original | Fitxa d'origen | Revisió UML d'aquesta branca |
+| ID | Denominació del catàleg | Estat original | Fitxa original | Fitxa UML revisada |
 | --- | --- | --- | --- | --- |
-| UC-01 | Emetre o reutilitzar factura | `[BASE]` | [uc-001.md](./uc-001.md) | [Fitxa + UML revisats](uc-001-emetre-o-reutilitzar-factura.md) |
-| UC-02 | Registrar pagament sobre factura | `[BASE]` | [uc-002.md](./uc-002.md) | [Fitxa + UML revisats](uc-002-registrar-cobrament-factura.md) |
-| UC-03 | Processar cobrament Redsys asíncron | `[ASYNC]` | [uc-003.md](./uc-003.md) | [Fitxa + UML revisats](uc-003-processar-cobrament-redsys-asincron.md) |
-| UC-04 | Emetre factura abans de cobrar | `[PARCIAL]` | [uc-004.md](./uc-004.md) | [Fitxa + UML revisats](uc-004-emetre-factura-abans-cobrar.md) |
-| UC-05 | Crear rectificativa | `[PARCIAL]` | [uc-005.md](./uc-005.md) | [Fitxa + UML revisats](uc-005-rectificar-factura.md) |
-| UC-06 | Registrar devolució, saldo o compensació | `[PARCIAL]` | [uc-006.md](./uc-006.md) | [Fitxa + UML revisats](uc-006-devolucio-saldo-compensacio.md) |
-| UC-07 | Consultar factura, estat i document | `[DISSENY]` | [uc-007.md](./uc-007.md) | [Fitxa + UML revisats](uc-007-consultar-factura-estat-document.md) |
-| UC-08 | Gestionar incidència | `[PARCIAL]` | [uc-008.md](./uc-008.md) | [Fitxa + UML revisats](uc-008-gestionar-incidencia-sif.md) |
-| UC-09 | Remetre registre a AEAT | `[DISSENY]` | [uc-009.md](./uc-009.md) | [Fitxa + UML revisats](uc-009-remetre-registre-aeat.md) |
+| UC-01 | Emetre o reutilitzar factura | `[BASE]` | [uc-001.md](./uc-001.md) | [Fitxa i diagrames](uc-001-emetre-o-reutilitzar-factura.md) |
+| UC-02 | Registrar pagament sobre factura | `[BASE]` | [uc-002.md](./uc-002.md) | [Fitxa i diagrames](uc-002-registrar-cobrament-factura.md) |
+| UC-03 | Processar cobrament Redsys asíncron | `[ASYNC]` | [uc-003.md](./uc-003.md) | [Fitxa i diagrames](uc-003-processar-cobrament-redsys-asincron.md) |
+| UC-04 | Emetre factura abans de cobrar | `[PARCIAL]` | [uc-004.md](./uc-004.md) | [Fitxa i diagrames](uc-004-emetre-factura-abans-cobrar.md) |
+| UC-05 | Crear rectificativa | `[PARCIAL]` | [uc-005.md](./uc-005.md) | [Fitxa i diagrames](uc-005-rectificar-factura.md) |
+| UC-06 | Registrar devolució, saldo o compensació | `[PARCIAL]` | [uc-006.md](./uc-006.md) | [Fitxa i diagrames](uc-006-devolucio-saldo-compensacio.md) |
+| UC-07 | Consultar factura, estat i document | `[DISSENY]` | [uc-007.md](./uc-007.md) | [Fitxa i diagrames](uc-007-consultar-factura-estat-document.md) |
+| UC-08 | Gestionar incidència | `[PARCIAL]` | [uc-008.md](./uc-008.md) | [Fitxa i diagrames](uc-008-gestionar-incidencia-sif.md) |
+| UC-09 | Remetre registre a AEAT | `[DISSENY]` | [uc-009.md](./uc-009.md) | [Fitxa i diagrames](uc-009-remetre-registre-aeat.md) |
 | UC-10 | Gestionar configuració i versió | `[DISSENY]` | [uc-010.md](./uc-010.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-11 | Importar factura històrica | `[BASE]` | [uc-011.md](./uc-011.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-12 | Gestionar el cicle de morositat i reclamació | `[PARCIAL]` | [uc-012.md](./uc-012.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-13 | Orquestrar la doble facturació USOC | `[PARCIAL]` | [uc-013.md](./uc-013.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-14 | Comprar curs normal per Redsys | `[ASYNC/PARCIAL]` | [uc-014.md](./uc-014.md) | [Fitxa + UML revisats](uc-014-comprar-curs-redsys.md) |
+| UC-13 | Orquestrar la doble facturació USOC | `[PARCIAL]` | [uc-013.md](./uc-013.md) | [Fitxa i diagrames](uc-013-orquestrar-doble-facturacio-usoc.md) |
+| UC-14 | Comprar curs normal per Redsys | `[ASYNC/PARCIAL]` | [uc-014.md](./uc-014.md) | [Fitxa i diagrames](uc-014-comprar-curs-redsys.md) |
 | UC-14a | Comprar taller | `[PARCIAL]` | [uc-014a.md](./uc-014a.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-14b | Comprar jornada | `[PARCIAL]` | [uc-014b.md](./uc-014b.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-15 | Comprar pack | `[BASE/ASYNC/PARCIAL]` | [uc-015.md](./uc-015.md) | [Fitxa + UML revisats](uc-015-comprar-pack.md) |
-| UC-16 | Facturar grup | `[BASE/ASYNC/PARCIAL]` | [uc-016.md](./uc-016.md) | [Fitxa + UML revisats](uc-016-facturar-grup.md) |
+| UC-15 | Comprar pack | `[BASE/ASYNC/PARCIAL]` | [uc-015.md](./uc-015.md) | [Fitxa i diagrames](uc-015-comprar-pack.md) |
+| UC-16 | Facturar grup | `[BASE/ASYNC/PARCIAL]` | [uc-016.md](./uc-016.md) | [Fitxa i diagrames](uc-016-facturar-grup.md) |
 | UC-16a | Afegir participant després d'emetre | `[DISSENY]` | [uc-016a.md](./uc-016a.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-16b | Treure participant després d'emetre | `[DISSENY]` | [uc-016b.md](./uc-016b.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-17 | Comprar regal | `[BASE/ASYNC/PARCIAL]` | [uc-017.md](./uc-017.md) | [Fitxa + UML revisats](uc-017-comprar-regal.md) |
+| UC-17 | Comprar regal | `[BASE/ASYNC/PARCIAL]` | [uc-017.md](./uc-017.md) | [Fitxa i diagrames](uc-017-comprar-regal.md) |
 | UC-18 | Bescanviar regal | `[DISSENY]` | [uc-018.md](./uc-018.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-18a | Gestionar regal caducat o duplicat | `[DISSENY]` | [uc-018a.md](./uc-018a.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-19 | Validar afiliació USOC | `[DISSENY]` | [uc-019.md](./uc-019.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-19a | Facturar part de l'alumne USOC | `[BASE/ASYNC/PARCIAL]` | [uc-019a.md](./uc-019a.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-19b | Facturar diferència a USOC | `[BASE/PARCIAL]` | [uc-019b.md](./uc-019b.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-19a | Facturar part de l'alumne USOC | `[BASE/ASYNC/PARCIAL]` | [uc-019a.md](./uc-019a.md) | [Fitxa i diagrames](uc-019a-facturar-part-alumne-usoc.md) |
+| UC-19b | Facturar diferència a USOC | `[BASE/PARCIAL]` | [uc-019b.md](./uc-019b.md) | [Fitxa i diagrames](uc-019b-facturar-part-entitat-usoc.md) |
 | UC-20 | Aplicar Alumne PrisMa | `[PARCIAL]` | [uc-020.md](./uc-020.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-20a | Validar Carnet Jove | `[DISSENY]` | [uc-020a.md](./uc-020a.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-20b | Aplicar descompte sensible | `[DISSENY]` | [uc-020b.md](./uc-020b.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-20c | Aplicar promoció temporal | `[PARCIAL]` | [uc-020c.md](./uc-020c.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-20d | Aplicar codi promocional | `[PARCIAL]` | [uc-020d.md](./uc-020d.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-21 | Empresa/responsable paga inscripcions | `[PARCIAL]` | [uc-021.md](./uc-021.md) | [Fitxa + UML revisats](uc-021-empresa-responsable-paga-inscripcions.md) |
-| UC-22 | Registrar transferència | `[BASE/PARCIAL]` | [uc-022.md](./uc-022.md) | [Fitxa + UML revisats](uc-022-registrar-transferencia.md) |
-| UC-23 | Registrar fracció | `[BASE/PARCIAL]` | [uc-023.md](./uc-023.md) | [Fitxa + UML revisats](uc-023-registrar-fraccio.md) |
-| UC-24 | Registrar cobrament de reclamació | `[BASE/PARCIAL]` | [uc-024.md](./uc-024.md) | [Fitxa + UML revisats](uc-024-registrar-cobrament-reclamacio.md) |
+| UC-21 | Empresa/responsable paga inscripcions | `[PARCIAL]` | [uc-021.md](./uc-021.md) | [Fitxa i diagrames](uc-021-empresa-responsable-paga-inscripcions.md) |
+| UC-22 | Registrar transferència | `[BASE/PARCIAL]` | [uc-022.md](./uc-022.md) | [Fitxa i diagrames](uc-022-registrar-transferencia.md) |
+| UC-23 | Registrar fracció | `[BASE/PARCIAL]` | [uc-023.md](./uc-023.md) | [Fitxa i diagrames](uc-023-registrar-fraccio.md) |
+| UC-24 | Registrar cobrament de reclamació | `[BASE/PARCIAL]` | [uc-024.md](./uc-024.md) | [Fitxa i diagrames](uc-024-registrar-cobrament-reclamacio.md) |
 | UC-25 | Analitzar fitxer TPV | `[DISSENY]` | [uc-025.md](./uc-025.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-25a | Comprovar IDPAG duplicats | `[DISSENY]` | [uc-025a.md](./uc-025a.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-26 | Canviar de curs | `[DISSENY/PARCIAL]` | [uc-026.md](./uc-026.md) | [Fitxa + UML revisats](uc-026-canviar-de-curs.md) |
-| UC-27 | Donar de baixa | `[DISSENY/PARCIAL]` | [uc-027.md](./uc-027.md) | [Fitxa + UML revisats](uc-027-donar-de-baixa.md) |
-| UC-28 | Registrar devolució | `[BASE/PARCIAL]` | [uc-028.md](./uc-028.md) | [Fitxa + UML revisats](uc-028-registrar-devolucio.md) |
-| UC-29 | Crear saldo | `[BASE/PARCIAL]` | [uc-029.md](./uc-029.md) | [Fitxa + UML revisats](uc-029-crear-saldo.md) |
-| UC-29a | Aplicar compensació | `[BASE/PARCIAL]` | [uc-029a.md](./uc-029a.md) | [Fitxa + UML revisats](uc-029a-aplicar-compensacio.md) |
-| UC-30 | Anul·lar registre improcedent | `[DISSENY]` | [uc-030.md](./uc-030.md) | [Fitxa + UML revisats](uc-030-anul-lar-registre-improcedent.md) |
-| UC-31 | Subsanar registre | `[DISSENY]` | [uc-031.md](./uc-031.md) | [Fitxa + UML revisats](uc-031-subsanar-registre.md) |
+| UC-26 | Canviar de curs | `[DISSENY/PARCIAL]` | [uc-026.md](./uc-026.md) | [Fitxa i diagrames](uc-026-canviar-de-curs.md) |
+| UC-27 | Donar de baixa | `[DISSENY/PARCIAL]` | [uc-027.md](./uc-027.md) | [Fitxa i diagrames](uc-027-donar-de-baixa.md) |
+| UC-28 | Registrar devolució | `[BASE/PARCIAL]` | [uc-028.md](./uc-028.md) | [Fitxa i diagrames](uc-028-registrar-devolucio.md) |
+| UC-29 | Crear saldo | `[BASE/PARCIAL]` | [uc-029.md](./uc-029.md) | [Fitxa i diagrames](uc-029-crear-saldo.md) |
+| UC-29a | Aplicar compensació | `[BASE/PARCIAL]` | [uc-029a.md](./uc-029a.md) | [Fitxa i diagrames](uc-029a-aplicar-compensacio.md) |
+| UC-30 | Anul·lar registre improcedent | `[DISSENY]` | [uc-030.md](./uc-030.md) | [Fitxa i diagrames](uc-030-anul-lar-registre-improcedent.md) |
+| UC-31 | Subsanar registre | `[DISSENY]` | [uc-031.md](./uc-031.md) | [Fitxa i diagrames](uc-031-subsanar-registre.md) |
 | UC-32 | Marcar o desmarcar factura electrònica | `[DISSENY]` | [uc-032.md](./uc-032.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-33 | Desactivar URL de pagament | `[DISSENY]` | [uc-033.md](./uc-033.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-34 | Consultar dashboard | `[DISSENY]` | [uc-034.md](./uc-034.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
@@ -101,7 +99,7 @@
 | UC-60 | Monitorar salut, cues, documents, backups i versió activa | `[DISSENY]` | [uc-060.md](./uc-060.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-61 | Consultar un import pendent i obtenir un enllaç de pagament | `[LEGACY/OBJECTIU]` | [uc-061.md](./uc-061.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-62 | Iniciar factura o cobrament des de la intranet | `[LEGACY/DISSENY]` | [uc-062.md](./uc-062.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-63 | Crear la intenció Redsys des de l'ecommerce | `[ASYNC/PARCIAL]` | [uc-063.md](./uc-063.md) | [Fitxa + UML revisats](uc-063-crear-intencio-redsys.md) |
+| UC-63 | Crear la intenció Redsys des de l'ecommerce | `[ASYNC/PARCIAL]` | [uc-063.md](./uc-063.md) | [Fitxa i diagrames](uc-063-crear-intencio-redsys.md) |
 | UC-64 | Reconciliar la candidata amb el codi actual | `[CONTROL/PENDENT]` | [uc-064.md](./uc-064.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-65 | Presentar una factura o rebut de col·laborador | `[LEGACY/ADJACENT]` | [uc-065.md](./uc-065.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-66 | Consultar i gestionar cobraments d'un col·laborador | `[LEGACY/ADJACENT]` | [uc-066.md](./uc-066.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
@@ -109,8 +107,8 @@
 | UC-68 | Retirar callbacks i escriptures fiscals llegades | `[DISSENY]` | [uc-068.md](./uc-068.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-69 | Confirmar i congelar dades fiscals | `[DISSENY/PARCIAL]` | [uc-069.md](./uc-069.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-70 | Modificar dades mestres després d'emetre | `[DISSENY]` | [uc-070.md](./uc-070.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-71 | Registrar un canvi de curs complet | `[DISSENY/PARCIAL]` | [uc-071.md](./uc-071.md) | [Fitxa + UML revisats](uc-071-registrar-canvi-curs-complet.md) |
-| UC-72 | Registrar baixa i decisió econòmica | `[DISSENY/PARCIAL]` | [uc-072.md](./uc-072.md) | [Fitxa + UML revisats](uc-072-registrar-baixa-decisio-economica.md) |
+| UC-71 | Registrar un canvi de curs complet | `[DISSENY/PARCIAL]` | [uc-071.md](./uc-071.md) | [Fitxa i diagrames](uc-071-registrar-canvi-curs-complet.md) |
+| UC-72 | Registrar baixa i decisió econòmica | `[DISSENY/PARCIAL]` | [uc-072.md](./uc-072.md) | [Fitxa i diagrames](uc-072-registrar-baixa-decisio-economica.md) |
 | UC-73 | Documentar un ajust, descompte o despesa | `[DISSENY]` | [uc-073.md](./uc-073.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-74 | Classificar una correcció fiscal | `[DISSENY/BLOQUEJANT]` | [uc-074.md](./uc-074.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-75 | Crear un registre d'anul·lació | `[DISSENY/BLOQUEJANT]` | [uc-075.md](./uc-075.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
@@ -169,12 +167,6 @@
 | UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-128.md](./uc-128.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-129.md](./uc-129.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 
-## Què falta per donar un cas per complet
+## Criteri de completitud
 
-- Llegir la fitxa antiga i el document de casos d'ús, identificar decisions concretes, permisos, dades i casos límit; no reutilitzar automàticament paràgrafs genèrics.
-- Contrastar classes, mètodes, repositoris i taules **reals** amb el contracte objectiu; separar codi executable, esquema definit, adaptadors pendents i propostes noves.
-- Redactar la fitxa específica, font UML de casos d'ús, subdiagrama de classes coherent amb el model general i seqüències principal/alternatives, amb transaccions i fases asíncrones correctes.
-- En tota acció que afecta diners d'inscripció, verificar la traça quantitativa `payment_transaction` ↔ factura ↔ inscripció i traspàs/saldo/devolució segons [revisió dels moviments d'inscripció](00-revisio-moviments-inscripcions.md); **no** crear un cobrament nou per a una reassignació interna.
-- Validar representació UML amb renderitzador, traçabilitat de les relacions `include`/`extend`, proves del codi i flux d'extrem a extrem abans d'afirmar que un cas està tancat. La cobertura d'aquesta taula **només** afirma existència documental.
-
-[Índex de les fitxes revisades](README.md) · [Model transversal de classes](00-model-classes-general.md) · [Catàleg UML general anterior](../04-estat-final/33-casos-us-sif.md).
+Una fitxa s'identifica aquí com a **revisada documentalment** quan té anàlisi específica del cas, codi o contracte de disseny diferenciat, UML de casos d'ús, subdiagrama de classes i seqüències. Un cas no es declara implementat sense prova d'integració de pantalles, permisos, BD, transaccions, traça econòmica per inscripció quan pertoqui i flux fiscal/extern. No s'han executat proves PHP ni s'ha acreditat el desplegament. [Model general de classes](00-model-classes-general.md) · [Revisió dels fons per inscripció](00-revisio-moviments-inscripcions.md) · [Índex detallat](README.md).
