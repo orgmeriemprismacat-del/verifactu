@@ -2,7 +2,7 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 41 casos d'ús revisats
+## Mapa dels 42 casos d'ús revisats
 
 **[Model general de classes](00-model-classes-general.md)** · **[Cobertura del catàleg complet de 142 casos](00-matriu-cobertura-cataleg.md)** · **[Registre de fons per inscripció](00-revisio-moviments-inscripcions.md)**
 
@@ -49,8 +49,9 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-63 | Crear la intenció Redsys des de l'ecommerce | [Fitxa i UML](uc-063-crear-intencio-redsys.md) | `[ASYNC/PARCIAL]` |
 | UC-71 | Registrar un canvi de curs complet | [Fitxa i UML](uc-071-registrar-canvi-curs-complet.md) | `[DISSENY/PARCIAL]` |
 | UC-72 | Registrar baixa i decisió econòmica | [Fitxa i UML](uc-072-registrar-baixa-decisio-economica.md) | `[DISSENY/PARCIAL]` |
+| UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | [Fitxa i UML](uc-119-cicle-complet-regal.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 41/142.** Els 101 casos restants encara no tenen fitxa UML específica revisada. El «estat original» no acredita implementació ni desplegament; cada fitxa identifica l'estat del codi consultat. El ledger `enrollment_fund_movement` continua sent **proposta**, no migració funcional.
+**Cobertura documental: 42/142.** En queden 100 sense fitxa UML específica revisada. L'estat del catàleg no acredita implementació; les fitxes delimiten el codi consultat. El ledger `enrollment_fund_movement` continua sent una proposta, no una migració implementada.
 
 ## Com llegir el paquet de cada acció
 
