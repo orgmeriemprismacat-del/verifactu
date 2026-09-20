@@ -42,6 +42,27 @@
 
 **Proves localitzades, no executades:** `RedsysPackInvoiceServiceTest` i proves de payload del pack/flux asíncron. Les proves de factura no acrediten els moviments individuals de fons proposats.
 
+### 1.3. Regles comercials reals i divisió excepcional del pack — contrast amb el xat original
+
+**Composició habitual (no universal):** PrisMa descriu packs de **dos cursos**, amb **dues inscripcions independents** relacionades pel mateix `IDPAG`, i preu total provinent de la taula de preus vinculada a packs. El descompte comercial de pack del 25 % es posa en **el segon curs**, no es reparteix per defecte entre les dues inscripcions. Abans d'emetre, cal validar el snapshot del pack real (ID_PACK, preu, dues inscripcions, imports base, descompte del segon curs i suma final) contra la lògica comercial corresponent; un builder fiscal no substitueix aquesta comprovació.
+
+**P-DESCOMPTE — matís del codi actual:** LegacyPackInvoicePayloadBuilder pot reconstruir descompte del 25 % en línies posteriors quan la base no és explícita. Això no acredita el requisit real «només el segon curs» per packs de més de dues línies ni per combinacions amb altres descomptes. L'adaptador ha de proporcionar imports/descomptes explícits i una regla validada per línia, sense inventar un 25 % per a cada línia posterior o recalcular el preu del pack a partir de preus vius després de confirmar la compra.
+
+**P-EXCEPCIÓ — divisió de pagament només per intranet:** el xat original confirma que el client no escull fraccionar el pack a ecommerce; excepcionalment la gestió pot acceptar diversos pagaments reals i històricament hi pot haver **més d'una factura**. La documentació del flux final també preveu, en aquesta variant excepcional, **una factura per cada pagament real amb línies/imports aprovats**, i exigeix no dividir un mateix DS_ORDER en factures diferents. Aquest circuit no és el mateix que UC-23 (diversos pagaments sobre **una factura ja emesa**). Abans de desenvolupar-lo s'ha de decidir i documentar quina part del pack es factura en cada pas, com es reflecteix el descompte del segon curs, i com es relacionen les factures/inscripcions originals, sense facturar dues vegades el mateix servei. La fitxa no dona aquesta variant per executada ni n'estableix automàticament la qualificació fiscal.
+
+**P-COBRAMENT — diferenciar IDPAG, DS_ORDER i fons:** IDPAG vincula les dues inscripcions i la intenció comercial del pack; cada DS_ORDER identifica un intent Redsys i pot correspondre a una fracció real diferent. No deduplicar tots els cobraments del pack únicament per IDPAG. Si es cobra un sol DS_ORDER, el resultat objectiu és una factura amb una línia per curs i un únic CHARGE. Si s'aplica un canvi/baixa a només un curs, no retornar l'import del pack complet ni recalcular silenciosament el descompte de l'altre: cal preservar la part atribuïda i classificar els efectes comercials i fiscals (UC-71/72).
+
+### 1.4. Proves de negoci específiques del pack (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| PK-01 | Pack habitual de dos cursos, un DS_ORDER acceptat | Dues inscripcions amb mateix IDPAG, una factura amb dues línies i un CHARGE. |
+| PK-02 | Descompte pack del segon curs | Línia 2 amb base/descompte explícits coherents amb preu del pack; no descompte automàtic a línia 1. |
+| PK-03 | Pack amb més de dues línies o descomptes diferents | Requereix regla comercial/snapshot per línia, no 25 % generalitzat a totes les posteriors. |
+| PK-04 | Compra ecommerce intenta triar fraccionament excepcional | No oferir ni aplicar l'opció sense autorització de gestió/intranet. |
+| PK-05 | Intranet accepta dos pagaments reals en variant dividida | Parts i línies aprovades, dues operacions/factures només segons contracte excepcional; mai dividir un sol DS_ORDER. |
+| PK-06 | Mateix IDPAG amb dos DS_ORDER diferents validats | No fusionar dos cobraments legítims ni repetir la mateixa factura/part de servei. |
+| PK-07 | Baixa d'un únic curs del pack | Analitzar descompte/part atribuïda al curs i factura afectada; altres inscripcions intactes. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -158,6 +179,32 @@ end
 Note over W,L: Un pagament bancari; N atribucions internes. Integració del ledger no implementada.
 ```
 
+### 4.1. Seqüència — pagament únic i alternativa excepcional d'intranet (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor P as Pagador
+actor O as Gestió
+participant UI as Ecommerce/Intranet [adaptació pendent]
+participant Price as Preu i composició pack [llegat]
+participant Pay as Redsys/SIF [serveis parcials]
+participant Fiscal as Classificació parts fiscals [PENDENT]
+P->>UI: Comprar pack de dos cursos
+UI->>Price: Validar ID_PACK, dues inscripcions, descompte només curs 2
+alt Pagament únic confirmat
+ UI->>Pay: Processar un DS_ORDER acceptat
+ Pay-->>UI: Un CHARGE i una factura amb dues línies
+else Gestió autoritza divisió excepcional
+ O->>UI: Justificar imports i parts del pack
+ UI->>Fiscal: Validar línies/servei de cada factura de la variant
+ loop Cada cobrament real diferent
+  UI->>Pay: Processar DS_ORDER/transferència pròpia sense duplicats
+  Pay-->>UI: Factura/part assignada segons decisió aprovada
+ end
+end
+Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts encara no està acreditat.
+```
 ## 5. Traçabilitat
 
 [Fitxa UC-15 original](../06-fitxes-funcionals/uc-015.md) · [UC-03](uc-003-processar-cobrament-redsys-asincron.md) · [UC-63](uc-063-crear-intencio-redsys.md) · [UC-71](uc-071-registrar-canvi-curs-complet.md) · [Revisió de fons](00-revisio-moviments-inscripcions.md) · [RedsysPackInvoiceService](../../sif/src/Service/RedsysPackInvoiceService.php) · [LegacyPackInvoicePayloadBuilder](../../sif/src/Service/LegacyPackInvoicePayloadBuilder.php) · [RedsysPackInvoiceServiceTest](../../sif/tests/Integration/RedsysPackInvoiceServiceTest.php).
