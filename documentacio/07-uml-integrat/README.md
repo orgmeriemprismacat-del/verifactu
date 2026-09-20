@@ -2,48 +2,55 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 30 casos d'ús revisats
+## Mapa dels 41 casos d'ús revisats
 
-**[Model general de classes del SIF](00-model-classes-general.md)** · **[Cobertura de tots els 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Revisió del registre de fons per inscripció](00-revisio-moviments-inscripcions.md)**
+**[Model general de classes](00-model-classes-general.md)** · **[Cobertura del catàleg complet de 142 casos](00-matriu-cobertura-cataleg.md)** · **[Registre de fons per inscripció](00-revisio-moviments-inscripcions.md)**
 
-| ID | Denominació del catàleg | Document específic | Estat original del catàleg |
+| ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
-| UC-01 | Emetre o reutilitzar factura | [Fitxa + UML](uc-001-emetre-o-reutilitzar-factura.md) | `[BASE]` |
-| UC-02 | Registrar pagament sobre factura | [Fitxa + UML](uc-002-registrar-cobrament-factura.md) | `[BASE]` |
-| UC-03 | Processar cobrament Redsys asíncron | [Fitxa + UML](uc-003-processar-cobrament-redsys-asincron.md) | `[ASYNC]` |
-| UC-04 | Emetre factura abans de cobrar | [Fitxa + UML](uc-004-emetre-factura-abans-cobrar.md) | `[PARCIAL]` |
-| UC-05 | Crear rectificativa | [Fitxa + UML](uc-005-rectificar-factura.md) | `[PARCIAL]` |
-| UC-06 | Registrar devolució, saldo o compensació | [Fitxa + UML](uc-006-devolucio-saldo-compensacio.md) | `[PARCIAL]` |
-| UC-07 | Consultar factura, estat i document | [Fitxa + UML](uc-007-consultar-factura-estat-document.md) | `[DISSENY]` |
-| UC-08 | Gestionar incidència | [Fitxa + UML](uc-008-gestionar-incidencia-sif.md) | `[PARCIAL]` |
-| UC-09 | Remetre registre a AEAT | [Fitxa + UML](uc-009-remetre-registre-aeat.md) | `[DISSENY]` |
-| UC-13 | Orquestrar la doble facturació USOC | [Fitxa + UML](uc-013-orquestrar-doble-facturacio-usoc.md) | `[PARCIAL]` |
-| UC-14 | Comprar curs normal per Redsys | [Fitxa + UML](uc-014-comprar-curs-redsys.md) | `[ASYNC/PARCIAL]` |
-| UC-15 | Comprar pack | [Fitxa + UML](uc-015-comprar-pack.md) | `[BASE/ASYNC/PARCIAL]` |
-| UC-16 | Facturar grup | [Fitxa + UML](uc-016-facturar-grup.md) | `[BASE/ASYNC/PARCIAL]` |
-| UC-17 | Comprar regal | [Fitxa + UML](uc-017-comprar-regal.md) | `[BASE/ASYNC/PARCIAL]` |
-| UC-19a | Facturar part de l'alumne USOC | [Fitxa + UML](uc-019a-facturar-part-alumne-usoc.md) | `[BASE/ASYNC/PARCIAL]` |
-| UC-19b | Facturar diferència a USOC | [Fitxa + UML](uc-019b-facturar-part-entitat-usoc.md) | `[BASE/PARCIAL]` |
-| UC-21 | Empresa/responsable paga inscripcions | [Fitxa + UML](uc-021-empresa-responsable-paga-inscripcions.md) | `[PARCIAL]` |
-| UC-22 | Registrar transferència | [Fitxa + UML](uc-022-registrar-transferencia.md) | `[BASE/PARCIAL]` |
-| UC-23 | Registrar fracció | [Fitxa + UML](uc-023-registrar-fraccio.md) | `[BASE/PARCIAL]` |
-| UC-24 | Registrar cobrament de reclamació | [Fitxa + UML](uc-024-registrar-cobrament-reclamacio.md) | `[BASE/PARCIAL]` |
-| UC-26 | Canviar de curs | [Fitxa + UML](uc-026-canviar-de-curs.md) | `[DISSENY/PARCIAL]` |
-| UC-27 | Donar de baixa | [Fitxa + UML](uc-027-donar-de-baixa.md) | `[DISSENY/PARCIAL]` |
-| UC-28 | Registrar devolució | [Fitxa + UML](uc-028-registrar-devolucio.md) | `[BASE/PARCIAL]` |
-| UC-29 | Crear saldo | [Fitxa + UML](uc-029-crear-saldo.md) | `[BASE/PARCIAL]` |
-| UC-29a | Aplicar compensació | [Fitxa + UML](uc-029a-aplicar-compensacio.md) | `[BASE/PARCIAL]` |
-| UC-30 | Anul·lar registre improcedent | [Fitxa + UML](uc-030-anul-lar-registre-improcedent.md) | `[DISSENY]` |
-| UC-31 | Subsanar registre | [Fitxa + UML](uc-031-subsanar-registre.md) | `[DISSENY]` |
-| UC-63 | Crear la intenció Redsys des de l'ecommerce | [Fitxa + UML](uc-063-crear-intencio-redsys.md) | `[ASYNC/PARCIAL]` |
-| UC-71 | Registrar un canvi de curs complet | [Fitxa + UML](uc-071-registrar-canvi-curs-complet.md) | `[DISSENY/PARCIAL]` |
-| UC-72 | Registrar baixa i decisió econòmica | [Fitxa + UML](uc-072-registrar-baixa-decisio-economica.md) | `[DISSENY/PARCIAL]` |
+| UC-01 | Emetre o reutilitzar factura | [Fitxa i UML](uc-001-emetre-o-reutilitzar-factura.md) | `[BASE]` |
+| UC-02 | Registrar pagament sobre factura | [Fitxa i UML](uc-002-registrar-cobrament-factura.md) | `[BASE]` |
+| UC-03 | Processar cobrament Redsys asíncron | [Fitxa i UML](uc-003-processar-cobrament-redsys-asincron.md) | `[ASYNC]` |
+| UC-04 | Emetre factura abans de cobrar | [Fitxa i UML](uc-004-emetre-factura-abans-cobrar.md) | `[PARCIAL]` |
+| UC-05 | Crear rectificativa | [Fitxa i UML](uc-005-rectificar-factura.md) | `[PARCIAL]` |
+| UC-06 | Registrar devolució, saldo o compensació | [Fitxa i UML](uc-006-devolucio-saldo-compensacio.md) | `[PARCIAL]` |
+| UC-07 | Consultar factura, estat i document | [Fitxa i UML](uc-007-consultar-factura-estat-document.md) | `[DISSENY]` |
+| UC-08 | Gestionar incidència | [Fitxa i UML](uc-008-gestionar-incidencia-sif.md) | `[PARCIAL]` |
+| UC-09 | Remetre registre a AEAT | [Fitxa i UML](uc-009-remetre-registre-aeat.md) | `[DISSENY]` |
+| UC-13 | Orquestrar la doble facturació USOC | [Fitxa i UML](uc-013-orquestrar-doble-facturacio-usoc.md) | `[PARCIAL]` |
+| UC-14 | Comprar curs normal per Redsys | [Fitxa i UML](uc-014-comprar-curs-redsys.md) | `[ASYNC/PARCIAL]` |
+| UC-15 | Comprar pack | [Fitxa i UML](uc-015-comprar-pack.md) | `[BASE/ASYNC/PARCIAL]` |
+| UC-16 | Facturar grup | [Fitxa i UML](uc-016-facturar-grup.md) | `[BASE/ASYNC/PARCIAL]` |
+| UC-17 | Comprar regal | [Fitxa i UML](uc-017-comprar-regal.md) | `[BASE/ASYNC/PARCIAL]` |
+| UC-18 | Bescanviar regal | [Fitxa i UML](uc-018-bescanviar-regal.md) | `[DISSENY]` |
+| UC-18a | Gestionar regal caducat o duplicat | [Fitxa i UML](uc-018a-regal-caducat-duplicat.md) | `[DISSENY]` |
+| UC-19a | Facturar part de l'alumne USOC | [Fitxa i UML](uc-019a-facturar-part-alumne-usoc.md) | `[BASE/ASYNC/PARCIAL]` |
+| UC-19b | Facturar diferència a USOC | [Fitxa i UML](uc-019b-facturar-part-entitat-usoc.md) | `[BASE/PARCIAL]` |
+| UC-21 | Empresa/responsable paga inscripcions | [Fitxa i UML](uc-021-empresa-responsable-paga-inscripcions.md) | `[PARCIAL]` |
+| UC-22 | Registrar transferència | [Fitxa i UML](uc-022-registrar-transferencia.md) | `[BASE/PARCIAL]` |
+| UC-23 | Registrar fracció | [Fitxa i UML](uc-023-registrar-fraccio.md) | `[BASE/PARCIAL]` |
+| UC-24 | Registrar cobrament de reclamació | [Fitxa i UML](uc-024-registrar-cobrament-reclamacio.md) | `[BASE/PARCIAL]` |
+| UC-26 | Canviar de curs | [Fitxa i UML](uc-026-canviar-de-curs.md) | `[DISSENY/PARCIAL]` |
+| UC-27 | Donar de baixa | [Fitxa i UML](uc-027-donar-de-baixa.md) | `[DISSENY/PARCIAL]` |
+| UC-28 | Registrar devolució | [Fitxa i UML](uc-028-registrar-devolucio.md) | `[BASE/PARCIAL]` |
+| UC-29 | Crear saldo | [Fitxa i UML](uc-029-crear-saldo.md) | `[BASE/PARCIAL]` |
+| UC-29a | Aplicar compensació | [Fitxa i UML](uc-029a-aplicar-compensacio.md) | `[BASE/PARCIAL]` |
+| UC-30 | Anul·lar registre improcedent | [Fitxa i UML](uc-030-anul-lar-registre-improcedent.md) | `[DISSENY]` |
+| UC-31 | Subsanar registre | [Fitxa i UML](uc-031-subsanar-registre.md) | `[DISSENY]` |
+| UC-34 | Consultar dashboard | [Fitxa i UML](uc-034-consultar-dashboard-sif.md) | `[DISSENY]` |
+| UC-35 | Consultar registre, cadena i estat AEAT | [Fitxa i UML](uc-035-consultar-registre-cadena-estat-aeat.md) | `[DISSENY]` |
+| UC-36 | Generar/consultar PDF, QR o XML | [Fitxa i UML](uc-036-generar-consultar-documents.md) | `[PARCIAL]` |
+| UC-47 | Sincronitzar l'estat mínim cap al llegat després del commit SIF | [Fitxa i UML](uc-047-sincronitzar-estat-cap-llegat.md) | `[BASE/PARCIAL]` |
+| UC-51 | Tractar callback Redsys denegat, tardà, duplicat o contradictori | [Fitxa i UML](uc-051-callback-redsys-anomal.md) | `[ASYNC]` |
+| UC-52 | Operar la cua Redsys | [Fitxa i UML](uc-052-operar-cua-redsys.md) | `[ASYNC/PARCIAL]` |
+| UC-53 | Detectar i resoldre divergències SIF-llegat | [Fitxa i UML](uc-053-detectar-resoldre-divergencies.md) | `[DISSENY]` |
+| UC-54 | Operar la cua fiscal i tractar la resposta AEAT | [Fitxa i UML](uc-054-operar-cua-fiscal-respostes.md) | `[DISSENY]` |
+| UC-55 | Generar, reintentar i custodiar documents fiscals | [Fitxa i UML](uc-055-custodiar-reintentar-documents.md) | `[PARCIAL/DISSENY]` |
+| UC-63 | Crear la intenció Redsys des de l'ecommerce | [Fitxa i UML](uc-063-crear-intencio-redsys.md) | `[ASYNC/PARCIAL]` |
+| UC-71 | Registrar un canvi de curs complet | [Fitxa i UML](uc-071-registrar-canvi-curs-complet.md) | `[DISSENY/PARCIAL]` |
+| UC-72 | Registrar baixa i decisió econòmica | [Fitxa i UML](uc-072-registrar-baixa-decisio-economica.md) | `[DISSENY/PARCIAL]` |
 
-**Abast actual:** 30 fitxes individuals amb UML revisat i 112 casos pendents de revisió específica. Les etiquetes d'estat de la darrera columna són les del catàleg original; el codi consultat pot haver evolucionat (UC-09/30/31 ja tenen nucli executable, però no acreditació productiva). **Documentat no significa implementat ni provat**. Els documents UC-26/27/71/72 distingeixen orquestració objectiu de nuclis PHP existents.
-
-### Traçabilitat econòmica bloquejant
-
-Les accions que cobren, retornen, compensen o reassignen imports d'inscripcions han de conservar import, origen, destí i pagament original. La proposta `enrollment_fund_movement` **no és una migració ni un repositori implementats**. Un traspàs entre inscripcions no crea un segon CHARGE. [Model i invariants](00-revisio-moviments-inscripcions.md).
+**Cobertura documental: 41/142.** Els 101 casos restants encara no tenen fitxa UML específica revisada. El «estat original» no acredita implementació ni desplegament; cada fitxa identifica l'estat del codi consultat. El ledger `enrollment_fund_movement` continua sent **proposta**, no migració funcional.
 
 ## Com llegir el paquet de cada acció
 
