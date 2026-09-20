@@ -42,6 +42,13 @@
 
 **Proves existents al repositori, no executades aquí:** `RedsysUsocInvoiceServiceTest`; la prova del handler no equival a la verificació de tot l'expedient alumne+entitat.
 
+### 1.3. Validació d'afiliació i variants de preu de l'alumne — contrast amb el xat original
+
+En el circuit descrit, seleccionar «Afiliat USOC» marca `TIPUS_DESC=4`, però l'afiliació queda **pendent de validació manual** (`VALID_DESC=0`) fins que gestió confirma la condició amb USOC. Només aleshores es pot aplicar el descompte i preparar aquesta factura amb `VALID_DESC=1`; si l'afiliació no consta, la compra s'ha de recalcular sense descompte **abans** d'emetre. El builder actual valida el flag d'entrada, però no consulta USOC ni acredita els justificants per si mateix.
+
+En el cas habitual recuperat, l'alumne fa un pagament inicial de **10 €**; no deduir que totes les factures d'alumne USOC són de 10 €, ja que l'import, el descompte i la part d'entitat han de venir del snapshot de l'operació i de les regles vigents. La variant «Altres: Curs gratuït USOC» pot fer servir `anticipi-preu-usoc`: **la ruta actual exigeix import positiu de l'alumne i de l'entitat, de manera que no prova cap camí amb part d'alumne 0**. Si el cas especial implica 0 €, cal decidir el seu contracte propi abans d'emetre; no fabricar un moviment CHARGE per fer-lo encaixar a UC-19a.
+
+**Proves addicionals, no executades:** alumne amb TIPUS_DESC=4 i VALID_DESC=0 bloquejat abans de facturar; afiliació denegada i recalculada abans de l'emissió; import habitual de 10 € llegit del snapshot, no imposat al builder; callback Redsys per una part alumne confirmada que no marca com a cobrada la part de l'entitat; circuit «curs gratuït USOC» explícitament desviat a revisió si l'import alumne és zero.
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
