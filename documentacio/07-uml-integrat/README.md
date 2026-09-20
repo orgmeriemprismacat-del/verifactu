@@ -2,9 +2,9 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 71 casos d'ús revisats
+## Mapa dels 76 casos d'ús revisats
 
-**[Model general de classes](00-model-classes-general.md)** · **[Matriu completa dels 142 casos](00-matriu-cobertura-cataleg.md)** · **[Traça quantitativa dels diners per inscripció](00-revisio-moviments-inscripcions.md)**
+**[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Diners per inscripció](00-revisio-moviments-inscripcions.md)**
 
 | ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
@@ -73,14 +73,19 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-108 | Registrar un tastet o repte gratuït com a operació no facturable | [Fitxa i UML](uc-108-tastet-repte-gratuit.md) | `[LEGACY/DISSENY]` |
 | UC-109 | Registrar una inscripció a curs subvencionat sense cobrament individual | [Fitxa i UML](uc-109-inscripcio-curs-subvencionat.md) | `[LEGACY/PENDENT/BLOQUEJANT]` |
 | UC-110 | Gestionar el descompte d'amics amb dues inscripcions i un pagador | [Fitxa i UML](uc-110-descompte-amics-dues-inscripcions.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-111 | Validar docent novell i generar un dret de descompte futur | [Fitxa i UML](uc-111-docent-novell-dret-futur.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-112 | Congelar preu, descompte, places i classificació fiscal abans del TPV | [Fitxa i UML](uc-112-congelar-snapshot-abans-tpv.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-113 | Importar o crear inscripcions manualment o en lot sense inventar cobrament | [Fitxa i UML](uc-113-importar-inscripcions-manualment-lot.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-114 | Versionar canvis de producte o edició amb operacions obertes | [Fitxa i UML](uc-114-versionar-producte-edicio.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-115 | Reservar i alliberar places amb aforament, caducitat i concurrència | [Fitxa i UML](uc-115-reservar-alliberar-places.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-116 | Custodiar i revisar evidències sensibles de descompte | [Fitxa i UML](uc-116-custodiar-evidencies-descompte.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-117 | Gestionar el cicle de vida d'un codi promocional o dret futur | [Fitxa i UML](uc-117-cicle-vida-codi-dret-futur.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-118 | Gestionar un grup abans d'emetre o cobrar | [Fitxa i UML](uc-118-gestionar-grup-abans-facturar.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | [Fitxa i UML](uc-119-cicle-complet-regal.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-120 | Tramitar una sol·licitud de canvi de dades personals i la seva propagació | [Fitxa i UML](uc-120-canvi-dades-personals-propagacio.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-121 | Repreuar o renovar una reserva caducada abans del pagament | [Fitxa i UML](uc-121-repreuar-renovar-reserva-caducada.md) | `[DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 71/142.** Queden **71** casos sense fitxa UML específica revisada. L'estat del catàleg original no acredita implementació. `enrollment_fund_movement` continua sent una **proposta**, i `capacity_reservation` és un esquema SQL sense servei de control d'aforament acreditat.
+**Cobertura documental: 76/142.** Queden **66** casos sense fitxa UML individual revisada. Els estats del catàleg original no acrediten desplegament. El ledger `enrollment_fund_movement` continua sent **proposta**, i les taules SQL de drets/justificants/propagació encara no acrediten els serveis executables corresponents.
 
 ## Com llegir el paquet de cada acció
 
