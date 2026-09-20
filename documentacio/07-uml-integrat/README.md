@@ -2,9 +2,9 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 65 casos d'ús revisats
+## Mapa dels 71 casos d'ús revisats
 
-**[Model general de classes](00-model-classes-general.md)** · **[Matriu completa de 142 casos](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
+**[Model general de classes](00-model-classes-general.md)** · **[Matriu completa dels 142 casos](00-matriu-cobertura-cataleg.md)** · **[Traça quantitativa dels diners per inscripció](00-revisio-moviments-inscripcions.md)**
 
 | ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
@@ -70,11 +70,17 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-105 | Reassignar o repartir un pagament | [Fitxa i UML](uc-105-reassignar-repartir-pagament.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-106 | Crear una reserva o inscripció abans del pagament | [Fitxa i UML](uc-106-crear-reserva-abans-pagament.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-107 | Detectar una inscripció duplicada i evitar efectes econòmics dobles | [Fitxa i UML](uc-107-detectar-inscripcio-duplicada.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-108 | Registrar un tastet o repte gratuït com a operació no facturable | [Fitxa i UML](uc-108-tastet-repte-gratuit.md) | `[LEGACY/DISSENY]` |
+| UC-109 | Registrar una inscripció a curs subvencionat sense cobrament individual | [Fitxa i UML](uc-109-inscripcio-curs-subvencionat.md) | `[LEGACY/PENDENT/BLOQUEJANT]` |
+| UC-110 | Gestionar el descompte d'amics amb dues inscripcions i un pagador | [Fitxa i UML](uc-110-descompte-amics-dues-inscripcions.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-112 | Congelar preu, descompte, places i classificació fiscal abans del TPV | [Fitxa i UML](uc-112-congelar-snapshot-abans-tpv.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-113 | Importar o crear inscripcions manualment o en lot sense inventar cobrament | [Fitxa i UML](uc-113-importar-inscripcions-manualment-lot.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-115 | Reservar i alliberar places amb aforament, caducitat i concurrència | [Fitxa i UML](uc-115-reservar-alliberar-places.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-118 | Gestionar un grup abans d'emetre o cobrar | [Fitxa i UML](uc-118-gestionar-grup-abans-facturar.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | [Fitxa i UML](uc-119-cicle-complet-regal.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-121 | Repreuar o renovar una reserva caducada abans del pagament | [Fitxa i UML](uc-121-repreuar-renovar-reserva-caducada.md) | `[DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 65/142.** Queden **77** casos del catàleg sense fitxa UML específica revisada. L'estat original no acredita implementació o desplegament. El registre `enrollment_fund_movement` és **una proposta**, no un model SQL/PHP implementat; igualment, `capacity_reservation` és esquema SQL però no servei de control d'aforament acreditat.
+**Cobertura documental: 71/142.** Queden **71** casos sense fitxa UML específica revisada. L'estat del catàleg original no acredita implementació. `enrollment_fund_movement` continua sent una **proposta**, i `capacity_reservation` és un esquema SQL sense servei de control d'aforament acreditat.
 
 ## Com llegir el paquet de cada acció
 
