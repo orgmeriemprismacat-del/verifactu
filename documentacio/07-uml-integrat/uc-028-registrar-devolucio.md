@@ -43,6 +43,27 @@
 
 [Esquema i controls proposats](00-revisio-moviments-inscripcions.md).
 
+### 1.4. Del retorn acordat al retorn acreditat: intranet, TPV i receptor — contrast amb el xat original
+
+**D-ETAPES — tres fets diferenciats:** el xat descriu que l'operador pot marcar primer una baixa o canvi de curs i acordar posteriorment un retorn. Adam/Pablo poden **executar o registrar** una devolució manual segons el procediment intern; la pantalla històrica «Consulta - Edita - Anul·la factura» presenta `A TORNAR`, `DATA DEVOLUCIO` i observacions. Un import previst a `A TORNAR`, una data introduïda o una factura rectificativa **no acrediten per si sols un retorn bancari executat**. Només després de verificar el fet extern, el canal registra `REFUND` amb el justificant/referència i la relació a la factura/inscripció d'origen. L'ordre històric del tràmit fiscal no s'ha d'interpretar com una regla universal per a tots els escenaris.
+
+**D-CANAL — TPV, transferència o manual:** `ManualRefundService` només registra el moviment en el SIF; no ordena un reemborsament Redsys ni acredita que s'hagi fet. Si una devolució de Redsys apareix en l'anàlisi del fitxer TPV o en un callback, identificar DS_ORDER/operació i consultar si ja s'ha registrat per una altra via. No crear un segon `REFUND` manual pel mateix retorn només perquè els prefixes de deduplicació són diferents. La factura històrica negativa `R` i el valor negatiu d'un fitxer TPV no substitueixen la classificació de la rectificativa fiscal i del moviment real per separat.
+
+**D-LÍMITS I TITULAR:** abans d'autoritzar, comprovar el cobrament real disponible **per inscripció** i el titular econòmic, sobretot en packs, empreses, grups i USOC. Un retorn d'una línia d'una factura conjunta no ha d'excedir la part atribuïda a la inscripció afectada ni duplicar imports ja retornats o convertits en saldo. Si l'import excedeix el disponible, bloquejar i obrir incidència; el `PaymentStatusCalculator` pot recalcular l'estat però no és una prova de límit econòmic ni autorització de retorn.
+
+**D-FISCAL I ERRORS:** el registre econòmic de `REFUND` i una eventual UC-05 tenen claus i resultats diferents. Si el banc confirma el retorn però falla el registre SIF, conservar evidència i gestionar conciliació/reintent idempotent; si SIF confirma el moviment però falla la sincronització del llegat, no repetir la sortida bancària. La política i els imports que cal rectificar depenen de la variació real del servei/factura i de la decisió fiscal validada, no només de l'estat acadèmic.
+
+### 1.5. Proves d'acceptació afegides (no executades)
+
+| ID | Cas | Resultat exigible |
+| --- | --- | --- |
+| DV-01 | Baixa confirmada però client encara no ha rebut diners | Cap REFUND fins a evidència de retorn; decisió pendent per separat. |
+| DV-02 | Reemborsament Redsys ja registrat i intent de registre manual | Correlació al mateix moviment, no segon REFUND. |
+| DV-03 | Retorn parcial d'un participant de factura de grup | Titular i import per inscripció verificats; altres participants intactes. |
+| DV-04 | Retorn superior a fons cobrats disponibles | Bloqueig, sense pagar de nou ni saldo negatiu fictici. |
+| DV-05 | Retorn parcial combinat amb saldo | Dues sortides diferenciades i suma no superior al fons disponible. |
+| DV-06 | Retorn bancari complet, fallada en registrar-lo al SIF | Incidència amb referència externa; reintent idempotent, sense segon retorn bancari. |
+| DV-07 | SIF confirma REFUND però falla el resum de la intranet | Moviment conservat, sincronització posterior sense duplicar-lo. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -154,6 +175,32 @@ else Factura trobada
 end
 ```
 
+### 4.1. Seqüència — devolució acordada i retorn acreditat (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant UI as Baixa/Factura intranet [adaptació pendent]
+participant Ext as Banc/Redsys/retorn real
+participant R as Conciliació/autorització [PENDENT]
+participant S as ManualRefundService [registre existent]
+participant DB as BD SIF
+O->>UI: Aprovar retorn de la part atribuïda
+UI->>R: Validar titular i imports cobrats menys sortides
+UI-->>O: Retorn pendent, encara no REFUND
+Ext-->>UI: Evidència del reemborsament executat
+UI->>R: Buscar mateixa operació en registres Redsys/manuals
+alt Ja s'ha registrat el retorn
+ R-->>UI: UUID_PAYMENT existent; no crear un segon REFUND
+else Retorn real nou i validat
+ UI->>S: Registrar REFUND amb referència i factura/part afectada
+ S->>DB: INSERT payment_transaction i payment_allocation
+ S-->>UI: UUID_PAYMENT
+ UI-->>O: Retorn registrat; efecte fiscal UC-05 separat si correspon
+end
+Note over UI,R: Autorització per inscripció i conciliació externa encara no acreditades al servei manual.
+```
 ## 5. Traçabilitat i límits
 
 [Fitxa antiga UC-28](../06-fitxes-funcionals/uc-028.md) · [UC-02 revisada](uc-002-registrar-cobrament-factura.md) · [UC-05 revisada](uc-005-rectificar-factura.md) · [ManualRefundService](../../sif/src/Service/ManualRefundService.php) · [ManualRefundPayloadBuilder](../../sif/src/Service/ManualRefundPayloadBuilder.php) · [PaymentService](../../sif/src/Service/PaymentService.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [PaymentStatusCalculator](../../sif/src/Domain/PaymentStatusCalculator.php) · [ManualRefundServiceTest](../../sif/tests/Integration/ManualRefundServiceTest.php).
