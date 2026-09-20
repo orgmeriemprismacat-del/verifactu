@@ -2,7 +2,7 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 83 casos d'ús revisats
+## Mapa dels 89 casos d'ús revisats
 
 **[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
@@ -91,8 +91,14 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-121 | Repreuar o renovar una reserva caducada abans del pagament | [Fitxa i UML](uc-121-repreuar-renovar-reserva-caducada.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-122 | Gestionar la composició d'un pack i la indisponibilitat d'un component | [Fitxa i UML](uc-122-composicio-pack-component-indisponible.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-123 | Generar i lliurar una factura electrònica en format i canal acordats | [Fitxa i UML](uc-123-lliurar-factura-electronica.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-124 | Reconciliar accés acadèmic i certificat amb baixa, deute i pagador de grup | [Fitxa i UML](uc-124-reconciliar-acces-certificat-baixa-deute.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-125 | Gestionar consentiment de comunicacions separat de la inscripció | [Fitxa i UML](uc-125-consentiment-comunicacions-separat.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-126 | Resoldre identitat i dades de contacte en conflicte entre sistemes | [Fitxa i UML](uc-126-identitat-contacte-conflicte-sistemes.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-127 | Canviar l'estat d'una edició i resoldre totes les operacions afectades | [Fitxa i UML](uc-127-canvi-estat-edicio-operacions-afectades.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | [Fitxa i UML](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | [Fitxa i UML](uc-129-reconciliar-prisma-moodle-matricules.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 83/142.** Els 59 casos restants encara no tenen fitxa UML individual revisada. L'estat del catàleg original no acredita implementació. El registre quantitatiu `enrollment_fund_movement` continua sent proposta; les taules `payment_link` i `electronic_invoice_delivery` estan definides a SQL però els seus serveis complets no s'han acreditat al PHP.
+**Cobertura documental: 89/142.** Els 53 casos restants encara no tenen fitxa UML individual revisada. L'estat del catàleg original no acredita implementació. La taula `academic_economic_state_event` és un esquema SQL definit, **no** prova de sincronització real amb Moodle; el ledger `enrollment_fund_movement` encara és una proposta.
 
 ## Com llegir el paquet de cada acció
 
