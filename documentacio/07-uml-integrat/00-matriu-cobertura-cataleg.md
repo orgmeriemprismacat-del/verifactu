@@ -1,13 +1,13 @@
 # Matriu completa de cobertura UML del catàleg SIF
 
-**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 59 de 142 casos; 83 pendents de revisió específica.** Documentat no vol dir implementat, provat ni desplegat. Les etiquetes d'estat del catàleg original són històriques i poden divergir de l'estat del PHP verificat a la fitxa individual.
+**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 65 de 142 casos; 77 pendents de revisió específica.** Revisat documentalment no vol dir implementat, provat ni desplegat. L'estat del catàleg original és històric i pot diferir de l'estat del codi consultat a cada fitxa integrada.
 
 ## Cobertura per domini
 
 | Domini del catàleg | Total | Revisats | Pendents |
 | --- | ---: | ---: | ---: |
 | facturació i registre fiscal | 33 | 20 | 13 |
-| pagaments i conciliació | 30 | 18 | 12 |
+| pagaments i conciliació | 30 | 20 | 10 |
 | documents, accés i comunicacions | 11 | 3 | 8 |
 | governança i operació | 29 | 7 | 22 |
 | integració SIF | 1 | 1 | 0 |
@@ -16,8 +16,8 @@
 | gestió operativa | 2 | 0 | 2 |
 | circuit adjacent de col·laboradors | 2 | 0 | 2 |
 | casuística recuperada | 1 | 0 | 1 |
-| operació comercial i inscripció | 7 | 0 | 7 |
-| cicle de vida comercial, acadèmic i documental | 12 | 1 | 11 |
+| operació comercial i inscripció | 7 | 3 | 4 |
+| cicle de vida comercial, acadèmic i documental | 12 | 2 | 10 |
 | consentiment, identitat i coherència entre sistemes | 5 | 0 | 5 |
 
 ## Relació de tots els casos
@@ -140,18 +140,18 @@
 | UC-101 | Operar domini, TLS i separació d'entorns de `pay.prisma.cat` | `[PARCIAL/BLOQUEJANT]` | [uc-101.md](../06-fitxes-funcionals/uc-101.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-102 | Autoritzar l'accés de l'alumne sense rol d'intranet | `[DISSENY/BLOQUEJANT]` | [uc-102.md](../06-fitxes-funcionals/uc-102.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-103 | Delegar anul·lació o canvi de pagament web al SIF | `[DISSENY/BLOQUEJANT]` | [uc-103.md](../06-fitxes-funcionals/uc-103.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-104 | Gestionar un excés de cobrament | `[DISSENY/BLOQUEJANT]` | [uc-104.md](../06-fitxes-funcionals/uc-104.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-105 | Reassignar o repartir un pagament | `[DISSENY/BLOQUEJANT]` | [uc-105.md](../06-fitxes-funcionals/uc-105.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-106 | Crear una reserva o inscripció abans del pagament | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-106.md](../06-fitxes-funcionals/uc-106.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-107 | Detectar una inscripció duplicada i evitar efectes econòmics dobles | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-107.md](../06-fitxes-funcionals/uc-107.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-104 | Gestionar un excés de cobrament | `[DISSENY/BLOQUEJANT]` | [uc-104.md](../06-fitxes-funcionals/uc-104.md) | [Fitxa i diagrames](uc-104-gestionar-exces-cobrament.md) |
+| UC-105 | Reassignar o repartir un pagament | `[DISSENY/BLOQUEJANT]` | [uc-105.md](../06-fitxes-funcionals/uc-105.md) | [Fitxa i diagrames](uc-105-reassignar-repartir-pagament.md) |
+| UC-106 | Crear una reserva o inscripció abans del pagament | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-106.md](../06-fitxes-funcionals/uc-106.md) | [Fitxa i diagrames](uc-106-crear-reserva-abans-pagament.md) |
+| UC-107 | Detectar una inscripció duplicada i evitar efectes econòmics dobles | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-107.md](../06-fitxes-funcionals/uc-107.md) | [Fitxa i diagrames](uc-107-detectar-inscripcio-duplicada.md) |
 | UC-108 | Registrar un tastet o repte gratuït com a operació no facturable | `[LEGACY/DISSENY]` | [uc-108.md](../06-fitxes-funcionals/uc-108.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-109 | Registrar una inscripció a curs subvencionat sense cobrament individual | `[LEGACY/PENDENT/BLOQUEJANT]` | [uc-109.md](../06-fitxes-funcionals/uc-109.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-110 | Gestionar el descompte d'amics amb dues inscripcions i un pagador | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-110.md](../06-fitxes-funcionals/uc-110.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-111 | Validar docent novell i generar un dret de descompte futur | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-111.md](../06-fitxes-funcionals/uc-111.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-112 | Congelar preu, descompte, places i classificació fiscal abans del TPV | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-112.md](../06-fitxes-funcionals/uc-112.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-112 | Congelar preu, descompte, places i classificació fiscal abans del TPV | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-112.md](../06-fitxes-funcionals/uc-112.md) | [Fitxa i diagrames](uc-112-congelar-snapshot-abans-tpv.md) |
 | UC-113 | Importar o crear inscripcions manualment o en lot sense inventar cobrament | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-113.md](../06-fitxes-funcionals/uc-113.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-114 | Versionar canvis de producte o edició amb operacions obertes | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-114.md](../06-fitxes-funcionals/uc-114.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-115 | Reservar i alliberar places amb aforament, caducitat i concurrència | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-115.md](../06-fitxes-funcionals/uc-115.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-115 | Reservar i alliberar places amb aforament, caducitat i concurrència | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-115.md](../06-fitxes-funcionals/uc-115.md) | [Fitxa i diagrames](uc-115-reservar-alliberar-places.md) |
 | UC-116 | Custodiar i revisar evidències sensibles de descompte | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-116.md](../06-fitxes-funcionals/uc-116.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-117 | Gestionar el cicle de vida d'un codi promocional o dret futur | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-117.md](../06-fitxes-funcionals/uc-117.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-118 | Gestionar un grup abans d'emetre o cobrar | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-118.md](../06-fitxes-funcionals/uc-118.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
@@ -167,6 +167,6 @@
 | UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-128.md](../06-fitxes-funcionals/uc-128.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-129.md](../06-fitxes-funcionals/uc-129.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 
-## Criteri d'interpretació
+## Significat de «revisat»
 
-Una fitxa revisada té anàlisi específica, UML de casos d'ús, classes i seqüència, i distingeix codi PHP existent, esquema SQL definit i disseny pendent. **No** certifica l'execució de proves, autorització de canals, rendiment, conciliació efectiva de fons per inscripció ni enviament/acceptació AEAT. [Índex](README.md) · [Model transversal de classes](00-model-classes-general.md) · [Registre de fons per inscripció](00-revisio-moviments-inscripcions.md).
+Cada fitxa específica descriu l'acció, UML de casos d'ús, classes i seqüència, i identifica què existeix al PHP, què és SQL definit i què és disseny pendent. **No** acredita tests executats, autorització de canals, reserves reals de places, registre quantitatiu dels diners per inscripció, acceptació AEAT ni desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça de fons](00-revisio-moviments-inscripcions.md).
