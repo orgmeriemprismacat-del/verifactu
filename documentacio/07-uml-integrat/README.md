@@ -2,9 +2,9 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 59 casos d'ús revisats
+## Mapa dels 65 casos d'ús revisats
 
-**[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Traça quantitativa dels diners per inscripció](00-revisio-moviments-inscripcions.md)**
+**[Model general de classes](00-model-classes-general.md)** · **[Matriu completa de 142 casos](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
 | ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
@@ -66,9 +66,15 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-71 | Registrar un canvi de curs complet | [Fitxa i UML](uc-071-registrar-canvi-curs-complet.md) | `[DISSENY/PARCIAL]` |
 | UC-72 | Registrar baixa i decisió econòmica | [Fitxa i UML](uc-072-registrar-baixa-decisio-economica.md) | `[DISSENY/PARCIAL]` |
 | UC-86 | Registrar qualsevol acció sobre un pagament | [Fitxa i UML](uc-086-auditar-accio-pagament.md) | [DISSENY/BLOQUEJANT] |
+| UC-104 | Gestionar un excés de cobrament | [Fitxa i UML](uc-104-gestionar-exces-cobrament.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-105 | Reassignar o repartir un pagament | [Fitxa i UML](uc-105-reassignar-repartir-pagament.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-106 | Crear una reserva o inscripció abans del pagament | [Fitxa i UML](uc-106-crear-reserva-abans-pagament.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-107 | Detectar una inscripció duplicada i evitar efectes econòmics dobles | [Fitxa i UML](uc-107-detectar-inscripcio-duplicada.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-112 | Congelar preu, descompte, places i classificació fiscal abans del TPV | [Fitxa i UML](uc-112-congelar-snapshot-abans-tpv.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-115 | Reservar i alliberar places amb aforament, caducitat i concurrència | [Fitxa i UML](uc-115-reservar-alliberar-places.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-119 | Gestionar el cicle complet d'un regal o codi de bescanvi | [Fitxa i UML](uc-119-cicle-complet-regal.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 59/142.** Els 83 casos restants encara no tenen una fitxa UML específica revisada. L'estat original del catàleg no acredita implementació ni desplegament; cada fitxa nova distingeix les evidències. El ledger `enrollment_fund_movement` continua sent una **proposta** i no una migració/repo PHP implementats.
+**Cobertura documental: 65/142.** Queden **77** casos del catàleg sense fitxa UML específica revisada. L'estat original no acredita implementació o desplegament. El registre `enrollment_fund_movement` és **una proposta**, no un model SQL/PHP implementat; igualment, `capacity_reservation` és esquema SQL però no servei de control d'aforament acreditat.
 
 ## Com llegir el paquet de cada acció
 
