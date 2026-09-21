@@ -209,6 +209,8 @@ end
 Note over S,DB: El resolvedor de dos emissors i la migració conjunta són DISSENY; els dos comportaments de reús/UNIQUE són contrast PHP/SQL, no test executat.
 ```
 
+**Segona frontera: concurrència amb numeració nova.** L'importador d'històrics no avança `fiscal_sequence.LAST_NUM`. Encara que no hi hagi dos emissors homònims, un número històric del mateix any/sèrie pot ocupar una combinació que `FiscalSequenceRepository::next()` assignaria més tard a una factura nova. Vegeu la [UC-11, secció 4.3](uc-011-importar-factura-historica.md): el preflight de migració és **DISSENY**, no comportament PHP actual.
+
 **Decisió de model pendent:** `factura.NUM_VISIBLE` i `(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` són únics globalment al SQL base. Abans de canviar restriccions cal preservar la numeració única exigida per a les noves emissions del SIF i definir si els històrics de diversos emissors han de residir en un model separat o en una identitat composta que **no alteri la cadena/numeració de nova emissió**; cap alternativa es dóna aquí per implementada.
 
 | Prova pendent | Escenari | Resultat exigible |
@@ -217,6 +219,7 @@ Note over S,DB: El resolvedor de dos emissors i la migració conjunta són DISSE
 | HS-97-08 | Mateixos documents amb claus idempotents explícites diferents | Detectar col·lisió per `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)`; no renumerar. |
 | HS-97-09 | Consulta de dues factures homònimes però emissor original desconegut en una | No revelar-les com una única factura d'Associació/SL; conservar incidència d'identitat. |
 | HS-97-10 | Definició de model multiemissor sense perdre numeració nova del SIF | Dues identitats històriques originals consultables, nova factura immutable amb numeració i cadena pròpies, permisos per emissor. |
+| HS-97-11 | Factura històrica mateixa sèrie/any i número que `fiscal_sequence` emetria tot seguit | Importació no ha d'ocupar silenciosament el número de nova emissió; model de coexistència validat sense modificar ni renumerar documents originals. |
 
 ## Traçabilitat
 
