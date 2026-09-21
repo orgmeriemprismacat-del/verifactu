@@ -39,6 +39,27 @@ UC-108 permet alta gratuïta sense presumpció de mailing; UC-120 tracta dades p
 
 **Pendents de tancament:** política de finalitats/canals/abast i textos, identificador canònic, consentiment representat i proves, custòdia/retenció, servei i repositori d'events, connector de comunicacions i proves de concurrència/privacitat.
 
+### 2.1. Punts d'entrada de mailing documentats i límit de la confirmació
+
+**Circuit concret documentat.** La revisió de `web-actual/ajax/mailing.php`, `mailingNou.php` i `inscripcio_mailing.php` recollida a `33-casos-us-sif.md` identifica tres passos del llegat: **demanar consentiment, crear una sol·licitud i enviar confirmació**. Aquesta evidència **no prova** que cada pas conservi la mateixa versió de text, finalitat/canal, titular, resultat de confirmació i eventual retirada en una cronologia comuna; els scripts no estan presents a la branca GitHub consultada i la seva execució actual en producció queda **pendent de verificació**. No reduir la decisió a «té correu» o «ha rebut un email de confirmació»: distingir sol·licitud, confirmació efectiva i subscripció vigent, cadascuna amb origen i prova pròpia.
+
+**Alta de curs, tastet i avisos necessaris.** UC-108 permet accés a un tastet gratuït amb opció de mailing negativa; UC-109 identifica una inscripció subvencionada amb finançador, que tampoc implica alta comercial. Un avís de pagament, inici de curs, anul·lació d'edició o disponibilitat del document fiscal és una **comunicació operativa vinculada a un fet**, no una alta de mailing comercial. La notificació UC-43/49/58 ha de verificar destinatari i finalitat al seu propi circuit; l'opció de màrqueting no ha d'impedir per si sola una comunicació operativa que correspongui, ni autoritzar anuncis a partir de l'enviament d'una factura.
+
+**Identitat i canvis de contacte.** `inscripcions.CORREU`, `entitats_resp.CORREU` i `factura.BILLING_EMAIL` poden ser iguals o diferents per a participant, gestor i receptor fiscal. La subscripció s'ha de vincular a **subjecte i abast acreditats**, no al primer registre retornat per l'email ni a `IDPAG` compartit. Si es modifica el correu operatiu UC-120 o el responsable d'empresa UC-41, no recuperar automàticament una opció comercial retirada, no enviar un missatge promocional a un tercer per heretar l'email i no traspassar permís de consulta del PDF.
+
+**Prova de la retirada i cues antigues.** `notification_outbox` registra propostes de lliurament però **no substitueix un ledger de decisions de consentiment**. Una retirada efectiva ha d'impedir que una campanya pendent es lliuri per un snapshot antic; si un correu s'havia enviat realment abans, conservar l'event d'enviament en l'auditoria sense afirmar que s'ha pogut recuperar aquell missatge. La regla de consentiment, text i canal vigents s'ha de comprovar abans del transport quan correspon. Les finalitats, textos i model d'events exactes continuen **pendents d'aprovació i implementació**; no donar per feta una cancel·lació externa només per escriure una fila local.
+
+### 2.2. Proves complementàries dels canals documentats (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CM-125-01 | `inscripcio_mailing.php` tramita una sol·licitud però no es confirma | Sol·licitud identificada; no declarar subscripció confirmada per haver enviat un correu. |
+| CM-125-02 | Inscripció a tastet gratuït amb opció comercial negativa | Alta/accés acadèmic segons regla, cap subscripció promocional implícita. |
+| CM-125-03 | `CORREU` coincideix per alumne i gestor d'una entitat | Dos subjectes/abasts; no compartir automàticament decisió ni accés documental. |
+| CM-125-04 | Retirada amb campanya comercial ja pendent a l'outbox | Revalidar l'opció vigent i impedir l'enviament pendent d'aquella finalitat. |
+| CM-125-05 | Canvi de correu després d'una retirada | Conservació de la decisió per subjecte/abast; no reactivació per l'email nou. |
+| CM-125-06 | Enviar factura o avís operatiu a persona no subscrita | Validar destinatari i finalitat operativa sense crear una subscripció comercial. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
