@@ -18,7 +18,7 @@
 1. Validar rol, motiu, període i emissor; previsualitzar volum, dades sensibles, registres pendents o en error i precisió del filtre temporal.
 2. Crear/reutilitzar ordre `fiscal_export` amb conjunt de filtres **immutable** i referència de sol·licitud. Si mateixa clau amb filtres diferents, conflicte en lloc de reusar un fitxer no equivalent; el SQL no inclou clau d'idempotència, per tant la política/writer són pendents.
 3. Llegir un snapshot coherent de factures, registres i estat remot **en el moment de tall**; anotar data de tall i estat de cua perquè un registre encara pendent no es presenti com a acceptat.
-4. Construir fitxer de format aprovat, verificar cardinalitats, totals i hashes d'artefacte, desar-lo en storage privat; only després completar `STORAGE_KEY/FILE_HASH`.
+4. Construir fitxer de format aprovat, verificar cardinalitats, totals i hashes d'artefacte, desar-lo en storage privat; només després completar `STORAGE_KEY/FILE_HASH`.
 5. En cada consulta o descàrrega, revalidar permisos i registrar `fiscal_export_access` amb resultat, sense exposar `STORAGE_KEY` com a URL pública.
 6. Una exportació defectuosa genera una **nova versió de l'artefacte o una incidència**, mai un `UPDATE` dels registres fiscals per fer quadrar el fitxer.
 
