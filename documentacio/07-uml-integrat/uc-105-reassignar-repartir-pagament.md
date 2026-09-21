@@ -143,7 +143,7 @@ A->>DB: SELECT P i trams FOR UPDATE
 A-->>C: Estat/versions, A disponible 120 €
 C->>C: Validar titular, origen, import, destí i idempotència
 alt No hi ha saldo, permís o resultat coherent
- C-->>Op: Rebuig auditat; ni CHARGE ni canvi de factura
+ C-->>Op: Rebuig auditat, ni CHARGE ni canvi de factura
 else Import vàlid
  C->>A: recordReversalAndAssignments(P,A,B,80 €)
  A->>DB: Escriure història i recalcular factures A/B
