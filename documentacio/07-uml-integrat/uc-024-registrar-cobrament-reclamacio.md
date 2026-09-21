@@ -97,6 +97,25 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de cobraments"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-24<br/>Registrar cobrament reclamat"])
+    uc_1(["Localitzar factura vigent"])
+    uc_2(["UC-02<br/>Registrar pagament<br/>sobre factura existent"])
+    uc_3(["UC-43<br/>Gestionar comunicacions<br/>de reclamació"])
+    uc_4(["UC-27<br/>Donar de baixa inscripció"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_0 --> uc_4
+```
+
 ## 3. Subdiagrama de classes — PHP observat
 
 ```mermaid
@@ -236,6 +255,27 @@ G --> Link
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió de reclamacions"]
+  actor_1["Banc / Redsys"]
+  subgraph SIF_BOX["SIF PrisMa — UC-24 / IDENTIFICAR INGRÉS (DISSENY)"]
+    uc_0(["Identificar entrada vinculada<br/>a expedient de reclamació"])
+    uc_1(["Distingir ID d'expedient<br/>d'ID bancari de cada abonament"])
+    uc_2(["Consultar CHARGE i assignacions<br/>ja persistits per qualsevol canal"])
+    uc_3(["UC-02<br/>Registrar nou ingrés confirmat"])
+    uc_4(["UC-56<br/>Vincular ingrés existent a la reclamació"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_0 --> uc_4
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -291,6 +331,25 @@ Record ..> Idp : <<include>> [guard pendent]
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió de cobraments"]
+  actor_1["Banc"]
+  subgraph SIF_BOX["SIF PrisMa — UC-24 / SEGON INGRÉS PARCIAL"]
+    uc_0(["Registrar nou ingrés parcial<br/>per un deute reclamat"])
+    uc_1(["Comprovar identitat bancària E2<br/>diferent d'E1"])
+    uc_2(["Comprovar factura i import<br/>pendent real abans del CHARGE"])
+    uc_3(["Reutilitzar UUID_PAYMENT només<br/>per reintent equivalent d'E2"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -338,6 +397,23 @@ Close ..> Net : <<include>>
 Close ..> Fiscal : <<include>> [quan variï la factura]
 R --> Notice
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable de morositat"]
+  subgraph SIF_BOX["SIF PrisMa — UC-24 / TANCAR RECLAMACIÓ (DISSENY)"]
+    uc_0(["Verificar deute net de l'expedient"])
+    uc_1(["Consultar factures originals,<br/>cobraments i devolucions efectius"])
+    uc_2(["Contrastar rectificatives<br/>i imports de reclamació"])
+    uc_3(["UC-43<br/>Comunicar estat del deute a l'interessat"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
 ```
 
 ```mermaid
