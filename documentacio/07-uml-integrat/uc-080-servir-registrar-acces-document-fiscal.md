@@ -75,6 +75,29 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Receptor/representant"]
+  actor_1["Alumne autoritzat"]
+  actor_2["Gestió amb rol fiscal"]
+  subgraph SIF_BOX["SIF · consulta fiscal"]
+    uc_0(["UC-80<br/>Consultar o descarregar document"])
+    uc_1(["Validar sessió/token i titularitat"])
+    uc_2(["Verificar fitxer i hash real"])
+    uc_3(["Servir bytes originals"])
+    uc_4(["Registrar accés o denegació"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 4. UML de classes — SQL i servidor d'arxius pendents
 
 ```mermaid
@@ -172,6 +195,31 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Receptor / representant"]
+  actor_1["Alumne"]
+  actor_2["Auditor amb grant temporal"]
+  subgraph SIF_BOX["SIF PrisMa — llistat documental (DISSENY)"]
+    uc_0(["UC-80 / LIST<br/>Consultar documents propis autoritzats"])
+    uc_1(["Resoldre identitat, receptor<br/>i abast de cada factura"])
+    uc_2(["Validar estat i disponibilitat del document"])
+    uc_3(["Auditar consulta o denegació"])
+    uc_4(["UC-80 / DOWNLOAD<br/>Descarregar fitxer concret"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
+  actor_1 --> uc_4
+  actor_2 --> uc_4
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -225,6 +273,27 @@ Download ..> Auth : <<include>>
 Download ..> Verify : <<include>> [si autoritzat]
 Download ..> Audit : <<include>>
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Receptor / representant"]
+  actor_1["Alumne"]
+  actor_2["Auditor temporal"]
+  subgraph SIF_BOX["SIF PrisMa — descàrrega documental (DISSENY)"]
+    uc_0(["UC-80 / DOWNLOAD<br/>Servir document autoritzat"])
+    uc_1(["Comprovar identitat, permís<br/>i venciment en cada ús"])
+    uc_2(["UC-55<br/>Verificar bytes, hash i origen"])
+    uc_3(["Registrar autorització, denegació<br/>o error d'integritat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
 ```
 
 ```mermaid
