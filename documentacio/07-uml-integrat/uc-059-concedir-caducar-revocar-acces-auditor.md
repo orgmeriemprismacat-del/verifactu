@@ -58,6 +58,34 @@ Expire ..> Audit : <<include>>
 Revoke ..> Audit : <<include>>
 @enduml
 ```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable autoritzada"]
+  actor_1["Auditor identificat"]
+  actor_2["Rellotge/worker de venciments"]
+  subgraph SIF_BOX["SIF — autorització auditor (TOT DISSENY)"]
+    uc_0(["UC-45/59<br/>Concedir accés temporal"])
+    uc_1(["Validar identitat, motiu,<br/>abast i termini"])
+    uc_2(["UC-59/80<br/>Autoritzar consulta concreta"])
+    uc_3(["Revalidar grant i recurs<br/>a cada petició"])
+    uc_4(["UC-59<br/>Caducar concessió"])
+    uc_5(["UC-59<br/>Revocar concessió"])
+    uc_6(["Auditar autorització,<br/>denegació i canvi"])
+  end
+  actor_0 --> uc_0
+  actor_0 --> uc_5
+  actor_2 --> uc_4
+  actor_1 --> uc_2
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_6
+  uc_2 -.->|include| uc_3
+  uc_2 -.->|include| uc_6
+  uc_4 -.->|include| uc_6
+  uc_5 -.->|include| uc_6
+```
 ## 4. UML de classes — autorització no inferible de logs
 
 ```mermaid
