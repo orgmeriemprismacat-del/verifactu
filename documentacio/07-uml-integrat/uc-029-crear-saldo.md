@@ -154,6 +154,110 @@ end
 Note over S,DB: No es genera factura, pagament ni registre fiscal per aquest mètode
 ```
 
+### 4.1. Acció específica: reintentar l'alta d'un saldo quan la primera resposta s'ha perdut
+
+**Contrast executable:** `CreditBalanceService::createCredit()` construeix el payload i, per cada crida, `CreditBalanceRepository::createCredit()` genera un `UUID_CREDIT` **nou** i insereix un registre `ACTIVE`; aquesta ruta no cerca `source_type/source_id`, `UUID_FACTURA_ORIGEN`, titular ni una clau d'operació anterior abans d'inserir. La transacció evita un registre a mitges per crida, però **no evita dues altes diferents del mateix dret** després d'un doble clic o d'una resposta perduda. El fet que una baixa i un canvi de curs comparteixin import no els converteix automàticament en la mateixa font: el guard s'ha de basar en un **event econòmic únic**, la quantitat de valor disponible i el titular real.
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant UI as Adaptador intranet [PENDENT]
+participant S as CreditBalanceService [PHP]
+participant B as CreditBalancePayloadBuilder [PHP]
+participant TR as TransactionRunner [PHP]
+participant CR as CreditBalanceRepository [PHP]
+participant DB as credit_balance [SQL]
+O->>UI: Alta de saldo 80 per baixa X i titular T
+UI->>S: createCredit(input X,T,80)
+S->>B: forCreditBalance(input)
+B-->>S: titular, import i origen declarats
+S->>TR: run(callback)
+TR->>DB: BEGIN
+S->>CR: createCredit(payload)
+CR->>DB: INSERT UUID_CREDIT_A ACTIVE 80
+TR->>DB: COMMIT
+TR-->>S: uuid_credit A
+Note over O,S: La resposta al canal es perd després del COMMIT.
+O->>UI: Reintentar la mateixa alta X,T,80
+UI->>S: createCredit(input X,T,80) novament
+S->>B: forCreditBalance(input)
+S->>TR: run(callback)
+TR->>DB: BEGIN
+S->>CR: createCredit(payload), sense cerca d'origen existent
+CR->>DB: INSERT UUID_CREDIT_B ACTIVE 80
+TR->>DB: COMMIT
+S-->>UI: UUID_CREDIT_B, diferent d'A
+UI-->>O: Dues altes per un mateix origen si cap control extern ho impedeix
+Note over S,DB: Aquest resultat es dedueix de la ruta PHP examinada; no s'ha provat amb base de dades en aquesta revisió.
+```
+
+### 4.2. Acció objectiu: confirmar el dret econòmic i recuperar l'alta idempotent
+
+**Precondicions:** event/decisió econòmica identificable; comprovació servidor de titular/pagador legítim, import encara disponible de l'origen, rectificació fiscal quan pertoqui i absència de retorn o saldo previ contradictoris. **Actor que inicia:** gestió autoritzada; no donar accés a crear saldos per conèixer només un ID de factura. **Postcondició:** saldo creat una vegada i correlacionat a l'event únic de procedència; un reintent exacte recupera el mateix UUID; una petició amb el mateix ID d'event i import o titular diferent genera conflicte, no modifica el saldo anterior.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió autoritzada" as G
+actor "Responsable de cobraments" as C
+rectangle "SIF PrisMa — alta única de saldo (OBJECTIU)" {
+ usecase "UC-29\nConcedir saldo d'un origen aprovat" as Create
+ usecase "Identificar fet, titular i import disponible" as Origin
+ usecase "Distingir reintent equivalent\nde proposta contradictòria" as Dedup
+ usecase "Crear saldo i consumir valor\nde l'origen una única vegada" as Commit
+ usecase "UC-29a\nAplicar crèdit existent" as Apply
+}
+G --> Create
+C --> Origin
+Create ..> Origin : <<include>>
+Create ..> Dedup : <<include>>
+Create ..> Commit : <<include>> [quan és una alta nova vàlida]
+G --> Apply
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant A as Adaptador autoritzat [PENDENT]
+participant D as Guard d'origen i titular [DISSENY]
+participant C as CreditBalanceService [PHP a ampliar]
+participant R as CreditBalanceRepository [PHP a ampliar]
+participant DB as BD SIF i registre d'origen [DISSENY]
+G->>A: Confirmar saldo amb ID event X, titular T i import 80
+A->>D: Verificar permís, fons reals disponibles i estat fiscal
+alt Origen no acreditat o titular no legitimat
+ D-->>A: DENIED, cap saldo nou
+else Origen/acord aprovats
+ D->>DB: Bloquejar origen i cercar dret creat per ID event X
+ alt Mateix event i payload equivalent ja confirmat
+  DB-->>D: UUID_CREDIT_A existent
+  D-->>A: Reutilitzar saldo A sense una altra alta
+ else Event X amb import/titular contradictoris
+  DB-->>D: CONFLICT
+  D-->>A: Incidència; no crear ni mutar saldo
+ else Event X nou i import disponible
+  D->>C: createCredit(input normalitzat, identificador d'origen) [API ampliada]
+  C->>R: Alta de saldo + registre de valor consumit dins una transacció [OBJECTIU]
+  R->>DB: INSERT credit_balance i checkpoint d'origen; COMMIT
+  R-->>C: UUID_CREDIT_A
+  C-->>D: UUID i estat ACTIVE
+  D-->>A: Alta confirmada i correlacionada
+ end
+end
+A-->>G: UUID existent, nou o incidència explícita
+Note over D,DB: Guard/event/consum atòmic d'origen no existeixen al createCredit() actual. En crèdits comercials sense caixa cal una classificació diferenciada.
+```
+
+| Prova pendent | Entrada | Resultat exigible |
+| --- | --- | --- |
+| SA-07 | Doble clic sobre el mateix event de baixa després de COMMIT i resposta perduda | Un únic UUID_CREDIT i import de dret no duplicat. |
+| SA-08 | Mateix ID d'event amb nou import/titular | Conflicte i traça, sense segona alta ni canvi silenciós de titular. |
+| SA-09 | Dos events legítims diferents de 80 al mateix titular | Dos saldos amb origen separat, sense fusionar-los pel sol import. |
+| SA-10 | Una mateixa entrada externa es resol simultàniament com a retorn i saldo | Bloqueig/conciliació de valor d'origen; no retorn i crèdit pel mateix tram de fons. |
+| SA-11 | Crèdit comercial sense cobrament real | Tipus d'origen específic, sense CHARGE bancari ni atribució fictícia de diners. |
 ## 5. Traçabilitat
 
 [Fitxa original UC-29](../06-fitxes-funcionals/uc-029.md) · [Cas general UC-06](../04-estat-final/33-casos-us-sif.md) · [CreditBalanceService](../../sif/src/Service/CreditBalanceService.php) · [CreditBalancePayloadBuilder](../../sif/src/Service/CreditBalancePayloadBuilder.php) · [CreditBalanceRepository](../../sif/src/Repository/CreditBalanceRepository.php) · [CreditBalanceServiceTest](../../sif/tests/Integration/CreditBalanceServiceTest.php).
