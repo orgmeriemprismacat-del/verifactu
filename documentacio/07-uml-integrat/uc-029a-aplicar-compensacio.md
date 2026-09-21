@@ -189,6 +189,112 @@ else Context existent
 end
 ```
 
+### 4.1. Acció específica: repetir una compensació equivalent vs aplicar una segona quota real de mateix import
+
+**Contracte verificat:** `CreditBalancePayloadBuilder::forCompensation()` deriva la clau de `UUID_CREDIT`, número visible de factura i import. **No incorpora data de moviment, identificador independent de l'ordre ni `allocation_type`**. `CreditBalanceService::applyCredit()` consulta aquesta clau *abans* de `assertCreditCanBeApplied()` i, en trobar-la, retorna el `UUID_PAYMENT` existent sense consumir saldo. Això és correcte per a una petició idèntica repetida, però una **segona compensació legítima de mateix import al mateix document** queda fusionada amb la primera encara que hi hagi saldo i deute pendents. La sortida reutilitzada porta `IMPORT_DISPONIBLE` i `ESTAT` del **saldo actual**, no un snapshot del saldo després de l'aplicació històrica original.
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant UI as Intranet [integració pendent]
+participant S as CreditBalanceService [PHP]
+participant B as CreditBalancePayloadBuilder [PHP]
+participant CR as CreditBalanceRepository [PHP]
+participant PR as PaymentRepository [PHP]
+participant TR as TransactionRunner [PHP]
+participant DB as BD SIF
+O->>UI: Aplicar 20 de saldo C a factura F (ordre real A)
+UI->>S: applyCreditByUuid(C,F,{amount:20,movement_date:D1})
+S->>TR: run(callback A)
+TR->>DB: BEGIN
+S->>CR: findByUuid(C,true)
+S->>B: forCompensation(C,F,20,D1)
+B-->>S: clau K = C + F + 20
+S->>PR: findByIdempotencyKey(K,true)
+PR-->>S: No trobat
+S->>CR: Comprovar saldo ACTIVE/available i pendent de F
+S->>PR: createPayment(COMPENSATION A, allocation F 20)
+PR->>DB: INSERT pagament i allocation
+S->>CR: updateAvailableAmount(C,restant)
+TR->>DB: COMMIT
+S-->>UI: UUID_PAYMENT_A, idempotency_reused=false
+O->>UI: Aplicar altres 20 reals sobre C i F (ordre B, data D2)
+UI->>S: applyCreditByUuid(C,F,{amount:20,movement_date:D2})
+S->>TR: run(callback B)
+TR->>DB: BEGIN
+S->>CR: findByUuid(C,true)
+S->>B: forCompensation(C,F,20,D2)
+B-->>S: mateixa clau K, data no inclosa
+S->>PR: findByIdempotencyKey(K,true)
+PR-->>S: UUID_PAYMENT_A existent
+TR->>DB: COMMIT sense crear ni consumir B
+S-->>UI: idempotency_reused=true, UUID_PAYMENT_A
+UI-->>O: Segona ordre B no ha quedat registrada com a aplicació nova
+Note over S,DB: El PHP no compara payload de B amb l'original A ni disposa d'identificador d'ordre B.
+```
+
+### 4.2. Acció objectiu: confirmar aplicació nova i reusar només la mateixa ordre
+
+El contracte pendent requereix un identificador estable d'operació **diferent del fet que dos imports siguin iguals**; el servei ha de verificar que la clau usada anteriorment representa el mateix titular, saldo, factura, import, destinació, regla, data i autorització. Cada aplicació nova ha de seguir bloquejant el saldo i la factura en transacció, com fa el servei actual. La validació de titularitat ha de ser anterior al consum i abastar receptor/pagador real i les inscripcions de destí quan la factura és de grup.
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador autoritzat" as O
+actor "Titular del saldo / aprovador" as H
+rectangle "SIF PrisMa — compensació (OBJECTIU)" {
+ usecase "UC-29a / COMANDA\nAplicar un import aprovat de saldo" as Apply
+ usecase "Comprovar titular, factura i destí" as Authorize
+ usecase "Comparar identitat d'operació\ni payload en reintent" as Idempotency
+ usecase "Consumir saldo i crear COMPENSATION\nen transacció" as Commit
+}
+O --> Apply
+H --> Authorize
+Apply ..> Authorize : <<include>>
+Apply ..> Idempotency : <<include>>
+Apply ..> Commit : <<include>> [quan és nova i vàlida]
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant UI as Canal autoritzat [PENDENT]
+participant G as Guard titularitat i idempotència [PENDENT]
+participant S as CreditBalanceService [PHP, contracte a ampliar]
+participant DB as BD SIF
+O->>UI: Confirmar ordre B amb ID propi, saldo C, factura F, import 20
+UI->>G: Verificar actor, titular, participants i identitat immutable d'ordre B
+alt Mateix ID d'ordre amb payload contradictori
+ G-->>UI: CONFLICT sense crear ni consumir saldo
+else Ordre exactament repetida
+ G-->>UI: UUID_PAYMENT anterior, cap segon consum
+else Ordre B nova i autoritzada
+ G-->>UI: Dades normalitzades i clau única de B
+ UI->>S: applyCredit(B,C,F,20) [API/constructor ampliats]
+ S->>DB: BEGIN + bloqueig saldo i factura
+ alt Sense saldo suficient o factura sense pendent
+  DB-->>S: Error de validació, ROLLBACK
+  S-->>UI: Rebuig sense COMPENSATION
+ else Fons disponibles i destí permès
+  S->>DB: Inserir COMPENSATION B i consumir 20 del mateix saldo
+  S->>DB: COMMIT
+  S-->>UI: UUID_PAYMENT_B diferent del d'A
+ end
+end
+UI-->>O: Reús, conflicte o nova aplicació acreditada
+Note over UI,S: Identificació per ordre i guard són disseny. El PHP actual només deriva la clau per C, F i import.
+```
+
+| ID de prova pendent | Escenari | Resultat requerit |
+| --- | --- | --- |
+| CO-07 | Ordres A i B diferents a C/F de 20 cadascuna, amb saldo i deute suficients | Dos UUID_PAYMENT i consum total 40, sense fusionar-les per import. |
+| CO-08 | Reintent d'ordre A amb mateix ID i import/factura/titular | Reús de UUID_PAYMENT_A, sense nou consum. |
+| CO-09 | Mateix ID d'ordre A però canvi de factura o data/origen material | Conflicte explícit abans de cap moviment. |
+| CO-10 | Segona ordre B després de consumir el saldo per una altra operació | Rebuig per saldo insuficient, no reutilització casual d'A. |
+| CO-11 | Reús d'A després que una altra compensació hagi modificat el saldo | Retornar identificador d'A i **distingir saldo actual de saldo posterior històric d'A**. |
 ## 5. Traçabilitat
 
 [Fitxa original UC-29a](../06-fitxes-funcionals/uc-029a.md) · [UC-29 Crear saldo](uc-029-crear-saldo.md) · [UC-02 Pagament](uc-002-registrar-cobrament-factura.md) · [CreditBalanceService](../../sif/src/Service/CreditBalanceService.php) · [CreditBalancePayloadBuilder](../../sif/src/Service/CreditBalancePayloadBuilder.php) · [CreditBalanceRepository](../../sif/src/Repository/CreditBalanceRepository.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [CreditBalanceServiceTest](../../sif/tests/Integration/CreditBalanceServiceTest.php).
