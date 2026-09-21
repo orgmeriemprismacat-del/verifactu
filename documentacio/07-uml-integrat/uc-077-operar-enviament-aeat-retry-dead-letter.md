@@ -10,6 +10,16 @@ Si el transport o el processament fallen, `fail()` posa `RETRY` amb ajornament e
 
 **Límit especialment important:** `SoapTransport` està restringit pel constructor a `TEST_ENDPOINT` de preproducció; exigeix `payload['aeat']`, genera XML, usa certificat de client i `EvidenceStore` privat per a petició/resposta/errors. `EvidenceStore` pot guardar fitxers per intent, però `FiscalQueueRepository` **no escriu actualment cap fila a `aeat_submission_attempt`**. Aquesta taula existeix al SQL amb `FACTURA_REGISTRE_ID`, `FISCAL_QUEUE_ID`, número d'intent, entorn, hash, estat, HTTP, codi i CSV; falta acreditar-ne el writer i la correlació amb les evidències privades.
 
+### Actualització v2 contrastada amb `main`: comprovació immutable **ja executable**, orquestració externa encara pendent
+
+A `main`, `FiscalQueueProcessor::processNext()` crida `FiscalQueueRepository::assertImmutablePayload(db,item,new PayloadIdempotencyValidator())` **després de reclamar el job i abans de `AeatTransport::send()`**. El repositori recupera el `PAYLOAD_JSON` de `factura_registres` pel parell `UUID_FACTURA+fiscal_order`, comprova que el payload JSON de la cua coincideixi amb la còpia congelada amb `PayloadIdempotencyValidatorInterface::assertMatches()` i recalcula `HASH_FACT` amb `HashCalculator` i `HASH_FACT_ANT`. Si el payload o la cadena no coincideixen, `integrityFailure()` crida `rejectIntegrity()`, passa el job a `DEAD_LETTER`, obre `errors_verifactu` amb tipus `FISCAL_PAYLOAD_CONFLICT` i **no crida el transport**.
+
+**Frontera de la garantia:** no s'ha afegit una consulta d'estat remot AEAT ni un token/propietari del `claim`; un lock recuperat pot representar un intent anterior encara actiu. `rejectIntegrity()` filtra `ID` i `STATUS=PROCESSING`, no un token d'intent. `complete()` i `fail()` continuen actualitzant la fila per `ID` sense fencing. El processador encara inclou errors de `complete()` al mateix `catch` de `send()`; una resposta AEAT real ja rebuda pot acabar al camí de `RETRY/DEAD_LETTER` local. El validador **no garanteix recepció externa, no consulta BD directament, no genera un CSV i no prova integració productiva**.
+
+**Contracte real de la interfície:** [`PayloadIdempotencyValidatorInterface` a `main`](https://github.com/orgmeriemprismacat-del/verifactu/blob/main/sif/src/Contract/PayloadIdempotencyValidatorInterface.php) només exposa `calculateHash(array|string): string` i `assertMatches(array|string,storedHash): void`; la consulta a BD és del repositori fiscal, **no existeixen** `storeHash(operationId,...)`, `validate(operationId,...)` ni `IdempotencyMismatchException` com a contracte acreditat. `HASH_FACT` és la petjada fiscal encadenada; `IDEMPOTENCY_PAYLOAD_HASH` de `factura` és per comparar la **petició d'emissió** al reús d'UC-01; `PAYLOAD_HASH` opcional de `fiscal_queue` és una altra dada i **no és un requisit implementat per a la comprovació actual**, que contrasta directament cua versus registre immutable.
+
+**Proves del repositori localitzades, no executades en aquesta revisió:** `PayloadIdempotencyFlowTest::testFiscalQueueTamperingIsQuarantinedWithoutSending()` i `testFiscalRecordTamperingIsQuarantinedWithoutSending()`. Cal executar-les amb BD i afegir proves de carreres entre workers, corrupció simultània de fonts, resposta remota incerta i fallada de commit després de SOAP. Vegeu també [UC-09](uc-009-remetre-registre-aeat.md) i [UC-54](uc-054-operar-cua-fiscal-respostes.md).
+
 ## 2. Regles funcionals específiques
 
 | Fet | Contracte |
@@ -24,7 +34,7 @@ Si el transport o el processament fallen, `fail()` posa `RETRY` amb ajornament e
 ### Flux, alternatives i proves
 
 1. L'emissor UC-01 o els executors UC-75/76 creen **un registre fiscal i un job** en la mateixa operació local, abans de qualsevol enviament.
-2. El worker reclama el job, obté `fiscal_order` del payload, valida transport configurat i prepara la petició; **pendent** crear una fila durable d'intent abans de sortir a xarxa.
+2. El worker reclama el job, obté `fiscal_order` del payload i **ja executa** `assertImmutablePayload()` contra la còpia de `factura_registres` i la petjada encadenada abans de sortir a xarxa; **pendent** crear una fila durable d'intent abans de l'enviament i una guarda de propietat del claim.
 3. Si arriba resposta coherent, es persisteix sobre **el mateix registre**. Amb `ACCEPTED_WITH_ERRORS` o `REJECTED`, el job també pot quedar `SENT`: cal obrir classificació/incidència pel contingut de la resposta, no tractar-lo com un error de connexió que es reintenta a cegues.
 4. Davant un timeout, resposta SOAP amb error o lock recuperat, comprovar evidència i eventual estat remot abans del reintent quan el resultat sigui incert. El PHP actual aplica backoff i recuperació de lock, **no acredita una consulta remota de deduplicació**.
 5. Quan s'esgoten intents, conservar factura i registre, exposar error, responsable i traça per UC-81; el reprocessament manual i criteri de reobertura del dead-letter són pendents.
@@ -84,7 +94,9 @@ class FiscalQueueProcessor {
  +recoverStaleLocks(seconds,now) int
 }
 class FiscalQueueRepository {
- <<PHP existent>>
+ <<PHP existent a main>>
+ +assertImmutablePayload(db,item,validator) void
+ +rejectIntegrity(db,item,message) void
  +claimNext(db,maxAttempts) array
  +complete(db,item,aeatStatus,response,requestXml) void
  +fail(db,item,error,maxAttempts,nextRetryAt) string
@@ -113,9 +125,26 @@ FiscalQueueProcessor --> AeatTransport : enviar
 SoapTransport ..|> AeatTransport
 SoapTransport --> EvidenceStore : petició/resposta
 FiscalQueueProcessor ..> AeatSubmissionAttemptRepository : traça per intent pendent
+class PayloadIdempotencyValidatorInterface {
+ <<PHP a main: contracte pur, sense BD>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class PayloadIdempotencyValidator {
+ <<PHP a main: SHA-256 de JSON canonic o bytes>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class HashCalculator {
+ <<PHP a main: petjada fiscal encadenada, no hash petició>>
+ +calculate(payload,previousHash) string
+}
+PayloadIdempotencyValidator ..|> PayloadIdempotencyValidatorInterface
+FiscalQueueRepository --> PayloadIdempotencyValidatorInterface : assertImmutablePayload amb còpia fiscal
+FiscalQueueRepository --> HashCalculator : validar HASH_FACT
 class FiscalPayloadIntegrityVerifier {
- <<DISSENY PENDENT>>
- +verify(job,immutableRecord) result
+ <<DISSENY PENDENT: política estesa, NO el guard bàsic actual>>
+ +verifyClaimOwnershipAndSources(job,lease) result
 }
 class FiscalIncidentCoordinator {
  <<DISSENY PENDENT: UC-81>>
@@ -125,7 +154,8 @@ class FiscalAlertOutboxProducer {
  <<DISSENY PENDENT: UC-58>>
  +enqueueOnce(incident,job) result
 }
-FiscalQueueProcessor ..> FiscalPayloadIntegrityVerifier : comparar hash i identitat abans de send
+FiscalQueueProcessor --> FiscalQueueRepository : assertImmutablePayload abans de send [PHP main]
+FiscalQueueProcessor ..> FiscalPayloadIntegrityVerifier : propietat de claim i fonts ampliades [PENDENT]
 FiscalQueueProcessor ..> FiscalIncidentCoordinator : DLQ/rebuig/integritat
 FiscalIncidentCoordinator ..> FiscalAlertOutboxProducer : alerta durable
 ```
@@ -142,26 +172,27 @@ sequenceDiagram
     participant EM as Emissor SIF (UC-01/75/76) [existent/parcial]
     participant DB as BD SIF
     participant W as FiscalQueueProcessor [existent]
-    participant V as Verificador integritat/idempotència [pendent]
+    participant V as FiscalQueueRepository + PayloadIdempotencyValidator [PHP main]
     participant T as AeatTransport [existent]
     participant A as AEAT
     participant I as Gestió incidències (UC-81) [pendent]
     participant N as Outbox (UC-58) [pendent]
     O->>U69: Confirmar receptor, imports i versió
     U69-->>EM: Snapshot fiscal confirmat [contracte objectiu]
-    EM->>DB: BEGIN, desar factura/registre encadenat i job<br/>amb PAYLOAD_JSON + PAYLOAD_HASH [hash pendent]
-    DB-->>EM: COMMIT de registre i job [existent, sense hash de cua]
+    EM->>DB: BEGIN, desar factura/registre encadenat i job<br/>amb PAYLOAD_JSON fiscal [PAYLOAD_HASH de cua opcional, no usat pel guard main]
+    DB-->>EM: COMMIT de registre i job [PHP existent; camp PAYLOAD_HASH de cua no acreditat com a font del guard]
     Note over DB,W: Cap petició de xarxa abans del commit local.
     W->>DB: claimNext() amb lock, ATTEMPTS = ATTEMPTS + 1 [existent]
     DB-->>W: Job PROCESSING, identificador, registre, payload i hashes
-    W->>V: Recalcular hash i contrastar còpia immutable<br/>del registre, identificador fiscal i hash original [pendent]
+    W->>V: assertImmutablePayload(db,job,PayloadIdempotencyValidator) [PHP main]
+    V->>DB: Llegir factura_registres per UUID_FACTURA + fiscal_order; contrastar PAYLOAD_JSON i HASH_FACT
     alt Hash absent, diferent, registre discordant o altra execució completada
-        V-->>W: Bloqueig / conflicte d'integritat o idempotència
-        W->>DB: Registrar estat bloquejat i prova, sense enviar [pendent]
-        W->>I: Obrir o reutilitzar incidència correlacionada [pendent]
+        V-->>W: SifException/conflicte d'integritat [PHP main]
+        W->>DB: rejectIntegrity() -> DEAD_LETTER del mateix job [PHP main]
+        W->>I: IncidentRepository.open(FISCAL_PAYLOAD_CONFLICT) [PHP main, sense gestió completa]
         W->>N: Registrar una alerta idempotent, quan pertoqui [pendent]
     else Mateix registre i payload íntegre
-        V-->>W: Validació correcta [pendent]
+        V-->>W: Validació de còpia fiscal i hash encadenat correcta [PHP main]
         W->>DB: Persistir inici intent a aeat_submission_attempt [pendent]
         W->>T: send() amb el mateix payload [existent]
         T->>A: Petició fiscal segons contracte d'integració
@@ -178,7 +209,7 @@ sequenceDiagram
             A-->>T: Rebuig estructurat del registre
             T-->>W: REJECTED amb codi i detall
             W->>DB: Conservar resposta definitiva i historial [complete() existent]
-            W->>DB: Classificar job DEAD_LETTER de revisió, sense reenvia cec [pendent]
+            W->>DB: Job SENT amb registre REJECTED [PHP main]; revisió/DLQ diferenciada [PENDENT]
             W->>I: Obrir incidència fiscal UC-81 [pendent]
             W->>N: Encolar alerta idempotent UC-58 [pendent]
         else Timeout, 5xx o resultat desconegut
@@ -205,31 +236,31 @@ sequenceDiagram
 
 ## 7. Fitxa específica ampliada: integritat del payload, congelació i DLQ
 
-**Estat:** especificació objectiu; **no és un cas verificat** fins a demostrar codi, migracions desplegades, proves i evidències d'AEAT en entorn habilitat. Aquesta secció concreta els punts de la fitxa original sense substituir les observacions de la secció 1.
+**Estat mixt:** el guard previ d'integritat de cua/registre/hash encadenat **és PHP existent a `main`**; la política completa de hash de cua versionat, propietat del worker, conciliació remota, historial SQL per intent, alertes i entorn productiu continua pendent. Ni una classe existent ni una prova definida acrediten un desplegament o enviament real. Aquesta secció concreta els punts de la fitxa original sense substituir les observacions de la secció 1.
 
 | Camp | Contracte UC-77 |
 | --- | --- |
 | Actor principal | `FiscalQueueProcessor` (worker programat); gestió fiscal autoritzada actua només a les excepcions. |
 | Disparador | Job `fiscal_queue` creat per l'emissor i confirmat amb el seu registre fiscal. |
 | Precondicions | UC-69 ha confirmat i versionat el snapshot quan correspongui; l'emissor ha confirmat **en la mateixa transacció local** factura/registre encadenat/job; `UUID_FACTURA`, `fiscal_order`, hash fiscal i hash del payload original són coherents; credencials i entorn de UC-38 verificats. La integració actual no acredita encara tot el contracte de confirmació UC-69 ni l'ús del hash de cua. |
-| Entrades | `fiscal_queue.ID`, `UUID_FACTURA`, `IDEMPOTENCY_KEY`, `PAYLOAD_JSON`, `PAYLOAD_HASH` fiable, identificador de registre/`fiscal_order`, estat i número d'intents, certificat/configuració de transport. |
+| Entrades | `fiscal_queue.ID`, `UUID_FACTURA`, `IDEMPOTENCY_KEY`, `PAYLOAD_JSON`, `PAYLOAD_HASH` opcional de cua per a la política futura (el guard PHP actual usa la còpia immutable de `factura_registres` i `HASH_FACT`), identificador de registre/`fiscal_order`, estat i número d'intents, certificat/configuració de transport. |
 | Èxit | Petició del mateix registre amb payload íntegre, resultat fiscal interpretat i resposta/evidència vinculades al registre i a l'intent; sense modificar la fotografia fiscal original ni crear una altra factura. |
 | Sortides excepcionals | RETRY només en error recuperable amb reintent segur; resultat remot incert en revisió; conflicte d'integritat bloquejat; rebuig definitiu classificat; o DEAD_LETTER amb incidència i alerta persistides. |
 | Prohibicions | No regenerar `PAYLOAD_JSON` des de dades vives, no calcular un nou hash com a nova “veritat” després de detectar discrepància, no generar una segona alta perquè hi ha timeout, rebuig o DLQ, ni fer una subsanació automàtica per un error purament de transport. |
 
 ### 7.1. Tres regles transversals exigibles
 
-**R-77-01 · Integritat del payload i idempotència.** A l'alta del job, congelar el contingut a transmetre i calcular una empremta SHA-256 sobre una **representació definida i versionada**: bytes exactes persistits o JSON canonicalitzat de manera determinista, però sense barrejar els dos mètodes. Guardar `PAYLOAD_HASH` associat al registre immutable i comprovar-lo després del `claimNext()` i **abans de cada** `send()`. Contrastar també la identitat (`UUID_FACTURA`, `fiscal_order`, tipus ALTA/ANUL·LACIÓ) i el payload del registre de referència; comparar hashes en temps constant quan correspongui. La petjada d'encadenament `HASH_FACT` no es pot substituir pel hash del job. El camp `PAYLOAD_HASH` existeix a la migració `2026_09_16_000004`, però `InvoiceRepository::insertFiscalQueue()` no l'emplena i el processor no el comprova. Jobs antics amb hash nul requereixen migració/verificació contra la font fiscal íntegra o bloqueig, **mai** assumir integritat per absència de hash. Una coincidència de hash no substitueix el control de concurrència, l'estat terminal ni la correlació de reintents amb un eventual enviament extern ja acceptat.
+**R-77-01 · Integritat del payload i idempotència.** A l'alta del job, congelar el contingut a transmetre i calcular una empremta SHA-256 sobre una **representació definida i versionada**: bytes exactes persistits o JSON canonicalitzat de manera determinista, però sense barrejar els dos mètodes. Guardar `PAYLOAD_HASH` associat al registre immutable i comprovar-lo després del `claimNext()` i **abans de cada** `send()`. Contrastar també la identitat (`UUID_FACTURA`, `fiscal_order`, tipus ALTA/ANUL·LACIÓ) i el payload del registre de referència; comparar hashes en temps constant quan correspongui. La petjada d'encadenament `HASH_FACT` no es pot substituir pel hash del job. El camp opcional `PAYLOAD_HASH` de `fiscal_queue` existeix al model previst, però el control **actual de `main` no depèn de la seva presència**: `assertImmutablePayload()` compara el payload de cua amb el `PAYLOAD_JSON` immutable de `factura_registres` i recalcula `HASH_FACT` sobre aquesta font. La versió/historificació de l'empremta de cua i la detecció de corrupció simultània de totes dues fonts queden pendents de disseny/prova; no classificar automàticament els jobs històrics amb aquest camp nul com a integritat fallida. Una coincidència de hash no substitueix el control de concurrència, l'estat terminal ni la correlació de reintents amb un eventual enviament extern ja acceptat.
 
 **R-77-02 · Política DLQ i incidència.** `maxAttempts = 3` representa **tres enviaments totals** (inicial + dos reintents), no tres reintents addicionals. Comprovar `ATTEMPTS < maxAttempts` per reprogramar un altre enviament i `ATTEMPTS >= maxAttempts` per a exhauriment; `attempts++` s'efectua en reclamar el job, no dues vegades. Per errors inequívocament temporals, aplicar `min(3600, 60 * 2^(ATTEMPTS-1))` segons els valors per defecte del PHP actual. Un rebuig formal **definitiu** requereix guardar primer la resposta funcional i la seva evidència, classificar el registre i passar-lo a revisió `DEAD_LETTER` segons la política objectiu, obrir o reutilitzar incidència UC-81 i generar un **event** d'alerta idempotent a UC-58. No confondre `SENT` de transport amb acceptació AEAT: actualment `complete()` deixa `SENT` fins i tot amb `REJECTED`; la nova política i transició encara no estan implementades. `ACCEPTED_WITH_ERRORS` requereix classificació de les incidències concretes, no DLQ automàtica indiscriminada. No es pot afirmar que l'alerta s'hagi enviat perquè existeix una fila a l'outbox. L'entrada DLQ és la fila original de `fiscal_queue` amb `STATUS=DEAD_LETTER`; una cua física nova és opcional i no està acreditada.
 
-**R-77-03 · Congelació i frontera transaccional.** UC-69 resol la **confirmació funcional** del snapshot abans d'emetre, mentre UC-01/75/76 persisteixen la fotografia fiscal immutable, la cadena i el job amb el seu hash de contingut dins una transacció local única. El worker només pot reclamar feina després del `COMMIT`. La xarxa/AEAT i l'enviament del correu es fan **fora** d'aquesta transacció; no prometre atomicitat de la BD amb AEAT ni amb el proveïdor de notificacions. Un canvi fiscal posterior exigeix el cas legal/fiscal adequat (UC-74/75/76) i mai un `UPDATE` silenciós del payload ja confirmat. La implementació existent confirma registre+job en l'emissió, però la confirmació versionada prèvia de UC-69 i el hash de cua queden pendents.
+**R-77-03 · Congelació i frontera transaccional.** UC-69 resol la **confirmació funcional** del snapshot abans d'emetre, mentre UC-01/75/76 persisteixen la fotografia fiscal immutable, la cadena i el job amb el seu hash de contingut dins una transacció local única. El worker només pot reclamar feina després del `COMMIT`. La xarxa/AEAT i l'enviament del correu es fan **fora** d'aquesta transacció; no prometre atomicitat de la BD amb AEAT ni amb el proveïdor de notificacions. Un canvi fiscal posterior exigeix el cas legal/fiscal adequat (UC-74/75/76) i mai un `UPDATE` silenciós del payload ja confirmat. La implementació existent confirma registre+job en l'emissió, i `main` contrasta cua/registre/petjada abans de cada `send()`, però la confirmació versionada prèvia d'UC-69 i una empremta pròpia de cua versionada continuen pendents.
 
 ### 7.2. Flux i alternatives verificables
 
-1. **Emissió confirmada.** Rebre el snapshot autoritzat de UC-69, crear el registre amb hash fiscal i serialitzar un payload estable. En la mateixa transacció local, desar registre, `PAYLOAD_JSON`, `PAYLOAD_HASH` i job. Fer commit abans d'activar el worker.
+1. **Emissió confirmada.** Rebre el snapshot autoritzat de UC-69, crear el registre amb hash fiscal i serialitzar un payload estable. En la mateixa transacció local, desar registre, `PAYLOAD_JSON` i job; l'empremta específica de cua és una extensió pendent, no prerequisit del guard de `main`. Fer commit abans d'activar el worker.
 2. **Reclamació concurrent.** Reservar el job elegible i augmentar una sola vegada `ATTEMPTS`; tornar a comprovar estat terminal i identitat fiscal. Registrar inici d'intent a `aeat_submission_attempt` abans de la xarxa (writer pendent).
-3. **Verificació prèvia.** Recalcular hash segons la versió definida; comparar amb hash inicial i còpia fiscal de confiança. Per discrepància, hash nul injustificat o identitat conflictiva: **cap enviament**, bloqueig, traça i incidència; no “reparar” modificant el job.
+3. **Verificació prèvia.** Recalcular hash segons la versió definida; comparar amb hash inicial i còpia fiscal de confiança. Per discrepància del payload o de `HASH_FACT`: **cap enviament**, `rejectIntegrity()` a `DEAD_LETTER` i `IncidentRepository::open()` ja executables a `main`. Un camp opcional `PAYLOAD_HASH` de cua nul no implica per si sol fallida al guard actual; ampliar la política de versions exigeix una migració i proves específiques, no “reparar” modificant el job.
 4. **Enviament i resposta.** Fer `send()` del mateix contingut. Interpretar resultat fiscal real (`ACCEPTED`, `ACCEPTED_WITH_ERRORS`, `REJECTED`), conservar resposta, referències/CSV quan realment constin, XML i dades de l'intent. HTTP 200 només indica èxit de transport HTTP.
 5. **Rebuig definitiu.** Registrar resposta funcional, classificar causa i entrar al circuit DLQ/UC-81/UC-58 sense alterar el registre ni executar immediatament UC-76; la correcció/subsanació s'ha de determinar pel cas fiscal real.
 6. **Fallada temporal o incertesa.** Un error inequívocament anterior a l'enviament pot generar RETRY segons límit i backoff. Timeout, 5xx, caiguda post-SOAP o recuperació de lock **no acrediten** que AEAT no hagi rebut l'alta: retenir/reconciliar evidència i estat remot abans d'un eventual reenviament del mateix registre. Exhaurit el límit, passar a `DEAD_LETTER`, obrir incidència i crear alerta persistent.
@@ -246,14 +277,14 @@ sequenceDiagram
 | Error recuperable, enviament descartat i intents disponibles | `PROCESSING → RETRY` | Sense acceptació inferida | Backoff i intent individual. |
 | Resultat remot indeterminat | Revisió/bloqueig **[pendent]** | `UNKNOWN` operatiu, no inventar resposta AEAT | Conciliació UC-81 abans de retransmetre. |
 | `ATTEMPTS >= maxAttempts` sense resolució | `PROCESSING → DEAD_LETTER` | Estat local d'error, diferenciat de rebuig AEAT | UC-81 i outbox UC-58. |
-| Hash o identitat del registre no coincideix | Bloquejat **[pendent d'estat/schema]** | No enviar ni declarar rebuig extern | Incidència d'integritat i alerta quan pertoqui. |
+| Payload de cua/registre o `HASH_FACT` no coincideixen | `PROCESSING → DEAD_LETTER` **[PHP main]** via `rejectIntegrity()` | No enviar ni declarar rebuig extern | `IncidentRepository::open(FISCAL_PAYLOAD_CONFLICT)` [PHP main]; gestió completa i alerta UC-58 pendents. |
 
 ### 7.4. Proves d'acceptació pendents (no executades)
 
 | ID | Escenari | Evidència/criteri de pas |
 | --- | --- | --- |
 | UC77-INT-01 | Alterar un byte fiscal del job després de congelar-lo | El worker no crida `send()`, no canvia hash original, deixa prova i obre incidència correlacionada. |
-| UC77-INT-02 | `PAYLOAD_HASH` nul en una feina històrica | Verifica amb font immutable i migració explícita o bloqueja; no envia automàticament. |
+| UC77-INT-02 | `PAYLOAD_HASH` opcional de cua nul en una feina històrica | La comprovació PHP `main` contrasta igualment cua amb `factura_registres` i `HASH_FACT`; no declarar fallida només per columna nullable, i provar per separat el futur hash versionat. |
 | UC77-IDEM-03 | Dos workers reclamen el mateix job | Un únic claim efectiu; no duplicar factura, registre, ordre fiscal o petició concurrent. |
 | UC77-IDEM-04 | Crash després de SOAP i abans de guardar la resposta | Registre/UUID intactes; resposta incerta reconciliada abans de qualsevol reenviament. |
 | UC77-DLQ-05 | Tres errors temporals acreditadament no enviats | Exactament tres intents totals; ajornament dels dos primers; DEAD_LETTER al tercer, UC-81 i outbox UC-58 sense duplicats. |
@@ -268,10 +299,10 @@ sequenceDiagram
 
 | Contracte | Codi/dada del repositori | Diferència que s'ha de tancar |
 | --- | --- | --- |
-| R-77-01 | `InvoiceRepository::insertFiscalQueue()`; `fiscal_queue.PAYLOAD_JSON/PAYLOAD_HASH`; `factura_registres.PAYLOAD_JSON/HASH_FACT` | Emplenar hash fiable en origen i verificar contingut/identitat abans de `AeatTransport::send()`; política per a jobs heretats. |
+| R-77-01 | [`FiscalQueueProcessor` a `main`](https://github.com/orgmeriemprismacat-del/verifactu/blob/main/sif/src/Service/FiscalQueueProcessor.php); [`FiscalQueueRepository::assertImmutablePayload()`](https://github.com/orgmeriemprismacat-del/verifactu/blob/main/sif/src/Repository/FiscalQueueRepository.php); `factura_registres.PAYLOAD_JSON/HASH_FACT`; `fiscal_queue.PAYLOAD_JSON` | **JA IMPLEMENTAT a `main`:** compara còpia fiscal i hash encadenat abans de `send()`; pendents versions de hash de cua, fencing del claim, consulta remota i traça SQL per intent. |
 | R-77-02 | `FiscalQueueProcessor::failure()`, `FiscalQueueRepository::fail()/complete()`, `aeat_submission_attempt` | Distingir error incert/rebuig formal, persistir cada intent, coordinar DLQ amb UC-81/UC-58 i deduplicar alertes. |
 | R-77-03 | UC-69; `InvoiceService::issueInvoice()`; `InvoiceRepository::createInvoiceGraph()`; `TransactionRunner` | Confirmació funcional versionada del snapshot i hash de cua en el mateix commit d'emissió; proves rollback/crash. |
 | Incidències | `IncidentRepository`, `errors_verifactu`, `sif_incident_action`; UC-81 | Escriptor/assignació automàtica i recuperació d'alertes fallides. |
 | Notificacions | `notification_outbox`, `notification_delivery_attempt`; UC-58 | Productor d'alerta fiscal, worker d'enviament i política idempotent; distingir encolar i lliurar. |
 
-**No verificat en aquesta revisió:** execució de les proves anteriors, una conciliació remota AEAT de resultats incerts, la integració de DLQ amb incidències/outbox, i el desplegament de la política de hash. El codi PHP existent tampoc es modifica amb aquesta actualització documental.
+**No verificat en aquesta revisió:** execució de proves PHP/MySQL, una conciliació remota AEAT de resultats incerts, la integració de DLQ amb el cicle complet d'incidències/outbox, i el desplegament del guard de `main` a `pay.prisma.cat`. El guard bàsic és codi inspeccionat a `main`, no una garantia de producció. El codi PHP existent tampoc es modifica amb aquesta actualització documental.
