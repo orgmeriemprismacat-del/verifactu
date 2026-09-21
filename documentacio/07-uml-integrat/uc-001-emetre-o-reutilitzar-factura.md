@@ -45,6 +45,27 @@
 
 Vegeu [revisió i model proposat de moviments per inscripció](00-revisio-moviments-inscripcions.md).
 
+### 1.4. Reutilització d'una factura davant cobertura existent i contingut canviat
+
+**Unicitat fiscal diferent de la clau de petició.** El circuit històric de «Generar factura abans de pagar» agrupa diverses inscripcions del mateix curs/edició en una factura real d'empresa/responsable. El TPV i «Passar pagaments» poden arribar **més tard** amb una altra `DS_ORDER`, un `IDPAG` compartit o una referència manual. El fet que `InvoiceRepository::findByIdempotencyKey()` no localitzi la **nova** clau no acredita que les mateixes inscripcions no estiguin ja cobertes per una factura anterior. L'adaptador ha de comprovar `fact_rels`, `ID_INSC`, obligació, receptor, estat fiscal i composició exacta abans de decidir entre `issueInvoice()`, `registerPayment()` o incidència, incloent l'eventual rectificativa si ha canviat el servei/import.
+
+**Límit verificat del reús.** `InvoiceService::issueInvoice()`, si troba factura per `idempotency_key`, retorna el UUID i número existents; en la branca de `payment` només cerca un pagament inicial **ja existent** per la clau econòmica i el retorna si hi és. **No compara el payload fiscal nou amb l'original, ni crea un cobrament posterior nou per aquesta branca de reús.** Per tant, (a) una repetició **exacta** ha de retornar el mateix resultat, (b) igual clau amb receptor, total, línies o participants diferents ha de marcar **conflicte de contingut** mitjançant un control encara pendent i (c) una factura real emesa abans de cobrar requereix el servei UC-02 per registrar el pagament efectiu. No documentar el retorn `idempotency_reused=true` com una prova que el contingut comercial/fiscal coincideix.
+
+**Línies i identitat d'inscripció.** Un pack pot incloure dues inscripcions amb el 25 % descomptat només al segon curs; un grup de participants té una línia/inscripció per persona en el circuit de facturació acordat. Cal validar identitat de cada `ID_INSC`, descompte i quantitat de cada línia, total i `UUID_FACTURA` afectat. La simple coincidència de `IDPAG` o `FACTURA_RELACIONADA` no demostra que una factura única sigui correcta, ni autoritza emetre una segona factura per la part que ja existeix.
+
+**Èxit local i fases posteriors.** Un resultat `uuid_factura/num_visible` indica que s'ha confirmat el nucli d'emissió; la cua AEAT encara pot estar pendent o en incidència i el PDF/QR pot no estar generat. Quan falli una sincronització llegat, URL, correu o document després del commit fiscal, recuperar **el UUID existent** i reexecutar només la fase fallida. Si un import encara no s'ha ingressat, no afegir bloc `payment` per fer que la factura aparegui cobrada.
+
+### 1.5. Proves d'unicitat comercial i contingut (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| EI-01 | Factura d'empresa ja emesa, després arriba Redsys amb una altra DS_ORDER | Registrar pagament sobre UUID existent; cap nova factura. |
+| EI-02 | Mateixa clau d'emissió amb import o CIF diferent | Detectar conflicte de contingut abans de donar per reutilitzada l'operació. |
+| EI-03 | Una inscripció ja coberta per factura de grup i nova petició individual | Denegar la segona emissió/derivar a revisió, no deduplicar només per IDPAG. |
+| EI-04 | Pack de dos cursos i grup de N participants | Línies i imports/beneficiaris reals congelats; no repartiment automàtic per IDPAG. |
+| EI-05 | Emissió confirmada però PDF/AEAT/sync fallits | Mantenir UUID i número; recuperar la fase fallida sense recrear factura. |
+| EI-06 | Factura existent amb nou cobrament posterior i clau de factura repetida | UC-02 crea/reutilitza només el CHARGE real; UC-01 no crea un nou ingrés a la branca de reús. |
+
 ## 2. Diagrama UML de casos d'ús
 
 Font UML editable PlantUML; l'emissió abans de cobrar i les rectificatives utilitzen el nucli d'emissió però tenen fitxes diferenciades.
