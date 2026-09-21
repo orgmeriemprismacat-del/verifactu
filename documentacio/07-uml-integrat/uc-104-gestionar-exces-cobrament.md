@@ -159,6 +159,140 @@ end
 Note over S,L: Seqüència conceptual: no executar PaymentService amb total inconsistent 120 €/100 € com si el PHP actual resolgués el sobrant
 ```
 
+### 4.1. Acció independent: identificar un excedent real, no una notificació duplicada — OBJECTIU
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador de cobraments" as O
+actor "Font bancària/TPV" as B
+rectangle "SIF PrisMa — excedent" {
+ usecase "UC-104 / DETECTAR\nIdentificar ingressos externs\ni deutes reals" as Find
+ usecase "UC-25a / UC-51\nDescartar callback repetit\nsense nou ingrés" as Dup
+ usecase "UC-56\nConsultar assignacions existents" as Allocate
+ usecase "UC-104 / DECIDIR\nSeparar import aplicable i sobrant" as Decide
+}
+O --> Find
+B --> Find
+Find ..> Dup : <<include>> [OBJECTIU]
+Find ..> Allocate : <<include>> [OBJECTIU]
+O --> Decide
+note bottom of Decide
+ La decisió no és un moviment extern.
+ No canvia la factura fiscal per ajustar-la als diners.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant B as Prova bancària/TPV [EXTERNA]
+participant R as Reconciliació d'ingrés UC-25/56 [PENDENT]
+participant S as OverpaymentResolutionService [DISSENY]
+participant U as Registre d'import no assignat [DISSENY]
+O->>B: Comprovar cobrament aparent superior al pendent
+B-->>O: Fets externs identificats per referència/DS_ORDER
+O->>R: Comparar UUID_PAYMENT, ordres i assignacions de totes les factures del pagador
+alt Mateix fet notificat dues vegades
+ R-->>O: Recuperar UUID_PAYMENT, cap segon ingrés ni excedent
+else Ingrés nou però hi ha un altre deute legítim del mateix pagador
+ R-->>O: Distribució entre factures per validar, no excedent per defecte
+else Import extern real superior al deute verificat
+ R-->>S: Fet únic, import, deute, titular i sobrants
+ S->>U: Conservar origen i import encara sense assignar [PENDENT]
+ U-->>S: Identificador de l'excedent
+ S-->>O: Expedient pendent de decisió, sense CHARGE fictici
+end
+Note over R,U: El PHP actual exigeix almenys una allocation al registrar el moviment; la custòdia d'excedents no assignats està pendent.
+```
+
+### 4.2. Acció independent: aplicar l'excedent a un deute diferent — OBJECTIU
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Responsable autoritzat
+participant S as OverpaymentResolutionService [DISSENY]
+participant U as UnallocatedReceiptRepository [DISSENY]
+participant A as ExistingPaymentAllocationService / UC-56 [DISSENY]
+participant DB as BD fiscal SIF
+O->>S: Aplicar part sobrera d'un ingrés existent a la factura F2
+S->>U: Bloquejar i verificar UUID_PAYMENT, titular i excedent disponible
+alt Titularitat no acreditada o import ja consumit
+ U-->>S: Conflicte o saldo insuficient
+ S-->>O: Rebuig o incidència; cap import nou
+else Import suficient i deute de F2 confirmat
+ S->>A: allocate(UUID_PAYMENT existent,F2,import,requestId)
+ A->>DB: BEGIN; persistir assignació idempotent i recalcular F2 [PENDENT]
+ A->>DB: COMMIT
+ A-->>S: UUID_PAYMENT original, import imputat i saldo pendent
+ S-->>O: Aplicació confirmada sense nou CHARGE
+end
+Note over S,A: No existeix ruta completa d'assignar pagament existent al PaymentService actual; aquesta seqüència és disseny.
+```
+
+### 4.3. Acció independent: retornar diners efectivament sortits — OBJECTIU i servei de registre existent
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Responsable autoritzat
+participant S as OverpaymentResolutionService [DISSENY]
+participant B as Entitat bancària [EVIDÈNCIA EXTERNA]
+participant U as Registre d'excedent [DISSENY]
+participant R as ManualRefundService / UC-28 [PHP]
+participant DB as BD fiscal SIF
+O->>S: Autoritzar retorn d'excedent al pagador legitim
+S->>U: Verificar origen, saldo retornable, titular i retorns previs
+alt Sortida bancària no acreditada o retorn previ existent
+ S-->>O: Pendent o reús del retorn anterior; cap REFUND nou
+else Retorn bancari real confirmat
+ B-->>S: Referència de sortida i import efectiu
+ S->>R: registerByUuid(factura/input de retorn validat)
+ R->>DB: Registrar REFUND i allocation a factura [PHP existent]
+ R-->>S: UUID_PAYMENT_REFUND
+ S->>U: Tancar tram sobrant amb referència única de retorn [PENDENT]
+ S-->>O: Retorn acreditat, import sobrant restant
+end
+Note over S,DB: El servei de REFUND actual exigeix una factura; un sobrant encara no assignat necessita un contracte nou. No apuntar-lo a F1 només per satisfer el validador.
+```
+
+### 4.4. Acció independent: concedir saldo legítim sense nou ingrés — OBJECTIU
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Responsable autoritzat
+participant S as OverpaymentResolutionService [DISSENY]
+participant U as Registre d'excedent i titular [DISSENY]
+participant C as CreditBalanceService [PHP]
+participant DB as credit_balance [SQL]
+O->>S: Aprovar creació de saldo de l'excedent acreditat
+S->>U: Bloquejar import disponible, origen i titular del dret
+alt Import consumit, destinatari incorrecte o origen no acreditat
+ U-->>S: Conflicte; cap saldo
+else Import disponible i aprovació coherent
+ S->>C: createCredit(input de saldo, import i titular) [CONNEXIÓ PENDENT]
+ C->>DB: BEGIN, INSERT credit_balance, COMMIT [PHP existent]
+ C-->>S: UUID_CREDIT i import disponible
+ S->>U: Enllaçar UUID_CREDIT amb origen de l'excedent [PENDENT]
+ S-->>O: Saldo concedit; aplicació futura és UC-29a
+end
+Note over S,C: createCredit() no demostra que l'excedent concret financi el saldo. La vinculació i conservació monetària són pendents.
+```
+
+### 4.5. Proves de tancament diferenciades per acció
+
+| ID | Acció i condició | Resultat que cal acreditar |
+| --- | --- | --- |
+| EX-104-01 | Dues notificacions del mateix DS_ORDER, una única entrada bancària | Un sol UUID_PAYMENT i cap excedent de caixa fictici. |
+| EX-104-02 | Un ingrés de 120 amb deute acreditat de 100 i cap altre deute | 100 imputables i 20 conservats fora de factura fins a decisió; no canviar TOTAL fiscal. |
+| EX-104-03 | Sobren 20, s'apliquen a una segona factura legítima | Un únic ingrés extern original; assignació interna traçada, cap segon CHARGE. |
+| EX-104-04 | Es decideix retorn de 20 però banc encara no l'ha executat | Expedient pendent, cap REFUND fins a evidència de sortida real. |
+| EX-104-05 | Retorn real de sobrant no assignat a cap factura | Model i registre de sortida amb vincle a l'ingrés, sense inventar una assignació fiscal a F1. |
+| EX-104-06 | Saldo de 20 ja concedit, petició repetida | Mateix dret econòmic i UUID_CREDIT idempotent; no duplicar saldo. |
 ## 5. Traçabilitat
 
 [UC-104 original](../06-fitxes-funcionals/uc-104.md) · [UC-56 assignació](uc-056-cercar-assignar-cobrament.md) · [UC-86 auditoria](uc-086-auditar-accio-pagament.md) · [UC-28 retorn](uc-028-registrar-devolucio.md) · [UC-29 saldo](uc-029-crear-saldo.md) · [PaymentPayloadValidator](../../sif/src/Service/PaymentPayloadValidator.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [CreditBalanceService](../../sif/src/Service/CreditBalanceService.php) · [Revisió transversal de fons](00-revisio-moviments-inscripcions.md).
