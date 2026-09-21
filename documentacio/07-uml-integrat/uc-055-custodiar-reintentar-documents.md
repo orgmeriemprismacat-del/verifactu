@@ -152,7 +152,7 @@ else Error de bytes, storage o metadata
  W->>J: fail(job,error,nextAttempt)
  Note over W,J: Incidència/retry pendents d'implementar
 end
-Note over Inv,R: DocumentRepository existeix; la resta del workflow és OBJECTIU
+Note over Inv,R: DocumentRepository existeix, la resta del workflow és OBJECTIU
 ```
 
 ## 5. Seqüència de custòdia i descàrrega (DISSENY)
@@ -215,7 +215,7 @@ participant J as DocumentJobRepository [DISSENY]
 participant DB as document_job [SQL definit]
 A->>F: Consultar UUID_FACTURA confirmat, tipus i versió aprovada
 alt Factura absent, tipus no admès o instant anterior al commit
- F-->>A: Denegar l'encolat; cap nova emissió fiscal
+ F-->>A: Denegar l'encolat, cap nova emissió fiscal
 else Factura existent
  F-->>A: Font congelada i identificadors persistents
  A->>J: enqueue(UUID_FACTURA,tipus,versió,requestId)
@@ -232,7 +232,7 @@ else Factura existent
   J-->>A: Job acceptat, document encara no disponible
  end
 end
-Note over A,DB: El SQL té clau única de job; no s'ha acreditat productor/enqueue PHP ni el guard de payload.
+Note over A,DB: El SQL té clau única de job, no s'ha acreditat productor/enqueue PHP ni el guard de payload.
 ```
 
 ### 5.2. Acció independent: recuperar un job amb resultat incert després d'escriure els bytes — DISSENY
@@ -274,7 +274,7 @@ J->>DB: Llegir job, factura, tipus, versió, hash i documentId
 J->>Store: Comprovar storage key i hash dels bytes físics
 alt Bytes absents o hash diferent de la font acceptada
  Store-->>J: NOT_FOUND/MISMATCH
- J->>I: Registrar incidència; no mostrar document com a disponible
+ J->>I: Registrar incidència, no mostrar document com a disponible
  J-->>W: ERROR/PENDING_REVIEW sense tocar factura fiscal
 else Bytes íntegres
  Store-->>J: Bytes i hash real
@@ -344,11 +344,11 @@ else Referència existent
   V-->>P: Artefacte disponible (sense bytes ni URL pública)
   opt El receptor sol·licita descàrrega
    P->>A: authorize(actor,documentId,READ) per UC-80
-   A-->>P: Servei segur o DENIED; disponibilitat no concedeix permís
+   A-->>P: Servei segur o DENIED, disponibilitat no concedeix permís
   end
  end
 end
-Note over V,Store: DocumentRepository només desa metadata i hash dels bytes rebuts; el verificador d'storage és DISSENY.
+Note over V,Store: DocumentRepository només desa metadata i hash dels bytes rebuts, el verificador d'storage és DISSENY.
 ```
 
 | Prova pendent | Escenari | Resultat exigible |
