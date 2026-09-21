@@ -28,6 +28,24 @@ La taula `billing_profile_history` **està definida a SQL** amb subjecte, versi�
 
 **Proves:** dues persones amb el mateix correu; empresa pagadora diferent de responsable acadèmic; tres inscrits i un receptor fiscal; canvi de NIF després de factura; ordre TPV antiga i perfil nou; dos operadors editant simultàniament; propagació llegada fallida.
 
+### Pantalla llegada «Genera/Edita entitats»: camps, responsables i factura anterior
+
+**Ruta i implementació identificades.** `/alumnes/genera-entitat/` carrega `alumnes-genera-entitat.php` i `alumnes-genera-entitat.js`; `ajax/alumnes/generaEntitats.php` invoca `creaEmpresa_Alumnes($rao,$cif,$adreca,$cp,$poble,$nomResp,$cogResp,$correu)`, el modal d'edició passa per `mostrarModalEditaEntitat_Entitats.php` i la modificació usa `actualitzaEditaEntitat.php` → `actualitzaEditaEntitat_Alumnes(...)`. La pantalla distingeix `CIF, RAO, ADRECA, CP, POBLACIO` de l'entitat de `NOM, COGNOMS, CORREU` de la **persona que la gestiona**. La consulta d'entitats combina `entitats` i `entitats_resp`; `updEntitatResp` pot tancar la vigència d'un responsable amb `DATAF=CURRENT_TIME`. Aquest és el circuit antic documentat, **no** prova que `billing_profile_history` s'empleni avui.
+
+**Riscos puntuals que cal corregir en l'adaptador.** El formulari comprova camps obligatoris a JS i `tePermisEdicio`, però les fonts no acrediten validació de format fiscal/postal/correu ni detecció de duplicat per CIF al servidor. La creació envia `POST`; **l'edició envia `GET` amb CIF, adreça i correu a l'URL**. Cal passar la modificació a una acció autenticada i autoritzada al servidor, amb cos adequat, validació, comparació amb la versió activa i auditoria, sense considerar el control visual com a permís suficient. El modal rep `idEntitat` i `idResponsable`, però l'actualització posterior envia només `idEntitat`: **verificar com es resol el responsable destinatari** abans de donar per garantida la seva modificació i no inventar una cardinalitat única/obligatòria de responsables actius.
+
+**Impacte sobre la factura prèvia.** A «Generar factura abans de pagar» l'entitat s'ha de seleccionar per **ID intern**, després carregar `CIF`, raó i domicili fiscals i congelar un snapshot de **receptor d'aquella operació**, separant-lo de `CORREU` del contacte que rebrà avisos. Si l'entitat ja figura en factures SIF, avisar que canviar-ne la fitxa afecta **futures** factures, no `factura.BILLING_*` ni els PDFs originals. Si la factura antiga ja contenia un CIF o una raó social erronis, derivar a UC-74/05 després de classificació; no «corregir-la» modificant `entitats`.
+
+### Proves específiques de l'alta/edició llegada (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| EN-41-01 | Crear entitat amb CIF duplicat o malformat | Validació i alerta al servidor abans de crear; no dependre només del JS. |
+| EN-41-02 | Editar responsable amb `idResponsable` diferent del que és actiu | Identitat i vigència resoltes explícitament; no editar el contacte equivocat. |
+| EN-41-03 | Canvi d'entitat enviat a URL amb dades fiscals | Ruta futura no accepta modificació via GET ni exposa dades en URL. |
+| EN-41-04 | Contacte d'empresa diferent del receptor fiscal | Destinatari de comunicació validat i `BILLING_*` de l'entitat correctes. |
+| EN-41-05 | Entitat amb factura emesa i modificació posterior de CIF | Perfil futur versionat; factura antiga intacta i classificació si contenia error. |
+
 ## UML de casos d'ús
 
 ```plantuml
