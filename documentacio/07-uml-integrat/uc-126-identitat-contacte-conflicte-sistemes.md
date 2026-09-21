@@ -130,7 +130,7 @@ G->>S: Revisar dues matrícules amb mateix email i diferent DNI
 S->>I: Cercar equivalències existents i fonts
 S->>L: Comparar ID_INSC, pagador, receptor i factures sense mutar-les
 S->>M: Consultar usuaris i matrícules Moodle
-S-->>G: Dues persones o conflicte pendent; impacte dels recursos
+S-->>G: Dues persones o conflicte pendent, impacte dels recursos
 alt Identitat no acreditada
  G->>S: Deixar en revisió
  S->>I: Registrar conflicte i accessos restringits
