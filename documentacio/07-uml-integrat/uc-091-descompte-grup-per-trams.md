@@ -28,6 +28,24 @@
 
 **Proves:** canvi de 3 a 4 participants abans/després d'intenció, `IMPORT_BASE=100, DESC_IMPORT=20, TOTAL=90` (**builder actual no comprova aquesta incongruència**), descompte negatiu, dos trams simultanis, fraccions, baixa postemissió i empresa pagadora.
 
+### Comprovar el tram contra el grup llegat abans del constructor fiscal
+
+**Fonts de preu que no s'han de confondre.** La revisió de «Passar pagaments» identifica `TIPUS_INSC='G'`, `IDPAG`, `respGrups` i `descomptes_grup` com a origen del **preu per participant**. `LegacyGroupSnapshotRepository::findGroupInscriptionsByIdpag()` recupera inscripcions per `IDPAG` i el builder `LegacyGroupInvoicePayloadBuilder::lineAmounts()` consumeix `TOTAL` o `A_PAGAR` i, si existeixen, `IMPORT_BASE` i `DESC_IMPORT`; **no consulta `descomptes_grup` ni verifica el tram d'acord amb el nombre de membres**. El recompte d'`items` és dada de la composició, no una validació de la política de tarifes. Quan `A_PAGAR` ha variat després de fraccions o ajustos, no es pot considerar l'import de l'oferta original sense prova separada.
+
+**Error aritmètic concret possible.** Amb una fila de prova `IMPORT_BASE=100.00`, `DESC_IMPORT=20.00` i `TOTAL=90.00`, la funció conserva les tres quantitats perquè només rebutja el descompte **negatiu**; la base i el descompte aportats no quadren amb el net. `totals()` suma posteriorment els camps de les línies, però aquesta suma no valida retrospectivament la coherència de **cada línia**. Abans de congelar l'oferta, exigir `base - descompte = total` en cèntims per `ID_INSC`, validar la suma amb import de la intenció i preservar font/versió del tram, data, elegibilitat i regles d'arrodoniment **quan s'hagin aprovat**. Els imports de l'exemple són dades de prova, no una tarifa real.
+
+**Canvi de membres segons fase.** Abans de crear `DS_ORDER`, afegir un membre pot modificar el preu **de tots** els participants del tram; cal confirmar de nou la composició completa i el receptor. Si `DS_ORDER` ja existeix, no substituir `SNAPSHOT_JSON` ni `EXPECTED_AMOUNT`; tractar la nova oferta amb una altra ordre si pertoca (UC-112/118/121). Si ja hi ha factura prèvia d'empresa o cobrament real, conservar `UUID_FACTURA/UUID_PAYMENT` i classificar la variació per línia i participant (UC-16a/16b/74/105), **sense** recalcular automàticament la factura antiga amb el tram actual.
+
+### Proves del càlcul i del canvi de tram (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| TR-91-01 | Base 100, descompte 20 i total 90 en una línia de prova | Detectar desquadrament de 10 abans d'emetre; el builder actual no ho impedeix. |
+| TR-91-02 | Quatre membres, `A_PAGAR` d'un d'ells reduït per fracció | Congelar el preu de prestació segons font comercial, no el deute restant. |
+| TR-91-03 | Nou membre modifica el tram amb intenció TPV existent | Nova proposta per a totes les línies afectades; `DS_ORDER` original immutable. |
+| TR-91-04 | Grup facturat a empresa i un participant es dona de baixa | Quantificar efecte individual i mantenir factura/pagament originals fins a decisió fiscal/econòmica. |
+| TR-91-05 | `descomptes_grup` no coincideix amb els valors aportats al builder | Incidència d'origen de preu, no emissió basada en el saldo actual. |
+
 ## UML de casos d'ús
 
 ```plantuml
