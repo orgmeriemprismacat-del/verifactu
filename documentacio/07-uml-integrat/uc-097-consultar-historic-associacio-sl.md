@@ -26,6 +26,26 @@
 
 **Pendents:** identificació fiable d'emissor per cada origen, schema/columna d'emissor o partició acreditada, classificació fiscal de cada botiga/SL UC-98, autoritzacions, inventari de dades històriques i proves de no-col·lisió.
 
+### Dues entitats amb numeració aparentment igual: desambiguació del document original
+
+**La configuració actual no és un catàleg multiemissor.** El mòdul històric registra `NUM_VISIBLE`, sèrie, any, número, receptor i línies, però l'alta importada **no persisteix un identificador d'emissor jurídic per factura** en els camps inspeccionats; `sif/config/sif.php` té un únic bloc `issuer` per entorn. El procés de consulta no pot escollir Associació o SL segons la lletra de la sèrie, el CIF del receptor ni el període sense **evidència pròpia de l'emissor del document original**. Si dues fonts aporten el mateix número visible, la clau `HISTORIC|FACT:<número>` per defecte no les distingeix; definir clau d'origen que inclogui emissor acreditat, sistema i ID de factura abans del lot, amb model per guardar després aquest emissor, és una condició pendent.
+
+**Agrupador i dades monetàries llegades.** `FACTURA_RELACIONADA` pot connectar factures A i R històriques i diversos alumnes en grup/pack, però no indica per si mateix quina entitat les va emetre, quin import es va retornar al banc o a qui pertany el saldo actual. La consulta ha de resoldre separadament **emissor**, **receptor fiscal**, **participants**, **pagador real** i **estat de document**. Els valors `ESTAT_COBRAMENT` importats descriuen el resum històric, no són `payment_transaction` i no autoritzen a incorporar `CHARGE` retrospectius per fer coincidir els totals.
+
+**Documento antic localitzat vs PDF regenerat.** El circuit llegat `descarregaFactura.php` pot invocar `generaFactura($id,true)` sobre dades vives. Si falta el PDF conservat de l'època, un PDF reconstruït avui és **còpia de consulta o representació reconstruïda**, no un original antic custodiat amb hash històric acreditat. Les metadades `factura_documents` importades no comproven existència física de bytes. La vista de l'Associació/SL ha d'indicar origen del fitxer i categoria d'evidència, amb accés UC-80 i sense simular QR o registre AEAT de la factura anterior.
+
+**Receptor i permís individual.** `HistoricalInvoiceMigrationRepository::insertRelations()` usa `VISIBLE_ALUMNE=1` per omissió si el payload no en porta valor: per a una antiga factura d'empresa cal **revalidar el receptor** i no lliurar el document complet al participant perquè la relació migrada es marqui visible. Un auditor pot consultar dins del seu abast i una empresa només amb representació provada, independentment de qui tingui el mateix email a la matrícula.
+
+### Proves addicionals de consulta d'històric (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| HS-97-01 | Associació i SL tenen el mateix `NUM_VISIBLE` en dos documents | Desambiguació per emissor/origen/ID, cap fusió ni emissor assignat per deducció. |
+| HS-97-02 | Emissor jurídic no consta en les dades d'origen consultades | Estat pendent d'acreditació, no assignació a l'entitat activa. |
+| HS-97-03 | Grup amb `VISIBLE_ALUMNE` importat per defecte | No donar accés al PDF complet a l'alumne per aquest únic camp. |
+| HS-97-04 | PDF generat avui a partir de `web.factures` actual | Mostrar reconstrucció i no etiquetar-lo com a original històric verificat. |
+| HS-97-05 | Llistat barreja històric NO_VERIFACTU i SIF actual | Fonts, emissors i estats fiscals diferenciats; no nova cua AEAT per lectura. |
+
 ## UML de casos d'ús
 
 ```plantuml
