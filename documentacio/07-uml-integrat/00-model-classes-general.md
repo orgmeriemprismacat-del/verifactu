@@ -691,6 +691,10 @@ class InvoiceRepository {
  <<PHP real: emissió/registre fiscal nou>>
  +createInvoiceGraph(db,payload,seq,chainState) array
 }
+class InvoiceService {
+ <<PHP real: orquestra seq i graf fiscal>>
+ +issueInvoice(payload) array
+}
 class HistoricalNumberingPreflight {
  <<DISSENY: guard multiemissor no implementat>>
  +verify(issuer,originId,series,year,numSeq) decision
@@ -704,7 +708,8 @@ class HistoricalInvoicePersistenceModel {
  +persistDistinctOriginal(identity,invoice,document) result
 }
 HistoricalInvoiceMigrationService --> HistoricalInvoiceMigrationRepository : import actual de dades
-InvoiceRepository --> FiscalSequenceRepository : seq proporcionada per InvoiceService
+InvoiceService --> FiscalSequenceRepository : next(series,year)
+InvoiceService --> InvoiceRepository : createInvoiceGraph(...,seq,...)
 HistoricalNumberingPreflight --> HistoricalIssuerIdentityResolver : emissor + sistema + ID
 HistoricalNumberingPreflight ..> FiscalSequenceRepository : preflight de domini numèric [DISSENY]
 HistoricalNumberingPreflight --> HistoricalInvoicePersistenceModel : no importar si incompatible
