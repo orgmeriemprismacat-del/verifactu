@@ -46,6 +46,26 @@
 
 **Proves existents però no executades:** `FiscalQueueProcessorTest` i `FiscalQueueMetricsRepositoryTest` amb BD de proves/transport simulat; `AeatWorkerPreflightScriptTest` comprova el script. No equivalen a proves d'enviament real ni del panell d'operació.
 
+### 1.3. Panell «Registres AEAT» i separació de cues
+
+**Operació prevista per PrisMa.** La documentació funcional situa els registres a `pay.prisma.cat/sif/registres-aeat`, amb filtres de **període, estat AEAT, número de factura i UUID**. La pantalla consulta `factura_registres`, `fiscal_queue` i `factura`; només pot modificar l'estat d'una tasca de `fiscal_queue` en un **reintent autoritzat**. La fitxa especifica aquest **contracte de pantalla pendent**, no afirma que el panell ni els seus permisos estiguin connectats al processador PHP.
+
+**Matriu de resultats visibles.** A més del número, la taula ha de mostrar `UUID_FACTURA`, `FISCAL_ORDER`, tipus de registre, `fiscal_queue.STATUS`, `ATTEMPTS/NEXT_RETRY_AT`, `factura_registres.ESTAT_AEAT` i evidència/causa consultable segons rol. `PENDING` no és error remot; `RETRY` pot correspondre a una fallada tècnica **després** d'un enviament real; `SENT+REJECTED` no és un job que encara esperi transport. Un operador sense autorització de reintent té **consulta**, no un botó funcional per reobrir o crear registres.
+
+**Recuperació controlada.** Abans de reactivar un `DEAD_LETTER` o un lock obsolet, comprovar `UUID_FACTURA` + `FISCAL_ORDER`, payload immutable, historial d'intents i si existeix resposta remota ja rebuda o incerta. Un clic de reintent **no** torna a executar UC-01/05, no renumera factures i no crea un registre nou per simplificar el reprocessament. Les decisions de subsanació/registre d'anul·lació es tramiten amb el cas corresponent **després de classificar la causa**, no com a efecte automàtic d'un retry.
+
+**Alertes amb valor probatori limitat.** `FiscalQueueMetricsRepository` i el preflight CLI exposen nombres de pendents, due, locks i dead-letter. Les alertes per llindar són observabilitat; **no** acrediten que el registre estigui acceptat o que s'hagi tramitat la incidència. Si el panell mostra «enviat», presentar el resultat real de la **línia AEAT** al costat, especialment per `ACCEPTED_WITH_ERRORS` i `REJECTED`.
+
+### 1.4. Proves de panell i recuperació (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CQF-01 | Filtrar per número, UUID i període | Retornar registre i job correlacionats, no barrejar ordres fiscals de la mateixa factura. |
+| CQF-02 | SENT amb ACCEPTED_WITH_ERRORS | Veure estat doble i advertiment/revisió per la resposta. |
+| CQF-03 | Rol només consulta demana RETRY | Denegació al servidor, cap canvi de cua. |
+| CQF-04 | DEAD_LETTER amb possible enviament anterior | Reconciliar evidència/estat remot abans de reactivar. |
+| CQF-05 | Panell mostra mètrica de jobs due a zero però hi ha REJECTED | El rebuig segueix visible per revisió; no donar el sistema per «sense incidències». |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
