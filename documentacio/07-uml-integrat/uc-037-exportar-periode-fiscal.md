@@ -68,6 +68,27 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador fiscal"]
+  actor_1["Auditor autoritzat"]
+  subgraph SIF_BOX["SIF · exportació fiscal"]
+    uc_0(["UC-37<br/>Exportar període fiscal"])
+    uc_1(["Validar abast, rol i filtre"])
+    uc_2(["Llegir registres fiscals immutables"])
+    uc_3(["Generar fitxer privat i hash"])
+    uc_4(["Auditar consulta/descàrrega"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 3. UML de classes — model SQL vs generador pendent
 
 ```mermaid
