@@ -88,6 +88,23 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-28<br/>Registrar devolució"])
+    uc_1(["Localitzar factura"])
+    uc_2(["UC-02<br/>Registrar moviment<br/>i assignació"])
+    uc_3(["UC-05<br/>Rectificar factura<br/>(si correspon)"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+```
+
 ## 3. Diagrama de classes del cas — implementació observada
 
 ```mermaid
@@ -224,6 +241,25 @@ R --> Fiscal
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió proponent"]
+  actor_1["Responsable amb permís de retorn"]
+  subgraph SIF_BOX["SIF PrisMa — UC-28 / AUTORITZACIÓ (DISSENY)"]
+    uc_0(["Previsualitzar retorn per origen<br/>i titular econòmic"])
+    uc_1(["Aprovar o denegar sol·licitud<br/>sense registrar REFUND"])
+    uc_2(["Verificar valor disponible per factura<br/>i ID_INSC, sense doble consum"])
+    uc_3(["UC-74<br/>Classificar efecte fiscal separat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_1 -.->|include| uc_0
+  uc_1 -.->|include| uc_2
+  actor_1 --> uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -271,6 +307,25 @@ Record ..> Evidence : <<include>> [guard PENDENT]
 Record ..> Idp : <<include>> [guard PENDENT]
 Record ..> Persist : <<include>>
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de conciliació bancària"]
+  actor_1["Banc/Redsys"]
+  subgraph SIF_BOX["SIF PrisMa — UC-28 / REGISTRE CONFIRMAT"]
+    uc_0(["Registrar sortida bancària real<br/>a factura/inscripció"])
+    uc_1(["Comprovar evidència de sortida,<br/>titular i identificador extern"])
+    uc_2(["Distingir mateixa sortida d'un altre<br/>retorn legítim o payload contradictori"])
+    uc_3(["Persistir REFUND i assignació<br/>via ManualRefundService"])
+  end
+  actor_1 --> uc_1
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
 ```
 
 ```mermaid
@@ -365,6 +420,25 @@ Rec ..> Ext : <<include>>
 Rec ..> Local : <<include>>
 Rec ..> Retry : <<include>> [si hi ha fase pendent]
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable de conciliació"]
+  actor_1["Banc/Redsys"]
+  subgraph SIF_BOX["SIF PrisMa — UC-28 / RECONCILIAR RETORN (DISSENY)"]
+    uc_0(["Reconciliar reemborsament extern<br/>i moviment REFUND SIF"])
+    uc_1(["Identificar sortida bancària única"])
+    uc_2(["Localitzar moviment per referència<br/>i comparar import, factura i titular"])
+    uc_3(["Recuperar només la fase pendent<br/>sense tornar a executar sortida"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
 ```
 
 ```mermaid
