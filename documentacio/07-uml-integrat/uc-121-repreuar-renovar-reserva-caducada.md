@@ -41,6 +41,24 @@
 
 **Proves bloquejants:** límits temporals/tolerància, oferta igual i oferta canviada, darrera plaça concurrent, substitució d'enllaç, acceptació/rebuig, callback vell després d'expiració, dues ordres i dos ingressos reals, dades de factura preexistent. No s'han executat proves PHP.
 
+### 1.3. Dos venciments i dues ordres Redsys: renovació d'una reserva
+
+**Evidència del codi consultat.** `RedsysPaymentIntentService::create()` desa un `EXPIRES_AT` opcional i el compara si es reintenta el **mateix `DS_ORDER`**. En canvi, `RedsysCallbackService::assertMatchesIntent()` compara l'import, la divisa i el terminal: **no consulta `EXPIRES_AT` ni l'estat de `capacity_reservation`**. Una ordre antiga pot originar una notificació signada i econòmicament real després que hagi vençut la reserva. No tractar aquesta notificació com a prova automàtica del dret de plaça, però tampoc ignorar els diners realment ingressats.
+
+**Nova oferta, no mutació de l'anterior.** Abans de proposar una altra ordre, cercar `DS_ORDER` antiga, notificació, job i eventual `UUID_PAYMENT`; separar ingrés acreditat, resultat incert i intent denegat. UC-115 ha de comprovar de nou aforament i UC-114 la versió vigent de l'edició. La nova proposta ha de mostrar edició, participants, import, descompte i titular, i requereix una **nova `DS_ORDER`** si han canviat snapshot, preu o venciment. El snapshot i l'expiració de l'ordre vella no es reescriuen. Fins i tot si el preu nou és idèntic, no es pot recuperar una plaça antiga ja alliberada sense comprovació de disponibilitat.
+
+**Dues notificacions o dos cobraments.** `RedsysPaymentIntentService` deduplica per **una mateixa ordre**, no per dues ordres diferents creades per una renovació. Si arriben dues respostes positives, comparar evidència de banc/TPV per determinar si són notificacions repetides d'un únic moviment o **dos moviments efectius**. Conservar els moviments reals i decidir la imputació, excés o devolució segons UC-56/104/28; no crear dues matrícules, ni una factura addicional, només per existir dues intencions.
+
+### 1.4. Proves de renovació amb callback tardà (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RV-121-01 | Callback correcte arriba després d'expirar la reserva | Preservar l'ingrés i revisar plaça/obligació; no concedir-la ni descartar cobrament automàticament. |
+| RV-121-02 | Nova oferta té el mateix preu i reserva antiga alliberada | Nova comprovació de capacitat, no reactivació tàcita de la plaça. |
+| RV-121-03 | Mateixa `DS_ORDER` amb venciment nou | Conflicte del servei d'intencions; no mutació de l'original. |
+| RV-121-04 | Dues `DS_ORDER` diferents i dos ingressos efectius | Dues evidències de diners, expedient sobre l'excés quan correspongui i matrícula única si el dret acadèmic és únic. |
+| RV-121-05 | Doble notificació de la mateixa `DS_ORDER` antiga | Un moviment extern, cap segona alta ni segon cobrament. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
