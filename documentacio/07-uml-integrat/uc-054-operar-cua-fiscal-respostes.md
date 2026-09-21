@@ -94,6 +94,32 @@ Main ..> Class : <<include>> (si hi ha resposta)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker fiscal"]
+  actor_1["Responsable tècnica"]
+  actor_2["AEAT de proves"]
+  subgraph SIF_BOX["SIF · operació fiscal"]
+    uc_0(["UC-54<br/>Operar cua fiscal"])
+    uc_1(["Preflight i mètriques"])
+    uc_2(["UC-09<br/>Remetre registre individual"])
+    uc_3(["Recuperar locks i reintents"])
+    uc_4(["Classificar resposta de línia"])
+    uc_5(["UC-08<br/>Gestionar incidència"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  actor_1 --> uc_0
+  actor_1 --> uc_5
+  actor_2 --> uc_2
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 3. UML de classes operatives reals
 
 ```mermaid
@@ -210,6 +236,26 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable/worker de recuperació"]
+  actor_1["Worker antic actiu"]
+  subgraph SIF_BOX["SIF · UC-54 / RECUPERAR LOCK FISCAL"]
+    uc_0(["Detectar lock PROCESSING caducat"])
+    uc_1(["Recuperar fila tècnicament a RETRY"])
+    uc_2(["Consultar evidència d'enviament i estat remot<br/>abans d'autoritzar un nou SOAP"])
+    uc_3(["UC-09 / Reenviar el mateix registre<br/>només si la decisió ho permet"])
+  end
+  actor_0 --> uc_0
+  actor_0 --> uc_1
+  uc_1 -.->|include| uc_0
+  actor_0 --> uc_2
+  actor_0 --> uc_3
+  actor_1 --> uc_0
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -265,6 +311,25 @@ B --> Own
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker fiscal que ha obtingut resposta"]
+  actor_1["Worker nou propietari"]
+  subgraph SIF_BOX["SIF · UC-54 / FINALITZAR INTENT FISCAL"]
+    uc_0(["Validar propietat de l'intent fiscal"])
+    uc_1(["Completar resposta de línia<br/>i cua com a SENT"])
+    uc_2(["Marcar error RETRY/DEAD_LETTER<br/>només de l'intent vigent"])
+    uc_3(["Conservar resposta d'intent obsolet<br/>i obrir conciliació"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_1 --> uc_0
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -312,6 +377,25 @@ Review ..> Check : <<include>>
 Review ..> Decide : <<include>>
 R --> Retry
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable fiscal"]
+  actor_1["AEAT / evidència d'enviament"]
+  subgraph SIF_BOX["SIF · UC-54 / CONCILIAR INTENT REMOT"]
+    uc_0(["Consultar expedient d'un registre fiscal<br/>amb resultat extern incert"])
+    uc_1(["Correlacionar UUID_FACTURA<br/>i FISCAL_ORDER amb XML/resposta"])
+    uc_2(["Confirmar resultat remot acreditat<br/>o mantenir REMOTE_UNCERTAIN"])
+    uc_3(["UC-09<br/>Autoritzar reenviament del mateix registre"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
 ```
 
 ```mermaid
