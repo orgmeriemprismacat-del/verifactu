@@ -256,12 +256,12 @@ alt P2 no existeix
  T->>DB: COMMIT
  S-->>C: Èxit de reús F1, NO èxit de cobrament P2
  C->>G: Verificar cobertura fiscal i ingrés extern de P2 [PENDENT]
- G-->>C: UC-02 sobre F1 o CONFLICT; no fer segon issueInvoice
+ G-->>C: UC-02 sobre F1 o CONFLICT, no fer segon issueInvoice
 else P2 ja existeix
  P-->>S: UUID_PAYMENT_P2 [sense comparar allocation ni import]
  S-->>T: Reús F1 amb uuid_payment=P2
  T->>DB: COMMIT
- S-->>C: Recupera pagament existent; equivalència fiscal/econòmica NO comprovada
+ S-->>C: Recupera pagament existent, equivalència fiscal/econòmica NO comprovada
 end
 Note over S,DB: InvoiceService::existingResultWithPaymentIfPresent() mai fa createPayment() en reús de factura.
 ```
@@ -298,7 +298,7 @@ C->>G: issueIfEquivalent(K, nou receptor E2/import 90, requestId)
 G->>F: Cercar factura original de K i comparar dades congelades
 alt K existeix amb receptor E1/import 100
  F-->>G: CONFLICT de payload
- G-->>C: Rebuig; UC-74/05 decideix correcció, cap nova emissió ni reús com E2/90
+ G-->>C: Rebuig, UC-74/05 decideix correcció, cap nova emissió ni reús com E2/90
 else K inexistent i cobertura d'operació no duplicada
  F-->>G: Preparació autoritzada
  G->>S: issueInvoice(payload)
@@ -309,7 +309,7 @@ else K existeix amb contingut exactament equivalent
  F-->>G: UUID_FACTURA existent
  G-->>C: Reús fiscal validat sense nova emissió
 end
-Note over G,S: Guard de payload/cobertura és DISSENY; el PHP actual reusa K sense aquesta comparació.
+Note over G,S: Guard de payload/cobertura és DISSENY, el PHP actual reusa K sense aquesta comparació.
 ```
 
 | Prova pendent | Escenari | Resultat objectiu i comportament actual a contrastar |
