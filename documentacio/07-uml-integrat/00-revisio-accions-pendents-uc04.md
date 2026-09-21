@@ -106,6 +106,16 @@ La [UC-09](uc-009-remetre-registre-aeat.md) separa persistir resposta correlacio
 
 Les proves de `FiscalQueueProcessorTest` cobreixen resposta acceptada simulada, retries/dead-letter i recuperació d'un lock antic **sense** dos transports executant simultàniament el mateix registre ni fallada local posterior a una resposta SOAP real. Les proves FQ-54-06…11 i AE-09-06…11 són **pendents**. Ni el panell `pay.prisma.cat/sif/registres-aeat` ni els seus permisos han estat contrastats en execució; la [matriu dels 25 pendents](00-matriu-25-pantalles-per-validar.md) només hi afegeix evidència transversal de captures a la fila 2 i no inventa una fila número 26.
 
+### Import nominal, trams d'assignació i reversió amb història — UC-02/56/105 (21/09/2026)
+
+La [UC-02, acció 5.5](uc-002-registrar-cobrament-factura.md) documenta l'invariant d'una entrada externa nova: imports positius, suma de trams no superior al nominal del mateix moviment, prova de pagament i política separada d'import no assignat. `PaymentPayloadValidator::validate()` actual **només comprova import numèric** i almenys una assignació; **no comprova positivitat ni `SUM(allocations.amount)<=payload.amount`**. `PaymentRepository::createPayment()` desa tots els trams i `refreshInvoicePaymentStatus()` recalcula cada factura a partir de la seva suma local, sense validar que P/100 no atribueixi F1/80+F2/80 = 160. Els tests PHP `RegisterPaymentTest` localitzats cobreixen 120/120 i reús equivalent, no el cas 100/160 ni el tram negatiu.
+
+La [UC-56, accions 4.2–4.3](uc-056-cercar-assignar-cobrament.md) diferencia **consultar el saldo realment assignable de P** d'**aplicar el tram pendent a una altra factura sense segon CHARGE**. P/100 F1/80 deixa com a molt 20 de resta comptable, però cal contrastar ingrés extern, titular i devolucions/compromisos abans d'autoritzar-los. El mètode `PaymentRepository::createAllocation()` és **privat** i només s'invoca des de `createPayment()`: no constitueix un writer per afegir trams a un `UUID_PAYMENT` ja existent. El reús per clau de `PaymentService` tampoc crea la imputació de la nova factura.
+
+La [UC-105, accions 4.1–4.3](uc-105-reassignar-repartir-pagament.md) separa **rebutjar una sobreatribució**, **traspassar amb història efectiva F1/120 → F1/40+F2/80** i **serialitzar dues comandes que consumeixen el mateix saldo únic 20**. Una assignació ordinària F1/-80 no acredita una reversió de F1/120: l'esquema actual no vincula cada tram a `reversed_by_event` ni versions efectives, i la consulta del repositori suma totes les files. `PaymentActionEventRepository` accepta noms `REALLOCATE` i `SPLIT_ALLOCATION`, però l'event sol **no mou diners** ni modela la reversió. El model transversal i les files 3/11/21 de [pantalles pendents](00-matriu-25-pantalles-per-validar.md) identifiquen explícitament codi real, classes de DISSENY i proves previstes CP-02-12…16, SA-56-07…11, RA-08…13.
+
+**No s'ha executat PHP/MySQL, no s'han renderitzat els diagrames ni s'ha provat el controlador d'intranet** en aquesta revisió. Aquest treball és documentació i diagnosi per codi, no una correcció aplicada al servei PHP ni certificació dels invariants a producció.
+
 ## 6. Condicions per marcar una acció com a revisada
 
 - Cas d'ús: flux principal, alternatives/denegacions, dades i proves revisats específicament; no text duplicat d'un altre cas.
