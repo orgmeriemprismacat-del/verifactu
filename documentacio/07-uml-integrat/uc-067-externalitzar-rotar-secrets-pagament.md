@@ -27,6 +27,27 @@
 
 **Proves:** clau absent/incorrecta, secret exposat per log, callback d'ordre antiga després de rotació, dues instàncies amb claus distintes, replay, `DS_ORDER` conegut però import no coincident, timeout bancari amb resposta signada rebutjada, rollback sense doble `CHARGE`.
 
+### 1.1. Rotació de Redsys amb ordres ja iniciades i callbacks en vol
+
+**El fitxer PHP disposa d'una sola clau en la verificació.** `sif/public/api/redsys/callback.php` instancia `RedsysSignatureValidator` amb la clau carregada de `SIF_REDSYS_MERCHANT_KEY`; el constructor de `RedsysSignatureValidator` rep **un únic `merchantKey`**, deriva la signatura a partir de `Ds_Order` i compara valors amb `hash_equals()`. El `payload_hash` de la notificació és el hash dels `MerchantParameters`, **no** un identificador de versió de secret. El codi inspeccionat no consulta `redsys_payment_intent` per triar la clau abans de validar ni registra un `KEY_ID` associat a la transacció. Substituir la variable d'entorn mentre hi ha operacions pendents pot afectar callbacks d'ordres creades anteriorment, però **no es pot afirmar** sense contrastar amb el proveïdor quina clau signarà cada notificació.
+
+**Inventari de l'activació que cal preparar.** Abans de rotar, obtenir per **comerç/terminal/entorn** la clau efectiva dels processos reals, la configuració acordada amb Redsys, els `DS_ORDER` pendents i les notificacions `VALIDATED/QUEUED/PROCESSING`. Les notificacions **ja verificades i persistides** han de poder completar el worker amb la seva evidència original sense tornar a inventar un cobrament; les peticions HTTP noves amb signatura desconeguda no es poden donar per pagades només per trobar un `DS_ORDER` local. La coexistència temporal de versions és **contracte i implementació pendents**, no una opció implícita del constructor PHP.
+
+**Error de signatura després del tall: canal d'incidència, no bypass.** Si la nova clau rebutja un callback que el banc afirma haver tramitat, registrar l'intent i la causa sense valors secrets, comprovar l'ordre i els diners a una font independent i derivar a UC-82/81. No desactivar `hash_equals`, substituir la signatura pel valor esperat, aceptar sense verificar el `MerchantParameters` original ni generar una factura per compensar la fallada. Si l'ingrés existeix i es reconcilia, conservar `DS_ORDER`, `UUID_PAYMENT` i factura prèvia quan n'hi ha; el reintent de notificació ha d'evitar duplicar l'efecte.
+
+**Secret actiu en diferents processos.** La verificació del callback i els productors del formulari TPV poden executar-se amb configuració/cache diferents durant un desplegament parcial. L'evidència de rotació ha d'indicar **instant i versió efectiva per procés**, env/terminal, prova de callback de l'entorn correcte i criteri de retirada de la clau antiga; el valor de la clau queda **fora** de Git, observabilitat i del manifest d'evidències. Una prova de preproducció no garanteix que el servidor productiu llegeixi la mateixa referència ni que el callback de producció estigui habilitat.
+
+### 1.2. Proves d'ordres en vol durant la rotació (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CL-67-01 | `DS_ORDER` pendent és anterior al canvi, callback arriba després | Signatura verificada segons política de versions comprovada; si falla, conciliació externa sense bypass. |
+| CL-67-02 | Notificació validada/en cua abans de rotar, worker l'executa després | Mateixa evidència `DS_ORDER` i idempotència; cap segon CHARGE per canvi de clau. |
+| CL-67-03 | Dos processos callback serveixen claus diferents per desplegament parcial | Divergència d'entorn/versió visible, alertada i resolta sense acceptació de signatura falsa. |
+| CL-67-04 | Callback amb `DS_ORDER` coneguda i signatura invàlida | No acceptar ingrés pel sol identificador; incident i consulta bancària quan pertoqui. |
+| CL-67-05 | Secret accidentalment inclòs en evidència/log d'activació | Redacció i resposta d'exposició; cap còpia del valor en auditoria o PDF. |
+| CL-67-06 | Proves del nou secret només a preproducció | Producció manté estat no verificat fins a prova pròpia de runtime/canal. |
+
 ## UML de casos d'ús
 
 ```plantuml
