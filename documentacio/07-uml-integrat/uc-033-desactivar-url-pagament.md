@@ -37,6 +37,15 @@ La migració defineix `payment_link.STATUS`, `REVOKED_AT`, `REVOKED_BY`, `REVOKE
 
 **Bloquejants:** endpoint i token resolver, permisos, concurrència, consulta d'intenció activa, estats i idempotència d'URL, política de notificació i proves de callback tardà. Cap prova PHP executada.
 
+### Cobertura d'empresa: revocació individual i missatge a l'alumne — xat original
+
+**Motiu concret de la revocació:** l'usuària demana que, quan es seleccionen inscripcions per una **factura abans de pagar d'una empresa/responsable**, els seus enllaços individuals deixin de permetre el pagament perquè no es facturi o cobri dues vegades. També demana que, quan es registra el cobrament sobre les inscripcions cobertes, l'opció individual continuï desactivada. La factura de l'entitat pot conservar un **enllaç propi**, diferent dels enllaços individuals incompatibles. La «selecció» d'un participant al navegador no acredita, per si sola, una cobertura fiscal confirmada: la restricció objectiu s'ha de coordinar amb la confirmació segura de l'operació i s'ha de poder recuperar si aquesta falla abans d'emetre.
+
+**Missatge funcional:** si una persona intenta pagar per un enllaç individual ja cobert per factura de l'entitat, el servidor no ha de crear una nova intenció `DS_ORDER`; ha de mostrar un avís equivalent a «Aquesta inscripció ja està coberta per una factura a càrrec de l'entitat o responsable corresponent. No cal que facis aquest pagament.» El xat demana explicar que **pagarà l'entitat**; les dades personals/fiscals concretes d'aquest tercer només s'han de mostrar si l'usuari hi està autoritzat. La resposta ha de diferenciar URL caducada, URL revocada per cobertura de tercer, factura ja cobrada i pagament bancari en curs; no prometre que una ordre Redsys ja iniciada queda cancel·lada en revocar l'enllaç.
+
+**Cicle amb canvi posterior:** si s'afegeix o es retira un membre després de l'emissió (UC-16a/16b), rellegir la cobertura fiscal, els cobraments i les intencions bancàries abans de decidir si l'enllaç individual segueix revocat, s'emet un altre per una obligació nova o es revoca també un enllaç de grup amb import desfasat. Treure una inscripció d'una factura no reactiva automàticament una URL antiga ni reescriu la factura original.
+
+**Proves addicionals no executades:** participant cobert per factura prèvia d'empresa no pot iniciar nou TPV individual; enllaç de l'empresa continua disponible si resta pendent; missatge de cobertura sense exposar factures alienes; revocació coincident amb callback individual ja iniciat preserva i concilia el cobrament real; fallada de l'emissió abans del commit no deixa una revocació permanent sense expedient recuperable; alta/baixa posterior del grup no reactiva URL antiga sense recalcular el deute.
 ## 2. UML de casos d'ús
 
 ```plantuml
