@@ -176,7 +176,7 @@ opt Preflight satisfactori i procés autoritzat
   end
  end
 end
-Note over P,DB: SENT no equival a ACCEPTED; retry no prova absència de resposta externa
+Note over P,DB: SENT no equival a ACCEPTED, retry no prova absència de resposta externa
 ```
 
 ## 5. Evidència i traçabilitat
