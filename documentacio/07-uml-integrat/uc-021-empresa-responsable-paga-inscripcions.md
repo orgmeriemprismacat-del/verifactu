@@ -225,7 +225,7 @@ participant PS as PaymentService
 participant PR as PaymentRepository
 participant DB as BD SIF
 E->>O: Aporta dades fiscals i inscripcions que assumirà
-O->>UI: Identificar receptor i participants; validar imports
+O->>UI: Identificar receptor i participants, validar imports
 Note over O,UI: Construcció específica i autorització per participants: pendent d'acreditar
 UI->>IBP: issueBeforePayment(input sense payment)
 IBP->>B: build(input)
@@ -239,7 +239,7 @@ end
 IS->>DB: COMMIT de la transacció d'emissió
 IS-->>IBP: uuid_factura i num_visible confirmats
 IBP-->>UI: uuid_factura i num_visible confirmats
-UI-->>E: Estat de factura emesa; accés al document [canal pendent]
+UI-->>E: Estat de factura emesa, accés al document [canal pendent]
 Note over E,DB: Factura fiscal existent i cobrament econòmic encara PENDING
 E->>O: Comunica/efectua pagament
 O->>UI: Validar cobrament i factura preexistent
@@ -302,7 +302,7 @@ else Cobertura verificable i intencions incompatibles controlades
  SIF-->>UI: UUID_FACTURA i NUM_VISIBLE
  alt Sincronització amb llegat fallida després del commit
   UI->>Q: Incidència i reintent idempotent de sincronització
-  UI-->>O: Factura emesa; integració pendent, cap emissió alternativa
+  UI-->>O: Factura emesa, integració pendent, cap emissió alternativa
  else Sincronització completada
   UI-->>O: Factura prèvia i via de pagament de l'empresa
  end
@@ -359,7 +359,7 @@ UI->>G: Recalcular al servidor snapshot i comprovar permisos
 G->>IR: Rellegir factures existents per ID_INSC, receptor i obligació
 G->>T: Identificar intencions TPV individuals ja iniciades
 alt Factura equivalent ja existeix i no hi ha un cobrament nou
- G-->>UI: UUID_FACTURA existent; cap nova emissió
+ G-->>UI: UUID_FACTURA existent, cap nova emissió
  UI-->>O: Consultar factura preexistent
 else Existeix conflicte de cobertura, receptor o callback en curs
  G->>Inc: Obrir incidència i preservar referències de TPV
@@ -369,7 +369,7 @@ else Cobertura nova i coherent amb intencions incompatibles controlades
  G-->>UI: Snapshot i petició fiscal autoritzats
  UI->>B: issueBeforePayment(payload sense payment)
  B-->>UI: UUID_FACTURA després del COMMIT de UC-04
- UI-->>E: Factura real pendent; PDF només si disponible i autoritzat
+ UI-->>E: Factura real pendent, PDF només si disponible i autoritzat
  opt Arriba pagament confirmat més tard
   E->>O: Comunicar transferència o pagament real
   O->>UI: Verificar origen, saldo i mateixa factura
