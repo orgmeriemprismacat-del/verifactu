@@ -60,7 +60,7 @@ participant L as EnrollmentFundMovementRepository [PROPOSTA]
 participant DB as BD SIF
 O->>B: Confirmar baixa, imports i decisió
 alt Baixa sense diners moguts
- B-->>O: Event administratiu; cap moviment de fons
+ B-->>O: Event administratiu, cap moviment de fons
 else Retorn real confirmat
  B->>R: UC-28 registre REFUND
  R-->>B: UUID_PAYMENT
@@ -73,7 +73,7 @@ else Saldo creat amb diners atribuïts
  L->>DB: INSERT sortida a saldo
 end
 B-->>O: Moviments i pendents fiscals
-Note over B,L: Seqüència objectiu; no hi ha orquestrador complet acreditat
+Note over B,L: Seqüència objectiu, no hi ha orquestrador complet acreditat
 ```
 
 ### 1.5. Baixa llegada i reactivació d'una inscripció — contrast amb el xat original
@@ -219,9 +219,9 @@ alt Només canvi administratiu i plaça disponible
  UI->>H: Afegir event de reactivació vinculat a la baixa [pendent]
  UI-->>O: Reactivació administrativa autoritzada
 else Diners o documents fiscals ja afectats
- UI-->>O: Aturar UPDATE X→1; requerir UC-72 i operacions correctores
+ UI-->>O: Aturar UPDATE X→1, requerir UC-72 i operacions correctores
 else Titular, plaça o situació dubtosos
- UI-->>O: Incidència; no modificar estats en silenci
+ UI-->>O: Incidència, no modificar estats en silenci
 end
 Note over UI,F: No es reverteix cap REFUND, saldo o rectificativa per un canvi d'estat.
 ```
