@@ -268,7 +268,7 @@ Una area es pot marcar com a revisada quan:
 - `registre-decisions.md` recull les decisions noves;
 - `estat-projecte.md` diu que l'area esta revisada.
 
-## Checkpoint Redsys asincron 2026-06-20
+## Circuit Redsys asincron 2026-06-20
 
 - [x] Mapping `DS_ORDER -> redsys_payment_intent` implementat i provat.
 - [x] `redsys_callback_queue` durable creada amb FKs i index de disponibilitat.

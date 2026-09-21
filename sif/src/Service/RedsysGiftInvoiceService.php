@@ -6,7 +6,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyGiftSnapshotRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 
-final class RedsysGiftInvoiceService
+final class RedsysGiftInvoiceService implements RedsysIntentHandler
 {
     public function __construct(
         private RedsysNotificationRepository $notifications,
@@ -15,6 +15,23 @@ final class RedsysGiftInvoiceService
         private RedsysInvoicePayloadBuilder $redsysPayloads,
         private InvoiceService $invoices
     ) {
+    }
+
+    public function sourceType(): string
+    {
+        return 'REGAL';
+    }
+
+    public function issueFromIntentSnapshot(\PDO $sifDb, string $dsOrder, array $snapshot): array
+    {
+        $giftId = (int) ($snapshot['gift']['ID'] ?? $snapshot['gift']['id'] ?? 0);
+        if ($giftId <= 0) {
+            throw SifException::validation('Invalid Redsys gift snapshot ID');
+        }
+
+        $notification = $this->validatedNotification($sifDb, $dsOrder);
+
+        return $this->issueSnapshot($sifDb, $dsOrder, $snapshot, $this->amount($notification));
     }
 
     public function issueByGiftIdFromValidatedNotification(

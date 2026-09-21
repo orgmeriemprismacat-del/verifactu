@@ -7,7 +7,26 @@ use Prisma\Sif\Database\MigrationRunner;
 
 final class TestDatabase
 {
-    public static function assertSafeTestConfig(array $config): void
+    private const TABLES = [
+        'redsys_callback_queue',
+        'redsys_payment_intent',
+        'errors_verifactu',
+        'factura_documents',
+        'fiscal_queue',
+        'fact_rels',
+        'payment_allocation',
+        'payment_transaction',
+        'factura_rectificacio',
+        'factura_registres',
+        'factura_linia',
+        'factura',
+        'fiscal_sequence',
+        'fiscal_chain_state',
+        'redsys_notifications',
+        'credit_balance',
+    ];
+
+    public static function connect(): \PDO
     {
         $dsn = (string) ($config['db']['dsn'] ?? '');
         preg_match_all('/(?:^mysql:|;)dbname=([^;]+)/', $dsn, $matches);
@@ -21,10 +40,14 @@ final class TestDatabase
     {
         $config = require dirname(__DIR__, 2) . '/config/sif.php';
         self::assertSafeTestConfig($config);
-        $db = ConnectionFactory::make($config);
-        if (!preg_match('/^sif_test(?:_[a-z0-9_]+)?$/D', (string) $db->query('SELECT DATABASE()')->fetchColumn())) {
-            throw new \RuntimeException('Connected database is not an isolated SIF test database.');
+
+        $db = self::connect();
+        foreach (glob(dirname(__DIR__, 2) . '/database/migrations/*.sql') ?: [] as $migration) {
+            $db->exec(file_get_contents($migration));
         }
+        self::truncateCoreTables($db);
+        $db->exec(file_get_contents(dirname(__DIR__, 2) . '/database/seeds/2026_06_02_000001_seed_sif_core.sql'));
+
         return $db;
     }
 

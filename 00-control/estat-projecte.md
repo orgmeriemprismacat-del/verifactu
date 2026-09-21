@@ -190,12 +190,11 @@ Actualitza els fitxers de control del projecte: estat-projecte.md, registre-deci
 ## 2026-06-20 - Implementacio asincrona Redsys: 9 de 9 completades
 
 - Preparat un worktree aillat `feature/redsys-async-queue` amb PHP 8.4.22 i MySQL 8.0.40 de test.
-- Completades les targetes 1-9: `redsys_payment_intent`, `redsys_callback_queue`, callback transaccional, worker, dispatcher dels cinc origens, resultat persistent, reintents/incidencies, duplicats contradictoris i operacio CLI/preflight.
+- Completades les targetes: `redsys_payment_intent`, `redsys_callback_queue`, callback transaccional, worker, dispatcher dels cinc origens, resultat persistent, reintents/incidencies, duplicats contradictoris i operacio CLI/preflight.
 - El callback ja no usa `IDPAG` de query string; valida import/divisa/terminal contra la intencio i conserva camps signats normalitzats.
 - Els workers consumeixen `SNAPSHOT_JSON` sense connexio legacy i no executen sincronitzacio legacy automatica.
 - Verificacio actual: `276 passed, 0 failed`; worker CLI amb cua buida `ok=true`, preflight Redsys `ok=true` i migracions `000003`/`000004` aplicades sobre MySQL 8.0.40.
 - El go/no-go confirma `redsys_async_circuit_present = true` i les dues taules noves; el resultat global continua `NO-GO` exclusivament per manca de configuracio/connexio/taules de la BD legacy de preproduccio.
-- No s'ha fet commit ni push.
 
 ## 2026-09-14 - Cataleg de diagrames i casos d'us
 
