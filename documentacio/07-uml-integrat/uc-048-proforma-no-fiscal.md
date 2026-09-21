@@ -73,6 +73,26 @@ G --> Convert
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió"]
+  actor_1["Destinatari autoritzat"]
+  subgraph SIF_BOX["SIF · proforma"]
+    uc_0(["UC-48<br/>Crear/consultar proforma"])
+    uc_1(["Validar proposta i versió"])
+    uc_2(["Generar document NO FISCAL"])
+    uc_3(["Consultar amb autorització"])
+    uc_4(["UC-01/21<br/>Emetre factura separada si s'accepta"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_4
+```
+
 ## 3. UML de classes — orquestració no acreditada
 
 ```mermaid
