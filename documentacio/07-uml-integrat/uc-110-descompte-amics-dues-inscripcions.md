@@ -143,7 +143,7 @@ U->>F: prepare(A,B,pagador,regla)
 F->>O: Congelar dues línies, edicions, descomptes i rols
 F->>C: Definir factura conjunta o dues factures/receptors
 alt Classificació incompleta
- C-->>U: Pendent; sense factura ni pagament
+ C-->>U: Pendent, sense factura ni pagament
 else Classificació resolta, oferta acceptada
  C-->>F: Factura/es i imports per línia
  U->>Bank: Pagar import conjunt congelat
@@ -153,7 +153,7 @@ else Classificació resolta, oferta acceptada
  U->>L: Atribuir import net A i net B del mateix ingrés
  U-->>P: Resultat de les dues inscripcions
 end
-Note over F,L: Aquest checkout no està acreditat; el builder GRUP sol no prova fiscalitat d'amics.
+Note over F,L: Aquest checkout no està acreditat, el builder GRUP sol no prova fiscalitat d'amics.
 ```
 
 ## 5. Traçabilitat
