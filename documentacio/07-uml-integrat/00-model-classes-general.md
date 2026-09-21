@@ -372,14 +372,39 @@ class IncidentWorkflowService {
  +assign(id,actor) result
  +resolve(id,evidence) result
 }
+class AuthorizationGateway {
+ <<DISSENY TRANSVERSAL: no acreditat>>
+ +authorize(actor,action,resource,requestId) decision
+}
+class IdentityResolver {
+ <<SQL parcial / servei no acreditat>>
+ +resolve(system,externalId) subject
+}
+class IssuerRoutingRegistry {
+ <<DISSENY: multiemissor no acreditat>>
+ +route(product,legalEntity) instance
+}
+class NotificationWorker {
+ <<DISSENY: outbox SQL sense worker acreditat>>
+ +processNext() result
+}
+class AcademicEconomicPolicy {
+ <<DISSENY: regla/writer no acreditats>>
+ +decide(enrollment,state,ruleVersion) decision
+}
 CourseChangeCoordinator --> EnrollmentFundsOrchestrator
 CancellationCoordinator --> EnrollmentFundsOrchestrator
 EnrollmentFundsOrchestrator --> EnrollmentFundMovementRepository
 EnrollmentFundMovementRepository --> EnrollmentFundMovement
 InvoiceDocumentAccessService --> VisibilityPolicy
+AuthorizationGateway --> IdentityResolver
+AuthorizationGateway ..> InvoiceDocumentAccessService : lectura fiscal autoritzada
+IssuerRoutingRegistry ..> AuthorizationGateway : ruta només després d'autorització
+NotificationWorker ..> AuthorizationGateway : productor autoritzat abans de l'outbox
+AcademicEconomicPolicy ..> EnrollmentFundsOrchestrator : estat econòmic individual quan existeixi
 ```
 
-Aquest últim diagrama és un **contracte de treball**, no una afirmació que hi ha classes, repositoris o migracions implementats. No s'ha creat la taula proposada `enrollment_fund_movement` en aquesta branca de documentació.
+Aquest últim diagrama és un **contracte de treball**, no una afirmació que hi ha classes, repositoris o migracions implementats. No s'ha creat la taula proposada `enrollment_fund_movement` en aquesta branca de documentació. Després de revisar els 142 casos, també es consideren transversals pendents l'**autorització servidor de les comandes**, la resolució d'identitat, el routing multiemissor, el worker d'outbox i la política acadèmica-econòmica. El detall i les evidències són a [Revisió transversal 142/142](00-revisio-transversal-142-casos.md).
 
 ## 7. Traçabilitat i criteri de manteniment
 
