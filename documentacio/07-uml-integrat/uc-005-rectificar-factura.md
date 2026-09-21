@@ -246,6 +246,139 @@ opt Existeix retorn efectivament executat
 end
 Note over UI,C: Aquest diagrama descriu l'orquestració pendent, no la pantalla actual ni una transacció distribuïda acreditada.
 ```
+### 4.3. Variant: rectificativa negativa per diferència — emissió i efecte econòmic separats
+
+**Abast:** representar una diferència negativa **quan UC-74 hagi determinat que la via i el tipus fiscal són adequats**. El nucli PHP admet `amount < 0` i les proves escrites fan servir `-40.00`; això no acredita la correcció legal de qualsevol modalitat, factura o IVA. L'import negatiu de la factura R **no és una prova de sortida de caixa**.
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador autoritzat" as Op
+actor "Responsable que valida la correcció" as Fiscal
+actor "Operador de devolucions" as Cob
+rectangle "SIF PrisMa" {
+ usecase "UC-74\nClassificar correcció" as Class
+ usecase "UC-05\nEmetre rectificativa\nnegativa" as Neg
+ usecase "UC-01\nEmetre factura fiscal R" as Issue
+ usecase "UC-28\nRegistrar devolució real\nsi s'ha executat" as Refund
+}
+Op --> Neg
+Fiscal --> Class
+Neg ..> Class : <<include>> [flux objectiu]
+Neg ..> Issue : <<include>>
+Cob --> Refund
+note bottom of Refund
+ Acció econòmica independent.
+ No és efecte automàtic de la factura R.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant C as Classificador UC-74 [DISSENY]
+participant M as ManualRectificationService [PHP]
+participant B as ManualRectificationPayloadBuilder [PHP]
+participant I as InvoiceService [PHP]
+participant R as RectificationRepository [PHP]
+participant DB as BD SIF
+participant F as Retorn bancari/UC-28 [INDEPENDENT]
+O->>C: Proposar correcció amb valor original i delta negatiu
+C-->>O: Modalitat/motiu validats segons regla aprovada [PENDENT]
+O->>M: issueByUuid(original, amount negatiu, reason, mode)
+M->>B: forOriginalInvoice(original,input)
+B-->>M: payload R, import negatiu i receptor original
+M->>I: issueInvoice(payload)
+I->>DB: BEGIN + INSERT factura R, registre i fiscal_queue
+I->>DB: COMMIT emissió
+I-->>M: uuid_rectificativa
+M->>R: linkRectification(rectificativa,original,input)
+R->>DB: INSERT factura_rectificacio [fora transacció d'emissió]
+M->>R: markOriginalRectified(original)
+R->>DB: UPDATE factura original
+M-->>O: Resultat fiscal i UUID R, cap REFUND creat
+opt Hi ha retorn bancari real i verificat en un altre moment
+ O->>F: Tramitar UC-28 sobre el cobrament original i el retorn acreditat
+end
+Note over M,R: Si falla l'enllaç després del COMMIT, cal recuperar-lo per UUID R; no emetre un segon R.
+```
+
+### 4.4. Variant: rectificativa positiva per diferència — import a cobrar no és cobrament
+
+**Abast:** el builder admet un `amount` numèric diferent de zero, també positiu, però les proves d'integració localitzades en aquest repositori mostren exemples negatius, **no una validació funcional/fiscal d'una rectificativa positiva en producció**. La classificació UC-74, tipus/IVA, import i receptor han de ser aprovats abans d'utilitzar aquest flux; una factura R positiva no crea `CHARGE`.
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador autoritzat" as Op
+actor "Responsable que valida la correcció" as Fiscal
+actor "Procés/operador de cobrament" as Cob
+rectangle "SIF PrisMa" {
+ usecase "UC-74\nClassificar correcció" as Class
+ usecase "UC-05\nEmetre rectificativa\npositiva" as Pos
+ usecase "UC-01\nEmetre factura fiscal R" as Issue
+ usecase "UC-02\nRegistrar cobrament posterior\nquan sigui real" as Pay
+}
+Op --> Pos
+Fiscal --> Class
+Pos ..> Class : <<include>> [flux objectiu]
+Pos ..> Issue : <<include>>
+Cob --> Pay
+note bottom of Pay
+ Acció posterior opcional segons ingrés real.
+ No és part de l'emissió de la factura R.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant C as Classificador UC-74 [DISSENY]
+participant M as ManualRectificationService [PHP]
+participant B as ManualRectificationPayloadBuilder [PHP]
+participant I as InvoiceService [PHP]
+participant R as RectificationRepository [PHP]
+participant DB as BD SIF
+participant P as PaymentService/UC-02 [INDEPENDENT]
+O->>C: Proposar delta positiu sobre original emesa
+alt Modalitat o import fiscal no aprovats
+ C-->>O: Bloqueig, cap factura R ni CHARGE
+else Correcció classificada [pendent d'implementar]
+ C-->>O: Dades fiscals confirmades
+ O->>M: issueByUuid(original, amount positiu, reason, mode)
+ M->>B: forOriginalInvoice(original,input)
+ B-->>M: payload R i import positiu
+ M->>I: issueInvoice(payload)
+ I->>DB: BEGIN + INSERT factura R i registre fiscal
+ I->>DB: COMMIT emissió
+ I-->>M: uuid_rectificativa
+ M->>R: linkRectification(rectificativa,original,input)
+ R->>DB: INSERT factura_rectificacio [fora transacció d'emissió]
+ M->>R: markOriginalRectified(original)
+ R->>DB: UPDATE original
+ M-->>O: UUID R emesa, sense ingrés nou
+ opt Arriba més tard cobrament confirmat i assignació validada
+  O->>P: registerPayment() sobre document/obligació correcta
+  P-->>O: UUID_PAYMENT confirmat després del COMMIT propi
+ end
+end
+Note over C,P: Vinculació de cobrament a la rectificativa, regles de saldo i impostos requereixen validació del contracte de negoci.
+```
+
+### 4.5. Desajust d'àlies d'entrada entre builder i persistència — observat al PHP
+
+`ManualRectificationPayloadBuilder::forOriginalInvoice()` accepta `reason` **o** `motiu` i `mode` **o** `mode_rectificacio`. No obstant això, `RectificationRepository::linkRectification()` llegeix exclusivament `$input['reason']` i `$input['mode']` quan insereix la relació. Si el canal només envia els àlies catalans, el builder pot emetre i confirmar la factura R i **després** fallar o vincular incompletament la rectificació, depenent de com es gestionin els avisos PHP i les restriccions SQL del runtime. La fitxa no ha de representar els àlies com a equivalents end-to-end fins a normalitzar la petició abans d'emetre o corregir el repositori i provar les dues formes.
+
+| ID de prova pendent | Entrada i punt de fallada | Resultat exigible |
+| --- | --- | --- |
+| RF-09 | `motiu` i `mode_rectificacio` sense `reason`/`mode` | Normalització d'entrada end-to-end acreditada; un únic UUID R i relació íntegra, o rebuig **abans** de l'emissió. |
+| RF-10 | Rectificativa negativa fiscalment aprovada i retorn encara no executat | Factura R i relació documentades, **cap** moviment `REFUND` fictici. |
+| RF-11 | Rectificativa positiva fiscalment aprovada i pagament posterior | Un UUID R, cap `CHARGE` inicial; un ingrés efectiu posterior assignat sense nova factura. |
+| RF-12 | Error SQL en `linkRectification()` després de COMMIT fiscal | Registrar UUID R i incidència, recuperar la vinculació sense nou número ni registre fiscal duplicat. |
 ## 5. Decisions pendents per completar l'operació
 
 1. Definir i implementar el criteri per escollir rectificativa, anul·lació de registre o subsanació a partir de la casuística real (UC-74/75/76).
