@@ -143,13 +143,13 @@ T->>R: compare(scope,ruleVersion,requestId)
 R->>SIF: Llegir factura, fact_rels, registres i moviments
 R->>L: Llegir inscripcions, IDPAG, FACTURA_RELACIONADA i estats
 R->>R: Comparar UUIDs, relacions, quantitats i estats
-R->>Run: createOrReuse(db,scope,inputHash,requestId) [UC-82; DISSENY]
+R->>Run: createOrReuse(db,scope,inputHash,requestId) [UC-82, DISSENY]
 R->>Items: append(db,difference) per divergència [DISSENY]
 Items-->>T: Llista d'items PENDING amb evidència
 T->>R: resolve(itemId,action,reason)
 alt Divergència només de resum llegat i acció segura
  R->>Sync: syncAfterSifSuccess(...)
- Note over R,Sync: El servei actual és no idempotent a OBSERVACIONS; cal reparar-lo abans de reintents
+ Note over R,Sync: El servei actual és no idempotent a OBSERVACIONS, cal reparar-lo abans de reintents
  R->>SIF: Rellegir dades fiscals originals intactes
  R->>L: Verificar resum real i nombre de files
  R->>Items: recordResult(db,itemId,RESOLVED) només si la comparació passa
