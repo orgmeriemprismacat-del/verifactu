@@ -41,6 +41,27 @@
 
 **Buits de tancament:** taula/estats de l'expedient de reclamació, regles de termini, permisos i titular, outbox i URLs, conciliació d'ingrés, traça de fons per inscripció i proves d'extrem a extrem. La implementació de `ClaimPaymentService` és **el cobrament final, no el cicle sencer**.
 
+### 1.3. Rutes de reclamació, primera reclamació i baixa del llegat
+
+**Entrades identificades.** El mapa de rutes documenta `/facturacio/primera-reclamacio/` → `facturacio-primera-reclamacio-pagament.php`, `/facturacio/reclamacio-final/` → `facturacio-reclamacio-final.php` i `/facturacio/morosos/` → `facturacio-control-morosos.php`. El diccionari de `Intranet.php` conté `cnsReclamacions`, `cnsCursosRecordarPag`, `cnsAlumnesRecordarPag`, `cnsCursosClaimBaixes`, `cnsAlumnClaimPag`, `cnsAlumnClaimEntMoros`, `cnsAlumnClaimAlumnNoCertMoros`, `cnsAlumnClaimAlumnCertMoros` i `cnsEntMoros`; les actualitzacions inclouen `updPrimeraReclamacio`, `updClaimDonarBaixa`, `updClaimRecPag`, `updInscCursBaixaiMoros` i `updReclamatDefaulter`. La documentació identifica **vies separades de reclamació i baixa**, però no acredita que el servei nou d'UC-12 coordini aquests handlers.
+
+**Reclamació no equival a baixa ni factura rectificada.** `web.inscripcions.reclamat`, `data_reclamacio` i `pag_observacions` serveixen de seguiment administratiu. `INSC_CURS` és un estat acadèmic i `FACTURA_RELACIONADA` un vincle històric: cap dels dos acredita per si sol un moviment bancari nou. Una primera o última reclamació deixa la factura original vigent i no crea un `ALTA`, `REFUND` o rectificativa pel fet d'emetre l'avís. Si hi ha una **baixa real**, la decisió posterior sobre deute, retorn o saldo es tramita per UC-72/74/28/29 amb evidència per inscrit i pagador.
+
+**Via de regularització encara que hi hagi morositat.** El procediment de la fitxa d'alumne estableix que la persona morosa **ha de poder regularitzar el pagament**. Abans de cada recordatori, identificar si qui deu diners és l'alumne, una empresa o el responsable del grup, i si hi ha pròrroga, fracció, cobrament `UUID_PAYMENT` ja confirmat o `DS_ORDER` amb resultat pendent. Una factura d'empresa pot tenir URL pròpia: no reactivar el pagament individual d'un participant cobert, ni enviar-li el PDF complet o el deute conjunt per coincidència de correu.
+
+**Rutes de reclamació i cobrament posterior.** Si la reclamació deriva en transferència real, contrastar referència, import i data i localitzar `UUID_FACTURA` existent abans d'UC-24. Si el cobrament és visible al banc però només falta sincronitzar el llegat, recuperar `UUID_PAYMENT` i reprendre UC-47/53; no registrar un segon `CHARGE` per «tancar la reclamació». El recordatori futur UC-43 s'ha de cancel·lar o actualitzar quan es modifica el deute o entra en vigor una pròrroga.
+
+### 1.4. Proves addicionals de reclamació i baixa separades (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| MR-12-01 | Primera reclamació sense ingrés real | Expedient/avís, factura original vigent i cap moviment monetari nou. |
+| MR-12-02 | Pròrroga aprovada abans d'un recordatori programat | Revalidar venciment i no enviar reclamació obsoleta. |
+| MR-12-03 | Factura d'empresa amb tres participants i una reclamació | Destinatari i via de pagament del pagador legítim; no tres deutes individuals ficticis. |
+| MR-12-04 | Transferència cobrada i `PAGAMENT` llegat encara pendent | Reconciliar `UUID_PAYMENT` existent, no segona factura/CHARGE. |
+| MR-12-05 | Baixa acadèmica després de reclamació | Classificar efecte fiscal/econòmic independent, sense anul·lació de factura automàtica. |
+| MR-12-06 | Alumne morós vol pagar i URL individual ha estat desactivada per factura d'empresa | Oferir la via autoritzada del responsable, sense restablir l'URL individual. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
