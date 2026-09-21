@@ -237,6 +237,8 @@ Note over A,DB: El SQL té clau única de job; no s'ha acreditat productor/enque
 
 ### 5.2. Acció independent: recuperar un job amb resultat incert després d'escriure els bytes — DISSENY
 
+**Límit addicional del codi i esquema:** `DocumentRepository::registerDocument()` retorna `ok` i `hash`, **no retorna `factura_documents.ID`**. La taula `factura_documents` tampoc no té una columna de versió ni un `UNIQUE(UUID_FACTURA,TIPUS,PATH_FITXER,HASH_FITXER)`; el workflow ha de recuperar i contrastar de manera inequívoca el registre creat i conservar la versió/identitat del `document_job` abans de marcar-lo complet. **No** deduir l'ID de document d'un mètode que no el proporciona.
+
 **Disparador:** el worker cau entre l'escriptura en storage privat, l'alta de `factura_documents` i el marcatge `document_job.STATUS=COMPLETED`. **Precondició:** mateixa factura, tipus, versió i `UUID_JOB` originals. **Postcondició:** reconciliar el fitxer real, `HASH_FITXER`, `FACTURA_DOCUMENT_ID` i `OUTPUT_HASH`; si ja hi ha document idèntic, recuperar-lo en lloc de generar-ne un altre, i si hi ha dues representacions divergents, bloquejar la publicació i registrar incidència. Un `UNIQUE(IDEMPOTENCY_KEY)` del job **no** protegeix per si sol de dobles `INSERT factura_documents`, ja que `DocumentRepository::registerDocument()` insereix un registre nou per cada crida i no cerca `UUID_JOB` ni un document equivalent.
 
 ```plantuml
@@ -285,7 +287,8 @@ else Bytes íntegres
   J->>D: registerDocument(db,uuidFactura,tipus,path,bytes) [PHP existent]
   D->>DB: INSERT factura_documents CREATED
   DB-->>D: Metadades inserides sense garantia pròpia de storage
-  J->>DB: Enllaçar documentId i OUTPUT_HASH, COMMIT [OBJECTIU]
+  J->>DB: Recuperar ID de la fila inserida i verificar factura/path/hash
+  J->>DB: Enllaçar FACTURA_DOCUMENT_ID i OUTPUT_HASH, COMMIT [OBJECTIU]
   J-->>W: Document recuperat i custòdia verificada
  else Metadata preexistent però hash/factura/versió contradictoris
   J->>I: Bloquejar publicació i investigar origen dels bytes
