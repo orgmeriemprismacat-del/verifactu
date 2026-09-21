@@ -341,6 +341,65 @@ Note over G,Q: El reconciliador i fencing no són PHP present; el codi actual cr
 | CQ-09 | Factura K existeix, però el cobrament inicial manca; un reintent d'`issueInvoice(K,payment)` retorna `ok=true` sense `uuid_payment` | Job no passa a «pagat» pel sol `ok` fiscal; conciliació del pagament real per UC-02/56. |
 | CQ-10 | Worker tarda més de 15 min; `runOne` conserva `now` de l'inici | `PROCESSED_AT` ha de reflectir finalització real en el contracte futur; el PHP actual passa el temps inicial. |
 
+### 4.4. Acció independent: validar el resultat funcional abans de marcar un job com a PROCESSED — guard PENDENT
+
+**Actor/disparador:** `RedsysJobProcessor::process()` retorna un array al worker. **Postcondició objectiu:** la notificació correspon a la intenció/snapshot; el resultat `ok=true` inclou els identificadors que pertoquen al tipus de venda, la factura real i, quan hi ha cobrament TPV confirmat, **un UUID_PAYMENT efectivament assignat a aquesta factura**. El cas USOC conserva la distinció entre cobrament alumne i factura d'entitat pendent; el tipus de venda no permet inventar que l'entitat ja ha pagat. Un resultat d'error o incomplet ha de quedar com a `RETRY/INCIDENT/RECONCILE` segons causa, **sense declarar el cobrament complet**.
+
+**Comportament del PHP real:** `RedsysCallbackWorker::runOne()` crida `$result=$processor->process(...)` i després `markProcessed(...,$result,$now)` sense comprovar `$result['ok']`, `uuid_factura` o `uuid_payment`. `RedsysCallbackQueueRepository::markProcessed()` fa `$result['uuid_factura'] ?? null` i `$result['uuid_payment'] ?? null`; un array incomplet pot acabar com `STATUS=PROCESSED` amb UUIDs buits. De fet, el doble de prova `RecordingRedsysJobProcessor` a `RedsysCallbackWorkerTest::testRunOneProcessesClaimedJobAfterClaimCommit` retorna `['ok'=>true,'uuid_job'=>...]` **sense UUID de factura/pagament**, cosa que prova que el test comprova la separació de transaccions, **no** la completitud fiscal/econòmica. Això no demostra que els handlers normals ometin sempre els identificadors, sinó que **el contracte del worker no els exigeix**.
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker Redsys" as W
+actor "Operador d'incidències" as O
+rectangle "SIF PrisMa — UC-52 / COMPROVAR RESULTAT (DISSENY)" {
+ usecase "Validar resultat del handler\nabans d'estat PROCESSED" as Validate
+ usecase "Confirmar UUID_FACTURA i\nregistres SIF del cas" as Invoice
+ usecase "Confirmar UUID_PAYMENT i\nassignacions de CHARGE real" as Payment
+ usecase "Conciliar resultat incomplet\nsense repetir cobrament bancari" as Incident
+}
+W --> Validate
+Validate ..> Invoice : <<include>>
+Validate ..> Payment : <<include>> [cobrament TPV confirmat]
+O --> Incident
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor W as Worker
+participant H as RedsysJobProcessor [PHP]
+participant V as RedsysJobResultValidator [DISSENY]
+participant F as factura/registres/fact_rels [LECTURA]
+participant P as payment_transaction/allocation [LECTURA]
+participant Q as RedsysCallbackQueueRepository [PHP]
+W->>H: process(job J)
+H-->>W: result array
+W->>V: validate(J,result) [crida PENDENT]
+alt ok absent/false o UUID_FACTURA absent
+ V-->>W: INCOMPLETE/ERROR; no PROCESSED
+else UUID_FACTURA declarat
+ V->>F: Verificar factura del mateix DS_ORDER i cobertura
+ V->>P: Verificar UUID_PAYMENT real del mateix ingrés i assignació a factura
+ alt UUID_PAYMENT absent, d'una altra factura o import incompatible
+  P-->>V: PAYMENT_MISSING/CONFLICT
+  V-->>W: Conciliar UC-02/56, no declarar job econòmicament complet
+ else Factura i ingrés assignat coherents
+  P-->>V: Resultat verificat
+  W->>Q: markProcessed(J,result,nowRealFinal) [fencing encara PENDENT]
+  Q-->>W: PROCESSED de l'intent vigent
+ end
+end
+Note over W,Q: Avui W crida markProcessed directament després del retorn de H. El validador i el temps de finalització independent són DISSENY.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CQ-11 | Processor retorna `['ok'=>false]` sense llançar excepció | No marcar PROCESSED; classificar error/incident segons contracte. El worker actual pot marcar PROCESSED. |
+| CQ-12 | Processor retorna `['ok'=>true,'uuid_job'=>J]` sense factura/pagament | No marcar venda TPV completada; recuperació d'efectes i incidència. La prova actual només verifica que claim i processament van fora de transacció conjunta. |
+| CQ-13 | Resultat amb UUID_FACTURA F1 i UUID_PAYMENT de F2 | Verificar assignacions reals, rebutjar resultat creuat; no donar accés acadèmic/correu per F1 com si fos pagada. |
+
 ## 5. Fonts i dependències
 
 [UC-52 original](../06-fitxes-funcionals/uc-052.md) · [UC-03](uc-003-processar-cobrament-redsys-asincron.md) · [UC-51](uc-051-callback-redsys-anomal.md) · [UC-47 llegat original](../06-fitxes-funcionals/uc-047.md) · [Revisió de fons](00-revisio-moviments-inscripcions.md) · [RedsysCallbackWorker](../../sif/src/Service/RedsysCallbackWorker.php) · [RedsysCallbackQueueRepository](../../sif/src/Repository/RedsysCallbackQueueRepository.php) · [RedsysCallbackDispatcher](../../sif/src/Service/RedsysCallbackDispatcher.php) · [RedsysCallbackWorkerTest](../../sif/tests/Integration/RedsysCallbackWorkerTest.php).
