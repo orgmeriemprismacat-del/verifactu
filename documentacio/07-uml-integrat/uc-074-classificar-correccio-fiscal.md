@@ -52,6 +52,31 @@ None ..> Main : <<extend>> (fet no fiscal)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió autoritzada"]
+  actor_1["Responsable fiscal"]
+  subgraph SIF_BOX["SIF · classificació de correccions"]
+    uc_0(["UC-74<br/>Classificar correcció fiscal"])
+    uc_1(["Comparar document original i fet"])
+    uc_2(["Aprovar via fiscal i motiu"])
+    uc_3(["UC-05<br/>Rectificativa"])
+    uc_4(["UC-75<br/>Registre anul·lació"])
+    uc_5(["UC-76<br/>Registre subsanació"])
+    uc_6(["Cap efecte fiscal"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_2
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+  uc_4 -.->|extend| uc_0
+  uc_5 -.->|extend| uc_0
+  uc_6 -.->|extend| uc_0
+```
+
 ## 3. UML de classes — classificador absent, executors PHP reals
 
 ```mermaid
