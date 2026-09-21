@@ -27,6 +27,26 @@
 
 **Proves:** catàleg retitulat després de facturar, error de concepte en una línia d'un grup, compra cobrada però encara no emesa, intenció Redsys antiga, rectificativa amb import zero no admesa pel builder actual, retry de rectificativa i PDF històric immutable.
 
+### Concepte editat a la pantalla antiga i correspondència per línia fiscal
+
+**El concepte del PDF antic no identifica una línia SIF.** La documentació del llegat indica que `generaFactura()` construeix la visualització a partir de `web.factures.concepte1/concepte2/import`, sense línies fiscals estructurades. A «Generar factura abans de pagar», el navegador composa `concepte1`, demana `concepte2` amb una crida asíncrona a `calcularTextData.php` i envia les dades de previsualització a `generaFacturaElectronica_Factures.php`. En el SIF, `factura_linia.CONCEPTE/DETALL` pertanyen a **cada** `ID_INSC`/servei de la factura: no substituir el text global del llegat com si hi hagués una única línia quan la factura cobreix grup o pack amb diferents participants o cursos.
+
+**Error abans d'emetre: reconstruir el contingut al servidor.** Si l'error és en el text encara no facturat, confirmar inscripcions seleccionades, curs/edició, títol, receptor i proposta real; esperar l'acabament de `calcularTextData.php` abans de la previsualització. Un text `concepte2` tardà o absent **no** s'ha de deduir del curs actual al callback, perquè el servei pot haver canviat. Si ja existeix una intenció `DS_ORDER`, comparar-ne el snapshot i decidir si correspon una ordre nova; no canviar el text de l'oferta signada sota la mateixa referència.
+
+**Document real ja emès: conservar original i classificar.** Una factura emesa a empresa pot tenir N línies d'inscripció, cadascuna amb el seu concepte i `SOURCE_ID`. Rebre una petició de corregir només la línia d'una persona no significa que s'hagi d'anul·lar o tornar a facturar **tot** el grup; UC-74 ha de classificar tipus d'errada, servei efectivament prestat, import, receptor i document/registre corrector que correspongui. `ManualRectificationPayloadBuilder` crea una línia rectificativa genèrica amb `concept` aportat, però no reconstruïx automàticament la línia original afectada ni el vincle `ID_FACTURA_LINIA`. La correcció ha de preservar relació directa entre factura i document nou, i no substituir el PDF original amb un renderitzat del títol actual.
+
+**Una factura cobrada no exigeix repetir el moviment.** Si `UUID_PAYMENT` està confirmat i l'únic problema és el text, el tractament documental no crea `CHARGE` ni `REFUND`; només hi haurà un moviment monetari nou si es documenta **un fet econòmic real diferent**. Distingir cobrament real pendent d'emissió i factura ja emesa amb document disponible/pending abans de decidir la comunicació al receptor.
+
+### Proves del concepte multilinia i del llegat (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CO-89-01 | `concepte2` asíncron arriba després que l'usuari confirmi la pantalla | No emetre amb text incomplet; revalidar concepte al servidor. |
+| CO-89-02 | Factura de grup amb error textual només a la línia d'un participant | Identificar `UUID_FACTURA` i línia exacta; decisió UC-74 sense reescriure resta de línies. |
+| CO-89-03 | Canvia títol al catàleg després de factura original emesa | Concepte/PDF/hash originals intactes; no regeneració amb títol actual. |
+| CO-89-04 | Builder rectificatiu rep un concepte nou sense ID de línia afectada | Classificació i relació documental verificades; no donar per feta una correcció automàtica per línia. |
+| CO-89-05 | Cobrament bancari confirmat i petició purament textual | Cap segon `CHARGE` ni `REFUND` per canviar paraules. |
+
 ## UML de casos d'ús
 
 ```plantuml
