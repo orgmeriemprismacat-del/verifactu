@@ -36,6 +36,27 @@
 
 **Decisió tècnica pendent:** fer un resultat per relació (`UPDATED`, `ALREADY_SYNCED`, `NOT_FOUND`, `CONFLICT`), checkpoint idempotent i incidència amb correlació. Aquests valors són **proposta**, no retorn actual del servei `void`.
 
+### 1.3. Contracte amb «Passar pagaments» i la factura prèvia del llegat
+
+**Situació operativa recuperada.** El circuit de `/alumnes/pagaments/` pot arribar a executar `efectuarPagament()`, amb vies diferents per inscripció (`I`), grup (`G`), pack (`P`) o regal (`R`). Els resums històrics de l'operació s'han expressat a `inscripcions.PAGAMENT`, `DATA PAG`, `FRACCIO` i `FACTURA_RELACIONADA`; la pantalla «Generar factura abans de pagar» també pot seleccionar **diverses** inscripcions de la mateixa edició en una sola factura d'empresa/responsable. El contracte final de migració exigeix que aquests camps es tractin com a **compatibilitat després de confirmar** la factura/cobrament SIF. No s'han de deduir un nou `CHARGE` ni una segona factura a partir d'un resum llegat encara no actualitzat.
+
+**Límit concret del servei actual.** `LegacySyncService::syncAfterSifSuccess()` només transmet identificador de factura, número, estat de cobrament i relacions `INSCRIPCIO`; `LegacySyncRepository::syncInscripcioSummary()` només escriu `FACTURA_RELACIONADA=COALESCE(...)` i afegeix una nota a `OBSERVACIONS`. **No actualitza `PAGAMENT`, `DATA PAG`, `FRACCIO`, estat de matrícula ni una relació UUID estructurada al llegat.** Tampoc comprova que un `UPDATE` de la inscripció hagi afectat una fila: el mètode `void` no és prova de sincronització material.
+
+**Confirmació de cada membre de grup/pack.** La sincronització de N relacions és un bucle d'UPDATE: registrar resultat independent per `ID_INSC`, `UUID_FACTURA` i versió de l'event, i informar quines inscripcions s'han actualitzat realment, quines no existeixen i quines ja tenen `FACTURA_RELACIONADA` conflictiva. Una incidència a la tercera inscripció no anul·la la factura SIF ni justifica repetir les primeres dues notes. En una factura prèvia encara **sense ingrés**, no sincronitzar `PAGAMENT` o `DATA PAG` com si s'hagués cobrat per la mera presència d'un UUID fiscal.
+
+**Retorn del cobrament parcial i reintents.** Quan es confirma una transferència o fracció, el resum individual s'ha de derivar dels moviments reals i de les atribucions aprovades de `UUID_PAYMENT`; `fact_rels` tot sol no determina quina part s'ha cobrat per cada inscripció. Reintentar la mateixa operació de sincronització no ha de concatenar de nou `SIF NUM_VISIBLE ESTAT UUID_FACTURA` a `OBSERVACIONS`, i un estat de cobrament que ha canviat no pot quedar representat únicament amb notes acumulades contradictòries.
+
+### 1.4. Proves de sincronització funcional (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| SL-01 | Factura abans de cobrar, N inscripcions | Relacions fiscals enllaçades; cap cobrament llegat fingit. |
+| SL-02 | `syncAfterSifSuccess` es repeteix amb el mateix UUID | Cap segona nota ni segona factura; resultat idempotent per inscripció (pendent d'implementar). |
+| SL-03 | Una inscripció del grup no existeix al llegat | Informar `NOT_FOUND` real en lloc de donar per bona l'execució de l'UPDATE. |
+| SL-04 | `FACTURA_RELACIONADA` ja apunta a un altre document | `CONFLICT` revisable, no donar per sincronitzat el nou UUID pel simple `COALESCE`. |
+| SL-05 | SIF ha confirmat pagament i el resum/accés acadèmic fallen | Retenir `UUID_PAYMENT/UUID_FACTURA` i reparar només les fases fallides. |
+| SL-06 | Pack o grup actualitzat parcialment abans d'un error | Reconciliació per `ID_INSC`, sense repetir imports o notes ja confirmats. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
