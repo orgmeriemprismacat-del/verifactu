@@ -276,6 +276,68 @@ end
 
 **Observació de fiabilitat:** el resultat fiscal i el marcador `PROCESSED` són operacions separades. Si s'ha confirmat la factura/pagament però falla el canvi d'estat del job, la repetició depèn de la idempotència i dels mecanismes de recuperació, no d'un rollback únic de tot el circuit.
 
+### 5.1. Acció independent: constatar que el callback cobrat ha generat un resultat fiscal i econòmic complet — PHP parcial / DISSENY
+
+**Actor/disparador:** després que el handler del worker retorni un array, es vol donar per completat el processament d'un **cobrament TPV validat**. **Precondicions objectiu:** `DS_ORDER` i intenció/notificació verificats; `UUID_FACTURA` real, cobertura i receptor coherents; `UUID_PAYMENT` del moviment `CHARGE` original amb assignació a la factura apropiada; estat de resultat i propietat de l'intent de cua verificats. **Postcondició:** confirmació de la fase fiscal/econòmica o incidència de conciliació; la disponibilitat del PDF, el resultat AEAT i la sincronització de matrícula són fases **independents**.
+
+**Límit de codi comprovat:** `RedsysCallbackWorker::runOne()` considera que el retorn de `RedsysJobProcessor::process()` és suficient per cridar `markProcessed()`. No valida `result['ok']` ni exigeix que existeixin `uuid_factura`/`uuid_payment`. `markProcessed()` accepta `result['uuid_factura'] ?? null` i `result['uuid_payment'] ?? null`. Per tant, `redsys_callback_queue.STATUS=PROCESSED` **no és, per si sol, prova que s'hagi persistit un ingrés atribuït a la factura**; s'ha d'anar a les taules de factura/pagament/assignacions. A més, recuperar un lock de més de 15 minuts no garanteix que hagi mort el primer worker: les marques finals només exigeixen `STATUS=PROCESSING`, sense contrast de `LOCKED_BY` o generació (UC-52).
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker Redsys" as W
+actor "Gestió d'incidències" as G
+rectangle "SIF PrisMa — UC-03 / COMPROVAR EFECTES" {
+ usecase "Comprovar resultat de callback processat" as Check
+ usecase "Contrastar factura fiscal i\nDS_ORDER de l'intent" as F
+ usecase "Contrastar CHARGE, UUID_PAYMENT\ni assignació real a factura" as P
+ usecase "Marcar PROCESSED només amb\nresultat íntegre i token vigent" as Finish
+ usecase "UC-52/53\nConciliar efectes incomplets" as Review
+}
+W --> Check
+Check ..> F : <<include>>
+Check ..> P : <<include>>
+Check ..> Finish : <<include>> [DISSENY]
+G --> Review
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor W as Worker
+participant H as RedsysCallbackDispatcher/handler [PHP]
+participant V as RedsysJobResultValidator [DISSENY]
+participant F as factura + fact_rels + registres [LECTURA]
+participant P as payment_transaction/allocation [LECTURA]
+participant Q as RedsysCallbackQueueRepository [PHP]
+W->>H: process(J amb DS_ORDER validat)
+H-->>W: result array
+W->>V: verify(J,result,claimToken) [PENDENT]
+alt result.ok absent/false o no hi ha factura
+ V-->>W: ERROR/RECONCILE; no marcar pagat
+else Factura aparentment emesa
+ V->>F: Verificar UUID_FACTURA, receptor/cobertura i ordre original
+ V->>P: Verificar UUID_PAYMENT, CHARGE i assignacions coherents
+ alt Cobrament absent, assignat a altra factura o quantia discrepant
+  P-->>V: PAYMENT_MISSING/CONFLICT
+  V-->>W: UC-02/56/53, cap PROCESSED econòmic fals
+ else Resultat íntegre i propietat del job vigent
+  P-->>V: UUID_FACTURA i UUID_PAYMENT verificats
+  W->>Q: markProcessed(J,result,temps de finalització) [token PENDENT]
+  Q-->>W: Job PROCESSED; AEAT/PDF/sync llegada continuen independents
+ end
+end
+Note over V,Q: El PHP actual fa markProcessed directament en rebre qualsevol array. Validació d'efectes i fencing són objectiu.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RA-03-07 | El processador retorna `ok=true` sense `uuid_payment` per una venda TPV cobrada | Job pendent de conciliació, no resultat de cobrament complet per la sola marca PROCESSED. |
+| RA-03-08 | El processador retorna `uuid_payment` aliè a `uuid_factura` de la mateixa ordre | Detectar assignació contradictòria abans de donar èxit al circuit. |
+| RA-03-09 | El worker A supera 15 minuts i B reclama el mateix job, però A retorna abans que B | Resultat terminal només de l'intent vigent, o incidència controlada per intent obsolet; no sobrescriure B amb A. |
+| RA-03-10 | Factura prèvia amb clau diferent existeix abans de processar el callback | Comprovar cobertura abans d'emetre; assignar ingrés únic a factura real original o obrir incidència, sense duplicar-la. |
+
 ## 6. Traçabilitat i punts pendents
 
 [Fitxa anterior UC-03](../06-fitxes-funcionals/uc-003.md) · [Catàleg d'actors i casos](../04-estat-final/33-casos-us-sif.md) · [Diagrames generals](../04-estat-final/31-diagrames-classes-sif.md) · [RedsysCallbackService](../../sif/src/Service/RedsysCallbackService.php) · [RedsysSignatureValidator](../../sif/src/Service/RedsysSignatureValidator.php) · [RedsysNotificationRepository](../../sif/src/Repository/RedsysNotificationRepository.php) · [RedsysCallbackQueueRepository](../../sif/src/Repository/RedsysCallbackQueueRepository.php) · [RedsysCallbackWorker](../../sif/src/Service/RedsysCallbackWorker.php) · [RedsysCallbackDispatcher](../../sif/src/Service/RedsysCallbackDispatcher.php) · [RedsysAsyncFlowTest](../../sif/tests/Integration/RedsysAsyncFlowTest.php).
