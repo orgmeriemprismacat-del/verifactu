@@ -26,6 +26,27 @@
 
 **Proves:** pagament fet just abans d'un recordatori, grup empresa, email compartit, canvi d'edició encara pendent de Moodle, token documental caducat, dues tasques programades simultànies, canvi de consentiment comercial i timeout de canal després d'enviar.
 
+### Recordatoris de deute del llegat, pròrrogues i canvi d'estat abans de l'enviament
+
+**Punts del llegat que originen un avís.** El procediment d'intranet identifica les rutes de `primera-reclamacio`, `reclamacio-final` i `morosos`, i les consultes `cnsCursosRecordarPag`, `cnsAlumnesRecordarPag`, `cnsRegBaixesSegonaSetnaba`, `cnsAlumnClaimPag`, `cnsAlumnClaimEntMoros` i les variants d'alumnes morosos amb o sense certificat. Els camps `reclamat/data_reclamacio/pag_observacions` són **seguiment administratiu antic**, no una fila `notification_outbox` ni evidència de recepció de correu. El servei `ClaimPaymentService` només registra el cobrament real d'una reclamació sobre una factura existent: **no programa ni envia els avisos** d'aquestes pantalles.
+
+**Revalidar en el moment que surt el missatge.** Entre el càlcul de `cnsAlumnesRecordarPag` i l'enviament poden arribar una transferència `UUID_PAYMENT`, un callback Redsys en cua, una pròrroga UC-96, una baixa amb decisió econòmica pendent o una nova responsabilitat de pagament per factura d'empresa. Abans de cada enviament, rellegir factura real, assignacions, cobrament extern incert, estat acadèmic, venciment aprovat i titular/contacte de la comunicació; si l'objectiu de l'avís ha canviat, **cancel·lar o reformular** la notificació pendent, no repetir una plantilla antiga. Si el cobrament s'ha confirmat però encara falla el resum llegat, reparar UC-47/53 i no reclamar de nou pel valor antic de `PAGAMENT`.
+
+**Distingir pagar de poder entrar al curs.** PrisMa documenta que **no s'ha de bloquejar l'accés a una via de pagament d'una persona morosa**; això no determina automàticament si conserva el dret d'accés a Moodle o al certificat, que requereix decisió UC-95/124. Si l'empresa és responsable de la factura del grup, l'avís del deute va al pagador/representant autoritzat amb la URL corresponent: no enviar als participants ni l'import complet ni el PDF de l'empresa per tenir el mateix `IDPAG`. Els avisos de baixa acadèmica no han d'afirmar «baixa feta» o «accés retirat» mentre el destí Moodle no hagi confirmat la fase.
+
+**Prova de transport i abast.** `notification_outbox`/`notification_delivery_attempt` són esquemes objectiu sense scheduler/worker complet acreditat; una marca `SENT` indica un resultat de transport registrat, no que el destinatari hagi llegit o obert el missatge. El correu operatiu de reclamació no és consentiment per rebre promocions UC-125. Guardar la causa i el període lògics de cada avís per evitar duplicats en un reintent, però no deduir del nom `cnsRegBaixesSegonaSetnaba` la cadència exacta de la política de «segona setmana».
+
+### Proves addicionals dels recordatoris (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AV-43-01 | Un recordatori és a la cua i arriba el pagament real | Cancel·lació/revisió de l'avís abans d'enviar; cap reclamació d'un deute ja saldat. |
+| AV-43-02 | Pròrroga UC-96 activa quan venç l'avís antic | Comprovar regla i data aprovades, no enviar escalat sobre un venciment anterior. |
+| AV-43-03 | Inscripció coberta per factura d'empresa i IDPAG compartit | Avís i URL a responsable autoritzat; cap PDF complet enviat a participants. |
+| AV-43-04 | Baixa registrada a Prisma però no propagada a Moodle | Comunicar estat real i pendent, no «accés retirat» fictici. |
+| AV-43-05 | Pagament al SIF confirmat, però `web.inscripcions.PAGAMENT=0` | Reconciliar la fase llegada i no generar una segona reclamació bancària. |
+| AV-43-06 | Proveïdor accepta el correu però no hi ha prova de recepció | «Enviat pel canal» i no «llegit/acceptat per destinatari». |
+
 ## UML de casos d'ús
 
 ```plantuml
