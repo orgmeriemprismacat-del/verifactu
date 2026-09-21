@@ -66,6 +66,22 @@ Vegeu [revisió i model proposat de moviments per inscripció](00-revisio-movime
 | EI-05 | Emissió confirmada però PDF/AEAT/sync fallits | Mantenir UUID i número; recuperar la fase fallida sense recrear factura. |
 | EI-06 | Factura existent amb nou cobrament posterior i clau de factura repetida | UC-02 crea/reutilitza només el CHARGE real; UC-01 no crea un nou ingrés a la branca de reús. |
 
+
+### 1.6. Actualització v2 de main: el reús fiscal ja compara tota la petició, amb una excepció econòmica pendent
+
+A main, InvoiceService rep opcionalment PayloadIdempotencyValidatorInterface i l'inicialitza amb PayloadIdempotencyValidator. InvoiceRepository::insertInvoice() desa IDEMPOTENCY_PAYLOAD_HASH de la **petició completa validada**, inclòs el bloc payment quan hi és, i InvoiceService::existingResultWithPaymentIfPresent() crida assertMatches(payload,hashOriginal) **abans de retornar una factura existent**. La migració 2026_09_21_000007_add_idempotency_payload_hashes.sql incorpora aquesta columna nullable: les factures prèvies sense fingerprint original **fallaran tancat** en reús, perquè no és possible reconstruir tota la petició des del registre fiscal. Dues peticions amb la mateixa clau i receptor/import/línies/bloc payment diferents es rebutgen amb conflicte; no consumir una nova seqüència fiscal.
+
+**Canvi explícit respecte a la branca documental anterior:** el subtítol 4.2 i les seves frases que diuen que el PHP actual pot reutilitzar K sense comparar el payload només descrivien la versió anterior i **no són certs a main**. El guard contra dos identificadors comercials diferents per una mateixa inscripció, l'autenticació de l'adaptador i la comprovació de cobertura fiscal entre claus **continuen pendents**. El hash de petició d'InvoiceService no és HASH_FACT de la cadena fiscal ni PAYLOAD_HASH de la notificació Redsys.
+
+**Límit econòmic que es conserva a main:** una petició idèntica amb bloc payment sobre una factura preexistent només cerca el pagament inicial per idempotency_key i pot retornar la factura **sense uuid_payment** si aquella partida no existeix. El hash idèntic d'emissió per si sol **no comprova** que el CHARGE/assignació real existeixi ni el registra si falta; el canal ha de conciliar i passar pel cas UC-02 quan correspongui. Reintentar una factura inicialment emesa sense payment amb la mateixa clau però un bloc payment nou ara produeix CONFLICT per payload diferent, en comptes de completar el deute sobre UC-01.
+
+| Prova v2 localitzada a main o pendent | Expectativa |
+| --- | --- |
+| PayloadIdempotencyFlowTest::testInvoiceRetryComparesFullOriginalInputAndPreservesFiscalSequence | Mateixa clau amb payload diferent rebutjat, sense nou número fiscal [prova definida, no executada aquí]. |
+| PayloadIdempotencyFlowTest::testRetryCannotAddAnInitialPaymentToAnAlreadyIssuedInvoice | Reintent que intenta afegir payment al payload original, rebutjat [prova definida, no executada aquí]. |
+| PayloadIdempotencyFlowTest::testOriginalInvoiceWithoutFingerprintFailsClosed | Factura pre-migració sense hash complet no accepta un reús no verificable [prova definida, no executada aquí]. |
+| EI-11 [PENDENT] | Mateix payload fiscal, clau idèntica i payment inicial absent després d'una fallada/alteració històrica: no donar per cobrat només pel reús ni retornar uuid_payment inventat. |
+
 ## 2. Diagrama UML de casos d'ús
 
 Font UML editable PlantUML; l'emissió abans de cobrar i les rectificatives utilitzen el nucli d'emissió però tenen fitxes diferenciades.
@@ -308,7 +324,7 @@ end
 Note over S,DB: InvoiceService::existingResultWithPaymentIfPresent() mai fa createPayment() en reús de factura.
 ```
 
-### 4.2. Acció independent: rebutjar un reintent d'emissió amb mateix identificador però contingut fiscal diferent — DISSENY
+### 4.2. Acció independent: rebutjar un reintent d'emissió amb mateix identificador però contingut fiscal diferent — PHP main amb guard de petició completa; cobertura comercial entre claus pendent
 
 **Actor/disparador:** dues peticions del mateix canal reutilitzen una clau fiscal `K` amb receptor, total, línies, inscripcions o sèrie diferents. **Postcondició exigible:** `CONFLICT` amb referència a la factura original i revisió de possible correcció fiscal UC-74/05; sense nova factura ni mutació de la primera. **PHP actual:** `InvoiceService` cerca `K` i retorna `existingResult()` **sense comparar** el payload nou amb `factura`, `factura_linia` o `fact_rels` persistents. `InvoicePayloadValidator` valida estructura, però no equivalència fiscal respecte de l'original. El fet que `InvoiceRepository` registri un hash del registre fiscal de la primera factura **no** implica que es compari amb el nou payload.
 
