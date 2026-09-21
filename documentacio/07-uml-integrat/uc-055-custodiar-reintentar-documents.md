@@ -116,7 +116,7 @@ class DocumentWorker {
 }
 class InvoiceDocumentAccessService {
  <<DISSENY: no acreditat>>
- +download(actor,documentId) bytes
+ +download(actor,documentId,token) bytes
 }
 DocumentWorker --> DocumentJobRepository : cua
 DocumentWorker --> FiscalDocumentGenerator : generar
@@ -165,7 +165,7 @@ participant Access as InvoiceDocumentAccessService [DISSENY]
 participant Store as PrivateDocumentStore [DISSENY]
 participant Audit as fiscal_document_access [taula definida]
 A->>UI: Sol·licitar documentId
-UI->>Access: download(actor,documentId)
+UI->>Access: download(actor,documentId,token/sessió)
 alt Identitat/visibilitat denegada
  Access->>Audit: Registrar DENIED
  Access-->>UI: Accés denegat sense path
