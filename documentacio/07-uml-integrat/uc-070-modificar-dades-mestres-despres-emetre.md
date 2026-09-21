@@ -6,7 +6,7 @@
 
 `InvoiceRepository::createInvoiceGraph()` conserva `billing`, imports, concepte, detall, edició/relacions aportades al payload i registra `ALTA`, hash i cua AEAT en crear la factura. `LegacyCourseSnapshotRepository::loadByIdpag()` en canvi recupera dades **vives** d'`inscripcions` i `curs`; tornar a construir el payload des del llegat **després de canviar una edició** pot produir un contingut diferent del que es va facturar. El número de factura, línies i registre anteriors **no s'han de reconstruir ni editar** per reflectir una nova denominació o data.
 
-La migració defineix `master_data_change_request` amb `ENTITY_TYPE`, `ENTITY_KEY`, versions base/proposta, `CHANGESET_JSON`, `AFFECTED_OPEN_OPERATIONS_JSON`, decisió, actor i correlació. `personal_data_change_request` cobreix canvis del perfil vigent. **No s'ha acreditat** un `PostIssueMasterDataChangeService` PHP que consulti factures històriques, registri proposta/aprovació i classifiqui els efectes fiscals.
+La migració defineix `billing_profile_history` per conservar versions del perfil fiscal (`UUID_PROFILE_VERSION`, `VERSION_NO`, `BILLING_SNAPSHOT_JSON`, `SNAPSHOT_HASH` i vigència); això no autoritza a actualitzar el receptor d'una factura emesa ni acredita un writer PHP. La migració defineix `master_data_change_request` amb `ENTITY_TYPE`, `ENTITY_KEY`, versions base/proposta, `CHANGESET_JSON`, `AFFECTED_OPEN_OPERATIONS_JSON`, decisió, actor i correlació. `personal_data_change_request` cobreix canvis del perfil vigent. **No s'ha acreditat** un `PostIssueMasterDataChangeService` PHP que consulti factures històriques, registri proposta/aprovació i classifiqui els efectes fiscals.
 
 ## 2. Fitxa funcional específica
 
