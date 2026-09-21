@@ -136,3 +136,11 @@ Note over S,A: L'obertura PHP existeix; triage, assignació i tancament no acred
 ## 6. Traçabilitat
 
 [UC-81 original](../06-fitxes-funcionals/uc-081.md) · [UC-77 cua AEAT](uc-077-operar-enviament-aeat-retry-dead-letter.md) · [UC-78 documents](uc-078-generar-custodiar-pdf-qr-xml.md) · [UC-82 conciliació original](../06-fitxes-funcionals/uc-082.md) · [UC-74 classificar](uc-074-classificar-correccio-fiscal.md) · [IncidentRepository](../../sif/src/Repository/IncidentRepository.php) · [FiscalQueueRepository](../../sif/src/Repository/FiscalQueueRepository.php) · [Migració accions d'incidència](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql).
+
+## Addenda transversal UC-77 — incidència AEAT per rebuig, DLQ o integritat (disseny pendent)
+
+UC-77 ha d'obrir o reutilitzar una incidència correlacionada quan: (a) el hash/identitat del payload difereix del registre immutable o manca una referència fiable, (b) hi ha rebuig formal definitiu, (c) s'esgoten tres intents totals, o (d) la resposta remota és incerta i no es pot retransmetre amb seguretat. Cada causa s'ha de diferenciar i conservar el resultat AEAT **real**; `ESTAT_AEAT=ERROR` local per transport no equival a `REJECTED` remot. El deduplicador utilitza job + registre + causa/event, no només `UUID_FACTURA`, i ha de conservar intents independents.
+
+La reparació autoritzada ha de classificar evidències d'AEAT, resposta/CSV si existeixen, XML, identitat, hash, intent i correlació **abans** de reobrir el mateix job. L'error de xarxa no genera automàticament UC-76 ni una segona ALTA. Quan pertoqui avisar, UC-81 vincula l'alerta idempotent de UC-58; un problema amb l'outbox queda pendent de recuperació sense declarar el missatge enviat. Estat de bloqueig per integritat, assignació automàtica, writer d'accions i recuperació de l'outbox són propostes pendents, no funcionalitat demostrada.
+
+**Traça:** [UC-77 · seqüència i proves UC77-INT-01, UC77-DLQ-05/06](uc-077-operar-enviament-aeat-retry-dead-letter.md#5-uml-de-seqüència--contracte-objectiu-i-diferències-respecte-del-php-actual) · [UC-58](uc-058-gestionar-outbox-notificacions.md).
