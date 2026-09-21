@@ -1,0 +1,139 @@
+# UC-82 · Reconciliar el SIF amb la base de dades llegada
+
+**Objectiu del catàleg:** execució i **items de diferència per UUID, IDPAG, import i estat**, amb resolució traçada. **Estat [DISSENY].** Existeix una escriptura PHP de resum fiscal a `inscripcions`, però no s'ha acreditat un reconciliador bidireccional complet que comprovi factures, pagaments, inscripcions i assignacions individuals.
+
+## 1. Evidència PHP i model SQL
+
+`LegacySyncService::syncAfterSifSuccess()` recorre només les relacions `SOURCE_TYPE=INSCRIPCIO` amb `source_id`, i `LegacySyncRepository::syncInscripcioSummary()` fa `UPDATE inscripcions SET FACTURA_RELACIONADA=COALESCE(FACTURA_RELACIONADA,?), OBSERVACIONS=CONCAT(...)`. Per tant, **no comprova si el camp anterior correspon realment a la factura nova**, no calcula l'import atribuït per inscrit, no actualitza un ledger, no retorna un identificador d'acció i un retry pot tornar a **concatenar la mateixa nota** a `OBSERVACIONS`. Això és una **sincronització parcial de resum**, no una prova de conciliació completa.
+
+`reconciliation_run` defineix `UUID_RUN`, tipus, sistema d'origen, `INPUT_HASH`, clau idempotent, estat, actor, correlació i resum. `reconciliation_item` inclou referència d'origen, `UUID_FACTURA/UUID_PAYMENT`, `RESULT`, codi i JSON de diferència, estat/acció/responsable de resolució i timestamps. **No s'ha acreditat** un writer/parser de l'execució i dels items a `sif/src`. `fact_rels` vincula factura i origen, però no conté una quantitat **pagada per `ID_INSC`**; `payment_allocation` assigna un `UUID_PAYMENT` a factura, no als participants.
+
+## 2. Fitxa funcional específica
+
+| Unitat | Regla |
+| --- | --- |
+| Actor i perímetre | Operador autoritzat, treball tècnic idempotent i gestió que resol discrepàncies; definir finestra, tipus d'origen, curs/edició i abast històric. Les dues BDs poden tenir cicles de disponibilitat diferents. |
+| Clau d'equivalència | `UUID_FACTURA/NUM_VISIBLE`, `fact_rels.SOURCE_TYPE/SOURCE_ID/IDPAG/DS_ORDER`, `UUID_PAYMENT`, referència bancària i `ID_INSC` verificat. **No** fusionar intents Redsys diferents perquè comparteixen `IDPAG`; tampoc deduir titularitat d'un email compartit. |
+| Comparació fiscal | Factura i receptor originals, línies i total, document/estat AEAT, rectificatives i estat de cobrament. La dada del llegat `FACTURA_RELACIONADA` o un text a `OBSERVACIONS` poden ser obsolets i no autoritzen editar la factura emesa. |
+| Comparació bancària | `payment_transaction` (moviments reals), `payment_allocation` (per factura), notifications Redsys i dades llegades de pagament. Un `PAGAMENT=1` o `A_PAGAR` llegat **no demostra per si sol** un ingrés bancari SIF i no autoritza crear un `CHARGE` retrospectiu. |
+| Comparació individual | Si una factura cobreix diverses inscripcions, quantificar **per participant** import inicial, tram cobrat, retornat i traspàs intern. La traça `enrollment_fund_movement` és **proposta no implementada**: la conciliació actual no pot certificar matemàticament aquests imports només amb `fact_rels`. |
+| Resolució | Guardar un item per diferència, font i valor **abans/després**, regla, actor, causa i estat; reparar exclusivament el sistema/camp correcte. Una acció sobre factura emesa requereix UC-74, un cobrament real UC-02/28 i la matrícula Moodle UC-129. |
+| Invariants | Reconciliar no crea factura nova ni cap `CHARGE/REFUND` sense evidència real. La factura original no s'edita per fer quadrar el llegat; `OBSERVACIONS` tampoc substitueix les taules de fons. |
+
+### Flux propi
+
+1. Obrir una execució versionada i idempotent amb abast, `INPUT_HASH`, actor i correlació. Capturar **snapshots comparables** del SIF i del llegat, incloent imports, dates, estat i referències; no comparar un instant SIF d'avui amb un export llegat d'ahir sense marcar la diferència temporal.
+2. Relacionar cada factura amb els seus `fact_rels`, cada pagament amb les assignacions, cada `IDPAG` amb intents `DS_ORDER` **diferents** i cada `ID_INSC` amb la seva línia/origen. Registrar casos orfes, duplicats, imports/estats divergents i factures històriques `NO_VERIFACTU`.
+3. Crear `reconciliation_item` per discrepància (writer pendent), amb severitat, import exacte quan correspongui, evidència de banc/AEAT i estat pendent. No comptar com a discrepància falsa un pagament fraccionat vàlid amb dos `DS_ORDER` per `IDPAG`.
+4. Per cada item, classificar el **sistema que és font** del fet: AEAT per resposta fiscal efectiva, SIF per registres fiscals i assignació central, banc/Redsys per moviment extern real, Prisma per situació acadèmica; la política de conflictes es defineix per camp, no preval una BD única sobre totes les dimensions.
+5. Aplicar reparació concreta i idempotent: sincronitzar de nou el resum llegat sense concatenacions duplicades (canvi PHP pendent), revisar assignació de pagament UC-56/105, corregir fiscalment per UC-74 quan procedeixi o derivar baixa/accés a UC-124/129. Una actualització directa de la taula `factura` queda fora del procediment.
+6. Tornar a consultar **ambdues fonts** després de la reparació, registrar `RESOLUTION_STATUS` i evidència al mateix item i recalcular el resum de l'execució. Si queda un recurs en conflicte, mantenir incidència UC-81; no declarar conciliació total perquè s'ha completat la tasca de lectura.
+
+### Alternatives i proves
+
+| Escenari | Resultat |
+| --- | --- |
+| Mateix `IDPAG` amb dos pagaments fraccionats de `DS_ORDER` diferents | Dos moviments externs **si** tots dos estan confirmats; suma coherent per factura, no reús d'un dels cobraments ni dues factures del total. |
+| Retry de `LegacySyncService` | Detectar nota SIF ja afegida a `OBSERVACIONS` i exigir sincronització llegat idempotent; **el PHP actual concatena una nota nova**. |
+| Factura d'empresa amb tres inscrits | Una factura i potser un únic `CHARGE`; no afirmar que els tres estan cobrats individualment a partir de tres `fact_rels` sense imports. |
+| SIF factura emesa, llegat `FACTURA_RELACIONADA` apunta a altra factura | Conflicte documentat; `COALESCE` del writer no el corregeix i no justifica sobreescriure número/UUID fiscals. |
+| Llegat diu «pagat» sense UUID_PAYMENT ni evidència externa | Incidència de conciliació i recerca de banc/TPV, **no** import fictici automàtic. |
+| Divergència després de baixa acadèmica amb ingrés real | Preservar ingrés bancari original, classificar moviment/retorn i actualitzar estat acadèmic per via separada. |
+
+**Pendents:** worker/repository de lots i items, origen de dades llegades, política de conflictes, timestamps estables, consulta d'AEAT/TPV, ledger quantitatiu d'inscripcions i correcció d'idempotència de `LegacySyncRepository`. Sense proves end-to-end executades.
+
+## 3. UML de casos d'ús
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió de conciliació" as G
+actor "SIF / base llegada" as B
+rectangle "SIF · conciliació inter-BD" {
+ usecase "UC-82\nReconciliar SIF i llegat" as Main
+ usecase "Comparar factura, pagament i inscripció" as Compare
+ usecase "Registrar diferències per item" as Items
+ usecase "Classificar reparació i font del fet" as Decide
+ usecase "Verificar i tancar cada item" as Verify
+}
+G --> Main
+B --> Compare
+Main ..> Compare : <<include>>
+Main ..> Items : <<include>>
+Main ..> Decide : <<include>>
+Main ..> Verify : <<include>> (reparació executada)
+@enduml
+```
+
+## 4. UML de classes — sync PHP parcial vs conciliador pendent
+
+```mermaid
+classDiagram
+class SifLegacyReconciliationService {
+ <<DISSENY: no acreditat>>
+ +compare(scope) differences
+ +resolve(itemId,decision) result
+}
+class ReconciliationRunRepository {
+ <<DISSENY: reconciliation_run SQL definit>>
+ +createOrReuse(db,scope) run
+}
+class ReconciliationItemRepository {
+ <<DISSENY: reconciliation_item SQL definit>>
+ +append(db,difference) item
+ +recordResult(db,item,resolution) result
+}
+class LegacySyncService {
+ <<PHP existent: resum, NO conciliació>>
+ +syncAfterSifSuccess(legacyDb,relations,uuidFactura,numVisible,estatCobrament) void
+}
+class LegacySyncRepository {
+ <<PHP existent: CONCAT d'OBSERVACIONS>>
+ +syncInscripcioSummary(legacyDb,idInsc,facturaRelacionada,uuidFactura,numVisible,estatCobrament) void
+}
+class EnrollmentFundMovementRepository {
+ <<PROPOSTA: ledger individual no implementat>>
+ +balanceForEnrollment(db,idInsc) decimal
+}
+SifLegacyReconciliationService --> ReconciliationRunRepository : execució
+SifLegacyReconciliationService --> ReconciliationItemRepository : diferències
+SifLegacyReconciliationService ..> LegacySyncService : reparar resum [adaptació pendent]
+LegacySyncService --> LegacySyncRepository : write parcial existent
+SifLegacyReconciliationService ..> EnrollmentFundMovementRepository : atribució individual pendent
+```
+
+## 5. UML de seqüència — nota duplicada i estat bancari divergent (DISSENY/PARCIAL)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant S as SifLegacyReconciliationService [DISSENY]
+participant R as reconciliation_run / item [SQL]
+participant F as SIF factura + payment_allocation
+participant L as BD Prisma inscripcions
+participant B as Banc/Redsys verificat
+participant W as LegacySyncService [PHP]
+G->>S: Conciliar edició amb INPUT_HASH i correlació
+S->>R: createOrReuseRun(scope)
+S->>F: Llegir factures, registres, UUID_PAYMENT i assignacions
+S->>L: Llegir ID_INSC, FACTURA_RELACIONADA i OBSERVACIONS
+S->>B: Consultar evidència d'ingrés extern si cal
+S->>R: append(diferència per UUID/IDPAG/import/estat)
+G->>S: Aprovar reparació individual amb fonts verificades
+alt Només resum llegat desactualitzat
+ S->>W: syncAfterSifSuccess(relations,...)
+ W->>L: UPDATE FACTURA_RELACIONADA i CONCAT OBSERVACIONS
+ Note over W,L: PHP actual pot duplicar la nota en reintents; reparar idempotència
+else Pagament o titular no acreditat
+ S->>R: Incidència/pendent; NO crear CHARGE fictici
+end
+S->>F: Rellegir resultat fiscal i econòmic
+S->>L: Rellegir estat llegat
+S->>R: recordResult(resultat real per item)
+S-->>G: Resolts/pendents, sense alterar factura original
+```
+
+## 6. Traçabilitat
+
+[UC-82 original](../06-fitxes-funcionals/uc-082.md) · [UC-53 divergències](uc-053-detectar-resoldre-divergencies.md) · [UC-81 incidències](uc-081-cicle-complet-incidencia.md) · [UC-105 fons](uc-105-reassignar-repartir-pagament.md) · [UC-129 Moodle](uc-129-reconciliar-prisma-moodle-matricules.md) · [LegacySyncService](../../sif/src/Service/LegacySyncService.php) · [LegacySyncRepository](../../sif/src/Repository/LegacySyncRepository.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [Migració de conciliació](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql) · [Model individual de diners](00-revisio-moviments-inscripcions.md).
