@@ -132,7 +132,7 @@ F-->>H: Un registre REJECTED
 H->>B: Consultar fitxers, restauració i versió
 B-->>H: Estat UNKNOWN d'algun circuit no implementat
 H->>I: Alertar per REJECTED i manca de verificació
-H-->>O: Salut parcial/degradada; NO inferir GO de SENT=20
+H-->>O: Salut parcial/degradada, NO inferir GO de SENT=20
 Note over H,B: L'agregador i les probes de documents/backups/runtime no estan acreditades.
 ```
 
