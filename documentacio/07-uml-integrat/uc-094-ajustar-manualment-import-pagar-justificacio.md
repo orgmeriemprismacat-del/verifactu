@@ -72,6 +72,29 @@ Money ..> Main : <<extend>> (ingrés amb diferència)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió"]
+  actor_1["Aprovador autoritzat"]
+  subgraph SIF_BOX["SIF · ajust manual d'import"]
+    uc_0(["UC-94<br/>Ajustar import amb causa"])
+    uc_1(["Comprovar estat d'oferta/factura/ingrés"])
+    uc_2(["Comparar imports per línia i inscrit"])
+    uc_3(["Registrar abans/després i aprovador"])
+    uc_4(["UC-74<br/>Decidir document corrector"])
+    uc_5(["UC-28/29/105<br/>Resoldre fons reals"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+  uc_5 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
@@ -152,6 +175,23 @@ Preview ..> Separate : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió"]
+  subgraph SIF_BOX["SIF PrisMa — proposta de canvi d'import (DISSENY)"]
+    uc_0(["UC-94 / PREVIEW<br/>Previsualitzar import proposat"])
+    uc_1(["Validar ID_INSC, línia, versió i permís"])
+    uc_2(["Llegir factura/assignacions i oferta actual"])
+    uc_3(["Distingir descompte, import cobrat i deute"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -204,6 +244,27 @@ note right of Decide
  cobrament, devolució ni nova factura.
 end note
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió proponent"]
+  actor_1["Responsable aprovador"]
+  subgraph SIF_BOX["SIF PrisMa — decisió d'import (DISSENY)"]
+    uc_0(["UC-94 / APPROVE<br/>Aprovar o denegar proposta"])
+    uc_1(["Validar permisos i versió<br/>de la proposta"])
+    uc_2(["Registrar event abans/després,<br/>motiu i actor"])
+    uc_3(["UC-74<br/>Classificar impacte en factura emesa"])
+    uc_4(["UC-63<br/>Preparar nova oferta/intenció TPV"])
+  end
+  actor_0 --> uc_1
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_3
+  actor_1 --> uc_4
 ```
 
 ```mermaid
@@ -266,6 +327,25 @@ R --> Late
 G --> Late
 G --> Excess
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió autoritzada"]
+  actor_1["Redsys"]
+  subgraph SIF_BOX["SIF PrisMa — intenció antiga i oferta nova"]
+    uc_0(["UC-94 / PREU ACTUALITZAT<br/>Gestionar ordre TPV prèvia"])
+    uc_1(["UC-63<br/>Crear DS_ORDER nova per l'oferta"])
+    uc_2(["UC-51<br/>Conciliar callback d'ordre anterior"])
+    uc_3(["UC-104<br/>Classificar excés de diner real si n'hi ha"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  actor_1 --> uc_2
+  actor_0 --> uc_2
+  actor_0 --> uc_3
 ```
 
 ```mermaid
