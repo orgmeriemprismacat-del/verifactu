@@ -183,6 +183,180 @@ else Identitat/visibilitat autoritzada
 end
 ```
 
+### 5.1. Acció independent: encolar un document després de confirmar la factura — DISSENY
+
+**Disparador:** `InvoiceService` ja ha confirmat la factura o s'ha autoritzat generar una representació que no existeix. **Actor:** procés documental; el client o el worker no pot crear un nou número fiscal per aconseguir un PDF. **Entrades:** `UUID_FACTURA`, `DOCUMENT_TYPE`, `GENERATOR_VERSION`, referència a la font fiscal congelada, `REQUEST_ID` i correlació. **Postcondició:** exactament un job pendent per la **mateixa petició lògica** o recuperació del job preexistent; no s'afirma disponibilitat dels bytes ni acceptació AEAT. `document_job.IDEMPOTENCY_KEY` és única al SQL, però la taula **no imposa** `UNIQUE(UUID_FACTURA,DOCUMENT_TYPE,GENERATOR_VERSION)`: la política de versió i la clau del productor han de determinar si dues peticions són equivalents o dues representacions diferents.
+
+```plantuml
+@startuml
+left to right direction
+actor "Procés després de commit factura" as P
+actor "Responsable documental" as R
+rectangle "SIF PrisMa — UC-55 / ENCOLAR [DISSENY]" {
+ usecase "Programar generació d'un document\nper factura/tipus/versió" as Enqueue
+ usecase "Comprovar factura confirmada\ni snapshot immutable" as Check
+ usecase "Distingir reintent equivalent\nde nova versió autoritzada" as Idp
+ usecase "Registrar document_job pendent" as Save
+}
+P --> Enqueue
+R --> Enqueue
+Enqueue ..> Check : <<include>>
+Enqueue ..> Idp : <<include>>
+Enqueue ..> Save : <<include>> [si no existeix job equivalent]
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+participant A as Adaptador després de COMMIT [PENDENT]
+participant F as Consulta factura/snapshot immutable [LECTURA]
+participant J as DocumentJobRepository [DISSENY]
+participant DB as document_job [SQL definit]
+A->>F: Consultar UUID_FACTURA confirmat, tipus i versió aprovada
+alt Factura absent, tipus no admès o instant anterior al commit
+ F-->>A: Denegar l'encolat; cap nova emissió fiscal
+else Factura existent
+ F-->>A: Font congelada i identificadors persistents
+ A->>J: enqueue(UUID_FACTURA,tipus,versió,requestId)
+ J->>DB: Cercar IDEMPOTENCY_KEY i contrastar dades
+ alt Reintent equivalent
+  DB-->>J: UUID_JOB preexistent
+  J-->>A: Reutilitzar job/estat sense document duplicat
+ else Mateixa clau però factura/tipus/versió diferents
+  DB-->>J: CONFLICT
+  J-->>A: Incidència, no reutilitzar resultat aliè
+ else Clau nova amb petició legitimada
+  J->>DB: INSERT document_job STATUS=PENDING [OBJECTIU]
+  DB-->>J: UUID_JOB
+  J-->>A: Job acceptat, document encara no disponible
+ end
+end
+Note over A,DB: El SQL té clau única de job; no s'ha acreditat productor/enqueue PHP ni el guard de payload.
+```
+
+### 5.2. Acció independent: recuperar un job amb resultat incert després d'escriure els bytes — DISSENY
+
+**Disparador:** el worker cau entre l'escriptura en storage privat, l'alta de `factura_documents` i el marcatge `document_job.STATUS=COMPLETED`. **Precondició:** mateixa factura, tipus, versió i `UUID_JOB` originals. **Postcondició:** reconciliar el fitxer real, `HASH_FITXER`, `FACTURA_DOCUMENT_ID` i `OUTPUT_HASH`; si ja hi ha document idèntic, recuperar-lo en lloc de generar-ne un altre, i si hi ha dues representacions divergents, bloquejar la publicació i registrar incidència. Un `UNIQUE(IDEMPOTENCY_KEY)` del job **no** protegeix per si sol de dobles `INSERT factura_documents`, ja que `DocumentRepository::registerDocument()` insereix un registre nou per cada crida i no cerca `UUID_JOB` ni un document equivalent.
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker documental" as W
+actor "Responsable tècnica" as R
+rectangle "SIF PrisMa — UC-55 / RECUPERAR [DISSENY]" {
+ usecase "Recuperar un job documental incert" as Recover
+ usecase "Revalidar storage, bytes i SHA-256" as Hash
+ usecase "Localitzar metadata/document preexistents" as Existing
+ usecase "Finalitzar job o obrir incidència" as Finish
+}
+W --> Recover
+R --> Finish
+Recover ..> Hash : <<include>>
+Recover ..> Existing : <<include>>
+Recover ..> Finish : <<include>>
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor W as Worker/operador autoritzat
+participant J as DocumentJobRepository [DISSENY]
+participant Store as PrivateDocumentStore [DISSENY]
+participant D as DocumentRepository [PHP: insert metadata]
+participant DB as document_job + factura_documents [SQL]
+participant I as Incidència custòdia [DISSENY]
+W->>J: recover(UUID_JOB) amb lock/versió
+J->>DB: Llegir job, factura, tipus, versió, hash i documentId
+J->>Store: Comprovar storage key i hash dels bytes físics
+alt Bytes absents o hash diferent de la font acceptada
+ Store-->>J: NOT_FOUND/MISMATCH
+ J->>I: Registrar incidència; no mostrar document com a disponible
+ J-->>W: ERROR/PENDING_REVIEW sense tocar factura fiscal
+else Bytes íntegres
+ Store-->>J: Bytes i hash real
+ J->>DB: Consultar document preexistent per job i hash
+ alt Metadata existent per mateix fitxer i font immutable
+  DB-->>J: FACTURA_DOCUMENT_ID i hash coherents
+  J->>DB: Lligar job al document i marcar complet [OBJECTIU]
+  J-->>W: Reús del document existent
+ else Metadata absent i cap document contradictori
+  J->>D: registerDocument(db,uuidFactura,tipus,path,bytes) [PHP existent]
+  D->>DB: INSERT factura_documents CREATED
+  DB-->>D: Metadades inserides sense garantia pròpia de storage
+  J->>DB: Enllaçar documentId i OUTPUT_HASH, COMMIT [OBJECTIU]
+  J-->>W: Document recuperat i custòdia verificada
+ else Metadata preexistent però hash/factura/versió contradictoris
+  J->>I: Bloquejar publicació i investigar origen dels bytes
+  J-->>W: CONFLICT sense regenerar o reemplaçar l'original
+ end
+end
+Note over J,DB: No existeix al PHP acreditat el worker, la cerca de metadata equivalent ni una transacció atòmica amb storage. La recuperació és disseny.
+```
+
+### 5.3. Acció independent: comprovar disponibilitat i integritat abans de publicar el document — UC-55/80, DISSENY
+
+**Disparador:** el panell anuncia una factura prèvia com a descarregable, una notificació vol adjuntar-ne el PDF, o un operador revisa una incidència de custòdia. **Actors:** procés de publicació/consulta i receptor només després del control UC-80. **Resultat:** disponibilitat **verificada** per a la versió/document correctes, o estat `PENDING/ERROR` amb incidència i sense entregar cap path/bytes. Aquest és un control de custòdia, **no substitueix** l'autorització per actor de UC-80.
+
+```plantuml
+@startuml
+left to right direction
+actor "Procés de notificació / panell" as P
+actor "Responsable documental" as R
+rectangle "SIF PrisMa — comprovació documental [DISSENY]" {
+ usecase "UC-55 / VERIFICAR\nComprovar disponibilitat de l'artefacte" as Verify
+ usecase "Verificar path privat i SHA-256 dels bytes" as Hash
+ usecase "Comprovar UUID_FACTURA, tipus\ni versió/document autoritzat" as Metadata
+ usecase "UC-80\nAutoritzar accés de l'actor" as Access
+}
+P --> Verify
+R --> Verify
+Verify ..> Hash : <<include>>
+Verify ..> Metadata : <<include>>
+P --> Access
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor P as Panell/notificació
+participant V as DocumentAvailabilityService [DISSENY]
+participant DB as factura_documents + document_job [SQL]
+participant Store as Storage privat [DISSENY]
+participant A as UC-80 autorització d'accés [DISSENY]
+P->>V: Comprovar documentId i UUID_FACTURA per publicar
+V->>DB: Llegir metadata, font fiscal, tipus, versió/job i OUTPUT_HASH
+alt Sense document/job o metadata només declarada
+ DB-->>V: PENDING/UNKNOWN
+ V-->>P: No mostrar enllaç/adjunt com a disponible
+else Referència existent
+ V->>Store: Llegir bytes del path privat i SHA-256 real
+ alt Fitxer absent, corrupte o versió incorrecta
+  Store-->>V: NOT_FOUND/HASH_MISMATCH
+  V-->>P: Bloquejar publicació, obrir incidència i reparar UC-55
+ else Bytes i versió coherents
+  Store-->>V: VERIFIED
+  V-->>P: Artefacte disponible (sense bytes ni URL pública)
+  opt El receptor sol·licita descàrrega
+   P->>A: authorize(actor,documentId,READ) per UC-80
+   A-->>P: Servei segur o DENIED; disponibilitat no concedeix permís
+  end
+ end
+end
+Note over V,Store: DocumentRepository només desa metadata i hash dels bytes rebuts; el verificador d'storage és DISSENY.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| DC-55-01 | Dos encolats mateixa factura/tipus/versió i petició equivalent | Un UUID_JOB; cap doble representació atribuïda al reintent. |
+| DC-55-02 | Job escrit en storage, metadades inserides, crash abans de marcar COMPLETED | Reprendre amb mateix document i hash; cap segon `factura_documents`. |
+| DC-55-03 | Dos workers recuperen el mateix job parcial en paral·lel | Una única finalització i referència, amb incidència si divergeix el contingut. |
+| DC-55-04 | Metadata `CREATED` però fitxer no existeix | `PENDING/ERROR` verificable, sense accés al document, encara que el PDF sigui urgent. |
+| DC-55-05 | Fitxer físic present amb bytes diferents del `HASH_FITXER` | Denegar publicació/descàrrega, conservar evidència i obrir incidència; no substituir silenciosament. |
+| DC-55-06 | Factura prèvia amb document correcte però receptor empresa no autoritzat al canal | Document íntegre **sense entrega** fins que UC-80 autoritzi l'actor. |
+
 ## 6. Traçabilitat
 
 [UC-55 original](../06-fitxes-funcionals/uc-055.md) · [UC-36 generació puntual](uc-036-generar-consultar-documents.md) · [UC-07 accés](uc-007-consultar-factura-estat-document.md) · [UC-08 incidències](uc-008-gestionar-incidencia-sif.md) · [DocumentRepository](../../sif/src/Repository/DocumentRepository.php) · [Migració document_job/access](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql) · [DocumentsAndIncidentsTest](../../sif/tests/Integration/DocumentsAndIncidentsTest.php).
