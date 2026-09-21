@@ -82,6 +82,27 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne"]
+  actor_1["Ecommerce/intranet"]
+  actor_2["Gestió autoritzada"]
+  subgraph SIF_BOX["Descomptes · PrisMa"]
+    uc_0(["UC-20<br/>Aplicar Alumne PrisMa"])
+    uc_1(["Verificar dret segons regla"])
+    uc_2(["Calcular preu i snapshot"])
+    uc_3(["UC-14<br/>Compra i factura posterior"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+```
+
 ## 3. Diagrama de classes — codi present i validació pendent
 
 ```mermaid
