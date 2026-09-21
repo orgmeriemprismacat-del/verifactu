@@ -157,7 +157,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 
 1. **Fitxa de cas d'ús:** actor, disparador, entrades/precondicions, passos concrets, variants, errors i postcondicions.
 2. **Diagrama de casos d'ús:** font PlantUML editable amb actors, frontera de sistema i relacions UML `<<include>>`/`<<extend>>`, sense confondre una acció posterior amb una crida del mateix cas.
-3. **Diagrama de classes:** subvista Mermaid de classes **PHP reals**. Les pantalles, endpoints procedurals i taules SQL no es converteixen en classes fictícies. Les classes del disseny futur es marquen expressament si s'hi han d'afegir.
+3. **Diagrama de classes:** subvista Mermaid que separa classes **PHP reals** de classes **proposades** (marcades `DISSENY` o `PROPOSTA`) i taules **SQL definides**. Una taula, pantalla o endpoint procedimental no és automàticament una classe executada; el text de cada fitxa concreta si el servei, repositori o control d'accés està acreditat.
 4. **Diagrames de seqüència:** implementació del camí principal i, quan aporta informació pròpia, camins alternatius o excepcions. Els límits de transacció i els processos asíncrons es representen explícitament.
 5. **Traçabilitat:** enllaços a la fitxa anterior, als documents de referència i al codi/proves concrets.
 
@@ -165,13 +165,13 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 
 ## Matriu de traçabilitat i pendents
 
-La [matriu de cobertura completa](00-matriu-cobertura-cataleg.md) vincula cada UC original amb la seva fitxa UML quan existeix i mostra els casos pendents, sense marcar com a acabat un cas perquè té una plantilla. Les dependències i fonts concretes consten a cada fitxa i al [model de classes general](00-model-classes-general.md).
+La [matriu de cobertura completa](00-matriu-cobertura-cataleg.md) vincula **els 142 casos originals amb les 142 fitxes revisades**. Aquesta cobertura de documentació no és un estat de desenvolupament: els serveis, decisions de negoci, permisos i proves pendents s'identifiquen dins de cada fitxa i a la [revisió transversal de coherència](00-auditoria-consistencia-142-fitxes.md). Les dependències i fonts consten també al [model de classes general](00-model-classes-general.md).
 
-## Criteris per ampliar aquest catàleg
+## Criteris per passar de fitxa documentada a cas verificat
 
-- Continuar pels expedients detallats UC-71 i UC-72 i pels processos transversals de canvi i baixa i, en paral·lel, documentar els processos transversals no resolts (classificació fiscal, enviament AEAT, documents, incidències, controls d'operació).
-- Revisar la cardinalitat dels actors i les relacions `include`/`extend` per cada acció, sense dibuixar una cadena automàtica on només hi ha una operació futura separada.
-- Triangular **xat pont, fitxa anterior, codi del cas i model de dades** quan hi hagi divergències; distingir sempre `codi observat`, `contracte documental` i `pendent de decisió`. Les referències al xat pont només es donaran per verificades després d'identificar-ne el fragment concret.
-- No declarar un cas tancat només perquè té els quatre apartats UML: requereix validació funcional, revisió de permisos, prova del flux d'extrem a extrem i evidència de comportament correcte a l'entorn corresponent.
+- Revisar les dependències i les relacions `include`/`extend` de cada acció: una futura comanda separada no és una crida PHP existent ni una transacció atòmica.
+- Triangular fitxa original, servei/mètode PHP, migració SQL i comportament del canal real; les discrepàncies han de conservar `codi observat`, `contracte documental` i `pendent de decisió` per separat. Les converses no són evidència tècnica sense un fragment concret identificat.
+- Renderitzar diagrames, validar permisos i dades personals i provar alternatives/errors en un entorn segregat. No declarar un cas implementat o llest per producció per la presència de tres blocs UML o una taula SQL.
+- Mantenir els criteris de sortida i les incidències a la [revisió transversal](00-auditoria-consistencia-142-fitxes.md); qualsevol nova variant funcional ha de citar una font pròpia i no alterar retrospectivament una factura emesa.
 
 Referències comunes: [Casos d'ús generals](../04-estat-final/33-casos-us-sif.md), [classes del SIF](../04-estat-final/31-diagrames-classes-sif.md), [seqüències del SIF](../04-estat-final/32-diagrames-sequencia-sif.md), [matriu de traçabilitat](../04-estat-final/35-matriu-tracabilitat-diagrames.md) i [fitxes anteriors](../06-fitxes-funcionals/README.md).
