@@ -24,6 +24,27 @@
 
 **Proves pendents:** backup amb documents absents, corrupció hash, restaurar sense `fiscal_chain_state`, còpia amb job `PROCESSING`, timeout AEAT immediatament abans del backup, callback Redsys posterior al punt de tall, desalineació SIF/llegat, dades personals a un entorn de test i recuperació sense certificat productiu.
 
+### 1.1. Inventari material del backup de PrisMa abans de donar-lo per complet
+
+**Quatre conjunts físics separats.** La BD fiscal SIF conté `factura`, `factura_linia`, `factura_registres`, `fiscal_chain_state`, `fiscal_sequence`, `fiscal_queue`, pagaments, assignacions i metadades dels documents. Les inscripcions, `IDPAG`, estat acadèmic, contacte i agrupadors `FACTURA_RELACIONADA` viuen a la **BD web llegada**; els PDF/XML i evidències són **bytes al storage privat** quan s'han custodiat; el codi, migracions i configuració efectiva constitueixen el quart conjunt que permet interpretar i recuperar les dades. Un `mysqldump` d'una sola BD **no inclou** els altres tres conjunts. El P12 AEAT i les claus de pagament requereixen una estratègia de custòdia/reaprovisionament protegida, **no** copiar-los en clar dins del paquet de restauració.
+
+**Consistència i manifest, no només nombre d'arxius.** El runbook pendent ha de registrar per component sistema/font, emissor quan pertoqui, punt de tall/versió, identificador d'artefacte, hash calculat sobre **bytes realment copiats**, permisos i resultat de lectura. Un `factura_documents.HASH_FITXER` a SQL sense el PDF físic no prova que s'hagi custodiat; `DocumentRepository::registerDocument()` només crea metadades i no escriu l'arxiu. En una còpia històrica, identificar per separat documents originals localitzats i PDFs reconstruïts, sense etiquetar els segons com a originals immutables.
+
+**Restauració aïllada amb workers aturats.** Recuperar cada component en un destí de prova segregat i **sense crides a Redsys/AEAT productius**, verificar que els UUIDs, la seqüència fiscal i els hashes originals són llegibles i coherents, que cada factura/document existeix i que els vincles a `ID_INSC` es resolen amb la versió llegada restaurada. `MigrationRunner::inspect()` comprova esquema/ledger de migracions, però no prova la correspondència temporal entre els dos dumps ni la presència de PDFs. No activar el worker fiscal només perquè es poden fer `SELECT` a les taules.
+
+**Continuïtat i dades externes posteriors.** UC-85 resol la reconciliació abans de reprendre producció: un callback Redsys, una devolució bancària o una resposta AEAT **posterior al punt de tall** segueixen existint encara que no figurin a la còpia. Una restauració que conserva `fiscal_queue.PENDING` pot tornar a enviar un registre ja rebut remotament; una BD web antiga pot tornar a mostrar deute ja cobrat. Registrar els deltes i el resultat per font abans de reobrir cap escriptor, sense generar una nova factura, un nou `CHARGE` o un `REFUND` per compensar la restauració.
+
+### 1.2. Proves de completesa d'artefacte i prova de recuperació (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| BK-40-01 | Dump SIF complet sense `web.inscripcions` | Backup d'abast parcial; no declarar recuperables els vincles `ID_INSC/IDPAG`. |
+| BK-40-02 | `factura_documents` conté hash però falta PDF al storage | Manifest indica arxiu no custodiat i restauració documental incompleta. |
+| BK-40-03 | Dump fiscal i dump web amb instants de tall diferents | Desfasament explícit i reconciliació per identificadors, no consistència presumpta. |
+| BK-40-04 | Restauració de prova intenta connectar amb credencials productives | Bloqueig d'egress/segregació; no contacte real amb banc o AEAT. |
+| BK-40-05 | Es recupera un job PENDING enviat a AEAT després del backup | Comprovar resultat extern abans del retry, no alta/registre duplicats. |
+| BK-40-06 | Restore SQL correcte però codi/SQL de versions incompatibles | Resultat parcial; gate de versió abans de reprendre operacions. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
