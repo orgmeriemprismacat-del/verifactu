@@ -30,6 +30,27 @@
 
 **Proves:** dos callbacks a URLs diferents pel mateix cobrament, callback signat tardà després de canviar URL, intenció absent, transacció d'empresa/grup amb diversos inscrits, worker antic del cron encara actiu, sync llegat repetit i rollback amb pagaments posteriors.
 
+### Tall per origen: callback real, escriptor manual i importador històric
+
+**Callback llegat identificat, configuració activa no verificada.** El procediment de curs normal recupera `realitzaPagamentAutomatic.php`: rep `Ds_MerchantParameters/Ds_Signature`, cerca la inscripció per `IDPAG`, i en autorització pot construir un número local `A{any}/{ordre}`, inserir `web.factures`, posar `Ds_Order` a `NUM_COMANDA`, actualitzar `PAGAMENT/FACTURA_RELACIONADA/DATA PAG/FRACCIO` i enviar avisos. El document indica que es calcula la signatura, però **no acredita que es compari correctament abans de modificar BD**. Identificar **al runtime** quina URL/comerç crida actualment Redsys i quins PHP/cron encara poden arribar al mateix escriptor; el fet de trobar el codi al repositori **no demostra** que es mantingui actiu ni que s'hagi desactivat en producció.
+
+**Els canals manuals són punts d'entrada diferenciats.** `/alumnes/pagaments/` invoca `efectuarPagament.php`, i `/alumnes/genera-factura-abans-pagar/` invoca `generaFacturaElectronica_Factures.php`. Aquests fluxos poden crear/actualitzar `web.factures` o resum de cobrament històric **sense passar pel callback Redsys**; canviar només l'URL de notificació TPV no elimina les vies manuals d'escriptura fiscal duplicada. Per cadascun, registrar ruta/handler real, tipus d'operació, entrada signada o autoritzada, font de diners, substitut de SIF, resum llegat admissible i prova negativa que l'antic writer ja no emet ni crea un cobrament nou.
+
+**Importar històric no és un tercer emissor.** UC-11 té `HistoricalInvoiceMigrationService` i `HistoricalInvoiceMigrationRepository`: inserta documents `HISTORICAL/NO_VERIFACTU` però no crida el nucli d'emissió, no incrementa `fiscal_sequence`, no afegeix `factura_registres/fiscal_queue` i no registra un `CHARGE`. El pla de tall ha de **mantenir separat** aquest importador de la substitució dels punts d'entrada operatius: carregar `web.factures` antigues no pot fer-los passar com a nous registres ni provocar que un job Redsys antic torni a facturar una venda ja coberta. La seva execució completa i reconciliació d'origen segueixen pendents.
+
+**Tall amb notificacions en vol i rollback.** Per cada `DS_ORDER` que arribés a l'antiga i a la nova URL, comprovar evidència del cobrament extern i identificar únicament un `UUID_PAYMENT`. Si la factura ja va ser emesa abans de cobrar a un responsable, assignar-li el pagament sense una segona A; un `IDPAG` amb dos intents legítims no són dues factures automàticament. Un rollback de codi o BD ha de reconciliar factures i efectes Redsys posteriors al tall abans de tornar a habilitar qualsevol emissor llegat, encara que la pàgina antiga sembli mostrar `PAGAMENT=0`.
+
+### Proves addicionals per via d'escriptura (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CT-68-01 | Dues URLs reben el mateix `DS_ORDER` | Un cobrament real i un sol resultat fiscal, amb ruta antiga sense doble escriptura. |
+| CT-68-02 | Es retira callback però continua actiu `efectuarPagament.php` | Detectar el segon writer i bloquejar la retirada fins a substitució/prova. |
+| CT-68-03 | Factura prèvia d'empresa i callback individual iniciat abans del tall | Reconciliar ingrés real sobre factura existent o incidència, no nova A. |
+| CT-68-04 | Executar importador històric mentre entren cobraments nous | NO_VERIFACTU per documents antics, cap registre/CHARGE retrospectiu. |
+| CT-68-05 | Runtime FTP no contrastat amb branca del GitHub | Estat del tall no verificat, no declarar escriptors antics desactivats. |
+| CT-68-06 | Restauració d'un backup anterior a un callback cobrat | Reconciliar banc/SIF abans d'obrir workers o emissor llegat. |
+
 ## UML de casos d'ús
 
 ```plantuml
