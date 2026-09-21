@@ -793,13 +793,17 @@ class InvoiceService {
  <<PHP real: recupera factura per clau>>
  +issueInvoice(payload) array
 }
+class UsocInvoiceReader {
+ <<DISSENY: lector SIF de factura alumne i relacions>>
+ +verifyStudentInvoice(uuidFactura,idInsc,amount) decision
+}
 class PaymentService {
  <<PHP real: ingrés posterior>>
  +registerPayment(payload) array
 }
 UsocEligibilityService ..> LegacyUsocSnapshotRepository : estat USOC llegat; writer decisió PENDENT
 UsocFundingCaseValidator --> LegacyUsocSnapshotRepository : comprovar ID_INSC exacte, NO resolt pel repo actual
-UsocFundingCaseValidator ..> InvoiceService : validar factura existent exigeix lectura SIF separada [PENDENT]
+UsocFundingCaseValidator --> UsocInvoiceReader : lectura SIF, NO crida a issueInvoice
 UsocCaseReconciler --> UsocFundingCaseValidator : identitat i imports per part
 UsocCaseReconciler ..> UsocEntityInvoiceService : factura entitat després d'aprovació
 UsocCaseReconciler ..> PaymentService : només ingrés bancari entitat verificat
