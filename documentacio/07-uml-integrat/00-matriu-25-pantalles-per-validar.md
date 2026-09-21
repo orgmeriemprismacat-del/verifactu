@@ -8,7 +8,7 @@
 | ---: | --- | --- | --- | --- |
 | 1 | Ajuda contextual del panell | UC-34; document 25 (guies ràpides de pantalles internes) | Contingut d'ajuda del panell: identificar pantalla concreta i si només informa o activa una comanda. | MAPAT PROVISIONAL — documentació/UI |
 | 2 | Captures finals de recorreguts crítics | UC-39; annex de captures | Evidència de prova, no cas d'ús de negoci independent; relacionar captura amb UC, ruta, versió i resultat reproduïble. | EVIDÈNCIA TRANSVERSAL |
-| 3 | Cercador general de pagaments | UC-56; UC-02 | Cerca i consulta no són registre de cobrament; revisar filtres, permisos i destí de selecció. | MAPAT PROVISIONAL — consulta |
+| 3 | Cercador general de pagaments | UC-56; UC-02; UC-22 | Cerca sense escriptura; comprovar si UUID_PAYMENT existent ja s'ha assignat a la factura seleccionada abans de presentar-lo com a cobrament nou. | MAPAT PROVISIONAL — consulta |
 | 4 | Cercar pagament per NIF/NIE | UC-56; UC-126 | Identitat i accessos: el NIF de pagador pot no ser el d'inscrit o receptor fiscal. | MAPAT PROVISIONAL — variant de cerca |
 | 5 | Compatibilitat intranet antiga | UC-64; UC-68; UC-47 | Inventariar scripts i rutes realment actius; establir substitut abans de retirar writers i sincronitzar després del commit. | MAPAT PROVISIONAL — integració |
 | 6 | Curs no superat pendent de pagament | UC-95; UC-124 | Determinar estat acadèmic, deute i política de certificat independentment de factura/accés. | MAPAT PROVISIONAL — regla pendent |
@@ -26,7 +26,7 @@
 | 18 | Operació informativa | UC-100 | Acció explícita sense factura ni pagament; registrar motiu i classificació quan s'apliqui. | MAPAT PROVISIONAL — UC específica existent |
 | 19 | Pagament duplicat | UC-25a; UC-02; UC-51; UC-86 | Diferenciar repetit per IDPAG, idempotència de moviment i callback Redsys duplicat; conciliar banc. | MAPAT PROVISIONAL — variants per origen |
 | 20 | Pagament fraccionat | UC-23; UC-96; UC-12 | No confondre acord de quotes/pròrroga amb cobrament parcial efectiu; cada import ingressat té UUID_PAYMENT propi. | MAPAT PROVISIONAL — acord vs cobrament |
-| 21 | Pagament parcial | UC-23; UC-02; UC-56 | Registrar un sol cobrament extern amb import parcial sobre factura existent; estat i saldo en cada reintent. | MAPAT PROVISIONAL — variant del cobrament |
+| 21 | Pagament parcial | UC-23; UC-02; UC-56; UC-105 | Distingir un CHARGE parcial real, saldo no assignat d'un CHARGE existent i segon reintent amb mateixa referència però nova factura. | MAPAT PROVISIONAL — variant del cobrament |
 | 22 | Rectificativa negativa | UC-05; UC-74; UC-28 | Determinar modalitat, signes i línies fiscals; separar decisió de retorn pendent, sortida externa acreditada i registre REFUND, amb límit per origen. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
 | 23 | Rectificativa positiva | UC-05; UC-74; UC-02 | Determinar modalitat i signes/línies fiscals; import a favor de l'emissor no és CHARGE fins a ingrés efectiu. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
 | 24 | Resum SIF sincronitzat a BD antiga | UC-47; UC-53; UC-82 | Comprovar idempotència del resum, divergències i recuperació després del commit, sense reescriptura de l'original fiscal. | MAPAT PROVISIONAL — integració |
@@ -78,6 +78,16 @@ Les files següents continuen en `MAPAT PROVISIONAL` perquè es coneixen les **a
 | 22 · Rectificativa negativa | UC-74 classifica document, UC-05 emet la rectificativa si escau, UC-28 autoritza/registre de devolució monetària **separats**. | `ManualRefundService` crea `REFUND` al SIF sense ordre de TPV ni prova bancària. `PaymentRepository` posa `ESTAT=CONFIRMED` en inserir el moviment i el calculador actualitza estat de factura, però cap dels dos comprova la sortida externa. | Botó i rol de la decisió fiscal, ordre bancària real, referència externa de sortida, límit per inscripció, gestió de pèrdua de resposta i prova del reenllaç correcte de la rectificativa. |
 
 **No validat sobre la pantalla:** no s'ha inspeccionat en aquest contrast el controlador real ni la ruta desplegada que confirma la devolució, ni s'ha executat l'ordre del banc. Aquestes files es mantenen provisionals encara que els recorreguts ja tinguin diagrames per acció.
+
+## Contrast de reús fiscal i reús d'ingressos a cercador/pagament parcial
+
+| Fila | Accions i fitxes actualitzades | Evidència de codi i risc | Punt pendent de la pantalla |
+| --- | --- | --- | --- |
+| 3 · Cercador general de pagaments | [UC-56](uc-056-cercar-assignar-cobrament.md) consulta pagaments i trams sense modificar-los; [UC-22](uc-022-registrar-transferencia.md) reconeix l'event bancari; [UC-02](uc-002-registrar-cobrament-factura.md) registra **només una entrada nova**. | `ManualPaymentService::registerForInvoice()` retorna la factura de la petició encara que `PaymentService` hagi reutilitzat un UUID_PAYMENT amb assignació a **una altra factura** per referència. [Seqüència PHP UC-02, 5.3](uc-002-registrar-cobrament-factura.md). | Criteris i permisos reals de cerca, comprovació de `payment_allocation` i identitat del pagador, distinció al panell entre «trobat», «assignat» i «pendent d'assignar». |
+| 21 · Pagament parcial | [UC-01](uc-001-emetre-o-reutilitzar-factura.md) reutilitza factura sense crear cobrament nou; [UC-02](uc-002-registrar-cobrament-factura.md) crea un CHARGE extern; [UC-56/105](uc-105-reassignar-repartir-pagament.md) reparteix un moviment existent quan el saldo i el titular ho permeten. | `InvoiceService::existingResultWithPaymentIfPresent()` pot retornar `ok=true` i factura F1 **sense** `uuid_payment` malgrat rebre bloc `payment` nou. Una referència manual compartida per A/B pot retornar UUID_PAYMENT_A amb `uuid_factura=B` sense allocation B. | Condicionar l'etiqueta «pagat» a pagament real confirmat i assignació a la factura correcta, no al reús de factura ni a la resposta del builder manual. |
+| 19 · Pagament duplicat | [UC-02, secció 5.4](uc-002-registrar-cobrament-factura.md) comprova reús semàntic com a objectiu; UC-25a/51 comparen identitats d'entrada per canal. | `PaymentRepository` desa `PAYLOAD_HASH`, però `PaymentService` no compara import/tipus/destí en recuperar una clau. Dues entrades bancàries diferents amb la mateixa referència lliure també poden col·lidir a `TRANSFERENCIA|REF:<referència>`. | Prova bancària dels dos possibles events, comparació de payload i d'assignacions abans de donar èxit, resposta de conflicte per peticions incompatibles. |
+
+**No validat encara:** la nova distinció cobreix funcionalment les accions documentades però no verifica el cercador, el controlador, el permís o l'estat visual de la versió desplegada. Les files 3, 19 i 21 continuen com a **mapatge provisional**.
 
 ## Com convertir el mapatge en cobertura demostrable
 
