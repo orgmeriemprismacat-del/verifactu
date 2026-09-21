@@ -51,6 +51,27 @@ Gate ..> Main : <<extend>> (GO formal)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable tècnica"]
+  actor_1["Operador desplegament"]
+  subgraph SIF_BOX["SIF · candidata vs runtime"]
+    uc_0(["UC-64<br/>Reconciliar candidata amb codi actual"])
+    uc_1(["Inventariar fitxers i punts d'entrada actius"])
+    uc_2(["Comparar hashes, configuració i migracions"])
+    uc_3(["Provar canals i prevenir dobles escriptures"])
+    uc_4(["UC-39/46<br/>Aprovar i activar versió"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
