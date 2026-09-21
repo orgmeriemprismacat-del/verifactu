@@ -45,6 +45,28 @@
 
 **Prova localitzada, NO executada:** `DocumentsAndIncidentsTest::testOpenIncidentStoresOpenFiscalIssue`; cobreix només l'obertura senzilla.
 
+### 1.4. Incidència després d'emetre o cobrar: no reiniciar el fet confirmat
+
+**El fet confirmat i la fase pendent són diferents.** El procediment de PrisMa «Generar factura abans de pagar» necessita una factura real abans de rebre la transferència; el circuit Redsys confirma `DS_ORDER` i encua un worker; «Passar pagaments» pot actualitzar dades acadèmiques llegades més tard. Una incidència de PDF, AEAT, URL, correu o sincronització pot produir-se **després** del commit SIF de `UUID_FACTURA` i/o `UUID_PAYMENT`. L'expedient d'incidència ha d'identificar explícitament quin fet ja s'ha confirmat i quin pas falta; **no** repetir l'emissió o el CHARGE com a manera de reiniciar tot el flux.
+
+**Exemples de classificació per objecte.** (a) Factura emesa, `factura_documents` pendent: UC-36/55, sense segona factura. (b) Pagament Redsys validat i job en `RETRY`: UC-52 i comprovació de l'event bancari, sense ingrés manual paral·lel per CSV. (c) Factura i pagament confirmats però `PAGAMENT`/accés acadèmic llegats sense sincronitzar: UC-47/53/124/129, sense tornar a cobrar. (d) Inscripció coberta per factura d'empresa però URL individual encara activa: UC-33/50 i revisió de possibles intents iniciats, no esborrat de moviments existents. (e) `FACTURA_RELACIONADA` històric entra en conflicte amb una relació SIF: UC-53/82, no modificar la factura per encaixar el valor antic.
+
+**Identificació insuficient de l'obridor actual.** `IncidentRepository::open(db,uuidFactura,type,message)` només admet UUID de factura opcional, tipus i missatge; per un pagament orfe, job documental, intent Redsys o incidència d'`ID_INSC`, aquest contracte no guarda un UUID tipificat de l'objecte ni retorna ID de la incidència. La vinculació de `UUID_PAYMENT`, `DS_ORDER`, `ID_INSC`, worker/job, correlació, responsable, evidència i transicions d'estat constitueix una **ampliació de disseny**, no camps omplerts per l'obridor actual. Evitar incloure justificants privats o payloads complets de Redsys al text d'incidència que pugui veure personal sense aquest permís.
+
+**Tancament verificable i reparació per fase.** No marcar `RESOLVED` només perquè s'ha repetit un endpoint, s'ha escrit una nota a `OBSERVACIONS` o un job ha passat a `PROCESSED`: tornar a consultar factura, pagament, document, estat extern i inscripció segons el tipus de cas i conservar prova del resultat. `errors_verifactu` amb una fila `OPEN` no acredita que hi hagi ja un panell d'assignació/tancament executable; les transicions i l'auditoria de resolució requereixen integració específica.
+
+### 1.5. Proves de reintents des d'incidències (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| IS-01 | Factura abans de cobrar confirmada però falla PDF | UUID i número conservats; només job documental reintentat. |
+| IS-02 | Pagament confirmat al SIF però inscripció encara «pendent» al llegat | Incidència de sincronització; cap CHARGE ni factura nous. |
+| IS-03 | Callback validat i job Redsys en RETRY, CSV mostra «sense factura» | Reprendre cua original o investigar; no emetre en paral·lel pel CSV. |
+| IS-04 | URL individual continua activa després de factura d'empresa | Corregir URL i tractar callbacks realment iniciats, sense esborrar diner confirmat. |
+| IS-05 | Incidència de pagament sense UUID_FACTURA assignable | Enllaçar UUID_PAYMENT/DS_ORDER/ID_INSC per contracte ampliat; no omplir UUID de factura inventat. |
+| IS-06 | Error d'AEAT resolt localment però resposta remota encara pendent | Mantenir estat extern pendent fins a evidència de resposta. |
+| IS-07 | Dues notificacions de la mateixa anomalia | Agrupar per causa/objecte amb nova evidència; evitar dues reparacions incompatibles. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
