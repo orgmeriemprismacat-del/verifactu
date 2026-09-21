@@ -591,6 +591,27 @@ C --> Remainder
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Canal de cobrament"]
+  actor_1["Banc / evidència externa"]
+  subgraph SIF_BOX["SIF PrisMa — UC-02 / VALIDAR CHARGE I TRAMS"]
+    uc_0(["Validar nou ingrés i trams proposats"])
+    uc_1(["Comprovar identitat bancària,<br/>import real i titular"])
+    uc_2(["Comprovar cada tram positiu<br/>i suma no superior a import"])
+    uc_3(["Registrar CHARGE i assignacions<br/>només amb invariant satisfet"])
+    uc_4(["UC-56<br/>Conciliar import no assignat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_0 --> uc_4
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
