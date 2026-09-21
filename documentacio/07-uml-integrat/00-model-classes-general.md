@@ -670,6 +670,48 @@ InvoiceDocumentAccessService --> DocumentAvailabilityService : prova de bytes
 
 **Límit multiemissor:** `HistoricalOriginalCustodyService` només ha d'adjuntar l'original a la factura **unívocament** identificada. Si Associació i SL aporten dues factures amb mateix número, l'únic model `factura` actual no pot guardar-les com dues files (UNIQUE global). El model d'emissor/persistència històrica és una decisió prèvia bloquejant de [UC-97](uc-097-consultar-historic-associacio-sl.md), no una funcionalitat que la classe proposada resolgui per màgia.
 
+### 6.5. Frontera del model històric amb la numeració fiscal de noves emissions — UC-11/97 (DISSENY)
+
+```mermaid
+classDiagram
+direction LR
+class HistoricalInvoiceMigrationService {
+ <<PHP real: importa sense reservar número nou>>
+ +importHistoricalInvoice(input) array
+}
+class HistoricalInvoiceMigrationRepository {
+ <<PHP real: factura HISTORICAL>>
+ +importHistoricalInvoice(db,payload) array
+}
+class FiscalSequenceRepository {
+ <<PHP real: numeració nova>>
+ +next(db,series,year) int
+}
+class InvoiceRepository {
+ <<PHP real: emissió/registre fiscal nou>>
+ +createInvoiceGraph(db,payload,seq,chainState) array
+}
+class HistoricalNumberingPreflight {
+ <<DISSENY: guard multiemissor no implementat>>
+ +verify(issuer,originId,series,year,numSeq) decision
+}
+class HistoricalIssuerIdentityResolver {
+ <<DISSENY: origen/emissor acreditat>>
+ +resolve(sourceSystem,sourceId,evidence) identity
+}
+class HistoricalInvoicePersistenceModel {
+ <<DISSENY: decisió de persistència pendent>>
+ +persistDistinctOriginal(identity,invoice,document) result
+}
+HistoricalInvoiceMigrationService --> HistoricalInvoiceMigrationRepository : import actual de dades
+InvoiceRepository --> FiscalSequenceRepository : seq proporcionada per InvoiceService
+HistoricalNumberingPreflight --> HistoricalIssuerIdentityResolver : emissor + sistema + ID
+HistoricalNumberingPreflight ..> FiscalSequenceRepository : preflight de domini numèric [DISSENY]
+HistoricalNumberingPreflight --> HistoricalInvoicePersistenceModel : no importar si incompatible
+```
+
+**Restriccions confirmades del model base:** `factura` imposa `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` **sense columna d'emissor**. L'importador històric no crida `FiscalSequenceRepository::next()` ni avança `LAST_NUM`; el numerador de noves emissions no reserva ni desambigua els números que un històric hagi ocupat. Aquesta subvista **no proposa alterar la política de numeració amb un salt arbitrari**: identifica el guard previ i una decisió d'arquitectura necessària per preservar els documents antics i la numeració/cadena fiscal nova. [UC-11, preflight](uc-011-importar-factura-historica.md), [UC-97, emissors homònims](uc-097-consultar-historic-associacio-sl.md).
+
 ## 7. Traçabilitat i criteri de manteniment
 
 - [Model de classes ja existent al projecte](../04-estat-final/31-diagrames-classes-sif.md) i [matriu transversal de diagrames](../04-estat-final/35-matriu-tracabilitat-diagrames.md).
