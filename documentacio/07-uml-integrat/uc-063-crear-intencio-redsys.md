@@ -40,6 +40,27 @@
 
 **Proves localitzades, no executades ara:** `RedsysPaymentIntentTest`; cal prova d'extrem a extrem amb el canal i cada handler de compra real.
 
+### 1.3. Factura prèvia, intents repetits i canvis sobre l'operació — contrast amb el xat original
+
+**I-PRE — crear una intenció no decideix si cal emetre factura.** Abans de redirigir el pagador, l'adaptador consulta la cobertura fiscal **per inscripció i operació**: una empresa pot haver emès una factura real `EMESA_ABANS_COBRAMENT=1`, encara pendent, i conservar un enllaç específic per pagar-la. En aquest cas el callback posterior ha de registrar `CHARGE` contra `UUID_FACTURA` **existent**; no emetre una segona factura amb el handler ordinari de compra. El servei `RedsysPaymentIntentService::create()` congela `DS_ORDER`, origen, import i snapshot, però **no acredita aquesta comprovació de factura prèvia ni una ruta universal de cobrament sobre factura existent**. El snapshot objectiu ha d'incloure factura i parts d'inscripció cobertes quan pertoqui, i el dispatcher ha de distingir l'obligació ja emesa d'una venda pendent d'emissió.
+
+**I-ORDRE — mateix IDPAG, diverses DS_ORDER.** En el llegat una inscripció ja existeix **abans** de pagar i el mateix `IDPAG` pot mantenir-se després d'un intent Redsys denegat i un altre acceptat, o durant fraccions legítimes. Una intenció denegada no és un `CHARGE`, però no s'ha de deduplicar l'acceptada només per IDPAG. `DS_ORDER` identifica cadascun dels intents; cada intent necessita import/estat/snapshot congelats i la relació amb el deute real. Una comanda antiga no es reutilitza per cobrar de nou amb un producte, import o responsable diferent.
+
+**I-VIGÈNCIA — curs, edició, baixa o canvi entre preparació i captura.** El snapshot que el worker usarà després de Redsys no es pot reconstruir a partir del preu o estat acadèmic actual. Això **no autoritza** processar cegament una compra que ha perdut la plaça, ha estat cancel·lada, està coberta per empresa o ha estat substituïda per un canvi de curs. Cal revalidar disponibilitat/cobertura abans de presentar el TPV i deixar una via de conciliació si arriba una notificació tardana d'una ordre ja iniciada (UC-51/52/71/72/127). Una revocació d'URL impedeix **nous intents**, però no elimina un ingrés que Redsys ja hagi confirmat.
+
+**I-SOURCE — tipus no reconeguts al servei actual.** Els `SOURCE_TYPE` executables d'UC-63 són `CURS`, `PACK`, `GRUP`, `REGAL` i `USOC_ALUMNE`. El xat també contempla pagament d'una **diferència per canvi de curs** i cobrament de **factura prèvia**: el contracte documental els distingeix, però el servei actual **no admet com a tipus executables** `CANVI_CURS_DIFERENCIA` ni `FACTURA_ABANS_COBRAR` en la seva llista; cal adaptar intenció/dispatcher i assignació abans d'oferir-los com a vies de pagament integrades.
+
+### 1.4. Proves de pre-TPV addicionals (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RI-01 | Empresa emet factura prèvia i inicia TPV propi | Intent relacionat amb UUID_FACTURA existent i callback posterior sense nova factura. |
+| RI-02 | Mateix IDPAG: un DS_ORDER denegat i un de nou acceptat | Només l'intent confirmat genera ingrés; no deduplicar per IDPAG. |
+| RI-03 | Mateix IDPAG: dues fraccions legítimes acceptades | Dos fets bancaris identificables i atribuïts sense duplicació de factura. |
+| RI-04 | URL individual coberta per factura d'empresa | Bloqueig de nova intenció al servidor; no confiar en ocultació del botó. |
+| RI-05 | Ordre iniciada abans d'una baixa/canvi i callback posterior | Evidència del cobrament real i conciliació del destí; no processar compra obsoleta a cegues. |
+| RI-06 | SOURCE_TYPE de diferència de curs o factura prèvia | Adaptador/dispatcher específic requerit; no declarar-lo disponible en UC-63 actual. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
