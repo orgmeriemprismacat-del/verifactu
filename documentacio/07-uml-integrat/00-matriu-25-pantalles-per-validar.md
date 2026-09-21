@@ -7,7 +7,7 @@
 | # | Pantalla/apartat pendent | Casos actuals candidats | Contrast específic per tancar | Estat d'aquesta revisió |
 | ---: | --- | --- | --- | --- |
 | 1 | Ajuda contextual del panell | UC-34; document 25 (guies ràpides de pantalles internes) | Contingut d'ajuda del panell: identificar pantalla concreta i si només informa o activa una comanda. | MAPAT PROVISIONAL — documentació/UI |
-| 2 | Captures finals de recorreguts crítics | UC-39; UC-03/52; annex de captures | Evidència de prova: incloure job Redsys PROCESSING recuperat, marques finals d'intent obsolet i UUID_FACTURA/UUID_PAYMENT persistits; una captura de PROCESSED no acredita el cobrament. | EVIDÈNCIA TRANSVERSAL |
+| 2 | Captures finals de recorreguts crítics | UC-39; UC-03/52; UC-09/54; annex de captures | Evidència de prova: separar job Redsys/CHARGE i cua fiscal/SOAP; mostrar propietat de l'intent recuperat, UUIDs assignats i, per AEAT, SENT més estat de la línia i resposta correlacionada. | EVIDÈNCIA TRANSVERSAL |
 | 3 | Cercador general de pagaments | UC-56; UC-02; UC-22 | Cerca sense escriptura; comprovar si UUID_PAYMENT existent ja s'ha assignat a la factura seleccionada abans de presentar-lo com a cobrament nou. | MAPAT PROVISIONAL — consulta |
 | 4 | Cercar pagament per NIF/NIE | UC-56; UC-126 | Identitat i accessos: el NIF de pagador pot no ser el d'inscrit o receptor fiscal. | MAPAT PROVISIONAL — variant de cerca |
 | 5 | Compatibilitat intranet antiga | UC-64; UC-68; UC-47 | Inventariar scripts i rutes realment actius; establir substitut abans de retirar writers i sincronitzar després del commit. | MAPAT PROVISIONAL — integració |
@@ -108,6 +108,18 @@ Les files següents continuen en `MAPAT PROVISIONAL` perquè es coneixen les **a
 | 24 · Resum SIF a BD antiga | [UC-52, secció 4.3](uc-052-operar-cua-redsys.md), [UC-47](uc-047-sincronitzar-estat-cap-llegat.md) i [UC-53](uc-053-detectar-resoldre-divergencies.md). | `markProcessed` pot desar `UUID_FACTURA`/`UUID_PAYMENT` nuls si el processor retorna array incomplet; `runOne` no valida resultat ni inclou commit de la sincronització acadèmica llegada. | Distingir factura emesa, pagament assignat, job completat i resum acadèmic sincronitzat; recuperar només la fase pendent sense duplicar CHARGE. |
 
 **L'estat de mapatge es manté provisional:** cap de les files 2, 19 o 24 s'ha contrastat amb una ruta de pantalla desplegada ni amb una prova concurrent executada en aquesta revisió.
+
+## Evidència transversal de la cua fiscal AEAT, sense inventar una pantalla número 26
+
+La fila **2 · Captures finals de recorreguts crítics** pot recollir evidència de [UC-09](uc-009-remetre-registre-aeat.md) i [UC-54](uc-054-operar-cua-fiscal-respostes.md), però **no és** una pantalla fiscal ni acredita que s'hagi implementat `pay.prisma.cat/sif/registres-aeat`. En la relació de 25 elements provisionals d'aquesta matriu **no figura com a fila pròpia** el panell «Registres AEAT». Per això la traçabilitat concreta de consulta, permisos i comanda de retry ha de quedar a la fitxa [UC-54](uc-054-operar-cua-fiscal-respostes.md) i a la matriu general de 192 pantalles, **sense afegir una fila 26 fictícia**.
+
+| Evidència necessària de la fase fiscal | Risc contrastat al PHP | Condició pendent per validar el recorregut real |
+| --- | --- | --- |
+| `UUID_FACTURA`, `FISCAL_ORDER`, `fiscal_queue.ID`, `ATTEMPTS`, `LOCKED_AT`, estat de cua i resposta per línia | `recoverStaleLocks` posa el job a RETRY sense comprovar si l'intent extern ja va arribar a AEAT. | Mostrar cada intent/estat remot acreditat, mantenir visibilitat de `REMOTE_UNCERTAIN` com a diagnosi **proposada**, sense confondre RETRY amb «no enviat». |
+| Marca `SENT` i estat `ACCEPTED/ACCEPTED_WITH_ERRORS/REJECTED` per registre | `complete` i `fail` actualitzen per ID sense propietari ni generació; un intent antic pot marcar SENT i un altre posterior ERROR. | Test de propietat del claim, evidència de la resposta original, permís de retry i comprovació que no es sobreescrigui l'estat de línia amb un error local aliè. |
+| Resultat de SOAP després de fallada del commit local | `FiscalQueueProcessor` captura l'error de `complete()` i el deriva a `failure()` encara que `send()` ja hagi retornat resposta. | Conciliar fitxers privats d'evidència i resposta real per `UUID_FACTURA+FISCAL_ORDER`; no declarar REJECTED ni tornar a emetre per reparar la remissió. |
+
+**Estat:** evidències i guards de reintent fiscal **no validats** sobre panell desplegat ni contra un servei AEAT real. Els controls de propietat/conservació de cada intent són **disseny pendent** i no funcionalitats PHP acreditades.
 
 ## Com convertir el mapatge en cobertura demostrable
 
