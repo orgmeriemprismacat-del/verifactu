@@ -39,6 +39,24 @@ La migració defineix `billing_profile_history` per conservar versions del perfi
 
 **Pendents:** matriu d'impacte per camp, comandes de propagació per sistema, política de consentiment en canvis contractuals, traça item a item de documents emesos i proves d'idempotència entre BDs.
 
+### Edició de l'entitat i dades d'alumne després d'una factura real
+
+**Dos punts de modificació del llegat.** `/alumnes/genera-entitat/` modifica la raó social, CIF, domicili i responsable a través de `actualitzaEditaEntitat.php`, que avui s'invoca per `GET` amb dades en la URL. `/alumnes/mostrar-alumne/` permet `guardarDadesPersonals_resultatCerca()` i la documentació afirma que el canvi operatiu només afecta inscripcions **pendents de començar**. Aquests són canvis de perfils vius amb abast diferent; **cap dels dos acredita una correcció de factura ja emesa**.
+
+**Inventari diferenciat abans d'aplicar.** Abans d'editar un receptor, consultar l'entitat per **ID intern** i vigència del responsable, operacions encara obertes/TPV iniciat, inscripcions cobertes, factures ja emeses i missatges pendents de lliurar. Per al perfil d'alumne, separar cursos nous/pendents d'inscripcions acabades, documents individuals i factures d'empresa on la persona només és participant. Mostrar qui és el **receptor fiscal històric** i qui és el contacte actual evita que una modificació de `CORREU` alteri el dret de consulta del PDF o els destinataris d'email en cua sense nova autorització.
+
+**Efectes posteriors controlats.** La nova dada mestra alimenta futures ofertes i factures; una factura existent conserva `BILLING_*`, línies, número i document immutable. Si l'edició posa al descobert que el receptor o el concepte **ja era incorrecte en el moment d'emetre**, obrir classificació UC-74/05, i per cada operació oberta decidir si cal una nova confirmació de dades UC-69 o una intenció amb nou `DS_ORDER`. Un canvi de contacte pot requerir UC-58/120/126 per notificacions i identitat, però **no** un nou cobrament ni la substitució silenciosa de l'XML fiscal original.
+
+### Proves addicionals de dades mestres postemissió (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| DM-70-01 | Entitat canvia raó social després de factura emesa correcta | Futures operacions amb versió vigent; factura anterior intacta. |
+| DM-70-02 | Es detecta CIF erroni al document original | Expedient fiscal UC-74/05, no UPDATE de `factura.BILLING_NIF_CIF`. |
+| DM-70-03 | Alumne canvia DNI i té factura de grup d'empresa | El participant no esdevé receptor ni obté el PDF per canvi de perfil. |
+| DM-70-04 | Operació oberta amb DS_ORDER anterior al canvi de receptor | Oferta/instantània antiga preservada i nova decisió si canvia el contracte. |
+| DM-70-05 | Falla propagació del perfil vigent després d'aprovar el canvi | Reintentar només destinació pendent, no tornar a emetre documents fiscals. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
