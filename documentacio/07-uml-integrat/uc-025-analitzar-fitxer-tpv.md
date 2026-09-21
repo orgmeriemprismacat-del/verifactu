@@ -41,6 +41,32 @@
 
 **Proves no executades:** fitxer idèntic repetit, fila `DS_ORDER` duplicada, dos `IDPAG` coincidents amb ordres diferents, import contradictory, denegació TPV, job `RETRY`, retorn, group N inscripcions, rol denegat i transacció ja assignada.
 
+### 1.3. CSV TPV real de la intranet i comparador llegat — contrast amb el xat antic
+
+**Pantalla i resposta actuals.** El bloc `ANALITZA FITXER` de `/alumnes/pagaments/` envia `FormData` per `POST` a `ajax/alumnes/analitzarFitxerTPV.php` i espera `state`, `msg` i, per als errors, `registresPagErrors`. `state=1` indica que **no s'han detectat incidències visibles al comparador antic**, no que s'hagin creat moviments SIF ni que el banc hagi estat conciliat íntegrament; `state=2` mostra anomalies i enllaços a la fitxa d'alumne o factura; `state=0` rebutja format/error. L'«últim anàlisi» es desa avui com a data/hora al fitxer `../../fitxers/analisis-fitxer.txt`, que no és un registre auditable per línia.
+
+**Format efectivament llegit al PHP antic.** `$_FILES['fitxer-tpv']` es llegeix amb `fgetcsv` i el contingut es divideix per `;`; el codi comprova **13 camps** (condició `count($contentCSV)-1 == 12`). Les posicions utilitzades són **0** data (`DD/MM/YYYY` o compatible), **3** tipus (`Autorización`/`Devolución`, incloses variants de codificació), **4** número de comanda, **5** resultat que ha d'indicar autorització, **6** import CSV, **8** import en euros, **9** titular/CIF/DNI, **10** concepte i **11** import retornat si existeix. Les posicions no enumerades aquí **no tenen significat verificat en la font examinada**. El nou parser ha de validar una capçalera/versió efectiva i estructura del fitxer concret, no generalitzar aquestes posicions a tots els exportadors TPV.
+
+**Comparació que fa el llegat.** Descarta files no autoritzades, imports/dates/ordres que considera invàlids o titulars que no tracta com a DNI; una autorització es compara amb factura `TIPUS=A` i import positiu, una devolució amb `TIPUS=R` i import negatiu. Cerca primer a `web.factures` per data de pagament, `NUM_COMANDA`, import i tipus; si no troba coincidència, ho prova per data, import, tipus i CIF sense comanda. Hi ha una **excepció codificada per un identificador fiscal concret** que exclou algunes incidències de la vista; no traslladar aquesta exclusió literal al reconciliador SIF sense identificar-ne la causa i la titularitat. Aquesta cerca **no és una prova de `payment_transaction` existent**, i una factura R històrica no equival automàticament a una devolució bancària ja registrada.
+
+**Incompatibilitats a resoldre.** El parser antic usa `floatval` per imports i `intval($cif)` per titular, cosa que pot descartar NIF/CIF vàlids que comencen per lletra i perdre precisió decimal. La comprovació només per nombre de camps no valida MIME, contingut ni capçalera. La documentació del JS identifica un possible `if ($resposta->msg = "")` amb assignació: verificar **la versió productiva exacta** abans de considerar-lo una errada activa. El nou importador **pendent** ha de conservar hash del lot, usuari, data, referència de fila i resultat individual; no utilitzar `analisis-fitxer.txt` com a única evidència ni retornar «conciliat» quan només s'ha trobat un document antic.
+
+**Regla de recuperació quan no es troba factura.** Abans de proposar `issueInvoice()`, cercar per `DS_ORDER` la intenció, notificació validada, job Redsys i `UUID_PAYMENT`: pot existir una factura **emesa abans de cobrar**, un callback en `RETRY` o un cobrament assignat a una altra factura/grup. En aquests casos, UC-52/56/53 reconcilien el fet real; una fila del CSV no substitueix la validació de signatura ni autoritza per si sola una emissió. Una línia TPV de **devolució** entra per la classificació de retorn UC-28 i de correcció fiscal si escau, mai com un segon `CHARGE`.
+
+### 1.4. Proves específiques sobre el CSV antic (no executades)
+
+| ID | Entrada / escenari | Resultat objectiu |
+| --- | --- | --- |
+| TP-01 | CSV d'origen llegat amb 13 camps, tipus a posició 3 i comanda a 4 | Parser versionat interpreta els camps coneguts; cap registre SIF pel simple fet de pujar-lo. |
+| TP-02 | `state=1` del comparador històric però SIF sense cobrament | Revisió pendent d'assignació/execució; no donar per pagada la factura. |
+| TP-03 | Titular NIF/CIF amb lletra inicial | No rebutjar per `intval`; validar identificador amb regla adequada al camp del fitxer. |
+| TP-04 | Import amb diferència de cèntims després de `floatval` | Comparació decimal exacta i incidència si no coincideix. |
+| TP-05 | Mateix fitxer pujat dues vegades, una fila repetida en fitxers diferents | Lot i fila traçables, un sol fet bancari i cap CHARGE repetit. |
+| TP-06 | Callback validat amb job `RETRY` i fila «sense factura» al CSV | Recuperar job original; no emissió fiscal paral·lela. |
+| TP-07 | Fila `Devolución` i factura R històrica | Separar moviment bancari real, document històric i decisió fiscal SIF. |
+| TP-08 | Fitxer de 13 columnes amb ordre diferent o contingut no CSV | Rebuig/versió desconeguda, no desplaçar camps per endevinació. |
+| TP-09 | Identificador fiscal exclòs per l'excepció del llegat | Conservar línia i evidència al SIF; revisar el motiu, no suprimir silenciosament. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
