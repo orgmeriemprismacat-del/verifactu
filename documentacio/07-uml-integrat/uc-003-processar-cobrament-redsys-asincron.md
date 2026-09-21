@@ -122,7 +122,7 @@ U51 ..> U3 : <<extend>>
 @enduml
 ```
 
-### Vista del cas d'ús a GitHub (Mermaid)
+### Vista Mermaid del circuit asíncron general
 
 ```mermaid
 flowchart LR
@@ -359,7 +359,7 @@ G --> Review
 @enduml
 ```
 
-### Vista del cas d'ús a GitHub (Mermaid)
+### Vista Mermaid de verificació d'efectes del job Redsys
 
 ```mermaid
 flowchart LR
