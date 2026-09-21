@@ -27,6 +27,27 @@
 
 **Pendents:** plantilla i política de destinatari, storage i link segur, worker/outbox, tractament de lliurament, idempotència en proveïdor i proves de privacitat. Cap correu real enviat ni test executat en aquesta revisió.
 
+### Missatgeria real del llegat i notificació correcta d'una factura d'empresa
+
+**Distingir receptor fiscal i contacte.** A les pantalles antigues d'entitats, `entitats_resp.CORREU` identifica un **contacte/responsable** que pot rebre URL de pagament, factura o enllaç segur; la documentació del projecte precisa que el responsable **no és necessàriament el receptor fiscal**. Per a cada comunicació de grup/empresa, recuperar la factura i el seu receptor fiscal, identificar la persona autoritzada a rebre-la i verificar a quin correu concret s'ha d'enviar. La coincidència amb el correu de l'alumne o amb `IDPAG` compartit no acredita aquesta autorització, i la factura completa no s'ha de lliurar per defecte a tots els participants.
+
+**Missatge segons fase real.** El procés de «Generar factura abans de pagar» crea una factura **real** amb `EMESA_ABANS_COBRAMENT=1`; el primer correu al responsable pot indicar número, concepte i **pendent de cobrament** i oferir una URL específica del responsable. Si després «Passar pagaments» confirma una transferència, el correu històric pot informar d'import, data, concepte i resta pendent si és fraccionat. L'adaptació ha de consultar `payment_transaction/payment_allocation` per no afirmar «pagada» abans d'un `CHARGE` real. Quan la factura **ja està pagada**, el missatge ha d'oferir consulta de factura/PDF/QR, no insistir en un enllaç de pagament individual obsolet; cap participant ha de rebre la factura fiscal completa de l'empresa només perquè la seva matrícula hi figura.
+
+**Document pendent i format de lliurament.** Un `UUID_FACTURA` confirmat no demostra que `factura_documents` contingui un PDF físic íntegre. Si l'avís requereix adjunt o consulta documental, esperar l'artefacte verificat i l'autorització UC-55/78/80, o redactar un avís de «factura emesa, document pendent» que **no presenti un PDF inexistent com a adjunt**. El projecte no fixa una opció universal **adjunt vs enllaç segur** per a totes les plantilles: l'elecció ha de quedar vinculada al cas, receptor i política aprovada. Un correu amb URL segura no prova el lliurament d'un format electrònic específic (UC-123) sense evidència separada.
+
+**Independència dels retries.** La notificació té el seu propi identificador i clau idempotent per fet, plantilla/versió i destinatari autoritzat. Una fallada de correu després d'emetre/registrar el cobrament només reintenta la comunicació UC-58, **no** l'emissió de factura o el moviment econòmic. Un canvi de responsable, baixa o URL revocada abans d'enviar exigeix revalidar destinatari/enllaç i cancel·lar l'avís obsolet, conservant qualsevol intent real ja efectuat.
+
+### Proves de comunicació d'empresa i factura prèvia (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| MC-49-01 | Empresa rep factura prèvia real sense cobrament | Missatge «pendent», URL autoritzada i cap confirmació fictícia de pagament. |
+| MC-49-02 | Responsable és contacte però no receptor fiscal directe | Verificar autorització i correu concret abans de lliurar factura completa. |
+| MC-49-03 | Alumne de grup comparteix IDPAG i demana PDF de l'empresa | No adjuntar/lliurar document complet sense dret verificat. |
+| MC-49-04 | Factura pagada, recordatori de pagament encara pendent d'enviar | Cancel·lar l'avís antic i oferir consulta documental quan estigui disponible. |
+| MC-49-05 | Factura emesa però job PDF pendent | No prometre adjunt ni enllaç funcional a bytes absents. |
+| MC-49-06 | Correu falla després d'emetre factura i cobrar | Reintentar només UC-58; mateix UUID_FACTURA i UUID_PAYMENT. |
+
 ## UML de casos d'ús
 
 ```plantuml
