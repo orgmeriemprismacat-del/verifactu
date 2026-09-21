@@ -269,6 +269,49 @@ RedsysUsocInvoiceService --> InvoiceService
 
 **Fases separades:** intenció UC-63 → recepció i encolat UC-03 → worker UC-03 → handler per producte UC-14/15/16/17/19a → UC-01. La creació d'una intenció no acredita pagament; el callback HTTP no emet factura; un job `PROCESSED` no implica que l'operació del llegat hagi quedat reconciliada. El model de classes no dibuixa una dependència directa fictícia entre el servei de recepció i el worker.
 
+### 4.1. Subvista de classes del regal — compra PHP i frontera del dret comercial
+
+El diagrama executiu de Redsys de l'apartat 4 mostra `RedsysGiftInvoiceService` com a handler; aquesta subvista concreta el camí **comprovat al codi de compra**, sense convertir el bescanvi o l'enviament de la targeta en mètodes existents de la classe.
+
+```mermaid
+classDiagram
+direction LR
+class RedsysGiftInvoiceService {
+ <<PHP existent; compra/factura>>
+ +sourceType() string
+ +issueFromIntentSnapshot(db,dsOrder,snapshot) array
+ +issueByGiftIdFromValidatedNotification(sifDb,legacyDb,dsOrder,giftId) array
+ +issueByGiftCodeFromValidatedNotification(sifDb,legacyDb,dsOrder,giftCode) array
+}
+class LegacyGiftSnapshotRepository {
+ <<PHP existent; dades llegades>>
+ +loadById(legacyDb,giftId) array
+ +loadByCode(legacyDb,code) array
+}
+class LegacyGiftInvoicePayloadBuilder {
+ <<PHP existent; factura de compra>>
+ +build(snapshot) array
+}
+class RedsysNotificationRepository {
+ <<PHP existent; consulta DS_ORDER>>
+ +findByDsOrder(db,dsOrder) array
+}
+class RedsysInvoicePayloadBuilder {
+ <<PHP existent; payload cobrat>>
+}
+class InvoiceService {
+ <<PHP existent; emissió fiscal>>
+ +issueInvoice(payload) array
+}
+RedsysGiftInvoiceService ..|> RedsysIntentHandler
+RedsysGiftInvoiceService --> RedsysNotificationRepository : exigeix VALIDATED
+RedsysGiftInvoiceService --> LegacyGiftSnapshotRepository : opcional ID/codi
+RedsysGiftInvoiceService --> LegacyGiftInvoicePayloadBuilder : prepara REGAL
+RedsysGiftInvoiceService --> RedsysInvoicePayloadBuilder : dades TPV
+RedsysGiftInvoiceService --> InvoiceService : emissió/reús
+```
+
+**Límit verificat:** `LegacyGiftInvoicePayloadBuilder::build()` incorpora `CODI` en clar a `lines[].detail` i `gift.code`, i deriva la clau fiscal de `gift.ID`. `RedsysGiftInvoiceService` verifica `STATUS=VALIDATED` i coincidència d'import abans de delegar a `InvoiceService`; **no** crea `commercial_entitlement`, no valida el consum de codi i no lliura cap targeta. Vegeu [UC-119, activació i lliurament](uc-119-cicle-complet-regal.md#6-activació-i-comunicació-del-regal--accions-diferenciades).
 ## 5. Classes executives de cua fiscal i consulta/operació
 
 ```mermaid
@@ -406,8 +449,51 @@ AcademicEconomicPolicy ..> EnrollmentFundsOrchestrator : estat econòmic individ
 
 Aquest últim diagrama és un **contracte de treball**, no una afirmació que hi ha classes, repositoris o migracions implementats. No s'ha creat la taula proposada `enrollment_fund_movement` en aquesta branca de documentació. Després de revisar els 142 casos, també es consideren transversals pendents l'**autorització servidor de les comandes**, la resolució d'identitat, el routing multiemissor, el worker d'outbox i la política acadèmica-econòmica. El detall i les evidències són a [Revisió transversal 142/142](00-revisio-transversal-142-casos.md).
 
-**Contrast nominal de l'API del model general:** s'han comparat les **47 classes PHP identificades** i les **70 declaracions de mètode** que els seus subdiagrames mostren amb el codi de les classes homònimes; no hi ha cap nom de mètode absent d'aquests fitxers. Les **13 classes sense fitxer PHP homònim** són propostes/disseny pendent al diagrama final. Aquesta verificació és només **existència del nom**, no equival a validar paràmetres, tipus, visibilitat, instanciació, relacions UML, fluxos o proves d'execució. Les proves que sí estan escrites al repositori i els contrasts no coberts figuren a l'[auditoria de consistència, apartat 4](00-auditoria-consistencia-142-fitxes.md#4-què-demostren-les-proves-existents-i-quina-evidència-falta).
+**Contrast nominal de l'API de l'auditoria anterior:** s'han comparat les **47 classes PHP del subconjunt inicial** i les **70 declaracions de mètode** que els seus subdiagrames mostren amb el codi de les classes homònimes; no hi ha cap nom de mètode absent d'aquests fitxers. Les **13 classes sense fitxer PHP homònim** són propostes/disseny pendent al diagrama final. Aquesta verificació **no inclou automàticament les subvistes afegides posteriorment sobre el regal** i és només existència del nom, no equival a validar paràmetres, tipus, visibilitat, instanciació, relacions UML, fluxos o proves d'execució. Les proves que sí estan escrites al repositori i els contrasts no coberts figuren a l'[auditoria de consistència, apartat 4](00-auditoria-consistencia-142-fitxes.md#4-què-demostren-les-proves-existents-i-quina-evidència-falta).
 
+### 6.1. Subvista de disseny del dret de regal, entrega i consum — NO IMPLEMENTAT
+
+Les taules `commercial_entitlement`/`commercial_entitlement_event` existeixen com a model SQL, però els noms següents són **classes/serveis proposats** i no es poden incloure dins del nucli PHP executiu fins que tinguin codi i proves. El model permet seguir `UUID_PAYMENT` original, titular del dret, estat/versió del codi, notificació i `ID_INSC` de destí sense duplicar el cobrament.
+
+```mermaid
+classDiagram
+direction LR
+class GiftLifecycleCoordinator {
+ <<DISSENY: no acreditat al PHP>>
+ +activatePaidGift(command) result
+ +deliverGift(uuidEntitlement,recipient,requestId) result
+ +resendGift(uuidEntitlement,recipient,requestId) result
+ +redeemGift(command) result
+ +reconcileGift(uuidOperation) result
+}
+class CommercialEntitlementRepository {
+ <<DISSENY: SQL existent, writer no acreditat>>
+ +lockByCodeHash(db,hash) entitlement
+ +activate(db,purchase,codeHash) result
+ +reserve(db,id,operationId) result
+ +consume(db,id,operationId) result
+ +appendEvent(db,event) result
+}
+class GiftNotificationOutbox {
+ <<DISSENY: adaptador/outbox no acreditat>>
+ +enqueue(db,uuidEntitlement,recipient,requestId) result
+ +recordDelivery(db,notificationId,outcome) result
+}
+class EnrollmentGateway {
+ <<DISSENY: integració llegat>>
+ +createOrLinkEnrollment(command) result
+}
+class EnrollmentFundMovementRepository {
+ <<PROPOSTA: ledger per inscripció no implementat>>
+ +append(db,movement) result
+}
+GiftLifecycleCoordinator --> CommercialEntitlementRepository : dret i events
+GiftLifecycleCoordinator --> GiftNotificationOutbox : lliurament/reexpedició
+GiftLifecycleCoordinator --> EnrollmentGateway : bescanvi
+GiftLifecycleCoordinator --> EnrollmentFundMovementRepository : aplica valor existent
+```
+
+**Fronteres de transacció:** confirmar la compra/factura no és la mateixa operació que activar el dret o lliurar el codi; enviar/reenviar una targeta tampoc no és consumir-la. Entre la BD fiscal, notificacions i el llegat no s'ha acreditat un commit distribuït. [UC-17](uc-017-comprar-regal.md), [UC-18](uc-018-bescanviar-regal.md), [UC-18a](uc-018a-regal-caducat-duplicat.md), [UC-119](uc-119-cicle-complet-regal.md).
 ## 7. Traçabilitat i criteri de manteniment
 
 - [Model de classes ja existent al projecte](../04-estat-final/31-diagrames-classes-sif.md) i [matriu transversal de diagrames](../04-estat-final/35-matriu-tracabilitat-diagrames.md).
