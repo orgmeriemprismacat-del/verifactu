@@ -149,6 +149,132 @@ end
 Note over S,DB: Sense factura_registres, fiscal_queue, CHARGE nou ni hash fiscal retroactiu
 ```
 
+### 4.1. Acció independent: incorporar els bytes de l'original històric — UC-11/55, DISSENY
+
+**Actor/disparador:** procés de migració documental o responsable de custòdia verifica que una factura històrica ja importada té un original físic recuperable. Aquesta fase pot passar **després** d'haver importat la factura i les seves línies. **Precondicions:** `UUID_FACTURA` històric, emissor i origen documentats, ruta/font llegat, bytes realment llegits, tipus de document, SHA-256 recalculat i dret de custòdia. **Postcondició:** còpia privada íntegra del **fitxer històric real** amb origen i hash verificats; si no existeix, registrar `DOCUMENT_MISSING` com a **classificació de l'expedient proposada**, sense inventar un PDF antic ni dir que `ARCHIVED` prova custòdia. Si la consulta requereix una representació reconstruïda, etiquetar-la com a reconstrucció **diferent** de l'original.
+
+**Contrast PHP:** `HistoricalInvoicePayloadBuilder::document()` només valida tipus, path i *format* hexadecimal del hash que rep. `HistoricalInvoiceMigrationRepository::insertDocument()` inserta aquests tres valors i l'estat subministrat (`ARCHIVED` per defecte), però **no llegeix ni copia el fitxer, no calcula SHA-256 dels bytes i no verifica l'existència de la ruta**. `DocumentRepository::registerDocument()` tampoc copia el fitxer: calcula el hash del `contents` aportat i registra metadades. El procés d'extracció/custòdia és una integració pendent separada del `COMMIT` d'importació de la factura.
+
+```plantuml
+@startuml
+left to right direction
+actor "Procés de migració documental" as M
+actor "Responsable de custòdia" as R
+rectangle "SIF PrisMa — document d'històric (OBJECTIU)" {
+ usecase "UC-11 / DOCUMENT\nIncorporar original històric" as Import
+ usecase "Identificar factura, emissor\ni document d'origen" as Origin
+ usecase "Llegir bytes originals i\nverificar SHA-256" as Check
+ usecase "UC-55\nCustodiar fitxer privat" as Store
+ usecase "UC-80\nAutoritzar consulta posterior" as Read
+}
+M --> Import
+R --> Import
+Import ..> Origin : <<include>>
+Import ..> Check : <<include>>
+Import ..> Store : <<include>> [quan hi ha original verificable]
+R --> Read
+note right of Import
+ No reemet factura ni crea
+ registre fiscal VERI*FACTU.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor M as Migrador documental
+participant H as HistoricalInvoiceMigrationRepository [PHP, metadades]
+participant Source as Arxiu original llegat [FONT A VERIFICAR]
+participant Store as Storage privat immutable [DISSENY]
+participant D as DocumentRepository [PHP, només metadata]
+participant SIF as factura + factura_documents [SQL]
+participant Inc as Incidència de custòdia [DISSENY]
+M->>SIF: Localitzar UUID_FACTURA històric i emissor/origen
+M->>Source: Localitzar l'original emès a la data històrica
+alt Fitxer absent o només PDF reconstruït amb dades actuals
+ Source-->>M: Original NO acreditat
+ M->>Inc: Obrir incidència/estat d'evidència original desconegut [OBJECTIU]
+ M-->>M: Conservar factura HISTORICAL, cap original inventat
+else Bytes originals accessibles
+ Source-->>M: Bytes originals i identificació d'origen
+ M->>M: Calcular SHA-256 real i contrastar metadades, tipus i factura
+ alt Hash declarat difereix o emissor no acreditat
+  M->>Inc: Bloquejar publicació; investigar origen, versió i receptor
+ else Coincidència amb document original identificat
+  M->>Store: Desar bytes en storage privat i tornar-los a llegir
+  Store-->>M: Path privat + bytes/hash verificats
+  M->>SIF: Cercar metadata històrica preexistent per UUID/path/hash
+  alt Metadata coherent ja importada per UC-11
+   SIF-->>M: Referència existent; enllaçar-ne storage verificat [OBJECTIU]
+  else Falta metadata i no hi ha referència contradictòria
+   M->>D: registerDocument(db,UUID_FACTURA,type,path,bytes) [PHP existent]
+   D->>SIF: INSERT metadata CREATED, sense escriure bytes
+  else Metadata contradictòria
+   M->>Inc: Mantenir original sense publicar fins a reconciliar
+  end
+  M-->>M: Custòdia verificada o incidència, factura fiscal intacta
+ end
+end
+Note over M,SIF: Aquesta coordinació de bytes/storage i estats d'evidència NO està implementada per l'importador PHP actual.
+```
+
+### 4.2. Acció independent: verificar inventari d'històrics i documentació incompleta — UC-11/53/97, DISSENY
+
+**Actor/disparador:** responsable de migració vol tancar el lot i permetre consulta de factures antigues. **Precondicions:** inventari d'origen amb ID de cada factura de l'Associació/SL, emissor acreditat, número i data originals, estat de migració i fitxer si existeix. **Postcondició:** recompte i resultat **per document original**, diferenciant `INVOICE_IMPORTED` (dades migrades), `FILE_VERIFIED` (bytes històrics custodis) i `DOCUMENT_UNVERIFIED` (metadades sense bytes o emissor no acreditat), **etiquetes de control proposades**, no enums SQL actuals; una fila `ARCHIVED` no satisfà automàticament `FILE_VERIFIED`.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable de migració" as R
+rectangle "SIF PrisMa — tancament d'inventari històric (OBJECTIU)" {
+ usecase "UC-11 / VERIFICAR LOT\nContrastar originals i imports migrats" as Check
+ usecase "UC-97\nDesambiguar emissor i número original" as Issuer
+ usecase "UC-55\nVerificar bytes i custòdia" as File
+ usecase "UC-53\nObrir divergències per origen" as Diff
+}
+R --> Check
+Check ..> Issuer : <<include>>
+Check ..> File : <<include>> [quan hi ha arxiu original]
+R --> Diff
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor R as Responsable migració
+participant L as Inventari original de factures/fitxers [LECTURA]
+participant S as SIF històrics/fact_rels [LECTURA]
+participant Store as Storage privat i hash físic [DISSENY]
+participant Diff as UC-53 incidències [DISSENY]
+R->>L: Llistar emissors, ID original, número, data, document i hash si consta
+L-->>R: N originals amb origen i grau d'evidència
+loop Per cada emissor + sistema + ID original
+ R->>S: Comparar UUID importat, NUM_VISIBLE, línies, relacions i NO_VERIFACTU
+ alt Manca factura al SIF o col·lisió entre emissors
+  S-->>R: NOT_IMPORTED/CONFLICT
+  R->>Diff: Registrar divergència sense renumerar originals
+ else Factura històrica importada
+  S-->>R: UUID_FACTURA i metadata de document, si n'hi ha
+  opt L'origen acredita fitxer físic
+   R->>Store: Verificar còpia i SHA-256 de bytes reals
+   Store-->>R: VERIFIED o MISSING/MISMATCH
+  end
+ end
+end
+R-->>R: Informe per origen: factura migrada / bytes verificats / emissor acreditat
+Note over L,Diff: L'importador PHP no fa inventari de completitud ni verifica storage; cap recompte d'un PDF inferit d'ARCHIVED.
+```
+
+| ID de prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| HI-11-07 | Importar document amb `path` i hash de 64 hexadecimals però sense fitxer físic | `ARCHIVED` com a metadata importada, **no** `FILE_VERIFIED`; consulta bloquejada fins a prova de bytes. |
+| HI-11-08 | Original recuperat posteriorment i hash declarat igual al físic | Custòdia privada verificada i metadata vinculada a la mateixa factura històrica; no segona emissió. |
+| HI-11-09 | Original absent però PDF reconstruït avui per generador llegat | Identificar reconstrucció com a tal, no presentar-la com a original històric custodiat. |
+| HI-11-10 | Dos emissors amb mateix `NUM_VISIBLE` i distinta factura antiga | Dos orígens independents per emissor/ID; cap fusió per la clau per defecte `HISTORIC|FACT:<num>`. |
+| HI-11-11 | Lot amb 50 factures importades i 3 PDF físics absents | Informe separat: 50 dades migrades, només 47 fitxers verificats si la resta també supera el control de hash; 3 incidències documentals. |
+
 ## 5. Traçabilitat
 
 [UC-11 original](../06-fitxes-funcionals/uc-011.md) · [UC-53 conciliació](uc-053-detectar-resoldre-divergencies.md) · [UC-55 custòdia](uc-055-custodiar-reintentar-documents.md) · [HistoricalInvoiceMigrationService](../../sif/src/Service/HistoricalInvoiceMigrationService.php) · [PayloadBuilder](../../sif/src/Service/HistoricalInvoicePayloadBuilder.php) · [Repository](../../sif/src/Repository/HistoricalInvoiceMigrationRepository.php) · [Prova d'integració](../../sif/tests/Integration/HistoricalInvoiceMigrationServiceTest.php) · [Revisió dels fons per inscripció](00-revisio-moviments-inscripcions.md).
