@@ -26,6 +26,24 @@
 
 **Proves:** factura personal ja emesa i empresa demana substitució; mateix subjecte amb error tipogràfic/NIF; pagador companyia però receptor contractat particular; canvi de país; factura de grup consultada per alumne; builder R copia receptor antic; dues peticions contradictòries amb el mateix `REQUEST_ID`.
 
+### Pantalla de canvi d'entitat i límit del builder de rectificatives
+
+**D'on arriben les dades noves.** `/alumnes/genera-entitat/` gestiona separat `entitats.CIF/RAO/ADRECA/CP/POBLACIO` i el contacte `entitats_resp.NOM/COGNOMS/CORREU`; el modal llegat d'edició crida `actualitzaEditaEntitat.php` amb dades a `GET` i no mostra un avís específic quan l'entitat té factures emeses. Afegir o modificar l'entitat a aquesta pantalla **no prova** que fos part contractant en la compra particular anterior ni canvia el receptor fiscal històric de `UUID_FACTURA`. Un mateix correu pot correspondre a alumne i responsable, sense que això impliqui representació.
+
+**Limitació exacta de l'eina de correcció actual.** `ManualRectificationPayloadBuilder::forOriginalInvoice()` emet una proposta de sèrie R i construeix el receptor amb `billing($invoice)`, que copia `BILLING_NOM_RAO/NIF_CIF/ADRECA/CP/POBLACIO/PAIS/EMAIL` de **l'original**. La funció accepta `concept/detail/amount/reason/mode` però **no admet un receptor alternatiu en aquesta ruta**. Per tant, enviar-hi el CIF nou com a dada extra o marcar una entitat com a activa no la converteix en un circuit de substitució de receptor. Cal classificar, aprovar i implementar explícitament la via admesa **per al fet real** amb UC-74 abans de promoure un botó «Canvia el titular» a la intranet; no es pot pressupostar una rectificativa per a tota petició sense distingir error del mateix subjecte i canvi real de destinatari.
+
+**Dues identitats que el formulari pot confondre.** Comparar per separat persona que va contractar el servei, receptor fiscal emès, empresa que demana figurar-hi, contacte que envia la petició i pagador bancari. Si una entitat paga **després** una factura particular, `payment_transaction` identifica el moviment real però no acredita per si sol que fos receptora original del servei. Si la factura ja és d'empresa i el contacte és particular, no traspassar el PDF de grup al participant per l'email coincident. La petició ha de retornar decisió per document/relació, amb original intacte, resultat AEAT i comunicació a qui tingui permís.
+
+### Proves de substitució de receptor no implementada (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RC-93-01 | Enviar `billing` d'una empresa diferent a `ManualRectificationPayloadBuilder` | Detectar que la ruta actual copia el receptor original; no anunciar canvi implementat. |
+| RC-93-02 | Empresa paga una factura particular emesa prèviament | Cobrament relacionat amb factura existent; cap `BILLING_NIF_CIF` canviat pel banc. |
+| RC-93-03 | Operador edita `entitats.CIF` després de factura antiga | Perfil futur separat i factura original immutable; classificació si l'emissió era errònia. |
+| RC-93-04 | Contacte de l'empresa comparteix email amb l'alumne | Permisos de consulta i representació verificats, no lliurament de PDF per coincidència. |
+| RC-93-05 | Correcció de nom del mateix receptor i canvi a un receptor diferent | Causes separades, decisió fiscal documentada abans d'invocar un executor. |
+
 ## UML de casos d'ús
 
 ```plantuml
