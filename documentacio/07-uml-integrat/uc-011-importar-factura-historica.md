@@ -39,6 +39,28 @@
 
 **Prova localitzada, no executada ara:** `HistoricalInvoiceMigrationServiceTest::testImportsHistoricalInvoiceWithoutFiscalRecordOrQueue`. La prova confirma el contracte local de no crear registre/cua; no substitueix un inventari reconciliat del llegat.
 
+### 1.3. Inventari del llegat i informe de control de la importació
+
+**Origen concret que cal preservar.** El flux de migració acordat conserva `web.factures`, `NUM_VISIBLE` i numeració original, `FACTURA_RELACIONADA`, inscripcions i relacions operatives. En el llegat, `FACTURA_RELACIONADA` pot agrupar una factura ordinària A, una rectificativa negativa R i diverses inscripcions d'empresa/grup; és **un agrupador històric**, no la relació fiscal nova de rectificació ni un rebut bancari. El procés d'extracció ha de recuperar per cada origen l'ID de `web.factures`, emissor acreditat si n'hi ha més d'un, sèrie/número/data originals, receptor, imports, relacions amb `ID_INSC/IDPAG`, documents i dades de cobrament històric **amb la seva font**. El repositori SIF rep aquest payload ja preparat: no extreu les files llegades ni comprova per si sol que el lot és complet.
+
+**Separació entre importació de metadades i prova real.** `HistoricalInvoiceMigrationRepository::insertDocument()` només insereix `TIPUS`, `PATH_FITXER`, `HASH_FITXER` i `ESTAT`. No transfereix els bytes, no comprova el hash físic i no certifica que el PDF de `generaFactura($id,true)` conservi la representació original: el generador llegat pot utilitzar dades vives. Per cada factura, distingir «document antic verificat i custodiat», «metadades sense bytes verificats» i «document original no localitzat» com a **classificacions de l'informe**, no enums implementats. No generar un PDF actual i etiquetar-lo com a original històric immutable.
+
+**Visibilitat i camps que el model actual no recupera fidelment.** `HistoricalInvoiceMigrationRepository::insertRelations()` aplica `VISIBLE_ALUMNE=1` quan la relació importada no aporta el valor; una factura antiga d'empresa/grup **no** ha de passar a ser consultable íntegrament per un participant a causa d'aquest valor per defecte. Resoldre receptor i visibilitat explícits abans d'exposar la factura al portal (UC-80). `insertInvoice()` grava `EMESA_ABANS_COBRAMENT=0` i `E_FACT=0` per a tot l'històric: aquests valors de la migració **no demostren** que la factura antiga fos emesa després de cobrar o que mai no s'enviés electrònicament. Mostrar com a dades no recuperades quan la font no permet assegurar-ne l'estat original; no interpretar el zero importat com a història demostrada.
+
+**Control agregat per lot abans del tancament.** La documentació del projecte exigeix informe per **any i sèrie**, primer/últim número, nombre de factures, imports i incidències. Afegir comprovació per **emissor jurídic i origen** quan existeixin diverses entitats, i relació de números duplicats, dates originals absents, factures A/R, imports negatius, pagaments de font no contrastada i documents sense bytes. Comparar el conjunt de `web.factures` seleccionat amb el conjunt realment importat per ID d'origen; no concloure «migració completa» a partir de l'èxit d'una única inserció o d'una prova PHP unitària. Una incidència no obliga a crear un nou registre VERI*FACTU retrospectiu.
+
+### 1.4. Proves de lot i història (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| HM-01 | Importar A i R històriques amb la mateixa `FACTURA_RELACIONADA` | Dos documents històrics diferenciats, agrupador preservat i cap registre fiscal nou. |
+| HM-02 | Factura d'empresa antiga amb tres participants i `VISIBLE_ALUMNE` absent | No publicar PDF complet per efecte del valor per defecte; validar permís específicament. |
+| HM-03 | Metadada PDF amb hash però bytes absents o reconstruïts des de BD viva | Estat d'evidència no verificat, sense afirmar que és l'original custodiat. |
+| HM-04 | Dues files d'origen/emissor diferent comparteixen número visible | Detectar col·lisió i classificar abans d'importar; no renumerar el llegat per silenciar-la. |
+| HM-05 | Històric emès abans de cobrar però `EMESA_ABANS_COBRAMENT=0` importat | No inferir el fet històric del zero forçat; conservar prova original separada si existeix. |
+| HM-06 | Reutilitzar clau històrica amb receptor o total diferent | Conflicte de contingut objectiu; la branca actual de reús no el detecta i cal control previ. |
+| HM-07 | Lot amb una factura omesa i imports per sèrie que no coincideixen | Informe de conciliació incomplet i reprocessament només de la fila absent, sense duplicitat de les importades. |
+
 ## 2. Diagrama de casos d'ús
 
 ```plantuml
