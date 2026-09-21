@@ -56,6 +56,29 @@ Incident ..> Main : <<extend>> (error)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió fiscal"]
+  actor_1["Destinatari autoritzat"]
+  actor_2["Proveïdor de missatgeria"]
+  subgraph SIF_BOX["SIF · comunicació fiscal"]
+    uc_0(["UC-79<br/>Comunicar fet fiscal auditable"])
+    uc_1(["Validar fet, receptor i plantilla"])
+    uc_2(["Crear outbox idempotent"])
+    uc_3(["Enviar i registrar intent/resultat"])
+    uc_4(["UC-81<br/>Gestionar error d'enviament"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## 4. UML de classes — model SQL, executors pendents
 
 ```mermaid
