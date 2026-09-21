@@ -200,6 +200,108 @@ else Ingrés ja registrat o identificador en conflicte
 end
 Note over UI,R: Calendari i conciliació de fraccions encara no són funcions acreditades del servei manual.
 ```
+### 4.2. Seqüència específica: dues fraccions legítimes idèntiques el mateix dia — COL·LISIÓ REAL DEL CONTRACTE ACTUAL
+
+**Font:** `ManualInstallmentPaymentPayloadBuilder::idempotencyKey()` deriva la clau d'`ID_INSC`, dia de `movement_date`, import i usuari. La factura, la referència del banc, l'instant complet i una clau d'operació explícita **no participen** en aquesta derivació. `PaymentService::registerPayment()` retorna el moviment ja registrat per una clau igual sense comparar el nou payload. La prova existent repeteix expressament la primera fracció amb els mateixos valors; **no cobreix dos ingressos reals diferents que comparteixen aquests valors**.
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant A as Adaptador intranet [PENDENT]
+participant B as ManualInstallmentPaymentPayloadBuilder [PHP]
+participant S as PaymentService [PHP]
+participant TR as TransactionRunner [PHP]
+participant PR as PaymentRepository [PHP]
+participant DB as BD SIF
+O->>A: Comunicar ingrés real A de 40 el dia D, factura F, inscripció I, usuari U
+A->>B: forExistingInvoice(F, input A)
+B-->>A: clau K = I + D + 40 + U [sense factura/referència]
+A->>S: registerPayment(payload A)
+S->>TR: run(callback A)
+TR->>DB: BEGIN
+S->>PR: findByIdempotencyKey(K, true)
+PR-->>S: No existeix
+S->>PR: createPayment(payload A)
+PR->>DB: INSERT CHARGE A i assignació a F
+TR->>DB: COMMIT
+TR-->>S: UUID_PAYMENT_A
+S-->>A: idempotency_reused=false
+A-->>O: A registrat
+O->>A: Comunicar un ingrés B diferent de 40 el mateix dia D, I, U
+A->>B: forExistingInvoice(F o una altra factura, input B)
+B-->>A: mateixa clau K malgrat referència bancària diferent
+A->>S: registerPayment(payload B)
+S->>TR: run(callback B)
+TR->>DB: BEGIN
+S->>PR: findByIdempotencyKey(K, true)
+PR-->>S: CHARGE A existent
+TR->>DB: COMMIT sense crear B
+S-->>A: idempotency_reused=true, UUID_PAYMENT_A
+A-->>O: El servei retorna A, però NO demostra equivalència d'ingressos
+Note over A,DB: Aquest és el comportament que es dedueix del PHP actual. El segon ingrés real quedaria sense registrar per aquesta via.
+```
+
+### 4.3. Seqüència objectiu: identificar i reconciliar fracció abans de registrar-la
+
+**Disseny pendent:** establir un identificador immutable per **fet bancari real o fracció manual comprovada**, incloure factura i inscripció en el contracte d'equivalència, i evitar que un mateix ingrés es torni a registrar des d'UC-22/25/56 amb una altra clau. No es tracta de canviar únicament el format de la clau: cal també comprovar prova externa, relació inscripció/factura i imports/assignacions.
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador de cobraments" as Op
+actor "Origen bancari verificat" as Bank
+rectangle "SIF PrisMa" {
+ usecase "UC-23\nRegistrar fracció real" as Fr
+ usecase "UC-56\nConciliar ingrés i factura" as Match
+ usecase "UC-02\nRegistrar moviment idempotent" as Pay
+ usecase "UC-86\nAuditar intent/decisió/resultat" as Audit
+}
+Op --> Fr
+Bank --> Match
+Fr ..> Match : <<include>> [OBJECTIU]
+Fr ..> Pay : <<include>>
+Fr ..> Audit : <<include>> [OBJECTIU]
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant A as Adaptador autoritzat [PENDENT]
+participant R as Reconciliació bancària/UC-56 [PENDENT]
+participant G as Guard d'equivalència [PENDENT]
+participant P as PaymentService [PHP]
+participant DB as BD SIF
+O->>A: Registrar ingrés amb referència única, factura F i inscripció I
+A->>R: Validar fet bancari i relació I-F, import pendent i atribució
+alt Ingrés no confirmat o factura/inscripció incongruent
+ R-->>A: Rebuig o incidència; cap CHARGE
+else Ingrés confirmat
+ R-->>A: ID únic d'ingrés, import i destinació verificats
+ A->>G: Comparar ID del fet i payload amb moviments existents
+ alt Mateix ingrés i payload equivalent
+  G-->>A: Reutilitzar UUID_PAYMENT existent
+ else Mateix identificador amb import/factura contradictoris
+  G-->>A: Conflicte i revisió; cap nou CHARGE
+ else Ingrés nou i diferent, encara que import/dia siguin iguals
+  G-->>A: Clau d'ingrés única i assignació validada
+  A->>P: registerPayment(payload normalitzat)
+  P->>DB: BEGIN, moviment, assignació i COMMIT
+  P-->>A: UUID_PAYMENT nou després de COMMIT
+ end
+end
+A-->>O: Moviment verificat, reutilitzat o incidència explícita
+Note over A,G: Guard, autorització i conciliació no estan implementats pel builder/manual service aquí consultats.
+```
+
+| ID de prova pendent | Escenari | Resultat que cal acreditar |
+| --- | --- | --- |
+| FR-09 | Ingrés A i B reals amb mateix I, dia, import i usuari | Dos UUID_PAYMENT si existeixen dos fets bancaris diferents, sense duplicar la factura. |
+| FR-10 | Reintent del mateix ingrés amb una altra referència de pantalla | Recuperar el mateix UUID_PAYMENT; cap segon CHARGE. |
+| FR-11 | Mateixa clau manual sobre factura F1 i F2 diferents | Conflicte de contingut; no retornar el cobrament d'F1 com si fos el d'F2. |
+| FR-12 | ID_INSC aportat no està vinculat a factura | Rebuig abans de `registerPayment()` o derivació a incidència, no imputació silenciosa. |
 ## 5. Traçabilitat
 
 [Fitxa original UC-23](../06-fitxes-funcionals/uc-023.md) · [UC-02 revisada](uc-002-registrar-cobrament-factura.md) · [ManualInstallmentPaymentService](../../sif/src/Service/ManualInstallmentPaymentService.php) · [ManualInstallmentPaymentPayloadBuilder](../../sif/src/Service/ManualInstallmentPaymentPayloadBuilder.php) · [PaymentService](../../sif/src/Service/PaymentService.php) · [ManualInstallmentPaymentServiceTest](../../sif/tests/Integration/ManualInstallmentPaymentServiceTest.php).
