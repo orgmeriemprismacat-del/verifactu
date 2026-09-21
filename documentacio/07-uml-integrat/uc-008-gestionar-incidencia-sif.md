@@ -97,6 +97,30 @@ end note
 @enduml
 ```
 
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Worker SIF"]
+  a_1["Responsable tècnica"]
+  a_2["Operador autoritzat"]
+  subgraph SIF_BOUNDARY["Panell d'incidències del SIF"]
+    u_0(["UC-08<br/>Gestionar incidència"])
+    u_1(["Obrir incidència"])
+    u_2(["Assignar i investigar"])
+    u_3(["Executar acció correctora<br/>amb cas d'ús específic"])
+    u_4(["Repetir prova i<br/>validar evidència"])
+    u_5(["Tancar amb justificació"])
+  end
+  a_0 --> u_1
+  a_1 --> u_0
+  a_2 --> u_0
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_4
+  u_0 -.->|include| u_5
+  a_1 --> u_3
+```
+
 ## 3. Diagrama de classes — capa implementada i objectiu
 
 ```mermaid
