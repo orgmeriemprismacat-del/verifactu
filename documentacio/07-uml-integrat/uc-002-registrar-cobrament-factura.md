@@ -414,7 +414,7 @@ flowchart LR
 
 **Actor/disparador:** gestió introdueix una transferència confirmada amb referència bancària i factura destí; la mateixa referència pot aparèixer de nou perquè es tracta d'un reintent real o perquè una transferència legítima de 200 € cobreix dues factures. **Precondició objectiu:** identificar **una única entrada de banc** i les assignacions originals i pendents, titular, import, factura i inscripcions d'origen; no interpretar dues peticions d'interfície com dos ingressos externs. **Postcondició:** reutilitzar un `UUID_PAYMENT` per **la mateixa operació externa**, sense crear segon `CHARGE`, i comprovar si la factura sol·licitada ja té un tram assignat; si falta repartir l'ingrés existent, tramitar UC-56/105 amb writer segur o bloquejar-ho com a pendent, no retornar un fals pagament de B.
 
-**Límit PHP precís:** `ManualPaymentPayloadBuilder::idempotencyKey()` usa `<method>|REF:<reference>` quan hi ha referència, **sense factura ni import**. `PaymentService::createOrReusePayment()` recupera el `UUID_PAYMENT` preexistent per clau sense comparar `PAYLOAD_HASH` ni les assignacions. `ManualPaymentService::registerForInvoice()` afegeix a la resposta `uuid_factura` i `num_visible` de la **factura que ha rebut en aquesta petició**. Així, una primera alta A/100 i una segona sol·licitud B/100 amb la mateixa referència poden retornar `UUID_PAYMENT_A` junt amb `uuid_factura=B` en el segon resultat, **sense haver creat cap assignació a B**. A diferència de dos ingressos reals, una transferència multifactura necessita conservar el mateix moviment i comprovar/repartir els trams; el PHP actual `PaymentRepository::createPayment()` només insereix assignacions en crear el moviment, no les afegeix a un moviment existent en el reús.
+**Límit PHP precís:** `ManualPaymentPayloadBuilder::idempotencyKey()` usa `<method>|REF:<reference>` quan hi ha referència, **sense factura ni import**. A `main`, `PaymentService::createOrReusePayment()` recupera el moviment per clau **i compara el hash de la petició completa** amb `assertSamePayload()`; per tant, una nova assignació a B sota la mateixa K produeix `CONFLICT`, no un reús silenciós. `ManualPaymentService::registerForInvoice()` afegeix a la resposta `uuid_factura` i `num_visible` de la **factura que ha rebut en aquesta petició**. Així, una primera alta A/100 i una segona sol·licitud B/100 amb la mateixa referència i K **s'han de rebutjar a `main` per divergència del payload**; no es crea cap assignació B. Si una petició duplicada és idèntica però el canal vol representar-la com a factura diferent, la resposta del servei s'ha de contrastar amb l'assignació real abans de mostrar-la com a cobrada. A diferència de dos ingressos reals, una transferència multifactura necessita conservar el mateix moviment i comprovar/repartir els trams; el PHP actual `PaymentRepository::createPayment()` només insereix assignacions en crear el moviment, no les afegeix a un moviment existent en el reús.
 
 ```plantuml
 @startuml
@@ -464,33 +464,33 @@ autonumber
 actor G as Gestió
 participant M as ManualPaymentService [PHP]
 participant B as ManualPaymentPayloadBuilder [PHP]
-participant P as PaymentService [PHP]
-participant DB as payment_transaction + payment_allocation
-participant A as Assignació segura d'ingrés existent UC-56/105 [DISSENY]
+participant P as PaymentService [PHP main]
+participant H as PayloadIdempotencyValidatorInterface [PHP main]
+participant DB as payment_transaction + payment_allocation [SQL]
+participant A as Assignació segura P existent UC-56/105 [DISSENY]
 G->>M: registerByUuid(FACTURA_A,100,reference=TRF-1)
 M->>B: forExistingInvoice(FACTURA_A,input)
-B-->>M: K=TRANSFERENCIA|REF:TRF-1, allocation FACTURA_A/100
+B-->>M: K=TRANSFERENCIA|REF:TRF-1, assignació A/100
 M->>P: registerPayment(payload A)
-P->>DB: BEGIN + INSERT CHARGE UUID_PAYMENT_A, allocation A/100
-P->>DB: COMMIT
+P->>DB: BEGIN, INSERT CHARGE P_A + allocation A/100, hash V2, COMMIT
 P-->>M: UUID_PAYMENT_A,idempotency_reused=false
-M-->>G: UUID_PAYMENT_A,uuid_factura=FACTURA_A
+M-->>G: P_A, uuid_factura=FACTURA_A
 G->>M: registerByUuid(FACTURA_B,100,reference=TRF-1)
 M->>B: forExistingInvoice(FACTURA_B,input)
-B-->>M: Mateixa K, però allocation sol·licitada B/100
+B-->>M: Mateixa K, assignació sol·licitada B/100
 M->>P: registerPayment(payload B)
-P->>DB: BEGIN + SELECT payment_transaction WHERE K FOR UPDATE
-DB-->>P: UUID_PAYMENT_A, allocation existent NOMÉS a A
-P->>DB: COMMIT de reús sense INSERT allocation B
-P-->>M: UUID_PAYMENT_A,idempotency_reused=true sense verificar allocation B
-M-->>G: UUID_PAYMENT_A,uuid_factura=FACTURA_B [resposta contradictòria]
-Note over G,DB: El PHP actual no crea allocation B ni revalida el pagament original, la segona resposta no acredita B pagada.
-G->>A: Conciliar ingrés extern i trams de A/B
-alt Banc acredita entrada externa de 200 però el moviment SIF original es va enregistrar com 100
- A-->>G: CONFLICT de quantia banc/SIF, conciliar origen abans de cap assignació a B
-else Entrada real i moviment SIF de 100 completament assignats a A
- A-->>G: CONFLICT per atribució B sense saldo disponible, no nou CHARGE
+P->>DB: BEGIN, findByIdempotencyKey(K,true)
+DB-->>P: P_A i hash V2 del payload original A/100
+P->>H: assertMatches(payload B/100,hash original A/100)
+H--xP: CONFLICT per assignació diferent [PHP main]
+P-->>G: Error, sense assignació a B ni nou CHARGE
+G->>A: Revisar prova bancària i saldo P_A abans d'una eventual UC-56/105
+alt Ingrés bancari de 200 però P_A nominalment 100
+ A-->>G: Conciliar diferència banc/SIF abans d'assignar B
+else Ingrés real de 100 completament assignat a A
+ A-->>G: Saldo 0; denegar B, no duplicar ingrés
 end
+Note over P,H: El hash V2 compara mateixa clau i contingut; no deduplica dos moviments creats amb claus diferents.
 ```
 
 ### 5.4. Acció independent: rebutjar la reutilització d'una clau econòmica amb contingut diferent — PHP main per payload de K; contrast del fet extern i saldo pendent
