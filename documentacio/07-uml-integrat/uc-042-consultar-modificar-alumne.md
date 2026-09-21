@@ -26,6 +26,24 @@
 
 **Proves:** dues matrícules i correu compartit, factura pagada per empresa, alumne sense dret a PDF grup, canvi de DNI després de factura, Moodle inaccessible, canvi acadèmic sense efecte econòmic, modificació concurrent del contacte.
 
+### Pantalla real «Consulta - Modifica alumne» i accions que no són edicions personals
+
+**Circuit recuperat.** `/alumnes/mostrar-alumne/` correspon a `alumnes-mostrar-alumne.php` i `Intranet::__mostrarPage_Alumnes_MostrarAlumne()`. La cerca passa per `buscarUsuaris()`/`searUserByParam()`, la llista per `mostrarTaulaUsuaris_Alumnes()`/`mostrarTaulaUsuaris2_Alumnes()` i la fitxa per `mostrarInformacioUsuari_Alumnes()`. `__mostrarDadesPersonals_resultatCerca()` i `guardarDadesPersonals_resultatCerca()` tracten dades personals; la documentació funcional antiga precisa que **aquestes edicions operatives només afecten inscripcions pendents de començar**. No suposar que una modificació del correu o DNI ha actualitzat totes les edicions, la BD fiscal o Moodle.
+
+**Una fitxa amb subfluxos de naturalesa diferent.** La pantalla agrupa cursos pendents/actius/acabats/congelats, observacions i icones per veure la informació, canviar de curs, donar de baixa, consultar factura o certificat. Una icona atenuada al navegador **no és un bloqueig d'autorització al servidor**. El modal `guardarDadesPagament_modalsresultatCerca()` pot editar directament `A_PAGAR`, `PAGAMENT`, `DATA PAG`, `IDPAG`, `FRACCIO` i `FACTURA_RELACIONADA`: això **no és una edició personal** i s'ha de derivar a UC-62/02/73/74/105 segons el fet real. El canvi de curs i la baixa s'han de tramitar per UC-71/72 amb efectes fiscal/econòmic/acadèmic separats.
+
+**Dada personal actual vs factura emesa.** Si s'edita `NOM/COGNOMS/DNI/ADRECA` de l'alumne que és **receptor fiscal** d'una factura ja emesa, presentar avís d'històric i conservar `factura.BILLING_*` i el PDF original. Si l'empresa és receptora d'una factura de grup, editar el DNI o correu d'un participant **no** el converteix en receptor ni li obre el PDF fiscal complet. La correcció d'un error de receptor/concepte fiscal és una decisió de UC-74/05, no `guardarDadesPersonals_resultatCerca()`. Si el canvi afecta accés acadèmic o Moodle, registrar-ne propagació per destinació, no donar-la per feta amb l'UPDATE de les inscripcions futures.
+
+### Proves de fitxa multicanal (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AL-42-01 | Canviar correu amb una inscripció acabada i una de pendent | Mostrar abast real del canvi llegat i destins pendents, no assumir propagació universal. |
+| AL-42-02 | Alumne de grup vol «Veure factura» d'empresa | Estat mínim autoritzat, no PDF complet per compartir inscripció/IDPAG. |
+| AL-42-03 | Canviar DNI després de factura individual emesa | Perfil actualitzat segons procediment, factura original intacta i avís/expedient si hi ha error fiscal. |
+| AL-42-04 | Modal de pagament modifica import sense moviment bancari | Derivar a ajust justificat; no crear CHARGE ni editar factura per l'UPDATE llegat. |
+| AL-42-05 | Botó d'edició ocultat al navegador però endpoint invocat directament | Permisos de consulta i mutació verificats al servidor. |
+
 ## UML de casos d'ús
 
 ```plantuml
