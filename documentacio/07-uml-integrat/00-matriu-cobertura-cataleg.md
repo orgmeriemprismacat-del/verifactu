@@ -1,21 +1,21 @@
 # Matriu completa de cobertura UML del catàleg SIF
 
-**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 131 de 142 casos; 11 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original és històric i pot diferir de les evidències PHP/SQL de cada fitxa.
+**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 142 de 142 casos; 0 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original és històric i pot diferir de les evidències PHP/SQL de cada fitxa.
 
 ## Cobertura per domini
 
 | Domini del catàleg | Total | Revisats | Pendents |
 | --- | ---: | ---: | ---: |
 | facturació i registre fiscal | 33 | 33 | 0 |
-| pagaments i conciliació | 30 | 27 | 3 |
-| documents, accés i comunicacions | 11 | 9 | 2 |
-| governança i operació | 29 | 26 | 3 |
+| pagaments i conciliació | 30 | 30 | 0 |
+| documents, accés i comunicacions | 11 | 11 | 0 |
+| governança i operació | 29 | 29 | 0 |
 | integració SIF | 1 | 1 | 0 |
 | venda i descomptes | 7 | 7 | 0 |
 | canvis posteriors | 2 | 2 | 0 |
 | gestió operativa | 2 | 2 | 0 |
-| circuit adjacent de col·laboradors | 2 | 0 | 2 |
-| casuística recuperada | 1 | 0 | 1 |
+| circuit adjacent de col·laboradors | 2 | 2 | 0 |
+| casuística recuperada | 1 | 1 | 0 |
 | operació comercial i inscripció | 7 | 7 | 0 |
 | cicle de vida comercial, acadèmic i documental | 12 | 12 | 0 |
 | consentiment, identitat i coherència entre sistemes | 5 | 5 | 0 |
@@ -101,8 +101,8 @@
 | UC-62 | Iniciar factura o cobrament des de la intranet | `[LEGACY/DISSENY]` | [uc-062.md](../06-fitxes-funcionals/uc-062.md) | [Fitxa i diagrames](uc-062-iniciar-factura-cobrament-intranet.md) |
 | UC-63 | Crear la intenció Redsys des de l'ecommerce | `[ASYNC/PARCIAL]` | [uc-063.md](../06-fitxes-funcionals/uc-063.md) | [Fitxa i diagrames](uc-063-crear-intencio-redsys.md) |
 | UC-64 | Reconciliar la candidata amb el codi actual | `[CONTROL/PENDENT]` | [uc-064.md](../06-fitxes-funcionals/uc-064.md) | [Fitxa i diagrames](uc-064-reconciliar-candidata-codi-actual.md) |
-| UC-65 | Presentar una factura o rebut de col·laborador | `[LEGACY/ADJACENT]` | [uc-065.md](../06-fitxes-funcionals/uc-065.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-66 | Consultar i gestionar cobraments d'un col·laborador | `[LEGACY/ADJACENT]` | [uc-066.md](../06-fitxes-funcionals/uc-066.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-65 | Presentar una factura o rebut de col·laborador | `[LEGACY/ADJACENT]` | [uc-065.md](../06-fitxes-funcionals/uc-065.md) | [Fitxa i diagrames](uc-065-presentar-factura-rebut-collaborador.md) |
+| UC-66 | Consultar i gestionar cobraments d'un col·laborador | `[LEGACY/ADJACENT]` | [uc-066.md](../06-fitxes-funcionals/uc-066.md) | [Fitxa i diagrames](uc-066-gestionar-cobraments-collaborador.md) |
 | UC-67 | Externalitzar i rotar secrets de pagament | `[PENDENT/BLOQUEJANT]` | [uc-067.md](../06-fitxes-funcionals/uc-067.md) | [Fitxa i diagrames](uc-067-externalitzar-rotar-secrets-pagament.md) |
 | UC-68 | Retirar callbacks i escriptures fiscals llegades | `[DISSENY]` | [uc-068.md](../06-fitxes-funcionals/uc-068.md) | [Fitxa i diagrames](uc-068-retirar-callbacks-escriptures-fiscals-llegades.md) |
 | UC-69 | Confirmar i congelar dades fiscals | `[DISSENY/PARCIAL]` | [uc-069.md](../06-fitxes-funcionals/uc-069.md) | [Fitxa i diagrames](uc-069-confirmar-congelar-dades-fiscals.md) |
@@ -130,15 +130,15 @@
 | UC-91 | Aplicar descompte de grup per trams | `[DISSENY/PARCIAL]` | [uc-091.md](../06-fitxes-funcionals/uc-091.md) | [Fitxa i diagrames](uc-091-descompte-grup-per-trams.md) |
 | UC-92 | Registrar venda manual des d'intranet o telèfon | `[DISSENY/PARCIAL]` | [uc-092.md](../06-fitxes-funcionals/uc-092.md) | [Fitxa i diagrames](uc-092-registrar-venda-manual-intranet-telefon.md) |
 | UC-93 | Canviar el receptor fiscal sol·licitat després d'una compra particular | `[DISSENY/BLOQUEJANT]` | [uc-093.md](../06-fitxes-funcionals/uc-093.md) | [Fitxa i diagrames](uc-093-canviar-receptor-fiscal-despres-compra-particular.md) |
-| UC-94 | Ajustar manualment l'import a pagar amb justificació | `[DISSENY/BLOQUEJANT]` | [uc-094.md](../06-fitxes-funcionals/uc-094.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-95 | Gestionar estat acadèmic amb deute pendent | `[DISSENY]` | [uc-095.md](../06-fitxes-funcionals/uc-095.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-96 | Concedir una pròrroga de pagament fins a la segona setmana | `[DISSENY]` | [uc-096.md](../06-fitxes-funcionals/uc-096.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-97 | Consultar històric barrejat Associació/SL | `[DISSENY/BLOQUEJANT]` | [uc-097.md](../06-fitxes-funcionals/uc-097.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-98 | Classificar el circuit fiscal de botiga de llibres/SL | `[PENDENT/BLOQUEJANT]` | [uc-098.md](../06-fitxes-funcionals/uc-098.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-99 | Limitar la intranet de tutors a un circuit no fiscal | `[DISSENY/PENDENT]` | [uc-099.md](../06-fitxes-funcionals/uc-099.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-100 | Registrar una operació informativa o no facturable | `[DISSENY]` | [uc-100.md](../06-fitxes-funcionals/uc-100.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-101 | Operar domini, TLS i separació d'entorns de `pay.prisma.cat` | `[PARCIAL/BLOQUEJANT]` | [uc-101.md](../06-fitxes-funcionals/uc-101.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-102 | Autoritzar l'accés de l'alumne sense rol d'intranet | `[DISSENY/BLOQUEJANT]` | [uc-102.md](../06-fitxes-funcionals/uc-102.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-94 | Ajustar manualment l'import a pagar amb justificació | `[DISSENY/BLOQUEJANT]` | [uc-094.md](../06-fitxes-funcionals/uc-094.md) | [Fitxa i diagrames](uc-094-ajustar-manualment-import-pagar-justificacio.md) |
+| UC-95 | Gestionar estat acadèmic amb deute pendent | `[DISSENY]` | [uc-095.md](../06-fitxes-funcionals/uc-095.md) | [Fitxa i diagrames](uc-095-estat-academic-deute-pendent.md) |
+| UC-96 | Concedir una pròrroga de pagament fins a la segona setmana | `[DISSENY]` | [uc-096.md](../06-fitxes-funcionals/uc-096.md) | [Fitxa i diagrames](uc-096-prorroga-pagament-segona-setmana.md) |
+| UC-97 | Consultar històric barrejat Associació/SL | `[DISSENY/BLOQUEJANT]` | [uc-097.md](../06-fitxes-funcionals/uc-097.md) | [Fitxa i diagrames](uc-097-consultar-historic-associacio-sl.md) |
+| UC-98 | Classificar el circuit fiscal de botiga de llibres/SL | `[PENDENT/BLOQUEJANT]` | [uc-098.md](../06-fitxes-funcionals/uc-098.md) | [Fitxa i diagrames](uc-098-classificar-circuit-fiscal-botiga-llibres-sl.md) |
+| UC-99 | Limitar la intranet de tutors a un circuit no fiscal | `[DISSENY/PENDENT]` | [uc-099.md](../06-fitxes-funcionals/uc-099.md) | [Fitxa i diagrames](uc-099-limitar-intranet-tutors-no-fiscal.md) |
+| UC-100 | Registrar una operació informativa o no facturable | `[DISSENY]` | [uc-100.md](../06-fitxes-funcionals/uc-100.md) | [Fitxa i diagrames](uc-100-registrar-operacio-informativa-no-facturable.md) |
+| UC-101 | Operar domini, TLS i separació d'entorns de `pay.prisma.cat` | `[PARCIAL/BLOQUEJANT]` | [uc-101.md](../06-fitxes-funcionals/uc-101.md) | [Fitxa i diagrames](uc-101-domini-tls-separacio-entorns-pay-prisma.md) |
+| UC-102 | Autoritzar l'accés de l'alumne sense rol d'intranet | `[DISSENY/BLOQUEJANT]` | [uc-102.md](../06-fitxes-funcionals/uc-102.md) | [Fitxa i diagrames](uc-102-autoritzar-acces-alumne-sense-rol-intranet.md) |
 | UC-103 | Delegar anul·lació o canvi de pagament web al SIF | `[DISSENY/BLOQUEJANT]` | [uc-103.md](../06-fitxes-funcionals/uc-103.md) | [Fitxa i diagrames](uc-103-delegar-canvi-anullacio-pagament-web-sif.md) |
 | UC-104 | Gestionar un excés de cobrament | `[DISSENY/BLOQUEJANT]` | [uc-104.md](../06-fitxes-funcionals/uc-104.md) | [Fitxa i diagrames](uc-104-gestionar-exces-cobrament.md) |
 | UC-105 | Reassignar o repartir un pagament | `[DISSENY/BLOQUEJANT]` | [uc-105.md](../06-fitxes-funcionals/uc-105.md) | [Fitxa i diagrames](uc-105-reassignar-repartir-pagament.md) |
@@ -169,4 +169,4 @@
 
 ## Significat de «revisat»
 
-Cada fitxa específica conté flux funcional, UML de casos d'ús PlantUML, classes i seqüència Mermaid, i distingeix codi PHP existent, esquema SQL definit i disseny pendent. No certifica proves executades, classificació fiscal de receptors estrangers, política comercial de trams, reassignació de cobraments a nivell individual, contracte definitiu AEAT ni desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
+Cada fitxa específica descriu un flux propi, casos d'ús PlantUML, classes i seqüència Mermaid, i distingeix PHP existent, esquema SQL definit, servei absent o disseny pendent. **142/142 és cobertura de fitxes documentals, no certificació d'implementació ni de conformitat.** No s'han acreditat per aquest recompte la restauració real, la classificació fiscal de la botiga/SL, la verificació del servidor `pay.prisma.cat`, l'autorització completa de les API, el contracte productiu AEAT ni la traça quantitativa `enrollment_fund_movement` (proposta, no implementada). [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
