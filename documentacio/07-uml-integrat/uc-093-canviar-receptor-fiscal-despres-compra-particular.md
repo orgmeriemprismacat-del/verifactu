@@ -67,6 +67,27 @@ Main ..> Archive : <<include>> (si emesa)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Comprador/representant"]
+  actor_1["Gestió fiscal"]
+  subgraph SIF_BOX["SIF · receptor postcompra"]
+    uc_0(["UC-93<br/>Sol·licitar canvi de receptor"])
+    uc_1(["Distingir correcció i substitució de subjecte"])
+    uc_2(["Acreditar titularitat i identitat"])
+    uc_3(["UC-74<br/>Classificar document existent"])
+    uc_4(["Conservar factura original i resultat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+  uc_0 -.->|include| uc_4
+```
+
 ## UML de classes
 
 ```mermaid
