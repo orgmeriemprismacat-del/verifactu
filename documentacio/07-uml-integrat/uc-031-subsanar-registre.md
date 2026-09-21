@@ -42,6 +42,15 @@
 
 **Proves localitzades, no executades:** `FiscalRecordServiceTest::testCreatesSubsanationWithSameInvoiceIdentifier`, `testAcceptsAllSupportedSubsanationKinds`, `testRejectsHistoricalNoVerifactuInvoice`.
 
+### 1.3. Distingir subsanació registral de corregir la factura des d'intranet
+
+El xat original descriu canvis històrics de raó/CIF, concepte i import mitjançant el llapis de «Consulta - Edita - Anul·la factura», i també factures R negatives per anul·lació funcional. Aquestes operacions **no demostren per si soles una incidència de registre** que es resolgui amb UC-31. La subsanació del registre conserva UUID/número de factura i afegeix `factura_registres` nou; la correcció del document/receptor/obligació que calgui facturar s'ha de classificar per UC-05/74 o pel cas fiscal adequat, no justificar un UPDATE de les dades fiscals emeses amb el pretext de «subsanar».
+
+**S-PROVA — descripció exacta del problema registral:** abans d'UC-31, identificar registre afectat, error/estat de tramesa, `subsanation_kind`, motiu i diferència concreta a corregir. La consulta de l'estat AEAT en la pantalla és una **dimensió independent** del motiu comercial de la factura. Si la mateixa clau idempotent deriva del número/motiu/tipus i arriba una nova petició amb `correction_summary` diferent, el servei ha de detectar el conflicte de contingut abans de reutilitzar el registre, no presentar una nova correcció com si ja s'hagués executat.
+
+**S-SEGUIMENT — no inferir èxit remot:** un nou `factura_registres` i un job `fiscal_queue` demostren que el SIF ha preparat la subsanació localment, **no** que AEAT l'hagi rebut o acceptat. La intranet ha de mostrar estat d'enviament, resposta i incidència de forma separada. UC-31 no registra `REFUND`, no reactiva una matrícula i no genera per si sola una rectificativa R del document original.
+
+**Proves addicionals no executades:** error de nom/CIF de factura emesa no deriva automàticament a UC-31; correcció real d'un registre conserva UUID/número i afegeix nou registre; dues correccions de contingut diferent amb la mateixa clau generen conflicte; cua pendent/rebutjada no es mostra com a ACCEPTED; factura històrica NO_VERIFACTU no admet subsanació SIF retroactiva amb aquesta ruta.
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
