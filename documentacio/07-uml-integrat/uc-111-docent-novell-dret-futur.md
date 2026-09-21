@@ -117,7 +117,7 @@ else Evidència vàlida
  V->>P: Comprovar UUID_PAYMENT efectiu de la compra original
  alt Encara no cobrat
   P-->>V: PENDING / NO_CHARGE
-  V-->>D: Validació conservada; dret encara no emès
+  V-->>D: Validació conservada, dret encara no emès
  else Cobrament real confirmat
   P-->>V: UUID_PAYMENT acreditat
   V->>R: issueOrReuse(origin,rule,holder) + event
@@ -125,7 +125,7 @@ else Evidència vàlida
   V-->>D: Dret futur, tipus i condicions aprovats
  end
 end
-Note over V,R: Coordinació no implementada; no ALTERAR factura original ni generar CHARGE pel dret.
+Note over V,R: Coordinació no implementada, no ALTERAR factura original ni generar CHARGE pel dret.
 ```
 
 ## 5. Traçabilitat
