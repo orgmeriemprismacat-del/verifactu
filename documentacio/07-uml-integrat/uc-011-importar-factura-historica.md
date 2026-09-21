@@ -29,7 +29,7 @@
 | Cas | Resultat i control pendent |
 | --- | --- |
 | Número visible amb patró invàlid | El builder rebutja; no crea factura. |
-| Número original duplicat amb una clau idempotent diferent | El repositori busca per **clau**; el comportament davant número duplicat depèn de restriccions de BD. Comprovar abans d'importar i registrar conflicte, mai renumerar una factura històrica silenciosament. |
+| Número original duplicat amb una clau idempotent diferent | El repositori busca per **clau**; el SQL base imposa `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` globalment sense emissor. Si l'import nou usa **una clau diferent** però el mateix número, l'`INSERT` falla per unicitat; si usa **la mateixa clau per defecte**, el repositori pot reutilitzar incorrectament la primera factura sense comparar contingut. Comprovar emissor i identitat històrica abans d'importar; mai renumerar, fusionar o declarar els dos documents importats silenciosament. |
 | Import idempotent amb payload diferent | Avui es recupera l'anterior sense comparar contingut; bloquejar en el flux final si les dades discrepen. |
 | Falta data d'emissió antiga | El builder pren `date('Y-m-d H:i:s')`: risc d'atribuir data de migració a la factura històrica; exigir-la al canal. |
 | Fitxer PDF opcional amb ruta no accessible | Els camps de metadata poden importar-se, però el servei no comprova bytes ni custòdia. UC-55 ha de verificar integritat abans d'oferir el document. |
@@ -153,6 +153,8 @@ Note over S,DB: Sense factura_registres, fiscal_queue, CHARGE nou ni hash fiscal
 
 **Actor/disparador:** procés de migració documental o responsable de custòdia verifica que una factura històrica ja importada té un original físic recuperable. Aquesta fase pot passar **després** d'haver importat la factura i les seves línies. **Precondicions:** `UUID_FACTURA` històric, emissor i origen documentats, ruta/font llegat, bytes realment llegits, tipus de document, SHA-256 recalculat i dret de custòdia. **Postcondició:** còpia privada íntegra del **fitxer històric real** amb origen i hash verificats; si no existeix, registrar `DOCUMENT_MISSING` com a **classificació de l'expedient proposada**, sense inventar un PDF antic ni dir que `ARCHIVED` prova custòdia. Si la consulta requereix una representació reconstruïda, etiquetar-la com a reconstrucció **diferent** de l'original.
 
+**Contrast del model multiemissor:** abans d'incorporar bytes d'un segon original amb número aparentment igual cal identificar **emissor + sistema + ID original** (UC-97). La taula `factura` no permet avui dues files homònimes d'emissors diferents només amb una clau idempotent nova; no associar el PDF de la SL a la factura d'Associació reutilitzada erròniament.
+
 **Contrast PHP:** `HistoricalInvoicePayloadBuilder::document()` només valida tipus, path i *format* hexadecimal del hash que rep. `HistoricalInvoiceMigrationRepository::insertDocument()` inserta aquests tres valors i l'estat subministrat (`ARCHIVED` per defecte), però **no llegeix ni copia el fitxer, no calcula SHA-256 dels bytes i no verifica l'existència de la ruta**. `DocumentRepository::registerDocument()` tampoc copia el fitxer: calcula el hash del `contents` aportat i registra metadades. El procés d'extracció/custòdia és una integració pendent separada del `COMMIT` d'importació de la factura.
 
 ```plantuml
@@ -272,7 +274,7 @@ Note over L,Diff: L'importador PHP no fa inventari de completitud ni verifica st
 | HI-11-07 | Importar document amb `path` i hash de 64 hexadecimals però sense fitxer físic | `ARCHIVED` com a metadata importada, **no** `FILE_VERIFIED`; consulta bloquejada fins a prova de bytes. |
 | HI-11-08 | Original recuperat posteriorment i hash declarat igual al físic | Custòdia privada verificada i metadata vinculada a la mateixa factura històrica; no segona emissió. |
 | HI-11-09 | Original absent però PDF reconstruït avui per generador llegat | Identificar reconstrucció com a tal, no presentar-la com a original històric custodiat. |
-| HI-11-10 | Dos emissors amb mateix `NUM_VISIBLE` i distinta factura antiga | Dos orígens independents per emissor/ID; cap fusió per la clau per defecte `HISTORIC|FACT:<num>`. |
+| HI-11-10 | Dos emissors amb mateix `NUM_VISIBLE` i distinta factura antiga | **Esquema actual bloquejant:** clau per defecte pot reutilitzar erròniament la primera; clau diferent col·lideix amb UNIQUE de número/sèrie-any-seqüència. No vincular el segon PDF a la primera; model multiemissor pendent (UC-97). |
 | HI-11-11 | Lot amb 50 factures importades i 3 PDF físics absents | Informe separat: 50 dades migrades, només 47 fitxers verificats si la resta també supera el control de hash; 3 incidències documentals. |
 
 ## 5. Traçabilitat
