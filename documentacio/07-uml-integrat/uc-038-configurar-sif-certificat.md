@@ -125,7 +125,7 @@ else Preflight local correcte
  C->>G: Sol·licitar proves reals i aprovació formal
  G-->>A: Decisió d'activació o bloqueig
 end
-Note over C,G: El transport PHP revisat només admet TEST_ENDPOINT; el flux productiu no està acreditat.
+Note over C,G: El transport PHP revisat només admet TEST_ENDPOINT, el flux productiu no està acreditat.
 ```
 
 ## 6. Traçabilitat
