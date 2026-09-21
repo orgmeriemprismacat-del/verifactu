@@ -2,7 +2,7 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 125 casos d'ús revisats
+## Mapa dels 131 casos d'ús revisats
 
 **[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
@@ -105,7 +105,13 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-84 | Crear un paquet fiscal d'auditoria | [Fitxa i UML](uc-084-crear-paquet-fiscal-auditoria.md) | `[DISSENY]` |
 | UC-85 | Executar backup, restauració i reconciliació | [Fitxa i UML](uc-085-backup-restauracio-reconciliacio.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-86 | Registrar qualsevol acció sobre un pagament | [Fitxa i UML](uc-086-auditar-accio-pagament.md) | [DISSENY/BLOQUEJANT] |
+| UC-87 | Validar receptor estranger o amb dades fiscals incompletes | [Fitxa i UML](uc-087-validar-receptor-estranger-dades-incompletes.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-88 | Decidir agrupació i línies d'una factura multiconcepte | [Fitxa i UML](uc-088-decidir-agrupacio-linies-factura-multiconcepte.md) | `[DISSENY/PARCIAL]` |
+| UC-89 | Canviar concepte després del cobrament o emissió | [Fitxa i UML](uc-089-canviar-concepte-despres-cobrament-emissio.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-90 | Resoldre un descompte validat després de la compra | [Fitxa i UML](uc-090-descompte-validat-despres-compra.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-91 | Aplicar descompte de grup per trams | [Fitxa i UML](uc-091-descompte-grup-per-trams.md) | `[DISSENY/PARCIAL]` |
 | UC-92 | Registrar venda manual des d'intranet o telèfon | [Fitxa i UML](uc-092-registrar-venda-manual-intranet-telefon.md) | `[DISSENY/PARCIAL]` |
+| UC-93 | Canviar el receptor fiscal sol·licitat després d'una compra particular | [Fitxa i UML](uc-093-canviar-receptor-fiscal-despres-compra-particular.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-103 | Delegar anul·lació o canvi de pagament web al SIF | [Fitxa i UML](uc-103-delegar-canvi-anullacio-pagament-web-sif.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-104 | Gestionar un excés de cobrament | [Fitxa i UML](uc-104-gestionar-exces-cobrament.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-105 | Reassignar o repartir un pagament | [Fitxa i UML](uc-105-reassignar-repartir-pagament.md) | `[DISSENY/BLOQUEJANT]` |
@@ -134,7 +140,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | [Fitxa i UML](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | [Fitxa i UML](uc-129-reconciliar-prisma-moodle-matricules.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 125/142.** Els 17 casos restants encara no tenen fitxa UML individual revisada. El PHP d'emissió/cobrament manual disposa de serveis, però els scripts CLI revisats rebutgen producció i el controlador/autenticació productiva de la intranet no estan acreditats. La retirada del callback llegat i el canvi coordinat de secrets exigeixen inventari del runtime real. El ledger `enrollment_fund_movement` continua sent proposta.
+**Cobertura documental: 131/142.** Els 11 casos restants encara no tenen fitxa UML individual revisada. El validador d'emissió PHP no acredita validació de receptor estranger per país/tipus. El builder de grup llegeix imports per inscrit però no decideix trams ni verifica expressament base–descompte=total en tots els inputs; el builder de rectificativa copia el receptor original. El ledger `enrollment_fund_movement` continua sent proposta.
 
 ## Com llegir el paquet de cada acció
 
