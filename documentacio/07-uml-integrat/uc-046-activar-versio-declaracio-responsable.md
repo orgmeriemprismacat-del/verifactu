@@ -31,6 +31,27 @@ La migració d'auditoria defineix `sif_version.UUID_VERSION/VERSION_CODE/GIT_REV
 
 **Pendents:** contracte formal de declaració/aprovació, responsable signant, exclusivitat transaccional de versió, evidència de codi desplegat, gate productiu i proves de fallada parcial. No s'han executat proves ni activat cap versió amb aquesta fitxa.
 
+### 2.1. Acta d'activació que no confon la branca Git amb el servidor en servei
+
+**Comanda productiva diferent del GO tècnic.** `go-no-go-preproduction.php` retorna `scope=technical_preflight_only` i `production_authorized=false` fins i tot si les comprovacions del seu array conclouen `go_no_go_decision=GO`. La decisió UC-46 ha d'utilitzar les evidències UC-39 de **l'entorn objectiu**, la identitat de la candidata UC-83, emissor/certificat UC-38 i un responsable autoritzat real; **no** transformar l'`ok` de la preproducció en un permís de publicació ni donar per signada la declaració perquè existeix la taula `sif_declaration`.
+
+**Mínim que s'ha de contrastar per component.** Abans de confirmar l'operació, comparar `UUID_VERSION/GIT_REVISION/ARTIFACT_HASH/CONFIG_HASH/DATABASE_VERSION` amb el codi, migració i configuració **observats al runtime** de l'API HTTP, callback Redsys, worker bancari, worker fiscal i generador/servidor dels PDF. Si una sola part executa una candidata anterior, identificar estat de desplegament mixt i bloquejar l'afirmació d'activació homogènia. El repositori documenta `sif_version.STATUS` i una relació per FK amb `sif_declaration`, però **no acredita** ni activador PHP que publiqui codi ni exclusivitat global d'una versió `ACTIVE` només amb aquella FK.
+
+**Comprovació de la declaració.** Relacionar versió i abast del document formal aprovat, destinatari/emissor, aprovador, instant, `STORAGE_KEY` privat i **hash calculat sobre els bytes físics**. Si s'ha emès un document amb un artefacte anterior, la seva sola existència no acredita la nova candidata. No publicar com a declaració responsable una plantilla emplenada automàticament ni un document sense aprovació de la persona autoritzada; el contingut i l'adequació formal corresponen al circuit d'aprovació **pendent de verificar**.
+
+**Tall segur i efectes externs.** Durant l'activació poden existir `DS_ORDER` pendents, notificacions validades en cua, factures emeses abans de cobrar i jobs AEAT `PROCESSING`. Els components que es reiniciïn han de conservar ordre, payload, idempotència i resultats externs, no emetre una factura nova pel canvi de versió. Si el desplegament falla a mitja activació, registrar els processos encara antics, operacions reals posteriors al tall i incidències abans de reprendre/fer rollback amb UC-85; **no restaurar una BD antiga per revertir fets bancaris o fiscals ja ocorreguts**.
+
+### 2.2. Proves de l'acta d'activació (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AV-46-01 | Preproducció indica `GO`, però `production_authorized=false` | No activar producció basant-se en aquell resultat. |
+| AV-46-02 | Versió SQL marcada ACTIVE i worker fiscal d'un altre commit | Desplegament mixt identificat; no certificar versió homogènia. |
+| AV-46-03 | Declaració té hash a SQL però document físic absent | Evidència de declaració incompleta i activació no acreditada. |
+| AV-46-04 | Dos operadors activen candidates diferents alhora | Contracte d'exclusivitat pendent exigible; cap dues versions ACTIVE acceptades. |
+| AV-46-05 | Activació falla després d'un cobrament confirmat sota el codi nou | Reconciliar fons/UUIDs abans de rollback, sense segon CHARGE. |
+| AV-46-06 | El Git de documentació canvia però el codi servit no | No afirmar un nou desplegament del SIF pel sol commit documental. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
