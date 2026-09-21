@@ -20,7 +20,7 @@
 | 12 | fact_rels i origen legacy | UC-44; UC-01 | Enllaçar inscripcions/línies/operació sense atribuir imports automàticament per participant. | MAPAT PROVISIONAL — traçabilitat de dades |
 | 13 | Factures antigues no VERI*FACTU | UC-11; UC-97 | Importació i consulta són operacions diferents; conservar emissor i numeració de l'original. | MAPAT PROVISIONAL — consulta/importació |
 | 14 | Intranet tutor · documents visibles | UC-99; UC-07; UC-80 | Verificar naturalesa del document (honoraris o venda), titular, rol i abast: no donar accés fiscal per ser tutor. | MAPAT PROVISIONAL — PERMISOS A CONTRASTAR |
-| 15 | Manual operatiu dins panell | UC-22 (manual operatiu intern); UC-34 | La consulta d'ajuda/manual no modifica estat fiscal; verificar si habilita comandes que ja tenen UC. | EVIDÈNCIA/UI — sense UC nova acreditada |
+| 15 | Manual operatiu dins panell | Document 22 (manual operatiu intern); UC-34 | La consulta d'ajuda/manual no modifica estat fiscal; verificar si habilita comandes que ja tenen UC. | EVIDÈNCIA/UI — sense UC nova acreditada |
 | 16 | Migració documents històrics | UC-11; UC-55; UC-78; UC-97 | Importar metadada no acredita fitxer físic; inventariar original, verificació de bytes i custòdia. | MAPAT PROVISIONAL — CAL COMPROVAR FLUX DOCUMENTAL |
 | 17 | Mode auditor només lectura | UC-45; UC-59; UC-80 | Concessió/revocació i lectura no són la mateixa acció; revalidar grant a cada consulta. | MAPAT PROVISIONAL — control d'accés |
 | 18 | Operació informativa | UC-100 | Acció explícita sense factura ni pagament; registrar motiu i classificació quan s'apliqui. | MAPAT PROVISIONAL — UC específica existent |
