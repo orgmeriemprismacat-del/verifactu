@@ -366,6 +366,39 @@ SoapTransport --> EvidenceStore
 
 `SoapTransport` només accepta l'endpoint AEAT de **proves** segons el seu constructor; `AeatPreflight` comprova prerequisits locals, no una acceptació externa ni l'aptitud de producció. `DocumentRepository` registra metadades i hash, no serveix un document autoritzat. `IncidentRepository` obre incidències, no implementa tot el cicle d'assignació/resolució. [UC-09](uc-009-remetre-registre-aeat.md), [UC-07](uc-007-consultar-factura-estat-document.md), [UC-08](uc-008-gestionar-incidencia-sif.md).
 
+### 5.1. Subvista real de la importació de dades històriques — UC-11; bytes originals fora d'aquest PHP
+
+```mermaid
+classDiagram
+direction LR
+class HistoricalInvoiceMigrationService {
+ <<PHP existent>>
+ +importHistoricalInvoice(input) array
+}
+class HistoricalInvoicePayloadBuilder {
+ <<PHP existent>>
+ +build(input) array
+}
+class HistoricalInvoiceMigrationRepository {
+ <<PHP existent>>
+ +importHistoricalInvoice(db,payload) array
+ +findByIdempotencyKey(db,key,forUpdate) array
+}
+class DocumentRepository {
+ <<PHP existent: només metadata i hash dels contents aportats>>
+ +registerDocument(db,uuidFactura,type,path,contents) array
+}
+class TransactionRunner {
+ <<PHP existent>>
+ +run(callback) mixed
+}
+HistoricalInvoiceMigrationService --> HistoricalInvoicePayloadBuilder : normalització
+HistoricalInvoiceMigrationService --> TransactionRunner : BEGIN/COMMIT de dades
+HistoricalInvoiceMigrationService --> HistoricalInvoiceMigrationRepository : factura, línies, relacions i metadata opcional
+```
+
+**Frontera real:** `HistoricalInvoiceMigrationRepository::insertDocument()` insereix path/hash/estat declarat sense verificar físicament l'arxiu i `DocumentRepository::registerDocument()` només calcula SHA-256 del contingut **que se li passa**, no en fa la custòdia. `HistoricalInvoiceMigrationRepository` tampoc no crida `InvoiceService`, la cua AEAT ni `DocumentRepository` en importar metadades. El SQL `factura` té `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` sense emissor. [UC-11](uc-011-importar-factura-historica.md), [UC-97](uc-097-consultar-historic-associacio-sl.md).
+
 ## 6. Classes del **disseny pendent** (NO són el PHP actual)
 
 ```mermaid
@@ -406,9 +439,9 @@ class VisibilityPolicy {
  +canView(actor,factura,relations) bool
 }
 class InvoiceDocumentAccessService {
- <<DISSENY: no implementada>>
- +view(actor,uuidFactura) result
- +download(actor,documentId) stream
+ <<DISSENY: UC-55/80, no implementada>>
+ +listAuthorized(actor,scope) documents
+ +download(actor,documentId,token) bytes
 }
 class IncidentWorkflowService {
  <<DISSENY: no implementada>>
@@ -449,7 +482,7 @@ AcademicEconomicPolicy ..> EnrollmentFundsOrchestrator : estat econòmic individ
 
 Aquest últim diagrama és un **contracte de treball**, no una afirmació que hi ha classes, repositoris o migracions implementats. No s'ha creat la taula proposada `enrollment_fund_movement` en aquesta branca de documentació. Després de revisar els 142 casos, també es consideren transversals pendents l'**autorització servidor de les comandes**, la resolució d'identitat, el routing multiemissor, el worker d'outbox i la política acadèmica-econòmica. El detall i les evidències són a [Revisió transversal 142/142](00-revisio-transversal-142-casos.md).
 
-**Contrast nominal de l'API de l'auditoria anterior:** s'han comparat les **47 classes PHP del subconjunt inicial** i les **70 declaracions de mètode** que els seus subdiagrames mostren amb el codi de les classes homònimes; no hi ha cap nom de mètode absent d'aquests fitxers. Les **13 classes sense fitxer PHP homònim del subconjunt auditat original** eren propostes/disseny pendent; les subvistes de regal, conciliació i ajust incorporades després afegeixen altres classes expressament etiquetades `DISSENY` i **no** queden cobertes per aquell recompte inicial. Aquesta verificació **no inclou automàticament les subvistes afegides posteriorment sobre el regal** i és només existència del nom, no equival a validar paràmetres, tipus, visibilitat, instanciació, relacions UML, fluxos o proves d'execució. Les proves que sí estan escrites al repositori i els contrasts no coberts figuren a l'[auditoria de consistència, apartat 4](00-auditoria-consistencia-142-fitxes.md#4-què-demostren-les-proves-existents-i-quina-evidència-falta).
+**Contrast nominal de l'API de l'auditoria anterior:** s'han comparat les **47 classes PHP del subconjunt inicial** i les **70 declaracions de mètode** que els seus subdiagrames mostren amb el codi de les classes homònimes; no hi ha cap nom de mètode absent d'aquests fitxers. Les **13 classes sense fitxer PHP homònim del subconjunt auditat original** eren propostes/disseny pendent; les subvistes de regal, conciliació i ajust incorporades després afegeixen altres classes expressament etiquetades `DISSENY` i **no** queden cobertes per aquell recompte inicial. Aquesta verificació **no inclou automàticament les subvistes afegides posteriorment sobre el regal, l'històric i la custòdia** i és només existència del nom, no equival a validar paràmetres, tipus, visibilitat, instanciació, relacions UML, fluxos o proves d'execució. Les proves que sí estan escrites al repositori i els contrasts no coberts figuren a l'[auditoria de consistència, apartat 4](00-auditoria-consistencia-142-fitxes.md#4-què-demostren-les-proves-existents-i-quina-evidència-falta).
 
 ### 6.1. Subvista de disseny del dret de regal, entrega i consum — NO IMPLEMENTAT
 
@@ -573,6 +606,69 @@ ManualPriceAdjustmentService ..> ManualRectificationService : UC-74/05 si factur
 ```
 
 **No executar en cadena automàticament:** `OperationalEventRepository::append()` desa un event però no aprova l'import; `RedsysPaymentIntentService::create()` rebutja reusar `DS_ORDER` amb snapshot/import diferent; `ManualRectificationService` emet una factura R separada quan una classificació fiscal ho justifica. La UC-94 no té un únic commit demostrable que englobi proposta, canvi d'intenció, document fiscal, transferència i llegat.
+
+### 6.4. Subvista transversal de job, integritat, descàrrega i històric — UC-55/80/11/97 (DISSENY)
+
+`factura_documents` només imposa un ID únic de fila i `document_job` només una `IDEMPOTENCY_KEY` única; **no** hi ha garantia automàtica d'un document per factura/tipus/versió ni de fitxer físic disponible. El repo PHP `DocumentRepository::registerDocument()` **no** retorna `factura_documents.ID`. Les classes proposades de custòdia han de recuperar/contrastar la identitat de la metadata i els bytes abans de marcar un job com a complet.
+
+```mermaid
+classDiagram
+direction LR
+class DocumentWorker {
+ <<DISSENY: no PHP acreditat>>
+ +runOne(now) result
+ +recover(jobId) result
+}
+class DocumentJobRepository {
+ <<DISSENY: document_job SQL>>
+ +enqueue(command) job
+ +claimNext() job
+ +complete(job,documentId,hash) result
+ +fail(job,error,nextAttempt) result
+}
+class FiscalDocumentGenerator {
+ <<DISSENY: PDF/QR/XML, no PHP acreditat>>
+ +generate(snapshot,type,version) bytes
+}
+class PrivateDocumentStore {
+ <<DISSENY: custòdia físicament verificada>>
+ +writeAndVerify(bytes) key
+ +readVerified(key,sha256) bytes
+}
+class DocumentAvailabilityService {
+ <<DISSENY: no PHP acreditat>>
+ +verify(uuidFactura,documentId) status
+}
+class HistoricalOriginalCustodyService {
+ <<DISSENY: original antic, no importador PHP>>
+ +attachOriginal(uuidFactura,issuer,sourceId,bytes) result
+ +auditInventory(scope) report
+}
+class InvoiceDocumentAccessService {
+ <<DISSENY: servei únic UC-55/80>>
+ +listAuthorized(actor,scope) documents
+ +download(actor,documentId,token) bytes
+}
+class VisibilityPolicy {
+ <<DISSENY: autorització per actor/document>>
+ +canView(actor,factura,relations) bool
+}
+class DocumentRepository {
+ <<PHP real: metadata sense storage>>
+ +registerDocument(db,uuidFactura,type,path,contents) array
+}
+DocumentWorker --> DocumentJobRepository : encolat/reintent
+DocumentWorker --> FiscalDocumentGenerator : bytes de font fiscal
+DocumentWorker --> PrivateDocumentStore : desar/verificar
+DocumentWorker ..> DocumentRepository : registra metadata; recuperar ID per via addicional
+HistoricalOriginalCustodyService --> PrivateDocumentStore : bytes ORIGINALS de l'arxiu llegat
+HistoricalOriginalCustodyService ..> DocumentRepository : només si metadata no existent i validada
+DocumentAvailabilityService --> PrivateDocumentStore : llegir i recalcular hash
+InvoiceDocumentAccessService --> VisibilityPolicy : consulta per document
+InvoiceDocumentAccessService --> DocumentAvailabilityService : prova de bytes
+```
+
+**Límit multiemissor:** `HistoricalOriginalCustodyService` només ha d'adjuntar l'original a la factura **unívocament** identificada. Si Associació i SL aporten dues factures amb mateix número, l'únic model `factura` actual no pot guardar-les com dues files (UNIQUE global). El model d'emissor/persistència històrica és una decisió prèvia bloquejant de [UC-97](uc-097-consultar-historic-associacio-sl.md), no una funcionalitat que la classe proposada resolgui per màgia.
 
 ## 7. Traçabilitat i criteri de manteniment
 
