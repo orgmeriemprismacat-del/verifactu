@@ -1,6 +1,6 @@
 # UC-80 · Servir un document fiscal i registrar-ne l'accés o la denegació
 
-**Objectiu del catàleg:** autorització, token/caducitat, document immutable i auditoria de **cada consulta, descàrrega o denegació**. **Estat [DISSENY]:** es disposa de metadades de documents i d'una taula SQL d'accés, però no s'ha acreditat un controlador PHP del SIF que autentiqui l'usuari, resolgui el token i serveixi bytes amb verificació de permisos.
+**Objectiu del catàleg:** autorització, token/caducitat, document immutable i auditoria de **cada consulta, descàrrega o denegació**. El servei proposat d'accés es denomina `InvoiceDocumentAccessService`, com al model transversal i a UC-55; no són dos serveis executables diferents. **Estat [DISSENY]:** es disposa de metadades de documents i d'una taula SQL d'accés, però no s'ha acreditat un controlador PHP del SIF que autentiqui l'usuari, resolgui el token i serveixi bytes amb verificació de permisos.
 
 ## 1. Evidència i model d'accés
 
@@ -79,9 +79,10 @@ Main ..> Audit : <<include>>
 
 ```mermaid
 classDiagram
-class FiscalDocumentAccessService {
- <<DISSENY: no acreditat>>
- +open(actor,documentId,token) result
+class InvoiceDocumentAccessService {
+ <<DISSENY: servei unificat amb UC-55 i model general>>
+ +listAuthorized(actor,scope) documents
+ +download(actor,documentId,token) bytes
 }
 class DocumentAuthorizationPolicy {
  <<DISSENY: grup/empresa/alumne>>
@@ -99,9 +100,9 @@ class DocumentRepository {
  <<PHP existent: només registre de metadades>>
  +registerDocument(db,uuidFactura,type,path,contents) array
 }
-FiscalDocumentAccessService --> DocumentAuthorizationPolicy : actor/document
-FiscalDocumentAccessService --> ProtectedDocumentStorage : bytes/hashes
-FiscalDocumentAccessService --> FiscalDocumentAccessRepository : intent i resultat
+InvoiceDocumentAccessService --> DocumentAuthorizationPolicy : actor/document
+InvoiceDocumentAccessService --> ProtectedDocumentStorage : bytes/hashes
+InvoiceDocumentAccessService --> FiscalDocumentAccessRepository : intent i resultat
 ```
 
 ## 5. UML de seqüència — accés indegut i fitxer absent
@@ -110,7 +111,7 @@ FiscalDocumentAccessService --> FiscalDocumentAccessRepository : intent i result
 sequenceDiagram
 autonumber
 actor A as Alumne
-participant S as FiscalDocumentAccessService [DISSENY]
+participant S as InvoiceDocumentAccessService [DISSENY]
 participant P as DocumentAuthorizationPolicy [DISSENY]
 participant DB as factura_documents i fact_rels
 participant F as ProtectedDocumentStorage [DISSENY]
@@ -137,6 +138,151 @@ else Accés autoritzat
 end
 Note over S,F: Token, permisos, storage i auditoria encara són disseny.
 ```
+
+### 5.1. Acció independent: consultar el llistat de documents disponibles — UC-07/80, DISSENY
+
+**Actor/disparador:** receptor, representant d'empresa, alumne o auditor autenticat obre el llistat de documents. **Precondicions:** identitat i representació verificades i abast de consulta resolt per recurs; en una factura d'empresa, la condició de participant no dóna dret automàtic al PDF complet ni a les dades fiscals dels altres inscrits. **Postcondició:** retornar **només metadades de documents autoritzats i realment disponibles**, amb estat de disponibilitat/absència clar; la consulta de llistat **no entrega bytes** ni autoritza futures descàrregues sense un control nou. En particular, `fact_rels.VISIBLE_ALUMNE=1` i `factura_documents.ESTAT=CREATED` no són dues autoritzacions suficients.
+
+```plantuml
+@startuml
+left to right direction
+actor "Receptor / representant" as R
+actor "Alumne" as A
+actor "Auditor amb grant temporal" as U
+rectangle "SIF PrisMa — llistat documental (DISSENY)" {
+ usecase "UC-80 / LIST\nConsultar documents propis autoritzats" as List
+ usecase "Resoldre identitat, receptor\ni abast de cada factura" as Scope
+ usecase "Validar estat i disponibilitat del document" as Availability
+ usecase "Auditar consulta o denegació" as Audit
+ usecase "UC-80 / DOWNLOAD\nDescarregar fitxer concret" as Download
+}
+R --> List
+A --> List
+U --> List
+List ..> Scope : <<include>>
+List ..> Availability : <<include>> [sense bytes a la resposta]
+List ..> Audit : <<include>>
+R --> Download
+A --> Download
+U --> Download
+note right of Download
+ Nova autorització en servidor
+ per cada fitxer i petició.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Alumne / empresa / auditor
+participant UI as GET documents [ENDPOINT PREVIST]
+participant S as InvoiceDocumentAccessService [DISSENY]
+participant Auth as Visibilitat/identitat per factura [DISSENY]
+participant DB as factura + fact_rels + factura_documents [LECTURA]
+participant Av as Disponibilitat i hash UC-55 [DISSENY]
+participant Log as fiscal_document_access [SQL; writer PENDENT]
+A->>UI: Consultar documents de l'àmbit propi
+UI->>S: listAuthorized(actor,scope)
+S->>Auth: Comprovar sessió/grant vigent i permisos per recurs
+alt Actor no identificat, grant vençut o filtre d'empresa aliè
+ Auth-->>S: DENIED
+ S->>Log: Registrar intent/denegació [OBJECTIU]
+ S-->>UI: Resposta segura sense identificadors de factures alienes
+else Actor i àmbit validats
+ Auth-->>S: Conjunt de factures permeses amb visibilitat per document
+ S->>DB: Llegir únicament documents de factures dins d'abast
+ DB-->>S: Metadades permeses, HISTORICAL/NO_VERIFACTU quan calgui
+ S->>Av: Verificar disponibilitat real dels fitxers que es mostraran
+ Av-->>S: AVAILABLE/PENDING/ERROR per document [OBJECTIU]
+ S->>Log: Registrar consulta per recursos mostrats [OBJECTIU]
+ S-->>UI: Metadades filtrades; sense path privat ni token reutilitzable
+end
+UI-->>A: Llistat restringit o denegació
+Note over S,Log: Servei/endpoint, política i writer encara no acreditats. Consultar el llistat no significa haver descarregat bytes.
+```
+
+### 5.2. Acció independent: descarregar un document concret amb revocació/fitxer incert — UC-80, DISSENY
+
+**Actor/disparador:** subjecte autoritzat prem «Descarregar» sobre un document seleccionat o obre un enllaç que havia rebut anteriorment. **Precondicions:** identitat actual, receptor/representació, `UUID_FACTURA`, `FACTURA_DOCUMENT_ID`, grant/token encara vigent **en aquesta petició**, bytes físics i SHA-256 congruents. **Postcondició:** bytes exactes del document autoritzat amb auditoria d'intent/resultat o rebuig sense path ni dades de tercers; un `HTTP 200` no acredita que la persona els hagi llegit. Quan el document és històric, cal acreditar igualment original versus reconstrucció i no presentar-lo com a VERI*FACTU retroactiu.
+
+```plantuml
+@startuml
+left to right direction
+actor "Receptor / representant" as R
+actor "Alumne" as A
+actor "Auditor temporal" as U
+rectangle "SIF PrisMa — descàrrega documental (DISSENY)" {
+ usecase "UC-80 / DOWNLOAD\nServir document autoritzat" as Download
+ usecase "Comprovar identitat, permís\ni venciment en cada ús" as Auth
+ usecase "UC-55\nVerificar bytes, hash i origen" as Verify
+ usecase "Registrar autorització, denegació\no error d'integritat" as Audit
+}
+R --> Download
+A --> Download
+U --> Download
+Download ..> Auth : <<include>>
+Download ..> Verify : <<include>> [si autoritzat]
+Download ..> Audit : <<include>>
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Actor autenticat
+participant S as InvoiceDocumentAccessService [DISSENY]
+participant Auth as Autorització i revocació UC-59/80 [DISSENY]
+participant DB as factura_documents i emissor històric [LECTURA]
+participant Store as Storage privat [DISSENY]
+participant Log as fiscal_document_access [SQL; writer PENDENT]
+A->>S: download(documentId,token/sessió) en una petició nova
+S->>Auth: Revalidar actor, document, representació i grant/token
+alt Token caducat/revocat o document fora d'abast
+ Auth-->>S: DENIED
+ S->>Log: Registrar denegació sense dades alienes [OBJECTIU]
+ S-->>A: Accés denegat, cap metadata sensible ni bytes
+else Autoritzat per a aquest document
+ Auth-->>S: ALLOWED
+ S->>DB: Llegir UUID_FACTURA, tipus, status, hash i referència original
+ alt Document absent o només metadata no verificada
+  DB-->>S: PENDING/NOT_VERIFIED
+  S->>Log: Registrar resultat DOCUMENT_UNAVAILABLE [OBJECTIU]
+  S-->>A: No disponible; sense regenerar factura ni QR fiscal
+ else Metadata existent
+  DB-->>S: Referència a bytes privats
+  S->>Store: readAndVerify(path,hash) i contrastar font
+  alt Fitxer absent o SHA-256 diferent
+   Store-->>S: MISSING/HASH_MISMATCH
+   S->>Log: Registrar error i obrir incidència UC-55 [OBJECTIU]
+   S-->>A: Document temporalment no disponible
+  else Bytes íntegres i autorització encara vigent al servei
+   Store-->>S: Bytes originals
+   S->>Auth: Revalidar grant si hi ha canvi de sessió/temps abans d'entrega
+   alt Revocat abans d'iniciar la resposta
+    Auth-->>S: DENIED
+    S->>Log: Registrar denegació final [OBJECTIU]
+    S-->>A: Sense bytes
+   else Autoritzat
+    Auth-->>S: ALLOWED
+    S->>Log: Registrar accés autoritzat/resultat tècnic [OBJECTIU]
+    S-->>A: Stream privat dels bytes comprovats
+   end
+  end
+ end
+end
+Note over Auth,Store: Endpoints i writer no acreditats; la revisió final de permisos i la finestra temporal de revocació requereixen prova de concurrència.
+```
+
+**Precisió SQL i PHP:** `fiscal_document_access.REQUEST_ID` **no té unicitat** a la migració; és un camp de traça, no un bloqueig de doble descàrrega ni una credencial de consulta. `DocumentRepository::registerDocument()` retorna només `ok` i `hash` després d'inserir metadata; no serveix bytes ni acredita que el fitxer existeixi. No intentar resoldre permisos només per `VISIBLE_ALUMNE`, `TOKEN_FINGERPRINT` o l'enllaç que conserva el navegador.
+
+| Prova pendent | Escenari | Resultat requerit |
+| --- | --- | --- |
+| AC-80-07 | Alumne d'una factura d'empresa accedeix al llistat general | Metadades fiscals de l'empresa i dels altres participants ocultes; informació administrativa pròpia segons política. |
+| AC-80-08 | Receptor fiscal amb PDF en metadata `CREATED` però fitxer físic absent | Llistat indica no disponibilitat real; descàrrega bloquejada amb incidència. |
+| AC-80-09 | Auditor obté URL mentre grant vigent i la reutilitza després de revocació | Denegació de la nova descàrrega i registre d'intent, sense servir bytes. |
+| AC-80-10 | Històric `ARCHIVED` sense bytes originals verificats | Metadades classificades com a pendents; cap original fals ni QR VERI*FACTU inventat. |
+| AC-80-11 | Un mateix document rep consulta del llistat i descàrrega posterior | Accions i resultats auditats distintament; consulta no comptada com a lliurament de bytes. |
 
 ## 6. Traçabilitat
 
