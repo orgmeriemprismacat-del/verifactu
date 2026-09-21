@@ -152,7 +152,7 @@ else Factura SIF present
     RR-->>S: UUID factura, nou fiscal_order i hash
    end
    S->>DB: COMMIT
-   S-->>UI: Resultat; remissió UC-09 pendent
+   S-->>UI: Resultat, remissió UC-09 pendent
   end
  end
 end
