@@ -280,7 +280,7 @@ participant R as PaymentRepository [PHP]
 participant DB as BD SIF
 C->>G: Sol·licitar CHARGE amb fet extern, import i assignacions
 alt No hi ha permís, prova de l'ingrés o suma monetària coherent
- G-->>C: Rebuig; cap escriptura [OBJECTIU]
+ G-->>C: Rebuig, cap escriptura [OBJECTIU]
 else Petició validada pel canal objectiu
  G->>P: registerPayment(payload)
  P->>V: validate(payload)
@@ -302,7 +302,7 @@ else Petició validada pel canal objectiu
     R--xP: Excepció
     P--xTR: Propagar
     TR->>DB: ROLLBACK
-    TR--xC: Error; sense COMMIT del moviment
+    TR--xC: Error, sense COMMIT del moviment
    else INSERT i càlcul d'estat finalitzen
     R-->>P: UUID_PAYMENT nou
     P-->>TR: Resultat
@@ -409,12 +409,12 @@ DB-->>P: UUID_PAYMENT_A, allocation existent NOMÉS a A
 P->>DB: COMMIT de reús sense INSERT allocation B
 P-->>M: UUID_PAYMENT_A,idempotency_reused=true sense verificar allocation B
 M-->>G: UUID_PAYMENT_A,uuid_factura=FACTURA_B [resposta contradictòria]
-Note over G,DB: El PHP actual no crea allocation B ni revalida el pagament original; la segona resposta no acredita B pagada.
+Note over G,DB: El PHP actual no crea allocation B ni revalida el pagament original, la segona resposta no acredita B pagada.
 G->>A: Conciliar ingrés extern i trams de A/B
 alt Banc acredita entrada externa de 200 però el moviment SIF original es va enregistrar com 100
- A-->>G: CONFLICT de quantia banc/SIF; conciliar origen abans de cap assignació a B
+ A-->>G: CONFLICT de quantia banc/SIF, conciliar origen abans de cap assignació a B
 else Entrada real i moviment SIF de 100 completament assignats a A
- A-->>G: CONFLICT per atribució B sense saldo disponible; no nou CHARGE
+ A-->>G: CONFLICT per atribució B sense saldo disponible, no nou CHARGE
 end
 ```
 
@@ -459,7 +459,7 @@ else No existeix K i el banc acredita un nou ingrés diferent
  P->>DB: BEGIN, INSERT CHARGE i assignacions, COMMIT
  P-->>C: UUID_PAYMENT nou
 end
-Note over G,R: El lector i guard previ han de compartir una política de bloqueig amb la inserció efectiva; només consultar abans i deixar córrer una altra petició no evita la cursa.
+Note over G,R: El lector i guard previ han de compartir una política de bloqueig amb la inserció efectiva, només consultar abans i deixar córrer una altra petició no evita la cursa.
 ```
 
 | Prova pendent | Escenari | Resultat objectiu i comportament PHP a reproduir |
