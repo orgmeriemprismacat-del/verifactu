@@ -41,6 +41,24 @@
 
 **Pendents de tancament:** capacitat per recurs/edició/sessió i font d'aforament, política de venciment i llista d'espera, writer SQL amb locks i proves simultànies, efecte de TPV tardà, coordinació amb inscripcions llegades i traça econòmica.
 
+### 1.3. Última plaça, reserva caducada i cobrament real en vol
+
+**La dada `EXPIRES_AT` no és una ordre de baixa.** `capacity_reservation` preveu venciment, `LOCK_VERSION`, `CONFIRMED_AT` i `RELEASED_AT`, però el repositori no acredita un worker que alliberi places ni una regla de negoci de tolerància o llista d'espera. `RedsysPaymentIntentService` desa `EXPIRES_AT` **d'intenció TPV**, una altra dada amb responsabilitat diferent: no inferir que el venciment d'una intenció allibera immediatament una plaça, ni que prorrogar l'enllaç garanteix el dret d'aforament. Cal una decisió coordinada per recurs, `UUID_OPERATION` i reserva, sense esborrar-ne l'historial.
+
+**Consulta de l'aforament al mateix punt de control.** L'alta acadèmica del llegat identifica `ANY/MES/CURS` i `ID_INSC`, però els camps `INSC_CURS` i `PAGAMENT` no estableixen la suma transaccional de reserves **que consumeixen plaça**. Quan queda una plaça i dos checkout entren en paral·lel, la consulta, el bloqueig/versió i l'alta han de ser una unitat atòmica en el sistema que tingui la capacitat; comprovar la pantalla o una columna `LOCK_VERSION` sense un writer que la faci valer **no garanteix** que només se'n concedeixi una. Per pack/grup, calcular quantitats **per recurs/edició** dels diferents inscrits; un `IDPAG` no és una plaça.
+
+**Callback després de l'alliberament.** El callback actual compara import, divisa i terminal amb `DS_ORDER`, però no examina `capacity_reservation.STATUS` ni el venciment en `assertMatchesIntent()`. Si arriba una confirmació tardana, no marcar l'operació com a «sense pagament» perquè la plaça s'ha alliberat i tampoc crear-ne una de fictícia: registrar o reconciliar el cobrament real **una sola vegada**, bloquejar-ne l'atribució acadèmica automàtica i obrir decisió sobre plaça alternativa, canvi de curs, saldo o retorn efectiu segons UC-71/104/28. Una baixa d'una reserva sense ingrés **no** genera `REFUND`.
+
+### 1.4. Proves de plaça i diner en curs (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CP-115-01 | Dues peticions paral·leles per l'última plaça | Una sola concessió acreditada per bloqueig real, no dues files «reservades» sense comprovar suma. |
+| CP-115-02 | Caduca `DS_ORDER` però la reserva acadèmica té vigència diferent | Aplicar estats/política de cada objecte, sense alliberar/confirmar a cegues. |
+| CP-115-03 | Un grup de tres participants abasta dues edicions/recursos | Capacitat comprovada per recurs i quantitat, no per número d'`IDPAG`. |
+| CP-115-04 | Reserva alliberada i callback amb ingrés real validat | Conservar diner, revisar plaça i resoldre via incidència/decisió; no matrícula fictícia. |
+| CP-115-05 | Reserva caduca amb TPV denegat i sense ingrés | Alliberament segons regla, cap factura o devolució creada per caducitat. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
