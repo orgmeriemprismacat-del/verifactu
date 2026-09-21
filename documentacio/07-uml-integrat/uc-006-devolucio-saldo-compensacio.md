@@ -68,33 +68,42 @@ El xat confirma que després d'una baixa es modifica **primer** l'estat de la in
 | EC-05 | Saldo d'una baixa de més de cinc anys | Revisió manual; cap caducitat o esborrat automàtics. |
 | EC-06 | Descompte comercial anomenat «compensació» | No consumir ni crear credit_balance sense un origen econòmic justificat. |
 | EC-07 | Rectificativa ja emesa, banc encara no ha tornat diners | Estat fiscal diferenciat de la sortida monetària pendent, sense REFUND fictici. |
-## 2. Diagrama UML de casos d'ús — alternatives independents
+## 2. Diagrama UML de casos d'ús — decidir no equival a executar tres alternatives
 
 ```plantuml
 @startuml
 left to right direction
 actor "Operador de gestió" as O
-rectangle "SIF PrisMa" {
- usecase "UC-06\nDecidir i registrar destí\neconòmic de l'import" as Root
- usecase "UC-28\nRegistrar devolució" as Refund
- usecase "UC-29\nCrear saldo" as Credit
- usecase "UC-29a\nAplicar compensació" as Apply
- usecase "UC-05\nRectificar factura\nsi correspon" as Rect
+actor "Responsable amb permís econòmic" as R
+actor "Banc/Redsys" as B
+rectangle "SIF PrisMa — decisió econòmica" {
+ usecase "UC-06 / PREVIEW\nQuantificar dret disponible i titular" as Preview
+ usecase "UC-06 / DECIDE\nAprovar via i trams de l'import" as Decide
+ usecase "UC-28 / AUTHORIZE\nAutoritzar retorn pendent" as Pending
+ usecase "UC-28 / RECORD\nRegistrar retorn bancari confirmat" as Refund
+ usecase "UC-29\nConcedir saldo justificat" as Credit
+ usecase "UC-29a\nAplicar saldo existent a deute" as Apply
+ usecase "UC-74\nClassificar correcció fiscal apart" as Fiscal
 }
-O --> Root
-O --> Rect
-Refund -|> Root
-Credit -|> Root
-Apply -|> Root
-note bottom of Root
-  Cas mare documental:
-  la tria automàtica no està
-  implementada en un servei únic
+O --> Preview
+R --> Decide
+Decide ..> Preview : <<include>>
+R --> Pending
+B --> Refund
+R --> Refund
+R --> Credit
+R --> Apply
+R --> Fiscal
+note right of Decide
+ La decisió no implica executar
+ cap de les tres variants;
+ trams mixtos requereixen
+ conservació del mateix origen.
 end note
 @enduml
 ```
 
-**Precisió:** les fletxes de generalització indiquen variants documentals d'una decisió de gestió; no són una crida PHP d'UC-06 a tres serveis ni impliquen executar les tres operacions conjuntament.
+**Fronteres d'actor/resultat:** previsualitzar un dret, aprovar un retorn pendent, acreditar la sortida bancària, crear saldo i consumir-lo són **accions amb postcondicions diferents**. S'eviten fletxes de generalització `REFUND/CREDIT/COMPENSATION -|> decisió` perquè podrien suggerir que executar una variant equival a haver classificat/autoritzat tot l'expedient. El servei únic de decisió continua sent **DISSENY**, no PHP implementat.
 
 ## 3. Diagrama de classes dels tres serveis existents
 
@@ -185,6 +194,71 @@ UI-->>O: Mostrar resultat i pendents
 ```
 
 **Aquest és el diagrama de seqüència del contracte funcional objectiu del cas mare**, no una afirmació que la pantalla o la tria automàtica ja estiguin implementades. Els diagrames executables individuals consten a les fitxes UC-28, UC-29 i UC-29a.
+
+### 4.1. Acció independent: decidir una partició d'import real sense consumir-lo dues vegades — DISSENY
+
+**Disparador:** un dret econòmic sobre un ingrés real es reparteix en retorn extern, saldo futur o atribució a un deute existent; l'actor pot prendre una decisió abans que el banc executi la devolució. **Precondicions:** prova d'ingrés original, titular i import disponible per `UUID_PAYMENT`/`ID_INSC`, import dels retorns, crèdits i atribucions preexistents. **Postcondició:** trams quantificats, autoritzats i identificats amb `REQUEST_ID` estable, estat diferenciat per via i import pendent; una reserva de retorn no és `REFUND`, un saldo no és nou `CHARGE` i una `COMPENSATION` no prova una transferència.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable econòmic" as R
+rectangle "SIF PrisMa — UC-06 / DECISIÓ DE TRAMS (DISSENY)" {
+ usecase "Aprovar repartiment de dret econòmic" as Decide
+ usecase "Verificar pagament real origen,\ntitular i saldo no consumit" as Guard
+ usecase "Reservar retorn extern pendent" as Pending
+ usecase "Concedir crèdit amb origen únic" as Credit
+ usecase "Assignar/import aplicat a deute acreditat" as Allocate
+}
+R --> Decide
+Decide ..> Guard : <<include>>
+R --> Pending
+R --> Credit
+R --> Allocate
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor R as Responsable autoritzat
+participant D as EconomicDecisionCoordinator [DISSENY]
+participant L as Ledger per origen/ID_INSC [DISSENY]
+participant F as Factura i assignacions existents [LECTURA]
+participant P as Registre REFUND real UC-28 [PHP separat]
+participant C as CreditBalanceService [PHP separat]
+R->>D: Decidir sobre dret de 100 ja cobrat: 40 retornar + 60 saldo
+D->>F: Llegir ingrés origen i factura/inscripcions relacionades
+D->>L: Comprovar titular, valor disponible i decisions prèvies
+alt Valor disponible menor de 100 o identitat no acreditada
+ L-->>D: CONFLICT/PENDING
+ D-->>R: Cap segon retorn/saldo concedit
+else Trams autoritzats i suma compatible
+ D->>L: Reservar 40 retorn pendent i 60 saldo amb REQUEST_ID [DISSENY]
+ D-->>R: 40 RETURN_PENDING; 60 CREDIT_TO_CREATE [estats objectiu]
+ opt Banc confirma efectivament retorn de 40
+  R->>P: Registrar evidència externa i REFUND de 40 [guard UC-28 pendent]
+  P-->>D: UUID_PAYMENT de sortida confirmada
+  D->>L: Marcar tram de 40 com a sortit realment [DISSENY]
+ end
+ opt Es concedeix saldo legítim de 60
+  D->>C: createCredit(origen, titular,60) [guard d'origen pendent]
+  C-->>D: UUID_CREDIT
+  D->>L: Marcar tram de 60 com a saldo creat [DISSENY]
+ end
+ D-->>R: Resultat per tram i pendents; no declaració global prematura
+end
+Note over D,C: El ledger/reserva i l'orquestració no existeixen al PHP actual. UC-28 no executa la sortida bancària.
+```
+
+**Contrast de fallada entre serveis:** el PHP actual no comparteix una transacció atòmica `REFUND ↔ credit_balance ↔ llegat ↔ banc`. Si es crea crèdit i després falla l'actualització del llegat, recuperar la decisió original i repetir només la projecció pendent; no executar una segona devolució, ni tornar a crear saldo amb un UUID nou. L'origen de fons i l'actor receptor han de quedar resolts abans de qualsevol fase irreversible.
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| EC-08 | Es decideix retorn de 40 i saldo de 60 sobre ingrés real de 100 | Dos trams persistits, suma 100, retorn pendent no comptat com a sortida fins a prova externa. |
+| EC-09 | Segon operador intenta concedir 60 de saldo mentre els 100 ja tenen trams reservats | Conflicte de dret disponible, no duplicar saldo. |
+| EC-10 | El banc confirma 40, falla registre SIF i el client pregunta l'estat | Investigar/conciliar UC-28 amb mateixa operació bancària; no ordenar segon retorn. |
+| EC-11 | Factura de grup cobrada per empresa i participant demana els 100 en saldo propi | Resolució explícita del titular, no donar el crèdit per pertànyer a la inscripció. |
 
 ## 5. Traçabilitat
 
