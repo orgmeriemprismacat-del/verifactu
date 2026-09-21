@@ -204,7 +204,7 @@ else Es comunica un ingrés
   Claims->>P: registerByUuid(factura original, cobrament)
   P->>DB: CHARGE i CLAIM_PAYMENT
   P-->>Claims: UUID_PAYMENT
-  Claims-->>O: Pendent recalculat; reclamació segueix o es tanca
+  Claims-->>O: Pendent recalculat, reclamació segueix o es tanca
  end
 end
 Note over Claims,Rec: Seguiment de fases, detecció intercanal i correus finals encara són integració pendent.
@@ -249,7 +249,7 @@ G->>R: Identificar abonament E2 per expedient CLAIM-7 i factura F
 R->>F: Validar factura F, titular i deute actual
 R->>B: Acreditar abonament E2, import, data i identitat real
 alt E2 no acreditat o titular/destí incompatible
- R-->>G: PENDING/CONFLICT; cap CHARGE
+ R-->>G: PENDING/CONFLICT, cap CHARGE
 else E2 confirmat
  R->>P: Cercar E2 globalment en Redsys/TRANSFERENCIA/CLAIM/FRACCIO
  alt E2 ja consta en una altra família de claus
@@ -315,7 +315,7 @@ S->>DB: BEGIN, trobar moviment K = UUID_PAYMENT_E1 FOR UPDATE
 DB-->>S: E1 amb IMPORT=40 i només allocation F/40
 S->>DB: COMMIT sense inserir E2
 S-->>C: UUID_PAYMENT_E1,idempotency_reused=true
-C-->>G: UUID_PAYMENT_E1; el segon ingrés no queda enregistrat
+C-->>G: UUID_PAYMENT_E1, el segon ingrés no queda enregistrat
 Note over B,DB: L'exemple usa claim_reference com a identificador constant d'expedient. Si es vol usar com a ID bancari, cada ingrés requereix una referència pròpia i prova d'equivalència.
 ```
 
@@ -354,18 +354,18 @@ C->>F: Llegir factura vigent i canvis fiscals rellevants
 C->>P: Calcular net per factura/obligació amb assignacions reals
 C->>E: Contrastar principal reclamat, titular i ingressos ja reconeguts
 alt Només s'ha fet promesa de pagament o ingrés no verificat
- C-->>R: PENDING/REVIEW; sense CHARGE nou ni «pagada»
+ C-->>R: PENDING/REVIEW, sense CHARGE nou ni «pagada»
 else Queda import reclamat legítimament pendent
  C-->>R: CLAIM_PARTIAL / import i termini real pendents [DISSENY]
 else Deute de l'expedient realment conciliat i zero
  C->>E: Tancar expedient amb actor, correlació i versions [DISSENY]
  E-->>C: CLAIM_SETTLED
- C-->>R: Expedient tancat; factura original no reemesa
+ C-->>R: Expedient tancat, factura original no reemesa
  opt Informar del tancament al destinatari autoritzat
   R->>N: Preparar comunicació UC-43 amb document fiscal autoritzat [PENDENT]
  end
 end
-Note over C,N: Tancament d'expedient i missatgeria no implementats per ClaimPaymentService; no deduir-los d'idempotency_reused=true.
+Note over C,N: Tancament d'expedient i missatgeria no implementats per ClaimPaymentService, no deduir-los d'idempotency_reused=true.
 ```
 
 | Prova pendent | Escenari | Resultat exigible |
