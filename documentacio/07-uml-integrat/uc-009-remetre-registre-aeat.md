@@ -195,7 +195,7 @@ Note over P,DB: El procés pot fallar abans de guardar la resposta en BD
 P-xQ: Pèrdua de confirmació / caiguda
 Q->>DB: Job continua PROCESSING fins recuperació
 Q->>DB: recoverStaleLocks() → RETRY
-Note over Q,T: Reenviament sense conciliació podria duplicar un intent extern; criteri de recuperació pendent de validar
+Note over Q,T: Reenviament sense conciliació podria duplicar un intent extern, criteri de recuperació pendent de validar
 ```
 
 ## 5. Matriu de persistència i evidències
