@@ -30,6 +30,24 @@ Si el transport o el processament fallen, `fail()` posa `RETRY` amb ajornament e
 5. Quan s'esgoten intents, conservar factura i registre, exposar error, responsable i traça per UC-81; el reprocessament manual i criteri de reobertura del dead-letter són pendents.
 6. Provar: cua amb dos workers, transport `REJECTED` amb job `SENT`, timeout després d'acceptació remota, crash després de SOAP i abans del commit, resposta no parsejable, `PAYLOAD_JSON` invàlid, dead-letter i recuperació de lock. **No s'han executat proves en aquesta revisió.**
 
+### 2.1. Historial de cada intent i recuperació de resposta externa incerta
+
+**Una cua no és l'historial d'intents.** `fiscal_queue.ATTEMPTS` compta reclamacions, però no conserva necessàriament **per cada intent** quan s'ha preparat l'XML, hash, entorn, identificador de transport, resposta/CSV ni motiu precís de fallada. La migració de `aeat_submission_attempt` preveu aquest vincle, però el `FiscalQueueRepository` inspeccionat actualitza només cua i registre i **no insereix una fila en aquesta taula**. `EvidenceStore` pot guardar evidències privades de l'intent: cal enllaçar-les a l'ID real del job i `FISCAL_ORDER`, sense assumir que el fitxer físic es reconcilia automàticament amb el SQL.
+
+**Punt de tall entre BD i xarxa.** La reclamació `PROCESSING` i el completat `SENT` són dues transaccions locals diferents, amb `AeatTransport::send()` entremig. En una pèrdua de connexió o caiguda després d'enviar, `recoverStaleLocks()` pot retornar la tasca a `RETRY` **sense** consultar abans el servidor extern. Cal diferenciar `NO_ENVIAT_ACREDITAT`, `RESULTAT_INCERT` i `RESPOSTA_PERSISTIDA` com a **classificacions operatives proposades**, no enums actuals; abans de transmetre de nou una petició incerta, revisar evidència, identitat fiscal i possibilitats de consulta/verificació remota del mateix registre.
+
+**DEAD_LETTER no autoritza una altra alta.** Quan s'esgoten els intents, `fail()` marca la cua `DEAD_LETTER` i el registre/factura en estat `ERROR` local. La factura i el registre original **continuen existint**. Una persona autoritzada ha de recuperar l'event original i decidir reobertura/consulta o cas de correcció fiscal separat, evitant tant una nova emissió `issueInvoice()` com una subsanació automàtica inventada. L'«error» local no és per si mateix una resposta de rebuig de l'AEAT.
+
+### 2.2. Proves d'evidència per intent (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AF-01 | Timeout després que el servidor hagi rebut el registre | Mateix UUID/fiscal_order i evidència d'incertesa abans de decidir retransmissió. |
+| AF-02 | Procés mor després de SOAP i abans de complete() | Reconciliar resposta/evidència; no crear una altra factura o registre. |
+| AF-03 | Dos intents d'un mateix job tenen resultat extern diferent | Historial distingit per intent i investigació, sense sobreescriure la prova anterior. |
+| AF-04 | DEAD_LETTER sense resposta remota acreditada | Incidència i recuperació controlada del mateix registre, no segona alta. |
+| AF-05 | Job SENT + registre REJECTED | Classificació de rebuig, no reintent de xarxa automàtic per la mateixa causa. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
