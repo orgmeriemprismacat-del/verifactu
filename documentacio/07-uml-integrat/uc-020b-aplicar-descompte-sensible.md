@@ -36,6 +36,24 @@
 
 **Proves pendents:** actor sense permís, dada sensible al payload vs text real de PDF, factura d'empresa/grup, exportació, log/URL, justificació caducada, descompte tardà i control d'accés per rol.
 
+### 1.3. Modalitat històrica de validació i límit dels textos de factura
+
+El catàleg d'estat final identifica `sendMsgValidatCurosDescomptes()` com una rutina del llegat que **valida documentació sensible, recalcula import i pot generar enllaços de pagament**, però assenyala que no disposa encara de custòdia/evidència completa. D'aquesta constatació **no es pot deduir** que el SIF tingui una validació unificada per totes les categories de descompte, que les imatges estiguin en emmagatzematge privat o que la comunicació enviada certifiqui el dret amb validesa general. Cal relacionar decisió, categoria de regla, inscripció, actor i versió de preu, mantenint la prova personal sota UC-116.
+
+La distinció entre **text públic** i **causa interna** s'ha de mantenir també en els punts que encara utilitzen camps lliures. `factura_linia.DESC_TEXT_VISIBLE` pot contenir una formulació genèrica de descompte; `DESC_MOTIU_INTERN` i l'evidència de validació no s'han de copiar a `CONCEPTE`, observacions públiques, PDFs, correus a un responsable de grup, `RESULT_JSON` de la cua, logs o URLs. Les columnes separades i el builder fiscal **no proven** que el generador documental i tots els endpoints apliquin aquesta restricció; cal prova amb sortida real i permisos al servidor.
+
+Si un descompte es valida després que el participant ja hagi pagat o que l'empresa hagi rebut una factura de grup, la modificació és de **preu/obligació**, no una instrucció automàtica per retornar diners a l'alumne ni per editar la factura del responsable. UC-73/74 classifiquen l'ajust i UC-28 només registra una sortida real al titular econòmic pertinent.
+
+### 1.4. Proves addicionals de confidencialitat (no executades)
+
+| ID | Escenari | Resultat esperat |
+| --- | --- | --- |
+| DS-01 | Validació de document completada al llegat | Decisió comercial vinculada a la inscripció; cap presumpció de custòdia segura al SIF. |
+| DS-02 | Constructor rep `discount_internal_reason` | PDF i correu mostren només text visible autoritzat, sense copiar el motiu intern. |
+| DS-03 | Responsable d'empresa consulta factura de grup | No accedeix a justificants o causes particulars dels participants sense permís específic. |
+| DS-04 | Un endpoint de consulta mostra detalls/JSON de línia fiscal | Camp intern i referència a l'evidència filtrats segons autorització. |
+| DS-05 | Descompte aprovat després d'emetre i cobrar | Event i classificació fiscal/econòmica, sense retorn a titular equivocat ni UPDATE fiscal directe. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
