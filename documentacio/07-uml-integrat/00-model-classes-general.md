@@ -238,7 +238,7 @@ PaymentService --> PaymentPayloadValidator : valida estructura
 PaymentService --> PaymentRepository : crea/reutilitza per clau
 ```
 
-**Frontera d'evidència:** `PaymentRepository::createPayment()` insereix un `payment_transaction.ESTAT=CONFIRMED` i calcula `PAYLOAD_HASH` **sobre les dades que li envia el canal**, però `PaymentService` no consulta aquell hash per comparar una petició recuperada. `ManualRefundPayloadBuilder` no rep `UUID_PAYMENT` original, titular del retorn ni confirmació bancària. Amb `reference`, la clau de devolució no incorpora factura/import; sense `reference`, dos retorns reals coincidents en factura/dia/import/banc compartirien clau. [UC-28](uc-028-registrar-devolucio.md).
+**Frontera d'evidència:** `PaymentRepository::createPayment()` insereix un `payment_transaction.ESTAT=CONFIRMED` i calcula `PAYLOAD_HASH` **sobre les dades que li envia el canal**, però `PaymentService` no consulta aquell hash per comparar una petició recuperada. `ManualRefundPayloadBuilder` no rep `UUID_PAYMENT` original, titular del retorn ni confirmació bancària. Amb `reference`, la clau de devolució no incorpora factura/import; sense `reference`, dos retorns reals coincidents en factura/dia/import/banc compartirien clau. **A més**, `ManualRefundService::registerForInvoice()` afegeix al resultat el `uuid_factura` i `num_visible` de la **factura sol·licitada** fins i tot si `PaymentService` ha reutilitzat per aquella clau un `UUID_PAYMENT` assignat a una altra factura: el retorn de l'API pot barrejar `UUID_PAYMENT_A` amb `UUID_FACTURA_B`. La seqüència concreta consta a [UC-28, 4.3a](uc-028-registrar-devolucio.md). [UC-28](uc-028-registrar-devolucio.md).
 
 ## 4. Classes executives de Redsys i integracions de venda
 
