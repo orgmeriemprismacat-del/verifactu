@@ -1,6 +1,6 @@
 # Matriu completa de cobertura UML del catàleg SIF
 
-**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 95 de 142 casos; 47 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original és històric i pot diferir de les evidències del PHP/SQL a cada fitxa.
+**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 101 de 142 casos; 41 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original és històric i pot diferir de les evidències PHP/SQL de cada fitxa.
 
 ## Cobertura per domini
 
@@ -8,8 +8,8 @@
 | --- | ---: | ---: | ---: |
 | facturació i registre fiscal | 33 | 27 | 6 |
 | pagaments i conciliació | 30 | 22 | 8 |
-| documents, accés i comunicacions | 11 | 5 | 6 |
-| governança i operació | 29 | 7 | 22 |
+| documents, accés i comunicacions | 11 | 8 | 3 |
+| governança i operació | 29 | 10 | 19 |
 | integració SIF | 1 | 1 | 0 |
 | venda i descomptes | 7 | 7 | 0 |
 | canvis posteriors | 2 | 2 | 0 |
@@ -113,12 +113,12 @@
 | UC-74 | Classificar una correcció fiscal | `[DISSENY/BLOQUEJANT]` | [uc-074.md](../06-fitxes-funcionals/uc-074.md) | [Fitxa i diagrames](uc-074-classificar-correccio-fiscal.md) |
 | UC-75 | Crear un registre d'anul·lació | `[DISSENY/BLOQUEJANT]` | [uc-075.md](../06-fitxes-funcionals/uc-075.md) | [Fitxa i diagrames](uc-075-crear-registre-anullacio.md) |
 | UC-76 | Crear un registre de subsanació | `[DISSENY/BLOQUEJANT]` | [uc-076.md](../06-fitxes-funcionals/uc-076.md) | [Fitxa i diagrames](uc-076-crear-registre-subsanacio.md) |
-| UC-77 | Operar enviament AEAT, retry i dead-letter | `[DISSENY/BLOQUEJANT]` | [uc-077.md](../06-fitxes-funcionals/uc-077.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-78 | Generar i custodiar PDF, QR i XML | `[PARCIAL/DISSENY]` | [uc-078.md](../06-fitxes-funcionals/uc-078.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-79 | Enviar una comunicació fiscal auditable | `[DISSENY]` | [uc-079.md](../06-fitxes-funcionals/uc-079.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-80 | Servir i registrar accés a document fiscal | `[DISSENY]` | [uc-080.md](../06-fitxes-funcionals/uc-080.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-81 | Gestionar el cicle complet d'una incidència | `[PARCIAL/DISSENY]` | [uc-081.md](../06-fitxes-funcionals/uc-081.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-82 | Reconciliar SIF amb la BD llegada | `[DISSENY]` | [uc-082.md](../06-fitxes-funcionals/uc-082.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-77 | Operar enviament AEAT, retry i dead-letter | `[DISSENY/BLOQUEJANT]` | [uc-077.md](../06-fitxes-funcionals/uc-077.md) | [Fitxa i diagrames](uc-077-operar-enviament-aeat-retry-dead-letter.md) |
+| UC-78 | Generar i custodiar PDF, QR i XML | `[PARCIAL/DISSENY]` | [uc-078.md](../06-fitxes-funcionals/uc-078.md) | [Fitxa i diagrames](uc-078-generar-custodiar-pdf-qr-xml.md) |
+| UC-79 | Enviar una comunicació fiscal auditable | `[DISSENY]` | [uc-079.md](../06-fitxes-funcionals/uc-079.md) | [Fitxa i diagrames](uc-079-comunicacio-fiscal-auditable.md) |
+| UC-80 | Servir i registrar accés a document fiscal | `[DISSENY]` | [uc-080.md](../06-fitxes-funcionals/uc-080.md) | [Fitxa i diagrames](uc-080-servir-registrar-acces-document-fiscal.md) |
+| UC-81 | Gestionar el cicle complet d'una incidència | `[PARCIAL/DISSENY]` | [uc-081.md](../06-fitxes-funcionals/uc-081.md) | [Fitxa i diagrames](uc-081-cicle-complet-incidencia.md) |
+| UC-82 | Reconciliar SIF amb la BD llegada | `[DISSENY]` | [uc-082.md](../06-fitxes-funcionals/uc-082.md) | [Fitxa i diagrames](uc-082-reconciliar-sif-bd-llegada.md) |
 | UC-83 | Registrar i activar versió i declaració | `[DISSENY/BLOQUEJANT]` | [uc-083.md](../06-fitxes-funcionals/uc-083.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-84 | Crear un paquet fiscal d'auditoria | `[DISSENY]` | [uc-084.md](../06-fitxes-funcionals/uc-084.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-85 | Executar backup, restauració i reconciliació | `[DISSENY/BLOQUEJANT]` | [uc-085.md](../06-fitxes-funcionals/uc-085.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
@@ -169,4 +169,4 @@
 
 ## Significat de «revisat»
 
-Cada fitxa específica conté anàlisi funcional, UML de casos d'ús, classes i seqüència, i distingeix codi PHP existent, esquema SQL definit i disseny pendent. No certifica tests executats, autorització del canal, classificació fiscal aprovada, control d'aforament, ledger quantitatiu de fons per inscripció, acceptació AEAT ni desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
+Cada fitxa específica conté anàlisi de l'acció, casos d'ús PlantUML, classes i seqüència Mermaid, i distingeix codi PHP existent, esquema SQL definit i disseny pendent. No certifica proves executades, autoritzacions del canal, enviament AEAT de producció, custòdia efectiva d'artefactes, conciliació automàtica real, ledger quantitatiu de fons per inscripció ni desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
