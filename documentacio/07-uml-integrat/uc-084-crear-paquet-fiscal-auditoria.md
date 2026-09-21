@@ -30,6 +30,27 @@ Les fonts documentals són `factura`, `factura_linia`, `factura_registres`, `fac
 
 **Proves pendents:** factura rectificada durant l'exportació, document absent, intent AEAT sense resposta, paquet d'un emissor vs factura d'un altre, grant revocat abans de descarregar, fitxer modificat, exportació concurrent i filtració de dades personals en manifest/log.
 
+### Paquet d'auditoria mixt: registres del SIF i inventari històric no VERI*FACTU
+
+**Dues procedències dins d'un únic paquet, si s'aprova.** La migració històrica d'UC-11 conserva `ESTAT_AEAT=NO_VERIFACTU` i no crea `factura_registres` ni `fiscal_queue`. Si una petició d'auditoria requereix tant registres emesos pel SIF com documents previs del llegat, el manifest ha de dividir-los en conjunts **«registre SIF amb cadena/AEAT»** i **«document històric de consulta, sense nova alta AEAT»**. Aquesta divisió és una especificació del paquet, **no** una afirmació que hi hagi un generador PHP mixt implementat o que la factura històrica disposi d'un QR de registre nou.
+
+**Identitat original i informe de migració.** Per cada històric, incloure referència a la font (`web.factures`/ID quan s'hagi acreditat), emissor jurídic verificat, `NUM_VISIBLE`, sèrie, data d'emissió antiga, receptor, `FACTURA_RELACIONADA`, estat del document i incidència documental o d'import si n'hi ha. Si Associació i SL tenen numeracions coincidents, el número no és una clau global; si no es pot acreditar emissor/origen, mantenir la manca com a incidència i **no atribuir** el document a l'emissor actiu. Adjuntar el resum de control UC-11 per any/sèrie, primer/últim número, totals i files no importades quan l'abast sigui la migració.
+
+**Evidència del que no es pot acreditar.** Un `factura_documents.HASH_FITXER` importat no confirma que el PDF físic sigui l'original ni que estigui custodiat. El manifest ha d'enumerar **per separat** els artefactes amb bytes i hash revisats, els documents només referenciats, els PDFs reconstruïts des del llegat i els no localitzats. Un rebut bancari històric o `ESTAT_COBRAMENT=PAID` importat no crea una `payment_transaction` actual. Per a AEAT, un job `SENT` sense resposta individual `ACCEPTED` s'etiqueta com a enviament, no com a registre acceptat.
+
+**Reproducció i accés.** `fiscal_export`/`fiscal_export_access` són taules de governança encara sense generador/writer complet acreditat. El contracte objectiu desa filtres, data de tall, versió del manifest, cardinalitat per conjunt, hash dels fitxers **realment llegits** i resultat de cada accés autoritzat o denegat. Un auditor amb accés a registres fiscals no obté automàticament justificants sensibles ni el PDF complet d'una empresa per ser participant d'un grup; comprovar rol i abast a cada descàrrega (UC-45/59/80).
+
+### Proves addicionals de paquet mixt (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| PA-84-01 | Paquet amb factura de 2024 històrica i factura SIF recent | Separació d'origen, estat fiscal i existència de registre/AEAT. |
+| PA-84-02 | Arxiu PDF històric no localitzat però metadada importada | Manifest indica document absent/no verificat, no hash de bytes suposats. |
+| PA-84-03 | Mateix número visible a Associació i SL | Emissor i ID de font distingits o conflicte registrat, sense fusió. |
+| PA-84-04 | Migració incompleta respecte del recompte `web.factures` | Diferència i incidències en el manifest, no declarar paquet complet. |
+| PA-84-05 | Paquet fiscal consulta una resposta AEAT pendent per un registre SIF | Estat remot no acreditat i resposta absent, sense acceptació fictícia. |
+| PA-84-06 | Persona sense permís de document d'empresa vol exportar-lo pel paquet | Denegació al servidor i event d'accés, sense eludir UC-80. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
