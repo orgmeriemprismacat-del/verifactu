@@ -28,6 +28,26 @@
 
 **Proves:** passaport sense país, NIF text no espanyol, país `ES` per defecte amb adreça estrangera, empresa pagadora amb alumne estranger, una factura ja emesa, canvi de perfil mentre hi ha intenció Redsys i dos identificadors per un mateix subjecte.
 
+### Validació concreta de dades per canal i per receptor real
+
+**La cadena de dades pot perdre la distinció del país.** `InvoicePayloadValidator::validate()` exigeix `billing.name` i `billing.nif` no buits, però no valida `country`, tipus d'identificador o coherència del domicili. `LegacyCourseInvoicePayloadBuilder::billing()` pren `DNI/Pais/ADRECA/Codi_Postal/Poblacio` de la inscripció; `InvoiceRepository::insertInvoice()` conserva el país del payload i usa `ES` per defecte quan falta. Això permet que un passaport o un identificador d'una altra jurisdicció figuri com a camp `nif` de text mentre el país s'ha omplert amb `ES` sense comprovació. El validador de dades fiscals de UC-87 és **un control d'integració pendent**, no una capacitat ja coberta per les dues comprovacions de presència.
+
+**Identificar el destinatari abans de demanar-li dades.** Per una factura individual, el subjecte de la inscripció pot ser receptor; per un grup amb empresa pagadora, el document pertany al receptor fiscal de l'entitat, **no** a cada participant que tingui DNI/passaport estranger. `/alumnes/genera-entitat/` separa `entitats.CIF/RAO/ADRECA/CP/POBLACIO` del contacte `entitats_resp`; aquest contacte tampoc és automàticament el receptor. El pas de confirmació UC-69 ha de seleccionar un **ID de receptor intern** i presentar els camps del perfil corresponent: no completar les dades fiscals de l'empresa amb el domicili o passaport del participant perquè són els únics camps disponibles al formulari.
+
+**Conservar la resposta rebuda i bloquejar només la mutació improcedent.** Si manca país, tipus d'identificador o la identificació del receptor real, guardar la sol·licitud d'aclariment i la prova amb accés restringit, **sense convertir** automàticament el número introduït a un NIF espanyol ni afirmar que la factura és apta. Si ja hi ha un `DS_ORDER` anterior, conservar `SNAPSHOT_JSON/EXPECTED_AMOUNT`: la validació posterior no reescriu l'intent bancari. Si arriba un callback amb ingrés real mentre la comprovació de receptor resta pendent, conservar la prova econòmica i obrir conciliació; no atribuir una factura amb receptor inventat ni un `REFUND` fictici. Les dades i classificacions tributàries **per país/tipus** s'han d'aprovar de manera separada per al servei real; la fitxa no en fixa un format universal.
+
+**Canvi després d'haver emès.** Corregir `DNI/Pais` al perfil vigent no modifica `factura.BILLING_*` ni el PDF original. `ManualRectificationPayloadBuilder::billing()` copia les dades del receptor original i no és una eina genèrica de canvi de persona o de país; la petició amb document real passa a UC-93/74, amb justificació i decisió sobre la via fiscal adequada. La revisió del document no duplica el `UUID_PAYMENT` que ja pugui existir.
+
+### Proves de receptor per canal (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RX-87-01 | Passaport no espanyol amb `Pais` absent al llegat | No substituir per `ES` de manera acrítica; país i tipus pendents de validació acreditada. |
+| RX-87-02 | Alumne estranger d'un grup amb factura a l'escola | Validar receptor fiscal de l'escola i tractar les dades d'alumne com a participant, no com a comprador. |
+| RX-87-03 | Contacte d'entitat i empresa tenen identificadors/domicilis diferents | Confirmació per ID intern de receptor; no copiar camps del contacte o de l'inscrit. |
+| RX-87-04 | Intenció Redsys prèvia i posterior aclariment de país/receptor | Snapshot de l'ordre antiga immutable i conciliació de possible ingrés real. |
+| RX-87-05 | Factura ja emesa amb receptor incorrecte | Conservar original i derivar a classificació UC-93/74; cap UPDATE fiscal directe. |
+
 ## UML de casos d'ús
 
 ```plantuml
