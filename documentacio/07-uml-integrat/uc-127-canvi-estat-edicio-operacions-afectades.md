@@ -42,6 +42,27 @@
 
 **Pendents de tancament:** política d'estats per edició, actor que aprova el lot i els casos individuals, model/worker d'items idempotents, snapshot del deute individual, execució dels canvis acadèmics i fiscalitat específica per variant.
 
+### 2.1. Operació llegada d'estat d'edició: un únic clic, N decisions individuals
+
+**Origen concret de l'event massiu.** `Intranet::desarCanvisEstatEnviarMsg_PreviIniciCursos()` canvia una edició entre pendent, activa i anul·lada, pot donar de baixa alumnes, consulta factures i formes de pagament, cerca edicions futures i envia avisos. El mètode llegat reuneix actuacions que afecten **un conjunt d'inscripcions**, però el `master_data_change_request.AFFECTED_OPEN_OPERATIONS_JSON` previst al SIF és només **una capçalera amb una llista**, no una prova que s'hagin processat tots els inscrits ni que s'hagin comprovat els ingressos externs. L'orquestració objectiu necessita un resultat individual per `ID_INSC/UUID_OPERATION`, amb fase acadèmica, econòmica, fiscal i comunicació diferenciades.
+
+**Inventari que evita perdre casos.** En preparar l'anul·lació o ajornament, incloure no només persones que `INSC_CURS` marca com a actives, sinó també reserva sense pagament, intenció `DS_ORDER` encara pendent, callback validat en cua, factura d'empresa emesa abans de cobrar, inscripció canviada de curs, participant d'un pack/grup amb altres línies vigents, pagament parcial i expedient ja rectificat. En cap cas l'estat d'edició actual de la web determina, per ell mateix, si s'ha cobrat realment o si la factura antiga és fiscalment improcedent.
+
+**Matriu d'efectes per afectat.** (a) Reserva sense ingrés ni factura: decidir alliberament/alternativa UC-115/121, sense `REFUND`. (b) Factura real emesa abans de cobrar: preservar document i resoldre obligació/rectificació **segons el cas**, no transformar-la en proforma. (c) Ingrés confirmat de l'alumne o empresa: conservar `UUID_PAYMENT`, decidir canvi UC-71/105, saldo UC-29 o devolució **quan s'executi realment** UC-28. (d) Grup/pack: quantificar per participant/component només amb atribucions acreditades; no retornar a cada alumne el total ingressat per l'empresa. (e) Matrícula/accés Moodle: UC-124/129 aplica i verifica la decisió acadèmica, independentment que l'adaptador fiscal hagi acabat.
+
+**Reintents i notificacions.** Un fallada després de canviar l'edició però abans d'avisar la tercera persona no justifica repetir baixa, emissió, `CHARGE` o reemborsament de les dues anteriors. Recuperar el mateix event massiu i **només els items/fases pendents**; revalidar la plantilla UC-43/58 perquè el missatge no afirmi «devolució efectuada» o «baixa a Moodle confirmada» fins a disposar del resultat real. Un callback d'una ordre anterior al canvi és evidència de banc a conciliar, no un registre que pugui descartar-se per estar l'edició anul·lada.
+
+### 2.2. Proves addicionals de lot amb estats mixtos (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| ED-127-01 | Anul·lar edició amb factura prèvia pendent i cap ingrés | Classificació individual d'obligació/document; cap devolució fictícia. |
+| ED-127-02 | Grup d'empresa pagat, només un participant canvia d'edició | Fons i document analitzats per part afectada; cap retorn indiscriminat a participants. |
+| ED-127-03 | Callback `DS_ORDER` antiga arriba després d'anul·lar | Preservar cobrament extern i obrir conciliació de la plaça/servei. |
+| ED-127-04 | Fallada d'avís al tercer de cinc inscrits després de canvis confirmats | Reprendre missatge pendent i verificar fases per inscrit, no tornar a executar els efectes confirmats. |
+| ED-127-05 | Operació mostra edició cancel·lada però accés Moodle encara actiu | Mostrar estat parcial i UC-129 fins a verificació acadèmica. |
+| ED-127-06 | Pack amb dues línies i una sola edició cancel·lada | Resolució per línia/inscripció, sense crear una factura o un CHARGE nous per l'altra. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
