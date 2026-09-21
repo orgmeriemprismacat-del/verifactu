@@ -156,37 +156,57 @@ autonumber
 actor R as Responsable d'històrics
 participant Source as Fonts Associació/SL [LECTURA]
 participant S as Resolvedor d'identitat documental [DISSENY]
+participant M as HistoricalInvoiceMigrationService [PHP]
 participant B as HistoricalInvoicePayloadBuilder [PHP]
+participant T as TransactionRunner [PHP]
 participant H as HistoricalInvoiceMigrationRepository [PHP]
 participant DB as factura [SQL base]
 participant I as Incidència/model multiemissor [DISSENY]
-R->>S: Contrastar documents Associació A2020/000123 i SL A2020/000123
-S->>Source: Recuperar emissor acreditat, sistema i ID de cada original
-alt Un emissor no es pot acreditar
+R->>S: Contrastar dos originals A2020/000123 de diferents emissors
+S->>Source: Recuperar emissor acreditat, sistema i ID de cadascun
+alt Emissor no acreditat
  Source-->>S: UNKNOWN
- S-->>R: Incidència de font, no assignar emissor per defecte
-else Dos originals acreditats i diferents
- Source-->>S: Emissors diferents, mateix NUM_VISIBLE
- S->>B: build(factura Associació, clau per defecte)
- B-->>S: idempotency_key HISTORIC|FACT:A2020/000123
- S->>H: importHistoricalInvoice(primer payload) [camí PHP, exemple]
- H->>DB: INSERT primer històric NO_VERIFACTU [si núm lliure]
- H-->>S: UUID_FACTURA_A o reús previ
- alt Segon històric amb mateixa clau per defecte
-  S->>H: importHistoricalInvoice(segon payload amb mateix número)
-  H->>DB: SELECT WHERE IDEMPOTENCY_KEY coincident
-  DB-->>H: UUID_FACTURA_A
-  H-->>S: idempotency_reused=true sense comparar emissor/contingut
-  S->>I: Conflicte d'identitat històrica, no donar per importada la SL
- else Segon històric amb clau explícita diferent
-  S->>H: importHistoricalInvoice(segon payload amb clau emissor+ID)
-  H->>DB: INSERT segona factura amb mateix NUM_VISIBLE
-  DB--xH: Violació UNIQUE(NUM_VISIBLE) i UNIQUE(sèrie,any,seq)
-  S->>I: Model global no admet dos originals homònims; conservar ambdós a les fonts
+ S-->>R: Incidència; no deduir-lo de número o receptor
+else Dos originals acreditats, mateix número
+ Source-->>S: Associació i SL, orígens diferents
+ Note over S,I: El control objectiu ha de bloquejar la doble importació. Els passos següents il·lustren què fa l'API actual si un adaptador intenta importar tots dos.
+ S->>M: importHistoricalInvoice(original Associació)
+ M->>B: build(input amb clau per defecte)
+ B-->>M: HISTORIC|FACT:A2020/000123
+ M->>T: run(callback)
+ T->>DB: BEGIN
+ M->>H: importHistoricalInvoice(db,payload)
+ H->>DB: SELECT per IDEMPOTENCY_KEY; INSERT original si no existeix
+ T->>DB: COMMIT
+ M-->>S: UUID_FACTURA_A
+ alt Segon original amb mateixa clau per defecte
+  S->>M: importHistoricalInvoice(original SL, mateixa clau)
+  M->>B: build(input SL)
+  B-->>M: HISTORIC|FACT:A2020/000123
+  M->>T: run(callback)
+  T->>DB: BEGIN
+  M->>H: importHistoricalInvoice(db,payload SL)
+  H->>DB: SELECT per IDEMPOTENCY_KEY
+  DB-->>H: UUID_FACTURA_A preexistent
+  H-->>M: idempotency_reused=true, sense comparar contingut
+  T->>DB: COMMIT
+  M-->>S: UUID_FACTURA_A reutilitzat erròniament per al segon original
+  S->>I: Conflicte de documents, no declarar importada la SL
+ else Segon original amb clau explícita emissor + ID
+  S->>M: importHistoricalInvoice(original SL, clau distinta)
+  M->>B: build(input SL)
+  M->>T: run(callback)
+  T->>DB: BEGIN
+  M->>H: importHistoricalInvoice(db,payload SL)
+  H->>DB: INSERT mateix NUM_VISIBLE / sèrie-any-seqüència
+  DB--xH: PDOException per UNIQUE de número
+  T->>DB: ROLLBACK del segon intent
+  M--xS: Fallada d'importació de SL; primer original intacte
+  S->>I: Model de BD no admet els dos originals homònims
  end
- S-->>R: Bloqueig d'importació multiemissor pendent de model; no renumerar originals
+ S-->>R: Incident multiemissor pendent de decisió; sense renumeració silenciosa
 end
-Note over S,DB: Il·lustració dels dos conflictes PHP/SQL inspeccionats; resolvedor d'emissor i ruta multiemissor no implementats.
+Note over S,DB: El resolvedor de dos emissors i la migració conjunta són DISSENY; els dos comportaments de reús/UNIQUE són contrast PHP/SQL, no test executat.
 ```
 
 **Decisió de model pendent:** `factura.NUM_VISIBLE` i `(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` són únics globalment al SQL base. Abans de canviar restriccions cal preservar la numeració única exigida per a les noves emissions del SIF i definir si els històrics de diversos emissors han de residir en un model separat o en una identitat composta que **no alteri la cadena/numeració de nova emissió**; cap alternativa es dóna aquí per implementada.
