@@ -145,7 +145,7 @@ else Dades coherents i confirmades
  I->>DB: Guardar BILLING_ADRECA/CP/POBLACIO/PAIS i registre fiscal
  I-->>R: UUID_FACTURA immutable
 end
-Note over V,DB: El normalitzador no existeix al PHP revisat; InvoicePayloadValidator no comprova geografia.
+Note over V,DB: El normalitzador no existeix al PHP revisat, InvoicePayloadValidator no comprova geografia.
 ```
 
 ## 6. Traçabilitat
