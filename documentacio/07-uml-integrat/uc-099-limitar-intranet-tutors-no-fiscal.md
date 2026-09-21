@@ -28,6 +28,27 @@
 
 **Pendents:** inventari de rutes i permisos actuals de la intranet tutor, matriu de camps de participants autoritzats, autenticació API de venda, aplicació al proxy/servidor, auditoria d'accés i proves d'accés denegat a tot el perímetre.
 
+### La mateixa persona pot tenir dos rols: perímetre de tutor i API SIF
+
+**Dos circuits amb objecte diferent.** UC-65/66 descriuen documents i cobraments de **proveïdor/col·laborador**, mentre que `/alumnes/pagaments/` i `/alumnes/genera-factura-abans-pagar/` són operacions de **venda a alumnat o empreses**. Un tutor pot ser alhora alumne, contacte d'una empresa o comprador en nom propi, però la seva sessió de tutor **no concedeix automàticament** els permisos d'aquests altres subjectes. L'autorització per consultar honoraris propis ha de verificar identificador de proveïdor i encàrrec concret, sense reutilitzar `IDPAG`, `CORREU` o la matrícula dels seus alumnes com a vincle per llegir factures de grup.
+
+**Rutes fiscals que requereixen una barrera efectiva.** Els endpoints `sif/public/api/factures/issue.php` i `sif/public/api/payments/register.php` reben JSON i deleguen en els serveis SIF, **sense comprovació explícita de sessió/rol visible en aquests arxius**. No és prova que siguin accessibles des d'Internet o des de la intranet tutor: encara s'han de revisar autenticació al proxy/servidor, rutes exposades i permisos productius. El contracte objectiu exigeix **autorització de servidor abans de l'efecte**, actor i rol verificats, recurs exacte, scope i denegació auditable. El valor `created_by` del payload o una URL privada **no** substitueixen aquesta autorització. Els intents de tutor d'emetre, cobrar, modificar receptor o descarregar el PDF d'una empresa han de denegar-se al mateix servidor encara que canviï el JSON o s'oculti el menú.
+
+**Consulta docent amb minimització.** El tutor necessita les matrícules/edicions assignades i les dades pedagògiques autoritzades per impartir, no una vista completa de `BILLING_NIF_CIF`, comptes bancaris, preus de l'empresa o totes les matrícules del mateix `IDPAG`. `fact_rels.VISIBLE_ALUMNE=0` als participants d'una factura d'empresa **no és un rol alternatiu de tutor** ni demostra que l'expositor de documents faci el filtratge; UC-80/102 aplica verificació de cada consulta i descàrrega, i ha de registrar també intents denegats sense revelar metadades de tercers.
+
+**Prova separada de lectura i d'escriptura.** L'inventari de rutes de la intranet tutor i les polítiques efectives del servidor **no estan acreditats en el repositori revisat**. La revisió d'activació ha de provar (a) que el tutor pot veure únicament el seu encàrrec/honoraris, (b) que no pot llegir dades fiscals alienes a través de cerca, PDF o URL directa, i (c) que les API SIF no accepten ordres de venda sota rol de tutor; repetir les proves amb la mateixa persona iniciant sessió en rols diferents, sense heretar permisos de la sessió anterior.
+
+### Proves de frontera tutor i venda fiscal (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| TU-99-01 | Tutor consulta document d'honoraris propi | Accés únicament al proveïdor/encàrrec corresponent, sense dades d'una factura de venda. |
+| TU-99-02 | Tutor coneix `IDPAG` del grup que imparteix | No veure PDF complet de l'empresa ni dades bancàries per aquesta referència. |
+| TU-99-03 | Tutor fa POST directe a `factures/issue.php` o `payments/register.php` | Denegació al punt d'entrada autoritzat, amb log, cap mutació SIF. |
+| TU-99-04 | Mateixa persona actua en sessions de tutor i comprador particular | Scopes diferenciats per sessió/acció; cap permís acumulat implícit. |
+| TU-99-05 | Tutor manipula `created_by` o l'ID del document a la petició | Cap escalada de rol ni consulta de factura de tercers. |
+| TU-99-06 | La ruta només es protegeix amagant el botó a la interfície | Prova de crida directa detecta absència de control; no declarar permís verificat. |
+
 ## UML de casos d'ús
 
 ```plantuml
