@@ -24,6 +24,26 @@
 
 **Proves pendents:** alumne i empresa amb emails compartits, canvi de receptor a l'últim pas, reintent concurrent, dades postals estrangeres, `DS_ORDER` antic, factura abans de cobrament, mateixa inscripció amb dos pagadors i verificació de snapshot/permís. No s'han executat proves PHP del flux de confirmació complet.
 
+### 1.1. Confirmació del receptor real a la pantalla de factura prèvia
+
+**Entrades que ofereix el llegat.** A `/alumnes/genera-factura-abans-pagar/`, l'operador cerca inscripcions per NIF/NIE, afegeix els `ID_INSC` seleccionats i tria una entitat abans d'emetre. El JS històric guarda `entitatMarcada` com a **text visible**, calcula `preuTotal` dels elements `#apagar-{id}` i comprova al navegador que hi hagi un sol curs/edició. `concepte2` arriba d'una crida asíncrona. Cap d'aquestes dades del navegador és, per si sola, una **confirmació fiscal definitiva** de receptor, línies i import.
+
+**Validació objectiu per operació.** L'adaptador ha de reconstruir al servidor `ID_INSC` únics i consultar curs/edició, preu/descomptes aplicables i factura ja existent per cada inscrit; recuperar l'entitat escollida per **ID intern** i un snapshot complet de les dades fiscals `CIF/RAO/ADRECA/CP/POBLACIO`. El contacte `entitats_resp.CORREU` pot servir per lliurar factura o URL de pagament **quan estigui autoritzat**, però no substitueix el receptor ni n'acredita la representació. La confirmació ha de mostrar clarament que s'emet una **factura real abans de cobrar**, no una proforma ni necessàriament `E_FACT=1`.
+
+**Intenció TPV i canvi posterior.** Si ja existeix una `DS_ORDER` d'empresa o d'una persona i es canvia receptor, curs o import mentre el pagament és possible, no modificar la instantània d'aquella ordre. Cal classificar si es pot revocar el nou intent i preservar un callback d'un intent anterior que pugui arribar tard. Si la factura ja és emesa per aquells `ID_INSC`, no utilitzar una altra clau idempotent per crear-ne una segona: recuperar `UUID_FACTURA` o obrir conflicte, i per un ingrés posterior cridar UC-02.
+
+**Prova de la decisió.** `InvoicePayloadValidator` només verifica camps estructurals bàsics i `billing.name/nif` no buits; `billing_profile_history` és esquema de versions **pendent de writer/confirmador**. Registrar identitat i rol de qui aprova, identificador d'entitat, versions de dades i regla/preu usats constitueix el contracte objectiu d'UC-69, **no una traça ja generada pel formulari antic**.
+
+### 1.2. Proves específiques de la confirmació prèvia (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CF-69-01 | Receptor es passa com a text `entitatMarcada` | Resolver ID/versió al servidor i mostrar CIF/raó/domicili abans d'emetre. |
+| CF-69-02 | `preuTotal` o curs/edició manipulats al DOM | Recalcular i validar contra BD, sense confiar en la previsualització HTML. |
+| CF-69-03 | Correu del responsable no correspon al receptor | Contacte/permís de lliurament separats de la identitat fiscal de factura. |
+| CF-69-04 | Una inscripció ja té factura d'empresa amb una altra clau | Recuperar cobertura o incidència; no nova factura. |
+| CF-69-05 | Canvi material després d'iniciar `DS_ORDER` | No reescriure snapshot original ni acceptar l'ordre antiga per una oferta nova. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
