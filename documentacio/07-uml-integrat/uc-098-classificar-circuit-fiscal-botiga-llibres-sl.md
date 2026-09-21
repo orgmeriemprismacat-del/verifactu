@@ -71,6 +71,27 @@ Basket ..> Main : <<extend>> (curs i llibre)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable fiscal"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["Botiga/SL · classificació prèvia"]
+    uc_0(["UC-98<br/>Classificar circuit fiscal de llibres"])
+    uc_1(["Identificar venedor, TPV i entitat emissora"])
+    uc_2(["Aprovar tributació per servei/entitat"])
+    uc_3(["Separar cadenes/sèries i dades si escau"])
+    uc_4(["UC-88<br/>Decidir cistella mixta"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
