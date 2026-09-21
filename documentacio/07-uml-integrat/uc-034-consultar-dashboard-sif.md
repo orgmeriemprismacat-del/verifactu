@@ -40,6 +40,25 @@
 
 **Proves localitzades, no executades:** `FiscalQueueMetricsRepositoryTest` i script de preflight; no equivalen a proves de la pantalla agregadora ni del filtratge de dades per rol.
 
+### 1.3. Indicadors del panell definit a PrisMa i la relació amb la intranet
+
+**Ubicació i jerarquia documental.** El document `25-panell-sif-pay-prisma.md` fixa `pay.prisma.cat/sif` com a **panell fiscal oficial** i defineix el mòdul amb Dashboard, Factures, Pagaments i conciliació, Registres AEAT, Incidències, Documents, Versions, Evidències i go/no-go, Exportacions i Configuració. L'apartat `VERI*FACTU` de la intranet principal té una altra finalitat: **indicador de pendents, resum d'incidències i accessos al SIF**, no una segona base fiscal ni una pantalla on es resolgui oficialment una incidència. Els procediments assenyalen `pay.prisma.cat/sif/dashboard` i `GET /sif/dashboard/summary` com a **ruta/endpoint objectiu pendents de crear**, no com a prova d'un controlador desplegat.
+
+**Fonts i unitats del resum.** Mostrar `factura` (emeses avui/mes/any i última factura), `factura_registres` (acceptats, rebutjats, pendents o acceptats amb errors **per registre**), `fiscal_queue` (pendents, due, processing, retry, sent i dead-letter **per job**), `errors_verifactu` (incidències obertes i prioritat), dades Redsys (callbacks rebuts, duplicats i pendents), `payment_transaction` i atribucions (ingressos reals no conciliats), `document_job/factura_documents` (feina i document verificat), i `sif_versions` (versió activa). **No multiplicar euros pel nombre de `fact_rels`, ni calcular acceptacions AEAT a partir de `SENT`.** Els registres històrics `NO_VERIFACTU` i els seus documents no són registres nous pendents de transport.
+
+**Lectura amb error parcial.** El dashboard és una consulta de diverses fonts i cadascuna ha de conservar `instant_lectura`, abast temporal i estat `disponible / no disponible`; són **atributs funcionals proposats**, no camps acreditats d'un endpoint executable. Un error llegint `payment_transaction` no és «0 pagaments pendents»; un preflight AEAT favorable és **preparació local**, no prova d'acceptació remota. Les targetes poden dirigir a UC-35/54/81/80 segons permís, però la navegació no ha d'executar reintents ni modificacions.
+
+### 1.4. Proves de resum multiorigen (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| DB-01 | Tres jobs fiscals SENT; una resposta de registre REJECTED | 3 trameses finalitzades i 1 registre rebutjat, no «3 acceptats». |
+| DB-02 | Una transferència per una factura amb tres participants | Una entrada real; cap triple comptabilització d'ingressos. |
+| DB-03 | Mètrica documental `CREATED` però PDF físic absent | Document no disponible/incidència, no «PDF preparat». |
+| DB-04 | Error de consulta d'una BD amb la resta sana | Mostrar font no disponible, no substituir per zero. |
+| DB-05 | Usuari obre l'indicador a la intranet | Resum i enllaç amb autorització; cap mutació al SIF. |
+| DB-06 | Auditor consulta panell | Només dades i rutes autoritzades, sense botons reals de retry/emissió. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
