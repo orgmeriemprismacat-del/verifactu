@@ -4,7 +4,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 
 ## Mapa dels 142 casos d'ús revisats
 
-**[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
+**[Model general de classes](00-model-classes-general.md)** · **[Revisió transversal dels 142 casos](00-revisio-transversal-142-casos.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
 | ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
@@ -151,7 +151,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | [Fitxa i UML](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | [Fitxa i UML](uc-129-reconciliar-prisma-moodle-matricules.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 142/142. No queden casos sense fitxa UML individual.** Això no vol dir que tots els fluxos estiguin implementats o aprovats: els imports per inscrit (`enrollment_fund_movement`), la classificació fiscal de llibres/SL, el control d'accés de tutors i alumnes, el backend d'honoraris i la verificació de DNS/TLS i del runtime productiu continuen pendents segons cada fitxa. Les fitxes indiquen per separat el que existeix al PHP, el que només és SQL i el que és disseny.
+**Cobertura documental: 142/142. No queden casos sense fitxa UML individual.** La **[revisió transversal](00-revisio-transversal-142-casos.md)** concentra ara els bloquejos compartits que no convé repetir ni perdre entre les 142 fitxes: autorització de les API, idempotència amb validació de payload, atribució de diners per inscripció, multiemissor, documents, notificacions, estat acadèmic i runtime. Això no vol dir que tots els fluxos estiguin implementats o aprovats: els imports per inscrit (`enrollment_fund_movement`), la classificació fiscal de llibres/SL, el control d'accés de tutors i alumnes, el backend d'honoraris i la verificació de DNS/TLS i del runtime productiu continuen pendents segons cada fitxa. Les fitxes indiquen per separat el que existeix al PHP, el que només és SQL i el que és disseny.
 
 ## Com llegir el paquet de cada acció
 
