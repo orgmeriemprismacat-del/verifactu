@@ -86,6 +86,28 @@ O --> Academy
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de cobrament"]
+  actor_1["Responsable del deute"]
+  subgraph SIF_BOX["SIF · morositat"]
+    uc_0(["UC-12<br/>Gestionar cicle de reclamació"])
+    uc_1(["Consultar deute i venciment"])
+    uc_2(["Registrar avisos i decisions"])
+    uc_3(["UC-96<br/>Concedir pròrroga quan correspongui"])
+    uc_4(["UC-24<br/>Registrar cobrament real"])
+    uc_5(["UC-95/72<br/>Revisar estat acadèmic"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_0 --> uc_5
+```
+
 ## 3. Classes: servei de cobrament existent i gestió del cicle pendent
 
 ```mermaid
