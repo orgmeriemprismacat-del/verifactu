@@ -42,6 +42,27 @@
 
 **Pendents:** font postal i criteri de validació per país, definició de camps imprescindibles, representació i consentiment del receptor, normalitzador/writer PHP, tests geogràfics i de snapshot/intenció/factura emesa.
 
+### 2.1. Poblacions pendents de validar i les dues fonts de domicili
+
+**Detecció real del llegat, normalització encara pendent.** La revisió de `33-casos-us-sif.md` identifica **disset writers d'inscripció** que introdueixen combinacions desconegudes a `poblacions_validar`; la documentació **no acredita** un expedient complet que revisi la parella, en registri la proposta, la decisió i la propagació. Una fila a `poblacions_validar` és un **candidat pendent de validar**, no una població postal acceptada automàticament. Abans de traslladar el valor a una factura, capturar camp original, font i resultat de revisió; no donar per resolta la validació perquè la combinació ja aparegui en aquella taula.
+
+**Domicili de participant versus domicili de l'entitat receptora.** `LegacyCourseSnapshotRepository::findInscriptionByIdpag()` llegeix `ADRECA/Codi_Postal/Poblacio` d'`inscripcions`. En canvi, la pantalla `/alumnes/genera-entitat/` permet gestionar per separat `entitats.CIF/RAO/ADRECA/CP/POBLACIO` i les dades de `entitats_resp` com a contacte; la seva edició llegada envia **per GET** l'adreça, CP i població, sense validació visible de format postal al servidor en la revisió documental. Quan la factura és d'empresa, el normalitzador d'UC-128 ha de partir del **receptor fiscal identificat per ID intern** i la versió de domicili que s'ha confirmat a UC-69, no completar per defecte l'adreça fiscal de l'empresa amb la del participant que s'ha inscrit.
+
+**Correcció de CP, població i país abans d'iniciar TPV.** Si un operador accepta una proposta sobre el domicili, persistir **valor original i proposat** amb regla/font, receptor, decisió, actor i versió; resoldre les contradiccions abans d'UC-112/69 segons el criteri aprovat. `InvoicePayloadValidator` comprova `billing.name/nif` però no la coherència geogràfica completa: una factura pot superar aquesta validació tècnica amb un CP i població inconsistents. Si ja hi ha `DS_ORDER` amb snapshot del receptor anterior, el canvi material exigeix **revisar la proposta i eventualment una ordre nova**, sense mutar el JSON de l'intent anterior per conservar-ne la signatura.
+
+**Després de l'emissió i actualització parcial.** Si es corregeix una parella pendent de `poblacions_validar`, això només modifica perfils vius o operacions **encara no congelades** per les vies autoritzades; `factura.BILLING_ADRECA/CP/POBLACIO/PAIS` i el PDF original romanen com van ser emesos. Una discrepància que ja constés **incorrectament a la factura** passa a la classificació fiscal UC-74/05, no a una escriptura automàtica sobre totes les factures d'aquell CP. Si la BD web, entitats i el SIF donen resultats diferents després de corregir, registrar l'abast per destí i reintentar només la propagació fallida, sense declarar-la executada perquè `poblacions_validar` estigui marcada com a tractada.
+
+### 2.2. Proves de font i correcció postal (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AD-128-01 | Una parella nova entra a `poblacions_validar` en registrar matrícula | Marcar candidata pendent, no aprovar-la ni modificar factura automàticament. |
+| AD-128-02 | Participant i empresa tenen domicilis diferents | Congelar domicili de l'empresa receptora, no reutilitzar `inscripcions.ADRECA`. |
+| AD-128-03 | Formulari d'entitat envia CP incoherent però el JS el considera no buit | Validació de servidor segons política aprovada abans de facturar. |
+| AD-128-04 | Correcció postal després de crear `DS_ORDER` | Comparar snapshot i exigir nova confirmació/intenció si el canvi és material. |
+| AD-128-05 | CP antic es corregeix quan la factura ja és emesa | Perfils futurs actualitzables; factura original immutable i UC-74 si contenia error real. |
+| AD-128-06 | Validació confirmada però propagació falla a la BD d'entitats | Resultat parcial per destí i reintent idempotent, sense declarar complet el circuit. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
