@@ -26,6 +26,27 @@
 
 **Pendents:** política d'import excepcional, rols, bloqueig/idempotència de negoci, writer d'ofertes versionades, classificador fiscal i traça monetària individual `enrollment_fund_movement` (**proposta, no implementada**).
 
+### Modal llegat de pagament: separació entre ajustar un deute i registrar un ingrés
+
+**Punt d'escriptura concret que s'ha de substituir o limitar.** La fitxa d'alumne `/alumnes/mostrar-alumne/` obre `guardarDadesPagament_modalsresultatCerca()`, capaç de modificar directament `A_PAGAR`, `PAGAMENT`, `DATA PAG`, `IDPAG`, `FRACCIONAT`, `FRACCIO` i `FACTURA_RELACIONADA`, juntament amb camps de reclamació. El procediment del projecte **decideix expressament** que aquest bloc no pot continuar sent un editor silenciós de dades econòmiques/fiscals. L'ajust `A_PAGAR` ha d'obrir **una comanda d'ajust amb motiu i impacte fiscal**, mentre que l'ingrés real es tramita per UC-02/22/24 i la relació fiscal per UC-44/74. No copiar un `PAGAMENT` editat com si fos justificació de banc.
+
+**Comparar quatre imports, no un camp únic.** En la previsualització mostrar (1) import de **prestació original congelat** per línia, (2) descomptes ja aprovats, (3) cobrament real extern i atribucions `payment_transaction/payment_allocation`, i (4) saldo exigible i proposta d'ajust. El valor `A_PAGAR` llegat pot ser dada operativa afectada per fracció o canvi de curs i no ha d'omplir per defecte `factura.TOTAL`. En pack o grup, expressar `ID_INSC` i import afectat: un sol `IDPAG` no identifica quin participant rep el benefici ni a qui correspon una eventual devolució.
+
+**Segons l'estat de la factura.** Si només hi ha oferta i cap `DS_ORDER`, aprovar nova base/import i congelar UC-112. Si ja existeix una intenció, no manipular-ne `EXPECTED_AMOUNT/SNAPSHOT_JSON`; obrir-ne una de nova quan correspongui i preservar qualsevol callback anterior. Amb factura real pendent, disminuir `A_PAGAR` **no** esborra l'obligació fiscal: UC-74 classifica la correcció i només llavors es recalcula el saldo. Amb factura cobrada, el menor preu aprovat **no prova una sortida bancària**; UC-104/28/29/105 decideixen excessos, retorn o saldo amb el titular i l'ingrés acreditats.
+
+**Traça i recuperació.** El writer genèric `OperationalEventRepository::append()` desa snapshots i motiu, però la documentació no acredita cap connexió de la pantalla antiga al writer ni un aprovador en línia. La comanda futura porta `ID_INSC/UUID_OPERATION`, versió d'oferta, import antic/nou, causa, actor, decisió autoritzada i identificador de petició. Si l'UPDATE de compatibilitat falla després de confirmar SIF, recuperar el mateix event i tornar a executar només el resum llegat, **no** una segona rectificativa, un segon `CHARGE` o una segona devolució.
+
+### Proves d'ajust separat del moviment monetari (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AJ-94-01 | Operador modifica `A_PAGAR` sense ingrés extern | Ajust justificat i auditat segons estat; cap `CHARGE` fictici. |
+| AJ-94-02 | Canvi del pendent llegat quan existeix factura real emesa | Conservar `factura.TOTAL` i derivar impacte a UC-74; no editar document fiscal. |
+| AJ-94-03 | Pack/grup amb `IDPAG` compartit i ajust d'un participant | Línia i `ID_INSC` identificats, no distribució de l'ajust al total del grup. |
+| AJ-94-04 | Intenció TPV antiga amb import original i nova oferta de menor import | Ordre antiga immutable i callback tardà conciliat si arriba; no atribuir-lo automàticament a l'oferta nova. |
+| AJ-94-05 | Factura pagada i reducció aprovada de preu | Conservar `UUID_PAYMENT`; `REFUND` només quan hi hagi sortida bancària real. |
+| AJ-94-06 | SIF confirma ajust/document, sincronització `A_PAGAR` falla | Reintentar només sincronització de compatibilitat, amb el mateix event i UUIDs. |
+
 ## UML de casos d'ús
 
 ```plantuml
