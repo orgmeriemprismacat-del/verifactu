@@ -126,7 +126,7 @@ opt Excés econòmic acreditat
  S->>M: Decidir saldo, refund real o atribució interna
  M-->>S: Resultat o incidència pendent
 end
-S-->>G: Estat diferenciat; sense UPDATE del TOTAL original
+S-->>G: Estat diferenciat, sense UPDATE del TOTAL original
 ```
 
 ## Accions independents de l'ajust manual: previsualitzar, aprovar i gestionar una intenció anterior
@@ -173,7 +173,7 @@ alt Permís insuficient, versió canviada o participant ambigu
 else Proposta de dades consistent
  S-->>UI: Diferència per ID_INSC, efecte fiscal/TPV possible i imports separats
 end
-UI-->>G: Mostrar la proposta; cap factura, pagament ni ajust confirmat
+UI-->>G: Mostrar la proposta, cap factura, pagament ni ajust confirmat
 Note over S,I: Consultes i classificador de previsualització complets: DISSENY, no endpoint acreditat.
 ```
 
@@ -239,7 +239,7 @@ else Decisió nova autoritzada
  else Sense factura
   S-->>UI: Publicació de nova oferta a confirmar [PENDENT]
  end
- S-->>UI: Aprovació traçada; efectes fiscal, TPV i diners separats
+ S-->>UI: Aprovació traçada, efectes fiscal, TPV i diners separats
 end
 UI-->>A: Decisió i pendents concrets
 Note over S,E: El repositori PHP només insereix un event nou. Guard, aprovació i unitat de transacció entre serveis no acreditats.
@@ -293,7 +293,7 @@ opt Arriba callback signat de l'ordre A anterior
  C->>DB: Consultar intencions A/B, factura i pagaments existents
  C-->>G: Preservar el cobrament real i obrir incidència/UC-104 si sobra valor
 end
-Note over S,C: Create(intenció) és PHP real; expiració de A, publicació de B i resolució de callback després de canvi són integració PENDENT.
+Note over S,C: Create(intenció) és PHP real, expiració de A, publicació de B i resolució de callback després de canvi són integració PENDENT.
 ```
 
 | Prova pendent | Escenari | Resultat esperat |
