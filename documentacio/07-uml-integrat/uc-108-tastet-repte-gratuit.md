@@ -131,7 +131,7 @@ else Nova alta vàlida
  S-->>UI: Operació no facturable i accés confirmat
 end
 UI->>M: recordChoice(persona,SÍ/NO,evidència) [pendent]
-UI-->>P: Estat d'accés; sense factura ni cobrament
+UI-->>P: Estat d'accés, sense factura ni cobrament
 Note over O,M: El consentiment no és conseqüència automàtica de la gratuïtat
 ```
 
