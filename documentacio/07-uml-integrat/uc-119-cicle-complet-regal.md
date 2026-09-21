@@ -294,7 +294,7 @@ W->>Life: deliverGift(uuidEntitlement,recipient,requestId)
 Life->>Ent: Consultar estat, titular/destinatari i valor
 alt Dret no activat, consumit sense permís o destinatari contradictori
  Ent-->>Life: Bloqueig de lliurament
- Life-->>W: Denegació o incidència; cap correu amb codi
+ Life-->>W: Denegació o incidència, cap correu amb codi
 else Dret actiu i destinació legitimada
  Ent-->>Life: Identificador del mateix dret
  Life->>Out: Encolar notificació idempotent per dret + destinatari + versió
@@ -304,10 +304,10 @@ else Dret actiu i destinació legitimada
   Out-->>W: Pendent d'investigar/reintentar mateixa notificació
  else Proveïdor confirma acceptació
   Mail-->>Out: Identificador de lliurament/acceptació del proveïdor
-  Out-->>W: Enviament acceptat; lliurament efectiu al destinatari no deduïble automàticament
+  Out-->>W: Enviament acceptat, lliurament efectiu al destinatari no deduïble automàticament
  end
 end
-Note over Life,Out: Aquest outbox i la comprovació del destinatari són disseny pendent; no fer aparèixer el codi en factura fiscal ni logs de notificació.
+Note over Life,Out: Aquest outbox i la comprovació del destinatari són disseny pendent, no fer aparèixer el codi en factura fiscal ni logs de notificació.
 ```
 
 ### 6.3. Acció pròpia: reenviar després de fallada, sense recomprar ni regenerar — DISSENY
@@ -328,7 +328,7 @@ UI->>Life: resendGift(uuidEntitlement,recipient,requestId) [mètode proposat]
 Life->>Ent: Llegir compra confirmada, estat dret i destinació
 alt Destinatari sense permís o codi vençut/cancel·lat
  Ent-->>Life: DENIED o EXPIRED
- Life-->>UI: Denegar reexpedició; derivar UC-18a si cal
+ Life-->>UI: Denegar reexpedició, derivar UC-18a si cal
 else Dret vàlid i mateix origen
  Life->>Out: Recuperar notificació i validar nou destí autoritzat
  alt Ja enviat i petició és reintent equivalent
@@ -339,7 +339,7 @@ else Dret vàlid i mateix origen
   Out-->>UI: Nova evidència d'enviament del dret original
  end
 end
-UI-->>O: Estat de la comunicació; factura i UUID_PAYMENT originals intactes
+UI-->>O: Estat de la comunicació, factura i UUID_PAYMENT originals intactes
 Note over Life,Mail: El reenviament mai no ha de cridar InvoiceService::issueInvoice() ni PaymentService::registerPayment().
 ```
 
