@@ -179,6 +179,173 @@ end
 Note over P,DB: SENT no equival a ACCEPTED, retry no prova absència de resposta externa
 ```
 
+### 4.1. Acció independent: recuperar una tasca fiscal amb lock caducat sense reenviar-la encara — PHP existent / decisió externa pendent
+
+**Actor i disparador:** un operador o procés crida `FiscalQueueProcessor::recoverStaleLocks(olderThanSeconds,now)` per a una fila `PROCESSING` amb `LOCKED_AT` anterior al llindar. **Precondició objectiu:** consultar `UUID_FACTURA`, `FISCAL_ORDER`, payload congelat, intents de transport i estat remot acreditat. **Postcondició PHP real:** `FiscalQueueRepository::recoverStaleLocks()` passa indiscriminadament les files elegibles de `PROCESSING` a `RETRY`, elimina `LOCKED_AT` i `NEXT_RETRY_AT` i escriu `LAST_ERROR='Recovered stale worker lock'`. No desa identificador de worker/generació i **no investiga** si la petició SOAP d'aquella mateixa fila ja ha arribat a AEAT. El mètode exigeix llindar mínim de **60 segons**, sense afirmar que 60 s sigui el valor de producció.
+
+**Conseqüència operativa:** deixar `NEXT_RETRY_AT=NULL` fa la tasca elegible de seguida per `claimNext()` si `ATTEMPTS < maxAttempts`; si la petició externa anterior ja es va tramitar, tornar a enviar el mateix registre sense conciliació pot provocar un altre intent extern. A més, el worker anterior pot continuar treballant: la recuperació del lock no li cancel·la `AeatTransport::send()`.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable/worker de recuperació" as R
+actor "Worker antic actiu" as A
+rectangle "SIF · UC-54 / RECUPERAR LOCK FISCAL" {
+ usecase "Detectar lock PROCESSING caducat" as Detect
+ usecase "Recuperar fila tècnicament a RETRY" as Recover
+ usecase "Consultar evidència d'enviament i estat remot\nabans d'autoritzar un nou SOAP" as Check
+ usecase "UC-09 / Reenviar el mateix registre\nnomés si la decisió ho permet" as Retry
+}
+R --> Detect
+R --> Recover
+Recover ..> Detect : <<include>>
+R --> Check
+R --> Retry
+A --> Detect
+note bottom of Recover
+ RETRY tècnic no acredita
+ que AEAT no hagi rebut
+ el registre original.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Worker A
+actor B as Worker B / recuperació
+participant P as FiscalQueueProcessor [PHP]
+participant Q as FiscalQueueRepository [PHP]
+participant DB as fiscal_queue [SQL]
+participant E as Evidència transport/AEAT [EXTERN/LECTURA]
+A->>P: processNext() per J
+P->>Q: claimNext(db,maxAttempts)
+Q->>DB: BEGIN; PENDING -> PROCESSING,ATTEMPTS=1,LOCKED_AT; COMMIT
+P->>E: send(payload fiscal de J) fora del lock
+Note over A,E: AEAT pot rebre la petició mentre A continua treballant
+B->>P: recoverStaleLocks(threshold,now)
+P->>Q: recoverStaleLocks(db,lockedBefore)
+Q->>DB: UPDATE J a RETRY,LOCKED_AT=NULL,NEXT_RETRY_AT=NULL
+Q-->>B: 1 fila recuperada [PHP]
+B->>E: Investigar XML/resposta i identitat UUID_FACTURA+FISCAL_ORDER [DISSENY]
+alt Estat remot confirmat o incert
+ E-->>B: Possible enviament anterior
+ B-->>B: Suspendre nou SOAP fins a conciliació [DISSENY, no guard del claim actual]
+else Evidència acredita que no es va enviar
+ E-->>B: Política d'un nou intent autoritzat [DISSENY]
+ B->>P: processNext() [PHP pot executar-se també sense aquest guard]
+ P->>Q: claimNext de J si intents disponibles
+end
+Note over P,Q: El PHP actual no fa la consulta E abans de reclamar o reenviar un RETRY recuperat.
+```
+
+### 4.2. Acció independent: persistir la resposta només des de l'intent vigent — PHP actual sense propietari / DISSENY de fencing
+
+**Actor i disparador:** després de `send()`, l'execució A obté `ACCEPTED`/`ACCEPTED_WITH_ERRORS`/`REJECTED`, o una excepció tècnica; vol executar `complete()` o `fail()`. **Precondició objectiu:** comprovar amb un identificador de generació/propietari de l'intent que la fila encara està reclamada per aquella execució i que la resposta correspon al `UUID_FACTURA+FISCAL_ORDER` original. **Postcondició:** només l'intent actual modifica cua, registre i resum de factura; l'intent obsolet conserva la seva evidència i va a conciliació sense sobreescriure el nou resultat.
+
+**Comportament PHP comprovat:** `claimNext()` retorna una còpia de la fila, incrementa `ATTEMPTS` i desa `LOCKED_AT=NOW()`, però **no desa `LOCKED_BY` ni token d'intent**. `complete()` actualitza `fiscal_queue` amb `WHERE ID=?`, **sense** `STATUS=PROCESSING` ni comprovació de propietari, i escriu la resposta a `factura_registres` per `UUID_FACTURA+FISCAL_ORDER` i l'estat resum de `factura`. `fail()` també actualitza per `ID` sense filtre d'estat. Així, A pot marcar `SENT` quan B ha reclamat J, o B pot marcar `RETRY/DEAD_LETTER` **després** d'un `SENT` d'A. Si B arriba a `DEAD_LETTER`, `fail()` pot posar `ESTAT_AEAT=ERROR` al registre i factura que A havia marcat acceptat: `ERROR` **reflectiria una fallada de processament local d'un altre intent, no un rebuig extern comprovat**.
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker fiscal que ha obtingut resposta" as W
+actor "Worker nou propietari" as B
+rectangle "SIF · UC-54 / FINALITZAR INTENT FISCAL" {
+ usecase "Validar propietat de l'intent fiscal" as Own
+ usecase "Completar resposta de línia\ni cua com a SENT" as Complete
+ usecase "Marcar error RETRY/DEAD_LETTER\nnomés de l'intent vigent" as Fail
+ usecase "Conservar resposta d'intent obsolet\ni obrir conciliació" as Stale
+}
+W --> Own
+Own ..> Complete : <<include>> [si èxit i token vigent]
+Own ..> Fail : <<include>> [si error i token vigent]
+W --> Stale
+B --> Own
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Worker A lent
+actor B as Worker B després de recuperar J
+participant Q as FiscalQueueRepository [PHP]
+participant DB as fiscal_queue + factura_registres + factura [SQL]
+participant T as AeatTransport [EXTERN]
+A->>Q: claimNext(J): ATTEMPTS=1,PROCESSING
+A->>T: send(registre J), queda lent
+B->>Q: recoverStaleLocks(J) + claimNext(J): ATTEMPTS=2,PROCESSING
+B->>T: send(registre J) [PHP sense conciliació prèvia]
+T-->>A: resposta acceptada de l'intent d'A
+A->>Q: complete(J,ACCEPTED,responseA,xmlA)
+Q->>DB: BEGIN; UPDATE fiscal_queue SET SENT WHERE ID=J
+Q->>DB: UPDATE factura_registres i factura = ACCEPTED; COMMIT
+T--xB: excepció del segon intent
+B->>Q: fail(J,errorB,maxAttempts=2,retryAt)
+Q->>DB: BEGIN; UPDATE fiscal_queue SET DEAD_LETTER WHERE ID=J
+Q->>DB: UPDATE factura_registres i factura = ERROR; COMMIT
+Q-->>B: DEAD_LETTER malgrat resposta ACCEPTED d'A
+Note over A,DB: maxAttempts=2 és una configuració possible, no el valor per defecte (3). Aquesta cursa es dedueix del WHERE actual; no s'ha executat.
+```
+
+**Control proposat:** assignar `attempt_token` únic i propietari per claim; exigir-los en `complete/fail` dins la mateixa transacció de registre i aplicar una política de reconciliació d'intents remots. L'error `STALE_ATTEMPT` no ha d'executar `failure()` sobre el job actual ni eliminar evidència de resposta d'AEAT; el fencing de BD no impedeix per si sol una segona transmissió externa, que requereix consulta/conciliació prèvia.
+
+### 4.3. Acció independent: conciliar resultat extern incert abans de reactivar un RETRY/DEAD_LETTER — DISSENY
+
+**Actor i disparador:** hi ha excepció de xarxa després d'un possible enviament, caiguda entre SOAP i `complete()`, o una fila recuperada que pot haver rebut resposta. **Entrades:** `UUID_FACTURA`, `FISCAL_ORDER`, payload immutable, XML/evidència local d'intents, resposta correlacionada i estat remot quan es pugui obtenir. **Postcondició:** `REMOTE_CONFIRMED`, `REMOTE_REJECTED`, `NOT_SENT` o `REMOTE_UNCERTAIN` són **resultats de diagnosi proposats**, no estats actuals del repositori. Conservar l'evidència de cada intent i recuperar/registrar la resposta que realment pertoqui o mantenir quarantena de reenviament si és incerta; ni reemetre factura ni fabricar una acceptació en absència de prova.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable fiscal" as R
+actor "AEAT / evidència d'enviament" as A
+rectangle "SIF · UC-54 / CONCILIAR INTENT REMOT" {
+ usecase "Consultar expedient d'un registre fiscal\namb resultat extern incert" as Review
+ usecase "Correlacionar UUID_FACTURA\ni FISCAL_ORDER amb XML/resposta" as Check
+ usecase "Confirmar resultat remot acreditat\no mantenir REMOTE_UNCERTAIN" as Decide
+ usecase "UC-09\nAutoritzar reenviament del mateix registre" as Retry
+}
+R --> Review
+A --> Check
+Review ..> Check : <<include>>
+Review ..> Decide : <<include>>
+R --> Retry
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor R as Responsable fiscal
+participant G as FiscalSubmissionAttemptReconciler [DISSENY]
+participant E as EvidenceStore / consulta de resposta [LECTURA/EXTERN]
+participant F as factura_registres + fiscal_queue [LECTURA]
+participant Q as FiscalQueueRepository [PHP actual]
+R->>G: review(uuidFactura,FISCAL_ORDER,queueId)
+G->>F: Llegir payload immutable, estat de registre/cua i intents
+G->>E: Correlacionar XML i resposta real de cada intent
+alt Resposta remota acreditada amb mateix registre
+ E-->>G: ACCEPTED/ACCEPTED_WITH_ERRORS/REJECTED amb correlació
+ G-->>R: Recuperar resposta via transició de conciliació idempotent [DISSENY], no nou SOAP
+else Evidència acredita que no s'ha iniciat cap enviament
+ E-->>G: NOT_SENT amb prova suficient
+ G-->>R: Autoritzar retry del mateix registre i payload [DISSENY]
+else Enviament possible però resultat extern no aclarit
+ E-->>G: REMOTE_UNCERTAIN
+ G-->>R: Retenir decisió; investigar, no deduir ERROR/REJECTED ni enviar a cegues
+end
+Note over G,Q: L'actual recoverStaleLocks i fail no consulten evidència remota; no hi ha reconciliador PHP acreditat.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| FQ-54-06 | A envia, supera el llindar, B recupera la fila mentre A encara treballa | Recuperar lock no autoritza reenviament remot automàtic; reconèixer execució A activa/estat incert. |
+| FQ-54-07 | A completa ACCEPTED després que B reclami, B falla quan la política maxAttempts=2 | El codi actual pot acabar DEAD_LETTER i ERROR local malgrat acceptació registrada per A; guard objectiu evita marques d'intent obsolet. |
+| FQ-54-08 | Petició SOAP arribada externament però el worker cau abans del commit local | Quarantena d'estat incert i recuperació per evidència abans de reenviar el mateix registre. |
+| FQ-54-09 | Dos intents donen respostes diferents del mateix registre | Conservar la correlació de cada intent i decisió auditada, mai aplicar l'últim resultat per ordre d'arribada sense comprovació. |
+| FQ-54-10 | Operador reactiva un DEAD_LETTER amb document fiscal ja emès | Reutilitzar el mateix UUID_FACTURA+FISCAL_ORDER i payload; mai nova numeració per reparar transport. |
+
 ## 5. Evidència i traçabilitat
 
 [UC-54 original](../06-fitxes-funcionals/uc-054.md) · [UC-09 individual](uc-009-remetre-registre-aeat.md) · [UC-08 incidència](uc-008-gestionar-incidencia-sif.md) · [FiscalQueueProcessor](../../sif/src/Service/FiscalQueueProcessor.php) · [FiscalQueueRepository](../../sif/src/Repository/FiscalQueueRepository.php) · [FiscalQueueMetricsRepository](../../sif/src/Repository/FiscalQueueMetricsRepository.php) · [Preflight script](../../sif/scripts/preflight-aeat-worker.php) · [SoapTransport](../../sif/src/Aeat/SoapTransport.php) · [FiscalQueueProcessorTest](../../sif/tests/Integration/FiscalQueueProcessorTest.php).
