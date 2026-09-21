@@ -75,6 +75,29 @@ Acad ..> Main : <<extend>> (venda confirmada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador intranet/telèfon"]
+  actor_1["Comprador o responsable"]
+  subgraph SIF_BOX["SIF · venda manual"]
+    uc_0(["UC-92<br/>Registrar venda manual"])
+    uc_1(["Confirmar oferta i receptor"])
+    uc_2(["UC-04<br/>Facturar abans de cobrar"])
+    uc_3(["Emetre amb ingrés acreditat"])
+    uc_4(["UC-62<br/>Registrar cobrament posterior"])
+    uc_5(["Propagar alta acadèmica separada"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_2 -.->|extend| uc_0
+  uc_3 -.->|extend| uc_0
+  uc_4 -.->|extend| uc_0
+  uc_5 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
