@@ -139,7 +139,7 @@ alt Reserva anterior activa i mateixa comanda
  O-->>D: UUID_OPERATION original
  D-->>UI: Reutilitzar ID_INSC/operació/intenció quan existeixi
 else Matrícula anterior contradictòria o pagada
- D-->>UI: Bloqueig/incidència; no crear segon pagament
+ D-->>UI: Bloqueig/incidència, no crear segon pagament
 else Sense operació equivalent
  D->>R: reserve(command) amb clau de negoci única
  R-->>D: UUID_OPERATION i ID_INSC nous
@@ -148,7 +148,7 @@ else Sense operació equivalent
  UI->>I: create(DS_ORDER,snapshot congelat)
  I-->>UI: UUID_INTENT PENDING o reús equivalent
 end
-Note over D,I: Per a dos clics paral·lels, les consultes objectiu requereixen unicitat/lock; el codi actual només deduplica DS_ORDER.
+Note over D,I: Per a dos clics paral·lels, les consultes objectiu requereixen unicitat/lock, el codi actual només deduplica DS_ORDER.
 ```
 
 ## 5. Traçabilitat
