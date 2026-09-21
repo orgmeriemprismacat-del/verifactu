@@ -121,7 +121,7 @@ alt Factura cobrada i accés pendent
  S-->>G: Pagament existent, accés en verificació
 else Factura pendent i accés vigent
  S->>E: Registrar estat diferenciat per regla [pendent]
- S-->>G: Matrícula i deute separats; no baixa automàtica
+ S-->>G: Matrícula i deute separats, no baixa automàtica
 end
 Note over S,M: La consulta/actuació Moodle no està acreditada com a servei SIF complet.
 ```
