@@ -40,6 +40,27 @@
 
 **Bloquejants:** política de trams, tancament i versions del grup, receptor per composició, locks de membres/places, origen dels imports del llegat i atribució individual del pagament. No s'han executat proves PHP del coordinador perquè no s'ha acreditat com a implementat.
 
+### 1.3. Consultes llegades del grup i frontera entre responsable i receptor
+
+**D'on surt realment cada dada del grup.** El procediment de «Passar pagaments» identifica `TIPUS_INSC='G'`, `IDPAG` compartit i `respGrups`; `buscarPersRespGrup2` cerca grup per DNI de responsable o participant, `buscarPersGrup` recupera membres, `buscarPagamentsGrup` agrega imports, fraccions i `FACTURA_RELACIONADA`, i `searchMembresGrup/searchMembresGrup2` recorren participants per actualitzar-los. El repositori `LegacyGroupSnapshotRepository` recupera els inscrits per `IDPAG` i una fila de `respGrups`. **La consulta no acredita per si mateixa un preu per membre vigent ni una representació fiscal de l'empresa**: el flux comercial atribueix el preu de participant a `descomptes_grup`, pendent de contrast amb el SQL final.
+
+**Responsable acadèmic, pagador i receptor fiscal.** `LegacyGroupInvoicePayloadBuilder::billing()` transforma `respGrups.NOM/COGNOMS/DNI/ADRECA` en receptor de la factura. Això pot coincidir amb un responsable particular, però quan paga una escola o empresa cal carregar **la identitat fiscal de l'entitat real per ID intern**, no substituir-la pel DNI de la persona de contacte. El nombre de membres amb el mateix `IDPAG` no estableix qui suporta el deute. Congelar i autoritzar per separat responsable del grup, contacte, pagador i receptor abans d'emetre o crear la intenció TPV.
+
+**Preu i identitat de cada participant.** El builder genera una línia per `ID_INSC` i usa `TOTAL` o, si falta, `A_PAGAR` del snapshot; no aplica per ell mateix una consulta al quadre `descomptes_grup`. Si `A_PAGAR` és un pendent modificat per fracció/ajust, no reutilitzar-lo com a **preu de prestació** en una factura nova. Comprovar base, tram, descompte i total **per persona**, així com `ANY/MES/CURS` de cada línia, abans de congelar oferta. El nom del participant pot aparèixer quan pertoqui per justificació; el DNI es conserva internament i la seva inclusió visible requereix una necessitat acreditada, no copiar indiscriminadament tots els identificadors al PDF.
+
+**Canvi de composició del grup.** Abans de la factura, una incorporació pot modificar el tram de descompte dels membres existents i demana recalcular l'**oferta completa** i revalidar places. Si hi ha `DS_ORDER` anterior, no modificar-ne el snapshot signat; si ja hi ha una factura d'empresa real, l'alta o baixa va a UC-16a/16b i no a una reescriptura de línies. La factura d'empresa conserva una relació amb N inscrits, però els participants **no reben el PDF complet** només per figurar en `fact_rels`.
+
+### 1.4. Proves de responsable, trams i grup real (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| GR-118-01 | `respGrups` identifica un docent que gestiona un grup pagat per escola | Receptor fiscal de l'entitat acreditada, contacte gestor separat; no factura al DNI del docent per defecte. |
+| GR-118-02 | Grup té membres amb `A_PAGAR` reduït per fracció anterior | Oferta/línies segons import de prestació congelat, no segons saldo pendent llegat. |
+| GR-118-03 | Afegir membre fa canviar el tram de `descomptes_grup` abans del TPV | Revalidar import de tots els membres i nova acceptació/snapshot; no només la línia afegida. |
+| GR-118-04 | Dos membres comparteixen `IDPAG` però diferents cursos/edicions | Dues línies amb el seu curs i plaça; un únic ingrés extern només si realment és conjunt. |
+| GR-118-05 | Alumne demana factura del grup pagada per empresa | Mostrar només cobertura mínima autoritzada, no CIF/document complet de la resta del grup. |
+| GR-118-06 | Factura real prèvia emesa per l'empresa i transferència posterior | `registerPayment()` contra UUID existent, no nova emissió per cada participant. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
