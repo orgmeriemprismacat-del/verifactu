@@ -40,6 +40,15 @@ La migració `2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql` 
 
 **Pendents:** servei de token, permisos i consulta real, criteri de múltiples enllaços, lock de saldo, ús parcial, integració de validació al TPV, idempotència i proves de callbacks/revocació concurrents.
 
+### 2.1. Enllaços individuals coberts per factura d'empresa — xat original
+
+El xat original especifica un cas d'ús propi: l'operador selecciona N inscripcions a «Generar factura abans de pagar», assigna el pagament a una empresa/responsable i vol **inhabilitar les URL individuals** de totes aquestes persones, amb un missatge que indiqui que el pagament correspon a l'entitat. Això requereix una relació de cobertura per `ID_INSC` i `UUID_FACTURA`/operació, no una revocació massiva per coincidència de CIF: una entitat pot tenir diverses factures legítimes. El responsable conserva una via de pagament autoritzada per **la factura exacta** si aquesta continua pendent.
+
+**Transició de cobertura proposada (no implementació acreditada):** reservar/bloquejar de forma idempotent les inscripcions seleccionades i intencions TPV incompatibles, revalidar factura/cobraments i confirmar l'emissió abans de publicar la cobertura efectiva. El resolvedor ha de denegar nous TPV individuals tan bon punt es confirma la cobertura, incloses URLs antigues que encara circulin per correu; desactivar només un botó o reescriure URL al navegador no és suficient. Si falla la sincronització amb intranet després de l'emissió fiscal, conservar factura i restricció de pagament incompatible i obrir incidència; si falla abans d'emetre, alliberar qualsevol reserva no consumida segons regla auditada. **No s'afirma atomicitat real entre dues BDs, banc i SIF.**
+
+**Reassignació i expiració:** la factura d'empresa `EMESA_ABANS_COBRAMENT=1` no s'anul·la per revocar les URLs individuals. El cobrament posterior es vincula al mateix UUID_FACTURA; una URL global d'empresa de 300 € que ha quedat desfasada per una baixa, alta o transferència parcial requereix revalidació i eventual reemplaçament abans de començar un altre TPV, sense duplicar la factura. UC-33 és la revocació d'un enllaç concret i UC-61 és la consulta per persona autoritzada.
+
+**Proves addicionals no executades:** doble clic per generar factura de grup i clic simultani en TPV individual; URL antiga reutilitzada després de cobertura; pagament d'empresa parcial amb URL global d'import antic; empresa-contacte amb mateix CIF que altres grups; callback d'operació individual validada abans de revocació; error de sincronització després d'emetre factura; revocació i nova oferta per un participant retirat sense reutilitzar token ni `DS_ORDER` obsolets.
 ## 3. UML de casos d'ús
 
 ```plantuml
