@@ -197,7 +197,48 @@ CreditBalanceService --> ManualPaymentInvoiceRepository
 CreditBalanceService --> TransactionRunner
 ```
 
-**Font de veritat:** `payment_transaction` és el **moviment real** `CHARGE`/`REFUND` o l'aplicació `COMPENSATION`; `payment_allocation` enllaça amb la factura. `credit_balance` és un saldo disponible. **Cap d'aquestes taules registra avui per si sola l'origen/destí quantitatiu a cada inscripció.** Consulteu [revisió dels fons per inscripció](00-revisio-moviments-inscripcions.md). Les accions d'auditoria sobre pagaments es gestionen en `payment_action_event`, diferent de l'assentament econòmic.
+**Font de registre SIF, no prova bancària automàtica:** `payment_transaction` desa moviments etiquetats `CHARGE`/`REFUND` (el repositori els insereix amb `ESTAT=CONFIRMED`) o aplicacions `COMPENSATION`; això no verifica per si sol que el banc hagi executat l'ingrés o el retorn. `payment_allocation` enllaça el moviment amb una factura. `credit_balance` és un saldo disponible. **Cap d'aquestes taules registra avui per si sola l'origen/destí quantitatiu a cada inscripció.** Consulteu [revisió dels fons per inscripció](00-revisio-moviments-inscripcions.md). Les accions d'auditoria sobre pagaments es gestionen en `payment_action_event`, diferent de l'assentament econòmic.
+
+### 3.1. Subvista real del registre manual de retorns — UC-28
+
+```mermaid
+classDiagram
+direction LR
+class ManualRefundService {
+ <<PHP existent: registra, NO executa sortida bancària>>
+ +registerByUuid(sifDb,uuidFactura,input) array
+ +registerByNumVisible(sifDb,numVisible,input) array
+}
+class ManualRefundPayloadBuilder {
+ <<PHP existent: clau REFUND per referència o factura/dia/import/banc>>
+ +forExistingInvoice(uuidFactura,input) array
+}
+class ManualPaymentInvoiceRepository {
+ <<PHP existent: localitza factura>>
+ +findByUuid(db,uuid,forUpdate) array
+ +findByNumVisible(db,numVisible,forUpdate) array
+}
+class PaymentService {
+ <<PHP existent: reús per clau sense comparar payload>>
+ +registerPayment(payload) array
+}
+class PaymentPayloadValidator {
+ <<PHP existent: almenys una assignació>>
+ +validate(payload) array
+}
+class PaymentRepository {
+ <<PHP existent: CONFIRMED, payload hash i estat cobrament>>
+ +findByIdempotencyKey(db,key,forUpdate) array
+ +createPayment(db,payload) array
+}
+ManualRefundService --> ManualPaymentInvoiceRepository : localitza factura
+ManualRefundService --> ManualRefundPayloadBuilder : REFUND i una assignació a factura
+ManualRefundService --> PaymentService : crida registre després del builder
+PaymentService --> PaymentPayloadValidator : valida estructura
+PaymentService --> PaymentRepository : crea/reutilitza per clau
+```
+
+**Frontera d'evidència:** `PaymentRepository::createPayment()` insereix un `payment_transaction.ESTAT=CONFIRMED` i calcula `PAYLOAD_HASH` **sobre les dades que li envia el canal**, però `PaymentService` no consulta aquell hash per comparar una petició recuperada. `ManualRefundPayloadBuilder` no rep `UUID_PAYMENT` original, titular del retorn ni confirmació bancària. Amb `reference`, la clau de devolució no incorpora factura/import; sense `reference`, dos retorns reals coincidents en factura/dia/import/banc compartirien clau. [UC-28](uc-028-registrar-devolucio.md).
 
 ## 4. Classes executives de Redsys i integracions de venda
 
@@ -810,6 +851,52 @@ UsocCaseReconciler ..> PaymentService : només ingrés bancari entitat verificat
 ```
 
 **Cautela de dependències:** les fletxes entre classes `DISSENY` i PHP actual expressen punts d'integració **proposats**, no crides implementades. `InvoiceService` emet o reutilitza factures; **no** és avui un servei de consulta per verificar UUID alumne. La validació requereix un lector de `factura/fact_rels` i una identitat d'inscripció unívoca abans d'invocar la UC-19b. Les dades `TIPUS_DESC/VALID_DESC` del llegat no equivalen a verificació externa d'afiliació. Vegeu [UC-19](uc-019-validar-afiliacio-usoc.md), [UC-13](uc-013-orquestrar-doble-facturacio-usoc.md), [UC-19b](uc-019b-facturar-part-entitat-usoc.md).
+
+### 6.7. Subvista d'autorització, execució externa i conciliació de retorns — UC-06/28/104 (DISSENY)
+
+```mermaid
+classDiagram
+direction LR
+class EconomicDecisionCoordinator {
+ <<DISSENY: drets d'origen i particions>>
+ +preview(originPayment,enrollmentId,amounts) proposal
+ +approve(proposal,actor,requestId) decision
+}
+class ReturnDecisionService {
+ <<DISSENY: retorn pendent ≠ REFUND>>
+ +approveRefund(originPayment,holder,amount,requestId) decision
+}
+class RefundEvidenceGuard {
+ <<DISSENY: només sortida externa acreditada>>
+ +validate(externalRefundId,requestId,originPayment,uuidFactura,enrollmentId,amount) result
+}
+class RefundReconciliationService {
+ <<DISSENY: no executa TPV/banc>>
+ +reconcile(externalRefundId,originPayment,uuidFactura) result
+}
+class EnrollmentFundMovementRepository {
+ <<PROPOSTA: atribució quantitativa per ID_INSC>>
+ +append(db,movement) result
+ +balanceForEnrollment(db,idInsc) decimal
+}
+class ManualRefundService {
+ <<PHP real: registra REFUND assignat a factura>>
+ +registerByUuid(sifDb,uuidFactura,input) array
+}
+class PaymentService {
+ <<PHP real: reús per clau sense comparar payload>>
+ +registerPayment(payload) array
+}
+EconomicDecisionCoordinator --> EnrollmentFundMovementRepository : guard de fons/reserva [PENDENT]
+EconomicDecisionCoordinator --> ReturnDecisionService : tram de retorn pendent [DISSENY]
+ReturnDecisionService --> RefundEvidenceGuard : només quan banc confirma [DISSENY]
+RefundEvidenceGuard ..> ManualRefundService : registre SIF després de guard [PENDENT]
+RefundReconciliationService --> RefundEvidenceGuard : identifica operació externa única
+RefundReconciliationService ..> ManualRefundService : recuperar només registre SIF absent [PENDENT]
+ManualRefundService --> PaymentService : delegació PHP existent
+```
+
+**Limitació d'excés no assignat:** el builder manual exigeix `UUID_FACTURA` i crea una assignació `INVOICE_REFUND`; **no** serveix per retornar directament diners sobrants d'un ingrés que no s'han atribuït a cap factura. UC-104 requereix un contracte econòmic específic per al retorn extern d'aquest sobrant sense contaminar `factura.ESTAT_COBRAMENT`. Ni l'ordre bancària, ni l'autorització, ni el ledger per inscripció ni el reconciliador formen part del codi PHP acreditat.
 
 ## 7. Traçabilitat i criteri de manteniment
 
