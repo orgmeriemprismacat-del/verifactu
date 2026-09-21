@@ -24,3 +24,14 @@ parametres-connexio*.php
 parametres_connexio.php
 codi-drive/**/parametres-connexio*.php
 codi-drive/**/parametres_connexio.php
+
+# Fonts locals d'auditoria: snapshots de produccio amb dades personals.
+# Es consulten per comparar fluxos, pero no formen part del lliurable Git.
+codi-drive/intranet-actual/
+codi-drive/intranet-alumne-actual/
+codi-drive/intranet-collaboradors/
+codi-drive/old-intranet/
+codi-drive/web-actual/
+
+# Artefactes temporals generats durant les revisions locals.
+.codex-temp/

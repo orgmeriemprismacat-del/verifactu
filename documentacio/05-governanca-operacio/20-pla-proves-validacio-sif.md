@@ -327,6 +327,55 @@ Aquest subbloc queda pendent d'execucio, pero el criteri de prova queda definit:
 - acces a document queda registrat si s'estableix auditoria d'accessos;
 - apartat `VERI*FACTU` de la intranet mostra indicador i resum, pero no permet resoldre incidencies oficialment.
 
+### 6.4.1. Proves transversals de pantalles, avisos i bloquejos
+
+Aquest bloc comprova que les pantalles implementen el comportament definit als documents de pantalles i procediments, no nomes que el servei SIF funcioni.
+
+| ID prova | Pantalla / acces | Objectiu | Resultat esperat |
+| --- | --- | --- | --- |
+| `SIF-PANT-PAY-001` | `Passar pagaments` | Mostrar factura existent, pendent SIF, metode, data, referencia i accio prevista abans de confirmar. | La pantalla diu si fara `registerPayment()`, `issueInvoice(payment)` o incidencia, i el servidor valida el mateix. |
+| `SIF-PANT-PAY-002` | `Passar pagaments` | Confirmar que una inscripcio coberta per empresa/responsable no manté URL individual duplicable. | Avis visible i accio individual bloquejada o substituida per URL correcta. |
+| `SIF-PANT-FAC-001` | `Generar factura abans de pagar` | Mostrar que l'accio emet factura real pendent, no proforma. | Avis previ, `EMESA_ABANS_COBRAMENT = 1`, `E_FACT = 0` per defecte i pagament posterior per `registerPayment()`. |
+| `SIF-PANT-FACT-001` | `Consulta - Edita - Anula factura` | Bloquejar el llapis/edicio directa en factura SIF. | L'accio visible és rectificativa/devolucio/saldo/`E_FACT`; `updDadesFact` no s'executa per SIF. |
+| `SIF-PANT-FACT-002` | `Consulta - Edita - Anula factura` | Factura amb diverses inscripcions abans d'anul·lar o retornar. | Assignacions visibles i motiu obligatori abans de confirmar. |
+| `SIF-VIS-002` | Alumne / empresa / responsable | Comprovar avisos de visibilitat externa. | Alumne veu cobertura sense PDF complet d'empresa/grup; responsable autoritzat veu PDF/QR i URL correcta. |
+| `SIF-AVI-001` | Apartat `VERI*FACTU` | Distingir `indicador`, `avis`, `notificacio` i `incidencia SIF`. | L'indicador obre resum, l'avis explica l'estat, la notificacio es recuperable i la incidencia es resol nomes al SIF. |
+| `SIF-AVI-002` | Intranet quan SIF no respon | Evitar fals estat buit. | La pantalla mostra indisponibilitat i darrera sincronitzacio valida, sense assumir que no hi ha pendents. |
+
+Evidencia minima:
+
+- captura abans de confirmar;
+- captura del bloqueig o avis;
+- resposta servidor/API;
+- log o event auditable quan l'accio es critica;
+- consulta posterior de factura, pagament, document o incidencia.
+
+### 6.4.2. Matriu de tasques UI, proves i evidencies
+
+Les proves funcionals de pantalla nomes es poden executar despres de superar la base segura comuna.
+
+| ID prova | Tasques principals | Precondicions | Evidencia tecnica minima |
+| --- | --- | --- | --- |
+| `SIF-PANT-SEC-001` | `UI-INT-001` | Sessio valida, invalida i rol insuficient | Respostes `401`/`403`, log d'acces i absencia de dades filtrades |
+| `SIF-PANT-SEC-002` | `UI-INT-001`, `UI-PAY-004` | Endpoint de mutacio disponible | `GET` rebutjat, `POST` sense CSRF rebutjat i `POST` valid acceptat |
+| `SIF-PANT-SEC-003` | `UI-INT-004` | Preview valid, caducat, reutilitzat i amb dades canviades | Token invalidat, `PREVIEW_EXPIRED`/`STATE_CHANGED` i cap doble escriptura |
+| `SIF-PANT-SEC-004` | `UI-INT-002`, `UI-INT-003` | SIF disponible, timeout i error controlat | `request_id`, codis estables, cap secret i `SIF_UNAVAILABLE` sense fals exit |
+| `SIF-PANT-PAY-001` | `UI-FACT-001..003`, `UI-PAY-001..005` | Base segura superada | Resposta preview, event `REQUESTED`/terminal, pagament i consulta posterior |
+| `SIF-PANT-PAY-002` | `UI-PAY-001..005`, `UI-VIS-002` | Cobertura empresa/responsable preparada | Bloqueig o URL correcta, log de decisio i absencia de segon cobrament |
+| `SIF-PANT-FAC-001` | `UI-PRE-001..004` | Base segura i consulta preparades | Payload sense `payment`, factura SIF, estat pendent i sync llegada posterior |
+| `SIF-PANT-FACT-001` | `UI-FACT-002..004`, `UI-RECT-001..004` | Factura SIF emesa | `available_actions`, `updDadesFact` no executat i rectificativa relacionada |
+| `SIF-PANT-FACT-002` | `UI-FACT-001..003`, `UI-RECT-001..004` | Factura amb diverses assignacions | Assignacions, motiu, preview comparatiu i resultat auditable |
+| `SIF-VIS-002` | `UI-VIS-001`, `UI-VIS-002` | Identitats i documents de prova separats | Logs d'acces/denegacio, token caducat/revocat i cap dada creuada |
+| `SIF-AVI-001` | `UI-INT-003`, `UI-AVI-001`, `UI-AVI-002` | Avisos dels quatre nivells | Resposta API i navegacio filtrada per rol |
+| `SIF-AVI-002` | `UI-INT-002`, `UI-AVI-001` | Timeout o SIF inaccessible | Estat desconegut, ultima dada valida i incidencia/log de connexio |
+
+Criteri bloquejant:
+
+- `SIF-PANT-SEC-001..004` han de ser `PASS` abans de confirmar pagaments, factures o rectificatives en preproduccio;
+- una captura de boto deshabilitat no prova autoritzacio: cal peticio directa rebutjada pel servidor;
+- una resposta visual d'exit no prova idempotencia: cal registre tecnic i consulta posterior;
+- qualsevol filtracio de dades entre alumnes, empreses o rols deixa el tall en `FAIL` i `NO-GO`.
+
 ### 6.5. Proves especifiques de Redsys curs normal
 
 Aquest subbloc queda pendent d'execucio, pero el criteri de prova queda definit:
@@ -506,3 +555,79 @@ Per cada ID de prova s'ha de conservar una fitxa curta:
 | Resultat obtingut | `PASS`, `FAIL`, `BLOCKED` o `N/A JUSTIFICAT` |
 | Evidencies | Captures, logs, exports, hashes, PDF/QR/XML |
 | Incidencia | ID d'incidencia si falla o queda pendent |
+
+### 7.4. Plantilla d'execucio d'una prova
+
+Aquesta plantilla es pot copiar per cada prova executada:
+
+```markdown
+## Execucio de prova
+
+| Camp | Valor |
+| --- | --- |
+| ID prova |  |
+| Versio SIF |  |
+| Entorn | TEST / PREPROD / PROD controlat |
+| Data i hora |  |
+| Responsable execucio |  |
+| Rol/usuari utilitzat |  |
+| Dades d'entrada |  |
+| Estat inicial |  |
+| Passos executats |  |
+| Resultat esperat |  |
+| Resultat obtingut | PASS / FAIL / BLOCKED / N/A JUSTIFICAT |
+| Evidencies associades |  |
+| Incidencia associada |  |
+| Observacions |  |
+```
+
+Regles d'us:
+
+- `Passos executats` ha de permetre repetir la prova sense preguntar a qui l'ha fet.
+- `Dades d'entrada` no ha d'exposar dades personals reals si no cal; en captures publiques internes, anonimitzar quan sigui possible.
+- `Evidencies associades` ha d'indicar fitxer, captura, log, export o hash concret.
+- Si el resultat es `FAIL` o `BLOCKED`, ha d'existir incidencia o justificacio.
+- Una prova repetida ha de conservar l'execucio anterior i afegir una nova fitxa, no sobreescriure-la.
+
+### 7.5. Resum de campanya de proves
+
+Per cada campanya de preproduccio o go/no-go s'ha de conservar un resum:
+
+| Camp | Contingut |
+| --- | --- |
+| Campanya | Per exemple `GO-NOGO-1.0.0-PREPROD-01`. |
+| Versio candidata | Codi exacte de versio. |
+| Entorn | `PREPROD`, `TEST` o produccio controlada. |
+| Data inici / final | Dates d'execucio. |
+| Responsable tecnica | Persona que valida tecnicament. |
+| Paquet desplegat | Commit, hash, etiqueta o paquet. |
+| Migracions aplicades | Identificador o resum. |
+| Total proves | Nombre total executat. |
+| `PASS` | Nombre i llista d'IDs. |
+| `FAIL` | Nombre i llista d'IDs. |
+| `BLOCKED` | Nombre i llista d'IDs. |
+| `N/A JUSTIFICAT` | Nombre i llista d'IDs. |
+| Incidencies critiques/altes | IDs i estat. |
+| Evidencies base | Carpeta o index d'evidencies. |
+| Resultat campanya | `GO`, `GO AMB LIMITACIONS` o `NO-GO`. |
+
+Regla:
+
+```text
+La decisio final no surt de la sensacio global, sino del resum de campanya mes les incidencies bloquejants.
+```
+
+### 7.6. Control de completitud de la campanya
+
+Abans d'emetre l'acta go/no-go s'ha de verificar:
+
+- tots els IDs bloquejants tenen una execucio vigent per al mateix paquet i entorn;
+- cada `PASS` referencia almenys una evidencia valida;
+- cada `FAIL` o `BLOCKED` referencia una incidencia o impediment identificat;
+- cada `N/A JUSTIFICAT` identifica l'abast no activat i qui n'aprova l'exclusio;
+- les reexecucions conserven el resultat anterior i indiquen quina correccio validen;
+- els totals del resum coincideixen amb les fitxes individuals;
+- l'index d'evidencies no conte fitxers orfes ni referencies inexistents;
+- el manifest de l'expedient identifica el paquet, les migracions i la data de congelacio.
+
+Una campanya caduca i s'ha de repetir totalment o parcialment quan canvia el paquet desplegat, una migracio, la configuracio fiscal, el certificat, els permisos o qualsevol component que pugui alterar el resultat. La responsable tecnica ha de documentar quines proves es reutilitzen i per que continuen sent representatives.

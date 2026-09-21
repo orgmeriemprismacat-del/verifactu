@@ -88,7 +88,33 @@ Les rectificatives usen serie `R`, tenen relacio directa amb la factura rectific
 - `DIFERENCIES`;
 - `SUBSTITUCIO`.
 
-La pantalla antiga d'anulacio no pot modificar factures emeses: ha d'iniciar un flux de rectificativa SIF amb permisos.
+La pantalla antiga d'anulacio no pot modificar factures emeses ni assumir que tot cas es una rectificativa: ha d'iniciar un decisor fiscal amb permisos i previsualitzacio.
+
+### 4.4.1. Anul·lacio de registre AEAT
+
+`RegistroAnulacion` s'utilitza quan un registre de facturacio es improcedent i la causa no s'ha de resoldre amb factura rectificativa.
+
+Regles:
+
+- no esborra factura ni registre original;
+- crea registre fiscal immutable d'anul·lacio;
+- participa en l'encadenament/huella;
+- entra a `fiscal_queue`;
+- conserva resposta i estat AEAT;
+- si despres cal factura correcta, s'emet una nova alta diferenciada;
+- suporta, quan pertoqui, anul·lacio normal, per rebuig i sense registre previ segons operativa AEAT vigent.
+
+### 4.4.2. Subsanacio
+
+La subsanacio corregeix dades d'un registre amb el mateix identificador de factura nomes quan la causa no exigeix factura rectificativa.
+
+Pot derivar de:
+
+- registre acceptat amb error admissible;
+- registre rebutjat;
+- dada incorrecta detectada posteriorment.
+
+El SIF ha de guardar el registre anterior, el nou registre de subsanacio, indicadors AEAT, huella, intent, resposta i estat. Un error economic o fiscal que exigeixi rectificativa no pot entrar per aquest flux.
 
 ### 4.5. Baixes i canvis de curs
 
@@ -173,6 +199,8 @@ Camps minims recomanats:
 
 - `ID`
 - `UUID_FACTURA`
+- `ID_PROVA`
+- `ID_EVIDENCIA`
 - `TIPUS_INCIDENCIA`
 - `PRIORITAT`
 - `ESTAT`
@@ -184,6 +212,7 @@ Camps minims recomanats:
 - `UPDATED_AT`
 - `RESOLVED_AT`
 - `RESOLUTION_NOTES`
+- `CLOSURE_CRITERIA`
 
 La incidencia ha de poder apuntar a factura, pagament o operacio d'origen. Aixo es important en casos com pagaments fraccionats, transferencies que paguen diverses factures, saldos/compensacions i factures abans de cobrament.
 
@@ -206,6 +235,41 @@ Estats recomanats:
 - `DISMISSED`
 
 Cada canvi d'estat ha de generar un event/log.
+
+### 8.1. Incidencies originades per proves
+
+Quan una prova del paquet go/no-go dona `FAIL` o `BLOCKED`, s'ha d'obrir o vincular una incidencia SIF.
+
+Relacio minima:
+
+| Camp | Criteri |
+| --- | --- |
+| `ID_PROVA` | ID estable de la prova, per exemple `SIF-RED-002`. |
+| `ID_EVIDENCIA` | Captura, log, export, acta o consulta que demostra el problema. |
+| `ORIGEN` | `PROVA`, `PREPRODUCCIO`, `PRODUCCIO`, `AEAT`, `REDSYS`, `PDF_QR`, `BACKUP`, `PERMISOS` o equivalent. |
+| `PRIORITAT` | `CRITICA`, `ALTA`, `MITJANA` o `BAIXA`, segons efecte go/no-go. |
+| `CLOSURE_CRITERIA` | Que cal demostrar per tancar-la. |
+
+Regla:
+
+```text
+Una incidencia oberta per prova no es tanca nomes perque s'ha canviat codi.
+Es tanca quan la prova es repeteix, passa i conserva nova evidencia.
+```
+
+### 8.2. Evidencia necessaria per tancar incidencia
+
+Per tancar una incidencia cal conservar:
+
+- descripcio de la causa;
+- accio correctora aplicada;
+- versio o paquet on queda corregida;
+- prova repetida o verificacio equivalent;
+- evidencia nova;
+- usuari/responsable que valida el tancament;
+- data de tancament.
+
+Si la incidencia queda `DISMISSED`, cal explicar per que no afecta compliment fiscal, numeracio, hash chain, AEAT, PDF/QR, permisos ni conservacio de dades.
 
 ## 9. Acces d'auditoria / AEAT
 

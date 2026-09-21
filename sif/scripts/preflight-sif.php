@@ -3,9 +3,13 @@
 require dirname(__DIR__) . '/src/autoload.php';
 
 use Prisma\Sif\Database\ConnectionFactory;
+use Prisma\Sif\Database\MigrationRunner;
 
 $config = require dirname(__DIR__) . '/config/sif.php';
 $checks = [
+    'schema_verified' => false,
+    'php_pdo_mysql' => extension_loaded('pdo_mysql'),
+    'php_openssl' => extension_loaded('openssl'),
     'database_connectivity' => false,
     'factura_table' => false,
     'factura_linia_table' => false,
@@ -23,6 +27,9 @@ $errors = [];
 try {
     $db = ConnectionFactory::make($config);
     $checks['database_connectivity'] = true;
+    $schemaChecks = (new MigrationRunner(dirname(__DIR__) . '/database'))->inspect($db);
+    $checks = array_merge($checks, $schemaChecks);
+    $checks['schema_verified'] = !in_array(false, $schemaChecks, true);
 
     foreach ([
         'factura',
@@ -66,7 +73,8 @@ exit(count($failed) === 0 ? 0 : 1);
 
 function tableExists(\PDO $db, string $table): bool
 {
-    $stmt = $db->query('SHOW TABLES LIKE ' . $db->quote($table));
+    $stmt = $db->prepare('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?');
+    $stmt->execute([$table]);
 
     return $stmt !== false && $stmt->fetchColumn() !== false;
 }
@@ -77,3 +85,6 @@ function rowExists(\PDO $db, string $sql): bool
 
     return $stmt !== false && (int) $stmt->fetchColumn() === 1;
 }
+
+
+

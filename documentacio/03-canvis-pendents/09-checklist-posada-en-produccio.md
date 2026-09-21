@@ -169,6 +169,33 @@ La prova de restauracio ha de fer-se en entorn separat i ha de demostrar:
 - verificacio que la restauracio no reactiva enviaments AEAT o callbacks Redsys com si fossin nous;
 - registre de data, responsable, origen del backup, entorn de restauracio i resultat.
 
+#### 3.1.1. Plantilla d'acta de restauracio
+
+```markdown
+## Acta de restauracio
+
+| Camp | Valor |
+| --- | --- |
+| ID acta |  |
+| Versio SIF |  |
+| Data/hora inici |  |
+| Data/hora final |  |
+| Responsable |  |
+| Entorn restaurat |  |
+| Origen backup BD |  |
+| Origen backup documents |  |
+| Punt temporal restaurat |  |
+| Factura de mostra verificada |  |
+| UUID / numero / hash verificats |  |
+| Documents fiscals verificats | PDF / QR / XML / altres |
+| Cues o processos reactivats per error | No / Si, detall |
+| Resultat | PASS / FAIL / BLOCKED |
+| Evidencies |  |
+| Incidencia associada |  |
+```
+
+L'acta no substitueix el backup automatic. Serveix per demostrar que PrisMa sap restaurar i consultar el SIF sense alterar factures ni reprocessar events.
+
 ## 4. Evidencies minimes a conservar
 
 Per a la versio productiva:
@@ -262,6 +289,25 @@ Captures minimes abans de `1.0.0`:
 - export fiscal de prova;
 - registre de backups/restauracio.
 
+### 5.1. Manifest mestre de l'expedient
+
+Cada expedient ha de tenir un manifest unic que permeti comprovar-ne la completitud sense recórrer manualment totes les carpetes.
+
+| Bloc | Referencia obligatoria | Estat admes |
+| --- | --- | --- |
+| Versio | Fitxa de versio candidata i paquet/commit exacte. | `COMPLET` / `PENDENT` |
+| Entorn | Configuracio no secreta de PREPROD i prova de separacio de PROD. | `COMPLET` / `PENDENT` |
+| Migracions | Llista, ordre, hash i resultat d'aplicacio. | `PASS` / `FAIL` / `BLOCKED` |
+| Proves | Resum de campanya i fitxes d'execucio. | `PASS` / `FAIL` / `BLOCKED` / `N/A JUSTIFICAT` |
+| Evidencies | Index amb ubicacio, tipus, prova associada i hash quan correspongui. | `COMPLET` / `INCOMPLET` |
+| Incidencies | Relacio d'obertes i tancades, severitat i criteri de tancament. | `SENSE BLOQUEJANTS` / `BLOQUEJAT` |
+| Backup/restauracio | Backup previ, acta i verificacio de restauracio. | `PASS` / `FAIL` / `BLOCKED` |
+| Seguretat | Permisos, secrets, certificat/apoderament i rol auditor. | `PASS` / `FAIL` / `N/A JUSTIFICAT` |
+| Documents | PDF/QR/XML, declaracio responsable i documents de versio. | `COMPLET` / `INCOMPLET` |
+| Decisio | Acta go/no-go i aprovacions aplicables. | `GO` / `GO AMB LIMITACIONS` / `NO-GO` |
+
+El manifest ha d'indicar data de congelacio, responsable, ubicacio de l'expedient i hash del mateix manifest. Despres de la decisio no se sobreescriu: qualsevol correccio genera una nova revisio i conserva l'anterior.
+
 ## 6. Incidencies i criteri de bloqueig
 
 Durant preproduccio i posada en produccio, tota incidencia ha de quedar classificada:
@@ -320,6 +366,57 @@ La decisio final s'ha de revisar en aquest ordre:
 - [ ] Revisio de generacio PDF/QR.
 - [ ] Revisio d'indicadors i incidencies de la intranet.
 - [ ] Evidencia final de versio activa i declaracio responsable associada.
+
+### 7.4. Plantilla d'acta go/no-go
+
+```markdown
+## Acta go/no-go SIF
+
+| Camp | Valor |
+| --- | --- |
+| ID acta |  |
+| Versio candidata |  |
+| Data decisio |  |
+| Entorn validat |  |
+| Paquet/commit desplegat |  |
+| Migracions aplicades |  |
+| Campanya de proves |  |
+| Proves PASS |  |
+| Proves FAIL |  |
+| Proves BLOCKED |  |
+| Incidencies CRITICA obertes |  |
+| Incidencies ALTA obertes |  |
+| Backup previ verificat | Si / No |
+| Restauracio provada | Si / No |
+| Certificat/apoderament provat | Si / No / No aplica justificat |
+| Declaracio responsable preparada | Si / No |
+| Decisio | GO / GO AMB LIMITACIONS / NO-GO |
+| Limitacions acceptades |  |
+| Responsable tecnica |  |
+| Direccio/responsable legal |  |
+| Propera revisio |  |
+```
+
+Si la decisio es `GO AMB LIMITACIONS`, l'acta ha d'explicar exactament quin abast queda activat i quin queda bloquejat o sota control manual temporal.
+
+### 7.5. Matriu final de portes
+
+| Porta | Condicio de pas | Responsable de validar | Evidencia |
+| --- | --- | --- | --- |
+| `G1` Versio | Paquet, migracions i configuracio coincideixen amb la candidata. | Responsable tecnica | Fitxa de versio, hashes i resultat de migracions. |
+| `G2` Integritat fiscal | Numeracio, hash chain, immutabilitat i idempotencia passen. | Responsable tecnica | Proves `SIF-INV-001`, `SIF-IDEM-001` i `SIF-CON-001`. |
+| `G3` Canals i documents | Fluxos activats, PDF/QR/XML i AEAT passen. | Responsable tecnica | Campanya, documents i logs. |
+| `G4` Seguretat | Permisos, secrets, certificat i auditoria estan validats. | Responsable tecnica / responsable legal quan pertoqui | Proves de permisos i certificat no secretes. |
+| `G5` Continuïtat | Backup recuperable i restauracio demostrada. | Operacio tecnica | Backup i acta `SIF-BCK-001`. |
+| `G6` Incidencies | Cap incidencia critica o alta oberta. | Responsable tecnica | Registre d'incidencies i reexecucions. |
+| `G7` Governanca | Manifest complet, acta emesa i aprovacions registrades. | Responsable tecnica i direccio/responsable legal quan correspongui | Manifest, acta i vistiplau. |
+
+Regles de decisio:
+
+- `GO` exigeix `G1` a `G7` superades.
+- `GO AMB LIMITACIONS` exigeix igualment `G1`, `G2`, `G4`, `G5`, `G6` i `G7`; nomes pot limitar funcionalitats o canals no activats de `G3`.
+- `GO AMB LIMITACIONS` no pot substituir una prova bloquejant, una restauracio pendent, una incidencia critica/alta ni una manca de certificat, permisos, immutabilitat, numeracio o hash.
+- qualsevol porta bloquejada o sense evidencia suficient implica `NO-GO`.
 
 ## 8. Fonts oficials revisades
 

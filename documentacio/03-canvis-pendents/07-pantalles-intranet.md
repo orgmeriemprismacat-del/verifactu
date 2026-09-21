@@ -517,6 +517,23 @@ Accio SIF:
 - PDF/QR a `factura_documents`;
 - si falla SIF, crear incidencia a `errors_verifactu`, no generar factura alternativa local.
 
+Flux final de pantalla:
+
+| Pas | Contingut visible | Validacio servidor obligatoria | Sortida |
+| --- | --- | --- | --- |
+| 1. Seleccio | Inscripcions candidates, estat, import previst, factura previa i URL activa | Inscripcio existent, no duplicada, mateix curs/edicio, no coberta per una altra factura incompatible | Llista seleccionada neta |
+| 2. Receptor i previsualitzacio | Entitat/receptor per ID intern, snapshot fiscal, linies, concepte, total i observacions | Receptor complet, imports recalculats, linies coherents, idempotencia | Resum final per confirmar |
+| 3. Emissio | Numero visible, UUID, estat AEAT, estat cobrament pendent, PDF/QR i URL de pagament si toca | `issueInvoice()` transaccional i `fact_rels` creats | Factura real `EMESA_ABANS_COBRAMENT = 1` |
+
+Avisos obligatoris:
+
+- abans de confirmar: `Aquesta accio emetra una factura real encara que no estigui cobrada. No es una proforma.`;
+- si hi ha inscripcio ja facturada: `Aquesta inscripcio ja te factura associada. Cal revisar-la abans d'emetre.`;
+- si es barreja curs o edicio: `No es poden barrejar cursos o edicions en aquesta factura.`;
+- despres d'emetre: `El pagament posterior s'ha de registrar contra aquesta factura, no crear-ne una altra.`;
+- si el PDF/QR queda pendent: `Factura emesa. Document pendent de generacio; es crea seguiment al SIF.`;
+- si l'usuari vol marcar factura electronica: `E_FACT es una accio separada i auditada.`
+
 ### Revisio especialitzada del subbloc
 
 El xat antic confirma que aquesta pantalla emet una factura real abans del cobrament, normalment per empresa, responsable o situacio on cal factura previa per poder cobrar.
@@ -789,6 +806,23 @@ Accions finals esperades:
 - marcar/desmarcar `E_FACT`;
 - consultar historial d'accions.
 
+Panell final d'accions:
+
+| Estat de la factura | Accions visibles | Accio bloquejada | Avis de pantalla |
+| --- | --- | --- | --- |
+| Factura historica no VERI*FACTU | Veure informacio, veure PDF/copia historica, consultar relacions | Edicio directa com a criteri SIF | `Factura historica no VERI*FACTU. Les correccions noves s'han de tramitar pel SIF.` |
+| Factura SIF ordinaria | Veure informacio, PDF/QR, pagaments, rectificatives, marcar `E_FACT` | Llapis d'edicio directa | `Factura emesa pel SIF. Receptor, concepte i import son immutables.` |
+| Factura SIF amb diverses inscripcions | Veure assignacions, iniciar rectificativa/devolucio/saldo | Confirmar anul·lacio sense repartir imports | `Aquesta factura afecta diverses inscripcions. Revisa assignacions abans de confirmar.` |
+| Factura rectificada totalment | Veure original i rectificatives | Nova anul·lacio total sense revisar estat | `Factura ja rectificada. Consulta l'historial abans de crear una nova accio.` |
+| PDF/QR pendent o amb error | Veure estat i incidencia SIF | Regenerar sense log | `Document fiscal pendent o amb incidencia. No es pot reconstruir des de dades vives.` |
+
+Regles d'interaccio:
+
+- el boto principal no ha de dir `Editar factura`; ha de dir `Iniciar rectificativa`, `Registrar devolucio/saldo` o `Marcar factura electronica` segons el cas;
+- abans de qualsevol accio fiscal, la pantalla ha de mostrar resum de factura original, imports afectats, pagaments assignats, motiu obligatori i consequencia prevista;
+- si l'usuari no te permis, la pantalla pot ocultar el boto, pero l'endpoint ha de retornar bloqueig amb avis llegible;
+- el log visible ha de mostrar usuari, data, accio, motiu, factura original, factura generada o moviment economic vinculat.
+
 ### Revisio especialitzada del subbloc
 
 Informacio concreta recuperada del xat antic:
@@ -924,6 +958,29 @@ Canvis de pantalla:
 - mostrar diferencia residual si `A PAGAR` i `PAGAT + PAGAMENT` no quadren exactament;
 - bloquejar confirmacio si falta data, import o metode quan siguin obligatoris.
 
+Disseny operatiu final del bloc de cerca/pagament:
+
+| Situacio detectada | La pantalla ha de mostrar | Accio SIF permesa | Avis o bloqueig |
+| --- | --- | --- | --- |
+| Factura SIF existent pendent o parcial | Numero visible, UUID, pendent SIF i pagaments assignats | `registerPayment()` | `Es registrara cobrament contra factura existent. No es creara cap factura nova.` |
+| Factura abans de cobrament | Marca `EMESA_ABANS_COBRAMENT`, receptor i URL de factura si existeix | `registerPayment()` | `Factura ja emesa abans de cobrar. El pagament posterior no genera nova factura.` |
+| Sense factura i venda facturable | Previsualitzacio de factura, receptor, linies i pagament | `issueInvoice()` amb bloc `payment` | `Aquesta confirmacio emetra factura i registrara cobrament en una sola operacio.` |
+| Inscripcio coberta per empresa/responsable | Receptor empresa/responsable i URL correcta si esta pendent | Cap pagament individual; obrir factura d'empresa | `No facis servir URL individual. El cobrament correspon a empresa/responsable.` |
+| Pagament TPV ja processat | Referencia, `IDPAG` o `DS_ORDER` i resultat anterior | Retorn idempotent, sense nou moviment | `Pagament ja conciliat. Es mostra el registre existent.` |
+| Import, data o referencia incoherent | Diferencia i candidats possibles | Crear incidencia o revisio manual | `No es pot confirmar fins revisar la incoherencia.` |
+| Compensacio o saldo | Tipus de moviment, factura origen i factura desti si aplica | Flux especific de compensacio/saldo | `No introdueixis imports negatius lliures; obre el flux de saldo o compensacio.` |
+
+Validacions minimes abans de confirmar:
+
+- un sol criteri de cerca actiu;
+- import positiu excepte flux de devolucio/saldo expressament obert;
+- data valida i no futura;
+- metode/banc obligatori quan no vingui d'una referencia TPV ja validada;
+- pendent recalculat al servidor/SIF;
+- idempotency key de pantalla o referencia externa;
+- rol servidor validat;
+- cap confirmacio per `GET`.
+
 Pendent:
 
 - metode concret de `Intranet.php`;
@@ -1057,6 +1114,24 @@ Canvis necessaris:
 - registrar acces a documents fiscals quan sigui necessari per auditoria;
 - distingir clarament "inscripcio coberta per empresa/responsable" de "factura visible per l'alumne".
 
+Procediment d'acces extern:
+
+1. Identificar el tipus de factura: individual, empresa/responsable, grup, historica o SIF.
+2. Comprovar receptor fiscal i relacio autoritzada abans de mostrar cap PDF/QR.
+3. Si l'alumne es receptor, mostrar factura individual, estat de cobrament i document disponible.
+4. Si la factura es d'empresa/responsable, mostrar a l'alumne nomes cobertura o estat administratiu, no la factura completa.
+5. Si l'enllac es per empresa/responsable, validar token, caducitat, factura, receptor i document.
+6. Servir el PDF/QR des del SIF sense exposar path intern.
+7. Si falta document o hi ha error, mostrar estat pendent/incidencia i no regenerar amb dades vives.
+
+Avisos de consulta:
+
+- alumne cobert per empresa: `La teva inscripcio esta coberta per una factura d'empresa/responsable. La factura completa nomes es visible per al receptor autoritzat.`;
+- factura individual visible: `Factura disponible per consulta i descarrega.`;
+- token invalid o caducat: `Aquest enllac no es valid o ha caducat.`;
+- PDF pendent: `El document fiscal encara no esta disponible. Consulta l'estat o contacta amb administracio.`;
+- factura de grup: `Per proteccio de dades, els participants no poden veure la factura completa del grup.`
+
 ## Apartat VERI*FACTU de la intranet principal
 
 Objectiu:
@@ -1097,6 +1172,22 @@ No ha de permetre:
 - modificar registres fiscals;
 - editar factures;
 - canviar configuracio SIF.
+
+Comportament d'indicadors i avisos:
+
+| Element | On apareix | Font | Accio esperada |
+| --- | --- | --- | --- |
+| `indicador` | Menu o titol `VERI*FACTU` | recompte de pendents del SIF | Obrir resum; no resol res |
+| `avis` | Pantalla concreta | resposta del SIF o validacio local | Informar l'usuari abans de continuar |
+| `notificacio` | Llista interna recuperable | SIF o intranet quan cal visibilitat | Obrir detall o marcar llegida si escau |
+| `incidencia SIF` | Panell SIF i resum intranet | BD fiscal/SIF | Gestionar i resoldre a `pay.prisma.cat/sif` |
+
+Regla visual:
+
+- el color o indicador ha de portar sempre a un detall, no nomes a un numero;
+- si el SIF no respon, la intranet ha de mostrar avis tecnic i no assumir que no hi ha pendents;
+- la intranet pot marcar notificacions com a llegides, pero no pot marcar una incidencia fiscal com a resolta;
+- els avisos de pantalla han de dir l'accio segura: obrir SIF, revisar factura, registrar pagament, esperar PDF/QR o crear incidencia.
 
 Font de dades:
 

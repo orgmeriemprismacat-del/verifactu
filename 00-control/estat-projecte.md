@@ -1,6 +1,6 @@
 # Estat del projecte VERI*FACTU
 
-Ultima actualitzacio: 2026-06-19
+Ultima actualitzacio: 2026-09-16
 
 ## Objectiu
 
@@ -43,6 +43,7 @@ Adaptar el sistema de facturacio de PrisMa a VERI*FACTU mitjancant un SIF centra
 - Model BD SIF consolidat: `fact_rels` queda com a pont logic amb BD antiga, sense foreign keys entre BD fiscal i BD web/intranet; `payment_transaction`, `payment_allocation`, `factura_linia`, `fiscal_chain_state`, `fiscal_queue` i valors controlats queden alineats entre model, relacions i diccionari.
 - Entrada de pagaments al SIF definida: Redsys entra per callback a `pay.prisma.cat` i es deduplica a `redsys_notifications`; transferencies i pagaments manuals entren per `Passar pagaments`; fitxers TPV generen analisi/conciliacio auditada; el moviment economic real viu a `payment_transaction` i l'assignacio a factura viu a `payment_allocation`.
 - Bloc especialitzat de proves i posada en produccio revisat: el checklist i el pla de proves ja tenen criteris executables de `GO`, `GO AMB LIMITACIONS` i `NO-GO`, bateria bloquejant amb IDs, fitxa d'evidencia, criteri de captures, backups/restauracio, incidencies i checklist final d'activacio. Queda pendent executar-ho en preproduccio/produccio i conservar evidencies reals.
+- Continuacio del bloc de proves i posada en produccio: afegides plantilles operatives per executar proves, resumir campanyes go/no-go, documentar restauracions, registrar l'acta go/no-go i descriure versions candidates. Queda pendent usar aquestes plantilles amb evidencies reals quan hi hagi entorn de preproduccio i codi desplegable.
 - Fluxos fiscals especials tancats: compensacio/saldo, pagaments fraccionats, rectificatives, devolucions, baixes, canvis de curs, factura manual i migracio de factures historiques queden definits com a fluxos separats. Cap d'aquests casos es resol modificant imports, dates o factures emeses; passen per `issueInvoice()`, `registerPayment()`, `payment_transaction`, `payment_allocation`, `credit_balance`, rectificatives o migracio `NO_VERIFACTU` segons el cas.
 - Bloc normatiu/documental revisat: documentacio SIF AEAT, declaracio responsable, registre de versions, permisos i diccionari han quedat reforcats amb criteri de fonts oficials, versio `1.0.0` signable, certificat digital/apoderament, productor/titular intern, rol auditor nomes lectura i camps fiscals minims del registre d'alta, QR, AEAT, documents i declaracio.
 - Pla d'implementacio tecnica del SIF creat: `documentacio/00-index-i-pla/29-pla-implementacio-tecnica-sif.md` converteix l'arquitectura tancada en fases executables, fitxers a crear, proves amb runner PHP propi, migracions SQL, endpoints interns, Redsys, documents, incidencies i preflight.
@@ -103,7 +104,14 @@ Adaptar el sistema de facturacio de PrisMa a VERI*FACTU mitjancant un SIF centra
 - Fase 11 grups continuada el 2026-06-14 amb circuits de preproduccio: creats `RedsysGroupInvoiceService`, `ManualGroupInvoicePayloadBuilder`, `ManualGroupInvoiceService` i els scripts `preflight-redsys-group.php`, `preview-redsys-group.php`, `process-redsys-group.php`, `preflight-manual-group.php`, `preview-manual-group.php` i `process-manual-group.php`. El flux manté factura `GRUP` amb linies per participant, receptor `respGrups`, relacions no visibles a alumne, cobrament inicial Redsys/manual i `--sync-legacy` opcional post-SIF. L'activacio real continua pendent de PHP/MySQL de test i SQL final de `descomptes_grup`.
 - Fase 11 reclamacio/morositat preparada el 2026-06-14: creats `ClaimPaymentPayloadBuilder`, `ClaimPaymentService` i els scripts `preflight-claim-payment.php`, `preview-claim-payment.php` i `process-claim-payment.php`. El flux localitza factura SIF per `UUID_FACTURA` o `NUM_VISIBLE` i registra `registerPayment()` amb assignacio `CLAIM_PAYMENT`, sense factura nova, sense registre fiscal nou, sense hash chain i sense sync legacy. Pendent d'integrar pantalla/URL/correus finals i executar PHP/MySQL de test.
 - Fase 10 go/no-go reforçada el 2026-06-14: `go-no-go-preproduction.php` comprova tambe `credit_balance`, `manual_refund`, `redsys_usoc`, `usoc_entity`, `redsys_group`, `manual_group` i `claim_payment`, a més de les taules legacy de grup `respGrups`. Continua sent comprovacio de nomes lectura i no emet factures ni registra pagaments.
+- Xat 3 iniciat el 2026-06-18 amb el bloc `rectificativa vs anul·lacio AEAT vs subsanacio`. S'ha corregit el criteri anterior que enviava genericament la pantalla antiga d'anul·lacio cap a rectificativa: ara hi ha decisor fiscal entre cancel·lacio operativa, factura rectificativa, `RegistroAnulacion`, subsanacio, nova alta o incidencia. La documentacio ja separa baixa, `REFUND`, rectificativa, anul·lacio de registre i subsanacio. Queden pendents el model/servei de `RegistroAnulacion`, subsanacions, camps XML AEAT, hash exacte, cua/respostes i proves XSD/AEAT.
 - Bloc d'entrada de pagaments Redsys continuat el 2026-06-19: creada la migracio `redsys_payment_intent` per vincular `DS_ORDER` generat al servidor amb origen, `IDPAG`, import esperat i snapshot previ al TPV. El contracte documental ja prohibeix resoldre `IDPAG` des de query string i diferencia duplicat coherent, callback contradictori i col·lisio concurrent. Queden pendents el repositori/servei PHP, la connexio automatica del callback amb els orquestradors i les proves executables amb PHP/MySQL.
+- Disseny asincron Redsys tancat el 2026-06-19 a `13-cua-asincrona-callbacks-redsys.md`: el callback persistira notificacio i job en una transaccio curta, i un worker separat processara curs, pack, grup, regal o USOC amb bloqueig, reintents i resultat persistent. S'ha triat `redsys_callback_queue` com a taula propia. La sincronitzacio legacy automatica queda fora del primer tall perque l'actual concatenacio a `OBSERVACIONS` no es idempotent.
+- Pla d'implementacio de la cua Redsys preparat el 2026-06-19 a `14-pla-implementacio-cua-redsys.md`, dividit en les nou targetes Trello amb cicles RED/GREEN, fitxers exactes, migracions, worker, dispatcher, reintents, duplicats i proves de concurrencia. L'execucio continua bloquejada fins disposar de PHP/OpenSSL/PDO MySQL i BD de test.
+- Revisio documental urgent iniciada el 2026-09-14: cal disposar aviat d'un document signat, pero la declaracio responsable reglamentaria no es pot presentar com a certificacio definitiva d'una versio que encara no sigui concreta, instal·lada i verificable. Abans de preparar el document final cal confirmar qui el demana i amb quina finalitat, per decidir entre declaracio responsable del SIF o declaracio provisional d'estat del projecte. La declaracio responsable no exigeix signatura electronica; el certificat qualificat es necessari per autenticar la remissio VERI*FACTU a AEAT. S'ha programat per al 2026-09-22 la revisio de si Associacio PrisMa ja disposa d'un certificat adequat, titular, vigencia, acces i eventual apoderament o sol·licitud.
+- Arquitectura de certificat AEAT aclarida el 2026-09-14: el certificat client qualificat i la clau privada han d'estar disponibles per al backend/worker que fa la remissio SOAP/XML des del servidor, pero no han d'estar al webroot ni al repositori. Es pot usar un fitxer `PKCS#12`/`PEM` protegit, magatzem de certificats, gestor de secrets o HSM/key vault segons el hosting. El certificat client AEAT es diferent del certificat TLS public de `pay.prisma.cat` i de la signatura de la declaracio responsable. Encara no hi ha configuracio de certificat al codi SIF.
+- Responsabilitat productor/desenvolupament intern aclarida el 2026-09-14: segons la FAQ AEAT vigent, si una empresa desenvolupa el SIF per a us propi, es la mateixa empresa qui l'ha de certificar. En el projecte, Associacio PrisMa continua com a productora/titular interna i Meriem com a responsable tecnica. VERI*FACTU no imposa una declaracio bilateral separada entre la responsable tecnica i l'empresa. Es recomana, com a governanca interna, un acord de designacio tecnica i aprovacio de direccio que no substitueixi la declaracio responsable del SIF ni traslladi automaticament la responsabilitat de productor a la persona treballadora.
+- Acord intern corregit i ampliat el 2026-09-15: `documentacio/01-compliment-aeat/acord-intern-responsabilitats-sif-prisma.md` i `acord-intern-responsabilitats-sif-prisma.docx` reconeixen a Meriem Abjil Bajja autonomia delegada per decidir la preparació tècnica, activar, suspendre o substituir versions i iniciar, suspendre o reprendre la remissió sistemàtica a l'AEAT, sense autorització específica addicional per actuació. Qualsevol decisió o actuació que afecti el SIF, i qualsevol actuació sobre els circuits de cobrament o pagament gestionats pels sistemes de l'entitat, ha de passar prèviament per la seva intervenció i conformitat expressa; cap altra persona, membre de l'equip, col·laborador o proveïdor pot decidir-la o executar-la unilateralment. Les decisions fiscals, jurídiques i laborals del projecte es documenten com a compartides amb Adam Carmona i Pablo Martori Delupi, però no es poden adoptar ni executar sense Meriem. L'acord reconeix que Meriem ja disposa dels accessos administratius i estableix que s'han de mantenir personals, traçables i suficients. La previsió laboral regula només condicions i mitjans de treball i no limita les seves facultats. L'annex 1 de vistiplau continua pendent d'emissió fins que hi hagi una versió concreta instal·lada, provada i identificada. El DOCX s'ha revisat visualment en vuit pàgines i no substitueix la declaració responsable reglamentària.
 
 ## Decisions base ja assumides
 
@@ -181,9 +189,405 @@ Actualitza els fitxers de control del projecte: estat-projecte.md, registre-deci
 
 ## 2026-06-20 - Implementacio asincrona Redsys: 9 de 9 completades
 
-- Preparat el worktree `feature/redsys-async-queue` amb PHP 8.4.22 i MySQL 8.0.40 de test.
-- Completades les nou targetes: intencions, cua durable, callback transaccional, worker, dispatcher dels cinc origens, resultat persistent, reintents/incidencies, duplicats contradictoris i operacio CLI/preflight.
-- El callback no usa `IDPAG` de query string; compara import, divisa i terminal amb la intencio i conserva els camps signats normalitzats.
-- El worker consumeix `SNAPSHOT_JSON` sense connexio ni sincronitzacio legacy automatica.
-- Verificacio: `276 passed, 0 failed`; preflight Redsys `ok=true`; migracions `000003` i `000004` aplicades sobre MySQL 8.0.40.
-- El go/no-go confirma el circuit Redsys asincron, pero continua `NO-GO` global per manca de BD legacy de preproduccio.
+- Preparat un worktree aillat `feature/redsys-async-queue` amb PHP 8.4.22 i MySQL 8.0.40 de test.
+- Completades les targetes: `redsys_payment_intent`, `redsys_callback_queue`, callback transaccional, worker, dispatcher dels cinc origens, resultat persistent, reintents/incidencies, duplicats contradictoris i operacio CLI/preflight.
+- El callback ja no usa `IDPAG` de query string; valida import/divisa/terminal contra la intencio i conserva camps signats normalitzats.
+- Els workers consumeixen `SNAPSHOT_JSON` sense connexio legacy i no executen sincronitzacio legacy automatica.
+- Verificacio actual: `276 passed, 0 failed`; worker CLI amb cua buida `ok=true`, preflight Redsys `ok=true` i migracions `000003`/`000004` aplicades sobre MySQL 8.0.40.
+- El go/no-go confirma `redsys_async_circuit_present = true` i les dues taules noves; el resultat global continua `NO-GO` exclusivament per manca de configuracio/connexio/taules de la BD legacy de preproduccio.
+
+## 2026-09-14 - Cataleg de diagrames i casos d'us
+
+- Creat `documentacio/04-estat-final/31-diagrames-classes-sif.md` amb el nucli d'emissio/cobrament, orquestradors manuals i circuit asincron Redsys.
+- Creat `documentacio/04-estat-final/32-diagrames-sequencia-sif.md` amb les sequencies d'`issueInvoice()`, factura abans de cobrar, callback/worker Redsys, rectificacio/devolucio, incidencies i remissio AEAT prevista.
+- Creat `documentacio/04-estat-final/33-casos-us-sif.md` amb actors, diagrama general, matriu de cobertura, fitxes funcionals i autoritzacions transversals.
+- Els documents diferencien codi `[BASE]` del checkout `checkpoint/sif-fase-0-4`, codi `[ASYNC]` de `feature/redsys-async-queue`, integracions `[PARCIAL]` i funcionalitat `[DISSENY]` encara pendent.
+- No s'ha consultat `xat-original`: el codi, les migracions, les proves i la documentacio actual han estat suficients per aquest inventari.
+- No s'ha modificat codi, ni s'ha fet commit o push.
+
+## 2026-09-15 - Auditoria i ampliacio exhaustiva dels diagrames
+
+- Revisada la primera versio del cataleg i confirmat que era una vista introductoria, no una cobertura suficient de tot el projecte.
+- Ampliat `31-diagrames-classes-sif.md` fins a cobrir les 69 classes del SIF base, les 7 classes addicionals de `feature/redsys-async-queue` i les 10 classes principals del llegat PrisMa.
+- Ampliat `32-diagrames-sequencia-sif.md` a 33 sequencies: nucli fiscal, cobraments, endpoints reals, curs/taller/jornada, pack, grup, regal, USOC, processos manuals, Redsys base i asincron, seguretat, documents, notificacions, recuperacio, legacy, conciliacio i AEAT pendent.
+- Ampliat `33-casos-us-sif.md` a sis vistes i un inventari UC-01 a UC-60, amb subcasos, pantalles, permisos i cobertura agrupada de les 192 pantalles/apartats Trello 4.
+- Creat `34-diagrames-dades-estats-sif.md` amb el model combinat de 16 taules i els estats de factura, cobrament, cua AEAT i cua/intencions Redsys.
+- Creat `35-matriu-tracabilitat-diagrames.md` per demostrar la cobertura de codi, proves, classes, scripts, endpoints, taules, pantalles, casos d'us i peces pendents.
+- Creat `36-mapa-components-integracions-sif.md` amb el context, la topologia del repo, els 25 PHP de `codi-drive`, els tres endpoints reals, les fronteres de seguretat, el desplegament, les proves i la relacio amb les 13.277 targetes reconciliades.
+- Detectada i corregida una errada de la primera ampliacio: els endpoints reals són `factures/issue`, `payments/register` i `redsys/callback`; `GET /api/incidencies` no existeix i queda marcat com a disseny de panell.
+- Afegida la cobertura que faltava de 112 classes `*Test` i 234 metodes de prova a la base, 118/276 a la branca, i de la classe `Intranet` amb 495 funcions, 292 de publiques.
+- Verificacio automatica: cap classe de produccio, script, taula, endpoint o UC-01..UC-60 de l'inventari ha quedat fora; els 67 blocs Mermaid dels documents 31-34 i 36 s'han renderitzat correctament amb Mermaid CLI 11.12.0.
+- Es mantenen com a pendents, sense presentar-los com a acabats, el client/worker AEAT, certificat, anul·lacio/subsanacio, panell i permisos finals, documents segurs, conciliador TPV i integracio definitiva ecommerce/intranet.
+- No s'ha consultat `xat-original`, no s'ha modificat codi i no s'ha fet commit ni push.
+
+## 2026-09-15 - Reconciliació de les set còpies i frontera de pagament
+
+- Incorporat el significat de les set carpetes de `codi-drive`: dues candidates amb canvis VERI*FACTU i cinc còpies actuals o històriques sense aquests canvis.
+- Inventari local comprovat: 6.848 fitxers, 1.920 PHP; 25 PHP candidats i 1.895 PHP a `intranet-actual`, `web-actual`, `intranet-alumne-actual`, `old-intranet` i `intranet-collaboradors`.
+- Comparats els 25 candidats amb els homòlegs disponibles: 14 són idèntics, 8 diferents i 3 no tenen homòleg directe. No s'hi ha detectat cap crida als tres endpoints SIF.
+- `intranet-actual/Intranet.php` té 39.229 línies i 510 funcions; la candidata en té 37.603 i 495. La candidata no es pot desplegar com a substitució sense reconciliar versions.
+- Decidit que la intranet i la web continuen com a canals, però el pagament amb efecte fiscal s'ha de programar i centralitzar al SIF de `pay.prisma.cat` mitjançant adaptadors autenticats.
+- La intranet alumne entra al perímetre quan consulta el pendent i obté l'enllaç/intenció de pagament. La intranet de col·laboradors i `old-intranet` documenten factures/rebuts i honoraris de tutors com a circuit adjacent de proveïdors.
+- Creat `37-auditoria-comparativa-codi-drive.md` i actualitzats els documents 31-36, l'índex i `codi-drive/README.md`.
+- Catàleg actual: 14 diagrames al document 31, 38 seqüències al 32, 7 vistes al 33, 10 diagrames al 34, 11 al 36 i 2 al 37; total de 82 blocs Mermaid validats amb Mermaid CLI 11.12.0.
+- Detectat risc de secrets/configuracions incorporats a les còpies. No se n'han reproduït valors; cal sanejar i externalitzar abans de commit o desplegament.
+- No s'ha consultat el JSONL de `xat-original`, no s'ha modificat cap PHP i no s'ha fet commit ni push.
+
+## 2026-09-15 - Pla mínim de llançament al 31/12/2026
+
+Creat `00-control/pla-mvp-2026-12-31.md`: calendari, 31 tasques agrupades, dependències i acceptació per compra de curs i Passar pagaments. Llançament proposat 14/12, reserva fins al 31/12; 3 dies entre setmana i caps de setmana, base 40 h/setmana i 360 h de tasques inicials. Abast de cursos individuals/transferències provisional pendent de resposta; reestimació el 27/09. No s'ha verificat producció ni executat proves en aquesta planificació.
+
+## 2026-09-15 - MVP de l'assistent de fitxes funcionals
+
+- Implementat sota `sif/` un MVP local que valida l'entrada del cas, prepara un manifest de fonts amb fragments, línies, estat Git i hash SHA-256, i valida l'estructura i la traçabilitat de la fitxa.
+- Fixades 21 seccions i els estats `CONFIRMAT`, `PROPOSTA`, `PENDENT`, `CONFLICTE` i `NO APLICABLE`, amb regles mecàniques per impedir confirmacions sense una font autoritzada existent.
+- Preparada l'entrada pilot d'UC-26 `Canvi de curs` i la seva llista explícita de fonts. El resultat és `PREVIEW` i no escriu automàticament a `documentacio/` ni a Trello.
+- El generador és transversal; Xat 3 conserva l'autoritat sobre decisions funcionals i fiscals. UC-26 continua tenint com a ubicació canònica `documentacio/04-estat-final/33-casos-us-sif.md`.
+- Afegides proves unitàries del contracte d'entrada, extracció de fragments, cites autoritzades, conflictes, hash obsolet, rutes insegures i porta `READY_FOR_PROGRAMMING`.
+- Verificats els JSON, les 21 capçaleres i les 23 rutes de fonts; els 7 PHP nous passen el lint. Les 13 proves específiques de l'assistent passen i el preparador genera el manifest d'UC-26 amb 23 fonts existents, 21 d'autoritzades i fragments a totes 23.
+- La suite global s'ha executat amb el PHP 8.4.22 local i dona `167 passed, 85 failed`: els errors són principalment la connexió rebutjada a la BD de test i també hi ha assercions preexistents alienes a l'assistent. No s'ha configurat ni modificat cap BD en aquesta sessió.
+- Generada la primera fitxa completa `PREVIEW` d'UC-26 fora de `documentacio/`: 82 afirmacions classificades, inclòs el conflicte de nomenclatura `canvi_curs` versus `course_change_event`; estat `NEEDS_DECISION` per decisions fiscals, comercials, tècniques i de pantalla encara pendents dels xats responsables.
+
+## 2026-09-15 - Revisió funcional i registral completa
+
+- Corregit l'abast de l'auditoria: centralitzar el pagament a `pay.prisma.cat` és necessari però no suficient. També s'han de transformar dades fiscals, edicions, canvis de curs, baixes, ajusts, descomptes, rectificatives, anul·lacions, subsanacions, documents, correus, permisos, incidències, reconciliació, versions, exports i continuïtat.
+- Contrastats el document de compliment, l'inventari de canvis, els fluxos, les pantalles, els correus, les 192 files de la matriu de pantalles, l'estat final, el panell SIF, seguretat i el diccionari de camps.
+- Contrastats els mètodes llegats crítics `guardarDadesPagament_modalsresultatCerca()`, `realitzarCanviCurs_modalCanviCurs()`, `confirmaBaixa_modalDonarBaixa()`, `efectuarPagament*()`, `guardarDadesFactura_Factures()` i `anularFactura()`.
+- Confirmat que les dues carpetes candidates no contenen referències als registres SIF principals, anul·lació/subsanació, auditoria, outbox, accessos segurs o versions, i que continuen existint mutacions llegades. El seu estat continua `[CANDIDAT/PARCIAL]` i el desplegament és `[NO-GO]`.
+- Confirmat que `sif/` aporta un nucli fiscal/econòmic real, però encara falten el pla de control funcional i registral i diverses ampliacions d'esquema/workflow.
+- Creat `documentacio/04-estat-final/38-matriu-transformacio-funcional-verifactu.md` com a matriu mestra de 27 àrees, registres requerits, punts de codi, canvis per canal, prioritats i criteri de completitud.
+- Ampliats els documents 31-37: serveis de gestió/registre/seguretat, sis seqüències noves, UC-69 a UC-86, model registral conceptual, traçabilitat, mapa complet de control i auditoria funcional de les còpies.
+- Catàleg actual: 18 diagrames al document 31, 44 seqüències al 32, 8 vistes al 33, 13 diagrames al 34, 12 al 36, 2 al 37 i 3 al 38; total de 100 blocs Mermaid validats amb Mermaid CLI 11.12.0.
+- No s'ha carregat el JSONL de `xat-original`, no s'ha modificat cap PHP i no s'ha fet commit ni push.
+
+### Regla transversal afegida: auditoria universal de pagaments
+
+- Qualsevol petició o decisió sobre un pagament, des de qualsevol entorn, ha de generar `payment_action_event` append-only.
+- La traça inclou alta, reutilització idempotent, cerca, consulta, exportació, assignació, reassignació, conciliació, retorn, compensació, cancel·lació operativa, retry, importació, sincronització, denegació, error i intent de mutació bloquejat.
+- Cada acció conserva actor o procés, rol, entorn, canal, `REQUEST_ID`, `CORRELATION_ID`, acció, resultat, motiu, timestamps i abans/després resumit quan correspongui.
+- S'aplica `fail closed`: si el ledger d'auditoria no està disponible, no s'executa l'acció ni es retornen dades del pagament.
+- Les mutacions correctes i el seu event terminal es confirmen atòmicament; els intents rebutjats o fallits també queden registrats.
+- `PaymentService` i `PaymentRepository` actuals no implementen encara aquesta dependència; continua sent un bloqueig abans de producció.
+
+## 2026-09-15 - Correcció del pla després de revisió de l'usuari
+
+El primer pla infravalorava la feina i queda superat. Es retiren les 360–450 h i el tall de cursos individuals com a base validada. L'usuari dedica tres dies entre setmana a VERI*FACTU i els altres dos a altres feines; caps de setmana disponibles. Creats `pla-mestre-verifactu-2026-12-31.md` (36 paquets de treball, dependències, capacitat i portes de control) i `inventari-fonts-pla-2026-09-15.md` (7 exports locals, 25.706 targetes no arxivades, 81 casos/variants i 192 pantalles). Els recomptes no són tasques independents ni verificació actual de Trello. Falta dimensionar hores restants amb evidència de cada paquet; no s'ha certificat viabilitat del 31/12 ni executat proves. No hi ha exclusió aprovada dels casos especials.
+
+## 2026-09-15 - Revisió de gestió amb disponibilitat real de 75 h/setmana
+
+L'usuari concreta 15 h cadascun dels tres dies entre setmana dedicats a VERI*FACTU i 30 h totals el cap de setmana. El pla anterior amb 50 h/setmana i necessitat de suport queda superat per `pla-execucio-75h-2026-12-31.md`. Capacitat amb reserva del 25%: 855–877,5 h fins al 31/12. Estimació inicial detallada de 36 paquets: abast ampli 696/1116/1860 h (favorable/probable/advers); proposta limitada 720 h, encara no aprovada. Calendari limitat individual: 680 h fins al 13/12, 40 h de desplegament/seguiment posterior, total 720 h; finestra condicionada d'activació 14–20/12. L'abast ampli probable continua sense cabre, projecció per càrrega finals de gener/principis de febrer de 2027. Estimacions de gestió, no hores mesurades ni producte verificat. Fonts i hipòtesis a `estimacio-detallada-verifactu-2026-09-15.md` i dades editables al JSON homònim d'hores. No hi ha suport extern ni reduccions d'abast aprovats.
+
+## 2026-09-15 - Correcció de cobertura: gestions i traça universal del pagament
+
+L'usuari reclama confirmar el registre de qualsevol gestió que afecti un pagament i la cobertura de la BD/documentació acordada. Contrastats document 38 (apartats 4, 6, 14), UC-86, document 34 (13), document 35 (12/13), diccionari 24 (8/9) i decisions vigents. El pla no pressupostava explícitament `payment_action_event`/`PaymentActionGateway`; no s'ha trobat implementació als PHP/SQL revisats dels dos worktrees. Creat `cobertura-registres-gestio-pagaments.md` amb VT-37 obligatori, tasques, proves i correspondència dels registres documentals amb els paquets. Totals de 720/1116 h marcats com a base incompleta pendent de reconciliar; capacitat de 75 h/setmana mantinguda. No s'ha implementat codi, inspeccionat BD productiva ni certificat cobertura total.
+
+## Planificació reconciliada R2 — 16/09/2026
+- Pla vigent: [Pla reconciliat R2](pla-reconciliat-r2.md).
+- Cobertura planificada: 118 casos/variants, 29 accions de pagament, 24 grups de registres, 38 paquets.
+- Estimació: 944 h mínim proposat (reduccions no aprovades); 1.332 h probables abast ampli. La traça i el classificador comuns tenen pressupost explícit, sense duplicar 28 h traslladades.
+- Capacitat des del 16/09: 75 h brutes/setmana; 843,75–866,25 h netes fins al 31/12 amb reserva del 25%. El mínim en solitari apunta al 9–11/01/2027.
+- [x] Correspondències documentals i sumes comprovades; model i matrius guardats.
+- [ ] Implementació, proves de producte i acceptació de producció pendents. Cap reducció funcional ni contractació de suport aprovada per aquest registre.
+
+## 2026-09-16 - Fitxes funcionals completes i model registral materialitzat
+
+- Reconciliades les 145 targetes obertes de la llista `Fitxes mare` de l'export local de Trello: 145 mapades a casos canònics o a elements META i 0 sense classificar. No s'ha interpretat aquest recompte com una lectura en viu de Trello.
+- Ampliat el catàleg canònic amb UC-87 a UC-105. El resultat és de 105 casos numèrics i 13 variants amb lletra, 118 fitxes funcionals en total.
+- Generades 118 fitxes separades a `documentacio/06-fitxes-funcionals/`, cadascuna amb 21 apartats obligatoris, manifest de fonts i hash, regles, fluxos, dades, permisos, auditoria, proves, traçabilitat, decisions pendents i tasques de desenvolupament.
+- Creat `39-auditoria-fitxes-funcionals.md`, que conserva la correspondència detallada entre les 145 targetes mare i el catàleg, inclosos els elements de governança que no són casos d'ús independents.
+- Materialitzat el disseny registral amb la migració additiva `2026_09_15_000003_add_functional_audit_control.sql`: 21 taules per auditoria transversal, accions de pagament, events operatius, històrics, control fiscal, intents AEAT, documents, comunicacions, accessos, incidències, versions, exports, conciliació i evidència de restauració.
+- Afegida una plantilla de rols MySQL 8 que no concedeix `UPDATE` ni `DELETE` sobre els ledgers append-only, i repositoris append-only inicials per `payment_action_event` i `operational_event`.
+- Tall VT-37.2 iniciat: afegits `PaymentActionGateway`, `PaymentActionEventWriter` i proves unitàries de fail-closed, intent previ, event terminal, reutilització idempotent i rollback si falla l'auditoria terminal. `PaymentActionEventRepository` valida ara `ACTION`, `RESULT`, `SOURCE_ENVIRONMENT`, `SOURCE_CHANNEL` i `ACTOR_TYPE` contra el diccionari.
+- Afegides proves estructurals d'esquema/permisos i proves unitàries de les invariants de resultat del repositori i del gateway de pagaments. En aquesta execució no s'han pogut llançar perquè no hi ha cap executable PHP disponible al `PATH`; tampoc s'ha aplicat ni provat la migració contra MySQL.
+- Validacions executades: 118 fitxes, 105 casos numèrics, 21 apartats per fitxa, 145/145 targetes reconciliades, cap marcador sense resoldre i 14/14 diagrames Mermaid del document 34 renderitzats amb Mermaid CLI 11.12.0.
+- L'estat continua `[NO-GO]`: `PaymentActionGateway` existeix però falta integrar-lo amb `PaymentService` i tots els canals, implementar `PaymentActionAuditService`, el monitor, el worker AEAT i els serveis de les altres taules, desplegar permisos, provar PHP/MySQL i completar preproducció i acceptació.
+- No s'ha carregat el JSONL de `xat-original`, no s'ha modificat cap PHP de les còpies llegades i no s'ha fet commit ni push.
+
+## 2026-09-16 - Pantalles i procediments interns convertits a especificacio operativa
+
+- Integrats als documents existents els procediments finals de `Passar pagaments`, `Generar factura abans de pagar`, `Consulta - Edita - Anula factura`, accessos d'alumne/empresa/responsable, permisos i avisos `VERI*FACTU`.
+- `07-pantalles-intranet.md` ara baixa els criteris a fluxos de pantalla, panells d'accio, avisos obligatoris, procediment d'acces extern i comportament d'indicadors/notificacions/incidencies.
+- `10-procediments-intranet-ecommerce.md` incorpora procediments interns finals, sortides esperades, matrius d'accio i regles de visibilitat per usuaris externs.
+- `16-estat-final-pantalles.md` incorpora components obligatoris de les pantalles finals i criteri visual per avisos, consultes i bloquejos.
+- `21-seguretat-permisos-accessos.md` incorpora regles transversals de bloqueig i avis aplicables a endpoints i accessos externs.
+- `22-manual-operatiu-intern.md` incorpora comprovacions practiques abans de confirmar pagaments, factura abans de cobrament, rectificatives/devolucions i consultes externes.
+- No s'ha consultat `xat-original`, no s'ha modificat codi i no s'ha fet commit ni push.
+
+## 2026-09-16 - Correcció de completitud després de l'auditoria fitxes-codi-BD
+
+- Queda superada la qualificació anterior “fitxes funcionals completes”. Les
+  fitxes existien i tenien 21 apartats, però 14 claims genèrics es repetien a
+  totes, 118/118 estaven `NEEDS_DECISION`, cap citava la reconciliació Trello i
+  cap baixava IVA/base/exempció al nivell funcional.
+- Corregit l'abast Trello: hi ha 185 targetes obertes `Fitxes mare` en tres
+  exports locals (145 del tauler 2, 10 del tauler 3 i 30 del tauler 6), no només
+  145. L'script de reconciliació comprova els tres recomptes, SHA-256 i 0 títols
+  sense mapar.
+- El mapatge 185/185 acredita inventari/classificació, no incorporació completa
+  de les descripcions i checklists. El tauler 2 conté 145 descripcions, 49.578
+  caràcters, 5 checklists i 36 ítems; la revisió claim a claim continua pendent.
+- Afegits UC-106..UC-112 a partir del codi real: reserva abans de pagament,
+  duplicat d'inscripció, tastet gratuït, curs subvencionat, descompte d'amics,
+  docent novell/dret futur i snapshot complet abans del TPV.
+- Catàleg actual: 112 casos numèrics + 13 variants = 125 fitxes. Totes declaren
+  `STRUCTURED_DRAFT_NEEDS_CASE_REVIEW`; totes expliciten el límit Trello, 55
+  incorporen els camps fiscals mínims i les set noves tenen entrada, regla,
+  flux i prova específics amb evidència de codi.
+- Creat `40-auditoria-buits-fitxes-codi-bd.md` amb la discrepància entre
+  cobertura estructural i funcional, els punts d'entrada absents de la carpeta
+  candidata i els buits de dades/persistència.
+- Afegida la migració 000004: 5 `ALTER TABLE` per camps fiscals/documentals i 4
+  taules (`commercial_operation`, `commercial_operation_party`,
+  `discount_validation`, `payment_link`). No s'ha aplicat.
+- `run-migrations.php` registra cada migració a `sif_schema_migration` amb
+  SHA-256 i rebutja modificar una migració ja aplicada. Abans de producció cal
+  provar migració, rollback operatiu/backups i fallades parcials en MySQL.
+- Afegits i validats amb Mermaid CLI 1 diagrama de classes, 3 seqüències i 2
+  diagrames de dades/estats sobre l'operació comercial prèvia.
+- Validacions executades: 125/125 fitxes, 112 casos numèrics, 21 apartats,
+  185/185 targetes mare sense títols pendents i 6/6 diagrames nous renderitzats.
+- PHP i MySQL no estan disponibles al `PATH`; les proves noves i la migració no
+  s'han executat. L'estat continua `[NO-GO]`.
+- No s'ha carregat el JSONL de `xat-original`, no s'ha modificat PHP llegat i no
+  s'ha fet commit ni push.
+
+## 2026-09-16 - Segona auditoria de buits sobre la superfície executable
+
+- Contrastats 1.920 fitxers PHP de les set carpetes, amb atenció específica als
+  510 mètodes d'`Intranet.php`, 68 d'`IntranetAlumne.php`, 256 superfícies AJAX
+  de la web i les famílies d'escriptura sobre inscripcions, cursos, factures,
+  promocions, regals, grups i Moodle.
+- Confirmats 12 cicles que encara no tenien cas/persistència suficient:
+  importació d'inscripcions, versionat d'edicions, aforament, evidències
+  sensibles, promocions/drets, grups, regals, canvi de dades personals,
+  repreuament de reserva caducada, packs, factura electrònica i coherència
+  acadèmica/econòmica.
+- Afegits UC-113..UC-124. Catàleg vigent: 124 casos numèrics + 13 variants =
+  137 fitxes, totes `STRUCTURED_DRAFT_NEEDS_CASE_REVIEW` i amb 21 apartats.
+- Creat `41-matriu-superficie-executable-casos.md`, que classifica punts
+  d'entrada com `MAPPED`, `PARTIAL`, `GAP`, `ADJACENT` o `UNKNOWN_ACTIVE` i
+  impedeix donar una ruta per migrada només perquè existeixi documentació.
+- Afegida la migració additiva 000005 amb 12 taules per línies/components,
+  vincle a línia fiscal, places, evidències, drets i events, importacions,
+  canvis mestres/personals, entrega electrònica i estat acadèmic/econòmic.
+  El total de taules creades per migracions locals passa a 52.
+- Afegida `OperationLifecycleSchemaTest` amb 3 comprovacions estructurals.
+- Validacions executades: generador 137/137, 124 casos numèrics, 21 apartats;
+  185/185 `Fitxes mare` reconciliades amb 0 sense mapar; 12/12 taules 000005,
+  16 claus foranes; `git diff --check` sense errors.
+- PHP i MySQL continuen no disponibles en aquest host: la prova PHP i
+  l'aplicació real de 000005 no s'han executat. L'estat continua `[NO-GO]`.
+- No s'ha carregat el JSONL antic, no s'ha modificat cap PHP de les aplicacions
+  llegades i no s'ha fet commit ni push.
+
+## 2026-09-16 - Tercera auditoria dirigida de controls transversals
+
+- La revisió focalitzada de consentiments, discrepàncies d'identitat,
+  cancel·lació/activació d'edicions, `poblacions_validar` i comparacions
+  Prisma/Moodle ha confirmat cinc buits diferenciats que no quedaven tancats
+  per UC-120, UC-124 o els casos de pagament.
+- Afegits UC-125..UC-129: consentiment de comunicacions, identitat entre
+  sistemes, cicle massiu d'estat d'una edició, validació/normalització
+  d'adreça i reconciliació acadèmica Prisma/Moodle.
+- Catàleg vigent: 129 casos numèrics + 13 variants = 142 fitxes, totes amb 21
+  apartats i estat `STRUCTURED_DRAFT_NEEDS_CASE_REVIEW`.
+- Ampliades les auditories 39, 40 i 41, la matriu de transformació, el model de
+  BD, el diccionari i la traçabilitat. La matriu 35 declara explícitament que
+  els diagrames encara no representen aquestes cinc extensions.
+- Afegida la migració 000006 amb 8 taules: consentiment/events, identitats i
+  conflictes, events d'edició i impactes per operació, validació d'adreça i
+  ítems de reconciliació acadèmica. El total local passa a 60 taules.
+- Afegida `CrossSystemControlSchemaTest` amb 3 comprovacions estructurals.
+- Validacions executades: generador 142/142, 129 casos numèrics, 21 apartats;
+  0 errors de hash als manifests; 8/8 taules 000006, 8 claus foranes i 0
+  referències a taules inexistents; `git diff --check` sense errors; 0 canvis a
+  `codi-drive`.
+- PHP i MySQL no estan disponibles en aquest host: no s'ha executat la suite
+  PHP ni s'han aplicat 000001..000006. L'estat continua `[NO-GO]`.
+- No s'ha carregat el JSONL antic, no s'ha modificat PHP llegat i no s'ha fet
+  commit ni push.
+
+## 2026-09-16 - Publicació del checkpoint confirmat
+
+- La publicació ha estat autoritzada explícitament després de les auditories.
+- El commit funcional `efdbeef` (`feat(sif): amplia casos funcionals i model
+  transversal`) s'ha publicat a `origin/checkpoint/sif-fase-0-4` i s'ha
+  comprovat que el hash local i el remot coincideixen.
+- La publicació conté només `00-control`, `documentacio` i `sif`; no inclou
+  `codi-drive`, `xat-original`, secrets detectables ni canvis de PHP llegat.
+- Aquesta publicació és un checkpoint documental i d'esquema. PHP i MySQL no
+  estan disponibles en aquest host i, per tant, l'estat continua `[NO-GO]`.
+
+## 2026-09-16 - Proves i captures de pantalles internes preparades
+
+- Ampliat `20-pla-proves-validacio-sif.md` amb proves transversals de pantalles, avisos i bloquejos per `Passar pagaments`, `Generar factura abans de pagar`, `Consulta - Edita - Anula factura`, intranet alumne, empresa/responsable i apartat `VERI*FACTU`.
+- Ampliat `23-annex-captures-pantalla.md` amb criteris de captura fiscal, matriu de captures mínimes per pantalla crítica i criteri de privacitat.
+- Les proves noves comproven que les pantalles indiquen abans de confirmar si faran `registerPayment()`, `issueInvoice(payment)`, rectificativa/devolucio/saldo, consulta o incidencia.
+- No s'han executat captures ni proves reals; queden pendents entorn, dades, pantalles implementades i evidència conservable.
+- No s'ha carregat el JSONL antic, no s'ha modificat codi i no s'ha fet commit ni push en aquest tall.
+
+## 2026-09-16 - Revisio normativa i paquet signable `1.0.0`
+
+- Revisades fonts oficials AEAT/BOE del bloc SIF/VERI*FACTU: certificacio i declaracio responsable, modalitats, registre d'alta, FAQ actualitzades a 21/07/2026 i nota de terminis amb dates 2027 segons Reial decret llei 15/2025.
+- `documentacio-sif-aeat.md` queda ajustat a revisio 2026-09-16 i explicita que les fites internes no substitueixen el termini legal ni fan signable una versio.
+- `declaracio-responsable-sif-prisma.md` queda reforçada com a borrador candidat `1.0.0`, amb control previ de termini aplicable, certificat/apoderament provat des del worker, camps fiscals minims, rol auditor nomes lectura i matriu interna de signatura.
+- `19-registre-versions-i-canvis-sif.md`, `21-seguretat-permisos-accessos.md`, `24-diccionari-camps-i-valors.md` i `documentacio/README.md` incorporen el control bloquejant de signatura, metadades no secretes del certificat, controls del rol auditor i camps de versio/declaracio necessaris.
+- L'estat continua `[NO-GO]`: no hi ha versio `1.0.0` instal·lada, certificat/apoderament provat, mapa camp normatiu -> taula/XML/PDF/QR -> prova, rol auditor executat ni validacio fiscal externa.
+- No s'ha carregat `xat-original` ni s'ha modificat codi. Aquest tall documental es tanca amb checkpoint Git autoritzat en aquest xat.
+
+## 2026-09-16 - Evidencies auditables i tancament d'incidencies
+
+- `23-annex-captures-pantalla.md` incorpora nomenclatura estable, index d'evidencies, criteri de captura valida i evidencies minimes segons el tipus de prova.
+- `18-estat-final-operacio-incidencies.md` vincula les incidencies de prova amb `ID_PROVA`, `ID_EVIDENCIA` i `CLOSURE_CRITERIA`, i exigeix evidencia de reproduccio, correccio i reexecucio per tancar-les.
+- `25-panell-sif-pay-prisma.md` amplia la vista de versions amb campanyes go/no-go, incidencies bloquejants i expedients d'evidencia consultables i exportables.
+- La documentacio impedeix considerar `PASS` una prova sense evidencia i activar una versio productiva sense acta go/no-go ni registre de backup/restauracio quan siguin obligatoris.
+- Aquest tall prepara el model operatiu, pero no aporta captures ni evidencies reals. L'estat continua `[NO-GO]` fins a executar-lo en preproduccio.
+- No s'ha carregat el JSONL antic, no s'ha modificat codi i no s'ha fet commit ni push.
+
+## 2026-09-16 - Annexos de governanca i vistiplau tecnic `1.0.0`
+
+- Harmonitzats `acord-intern-responsabilitats-sif-prisma.md` i
+  `vistiplau-tecnic-sif-prisma.md` amb el paquet normatiu candidat `1.0.0`.
+- L'acord exigeix confirmar termini i criteri fiscal, identificar el signant
+  formal i provar certificat o apoderament des de l'entorn real del SIF abans
+  de considerar preparada la versio.
+- El vistiplau incorpora evidencies sobre fonts AEAT/BOE, mapa complet de camps,
+  certificat o representacio, documentacio accessible dins el SIF i rol
+  auditor/AEAT nomes lectura sense secrets ni escriptura.
+- Queda separada l'activacio tecnica dins les facultats delegades de la
+  subscripcio formal de la declaracio responsable per la persona representant
+  de l'entitat.
+- `documentacio/README.md` indexa els dos annexos. Les versions `.docx`
+  existents no s'han regenerat i no s'han de considerar sincronitzades amb
+  aquests canvis fins que es tornin a generar i verificar visualment.
+- L'estat continua `[NO-GO]`; aquest tall no confirma les dades fiscals, el
+  signant, el certificat real, el mapa de camps, el rol auditor ni les proves.
+- No s'ha carregat `xat-original`, no s'ha modificat codi i no s'ha fet commit
+  ni push en aquest tall.
+
+## 2026-09-16 - Auditoria d'executabilitat i requisits locals
+
+- Les 142 fitxes són especificacions: totes declaren
+  `STRUCTURED_DRAFT_NEEDS_CASE_REVIEW` i `NOT_COMPLETE`; no acrediten 142 casos
+  implementats.
+- Les sis migracions creen 60 taules, però 44 no tenen cap referència al PHP
+  d'execució de `sif/src`, `sif/scripts` o `sif/public`. En particular, els
+  models d'operació comercial, consentiment, identitat, edició, adreça i
+  reconciliació continuen sense serveis/adaptadors.
+- Només hi ha tres endpoints públics en aquesta branca. Emissió de factura i
+  registre de pagament no utilitzen `PaymentActionGateway`, i no s'ha trobat
+  una capa executable d'autenticació, autorització o CSRF als endpoints.
+- El codi d'execució no conté client/worker AEAT, transport XML/XSD, signatura
+  del registre, QR, anul·lació ni subsanació. Aquestes peces continuen en
+  documentació o en estat pendent.
+- El `go-no-go-preproduction.php` troba els 86 fitxers que espera, però només
+  comprova explícitament 10 de les 60 taules. `TestDatabase::fresh()` aplica
+  només la migració 000001; les proves d'esquema 000003..000006 inspeccionen
+  text SQL, no executen les migracions sobre MySQL.
+- Hi ha 119 fitxers de prova i 268 mètodes, però no es poden executar en aquest
+  host: no hi ha PHP, MySQL/MariaDB, Docker ni una distribució WSL instal·lats.
+- Per continuar la validació local cal PHP 8.4 CLI amb `openssl` i `pdo_mysql`,
+  i un MySQL 8 de prova aïllat amb BD SIF i BD legacy de prova. `mbstring` és
+  recomanable. Composer no és requisit del codi actual.
+- L'estat continua `[NO-GO]`. No s'ha carregat el JSONL antic, no s'ha
+  modificat codi i no s'ha fet commit ni push en aquesta auditoria.
+
+## 2026-09-16 - Tracabilitat de pantalles internes consolidada
+
+- La matriu de cobertura diferencia ara entre simple disseny i `ESPECIFICACIO OPERATIVA` per a `Passar pagaments`, `Generar factura abans de pagar`, `Consulta - Edita - Anula factura`, intranet alumne, empresa/responsable i avisos VERI*FACTU.
+- Cada pantalla queda enllacada amb procediment, accio SIF o control, permisos, prova identificada i captura minima.
+- L'informe d'auditoria deixa constancia que el criteri documental prioritari ja esta cobert i separa clarament el que continua pendent: implementacio real, execucio de proves i captures finals.
+- L'inventari de canvis incorpora la cadena `pantalla -> procediment -> validacio i permis -> accio SIF -> resultat -> prova -> captura` com a requisit de tancament.
+- No s'ha carregat `xat-original`, no s'ha modificat codi i no s'ha fet commit ni push.
+
+## 2026-09-16 - Registres interns d'anul·lacio i subsanacio implementats
+
+- Implementats `FiscalRecordService`, `FiscalRecordRepository` i `FiscalRecordPayloadBuilder` sobre l'esquema existent, sense migracio nova.
+- `ANULACIO` genera un registre fiscal immutable amb hash encadenat, cua AEAT idempotent i canvi de la factura a `CANCELLED`; una repeticio exacta reutilitza el resultat i una segona anul·lacio diferent es bloqueja.
+- `SUBSANACIO` conserva el mateix UUID i numero visible, no crea factura ni cobrament i cobreix `SUBSANACION`, `RECHAZO_PREVIO` i `SIN_REGISTRO_PREVIO`.
+- Els dos fluxos rebutgen factures historiques `NO_VERIFACTU`; una factura cancel·lada no admet subsanacions posteriors.
+- Afegits `preview-fiscal-record.php`, `process-fiscal-record.php` i proves d'integracio/estructura. Les comprovacions estàtiques no mostren errors, pero la suite no s'ha executat perquè PHP no esta disponible al `PATH`.
+- Continua pendent el circuit extern AEAT: XML/XSD, signatura o certificat, transport/worker, retries, resposta i dead-letter. L'estat global es manté `[NO-GO]`.
+- No s'ha carregat `xat-original` ni s'ha fet commit o push.
+
+## 2026-09-16 - Lifecycle executable de la cua fiscal AEAT
+
+- Afegits el contracte `AeatTransport`, `FiscalQueueRepository` i `FiscalQueueProcessor` per desacoblar el ledger fiscal del transport extern.
+- El worker reclama una entrada `PENDING` o `RETRY` en transaccio curta, incrementa intents i executa el transport fora del bloqueig de base de dades.
+- Una resposta valida `ACCEPTED`, `ACCEPTED_WITH_ERRORS` o `REJECTED` deixa la cua `SENT` i persisteix XML de peticio, resposta estructurada i estat AEAT a `factura_registres` i `factura`.
+- Una excepcio de transport deixa `RETRY` fins al maxim configurat i despres `DEAD_LETTER`, amb error persistent i estat fiscal `ERROR`.
+- Afegides proves amb transports dobles d'acceptacio i error permanent. No s'han executat perquè PHP continua absent del `PATH`.
+- No s'ha implementat cap transport SOAP real ni s'ha simulat homologacio: continuen pendents XML/XSD oficial, certificat o apoderament, endpoints AEAT, seguretat de secrets i prova externa.
+- L'estat global continua `[NO-GO]`; no s'ha carregat `xat-original` ni s'ha fet commit o push.
+
+## 2026-09-16 - Recuperacio de locks i lots fiscals limitats
+
+- `FiscalQueueProcessor` pot recuperar entrades `PROCESSING` amb lock caducat; el llindar minim és de 60 segons i la recuperacio deixa traça a `LAST_ERROR`.
+- Afegit `processBatch()` amb limit estricte d'1 a 100 entrades. El lot s'atura quan la cua queda buida o davant el primer error, evitant consumir tots els retries en calent.
+- Afegides proves de lot limitat, `ACCEPTED_WITH_ERRORS`, recuperacio selectiva de lock i aturada al primer error.
+- Continua pendent una planificacio temporal persistent per a retries, metriques, alertes i adaptador AEAT real.
+- PHP continua absent del `PATH`; verificacio executable pendent. No s'ha carregat `xat-original` ni s'ha fet commit o push.
+
+## 2026-09-16 - Backoff persistent de la cua fiscal
+
+- El worker ja respecta `NEXT_RETRY_AT`, camp existent a la migracio `000004`, i no reclama una entrada `RETRY` abans de la data programada.
+- Les fallades apliquen backoff exponencial amb espera base de 60 segons i maxim de 3.600 segons, tots dos configurables al constructor.
+- `DEAD_LETTER` elimina qualsevol proper retry; `SENT` i la recuperacio de locks també netegen la programacio anterior.
+- `TestDatabase` afegeix només `NEXT_RETRY_AT` quan el nucli de proves `000001` encara no el conté, sense aplicar ni donar per validades la resta de migracions.
+- Actualitzades les proves perquè demostrin que un retry futur no es reclama immediatament i que els intents posteriors requereixen tornar-lo exigible.
+- Continua pendent el planificador extern que desperti el worker, així com metriques, alertes i transport AEAT real. PHP continua absent; no s'ha fet commit o push.
+
+## 2026-09-16 - Preflight AEAT i metriques operatives
+
+- Afegit `AeatPreflight` amb controls bloquejants de PHP SOAP, DOM i OpenSSL, URLs HTTPS, XSD local llegible, certificat llegible, contrasenya present i identitat emissor/SIF completa.
+- Afegit `FiscalQueueMetricsRepository` amb comptadors per estat, entrades exigibles, locks caducats i antiguitat de la cua accionable.
+- Afegit `preflight-aeat-worker.php`, que només llegeix configuracio i cua, no envia ni processa registres, i genera alertes per `DEAD_LETTER`, volum exigible i locks orfes.
+- `sif.php` incorpora configuracio AEAT exclusivament per variables d'entorn; la contrasenya del certificat no apareix a la sortida del preflight.
+- Contrastada documentacio oficial AEAT vigent: SOAP 1.1 document/literal, HTTPS, UTF-8, certificat electronic qualificat, WSDL/XSD publicats, resposta sincronica i estats per registre `Correcto`, `AceptadoConErrores` i `Incorrecto`.
+- No s'ha activat transport real: falten certificat/apoderament, XSD local validat, identitat SIF definitiva i snapshots fiscals complets. El preflight ha de mantenir `ready_to_send=false` fins resoldre aquests bloquejos.
+- PHP continua absent del `PATH`; no s'ha executat la suite ni el preflight. No s'ha carregat `xat-original` ni s'ha fet commit o push.
+
+## 2026-09-16 - Contracte tecnic de pantalles internes preparat
+
+- Creat `documentacio/03-canvis-pendents/12-contracte-tecnic-pantalles-internes.md` com a pont entre procediments i implementacio real.
+- El contracte defineix endpoints interns proposats, context d'actor, resposta comuna, avisos estructurats i patro obligatori `preview -> confirm`.
+- `Passar pagaments`, factura abans del cobrament i rectificacio queden mapats a `ManualPaymentService`, `InvoiceBeforePaymentService` i `ManualRectificationService`.
+- Queden definits els contractes de consulta per alumne i empresa/responsable, els permisos al servidor, el resum VERI*FACTU i els criteris d'acceptacio.
+- El document s'ha indexat a `documentacio/README.md` i s'ha enllacat des del pla tecnic.
+- No s'ha carregat `xat-original`, no s'ha modificat `sif/` ni codi productiu i no s'ha fet commit ni push.
+
+## 2026-09-16 - Manifest i portes de l'expedient go/no-go
+
+- L'expedient de cada versio candidata incorpora un manifest mestre congelat, versionat i identificat per hash.
+- La decisio queda dividida en set portes: versio, integritat fiscal, canals/documents, seguretat, continuitat, incidencies i governanca.
+- `GO AMB LIMITACIONS` nomes pot excloure funcionalitats o canals no activats; no pot compensar proves bloquejants, restauracio pendent, incidencies critiques/altes ni mancances d'integritat o seguretat.
+- Les campanyes caduquen totalment o parcialment quan canvien paquet, migracions, configuracio fiscal, certificat, permisos o components que afecten els resultats.
+- El model documental queda preparat, pero el manifest i les portes encara s'han d'emplenar amb execucions reals en preproduccio. L'estat continua `[NO-GO]`.
+- No s'ha carregat el JSONL antic, no s'ha fet commit ni push.
+
+## 2026-09-16 - Fitxes UI de pantalles internes preparades
+
+- Creat `documentacio/03-canvis-pendents/13-fitxes-ui-pantalles-internes.md` amb estructura visual, camps, accions, estats i comportament responsive de les pantalles prioritaries.
+- Queden descrites `Passar pagaments`, `Generar factura abans de pagar`, `Consulta - Edita - Anula factura`, intranet alumne, empresa/responsable i indicador/avisos VERI*FACTU.
+- Les fitxes separen estat fiscal, cobrament i AEAT, exigeixen preview abans de confirmar i vinculen els botons a `available_actions` del servidor.
+- S'han definit estats de carrega, buit, error, bloqueig, manca de permisos i resultat, a mes dels minims d'accessibilitat i captures.
+- Les fitxes s'han indexat a `documentacio/README.md` i enllacat des de `16-estat-final-pantalles.md`.
+- No s'ha carregat `xat-original`, no s'ha modificat codi ni `sif/` i no s'ha fet commit ni push.
+
+## 2026-09-16 - Backlog d'implementacio de pantalles internes preparat
+
+- Creat `documentacio/03-canvis-pendents/14-backlog-implementacio-pantalles-internes.md` a partir de rutes, metodes i AJAX localitzats a la copia de la intranet.
+- Identificats els punts llegats principals: `efectuarPagament()`, variants de pagament, `generarFacturaElectronica_Alumnes()`, `updDadesFact` i `anularFactura()`.
+- El backlog separa base segura, consulta, pagaments, factura previa, rectificacio, portals externs i avisos en tasques verificables.
+- L'ordre de lliurament exigeix autenticacio, permisos, CSRF, client SIF i preview token abans d'activar mutacions.
+- La copia de `codi-drive` es conserva com a evidencia i no s'ha modificat; tampoc s'ha modificat `sif/`.
+- No s'ha carregat `xat-original` i no s'ha fet commit ni push.
+
+## 2026-09-17 - Proves i evidencies del backlog UI enllacades
+
+- Afegides les proves bloquejants `SIF-PANT-SEC-001..004` per autenticacio/autoritzacio, metode i CSRF, preview token i errors del client SIF.
+- Cada grup de tasques `UI-*` queda relacionat amb les proves funcionals corresponents i amb un paquet d'evidencia identificat.
+- Definits `EVID-UI-BASE`, `EVID-UI-PAY`, `EVID-UI-FAC`, `EVID-UI-RECT`, `EVID-UI-VIS` i `EVID-UI-AVI` amb captures i evidencia tecnica obligatoria.
+- La base segura ha de superar totes quatre proves `SIF-PANT-SEC-*` abans d'habilitar confirmacions en preproduccio.
+- Una captura de boto bloquejat no substitueix una peticio directa rebutjada, i una pantalla d'exit no substitueix la prova d'idempotencia.
+- No s'ha carregat `xat-original`, no s'ha modificat codi ni s'ha fet commit o push.

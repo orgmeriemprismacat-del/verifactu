@@ -79,19 +79,21 @@ Comprovacions pendents abans de signar la versio `1.0.0`:
 - confirmar que no queda subjecta a normativa foral basca o navarresa;
 - confirmar que no existeix resolucio especifica d'exempcio o autoritzacio que alteri l'obligacio de facturar amb SIF adaptat.
 
-Segons la nota informativa de l'AEAT actualitzada el 26/03/2026, els terminis generals d'adaptacio son:
+Segons la nota informativa de l'AEAT consultada el 2026-09-16, i d'acord amb la modificacio introduida pel Reial decret llei 15/2025, els terminis generals d'adaptacio son:
 
 - entitats que presenten Impost sobre Societats: abans de l'1 de gener de 2027;
 - resta d'obligats tributaris afectats: abans de l'1 de juliol de 2027.
 
-Per prudencia documental, la data aplicable a PrisMa s'haura de confirmar abans de tancar el calendari final de posada en produccio.
+Per prudencia documental, la data aplicable a PrisMa s'haura de confirmar abans de tancar el calendari final de posada en produccio. El calendari intern del projecte pot mantenir fites anteriors, pero aquestes fites internes no substitueixen el termini legal aplicable ni converteixen una versio en signable.
 
-Fonts oficials comprovades en aquesta revisio normativa documental (2026-06-02):
+Fonts oficials comprovades en aquesta revisio normativa documental (2026-09-16):
 
-- AEAT, preguntes generals sobre qui esta obligat i quines operacions s'inclouen, pagina actualitzada el 26/03/2026.
-- AEAT, modalitats de compliment `VERI*FACTU` i no `VERI*FACTU`, pagina actualitzada el 26/03/2026.
-- AEAT, certificacio dels sistemes informatics i declaracio responsable, pagina actualitzada el 26/03/2026.
-- AEAT, nota informativa d'ampliacio de termini d'adaptacio SIF, pagina actualitzada el 26/03/2026.
+- AEAT, preguntes generals sobre qui esta obligat i quines operacions s'inclouen.
+- AEAT, modalitats de compliment `VERI*FACTU` i no `VERI*FACTU`.
+- AEAT, certificacio dels sistemes informatics i declaracio responsable.
+- AEAT, nota informativa d'ampliacio de termini d'adaptacio SIF, amb dates 2027.
+- AEAT, FAQ de sistemes `VERI*FACTU`, actualitzades a 21/07/2026.
+- BOE, Reial decret llei 15/2025, modificacio de terminis del Reial decret 1007/2023.
 - BOE, Orden HAC/1177/2024, article 15 i articles relacionats.
 
 Criteri documental:
@@ -475,6 +477,8 @@ Com a minim, el disseny documental i tecnic ha de cobrir:
 
 El detall dels noms interns d'aquests camps es mantindra al diccionari `24-diccionari-camps-i-valors.md`.
 
+Per tancar la versio `1.0.0`, cada camp anterior haura de tenir una correspondencia verificable amb taula/camp intern, generador XML o payload AEAT, PDF/QR i prova associada. Una llista documental no acredita per si sola que el registre d'alta estigui implementat.
+
 ## 12. Seguretat i Permisos
 
 Objectiu:
@@ -580,6 +584,17 @@ Meriem Abjil Bajja queda identificada com a responsable tecnica i contacte inter
 
 Per preparar la declaracio `1.0.0` signable caldra decidir si les dades personals de contacte tecnic de Meriem consten dins de la declaracio publica/signada o si es conserven nomes a l'expedient intern del projecte.
 
+Matriu de decisio per a la declaracio `1.0.0`:
+
+| Punt | Criteri actual | Estat abans de signar |
+| --- | --- | --- |
+| Productor/titular intern | Associacio PrisMa | Confirmar que es manté com a desenvolupament intern per a us propi. |
+| Obligat tributari usuari | Associacio PrisMa | Confirmar dades fiscals i obligacio aplicable amb criteri intern o gestoria. |
+| Contacte tecnic | Meriem Abjil Bajja | Decidir si consta a la declaracio signada o nomes a l'expedient intern. |
+| Signant formal | Adam Carmona o representant formal de l'entitat | Confirmar carrec, NIF i facultats suficients. |
+| Vistiplau tecnic | Meriem Abjil Bajja | Conservar annex o acta tecnica sense substituir la signatura de l'entitat. |
+| Versio declarada | `1.0.0` | Nomes quan el paquet desplegat, BD, proves, certificat i evidencies coincideixin. |
+
 ## 13.4. Certificat digital, apoderament i secrets
 
 El SIF necessita una configuracio d'identificacio electronica per operar amb AEAT.
@@ -594,6 +609,57 @@ Criteri de treball:
 - si el certificat caduca, no es configura o falla, s'ha de generar incidencia SIF abans que afecti factures productives.
 
 En modalitat `VERI*FACTU`, aquesta configuracio s'entén com a autenticacio/identificacio per remetre registres i operar amb AEAT. No s'ha de confondre amb la signatura electronica XAdES de registres, que queda com a materia especifica de modalitat no `VERI*FACTU` o d'escenaris que ho exigeixin.
+
+### 13.4.1. On s'ha de configurar el certificat per a la remissio AEAT
+
+La remissio `VERI*FACTU` es una comunicacio automatica maquina a maquina mitjancant serveis web SOAP/XML. Per tant, el proces backend o worker del SIF que fa l'enviament ha de poder accedir tecnicament a un certificat electronic qualificat admès per AEAT i a la seva clau privada.
+
+Cal distingir tres elements diferents:
+
+| Element | Funcio | Ubicacio o tractament |
+| --- | --- | --- |
+| Certificat TLS de `pay.prisma.cat` | Protegeix la connexio HTTPS dels usuaris amb el servidor. | Configuracio del servidor web o proveidor de hosting. No identifica per si sol Associacio PrisMa davant AEAT. |
+| Certificat client per AEAT | Autentica el remitent en la connexio de sortida del SIF cap als serveis web AEAT. | Ha d'estar disponible per al proces servidor autoritzat, juntament amb la clau privada, mitjancant un mecanisme segur. |
+| Signatura de la declaracio responsable | Subscriu el document de certificacio de la versio del SIF. | No exigeix obligatoriament signatura electronica segons la FAQ AEAT; requereix signant, data i lloc. |
+
+Model tecnic recomanat per al projecte:
+
+- obtenir o confirmar un certificat qualificat de representant de persona juridica adequat per a Associacio PrisMa, o documentar un tercer representant/apoderat/col·laborador social admès;
+- conservar una copia exportable que inclogui certificat i clau privada, normalment en format `PKCS#12` (`.p12` o `.pfx`), si el proveidor i la llibreria d'integracio ho admeten;
+- si la llibreria SOAP/TLS exigeix `PEM`, fer la conversio nomes en un entorn controlat i protegir igualment certificat, clau i contrasenya;
+- guardar el material criptografic fora del `webroot`, fora del repositori i amb permisos de lectura limitats exclusivament a l'usuari del worker SIF;
+- guardar la contrasenya en un gestor de secrets o configuracio d'entorn protegida, mai al codi, SQL, logs o documentacio;
+- configurar PHP/OpenSSL/SOAP o la llibreria HTTP perquè presenti el certificat client en la connexio TLS de sortida a AEAT;
+- registrar al panell nomes metadades no secretes: subjecte/titular, emissor, numero de serie parcial o empremta, data de caducitat, entorn, ultima prova i estat;
+- definir copia de seguretat xifrada, responsable de custodia, procediment de renovacio/rotacio i revocacio per perdua o compromís;
+- separar configuracions i endpoints de prova i produccio, encara que l'autoritat certificadora permeti utilitzar el mateix certificat per autenticar-se;
+- provar la connexio des del mateix servidor o entorn que executara el worker, no nomes des d'un navegador o ordinador personal.
+
+El certificat no ha d'estar necessàriament importat al magatzem global del sistema operatiu. Pot quedar en un fitxer protegit fora del webroot, en un magatzem de certificats, en un gestor de secrets o en un HSM/key vault, sempre que el proces SIF pugui usar la clau privada sense exposar-la. La decisio final dependra de les capacitats del hosting Comvive i de la llibreria PHP escollida.
+
+Comprovacions a fer amb el proveidor de servidor abans de decidir el desplegament:
+
+1. El PHP del servidor disposa d'OpenSSL i client SOAP/HTTP compatible amb certificat client TLS?
+2. Es pot fer una connexio de sortida als endpoints AEAT i processar els WSDL oficials?
+3. Es pot guardar un `.p12`/`.pfx` o `PEM` fora del directori public amb permisos restringits?
+4. Es poden definir secrets d'entorn sense exposar-los al panell public ni al repositori?
+5. Quin usuari executara el worker/cua AEAT i com es limitaran els permisos de lectura?
+6. Com es fara la copia de seguretat xifrada, la renovacio i la substitucio sense aturar o exposar el servei?
+
+Fonts oficials de criteri:
+
+- AEAT, FAQ sistemes `VERI*FACTU`: la remissio es maquina a maquina i pot autenticar-se amb certificat qualificat del titular, representant, apoderat o col·laborador social.
+- AEAT, descripcio dels serveis web: la remissio usa serveis SOAP/XML i el remitent ha de disposar d'un certificat electronic qualificat reconegut.
+- AEAT, FAQ d'empreses de desenvolupament: per provar i operar el SIF cal disposar d'un certificat qualificat valid i admès instal·lat o configurat de forma utilitzable pel sistema.
+
+Evidencia minima abans de `1.0.0`:
+
+- metode triat: `CERT_ENTITAT`, `APODERAMENT` o mecanisme equivalent admès;
+- subjecte/titular i emissor del certificat o representacio documentada;
+- caducitat, estat i entorn on s'ha provat;
+- prova feta des del mateix servidor, usuari o worker que fara la remissio;
+- resultat de prova i incidencia SIF si falla;
+- referencia segura al material de configuracio, sense exposar clau, contrasenya ni fitxer privat.
 
 ## 13.5. Criteris interns pendents de validacio externa
 
@@ -644,12 +710,15 @@ No cal signar cada petit canvi de desenvolupament. La signatura s'ha de fer quan
 Abans de signar la declaracio responsable `1.0.0`, cal tenir:
 
 - versio exacta del SIF;
+- revisio normativa AEAT/BOE datada i conservada a l'expedient;
 - domini i subdomini configurats;
 - components finals identificats;
 - BD fiscal en estat productiu;
 - endpoints i processos del SIF verificats;
 - generacio PDF/QR/XML definida;
-- certificat digital de l'entitat o apoderament configurat;
+- certificat digital de l'entitat o apoderament configurat i provat des de l'entorn real del worker;
+- correspondencia dels camps fiscals minims amb taules internes, payload XML/AEAT i proves;
+- rol auditor/AEAT de nomes lectura preparat sense permisos d'escriptura ni secrets;
 - proves principals executades i conservades;
 - dades completes de signatura: data, lloc, NIF de la persona signant per direccio i carrec;
 - declaracio responsable accessible dins del propi SIF.

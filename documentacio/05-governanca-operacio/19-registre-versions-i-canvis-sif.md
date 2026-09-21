@@ -150,6 +150,62 @@ No hi ha versio productiva signable sense paquet documental.
 No hi ha paquet documental complet sense certificat/apoderament i declaracio accessible dins del SIF.
 ```
 
+### 5.3. Plantilla de versio candidata
+
+```markdown
+## Versio candidata SIF
+
+| Camp | Valor |
+| --- | --- |
+| Versio |  |
+| Tipus | BORRADOR / PREPRODUCCIO / PRODUCCIO |
+| Data proposta |  |
+| Responsable tecnica |  |
+| Responsable legal/direccio |  |
+| Paquet/commit |  |
+| Entorn desplegat |  |
+| Migracions BD |  |
+| Canvis funcionals |  |
+| Afectacio fiscal | Cap / Menor / Substancial |
+| Afecta AEAT | Si / No |
+| Afecta PDF/QR/XML | Si / No |
+| Afecta permisos | Si / No |
+| Afecta hash chain/numeracio | Si / No |
+| Proves requerides |  |
+| Campanya go/no-go associada |  |
+| Manifest d'expedient | Ruta, ID i hash |
+| Data de congelacio de l'expedient |  |
+| Portes `G1`-`G7` | PASS / FAIL / BLOCKED |
+| Incidencies bloquejants | IDs o Cap |
+| Backup/restauracio | PASS / FAIL / BLOCKED |
+| Declaracio responsable | No aplica / Esborrany / Signable / Signada |
+| Decisio go/no-go | GO / GO AMB LIMITACIONS / NO-GO |
+| Limitacions i caducitat |  |
+| Estat final | Candidata / Activa / Rebutjada / Substituida |
+```
+
+Regla:
+
+```text
+Si un canvi afecta numeracio, hash chain, AEAT, PDF/QR/XML, permisos fiscals o fluxos d'emissio/rectificacio, la versio candidata ha de passar per campanya go/no-go abans de ser activa.
+```
+
+### 5.4. Control bloquejant de signatura `1.0.0`
+
+Abans de convertir la declaracio responsable en document signable cal omplir aquesta matriu dins l'expedient de versio:
+
+| Control | Evidencia requerida | Estat inicial |
+| --- | --- | --- |
+| Fonts AEAT/BOE revisades | Data de revisio i enllacos oficials conservats. | Pendent de fixar a l'expedient `1.0.0`. |
+| Termini legal aplicable | Confirmacio de si PrisMa entra al termini d'Impost sobre Societats o resta d'obligats. | Pendent de confirmacio fiscal. |
+| Productor/titular intern | Associacio PrisMa mantinguda com a productora/titular interna i obligada usuaria. | Pendent de ratificacio abans de signar. |
+| Contacte tecnic | Decisio sobre Meriem dins la declaracio signada o nomes expedient intern. | Pendent. |
+| Signant formal | Nom, NIF, carrec i facultats de representacio suficients. | Pendent. |
+| Certificat/apoderament | Metode, estat, caducitat i prova real des del worker SIF, sense exposar secrets. | Pendent. |
+| Camps fiscals minims | Mapa camp normatiu -> taula/camp intern -> XML/PDF/QR -> prova. | Pendent. |
+| Auditor nomes lectura | Rol creat/provat sense escriptura ni acces a secrets. | Pendent. |
+| Publicacio dins del SIF | Declaracio, versio activa i documentacio accessibles a `pay.prisma.cat/sif`. | Pendent. |
+
 ## 6. Canvis que poden requerir nova declaracio o annex
 
 Poden requerir nova declaracio responsable, annex o actualitzacio signada:
@@ -175,10 +231,14 @@ Abans de tancar la versio `1.0.0`, cal completar:
 
 - data d'entrada en produccio;
 - data del primer enviament `VERI*FACTU`, quan existeixi;
+- data de revisio de fonts oficials AEAT/BOE usada per la declaracio;
+- termini legal aplicable a l'entitat i criteri de confirmacio;
 - domini final i SSL;
 - certificat digital de l'entitat o apoderament;
+- evidencia no secreta de la prova del certificat/apoderament des del worker SIF;
 - declaracio responsable signada o preparada per signar;
 - NIF i carrec complet de la persona que signa per direccio;
+- decisio sobre publicacio o custodia interna del contacte tecnic;
 - proves executades;
 - incidencies conegudes;
 - criteri final sobre punts fiscals sensibles pendents de validacio externa;

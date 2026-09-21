@@ -261,7 +261,7 @@ Pantalles actuals ja tractades amb captura o explicacio:
 - Baixa.
 - Veure factura.
 
-Pantalles/apartats encara pendents de documentar amb el mateix nivell:
+En el tall inicial quedaven pendents de documentar amb el mateix nivell aquestes pantalles o apartats:
 
 - `Passar pagaments`.
 - `Generar factura abans de pagar`.
@@ -282,6 +282,20 @@ Per cada apartat hauria de constar:
 - quins errors/incidencies pot generar;
 - quins correus envia;
 - quines restriccions te quan ja existeix factura emesa.
+
+Actualitzacio 2026-09-16:
+
+Les pantalles internes prioritaries ja tenen una especificacio operativa comuna que enllaca pantalla, procediment, accio SIF, permisos, avisos, prova i captura:
+
+- `Passar pagaments`: decisio entre `registerPayment()` i `issueInvoice(payment)`, bloquejos, avisos i proves `SIF-PANT-PAY-*`.
+- `Generar factura abans de pagar`: emissio previa, validacions del receptor, confirmacio i prova `SIF-PANT-FAC-001`.
+- `Consulta - Edita - Anula factura`: accions segons estat, prohibicio d'edicio fiscal directa, rectificacio/anulacio traçable i proves `SIF-PANT-FACT-*`.
+- Intranet alumne i empresa/responsable: visibilitat limitada, cobertura, permisos i prova `SIF-VIS-002`.
+- Avisos VERI*FACTU: separacio entre indicador, avis, notificacio i incidencia SIF, amb proves `SIF-AVI-*`.
+
+La traçabilitat consolidada consta a `26-matriu-cobertura-casos.md`; els procediments son a `10-procediments-intranet-ecommerce.md` i `22-manual-operatiu-intern.md`; les proves i captures minimes son a `20-pla-proves-validacio-sif.md` i `23-annex-captures-pantalla.md`.
+
+El que continua incomplet no es el criteri documental d'aquestes pantalles, sino la implementacio real, l'execucio de les proves i la incorporacio de captures finals. `Analitzar fitxer TPV` i el panell complet `pay.prisma.cat/sif` mantenen el seu seguiment especific.
 
 ### 4.2. Fluxos fiscals per cas
 

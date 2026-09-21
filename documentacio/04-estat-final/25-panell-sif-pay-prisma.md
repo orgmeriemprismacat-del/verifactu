@@ -27,6 +27,7 @@ SIF PrisMa
     Incidencies
     Documents
     Versions
+    Evidencies i go/no-go
     Exportacions
     Configuracio
 ```
@@ -239,11 +240,11 @@ Accions:
 - veure hash;
 - veure historial.
 
-## 3.6. Versions
+## 3.6. Versions, evidencies i go/no-go
 
 Objectiu:
 
-- controlar versions del SIF i documentacio associada.
+- controlar versions del SIF, documentacio associada i expedients de proves que justifiquen cada activacio.
 
 Ha de mostrar:
 
@@ -253,7 +254,21 @@ Ha de mostrar:
 - responsable legal/direccio;
 - canvis inclosos;
 - declaracio responsable associada;
-- estat: esborrany, activa, historica.
+- estat: candidata, esborrany, activa, rebutjada, substituida o historica;
+- paquet/commit;
+- migracions aplicades;
+- campanya go/no-go associada;
+- decisio final: `GO`, `GO AMB LIMITACIONS` o `NO-GO`;
+- incidencies bloquejants obertes o tancades.
+
+La vista d'evidencies ha de permetre:
+
+- filtrar per versio;
+- filtrar per ID de prova;
+- consultar captures, logs, exports, PDF/QR/XML, hashes, actes i consultes BD conservades;
+- veure si l'evidencia conte dades anonimitzades;
+- enllacar una evidencia amb factura, pagament, incidencia, registre AEAT o backup/restauracio;
+- descarregar un paquet d'evidencies per revisio interna o auditoria.
 
 Accions:
 
@@ -261,6 +276,13 @@ Accions:
 - descarregar declaracio responsable;
 - consultar historial;
 - marcar nova versio com activa nomes si el rol ho permet.
+
+No ha de permetre:
+
+- editar evidencies historiques sense deixar nova versio o registre d'auditoria;
+- substituir una captura o log d'una prova passada;
+- marcar una prova com `PASS` si no te evidencia associada;
+- activar una versio productiva sense acta go/no-go i registre de backup/restauracio quan siguin obligatoris.
 
 ## 3.7. Exportacions
 

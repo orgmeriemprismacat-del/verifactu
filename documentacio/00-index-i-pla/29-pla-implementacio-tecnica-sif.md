@@ -2051,6 +2051,10 @@ Nota d'implementacio 2026-06-10:
 
 ## Fase 11: Integracio progressiva de canals
 
+> Contracte de pantalla associat: `../03-canvis-pendents/12-contracte-tecnic-pantalles-internes.md`. Abans d'integrar la intranet, aplicar el patró autenticat `preview -> confirm`, permisos al servidor, avisos estructurats i auditoria d'actor definits en aquest document. Els endpoints publics de baix nivell no s'han d'exposar directament al navegador.
+
+> Desglossament executable: `../03-canvis-pendents/14-backlog-implementacio-pantalles-internes.md`. L'ordre obligatori comenca per autenticacio, permisos, CSRF, client SIF i preview token; continua amb lectura; i nomes despres activa pagaments, factura previa, rectificacio i portals externs.
+
 ### Task 13: Ordre d'activacio de canals
 
 **Files:**

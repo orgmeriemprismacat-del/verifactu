@@ -1098,3 +1098,193 @@ Permisos orientatius:
 - Taules de regals.
 - Taules de packs.
 - Indexos addicionals segons consultes reals de produccio.
+
+## 13. Migració additiva de gestió, auditoria i control
+
+La migració
+`sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql`
+materialitza el model registral que abans només era conceptual. No modifica ni
+reescriu les dues migracions anteriors i usa taules d'extensió per mantenir el
+runner actual idempotent.
+
+| Responsabilitat | Taula física | Regla principal |
+| --- | --- | --- |
+| Auditoria comuna | `sif_audit_event` | Event immutable per acció sensible, actor, recurs i correlació. |
+| Qualsevol acció sobre pagament | `payment_action_event` | Intent i resultat tipificats; `UUID_PAYMENT` pot ser nul abans de crear-lo. |
+| Gestió administrativa | `operational_event` | Abans/després, motiu i classificació fiscal/econòmica. |
+| Historial de dades fiscals mestres | `billing_profile_history` | Versions per subjecte sense reescriure snapshots emesos. |
+| Canvi de curs | `course_change_event` | Origen/destí, imports, diferència, despeses i decisió. |
+| Baixa | `enrollment_cancellation_event` | Baixa separada de devolució, saldo o no retorn. |
+| Anul·lació/subsanació | `factura_registre_control` | Tipus registral, registre anterior, indicadors i hash XML. |
+| Remissió AEAT | `aeat_submission_attempt` | Un registre per intent i resposta; no només l'últim error. |
+| Generació documental | `document_job` | Idempotència, versió generador, retries, storage i hash. |
+| Comunicacions | `notification_outbox`, `notification_delivery_attempt` | Outbox posterior al commit i cada intent d'entrega. |
+| Accés documental | `fiscal_document_access` | Consulta, descàrrega i denegació auditades. |
+| Incidències | `sif_incident_action` | Historial append-only d'assignació, estat, acció i evidència. |
+| Versió/declaració | `sif_version`, `sif_declaration` | Artefacte/configuració i declaració vinculats. |
+| Paquet fiscal | `fiscal_export`, `fiscal_export_access` | Criteris, motiu, fitxer/hash i cada accés. |
+| Conciliació | `reconciliation_run`, `reconciliation_item` | Execució, diferències i resolució traçada. |
+| Continuïtat | `backup_restore_evidence` | Backup/restauració, integritat, RPO/RTO i evidència. |
+| Context de relacions | `fact_rels_context` | Event d'origen i justificació de visibilitat. |
+
+La migració 000003 no crea columnes noves amb `ALTER TABLE`. La revisió
+posterior ha incorporat `sif_schema_migration` al runner: cada fitxer queda
+registrat amb SHA-256, no es torna a executar i una alteració d'un fitxer ja
+aplicat es rebutja. Això permet que la migració additiva 000004 ampliï l'esquema
+una sola vegada sense reescriure migracions anteriors.
+
+### 13.1. Índexs mínims incorporats
+
+- cronologia per pagament, idempotència, petició i correlació;
+- auditoria per recurs, actor i resultat;
+- operacions per origen, factura, pagament i correlació;
+- cues/intents per estat, proper intent, factura i job;
+- accessos per document, factura, export i actor;
+- conciliació per execució, resultat, factura i pagament;
+- versions, exports i evidències per estat i data.
+
+Els índexs addicionals s'han de justificar amb consultes reals i `EXPLAIN`; no
+s'ha d'indexar `JSON` indiscriminadament.
+
+### 13.2. Permisos append-only
+
+`sif/database/permissions/functional-audit-roles.sql` defineix una plantilla de
+rols MySQL 8. Les taules d'events, intents, accessos i evidències només reben
+`SELECT, INSERT` per a l'aplicació; no es concedeix `UPDATE` ni `DELETE`.
+L'auditor és només lectura. L'script no crea comptes ni secrets i s'ha d'aplicar
+manualment després de revocar privilegis heretats més amplis.
+
+### 13.3. Estat real després de la migració
+
+L'esquema i els repositoris `PaymentActionEventRepository` i
+`OperationalEventRepository` existeixen, però això no completa els casos d'ús.
+Continuen pendents:
+
+- integrar el gateway a tots els canals, callbacks, workers i consultes;
+- garantir intent previ i event terminal atòmic amb cada mutació;
+- implementar serveis i repositoris de la resta de taules;
+- desplegar rols reals i provar denegacions d'`UPDATE`/`DELETE`;
+- executar la migració i les proves en una BD MySQL de preproducció;
+- crear monitoratge de correlacions incompletes i dead-letter.
+
+## 14. Pendents actualitzats
+
+- Noms finals dels comptes MySQL i assignació dels rols de la plantilla.
+- Provar `sif_schema_migration` i totes les migracions contra una còpia MySQL de preproducció.
+- Migració de `web.factures` i documents històrics amb emissor jurídic conservat.
+- Estructures reals de codis promocionals, regals, packs i descomptes de grup.
+- Revisió de contingut i integració de les 142 fitxes funcionals amb serveis, pantalles i proves.
+- Mesura d'índexs amb volum i consultes representatives de producció.
+
+## 15. Operació comercial, parts, descomptes i enllaços de pagament
+
+La revisió de `web-actual` ha demostrat que el model que començava a `factura`
+o `redsys_payment_intent` arribava massa tard. Abans existeixen reserva,
+participant, pagador, receptor provisional, preu, descompte, places i una
+classificació que pot resultar facturable, gratuïta, subvencionada o pendent.
+
+La migració
+`sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql`
+afegeix quatre responsabilitats:
+
+| Taula | Responsabilitat | No substitueix |
+| --- | --- | --- |
+| `commercial_operation` | Reserva/operació, origen, producte, imports, classificació i snapshots abans del TPV. | `factura`, `payment_transaction` ni `redsys_payment_intent`. |
+| `commercial_operation_party` | Participants, pagador, receptor i producte/línia associats. | Dades fiscals immutables de la factura. |
+| `discount_validation` | Regla versionada, evidència, validació, import i benefici futur. | Snapshot del descompte a `factura_linia`. |
+| `payment_link` | Token hash, import, caducitat, revocació i substitució. | Intenció Redsys ni moviment de pagament. |
+
+Classificacions mínimes de `commercial_operation.CLASSIFICATION`:
+
+- `BILLABLE`: es pot congelar i derivar a factura/intenció;
+- `NON_BILLABLE`: operació informativa amb motiu;
+- `FREE_SAMPLE`: tastet o repte gratuït;
+- `SUBSIDISED_PENDING_DECISION`: subvenció amb receptor/finançador encara no
+  resolts;
+- `PENDING_VALIDATION`: descompte, dades o evidència encara no validats.
+
+Regles:
+
+1. una inscripció no és una factura ni un pagament;
+2. un `IDPAG` no és l'identificador canònic de l'operació comercial;
+3. cada persona té rol explícit (`PARTICIPANT`, `PAYER`, `FISCAL_RECIPIENT`,
+   `RESPONSIBLE`);
+4. el snapshot acceptat abans del TPV és la font del callback/worker;
+5. gratuïtat i subvenció no es converteixen automàticament en una factura de
+   zero;
+6. validacions i enllaços canvien d'estat, però la seva història crítica queda
+   també en `operational_event`, `sif_audit_event` i, si toca pagaments,
+   `payment_action_event`.
+
+### 15.1. Camps fiscals afegits
+
+La mateixa migració afegeix els camps documentats però absents: emissor,
+descripció, inversió del subjecte passiu, causa d'exempció/no subjecció,
+recàrrec d'equivalència, codi/versió/productor del SIF, zona horària, hash i
+resposta AEAT, `STORAGE_REF`, URL/hash de QR i text VERI*FACTU.
+
+Les columnes noves són nullable per compatibilitat transitòria. El desplegament
+queda bloquejat fins que els writers les omplin, el backfill sigui verificat i
+les obligatòries passin a restriccions fortes segons la classificació fiscal.
+
+## 16. Línies comercials i cicles previs/posteriors
+
+La migració
+`sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql`
+completa els buits descoberts després de contrastar més superfícies executables.
+
+| Responsabilitat | Taula | Invariant |
+| --- | --- | --- |
+| Línies i components | `commercial_operation_line` | Cada curs, pack/component, regal o participant facturable té snapshot i ordre propi. |
+| Materialització fiscal | `operation_line_invoice_link` | Es pot reconstruir quina línia comercial ha originat cada `factura_linia`. |
+| Aforament | `capacity_reservation` | Plaça, quantitat, estat, venciment i versió de lock són explícits. |
+| Evidència | `discount_evidence` | Diversos fitxers amb hash, custòdia, finalitat i retenció per validació. |
+| Promoció/regal/dret | `commercial_entitlement` | El dret té titular, regla, valor, caducitat i operacions origen/consum. |
+| Història del dret | `commercial_entitlement_event` | Emissió, reserva, consum, expiració, cancel·lació i reversió són append-only. |
+| Importació | `enrollment_import_run/item` | Hash i idempotència de l'execució; estat/error per fila. |
+| Canvi mestre | `master_data_change_request` | Versió abans/després i operacions obertes afectades abans de publicar. |
+| Dades personals | `personal_data_change_request` | Sol·licitud, decisió i propagació, sense reescriure snapshots històrics. |
+| Factura electrònica | `electronic_invoice_delivery` | Format/document/destinatari/canal i resultat d'entrega acreditables. |
+| Estat acadèmic | `academic_economic_state_event` | Canvi d'accés/certificat amb snapshot econòmic consultat, no mutat. |
+
+`commercial_operation_party.PRODUCT_CODE` i `LINE_AMOUNT` queden com a camps
+transitoris de compatibilitat. El model objectiu situa producte/import a
+`commercial_operation_line` i persona/rol a `commercial_operation_party`;
+abans d'endurir restriccions cal migrar i comparar totes les files existents.
+
+La migració és disseny materialitzat, no desplegament. Falten repositoris,
+serveis, permisos, backfill, prova MySQL i política de purga per evidències.
+
+## 17. Consentiment, identitat, edicions i coherència entre sistemes
+
+La tercera auditoria executable ha demostrat que el model de cicle comercial
+encara no podia reconstruir cinc decisions transversals. La migració
+`sif/database/migrations/2026_09_16_000006_add_cross_system_control_tables.sql`
+afegeix els registres següents:
+
+| Responsabilitat | Taula | Invariant |
+| --- | --- | --- |
+| Consentiment vigent | `communication_consent` | Finalitat, canal, abast i versió del text són independents de la inscripció, pagament i factura. |
+| Història del consentiment | `communication_consent_event` | Alta, confirmació, denegació, retirada i renovació són append-only amb evidència hash. |
+| Identitats externes | `external_identity_link` | Cada usuari/identificador de sistema s'enllaça a un subjecte canònic amb vigència i verificació. |
+| Conflicte d'identitat | `identity_conflict_case` | Candidats, impacte, decisió i actor es conserven abans de vincular o separar registres. |
+| Cicle de l'edició | `edition_lifecycle_event` | Activació, ajornament, tancament o cancel·lació té snapshot, motiu i recompte d'afectats. |
+| Impacte per operació | `edition_operation_impact` | Cada operació afectada rep acció acadèmica, decisió econòmica/fiscal i resultat propis. |
+| Qualitat de l'adreça | `address_validation_case` | Entrada original, proposta normalitzada, regla, decisió i propagació són reconstruïbles. |
+| Reconciliació acadèmica | `academic_reconciliation_item` | Cada diferència Prisma/Moodle pertany a un `reconciliation_run` i conserva snapshots, resolució i resultat. |
+
+Regles de frontera:
+
+1. `communication_consent` no autoritza facturació ni es dedueix de l'alta;
+2. resoldre identitat no fusiona factures, pagaments o snapshots emesos;
+3. un event d'edició no executa implícitament devolucions o rectificatives;
+4. normalitzar una adreça només propaga a dades vives o operacions no
+   congelades;
+5. reconciliar Moodle consulta l'estat econòmic però no el muta;
+6. cada efecte econòmic o fiscal derivat usa els serveis i ledgers canònics ja
+   definits.
+
+La migració 000006 és disseny materialitzat. Falten serveis, política
+d'autoritat per camp/sistema, permisos, migració de consentiments vigents,
+resolució del cicle acumulat a `poblacions_validar`, proves MySQL i verificació
+amb negoci/protecció de dades.

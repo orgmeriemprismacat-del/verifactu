@@ -308,6 +308,17 @@ La documentacio ja deia que calia provar preproduccio, idempotencia, Redsys dupl
 Impacte:
 `09-checklist-posada-en-produccio.md`, `20-pla-proves-validacio-sif.md`, `19-registre-versions-i-canvis-sif.md`, `26-matriu-cobertura-casos.md`, `27-informe-auditoria-documental.md` i `README.md` deixen el paquet preparat a nivell documental. Encara queda pendent executar-lo en un entorn de preproduccio o produccio controlada, guardar captures/logs/exports reals i associar-lo a la versio candidata.
 
+## 2026-09-16 - Plantilles operatives de proves i go/no-go
+
+Decisio:
+Afegir plantilles concretes per executar una prova, resumir una campanya go/no-go, documentar una restauracio, registrar l'acta go/no-go i descriure una versio candidata del SIF.
+
+Motiu:
+El paquet de proves ja definia criteris i IDs, pero faltava un format reutilitzable per omplir el dia que s'executin proves reals. Sense plantilla, les evidencies podrien quedar disperses, incompletes o no comparables entre versions.
+
+Impacte:
+`20-pla-proves-validacio-sif.md` incorpora fitxa d'execucio i resum de campanya; `09-checklist-posada-en-produccio.md` incorpora acta de restauracio i acta go/no-go; `19-registre-versions-i-canvis-sif.md` incorpora fitxa de versio candidata. Les plantilles encara no son evidencies reals: nomes preparen l'execucio futura.
+
 ## 2026-06-02 - Fluxos fiscals especials tancats
 
 Decisio:
@@ -978,6 +989,17 @@ Alguns fluxos ja estaven implementats o preparats pero no quedaven bloquejats pe
 
 Impacte:
 La bateria go/no-go continua sent de nomes lectura i no crea factures ni pagaments. El resultat `GO` exigira que aquests circuits estiguin presents i que l'entorn/BD compleixi els prerequisits minims abans d'un pilot controlat.
+
+## 2026-06-18 - Xat 3: rectificativa, anul·lacio AEAT i subsanacio son fluxos diferents
+
+Decisio:
+Substituir el concepte generic antic d'`anul·lar factura` per un decisor fiscal. Segons si existeix factura SIF i segons la causa, el sistema ha de triar cancel·lacio operativa, factura rectificativa, `RegistroAnulacion`, subsanacio, nova alta correcta o incidencia bloquejant.
+
+Motiu:
+La documentacio AEAT diferencia la factura rectificativa de l'anul·lacio i la subsanacio de registres. La subsanacio nomes es valida quan la causa no exigeix factura rectificativa. Una baixa, una devolucio o una pantalla amb nom historic d'anul·lacio tampoc impliquen per si soles `RegistroAnulacion`.
+
+Impacte:
+`ManualRectificationService` continua cobrint el circuit intern preparat de rectificatives, pero no es considera implementacio de `RegistroAnulacion` ni de subsanacio. Cal crear registres immutables d'anul·lacio/subsanacio, encadenament i huella AEAT, camps `Subsanacion`, `RechazoPrevio` i `SinRegistroPrevio`, cua/resposta AEAT i proves XML/XSD abans de donar el bloc per tancat tecnicament.
 
 ## 2026-06-19 - `DS_ORDER` es resol amb una intencio de pagament creada al servidor
 

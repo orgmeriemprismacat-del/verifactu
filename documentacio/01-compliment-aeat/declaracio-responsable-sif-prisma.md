@@ -1,274 +1,146 @@
-# DECLARACION RESPONSABLE DEL SISTEMA INFORMATICO DE FACTURACION
+# DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN
 
-> Borrador de futura declaracio signable. No es signable encara: cal completar les dades identificatives, versio exacta, components definitius i data/lloc de signatura abans de signar. Aquest document s'ha preparat seguint l'estructura de l'article 15 de l'Orden HAC/1177/2024.
+**Estado documental:** BORRADOR DE LA VERSIÓN CANDIDATA 1.0.0. NO SUSCRIBIR TODAVÍA.
 
-## Nota previa - BORRADOR NO FIRMABLE TODAVIA
+Esta declaración se ha preparado conforme al artículo 13 del Real Decreto 1007/2023 y al artículo 15 de la Orden HAC/1177/2024. Solo podrá suscribirse cuando la versión indicada esté instalada, cerrada y respaldada por las evidencias técnicas y operativas correspondientes.
 
-Este documento es una plantilla viva de trabajo. No debe firmarse como declaracion definitiva hasta que exista una version concreta, instalada, verificable y preparada para produccion del SIF PrisMa.
+La entidad productora suscribirá la declaración indicando fecha y lugar. La normativa no exige firma electrónica para este documento. Para el expediente interno de Associació PrisMa se prevé, además, la firma visible de una persona con representación suficiente.
 
-Criterio interno acordado:
+Las fuentes AEAT/BOE se han revisado de nuevo el 16/09/2026 para esta versión candidata. Esta declaración sigue siendo un borrador: no sustituye la validación fiscal externa ni acredita por sí sola que el SIF esté implantado.
 
-```text
-0.1-BORRADOR = documento de trabajo
-1.0.0 = primera version productiva firmable
-```
+## Control previo a la suscripción
 
-No es necesario firmar cada cambio durante el desarrollo. Si despues de una version firmada hay cambios relevantes que afecten al cumplimiento, a los componentes de facturacion, a la modalidad de funcionamiento o a los registros conservados, se preparara una nueva version de declaracion o un anexo versionado.
+Antes de retirar la indicación de borrador deben quedar completados estos puntos:
 
-La version firmable `1.0.0` debera generarse como documento cerrado, con datos completos, version instalada y verificable, responsable firmante identificado, fecha/lugar de firma y referencia a la version activa publicada dentro del propio SIF. Este borrador no debe reutilizarse para firma sin revisar y sustituir todos los campos pendientes.
+- versión 1.0.0 cerrada e identificada de forma inequívoca;
+- plazo legal aplicable documentado y confirmado para Associació PrisMa;
+- componentes realmente instalados contrastados con el apartado 1.d;
+- pruebas funcionales, fiscales, de seguridad y de recuperación ejecutadas;
+- certificado o representación para la remisión a la AEAT configurado y probado desde el entorno real del proceso SIF;
+- XML, hash, idempotencia, cola AEAT, PDF y QR verificados;
+- correspondencia de campos mínimos del registro de alta/anulación con tablas internas, XML y evidencias de prueba;
+- rol de auditoría/AEAT solo lectura preparado, sin acceso a secretos ni acciones de escritura;
+- incidencias bloqueantes cerradas;
+- visto bueno técnico emitido;
+- persona con representación suficiente confirmada por la entidad;
+- declaración accesible dentro del propio SIF.
 
-## 1.a) Nombre del sistema informatico a que se refiere esta declaracion responsable
+## 1.a Nombre del sistema informático
 
-```text
 SIF PrisMa
-```
 
-## 1.b) Codigo identificador del sistema informatico
+## 1.b Código identificador del sistema informático
 
-```text
 SIF-PRISMA
-```
 
-## 1.c) Identificador completo de la version concreta del sistema informatico
+## 1.c Identificador completo de la versión concreta
 
-```text
-Version: 0.1-BORRADOR
-Fecha de version: [INDICAR FECHA]
-Entorno: Produccion
-Dominio/subdominio previsto: pay.prisma.cat
-```
+1.0.0 - versión candidata pendiente de cierre y verificación final.
 
-Nota: esta declaracion no debera firmarse como version definitiva hasta que exista una version concreta, instalada y verificable del SIF. La primera version firmable se preve como `1.0.0`, correspondiente a la primera version productiva del SIF centralizado.
+## 1.d Componentes y funcionalidades del sistema
 
-## 1.d) Componentes, hardware y software, de que consta el sistema informatico, breve descripcion y principales funcionalidades
+La descripción siguiente corresponde a la configuración candidata. Antes de la suscripción deberá comprobarse que coincide con la instalación efectiva de la versión 1.0.0.
 
-El sistema informatico de facturacion SIF PrisMa esta compuesto, de forma resumida, por los siguientes componentes:
+El SIF PrisMa es una aplicación web centralizada para la facturación propia de Associació PrisMa. Su configuración candidata comprende:
 
-```text
-1. Aplicacion backend de facturacion desarrollada en PHP.
-2. API interna de facturacion para ecommerce, Redsys/TPV e intranet.
-3. Base de datos MySQL/InnoDB de datos fiscales.
-4. Modulo de generacion de facturas, lineas, numeracion fiscal y registros fiscales.
-5. Modulo de cadena hash global de registros de facturacion.
-6. Modulo de idempotencia para evitar duplicidades.
-7. Modulo de cola de envio AEAT / VERI*FACTU.
-8. Modulo de gestion de documentos PDF/XML/QR.
-9. Modulo de pagos, asignacion de pagos, devoluciones y compensaciones.
-10. Modulo de rectificativas.
-11. Modulo de logs, incidencias y notificaciones internas.
-12. Integracion con Redsys y procesos internos de transferencia/compensacion.
-```
+1. aplicación backend de facturación desarrollada en PHP;
+2. API interna para los canales ecommerce, Redsys TPV e intranet;
+3. base de datos fiscal MySQL con tablas transaccionales InnoDB;
+4. módulos de facturas, líneas, numeración fiscal y registros de facturación;
+5. encadenamiento mediante huella o hash e idempotencia;
+6. gestión de pagos, asignaciones, devoluciones, compensaciones y rectificativas;
+7. generación y conservación de documentos PDF, XML y código QR;
+8. cola de remisión VERI*FACTU, reintentos, respuestas e incidencias;
+9. permisos, registros operativos y trazabilidad documental;
+10. integración con los flujos internos y con las notificaciones de Redsys.
 
-Descripcion funcional:
+Los canales de venta y gestión solicitan la operación al SIF. El SIF valida la petición, impide duplicidades, asigna la numeración fiscal, genera la factura y el registro de facturación, calcula la huella, conserva la información y gestiona la remisión a la AEAT.
 
-```text
-El SIF PrisMa centraliza la emision de facturas de PrisMa. Los canales de venta y gestion no asignan numero fiscal ni crean facturas finales, sino que remiten una solicitud al SIF. El SIF valida la peticion, aplica idempotencia, asigna numero fiscal, genera la factura y sus lineas, crea el registro fiscal, encadena la huella/hash, conserva la informacion, genera o prepara el documento PDF/QR y registra el envio VERI*FACTU a la AEAT.
-```
+## 1.e Funcionamiento exclusivo como VERI FACTU
 
-Principales funcionalidades:
+S - Sí.
 
-```text
-- Emision de facturas ordinarias.
-- Emision de facturas rectificativas.
-- Gestion de facturas antes del cobro.
-- Gestion de cobros, pagos parciales, devoluciones y compensaciones.
-- Gestion de packs, grupos, cursos, regalos y facturas manuales.
-- Conservacion de snapshot fiscal del receptor.
-- Generacion de registros fiscales.
-- Encadenamiento hash de registros.
-- Cola de envio a AEAT.
-- Gestion de errores, reintentos e incidencias.
-- Generacion y conservacion de PDF/XML/QR.
-- Consulta de facturas desde intranet con control de permisos.
-```
+La versión 1.0.0 se configura para funcionar exclusivamente como sistema VERI*FACTU desde su puesta en producción, con remisión de los registros de facturación conforme a las especificaciones aplicables.
 
-## 1.e) Indicacion de si el sistema se ha producido para funcionar exclusivamente como VERI*FACTU
+## 1.f Uso por varios obligados tributarios
 
-```text
-El sistema SIF PrisMa se produce y configura para operar en modalidad VERI*FACTU para las facturas emitidas a partir de su puesta en produccion, con remision de los registros de facturacion generados conforme a las especificaciones aplicables.
-```
+N - No.
 
-## 1.f) Indicacion de si permite ser usado por varios obligados tributarios
+El sistema está destinado a la facturación de un único obligado tributario:
 
-```text
-El sistema SIF PrisMa esta previsto para dar soporte a la facturacion de un unico obligado tributario:
+- Razón social: Associació PrisMa
+- NIF: G17881988
 
-Razon social: Associacio PrisMa
-NIF/CIF: G17881988
+## 1.g Tipos de firma de los registros cuando no se utiliza como VERI FACTU
 
-No esta previsto como producto multiempresa para terceros ni para varios obligados tributarios, salvo adaptacion futura documentada y certificada.
-```
+No procede, porque la versión declarada se configura para funcionar exclusivamente como VERI*FACTU. La autenticación de la remisión se realizará mediante un certificado electrónico cualificado admitido por la AEAT, ya sea de la entidad o de un tercero con representación, apoderamiento o habilitación suficiente.
 
-## 1.g) Tipos de firma utilizados para firmar registros de facturacion y de evento si el sistema no es VERI*FACTU
+## 1.h Razón social de la entidad productora
 
-```text
-No aplica en la configuracion prevista, al tratarse de un sistema producido para operar en modalidad VERI*FACTU.
-```
+Associació PrisMa
 
-Criterio documental:
+El sistema se desarrolla internamente para uso propio de la entidad. Meriem Abjil Bajja ejerce la responsabilidad técnica, funcional y documental del proyecto, sin adquirir por ello la condición de productora externa a título personal.
 
-```text
-En modalidad VERI*FACTU no se documenta como requisito ordinario la firma electronica XAdES de los registros remitidos.
-El SIF si debera disponer de certificado digital de la entidad, apoderamiento o configuracion equivalente admitida para identificacion/remision ante AEAT.
-Si en el futuro el sistema dejara de operar como VERI*FACTU, esta seccion deberia revisarse antes de firmar una nueva declaracion.
-```
+## 1.i Número de identificación fiscal de la entidad productora
 
-## 1.h) Nombre y apellidos de la persona o razon social de la entidad productora del sistema informatico
+G17881988
 
-```text
-Entidad productora/titular interna del sistema informatico:
-Associacio PrisMa
+## 1.j Dirección postal completa de contacto de la entidad productora
 
-Desarrollo interno y responsable tecnica del proyecto:
-Meriem Abjil Bajja
-```
-
-Nota: el sistema se documenta como desarrollo interno para uso propio de Associacio PrisMa. La mencion de Meriem Abjil Bajja identifica la direccion tecnica, funcional, documental y de desarrollo del proyecto, pero no implica por defecto que actue como productora externa persona fisica, salvo decision formal futura.
-
-Criterio para la version firmable:
-
-```text
-Productor/titular interno del SIF: Associacio PrisMa.
-Responsable tecnica/documental y contacto interno del proyecto: Meriem Abjil Bajja.
-```
-
-Antes de firmar `1.0.0` se debera decidir si los datos personales del contacto tecnico constan en la declaracion firmada o si se conservan solo en el expediente interno del proyecto.
-
-## 1.i) Numero de identificacion fiscal de la persona o entidad productora
-
-```text
-NIF/CIF de la entidad productora/titular: G17881988
-
-Dato interno de responsable tecnica, si se conserva como contacto tecnico:
-Meriem Abjil Bajja - NIF 77922662L
-```
-
-La version firmable debera evitar ambiguedad entre:
-
-```text
-- NIF/CIF de la entidad productora/titular.
-- NIF de la persona fisica que firma o actua como contacto tecnico.
-- NIF del obligado tributario usuario del SIF, que en este proyecto coincide con Associacio PrisMa.
-```
-
-## 1.j) Direccion postal completa de contacto de la persona o entidad productora
-
-```text
-Direccion de la entidad:
-c. Sant Hipolit, 16, bxs. 2a
+c. Sant Hipòlit, 16, bajos 2.ª
 17003 Girona
 Girona
-Espana
+España
 
-Direccion de contacto tecnico de la responsable del proyecto, si se decide mantenerla en el expediente:
-C/ Pont, 29
-17486 Castello d'Empuries
-Girona
-Espana
-```
+## 1.k Manifestación de cumplimiento
 
-Si la version firmable se prepara como declaracion de la entidad productora/titular interna, se podra conservar la direccion tecnica personal en el expediente interno y no necesariamente en el documento publico/signado, salvo que se decida incluirla como contacto tecnico.
+La entidad productora del sistema informático identificado en esta declaración responsable hace constar que el sistema SIF PrisMa, en la versión indicada, cumple con lo dispuesto en:
 
-## 1.k) Manifestacion de cumplimiento
-
-La persona o entidad productora del sistema informatico identificado en esta declaracion responsable manifiesta que el sistema informatico SIF PrisMa, en la version indicada, cumple con lo dispuesto en:
-
-```text
-- el articulo 29.2.j) de la Ley 58/2003, de 17 de diciembre, General Tributaria;
-- el Reglamento que establece los requisitos que deben adoptar los sistemas y programas informaticos o electronicos que soporten los procesos de facturacion de empresarios y profesionales, aprobado por el Real Decreto 1007/2023, de 5 de diciembre;
+- el artículo 29.2.j) de la Ley 58/2003, de 17 de diciembre, General Tributaria;
+- el Reglamento aprobado por el Real Decreto 1007/2023, de 5 de diciembre;
 - la Orden HAC/1177/2024, de 17 de octubre;
-- las especificaciones tecnicas, funcionales y de contenido publicadas en la sede electronica de la Agencia Estatal de Administracion Tributaria que completen o desarrollen las anteriores.
-```
+- las especificaciones técnicas, funcionales y de contenido publicadas en la sede electrónica de la Agencia Estatal de Administración Tributaria que completen las anteriores.
 
-## 1.l) Fecha y lugar de firma de la declaracion responsable
+**Esta manifestación no debe suscribirse mientras el documento conserve el estado de borrador o falte alguna comprobación bloqueante.**
 
-```text
-Lugar: [INDICAR LUGAR]
-Fecha: [INDICAR FECHA]
-```
+## 1.l Fecha y lugar de suscripción
 
-## 1.m) Datos identificativos y firma de la persona que suscribe la declaracion responsable
+Fecha: ____ de ____________________ de ______
 
-En la version `1.0.0` firmable se debera confirmar quien suscribe formalmente la declaracion en nombre de la entidad productora/titular interna. La firma tecnica de Meriem puede conservarse como visto bueno interno o anexo documental, pero no sustituye la firma o validacion que corresponda a la representacion legal de Associacio PrisMa.
+Lugar: Girona, España
 
-Responsable tecnica / gestora del proyecto:
+## Formalización interna de la suscripción
 
-```text
-Nombre y apellidos: Meriem Abjil Bajja
-NIF: 77922662L
-Cargo/funcion: Responsable tecnica y funcional del proyecto SIF PrisMa
-Firma:
+Este bloque se incorpora al expediente de Associació PrisMa para identificar a la persona que actúa en nombre de la entidad. No sustituye los datos obligatorios de los apartados 1.a a 1.l.
 
+Matriz interna previa:
 
-____________________________________
-```
+| Elemento | Criterio de esta versión candidata | Pendiente antes de firmar |
+| --- | --- | --- |
+| Entidad productora/titular interna | Associació PrisMa | Confirmar que se mantiene desarrollo interno para uso propio. |
+| Obligado tributario usuario | Associació PrisMa | Confirmar alcance fiscal aplicable, SII/no SII y territorio común. |
+| Responsable técnica/documental | Meriem Abjil Bajja | Emitir visto bueno técnico de la versión instalada. |
+| Firmante formal | Adam Carmona, o representante formal que confirme la entidad | Confirmar NIF, cargo y facultades suficientes. |
+| Certificado/apoderamiento AEAT | Certificado de entidad o representación admitida por AEAT | Probar desde el servidor o worker real y archivar evidencia no secreta. |
 
-Responsable legal / direccion:
+Por Associació PrisMa
 
-```text
 Nombre y apellidos: Adam Carmona
-NIF: [INDICAR]
-Cargo/funcion: Director / responsable legal
+Cargo: Director
+Facultades de representación suficientes: pendiente de confirmación por la entidad
+
 Firma:
 
-
 ____________________________________
-```
 
-## 1.n) Otra informacion adicional considerada de interes
+## Anexo técnico previsto
 
-```text
-El SIF PrisMa ha sido concebido como un sistema centralizado de facturacion para evitar la generacion descentralizada de facturas desde distintos canales. El sistema incorpora idempotencia, separacion entre factura y pago, gestion de rectificativas, registro de pagos, cola de envio AEAT, gestion de incidencias, conservacion documental y control de acceso a facturas.
+La versión definitiva podrá incorporar como anexo el visto bueno técnico de la versión 1.0.0 y una referencia al expediente de pruebas. El anexo técnico no sustituye la declaración de la entidad productora.
 
-El sistema se desarrolla internamente para uso propio de Associacio PrisMa. La responsable tecnica, funcional, documental y de desarrollo del proyecto es Meriem Abjil Bajja, que define la arquitectura, los flujos funcionales, el modelo de datos, las integraciones, los criterios de activacion y la puesta en operativa del SIF. La titularidad, uso y responsabilidad organizativa del sistema corresponden a Associacio PrisMa, representada por su direccion.
+## Referencias normativas
 
-La documentacion tecnica y funcional del sistema se conserva en documento separado bajo el titulo "Documentacio 2 - Funcionament del SIF PrisMa per compliment AEAT / VERI*FACTU".
-```
-
-## Anexo - Criterio documental para preparar la version 1.0.0 firmable
-
-La version firmable no consistira en cambiar solo el codigo de version. Antes de prepararla se debera cerrar un paquete documental de firma:
-
-```text
-1. Version exacta 1.0.0 registrada en el SIF.
-2. Componentes reales instalados y verificables.
-3. Declaracion responsable completa, sin campos [INDICAR].
-4. Certificado digital de la entidad o apoderamiento configurado/probado.
-5. Evidencias de pruebas principales conservadas.
-6. PDF/QR/XML y remision VERI*FACTU preparados o probados.
-7. Declaracion accesible dentro del propio SIF.
-8. Identificacion de quien firma por la entidad y cargo exacto.
-9. Decision sobre datos de contacto tecnico incluidos en declaracion o expediente interno.
-10. Registro de version y decision GO/NO-GO asociada.
-```
-
-La declaracion firmada debera quedar vinculada a la version activa y conservarse en formato legible, preferiblemente PDF firmado o documento electronico equivalente, dentro de `pay.prisma.cat/sif`.
-
-## Anexo - Pendientes antes de preparar la version firmable
-
-Antes de convertir este borrador en declaracion responsable definitiva de la version `1.0.0`, falta completar o confirmar:
-
-```text
-- Identificador exacto de version y fecha de version.
-- Fecha y lugar de firma.
-- NIF y cargo exacto de Adam Carmona o de la persona que firme por direccion.
-- Componentes definitivos del SIF en produccion.
-- Dominio/subdominio y SSL definitivamente configurados.
-- Certificado digital de la entidad o apoderamiento usado para AEAT.
-- Endpoints, WSDL/servicios AEAT y configuracion tecnica final.
-- Generacion y conservacion de PDF/XML/QR.
-- Pruebas principales ejecutadas y evidencias conservadas.
-- Declaracion responsable accesible dentro del propio SIF.
-- Revision de puntos fiscales sensibles si se dispone de asesoria externa.
-- Decision final sobre firma unica por direccion o firma tecnica + firma de direccion.
-- Decision final sobre incluir datos personales del contacto tecnico en la declaracion firmada o conservarlos solo en expediente interno.
-- Huella/hash o referencia interna del documento firmado, si el SIF la conserva como evidencia documental.
-```
-
-## Anexo - Referencias normativas usadas para preparar este borrador
-
-- AEAT - Certificacion de los sistemas informaticos: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/cuestiones-generales/certificacion-sistemas-informaticos_.html
-- BOE - Orden HAC/1177/2024, articulo 15: https://www.boe.es/buscar/act.php?id=BOE-A-2024-22138
-- AEAT - Ejemplos de declaraciones responsables: https://sede.agenciatributaria.gob.es/static_files/Sede/Tema/IVA/Verifactu/EjemplosDeclaracionResponsable%28V0.5.1%29.pdf
-- AEAT - Nota informativa de plazos de adaptacion SIF: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/nota-informativa-ampliacion-plazo-adaptacion-facturacion.html
-- AEAT - FAQ sistemas VERI*FACTU y modelo 036: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/sistemas-verifactu.html
+- Real Decreto 1007/2023, artículo 13.
+- Orden HAC/1177/2024, artículo 15.
+- Preguntas frecuentes de la AEAT sobre certificación de los sistemas informáticos y sistemas VERI*FACTU, actualizadas a 21 de julio de 2026.
+- Nota informativa de la AEAT sobre ampliación de plazos SIF y Real Decreto-ley 15/2025.
+- Ejemplos de declaraciones responsables de SIF publicados por la AEAT, versión 0.5.1.

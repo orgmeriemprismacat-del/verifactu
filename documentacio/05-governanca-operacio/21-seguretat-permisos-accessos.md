@@ -178,6 +178,22 @@ Regles:
 - si hi ha diverses inscripcions vinculades, el sistema ha de validar assignacions abans de confirmar;
 - l'antic nom `.confirma-baixa` no s'ha d'usar com a criteri funcional o de permisos.
 
+### 4.1.6. Regles transversals de bloqueig i avis
+
+Aquestes regles apliquen a `Passar pagaments`, `Generar factura abans de cobrament`, `Consulta - Edita - Anula factura`, accessos externs i apartat `VERI*FACTU`.
+
+| Situacio | Resposta esperada |
+| --- | --- |
+| Usuari sense rol suficient | Bloqueig servidor, avis llegible i log d'intent si l'accio es critica. |
+| Dades manipulades al navegador | Recalcular al servidor i rebutjar si no coincideix. |
+| Accio per `GET` amb impacte fiscal | Prohibit; migrar a `POST`/API SIF amb idempotencia. |
+| Factura SIF ja emesa | Lectura o flux de rectificativa; mai update directe. |
+| PDF/QR pendent o fallit | Mostrar estat/incidencia; no regenerar amb dades vives. |
+| Token extern invalid o caducat | No mostrar dades fiscals; avis de link no valid. |
+| SIF no disponible | Avis tecnic, sense assumir estat correcte ni fer fallback fiscal local. |
+
+Els avisos no son simples textos decoratius. Han d'ajudar l'usuari a triar l'accio segura: obrir factura existent, registrar pagament contra factura, crear incidencia, esperar document, corregir receptor o anar al panell SIF.
+
 ### 4.2. Cursos
 
 Inclou apartats de gestio i consulta de cursos.
@@ -404,6 +420,22 @@ Regles:
 - produccio i proves han de quedar separades;
 - qualsevol error, caducitat o absencia de certificat/apoderament abans de `1.0.0` ha de generar incidencia SIF bloquejant o prebloquejant;
 - la configuracio usada per remetre a AEAT ha de quedar vinculada a la versio activa i a la declaracio responsable corresponent.
+- el certificat client AEAT no s'ha de confondre amb el certificat TLS/SSL public de `pay.prisma.cat`;
+- el proces backend o worker que remet a AEAT es l'unic component que ha de poder utilitzar la clau privada;
+- si s'usa un fitxer `PKCS#12` (`.p12`/`.pfx`) o `PEM`, ha de quedar fora del `webroot`, amb permisos minims i sense copia al repositori, SQL, logs o backups no xifrats;
+- la contrasenya del contenidor o de la clau privada s'ha de conservar separada del fitxer mitjancant un secret d'entorn o gestor de secrets;
+- el panell nomes pot mostrar metadades no secretes, com titular, emissor, caducitat, empremta parcial, ultima prova i estat;
+- cal disposar d'una copia de seguretat xifrada, procediment de renovacio/rotacio, revocacio i responsable de custodia;
+- la prova valida s'ha de fer des del mateix servidor o entorn del worker, contra l'endpoint AEAT corresponent, i no es suficient comprovar el certificat des d'un navegador personal.
+
+Metadades permeses al panell o expedient, sempre sense secrets:
+
+- metode d'identificacio: certificat entitat, apoderament o representacio equivalent;
+- titular/subjecte, emissor, caducitat, entorn i estat;
+- numero de serie o empremta nomes parcial o resum segur;
+- data, hora i resultat de l'ultima prova;
+- referencia interna a la incidencia si l'estat es `ERROR`, `EXPIRED` o `REVOKED`;
+- versio SIF i declaracio responsable vinculades a aquesta configuracio.
 
 ## 10. Acces documental dins del SIF
 
@@ -453,3 +485,10 @@ Activacio del rol:
 - acces registrat amb usuari, data, IP si es conserva, accio i export realitzada;
 - caducitat o desactivacio manual en acabar la revisio;
 - cap acces a secrets tecnics, certificat digital, claus privades, contrasenyes, dades academiques no necessaries o pantalles d'edicio.
+
+Controls addicionals:
+
+- tota exportacio ha d'indicar motiu, interval, tipus de dades i responsable que l'autoritza;
+- si es crea un usuari temporal, ha de tenir data de caducitat o revisio obligatoria;
+- el rol no pot accedir a pantalles d'administracio tecnica, configuracio de certificat, Redsys, secrets, backups ni edicio de permisos;
+- els accessos del rol auditor s'han de poder exportar com a evidència d'auditoria.
