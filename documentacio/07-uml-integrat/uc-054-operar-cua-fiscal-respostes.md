@@ -293,7 +293,7 @@ Note over A,DB: maxAttempts=2 és una configuració possible, no el valor per de
 
 ### 4.3. Acció independent: conciliar resultat extern incert abans de reactivar un RETRY/DEAD_LETTER — DISSENY
 
-**Actor i disparador:** hi ha excepció de xarxa després d'un possible enviament, caiguda entre SOAP i `complete()`, o una fila recuperada que pot haver rebut resposta. **Entrades:** `UUID_FACTURA`, `FISCAL_ORDER`, payload immutable, XML/evidència local d'intents, resposta correlacionada i estat remot quan es pugui obtenir. **Postcondició:** `REMOTE_CONFIRMED`, `REMOTE_REJECTED`, `NOT_SENT` o `REMOTE_UNCERTAIN` són **resultats de diagnosi proposats**, no estats actuals del repositori. Conservar l'evidència de cada intent i recuperar/registrar la resposta que realment pertoqui o mantenir quarantena de reenviament si és incerta; ni reemetre factura ni fabricar una acceptació en absència de prova.
+**Actor i disparador:** hi ha excepció de xarxa després d'un possible enviament, caiguda entre SOAP i `complete()`, o una fila recuperada que pot haver rebut resposta. **Evidència executable disponible:** `SoapTransport` crea un directori privat per intent, hi desa `request.xml` i `request.json` amb `uuid_factura`/`fiscal_order`, i desa `response.xml`/`response.json` quan rep dades del transport. En èxit adjunta `response.evidence_id` a la resposta que, si hi ha commit, `FiscalQueueRepository::complete()` incorpora a `factura_registres.AEAT_RESPONSE_JSON`. Si el commit no es fa, el processador no garanteix una fila SQL d'intent amb aquest identificador; `EvidenceStore` ofereix escriptura, **no lector/cercador PHP per registre**. Cal preservar i consultar els fitxers privats amb permisos restringits i correlació exacta abans de reactivar res. **Entrades:** `UUID_FACTURA`, `FISCAL_ORDER`, payload immutable, XML/evidència local d'intents, resposta correlacionada i estat remot quan es pugui obtenir. **Postcondició:** `REMOTE_CONFIRMED`, `REMOTE_REJECTED`, `NOT_SENT` o `REMOTE_UNCERTAIN` són **resultats de diagnosi proposats**, no estats actuals del repositori. Conservar l'evidència de cada intent i recuperar/registrar la resposta que realment pertoqui o mantenir quarantena de reenviament si és incerta; ni reemetre factura ni fabricar una acceptació en absència de prova.
 
 ```plantuml
 @startuml
@@ -345,6 +345,7 @@ Note over G,Q: L'actual recoverStaleLocks i fail no consulten evidència remota;
 | FQ-54-08 | Petició SOAP arribada externament però el worker cau abans del commit local | Quarantena d'estat incert i recuperació per evidència abans de reenviar el mateix registre. |
 | FQ-54-09 | Dos intents donen respostes diferents del mateix registre | Conservar la correlació de cada intent i decisió auditada, mai aplicar l'últim resultat per ordre d'arribada sense comprovació. |
 | FQ-54-10 | Operador reactiva un DEAD_LETTER amb document fiscal ja emès | Reutilitzar el mateix UUID_FACTURA+FISCAL_ORDER i payload; mai nova numeració per reparar transport. |
+| FQ-54-11 | Resposta XML i request.json privats existeixen, però falla el COMMIT de complete i no hi ha response.evidence_id en BD | Recuperar la identitat de registre de les metadades privades, no afirmar que el fitxer sigui indetectable ni que estigui indexat automàticament per queueId. |
 
 ## 5. Evidència i traçabilitat
 
