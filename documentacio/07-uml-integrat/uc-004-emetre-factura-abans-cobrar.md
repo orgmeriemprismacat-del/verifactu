@@ -72,6 +72,28 @@ En emetre UC-04, **no** es crea cap entrada de fons per inscripció: la factura 
 
 [Registre proposat de fons per inscripció](00-revisio-moviments-inscripcions.md).
 
+### 1.8. Pantalla real de selecció múltiple i riscos de recalcular al navegador
+
+**Circuit antic concret.** `/alumnes/genera-factura-abans-pagar/` cerca per NIF/NIE mitjançant `mostrarInformacioInscripcio_generaFactura.php`, afegeix files d'inscripció amb `.add-inscripcio` i permet avançar només si el JS considera que les files seleccionades són del **mateix curs i edició**. Calcula `idsInsc`, `preuTotal` a partir de `#apagar-{id}` de l'HTML, `concepte1` i `concepte2`, aquest últim amb la crida asíncrona `calcularTextData.php`. El tercer pas envia `entitatMarcada`, concepte i preu a `generaFacturaElectronica_Factures.php` i després mostra dades/participants i previsualització. El mètode històric `generarFacturaElectronica_Alumnes` **emet una factura abans de pagar**, encara que el seu nom suggereixi `E_FACT`.
+
+**Validacions d'integració pendents.** El JS pot acumular identificadors a `idsInsc` si es torna enrere; `entitatMarcada` és text visible i no una clau d'entitat amb dades fiscals congelades; el total procedeix del DOM; la unicitat de curs/edició i `tePermisEdicio` es comproven al navegador. El nou adaptador ha de reconstruir **al servidor** els ID seleccionats sense repeticions, verificar curs/edició i cobertura fiscal per cadascun, carregar per ID intern el receptor fiscal i recalcular les línies/total amb descomptes vigents de l'oferta confirmada. Ha d'esperar que `concepte2` estigui resolt abans de presentar la previsualització; no acceptar una ordre fiscal a partir d'un `preuTotal` manipulable del navegador.
+
+**Factura prèvia i reintent no equivalent.** `InvoiceBeforePaymentPayloadBuilder` sí que rebutja `payment` inicial i força `EMESA_ABANS_COBRAMENT=1`; però una clau basada en una referència de formulari **no prova** que cap `ID_INSC` estigui ja facturat amb una altra clau. Abans d'invocar `issueInvoice()`, cercar factura real existent per inscripció i `fact_rels`, distingir la mateixa operació d'una selecció/receptor/import canviats i bloquejar/derivar un conflicte a revisió. Un reintent equivalent recupera **el mateix UUID i número**, i no reobre numeració fiscal; una petició amb la mateixa clau però contingut fiscal diferent ha de donar conflicte, no afirmar equivalència només perquè retorna `idempotency_reused`.
+
+**URL, consulta i document.** Si s'emet a empresa/responsable, conservar relació exacta amb les inscripcions cobertes i desactivar al servidor els enllaços individuals incompatibles, sense impedir que un pagament Redsys iniciat abans sigui reconciliat (UC-33/50/51). La factura es mostra com a **emesa i pendent de cobrament**, amb `E_FACT` separat i amb PDF/QR `READY` o `PENDING`; el llegat regenera el PDF via `descarregaFactura.php` i elimina un fitxer temporal amb `eliminarArxiu.php`, que **no constitueixen custòdia immutable** (UC-36). Si cau el job documental o AEAT després de confirmar la factura, reprendre aquesta fase amb el UUID existent, no generar un document fiscal nou per error.
+
+### 1.9. Proves de pantalla i cobertura prèvia (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| FP-01 | Tornar enrere i tornar a afegir les mateixes files | Un `ID_INSC` una sola vegada al payload final, línies/total recalculats al servidor. |
+| FP-02 | DOM presenta mateix curs/edició però una fila de BD és diferent | Servidor rebutja l'emissió malgrat el JS. |
+| FP-03 | Text `entitatMarcada` diferent del receptor real | Carregar entitat per ID i snapshot fiscal complet abans d'emetre. |
+| FP-04 | Un participant ja figura en factura prèvia d'empresa amb altra clau | Recuperar cobertura i impedir factura duplicada per inscripció. |
+| FP-05 | Doble clic equivalent i després mateix identificador amb import/receptor nou | Retorn mateix UUID per repetició exacta; conflicte per canvi substancial. |
+| FP-06 | Arriba el pagament sobre la factura ja emesa | `registerPayment()` contra UUID existent, sense nou `issueInvoice()`. |
+| FP-07 | Factura confirmada però PDF encara no generat | Número real i document `PENDING`; no segona factura ni correu que prometi el PDF absent. |
+
 ## 2. Diagrama UML de casos d'ús (font PlantUML)
 
 El diagrama diferencia la petició inicial del cobrament posterior; `UC-01` és el nucli d'emissió reutilitzat per `UC-04`. PlantUML es conserva com a font UML editable.
