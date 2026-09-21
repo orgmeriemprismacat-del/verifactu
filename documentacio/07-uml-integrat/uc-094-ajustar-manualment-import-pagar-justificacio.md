@@ -78,8 +78,8 @@ Money ..> Main : <<extend>> (ingrés amb diferència)
 classDiagram
 class ManualPriceAdjustmentService {
  <<DISSENY: no acreditat>>
- +preview(operation,proposedAmount) impact
- +approve(requestId,actor) decision
+ +preview(operation,proposedAmount,reason,expectedVersion) impact
+ +approve(proposalId,actor,requestId) decision
 }
 class OperationalEventRepository {
  <<PHP existent: writer genèric>>
@@ -193,7 +193,7 @@ rectangle "SIF PrisMa — decisió d'import (DISSENY)" {
  usecase "UC-74\nClassificar impacte en factura emesa" as Fiscal
  usecase "UC-63\nPreparar nova oferta/intenció TPV" as Intent
 }
-G --> Decide
+G --> Guard : proposta registrada
 A --> Decide
 Decide ..> Guard : <<include>>
 Decide ..> Event : <<include>> [decisió persistent]
