@@ -105,6 +105,30 @@ U51 ..> U3 : <<extend>>
 @enduml
 ```
 
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Redsys"]
+  a_1["Worker SIF"]
+  subgraph SIF_BOUNDARY["SIF PrisMa"]
+    u_0(["UC-03<br/>Processar cobrament<br/>Redsys asíncron"])
+    u_1(["Validar signatura<br/>i intenció"])
+    u_2(["Registrar notificació<br/>i encuar"])
+    u_3(["Processar snapshot<br/>i emetre factura/pagament"])
+    u_4(["UC-51<br/>Tractar callback anòmal"])
+    u_5(["UC-52<br/>Operar cua i reintents"])
+    u_6(["UC-01<br/>Emetre factura"])
+  end
+  a_0 --> u_0
+  a_1 --> u_5
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_5 -.->|include| u_3
+  u_3 -.->|include| u_6
+  u_4 -.->|extend| u_0
+```
+
 La frontera HTTP/worker apareix explícita al diagrama de seqüència: aquest diagrama de casos d'ús mostra l'abast funcional conjunt, **no** que el callback emeti immediatament.
 
 ## 3. Subdiagrama de classes del circuit Redsys
@@ -300,6 +324,26 @@ Check ..> P : <<include>>
 Check ..> Finish : <<include>> [DISSENY]
 G --> Review
 @enduml
+```
+
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Worker Redsys"]
+  a_1["Gestió d'incidències"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — UC-03 / COMPROVAR EFECTES"]
+    u_0(["Comprovar resultat de callback processat"])
+    u_1(["Contrastar factura fiscal i<br/>DS_ORDER de l'intent"])
+    u_2(["Contrastar CHARGE, UUID_PAYMENT<br/>i assignació real a factura"])
+    u_3(["Marcar PROCESSED només amb<br/>resultat íntegre i token vigent"])
+    u_4(["UC-52/53<br/>Conciliar efectes incomplets"])
+  end
+  a_0 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+  a_1 --> u_4
 ```
 
 ```mermaid
