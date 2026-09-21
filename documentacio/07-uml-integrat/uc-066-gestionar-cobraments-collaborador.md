@@ -50,6 +50,27 @@ Dispute ..> Main : <<extend>> (diferència)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Tutor/col·laborador"]
+  actor_1["Gestió d'honoraris"]
+  subgraph SIF_BOX["Circuit de cobraments de proveïdor"]
+    uc_0(["UC-66<br/>Consultar i gestionar honoraris"])
+    uc_1(["Consultar cobraments/dates/bestretes propis"])
+    uc_2(["Verificar pagament extern i imputació"])
+    uc_3(["Liquidar sense duplicar transferència"])
+    uc_4(["Conciliar disputa del proveïdor"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_2 -.->|extend| uc_0
+  uc_3 -.->|include| uc_2
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes — circuit adjacent, no PaymentService de venda
 
 ```mermaid
