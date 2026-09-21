@@ -83,6 +83,7 @@ final class ManualPackInvoicePayloadBuilderTest
     {
         $payload = (new ManualPackInvoicePayloadBuilder())->buildFromSnapshot(
             $this->packSnapshot(['idpag' => 921]),
+            $this->packSnapshot(['idpag' => 921], ['IDPAG' => 921]),
             [
                 'amount' => '210',
                 'movement_date' => '2026-06-09',

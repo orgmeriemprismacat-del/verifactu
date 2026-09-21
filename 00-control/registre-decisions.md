@@ -1013,6 +1013,7 @@ Impacte:
 La migracio SQL i el contracte documental queden preparats. Un `DS_ORDER` repetit nomes es idempotent si coincideixen import, resposta, signatura i intencio; qualsevol discrepancia es una incidencia bloquejant. Encara cal implementar repositori/servei, integrar els punts de creacio de Redsys, connectar el callback als orquestradors i executar les proves amb PHP/MySQL.
 
 ## 2026-06-20 - Contracte executable i operacio del circuit asincron Redsys
+## 2026-06-19 - Els callbacks Redsys es processen amb una cua asincrona propia
 
 Decisio:
 El callback bloqueja `redsys_payment_intent`, compara import/divisa/terminal, persisteix `redsys_notifications` i crea un unic job dins una transaccio curta. El worker reclama amb `FOR UPDATE`, processa exclusivament el snapshot congelat i persisteix `PROCESSED`, `RETRY` o `INCIDENT`.
@@ -1022,3 +1023,4 @@ La resposta a Redsys no pot dependre de facturacio ni de consultes legacy. Un du
 
 Impacte:
 Queden implementats `CURS`, `PACK`, `GRUP`, `REGAL` i `USOC_ALUMNE`, worker CLI finit i preflight de nomes lectura. REGAL usa ID numeric congelat, USOC conserva `entity_amount` i la sincronitzacio legacy automatica continua exclosa. L'activacio productiva segueix sotmesa al go/no-go de preproduccio.
+

@@ -1,5 +1,7 @@
 # Cobertura dels casos i accions - R2
 
+> **Abast històric d'aquesta matriu R2.** Aquesta versió només inventaria UC-01 a UC-105 i les 13 variants amb sufix: **118 files**, i no s'ha de fer servir per concloure que falten UC-106 a UC-129 o per certificar cobertura actual. El catàleg i la matriu de fitxes UML actuals contenen **142 casos**. Vegeu [el catàleg canònic](../documentacio/04-estat-final/33-casos-us-sif.md) i [la matriu UML de cobertura i auditoria d'abast](../documentacio/07-uml-integrat/00-matriu-cobertura-cataleg.md). Els paquets R2 i les proves proposades d'aquest arxiu conserven només el seu abast original; no s'han reassignat de manera fictícia als 24 casos posteriors.
+
 Font: document 33 vigent al tall. Cada cas/variant te paquet responsable i ID de prova proposat. La referencia documental conserva el criteri complet. Els IDs R2-* son proves per preparar, NO proves executades ni noms de tests existents. Un cas mapat no significa implementat. VT-37 es transversal a qualsevol accio sobre pagament, VT-38 a les gestions operatives, i VT-32/33 als permisos i acceptacio integrada.
 
 | Cas | Funcio | Paquets de treball | Prova proposada |

@@ -1,0 +1,311 @@
+# UC-06 · Escollir i registrar devolució, saldo o compensació — fitxa i UML integrats
+
+**Funció del cas mare:** representar una decisió de gestió entre tres **efectes econòmics diferents**. El catàleg original anomena aquest cas «Registrar devolució, saldo o compensació». En el codi revisat **no s'ha identificat una classe `Uc06Service` ni un orquestrador únic que prengui automàticament aquesta decisió**. El cas és una agrupació funcional, resolta pels casos concrets UC-28, UC-29 i UC-29a.
+
+**Fonts del projecte:** [catàleg general UC-06](../04-estat-final/33-casos-us-sif.md), [fitxa genèrica anterior](../06-fitxes-funcionals/uc-006.md) i els tres serveis/repositoris referenciats més avall. No assumir que la modalitat escollida queda automàticament autoritzada per la situació fiscal de l'operació.
+
+## 1. Fitxa del cas d'ús mare
+
+| Camp | Definició |
+| --- | --- |
+| Actor principal | Operador de gestió; responsable tècnica en cas d'incidència o manca de criteri. |
+| Disparador | Una baixa, un canvi de curs, una regularització o una altra decisió econòmica obliga a determinar què passa amb un import cobrat o degut. |
+| Precondicions de negoci (objectiu, pendents d'integració) | Identificar operació d'origen, titular del dret econòmic, factures afectades, import, justificació i criteri fiscal. |
+| Variant A | **Devolució (UC-28):** s'ha retornat diners al pagador; registrar `REFUND` sobre factura existent. |
+| Variant B | **Saldo (UC-29):** s'atorga un import disponible a un titular, sense retorn bancari ni aplicació immediata. |
+| Variant C | **Compensació (UC-29a):** existeix un saldo actiu i s'aplica a una factura amb import pendent; registrar `COMPENSATION` i consumir saldo atòmicament. |
+| Possibilitat fiscal | Si es modifica o anul·la el servei facturat, valorar **UC-05** per separat. Un moviment econòmic no substitueix el document fiscal que correspongui. |
+| Estat d'implementació | Serveis individuals disponibles; **pantalla/classificador de decisió UC-06 i regles completes de titularitat, permís, conciliació i auditoria no acreditats** en els camins consultats. |
+
+### 1.1. Flux funcional objectiu de decisió
+
+1. L'operador identifica el fet d'origen (p. ex. una baixa o canvi de curs) i consulta imports cobrats, imports pendents, factures i titular real. **Això és el requisit del cas mare, no una funcionalitat ja provada d'un servei d'elecció automàtica.**
+2. Classifica amb criteri funcional la destinació de l'import: devolució al pagador, saldo del titular o aplicació d'un saldo ja existent.
+3. Comprova si cal una rectificativa o una altra actuació fiscal. Si no existeix una decisió fiscal validada, la ruta no s'hauria de donar per finalitzada.
+4. Executa el cas concret escollit: UC-28, UC-29 o UC-29a, cadascun amb les seves entrades, resultats, errors i garanties descrites a les fitxes vinculades.
+5. Vincula la decisió de gestió, el moviment econòmic i, quan existeix, la factura/rectificativa. **El registre de correlació transversal complet continua pendent de demostrar.**
+
+### 1.2. Distincions imprescindibles
+
+| Decisió | Què registra el servei actual | Què NO registra pel sol fet d'executar-lo |
+| --- | --- | --- |
+| Devolució UC-28 | `payment_transaction` `REFUND` + `payment_allocation` | No acredita el pagament bancari de sortida; no emet rectificativa automàticament. |
+| Saldo UC-29 | `credit_balance` amb titular, origen i import `ACTIVE` | No registra moviment `payment_transaction`; no redueix cap import pendent de factura; no evita duplicats per origen en el camí revisat. |
+| Compensació UC-29a | `payment_transaction` `COMPENSATION` + assignació; minva de `credit_balance` en la mateixa transacció | No mou diners al banc; no crea nova factura; el servei revisat no compara titular de saldo i receptor de factura. |
+
+### 1.3. Errors, alternatives i criteri de completitud
+
+- Import o titular no determinats: la decisió operativa continua pendent; **cap modalitat no s'hauria de deduir només de l'existència d'un cobrament**.
+- Una factura no trobada impedeix UC-28/UC-29a; un saldo absent o inactiu impedeix UC-29a. UC-29 pot crear saldo sense factura aportada, per la qual cosa la justificació d'origen ha de formar part de la validació funcional.
+- Una devolució i un saldo **no són equivalents**: registrar totes dues modalitats pel mateix dret econòmic, sense una operació específica de repartiment/conciliació, pot duplicar l'efecte econòmic.
+- La decisió fiscal, l'autorització, la traça de titular i les comprovacions de duplicats s'han de tancar abans que una pantalla única pugui automatitzar la tria.
+- Les proves individuals dels serveis existeixen, però no demostren un orquestrador transaccional comú ni un flux complet de baixa/canvi de curs fins a cobrament i rectificació.
+
+### 1.4. Revisió: la decisió econòmica exigeix traça quantitativa per origen i destí — PENDENT
+
+La tria UC-06 ha de desglossar **cada tram d'import**: una devolució és una sortida des d'una inscripció cap a l'exterior amb un `REFUND` real; crear saldo amb diners ja cobrats mou l'atribució d'una inscripció a `credit_balance` **sense** crear un nou cobrament; aplicar saldo mou atribució de `credit_balance` a la inscripció destí i registra `COMPENSATION` a la factura corresponent. Un dret comercial atorgat sense diners ingressats s'ha de classificar separadament, sense una entrada de caixa fictícia. Cada variant conserva referència a l'event de canvi/baixa i al titular legítim. El cas mare **no** ha de crear tres moviments automàticament.
+
+[Esquema proposat i exemple de repartiment](00-revisio-moviments-inscripcions.md).
+
+### 1.5. Separació de «A TORNAR», retorn real i decisió del client — xat original
+
+El xat confirma que després d'una baixa es modifica **primer** l'estat de la inscripció, però en aquell instant **no es toca necessàriament el pagament ni es genera rectificativa**. Es pregunta a la persona o al titular econòmic si vol **retorn**, **deixar els diners com a saldo** per a una altra ocasió o no retorn segons el cas. El modal històric «Consulta - Edita - Anul·la factura» ofereix `A TORNAR`, `DATA DEVOLUCIO` i observacions; aquests camps, per si sols, no separen una quantitat prevista, una devolució bancària real, saldo intern o correcció fiscal.
+
+**D-REAL — només ingrés/retorn real.** La usuària explica que el retorn pot fer-se per Redsys, transferència o manualment; el registre `REFUND` ha de referenciar l'operació externa real i la factura/inscripció afectada. En el procés que descriu, Adam confirma el retorn i **després** tramita la factura negativa/rectificativa. Aquest és l'ordre **històric del procediment de PrisMa**, no una regla fiscal universal ni evidència que `ManualRefundService` ordeni diners al banc. Fins que el retorn no estigui confirmat, conservar la decisió com a pendent i no simular un `REFUND`.
+
+**D-SALDO — de baixa, sobrepagament o diferència de curs.** La decisió d'atorgar saldo ha de partir d'un import efectivament cobrat i atribuït que no s'hagi retornat ni reassignat ja. Si es decideix retorn parcial més saldo, documentar i registrar cadascuna de les dues parts sense superar el fons original. Quan el pagador era empresa/responsable, **identificar el titular econòmic**, no donar el saldo automàticament a la persona inscrita. La usuària indica que els saldos de baixa no caduquen automàticament i que secretaria revisa els molt antics, per exemple de més de cinc anys; això és una pauta de revisió, no una caducitat de cinc anys.
+
+**D-COMPENSACIÓ — aplicar, no tornar a cobrar.** El valor de `credit_balance` és un dret reconegut; la seva aplicació posterior a una factura és un moviment `COMPENSATION` i redueix el saldo disponible. No confondre'l amb el **descompte comercial** que també es denomina col·loquialment «compensació» al xat: un descompte de preu necessita la seva classificació comercial/fiscal, no crear automàticament crèdit monetari sense diners d'origen. El cas mare UC-06 ha d'exposar la diferència de manera entenedora abans de confirmar.
+
+### 1.6. Proves addicionals d'elecció econòmica (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| EC-01 | Baixa administrativa encara sense resposta del client | Cap REFUND/credit_balance ni rectificativa creades per defecte. |
+| EC-02 | Client accepta retorn però el banc encara no ha pagat | Decisió PENDENT, sense moviment REFUND. |
+| EC-03 | 100 € cobrats i decisió 40 € retorn + 60 € saldo | Dos resultats diferents i suma exacta, cap segon CHARGE. |
+| EC-04 | Empresa ha pagat la inscripció d'un alumne | Titular de dret econòmic verificat abans de retorn/saldo. |
+| EC-05 | Saldo d'una baixa de més de cinc anys | Revisió manual; cap caducitat o esborrat automàtics. |
+| EC-06 | Descompte comercial anomenat «compensació» | No consumir ni crear credit_balance sense un origen econòmic justificat. |
+| EC-07 | Rectificativa ja emesa, banc encara no ha tornat diners | Estat fiscal diferenciat de la sortida monetària pendent, sense REFUND fictici. |
+## 2. Diagrama UML de casos d'ús — decidir no equival a executar tres alternatives
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador de gestió" as O
+actor "Responsable amb permís econòmic" as R
+actor "Banc/Redsys" as B
+rectangle "SIF PrisMa — decisió econòmica" {
+ usecase "UC-06 / PREVIEW\nQuantificar dret disponible i titular" as Preview
+ usecase "UC-06 / DECIDE\nAprovar via i trams de l'import" as Decide
+ usecase "UC-28 / AUTHORIZE\nAutoritzar retorn pendent" as Pending
+ usecase "UC-28 / RECORD\nRegistrar retorn bancari confirmat" as Refund
+ usecase "UC-29\nConcedir saldo justificat" as Credit
+ usecase "UC-29a\nAplicar saldo existent a deute" as Apply
+ usecase "UC-74\nClassificar correcció fiscal apart" as Fiscal
+}
+O --> Preview
+R --> Decide
+Decide ..> Preview : <<include>>
+R --> Pending
+B --> Refund
+R --> Refund
+R --> Credit
+R --> Apply
+R --> Fiscal
+note right of Decide
+ La decisió no implica executar
+ cap de les tres variants;
+ trams mixtos requereixen
+ conservació del mateix origen.
+end note
+@enduml
+```
+
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Operador de gestió"]
+  a_1["Responsable amb permís econòmic"]
+  a_2["Banc/Redsys"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — decisió econòmica"]
+    u_0(["UC-06 / PREVIEW<br/>Quantificar dret disponible i titular"])
+    u_1(["UC-06 / DECIDE<br/>Aprovar via i trams de l'import"])
+    u_2(["UC-28 / AUTHORIZE<br/>Autoritzar retorn pendent"])
+    u_3(["UC-28 / RECORD<br/>Registrar retorn bancari confirmat"])
+    u_4(["UC-29<br/>Concedir saldo justificat"])
+    u_5(["UC-29a<br/>Aplicar saldo existent a deute"])
+    u_6(["UC-74<br/>Classificar correcció fiscal apart"])
+  end
+  a_0 --> u_0
+  a_1 --> u_1
+  u_1 -.->|include| u_0
+  a_1 --> u_2
+  a_2 --> u_3
+  a_1 --> u_3
+  a_1 --> u_4
+  a_1 --> u_5
+  a_1 --> u_6
+```
+
+**Fronteres d'actor/resultat:** previsualitzar un dret, aprovar un retorn pendent, acreditar la sortida bancària, crear saldo i consumir-lo són **accions amb postcondicions diferents**. S'eviten fletxes de generalització `REFUND/CREDIT/COMPENSATION -|> decisió` perquè podrien suggerir que executar una variant equival a haver classificat/autoritzat tot l'expedient. El servei únic de decisió continua sent **DISSENY**, no PHP implementat.
+
+## 3. Diagrama de classes dels tres serveis existents
+
+```mermaid
+classDiagram
+direction LR
+class ManualRefundService {
+ +registerByUuid(db,uuidFactura,input) array
+ +registerByNumVisible(db,numVisible,input) array
+}
+class ManualRefundPayloadBuilder {
+ +forExistingInvoice(uuidFactura,input) array
+}
+class PaymentService {
+ +registerPayment(payload) array
+}
+class PaymentRepository {
+ +createPayment(db,payload) array
+}
+class CreditBalanceService {
+ +createCredit(input) array
+ +applyCreditByUuid(uuidCredit,uuidFactura,input) array
+ +applyCreditByNumVisible(uuidCredit,numVisible,input) array
+}
+class CreditBalancePayloadBuilder {
+ +forCreditBalance(input) array
+ +forCompensation(uuidCredit,uuidFactura,input,invoice) array
+}
+class CreditBalanceRepository {
+ +createCredit(db,payload) array
+ +findByUuid(db,uuidCredit,forUpdate) array
+ +updateAvailableAmount(db,uuidCredit,available,status) void
+}
+class ManualPaymentInvoiceRepository {
+ +findByUuid(db,uuidFactura,forUpdate) array
+ +findByNumVisible(db,numVisible,forUpdate) array
+}
+class TransactionRunner {
+ +run(callback) mixed
+}
+ManualRefundService --> ManualRefundPayloadBuilder : REFUND
+ManualRefundService --> ManualPaymentInvoiceRepository : factura
+ManualRefundService --> PaymentService : registra devolució
+PaymentService --> PaymentRepository : moviment i assignació
+CreditBalanceService --> CreditBalancePayloadBuilder : prepara saldo/compensació
+CreditBalanceService --> CreditBalanceRepository : crea i consumeix saldo
+CreditBalanceService --> ManualPaymentInvoiceRepository : identifica factura
+CreditBalanceService --> PaymentRepository : registra COMPENSATION
+CreditBalanceService --> TransactionRunner : transacció
+```
+
+No es dibuixa un `EconomicDecisionOrchestrator` implementat perquè **el camí de codi consultat no acredita l'existència d'aquesta classe**.
+
+## 4. Diagrama de seqüència — classificació funcional i delegació (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant UI as Pantalla/decisió UC-06 [disseny]
+participant FR as ManualRefundService [UC-28]
+participant CS as CreditBalanceService [UC-29/29a]
+participant IS as InvoiceService [UC-05 si correspon]
+participant DB as BD SIF
+O->>UI: Obre gestió d'un import per baixa/canvi/regularització
+UI->>UI: Identificar dret, titular, factures, import i situació fiscal
+Note over UI,DB: Classificació, autorització i traça comunes: no acreditades al codi revisat
+alt Retorn de diners ja confirmat
+ UI->>FR: registerByUuid(db,uuidFactura,refundInput)
+ FR->>DB: Moviment REFUND i estat factura
+ FR-->>UI: uuid_payment
+else Es crea un dret de saldo
+ UI->>CS: createCredit(input)
+ CS->>DB: INSERT credit_balance ACTIVE
+ CS-->>UI: uuid_credit i import disponible
+else S'aplica saldo existent a factura pendent
+ UI->>CS: applyCreditByUuid(uuidCredit,uuidFactura,input)
+ CS->>DB: Moviment COMPENSATION + consum saldo atòmic
+ CS-->>UI: uuid_payment i saldo restant
+else Falta criteri/justificació
+ UI-->>O: Decisió pendent sense executar cap variant
+end
+opt Cal rectificació fiscal separada
+ UI->>IS: Iniciar UC-05 pel canal/orquestrador corresponent
+ Note over IS,DB: No hi ha transacció única UC-06 + UC-05 acreditada
+end
+UI-->>O: Mostrar resultat i pendents
+```
+
+**Aquest és el diagrama de seqüència del contracte funcional objectiu del cas mare**, no una afirmació que la pantalla o la tria automàtica ja estiguin implementades. Els diagrames executables individuals consten a les fitxes UC-28, UC-29 i UC-29a.
+
+### 4.1. Acció independent: decidir una partició d'import real sense consumir-lo dues vegades — DISSENY
+
+**Disparador:** un dret econòmic sobre un ingrés real es reparteix en retorn extern, saldo futur o atribució a un deute existent; l'actor pot prendre una decisió abans que el banc executi la devolució. **Precondicions:** prova d'ingrés original, titular i import disponible per `UUID_PAYMENT`/`ID_INSC`, import dels retorns, crèdits i atribucions preexistents. **Postcondició:** trams quantificats, autoritzats i identificats amb `REQUEST_ID` estable, estat diferenciat per via i import pendent; una reserva de retorn no és `REFUND`, un saldo no és nou `CHARGE` i una `COMPENSATION` no prova una transferència.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable econòmic" as R
+rectangle "SIF PrisMa — UC-06 / DECISIÓ DE TRAMS (DISSENY)" {
+ usecase "Aprovar repartiment de dret econòmic" as Decide
+ usecase "Verificar pagament real origen,\ntitular i saldo no consumit" as Guard
+ usecase "Reservar retorn extern pendent" as Pending
+ usecase "Concedir crèdit amb origen únic" as Credit
+ usecase "Assignar/import aplicat a deute acreditat" as Allocate
+}
+R --> Decide
+Decide ..> Guard : <<include>>
+R --> Pending
+R --> Credit
+R --> Allocate
+@enduml
+```
+
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Responsable econòmic"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — UC-06 / DECISIÓ DE TRAMS (DISSENY)"]
+    u_0(["Aprovar repartiment de dret econòmic"])
+    u_1(["Verificar pagament real origen,<br/>titular i saldo no consumit"])
+    u_2(["Reservar retorn extern pendent"])
+    u_3(["Concedir crèdit amb origen únic"])
+    u_4(["Assignar/import aplicat a deute acreditat"])
+  end
+  a_0 --> u_0
+  u_0 -.->|include| u_1
+  a_0 --> u_2
+  a_0 --> u_3
+  a_0 --> u_4
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor R as Responsable autoritzat
+participant D as EconomicDecisionCoordinator [DISSENY]
+participant L as Ledger per origen/ID_INSC [DISSENY]
+participant F as Factura i assignacions existents [LECTURA]
+participant P as Registre REFUND real UC-28 [PHP separat]
+participant C as CreditBalanceService [PHP separat]
+R->>D: Decidir sobre dret de 100 ja cobrat: 40 retornar + 60 saldo
+D->>F: Llegir ingrés origen i factura/inscripcions relacionades
+D->>L: Comprovar titular, valor disponible i decisions prèvies
+alt Valor disponible menor de 100 o identitat no acreditada
+ L-->>D: CONFLICT/PENDING
+ D-->>R: Cap segon retorn/saldo concedit
+else Trams autoritzats i suma compatible
+ D->>L: Reservar 40 retorn pendent i 60 saldo amb REQUEST_ID [DISSENY]
+ D-->>R: 40 RETURN_PENDING, 60 CREDIT_TO_CREATE [estats objectiu]
+ opt Banc confirma efectivament retorn de 40
+  R->>P: Registrar evidència externa i REFUND de 40 [guard UC-28 pendent]
+  P-->>D: UUID_PAYMENT de sortida confirmada
+  D->>L: Marcar tram de 40 com a sortit realment [DISSENY]
+ end
+ opt Es concedeix saldo legítim de 60
+  D->>C: createCredit(origen, titular,60) [guard d'origen pendent]
+  C-->>D: UUID_CREDIT
+  D->>L: Marcar tram de 60 com a saldo creat [DISSENY]
+ end
+ D-->>R: Resultat per tram i pendents, no declaració global prematura
+end
+Note over D,C: El ledger/reserva i l'orquestració no existeixen al PHP actual. UC-28 no executa la sortida bancària.
+```
+
+**Contrast de fallada entre serveis:** el PHP actual no comparteix una transacció atòmica `REFUND ↔ credit_balance ↔ llegat ↔ banc`. Si es crea crèdit i després falla l'actualització del llegat, recuperar la decisió original i repetir només la projecció pendent; no executar una segona devolució, ni tornar a crear saldo amb un UUID nou. L'origen de fons i l'actor receptor han de quedar resolts abans de qualsevol fase irreversible.
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| EC-08 | Es decideix retorn de 40 i saldo de 60 sobre ingrés real de 100 | Dos trams persistits, suma 100, retorn pendent no comptat com a sortida fins a prova externa. |
+| EC-09 | Segon operador intenta concedir 60 de saldo mentre els 100 ja tenen trams reservats | Conflicte de dret disponible, no duplicar saldo. |
+| EC-10 | El banc confirma 40, falla registre SIF i el client pregunta l'estat | Investigar/conciliar UC-28 amb mateixa operació bancària; no ordenar segon retorn. |
+| EC-11 | Factura de grup cobrada per empresa i participant demana els 100 en saldo propi | Resolució explícita del titular, no donar el crèdit per pertànyer a la inscripció. |
+
+## 5. Traçabilitat
+
+[UC-28 devolució](uc-028-registrar-devolucio.md) · [UC-29 saldo](uc-029-crear-saldo.md) · [UC-29a compensació](uc-029a-aplicar-compensacio.md) · [UC-05 rectificació](uc-005-rectificar-factura.md) · [Catàleg general UC-06](../04-estat-final/33-casos-us-sif.md) · [Fitxa anterior UC-06](../06-fitxes-funcionals/uc-006.md) · [ManualRefundService](../../sif/src/Service/ManualRefundService.php) · [CreditBalanceService](../../sif/src/Service/CreditBalanceService.php).

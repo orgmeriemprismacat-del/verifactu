@@ -2,6 +2,10 @@
 
 namespace Prisma\Sif\Repository;
 
+use Prisma\Sif\Contract\PayloadIdempotencyValidatorInterface;
+use Prisma\Sif\Domain\HashCalculator;
+use Prisma\Sif\Exception\SifException;
+
 final class FiscalQueueRepository
 {
     public function recoverStaleLocks(\PDO $db, string $lockedBefore): int
@@ -43,6 +47,58 @@ final class FiscalQueueRepository
         $row['ATTEMPTS'] = (int) $row['ATTEMPTS'] + 1;
 
         return $row;
+    }
+
+    /**
+     * A queued registration must be the immutable registration originally chained.
+     * Never infer integrity from a queue item's own hash or its idempotency key.
+     */
+    public function assertImmutablePayload(
+        \PDO $db,
+        array $queueItem,
+        PayloadIdempotencyValidatorInterface $validator
+    ): void {
+        $queuePayload = json_decode((string) ($queueItem['PAYLOAD_JSON'] ?? ''), true);
+        if (!is_array($queuePayload) || !isset($queuePayload['fiscal_order'])) {
+            throw SifException::conflict('Missing or invalid fiscal queue payload');
+        }
+
+        $stmt = $db->prepare(
+            'SELECT PAYLOAD_JSON, HASH_FACT, HASH_FACT_ANT FROM factura_registres
+             WHERE UUID_FACTURA = ? AND FISCAL_ORDER = ? LIMIT 1'
+        );
+        $stmt->execute([$queueItem['UUID_FACTURA'], $queuePayload['fiscal_order']]);
+        $record = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($record === false) {
+            throw SifException::conflict('Fiscal queue registration record not found');
+        }
+
+        $frozenPayload = json_decode((string) $record['PAYLOAD_JSON'], true);
+        if (!is_array($frozenPayload)) {
+            throw SifException::conflict('Invalid stored fiscal registration payload');
+        }
+
+        $validator->assertMatches($queuePayload, $validator->calculateHash($frozenPayload));
+        $chainHash = (new HashCalculator())->calculate(
+            $frozenPayload,
+            $record['HASH_FACT_ANT'] === null ? null : (string) $record['HASH_FACT_ANT']
+        );
+        if (!hash_equals((string) $record['HASH_FACT'], $chainHash)) {
+            throw SifException::conflict('Fiscal registration hash chain does not match frozen payload');
+        }
+    }
+
+    public function rejectIntegrity(\PDO $db, array $queueItem, string $message): void
+    {
+        $stmt = $db->prepare(
+            "UPDATE fiscal_queue SET STATUS = 'DEAD_LETTER', LAST_ERROR = ?,
+              LOCKED_AT = NULL, NEXT_RETRY_AT = NULL
+              WHERE ID = ? AND STATUS = 'PROCESSING'"
+        );
+        $stmt->execute([substr($message, 0, 2000), $queueItem['ID']]);
+        if ($stmt->rowCount() !== 1) {
+            throw new \RuntimeException('Fiscal queue item could not be quarantined');
+        }
     }
 
     public function complete(

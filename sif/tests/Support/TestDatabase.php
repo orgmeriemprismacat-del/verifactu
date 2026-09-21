@@ -85,5 +85,3 @@ final class TestDatabase
         (new MigrationRunner(dirname(__DIR__, 2) . '/database'))->migrate($db);
     }
 }
-
-

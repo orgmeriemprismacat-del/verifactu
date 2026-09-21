@@ -704,6 +704,7 @@ Els casos següents fan explícit el canvi de gestió que no quedava prou repres
 | UC-83 | Registrar i activar versió i declaració | Responsable tècnica/direcció | `[DISSENY/BLOQUEJANT]` | Versió, artefacte, configuració, proves, declaració i activació vinculades. |
 | UC-84 | Crear un paquet fiscal d'auditoria | Responsable tècnica/auditor | `[DISSENY]` | Filtres, motiu, fitxer, hash, sol·licitant i descàrregues conservats. |
 | UC-85 | Executar backup, restauració i reconciliació | Responsable tècnica | `[DISSENY/BLOQUEJANT]` | Evidència de backup i restauració, integritat, RPO/RTO i incidències. |
+| UC-86 | Auditar qualsevol acció sobre un pagament | Usuari/procés autoritzat | `[DISSENY/PARCIAL]` | Event immutable d'intent, decisió i resultat amb actor, origen, correlació, factura/pagament i evidència; desenvolupat a l'apartat 27. |
 
 ```mermaid
 flowchart TB

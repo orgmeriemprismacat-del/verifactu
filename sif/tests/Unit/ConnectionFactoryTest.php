@@ -31,6 +31,7 @@ final class ConnectionFactoryTest
             ConnectionFactory::makeLegacy(['legacy_db' => []]);
         });
 
+<<<<<<< HEAD
         if ($source === false) {
             Assert::fail('Could not read ConnectionFactory');
         }
@@ -42,6 +43,9 @@ final class ConnectionFactoryTest
         );
         Assert::same('Legacy DB DSN not configured', $exception->getMessage());
         Assert::stringContainsString('SET NAMES utf8mb4', $source);
+=======
+        Assert::same('Legacy DB DSN not configured', $exception->getMessage());
+>>>>>>> feature/redsys-async-queue
     }
 }
 

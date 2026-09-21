@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Contract\PayloadIdempotencyValidatorInterface;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
@@ -15,8 +16,10 @@ final class InvoiceService
         private FiscalSequenceRepository $sequences,
         private InvoiceRepository $invoices,
         private ?PaymentPayloadValidator $paymentValidator = null,
-        private ?PaymentRepository $payments = null
+        private ?PaymentRepository $payments = null,
+        private ?PayloadIdempotencyValidatorInterface $idempotency = null
     ) {
+        $this->idempotency ??= new PayloadIdempotencyValidator();
     }
 
     public function issueInvoice(array $payload): array
@@ -124,6 +127,9 @@ final class InvoiceService
 
     private function existingResultWithPaymentIfPresent(\PDO $db, array $payload, array $existing): array
     {
+        // Fail closed for pre-migration invoices: the complete original request
+        // cannot be recovered from the fiscal payload (e.g. the payment block).
+        $this->idempotency->assertMatches($payload, (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? ''));
         $result = $this->existingResult($existing);
 
         if (!array_key_exists('payment', $payload) || $payload['payment'] === null) {
