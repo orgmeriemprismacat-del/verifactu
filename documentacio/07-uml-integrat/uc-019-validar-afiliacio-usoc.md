@@ -103,7 +103,7 @@ class LegacyUsocInvoicePayloadBuilder {
  +buildEntityPayload(snapshot,input) array
 }
 UsocEligibilityService --> UsocValidationRepository : decisió i prova
-LegacyUsocInvoicePayloadBuilder --> LegacyUsocSnapshotRepository : dades prèviament validades
+LegacyUsocInvoicePayloadBuilder ..> LegacyUsocSnapshotRepository : dades del snapshot, NO crida PHP directa
 ```
 
 **Precisió:** la relació final del diagrama és **dependència funcional de dades, no una crida PHP directa**: el servei `RedsysUsocInvoiceService` o `UsocEntityInvoiceService` obté el snapshot abans d'invocar el builder. El validador d'afiliació i el seu writer **no estan acreditats**.
@@ -141,6 +141,109 @@ else Verificació confirmada
 end
 Note over V,B: L'afiliació externa i les escriptures de validació són disseny pendent
 ```
+
+### 4.1. Acció independent: sol·licitar la condició USOC sense concedir-la — DISSENY/LEGAT
+
+**Actor/disparador:** persona inscrita o gestió registra una sol·licitud d'afiliació sobre un `ID_INSC` concret. **Precondició:** identitat i edició resoltes, evidència/canal legítims i absència d'una decisió recent incompatible. **Postcondició:** sol·licitud **pendent** (`VALID_DESC=0` al llegat quan correspongui) i prova/estat de revisió, **sense** passar a `VALID_DESC=1`, rebaixar l'import de la factura real o crear `CHARGE`. Una pantalla que permet triar «Afiliat USOC» no equival a verificar-ho amb l'entitat.
+
+```plantuml
+@startuml
+left to right direction
+actor "Alumne" as A
+actor "Gestió" as G
+rectangle "SIF PrisMa — UC-19 / SOL·LICITUD (DISSENY/LEGAT)" {
+ usecase "Sol·licitar comprovació d'afiliació USOC" as Request
+ usecase "Identificar ID_INSC i edició exacta" as Id
+ usecase "Custodiar evidència mínima amb permisos" as Evidence
+ usecase "Deixar estat PENDING sense dret concedit" as Pending
+}
+A --> Request
+G --> Request
+Request ..> Id : <<include>>
+Request ..> Evidence : <<include>>
+Request ..> Pending : <<include>>
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Alumne
+participant UI as Formulari de descompte [LEGAT; integració SIF PENDENT]
+participant V as UsocEligibilityService [DISSENY]
+participant DB as Inscripció llegada i evidència [LECTURA/WRITER A VALIDAR]
+A->>UI: Demanar USOC per ID_INSC X, justificació
+UI->>V: requestValidation(X,evidència,actor,requestId) [OBJECTIU]
+V->>DB: Comprovar identitat, edició i decisió prèvia
+alt Actor no legitimat o inscripció/justificant contradictoris
+ DB-->>V: DENIED/CONFLICT
+ V-->>UI: Rebuig o revisió sense modificar import fiscal
+else Sol·licitud nova o reintent equivalent
+ V->>DB: Registrar petició i evidència protegida [PENDENT]
+ V-->>UI: PENDING, no VALID_DESC=1
+end
+UI-->>A: Estat de sol·licitud, no factura ni descompte confirmat
+Note over UI,DB: La pantalla llegada i els camps són identificats; writer/auditoria completa d'evidències i identitat en SIF no acreditats.
+```
+
+### 4.2. Acció independent: confirmar o denegar afiliació i revisar el preu ofert — DISSENY/LEGAT
+
+**Actor/disparador:** gestió ha contrastat l'afiliació amb la font acceptada i registra una decisió motivada. **Precondicions:** `ID_INSC`, proves vigents, data i actor, import acordat alumne/entitat i estat de la factura/intenció TPV. **Postcondicions separades:** si confirma, `VALID_DESC=1` i snapshot comercial USOC congelat quan pertoqui; si denega, `VALID_DESC=2` i preu nou **abans d'emissió**, sense corregir una factura fiscal ja emesa amb `UPDATE`. Les rutines llegades `updValidDescByInsc` i `updValidDescByInscPreu` són identificades; la seva disponibilitat **no** acredita connexió al control fiscal SIF ni una aprovació idempotent per versió.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió validadora autoritzada" as G
+actor "USOC / font de comprovació" as U
+rectangle "SIF PrisMa — UC-19 / DECISIÓ (DISSENY)" {
+ usecase "Confirmar o denegar dret USOC" as Decide
+ usecase "Comprovar evidència, data, condició\ni actor" as Verify
+ usecase "Repreuar nova oferta i intenció TPV\nsi no hi ha factura" as Price
+ usecase "UC-74\nClassificar correcció si factura ja emesa" as Fiscal
+}
+G --> Decide
+U --> Verify
+Decide ..> Verify : <<include>>
+G --> Price
+G --> Fiscal
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant UI as Panell descomptes [LEGAT]
+participant V as UsocEligibilityService [DISSENY]
+participant L as Validació/pricing llegat [WRITER EXISTENT; adaptació PENDENT]
+participant F as factura i redsys_payment_intent SIF [LECTURA]
+participant C as Classificació UC-74/94 [DISSENY]
+G->>UI: Decidir sol·licitud X amb prova d'afiliació i motiu
+UI->>V: decide(X,VALID/INVALID,evidència,actor,requestId)
+V->>F: Comprovar factura ja emesa, import/snapshot i DS_ORDER
+alt Evidència insuficient o actor no autoritzat
+ V-->>UI: PENDING/REJECT sense concedir dret automàtic
+else Validació positiva acreditada i no hi ha factura
+ V->>L: Registrar VALID_DESC=1 i política comercial validada [integració PENDENT]
+ L-->>V: Decisió confirmada; quanties alumne/entitat per snapshot nou
+ V-->>UI: Aprovar oferta actualitzada; UC-63 crea intenció diferent si l'anterior és incompatible
+else Validació denegada i no hi ha factura
+ V->>L: Registrar VALID_DESC=2, documentar nou preu ofert [integració PENDENT]
+ V-->>UI: No aplicar descompte USOC; no registrar CHARGE/REFUND per denegar
+else Ja hi ha factura alumne o entitat emesa
+ V->>C: Registrar discrepància i classificar possible correcció fiscal/econòmica
+ C-->>UI: Expedient pendent de decisió; factura/CHARGE real anteriors intactes
+end
+UI-->>G: Decisió i efectes pendents sense reescriptura fiscal
+Note over V,L: El PHP SIF comprova camps VALID_DESC/TIPUS_DESC, però no valida afiliació externa ni orquestra aquests canvis d'estat.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| UV-07 | Alumne tria afiliació USOC i aporta document | Sol·licitud pendent; no `VALID_DESC=1` automàtic ni factura amb descompte abans de decisió. |
+| UV-08 | Dos intents d'aprovar la mateixa sol·licitud amb proves/imports incompatibles | Una decisió per versió; conflicte explícit i cap canvi fiscal automàtic. |
+| UV-09 | Afiliació denegada amb DS_ORDER antiga de preu rebaixat pendent | Nova oferta i intenció només després de revisar l'anterior; callback tardà de l'antiga es concilia, no es transforma en pagament de la nova. |
+| UV-10 | Afiliació es denega després de factura alumne real | No editar factura anterior; incidència i decisió UC-74 sobre eventual correcció. |
 
 ## 5. Traçabilitat
 
