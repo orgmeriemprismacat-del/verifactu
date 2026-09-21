@@ -8,7 +8,7 @@
 | ---: | --- | --- | --- | --- |
 | 1 | Ajuda contextual del panell | UC-34; document 25 (guies ràpides de pantalles internes) | Contingut d'ajuda del panell: identificar pantalla concreta i si només informa o activa una comanda. | MAPAT PROVISIONAL — documentació/UI |
 | 2 | Captures finals de recorreguts crítics | UC-39; UC-03/52; UC-09/54; annex de captures | Evidència de prova: separar job Redsys/CHARGE i cua fiscal/SOAP; mostrar propietat de l'intent recuperat, UUIDs assignats i, per AEAT, SENT més estat de la línia i resposta correlacionada. | EVIDÈNCIA TRANSVERSAL |
-| 3 | Cercador general de pagaments | UC-56; UC-02; UC-22 | Cerca sense escriptura; comprovar si UUID_PAYMENT existent ja s'ha assignat a la factura seleccionada abans de presentar-lo com a cobrament nou. | MAPAT PROVISIONAL — consulta |
+| 3 | Cercador general de pagaments | UC-56; UC-02; UC-22; UC-105 | Cerca sense escriptura: mostrar import nominal extern, suma efectiva dels trams, saldo assignable acreditat i possibles sobreatribucions; seleccionar P no registra ni reassigna diners. | MAPAT PROVISIONAL — consulta |
 | 4 | Cercar pagament per NIF/NIE | UC-56; UC-126 | Identitat i accessos: el NIF de pagador pot no ser el d'inscrit o receptor fiscal. | MAPAT PROVISIONAL — variant de cerca |
 | 5 | Compatibilitat intranet antiga | UC-64; UC-68; UC-47 | Inventariar scripts i rutes realment actius; establir substitut abans de retirar writers i sincronitzar després del commit. | MAPAT PROVISIONAL — integració |
 | 6 | Curs no superat pendent de pagament | UC-95; UC-124 | Determinar estat acadèmic, deute i política de certificat independentment de factura/accés. | MAPAT PROVISIONAL — regla pendent |
@@ -16,7 +16,7 @@
 | 8 | Despeses de gestió | UC-73; UC-94; UC-71 | Fixar moment, motiu i línia/import fiscal; si hi ha factura emesa, classificar correcció via UC-74. | MAPAT PROVISIONAL — decisió econòmica |
 | 9 | Divergència BD antiga/SIF | UC-53; UC-82 | Separar detecció, diagnòstic, decisió i reparació; SIF com a origen dels fets fiscals. | MAPAT PROVISIONAL — reconciliació |
 | 10 | Document històric no VERI*FACTU | UC-11; UC-97; UC-07 | Comprovar emissor real, document físic, bytes/hash i drets de consulta; cap registre AEAT retroactiu. | MAPAT PROVISIONAL — consulta històrica |
-| 11 | Excés de cobrament | UC-104; UC-06; UC-28/29 | Distingir ingrés extern, import sense assignar, titular i decisió per trams. El refund manual exigeix factura i no pot imputar fictíciament el sobrant a F1. | MAPAT PROVISIONAL — cas específic existent |
+| 11 | Excés de cobrament | UC-104; UC-06; UC-28/29; UC-56/105 | Distingir sobrant extern acreditat, saldo comptable sense atribuir i sobreatribució (suma trams > ingrés); ni el refund manual ni una assignació negativa normal reparen per si sols la discrepància. | MAPAT PROVISIONAL — cas específic existent |
 | 12 | fact_rels i origen legacy | UC-44; UC-01 | Enllaçar inscripcions/línies/operació sense atribuir imports automàticament per participant. | MAPAT PROVISIONAL — traçabilitat de dades |
 | 13 | Factures antigues no VERI*FACTU | UC-11; UC-97 | Importació i consulta són operacions diferents; conservar emissor i numeració de l'original. | MAPAT PROVISIONAL — consulta/importació |
 | 14 | Intranet tutor · documents visibles | UC-99; UC-07; UC-80 | Verificar naturalesa del document (honoraris o venda), titular, rol i abast: no donar accés fiscal per ser tutor. | MAPAT PROVISIONAL — PERMISOS A CONTRASTAR |
@@ -26,7 +26,7 @@
 | 18 | Operació informativa | UC-100 | Acció explícita sense factura ni pagament; registrar motiu i classificació quan s'apliqui. | MAPAT PROVISIONAL — UC específica existent |
 | 19 | Pagament duplicat | UC-25a; UC-02; UC-03; UC-22; UC-23; UC-24; UC-51; UC-52; UC-86 | Distingir ingressos externs reals, claus diferents del mateix fet i doble processament possible d'un job Redsys recuperat mentre el worker anterior continua actiu. | MAPAT PROVISIONAL — variants per origen |
 | 20 | Pagament fraccionat | UC-23; UC-96; UC-12; UC-22; UC-56 | Separar calendari de quotes, ingrés extern per cada fracció real, relació ID_INSC↔factura i conciliació d'una quota ja registrada per transferència/Redsys. | MAPAT PROVISIONAL — acord vs cobrament |
-| 21 | Pagament parcial | UC-23; UC-02; UC-56; UC-105 | Distingir un CHARGE parcial real, saldo no assignat d'un CHARGE existent i segon reintent amb mateixa referència però nova factura. | MAPAT PROVISIONAL — variant del cobrament |
+| 21 | Pagament parcial | UC-23; UC-02; UC-56; UC-105 | Separar CHARGE parcial real, trams sobre P existent, saldo assignable i reversió traçada; validar suma per moviment, no deduir-la d'estats locals de cada factura. | MAPAT PROVISIONAL — variant del cobrament |
 | 22 | Rectificativa negativa | UC-05; UC-74; UC-28 | Determinar modalitat, signes i línies fiscals; separar decisió de retorn pendent, sortida externa acreditada i registre REFUND, amb límit per origen. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
 | 23 | Rectificativa positiva | UC-05; UC-74; UC-02 | Determinar modalitat i signes/línies fiscals; import a favor de l'emissor no és CHARGE fins a ingrés efectiu. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
 | 24 | Resum SIF sincronitzat a BD antiga | UC-03; UC-47; UC-52; UC-53; UC-82 | Un job Redsys PROCESSED no prova que existeixi el UUID_PAYMENT, que s'hagi assignat a la factura ni que la projecció llegada ja estigui sincronitzada. | MAPAT PROVISIONAL — integració |
@@ -120,6 +120,16 @@ La fila **2 · Captures finals de recorreguts crítics** pot recollir evidència
 | Resultat de SOAP després de fallada del commit local | `FiscalQueueProcessor` captura l'error de `complete()` i el deriva a `failure()` encara que `send()` ja hagi retornat resposta. | Conciliar fitxers privats d'evidència i resposta real per `UUID_FACTURA+FISCAL_ORDER`; no declarar REJECTED ni tornar a emetre per reparar la remissió. |
 
 **Estat:** evidències i guards de reintent fiscal **no validats** sobre panell desplegat ni contra un servei AEAT real. Els controls de propietat/conservació de cada intent són **disseny pendent** i no funcionalitats PHP acreditades.
+
+## Contrast d'imports i reassignacions: un UUID_PAYMENT no garanteix un repartiment coherent
+
+| Fila provisional | Accions independents de la fitxa | Punt exacte de codi i resultat que s'ha de mostrar | Validació encara pendent |
+| --- | --- | --- | --- |
+| 3 · Cercador general de pagaments | [UC-56, 4.2](uc-056-cercar-assignar-cobrament.md) consulta import i saldo assignable de P; [UC-56, 4.3](uc-056-cercar-assignar-cobrament.md) és una **altra acció**, assignar un tram del P existent. | `PaymentPayloadValidator` no compara `SUM(trams)` amb `payment_transaction.IMPORT`; `PaymentRepository` només ofereix alta/reús genèric, no writer de saldo. Mostrar per separat import real, assignat, resta aritmètica i disponibilitat acreditada. | Cercador PHP/pantalla, permís d'accés, prova d'ingrés/retorn/titular, recàrrega sota lock abans d'aplicar destí. |
+| 11 · Excés de cobrament | [UC-104](uc-104-gestionar-exces-cobrament.md) classifica el sobrant real; [UC-56](uc-056-cercar-assignar-cobrament.md) assigna saldo disponible; [UC-105](uc-105-reassignar-repartir-pagament.md) corregeix imputació anterior per història. | Moviment P/100 amb F1/80+F2/80 té **sobreatribució 60**, no sobrant per retornar o aplicar. Moviment P/200 desat erròniament com P/100 exigeix conciliació de quantia banc/SIF abans de decidir saldo. | Identitat de pagador i prova bancària; contracte de correcció del moviment incorrecte sense editar factures fiscals ni registrar un REFUND fictici. |
+| 21 · Pagament parcial | [UC-02, 5.5](uc-002-registrar-cobrament-factura.md) valida nou CHARGE; [UC-105, 4.2](uc-105-reassignar-repartir-pagament.md) traspassa un tram ja imputat; [UC-105, 4.3](uc-105-reassignar-repartir-pagament.md) controla dues ordres concurrents. | `PaymentRepository::refreshInvoicePaymentStatus()` calcula **cada factura** amb les seves assignacions, sense provar que tots els trams del mateix P sumin com a màxim el nominal. Una assignació negativa no és reversió amb `reversed_by_event`. | Guard de positivitat/suma, saldo per P, història de tram i requestId, estats recalculats a totes les factures afectades i prova de concurrència. |
+
+**Estat de les tres files:** mapatge de necessitats/accions, **no validació** del controlador, pantalla, protecció transaccional ni desplegament. No s'ha identificat una nova pantalla independent que justifiqui afegir una fila 26.
 
 ## Com convertir el mapatge en cobertura demostrable
 
