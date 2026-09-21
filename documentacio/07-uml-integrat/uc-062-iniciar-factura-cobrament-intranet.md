@@ -71,6 +71,25 @@ Sync ..> Main : <<extend>> (resultat SIF confirmat)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador intranet"]
+  subgraph SIF_BOX["Intranet → SIF"]
+    uc_0(["UC-62<br/>Iniciar factura o cobrament"])
+    uc_1(["Autoritzar i classificar acció"])
+    uc_2(["Emetre factura via InvoiceService"])
+    uc_3(["Registrar ingrés real via PaymentService"])
+    uc_4(["Sincronitzar resum llegat després del commit"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_2 -.->|extend| uc_0
+  uc_3 -.->|extend| uc_0
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
