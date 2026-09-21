@@ -90,6 +90,29 @@ Main ..> Gate : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Administrador infraestructura"]
+  actor_1["Responsable tècnica"]
+  actor_2["Responsable fiscal"]
+  subgraph SIF_BOX["SIF · recuperació segura"]
+    uc_0(["UC-85<br/>Restaurar i reconciliar abans de reobrir"])
+    uc_1(["Verificar backup i cadena fiscal"])
+    uc_2(["Recuperar delta bancari i AEAT posterior al tall"])
+    uc_3(["UC-82<br/>Resoldre divergències per item"])
+    uc_4(["UC-39<br/>Aprovar go/no-go de recuperació"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 4. UML de classes — evidència SQL vs recuperació completa pendent
 
 ```mermaid
