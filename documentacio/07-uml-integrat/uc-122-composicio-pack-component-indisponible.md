@@ -43,6 +43,26 @@ El builder té `PACK_DISCOUNT_PCT=25.0`; sense base explícita considera la prim
 
 **Pendent de tancament:** política de components obligatoris, política de descomptes especials/3+ línies, classificació fiscal per component, verificació de titular del retorn, ledger individual, reserva i substitució implementades, proves de sincronització i del callback tardà.
 
+### Ordre comercial del pack i error possible en reconstruir el descompte
+
+**Dependència real de l'ordre del SELECT.** `LegacyPackSnapshotRepository::findPackInscriptionsByIdpag()` recupera els components `TIPUS_INSC='P'` amb `ORDER BY A_PAGAR DESC, ID`, mentre que `LegacyPackInvoicePayloadBuilder::lineAmounts($inscription, $index)`, **si no hi ha `IMPORT_BASE` explícit**, assigna a la **posició 0** import base igual a total i descompte zero; des de la **posició 1** reconstrueix la base dividint el total per `0.75`. El constructor també pren **la primera inscripció** com a receptor de factura. La documentació del flux comercial, en canvi, estableix descompte pack del 25 % al **segon curs**, no al curs amb menor `A_PAGAR` en el moment de consultar la BD. **Ordenar pel valor actual no acredita l'ordre de compra**; si canvien preus, fraccions, ajustos o els components tenen preus diferents, el builder pot assignar descompte o receptor a un component inadequat. No descriure aquesta reconstrucció com a verificació de la regla comercial.
+
+**Regla de dades abans de qualsevol emissió.** Recuperar la composició **acceptada**: `ID_PACK`, `ID_INSC`/curs/edició de cada component, ordinal comercial, base original, descompte concedit i total net. Contrastar-la amb preus i promocions acreditats al moment de la venda i amb l'import de la intenció Redsys. Si l'ordre/base original no es pot recuperar, **bloquejar la reconstrucció automàtica** i classificar la incidència; no reparar-la ordenant per preu ni deduint el «segon curs» a posteriori. `A_PAGAR` és un camp operatiu de la inscripció: quan expressa pendent o valor modificat, no és necessàriament el preu fiscal congelat.
+
+**Substitució abans i després de confirmar.** Si el component afectat es queda sense plaça abans d'emetre o cobrar, UC-115 comprova l'alternativa **per recurs** i UC-112 congela una nova proposta, amb l'ordinal i imports per línia acceptats; el mateix `DS_ORDER` no es reutilitza amb un snapshot contradictori. Si la factura ja és real, el component antic conserva `UUID_FACTURA` i identificador de línia; el nou component demana decisió UC-71/74/105 i, si correspon, document corrector i moviment de fons **individual**, no executar una segona vegada el builder de pack complet.
+
+**Excepció de pagament fraccionat.** El flux comercial documenta que la divisió/fraccionament excepcional d'un pack és una **acció d'intranet**, no una opció de l'ecommerce. No inferir «una factura per component» de dos `ID_INSC` o de `FRACCIO`: primer establir si hi ha una factura real anterior, quants ingressos bancaris s'han rebut i a quins conceptes correspon cada document. La correcció d'un component no multiplica els `CHARGE` originals.
+
+### Proves específiques d'ordinal i substitució (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| PK-122-01 | Segon curs comercial passa a tenir `A_PAGAR` superior al primer | Ordinal i descompte del 25 % segons oferta acceptada; no reassignar-los per `ORDER BY A_PAGAR`. |
+| PK-122-02 | Pack amb bases i descomptes explícits per component | Preservar imports d'origen i comprovar suma, sense reconstrucció `total/0.75` innecessària. |
+| PK-122-03 | No consta l'ordre comercial antic i només hi ha `IDPAG`/imports actuals | Incidència de reconstrucció; cap factura automàtica amb descompte assignat per conjectura. |
+| PK-122-04 | Component substituït després de factura emesa i un únic ingrés de pack | Original immutable i decisió/document/moviment per component, sense segon `CHARGE` global. |
+| PK-122-05 | Intranet fracciona excepcionalment un pack amb factura prèvia | Recuperar documents i pagaments reals abans d'atribuir imports; no factures automàtiques per cada `ID_INSC`. |
+
 ## 3. UML de casos d’ús
 
 ```plantuml
