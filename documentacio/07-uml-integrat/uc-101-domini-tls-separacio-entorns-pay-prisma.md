@@ -100,7 +100,7 @@ A->>C: Llegir referències d'entorn i verificar segregació
 A->>G: Provar ordre fiscal sense sessió/rol
 alt Auth no acreditada al perímetre real
  G-->>A: UNKNOWN o fallada
- A-->>I: Bloqueig de desplegament; no cridar InvoiceService
+ A-->>I: Bloqueig de desplegament, no cridar InvoiceService
 else Auth real impedeix petició anònima
  G-->>A: DENIED amb evidència
  A->>P: Provar només petició autoritzada de preproducció
