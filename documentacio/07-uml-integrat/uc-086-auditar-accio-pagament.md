@@ -150,7 +150,7 @@ G->>L: operation: comprovar saldo A i pagament origen
 L->>L: append(A→B,100 €,UUID_PAYMENT_ORIGEN)
 L-->>G: UUID_MOVIMENT, import i destinació
 G-->>A: Event terminal i resultat
-Note over A,L: Cap CHARGE nou; el callback real de REALLOCATE encara no està implementat
+Note over A,L: Cap CHARGE nou, el callback real de REALLOCATE encara no està implementat
 ```
 
 ## 6. Traçabilitat
