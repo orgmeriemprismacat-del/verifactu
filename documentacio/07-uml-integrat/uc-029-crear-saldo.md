@@ -88,6 +88,23 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de gestió"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-29<br/>Crear saldo a favor"])
+    uc_1(["Registrar titular,<br/>import i origen"])
+    uc_2(["UC-29a<br/>Aplicar saldo a factura"])
+    uc_3(["UC-05<br/>Rectificar factura<br/>si correspon"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  actor_0 --> uc_2
+  actor_0 --> uc_3
+```
+
 ## 3. Subdiagrama de classes — creació i cas vinculat
 
 ```mermaid
@@ -215,6 +232,27 @@ Create ..> Dedup : <<include>>
 Create ..> Commit : <<include>> [quan és una alta nova vàlida]
 G --> Apply
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió autoritzada"]
+  actor_1["Responsable de cobraments"]
+  subgraph SIF_BOX["SIF PrisMa — alta única de saldo (OBJECTIU)"]
+    uc_0(["UC-29<br/>Concedir saldo d'un origen aprovat"])
+    uc_1(["Identificar fet, titular i import disponible"])
+    uc_2(["Distingir reintent equivalent<br/>de proposta contradictòria"])
+    uc_3(["Crear saldo i consumir valor<br/>de l'origen una única vegada"])
+    uc_4(["UC-29a<br/>Aplicar crèdit existent"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
 ```
 
 ```mermaid
