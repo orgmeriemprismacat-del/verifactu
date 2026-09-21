@@ -26,6 +26,24 @@
 
 **Proves pendents:** dos alumnes amb el mateix email, pròrroga i baixa simultànies, transferència el dia límit amb callback tardà, pagament parcial de grup, edició amb inici en festiu, intenció TPV caducada, dues aprovacions amb `REQUEST_ID` igual però dates diferents, i fallada del worker acadèmic.
 
+### Detecció llegada de la «segona setmana» i comprovació al venciment
+
+**Consulta existent, regla exacta no recuperada.** El diccionari del constructor de `Intranet.php` enumera `cnsRegBaixesSegonaSetnaba` (respectar aquesta grafia del nom de consulta), juntament amb `cnsCursosRecordarPag`, `cnsAlumnesRecordarPag` i `cnsCursosClaimBaixes`. Aquestes claus acrediten que el llegat té **detecció/seguiment relacionats amb la segona setmana, baixes i reclamacions**, però el llistat documental **no conté** el SQL complet ni l'algoritme que fixa el dia límit d'una pròrroga concreta. No interpretar el nom de la consulta com si imposés universalment «dia 14», set dies a partir de la matrícula o baixa automàtica a l'acabament de la segona setmana.
+
+**Resolució per inscripció, edició i responsable real.** La petició ha d'identificar `ID_INSC`, `ANY/MES/CURS`, data d'inici o venciment que la política vigent determini, deute real de la factura que correspon, pagador i eventual pròrroga ja concedida. Una factura de grup d'empresa pot incloure persones amb dates d'inici diferents o una inscripció de baixa: la pròrroga acadèmica individual **no modifica** per si mateixa el venciment contractual de la factura de l'empresa, ni en crea una de nova. Si la inscripció ja està coberta per factura d'empresa, preservar la via de regularització autoritzada per al pagador, no habilitar una URL individual incompatible.
+
+**Cursa amb transferència, callback o baixa.** Abans que `updClaimDonarBaixa` o `updInscCursBaixaiMoros` efectuïn un canvi operatiu, l'adaptació ha de rellegir pròrroga vigent, ingrés real `UUID_PAYMENT`, possibles `DS_ORDER` en curs i estat d'inscripció. Un timeout de sincronització de `PAGAMENT` no és impagament: si l'ingrés ja consta al SIF, recuperar només la fase acadèmica/llegada pendent. Si la política no autoritza mantenir accés, registrar la decisió individual amb l'event acadèmic **pendent de writer**, sense alterar factura o `payment_transaction`. La pròrroga no converteix una factura real pendent en proforma.
+
+### Proves específiques de pròrroga i baixa (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| PR-96-01 | `cnsRegBaixesSegonaSetnaba` identifica una inscripció | Revisar política i data base abans de decidir el venciment; cap «dia 14» deduït del nom de consulta. |
+| PR-96-02 | Pròrroga aprovada i worker de baixa operativa s'executa amb un snapshot anterior | Rellegir excepció vigent i evitar una baixa basada en l'estat obsolet. |
+| PR-96-03 | Transferència confirmada al banc/SIF just abans de la baixa i sync llegat fallit | Reconèixer `UUID_PAYMENT`; no donar de baixa com a impagada per `PAGAMENT=0` antic. |
+| PR-96-04 | Factura conjunta d'empresa i pròrroga per un participant | No alterar imports/deute/receptor de la factura global automàticament. |
+| PR-96-05 | `DS_ORDER` antiga caducada i pròrroga comercial aprovada | Preparar nova intenció només si és necessària i autoritzada; no mutar la signada anterior. |
+
 ## UML de casos d'ús
 
 ```plantuml
