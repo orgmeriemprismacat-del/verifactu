@@ -326,7 +326,7 @@ Note over S,DB: InvoiceService::existingResultWithPaymentIfPresent() mai fa crea
 
 ### 4.2. Acció independent: rebutjar un reintent d'emissió amb mateix identificador però contingut fiscal diferent — PHP main amb guard de petició completa; cobertura comercial entre claus pendent
 
-**Actor/disparador:** dues peticions del mateix canal reutilitzen una clau fiscal `K` amb receptor, total, línies, inscripcions o sèrie diferents. **Postcondició exigible:** `CONFLICT` amb referència a la factura original i revisió de possible correcció fiscal UC-74/05; sense nova factura ni mutació de la primera. **PHP actual:** `InvoiceService` cerca `K` i retorna `existingResult()` **sense comparar** el payload nou amb `factura`, `factura_linia` o `fact_rels` persistents. `InvoicePayloadValidator` valida estructura, però no equivalència fiscal respecte de l'original. El fet que `InvoiceRepository` registri un hash del registre fiscal de la primera factura **no** implica que es compari amb el nou payload.
+**Actor/disparador:** dues peticions del mateix canal reutilitzen una clau fiscal `K` amb receptor, total, línies, inscripcions o sèrie diferents. **Postcondició exigible:** `CONFLICT` amb referència a la factura original i revisió de possible correcció fiscal UC-74/05; sense nova factura ni mutació de la primera. **PHP a `main`:** `InvoiceService::existingResultWithPaymentIfPresent()` crida `PayloadIdempotencyValidatorInterface::assertMatches()` amb la petició completa i `factura.IDEMPOTENCY_PAYLOAD_HASH` original **abans** del reús; no compara fila a fila contra `factura_linia` ni `fact_rels`, sinó el fingerprint de la petició d'emissió guardat al crear-la. Una factura anterior a la migració sense fingerprint retorna conflicte i no es reutilitza a cegues. **Pendent:** un guard funcional entre dues claus fiscals diferents que representen una mateixa operació/inscripció i un control d'atribució econòmica real.
 
 ```plantuml
 @startuml
@@ -339,7 +339,7 @@ rectangle "SIF PrisMa — UC-01 / CONFLICTE D'EMISSIÓ" {
  usecase "Classificar canvi després\nd'emissió UC-74/05" as Fix
 }
 C --> Retry
-Retry ..> Compare : <<include>> [guard pendent]
+Retry ..> Compare : <<include>> [hash de petició PHP main; cobertura entre claus pendent]
 R --> Fix
 @enduml
 ```
@@ -364,12 +364,15 @@ flowchart LR
 sequenceDiagram
 autonumber
 actor C as Canal
-participant G as FiscalPayloadEquivalenceGuard [DISSENY]
+participant G as Cobertura comercial entre claus [DISSENY]
+participant H as PayloadIdempotencyValidatorInterface [PHP main]
 participant F as Consulta factura/línies/fact_rels [LECTURA]
 participant S as InvoiceService [PHP]
 participant DB as factura/factura_registres/fiscal_queue
 C->>G: issueIfEquivalent(K, nou receptor E2/import 90, requestId)
-G->>F: Cercar factura original de K i comparar dades congelades
+G->>F: Cercar cobertura d'operació també per altres claus fiscals [PENDENT]
+G->>S: issueInvoice(K,payload validat) [PHP main]
+S->>H: assertMatches(payload,stored IDEMPOTENCY_PAYLOAD_HASH) si K existeix [PHP main]
 alt K existeix amb receptor E1/import 100
  F-->>G: CONFLICT de payload
  G-->>C: Rebuig, UC-74/05 decideix correcció, cap nova emissió ni reús com E2/90
@@ -383,14 +386,14 @@ else K existeix amb contingut exactament equivalent
  F-->>G: UUID_FACTURA existent
  G-->>C: Reús fiscal validat sense nova emissió
 end
-Note over G,S: Guard de payload/cobertura és DISSENY, el PHP actual reusa K sense aquesta comparació.
+Note over G,S: Comparació de petició completa per K és PHP main. El guard comercial entre claus/inscripcions és DISSENY; el diagrama combina ambdues responsabilitats.
 ```
 
 | Prova pendent | Escenari | Resultat objectiu i comportament actual a contrastar |
 | --- | --- | --- |
-| EI-07 | F1 emesa sense payment, posteriorment `issueInvoice(K,payment=P2)` amb la mateixa K | El PHP actual retorna F1 i `ok=true` sense `uuid_payment` si P2 no existeix. El canal objectiu tracta l'ingrés real per UC-02, no declara cobrat per reús fiscal. |
-| EI-08 | F1 emesa amb `paymentKey=P1`; reús de K amb `paymentKey=P2` inexistent | Retorna F1 sense P2; no registrar fals cobrament ni tornar a crear F1. |
-| EI-09 | Mateixa K però receptor/total/línies/inscripcions diferents | PHP actual pot retornar F1; guard objectiu exigeix `CONFLICT` i UC-74/05 si ja s'ha emès. |
+| EI-07 | F1 emesa sense payment, posteriorment `issueInvoice(K,payment=P2)` amb la mateixa K | **PHP main: conflicte 409 pel payload complet diferent**; el nou ingrés real s'ha de tractar per UC-02 sobre F1, no afegir payment a la mateixa petició fiscal. |
+| EI-08 | F1 emesa amb `paymentKey=P1`; reús de K amb `paymentKey=P2` inexistent | **PHP main: conflicte 409 per petició diferent**, sense crear P2 ni segona factura; UC-02 si es tracta d'un cobrament real posterior. |
+| EI-09 | Mateixa K però receptor/total/línies/inscripcions diferents | **PHP main: assertMatches() rebutja la petició diferent** (o hash històric absent); el control de cobertura entre claus diferents i la classificació UC-74/05 continuen pendents. |
 | EI-10 | Un `paymentKey` preexistent apunta a un pagament d'una altra factura | Reús fiscal/econòmic no s'ha de declarar equivalent fins a comprovar `payment_allocation.UUID_FACTURA`, import i titular; guard pendent. |
 
 ## 5. Traçabilitat
