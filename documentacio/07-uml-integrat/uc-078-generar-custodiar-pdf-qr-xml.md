@@ -126,14 +126,14 @@ G-->>J: Bytes i tipus validats
 J->>S: writeAndVerify(bytes) i relectura privada
 alt Storage falla o hash difereix
  S-->>J: Error sense confirmació
- J->>DB: ERROR/RETRY i prova; no declarar CREATED usable
+ J->>DB: ERROR/RETRY i prova, no declarar CREATED usable
 else Storage confirma bytes i hash
  S-->>J: STORAGE_KEY i hash verificat
  J->>R: registerDocument(db,uuidFactura,type,path,contents)
  R-->>J: HASH_FITXER i fila CREATED
  J->>DB: Vincular FACTURA_DOCUMENT_ID i completar job
 end
-Note over S,R: registerDocument() no escriu bytes; la custòdia real és disseny pendent.
+Note over S,R: registerDocument() no escriu bytes, la custòdia real és disseny pendent.
 ```
 
 ## 6. Traçabilitat
