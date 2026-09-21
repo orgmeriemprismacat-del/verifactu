@@ -4,7 +4,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 
 ## Mapa dels 142 casos d'ús revisats
 
-**[Model general de classes](00-model-classes-general.md)** · **[Revisió transversal dels 142 casos](00-revisio-transversal-142-casos.md)** · **[Auditoria dels contractes core PHP](00-auditoria-contractes-core-php.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
+**[Revisió de cobertura per acció i criteri UC-04](00-revisio-accions-pendents-uc04.md)** · **[Model general de classes](00-model-classes-general.md)** · **[Revisió transversal dels 142 casos](00-revisio-transversal-142-casos.md)** · **[Auditoria dels contractes core PHP](00-auditoria-contractes-core-php.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
 | ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
