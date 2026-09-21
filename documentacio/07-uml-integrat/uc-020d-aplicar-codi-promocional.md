@@ -38,6 +38,24 @@
 
 **Proves pendents:** validesa i caducitat, titular/privacitat, ús únic concurrent, multiús, reintent de TPV denegat, codi amb descompte zero, import incorrecte, pack/grup, devolució i canvi de curs.
 
+### 1.3. `promocions`: titular, vigència i consum al llegat
+
+A l'ecommerce la persona compradora introdueix el codi al camp «Codi promocional». La taula llegada `promocions` conserva almenys `CODI_DESCOMPTE`, `DNI`, `MES`, `CURS`, `PERCENTATGE`, `USED`, `DATAI` i `DATAF`. `cnsSiTePromocioDispo` cerca codis disponibles per patró, DNI, `USED=0` i dates de vigència; `updDataFPromocio` pot tancar-ne la vigència amb `DATAF=CURRENT_TIME`. Aquests mètodes del llegat no acrediten un servei nou de validació i consum al SIF.
+
+El procediment descriu codis del patró `MACABODETITULAR#...` com a personals, intransferibles i d'un sol ús. **No s'ha d'estendre aquesta restricció a tots els codis promocionals** sense revisar la regla concreta. Abans d'oferir el preu reduït, validar titular, curs/mes, ús i període; després congelar el resultat al snapshot de la compra. El codi complet i el DNI no han d'aparèixer indiscriminadament al PDF: el text visible pot ser genèric i la prova comercial queda en accés restringit.
+
+En un canvi de curs, el circuit llegat pot tancar la promoció amb `updDataFPromocio`. UC-26/71 ha de preservar quina aplicació s'ha consumit i decidir expressament si es pot traslladar o revertir; no reobrir un codi per defecte ni reconstruir la factura inicial amb el preu nou. La nova taula `commercial_entitlement` és un **model objectiu diferent**: no donar per migrats els codis de `promocions` ni utilitzar un sol `CONSUMED_UUID_OPERATION` per representar N usos d'un codi públic.
+
+### 1.4. Proves addicionals (no executades)
+
+| ID | Escenari | Resultat |
+| --- | --- | --- |
+| CP-01 | Codi personal vàlid per DNI, curs, mes i dates | Descompte i regla congelats abans de Redsys. |
+| CP-02 | Codi d'un altre titular, usat o fora de vigència | Cap aplicació i cap revelació de dades del titular. |
+| CP-03 | Doble compra amb un codi d'un sol ús | Consum únic i reintent idempotent; reserva concurrent pendent d'implementar. |
+| CP-04 | Canvi de curs amb promoció aplicada | Decisió registrada sobre tancament o reutilització, sense editar factura inicial. |
+| CP-05 | Caducitat del codi després de facturar | Factura original immutable; només afecta usos futurs segons regla. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
