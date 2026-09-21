@@ -77,6 +77,27 @@ Gate ..> Main : <<extend>> (decisió de desplegament)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador del SIF"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF · observabilitat"]
+    uc_0(["UC-60<br/>Monitorar salut multidimensional"])
+    uc_1(["Llegir mètriques de cua AEAT"])
+    uc_2(["Comprovar documents, backups i runtime"])
+    uc_3(["Alertar amb font i acció concreta"])
+    uc_4(["UC-39<br/>Sustentar go/no-go verificat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## 4. UML de classes — mètrica real i agregador pendent
 
 ```mermaid
