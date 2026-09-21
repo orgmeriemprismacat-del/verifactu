@@ -38,6 +38,24 @@
 
 **Proves pendents:** titularitat, dates de vigència, percentatge real, modalitat manual/API, denegació/error extern, dades mínimes, grup/pack, compatibilitat amb altres descomptes i ajust posterior. No s'han executat proves específiques de Carnet Jove en aquesta revisió.
 
+### 1.3. Evidència del Carnet Jove i límit del circuit antic
+
+La documentació d'estat final identifica el mètode llegat `enviarImatgeCarnetInscripcio.php` entre els circuits de descomptes, i descriu `sendMsgValidatCurosDescomptes()` com a rutina que pot validar documentació, recalcular l'import i generar enllaços de pagament. **No s'ha acreditat** que cap d'aquests mètodes consulti automàticament una API del Carnet Jove, comprovi autenticitat davant l'emissor o transfereixi un justificant a `discount_evidence` amb permisos i retenció. La fitxa ha de separar **aportar una imatge**, **validar titular/vigència segons la regla real**, **registrar la decisió** i **aplicar el preu**; són fets diferents.
+
+Quan la petició és pendent, `A_PAGAR` del llegat o un enllaç antic no han de ser prova que el descompte està confirmat. Si el canal autoritza finalment la reducció **abans** del TPV, ha de preparar una nova oferta amb import i snapshot fiscal coherents i desactivar una URL incompatible amb el preu anterior. Si el titular ha pagat/obtingut factura amb l'import anterior, la validació posterior exigeix UC-73/74 per documentar la variació i només UC-28 si realment es retornen diners.
+
+El document fiscal ha de conservar el concepte general de descompte i el preu que pertoca; **la imatge del carnet, identificadors privats i les notes internes de verificació no són el text públic de factura**. La custòdia i autorització de consulta de justificants són UC-116; la presència de `discount_text` i `discount_internal_reason` al payload no acredita el filtratge al PDF o al portal.
+
+### 1.4. Proves addicionals del circuit documental (no executades)
+
+| ID | Escenari | Resultat esperat |
+| --- | --- | --- |
+| CJ-01 | Imatge enviada però encara sense decisió | Descompte pendent; cap emissió a preu reduït pel sol fet de rebre el fitxer. |
+| CJ-02 | Validació favorable abans del TPV | Preu, justificació mínima i snapshot congelats; URL anterior amb import incompatible inutilitzable. |
+| CJ-03 | Validació denegada després de mostrar oferta | Recalcular abans de cobrar; no reutilitzar DS_ORDER amb import diferent. |
+| CJ-04 | Validació després d'una factura emesa | UC-73/74 i eventual retorn real separat; cap UPDATE a la línia inicial. |
+| CJ-05 | Receptor d'una factura de grup intenta obtenir imatge del carnet | Mostrar únicament informació autoritzada; no servir la prova privada per pertànyer al grup. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
