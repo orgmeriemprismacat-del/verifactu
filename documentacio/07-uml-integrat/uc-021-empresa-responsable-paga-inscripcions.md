@@ -171,6 +171,44 @@ ManualGroupInvoiceService --> InvoiceService : altre camí, NO UC-21 abans cobra
 
 **Frontera del diagrama:** `ManualGroupInvoiceService` es mostra com a contrast amb un camí diferent, no com una crida feta per `InvoiceBeforePaymentService`. No es representa cap classe fictícia per crear un «pagament d'empresa» si no consta al codi.
 
+### 3.1. Classes de coordinació proposades per a la cobertura de participants — NO implementades
+
+El model executable anterior no conté una classe que protegeixi de dues factures sobre el mateix `ID_INSC` quan les peticions arriben per canals diferents. Aquest subdiagrama defineix les dependències **objectiu** de les accions 4.3/4.4 sense atribuir-ne l'existència al PHP actual.
+
+```mermaid
+classDiagram
+direction LR
+class CompanyInvoiceCoordinator {
+ <<DISSENY: no acreditat>>
+ +previewCoverage(command) proposal
+ +confirmInvoice(command) result
+}
+class EnrollmentInvoiceCoverageGuard {
+ <<DISSENY: no acreditat>>
+ +validateEnrollments(ids,receptor,operation) decision
+}
+class InvoiceBeforePaymentService {
+ <<PHP existent>>
+ +issueBeforePayment(input) array
+}
+class PaymentService {
+ <<PHP existent: assigna a factura>>
+ +registerPayment(payload) array
+}
+class EnrollmentFundMovementRepository {
+ <<PROPOSTA: no implementada>>
+ +append(db,movement) string
+}
+class RedsysPaymentIntentService {
+ <<PHP existent: no impedeix automàticament solapament entre canals>>
+ +create(db,input) array
+}
+CompanyInvoiceCoordinator --> EnrollmentInvoiceCoverageGuard : factura i inscripcions prèvies
+EnrollmentInvoiceCoverageGuard ..> RedsysPaymentIntentService : estats/intencions a conciliar [PENDENT]
+CompanyInvoiceCoordinator --> InvoiceBeforePaymentService : emetre una vegada
+CompanyInvoiceCoordinator ..> PaymentService : cobrament posterior independent
+CompanyInvoiceCoordinator ..> EnrollmentFundMovementRepository : atribució quantitativa [PENDENT]
+```
 ## 4. Seqüència — empresa sol·licita factura i paga posteriorment (objectiu + nucli implementat)
 
 ```mermaid
