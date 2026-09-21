@@ -412,9 +412,9 @@ end
 Note over R,M: El builder actual no accepta identificador de fet extern com a idempotency_key d'entrada, la ruta nova requereix contracte i proves.
 ```
 
-### 4.6. Seqüència executable: una mateixa clau de fracció retorna UUID_PAYMENT d'una altra factura
+### 4.6. Seqüència de main: una mateixa clau de fracció amb factura diferent genera CONFLICT per hash
 
-**Derivació del PHP, no reproducció de test:** la clau de `ManualInstallmentPaymentPayloadBuilder::idempotencyKey()` no conté `UUID_FACTURA` i `ManualInstallmentPaymentService::registerForInvoice()` posa `uuid_factura`/número de **la factura que s'ha demanat ara** després de la resposta de `PaymentService`. Si el mateix I/dia/import/usuari es presenta per F1 i F2, el segon resultat pot combinar `UUID_PAYMENT_F1` amb `uuid_factura=F2`, mentre que `payment_allocation` només conserva F1.
+**Derivació del PHP, no reproducció de test:** la clau de `ManualInstallmentPaymentPayloadBuilder::idempotencyKey()` no conté `UUID_FACTURA` i `ManualInstallmentPaymentService::registerForInvoice()` posa `uuid_factura`/número de **la factura que s'ha demanat ara** després de la resposta de `PaymentService`. Si el mateix I/dia/import/usuari es presenta per F1 i F2, el segon payload té assignació diferent: **a main, `PaymentService::assertSamePayload()` rebutja la coincidència de K amb CONFLICT** abans de retornar cap resultat de pagament sobre F2. El hash no pot distingir dos ingressos reals quan tots els camps del payload també són idèntics, de manera que la clau per event bancari continua pendent.
 
 ```mermaid
 sequenceDiagram
@@ -438,17 +438,17 @@ B-->>S: Mateixa K sense factura ni referència externa
 S->>P: registerPayment(payload F2)
 P->>DB: BEGIN + SELECT IDEMPOTENCY_KEY=K FOR UPDATE
 DB-->>P: UUID_PAYMENT_F1, allocation només F1
-P->>DB: COMMIT sense INSERT a F2
-P-->>S: UUID_PAYMENT_F1,idempotency_reused=true
-S-->>O: UUID_PAYMENT_F1,uuid_factura=F2 [INCONSISTENT AMB allocation]
-Note over S,DB: F2 continua sense aquest cobrament, no deduir PAID de la segona resposta.
+P->>P: assertSamePayload(payload F2,hash original F1) [PHP main]
+P--xS: CONFLICT; rollback i cap assignació F2
+S-->>O: Rebuig per K compartida i destí diferent; revisar fet bancari i clau
+Note over S,DB: No hi ha parella de UUIDs contradictòria a main quan el payload canvia. Dos ingressos reals amb K i payload idèntics continuen sense distingir-se.
 ```
 
 | Prova pendent | Escenari | Resultat necessari |
 | --- | --- | --- |
 | FR-13 | ID_INSC I no figura com a inscripció coberta per factura F | Bloquejar la quota sobre F; no acceptar únicament el `id_insc` del payload. |
 | FR-14 | Ingrés bancari E registrat per UC-22 i tornat a indicar com a fracció manual | Recuperar moviment i atribució existents sense segon `CHARGE` malgrat claus amb prefix diferent. |
-| FR-15 | F1/40 ja registrada per I/dia/usuari i segona petició F2/40 amb mateixa clau | El PHP actual pot respondre UUID_PAYMENT de F1 + UUID_FACTURA F2; guard objectiu exigeix CONFLICT, cap falsa assignació F2. |
+| FR-15 | F1/40 ja registrada per I/dia/usuari i segona petició F2/40 amb mateixa clau | **PHP main:** CONFLICT per hash de payload amb destí diferent, no UUID_PAYMENT de F1 més UUID_FACTURA F2; continua pendent clau única per ingrés real. |
 | FR-16 | Dues fraccions reals diferents amb mateix I/dia/import/usuari i referències bancàries diferents | Dos fets i dues identitats legítimes només amb clau immutable d'ingrés; builder actual els fusiona i requereix revisió. |
 
 ## 5. Traçabilitat
