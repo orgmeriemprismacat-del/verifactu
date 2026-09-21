@@ -92,7 +92,7 @@ class FiscalDocumentAccessRepository {
  <<DISSENY: fiscal_document_access SQL>>
  +append(db,event) uuid
 }
-class ProtectedDocumentStorage {
+class PrivateDocumentStore {
  <<DISSENY: bytes privats no acreditats>>
  +readAndVerify(storageKey,hash) bytes
 }
@@ -101,7 +101,7 @@ class DocumentRepository {
  +registerDocument(db,uuidFactura,type,path,contents) array
 }
 InvoiceDocumentAccessService --> DocumentAuthorizationPolicy : actor/document
-InvoiceDocumentAccessService --> ProtectedDocumentStorage : bytes/hashes
+InvoiceDocumentAccessService --> PrivateDocumentStore : bytes/hashes
 InvoiceDocumentAccessService --> FiscalDocumentAccessRepository : intent i resultat
 ```
 
@@ -114,7 +114,7 @@ actor A as Alumne
 participant S as InvoiceDocumentAccessService [DISSENY]
 participant P as DocumentAuthorizationPolicy [DISSENY]
 participant DB as factura_documents i fact_rels
-participant F as ProtectedDocumentStorage [DISSENY]
+participant F as PrivateDocumentStore [DISSENY]
 participant Log as fiscal_document_access [SQL]
 A->>S: Demanar PDF de UUID_FACTURA per sessió/token
 S->>P: Validar identitat, token, representació i relacions
