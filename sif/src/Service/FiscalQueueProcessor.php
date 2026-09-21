@@ -5,6 +5,7 @@ namespace Prisma\Sif\Service;
 use Prisma\Sif\Contract\AeatTransport;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Repository\FiscalQueueRepository;
+use Prisma\Sif\Repository\IncidentRepository;
 
 final class FiscalQueueProcessor
 {
@@ -35,7 +36,15 @@ final class FiscalQueueProcessor
 
         $payload = json_decode((string) $item['PAYLOAD_JSON'], true);
         if (!is_array($payload)) {
-            return $this->failure($item, new \RuntimeException('Invalid queued fiscal payload.'));
+            return $this->integrityFailure($item, new \RuntimeException('Invalid queued fiscal payload.'));
+        }
+
+        try {
+            $this->transactions->run(function (\PDO $db) use ($item): void {
+                $this->queue->assertImmutablePayload($db, $item, new PayloadIdempotencyValidator());
+            });
+        } catch (\Throwable $exception) {
+            return $this->integrityFailure($item, $exception);
         }
 
         try {
@@ -108,6 +117,30 @@ final class FiscalQueueProcessor
         return $this->transactions->run(
             fn (\PDO $db): int => $this->queue->recoverStaleLocks($db, $lockedBefore)
         );
+    }
+
+    private function integrityFailure(array $item, \Throwable $exception): array
+    {
+        $message = 'Fiscal queue integrity mismatch: ' . $exception->getMessage();
+        $this->transactions->run(function (\PDO $db) use ($item, $message): void {
+            $this->queue->rejectIntegrity($db, $item, $message);
+            (new IncidentRepository())->open(
+                $db,
+                (string) $item['UUID_FACTURA'],
+                'FISCAL_PAYLOAD_CONFLICT',
+                'Queue ID ' . $item['ID'] . ': ' . $message
+            );
+        });
+
+        return [
+            'ok' => false,
+            'processed' => true,
+            'queue_id' => (int) $item['ID'],
+            'attempts' => (int) $item['ATTEMPTS'],
+            'queue_status' => 'DEAD_LETTER',
+            'next_retry_at' => null,
+            'error' => $message,
+        ];
     }
 
     private function failure(array $item, \Throwable $exception): array
