@@ -146,7 +146,7 @@ alt Actor sense autorització
 else Autoritzat
  Auth-->>S: true
  S->>Log: append(VIEW,actor,factura,requestId)
- S-->>UI: Estat factura, cobrament i AEAT; documents permesos
+ S-->>UI: Estat factura, cobrament i AEAT, documents permesos
  opt Actor sol·licita PDF/QR/XML
   UI->>S: download(actor,documentId)
   S->>Auth: Revalidar permís d'aquest document
