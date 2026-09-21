@@ -1185,6 +1185,11 @@ class FiscalSubmissionAttemptReconciler {
  <<DISSENY: resposta real i rastre de cada SOAP>>
  +review(uuidFactura,fiscalOrder,queueId) diagnosis
 }
+class FiscalAttemptEvidenceReader {
+ <<DISSENY: lector privat i índex de metadades d'intent>>
+ +findByRecord(uuidFactura,fiscalOrder) attempts
+ +readAuthorized(evidenceId) evidence
+}
 class FiscalQueueRepository {
  <<PHP real: actualitzacions per ID sense token>>
  +complete(db,item,status,response,xml) void
@@ -1197,12 +1202,13 @@ class EvidenceStore {
 }
 FiscalAttemptLease --> FiscalAttemptOwnershipGuard : identitat d'execució
 FiscalAttemptOwnershipGuard --> FiscalQueueFencedRepository : bloqueig i transició local
-FiscalSubmissionAttemptReconciler --> EvidenceStore : recuperar evidència si existeix i accessible
+FiscalSubmissionAttemptReconciler --> FiscalAttemptEvidenceReader : llegir evidència per registre i intent [DISSENY]
+FiscalAttemptEvidenceReader ..> EvidenceStore : llegeix fitxers custodiats; EvidenceStore no ofereix API de lectura
 FiscalSubmissionAttemptReconciler --> FiscalQueueFencedRepository : transició de recuperació idempotent
 FiscalQueueFencedRepository ..> FiscalQueueRepository : substitució de contracte pendent, NO crida real
 ```
 
-**No confondre garanties:** un token de generació evita que A sobreescrigui el job de B però **no pot retirar un SOAP que A ja ha enviat**. La conciliació de la resposta remota per `UUID_FACTURA+FISCAL_ORDER` i evidència d'intent és independent de l'existència del lock i de la disponibilitat productiva del transport, actualment limitat a l'endpoint de proves. `REMOTE_UNCERTAIN` és diagnosi objectiu, no un enum fiscal implementat, i `SENT` no significa `ACCEPTED`.
+**No confondre garanties:** un token de generació evita que A sobreescrigui el job de B però **no pot retirar un SOAP que A ja ha enviat**. La conciliació de la resposta remota per `UUID_FACTURA+FISCAL_ORDER` i evidència d'intent és independent de l'existència del lock i de la disponibilitat productiva del transport, actualment limitat a l'endpoint de proves. `REMOTE_UNCERTAIN` és diagnosi objectiu, no un enum fiscal implementat, i `SENT` no significa `ACCEPTED`. `SoapTransport` posa `uuid_factura` i `fiscal_order` als metadades privats de l'intent i retorna `response.evidence_id` en èxit, però quan falla la persistència local l'identificador no queda garantit a `AEAT_RESPONSE_JSON`. `EvidenceStore` només escriu fitxers append-only, **no exposa `findByRecord` ni `readAuthorized`**; aquesta API és una proposta i hauria de controlar permisos d'accés a resposta/XML i no exposar credencials.
 
 ## 7. Traçabilitat i criteri de manteniment
 
