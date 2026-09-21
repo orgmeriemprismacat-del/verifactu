@@ -1,6 +1,6 @@
 # SIF PrisMa · Fitxes de casos d'ús i UML integrats
 
-Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
+Aquesta carpeta conté les **142 fitxes integrades del catàleg**, amb una revisió funcional **progressiva per acció concreta**. La presència de la fitxa i dels tres blocs de diagrama no significa que totes les accions estiguin completament auditades o provades; les ampliacions dirigides i els seus límits queden identificats a la matriu de traçabilitat. No és una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. La revisió és en una branca documental abans de fusionar-la.
 
 ## Mapa dels 142 casos d'ús revisats
 
