@@ -94,6 +94,25 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-29a<br/>Aplicar compensació"])
+    uc_1(["Consultar saldo disponible<br/>i factura pendent"])
+    uc_2(["UC-02<br/>Registrar moviment econòmic"])
+    uc_3(["Consumir saldo atòmicament"])
+    uc_4(["UC-29<br/>Crear saldo"])
+  end
+  actor_0 --> uc_0
+  actor_0 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ## 3. Diagrama UML de classes — compensació
 
 ```mermaid
@@ -255,6 +274,25 @@ Apply ..> Authorize : <<include>>
 Apply ..> Idempotency : <<include>>
 Apply ..> Commit : <<include>> [quan és nova i vàlida]
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  actor_1["Titular del saldo / aprovador"]
+  subgraph SIF_BOX["SIF PrisMa — compensació (OBJECTIU)"]
+    uc_0(["UC-29a / COMANDA<br/>Aplicar un import aprovat de saldo"])
+    uc_1(["Comprovar titular, factura i destí"])
+    uc_2(["Comparar identitat d'operació<br/>i payload en reintent"])
+    uc_3(["Consumir saldo i crear COMPENSATION<br/>en transacció"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
 ```
 
 ```mermaid
