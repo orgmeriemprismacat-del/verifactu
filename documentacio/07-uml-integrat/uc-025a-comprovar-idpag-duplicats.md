@@ -40,6 +40,16 @@
 
 **Proves no executades:** un cobrament de grup amb N inscripcions, dues fraccions reals amb mateix `IDPAG`, callback repetit/contradictori, referència bancària reutilitzada, captura incompleta i resolució d'una atribució individual errònia.
 
+### 1.3. Diagnosi des del llegat sense deduplicar una compra compartida
+
+**Eina d'origen:** el mapa de la intranet identifica `/facturacio/comprovar-idpags/` (`facturacio-comprovar-idpags.php`) com a eina de comprovació i conciliació; **no disposem en aquesta revisió del seu algoritme PHP complet**. El xat i els fluxos expliquen que `IDPAG` pot relacionar les dues inscripcions d'un pack, els membres d'un grup, una intenció denegada seguida d'una acceptada, o diferents quotes reals del mateix pagament operatiu. No confondre «IDPAG repetit a diverses files» amb «cobrament bancari duplicat».
+
+**Mètode objectiu de diagnosi.** Mostrar per `IDPAG` inscripcions i `FACTURA_RELACIONADA` del llegat, totes les `DS_ORDER`, resposta de Redsys, import confirmat/retornat, estat de `redsys_callback_queue`, `UUID_PAYMENT` i factures SIF. Classificar separadament (a) una única ordre i N inscripcions legítimes, (b) ordres diferents amb una denegació i una acceptació, (c) dues fraccions acceptades diferents, (d) el mateix `DS_ORDER` duplicat/contradictori i (e) un cobrament confirmat amb assignació equivocada o una factura prèvia que no s'ha detectat. `IDPAG` és una pista d'agrupació; el cobrament s'identifica pel fet extern `DS_ORDER`/referència i la seva evidència.
+
+**Operació de resultat.** El comparador informa i obre incidència quan hi ha ambigüitat; no invoca un segon `issueInvoice()`, `registerPayment()` o una devolució correctora simplement perquè el mateix IDPAG apareix dos cops. Si una operació estava coberta per factura d'empresa emesa abans del cobrament, seguir `fact_rels` i `UUID_FACTURA` per evitar que una cerca pel CIF/IDPAG desemboqui en una factura nova (UC-21/22). Si una notificació està validada però pendent de worker, recuperar UC-52 i no duplicar-la per la via manual o CSV.
+
+**Proves complementàries no executades:** un pack amb dues inscripcions i un DS_ORDER acceptat dona «origen compartit», no duplicat; dues ordres acceptades del mateix IDPAG per fraccions conserven dos CHARGE reals; intent denegat i intent posterior acceptat no generen CHARGE pel primer; factura prèvia de grup es recupera per UUID/relacions i no es torna a emetre; job Redsys en RETRY és pendent de processar, no cobrament absent automàticament.
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
