@@ -213,7 +213,7 @@ Note over Claims,Rec: Seguiment de fases, detecció intercanal i correus finals 
 
 **Actor/disparador:** gestió rep la confirmació d'una entrada mentre hi ha una reclamació oberta per una factura original. **Identitats exigibles:** `claim_case_id` o referència de **l'expedient de reclamació**, `external_receipt_id` de **l'entrada econòmica real** (banc/Redsys) i `UUID_FACTURA` de la factura que continua vigent. Una referència de reclamació pot agrupar diversos cobraments parcials, i el mateix ingrés pot haver entrat al SIF pel canal UC-22, UC-23 o Redsys abans que el gestor obri la pantalla de morositat. **Postcondició:** fet extern i imputació identificats, o conflicte; consultar l'expedient no crea cap moviment de caixa.
 
-**Límit del PHP:** `ClaimPaymentPayloadBuilder::claimReference()` prioritza `claim_reference`, `reclamation_ref`, `reclamacio_ref` abans de `reference`/referència bancària. Si l'adaptador transmet una referència d'expedient constant com a `claim_reference`, `idempotencyKey()` genera `CLAIM|REF:<referència expedient>` per **tots** els cobraments parcials d'aquell expedient, encara que les entrades externes siguin diferents. `PaymentService` recupera el primer UUID en la segona petició i **no compara** import o `payment_allocation`. La clau tampoc no incorpora factura; `ClaimPaymentService::registerForInvoice()` retorna sempre la factura sol·licitada ara, fins i tot si el moviment recuperat continua assignat a una altra. Una `claim_reference` i una `bank_reference` han de ser camps **d'identitat diferents** al contracte objectiu, sense inferir que avui són dues columnes separades del SIF. **Persistència concreta:** el builder copia la referència escollida a `payload['reference']`; `PaymentRepository::createPayment()` desa aquest valor a `payment_transaction.REFERENCIA_BANCARIA` i la taula base no té una columna `CLAIM_CASE_ID`. Així, si `claim_reference` vol dir codi **intern** de l'expedient, el camp anomenat referència bancària acaba contenint el codi de reclamació, sense prova de la referència real de cada abonament. El builder també aporta `created_by`, però `createPayment()` no el persisteix en cap columna específica de l'apunt econòmic; no atribuir-li una auditoria d'actor completa.
+**Límit del PHP:** `ClaimPaymentPayloadBuilder::claimReference()` prioritza `claim_reference`, `reclamation_ref`, `reclamacio_ref` abans de `reference`/referència bancària. Si l'adaptador transmet una referència d'expedient constant com a `claim_reference`, `idempotencyKey()` genera `CLAIM|REF:<referència expedient>` per **tots** els cobraments parcials d'aquell expedient, encara que les entrades externes siguin diferents. **A main, `PaymentService::assertSamePayload()` sí compara import i `payment_allocation` en reús de K:** si el segon ingrés canvia import/factura/referència efectiva, retorna conflicte, no el primer UUID com a ingrés del segon. Si l'event extern és diferent però tots els camps del payload són idèntics, el hash no el pot distingir i pot reutilitzar E1. La clau de l'expedient tampoc no incorpora factura ni identificador bancari per ingrés; el canvi a un altre destí amb mateixa K queda bloquejat pel hash, però **no genera la clau nova necessària per registrar E2**. Una `claim_reference` i una `bank_reference` han de ser camps **d'identitat diferents** al contracte objectiu, sense inferir que avui són dues columnes separades del SIF. **Persistència concreta:** el builder copia la referència escollida a `payload['reference']`; `PaymentRepository::createPayment()` desa aquest valor a `payment_transaction.REFERENCIA_BANCARIA` i la taula base no té una columna `CLAIM_CASE_ID`. Així, si `claim_reference` vol dir codi **intern** de l'expedient, el camp anomenat referència bancària acaba contenint el codi de reclamació, sense prova de la referència real de cada abonament. El builder també aporta `created_by`, però `createPayment()` no el persisteix en cap columna específica de l'apunt econòmic; no atribuir-li una auditoria d'actor completa.
 
 ```plantuml
 @startuml
@@ -270,7 +270,7 @@ Note over R,C: El resolvedor i el vincle d'expedient no són serveis executables
 
 ### 4.3. Acció independent: registrar un segon cobrament parcial d'una mateixa reclamació — PHP actual versus resultat objectiu
 
-**Actor/disparador:** el banc acredita un primer ingrés E1 de 40 € i, més tard, **un altre ingrés diferent** E2 de 30 € per la mateixa factura F i expedient de reclamació `CLAIM-7`. **Comportament PHP amb `claim_reference=CLAIM-7` a totes dues peticions:** el constructor genera la **mateixa** clau `CLAIM|REF:CLAIM-7`; `PaymentService` retorna el primer moviment en el segon intent. Per tant, **el segon cobrament no es registra** per aquest camí, encara que el seu import sigui diferent i el banc l'hagi confirmat. Reutilitzar una clau només és correcte si la segona petició és una repetició **del mateix ingrés real**, no un nou pagament de la mateixa reclamació.
+**Actor/disparador:** el banc acredita un primer ingrés E1 de 40 € i, més tard, **un altre ingrés diferent** E2 de 30 € per la mateixa factura F i expedient de reclamació `CLAIM-7`. **Comportament PHP amb `claim_reference=CLAIM-7` a totes dues peticions:** el constructor genera la **mateixa** clau `CLAIM|REF:CLAIM-7`; **A main, `PaymentService` rebutja amb CONFLICT el segon intent** si l'import, la factura o un altre camp del payload difereixen del primer, en lloc de tornar el primer UUID. Per tant, **el segon cobrament no es registra** per aquest camí, encara que el banc l'hagi confirmat. Si E2 és una altra entrada real però el payload complet coincideix, el hash tampoc no pot distingir els dos fets i retorna el primer ingrés. Reutilitzar una clau només és correcte si la segona petició és una repetició **del mateix ingrés real**, no un nou pagament de la mateixa reclamació.
 
 ```plantuml
 @startuml
@@ -313,10 +313,10 @@ B-->>C: Mateixa K encara que import/ref bancària canviïn
 C->>S: registerPayment(CHARGE F/30,K)
 S->>DB: BEGIN, trobar moviment K = UUID_PAYMENT_E1 FOR UPDATE
 DB-->>S: E1 amb IMPORT=40 i només allocation F/40
-S->>DB: COMMIT sense inserir E2
-S-->>C: UUID_PAYMENT_E1,idempotency_reused=true
-C-->>G: UUID_PAYMENT_E1, el segon ingrés no queda enregistrat
-Note over B,DB: L'exemple usa claim_reference com a identificador constant d'expedient. Si es vol usar com a ID bancari, cada ingrés requereix una referència pròpia i prova d'equivalència.
+S->>S: assertSamePayload(CHARGE F/30,hash original F/40) [PHP main]
+S--xC: CONFLICT per import diferent; E2 no queda enregistrat
+C-->>G: No declarar segona quota pagada; corregir la identitat K per event extern
+Note over B,DB: Amb la mateixa K i un payload completament idèntic, main reutilitzaria E1; el hash no distingeix dos ingressos bancaris realment diferents amb dades iguals.
 ```
 
 ### 4.4. Acció independent: verificar el deute net i tancar la reclamació sense crear una altra factura — DISSENY
@@ -370,7 +370,7 @@ Note over C,N: Tancament d'expedient i missatgeria no implementats per ClaimPaym
 
 | Prova pendent | Escenari | Resultat exigible |
 | --- | --- | --- |
-| CR-24-06 | Factura F amb reclamació CLAIM-7; ingressos reals E1/40 i E2/30 en dies diferents i mateix `claim_reference` | Dos moviments identificats per cada fet real en el contracte final; clau actual `CLAIM|REF:CLAIM-7` recupera E1 i no acredita E2. |
+| CR-24-06 | Factura F amb reclamació CLAIM-7; ingressos E1/40 i E2/30 reals amb la mateixa clau derivada de l'expedient | A main, segon payload d'import diferent → CONFLICT; el contracte final requereix clau per ingrés real diferent, conservant referència d'expedient separada. |
 | CR-24-07 | Transferència E1 ja enregistrada UC-22 i operadora la registra des de UC-24 per la mateixa reclamació | Correlacionar UUID_PAYMENT_E1 amb el cas sense segon CHARGE; les claus `TRANSFERENCIA|REF` i `CLAIM|REF` són diferents. |
 | CR-24-08 | Mateixa clau de reclamació sol·licitada per factura B mentre moviment original correspon a A | Detectar `UUID_PAYMENT_A` + `uuid_factura=B` a la resposta actual; contracte objectiu rebutja falsa assignació a B. |
 | CR-24-09 | Primer cobrament parcial deixa deute i es prem «Tancar reclamació» | `CLAIM_PARTIAL`; factura/deute encara pendents i cap nova emissió fiscal. |
