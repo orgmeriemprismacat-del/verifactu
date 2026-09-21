@@ -63,6 +63,30 @@ Main ..> Activate : <<include>> (després de validar)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable tècnica"]
+  actor_1["Direcció/aprovació"]
+  actor_2["Auditor només lectura"]
+  subgraph SIF_BOX["SIF · governança de versions"]
+    uc_0(["UC-10<br/>Gestionar configuració i versió"])
+    uc_1(["Registrar candidata i hashes"])
+    uc_2(["Vincular declaració i evidències"])
+    uc_3(["Validar desplegament/backup"])
+    uc_4(["Activar versió amb autorització"])
+    uc_5(["Consultar historial de versions"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_2
+  actor_2 --> uc_5
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 3. Classes: persistència SQL existent, serveis de gestió pendents
 
 ```mermaid
