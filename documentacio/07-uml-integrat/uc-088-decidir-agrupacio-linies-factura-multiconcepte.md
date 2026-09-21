@@ -70,14 +70,14 @@ class InvoiceRepository {
  <<PHP existent: graf de factura/linies>>
  +createInvoiceGraph(db,payload,seq,chainState) array
 }
-class PaymentRepository {
- <<PHP existent: assignació a factura>>
- +createPayment(db,payload) array
+class MultiInvoicePaymentAllocationService {
+ <<DISSENY: atribuir un CHARGE real entre factures>>
+ +allocateExistingPayment(uuidPayment,invoiceAmounts) result
 }
 MultiConceptInvoiceDecisionService ..> LegacyGroupInvoicePayloadBuilder : cas de grup existent
 MultiConceptInvoiceDecisionService --> InvoicePayloadValidator : validació mínima, no política
 InvoicePayloadValidator --> InvoiceRepository : factura aprovada
-MultiConceptInvoiceDecisionService ..> PaymentRepository : cobrament real separat
+MultiConceptInvoiceDecisionService ..> MultiInvoicePaymentAllocationService : repartir un sol ingrés acreditat
 ```
 
 ## UML de seqüència — compra de serveis amb emissor diferent (DISSENY)
@@ -88,7 +88,7 @@ actor G as Gestió
 participant C as MultiConceptInvoiceDecisionService [DISSENY]
 participant O as Oferta congelada curs + llibre
 participant S as InvoiceService [PHP]
-participant P as PaymentRepository [PHP]
+participant P as MultiInvoicePaymentAllocationService [DISSENY]
 G->>C: Preparar una compra amb curs i llibre
 C->>O: Llegir emissor, receptor i règim per servei
 alt Emissors diferents o agrupació no aprovada
@@ -98,7 +98,7 @@ alt Emissors diferents o agrupació no aprovada
  G->>S: issueInvoice(payload llibre aprovat)
  S-->>G: UUID_FACTURA llibre
  opt Ingrés bancari conjunt únic acreditat
-  G->>P: Assignar el mateix UUID_PAYMENT a les factures [orquestrador pendent]
+  G->>P: allocateExistingPayment(UUID_PAYMENT,imports per factura) [pendent]
  end
 else Un sol emissor/receptor i agrupació aprovada
  C-->>G: Una factura amb línies congelades i totals quadrats
@@ -110,4 +110,4 @@ Note over C,P: Les regles d'agrupació i l'orquestració de cobrament conjunt no
 
 ## Traçabilitat
 
-[UC-88 original](../06-fitxes-funcionals/uc-088.md) · [UC-91 trams original](../06-fitxes-funcionals/uc-091.md) · [UC-98 botiga original](../06-fitxes-funcionals/uc-098.md) · [UC-44 relacions](uc-044-consultar-mantenir-fact-rels-origen-legacy.md) · [InvoicePayloadValidator](../../sif/src/Service/InvoicePayloadValidator.php) · [InvoiceRepository](../../sif/src/Repository/InvoiceRepository.php) · [LegacyGroupInvoicePayloadBuilder](../../sif/src/Service/LegacyGroupInvoicePayloadBuilder.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [Moviments per inscripció](00-revisio-moviments-inscripcions.md).
+[UC-88 original](../06-fitxes-funcionals/uc-088.md) · [UC-91 trams original](../06-fitxes-funcionals/uc-091.md) · [UC-98 botiga original](../06-fitxes-funcionals/uc-098.md) · [UC-44 relacions](uc-044-consultar-mantenir-fact-rels-origen-legacy.md) · [InvoicePayloadValidator](../../sif/src/Service/InvoicePayloadValidator.php) · [InvoiceRepository](../../sif/src/Repository/InvoiceRepository.php) · [LegacyGroupInvoicePayloadBuilder](../../sif/src/Service/LegacyGroupInvoicePayloadBuilder.php) · [PaymentRepository · situació actual](../../sif/src/Repository/PaymentRepository.php) · [Moviments per inscripció](00-revisio-moviments-inscripcions.md).
