@@ -237,7 +237,7 @@ W->>G: confirmOnlyIfOwner(queueId,attemptToken,status,response) [PENDENT]
 G->>DB: BEGIN i verificar lock/generació vigent i identitat d'F+FISCAL_ORDER
 alt Intent obsolet o resposta atribuïda a una altra línia
  DB-->>G: STALE_ATTEMPT/CONFLICT
- G-->>W: Conservar evidència i conciliar; cap UPDATE de fila actual
+ G-->>W: Conservar evidència i conciliar, cap UPDATE de fila actual
 else Intent vigent i resposta correlacionada
  G->>Q: complete(db,item,status,response,request_xml) [PHP: sense fencing propi]
  Q->>DB: UPDATE fiscal_queue SENT WHERE ID
@@ -284,7 +284,7 @@ participant DB as fiscal_queue + factura_registres [SQL]
 participant G as FiscalSubmissionAttemptReconciler [DISSENY]
 Q->>T: send(payload original F+FISCAL_ORDER)
 T-->>Q: ACCEPTED,responseOriginal,requestXml [remot rebut]
-Q->>DB: BEGIN; complete(item,responseOriginal)
+Q->>DB: BEGIN, complete(item,responseOriginal)
 DB--xQ: Error local/commit fallit [exemple possible]
 Q->>Q: catch -> failure(item,error) [PHP real]
 Q->>DB: UPDATE RETRY o DEAD_LETTER per ID [sense propietari]
@@ -294,9 +294,9 @@ G->>DB: Consultar registre F+FISCAL_ORDER i estat local actual
 alt Resposta íntegra correlacionada amb registre original
  G-->>R: Persistir resultat acreditat sense segon SOAP [DISSENY]
 else Estat extern encara incert o contradicció de propietat
- G-->>R: Revisió/retenció; no reconvertir-se automàticament en nou enviament
+ G-->>R: Revisió/retenció, no reconvertir-se automàticament en nou enviament
 end
-Note over Q,G: El reconciliador no existeix al PHP examinat; el transport de proves i la guarda de fitxers no proven recepció de producció.
+Note over Q,G: El reconciliador no existeix al PHP examinat, el transport de proves i la guarda de fitxers no proven recepció de producció.
 ```
 
 | Prova pendent | Escenari | Resultat exigible |
