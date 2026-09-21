@@ -37,6 +37,25 @@
 
 **Límit del codi existent:** `LegacyGroupInvoicePayloadBuilder::build()` construeix el **grup complet al moment de l'emissió inicial**, no un delta segur després d'emetre. `ManualRectificationPayloadBuilder::forOriginalInvoice()` crea una rectificativa genèrica d'**una sola línia**, no un constructor verificat de «nova persona de grup». La integració específica i les proves resten pendents.
 
+### 1.3. Afegit a factura prèvia i preu per trams — contrast amb el xat original
+
+El xat confirma que, **després de generar una factura real abans de pagar**, una empresa pot afegir finalment un participant. La factura original ja existeix encara que el seu cobrament sigui `PENDING`; no afegir una línia en lloc, no suprimir la factura ni emetre una altra factura global com si el grup inicial no existís. Localitzar `UUID_FACTURA`, `FACTURA_RELACIONADA` llegada, `IDPAG`, les relacions de participants i els enllaços individuals abans de determinar la nova operació fiscal. L'event d'alta es vincula a la factura original i al pagador efectiu.
+
+El preu per participant s'obté segons `descomptes_grup` i el tram comercial **pot canviar** amb el nou nombre de persones. La previsualització ha de separar **l'import de la persona nova** de l'eventual canvi de preu que afecti les persones ja facturades; la correcció d'aquestes últimes requereix classificació independent, no un import únic indistingible ni un recàlcul de `A_PAGAR` que modifiqui silenciosament la factura original. La tarifa/tram concret i el SQL efectiu del producte s'han de confirmar al canal de gestió, no deduir del builder de factura.
+
+Si l'empresa encara no ha pagat la factura anterior, afegir una persona crea una **obligació pendent**, no un `CHARGE` nou. Cal determinar si l'import de la persona nova s'incorpora en factura posterior o mitjançant una altra correcció fiscal formalment classificada; cap via es tria automàticament pel simple fet que la factura original estigui pendent. Si l'empresa fa **un sol ingrés real** per dues factures de grup existents, UC-22/105 ha de fer un sol moviment bancari amb assignacions explícites a ambdues, sense duplicar factura o pagament.
+
+Quan una nova inscripció queda coberta per la factura del responsable, evitar que pugui pagar-la també pel seu enllaç individual. La revocació s'ha de fer al servidor i coordinada amb intencions Redsys pendents (UC-33/50), no només desactivar el botó a la intranet de l'alumne. Un callback individual ja iniciat requereix conciliació abans d'atribuir els fons al grup.
+
+### 1.4. Proves d'afegit de participant (no executades)
+
+| ID | Cas | Resultat exigible |
+| --- | --- |
+| GA-01 | Factura prèvia PENDING, nou participant | Original i número intactes; nova part fiscal classificada i sense CHARGE fictici. |
+| GA-02 | Afegit que canvia tram de `descomptes_grup` | Import persona nova i variació de participants antics diferenciats; correcció formal si correspon. |
+| GA-03 | Participant nou amb pagament individual Redsys en procés | Cobertura suspesa o conciliada; sense doble cobrament ni factura duplicada. |
+| GA-04 | Empresa paga amb una transferència dues factures relacionades | Un ingrés real i dues assignacions a UUID_FACTURA; cap pagament global duplicat. |
+| GA-05 | Reintent de la mateixa alta | Un únic ID_INSC nou i un sol event/efecte fiscal idempotent. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
