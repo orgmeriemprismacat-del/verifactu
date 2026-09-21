@@ -68,6 +68,26 @@ Late ..> Main : <<extend>> (ordre antiga confirmada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió autoritzada"]
+  actor_1["Pagador"]
+  subgraph SIF_BOX["SIF · URL de pagament"]
+    uc_0(["UC-33<br/>Desactivar URL"])
+    uc_1(["Validar actor, versió i intenció TPV"])
+    uc_2(["Revocar token i auditar"])
+    uc_3(["UC-50<br/>Impedir nous inicis amb token"])
+    uc_4(["UC-03<br/>Conciliar callback ja iniciat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_4 -.->|extend| uc_0
+```
+
 ## 3. UML de classes — revocació pendent
 
 ```mermaid
