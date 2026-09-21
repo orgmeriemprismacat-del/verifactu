@@ -235,7 +235,7 @@ alt Valor disponible menor de 100 o identitat no acreditada
  D-->>R: Cap segon retorn/saldo concedit
 else Trams autoritzats i suma compatible
  D->>L: Reservar 40 retorn pendent i 60 saldo amb REQUEST_ID [DISSENY]
- D-->>R: 40 RETURN_PENDING; 60 CREDIT_TO_CREATE [estats objectiu]
+ D-->>R: 40 RETURN_PENDING, 60 CREDIT_TO_CREATE [estats objectiu]
  opt Banc confirma efectivament retorn de 40
   R->>P: Registrar evidència externa i REFUND de 40 [guard UC-28 pendent]
   P-->>D: UUID_PAYMENT de sortida confirmada
@@ -246,7 +246,7 @@ else Trams autoritzats i suma compatible
   C-->>D: UUID_CREDIT
   D->>L: Marcar tram de 60 com a saldo creat [DISSENY]
  end
- D-->>R: Resultat per tram i pendents; no declaració global prematura
+ D-->>R: Resultat per tram i pendents, no declaració global prematura
 end
 Note over D,C: El ledger/reserva i l'orquestració no existeixen al PHP actual. UC-28 no executa la sortida bancària.
 ```
