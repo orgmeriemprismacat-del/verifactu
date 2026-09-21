@@ -148,6 +148,43 @@ PaymentRepository --> UuidGenerator : UUID
 
 **Observació:** `ManualPaymentService` és l'adaptador de servei per al pagament manual d'una factura identificada per UUID o número; `sif/public/api/payments/register.php` instancia **directament** `PaymentService`. No donar per implementat un recorregut de pantalla que no s'ha traçat.
 
+### 3.1. Projecció del model general: control d'identitat de l'ingrés i invariants monetaris — DISSENY PENDENT
+
+El subdiagrama executiu anterior descriu el PHP que hi ha; aquest **segon subdiagrama és exclusivament contracte de disseny** i no afegeix mètodes ficticis a `PaymentService` actual. El guard ha d'identificar un fet extern únic abans de crear un `CHARGE`, verificar titularitat/assignacions i comparar reintents contradictoris.
+
+```mermaid
+classDiagram
+direction LR
+class PaymentIngressGateway {
+ <<DISSENY: no acreditat al PHP>>
+ +registerConfirmedReceipt(command) result
+}
+class PaymentAuthorizationPolicy {
+ <<DISSENY: no acreditat al PHP>>
+ +authorize(actor,operation,factures) decision
+}
+class ExternalReceiptReconciler {
+ <<DISSENY: no acreditat al PHP>>
+ +identify(providerRef,dsOrder,bankEvidence) receipt
+}
+class PaymentPayloadEquivalenceGuard {
+ <<DISSENY: no acreditat al PHP>>
+ +validateMoneyAndReuse(payload,existing) decision
+}
+class PaymentService {
+ <<PHP existent: no conté els guards anteriors>>
+ +registerPayment(payload) array
+}
+class PaymentRepository {
+ <<PHP existent>>
+ +findByIdempotencyKey(db,key,forUpdate) array
+}
+PaymentIngressGateway --> PaymentAuthorizationPolicy : accés/abast
+PaymentIngressGateway --> ExternalReceiptReconciler : fet real
+PaymentIngressGateway --> PaymentPayloadEquivalenceGuard : sumes i equivalència
+PaymentPayloadEquivalenceGuard ..> PaymentRepository : comparar moviment original [PENDENT]
+PaymentIngressGateway --> PaymentService : només payload coherent
+```
 ## 4. Diagrama de seqüència — registre genèric del moviment
 
 ```mermaid
