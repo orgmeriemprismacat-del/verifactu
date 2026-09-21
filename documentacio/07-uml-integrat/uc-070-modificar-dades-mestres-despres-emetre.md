@@ -129,7 +129,7 @@ G->>S: Aprovar publicació
 S->>M: Registrar proposta, versions i decisió
 S->>C: Publicar v2 per operacions noves
 alt Només actualització del catàleg futur
- S-->>G: Factures v1 intactes; cap moviment econòmic
+ S-->>G: Factures v1 intactes, cap moviment econòmic
 else Error real en document històric
  S->>D: Classificar error fiscal per UUID_FACTURA
  D-->>G: Decisió pendent/aprovada per document
