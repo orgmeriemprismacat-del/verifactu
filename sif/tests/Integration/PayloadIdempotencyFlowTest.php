@@ -28,6 +28,21 @@ final class PayloadIdempotencyFlowTest
         Assert::same(1, (int) $db->query('SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID = 1')->fetchColumn());
     }
 
+    public function testRetryCannotAddAnInitialPaymentToAnAlreadyIssuedInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+        $payload = Fixtures::invoicePayload();
+        $service->issueInvoice($payload);
+        $payload['payment'] = [
+            'idempotency_key' => 'PAYMENT|RETRY_DIFFERENT_INPUT',
+            'amount' => '120.00',
+        ];
+        Assert::throws(SifException::class, fn () => $service->issueInvoice($payload), 409);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     public function testOriginalInvoiceWithoutFingerprintFailsClosed(): void
     {
         $db = TestDatabase::fresh();
