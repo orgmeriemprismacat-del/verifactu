@@ -86,6 +86,29 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de pagaments"]
+  actor_1["Responsable facturació"]
+  subgraph SIF_BOX["SIF · cerca i assignació"]
+    uc_0(["UC-56<br/>Cercar i assignar un cobrament"])
+    uc_1(["Cercar i identificar pagament real"])
+    uc_2(["Validar saldo i titularitat"])
+    uc_3(["Assignar UUID_PAYMENT existent"])
+    uc_4(["UC-02<br/>Registrar ingrés nou real"])
+    uc_5(["UC-86<br/>Auditar petició/resultat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
+  uc_0 -.->|include| uc_5
+```
+
 ## 3. Diagrama de classes — el límit exacte del PHP actual
 
 ```mermaid
@@ -192,6 +215,27 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  actor_1["Responsable de facturació"]
+  subgraph SIF_BOX["SIF PrisMa — cerca i imputació"]
+    uc_0(["UC-56 / CERCA<br/>Localitzar cobrament per criteris"])
+    uc_1(["Validar permís i àmbit<br/>de resultats"])
+    uc_2(["Identificar un moviment bancari<br/>entre possibles coincidències"])
+    uc_3(["UC-56 / ASSIGNACIÓ<br/>Assignar pagament existent"])
+    uc_4(["UC-02<br/>Registrar ingrés nou real"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_1 --> uc_3
+  actor_0 --> uc_4
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -245,6 +289,23 @@ Read ..> Sum : <<include>>
 Read ..> Verify : <<include>> [guarda pendent]
 Read ..> Class : <<include>>
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  subgraph SIF_BOX["SIF PrisMa — UC-56 / CONSULTAR SALDO ASSIGNABLE"]
+    uc_0(["Llegir el moviment P i els seus trams"])
+    uc_1(["Comparar import extern amb<br/>suma d'assignacions de P"])
+    uc_2(["Conciliar devolucions, titular<br/>i restriccions per destí"])
+    uc_3(["Classificar saldo o incoherència<br/>sense crear CHARGE"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
 ```
 
 ```mermaid
@@ -303,6 +364,27 @@ Apply ..> Append : <<include>>
 Apply ..> Status : <<include>>
 R --> Transfer
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió de cobraments"]
+  actor_1["Responsable de facturació"]
+  subgraph SIF_BOX["SIF PrisMa — UC-56 / APLICAR SALDO EXISTENT"]
+    uc_0(["Aplicar saldo no assignat de P a F2"])
+    uc_1(["Bloquejar P i validar suma actual<br/>amb import extern i titular"])
+    uc_2(["Afegir tram idempotent a P<br/>sense nou CHARGE"])
+    uc_3(["Recalcular estat de F2 i<br/>conservar traça d'assignació"])
+    uc_4(["UC-105<br/>Reassignar un tram ja atribuït"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_1 --> uc_4
 ```
 
 ```mermaid
