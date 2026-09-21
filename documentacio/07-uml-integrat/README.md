@@ -2,7 +2,7 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 119 casos d'ús revisats
+## Mapa dels 125 casos d'ús revisats
 
 **[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
@@ -82,7 +82,11 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-59 | Concedir, caducar i revocar accés auditor | [Fitxa i UML](uc-059-concedir-caducar-revocar-acces-auditor.md) | `[DISSENY]` |
 | UC-60 | Monitorar salut, cues, documents, backups i versió activa | [Fitxa i UML](uc-060-monitorar-salut-cues-documents-backups-versio.md) | `[DISSENY]` |
 | UC-61 | Consultar un import pendent i obtenir un enllaç de pagament | [Fitxa i UML](uc-061-consultar-pendent-obtenir-enllac.md) | `[LEGACY/OBJECTIU]` |
+| UC-62 | Iniciar factura o cobrament des de la intranet | [Fitxa i UML](uc-062-iniciar-factura-cobrament-intranet.md) | `[LEGACY/DISSENY]` |
 | UC-63 | Crear la intenció Redsys des de l'ecommerce | [Fitxa i UML](uc-063-crear-intencio-redsys.md) | `[ASYNC/PARCIAL]` |
+| UC-64 | Reconciliar la candidata amb el codi actual | [Fitxa i UML](uc-064-reconciliar-candidata-codi-actual.md) | `[CONTROL/PENDENT]` |
+| UC-67 | Externalitzar i rotar secrets de pagament | [Fitxa i UML](uc-067-externalitzar-rotar-secrets-pagament.md) | `[PENDENT/BLOQUEJANT]` |
+| UC-68 | Retirar callbacks i escriptures fiscals llegades | [Fitxa i UML](uc-068-retirar-callbacks-escriptures-fiscals-llegades.md) | `[DISSENY]` |
 | UC-69 | Confirmar i congelar dades fiscals | [Fitxa i UML](uc-069-confirmar-congelar-dades-fiscals.md) | `[DISSENY/PARCIAL]` |
 | UC-70 | Modificar dades mestres després d'emetre | [Fitxa i UML](uc-070-modificar-dades-mestres-despres-emetre.md) | `[DISSENY]` |
 | UC-71 | Registrar un canvi de curs complet | [Fitxa i UML](uc-071-registrar-canvi-curs-complet.md) | `[DISSENY/PARCIAL]` |
@@ -101,6 +105,8 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-84 | Crear un paquet fiscal d'auditoria | [Fitxa i UML](uc-084-crear-paquet-fiscal-auditoria.md) | `[DISSENY]` |
 | UC-85 | Executar backup, restauració i reconciliació | [Fitxa i UML](uc-085-backup-restauracio-reconciliacio.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-86 | Registrar qualsevol acció sobre un pagament | [Fitxa i UML](uc-086-auditar-accio-pagament.md) | [DISSENY/BLOQUEJANT] |
+| UC-92 | Registrar venda manual des d'intranet o telèfon | [Fitxa i UML](uc-092-registrar-venda-manual-intranet-telefon.md) | `[DISSENY/PARCIAL]` |
+| UC-103 | Delegar anul·lació o canvi de pagament web al SIF | [Fitxa i UML](uc-103-delegar-canvi-anullacio-pagament-web-sif.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-104 | Gestionar un excés de cobrament | [Fitxa i UML](uc-104-gestionar-exces-cobrament.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-105 | Reassignar o repartir un pagament | [Fitxa i UML](uc-105-reassignar-repartir-pagament.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-106 | Crear una reserva o inscripció abans del pagament | [Fitxa i UML](uc-106-crear-reserva-abans-pagament.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
@@ -128,7 +134,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | [Fitxa i UML](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | [Fitxa i UML](uc-129-reconciliar-prisma-moodle-matricules.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 119/142.** Els 23 casos restants encara no tenen fitxa UML individual revisada. El constructor de grup pren el responsable llegat com a receptor i les relacions `fact_rels` no permeten atribuir imports individuals; el worker de notificacions no està acreditat com a circuit PHP complet. El ledger `enrollment_fund_movement` continua sent proposta.
+**Cobertura documental: 125/142.** Els 17 casos restants encara no tenen fitxa UML individual revisada. El PHP d'emissió/cobrament manual disposa de serveis, però els scripts CLI revisats rebutgen producció i el controlador/autenticació productiva de la intranet no estan acreditats. La retirada del callback llegat i el canvi coordinat de secrets exigeixen inventari del runtime real. El ledger `enrollment_fund_movement` continua sent proposta.
 
 ## Com llegir el paquet de cada acció
 
