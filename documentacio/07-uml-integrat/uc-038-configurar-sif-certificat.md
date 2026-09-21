@@ -29,6 +29,25 @@
 5. Aprovar i activar només després del go/no-go UC-39 i la validació del transport **de l'entorn objectiu**. El `SoapTransport` actual restringit a test és un bloquejant de qualsevol afirmació d'enviament productiu amb aquesta classe.
 6. Provar: P12 inaccessible/dins webroot, password incorrecta, clau/certificat discordants, caducitat/revocació, NIF emissor incorrecte, endpoint productiu rebutjat per `SoapTransport`, workers concurrents amb dos fingerprints, secrets en logs i rollback després de callback en curs.
 
+### 2.1. Tres identitats que s'han de verificar a l'entorn abans del transport
+
+**Entorn, emissor i certificat no són una sola dada.** `sif/config/sif.php` configura `SIF_ENV`, `issuer`, `aeat.issuer_nif`, `system_id/system_version/installation_id` i el P12 per referència de fitxer/contrasenya. `AeatPreflight::check()` només comprova que `issuer_nif` i identificadors **no són buits**, que WSDL/endpoint són URL HTTPS, que XSD i P12 són llegibles i que hi ha una contrasenya configurada; **no comprova en aquesta funció** igualtat entre NIF emissor de la factura, representació del certificat ni recepció remota de l'AEAT. El control objectiu verifica per cada entorn i emissor l'origen dels valors, la titularitat/representació acreditada del certificat i l'abast de la versió declarada, amb evidència de prova diferenciada.
+
+**Fals positiu de configuració.** Configurar `certificate_password` amb text no buit o una ruta a un P12 llegible fa que passin els checks de presència corresponents sense acreditar que la contrasenya obri la clau, que el certificat estigui vigent o que s'accepti per al titular. `ClientCertificate::inspect()` cobreix comprovacions locals de fitxer/clau i validesa temporal, però no converteix una inspecció en acceptació per l'AEAT. El resultat del preflight i el de la inspecció de certificat han de registrar-se **per separat**, juntament amb la prova real del transport de l'entorn autoritzat quan el circuit productiu estigui disponible. El `SoapTransport` de la branca només admet l'endpoint de proves: no etiquetar el resultat com a verificació productiva.
+
+**Canvi de certificat amb cues en vol.** Abans de canviar el P12/configuració, inventariar jobs `fiscal_queue` pendents, `PROCESSING`, `SENT` amb resposta individual incerta i el fingerprint configurat a **cada worker real**. El canvi de certificat **no altera** `UUID_FACTURA`, `FISCAL_ORDER`, hash fiscal ni payload ja congelat. Si falla l'enviament després de la rotació, preservar l'intent i classificar el resultat remot UC-77/81, no crear una altra factura o repetir registres per «reparar» la credencial. Un secret nou en HTTP i un d'antic al worker és un desplegament parcial, no configuració homogènia.
+
+### 2.2. Proves de configuració no confoses amb conformitat (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CF-38-01 | NIF emissor d'exemple i P12 llegible | La presència de camps no autoritza emissió real; emisor/certificat pendents de contrast. |
+| CF-38-02 | `certificate_password` no buida però incorrecta | Diferenciar preflight de presència i prova real d'obertura del P12. |
+| CF-38-03 | Certificat aparentment vigent però representació no acreditada | No donar per validat l'ús per aquell emissor. |
+| CF-38-04 | Canvi de P12 quan hi ha job AEAT `PROCESSING` | Conservar registre i intent original; gestionar resultat incert sense segon registre. |
+| CF-38-05 | Worker antic i HTTP nou llegeixen referències de secret diferents | Estat parcial per procés; bloqueig del GO fins a contrast d'entorn. |
+| CF-38-06 | Preflight local positiu amb transport limitat a endpoint test | Cap declaració de verificació d'enviament productiu. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
