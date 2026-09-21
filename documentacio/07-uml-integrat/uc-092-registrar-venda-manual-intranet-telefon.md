@@ -29,6 +29,27 @@
 
 **Proves:** telèfon amb transferència promesa, cobrament parcial real després de factura, grup pagat per empresa, doble clic de l'operador, la mateixa venda entrada també per ecommerce, `IDPAG` compartit per fraccions, error de sync llegat i intent de fer servir script CLI en producció.
 
+### Venda telefònica i «Passar pagaments»: la pantalla llegada no prova l'ingrés
+
+**Punt d'entrada real de gestió.** `/alumnes/pagaments/` mostra cerca per NIF/NIE, codi regal o número de factura i selector ALUMNE/GRUP; `buscarInfomacioPagament.php` retorna files que permeten introduir `PAGAMENT/DATA PAG/BANC/OBSERVACIONS`. El JS recalcula `PAGAT` sobre l'HTML i envia `efectuarPagament.php` per **GET** amb import, data, banc i observacions. La validació del navegador, el modal `mostrarModalConfPag.php` i el camp `efact` no acrediten ingrés ni autorització SIF: el procediment històric pot modificar `web.factures.IMPORT/DATA_PAGAMENT` a través de `updFactGenerada`, un efecte prohibit sobre una factura nova immutable. No reutilitzar aquesta ruta com a «API de pagament» sense substituir-ne l'escriptura fiscal.
+
+**Telèfon: quatre estats comercials diferenciats.** La persona operadora pot (a) recollir interès o reservar una plaça sense venda acceptada, (b) confirmar una oferta i **emetre una factura real abans de cobrar** a l'empresa, (c) registrar un ingrés bancari **ja acreditat** sobre una factura existent o (d) emetre una venda nova amb ingrés acreditat quan correspongui. `ManualInvoicePayloadBuilder::build()` força `source_channel=INTRANET` i requereix un text d'usuari a `created_by`, però **ni aquest text ni un import introduït a mà comproven sessió, rol, mandat del comprador o evidència de banc**. La categoria «petició telefònica» és traça comercial del canal; no es converteix en `CHARGE` només perquè s'ha apuntat una promesa de transferència.
+
+**Identificar la factura anterior abans d'escollir l'executor.** Si l'empresa ja té factura emesa abans de pagar, cercar `UUID_FACTURA` per `ID_INSC/fact_rels`, receptor i import confirmats; fer `registerPayment()` amb clau de **transacció externa real**. Si no hi ha factura però s'ha cobrat de debò, preparar i validar oferta/receptor/import i executar la via d'emissió/ingrés corresponent una sola vegada. `IDPAG` compartit de grup/pack, el número mostrat al formulari i una clau idempotent inventada pel doble clic **no** proven l'absència d'una factura anterior. Si hi ha import ajustat o saldo sense provar, derivar a UC-94/56/104 en comptes de generar moviment o document improvisat.
+
+**Confirmació i fases posteriors.** Els scripts `process-manual-course.php`, `process-manual-invoice.php` i `process-manual-payment.php` rebutgen `SIF_ENV=production`: la seva existència és eina de preproducció, **no** una interfície telefònica d'operació productiva acreditada. La futura comanda ha de conservar actor autoritzat, operació/acceptació, prova externa si n'hi ha, factures trobades, idempotència de negoci i resultat `UUID_FACTURA/UUID_PAYMENT` individual; la sincronització de `PAGAMENT` llegat i Moodle es comprova després. Si falla només aquesta sincronització o el correu, retornar l'operació confirmada i reintentar la fase pendent, no tornar a facturar o cobrar.
+
+### Proves de venda manual i evidència (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| VM-92-01 | Trucada amb transferència promesa sense moviment bancari | Reserva/oferta o factura pendent segons acceptació; cap `CHARGE` fictici. |
+| VM-92-02 | Gestió escriu `PAGAMENT=80` a l'HTML i el GET arriba dues vegades | Validació i idempotència al servidor; no dos moviments ni modificació de factura real. |
+| VM-92-03 | Empresa paga després factura prèvia amb un `IDPAG` conjunt | Reutilitzar factura existent, un moviment real i assignacions justificades. |
+| VM-92-04 | `created_by` indica nom d'usuari però sessió/rol no són vàlids | Rebutjar al servidor, no considerar el text una autorització. |
+| VM-92-05 | SIF retorna UUIDs i falla l'UPDATE de `PAGAMENT` llegat | Reintentar només sincronització acadèmica/compatibilitat, no emissió ni cobrament. |
+| VM-92-06 | Prova manual CLI en entorn productiu | Rebuig del script existent; l'entrada de producció requereix adaptador propi verificat. |
+
 ## UML de casos d'ús
 
 ```plantuml
