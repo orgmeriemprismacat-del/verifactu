@@ -106,7 +106,7 @@ participant S as LegacySyncService
 participant R as LegacySyncRepository
 participant L as BD llegat: inscripcions
 A->>SIF: Emetre factura o confirmar cobrament
-SIF-->>A: Èxit i commit; UUID_FACTURA, NUM_VISIBLE, ESTAT_COBRAMENT
+SIF-->>A: Èxit i commit, UUID_FACTURA, NUM_VISIBLE, ESTAT_COBRAMENT
 A->>S: syncAfterSifSuccess(legacyDb,relations,UUID_FACTURA,NUM_VISIBLE,estat)
 loop Cada relation amb source_type=INSCRIPCIO
  S->>R: syncInscripcioSummary(idInsc,facturaRelacionada,...)
@@ -160,7 +160,7 @@ F-->>W: Factura/estat fiscal immutable, N inscripcions
 loop Per cada ID_INSC
  W->>Q: Llegir checkpoint(UUID_FACTURA,ID_INSC,versió_estat)
  alt Estat ja sincronitzat i verificat
-  Q-->>W: ALREADY_SYNCED; no fer UPDATE
+  Q-->>W: ALREADY_SYNCED, no fer UPDATE
  else Falta l'evidència d'actualització
   W->>L: Reconsultar fila, FACTURA_RELACIONADA i marca real de sync
   alt ID_INSC no existeix
@@ -168,7 +168,7 @@ loop Per cada ID_INSC
    W->>I: Registrar incidència amb UUID i ID_INSC
   else FACTURA_RELACIONADA contradictòria
    L-->>W: CONFLICT
-   W->>I: Conciliar UC-53; no sobreescriure a cegues
+   W->>I: Conciliar UC-53, no sobreescriure a cegues
   else Fila consistent i pendent
    W->>S: syncAfterSifSuccess(legacyDb,[relació],UUID,...)
    S->>R: syncInscripcioSummary(...)
@@ -220,16 +220,16 @@ participant R as Reconciliació UC-53 [DISSENY]
 participant F as BD SIF
 T->>S: syncAfterSifSuccess(relacions,UUID,...)
 S->>L: UPDATE inscripció 1 i inscripció 2
-L-->>S: SQL sense error; inscripció 2 pot afectar 0 files
+L-->>S: SQL sense error, inscripció 2 pot afectar 0 files
 S-->>T: void (sense comprovació per ID_INSC)
 T->>R: Revisar evidència real per inscripció
 R->>F: Llegir UUID_FACTURA i totes les relacions d'origen
 R->>L: SELECT dades actuals d'inscripcions i marques/notes
 alt Falta fila d'inscripció
  L-->>R: NOT_FOUND [classificació objectiu]
- R-->>T: Incidència; no declarar sincronització completa
+ R-->>T: Incidència, no declarar sincronització completa
 else FACTURA_RELACIONADA apunta a altra factura
- L-->>R: CONFLICT; COALESCE va conservar valor anterior
+ L-->>R: CONFLICT, COALESCE va conservar valor anterior
  R-->>T: Revisió manual/regla de reconciliació, sense UPDATE fiscal directe
 else Nota SIF repetida després de reintent
  L-->>R: DUES anotacions de mateix UUID [possible amb CONCAT actual]
@@ -237,7 +237,7 @@ else Nota SIF repetida després de reintent
 else Consistència i comprovació completes
  R-->>T: Marcar evidència de sync per cada ID_INSC [PENDENT]
 end
-Note over R,F: El codi consultat no implementa aquesta comparació end-to-end; no deduir èxit del return void.
+Note over R,F: El codi consultat no implementa aquesta comparació end-to-end, no deduir èxit del return void.
 ```
 
 | ID | Prova d'acceptació pendent | Resultat requerit |
