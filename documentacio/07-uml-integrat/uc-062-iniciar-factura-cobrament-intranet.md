@@ -29,6 +29,27 @@
 
 **Proves:** usuari sense permís que crida API directament; factura pendent pagada en dos trams; grup de tres persones amb un sol ingrés; clau idempotent repetida amb import diferent; `SIF_ENV=production` en script CLI; error de sync llegat després de commit SIF.
 
+### Punt de tall entre els AJAX antics i la comanda SIF autoritzada
+
+**Dues pantalles, dues operacions diferents.** `/alumnes/genera-factura-abans-pagar/` obté inscripcions, receptor i concepte i crida `generaFacturaElectronica_Factures.php`, que al llegat crea una **factura real sense cobrament**. `/alumnes/pagaments/` cerca per `buscarInfomacioPagament.php` i, després del modal `mostrarModalConfPag.php` quan escaigui, crida `efectuarPagament.php` amb identificador, tipus, import, data, banc, observacions, número de factura i indicador `efact`. El primer circuit correspon a UC-04 i el segon a UC-02 **si existeix factura SIF**, no a un `issueInvoice()` universal per cada petició.
+
+**Frontera d'autorització i dades.** A les pantalles antigues, `tePermisEdicio` i imports/dates es comproven en JS; el pagament es recalcula visualment des de l'HTML i la factura prèvia calcula `preuTotal` del DOM. El futur adaptador ha de **validar de nou al servidor** sessió/rol, entitat o `ID_INSC`, origen bancari i quantia, curs/edició, factura ja existent i receptor fiscal. El nom `source_channel=INTRANET` en un builder PHP o la ruta genèrica `public/api/payments/register.php` **no acredita autenticació ni autorització de l'usuari de la intranet**.
+
+**Resultat recuperable i sincronització.** Si es confirma `issueInvoice()` però falla PDF, email o resum `web.inscripcions`, respondre amb `UUID_FACTURA` i fase pendent, mai crear una factura local alternativa. Si es confirma `registerPayment()` però falla `updPayInscr` o l'actualització acadèmica, recuperar `UUID_PAYMENT` i reprendre UC-47/53. El pas de «Passar pagaments» pot tocar inscripció individual, grup, pack o regal, però N línies operatives no justifiquen N `CHARGE` si només hi ha una transferència real.
+
+**Reutilització i contradicció.** Un reintent de doble clic amb la **mateixa operació i payload** ha de recuperar identificadors, mentre que mateixa clau amb receptor/import/assignacions canviats és conflicte. Ni `PaymentService` ni `InvoiceService` acrediten comparació semàntica completa en la seva branca de reús; la comprovació transversal és part de l'adaptador pendent. `E_FACT` és un indicador administratiu diferent de l'emissió abans de cobrar.
+
+### Proves d'entrada intranet (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| IN-62-01 | Invocar `efectuarPagament.php` sense permís de la pantalla | Denegar al servidor; no registrar cap moviment. |
+| IN-62-02 | Factura prèvia d'empresa seguida de transferència | Una factura i un cobrament posterior amb UUIDs diferents, cap duplicat fiscal. |
+| IN-62-03 | Manipular al DOM `preuTotal` o `PAGAMENT` | Recalcular/validar al backend amb prova econòmica real. |
+| IN-62-04 | SIF confirma però falla sync llegat | Recuperar UUID i reintentar només fase de sincronització. |
+| IN-62-05 | Grup amb tres inscripcions pagat amb una única transferència | Un `UUID_PAYMENT` i atribucions internes reals, no tres ingressos ficticis. |
+| IN-62-06 | Reús de clau amb import o receptor incompatible | Conflicte de payload, no èxit silenciós. |
+
 ## UML de casos d'ús
 
 ```plantuml
