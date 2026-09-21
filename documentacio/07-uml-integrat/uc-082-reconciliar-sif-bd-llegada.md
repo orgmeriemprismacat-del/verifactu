@@ -42,6 +42,25 @@
 
 **Pendents:** worker/repository de lots i items, origen de dades llegades, política de conflictes, timestamps estables, consulta d'AEAT/TPV, ledger quantitatiu d'inscripcions i correcció d'idempotència de `LegacySyncRepository`. Sense proves end-to-end executades.
 
+### Contracte per família de factures, pagament i matrícula — casos del llegat
+
+**Identificadors que no són equivalents.** `FACTURA_RELACIONADA` és un agrupador històric que pot reunir factura ordinària A, rectificativa R i múltiples inscripcions; **no substitueix** `UUID_FACTURA`, la relació directa de rectificació ni `fact_rels`. `IDPAG` pot mantenir-se entre diversos intents `DS_ORDER` (denegació i acceptació, fraccions), mentre que un sol pagament real de grup pot correspondre a N inscripcions. `A_PAGAR`, `PAGAMENT`, `FRACCIO` i `DATA PAG` són dades operatives llegades, no equivalències necessàries amb el total d'una factura ni prova de transacció bancària única.
+
+**Quatre dimensions de comparació.** Per **factura**: `UUID_FACTURA/NUM_VISIBLE`, sèrie, receptor, línies, rectificatives, estat AEAT i documents; per **diner**: `UUID_PAYMENT`, import extern, mètode/referència, `DS_ORDER` i suma d'assignacions; per **inscripció**: `ID_INSC`, `fact_rels`, curs/edició, imports individuals i estat acadèmic; per **comunicació i operació**: notes llegades, estat d'URL i correus només quan hi ha evidència, sense deduir que un email enviat és cobrament o document disponible. Capturar instant/versionat de les dues lectures: una factura confirmada SIF i un llegat anterior a un worker no són un desacord permanent sense tenir en compte la fase pendent.
+
+**Classificació i tancament.** L'execució `reconciliation_run` proposada ha d'agrupar items per **causa**, no transformar cada camp diferent en una factura o pagament nou. Distingir `SYNC_PENDING` (commit SIF, llegat pendent), `SOURCE_CONFLICT` (relacions contradictòries), `PAYMENT_UNVERIFIED` (resum llegat sense evidència bancària) i `INDIVIDUAL_ALLOCATION_MISSING` (part individual no acreditada); **aquestes etiquetes són proposta funcional, no enums SQL implementats**. Revalidar permisos i executar l'acció correctiva específica abans de marcar `RESOLVED`; una conciliació de factures no resol per si sola la matrícula Moodle ni la concessió de certificat.
+
+### Proves transversals complementàries (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RL-01 | Factura anterior al cobrament i llegat amb import pendent | Cap falsa divergència de cobrament pel fet d'existir factura. |
+| RL-02 | IDPAG amb dues DS_ORDER acceptades corresponents a fraccions | Dos ingressos reals si acreditats, una obligació fiscal ja existent quan escau. |
+| RL-03 | Família llegada A/R compartint `FACTURA_RELACIONADA` | Documents/relacions SIF separats, sense associació per igualtat d'agrupador sol. |
+| RL-04 | Grup amb factura única i assignació quantitativa per inscrit absent | Incidència específica de traça individual, no dividir el pagament a parts iguals. |
+| RL-05 | Reprocessament del mateix run després de reparació parcial | Recuperar items i només reexecutar accions pendents segons UUID/versió. |
+| RL-06 | Resum fiscal conciliat però Moodle no dona accés | Aspecte acadèmic derivat a UC-124/129; no tornar a cobrar o facturar. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
