@@ -35,6 +35,24 @@
 
 **Pendents:** identitat i permisos, estat/versions de la sol·licitud, model de decisió auditable, integració amb UC-123 i proves del valor literal `E_FACT=0` a l'emissió.
 
+### 1.1. Ubicació exacta i separació històrica de les dues marques — decisió del xat original
+
+**Decisió explícita de PrisMa:** la funcionalitat «marcar/desmarcar que una factura passa a factura electrònica» s'ha d'oferir a **«Alumnes / Consulta - Edita - Anul·la factura»**, no com a conseqüència automàtica de «Generar factura abans de pagar». L'usuària identifica com a persones operadores d'aquesta acció Meriem, Adam i Pablo; el servei final ha de comprovar permisos al servidor i registrar usuari, data i motiu. Aquestes persones són la decisió organitzativa comunicada en el xat; no impliquen que s'hagin implementat ja els rols ni que cap usuari amb accés al PDF pugui canviar la marca.
+
+**Dues dimensions independents:** `EMESA_ABANS_COBRAMENT=1` informa que s'ha emès **una factura real abans de l'ingrés**; `E_FACT=1` és la marca operativa «factura electrònica». Una factura prèvia **pot tenir** `EMESA_ABANS_COBRAMENT=1` i `E_FACT=0` i s'ha de poder marcar després per una acció separada i autoritzada. El xat explica que històricament les factures prèvies es feien amb `E_FACT=1`, perquè sempre es consideraven electròniques, però això ja **no** és una equivalència vàlida en el circuit desitjat. El valor literal inicial `E_FACT=0` de l'`InvoiceRepository` consultat concorda amb aquesta separació; encara no hi ha writer de canvi auditat acreditat.
+
+**Acció i resultat visibles:** al modal de consulta s'ha de mostrar número/UUID i receptor de la factura, `E_FACT` actual, `EMESA_ABANS_COBRAMENT`, qui sol·licita el canvi i un botó separat de rectificar o de registrar devolució. Marcar/desmarcar no pot editar el total, receptor, factura original ni data d'emissió; tampoc acredita per si mateix que s'hagi generat o lliurat un format electrònic concret. La preparació, enviament i evidència de lliurament corresponen a UC-123; desmarcar després d'un lliurament ja fet no ha de suprimir-ne l'històric.
+
+### 1.2. Proves d'acceptació de la marca a la pantalla (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| EF-01 | Factura emesa abans de cobrar, sense petició de factura electrònica | `EMESA_ABANS_COBRAMENT=1`, `E_FACT=0`, factura real i deute independent. |
+| EF-02 | Operador autoritzat marca E_FACT més tard | Un event auditat, mateixa factura/UUID/número, sense nou CHARGE ni rectificativa. |
+| EF-03 | Persona inscrita intenta marcar E_FACT d'una factura d'empresa | Autorització sobre receptor comprovada al servidor; cap accés/edició per coincidència d'ID_INSC. |
+| EF-04 | Mateixa marca guardada dues vegades | Segon intent sense duplicar event material o enviament; estat coherent. |
+| EF-05 | E_FACT activat però document electrònic encara no enviat | Mostrar preferència/estat pendent; no etiquetar «lliurada» sense evidència d'UC-123. |
+| EF-06 | Desmarcar després de lliurament acreditat | Conservació de document, traça i lliuraments anteriors; futures accions segons política. |
 ## 2. UML de casos d'ús
 
 ```plantuml
