@@ -58,6 +58,27 @@ El callback validat i l'encuat **no** són un assentament de diners per inscripc
 
 [Model de moviments per inscripció](00-revisio-moviments-inscripcions.md).
 
+### 1.4. El callback antic, la factura ja emesa i la sincronització acadèmica — contrast amb el xat original
+
+**C-LEGACY — recorregut antic acreditat.** `realitzaPagamentAutomatic.php` rebia `Ds_MerchantParameters` i `Ds_Signature`, cercava la inscripció per `IDPAG`, creava una factura local `A{any}/{ordre}` amb `NUM_COMANDA=Ds_Order`, actualitzava `inscripcions.PAGAMENT`, `DATA PAG`, `FACTURA_RELACIONADA` i `FRACCIO`, i enviava correus de confirmació. El projecte indica que la signatura es calculava, però cal **verificar que el codi productiu la comparés abans de modificar BD**; no donar per segura la ruta antiga perquè en contingués el càlcul. El callback final del SIF valida signatura i ordre, persisteix notificació i encua, **sense generar numeració a l'endpoint HTTP**.
+
+**C-FACTURA — deute facturat abans de Redsys.** El contracte llegat exigeix: si ja hi ha una factura fiscal real per la inscripció o factura d'empresa, `registerPayment()` sobre aquesta; només si no hi ha cobertura i la venda és facturable, `issueInvoice()` amb pagament inicial. El handler actual `RedsysCourseInvoiceService::issueFromIntentSnapshot()` construeix payload i crida `InvoiceService::issueInvoice()`; en la ruta consultada **no hi ha un branch acreditat de consulta de factura prèvia per inscripció**. La reutilització per clau Redsys no resol una factura real prèvia emesa amb **una altra** clau. Integrar aquest control abans de posar en producció el circuit de factura prèvia pagada per TPV; si el callback arriba i no es pot determinar una factura única, conservar l'ingrés real i obrir conciliació, no emetre una segona factura alternativa.
+
+**C-FONS — estat del pagament vs estat de matrícula.** Una notificació autoritzada pot precedir a l'emissió pel worker; el resultat `VALIDATED` no equival encara a `UUID_FACTURA` ni a accés acadèmic. Quan el SIF confirma, l'adaptador sincronitza `PAGAMENT`, `DATA PAG`, `FRACCIO` i relacions del llegat **com a resum**, i tracta la concessió d'accés com a fase independent. Una fallada d'aquesta sincronització **no** reobre la venda fiscal ni autoritza un segon CHARGE. El correu de factura/PDF/QR s'envia quan el document corresponent està disponible i el receptor és autoritzat; si hi ha incidència documental, comunicar l'estat sense prometre un document encara inexistent.
+
+**C-ESTAT CANVIAT — callback després de baixa/curs modificat.** El snapshot fiscal original roman intacte, però abans d'executar els efectes acadèmics del cobrament cal consultar si la inscripció continua vigent, ha canviat de curs, està cancel·lada o ha estat assumida per una factura de grup. Si el banc ja ha ingressat els diners, preservar `DS_ORDER` i `UUID_PAYMENT` i classificar-ne la destinació/retorn o incidència (UC-51/71/72); no reactivar la matrícula ni assignar-los automàticament al curs antic.
+
+### 1.5. Proves d'integració específiques pendents (no executades)
+
+| ID | Escenari | Evidència esperada |
+| --- | --- | --- |
+| RC-03-01 | Callback correcte per venda sense factura | Un CHARGE i una factura SIF, cap numeració fiscal al callback HTTP antic. |
+| RC-03-02 | Callback per factura prèvia existent | Un CHARGE sobre el UUID_FACTURA anterior, sense una segona factura. |
+| RC-03-03 | Doble callback mateixa DS_ORDER | Un moviment extern i una emissió/assignacions internes idempotents. |
+| RC-03-04 | Callback denegat i després acceptat amb IDPAG compartit però ordres diferents | Només CHARGE de l'intent acceptat. |
+| RC-03-05 | Commit fiscal correcte, sincronització acadèmica o PDF fallits | UUIDs conservats, incidència/reintent de fase, cap nova emissió fiscal. |
+| RC-03-06 | Callback confirmat després de baixa o canvi de curs | Cap alta acadèmica automàtica sobre estat obsolet; cobrament reconciliat. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
