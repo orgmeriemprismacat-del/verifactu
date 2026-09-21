@@ -121,6 +121,135 @@ else Signatura vàlida
 end
 ```
 
+### 4.1. Acció: rebre notificació denegada — el PHP NO encua cap feina fiscal
+
+```mermaid
+sequenceDiagram
+autonumber
+actor Bank as Redsys
+participant EP as callback.php [ENDPOINT]
+participant Sig as RedsysSignatureValidator [PHP]
+participant S as RedsysCallbackService [PHP]
+participant I as RedsysPaymentIntentRepository [PHP]
+participant N as RedsysNotificationRepository [PHP]
+participant DB as BD SIF
+Bank->>EP: POST amb resposta fora de 0…99 i signatura
+EP->>Sig: decodeAndVerify(POST)
+alt Signatura invàlida
+ Sig--xEP: Error abans d'enregistrar notificació
+ EP-->>Bank: Resposta HTTP d'error
+else Signatura vàlida i intenció coherent
+ Sig-->>EP: Payload verificat
+ EP->>S: receiveCallback(db,payload,true)
+ S->>DB: BEGIN
+ S->>I: findByDsOrder(ds_order,true) i contrastar import/divisa/terminal
+ I-->>S: Intenció coherent
+ S->>N: recordReceived(status=ERROR)
+ N->>DB: INSERT redsys_notifications(ERROR) o detectar duplicat
+ N-->>S: notification_id i duplicate
+ S->>DB: COMMIT
+ S-->>EP: status, duplicate, queue_status=null
+ EP-->>Bank: Resposta HTTP
+end
+Note over S,DB: No INSERT a redsys_callback_queue ni creació de factura/CHARGE per resposta denegada.
+```
+
+### 4.2. Acció: callback repetit equivalent o contradictori — dues sortides diferents
+
+```mermaid
+sequenceDiagram
+autonumber
+actor Bank as Redsys
+participant S as RedsysCallbackService [PHP]
+participant N as RedsysNotificationRepository [PHP]
+participant Q as RedsysCallbackQueueRepository [PHP]
+participant Inc as IncidentRepository [PHP]
+participant DB as BD SIF
+Bank->>S: Callback signat i amb intenció coherent, DS_ORDER ja registrat
+S->>DB: BEGIN
+S->>N: recordReceived(ds_order,payload,status)
+N->>DB: Intent INSERT sobre clau única DS_ORDER
+alt Mateixa resposta/import/divisa/terminal/signature_version/hash
+ N->>DB: SELECT notificació existent
+ N-->>S: duplicate=true, notification_id existent, status=DUPLICATE
+ opt El codi de resposta és VALIDATED
+  S->>Q: enqueue(notification_id,uuid_intent)
+  Q-->>S: job existent o recuperable sense segon job per notificació
+ end
+ S->>DB: COMMIT
+ S-->>Bank: duplicate=true i resultat del job si escau
+else Dades contradictòries per la mateixa DS_ORDER
+ N--xS: conflict 409
+ S->>DB: ROLLBACK
+ S->>Inc: open(REDSYS_CALLBACK,detalls de conflicte) [intenta]
+ S--xBank: Error; cap job nou ni substitució de notificació
+end
+Note over S,Q: Dues DS_ORDER diferents amb mateix IDPAG no són duplicat automàtic: cal conciliar cada fet bancari.
+```
+
+### 4.3. Acció: callback tardà després de factura d'empresa, canvi de curs o baixa — CONTROL PENDENT
+
+El codi de `RedsysCallbackService::receiveAuthorizedCallback()` verifica signatura prèviament, intenció/ordre, import, divisa i terminal; en el camí revisat **no compara `EXPIRES_AT`, factura de grup ja emesa, baixa o canvi d'inscripció** abans d'encuar. El diagrama següent és el **guard previ a facturar en el worker que falta acreditar**, no la descripció d'un control executable del callback.
+
+```plantuml
+@startuml
+left to right direction
+actor "Redsys" as Bank
+actor "Responsable de gestió" as O
+rectangle "SIF PrisMa — ordre tardana" {
+ usecase "UC-51\nAcceptar evidència signada\nd'un ingrés real" as Received
+ usecase "UC-03 / UC-52\nProcessar job idempotent" as Worker
+ usecase "Comprovar cobertura fiscal\ni estat actual per inscripció" as Coverage
+ usecase "UC-53 / UC-81\nObrir conciliació/incidència" as Incident
+ usecase "UC-104 / UC-28\nDecidir excedent o retorn\nsi correspon" as Money
+}
+Bank --> Received
+Received ..> Worker : <<include>> [si VALIDATED]
+Worker ..> Coverage : <<include>> [OBJECTIU]
+O --> Incident
+O --> Money
+note bottom of Coverage
+ Cap nova factura fiscal sobre una inscripció
+ ja coberta només perquè arriba DS_ORDER antiga.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor Bank as Redsys
+participant S as RedsysCallbackService [PHP]
+participant Q as Cua Redsys [SQL/worker PHP]
+participant Guard as Guard de cobertura/estat [DISSENY]
+participant F as Factures/inscripcions actuals SIF + llegat
+participant P as Handler de venda i emissió [PHP]
+participant I as Incidències/conciliació [PENDENT]
+Bank->>S: Notificació signada de DS_ORDER antiga però ingressada
+S->>Q: Guardar i encuar si VALIDATED
+S-->>Bank: Recepció confirmada, no factura encara
+Q->>Guard: Abans d'emetre, rellegir operació congelada i estat vigent [OBJECTIU]
+Guard->>F: Consultar UC-04/21 ja emesa, baixa/canvi i altres ingressos
+alt Factura existent/operació canviada o import incompatible
+ F-->>Guard: Cobertura incompatible o deute ja satisfet
+ Guard->>I: Conservar ingrés real i obrir conciliació sense nova factura
+ I-->>Q: Job en incidència fins a decisió traçada [OBJECTIU]
+else Cobertura i pagament coherents amb oferta congelada
+ Guard-->>Q: Autoritzar un únic processament
+ Q->>P: Continuar handler idempotent UC-03
+ P-->>Q: UUID_FACTURA i UUID_PAYMENT confirmats
+end
+Note over Guard,P: El worker existent no acredita aquest guard transversal; no descartar diners ni atorgar una plaça automàticament en conflicte.
+```
+
+| ID de prova pendent | Escenari | Sortida a acreditar |
+| --- | --- | --- |
+| CB-51-01 | Resposta signada denegada amb intenció existent | Notificació `ERROR`; cap job fiscal ni `CHARGE`. |
+| CB-51-02 | Dues notificacions equivalents mateixa DS_ORDER | Una notificació lògica, job reutilitzat quan VALIDATED; una sola factura i ingrés al worker. |
+| CB-51-03 | Mateixa DS_ORDER, import/codi/hash contradictori | Conflicte 409, rollback i incidència; no sobreescriure l'original. |
+| CB-51-04 | IDPAG compartit però dues DS_ORDER i dos ingressos legítims | Conciliar com a dos fets reals sense col·lapsar-los per IDPAG. |
+| CB-51-05 | Callback validat d'intenció individual després de factura d'empresa | No duplicar factura; conservar prova bancària i classificar imputació/sobrant. |
+| CB-51-06 | Callback d'una inscripció canviada/baixa amb reserva vençuda | No concedir plaça ni facturar oferta obsoleta sense revisió; no descartar cobrament real. |
 ## 5. Proves i traçabilitat
 
 Proves localitzades, **no executades en aquesta revisió**: `RedsysCallbackTest` cobreix signatura, denegat, duplicat equivalent/contradictori, import diferent, ordre repetida i ús d'`IDPAG` de la intenció. Queden pendents les proves de **caducitat real**, callback després d'una baixa o canvi de curs i la conciliació de fons per inscripció.
