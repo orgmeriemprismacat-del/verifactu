@@ -40,6 +40,26 @@
 
 **Proves pendents, no executades:** restriccions d'actor/rol, seqüència alta+anul·lació+subsanació, hash/ordre coherent i trencat, totes les combinacions de cua/AEAT, accés a factura de grup i exportació només lectura.
 
+### 1.3. Dades concretes del panell «Registres AEAT» i accés auditor
+
+**Vista definida al projecte.** `25-panell-sif-pay-prisma.md` preveu la consulta a `pay.prisma.cat/sif/registres-aeat` amb tipus de registre, hash, hash anterior, `FISCAL_ORDER`, data de creació/enviament, estat AEAT, resposta, errors, intents i proper retry. Els procediments defineixen filtres per període, estat AEAT, número i UUID i un `GET /api/fiscal-records` **objectiu**. La ruta encara no acredita controlador de consulta i permisos final implementats.
+
+**Una factura, diversos registres.** Per a cada `UUID_FACTURA`, mostrar ordenats els registres d'alta, eventual anul·lació o subsanació **sense substituir-ne l'original**. La correlació de resposta local usa la parella `UUID_FACTURA + FISCAL_ORDER`; un resultat `SENT` de `fiscal_queue` mostra l'execució del transport i `factura_registres.ESTAT_AEAT` el resultat individual. Si una factura té una rectificativa en sèrie R, aquesta té **UUID i registre fiscal propis**, encara que comparteixin `FACTURA_RELACIONADA` en el llegat.
+
+**Cadena local vs resposta remota.** La continuïtat de `HASH_ACTUAL/HASH_ANTERIOR` i l'estat de `fiscal_chain_state` constitueixen evidència d'integritat **local** quan la cadena es verifica sobre les dades congelades. Ni una comparació correcta de hash ni la presència d'XML de petició acredita que AEAT hagi acceptat el registre; mostrar «resposta pendent/incerta» quan no hi ha resposta correlacionada. Davant d'un trencament local, obrir incidència d'integritat i preservar els registres; no editar hashes anteriors des de la consulta.
+
+**Auditor i accions.** El panell defineix els rols `AUDITOR_FISCAL` i `AEAT_READONLY` com a **només lectura**, amb accés limitat a registre, declaració, versió, documents i exportacions autoritzats. No donar-los operació de retry, rectificació, cobrament ni resolució d'incidència per poder veure una línia fiscal; `POST /api/fiscal-queue/{id}/retry` és una acció separada que exigeix rol operatiu, revisió del resultat extern incert i traça pròpia (UC-54/77).
+
+### 1.4. Proves de consulta i atribució de resposta (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CAE-01 | Factura amb alta i registre d'anul·lació | Totes dues entrades visibles amb `FISCAL_ORDER` i hash individual. |
+| CAE-02 | Job SENT amb resposta REJECTED | Mostrar «enviat però rebutjat», no acceptat. |
+| CAE-03 | Hash local coherent però no hi ha resposta remota | Integritat local i remissió incerta/pendent, no acceptació inferida. |
+| CAE-04 | Auditor només lectura intenta retry | Denegació de l'acció al servidor, sense canviar cua. |
+| CAE-05 | Rectificativa R vinculada a factura A antiga | UUIDs/registres separats, sense fusió per agrupador llegat. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
