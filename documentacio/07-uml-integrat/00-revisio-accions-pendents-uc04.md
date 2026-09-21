@@ -49,6 +49,12 @@ El paquet UML mínim per **cada acció funcional independent** és: diagrama de 
 
 **D. Regla per a un UC nou:** assignar nou identificador només quan es trobi una acció real o requerida que no pugui mapar-se sense ambigüitat a un objectiu/postcondició ja catalogat. La nova entrada ha d'indicar actor, disparador, persistència, fitxa, diagrames i ruta de codi o document de requisits; els identificadors 130+ queden **reservats fins a verificació**, no s'inventen en aquesta revisió.
 
+### Resultat intermedi del contrast dirigit de les 25 pantalles
+
+S'ha creat la [matriu de les 25 pantalles pendents](00-matriu-25-pantalles-per-validar.md): cadascun dels noms es pot associar provisionalment a UC existents o a evidència/ajuda sense efecte fiscal propi. Aquesta correspondència **no prova** que les pantalles estiguin implementades ni descarta casos nous en les seves accions internes o en altres superfícies.
+
+En el contrast puntual de classes i fitxes s'han detectat dos contractes que exigeixen prova i correcció abans de tancar la cobertura: [UC-23](uc-023-registrar-fraccio.md#42-seqüència-específica-dues-fraccions-legítimes-idèntiques-el-mateix-dia--collisió-real-del-contracte-actual) deriva una mateixa clau per dues fraccions reals amb inscripció/dia/import/usuari coincidents i pot reutilitzar una assignació de factura diferent; [UC-05](uc-005-rectificar-factura.md#45-desajust-dàlies-dentrada-entre-builder-i-persistència--observat-al-php) accepta àlies `motiu`/`mode_rectificacio` al builder però la vinculació posterior a emissió només llegeix `reason`/`mode`. S'hi han afegit seqüències de les variants positiva/negativa i de la col·lisió d'idempotència; **no** s'han executat els tests ni modificat el PHP.
+
 ## 6. Condicions per marcar una acció com a revisada
 
 - Cas d'ús: flux principal, alternatives/denegacions, dades i proves revisats específicament; no text duplicat d'un altre cas.
