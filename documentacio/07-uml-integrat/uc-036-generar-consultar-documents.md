@@ -39,6 +39,27 @@
 
 **Proves localitzades, no executades ara:** `DocumentsAndIncidentsTest::testRegisterDocumentStoresImmutableHashOnly` valida tipus PDF, inserció de metadades i hash; no verifica generació PDF, permisos, storage segur ni cua `document_job`.
 
+### 1.3. PDF històric regenerat i disponibilitat de la factura prèvia — contrast amb el xat original
+
+**D-ABANS — document real del circuit antic:** el xat original confirma que la previsualització/descarrega de `alumnes/factura/` i de «Generar factura abans de pagar» poden reconstruir el PDF llegint dades **actuals** de BD. Si una persona canvia raó social, CIF o concepte d'una factura històrica, el PDF antic pot sortir diferent en una nova descàrrega. El procediment llegat recorre `.prev-factura` → `mostraModalPrevFactura_Factures.php` i `.download-factura` → `descarregaFactura.php`, que crida `generaFactura($id,true)` amb Dompdf; aquestes rutes no acrediten custòdia immutable de l'artefacte fiscal. L'adaptació SIF ha de consultar un PDF custodiat per `UUID_FACTURA` i hash, no tornar a executar el generador sobre dades llegades vives.
+
+**D-FITXER — custòdia i eliminació:** la pantalla antiga de factura prèvia utilitza una previsualització i descarrega i el xat/documentació identifica una ruta de neteja de fitxers temporals amb nom de fitxer rebut per GET. La ruta nova no ha de permetre que un identificador/path proporcionat pel navegador determini directament quin document fiscal s'esborra; l'artefacte fiscal ha d'estar en emmagatzematge privat, amb lectura per identificador intern i control de permisos del servidor. Els fitxers **temporals de previsualització del llegat** no són la prova de custòdia del document SIF.
+
+**D-IMMEDIAT — negoci vs cua tècnica:** la usuària vol que la factura **emesa abans de cobrar** disposi de PDF per remetre-la a l'empresa/responsable. També va acceptar el disseny amb `document_job` en cua després de confirmar `issueInvoice()`. Per tant, cal mostrar el número/UUID real **immediatament després del commit fiscal** i l'estat del PDF/QR com `READY` o `PENDING`; el correu amb accés a document s'ha d'enviar **quan el fitxer està realment disponible**, no prometre que existeix al mateix instant que s'ha encuat la generació. Prioritzar el job del document de factura prèvia segons requisit operatiu, sense fer una segona emissió si la generació del PDF es retarda o falla. `DocumentRepository::registerDocument()` desa metadades/hash, no escriu els bytes ni implementa aquest worker.
+
+**D-ORIGINAL I R — documents diferents:** si es canvia nom/CIF, curs o import amb una rectificativa, la factura original conserva **el seu PDF original** i la rectificativa ha de tenir PDF/número/hash propis. La pantalla «Consulta - Edita - Anul·la factura» ha de mostrar ambdós i les relacions, no reconstruir el PDF de la factura A amb dades de la R. El xat expressa preferència per enllaços segurs de consulta en correus, però no fixa de forma definitiva adjunt vs enllaç per a totes les plantilles: no documentar una regla universal no decidida.
+
+### 1.4. Proves de custòdia i consulta derivades del xat (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| DOC-01 | Canvi de raó/CIF en origen llegat després d'emetre factura SIF | PDF/hashes i camps de la factura original no canvien; correcció en document nou si pertoca. |
+| DOC-02 | Factura real abans del cobrament i document_job pendent | Factura visible com emesa, document pendent; sense correu que prometi PDF inexistent. |
+| DOC-03 | Worker documental falla i es reintenta | Recuperar document per UUID/versió sense duplicar factura ni sobreescriure un altre artefacte. |
+| DOC-04 | Client aporta filename/path en endpoint de descàrrega o neteja | Cap lectura/esborrat de fitxers arbitraris; identificador i autorització al servidor. |
+| DOC-05 | Rectificativa de receptor sobre factura amb PDF original | Dos documents amb UUID, número i hash propis; l'original roman consultable segons permís. |
+| DOC-06 | Alumne demana PDF de factura d'empresa/grup | Denegar document complet sense autorització del receptor, tot i ser participant del grup. |
+| DOC-07 | Document marcat CREATED però fitxer físic absent o hash divergent | Incidència/reconciliació, no donar descàrrega per garantida per les metadades soles. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
