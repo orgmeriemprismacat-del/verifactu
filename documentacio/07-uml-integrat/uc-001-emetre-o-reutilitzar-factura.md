@@ -109,7 +109,7 @@ U5 ..> U1 : <<include>>
 @enduml
 ```
 
-### Vista del cas d'ús a GitHub (Mermaid)
+### Vista Mermaid del cas general d'emissió
 
 ```mermaid
 flowchart LR
@@ -265,7 +265,7 @@ end note
 @enduml
 ```
 
-### Vista del cas d'ús a GitHub (Mermaid)
+### Vista Mermaid de recuperació de factura davant pagament posterior
 
 ```mermaid
 flowchart LR
@@ -335,7 +335,7 @@ R --> Fix
 @enduml
 ```
 
-### Vista del cas d'ús a GitHub (Mermaid)
+### Vista Mermaid de conflicte de petició d'emissió
 
 ```mermaid
 flowchart LR
