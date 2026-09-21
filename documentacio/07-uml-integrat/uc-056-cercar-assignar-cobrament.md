@@ -40,6 +40,27 @@
 
 **Proves a implementar/validar:** cerca per totes les claus del catàleg, permisos, pagament existent sense assignació, assignació parcial i concurrent, saldo insuficient, reassignació A→B, pack/grup amb N inscripcions, pagador d'empresa, retorn previ i clau repetida amb payload diferent. **No s'han executat proves** en aquesta revisió.
 
+### 1.3. Cerca a «Passar pagaments» i reconeixement del cobrament existent
+
+**Entrada operativa real del llegat.** A `/alumnes/pagaments/`, les consultes i el modal de «Passar pagaments» permeten localitzar la persona, una factura o una operació; el procediment antic `efectuarPagament()` pot crear/actualitzar factura i resum de pagaments. Per factures ja generades, `efectuarPagamentFacturaGenerada()` consulta `buscarPagamentsByFact` i les dades `A_PAGAR`, `PAGAMENT`, `FACTURA_RELACIONADA`, `FRACCIO`, `IDPAG` i receptor. El càlcul llegat de pendent a partir d'aquestes columnes **no garanteix** que s'hagin consultat totes les assignacions, retorns, compensacions o cobraments Redsys en curs al SIF.
+
+**Primer, la identitat de l'entrada externa.** Si el banc/TPV ja ha confirmat un ingrés, consultar `DS_ORDER`, referència bancària, `UUID_PAYMENT`, canal i `IDPAG` amb les seves inscripcions/factures; el fitxer TPV antic només comparava amb `web.factures`, no acreditava un `payment_transaction`. Si el mateix `UUID_PAYMENT` ja existeix però falta una atribució a factura, **no cridar `PaymentService::registerPayment()` amb una altra clau** per omplir el buit: aquest mètode crea un moviment nou i totes les seves `payment_allocation`. En el codi consultat no existeix el writer `allocateExistingPayment`; la cerca i el pas de conciliació han de quedar marcats com a **pendents**.
+
+**Una transferència, diverses factures.** El xat i els procediments preveuen que una transferència d'una escola/empresa pugui cobrir diversos cursos o factures ja emeses, o que una factura rebi diversos cobraments fraccionats. El resultats han de mostrar l'ingrés extern **un sol cop** i la imputació concreta a cada `UUID_FACTURA`, identificant el pagador i la part de cada `ID_INSC` quan es conegui. Una coincidència de CIF, `FACTURA_RELACIONADA` o `IDPAG` no és permís per imputar automàticament la transferència a totes les factures candidates, ni per dividir-la a parts iguals entre alumnes.
+
+**Conflicte semàntic d'idempotència.** `PaymentService::existingResult()` retorna `UUID_PAYMENT` per clau existent sense comparar l'import/les assignacions noves amb `PAYLOAD_HASH`. Una petició repetida amb mateixa clau **i contingut canviat** s'ha de marcar conflicte abans de presentar «pagament assignat»; el simple `idempotency_reused=true` del servei actual no prova que la destinació demanada coincideixi.
+
+### 1.4. Proves operatives addicionals (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CA-01 | Transferència existent per dues factures d'empresa | Un `UUID_PAYMENT`, imputacions separades i cap segon CHARGE. |
+| CA-02 | Factura prèvia amb ingrés real però resum llegat `PAGAMENT=0` | Localitzar factura i cobrament SIF, reparar resum després; no emetre factura nova. |
+| CA-03 | Callback Redsys validat amb job en RETRY | Recuperar processament original, no registrar nova transferència/TPV fictícia. |
+| CA-04 | N factures candidates amb el mateix CIF o IDPAG | Revisió i selecció explícita de destí/quantitats; cap distribució automàtica. |
+| CA-05 | Mateixa clau idempotent i import/assignacions diferents | Conflicte de payload, no reutilització silenciosa d'una assignació incompatible. |
+| CA-06 | Ja hi ha UUID_PAYMENT i cal completar una assignació | Operació específica pendent, no un nou `registerPayment()`. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
