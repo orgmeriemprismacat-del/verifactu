@@ -129,6 +129,182 @@ end
 S-->>G: Estat diferenciat; sense UPDATE del TOTAL original
 ```
 
+## Accions independents de l'ajust manual: previsualitzar, aprovar i gestionar una intenció anterior
+
+### A. Previsualitzar una proposta d'ajust — UC-94, DISSENY
+
+**Actor i disparador:** gestió introdueix un nou import per a una inscripció, línia de pack o participant de grup; encara no confirma el canvi. **Entrades:** `ID_INSC`/línia, import proposat, causa, versió de l'oferta i identitat del pagador. **Resultat:** proposta amb quatre imports separats (preu original congelat, descompte, diners efectivament ingressats i deute actual), diferència en cèntims i possibles efectes sobre oferta, `DS_ORDER`, factura i participant. No genera `operational_event` d'aprovació, factura, `CHARGE` o `REFUND`. `ManualPriceAdjustmentService::preview()` és **disseny**, no mètode PHP acreditat.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió" as G
+rectangle "SIF PrisMa — proposta de canvi d'import (DISSENY)" {
+ usecase "UC-94 / PREVIEW\nPrevisualitzar import proposat" as Preview
+ usecase "Validar ID_INSC, línia, versió i permís" as Identify
+ usecase "Llegir factura/assignacions i oferta actual" as Read
+ usecase "Distingir descompte, import cobrat i deute" as Separate
+}
+G --> Preview
+Preview ..> Identify : <<include>>
+Preview ..> Read : <<include>>
+Preview ..> Separate : <<include>>
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant UI as Fitxa alumne/modal [adaptació PENDENT]
+participant S as ManualPriceAdjustmentService [DISSENY]
+participant L as Dades acadèmiques/oferta llegada [LECTURA]
+participant F as factura i factura_linia [LECTURA]
+participant P as payment_transaction/allocation [LECTURA]
+participant I as redsys_payment_intent [LECTURA]
+G->>UI: Proposar nou import 65 per ID_INSC X, preu anterior 80
+UI->>S: preview(X,65,causa,versió)
+S->>L: Llegir línia, descomptes, pagador i versió d'oferta
+S->>F: Llegir factures emeses i imports congelats
+S->>P: Llegir ingressos reals i imports atribuïts
+S->>I: Llegir DS_ORDER pendents i import/snapshot esperats
+alt Permís insuficient, versió canviada o participant ambigu
+ S-->>UI: DENIED/CONFLICT sense cap UPDATE
+else Proposta de dades consistent
+ S-->>UI: Diferència per ID_INSC, efecte fiscal/TPV possible i imports separats
+end
+UI-->>G: Mostrar la proposta; cap factura, pagament ni ajust confirmat
+Note over S,I: Consultes i classificador de previsualització complets: DISSENY, no endpoint acreditat.
+```
+
+### B. Aprovar o denegar l'ajust proposat — UC-94, DISSENY
+
+**Actor i disparador:** persona amb permís d'aprovació, separada del simple dret a editar la fitxa, rep una proposta identificada i encara vigent. **Precondicions:** causa i regla de preu explícites, proposta congelada, versió vigent, identitat de pagador/receptor i import per línia. **Resultat:** decisió traçada amb `REQUEST_ID` estable i estats diferenciats: aprovada però pendent de canvis de canal/efectes fiscals, denegada, conflicte de versió o recuperació d'una aprovació equivalent. Aprovar una nova oferta **no** registra un ingrés de banc ni una devolució; si ja hi ha factura, UC-74 decideix el document fiscal corresponent. El writer genèric `OperationalEventRepository::append()` **no** valida aprovador ni conté per si sol una cerca idempotent: el control és pendent.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió proponent" as G
+actor "Responsable aprovador" as A
+rectangle "SIF PrisMa — decisió d'import (DISSENY)" {
+ usecase "UC-94 / APPROVE\nAprovar o denegar proposta" as Decide
+ usecase "Validar permisos i versió\nde la proposta" as Guard
+ usecase "Registrar event abans/després,\nmotiu i actor" as Event
+ usecase "UC-74\nClassificar impacte en factura emesa" as Fiscal
+ usecase "UC-63\nPreparar nova oferta/intenció TPV" as Intent
+}
+G --> Decide
+A --> Decide
+Decide ..> Guard : <<include>>
+Decide ..> Event : <<include>> [decisió persistent]
+A --> Fiscal
+A --> Intent
+note right of Decide
+ Aprovar no executa automàticament
+ cobrament, devolució ni nova factura.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Responsable aprovador
+participant UI as Panell d'ajustos [PENDENT]
+participant S as ManualPriceAdjustmentService [DISSENY]
+participant V as Guard d'actor/versió i REQUEST_ID [DISSENY]
+participant E as OperationalEventRepository [PHP, writer genèric]
+participant F as Consulta factura SIF
+participant C as Classificador UC-74 [DISSENY]
+A->>UI: Aprovar proposta X de 80 a 65 amb motiu
+UI->>S: approve(proposalId,actor,requestId)
+S->>V: Bloquejar proposta i comparar versió/snapshot
+alt Actor no autoritzat o versió de proposta canviada
+ V-->>S: DENIED/CONFLICT
+ S-->>UI: Cap event d'aprovació ni preu nou
+else REQUEST_ID anterior amb proposta equivalent
+ V-->>S: Recuperar decisió anterior
+ S-->>UI: Reús de decisió, sense duplicar cap efecte
+else REQUEST_ID anterior amb nou import/titular
+ V-->>S: CONFLICT de contingut
+ S-->>UI: Rebuig i revisió
+else Decisió nova autoritzada
+ V-->>S: Versió consistent, actor i motiu acreditats
+ S->>F: Comprovar si existeix factura emesa/ingrés real
+ S->>E: append(snapshot abans/després, motiu, actor, correlació) [integració PENDENT]
+ E-->>S: UUID_OPERATIONAL_EVENT nou
+ alt Factura ja emesa
+  S->>C: Classificar possible correcció fiscal per UC-74
+  C-->>S: Ruta fiscal separada o decisió pendent
+ else Sense factura
+  S-->>UI: Publicació de nova oferta a confirmar [PENDENT]
+ end
+ S-->>UI: Aprovació traçada; efectes fiscal, TPV i diners separats
+end
+UI-->>A: Decisió i pendents concrets
+Note over S,E: El repositori PHP només insereix un event nou. Guard, aprovació i unitat de transacció entre serveis no acreditats.
+```
+
+### C. Repreuar una oferta amb DS_ORDER anterior i conciliar-ne el callback — UC-94 amb UC-63/51, DISSENY/PARCIAL
+
+**Disparador propi:** una proposta aprovada modifica preu o concepte quan ja existeix una intenció Redsys anterior. **Invariant comprovada al PHP:** `RedsysPaymentIntentService::create()` rellegeix per `DS_ORDER`, compara import, moneda, terminal, identitat d'origen, `CREATED_BY`, venciment i snapshot normalitzat; si divergeixen, retorna conflicte. Per tant, **no** reutilitzar la mateixa `DS_ORDER` amb 65 € si la intenció original esperava 80 €. Crear una altra intenció (UC-63) després de gestionar l'estat de la primera, i conservar l'antiga per conciliar una notificació bancària tardana (UC-51/82). Un import de 80 € cobrat tard no equival a un ingrés de 65 € ni es pot ignorar perquè hagi canviat l'oferta.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió autoritzada" as G
+actor "Redsys" as R
+rectangle "SIF PrisMa — intenció antiga i oferta nova" {
+ usecase "UC-94 / PREU ACTUALITZAT\nGestionar ordre TPV prèvia" as Change
+ usecase "UC-63\nCrear DS_ORDER nova per l'oferta" as New
+ usecase "UC-51\nConciliar callback d'ordre anterior" as Late
+ usecase "UC-104\nClassificar excés de diner real si n'hi ha" as Excess
+}
+G --> Change
+Change ..> New : <<include>> [quan s'ofereix nou pagament]
+R --> Late
+G --> Late
+G --> Excess
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant S as Coordinador d'ajust/TPV [DISSENY]
+participant I as RedsysPaymentIntentService::create [PHP]
+participant DB as redsys_payment_intent i factura SIF
+participant R as Redsys/callback antic
+participant C as Conciliació UC-51/82 [PENDENT]
+G->>S: Aprovar 65 sobre proposta abans ofertada per 80
+S->>DB: Consultar DS_ORDER_A existent i snapshot d'import 80
+S->>I: Intentar reutilitzar DS_ORDER_A amb import 65 [cas a rebutjar]
+I->>DB: Cercar DS_ORDER_A i comparar tot el contingut
+DB-->>I: Import/snapshot diferents
+I-->>S: CONFLICT, intenció A intacta
+S->>S: Decidir tractament de l'oferta A i generar ordre nova única
+S->>I: create(DS_ORDER_B, expected_amount=65, snapshot nou)
+I->>DB: INSERT PENDING o reús equivalent de B
+I-->>S: UUID_INTENT_B, DS_ORDER_B
+S-->>G: Nova oferta pagable de 65, ordre A preservada per conciliació
+opt Arriba callback signat de l'ordre A anterior
+ R->>C: DS_ORDER_A, import real 80 i estat de banc
+ C->>DB: Consultar intencions A/B, factura i pagaments existents
+ C-->>G: Preservar el cobrament real i obrir incidència/UC-104 si sobra valor
+end
+Note over S,C: Create(intenció) és PHP real; expiració de A, publicació de B i resolució de callback després de canvi són integració PENDENT.
+```
+
+| Prova pendent | Escenari | Resultat esperat |
+| --- | --- | --- |
+| AJ-94-07 | Previsualitzar 80→65 amb inscripció de pack i pagador d'empresa | Diferència per línia/persona i imports cobrats separats, cap modificació per previsualitzar. |
+| AJ-94-08 | Dos aprovadores amb versions d'oferta diferents | Una decisió efectiva per versió; segona petició en conflicte o recuperació equivalent. |
+| AJ-94-09 | Mateix REQUEST_ID, import nou diferent | Conflicte explícit, sense segon event aplicat ni document corrector duplicat. |
+| AJ-94-10 | DS_ORDER_A de 80 i `create()` posterior a 65 amb la mateixa ordre | `CONFLICT`; la intenció antiga no es muta ni es fa passar per pagada a 65. |
+| AJ-94-11 | Oferta nova DS_ORDER_B de 65 i callback d'A de 80 confirmat tard | Conciliació de l'ingrés de 80 amb la compra real, sense doble CHARGE ni assignació automàtica a B. |
+| AJ-94-12 | Factura emesa i proposta de descompte encara pendent | No editar `factura.TOTAL` ni fer `REFUND`; decisió UC-74 abans d'efecte fiscal. |
+
 ## Traçabilitat
 
 [UC-94 original](../06-fitxes-funcionals/uc-094.md) · [UC-90 descompte tardà](uc-090-descompte-validat-despres-compra.md) · [UC-74 classificador](uc-074-classificar-correccio-fiscal.md) · [UC-104 excés](uc-104-gestionar-exces-cobrament.md) · [UC-105 reassignació](uc-105-reassignar-repartir-pagament.md) · [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php) · [LegacyCourseInvoicePayloadBuilder](../../sif/src/Service/LegacyCourseInvoicePayloadBuilder.php) · [PaymentService](../../sif/src/Service/PaymentService.php) · [Moviments d'inscripció](00-revisio-moviments-inscripcions.md).
