@@ -144,7 +144,7 @@ R->>I: Crear diferències per UUID_PAYMENT, DS_ORDER i fiscal_order
 I-->>R: Resoltes o pendents amb evidència
 R->>E: Registrar hashes, INTEGRITY_RESULT, RPO/RTO observats
 alt Efecte extern incert o diferència sense resoldre
- R-->>T: NO_GO de les accions afectades; sense reexecutar CHARGE/ALTA
+ R-->>T: NO_GO de les accions afectades, sense reexecutar CHARGE/ALTA
 else Recuperació validada
  T->>G: Revisar evidència i decidir reobertura de serveis
  G-->>T: Decisió per versió/entorn
