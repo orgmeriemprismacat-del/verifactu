@@ -93,6 +93,29 @@ U5 ..> U1 : <<include>>
 @enduml
 ```
 
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Canal autoritzat<br/>(ecommerce/intranet)"]
+  a_1["Procés automàtic SIF"]
+  subgraph SIF_BOUNDARY["SIF PrisMa"]
+    u_0(["UC-01<br/>Emetre o reutilitzar factura"])
+    u_1(["Validar payload fiscal"])
+    u_2(["Reservar número i<br/>registrar emissió"])
+    u_3(["Registrar cobrament inicial<br/>(si existeix)"])
+    u_4(["UC-04<br/>Emetre abans de cobrar"])
+    u_5(["UC-05<br/>Emetre rectificativa"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_3 -.->|extend| u_0
+  u_4 -.->|include| u_0
+  u_5 -.->|include| u_0
+```
+
 ## 3. Subdiagrama UML de classes
 
 Representa **classes PHP comprovades**, no pantalles imaginades ni taules SQL convertides en classes.
@@ -226,6 +249,25 @@ end note
 @enduml
 ```
 
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Canal de venda autoritzat"]
+  a_1["Procés de cobrament"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — UC-01 / REÚS DE FACTURA"]
+    u_0(["Recuperar factura existent<br/>per la clau d'emissió"])
+    u_1(["Validar equivalència fiscal<br/>de payload original i nou"])
+    u_2(["Comprovar si pagament inicial<br/>ja existeix per clau pròpia"])
+    u_3(["UC-02<br/>Registrar un ingrés posterior real"])
+  end
+  a_0 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  a_1 --> u_3
+  a_0 --> u_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -284,6 +326,22 @@ C --> Retry
 Retry ..> Compare : <<include>> [guard pendent]
 R --> Fix
 @enduml
+```
+
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Canal emissor"]
+  a_1["Responsable fiscal"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — UC-01 / CONFLICTE D'EMISSIÓ"]
+    u_0(["Reintentar emissió identificada<br/>per clau K"])
+    u_1(["Comparar receptor, sèrie, línies,<br/>imports i inscripcions originals"])
+    u_2(["Classificar canvi després<br/>d'emissió UC-74/05"])
+  end
+  a_0 --> u_0
+  u_0 -.->|include| u_1
+  a_1 --> u_2
 ```
 
 ```mermaid
