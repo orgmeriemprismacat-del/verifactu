@@ -151,7 +151,7 @@ loop Cada inscripció afectada
  A-->>S: Resultat per destí o incidència
  S->>B: Desar resultat individual i passos pendents
 end
-Note over S,A: El lot i el ledger quantitatiu són DISSENY; la factura original no es reescriu.
+Note over S,A: El lot i el ledger quantitatiu són DISSENY, la factura original no es reescriu.
 ```
 
 ### 5.1. Acció independent: previsualitzar un canvi d'edició sense aplicar-lo — DISSENY
@@ -201,7 +201,7 @@ else Dades de partida vàlides
  S-->>UI: Snapshot d'afectats, casos sense cobrament i incidents
  UI-->>G: Mostrar efectes previstos per participant i pendents d'aprovar
 end
-Note over S,Q: Només lectures/proposta; cap canvi acadèmic, fiscal, cobrament, cancel·lació de reserva ni notificació. Endpoint preview no acreditat.
+Note over S,Q: Només lectures/proposta, cap canvi acadèmic, fiscal, cobrament, cancel·lació de reserva ni notificació. Endpoint preview no acreditat.
 ```
 
 ### 5.2. Acció independent: reprendre només un item parcial del lot — DISSENY
@@ -262,7 +262,7 @@ else Item parcial conegut
   end
  end
 end
-Note over S,A: No hi ha commit distribuït SIF/Moodle. El checkpoint/worker són disseny; una falla no autoritza tornar a cobrar ni a facturar.
+Note over S,A: No hi ha commit distribuït SIF/Moodle. El checkpoint/worker són disseny, una falla no autoritza tornar a cobrar ni a facturar.
 ```
 
 | ID de prova pendent | Entrada | Sortida exigible |
