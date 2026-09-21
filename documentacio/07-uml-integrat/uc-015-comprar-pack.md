@@ -191,7 +191,7 @@ opt Desglossament monetari per inscripció [DISSENY]
   W->>L: append(EXTERNAL→ID_INSC, import_i, UUID_PAYMENT)
  end
 end
-Note over W,L: Un pagament bancari; N atribucions internes. Integració del ledger no implementada.
+Note over W,L: Un pagament bancari, N atribucions internes. Integració del ledger no implementada.
 ```
 
 ### 4.1. Seqüència — pagament únic i alternativa excepcional d'intranet (OBJECTIU)
