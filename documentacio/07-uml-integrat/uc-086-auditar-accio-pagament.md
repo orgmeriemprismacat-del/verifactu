@@ -65,6 +65,30 @@ Main ..> Result : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Usuari/operador autoritzat"]
+  actor_1["Worker o procés"]
+  actor_2["Auditor de lectura"]
+  subgraph SIF_BOX["SIF · traça d'accions de pagament"]
+    uc_0(["UC-86<br/>Registrar acció sobre pagament"])
+    uc_1(["Identificar actor i petició"])
+    uc_2(["Guardar REQUESTED"])
+    uc_3(["Executar acció autoritzada"])
+    uc_4(["Guardar resultat terminal"])
+    uc_5(["Consultar cronologia autoritzada"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_5
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 3. Diagrama de classes executables
 
 ```mermaid
