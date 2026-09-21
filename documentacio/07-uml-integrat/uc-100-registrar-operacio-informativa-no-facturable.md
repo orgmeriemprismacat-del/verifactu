@@ -26,6 +26,27 @@
 
 **Pendents:** classificador/autorització del canal, idempotència d'`operational_event`, política de minimització de snapshots, relació amb oferta/operació i proves de derivació a facturació real.
 
+### «No facturable» no és sinònim d'«import zero» ni de «pendent»
+
+**Tres entrades reals amb abast diferent.** L'inventari `33-casos-us-sif.md` identifica `web-actual/ajax/enviarInscripcioTastet.php` com a alta **gratuïta a `inscripcions_reptes` sense cobrament**, mentre que `enviarInscripcio.php` crea inscripcions ordinàries **abans de pagar** i diferencia `tipusCurs='S'` per a cursos subvencionats. El primer pot correspondre a l'alta gratuïta UC-108; el segon **no** queda classificat `NONE` perquè `PAGAMENT=0` o `A_PAGAR=0` en un moment concret: pot haver-hi factura prèvia real, deute de l'empresa o finançament pendent de classificar per UC-109. La nota d'un contacte que només demana informació, una inscripció gratuïta, una factura abans de cobrar i una matrícula subvencionada són fets diferents malgrat que **cap** hagi generat encara un cobrament.
+
+**Event, registre acadèmic i consentiment.** `OperationalEventRepository::append()` desa un event amb `OPERATION_TYPE/SOURCE_TYPE/SOURCE_ID`, impactes, motiu, actor i snapshots; **no** crea per si mateix `inscripcions_reptes`, ni concedeix plaça, ni prova accés Moodle. UC-108/113/129 ha de tramitar i verificar l'alta al sistema corresponent sense facturar-la per error. Un `CORREU` dins l'event o un avís d'accés al tastet **no** són confirmació de mailing comercial: UC-125 exigeix una decisió pròpia de subjecte/finalitat/canal, no copiar automàticament `mailing=sí` d'un registre informatiu.
+
+**Una operació inicialment informativa pot tenir un ingrés posterior.** Si la petició es converteix en compra real, generar **una nova operació comercial traçada**, amb oferta acceptada, receptor, prestació, factura prèvia quan correspongui i registre de `CHARGE` només si hi ha entrada externa efectiva. No modificar l'event `NONE/NONE` inicial per fer semblar que ja era una factura. Si apareix una transferència real que no es pot relacionar encara amb un `ID_INSC`, registrar-la/reconciliar-la amb UC-56/82 i conservar la incidència: el `NONE` de la consulta d'origen no autoritza ignorar diners externs.
+
+**Minimització i reús de la mateixa petició.** El repositori calcula un hash SHA-256 dels snapshots JSON, però no decideix **quins camps personals cal desar**, ni valida una clau de negoci que diferenciï una repetició equivalent d'un canvi de contingut. El controlador objectiu ha de conservar només les dades necessàries, identitat/rol d'actor, causa, font, referència comercial i resultat per fase; rebutjar el mateix identificador de petició amb impacte fiscal/econòmic contradictori. Cap línia de `operational_event` per si sola prova que s'hagi executat una baixa acadèmica, una devolució o una notificació.
+
+### Proves d'operació gratuïta, pendent i informativa (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| NF-100-01 | Tastet registrat a `inscripcions_reptes` sense preu ni cobrament | Alta gratuïta i accés segons política; cap factura/CHARGE només per aquest event. |
+| NF-100-02 | Inscripció a curs ordinari amb `PAGAMENT=0` i factura prèvia emesa | Factura real pendent; no reclassificar-la com a no facturable per saldo zero ingressat. |
+| NF-100-03 | Curs `tipusCurs='S'` amb quota individual zero i finançador pendent | UC-109 decideix el tractament real; no FREE_SAMPLE per defecte. |
+| NF-100-04 | Consulta informativa i posterior venda telefònica acceptada | Event inicial intacte i nova operació UC-92; cobrament només quan real. |
+| NF-100-05 | Email de confirmació de tastet amb mailing no acceptat | Avís operatiu sense subscripció comercial inventada. |
+| NF-100-06 | Repetir `REQUEST_ID` amb impacte `NONE` i després `FISCAL` incompatible | Conflicte de decisió i historial, no reús silenciós del mateix event. |
+
 ## UML de casos d'ús
 
 ```plantuml
