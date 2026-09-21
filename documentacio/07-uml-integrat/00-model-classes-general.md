@@ -278,6 +278,53 @@ PaymentService --> PaymentRepository : cerca per K; si existeix no insereix allo
 
 **Risc compartit amb la devolució:** `ManualPaymentPayloadBuilder` produeix `TRANSFERENCIA|REF:<referència>` sense factura/import. Si la referència ja va crear `UUID_PAYMENT_A` amb assignació a factura A, `PaymentService` recupera aquest UUID en una petició posterior per B i **no afegeix** l'assignació B. `ManualPaymentService::registerForInvoice()` retorna aquell `UUID_PAYMENT_A` però sobreescriu `uuid_factura` amb B, de manera que la resposta pot semblar un cobrament vàlid de B sense que la BD l'hagi imputat. La mateixa forma de resposta contradictòria pot produir-se amb `ManualRefundService`, però els efectes econòmics `CHARGE` i `REFUND` són diferents i no s'han de barrejar. [UC-02, seqüència 5.3](uc-002-registrar-cobrament-factura.md); [UC-28, seqüència 4.3a](uc-028-registrar-devolucio.md).
 
+### 3.3. Subvista real de fraccions i reclamacions — UC-23/24, dues claus que no acrediten l'event extern
+
+```mermaid
+classDiagram
+direction LR
+class ManualInstallmentPaymentService {
+ <<PHP real: factura de petició en resposta>>
+ +registerByUuid(sifDb,uuidFactura,input) array
+ +registerByNumVisible(sifDb,numVisible,input) array
+}
+class ManualInstallmentPaymentPayloadBuilder {
+ <<PHP real: clau per inscripció/dia/import/usuari>>
+ +forExistingInvoice(uuidFactura,input) array
+}
+class ClaimPaymentService {
+ <<PHP real: factura de petició en resposta>>
+ +registerByUuid(sifDb,uuidFactura,input) array
+ +registerByNumVisible(sifDb,numVisible,input) array
+}
+class ClaimPaymentPayloadBuilder {
+ <<PHP real: claim_reference prioritària a reference bancària>>
+ +forExistingInvoice(uuidFactura,input) array
+}
+class ManualPaymentInvoiceRepository {
+ <<PHP real: cerca factura, NO valida vincle ID_INSC>>
+ +findByUuid(db,uuid,forUpdate) array
+}
+class PaymentService {
+ <<PHP real: reús per clau sense comprovar assignacions>>
+ +registerPayment(payload) array
+}
+class PaymentRepository {
+ <<PHP real: moviment/assignació només en crear un pagament>>
+ +findByIdempotencyKey(db,key,forUpdate) array
+ +createPayment(db,payload) array
+}
+ManualInstallmentPaymentService --> ManualPaymentInvoiceRepository : localitza F
+ManualInstallmentPaymentService --> ManualInstallmentPaymentPayloadBuilder : inscripció I només ve del payload
+ManualInstallmentPaymentService --> PaymentService : CHARGE MANUAL/INSTALLMENT_PAYMENT
+ClaimPaymentService --> ManualPaymentInvoiceRepository : localitza F
+ClaimPaymentService --> ClaimPaymentPayloadBuilder : referència d'expedient o bancària
+ClaimPaymentService --> PaymentService : CHARGE/CLAIM_PAYMENT
+PaymentService --> PaymentRepository : cerca K i crea nou només si manca
+```
+
+**Límits exactes:** `ManualInstallmentPaymentPayloadBuilder` desa `reference` en el payload si s'aporta, però **no** la incorpora a la clau; la clau tampoc inclou `UUID_FACTURA`, ni el constructor comprova `fact_rels`. `ClaimPaymentPayloadBuilder` tria `claim_reference`/variants **abans** de `reference`; si aquesta clau identifica l'expedient i no l'entrada bancària, dos pagaments parcials legítims del mateix expedient poden col·lidir. Una mateixa entrada bancària registrada per UC-22 i després UC-24/23 pot generar **dues claus diferents i dos CHARGE** perquè `PaymentService` només deduplica per la clau rebuda. Els dos serveis manuals sobreescriuen els camps de factura del resultat després de recuperar el `UUID_PAYMENT`, amb risc de resposta contradictòria entre factures. [UC-23](uc-023-registrar-fraccio.md) i [UC-24](uc-024-registrar-cobrament-reclamacio.md).
+
 ## 4. Classes executives de Redsys i integracions de venda
 
 ```mermaid
@@ -935,6 +982,55 @@ ManualRefundService --> PaymentService : delegació PHP existent
 ```
 
 **Limitació d'excés no assignat:** el builder manual exigeix `UUID_FACTURA` i crea una assignació `INVOICE_REFUND`; **no** serveix per retornar directament diners sobrants d'un ingrés que no s'han atribuït a cap factura. UC-104 requereix un contracte econòmic específic per al retorn extern d'aquest sobrant sense contaminar `factura.ESTAT_COBRAMENT`. Ni l'ordre bancària, ni l'autorització, ni el ledger per inscripció ni el reconciliador formen part del codi PHP acreditat.
+
+### 6.8. Subvista de disseny: identitat bancària transversal i estat de reclamació — UC-22/23/24/56
+
+```mermaid
+classDiagram
+direction LR
+class ExternalReceiptReconciler {
+ <<DISSENY: identifica fet extern independentment de prefix>>
+ +identify(externalEventId,bankEvidence) receipt
+}
+class InstallmentDestinationGuard {
+ <<DISSENY: valida ID_INSC ↔ UUID_FACTURA>>
+ +preview(invoiceId,enrollmentId,externalEventId,amount) result
+}
+class ClaimExternalReceiptResolver {
+ <<DISSENY: expedient != entrada bancària>>
+ +identify(claimCaseId,externalEventId,invoiceId) result
+}
+class ClaimCaseReconciler {
+ <<DISSENY: tancament per deute net reclamat>>
+ +reviewClaim(claimCaseId,invoiceId) decision
+}
+class PaymentPayloadEquivalenceGuard {
+ <<DISSENY: compara operació K i assignacions>>
+ +validateMoneyAndReuse(payload,existing) decision
+}
+class PaymentRepository {
+ <<PHP real: no fa cerca transversal de banc/expedient>>
+ +findByIdempotencyKey(db,key,forUpdate) array
+}
+class ManualInstallmentPaymentService {
+ <<PHP real: alta manual quota>>
+ +registerByUuid(db,invoiceId,input) array
+}
+class ClaimPaymentService {
+ <<PHP real: alta per reclamació>>
+ +registerByUuid(db,invoiceId,input) array
+}
+ExternalReceiptReconciler ..> PaymentRepository : cerca global de fet per definir [DISSENY]
+InstallmentDestinationGuard --> ExternalReceiptReconciler : verificar ingressos UC-22/23/Redsys
+InstallmentDestinationGuard --> PaymentPayloadEquivalenceGuard : I-F i idempotència
+ClaimExternalReceiptResolver --> ExternalReceiptReconciler : E bancari separat de CASE-ID
+ClaimExternalReceiptResolver --> PaymentPayloadEquivalenceGuard : K i trams preexistents
+ClaimCaseReconciler --> ClaimExternalReceiptResolver : ingressos del cas, sense inventar CHARGE
+InstallmentDestinationGuard ..> ManualInstallmentPaymentService : només alta nova legitimada [PENDENT]
+ClaimExternalReceiptResolver ..> ClaimPaymentService : només alta nova legitimada [PENDENT]
+```
+
+**Frontera de transaccions:** la inspecció del PHP acredita el bloqueig per `IDEMPOTENCY_KEY` en `PaymentService`, no una clau universal d'operació bancària ni una reserva de dret per `ID_INSC`. Un `SELECT` de consulta transversal **fora** de la mateixa política de bloqueig que el `INSERT` no resol la cursa de dos canals; el guard, l'alta i les assignacions han de garantir una identitat estable del mateix ingrés. `ClaimCaseReconciler` descriu el **tancament de l'expedient** i no s'ha d'usar per modificar `factura` ni per marcar `ESTAT_COBRAMENT=PAID` sense deute net real. [UC-22](uc-022-registrar-transferencia.md), [UC-23](uc-023-registrar-fraccio.md), [UC-24](uc-024-registrar-cobrament-reclamacio.md).
 
 ## 7. Traçabilitat i criteri de manteniment
 
