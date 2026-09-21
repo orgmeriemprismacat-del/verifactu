@@ -28,6 +28,27 @@
 
 **Proves:** dos cursos d'un mateix grup; curs + llibre i dos emissors; dues factures amb una transferència; fraccions d'una factura; import total no igual a suma de línies; dos articles amb règim diferent; `fact_rels.ID_FACTURA_LINIA=NULL`.
 
+### Composicions reals de PrisMa que el nombre d'`IDPAG` no resol
+
+**Tres composicions diferents.** El flux comercial de PrisMa descriu: (1) **pack** habitual de dos cursos i dues inscripcions amb `IDPAG` comú, descompte del segon curs i un sol pagament/una factura amb dues línies; (2) **grup** amb una línia per participant i un receptor que pot ser empresa o responsable particular; (3) **descompte d'amics**, on `DescompteAmic.php` crea dues inscripcions que **poden ser de cursos diferents**, un pagador a `respGrups` i `IDPAG` comú. Els constructors fiscals de pack i grup **no demostren** que aquests tres supòsits comparteixin els mateixos criteris de receptor, tram o percentatge. Identificar `UUID_OPERATION`, participants, servei/línia, pagador i receptor legítim **abans** de decidir factures i claus idempotents.
+
+**Els builders no són una decisió d'agrupació.** `LegacyPackInvoicePayloadBuilder` factura amb les inscripcions del pack i pren el receptor de la **primera fila retornada**; aquesta es consulta amb `ORDER BY A_PAGAR DESC, ID`, no amb l'ordinal comercial acceptat. `LegacyGroupInvoicePayloadBuilder` usa `respGrups` com a `billing`, però en un grup d'escola el gestor acadèmic pot no ser l'entitat receptora. `LegacyGiftInvoicePayloadBuilder` factura la **compra del dret** al comprador, mentre que la inscripció posterior del destinatari **no és una segona venda** pel mateix valor. No seleccionar un builder perquè només coincideixi `IDPAG` o perquè hi hagi diverses línies; comprovar la naturalesa del fet facturable i la identitat fiscal real.
+
+**Un únic ingrés i N documents quan s'hagin classificat.** Una transferència d'empresa que cobreixi diverses factures o un cobrament conjunt d'amics amb receptors diferenciats pot necessitar **un `UUID_PAYMENT` extern i N `payment_allocation`** segons la classificació fiscal aprovada. `PaymentService::registerPayment()` crea un `CHARGE` nou amb les assignacions que rep, però el writer per repartir un pagament **ja existent** és una capacitat pendent d'UC-56/105. No emetre N factures només per simplificar la distribució ni crear N ingressos bancaris per fer quadrar N línies. En pack amb factura prèvia real i cobrament posterior, l'operació econòmica s'ha d'atribuir a la factura existent, no generar una factura per línia.
+
+**Control final per línia.** Per cada resultat de la classificació, fixar l'emissor acreditat, receptor, `ID_INSC`/origen, servei real, base/descompte/net i règim justificat; comprovar el total del document i la suma de trams externs amb precisió de cèntims. `fact_rels.ID_FACTURA_LINIA` pot quedar `NULL` al writer actual: exigir un vincle quantitatiu futur per demostrar quina part correspon a cada component/persona sense inventar-lo en la vista d'auditoria. La venda de llibres/SL resta a UC-98 fins que l'emissor i la fiscalitat del servei estiguin classificats: no copiar `iva_regim=EXEMPT` d'un curs a un producte diferent.
+
+### Proves de classificació comercial abans d'emetre (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| MC-88-01 | Pack de dos cursos amb mateix `IDPAG` i una sola compra | Ordinals, imports i receptor confirmats; factura de pack amb dues línies si la classificació comercial/fiscal ho avala. |
+| MC-88-02 | Amics amb cursos i receptors fiscals diferents | Decisió de documents per receptors; un `IDPAG` compartit no força una factura de grup. |
+| MC-88-03 | Empresa paga grup, `respGrups` apunta a la persona de contacte | Receptor fiscal de l'entitat acreditat; no assumir que el contacte és el comprador fiscal. |
+| MC-88-04 | Factura de regal ja emesa i destinatari el bescanvia | Vincle a la inscripció sense nova factura per valor prèviament facturat. |
+| MC-88-05 | Un `CHARGE` cobreix dues factures legítimes | Suma de trams igual a import extern; cap segona entrada bancària inventada. |
+| MC-88-06 | Compra de curs i producte de botiga sense emissor/classificació confirmats | Aturar agrupació automàtica, resoldre UC-98 abans d'emetre. |
+
 ## UML de casos d'ús
 
 ```plantuml
