@@ -94,6 +94,23 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-22<br/>Registrar transferència"])
+    uc_1(["Identificar factura<br/>i referència bancària"])
+    uc_2(["UC-02<br/>Registrar cobrament<br/>sobre factura"])
+    uc_3(["UC-105<br/>Repartir una transferència<br/>entre factures"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+```
+
 ## 3. Diagrama de classes — adaptador de transferència
 
 ```mermaid
@@ -228,6 +245,27 @@ Identify ..> Search : <<include>>
 G --> New
 G --> Existing
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió de cobraments"]
+  actor_1["Banc / extracte verificat"]
+  subgraph SIF_BOX["SIF PrisMa — UC-22 / IDENTIFICAR ENTRADA (DISSENY)"]
+    uc_0(["Identificar transferència externa única"])
+    uc_1(["Comprovar import total, compte,<br/>identificador bancari i titular"])
+    uc_2(["Cercar UUID_PAYMENT i totes<br/>les assignacions ja registrades"])
+    uc_3(["UC-02<br/>Registrar un CHARGE només si és entrada nova"])
+    uc_4(["UC-56/105<br/>Assignar o repartir l'entrada ja existent"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_0 --> uc_4
 ```
 
 ```mermaid
