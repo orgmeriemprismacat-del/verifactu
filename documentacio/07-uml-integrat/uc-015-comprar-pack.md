@@ -108,6 +108,30 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne / pagador"]
+  actor_1["Redsys"]
+  actor_2["Worker SIF"]
+  subgraph SIF_BOX["SIF · pack"]
+    uc_0(["UC-15<br/>Comprar pack"])
+    uc_1(["UC-63<br/>Intenció i snapshot N cursos"])
+    uc_2(["UC-03<br/>Processar pagament"])
+    uc_3(["UC-01<br/>Emetre factura pack"])
+    uc_4(["Atribuir fons a<br/>cada inscripció"])
+    uc_5(["UC-71<br/>Canvi d'un curs del pack"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  actor_1 --> uc_2
+  actor_2 --> uc_2
+  uc_2 -.->|include| uc_3
+  actor_2 --> uc_4
+  actor_0 --> uc_5
+```
+
 ## 3. Subdiagrama de classes
 
 ```mermaid
