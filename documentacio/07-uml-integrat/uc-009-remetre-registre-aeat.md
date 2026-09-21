@@ -84,6 +84,30 @@ Send ..> Response : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker SIF"]
+  actor_1["AEAT (extern)"]
+  actor_2["Responsable tècnica"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-09<br/>Remetre registre fiscal"])
+    uc_1(["Reclamar job fiscal"])
+    uc_2(["Enviar snapshot AEAT<br/>amb evidència"])
+    uc_3(["Registrar resposta<br/>per registre"])
+    uc_4(["UC-08<br/>Gestionar incidència"])
+    uc_5(["UC-30/31<br/>Corregir registre<br/>segons classificació"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_2
+  actor_2 --> uc_4
+  actor_2 --> uc_5
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ## 3. Diagrama de classes — codi present a `main`
 
 ```mermaid
@@ -223,6 +247,25 @@ Persist ..> Distinct : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker fiscal amb resposta"]
+  actor_1["AEAT (extern)"]
+  subgraph SIF_BOX["SIF · UC-09 / CONFIRMAR RESPOSTA"]
+    uc_0(["Validar línia i identitat<br/>del registre AEAT"])
+    uc_1(["Comprovar propietari i generació<br/>de la tasca fiscal"])
+    uc_2(["Persistir resposta i estat del registre<br/>sense sobreescriptura d'altres intents"])
+    uc_3(["Distingir SENT de ACCEPTED,<br/>ACCEPTED_WITH_ERRORS i REJECTED"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_2 -.->|include| uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -272,6 +315,25 @@ Class ..> Recover : <<include>> [resposta rebuda/possible]
 Recover ..> Save : <<include>> [confirmada i equivalent]
 R --> Pending
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable fiscal"]
+  actor_1["AEAT / evidència privada"]
+  subgraph SIF_BOX["SIF · UC-09 / RESPOSTA EXTERNA AMB COMMIT LOCAL FALLIT"]
+    uc_0(["Classificar punt real de la fallada<br/>abans o després del SOAP"])
+    uc_1(["Recuperar resposta acreditada de<br/>l'intent i identitat del registre"])
+    uc_2(["Persistir la resposta original<br/>sense un segon enviament"])
+    uc_3(["Retenir un enviament de resultat<br/>remot encara incert"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_1 -.->|include| uc_2
+  actor_0 --> uc_3
 ```
 
 ```mermaid
