@@ -44,6 +44,27 @@ La migració defineix `academic_economic_state_event` amb `ENROLLMENT_KEY`, esta
 
 **Pendents:** font i política per cada camp/rol, API i permisos Moodle, model de mapeig d'IDs, paginació i inventari de l'execució, matrícules amb progrés/certificat, política de baixes/pròrrogues i proves de fallades parcials entre BDs.
 
+### 2.1. Punts de comparació ja identificats a `Intranet.php` i conciliació real per matrícula
+
+**Dues fonts Moodle, cap font fiscal.** El constructor `Intranet.php` manté diccionaris de consulta separats `consultesBD_Web`, `consultesBD_Moodle` i `consultesBD_MoodleAntic`. La documentació identifica ús de Moodle i Moodle antic per a **usuaris, matriculacions, visibilitat de cursos, qualificacions, fòrums i baixes**, però no com a font fiscal. Una mateixa inscripció acadèmica pot tenir historial en les dues instàncies: l'inventari de conciliació ha de conservar **sistema origen, usuari, curs/aula i matrícula concrets**, no comptar cada usuari trobat com una inscripció addicional ni alterar imports per una diferència d'aula.
+
+**Comprovadors llegats concrets i límit.** `Intranet::mostrarTable_Alumnes_CorreuDiferentBDCampus()` compara el correu de la inscripció amb Moodle i pot derivar a un avís, mentre que `mostrar_Dades_ComprovacioNombreAlumnes()` compara el nombre d'usuaris PrisMa/Moodle. El document d'estat final reconeix que aquestes comprovacions **no defineixen una identitat canònica compartida ni proven la completitud del contingut o de l'execució**. Cal recuperar els identificadors estables i estats **per `ID_INSC`**, no donar per resolta una discrepància perquè el recompte global d'usuaris coincideixi o perquè s'ha modificat `CORREU` a la BD web.
+
+**Punt de tall entre fiscal i acadèmic.** `LegacySyncService::syncAfterSifSuccess()` només escriu `FACTURA_RELACIONADA` i `OBSERVACIONS`; **no consulta Moodle ni prova l'alta, baixa, progrés o accés**. Un cobrament real que retorna `UUID_PAYMENT` mentre manca la matrícula Moodle genera una incidència per fase UC-53/129: conservar la factura i la prova bancària i comprovar abans d'alta si un primer intent ja ha creat la matrícula al destí. Una baixa de curs o canvi d'edició requereix preservar progrés/certificat i la decisió UC-124; no «sincronitzar» esborrant l'usuari d'una aula equivocada sense identificar la inscripció i rol correctes.
+
+**Permisos i fets diferents.** Un alumne que és participant d'una factura d'empresa pot necessitar accés a Moodle sense ser el receptor fiscal o el titular del deute. Les consultes Moodle no concedeixen dret al PDF de l'empresa i l'absència d'un usuari Moodle no autoritza una segona factura. Les accions d'alta/baixa acadèmica, els recordatoris de pagament i la decisió sobre certificat han de conservar cadascuna identificador d'event i resultat verificat segons la política aprovada; les taules `academic_economic_state_event` són **model previst**, no un adaptador Moodle implementat al SIF.
+
+### 2.2. Proves addicionals de comparació entre Moodle actual i antic (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| MO-129-01 | Mateix usuari/curs apareix en Moodle actual i antic | Dues fonts identificades; ni doble matrícula Prisma ni dues factures. |
+| MO-129-02 | Recompte total Prisma/Moodle coincideix, però una inscripció no té matrícula | Detectar discrepància per `ID_INSC`, no declarar èxit pel total. |
+| MO-129-03 | Correu de l'alumne divergeix a Moodle i una altra persona el comparteix | Revisió UC-126, sense fusió automàtica de subjectes. |
+| MO-129-04 | Pagament SIF confirmat i primer intent d'alta Moodle sense resposta | Rellegir el destí i recuperar la matrícula existent si la va crear; cap segon `CHARGE`. |
+| MO-129-05 | Participant amb factura d'empresa pendent i matrícula Moodle activa | Regla acadèmica per participant i pagador; no bloqueig automàtic per deute global. |
+| MO-129-06 | Baixa Prisma amb progrés/certificat a Moodle antic | Previsualitzar impacte i aplicar decisió individual autoritzada abans de canviar matrícula. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
