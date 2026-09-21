@@ -58,6 +58,17 @@ direction LR
 class InvoiceService {
  +issueInvoice(payload) array
 }
+class PayloadIdempotencyValidatorInterface {
+ <<PHP main: hash/compare petició; sense BD>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class PayloadIdempotencyValidator {
+ <<PHP main: SHA-256 canonicalitzat>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+PayloadIdempotencyValidator ..|> PayloadIdempotencyValidatorInterface
 class InvoicePayloadValidator {
  +validate(payload) array
 }
@@ -114,6 +125,7 @@ InvoiceService --> InvoicePayloadValidator
 InvoiceService --> TransactionRunner
 InvoiceService --> InvoiceRepository
 InvoiceService --> FiscalSequenceRepository
+InvoiceService --> PayloadIdempotencyValidatorInterface : petició completa per clau fiscal [PHP main]
 InvoiceRepository --> HashCalculator
 ManualRectificationService --> ManualPaymentInvoiceRepository
 ManualRectificationService --> ManualRectificationPayloadBuilder
@@ -126,7 +138,7 @@ FiscalRecordService --> TransactionRunner
 FiscalRecordRepository --> HashCalculator
 ```
 
-**Reús d'emissió i cobrament inicial:** `InvoiceService::existingResultWithPaymentIfPresent()` torna una factura existent per clau fiscal i, si rep bloc `payment`, **només cerca** la clau econòmica; no crida `createPayment()` en el reús. Pot retornar `ok=true` i `uuid_factura` **sense** `uuid_payment` encara que el canal hagi aportat una entrada real posterior. `InvoiceService` tampoc compara el payload fiscal nou amb la factura congelada abans de retornar `idempotency_reused=true`. [UC-01, seqüències 4.1–4.2](uc-001-emetre-o-reutilitzar-factura.md). 
+**Reús d'emissió i cobrament inicial:** `InvoiceService::existingResultWithPaymentIfPresent()` torna una factura existent per clau fiscal i, si rep bloc `payment`, **només cerca** la clau econòmica; no crida `createPayment()` en el reús. Pot retornar `ok=true` i `uuid_factura` **sense** `uuid_payment` encara que el canal hagi aportat una entrada real posterior. **A main**, `InvoiceService::existingResultWithPaymentIfPresent()` ja crida `PayloadIdempotencyValidatorInterface::assertMatches()` sobre la **petició completa** i `factura.IDEMPOTENCY_PAYLOAD_HASH` abans del reús; files anteriors a la migració sense fingerprint fallen tancat. El hash **no** prova cobertura entre dues claus fiscals diferents, i el reús d'un bloc `payment` original idèntic no crea un `CHARGE` si falta. [UC-01, seqüències 4.1–4.2](uc-001-emetre-o-reutilitzar-factura.md). 
 
 **Fronteres:** UC-05 crea factura R i després vincula la rectificativa/estat de l'original en passos separats: no inventar una transacció conjunta. UC-30 i UC-31 generen **nous registres fiscals per una factura existent**, no una nova factura fiscal amb un número nou. Les responsabilitats concretes consten a [UC-01](uc-001-emetre-o-reutilitzar-factura.md), [UC-04](uc-004-emetre-factura-abans-cobrar.md), [UC-05](uc-005-rectificar-factura.md), [UC-30](uc-030-anul-lar-registre-improcedent.md) i [UC-31](uc-031-subsanar-registre.md).
 
@@ -137,6 +149,11 @@ classDiagram
 direction LR
 class PaymentService {
  +registerPayment(payload) array
+}
+class PaymentIdempotencyVersionPolicy {
+ <<PHP main: responsabilitat dins de PaymentService, no classe real separada>>
+ +v1LegacyJsonInInputOrder(payload) bytes
+ +v2CanonicalHash(payload) sha256
 }
 class PaymentPayloadValidator {
  +validate(payload) array
@@ -181,6 +198,7 @@ class TransactionRunner {
 }
 PaymentService --> PaymentPayloadValidator
 PaymentService --> PaymentRepository
+PaymentService --> PayloadIdempotencyValidatorInterface : assertSamePayload per v1/v2 [PHP main]
 PaymentService --> TransactionRunner
 PaymentRepository --> PaymentStatusCalculator
 ManualPaymentService --> PaymentService
@@ -360,6 +378,59 @@ PaymentRepository --> PaymentStatusCalculator : suma imports d'assignacions per 
 ```
 
 **Invariant absent al codi:** `PaymentPayloadValidator` exigeix `is_numeric(amount)` i `is_numeric(allocation.amount)` però no els exigeix **positius** ni comprova `SUM(allocations) <= amount`. `PaymentRepository::createPayment()` persisteix cada tram i recalcula `ESTAT_COBRAMENT` **per factura** sense limitar la suma de trams al nominal de l'ingrés. La BD bàsica té FKs però cap `CHECK` de positivitat ni límit agregat en `payment_allocation`. Per tant, un únic P/100 amb F1/80 i F2/80 pot atribuir 160 € mentre cada factura té un estat local aparentment coherent; un tram negatiu podria modificar l'estat sense un `REFUND` bancari ni una reversió amb història. `PaymentActionEventRepository` accepta `REALLOCATE/UNALLOCATE/SPLIT_ALLOCATION`, **no** implementa canvi real de trams. [UC-02, secció 5.5](uc-002-registrar-cobrament-factura.md); [UC-56, 4.2–4.3](uc-056-cercar-assignar-cobrament.md); [UC-105, 4.1–4.3](uc-105-reassignar-repartir-pagament.md).
+
+
+### 3.5. Subvista de main: hash de petició fiscal, pagament V1/V2 i integritat de cua — NO equivalència de hash Redsys
+
+```mermaid
+classDiagram
+direction LR
+class PayloadIdempotencyValidatorInterface {
+ <<PHP main, contracte pur>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class PayloadIdempotencyValidator {
+ <<PHP main: SHA-256 array canònic o string en bytes>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class InvoiceService {
+ <<PHP main: IDEMPOTENCY_PAYLOAD_HASH sobre petició completa>>
+ +issueInvoice(payload) array
+ -existingResultWithPaymentIfPresent(db,payload,invoice) array
+}
+class PaymentService {
+ <<PHP main: PAYLOAD_HASH_VERSION 1/2>>
+ +registerPayment(payload) array
+ -assertSamePayload(payload,existing) void
+}
+class FiscalQueueProcessor {
+ <<PHP main: comprova després de claim abans de transport>>
+ +processNext() array
+}
+class FiscalQueueRepository {
+ <<PHP main: font fiable factura_registres>>
+ +assertImmutablePayload(db,job,validator) void
+ +rejectIntegrity(db,job,error) void
+}
+class RedsysPaymentIntentService {
+ <<PHP main: sameIntent, NO hash compartit>>
+ +create(db,input) array
+ -sameIntent(existing,candidate) bool
+}
+class RedsysNotificationRepository {
+ <<PHP main: hash dels paràmetres de NOTIFICACIÓ>>
+ +recordReceived(db,dsOrder,idpag,amount,response,valid,raw,status) array
+}
+PayloadIdempotencyValidator ..|> PayloadIdempotencyValidatorInterface
+InvoiceService --> PayloadIdempotencyValidatorInterface : comparar reús fiscal per K
+PaymentService --> PayloadIdempotencyValidatorInterface : comparar reús econòmic per K
+FiscalQueueProcessor --> FiscalQueueRepository : verifica integritat abans SOAP
+FiscalQueueRepository --> PayloadIdempotencyValidatorInterface : compara cua amb registre immutable
+```
+
+**No confondre quatre payloads:** (1) la petició completa a InvoiceService i el seu IDEMPOTENCY_PAYLOAD_HASH per clau d'emissió; (2) el payload complet a PaymentService i PAYLOAD_HASH_VERSION per clau de moviment; (3) el payload fiscal immutabilitzat a factura_registres i el HASH_FACT encadenat que FiscalQueueRepository ja contrasta amb la cua a main; (4) el SHA-256 dels bytes Ds_MerchantParameters de la **notificació** Redsys a redsys_notifications. El servei d'intenció Redsys **no** guarda encara un hash propi ni fa servir el validador compartit, i la signatura **sortint** del formulari correspon a l'adaptador web no acreditat, no a RedsysPaymentIntentService. El guard SQL V1/V2 d'un pagament per K no prova la identitat externa entre **dues claus** diferents. [UC-01](uc-001-emetre-o-reutilitzar-factura.md), [UC-02](uc-002-registrar-cobrament-factura.md), [UC-03](uc-003-processar-cobrament-redsys-asincron.md), [UC-63](uc-063-crear-intencio-redsys.md), [UC-77](uc-077-operar-enviament-aeat-retry-dead-letter.md).
 
 ## 4. Classes executives de Redsys i integracions de venda
 
@@ -648,6 +719,7 @@ class EvidenceStore {
 }
 FiscalQueueProcessor --> TransactionRunner : claim/resultat local
 FiscalQueueProcessor --> FiscalQueueRepository : escollir, completar, retry i recuperar
+FiscalQueueProcessor --> FiscalQueueRepository : assertImmutablePayload abans SOAP [PHP main]
 FiscalQueueProcessor --> AeatTransport : send FORA de transacció
 ```
 
