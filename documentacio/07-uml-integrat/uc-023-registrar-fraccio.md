@@ -89,6 +89,23 @@ Fr ..> Pending : <<include>> (objectiu de validació)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-23<br/>Registrar una fracció"])
+    uc_1(["Localitzar factura<br/>i inscripció"])
+    uc_2(["UC-02<br/>Registrar moviment econòmic"])
+    uc_3(["Consultar import pendent"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 **Nota:** consultar/verificar l'import pendent abans del registre figura com a validació **objectiu**; el camí de `ManualInstallmentPaymentService` consultat no l'executa abans de delegar a `PaymentService`.
 
 ## 3. Subdiagrama de classes
@@ -274,6 +291,25 @@ Fr ..> Audit : <<include>> [OBJECTIU]
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de cobraments"]
+  actor_1["Origen bancari verificat"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-23<br/>Registrar fracció real"])
+    uc_1(["UC-56<br/>Conciliar ingrés i factura"])
+    uc_2(["UC-02<br/>Registrar moviment idempotent"])
+    uc_3(["UC-86<br/>Auditar intent/decisió/resultat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -332,6 +368,23 @@ O --> Record
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de cobraments"]
+  subgraph SIF_BOX["SIF PrisMa — UC-23 / VERIFICAR ID_INSC-F (DISSENY)"]
+    uc_0(["Comprovar destinació de la fracció"])
+    uc_1(["Validar factura, titular i inscripció<br/>contra origen i línies fiscals"])
+    uc_2(["Comprovar cobrament real i saldo<br/>net, excloent ingressos reutilitzats"])
+    uc_3(["UC-23 / REGISTER<br/>Registrar fracció real"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -384,6 +437,25 @@ Recognize ..> Existing : <<include>>
 G --> Link
 G --> New
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió"]
+  actor_1["Banc/Redsys"]
+  subgraph SIF_BOX["SIF PrisMa — UC-23 / CONCILIAR CANALS (DISSENY)"]
+    uc_0(["Reconèixer ingrés real de quota<br/>independentment del prefix de clau"])
+    uc_1(["Consultar CHARGE existent i<br/>assignacions per event bancari"])
+    uc_2(["UC-56/105<br/>Atribuir ingrés existent sense CHARGE nou"])
+    uc_3(["UC-23<br/>Registrar ingrés extern nou acreditat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  actor_0 --> uc_2
+  actor_0 --> uc_3
 ```
 
 ```mermaid
