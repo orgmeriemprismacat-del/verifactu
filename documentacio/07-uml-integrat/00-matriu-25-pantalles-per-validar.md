@@ -16,7 +16,7 @@
 | 8 | Despeses de gestió | UC-73; UC-94; UC-71 | Fixar moment, motiu i línia/import fiscal; si hi ha factura emesa, classificar correcció via UC-74. | MAPAT PROVISIONAL — decisió econòmica |
 | 9 | Divergència BD antiga/SIF | UC-53; UC-82 | Separar detecció, diagnòstic, decisió i reparació; SIF com a origen dels fets fiscals. | MAPAT PROVISIONAL — reconciliació |
 | 10 | Document històric no VERI*FACTU | UC-11; UC-97; UC-07 | Comprovar emissor real, document físic, bytes/hash i drets de consulta; cap registre AEAT retroactiu. | MAPAT PROVISIONAL — consulta històrica |
-| 11 | Excés de cobrament | UC-104; UC-06; UC-28/29 | Distingir ingrés extern real, import no assignat i decisió documentada de devolució/saldo. | MAPAT PROVISIONAL — cas específic existent |
+| 11 | Excés de cobrament | UC-104; UC-06; UC-28/29 | Distingir ingrés extern, import sense assignar, titular i decisió per trams. El refund manual exigeix factura i no pot imputar fictíciament el sobrant a F1. | MAPAT PROVISIONAL — cas específic existent |
 | 12 | fact_rels i origen legacy | UC-44; UC-01 | Enllaçar inscripcions/línies/operació sense atribuir imports automàticament per participant. | MAPAT PROVISIONAL — traçabilitat de dades |
 | 13 | Factures antigues no VERI*FACTU | UC-11; UC-97 | Importació i consulta són operacions diferents; conservar emissor i numeració de l'original. | MAPAT PROVISIONAL — consulta/importació |
 | 14 | Intranet tutor · documents visibles | UC-99; UC-07; UC-80 | Verificar naturalesa del document (honoraris o venda), titular, rol i abast: no donar accés fiscal per ser tutor. | MAPAT PROVISIONAL — PERMISOS A CONTRASTAR |
@@ -27,7 +27,7 @@
 | 19 | Pagament duplicat | UC-25a; UC-02; UC-51; UC-86 | Diferenciar repetit per IDPAG, idempotència de moviment i callback Redsys duplicat; conciliar banc. | MAPAT PROVISIONAL — variants per origen |
 | 20 | Pagament fraccionat | UC-23; UC-96; UC-12 | No confondre acord de quotes/pròrroga amb cobrament parcial efectiu; cada import ingressat té UUID_PAYMENT propi. | MAPAT PROVISIONAL — acord vs cobrament |
 | 21 | Pagament parcial | UC-23; UC-02; UC-56 | Registrar un sol cobrament extern amb import parcial sobre factura existent; estat i saldo en cada reintent. | MAPAT PROVISIONAL — variant del cobrament |
-| 22 | Rectificativa negativa | UC-05; UC-74; UC-28 | Determinar modalitat i signes/línies fiscals; un import negatiu al document no acredita REFUND bancari. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
+| 22 | Rectificativa negativa | UC-05; UC-74; UC-28 | Determinar modalitat, signes i línies fiscals; separar decisió de retorn pendent, sortida externa acreditada i registre REFUND, amb límit per origen. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
 | 23 | Rectificativa positiva | UC-05; UC-74; UC-02 | Determinar modalitat i signes/línies fiscals; import a favor de l'emissor no és CHARGE fins a ingrés efectiu. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
 | 24 | Resum SIF sincronitzat a BD antiga | UC-47; UC-53; UC-82 | Comprovar idempotència del resum, divergències i recuperació després del commit, sense reescriptura de l'original fiscal. | MAPAT PROVISIONAL — integració |
 | 25 | USOC | UC-13; UC-19; UC-19a; UC-19b | Sol·licitud/decisió d'afiliació separades; factura + CHARGE alumne i factura entitat pendent/cobrament posterior; exigir UUID alumne real i ID_INSC unívoc abans de la segona factura. | MAPAT PROVISIONAL — orquestració |
@@ -69,6 +69,15 @@ Les files següents continuen en `MAPAT PROVISIONAL` perquè es coneixen les **a
 | 25 · USOC — recuperació i tancament | [UC-13](uc-013-orquestrar-doble-facturacio-usoc.md) reconstrueix expedient si es perd `entity_invoice_pending` i tanca només amb dos pagadors reals conciliats. | `RedsysUsocInvoiceService` retorna `entity_invoice_pending` en memòria; `UsocEntityInvoiceService` retorna `payment_registered=false`. No s'ha acreditat writer/reconciliador del cas complet. | Estat de cadascuna de les dues factures, confirmació transferència entitat, imports per ID_INSC i tractament de la variant amb alumne de 0 € sense inventar un CHARGE. |
 
 **No s'ha validat la ruta real completa de pantalla ni l'atribució de fons per inscrit.** La fila 25 continua `MAPAT PROVISIONAL`, i no apareix una UC-130 per repetir operacions ja catalogades.
+
+## Contrast del retorn efectiu a les pantalles d'excés i rectificativa negativa
+
+| Fila | Accions independents | Evidència PHP i risc comprovats | Què falta per validar la pantalla |
+| --- | --- | --- | --- |
+| 11 · Excés de cobrament | [UC-104](uc-104-gestionar-exces-cobrament.md) detecta sobrant real, [UC-06](uc-006-devolucio-saldo-compensacio.md) reserva dret i decideix trams, [UC-28](uc-028-registrar-devolucio.md) autoritza retorn pendent / registra sortida confirmada / reconcilia, [UC-29](uc-029-crear-saldo.md) crea saldo d'origen acreditat. | `ManualRefundPayloadBuilder::forExistingInvoice()` exigeix factura i `INVOICE_REFUND`, per la qual cosa **no cobreix** retorn d'excés extern que mai no s'ha assignat a F1. `PaymentService` no compara el payload d'una clau de moviment recuperada. | Traçar `UUID_PAYMENT` d'ingrés, titular i import sense assignar, reserva i retorn real; seleccionar ruta per excés no assignat sense crear factura/assignació fictícia. |
+| 22 · Rectificativa negativa | UC-74 classifica document, UC-05 emet la rectificativa si escau, UC-28 autoritza/registre de devolució monetària **separats**. | `ManualRefundService` crea `REFUND` al SIF sense ordre de TPV ni prova bancària. `PaymentRepository` posa `ESTAT=CONFIRMED` en inserir el moviment i el calculador actualitza estat de factura, però cap dels dos comprova la sortida externa. | Botó i rol de la decisió fiscal, ordre bancària real, referència externa de sortida, límit per inscripció, gestió de pèrdua de resposta i prova del reenllaç correcte de la rectificativa. |
+
+**No validat sobre la pantalla:** no s'ha inspeccionat en aquest contrast el controlador real ni la ruta desplegada que confirma la devolució, ni s'ha executat l'ordre del banc. Aquestes files es mantenen provisionals encara que els recorreguts ja tinguin diagrames per acció.
 
 ## Com convertir el mapatge en cobertura demostrable
 
