@@ -36,6 +36,21 @@
 
 **No s'ha acreditat una prova de validació d'afiliació real.** Les proves d'emissió USOC exerciten el control dels marcadors, no la comprovació externa del dret.
 
+### 1.3. Pantalla i estats de validació USOC al llegat
+
+La pantalla `/alumnes/validar-descomptes/` presenta les inscripcions pendents mitjançant `cnsAlumnDescNoValidat`; el mètode `__mostrarPage_Inici_ValidarDescomptes` informa que hi ha descomptes pendents i `__mostrarPage_Alumnes_ValidarDescomptes` mostra «Afiliat USOC». Els valors històrics són `TIPUS_DESC=4` per la sol·licitud USOC, i `VALID_DESC=0` pendent, `1` validat i vàlid, `2` validat i no vàlid. `updValidDescByInsc` actualitza la validació; `updValidDescByInscPreu` també pot canviar `TIPUS_DESC` i `A_PAGAR`. Són rutines llegades identificades, no una comprovació externa implementada al SIF.
+
+Gestió confirma manualment l'afiliació amb USOC i comunica el resultat a l'alumne. En una denegació, el canal recalcula el preu sense descompte **abans** de facturar o cobrar i invalida l'oferta anterior incompatible. El cas normal descrit indica descompte del 25 % i pagament inicial de 10 € per l'alumne; són dades del circuit recuperat, no valors universals que el builder hagi d'imposar. La variant «Curs gratuït USOC» vinculada a `anticipi-preu-usoc` requereix classificació separada (UC-13).
+
+### 1.4. Proves addicionals (no executades)
+
+| ID | Escenari | Resultat |
+| --- | --- | --- |
+| UV-01 | TIPUS_DESC=4, VALID_DESC=0 | Pendent de comprovació; no emetre amb descompte. |
+| UV-02 | Afiliació confirmada | VALID_DESC=1 i import acceptat congelat abans del TPV. |
+| UV-03 | Afiliació denegada | VALID_DESC=2; preu ordinari i nova oferta si escau, sense factura USOC. |
+| UV-04 | Validació posterior a una factura | Expedient de correcció, no UPDATE fiscal directe. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
