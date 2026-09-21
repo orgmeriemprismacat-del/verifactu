@@ -30,7 +30,7 @@
 | 22 | Rectificativa negativa | UC-05; UC-74; UC-28 | Determinar modalitat i signes/línies fiscals; un import negatiu al document no acredita REFUND bancari. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
 | 23 | Rectificativa positiva | UC-05; UC-74; UC-02 | Determinar modalitat i signes/línies fiscals; import a favor de l'emissor no és CHARGE fins a ingrés efectiu. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
 | 24 | Resum SIF sincronitzat a BD antiga | UC-47; UC-53; UC-82 | Comprovar idempotència del resum, divergències i recuperació després del commit, sense reescriptura de l'original fiscal. | MAPAT PROVISIONAL — integració |
-| 25 | USOC | UC-13; UC-19; UC-19a; UC-19b | Validació, dos receptors/imports i conciliació posterior són accions relacionades però diferents. | MAPAT PROVISIONAL — orquestració |
+| 25 | USOC | UC-13; UC-19; UC-19a; UC-19b | Sol·licitud/decisió d'afiliació separades; factura + CHARGE alumne i factura entitat pendent/cobrament posterior; exigir UUID alumne real i ID_INSC unívoc abans de la segona factura. | MAPAT PROVISIONAL — orquestració |
 
 ## Contrast específic del catàleg i del PHP per a cinc elements d'aquesta matriu
 
@@ -59,6 +59,16 @@ Les files següents continuen en `MAPAT PROVISIONAL` perquè es coneixen les **a
 | 17 · Mode auditor només lectura | Concedir abast (UC-45/59), consultar llistat amb rol vigent (UC-80), descarregar document després d'una **nova autorització** (UC-80) i revocar sense invalidar historial (UC-59). | La taula `fiscal_document_access` conserva camps de traça però **no** crea permisos; els serveis de grant/consulta i el writer d'accés són disseny. [UC-59](uc-059-concedir-caducar-revocar-acces-auditor.md) i [UC-80](uc-080-servir-registrar-acces-document-fiscal.md). | Endpoint amb comprovació de venciment/revocació per petició, control d'URLs antigues, proves d'abast i traça d'accés/denegació. |
 
 **Bloqueig específic de la fila 13:** distingir dos casos abans d'importar un històric homònim. Amb `HISTORIC|FACT:<NUM_VISIBLE>` compartida, el PHP pot reutilitzar la primera factura sense comparar el segon document. Amb claus idempotents distintes, el SQL base impedeix inserir la segona pel mateix número. **Cap dels dos resultats és una migració correcta dels dos originals.** El model multiemissor pendent de UC-97 s'ha de decidir sense mutar la numeració fiscal de les factures noves.
+
+## Contrast dirigit del circuit USOC: sol·licitud, dues factures i dos pagadors
+
+| Fila | Accions i fitxes | Evidència PHP o llegat comprovada | Punt pendent de la pantalla |
+| --- | --- | --- | --- |
+| 25 · USOC — sol·licitud i decisió | [UC-19](uc-019-validar-afiliacio-usoc.md): demanar afiliació `VALID_DESC=0`, comprovar-la, aprovar `1` o denegar `2`. | El repositori SIF `LegacyUsocSnapshotRepository` comprova camps 4/1; no comprova l'afiliació amb USOC. La pantalla llegada `/alumnes/validar-descomptes/` i rutines `updValidDescByInsc`/`updValidDescByInscPreu` consten a la fitxa. | Actor/permís, prova externa, versió d'oferta i nova intenció Redsys si canvia el preu; no reescriure factura emesa. |
+| 25 · USOC — factura alumne/entitat | [UC-19a](uc-019a-facturar-part-alumne-usoc.md) factura/CHARGE alumne; [UC-19b](uc-019b-facturar-part-entitat-usoc.md) valida expedient i emet factura entitat sense cobrament. | `UsocEntityInvoiceService` accepta `student_invoice_uuid` no buit **sense cercar la factura alumne al SIF**; `LegacyUsocSnapshotRepository::findInscription()` usa primer ID per `IDPAG`; clau entitat basada en ID_INSC+UUID alumne reusada sense comparar `billing`/import. | Selecció d'inscripció unívoca, doble receptor, dos imports aprovats, guard de factura alumne i reintent contradictori. |
+| 25 · USOC — recuperació i tancament | [UC-13](uc-013-orquestrar-doble-facturacio-usoc.md) reconstrueix expedient si es perd `entity_invoice_pending` i tanca només amb dos pagadors reals conciliats. | `RedsysUsocInvoiceService` retorna `entity_invoice_pending` en memòria; `UsocEntityInvoiceService` retorna `payment_registered=false`. No s'ha acreditat writer/reconciliador del cas complet. | Estat de cadascuna de les dues factures, confirmació transferència entitat, imports per ID_INSC i tractament de la variant amb alumne de 0 € sense inventar un CHARGE. |
+
+**No s'ha validat la ruta real completa de pantalla ni l'atribució de fons per inscrit.** La fila 25 continua `MAPAT PROVISIONAL`, i no apareix una UC-130 per repetir operacions ja catalogades.
 
 ## Com convertir el mapatge en cobertura demostrable
 
