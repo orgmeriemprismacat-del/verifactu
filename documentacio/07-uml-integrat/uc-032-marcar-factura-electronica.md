@@ -118,7 +118,7 @@ opt Format/canal/recipient validats per UC-123
 end
 R->>S: Desmarcar preferència posteriorment
 S->>DB: Registrar nou estat i conservar història fiscal
-S-->>R: Preferència actualitzada; enviaments antics intactes
+S-->>R: Preferència actualitzada, enviaments antics intactes
 Note over S,D: E_FACT no equival a generar, enviar o lliurar una factura electrònica
 ```
 
