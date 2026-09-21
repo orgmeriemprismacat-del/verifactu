@@ -21,6 +21,18 @@
 
 UC-51 **no crea una factura ni un `payment_transaction` directament**: el callback autoritzat i validat només crea/reutilitza notificació i feina de cua. UC-52/03 poden emetre la factura i registrar l'import bancari confirmat més endavant. Quan el callback es contradiu amb una factura ja processada, cal revisar `UUID_FACTURA`, `UUID_PAYMENT`, `DS_ORDER` i eventual atribució a cada inscripció: **no** inventar un segon cobrament o una devolució només per una resposta tardana.
 
+### 1.2. Ordre antiga, cobertura d'empresa i devolució posterior — contrast amb el xat original
+
+**L-ORDRE — tardà respecte a què?** El xat diferencia una intenció individual iniciada abans que una empresa assumeixi el pagament, una inscripció canviada de curs/baixa i un enllaç antic d'import desfasat. Revocar l'enllaç o canviar la inscripció **no és cancel·lar la transacció Redsys ja iniciada**. La recepció valida signatura i intenció original, però ha de distingir la validesa tècnica del callback de l'autorització de generar ara una **factura nova per l'antic servei**. Si el banc ha cobrat realment, conservar-ne la prova i tramitar assignació, excés, retorn o incidència segons la situació; no suprimir el `CHARGE` ni emetre una factura duplicada per resoldre el conflicte.
+
+**L-COBERTURA — factura d'empresa anterior al callback.** Abans que el worker processi una intenció individual validada, contrastar `ID_INSC`, `UUID_FACTURA` de grup/empresa, `DS_ORDER`, intents actius i altres cobraments. La comparació de callback per la mateixa DS_ORDER detecta duplicació **d'aquesta ordre**, però no que una **altra** DS_ORDER o transferència ja hagi cobert l'operació. Si hi ha cobertura incompatible, preservar la notificació real, suspendre emissió/cobrament de venda incompatible i obrir conciliació. El bloqueig entre sistemes, la política de devolució i el coordinador continuen pendents.
+
+**L-DENEGAT — mateixa referència operativa, intents diferents.** Un `IDPAG` pot tenir un primer intent denegat i un segon acceptat amb DS_ORDER diferent. L'ordre denegada pot figurar a `redsys_notifications` com `ERROR` i no genera job/CHARGE, però no impedeix per ella mateixa que una nova ordre vàlida es processi. En canvi, dos callbacks diferents per **la mateixa DS_ORDER** amb imports/respostes contradictoris exigeixen incidència i verificació externa, no agafar l'últim rebut com a veritat.
+
+**L-FITXER — relació amb conciliació de CSV.** El fitxer TPV de la intranet és evidència addicional de l'operació bancària i pot descobrir callback perdut o job no processat; no crea una notificació signada retroactiva ni pot convertir un resultat `state=1` del comparador antic en cobrament SIF verificat. Revisió a UC-25 i recuperació de job a UC-52.
+
+**Proves addicionals no executades:** mateixa IDPAG amb una denegació i una acceptació a DS_ORDER diferents; callback individual tardà després de factura d'empresa; callback de diferència de curs ja revertit; notificació de DS_ORDER antic amb import desfasat; callback validat encara en RETRY que apareix com a «no facturat» al CSV; en tots els casos conciliar el cobrament real sense una factura/assignació duplicada.
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
