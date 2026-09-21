@@ -55,6 +55,29 @@ Fiscal ..> Main : <<extend>> (contingut fiscal afectat)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Usuari web autoritzat"]
+  actor_1["Gestió de cobraments"]
+  subgraph SIF_BOX["Web → SIF · canvi de pagament"]
+    uc_0(["UC-103<br/>Delegar canvi/anul·lació al SIF"])
+    uc_1(["Verificar sessió i ingrés real"])
+    uc_2(["Revocar intenció sense CHARGE"])
+    uc_3(["UC-105<br/>Reassignar fons existents"])
+    uc_4(["UC-28<br/>Devolució bancària acreditada"])
+    uc_5(["UC-74<br/>Classificar document afectat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_2 -.->|extend| uc_0
+  uc_3 -.->|extend| uc_0
+  uc_4 -.->|extend| uc_0
+  uc_5 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
