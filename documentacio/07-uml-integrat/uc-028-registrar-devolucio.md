@@ -300,10 +300,12 @@ else E nova, sortida acreditada i dret suficient
  R->>P: registerPayment(payload)
  P->>DB: BEGIN, cerca per clau; INSERT REFUND/assignació si no existeix
  DB-->>P: UUID_PAYMENT o reús
+ P->>DB: COMMIT del registre/reús SIF
  P-->>R: UUID_PAYMENT
  R-->>G: UUID_PAYMENT, UUID_FACTURA
  G->>DB: Comprovar contingut/assignació i registrar origen+decisió [DISSENY]
  G-->>O: Sortida acreditada i registrada o incidència si divergeix
+ Note over G,DB: La comprovació posterior al COMMIT no pot desfer un REFUND ja inserit; el guard de contingut i fons ha d'actuar ABANS de crear/reusar el moviment.
 end
 Note over G,DB: Només el registre SIF és PHP real. El guard, el límit, la conciliació bancària i la vinculació a ID_INSC són disseny pendent.
 ```
@@ -324,15 +326,17 @@ O->>R: registerByUuid(FACTURA_A, amount=40, reference=RET-1)
 R->>B: forExistingInvoice(FACTURA_A,input)
 B-->>R: K=REFUND|REF:RET-1, assignació a A
 R->>P: registerPayment(payload A)
-P->>DB: INSERT REFUND UUID_PAYMENT_A + allocation FACTURA_A
+P->>DB: BEGIN + INSERT REFUND UUID_PAYMENT_A + allocation FACTURA_A
+P->>DB: COMMIT
 P-->>R: UUID_PAYMENT_A, idempotency_reused=false
 R-->>O: UUID_PAYMENT_A, uuid_factura=FACTURA_A
 O->>R: registerByUuid(FACTURA_B, amount=80, reference=RET-1)
 R->>B: forExistingInvoice(FACTURA_B,input)
 B-->>R: Mateixa K, assignació sol·licitada a B
 R->>P: registerPayment(payload B)
-P->>DB: SELECT payment_transaction WHERE IDEMPOTENCY_KEY=K FOR UPDATE
+P->>DB: BEGIN + SELECT payment_transaction WHERE IDEMPOTENCY_KEY=K FOR UPDATE
 DB-->>P: UUID_PAYMENT_A, allocation original només a FACTURA_A
+P->>DB: COMMIT sense canviar allocation a B
 P-->>R: UUID_PAYMENT_A, idempotency_reused=true sense comparar payload
 R-->>O: UUID_PAYMENT_A, uuid_factura=FACTURA_B i num_visible de B
 Note over O,DB: FACTURA_B no rep allocation ni canvia l'estat de cobrament. El resultat de ManualRefundService barreja UUID_PAYMENT_A i FACTURA_B.
