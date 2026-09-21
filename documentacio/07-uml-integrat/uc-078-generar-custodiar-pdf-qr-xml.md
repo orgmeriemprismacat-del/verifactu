@@ -31,6 +31,26 @@ La migració d'auditoria defineix `document_job` amb `UUID_FACTURA`, `DOCUMENT_T
 
 **Proves:** falla escriptura després de generar bytes, fila `CREATED` però arxiu absent, hash discordant, worker duplicat, dos generadors amb versions diferents, QR inconsistent amb registre, XML no vàlid, factura rectificada, recuperar un document sense alterar factura. Cap prova de renderitzat ni generació end-to-end executada aquí.
 
+### 2.1. Document real de la factura prèvia i consulta segons receptor
+
+**Del PDF llegat a l'artefacte SIF.** La pantalla `/alumnes/genera-factura-abans-pagar/` permet seleccionar inscripcions del mateix curs/edició, triar un responsable, emetre un número visible i demanar previsualització a `mostraPrevFactura_Factures.php` o descàrrega a `descarregaFactura.php`; el generador històric `generaFactura($id,true)` usa dades que poden haver canviat després d'emetre. En l'adaptació, el **PDF de factura SIF** ha de procedir del snapshot de factura i línies **ja confirmades** i quedar custodiat per `UUID_FACTURA`, versió i hash de bytes; no pot ser una mera exportació del preu `A_PAGAR` actual de la inscripció.
+
+**Condició per dir «PDF disponible».** `DocumentRepository::registerDocument()` calcula `HASH_FITXER` sobre `contents` i insereix `ESTAT=CREATED`, però **no escriu ni torna a llegir** l'arxiu de `PATH_FITXER`. El job final (pendent) ha de verificar que els bytes reals del storage privat corresponen a l'UUID, tipus, versió i hash abans de publicar `READY` a la pantalla o habilitar adjunt/enllaç segur. Un `CREATED` amb fitxer absent és una incidència de custòdia, no una factura «no emesa» ni permís per generar una altra A/R.
+
+**QR i XML no intercanviables.** Un QR incorporat al PDF i un artefacte `TIPUS=QR` poden tenir representacions diferents; cal registrar el tipus, contingut, versió i correspondència amb el registre fiscal efectiu. L'XML SOAP de `AeatTransport` prova una **petició de remissió**, no un fitxer XML de factura electrònica destinat al receptor (UC-123). No presentar l'existència d'una resposta AEAT com si hagués generat els tres documents ni convertir automàticament `E_FACT=1` en «XML lliurat».
+
+**Control del destinatari.** En factura individual, el receptor autoritzat pot consultar el seu PDF/QR si és realment disponible; en factura de grup emesa a empresa, els participants poden veure informació administrativa mínima, **no** el document complet del responsable. La ruta no exposa `PATH_FITXER` públic ni confia en un UUID conegut com a prova de permís (UC-07/80).
+
+### 2.2. Proves addicionals d'artefacte i receptor (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AR-78-01 | Descarregar PDF de factura SIF després de canviar dades mestres del receptor | Bytes/hash del document original inalterats. |
+| AR-78-02 | Fila `CREATED` sense arxiu físic | Incidència, no resposta de descàrrega ni nou número de factura. |
+| AR-78-03 | Factura prèvia emesa, PDF pendent | Número/estat real disponibles, document en cua i correu documental no avançat. |
+| AR-78-04 | SOAP AEAT amb XML present, XML de lliurament electrònic absent | No declarar lliurament al receptor pel sol XML de transport. |
+| AR-78-05 | Alumne demana document complet d'un grup pagat per empresa | Denegar PDF complet si no n'és receptor o autoritzat. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
