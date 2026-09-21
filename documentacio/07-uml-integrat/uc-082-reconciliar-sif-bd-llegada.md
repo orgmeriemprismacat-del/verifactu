@@ -90,12 +90,12 @@ Main ..> Verify : <<include>> (reparació executada)
 classDiagram
 class SifLegacyReconciliationService {
  <<DISSENY: no acreditat>>
- +compare(scope) differences
- +resolve(itemId,decision) result
+ +compare(scope,ruleVersion,requestId) differences
+ +resolve(itemId,decision,actor,requestId) result
 }
 class ReconciliationRunRepository {
  <<DISSENY: reconciliation_run SQL definit>>
- +createOrReuse(db,scope) run
+ +createOrReuse(db,scope,inputHash,requestId) run
  +markFinished(db,runId,summary) result
 }
 class ReconciliationItemRepository {
