@@ -37,6 +37,24 @@
 
 **Pendent crític:** valors exactes d'elegibilitat, percentatge/import, dates, compatibilitat, format del text visible i el servei d'autorització. No es declaren implementats ni provats per l'existència del builder fiscal.
 
+### 1.3. Historial d'alumnat, autorització del preu i aplicació única
+
+**Què està acreditat i què no.** El catàleg enumera el descompte «Alumne PrisMa» i el builder pot conservar-ne un snapshot fiscal, però les fonts examinades **no fixen** percentatge, antiguitat, nombre de cursos requerits, data de vigència o incompatibilitats. No establir per inferència que qualsevol registre antic a `inscripcions` converteix la persona en exalumna beneficiària: l'historial pot contenir reserves, baixes, inscripcions no pagades i grups de pagament per tercer. El canal comercial ha d'identificar la regla real i la seva versió i indicar amb quina inscripció/document es justifica el dret, si així ho exigeix la política aprovada.
+
+**Situació de compra.** El descompte d'«Alumne PrisMa» afecta el **preu de l'operació**, no el titular del cobrament. En una factura de grup o d'empresa, una persona pot complir el criteri però la factura té el receptor fiscal del responsable, i cal definir a quina **línia d'inscripció** correspon la reducció i si el grup admet acumular-la. En un pack, no extrapolar automàticament la regla del segon curs al descompte per historial; el càlcul combinat ha de ser una decisió comercial explícita.
+
+**Validació tardana.** Si es constata el dret abans de facturar o cobrar, el canal recalcula oferta i congela base/descompte/total a la intenció actual. Si s'aprova **després** d'emetre, el fet és un ajust UC-73/74 amb possible correcció de document; una devolució UC-28 només es registra després d'una **sortida monetària real**. No deduir un `REFUND` de la diferència entre el preu antic i el nou.
+
+### 1.4. Proves addicionals (no executades)
+
+| ID | Escenari | Resultat esperat |
+| --- | --- | --- |
+| AP-01 | Historial amb inscripció antiga però dret comercial no verificat | Pendent de validació; no percentatge inventat ni descompte per mera presència a BD. |
+| AP-02 | Alumne beneficiari d'una factura de grup | Descompte, si correspon, a la seva línia; receptor fiscal de grup preservat. |
+| AP-03 | Pack amb reducció pròpia i petició Alumne PrisMa | Compatibilitat i ordre de càlcul explícits, sense doble descompte implícit. |
+| AP-04 | Dret acreditat després de factura emesa | Event d'ajust i classificació fiscal; original immutable i cap retorn bancari fictici. |
+| AP-05 | Intent Redsys denegat i nou intent amb el mateix IDPAG | Una decisió/preu coherent per operació, sense doble aplicació del descompte. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
