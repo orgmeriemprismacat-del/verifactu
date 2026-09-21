@@ -39,6 +39,24 @@
 
 **Pendents:** matriu de permisos per camp i destinació, esquema de propagation jobs, validació de representació/justificants, tractament d'operacions obertes i documents emesos, política de retenció, proves de fallada parcial i auditoria. No s'han executat proves PHP.
 
+### 1.1. Abast real del canvi llegat i diferències entre destinacions
+
+**Què modifica el circuit actual.** El procediment `Consulta - Modifica alumne` de `/alumnes/mostrar-alumne/` descriu `guardarDadesPersonals_resultatCerca()` com a via d'edició de dades operatives i assenyala que **només afecta inscripcions pendents de començar**. La mateixa fitxa pot mostrar inscripcions actives, acabades i congelades, i obrir factura, baixa, canvi de curs i certificat: veure-les a la pantalla **no** prova que el canvi es propagui a cada categoria o a cada servei vinculat. Cal capturar `ID_INSC`, versió/estat de cada origen i **destinacions realment modificades**, distingint la petició de canvi del seu resultat.
+
+**Correu i DNI no tenen el mateix efecte.** Un nou `CORREU` de contacte pot afectar comunicacions d'una matrícula pendent, notificacions ja encolades i usuari acadèmic/Moodle, però no autoritza a substituir el contacte de lliurament d'una **factura d'empresa** sense validar el receptor i el mandat. El canvi de `DNI` pot resoldre identitat d'alumne per a futures operacions; si una factura individual ja existeix, les dades `BILLING_*` històriques segueixen sent les que es van emetre fins que UC-74 classifiqui un possible error del document. No utilitzar `FACTURA_RELACIONADA` per traspassar automàticament l'accés entre dues persones amb el mateix email.
+
+**Propagació amb resultats parcials.** `personal_data_change_request.PROPAGATION_STATUS` i `PROPAGATION_RESULT_JSON` formen part de l'esquema previst, **sense writer executable acreditat**. Si el perfil d'intranet s'ha actualitzat i falla Moodle o un sistema de notificacions, desar l'event original i la fase pendent; repetir només l'actualització fallida i tornar a consultar el seu resultat, sense fer un nou canvi fiscal ni moure cobraments. Per als enllaços de document ja emesos o recordatoris de pagament encara pendents, revalidar destinatari i permís amb UC-49/58/80 abans d'enviar-los.
+
+### 1.2. Proves de propagació i història (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| PD-120-01 | El llegat actualitza només inscripcions pendents, però l'alumne en té d'acabades | Resultat per destí i cobertura explícits; cap «tot sincronitzat» fictici. |
+| PD-120-02 | Correu compartit per dues persones | UC-126 decideix identitat, no fusió automàtica de perfils o matrícules. |
+| PD-120-03 | Correu nou després d'encuar factura d'empresa | Revalidar destinatari/representació i cancel·lar missatge obsolet si cal. |
+| PD-120-04 | DNI actual canvia i hi ha factura individual emesa | Mantenir receptor històric; classificar error fiscal només quan existeixi. |
+| PD-120-05 | Intranet correcta, Moodle falla i es reintenta canvi | Reprendre només destí pendent, sense duplicar matrícula ni factura. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
