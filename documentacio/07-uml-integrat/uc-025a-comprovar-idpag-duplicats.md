@@ -74,6 +74,28 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de conciliació"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF · comprovació d'IDPAG"]
+    uc_0(["UC-25a<br/>Investigar IDPAG duplicats"])
+    uc_1(["Localitzar operacions i pagaments"])
+    uc_2(["Comparar identitat bancària i factura"])
+    uc_3(["Registrar diagnosi i evidència"])
+    uc_4(["UC-25<br/>Revisar fitxer TPV"])
+    uc_5(["UC-08<br/>Gestionar discrepància"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_5
+  actor_0 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ## 3. Diagrama de classes — consulta objectiu i peces PHP existents
 
 ```mermaid
@@ -167,6 +189,25 @@ Investigate ..> Funds : <<include>>
 Investigate ..> Classify : <<include>>
 O --> Recover
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de conciliació"]
+  subgraph SIF_BOX["SIF PrisMa — UC-25a / DOS INTENTS DE WORKER"]
+    uc_0(["Investigar reprocessament<br/>d'una DS_ORDER"])
+    uc_1(["Contrastar notificació i<br/>ATTEMPTS/propietat del job"])
+    uc_2(["Comptar entrades bancàries reals<br/>i CHARGE/assignacions SIF"])
+    uc_3(["Classificar duplicat d'intent<br/>versus duplicat monetari"])
+    uc_4(["UC-52<br/>Conciliar efectes d'un job recuperat"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
 ```
 
 ```mermaid
