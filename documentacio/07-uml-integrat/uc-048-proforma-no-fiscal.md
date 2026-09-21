@@ -34,6 +34,23 @@
 
 **Pendent:** repositori/model d'identificador no fiscal, plantilles i permisos, política de caducitat, classificació fiscal en acceptació, enllaç entre proforma i factura i proves de no persistència fiscal.
 
+### Del terme antic «proforma» a la factura real abans del cobrament
+
+**Decisió de PrisMa recuperada als fluxos.** La documentació indica explícitament que PrisMa **no treballarà amb proformes fiscals separades dins del SIF**. En l'operativa antiga, algunes «proformes» s'utilitzaven **com si fossin factures**; si el document porta sèrie/número fiscal o és la factura que l'empresa necessita abans d'abonar la transferència, el cas final és UC-04: **factura real emesa abans de cobrar**, amb `EMESA_ABANS_COBRAMENT=1`, registre i numeració propis, i **sense** `CHARGE` inicial. No permetre que el nom històric de la pantalla o del document reclassifiqui una factura real com una oferta editable que no entra al SIF.
+
+**Document merament informatiu.** Si és un pressupost, simulació o oferta que **encara no s'emet com a factura**, pot existir com a document comercial no fiscal, **sense número ni QR fiscal, hash chain ni cua AEAT**. Això és l'únic abast coherent de UC-48 en l'arquitectura objectiu, i **no acredita** que sigui obligatori crear un mòdul nou de proformes o que `ProformaService` existeixi. Si l'empresa vol una factura real abans de pagar, no enviar-li una proforma etiquetada «no és factura» per substituir el document que ha sol·licitat.
+
+**Convertir sense duplicar.** Una oferta no fiscal acceptada pot precedir l'emissió d'una factura real, amb revisió de receptor, producte, imports i identificadors d'inscripció en el moment de confirmar UC-01/04/21. Si una factura real ja existeix per aquestes inscripcions —encara que estigui pendent de cobrament—, no executar una segona emissió amb el pretext de «convertir la proforma»: recuperar `UUID_FACTURA`, servir el document real i registrar el cobrament posterior per UC-02. La mateixa oferta no és prova d'haver ingressat cap quantitat.
+
+### Proves complementàries de terminologia (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| PF-01 | Empresa sol·licita factura real abans de transferir | UC-04 crea factura fiscal pendent, no una proforma no fiscal. |
+| PF-02 | Pressupost editable sense sèrie ni número de factura | Cap inserció al nucli fiscal per la mera generació del pressupost. |
+| PF-03 | Oferta «convertida» quan ja existeix factura prèvia de les inscripcions | Recuperar factura existent, sense segon número. |
+| PF-04 | Arriba transferència d'una factura emesa abans de cobrar | UC-02 registra CHARGE contra UUID_FACTURA existent, no conversió de document. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
