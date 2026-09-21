@@ -127,6 +127,29 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de gestió"]
+  subgraph SIF_BOX["SIF PrisMa / adaptador intranet"]
+    uc_0(["UC-26<br/>Canviar de curs"])
+    uc_1(["UC-71<br/>Registrar canvi complet<br/>i historial"])
+    uc_2(["Comparar import, descompte<br/>i factura existent"])
+    uc_3(["UC-05<br/>Rectificar factura<br/>si correspon"])
+    uc_4(["UC-28<br/>Registrar devolució"])
+    uc_5(["UC-29<br/>Crear saldo"])
+    uc_6(["UC-02<br/>Registrar cobrament<br/>de diferència"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_0 --> uc_4
+  actor_0 --> uc_5
+  actor_0 --> uc_6
+```
+
 ## 3. Diagrama de classes — components reals i límit del model
 
 ```mermaid
