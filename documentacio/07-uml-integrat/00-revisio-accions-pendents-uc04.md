@@ -1,0 +1,64 @@
+# Revisió de cobertura per acció del SIF — UC-04 com a model
+
+**Data:** 2026-09-21. **Abast:** revisió dirigida de la branca documental indicada, el catàleg canònic, la matriu de pantalles, la UC-04, casos compostos seleccionats i les classes PHP centrals. **No és una auditoria semàntica exhaustiva dels 142 fitxers, ni execució de proves, ni certificació fiscal o del desplegament.**
+
+## 1. Resultat verificable i significat de les xifres
+
+- El catàleg `04-estat-final/33-casos-us-sif.md` declara 129 identificadors numèrics i 13 variants amb sufix: **142 casos catalogats**. La matriu `00-matriu-cobertura-cataleg.md` associa cadascun a la fitxa original i a una fitxa integrada.
+- `00-auditoria-consistencia-142-fitxes.md` constata textualment que les 142 fitxes integrades contenen blocs PlantUML de cas d'ús i Mermaid de classes i seqüència. **Fitxer present / bloc present** no és el mateix que **acció completament definida / diagrama compilat / codi implementat / test passat**.
+- El catàleg `33-casos-us-sif.md` descriu 192 pantalles o apartats i **25 pendents de validar individualment** (apartat 22). La cobertura de les pantalles no es pot donar per tancada pel fet que hi hagi 142 fitxes. Cal mapar cada acció/estat de pantalla a UC i evidència de codi.
+- No s'ha identificat un identificador del catàleg 01–129 i variants sense fitxa integrada; **no es pot afirmar que no faltin casos nous fora del catàleg** fins a completar la revisió funcional de les pantalles i dels punts d'entrada efectivament usats.
+
+## 2. Contracte de lliurament per a cada acció
+
+UC-04 és la fitxa patró de **profunditat i traçabilitat**, no un text per copiar. Cada fitxa ha de contenir (1) ID estable, objectiu, actor/disparador i límit del SIF; (2) precondicions, dades d'entrada i autorització al servidor; (3) flux numerat principal; (4) alternatives, errors i concurrència; (5) postcondicions diferenciades per fiscal, diners, inscripció, document i comunicació; (6) invariants i proves amb entrada/resultat; (7) codi, mètodes, esquemes i documents d'origen amb enllaços; (8) estat per component: PHP executiu, esquema SQL, integració de canal, disseny pendent, execució de test i desplegament acreditat.
+
+El paquet UML mínim per **cada acció funcional independent** és: diagrama de casos d'ús amb actors, frontera i relacions `include/extend` només si corresponen; seqüència principal amb resposta després del commit, més les seqüències alternatives que canvien persistència/actors/resultat; subdiagrama de classes com a projecció del model transversal. Per a operacions compostes, un únic diagrama genèric del cicle no substitueix els fluxos que tenen disparador i postcondició propis. El model de classes transversal és únic; no convertir automàticament taules SQL en classes PHP ni declarar implementada una classe proposada.
+
+**Regla de partició:** un pas intern del servei no exigeix sempre una UC nova; una acció amb actor/disparador, permís, confirmació, risc o resultat propi sí exigeix una fitxa/cas específic o una variant inequívocament traçable. Quan la UC específica ja existeixi, **enllaçar-la, no duplicar-la**.
+
+## 3. UC-04: correcció contrastada amb el codi
+
+- `sif/src/Service/InvoiceBeforePaymentService.php`: el servei construeix payload i crida `InvoiceService::issueInvoice`; `InvoiceBeforePaymentPayloadBuilder.php` rebutja `payment` no nul i força canal `INTRANET` i marca d'emissió abans de cobrar.
+- `sif/src/Service/InvoiceService.php`: recupera factura per clau, reserva número i persisteix graf fiscal en la mateixa transacció. En reús per idempotència **no compara el contingut fiscal nou amb l'original**; el guard d'equivalència de receptor/import/línies/origen continua pendent.
+- `sif/src/Database/TransactionRunner.php`: confirma `COMMIT` abans de retornar resultat. S'ha corregit el diagrama de seqüència de la UC-04 per no presentar la resposta d'èxit al canal abans del commit. La via de col·lisió SQL `23000` obre una altra transacció i rellegeix la factura; no ha de dibuixar-se com una segona emissió.
+- `sif/public/api/factures/issue.php` instancia `InvoiceService`, no el servei específic `InvoiceBeforePaymentService`. L'adaptador final d'intranet i l'autorització de l'actor **no s'acrediten** per aquest endpoint; tampoc el cobrament posterior és part de la transacció d'UC-04 (és UC-02 o la variant corresponent).
+- La UC-04 ha de seguir distingint factura fiscal persistent, cobrament `PENDING`, cua fiscal, generació de document i acceptació AEAT: cap dels darrers tres es pot deduir de l'UUID de factura.
+
+## 4. Casos ja presents que cal descompondre o completar **per acció**
+
+| Àmbit i fitxes existents | Accions amb resultats diferents que exigeixen seqüències/proves individualitzades | Revisió pendent, sense declarar UC nova per defecte |
+| --- | --- | --- |
+| **Factura prèvia** UC-04, UC-01, UC-02, UC-21, UC-33 | Seleccionar i validar inscripcions/receptor; previsualitzar i confirmar snapshot; emetre sense cobrar; reús/conflicte de factura prèvia; cobrar posteriorment; revocar enllaços incompatibles. | La pantalla llegada calcula imports i permís parcialment al navegador; acreditar recomputació i autorització al servidor, cobertura de `ID_INSC` i absència de doble factura. |
+| **Cobrament** UC-02, UC-22–25a, UC-56, UC-86, UC-104–105 | Identificar abonament bancari; decidir factura/destí; registrar moviment real; repartir parcialment; desfer o traspassar atribució; tractar excés; corregir discrepància. | Distingir import de factura, import cobrat extern i quantitat per inscripció. La proposta de ledger individual encara no és implementació. |
+| **Redsys** UC-03, UC-50–52, UC-61, UC-63, UC-68, UC-112, UC-121 | Crear/enviar enllaç; consultar/verificar; caducar; revocar; renovar; congelar oferta; crear intenció; processar callback acceptat/denegat/duplicat/tardà; recuperar job. | UC-50 agrupa crear/consultar/revocar/caducar però només té una seqüència conjunta: preparar traça principal i negatives per a cada transició. UC-33 ja cobreix revocació; no crear un duplicat. |
+| **Canvis acadèmics i import** UC-26–29a, UC-71–74, UC-89–96, UC-104–105, UC-124, UC-127 | Canviar curs; aprovar diferència; cobrar més o retornar/crear saldo; rectificar si escau; donar de baixa; revertir canvi; resoldre cancel·lació d'una edició per afectat. | UC-71/72/127 són orquestradors; cada decisió econòmica/fiscal/accés és una acció separada amb resultat, idempotència i recuperació pròpia. |
+| **Regal/pack/grup** UC-15–18a, UC-91, UC-110, UC-118–119, UC-122 | Congelar composició i descompte; facturar comprador/receptor; activar/lliurar dret; bescanviar; ajustar import i disponibilitat; afegir/treure participant; resoldre caducitat o reintent. | UC-119 representa el cicle, però UC-17, UC-18 i UC-18a han de conservar fluxos específics i traçabilitat de titulars/imports. |
+| **Documents i notificacions** UC-07, UC-36, UC-43, UC-49, UC-55, UC-58, UC-78–80, UC-123 | Generar bytes; verificar hash; custodiar; autoritzar lectura/descàrrega; enregistrar accés o denegació; encolar correu; reintentar; acreditar lliurament. | Metadada de `factura_documents`, fitxer existent, permís i comunicació enviada són evidències independents; revisar seqüència d'error per cadascuna. |
+| **AEAT** UC-09, UC-30–31, UC-35, UC-54, UC-75–77 | Crear registre; reclamar job; transmetre intent; persistir resposta; classificar rebuig; reintentar o obrir incidència; generar nou registre corrector quan correspongui. | UC-09 és una remissió; UC-54 opera la cua; UC-77 és el cicle detallat de retry/dead-letter. Fixar la frontera i evitar documentar `SENT` com a acceptació. |
+| **Accés/auditoria** UC-45, UC-59, UC-80, UC-84, UC-99, UC-102 | Atorgar accés; comprovar abast; consultar; registrar denegació; caducar/revocar; generar i descarregar exportació. | UC-45 i UC-59 se solapen en la concessió inicial: conservar una font canònica de regla i una única traça al model, amb proves específiques de revocació en sessió. |
+| **Governança** UC-10, UC-39–40, UC-46, UC-60, UC-64, UC-67, UC-83–85, UC-101 | Aprovar candidata; vincular proves/declaració; activar versió; verificar runtime; restaurar/reconciliar; revocar o rotar secrets. | No confondre registre de versió amb desplegament real ni presència de backup amb restauració correcta. |
+
+## 5. Buidats de cobertura a verificar abans de crear identificadors nous
+
+**A. Pantalles:** per cadascuna de les 192 files de `03-canvis-pendents/12-matriu-pantalles-abans-despres.md`, inventariar **acció concreta** (no només nom de pantalla), actor/rol, endpoint o mètode PHP real, taules afectades, UC existent o `GAP`, variant, estat objectiu i prova. Començar per les 25 entrades que el catàleg etiqueta pendents de validar. No anomenar `GAP` una simple vista sense efecte propi si la cobreix un cas de consulta existent.
+
+**B. Escriptures reals:** inventariar tots els punts d'entrada que creen/muten factura, inscripció, `IDPAG`, cobrament, saldo, accés, enllaç, document, notificació, matrícula o registre AEAT; comparar-los amb els 142 casos i `04-estat-final/41-*` quan existeixi la matriu corresponent. Una classe detectada no acredita que sigui cridada des de tots els canals.
+
+**C. Condicions transversals no tancades:** idempotència amb payload contradictori; conservació d'imports/assignacions; diners per inscripció; autorització real d'API; emissor jurídic/partició Associació–SL; bytes i autorització documental; processos d'outbox i reconciliació Moodle. Aquests són **buits de contracte/implementació** dels casos existents, no automàticament casos nous.
+
+**D. Regla per a un UC nou:** assignar nou identificador només quan es trobi una acció real o requerida que no pugui mapar-se sense ambigüitat a un objectiu/postcondició ja catalogat. La nova entrada ha d'indicar actor, disparador, persistència, fitxa, diagrames i ruta de codi o document de requisits; els identificadors 130+ queden **reservats fins a verificació**, no s'inventen en aquesta revisió.
+
+## 6. Condicions per marcar una acció com a revisada
+
+- Cas d'ús: flux principal, alternatives/denegacions, dades i proves revisats específicament; no text duplicat d'un altre cas.
+- Diagrames: PlantUML i Mermaid renderitzats; actor/frontera/relacions coherents; classes i signatures contrastades amb la branca objectiu; seqüència amb `COMMIT`, `ROLLBACK`, reús, errors i intents asíncrons quan afectin el resultat.
+- Traçabilitat: fitxa → UC mare/variant → pas → mètode PHP real o classe marcada proposada → taules → prova (ID i resultat) → pantalla/canal → decisió pendent.
+- Verificació: resultat real de test i canal identificat. No passar de «documentat» a «implementat/provat/producció» per l'existència de SQL, d'un test escrit o d'un bloc de diagrama.
+
+## 7. Fonts principals
+
+- [UC-04 integrada](uc-004-emetre-factura-abans-cobrar.md), [model general de classes](00-model-classes-general.md), [matriu dels 142](00-matriu-cobertura-cataleg.md), [auditoria de consistència](00-auditoria-consistencia-142-fitxes.md).
+- [Catàleg canònic i cobertura de pantalles](../04-estat-final/33-casos-us-sif.md), [matriu de 192 pantalles](../03-canvis-pendents/12-matriu-pantalles-abans-despres.md), [inventari de canvis pendents](../03-canvis-pendents/11-inventari-canvis-pendents.md).
+- [InvoiceBeforePaymentService](../../sif/src/Service/InvoiceBeforePaymentService.php), [builder](../../sif/src/Service/InvoiceBeforePaymentPayloadBuilder.php), [InvoiceService](../../sif/src/Service/InvoiceService.php), [TransactionRunner](../../sif/src/Database/TransactionRunner.php), [endpoint d'emissió](../../sif/public/api/factures/issue.php).
+- [Auditoria de contractes PHP](00-auditoria-contractes-core-php.md) i [revisió de diners per inscripció](00-revisio-moviments-inscripcions.md).
