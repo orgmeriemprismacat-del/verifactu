@@ -131,7 +131,7 @@ else Transferència real després de la factura
 end
 S->>A: Alta/sync acadèmic postcommit [adaptador pendent]
 S-->>O: Estat de factura, cobrament i plaça separat
-Note over S,A: Orquestrador/acceptació telefònica no acreditats al PHP; CLI refusa producció.
+Note over S,A: Orquestrador/acceptació telefònica no acreditats al PHP, CLI refusa producció.
 ```
 
 ## Traçabilitat
