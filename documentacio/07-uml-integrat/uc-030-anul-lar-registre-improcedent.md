@@ -42,6 +42,15 @@
 
 **Proves presents, NO executades:** `FiscalRecordServiceTest::testCreatesIdempotentCancellationAndMarksInvoiceCancelled`, `testRejectsHistoricalNoVerifactuInvoice` i `testRejectsDifferentSecondCancellation`.
 
+### 1.3. El botó històric «anul·lar factura» no és un `RegistroAnulacion` — contrast amb la intranet
+
+Al circuit antic, `.anula-factura` de `/alumnes/factura/` obre un modal amb `A TORNAR`, `DATA DEVOLUCIO` i observacions; `anularFactura()` genera una **factura històrica R negativa** a `web.factures` i actualitza el resum de les inscripcions. L'usuària distingeix aquesta factura R de la nova numeració A/R del SIF. **Aquest és el circuit de rectificació/devolució històric**, no una evidència que s'hagués d'emetre un `RegistroAnulacion` en cada clic del botó «anul·lar». La classificació entre UC-05, UC-28, UC-30 i UC-31 ha d'atendre al fet registral i al document original, no al nom de la classe CSS `.anula-factura`.
+
+**A-CLASS — control objectiu abans d'UC-30:** el modal final haurà d'identificar `UUID_FACTURA`, `UUID_REGISTRE`/últim registre, estat de tramesa AEAT, causa concreta d'improcedència i operacions vinculades; exigir autorització i motiu abans d'encuar el registre nou. No invocar UC-30 per anul·lar una matrícula, per tornar un pagament o perquè l'usuària vol canviar nom/CIF en una factura encara existent. Aquests casos tenen expedients i documents propis, pendents de classificació fiscal correcta.
+
+**A-FALLA — estat local vs estat extern:** `FiscalRecordService` pot inserir un registre `ANULACIO` i posar `factura.ESTAT_FACTURA=CANCELLED` localment, però la seva inserció en `fiscal_queue` no acredita que AEAT l'hagi acceptat. Una fallada de remissió s'ha de presentar com a estat separat de cua/AEAT, sense repetir un registre diferent ni esborrar el registre originari; una devolució bancària real, si existeix, es reconcilia a UC-28.
+
+**Proves addicionals no executades:** clic de baixa d'una inscripció no crea `RegistroAnulacion`; rectificativa R negativa històrica no s'importa com una anul·lació de registre SIF; canvi de nom/CIF es classifica sense invocar automàticament UC-30; reintent idempotent del registre no altera cobraments; cua pendent/rebutjada no es mostra com a acceptació AEAT.
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
