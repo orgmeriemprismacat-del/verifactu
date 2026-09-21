@@ -202,7 +202,7 @@ IS-->>M: uuid_rectificativa
 M->>RR: linkRectification(uuid_rectificativa, original)
 alt Error en inserir relació
  RR--xM: Excepció
- Note over M,DB: Factura R ja emesa. Cal conciliació i recuperació explícita; no reescriure-la ni fingir rollback.
+ Note over M,DB: Factura R ja emesa. Cal conciliació i recuperació explícita, no reescriure-la ni fingir rollback.
 else Relació inserida
  RR->>DB: INSERT factura_rectificacio
  M->>RR: markOriginalRectified(original)
@@ -234,7 +234,7 @@ alt Correcció de factura classificada
  R-->>UI: UUID_FACTURA_R (commit fiscal efectuat)
  UI->>H: Verificar vincle amb original i estat
  opt Falla vincle postemissió
-  UI-->>O: Incidència; reintentar vincle, no segona factura R
+  UI-->>O: Incidència, reintentar vincle, no segona factura R
  end
 else Registre improcedent o a subsanar
  C-->>UI: Derivar UC-30/31 amb autorització separada
@@ -302,7 +302,7 @@ M-->>O: Resultat fiscal i UUID R, cap REFUND creat
 opt Hi ha retorn bancari real i verificat en un altre moment
  O->>F: Tramitar UC-28 sobre el cobrament original i el retorn acreditat
 end
-Note over M,R: Si falla l'enllaç després del COMMIT, cal recuperar-lo per UUID R; no emetre un segon R.
+Note over M,R: Si falla l'enllaç després del COMMIT, cal recuperar-lo per UUID R, no emetre un segon R.
 ```
 
 ### 4.4. Variant: rectificativa positiva per diferència — import a cobrar no és cobrament
