@@ -38,6 +38,24 @@
 
 **Pendents de tancament:** regles de caducitat, plaça i reobertura; schema/writer d'operacions; coordinació amb llegat; duplicats per persona/producte/edició; preus/receptor fiscal definitius; proves TPV tardà i idempotència.
 
+### 1.3. Alta acadèmica llegada, reserva de plaça i intenció Redsys: comprovació per fase
+
+**Fonts que no són intercanviables.** La BD web conserva `inscripcions.ID`, `IDPAG`, `ANY/MES/CURS`, `INSC_CURS` i els imports operatius; el SIF crea `redsys_payment_intent` per `DS_ORDER` amb `SOURCE_TYPE/ID`, import i `SNAPSHOT_JSON`. Les taules `commercial_operation` i `capacity_reservation` **estan definides**, però el servei d'intencions inspeccionat **no hi crea cap reserva ni matrícula**. Tampoc el valor `INSC_CURS` llegat confirma que hi hagi una plaça consumida segons la futura política d'aforament. Abans de mostrar «plaça reservada», confirmar el resultat al sistema de capacitat definit i conservar la relació amb l'alta real `ID_INSC` quan existeixi.
+
+**Efectes parcials entre sistemes.** Si l'alta web s'ha confirmat i falla l'obertura d'una intenció TPV, recuperar l'`ID_INSC` original i decidir manteniment/alliberament de la plaça segons la regla aprovada, **sense** inserir una segona inscripció per fer un altre intent. Si la intenció Redsys ja existeix i falla la inscripció, conservar `DS_ORDER`, snapshot i resultat: **no** presentar una matrícula com a confirmada per haver obtingut una URL de pagament. El reintent de l'adaptador ha de verificar cada destí amb identificador i versió; no es pressuposa una transacció distribuïda entre BD web i SIF.
+
+**Inscripcions de grup, pack o responsable.** `SOURCE_TYPE` actual admet `CURS/PACK/GRUP/REGAL/USOC_ALUMNE`; una intenció de pack/grup pot relacionar-se amb **més d'un `ID_INSC`**. La reserva de places és **per recurs/edició i quantitat real**, no «una plaça per `IDPAG`» ni «una matrícula per pagament»; el receptor fiscal empresa no substitueix els participants. Si ja existeix factura real emesa abans de cobrar, la posterior intenció de pagament ha de respectar la cobertura fiscal i no tornar a crear factura en confirmar Redsys.
+
+### 1.4. Proves d'integració entre alta i intenció (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RE-106-01 | `ID_INSC` creat, `DS_ORDER` no creada per error de xarxa | Recuperar alta real en el reintent; no segona matrícula ni plaça duplicada. |
+| RE-106-02 | Intenció Redsys existeix però falla la reserva acadèmica | Intenció i fase fallida diferenciades; no prometre plaça ni factura. |
+| RE-106-03 | Grup de tres persones amb un sol `IDPAG` | Tres comprovacions de dret de plaça, una referència de pagament, sense confondre identitats. |
+| RE-106-04 | Empresa ja disposa de factura prèvia i inicia TPV | Localitzar `UUID_FACTURA` i registrar el cobrament posterior, no segon document. |
+| RE-106-05 | Callback d'ordre antiga després de caducar reserva | Preservar cobrament extern i investigar plaça; no alta fictícia ni REFUND automàtic. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
