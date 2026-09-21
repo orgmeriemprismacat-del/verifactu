@@ -40,6 +40,28 @@
 
 **Bloquejants:** model append-only de modificació d'assignacions fiscals, operació idempotent per partida, servei de recalculació de totes les factures afectades, registre per inscripció i prova entre BDs. Ni una fila d'`payment_action_event` ni una consulta SQL simple tanquen UC-105.
 
+### 1.3. Repartiments del llegat, canvi de curs i transferència multifactura
+
+**Com es repartia al llegat.** Els procediments de «Passar pagaments» identifiquen vies diferents per inscripció (`I`), pack (`P`), grup (`G`) o regal (`R`), i mètodes que recorren els membres de grup per actualitzar `PAGAMENT`, `DATA PAG` i `FRACCIO`. Aquests UPDATEs poden repartir un **únic ingrés** entre diversos inscrits, però no constitueixen `payment_allocation` SIF ni garanteixen que s'hagin conservat tots els imports individuals. El nou circuit ha de recuperar els imports d'origen i destí **per `ID_INSC`**, sense recrear N `CHARGE` a partir de N files de matrícula.
+
+**Transferència multifactura i prepagament.** Una escola pot fer una sola transferència per diverses factures de participants/cursos, i també pot haver-hi una factura emesa abans de cobrar. El pagament s'identifica per la seva referència/UUID extern únic, mentre que les assignacions són les quantitats per **factura fiscal concreta**. Per reassignar una transferència ja registrada d'A cap a B, conservar les assignacions d'A com a història i enllaçar la nova imputació al **mateix `UUID_PAYMENT`**; la sortida de caixa neta és zero. `FACTURA_RELACIONADA` pot agrupar documents A/R i no basta per triar els destins.
+
+**Canvi A→B→C després de pagar.** Si els diners atribuïts a una inscripció passen a una altra arran d'un canvi de curs, el primer traspàs i la possible reversió s'han de correlacionar amb l'event original. Una devolució real posterior redueix el fons intern disponible i no pot coexistir amb una atribució íntegra del mateix import a C. Una variació de servei/concepte/import pot requerir **documents fiscals separats** UC-74/05, però traspassar diners no edita automàticament ni l'original A ni els seus correctors.
+
+**Límit precís del PHP.** `PaymentRepository::createPayment()` crea `payment_transaction` amb totes les assignacions de la petició dins del registre d'un moviment nou; no és una API per reassignar una partida d'un `UUID_PAYMENT` ja existent. La disponibilitat d'etiquetes d'event `REALLOCATE`, `UNALLOCATE` o `SPLIT_ALLOCATION` tampoc acredita una reversió append-only implementada. La ruta de reassignació continua **disseny/bloquejant**, amb necessitat de bloquejos, identificació idempotent per tram, traça anterior/nova i recalculació d'estat de **totes** les factures afectades.
+
+### 1.4. Proves de reassignació de diners ja cobrats (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RA-01 | Una transferència real cobreix dues factures d'empresa | Un UUID_PAYMENT, dues imputacions per import i receptor autoritzat. |
+| RA-02 | Grup amb tres inscripcions i un únic pagament | Tres atribucions internes traçables i una sola entrada de caixa. |
+| RA-03 | Canvi de curs A→B→C després de pagar | Trams i reversions correlacionats; no duplicar import a B i C. |
+| RA-04 | Ja s'ha retornat part del pagament abans del traspàs | Comprovar disponibilitat neta i bloquejar sobreatribució. |
+| RA-05 | `FACTURA_RELACIONADA` agrupa factura A i rectificativa R | Identificar `UUID_FACTURA` de cada imputació, no reassignar per l'agrupador sol. |
+| RA-06 | Intent de reassignació amb autorització d'un participant, pagador empresa | Validar titularitat i permisos; no traspassar fons de tercer a l'alumne per defecte. |
+| RA-07 | Reintent d'una mateixa transferència interna | Recuperar event/partides anteriors i saldo actual, cap segon traspàs. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
