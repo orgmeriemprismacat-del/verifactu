@@ -483,6 +483,48 @@ UsocEntityInvoiceService --> InvoiceService : emissió sense payment
 
 **Fronteres verificades:** `UsocEntityInvoiceService` només comprova `student_invoice_uuid` no buit i no rep la BD SIF per verificar-lo; `LegacyUsocSnapshotRepository` fa `WHERE IDPAG=? ORDER BY ID LIMIT 1`, sense seleccionar un `ID_INSC` exacte. La clau entitat de `LegacyUsocInvoicePayloadBuilder` inclou inscripció i UUID de factura alumne, **no import ni receptor**; `InvoiceService` retorna una factura existent per clau sense comparar-ne el contingut nou. `PaymentService` registra el cobrament real d'entitat més tard i no és una dependència de l'emissor. [UC-19b](uc-019b-facturar-part-entitat-usoc.md).
 
+### 4.3. Subvista executable de cua Redsys: reservar i marcar un job no són un únic lock de negoci — UC-03/52
+
+```mermaid
+classDiagram
+direction LR
+class RedsysCallbackWorker {
+ <<PHP real: claim, process, mark>>
+ +runOne(db,workerId,now) array
+}
+class RedsysCallbackQueueRepository {
+ <<PHP real: marques filtren ID i STATUS, NO propietari>>
+ +recoverStaleLocks(db,now) int
+ +claimNext(db,workerId,now) array
+ +markProcessed(db,id,result,now) void
+ +markRetry(db,id,availableAt,error) void
+ +markIncident(db,id,error) void
+}
+class RedsysJobProcessor {
+ <<interface>>
+ +process(db,job) array
+}
+class RedsysCallbackDispatcher {
+ <<PHP real: processador del job>>
+ +process(db,job) array
+}
+class InvoiceService {
+ <<PHP real: emissió/reús i payment inicial opcional>>
+ +issueInvoice(payload) array
+}
+class IncidentRepository {
+ <<PHP real: error, no transacció conjunta automàtica>>
+ +open(db,uuidFactura,type,message) array
+}
+RedsysCallbackWorker --> RedsysCallbackQueueRepository : recoverStaleLocks + claimNext + marques terminals
+RedsysCallbackWorker --> RedsysJobProcessor : process fora transacció del claim
+RedsysCallbackWorker --> IncidentRepository : obriment d'incidència després de markIncident
+RedsysCallbackDispatcher ..|> RedsysJobProcessor
+RedsysCallbackDispatcher ..> InvoiceService : via handler específic; NO crida directa
+```
+
+**Frontera de propietat i completitud:** `claimNext()` fa `BEGIN/SELECT FOR UPDATE/UPDATE PROCESSING,LOCKED_BY,ATTEMPTS/COMMIT` abans del handler. `recoverStaleLocks()` reobre després de 15 min fins i tot si el primer worker encara és viu. `markProcessed/markRetry/markIncident` comproven `ID + STATUS=PROCESSING`, **no** `LOCKED_BY` o generació: una execució A antiga pot escriure mentre B té el job recuperat. `runOne()` passa a `markProcessed()` qualsevol array retornat per `RedsysJobProcessor`, sense exigir `ok`, UUID de factura o de pagament; el repositori desa els UUIDs opcionals com a `NULL`. `PROCESSED_AT` rep l'instant `now` del començament de `runOne`. [UC-52, seccions 4.1–4.4](uc-052-operar-cua-redsys.md), [UC-03, secció 5.1](uc-003-processar-cobrament-redsys-asincron.md).
+
 ## 5. Classes executives de cua fiscal i consulta/operació
 
 ```mermaid
@@ -1031,6 +1073,52 @@ ClaimExternalReceiptResolver ..> ClaimPaymentService : només alta nova legitima
 ```
 
 **Frontera de transaccions:** la inspecció del PHP acredita el bloqueig per `IDEMPOTENCY_KEY` en `PaymentService`, no una clau universal d'operació bancària ni una reserva de dret per `ID_INSC`. Un `SELECT` de consulta transversal **fora** de la mateixa política de bloqueig que el `INSERT` no resol la cursa de dos canals; el guard, l'alta i les assignacions han de garantir una identitat estable del mateix ingrés. `ClaimCaseReconciler` descriu el **tancament de l'expedient** i no s'ha d'usar per modificar `factura` ni per marcar `ESTAT_COBRAMENT=PAID` sense deute net real. [UC-22](uc-022-registrar-transferencia.md), [UC-23](uc-023-registrar-fraccio.md), [UC-24](uc-024-registrar-cobrament-reclamacio.md).
+
+### 6.9. Subvista de disseny: fencing de worker i reconciliació de resultats Redsys — UC-03/52
+
+```mermaid
+classDiagram
+direction LR
+class RedsysClaimLease {
+ <<DISSENY: identitat d'execució del job>>
+ +uuidJob string
+ +workerId string
+ +generation int
+ +token string
+ +claimedAt datetime
+}
+class RedsysJobFencedRepository {
+ <<DISSENY: transicions per propietari/generació>>
+ +claimWithGeneration(db,workerId,now) RedsysClaimLease
+ +markProcessedIfOwner(db,lease,result,finishedAt) decision
+ +markRetryIfOwner(db,lease,error,at) decision
+ +markIncidentIfOwner(db,lease,error) decision
+}
+class RedsysJobEffectReconciler {
+ <<DISSENY: factura i pagament originals>>
+ +recover(uuidJob,lease) result
+}
+class RedsysJobResultValidator {
+ <<DISSENY: resultat fiscal+econòmic complet>>
+ +verify(job,result,lease) decision
+}
+class RedsysCallbackWorker {
+ <<PHP real: no passa token a marques terminals>>
+ +runOne(db,workerId,now) array
+}
+class RedsysCallbackQueueRepository {
+ <<PHP real: només STATUS en marques>>
+ +claimNext(db,workerId,now) array
+ +markProcessed(db,id,result,now) void
+}
+RedsysClaimLease --> RedsysJobFencedRepository : propietat vigent
+RedsysJobEffectReconciler --> RedsysJobResultValidator : recuperar i verificar dades reals
+RedsysJobResultValidator --> RedsysJobFencedRepository : només resultat complet + token vigent
+RedsysCallbackWorker ..> RedsysJobEffectReconciler : integració proposada, no crida PHP
+RedsysCallbackWorker --> RedsysCallbackQueueRepository : integració real actual
+```
+
+**Límit transaccional:** un fencing token protegeix les marques terminals i rebutja un `STALE_ATTEMPT`, però **no desfà un commit fiscal/econòmic** que el worker antic hagi fet abans de perdre el lease. La unicitat i equivalència d'emissió/pagament, l'identificador bancari de cada `DS_ORDER` i el guard de cobertura de factura prèvia continuen necessaris. La comprovació de resultat no equival a `ESTAT_AEAT=ACCEPTED`, PDF disponible, alta acadèmica sincronitzada o cobrament de la part entitat USOC. Cap de les classes `DISSENY` de la subvista existeix al PHP contrastat.
 
 ## 7. Traçabilitat i criteri de manteniment
 
