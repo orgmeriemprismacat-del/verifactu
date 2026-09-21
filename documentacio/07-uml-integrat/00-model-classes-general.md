@@ -325,6 +325,42 @@ PaymentService --> PaymentRepository : cerca K i crea nou només si manca
 
 **Límits exactes:** `ManualInstallmentPaymentPayloadBuilder` desa `reference` en el payload si s'aporta, però **no** la incorpora a la clau; la clau tampoc inclou `UUID_FACTURA`, ni el constructor comprova `fact_rels`. `ClaimPaymentPayloadBuilder` tria `claim_reference`/variants **abans** de `reference`; si aquesta clau identifica l'expedient i no l'entrada bancària, dos pagaments parcials legítims del mateix expedient poden col·lidir. **A més**, el valor seleccionat entra a `payload['reference']` i `PaymentRepository::createPayment()` el desa a `payment_transaction.REFERENCIA_BANCARIA`: un identificador intern de reclamació pot quedar registrat falsament com a referència bancària. `created_by` forma part del payload que es passa al repositori, però no s'escriu en una columna d'actor pròpia del moviment. Una mateixa entrada bancària registrada per UC-22 i després UC-24/23 pot generar **dues claus diferents i dos CHARGE** perquè `PaymentService` només deduplica per la clau rebuda. Els dos serveis manuals sobreescriuen els camps de factura del resultat després de recuperar el `UUID_PAYMENT`, amb risc de resposta contradictòria entre factures. [UC-23](uc-023-registrar-fraccio.md) i [UC-24](uc-024-registrar-cobrament-reclamacio.md).
 
+### 3.4. Subvista real d'invariants monetaris en el registre genèric — UC-02/56/105
+
+```mermaid
+classDiagram
+direction LR
+class PaymentService {
+ <<PHP: valida estructura i registra/reutilitza>>
+ +registerPayment(payload) array
+}
+class PaymentPayloadValidator {
+ <<PHP: is_numeric per moviment/trams, NO suma ni positivitat>>
+ +validate(payload) array
+}
+class PaymentRepository {
+ <<PHP: INSERT moviment i trams només a l'alta>>
+ +findByIdempotencyKey(db,key,forUpdate) array
+ +createPayment(db,payload) array
+ -createAllocation(db,uuidPayment,allocation) void
+ -refreshInvoicePaymentStatus(db,uuidFactura) void
+ -sumAllocationsByMovementTypes(db,uuidFactura,types) string
+}
+class PaymentStatusCalculator {
+ <<PHP: estat per factura, no verifica suma per UUID_PAYMENT>>
+ +calculate(invoiceTotal,charges,refunds) string
+}
+class PaymentActionEventRepository {
+ <<PHP: etiqueta i persisteix events, no mou imports>>
+ +append(db,event) string
+}
+PaymentService --> PaymentPayloadValidator : només estructura/mètode/tipus i is_numeric
+PaymentService --> PaymentRepository : nou CHARGE o reús de UUID_PAYMENT
+PaymentRepository --> PaymentStatusCalculator : suma imports d'assignacions per factura
+```
+
+**Invariant absent al codi:** `PaymentPayloadValidator` exigeix `is_numeric(amount)` i `is_numeric(allocation.amount)` però no els exigeix **positius** ni comprova `SUM(allocations) <= amount`. `PaymentRepository::createPayment()` persisteix cada tram i recalcula `ESTAT_COBRAMENT` **per factura** sense limitar la suma de trams al nominal de l'ingrés. La BD bàsica té FKs però cap `CHECK` de positivitat ni límit agregat en `payment_allocation`. Per tant, un únic P/100 amb F1/80 i F2/80 pot atribuir 160 € mentre cada factura té un estat local aparentment coherent; un tram negatiu podria modificar l'estat sense un `REFUND` bancari ni una reversió amb història. `PaymentActionEventRepository` accepta `REALLOCATE/UNALLOCATE/SPLIT_ALLOCATION`, **no** implementa canvi real de trams. [UC-02, secció 5.5](uc-002-registrar-cobrament-factura.md); [UC-56, 4.2–4.3](uc-056-cercar-assignar-cobrament.md); [UC-105, 4.1–4.3](uc-105-reassignar-repartir-pagament.md).
+
 ## 4. Classes executives de Redsys i integracions de venda
 
 ```mermaid
@@ -1209,6 +1245,56 @@ FiscalQueueFencedRepository ..> FiscalQueueRepository : substitució de contract
 ```
 
 **No confondre garanties:** un token de generació evita que A sobreescrigui el job de B però **no pot retirar un SOAP que A ja ha enviat**. La conciliació de la resposta remota per `UUID_FACTURA+FISCAL_ORDER` i evidència d'intent és independent de l'existència del lock i de la disponibilitat productiva del transport, actualment limitat a l'endpoint de proves. `REMOTE_UNCERTAIN` és diagnosi objectiu, no un enum fiscal implementat, i `SENT` no significa `ACCEPTED`. `SoapTransport` posa `uuid_factura` i `fiscal_order` als metadades privats de l'intent i retorna `response.evidence_id` en èxit, però quan falla la persistència local l'identificador no queda garantit a `AEAT_RESPONSE_JSON`. `EvidenceStore` només escriu fitxers append-only, **no exposa `findByRecord` ni `readAuthorized`**; aquesta API és una proposta i hauria de controlar permisos d'accés a resposta/XML i no exposar credencials.
+
+### 6.11. Subvista de disseny: quantia assignable, història de trams i consum concurrent — UC-02/56/105
+
+```mermaid
+classDiagram
+direction LR
+class MoneyAllocationInvariantGuard {
+ <<DISSENY: prova externa, imports positius i suma>>
+ +validateNewExternalReceipt(payload,evidence) decision
+}
+class PaymentAvailableBalanceReader {
+ <<DISSENY: import - suma efectiva - compromisos>>
+ +previewAvailable(uuidPayment) balance
+}
+class ExistingPaymentAllocationService {
+ <<DISSENY: writer per P existent, sense nou CHARGE>>
+ +allocate(uuidPayment,target,amount,requestId) result
+}
+class PaymentReallocationService {
+ <<DISSENY: reversió traçada i nova assignació>>
+ +preview(uuidPayment,command) result
+ +apply(command) result
+}
+class PaymentAllocationInvariantGuard {
+ <<DISSENY: valida trams efectius i titular>>
+ +validateAllocationPlan(uuidPayment,plan) decision
+}
+class PaymentAllocationHistoryRepository {
+ <<DISSENY: trams versionats i reversions correlacionades>>
+ +lockPaymentAndAllocations(db,uuidPayment) state
+ +recordReversalAndAssignments(db,command) result
+}
+class EnrollmentFundMovementRepository {
+ <<PROPOSTA: ledger per inscripció i identitat bancària>>
+ +append(db,movement) string
+}
+class PaymentService {
+ <<PHP real: NO implementa assignar P existent>>
+ +registerPayment(payload) array
+}
+MoneyAllocationInvariantGuard ..> PaymentService : precondició objectiu, NO crida real
+PaymentAvailableBalanceReader --> PaymentAllocationInvariantGuard : disponibilitat del moviment
+ExistingPaymentAllocationService --> PaymentAvailableBalanceReader : revalidar saldo sota lock
+ExistingPaymentAllocationService --> PaymentAllocationHistoryRepository : nou tram sobre mateix P
+PaymentReallocationService --> PaymentAllocationInvariantGuard : reversió sobre tram efectiu
+PaymentReallocationService --> PaymentAllocationHistoryRepository : història append-only i projecció
+PaymentReallocationService --> EnrollmentFundMovementRepository : drets per ID_INSC
+```
+
+**Precaució de model:** una `payment_allocation` negativa normal **no és** una reversió segura del tram antic: la consulta PHP actual simplement suma imports i no guarda `reversed_by_event`, versió efectiva o origen de la correcció. La previsualització de saldo no el reserva: la comprovació de `UUID_PAYMENT`, import, titular, event extern, retorns i peticions idempotents s'ha de repetir sota bloqueig de l'arrel P quan s'aplica. Dos operadors que reparteixin els mateixos 20 € han de serialitzar-se i no crear F2/20 + F3/20 sobre P amb saldo únic 20. Les classes de la subvista són **disseny**, no mètodes de `PaymentRepository` existents.
 
 ## 7. Traçabilitat i criteri de manteniment
 
