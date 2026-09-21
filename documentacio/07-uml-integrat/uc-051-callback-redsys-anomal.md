@@ -132,7 +132,7 @@ participant Q as RedsysCallbackQueueRepository
 participant E as IncidentRepository
 Bank->>C: Callback signat
 alt Signatura invàlida
- C--xBank: Rebuig; sense notificació/job al servei
+ C--xBank: Rebuig, sense notificació/job al servei
 else Signatura vàlida
  C->>S: receiveAuthorizedCallback(payload verificat)
  S->>I: findByDsOrder(DS_ORDER,true)
@@ -151,7 +151,7 @@ else Signatura vàlida
    N-->>S: notification_id, duplicate?
    S->>Q: enqueue(notification_id,UUID_INTENT)
    Q-->>S: job existent o QUEUED nou
-   S-->>C: Resposta HTTP lògica amb job; cap factura al callback
+   S-->>C: Resposta HTTP lògica amb job, cap factura al callback
   end
  end
 end
@@ -218,7 +218,7 @@ else Dades contradictòries per la mateixa DS_ORDER
  N--xS: conflict 409
  S->>DB: ROLLBACK
  S->>Inc: open(REDSYS_CALLBACK,detalls de conflicte) [intenta]
- S--xBank: Error; cap job nou ni substitució de notificació
+ S--xBank: Error, cap job nou ni substitució de notificació
 end
 Note over S,Q: Dues DS_ORDER diferents amb mateix IDPAG no són duplicat automàtic: cal conciliar cada fet bancari.
 ```
@@ -275,7 +275,7 @@ else Cobertura i pagament coherents amb oferta congelada
  Q->>P: Continuar handler idempotent UC-03
  P-->>Q: UUID_FACTURA i UUID_PAYMENT confirmats
 end
-Note over Guard,P: El worker existent no acredita aquest guard transversal; no descartar diners ni atorgar una plaça automàticament en conflicte.
+Note over Guard,P: El worker existent no acredita aquest guard transversal, no descartar diners ni atorgar una plaça automàticament en conflicte.
 ```
 
 | ID de prova pendent | Escenari | Sortida a acreditar |
