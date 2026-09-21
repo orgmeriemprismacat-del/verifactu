@@ -67,6 +67,27 @@ Moodle ..> Main : <<extend>> (matrícula afectada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió autoritzada"]
+  actor_1["Alumne"]
+  subgraph SIF_BOX["Prisma/SIF · fitxa alumne"]
+    uc_0(["UC-42<br/>Consultar/modificar alumne"])
+    uc_1(["Validar subjecte, rol i ID_INSC"])
+    uc_2(["UC-120<br/>Versionar/propagar contacte"])
+    uc_3(["UC-74<br/>Classificar error fiscal existent"])
+    uc_4(["UC-129<br/>Conciliar canvi d'accés Moodle"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_2 -.->|extend| uc_0
+  uc_3 -.->|extend| uc_0
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
