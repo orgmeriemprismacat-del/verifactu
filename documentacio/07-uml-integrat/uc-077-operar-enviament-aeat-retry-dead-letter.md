@@ -149,7 +149,7 @@ sequenceDiagram
     participant N as Outbox (UC-58) [pendent]
     O->>U69: Confirmar receptor, imports i versió
     U69-->>EM: Snapshot fiscal confirmat [contracte objectiu]
-    EM->>DB: BEGIN; desar factura/registre encadenat i job<br/>amb PAYLOAD_JSON + PAYLOAD_HASH [hash pendent]
+    EM->>DB: BEGIN, desar factura/registre encadenat i job<br/>amb PAYLOAD_JSON + PAYLOAD_HASH [hash pendent]
     DB-->>EM: COMMIT de registre i job [existent, sense hash de cua]
     Note over DB,W: Cap petició de xarxa abans del commit local.
     W->>DB: claimNext() amb lock, ATTEMPTS = ATTEMPTS + 1 [existent]
@@ -168,11 +168,11 @@ sequenceDiagram
         alt Resposta fiscal ACCEPTED
             A-->>T: Resposta estructurada d'acceptació
             T-->>W: ACCEPTED, dades de resposta
-            W->>DB: Guardar resposta i evidència; job SENT [complete() existent; detall intent pendent]
+            W->>DB: Guardar resposta i evidència, job SENT [complete() existent, detall intent pendent]
         else ACCEPTED_WITH_ERRORS
             A-->>T: Resposta estructurada amb errors
             T-->>W: ACCEPTED_WITH_ERRORS, dades de resposta
-            W->>DB: Guardar resposta; job SENT [existent]
+            W->>DB: Guardar resposta, job SENT [existent]
             W->>I: Obrir classificació i seguiment, si requereix actuació [pendent]
         else REJECTED formal
             A-->>T: Rebuig estructurat del registre
@@ -185,18 +185,18 @@ sequenceDiagram
             T-->>W: Error o resposta indeterminada
             W->>DB: Registrar intent i classificar incertesa [pendent]
             alt Es pot acreditar que no s'ha enviat i ATTEMPTS < maxAttempts
-                W->>DB: RETRY; NEXT_RETRY_AT amb backoff [backoff existent]
+                W->>DB: RETRY, NEXT_RETRY_AT amb backoff [backoff existent]
             else Resultat remot incert
                 W->>I: Conciliar evidències i estat remot abans de retransmetre [pendent]
                 W->>DB: Retenir job per verificació sense segona alta [pendent]
             else ATTEMPTS >= maxAttempts
-                W->>DB: DEAD_LETTER; immobilitzar retries [existent]
+                W->>DB: DEAD_LETTER, immobilitzar retries [existent]
                 W->>I: Crear o reutilitzar incidència UC-81 [pendent]
                 W->>N: Desar alerta de l'error a l'outbox UC-58 [pendent]
             end
         end
     end
-    Note over I,N: Incidència i outbox han de ser durables i deduplicables.<br/>Si no es poden registrar, cal una recuperació garantida; no donar l'alerta per enviada.
+    Note over I,N: Incidència i outbox han de ser durables i deduplicables.<br/>Si no es poden registrar, cal una recuperació garantida, no donar l'alerta per enviada.
 ```
 
 ## 6. Traçabilitat
