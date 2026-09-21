@@ -29,6 +29,27 @@ La migració `2026_09_16_000006_add_cross_system_control_tables.sql` defineix `e
 
 **Pendents:** proveïdor d'identitat de l'alumne, emissor de tokens i revocació, model/worker d'enllaços canònics, controlador servidor per recurs, integració UC-80 de storage/document i tests de permís denegat.
 
+### Una URL de pagament i una identitat externa no són permisos de lectura fiscal
+
+**Cas real de factura emesa abans de cobrar.** La pantalla llegada `/alumnes/genera-factura-abans-pagar/` pot agrupar diverses inscripcions en un document **d'empresa o responsable** i el circuit de `Passar pagaments` permet cercar-les per DNI, número fiscal i `FACTURA_RELACIONADA`. Aquestes referències són **claus de cerca/agrupació**, no secrets d'autenticació ni proves de representació de l'entitat. Una URL de pagament d'una operació pot ser legítima per al pagador, però **no** obre per això la consulta del PDF complet a cadascun dels participants; una persona que coneix `NUM_VISIBLE` o el token monetari tampoc ha d'obtenir `BILLING_*` de tercers.
+
+**Vincle verificat subjecte–inscripció–document.** `external_identity_link` preveu en SQL `SUBJECT_KEY/SYSTEM_CODE/EXTERNAL_ID`, hashes de correu/document, vigència i verificació. Abans d'autoritzar el portal d'alumne, el servei **pendent** ha de comprovar prova vigent del subjecte, relació amb el **`ID_INSC` concret** i paper respecte de **`UUID_FACTURA`**: receptor, persona representant acreditada o només participant. `fact_rels.VISIBLE_ALUMNE=0` al builder de grup limita la visibilitat prevista; però una eventual fila `VISIBLE_ALUMNE=1` importada per defecte de l'històric **no ha de sobreescriure** la comprovació del receptor ni autoritzar la factura d'empresa sencera. Mostrar estat de cobertura autoritzat sense exposar noms, NIF o imports d'altres persones.
+
+**Separar dos tipus de token i els seus efectes.** El token comercial per pagar s'ha de limitar a operació/import/acció de pagament, mentre que un token documental ha de limitar recurs, destinatari, versió, expiració i revocació. `fiscal_document_access.TOKEN_FINGERPRINT` és una **columna d'auditoria**, no prova d'una implementació que emeti o validi tokens. El controlador de descàrrega ha de comprovar el document físic i hash UC-80 i la titularitat **a cada petició**, no una sola vegada en crear l'enllaç; revocar o canviar un enllaç no modifica el document fiscal, `UUID_PAYMENT` ni els drets dels altres inscrits.
+
+**Múltiples perfils i intents parcials.** Una persona pot ser simultàniament alumne, gestor d'una empresa i tutor, però la coincidència de `CORREU`, `IDPAG` o DNI de cerca no fusiona subjectes ni permet acumular permisos de diferents sessions. Davant d'un conflicte d'identitat UC-126, protegir la consulta afectada i conservar la via de regularització del **pagador autoritzat** quan existeix deute real; no denegar una inscripció acadèmica ja confirmada ni crear factura per resoldre un error d'accés. Si el PDF és `PENDING` o manquen els bytes reals, respondre «document no disponible» **després d'autoritzar** sense substituir-lo per un PDF antic regenerat del llegat.
+
+### Proves de separació de token, rol i recurs (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AX-102-01 | Alumne coneix `FACTURA_RELACIONADA` de tres membres d'empresa | Estat mínim propi segons dret; cap PDF o dades fiscals de l'empresa/altres persones. |
+| AX-102-02 | Usar token d'URL de pagament per cridar endpoint de PDF | Denegació documental; token de pagament no és autorització de lectura. |
+| AX-102-03 | Import històric crea `VISIBLE_ALUMNE=1` en una relació de grup | Autorització de receptor/representant addicional obligatòria per factura completa. |
+| AX-102-04 | Alumne, tutor i contacte d'entitat comparteixen correu | Permisos per identitat/rol i recurs comprovats, cap fusió automàtica. |
+| AX-102-05 | Token documental vàlid però arxiu amb hash discordant | No retornar el fitxer; incidència UC-78/80 i accés auditat. |
+| AX-102-06 | Enllaç revocat mentre el PDF original continua custodiat | Denegar noves descàrregues amb aquell token sense alterar factura, PDF o cobrament. |
+
 ## UML de casos d'ús
 
 ```plantuml
