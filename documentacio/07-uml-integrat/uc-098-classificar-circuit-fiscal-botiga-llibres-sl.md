@@ -27,6 +27,27 @@
 
 **Proves pendents:** curs Associació + llibre SL en cistella única, dues factures A2026/000001 amb emissors diferents, pagament conjunt, retorn parcial llibre, certificat d'una entitat en l'altra, llibre amb impostos no exempts, històric SL i prova d'accés d'un alumne a document de tercers.
 
+### Matriu d'emissor abans de la cistella mixta i tall de numeració
+
+**Límit verificat en les tres peces de codi.** `sif/config/sif.php` exposa **un únic** `issuer.nif/name` per entorn; `FiscalSequenceRepository::next()` bloqueja `fiscal_sequence` per **`TIPUS_SERIE + ANY_FACT`**, sense paràmetre d'emissor; `InvoiceRepository::lockChainState()` consulta **`fiscal_chain_state.ID=1`**, compartit per totes les factures d'aquella instal·lació. `InvoiceRepository::createInvoiceGraph()` genera el número a partir de sèrie/any/seq i insereix un registre d'alta per factura, però el payload general no selecciona un emissor jurídic diferent **per venda**. Una columna de receptor `BILLING_NIF_CIF` no substitueix la identitat del venedor: canviar el CIF del destinatari o la sèrie `A/R` no implementa un circuit de SL.
+
+**Fitxa de decisió per cada línia de la cistella.** Abans de dirigir un article al SIF, confirmar **entitat que ven**, producte/prestació, emissor del document, titular del compte receptor, evidència de cobrament, règim/impost aplicable aprovat per l'àrea fiscal, destinatari i codi de producte real. Si hi ha un curs de PrisMa i un llibre de botiga en la mateixa cistella, identificar **per línia** si els serveis provenen o no del mateix emissor; UC-88 decideix aleshores documents i assignacions del **moviment extern real**. `LegacyCourseInvoicePayloadBuilder` fixa `iva_regim=EXEMPT` als cursos del seu circuit; **aquest codi no classifica** la venda de llibres, ni els seus percentatges, ni la identitat fiscal de la SL. La fitxa tampoc determina aquests valors sense una decisió documentada sobre cada operació.
+
+**Dues sortides possibles que no es poden confondre amb un canvi de paràmetre.** Si es decideixen **instal·lacions independents**, cal acreditar a cada una configuració/BD, numeració, cadena i registre, cua/certificat, documents, backups i permisos, així com el contracte de conciliació d'un possible pagament conjunt; el codi actual del SIF de l'Associació no ha d'escriure una factura atribuïda a la SL. Si es decideix una **arquitectura multiemissor**, són canvis de model i repositoris encara pendents: `issuer_id` coherent a factura, seqüència, cadena, transport, evidències, documents i control d'accés; un `WHERE ID=1` no separa cadenes per emissor. La classificació aprovada ha de precedir qualsevol adaptació; no donar cap opció per desplegada només perquè el PHP pot rebre un CIF a `billing`.
+
+**Històric i prova de tall.** Les factures antigues que provinguen de l'Associació o de la SL conserven emissor/origen en l'inventari UC-97 i estat `NO_VERIFACTU` si s'importen com a històric. Dos documents amb el mateix `NUM_VISIBLE` però emissor diferent no són la mateixa factura; cap importació ni exportació pot atribuir-los l'emissor SIF actiu per defecte. Abans de producció, contrastar la ruta web i callback de la botiga **que s'executen realment**, els pagaments del TPV, l'emissor de cada document i la numeració separada amb proves de cistella mixta i devolució parcial.
+
+### Proves de separació d'emissor (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| EM-98-01 | Configuració actual només amb un `issuer` i cistella Associació + SL | No facturar tots dos sota el mateix titular per omissió; decisió d'emissor per línia. |
+| EM-98-02 | Dues entitats intenten fer servir `A2026/000001` a la mateixa instància | Dues identitats fiscals/documentals diferenciades segons arquitectura aprovada; no sobreescriptura o fusió. |
+| EM-98-03 | Llibre passa pel builder de curs amb `EXEMPT` | Bloquejar reús de classificació sense decisió fiscal específica del producte. |
+| EM-98-04 | Un pagament TPV conjunt dona lloc a dues factures legítimes | Ingrés extern comptat una sola vegada i atribució real a documents/emissors corresponents. |
+| EM-98-05 | Factura antiga SL importada al SIF de PrisMa | Inventari històric amb emissor acreditat; cap alta AEAT retroactiva ni emissor per defecte. |
+| EM-98-06 | Codi de botiga al GitHub sense accés confirmat al runtime | Tall i integració productius marcats com a no verificats, no «botiga incorporada». |
+
 ## UML de casos d'ús
 
 ```plantuml
