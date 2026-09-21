@@ -73,6 +73,27 @@ Conflict ..> Main : <<extend>> (identitat ambigua)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne"]
+  actor_1["Gestió d'identitat autoritzada"]
+  subgraph SIF_BOX["Portal alumne → SIF · accés propi"]
+    uc_0(["UC-102<br/>Autoritzar consulta d'alumne"])
+    uc_1(["Resoldre identitat externa i ID_INSC"])
+    uc_2(["Verificar rol i receptor real del document"])
+    uc_3(["UC-80<br/>Servir PDF privat i auditar denegació"])
+    uc_4(["UC-126<br/>Resoldre conflicte d'identitat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
