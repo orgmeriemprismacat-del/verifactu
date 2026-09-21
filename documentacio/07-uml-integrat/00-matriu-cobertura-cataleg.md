@@ -1,15 +1,15 @@
 # Matriu completa de cobertura UML del catàleg SIF
 
-**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 119 de 142 casos; 23 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original és històric i pot diferir de les evidències PHP/SQL de cada fitxa.
+**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 125 de 142 casos; 17 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original és històric i pot diferir de les evidències PHP/SQL de cada fitxa.
 
 ## Cobertura per domini
 
 | Domini del catàleg | Total | Revisats | Pendents |
 | --- | ---: | ---: | ---: |
 | facturació i registre fiscal | 33 | 28 | 5 |
-| pagaments i conciliació | 30 | 22 | 8 |
+| pagaments i conciliació | 30 | 26 | 4 |
 | documents, accés i comunicacions | 11 | 9 | 2 |
-| governança i operació | 29 | 24 | 5 |
+| governança i operació | 29 | 26 | 3 |
 | integració SIF | 1 | 1 | 0 |
 | venda i descomptes | 7 | 7 | 0 |
 | canvis posteriors | 2 | 2 | 0 |
@@ -98,13 +98,13 @@
 | UC-59 | Concedir, caducar i revocar accés auditor | `[DISSENY]` | [uc-059.md](../06-fitxes-funcionals/uc-059.md) | [Fitxa i diagrames](uc-059-concedir-caducar-revocar-acces-auditor.md) |
 | UC-60 | Monitorar salut, cues, documents, backups i versió activa | `[DISSENY]` | [uc-060.md](../06-fitxes-funcionals/uc-060.md) | [Fitxa i diagrames](uc-060-monitorar-salut-cues-documents-backups-versio.md) |
 | UC-61 | Consultar un import pendent i obtenir un enllaç de pagament | `[LEGACY/OBJECTIU]` | [uc-061.md](../06-fitxes-funcionals/uc-061.md) | [Fitxa i diagrames](uc-061-consultar-pendent-obtenir-enllac.md) |
-| UC-62 | Iniciar factura o cobrament des de la intranet | `[LEGACY/DISSENY]` | [uc-062.md](../06-fitxes-funcionals/uc-062.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-62 | Iniciar factura o cobrament des de la intranet | `[LEGACY/DISSENY]` | [uc-062.md](../06-fitxes-funcionals/uc-062.md) | [Fitxa i diagrames](uc-062-iniciar-factura-cobrament-intranet.md) |
 | UC-63 | Crear la intenció Redsys des de l'ecommerce | `[ASYNC/PARCIAL]` | [uc-063.md](../06-fitxes-funcionals/uc-063.md) | [Fitxa i diagrames](uc-063-crear-intencio-redsys.md) |
-| UC-64 | Reconciliar la candidata amb el codi actual | `[CONTROL/PENDENT]` | [uc-064.md](../06-fitxes-funcionals/uc-064.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-64 | Reconciliar la candidata amb el codi actual | `[CONTROL/PENDENT]` | [uc-064.md](../06-fitxes-funcionals/uc-064.md) | [Fitxa i diagrames](uc-064-reconciliar-candidata-codi-actual.md) |
 | UC-65 | Presentar una factura o rebut de col·laborador | `[LEGACY/ADJACENT]` | [uc-065.md](../06-fitxes-funcionals/uc-065.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-66 | Consultar i gestionar cobraments d'un col·laborador | `[LEGACY/ADJACENT]` | [uc-066.md](../06-fitxes-funcionals/uc-066.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-67 | Externalitzar i rotar secrets de pagament | `[PENDENT/BLOQUEJANT]` | [uc-067.md](../06-fitxes-funcionals/uc-067.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-68 | Retirar callbacks i escriptures fiscals llegades | `[DISSENY]` | [uc-068.md](../06-fitxes-funcionals/uc-068.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-67 | Externalitzar i rotar secrets de pagament | `[PENDENT/BLOQUEJANT]` | [uc-067.md](../06-fitxes-funcionals/uc-067.md) | [Fitxa i diagrames](uc-067-externalitzar-rotar-secrets-pagament.md) |
+| UC-68 | Retirar callbacks i escriptures fiscals llegades | `[DISSENY]` | [uc-068.md](../06-fitxes-funcionals/uc-068.md) | [Fitxa i diagrames](uc-068-retirar-callbacks-escriptures-fiscals-llegades.md) |
 | UC-69 | Confirmar i congelar dades fiscals | `[DISSENY/PARCIAL]` | [uc-069.md](../06-fitxes-funcionals/uc-069.md) | [Fitxa i diagrames](uc-069-confirmar-congelar-dades-fiscals.md) |
 | UC-70 | Modificar dades mestres després d'emetre | `[DISSENY]` | [uc-070.md](../06-fitxes-funcionals/uc-070.md) | [Fitxa i diagrames](uc-070-modificar-dades-mestres-despres-emetre.md) |
 | UC-71 | Registrar un canvi de curs complet | `[DISSENY/PARCIAL]` | [uc-071.md](../06-fitxes-funcionals/uc-071.md) | [Fitxa i diagrames](uc-071-registrar-canvi-curs-complet.md) |
@@ -128,7 +128,7 @@
 | UC-89 | Canviar concepte després del cobrament o emissió | `[DISSENY/BLOQUEJANT]` | [uc-089.md](../06-fitxes-funcionals/uc-089.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-90 | Resoldre un descompte validat després de la compra | `[DISSENY/BLOQUEJANT]` | [uc-090.md](../06-fitxes-funcionals/uc-090.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-91 | Aplicar descompte de grup per trams | `[DISSENY/PARCIAL]` | [uc-091.md](../06-fitxes-funcionals/uc-091.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-92 | Registrar venda manual des d'intranet o telèfon | `[DISSENY/PARCIAL]` | [uc-092.md](../06-fitxes-funcionals/uc-092.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-92 | Registrar venda manual des d'intranet o telèfon | `[DISSENY/PARCIAL]` | [uc-092.md](../06-fitxes-funcionals/uc-092.md) | [Fitxa i diagrames](uc-092-registrar-venda-manual-intranet-telefon.md) |
 | UC-93 | Canviar el receptor fiscal sol·licitat després d'una compra particular | `[DISSENY/BLOQUEJANT]` | [uc-093.md](../06-fitxes-funcionals/uc-093.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-94 | Ajustar manualment l'import a pagar amb justificació | `[DISSENY/BLOQUEJANT]` | [uc-094.md](../06-fitxes-funcionals/uc-094.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-95 | Gestionar estat acadèmic amb deute pendent | `[DISSENY]` | [uc-095.md](../06-fitxes-funcionals/uc-095.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
@@ -139,7 +139,7 @@
 | UC-100 | Registrar una operació informativa o no facturable | `[DISSENY]` | [uc-100.md](../06-fitxes-funcionals/uc-100.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-101 | Operar domini, TLS i separació d'entorns de `pay.prisma.cat` | `[PARCIAL/BLOQUEJANT]` | [uc-101.md](../06-fitxes-funcionals/uc-101.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-102 | Autoritzar l'accés de l'alumne sense rol d'intranet | `[DISSENY/BLOQUEJANT]` | [uc-102.md](../06-fitxes-funcionals/uc-102.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-103 | Delegar anul·lació o canvi de pagament web al SIF | `[DISSENY/BLOQUEJANT]` | [uc-103.md](../06-fitxes-funcionals/uc-103.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-103 | Delegar anul·lació o canvi de pagament web al SIF | `[DISSENY/BLOQUEJANT]` | [uc-103.md](../06-fitxes-funcionals/uc-103.md) | [Fitxa i diagrames](uc-103-delegar-canvi-anullacio-pagament-web-sif.md) |
 | UC-104 | Gestionar un excés de cobrament | `[DISSENY/BLOQUEJANT]` | [uc-104.md](../06-fitxes-funcionals/uc-104.md) | [Fitxa i diagrames](uc-104-gestionar-exces-cobrament.md) |
 | UC-105 | Reassignar o repartir un pagament | `[DISSENY/BLOQUEJANT]` | [uc-105.md](../06-fitxes-funcionals/uc-105.md) | [Fitxa i diagrames](uc-105-reassignar-repartir-pagament.md) |
 | UC-106 | Crear una reserva o inscripció abans del pagament | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-106.md](../06-fitxes-funcionals/uc-106.md) | [Fitxa i diagrames](uc-106-crear-reserva-abans-pagament.md) |
@@ -169,4 +169,4 @@
 
 ## Significat de «revisat»
 
-Cada fitxa específica conté anàlisi funcional pròpia, casos d'ús PlantUML, classes i seqüència Mermaid, i distingeix codi PHP existent, esquema SQL definit i disseny pendent. No certifica proves executades, permisos de consulta de factura d'empresa, worker d'outbox de notificacions, atribució quantitativa de fons per inscripció, enviament AEAT de producció ni desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
+Cada fitxa específica conté un flux propi, casos d'ús PlantUML, classes i seqüència Mermaid, i distingeix PHP existent, esquema SQL definit i disseny pendent. No certifica proves executades, autenticació d'API de la intranet, retirada real dels callbacks del runtime llegat, rotació de secrets en producció, atribució quantitativa de fons per inscripció, enviament AEAT de producció ni desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
