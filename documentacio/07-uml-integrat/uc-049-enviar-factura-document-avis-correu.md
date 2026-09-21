@@ -71,6 +71,27 @@ Outbox ..> Proof : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió"]
+  actor_1["Receptor/pagador autoritzat"]
+  subgraph SIF_BOX["SIF · enviament documental"]
+    uc_0(["UC-49<br/>Enviar factura, document o avís"])
+    uc_1(["Validar tipus de fet i destinatari"])
+    uc_2(["UC-80<br/>Verificar document i accés"])
+    uc_3(["UC-58<br/>Encolar i trametre"])
+    uc_4(["Registrar resultat del canal"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_2 -.->|extend| uc_0
+  uc_0 -.->|include| uc_3
+  uc_3 -.->|include| uc_4
+```
+
 ## UML de classes
 
 ```mermaid
