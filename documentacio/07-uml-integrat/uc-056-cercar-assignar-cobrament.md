@@ -163,6 +163,67 @@ Note over S,L: Operació objectiu, no mètode implementat de PaymentRepository.
 Note over DB,L: No INSERT a payment_transaction en aquesta seqüència.
 ```
 
+### 4.1. Acció independent: cercar/identificar el cobrament sense modificar-lo — DISSENY
+
+La matriu de pantalles distingeix «Cercador general de pagaments» i «Cercar pagament per NIF/NIE». Ambdós es poden vincular a **UC-56 en la seva modalitat de cerca**, però cal distingir aquesta consulta d'`assignar` o de registrar un `CHARGE` nou. El codi de `PaymentService`/`PaymentRepository` revisat **no implementa** aquest cercador transversal. Les claus `NIF/NIE`, `IDPAG`, `DS_ORDER`, número de factura, regal i referència no són equivalents: un pagador d'empresa o de regal pot no ser l'alumne ni el receptor fiscal.
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador autoritzat" as O
+actor "Responsable de facturació" as F
+rectangle "SIF PrisMa — cerca i imputació" {
+ usecase "UC-56 / CERCA\nLocalitzar cobrament per criteris" as Search
+ usecase "Validar permís i àmbit\nde resultats" as Scope
+ usecase "Identificar un moviment bancari\nentre possibles coincidències" as Identify
+ usecase "UC-56 / ASSIGNACIÓ\nAssignar pagament existent" as Assign
+ usecase "UC-02\nRegistrar ingrés nou real" as New
+}
+O --> Search
+Search ..> Scope : <<include>> [OBJECTIU]
+Search ..> Identify : <<include>> [si hi ha candidats]
+O --> Assign
+F --> Assign
+O --> New
+note bottom of Search
+ Consultar no crea payment_transaction.
+ Assignar o registrar requereix confirmació pròpia.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant UI as Cercador intranet [INTEGRACIÓ PENDENT]
+participant Auth as Control de rol/àmbit [PENDENT]
+participant Search as PaymentLookupRepository [DISSENY]
+participant DB as payment_transaction, allocation i relacions [SQL]
+O->>UI: Cercar per NIF/NIE, DS_ORDER, IDPAG, regal o número de factura
+UI->>Auth: Autoritzar filtres, actor i visibilitat
+alt Actor no autoritzat
+ Auth-->>UI: Denegació sense dades de tercers
+ UI-->>O: Accés denegat
+else Consulta autoritzada
+ UI->>Search: search(criteria,actor)
+ Search->>DB: Buscar moviments + factures/relacions amb límit i paginació
+ DB-->>Search: Candidats, pagador/receptor diferenciats i assignacions existents
+ alt Cap coincidència confirmada
+  Search-->>UI: 0 resultats; no crear factura ni CHARGE automàtic
+ else Un o més candidats
+  Search-->>UI: UUID_PAYMENT + origen verificable i import disponible calculat
+  UI-->>O: Mostrar coincidències amb dades limitades pel rol
+  O->>UI: Seleccionar un UUID_PAYMENT i revisar detall
+  UI->>Search: Rellegir UUID i assignacions; confirmar titularitat
+  Search-->>UI: Estat actual o conflicte per identitat ambigua
+  UI-->>O: Consulta o selecció, sense efecte econòmic
+ end
+end
+Note over UI,DB: Aquest diagrama no descriu un endpoint de cerca ja implementat. L'assignació real és el cas específic del diagrama 4.
+```
+
+**Proves concretes pendents de la consulta:** buscar NIF de pagador d'empresa diferent de participant; `IDPAG` amb diversos `DS_ORDER`; dues factures amb receptor diferent i un pagador; regal amb beneficiari diferent del comprador; resultat paginat; usuari sense permís; cerca buida; import retornat prèviament; consulta simultània amb reassignació. Cada cerca ha de mostrar **l'estat actual** sense generar factura ni pagament.
 ## 5. Traçabilitat
 
 [UC-56 original](../06-fitxes-funcionals/uc-056.md) · [UC-02 cobrament nou](uc-002-registrar-cobrament-factura.md) · [UC-25 fitxer](uc-025-analitzar-fitxer-tpv.md) · [UC-25a IDPAG](uc-025a-comprovar-idpag-duplicats.md) · [UC-86 auditoria](uc-086-auditar-accio-pagament.md) · [Revisió fons](00-revisio-moviments-inscripcions.md) · [PaymentService](../../sif/src/Service/PaymentService.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [Migració payment_transaction/allocation](../../sif/database/migrations/2026_06_02_000001_create_sif_core.sql).
