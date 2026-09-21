@@ -71,6 +71,27 @@ Main ..> Revoke : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable seguretat"]
+  actor_1["Operador TPV"]
+  subgraph SIF_BOX["SIF · rotació secrets"]
+    uc_0(["UC-67<br/>Externalitzar i rotar secrets"])
+    uc_1(["Inventariar clients, entorns i claus"])
+    uc_2(["Provisionar clau nova sense exposar-la"])
+    uc_3(["Validar callbacks durant el canvi"])
+    uc_4(["Revocar clau antiga i auditar resultat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## UML de classes
 
 ```mermaid
