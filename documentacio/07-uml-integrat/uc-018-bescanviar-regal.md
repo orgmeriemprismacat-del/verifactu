@@ -174,7 +174,7 @@ participant I as Intranet/inscripcions [adaptació pendent]
 participant C as Canvi de curs UC-26/71 [orquestració pendent]
 B->>U: Codi i dades pròpies d'inscripció
 U->>E: Validar i reservar dret de compra ja pagat
-E-->>U: Compra/regal vàlids; factura del comprador conservada
+E-->>U: Compra/regal vàlids, factura del comprador conservada
 U->>I: Crear o recuperar inscripció del beneficiari
 I-->>U: ID_INSC únic
 U->>E: Consum únic i enllaç REGAL→INSCRIPCIO
