@@ -36,7 +36,7 @@
 | Reassignació de factura A cap a B | No crear un segon pagament ni modificar factura fiscal original; deixar traça de desassignació i assignació, recomputar els estats econòmics A/B i les atribucions per inscripció. |
 | `IDPAG` coincideix però referència bancària difereix | No assumir que es tracta del mateix moviment; UC-25a compara la identitat real. |
 | Pagament d'empresa per un grup | Comprovar pagador i receptor de factura; no exposar tota la factura a cada participant ni atribuir automàticament a l'alumne el dret a un retorn. |
-| Reús de `IDEMPOTENCY_KEY` amb payload diferent | **Buit verificat:** `PaymentService::existingResult` no compara import, assignacions o hash de l'entrada; el canal i el servei final han de detectar el conflicte, no declarar la nova petició equivalent. |
+| Reús de `IDEMPOTENCY_KEY` amb payload diferent | **PHP main:** `PaymentService::assertSamePayload()` compara import i assignacions en hash V1/V2 per K i retorna conflicte quan el payload canvia; **pendent:** comparar identitat bancària entre K distintes i reservar saldo d'un P existent per una altra factura. |
 
 **Proves a implementar/validar:** cerca per totes les claus del catàleg, permisos, pagament existent sense assignació, assignació parcial i concurrent, saldo insuficient, reassignació A→B, pack/grup amb N inscripcions, pagador d'empresa, retorn previ i clau repetida amb payload diferent. **No s'han executat proves** en aquesta revisió.
 
@@ -48,7 +48,7 @@
 
 **Una transferència, diverses factures.** El xat i els procediments preveuen que una transferència d'una escola/empresa pugui cobrir diversos cursos o factures ja emeses, o que una factura rebi diversos cobraments fraccionats. El resultats han de mostrar l'ingrés extern **un sol cop** i la imputació concreta a cada `UUID_FACTURA`, identificant el pagador i la part de cada `ID_INSC` quan es conegui. Una coincidència de CIF, `FACTURA_RELACIONADA` o `IDPAG` no és permís per imputar automàticament la transferència a totes les factures candidates, ni per dividir-la a parts iguals entre alumnes.
 
-**Conflicte semàntic d'idempotència.** `PaymentService::existingResult()` retorna `UUID_PAYMENT` per clau existent sense comparar l'import/les assignacions noves amb `PAYLOAD_HASH`. Una petició repetida amb mateixa clau **i contingut canviat** s'ha de marcar conflicte abans de presentar «pagament assignat»; el simple `idempotency_reused=true` del servei actual no prova que la destinació demanada coincideixi.
+**Conflicte semàntic d'idempotència a main.** `PaymentService::assertSamePayload()` compara el PAYLOAD_HASH de la petició nova amb el moviment original (V1/V2) abans de retornar un UUID_PAYMENT reutilitzat: import/factura/assignacions nous amb la mateixa K → CONFLICT. Això **no acredita** que un fet bancari amb una K diferent no s'hagi registrat, ni que un mateix P tingui saldo encara assignable: cal consulta del moviment i dels seus trams i guard del fet extern, titularitat i retorns.
 
 ### 1.4. Proves operatives addicionals (no executades)
 
