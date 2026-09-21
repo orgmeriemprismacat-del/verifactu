@@ -192,12 +192,12 @@ UI-->>O: Retorn pendent, encara no REFUND
 Ext-->>UI: Evidència del reemborsament executat
 UI->>R: Buscar mateixa operació en registres Redsys/manuals
 alt Ja s'ha registrat el retorn
- R-->>UI: UUID_PAYMENT existent; no crear un segon REFUND
+ R-->>UI: UUID_PAYMENT existent, no crear un segon REFUND
 else Retorn real nou i validat
  UI->>S: Registrar REFUND amb referència i factura/part afectada
  S->>DB: INSERT payment_transaction i payment_allocation
  S-->>UI: UUID_PAYMENT
- UI-->>O: Retorn registrat; efecte fiscal UC-05 separat si correspon
+ UI-->>O: Retorn registrat, efecte fiscal UC-05 separat si correspon
 end
 Note over UI,R: Autorització per inscripció i conciliació externa encara no acreditades al servei manual.
 ```
@@ -289,23 +289,23 @@ O->>G: validate(E,requestId,originPayment,uuidFactura,ID_INSC,40)
 G->>DB: Cercar REFUND existent per operació E i calcular límit del dret origen
 alt E ja correspon al mateix retorn amb dades equivalents
  DB-->>G: UUID_PAYMENT preexistent + assignació/titular coherents
- G-->>O: Reutilitzar UUID; cap nou REFUND
+ G-->>O: Reutilitzar UUID, cap nou REFUND
 else Referència/clau repetida amb import o factura diferents
  DB-->>G: CONFLICT semàntic
- G-->>O: Revisió; no assumir que l'antic UUID retorna diners d'aquesta factura
+ G-->>O: Revisió, no assumir que l'antic UUID retorna diners d'aquesta factura
 else E nova, sortida acreditada i dret suficient
  G->>R: registerByUuid(sifDb,uuidFactura,input amb E/40) [PHP]
  R->>K: forExistingInvoice(uuidFactura,input)
  K-->>R: REFUND, IDEMPOTENCY_KEY, una assignació
  R->>P: registerPayment(payload)
- P->>DB: BEGIN, cerca per clau; INSERT REFUND/assignació si no existeix
+ P->>DB: BEGIN, cerca per clau, INSERT REFUND/assignació si no existeix
  DB-->>P: UUID_PAYMENT o reús
  P->>DB: COMMIT del registre/reús SIF
  P-->>R: UUID_PAYMENT
  R-->>G: UUID_PAYMENT, UUID_FACTURA
  G->>DB: Comprovar contingut/assignació i registrar origen+decisió [DISSENY]
  G-->>O: Sortida acreditada i registrada o incidència si divergeix
- Note over G,DB: La comprovació posterior al COMMIT no pot desfer un REFUND ja inserit; el guard de contingut i fons ha d'actuar ABANS de crear/reusar el moviment.
+ Note over G,DB: La comprovació posterior al COMMIT no pot desfer un REFUND ja inserit, el guard de contingut i fons ha d'actuar ABANS de crear/reusar el moviment.
 end
 Note over G,DB: Només el registre SIF és PHP real. El guard, el límit, la conciliació bancària i la vinculació a ID_INSC són disseny pendent.
 ```
@@ -380,14 +380,14 @@ R->>C: reconcile(externalRefundId,originPayment,uuidFactura)
 C->>B: Verificar operació de sortida i estatus real
 C->>S: Cercar REFUND existent, import i factura assignada
 alt Banc no confirma sortida, SIF tampoc té REFUND
- C-->>R: RETURN_PENDING; no moviment inventat
+ C-->>R: RETURN_PENDING, no moviment inventat
 else Banc confirma, SIF manca
  C->>M: registerByUuid(...,referència externa original) [guard PENDENT]
  M-->>C: UUID_PAYMENT o conflicte semàntic
  C->>S: Rellegir import/factura/origen i verificar un sol retorn
  C-->>R: RECONCILED o incidència amb banc ja confirmat
 else SIF té REFUND però no es verifica sortida externa
- C-->>R: EXTERNAL_UNVERIFIED; investigar, no executar automàticament un segon retorn
+ C-->>R: EXTERNAL_UNVERIFIED, investigar, no executar automàticament un segon retorn
 else Banc i SIF coincideixen en operació/import/factura/titular
  C->>L: Reparar només resum llegat si cal, mateix UUID_PAYMENT
  C-->>R: RECONCILED sense nou CHARGE/REFUND
