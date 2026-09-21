@@ -157,7 +157,7 @@ Bank->>W: Callback autoritzat i job
 W->>R: issueFromIntentSnapshot(db,DS_ORDER,snapshot)
 R-->>W: UUID_FACTURA i UUID_PAYMENT del grup
 W->>L: Atribuir fons a ID_INSC_A/B segons imports reals
-Note over C,L: Grup previ, trams i ledger són disseny; la construcció fiscal des de snapshot sí existeix
+Note over C,L: Grup previ, trams i ledger són disseny, la construcció fiscal des de snapshot sí existeix
 ```
 
 ## 5. Traçabilitat
