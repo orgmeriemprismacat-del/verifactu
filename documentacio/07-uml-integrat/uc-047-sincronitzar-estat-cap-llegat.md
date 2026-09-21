@@ -79,6 +79,26 @@ Sync ..> Update : <<include>> (per cada inscripció)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Adaptador d'operació SIF"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["Sincronització SIF → llegat"]
+    uc_0(["UC-47<br/>Sincronitzar resum mínim"])
+    uc_1(["Confirmar èxit/commit SIF"])
+    uc_2(["Localitzar relacions INSCRIPCIO"])
+    uc_3(["Actualitzar resum al llegat"])
+    uc_4(["UC-53<br/>Reconciliar divergències"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ## 3. Diagrama de classes real
 
 ```mermaid
@@ -145,6 +165,25 @@ T --> Recon
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker de recuperació"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF PrisMa — sincronització llegat (OBJECTIU)"]
+    uc_0(["UC-47 / recuperar<br/>Reprendre sync d'un fet confirmat"])
+    uc_1(["Verificar UUID i commit fiscal preexistent"])
+    uc_2(["Comprovar resultat per ID_INSC<br/>i evitar duplicar l'anotació"])
+    uc_3(["UC-53<br/>Obrir divergència si no es pot reparar"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -208,6 +247,25 @@ Detect ..> Compare : <<include>>
 Detect ..> Classify : <<include>>
 T --> Retry
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Procés de control"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF PrisMa — controls SIF/llegat (OBJECTIU)"]
+    uc_0(["UC-53<br/>Detectar divergència de resum"])
+    uc_1(["Contrastar UUID fiscal, relació<br/>i existència d'ID_INSC"])
+    uc_2(["Classificar NOT_FOUND, CONFLICT<br/>o nota duplicada"])
+    uc_3(["UC-47<br/>Reprendre només els pendents"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_3
 ```
 
 ```mermaid
