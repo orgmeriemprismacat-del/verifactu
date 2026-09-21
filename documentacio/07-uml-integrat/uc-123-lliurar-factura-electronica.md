@@ -41,6 +41,26 @@
 
 **Pendents:** format/versió i validació efectiva, permisos/receptor, storage físic, transport/outbox, significat de confirmació per canal, retenció i proves de duplicats/accés i recuperació d'errors. No s'han executat proves PHP del flux end-to-end.
 
+### 2.1. `E_FACT` en la pantalla antiga i factura electrònica efectiva
+
+**Acció antiga separada de l'emissió prèvia.** A PrisMa, la pantalla «Consulta - Edita - Anul·la factura» és el lloc previst per gestionar l'indicador `E_FACT`, mentre que «Generar factura abans de pagar» crea una **factura real** amb `EMESA_ABANS_COBRAMENT=1`. El nom del mètode llegat `generarFacturaElectronica_Alumnes` **no converteix automàticament** aquella emissió prèvia en factura electrònica ni justifica marcar `E_FACT=1`; són dos fets independents, també quan el receptor és una empresa.
+
+**Destinatari i canal no inferits de l'email de contacte.** El procediment de l'entitat diferencia dades fiscals de l'empresa i contacte `entitats_resp.CORREU`: el responsable pot rebre un enllaç de pagament o document **quan està autoritzat**, però aquest correu no determina per si mateix format/versionat de factura electrònica, canal acordat o prova de lliurament. Validar receptor fiscal, representació, preferència, adreça i canal abans de preparar el document. En grup, no enviar el format electrònic complet a cada participant perquè comparteixen `IDPAG`.
+
+**Quatre resultats independents.** Mostrar per separat: (1) factura SIF **emesa** (`UUID_FACTURA`), (2) preferència/indicador `E_FACT`, (3) artefacte electrònic real i verificat (`FACTURA_DOCUMENT_ID`, format/versió i hash de bytes), i (4) resultat de la comanda `electronic_invoice_delivery` (preparada/enviada/rebuda segons prova). Una fila de `factura_documents` o un correu a l'outbox **no acredita** el lliurament del format requerit. El resultat AEAT de `fiscal_queue` correspon a una cinquena dimensió i tampoc acredita lliurament al receptor.
+
+**Canvi posterior i retry.** Si l'empresa sol·licita factura electrònica després que ja existeixi una factura fiscal o després de pagar-la, mantenir **el mateix UUID i document fiscal d'origen**; generar l'artefacte de lliurament adequat amb versió i autorització, sense nou `issueInvoice()` ni `CHARGE`. Si falla només el canal de lliurament, repetir la comanda/intent del mateix document segons la seva política, no «corregir» les línies de la factura per reintentar.
+
+### 2.2. Proves específiques d'empresa i lliurament (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| FE-123-01 | Factura abans de cobrar amb E_FACT=0 | Factura real sense afirmar lliurament electrònic. |
+| FE-123-02 | Marcar E_FACT=1 després d'emetre | Preferència separada i mateix UUID fiscal; format/canal continuen pendents de prova. |
+| FE-123-03 | Correu del responsable però receptor fiscal entitat | Verificar autorització i canal de l'entitat abans del lliurament. |
+| FE-123-04 | XML de remissió AEAT existent, XML de factura electrònica absent | No declarar document destinat al receptor com a generat/lliurat. |
+| FE-123-05 | Notificació de correu SENT sense evidència de recepció segons canal | Informar enviament sense prova de lliurament, no estat DELIVERED fictici. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
