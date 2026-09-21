@@ -103,6 +103,33 @@ end note
 @enduml
 ```
 
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Operador de gestió"]
+  a_1["Responsable amb permís econòmic"]
+  a_2["Banc/Redsys"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — decisió econòmica"]
+    u_0(["UC-06 / PREVIEW<br/>Quantificar dret disponible i titular"])
+    u_1(["UC-06 / DECIDE<br/>Aprovar via i trams de l'import"])
+    u_2(["UC-28 / AUTHORIZE<br/>Autoritzar retorn pendent"])
+    u_3(["UC-28 / RECORD<br/>Registrar retorn bancari confirmat"])
+    u_4(["UC-29<br/>Concedir saldo justificat"])
+    u_5(["UC-29a<br/>Aplicar saldo existent a deute"])
+    u_6(["UC-74<br/>Classificar correcció fiscal apart"])
+  end
+  a_0 --> u_0
+  a_1 --> u_1
+  u_1 -.->|include| u_0
+  a_1 --> u_2
+  a_2 --> u_3
+  a_1 --> u_3
+  a_1 --> u_4
+  a_1 --> u_5
+  a_1 --> u_6
+```
+
 **Fronteres d'actor/resultat:** previsualitzar un dret, aprovar un retorn pendent, acreditar la sortida bancària, crear saldo i consumir-lo són **accions amb postcondicions diferents**. S'eviten fletxes de generalització `REFUND/CREDIT/COMPENSATION -|> decisió` perquè podrien suggerir que executar una variant equival a haver classificat/autoritzat tot l'expedient. El servei únic de decisió continua sent **DISSENY**, no PHP implementat.
 
 ## 3. Diagrama de classes dels tres serveis existents
@@ -216,6 +243,25 @@ R --> Pending
 R --> Credit
 R --> Allocate
 @enduml
+```
+
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Responsable econòmic"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — UC-06 / DECISIÓ DE TRAMS (DISSENY)"]
+    u_0(["Aprovar repartiment de dret econòmic"])
+    u_1(["Verificar pagament real origen,<br/>titular i saldo no consumit"])
+    u_2(["Reservar retorn extern pendent"])
+    u_3(["Concedir crèdit amb origen únic"])
+    u_4(["Assignar/import aplicat a deute acreditat"])
+  end
+  a_0 --> u_0
+  u_0 -.->|include| u_1
+  a_0 --> u_2
+  a_0 --> u_3
+  a_0 --> u_4
 ```
 
 ```mermaid
