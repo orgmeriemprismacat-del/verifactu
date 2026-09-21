@@ -42,6 +42,24 @@ La migració defineix `personal_data_change_request` amb `SUBJECT_KEY`, canvis p
 
 **Pendents:** clau canònica i política de matching, estructura d'equivalències i historial, rols, consentiment i privacitat, propagació entre BDs, proves de merge/split i impacte sobre pagador/factura/certificat.
 
+### 2.1. Entitat, responsable i alumne poden compartir contacte sense compartir identitat
+
+**Dades que aporta la intranet.** «Genera/Edita entitats» desa `CIF/RAO/ADRECA/CP/POBLACIO` a l'àmbit de l'entitat i `NOM/COGNOMS/CORREU` al contacte gestor `entitats_resp`. «Consulta - Modifica alumne» cerca per DNI, correu, nom o identificador i mostra moltes inscripcions en una mateixa fitxa. «Generar factura abans de pagar» selecciona diverses inscripcions i una entitat receptora; `IDPAG` pot agrupar participants o intents del TPV. **Ni un correu compartit, ni el mateix IDPAG, ni un NIF cercat a la pantalla identifiquen per si sols un únic subjecte, receptor i pagador.**
+
+**Conflicte que s'ha de mostrar, no corregir a cegues.** Si un contacte `entitats_resp.CORREU` també és correu d'un alumne, la coincidència pot ser legítima, però no permet fusionar-los ni donar-li accés a la factura d'empresa sense representació comprovada. Si `buscarUsuaris` retorna diverses fitxes o una mateixa persona figura amb DNI/correus discordants a inscripcions de diferents estats, conservar els identificadors d'origen i fer una revisió per destí. El mètode llegat de dades personals afecta només inscripcions pendents de començar: la resta pot conservar informació anterior **sense ser automàticament una segona persona**.
+
+**Protegir operacions i documents confirmats.** En un conflicte abans d'emetre, suspendre només la mutació que faria servir un receptor no acreditat i recuperar la decisió fiscal UC-69; un callback Redsys d'una ordre ja iniciada necessita conciliació pròpia encara que s'hagi bloquejat l'enllaç nou. Després d'emetre, `factura.BILLING_*` identifica el receptor de **la factura històrica**, no el perfil canònic vigent; resoldre identitat no reassigna `UUID_PAYMENT` ni edita PDF, i qualsevol error de receptor fiscal requereix la classificació UC-74/05.
+
+### 2.2. Proves de col·lisió entre subjectes (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| ID-126-01 | Alumne i responsable d'entitat comparteixen `CORREU` | Identitats i permisos separats; cap visibilitat implícita de factura d'empresa. |
+| ID-126-02 | `IDPAG` correspon a tres alumnes d'un grup | Tres matrícules i una referència operativa, no una persona fusionada. |
+| ID-126-03 | Dades personals corregides només a inscripcions pendents | Identificar discrepància temporal amb inscripcions acabades abans de concloure duplicat real. |
+| ID-126-04 | Entitat i responsable canvien el mateix dia d'una factura prèvia | Receptor històric de factura intacte; contacte vigent actualitzat per futur si s'aprova. |
+| ID-126-05 | Dos registres semblants i una transferència externa associada | Cap traspàs de titularitat ni de fons fins a acreditació i operació econòmica específica. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
