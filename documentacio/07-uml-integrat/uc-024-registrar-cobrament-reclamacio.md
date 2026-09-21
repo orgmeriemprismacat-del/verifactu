@@ -209,6 +209,173 @@ else Es comunica un ingrés
 end
 Note over Claims,Rec: Seguiment de fases, detecció intercanal i correus finals encara són integració pendent.
 ```
+### 4.2. Acció independent: identificar el cobrament d'una reclamació sense confondre expedient i operació bancària — DISSENY
+
+**Actor/disparador:** gestió rep la confirmació d'una entrada mentre hi ha una reclamació oberta per una factura original. **Identitats exigibles:** `claim_case_id` o referència de **l'expedient de reclamació**, `external_receipt_id` de **l'entrada econòmica real** (banc/Redsys) i `UUID_FACTURA` de la factura que continua vigent. Una referència de reclamació pot agrupar diversos cobraments parcials, i el mateix ingrés pot haver entrat al SIF pel canal UC-22, UC-23 o Redsys abans que el gestor obri la pantalla de morositat. **Postcondició:** fet extern i imputació identificats, o conflicte; consultar l'expedient no crea cap moviment de caixa.
+
+**Límit del PHP:** `ClaimPaymentPayloadBuilder::claimReference()` prioritza `claim_reference`, `reclamation_ref`, `reclamacio_ref` abans de `reference`/referència bancària. Si l'adaptador transmet una referència d'expedient constant com a `claim_reference`, `idempotencyKey()` genera `CLAIM|REF:<referència expedient>` per **tots** els cobraments parcials d'aquell expedient, encara que les entrades externes siguin diferents. `PaymentService` recupera el primer UUID en la segona petició i **no compara** import o `payment_allocation`. La clau tampoc no incorpora factura; `ClaimPaymentService::registerForInvoice()` retorna sempre la factura sol·licitada ara, fins i tot si el moviment recuperat continua assignat a una altra. Una `claim_reference` i una `bank_reference` han de ser camps **d'identitat diferents** al contracte objectiu, sense inferir que avui són dues columnes separades del SIF.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió de reclamacions" as G
+actor "Banc / Redsys" as B
+rectangle "SIF PrisMa — UC-24 / IDENTIFICAR INGRÉS (DISSENY)" {
+ usecase "Identificar entrada vinculada\na expedient de reclamació" as Identify
+ usecase "Distingir ID d'expedient\nd'ID bancari de cada abonament" as Distinct
+ usecase "Consultar CHARGE i assignacions\nja persistits per qualsevol canal" as Existing
+ usecase "UC-02\nRegistrar nou ingrés confirmat" as New
+ usecase "UC-56\nVincular ingrés existent a la reclamació" as Link
+}
+G --> Identify
+B --> Identify
+Identify ..> Distinct : <<include>>
+Identify ..> Existing : <<include>>
+G --> New
+G --> Link
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant R as ClaimExternalReceiptResolver [DISSENY]
+participant B as Banc / Redsys [FONT EXTERNA]
+participant F as Factura i deute net vigent [LECTURA]
+participant P as payment_transaction/allocation [LECTURA]
+participant C as ClaimPaymentService [PHP]
+G->>R: Identificar abonament E2 per expedient CLAIM-7 i factura F
+R->>F: Validar factura F, titular i deute actual
+R->>B: Acreditar abonament E2, import, data i identitat real
+alt E2 no acreditat o titular/destí incompatible
+ R-->>G: PENDING/CONFLICT; cap CHARGE
+else E2 confirmat
+ R->>P: Cercar E2 globalment en Redsys/TRANSFERENCIA/CLAIM/FRACCIO
+ alt E2 ja consta en una altra família de claus
+  P-->>R: UUID_PAYMENT_E2 i assignació real
+  R-->>G: Vincular expedient al moviment real [PENDENT], no nou CHARGE
+ else E2 nou i diferent d'E1 del mateix expedient
+  P-->>R: Cap moviment E2 previ, però comprovar clau CLAIM|REF de l'expedient
+  alt CLAIM|REF:CLAIM-7 ja usada per E1
+   R-->>G: CONFLICT de clau derivada, cal identitat idempotent PER INGRÉS [DISSENY]
+  else Clau per ingrés nou segura i cobertura de factura comprovada
+   R->>C: registerByUuid(F,input) després de guard [PENDENT]
+   C-->>G: UUID_PAYMENT_E2 o incidència
+  end
+ end
+end
+Note over R,C: El resolvedor i el vincle d'expedient no són serveis executables acreditats.
+```
+
+### 4.3. Acció independent: registrar un segon cobrament parcial d'una mateixa reclamació — PHP actual versus resultat objectiu
+
+**Actor/disparador:** el banc acredita un primer ingrés E1 de 40 € i, més tard, **un altre ingrés diferent** E2 de 30 € per la mateixa factura F i expedient de reclamació `CLAIM-7`. **Comportament PHP amb `claim_reference=CLAIM-7` a totes dues peticions:** el constructor genera la **mateixa** clau `CLAIM|REF:CLAIM-7`; `PaymentService` retorna el primer moviment en el segon intent. Per tant, **el segon cobrament no es registra** per aquest camí, encara que el seu import sigui diferent i el banc l'hagi confirmat. Reutilitzar una clau només és correcte si la segona petició és una repetició **del mateix ingrés real**, no un nou pagament de la mateixa reclamació.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió de cobraments" as G
+actor "Banc" as B
+rectangle "SIF PrisMa — UC-24 / SEGON INGRÉS PARCIAL" {
+ usecase "Registrar nou ingrés parcial\nper un deute reclamat" as Record
+ usecase "Comprovar identitat bancària E2\ndiferent d'E1" as Unique
+ usecase "Comprovar factura i import\npendent real abans del CHARGE" as Debt
+ usecase "Reutilitzar UUID_PAYMENT només\nper reintent equivalent d'E2" as Idp
+}
+G --> Record
+B --> Unique
+Record ..> Unique : <<include>> [guard pendent]
+Record ..> Debt : <<include>> [guard pendent]
+Record ..> Idp : <<include>> [guard pendent]
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Operador
+participant C as ClaimPaymentService [PHP]
+participant B as ClaimPaymentPayloadBuilder [PHP]
+participant S as PaymentService [PHP]
+participant DB as payment_transaction/allocation [SQL]
+G->>C: registerByUuid(F,amount=40,claim_reference=CLAIM-7, E1)
+C->>B: forExistingInvoice(F,input E1)
+B-->>C: K=CLAIM|REF:CLAIM-7
+C->>S: registerPayment(CHARGE F/40,K)
+S->>DB: BEGIN, INSERT UUID_PAYMENT_E1 i allocation F/40
+S->>DB: COMMIT
+S-->>C: UUID_PAYMENT_E1,idempotency_reused=false
+C-->>G: Ingrés E1 enregistrat
+G->>C: registerByUuid(F,amount=30,claim_reference=CLAIM-7, E2 real diferent)
+C->>B: forExistingInvoice(F,input E2)
+B-->>C: Mateixa K encara que import/ref bancària canviïn
+C->>S: registerPayment(CHARGE F/30,K)
+S->>DB: BEGIN, trobar moviment K = UUID_PAYMENT_E1 FOR UPDATE
+DB-->>S: E1 amb IMPORT=40 i només allocation F/40
+S->>DB: COMMIT sense inserir E2
+S-->>C: UUID_PAYMENT_E1,idempotency_reused=true
+C-->>G: UUID_PAYMENT_E1; el segon ingrés no queda enregistrat
+Note over B,DB: L'exemple usa claim_reference com a identificador constant d'expedient. Si es vol usar com a ID bancari, cada ingrés requereix una referència pròpia i prova d'equivalència.
+```
+
+### 4.4. Acció independent: verificar el deute net i tancar la reclamació sense crear una altra factura — DISSENY
+
+**Actor/disparador:** després de rebre un ingrés, gestió vol considerar el deute reclamat extingit o continuar-ne el seguiment. **Precondicions:** factura fiscal original, assignacions `CHARGE`/`COMPENSATION`/`REFUND` reals, rectificatives si han variat l'obligació i identificació de la part de l'import objecte de reclamació. **Postcondició:** `CLAIM_PARTIAL`, `CLAIM_SETTLED` o `CLAIM_REVIEW` com a **estats d'expedient proposats, no enums actuals**, sempre separats de `factura.ESTAT_COBRAMENT`, estat acadèmic i possible registre AEAT. `ClaimPaymentService` no consulta ni actualitza l'estat d'un expedient de reclamació; que el seu resultat tingui `ok=true` no implica ni que el deute sigui zero ni que hagi sortit un correu de tancament.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable de morositat" as R
+rectangle "SIF PrisMa — UC-24 / TANCAR RECLAMACIÓ (DISSENY)" {
+ usecase "Verificar deute net de l'expedient" as Close
+ usecase "Consultar factures originals,\ncobraments i devolucions efectius" as Net
+ usecase "Contrastar rectificatives\ni imports de reclamació" as Fiscal
+ usecase "UC-43\nComunicar estat del deute a l'interessat" as Notice
+}
+R --> Close
+Close ..> Net : <<include>>
+Close ..> Fiscal : <<include>> [quan variï la factura]
+R --> Notice
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor R as Gestió
+participant C as ClaimCaseReconciler [DISSENY]
+participant F as factura/factura_registres/rectificacions [LECTURA]
+participant P as payment_transaction/allocation [LECTURA]
+participant E as Expedient de reclamació [DISSENY/LEGAT]
+participant N as UC-43 notificacions [CANAL PENDENT]
+R->>C: reviewClaim(claimCaseId,uuidFactura)
+C->>F: Llegir factura vigent i canvis fiscals rellevants
+C->>P: Calcular net per factura/obligació amb assignacions reals
+C->>E: Contrastar principal reclamat, titular i ingressos ja reconeguts
+alt Només s'ha fet promesa de pagament o ingrés no verificat
+ C-->>R: PENDING/REVIEW; sense CHARGE nou ni «pagada»
+else Queda import reclamat legítimament pendent
+ C-->>R: CLAIM_PARTIAL / import i termini real pendents [DISSENY]
+else Deute de l'expedient realment conciliat i zero
+ C->>E: Tancar expedient amb actor, correlació i versions [DISSENY]
+ E-->>C: CLAIM_SETTLED
+ C-->>R: Expedient tancat; factura original no reemesa
+ opt Informar del tancament al destinatari autoritzat
+  R->>N: Preparar comunicació UC-43 amb document fiscal autoritzat [PENDENT]
+ end
+end
+Note over C,N: Tancament d'expedient i missatgeria no implementats per ClaimPaymentService; no deduir-los d'idempotency_reused=true.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CR-24-06 | Factura F amb reclamació CLAIM-7; ingressos reals E1/40 i E2/30 en dies diferents i mateix `claim_reference` | Dos moviments identificats per cada fet real en el contracte final; clau actual `CLAIM|REF:CLAIM-7` recupera E1 i no acredita E2. |
+| CR-24-07 | Transferència E1 ja enregistrada UC-22 i operadora la registra des de UC-24 per la mateixa reclamació | Correlacionar UUID_PAYMENT_E1 amb el cas sense segon CHARGE; les claus `TRANSFERENCIA|REF` i `CLAIM|REF` són diferents. |
+| CR-24-08 | Mateixa clau de reclamació sol·licitada per factura B mentre moviment original correspon a A | Detectar `UUID_PAYMENT_A` + `uuid_factura=B` a la resposta actual; contracte objectiu rebutja falsa assignació a B. |
+| CR-24-09 | Primer cobrament parcial deixa deute i es prem «Tancar reclamació» | `CLAIM_PARTIAL`; factura/deute encara pendents i cap nova emissió fiscal. |
+| CR-24-10 | Dues entrades reals han extingit l'import reclamat, però la factura original té altres obligacions no incloses en el cas | Tancar només l'expedient amb abast acreditat, sense afirmar `ESTAT_COBRAMENT=PAID` de tota la factura ni enviar document fiscal incorrecte. |
+
 ## 5. Traçabilitat
 
 [Fitxa anterior UC-24](../06-fitxes-funcionals/uc-024.md) · [Catàleg UC-24](../04-estat-final/33-casos-us-sif.md) · [Fluxos de morositat](../03-canvis-pendents/04-fluxos-facturacio.md) · [ClaimPaymentService](../../sif/src/Service/ClaimPaymentService.php) · [ClaimPaymentPayloadBuilder](../../sif/src/Service/ClaimPaymentPayloadBuilder.php) · [PaymentService](../../sif/src/Service/PaymentService.php) · [ClaimPaymentServiceTest](../../sif/tests/Integration/ClaimPaymentServiceTest.php).
