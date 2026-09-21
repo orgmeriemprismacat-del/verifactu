@@ -82,6 +82,42 @@ RedsysCallbackService --> RedsysCallbackQueueRepository : només VALIDATED
 RedsysCallbackService --> IncidentRepository : conflicte 409
 ```
 
+### 3.1. Projecció de classes proposades: guard de cobertura abans de facturar un callback tardà
+
+El diagrama següent és un **contracte pendent del worker/handler**, no una crida PHP verificada. `RedsysCallbackService` només valida la notificació i la intenció: cap dependència de cobertura per inscripció s'ha acreditat al seu constructor. Les classes executables del callback figuren al subdiagrama anterior.
+
+```mermaid
+classDiagram
+direction LR
+class RedsysCallbackService {
+ <<PHP existent>>
+ +receiveCallback(db,payload,signatureValid) array
+}
+class RedsysCallbackWorker {
+ <<PHP existent>>
+ +runOne(db,workerId,now) array
+}
+class LatePaymentCoverageGuard {
+ <<DISSENY: no acreditat al PHP>>
+ +check(intentSnapshot,actualEnrollment,invoiceCoverage) decision
+}
+class EnrollmentInvoiceCoverageReader {
+ <<DISSENY: no acreditat al PHP>>
+ +findByEnrollmentIds(ids) matches
+}
+class RedsysCallbackDispatcher {
+ <<PHP existent: integració amb guard pendent>>
+ +process(db,job) array
+}
+class IncidentRepository {
+ <<PHP existent: l'obertura automàtica general depèn del camí>>
+ +open(db,uuidFactura,type,message) array
+}
+RedsysCallbackWorker --> RedsysCallbackDispatcher : job validat
+RedsysCallbackDispatcher ..> LatePaymentCoverageGuard : comprovació prèvia a emissió [PENDENT]
+LatePaymentCoverageGuard --> EnrollmentInvoiceCoverageReader : cobertura actual
+LatePaymentCoverageGuard ..> IncidentRepository : conflicte [PENDENT]
+```
 ## 4. Seqüència — notificació i alternatives reals
 
 ```mermaid
