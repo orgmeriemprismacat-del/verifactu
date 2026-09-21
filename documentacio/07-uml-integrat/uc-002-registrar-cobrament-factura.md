@@ -187,7 +187,9 @@ else Contracte vàlid
   end
   PR-->>PS: uuid_payment nou
  end
+ PS-->>TR: Resultat del callback (nou o reutilitzat)
  TR->>DB: COMMIT
+ TR-->>PS: Resultat confirmat
  PS-->>Canal: ok, uuid_payment, idempotency_reused
 end
 ```
@@ -225,6 +227,96 @@ end
 
 En la variant manual, el constructor normalitza l'import positiu, admet `TRANSFERENCIA` o `MANUAL`, requereix la data i genera la clau idempotent per referència o per combinació factura/data/import/banc. **L'evidència que una transferència ha arribat realment no es pot inferir d'aquesta construcció del payload.**
 
+## 5.1. Seqüència d'error, reintent i conflicte de payload — nucli actual versus control objectiu
+
+**Lectura del PHP actual:** `PaymentPayloadValidator::validate()` comprova camps i numericitat, però no exigeix `amount > 0`, imports assignats positius, suma d'assignacions igual al moviment ni una coincidència entre factura, titular i ingrés extern. `PaymentRepository::hashPayload()` persisteix `PAYLOAD_HASH`, però `PaymentService::existingResult()` **no el compara** en reús de la clau. L'endpoint `public/api/payments/register.php` crida el servei directament; autorització de l'actor i prova bancària no queden acreditades només pel PHP de la ruta.
+
+```mermaid
+sequenceDiagram
+autonumber
+actor C as Canal o operador
+participant G as Guard autorització/equivalència [DISSENY]
+participant P as PaymentService [PHP]
+participant V as PaymentPayloadValidator [PHP]
+participant TR as TransactionRunner [PHP]
+participant R as PaymentRepository [PHP]
+participant DB as BD SIF
+C->>G: Sol·licitar CHARGE amb fet extern, import i assignacions
+alt No hi ha permís, prova de l'ingrés o suma monetària coherent
+ G-->>C: Rebuig; cap escriptura [OBJECTIU]
+else Petició validada pel canal objectiu
+ G->>P: registerPayment(payload)
+ P->>V: validate(payload)
+ alt Validador PHP rebutja dades estructurals
+  V--xP: Excepció
+  P--xC: Error abans de la transacció
+ else Dades estructurals acceptades
+  V-->>P: payload
+  P->>TR: run(callback)
+  TR->>DB: BEGIN
+  P->>R: findByIdempotencyKey(key,true)
+  alt Clau ja existeix
+   R-->>P: UUID_PAYMENT anterior
+   Note over P,G: PHP actual retorna el mateix UUID encara que el payload nou sigui contradictori.
+   P-->>TR: Reús (sense comparar PAYLOAD_HASH)
+  else Clau nova
+   P->>R: createPayment(payload)
+   alt La factura d'assignació no existeix o SQL falla
+    R--xP: Excepció
+    P--xTR: Propagar
+    TR->>DB: ROLLBACK
+    TR--xC: Error; sense COMMIT del moviment
+   else INSERT i càlcul d'estat finalitzen
+    R-->>P: UUID_PAYMENT nou
+    P-->>TR: Resultat
+   end
+  end
+  opt El callback acaba sense excepció
+   TR->>DB: COMMIT
+   TR-->>P: Resultat confirmat
+   P-->>C: UUID_PAYMENT nou o reutilitzat
+  end
+ end
+end
+Note over P,R: Si SQL llença error de duplicat 23000, PaymentService obre una SEGONA transacció per rellegir la clau. No crea un segon CHARGE.
+```
+
+**No s'ha implementat** el guard dibuixat. La seqüència documenta el contrast entre protecció objectiu i comportament executable: ni `idempotency_reused=true` ni `PAYLOAD_HASH` emmagatzemat proven equivalència de la nova petició.
+
+## 5.2. Acció específica: ingrés nou versus imputació d'un ingrés ja registrat
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador autoritzat" as O
+actor "Procés bancari/TPV" as B
+rectangle "SIF PrisMa" {
+ usecase "UC-02\nRegistrar nou moviment\nextern confirmat" as New
+ usecase "Verificar identitat del fet\ni imports assignats" as Check
+ usecase "UC-56\nAssignar UUID_PAYMENT\nja existent" as Reallocate
+ usecase "UC-104\nResoldre excés no assignat" as Excess
+}
+O --> New
+B --> New
+New ..> Check : <<include>> [OBJECTIU]
+O --> Reallocate
+O --> Excess
+note bottom of Reallocate
+ No crea un segon payment_transaction.
+ La ruta actual registerPayment()
+ no implementa aquesta reassignació.
+end note
+@enduml
+```
+
+| ID prova pendent | Petició | Resultat exigible |
+| --- | --- | --- |
+| CP-02-01 | Mateixa clau i mateix ingrés/assignacions | Mateix `UUID_PAYMENT`, cap segon `CHARGE`. |
+| CP-02-02 | Mateixa clau amb import, factura o tipus canviats | Conflicte abans de retornar èxit; no fingir equivalència pel reús. |
+| CP-02-03 | Import del moviment diferent de suma assignacions | Rebuig abans de l'INSERT; sense import perdut o inventat. |
+| CP-02-04 | Dues claus per la mateixa referència bancària confirmada | Una sola entrada externa; conciliació del fet abans de `registerPayment`. |
+| CP-02-05 | Factura inexistent durant l'INSERT de l'assignació | `ROLLBACK` del moviment nou i de les assignacions; cap èxit prematur. |
+| CP-02-06 | Factura prèvia UC-04, transferència posterior | Reutilitzar UUID_FACTURA; un `UUID_PAYMENT` nou i cap segona factura fiscal. |
 ## 6. Traçabilitat
 
 [Catàleg UC-02](../04-estat-final/33-casos-us-sif.md) · [Fitxa base UC-02](../06-fitxes-funcionals/uc-002.md) · [PaymentService](../../sif/src/Service/PaymentService.php) · [PaymentPayloadValidator](../../sif/src/Service/PaymentPayloadValidator.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [PaymentStatusCalculator](../../sif/src/Domain/PaymentStatusCalculator.php) · [ManualPaymentService](../../sif/src/Service/ManualPaymentService.php) · [ManualPaymentPayloadBuilder](../../sif/src/Service/ManualPaymentPayloadBuilder.php) · [RegisterPaymentTest](../../sif/tests/Integration/RegisterPaymentTest.php).
