@@ -84,6 +84,27 @@ Main ..> Verify : <<include>> (reparació executada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió de conciliació"]
+  actor_1["SIF / base llegada"]
+  subgraph SIF_BOX["SIF · conciliació inter-BD"]
+    uc_0(["UC-82<br/>Reconciliar SIF i llegat"])
+    uc_1(["Comparar factura, pagament i inscripció"])
+    uc_2(["Registrar diferències per item"])
+    uc_3(["Classificar reparació i font del fet"])
+    uc_4(["Verificar i tancar cada item"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 4. UML de classes — sync PHP parcial vs conciliador pendent
 
 ```mermaid
@@ -180,6 +201,27 @@ Run ..> Items : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker de conciliació"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF PrisMa — UC-82: comparació SIF/llegat (DISSENY)"]
+    uc_0(["Executar run de conciliació<br/>amb abast i inputs versionats"])
+    uc_1(["Comprovar instant i disponibilitat<br/>de les dues fonts"])
+    uc_2(["Comparar factura, pagament<br/>i inscripcions per origen"])
+    uc_3(["Desar items de diferència<br/>sense executar-ne la reparació"])
+    uc_4(["UC-53<br/>Diagnosticar o resoldre item"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -237,6 +279,27 @@ Retry ..> Items : <<include>> [input equivalent]
 W --> New
 T --> Resolved
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker de recuperació"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF PrisMa — UC-82: reintent de lot (DISSENY)"]
+    uc_0(["Recuperar run interromput"])
+    uc_1(["Comparar INPUT_HASH, abast<br/>i snapshots persistents"])
+    uc_2(["Reutilitzar o reconstruir només<br/>items pendents de run"])
+    uc_3(["Obrir run nou per dades noves"])
+    uc_4(["UC-53<br/>Conservar resolucions confirmades"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_1 --> uc_4
 ```
 
 ```mermaid
