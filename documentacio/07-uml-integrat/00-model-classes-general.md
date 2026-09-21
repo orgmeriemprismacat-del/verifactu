@@ -1,6 +1,6 @@
 # UML transversal · Model de classes general del SIF
 
-**Objectiu:** mantenir un únic model de classes de referència per a les fitxes individuals i evitar que cada cas d'ús inventi un sistema diferent. **Font contrastada:** fitxers PHP existents a `sif/src/` en `main` i els fluxos dels casos que s'enllacen al final. **Àmbit del document:** dependències PHP i interfícies executables; les taules SQL s'identifiquen com a persistència, **no** com si fossin automàticament entitats/classes PHP.
+**Objectiu:** mantenir un únic model de classes de referència per a les fitxes individuals i evitar que cada cas d'ús inventi un sistema diferent. **Font contrastada:** fitxers PHP llegits a `sif/src/` de la branca documental `docs/uml-fitxes-integrades-2026-09-20` i els fluxos dels casos que s'enllacen al final. **Àmbit del document:** dependències PHP i interfícies executables; les taules SQL s'identifiquen com a persistència, **no** com si fossin automàticament entitats/classes PHP.
 
 **Estat:** model lògic de revisió de codi, no diagrama desplegat ni prova d'integració de l'ecommerce, intranet, AEAT productiva o llegat. Quan una dependència és del disseny final i no apareix al codi, es representa **només** al diagrama de classes proposades de l'última secció.
 
@@ -449,7 +449,7 @@ AcademicEconomicPolicy ..> EnrollmentFundsOrchestrator : estat econòmic individ
 
 Aquest últim diagrama és un **contracte de treball**, no una afirmació que hi ha classes, repositoris o migracions implementats. No s'ha creat la taula proposada `enrollment_fund_movement` en aquesta branca de documentació. Després de revisar els 142 casos, també es consideren transversals pendents l'**autorització servidor de les comandes**, la resolució d'identitat, el routing multiemissor, el worker d'outbox i la política acadèmica-econòmica. El detall i les evidències són a [Revisió transversal 142/142](00-revisio-transversal-142-casos.md).
 
-**Contrast nominal de l'API de l'auditoria anterior:** s'han comparat les **47 classes PHP del subconjunt inicial** i les **70 declaracions de mètode** que els seus subdiagrames mostren amb el codi de les classes homònimes; no hi ha cap nom de mètode absent d'aquests fitxers. Les **13 classes sense fitxer PHP homònim** són propostes/disseny pendent al diagrama final. Aquesta verificació **no inclou automàticament les subvistes afegides posteriorment sobre el regal** i és només existència del nom, no equival a validar paràmetres, tipus, visibilitat, instanciació, relacions UML, fluxos o proves d'execució. Les proves que sí estan escrites al repositori i els contrasts no coberts figuren a l'[auditoria de consistència, apartat 4](00-auditoria-consistencia-142-fitxes.md#4-què-demostren-les-proves-existents-i-quina-evidència-falta).
+**Contrast nominal de l'API de l'auditoria anterior:** s'han comparat les **47 classes PHP del subconjunt inicial** i les **70 declaracions de mètode** que els seus subdiagrames mostren amb el codi de les classes homònimes; no hi ha cap nom de mètode absent d'aquests fitxers. Les **13 classes sense fitxer PHP homònim del subconjunt auditat original** eren propostes/disseny pendent; les subvistes de regal, conciliació i ajust incorporades després afegeixen altres classes expressament etiquetades `DISSENY` i **no** queden cobertes per aquell recompte inicial. Aquesta verificació **no inclou automàticament les subvistes afegides posteriorment sobre el regal** i és només existència del nom, no equival a validar paràmetres, tipus, visibilitat, instanciació, relacions UML, fluxos o proves d'execució. Les proves que sí estan escrites al repositori i els contrasts no coberts figuren a l'[auditoria de consistència, apartat 4](00-auditoria-consistencia-142-fitxes.md#4-què-demostren-les-proves-existents-i-quina-evidència-falta).
 
 ### 6.1. Subvista de disseny del dret de regal, entrega i consum — NO IMPLEMENTAT
 
@@ -494,6 +494,86 @@ GiftLifecycleCoordinator --> EnrollmentFundMovementRepository : aplica valor exi
 ```
 
 **Fronteres de transacció:** confirmar la compra/factura no és la mateixa operació que activar el dret o lliurar el codi; enviar/reenviar una targeta tampoc no és consumir-la. Entre la BD fiscal, notificacions i el llegat no s'ha acreditat un commit distribuït. [UC-17](uc-017-comprar-regal.md), [UC-18](uc-018-bescanviar-regal.md), [UC-18a](uc-018a-regal-caducat-duplicat.md), [UC-119](uc-119-cicle-complet-regal.md).
+### 6.2. Subvista única de conciliació SIF–llegat — UC-82 per lot, UC-53 per item (DISSENY)
+
+`reconciliation_run` té `IDEMPOTENCY_KEY` única; `reconciliation_item` té UUID propi i relació amb run, però **no** clau única de discrepància semàntica dins del run. Les taules existeixen en SQL i **no** equivalen a repositoris PHP implementats. Les fitxes [UC-82](uc-082-reconciliar-sif-bd-llegada.md) i [UC-53](uc-053-detectar-resoldre-divergencies.md) comparteixen expressament **una sola classe coordinadora proposada**; no convertir `ReconciliationService` i `SifLegacyReconciliationService` en serveis redundants d'un mateix flux.
+
+```mermaid
+classDiagram
+direction LR
+class SifLegacyReconciliationService {
+ <<DISSENY: coordinador únic, no PHP>>
+ +compare(scope,ruleVersion,requestId) differences
+ +retryRun(runId,requestId) result
+ +resolve(itemId,decision,actor,requestId) result
+}
+class ReconciliationRunRepository {
+ <<DISSENY: reconciliation_run SQL definit>>
+ +createOrReuse(db,scope,inputHash,requestId) run
+ +markFinished(db,runId,summary) result
+}
+class ReconciliationItemRepository {
+ <<DISSENY: reconciliation_item SQL definit>>
+ +append(db,difference) item
+ +getForUpdate(db,itemId) item
+ +recordResult(db,itemId,resolution) result
+}
+class LegacySyncService {
+ <<PHP existent: només projecció resum>>
+ +syncAfterSifSuccess(legacyDb,relations,uuidFactura,numVisible,estatCobrament) void
+}
+class LegacySyncRepository {
+ <<PHP existent: no idempotent a OBSERVACIONS>>
+ +syncInscripcioSummary(legacyDb,idInsc,facturaRelacionada,uuidFactura,numVisible,estatCobrament) void
+}
+class IncidentRepository {
+ <<PHP existent: incidència genèrica>>
+ +open(db,uuidFactura,type,message) array
+}
+SifLegacyReconciliationService --> ReconciliationRunRepository : UC-82 crea/resumeix execució
+SifLegacyReconciliationService --> ReconciliationItemRepository : UC-53 diagnostica/resol item
+SifLegacyReconciliationService ..> LegacySyncService : UC-47, projecció autoritzada
+SifLegacyReconciliationService ..> IncidentRepository : conflicte sense reparació segura
+LegacySyncService --> LegacySyncRepository : SQL llegat
+```
+
+**Separació real/proposada:** les dependències `LegacySyncService → LegacySyncRepository` i el mètode `IncidentRepository::open()` consten al PHP. El coordinador, el repositori de runs/items, el guard d'autorització, la captura/versionat del llegat i el writer de resultat continuen pendents. La reconciliació no és un `UPDATE factura.TOTAL` ni una transacció distribuïda entre dues BDs.
+
+### 6.3. Subvista de proposta i aprovació d'ajust manual — UC-94 (DISSENY amb peces PHP)
+
+```mermaid
+classDiagram
+direction LR
+class ManualPriceAdjustmentService {
+ <<DISSENY: no acreditat al PHP>>
+ +preview(operation,proposedAmount,reason,expectedVersion) impact
+ +approve(proposalId,actor,requestId) decision
+}
+class PriceAdjustmentGuard {
+ <<DISSENY: rol, proposta i idempotència>>
+ +validateActorAndVersion(actor,proposal) result
+ +findEquivalentDecision(requestId,payload) result
+}
+class OperationalEventRepository {
+ <<PHP existent: només append genèric>>
+ +append(db,event) string
+}
+class RedsysPaymentIntentService {
+ <<PHP existent: comparació de DS_ORDER>>
+ +create(db,input) array
+}
+class ManualRectificationService {
+ <<PHP existent: emissió R separada>>
+ +issueByUuid(sifDb,uuidFactura,input) array
+}
+ManualPriceAdjustmentService --> PriceAdjustmentGuard : precondicions/versió
+ManualPriceAdjustmentService ..> OperationalEventRepository : decisió autoritzada (integració pendent)
+ManualPriceAdjustmentService ..> RedsysPaymentIntentService : UC-63 si import TPV nou
+ManualPriceAdjustmentService ..> ManualRectificationService : UC-74/05 si factura emesa
+```
+
+**No executar en cadena automàticament:** `OperationalEventRepository::append()` desa un event però no aprova l'import; `RedsysPaymentIntentService::create()` rebutja reusar `DS_ORDER` amb snapshot/import diferent; `ManualRectificationService` emet una factura R separada quan una classificació fiscal ho justifica. La UC-94 no té un únic commit demostrable que englobi proposta, canvi d'intenció, document fiscal, transferència i llegat.
+
 ## 7. Traçabilitat i criteri de manteniment
 
 - [Model de classes ja existent al projecte](../04-estat-final/31-diagrames-classes-sif.md) i [matriu transversal de diagrames](../04-estat-final/35-matriu-tracabilitat-diagrames.md).
