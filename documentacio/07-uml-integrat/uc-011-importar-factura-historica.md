@@ -277,6 +277,69 @@ Note over L,Diff: L'importador PHP no fa inventari de completitud ni verifica st
 | HI-11-10 | Dos emissors amb mateix `NUM_VISIBLE` i distinta factura antiga | **Esquema actual bloquejant:** clau per defecte pot reutilitzar erròniament la primera; clau diferent col·lideix amb UNIQUE de número/sèrie-any-seqüència. No vincular el segon PDF a la primera; model multiemissor pendent (UC-97). |
 | HI-11-11 | Lot amb 50 factures importades i 3 PDF físics absents | Informe separat: 50 dades migrades, només 47 fitxers verificats si la resta també supera el control de hash; 3 incidències documentals. |
 
+### 4.3. Acció independent: comprovar que l'històric no bloqueja la numeració fiscal nova — DISSENY/BLOQUEJANT
+
+**Disparador:** el procés de migració vol importar factures del mateix any/sèrie que les noves emissions SIF, o dues fonts històriques comparteixen número. **Actor:** responsable tècnica/fiscal de la migració. **Precondicions:** consulta de números originals, emissor acreditat, `fiscal_sequence` i `factura` de la versió objectiu. **Resultat:** informe de conflictes de numeració i decisió de model abans d'inserir l'històric; no canviar directament `LAST_NUM` ni renumerar factures emeses per fer desaparèixer una col·lisió.
+
+**Contrast del PHP/SQL:** `HistoricalInvoiceMigrationRepository::importHistoricalInvoice()` insereix la factura original a `factura` i **no crida** `FiscalSequenceRepository::next()`; `FiscalSequenceRepository::next()` calcula el número següent a partir de `fiscal_sequence.LAST_NUM` i no consulta prèviament la sèrie/any/números que ocupa l'històric. `InvoiceRepository::createInvoiceGraph()` calcula `NUM_VISIBLE` d'aquell número i insereix a `factura`, que té `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` globals. Si coincideixen, la inserció d'una nova factura **pot fallar per duplicat** malgrat ser dos documents diferents. La solució de model multiemissor/històric no està implementada; **no s'ha provat una execució real d'aquesta col·lisió**.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable tècnica/fiscal" as R
+rectangle "SIF PrisMa — preflight d'històrics (DISSENY)" {
+ usecase "UC-11 / PREFLIGHT\nComprovar identitat i numeració original" as Preview
+ usecase "UC-97\nDistingir emissors/orígens homònims" as Issuer
+ usecase "Contrastar numeració històrica\ni seqüència SIF vigent" as Seq
+ usecase "Bloquejar import incompatible\ni registrar decisió de model" as Block
+}
+R --> Preview
+Preview ..> Issuer : <<include>>
+Preview ..> Seq : <<include>>
+Preview ..> Block : <<include>> [si hi ha col·lisió]
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor R as Responsable de migració
+participant P as Preflight de compatibilitat històrica [DISSENY]
+participant L as Inventari històric/emissor [LECTURA]
+participant F as fiscal_sequence + factura [SQL]
+participant H as HistoricalInvoiceMigrationService [PHP, NO preflight]
+participant N as Emissió nova InvoiceService [PHP]
+R->>P: Preparar import d'original A2026/000001 de l'emissor antic
+P->>L: Verificar emissor, ID original i sèrie/any/seqüència
+P->>F: Llegir NUM_VISIBLE ja ocupats i LAST_NUM de mateixa sèrie/any
+alt Número ja ocupat o la separació d'emissors no està resolta
+ F-->>P: CONFLICT d'identitat o de model
+ P-->>R: Bloquejar import, preservar original al sistema font i elevar decisió
+else Número encara lliure però comparteix domini amb la seqüència nova
+ F-->>P: Possible col·lisió en emissió futura
+ P-->>R: Requereix model de coexistència abans d'aprovar el lot
+end
+opt Contrast hipotètic del camí actual si s'omet el preflight
+ R->>H: importHistoricalInvoice(original històric)
+ H->>F: INSERT factura HISTORICAL, número A2026/000001
+ Note over H,F: Aquest import no fa avanzar fiscal_sequence.
+ R->>N: Emetre una factura nova amb mateixa sèrie/any
+ N->>F: FiscalSequenceRepository::next() reserva número següent de LAST_NUM
+ N->>F: INSERT factura amb NUM_VISIBLE calculat
+ alt Coincideix amb el número històric
+  F--xN: PDOException per UNIQUE(NUM_VISIBLE)/(sèrie,any,seq)
+  N-->>R: Emissió no confirmada; no afirmar nou UUID_FACTURA emès
+ end
+end
+Note over P,N: La comprovació prèvia i el model de coexistència són DISSENY. No arreglar el conflicte modificant silenciosament NUM_VISIBLE o la cadena fiscal.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| HI-11-12 | Històric A2026/000001 al mateix esquema mentre `fiscal_sequence` A/2026 apunta a 0 | Preflight bloqueja la coexistència incompatible; el camí actual pot trobar duplicat al següent `InvoiceRepository::insertInvoice()`. |
+| HI-11-13 | Històric amb número igual a una factura SIF ja emesa | Cap import erroni ni renumeració; classificar conflicte d'origen/emissor i preservar factura SIF original. |
+| HI-11-14 | Proposta de separar històrics en model propi | Preservar número/emissor i bytes originals, consultabilitat autoritzada i continuïtat de `fiscal_sequence`/cadena nova amb proves end-to-end. |
+
 ## 5. Traçabilitat
 
 [UC-11 original](../06-fitxes-funcionals/uc-011.md) · [UC-53 conciliació](uc-053-detectar-resoldre-divergencies.md) · [UC-55 custòdia](uc-055-custodiar-reintentar-documents.md) · [HistoricalInvoiceMigrationService](../../sif/src/Service/HistoricalInvoiceMigrationService.php) · [PayloadBuilder](../../sif/src/Service/HistoricalInvoicePayloadBuilder.php) · [Repository](../../sif/src/Repository/HistoricalInvoiceMigrationRepository.php) · [Prova d'integració](../../sif/tests/Integration/HistoricalInvoiceMigrationServiceTest.php) · [Revisió dels fons per inscripció](00-revisio-moviments-inscripcions.md).
