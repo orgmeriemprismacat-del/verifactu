@@ -29,6 +29,24 @@ El builder de grup crea relacions `INSCRIPCIO` amb `VISIBLE_ALUMNE=0` per partic
 
 **Proves:** factura de grup amb tres `fact_rels` i un sol ingrés; `ID_FACTURA_LINIA=NULL`; referència llegada errònia però no nul·la; callback duplicat i dos `DS_ORDER` fraccionats; `VISIBLE_ALUMNE=0`; retry de sincronització que duplica la nota.
 
+### Llegat de factura relacionada, grup i permís de consulta per participant
+
+**Per què existeix l'agrupador antic.** Les pantalles «Generar factura abans de pagar» i «Passar pagaments» poden associar diverses inscripcions del mateix curs/edició a una **factura real única** de l'empresa/responsable i conservar una `FACTURA_RELACIONADA` com a referència de família. El procediment de facturació estableix que aquest camp també pot agrupar factura ordinària A i rectificativa R històriques; **no substitueix** la relació fiscal directa entre UUIDs d'original/rectificativa. La cerca per `FACTURA_RELACIONADA` ha de mostrar la família com a índex històric, no donar per acreditat que tots els documents comparteixen receptor, línies, estat o visibilitat.
+
+**Una fila no és una línia fiscal ni una quota.** `InvoiceRepository::insertRelations()` no emplena actualment `fact_rels.ID_FACTURA_LINIA`, tot i que la columna existeix al model. Per tant, la vista no pot assegurar per defecte que cada `ID_INSC` estigui referenciat a una línia fiscal concreta, ni que un pagament de 200 € repartit entre dues persones s'expressi com 100 €/100 €: el registre de fons per inscripció és **proposta pendent**. En canvis de curs o de grup, mostrar estat històric de la relació i event de canvi abans de suggerir una correcció, en lloc de reescriure `SOURCE_ID` sense traça.
+
+**Visibilitat no transferible entre membres de grup.** El builder de grup crea relacions de participant `INSCRIPCIO` amb `VISIBLE_ALUMNE=0`. L'alumne pot necessitar conèixer que la seva inscripció és coberta per una empresa i el seu estat acadèmic/econòmic mínim, però no obté automàticament el **PDF de la factura completa**, les dades fiscals del responsable o els altres participants. L'empresa o responsable han d'acreditar representació i autorització; el seu correu de contacte no és per si sol prova universal de titularitat fiscal. La consulta i el manteniment d'UC-44 són tasques d'operador fiscal autoritzat, mentre que UC-07/80 decideixen la informació mínima visible a cada canal.
+
+### Proves complementàries per grup i agrupador (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RL-44-01 | Factura única d'empresa amb tres `fact_rels` de participant | Una factura real, tres vincles i cap import individual inventat. |
+| RL-44-02 | `ID_FACTURA_LINIA` de la relació és NULL | Mostrar línia no vinculada, no deduir relació 1:1 sense prova. |
+| RL-44-03 | FACTURA_RELACIONADA agrupa A i R | Documents separats amb relació directa fiscal conservada. |
+| RL-44-04 | Alumne figura en un grup amb VISIBLE_ALUMNE=0 | Estat mínim de cobertura, no factura/PDF complet de l'empresa. |
+| RL-44-05 | ID_INSC canvia de curs després d'emetre factura | Historial de l'origen i classificació fiscal separada, no UPDATE indiscriminat. |
+
 ## UML de casos d'ús
 
 ```plantuml
