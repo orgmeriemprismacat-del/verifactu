@@ -214,7 +214,7 @@ else Entrada preparada
   IR->>DB: SELECT factura FOR UPDATE
   alt Factura existent
     IR-->>IS: UUID i número existents
-    IS-->>Canal: idempotency_reused=true
+    IS-->>TR: resultat amb idempotency_reused=true
   else Factura nova
     IS->>FS: next(series, year)
     FS->>DB: Reservar número fiscal
@@ -224,12 +224,17 @@ else Entrada preparada
     IR->>DB: INSERT factura, línies, registre, cua i relacions
     IR->>DB: UPDATE cadena fiscal
     IR-->>IS: uuid_factura, num_visible
-    IS-->>Canal: idempotency_reused=false, UUID i número
+    IS-->>TR: resultat amb idempotency_reused=false, UUID i número
   end
   TR->>DB: COMMIT
-  Canal-->>Op: Resultat de l'emissió
+  TR-->>IS: resultat després del COMMIT
+  IS-->>IBP: resultat d'emissió confirmada
+  IBP-->>Canal: UUID, número i indicador de reús
+  Canal-->>Op: Confirmació de l'emissió
 end
 ```
+
+**Ordre transaccional verificat:** `TransactionRunner::run()` retorna el resultat del callback únicament després de confirmar `COMMIT`; si hi ha una excepció, executa `ROLLBACK` quan la transacció continua activa i propaga l'error. El diagrama representa la via d'èxit; la col·lisió SQL d'idempotència (`23000`) es recupera a `InvoiceService` mitjançant una **segona transacció** i rellegint la factura existent. No s'ha de comunicar èxit a l'operador abans d'aquesta confirmació. Aquest control transaccional no substitueix el guard pendent d'equivalència fiscal del payload.
 
 **Precisió tècnica:** aquest diagrama combina el flux implementat de servei amb l'adaptador intranet *objectiu* identificat com a pendent. L'endpoint actual `sif/public/api/factures/issue.php` instancia `InvoiceService` directament; no s'ha de presentar com una crida ja demostrada a `InvoiceBeforePaymentService`.
 
