@@ -145,7 +145,7 @@ opt S'ha executat sortida bancària real al pagador legítim
  Bank-->>A: Prova de sortida, quantia i origen
  A->>L: Registrar sortida individual vinculada a UUID_PAYMENT original
 end
-A-->>G: Document i moviment diferenciats; factura original intacta
+A-->>G: Document i moviment diferenciats, factura original intacta
 Note over A,L: Ni el descompte aprovat ni la rectificativa demostren que s'hagi efectuat una devolució.
 ```
 
