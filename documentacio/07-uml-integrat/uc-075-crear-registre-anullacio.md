@@ -55,6 +55,28 @@ Main ..> Persist : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió autoritzada"]
+  actor_1["Responsable fiscal"]
+  actor_2["Worker AEAT"]
+  subgraph SIF_BOX["SIF · registre d'anul·lació"]
+    uc_0(["UC-75<br/>Crear registre ANULACIO"])
+    uc_1(["UC-74<br/>Aprovar la via fiscal"])
+    uc_2(["Validar original i registre anterior"])
+    uc_3(["Persistir hash, cadena i cua"])
+    uc_4(["UC-77<br/>Enviar el mateix registre"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  actor_2 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ## 4. UML de classes — dependències PHP efectives
 
 ```mermaid
