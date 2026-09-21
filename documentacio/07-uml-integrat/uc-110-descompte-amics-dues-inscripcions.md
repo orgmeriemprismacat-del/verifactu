@@ -38,6 +38,27 @@
 
 **Pendents:** definició comercial de la promoció d'amics, qui rep cada factura, handler comercial si no equival a grup, política de places, split fiscal de pagament existent i ledger per inscripció. No s'han executat proves específiques del descompte d'amics.
 
+### 1.3. Alta real de `DescompteAmic.php` i perill d'assimilar-la al grup ordinari
+
+**Evidència del canal web històric.** L'inventari `33-casos-us-sif.md` identifica `web-actual/DescompteAmic.php`: el handler crea **dues inscripcions**, un únic `IDPAG` i una persona pagadora a `respGrups`; calcula el descompte sobre **dos cursos que poden ser diferents**. Aquesta dada no acredita que la promoció utilitzi obligatòriament `TIPUS_INSC='G'` ni que la persona pagadora sigui receptora fiscal d'una única factura. El repositori SIF `LegacyGroupSnapshotRepository` recupera només `TIPUS_INSC='G'` pel mateix `IDPAG` i `LegacyGroupInvoicePayloadBuilder` factura al responsable `respGrups`; **no fer passar la compra d'amics pel constructor genèric de grup sense comprovar primer la tipologia real, la regla comercial i els receptors fiscals**.
+
+**Els dos cursos no comparteixen necessàriament oferta o plaça.** Per cada `ID_INSC` conservar `ANY/MES/CURS`, versió de preu i regla de descompte, base individual, import net, reserva/plaça i identitat del participant. La dada `descomptes_grup` del grup ordinari **no prova** que el descompte d'amics segueixi aquells trams; la regla i el percentatge efectius s'han d'obtenir del canal/promoció validats, no reconstruir-los amb el `A_PAGAR` d'un participant després d'un pagament parcial. En cas de cancel·lació o indisponibilitat de **només un** curs, revisar la continuïtat del benefici de l'altre segons les condicions aprovades; no cancel·lar l'altra inscripció, plaça o factura sense decisió.
+
+**Cobrament conjunt i receptor/s.** La creació de dues altes amb `IDPAG` compartit **no demostra que existeixi ingrés bancari** ni defineix si la factura s'ha d'emetre a cada receptor o a un únic destinatari legítim. Un `DS_ORDER` validat amb cobrament conjunt crea/reutilitza **un únic moviment extern**; el desglossament fiscal i les atribucions de diners per inscrit han de sumar els imports efectius sense inventar dos `CHARGE`. Si ja existeix una factura prèvia d'un receptor per la composició confirmada, el cobrament posterior s'assigna a la factura existent; no emetre dues factures per les dues inscripcions simplement perquè el callback troba dos IDs.
+
+**La regla exacta de la promoció no és al builder de grup.** El valor comercial aplicable a A i B, possibles incompatibilitats i efecte d'una baixa/canvi són **decisions a recuperar i validar al canal/promoció**, no un percentatge que es pugui copiar d'un altre descompte. El criteri de facturació per receptors diferents també continua pendent de decisió explícita per aquesta composició.
+
+### 1.4. Proves del canal d'amics (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AM-110-01 | `DescompteAmic.php` crea dues inscripcions en cursos diferents amb `IDPAG` comú | Dos `ID_INSC` i dues edicions/places verificades; cap curs copiat del primer participant. |
+| AM-110-02 | Handler no acredita `TIPUS_INSC='G'` però s'intenta usar `LegacyGroupSnapshotRepository` | Comprovar tipologia real i obrir adaptació específica; no forçar facturació de grup basada en supòsits. |
+| AM-110-03 | Responsable a `respGrups` paga però els receptors fiscals són diferents | Resoldre agrupació fiscal legítima abans d'emetre; un `IDPAG` no autoritza factura única per defecte. |
+| AM-110-04 | Una de les dues inscripcions perd la plaça abans del TPV | Revalidar la promoció de l'altra línia i oferir nou snapshot, sense cobrament anticipat. |
+| AM-110-05 | Ingrés conjunt real de dues inscripcions amb import individual diferent | Un `UUID_PAYMENT` extern i imports individuals acreditats, no divisió automàtica per meitats. |
+| AM-110-06 | Baixa d'un amic després de la factura i del pagament | Revisió del descompte i decisió econòmica/fiscal per afectat, sense esborrar la venda de l'altre. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
