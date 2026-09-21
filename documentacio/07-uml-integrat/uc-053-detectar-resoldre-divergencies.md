@@ -40,6 +40,25 @@
 
 **Proves necessàries, no executades:** fixtures de factura simple, pack/grup, pagament fraccionat, factura emesa abans de pagar, canvis/baixes, sync duplicada, inscripció absent i fallo entre BDs. Cal verificar `reconciliation_run`/`item` idempotents, resolució per actor i cap doble comptabilització.
 
+### 1.3. Discrepàncies provocades per operacions ordinàries del llegat
+
+**Origen concret dels desacords.** Les pantalles llegades permeten desar directament `A_PAGAR`, `PAGAMENT`, `DATA PAG`, `IDPAG`, `FRACCIO` i `FACTURA_RELACIONADA`; `Passar pagaments` també pot crear/actualitzar una factura històrica i repartir imports per membre de grup. El SIF, en canvi, confirma el moviment econòmic amb `payment_transaction` i l'atribució a factura amb `payment_allocation`; la sincronització existent només escriu una referència fiscal i una nota. La comparació ha d'identificar **quin camí ha canviat quin camp i quan**, sense tractar com a error fiscal automàtic tota diferència d'`A_PAGAR` respecte al total de la factura emesa.
+
+**Matriu operativa més precisa.** (1) Factura `EMESA_ABANS_COBRAMENT=1` i camp llegat `PAGAMENT=0`: pot ser estat **coherent**, no incidència per si sola. (2) SIF `CHARGE` confirmat amb llegat sense `DATA PAG`: sincronització/assignació acadèmica pendent. (3) Llegat `PAGAMENT>0` sense `UUID_PAYMENT`: investigar transferència bancària, CSV TPV i `DS_ORDER`; no crear el cobrament només per fer quadrar la pantalla. (4) `FACTURA_RELACIONADA` agrupa diversos documents A/R històrics: consultar `fact_rels` i `factura_rectificacio`; la seva coincidència numèrica no estableix un vincle 1:1. (5) Grup/pack amb una factura i N inscrits: separar incoherència fiscal del **repartiment econòmic individual** encara no modelat. (6) Callback validat però worker en `RETRY`: resultat de cua pendent, no «ingrés absent» ni autorització per registrar-lo manualment de nou.
+
+**Criteri de reparació.** Per cada diferència, enregistrar sistema origen, valor anterior/actual, instant de lectura, `UUID_FACTURA`, `UUID_PAYMENT`, `ID_INSC`, responsable i acció autoritzada. L'event de reparació ha de referenciar el mateix item en un reintent, comprovar després l'estat de **les dues fonts** i deixar `PENDING` si queda una dimensió sense resoldre. Si es modifica la distribució de diners ja registrats, executar UC-56/105 amb la **mateixa transacció real**; una nota afegida a `OBSERVACIONS` no equival a reparar un import ni a restablir accés Moodle.
+
+### 1.4. Proves de comparació de fonts (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| DV-01 | Factura prèvia existent i inscripció sense `PAGAMENT` | Coherència possible; cap ingrés afegit per defecte. |
+| DV-02 | Redsys cobrat, worker confirmat, llegat pendent | Incidència de sincronització/accés; no segon `CHARGE`. |
+| DV-03 | `FACTURA_RELACIONADA` compartida entre A i R | Relacions fiscals explícites per UUID, no equiparació per número històric. |
+| DV-04 | Pagament llegat positiu però banc/SIF no contrastats | Investigació amb evidència i estat pendent, cap moviment inventat. |
+| DV-05 | N inscripcions de grup i una sense enllaç | Reparar només inscripció afectada, sense recrear factura global. |
+| DV-06 | Item de discrepància reparat però accés Moodle pendent | Tancar només l'aspecte fiscal/econòmic verificat; mantenir la fase acadèmica pendent. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
