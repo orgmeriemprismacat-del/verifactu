@@ -78,6 +78,26 @@ Reserve ..> Main : <<extend>> (codi amb consum limitat)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Comprador"]
+  actor_1["Gestió comercial"]
+  subgraph SIF_BOX["SIF · codi promocional"]
+    uc_0(["UC-20d<br/>Aplicar codi promocional"])
+    uc_1(["Validar codi, titular i regla"])
+    uc_2(["Reservar dret si és limitat"])
+    uc_3(["Congelar import i codi al snapshot"])
+    uc_4(["UC-117<br/>Gestionar cicle del codi"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_3
+  uc_2 -.->|extend| uc_0
+```
+
 ## 3. Diagrama de classes: builder existent i consum pendent
 
 ```mermaid
