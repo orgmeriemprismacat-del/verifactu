@@ -77,6 +77,29 @@ Main ..> Deploy : <<include>> (aprovació formal)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable tècnica"]
+  actor_1["Aprovador fiscal"]
+  actor_2["Operador de desplegament"]
+  subgraph SIF_BOX["SIF · activació versionada"]
+    uc_0(["UC-46<br/>Activar versió i declaració"])
+    uc_1(["UC-39<br/>Verificar go/no-go per entorn"])
+    uc_2(["UC-38<br/>Verificar certificat i secrets"])
+    uc_3(["Custodiar declaració vinculada al hash"])
+    uc_4(["Publicar una versió i verificar runtime"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  actor_2 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 4. UML de classes — esquema vs controlador pendent
 
 ```mermaid
