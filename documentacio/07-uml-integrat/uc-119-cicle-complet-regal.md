@@ -127,6 +127,8 @@ class GiftLifecycleCoordinator {
  +activatePaidGift(command) result
  +redeemGift(command) result
  +reconcileGift(uuidOperation) result
+ +deliverGift(uuidEntitlement,recipient,requestId) result
+ +resendGift(uuidEntitlement,recipient,requestId) result
 }
 class CommercialOperationRepository {
  <<DISSENY: SQL definit, writer no acreditat>>
@@ -218,7 +220,9 @@ else Pagament addicional confirmat
 end
 ```
 
-## 5.1. Acció pròpia: activar el dret només després d'una compra confirmada — DISSENY
+## 6. Activació i comunicació del regal — accions diferenciades
+
+### 6.1. Acció pròpia: activar el dret només després d'una compra confirmada — DISSENY
 
 **Actor/disparador:** worker autoritzat rep una confirmació **validada** de cobrament de la compra; el comprador no pot activar un dret de valor pagat manualment sense evidència. **Precondicions:** `DS_ORDER` validada, import de Redsys igual al regal, UUID de la compra/factura/pagament persistit i estat no retornat, identificador únic de regal. `RedsysGiftInvoiceService::issueSnapshot()` comprova la notificació i l'import i delega `issueInvoice()`, però **no crea ni activa `commercial_entitlement`**. **Postcondició objectiu:** únic dret amb origen i valor disponibles, `CODE_HASH` i event de `ACTIVATE`; cap matrícula, lliurament o segon `CHARGE` per activar-lo.
 
@@ -248,7 +252,7 @@ end
 Note over Gift,Ent: L'activació i el writer d'entitlement no consten com a implementats. No derivar dret pagat del fet que el codi existeixi al llegat.
 ```
 
-## 5.2. Acció pròpia: lliurar la targeta/codi després d'activar el dret — DISSENY
+### 6.2. Acció pròpia: lliurar la targeta/codi després d'activar el dret — DISSENY
 
 **Actor/disparador:** procés de notificacions, quan existeix un dret activat i una destinació de lliurament legitimada; el destinatari pot ser diferent del comprador. **Dades:** identificador opac de dret, canal, identitat/destinació validada, identificador de notificació i URL o targeta comercial amb permisos. **Resultat:** lliurament o estat pendent/error auditable; **no** nova emissió de factura, activació de valor, inscripció ni cobrament. El correu antic inclou el codi i l'enllaç a la targeta; això no acredita un outbox del nou SIF ni l'entrega final al destinatari.
 
@@ -306,7 +310,7 @@ end
 Note over Life,Out: Aquest outbox i la comprovació del destinatari són disseny pendent; no fer aparèixer el codi en factura fiscal ni logs de notificació.
 ```
 
-## 5.3. Acció pròpia: reenviar després de fallada, sense recomprar ni regenerar — DISSENY
+### 6.3. Acció pròpia: reenviar després de fallada, sense recomprar ni regenerar — DISSENY
 
 **Actor/disparador:** gestió tracta un enviament que ha fallat o una petició legitimada de reexpedició. **Precondicions:** dret i comprador originals identificats, codi encara utilitzable o condició de reexpedició aprovada, adreça de destí verificada, consulta d'enviaments anteriors. **Postcondició:** mateixa operació i dret comercial; una nova prova de notificació o reintent d'una ja iniciada, mai un segon document fiscal/cobrament ni un nou dret econòmic. Enviar un codi vençut com si continués actiu seria una informació incorrecta; derivar a UC-18a quan correspongui.
 
@@ -339,7 +343,7 @@ UI-->>O: Estat de la comunicació; factura i UUID_PAYMENT originals intactes
 Note over Life,Mail: El reenviament mai no ha de cridar InvoiceService::issueInvoice() ni PaymentService::registerPayment().
 ```
 
-## 5.4. Contrast del codi exposat i proves específiques de les tres accions
+### 6.4. Contrast del codi exposat i proves específiques de les tres accions
 
 `LegacyGiftInvoicePayloadBuilder::build()` construeix la clau de factura `LEGACY|REGAL|ID:<giftId>`, posa el `CODI` íntegre a `lines[].detail` i a `gift.code`, i pren com a receptor fiscal el comprador (`NOMC/NIFC`). `RedsysGiftInvoiceService` contrasta import de notificació validada amb import del regal i delega l'emissió; **no acredita un registre de drets, sistema de lliurament de codi ni comprovació de reutilització semàntica de la mateixa compra**. El codi bescanviable i el PDF fiscal han de tenir visibilitat independent, especialment quan destinatari i pagador són diferents. Les factures fiscals ja emeses no s'han de reescriure per amagar-hi el codi; cal decidir l'actuació sobre exposicions confirmades mitjançant incidència.
 
@@ -351,7 +355,7 @@ Note over Life,Mail: El reenviament mai no ha de cridar InvoiceService::issueInv
 | RG-119-09 | Fallada de correu després de compra i activació | Reintentar només notificació, sense segon `issueInvoice()`, codi nou ni `CHARGE`. |
 | RG-119-10 | Sol·licitud de reexpedició amb codi consumit/expirat | Política d'accés i expiració comprovada; no prometre regal actiu ni reactivar-lo tàcitament. |
 | RG-119-11 | `CODI` bescanviable apareix a factura fiscal emesa | Identificar exposició i limitar futures emissions segons decisió; document fiscal anterior immutable, sense usar el codi sol com a dret a PDF/retorn. |
-## 6. Traçabilitat
+## 7. Traçabilitat
 
 [UC-119 original](../06-fitxes-funcionals/uc-119.md) · [UC-17 compra](uc-017-comprar-regal.md) · [UC-18 bescanvi](uc-018-bescanviar-regal.md) · [UC-18a incidències](uc-018a-regal-caducat-duplicat.md) · [Model de fons per inscripció](00-revisio-moviments-inscripcions.md) · [Taula commercial_operation](../../sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql) · [Taules operació/dret/event](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [RedsysGiftInvoiceService](../../sif/src/Service/RedsysGiftInvoiceService.php).
 
