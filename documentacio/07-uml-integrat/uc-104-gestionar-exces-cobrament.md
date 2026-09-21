@@ -259,6 +259,10 @@ end
 Note over S,DB: El servei de REFUND actual exigeix una factura; un sobrant encara no assignat necessita un contracte nou. No apuntar-lo a F1 només per satisfer el validador.
 ```
 
+**Contracte bloquejant de retorn d'excés no assignat (contrast UC-28):** `ManualRefundPayloadBuilder::forExistingInvoice()` **exigeix** `UUID_FACTURA` i genera una `payment_allocation` `INVOICE_REFUND` a aquella factura. L'excés real de 20 € d'un ingrés de 120 € només imputat 100 € a F1 **no pertany necessàriament a F1**: registrar els 20 € com a `INVOICE_REFUND` de F1 per esquivar el validador distorsionaria el seu `ESTAT_COBRAMENT`. Cal un model de sortida vinculada a l'`UUID_PAYMENT` extern i al dret no assignat, amb import i pagador acreditats, **sense crear una assignació fiscal falsa**. No existeix aquesta ruta completa en el servei de refund examinat.
+
+**Claus repetides en diversos canals:** `ManualRefundPayloadBuilder` genera `REFUND|REF:<reference>` quan la referència és present, sense factura/import, i sense referència usa factura+data truncada al dia+import+banc; `PaymentService` no compara el `PAYLOAD_HASH` del moviment recuperat amb el nou payload. Un altre retorn legítim del mateix dia i import pot fusionar-se silenciosament, o una referència compartida pot fer passar l'antic UUID com a devolució d'una altra factura. En la resolució de l'excés, confirmar **l'operació externa única i el seu payload complet** abans de decidir reús. Vegeu les tres accions independents de la [UC-28, seccions 4.2–4.4](uc-028-registrar-devolucio.md).
+
 ### 4.4. Acció independent: concedir saldo legítim sense nou ingrés — OBJECTIU
 
 ```mermaid
@@ -293,6 +297,8 @@ Note over S,C: createCredit() no demostra que l'excedent concret financi el sald
 | EX-104-04 | Es decideix retorn de 20 però banc encara no l'ha executat | Expedient pendent, cap REFUND fins a evidència de sortida real. |
 | EX-104-05 | Retorn real de sobrant no assignat a cap factura | Model i registre de sortida amb vincle a l'ingrés, sense inventar una assignació fiscal a F1. |
 | EX-104-06 | Saldo de 20 ja concedit, petició repetida | Mateix dret econòmic i UUID_CREDIT idempotent; no duplicar saldo. |
+| EX-104-07 | Sobrant 20 no imputat a F1 i operadora intenta registrar-lo amb `ManualRefundService` com `INVOICE_REFUND` de F1 | Bloquejar assignació fictícia i mantenir refund extern en expedient separat fins a model de sortida per ingrés d'origen; no alterar l'estat de cobrament de F1 per aquests 20. |
+| EX-104-08 | Dos retorns reals de 20 el mateix dia/banc sense referència per la mateixa factura | Comparar identitat bancària per operació i no deduplicar només per factura+dia+import. |
 ### 4.6. Acció independent: autoritzar i registrar la decisió sobre els 20 € — DISSENY
 
 **Disparador:** un excés ja confirmat i encara disponible. **Actor:** responsable amb permís específic. **Resultat:** decisió auditada, sense donar per executat un reemborsament ni crear automàticament un crèdit sense traçar-ne l'origen. Una decisió pendent és un estat vàlid. Cal controlar intents de resolució simultanis sobre els mateixos 20 €.
