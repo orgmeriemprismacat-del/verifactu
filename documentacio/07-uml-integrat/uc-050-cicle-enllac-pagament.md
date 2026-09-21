@@ -130,6 +130,66 @@ end
 Note over L,I: La revocació no anul·la per si sola una operació bancària existent
 ```
 
+### 5.1. Seqüència pròpia de l'acció «crear enllaç» — OBJECTIU, no implementació acreditada
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió autoritzada
+participant A as Adaptador amb autorització [PENDENT]
+participant L as PaymentLinkService [DISSENY]
+participant DB as payment_link + operació/factura [SQL]
+G->>A: Sol·licitar enllaç per operació, receptor i motiu
+A->>L: createOrReuse(command amb actor i REQUEST_ID)
+L->>DB: Rellegir deute real i estat de l'operació amb control de concurrència
+alt Factura saldada, operació cancel·lada o actor sense permís
+ L-->>A: Rebuig traçat; cap token ni CHARGE
+else Petició equivalent amb enllaç vàlid
+ DB-->>L: Mateix identificador/enllaç vigent
+ L-->>A: Reús segons política segura de lliurament de token
+else Nova petició autoritzada
+ L->>DB: Persistir token hash, import, caducitat i correlació
+ DB-->>L: UUID_LINK i confirmació
+ L-->>A: Token opac per lliurament restringit
+end
+A-->>G: Estat i enllaç si és accessible segons la política
+Note over L,DB: L'unicitat de petició, l'autorització i el token són disseny pendent; l'INSERT SQL per si sol no crea un servei segur.
+```
+
+### 5.2. Seqüència pròpia de l'acció «consultar enllaç» — OBJECTIU, no implementació acreditada
+
+```mermaid
+sequenceDiagram
+autonumber
+actor P as Pagador
+participant L as PaymentLinkService [DISSENY]
+participant DB as payment_link + saldo verificat [SQL]
+participant I as RedsysPaymentIntentService [PHP]
+P->>L: Consultar token opac
+L->>DB: Calcular hash i llegir URL, estat, titular, venciment i pendent
+alt Token invàlid / revocat / fora d'abast
+ L-->>P: Accés denegat, sense dades fiscals alienes
+else Venciment superat
+ L->>DB: Registrar expiració segons política [PENDENT]
+ L-->>P: Enllaç caducat; possible renovació UC-121
+else Import o operació han canviat
+ L-->>P: Oferta anterior no vigent; requerir nova confirmació
+else URL vigent i import coherent
+ L-->>P: Mostrar només l'oferta autoritzada i import pendent
+ opt Pagador confirma inici de pagament
+  L->>DB: Revalidar saldo i vigència abans d'intenció (guard concurrent)
+  L->>I: Crear intenció UC-63 amb snapshot congelat
+  I-->>P: Redirecció TPV
+ end
+end
+Note over L,I: Una consulta o intenció no registra un cobrament; només el callback/worker acreditat pot activar UC-03.
+```
+
+### 5.3. Accions «revocar» i «caducar»: fronteres i seqüències pròpies
+
+**Revocar** és UC-33, amb [diagrama de seqüència propi](uc-033-desactivar-url-pagament.md#4-uml-de-seqüència--revocació-i-callback-posterior) i prova de callback signat d'una intenció iniciada abans de la revocació. **Caducar** s'explicita al flux de consulta 5.2; si el sistema adopta un worker de caducitat, cal documentar una seqüència addicional del worker i demostrar que l'expiració només impedeix **noves** intencions: no anul·la automàticament la factura ni descarta un cobrament bancari que ja s'havia iniciat. Cap d'aquestes dues accions no modifica la numeració fiscal.
+
+**Punts de prova d'UC-50:** doble creació simultània; consulta de token aleatori/aliè; canvi de saldo entre consulta i iniciar Redsys; revocació i callback tardà; venciment exacte; intenció creada abans de caducar; reintent de creació amb mateixa clau però import/pagador diferents. No consten com a proves executades en aquesta revisió.
 ## 6. Traçabilitat
 
 [UC-50 original](../06-fitxes-funcionals/uc-050.md) · [UC-33 revocació original](../06-fitxes-funcionals/uc-033.md) · [UC-61 pendent original](../06-fitxes-funcionals/uc-061.md) · [UC-121 renovació](uc-121-repreuar-renovar-reserva-caducada.md) · [UC-112 snapshot](uc-112-congelar-snapshot-abans-tpv.md) · [UC-03 cobrament](uc-003-processar-cobrament-redsys-asincron.md) · [Migració payment_link](../../sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql) · [RedsysPaymentIntentService](../../sif/src/Service/RedsysPaymentIntentService.php) · [RedsysCallbackService](../../sif/src/Service/RedsysCallbackService.php).
