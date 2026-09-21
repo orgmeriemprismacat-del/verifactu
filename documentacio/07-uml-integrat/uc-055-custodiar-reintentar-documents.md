@@ -85,6 +85,29 @@ Tech --> View
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Procés documental"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF · operació documental"]
+    uc_0(["UC-55<br/>Custodiar i recuperar documents"])
+    uc_1(["Reclamar job i generar bytes"])
+    uc_2(["Comprovar storage, hash i versió"])
+    uc_3(["Registrar metadades del document"])
+    uc_4(["Programar reintent o incidència"])
+    uc_5(["UC-07<br/>Consulta autoritzada"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+  actor_1 --> uc_5
+```
+
 ## 3. Diagrama de classes — PHP existent i disseny separat
 
 ```mermaid
@@ -206,6 +229,25 @@ Enqueue ..> Save : <<include>> [si no existeix job equivalent]
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Procés després de commit factura"]
+  actor_1["Responsable documental"]
+  subgraph SIF_BOX["SIF PrisMa — UC-55 / ENCOLAR [DISSENY]"]
+    uc_0(["Programar generació d'un document<br/>per factura/tipus/versió"])
+    uc_1(["Comprovar factura confirmada<br/>i snapshot immutable"])
+    uc_2(["Distingir reintent equivalent<br/>de nova versió autoritzada"])
+    uc_3(["Registrar document_job pendent"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -258,6 +300,25 @@ Recover ..> Hash : <<include>>
 Recover ..> Existing : <<include>>
 Recover ..> Finish : <<include>>
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker documental"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF PrisMa — UC-55 / RECUPERAR [DISSENY]"]
+    uc_0(["Recuperar un job documental incert"])
+    uc_1(["Revalidar storage, bytes i SHA-256"])
+    uc_2(["Localitzar metadata/document preexistents"])
+    uc_3(["Finalitzar job o obrir incidència"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
 ```
 
 ```mermaid
@@ -319,6 +380,25 @@ Verify ..> Hash : <<include>>
 Verify ..> Metadata : <<include>>
 P --> Access
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Procés de notificació / panell"]
+  actor_1["Responsable documental"]
+  subgraph SIF_BOX["SIF PrisMa — comprovació documental [DISSENY]"]
+    uc_0(["UC-55 / VERIFICAR<br/>Comprovar disponibilitat de l'artefacte"])
+    uc_1(["Verificar path privat i SHA-256 dels bytes"])
+    uc_2(["Comprovar UUID_FACTURA, tipus<br/>i versió/document autoritzat"])
+    uc_3(["UC-80<br/>Autoritzar accés de l'actor"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
 ```
 
 ```mermaid
