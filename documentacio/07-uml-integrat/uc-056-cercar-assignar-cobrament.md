@@ -224,6 +224,123 @@ Note over UI,DB: Aquest diagrama no descriu un endpoint de cerca ja implementat.
 ```
 
 **Proves concretes pendents de la consulta:** buscar NIF de pagador d'empresa diferent de participant; `IDPAG` amb diversos `DS_ORDER`; dues factures amb receptor diferent i un pagador; regal amb beneficiari diferent del comprador; resultat paginat; usuari sense permís; cerca buida; import retornat prèviament; consulta simultània amb reassignació. Cada cerca ha de mostrar **l'estat actual** sense generar factura ni pagament.
+### 4.2. Acció independent: calcular el saldo realment no assignat d'un moviment existent — PHP de lectura agregada pendent
+
+**Actor/disparador:** l'operador selecciona `UUID_PAYMENT=P` i vol aplicar a F2 una part d'una única entrada real, ja parcialment atribuïda a F1. **Precondicions:** identificar la mateixa entrada externa i tipus `CHARGE`, comprovar el seu import nominal real, assignacions persistides, possibles sortides/retorns i titularitat. **Postcondició:** un `available_amount` de diagnosi, calculat en cèntims i amb estat `ALLOCATABLE`, `FULLY_ASSIGNED`, `OVERALLOCATED` o `NEEDS_REVIEW` **proposats**; no escriure `CHARGE` ni `payment_allocation` només per consultar.
+
+**Contrast amb el PHP:** `PaymentPayloadValidator::validate()` exigeix imports **numèrics** i almenys una assignació, però **no comprova** `amount > 0`, `allocations[n].amount > 0` ni `SUM(allocations.amount) <= amount`. `PaymentRepository::createPayment()` insereix els imports que rep i recalcula per factura **a partir de les assignacions**, no de l'import nominal del moviment. La migració bàsica de `payment_allocation` té FKs però cap `CHECK` de positivitat ni una unicitat/idempotència de partida. Així, el fet que només existeixi un `UUID_PAYMENT` no demostra que el seu total assignat sigui econòmicament possible. La fórmula `P.IMPORT - SUM(payment_allocation.IMPORT_ASSIGNAT)` és **només el saldo comptable provisional d'un CHARGE coherent**: un valor negatiu denuncia sobreatribució; un valor positiu no és saldo distribuïble sense verificar l'entrada externa, titular i retorns. Per a `REFUND` o `COMPENSATION`, cal una política diferenciada, no la mateixa fórmula interpretada com a nou ingrés lliure.
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador autoritzat" as O
+rectangle "SIF PrisMa — UC-56 / CONSULTAR SALDO ASSIGNABLE" {
+ usecase "Llegir el moviment P i els seus trams" as Read
+ usecase "Comparar import extern amb\nsuma d'assignacions de P" as Sum
+ usecase "Conciliar devolucions, titular\ni restriccions per destí" as Verify
+ usecase "Classificar saldo o incoherència\nsense crear CHARGE" as Class
+}
+O --> Read
+Read ..> Sum : <<include>>
+Read ..> Verify : <<include>> [guarda pendent]
+Read ..> Class : <<include>>
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant L as PaymentAvailableBalanceReader [DISSENY]
+participant P as payment_transaction [LECTURA]
+participant A as payment_allocation [LECTURA]
+participant E as Conciliació de fet extern i retorns [DISSENY]
+O->>L: previewAvailable(UUID_PAYMENT=P)
+L->>P: Llegir P, IMPORT=100,TIPUS_MOVIMENT=CHARGE, estat/origen
+L->>A: Llegir SUM(IMPORT_ASSIGNAT) de totes les files del mateix P
+alt Assignacions F1/80, F2/80: suma 160 > nominal 100
+ A-->>L: 160
+ L-->>O: OVERALLOCATED: -60 comptables, no permetre F3 ni donar saldo 20
+else Assignacions F1/80: suma 80 de nominal 100
+ A-->>L: 80
+ L->>E: Comprovar ingrés real 100, titular, retorns i altres drets
+ alt Origen o import extern no acreditat, o disponibilitat compromesa
+  E-->>L: NEEDS_REVIEW
+  L-->>O: No assignar els 20 encara que la resta aritmètica sigui positiva
+ else Ingrés 100 acreditat i 20 disponibles per a F2
+  E-->>L: VALIDATED
+  L-->>O: ALLOCATABLE 20 sota lock nou a l'aplicació final
+ end
+else Assignacions F1/100: suma 100
+ A-->>L: 100
+ L-->>O: FULLY_ASSIGNED; assignar a F2 exigiria UC-105 de reassignació, no saldo nou
+end
+Note over L,E: La consulta/guard no existeix al PaymentRepository actual. La previsualització NO reserva saldo; recalcular-lo sota lock a l'aplicació.
+```
+
+### 4.3. Acció independent: atribuir el saldo no assignat a una factura sense registrar un segon ingrés — DISSENY
+
+**Actor/disparador:** després de la consulta, s'ordena atribuir 20 € del moviment P de 100 € (80 € assignats a F1) a F2. **Precondicions transaccionals:** bloquejar P i el conjunt de trams corrents, validar idempotència de l'ordre d'assignació, prova del pagador i de la factura F2, suma actual dins de l'import acreditat i tractament separat de devolucions/compensacions. **Postcondició:** **el mateix `UUID_PAYMENT=P`**, una nova imputació F2/20 i el seu assentament d'història, recalcular `ESTAT_COBRAMENT` de F2, cap inserció a `payment_transaction`. Si l'entrada inicial era de 100 €, assignar-la a dues factures per 80+80 **no** esdevé correcte perquè s'hagi reutilitzat P.
+
+**Límit executiu:** `PaymentRepository::createAllocation()` és **privat** i s'invoca des de `createPayment()` per un moviment nou; `PaymentService::registerPayment()`, quan troba la clau existent, **retorna el UUID sense afegir cap imputació**. La classe `ExistingPaymentAllocationService` i el writer històric són disseny, no PHP actual.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió de cobraments" as G
+actor "Responsable de facturació" as R
+rectangle "SIF PrisMa — UC-56 / APLICAR SALDO EXISTENT" {
+ usecase "Aplicar saldo no assignat de P a F2" as Apply
+ usecase "Bloquejar P i validar suma actual\namb import extern i titular" as Lock
+ usecase "Afegir tram idempotent a P\nsense nou CHARGE" as Append
+ usecase "Recalcular estat de F2 i\nconservar traça d'assignació" as Status
+ usecase "UC-105\nReassignar un tram ja atribuït" as Transfer
+}
+G --> Apply
+R --> Apply
+Apply ..> Lock : <<include>>
+Apply ..> Append : <<include>>
+Apply ..> Status : <<include>>
+R --> Transfer
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant S as ExistingPaymentAllocationService [DISSENY]
+participant R as ExistingPaymentAllocationRepository [DISSENY]
+participant DB as payment_transaction + payment_allocation [SQL]
+participant E as EnrollmentFundMovementRepository [PROPOSTA]
+G->>S: allocate(P,F2,20,requestId)
+S->>R: lockPaymentAndAllocations(P)
+R->>DB: BEGIN; SELECT P i trams FOR UPDATE
+R-->>S: CHARGE 100, F1/80, sense retorn ni saldo compromès
+S->>S: Validar fet real, pagador, F2, import i requestId contra història
+alt Mateixa ordre ja aplicada amb mateix destí/import
+ S-->>G: REUSED sobre tram anterior, cap INSERT
+else Import demanat > 20 o P/F2 contradictoris
+ S-->>G: CONFLICT i ROLLBACK, cap segon CHARGE
+else 20 legítims no assignats
+ S->>R: appendAllocation(P,F2,20,requestId) [writer pendent]
+ R->>DB: INSERT tram F2/20 al P existent, recalcular F2
+ S->>E: append atribució individual coherent [PROPOSTA]
+ E-->>S: event/partida idempotent
+ R->>DB: COMMIT conjunt amb història SIF
+ S-->>G: P amb F1/80 + F2/20; saldo pendent 0
+end
+Note over S,DB: Esquema i mètode d'història per tram no implementats. En error, garantir rollback abans de respondre èxit.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| SA-56-07 | CHARGE P/100 amb F1/80 i F2/80 des del mateix payload | Detectar assignació nominal de 160/100 com a `OVERALLOCATED`; cap saldo per a F3. El validator actual no en rebutja la suma. |
+| SA-56-08 | CHARGE P/100 amb F1/80 i F2 sense tram | Amb origen extern confirmat, assignar com a màxim 20 a F2 sobre el mateix P; cap segon CHARGE. |
+| SA-56-09 | CHARGE P/100 amb assignació F1/-20 o F1/0 | Rebutjar imports de partida no positius; el validator actual només comprova `is_numeric`. |
+| SA-56-10 | Dues comandes concurrents reclamen els mateixos 20 restants per F2 i F3 | Serialitzar P i les assignacions, autoritzar com a màxim 20 en total, registrar conflicte de la perdedora. |
+| SA-56-11 | P apareix amb 20 comptables sense assignar però hi ha retorn extern/compromís pendent | `NEEDS_REVIEW`, no donar els 20 per lliures fins a comprovar retorn i titularitat. |
+
 ## 5. Traçabilitat
 
 [UC-56 original](../06-fitxes-funcionals/uc-056.md) · [UC-02 cobrament nou](uc-002-registrar-cobrament-factura.md) · [UC-25 fitxer](uc-025-analitzar-fitxer-tpv.md) · [UC-25a IDPAG](uc-025a-comprovar-idpag-duplicats.md) · [UC-86 auditoria](uc-086-auditar-accio-pagament.md) · [Revisió fons](00-revisio-moviments-inscripcions.md) · [PaymentService](../../sif/src/Service/PaymentService.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [Migració payment_transaction/allocation](../../sif/database/migrations/2026_06_02_000001_create_sif_core.sql).
