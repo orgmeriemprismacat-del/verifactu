@@ -488,9 +488,9 @@ G->>A: Revisar prova bancària i saldo P_A abans d'una eventual UC-56/105
 alt Ingrés bancari de 200 però P_A nominalment 100
  A-->>G: Conciliar diferència banc/SIF abans d'assignar B
 else Ingrés real de 100 completament assignat a A
- A-->>G: Saldo 0; denegar B, no duplicar ingrés
+ A-->>G: Saldo 0, denegar B, no duplicar ingrés
 end
-Note over P,H: El hash V2 compara mateixa clau i contingut; no deduplica dos moviments creats amb claus diferents.
+Note over P,H: El hash V2 compara mateixa clau i contingut, no deduplica dos moviments creats amb claus diferents.
 ```
 
 ### 5.4. Acció independent: rebutjar la reutilització d'una clau econòmica amb contingut diferent — PHP main per payload de K; contrast del fet extern i saldo pendent
@@ -604,7 +604,7 @@ C->>V: validate(CHARGE 100, F1/80 + F2/80)
 V-->>C: Payload estructuralment validat [PHP: sense prova de suma]
 C->>G: validateNewExternalReceipt(payload,evidence) [PENDENT]
 alt F1/80 + F2/80 = 160 > ingrés 100
- G-->>C: CONFLICT; cap registre de CHARGE ni imputació
+ G-->>C: CONFLICT, cap registre de CHARGE ni imputació
 else Hi ha tram zero/negatiu o titular incompatible
  G-->>C: CONFLICT abans de cap escriptura
 else Trams F1/80 + F2/20, ingrés 100 acreditat
