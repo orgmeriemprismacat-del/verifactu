@@ -36,6 +36,21 @@
 
 **Proves pendents:** frontera exacta d'inici/final, zona horària, edició exclosa, percentatge i arrodoniment, concurrència amb promoció canviada, callback tardà, duplicat i traça de regla/versionat.
 
+### 1.3. Promoció temporal del llegat: `descomptes.TIPUS` d'11 a 99
+
+Els procediments de PrisMa identifiquen les promocions temporals amb `descomptes.TIPUS` **entre 11 i 99**, aplicades segons la taula `descomptes`. Aquest rang és una **classificació comercial històrica**, no un percentatge automàtic ni prova que una promoció concreta estigui vigent per a qualsevol curs/edició. Un codi que el comprador introdueix al camp «Codi promocional» segueix el circuit diferent de `promocions` (UC-20d).
+
+Abans de crear la intenció Redsys, el canal ha de determinar la regla real vigent de la promoció, la seva aplicabilitat al curs/edició, `DESC_ID`, import o percentatge, base i total, i congelar la versió i data de decisió comercial. El builder fiscal pot transportar aquestes dades, però no consulta per si mateix el catàleg comercial. Si el període venç després de confirmar una oferta, no recalcular silenciosament al callback: cal aplicar la política de vigència de l'oferta congelada. Una promoció posterior a la factura original necessita decisió fiscal/econòmica pròpia, no edició directa de `factura_linia`.
+
+### 1.4. Proves addicionals (no executades)
+
+| ID | Escenari | Resultat |
+| --- | --- | --- |
+| PT-01 | `TIPUS` entre 11 i 99 amb regla aplicable a edició i data | Descompte concret, `DESC_ID`, import i vigència congelats. |
+| PT-02 | `TIPUS` dins el rang però sense promoció aplicable | Cap descompte inferit del número sol. |
+| PT-03 | Codi personal procedent de `promocions` | Derivar a UC-20d i comprovar titular/ús. |
+| PT-04 | Canvi de regla entre checkout i callback | Respectar oferta congelada segons vigència aprovada, sense alterar import a posteriori. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
