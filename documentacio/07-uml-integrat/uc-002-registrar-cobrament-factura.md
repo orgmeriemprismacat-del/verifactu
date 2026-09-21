@@ -411,9 +411,9 @@ P-->>M: UUID_PAYMENT_A,idempotency_reused=true sense verificar allocation B
 M-->>G: UUID_PAYMENT_A,uuid_factura=FACTURA_B [resposta contradictòria]
 Note over G,DB: El PHP actual no crea allocation B ni revalida el pagament original; la segona resposta no acredita B pagada.
 G->>A: Conciliar ingrés extern i trams de A/B
-alt Entrada bancària única de 200, A només té 100 assignats
- A-->>G: UC-56/105 pendent de writer segur per assignar els 100 restants
-else Ingrés real de 100 completament assignat a A
+alt Banc acredita entrada externa de 200 però el moviment SIF original es va enregistrar com 100
+ A-->>G: CONFLICT de quantia banc/SIF; conciliar origen abans de cap assignació a B
+else Entrada real i moviment SIF de 100 completament assignats a A
  A-->>G: CONFLICT per atribució B sense saldo disponible; no nou CHARGE
 end
 ```
@@ -465,7 +465,7 @@ Note over G,R: El lector i guard previ han de compartir una política de bloquei
 | Prova pendent | Escenari | Resultat objectiu i comportament PHP a reproduir |
 | --- | --- | --- |
 | CP-02-08 | Alta A/100 amb transferència TRF-1 i petició B/100 amb mateixa referència | PHP actual pot retornar `UUID_PAYMENT_A` i `uuid_factura=B` sense assignació B. Guard objectiu rebutja fals èxit o obre UC-56/105 si existeix saldo extern acreditat. |
-| CP-02-09 | Una transferència externa única de 200 assignada 100 a A i pendent 100 de B | Mateix `UUID_PAYMENT` i dues assignacions després del writer UC-56/105; mai un segon `CHARGE` extern. |
+| CP-02-09 | Entrada externa/SIF real de 200 amb una sola assignació de 100 a A i pendent 100 de B | Mateix `UUID_PAYMENT` i dues assignacions només després del writer UC-56/105 i conciliació del sobrant; mai un segon `CHARGE` extern. Si el moviment SIF inicial era de 100, primer resoldre la diferència respecte al banc. |
 | CP-02-10 | Mateixa clau K de pagament però import/tipus/assignació nous | `CONFLICT`, cap segon moviment ni resposta que el presenti com a pagament de la segona factura. |
 | CP-02-11 | Dos workers fan reús/alta de K amb payloads diferents alhora | Només un moviment extern real; l'altre recupera resultat només si és semànticament equivalent o rep conflicte explícit. |
 
