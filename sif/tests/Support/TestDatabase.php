@@ -7,7 +7,6 @@ use Prisma\Sif\Database\MigrationRunner;
 
 final class TestDatabase
 {
-<<<<<<< HEAD
     public static function assertSafeTestConfig(array $config): void
     {
         $dsn = (string) ($config['db']['dsn'] ?? '');
@@ -17,26 +16,6 @@ final class TestDatabase
             throw new \RuntimeException('Tests require SIF_ENV=test and a database named sif_test or sif_test_* .');
         }
     }
-=======
-    private const TABLES = [
-        'redsys_callback_queue',
-        'redsys_payment_intent',
-        'errors_verifactu',
-        'factura_documents',
-        'fiscal_queue',
-        'fact_rels',
-        'payment_allocation',
-        'payment_transaction',
-        'factura_rectificacio',
-        'factura_registres',
-        'factura_linia',
-        'factura',
-        'fiscal_sequence',
-        'fiscal_chain_state',
-        'redsys_notifications',
-        'credit_balance',
-    ];
->>>>>>> feature/redsys-async-queue
 
     public static function connect(): \PDO
     {
@@ -52,7 +31,6 @@ final class TestDatabase
     public static function fresh(): \PDO
     {
         $db = self::connect();
-<<<<<<< HEAD
         $runner = new MigrationRunner(dirname(__DIR__, 2) . '/database');
         $runner->migrate($db);
         $checks = $runner->inspect($db);
@@ -71,14 +49,6 @@ final class TestDatabase
             $db->exec('SET FOREIGN_KEY_CHECKS = 1');
         }
         $runner->seed($db);
-=======
-        foreach (glob(dirname(__DIR__, 2) . '/database/migrations/*.sql') ?: [] as $migration) {
-            $db->exec(file_get_contents($migration));
-        }
-        self::truncateCoreTables($db);
-        $db->exec(file_get_contents(dirname(__DIR__, 2) . '/database/seeds/2026_06_02_000001_seed_sif_core.sql'));
-
->>>>>>> feature/redsys-async-queue
         return $db;
     }
 
@@ -92,5 +62,3 @@ final class TestDatabase
         (new MigrationRunner(dirname(__DIR__, 2) . '/database'))->migrate($db);
     }
 }
-
-

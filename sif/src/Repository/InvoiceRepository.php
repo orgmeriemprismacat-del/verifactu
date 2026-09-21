@@ -4,6 +4,7 @@ namespace Prisma\Sif\Repository;
 
 use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Service\PayloadIdempotencyValidator;
 
 final class InvoiceRepository
 {
@@ -74,18 +75,19 @@ final class InvoiceRepository
     {
         $stmt = $db->prepare(
             'INSERT INTO factura (
-                UUID_FACTURA, IDEMPOTENCY_KEY, TIPUS_SERIE, ANY_FACT, NUM_SEQ, NUM_VISIBLE,
+                UUID_FACTURA, IDEMPOTENCY_KEY, IDEMPOTENCY_PAYLOAD_HASH, TIPUS_SERIE, ANY_FACT, NUM_SEQ, NUM_VISIBLE,
                 TIPUS_FACTURA, DATA_EMISSIO, EMESA_ABANS_COBRAMENT, E_FACT, ESTAT_COBRAMENT,
                 ESTAT_FACTURA, ESTAT_AEAT, BILLING_NOM_RAO, BILLING_NIF_CIF, BILLING_ADRECA,
                 BILLING_CP, BILLING_POBLACIO, BILLING_PROVINCIA, BILLING_PAIS, BILLING_EMAIL,
                 IMPORT_BASE, DESC_IMPORT, BASE_IMPOSABLE, IVA_REGIM, IVA_PCT, IVA_IMPORT,
                 TOTAL, SOURCE_CHANNEL, CREATED_BY
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, 0, ?, \'ISSUED\', \'PENDING\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, 0, ?, \'ISSUED\', \'PENDING\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         $stmt->execute([
             $uuid,
             $payload['idempotency_key'],
+            (new PayloadIdempotencyValidator())->calculateHash($payload),
             $payload['series'],
             $year,
             $seq,

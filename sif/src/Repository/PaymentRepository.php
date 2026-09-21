@@ -4,6 +4,7 @@ namespace Prisma\Sif\Repository;
 
 use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Service\PayloadIdempotencyValidator;
 
 final class PaymentRepository
 {
@@ -35,8 +36,8 @@ final class PaymentRepository
             'INSERT INTO payment_transaction (
                 UUID_PAYMENT, IDEMPOTENCY_KEY, TIPUS_MOVIMENT, METODE, SOURCE_CHANNEL,
                 IMPORT, DATA_MOVIMENT, PROVIDER_REF, DS_ORDER, IDPAG, REFERENCIA_BANCARIA,
-                PAYLOAD_HASH, ESTAT, NOTES
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'CONFIRMED\', ?)'
+                PAYLOAD_HASH, PAYLOAD_HASH_VERSION, ESTAT, NOTES
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, \'CONFIRMED\', ?)'
         )->execute([
             $uuid,
             $payload['idempotency_key'],
@@ -111,12 +112,6 @@ final class PaymentRepository
 
     private function hashPayload(array $payload): string
     {
-        $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);
-
-        if ($json === false) {
-            throw new \RuntimeException('Could not encode payment payload.');
-        }
-
-        return hash('sha256', $json);
+        return (new PayloadIdempotencyValidator())->calculateHash($payload);
     }
 }
