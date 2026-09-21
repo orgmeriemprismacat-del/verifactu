@@ -31,6 +31,27 @@ Una incidència documental, de notificació, de callback Redsys o de divergènci
 
 **Pendents:** codi/taula d'idempotència d'incidència i reparacions, permisos/SLA, model d'enllaç a recursos, writer i visualització de `sif_incident_action`, notificació a responsables i tests de tancament amb evidència.
 
+### 2.1. Lloc de resolució, objectes afectats i límit de l'obridor actual
+
+**Lloc oficial i abast funcional.** El document `25-panell-sif-pay-prisma.md` fixa `pay.prisma.cat/sif/incidencies` com a punt de **gestió i resolució oficial**; l'apartat VERI*FACTU de la intranet principal mostra només resum, avisos i accés al SIF. La fitxa de procediment preveu `GET /api/incidents` i `POST /api/incidents/{id}/actions` com a **endpoints a crear**, no una API ja comprovada. Assignar responsable, afegir notes, revisar, resoldre i notificar la intranet són actuacions de la futura pantalla amb permisos de servidor, **no** efectes implementats per `IncidentRepository::open()`.
+
+**Vincular a l'objecte afectat sense inventar factura.** La llista de casos prevista per al panell inclou: error d'AEAT o retries, PDF/QR no generat, cobrament real sense factura/assignació, factura prèvia pendent, callback Redsys duplicat o validat però no conciliat, CSV TPV amb coincidències múltiples, transferència assignada a una factura incorrecta i dades fiscals incompletes. Un **cobrament orfe** pot tenir `UUID_PAYMENT` i `DS_ORDER` però encara cap `UUID_FACTURA`; `IncidentRepository::open(db,?uuidFactura,type,message)` només admet UUID de factura opcional i no torna l'ID de la incidència. La correlació tipificada per pagament, job/ordre, inscripció i fitxer d'evidència requereix **un contracte/writer addicional pendent**, no omplir una factura fictícia al camp opcional.
+
+**Transicions i prova de tancament.** `sif_incident_action` preveu actor, responsable, estat anterior/nou, raó i evidència, però la seva existència al DDL **no acredita** que el PHP actual hi escrigui. Una incidència AEAT es tanca quan hi ha resultat extern revisat, no només `SENT`; una incidència de PDF quan es comproven els bytes/hash i l'accés, no només `CREATED`; una incidència de pagament/inscripció quan es concilien `UUID_PAYMENT`, assignació real i resum llegat, no només després de concatenar `OBSERVACIONS`. La matrícula Moodle pot continuar pendent encara que la part fiscal quedi resolta.
+
+**Auditor i suport.** El panell preveu `AUDITOR_FISCAL`/`AEAT_READONLY` de lectura: poden consultar l'expedient fiscal autoritzat, però **no** assignar-se una reparació, reintentar un job o marcar una incidència resolta. La documentació enumera suport/gestió segons el cas; els permisos efectius i la separació de responsabilitats han de comprovar-se **al servidor**, no per una targeta visible del dashboard.
+
+### 2.2. Proves d'incidències multirecurs (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| IC-81-01 | CSV TPV acredita cobrament real sense factura atribuïda | Expedient amb identificador econòmic/ordre, sense UUID_FACTURA inventat. |
+| IC-81-02 | Job AEAT SENT però registre REJECTED | Revisió fiscal amb resposta efectiva; no tancar per job enviat. |
+| IC-81-03 | Document CREATED amb fitxer absent | Incidència oberta fins a bytes/hash verificats; cap nova factura. |
+| IC-81-04 | Intranet mostra avís d'incidència, operador intenta resoldre-la allà | Derivar a la ruta SIF i exigir permís servidor de resolució. |
+| IC-81-05 | Auditor de lectura intenta reobrir dead-letter | Denegació de l'acció sense canviar cua ni expedir un registre nou. |
+| IC-81-06 | SIF resol cobrament però accés Moodle encara no s'ha sincronitzat | Registrar la fase acadèmica pendent, no afirmar tancament total de l'operació. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
