@@ -312,7 +312,7 @@ C->>S: issueInvoice(K, payload original F sense payment) [reintent equivalent]
 S->>H: assertMatches(F,hashOriginal)
 H-->>S: Coincidència
 S-->>C: UUID_FACTURA F1, idempotency_reused=true
-Note over S,P: Només un reús exactament equivalent que ja incloïa payment pot recuperar-ne UUID_PAYMENT si existeix; el reús no crea CHARGE nou.
+Note over S,P: Només un reús exactament equivalent que ja incloïa payment pot recuperar-ne UUID_PAYMENT si existeix, el reús no crea CHARGE nou.
 ```
 
 ### 4.2. Acció independent: rebutjar un reintent d'emissió amb mateix identificador però contingut fiscal diferent — PHP main amb guard de petició completa; cobertura comercial entre claus pendent
@@ -377,7 +377,7 @@ else K existeix amb contingut exactament equivalent
  F-->>G: UUID_FACTURA existent
  G-->>C: Reús fiscal validat sense nova emissió
 end
-Note over G,S: Comparació de petició completa per K és PHP main. El guard comercial entre claus/inscripcions és DISSENY; el diagrama combina ambdues responsabilitats.
+Note over G,S: Comparació de petició completa per K és PHP main. El guard comercial entre claus/inscripcions és DISSENY, el diagrama combina ambdues responsabilitats.
 ```
 
 | Prova pendent | Escenari | Resultat objectiu i comportament actual a contrastar |
