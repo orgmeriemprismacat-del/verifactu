@@ -38,6 +38,26 @@
 
 **Proves localitzades, NO executades ara:** `FiscalQueueProcessorTest` cobreix resposta simulada acceptada, errors, reintents, `DEAD_LETTER`, lots i locks; `AeatPreflightTest` comprova requisits locals. Falta evidència aquí d'un enviament real del certificat/endpoint requerits i del comportament davant resposta externa incerta.
 
+### 1.3. Distingir la resposta del registre del resultat del transport — contrast amb el panell previst
+
+**Tres identificadors i tres estats independents.** La factura ja emesa té `UUID_FACTURA` i número visible; el registre fiscal concret s'identifica amb `UUID_FACTURA` **i `FISCAL_ORDER`**; el treball de transport amb `fiscal_queue.ID`. En el panell previst `pay.prisma.cat/sif/registres-aeat` la consulta ha de mostrar **l'estat del job**, **el resultat AEAT de cada registre** i **l'estat resum de la factura**, sense transformar un `SENT` de transport en `ACCEPTED` fiscal. Una factura pot tenir diversos registres al llarg de la seva història i la resposta d'un no es pot imputar a tots pel sol `UUID_FACTURA`.
+
+**Resposta amb errors o rebuig.** `FiscalQueueRepository::complete()` marca la cua `SENT` i desa la resposta de la línia sobre el registre del `FISCAL_ORDER` corresponent, també quan `ResponseParser` indica `ACCEPTED_WITH_ERRORS` o `REJECTED`. Aquesta situació requereix mostrar codi i detall de resposta i obrir revisió de l'operació, **no** tractar-la com un timeout que s'hagi de reenviar indefinidament ni modificar directament el document A/R inicial. El cas fiscal següent es classifica per UC-74/30/31 segons causa i evidència, no per la sola etiqueta `REJECTED`.
+
+**Resposta remota incerta.** El transport opera **fora** de la transacció que reclama el job; si AEAT ha rebut l'XML però el procés cau abans de confirmar `complete()`, el registre local pot continuar `PROCESSING` i després `RETRY`. Recuperar el lock no acredita que el servidor remot **no** hagi registrat la petició. La política objectiu és preservar payload/XML, identitat de registre i evidència de cada intent, investigar el resultat extern i autoritzar un eventual reenviament del **mateix registre**, mai emetre una altra factura amb un nou número per «recuperar» la remissió.
+
+**Preproducció i producció.** `SoapTransport` consultat restringeix el constructor a l'endpoint de proves. El panell pot mostrar mètriques locals i estats de transport, però ni un preflight local favorable ni un resultat amb transport simulat documenten recepció real ni disponibilitat productiva. Diferenciar clarament evidència de test, de resposta externa i de codi pendent d'adaptar abans de desplegar.
+
+### 1.4. Proves de frontera entre emissió, transport i resultat (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AE-09-01 | Factura emesa i job encara PENDING | Factura real sense afirmar remissió ni acceptació AEAT. |
+| AE-09-02 | Job SENT amb registre REJECTED | Mostrar rebuig i evidència, no etiquetar la factura com a acceptada. |
+| AE-09-03 | Factura amb més d'un registre fiscal | Resposta i XML correlacionats amb `FISCAL_ORDER` correcte. |
+| AE-09-04 | AEAT rep XML, worker cau abans de persistir resultat | Investigar intent i estat extern abans del retry; cap nova factura. |
+| AE-09-05 | Preflight local satisfactori sense enviament extern | No etiquetar «acceptat per AEAT» ni «producció acreditada». |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
