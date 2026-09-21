@@ -1,6 +1,6 @@
 # UC-01 · Emetre o reutilitzar una factura — fitxa i UML integrats
 
-**Estat:** nucli d'emissió implementat al codi consultat de `main`; l'ús des de cadascun dels canals, els permisos i el desplegament no queden acreditats per aquest fet. **Relacions:** UC-04 (abans de cobrar), UC-05 (rectificativa), UC-14/15/16/17 (orígens de venda), UC-02 (pagament sobre factura existent), UC-09/54/77 (remissió AEAT).
+**Estat:** nucli d'emissió contrastat als fitxers PHP de la branca documental `docs/uml-fitxes-integrades-2026-09-20`; l'ús des de cadascun dels canals, els permisos i el desplegament no queden acreditats per aquest fet. **Relacions:** UC-04 (abans de cobrar), UC-05 (rectificativa), UC-14/15/16/17 (orígens de venda), UC-02 (pagament sobre factura existent), UC-09/54/77 (remissió AEAT).
 
 ## 1. Fitxa del cas d'ús
 
@@ -198,6 +198,126 @@ end
 ```
 
 **Incidència de concurrència:** si la inserció falla per clau duplicada, el servei rellegeix la factura existent en una nova transacció. Els errors de BD diferents d'aquest cas es propaguen.
+
+### 4.1. Acció independent: consultar l'estat de reús d'una factura amb possible cobrament posterior — PHP existent i contracte de canal pendent
+
+**Actor/disparador:** un adaptador de venda reintenta `issueInvoice(payload)` amb clau fiscal ja confirmada, ara incloent un bloc `payment` corresponent a una entrada bancària posterior. **Precondicions de negoci objectiu:** contrastar el payload fiscal original, la seva cobertura d'inscripcions/receptor i la identitat bancària de l'entrada nova; si la factura ja està emesa, una entrada real posterior correspon a **UC-02** i no a una segona emissió. **Postcondició PHP real:** `idempotency_reused=true`, `uuid_factura`, `num_visible` i `uuid_payment` **només si la mateixa clau de pagament ja existeix**. `ok=true` del reús fiscal **no acredita** el `CHARGE` sol·licitat.
+
+```plantuml
+@startuml
+left to right direction
+actor "Canal de venda autoritzat" as C
+actor "Procés de cobrament" as B
+rectangle "SIF PrisMa — UC-01 / REÚS DE FACTURA" {
+ usecase "Recuperar factura existent\nper la clau d'emissió" as Reuse
+ usecase "Validar equivalència fiscal\nde payload original i nou" as Eq
+ usecase "Comprovar si pagament inicial\nja existeix per clau pròpia" as FindPay
+ usecase "UC-02\nRegistrar un ingrés posterior real" as Charge
+}
+C --> Reuse
+Reuse ..> Eq : <<include>> [DISSENY pendent]
+Reuse ..> FindPay : <<include>> [si el payload inclou payment]
+B --> Charge
+C --> Charge
+note bottom of Charge
+ Reutilitzar una factura sense uuid_payment
+ no crea un cobrament posterior.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor C as Canal
+participant S as InvoiceService [PHP]
+participant T as TransactionRunner [PHP]
+participant F as InvoiceRepository [PHP]
+participant P as PaymentRepository [PHP]
+participant DB as BD SIF
+participant G as Guard de cobertura i conciliació [DISSENY]
+C->>S: issueInvoice(K, factura d'empresa sense payment)
+S->>T: run(callback)
+T->>DB: BEGIN
+S->>F: findByIdempotencyKey(K,true)
+F-->>S: null
+S->>DB: Emissió fiscal, numero, registre i cua per K
+T->>DB: COMMIT
+S-->>C: ok=true, uuid_factura=F1, sense uuid_payment
+C->>S: issueInvoice(K, mateix fiscal, payment nou P2 validat externament)
+S->>T: run(callback)
+T->>DB: BEGIN
+S->>F: findByIdempotencyKey(K,true)
+F-->>S: F1 anterior
+S->>P: findByIdempotencyKey(paymentKey=P2,true)
+alt P2 no existeix
+ P-->>S: null
+ S-->>T: ok=true,idempotency_reused=true,F1,SENSE uuid_payment
+ T->>DB: COMMIT
+ S-->>C: Èxit de reús F1, NO èxit de cobrament P2
+ C->>G: Verificar cobertura fiscal i ingrés extern de P2 [PENDENT]
+ G-->>C: UC-02 sobre F1 o CONFLICT; no fer segon issueInvoice
+else P2 ja existeix
+ P-->>S: UUID_PAYMENT_P2 [sense comparar allocation ni import]
+ S-->>T: Reús F1 amb uuid_payment=P2
+ T->>DB: COMMIT
+ S-->>C: Recupera pagament existent; equivalència fiscal/econòmica NO comprovada
+end
+Note over S,DB: InvoiceService::existingResultWithPaymentIfPresent() mai fa createPayment() en reús de factura.
+```
+
+### 4.2. Acció independent: rebutjar un reintent d'emissió amb mateix identificador però contingut fiscal diferent — DISSENY
+
+**Actor/disparador:** dues peticions del mateix canal reutilitzen una clau fiscal `K` amb receptor, total, línies, inscripcions o sèrie diferents. **Postcondició exigible:** `CONFLICT` amb referència a la factura original i revisió de possible correcció fiscal UC-74/05; sense nova factura ni mutació de la primera. **PHP actual:** `InvoiceService` cerca `K` i retorna `existingResult()` **sense comparar** el payload nou amb `factura`, `factura_linia` o `fact_rels` persistents. `InvoicePayloadValidator` valida estructura, però no equivalència fiscal respecte de l'original. El fet que `InvoiceRepository` registri un hash del registre fiscal de la primera factura **no** implica que es compari amb el nou payload.
+
+```plantuml
+@startuml
+left to right direction
+actor "Canal emissor" as C
+actor "Responsable fiscal" as R
+rectangle "SIF PrisMa — UC-01 / CONFLICTE D'EMISSIÓ" {
+ usecase "Reintentar emissió identificada\nper clau K" as Retry
+ usecase "Comparar receptor, sèrie, línies,\nimports i inscripcions originals" as Compare
+ usecase "Classificar canvi després\nd'emissió UC-74/05" as Fix
+}
+C --> Retry
+Retry ..> Compare : <<include>> [guard pendent]
+R --> Fix
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor C as Canal
+participant G as FiscalPayloadEquivalenceGuard [DISSENY]
+participant F as Consulta factura/línies/fact_rels [LECTURA]
+participant S as InvoiceService [PHP]
+participant DB as factura/factura_registres/fiscal_queue
+C->>G: issueIfEquivalent(K, nou receptor E2/import 90, requestId)
+G->>F: Cercar factura original de K i comparar dades congelades
+alt K existeix amb receptor E1/import 100
+ F-->>G: CONFLICT de payload
+ G-->>C: Rebuig; UC-74/05 decideix correcció, cap nova emissió ni reús com E2/90
+else K inexistent i cobertura d'operació no duplicada
+ F-->>G: Preparació autoritzada
+ G->>S: issueInvoice(payload)
+ S->>DB: BEGIN, emetre i registrar fiscalment
+ S->>DB: COMMIT
+ S-->>C: UUID_FACTURA nou, número i estat AEAT independent
+else K existeix amb contingut exactament equivalent
+ F-->>G: UUID_FACTURA existent
+ G-->>C: Reús fiscal validat sense nova emissió
+end
+Note over G,S: Guard de payload/cobertura és DISSENY; el PHP actual reusa K sense aquesta comparació.
+```
+
+| Prova pendent | Escenari | Resultat objectiu i comportament actual a contrastar |
+| --- | --- | --- |
+| EI-07 | F1 emesa sense payment, posteriorment `issueInvoice(K,payment=P2)` amb la mateixa K | El PHP actual retorna F1 i `ok=true` sense `uuid_payment` si P2 no existeix. El canal objectiu tracta l'ingrés real per UC-02, no declara cobrat per reús fiscal. |
+| EI-08 | F1 emesa amb `paymentKey=P1`; reús de K amb `paymentKey=P2` inexistent | Retorna F1 sense P2; no registrar fals cobrament ni tornar a crear F1. |
+| EI-09 | Mateixa K però receptor/total/línies/inscripcions diferents | PHP actual pot retornar F1; guard objectiu exigeix `CONFLICT` i UC-74/05 si ja s'ha emès. |
+| EI-10 | Un `paymentKey` preexistent apunta a un pagament d'una altra factura | Reús fiscal/econòmic no s'ha de declarar equivalent fins a comprovar `payment_allocation.UUID_FACTURA`, import i titular; guard pendent. |
 
 ## 5. Traçabilitat
 
