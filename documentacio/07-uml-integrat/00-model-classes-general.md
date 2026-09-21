@@ -312,6 +312,51 @@ RedsysGiftInvoiceService --> InvoiceService : emissió/reús
 ```
 
 **Límit verificat:** `LegacyGiftInvoicePayloadBuilder::build()` incorpora `CODI` en clar a `lines[].detail` i `gift.code`, i deriva la clau fiscal de `gift.ID`. `RedsysGiftInvoiceService` verifica `STATUS=VALIDATED` i coincidència d'import abans de delegar a `InvoiceService`; **no** crea `commercial_entitlement`, no valida el consum de codi i no lliura cap targeta. Vegeu [UC-119, activació i lliurament](uc-119-cicle-complet-regal.md#6-activació-i-comunicació-del-regal--accions-diferenciades).
+### 4.2. Subvista executable de doble factura USOC — UC-19a/19b
+
+```mermaid
+classDiagram
+direction LR
+class RedsysUsocInvoiceService {
+ <<PHP existent: factura i CHARGE alumne>>
+ +sourceType() string
+ +issueFromIntentSnapshot(db,dsOrder,snapshot) array
+}
+class UsocEntityInvoiceService {
+ <<PHP existent: factura entitat sense CHARGE>>
+ +issueEntityFromExplicitInput(legacyDb,input) array
+}
+class LegacyUsocSnapshotRepository {
+ <<PHP existent: primer inscrit per IDPAG>>
+ +loadByIdpag(legacyDb,idpag,studentAmount,entityAmount) array
+}
+class LegacyUsocInvoicePayloadBuilder {
+ <<PHP existent>>
+ +buildStudentPayload(snapshot) array
+ +buildEntityPayload(snapshot,input) array
+}
+class RedsysInvoicePayloadBuilder {
+ <<PHP existent>>
+ +buildFromValidatedNotification(db,dsOrder,payload) array
+}
+class InvoiceService {
+ <<PHP existent: reús per clau sense payload equivalent>>
+ +issueInvoice(payload) array
+}
+class PaymentService {
+ <<PHP existent: cobrament entitat posterior, NO crida per UsocEntityInvoiceService>>
+ +registerPayment(payload) array
+}
+RedsysUsocInvoiceService --> LegacyUsocInvoicePayloadBuilder : buildStudentPayload
+RedsysUsocInvoiceService --> RedsysInvoicePayloadBuilder : CHARGE alumne validat
+RedsysUsocInvoiceService --> InvoiceService : emissió + ingrés alumne
+UsocEntityInvoiceService --> LegacyUsocSnapshotRepository : loadByIdpag
+UsocEntityInvoiceService --> LegacyUsocInvoicePayloadBuilder : buildEntityPayload
+UsocEntityInvoiceService --> InvoiceService : emissió sense payment
+```
+
+**Fronteres verificades:** `UsocEntityInvoiceService` només comprova `student_invoice_uuid` no buit i no rep la BD SIF per verificar-lo; `LegacyUsocSnapshotRepository` fa `WHERE IDPAG=? ORDER BY ID LIMIT 1`, sense seleccionar un `ID_INSC` exacte. La clau entitat de `LegacyUsocInvoicePayloadBuilder` inclou inscripció i UUID de factura alumne, **no import ni receptor**; `InvoiceService` retorna una factura existent per clau sense comparar-ne el contingut nou. `PaymentService` registra el cobrament real d'entitat més tard i no és una dependència de l'emissor. [UC-19b](uc-019b-facturar-part-entitat-usoc.md).
+
 ## 5. Classes executives de cua fiscal i consulta/operació
 
 ```mermaid
@@ -482,7 +527,7 @@ AcademicEconomicPolicy ..> EnrollmentFundsOrchestrator : estat econòmic individ
 
 Aquest últim diagrama és un **contracte de treball**, no una afirmació que hi ha classes, repositoris o migracions implementats. No s'ha creat la taula proposada `enrollment_fund_movement` en aquesta branca de documentació. Després de revisar els 142 casos, també es consideren transversals pendents l'**autorització servidor de les comandes**, la resolució d'identitat, el routing multiemissor, el worker d'outbox i la política acadèmica-econòmica. El detall i les evidències són a [Revisió transversal 142/142](00-revisio-transversal-142-casos.md).
 
-**Contrast nominal de l'API de l'auditoria anterior:** s'han comparat les **47 classes PHP del subconjunt inicial** i les **70 declaracions de mètode** que els seus subdiagrames mostren amb el codi de les classes homònimes; no hi ha cap nom de mètode absent d'aquests fitxers. Les **13 classes sense fitxer PHP homònim del subconjunt auditat original** eren propostes/disseny pendent; les subvistes de regal, conciliació i ajust incorporades després afegeixen altres classes expressament etiquetades `DISSENY` i **no** queden cobertes per aquell recompte inicial. Aquesta verificació **no inclou automàticament les subvistes afegides posteriorment sobre el regal, l'històric i la custòdia** i és només existència del nom, no equival a validar paràmetres, tipus, visibilitat, instanciació, relacions UML, fluxos o proves d'execució. Les proves que sí estan escrites al repositori i els contrasts no coberts figuren a l'[auditoria de consistència, apartat 4](00-auditoria-consistencia-142-fitxes.md#4-què-demostren-les-proves-existents-i-quina-evidència-falta).
+**Contrast nominal de l'API de l'auditoria anterior:** s'han comparat les **47 classes PHP del subconjunt inicial** i les **70 declaracions de mètode** que els seus subdiagrames mostren amb el codi de les classes homònimes; no hi ha cap nom de mètode absent d'aquests fitxers. Les **13 classes sense fitxer PHP homònim del subconjunt auditat original** eren propostes/disseny pendent; les subvistes de regal, conciliació, ajust, històric, custòdia i USOC incorporades després afegeixen altres classes expressament etiquetades `DISSENY` i **no** queden cobertes per aquell recompte inicial. Aquesta verificació **no inclou automàticament les subvistes afegides posteriorment sobre el regal, l'històric, la custòdia i USOC** i és només existència del nom, no equival a validar paràmetres, tipus, visibilitat, instanciació, relacions UML, fluxos o proves d'execució. Les proves que sí estan escrites al repositori i els contrasts no coberts figuren a l'[auditoria de consistència, apartat 4](00-auditoria-consistencia-142-fitxes.md#4-què-demostren-les-proves-existents-i-quina-evidència-falta).
 
 ### 6.1. Subvista de disseny del dret de regal, entrega i consum — NO IMPLEMENTAT
 
@@ -716,6 +761,51 @@ HistoricalNumberingPreflight --> HistoricalInvoicePersistenceModel : no importar
 ```
 
 **Restriccions confirmades del model base:** `factura` imposa `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` **sense columna d'emissor**. L'importador històric no crida `FiscalSequenceRepository::next()` ni avança `LAST_NUM`; el numerador de noves emissions no reserva ni desambigua els números que un històric hagi ocupat. Aquesta subvista **no proposa alterar la política de numeració amb un salt arbitrari**: identifica el guard previ i una decisió d'arquitectura necessària per preservar els documents antics i la numeració/cadena fiscal nova. [UC-11, preflight](uc-011-importar-factura-historica.md), [UC-97, emissors homònims](uc-097-consultar-historic-associacio-sl.md).
+
+### 6.6. Subvista de disseny de la validació i conciliació USOC — UC-19/13/19b
+
+```mermaid
+classDiagram
+direction LR
+class UsocEligibilityService {
+ <<DISSENY: verificació de condició>>
+ +requestValidation(inscriptionId,evidence,actor,requestId) result
+ +decide(inscriptionId,decision,evidence,actor,requestId) result
+}
+class UsocFundingCaseValidator {
+ <<DISSENY: verifica factura alumne i parts>>
+ +verify(inscriptionId,idpag,studentUuid,studentAmount,entityAmount,billing) decision
+}
+class UsocCaseReconciler {
+ <<DISSENY: dos pagadors, dos fets de cobrament>>
+ +recoverUsocCase(inscriptionId,dsOrder,studentUuid) result
+ +reconcileAndClose(inscriptionId) result
+}
+class LegacyUsocSnapshotRepository {
+ <<PHP real: flags llegats; primer ID per IDPAG>>
+ +loadByIdpag(legacyDb,idpag,studentAmount,entityAmount) array
+}
+class UsocEntityInvoiceService {
+ <<PHP real: UUID alumne no es contrasta amb SIF>>
+ +issueEntityFromExplicitInput(legacyDb,input) array
+}
+class InvoiceService {
+ <<PHP real: recupera factura per clau>>
+ +issueInvoice(payload) array
+}
+class PaymentService {
+ <<PHP real: ingrés posterior>>
+ +registerPayment(payload) array
+}
+UsocEligibilityService ..> LegacyUsocSnapshotRepository : estat USOC llegat; writer decisió PENDENT
+UsocFundingCaseValidator --> LegacyUsocSnapshotRepository : comprovar ID_INSC exacte, NO resolt pel repo actual
+UsocFundingCaseValidator ..> InvoiceService : validar factura existent exigeix lectura SIF separada [PENDENT]
+UsocCaseReconciler --> UsocFundingCaseValidator : identitat i imports per part
+UsocCaseReconciler ..> UsocEntityInvoiceService : factura entitat després d'aprovació
+UsocCaseReconciler ..> PaymentService : només ingrés bancari entitat verificat
+```
+
+**Cautela de dependències:** les fletxes entre classes `DISSENY` i PHP actual expressen punts d'integració **proposats**, no crides implementades. `InvoiceService` emet o reutilitza factures; **no** és avui un servei de consulta per verificar UUID alumne. La validació requereix un lector de `factura/fact_rels` i una identitat d'inscripció unívoca abans d'invocar la UC-19b. Les dades `TIPUS_DESC/VALID_DESC` del llegat no equivalen a verificació externa d'afiliació. Vegeu [UC-19](uc-019-validar-afiliacio-usoc.md), [UC-13](uc-013-orquestrar-doble-facturacio-usoc.md), [UC-19b](uc-019b-facturar-part-entitat-usoc.md).
 
 ## 7. Traçabilitat i criteri de manteniment
 
