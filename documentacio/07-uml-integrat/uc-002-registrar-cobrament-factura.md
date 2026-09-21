@@ -546,6 +546,70 @@ Note over G,R: El lector i guard previ han de compartir una política de bloquei
 | CP-02-10 | Mateixa clau K de pagament però import/tipus/assignació nous | `CONFLICT`, cap segon moviment ni resposta que el presenti com a pagament de la segona factura. |
 | CP-02-11 | Dos workers fan reús/alta de K amb payloads diferents alhora | Només un moviment extern real; l'altre recupera resultat només si és semànticament equivalent o rep conflicte explícit. |
 
+### 5.5. Acció independent: validar els imports totals i els trams abans de crear un CHARGE nou — PHP existent insuficient / guard PENDENT
+
+**Actor/disparador:** el canal ha verificat un ingrés extern nou de 100 € i vol crear-ne un `payment_transaction` amb assignacions a una o diverses factures. **Precondició objectiu:** import extern estrictament positiu i expressat en cèntims; cada tram estrictament positiu, factura existent i titular compatible; `SUM(trams) <= IMPORT` del mateix moviment, amb política explícita si hi ha import **no assignat**; comprovar que `IDEMPOTENCY_KEY` representa el mateix ingrés bancari i no un altre. **Postcondició:** un sol `UUID_PAYMENT` per fet extern i assignacions coherents, o rebuig abans del registre. La suma exactament igual a l'import **no és sempre obligatòria** quan existeix un import pendent de distribuir: el que és inacceptable és consumir més del que s'ha ingressat o tractar el sobrante com a saldo lliure sense verificar-ne l'origen i els compromisos. Per a `REFUND` i `COMPENSATION`, les regles d'elegibilitat de la destinació i de disponibilitat són específiques.
+
+**PHP contrastat:** `PaymentPayloadValidator` només requereix `is_numeric(payload.amount)` i `is_numeric(allocation.amount)`, com a mínim una assignació i valors enumerats de moviment/mètode; **no comprova** positivitat ni suma de trams. `PaymentService` l'executa abans del seu `TransactionRunner` i `PaymentRepository::createPayment()` insereix moviment i cada tram; `refreshInvoicePaymentStatus()` suma `IMPORT_ASSIGNAT` de cada factura sense limitar-ho a `payment_transaction.IMPORT` del mateix ingrés. Un `CHARGE` nominal de 100 amb F1/80+F2/80 pot persistir amb **160 € atribuïts**; una assignació negativa altera el saldo de la factura sense esdevenir un moviment `REFUND` real ni una reversió traçada. El test `RegisterPaymentTest` comprova únicament l'alta coherent 120/120 i un reintent equivalent, **no** imports negatius, zero o repartiment inconsistent.
+
+```plantuml
+@startuml
+left to right direction
+actor "Canal de cobrament" as C
+actor "Banc / evidència externa" as B
+rectangle "SIF PrisMa — UC-02 / VALIDAR CHARGE I TRAMS" {
+ usecase "Validar nou ingrés i trams proposats" as Validate
+ usecase "Comprovar identitat bancària,\nimport real i titular" as Bank
+ usecase "Comprovar cada tram positiu\ni suma no superior a import" as Sum
+ usecase "Registrar CHARGE i assignacions\nnomés amb invariant satisfet" as Record
+ usecase "UC-56\nConciliar import no assignat" as Remainder
+}
+C --> Validate
+B --> Bank
+Validate ..> Bank : <<include>> [guard extern pendent]
+Validate ..> Sum : <<include>> [guard pendent]
+C --> Record
+C --> Remainder
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor C as Canal
+participant V as PaymentPayloadValidator [PHP]
+participant G as MoneyAllocationInvariantGuard [DISSENY]
+participant S as PaymentService [PHP]
+participant R as PaymentRepository [PHP]
+participant DB as payment_transaction + payment_allocation [SQL]
+C->>V: validate(CHARGE 100, F1/80 + F2/80)
+V-->>C: Payload estructuralment validat [PHP: sense prova de suma]
+C->>G: validateNewExternalReceipt(payload,evidence) [PENDENT]
+alt F1/80 + F2/80 = 160 > ingrés 100
+ G-->>C: CONFLICT; cap registre de CHARGE ni imputació
+else Hi ha tram zero/negatiu o titular incompatible
+ G-->>C: CONFLICT abans de cap escriptura
+else Trams F1/80 + F2/20, ingrés 100 acreditat
+ G-->>C: Invariant compatible [pendent d'equivalència de K]
+ C->>S: registerPayment(payload validat)
+ S->>R: findByIdempotencyKey(K,true) sota BEGIN
+ R-->>S: K inexistent
+ S->>R: createPayment(payload)
+ R->>DB: INSERT CHARGE 100, F1/80 i F2/20
+ R->>DB: Recalcular estats de F1 i F2, COMMIT del servei
+ S-->>C: UUID_PAYMENT únic, trams sumen 100
+end
+Note over G,S: Guard previ i verificació transaccional a l'alta definitiva són DISSENY. La validació externa aïllada no protegeix contra canvis concurrents.
+```
+
+| Prova pendent | Escenari | Resultat objectiu |
+| --- | --- | --- |
+| CP-02-12 | `amount=100`, dues allocations F1/80 i F2/80 | Rebutjar sobreatribució abans de persistir res; validator PHP actual deixa passar estructura/imports numèrics. |
+| CP-02-13 | `amount=100` i allocation F1/-20 o F1/0 | Rebutjar tram no positiu abans de qualsevol canvi d'`ESTAT_COBRAMENT`. |
+| CP-02-14 | `amount=100`, F1/80 i 20 sense atribució | Admetre només amb política de saldo pendent i ingrés real acreditat; no mostrar F2 pagada fins a UC-56. |
+| CP-02-15 | `amount=100`, F1/80 + F2/20 coherents; intent duplicat K amb repartiment F1/100 | Primer alta coherent; segon `CONFLICT` semàntic, no resposta que presenti distribució nova com a aplicada. |
+| CP-02-16 | Pagament nominal 100, trams 160; estats individuals de les factures semblen coherents | Detectar invariant **per UUID_PAYMENT** independentment de `ESTAT_COBRAMENT` per factura, obrir diagnosi sense alterar factura fiscal. |
+
 ## 6. Traçabilitat
 
 [Catàleg UC-02](../04-estat-final/33-casos-us-sif.md) · [Fitxa base UC-02](../06-fitxes-funcionals/uc-002.md) · [PaymentService](../../sif/src/Service/PaymentService.php) · [PaymentPayloadValidator](../../sif/src/Service/PaymentPayloadValidator.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [PaymentStatusCalculator](../../sif/src/Domain/PaymentStatusCalculator.php) · [ManualPaymentService](../../sif/src/Service/ManualPaymentService.php) · [ManualPaymentPayloadBuilder](../../sif/src/Service/ManualPaymentPayloadBuilder.php) · [RegisterPaymentTest](../../sif/tests/Integration/RegisterPaymentTest.php).
