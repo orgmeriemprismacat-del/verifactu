@@ -262,6 +262,162 @@ Note over C,L: No hi ha transacció global acreditada entre BD SIF i llegat.
 | CC-12 | Desfer A→B amb saldo/refund/rectificativa ja executats | Cap UPDATE INSC_CURS directe; noves operacions amb referències als originals. |
 | CC-13 | Callback tardà de diferència d'un canvi revertit | No imputació al destí antic; evidència del cobrament i incidència. |
 | CC-14 | Dos canvis concurrents de la mateixa inscripció | Control de versió/idempotència, cap segon traspàs o doble diferència. |
+## 5.3. Acció amb mateix import: canvi de servei/concepte sense inventar diners — OBJECTIU
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador de gestió" as O
+rectangle "SIF i inscripcions — canvi A a B" {
+ usecase "UC-71\nCanviar de curs\namb el mateix import" as Same
+ usecase "UC-26\nRegistrar canvi acadèmic" as Course
+ usecase "UC-74\nClassificar canvi de concepte\nfiscalment emès" as Fiscal
+ usecase "Conservar atribució econòmica\noriginal sense CHARGE nou" as Funds
+}
+O --> Same
+Same ..> Course : <<include>> [OBJECTIU]
+Same ..> Fiscal : <<include>> [si factura ja emesa]
+Same ..> Funds : <<include>> [si hi ha fons cobrats]
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant C as CourseChangeCoordinator [DISSENY]
+participant Legacy as BD inscripcions [INTEGRACIÓ PENDENT]
+participant L as Ledger per inscripció [PROPOSTA]
+participant F as Classificador UC-74 [DISSENY]
+participant R as Rectificativa UC-05 [PHP parcial]
+O->>C: Confirmar canvi A a B amb import igual
+C->>Legacy: Validar edicions, plaça, identitat i snapshots A/B
+C->>L: Verificar import efectivament cobrat i atribuït a A
+C->>F: Comparar servei i concepte de factura original amb B
+alt Dades inconsistents o absència de destí
+ C-->>O: Rebuig sense canviar inscripció ni diners
+else Canvi viable
+ C->>Legacy: Registrar event i canvi de curs amb traça [PENDENT]
+ opt Existeixen fons originals atribuïts a A
+  C->>L: Registrar traspàs A→B del mateix import, sense nou CHARGE
+ end
+ alt La classificació fiscal requereix rectificar concepte
+  F-->>C: Decisió motivada i tipus de rectificació
+  C->>R: Iniciar UC-05 amb UUID original i servei nou [CONTRACTE PENDENT]
+ else Cap correcció fiscal requerida
+  F-->>C: Justificació i cap document nou
+ end
+ C-->>O: Historial i fases confirmades/pendents
+end
+Note over C,F: Igualtat de totals no demostra identitat del servei facturat. L'orquestrador complet no existeix al SIF actual.
+```
+
+## 5.4. Acció amb import superior: diferència pendent fins a cobrament real — OBJECTIU
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+actor Payer as Pagador
+participant C as CourseChangeCoordinator [DISSENY]
+participant L as Ledger per inscripció [PROPOSTA]
+participant F as Classificador UC-74 [DISSENY]
+participant IS as ManualRectificationService [PHP]
+participant PS as PaymentService [PHP]
+participant DB as BD fiscal SIF
+O->>C: Canviar A a B, nou preu superior, amb descomptes/despeses justificats
+C->>L: Verificar fons ja cobrats sobre A i fons transferibles
+C->>F: Determinar diferència comercial i efecte fiscal sobre factura emesa
+alt Import/descompte incoherent o origen ja consumit
+ C-->>O: Conflicte, sense nou moviment
+else Decisió de canvi validada
+ C->>C: Registrar event, snapshots, destí i diferència pendent [PENDENT]
+ opt Fons d'A es transfereixen a B
+  C->>L: append(A→B, import transferit, UUID_PAYMENT original)
+ end
+ opt Cal rectificativa segons UC-74
+  C->>IS: Tramitar UC-05; factura R separada i vinculació traçada
+ end
+ C-->>O: Nova obligació pendent: encara NO hi ha CHARGE per la diferència
+ Payer->>O: Efectua pagament addicional en un moment posterior
+ O->>C: Verificar ingrés nou, factura/obligació vigent i destí B
+ C->>PS: registerPayment(payload real, allocation validada)
+ PS->>DB: BEGIN, INSERT moviment + assignació i COMMIT
+ PS-->>C: UUID_PAYMENT nou, després del COMMIT propi
+ C->>L: append(EXTERNAL→B, import real, UUID_PAYMENT nou) [PENDENT]
+ C-->>O: Diferència efectivament cobrada; resultat econòmic correlacionat
+end
+Note over C,L: Una diferència de preu és deute, no ingrés. Coordinació, ledger i classificació final pendents.
+```
+
+## 5.5. Acció amb import inferior: decidir i executar devolució o saldo sense duplicar fons — OBJECTIU
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador autoritzat" as O
+actor "Titular del dret econòmic" as T
+rectangle "SIF i inscripcions — canvi A a B" {
+ usecase "UC-71\nCanviar curs a preu inferior" as Low
+ usecase "Comprovar diners efectivament\ncobrats i disponibles" as Verify
+ usecase "UC-28\nRegistrar devolució executada" as Refund
+ usecase "UC-29\nConcedir saldo autoritzat" as Credit
+ usecase "UC-74\nClassificar correcció fiscal" as Fiscal
+}
+O --> Low
+T --> Low
+Low ..> Verify : <<include>> [OBJECTIU]
+O --> Refund
+O --> Credit
+O --> Fiscal
+note bottom of Low
+ Retorn, saldo o cap retorn són decisions excloents
+ per cada tram justificat, no efectes automàtics.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+actor T as Pagador/titular legitim
+participant C as CourseChangeCoordinator [DISSENY]
+participant L as Ledger per inscripció [PROPOSTA]
+participant F as Classificador UC-74 [DISSENY]
+participant R as ManualRefundService [PHP]
+participant S as CreditBalanceService [PHP]
+participant Bank as Evidència de sortida bancària
+O->>C: Confirmar canvi A→B més barat i decidir excés justificat
+C->>L: Rellegir ingressos originals, devolucions, saldos i disponible d'A
+C->>F: Classificar diferència de servei/import ja facturat
+alt No existeixen diners cobrats disponibles o titularitat dubtosa
+ C-->>O: No generar REFUND ni saldo fictici; mantenir expedient pendent
+else Hi ha fons disponibles i canvi aprovat
+ C->>L: Registrar únicament import traspassat A→B [PENDENT]
+ C->>C: Conservar excedent per tram i decisió del titular [PENDENT]
+ T->>O: Indica destí del dret econòmic
+ alt Retorn aprovat però encara no executat pel banc
+  C-->>O: Retorn pendent; cap REFUND
+ else Retorn efectivament executat i acreditat
+  Bank-->>C: Referència bancària de sortida i import real
+  C->>R: registerByUuid(factura/input refund verificat) [integració pendent]
+  R-->>C: UUID_PAYMENT_REFUND
+  C->>L: Registrar A→EXTERNAL amb import/UUID de retorn [PENDENT]
+ else Saldo aprovat a titular identificat
+  C->>S: createCredit(input amb titular, import i origen) [enllaç pendent]
+  S-->>C: UUID_CREDIT
+  C->>L: Registrar A→CREDIT, sense CHARGE nou [PENDENT]
+ end
+ opt Cal corregir factura original
+  F-->>C: Derivar a UC-05 amb motiu i imports aprovats
+ end
+ C-->>O: Estat per tram, fase fiscal i econòmica diferenciades
+end
+Note over R,L: El servei actual de devolució exigeix factura i el ledger és proposta. No afirmar que aquestes fases són un commit únic.
+```
+
+**Proves específiques noves pendents:** mateix preu amb concepte distint i factura emesa; canvi a curs més car sense ingrés posterior; dos cobraments parcials de diferència amb retorn de callback tardà; canvi més barat amb retorn acordat però banc no executat; titular econòmic empresa diferent del participant; saldo creat una única vegada; reversió d'un canvi ja regularitzat. Cap d'aquests diagrames acredita un `CourseChangeCoordinator` operatiu al PHP actual.
 ## 6. Proves funcionals requerides (no executades)
 
 - Canvi al mateix preu però amb concepte diferent; canvi més car amb cobrament posterior; més barat amb devolució/saldo; canvi abans de la factura; canvi amb fraccions pendents; pagador empresa; primer/segon canvi i despeses de gestió.
