@@ -152,14 +152,14 @@ opt Document fiscal de nova part/correcció classificada
  I-->>C: UUID del document emès
 end
 alt Import compromès però encara no cobrat
- C-->>UI: Inscripció/documents i deute pendent; cap CHARGE
+ C-->>UI: Inscripció/documents i deute pendent, cap CHARGE
 else Nou pagament extern confirmat
  C->>P: registerPayment(CHARGE real, factura que pertoqui)
  P-->>C: UUID_PAYMENT nou
  C->>L: append(EXTERNAL→B, import cobrat, UUID_PAYMENT)
  C-->>UI: Estat de fases i fons de B
 end
-Note over C,G: Orquestració i registre de fons NO implementats; no modificar factura F original.
+Note over C,G: Orquestració i registre de fons NO implementats, no modificar factura F original.
 ```
 
 ## 5. Traçabilitat
