@@ -199,7 +199,7 @@ else Ingrés nou i dues factures vigents
  UI->>Pay: registerPayment(CHARGE, allocations=[factura A, factura B])
  Pay->>DB: Un CHARGE i dues assignacions en transacció
  Pay-->>UI: UUID_PAYMENT únic
- UI-->>O: Cobraments atribuïts; sincronització llegada posterior
+ UI-->>O: Cobraments atribuïts, sincronització llegada posterior
 end
 Note over UI,Rec: La verificació bancària, la conciliació transversal i l'adaptador multifactura encara no consten com a codi integrat.
 ```
@@ -267,7 +267,7 @@ else Entrada real confirmada
   end
  else Mateixa referència lliure però distint event bancari
   DB-->>R: Clau textual coincident, però una altra entrada real
-  R-->>G: CONFLICT de clau actual; desambiguar event, no fusionar els ingressos
+  R-->>G: CONFLICT de clau actual, desambiguar event, no fusionar els ingressos
  end
 end
 Note over R,A: El resolvedor de fet bancari i l'assignació de moviment existent no estan implementats als serveis PHP revisats.
