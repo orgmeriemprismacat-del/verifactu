@@ -30,6 +30,27 @@ La migració d'auditoria defineix `sif_version` amb `UUID_VERSION`, `VERSION_COD
 
 **Pendents:** model de report de proves per versió, writer de `sif_version` i `sif_declaration`, exclusivitat `ACTIVE`, verificació del runtime desplegat, procediment d'aprovació formal i proves d'activació/rollback. No s'ha activat cap versió ni executat gate en aquesta revisió.
 
+### 2.1. Fitxa de verificació del desplegament per procés i declaració associada
+
+**Prova de preproducció amb abast limitat.** `sif/scripts/go-no-go-preproduction.php` només accepta `SIF_ENV=test/preproduction` a `environment_not_production` i retorna expressament `production_authorized=false`. `preflight-aeat-worker.php` informa de prerequisits locals i alertes de cua. **Cap dels dos compara en una petició productiva el hash dels bytes PHP servits amb `sif_version.ARTIFACT_HASH` o `sif_declaration.DOCUMENT_HASH`**. Un resultat favorable en un informe de proves no pot esdevenir una activació per copiar `STATUS=ACTIVE` a SQL; cal comprovar l'artefacte, l'entorn, el transport real i l'abast que la declaració documenta.
+
+**No hi ha una sola «versió del servidor» si els processos discrepen.** La ruta de compra/redirecció, `sif/public/api/redsys/callback.php`, el worker de notificacions Redsys, el worker fiscal i la generació de PDF poden usar **processos i moments de desplegament diferents**. La fitxa objectiu registra per component **Git revision, hash executable, configuració sense secrets, migració SQL observada, emissor configurat, instant i entorn**; correlaciona aquests valors amb `UUID_VERSION` i la declaració aprovada. No atribuir a tot `pay.prisma.cat` la versió que només ha acreditat el procés HTTP de consulta.
+
+**Moment de tall i callbacks en vol.** Quan s'activa una candidata mentre una `DS_ORDER` antiga té callbacks en cua i hi ha jobs AEAT `PROCESSING`, conservar l'origen, snapshot i UUIDs de cadascun; decidir si poden acabar-se amb el procés anterior o amb un successor compatible. Un canvi de versió **no** crea una altra intenció, factura, registre ni moviment bancari; si la nova versió modifica l'esquema o la signatura, comprovar compatibilitat amb dades en cua abans de reactivar el worker. Si el procés antic no es pot retirar de seguida, marcar explícitament estat de desplegament **mixt**, no `ACTIVE` homogeni.
+
+**Declaració i evidència real.** `sif_declaration.DOCUMENT_HASH` i `STORAGE_KEY` són metadades de SQL, **no** prova que el PDF/document aprovat existeixi físicament ni que el hash coincideixi amb els bytes. Verificar fitxer protegit, aprovador, abast, versió i entorn de la candidata **abans** de donar-li caràcter de declaració associada. Si manca un document o la declaració correspon a un artefacte antic, registrar incidència i impedir l'afirmació de conformitat; no regenerar una declaració a partir d'una plantilla i signar-la automàticament per omplir la fila.
+
+### 2.2. Proves de versió efectiva i tall (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| VT-83-01 | Preflight preproducció favorable i `production_authorized=false` | No declarar versió productiva autoritzada per aquest resultat. |
+| VT-83-02 | HTTP serveix nova versió mentre el worker AEAT continua a l'antiga | Evidència per procés i estat mixt, sense donar per homogeni `ACTIVE`. |
+| VT-83-03 | Document de declaració SQL present però bytes de `STORAGE_KEY` absents | Evidència incompleta i bloqueig de l'afirmació d'associació/verificació. |
+| VT-83-04 | `DS_ORDER` en cua durant canvi incompatible de worker | Conservar intent/cobrament i classificar compatibilitat abans de reprendre; cap segona venda. |
+| VT-83-05 | Activació BD confirmada però falta una migració al runtime | Estat parcial i gate de desplegament no superat, sense reemetre per reparar. |
+| VT-83-06 | Restaurar codi anterior després de cobrar en versió nova | Conciliació dels fets posteriors al tall, no restauració cega de dades fiscals. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
