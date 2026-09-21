@@ -143,7 +143,7 @@ S->>B: Verificar entrada única i pagador
 B-->>S: Referència i 120 € acreditats
 S->>U: Registrar origen extern i pendent 20 € [mètode pendent]
 S->>P: Registrar una sola entrada real amb atribució 100 € [model a ampliar]
-Note over P,U: La ruta PHP actual no permet reservar 20 € sense assignació fiscal
+Note over P,U: El PHP pot desar 120 amb allocation de 100, però no reserva ni gestiona el sobrant de 20 amb estat propi
 S->>L: Atribuir 100 € a la inscripció legitimada
 alt Decideix retornar 20 € i consta sortida bancària
  Op->>Refund: Registrar REFUND real de 20 € amb origen verificat
@@ -293,59 +293,7 @@ Note over S,C: createCredit() no demostra que l'excedent concret financi el sald
 | EX-104-04 | Es decideix retorn de 20 però banc encara no l'ha executat | Expedient pendent, cap REFUND fins a evidència de sortida real. |
 | EX-104-05 | Retorn real de sobrant no assignat a cap factura | Model i registre de sortida amb vincle a l'ingrés, sense inventar una assignació fiscal a F1. |
 | EX-104-06 | Saldo de 20 ja concedit, petició repetida | Mateix dret econòmic i UUID_CREDIT idempotent; no duplicar saldo. |
-### 4.1. Acció independent: detectar i delimitar l'excés extern — DISSENY
-
-**Disparador:** ingrés bancari/TPV real identificat per referència i import que no coincideix amb el deute verificat. **Postcondició pròpia:** expedient de conciliació amb pagador, ingrés original, factures candidates, import aplicable i import encara no destinat, sense emetre documents ni crear un segon `CHARGE`. La mera comparació entre import bancari i una única factura no basta si el pagador té més factures vinculades.
-
-```plantuml
-@startuml
-left to right direction
-actor "Operador cobraments" as Op
-actor "Font bancària/TPV verificada" as Bank
-rectangle "SIF PrisMa — excés de cobrament (OBJECTIU)" {
- usecase "UC-104 / detecció\nIdentificar excés real" as Detect
- usecase "UC-56\nCercar ingrés i deutes vinculats" as Lookup
- usecase "UC-25a/51\nDescartar notificació duplicada" as Dedup
- usecase "Delimitar import atribuït\ni sobrant del mateix ingrés" as Split
-}
-Op --> Detect
-Bank --> Detect
-Detect ..> Lookup : <<include>>
-Detect ..> Dedup : <<include>>
-Detect ..> Split : <<include>>
-@enduml
-```
-
-```mermaid
-sequenceDiagram
-autonumber
-actor O as Operador
-participant B as Banc o Redsys [origen real]
-participant S as Coordinador d'excés [DISSENY]
-participant L as Consulta de pagaments i factures/UC-56 [PENDENT]
-participant U as Expedient de sobrant [DISSENY]
-O->>S: Revisar entrada externa 120 i factura F de 100
-S->>B: Comprovar referència, beneficiari i fet de caixa
-alt És el mateix ingrés o callback ja registrat
- B-->>S: Moviment repetit, sense nou abonament
- S-->>O: Reutilitzar UUID_PAYMENT/UC-51; no declarar excés
-else Ingrés efectiu singular
- B-->>S: Referència bancària única, pagador i 120
- S->>L: Cercar altres factures, assignacions, retorns i titular real
- alt Existeixen obligacions elegibles addicionals de 20
-  L-->>S: Total justificat 120; no és un excés
-  S-->>O: Conciliar destinacions amb UC-56 sense segon CHARGE
- else Només 100 atribuïbles de forma acreditada
-  L-->>S: 100 assignables i 20 pendents
-  S->>U: Obrir expedient sobre mateix ingrés, saldo 20 i pagador
-  U-->>S: Identificador d'expedient i estat PENDING_DECISION [OBJECTIU]
-  S-->>O: Mostrar 100 imputables i 20 bloquejats per decisió
- end
-end
-Note over S,U: Consulta/expedient/coordinador no s'acrediten al PHP actual.
-```
-
-### 4.2. Acció independent: decidir el destí dels 20 € — DISSENY
+### 4.6. Acció independent: autoritzar i registrar la decisió sobre els 20 € — DISSENY
 
 **Disparador:** un excés ja confirmat i encara disponible. **Actor:** responsable amb permís específic. **Resultat:** decisió auditada, sense donar per executat un reemborsament ni crear automàticament un crèdit sense traçar-ne l'origen. Una decisió pendent és un estat vàlid. Cal controlar intents de resolució simultanis sobre els mateixos 20 €.
 
@@ -396,48 +344,7 @@ end
 UI-->>R: Estat i justificació, sense afirmar retorn bancari prematur
 ```
 
-### 4.3. Accions de resolució: assignar, retornar o concedir saldo — DISSENY, amb serveis parcials existents
-
-**Rama assignació:** UC-56 requereix afegir una assignació al `UUID_PAYMENT` original, no generar un segon ingrés. **Rama devolució:** UC-28/`ManualRefundService` registra `REFUND` sobre una factura existent i només després de la sortida real; per a un sobrant no associat a factura, aquest constructor no resol per si mateix la traçabilitat del retorn. **Rama saldo:** `CreditBalanceService::createCredit()` sí que persisteix un saldo nou amb titular i origen informats, però el seu constructor no obliga a provar l'ingrés/UUID_PAYMENT real, la quantitat no assignada ni l'absència d'una resolució prèvia. L'orquestració i la reserva del sobrant són pendents.
-
-```mermaid
-sequenceDiagram
-autonumber
-actor R as Responsable
-participant S as Coordinador de resolució [DISSENY]
-participant U as Saldo no assignat + origen [DISSENY]
-participant A as Assignació d'ingrés existent/UC-56 [DISSENY]
-participant F as ManualRefundService/UC-28 [PHP parcial]
-participant C as CreditBalanceService/UC-29 [PHP]
-participant DB as BD SIF
-R->>S: Executar decisió aprovada de 20
-S->>U: Bloquejar i comprovar que segueix disponible
-alt Aplicar a una altra factura legítima
- S->>A: allocate(UUID_PAYMENT_original, nova factura, 20, id_comanda)
- A->>DB: Afegir assignació al mateix moviment [OBJECTIU]
- A-->>S: UUID_PAYMENT original; cap segon CHARGE
-else Retornar efectivament al pagador
- S->>U: Comprovar titular, import i traça d'ordre bancària
- Note over S,F: La mera ordre al banc NO és un REFUND executat.
- opt Hi ha confirmació inequívoca de sortida
-  S->>F: Registrar REFUND de 20 amb origen i document correcte
-  F-->>S: UUID_PAYMENT_REFUND si la factura destí és vàlida
- end
-else Concedir saldo a titular legitimat
- S->>U: Validar que 20 no han estat retornats ni assignats
- S->>C: createCredit(holder,20,source) [servei existent]
- C->>DB: INSERT credit_balance i COMMIT propi
- C-->>S: UUID_CREDIT
- Note over S,C: Reserva origen/anti-doble ús del sobrant: PENDENT.
-else Cap resolució aprovada
- S-->>R: Deixar expedient obert; 20 no utilitzables automàticament
-end
-S->>U: Persistir import resolt i saldo disponible [OBJECTIU]
-S-->>R: Resultat traçat o incidència de recuperació
-Note over S,DB: No hi ha transacció global acreditada entre banc, UC-56, REFUND, credit_balance i expedient.
-```
-
-### 4.4. Contractes del codi que condicionen la resolució
+### 4.7. Contractes del codi que condicionen la resolució
 
 | Control | Observació contrastada | Prova específica pendent |
 | --- | --- | --- |
