@@ -31,6 +31,27 @@ La migració de cicle d'operació defineix `academic_economic_state_event` amb `
 
 **Proves concretes pendents:** alumne supera curs però paga l'empresa amb retard; grup pagat amb una inscripció de baixa; pròrroga activa; certificat ja emès; desconnexió Moodle; reintent de baixa; accés correcte però deute llegat erroni; permisos de consulta de factura d'empresa.
 
+### 2.1. Reclamacions llegades amb i sense certificat i accés a regularitzar
+
+**Classificacions que ja utilitza la intranet.** El diccionari `consultesBD_Web` de `Intranet.php` inclou, entre d'altres, `cnsAlumnClaimAlumnNoCertMoros`, `cnsAlumnClaimAlumnCertMoros` i `cnsAlumnClaimEntMoros`. El circuit llegat distingeix, doncs, **alumnat morós amb/sense certificat i entitats amb deute** a les consultes de reclamació. Aquestes claus no especifiquen per si soles el criteri que permet obtenir, suspendre o retirar un certificat, ni demostren que la BD Moodle i la BD fiscal comparteixin una mateixa transició. La política d'accés, expedició i reclamació per estat continua pendent de formalitzar a UC-95/96.
+
+**Una persona amb deute ha de poder regularitzar-lo.** Els procediments de `Consulta - Modifica alumne` indiquen expressament que **no s'ha de bloquejar la possibilitat de pagar a qui és morós**. Quan una factura és d'empresa i cobreix N participants, el canal individual no ha de recuperar una URL pròpia desactivada: oferir informació mínima d'estat i derivar a la via autoritzada del pagador. **Accés al curs** i **accés al pagament** són permisos diferents; la baixa operativa `INSC_CURS` i els camps `reclamat/data_reclamacio` no demostren per si sols deute individual bancari ni un mandat d'anul·lar la factura d'empresa.
+
+**Certificat ja emès i ingrés tardà.** Si existeix certificat, conservar-ne l'evidència abans de decidir qualsevol canvi d'accés o de titulació; no eliminar-lo com a efecte indirecte d'una consulta de morositat. Si una transferència/TPV ha confirmat `UUID_PAYMENT` però l'antic `PAGAMENT` o la matrícula Moodle segueixen pendents, separar: (1) reconciliació fiscal/econòmica UC-53/82, (2) estat d'inscripció i regla de certificat UC-95/124 i (3) actualització efectiva del destí UC-129. **El pagament de factura de grup no és una imputació individual acreditada** si falta el repartiment per `ID_INSC`.
+
+**Baixa acadèmica i baixa econòmica no són la mateixa acció.** Els writers llegats `updClaimDonarBaixa` i `updInscCursBaixaiMoros` són punts d'actualització operativa amb impacte acadèmic; una baixa no crea automàticament una rectificativa, un saldo o una devolució. Un reintent de sincronització de la baixa/certificat conserva `UUID_FACTURA` i `UUID_PAYMENT` originals, consulta el resultat al destí i reexecuta únicament el canvi acadèmic encara pendent.
+
+### 2.2. Proves addicionals de certificació i reclamació (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AC-124-01 | Alumne morós classificat per `cnsAlumnClaimAlumnCertMoros` | Consultar certificat ja existent i regla aprovada; no revocar-lo automàticament. |
+| AC-124-02 | Alumne morós sense certificat amb factura d'empresa pendent | Separar responsabilitat del pagador, estat acadèmic i elegibilitat del certificat. |
+| AC-124-03 | Pagament real SIF però `PAGAMENT` llegat segueix 0 | Reparar només el resum/accés pendent, cap segon cobrament. |
+| AC-124-04 | Baixa de participant de grup amb ingrés únic de l'empresa | Decisió individual d'accés i econòmica; cap `REFUND` al participant per defecte. |
+| AC-124-05 | Estudiant morós vol regularitzar i no té URL individual vàlida | Via de pagament del titular autoritzat disponible; no desbloquejar URL coberta per factura d'empresa. |
+| AC-124-06 | Baixa acadèmica confirmada i expedient fiscal encara pendent | Mostrar les dues fases separadament, sense donar l'operació sencera per resolta. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
