@@ -189,7 +189,7 @@ CR->>DB: INSERT UUID_CREDIT_B ACTIVE 80
 TR->>DB: COMMIT
 S-->>UI: UUID_CREDIT_B, diferent d'A
 UI-->>O: Dues altes per un mateix origen si cap control extern ho impedeix
-Note over S,DB: Aquest resultat es dedueix de la ruta PHP examinada; no s'ha provat amb base de dades en aquesta revisió.
+Note over S,DB: Aquest resultat es dedueix de la ruta PHP examinada, no s'ha provat amb base de dades en aquesta revisió.
 ```
 
 ### 4.2. Acció objectiu: confirmar el dret econòmic i recuperar l'alta idempotent
@@ -237,11 +237,11 @@ else Origen/acord aprovats
   D-->>A: Reutilitzar saldo A sense una altra alta
  else Event X amb import/titular contradictoris
   DB-->>D: CONFLICT
-  D-->>A: Incidència; no crear ni mutar saldo
+  D-->>A: Incidència, no crear ni mutar saldo
  else Event X nou i import disponible
   D->>C: createCredit(input normalitzat, identificador d'origen) [API ampliada]
   C->>R: Alta de saldo + registre de valor consumit dins una transacció [OBJECTIU]
-  R->>DB: INSERT credit_balance i checkpoint d'origen; COMMIT
+  R->>DB: INSERT credit_balance i checkpoint d'origen, COMMIT
   R-->>C: UUID_CREDIT_A
   C-->>D: UUID i estat ACTIVE
   D-->>A: Alta confirmada i correlacionada
