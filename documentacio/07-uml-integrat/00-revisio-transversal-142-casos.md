@@ -7,7 +7,7 @@
 | Bloc transversal | Evidència actual | Conseqüència sobre els casos |
 | --- | --- | --- |
 | Autorització dels endpoints fiscals | `public/api/factures/issue.php` i `public/api/payments/register.php` construeixen els serveis des del JSON d'entrada; **no hi ha comprovació visible de sessió/rol als fitxers revisats**. Pot existir protecció externa, però no està acreditada al repo. | UC-41/42/49/62/92/99/101/102 i qualsevol adaptador d'intranet/web no es pot donar per segur només perquè el servei de domini existeixi. |
-| Idempotència de pagaments | `PaymentService` busca per `idempotency_key` i, si existeix, retorna el moviment anterior; **no compara tot el payload nou** amb el moviment existent. | Una mateixa clau amb import/origen contradictori necessita validació de negoci superior. Una clau nova per la mateixa transferència continua sent risc de doble `CHARGE`. |
+| Idempotència de factura i pagaments | `InvoiceService` i `PaymentService` reutilitzen per clau sense comparar tot el payload nou amb l'original. En canvi, `RedsysPaymentIntentService` sí compara DS_ORDER, import, origen, terminal, snapshot, actor i caducitat. | Una mateixa clau de factura/pagament amb contingut contradictori necessita un guard superior. A més, un retry de factura existent amb un bloc `payment` nou **no crea aquell pagament** si no existeix: cal cobrament posterior explícit. |
 | Diners per inscripció | `payment_allocation` assigna a factura i `fact_rels` relaciona orígens, però **cap dels dos modela l'import atribuït a cada `ID_INSC`**. `enrollment_fund_movement` continua proposta. | Canvis de curs, grups, packs, descomptes tardans, refund parcials, saldos i transferències internes no poden reconstruir-se quantitativament per participant amb l'esquema actual. |
 | Grup i línia fiscal | `LegacyGroupInvoicePayloadBuilder` crea una línia per inscrit i el responsable com a receptor; `InvoiceRepository::insertRelations()` no omple `ID_FACTURA_LINIA`. | Relacionar tres inscrits a una factura no prova quina línia/import correspon a cadascun ni concedeix accés al PDF. |
 | Aritmètica de línies | `InvoicePayloadValidator` comprova camps i numericitat, però no totes les invariants aritmètiques transversals. El builder de curs sí comprova alguns totals; el de grup no acredita la mateixa regla en tots els inputs. | Cal un validador monetari comú amb decimals/cèntims abans de donar per tancats UC-88/90/91/94 i combinacions multiconcepte. |
@@ -21,6 +21,16 @@
 | Runtime i desplegament | Scripts manuals i d'històric revisats rebutgen `SIF_ENV=production`; no s'ha comparat la branca amb el PHP/FTP, DNS/TLS, crons i callbacks reals. | UC-39/46/57/60/64/67/68/83/85/101 continuen necessitant inventari i prova de runtime. |
 
 ## 2. Bloquejos que convé resoldre abans d'ampliar més PHP
+
+### B0 · Guards de payload i conservació monetària
+
+La lectura directa del core confirma dues mancances que afecten moltes fitxes:
+- `InvoiceService` **reutilitza la factura per clau sense comparar receptor, línies, totals o relacions** amb el nou payload.
+- `PaymentService` **reutilitza el moviment per clau sense comparar-ne el `PAYLOAD_HASH`**.
+- `PaymentPayloadValidator` no comprova que `amount > 0`, que les assignacions siguin positives ni que la suma d'`allocations.amount` sigui igual a l'import del moviment.
+- `RedsysPaymentIntentService` és diferent: en reutilitzar `DS_ORDER`, sí comprova la intenció completa i fa `conflict` si canvia.
+
+Per això convé incorporar un **guard d'equivalència de payload** i un **validador de conservació monetària** abans de confiar en la idempotència del core. Vegeu [Auditoria de contractes core PHP](00-auditoria-contractes-core-php.md).
 
 ### B1 · Gateway d'autorització únic per accions fiscals
 
@@ -102,8 +112,8 @@ La UC-96 deixa expressament pendent **la data exacta** i la base de còmput de l
 
 Això **no és una prioritat de negoci**, sinó un ordre de dependències tècniques que minimitza reimplementacions:
 
-1. **Autorització/gateway de comandes** + identitat i recursos.
-2. **Validació monetària comuna** i idempotència amb comparació de payload.
+1. **Guard de payload/idempotència + conservació monetària** per factura i pagament.
+2. **Autorització/gateway de comandes** + identitat i recursos.
 3. **Ledger de fons per inscripció** i invariants de grup/pack.
 4. **Routing d'emissor** i decisió botiga/SL abans d'afegir més tipus de venda.
 5. **Storage/document access** amb hash i auditoria.
@@ -240,6 +250,7 @@ end
 ## 6. Fonts i navegació
 
 - [Índex complet 142/142](README.md)
+- [Auditoria de contractes core PHP](00-auditoria-contractes-core-php.md)
 - [Matriu del catàleg](00-matriu-cobertura-cataleg.md)
 - [Model general de classes](00-model-classes-general.md)
 - [Moviments quantitatius per inscripció](00-revisio-moviments-inscripcions.md)
