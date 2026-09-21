@@ -82,6 +82,14 @@ La [UC-06](uc-006-devolucio-saldo-compensacio.md) documenta com a **disseny** un
 
 **Proves noves només dissenyades, no executades:** EI-07…10, CP-02-08…11, TR-09…12. Els diagrames per acció i el model transversal identifiquen guard de payload/cobertura i cerca d'event bancari com a **DISSENY**, no com a PHP existent.
 
+### Identificació d'ingressos fraccionats i de reclamacions entre canals (21/09/2026)
+
+La [UC-23](uc-023-registrar-fraccio.md) distingeix el guard **ID_INSC↔UUID_FACTURA** de l'alta d'una quota, la reconciliació d'una entrada prèvia UC-22/Redsys i la recuperació del moviment amb clau coincident entre **dues factures**. `ManualInstallmentPaymentPayloadBuilder` calcula `MANUAL|FRACCIO|ID_INSC/dia/import/usuari` i deixa fora la referència bancària i la factura. `ManualInstallmentPaymentService` afegeix a la resposta la factura sol·licitada encara que la clau hagi recuperat un `UUID_PAYMENT` assignat a una altra: és possible una resposta `UUID_PAYMENT_F1 + uuid_factura=F2` **sense assignació F2**. Les proves PHP localitzades només repeteixen la primera fracció i creen una segona d'import/data diferents, no resolen dos ingressos reals amb la mateixa clau.
+
+La [UC-24](uc-024-registrar-cobrament-reclamacio.md) separa la identificació **d'expedient de reclamació** de la identitat **de cada abonament real**, un segon ingrés parcial legítim i el tancament posterior del deute del cas. El constructor prioritza `claim_reference` per formar `CLAIM|REF:<ref>`; si representa l'expedient, dos cobraments E1/40 i E2/30 poden compartir clau i el segon retorna el UUID del primer. La mateixa entrada bancària E1 registrada abans per `TRANSFERENCIA|REF` i després per `CLAIM|REF` pot, al contrari, generar **dos CHARGE** per claus diferents sense conciliació transversal. El tancament de reclamació no el fa `ClaimPaymentService`; els estats `CLAIM_PARTIAL`/`CLAIM_SETTLED` dibuixats són DISSENY.
+
+El [model de classes general](00-model-classes-general.md), la [matriu d'accions](00-matriu-traçabilitat-accions-revisades.md) i les files 19/20/21 de [pantalles pendents](00-matriu-25-pantalles-per-validar.md) inclouen aquestes fronteres. **No s'han executat proves PHP/MySQL, renderitzat UML ni validat ruta de panell/identificació bancària real.** No se'n deriva la creació d'una UC numèrica nova sense contrast de pantalla.
+
 ## 6. Condicions per marcar una acció com a revisada
 
 - Cas d'ús: flux principal, alternatives/denegacions, dades i proves revisats específicament; no text duplicat d'un altre cas.
