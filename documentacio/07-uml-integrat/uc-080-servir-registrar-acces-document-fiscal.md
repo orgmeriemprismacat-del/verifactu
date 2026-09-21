@@ -196,7 +196,7 @@ else Actor i àmbit validats
  S->>Av: Verificar disponibilitat real dels fitxers que es mostraran
  Av-->>S: AVAILABLE/PENDING/ERROR per document [OBJECTIU]
  S->>Log: Registrar consulta per recursos mostrats [OBJECTIU]
- S-->>UI: Metadades filtrades; sense path privat ni token reutilitzable
+ S-->>UI: Metadades filtrades, sense path privat ni token reutilitzable
 end
 UI-->>A: Llistat restringit o denegació
 Note over S,Log: Servei/endpoint, política i writer encara no acreditats. Consultar el llistat no significa haver descarregat bytes.
@@ -248,7 +248,7 @@ else Autoritzat per a aquest document
  alt Document absent o només metadata no verificada
   DB-->>S: PENDING/NOT_VERIFIED
   S->>Log: Registrar resultat DOCUMENT_UNAVAILABLE [OBJECTIU]
-  S-->>A: No disponible; sense regenerar factura ni QR fiscal
+  S-->>A: No disponible, sense regenerar factura ni QR fiscal
  else Metadata existent
   DB-->>S: Referència a bytes privats
   S->>Store: readAndVerify(path,hash) i contrastar font
@@ -271,7 +271,7 @@ else Autoritzat per a aquest document
   end
  end
 end
-Note over Auth,Store: Endpoints i writer no acreditats; la revisió final de permisos i la finestra temporal de revocació requereixen prova de concurrència.
+Note over Auth,Store: Endpoints i writer no acreditats, la revisió final de permisos i la finestra temporal de revocació requereixen prova de concurrència.
 ```
 
 **Precisió SQL i PHP:** `fiscal_document_access.REQUEST_ID` **no té unicitat** a la migració; és un camp de traça, no un bloqueig de doble descàrrega ni una credencial de consulta. `DocumentRepository::registerDocument()` retorna només `ok` i `hash` després d'inserir metadata; no serveix bytes ni acredita que el fitxer existeixi. No intentar resoldre permisos només per `VISIBLE_ALUMNE`, `TOKEN_FINGERPRINT` o l'enllaç que conserva el navegador.
