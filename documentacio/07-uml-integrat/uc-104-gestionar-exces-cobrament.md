@@ -38,6 +38,27 @@
 
 **Bloquejant:** persistència i conciliació d'ingressos no assignats, permissos/titularitat, verificació import retornable, idempotència entre canals i registre quantitatiu d'atribucions per inscripció. Cap prova de UC-104 executada.
 
+### 1.3. Excés real, doble notificació i decisió de devolució o saldo — xat i operativa
+
+**Decisió de negoci comunicada.** Quan una persona ingressa **més diners dels que correspon pagar**, PrisMa consulta si vol **devolució** o deixar l'excedent **com a saldo per una altra inscripció**. Aquesta decisió es pren sobre el diner efectivament ingressat que queda disponible: una notificació Redsys repetida amb la mateixa `DS_ORDER` no és un segon pagament ni genera un excés de caixa. Tampoc tota diferència entre `A_PAGAR` i `PAGAMENT` és un excés: en una factura prèvia pot existir deute pendent i, en grups, el pagament pot cobrir més d'una factura legítima.
+
+**Detecció per origen i titular.** Abans de proposar retorn/saldo, cercar `UUID_PAYMENT` i referència bancària/TPV, totes les `payment_allocation`, possibles altres factures del pagador, devolucions reals i titular econòmic. En una transferència d'empresa amb una factura pendent de 100 € i una altra de 20 €, ingressar 120 € **no és excés de 20 €** si la transferència efectivament cobreix totes dues; el mateix import pot ser excés si la segona factura no està relacionada amb el pagador. No atribuir el sobrant a un alumne del grup per defecte.
+
+**Persistència no acreditada del sobrant.** El servei actual `PaymentPayloadValidator` exigeix una o més assignacions a factura i `PaymentRepository::createPayment()` insereix les que rep. Per tant, la fitxa no ha de donar per implementat un import extern confirmat **parcialment sense assignar** ni un origen bancari separat del crèdit concedit. Cal definir la ruta d'ingrés no assignat i enllaçar la posterior decisió UC-28/29/56 amb l'entrada única, sense inventar `UUID_FACTURA` ni augmentar `factura.TOTAL` per quadrar la caixa.
+
+**Moment de sortida o aplicació.** Acceptar una devolució deixa una ordre o decisió **pendent** fins que l'entitat bancària realment retorna diners; UC-28 registra després el `REFUND` únic. Concedir saldo no és un `REFUND` ni un `CHARGE` addicional, i UC-29 ha de conservar l'origen i titular perquè la futura `COMPENSATION` no torni a comptar ingressos. Si queda una fase sense executar, informar-la separadament en comptes de tancar l'expedient quan la factura ja està `PAID`.
+
+### 1.4. Proves addicionals d'excés segons origen (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| EX-01 | Dues notificacions del mateix pagament de 100 € | Un ingrés; cap excés fals ni saldo duplicat. |
+| EX-02 | Transferència de 120 € per dues factures legítimes de 100 € i 20 € | Una entrada, dues assignacions; cap excés. |
+| EX-03 | Transferència de 120 € per factura única de 100 € | Excedent 20 € sense factura fictícia, decisió pendent i origen traçat. |
+| EX-04 | Alumne de grup demana retorn de diners pagats per empresa | Verificar titular econòmic abans de retornar o crear crèdit. |
+| EX-05 | Client tria devolució però banc encara no l'ha executat | Cap `REFUND` confirmat; registrar decisió/estat pendent. |
+| EX-06 | Client tria saldo i després l'utilitza | Un crèdit d'origen i una aplicació `COMPENSATION`, no segon CHARGE. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
