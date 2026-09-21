@@ -42,6 +42,29 @@
 
 **Pendents:** pla de còpia coherent entre sistemes, script provat de restauració, exercicis d'injecció de fallades, taula/writer de conciliació executable, verificació amb banc/AEAT i política signada de reobertura. Cap backup ni restauració real s'ha executat en aquesta revisió.
 
+### 2.1. Restaurar un snapshot no equival a recuperar els efectes externs posteriors
+
+**Punt de tall verificable.** Preparar per cada còpia un manifest que relacioni l'instant T del snapshot SIF amb l'instant i versió de **la BD web**, `fiscal_sequence`, `fiscal_chain_state`, últim `factura_registres.FISCAL_ORDER`, jobs `fiscal_queue`, `redsys_notifications`, `payment_transaction/payment_allocation` i `factura_documents` més els fitxers privats. Si la BD fiscal es copia a T però la web s'ha copiat abans, no donar per garantida una correspondència automàtica `FACTURA_RELACIONADA ↔ UUID_FACTURA` ni inventar un snapshot distribuït coherent: anotar desfasament i exigir la reconciliació. `MigrationRunner::inspect()` pot inspeccionar el ledger de migracions i l'esquema SQL, però **no certifica per si sol** coherència temporal entre sistemes ni integritat d'arxius.
+
+**Una còpia antiga desconeix els fets posteriors.** Suposem que a T existeix una factura prèvia d'empresa pendent i a T+1 es confirma una transferència o callback TPV, es genera un `UUID_PAYMENT` i es notifica el receptor. Restaurar l'estat de T podria tornar a mostrar `PAGAMENT=0` o un job `PENDING` tot i existir ingrés real. Abans de reprendre `registerPayment()`, consultar la transacció externa, callbacks persistits fora de la còpia i la factura existent; registrar diferència per `DS_ORDER/referència bancària` i recuperar un sol moviment/assignació real **sense crear una segona factura ni repetir el correu d'èxit**.
+
+**Resposta AEAT posterior a l'enviament local.** `FiscalQueueRepository::recoverStaleLocks()` pot convertir un `PROCESSING` antic a `RETRY`, però no consulta l'AEAT per saber si el registre es va rebre. Després de restaurar un snapshot anterior al `complete()`, el job pot tornar a semblar executable encara que hi hagi una resposta externa. Abans d'engegar el worker, correlacionar `UUID_FACTURA + FISCAL_ORDER`, payload/XML i evidència de recepció externa; un transport amb resultat incert és **incidència de remissió**, no permís per crear una factura nova, una anul·lació o un segon registre per comoditat.
+
+**Arxius i credencials fora de la BD.** `factura_documents.PATH_FITXER/HASH_FITXER` poden sobreviure en el dump mentre es perd el PDF privat o la versió de plantilla. Verificar la presència dels **bytes**, hash i permís de lectura per a cada artefacte recuperat; no exposar un path públic ni declarar `CREATED` com a fitxer accessible. El P12 AEAT i el secret Redsys són dependències protegides **d'entorn**: una restauració de prova no ha de connectar-se al banc/AEAT productius ni copiar credencials actives a un espai no segregat.
+
+**Ordre de reobertura.** Rehabilitar per fases **només després** de classificar les diferències: primer lectura/consulta sota permisos, després operacions d'entrada amb idempotència verificada, després workers de notificacions/AEAT segons estat remot acreditat. L'ordre concret i les finestres es defineixen al runbook aprovat; aquestes fases són **proposta de control**, no orquestrador ja implementat. Una restauració «correcta» que no ha comprovat les transaccions bancàries posteriors a T continua parcial i no autoritza reprendre la facturació com si mai no hi hagués hagut l'incident.
+
+### 2.2. Proves de coherència entre snapshot i realitat externa (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| BR-85-01 | BD SIF restaurada a T i BD web a T−1 | Conciliar `ID_INSC/FACTURA_RELACIONADA` i UUIDs, no deduir consistència pel sol èxit dels dumps. |
+| BR-85-02 | Factura prèvia a T, ingrés bancari real i comunicació a T+1 | Recuperar ingrés únic i efectes ja completats; no factura ni email duplicats. |
+| BR-85-03 | SOAP AEAT acceptat després del snapshot i job restaurat com a PENDING | Comprovar evidència/resposta remota abans de transmetre de nou el mateix registre. |
+| BR-85-04 | Metadada de PDF al dump i bytes absents al storage recuperat | Integritat incompleta i incidència, cap descàrrega com a «original disponible». |
+| BR-85-05 | Restauració de test inclou per error credencial Redsys productiva | Aïllament i retirada del secret exposat; cap connexió productiva des de test. |
+| BR-85-06 | Totes les taules SQL restaurades però una devolució real posterior a T no hi consta | Registrar el moviment extern i reconciliar saldo; no comunicar «devolució pendent» com a fet segur. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
