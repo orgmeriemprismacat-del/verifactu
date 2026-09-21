@@ -151,7 +151,7 @@ S->>Repo: lockPaymentAndAllocations(uuidPayment)
 Repo->>DB: SELECT ... FOR UPDATE
 alt Import excedeix disponible o titularitat no acreditada
  Repo-->>S: Conflicte
- S-->>UI: Rebutjar i auditar; cap import creat
+ S-->>UI: Rebutjar i auditar, cap import creat
 else Validació coherent
  S->>Repo: appendAllocation(uuidPayment,F,amount)
  Repo->>DB: INSERT payment_allocation (UUID_PAYMENT existent)
@@ -210,12 +210,12 @@ else Consulta autoritzada
  Search->>DB: Buscar moviments + factures/relacions amb límit i paginació
  DB-->>Search: Candidats, pagador/receptor diferenciats i assignacions existents
  alt Cap coincidència confirmada
-  Search-->>UI: 0 resultats; no crear factura ni CHARGE automàtic
+  Search-->>UI: 0 resultats, no crear factura ni CHARGE automàtic
  else Un o més candidats
   Search-->>UI: UUID_PAYMENT + origen verificable i import disponible calculat
   UI-->>O: Mostrar coincidències amb dades limitades pel rol
   O->>UI: Seleccionar un UUID_PAYMENT i revisar detall
-  UI->>Search: Rellegir UUID i assignacions; confirmar titularitat
+  UI->>Search: Rellegir UUID i assignacions, confirmar titularitat
   Search-->>UI: Estat actual o conflicte per identitat ambigua
   UI-->>O: Consulta o selecció, sense efecte econòmic
  end
