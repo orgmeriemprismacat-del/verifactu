@@ -134,7 +134,7 @@ else Promo aplicable
  W->>Invoice: issueInvoice(payload + CHARGE real)
  Invoice-->>W: UUID_FACTURA i UUID_PAYMENT
 end
-Note over UI,V: La validació de vigència/versió és DISSENY; el builder només valida aritmètica.
+Note over UI,V: La validació de vigència/versió és DISSENY, el builder només valida aritmètica.
 ```
 
 ## 5. Traçabilitat
