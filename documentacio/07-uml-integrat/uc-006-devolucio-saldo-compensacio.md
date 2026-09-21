@@ -47,6 +47,27 @@ La tria UC-06 ha de desglossar **cada tram d'import**: una devolució és una so
 
 [Esquema proposat i exemple de repartiment](00-revisio-moviments-inscripcions.md).
 
+### 1.5. Separació de «A TORNAR», retorn real i decisió del client — xat original
+
+El xat confirma que després d'una baixa es modifica **primer** l'estat de la inscripció, però en aquell instant **no es toca necessàriament el pagament ni es genera rectificativa**. Es pregunta a la persona o al titular econòmic si vol **retorn**, **deixar els diners com a saldo** per a una altra ocasió o no retorn segons el cas. El modal històric «Consulta - Edita - Anul·la factura» ofereix `A TORNAR`, `DATA DEVOLUCIO` i observacions; aquests camps, per si sols, no separen una quantitat prevista, una devolució bancària real, saldo intern o correcció fiscal.
+
+**D-REAL — només ingrés/retorn real.** La usuària explica que el retorn pot fer-se per Redsys, transferència o manualment; el registre `REFUND` ha de referenciar l'operació externa real i la factura/inscripció afectada. En el procés que descriu, Adam confirma el retorn i **després** tramita la factura negativa/rectificativa. Aquest és l'ordre **històric del procediment de PrisMa**, no una regla fiscal universal ni evidència que `ManualRefundService` ordeni diners al banc. Fins que el retorn no estigui confirmat, conservar la decisió com a pendent i no simular un `REFUND`.
+
+**D-SALDO — de baixa, sobrepagament o diferència de curs.** La decisió d'atorgar saldo ha de partir d'un import efectivament cobrat i atribuït que no s'hagi retornat ni reassignat ja. Si es decideix retorn parcial més saldo, documentar i registrar cadascuna de les dues parts sense superar el fons original. Quan el pagador era empresa/responsable, **identificar el titular econòmic**, no donar el saldo automàticament a la persona inscrita. La usuària indica que els saldos de baixa no caduquen automàticament i que secretaria revisa els molt antics, per exemple de més de cinc anys; això és una pauta de revisió, no una caducitat de cinc anys.
+
+**D-COMPENSACIÓ — aplicar, no tornar a cobrar.** El valor de `credit_balance` és un dret reconegut; la seva aplicació posterior a una factura és un moviment `COMPENSATION` i redueix el saldo disponible. No confondre'l amb el **descompte comercial** que també es denomina col·loquialment «compensació» al xat: un descompte de preu necessita la seva classificació comercial/fiscal, no crear automàticament crèdit monetari sense diners d'origen. El cas mare UC-06 ha d'exposar la diferència de manera entenedora abans de confirmar.
+
+### 1.6. Proves addicionals d'elecció econòmica (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| EC-01 | Baixa administrativa encara sense resposta del client | Cap REFUND/credit_balance ni rectificativa creades per defecte. |
+| EC-02 | Client accepta retorn però el banc encara no ha pagat | Decisió PENDENT, sense moviment REFUND. |
+| EC-03 | 100 € cobrats i decisió 40 € retorn + 60 € saldo | Dos resultats diferents i suma exacta, cap segon CHARGE. |
+| EC-04 | Empresa ha pagat la inscripció d'un alumne | Titular de dret econòmic verificat abans de retorn/saldo. |
+| EC-05 | Saldo d'una baixa de més de cinc anys | Revisió manual; cap caducitat o esborrat automàtics. |
+| EC-06 | Descompte comercial anomenat «compensació» | No consumir ni crear credit_balance sense un origen econòmic justificat. |
+| EC-07 | Rectificativa ja emesa, banc encara no ha tornat diners | Estat fiscal diferenciat de la sortida monetària pendent, sense REFUND fictici. |
 ## 2. Diagrama UML de casos d'ús — alternatives independents
 
 ```plantuml
