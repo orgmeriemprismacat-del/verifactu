@@ -1,6 +1,6 @@
 # Matriu completa de cobertura UML del catàleg SIF
 
-**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 107 de 142 casos; 35 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original és històric i pot diferir de les evidències PHP/SQL de cada fitxa.
+**Base:** [142 fitxes originals](../06-fitxes-funcionals/README.md) i fitxes UML existents en aquesta branca. **Cobertura documental: 113 de 142 casos; 29 pendents de revisió específica.** Una fitxa revisada no acredita implementació, proves ni desplegament; l'estat del catàleg original és històric i pot diferir de les evidències PHP/SQL de cada fitxa.
 
 ## Cobertura per domini
 
@@ -9,7 +9,7 @@
 | facturació i registre fiscal | 33 | 27 | 6 |
 | pagaments i conciliació | 30 | 22 | 8 |
 | documents, accés i comunicacions | 11 | 8 | 3 |
-| governança i operació | 29 | 16 | 13 |
+| governança i operació | 29 | 22 | 7 |
 | integració SIF | 1 | 1 | 0 |
 | venda i descomptes | 7 | 7 | 0 |
 | canvis posteriors | 2 | 2 | 0 |
@@ -93,10 +93,10 @@
 | UC-54 | Operar la cua fiscal i tractar la resposta AEAT | `[DISSENY]` | [uc-054.md](../06-fitxes-funcionals/uc-054.md) | [Fitxa i diagrames](uc-054-operar-cua-fiscal-respostes.md) |
 | UC-55 | Generar, reintentar i custodiar documents fiscals | `[PARCIAL/DISSENY]` | [uc-055.md](../06-fitxes-funcionals/uc-055.md) | [Fitxa i diagrames](uc-055-custodiar-reintentar-documents.md) |
 | UC-56 | Cercar i assignar un cobrament | `[PARCIAL]` | [uc-056.md](../06-fitxes-funcionals/uc-056.md) | [Fitxa i diagrames](uc-056-cercar-assignar-cobrament.md) |
-| UC-57 | Mantenir i optimitzar la BD SIF | `[DISSENY]` | [uc-057.md](../06-fitxes-funcionals/uc-057.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-57 | Mantenir i optimitzar la BD SIF | `[DISSENY]` | [uc-057.md](../06-fitxes-funcionals/uc-057.md) | [Fitxa i diagrames](uc-057-mantenir-optimitzar-bd-sif.md) |
 | UC-58 | Gestionar l'outbox de notificacions | `[DISSENY]` | [uc-058.md](../06-fitxes-funcionals/uc-058.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-59 | Concedir, caducar i revocar accés auditor | `[DISSENY]` | [uc-059.md](../06-fitxes-funcionals/uc-059.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-60 | Monitorar salut, cues, documents, backups i versió activa | `[DISSENY]` | [uc-060.md](../06-fitxes-funcionals/uc-060.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-59 | Concedir, caducar i revocar accés auditor | `[DISSENY]` | [uc-059.md](../06-fitxes-funcionals/uc-059.md) | [Fitxa i diagrames](uc-059-concedir-caducar-revocar-acces-auditor.md) |
+| UC-60 | Monitorar salut, cues, documents, backups i versió activa | `[DISSENY]` | [uc-060.md](../06-fitxes-funcionals/uc-060.md) | [Fitxa i diagrames](uc-060-monitorar-salut-cues-documents-backups-versio.md) |
 | UC-61 | Consultar un import pendent i obtenir un enllaç de pagament | `[LEGACY/OBJECTIU]` | [uc-061.md](../06-fitxes-funcionals/uc-061.md) | [Fitxa i diagrames](uc-061-consultar-pendent-obtenir-enllac.md) |
 | UC-62 | Iniciar factura o cobrament des de la intranet | `[LEGACY/DISSENY]` | [uc-062.md](../06-fitxes-funcionals/uc-062.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-63 | Crear la intenció Redsys des de l'ecommerce | `[ASYNC/PARCIAL]` | [uc-063.md](../06-fitxes-funcionals/uc-063.md) | [Fitxa i diagrames](uc-063-crear-intencio-redsys.md) |
@@ -119,9 +119,9 @@
 | UC-80 | Servir i registrar accés a document fiscal | `[DISSENY]` | [uc-080.md](../06-fitxes-funcionals/uc-080.md) | [Fitxa i diagrames](uc-080-servir-registrar-acces-document-fiscal.md) |
 | UC-81 | Gestionar el cicle complet d'una incidència | `[PARCIAL/DISSENY]` | [uc-081.md](../06-fitxes-funcionals/uc-081.md) | [Fitxa i diagrames](uc-081-cicle-complet-incidencia.md) |
 | UC-82 | Reconciliar SIF amb la BD llegada | `[DISSENY]` | [uc-082.md](../06-fitxes-funcionals/uc-082.md) | [Fitxa i diagrames](uc-082-reconciliar-sif-bd-llegada.md) |
-| UC-83 | Registrar i activar versió i declaració | `[DISSENY/BLOQUEJANT]` | [uc-083.md](../06-fitxes-funcionals/uc-083.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-84 | Crear un paquet fiscal d'auditoria | `[DISSENY]` | [uc-084.md](../06-fitxes-funcionals/uc-084.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
-| UC-85 | Executar backup, restauració i reconciliació | `[DISSENY/BLOQUEJANT]` | [uc-085.md](../06-fitxes-funcionals/uc-085.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
+| UC-83 | Registrar i activar versió i declaració | `[DISSENY/BLOQUEJANT]` | [uc-083.md](../06-fitxes-funcionals/uc-083.md) | [Fitxa i diagrames](uc-083-registrar-activar-versio-declaracio.md) |
+| UC-84 | Crear un paquet fiscal d'auditoria | `[DISSENY]` | [uc-084.md](../06-fitxes-funcionals/uc-084.md) | [Fitxa i diagrames](uc-084-crear-paquet-fiscal-auditoria.md) |
+| UC-85 | Executar backup, restauració i reconciliació | `[DISSENY/BLOQUEJANT]` | [uc-085.md](../06-fitxes-funcionals/uc-085.md) | [Fitxa i diagrames](uc-085-backup-restauracio-reconciliacio.md) |
 | UC-86 | Registrar qualsevol acció sobre un pagament | [DISSENY/BLOQUEJANT] | [uc-086.md](../06-fitxes-funcionals/uc-086.md) | [Fitxa i diagrames](uc-086-auditar-accio-pagament.md) |
 | UC-87 | Validar receptor estranger o amb dades fiscals incompletes | `[DISSENY/BLOQUEJANT]` | [uc-087.md](../06-fitxes-funcionals/uc-087.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
 | UC-88 | Decidir agrupació i línies d'una factura multiconcepte | `[DISSENY/PARCIAL]` | [uc-088.md](../06-fitxes-funcionals/uc-088.md) | **PENDENT DE REVISIÓ ESPECÍFICA** |
@@ -169,4 +169,4 @@
 
 ## Significat de «revisat»
 
-Cada fitxa específica conté anàlisi de l'acció, casos d'ús PlantUML, classes i seqüència Mermaid, i distingeix codi PHP existent, esquema SQL definit i disseny pendent. No certifica proves executades, autoritzacions del canal, enviament AEAT de producció, custòdia efectiva d'artefactes, reconciliació completa, ledger quantitatiu de fons per inscripció ni desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
+Cada fitxa específica conté anàlisi funcional pròpia, casos d'ús PlantUML, classes i seqüència Mermaid, i distingeix codi PHP existent, esquema SQL definit i disseny pendent. No certifica proves executades, permisos del canal, tramesa AEAT de producció, custòdia efectiva de bytes, recuperació real, ledger quantitatiu de fons per inscripció ni desplegament. [Índex](README.md) · [Classes generals](00-model-classes-general.md) · [Traça econòmica](00-revisio-moviments-inscripcions.md).
