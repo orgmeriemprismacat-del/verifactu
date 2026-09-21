@@ -120,7 +120,7 @@ else Rectificativa formalment aprovada
  T-->>C: Tipus, mode, motiu, import i concepte validats
  C->>R: issueByUuid(original,input)
  R-->>C: UUID_FACTURA_RECTIFICATIVA i relació a original
- C-->>G: Nova factura i PDF quan existeixi; original intacta
+ C-->>G: Nova factura i PDF quan existeixi, original intacta
 end
 Note over C,R: El servei PHP R no valida per si mateix la justificació fiscal del canvi textual.
 ```
