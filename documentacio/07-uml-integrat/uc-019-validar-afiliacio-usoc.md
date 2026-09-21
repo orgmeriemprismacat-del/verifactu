@@ -80,6 +80,29 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne"]
+  actor_1["Gestió autoritzada"]
+  actor_2["Entitat USOC"]
+  subgraph SIF_BOX["Validació de descompte USOC"]
+    uc_0(["UC-19<br/>Validar condició USOC"])
+    uc_1(["Comprovar identitat i vigència"])
+    uc_2(["Registrar decisió i evidència"])
+    uc_3(["UC-19a<br/>Facturar part alumne després"])
+    uc_4(["UC-19b<br/>Facturar part entitat després"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_3
+  actor_1 --> uc_4
+```
+
 ## 3. Classes existents i classes de disseny separades
 
 ```mermaid
@@ -165,6 +188,25 @@ Request ..> Pending : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne"]
+  actor_1["Gestió"]
+  subgraph SIF_BOX["SIF PrisMa — UC-19 / SOL·LICITUD (DISSENY/LEGAT)"]
+    uc_0(["Sol·licitar comprovació d'afiliació USOC"])
+    uc_1(["Identificar ID_INSC i edició exacta"])
+    uc_2(["Custodiar evidència mínima amb permisos"])
+    uc_3(["Deixar estat PENDING sense dret concedit"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -207,6 +249,25 @@ Decide ..> Verify : <<include>>
 G --> Price
 G --> Fiscal
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió validadora autoritzada"]
+  actor_1["USOC / font de comprovació"]
+  subgraph SIF_BOX["SIF PrisMa — UC-19 / DECISIÓ (DISSENY)"]
+    uc_0(["Confirmar o denegar dret USOC"])
+    uc_1(["Comprovar evidència, data, condició<br/>i actor"])
+    uc_2(["Repreuar nova oferta i intenció TPV<br/>si no hi ha factura"])
+    uc_3(["UC-74<br/>Classificar correcció si factura ja emesa"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  actor_0 --> uc_2
+  actor_0 --> uc_3
 ```
 
 ```mermaid
