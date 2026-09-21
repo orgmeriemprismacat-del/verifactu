@@ -84,37 +84,45 @@ Fix ..> Sync : <<extend>> (si és només resum llegat)
 @enduml
 ```
 
-## 3. Subdiagrama de classes: codi existent i contracte pendent
+## 3. Subdiagrama de classes: coordinador compartit amb UC-82, codi existent i disseny pendent
+
+**Frontera amb UC-82:** UC-82 identifica i versiona una **execució de comparació** SIF–llegat, amb múltiples items; UC-53 és el **diagnòstic i la decisió de resolució d'un desacord** (també quan es detecta puntualment sense lot). No són dos sistemes de conciliació ni dos serveis PHP implementats. El nom `SifLegacyReconciliationService` és el **mateix coordinador proposat** per a totes dues fitxes. El repo de la capçalera `reconciliation_run` i el dels items `reconciliation_item` són responsabilitats diferents; les taules SQL estan definides, però aquests repositoris i el coordinador no han estat localitzats al PHP.
 
 ```mermaid
 classDiagram
 direction LR
-class ReconciliationService {
- <<DISSENY: no acreditada al PHP>>
- +compare(scope,snapshotHash) run
- +resolve(itemId,action,actor) result
+class SifLegacyReconciliationService {
+ <<DISSENY: UC-53 per item / UC-82 per lot>>
+ +compare(scope) differences
+ +resolve(itemId,decision) result
 }
 class ReconciliationRunRepository {
- <<DISSENY: taules SQL definides, writer no acreditat>>
- +create(db,scope,inputHash) run
- +appendItem(db,difference) item
- +closeItem(db,itemId,evidence) result
+ <<DISSENY: reconciliation_run SQL definit>>
+ +createOrReuse(db,scope) run
+ +markFinished(db,runId,summary) result
+}
+class ReconciliationItemRepository {
+ <<DISSENY: reconciliation_item SQL definit>>
+ +append(db,difference) item
+ +getForUpdate(db,itemId) item
+ +recordResult(db,itemId,resolution) result
 }
 class LegacySyncService {
- <<PHP existent>>
+ <<PHP existent: només resum cap al llegat>>
  +syncAfterSifSuccess(legacyDb,relations,uuidFactura,numVisible,estatCobrament) void
 }
 class LegacySyncRepository {
- <<PHP existent>>
+ <<PHP existent: UPDATE de resum>>
  +syncInscripcioSummary(legacyDb,idInsc,facturaRelacionada,uuidFactura,numVisible,estatCobrament) void
 }
 class IncidentRepository {
- <<PHP existent>>
+ <<PHP existent: incidència genèrica>>
  +open(db,uuidFactura,type,message) array
 }
-ReconciliationService --> ReconciliationRunRepository : run i divergències
-ReconciliationService --> LegacySyncService : resolució autoritzada de resum
-ReconciliationService --> IncidentRepository : anomalia bloquejant
+SifLegacyReconciliationService --> ReconciliationRunRepository : execució UC-82
+SifLegacyReconciliationService --> ReconciliationItemRepository : divergència/decisió UC-53
+SifLegacyReconciliationService ..> LegacySyncService : si reparació de resum autoritzada
+SifLegacyReconciliationService ..> IncidentRepository : incidència bloquejant
 LegacySyncService --> LegacySyncRepository : UPDATE inscripció
 ```
 
@@ -124,31 +132,112 @@ LegacySyncService --> LegacySyncRepository : UPDATE inscripció
 sequenceDiagram
 autonumber
 actor T as Responsable tècnica
-participant R as ReconciliationService [DISSENY]
+participant R as SifLegacyReconciliationService [DISSENY; compartit UC-82]
 participant SIF as BD SIF
 participant L as BD llegat
-participant Audit as ReconciliationRunRepository [DISSENY]
+participant Run as ReconciliationRunRepository [DISSENY]
+participant Items as ReconciliationItemRepository [DISSENY]
 participant Sync as LegacySyncService [PHP existent]
 participant Inc as IncidentRepository [PHP existent]
 T->>R: compare(scope,inputHash)
 R->>SIF: Llegir factura, fact_rels, registres i moviments
 R->>L: Llegir inscripcions, IDPAG, FACTURA_RELACIONADA i estats
 R->>R: Comparar UUIDs, relacions, quantitats i estats
-R->>Audit: create(run idempotent) i appendItem(differences)
-Audit-->>T: Llista d'items PENDING amb evidència
+R->>Run: createOrReuse(db,scope) [UC-82; DISSENY]
+R->>Items: append(db,difference) per divergència [DISSENY]
+Items-->>T: Llista d'items PENDING amb evidència
 T->>R: resolve(itemId,action,reason)
 alt Divergència només de resum llegat i acció segura
  R->>Sync: syncAfterSifSuccess(...)
  Note over R,Sync: El servei actual és no idempotent a OBSERVACIONS; cal reparar-lo abans de reintents
  R->>SIF: Rellegir dades fiscals originals intactes
  R->>L: Verificar resum real i nombre de files
- R->>Audit: closeItem només si la comparació passa
+ R->>Items: recordResult(db,itemId,RESOLVED) només si la comparació passa
 else Incidència fiscal/econòmica o conflicte d'identitat
  R->>Inc: open(uuidFactura,type,message)
- R->>Audit: Deixar PENDING fins a cas d'ús corrector/conciliació
+ R->>Items: Mantenir PENDING fins a reparació específica
 end
 R-->>T: Resultat i incidències pendents
 ```
+
+### 4.1. Acció independent: diagnosticar i resoldre un item individual (UC-53) — DISSENY
+
+**Disparador:** un `UUID_ITEM` de UC-82 o una alerta puntual mostra una discrepància entre fonts. **Actors:** responsable tècnica autoritzada per aprovar la **reparació específica** i procés de verificació posterior; un worker de comparació no queda autoritzat a modificar imports fiscals perquè ha trobat una divergència. **Precondicions:** instant i origen de les dues lectures documentats, identitat fiable (`UUID_FACTURA`/`UUID_PAYMENT`/`ID_INSC`) i causa delimitada. **Postcondició:** `RESOLVED` només si s'ha executat la via apropiada i una lectura posterior confirma el resultat; en cas contrari, `PENDING`/incidència. No crear una factura ni un `CHARGE` per quadrar un indicador llegat.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable de conciliació" as T
+actor "Procés de verificació" as W
+rectangle "SIF PrisMa — UC-53 per divergència (DISSENY)" {
+ usecase "UC-53 / DIAGNOSI\nContrastar un item amb les fonts" as Diagnose
+ usecase "UC-53 / RESOLUCIÓ\nAprovar acció correctiva específica" as Resolve
+ usecase "UC-47\nRecuperar projecció llegada" as Sync
+ usecase "UC-56/105\nReconciliar assignació econòmica" as Funds
+ usecase "UC-74\nClassificar correcció fiscal" as Fiscal
+ usecase "Reverificar i tancar o mantenir pendent" as Verify
+}
+T --> Diagnose
+T --> Resolve
+W --> Verify
+Resolve ..> Diagnose : <<include>>
+Resolve ..> Verify : <<include>> [després d'executar]
+T --> Sync
+T --> Funds
+T --> Fiscal
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor T as Responsable tècnica
+participant C as SifLegacyReconciliationService [DISSENY]
+participant Items as ReconciliationItemRepository [DISSENY]
+participant SIF as SIF: factura/pagament i relacions
+participant L as Llegat: inscripció i relacions
+participant R as UC-47/56/74, acció correctiva [SEGONS CAS]
+participant I as Incidència UC-81 [DISSENY]
+T->>C: resolve(UUID_ITEM,decisió,actor,requestId)
+C->>Items: Bloquejar item i comprovar autorització/versió
+alt Item ja resolt i decisió equivalent
+ Items-->>C: Recuperar evidència i resultat anterior
+ C-->>T: Reús sense una altra reparació
+else Item amb versió canviada o decisió contradictòria
+ Items-->>C: CONFLICT
+ C-->>T: Reavaluar sense modificacions
+else Item pendent
+ C->>SIF: Rellegir UUID_FACTURA, UUID_PAYMENT, fact_rels i estat real
+ C->>L: Rellegir ID_INSC, camps, instant i font llegada
+ alt El desacord desapareix per sincronització ja completada
+  C->>Items: Registrar evidència nova i resultat consistent
+ else Discrepància només de resum llegat, acció segura i aprovada
+  C->>R: Executar UC-47 idempotent [implementació pendent]
+  R-->>C: Resultat per ID_INSC o incidència
+ else Diferència econòmica/fiscal o identitat no acreditada
+  C->>I: Obrir investigació i derivar UC-56/74 si correspon
+  C->>Items: Mantenir PENDING amb causa, cap CHARGE/UPDATE fiscal fictici
+ end
+ C->>SIF: Reconsultar estat fiscal/econòmic
+ C->>L: Reconsultar projecció llegada
+ alt Ambdues lectures i evidències concorden per item
+  C->>Items: recordResult(RESOLVED,actor,evidència) [DISSENY]
+ else Persisteix la divergència o una fase no confirmada
+  C->>Items: recordResult(PENDING,causa) [DISSENY]
+ end
+ C-->>T: Resultat individual i fases pendents
+end
+Note over C,L: No hi ha transacció distribuïda entre les dues BDs. El writer per item i l'enforcement no estan acreditats al PHP.
+```
+
+**Contrast SQL específic:** `reconciliation_run` té `IDEMPOTENCY_KEY` única per run; `reconciliation_item` té `UUID_ITEM` única i index `UUID_RUN,RESULT`, **però no una restricció única de parella run + referència d'origen + tipus de discrepància**. La deduplicació d'items equivalents i el reús d'un item anterior són garanties de disseny que s'han de provar, no garanties automàtiques de la migració. `DIFFERENCE_JSON` pot conservar valors comparats, però no hi ha una columna que imposi automàticament verificació posterior de totes dues fonts.
+
+| ID de prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| DV-53-07 | Dos intents de resoldre el mateix UUID_ITEM amb accions incompatibles | Una sola decisió vàlida per versió; conflicte visible per a l'altra. |
+| DV-53-08 | El resum llegat s'ha sincronitzat entre lectura i ordre de reparació | Revalidar i tancar per evidència, sense una segona concatenació d'OBSERVACIONS. |
+| DV-53-09 | Pagament bancari no acreditat però llegat indica pagat | Mantenir item pendent; no crear `CHARGE` ni modificar factura per fer concordar estats. |
+| DV-53-10 | Reparació parcial a llegat i fallada abans de confirmar-ne la resposta | Reconsultar el llegat i recuperar amb mateixa referència, no repetir cegament una nota o factura. |
 
 ## 5. Traçabilitat
 
