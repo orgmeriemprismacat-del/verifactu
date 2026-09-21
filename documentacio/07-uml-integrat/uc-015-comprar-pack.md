@@ -63,6 +63,21 @@
 | PK-05 | Intranet accepta dos pagaments reals en variant dividida | Parts i línies aprovades, dues operacions/factures només segons contracte excepcional; mai dividir un sol DS_ORDER. |
 | PK-06 | Mateix IDPAG amb dos DS_ORDER diferents validats | No fusionar dos cobraments legítims ni repetir la mateixa factura/part de servei. |
 | PK-07 | Baixa d'un únic curs del pack | Analitzar descompte/part atribuïda al curs i factura afectada; altres inscripcions intactes. |
+### 1.5. Comprovació bloquejant de l'ordre del pack abans d'emetre
+
+**La consulta llegida no conserva l'ordinal comercial.** `LegacyPackSnapshotRepository::findPackInscriptionsByIdpag()` selecciona `TIPUS_INSC='P'` i ordena per `A_PAGAR DESC, ID`. `LegacyPackInvoicePayloadBuilder` assigna **per índex** el descompte: primera línia sense descompte si no consta base explícita, i 25 % reconstruït a les línies següents. La regla del pack habitual parla, en canvi, de **primer i segon curs de l'oferta acceptada**. Si els preus originals són diferents, hi ha fraccions/ajustos o canvia el pendent, ordenar per `A_PAGAR` pot permutar els cursos i situar el descompte en la línia equivocada. El builder també extreu **el receptor fiscal de la primera inscripció recuperada**, de manera que la permutació pot tenir efectes de receptor quan hi hagi dades personals divergents.
+
+**Contracte del canal comercial pendent.** Abans de `issueInvoice()`, el checkout ha de proporcionar una llista **ordenada i versionada** de components amb `ID_INSC`, curs/edició, ordinal de l'oferta, import base, regla/descompte efectiu i total, i una identitat fiscal **confirmada** independent del resultat del `ORDER BY`. La composició s'ha de contrastar amb la font comercial del pack i l'import cobrat per Redsys; si només es disposa de saldos `A_PAGAR` o no és possible establir l'ordinal original, l'operació resta en incidència abans d'emetre, no es reconstrueix per conjectura. Una correcció posterior de component o una nova oferta es tracta per UC-122/71, **no** reordenant les línies de la factura ja emesa.
+
+### 1.6. Proves de regressió de l'ordinal (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| PK-08 | Primer curs pactat 80 €, segon curs 120 € abans de descompte | Descompte al segon curs comercial, no necessàriament al component que la consulta col·loca segon per `A_PAGAR`. |
+| PK-09 | Un pagament parcial canvia `A_PAGAR` i inverteix `ORDER BY` | Snapshot original manté ordinal, imports i receptor; no nova factura amb preu/deute reconstruït. |
+| PK-10 | Dues inscripcions del mateix `IDPAG` porten dades de receptor diferents | Receptor fiscal seleccionat/confirmat per operació, no arbitràriament la primera fila recuperada. |
+| PK-11 | No es coneix la base comercial d'un component | Incidència i comprovació de preu real; no divisió automàtica per `0.75` sobre un saldo incert. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
