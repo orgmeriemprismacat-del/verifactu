@@ -93,12 +93,12 @@ classDiagram
 direction LR
 class SifLegacyReconciliationService {
  <<DISSENY: UC-53 per item / UC-82 per lot>>
- +compare(scope) differences
- +resolve(itemId,decision) result
+ +compare(scope,ruleVersion,requestId) differences
+ +resolve(itemId,decision,actor,requestId) result
 }
 class ReconciliationRunRepository {
  <<DISSENY: reconciliation_run SQL definit>>
- +createOrReuse(db,scope) run
+ +createOrReuse(db,scope,inputHash,requestId) run
  +markFinished(db,runId,summary) result
 }
 class ReconciliationItemRepository {
@@ -139,11 +139,11 @@ participant Run as ReconciliationRunRepository [DISSENY]
 participant Items as ReconciliationItemRepository [DISSENY]
 participant Sync as LegacySyncService [PHP existent]
 participant Inc as IncidentRepository [PHP existent]
-T->>R: compare(scope,inputHash)
+T->>R: compare(scope,ruleVersion,requestId)
 R->>SIF: Llegir factura, fact_rels, registres i moviments
 R->>L: Llegir inscripcions, IDPAG, FACTURA_RELACIONADA i estats
 R->>R: Comparar UUIDs, relacions, quantitats i estats
-R->>Run: createOrReuse(db,scope) [UC-82; DISSENY]
+R->>Run: createOrReuse(db,scope,inputHash,requestId) [UC-82; DISSENY]
 R->>Items: append(db,difference) per divergència [DISSENY]
 Items-->>T: Llista d'items PENDING amb evidència
 T->>R: resolve(itemId,action,reason)
