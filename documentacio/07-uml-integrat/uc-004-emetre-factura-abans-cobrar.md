@@ -42,7 +42,7 @@
 
 | Escenari | Comportament verificat / estat |
 | --- | --- |
-| A1. Reintent amb la mateixa clau idempotent | El servei retorna l'UUID i número de la factura existent amb `idempotency_reused = true`; no reserva un segon número. |
+| A1. Reintent amb la mateixa clau idempotent | **PHP main:** compara tota la petició contra IDEMPOTENCY_PAYLOAD_HASH original; només el payload equivalent recupera UUID/número sense nova seqüència. Un canvi o hash històric absent dóna conflicte. |
 | A2. Clau duplicada per concurrència | `InvoiceService` captura la col·lisió de clau, obre una nova transacció i rellegeix la factura existent. |
 | E1. El payload inclou un `payment` no nul | El constructor rebutja la petició abans de cridar el servei d'emissió. |
 | E2. No hi ha clau idempotent ni referència utilitzable | El constructor rebutja la petició. |
@@ -93,6 +93,13 @@ En emetre UC-04, **no** es crea cap entrada de fons per inscripció: la factura 
 | FP-05 | Doble clic equivalent i després mateix identificador amb import/receptor nou | Retorn mateix UUID per repetició exacta; conflicte per canvi substancial. |
 | FP-06 | Arriba el pagament sobre la factura ja emesa | `registerPayment()` contra UUID existent, sense nou `issueInvoice()`. |
 | FP-07 | Factura confirmada però PDF encara no generat | Número real i document `PENDING`; no segona factura ni correu que prometi el PDF absent. |
+
+
+### Actualització de reús d'emissió a main: la factura prèvia no admet afegir payment a la mateixa petició fiscal
+
+InvoiceService de main desa IDEMPOTENCY_PAYLOAD_HASH de la **petició completa** d'emissió i l'exigeix en reús; mateixa clau amb dades fiscals modificades o amb bloc payment afegit després → CONFLICT per assertMatches(). Una factura històrica sense fingerprint complet original no es reutilitza a cegues. El reintent equivalent de la factura **sense payment** sí recupera el mateix UUID/NUM_VISIBLE, si hi ha hash verificable. Aquest guard per K no acredita que no existeixi **una altra** factura que cobreixi la inscripció amb una clau distinta: el control entre claus de fact_rels/ID_INSC/receptor continua pendent.
+
+L'ingrés posterior de la factura prèvia es registra exclusivament per UC-02 amb clau de **fet bancari real** i la factura original com a destí; el hash de la petició fiscal no prova CHARGE ni assignació. [UC-01, seccions 1.6 i 4.1](uc-001-emetre-o-reutilitzar-factura.md) i [UC-02](uc-002-registrar-cobrament-factura.md). Prova definida a main: PayloadIdempotencyFlowTest::testRetryCannotAddAnInitialPaymentToAnAlreadyIssuedInvoice (no executada en aquesta revisió).
 
 ## 2. Diagrama UML de casos d'ús (font PlantUML)
 
