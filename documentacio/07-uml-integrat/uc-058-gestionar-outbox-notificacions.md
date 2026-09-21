@@ -28,6 +28,27 @@ La migració d'auditoria defineix `notification_outbox` amb `UUID_NOTIFICATION`,
 
 **Pendents:** worker/claims i locks, idempotència de productor entre BDs, passarel·la d'email, política de retries, cancel·lació d'avis obsolets, proveïdor i traça efectiva d'intents. No s'han executat proves de lliurament.
 
+### Revalidar avís abans d'enviar-lo: factura prèvia, pagament i canvi de responsable
+
+**La plantilla no és una fotografia eterna de l'estat econòmic.** A PrisMa, una factura d'empresa pot emetre's abans de cobrar i rebre després transferència, fraccions, canvi de participant o modificació del responsable de contacte. Un avís de **pagament pendent** encolat abans d'un `CHARGE` real pot haver quedat obsolet quan el worker el reclama. Revalidar l'estat de la **factura i l'import exigible**, la cobertura per inscripció, la URL activa i el destinatari autoritzat **abans de l'enviament**; cancel·lar o substituir l'avís pendent segons la política, sense tocar la factura ni els intents de correu ja completats.
+
+**Fet de negoci confirmat vs disponibilitat del fitxer.** La creació de la factura i la del PDF/QR són fases separades: el productor pot preparar una notificació informativa amb `UUID_FACTURA` després del commit, però una notificació amb **adjunt o accés documental** no és lliurable fins que UC-55/78 acrediti bytes/hash i UC-80 autoritzi l'accés. Quan falla PDF, reintentar el job de document; quan falla el transport d'email, recuperar **la mateixa `UUID_NOTIFICATION`**. Cap dels dos retries no genera factura fiscal, `CHARGE` o una segona cadena de registres.
+
+**Accés de grup i token revocat.** El correu del responsable `entitats_resp.CORREU` és una dada de contacte, no un permís fiscal implícit; vincular tipus de destinatari, autorització de receptor/representació i identificador exacte del document. Si un participant surt del grup, s'ha anul·lat una URL individual o s'ha canviat la responsabilitat de pagament després d'encuar un missatge, revalidar-ne **l'abast** abans d'enviar-lo. Un token documental o de pagament caducat no s'ha d'incloure en un email sortint; un correu enviat abans de revocar-lo continua essent un intent històric, no s'esborra de l'auditoria.
+
+**Resposta del proveïdor vs lliurament.** `notification_delivery_attempt` és l'esquema previst per guardar intent/canal/resultat, però no hi ha worker SIF acreditat que en faci el seguiment. Un `SENT` local o l'acceptació del servidor de correu **no acredita** que l'empresa l'hagi rebut, obert o descarregat el PDF. Presentar aquests estats de manera independent, amb la font efectiva de cada evidència, i no declarar «document lliurat» només per completar la cua.
+
+### Proves addicionals de cancel·lació i dependència documental (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| OB-58-01 | Recordatori pendent i factura pagada abans de l'enviament | Cancel·lar/actualitzar l'avís obsolet sense segon CHARGE. |
+| OB-58-02 | Email amb document, PDF encara PENDING | Esperar artefacte verificat; la factura segueix emesa. |
+| OB-58-03 | Canvia el responsable de l'empresa abans de reclamar el job | Revalidar receptor/contacte i permisos, no enviar a adreça antiga per defecte. |
+| OB-58-04 | Es revoca un token després d'encuar notificació | No enviar URL caducada/revocada; registrar cancel·lació del missatge pendent. |
+| OB-58-05 | Timeout del proveïdor després d'un possible email real | Historial per intent i revisió abans d'enviament duplicat. |
+| OB-58-06 | Worker marca SENT sense confirmació de recepció del destinatari | Mostrar «enviat pel canal», no «rebut/llegit/descàrrega acreditada». |
+
 ## UML de casos d'ús
 
 ```plantuml
