@@ -63,6 +63,20 @@
 | CQ-04 | Worker lent continua després de recuperar el seu lock | Protecció de generació/fencing i idempotència; cap sobrescriptura de resultat incompatible. |
 | CQ-05 | PDF PENDING amb cobrament ja processat | Reintentar job documental; no reiniciar cua de Redsys ni comunicar PDF inexistent. |
 
+
+### 1.5. Contrast Redsys v2: el worker no revalida el hash de la intenció ni elimina físicament el job
+
+El document Redsys v2 dibuixa un RedsysQueueWorker que consulta per WebService l'estat del TPV, valida via PayloadIdempotencyValidatorInterface la intenció inicial, elimina el job quan acaba i buida la cua. **No és el camí acreditat a main**: RedsysCallbackWorker::runOne() reclama una notificació que RedsysCallbackService ja ha validat, invoca RedsysCallbackDispatcher i després marca redsys_callback_queue.STATUS=PROCESSED conservant la fila, RESULT_JSON i UUIDs retornats; si falla, RETRY o INCIDENT. No consulta automàticament un WebService Redsys, no crida PayloadIdempotencyValidatorInterface en aquesta classe i no elimina físicament el job. Un job pot continuar a RETRY/INCIDENT i una cua sense jobs QUEUED **no prova** que tot cobrament real estigui facturat/assignat.
+
+**Idempotència que sí ha canviat a main:** els handlers que arriben a InvoiceService/PaymentService es beneficien del hash de petició complet per clau, si realment passen per aquestes rutes. Aquest guard **no** garanteix que un worker lent no continuï processant després que recoverStaleLocks() retorni el seu job a RETRY: markProcessed/markRetry/markIncident filtren STATUS=PROCESSING però no comparen el token ni LOCKED_BY del claim. Tampoc comproven l'efecte final si el handler retorna array sense UUID_PAYMENT/UUID_FACTURA; els guards i reconciliació detallats a 4.1–4.4 continuen pendents.
+
+| Prova pendent v2 | Resultat exigible |
+| --- | --- |
+| RV2-52-01 | Job PROCESSED continua en BD amb RESULT_JSON i UUIDs acreditats; cap DELETE físic implícit. |
+| RV2-52-02 | Dues notificacions equivalents mateix DS_ORDER abans/després de PROCESSING: deduplicació de notificació/job sense inferir que l'efecte econòmic ja existeix. |
+| RV2-52-03 | Worker A expira, B reclama i A finalitza tard: guard de propietat pendent; hash d'emissió no és un token de claim. |
+| RV2-52-04 | No hi ha feina elegible però resten INCIDENT, LOCKED o efectes sense assignació: no donar el sistema per reconciliat només pel comptador de cua. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
