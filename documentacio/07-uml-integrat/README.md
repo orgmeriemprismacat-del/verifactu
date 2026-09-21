@@ -2,7 +2,7 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 89 casos d'ús revisats
+## Mapa dels 95 casos d'ús revisats
 
 **[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
@@ -68,8 +68,14 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-56 | Cercar i assignar un cobrament | [Fitxa i UML](uc-056-cercar-assignar-cobrament.md) | `[PARCIAL]` |
 | UC-61 | Consultar un import pendent i obtenir un enllaç de pagament | [Fitxa i UML](uc-061-consultar-pendent-obtenir-enllac.md) | `[LEGACY/OBJECTIU]` |
 | UC-63 | Crear la intenció Redsys des de l'ecommerce | [Fitxa i UML](uc-063-crear-intencio-redsys.md) | `[ASYNC/PARCIAL]` |
+| UC-69 | Confirmar i congelar dades fiscals | [Fitxa i UML](uc-069-confirmar-congelar-dades-fiscals.md) | `[DISSENY/PARCIAL]` |
+| UC-70 | Modificar dades mestres després d'emetre | [Fitxa i UML](uc-070-modificar-dades-mestres-despres-emetre.md) | `[DISSENY]` |
 | UC-71 | Registrar un canvi de curs complet | [Fitxa i UML](uc-071-registrar-canvi-curs-complet.md) | `[DISSENY/PARCIAL]` |
 | UC-72 | Registrar baixa i decisió econòmica | [Fitxa i UML](uc-072-registrar-baixa-decisio-economica.md) | `[DISSENY/PARCIAL]` |
+| UC-73 | Documentar un ajust, descompte o despesa | [Fitxa i UML](uc-073-documentar-ajust-descompte-despesa.md) | `[DISSENY]` |
+| UC-74 | Classificar una correcció fiscal | [Fitxa i UML](uc-074-classificar-correccio-fiscal.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-75 | Crear un registre d'anul·lació | [Fitxa i UML](uc-075-crear-registre-anullacio.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-76 | Crear un registre de subsanació | [Fitxa i UML](uc-076-crear-registre-subsanacio.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-86 | Registrar qualsevol acció sobre un pagament | [Fitxa i UML](uc-086-auditar-accio-pagament.md) | [DISSENY/BLOQUEJANT] |
 | UC-104 | Gestionar un excés de cobrament | [Fitxa i UML](uc-104-gestionar-exces-cobrament.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-105 | Reassignar o repartir un pagament | [Fitxa i UML](uc-105-reassignar-repartir-pagament.md) | `[DISSENY/BLOQUEJANT]` |
@@ -98,7 +104,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | [Fitxa i UML](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | [Fitxa i UML](uc-129-reconciliar-prisma-moodle-matricules.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 89/142.** Els 53 casos restants encara no tenen fitxa UML individual revisada. L'estat del catàleg original no acredita implementació. La taula `academic_economic_state_event` és un esquema SQL definit, **no** prova de sincronització real amb Moodle; el ledger `enrollment_fund_movement` encara és una proposta.
+**Cobertura documental: 95/142.** Els 47 casos restants encara no tenen fitxa UML individual revisada. L'estat del catàleg original no acredita implementació. Els registres d'anul·lació i subsanació tenen executor PHP, però el classificador de correccions UC-74, les autoritzacions i la validació final del circuit AEAT són pendents. El ledger `enrollment_fund_movement` continua sent una proposta.
 
 ## Com llegir el paquet de cada acció
 
