@@ -153,7 +153,7 @@ opt Callback signat de l'ordre antiga arriba tard
  Bank->>Callback: receiveAuthorizedCallback(DS_ORDER_OLD,importAntic)
  Callback-->>R: VALIDATED + job si dades TPV coincideixen
  R->>Inc: Investigar ingrés real, expiració, plaça i possible duplicat
- Note over Callback,Inc: Callback PHP no comprova EXPIRES_AT; el coordinador necessari és DISSENY.
+ Note over Callback,Inc: Callback PHP no comprova EXPIRES_AT, el coordinador necessari és DISSENY.
 end
 ```
 
