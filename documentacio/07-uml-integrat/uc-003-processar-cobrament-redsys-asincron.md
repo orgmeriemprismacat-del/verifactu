@@ -79,6 +79,23 @@ El callback validat i l'encuat **no** són un assentament de diners per inscripc
 | RC-03-05 | Commit fiscal correcte, sincronització acadèmica o PDF fallits | UUIDs conservats, incidència/reintent de fase, cap nova emissió fiscal. |
 | RC-03-06 | Callback confirmat després de baixa o canvi de curs | Cap alta acadèmica automàtica sobre estat obsolet; cobrament reconciliat. |
 
+
+### 1.6. Integració de la proposta v2: validar notificació i deduplicar efectes en fases diferents
+
+El document Redsys v2 dibuixa RedsysCallbackController::handleNotification() com si calculés/validés un hash igual al de la intenció pre-TPV i, **en la mateixa petició HTTP**, registrés un pagament, marqués la intenció COMPLETADA i emetés factura abans de retornar 200. **Aquest no és el recorregut executable de main**. L'endpoint callback.php utilitza RedsysSignatureValidator per verificar la signatura entrant i invoca RedsysCallbackService; receiveAuthorizedCallback() comprova intenció per DS_ORDER, import, divisa i terminal, desa redsys_notifications i encola el job de resposta autoritzada en una transacció local. **No** crida PaymentService ni InvoiceService, no canvia l'estat de la intenció a COMPLETADA i no espera el worker per respondre.
+
+RedsysSignatureValidator genera payload_hash = SHA-256 dels bytes Ds_MerchantParameters **de la notificació entrant**, que RedsysNotificationRepository utilitza per contrastar una repetició del mateix DS_ORDER juntament amb import, codi de resposta, moneda, terminal i versió de signatura. No és el hash immutable de la intenció/compra UC-63; les peticions tenen continguts diferents i una comparació de hash complet entre les dues donaria un desacord legítim. PayloadIdempotencyValidatorInterface de main **no es crida** al servei de callback. El duplicat signat equivalent reutilitza notificació/job; el contradictori origina conflicte i el servei intenta obrir incidència. Un retorn HTTP correcte acredita recepció/encuat, no pagament/alta fiscal completats.
+
+El worker RedsysCallbackWorker::runOne() reclama el job; RedsysCallbackDispatcher tria el handler de producte i, segons el cas, InvoiceService::issueInvoice() amb pagament inicial crea el resultat fiscal/econòmic. **Aquí** és on InvoiceService i PaymentService de main utilitzen PayloadIdempotencyValidatorInterface per a la petició d'emissió/pagament que els correspon. Aquest hash **no** substitueix la validació del cobrament extern únic, la factura prèvia, la correspondència de UUID_PAYMENT amb la factura ni els controls pendents de propietat del job UC-52.
+
+| Prova pendent v2 | Evidència exigible |
+| --- | --- |
+| RV2-03-01 | Recepció signada VALIDATED: una notificació/job, zero factura o CHARGE abans d'executar el worker. |
+| RV2-03-02 | Mateix DS_ORDER i callback exacte repetit: una notificació i un job; el worker no duplica moviment ni factura. |
+| RV2-03-03 | Callback de mateixa intenció amb Ds_Response diferent: conflicte de notificació, no forçar coincidència amb hash del formulari inicial ni deduir frau només del desacord de payloads diferents. |
+| RV2-03-04 | PaymentService/InvoiceService amb mateixa clau i payload diferent: conflicte semàntic del seu propi hash de petició, no comparació del callback amb UC-63. |
+| RV2-03-05 | Duplicat HTTP mentre el job està QUEUED/PROCESSING: resposta d'encuat sense declarar pagament ni factura confirmats. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -139,6 +156,18 @@ direction LR
 class RedsysSignatureValidator {
  +decodeAndVerify(request,context) array
 }
+class PayloadIdempotencyValidatorInterface {
+ <<PHP main; factures/pagaments, NO callback>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class PayloadIdempotencyValidator {
+ <<PHP main>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+PayloadIdempotencyValidator ..|> PayloadIdempotencyValidatorInterface
+
 class RedsysCallbackService {
  +receiveCallback(db,payload,signatureValid) array
  +receiveAuthorizedCallback(db,signedData) array
@@ -196,6 +225,8 @@ RedsysGroupInvoiceService ..|> RedsysIntentHandler
 RedsysGiftInvoiceService ..|> RedsysIntentHandler
 RedsysUsocInvoiceService ..|> RedsysIntentHandler
 RedsysCourseInvoiceService --> InvoiceService
+InvoiceService --> PayloadIdempotencyValidatorInterface : reús de petició fiscal [main]
+
 RedsysPackInvoiceService --> InvoiceService
 RedsysGroupInvoiceService --> InvoiceService
 RedsysGiftInvoiceService --> InvoiceService
@@ -217,6 +248,7 @@ participant IR as RedsysPaymentIntentRepository
 participant NR as RedsysNotificationRepository
 participant Q as RedsysCallbackQueueRepository
 participant DB as BD SIF
+Note over EP,Q: payload_hash entrant prové dels Ds_MerchantParameters del callback, NO del snapshot/intent original
 R->>EP: POST paràmetres i signatura
 EP->>Sig: decodeAndVerify(POST)
 alt Signatura no vàlida
@@ -246,6 +278,7 @@ else Signatura vàlida
  end
 end
 Note over EP,DB: Cap factura es crea durant la recepció HTTP
+Note over CS,Q: PayloadIdempotencyValidatorInterface NO participa en la recepció HTTP; deduplicació de notificació per DS_ORDER i camps/hash entrants
 ```
 
 **Excepció separada:** si arriba una notificació contradictòria pel mateix `DS_ORDER`, es desfà la transacció; el servei intenta obrir una incidència i retorna conflicte. No s'ha dibuixat com a simple duplicat correcte.
