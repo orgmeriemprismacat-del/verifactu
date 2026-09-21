@@ -91,6 +91,28 @@ Main ..> Class : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador pagaments"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF · conciliació fitxer TPV"]
+    uc_0(["UC-25<br/>Analitzar fitxer TPV"])
+    uc_1(["Normalitzar i validar files"])
+    uc_2(["Comparar ordre i pagament real"])
+    uc_3(["Classificar i registrar diferències"])
+    uc_4(["UC-25a<br/>Investigar IDPAG repetits"])
+    uc_5(["UC-56<br/>Assignar pagament identificat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  actor_0 --> uc_5
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ## 3. Subdiagrama de classes existent vs disseny
 
 ```mermaid
