@@ -54,6 +54,27 @@ Main ..> Verify : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Administrador BD"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF · manteniment BD"]
+    uc_0(["UC-57<br/>Mantenir i optimitzar BD"])
+    uc_1(["Diagnosticar índexs/locks i dependències"])
+    uc_2(["Fer backup i preparar migració additiva"])
+    uc_3(["Aplicar canvi aprovat amb traça"])
+    uc_4(["Verificar migracions, integritat i rendiment"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 4. UML de classes — migracions existents, manteniment pendent
 
 ```mermaid
