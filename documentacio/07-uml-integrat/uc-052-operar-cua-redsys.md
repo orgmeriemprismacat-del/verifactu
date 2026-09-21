@@ -140,7 +140,7 @@ W->>Worker: runOne(db,workerId,now)
 Worker->>Q: recoverStaleLocks(now)
 Q->>DB: PROCESSING >15 min → RETRY
 Worker->>Q: claimNext(workerId,now)
-Q->>DB: BEGIN; SELECT QUEUED/RETRY FOR UPDATE
+Q->>DB: BEGIN, SELECT QUEUED/RETRY FOR UPDATE
 alt No hi ha job
  Q-->>Worker: null
  Worker-->>W: null
