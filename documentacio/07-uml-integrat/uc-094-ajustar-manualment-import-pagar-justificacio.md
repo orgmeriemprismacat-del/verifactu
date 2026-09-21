@@ -179,7 +179,7 @@ Note over S,I: Consultes i classificador de previsualització complets: DISSENY,
 
 ### B. Aprovar o denegar l'ajust proposat — UC-94, DISSENY
 
-**Actor i disparador:** persona amb permís d'aprovació, separada del simple dret a editar la fitxa, rep una proposta identificada i encara vigent. **Precondicions:** causa i regla de preu explícites, proposta congelada, versió vigent, identitat de pagador/receptor i import per línia. **Resultat:** decisió traçada amb `REQUEST_ID` estable i estats diferenciats: aprovada però pendent de canvis de canal/efectes fiscals, denegada, conflicte de versió o recuperació d'una aprovació equivalent. Aprovar una nova oferta **no** registra un ingrés de banc ni una devolució; si ja hi ha factura, UC-74 decideix el document fiscal corresponent. El writer genèric `OperationalEventRepository::append()` **no** valida aprovador ni conté per si sol una cerca idempotent: el control és pendent.
+**Actor i disparador:** persona amb permís d'aprovació, separada del simple dret a editar la fitxa, rep una proposta identificada i encara vigent. **Precondicions:** causa i regla de preu explícites, proposta congelada, versió vigent, identitat de pagador/receptor i import per línia. **Resultat:** decisió traçada amb `REQUEST_ID` estable i estats diferenciats: aprovada però pendent de canvis de canal/efectes fiscals, denegada, conflicte de versió o recuperació d'una aprovació equivalent. Aprovar una nova oferta **no** registra un ingrés de banc ni una devolució; si ja hi ha factura, UC-74 decideix el document fiscal corresponent. El writer genèric `OperationalEventRepository::append()` **no** valida aprovador ni conté per si sol una cerca idempotent: el control és pendent. **Contrast addicional del SQL:** `operational_event` només imposa unicitat a `UUID_OPERATIONAL_EVENT`; `CORRELATION_ID` té un índex de consulta, **no una restricció UNIQUE**. Per tant, dues crides amb la mateixa correlació poden inserir dos events diferents, i el guard per proposta/versió/ordre requereix un model persistent propi o una restricció adequada, no només passar `REQUEST_ID` al camp de correlació.
 
 ```plantuml
 @startuml
@@ -304,6 +304,7 @@ Note over S,C: Create(intenció) és PHP real; expiració de A, publicació de B
 | AJ-94-10 | DS_ORDER_A de 80 i `create()` posterior a 65 amb la mateixa ordre | `CONFLICT`; la intenció antiga no es muta ni es fa passar per pagada a 65. |
 | AJ-94-11 | Oferta nova DS_ORDER_B de 65 i callback d'A de 80 confirmat tard | Conciliació de l'ingrés de 80 amb la compra real, sense doble CHARGE ni assignació automàtica a B. |
 | AJ-94-12 | Factura emesa i proposta de descompte encara pendent | No editar `factura.TOTAL` ni fer `REFUND`; decisió UC-74 abans d'efecte fiscal. |
+| AJ-94-13 | Dos `append()` amb mateix `CORRELATION_ID` i canvi/idempotència pretesos | El SQL actual **pot** desar dos UUID_OPERATIONAL_EVENT; el contracte objectiu exigeix un guard de decisió única per proposta i versió abans del writer. |
 
 ## Traçabilitat
 
