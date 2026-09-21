@@ -74,6 +74,25 @@ Deliver ..> Main : <<extend>> (lliurament autoritzat)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Receptor autoritzat"]
+  actor_1["Gestió"]
+  subgraph SIF_BOX["SIF · preferència electrònica"]
+    uc_0(["UC-32<br/>Marcar/desmarcar factura electrònica"])
+    uc_1(["Validar receptor/permís"])
+    uc_2(["Registrar decisió i motiu"])
+    uc_3(["UC-123<br/>Lliurar en format acordat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+```
+
 ## 3. UML de classes — absència de servei de preferència
 
 ```mermaid
