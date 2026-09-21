@@ -147,6 +147,142 @@ else Inscripció USOC identificada
 end
 ```
 
+## 4.1. Acció independent: comprovar l'expedient de dos pagadors abans d'emetre la factura d'entitat — DISSENY
+
+**Actor/disparador:** gestió vol facturar la diferència a l'entitat després de rebre `entity_invoice_pending` de la part alumne. **Precondicions:** `ID_INSC`/IDPAG unívocs, afiliació validada, `UUID_FACTURA_ALUMNE` **existent i associat** a aquella inscripció i a l'import de l'alumne confirmat, proposta d'import de l'entitat i `billing` explícit de l'entitat legitimada. **Postcondició:** expedient correlacionat o incidència; la verificació no emet factura, no registra `CHARGE` ni dóna per pagada la diferència.
+
+**Límit del PHP real:** `UsocEntityInvoiceService::assertExplicitEntityInput()` només comprova la presència i el valor no buit de `student_invoice_uuid`, i que `billing.name/nif` siguin no buits. `LegacyUsocSnapshotRepository::loadByIdpag()` comprova marcadors de la inscripció llegada, però **no rep ni consulta** el UUID de factura alumne en el SIF. `LegacyUsocInvoicePayloadBuilder::buildEntityPayload()` incorpora el UUID rebut a la clau idempotent i a metadades `usoc`; no prova l'existència, receptor, línia, import o pagament de la factura referenciada. `LegacyUsocSnapshotRepository::findInscription()` fa `WHERE IDPAG=? ORDER BY ID LIMIT 1`; un IDPAG compartit necessita verificació explícita de l'`ID_INSC` real de l'expedient, no només el primer resultat.
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador de gestió autoritzat" as O
+rectangle "SIF PrisMa — UC-19b / VERIFY (DISSENY)" {
+ usecase "Comprovar expedient de doble pagador" as Verify
+ usecase "Comprovar USOC validada i ID_INSC exacte" as Student
+ usecase "Comprovar factura alumne real,\nimport i receptor" as Invoice
+ usecase "Validar receptor i import\nd'entitat amb acord/snapshot" as Entity
+ usecase "UC-19b / EMETRE\nFactura entitat" as Issue
+}
+O --> Verify
+Verify ..> Student : <<include>>
+Verify ..> Invoice : <<include>>
+Verify ..> Entity : <<include>>
+O --> Issue
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant UI as Panell USOC [PENDENT]
+participant V as UsocFundingCaseValidator [DISSENY]
+participant L as LegacyUsocSnapshotRepository [PHP; IDPAG i primer inscrit]
+participant F as SIF factura + fact_rels + línies [LECTURA]
+participant B as Dades receptor i acord USOC [LECTURA]
+O->>UI: Comprovar facturació entitat per ID_INSC X i UUID_FACTURA_ALUMNE A
+UI->>V: verify(X,idpag,A,studentAmount,entityAmount,billing)
+V->>L: loadByIdpag(idpag,studentAmount,entityAmount) [PHP real]
+L-->>V: Primer ID_INSC per IDPAG i flags TIPUS_DESC/VALID_DESC
+alt ID_INSC retornat és diferent d'X o IDPAG ambigu
+ V-->>UI: CONFLICT; no facturar una inscripció arbitrària
+else Inscripció X USOC validada
+ V->>F: Cercar UUID A real i verificar relacions/ID_INSC, receptor i imports
+ alt UUID A inexistent, aliè o part alumne contradictòria
+  F-->>V: CONFLICT
+  V-->>UI: Rebutjar sense factura entitat
+ else Factura alumne acreditada
+  V->>B: Verificar import assumit, receptor entitat i versió d'acord
+  alt Finançament o billing no justificats
+   B-->>V: PENDING_REVIEW
+   V-->>UI: Pendent de dades/autorització
+  else Expedient coherent i autoritzat
+   B-->>V: Validat per a l'operació concreta
+   V-->>UI: Proposta d'emissió entitat preparada, encara no emesa
+  end
+ end
+end
+UI-->>O: Proposta validada, conflicte o incidència
+Note over V,F: La validació del UUID d'alumne, ID_INSC exacte i acord d'entitat NO existeix a UsocEntityInvoiceService actual.
+```
+
+## 4.2. Acció independent: emetre la factura d'entitat o recuperar una emissió equivalent — PHP/PENDENT
+
+**Actor/disparador:** operador autoritzat confirma les dades fiscals i l'import de l'entitat. El servei PHP existent construeix una factura **sense pagament** i delega `InvoiceService::issueInvoice()`. La seva clau actual és `INTRANET|USOC_ENTITAT|ID_INSC:<id>|FACT_ALUMNE:<uuid>` i **no incorpora import, receptor ni versió del finançament**. `InvoiceService::createOrReuseInvoice()` recupera per aquesta clau i, quan existeix, retorna `existingResultWithPaymentIfPresent()`, **sense comparar el payload rebut amb receptor/quantia originals**. Si s'ha emès a una entitat equivocada, un reintent amb `billing` rectificat no modifica la factura preexistent: cal obrir incidència/classificació fiscal, no fingir que l'ha corregida.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió autoritzada" as G
+actor "Entitat receptora/pagadora" as E
+rectangle "SIF PrisMa — UC-19b / EMISSIÓ I REINTENT" {
+ usecase "Emetre factura pendent\na receptor USOC explícit" as Issue
+ usecase "Validar l'expedient i\nla versió del finançament" as Guard
+ usecase "Distingir reintent idèntic de\npayload fiscal contradictori" as Idp
+ usecase "UC-02\nRegistrar cobrament entitat posterior" as Pay
+}
+G --> Issue
+G --> Guard
+Issue ..> Guard : <<include>> [objectiu pendent]
+Issue ..> Idp : <<include>> [objectiu pendent]
+E --> Pay
+G --> Pay
+note bottom of Issue
+ Cap CHARGE automàtic a l'entitat.
+ Un reintent no ha de canviar silenciosament
+ receptor ni import d'una factura emesa.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant UI as Panell/guard USOC [DISSENY]
+participant S as UsocEntityInvoiceService [PHP]
+participant B as LegacyUsocInvoicePayloadBuilder [PHP]
+participant I as InvoiceService [PHP]
+participant DB as factura i fact_rels SIF
+G->>UI: Aprovar part entitat 90 a receptor E1, factura alumne A
+UI->>UI: Validar ID_INSC/UUID alumne/receptor/finançament [PENDENT]
+UI->>S: issueEntityFromExplicitInput(legacyDb,input E1/90/A)
+S->>B: buildEntityPayload(snapshot,input)
+B-->>S: Clau K = ID_INSC + FACT_ALUMNE A, sense import/receptor
+S->>I: issueInvoice(payload E1/90 sense payment)
+I->>DB: BEGIN + cerca per clau K
+alt No existeix K
+ I->>DB: Emissió factura E1/90, registre i cua; COMMIT
+ I-->>S: UUID_FACTURA_ENTITAT nou
+else Ja existeix K
+ DB-->>I: Factura E1/90 preexistent
+ I-->>S: UUID_FACTURA_ENTITAT anterior, idempotency_reused=true
+end
+S-->>UI: payment_registered=false, UUID_FACTURA_ENTITAT
+G->>UI: Reintentar amb mateixa K però receptor E2 o import 85
+UI->>S: issueEntityFromExplicitInput(input nou E2/85/A)
+S->>B: buildEntityPayload(snapshot,input nou)
+B-->>S: Mateixa clau K
+S->>I: issueInvoice(payload nou)
+I->>DB: BEGIN + trobar K existent
+DB-->>I: UUID_FACTURA_ENTITAT de E1/90
+I-->>S: idempotency_reused=true sense comparar E2/85 amb E1/90
+S-->>UI: Retorn aparentment correcte amb factura fiscal anterior
+UI-->>G: Guard objectiu ha de detectar CONFLICT i derivar UC-74; mai informar que E2/85 ha estat emès
+Note over S,I: La recuperació per K és PHP real; el guard d'equivalència i l'expedient USOC són DISSENY. No es pot editar la factura fiscal anterior.
+```
+
+**Cobrament com a altra acció:** després d'emetre, `payment_registered=false` ha de continuar sent visible fins que hi hagi un `UUID_PAYMENT` real d'entitat. Rebre una transferència de l'entitat per diverses factures és UC-02/105 (un únic ingrés extern i múltiples assignacions), no `issueInvoice()` de nou.
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| UE-19b-07 | `student_invoice_uuid` existent però d'una altra inscripció o d'un altre receptor | Verificador de l'expedient rebutja, sense emetre factura entitat. |
+| UE-19b-08 | Mateix `IDPAG` compartit per dues inscripcions, la d'USOC no és la primera de la consulta llegada | Seleccionar la inscripció explícita o bloquejar amb conflicte; no facturar automàticament el primer ID. |
+| UE-19b-09 | Factura entitat E1/90 confirmada i resposta perduda; reintent E1/90 | Reús de la mateixa factura sense altra numeració, registre fiscal o `CHARGE`. |
+| UE-19b-10 | Mateixa clau d'emissió però receptor E2 o import 85 | `CONFLICT` abans de reús semàntic; factura E1/90 anterior intacta, classificar correcció si escau. |
+| UE-19b-11 | Factura entitat emesa i transferència posterior no confirmada | `payment_registered=false`, cap `CHARGE` fictici ni matrícula marcada totalment pagada. |
+
 ## 5. Traçabilitat
 
 [Fitxa original UC-19b](../06-fitxes-funcionals/uc-019b.md) · [UC-13 doble facturació](uc-013-orquestrar-doble-facturacio-usoc.md) · [UC-19a part alumne](uc-019a-facturar-part-alumne-usoc.md) · [UC-02 cobrament](uc-002-registrar-cobrament-factura.md) · [Revisió de fons](00-revisio-moviments-inscripcions.md) · [UsocEntityInvoiceService](../../sif/src/Service/UsocEntityInvoiceService.php) · [LegacyUsocInvoicePayloadBuilder](../../sif/src/Service/LegacyUsocInvoicePayloadBuilder.php) · [LegacyUsocSnapshotRepository](../../sif/src/Repository/LegacyUsocSnapshotRepository.php) · [UsocEntityInvoiceServiceTest](../../sif/tests/Integration/UsocEntityInvoiceServiceTest.php).
