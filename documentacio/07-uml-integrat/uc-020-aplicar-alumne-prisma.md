@@ -145,7 +145,7 @@ else Condició acreditada
  I-->>W: UUID_FACTURA i UUID_PAYMENT
 end
 Note over Policy,Intent: Elegibilitat i adaptador comercial són DISSENY, no codi comprovat
-Note over B,I: El descompte no és moviment de caixa; s'atribueix l'import real cobrat
+Note over B,I: El descompte no és moviment de caixa, s'atribueix l'import real cobrat
 ```
 
 ## 5. Traçabilitat
