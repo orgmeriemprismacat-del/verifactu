@@ -38,6 +38,27 @@
 
 **Pendents:** formats reals, política de permisos, identificació de persones, normalització i error per fila, writer del lot, alta acadèmica llegada, proves de recuperació i integració amb UC-107.
 
+### 1.3. Files de naturalesa diferent i punts de comparació del llegat
+
+**El handler d'alta ordinària no és l'importador de lots.** El document `33-casos-us-sif.md` identifica `web-actual/ajax/enviarInscripcio.php` com el handler que crea **una inscripció abans de pagar**, diferencia `tipusCurs == 'S'`, descomptes pendents i el cas `recent_titulat`; `enviarInscripcioTastet.php` crea **una alta a `inscripcions_reptes`**, sense cobrament. Són **punts de negoci llegats**, no un `EnrollmentImportService` executable. El processador per lots objectiu ha de classificar cada fila **abans** d'invocar cap alta: curs ordinari pendent de pagament, subvencionat UC-109, tastet UC-108, inscripció ja existent o fila que requereix revisió de descompte/identitat. No derivar automàticament tots els registres a `issueInvoice()` o a `registerPayment()` perquè el fitxer porti una columna d'import.
+
+**Identificadors i destins diferents per fila.** Conservar `SOURCE_SYSTEM`, tipus de registre d'origen, `SOURCE_ENROLLMENT_ID` quan existeix, `ID_INSC` o identificador de `inscripcions_reptes` **segons el destí real**, persona, `ANY/MES/CURS`, estat i resultat de validació. `IDPAG` pot referenciar grups o intents, **no identifica universalment una persona**; la comprovació UC-107 de persona/producte/edició i el control de permís s'han de fer encara que hi hagi una clau de fila única. Dues files amb el mateix correu poden ser dues persones diferents; un mateix participant en dues edicions pot ser dues inscripcions legítimes.
+
+**Dada postal i mailing en la importació.** El document identifica escriptors de matrícula que incorporen parelles desconegudes a `poblacions_validar`; importar una fila amb CP/població pendents de revisió **no les converteix en una adreça fiscal normalitzada**. Registrar la discrepància UC-128 per origen i receptor fiscal que correspongui, sense alterar les factures ja emeses. Si la fila inclou una casella de mailing o un correu de contacte, no interpretar-la com una confirmació comercial històrica: UC-125 exigeix prova de titular, text/finalitat/canal i resultat abans de transmetre una subscripció. Les dades acadèmiques de la fila es poden tramitar segons la seva política **sense fabricar aquella prova**.
+
+**Reprocessar un lot parcial sense inventar efectes.** Si les primeres files ja han creat `ID_INSC` reals i el parser falla a la següent, reprendre pel mateix origen/ID i comprovar el destí abans de l'alta; una clau de lot o `ROW_HASH` igual és control tècnic, no equivalència comercial quan el contingut/format real ha canviat. Una fila «pagada» provinent del llegat exigeix evidència de TPV/banc/UUID econòmic; no convertir `PAGAMENT` o `A_PAGAR=0` en un `CHARGE` de migració. El resultat per fila ha de separar alta acadèmica, classificació fiscal pendent, dada postal i opció de mailing en comptes de tancar totes les dimensions per haver inserit una fila.
+
+### 1.4. Proves de lot mixt (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| IL-113-01 | Lot amb curs ordinari, `tipusCurs=S` i tastet gratuït | Classificació per fila; el tastet no crea factura i la subvenció resta pendent de decisió fiscal. |
+| IL-113-02 | Fila de tastet apunta a `inscripcions_reptes`, no a `inscripcions` | Guardar l'identificador i tipus de destí real, no inventar `ID_INSC` ordinari. |
+| IL-113-03 | Dues persones comparteixen `CORREU` dins del fitxer | No fusionar altes ni consentiments sense identitat acreditada. |
+| IL-113-04 | CP/població de la fila entra a `poblacions_validar` | Revisió postal pendent, cap normalització fiscal automàtica. |
+| IL-113-05 | Fila inclou «mailing = sí» sense text ni prova de confirmació | No subscripció confirmada inferida; alta acadèmica independent. |
+| IL-113-06 | Retry després de crear cinc matrícules i fallar a la sisena | Recuperar els cinc destins reals i només reprendre les files pendents, sense factures/cobraments duplicats. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
