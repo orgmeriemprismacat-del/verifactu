@@ -148,7 +148,7 @@ else Reserva disponible
  UI->>I: create(DS_ORDER,snapshot congelat UC-112)
  I-->>UI: UUID_INTENT PENDING
 end
-Note over S,L: Reserva i coordinació llegat = DISSENY; intenció TPV ≠ plaça ni factura
+Note over S,L: Reserva i coordinació llegat = DISSENY, intenció TPV ≠ plaça ni factura
 ```
 
 ## 5. Traçabilitat
