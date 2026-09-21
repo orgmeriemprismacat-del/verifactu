@@ -97,7 +97,7 @@ Refund ..> U2 : <<include>>
 @enduml
 ```
 
-### Vista del cas d'ús a GitHub (Mermaid)
+### Vista Mermaid del cas general de cobrament sobre factura
 
 ```mermaid
 flowchart LR
@@ -369,7 +369,7 @@ end note
 @enduml
 ```
 
-### Vista del cas d'ús a GitHub (Mermaid)
+### Vista Mermaid de registre d'un ingrés extern nou
 
 ```mermaid
 flowchart LR
@@ -425,7 +425,7 @@ end note
 @enduml
 ```
 
-### Vista del cas d'ús a GitHub (Mermaid)
+### Vista Mermaid de consulta d'un ingrés extern preexistent
 
 ```mermaid
 flowchart LR
@@ -499,7 +499,7 @@ R --> Split
 @enduml
 ```
 
-### Vista del cas d'ús a GitHub (Mermaid)
+### Vista Mermaid de comprovació de reús econòmic per clau
 
 ```mermaid
 flowchart LR
