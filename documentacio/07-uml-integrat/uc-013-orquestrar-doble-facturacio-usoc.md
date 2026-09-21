@@ -93,6 +93,31 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne / pagador"]
+  actor_1["Empresa/entitat USOC"]
+  actor_2["Operador facturació"]
+  actor_3["Redsys"]
+  subgraph SIF_BOX["SIF PrisMa · USOC"]
+    uc_0(["UC-13<br/>Orquestrar doble facturació"])
+    uc_1(["UC-19<br/>Validar afiliació/condicions"])
+    uc_2(["UC-19a<br/>Facturar i cobrar part alumne"])
+    uc_3(["UC-19b<br/>Facturar part entitat"])
+    uc_4(["UC-02<br/>Cobrar part entitat posterior"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_0
+  actor_3 --> uc_2
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_2 --> uc_4
+```
+
 ## 3. Subdiagrama de classes — dos handlers sense orquestrador fictici
 
 ```mermaid
@@ -225,6 +250,27 @@ O --> Pay
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Procés de conciliació USOC"]
+  actor_1["Operador autoritzat"]
+  subgraph SIF_BOX["SIF PrisMa — UC-13 / RECUPERAR EXPEDIENT (DISSENY)"]
+    uc_0(["Reconciliar expedient després<br/>de factura alumne confirmada"])
+    uc_1(["Consultar factura i CHARGE alumne<br/>per ID_INSC + DS_ORDER"])
+    uc_2(["Consultar si existeix factura entitat<br/>i deute/pagaments propis"])
+    uc_3(["UC-19b<br/>Emetre part entitat pendent"])
+    uc_4(["UC-02<br/>Registrar ingrés entitat verificat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_3
+  actor_1 --> uc_4
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -282,6 +328,25 @@ Close ..> Entity : <<include>>
 Close ..> Funds : <<include>>
 O --> Debt
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable gestió/cobraments"]
+  subgraph SIF_BOX["SIF PrisMa — UC-13 / TANCAMENT ECONÒMIC (DISSENY)"]
+    uc_0(["Conciliar dues parts USOC<br/>i estat del finançament"])
+    uc_1(["Verificar factura i ingrés alumne"])
+    uc_2(["Verificar factura i ingrés entitat"])
+    uc_3(["Contrastar imports per ID_INSC<br/>i moviments posteriors"])
+    uc_4(["UC-12<br/>Gestionar deute entitat pendent"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
 ```
 
 ```mermaid
