@@ -80,6 +80,27 @@ Correct ..> Main : <<extend>> (error fiscal o prestació canviada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió catàleg"]
+  actor_1["Responsable fiscal"]
+  subgraph SIF_BOX["Dades mestres i factures històriques"]
+    uc_0(["UC-70<br/>Modificar dada mestra postemissió"])
+    uc_1(["Comparar versió vella i proposta"])
+    uc_2(["Inventariar factures emeses"])
+    uc_3(["UC-114<br/>Publicar versió per futur"])
+    uc_4(["UC-74<br/>Classificar error de factura"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## 4. UML de classes — dada mestra vs document fiscal
 
 ```mermaid
