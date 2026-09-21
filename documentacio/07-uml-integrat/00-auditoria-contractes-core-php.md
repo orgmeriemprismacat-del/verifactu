@@ -2,6 +2,13 @@
 
 **Objectiu:** fixar, amb signatures i comportament verificats al codi actual, què garanteixen realment els serveis centrals de factura, pagament, intenció Redsys, cua AEAT i documents. Aquest document **corregeix interpretacions massa fortes** que podrien deduir-se de les fitxes funcionals. No és una execució de tests.
 
+> **Nota de versió (21/09/2026).** Les seccions següents descriuen el core
+> abans de la integració del guard de payload i es mantenen com a evidència
+> històrica dels bloquejos detectats. Per consultar el comportament del codi
+> modificat, els límits de compatibilitat i la migració necessària,
+> vegeu [Contracte d'idempotència implementat](00-contracte-idempotencia-payload-implementat.md).
+> No s'ha certificat encara una execució de la suite de proves MySQL.
+
 ## 1. InvoiceService · idempotència de factura i pagament inicial
 
 ### Signatura verificada
