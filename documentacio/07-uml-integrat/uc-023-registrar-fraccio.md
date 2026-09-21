@@ -200,6 +200,8 @@ else Ingrés ja registrat o identificador en conflicte
 end
 Note over UI,R: Calendari i conciliació de fraccions encara no són funcions acreditades del servei manual.
 ```
+**Precisió addicional sobre les claus:** `ManualInstallmentPaymentPayloadBuilder::forExistingInvoice()` tampoc incorpora una clau `idempotency_key` explícita que arribi a `$input`: sempre calcula la seva pròpia clau amb `idempotencyKey()`. Per això aportar un identificador bancari estable en el payload **no resol** la col·lisió sense modificar el contracte del builder i del control d'equivalència.
+
 ### 4.2. Seqüència específica: dues fraccions legítimes idèntiques el mateix dia — COL·LISIÓ REAL DEL CONTRACTE ACTUAL
 
 **Font:** `ManualInstallmentPaymentPayloadBuilder::idempotencyKey()` deriva la clau d'`ID_INSC`, dia de `movement_date`, import i usuari. La factura, la referència del banc, l'instant complet i una clau d'operació explícita **no participen** en aquesta derivació. `PaymentService::registerPayment()` retorna el moviment ja registrat per una clau igual sense comparar el nou payload. La prova existent repeteix expressament la primera fracció amb els mateixos valors; **no cobreix dos ingressos reals diferents que comparteixen aquests valors**.
