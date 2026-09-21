@@ -70,6 +70,19 @@ El registre existent `payment_transaction` → `payment_allocation` actualitza l
 | CP-02-06 | `PAGAMENT` llegat diu cobrat però no hi ha prova externa | Investigar banc/TPV, sense moviment fiscal/econòmic inventat. |
 | CP-02-07 | Cobrat real però sincronització acadèmica fallida | Conservar UUID_PAYMENT i reprendre UC-47/53; no reprocessar l'ingrés. |
 
+
+### 1.6. Idempotència de pagament v2 a main: hash de petició i compatibilitat històrica
+
+A main, PaymentService depèn de PayloadIdempotencyValidatorInterface i **compara el contingut del reintent amb PAYLOAD_HASH** abans de retornar un UUID_PAYMENT existent. Per a PAYLOAD_HASH_VERSION=2, assertMatches() utilitza SHA-256 de la petició canonitzada: importa el contingut i no l'ordre arbitrari de claus associatives JSON. Per a files històriques amb versió 1, serialitza la petició en l'ordre original d'entrada i compara els bytes amb el hash antic; **no reinterpretar un hash v1 com v2**. Una versió desconeguda i una petició diferent retornen conflicte. PaymentRepository::createPayment() escriu PAYLOAD_HASH_VERSION=2 a main; la migració 2026_09_21_000007 afegeix la columna amb DEFAULT 1 per a files prèvies.
+
+**Abast del hash:** protegeix la petició del moviment i totes les allocations que s'hi passen en aquella alta. No prova que el banc hagi rebut dos ingressos diferents quan s'han fet servir claus diferents, no recupera automàticament un saldo parcial disponible per una altra factura i **no resol** que PaymentPayloadValidator encara accepti imports de trams zero/negatius o SUM(allocations)>amount. La comprovació addicional de referència externa real, titular, assignació econòmica a una altra factura i saldo roman pendent a UC-22/56/105.
+
+| Prova de main o pendent | Resultat |
+| --- | --- |
+| PayloadIdempotencyFlowTest::testPaymentRetryComparesAmountAndAllocations [definida] | Mateixa clau amb import/assignacions diferents no es reutilitza en silenci; és conflicte. |
+| PayloadIdempotencyFlowTest::testLegacyPaymentHashUsesLegacySerializationUntilMigrated [definida] | V1 conserva semàntica de bytes/ordre d'entrada; V2 compara payload canonitzat. |
+| CP-02-17 [pendent] | Dues claus diferents referides a un únic abonament bancari exigeixen prova del fet extern; el hash de cada clau no deduplica entre claus. |
+
 ## 2. Diagrama UML de casos d'ús
 
 El cas de cobrament posterior utilitza l'operació comuna UC-02; les variants de transferència i fracció afegeixen les seves regles i fitxes pròpies.
@@ -95,6 +108,29 @@ Trans ..> U2 : <<include>>
 Frac ..> U2 : <<include>>
 Refund ..> U2 : <<include>>
 @enduml
+```
+
+### Vista Mermaid del cas general de cobrament sobre factura
+
+```mermaid
+flowchart LR
+  a_0["Operador autoritzat"]
+  a_1["Procés de cobrament"]
+  subgraph SIF_BOUNDARY["SIF PrisMa"]
+    u_0(["UC-02<br/>Registrar pagament<br/>sobre factura existent"])
+    u_1(["Validar moviment<br/>i assignacions"])
+    u_2(["Calcular estat<br/>de cobrament"])
+    u_3(["UC-22<br/>Registrar transferència"])
+    u_4(["UC-23<br/>Registrar fracció"])
+    u_5(["UC-28<br/>Registrar devolució"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_3 -.->|include| u_0
+  u_4 -.->|include| u_0
+  u_5 -.->|include| u_0
 ```
 
 ## 3. Subdiagrama de classes executables
@@ -266,7 +302,7 @@ En la variant manual, el constructor normalitza l'import positiu, admet `TRANSFE
 
 ## 5.1. Seqüència d'error, reintent i conflicte de payload — nucli actual versus control objectiu
 
-**Lectura del PHP actual:** `PaymentPayloadValidator::validate()` comprova camps i numericitat, però no exigeix `amount > 0`, imports assignats positius, suma d'assignacions igual al moviment ni una coincidència entre factura, titular i ingrés extern. `PaymentRepository::hashPayload()` persisteix `PAYLOAD_HASH`, però `PaymentService::existingResult()` **no el compara** en reús de la clau. L'endpoint `public/api/payments/register.php` crida el servei directament; autorització de l'actor i prova bancària no queden acreditades només pel PHP de la ruta.
+**Lectura del PHP actual:** `PaymentPayloadValidator::validate()` comprova camps i numericitat, però no exigeix `amount > 0`, imports assignats positius, suma d'assignacions igual al moviment ni una coincidència entre factura, titular i ingrés extern. A main, `PaymentRepository::hashPayload()` persisteix `PAYLOAD_HASH` versionat i `PaymentService::assertSamePayload()` **el compara** en reús de la clau; les comprovacions externes de titularitat/saldo continuen pendents. L'endpoint `public/api/payments/register.php` crida el servei directament; autorització de l'actor i prova bancària no queden acreditades només pel PHP de la ruta.
 
 ```mermaid
 sequenceDiagram
@@ -294,8 +330,9 @@ else Petició validada pel canal objectiu
   P->>R: findByIdempotencyKey(key,true)
   alt Clau ja existeix
    R-->>P: UUID_PAYMENT anterior
-   Note over P,G: PHP actual retorna el mateix UUID encara que el payload nou sigui contradictori.
-   P-->>TR: Reús (sense comparar PAYLOAD_HASH)
+   Note over P,G: PHP main crida assertSamePayload() per V1/V2 i rebutja dades contradictòries amb la mateixa K.
+   P->>P: assertSamePayload(payload,existing PAYLOAD_HASH/HASH_VERSION) [PHP main]
+   P-->>TR: Reús només si hash de petició coincideix
   else Clau nova
    P->>R: createPayment(payload)
    alt La factura d'assignació no existeix o SQL falla
@@ -318,7 +355,7 @@ end
 Note over P,R: Si SQL llença error de duplicat 23000, PaymentService obre una SEGONA transacció per rellegir la clau. No crea un segon CHARGE.
 ```
 
-**No s'ha implementat** el guard dibuixat. La seqüència documenta el contrast entre protecció objectiu i comportament executable: ni `idempotency_reused=true` ni `PAYLOAD_HASH` emmagatzemat proven equivalència de la nova petició.
+**El guard extern dibuixat no està implementat.** La comparació del PAYLOAD_HASH sobre **la mateixa clau** sí que és PHP main; no demostra identitat bancària entre claus diferents, titularitat del saldo ni disponibilitat per reassignar. El hash de petició no substitueix els controls monetaris pendents.
 
 ## 5.2. Acció específica: ingrés nou versus imputació d'un ingrés ja registrat
 
@@ -346,6 +383,25 @@ end note
 @enduml
 ```
 
+### Vista Mermaid de registre d'un ingrés extern nou
+
+```mermaid
+flowchart LR
+  a_0["Operador autoritzat"]
+  a_1["Procés bancari/TPV"]
+  subgraph SIF_BOUNDARY["SIF PrisMa"]
+    u_0(["UC-02<br/>Registrar nou moviment<br/>extern confirmat"])
+    u_1(["Verificar identitat del fet<br/>i imports assignats"])
+    u_2(["UC-56<br/>Assignar UUID_PAYMENT<br/>ja existent"])
+    u_3(["UC-104<br/>Resoldre excés no assignat"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  a_0 --> u_2
+  a_0 --> u_3
+```
+
 | ID prova pendent | Petició | Resultat exigible |
 | --- | --- | --- |
 | CP-02-01 | Mateixa clau i mateix ingrés/assignacions | Mateix `UUID_PAYMENT`, cap segon `CHARGE`. |
@@ -358,7 +414,7 @@ end note
 
 **Actor/disparador:** gestió introdueix una transferència confirmada amb referència bancària i factura destí; la mateixa referència pot aparèixer de nou perquè es tracta d'un reintent real o perquè una transferència legítima de 200 € cobreix dues factures. **Precondició objectiu:** identificar **una única entrada de banc** i les assignacions originals i pendents, titular, import, factura i inscripcions d'origen; no interpretar dues peticions d'interfície com dos ingressos externs. **Postcondició:** reutilitzar un `UUID_PAYMENT` per **la mateixa operació externa**, sense crear segon `CHARGE`, i comprovar si la factura sol·licitada ja té un tram assignat; si falta repartir l'ingrés existent, tramitar UC-56/105 amb writer segur o bloquejar-ho com a pendent, no retornar un fals pagament de B.
 
-**Límit PHP precís:** `ManualPaymentPayloadBuilder::idempotencyKey()` usa `<method>|REF:<reference>` quan hi ha referència, **sense factura ni import**. `PaymentService::createOrReusePayment()` recupera el `UUID_PAYMENT` preexistent per clau sense comparar `PAYLOAD_HASH` ni les assignacions. `ManualPaymentService::registerForInvoice()` afegeix a la resposta `uuid_factura` i `num_visible` de la **factura que ha rebut en aquesta petició**. Així, una primera alta A/100 i una segona sol·licitud B/100 amb la mateixa referència poden retornar `UUID_PAYMENT_A` junt amb `uuid_factura=B` en el segon resultat, **sense haver creat cap assignació a B**. A diferència de dos ingressos reals, una transferència multifactura necessita conservar el mateix moviment i comprovar/repartir els trams; el PHP actual `PaymentRepository::createPayment()` només insereix assignacions en crear el moviment, no les afegeix a un moviment existent en el reús.
+**Límit PHP precís:** `ManualPaymentPayloadBuilder::idempotencyKey()` usa `<method>|REF:<reference>` quan hi ha referència, **sense factura ni import**. A `main`, `PaymentService::createOrReusePayment()` recupera el moviment per clau **i compara el hash de la petició completa** amb `assertSamePayload()`; per tant, una nova assignació a B sota la mateixa K produeix `CONFLICT`, no un reús silenciós. `ManualPaymentService::registerForInvoice()` afegeix a la resposta `uuid_factura` i `num_visible` de la **factura que ha rebut en aquesta petició**. Així, una primera alta A/100 i una segona sol·licitud B/100 amb la mateixa referència i K **s'han de rebutjar a `main` per divergència del payload**; no es crea cap assignació B. Si una petició duplicada és idèntica però el canal vol representar-la com a factura diferent, la resposta del servei s'ha de contrastar amb l'assignació real abans de mostrar-la com a cobrada. A diferència de dos ingressos reals, una transferència multifactura necessita conservar el mateix moviment i comprovar/repartir els trams; el PHP actual `PaymentRepository::createPayment()` només insereix assignacions en crear el moviment, no les afegeix a un moviment existent en el reús.
 
 ```plantuml
 @startuml
@@ -383,44 +439,63 @@ end note
 @enduml
 ```
 
+### Vista Mermaid de consulta d'un ingrés extern preexistent
+
+```mermaid
+flowchart LR
+  a_0["Gestió cobraments"]
+  a_1["Banc / evidència externa"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — UC-02 / INGRÉS EXISTENT"]
+    u_0(["Localitzar ingrés real únic<br/>i assignacions preexistents"])
+    u_1(["Comprovar la factura i import sol·licitats<br/>contra trams del moviment"])
+    u_2(["UC-02 / NEW<br/>Registrar CHARGE extern nou"])
+    u_3(["UC-56/105<br/>Assignar saldo d'ingrés existent"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  a_0 --> u_2
+  a_0 --> u_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
 actor G as Gestió
 participant M as ManualPaymentService [PHP]
 participant B as ManualPaymentPayloadBuilder [PHP]
-participant P as PaymentService [PHP]
-participant DB as payment_transaction + payment_allocation
-participant A as Assignació segura d'ingrés existent UC-56/105 [DISSENY]
+participant P as PaymentService [PHP main]
+participant H as PayloadIdempotencyValidatorInterface [PHP main]
+participant DB as payment_transaction + payment_allocation [SQL]
+participant A as Assignació segura P existent UC-56/105 [DISSENY]
 G->>M: registerByUuid(FACTURA_A,100,reference=TRF-1)
 M->>B: forExistingInvoice(FACTURA_A,input)
-B-->>M: K=TRANSFERENCIA|REF:TRF-1, allocation FACTURA_A/100
+B-->>M: K=TRANSFERENCIA|REF:TRF-1, assignació A/100
 M->>P: registerPayment(payload A)
-P->>DB: BEGIN + INSERT CHARGE UUID_PAYMENT_A, allocation A/100
-P->>DB: COMMIT
+P->>DB: BEGIN, INSERT CHARGE P_A + allocation A/100, hash V2, COMMIT
 P-->>M: UUID_PAYMENT_A,idempotency_reused=false
-M-->>G: UUID_PAYMENT_A,uuid_factura=FACTURA_A
+M-->>G: P_A, uuid_factura=FACTURA_A
 G->>M: registerByUuid(FACTURA_B,100,reference=TRF-1)
 M->>B: forExistingInvoice(FACTURA_B,input)
-B-->>M: Mateixa K, però allocation sol·licitada B/100
+B-->>M: Mateixa K, assignació sol·licitada B/100
 M->>P: registerPayment(payload B)
-P->>DB: BEGIN + SELECT payment_transaction WHERE K FOR UPDATE
-DB-->>P: UUID_PAYMENT_A, allocation existent NOMÉS a A
-P->>DB: COMMIT de reús sense INSERT allocation B
-P-->>M: UUID_PAYMENT_A,idempotency_reused=true sense verificar allocation B
-M-->>G: UUID_PAYMENT_A,uuid_factura=FACTURA_B [resposta contradictòria]
-Note over G,DB: El PHP actual no crea allocation B ni revalida el pagament original, la segona resposta no acredita B pagada.
-G->>A: Conciliar ingrés extern i trams de A/B
-alt Banc acredita entrada externa de 200 però el moviment SIF original es va enregistrar com 100
- A-->>G: CONFLICT de quantia banc/SIF, conciliar origen abans de cap assignació a B
-else Entrada real i moviment SIF de 100 completament assignats a A
- A-->>G: CONFLICT per atribució B sense saldo disponible, no nou CHARGE
+P->>DB: BEGIN, findByIdempotencyKey(K,true)
+DB-->>P: P_A i hash V2 del payload original A/100
+P->>H: assertMatches(payload B/100,hash original A/100)
+H--xP: CONFLICT per assignació diferent [PHP main]
+P-->>G: Error, sense assignació a B ni nou CHARGE
+G->>A: Revisar prova bancària i saldo P_A abans d'una eventual UC-56/105
+alt Ingrés bancari de 200 però P_A nominalment 100
+ A-->>G: Conciliar diferència banc/SIF abans d'assignar B
+else Ingrés real de 100 completament assignat a A
+ A-->>G: Saldo 0; denegar B, no duplicar ingrés
 end
+Note over P,H: El hash V2 compara mateixa clau i contingut; no deduplica dos moviments creats amb claus diferents.
 ```
 
-### 5.4. Acció independent: rebutjar la reutilització d'una clau econòmica amb contingut diferent — DISSENY
+### 5.4. Acció independent: rebutjar la reutilització d'una clau econòmica amb contingut diferent — PHP main per payload de K; contrast del fet extern i saldo pendent
 
-**Actor/disparador:** un callback o una alta manual repeteix `idempotency_key=K` amb `IMPORT`, `TIPUS_MOVIMENT`, `UUID_FACTURA` d'assignació, referència bancària o titular nous. **Resultat objectiu:** comparar **sota bloqueig** el moviment existent, referència externa i **totes** les assignacions persistides, més origen i import extern; retornar el mateix UUID només si és **la mateixa petició semàntica** i l'estat extern coincideix. Amb contingut canviat, `CONFLICT` i incidència en lloc d'un fals `idempotency_reused=true`. `PaymentRepository::hashPayload()` emmagatzema `PAYLOAD_HASH`, però `PaymentService` **no el consulta ni compara** en les branques de reús. Per a dues factures dins d'una transferència única, comparar els trams reals, no exigir que cada crida genèrica de `registerPayment()` modifiqui el mateix UUID, perquè no implementa aquesta extensió.
+**Actor/disparador:** un callback o una alta manual repeteix `idempotency_key=K` amb `IMPORT`, `TIPUS_MOVIMENT`, `UUID_FACTURA` d'assignació, referència bancària o titular nous. **Resultat objectiu:** comparar **sota bloqueig** el moviment existent, referència externa i **totes** les assignacions persistides, més origen i import extern; retornar el mateix UUID només si és **la mateixa petició semàntica** i l'estat extern coincideix. Amb contingut canviat, `CONFLICT` i incidència en lloc d'un fals `idempotency_reused=true`. A main, `PaymentService::assertSamePayload()` **sí que compara** `PAYLOAD_HASH` segons versió 1/2 sota transacció abans de retornar el UUID existent. Aquest control cobreix la petició completa per K, però **no compara** necessàriament dues referències bancàries externes relacionades sota claus diferents, ni comprova disponibilitat d'una assignació addicional sobre P. Per a dues factures dins d'una transferència única, comparar els trams reals, no exigir que cada crida genèrica de `registerPayment()` modifiqui el mateix UUID, perquè no implementa aquesta extensió.
 
 ```plantuml
 @startuml
@@ -433,21 +508,41 @@ rectangle "SIF PrisMa — UC-02 / REÚS ECONÒMIC" {
  usecase "UC-56/105\nRepartir import encara no assignat" as Split
 }
 C --> Reuse
-Reuse ..> Compare : <<include>> [guard PENDENT]
+Reuse ..> Compare : <<include>> [hash de K PHP main; prova bancària/atribució pendent]
 R --> Split
 @enduml
+```
+
+### Vista Mermaid de comprovació de reús econòmic per clau
+
+```mermaid
+flowchart LR
+  a_0["Canal de cobrament"]
+  a_1["Responsable conciliació"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — UC-02 / REÚS ECONÒMIC"]
+    u_0(["Registrar o recuperar moviment per K"])
+    u_1(["Contrastar referència externa, import,<br/>tipus i assignacions existents"])
+    u_2(["UC-56/105<br/>Repartir import encara no assignat"])
+  end
+  a_0 --> u_0
+  u_0 -.->|include| u_1
+  a_1 --> u_2
 ```
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor C as Canal
-participant G as PaymentPayloadEquivalenceGuard [DISSENY]
+participant G as PaymentExternalEvidenceGuard [DISSENY]
+participant H as PayloadIdempotencyValidatorInterface [PHP main]
 participant P as PaymentService [PHP]
 participant R as PaymentRepository [PHP]
 participant DB as payment_transaction/allocation [SQL]
 C->>G: Reintentar K amb factura B/80, referència externa E
-G->>R: Llegir K i fer lock sobre moviment/assignacions [PENDENT]
+G->>R: Verificar fet bancari, titular i disponibilitat entre claus [PENDENT]
+G->>P: registerPayment(payload) [PHP main]
+P->>R: findByIdempotencyKey(K,true) [PHP main]
+P->>H: assertMatches(payload,stored PAYLOAD_HASH) segons versió [PHP main]
 alt K existeix amb A/40 o fet extern diferent
  R-->>G: Payload i assignacions preexistents incompatibles
  G-->>C: CONFLICT, no retornar UUID antic com a ingrés de B
@@ -464,10 +559,74 @@ Note over G,R: El lector i guard previ han de compartir una política de bloquei
 
 | Prova pendent | Escenari | Resultat objectiu i comportament PHP a reproduir |
 | --- | --- | --- |
-| CP-02-08 | Alta A/100 amb transferència TRF-1 i petició B/100 amb mateixa referència | PHP actual pot retornar `UUID_PAYMENT_A` i `uuid_factura=B` sense assignació B. Guard objectiu rebutja fals èxit o obre UC-56/105 si existeix saldo extern acreditat. |
+| CP-02-08 | Alta A/100 amb clau K i transferència TRF-1; segona petició per B/100 amb la mateixa K | **PHP main: CONFLICT per payload/assignació diferent**, no atribueix B. Si la segona petició utilitza **una K diferent** amb la mateixa transferència, cal guard d'identitat bancària extern pendent. |
 | CP-02-09 | Entrada externa/SIF real de 200 amb una sola assignació de 100 a A i pendent 100 de B | Mateix `UUID_PAYMENT` i dues assignacions només després del writer UC-56/105 i conciliació del sobrant; mai un segon `CHARGE` extern. Si el moviment SIF inicial era de 100, primer resoldre la diferència respecte al banc. |
-| CP-02-10 | Mateixa clau K de pagament però import/tipus/assignació nous | `CONFLICT`, cap segon moviment ni resposta que el presenti com a pagament de la segona factura. |
-| CP-02-11 | Dos workers fan reús/alta de K amb payloads diferents alhora | Només un moviment extern real; l'altre recupera resultat només si és semànticament equivalent o rep conflicte explícit. |
+| CP-02-10 | Mateixa clau K de pagament però import/tipus/assignació nous | **PHP main ja rebutja per assertSamePayload()**, sense segona assignació. Provar contracte V1/V2 i no confondre'l amb el guard entre claus pendent. |
+| CP-02-11 | Dos workers fan reús/alta de K amb payloads diferents alhora | **PHP main** usa transacció i relectura després de duplicat SQL amb assertSamePayload(); prova de concurrència i prova d'unicitat del fet bancari entre claus continuen pendents. |
+
+### 5.5. Acció independent: validar els imports totals i els trams abans de crear un CHARGE nou — PHP existent insuficient / guard PENDENT
+
+**Actor/disparador:** el canal ha verificat un ingrés extern nou de 100 € i vol crear-ne un `payment_transaction` amb assignacions a una o diverses factures. **Precondició objectiu:** import extern estrictament positiu i expressat en cèntims; cada tram estrictament positiu, factura existent i titular compatible; `SUM(trams) <= IMPORT` del mateix moviment, amb política explícita si hi ha import **no assignat**; comprovar que `IDEMPOTENCY_KEY` representa el mateix ingrés bancari i no un altre. **Postcondició:** un sol `UUID_PAYMENT` per fet extern i assignacions coherents, o rebuig abans del registre. La suma exactament igual a l'import **no és sempre obligatòria** quan existeix un import pendent de distribuir: el que és inacceptable és consumir més del que s'ha ingressat o tractar el sobrant com a saldo lliure sense verificar-ne l'origen i els compromisos. Per a `REFUND` i `COMPENSATION`, les regles d'elegibilitat de la destinació i de disponibilitat són específiques.
+
+**PHP contrastat:** `PaymentPayloadValidator` només requereix `is_numeric(payload.amount)` i `is_numeric(allocation.amount)`, com a mínim una assignació i valors enumerats de moviment/mètode; **no comprova** positivitat ni suma de trams. `PaymentService` l'executa abans del seu `TransactionRunner` i `PaymentRepository::createPayment()` insereix moviment i cada tram; `refreshInvoicePaymentStatus()` suma `IMPORT_ASSIGNAT` de cada factura sense limitar-ho a `payment_transaction.IMPORT` del mateix ingrés. Un `CHARGE` nominal de 100 amb F1/80+F2/80 pot persistir amb **160 € atribuïts**; una assignació negativa altera el saldo de la factura sense esdevenir un moviment `REFUND` real ni una reversió traçada. El test `RegisterPaymentTest` comprova únicament l'alta coherent 120/120 i un reintent equivalent, **no** imports negatius, zero o repartiment inconsistent.
+
+```plantuml
+@startuml
+left to right direction
+actor "Canal de cobrament" as C
+actor "Banc / evidència externa" as B
+rectangle "SIF PrisMa — UC-02 / VALIDAR CHARGE I TRAMS" {
+ usecase "Validar nou ingrés i trams proposats" as Validate
+ usecase "Comprovar identitat bancària,\nimport real i titular" as Bank
+ usecase "Comprovar cada tram positiu\ni suma no superior a import" as Sum
+ usecase "Registrar CHARGE i assignacions\nnomés amb invariant satisfet" as Record
+ usecase "UC-56\nConciliar import no assignat" as Remainder
+}
+C --> Validate
+B --> Bank
+Validate ..> Bank : <<include>> [guard extern pendent]
+Validate ..> Sum : <<include>> [guard pendent]
+C --> Record
+C --> Remainder
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor C as Canal
+participant V as PaymentPayloadValidator [PHP]
+participant G as MoneyAllocationInvariantGuard [DISSENY]
+participant S as PaymentService [PHP]
+participant R as PaymentRepository [PHP]
+participant DB as payment_transaction + payment_allocation [SQL]
+C->>V: validate(CHARGE 100, F1/80 + F2/80)
+V-->>C: Payload estructuralment validat [PHP: sense prova de suma]
+C->>G: validateNewExternalReceipt(payload,evidence) [PENDENT]
+alt F1/80 + F2/80 = 160 > ingrés 100
+ G-->>C: CONFLICT; cap registre de CHARGE ni imputació
+else Hi ha tram zero/negatiu o titular incompatible
+ G-->>C: CONFLICT abans de cap escriptura
+else Trams F1/80 + F2/20, ingrés 100 acreditat
+ G-->>C: Invariant compatible [pendent d'equivalència de K]
+ C->>S: registerPayment(payload validat)
+ S->>R: findByIdempotencyKey(K,true) sota BEGIN
+ R-->>S: K inexistent
+ S->>R: createPayment(payload)
+ R->>DB: INSERT CHARGE 100, F1/80 i F2/20
+ R->>DB: Recalcular estats de F1 i F2, COMMIT del servei
+ S-->>C: UUID_PAYMENT únic, trams sumen 100
+end
+Note over G,S: Guard previ i verificació transaccional a l'alta definitiva són DISSENY. La validació externa aïllada no protegeix contra canvis concurrents.
+```
+
+| Prova pendent | Escenari | Resultat objectiu |
+| --- | --- | --- |
+| CP-02-12 | `amount=100`, dues allocations F1/80 i F2/80 | Rebutjar sobreatribució abans de persistir res; validator PHP actual deixa passar estructura/imports numèrics. |
+| CP-02-13 | `amount=100` i allocation F1/-20 o F1/0 | Rebutjar tram no positiu abans de qualsevol canvi d'`ESTAT_COBRAMENT`. |
+| CP-02-14 | `amount=100`, F1/80 i 20 sense atribució | Admetre només amb política de saldo pendent i ingrés real acreditat; no mostrar F2 pagada fins a UC-56. |
+| CP-02-15 | `amount=100`, F1/80 + F2/20 coherents; intent duplicat K amb repartiment F1/100 | Primer alta coherent; segon `CONFLICT` semàntic, no resposta que presenti distribució nova com a aplicada. |
+| CP-02-16 | Pagament nominal 100, trams 160; estats individuals de les factures semblen coherents | Detectar invariant **per UUID_PAYMENT** independentment de `ESTAT_COBRAMENT` per factura, obrir diagnosi sense alterar factura fiscal. |
 
 ## 6. Traçabilitat
 

@@ -118,7 +118,7 @@ alt Falta prova funcional o de restauració
 else Evidència completa per l'abast aprovat
  E-->>Q: Informe amb hashes i riscos
  F->>Q: Aprovar decisió per entorn i versió
- Q-->>T: Decisió registrada; UC-46/83 fa activació separada
+ Q-->>T: Decisió registrada, UC-46/83 fa activació separada
 end
 Note over G,Q: No s'han executat aquests scripts ni proves d'entorn en aquesta revisió documental.
 ```

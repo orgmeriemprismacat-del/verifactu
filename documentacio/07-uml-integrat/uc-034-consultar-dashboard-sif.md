@@ -154,7 +154,7 @@ else Accés autoritzat
  Q-->>S: Mètriques de cua fiscal
  S-->>UI: Comptadors amb data, rang i estat d'obtenció
  O->>UI: Obrir detall d'incidència o cua
- Note over UI,S: Navegació a cas específic amb autorització pròpia; no mutació en UC-34
+ Note over UI,S: Navegació a cas específic amb autorització pròpia, no mutació en UC-34
 end
 ```
 

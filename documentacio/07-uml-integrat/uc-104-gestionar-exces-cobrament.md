@@ -154,7 +154,7 @@ else Decideix crear saldo autoritzat de 20 €
  Credit-->>S: UUID_CREDIT
  S->>L: Enllaçar origen del saldo sense nou CHARGE
 else No hi ha decisió
- S-->>Op: Sobrant pendent; factura F intacta
+ S-->>Op: Sobrant pendent, factura F intacta
 end
 Note over S,L: Seqüència conceptual: no executar PaymentService amb total inconsistent 120 €/100 € com si el PHP actual resolgués el sobrant
 ```
@@ -205,7 +205,7 @@ else Import extern real superior al deute verificat
  U-->>S: Identificador de l'excedent
  S-->>O: Expedient pendent de decisió, sense CHARGE fictici
 end
-Note over R,U: El PHP actual exigeix almenys una allocation al registrar el moviment; la custòdia d'excedents no assignats està pendent.
+Note over R,U: El PHP actual exigeix almenys una allocation al registrar el moviment, la custòdia d'excedents no assignats està pendent.
 ```
 
 ### 4.2. Acció independent: aplicar l'excedent a un deute diferent — OBJECTIU
@@ -222,15 +222,15 @@ O->>S: Aplicar part sobrera d'un ingrés existent a la factura F2
 S->>U: Bloquejar i verificar UUID_PAYMENT, titular i excedent disponible
 alt Titularitat no acreditada o import ja consumit
  U-->>S: Conflicte o saldo insuficient
- S-->>O: Rebuig o incidència; cap import nou
+ S-->>O: Rebuig o incidència, cap import nou
 else Import suficient i deute de F2 confirmat
  S->>A: allocate(UUID_PAYMENT existent,F2,import,requestId)
- A->>DB: BEGIN; persistir assignació idempotent i recalcular F2 [PENDENT]
+ A->>DB: BEGIN, persistir assignació idempotent i recalcular F2 [PENDENT]
  A->>DB: COMMIT
  A-->>S: UUID_PAYMENT original, import imputat i saldo pendent
  S-->>O: Aplicació confirmada sense nou CHARGE
 end
-Note over S,A: No existeix ruta completa d'assignar pagament existent al PaymentService actual; aquesta seqüència és disseny.
+Note over S,A: No existeix ruta completa d'assignar pagament existent al PaymentService actual, aquesta seqüència és disseny.
 ```
 
 ### 4.3. Acció independent: retornar diners efectivament sortits — OBJECTIU i servei de registre existent
@@ -247,7 +247,7 @@ participant DB as BD fiscal SIF
 O->>S: Autoritzar retorn d'excedent al pagador legitim
 S->>U: Verificar origen, saldo retornable, titular i retorns previs
 alt Sortida bancària no acreditada o retorn previ existent
- S-->>O: Pendent o reús del retorn anterior; cap REFUND nou
+ S-->>O: Pendent o reús del retorn anterior, cap REFUND nou
 else Retorn bancari real confirmat
  B-->>S: Referència de sortida i import efectiu
  S->>R: registerByUuid(factura/input de retorn validat)
@@ -256,12 +256,12 @@ else Retorn bancari real confirmat
  S->>U: Tancar tram sobrant amb referència única de retorn [PENDENT]
  S-->>O: Retorn acreditat, import sobrant restant
 end
-Note over S,DB: El servei de REFUND actual exigeix una factura; un sobrant encara no assignat necessita un contracte nou. No apuntar-lo a F1 només per satisfer el validador.
+Note over S,DB: El servei de REFUND actual exigeix una factura, un sobrant encara no assignat necessita un contracte nou. No apuntar-lo a F1 només per satisfer el validador.
 ```
 
 **Contracte bloquejant de retorn d'excés no assignat (contrast UC-28):** `ManualRefundPayloadBuilder::forExistingInvoice()` **exigeix** `UUID_FACTURA` i genera una `payment_allocation` `INVOICE_REFUND` a aquella factura. L'excés real de 20 € d'un ingrés de 120 € només imputat 100 € a F1 **no pertany necessàriament a F1**: registrar els 20 € com a `INVOICE_REFUND` de F1 per esquivar el validador distorsionaria el seu `ESTAT_COBRAMENT`. Cal un model de sortida vinculada a l'`UUID_PAYMENT` extern i al dret no assignat, amb import i pagador acreditats, **sense crear una assignació fiscal falsa**. No existeix aquesta ruta completa en el servei de refund examinat.
 
-**Claus repetides en diversos canals:** `ManualRefundPayloadBuilder` genera `REFUND|REF:<reference>` quan la referència és present, sense factura/import, i sense referència usa factura+data truncada al dia+import+banc; `PaymentService` no compara el `PAYLOAD_HASH` del moviment recuperat amb el nou payload. Un altre retorn legítim del mateix dia i import pot fusionar-se silenciosament, o una referència compartida pot fer passar l'antic UUID com a devolució d'una altra factura. En la resolució de l'excés, confirmar **l'operació externa única i el seu payload complet** abans de decidir reús. Vegeu les tres accions independents de la [UC-28, seccions 4.2–4.4](uc-028-registrar-devolucio.md).
+**Claus repetides en diversos canals:** `ManualRefundPayloadBuilder` genera `REFUND|REF:<reference>` quan la referència és present, sense factura/import, i sense referència usa factura+data truncada al dia+import+banc; **A main, `PaymentService::assertSamePayload()` compara el hash de la petició completa en reús de K (V1/V2): mateixa referència però import/factura diferents → CONFLICT, no retorn silenciós de l'UUID aliè.** Dos retorns bancaris reals diferents del mateix dia/import amb K i payload idèntics encara poden col·lidir i reutilitzar el primer; el hash no comprova el fet bancari extern ni el saldo retornable. En la resolució de l'excés, confirmar **l'operació externa única i el seu payload complet** abans de decidir reús. Vegeu les tres accions independents de la [UC-28, seccions 4.2–4.4](uc-028-registrar-devolucio.md).
 
 ### 4.4. Acció independent: concedir saldo legítim sense nou ingrés — OBJECTIU
 
@@ -276,13 +276,13 @@ participant DB as credit_balance [SQL]
 O->>S: Aprovar creació de saldo de l'excedent acreditat
 S->>U: Bloquejar import disponible, origen i titular del dret
 alt Import consumit, destinatari incorrecte o origen no acreditat
- U-->>S: Conflicte; cap saldo
+ U-->>S: Conflicte, cap saldo
 else Import disponible i aprovació coherent
  S->>C: createCredit(input de saldo, import i titular) [CONNEXIÓ PENDENT]
  C->>DB: BEGIN, INSERT credit_balance, COMMIT [PHP existent]
  C-->>S: UUID_CREDIT i import disponible
  S->>U: Enllaçar UUID_CREDIT amb origen de l'excedent [PENDENT]
- S-->>O: Saldo concedit; aplicació futura és UC-29a
+ S-->>O: Saldo concedit, aplicació futura és UC-29a
 end
 Note over S,C: createCredit() no demostra que l'excedent concret financi el saldo. La vinculació i conservació monetària són pendents.
 ```

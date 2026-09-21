@@ -56,7 +56,7 @@ El builder coneix `id_insc` i l'inclou a la **clau idempotent** i a `provider_re
 
 **F-PACK — excepció que no s'ha d'esborrar:** aquest cas UC-23 descriu **diversos cobraments d'una factura ja emesa**, que no generen noves factures. En canvi, el xat original diu que, en un pack dividit excepcionalment des de la intranet, el circuit històric pot generar **més d'una factura, segons els pagaments**. La documentació final del pack també contempla una factura per cada pagament real en aquella variant excepcional. No traslladar automàticament la regla «una factura per totes les fraccions» a aquest altre circuit: cal classificar si existeix una única factura prèvia o si són operacions/parts facturables diferents (UC-15/16), amb imports, línies i justificació aprovats. **No està acreditat aquí un orquestrador que resolgui automàticament les dues variants.**
 
-**F-IDENT — identificar fraccions repetides:** la clau manual actual concatena ID_INSC, dia, import i usuari, però omet un identificador únic d'operació/quota i la factura. Dos cobraments legítims del mateix import i dia podrien fusionar-se; una petició amb mateix conjunt d'aquests camps però factura diferent també podria retornar el moviment anterior. Distingir reintent exacte d'ingrés nou, exigir clau estable per moviment confirmat, validar la relació inscripció/factura i les assignacions, i comparar el payload original per detectar conflictes. Són controls pendents d'integració, no garanties de l'implementat.
+**F-IDENT — identificar fraccions repetides:** la clau manual actual concatena ID_INSC, dia, import i usuari, però omet un identificador únic d'operació/quota i la factura. Dos cobraments legítims del mateix import i dia poden obtenir la mateixa K: **a main**, si el payload també és equivalent, el segon es reutilitza i pot ocultar un ingrés real diferent; si la factura, la referència o un altre camp del payload difereixen, `assertSamePayload()` retorna conflicte (no un UUID aliè silenciós). Distingir reintent exacte d'ingrés nou, exigir clau estable per moviment confirmat, validar la relació inscripció/factura i les assignacions, i comparar el payload original per detectar conflictes. Són controls pendents d'integració, no garanties de l'implementat.
 
 ### 1.5. Proves d'acceptació específiques de fraccionament (no executades)
 
@@ -204,7 +204,7 @@ Note over UI,R: Calendari i conciliació de fraccions encara no són funcions ac
 
 ### 4.2. Seqüència específica: dues fraccions legítimes idèntiques el mateix dia — COL·LISIÓ REAL DEL CONTRACTE ACTUAL
 
-**Font:** `ManualInstallmentPaymentPayloadBuilder::idempotencyKey()` deriva la clau d'`ID_INSC`, dia de `movement_date`, import i usuari. La factura, la referència del banc, l'instant complet i una clau d'operació explícita **no participen** en aquesta derivació. `PaymentService::registerPayment()` retorna el moviment ja registrat per una clau igual sense comparar el nou payload. La prova existent repeteix expressament la primera fracció amb els mateixos valors; **no cobreix dos ingressos reals diferents que comparteixen aquests valors**.
+**Font:** `ManualInstallmentPaymentPayloadBuilder::idempotencyKey()` deriva la clau d'`ID_INSC`, dia de `movement_date`, import i usuari. La factura, la referència del banc, l'instant complet i una clau d'operació explícita **no participen** en aquesta derivació. **A main**, `PaymentService::registerPayment()` només reutilitza K si `assertSamePayload()` compara equivalent el payload complet segons hash V1/V2. Si la referència bancària o la factura són diferents, retorna **CONFLICT**; si tots els camps són iguals però hi ha dos ingressos externs realment diferents, el hash no els pot distingir i reutilitza el primer. La prova existent repeteix expressament la primera fracció amb els mateixos valors; **no cobreix dos ingressos reals diferents que comparteixen aquests valors**.
 
 ```mermaid
 sequenceDiagram
@@ -237,11 +237,18 @@ A->>S: registerPayment(payload B)
 S->>TR: run(callback B)
 TR->>DB: BEGIN
 S->>PR: findByIdempotencyKey(K, true)
-PR-->>S: CHARGE A existent
-TR->>DB: COMMIT sense crear B
-S-->>A: idempotency_reused=true, UUID_PAYMENT_A
-A-->>O: El servei retorna A, però NO demostra equivalència d'ingressos
-Note over A,DB: Aquest és el comportament que es dedueix del PHP actual. El segon ingrés real quedaria sense registrar per aquesta via.
+PR-->>S: CHARGE A existent amb PAYLOAD_HASH de petició original
+alt Payload B amb nova referència/factura o altres camps diferents
+ S->>S: assertSamePayload(payload B,hash A) [PHP main]
+ S--xA: CONFLICT, sense inserir B
+ A-->>O: Revisar la clau del builder i identificar ingrés B real diferent
+else Payload B completament igual però dos ingressos bancaris reals diferents
+ S->>S: assertSamePayload() coincideix [PHP main]
+ TR->>DB: COMMIT de reús, sense inserir B
+ S-->>A: idempotency_reused=true, UUID_PAYMENT_A
+ A-->>O: El hash no pot distingir un segon ingrés amb payload idèntic
+end
+Note over A,DB: El builder no admet clau explícita d'event. El hash de petició protegeix K, no prova unicitat del fet bancari extern.
 ```
 
 ### 4.3. Seqüència objectiu: identificar i reconciliar fracció abans de registrar-la
@@ -279,14 +286,14 @@ participant DB as BD SIF
 O->>A: Registrar ingrés amb referència única, factura F i inscripció I
 A->>R: Validar fet bancari i relació I-F, import pendent i atribució
 alt Ingrés no confirmat o factura/inscripció incongruent
- R-->>A: Rebuig o incidència; cap CHARGE
+ R-->>A: Rebuig o incidència, cap CHARGE
 else Ingrés confirmat
  R-->>A: ID únic d'ingrés, import i destinació verificats
  A->>G: Comparar ID del fet i payload amb moviments existents
  alt Mateix ingrés i payload equivalent
   G-->>A: Reutilitzar UUID_PAYMENT existent
  else Mateix identificador amb import/factura contradictoris
-  G-->>A: Conflicte i revisió; cap nou CHARGE
+  G-->>A: Conflicte i revisió, cap nou CHARGE
  else Ingrés nou i diferent, encara que import/dia siguin iguals
   G-->>A: Clau d'ingrés única i assignació validada
   A->>P: registerPayment(payload normalitzat)
@@ -304,6 +311,146 @@ Note over A,G: Guard, autorització i conciliació no estan implementats pel bui
 | FR-10 | Reintent del mateix ingrés amb una altra referència de pantalla | Recuperar el mateix UUID_PAYMENT; cap segon CHARGE. |
 | FR-11 | Mateixa clau manual sobre factura F1 i F2 diferents | Conflicte de contingut; no retornar el cobrament d'F1 com si fos el d'F2. |
 | FR-12 | ID_INSC aportat no està vinculat a factura | Rebuig abans de `registerPayment()` o derivació a incidència, no imputació silenciosa. |
+### 4.4. Acció independent: verificar factura i inscripció abans de registrar una fracció — DISSENY
+
+**Actor/disparador:** un operador comunica una quota cobrada per l'`ID_INSC` I sobre la factura fiscal F. **Precondicions:** entrada econòmica confirmada, vincle acreditat I↔F amb `fact_rels` o la línia/operació d'origen pertinent, titular real, saldo pendent i exclusions d'altres moviments sobre aquell mateix ingrés. **Postcondició:** proposta d'assignació validada o incidència **sense `CHARGE`**. El PHP existent `ManualInstallmentPaymentService::registerByUuid()` cerca **només F**; `ManualInstallmentPaymentPayloadBuilder` accepta I aportat en el payload i en forma de clau, però no llegeix `fact_rels` ni acredita que I pertanyi a F.
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador de cobraments" as O
+rectangle "SIF PrisMa — UC-23 / VERIFICAR ID_INSC-F (DISSENY)" {
+ usecase "Comprovar destinació de la fracció" as Verify
+ usecase "Validar factura, titular i inscripció\ncontra origen i línies fiscals" as Rel
+ usecase "Comprovar cobrament real i saldo\nnet, excloent ingressos reutilitzats" as Funds
+ usecase "UC-23 / REGISTER\nRegistrar fracció real" as Record
+}
+O --> Verify
+Verify ..> Rel : <<include>>
+Verify ..> Funds : <<include>>
+O --> Record
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant G as InstallmentDestinationGuard [DISSENY]
+participant F as factura + fact_rels + línies [LECTURA]
+participant P as payment_transaction + allocation [LECTURA]
+participant M as ManualInstallmentPaymentService [PHP]
+O->>G: preview(F,ID_INSC I,externalEventId,amount)
+G->>F: Buscar factura F, cobertura de I, receptor i import original
+alt Factura absent, I no relacionat o destinatari aliè
+ F-->>G: CONFLICT/NOT_FOUND
+ G-->>O: No registrar quota contra F
+else Cobertura I↔F acreditada
+ F-->>G: ID_INSC I, factura F i obligació verificats
+ G->>P: Identificar fet extern i imports ja imputats/retornats
+ alt Event ja registrat, quantia insuficient o titular incompatible
+  P-->>G: REUSE/CONFLICT segons assignacions reals
+  G-->>O: Recuperar moviment o revisar, no crear segon CHARGE
+ else Quota confirmada i compatible
+  P-->>G: NEW i saldo suficient
+  G-->>O: Proposta de registre autoritzable amb identitat immutable [PENDENT]
+  opt Comanda final amb lock/equivalència verificats [PENDENT]
+   O->>M: registerByUuid(F,input)
+   M-->>O: UUID_PAYMENT, revisar que la clau del builder no col·lideix
+  end
+ end
+end
+Note over G,M: Validació de fact_rels, dret de quota i equivalència atòmica no existeixen en aquest servei PHP.
+```
+
+### 4.5. Acció independent: reconciliar una fracció cobrada per un altre canal — DISSENY
+
+**Actor/disparador:** l'ingrés que gestió vol registrar com a fracció `MANUAL` ja consta com a `TRANSFERENCIA` (UC-22) o com a cobrament Redsys amb `DS_ORDER` validada (UC-03). **Postcondició:** vincular aquell **mateix `UUID_PAYMENT`** a la quota/inscripció i identificar trams atribuïts sense afegir una entrada externa fictícia. La referència i el banc opcionals de `ManualInstallmentPaymentPayloadBuilder` **no** formen part de la seva clau: comprovar només `MANUAL|FRACCIO|...` no detecta la mateixa transferència registrada amb `TRANSFERENCIA|REF:...`. `provider_ref=FRACCIO|ID_INSC:<id>|USUARI:<u>` és un identificador funcional de fracció, **no una prova de transacció bancària única**.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió" as G
+actor "Banc/Redsys" as B
+rectangle "SIF PrisMa — UC-23 / CONCILIAR CANALS (DISSENY)" {
+ usecase "Reconèixer ingrés real de quota\nindependentment del prefix de clau" as Recognize
+ usecase "Consultar CHARGE existent i\nassignacions per event bancari" as Existing
+ usecase "UC-56/105\nAtribuir ingrés existent sense CHARGE nou" as Link
+ usecase "UC-23\nRegistrar ingrés extern nou acreditat" as New
+}
+G --> Recognize
+B --> Recognize
+Recognize ..> Existing : <<include>>
+G --> Link
+G --> New
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant R as ExternalReceiptReconciler [DISSENY]
+participant B as Banc/Redsys [FONT EXTERNA]
+participant P as payment_transaction/allocation [LECTURA]
+participant A as Atribució de quota/ID_INSC [DISSENY]
+participant M as ManualInstallmentPaymentService [PHP]
+G->>R: Confirmar fracció I/40 amb event extern E i factura F
+R->>B: Identificar moviment real E, DS_ORDER o referència acreditada
+R->>P: Cercar E globalment, no només prefix MANUAL|FRACCIO
+alt E ja consta com CHARGE de transferència o Redsys
+ P-->>R: UUID_PAYMENT_X, import i assignacions persistides
+ R->>A: Comprovar tram atribuïble a I/F sense superar ingrés X
+ A-->>G: Correlacionar quota amb X o incidència, NO cridar registerPayment
+else E és un fet nou però la clau derivada de fracció ja existeix
+ P-->>R: K ocupada per una altra quota real
+ R-->>G: CONFLICT de la clau actual, adaptar contracte d'identitat de fet bancari [PENDENT]
+else E és nou, I↔F acreditat i no hi ha col·lisió
+ R->>M: registerByUuid(F,input) després de guard [PENDENT]
+ M-->>G: UUID_PAYMENT de quota nova, una sola entrada real
+end
+Note over R,M: El builder actual no accepta identificador de fet extern com a idempotency_key d'entrada, la ruta nova requereix contracte i proves.
+```
+
+### 4.6. Seqüència de main: una mateixa clau de fracció amb factura diferent genera CONFLICT per hash
+
+**Derivació del PHP, no reproducció de test:** la clau de `ManualInstallmentPaymentPayloadBuilder::idempotencyKey()` no conté `UUID_FACTURA` i `ManualInstallmentPaymentService::registerForInvoice()` posa `uuid_factura`/número de **la factura que s'ha demanat ara** després de la resposta de `PaymentService`. Si el mateix I/dia/import/usuari es presenta per F1 i F2, el segon payload té assignació diferent: **a main, `PaymentService::assertSamePayload()` rebutja la coincidència de K amb CONFLICT** abans de retornar cap resultat de pagament sobre F2. El hash no pot distingir dos ingressos reals quan tots els camps del payload també són idèntics, de manera que la clau per event bancari continua pendent.
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant S as ManualInstallmentPaymentService [PHP]
+participant B as ManualInstallmentPaymentPayloadBuilder [PHP]
+participant P as PaymentService [PHP]
+participant DB as payment_transaction + payment_allocation [SQL]
+O->>S: registerByUuid(F1, I=77, D, 40, user=U)
+S->>B: forExistingInvoice(F1,input1)
+B-->>S: K=MANUAL|FRACCIO|I:77|DATA:D|IMPORT:40|USUARI:U
+S->>P: registerPayment(payload F1)
+P->>DB: BEGIN + INSERT UUID_PAYMENT_F1 amb allocation F1
+P->>DB: COMMIT
+P-->>S: UUID_PAYMENT_F1,idempotency_reused=false
+S-->>O: UUID_PAYMENT_F1,uuid_factura=F1
+O->>S: registerByUuid(F2, mateix I,D,40,U, diferent quota o factura)
+S->>B: forExistingInvoice(F2,input2)
+B-->>S: Mateixa K sense factura ni referència externa
+S->>P: registerPayment(payload F2)
+P->>DB: BEGIN + SELECT IDEMPOTENCY_KEY=K FOR UPDATE
+DB-->>P: UUID_PAYMENT_F1, allocation només F1
+P->>P: assertSamePayload(payload F2,hash original F1) [PHP main]
+P--xS: CONFLICT; rollback i cap assignació F2
+S-->>O: Rebuig per K compartida i destí diferent; revisar fet bancari i clau
+Note over S,DB: No hi ha parella de UUIDs contradictòria a main quan el payload canvia. Dos ingressos reals amb K i payload idèntics continuen sense distingir-se.
+```
+
+| Prova pendent | Escenari | Resultat necessari |
+| --- | --- | --- |
+| FR-13 | ID_INSC I no figura com a inscripció coberta per factura F | Bloquejar la quota sobre F; no acceptar únicament el `id_insc` del payload. |
+| FR-14 | Ingrés bancari E registrat per UC-22 i tornat a indicar com a fracció manual | Recuperar moviment i atribució existents sense segon `CHARGE` malgrat claus amb prefix diferent. |
+| FR-15 | F1/40 ja registrada per I/dia/usuari i segona petició F2/40 amb mateixa clau | **PHP main:** CONFLICT per hash de payload amb destí diferent, no UUID_PAYMENT de F1 més UUID_FACTURA F2; continua pendent clau única per ingrés real. |
+| FR-16 | Dues fraccions reals diferents amb mateix I/dia/import/usuari i referències bancàries diferents | Dos fets i dues identitats legítimes només amb clau immutable d'ingrés; builder actual els fusiona i requereix revisió. |
+
 ## 5. Traçabilitat
 
 [Fitxa original UC-23](../06-fitxes-funcionals/uc-023.md) · [UC-02 revisada](uc-002-registrar-cobrament-factura.md) · [ManualInstallmentPaymentService](../../sif/src/Service/ManualInstallmentPaymentService.php) · [ManualInstallmentPaymentPayloadBuilder](../../sif/src/Service/ManualInstallmentPaymentPayloadBuilder.php) · [PaymentService](../../sif/src/Service/PaymentService.php) · [ManualInstallmentPaymentServiceTest](../../sif/tests/Integration/ManualInstallmentPaymentServiceTest.php).

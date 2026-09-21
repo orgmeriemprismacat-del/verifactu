@@ -142,7 +142,7 @@ Ledger-->>Or: Saldo A i pagament origen
 alt Duplicat exacte de la mateixa comanda
  Or-->>UI: Retornar moviment ja registrat
 else Saldo insuficient o destí incongruent
- Or--xUI: Bloqueig; cap assentament nou
+ Or--xUI: Bloqueig, cap assentament nou
 else Reassignació vàlida
  Or->>Ev: append(causa/actor/origen/destí)
  Or->>Ledger: append(A → B, import, UUID_PAYMENT_ORIGIN, event)

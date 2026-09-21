@@ -79,6 +79,23 @@ El callback validat i l'encuat **no** són un assentament de diners per inscripc
 | RC-03-05 | Commit fiscal correcte, sincronització acadèmica o PDF fallits | UUIDs conservats, incidència/reintent de fase, cap nova emissió fiscal. |
 | RC-03-06 | Callback confirmat després de baixa o canvi de curs | Cap alta acadèmica automàtica sobre estat obsolet; cobrament reconciliat. |
 
+
+### 1.6. Integració de la proposta v2: validar notificació i deduplicar efectes en fases diferents
+
+El document Redsys v2 dibuixa RedsysCallbackController::handleNotification() com si calculés/validés un hash igual al de la intenció pre-TPV i, **en la mateixa petició HTTP**, registrés un pagament, marqués la intenció COMPLETADA i emetés factura abans de retornar 200. **Aquest no és el recorregut executable de main**. L'endpoint callback.php utilitza RedsysSignatureValidator per verificar la signatura entrant i invoca RedsysCallbackService; receiveAuthorizedCallback() comprova intenció per DS_ORDER, import, divisa i terminal, desa redsys_notifications i encola el job de resposta autoritzada en una transacció local. **No** crida PaymentService ni InvoiceService, no canvia l'estat de la intenció a COMPLETADA i no espera el worker per respondre.
+
+RedsysSignatureValidator genera payload_hash = SHA-256 dels bytes Ds_MerchantParameters **de la notificació entrant**, que RedsysNotificationRepository utilitza per contrastar una repetició del mateix DS_ORDER juntament amb import, codi de resposta, moneda, terminal i versió de signatura. No és el hash immutable de la intenció/compra UC-63; les peticions tenen continguts diferents i una comparació de hash complet entre les dues donaria un desacord legítim. PayloadIdempotencyValidatorInterface de main **no es crida** al servei de callback. El duplicat signat equivalent reutilitza notificació/job; el contradictori origina conflicte i el servei intenta obrir incidència. Un retorn HTTP correcte acredita recepció/encuat, no pagament/alta fiscal completats.
+
+El worker RedsysCallbackWorker::runOne() reclama el job; RedsysCallbackDispatcher tria el handler de producte i, segons el cas, InvoiceService::issueInvoice() amb pagament inicial crea el resultat fiscal/econòmic. **Aquí** és on InvoiceService i PaymentService de main utilitzen PayloadIdempotencyValidatorInterface per a la petició d'emissió/pagament que els correspon. Aquest hash **no** substitueix la validació del cobrament extern únic, la factura prèvia, la correspondència de UUID_PAYMENT amb la factura ni els controls pendents de propietat del job UC-52.
+
+| Prova pendent v2 | Evidència exigible |
+| --- | --- |
+| RV2-03-01 | Recepció signada VALIDATED: una notificació/job, zero factura o CHARGE abans d'executar el worker. |
+| RV2-03-02 | Mateix DS_ORDER i callback exacte repetit: una notificació i un job; el worker no duplica moviment ni factura. |
+| RV2-03-03 | Callback de mateixa intenció amb Ds_Response diferent: conflicte de notificació, no forçar coincidència amb hash del formulari inicial ni deduir frau només del desacord de payloads diferents. |
+| RV2-03-04 | PaymentService/InvoiceService amb mateixa clau i payload diferent: conflicte semàntic del seu propi hash de petició, no comparació del callback amb UC-63. |
+| RV2-03-05 | Duplicat HTTP mentre el job està QUEUED/PROCESSING: resposta d'encuat sense declarar pagament ni factura confirmats. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -105,6 +122,30 @@ U51 ..> U3 : <<extend>>
 @enduml
 ```
 
+### Vista Mermaid del circuit asíncron general
+
+```mermaid
+flowchart LR
+  a_0["Redsys"]
+  a_1["Worker SIF"]
+  subgraph SIF_BOUNDARY["SIF PrisMa"]
+    u_0(["UC-03<br/>Processar cobrament<br/>Redsys asíncron"])
+    u_1(["Validar signatura<br/>i intenció"])
+    u_2(["Registrar notificació<br/>i encuar"])
+    u_3(["Processar snapshot<br/>i emetre factura/pagament"])
+    u_4(["UC-51<br/>Tractar callback anòmal"])
+    u_5(["UC-52<br/>Operar cua i reintents"])
+    u_6(["UC-01<br/>Emetre factura"])
+  end
+  a_0 --> u_0
+  a_1 --> u_5
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_5 -.->|include| u_3
+  u_3 -.->|include| u_6
+  u_4 -.->|extend| u_0
+```
+
 La frontera HTTP/worker apareix explícita al diagrama de seqüència: aquest diagrama de casos d'ús mostra l'abast funcional conjunt, **no** que el callback emeti immediatament.
 
 ## 3. Subdiagrama de classes del circuit Redsys
@@ -115,6 +156,18 @@ direction LR
 class RedsysSignatureValidator {
  +decodeAndVerify(request,context) array
 }
+class PayloadIdempotencyValidatorInterface {
+ <<PHP main; factures/pagaments, NO callback>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class PayloadIdempotencyValidator {
+ <<PHP main>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+PayloadIdempotencyValidator ..|> PayloadIdempotencyValidatorInterface
+
 class RedsysCallbackService {
  +receiveCallback(db,payload,signatureValid) array
  +receiveAuthorizedCallback(db,signedData) array
@@ -172,6 +225,8 @@ RedsysGroupInvoiceService ..|> RedsysIntentHandler
 RedsysGiftInvoiceService ..|> RedsysIntentHandler
 RedsysUsocInvoiceService ..|> RedsysIntentHandler
 RedsysCourseInvoiceService --> InvoiceService
+InvoiceService --> PayloadIdempotencyValidatorInterface : reús de petició fiscal [main]
+
 RedsysPackInvoiceService --> InvoiceService
 RedsysGroupInvoiceService --> InvoiceService
 RedsysGiftInvoiceService --> InvoiceService
@@ -193,6 +248,7 @@ participant IR as RedsysPaymentIntentRepository
 participant NR as RedsysNotificationRepository
 participant Q as RedsysCallbackQueueRepository
 participant DB as BD SIF
+Note over EP,Q: payload_hash entrant prové dels Ds_MerchantParameters del callback, NO del snapshot/intent original
 R->>EP: POST paràmetres i signatura
 EP->>Sig: decodeAndVerify(POST)
 alt Signatura no vàlida
@@ -222,6 +278,7 @@ else Signatura vàlida
  end
 end
 Note over EP,DB: Cap factura es crea durant la recepció HTTP
+Note over CS,Q: PayloadIdempotencyValidatorInterface NO participa en la recepció HTTP; deduplicació de notificació per DS_ORDER i camps/hash entrants
 ```
 
 **Excepció separada:** si arriba una notificació contradictòria pel mateix `DS_ORDER`, es desfà la transacció; el servei intenta obrir una incidència i retorna conflicte. No s'ha dibuixat com a simple duplicat correcte.
@@ -275,6 +332,88 @@ end
 ```
 
 **Observació de fiabilitat:** el resultat fiscal i el marcador `PROCESSED` són operacions separades. Si s'ha confirmat la factura/pagament però falla el canvi d'estat del job, la repetició depèn de la idempotència i dels mecanismes de recuperació, no d'un rollback únic de tot el circuit.
+
+### 5.1. Acció independent: constatar que el callback cobrat ha generat un resultat fiscal i econòmic complet — PHP parcial / DISSENY
+
+**Actor/disparador:** després que el handler del worker retorni un array, es vol donar per completat el processament d'un **cobrament TPV validat**. **Precondicions objectiu:** `DS_ORDER` i intenció/notificació verificats; `UUID_FACTURA` real, cobertura i receptor coherents; `UUID_PAYMENT` del moviment `CHARGE` original amb assignació a la factura apropiada; estat de resultat i propietat de l'intent de cua verificats. **Postcondició:** confirmació de la fase fiscal/econòmica o incidència de conciliació; la disponibilitat del PDF, el resultat AEAT i la sincronització de matrícula són fases **independents**.
+
+**Límit de codi comprovat:** `RedsysCallbackWorker::runOne()` considera que el retorn de `RedsysJobProcessor::process()` és suficient per cridar `markProcessed()`. No valida `result['ok']` ni exigeix que existeixin `uuid_factura`/`uuid_payment`. `markProcessed()` accepta `result['uuid_factura'] ?? null` i `result['uuid_payment'] ?? null`. Per tant, `redsys_callback_queue.STATUS=PROCESSED` **no és, per si sol, prova que s'hagi persistit un ingrés atribuït a la factura**; s'ha d'anar a les taules de factura/pagament/assignacions. A més, recuperar un lock de més de 15 minuts no garanteix que hagi mort el primer worker: les marques finals només exigeixen `STATUS=PROCESSING`, sense contrast de `LOCKED_BY` o generació (UC-52).
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker Redsys" as W
+actor "Gestió d'incidències" as G
+rectangle "SIF PrisMa — UC-03 / COMPROVAR EFECTES" {
+ usecase "Comprovar resultat de callback processat" as Check
+ usecase "Contrastar factura fiscal i\nDS_ORDER de l'intent" as F
+ usecase "Contrastar CHARGE, UUID_PAYMENT\ni assignació real a factura" as P
+ usecase "Marcar PROCESSED només amb\nresultat íntegre i token vigent" as Finish
+ usecase "UC-52/53\nConciliar efectes incomplets" as Review
+}
+W --> Check
+Check ..> F : <<include>>
+Check ..> P : <<include>>
+Check ..> Finish : <<include>> [DISSENY]
+G --> Review
+@enduml
+```
+
+### Vista Mermaid de verificació d'efectes del job Redsys
+
+```mermaid
+flowchart LR
+  a_0["Worker Redsys"]
+  a_1["Gestió d'incidències"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — UC-03 / COMPROVAR EFECTES"]
+    u_0(["Comprovar resultat de callback processat"])
+    u_1(["Contrastar factura fiscal i<br/>DS_ORDER de l'intent"])
+    u_2(["Contrastar CHARGE, UUID_PAYMENT<br/>i assignació real a factura"])
+    u_3(["Marcar PROCESSED només amb<br/>resultat íntegre i token vigent"])
+    u_4(["UC-52/53<br/>Conciliar efectes incomplets"])
+  end
+  a_0 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+  a_1 --> u_4
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor W as Worker
+participant H as RedsysCallbackDispatcher/handler [PHP]
+participant V as RedsysJobResultValidator [DISSENY]
+participant F as factura + fact_rels + registres [LECTURA]
+participant P as payment_transaction/allocation [LECTURA]
+participant Q as RedsysCallbackQueueRepository [PHP]
+W->>H: process(J amb DS_ORDER validat)
+H-->>W: result array
+W->>V: verify(J,result,claimToken) [PENDENT]
+alt result.ok absent/false o no hi ha factura
+ V-->>W: ERROR/RECONCILE; no marcar pagat
+else Factura aparentment emesa
+ V->>F: Verificar UUID_FACTURA, receptor/cobertura i ordre original
+ V->>P: Verificar UUID_PAYMENT, CHARGE i assignacions coherents
+ alt Cobrament absent, assignat a altra factura o quantia discrepant
+  P-->>V: PAYMENT_MISSING/CONFLICT
+  V-->>W: UC-02/56/53, cap PROCESSED econòmic fals
+ else Resultat íntegre i propietat del job vigent
+  P-->>V: UUID_FACTURA i UUID_PAYMENT verificats
+  W->>Q: markProcessed(J,result,temps de finalització) [token PENDENT]
+  Q-->>W: Job PROCESSED; AEAT/PDF/sync llegada continuen independents
+ end
+end
+Note over V,Q: El PHP actual fa markProcessed directament en rebre qualsevol array. Validació d'efectes i fencing són objectiu.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RA-03-07 | El processador retorna `ok=true` sense `uuid_payment` per una venda TPV cobrada | Job pendent de conciliació, no resultat de cobrament complet per la sola marca PROCESSED. |
+| RA-03-08 | El processador retorna `uuid_payment` aliè a `uuid_factura` de la mateixa ordre | Detectar assignació contradictòria abans de donar èxit al circuit. |
+| RA-03-09 | El worker A supera 15 minuts i B reclama el mateix job, però A retorna abans que B | Resultat terminal només de l'intent vigent, o incidència controlada per intent obsolet; no sobrescriure B amb A. |
+| RA-03-10 | Factura prèvia amb clau diferent existeix abans de processar el callback | Comprovar cobertura abans d'emetre; assignar ingrés únic a factura real original o obrir incidència, sense duplicar-la. |
 
 ## 6. Traçabilitat i punts pendents
 

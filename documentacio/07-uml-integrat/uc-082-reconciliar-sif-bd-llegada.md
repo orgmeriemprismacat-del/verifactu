@@ -145,9 +145,9 @@ G->>S: Aprovar reparació individual amb fonts verificades
 alt Només resum llegat desactualitzat
  S->>W: syncAfterSifSuccess(relations,...)
  W->>L: UPDATE FACTURA_RELACIONADA i CONCAT OBSERVACIONS
- Note over W,L: PHP actual pot duplicar la nota en reintents; reparar idempotència
+ Note over W,L: PHP actual pot duplicar la nota en reintents, reparar idempotència
 else Pagament o titular no acreditat
- S->>R: Incidència/pendent; NO crear CHARGE fictici
+ S->>R: Incidència/pendent, NO crear CHARGE fictici
 end
 S->>F: Rellegir resultat fiscal i econòmic
 S->>L: Rellegir estat llegat
@@ -254,7 +254,7 @@ S->>F: Verificar versió de dades SIF
 S->>L: Verificar versió de dades llegades
 alt Inputs han canviat o no existeix captura verificable
  S->>Runs: Conservar run anterior sense fals tancament
- S-->>W: Obrir run nou (nova versió/cursor); no barrejar items
+ S-->>W: Obrir run nou (nova versió/cursor), no barrejar items
 else Inputs equivalents i run parcial
  S->>Items: Llegir items existents i RESOLUTION_STATUS
  loop Discrepàncies no materialitzades encara

@@ -32,7 +32,7 @@
 | T1. Transferència parcial | L'estat de cobrament passa a `PARTIAL` si el net és positiu i inferior al total. |
 | T2. Transferència que completa l'import pendent | Estat `PAID` quan el net equival al total. |
 | T3. Transferència superior al pendent | El calculador pot marcar `OVERPAID`; la gestió de l'excés requereix el cas específic UC-104. |
-| T4. Reintent mateixa clau | Es retorna el moviment existent; **el mètode actual no compara explícitament el nou import o la nova factura amb el moviment ja emmagatzemat** en aquesta branca. Cal comparar peticions contradictòries abans de considerar-lo resolt. |
+| T4. Reintent mateixa clau | **A main**, PaymentService comprova el hash V1/V2 de la petició completa, incloses factura/assignacions; mateixa K amb import/destí diferents → CONFLICT, no reús. Identitat del fet bancari entre K diferents, prova del pagador i saldo disponible continuen pendents. |
 | E1. Factura absent o identificador buit | Rebuig abans del registre econòmic. |
 | E2. Import no positiu, mètode invàlid o data absent | Rebuig pel builder. |
 | **P1. Diverses factures en una transferència** | El builder manual genera una assignació a una sola factura. El validador/repositori genèrics accepten diverses assignacions, però el repartiment d'una transferència entre factures necessita un cas/contracte específic (UC-105); **no està resolt per aquest constructor**. |
@@ -199,7 +199,7 @@ else Ingrés nou i dues factures vigents
  UI->>Pay: registerPayment(CHARGE, allocations=[factura A, factura B])
  Pay->>DB: Un CHARGE i dues assignacions en transacció
  Pay-->>UI: UUID_PAYMENT únic
- UI-->>O: Cobraments atribuïts; sincronització llegada posterior
+ UI-->>O: Cobraments atribuïts, sincronització llegada posterior
 end
 Note over UI,Rec: La verificació bancària, la conciliació transversal i l'adaptador multifactura encara no consten com a codi integrat.
 ```
@@ -207,7 +207,7 @@ Note over UI,Rec: La verificació bancària, la conciliació transversal i l'ada
 
 **Actor/disparador:** gestió rep una línia bancària per import total, referència, compte i pagador, possiblement destinada a diverses factures. **Precondicions:** prova externa d'**una entrada real**, identitat de l'operació bancària independent de la referència lliure del remitent i permís sobre els recursos. **Postcondició:** ingrés reconegut per identitat externa, amb `UUID_PAYMENT` SIF existent o estat pendent de registre, i conjunt de factures candidates encara **sense marcar-les pagades**. Si la mateixa transferència ja consta assignada només a A, seleccionar B **no** registra un segon ingrés ni garanteix que existeixi saldo per B.
 
-**Límit PHP contrastat:** `ManualPaymentPayloadBuilder::idempotencyKey()` usa `TRANSFERENCIA|REF:<reference>` en qualsevol factura quan `reference` és present. `PaymentService` retorna per clau el `UUID_PAYMENT` preexistent sense comprovar l'assignació nova. `ManualPaymentService` afegeix a la resposta `uuid_factura`/número de la petició actual. Per tant, una petició A/100 seguida de B/100 amb `reference=TRF-1` pot retornar en la segona un `UUID_PAYMENT_A` juntament amb `uuid_factura=B`, **sense cap fila d'assignació a B**. Vegeu la [seqüència de codi UC-02, 5.3](uc-002-registrar-cobrament-factura.md); no és una funcionalitat de repartiment, sinó una resposta inconsistent.
+**Límit PHP contrastat:** `ManualPaymentPayloadBuilder::idempotencyKey()` usa `TRANSFERENCIA|REF:<reference>` en qualsevol factura quan `reference` és present. **A main, PaymentService comprova el hash de la petició completa per clau i rebutja la segona assignació B/100 quan K continua sent TRANSFERENCIA|REF:TRF-1 i l'original correspon a A/100**: retorna CONFLICT i no afegeix tram B, en lloc de l'UUID aliè aparentment correcte possible a la branca documental antiga. Aquest control no resol una única entrada bancària repartida entre factures ni les dues transferències reals diferents amb la mateixa referència textual. Vegeu [UC-02, 5.3](uc-002-registrar-cobrament-factura.md).
 
 ```plantuml
 @startuml
@@ -267,7 +267,7 @@ else Entrada real confirmada
   end
  else Mateixa referència lliure però distint event bancari
   DB-->>R: Clau textual coincident, però una altra entrada real
-  R-->>G: CONFLICT de clau actual; desambiguar event, no fusionar els ingressos
+  R-->>G: CONFLICT de clau actual, desambiguar event, no fusionar els ingressos
  end
 end
 Note over R,A: El resolvedor de fet bancari i l'assignació de moviment existent no estan implementats als serveis PHP revisats.
@@ -277,7 +277,7 @@ Note over R,A: El resolvedor de fet bancari i l'assignació de moviment existent
 | --- | --- | --- |
 | TR-09 | Entrada externa de 200 €, registre SIF `CHARGE=200` amb assignació A/100 i B pendent | Repartir els 100 restants sobre el mateix UUID després de controlar saldo; no tornar a registrar CHARGE. |
 | TR-10 | Entrada bancària 200 € però registre SIF original `CHARGE=100` assignat íntegrament a A | Incidència de quantia banc/SIF; no afirmar que els 100 restants ja són un saldo del moviment de 100 fins a conciliar el registre inicial. |
-| TR-11 | Alta A/100, després B/100 amb mateixa referència TRF-1 | PHP actual pot respondre UUID_PAYMENT d'A amb factura B sense assignació B; control objectiu detecta discrepància i no marca B pagada. |
+| TR-11 | Alta A/100, després B/100 amb mateixa referència TRF-1 | **PHP main:** segon payload amb factura B → CONFLICT per hash V1/V2; no marcar B pagada, ni crear CHARGE nou sobre el mateix fet extern. |
 | TR-12 | Dues transferències diferents tenen la mateixa referència lliure `MATRICULA` | Contrastar dos events bancaris reals; la clau textual actual no els desambigua i no s'ha de declarar que són un únic ingrés. |
 
 ## 5. Traçabilitat

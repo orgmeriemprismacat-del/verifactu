@@ -135,7 +135,7 @@ UI->>S: classify(codi_hash,actor,requestId)
 S->>E: Consultar estat, vigència, events i operació consumidora
 alt Consum anterior equivalent i titular verificat
  E-->>S: UUID_OPERATION i ID_INSC antics
- S-->>UI: Reutilitzar resultat; cap nou consum o CHARGE
+ S-->>UI: Reutilitzar resultat, cap nou consum o CHARGE
 else Dret caducat, desconegut o titular incoherent
  E-->>S: Causa d'anomalia, sense dades alienes
  S->>Inc: open(factura?,GIFT_REDEMPTION,detalls protegits)
@@ -144,7 +144,7 @@ else Dret caducat, desconegut o titular incoherent
 else Consum ja fet per operació diferent
  E-->>S: CONSUMED per una altra operació
  S->>Inc: open(...,GIFT_DUPLICATE,...)
- S-->>UI: Bloqueig; no generar altra inscripció
+ S-->>UI: Bloqueig, no generar altra inscripció
 end
 opt Pròrroga o altra decisió aprovada després de revisar el cas
  UI->>S: resolve(decision,actor,reason)
@@ -153,7 +153,7 @@ opt Pròrroga o altra decisió aprovada després de revisar el cas
   S->>G: redeem(command idempotent)
  end
 end
-Note over S,E: Flux de diagnosi i resolució OBJECTIU; només IncidentRepository::open és codi PHP acreditat aquí
+Note over S,E: Flux de diagnosi i resolució OBJECTIU, només IncidentRepository::open és codi PHP acreditat aquí
 ```
 
 ## 5. Traçabilitat

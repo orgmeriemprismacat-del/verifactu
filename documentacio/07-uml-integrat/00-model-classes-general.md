@@ -58,6 +58,17 @@ direction LR
 class InvoiceService {
  +issueInvoice(payload) array
 }
+class PayloadIdempotencyValidatorInterface {
+ <<PHP main: hash/compare petició; sense BD>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class PayloadIdempotencyValidator {
+ <<PHP main: SHA-256 canonicalitzat>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+PayloadIdempotencyValidator ..|> PayloadIdempotencyValidatorInterface
 class InvoicePayloadValidator {
  +validate(payload) array
 }
@@ -114,6 +125,7 @@ InvoiceService --> InvoicePayloadValidator
 InvoiceService --> TransactionRunner
 InvoiceService --> InvoiceRepository
 InvoiceService --> FiscalSequenceRepository
+InvoiceService --> PayloadIdempotencyValidatorInterface : petició completa per clau fiscal [PHP main]
 InvoiceRepository --> HashCalculator
 ManualRectificationService --> ManualPaymentInvoiceRepository
 ManualRectificationService --> ManualRectificationPayloadBuilder
@@ -126,7 +138,7 @@ FiscalRecordService --> TransactionRunner
 FiscalRecordRepository --> HashCalculator
 ```
 
-**Reús d'emissió i cobrament inicial:** `InvoiceService::existingResultWithPaymentIfPresent()` torna una factura existent per clau fiscal i, si rep bloc `payment`, **només cerca** la clau econòmica; no crida `createPayment()` en el reús. Pot retornar `ok=true` i `uuid_factura` **sense** `uuid_payment` encara que el canal hagi aportat una entrada real posterior. `InvoiceService` tampoc compara el payload fiscal nou amb la factura congelada abans de retornar `idempotency_reused=true`. [UC-01, seqüències 4.1–4.2](uc-001-emetre-o-reutilitzar-factura.md). 
+**Reús d'emissió i cobrament inicial:** `InvoiceService::existingResultWithPaymentIfPresent()` torna una factura existent per clau fiscal i, si rep bloc `payment`, **només cerca** la clau econòmica; no crida `createPayment()` en el reús. Pot retornar `ok=true` i `uuid_factura` **sense** `uuid_payment` encara que el canal hagi aportat una entrada real posterior. **A main**, `InvoiceService::existingResultWithPaymentIfPresent()` ja crida `PayloadIdempotencyValidatorInterface::assertMatches()` sobre la **petició completa** i `factura.IDEMPOTENCY_PAYLOAD_HASH` abans del reús; files anteriors a la migració sense fingerprint fallen tancat. El hash **no** prova cobertura entre dues claus fiscals diferents, i el reús d'un bloc `payment` original idèntic no crea un `CHARGE` si falta. [UC-01, seqüències 4.1–4.2](uc-001-emetre-o-reutilitzar-factura.md). 
 
 **Fronteres:** UC-05 crea factura R i després vincula la rectificativa/estat de l'original en passos separats: no inventar una transacció conjunta. UC-30 i UC-31 generen **nous registres fiscals per una factura existent**, no una nova factura fiscal amb un número nou. Les responsabilitats concretes consten a [UC-01](uc-001-emetre-o-reutilitzar-factura.md), [UC-04](uc-004-emetre-factura-abans-cobrar.md), [UC-05](uc-005-rectificar-factura.md), [UC-30](uc-030-anul-lar-registre-improcedent.md) i [UC-31](uc-031-subsanar-registre.md).
 
@@ -137,6 +149,11 @@ classDiagram
 direction LR
 class PaymentService {
  +registerPayment(payload) array
+}
+class PaymentIdempotencyVersionPolicy {
+ <<PHP main: responsabilitat dins de PaymentService, no classe real separada>>
+ +v1LegacyJsonInInputOrder(payload) bytes
+ +v2CanonicalHash(payload) sha256
 }
 class PaymentPayloadValidator {
  +validate(payload) array
@@ -181,6 +198,7 @@ class TransactionRunner {
 }
 PaymentService --> PaymentPayloadValidator
 PaymentService --> PaymentRepository
+PaymentService --> PayloadIdempotencyValidatorInterface : assertSamePayload per v1/v2 [PHP main]
 PaymentService --> TransactionRunner
 PaymentRepository --> PaymentStatusCalculator
 ManualPaymentService --> PaymentService
@@ -277,6 +295,142 @@ PaymentService --> PaymentRepository : cerca per K; si existeix no insereix allo
 ```
 
 **Risc compartit amb la devolució:** `ManualPaymentPayloadBuilder` produeix `TRANSFERENCIA|REF:<referència>` sense factura/import. Si la referència ja va crear `UUID_PAYMENT_A` amb assignació a factura A, `PaymentService` recupera aquest UUID en una petició posterior per B i **no afegeix** l'assignació B. `ManualPaymentService::registerForInvoice()` retorna aquell `UUID_PAYMENT_A` però sobreescriu `uuid_factura` amb B, de manera que la resposta pot semblar un cobrament vàlid de B sense que la BD l'hagi imputat. La mateixa forma de resposta contradictòria pot produir-se amb `ManualRefundService`, però els efectes econòmics `CHARGE` i `REFUND` són diferents i no s'han de barrejar. [UC-02, seqüència 5.3](uc-002-registrar-cobrament-factura.md); [UC-28, seqüència 4.3a](uc-028-registrar-devolucio.md).
+
+### 3.3. Subvista real de fraccions i reclamacions — UC-23/24, dues claus que no acrediten l'event extern
+
+```mermaid
+classDiagram
+direction LR
+class ManualInstallmentPaymentService {
+ <<PHP real: factura de petició en resposta>>
+ +registerByUuid(sifDb,uuidFactura,input) array
+ +registerByNumVisible(sifDb,numVisible,input) array
+}
+class ManualInstallmentPaymentPayloadBuilder {
+ <<PHP real: clau per inscripció/dia/import/usuari>>
+ +forExistingInvoice(uuidFactura,input) array
+}
+class ClaimPaymentService {
+ <<PHP real: factura de petició en resposta>>
+ +registerByUuid(sifDb,uuidFactura,input) array
+ +registerByNumVisible(sifDb,numVisible,input) array
+}
+class ClaimPaymentPayloadBuilder {
+ <<PHP real: claim_reference prioritària a reference bancària>>
+ +forExistingInvoice(uuidFactura,input) array
+}
+class ManualPaymentInvoiceRepository {
+ <<PHP real: cerca factura, NO valida vincle ID_INSC>>
+ +findByUuid(db,uuid,forUpdate) array
+}
+class PaymentService {
+ <<PHP real: reús per clau sense comprovar assignacions>>
+ +registerPayment(payload) array
+}
+class PaymentRepository {
+ <<PHP real: moviment/assignació només en crear un pagament>>
+ +findByIdempotencyKey(db,key,forUpdate) array
+ +createPayment(db,payload) array
+}
+ManualInstallmentPaymentService --> ManualPaymentInvoiceRepository : localitza F
+ManualInstallmentPaymentService --> ManualInstallmentPaymentPayloadBuilder : inscripció I només ve del payload
+ManualInstallmentPaymentService --> PaymentService : CHARGE MANUAL/INSTALLMENT_PAYMENT
+ClaimPaymentService --> ManualPaymentInvoiceRepository : localitza F
+ClaimPaymentService --> ClaimPaymentPayloadBuilder : referència d'expedient o bancària
+ClaimPaymentService --> PaymentService : CHARGE/CLAIM_PAYMENT
+PaymentService --> PaymentRepository : cerca K i crea nou només si manca
+```
+
+**Límits exactes:** `ManualInstallmentPaymentPayloadBuilder` desa `reference` en el payload si s'aporta, però **no** la incorpora a la clau; la clau tampoc inclou `UUID_FACTURA`, ni el constructor comprova `fact_rels`. `ClaimPaymentPayloadBuilder` tria `claim_reference`/variants **abans** de `reference`; si aquesta clau identifica l'expedient i no l'entrada bancària, dos pagaments parcials legítims del mateix expedient poden col·lidir. **A més**, el valor seleccionat entra a `payload['reference']` i `PaymentRepository::createPayment()` el desa a `payment_transaction.REFERENCIA_BANCARIA`: un identificador intern de reclamació pot quedar registrat falsament com a referència bancària. `created_by` forma part del payload que es passa al repositori, però no s'escriu en una columna d'actor pròpia del moviment. Una mateixa entrada bancària registrada per UC-22 i després UC-24/23 pot generar **dues claus diferents i dos CHARGE** perquè `PaymentService` només deduplica per la clau rebuda. Els dos serveis manuals sobreescriuen els camps de factura del resultat després de recuperar el `UUID_PAYMENT`, amb risc de resposta contradictòria entre factures. [UC-23](uc-023-registrar-fraccio.md) i [UC-24](uc-024-registrar-cobrament-reclamacio.md).
+
+### 3.4. Subvista real d'invariants monetaris en el registre genèric — UC-02/56/105
+
+```mermaid
+classDiagram
+direction LR
+class PaymentService {
+ <<PHP: valida estructura i registra/reutilitza>>
+ +registerPayment(payload) array
+}
+class PaymentPayloadValidator {
+ <<PHP: is_numeric per moviment/trams, NO suma ni positivitat>>
+ +validate(payload) array
+}
+class PaymentRepository {
+ <<PHP: INSERT moviment i trams només a l'alta>>
+ +findByIdempotencyKey(db,key,forUpdate) array
+ +createPayment(db,payload) array
+ -createAllocation(db,uuidPayment,allocation) void
+ -refreshInvoicePaymentStatus(db,uuidFactura) void
+ -sumAllocationsByMovementTypes(db,uuidFactura,types) string
+}
+class PaymentStatusCalculator {
+ <<PHP: estat per factura, no verifica suma per UUID_PAYMENT>>
+ +calculate(invoiceTotal,charges,refunds) string
+}
+class PaymentActionEventRepository {
+ <<PHP: etiqueta i persisteix events, no mou imports>>
+ +append(db,event) string
+}
+PaymentService --> PaymentPayloadValidator : només estructura/mètode/tipus i is_numeric
+PaymentService --> PaymentRepository : nou CHARGE o reús de UUID_PAYMENT
+PaymentRepository --> PaymentStatusCalculator : suma imports d'assignacions per factura
+```
+
+**Invariant absent al codi:** `PaymentPayloadValidator` exigeix `is_numeric(amount)` i `is_numeric(allocation.amount)` però no els exigeix **positius** ni comprova `SUM(allocations) <= amount`. `PaymentRepository::createPayment()` persisteix cada tram i recalcula `ESTAT_COBRAMENT` **per factura** sense limitar la suma de trams al nominal de l'ingrés. La BD bàsica té FKs però cap `CHECK` de positivitat ni límit agregat en `payment_allocation`. Per tant, un únic P/100 amb F1/80 i F2/80 pot atribuir 160 € mentre cada factura té un estat local aparentment coherent; un tram negatiu podria modificar l'estat sense un `REFUND` bancari ni una reversió amb història. `PaymentActionEventRepository` accepta `REALLOCATE/UNALLOCATE/SPLIT_ALLOCATION`, **no** implementa canvi real de trams. [UC-02, secció 5.5](uc-002-registrar-cobrament-factura.md); [UC-56, 4.2–4.3](uc-056-cercar-assignar-cobrament.md); [UC-105, 4.1–4.3](uc-105-reassignar-repartir-pagament.md).
+
+
+### 3.5. Subvista de main: hash de petició fiscal, pagament V1/V2 i integritat de cua — NO equivalència de hash Redsys
+
+```mermaid
+classDiagram
+direction LR
+class PayloadIdempotencyValidatorInterface {
+ <<PHP main, contracte pur>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class PayloadIdempotencyValidator {
+ <<PHP main: SHA-256 array canònic o string en bytes>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class InvoiceService {
+ <<PHP main: IDEMPOTENCY_PAYLOAD_HASH sobre petició completa>>
+ +issueInvoice(payload) array
+ -existingResultWithPaymentIfPresent(db,payload,invoice) array
+}
+class PaymentService {
+ <<PHP main: PAYLOAD_HASH_VERSION 1/2>>
+ +registerPayment(payload) array
+ -assertSamePayload(payload,existing) void
+}
+class FiscalQueueProcessor {
+ <<PHP main: comprova després de claim abans de transport>>
+ +processNext() array
+}
+class FiscalQueueRepository {
+ <<PHP main: font fiable factura_registres>>
+ +assertImmutablePayload(db,job,validator) void
+ +rejectIntegrity(db,job,error) void
+}
+class RedsysPaymentIntentService {
+ <<PHP main: sameIntent, NO hash compartit>>
+ +create(db,input) array
+ -sameIntent(existing,candidate) bool
+}
+class RedsysNotificationRepository {
+ <<PHP main: hash dels paràmetres de NOTIFICACIÓ>>
+ +recordReceived(db,dsOrder,idpag,amount,response,valid,raw,status) array
+}
+PayloadIdempotencyValidator ..|> PayloadIdempotencyValidatorInterface
+InvoiceService --> PayloadIdempotencyValidatorInterface : comparar reús fiscal per K
+PaymentService --> PayloadIdempotencyValidatorInterface : comparar reús econòmic per K
+FiscalQueueProcessor --> FiscalQueueRepository : verifica integritat abans SOAP
+FiscalQueueRepository --> PayloadIdempotencyValidatorInterface : compara cua amb registre immutable
+```
+
+**No confondre quatre payloads:** (1) la petició completa a InvoiceService i el seu IDEMPOTENCY_PAYLOAD_HASH per clau d'emissió; (2) el payload complet a PaymentService i PAYLOAD_HASH_VERSION per clau de moviment; (3) el payload fiscal immutabilitzat a factura_registres i el HASH_FACT encadenat que FiscalQueueRepository ja contrasta amb la cua a main; (4) el SHA-256 dels bytes Ds_MerchantParameters de la **notificació** Redsys a redsys_notifications. El servei d'intenció Redsys **no** guarda encara un hash propi ni fa servir el validador compartit, i la signatura **sortint** del formulari correspon a l'adaptador web no acreditat, no a RedsysPaymentIntentService. El guard SQL V1/V2 d'un pagament per K no prova la identitat externa entre **dues claus** diferents. [UC-01](uc-001-emetre-o-reutilitzar-factura.md), [UC-02](uc-002-registrar-cobrament-factura.md), [UC-03](uc-003-processar-cobrament-redsys-asincron.md), [UC-63](uc-063-crear-intencio-redsys.md), [UC-77](uc-077-operar-enviament-aeat-retry-dead-letter.md).
 
 ## 4. Classes executives de Redsys i integracions de venda
 
@@ -436,6 +590,48 @@ UsocEntityInvoiceService --> InvoiceService : emissió sense payment
 
 **Fronteres verificades:** `UsocEntityInvoiceService` només comprova `student_invoice_uuid` no buit i no rep la BD SIF per verificar-lo; `LegacyUsocSnapshotRepository` fa `WHERE IDPAG=? ORDER BY ID LIMIT 1`, sense seleccionar un `ID_INSC` exacte. La clau entitat de `LegacyUsocInvoicePayloadBuilder` inclou inscripció i UUID de factura alumne, **no import ni receptor**; `InvoiceService` retorna una factura existent per clau sense comparar-ne el contingut nou. `PaymentService` registra el cobrament real d'entitat més tard i no és una dependència de l'emissor. [UC-19b](uc-019b-facturar-part-entitat-usoc.md).
 
+### 4.3. Subvista executable de cua Redsys: reservar i marcar un job no són un únic lock de negoci — UC-03/52
+
+```mermaid
+classDiagram
+direction LR
+class RedsysCallbackWorker {
+ <<PHP real: claim, process, mark>>
+ +runOne(db,workerId,now) array
+}
+class RedsysCallbackQueueRepository {
+ <<PHP real: marques filtren ID i STATUS, NO propietari>>
+ +recoverStaleLocks(db,now) int
+ +claimNext(db,workerId,now) array
+ +markProcessed(db,id,result,now) void
+ +markRetry(db,id,availableAt,error) void
+ +markIncident(db,id,error) void
+}
+class RedsysJobProcessor {
+ <<interface>>
+ +process(db,job) array
+}
+class RedsysCallbackDispatcher {
+ <<PHP real: processador del job>>
+ +process(db,job) array
+}
+class InvoiceService {
+ <<PHP real: emissió/reús i payment inicial opcional>>
+ +issueInvoice(payload) array
+}
+class IncidentRepository {
+ <<PHP real: error, no transacció conjunta automàtica>>
+ +open(db,uuidFactura,type,message) array
+}
+RedsysCallbackWorker --> RedsysCallbackQueueRepository : recoverStaleLocks + claimNext + marques terminals
+RedsysCallbackWorker --> RedsysJobProcessor : process fora transacció del claim
+RedsysCallbackWorker --> IncidentRepository : obriment d'incidència després de markIncident
+RedsysCallbackDispatcher ..|> RedsysJobProcessor
+RedsysCallbackDispatcher ..> InvoiceService : via handler específic; NO crida directa
+```
+
+**Frontera de propietat i completitud:** `claimNext()` fa `BEGIN/SELECT FOR UPDATE/UPDATE PROCESSING,LOCKED_BY,ATTEMPTS/COMMIT` abans del handler. `recoverStaleLocks()` reobre després de 15 min fins i tot si el primer worker encara és viu. `markProcessed/markRetry/markIncident` comproven `ID + STATUS=PROCESSING`, **no** `LOCKED_BY` o generació: una execució A antiga pot escriure mentre B té el job recuperat. `runOne()` passa a `markProcessed()` qualsevol array retornat per `RedsysJobProcessor`, sense exigir `ok`, UUID de factura o de pagament; el repositori desa els UUIDs opcionals com a `NULL`. `PROCESSED_AT` rep l'instant `now` del començament de `runOne`. [UC-52, seccions 4.1–4.4](uc-052-operar-cua-redsys.md), [UC-03, secció 5.1](uc-003-processar-cobrament-redsys-asincron.md).
+
 ## 5. Classes executives de cua fiscal i consulta/operació
 
 ```mermaid
@@ -489,6 +685,45 @@ SoapTransport --> EvidenceStore
 ```
 
 `SoapTransport` només accepta l'endpoint AEAT de **proves** segons el seu constructor; `AeatPreflight` comprova prerequisits locals, no una acceptació externa ni l'aptitud de producció. `DocumentRepository` registra metadades i hash, no serveix un document autoritzat. `IncidentRepository` obre incidències, no implementa tot el cicle d'assignació/resolució. [UC-09](uc-009-remetre-registre-aeat.md), [UC-07](uc-007-consultar-factura-estat-document.md), [UC-08](uc-008-gestionar-incidencia-sif.md).
+
+### 5.0. Subvista real de les transicions de cua fiscal — UC-09/54
+
+```mermaid
+classDiagram
+direction LR
+class FiscalQueueProcessor {
+ <<PHP existent: claim i complete/fail en transaccions separades del SOAP>>
+ +processNext() array
+ +recoverStaleLocks(olderThanSeconds,now) int
+}
+class FiscalQueueRepository {
+ <<PHP existent: complete/fail per ID, sense guard d'estat>>
+ +claimNext(db,maxAttempts) array
+ +recoverStaleLocks(db,lockedBefore) int
+ +complete(db,queueItem,aeatStatus,response,requestXml) void
+ +fail(db,queueItem,error,maxAttempts,nextRetryAt) string
+}
+class TransactionRunner {
+ <<PHP existent: transacció local, no del SOAP>>
+ +run(callback) mixed
+}
+class AeatTransport {
+ <<interface>>
+ +send(payload) array
+}
+class EvidenceStore {
+ <<PHP existent: fitxers privats d'intent, no reconciliador SQL>>
+ +begin(request,metadata) string
+ +response(id,response,httpStatus) void
+ +failure(id,code) void
+}
+FiscalQueueProcessor --> TransactionRunner : claim/resultat local
+FiscalQueueProcessor --> FiscalQueueRepository : escollir, completar, retry i recuperar
+FiscalQueueProcessor --> FiscalQueueRepository : assertImmutablePayload abans SOAP [PHP main]
+FiscalQueueProcessor --> AeatTransport : send FORA de transacció
+```
+
+**Frontera de propietat:** `claimNext()` posa `PROCESSING`, incrementa `ATTEMPTS` i `LOCKED_AT` però no desa `LOCKED_BY` ni generació; `complete()` i `fail()` actualitzen la tasca **per ID, sense filtrar STATUS=PROCESSING ni titular del claim**. La recuperació d'un lock pot fer que A i B processin el mateix registre alhora; A pot marcar `SENT` i B posteriorment `DEAD_LETTER/ERROR` malgrat una resposta `ACCEPTED` anterior. `FiscalQueueProcessor::processNext()` també tracta l'excepció de `complete()` per la mateixa via `failure()` que els errors de SOAP: una resposta externa ja rebuda pot quedar representada com a fallada local. `EvidenceStore` conserva fitxers privats de transport, però el processor no escriu ni concilia automàticament una fila d'intent correlacionada per generació. [UC-09, 4.2–4.3](uc-009-remetre-registre-aeat.md); [UC-54, 4.1–4.3](uc-054-operar-cua-fiscal-respostes.md).
 
 ### 5.1. Subvista real de la importació de dades històriques — UC-11; bytes originals fora d'aquest PHP
 
@@ -935,6 +1170,203 @@ ManualRefundService --> PaymentService : delegació PHP existent
 ```
 
 **Limitació d'excés no assignat:** el builder manual exigeix `UUID_FACTURA` i crea una assignació `INVOICE_REFUND`; **no** serveix per retornar directament diners sobrants d'un ingrés que no s'han atribuït a cap factura. UC-104 requereix un contracte econòmic específic per al retorn extern d'aquest sobrant sense contaminar `factura.ESTAT_COBRAMENT`. Ni l'ordre bancària, ni l'autorització, ni el ledger per inscripció ni el reconciliador formen part del codi PHP acreditat.
+
+### 6.8. Subvista de disseny: identitat bancària transversal i estat de reclamació — UC-22/23/24/56
+
+```mermaid
+classDiagram
+direction LR
+class ExternalReceiptReconciler {
+ <<DISSENY: identifica fet extern independentment de prefix>>
+ +identify(externalEventId,bankEvidence) receipt
+}
+class InstallmentDestinationGuard {
+ <<DISSENY: valida ID_INSC ↔ UUID_FACTURA>>
+ +preview(invoiceId,enrollmentId,externalEventId,amount) result
+}
+class ClaimExternalReceiptResolver {
+ <<DISSENY: expedient != entrada bancària>>
+ +identify(claimCaseId,externalEventId,invoiceId) result
+}
+class ClaimCaseReconciler {
+ <<DISSENY: tancament per deute net reclamat>>
+ +reviewClaim(claimCaseId,invoiceId) decision
+}
+class PaymentPayloadEquivalenceGuard {
+ <<DISSENY: compara operació K i assignacions>>
+ +validateMoneyAndReuse(payload,existing) decision
+}
+class PaymentRepository {
+ <<PHP real: no fa cerca transversal de banc/expedient>>
+ +findByIdempotencyKey(db,key,forUpdate) array
+}
+class ManualInstallmentPaymentService {
+ <<PHP real: alta manual quota>>
+ +registerByUuid(db,invoiceId,input) array
+}
+class ClaimPaymentService {
+ <<PHP real: alta per reclamació>>
+ +registerByUuid(db,invoiceId,input) array
+}
+ExternalReceiptReconciler ..> PaymentRepository : cerca global de fet per definir [DISSENY]
+InstallmentDestinationGuard --> ExternalReceiptReconciler : verificar ingressos UC-22/23/Redsys
+InstallmentDestinationGuard --> PaymentPayloadEquivalenceGuard : I-F i idempotència
+ClaimExternalReceiptResolver --> ExternalReceiptReconciler : E bancari separat de CASE-ID
+ClaimExternalReceiptResolver --> PaymentPayloadEquivalenceGuard : K i trams preexistents
+ClaimCaseReconciler --> ClaimExternalReceiptResolver : ingressos del cas, sense inventar CHARGE
+InstallmentDestinationGuard ..> ManualInstallmentPaymentService : només alta nova legitimada [PENDENT]
+ClaimExternalReceiptResolver ..> ClaimPaymentService : només alta nova legitimada [PENDENT]
+```
+
+**Frontera de transaccions:** la inspecció del PHP acredita el bloqueig per `IDEMPOTENCY_KEY` en `PaymentService`, no una clau universal d'operació bancària ni una reserva de dret per `ID_INSC`. Un `SELECT` de consulta transversal **fora** de la mateixa política de bloqueig que el `INSERT` no resol la cursa de dos canals; el guard, l'alta i les assignacions han de garantir una identitat estable del mateix ingrés. `ClaimCaseReconciler` descriu el **tancament de l'expedient** i no s'ha d'usar per modificar `factura` ni per marcar `ESTAT_COBRAMENT=PAID` sense deute net real. [UC-22](uc-022-registrar-transferencia.md), [UC-23](uc-023-registrar-fraccio.md), [UC-24](uc-024-registrar-cobrament-reclamacio.md).
+
+### 6.9. Subvista de disseny: fencing de worker i reconciliació de resultats Redsys — UC-03/52
+
+```mermaid
+classDiagram
+direction LR
+class RedsysClaimLease {
+ <<DISSENY: identitat d'execució del job>>
+ +uuidJob string
+ +workerId string
+ +generation int
+ +token string
+ +claimedAt datetime
+}
+class RedsysJobFencedRepository {
+ <<DISSENY: transicions per propietari/generació>>
+ +claimWithGeneration(db,workerId,now) RedsysClaimLease
+ +markProcessedIfOwner(db,lease,result,finishedAt) decision
+ +markRetryIfOwner(db,lease,error,at) decision
+ +markIncidentIfOwner(db,lease,error) decision
+}
+class RedsysJobEffectReconciler {
+ <<DISSENY: factura i pagament originals>>
+ +recover(uuidJob,lease) result
+}
+class RedsysJobResultValidator {
+ <<DISSENY: resultat fiscal+econòmic complet>>
+ +verify(job,result,lease) decision
+}
+class RedsysCallbackWorker {
+ <<PHP real: no passa token a marques terminals>>
+ +runOne(db,workerId,now) array
+}
+class RedsysCallbackQueueRepository {
+ <<PHP real: només STATUS en marques>>
+ +claimNext(db,workerId,now) array
+ +markProcessed(db,id,result,now) void
+}
+RedsysClaimLease --> RedsysJobFencedRepository : propietat vigent
+RedsysJobEffectReconciler --> RedsysJobResultValidator : recuperar i verificar dades reals
+RedsysJobResultValidator --> RedsysJobFencedRepository : només resultat complet + token vigent
+RedsysCallbackWorker ..> RedsysJobEffectReconciler : integració proposada, no crida PHP
+RedsysCallbackWorker --> RedsysCallbackQueueRepository : integració real actual
+```
+
+**Límit transaccional:** un fencing token protegeix les marques terminals i rebutja un `STALE_ATTEMPT`, però **no desfà un commit fiscal/econòmic** que el worker antic hagi fet abans de perdre el lease. La unicitat i equivalència d'emissió/pagament, l'identificador bancari de cada `DS_ORDER` i el guard de cobertura de factura prèvia continuen necessaris. La comprovació de resultat no equival a `ESTAT_AEAT=ACCEPTED`, PDF disponible, alta acadèmica sincronitzada o cobrament de la part entitat USOC. Cap de les classes `DISSENY` de la subvista existeix al PHP contrastat.
+
+### 6.10. Subvista de disseny: fencing de cua fiscal i conciliació d'intents remots — UC-09/54
+
+```mermaid
+classDiagram
+direction LR
+class FiscalAttemptLease {
+ <<DISSENY: propietari i generació de claim>>
+ +queueId int
+ +uuidFactura string
+ +fiscalOrder bigint
+ +workerId string
+ +attemptToken string
+}
+class FiscalAttemptOwnershipGuard {
+ <<DISSENY: transició final per generació vigent>>
+ +verify(lease,queueState) decision
+}
+class FiscalQueueFencedRepository {
+ <<DISSENY: guard atòmic de complete/fail>>
+ +claimWithToken(db,workerId) lease
+ +completeIfOwner(db,lease,status,response,xml) decision
+ +failIfOwner(db,lease,error,nextAt) decision
+}
+class FiscalSubmissionAttemptReconciler {
+ <<DISSENY: resposta real i rastre de cada SOAP>>
+ +review(uuidFactura,fiscalOrder,queueId) diagnosis
+}
+class FiscalAttemptEvidenceReader {
+ <<DISSENY: lector privat i índex de metadades d'intent>>
+ +findByRecord(uuidFactura,fiscalOrder) attempts
+ +readAuthorized(evidenceId) evidence
+}
+class FiscalQueueRepository {
+ <<PHP real: actualitzacions per ID sense token>>
+ +complete(db,item,status,response,xml) void
+ +fail(db,item,error,maxAttempts,nextRetryAt) string
+}
+class EvidenceStore {
+ <<PHP real: fitxers privats, sense index SQL de lease>>
+ +begin(request,metadata) string
+ +response(id,response,httpStatus) void
+}
+FiscalAttemptLease --> FiscalAttemptOwnershipGuard : identitat d'execució
+FiscalAttemptOwnershipGuard --> FiscalQueueFencedRepository : bloqueig i transició local
+FiscalSubmissionAttemptReconciler --> FiscalAttemptEvidenceReader : llegir evidència per registre i intent [DISSENY]
+FiscalAttemptEvidenceReader ..> EvidenceStore : llegeix fitxers custodiats; EvidenceStore no ofereix API de lectura
+FiscalSubmissionAttemptReconciler --> FiscalQueueFencedRepository : transició de recuperació idempotent
+FiscalQueueFencedRepository ..> FiscalQueueRepository : substitució de contracte pendent, NO crida real
+```
+
+**No confondre garanties:** un token de generació evita que A sobreescrigui el job de B però **no pot retirar un SOAP que A ja ha enviat**. La conciliació de la resposta remota per `UUID_FACTURA+FISCAL_ORDER` i evidència d'intent és independent de l'existència del lock i de la disponibilitat productiva del transport, actualment limitat a l'endpoint de proves. `REMOTE_UNCERTAIN` és diagnosi objectiu, no un enum fiscal implementat, i `SENT` no significa `ACCEPTED`. `SoapTransport` posa `uuid_factura` i `fiscal_order` als metadades privats de l'intent i retorna `response.evidence_id` en èxit, però quan falla la persistència local l'identificador no queda garantit a `AEAT_RESPONSE_JSON`. `EvidenceStore` només escriu fitxers append-only, **no exposa `findByRecord` ni `readAuthorized`**; aquesta API és una proposta i hauria de controlar permisos d'accés a resposta/XML i no exposar credencials.
+
+### 6.11. Subvista de disseny: quantia assignable, història de trams i consum concurrent — UC-02/56/105
+
+```mermaid
+classDiagram
+direction LR
+class MoneyAllocationInvariantGuard {
+ <<DISSENY: prova externa, imports positius i suma>>
+ +validateNewExternalReceipt(payload,evidence) decision
+}
+class PaymentAvailableBalanceReader {
+ <<DISSENY: import - suma efectiva - compromisos>>
+ +previewAvailable(uuidPayment) balance
+}
+class ExistingPaymentAllocationService {
+ <<DISSENY: writer per P existent, sense nou CHARGE>>
+ +allocate(uuidPayment,target,amount,requestId) result
+}
+class PaymentReallocationService {
+ <<DISSENY: reversió traçada i nova assignació>>
+ +preview(uuidPayment,command) result
+ +apply(command) result
+}
+class PaymentAllocationInvariantGuard {
+ <<DISSENY: valida trams efectius i titular>>
+ +validateAllocationPlan(uuidPayment,plan) decision
+}
+class PaymentAllocationHistoryRepository {
+ <<DISSENY: trams versionats i reversions correlacionades>>
+ +lockPaymentAndAllocations(db,uuidPayment) state
+ +recordReversalAndAssignments(db,command) result
+}
+class EnrollmentFundMovementRepository {
+ <<PROPOSTA: ledger per inscripció i identitat bancària>>
+ +append(db,movement) string
+}
+class PaymentService {
+ <<PHP real: NO implementa assignar P existent>>
+ +registerPayment(payload) array
+}
+MoneyAllocationInvariantGuard ..> PaymentService : precondició objectiu, NO crida real
+PaymentAvailableBalanceReader --> PaymentAllocationInvariantGuard : disponibilitat del moviment
+ExistingPaymentAllocationService --> PaymentAvailableBalanceReader : revalidar saldo sota lock
+ExistingPaymentAllocationService --> PaymentAllocationHistoryRepository : nou tram sobre mateix P
+PaymentReallocationService --> PaymentAllocationInvariantGuard : reversió sobre tram efectiu
+PaymentReallocationService --> PaymentAllocationHistoryRepository : història append-only i projecció
+PaymentReallocationService --> EnrollmentFundMovementRepository : drets per ID_INSC
+```
+
+**Precaució de model:** una `payment_allocation` negativa normal **no és** una reversió segura del tram antic: la consulta PHP actual simplement suma imports i no guarda `reversed_by_event`, versió efectiva o origen de la correcció. La previsualització de saldo no el reserva: la comprovació de `UUID_PAYMENT`, import, titular, event extern, retorns i peticions idempotents s'ha de repetir sota bloqueig de l'arrel P quan s'aplica. Dos operadors que reparteixin els mateixos 20 € han de serialitzar-se i no crear F2/20 + F3/20 sobre P amb saldo únic 20. Les classes de la subvista són **disseny**, no mètodes de `PaymentRepository` existents.
 
 ## 7. Traçabilitat i criteri de manteniment
 

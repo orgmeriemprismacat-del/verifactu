@@ -225,7 +225,7 @@ alt Només efecte administratiu i destí vàlid
  UI-->>O: Reversió administrativa registrada
 else Ja hi ha factura, pagaments, retorns o saldos
  UI->>Fiscal: Classificar noves operacions, sense UPDATE fiscal històric
- UI-->>O: Aturar reversió simple; mostrar fases de regularització UC-71
+ UI-->>O: Aturar reversió simple, mostrar fases de regularització UC-71
 else Canvi substituït, fons/plaça dubtosos
  UI-->>O: Incidència i revisió abans de modificar inscripció
 end

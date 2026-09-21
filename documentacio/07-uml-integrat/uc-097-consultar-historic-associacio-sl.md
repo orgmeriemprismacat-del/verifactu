@@ -166,7 +166,7 @@ R->>S: Contrastar dos originals A2020/000123 de diferents emissors
 S->>Source: Recuperar emissor acreditat, sistema i ID de cadascun
 alt Emissor no acreditat
  Source-->>S: UNKNOWN
- S-->>R: Incidència; no deduir-lo de número o receptor
+ S-->>R: Incidència, no deduir-lo de número o receptor
 else Dos originals acreditats, mateix número
  Source-->>S: Associació i SL, orígens diferents
  Note over S,I: El control objectiu ha de bloquejar la doble importació. Els passos següents il·lustren què fa l'API actual si un adaptador intenta importar tots dos.
@@ -176,7 +176,7 @@ else Dos originals acreditats, mateix número
  M->>T: run(callback)
  T->>DB: BEGIN
  M->>H: importHistoricalInvoice(db,payload)
- H->>DB: SELECT per IDEMPOTENCY_KEY; INSERT original si no existeix
+ H->>DB: SELECT per IDEMPOTENCY_KEY, INSERT original si no existeix
  T->>DB: COMMIT
  M-->>S: UUID_FACTURA_A
  alt Segon original amb mateixa clau per defecte
@@ -201,12 +201,12 @@ else Dos originals acreditats, mateix número
   H->>DB: INSERT mateix NUM_VISIBLE / sèrie-any-seqüència
   DB--xH: PDOException per UNIQUE de número
   T->>DB: ROLLBACK del segon intent
-  M--xS: Fallada d'importació de SL; primer original intacte
+  M--xS: Fallada d'importació de SL, primer original intacte
   S->>I: Model de BD no admet els dos originals homònims
  end
- S-->>R: Incident multiemissor pendent de decisió; sense renumeració silenciosa
+ S-->>R: Incident multiemissor pendent de decisió, sense renumeració silenciosa
 end
-Note over S,DB: El resolvedor de dos emissors i la migració conjunta són DISSENY; els dos comportaments de reús/UNIQUE són contrast PHP/SQL, no test executat.
+Note over S,DB: El resolvedor de dos emissors i la migració conjunta són DISSENY, els dos comportaments de reús/UNIQUE són contrast PHP/SQL, no test executat.
 ```
 
 **Segona frontera: concurrència amb numeració nova.** L'importador d'històrics no avança `fiscal_sequence.LAST_NUM`. Encara que no hi hagi dos emissors homònims, un número històric del mateix any/sèrie pot ocupar una combinació que `FiscalSequenceRepository::next()` assignaria més tard a una factura nova. Vegeu la [UC-11, secció 4.3](uc-011-importar-factura-historica.md): el preflight de migració és **DISSENY**, no comportament PHP actual.

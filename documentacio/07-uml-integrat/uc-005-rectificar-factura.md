@@ -100,6 +100,29 @@ end note
 @enduml
 ```
 
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Operador autoritzat"]
+  subgraph SIF_BOUNDARY["SIF PrisMa"]
+    u_0(["UC-05<br/>Rectificar una factura"])
+    u_1(["Localitzar factura original"])
+    u_2(["Preparar motiu, mode<br/>i import"])
+    u_3(["UC-01<br/>Emetre nova factura<br/>sèrie R"])
+    u_4(["Vincular rectificativa<br/>i marcar original"])
+    u_5(["UC-28<br/>Registrar devolució<br/>econòmica"])
+    u_6(["UC-74<br/>Classificar correcció fiscal"])
+  end
+  a_0 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+  u_0 -.->|include| u_4
+  u_0 -.->|include| u_6
+  a_0 --> u_5
+```
+
 **Nota de traçabilitat:** la relació amb UC-74 representa una precondició del model **objectiu pendent**; `ManualRectificationService` no conté avui cap crida executable a un classificador fiscal complet.
 
 ## 3. Subdiagrama UML de classes
@@ -274,6 +297,26 @@ end note
 @enduml
 ```
 
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Operador autoritzat"]
+  a_1["Responsable que valida la correcció"]
+  a_2["Operador de devolucions"]
+  subgraph SIF_BOUNDARY["SIF PrisMa"]
+    u_0(["UC-74<br/>Classificar correcció"])
+    u_1(["UC-05<br/>Emetre rectificativa<br/>negativa"])
+    u_2(["UC-01<br/>Emetre factura fiscal R"])
+    u_3(["UC-28<br/>Registrar devolució real<br/>si s'ha executat"])
+  end
+  a_0 --> u_1
+  a_1 --> u_0
+  u_1 -.->|include| u_0
+  u_1 -.->|include| u_2
+  a_2 --> u_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -331,6 +374,26 @@ note bottom of Pay
  No és part de l'emissió de la factura R.
 end note
 @enduml
+```
+
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Operador autoritzat"]
+  a_1["Responsable que valida la correcció"]
+  a_2["Procés/operador de cobrament"]
+  subgraph SIF_BOUNDARY["SIF PrisMa"]
+    u_0(["UC-74<br/>Classificar correcció"])
+    u_1(["UC-05<br/>Emetre rectificativa<br/>positiva"])
+    u_2(["UC-01<br/>Emetre factura fiscal R"])
+    u_3(["UC-02<br/>Registrar cobrament posterior<br/>quan sigui real"])
+  end
+  a_0 --> u_1
+  a_1 --> u_0
+  u_1 -.->|include| u_0
+  u_1 -.->|include| u_2
+  a_2 --> u_3
 ```
 
 ```mermaid

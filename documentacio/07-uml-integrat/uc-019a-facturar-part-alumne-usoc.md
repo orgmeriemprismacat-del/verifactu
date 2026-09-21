@@ -152,7 +152,7 @@ S-->>Worker: entity_invoice_pending i resultats alumne
 opt Atribució per inscripció [NO IMPLEMENTADA]
  Worker->>Funds: append(EXTERNAL→ID_INSC, student_amount, UUID_PAYMENT_ALUMNE)
 end
-Note over S,Funds: Cap CHARGE d'entitat en UC-19a; UC-19b és posterior
+Note over S,Funds: Cap CHARGE d'entitat en UC-19a, UC-19b és posterior
 ```
 
 ## 5. Traçabilitat

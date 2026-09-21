@@ -61,6 +61,23 @@
 | RI-05 | Ordre iniciada abans d'una baixa/canvi i callback posterior | Evidència del cobrament real i conciliació del destí; no processar compra obsoleta a cegues. |
 | RI-06 | SOURCE_TYPE de diferència de curs o factura prèvia | Adaptador/dispatcher específic requerit; no declarar-lo disponible en UC-63 actual. |
 
+
+### 1.5. Contrast de la proposta v2: hash d'intenció i formulari signat — PHP main / disseny
+
+L'adjunt Redsys v2 proposa que RedsysPaymentIntentService generi DS_MERCHANT_ORDER, calculi HMAC-SHA256, desi payload_hash mitjançant PayloadIdempotencyValidatorInterface i retorni el formulari. **Cap d'aquests quatre passos no l'executa aquesta classe a main**: create(PDO,array) rep ds_order de l'adaptador, genera UUID_INTENT, valida l'import i el snapshot, reutilitza només quan sameIntent() troba dades equivalents i persisteix STATUS=PENDING. RedsysPaymentIntentRepository no desa PAYLOAD_HASH i la migració redsys_payment_intent no defineix aquesta columna. RedsysSignatureValidator::decodeAndVerify() verifica la signatura **entrant** del callback, no signa el formulari sortint des del servei d'intencions. PENDENT/COMPLETADA/DENEGADA són noms narratius de l'adjunt, no estats SQL acreditats de la intenció.
+
+**Contracte real de main:** PayloadIdempotencyValidatorInterface només exposa calculateHash(array|string):string i assertMatches(array|string,storedHash):void. No té storeHash(operationId,hash), validate(operationId,payload) ni cap repositori. InvoiceService i PaymentService la fan servir per a les seves **peticions d'emissió/pagament**, però RedsysPaymentIntentService encara no la crida. El hash de l'oferta abans de la redirecció i el hash dels Ds_MerchantParameters de la notificació posterior **no corresponen al mateix payload**: la notificació incorpora codi de resposta i camps del TPV. No comparar hashes complets de missatges diferents; validar signatura entrant, DS_ORDER i coincidència d'import/divisa/terminal, i deduplicar la notificació/job amb els seus identificadors.
+
+**Integració pendent:** l'adaptador de checkout congela ordre i snapshot comercial UC-112, crida create() i, de manera separada, prepara i signa el formulari de Redsys amb dades de la mateixa intenció i configuració vigent. Si s'aprova afegir un PAYLOAD_HASH a redsys_payment_intent, definir abans l'abast exacte dels camps, la serialització/versionat, migració i compatibilitat històrica. Dues DS_ORDER per la mateixa reserva continuen exigint UC-107/115, i una notificació tardana no deixa de representar un possible ingrés perquè hi hagi una intenció nova.
+
+| Prova pendent | Resultat |
+| --- | --- |
+| RI-07 | create() rep DS_ORDER i retorna UUID_INTENT/PENDING, sense formulari ni signatura. |
+| RI-08 | Mateix DS_ORDER i snapshot equivalent amb claus JSON reordenades reutilitza; snapshot diferent rebutja. |
+| RI-09 | Callback vàlid amb dades de resposta noves no es compara per hash complet contra el formulari; correlació per ordre/import/divisa/terminal. |
+| RI-10 | Si falla el formulari després del commit, cap CHARGE; reiniciar només amb intenció encara vigent i equivalent. |
+| RI-11 | Futur hash d'intenció: provar migració, versió, dades històriques i el writer/reader abans de descriure'l com a implementat. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -109,6 +126,22 @@ class RedsysCallbackDispatcher {
 }
 RedsysPaymentIntentService --> RedsysPaymentIntentRepository : cerca/inserció
 RedsysPaymentIntentService --> UuidGenerator : UUID
+class CheckoutIntentSigner {
+ <<DISSENY: adaptador web, no PHP actual>>
+ +signForm(merchantParameters) signedForm
+}
+class PayloadIdempotencyValidatorInterface {
+ <<PHP main, NO cridada pel servei d'intencions>>
+ +calculateHash(payload) string
+ +assertMatches(payload,storedHash) void
+}
+class PaymentIntentFingerprintRepository {
+ <<DISSENY: columna/hash/versionat no existents>>
+ +saveForIntent(uuidIntent,hash,version) void
+ +findForIntent(uuidIntent) hash
+}
+CheckoutIntentSigner ..> RedsysPaymentIntentService : resultat de create() [pendent]
+PaymentIntentFingerprintRepository ..> PayloadIdempotencyValidatorInterface : integració futura, NO crida PHP real
 RedsysCallbackService --> RedsysPaymentIntentRepository : valida intent previ
 ```
 
@@ -142,6 +175,7 @@ else Nova ordre
  R-->>S: UUID_INTENT nou
  S-->>Web: uuid_intent,ds_order,PENDING
 end
+Web->>Web: Construir i signar el formulari a l'adaptador web [pendent, fora de create()]
 Web->>Bank: Redirigir al TPV [integració pendent]
 Note over S,DB: Cap payment_transaction ni moviment per inscripció creat durant UC-63
 ```

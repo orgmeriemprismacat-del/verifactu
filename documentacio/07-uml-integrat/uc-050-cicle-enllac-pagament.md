@@ -116,7 +116,7 @@ L-->>P: Token opac per canal autoritzat
 P->>L: Obrir token i sol·licitar pagament
 L->>DB: Comprovar estat i venciment + saldo actual
 alt Caducat, revocat o import desactualitzat
- L-->>P: No iniciar nova captura; revisió/enllaç nou
+ L-->>P: No iniciar nova captura, revisió/enllaç nou
 else Actiu i oferta coherent
  L->>I: create(DS_ORDER,import,snapshot)
  I-->>P: Intenció pendent/redirecció
@@ -143,7 +143,7 @@ G->>A: Sol·licitar enllaç per operació, receptor i motiu
 A->>L: createOrReuse(command amb actor i REQUEST_ID)
 L->>DB: Rellegir deute real i estat de l'operació amb control de concurrència
 alt Factura saldada, operació cancel·lada o actor sense permís
- L-->>A: Rebuig traçat; cap token ni CHARGE
+ L-->>A: Rebuig traçat, cap token ni CHARGE
 else Petició equivalent amb enllaç vàlid
  DB-->>L: Mateix identificador/enllaç vigent
  L-->>A: Reús segons política segura de lliurament de token
@@ -153,7 +153,7 @@ else Nova petició autoritzada
  L-->>A: Token opac per lliurament restringit
 end
 A-->>G: Estat i enllaç si és accessible segons la política
-Note over L,DB: L'unicitat de petició, l'autorització i el token són disseny pendent; l'INSERT SQL per si sol no crea un servei segur.
+Note over L,DB: L'unicitat de petició, l'autorització i el token són disseny pendent, l'INSERT SQL per si sol no crea un servei segur.
 ```
 
 ### 5.2. Seqüència pròpia de l'acció «consultar enllaç» — OBJECTIU, no implementació acreditada
@@ -171,9 +171,9 @@ alt Token invàlid / revocat / fora d'abast
  L-->>P: Accés denegat, sense dades fiscals alienes
 else Venciment superat
  L->>DB: Registrar expiració segons política [PENDENT]
- L-->>P: Enllaç caducat; possible renovació UC-121
+ L-->>P: Enllaç caducat, possible renovació UC-121
 else Import o operació han canviat
- L-->>P: Oferta anterior no vigent; requerir nova confirmació
+ L-->>P: Oferta anterior no vigent, requerir nova confirmació
 else URL vigent i import coherent
  L-->>P: Mostrar només l'oferta autoritzada i import pendent
  opt Pagador confirma inici de pagament
@@ -182,7 +182,7 @@ else URL vigent i import coherent
   I-->>P: Redirecció TPV
  end
 end
-Note over L,I: Una consulta o intenció no registra un cobrament; només el callback/worker acreditat pot activar UC-03.
+Note over L,I: Una consulta o intenció no registra un cobrament, només el callback/worker acreditat pot activar UC-03.
 ```
 
 ### 5.3. Accions «revocar» i «caducar»: fronteres i seqüències pròpies

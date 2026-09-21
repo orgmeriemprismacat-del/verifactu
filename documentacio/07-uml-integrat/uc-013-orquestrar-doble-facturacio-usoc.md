@@ -170,7 +170,7 @@ B-->>SE: Factura entitat sense payment
 SE->>I: issueInvoice(payload entitat)
 I-->>SE: UUID_FACTURA_ENTITAT
 SE-->>UI: payment_registered=false
-Note over UI,I: Import entitat pendent; encara cap cobrament d'entitat
+Note over UI,I: Import entitat pendent, encara cap cobrament d'entitat
 UI->>Pay: registerPayment(CHARGE entitat) només si transferència confirmada
 Pay-->>UI: UUID_PAYMENT_ENTITAT
 opt Atribució entitat [DISSENY]
@@ -247,7 +247,7 @@ else Factura i cobrament alumne confirmats
   C-->>O: Recuperar E i només les accions posteriors pendents
  else Encara no s'ha emès factura entitat
   I-->>C: Només factura alumne A confirmada
-  C-->>O: Proposta UC-19b PENDING amb UUID A; cap segona emissió A
+  C-->>O: Proposta UC-19b PENDING amb UUID A, cap segona emissió A
   opt Responsable valida receptor i import entitat [DISSENY]
    O->>E: issueEntityFromExplicitInput(legacyDb,input contrastat)
    E-->>O: UUID_FACTURA_ENTITAT, payment_registered=false
@@ -299,7 +299,7 @@ C->>L: Verificar atribució quantitativa a ID_INSC i estat independent de matrí
 alt Falta factura entitat o no es pot acreditar relació amb A
  C-->>O: PENDING/CONFLICT, derivar UC-19b/53
 else Part alumne real confirmada i part entitat només facturada
- C-->>O: FINANÇAMENT_PENDENT_ENTITAT; deute no convertit en CHARGE
+ C-->>O: FINANÇAMENT_PENDENT_ENTITAT, deute no convertit en CHARGE
 else Ambdues parts cobrades i imports conciliats per origen
  C-->>O: FINANÇAMENT_CONCILIAT [estat d'expedient OBJECTIU]
 end

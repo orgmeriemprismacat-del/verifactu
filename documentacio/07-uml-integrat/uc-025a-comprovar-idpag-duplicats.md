@@ -144,6 +144,63 @@ S-->>UI: Informe amb referències i accions possibles
 Note over S,DB: És diagnosi: sense UPDATE fiscal, CHARGE o DELETE automàtic
 ```
 
+### 4.1. Acció independent: investigar dos intents de worker sense etiquetar-los automàticament com dos cobraments — DISSENY
+
+**Actor/disparador:** una ordre `DS_ORDER` associada a un `IDPAG` apareix en dos intents de cua, perquè el primer job va superar els 15 minuts, un altre worker el va recuperar o es va repetir un callback equivalent. **Precondicions:** consultar `redsys_notifications`, la fila `redsys_callback_queue` amb `ATTEMPTS`/`LOCKED_BY` i resultat, factures reals, `payment_transaction` i **totes** les assignacions; la prova bancària identifica l'entrada real. **Postcondició:** diagnosi de notificació/intent duplicat, d'un únic ingrés real recuperat, de dos `CHARGE` realment persistits pel mateix fet, o d'una discrepància irresolta; **no** `DELETE`, `REFUND`, nova factura ni segon ingrés en l'acció de diagnosi.
+
+**PHP contrastat:** `RedsysCallbackQueueRepository::recoverStaleLocks()` pot tornar un `PROCESSING` antic a `RETRY` al cap de 15 minuts; `claimNext()` incrementa `ATTEMPTS` quan el reclama de nou. Les marques finals `markProcessed/markRetry/markIncident` només filtren `ID+STATUS=PROCESSING`, no el worker propietari: dues execucions **del mateix job** poden solapar-se. Però dues execucions del handler **no proven dues transferències de diners** ni, per si soles, dos `payment_transaction`. Cal llegir els registres econòmics i `DS_ORDER`, i contrastar el banc, abans de declarar una duplicació efectiva. Les proves actuals només garanteixen que un job en PROCESSING no es reclama alhora **abans de caducar**; no reprodueixen A acabant després que B reclami el lock recuperat (UC-52).
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador de conciliació" as O
+rectangle "SIF PrisMa — UC-25a / DOS INTENTS DE WORKER" {
+ usecase "Investigar reprocessament\nd'una DS_ORDER" as Investigate
+ usecase "Contrastar notificació i\nATTEMPTS/propietat del job" as Queue
+ usecase "Comptar entrades bancàries reals\ni CHARGE/assignacions SIF" as Funds
+ usecase "Classificar duplicat d'intent\nversus duplicat monetari" as Classify
+ usecase "UC-52\nConciliar efectes d'un job recuperat" as Recover
+}
+O --> Investigate
+Investigate ..> Queue : <<include>>
+Investigate ..> Funds : <<include>>
+Investigate ..> Classify : <<include>>
+O --> Recover
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant I as IdpagDuplicateInspector [DISSENY]
+participant B as Evidència de Redsys/banc [EXTERN]
+participant Q as redsys_notifications + callback_queue [LECTURA]
+participant F as factura + fact_rels [LECTURA]
+participant P as payment_transaction + allocation [LECTURA]
+O->>I: inspectByDsOrder(IDPAG=I,DS_ORDER=E)
+I->>B: Verificar quantes entrades bancàries reals representa E
+I->>Q: Consultar notificació original, status, ATTEMPTS i resultat J
+I->>F: Buscar factures fiscals realment emeses per E i cobertura prèvia
+I->>P: Cercar CHARGE i assignacions de E entre tots els canals
+alt Un ingrés extern i únic UUID_PAYMENT amb dos intents de job
+ I-->>O: Reprocessament de cua, no duplicat monetari; revisar propietat i integració pendent
+else Una entrada externa i dos UUID_PAYMENT efectivament persistits
+ I-->>O: Possibilitat de doble registre de caixa; incidència i classificació de la correcció
+else Una entrada externa confirmada i job PROCESSED sense UUID_PAYMENT assignat
+ I-->>O: PAYMENT_MISSING/CONFLICT; recuperar/conciliar SIF, no donar per pagat
+else Banc, factura, DS_ORDER o pagaments no coincideixen
+ I-->>O: NEEDS_REVIEW; no neteja automàtica ni deduplicació per IDPAG
+end
+Note over I,P: Inspector i diagnosi transversal continuen DISSENY. Un segon worker no equival a una segona entrada bancària.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| IDP-07 | A i B processen J després d'un lock recuperat; només hi ha un CHARGE real | Diagnosi d'intent repetit, no d'ingrés duplicat; comprovar resultat/propietat de cua. |
+| IDP-08 | Un sol `DS_ORDER` extern amb dues files CHARGE de claus diferents | Incidència monetària per evidència real; cap esborrat o `REFUND` automàtic des de l'inspector. |
+| IDP-09 | J té `STATUS=PROCESSED` però no hi ha assignació de UUID_PAYMENT a factura | Classificar com a efecte incomplet i recuperar UC-52/02, no donar per pagada la inscripció. |
+
 ## 5. Traçabilitat
 
 [UC-25a original](../06-fitxes-funcionals/uc-025a.md) · [UC-25 fitxer TPV](uc-025-analitzar-fitxer-tpv.md) · [UC-51 callback](uc-051-callback-redsys-anomal.md) · [UC-52 worker](uc-052-operar-cua-redsys.md) · [UC-56 original](../06-fitxes-funcionals/uc-056.md) · [Fluxos de facturació](../03-canvis-pendents/04-fluxos-facturacio.md) · [Revisió de fons](00-revisio-moviments-inscripcions.md) · [Migració de reconciliació](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql).

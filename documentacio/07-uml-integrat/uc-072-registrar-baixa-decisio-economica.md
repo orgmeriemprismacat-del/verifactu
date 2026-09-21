@@ -157,7 +157,7 @@ C->>E: append(event baixa, snapshots i correlació)
 E-->>C: UUID_OPERATIONAL_EVENT
 C->>Legacy: Registrar estat de baixa amb historial
 alt Sense retorn o saldo executat
- C-->>UI: Baixa registrada; cap sortida de caixa
+ C-->>UI: Baixa registrada, cap sortida de caixa
 else Reemborsament bancari real confirmat
  C->>R: UC-28, registrar REFUND sobre factura afectada
  R-->>C: UUID_PAYMENT retorn
@@ -212,10 +212,10 @@ participant B as Expedient baixa [DISSENY]
 participant P as Registre econòmic SIF [serveis parcials]
 participant F as Revisió fiscal [PENDENT]
 O->>B: Confirmar baixa administrativa
-B-->>O: Baixa registrada; decisió econòmica PENDENT
+B-->>O: Baixa registrada, decisió econòmica PENDENT
 T->>B: Decideix retorn, saldo o no retorn
 alt Retorn aprovat però encara no efectuat
- B-->>T: Retorn pendent; cap moviment REFUND
+ B-->>T: Retorn pendent, cap moviment REFUND
 else Retorn extern verificat
  B->>P: Registrar REFUND real una única vegada
  P-->>B: UUID_PAYMENT
@@ -229,7 +229,7 @@ B->>F: Classificar correcció de factura, quan pertoqui
 opt Es demana reactivar la baixa
  O->>B: Revisar efectes ja executats i plaça
  B->>P: Consultar refunds, crèdits i compensacions
- B-->>O: Reactivació administrativa o regularització expressa; no duplicar fons
+ B-->>O: Reactivació administrativa o regularització expressa, no duplicar fons
 end
 Note over B,F: Seqüència funcional, no orquestrador implementat ni regla fiscal universal.
 ```

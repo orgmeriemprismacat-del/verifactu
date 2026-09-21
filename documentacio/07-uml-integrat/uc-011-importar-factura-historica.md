@@ -202,13 +202,13 @@ else Bytes originals accessibles
  Source-->>M: Bytes originals i identificació d'origen
  M->>M: Calcular SHA-256 real i contrastar metadades, tipus i factura
  alt Hash declarat difereix o emissor no acreditat
-  M->>Inc: Bloquejar publicació; investigar origen, versió i receptor
+  M->>Inc: Bloquejar publicació, investigar origen, versió i receptor
  else Coincidència amb document original identificat
   M->>Store: Desar bytes en storage privat i tornar-los a llegir
   Store-->>M: Path privat + bytes/hash verificats
   M->>SIF: Cercar metadata històrica preexistent per UUID/path/hash
   alt Metadata coherent ja importada per UC-11
-   SIF-->>M: Referència existent; enllaçar-ne storage verificat [OBJECTIU]
+   SIF-->>M: Referència existent, enllaçar-ne storage verificat [OBJECTIU]
   else Falta metadata i no hi ha referència contradictòria
    M->>D: registerDocument(db,UUID_FACTURA,type,path,bytes) [PHP existent]
    D->>SIF: INSERT metadata CREATED, sense escriure bytes
@@ -266,7 +266,7 @@ loop Per cada emissor + sistema + ID original
  end
 end
 R-->>R: Informe per origen: factura migrada / bytes verificats / emissor acreditat
-Note over L,Diff: L'importador PHP no fa inventari de completitud ni verifica storage; cap recompte d'un PDF inferit d'ARCHIVED.
+Note over L,Diff: L'importador PHP no fa inventari de completitud ni verifica storage, cap recompte d'un PDF inferit d'ARCHIVED.
 ```
 
 | ID de prova pendent | Escenari | Resultat exigible |
@@ -328,7 +328,7 @@ opt Contrast hipotètic del camí actual si s'omet el preflight
  N->>F: INSERT factura amb NUM_VISIBLE calculat
  alt Coincideix amb el número històric
   F--xN: PDOException per UNIQUE(NUM_VISIBLE)/(sèrie,any,seq)
-  N-->>R: Emissió no confirmada; no afirmar nou UUID_FACTURA emès
+  N-->>R: Emissió no confirmada, no afirmar nou UUID_FACTURA emès
  end
 end
 Note over P,N: La comprovació prèvia i el model de coexistència són DISSENY. No arreglar el conflicte modificant silenciosament NUM_VISIBLE o la cadena fiscal.

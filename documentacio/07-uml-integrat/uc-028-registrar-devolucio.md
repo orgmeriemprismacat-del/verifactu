@@ -192,12 +192,12 @@ UI-->>O: Retorn pendent, encara no REFUND
 Ext-->>UI: Evidència del reemborsament executat
 UI->>R: Buscar mateixa operació en registres Redsys/manuals
 alt Ja s'ha registrat el retorn
- R-->>UI: UUID_PAYMENT existent; no crear un segon REFUND
+ R-->>UI: UUID_PAYMENT existent, no crear un segon REFUND
 else Retorn real nou i validat
  UI->>S: Registrar REFUND amb referència i factura/part afectada
  S->>DB: INSERT payment_transaction i payment_allocation
  S-->>UI: UUID_PAYMENT
- UI-->>O: Retorn registrat; efecte fiscal UC-05 separat si correspon
+ UI-->>O: Retorn registrat, efecte fiscal UC-05 separat si correspon
 end
 Note over UI,R: Autorització per inscripció i conciliació externa encara no acreditades al servei manual.
 ```
@@ -252,7 +252,7 @@ Note over P,E: El guard de titularitat/reserva i el writer de sol·licitud no es
 
 **Actor/disparador:** la persona responsable disposa d'evidència del retorn bancari/TPV **executat**, no només d'una ordre pendent. **Entrades objectiu:** identificador invariable de l'operació bancària de sortida, canal i compte/pagador legitimat, import, divisa, data real, factura i trams per `ID_INSC`, `UUID_PAYMENT` de l'ingrés origen i decisió aprovada. **Postcondició:** un únic `REFUND` amb assignació coherent a la factura i traça d'atribució a l'origen econòmic; cap segon retorn al banc com a efecte de registrar-lo. El PHP actual només admet `UUID_FACTURA`/número, data/import i referència/banc opcionals: **no comprova l'evidència del banc, no rep titular del retorn ni UUID de l'ingrés original i no verifica límit retornable**.
 
-**Contrast exacte d'idempotència:** `ManualRefundPayloadBuilder::idempotencyKey()` usa `REFUND|REF:<reference>` si hi ha referència; sense referència, `REFUND|FACT:<num>|DATA:<YYYY-MM-DD>|IMPORT:<amount>|BANC:<bank>`. Dos retorns bancaris distints de 40 € per una mateixa factura el mateix dia i banc **col·lideixen** en el segon format; una referència reutilitzada en dues factures **col·lideix** en el primer. `PaymentService::createOrReusePayment()` retorna el moviment antic sense comparar `PAYLOAD_HASH` (que `PaymentRepository` sí que desa), `IMPORT` o `payment_allocation.UUID_FACTURA`. La unicitat per clau protegeix només la clau, no la identitat semàntica d'un retorn bancari. Una referència d'origen i una de sortida tampoc s'han de confondre.
+**Contrast exacte d'idempotència:** `ManualRefundPayloadBuilder::idempotencyKey()` usa `REFUND|REF:<reference>` si hi ha referència; sense referència, `REFUND|FACT:<num>|DATA:<YYYY-MM-DD>|IMPORT:<amount>|BANC:<bank>`. Dos retorns bancaris distints de 40 € per una mateixa factura el mateix dia i banc **col·lideixen** en el segon format; una referència reutilitzada en dues factures **col·lideix** en el primer. A `main`, `PaymentService::assertSamePayload()` compara el hash de la petició completa (V1/V2) abans del reús: mateixa K amb import, factura o trams diferents produeix CONFLICT. La unicitat per clau **no** identifica dos retorns bancaris reals diferents quan el builder els dona K i payload idèntics; tampoc acredita que la sortida externa s'hagi executat. Una referència d'origen i una de sortida tampoc s'han de confondre.
 
 ```plantuml
 @startuml
@@ -289,30 +289,30 @@ O->>G: validate(E,requestId,originPayment,uuidFactura,ID_INSC,40)
 G->>DB: Cercar REFUND existent per operació E i calcular límit del dret origen
 alt E ja correspon al mateix retorn amb dades equivalents
  DB-->>G: UUID_PAYMENT preexistent + assignació/titular coherents
- G-->>O: Reutilitzar UUID; cap nou REFUND
+ G-->>O: Reutilitzar UUID, cap nou REFUND
 else Referència/clau repetida amb import o factura diferents
  DB-->>G: CONFLICT semàntic
- G-->>O: Revisió; no assumir que l'antic UUID retorna diners d'aquesta factura
+ G-->>O: Revisió, no assumir que l'antic UUID retorna diners d'aquesta factura
 else E nova, sortida acreditada i dret suficient
  G->>R: registerByUuid(sifDb,uuidFactura,input amb E/40) [PHP]
  R->>K: forExistingInvoice(uuidFactura,input)
  K-->>R: REFUND, IDEMPOTENCY_KEY, una assignació
  R->>P: registerPayment(payload)
- P->>DB: BEGIN, cerca per clau; INSERT REFUND/assignació si no existeix
+ P->>DB: BEGIN, cerca per clau, INSERT REFUND/assignació si no existeix
  DB-->>P: UUID_PAYMENT o reús
  P->>DB: COMMIT del registre/reús SIF
  P-->>R: UUID_PAYMENT
  R-->>G: UUID_PAYMENT, UUID_FACTURA
  G->>DB: Comprovar contingut/assignació i registrar origen+decisió [DISSENY]
  G-->>O: Sortida acreditada i registrada o incidència si divergeix
- Note over G,DB: La comprovació posterior al COMMIT no pot desfer un REFUND ja inserit; el guard de contingut i fons ha d'actuar ABANS de crear/reusar el moviment.
+ Note over G,DB: La comprovació posterior al COMMIT no pot desfer un REFUND ja inserit, el guard de contingut i fons ha d'actuar ABANS de crear/reusar el moviment.
 end
 Note over G,DB: Només el registre SIF és PHP real. El guard, el límit, la conciliació bancària i la vinculació a ID_INSC són disseny pendent.
 ```
 
-### 4.3a. Seqüència del PHP actual: mateixa referència i factura diferent poden retornar una parella UUID contradictòria
+### 4.3a. Seqüència de main: mateixa referència i factura/import diferents donen conflicte, no una parella UUID contradictòria
 
-**Fet verificat al codi (no test executat):** `ManualRefundService::registerForInvoice()` sempre estableix en el resultat `uuid_factura` i `num_visible` de **la factura de la petició actual**, després de rebre el resultat de `PaymentService::registerPayment()`. Si la clau `REFUND|REF:<reference>` ja pertany a un `payment_transaction` assignat a la factura A, `PaymentService` retorna el seu `UUID_PAYMENT_A` sense comparar import/factura. Una segona petició sobre B amb la **mateixa referència** retorna `UUID_PAYMENT_A` juntament amb `UUID_FACTURA_B` en la resposta PHP de `ManualRefundService`, **sense crear una assignació a B**. És una inconsistència de la resposta respecte de les assignacions persistides; no prova que s'hagi efectuat cap retorn extern a B.
+**Fet verificat al codi (no test executat):** `ManualRefundService::registerForInvoice()` sempre estableix en el resultat `uuid_factura` i `num_visible` de **la factura de la petició actual**, després de rebre el resultat de `PaymentService::registerPayment()`. Si la clau `REFUND|REF:<reference>` ja pertany a un `payment_transaction` assignat a la factura A, `PaymentService` **a main comprova la petició completa**. Una segona petició sobre B amb la mateixa referència però factura/import diferents produeix **CONFLICT** abans de crear una assignació a B, sense retornar la parella contradictòria que era possible amb el codi de la branca documental anterior. La col·lisió de dues sortides externes diferents amb K/payload idèntics i el control del límit retornable continuen pendents.
 
 ```mermaid
 sequenceDiagram
@@ -336,10 +336,10 @@ B-->>R: Mateixa K, assignació sol·licitada a B
 R->>P: registerPayment(payload B)
 P->>DB: BEGIN + SELECT payment_transaction WHERE IDEMPOTENCY_KEY=K FOR UPDATE
 DB-->>P: UUID_PAYMENT_A, allocation original només a FACTURA_A
-P->>DB: COMMIT sense canviar allocation a B
-P-->>R: UUID_PAYMENT_A, idempotency_reused=true sense comparar payload
-R-->>O: UUID_PAYMENT_A, uuid_factura=FACTURA_B i num_visible de B
-Note over O,DB: FACTURA_B no rep allocation ni canvia l'estat de cobrament. El resultat de ManualRefundService barreja UUID_PAYMENT_A i FACTURA_B.
+P->>P: assertSamePayload(payload B/80,hash original A/40) [PHP main]
+P--xR: CONFLICT per import i factura diferents; rollback, cap assignació B
+R-->>O: Error; no declarar segon REFUND ni pagament de B
+Note over O,DB: A main no apareix la parella de UUIDs contradictòria amb payload diferent. La identitat bancària i saldo real retornable continuen pendents.
 ```
 
 **Control objectiu:** abans de mostrar `idempotency_reused=true` com a devolució de B, contrastar el moviment persistent i totes les assignacions contra identificador real de sortida, titular, factura, import i `REQUEST_ID`. En cas de contradicció, `CONFLICT` i incidència; no corregir-ho amb un segon `REFUND` sota una altra clau sense resoldre l'operació bancària real.
@@ -380,14 +380,14 @@ R->>C: reconcile(externalRefundId,originPayment,uuidFactura)
 C->>B: Verificar operació de sortida i estatus real
 C->>S: Cercar REFUND existent, import i factura assignada
 alt Banc no confirma sortida, SIF tampoc té REFUND
- C-->>R: RETURN_PENDING; no moviment inventat
+ C-->>R: RETURN_PENDING, no moviment inventat
 else Banc confirma, SIF manca
  C->>M: registerByUuid(...,referència externa original) [guard PENDENT]
  M-->>C: UUID_PAYMENT o conflicte semàntic
  C->>S: Rellegir import/factura/origen i verificar un sol retorn
  C-->>R: RECONCILED o incidència amb banc ja confirmat
 else SIF té REFUND però no es verifica sortida externa
- C-->>R: EXTERNAL_UNVERIFIED; investigar, no executar automàticament un segon retorn
+ C-->>R: EXTERNAL_UNVERIFIED, investigar, no executar automàticament un segon retorn
 else Banc i SIF coincideixen en operació/import/factura/titular
  C->>L: Reparar només resum llegat si cal, mateix UUID_PAYMENT
  C-->>R: RECONCILED sense nou CHARGE/REFUND
@@ -399,7 +399,7 @@ Note over C,M: No s'ha acreditat un servei PHP de conciliació de retorns ni API
 | --- | --- | --- |
 | DV-28-08 | Dues devolucions bancàries reals de 40 € sobre la mateixa factura, el mateix dia i banc, sense referència | Identitats externes diferents; no fusionar-les per la clau derivada de dia/import. |
 | DV-28-09 | Mateixa `reference` en una petició per factura A/40 i una altra per factura B/80 | Detectar contradicció d'assignació/import; no retornar silenciosament el UUID de la primera com a «devolució B». |
-| DV-28-14 | Registrar A/40 amb referència RET-1 i sol·licitar B/80 amb RET-1 | Comportament actual a reproduir: retorn de `UUID_PAYMENT_A` juntament amb `uuid_factura=B` encara que l'assignació continuï a A. Contracte final: `CONFLICT` i cap fals èxit per B. |
+| DV-28-14 | Registrar A/40 amb referència RET-1 i sol·licitar B/80 amb RET-1 | **PHP main:** CONFLICT per payload diferent, cap UUID_PAYMENT_A/FACTURA_B aparentment correcte; encara cal verificar la sortida bancària real i el saldo retornable. |
 | DV-28-10 | `REFUND` de 120 € sobre factura amb només 40 € de fons retornables atribuïts | Guard objectiu impedeix registrar un retorn fictici/excessiu; el camí PHP actual no demostra aquest límit. |
 | DV-28-11 | Banc confirma retorn, resposta SIF es perd i operador repeteix el tràmit | Buscar el mateix identificador bancari i reusar/reconciliar; no repetir la sortida externa. |
 | DV-28-12 | Pagament inicial empresa per grup, sol·licitud de retorn d'un participant | Identificar titular econòmic i fons d'`ID_INSC`; no pagar automàticament el participant. |

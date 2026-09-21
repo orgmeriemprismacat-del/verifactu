@@ -33,6 +33,20 @@ UC-51 **no crea una factura ni un `payment_transaction` directament**: el callba
 
 **Proves addicionals no executades:** mateixa IDPAG amb una denegació i una acceptació a DS_ORDER diferents; callback individual tardà després de factura d'empresa; callback de diferència de curs ja revertit; notificació de DS_ORDER antic amb import desfasat; callback validat encara en RETRY que apareix com a «no facturat» al CSV; en tots els casos conciliar el cobrament real sense una factura/assignació duplicada.
 
+
+### 1.3. Contrast del document Redsys v2: un duplicat no és una comparació contra la fotografia pre-TPV
+
+La proposta v2 atribueix a RedsysCallbackController la crida PayloadIdempotencyValidatorInterface::validate(orderId,incomingParameters), comparant el hash de la notificació amb un hash de la intenció UC-63. **Aquest mètode no existeix a la interfície PHP main ni al callback**. RedsysSignatureValidator calcula payload_hash a partir dels bytes Ds_MerchantParameters de la notificació **entrants**; RedsysNotificationRepository compara aquest hash amb el de **l'anterior notificació del mateix DS_ORDER**, juntament amb import, response_code, moneda, terminal i versió de signatura. A UC-63 no es desa actualment un hash homòleg i els payloads del checkout i del callback contenen camps diferents. No interpretar com a frau una divergència esperable entre dos tipus de missatge.
+
+Per a notificació denegada, RedsysCallbackService registra status ERROR a redsys_notifications i **no crea job**, però **no actualitza redsys_payment_intent.STATUS a DENEGADA** en aquest camí. Per a callback duplicat exacte, retorna duplicate=true i pot reutilitzar el job associat, **sense que això acrediti que el worker ja l'ha marcat PROCESSED** o que hi hagi CHARGE/factura. Per a la contradicció del mateix DS_ORDER el servei fa rollback i intenta obrir una incidència de tipus REDSYS_CALLBACK només per conflicte 409 en el camí inspeccionat; errors de signatura/validació no demostren automàticament un registre de seguretat equivalent. L'adaptador HTTP determina el codi de resposta: el contracte del servei no garanteix retornar 200 en tots els errors o dins del mateix commit econòmic.
+
+| Prova pendent v2 | Sortida exigible |
+| --- | --- |
+| RV2-51-01 | Notificació amb hash entrant diferent del hipotètic snapshot de compra però signatura/intenció/import coherents: no classificar com a frau per la comparació de payloads diferents. |
+| RV2-51-02 | Callback denegat vàlid: notificació ERROR, cap job ni CHARGE; no afirmar canvi d'estat d'intenció a DENEGADA sense writer. |
+| RV2-51-03 | Duplicat equivalent amb job QUEUED o PROCESSING: una notificació/job, cap pagament/FACTURA donats per confirmats prematurament. |
+| RV2-51-04 | Mateixa DS_ORDER, codi de resposta/bytes del callback incompatibles: conflicte 409, rollback i incidència en el camí que efectivament la crea. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -132,7 +146,7 @@ participant Q as RedsysCallbackQueueRepository
 participant E as IncidentRepository
 Bank->>C: Callback signat
 alt Signatura invàlida
- C--xBank: Rebuig; sense notificació/job al servei
+ C--xBank: Rebuig, sense notificació/job al servei
 else Signatura vàlida
  C->>S: receiveAuthorizedCallback(payload verificat)
  S->>I: findByDsOrder(DS_ORDER,true)
@@ -151,7 +165,7 @@ else Signatura vàlida
    N-->>S: notification_id, duplicate?
    S->>Q: enqueue(notification_id,UUID_INTENT)
    Q-->>S: job existent o QUEUED nou
-   S-->>C: Resposta HTTP lògica amb job; cap factura al callback
+   S-->>C: Resposta HTTP lògica amb job, cap factura al callback
   end
  end
 end
@@ -218,7 +232,7 @@ else Dades contradictòries per la mateixa DS_ORDER
  N--xS: conflict 409
  S->>DB: ROLLBACK
  S->>Inc: open(REDSYS_CALLBACK,detalls de conflicte) [intenta]
- S--xBank: Error; cap job nou ni substitució de notificació
+ S--xBank: Error, cap job nou ni substitució de notificació
 end
 Note over S,Q: Dues DS_ORDER diferents amb mateix IDPAG no són duplicat automàtic: cal conciliar cada fet bancari.
 ```
@@ -275,7 +289,7 @@ else Cobertura i pagament coherents amb oferta congelada
  Q->>P: Continuar handler idempotent UC-03
  P-->>Q: UUID_FACTURA i UUID_PAYMENT confirmats
 end
-Note over Guard,P: El worker existent no acredita aquest guard transversal; no descartar diners ni atorgar una plaça automàticament en conflicte.
+Note over Guard,P: El worker existent no acredita aquest guard transversal, no descartar diners ni atorgar una plaça automàticament en conflicte.
 ```
 
 | ID de prova pendent | Escenari | Sortida a acreditar |

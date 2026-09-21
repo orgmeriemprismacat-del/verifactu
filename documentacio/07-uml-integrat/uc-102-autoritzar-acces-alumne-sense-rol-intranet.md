@@ -124,7 +124,7 @@ alt Factura d'empresa amb VISIBLE_ALUMNE=0
  S-->>A: Accés denegat, sense dades de l'empresa
 else Recurs propi autoritzat
  R-->>S: Accés document concret aprovat
- S->>G: Verificar PDF real i hash; servir bytes
+ S->>G: Verificar PDF real i hash, servir bytes
  S->>D: Registrar resultat de consulta [pendent]
  S-->>A: Document propi, cap acció fiscal nova
 end

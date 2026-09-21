@@ -195,8 +195,118 @@ Note over P,DB: El procés pot fallar abans de guardar la resposta en BD
 P-xQ: Pèrdua de confirmació / caiguda
 Q->>DB: Job continua PROCESSING fins recuperació
 Q->>DB: recoverStaleLocks() → RETRY
-Note over Q,T: Reenviament sense conciliació podria duplicar un intent extern; criteri de recuperació pendent de validar
+Note over Q,T: Reenviament sense conciliació podria duplicar un intent extern, criteri de recuperació pendent de validar
 ```
+
+### 4.2. Acció independent: registrar una resposta AEAT correlacionada només per a l'intent fiscal vigent — PHP real sense fencing / DISSENY
+
+**Actor/disparador:** `AeatTransport::send(payload)` retorna `ACCEPTED`, `ACCEPTED_WITH_ERRORS` o `REJECTED` i l'array de resposta del registre immutable. **Entrades:** `fiscal_queue.ID`, `UUID_FACTURA`, `FISCAL_ORDER` del payload, resposta individual, `request_xml` i identitat de l'intent que havia reclamat la tasca. **Postcondició correcta:** una sola transició final feta per **l'intent que encara conserva la propietat**; desar XML/resposta al registre fiscal de l'ordre exacte i exposar per separat `SENT` de cua i estat AEAT de línia. Un `REJECTED` és una resposta remota tractada, no un error de transport a reenviar indefinidament.
+
+**Comportament contrastat:** `FiscalQueueRepository::complete()` marca `fiscal_queue.STATUS='SENT'` amb `UPDATE ... WHERE ID=?`, sense exigir `PROCESSING`, propietari ni generació; actualitza el registre amb `WHERE UUID_FACTURA=? AND FISCAL_ORDER=?` i valida que s'ha actualitzat una fila; finalment actualitza `factura.ESTAT_AEAT` per `UUID_FACTURA`. `FiscalQueueProcessor::processNext()` tracta una excepció de `complete()` mitjançant el mateix `catch` que una excepció de transport i crida `failure()`, **encara que el SOAP ja hagués retornat una resposta remota**. Sense una categoria d'intent obsolet, una cursa de lock/commit pot convertir un resultat extern real en `RETRY` o `DEAD_LETTER` local.
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker fiscal amb resposta" as W
+actor "AEAT (extern)" as A
+rectangle "SIF · UC-09 / CONFIRMAR RESPOSTA" {
+ usecase "Validar línia i identitat\ndel registre AEAT" as Validate
+ usecase "Comprovar propietari i generació\nde la tasca fiscal" as Own
+ usecase "Persistir resposta i estat del registre\nsense sobreescriptura d'altres intents" as Persist
+ usecase "Distingir SENT de ACCEPTED,\nACCEPTED_WITH_ERRORS i REJECTED" as Distinct
+}
+W --> Validate
+A --> Validate
+Validate ..> Own : <<include>> [guard pendent]
+Validate ..> Persist : <<include>>
+Persist ..> Distinct : <<include>>
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor W as Worker fiscal
+participant T as AeatTransport [PHP]
+participant G as FiscalAttemptOwnershipGuard [DISSENY]
+participant Q as FiscalQueueRepository [PHP]
+participant DB as fiscal_queue + factura_registres + factura
+W->>T: send(payload de F+FISCAL_ORDER)
+T-->>W: status + response individual + request_xml
+W->>G: confirmOnlyIfOwner(queueId,attemptToken,status,response) [PENDENT]
+G->>DB: BEGIN i verificar lock/generació vigent i identitat d'F+FISCAL_ORDER
+alt Intent obsolet o resposta atribuïda a una altra línia
+ DB-->>G: STALE_ATTEMPT/CONFLICT
+ G-->>W: Conservar evidència i conciliar; cap UPDATE de fila actual
+else Intent vigent i resposta correlacionada
+ G->>Q: complete(db,item,status,response,request_xml) [PHP: sense fencing propi]
+ Q->>DB: UPDATE fiscal_queue SENT WHERE ID
+ Q->>DB: UPDATE factura_registres per F+FISCAL_ORDER
+ Q->>DB: UPDATE factura.ESTAT_AEAT del resum
+ G->>DB: COMMIT
+ G-->>W: Job SENT + estat real del registre (no implica ACCEPTED)
+end
+Note over G,Q: El PHP present crida Q dins TransactionRunner però NO passa per G. Guard i token són DISSENY.
+```
+
+### 4.3. Acció independent: tractar una fallada local després de rebre resposta remota — DISSENY
+
+**Actor/disparador:** `send()` ha retornat una resposta correlacionada, però `complete()` falla per BD, propietat perduda o altra incidència; o bé el procés mor entre rebre resposta i fer commit local. **Precondicions:** distingir error **abans d'enviar**, transport de resultat **remot incert** i error **després de resposta rebuda**; preservar identificador/hash d'intent i XML/resposta abans de decidir un reenviament. **Postcondició:** recuperar la mateixa resposta sobre el registre fiscal original quan estigui acreditada; si continua incerta, mantenir revisió o quarantena. Cap segona emissió, cap nou número i cap `REJECTED/ERROR` atribuït a AEAT sense resposta correlacionada.
+
+**Frontera real:** `FiscalQueueProcessor::processNext()` inclou `$this->transactions->run(fn=>queue->complete(...))` dins el `try` que també inclou `transport->send()`. El `catch` crida `failure(item,exception)` per qualsevol excepció, també si la resposta externa **ja existeix en memòria**. `fail()` marca `RETRY/DEAD_LETTER` per `ID`, no comprova propietat, ni desa la resposta rebuda en aquell camí. `EvidenceStore` crea XML i metadades privades per intent, però **no s'ha acreditat** al processador un ledger/writer SQL que correlacioni tots els intents amb el registre i reconstitueixi automàticament la resposta després de fallada local. **Precisió del transport:** `SoapTransport::send()` inclou `uuid_factura` i `fiscal_order` als metadades privats de `EvidenceStore::begin()`; en una resposta normal afegeix `response.evidence_id` al resultat, que `complete()` pot desar com a part de `AEAT_RESPONSE_JSON`. Si `complete()` falla/hi ha una caiguda, l'identificador de l'intent **no queda garantit en una taula SQL** per aquell camí, malgrat existir els fitxers al directori privat. `EvidenceStore` proporciona escriptura append-only (`begin/response/failure`), no una API PHP pública de cerca i lectura d'intents per tasca: el lector/procediment de reconciliació continua pendent. `aeat_submission_attempt` existeix a migracions posteriors, però el camí de processador revisat no l'escriu.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable fiscal" as R
+actor "AEAT / evidència privada" as A
+rectangle "SIF · UC-09 / RESPOSTA EXTERNA AMB COMMIT LOCAL FALLIT" {
+ usecase "Classificar punt real de la fallada\nabans o després del SOAP" as Class
+ usecase "Recuperar resposta acreditada de\nl'intent i identitat del registre" as Recover
+ usecase "Persistir la resposta original\nsense un segon enviament" as Save
+ usecase "Retenir un enviament de resultat\nremot encara incert" as Pending
+}
+R --> Class
+A --> Recover
+Class ..> Recover : <<include>> [resposta rebuda/possible]
+Recover ..> Save : <<include>> [confirmada i equivalent]
+R --> Pending
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor R as Responsable fiscal
+participant T as AeatTransport + EvidenceStore [PHP]
+participant Q as FiscalQueueProcessor + FiscalQueueRepository [PHP]
+participant DB as fiscal_queue + factura_registres [SQL]
+participant G as FiscalSubmissionAttemptReconciler [DISSENY]
+Q->>T: send(payload original F+FISCAL_ORDER)
+T-->>Q: ACCEPTED,responseOriginal,requestXml [remot rebut]
+Q->>DB: BEGIN; complete(item,responseOriginal)
+DB--xQ: Error local/commit fallit [exemple possible]
+Q->>Q: catch -> failure(item,error) [PHP real]
+Q->>DB: UPDATE RETRY o DEAD_LETTER per ID [sense propietari]
+R->>G: Conciliar intent amb resposta remota ja rebuda
+G->>T: Recuperar XML i resposta originals d'evidència privada
+G->>DB: Consultar registre F+FISCAL_ORDER i estat local actual
+alt Resposta íntegra correlacionada amb registre original
+ G-->>R: Persistir resultat acreditat sense segon SOAP [DISSENY]
+else Estat extern encara incert o contradicció de propietat
+ G-->>R: Revisió/retenció; no reconvertir-se automàticament en nou enviament
+end
+Note over Q,G: El reconciliador no existeix al PHP examinat; el transport de proves i la guarda de fitxers no proven recepció de producció.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AE-09-06 | Resposta ACCEPTED de línia vàlida, `complete()` pateix excepció/rollback local | No classificar-la com a «AEAT no ha acceptat» ni reenviar a cegues; recuperar resposta i identitat de l'intent. |
+| AE-09-07 | A obté resposta i B torna a reclamar el mateix job recuperat | A no sobreescriu B, conservar resposta real d'A per conciliació sense falsejar-ne propietat. |
+| AE-09-08 | Q marca SENT amb resposta REJECTED | Mostrar remissió acabada i rebuig de línia; tramitar revisió separada, no inventar una fallada de transport. |
+| AE-09-09 | `complete()` rep UUID_FACTURA vàlid però FISCAL_ORDER no existent | Rollback de la transacció completa; conservar error i evidència, no marcar SENT el job incompatible. |
+| AE-09-10 | Dues respostes/estats d'intent incompatibles per la mateixa ordre fiscal | Correlacionar cada intent i resoldre segons evidència, no sobreescriure per ordre d'arribada local. |
+| AE-09-11 | `SoapTransport` ha creat `request.json`/`response.xml` privats però `complete()` falla | Localitzar el mateix `evidence_id` amb `UUID_FACTURA+FISCAL_ORDER`; el PHP actual no garanteix índex SQL de l'intent quan no es confirma `AEAT_RESPONSE_JSON`. |
 
 ## 5. Matriu de persistència i evidències
 

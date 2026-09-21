@@ -202,7 +202,7 @@ alt Responsable sense permís o grant desconegut
  S-->>UI: Cap modificació d'abast
 else Grant ja revocat
  G-->>S: Revocació anterior i versió
- S-->>UI: Reús idempotent; no esborrar història
+ S-->>UI: Reús idempotent, no esborrar història
 else Grant vigent
  G->>G: Persistir REVOKED, instant, actor i nova versió [OBJECTIU]
  G-->>S: Revocació confirmada
@@ -216,7 +216,7 @@ G-->>S: REVOKED si revocació confirmada
 S-->>D: DENIED si revocat
 D->>Log: Auditar denegació [OBJECTIU]
 D-->>A: No servir bytes des de l'endpoint controlat
-Note over D,G: Una descàrrega completada abans de la revocació no desapareix; controlar URLs públiques i cache és requisit de disseny.
+Note over D,G: Una descàrrega completada abans de la revocació no desapareix, controlar URLs públiques i cache és requisit de disseny.
 ```
 
 | ID de prova pendent | Escenari | Resultat exigible |

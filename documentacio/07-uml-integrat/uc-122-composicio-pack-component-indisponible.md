@@ -138,7 +138,7 @@ participant Cap as Capacitat UC-115 [DISSENY]
 participant F as Classificació fiscal UC-74 [pendent]
 participant Ledger as Fons per inscripció [PROPOSTA]
 participant Legacy as Inscripcions llegades
-G->>C: Component B del pack P indisponible; proposar C
+G->>C: Component B del pack P indisponible, proposar C
 C->>Lines: Consultar UUID_LINE_B, ID_INSC_B i document immutable
 C->>Ledger: Consultar import real atribuït a B
 C->>Cap: Validar plaça del component C

@@ -87,6 +87,31 @@ Op --> Gen
 @enduml
 ```
 
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Alumne"]
+  a_1["Empresa/responsable"]
+  a_2["Operador facturació"]
+  a_3["Auditor només lectura"]
+  subgraph SIF_BOUNDARY["SIF / consulta fiscal"]
+    u_0(["UC-07<br/>Consultar factura, estat i document"])
+    u_1(["Validar rol i visibilitat"])
+    u_2(["Consultar estats<br/>fiscal i econòmic"])
+    u_3(["Obrir document autoritzat"])
+    u_4(["UC-36<br/>Generar document pendent"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  a_2 --> u_0
+  a_3 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_3 -.->|extend| u_0
+  a_2 --> u_4
+```
+
 ## 3. Subdiagrama de classes: existent i servei objectiu
 
 ```mermaid
@@ -146,7 +171,7 @@ alt Actor sense autorització
 else Autoritzat
  Auth-->>S: true
  S->>Log: append(VIEW,actor,factura,requestId)
- S-->>UI: Estat factura, cobrament i AEAT; documents permesos
+ S-->>UI: Estat factura, cobrament i AEAT, documents permesos
  opt Actor sol·licita PDF/QR/XML
   UI->>S: download(actor,documentId)
   S->>Auth: Revalidar permís d'aquest document

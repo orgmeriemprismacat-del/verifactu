@@ -183,7 +183,7 @@ else Sol·licitud nova o reintent equivalent
  V-->>UI: PENDING, no VALID_DESC=1
 end
 UI-->>A: Estat de sol·licitud, no factura ni descompte confirmat
-Note over UI,DB: La pantalla llegada i els camps són identificats; writer/auditoria completa d'evidències i identitat en SIF no acreditats.
+Note over UI,DB: La pantalla llegada i els camps són identificats, writer/auditoria completa d'evidències i identitat en SIF no acreditats.
 ```
 
 ### 4.2. Acció independent: confirmar o denegar afiliació i revisar el preu ofert — DISSENY/LEGAT
@@ -225,14 +225,14 @@ alt Evidència insuficient o actor no autoritzat
  V-->>UI: PENDING/REJECT sense concedir dret automàtic
 else Validació positiva acreditada i no hi ha factura
  V->>L: Registrar VALID_DESC=1 i política comercial validada [integració PENDENT]
- L-->>V: Decisió confirmada; quanties alumne/entitat per snapshot nou
- V-->>UI: Aprovar oferta actualitzada; UC-63 crea intenció diferent si l'anterior és incompatible
+ L-->>V: Decisió confirmada, quanties alumne/entitat per snapshot nou
+ V-->>UI: Aprovar oferta actualitzada, UC-63 crea intenció diferent si l'anterior és incompatible
 else Validació denegada i no hi ha factura
  V->>L: Registrar VALID_DESC=2, documentar nou preu ofert [integració PENDENT]
- V-->>UI: No aplicar descompte USOC; no registrar CHARGE/REFUND per denegar
+ V-->>UI: No aplicar descompte USOC, no registrar CHARGE/REFUND per denegar
 else Ja hi ha factura alumne o entitat emesa
  V->>C: Registrar discrepància i classificar possible correcció fiscal/econòmica
- C-->>UI: Expedient pendent de decisió; factura/CHARGE real anteriors intactes
+ C-->>UI: Expedient pendent de decisió, factura/CHARGE real anteriors intactes
 end
 UI-->>G: Decisió i efectes pendents sense reescriptura fiscal
 Note over V,L: El PHP SIF comprova camps VALID_DESC/TIPUS_DESC, però no valida afiliació externa ni orquestra aquests canvis d'estat.

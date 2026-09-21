@@ -140,7 +140,7 @@ UI->>Intent: create(DS_ORDER,EXPECTED_AMOUNT,SNAPSHOT_JSON,...)
 Intent->>R: findByDsOrder(DS_ORDER)
 alt Ordre existent amb snapshot o import diferent
  R-->>Intent: Intenció contradictòria
- Intent-->>UI: Conflicte; no reescriure l'original
+ Intent-->>UI: Conflicte, no reescriure l'original
 else Nova ordre o reintent equivalent
  Intent->>R: insert(...) només si no existeix
  Intent-->>UI: UUID_INTENT PENDING/reutilitzada

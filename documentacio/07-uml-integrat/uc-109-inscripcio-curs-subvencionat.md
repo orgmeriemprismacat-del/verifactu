@@ -158,7 +158,7 @@ else Classificació resolta
   P-->>S: UUID_PAYMENT
  end
 end
-Note over S,P: Classificació/alta d'UC-109 són disseny; pagament únicament quan hi ha ingrés real.
+Note over S,P: Classificació/alta d'UC-109 són disseny, pagament únicament quan hi ha ingrés real.
 ```
 
 ## 5. Traçabilitat

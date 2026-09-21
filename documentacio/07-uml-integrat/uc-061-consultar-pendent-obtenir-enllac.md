@@ -134,7 +134,7 @@ else Pendent coherent
  I-->>A: Intenció PENDING
  W-->>S: Ingrés real confirmat o incidència
 end
-Note over S,W: Mostrar saldo no equival a cobrar; no crear segon CHARGE per inscripció
+Note over S,W: Mostrar saldo no equival a cobrar, no crear segon CHARGE per inscripció
 ```
 
 ## 6. Traçabilitat

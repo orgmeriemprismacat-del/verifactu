@@ -121,7 +121,7 @@ else Perfil complet i aprovat
  F->>I: issueInvoice(payload) després de controls addicionals
  I-->>G: UUID_FACTURA o error, sense mutar perfil històric
 end
-Note over F,I: El PHP actual no aplica la matriu per país/tipus; el flux és objectiu.
+Note over F,I: El PHP actual no aplica la matriu per país/tipus, el flux és objectiu.
 ```
 
 ## Traçabilitat

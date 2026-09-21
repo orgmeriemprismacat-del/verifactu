@@ -208,13 +208,13 @@ UI->>E: Associar dret de regal a la compra confirmada
 alt Codi o comunicació no lliurats
  E-->>UI: Error de lliurament, compra existent
  UI->>Mail: Incidència i reintent idempotent [pendent]
- UI-->>C: Compra registrada; lliurament pendent, no segon pagament
+ UI-->>C: Compra registrada, lliurament pendent, no segon pagament
 else Lliurament correcte
  E-->>UI: Codi/dret disponible
  UI->>Mail: Comunicar al comprador segons plantilla/permís
  UI-->>C: Regal disponible per bescanvi posterior
 end
-Note over P,Mail: La compra i el bescanvi són fases diferents; aquesta seqüència no acredita un outbox de regals ja integrat.
+Note over P,Mail: La compra i el bescanvi són fases diferents, aquesta seqüència no acredita un outbox de regals ja integrat.
 ```
 ## 6. Traçabilitat
 

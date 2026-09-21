@@ -126,7 +126,7 @@ S->>F: Classificar nova quantia fiscal per B
 opt Rectificativa aprovada
  F-->>S: Via/import/concepte aprovats
  S->>R: issueByUuid(factura,input)
- R-->>S: UUID_FACTURA_R; original intacta
+ R-->>S: UUID_FACTURA_R, original intacta
 end
 opt Devolució efectiva o saldo intern autoritzats
  S->>M: Registrar quantia de B i vincle a CHARGE original [pendent]

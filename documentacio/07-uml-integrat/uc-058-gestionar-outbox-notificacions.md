@@ -139,3 +139,11 @@ Note over O,T: No hi ha worker PHP acreditat ni es pot inferir recepció de l'es
 ## Traçabilitat
 
 [UC-58 original](../06-fitxes-funcionals/uc-058.md) · [UC-43 recordatoris](uc-043-gestionar-notificacions-recordatoris.md) · [UC-49 correu](uc-049-enviar-factura-document-avis-correu.md) · [UC-79 comunicació fiscal](uc-079-comunicacio-fiscal-auditable.md) · [UC-81 incidències](uc-081-cicle-complet-incidencia.md) · [DDL notification_outbox/delivery_attempt](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql).
+
+## Addenda transversal UC-77 — alertes de dead-letter i rebuig fiscal (disseny pendent)
+
+UC-77 ha de crear **un event durable d'alerta**, no presumir que UC-58 ja ha enviat un correu. Davant una DLQ per intents esgotats o un rebuig fiscal definitiu, l'alerta es correlaciona amb el mateix `fiscal_queue.ID`, registre, `UUID_FACTURA`, incidència UC-81, causa i resultat extern efectiu. Clau idempotent proposada: `FISCAL_ALERT|<queue_id>|<incident_id>|<event_kind>` (definir normalització/versió i tractament de canvis de destinatari abans d'implementar-la). Una nova reclamació del mateix job o una recuperació del productor no ha de crear alerts duplicades; un fet fiscal nou sí que pot tenir alerta pròpia.
+
+Quan la incidència, la transició DLQ i l'outbox es poden gravar a la mateixa BD/transacció, s'han de confirmar conjuntament; si algun pas pertany a un sistema diferent, cal un event durable recuperable i productor idempotent. Una fallada de notificació no reenvia el registre fiscal ni esborra la incidència. Destinataris, permisos i plantilla es resolen abans de posar informació fiscal al payload i es revaliden abans del lliurament.
+
+**Traça:** [UC-77 · R-77-02 i proves UC77-OUT-10](uc-077-operar-enviament-aeat-retry-dead-letter.md#7-fitxa-específica-ampliada-integritat-del-payload-congelació-i-dlq) · [UC-81](uc-081-cicle-complet-incidencia.md). L'esquema d'outbox existeix però la producció automàtica d'aquestes alertes i el worker de lliurament són pendents.

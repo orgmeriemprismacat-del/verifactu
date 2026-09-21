@@ -44,6 +44,21 @@
 | CF-69-04 | Una inscripció ja té factura d'empresa amb una altra clau | Recuperar cobertura o incidència; no nova factura. |
 | CF-69-05 | Canvi material després d'iniciar `DS_ORDER` | No reescriure snapshot original ni acceptar l'ordre antiga per una oferta nova. |
 
+
+### 1.3. Contrast AEAT v2: la confirmació funcional no és el hash de petició ni l'assignació de número fiscal
+
+L'adjunt AEAT v2 proposa un InvoiceService::confirmAndFreezeInvoice(invoiceId) que recupera un esborrany, congela FiscalRecord i **després** assigna el número definitiu. **Aquesta API i aquesta successió no estan acreditades al PHP de main**. UC-69 continua sent la validació/acceptació funcional del receptor, les línies, preu i fiscalitat abans de l'emissió; InvoiceService::issueInvoice(payload) és l'operació diferent UC-01 que obté la seqüència fiscal, crea factura, línies, registre encadenat, fiscal_queue i relacions dins de la transacció. No representar una factura fiscal amb número ja emès com un simple esborrany editable.
+
+A main, InvoiceRepository::insertInvoice() desa IDEMPOTENCY_PAYLOAD_HASH calculat sobre **la petició completa validada**, inclòs el bloc payment si existeix, per comparar una petició repetida de **la mateixa clau** a InvoiceService. Aquest hash de reús **no substitueix** la petjada fiscal HASH_FACT encadenada ni l'evidència que una persona habilitada hagi confirmat el receptor correcte abans de l'emissió. La migració 2026_09_21_000007 incorpora el camp de hash de petició i el reús de factures antigues sense hash falla tancat; **no** implementa per si sola el writer versionat de billing_profile_history/commercial_operation ni els permisos de confirmació.
+
+**Frontera amb UC-77:** FiscalQueueProcessor a main ja contrasta fiscal_queue.PAYLOAD_JSON amb factura_registres.PAYLOAD_JSON i recalcula HASH_FACT abans d'enviar. El hash de cua versionat és una extensió pendent, no el guard executable actual. Ni el hash de reús UC-01 ni el d'integritat UC-77 proven que el NIF, el titular del deute o la classificació tributària de l'oferta inicial fossin correctes: cal la verificació humana/funcional que descriu UC-69.
+
+| Prova pendent | Resultat exigible |
+| --- | --- |
+| CF-69-06 | Receptor d'empresa diferent del de l'alumne: confirmació explícita del receptor fiscal i rol abans d'emetre, no equivalència assumida pel hash. |
+| CF-69-07 | Canvi de receptor després de crear DS_ORDER però abans d'emetre: nova acceptació/gestió UC-112/121, no mutació silenciosa de snapshot. |
+| CF-69-08 | Reintent de la mateixa clau d'emissió amb receptor diferent: assertMatches() a main rebutja petició completa; el fet que el primer hash sigui vàlid no acredita receptor legítim. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
@@ -128,3 +143,9 @@ Note over S,DB: La confirmació versionada no està implementada pel validador P
 ## 5. Traçabilitat
 
 [UC-69 original](../06-fitxes-funcionals/uc-069.md) · [UC-01 emissió](uc-001-emetre-o-reutilitzar-factura.md) · [UC-04 abans de cobrar](uc-004-emetre-factura-abans-cobrar.md) · [UC-112 snapshot TPV](uc-112-congelar-snapshot-abans-tpv.md) · [UC-128 adreça](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) · [InvoicePayloadValidator](../../sif/src/Service/InvoicePayloadValidator.php) · [InvoiceRepository](../../sif/src/Repository/InvoiceRepository.php) · [Esquema comercial](../../sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql).
+
+## Addenda transversal UC-77 — frontera entre confirmació i tramesa (disseny pendent)
+
+**UC-69 confirma i versiona dades abans de l'emissió; no executa la tramesa AEAT.** La previsualització confirmada ha de fixar el receptor legítim, les línies, els imports, la versió del snapshot i la identitat de qui confirma. L'emissor UC-01/75/76 usa aquesta fotografia sense recalcular-la des de dades vives i, **en la mateixa transacció local**, crea registre fiscal encadenat, payload original i job de cua; a main la comparació de payload de cua amb el registre immutable i la recalculació del hash fiscal ja són executables. El hash propi/versionat de cua és una extensió pendent. El worker UC-77 només reclama el job després del commit i contrasta contingut/identitat amb el registre immutable abans del transport. Enviar SOAP abans del commit o refer la fotografia sota la mateixa clau de reintent incompleix el contracte.
+
+**Traça:** [UC-77 · especificació i diagrama modificats](uc-077-operar-enviament-aeat-retry-dead-letter.md#7-fitxa-específica-ampliada-integritat-del-payload-congelació-i-dlq). La confirmació versionada del receptor comercial i el hash propi/versionat de cua no estan acreditats al PHP de main, però el guard de cua/registre/hash fiscal **sí**. El hash de petició d'emissió de main és una garantia diferent. Prova pendent: rollback d'emissió no deixa cap job enviable; crash post-commit permet reprendre el mateix job/hash.

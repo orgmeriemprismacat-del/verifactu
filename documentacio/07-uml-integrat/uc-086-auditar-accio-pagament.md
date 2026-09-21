@@ -32,7 +32,7 @@
 | --- | --- |
 | Cerca o visualització d'un pagament | `SEARCH`/`VIEW` són valors acceptats pel repositori; cal connectar explícitament el canal de consulta a `append()`, no fingir que el gateway registra totes les lectures automàticament. |
 | Reintent idempotent amb mateix import i destinació | El cobrament existent es reutilitza; es pot registrar event `REUSED`, **sense crear CHARGE addicional**. |
-| Mateixa clau, import o assignacions diferents | **Buit real:** `PaymentService::existingResult()` retorna UUID sense comparar l'entrada. El disseny ha de revisar hash/payload i bloquejar contradicció abans de donar-la per correcta. |
+| Mateixa clau, import o assignacions diferents | **PHP main:** `PaymentService::assertSamePayload()` compara hash V1/V2 i rebutja contradiccions del payload. El rastre d'auditoria ha de conservar igualment la decisió de conflicte, el fet bancari extern i la prova de dos events reals que podrien compartir K/payload. |
 | Error després de `REQUESTED` però abans del commit | `FAILED` en intent separat; si també falla, es conserva `REQUESTED` sense terminal i cal reconciliació posterior, no deduir èxit ni fracàs de l'absència del segon event. |
 | Redistribució de 100 € entre dues inscripcions | Registrar canvi d'atribució **interna** 100 € amb origen/destí i event; no crear un segon cobrament extern de 100 €. |
 | Accés denegat | El gateway exigeix que el canal autoritzi; `ACCESS_DENIED` és acció admesa a `payment_action_event`, però la cobertura efectiva de cada endpoint queda pendent d'auditar. |
@@ -150,7 +150,7 @@ G->>L: operation: comprovar saldo A i pagament origen
 L->>L: append(A→B,100 €,UUID_PAYMENT_ORIGEN)
 L-->>G: UUID_MOVIMENT, import i destinació
 G-->>A: Event terminal i resultat
-Note over A,L: Cap CHARGE nou; el callback real de REALLOCATE encara no està implementat
+Note over A,L: Cap CHARGE nou, el callback real de REALLOCATE encara no està implementat
 ```
 
 ## 6. Traçabilitat

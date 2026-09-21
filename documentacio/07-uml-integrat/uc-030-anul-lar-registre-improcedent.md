@@ -154,7 +154,7 @@ else Factura SIF existent
   S-->>UI: UUID factura original i resultat del registre
  end
 end
-Note over S,DB: No crea payment_transaction ni devolució; remissió UC-09 separada
+Note over S,DB: No crea payment_transaction ni devolució, remissió UC-09 separada
 ```
 
 ## 5. Traçabilitat

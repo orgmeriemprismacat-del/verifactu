@@ -176,7 +176,7 @@ else Canvi validat
   L-->>C: UUID_MOVEMENT
  end
  opt Diferència pendent
-  C->>C: Registrar obligació; encara no CHARGE
+  C->>C: Registrar obligació, encara no CHARGE
  end
  opt Pagament addicional confirmat posteriorment
   C->>P: registerPayment(CHARGE de la diferència)
@@ -216,7 +216,7 @@ C->>Legacy: Aplicar canvi administratiu
 alt Falla la sincronització del llegat
  Legacy--xC: Error
  C->>Inc: Obrir incidència de conciliació X
- C-->>O: Canvi no tancat; fons traçats i sincronització pendent
+ C-->>O: Canvi no tancat, fons traçats i sincronització pendent
 else Llegat confirma
  Legacy-->>C: Confirmació
  C-->>O: Fase administrativa completada
@@ -242,7 +242,7 @@ alt Reversió només administrativa
  C->>H: Afegir event invers referenciat [integració pendent]
  C-->>O: Nou estat i historial intacte
 else Existeixen efectes econòmics o fiscals
- C-->>O: Mostrar trams i correccions necessàries; prohibir update directe
+ C-->>O: Mostrar trams i correccions necessàries, prohibir update directe
  opt Usuari confirma cada regularització pertinent
   C->>P: Tramitar nova operació específica idempotent
   C->>H: Correlacionar resultat i pendents [writer pendent]
@@ -336,7 +336,7 @@ else Decisió de canvi validada
   C->>L: append(A→B, import transferit, UUID_PAYMENT original)
  end
  opt Cal rectificativa segons UC-74
-  C->>IS: Tramitar UC-05; factura R separada i vinculació traçada
+  C->>IS: Tramitar UC-05, factura R separada i vinculació traçada
  end
  C-->>O: Nova obligació pendent: encara NO hi ha CHARGE per la diferència
  Payer->>O: Efectua pagament addicional en un moment posterior
@@ -345,7 +345,7 @@ else Decisió de canvi validada
  PS->>DB: BEGIN, INSERT moviment + assignació i COMMIT
  PS-->>C: UUID_PAYMENT nou, després del COMMIT propi
  C->>L: append(EXTERNAL→B, import real, UUID_PAYMENT nou) [PENDENT]
- C-->>O: Diferència efectivament cobrada; resultat econòmic correlacionat
+ C-->>O: Diferència efectivament cobrada, resultat econòmic correlacionat
 end
 Note over C,L: Una diferència de preu és deute, no ingrés. Coordinació, ledger i classificació final pendents.
 ```
@@ -392,13 +392,13 @@ O->>C: Confirmar canvi A→B més barat i decidir excés justificat
 C->>L: Rellegir ingressos originals, devolucions, saldos i disponible d'A
 C->>F: Classificar diferència de servei/import ja facturat
 alt No existeixen diners cobrats disponibles o titularitat dubtosa
- C-->>O: No generar REFUND ni saldo fictici; mantenir expedient pendent
+ C-->>O: No generar REFUND ni saldo fictici, mantenir expedient pendent
 else Hi ha fons disponibles i canvi aprovat
  C->>L: Registrar únicament import traspassat A→B [PENDENT]
  C->>C: Conservar excedent per tram i decisió del titular [PENDENT]
  T->>O: Indica destí del dret econòmic
  alt Retorn aprovat però encara no executat pel banc
-  C-->>O: Retorn pendent; cap REFUND
+  C-->>O: Retorn pendent, cap REFUND
  else Retorn efectivament executat i acreditat
   Bank-->>C: Referència bancària de sortida i import real
   C->>R: registerByUuid(factura/input refund verificat) [integració pendent]

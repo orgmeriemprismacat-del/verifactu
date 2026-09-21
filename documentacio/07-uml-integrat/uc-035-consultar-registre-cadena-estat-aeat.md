@@ -139,7 +139,7 @@ UI->>S: history(actor,UUID_FACTURA)
 S->>P: canRead(actor,invoice)
 alt Sense accés
  P-->>S: false
- S-->>UI: Denegat; cap dada fiscal
+ S-->>UI: Denegat, cap dada fiscal
 else Accés concedit
  P-->>S: true
  S->>R: invoiceAndRecords(UUID_FACTURA)
@@ -151,7 +151,7 @@ else Accés concedit
  S->>S: Comprovar cadena local sense editar registres
  S-->>UI: Història fiscal, cua, hash i resposta diferenciats
 end
-Note over UI,DB: Consulta objectiu; no envia AEAT, no emet factura ni modifica pagaments
+Note over UI,DB: Consulta objectiu, no envia AEAT, no emet factura ni modifica pagaments
 ```
 
 ## 5. Fonts i traçabilitat
