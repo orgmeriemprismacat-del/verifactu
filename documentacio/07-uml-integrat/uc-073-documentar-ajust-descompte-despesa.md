@@ -35,6 +35,28 @@
 
 **Pendents:** matriu de regles comercials, autorització del càrrec/despesa, política d'ajusts tardans, classificació fiscal, vinculació de `operational_event` a canals/accions i ledger quantitatiu d'inscripcions. No s'han executat tests del flux complet.
 
+### Particularitats del canvi de curs a PrisMa: descompte anterior i despeses incloses
+
+**Fet del llegat.** En un canvi de curs, la intranet recalcula automàticament `A_PAGAR` en funció del nou curs i del descompte anterior **si continua sent aplicable**; si no, el procés el detecta. Les despeses de gestió es calculen segons el tipus de canvi; la documentació indica que el **primer canvi pot ser gratuït** i que en canvis posteriors es poden aplicar despeses segons el cas, sense establir en aquesta fitxa un import universal. L'operador també pot ajustar `A_PAGAR` o les despeses en situacions puntuals, amb un motiu obligatori.
+
+**Representació econòmica històrica.** Les despeses de gestió del canvi de curs **actualment s'inclouen dins l'import final**, no com una línia separada de la factura llegada. Aquesta constatació **no determina** si el model fiscal final ha de fer una línia específica o documentar-ne la causa interna: abans d'emetre o rectificar, cal classificar naturalesa del càrrec, import, receptor i servei amb la persona responsable del criteri fiscal. No inventar una nova prestació facturada per cada cost administratiu intern.
+
+**Comparació completa.** Conservar curs/edició i concepte antic/nou, import facturat inicial, import pendent i cobrat real, descompte antic i aplicabilitat al curs destí, despeses de gestió acordades, valor nou, diferència i decisió del titular econòmic sobre retorn o saldo. Si **l'import final coincideix però canvia el curs/concepte**, no declarar «sense efecte fiscal» per una comparació numèrica: UC-74 classifica si el document original ja no descriu el servei real. Si el curs nou és més car, la diferència només es registra com a `CHARGE` quan es cobra efectivament; si és més barat, la reducció del deute no és un `REFUND` fins que el retorn extern ha tingut lloc.
+
+**Idempotència i historial.** Un mateix canvi pot generar event acadèmic, correcció fiscal, nova diferència pendent i moviment econòmic posterior en instants diferents. Conservar una referència estable al canvi i a cadascun dels seus efectes per recuperar un pas confirmat després d'error, sense tornar a aplicar despeses, descompte, cobrament o rectificativa per un reintent.
+
+### Proves addicionals del canvi de curs (no executades)
+
+| ID | Escenari | Resultat esperat |
+| --- | --- | --- |
+| AJ-01 | Descompte anterior aplicable al curs nou | Recalcular preu amb regla real i congelar imports abans de nova operació. |
+| AJ-02 | Descompte anterior no aplicable al curs nou | Previsualitzar i justificar la variació; no mantenir reducció per simple còpia del camp. |
+| AJ-03 | Primer canvi declarat gratuït segons condicions vigents | No afegir despeses de gestió per defecte. |
+| AJ-04 | Despesa de gestió inclosa al total del llegat | Conservar origen i import; via de representació fiscal final classificada, no línia inventada automàticament. |
+| AJ-05 | Curs/concepte canvia i el total és el mateix | Revisió UC-74 del document original, no només comparació aritmètica. |
+| AJ-06 | Curs nou més barat i retorn encara pendent | Diferència i decisió registrades; cap REFUND fins al retorn real. |
+| AJ-07 | Reintentar el mateix canvi després d'emetre rectificativa | Recuperar event/document i fons existents, sense repetir càrrec ni document. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
