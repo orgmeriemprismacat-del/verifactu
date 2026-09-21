@@ -122,6 +122,132 @@ S-->>A: void (no compta inscripcions actualitzades)
 Note over A,L: Repetir amb mateix UUID afegeix una segona nota a OBSERVACIONS: risc real de no-idempotència
 ```
 
+### 4.1. Acció independent: recuperar una sincronització fallida o parcial — DISSENY
+
+**Disparador propi:** el SIF ha fet `COMMIT`, però una o més inscripcions no han rebut el resum al llegat o el worker/adapter ha caigut després del commit. **Actor:** procés de recuperació o responsable tècnica autoritzada. **Precondició:** UUID_FACTURA i snapshot/versió del fet fiscal existents; no repetir `InvoiceService::issueInvoice()` per reparar un `UPDATE` llegat. **Postcondició exigida:** resultat per inscripció `UPDATED`/`ALREADY_SYNCED`/`NOT_FOUND`/`CONFLICT`, incidència recuperable si en queda alguna de pendent; aquests estats i el checkpoint **no són retorn actual del servei PHP**.
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker de recuperació" as W
+actor "Responsable tècnica" as T
+rectangle "SIF PrisMa — sincronització llegat (OBJECTIU)" {
+ usecase "UC-47 / recuperar\nReprendre sync d'un fet confirmat" as Retry
+ usecase "Verificar UUID i commit fiscal preexistent" as Existing
+ usecase "Comprovar resultat per ID_INSC\ni evitar duplicar l'anotació" as Checkpoint
+ usecase "UC-53\nObrir divergència si no es pot reparar" as Recon
+}
+W --> Retry
+T --> Retry
+Retry ..> Existing : <<include>>
+Retry ..> Checkpoint : <<include>>
+T --> Recon
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor W as Worker/Responsable autoritzat
+participant Q as Checkpoint de sync [DISSENY]
+participant S as LegacySyncService [PHP EXISTENT]
+participant R as LegacySyncRepository [PHP EXISTENT]
+participant F as Factura SIF persistent
+participant L as inscripcions BD llegat
+participant I as Incidència UC-53 [DISSENY]
+W->>F: Consultar UUID_FACTURA confirmat i relacions INSCRIPCIO
+F-->>W: Factura/estat fiscal immutable, N inscripcions
+loop Per cada ID_INSC
+ W->>Q: Llegir checkpoint(UUID_FACTURA,ID_INSC,versió_estat)
+ alt Estat ja sincronitzat i verificat
+  Q-->>W: ALREADY_SYNCED; no fer UPDATE
+ else Falta l'evidència d'actualització
+  W->>L: Reconsultar fila, FACTURA_RELACIONADA i marca real de sync
+  alt ID_INSC no existeix
+   L-->>W: NOT_FOUND
+   W->>I: Registrar incidència amb UUID i ID_INSC
+  else FACTURA_RELACIONADA contradictòria
+   L-->>W: CONFLICT
+   W->>I: Conciliar UC-53; no sobreescriure a cegues
+  else Fila consistent i pendent
+   W->>S: syncAfterSifSuccess(legacyDb,[relació],UUID,...)
+   S->>R: syncInscripcioSummary(...)
+   R->>L: UPDATE FACTURA_RELACIONADA i CONCAT(OBSERVACIONS)
+   alt Error a BD o fallada de confirmació
+    L--xW: Resultat no acreditat
+    W->>I: Marcar estat indeterminat i reconsultar abans de repetir
+   else UPDATE reeixit i fila verificada
+    L-->>W: Valor final verificat
+    W->>Q: Persistir UPDATED [DISSENY]
+   end
+  end
+ end
+end
+W-->>W: Informe per inscripció, sense segona factura ni CHARGE
+Note over Q,L: El PHP actual no té checkpoint/guard de CONCAT. Aquesta seqüència és contracte objectiu, NO una implementació de recuperació operativa.
+```
+
+### 4.2. Acció independent: detectar una sincronització aparentment correcta però falsa — DISSENY/UC-53
+
+**Disparador propi:** retorn `void` de la sincronització amb 0 files afectades, `FACTURA_RELACIONADA` de factura antiga diferent o nota duplicada per reintent. Com que el servei existent no retorna un resultat per inscripció ni comprova `rowCount()`, **una execució SQL sense excepció no acredita que l'estat fiscal estigui reflectit correctament al llegat**. La detecció és part de UC-53 i no justifica crear un UC nou.
+
+```plantuml
+@startuml
+left to right direction
+actor "Procés de control" as W
+actor "Responsable tècnica" as T
+rectangle "SIF PrisMa — controls SIF/llegat (OBJECTIU)" {
+ usecase "UC-53\nDetectar divergència de resum" as Detect
+ usecase "Contrastar UUID fiscal, relació\ni existència d'ID_INSC" as Compare
+ usecase "Classificar NOT_FOUND, CONFLICT\no nota duplicada" as Classify
+ usecase "UC-47\nReprendre només els pendents" as Retry
+}
+W --> Detect
+T --> Detect
+Detect ..> Compare : <<include>>
+Detect ..> Classify : <<include>>
+T --> Retry
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor T as Responsable/worker
+participant S as LegacySyncService [PHP actual]
+participant L as BD llegat
+participant R as Reconciliació UC-53 [DISSENY]
+participant F as BD SIF
+T->>S: syncAfterSifSuccess(relacions,UUID,...)
+S->>L: UPDATE inscripció 1 i inscripció 2
+L-->>S: SQL sense error; inscripció 2 pot afectar 0 files
+S-->>T: void (sense comprovació per ID_INSC)
+T->>R: Revisar evidència real per inscripció
+R->>F: Llegir UUID_FACTURA i totes les relacions d'origen
+R->>L: SELECT dades actuals d'inscripcions i marques/notes
+alt Falta fila d'inscripció
+ L-->>R: NOT_FOUND [classificació objectiu]
+ R-->>T: Incidència; no declarar sincronització completa
+else FACTURA_RELACIONADA apunta a altra factura
+ L-->>R: CONFLICT; COALESCE va conservar valor anterior
+ R-->>T: Revisió manual/regla de reconciliació, sense UPDATE fiscal directe
+else Nota SIF repetida després de reintent
+ L-->>R: DUES anotacions de mateix UUID [possible amb CONCAT actual]
+ R-->>T: Corregir/idempotentitzar projecció llegada, conservar factura SIF
+else Consistència i comprovació completes
+ R-->>T: Marcar evidència de sync per cada ID_INSC [PENDENT]
+end
+Note over R,F: El codi consultat no implementa aquesta comparació end-to-end; no deduir èxit del return void.
+```
+
+| ID | Prova d'acceptació pendent | Resultat requerit |
+| --- | --- | --- |
+| LS-01 | Mateixa factura i estat sincronitzats dues vegades | Una sola projecció/nota efectiva per versió del fet; el PHP actual concatena dues notes. |
+| LS-02 | Segona inscripció del grup absent | Informe `NOT_FOUND` per aquell ID; èxit de la primera no amaga el fallit. |
+| LS-03 | `FACTURA_RELACIONADA` ja conté altra factura | Conflicte visible i traçat; no considerar-la sincronitzada per `COALESCE`. |
+| LS-04 | Caiguda després de COMMIT SIF i abans del primer UPDATE llegat | Reprendre la projecció sense emetre altra factura ni registrar un altre cobrament. |
+| LS-05 | Fallada a meitat de grup i reintent de tot el grup | No duplicar anotacions a les inscripcions ja correctes; recuperar únicament les pendents. |
+| LS-06 | Cobrament posterior modifica l'estat econòmic | Nova projecció identificada per fet/versió; no confondre-la amb el reintent del mateix resum. |
 ## 5. Traçabilitat i proves pendents
 
 [Fitxa antiga UC-47](../06-fitxes-funcionals/uc-047.md) · [UC-53 divergències original](../06-fitxes-funcionals/uc-053.md) · [Model de fons per inscripció](00-revisio-moviments-inscripcions.md) · [LegacySyncService](../../sif/src/Service/LegacySyncService.php) · [LegacySyncRepository](../../sif/src/Repository/LegacySyncRepository.php) · [Regles del cas al catàleg](../04-estat-final/33-casos-us-sif.md).
