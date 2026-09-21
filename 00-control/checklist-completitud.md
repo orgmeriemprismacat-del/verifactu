@@ -268,11 +268,8 @@ Una area es pot marcar com a revisada quan:
 - `registre-decisions.md` recull les decisions noves;
 - `estat-projecte.md` diu que l'area esta revisada.
 
-<<<<<<< HEAD
-## Checkpoint Redsys asincron 2026-06-20
-=======
 ## Circuit Redsys asincron 2026-06-20
->>>>>>> feature/redsys-async-queue
+## Checkpoint Redsys asincron 2026-06-20
 
 - [x] Mapping `DS_ORDER -> redsys_payment_intent` implementat i provat.
 - [x] `redsys_callback_queue` durable creada amb FKs i index de disponibilitat.
@@ -280,7 +277,6 @@ Una area es pot marcar com a revisada quan:
 - [x] Worker amb reclamacio unica, resultat persistent, retry, incidencia, maxim cinc intents i lock caducat.
 - [x] Dispatcher cobreix `CURS`, `PACK`, `GRUP`, `REGAL` i `USOC_ALUMNE` des de `SNAPSHOT_JSON`.
 - [x] Camps signats i duplicats contradictoris endurits; callback sense `IDPAG` extern.
-<<<<<<< HEAD
 - [x] Suite MySQL 8.0/PHP 8.4 executada: `276 passed, 0 failed`.
 - [x] Targeta 9/9: scripts worker/preflight, prova asincrona integral, dos workers, go/no-go i evidencia documental.
 - [x] Circuit Redsys asincron sense bloquejos propis al go/no-go (`redsys_async_circuit_present`, intencio i cua en `true`).
@@ -835,9 +831,3 @@ Una area es pot marcar com a revisada quan:
 - [ ] Executar `SIF-PANT-SEC-001..004` al repositori i entorn reals.
 - [ ] Generar, indexar i calcular hashes dels paquets `EVID-UI-*`.
 - [ ] Revisar cada paquet amb responsable diferent de qui executa quan sigui possible.
-=======
-- [x] Worker CLI, preflight, prova asincrona, dues connexions, go/no-go i evidencia documental.
-- [x] Suite MySQL 8.0/PHP 8.4 executada: `276 passed, 0 failed`.
-- [ ] BD legacy de preproduccio configurada i connectada per obtenir un `GO` global.
-- [ ] Activacio productiva autoritzada.
->>>>>>> feature/redsys-async-queue
