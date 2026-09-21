@@ -48,6 +48,28 @@ El registre existent `payment_transaction` → `payment_allocation` actualitza l
 
 **Risc addicional comprovat al codi:** `PaymentPayloadValidator` només exigeix imports numèrics i no acredita que `SUM(allocations.amount)=payment.amount`, que cada import sigui estrictament positiu ni que una clau reutilitzada porti el mateix payload; són validacions pendents. [Model i invariants de fons per inscripció](00-revisio-moviments-inscripcions.md).
 
+### 1.4. Identificar factura prèvia a «Passar pagaments» i a Redsys
+
+**Intranet llegada.** A `/alumnes/pagaments/`, el procediment `efectuarPagamentFacturaGenerada()` consulta `buscarPagamentsByFact`, `A_PAGAR`, `PAGAMENT`, `FACTURA_RELACIONADA`, `FRACCIO`, `IDPAG` i dades del receptor; en el circuit antic calcula el nou pendent amb imports de la inscripció. En la integració SIF, si la factura fiscal ja és real i està emesa —inclosa la d'empresa abans de cobrar—, registrar el moviment amb `UUID_FACTURA` i la clau de la **transacció externa**, sense modificar receptor, concepte, import ni número de factura. Els camps `PAGAMENT` i `DATA PAG` del llegat només poden sincronitzar-se **després** del commit econòmic com a resum.
+
+**Redsys i una factura ja emesa amb una altra clau.** La validació de `DS_ORDER` acredita quin intent TPV ha notificat Redsys; **no acredita que calgui emetre factura nova**. La factura prèvia pot haver estat emesa per un procés de grup/empresa o manual amb un `idempotency_key` diferent del callback. El despatxador ha de localitzar la cobertura per `fact_rels/ID_INSC/UUID_FACTURA` i, si és inequívoca, registrar el `CHARGE` contra el document existent. Si hi ha diversos candidats o la inscripció ha canviat/ha estat donada de baixa, conservar prova del cobrament real i derivar a conciliació; no forçar un nou `issueInvoice()`.
+
+**Límits monetaris del servei actual.** `PaymentPayloadValidator` comprova camps, que les assignacions siguin un array no buit i la numericitat dels imports, però no acredita que la **suma de trams** coincideixi amb l'entrada externa ni que tot tram estigui disponible. `PaymentService::existingResult()` retorna un `UUID_PAYMENT` per la mateixa clau sense comparar el nou payload amb el `PAYLOAD_HASH` antic: l'operació objectiu ha de detectar conflictes de mateixa clau/import/destí diferents. `PaymentRepository::createPayment()` crea un moviment **nou** amb totes les assignacions, no permet afegir trams a un UUID ja confirmat; la cerca i l'assignació d'un cobrament existent corresponen a UC-56/105 encara pendents d'un writer segur.
+
+**Diverses factures i participants.** Una transferència real pot cobrir més d'una factura; cada `payment_allocation` ha de referenciar quantitat i UUID de destí, mentre que en grups/packs el futur registre de fons **per `ID_INSC`** ha de reflectir l'atribució individual exacta. `FACTURA_RELACIONADA` i `IDPAG` poden agrupar diversos participants i intents i no són claus de deduplicació de diner. La factura fiscal emesa abans del cobrament manté `EMESA_ABANS_COBRAMENT=1` encara després de quedar pagada; el fet econòmic posterior no ha de canviar aquesta dada històrica ni marcar `E_FACT` automàticament.
+
+### 1.5. Proves d'un pagament posterior amb cobertura fiscal (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CP-02-01 | Factura prèvia d'empresa pagada per una transferència real | Un `UUID_PAYMENT`, assignació contra la factura existent, sense factura nova. |
+| CP-02-02 | Redsys confirma una DS_ORDER nova sobre una factura SIF antiga | Deduplicar per transacció i vincular a la factura prèvia, no pel nou IDPAG sol. |
+| CP-02-03 | Factura de grup amb N inscrits i un CHARGE únic | Assignació a factura i atribucions individuals documentades segons import real. |
+| CP-02-04 | Mateixa clau econòmica però import o assignacions nous | Conflicte de contingut; no retornar èxit de la petició incompatible. |
+| CP-02-05 | Transferència de 150 € ja registrada però falta assignar 50 € | Reutilitzar l'UUID amb UC-56/105; no fer un segon CHARGE de 50 €. |
+| CP-02-06 | `PAGAMENT` llegat diu cobrat però no hi ha prova externa | Investigar banc/TPV, sense moviment fiscal/econòmic inventat. |
+| CP-02-07 | Cobrat real però sincronització acadèmica fallida | Conservar UUID_PAYMENT i reprendre UC-47/53; no reprocessar l'ingrés. |
+
 ## 2. Diagrama UML de casos d'ús
 
 El cas de cobrament posterior utilitza l'operació comuna UC-02; les variants de transferència i fracció afegeixen les seves regles i fitxes pròpies.
