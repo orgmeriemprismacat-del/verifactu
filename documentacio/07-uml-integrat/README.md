@@ -2,7 +2,7 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 95 casos d'ús revisats
+## Mapa dels 101 casos d'ús revisats
 
 **[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
@@ -76,6 +76,12 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-74 | Classificar una correcció fiscal | [Fitxa i UML](uc-074-classificar-correccio-fiscal.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-75 | Crear un registre d'anul·lació | [Fitxa i UML](uc-075-crear-registre-anullacio.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-76 | Crear un registre de subsanació | [Fitxa i UML](uc-076-crear-registre-subsanacio.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-77 | Operar enviament AEAT, retry i dead-letter | [Fitxa i UML](uc-077-operar-enviament-aeat-retry-dead-letter.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-78 | Generar i custodiar PDF, QR i XML | [Fitxa i UML](uc-078-generar-custodiar-pdf-qr-xml.md) | `[PARCIAL/DISSENY]` |
+| UC-79 | Enviar una comunicació fiscal auditable | [Fitxa i UML](uc-079-comunicacio-fiscal-auditable.md) | `[DISSENY]` |
+| UC-80 | Servir i registrar accés a document fiscal | [Fitxa i UML](uc-080-servir-registrar-acces-document-fiscal.md) | `[DISSENY]` |
+| UC-81 | Gestionar el cicle complet d'una incidència | [Fitxa i UML](uc-081-cicle-complet-incidencia.md) | `[PARCIAL/DISSENY]` |
+| UC-82 | Reconciliar SIF amb la BD llegada | [Fitxa i UML](uc-082-reconciliar-sif-bd-llegada.md) | `[DISSENY]` |
 | UC-86 | Registrar qualsevol acció sobre un pagament | [Fitxa i UML](uc-086-auditar-accio-pagament.md) | [DISSENY/BLOQUEJANT] |
 | UC-104 | Gestionar un excés de cobrament | [Fitxa i UML](uc-104-gestionar-exces-cobrament.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-105 | Reassignar o repartir un pagament | [Fitxa i UML](uc-105-reassignar-repartir-pagament.md) | `[DISSENY/BLOQUEJANT]` |
@@ -104,7 +110,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | [Fitxa i UML](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | [Fitxa i UML](uc-129-reconciliar-prisma-moodle-matricules.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 95/142.** Els 47 casos restants encara no tenen fitxa UML individual revisada. L'estat del catàleg original no acredita implementació. Els registres d'anul·lació i subsanació tenen executor PHP, però el classificador de correccions UC-74, les autoritzacions i la validació final del circuit AEAT són pendents. El ledger `enrollment_fund_movement` continua sent una proposta.
+**Cobertura documental: 101/142.** Els 41 casos restants encara no tenen fitxa UML individual revisada. L'estat del catàleg original no acredita implementació. El transport SOAP AEAT revisat està limitat a preproducció; els intents SQL d'AEAT, el worker de documents, l'outbox de comunicacions i el reconciliador SIF/llegat no estan acreditats com a circuits PHP complets. El ledger `enrollment_fund_movement` continua sent una proposta.
 
 ## Com llegir el paquet de cada acció
 
