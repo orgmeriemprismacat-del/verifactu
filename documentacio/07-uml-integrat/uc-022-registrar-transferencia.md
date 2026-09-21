@@ -203,6 +203,83 @@ else Ingrés nou i dues factures vigents
 end
 Note over UI,Rec: La verificació bancària, la conciliació transversal i l'adaptador multifactura encara no consten com a codi integrat.
 ```
+### 4.2. Acció independent: identificar una transferència única abans de registrar-la per factura — DISSENY/LECTURA
+
+**Actor/disparador:** gestió rep una línia bancària per import total, referència, compte i pagador, possiblement destinada a diverses factures. **Precondicions:** prova externa d'**una entrada real**, identitat de l'operació bancària independent de la referència lliure del remitent i permís sobre els recursos. **Postcondició:** ingrés reconegut per identitat externa, amb `UUID_PAYMENT` SIF existent o estat pendent de registre, i conjunt de factures candidates encara **sense marcar-les pagades**. Si la mateixa transferència ja consta assignada només a A, seleccionar B **no** registra un segon ingrés ni garanteix que existeixi saldo per B.
+
+**Límit PHP contrastat:** `ManualPaymentPayloadBuilder::idempotencyKey()` usa `TRANSFERENCIA|REF:<reference>` en qualsevol factura quan `reference` és present. `PaymentService` retorna per clau el `UUID_PAYMENT` preexistent sense comprovar l'assignació nova. `ManualPaymentService` afegeix a la resposta `uuid_factura`/número de la petició actual. Per tant, una petició A/100 seguida de B/100 amb `reference=TRF-1` pot retornar en la segona un `UUID_PAYMENT_A` juntament amb `uuid_factura=B`, **sense cap fila d'assignació a B**. Vegeu la [seqüència de codi UC-02, 5.3](uc-002-registrar-cobrament-factura.md); no és una funcionalitat de repartiment, sinó una resposta inconsistent.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió de cobraments" as G
+actor "Banc / extracte verificat" as B
+rectangle "SIF PrisMa — UC-22 / IDENTIFICAR ENTRADA (DISSENY)" {
+ usecase "Identificar transferència externa única" as Identify
+ usecase "Comprovar import total, compte,\nidentificador bancari i titular" as Bank
+ usecase "Cercar UUID_PAYMENT i totes\nles assignacions ja registrades" as Search
+ usecase "UC-02\nRegistrar un CHARGE només si és entrada nova" as New
+ usecase "UC-56/105\nAssignar o repartir l'entrada ja existent" as Existing
+}
+G --> Identify
+B --> Bank
+Identify ..> Bank : <<include>>
+Identify ..> Search : <<include>>
+G --> New
+G --> Existing
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant Bank as Banc / extracte [EVIDÈNCIA EXTERNA]
+participant R as ExternalBankReceiptResolver [DISSENY]
+participant DB as payment_transaction + payment_allocation [LECTURA]
+participant N as UC-02 registre ingrés nou [PHP/guard PENDENT]
+participant A as UC-56/105 assignació ingrés existent [DISSENY]
+G->>R: identificarTransferència(externalEventId,reference,amount,bank,holder)
+R->>Bank: Comprovar operació bancària única, import i pagador
+alt No existeix prova de l'abonament o titular incompatible
+ Bank-->>R: NOT_VERIFIED/CONFLICT
+ R-->>G: No registrar CHARGE, no atribuir cap factura
+else Entrada real confirmada
+ Bank-->>R: Event bancari E, import total i titular
+ R->>DB: Cercar UUID_PAYMENT per identitat externa i totes les assignacions
+ alt No existeix entrada SIF i referència no col·lideix amb una altra operació
+  DB-->>R: Cap moviment previ
+  R-->>G: Entrar per UC-02/105 segons factures/import total [OBJECTIU]
+  opt Gestió confirma import total i factures
+   G->>N: Registrar UNA entrada amb assignacions justificades
+   N-->>G: UUID_PAYMENT únic o incidència
+  end
+ else Existeix entrada SIF amb el mateix event bancari
+  DB-->>R: UUID_PAYMENT preexistent, import registrat i trams actuals
+  alt Import SIF no coincideix amb import total bancari
+   R-->>G: CONFLICT de quantia: reconciliar original abans de repartir res
+  else Import SIF coincideix
+   R-->>G: Reutilitzar UUID_PAYMENT i mostrar trams assignats/pending
+   opt Hi ha quantia real restant i factura destí validada
+    G->>A: UC-56/105 sobre UUID_PAYMENT existent [writer PENDENT]
+    A-->>G: Nova assignació o incidència, mai nou CHARGE
+   end
+  end
+ else Mateixa referència lliure però distint event bancari
+  DB-->>R: Clau textual coincident, però una altra entrada real
+  R-->>G: CONFLICT de clau actual; desambiguar event, no fusionar els ingressos
+ end
+end
+Note over R,A: El resolvedor de fet bancari i l'assignació de moviment existent no estan implementats als serveis PHP revisats.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| TR-09 | Entrada externa de 200 €, registre SIF `CHARGE=200` amb assignació A/100 i B pendent | Repartir els 100 restants sobre el mateix UUID després de controlar saldo; no tornar a registrar CHARGE. |
+| TR-10 | Entrada bancària 200 € però registre SIF original `CHARGE=100` assignat íntegrament a A | Incidència de quantia banc/SIF; no afirmar que els 100 restants ja són un saldo del moviment de 100 fins a conciliar el registre inicial. |
+| TR-11 | Alta A/100, després B/100 amb mateixa referència TRF-1 | PHP actual pot respondre UUID_PAYMENT d'A amb factura B sense assignació B; control objectiu detecta discrepància i no marca B pagada. |
+| TR-12 | Dues transferències diferents tenen la mateixa referència lliure `MATRICULA` | Contrastar dos events bancaris reals; la clau textual actual no els desambigua i no s'ha de declarar que són un únic ingrés. |
+
 ## 5. Traçabilitat
 
 [Fitxa anterior UC-22](../06-fitxes-funcionals/uc-022.md) · [UC-02 pagament](uc-002-registrar-cobrament-factura.md) · [ManualPaymentService](../../sif/src/Service/ManualPaymentService.php) · [ManualPaymentPayloadBuilder](../../sif/src/Service/ManualPaymentPayloadBuilder.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [ManualPaymentServiceTest](../../sif/tests/Integration/ManualPaymentServiceTest.php).
