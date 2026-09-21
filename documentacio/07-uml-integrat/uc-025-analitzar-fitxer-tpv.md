@@ -162,7 +162,7 @@ end
 R-->>UI: Resum del lot i items per revisió
 opt Operador confirma una nova entrada real i absent de SIF
  O->>P: Ordre autoritzada amb referència i idempotència pròpia
- P-->>O: UUID_PAYMENT nou o conflicte; assignació per factura
+ P-->>O: UUID_PAYMENT nou o conflicte, assignació per factura
 end
 Note over S,P: El fitxer no emet factura ni CHARGE per si sol
 ```
