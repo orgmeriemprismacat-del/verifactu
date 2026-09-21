@@ -114,7 +114,7 @@ S->>L: Propagar email actual [adaptador pendent]
 opt Existeix usuari Moodle a sincronitzar
  S->>M: Canviar contacte autoritzat i verificar
 end
-S-->>G: Estat per destí; BILLING_EMAIL històric intacte
+S-->>G: Estat per destí, BILLING_EMAIL històric intacte
 Note over S,F: Canviar email no valida identitat fiscal ni autoritza veure factura de grup.
 ```
 
