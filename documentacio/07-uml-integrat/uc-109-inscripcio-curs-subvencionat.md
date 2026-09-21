@@ -39,6 +39,27 @@
 
 **Bloquejants:** documents/decisió fiscal per programa, receptor i finançador, import finançat individual, estat acadèmic, pagaments reals i proves d'extrem a extrem. No s'ha executat cap prova PHP específica del programa subvencionat.
 
+### 1.3. Identificació del curs subvencionat al handler de compra llegat
+
+**Origen de la classificació, no decisió fiscal automàtica.** El document `33-casos-us-sif.md` identifica `web-actual/ajax/enviarInscripcio.php` com el handler que crea inscripcions **abans de pagar** i distingeix un curs subvencionat per `tipusCurs == 'S'`. La marca del canal identifica un **candidat a classificar**: no determina el finançador concret, el document fiscal, l'import que rep l'empresa ni que el curs sigui un tastet `FREE_SAMPLE`. La fitxa objectiu exigeix `SUBSIDISED_PENDING_DECISION` fins que les condicions del programa i el receptor estiguin acreditats; no afirmar que el handler llegat ja implementa aquesta classificació al SIF.
+
+**Separar les tres quantitats per programa.** Conservar, quan la font real ho acrediti, **preu del servei**, **part assumida pel finançador** i **copagament efectivament degut per la persona**; un `A_PAGAR=0` en una inscripció pot correspondre a una quota individual zero, no a contraprestació global zero ni a ingrés bancari confirmat del finançador. Si el conveni inclou diverses inscripcions o cursos, la distribució per `ID_INSC` ha de provenir de les condicions aprovades: ni el `tipusCurs` ni un `IDPAG` de grup autoritzen repartir la subvenció a parts iguals per defecte.
+
+**Accés acadèmic, cobrament i emissió posteriors.** L'alta de `enviarInscripcio.php` és un fet acadèmic/comercial que pot antecedir tant l'ingrés del finançador com la decisió fiscal. Conservar `ID_INSC`, programa, participant, entitat, imports previstos i estat pendent; UC-124/129 comprova matrícula i accés sense crear una factura provisional de zero. Quan el programa tingui classificació fiscal aprovada, UC-69/01/21 decideix i congela receptor/es i documents, i UC-02 registra un `CHARGE` **només si hi ha ingrés extern efectiu**. Si el programa combina aportacions d'alumne i entitat, traçar dues fonts monetàries amb els seus imports i receptors sense confondre el finançador amb la persona inscrita.
+
+**No extrapolar el cas USOC.** La documentació de fluxos descriu un tractament propi d'USOC amb factures de part alumne i part entitat i una variant de curs gratuït; `tipusCurs=='S'` **no permet inferir** que totes les subvencions segueixin aquesta divisió, que l'alumne pagui necessàriament 10 € o que un curs subvencionat sempre requereixi dues factures. UC-13/19 només s'aplica quan la situació real i la regla aprovada encaixen en aquell circuit.
+
+### 1.4. Proves addicionals del handler subvencionat (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| SB-109-01 | `enviarInscripcio.php` crea matrícula amb `tipusCurs='S'` | Alta identificada i classificació pendent; cap factura zero ni CHARGE inventat. |
+| SB-109-02 | Quota d'alumne zero i subvenció no ingressada | No tractar l'operació com FREE_SAMPLE ni marcar finançador com a pagat. |
+| SB-109-03 | Aportació global d'entitat per diverses inscripcions | Traçar programa i imports per persona segons conveni, no repartir per igual sense font. |
+| SB-109-04 | Programa subvencionat amb copagament individual real | Separar pagadors i fonts d'ingrés, conservar receptor/s fiscal/s segons decisió. |
+| SB-109-05 | Curs marcat com S però falta resolució sobre receptor/document | Aturar emissió automàtica i derivar a decisió fiscal del programa. |
+| SB-109-06 | Algú aplica per defecte les dues factures pròpies d'USOC | Rebutjar l'equivalència sense regla específica del programa subvencionat. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
