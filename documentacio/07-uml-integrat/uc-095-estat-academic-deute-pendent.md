@@ -69,6 +69,27 @@ Reminder ..> Main : <<extend>> (deute i canal legítims)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió acadèmica"]
+  actor_1["Alumne"]
+  subgraph SIF_BOX["SIF + Prisma/Moodle · estat acadèmic"]
+    uc_0(["UC-95<br/>Gestionar matrícula amb deute"])
+    uc_1(["Consultar import/estat acadèmic separats"])
+    uc_2(["Aplicar regla versionada accés/certificat"])
+    uc_3(["UC-129<br/>Verificar matrícula/accés Moodle"])
+    uc_4(["UC-43<br/>Enviar recordatori vigent"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
