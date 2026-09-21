@@ -97,6 +97,29 @@ Refund ..> U2 : <<include>>
 @enduml
 ```
 
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Operador autoritzat"]
+  a_1["Procés de cobrament"]
+  subgraph SIF_BOUNDARY["SIF PrisMa"]
+    u_0(["UC-02<br/>Registrar pagament<br/>sobre factura existent"])
+    u_1(["Validar moviment<br/>i assignacions"])
+    u_2(["Calcular estat<br/>de cobrament"])
+    u_3(["UC-22<br/>Registrar transferència"])
+    u_4(["UC-23<br/>Registrar fracció"])
+    u_5(["UC-28<br/>Registrar devolució"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_3 -.->|include| u_0
+  u_4 -.->|include| u_0
+  u_5 -.->|include| u_0
+```
+
 ## 3. Subdiagrama de classes executables
 
 ```mermaid
@@ -346,6 +369,25 @@ end note
 @enduml
 ```
 
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Operador autoritzat"]
+  a_1["Procés bancari/TPV"]
+  subgraph SIF_BOUNDARY["SIF PrisMa"]
+    u_0(["UC-02<br/>Registrar nou moviment<br/>extern confirmat"])
+    u_1(["Verificar identitat del fet<br/>i imports assignats"])
+    u_2(["UC-56<br/>Assignar UUID_PAYMENT<br/>ja existent"])
+    u_3(["UC-104<br/>Resoldre excés no assignat"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  a_0 --> u_2
+  a_0 --> u_3
+```
+
 | ID prova pendent | Petició | Resultat exigible |
 | --- | --- | --- |
 | CP-02-01 | Mateixa clau i mateix ingrés/assignacions | Mateix `UUID_PAYMENT`, cap segon `CHARGE`. |
@@ -381,6 +423,25 @@ note right of Allocate
  que factura B ja tingui assignació.
 end note
 @enduml
+```
+
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Gestió cobraments"]
+  a_1["Banc / evidència externa"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — UC-02 / INGRÉS EXISTENT"]
+    u_0(["Localitzar ingrés real únic<br/>i assignacions preexistents"])
+    u_1(["Comprovar la factura i import sol·licitats<br/>contra trams del moviment"])
+    u_2(["UC-02 / NEW<br/>Registrar CHARGE extern nou"])
+    u_3(["UC-56/105<br/>Assignar saldo d'ingrés existent"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  a_0 --> u_2
+  a_0 --> u_3
 ```
 
 ```mermaid
@@ -436,6 +497,22 @@ C --> Reuse
 Reuse ..> Compare : <<include>> [guard PENDENT]
 R --> Split
 @enduml
+```
+
+### Vista del cas d'ús a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  a_0["Canal de cobrament"]
+  a_1["Responsable conciliació"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — UC-02 / REÚS ECONÒMIC"]
+    u_0(["Registrar o recuperar moviment per K"])
+    u_1(["Contrastar referència externa, import,<br/>tipus i assignacions existents"])
+    u_2(["UC-56/105<br/>Repartir import encara no assignat"])
+  end
+  a_0 --> u_0
+  u_0 -.->|include| u_1
+  a_1 --> u_2
 ```
 
 ```mermaid
