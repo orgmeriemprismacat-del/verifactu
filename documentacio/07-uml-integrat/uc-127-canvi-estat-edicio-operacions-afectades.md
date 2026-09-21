@@ -154,6 +154,123 @@ end
 Note over S,A: El lot i el ledger quantitatiu són DISSENY; la factura original no es reescriu.
 ```
 
+### 5.1. Acció independent: previsualitzar un canvi d'edició sense aplicar-lo — DISSENY
+
+**Disparador propi:** gestió proposa una transició d'estat d'una edició; encara no l'aprova. **Precondicions:** clau/versió d'edició inequívoca, estat anterior i nou admès, accés de consulta autoritzat. **Postcondició:** inventari/versionat de totes les operacions impactades i proposta d'efectes per afectat; cap canvi de l'edició, `CHARGE`, `REFUND`, rectificativa, matrícula o missatge a l'alumne. No s'ha acreditat el mètode `EditionLifecycleService::preview()` com a PHP executable.
+
+```plantuml
+@startuml
+left to right direction
+actor "Gestió acadèmica" as G
+actor "Cobraments" as C
+rectangle "SIF PrisMa — previsualització d'edició (OBJECTIU)" {
+ usecase "UC-127 / PREVIEW\nConsultar impacte abans d'aprovar" as Preview
+ usecase "Verificar estat/versió i permís" as Check
+ usecase "Inventariar factures, ingressos,\nreserves i callbacks pendents" as Inventory
+ usecase "Separar imports per inscrit/\ncomponent i titular" as Split
+ usecase "UC-74\nIdentificar afectacions fiscals" as Fiscal
+}
+G --> Preview
+C --> Split
+Preview ..> Check : <<include>>
+Preview ..> Inventory : <<include>>
+Preview ..> Split : <<include>> [OBJECTIU]
+G --> Fiscal
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant UI as Intranet gestió d'edicions [PENDENT]
+participant S as EditionLifecycleService [DISSENY]
+participant F as Factures i pagaments SIF [LECTURA]
+participant L as Inscripcions, reserves i edicions llegades [LECTURA]
+participant Q as Intencions TPV i callbacks pendents [LECTURA]
+G->>UI: Proposar ACTIVE -> CANCELLED per edició E, versió v
+UI->>S: preview(E,CANCELLED,v)
+alt Edició ha canviat de versió o permís insuficient
+ S-->>UI: CONFLICT/DENIED, no aplicar transició
+ UI-->>G: Revisar nova versió abans de continuar
+else Dades de partida vàlides
+ S->>L: Llegir inscripcions incloent baixes pendents i places
+ S->>F: Llegir factures, pagaments reals i assignacions
+ S->>Q: Llegir DS_ORDER actius, intents i notificacions en cua
+ S->>S: Generar N items amb UUID_OPERATION, ID_INSC, titular i fase
+ S-->>UI: Snapshot d'afectats, casos sense cobrament i incidents
+ UI-->>G: Mostrar efectes previstos per participant i pendents d'aprovar
+end
+Note over S,Q: Només lectures/proposta; cap canvi acadèmic, fiscal, cobrament, cancel·lació de reserva ni notificació. Endpoint preview no acreditat.
+```
+
+### 5.2. Acció independent: reprendre només un item parcial del lot — DISSENY
+
+**Disparador propi:** canvi de l'edició ja aprovat, però un `ID_INSC`/`UUID_OPERATION` s'ha quedat a mig procés (p. ex. la decisió fiscal s'ha confirmat i ha fallat el pas acadèmic a Moodle). **Postcondició:** un únic resultat de recuperació per item, preservant factura, moviments i passos ja confirmats; incidència traçable si l'estat no és conciliable. `EditionLifecycleService::retryItem()` i `EditionChangeItemRepository` són propostes, **no** codi PHP implementat.
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker de recuperació" as W
+actor "Responsable acadèmica/fiscal" as R
+rectangle "SIF PrisMa — recuperació per afectat (OBJECTIU)" {
+ usecase "UC-127 / RETRY ITEM\nReprendre operació individual" as Retry
+ usecase "Llegir checkpoints i fets\nfiscals/econòmics confirmats" as Read
+ usecase "Reexecutar només la fase pendent" as Continue
+ usecase "UC-53/81\nObrir incidència si hi ha divergència" as Incident
+}
+W --> Retry
+R --> Retry
+Retry ..> Read : <<include>>
+Retry ..> Continue : <<include>>
+R --> Incident
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor W as Worker/gestió autoritzada
+participant S as EditionLifecycleService [DISSENY]
+participant B as EditionChangeItemRepository [DISSENY]
+participant F as BD fiscal SIF [LECTURA]
+participant A as Adaptador acadèmic/Moodle [PENDENT]
+participant I as Gestor incidència [DISSENY]
+W->>S: retryItem(batchId,ID_INSC)
+S->>B: Bloquejar item i llegir versió/pasos confirmats
+alt Item desconegut, reassignat o resolt per altre lot
+ B-->>S: CONFLICT o ALREADY_DONE
+ S-->>W: Reús/incident sense noves accions
+else Item parcial conegut
+ B-->>S: Factura/retorn confirmats, accés Moodle pendent
+ S->>F: Reconsultar UUID_FACTURA, UUID_PAYMENT i fets confirmats
+ alt Incoherència fiscal/econòmica amb checkpoint
+  F-->>S: CONFLICT
+  S->>I: Registrar divergència amb UUIDs i item
+  S-->>W: Bloquejar automació, cap segon REFUND/R
+ else Confirmacions compatibles
+  F-->>S: UUIDs existents, no tornar a emetre/registrar
+  S->>A: Reprendre únicament aplicació acadèmica pendent amb clau estable
+  alt Moodle no confirma matrícula/baixa
+   A-->>S: Estat desconegut o fallada
+   S->>B: Conservar PENDING_RECONCILIATION [OBJECTIU]
+   S-->>W: Incidència, reconsultar Moodle abans de repetir
+  else Operació acadèmica confirmada
+   A-->>S: ID de resultat al sistema acadèmic
+   S->>B: Marcar fase ACADEMIC_DONE i item resolt [OBJECTIU]
+   S-->>W: Resolució individual completada
+  end
+ end
+end
+Note over S,A: No hi ha commit distribuït SIF/Moodle. El checkpoint/worker són disseny; una falla no autoritza tornar a cobrar ni a facturar.
+```
+
+| ID de prova pendent | Entrada | Sortida exigible |
+| --- | --- | --- |
+| ED-127-07 | `preview()` sobre edició amb factura emesa pendent i callback antic en cua | Inventari de tots dos i cap mutació d'estat/cobrament/factura. |
+| ED-127-08 | Versió d'edició canvia entre preview i aprovació | Conflicte de versió; regenerar inventari i requerir nova decisió. |
+| ED-127-09 | Lot N: els primers dos items completats i tercer falla a Moodle | Reintentar només tercer i només fase pendent; cap segon `REFUND`, factura R ni `CHARGE`. |
+| ED-127-10 | Falla la xarxa després que Moodle apliqui la baixa però abans d'obtenir resposta | Consultar estat real i recuperar l'operació idempotentment, sense executar una segona baixa incompatible. |
 ## 6. Traçabilitat
 
 [UC-127 original](../06-fitxes-funcionals/uc-127.md) · [UC-114 versió producte](uc-114-versionar-producte-edicio.md) · [UC-122 component pack](uc-122-composicio-pack-component-indisponible.md) · [UC-105 traspassos](uc-105-reassignar-repartir-pagament.md) · [UC-124 estats acadèmics](uc-124-reconciliar-acces-certificat-baixa-deute.md) · [UC-121 reserva caducada](uc-121-repreuar-renovar-reserva-caducada.md) · [LegacyCourseSnapshotRepository](../../sif/src/Repository/LegacyCourseSnapshotRepository.php) · [Migració master_data_change_request i events](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [Model de fons individuals](00-revisio-moviments-inscripcions.md).
