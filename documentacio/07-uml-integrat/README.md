@@ -2,7 +2,7 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 107 casos d'ús revisats
+## Mapa dels 113 casos d'ús revisats
 
 **[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
@@ -72,6 +72,9 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-54 | Operar la cua fiscal i tractar la resposta AEAT | [Fitxa i UML](uc-054-operar-cua-fiscal-respostes.md) | `[DISSENY]` |
 | UC-55 | Generar, reintentar i custodiar documents fiscals | [Fitxa i UML](uc-055-custodiar-reintentar-documents.md) | `[PARCIAL/DISSENY]` |
 | UC-56 | Cercar i assignar un cobrament | [Fitxa i UML](uc-056-cercar-assignar-cobrament.md) | `[PARCIAL]` |
+| UC-57 | Mantenir i optimitzar la BD SIF | [Fitxa i UML](uc-057-mantenir-optimitzar-bd-sif.md) | `[DISSENY]` |
+| UC-59 | Concedir, caducar i revocar accés auditor | [Fitxa i UML](uc-059-concedir-caducar-revocar-acces-auditor.md) | `[DISSENY]` |
+| UC-60 | Monitorar salut, cues, documents, backups i versió activa | [Fitxa i UML](uc-060-monitorar-salut-cues-documents-backups-versio.md) | `[DISSENY]` |
 | UC-61 | Consultar un import pendent i obtenir un enllaç de pagament | [Fitxa i UML](uc-061-consultar-pendent-obtenir-enllac.md) | `[LEGACY/OBJECTIU]` |
 | UC-63 | Crear la intenció Redsys des de l'ecommerce | [Fitxa i UML](uc-063-crear-intencio-redsys.md) | `[ASYNC/PARCIAL]` |
 | UC-69 | Confirmar i congelar dades fiscals | [Fitxa i UML](uc-069-confirmar-congelar-dades-fiscals.md) | `[DISSENY/PARCIAL]` |
@@ -88,6 +91,9 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-80 | Servir i registrar accés a document fiscal | [Fitxa i UML](uc-080-servir-registrar-acces-document-fiscal.md) | `[DISSENY]` |
 | UC-81 | Gestionar el cicle complet d'una incidència | [Fitxa i UML](uc-081-cicle-complet-incidencia.md) | `[PARCIAL/DISSENY]` |
 | UC-82 | Reconciliar SIF amb la BD llegada | [Fitxa i UML](uc-082-reconciliar-sif-bd-llegada.md) | `[DISSENY]` |
+| UC-83 | Registrar i activar versió i declaració | [Fitxa i UML](uc-083-registrar-activar-versio-declaracio.md) | `[DISSENY/BLOQUEJANT]` |
+| UC-84 | Crear un paquet fiscal d'auditoria | [Fitxa i UML](uc-084-crear-paquet-fiscal-auditoria.md) | `[DISSENY]` |
+| UC-85 | Executar backup, restauració i reconciliació | [Fitxa i UML](uc-085-backup-restauracio-reconciliacio.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-86 | Registrar qualsevol acció sobre un pagament | [Fitxa i UML](uc-086-auditar-accio-pagament.md) | [DISSENY/BLOQUEJANT] |
 | UC-104 | Gestionar un excés de cobrament | [Fitxa i UML](uc-104-gestionar-exces-cobrament.md) | `[DISSENY/BLOQUEJANT]` |
 | UC-105 | Reassignar o repartir un pagament | [Fitxa i UML](uc-105-reassignar-repartir-pagament.md) | `[DISSENY/BLOQUEJANT]` |
@@ -116,7 +122,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | [Fitxa i UML](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | [Fitxa i UML](uc-129-reconciliar-prisma-moodle-matricules.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 107/142.** Els 35 casos restants encara no tenen fitxa UML individual revisada. L'estat del catàleg original no acredita implementació. El gate `go-no-go-preproduction.php` és de preproducció; `SoapTransport` està limitat a l'endpoint de proves. Els registres SQL d'exportació, backup, accés temporal i versió/declaració no acrediten serveis d'orquestració complets. El ledger `enrollment_fund_movement` continua sent proposta.
+**Cobertura documental: 113/142.** Els 29 casos restants encara no tenen fitxa UML individual revisada. Les taules SQL de versions/declaracions, exportació, backup i auditoria no acrediten per si soles serveis PHP ni una activació productiva; el monitoratge actual disposa de mètriques de cua fiscal però no verifica tot el SIF. El ledger `enrollment_fund_movement` continua sent proposta.
 
 ## Com llegir el paquet de cada acció
 
