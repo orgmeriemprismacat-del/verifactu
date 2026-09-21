@@ -101,6 +101,28 @@ Main ..> End : <<include>> (si hi ha job)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker SIF"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["Cua Redsys · SIF"]
+    uc_0(["UC-52<br/>Operar cua Redsys"])
+    uc_1(["Recuperar locks caducats"])
+    uc_2(["Reclamar un job únic"])
+    uc_3(["Processar snapshot congelat"])
+    uc_4(["Marcar processat, retry o incidència"])
+    uc_5(["UC-08<br/>Gestionar incidència"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_5
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 3. UML de classes del camí implementat
 
 ```mermaid
@@ -218,6 +240,26 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker de recuperació"]
+  actor_1["Worker anterior encara actiu"]
+  subgraph SIF_BOX["Cua Redsys — UC-52 / RECUPERAR LOCK"]
+    uc_0(["Detectar PROCESSING amb<br/>LOCKED_AT caducat"])
+    uc_1(["Posar el job en RETRY<br/>i retirar lock antic"])
+    uc_2(["Reclamar nova generació<br/>d'execució"])
+    uc_3(["Verificar efectes SIF abans<br/>de tornar a executar el handler"])
+  end
+  actor_0 --> uc_0
+  actor_0 --> uc_1
+  uc_1 -.->|include| uc_0
+  actor_0 --> uc_2
+  uc_2 -.->|include| uc_3
+  actor_1 --> uc_0
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -264,6 +306,25 @@ Finish ..> Mark : <<include>> [si token vigent]
 W --> Stale
 N --> Own
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker amb resultat"]
+  actor_1["Worker nou propietari"]
+  subgraph SIF_BOX["Cua Redsys — UC-52 / FINALITZAR EXECUCIÓ"]
+    uc_0(["Confirmar resultat de l'intent actual"])
+    uc_1(["Comprovar propietari i<br/>generació sota lock"])
+    uc_2(["Marcar PROCESSED/RETRY/INCIDENT<br/>només per token vigent"])
+    uc_3(["Derivar resultat obsolet<br/>a conciliació sense sobreescriptura"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_1 --> uc_1
 ```
 
 ```mermaid
@@ -316,6 +377,26 @@ Recover ..> Pay : <<include>>
 Recover ..> Finish : <<include>> [control PENDENT]
 R --> Legacy
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker de recuperació"]
+  actor_1["Responsable d'incidències"]
+  subgraph SIF_BOX["Cua Redsys — UC-52 / RECUPERAR EFECTES"]
+    uc_0(["Reconstruir resultat de job<br/>a partir de fets SIF persistits"])
+    uc_1(["Comprovar DS_ORDER i factura<br/>original/cobertura d'inscripció"])
+    uc_2(["Comprovar UUID_PAYMENT real<br/>i assignacions del mateix ingrés"])
+    uc_3(["Marcar job PROCESSED només<br/>amb propietat d'intent vigent"])
+    uc_4(["UC-53/47<br/>Reparar projecció llegada pendent"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_1 --> uc_4
 ```
 
 ```mermaid
@@ -377,6 +458,24 @@ Validate ..> Invoice : <<include>>
 Validate ..> Payment : <<include>> [cobrament TPV confirmat]
 O --> Incident
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker Redsys"]
+  actor_1["Operador d'incidències"]
+  subgraph SIF_BOX["SIF PrisMa — UC-52 / COMPROVAR RESULTAT (DISSENY)"]
+    uc_0(["Validar resultat del handler<br/>abans d'estat PROCESSED"])
+    uc_1(["Confirmar UUID_FACTURA i<br/>registres SIF del cas"])
+    uc_2(["Confirmar UUID_PAYMENT i<br/>assignacions de CHARGE real"])
+    uc_3(["Conciliar resultat incomplet<br/>sense repetir cobrament bancari"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_3
 ```
 
 ```mermaid
