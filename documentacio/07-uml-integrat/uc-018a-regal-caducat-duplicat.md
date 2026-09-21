@@ -40,6 +40,24 @@
 
 **Limitació principal:** la migració i el diccionari defineixen estats i events **objectiu**. No hi ha una prova d'integració de UC-18a executada ni un workflow PHP del regal identificat a aquesta revisió.
 
+### 1.3. Codi visible al llegat i verificació de drets abans d'una reactivació
+
+**El codi no és una credencial de titularitat econòmica.** `LegacyGiftSnapshotRepository::loadByCode()` busca `regal.CODI` i recupera `regal.FACT_REL`, `ORIGEN` i `DESTI`. El constructor `LegacyGiftInvoicePayloadBuilder::line()` inclou avui `'Codi regal ' . $code` al **detall de la factura del comprador**, i `giftMetadata()` incorpora també el codi en clar. Una persona pot haver rebut o vist aquest codi sense ser el pagador, el receptor fiscal de la factura ni el beneficiari autoritzat del reemborsament. En consultes de codi invàlid/ja consumit no retornar ni aquestes dades ni el PDF del comprador; limitar el missatge públic i preservar la causa completa a una incidència amb accés restringit.
+
+**Caducitat del codi i conservació de la compra.** La compra real pot tenir factura/ingrés confirmats mentre el codi està `EXPIRED`, `CONSUMED` o té una incidència de titularitat. Aquest estat **no anul·la automàticament** la factura de compra ni crea un `REFUND` bancari: contrastar `regal.ID`, `UUID_FACTURA`, `UUID_PAYMENT` i el dret `commercial_entitlement` **si s'ha creat realment**. La sola presència de `FACT_REL` no prova que el codi hagi estat consumit o que hi hagi una inscripció destinatària.
+
+**Peticions simultànies i lliurament repetit.** Si dues persones reclamen el mateix codi, bloquejar per dret/versió i distingir **repetició equivalent** de **destinació diferent** abans de crear la matrícula. Una nova impressió o reenvio de la targeta regal després d'un email fallit és un reintent del **lliurament comercial**, no l'emissió d'una altra factura, una segona activació del dret o un altre cobrament. El servei de consum atòmic i la coordinació amb el llegat continuen **pendents**: el `loadByCode()` actual és una lectura i no acredita el bloqueig.
+
+### 1.4. Proves d'exposició i consulta de dret (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RG-18A-01 | Un tercer coneix el codi perquè apareix al detall fiscal | No obtenir PDF/dades del comprador ni dret de reemborsament sense autorització independent. |
+| RG-18A-02 | `regal.FACT_REL` existeix però no consta inscripció de destí | No inferir consum del dret; revisar estat i evidència de bescanvi. |
+| RG-18A-03 | Codi caducat d'una compra ja cobrada | Compra/factura originals conservats; decisió econòmica específica, sense `REFUND` automàtic. |
+| RG-18A-04 | Dos bescanvis concurrents amb destinacions diferents | Només un consum acreditat i l'altre en conflicte, sense dues matrícules. |
+| RG-18A-05 | Reenviar targeta regal per fallada d'email | Només fase de comunicació reintentada, sense segon codi, factura ni `CHARGE`. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
