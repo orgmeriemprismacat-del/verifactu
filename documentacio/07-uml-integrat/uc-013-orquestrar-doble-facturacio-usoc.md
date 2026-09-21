@@ -198,6 +198,122 @@ stateDiagram-v2
 
 **Aquest diagrama és la proposta d'estats de l'expedient**, no una classe o taula de workflow `UsocOrchestrator` identificada en l'actual codi.
 
+### 5.1. Acció independent: reconstruir l'expedient conjunt després de l'emissió de l'alumne — DISSENY/PARCIAL
+
+**Disparador:** el worker ha confirmat factura/cobrament de l'alumne, però el resultat `entity_invoice_pending` no arriba al panell, s'ha perdut la resposta, o falta la factura de la part entitat. **Actor:** procés de conciliació USOC / gestió autoritzada. **Entrada:** `DS_ORDER`, `UUID_FACTURA_ALUMNE` i `ID_INSC` acreditats, imports i receptor de la intenció congelada, fets fiscals i bancaris SIF actuals. **Postcondició:** expedient reconstruït amb **dues línies de finançament** i estat separat per factura/pagament, amb pas pendent només per la part que falta; **no tornar a cobrar ni emetre la factura alumne** per recuperar les dades de la part entitat.
+
+**Contrast de codi:** `RedsysUsocInvoiceService::issueFromIntentSnapshot()` retorna `entity_invoice_pending` en un array un cop ha delegat `InvoiceService::issueInvoice()`. El servei PHP no té en aquests mètodes un writer d'expedient USOC durable ni un procés que, a partir d'un `UUID_FACTURA_ALUMNE`, asseguri l'emissió posterior de la part entitat. `LegacyUsocSnapshotRepository::loadByIdpag()` llegeix el primer registre llegat d'un IDPAG (`ORDER BY ID LIMIT 1`), i no valida per si sol que aquest sigui l'inscrit fiscal de la factura alumne. `UsocEntityInvoiceService` només comprova que el UUID d'alumne aportat no sigui buit: cal contrastar-lo amb la factura SIF i l'ID_INSC abans d'autoritzar l'emissió (UC-19b).
+
+```plantuml
+@startuml
+left to right direction
+actor "Procés de conciliació USOC" as W
+actor "Operador autoritzat" as O
+rectangle "SIF PrisMa — UC-13 / RECUPERAR EXPEDIENT (DISSENY)" {
+ usecase "Reconciliar expedient després\nde factura alumne confirmada" as Reconcile
+ usecase "Consultar factura i CHARGE alumne\nper ID_INSC + DS_ORDER" as Source
+ usecase "Consultar si existeix factura entitat\ni deute/pagaments propis" as Entity
+ usecase "UC-19b\nEmetre part entitat pendent" as Issue
+ usecase "UC-02\nRegistrar ingrés entitat verificat" as Pay
+}
+W --> Reconcile
+O --> Reconcile
+Reconcile ..> Source : <<include>>
+Reconcile ..> Entity : <<include>>
+O --> Issue
+O --> Pay
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió/worker conciliació
+participant C as UsocCaseReconciler [DISSENY]
+participant I as Factures/pagaments i fact_rels SIF [LECTURA]
+participant L as Llegat inscripcions [LECTURA]
+participant E as UsocEntityInvoiceService [PHP; UC-19b]
+participant P as PaymentService [PHP; UC-02]
+O->>C: recoverUsocCase(ID_INSC,DS_ORDER,UUID_FACTURA_ALUMNE)
+C->>I: Verificar factura alumne A, UUID_PAYMENT real i DS_ORDER
+C->>L: Contrastar ID_INSC concret, TIPUS_DESC/VALID_DESC i snapshot original
+alt Alumne sense cobrament validat, UUID aliè o IDPAG ambigu
+ I-->>C: Manca evidència/CONFLICT
+ C-->>O: Incidència sense crear factura entitat ni un altre CHARGE alumne
+else Factura i cobrament alumne confirmats
+ C->>I: Cercar factura USOC_ENTITAT pel mateix cas i pagaments atribuïts
+ alt Factura entitat E ja existeix
+  I-->>C: UUID_FACTURA_ENTITAT i estat pendent/parcial/pagat
+  C-->>O: Recuperar E i només les accions posteriors pendents
+ else Encara no s'ha emès factura entitat
+  I-->>C: Només factura alumne A confirmada
+  C-->>O: Proposta UC-19b PENDING amb UUID A; cap segona emissió A
+  opt Responsable valida receptor i import entitat [DISSENY]
+   O->>E: issueEntityFromExplicitInput(legacyDb,input contrastat)
+   E-->>O: UUID_FACTURA_ENTITAT, payment_registered=false
+  end
+ end
+ opt Transferència entitat externa confirmada posteriorment
+  O->>P: registerPayment(CHARGE entitat, UUID_FACTURA_ENTITAT)
+  P-->>O: UUID_PAYMENT real, sense recrear factura alumne
+ end
+end
+Note over C,P: Recuperador i checkpoint per cas no acreditats. La relectura evita inferir un ingrés d'entitat del cobrament de l'alumne.
+```
+
+### 5.2. Acció independent: verificar i tancar l'expedient de finançament sense confondre dos pagadors — DISSENY
+
+**Disparador:** gestió vol marcar completat el finançament USOC d'una inscripció. **Precondicions:** factura alumne i factura entitat **diferents**, identitat fiscal/inscripció i import de cadascuna contrastats; assignacions de pagament reals per factura, i qualsevol `REFUND` o compensació posterior classificats per pagador. **Postcondició:** `FINANÇAMENT_CONCILIAT` com a **estat objectiu de l'expedient**, diferent d'estat acadèmic, certificat o acceptació AEAT; si la part entitat només està facturada o pagada parcialment, conservar deute i no declarar el cas complet.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable gestió/cobraments" as O
+rectangle "SIF PrisMa — UC-13 / TANCAMENT ECONÒMIC (DISSENY)" {
+ usecase "Conciliar dues parts USOC\ni estat del finançament" as Close
+ usecase "Verificar factura i ingrés alumne" as Student
+ usecase "Verificar factura i ingrés entitat" as Entity
+ usecase "Contrastar imports per ID_INSC\ni moviments posteriors" as Funds
+ usecase "UC-12\nGestionar deute entitat pendent" as Debt
+}
+O --> Close
+Close ..> Student : <<include>>
+Close ..> Entity : <<include>>
+Close ..> Funds : <<include>>
+O --> Debt
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant C as UsocCaseReconciler [DISSENY]
+participant F as Factures A/E i fact_rels SIF [LECTURA]
+participant P as payment_transaction/allocation [LECTURA]
+participant L as Inscripció/fons individuals [LECTURA/PROPOSTA]
+O->>C: Reconciliar i tancar finançament per ID_INSC
+C->>F: Consultar factura alumne A i entitat E amb receptors/imports
+C->>P: Sumar CHARGE/REFUND/COMPENSATION acreditats per cada factura
+C->>L: Verificar atribució quantitativa a ID_INSC i estat independent de matrícula
+alt Falta factura entitat o no es pot acreditar relació amb A
+ C-->>O: PENDING/CONFLICT, derivar UC-19b/53
+else Part alumne real confirmada i part entitat només facturada
+ C-->>O: FINANÇAMENT_PENDENT_ENTITAT; deute no convertit en CHARGE
+else Ambdues parts cobrades i imports conciliats per origen
+ C-->>O: FINANÇAMENT_CONCILIAT [estat d'expedient OBJECTIU]
+end
+Note over C,L: No hi ha coordinador o ledger per ID_INSC acreditat: un PAYMENT alumne no acredita que USOC hagi pagat la seva factura.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| UO-13-07 | Factura/CHARGE alumne confirmats i resposta `entity_invoice_pending` perduda | Recuperar UUID alumne i estat de la part entitat sense segon CHARGE ni altra factura alumne. |
+| UO-13-08 | IDPAG compartit amb diversos inscrits; factura alumne vinculada a un ID_INSC diferent del primer llegat | Bloquejar i reconciliar identitat, no facturar per al primer ID automàticament. |
+| UO-13-09 | Factura entitat existent però encara sense transferència acreditada | Recuperar factura/deute, no tornar a emetre-la ni declarar finançament complet. |
+| UO-13-10 | Entitat paga només una fracció del seu import | Expedient parcial i pendent restant, amb pagament alumne intacte. |
+| UO-13-11 | Una factura alumne i una entitat amb dos pagaments reals diferents | Finançament conciliable només quan ambdós imports i orígens estan contrastats per ID_INSC; cap duplicació del moviment alumne. |
+
 ## 6. Traçabilitat
 
 [UC-13 original](../06-fitxes-funcionals/uc-013.md) · [UC-19a original](../06-fitxes-funcionals/uc-019a.md) · [UC-19b original](../06-fitxes-funcionals/uc-019b.md) · [Revisió fons inscripció](00-revisio-moviments-inscripcions.md) · [RedsysUsocInvoiceService](../../sif/src/Service/RedsysUsocInvoiceService.php) · [UsocEntityInvoiceService](../../sif/src/Service/UsocEntityInvoiceService.php) · [LegacyUsocInvoicePayloadBuilder](../../sif/src/Service/LegacyUsocInvoicePayloadBuilder.php) · [LegacyUsocSnapshotRepository](../../sif/src/Repository/LegacyUsocSnapshotRepository.php) · [RedsysUsocInvoiceServiceTest](../../sif/tests/Integration/RedsysUsocInvoiceServiceTest.php) · [UsocEntityInvoiceServiceTest](../../sif/tests/Integration/UsocEntityInvoiceServiceTest.php).
