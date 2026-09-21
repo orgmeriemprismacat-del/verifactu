@@ -130,7 +130,7 @@ else Reparació autoritzada i idempotent
  S->>A: Guardar acció, prova i estat final
  S-->>O: Resolució comprovada o pendent
 end
-Note over S,A: L'obertura PHP existeix; triage, assignació i tancament no acreditats.
+Note over S,A: L'obertura PHP existeix, triage, assignació i tancament no acreditats.
 ```
 
 ## 6. Traçabilitat
