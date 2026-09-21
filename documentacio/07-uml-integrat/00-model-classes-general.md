@@ -126,6 +126,8 @@ FiscalRecordService --> TransactionRunner
 FiscalRecordRepository --> HashCalculator
 ```
 
+**Reús d'emissió i cobrament inicial:** `InvoiceService::existingResultWithPaymentIfPresent()` torna una factura existent per clau fiscal i, si rep bloc `payment`, **només cerca** la clau econòmica; no crida `createPayment()` en el reús. Pot retornar `ok=true` i `uuid_factura` **sense** `uuid_payment` encara que el canal hagi aportat una entrada real posterior. `InvoiceService` tampoc compara el payload fiscal nou amb la factura congelada abans de retornar `idempotency_reused=true`. [UC-01, seqüències 4.1–4.2](uc-001-emetre-o-reutilitzar-factura.md). 
+
 **Fronteres:** UC-05 crea factura R i després vincula la rectificativa/estat de l'original en passos separats: no inventar una transacció conjunta. UC-30 i UC-31 generen **nous registres fiscals per una factura existent**, no una nova factura fiscal amb un número nou. Les responsabilitats concretes consten a [UC-01](uc-001-emetre-o-reutilitzar-factura.md), [UC-04](uc-004-emetre-factura-abans-cobrar.md), [UC-05](uc-005-rectificar-factura.md), [UC-30](uc-030-anul-lar-registre-improcedent.md) i [UC-31](uc-031-subsanar-registre.md).
 
 ## 3. Classes executives de pagament, devolució i crèdit
@@ -239,6 +241,42 @@ PaymentService --> PaymentRepository : crea/reutilitza per clau
 ```
 
 **Frontera d'evidència:** `PaymentRepository::createPayment()` insereix un `payment_transaction.ESTAT=CONFIRMED` i calcula `PAYLOAD_HASH` **sobre les dades que li envia el canal**, però `PaymentService` no consulta aquell hash per comparar una petició recuperada. `ManualRefundPayloadBuilder` no rep `UUID_PAYMENT` original, titular del retorn ni confirmació bancària. Amb `reference`, la clau de devolució no incorpora factura/import; sense `reference`, dos retorns reals coincidents en factura/dia/import/banc compartirien clau. **A més**, `ManualRefundService::registerForInvoice()` afegeix al resultat el `uuid_factura` i `num_visible` de la **factura sol·licitada** fins i tot si `PaymentService` ha reutilitzat per aquella clau un `UUID_PAYMENT` assignat a una altra factura: el retorn de l'API pot barrejar `UUID_PAYMENT_A` amb `UUID_FACTURA_B`. La seqüència concreta consta a [UC-28, 4.3a](uc-028-registrar-devolucio.md). [UC-28](uc-028-registrar-devolucio.md).
+
+### 3.2. Subvista real del reús de pagament manual entre factures — UC-02; mateixa identitat econòmica, diferents destins
+
+```mermaid
+classDiagram
+direction LR
+class ManualPaymentService {
+ <<PHP: afegeix al resultat factura de petició actual>>
+ +registerByUuid(sifDb,uuidFactura,input) array
+ +registerByNumVisible(sifDb,numVisible,input) array
+}
+class ManualPaymentPayloadBuilder {
+ <<PHP: reference dóna clau sense factura/import>>
+ +forExistingInvoice(uuidFactura,input) array
+}
+class ManualPaymentInvoiceRepository {
+ <<PHP: cerca factura sol·licitada>>
+ +findByUuid(db,uuid,forUpdate) array
+ +findByNumVisible(db,numVisible,forUpdate) array
+}
+class PaymentService {
+ <<PHP: reús per clau, sense comprovar allocation>>
+ +registerPayment(payload) array
+}
+class PaymentRepository {
+ <<PHP: crea movement + allocation només en alta>>
+ +findByIdempotencyKey(db,key,forUpdate) array
+ +createPayment(db,payload) array
+}
+ManualPaymentService --> ManualPaymentInvoiceRepository : factura demanada
+ManualPaymentService --> ManualPaymentPayloadBuilder : CHARGE assignat a factura demanada
+ManualPaymentService --> PaymentService : registerPayment
+PaymentService --> PaymentRepository : cerca per K; si existeix no insereix allocation nova
+```
+
+**Risc compartit amb la devolució:** `ManualPaymentPayloadBuilder` produeix `TRANSFERENCIA|REF:<referència>` sense factura/import. Si la referència ja va crear `UUID_PAYMENT_A` amb assignació a factura A, `PaymentService` recupera aquest UUID en una petició posterior per B i **no afegeix** l'assignació B. `ManualPaymentService::registerForInvoice()` retorna aquell `UUID_PAYMENT_A` però sobreescriu `uuid_factura` amb B, de manera que la resposta pot semblar un cobrament vàlid de B sense que la BD l'hagi imputat. La mateixa forma de resposta contradictòria pot produir-se amb `ManualRefundService`, però els efectes econòmics `CHARGE` i `REFUND` són diferents i no s'han de barrejar. [UC-02, seqüència 5.3](uc-002-registrar-cobrament-factura.md); [UC-28, seqüència 4.3a](uc-028-registrar-devolucio.md).
 
 ## 4. Classes executives de Redsys i integracions de venda
 
