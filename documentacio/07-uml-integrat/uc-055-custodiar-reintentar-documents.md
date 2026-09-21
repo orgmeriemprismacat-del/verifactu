@@ -40,6 +40,26 @@
 
 **Proves detectades, no executades:** `DocumentsAndIncidentsTest` comprova metadades i hash de `DocumentRepository`, però no el cicle de storage, reintents, permisos o generació real del PDF/QR.
 
+### 1.3. Prioritat del document de factura prèvia i coherència amb el correu
+
+**Necessitat del circuit d'empresa.** A `/alumnes/genera-factura-abans-pagar/`, PrisMa emet una factura **real** que pot necessitar-se per enviar al responsable/empresa i cobrar més endavant. El pas de `issueInvoice()` confirma `UUID_FACTURA/NUM_VISIBLE` encara que la generació del PDF/QR sigui asíncrona. El contracte de pantalla ha de mostrar **factura emesa + document `PENDING`** quan el worker encara no ha desat els bytes i prioritzar el job documental de la factura prèvia segons l'operativa acordada; no ajornar l'existència de la factura fins que estigui llest el PDF.
+
+**Tall del lliurament.** Si un correu al responsable ha d'incloure el PDF o l'enllaç de consulta, no crear una notificació que presenti l'adjunt com a disponible fins que es comprovi el document real i l'autorització del receptor (UC-49/58/80). Si falla només el PDF, reprendre **el mateix `document_job`/UUID_FACTURA**; si el correu ha fallat després de generar els bytes, reprendre només la notificació. Ni una incidència documental ni un canvi d'`E_FACT` impliquen tornar a generar el registre fiscal o registrar cobrament nou.
+
+**Origen immutable davant regeneració llegada.** El llegat exposa `mostraModalPrevFactura_Factures.php`, `descarregaFactura.php` i `generaFactura($id,true)`, que poden reconstruir un PDF amb dades vives; `eliminarArxiu.php` rep un nom de fitxer temporal per esborrar-lo. A la ruta SIF, el document s'ha de generar del snapshot fiscal congelat i conservar un hash dels **bytes realment escrits** en storage privat. No convertir el generador llegat ni la neteja via filename en la ruta de custòdia de la factura fiscal original.
+
+**Original, rectificativa i nou renderitzat.** La factura original i la rectificativa són dos `UUID_FACTURA` i requereixen documents independents. Si es modifica una plantilla, conservar identificador de versió i la representació anterior; reintentar un job fallit de **la mateixa versió** no ha de sobreescriure silenciosament un document custodiat ni retornar dos PDFs originals incompatibles.
+
+### 1.4. Proves addicionals de disponibilitat i comunicació (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| DC-55-01 | Factura real abans de cobrar confirmada, PDF encara PENDING | Mostrar UUID/número i document pendent; no reemetre per obtenir PDF. |
+| DC-55-02 | Job documental falla, cua AEAT/ingrés ja confirmats | Reintentar document exclusivament; conservar estats extern i econòmic. |
+| DC-55-03 | Correu de factura requereix PDF però bytes absents | Comunicació documental pendent o avís adequat sense afirmar PDF disponible. |
+| DC-55-04 | PDF original existent i rectificativa emesa | Dos UUIDs i dos documents, sense substituir el primer. |
+| DC-55-05 | Fitxer antic eliminat amb nom procedent de GET | La ruta nova no accepta esborrat d'artefactes fiscals per filename aportat pel navegador. |
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
