@@ -7,7 +7,7 @@
 | # | Pantalla/apartat pendent | Casos actuals candidats | Contrast específic per tancar | Estat d'aquesta revisió |
 | ---: | --- | --- | --- | --- |
 | 1 | Ajuda contextual del panell | UC-34; document 25 (guies ràpides de pantalles internes) | Contingut d'ajuda del panell: identificar pantalla concreta i si només informa o activa una comanda. | MAPAT PROVISIONAL — documentació/UI |
-| 2 | Captures finals de recorreguts crítics | UC-39; annex de captures | Evidència de prova, no cas d'ús de negoci independent; relacionar captura amb UC, ruta, versió i resultat reproduïble. | EVIDÈNCIA TRANSVERSAL |
+| 2 | Captures finals de recorreguts crítics | UC-39; UC-03/52; annex de captures | Evidència de prova: incloure job Redsys PROCESSING recuperat, marques finals d'intent obsolet i UUID_FACTURA/UUID_PAYMENT persistits; una captura de PROCESSED no acredita el cobrament. | EVIDÈNCIA TRANSVERSAL |
 | 3 | Cercador general de pagaments | UC-56; UC-02; UC-22 | Cerca sense escriptura; comprovar si UUID_PAYMENT existent ja s'ha assignat a la factura seleccionada abans de presentar-lo com a cobrament nou. | MAPAT PROVISIONAL — consulta |
 | 4 | Cercar pagament per NIF/NIE | UC-56; UC-126 | Identitat i accessos: el NIF de pagador pot no ser el d'inscrit o receptor fiscal. | MAPAT PROVISIONAL — variant de cerca |
 | 5 | Compatibilitat intranet antiga | UC-64; UC-68; UC-47 | Inventariar scripts i rutes realment actius; establir substitut abans de retirar writers i sincronitzar després del commit. | MAPAT PROVISIONAL — integració |
@@ -24,12 +24,12 @@
 | 16 | Migració documents històrics | UC-11; UC-55; UC-78; UC-97 | Importar metadada no acredita fitxer físic; inventariar original, verificació de bytes i custòdia. | MAPAT PROVISIONAL — CAL COMPROVAR FLUX DOCUMENTAL |
 | 17 | Mode auditor només lectura | UC-45; UC-59; UC-80 | Concessió/revocació i lectura no són la mateixa acció; revalidar grant a cada consulta. | MAPAT PROVISIONAL — control d'accés |
 | 18 | Operació informativa | UC-100 | Acció explícita sense factura ni pagament; registrar motiu i classificació quan s'apliqui. | MAPAT PROVISIONAL — UC específica existent |
-| 19 | Pagament duplicat | UC-25a; UC-02; UC-22; UC-23; UC-24; UC-51; UC-86 | Distingir dues entrades externes reals de dues altes del mateix ingrés amb claus MANUAL/TRANSFERENCIA/CLAIM diferents; comparar identificador bancari, import i assignacions. | MAPAT PROVISIONAL — variants per origen |
+| 19 | Pagament duplicat | UC-25a; UC-02; UC-03; UC-22; UC-23; UC-24; UC-51; UC-52; UC-86 | Distingir ingressos externs reals, claus diferents del mateix fet i doble processament possible d'un job Redsys recuperat mentre el worker anterior continua actiu. | MAPAT PROVISIONAL — variants per origen |
 | 20 | Pagament fraccionat | UC-23; UC-96; UC-12; UC-22; UC-56 | Separar calendari de quotes, ingrés extern per cada fracció real, relació ID_INSC↔factura i conciliació d'una quota ja registrada per transferència/Redsys. | MAPAT PROVISIONAL — acord vs cobrament |
 | 21 | Pagament parcial | UC-23; UC-02; UC-56; UC-105 | Distingir un CHARGE parcial real, saldo no assignat d'un CHARGE existent i segon reintent amb mateixa referència però nova factura. | MAPAT PROVISIONAL — variant del cobrament |
 | 22 | Rectificativa negativa | UC-05; UC-74; UC-28 | Determinar modalitat, signes i línies fiscals; separar decisió de retorn pendent, sortida externa acreditada i registre REFUND, amb límit per origen. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
 | 23 | Rectificativa positiva | UC-05; UC-74; UC-02 | Determinar modalitat i signes/línies fiscals; import a favor de l'emissor no és CHARGE fins a ingrés efectiu. | MAPAT PROVISIONAL — VARIANT FISCAL A VALIDAR |
-| 24 | Resum SIF sincronitzat a BD antiga | UC-47; UC-53; UC-82 | Comprovar idempotència del resum, divergències i recuperació després del commit, sense reescriptura de l'original fiscal. | MAPAT PROVISIONAL — integració |
+| 24 | Resum SIF sincronitzat a BD antiga | UC-03; UC-47; UC-52; UC-53; UC-82 | Un job Redsys PROCESSED no prova que existeixi el UUID_PAYMENT, que s'hagi assignat a la factura ni que la projecció llegada ja estigui sincronitzada. | MAPAT PROVISIONAL — integració |
 | 25 | USOC | UC-13; UC-19; UC-19a; UC-19b | Sol·licitud/decisió d'afiliació separades; factura + CHARGE alumne i factura entitat pendent/cobrament posterior; exigir UUID alumne real i ID_INSC unívoc abans de la segona factura. | MAPAT PROVISIONAL — orquestració |
 
 ## Contrast específic del catàleg i del PHP per a cinc elements d'aquesta matriu
@@ -98,6 +98,16 @@ Les files següents continuen en `MAPAT PROVISIONAL` perquè es coneixen les **a
 | 21 · Pagament parcial / reclamació | [UC-24, seccions 4.2–4.4](uc-024-registrar-cobrament-reclamacio.md) reconeix un abonament reclamat, registra segon ingrés real separat i revisa tancament d'expedient; [UC-02](uc-002-registrar-cobrament-factura.md) només enregistra entrada real nova. | `ClaimPaymentPayloadBuilder` prioritza `claim_reference` en formar `CLAIM|REF:...`, per la qual cosa dos abonaments del mateix expedient poden recuperar el primer UUID. `ClaimPaymentService` no tanca l'expedient de morositat per registrar el CHARGE. | Distingir «pagat parcialment», «expedient reclamat», «deute net zero» i «factura completament pagada»; una reclamació parcialment cobrada no queda tancada per un resultat `ok=true`. |
 
 **Aquestes tres files continuen provisionals:** les accions de les fitxes no acrediten el controlador concret de la intranet, permisos, comunicacions, cobrament bancari ni que els estats de reclamació proposats ja estiguin disponibles.
+
+## Contrast de la cua Redsys: propietat del job, efecte econòmic i projecció a la intranet
+
+| Fila | Accions i fitxes | Contrast PHP i proves localitzades | Validació de pantalla/evidència pendent |
+| --- | --- | --- | --- |
+| 2 · Captures finals de recorreguts crítics | [UC-52, seccions 4.1–4.4](uc-052-operar-cua-redsys.md): recuperar lock, finalitzar intent vigent, recuperar efectes i verificar resultat. | `RedsysCallbackQueueRepository` només filtra `ID+STATUS=PROCESSING` en marques terminals, no `LOCKED_BY`; `RedsysCallbackWorker` marca com a PROCESSED qualsevol array del processor. `RedsysCallbackWorkerTest` verifica recuperació d'un lock antic i claim de dos workers, però no la cursa d'A que acaba després que B torni a reclamar. | Evidència de claim A/B, generació/propietari, commits d'efectes i resultat de test concurrent, no només captura final de PROCESSED. |
+| 19 · Pagament duplicat | [UC-03, secció 5.1](uc-003-processar-cobrament-redsys-asincron.md) comprova factura/CHARGE i [UC-52](uc-052-operar-cua-redsys.md) separa retry de reinserció d'efectes; UC-25a diferencia DS_ORDER de IDPAG. | `recoverStaleLocks` pot reobrir un job lent al cap de 15 min mentre el worker antic continua. La idempotència de la clau d'emissió **no** garanteix una cobertura prèvia emesa amb una altra clau o que el resultat contingui el UUID_PAYMENT real. | Mostrar un únic ingrés per fet extern, assignacions reals, factura prèvia i estat dels intents de cua; no marcar duplicat econòmic pel sol fet que existeixin dos intents de worker. |
+| 24 · Resum SIF a BD antiga | [UC-52, secció 4.3](uc-052-operar-cua-redsys.md), [UC-47](uc-047-sincronitzar-estat-cap-llegat.md) i [UC-53](uc-053-detectar-resoldre-divergencies.md). | `markProcessed` pot desar `UUID_FACTURA`/`UUID_PAYMENT` nuls si el processor retorna array incomplet; `runOne` no valida resultat ni inclou commit de la sincronització acadèmica llegada. | Distingir factura emesa, pagament assignat, job completat i resum acadèmic sincronitzat; recuperar només la fase pendent sense duplicar CHARGE. |
+
+**L'estat de mapatge es manté provisional:** cap de les files 2, 19 o 24 s'ha contrastat amb una ruta de pantalla desplegada ni amb una prova concurrent executada en aquesta revisió.
 
 ## Com convertir el mapatge en cobertura demostrable
 
