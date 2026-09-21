@@ -193,18 +193,27 @@ UI->>IBP: issueBeforePayment(input sense payment)
 IBP->>B: build(input)
 B-->>IBP: payload INTRANET + flag emissió prèvia
 IBP->>IS: issueInvoice(payload)
+IS->>DB: BEGIN de la transacció d'emissió
 IS->>IR: Comprovar idempotència i crear factura si és nova
-IR->>DB: INSERT factura/línies/registre fiscal/cua/relacions
-IS-->>UI: uuid_factura i num_visible
-UI-->>E: Factura o accés al document [canal pendent]
+opt No existeix la factura
+ IR->>DB: INSERT factura/línies/registre fiscal/cua/relacions
+end
+IS->>DB: COMMIT de la transacció d'emissió
+IS-->>IBP: uuid_factura i num_visible confirmats
+IBP-->>UI: uuid_factura i num_visible confirmats
+UI-->>E: Estat de factura emesa; accés al document [canal pendent]
 Note over E,DB: Factura fiscal existent i cobrament econòmic encara PENDING
 E->>O: Comunica/efectua pagament
 O->>UI: Validar cobrament i factura preexistent
 UI->>PS: registerPayment(payload amb allocation a uuid_factura)
-PS->>PR: crear o reutilitzar moviment en transacció
-PR->>DB: INSERT payment_transaction i payment_allocation
-PR->>DB: UPDATE factura.ESTAT_COBRAMENT
-PS-->>UI: uuid_payment
+PS->>DB: BEGIN de la transacció de cobrament
+PS->>PR: crear o reutilitzar moviment
+opt Moviment real no existent
+ PR->>DB: INSERT payment_transaction i payment_allocation
+ PR->>DB: UPDATE factura.ESTAT_COBRAMENT
+end
+PS->>DB: COMMIT de la transacció de cobrament
+PS-->>UI: uuid_payment confirmat
 UI-->>E: Resultat del cobrament [canal pendent]
 Note over IS,DB: El cobrament no torna a executar issueInvoice()
 ```
@@ -262,6 +271,115 @@ else Cobertura verificable i intencions incompatibles controlades
 end
 Note over Guard,Q: Coordinació entre BDs/callbacks és pendent: aquest diagrama no acredita atomicitat distribuïda.
 ```
+### 4.3. Acció pròpia: detectar cobertura fiscal existent abans d'emetre o pagar — OBJECTIU
+
+La UC-21 té un disparador específic: un centre/responsable vol assumir N inscripcions. Abans d'emetre la factura d'empresa, el canal ha de diferenciar **receptor fiscal**, **pagador de l'ingrés** i **participants**. La clau idempotent de la petició d'UC-04 no identifica per si sola totes les factures prèvies amb una altra clau; `fact_rels` i les inscripcions són necessaris per detectar cobertura. Aquest control i el bloqueig dels intents TPV individuals no estan implementats pel servei `InvoiceBeforePaymentService` aïlladament.
+
+```plantuml
+@startuml
+left to right direction
+actor "Empresa / responsable" as E
+actor "Operador autoritzat" as O
+actor "Pagador que confirma ingrés" as P
+rectangle "SIF PrisMa — empresa i participants" {
+ usecase "UC-21\nDefinir receptor i cobertura\nde N inscripcions" as Main
+ usecase "Comprovar factura preexistent\ni intencions pendents" as Coverage
+ usecase "UC-04\nEmetre factura real\nsense cobrament" as Before
+ usecase "UC-02 / UC-22\nRegistrar cobrament\nposterior sobre el mateix UUID" as Later
+ usecase "UC-33\nDesactivar URL individual\nincompatible" as Revoke
+ usecase "UC-74\nClassificar canvi de participants\ndesprés d'emetre" as Change
+}
+E --> Main
+O --> Main
+Main ..> Coverage : <<include>> [OBJECTIU]
+O --> Before
+P --> Later
+O --> Revoke
+O --> Change
+note bottom of Later
+ L'ingrés posterior NO és part
+ de la transacció d'UC-04.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor E as Empresa o responsable
+actor O as Operador
+participant UI as Intranet [ADAPTADOR PENDENT]
+participant G as Guard cobertura + autorització [DISSENY]
+participant IR as Factures/relacions SIF [SQL existent]
+participant T as Intencions Redsys individuals
+participant B as InvoiceBeforePaymentService [PHP]
+participant P as PaymentService [PHP]
+participant Inc as Incidències [INTEGRACIÓ PENDENT]
+E->>O: Sol·licitar una factura de les inscripcions I1…IN
+O->>UI: Introduir receptor fiscal, participants i import
+UI->>G: Recalcular al servidor snapshot i comprovar permisos
+G->>IR: Rellegir factures existents per ID_INSC, receptor i obligació
+G->>T: Identificar intencions TPV individuals ja iniciades
+alt Factura equivalent ja existeix i no hi ha un cobrament nou
+ G-->>UI: UUID_FACTURA existent; cap nova emissió
+ UI-->>O: Consultar factura preexistent
+else Existeix conflicte de cobertura, receptor o callback en curs
+ G->>Inc: Obrir incidència i preservar referències de TPV
+ G-->>UI: Suspensió de nova emissió fins a conciliar
+ UI-->>O: No duplicar factura ni descartar ingrés bancari
+else Cobertura nova i coherent amb intencions incompatibles controlades
+ G-->>UI: Snapshot i petició fiscal autoritzats
+ UI->>B: issueBeforePayment(payload sense payment)
+ B-->>UI: UUID_FACTURA després del COMMIT de UC-04
+ UI-->>E: Factura real pendent; PDF només si disponible i autoritzat
+ opt Arriba pagament confirmat més tard
+  E->>O: Comunicar transferència o pagament real
+  O->>UI: Verificar origen, saldo i mateixa factura
+  UI->>P: registerPayment(payload assignat al UUID_FACTURA existent)
+  P-->>UI: UUID_PAYMENT després del COMMIT propi
+  UI-->>E: Confirmació econòmica, no segona factura
+ end
+end
+Note over G,Inc: Guard, accés extern i coherència entre callbacks, BD web i SIF són disseny pendent.
+```
+
+### 4.4. Acció pròpia: ingrés parcial d'empresa i atribució entre participants — OBJECTIU
+
+Quan una empresa paga parcialment una factura que cobreix diverses inscripcions, la UC-02 només assigna import a factura. La quantitat real que correspon a **cada participant** no es pot deduir de `fact_rels`, ni repartir equitativament per defecte; `enrollment_fund_movement` continua proposta. L'operació ha de conservar un únic `UUID_PAYMENT` per ingrés extern, la mateixa factura inicial i una decisió quantitativa per inscripció quan s'implementi l'atribució.
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió de cobraments
+participant R as Conciliació bancària/TPV [CANAL PENDENT]
+participant G as Validació de cobertura i imports [DISSENY]
+participant P as PaymentService [PHP]
+participant L as Ledger de fons per ID_INSC [PROPOSTA]
+participant DB as BD fiscal SIF
+O->>R: Confirmar ingrés de l'empresa per factura F i N participants
+R-->>O: Prova d'un únic fet extern, import i pagador
+O->>G: Revalidar factura F i parts atribuïbles per I1…IN
+alt Import/participant no concorden o ingrés ja registrat contradictòriament
+ G-->>O: Conflicte o recuperació d'UUID_PAYMENT existent
+else Un únic ingrés real nou amb parts justificades
+ G-->>O: Moviment extern i assignació a F validats
+ O->>P: registerPayment(CHARGE real, allocation F)
+ P->>DB: BEGIN, INSERT payment_transaction i payment_allocation
+ P->>DB: COMMIT
+ P-->>O: UUID_PAYMENT únic
+ O->>L: Registrar distribució quantitativa I1…IN [PENDENT]
+ L-->>O: Resultat per inscripció o incidència de distribució
+end
+Note over P,L: El PHP actual no implementa una confirmació atòmica SIF+ledger proposat. No declarar l'atribució individual resolta fins a tenir-la.
+```
+
+| ID de prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| EM-21-01 | Mateixes inscripcions amb factura prèvia sota una altra clau | Recuperar factura existent o crear incidència; cap segon número fiscal. |
+| EM-21-02 | Grup de 3 participants, empresa paga una part | Un `UUID_PAYMENT` per ingrés, factura comuna i atribució exacta per participant quan el ledger existeixi. |
+| EM-21-03 | Intenció individual Redsys anterior a la factura d'empresa i callback tardà | Conciliar diner real sense segona factura ni perdre la reserva/estat de participant. |
+| EM-21-04 | Empresa i participant tenen NIF diferent, accés al PDF des del portal | Només receptor/representant legítim autoritzat, mai exposició automàtica a tots els participants. |
+| EM-21-05 | Reús de clau amb receptor o línies diferents | Rebuig per conflicte de contingut abans de donar equivalència; control pendent al nucli actual. |
 ## 5. Traçabilitat
 
 [Fitxa anterior UC-21](../06-fitxes-funcionals/uc-021.md) · [Catàleg de casos](../04-estat-final/33-casos-us-sif.md) · [Fluxos de factura abans de cobrar i grup](../03-canvis-pendents/04-fluxos-facturacio.md) · [UC-04 revisada](uc-004-emetre-factura-abans-cobrar.md) · [UC-02 revisada](uc-002-registrar-cobrament-factura.md) · [InvoiceBeforePaymentService](../../sif/src/Service/InvoiceBeforePaymentService.php) · [ManualGroupInvoiceService](../../sif/src/Service/ManualGroupInvoiceService.php) · [LegacyGroupSnapshotRepository](../../sif/src/Repository/LegacyGroupSnapshotRepository.php) · [InvoiceBeforePaymentServiceTest](../../sif/tests/Integration/InvoiceBeforePaymentServiceTest.php).
