@@ -69,6 +69,26 @@ Queue ..> Main : <<extend>> (autoritzat i validat)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Redsys"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF · callbacks"]
+    uc_0(["UC-51<br/>Qualificar callback anòmal"])
+    uc_1(["Verificar signatura i intenció"])
+    uc_2(["Registrar notificació immutable"])
+    uc_3(["UC-03<br/>Encolar autoritzat"])
+    uc_4(["UC-08<br/>Revisar contradicció"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_4
+  uc_3 -.->|extend| uc_0
+```
+
 ## 3. Diagrama de classes — dependències PHP
 
 ```mermaid
@@ -263,6 +283,26 @@ note bottom of Coverage
  ja coberta només perquè arriba DS_ORDER antiga.
 end note
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Redsys"]
+  actor_1["Responsable de gestió"]
+  subgraph SIF_BOX["SIF PrisMa — ordre tardana"]
+    uc_0(["UC-51<br/>Acceptar evidència signada<br/>d'un ingrés real"])
+    uc_1(["UC-03 / UC-52<br/>Processar job idempotent"])
+    uc_2(["Comprovar cobertura fiscal<br/>i estat actual per inscripció"])
+    uc_3(["UC-53 / UC-81<br/>Obrir conciliació/incidència"])
+    uc_4(["UC-104 / UC-28<br/>Decidir excedent o retorn<br/>si correspon"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_1 -.->|include| uc_2
+  actor_1 --> uc_3
+  actor_1 --> uc_4
 ```
 
 ```mermaid
