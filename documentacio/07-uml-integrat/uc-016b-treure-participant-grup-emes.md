@@ -40,6 +40,25 @@
 
 **Falta implementar:** càlcul fiscal específic de retirada del grup, orquestració entre BD acadèmica i fiscal, idempotència global, permisos, ledger d'atribució individual i proves d'import per participant. La fitxa original no acredita aquesta execució.
 
+### 1.3. Retirada sobre factura prèvia i recàlcul del tram de grup — contrast amb el xat original
+
+El xat confirma que una factura d'empresa **pot haver-se emès abans de pagar i després perdre un participant**. La baixa de la persona és UC-27/72, però la factura conjunta segueix existint: cal relacionar l'event amb l'`ID_INSC` retirat, la línia fiscal original, el receptor econòmic i les operacions que ja han cobrat **o encara no** han cobrat l'import. Quan la factura encara és PENDING, no existeix un `REFUND` monetari només perquè l'obligació del participant quedi reduïda; cal classificar la rectificació de la part facturada sense anul·lar automàticament les altres línies.
+
+**G-TRAM — conseqüència per la resta del grup:** el xat situa el preu unitari en `descomptes_grup` segons el nombre de persones. Treure una persona pot modificar el tram/preu aplicable als restants, però **la política de recàlcul retroactiu no està decidida a la font**. La pantalla ha de mostrar explícitament el preu fiscal original de cada membre i el preu comercial eventual del grup reconfigurat; si la política aprovada altera obligacions d'altres participants, crear accions i correccions fiscals separades i justificades. No imputar a la persona que marxa les noves diferències de preu dels altres ni modificar el `PAGAMENT` global sense traça.
+
+**G-TITULAR — retorn del pagador real:** si qui va pagar va ser una empresa o un responsable particular, la persona que deixa el curs no adquireix automàticament el dret a una transferència a nom seu. Determinar el titular, condicions de retorn i fonts dels imports atribuïts, i registrar UC-28 només quan es confirma la devolució real; UC-29 només quan neix saldo acceptat. La factura i el document corrector pertanyen al receptor fiscal apropiat, no al participant per defecte.
+
+**G-ENLLAÇ — després de retirar:** revisar si la inscripció deixa de formar part de l'obligació de grup i si la seva URL individual antiga o la URL global de l'empresa encara indiquen imports correctes. No reactivar automàticament una URL individual antiga pel fet de treure-la d'una factura; si cal una nova obligació, UC-50/121 la genera amb snapshot/preu acceptats i control d'intencions bancàries.
+
+### 1.4. Proves de retirada afegides (no executades)
+
+| ID | Cas | Resultat exigible |
+| --- | --- | --- |
+| GB-01 | Treure una persona d'una factura prèvia encara PENDING | Baixa traçada i efecte fiscal classificat; cap REFUND de diner no cobrat. |
+| GB-02 | Empresa ha pagat i un participant se'n va | Decisió de retorn/saldo al titular legitimat i per la part atribuïda; altres membres no perden fons. |
+| GB-03 | Retirada modifica eventual tram de descompte | Preus originals preservats; política de preu dels restants explicitada i correccions separades si pertoquen. |
+| GB-04 | Participant reactivat després de devolució confirmada | Cap reactivació de pagament ni factura per simple canvi d'estat; tramitar nova operació. |
+| GB-05 | URL de pagament individual/global desfasada després de la retirada | Recalcular pendent al servidor, revocar/substituir enllaç quan calgui i conciliar TPV en curs. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -153,6 +172,31 @@ C-->>UI: Fases executades i pendents
 Note over C,L: No alterar les atribucions dels altres participants ni cobrar una segona vegada
 ```
 
+### 4.1. Seqüència — baixa parcial sense cobrament i canvi de tram (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant G as Grup/intranet [adaptació pendent]
+participant I as Inscripció i factura de grup
+participant Price as descomptes_grup [consulta a verificar]
+participant F as Classificador fiscal [PENDENT]
+participant M as Devolució/saldo [segons cobrament]
+O->>G: Treure ID_INSC d'una factura de grup existent
+G->>I: Llegir factura, línia, pagador, fons i estat PENDING/PARTIAL/PAID
+G->>Price: Consultar eventual canvi de tram per la resta
+G-->>O: Previsualitzar participant retirat i afectació separada als altres
+alt Factura prèvia encara sense cobrament
+ G->>F: Classificar correcció fiscal de part retirada i d'altres si procedeix
+ G-->>O: Cap REFUND ni CHARGE ficticis
+else Part efectivament cobrada
+ G->>M: Validar titular i decidir retorn/saldo per import atribuït
+ G->>F: Classificar rectificació de part retirada i tram si pertoca
+ G-->>O: Efectes econòmics executats i pendents per separat
+end
+Note over G,M: L'orquestrador de retirada, la política de reprecificació i el ledger per inscripció no són implementació acreditada.
+```
 ## 5. Traçabilitat
 
 [UC-16b original](../06-fitxes-funcionals/uc-016b.md) · [UC-16 grup](uc-016-facturar-grup.md) · [UC-27 baixa](uc-027-donar-de-baixa.md) · [UC-72 expedient](uc-072-registrar-baixa-decisio-economica.md) · [UC-05 correcció](uc-005-rectificar-factura.md) · [UC-28 retorn](uc-028-registrar-devolucio.md) · [UC-29 saldo](uc-029-crear-saldo.md) · [Revisió fons individual](00-revisio-moviments-inscripcions.md) · [ManualRectificationService](../../sif/src/Service/ManualRectificationService.php) · [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php).
