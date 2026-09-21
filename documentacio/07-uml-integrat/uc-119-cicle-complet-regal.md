@@ -43,6 +43,27 @@
 | Regal retornat després de bescanvi | Qualsevol devolució ha de verificar import disponible per dret/inscripció i pagador original, i correspondre a un reemborsament real. |
 | Regal caducat | Estat `EXPIRED` i decisió operativa/contractual; no inventar automàticament un nou ingrés o anul·lació registral. |
 
+### 1.3. Registre llegat de regal, codi al document fiscal i lliurament del dret
+
+**Compra i consulta reals del llegat.** El procediment de PrisMa identifica `regal.ID` com a origen; `buscarRegNoPayByCodi` i `buscarRegNoPayByDni` localitzen regals pendents per codi o DNI del comprador, `buscarRegalById` recupera `NOM_CURS/CCURS/NOMC/NIFC/MAILC/CODI/FACT_REL/ORIGEN/DESTI`, i `updFactRegal` desa `regal.FACT_REL`. El correu històric de compra inclou el codi i un enllaç a la targeta regal PDF. Aquesta **targeta comercial** i la factura fiscal emesa al **comprador** són documents diferents, amb destinataris i permisos diferents; `FACT_REL` és un agrupador llegat, no el substitut de `UUID_FACTURA` i del vincle posterior a l'inscripció.
+
+**Risc concret del constructor de factura.** `LegacyGiftInvoicePayloadBuilder::build()` carrega `CODI` i el passa a `line()`, que fixa `detail = 'Codi regal ' . $code`; `giftMetadata()` torna a incloure `code` en el payload. **El codi bescanviable pot quedar exposat en el detall del document fiscal i en les traces/payloads que es conservin**, encara que només s'hagués d'enviar a qui té dret al regal. Per a noves emissions, cal decidir i implementar una política de presentació que separi el **codi operatiu íntegre**, que s'ha de lliurar de forma controlada, d'una referència comercial/fiscal que no permeti bescanviar-lo. No afirmar que el builder actual ja protegeix aquest valor ni reutilitzar l'`OBSERVACIONS` llegat com a magatzem segur. Les factures **ja emeses** no es reescriuen per ocultar-lo: revisar la distribució i, si hi ha exposició, obrir incidència amb abast documentat.
+
+**Comprar no és lliurar ni consumir.** `LegacyGiftSnapshotRepository::loadByCode()` consulta la fila de `regal` per `CODI`; el builder emet la factura del comprador, però **no** implementa una transició atòmica `ACTIVE→CONSUMED` ni una alta acadèmica vinculada al beneficiari. Una notificació Redsys validada tampoc acredita per si sola que s'hagi creat el dret, enviat la targeta o obtingut una plaça al curs. Després de l'ingrés i la factura confirmats, la fase de lliurament ha de verificar el destinatari i l'estat del dret, i un retry de correu **no** emet una segona factura ni un nou codi de valor.
+
+**Bescanvi i diners disponibles.** Quan el beneficiari introdueix el codi, UC-18 ha d'identificar **regal/compra/factura/pagament** originals i bloquejar el consum concurrent, crear o recuperar `ID_INSC`, comprovar plaça/curs i registrar la part aplicada. Per a un regal comprat i ingressat, el bescanvi del mateix valor és **aplicació interna del dret**, no un altre `CHARGE` de l'alumne. Si es paga una diferència externa, documentar separadament titular, import i document fiscal que correspongui. Una baixa o retorn després del bescanvi comprova comprador/pagador original i saldo no consumit: posseir el codi no acredita titularitat del reemborsament ni dret a veure el PDF del comprador.
+
+### 1.4. Proves del codi i de la separació de documents (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RG-119-01 | El constructor rep `CODI` bescanviable i genera la factura | Detectar-ne presència en `detail/giftMetadata`; definir presentació no bescanviable per noves emissions, sense reescriure factures ja emeses. |
+| RG-119-02 | S'ha cobrat el regal però falla el correu amb la targeta | Reprendre només lliurament del dret al destinatari autoritzat, no factura ni ingrés. |
+| RG-119-03 | Beneficiari consulta PDF fiscal del comprador per posseir el codi | No concedir accés a factura per la sola possessió; targeta i factura separades. |
+| RG-119-04 | Dos bescanvis simultanis del mateix codi | Un únic consum/destí acreditat o incidència; no dues places ni segon `CHARGE`. |
+| RG-119-05 | Regal de 100 € i curs triat de 120 €, diferència de 20 € abonada | Origen regal i ingrés addicional traçats separadament, amb classificació fiscal prèvia. |
+| RG-119-06 | Beneficiari demana devolució d'un regal pagat per una altra persona | Verificar titular econòmic, import disponible i operació original abans de decidir un reemborsament real. |
+
 ## 2. Diagrama UML de casos d'ús — cicle complet
 
 ```plantuml
