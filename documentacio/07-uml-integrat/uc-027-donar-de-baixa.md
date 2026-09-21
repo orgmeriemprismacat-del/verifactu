@@ -121,6 +121,27 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de gestió"]
+  subgraph SIF_BOX["SIF PrisMa / adaptador intranet"]
+    uc_0(["UC-27<br/>Donar de baixa"])
+    uc_1(["UC-72<br/>Registrar baixa i decisió<br/>econòmica"])
+    uc_2(["Conservar motiu, actor,<br/>data efectiva i historial"])
+    uc_3(["UC-28<br/>Registrar devolució"])
+    uc_4(["UC-29<br/>Crear saldo"])
+    uc_5(["UC-05<br/>Rectificar factura<br/>quan correspongui"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_1
+  actor_0 --> uc_3
+  actor_0 --> uc_4
+  actor_0 --> uc_5
+```
+
 ## 3. Diagrama de classes — nuclis PHP existents
 
 ```mermaid
