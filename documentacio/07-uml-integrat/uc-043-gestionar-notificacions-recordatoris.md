@@ -70,6 +70,27 @@ Cancel ..> Main : <<extend>> (fet ja resolt)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió"]
+  actor_1["Destinatari autoritzat"]
+  subgraph SIF_BOX["Intranet · avisos"]
+    uc_0(["UC-43<br/>Gestionar avisos i recordatoris"])
+    uc_1(["Verificar fet i destinatari actuals"])
+    uc_2(["Planificar plantilla i data"])
+    uc_3(["UC-58<br/>Encolar comunicació idempotent"])
+    uc_4(["Cancel·lar recordatori obsolet"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
