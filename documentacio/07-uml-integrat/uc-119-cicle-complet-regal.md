@@ -64,7 +64,9 @@
 | RG-119-05 | Regal de 100 € i curs triat de 120 €, diferència de 20 € abonada | Origen regal i ingrés addicional traçats separadament, amb classificació fiscal prèvia. |
 | RG-119-06 | Beneficiari demana devolució d'un regal pagat per una altra persona | Verificar titular econòmic, import disponible i operació original abans de decidir un reemborsament real. |
 
-## 2. Diagrama UML de casos d'ús — cicle complet
+## 2. Diagrama UML de casos d'ús — actors, transicions i accions independents
+
+**UC-119 és la coordinació de diverses operacions, no una única crida síncrona.** Comprar (UC-17), activar el dret quan el cobrament sigui vàlid, lliurar/reexpedir la targeta, bescanviar (UC-18) i resoldre un codi caducat/duplicat (UC-18a) tenen actors, dates, permisos i resultats diferents. Les fletxes entre UCs de la figura no han de suggerir que UC-18 s'executa sempre en comprar ni que reenviar la targeta crea un dret nou.
 
 ```plantuml
 @startuml
@@ -72,28 +74,37 @@ left to right direction
 actor "Comprador / pagador" as Buyer
 actor "Destinatari / beneficiari" as Recipient
 actor "Redsys" as Bank
-actor "Operador de gestió" as O
-rectangle "SIF · cicle de regal" {
- usecase "UC-119\nGestionar cicle del regal" as Main
+actor "Operador autoritzat" as O
+actor "Worker de notificacions" as W
+rectangle "SIF PrisMa — cicle de regal" {
  usecase "UC-17\nComprar i facturar regal" as Buy
- usecase "Crear i lliurar dret de regal" as Issue
+ usecase "UC-119 / activació\nCrear/activar dret després de pagament" as Activate
+ usecase "UC-119 / lliurament\nEnviar targeta o codi al destinatari" as Deliver
+ usecase "UC-119 / reexpedició\nReenviar targeta sense nou dret" as Resend
  usecase "UC-18\nBescanviar dret per inscripció" as Redeem
- usecase "UC-18a\nGestionar caducitat/duplicat" as Error
+ usecase "UC-18a\nGestionar codi caducat, duplicat o disputat" as Error
  usecase "UC-71/72\nCanvi o baixa posterior" as Change
  usecase "UC-28/29\nRetorn o saldo classificat" as Money
 }
 Buyer --> Buy
 Bank --> Buy
+W --> Activate
+W --> Deliver
+O --> Resend
 Recipient --> Redeem
 O --> Error
 O --> Change
 O --> Money
-Main ..> Buy : <<include>> (compra)
-Main ..> Issue : <<include>> (cobrament confirmat)
-Main ..> Redeem : <<include>> (fase futura)
+note right of Buy
+ No pressuposa bescanvi posterior.
+ Una compra denegada no activa dret pagat.
+end note
+note right of Resend
+ Recupera el mateix dret/codi vàlid.
+ Cap segona factura o CHARGE.
+end note
 @enduml
 ```
-
 ## 3. Classes del cicle — codi real i orquestració pendent
 
 ```mermaid
@@ -207,6 +218,139 @@ else Pagament addicional confirmat
 end
 ```
 
+## 5.1. Acció pròpia: activar el dret només després d'una compra confirmada — DISSENY
+
+**Actor/disparador:** worker autoritzat rep una confirmació **validada** de cobrament de la compra; el comprador no pot activar un dret de valor pagat manualment sense evidència. **Precondicions:** `DS_ORDER` validada, import de Redsys igual al regal, UUID de la compra/factura/pagament persistit i estat no retornat, identificador únic de regal. `RedsysGiftInvoiceService::issueSnapshot()` comprova la notificació i l'import i delega `issueInvoice()`, però **no crea ni activa `commercial_entitlement`**. **Postcondició objectiu:** únic dret amb origen i valor disponibles, `CODE_HASH` i event de `ACTIVATE`; cap matrícula, lliurament o segon `CHARGE` per activar-lo.
+
+```mermaid
+sequenceDiagram
+autonumber
+participant TPV as RedsysCallbackWorker/UC-03 [PHP]
+participant Gift as RedsysGiftInvoiceService [PHP]
+participant Invoice as InvoiceService [PHP]
+participant Life as GiftLifecycleCoordinator [DISSENY]
+participant Ent as CommercialEntitlementRepository [DISSENY]
+participant DB as BD fiscal i dret
+TPV->>Gift: issueFromIntentSnapshot(dsOrder,snapshot) amb notificació VALIDATED
+Gift->>Invoice: issueInvoice(payload de REGAL)
+Invoice->>DB: COMMIT factura i operació de compra segons contracte comú
+Invoice-->>Gift: UUID_FACTURA i resultat de compra
+Gift-->>Life: Resultat confirmat i identificador regal [integració pendent]
+Life->>Ent: Bloquejar origen de regal, validar una sola activació
+alt Activació prèvia del mateix regal i compra
+ Ent-->>Life: UUID_ENTITLEMENT existent, cap dret nou
+else Compra sense pagament confirmat o compra retornada
+ Ent-->>Life: Bloquejar activació de valor no disponible
+else Compra i pagament verificats, cap dret previ
+ Ent->>DB: INSERT dret ACTIVE + event ACTIVATE amb origen i hash [OBJECTIU]
+ Ent-->>Life: UUID_ENTITLEMENT
+end
+Note over Gift,Ent: L'activació i el writer d'entitlement no consten com a implementats. No derivar dret pagat del fet que el codi existeixi al llegat.
+```
+
+## 5.2. Acció pròpia: lliurar la targeta/codi després d'activar el dret — DISSENY
+
+**Actor/disparador:** procés de notificacions, quan existeix un dret activat i una destinació de lliurament legitimada; el destinatari pot ser diferent del comprador. **Dades:** identificador opac de dret, canal, identitat/destinació validada, identificador de notificació i URL o targeta comercial amb permisos. **Resultat:** lliurament o estat pendent/error auditable; **no** nova emissió de factura, activació de valor, inscripció ni cobrament. El correu antic inclou el codi i l'enllaç a la targeta; això no acredita un outbox del nou SIF ni l'entrega final al destinatari.
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker de notificacions" as W
+actor "Gestió autoritzada" as O
+rectangle "SIF PrisMa — lliurament de regal (OBJECTIU)" {
+ usecase "UC-119 / LLIURAMENT\nEnviar targeta comercial de dret actiu" as Send
+ usecase "Validar destinatari i canal" as Validate
+ usecase "Encolar notificació amb identificador únic" as Queue
+ usecase "UC-119 / REEXPEDICIÓ\nReintentar lliurament fallit" as Resend
+ usecase "Registrar resultat de notificació" as Audit
+}
+W --> Send
+O --> Resend
+Send ..> Validate : <<include>>
+Send ..> Queue : <<include>>
+Send ..> Audit : <<include>>
+Resend ..> Validate : <<include>>
+Resend ..> Audit : <<include>>
+note bottom of Resend
+ No crea una compra, factura ni dret nou.
+ Recupera la mateixa operació comercial.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor W as Worker/gestió
+participant Life as Coordinador regal [DISSENY]
+participant Ent as Dret comercial [SQL, writer PENDENT]
+participant Out as Outbox/notificacions [DISSENY]
+participant Mail as Canal d'entrega
+W->>Life: deliverGift(uuidEntitlement,recipient,requestId)
+Life->>Ent: Consultar estat, titular/destinatari i valor
+alt Dret no activat, consumit sense permís o destinatari contradictori
+ Ent-->>Life: Bloqueig de lliurament
+ Life-->>W: Denegació o incidència; cap correu amb codi
+else Dret actiu i destinació legitimada
+ Ent-->>Life: Identificador del mateix dret
+ Life->>Out: Encolar notificació idempotent per dret + destinatari + versió
+ Out->>Mail: Enviar targeta/codi per canal segur
+ alt Fallada o resultat incert de transport
+  Mail-->>Out: ERROR/UNKNOWN
+  Out-->>W: Pendent d'investigar/reintentar mateixa notificació
+ else Proveïdor confirma acceptació
+  Mail-->>Out: Identificador de lliurament/acceptació del proveïdor
+  Out-->>W: Enviament acceptat; lliurament efectiu al destinatari no deduïble automàticament
+ end
+end
+Note over Life,Out: Aquest outbox i la comprovació del destinatari són disseny pendent; no fer aparèixer el codi en factura fiscal ni logs de notificació.
+```
+
+## 5.3. Acció pròpia: reenviar després de fallada, sense recomprar ni regenerar — DISSENY
+
+**Actor/disparador:** gestió tracta un enviament que ha fallat o una petició legitimada de reexpedició. **Precondicions:** dret i comprador originals identificats, codi encara utilitzable o condició de reexpedició aprovada, adreça de destí verificada, consulta d'enviaments anteriors. **Postcondició:** mateixa operació i dret comercial; una nova prova de notificació o reintent d'una ja iniciada, mai un segon document fiscal/cobrament ni un nou dret econòmic. Enviar un codi vençut com si continués actiu seria una informació incorrecta; derivar a UC-18a quan correspongui.
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador de gestió
+participant UI as Panell de regals [PENDENT]
+participant Life as GiftLifecycleCoordinator [DISSENY]
+participant Ent as Dret i compra d'origen [DISSENY/LECTURA]
+participant Out as Notification outbox [DISSENY]
+participant Mail as Canal de notificació
+O->>UI: Reenviar targeta per incidència d'entrega
+UI->>Life: resendGift(uuidEntitlement,recipient,requestId) [mètode proposat]
+Life->>Ent: Llegir compra confirmada, estat dret i destinació
+alt Destinatari sense permís o codi vençut/cancel·lat
+ Ent-->>Life: DENIED o EXPIRED
+ Life-->>UI: Denegar reexpedició; derivar UC-18a si cal
+else Dret vàlid i mateix origen
+ Life->>Out: Recuperar notificació i validar nou destí autoritzat
+ alt Ja enviat i petició és reintent equivalent
+  Out-->>UI: Reutilitzar resultat/estat anterior sense missatge duplicat
+ else Es justifica un nou enviament
+  Out->>Mail: Reenviar la mateixa targeta/dret sense nova compra
+  Mail-->>Out: Resultat/estat d'intent
+  Out-->>UI: Nova evidència d'enviament del dret original
+ end
+end
+UI-->>O: Estat de la comunicació; factura i UUID_PAYMENT originals intactes
+Note over Life,Mail: El reenviament mai no ha de cridar InvoiceService::issueInvoice() ni PaymentService::registerPayment().
+```
+
+## 5.4. Contrast del codi exposat i proves específiques de les tres accions
+
+`LegacyGiftInvoicePayloadBuilder::build()` construeix la clau de factura `LEGACY|REGAL|ID:<giftId>`, posa el `CODI` íntegre a `lines[].detail` i a `gift.code`, i pren com a receptor fiscal el comprador (`NOMC/NIFC`). `RedsysGiftInvoiceService` contrasta import de notificació validada amb import del regal i delega l'emissió; **no acredita un registre de drets, sistema de lliurament de codi ni comprovació de reutilització semàntica de la mateixa compra**. El codi bescanviable i el PDF fiscal han de tenir visibilitat independent, especialment quan destinatari i pagador són diferents. Les factures fiscals ja emeses no s'han de reescriure per amagar-hi el codi; cal decidir l'actuació sobre exposicions confirmades mitjançant incidència.
+
+| Prova pendent | Escenari | Resultat que cal acreditar |
+| --- | --- | --- |
+| RG-119-06 | Intent de compra Redsys denegat però regal present al llegat | Cap entitlement de valor pagat activat ni `CHARGE` de compra. |
+| RG-119-07 | Callback duplicat després d'activació | Mateix UUID_FACTURA/UUID_PAYMENT/UUID_ENTITLEMENT, un únic origen monetari i cap activació de valor addicional. |
+| RG-119-08 | Comprador i destinatari diferents; correu de targeta enviat al destinatari | Accés al dret comercial sense accés implícit al PDF fiscal del comprador. |
+| RG-119-09 | Fallada de correu després de compra i activació | Reintentar només notificació, sense segon `issueInvoice()`, codi nou ni `CHARGE`. |
+| RG-119-10 | Sol·licitud de reexpedició amb codi consumit/expirat | Política d'accés i expiració comprovada; no prometre regal actiu ni reactivar-lo tàcitament. |
+| RG-119-11 | `CODI` bescanviable apareix a factura fiscal emesa | Identificar exposició i limitar futures emissions segons decisió; document fiscal anterior immutable, sense usar el codi sol com a dret a PDF/retorn. |
 ## 6. Traçabilitat
 
 [UC-119 original](../06-fitxes-funcionals/uc-119.md) · [UC-17 compra](uc-017-comprar-regal.md) · [UC-18 bescanvi](uc-018-bescanviar-regal.md) · [UC-18a incidències](uc-018a-regal-caducat-duplicat.md) · [Model de fons per inscripció](00-revisio-moviments-inscripcions.md) · [Taula commercial_operation](../../sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql) · [Taules operació/dret/event](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [RedsysGiftInvoiceService](../../sif/src/Service/RedsysGiftInvoiceService.php).
