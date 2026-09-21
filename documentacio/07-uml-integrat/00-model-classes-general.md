@@ -579,6 +579,44 @@ SoapTransport --> EvidenceStore
 
 `SoapTransport` només accepta l'endpoint AEAT de **proves** segons el seu constructor; `AeatPreflight` comprova prerequisits locals, no una acceptació externa ni l'aptitud de producció. `DocumentRepository` registra metadades i hash, no serveix un document autoritzat. `IncidentRepository` obre incidències, no implementa tot el cicle d'assignació/resolució. [UC-09](uc-009-remetre-registre-aeat.md), [UC-07](uc-007-consultar-factura-estat-document.md), [UC-08](uc-008-gestionar-incidencia-sif.md).
 
+### 5.0. Subvista real de les transicions de cua fiscal — UC-09/54
+
+```mermaid
+classDiagram
+direction LR
+class FiscalQueueProcessor {
+ <<PHP existent: claim i complete/fail en transaccions separades del SOAP>>
+ +processNext() array
+ +recoverStaleLocks(olderThanSeconds,now) int
+}
+class FiscalQueueRepository {
+ <<PHP existent: complete/fail per ID, sense guard d'estat>>
+ +claimNext(db,maxAttempts) array
+ +recoverStaleLocks(db,lockedBefore) int
+ +complete(db,queueItem,aeatStatus,response,requestXml) void
+ +fail(db,queueItem,error,maxAttempts,nextRetryAt) string
+}
+class TransactionRunner {
+ <<PHP existent: transacció local, no del SOAP>>
+ +run(callback) mixed
+}
+class AeatTransport {
+ <<interface>>
+ +send(payload) array
+}
+class EvidenceStore {
+ <<PHP existent: fitxers privats d'intent, no reconciliador SQL>>
+ +begin(request,metadata) string
+ +response(id,response,httpStatus) void
+ +failure(id,code) void
+}
+FiscalQueueProcessor --> TransactionRunner : claim/resultat local
+FiscalQueueProcessor --> FiscalQueueRepository : escollir, completar, retry i recuperar
+FiscalQueueProcessor --> AeatTransport : send FORA de transacció
+```
+
+**Frontera de propietat:** `claimNext()` posa `PROCESSING`, incrementa `ATTEMPTS` i `LOCKED_AT` però no desa `LOCKED_BY` ni generació; `complete()` i `fail()` actualitzen la tasca **per ID, sense filtrar STATUS=PROCESSING ni titular del claim**. La recuperació d'un lock pot fer que A i B processin el mateix registre alhora; A pot marcar `SENT` i B posteriorment `DEAD_LETTER/ERROR` malgrat una resposta `ACCEPTED` anterior. `FiscalQueueProcessor::processNext()` també tracta l'excepció de `complete()` per la mateixa via `failure()` que els errors de SOAP: una resposta externa ja rebuda pot quedar representada com a fallada local. `EvidenceStore` conserva fitxers privats de transport, però el processor no escriu ni concilia automàticament una fila d'intent correlacionada per generació. [UC-09, 4.2–4.3](uc-009-remetre-registre-aeat.md); [UC-54, 4.1–4.3](uc-054-operar-cua-fiscal-respostes.md).
+
 ### 5.1. Subvista real de la importació de dades històriques — UC-11; bytes originals fora d'aquest PHP
 
 ```mermaid
@@ -1119,6 +1157,52 @@ RedsysCallbackWorker --> RedsysCallbackQueueRepository : integració real actual
 ```
 
 **Límit transaccional:** un fencing token protegeix les marques terminals i rebutja un `STALE_ATTEMPT`, però **no desfà un commit fiscal/econòmic** que el worker antic hagi fet abans de perdre el lease. La unicitat i equivalència d'emissió/pagament, l'identificador bancari de cada `DS_ORDER` i el guard de cobertura de factura prèvia continuen necessaris. La comprovació de resultat no equival a `ESTAT_AEAT=ACCEPTED`, PDF disponible, alta acadèmica sincronitzada o cobrament de la part entitat USOC. Cap de les classes `DISSENY` de la subvista existeix al PHP contrastat.
+
+### 6.10. Subvista de disseny: fencing de cua fiscal i conciliació d'intents remots — UC-09/54
+
+```mermaid
+classDiagram
+direction LR
+class FiscalAttemptLease {
+ <<DISSENY: propietari i generació de claim>>
+ +queueId int
+ +uuidFactura string
+ +fiscalOrder bigint
+ +workerId string
+ +attemptToken string
+}
+class FiscalAttemptOwnershipGuard {
+ <<DISSENY: transició final per generació vigent>>
+ +verify(lease,queueState) decision
+}
+class FiscalQueueFencedRepository {
+ <<DISSENY: guard atòmic de complete/fail>>
+ +claimWithToken(db,workerId) lease
+ +completeIfOwner(db,lease,status,response,xml) decision
+ +failIfOwner(db,lease,error,nextAt) decision
+}
+class FiscalSubmissionAttemptReconciler {
+ <<DISSENY: resposta real i rastre de cada SOAP>>
+ +review(uuidFactura,fiscalOrder,queueId) diagnosis
+}
+class FiscalQueueRepository {
+ <<PHP real: actualitzacions per ID sense token>>
+ +complete(db,item,status,response,xml) void
+ +fail(db,item,error,maxAttempts,nextRetryAt) string
+}
+class EvidenceStore {
+ <<PHP real: fitxers privats, sense index SQL de lease>>
+ +begin(request,metadata) string
+ +response(id,response,httpStatus) void
+}
+FiscalAttemptLease --> FiscalAttemptOwnershipGuard : identitat d'execució
+FiscalAttemptOwnershipGuard --> FiscalQueueFencedRepository : bloqueig i transició local
+FiscalSubmissionAttemptReconciler --> EvidenceStore : recuperar evidència si existeix i accessible
+FiscalSubmissionAttemptReconciler --> FiscalQueueFencedRepository : transició de recuperació idempotent
+FiscalQueueFencedRepository ..> FiscalQueueRepository : substitució de contracte pendent, NO crida real
+```
+
+**No confondre garanties:** un token de generació evita que A sobreescrigui el job de B però **no pot retirar un SOAP que A ja ha enviat**. La conciliació de la resposta remota per `UUID_FACTURA+FISCAL_ORDER` i evidència d'intent és independent de l'existència del lock i de la disponibilitat productiva del transport, actualment limitat a l'endpoint de proves. `REMOTE_UNCERTAIN` és diagnosi objectiu, no un enum fiscal implementat, i `SENT` no significa `ACCEPTED`.
 
 ## 7. Traçabilitat i criteri de manteniment
 
