@@ -278,7 +278,7 @@ else Signatura vàlida
  end
 end
 Note over EP,DB: Cap factura es crea durant la recepció HTTP
-Note over CS,Q: PayloadIdempotencyValidatorInterface NO participa en la recepció HTTP; deduplicació de notificació per DS_ORDER i camps/hash entrants
+Note over CS,Q: PayloadIdempotencyValidatorInterface NO participa en la recepció HTTP, deduplicació de notificació per DS_ORDER i camps/hash entrants
 ```
 
 **Excepció separada:** si arriba una notificació contradictòria pel mateix `DS_ORDER`, es desfà la transacció; el servei intenta obrir una incidència i retorna conflicte. No s'ha dibuixat com a simple duplicat correcte.
@@ -392,7 +392,7 @@ W->>H: process(J amb DS_ORDER validat)
 H-->>W: result array
 W->>V: verify(J,result,claimToken) [PENDENT]
 alt result.ok absent/false o no hi ha factura
- V-->>W: ERROR/RECONCILE; no marcar pagat
+ V-->>W: ERROR/RECONCILE, no marcar pagat
 else Factura aparentment emesa
  V->>F: Verificar UUID_FACTURA, receptor/cobertura i ordre original
  V->>P: Verificar UUID_PAYMENT, CHARGE i assignacions coherents
@@ -402,7 +402,7 @@ else Factura aparentment emesa
  else Resultat íntegre i propietat del job vigent
   P-->>V: UUID_FACTURA i UUID_PAYMENT verificats
   W->>Q: markProcessed(J,result,temps de finalització) [token PENDENT]
-  Q-->>W: Job PROCESSED; AEAT/PDF/sync llegada continuen independents
+  Q-->>W: Job PROCESSED, AEAT/PDF/sync llegada continuen independents
  end
 end
 Note over V,Q: El PHP actual fa markProcessed directament en rebre qualsevol array. Validació d'efectes i fencing són objectiu.
