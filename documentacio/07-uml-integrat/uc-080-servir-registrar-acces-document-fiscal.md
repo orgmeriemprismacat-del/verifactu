@@ -29,6 +29,27 @@
 
 **Pendents:** política d'autorització específica, emissor/resolvedor de tokens, storage físic, writer d'`fiscal_document_access`, registre de denegacions, revocació i proves de privacitat end-to-end.
 
+### 2.1. Diferenciar consulta d'alumne, empresa i auditor en el panell real
+
+**Distribució dels canals definida a PrisMa.** El panell oficial `pay.prisma.cat/sif/documents` consulta `factura_documents`, `factura` i altres documents SIF, amb `GET /api/documents` i `GET /api/documents/{id}/download` com a **endpoints previstos**. La intranet principal només mostra resum/accés; l'espai d'alumne i l'accés del receptor/empresa són vies de **consulta externa** amb autorització pròpia, no una ruta alternativa que pugui llegir fitxers directament de `pay.prisma.cat`.
+
+**Què correspon a cada subjecte.** Una persona amb factura individual pròpia pot consultar factura, cobrament i PDF/QR **si el document existeix i el servidor verifica la titularitat**. Si la matrícula està coberta per factura d'empresa, el participant veu **estat administratiu o de cobertura mínim**, no les dades fiscals de l'empresa, el PDF complet ni les dades dels altres participants. Per a l'empresa/responsable, verificar receptor fiscal i representació: `entitats_resp.CORREU` pot ser contacte de notificació, però no equival per si sol a ser receptor fiscal. Els rols d'auditor `AUDITOR_FISCAL` i `AEAT_READONLY` són **de lectura dins de l'abast concedit**; no habilitar-los a regenerar documents ni a alterar el registre per tenir accés a descàrregues.
+
+**Integritat abans de publicar i efectes d'un error.** El procediment antic `descarregaFactura.php` pot reconstruir el PDF amb `generaFactura($id,true)`, i `eliminarArxiu.php` rep un `filename` temporal. Cap de les dues rutes és un servei vàlid de descàrrega de document fiscal SIF immutable. `DocumentRepository::registerDocument()` escriu **metadades**, no bytes al storage: la descàrrega ha de comprovar ubicació privada, integritat real, UUID i autorització. En fitxer absent o hash discordant, registrar denegació/incidència UC-78/81 i no retornar una ruta local, regenerar des de dades vives o presentar `CREATED` com a disponibilitat real.
+
+**Traça d'accés amb rol i resultat.** `fiscal_document_access` és esquema d'auditoria, **no** prova que existeixi un writer PHP de consultes i denegacions. El controlador objectiu registra factura/document, acció, canal, actor/rol, decisió i causa sense desar el token en clar. L'actor pot tenir una sessió vàlida però no permís per aquell document: **autenticació no és autorització**. Diferenciar bytes servits del fet que la persona els hagi llegit.
+
+### 2.2. Proves d'accés entre canals (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| AF-80-01 | Alumne de grup accedeix per URL a factura d'empresa | Denegació del PDF complet, possible estat de cobertura mínim. |
+| AF-80-02 | Correu del responsable coincideix amb el d'un participant | No derivar autorització fiscal de la coincidència de correu. |
+| AF-80-03 | Auditor té accés de lectura i vol regenerar document | Denegació de la mutació al servidor; consulta permesa segons abast. |
+| AF-80-04 | Fila de document CREATED però bytes absents | Error de custòdia i incidència, no descàrrega ni nou número fiscal. |
+| AF-80-05 | Token desconegut/caducat o UUID d'una altra factura | Denegació auditada sense revelar receptor/paths. |
+| AF-80-06 | Usuari descarrega PDF històric del llegat | Etiqueta d'històric/no-VERI*FACTU quan correspongui, no presentar com a document immutable SIF. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
