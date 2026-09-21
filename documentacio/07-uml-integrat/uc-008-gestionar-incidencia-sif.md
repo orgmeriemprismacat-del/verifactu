@@ -180,7 +180,7 @@ else Verificació satisfactòria
  A->>DB: INSERT historial i UPDATE estat incidència
  W-->>UI: Tancament confirmat
 end
-Note over W,DB: Seqüència objectiu; IncidentWorkflowService i writer no acreditats
+Note over W,DB: Seqüència objectiu, IncidentWorkflowService i writer no acreditats
 ```
 
 ## 6. Traçabilitat
