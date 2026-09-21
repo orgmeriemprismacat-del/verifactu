@@ -126,7 +126,7 @@ V->>Env: Llegir artefacte, configuració i versió BD
 alt Comprovació incompleta o fallida
  Env-->>V: Discrepància
  V-->>M: BLOCKED
- M-->>UI: No activar; registrar incidència
+ M-->>UI: No activar, registrar incidència
 else Candidata validada
  V-->>M: OK amb evidència
  M->>Env: Desplegar/activar de forma controlada
@@ -134,7 +134,7 @@ else Candidata validada
  M->>R: Actualitzar versió activa i historial
  M-->>UI: Versió activa verificada
 end
-Note over M,Env: Seqüència OBJECTIU; no és un servei de desplegament executable acreditat
+Note over M,Env: Seqüència OBJECTIU, no és un servei de desplegament executable acreditat
 ```
 
 ## 5. Traçabilitat
