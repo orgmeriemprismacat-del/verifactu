@@ -79,6 +79,27 @@ Main ..> Freeze : <<include>> (si validat)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Sol·licitant"]
+  actor_1["Gestió autoritzada"]
+  actor_2["Verificador extern [opcional]"]
+  subgraph SIF_BOX["SIF · Carnet Jove"]
+    uc_0(["UC-20a<br/>Validar Carnet Jove"])
+    uc_1(["Verificar titularitat i vigència"])
+    uc_2(["Calcular import segons regla"])
+    uc_3(["Congelar prova mínima i text visible"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  actor_2 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ## 3. Diagrama de classes — validador pendent i builder existent
 
 ```mermaid
