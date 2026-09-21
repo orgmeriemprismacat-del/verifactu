@@ -71,6 +71,27 @@ Money ..> Main : <<extend>> (diferència econòmica)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió de descomptes"]
+  actor_1["Responsable fiscal"]
+  subgraph SIF_BOX["SIF · descompte tardà"]
+    uc_0(["UC-90<br/>Resoldre descompte validat després de compra"])
+    uc_1(["Comprovar evidència i data d'aprovació"])
+    uc_2(["Quantificar diferència per línia/inscrit"])
+    uc_3(["UC-74<br/>Classificar factura emesa"])
+    uc_4(["UC-28/29/105<br/>Resoldre saldo o sortida real"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
