@@ -60,6 +60,28 @@ Callback ..> Invoice : <<include>> (autoritzat)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Comprador"]
+  actor_1["Redsys"]
+  actor_2["Worker SIF"]
+  subgraph SIF_BOX["SIF · compra taller"]
+    uc_0(["UC-14a<br/>Comprar taller"])
+    uc_1(["Validar sessió, inscripció i plaça"])
+    uc_2(["UC-63<br/>Crear intenció de pagament"])
+    uc_3(["UC-03<br/>Processar cobrament autoritzat"])
+    uc_4(["UC-01<br/>Emetre factura vinculada a inscripció"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_3
+  actor_2 --> uc_3
+  uc_3 -.->|include| uc_4
+```
+
 ## 3. Classes de la ruta compartida existent i reserva pendent
 
 ```mermaid
