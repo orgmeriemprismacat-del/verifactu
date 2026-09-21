@@ -28,6 +28,26 @@
 
 **Proves:** justificació arriba després del callback; dues fraccions de pagament; codi promocional caducat; grup amb un únic participant elegible; factura no pagada; traspàs de saldo intern sense sortida bancària; aprovació repetida amb import diferent.
 
+### Descompte tardà en pack o grup: reconstruir només la quota afectada
+
+**Regles comercials d'origen diferents.** El flux de PrisMa situa el descompte habitual de **pack** del 25 % en el **segon curs** de la composició acceptada; `LegacyPackSnapshotRepository` recupera els components ordenant `A_PAGAR DESC`, i el constructor fiscal reconstrueix per posició un 25 % si no hi ha bases explícites. En **grup**, la font comercial del preu de participant és `descomptes_grup` i el constructor només consumeix imports aportats, sense calcular el tram. Quan s'aprova un nou descompte després de comprar, no calcular la diferència sobre «la segona fila actual» del pack ni sobre el **total global del grup**: recuperar oferta acceptada, identificador de línia/`ID_INSC`, base original, descompte ja concedit i regla aplicable a aquella persona.
+
+**Validació posterior a una sola persona.** Una aprovació tardana per un membre d'un grup o un component del pack pot ser incompatible o acumulable amb el descompte original **segons la regla comercial pendent d'acreditar**. La decisió ha d'incloure data de sol·licitud/aprovació i evidència restringida, import anterior/nou **per línia**, reavaluació de la resta només si la regla aprovada ho exigeix, i resultat fiscal/monetari separat. `DiscountSnapshotFileReader` llegeix dades JSON per a scripts de prova però no determina elegibilitat; `InvoiceRepository` desa els valors de descompte que se li proporcionen **sense aprovar-los comercialment**.
+
+**L'import reconegut no és un ingrés negatiu.** En factura **emesa i pendent** de grup o empresa, aprovar una bonificació no genera una devolució: UC-74 classifica si cal document corrector i es recalcula el deute del pagador legítim. Si ja s'havia cobrat tota la compra amb **un `UUID_PAYMENT`**, una diferència a favor de l'operació tampoc es retorna automàticament a l'alumne bonificat: cal identificar pagador original, porció real atribuïda, document corrector quan correspongui i sortida bancària/credit intern segons UC-104/28/29/105. L'aprovació de descompte mai no es registra com un segon cobrament extern amb import negatiu.
+
+**Retry després de la decisió.** El writer genèric `OperationalEventRepository::append()` acredita que es pot conservar un abans/després però **no** integra per si sol l'aprovació, la deduplicació comercial o l'execució completa d'un retorn. La comanda objectiu vincula la prova i un `REQUEST_ID` a l'operació de descompte i a la línia, conserva `UUID_FACTURA/UUID_PAYMENT` quan n'hi ha i recupera només la fase fallida. Un segon click no ha d'executar una altra rectificativa o devolució sobre la mateixa diferència.
+
+### Proves de descompte tardà per component (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| DT-90-01 | Pack amb preus diferents, `A_PAGAR` reordena les línies | Descompte posterior vinculat al component/ordinal original, no a la fila de major import. |
+| DT-90-02 | Grup pagat per empresa i un participant presenta justificació posterior | Quantificar per `ID_INSC`, identificar pagador i regla; no retornar diners al participant per defecte. |
+| DT-90-03 | Factura pendent i aprovació de bonificació de 20 € | Decisió fiscal i reducció de deute quan s'acrediti; cap `REFUND` bancari fictici. |
+| DT-90-04 | Factura cobrada amb un únic `CHARGE` per tres participants | Identificar fons atribuïts i document corregit abans d'efectuar retorn/saldo. |
+| DT-90-05 | Aprovar dos cops la mateixa evidència però amb imports incompatibles | Conflicte de decisió, no dues rectificatives ni dues sortides de diners. |
+
 ## UML de casos d'ús
 
 ```plantuml
