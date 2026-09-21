@@ -74,6 +74,14 @@ La [UC-28](uc-028-registrar-devolucio.md) separa **autoritzar retorn pendent** d
 
 La [UC-06](uc-006-devolucio-saldo-compensacio.md) documenta com a **disseny** una aprovació de trams que no executa cap operació bancaria per si sola. La [UC-104](uc-104-gestionar-exces-cobrament.md) remarca que el `REFUND` manual exigeix `UUID_FACTURA` i una assignació a factura; no es pot utilitzar per retornar un sobrant extern **no assignat** fingint que provenia de la factura F1. S'han reflectit els límits a [model general](00-model-classes-general.md) i a les files 11/22 de [pantalles pendents](00-matriu-25-pantalles-per-validar.md). **No s'han executat proves PHP/MySQL, bancàries ni renderitzat els UML**; el nou cas de fals èxit és una deducció del flux de codi i requereix prova de reproducció.
 
+### Reús fiscal, ingrés manual i atribució bancària multifactura (21/09/2026)
+
+[UC-01](uc-001-emetre-o-reutilitzar-factura.md) separa **crear factura amb cobrament inicial** de **recuperar una factura existent**. `InvoiceService::existingResultWithPaymentIfPresent()` només cerca una clau de pagament ja present en aquesta segona branca, no crida `createPayment()`: `ok=true,idempotency_reused=true` pot arribar **sense `uuid_payment`** encara que el reintent inclogui un bloc de pagament nou. El servei tampoc compara l'import/receptor/línies nous amb el payload fiscal emès quan reutilitza la clau. Una factura prèvia i una entrada bancària posterior requereixen contrast de cobertura i **UC-02**, no un segon `issueInvoice()` que s'interpreti com a cobrament.
+
+[UC-02](uc-002-registrar-cobrament-factura.md) i [UC-22](uc-022-registrar-transferencia.md) separen **localitzar ingrés únic** de **crear un CHARGE real** i **assignar saldo d'un UUID_PAYMENT existent** (UC-56/105; writer encara pendent). `ManualPaymentPayloadBuilder` construeix `TRANSFERENCIA|REF:<reference>` sense factura/import; `PaymentService` recupera per clau sense comparar `PAYLOAD_HASH` ni assignacions, i `ManualPaymentService` afegeix a la resposta la factura de la **petició actual**. Per tant, una petició A/100 seguida de B/100 amb la mateixa referència pot retornar **`UUID_PAYMENT_A` + `uuid_factura=B`**, sense assignació B. Si un banc acredita 200 € però el moviment SIF original registra només 100 €, cal resoldre **la discrepància de quantia** abans de pretendre assignar un saldo de 100 € sobre aquell mateix moviment. Les files 3/19/21 de [pantalles pendents](00-matriu-25-pantalles-per-validar.md) incorporen les accions i conserven estat provisional.
+
+**Proves noves només dissenyades, no executades:** EI-07…10, CP-02-08…11, TR-09…12. Els diagrames per acció i el model transversal identifiquen guard de payload/cobertura i cerca d'event bancari com a **DISSENY**, no com a PHP existent.
+
 ## 6. Condicions per marcar una acció com a revisada
 
 - Cas d'ús: flux principal, alternatives/denegacions, dades i proves revisats específicament; no text duplicat d'un altre cas.
