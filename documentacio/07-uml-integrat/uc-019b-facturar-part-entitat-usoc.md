@@ -80,6 +80,27 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  actor_1["Entitat USOC"]
+  subgraph SIF_BOX["SIF · part entitat USOC"]
+    uc_0(["UC-19b<br/>Facturar diferència a entitat"])
+    uc_1(["Verificar inscripció USOC<br/>i factura alumne"])
+    uc_2(["Capturar billing<br/>de l'entitat"])
+    uc_3(["UC-01<br/>Emetre factura entitat<br/>sense cobrament"])
+    uc_4(["UC-02<br/>Registrar cobrament real<br/>posterior"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
+```
+
 ## 3. Diagrama de classes — implementació real
 
 ```mermaid
@@ -172,6 +193,25 @@ O --> Issue
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de gestió autoritzat"]
+  subgraph SIF_BOX["SIF PrisMa — UC-19b / VERIFY (DISSENY)"]
+    uc_0(["Comprovar expedient de doble pagador"])
+    uc_1(["Comprovar USOC validada i ID_INSC exacte"])
+    uc_2(["Comprovar factura alumne real,<br/>import i receptor"])
+    uc_3(["Validar receptor i import<br/>d'entitat amb acord/snapshot"])
+    uc_4(["UC-19b / EMETRE<br/>Factura entitat"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -234,6 +274,26 @@ note bottom of Issue
  receptor ni import d'una factura emesa.
 end note
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió autoritzada"]
+  actor_1["Entitat receptora/pagadora"]
+  subgraph SIF_BOX["SIF PrisMa — UC-19b / EMISSIÓ I REINTENT"]
+    uc_0(["Emetre factura pendent<br/>a receptor USOC explícit"])
+    uc_1(["Validar l'expedient i<br/>la versió del finançament"])
+    uc_2(["Distingir reintent idèntic de<br/>payload fiscal contradictori"])
+    uc_3(["UC-02<br/>Registrar cobrament entitat posterior"])
+  end
+  actor_0 --> uc_0
+  actor_0 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_3
+  actor_0 --> uc_3
 ```
 
 ```mermaid
