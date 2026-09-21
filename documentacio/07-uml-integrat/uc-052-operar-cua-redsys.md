@@ -43,6 +43,26 @@
 
 **Proves identificades, no executades en aquesta revisió:** `RedsysCallbackWorkerTest`: claim únic, commit de claim, èxit amb UUIDs, retry tècnic, 409→incidència, lock obsolet i cinquè error; `RedsysAsyncFlowTest`: dos workers no reclamen simultàniament el mateix job.
 
+### 1.3. Recuperació d'efectes confirmats i alta acadèmica pendent — contrast amb el xat original
+
+**Q-SIF vs BD llegada.** El worker pot marcar `PROCESSED` després de rebre `UUID_FACTURA` i `UUID_PAYMENT`, però l'operativa antiga continuava en `web.factures` i `inscripcions.PAGAMENT`, `DATA PAG`, `FACTURA_RELACIONADA` i `FRACCIO`. El contracte final exigeix sincronitzar aquest llegat **després del commit SIF** sense convertir-ne els UPDATE en font econòmica/fiscal. Si el worker acaba però falla la sincronització o l'accés acadèmic, l'expedient queda **fiscalment/econòmicament confirmat, integració pendent**: registrar incidència UC-47/53 i reintentar la fase fallida, **no** tornar a encuar una segona venda.
+
+**Q-PRE — revisar la cobertura abans de cridar el handler.** Quan el pagament prové d'una factura real anterior (empresa/inscripció) o d'una diferència de canvi de curs, el worker no pot delegar cegament al handler ordinari de venda que emet factura amb pagament inicial. Ha de consultar l'operació i la factura existent o desviar l'event a conciliació. El dispatcher actual selecciona per `SOURCE_TYPE` de la intenció congelada i no acredita una branca universal de `registerPayment()` sobre factura prèvia. La idempotència del handler només evita repetir una petició **equivalent**, no una factura de la mateixa inscripció generada prèviament amb una altra clau.
+
+**Q-STALE — commit anterior a marcat PROCESSED.** Si el worker emet factura/pagament però cau abans de `markProcessed()`, el lock pot caducar i un altre worker reclamar el job. Abans de repetir, recuperar pels identificadors de l'ordre i la clau d'emissió, i exigir que els mateixos UUIDs i les N atribucions internes es reutilitzin. Una segona execució d'un worker lent no ha de poder sobreescriure resultats incompatibles; el codi consultat comprova `STATUS=PROCESSING`, però no una generació de lock ni `LOCKED_BY=workerId` per a totes les marques, de manera que el control reforçat i les proves de cursa continuen pendents.
+
+**Q-CORREUS — no prometre PDF prematur.** Separar `PROCESSED` del job Redsys, estat de la cua fiscal AEAT, disponibilitat de `factura_documents`, accés acadèmic i correu de confirmació. Si el document encara és PENDING, no reprocessar el cobrament per generar-ne una còpia; reintentar el job documental UC-55 i enviar enllaç segur només quan el document estigui disponible i el receptor autoritzat.
+
+### 1.4. Proves de recuperació transversals (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CQ-01 | Handler fa commit de factura/CHARGE i cau abans de PROCESSED | Recupera UUIDs idempotentment; no duplica factura ni ingrés. |
+| CQ-02 | Job PROCESSED però matrícula/accés llegat pendents | Reintentar només sincronització UC-47/53; no tornar a facturar. |
+| CQ-03 | Callback de factura prèvia arriba al worker de venda | Desviar a cobrament sobre UUID_FACTURA existent o incidència, no segona factura. |
+| CQ-04 | Worker lent continua després de recuperar el seu lock | Protecció de generació/fencing i idempotència; cap sobrescriptura de resultat incompatible. |
+| CQ-05 | PDF PENDING amb cobrament ja processat | Reintentar job documental; no reiniciar cua de Redsys ni comunicar PDF inexistent. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
