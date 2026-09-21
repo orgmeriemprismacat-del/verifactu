@@ -43,6 +43,28 @@
 
 **Proves localitzades, no executades:** `RedsysGroupInvoiceServiceTest`, `ManualGroupInvoiceServiceTest`, `ManualGroupInvoicePayloadBuilderTest`. Falta acreditar el control d'accés final i el repartiment dels imports per participant.
 
+### 1.3. Contrast de preus, justificació individual i responsable real — xat original
+
+**G-LÍNIES — justificació de formació:** la usuària especifica expressament **una línia fiscal per participant** perquè pot necessitar-se justificació per Tripartita/FUNDAE. No n'hi ha prou amb una línia genèrica «grup» sense correspondència amb cadascuna de les `inscripcions.ID`. Conservar curs/edició, concepte, base, descompte i import congelats **per persona** i les relacions `fact_rels` amb la factura; la necessitat futura de justificació no autoritza regenerar o modificar una factura fiscal emesa amb els participants que constin avui a la BD.
+
+**G-RECEPTOR — empresa o persona física:** el xat diu que el responsable fiscal és l'entitat si és un grup d'escola/empresa, però **pot ser un particular** si és un grup d'amics. `responsible` ha d'identificar el pagador/receptor real, no copiar indiscriminadament el CIF de contacte de l'empresa ni deduir una factura separada a cada alumne. `respGrups` relaciona responsable i `IDPAG`; aquest identificador operatiu no substitueix la selecció inequívoca de la factura fiscal.
+
+**G-PREU — descompte per trams:** el preu unitari que descriu el xat es consulta a `descomptes_grup` segons el nombre de participants i les condicions de la compra. El SIF ha de congelar el **tram i l'import per persona** al moment de confirmar el grup, contrastar-ne la suma amb el cobrament real i conservar la regla comercial utilitzada. Les fitxes no acrediten la consulta SQL exacta del descompte en el canal final, ni el tractament de canvis de tram després d'emetre: correspon revisar-lo a UC-16a/16b sense editar les línies originals.
+
+**G-PRIVACITAT — decisió delimitada:** la usuària **no va decidir** si el DNI de cada participant ha d'imprimir-se a la línia de factura. Conservar-lo internament quan sigui necessari per identificar la inscripció i deixar com a criteri pendent l'eventual exposició al document/justificant. El xat sí fixa que els alumnes **no han de poder veure la factura completa de l'empresa amb els altres participants**: el receptor/responsable autoritzat la consulta per control al servidor, no només per `VISIBLE_ALUMNE=0` ni per amagar la URL al navegador.
+
+**G-COBERTURA — factura abans de cobrament:** cada membre del grup cobert per factura anterior ha de tenir-hi relació inequívoca; buscar únicament per CIF/IDPAG en «Passar pagaments» pot confondre l'empresa-contacte amb un grup nou i duplicar factura (UC-21). L'enllaç individual incompatible s'ha de bloquejar abans de permetre una nova intenció bancària; la factura del responsable pot conservar la seva via pròpia de pagament, amb control de concurrència i callbacks tardans.
+
+### 1.4. Proves de grup afegides (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| GR-01 | Escola paga N participants amb preu per tram | Una factura a l'entitat, N línies i N relacions a `ID_INSC`; suma de línies igual a import facturat. |
+| GR-02 | Grup d'amics pagat per responsable particular | Factura al responsable fiscal validat, no forçada al model d'empresa. |
+| GR-03 | Tram `descomptes_grup` abans i després d'afegir/treure persona | Preu original congelat i impacte comercial/fiscal nou classificat; cap edició de línia fiscal anterior. |
+| GR-04 | Participant demana PDF de factura global d'empresa | Control al servidor denega la factura completa; consulta de l'estat propi sense dades alienes. |
+| GR-05 | DNI de participant no necessari al document | Identificació interna conservada sense imprimir dades personals no decidides ni necessàries. |
+| GR-06 | Empresa-contacte amb CIF i factura prèvia | «Passar pagaments» localitza UUID de factura existent per les inscripcions; no n'emet una altra. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -188,6 +210,27 @@ end
 Note over UI,L: Integració objectiu, no implementada per InvoiceBeforePaymentService
 ```
 
+### 5.1. Seqüència — justificació individual i modificació del grup (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor R as Receptor fiscal/responsable
+participant UI as Gestió grup [adaptació pendent]
+participant Price as descomptes_grup [consulta a verificar]
+participant S as SIF emissor grup [nucli existent]
+participant F as Fiscal/operació posterior [PENDENT]
+R->>UI: Confirmar responsable i N inscripcions
+UI->>Price: Validar tram de descompte i preu per participant
+UI->>UI: Congelar N línies i suma total del grup
+UI->>S: Emetre factura de grup amb N relacions i receptor únic
+S-->>UI: UUID_FACTURA i N línies immutables
+opt Canvia nombre de participants després d'emetre
+ UI->>F: UC-16a/16b: valorar nou preu, dret i actuació fiscal
+ F-->>UI: Operació nova correlacionada, factura original intacta
+end
+Note over UI,F: La consulta comercial, els permisos i el classificador postemissió no queden acreditats pel builder fiscal.
+```
 ## 6. Traçabilitat
 
 [Fitxa base UC-16](../06-fitxes-funcionals/uc-016.md) · [UC-21 factura a responsable](uc-021-empresa-responsable-paga-inscripcions.md) · [UC-07 consulta](uc-007-consultar-factura-estat-document.md) · [Revisió de fons](00-revisio-moviments-inscripcions.md) · [RedsysGroupInvoiceService](../../sif/src/Service/RedsysGroupInvoiceService.php) · [LegacyGroupInvoicePayloadBuilder](../../sif/src/Service/LegacyGroupInvoicePayloadBuilder.php) · [ManualGroupInvoiceService](../../sif/src/Service/ManualGroupInvoiceService.php) · [RedsysGroupInvoiceServiceTest](../../sif/tests/Integration/RedsysGroupInvoiceServiceTest.php).
