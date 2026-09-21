@@ -42,6 +42,13 @@
 
 **Pendents:** autorització alumne/pagador, ledger individual, cerca de factures relacionades, estat de TPV en curs, API d'URL segura, idempotència de saldo parcial i proves de privacitat en grup/empresa.
 
+### 2.1. Consulta de participant cobert per factura d'empresa — xat original
+
+Quan l'entitat o responsable ja ha assumit el pagament de la inscripció mitjançant una factura abans de cobrar, el participant pot continuar consultant **la seva matrícula i l'estat de cobertura que li correspongui**, però no s'ha de mostrar com a **deute personal pagable** el pendent de la factura d'empresa ni oferir un enllaç TPV individual que pugui generar una segona factura/cobrament. El xat demana un missatge que expliqui que l'import el pagarà l'entitat corresponent. Evitar mostrar el CIF, els altres participants o la factura conjunta al rol d'alumne; només el receptor/responsable autoritzat pot consultar aquest document complet (UC-07/21).
+
+Si el responsable encara no ha pagat, la pantalla pot mostrar **«pagament de l'entitat pendent»** en lloc de «inscripció pagada»; la cobertura del pagador i la confirmació bancària són fets diferents. Si la factura de l'entitat es paga parcialment, no atribuir automàticament el cobrament total a tots els participants ni activar la possibilitat de pagament individual per completar el deute global. Si la inscripció deixa de quedar coberta després d'un canvi/baixa, la recuperació d'una via de pagament requereix decisió de gestió, una obligació vàlida i UC-50 amb import i token nous; no reactivar la URL antiga automàticament.
+
+**Proves addicionals no executades:** matrícula coberta per empresa amb factura PENDING no mostra TPV individual; factura d'empresa PAID mostra cobertura confirmada i no el PDF global a l'alumne; factura d'empresa PARTIAL no reparteix sense criteri l'import entre inscrits; URL individual revocada presenta missatge autoritzat i no inicia DS_ORDER; retirada del participant no reactiva cap URL obsoleta.
 ## 3. UML de casos d'ús
 
 ```plantuml
