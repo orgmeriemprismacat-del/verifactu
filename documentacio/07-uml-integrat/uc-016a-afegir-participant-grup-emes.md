@@ -50,7 +50,7 @@ Quan una nova inscripció queda coberta per la factura del responsable, evitar q
 ### 1.4. Proves d'afegit de participant (no executades)
 
 | ID | Cas | Resultat exigible |
-| --- | --- |
+| --- | --- | --- |
 | GA-01 | Factura prèvia PENDING, nou participant | Original i número intactes; nova part fiscal classificada i sense CHARGE fictici. |
 | GA-02 | Afegit que canvia tram de `descomptes_grup` | Import persona nova i variació de participants antics diferenciats; correcció formal si correspon. |
 | GA-03 | Participant nou amb pagament individual Redsys en procés | Cobertura suspesa o conciliada; sense doble cobrament ni factura duplicada. |
