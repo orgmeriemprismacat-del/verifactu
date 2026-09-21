@@ -26,7 +26,7 @@
 5. Si hi ha `SifException 409/422`, l'estat passa a `INCIDENT` i s'obre una incidència; la cua no reintenta automàticament un error funcional.
 6. Si falla per problema tècnic, `markRetry()` calcula nova disponibilitat segons el número d'intent, o `markIncident()` quan s'esgota `maxAttempts`; les transicions exigeixen `STATUS='PROCESSING'`.
 
-**Observació de concurrència:** `markProcessed`, `markRetry` i `markIncident` comproven l'estat `PROCESSING` però **no comparen `LOCKED_BY=workerId`** en l'`UPDATE` que s'ha revisat. Recuperar un lock mentre un worker lent encara treballa pot fer que una execució posterior també processi el mateix job. L'idempotència del handler i de la factura/pagament és indispensable, i la coordinació de l'atribució per inscripció ha de ser idempotent.
+**Observació de concurrència:** `markProcessed`, `markRetry` i `markIncident` comproven l'estat `PROCESSING` però **no comparen `LOCKED_BY=workerId`** en l'`UPDATE` que s'ha revisat. Encara que el job s'hagi tornat a reclamar per B, la marca tardana d'A pot passar el filtre `STATUS='PROCESSING'` i escriure el resultat mentre `LOCKED_BY=B`; la comprovació `rowCount` no detecta aquesta situació. Recuperar un lock mentre un worker lent encara treballa pot fer que una execució posterior també processi el mateix job. L'idempotència del handler i de la factura/pagament és indispensable, i la coordinació de l'atribució per inscripció ha de ser idempotent.
 
 ### 1.2. Alternatives i diagnosi
 
@@ -174,6 +174,172 @@ else Job elegible
 end
 Note over Worker,DB: Claim, handler i marcació del job no són un únic commit.
 ```
+
+### 4.1. Acció independent: recuperar un job aparentment abandonat — PHP existent, guarda d'execució pendent
+
+**Actor/disparador:** un worker executa `recoverStaleLocks(db,now)` i troba un job `PROCESSING` amb `LOCKED_AT < now - 15 min`. **Postcondició real:** l'UPDATE general posa `RETRY`, `AVAILABLE_AT=now`, esborra `LOCKED_AT/LOCKED_BY` i conserva `ATTEMPTS`; `claimNext()` pot tornar a reservar-lo i **incrementa** els intents. La recuperació **no acredita que el processador anterior hagi mort** ni anul·la un possible commit de factura/pagament. No confondre recuperar la *fila del job* amb recuperar una *emissió o un cobrament ja confirmats*.
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker de recuperació" as W
+actor "Worker anterior encara actiu" as Old
+rectangle "Cua Redsys — UC-52 / RECUPERAR LOCK" {
+ usecase "Detectar PROCESSING amb\nLOCKED_AT caducat" as Detect
+ usecase "Posar el job en RETRY\ni retirar lock antic" as Recover
+ usecase "Reclamar nova generació\nd'execució" as Claim
+ usecase "Verificar efectes SIF abans\nde tornar a executar el handler" as Read
+}
+W --> Detect
+W --> Recover
+Recover ..> Detect : <<include>>
+W --> Claim
+Claim ..> Read : <<include>> [control PENDENT]
+Old --> Detect
+note bottom of Recover
+ El venciment de 15 min és un
+ llindar temporal, no prova
+ que el primer worker hagi acabat.
+end note
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Worker A lent
+actor B as Worker B recuperador
+participant QA as RedsysCallbackQueueRepository [PHP]
+participant DB as redsys_callback_queue
+participant H as Handler facturació/pagament [PHP]
+A->>QA: claimNext(worker-a,t0)
+QA->>DB: BEGIN; UPDATE PROCESSING,ATTEMPTS=1,LOCKED_BY=A; COMMIT
+QA-->>A: Job J generació 1
+A->>H: process(J) sense lock transaccional de job
+Note over A,H: A continua treballant més de 15 minuts
+B->>QA: recoverStaleLocks(t0+16m)
+QA->>DB: UPDATE J PROCESSING antic -> RETRY, esborrar LOCKED_BY
+QA-->>B: 1 job recuperat, NO certesa que A hagi mort
+B->>QA: claimNext(worker-b,t0+16m)
+QA->>DB: BEGIN; UPDATE J PROCESSING,ATTEMPTS=2,LOCKED_BY=B; COMMIT
+QA-->>B: El mateix J, nova execució
+B->>H: process(J) [pot coincidir amb execució A]
+Note over A,DB: El PHP real no associa un token de generació a l'efecte fiscal i a les marques finals.
+```
+
+### 4.2. Acció independent: finalitzar només l'execució que conserva la propietat del job — PHP actual vs fencing PENDENT
+
+**Actor/disparador:** el worker A/B rep un resultat o una excepció del handler i vol executar `markProcessed`, `markRetry` o `markIncident`. **Precondició objectiu:** el `UUID_JOB`, `LOCKED_BY` i una generació/fencing token de claim han de coincidir amb l'execució vigent; el resultat de factura/pagament ha de provenir del mateix `DS_ORDER` i import acreditat. **Postcondició:** únicament el propietari actual persisteix la transició i el resultat; si s'ha perdut la propietat, s'informa de `STALE_ATTEMPT` sense marcar `PROCESSED`, `RETRY` ni `INCIDENT` per sobre del worker nou.
+
+**Comportament PHP verificat:** els tres mètodes fan `UPDATE redsys_callback_queue ... WHERE ID=? AND STATUS='PROCESSING'`, **sense condició `LOCKED_BY=workerId`, `ATTEMPTS` ni token de generació**. `runOne()` crida `markProcessed($db,$job['ID'],$result,$now)` sense passar-li el `workerId`; el mateix passa amb `markRetry` i `markIncident`. Un A recuperat com a obsolet pot tornar a trobar `STATUS=PROCESSING` quan B ja ha reclamat la fila, de manera que la marca d'A passa el filtre i pot escriure el resultat d'A al job ara propietat de B. A més, `$now` és l'instant **rebut a l'inici de `runOne`**, no necessàriament l'instant de finalització: `PROCESSED_AT` pot reflectir el moment de claim d'un job lent.
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker amb resultat" as W
+actor "Worker nou propietari" as N
+rectangle "Cua Redsys — UC-52 / FINALITZAR EXECUCIÓ" {
+ usecase "Confirmar resultat de l'intent actual" as Finish
+ usecase "Comprovar propietari i\ngeneració sota lock" as Own
+ usecase "Marcar PROCESSED/RETRY/INCIDENT\nnomés per token vigent" as Mark
+ usecase "Derivar resultat obsolet\na conciliació sense sobreescriptura" as Stale
+}
+W --> Finish
+Finish ..> Own : <<include>> [DISSENY]
+Finish ..> Mark : <<include>> [si token vigent]
+W --> Stale
+N --> Own
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Worker A antic
+actor B as Worker B actual
+participant Q as RedsysCallbackQueueRepository [PHP real]
+participant DB as redsys_callback_queue
+A->>Q: claimNext(J,A) i començar processament
+Q->>DB: J PROCESSING,LOCKED_BY=A,ATTEMPTS=1
+B->>Q: recoverStaleLocks(J) + claimNext(J,B)
+Q->>DB: J PROCESSING,LOCKED_BY=B,ATTEMPTS=2
+Note over A,B: A ha fet commit del seu handler i vol marcar èxit després del claim de B
+A->>Q: markProcessed(J,resultA,nowA) [PHP no rep workerId/token]
+Q->>DB: UPDATE J WHERE ID=J AND STATUS=PROCESSING
+DB-->>Q: rowCount=1; J passa a PROCESSED amb resultA
+Q-->>A: Retorn sense error
+B->>Q: markProcessed(J,resultB,nowB) després de processar
+Q->>DB: UPDATE J WHERE ID=J AND STATUS=PROCESSING
+DB-->>Q: rowCount=0, J és PROCESSED per A
+Q--xB: SifException 409 propietat perduda
+B->>Q: markIncident(J,error) [catch de runOne en el camí 409]
+Q->>DB: UPDATE J WHERE STATUS=PROCESSING
+DB-->>Q: rowCount=0; segona excepció 409 [possible]
+Note over A,DB: La traça és una cursa derivada del WHERE real, no un test de concurrència executat.
+```
+
+**Contracte de correcció proposat:** token de claim monotònic o UUID de generació, comprovat **atòmicament** amb `LOCKED_BY` en tota marca final i en possibles heartbeats; no reusar només `ATTEMPTS` com a prova d'identitat si un operador pot reobrir el job. Una excepció de propietat perduda ha de ser tractada com a **intent obsolet** i no com una fallada funcional del negoci susceptible d'obrir `REDSYS_CALLBACK` contra el job d'un altre worker. Els efectes fiscals ja confirmats es concilien independentment; un token de cua no torna atòmica una operació bancària i un commit d'emissió.
+
+### 4.3. Acció independent: recuperar facturació/pagament confirmats abans de reprocessar un job — PHP parcial / DISSENY
+
+**Actor/disparador:** el job queda en `RETRY` perquè el primer handler havia fet commit de la factura i del cobrament, però no s'havia persistit `RESULT_JSON`/`PROCESSED`. **Precondicions:** identificar la notificació validada, `DS_ORDER`, l'intent congelat i els identificadors fiscals/econòmics **persistits**, amb la mateixa cobertura, receptor i imports. **Postcondició:** es recupera el resultat existent o s'obre conflicte; no emetre nova factura ni nou `CHARGE` només per reparar l'estat del job. El handler actual pot tornar a invocar `InvoiceService::issueInvoice()`, que reusa la factura per clau i **només cerca el pagament inicial ja existent**: si el primer commit fiscal no va incloure `uuid_payment` o el pagament correspon a una factura prèvia d'una altra clau, el reús fiscal no acredita el cobrament. La recuperació del job s'ha de separar de UC-02/56, de la sincronització llegada UC-47 i de l'estat AEAT/PDF.
+
+```plantuml
+@startuml
+left to right direction
+actor "Worker de recuperació" as W
+actor "Responsable d'incidències" as R
+rectangle "Cua Redsys — UC-52 / RECUPERAR EFECTES" {
+ usecase "Reconstruir resultat de job\na partir de fets SIF persistits" as Recover
+ usecase "Comprovar DS_ORDER i factura\noriginal/cobertura d'inscripció" as Invoice
+ usecase "Comprovar UUID_PAYMENT real\ni assignacions del mateix ingrés" as Pay
+ usecase "Marcar job PROCESSED només\namb propietat d'intent vigent" as Finish
+ usecase "UC-53/47\nReparar projecció llegada pendent" as Legacy
+}
+W --> Recover
+Recover ..> Invoice : <<include>>
+Recover ..> Pay : <<include>>
+Recover ..> Finish : <<include>> [control PENDENT]
+R --> Legacy
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor W as Worker de recuperació
+participant G as RedsysJobEffectReconciler [DISSENY]
+participant N as Intenció, notificació i job [LECTURA]
+participant F as factura, relacions i registres [LECTURA]
+participant P as payment_transaction/allocation [LECTURA]
+participant H as Handler/InvoiceService [PHP]
+participant Q as RedsysCallbackQueueRepository [PHP]
+W->>G: recover(J,claimToken) [PENDENT]
+G->>N: Llegir DS_ORDER, snapshot i estat del job actual
+G->>F: Cercar factura real per ordre, clau i cobertura
+G->>P: Cercar CHARGE real i assignació amb import/ordre equivalents
+alt Factura + pagament acreditats i equivalents
+ G-->>W: Recuperar UUID_FACTURA/UUID_PAYMENT originals sense nova emissió
+ W->>Q: markProcessed(J,result recuperat,now) [només amb fencing pendent]
+else Factura real confirmada, pagament absent o aliè
+ G-->>W: PAYMENT_MISSING/CONFLICT; no declarar processat ni inventar CHARGE
+else Cobertura anterior d'empresa o import/receptor diferents
+ G-->>W: CONFLICT; derivar UC-53/56 sense segona factura
+else Cap efecte preexistent, operació i snapshot encara legítims
+ G->>H: process(J) sota guard de cobertura i identitat [PENDENT]
+ H-->>W: UUIDs nous o error controlat
+ W->>Q: marcat final només si manté token vigent [PENDENT]
+end
+Note over G,Q: El reconciliador i fencing no són PHP present; el codi actual crida el handler directament després de claim.
+```
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| CQ-06 | A queda processant 16 min, B recupera i reclama J; A acaba abans de B | Rebutjar marca final d'A per generació obsoleta sense sobreescriure propietat/resultat de B. El WHERE PHP actual permet la marca d'A mentre J és PROCESSING de B. |
+| CQ-07 | A marca PROCESSED de B i B intenta `markProcessed`; el `catch` de B intenta `markIncident` | Tractar pèrdua de propietat com a `STALE_ATTEMPT`; no reclassificar el job de B com a incidència de negoci ni propagar una segona excepció de marca. |
+| CQ-08 | Handler ha fet commit de factura/CHARGE i cau abans de `markProcessed` | Recuperar els mateixos UUIDs i assignacions sense nova numeració/CHARGE; separar sync llegada i PDF. |
+| CQ-09 | Factura K existeix, però el cobrament inicial manca; un reintent d'`issueInvoice(K,payment)` retorna `ok=true` sense `uuid_payment` | Job no passa a «pagat» pel sol `ok` fiscal; conciliació del pagament real per UC-02/56. |
+| CQ-10 | Worker tarda més de 15 min; `runOne` conserva `now` de l'inici | `PROCESSED_AT` ha de reflectir finalització real en el contracte futur; el PHP actual passa el temps inicial. |
 
 ## 5. Fonts i dependències
 
