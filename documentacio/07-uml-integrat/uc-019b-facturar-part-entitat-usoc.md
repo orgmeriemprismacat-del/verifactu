@@ -186,7 +186,7 @@ UI->>V: verify(X,idpag,A,studentAmount,entityAmount,billing)
 V->>L: loadByIdpag(idpag,studentAmount,entityAmount) [PHP real]
 L-->>V: Primer ID_INSC per IDPAG i flags TIPUS_DESC/VALID_DESC
 alt ID_INSC retornat és diferent d'X o IDPAG ambigu
- V-->>UI: CONFLICT; no facturar una inscripció arbitrària
+ V-->>UI: CONFLICT, no facturar una inscripció arbitrària
 else Inscripció X USOC validada
  V->>F: Cercar UUID A real i verificar relacions/ID_INSC, receptor i imports
  alt UUID A inexistent, aliè o part alumne contradictòria
@@ -253,7 +253,7 @@ B-->>S: Clau K = ID_INSC + FACT_ALUMNE A, sense import/receptor
 S->>I: issueInvoice(payload E1/90 sense payment)
 I->>DB: BEGIN + cerca per clau K
 alt No existeix K
- I->>DB: Emissió factura E1/90, registre i cua; COMMIT
+ I->>DB: Emissió factura E1/90, registre i cua, COMMIT
  I-->>S: UUID_FACTURA_ENTITAT nou
 else Ja existeix K
  DB-->>I: Factura E1/90 preexistent
@@ -269,8 +269,8 @@ I->>DB: BEGIN + trobar K existent
 DB-->>I: UUID_FACTURA_ENTITAT de E1/90
 I-->>S: idempotency_reused=true sense comparar E2/85 amb E1/90
 S-->>UI: Retorn aparentment correcte amb factura fiscal anterior
-UI-->>G: Guard objectiu ha de detectar CONFLICT i derivar UC-74; mai informar que E2/85 ha estat emès
-Note over S,I: La recuperació per K és PHP real; el guard d'equivalència i l'expedient USOC són DISSENY. No es pot editar la factura fiscal anterior.
+UI-->>G: Guard objectiu ha de detectar CONFLICT i derivar UC-74, mai informar que E2/85 ha estat emès
+Note over S,I: La recuperació per K és PHP real, el guard d'equivalència i l'expedient USOC són DISSENY. No es pot editar la factura fiscal anterior.
 ```
 
 **Cobrament com a altra acció:** després d'emetre, `payment_registered=false` ha de continuar sent visible fins que hi hagi un `UUID_PAYMENT` real d'entitat. Rebre una transferència de l'entitat per diverses factures és UC-02/105 (un únic ingrés extern i múltiples assignacions), no `issueInvoice()` de nou.
