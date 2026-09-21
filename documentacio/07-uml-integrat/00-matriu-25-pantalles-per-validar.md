@@ -6,7 +6,7 @@
 
 | # | Pantalla/apartat pendent | Casos actuals candidats | Contrast específic per tancar | Estat d'aquesta revisió |
 | ---: | --- | --- | --- | --- |
-| 1 | Ajuda contextual del panell | UC-34; UC-25 | Contingut d'ajuda del panell: identificar pantalla concreta i si només informa o activa una comanda. | MAPAT PROVISIONAL — documentació/UI |
+| 1 | Ajuda contextual del panell | UC-34; document 25 (guies ràpides de pantalles internes) | Contingut d'ajuda del panell: identificar pantalla concreta i si només informa o activa una comanda. | MAPAT PROVISIONAL — documentació/UI |
 | 2 | Captures finals de recorreguts crítics | UC-39; annex de captures | Evidència de prova, no cas d'ús de negoci independent; relacionar captura amb UC, ruta, versió i resultat reproduïble. | EVIDÈNCIA TRANSVERSAL |
 | 3 | Cercador general de pagaments | UC-56; UC-02 | Cerca i consulta no són registre de cobrament; revisar filtres, permisos i destí de selecció. | MAPAT PROVISIONAL — consulta |
 | 4 | Cercar pagament per NIF/NIE | UC-56; UC-126 | Identitat i accessos: el NIF de pagador pot no ser el d'inscrit o receptor fiscal. | MAPAT PROVISIONAL — variant de cerca |
