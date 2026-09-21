@@ -142,7 +142,7 @@ else Proves i autoritzacions aprovades
   S-->>T: Versió activa verificada
  end
 end
-Note over S,R: Els repositoris i l'orquestrador d'activació són disseny; el SQL no desplega codi.
+Note over S,R: Els repositoris i l'orquestrador d'activació són disseny, el SQL no desplega codi.
 ```
 
 ## 6. Traçabilitat
