@@ -40,6 +40,26 @@
 
 **Proves pendents:** schema de snapshot per canal/producte, versió i hashes, venciment, fiscalitat incompleta, reserva caducada, dos intents diferents, callback contradictori, preu canviat abans/després i correlació de fons per inscripció. No s'han executat proves en aquesta revisió.
 
+### 1.3. Contingut comercial del snapshot i límit exacte del callback
+
+**El JSON obligatori no té un esquema comercial obligatori.** `RedsysPaymentIntentService::create()` rebutja un `snapshot` buit/no serialitzable, però **no obliga** a incloure-hi `ID_INSC` de tots els participants, producte/edició, regla de descompte, versió del preu, `UUID_CAPACITY_RESERVATION`, receptor fiscal confirmat o classificació tributària. La validació de negoci ha d'efectuar-se **abans** de crear `DS_ORDER`: la comparació posterior de JSON canònic només prova que no s'ha substituït aquella fotografia per una altra, **no** que la primera fotografia fos completa o correcta.
+
+**Canals amb composició diferent.** A `/alumnes/genera-factura-abans-pagar/`, el llegat permet escollir **diversos `ID_INSC`** del mateix curs/edició i una entitat receptora. En pack i grup, una mateixa intenció pot representar diverses línies/inscrits, amb descomptes o preus individuals; conservar-ne l'ordre i els imports acordats i evitar un `snapshot` reduït al primer `IDPAG`. Si ja existeix factura emesa abans de cobrar, el snapshot ha d'enllaçar-ne el `UUID_FACTURA` i el procés posterior ha de registrar **el cobrament**, sense tornar a emetre per recomputar línies a partir de dades vives.
+
+**Comprovació real del callback.** `RedsysCallbackService::receiveAuthorizedCallback()` localitza la intenció per `DS_ORDER` i `assertMatchesIntent()` compara **EXPECTED_AMOUNT, CURRENCY i TERMINAL**; després registra la notificació i, si `VALIDATED`, encola el job. No compara en aquesta funció **data `EXPIRES_AT`**, estat de la reserva de plaça, versió de producte o receptor fiscal. Una notificació bancària signada i d'import correcte **no és una aprovació acadèmica ni comercial**: el worker/coordinador pendent ha de preservar el cobrament real i revisar disponibilitat/contracte, sobretot si l'edició s'ha cancel·lat o la reserva s'ha alliberat.
+
+**Canvi de preu després de l'oferta.** El servei compara `EXPIRES_AT`, `SNAPSHOT_JSON`, import, origen i terminal per al **mateix `DS_ORDER`** i rebutja una variació. Això impedeix mutar una ordre, però **no impedeix** que el frontend n'obri una segona amb preu nou per la mateixa inscripció. UC-107/115/121 han de resoldre duplicat, dret de plaça i nova acceptació; no donar per caducada l'ordre primera només perquè existeixi la segona.
+
+### 1.4. Proves de completesa i límits del callback (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| SN-112-01 | JSON no buit que només conté un IDPAG però representa un grup | Validació comercial el rebutja fins identificar participants, imports i receptor; no acceptar la mera serialització. |
+| SN-112-02 | Factura prèvia d'empresa amb `UUID_FACTURA` i intenció de pagament | Callback assignat a factura existent, no segon `issueInvoice()`. |
+| SN-112-03 | Callback signat correcte per import però plaça alliberada | Conservar l'ingrés extern i obrir revisió de plaça, no donar matrícula per confirmada. |
+| SN-112-04 | Mateix `DS_ORDER` amb preu/snapshot nou | Conflicte actual del servei d'intencions; no modificar la fotografia original. |
+| SN-112-05 | Dos `DS_ORDER` amb la mateixa inscripció i versions de preu diferents | Detector funcional i decisió de vigència, no assumir deduplicació per la intenció. |
+
 ## 2. UML de casos d'ús
 
 ```plantuml
