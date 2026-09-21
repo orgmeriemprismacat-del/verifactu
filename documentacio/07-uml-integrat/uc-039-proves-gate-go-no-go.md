@@ -28,6 +28,25 @@
 5. Registrar decisió per versió i entorn amb autorització fiscal/tècnica. UC-46/83 només activa una versió quan el gate apropiat i la documentació requerida estan complets; `NO_GO` conserva versió anterior sense tornar a crear factures o cobraments.
 6. Provar: no hi ha BD llegada, NIF d'exemple, preflight `ready=true` però SOAP rebutjat, prova parcial de pack i controlador d'enllaços absent, backup creat però impossible de restaurar, declaració no signada i reexecució del gate amb artefacte diferent.
 
+### 2.1. El GO tècnic que retorna l'script no autoritza el desplegament productiu
+
+**Lectura exacta de la sortida del CLI existent.** `sif/scripts/go-no-go-preproduction.php` construeix `go_no_go_decision=GO` si no falla cap comprovació del seu array, però retorna també `scope=technical_preflight_only` i **`production_authorized=false` en tots els resultats**. Entre els checks hi ha presència de fitxers/runner, extensions, configuració no buida, connexions amb les BDs, algunes taules i `fiscal_chain_state` sembrada; la presència dels fitxers `process-redsys-course.php` o de `factura_documents` **no és un cas d'acceptació de cobrament, document físic o transport AEAT**. A l'acta del gate, conservar el JSON original i el camp d'abast, sense traduir `GO` tècnic a «SIF apte per producció».
+
+**Evidència per exercici, no per nom de script.** Fer correspondre cada escenari aprovat amb: commit i hash de l'artefacte executat, entorn, emissor, versió SQL real, fitxer de prova, dades fictícies, precondicions, resultat observat, artefacte/UUID generat i qui el valida. Diferenciar explícitament prova local, preproducció, integració web real, resposta externa i funcionament productiu. Un test que comprova idempotència de `InvoiceService` no demostra per si sol que `realitzaPagamentAutomatic.php` hagi deixat de ser emissor llegat, ni que el frontend impedeixi el doble cobrament per dues `DS_ORDER`.
+
+**Bloquejants d'aquesta arquitectura que no són checks del GO actual.** Afegir resultats específics per autenticació de `public/api/factures/issue.php` i `payments/register.php`, control de plaça UC-115, ordre/descompte del pack UC-122, titular de grup UC-118, existència/hash del PDF UC-78, resposta AEAT per registre UC-35, recuperació de backup UC-85 i correspondència d'artefacte/declaració UC-83. Per a un circuit no desenvolupat, marcar `NOT_IMPLEMENTED` o `NOT_TESTED` **com a categories de l'acta**, no «PASS» perquè la taula SQL existeix o no hi ha errors registrats.
+
+### 2.2. Proves del mateix gate (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| GG-39-01 | El CLI retorna `GO` i `production_authorized=false` | Informe `GO` tècnic limitat a preproducció; cap autorització productiva. |
+| GG-39-02 | Fitxer del worker existeix, però no hi ha execució Redsys externa provada | Circuit pendent de prova, no `PASS` per presència. |
+| GG-39-03 | Documents `CREATED` a SQL però storage físic absent | Gate documental pendent/fallit i no document disponible. |
+| GG-39-04 | Cua `SENT` amb registre AEAT `REJECTED` | Gate de transport/recepció no superat, tot i cua sense jobs due. |
+| GG-39-05 | Runner aprovat per un commit i desplegament en un altre | Proves no transferibles sense revalidar hash, configuració i versions. |
+| GG-39-06 | Un grup té tres inscrits i un sol cobrament real | Prova del valor extern i atribucions, cap triplicació d'ingressos. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
