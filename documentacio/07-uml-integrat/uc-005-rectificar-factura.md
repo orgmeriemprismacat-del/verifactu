@@ -47,6 +47,30 @@ UC-05 conserva factura i registre originals i emet la rectificativa; **això no 
 
 [Revisió transversal de fons per inscripció](00-revisio-moviments-inscripcions.md).
 
+### 1.3. Contrast de la pantalla «Consulta - Edita - Anul·la factura» i de les decisions del xat original
+
+**R-PANTALLA — flux històric real, no adaptador SIF acreditat.** A `/alumnes/factura/` es cerca per DNI/NIE, correu, `FACTURA_RELACIONADA` o número; un clic a `.cns-informacio` obre el modal de factura. El llapis `.editar-apartat` permet canviar `rao`, `cif`, adreça, `concepte1`, `concepte2`, observacions i identificació; `.save-result` crida `guardarDadesFactura_Factures.php` per **GET**, que delega a `guardarDadesFactura_Factures()` i a l'UPDATE `updDadesFact` del llegat. Aquesta edició directa és un comportament **antic** que s'ha de substituir per una acció amb motiu, snapshot de l'original i classificació fiscal; la pantalla SIF no pot presentar el mateix llapis com a modificació en lloc d'una factura emesa.
+
+**R-ANUL — botó antic ambigu.** `.anula-factura` obre `mostrarModalAnulaFactura_Factures.php`; `.confirma-baixa` recull `id`, `A TORNAR`, `DATA DEVOLUCIO` i observacions i crida `anularFactura_Factures.php` per **GET**. El procediment històric `anularFactura()` genera una nova fila de factura **R negativa** i altera resums econòmics d'inscripcions; el xat original confirma les sèries separades A i R i que el llegat feia rectificatives negatives. **El nom del botó «anul·lar» no determina la figura del SIF**: distingir correcció d'import/concepte/receptor (UC-05), baixa d'inscripció (UC-27/72), devolució (UC-28), anul·lació de registre improcedent (UC-30) i subsanació de registre (UC-31), sense disparar-los tots per defecte.
+
+**R-RECEPTOR — dades fiscals canviades després d'emetre.** El xat confirma canvis de nom/CIF i expressa preferència per una rectificativa de valor zero o per substitució en aquests casos. Aquesta és la **necessitat de negoci comunicada**, no l'elecció fiscal validada de la modalitat: el classificador UC-74 ha de decidir tipus i dades que cal rectificar en funció del cas documentat abans d'invocar `ManualRectificationPayloadBuilder`. El constructor actual recupera el receptor de la factura original per defecte; **això no demostra que pugui corregir el receptor real en un sol pas** amb l'entrada actual. No etiquetar «canvi de CIF resolt» sense una prova del payload final, relació amb original i document generat.
+
+**R-DIFERÈNCIA — servei i imports.** El xat confirma canvis de curs successius, canvis d'import després de pagar, descomptes excepcionals que històricament només alteraven el preu final, i canvis de curs amb **el mateix import però concepte diferent**. El procediment objectiu ha de congelar el concepte antic/nou i l'import original, demanar motiu, distingir diferència positiva/negativa i valorar també la correcció de concepte encara que el total sigui idèntic. No inventar un CHARGE o REFUND pel simple fet de registrar una rectificativa. Si la factura inclou diversos participants, cal identificar línia/part afectada: el builder manual genèric d'una línia no és un classificador de delta de grup.
+
+**R-CORRELACIÓ — rectificativa emesa, enllaç pendent.** En el servei actual `InvoiceService::issueInvoice()` confirma la nova factura abans de `RectificationRepository::linkRectification()` i `markOriginalRectified()`. El canal ha de conservar UUID de la rectificativa emesa si falla el vincle posterior, registrar incidència i recuperar l'enllaç idempotentment: mai tornar a emetre una segona factura R per reparar un error de sincronització. La parella original/rectificativa no es dedueix només del camp històric `FACTURA_RELACIONADA`, que pot agrupar diversos documents.
+
+### 1.4. Proves d'acceptació específiques de la pantalla i els motius (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| RF-01 | Llapis antic canvia raó/CIF d'una factura SIF emesa | No UPDATE fiscal directe; acció nova amb motiu i classificació UC-74. |
+| RF-02 | Canvi de receptor amb proposta de rectificativa a zero/substitució | Modalitat motivada i payload de receptor nou verificat, sense clonar el receptor erroni. |
+| RF-03 | Curs diferent amb el mateix import | Revisar diferència de servei/concepte, no declarar «sense efecte» per comparar només totals. |
+| RF-04 | Descompte excepcional posterior a factura | Import anterior, nou, motiu i línia afectada congelats; document corrector si correspongui. |
+| RF-05 | Modal antic «A TORNAR» després de baixa però retorn encara no fet | Rectificació i decisió econòmica separades; cap REFUND per una data declarada. |
+| RF-06 | Factura conjunta, baixa d'un participant | Rectificar només parts justificades, sense reconstruir la resta del document fiscal. |
+| RF-07 | Error d'enllaç `factura_rectificacio` després d'emetre R | Conservar UUID R i reprendre vinculació; no segona rectificativa. |
+| RF-08 | Clic al botó històric «anul·lar» | Classificar primer UC-05/30/31/27/28 segons fet real, no mapatge directe pel text del botó. |
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -191,6 +215,37 @@ else Relació inserida
 end
 ```
 
+### 4.2. Seqüència de migració — editar receptor o anul·lar al llegat (OBJECTIU)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant UI as Consulta/Edita/Anul·la [adaptació pendent]
+participant C as Classificador UC-74 [PENDENT]
+participant R as ManualRectificationService [existent]
+participant P as Registre REFUND/saldo [serveis separats]
+participant H as Enllaç d'original/rectificativa
+O->>UI: Corregir CIF/concepte/import o triar anul·lar
+UI->>UI: Llegir factura immutable, cobrament real i participants
+UI->>C: Identificar causa, receptor antic/nou, línies i modalitat
+alt Correcció de factura classificada
+ C->>R: Emetre rectificativa amb payload i motiu verificats
+ R-->>UI: UUID_FACTURA_R (commit fiscal efectuat)
+ UI->>H: Verificar vincle amb original i estat
+ opt Falla vincle postemissió
+  UI-->>O: Incidència; reintentar vincle, no segona factura R
+ end
+else Registre improcedent o a subsanar
+ C-->>UI: Derivar UC-30/31 amb autorització separada
+else Baixa o simple devolució econòmica
+ C-->>UI: Tramitar UC-27/72 o UC-28 segons decisió
+end
+opt Existeix retorn efectivament executat
+ UI->>P: Registrar REFUND amb referència real, una sola vegada
+end
+Note over UI,C: Aquest diagrama descriu l'orquestració pendent, no la pantalla actual ni una transacció distribuïda acreditada.
+```
 ## 5. Decisions pendents per completar l'operació
 
 1. Definir i implementar el criteri per escollir rectificativa, anul·lació de registre o subsanació a partir de la casuística real (UC-74/75/76).
