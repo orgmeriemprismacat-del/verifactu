@@ -28,6 +28,24 @@
 
 **Pendents:** política escrita d'accés/certificat/reclamació, motor/writer de decisions, atribució de fons per inscrit, comprovació d'operacions en llegat/Moodle, rols i tests de concurrència.
 
+### Incidències llegades de reclamació, deute i consulta acadèmica
+
+**Punts de consulta recuperats.** El procediment `10-procediments-intranet-ecommerce.md` identifica `/alumnes/mostrar-alumne/` com la pantalla que reuneix `INSC_CURS`, les inscripcions, `reclamat`, `data_reclamacio`, `pag_observacions` i la consulta de factura/certificat. Les consultes del constructor `Intranet.php` inclouen `cnsReclamacions`, `cnsCursosRecordarPag`, `cnsAlumnesRecordarPag`, `cnsCursosClaimBaixes`, `cnsAlumnClaimPag`, `cnsAlumnClaimEntMoros`, `cnsAlumnClaimAlumnNoCertMoros`, `cnsAlumnClaimAlumnCertMoros` i `cnsEntMoros`; les actualitzacions inclouen `updPrimeraReclamacio`, `updClaimDonarBaixa`, `updClaimRecPag`, `updInscCursBaixaiMoros` i `updReclamatDefaulter`. Són **vies de gestió del llegat**, no una matriu executada de drets sobre accés i certificats dins del SIF.
+
+**Pagar no és una acció que s'hagi de bloquejar per morositat.** El procediment de Prisma estableix que l'alumne morós **no s'ha de bloquejar per pagar**, perquè interessa que pugui regularitzar el deute; si la factura individual ha quedat coberta per una d'empresa, s'ha d'oferir la URL que correspongui al pagador, **no** reactivar un pagament individual indegut. Bloquejar, mantenir o recuperar **l'accés acadèmic** és una decisió diferent segons política aprovada, no una conseqüència automàtica de la disponibilitat del botó de pagament. `reclamat/data_reclamacio` i les observacions són seguiment administratiu, **no** prova d'ingrés real ni ordre per rectificar la factura.
+
+**Corregir la discrepància per dimensió.** Una inscripció en `INSC_CURS` de baixa pot coexistir amb una factura encara exigible o amb una devolució real pendent; un curs superat pot tenir certificat subjecte a una política encara no definida, encara que la factura sigui d'empresa. Una transferència confirmada al SIF amb `web.inscripcions.PAGAMENT` antic i accés Moodle absent requereix dues verificacions diferents: UC-47/53 per resum de pagament i UC-129 per matrícula/accés. Ni una nota a `OBSERVACIONS` ni un pagament de grup assignat **només a factura** demostren la quota individual d'un participant.
+
+### Proves complementàries sobre morositat i accés (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| ED-95-01 | Inscripció morosa amb deute exigible i enllaç legítim del pagador | Possibilitat de regularitzar el pagament, sense habilitar una URL individual ja coberta per empresa. |
+| ED-95-02 | `INSC_CURS` és «baixa» però factura original segueix pendent | Estat acadèmic i deute mostrats separadament; cap rectificativa automàtica per la baixa. |
+| ED-95-03 | Alumne supera curs mentre l'empresa pagadora té una factura pendent | Política de certificat/acreditació individual revisada, no imputar-li per defecte el deute de l'empresa. |
+| ED-95-04 | Pagament SIF real amb `PAGAMENT` llegat antic i matrícula Moodle absent | Reparar per destinació, sense segon `CHARGE` ni nova factura. |
+| ED-95-05 | Marcar `reclamat=1` sense prova bancària | No modificar `ESTAT_COBRAMENT` ni calcular un moviment real d'ingrés. |
+
 ## UML de casos d'ús
 
 ```plantuml
