@@ -279,14 +279,14 @@ participant DB as BD SIF
 O->>A: Registrar ingrés amb referència única, factura F i inscripció I
 A->>R: Validar fet bancari i relació I-F, import pendent i atribució
 alt Ingrés no confirmat o factura/inscripció incongruent
- R-->>A: Rebuig o incidència; cap CHARGE
+ R-->>A: Rebuig o incidència, cap CHARGE
 else Ingrés confirmat
  R-->>A: ID únic d'ingrés, import i destinació verificats
  A->>G: Comparar ID del fet i payload amb moviments existents
  alt Mateix ingrés i payload equivalent
   G-->>A: Reutilitzar UUID_PAYMENT existent
  else Mateix identificador amb import/factura contradictoris
-  G-->>A: Conflicte i revisió; cap nou CHARGE
+  G-->>A: Conflicte i revisió, cap nou CHARGE
  else Ingrés nou i diferent, encara que import/dia siguin iguals
   G-->>A: Clau d'ingrés única i assignació validada
   A->>P: registerPayment(payload normalitzat)
@@ -343,13 +343,13 @@ else Cobertura I↔F acreditada
  G->>P: Identificar fet extern i imports ja imputats/retornats
  alt Event ja registrat, quantia insuficient o titular incompatible
   P-->>G: REUSE/CONFLICT segons assignacions reals
-  G-->>O: Recuperar moviment o revisar; no crear segon CHARGE
+  G-->>O: Recuperar moviment o revisar, no crear segon CHARGE
  else Quota confirmada i compatible
   P-->>G: NEW i saldo suficient
   G-->>O: Proposta de registre autoritzable amb identitat immutable [PENDENT]
   opt Comanda final amb lock/equivalència verificats [PENDENT]
    O->>M: registerByUuid(F,input)
-   M-->>O: UUID_PAYMENT; revisar que la clau del builder no col·lideix
+   M-->>O: UUID_PAYMENT, revisar que la clau del builder no col·lideix
   end
  end
 end
@@ -394,15 +394,15 @@ R->>P: Cercar E globalment, no només prefix MANUAL|FRACCIO
 alt E ja consta com CHARGE de transferència o Redsys
  P-->>R: UUID_PAYMENT_X, import i assignacions persistides
  R->>A: Comprovar tram atribuïble a I/F sense superar ingrés X
- A-->>G: Correlacionar quota amb X o incidència; NO cridar registerPayment
+ A-->>G: Correlacionar quota amb X o incidència, NO cridar registerPayment
 else E és un fet nou però la clau derivada de fracció ja existeix
  P-->>R: K ocupada per una altra quota real
- R-->>G: CONFLICT de la clau actual; adaptar contracte d'identitat de fet bancari [PENDENT]
+ R-->>G: CONFLICT de la clau actual, adaptar contracte d'identitat de fet bancari [PENDENT]
 else E és nou, I↔F acreditat i no hi ha col·lisió
  R->>M: registerByUuid(F,input) després de guard [PENDENT]
  M-->>G: UUID_PAYMENT de quota nova, una sola entrada real
 end
-Note over R,M: El builder actual no accepta identificador de fet extern com a idempotency_key d'entrada; la ruta nova requereix contracte i proves.
+Note over R,M: El builder actual no accepta identificador de fet extern com a idempotency_key d'entrada, la ruta nova requereix contracte i proves.
 ```
 
 ### 4.6. Seqüència executable: una mateixa clau de fracció retorna UUID_PAYMENT d'una altra factura
@@ -430,11 +430,11 @@ S->>B: forExistingInvoice(F2,input2)
 B-->>S: Mateixa K sense factura ni referència externa
 S->>P: registerPayment(payload F2)
 P->>DB: BEGIN + SELECT IDEMPOTENCY_KEY=K FOR UPDATE
-DB-->>P: UUID_PAYMENT_F1; allocation només F1
+DB-->>P: UUID_PAYMENT_F1, allocation només F1
 P->>DB: COMMIT sense INSERT a F2
 P-->>S: UUID_PAYMENT_F1,idempotency_reused=true
 S-->>O: UUID_PAYMENT_F1,uuid_factura=F2 [INCONSISTENT AMB allocation]
-Note over S,DB: F2 continua sense aquest cobrament; no deduir PAID de la segona resposta.
+Note over S,DB: F2 continua sense aquest cobrament, no deduir PAID de la segona resposta.
 ```
 
 | Prova pendent | Escenari | Resultat necessari |
