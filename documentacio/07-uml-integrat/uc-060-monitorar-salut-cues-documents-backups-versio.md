@@ -31,6 +31,29 @@
 
 **Pendents:** adaptadors de cada mètrica, llindars i alertes aprovats, agregació amb timestamps, autenticació de panell, disponibilitat de fitxers privats i comprovació de codi desplegat, tests d'alerta i absència de falsos `GO`.
 
+### 2.1. Quatre divergències que el comptador de cua no detecta
+
+**Abast exacte de la mètrica disponible.** `FiscalQueueMetricsRepository::snapshot()` agrupa `fiscal_queue` per `STATUS`, compta jobs executables amb `PENDING/RETRY` i `NEXT_RETRY_AT`, identifica locks `PROCESSING` antics i obté el primer instant accionable. `preflight-aeat-worker.php` transforma aquests comptadors en alertes segons llindars d'entorn. **No consulta en aquesta instantània la resposta individual de `factura_registres.ESTAT_AEAT`**, el sistema de fitxers del PDF, el resultat físic d'una restauració, ni el codi de versió realment servit. La fitxa del dashboard ha de publicar **per separat** què és «mètrica executable avui» i què és «lector/contracte pendent»; no sintetitzar un únic semàfor verd a partir del comptador de cua.
+
+**Cas 1 — la cua s'ha buidat però hi ha un rebuig extern.** Un registre pot acabar amb `fiscal_queue.STATUS=SENT` i `factura_registres.ESTAT_AEAT=REJECTED`. Mostrar el job transportat, el registre rebutjat, resposta concreta i incidència UC-09/35/81; una suma de `due=0` **no** prova que el període fiscal estigui regularitzat. Un `ACCEPTED_WITH_ERRORS` tampoc es pot agrupar sense detall dins d'`ACCEPTED`.
+
+**Cas 2 — el document té metadades però no és descarregable.** `DocumentRepository::registerDocument()` desa `HASH_FITXER` i `PATH_FITXER` sense escriure'n els bytes. Comptar `factura_documents.ESTAT=CREATED` o `document_job` buit **no acredita** la presència física del document. La mètrica de disponibilitat exigeix comprovar storage privat, versió i hash de bytes d'una mostra definida o dels documents afectats, informar del denominador real i obrir UC-78/80 quan falla.
+
+**Cas 3 — el backup existeix però no s'ha provat recuperar-lo.** Una data o hash de backup sense restauració aïllada, integritat de BD/fitxers i reconciliació del delta Redsys/AEAT no acredita RPO/RTO ni permet obrir workers. El panell ha d'indicar **últim backup acreditat** i **última restauració comprovada** com a dues dates/estats independents; la font `backup_restore_evidence` prevista no demostra per si sola un runner executat (UC-85).
+
+**Cas 4 — hi ha versió ACTIVE a SQL però el runtime és un altre.** `sif_version.STATUS=ACTIVE` és una afirmació del registre, no una mesura dels bytes PHP, migracions, configuració efectiva, worker i declaració corresponent. Abans d'un «GO», comparar versió declarada i codi efectiu **a cada procés que pot emetre, cobrar o transmetre** amb UC-83/101. Quan una font no està integrada o falla, mostrar `UNKNOWN / no comprovat` com a classificació funcional, no zero incidències.
+
+### 2.2. Proves de senyal falsament favorable (no executades)
+
+| ID | Escenari | Resultat exigible |
+| --- | --- | --- |
+| SL-60-01 | `due=0`, jobs SENT i una resposta AEAT REJECTED | Registrar alertes separades; cap estat global «AEAT acceptat». |
+| SL-60-02 | `factura_documents` indica CREATED però falta el fitxer | Disponibilitat negativa i incidència documental, no comptar-lo com a PDF descarregable. |
+| SL-60-03 | Backup recent amb fallada a l'última restauració | Salut de recuperació degradada/desconeguda, sense GO per data recent. |
+| SL-60-04 | Versió SQL ACTIVE diferent del worker que processa Redsys | Bloquejar declaració d'estat homogeni i iniciar investigació del desplegament. |
+| SL-60-05 | `notification_outbox` és buida perquè el writer encara no està connectat | No mostrar «tots els correus lliurats»; font/circuit no acreditats. |
+| SL-60-06 | Tres alumnes vinculats al mateix CHARGE de grup | Import extern únic; no triplicar ingressos en el resum del dashboard. |
+
 ## 3. UML de casos d'ús
 
 ```plantuml
