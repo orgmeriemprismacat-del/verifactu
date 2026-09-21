@@ -2,7 +2,7 @@
 
 Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. S'ha obert en una branca de documentació perquè es pugui revisar abans de fusionar-la.
 
-## Mapa dels 101 casos d'ús revisats
+## Mapa dels 107 casos d'ús revisats
 
 **[Model general de classes](00-model-classes-general.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
 
@@ -57,6 +57,12 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-34 | Consultar dashboard | [Fitxa i UML](uc-034-consultar-dashboard-sif.md) | `[DISSENY]` |
 | UC-35 | Consultar registre, cadena i estat AEAT | [Fitxa i UML](uc-035-consultar-registre-cadena-estat-aeat.md) | `[DISSENY]` |
 | UC-36 | Generar/consultar PDF, QR o XML | [Fitxa i UML](uc-036-generar-consultar-documents.md) | `[PARCIAL]` |
+| UC-37 | Exportar període fiscal | [Fitxa i UML](uc-037-exportar-periode-fiscal.md) | `[DISSENY]` |
+| UC-38 | Configurar SIF i certificat | [Fitxa i UML](uc-038-configurar-sif-certificat.md) | `[DISSENY]` |
+| UC-39 | Executar proves i go/no-go | [Fitxa i UML](uc-039-proves-gate-go-no-go.md) | `[BASE/PARCIAL]` |
+| UC-40 | Fer backup i restauració | [Fitxa i UML](uc-040-backup-restauracio.md) | `[DISSENY]` |
+| UC-45 | Activar auditor temporal | [Fitxa i UML](uc-045-activar-auditor-temporal.md) | `[DISSENY]` |
+| UC-46 | Activar versió i declaració responsable | [Fitxa i UML](uc-046-activar-versio-declaracio-responsable.md) | `[DISSENY]` |
 | UC-47 | Sincronitzar l'estat mínim cap al llegat després del commit SIF | [Fitxa i UML](uc-047-sincronitzar-estat-cap-llegat.md) | `[BASE/PARCIAL]` |
 | UC-48 | Crear o consultar una proforma no fiscal | [Fitxa i UML](uc-048-proforma-no-fiscal.md) | `[LEGACY/DISSENY]` |
 | UC-50 | Crear, consultar, desactivar o caducar un enllaç de pagament | [Fitxa i UML](uc-050-cicle-enllac-pagament.md) | `[DISSENY]` |
@@ -110,7 +116,7 @@ Aquesta carpeta conté les **fitxes revisades per acció concreta**, no una subs
 | UC-128 | Validar i normalitzar adreça, codi postal i població abans de congelar dades fiscals | [Fitxa i UML](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-129 | Reconciliar inscripcions, usuaris, cursos i matrícules entre Prisma i Moodle | [Fitxa i UML](uc-129-reconciliar-prisma-moodle-matricules.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 
-**Cobertura documental: 101/142.** Els 41 casos restants encara no tenen fitxa UML individual revisada. L'estat del catàleg original no acredita implementació. El transport SOAP AEAT revisat està limitat a preproducció; els intents SQL d'AEAT, el worker de documents, l'outbox de comunicacions i el reconciliador SIF/llegat no estan acreditats com a circuits PHP complets. El ledger `enrollment_fund_movement` continua sent una proposta.
+**Cobertura documental: 107/142.** Els 35 casos restants encara no tenen fitxa UML individual revisada. L'estat del catàleg original no acredita implementació. El gate `go-no-go-preproduction.php` és de preproducció; `SoapTransport` està limitat a l'endpoint de proves. Els registres SQL d'exportació, backup, accés temporal i versió/declaració no acrediten serveis d'orquestració complets. El ledger `enrollment_fund_movement` continua sent proposta.
 
 ## Com llegir el paquet de cada acció
 
