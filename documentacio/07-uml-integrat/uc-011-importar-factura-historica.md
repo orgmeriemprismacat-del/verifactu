@@ -84,6 +84,27 @@ Op --> Rec
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de migració autoritzat"]
+  subgraph SIF_BOX["SIF · facturació històrica"]
+    uc_0(["UC-11<br/>Importar factura històrica"])
+    uc_1(["Validar número i dades originals"])
+    uc_2(["Detectar import duplicat"])
+    uc_3(["Persistir factura, línies i relacions"])
+    uc_4(["Registrar document antic, si existeix"])
+    uc_5(["UC-53<br/>Reconciliar amb el llegat"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+  actor_0 --> uc_5
+```
+
 ## 3. Diagrama de classes del codi comprovat
 
 ```mermaid
@@ -182,6 +203,27 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Procés de migració documental"]
+  actor_1["Responsable de custòdia"]
+  subgraph SIF_BOX["SIF PrisMa — document d'històric (OBJECTIU)"]
+    uc_0(["UC-11 / DOCUMENT<br/>Incorporar original històric"])
+    uc_1(["Identificar factura, emissor<br/>i document d'origen"])
+    uc_2(["Llegir bytes originals i<br/>verificar SHA-256"])
+    uc_3(["UC-55<br/>Custodiar fitxer privat"])
+    uc_4(["UC-80<br/>Autoritzar consulta posterior"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_1 --> uc_4
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -242,6 +284,23 @@ R --> Diff
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable de migració"]
+  subgraph SIF_BOX["SIF PrisMa — tancament d'inventari històric (OBJECTIU)"]
+    uc_0(["UC-11 / VERIFICAR LOT<br/>Contrastar originals i imports migrats"])
+    uc_1(["UC-97<br/>Desambiguar emissor i número original"])
+    uc_2(["UC-55<br/>Verificar bytes i custòdia"])
+    uc_3(["UC-53<br/>Obrir divergències per origen"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+```
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -298,6 +357,23 @@ Preview ..> Issuer : <<include>>
 Preview ..> Seq : <<include>>
 Preview ..> Block : <<include>> [si hi ha col·lisió]
 @enduml
+```
+
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable tècnica/fiscal"]
+  subgraph SIF_BOX["SIF PrisMa — preflight d'històrics (DISSENY)"]
+    uc_0(["UC-11 / PREFLIGHT<br/>Comprovar identitat i numeració original"])
+    uc_1(["UC-97<br/>Distingir emissors/orígens homònims"])
+    uc_2(["Contrastar numeració històrica<br/>i seqüència SIF vigent"])
+    uc_3(["Bloquejar import incompatible<br/>i registrar decisió de model"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
 ```
 
 ```mermaid
