@@ -9,7 +9,7 @@
 | Tipus de consulta | Contracte |
 | --- | --- |
 | Consulta d'un document històric | Resoldre identificador d'origen, entitat emissora **acreditada documentalment**, número/sèrie, data, receptor, import i fitxer real. Si l'emissor no es pot verificar, mostrar `UNKNOWN/PENDING` **proposat**, no assignar-lo a l'Associació per defecte. |
-| Mateix número visible a Associació i SL | La clau d'identitat no pot ser només `NUM_VISIBLE`; combinar emissor, origen, número/sèrie, any i ID original. `HistoricalInvoicePayloadBuilder` deriva per defecte `HISTORIC|FACT:<número>`: la clau **no discrimina emissor** si no s'aporta explícitament `idempotency_key`. |
+| Mateix número visible a Associació i SL | La clau d'identitat no pot ser només `NUM_VISIBLE`; combinar emissor, origen, número/sèrie, any i ID original. `HistoricalInvoicePayloadBuilder` deriva per defecte `HISTORIC|FACT:<número>`: la clau **no discrimina emissor** si no s'aporta explícitament `idempotency_key`. **Encara que s'aportin claus idempotents diferents, la migració base de `factura` exigeix `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` sense emissor: dues factures originals de diferents emissors amb el mateix número no es poden inserir com a dues files en l'esquema actual.** |
 | Pagaments històrics | `payment_status=UNKNOWN` és el valor per defecte del builder; no deduir cobrament real a partir del text històric. Cal enllaç amb prova bancària sense generar un `CHARGE` nou per imports d'anys anteriors. |
 | Diferència històric vs nou SIF | L'històric importat conserva `ESTAT_AEAT=NO_VERIFACTU`; la consulta ha de mostrar aquesta distinció i **no** fabricar una resposta AEAT o un QR de registre nou. |
 | Accés de l'alumne | Ser participant d'una inscripció no dóna visibilitat sobre factura d'empresa o d'una altra entitat; permisos server-side per receptor/representant, emissor i document UC-80/102. |
@@ -19,7 +19,7 @@
 1. El consultor autoritzat tria **emissor i període**, a més del número visible o origen; el servei unificat **pendent** interroga les fonts històriques mantenint el seu sistema i emissor.
 2. Comparar cada resultat amb la taula/document d'origen; desambiguar numeracions coincidents, factures rectificades i estats de cobrament. Si no existeix una correspondència d'emissor verificable, no completar-la per inferència.
 3. Mostrar les factures noves i històriques diferenciades (`SIF emès / històric NO_VERIFACTU / font només llegada`) i conservar links als bytes reals amb permisos. Una metadada de `factura_documents` no garanteix fitxer físic.
-4. Abans de migrar més històric, adoptar una clau idempotent **emissor+origen+ID** i comprovar que el model guarda emissor jurídic per fila; l'importador actual no ho resol tot sol.
+4. Abans de migrar més històric, adoptar una clau idempotent **emissor+origen+ID**, persistir l'emissor jurídic acreditat per document **i resoldre abans la unicitat global de número/sèrie-any-seqüència que imposa `factura`**. Canviar només la clau idempotent no resol la col·lisió de dades. No renumerar ni fusionar silenciosament els documents originals.
 5. Registrar consultes/denegacions amb actor, abast i correlació. El simple fet de navegar l'històric no emet nova factura, no actualitza `fiscal_chain_state` ni mou diners.
 
 **Proves:** Associació i SL amb mateix número i any, importador amb clau per defecte repetida, document històric sense emissor, factura empresa consultada per alumne, falta PDF físic, cobrament històric incert, i consulta d'històric NO_VERIFACTU junt amb factura SIF recent.
@@ -28,7 +28,7 @@
 
 ### Dues entitats amb numeració aparentment igual: desambiguació del document original
 
-**La configuració actual no és un catàleg multiemissor.** El mòdul històric registra `NUM_VISIBLE`, sèrie, any, número, receptor i línies, però l'alta importada **no persisteix un identificador d'emissor jurídic per factura** en els camps inspeccionats; `sif/config/sif.php` té un únic bloc `issuer` per entorn. El procés de consulta no pot escollir Associació o SL segons la lletra de la sèrie, el CIF del receptor ni el període sense **evidència pròpia de l'emissor del document original**. Si dues fonts aporten el mateix número visible, la clau `HISTORIC|FACT:<número>` per defecte no les distingeix; definir clau d'origen que inclogui emissor acreditat, sistema i ID de factura abans del lot, amb model per guardar després aquest emissor, és una condició pendent.
+**La configuració actual no és un catàleg multiemissor.** El mòdul històric registra `NUM_VISIBLE`, sèrie, any, número, receptor i línies, però l'alta importada **no persisteix un identificador d'emissor jurídic per factura** en els camps inspeccionats; `sif/config/sif.php` té un únic bloc `issuer` per entorn. El procés de consulta no pot escollir Associació o SL segons la lletra de la sèrie, el CIF del receptor ni el període sense **evidència pròpia de l'emissor del document original**. Si dues fonts aporten el mateix número visible, la clau `HISTORIC|FACT:<número>` per defecte no les distingeix i la segona alta **pot recuperar erròniament la primera factura per idempotència sense comparar els payloads**. Amb dues claus idempotents explícites diferents, l'`INSERT` de la segona factura **topa igualment** amb la unicitat global de `NUM_VISIBLE` i de `(TIPUS_SERIE, ANY_FACT, NUM_SEQ)` al SQL base. L'esquema actual no preserva emissor per fila i les migracions addicionals revisades no retiren aquestes dues restriccions. Cal definir una identitat composta d'emissor acreditat, sistema i ID original, i decidir **un model de persistència que conservi els dos documents sense canviar-ne la numeració original** abans d'importar-los conjuntament. La consulta històrica separada a les fonts d'origen és una via de disseny a avaluar, no una funcionalitat acreditada.
 
 **Agrupador i dades monetàries llegades.** `FACTURA_RELACIONADA` pot connectar factures A i R històriques i diversos alumnes en grup/pack, però no indica per si mateix quina entitat les va emetre, quin import es va retornar al banc o a qui pertany el saldo actual. La consulta ha de resoldre separadament **emissor**, **receptor fiscal**, **participants**, **pagador real** i **estat de document**. Els valors `ESTAT_COBRAMENT` importats descriuen el resum històric, no són `payment_transaction` i no autoritzen a incorporar `CHARGE` retrospectius per fer coincidir els totals.
 
@@ -124,6 +124,79 @@ else Entitat/origen verificats
 end
 Note over Q,S: El bloc issuer del config i la clau HISTORIC|FACT no resolen multiemissor.
 ```
+
+### Acció independent: desambiguar emissor abans d'importar o mostrar dos històrics homònims — UC-97, DISSENY
+
+**Actor/disparador:** responsable de migració o consulta fiscal troba dues factures originals de l'Associació i de la SL amb el mateix número visible i període. **Precondicions:** accés a les fonts originals i prova de l'entitat emissora de cadascun dels dos documents; **no** deduir emissor del nom del receptor o de la sèrie. **Postcondició documental:** dues identitats d'origen diferenciades o incidència d'emissor pendent; el sistema **no** les fusiona, no inventa un número alternatiu ni les classifica com una única factura SIF.
+
+```plantuml
+@startuml
+left to right direction
+actor "Responsable d'històrics" as R
+actor "Consultor autoritzat" as C
+rectangle "SIF PrisMa — desambiguació d'històrics (DISSENY)" {
+ usecase "UC-97 / IDENTIFICAR\nResoldre document i emissor originals" as Identity
+ usecase "Comprovar prova d'emissor,\nsistema/ID i número original" as Evidence
+ usecase "Distingir dues factures homònimes\nsense fusionar-ne el contingut" as Distinct
+ usecase "UC-11\nImportar amb model multiemissor validat" as Import
+ usecase "UC-80\nConsultar document amb permís d'emissor" as View
+}
+R --> Identity
+C --> Identity
+Identity ..> Evidence : <<include>>
+Identity ..> Distinct : <<include>>
+R --> Import
+C --> View
+@enduml
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor R as Responsable d'històrics
+participant Source as Fonts Associació/SL [LECTURA]
+participant S as Resolvedor d'identitat documental [DISSENY]
+participant B as HistoricalInvoicePayloadBuilder [PHP]
+participant H as HistoricalInvoiceMigrationRepository [PHP]
+participant DB as factura [SQL base]
+participant I as Incidència/model multiemissor [DISSENY]
+R->>S: Contrastar documents Associació A2020/000123 i SL A2020/000123
+S->>Source: Recuperar emissor acreditat, sistema i ID de cada original
+alt Un emissor no es pot acreditar
+ Source-->>S: UNKNOWN
+ S-->>R: Incidència de font, no assignar emissor per defecte
+else Dos originals acreditats i diferents
+ Source-->>S: Emissors diferents, mateix NUM_VISIBLE
+ S->>B: build(factura Associació, clau per defecte)
+ B-->>S: idempotency_key HISTORIC|FACT:A2020/000123
+ S->>H: importHistoricalInvoice(primer payload) [camí PHP, exemple]
+ H->>DB: INSERT primer històric NO_VERIFACTU [si núm lliure]
+ H-->>S: UUID_FACTURA_A o reús previ
+ alt Segon històric amb mateixa clau per defecte
+  S->>H: importHistoricalInvoice(segon payload amb mateix número)
+  H->>DB: SELECT WHERE IDEMPOTENCY_KEY coincident
+  DB-->>H: UUID_FACTURA_A
+  H-->>S: idempotency_reused=true sense comparar emissor/contingut
+  S->>I: Conflicte d'identitat històrica, no donar per importada la SL
+ else Segon històric amb clau explícita diferent
+  S->>H: importHistoricalInvoice(segon payload amb clau emissor+ID)
+  H->>DB: INSERT segona factura amb mateix NUM_VISIBLE
+  DB--xH: Violació UNIQUE(NUM_VISIBLE) i UNIQUE(sèrie,any,seq)
+  S->>I: Model global no admet dos originals homònims; conservar ambdós a les fonts
+ end
+ S-->>R: Bloqueig d'importació multiemissor pendent de model; no renumerar originals
+end
+Note over S,DB: Il·lustració dels dos conflictes PHP/SQL inspeccionats; resolvedor d'emissor i ruta multiemissor no implementats.
+```
+
+**Decisió de model pendent:** `factura.NUM_VISIBLE` i `(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` són únics globalment al SQL base. Abans de canviar restriccions cal preservar la numeració única exigida per a les noves emissions del SIF i definir si els històrics de diversos emissors han de residir en un model separat o en una identitat composta que **no alteri la cadena/numeració de nova emissió**; cap alternativa es dóna aquí per implementada.
+
+| Prova pendent | Escenari | Resultat exigible |
+| --- | --- | --- |
+| HS-97-07 | Dues fonts amb mateix número i clau per defecte | Detectar reús erroni de la primera per `HISTORIC|FACT:<número>`; no declarar les dues migrades. |
+| HS-97-08 | Mateixos documents amb claus idempotents explícites diferents | Detectar col·lisió per `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)`; no renumerar. |
+| HS-97-09 | Consulta de dues factures homònimes però emissor original desconegut en una | No revelar-les com una única factura d'Associació/SL; conservar incidència d'identitat. |
+| HS-97-10 | Definició de model multiemissor sense perdre numeració nova del SIF | Dues identitats històriques originals consultables, nova factura immutable amb numeració i cadena pròpies, permisos per emissor. |
 
 ## Traçabilitat
 
