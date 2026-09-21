@@ -128,3 +128,9 @@ Note over S,DB: La confirmació versionada no està implementada pel validador P
 ## 5. Traçabilitat
 
 [UC-69 original](../06-fitxes-funcionals/uc-069.md) · [UC-01 emissió](uc-001-emetre-o-reutilitzar-factura.md) · [UC-04 abans de cobrar](uc-004-emetre-factura-abans-cobrar.md) · [UC-112 snapshot TPV](uc-112-congelar-snapshot-abans-tpv.md) · [UC-128 adreça](uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md) · [InvoicePayloadValidator](../../sif/src/Service/InvoicePayloadValidator.php) · [InvoiceRepository](../../sif/src/Repository/InvoiceRepository.php) · [Esquema comercial](../../sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql).
+
+## Addenda transversal UC-77 — frontera entre confirmació i tramesa (disseny pendent)
+
+**UC-69 confirma i versiona dades abans de l'emissió; no executa la tramesa AEAT.** La previsualització confirmada ha de fixar el receptor legítim, les línies, els imports, la versió del snapshot i la identitat de qui confirma. L'emissor UC-01/75/76 usa aquesta fotografia sense recalcular-la des de dades vives i, **en la mateixa transacció local**, crea registre fiscal encadenat, payload original, hash del payload i job de cua. El worker UC-77 només reclama el job després del commit i contrasta contingut/identitat amb el registre immutable abans del transport. Enviar SOAP abans del commit o refer la fotografia sota la mateixa clau de reintent incompleix el contracte.
+
+**Traça:** [UC-77 · especificació i diagrama modificats](uc-077-operar-enviament-aeat-retry-dead-letter.md#7-fitxa-específica-ampliada-integritat-del-payload-congelació-i-dlq). La confirmació versionada i el hash de cua no estan acreditats al PHP actual. Prova pendent: rollback d'emissió no deixa cap job enviable; crash post-commit permet reprendre el mateix job/hash.
