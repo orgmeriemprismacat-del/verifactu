@@ -414,3 +414,135 @@ stop
 ```
 
 **Criteri de revisió i proves:** [fitxa funcional UC-114, secció 23](../06-fitxes-funcionals/uc-114.md) fixa orígens, resultats, alternatives i P114-01–06. Els diagrames ACTUALS reprodueixen codi observable, inclosos errors; els FINALS són contracte objectiu i no impliquen implementació ni proves executades. Encara cal connectar tots els controladors JS, controls/accions dels modals i captures reals de la pàgina a RM-037.
+
+
+## 8. Diagrames d'activitat de la interacció UI real per apartat
+
+**Ruta de la interfície d'edició verificada:** [`curs-mostrar-curs.php`](../../codi-drive/intranet-actual/curs-mostrar-curs.php) i [`js/curs-mostrar-curs.js`](../../codi-drive/intranet-actual/js/curs-mostrar-curs.js). Aquesta és la pantalla que implementa els controls `.editar-apartat`, `.save-result`, `.cancelar-apartat`, `.alumnes` i `.urlCurs`. La ruta `cursos-consultar-edicions-curs.php` té JS de càrrega del main, de manera que la correspondència entre pantalles no s'ha de deduir només del títol; l'acció «Info» del llistat d'estats obre `/curs/mostrar-curs/#/...` [JS estats](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js#L251-L259).
+
+### UI114-01 · Pantalla «Mostrar curs» — ACTUAL, cerca i accions
+
+```plantuml
+@startuml
+title UI114-01 ACTUAL | Mostrar curs - cerca, seccions i accions
+start
+:Obrir curs-mostrar-curs.php;
+:Carregar main i formulari de cerca;
+:Introduir identificador o filtres de curs;
+if (Cerca validada al client?) then (Sí)
+  :GET consultaCurs / mostrarInfoEdicioCurs;
+  if (Resultat no buit i sense cadena error?) then (Sí)
+    :Pintar estat, dades edició i dades per aula;
+    if (Clic editar/desar dades edició?) then (Sí)
+      :Comprovar tePermisEdicio al client;
+      :Validar camps i enviar POST desarCanvisDadesEdicio;
+      if (Resposta HTML sense cadena error?) then (Sí)
+        :Mostrar èxit i recarregar cerca;
+      else (No)
+        :Mostrar modal error;
+      endif
+    elseif (Clic editar/desar dades aula?) then (Sí)
+      :Comprovar tePermisEdicio al client;
+      :Validar dates i enviar POST desarCanvisDadesAulaEdicio;
+      if (Resposta HTML sense cadena error?) then (Sí)
+        :Mostrar èxit i recarregar cerca;
+      else (No)
+        :Mostrar modal error;
+      endif
+    elseif (Clic cancel·lar edició?) then (Sí)
+      :Convertir valors ACTUALS dels inputs a text no editable;
+      :No enviar petició de desament;
+    elseif (Clic ALUMNES?) then (Sí)
+      :GET mostrarModalConsultaAlumnes;
+      :Obrir modal i possible fitxa d'alumne;
+    elseif (Clic INFO web o MOODLE?) then (Sí)
+      :Consultar enllaç web o construir URL campus;
+      :Obrir destí en nova finestra;
+    endif
+  else (No)
+    :Mostrar modal d'error o curs inexistent;
+  endif
+else (No)
+  :Mostrar errors de cerca;
+endif
+stop
+@enduml
+```
+
+**Fonts:** [JS cerca/edició L284–456](../../codi-drive/intranet-actual/js/curs-mostrar-curs.js#L284-L456), [JS aula L550–649](../../codi-drive/intranet-actual/js/curs-mostrar-curs.js#L550-L649), [JS modal/enllaços L677–786](../../codi-drive/intranet-actual/js/curs-mostrar-curs.js#L677-L786). La comprovació `tePermisEdicio` del navegador **no substitueix** l'autorització al servidor per endpoint i objecte. El `.done()` comprova text, no estat de commit. La ruta de modal d'alumnes és consulta, no escriptura de factura.
+
+### UI114-01 · Pantalla «Mostrar curs» — FINAL, estats verificats
+
+```plantuml
+@startuml
+title UI114-01 FINAL | Mostrar curs amb permisos i retorns fiables
+start
+:Obrir pantalla i carregar dades de curs segons permís servidor;
+if (Curs accessible?) then (Sí)
+  :Mostrar estat, versió, edició, aules i discrepàncies;
+  if (Acció consulta alumnes o enllaç?) then (Sí)
+    :Autoritzar recurs consultat al servidor i retornar dades;
+    :Obrir modal / URL segura sense efecte econòmic;
+  elseif (Acció editar dades?) then (Sí)
+    :Verificar permís i versió base al servidor;
+    :Mostrar vista prèvia de camps/impacte;
+    if (Cancel·la?) then (Sí)
+      :Restaurar valors originals sense desar;
+    else (Desa)
+      :Validar dades al servidor;
+      :Executar escriptures consistents i traça;
+      if (Commit verificat?) then (Sí)
+        :Mostrar confirmació amb versió efectiva;
+        :Notificar canvi de condicions si correspon;
+        :Rellegir dades de la BD;
+      else (No)
+        :Mostrar error/incidència i versió real, sense fals èxit;
+      endif
+    endif
+  endif
+else (No)
+  :Denegar consulta sense revelar dades;
+endif
+stop
+@enduml
+```
+
+### UI114-02 · Botó «Cancel·lar» dades d'edició/aula — ACTUAL i FINAL
+
+```plantuml
+@startuml
+title UI114-02 ACTUAL | Cancel·lar sense restaurar valors originals
+start
+:Prémer icona editar a edició/aula;
+:Convertir div a input editable;
+:Canviar un camp sense desar;
+:Prémer cancel·lar;
+:cancelarEdicioApartat llegeix valor ACTUAL de cada input;
+:Elimina input i crea div no-edit amb valor ACTUAL;
+:No executa POST;
+note right
+  La pantalla pot mostrar com a vigent
+  una dada NO DESADA a la BD.
+end note
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title UI114-02 FINAL | Cancel·lar restaura la dada desada
+start
+:Prémer editar i conservar versió/valors originals;
+:Modificar un o més camps;
+:Prémer cancel·lar sense desar;
+:Descartar valors temporals;
+:Restaurar valor original o rellegir dada del servidor;
+:Mostrar dades efectivament persistides;
+:No enviar cap UPDATE ni notificació;
+stop
+@enduml
+```
+
+**Font:** [`cancelarEdicioApartat()` JS L340–352](../../codi-drive/intranet-actual/js/curs-mostrar-curs.js#L340-L352), control de cancel·lació d'edició [L535–549](../../codi-drive/intranet-actual/js/curs-mostrar-curs.js#L535-L549) i d'aula [L660–675](../../codi-drive/intranet-actual/js/curs-mostrar-curs.js#L660-L675). **Prova específica:** editar la data, cancel·lar, comparar valor visible amb la lectura real de BD i reobrir la pàgina; els tres han de coincidir sense haver escrit res.
+
+**Límit:** s'han traçat controls UI, JS, wrapper, mètode PHP i SQL per les accions d'aquests apartats en el codi versionat. Falta contrast visual amb captures, desplegament, permisos per recurs, casos d'ús associats a qualsevol altre control no inventariat i execució de proves. [Fitxa funcional d'UI114](../06-fitxes-funcionals/uc-114.md#24-traça-completa-dels-controls-de-la-pantalla-mostrar-curs-js--php).
