@@ -121,12 +121,13 @@ flowchart TD
   I -->|Sí| IA{"Autorització secretaria o suport verificable per persona i tastet?"}
   IA -->|No| IB["No crear alta ni reactivar accés; informar de secretaria/suport"]
   IA -->|Sí| IC["Registrar autorització i permetre reinscripció controlada"]
-  I -->|No| ID["DEC-108-03: altres estats pendents de concretar"]
+  I -->|No| ID["Retornar estat anterior; política dels altres estats pendent DEC-108-03"]
   IC --> K["Crear nova sol·licitud autoritzada una vegada; FREE_SAMPLE si DEC-108-06"]
   H -->|No| J["Crear sol·licitud gratuïta una vegada"]
   J --> L["Vincular FREE_SAMPLE només si DEC-108-06 ho aprova"]
   K --> L
-  ID --> L
+  ID --> IE([Fi sense nova alta])
+  IB --> IE
   L --> M{"Opció de màrqueting expressa?"}
   M -->|Sí| N["UC-125: registrar opció i confirmar segons DEC-108-04"]
   M -->|No| O["No inscriure al mailing comercial"]
