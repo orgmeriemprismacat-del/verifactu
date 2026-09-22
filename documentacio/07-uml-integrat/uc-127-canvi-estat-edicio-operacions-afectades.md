@@ -575,7 +575,7 @@ stop
 title UI127-01 ACTUAL | Pantalla preinici i guardat asíncron
 start
 :Carregar main i cercador ANY/MES;
-if (ANY i MES validats pel client?) then (Sí)
+if (ANY o MES tenen algun valor?) then (Sí)
   :GET cursos/buscarCursos amb any, mes i ordre;
   :Mostrar taula i recordar estats originals en estatsCursos;
   if (Clic a etiqueta estat?) then (Sí)
@@ -608,6 +608,8 @@ endif
 stop
 @enduml
 ```
+
+**Validació de cerca tal com està programada:** el JS mostra l'error obligatori només si **ANY i MES són tots dos buits** [L114–130](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js#L114-L130); si un és buit i l'altre no, intenta cercar igualment. No documentar el codi actual com si validés que tots dos camps estan plens. **P127-06:** provar any buit/mes vàlid i inversa, i definir/validar el comportament final al backend.
 
 **Fonts:** [JS L114–157](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js#L114-L157), [L159–204](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js#L159-L204), [L208–248](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js#L208-L248), [L251–259](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js#L251-L259). La petició GET enviada és el wrapper [`desarCanvisEstatEnviarMsg.php`](../../codi-drive/intranet-actual/ajax/cursos/desarCanvisEstatEnviarMsg.php#L11-L27), que desencadena les branques actuals A127-CAN/PEN/ACT de la secció 7.
 
