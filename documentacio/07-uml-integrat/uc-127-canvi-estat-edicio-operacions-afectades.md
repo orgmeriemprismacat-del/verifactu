@@ -562,3 +562,89 @@ stop
 | ACTIU | Estat `1`, `codi_udg=NULL` des de PENDENT/ANUL·LAT; flag de correu `X`, missatge de resultat potencialment erroni. | Activació amb estat consistent i text correcte; no reviure inscripció prèviament donada de baixa per inèrcia. | PENDENT→ACTIU, ANUL·LAT→ACTIU, reintent i fallada parcial. |
 
 **Límit de completitud:** s'han contrastat l'estructura de la pàgina i el PHP del canvi d'estat, però manca completar l'encadenament d'esdeveniments JS i els modals reals, les captures, el desplegament i les proves. Aquests diagrames completen les branques del mètode **amb el coneixement disponible**, sense donar per tancada la totalitat de RM-037.
+
+
+## 8. Diagrames d'activitat de la pantalla d'estats: JS i PHP
+
+**Pàgina efectiva:** [`cursos-previ-inici-cursos-estat-cursos.php`](../../codi-drive/intranet-actual/cursos-previ-inici-cursos-estat-cursos.php) + [`js/cursos-previ-inici-cursos-estat-cursos.js`](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js). El mètode PHP de pàgina construeix cercador, taula d'edicions/estats i botons INFO i **Desa canvis i envia** [`Intranet.php` L18948–18980](../../codi-drive/intranet-actual/Intranet.php#L18948-L18980) i [L19125–19224](../../codi-drive/intranet-actual/Intranet.php#L19125-L19224).
+
+### UI127-01 · Cercar, canviar etiquetes i desar — ACTUAL
+
+```plantuml
+@startuml
+title UI127-01 ACTUAL | Pantalla preinici i guardat asíncron
+start
+:Carregar main i cercador ANY/MES;
+if (ANY i MES validats pel client?) then (Sí)
+  :GET cursos/buscarCursos amb any, mes i ordre;
+  :Mostrar taula i recordar estats originals en estatsCursos;
+  if (Clic a etiqueta estat?) then (Sí)
+    :Alternar ACTIU -> PENDENT -> ANUL·LAT -> ACTIU;
+    :Canviar etiqueta i classe CSS sense desar a BD;
+  endif
+  if (Clic Info?) then (Sí)
+    :Obrir /curs/mostrar-curs per aquella edició;
+  endif
+  if (Clic Desar canvis i envia?) then (Sí)
+    if (tePermisEdicio al client?) then (Sí)
+      :Recórrer etiquetes amb valor diferent d'original;
+      :Llançar GET AJAX asíncron PER CADA edició canviada;
+      :Acumular respostes als callbacks done;
+      :Mostrar Actualitzat! IMMEDIATAMENT;
+      :Cridar reloadUrl SENSE esperar tots els done/fail;
+      note right
+        La confirmació anticipada no prova
+        que les peticions hagin acabat.
+        Un error d'una fila pot coexistir
+        amb el missatge de lot actualitzat.
+      end note
+    else (No)
+      :Mostrar modal sense permís;
+    endif
+  endif
+else (No)
+  :Mostrar error de cerca;
+endif
+stop
+@enduml
+```
+
+**Fonts:** [JS L114–157](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js#L114-L157), [L159–204](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js#L159-L204), [L208–248](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js#L208-L248), [L251–259](../../codi-drive/intranet-actual/js/cursos-previ-inici-cursos-estat-cursos.js#L251-L259). La petició GET enviada és el wrapper [`desarCanvisEstatEnviarMsg.php`](../../codi-drive/intranet-actual/ajax/cursos/desarCanvisEstatEnviarMsg.php#L11-L27), que desencadena les branques actuals A127-CAN/PEN/ACT de la secció 7.
+
+### UI127-01 · Cercar, previsualitzar i desar — FINAL
+
+```plantuml
+@startuml
+title UI127-01 FINAL | Canvis d'estat amb resultats per edició
+start
+:Entrar a pantalla i autoritzar actor;
+:Seleccionar any/mes i consultar edicions vigents;
+if (Consulta i actor vàlids?) then (Sí)
+  :Mostrar cada edició amb estat i versió real;
+  :Seleccionar noves transicions per fila;
+  if (Clic Info?) then (Sí)
+    :Obrir consulta UC-114 amb permís per recurs;
+  endif
+  if (Clic Desar canvis i envia?) then (Sí)
+    :Consultar impacte real i mostrar previsualització;
+    :Registrar una comanda idempotent per edició autoritzada;
+    :Esperar resultat de cadascuna o registrar-la PENDENT;
+    if (Totes les edicions finalitzades?) then (Sí)
+      :Mostrar confirmació amb IDs i estats verificats;
+    else (No)
+      :Mostrar edicions completes, pendents i fallides;
+      :Oferir consulta/reintent de les fases pendents;
+    endif
+    :Desar notificacions després del commit i verificar lliurament;
+    :Rellegir estats reals abans d'actualitzar pantalla;
+  endif
+else (No)
+  :Mostrar error o denegar consulta sense escriptures;
+endif
+stop
+@enduml
+```
+
+**Anul·lació:** una fila que passa a ANUL·LAT segueix el contracte confirmat de **conservar les inscripcions a l'edició original i oferir canvi d'edició o de curs**; el resultat del lot no és un permís per executar `updInscBaixaCurs` per les files `INSC CURS=0`. **Proves no executades:** dues edicions, una fallida; doble clic/desat repetit; nova petició amb la pàgina recarregada; estat modificat concurrentment; avís que falla després del commit; persona que no respon a l'anul·lació; reactivació amb inscripció antiga `X`.
+
+**Límit:** el JS de la pantalla i les branques del mètode PHP estan documentats; falta corroboració visual/captures de tots els modals i resultats de l'entorn real, així com execució de les proves. [Fitxa funcional UC-127, controls UI](../06-fitxes-funcionals/uc-127.md#24-controls-reals-de-la-pantalla-de-preinici--javascript-contrastat).
