@@ -148,7 +148,7 @@ Note over V,R: Coordinació no implementada, no ALTERAR factura original ni gene
 
 ## 5 bis. Decisions de negoci confirmades i preguntes encara obertes
 
-**CONFIRMAT — negoci 22/09/2026:** només la inscripció a JASOM permet demanar promoció novell. El títol ha d'haver estat expedit fa menys d'un any a la data d'inici de JASOM i secretaria comprova manualment el títol, la data i el titular. La inscripció es crea abans de la revisió i **només després de l'aprovació/denegació** es faciliten opcions de pagament. L'acreditació incorrecta provoca requeriment manual, fins a 48 hores **laborables** per esmenar i denegació quan secretaria prem No, sense cancel·lar la matrícula. **Un únic benefici:** es paga i es gaudeix de JASOM al seu preu comercial aplicable; si està acreditat i JASOM queda COMPLETAMENT PAGAT, s'emet automàticament un codi promocional **pel valor efectivament pagat** per aplicar en qualsevol curs posterior, dins d'un any des de l'emissió i combinable amb altres descomptes. Amb un dret de 90 € i compra de 70 €, el llegat genera un nou codi de 20 €; al SIF s'ha ACORDAT mantenir un únic saldo PROMOCIONAL disponible de 20 € dins el mateix dret, sense codi residual nou. En un curs de 120 €, el client abona la diferència de 30 €. Una devolució de JASOM provoca anul·lació MANUAL del codi i, si ja s'ha gastat, reclamació del valor aplicat. El romanent conserva la caducitat ORIGINAL del dret i els altres descomptes s'apliquen ABANS de consumir saldo. En cas de retorn de JASOM, un apartat intern ha de permetre cancel·lar el saldo disponible sense esborrar els consums i reclamar el valor utilitzat. La classificació comptable/fiscal del dret, el còmput operatiu d'hores laborables, la baixa del curs de destinació i la recurrència de JASOM encara estan en definició.
+**CONFIRMAT — negoci 22/09/2026:** només la inscripció a JASOM permet demanar promoció novell. El títol ha d'haver estat expedit fa menys d'un any a la data d'inici de JASOM i secretaria comprova manualment el títol, la data i el titular. La inscripció es crea abans de la revisió i **només després de l'aprovació/denegació** es faciliten opcions de pagament. L'acreditació incorrecta provoca requeriment manual, fins a 48 hores **laborables** per esmenar i denegació quan secretaria prem No, sense cancel·lar la matrícula. **Un únic benefici:** es paga i es gaudeix de JASOM al seu preu comercial aplicable; si està acreditat i JASOM queda COMPLETAMENT PAGAT, s'emet automàticament un codi promocional **pel valor efectivament pagat** per aplicar en qualsevol curs posterior, dins d'un any des de l'emissió i combinable amb altres descomptes. Amb un dret de 90 € i compra de 70 €, el llegat genera un nou codi de 20 €; al SIF s'ha ACORDAT mantenir un únic saldo PROMOCIONAL disponible de 20 € dins el mateix dret, sense codi residual nou. En un curs de 120 €, el client abona la diferència de 30 €. Una devolució de JASOM provoca anul·lació MANUAL del codi i, si ja s'ha gastat, reclamació del valor aplicat. El romanent conserva la caducitat ORIGINAL del dret i els altres descomptes s'apliquen ABANS de consumir saldo. En cas de retorn de JASOM, un apartat intern ha de permetre cancel·lar el saldo disponible sense esborrar els consums i reclamar el valor utilitzat. La classificació comptable/fiscal del dret, el còmput operatiu d'hores laborables, ja està confirmat que el dret promocional novell es concedeix UNA SOLA VEGADA PER PERSONA, i el canvi o baixa del curs de destinació segueix el procés ordinari, amb trasllat al nou curs si es canvia i amb rectificativa més saldo nou d'un any si es dona de baixa. Resten per concretar els imports efectivament recuperables en una baixa segons condicions i el tractament fiscal/comptable de cada tram.
 
 **Correcció de font:** el cos del mètode de validació, el mapa SQL i el constructor de l'apartat s'han aportat al xat posteriorment al lot 02. Les notes anteriors de «mètode no recuperat» són HISTÒRIQUES. El SQL confirma que actualitza recent_titulat.VALIDAT (1/2); no deduir que s'hagi comprovat ingrés ni emès cap promoció.
 ## 6. Diagrames d'activitat del cas UC-111
@@ -427,7 +427,41 @@ stop
 @enduml
 ```
 
-**Control pendent de concretar:** rol concret de cancel·lació, missatges i plantilla de reclamació, devolució parcial, regularització de la factura del curs de destinació si correspon i acció després d'una baixa d'aquest curs. El requeriment de la pàgina i de l'auditoria està confirmat; el codi, els tests i el desplegament NO.
+**Control pendent de concretar:** rol concret de cancel·lació, missatges i plantilla de reclamació, devolució parcial, regularització fiscal i propagació de l'anul·lació a saldos derivats d'una baixa del curs de destinació. El canvi/baixa del destí té ara una regla funcional confirmada, representada a l'apartat següent. El requeriment de la pàgina i de l'auditoria està confirmat; el codi, els tests i el desplegament NO.
+### 4.3 quinquies. Canvi o baixa del curs de destinació — FINAL acordat
+
+**Decisió funcional:** només una concessió inicial de promoció novell per persona. Una vegada aplicada a una matrícula posterior, la matrícula destí segueix el mateix circuit de canvi/baixa que una inscripció ordinària. En un canvi, la promoció ja consumida es **traspassa a la nova matrícula** i es tramita la rectificativa corresponent, sense consumir dos cops el saldo novell. En una baixa, la rectificativa dona lloc —segons condicions de baixa i imports elegibles— a un **nou saldo derivat de baixa, amb un any de vigència propi**. Aquest no prolonga la caducitat del romanent original, que conserva l'aniversari de la concessió de JASOM. Els imports promocionals i els cobraments externs es mantenen separats i rastrejables.
+
+```plantuml
+@startuml
+title UC-111 | Matricula destí pagada amb saldo novell: canvi o baixa | FINAL
+start
+:Carregar matrícula destí, factura, pagament real i consum novell;
+:Verificar actor, condicions de modificació, import i historial;
+if (Sol·licita canvi de curs?) then (Sí)
+ :Obrir operació comercial de canvi vinculada a origen i destí;
+ :Calcular import transferible segons condicions de canvi;
+ :Emetre rectificativa corresponent i nova factura si pertoca;
+ :Traspassar al curs nou el valor promocional ja aplicat i altres trams;
+ :Guardar una sola assignació efectiva al curs nou;
+ :Registrar diferència de preu i cobrar o concedir saldo segons política ordinària;
+else (Baixa del curs destí)
+ :Aplicar condicions de baixa i establir import a reconèixer;
+ :Emetre rectificativa de la inscripció que es dona de baixa;
+ :Registrar saldo DERIVAT DE BAIXA amb origen factura rectificativa;
+ :Fixar vigència pròpia d'un any des de la concessió del nou saldo;
+ :Conservar enllaç al consum promocional novell i desemborsament real;
+ :No prorrogar el romanent del saldo novell original;
+endif
+:Deixar immutable la factura anterior i conservar cadena documental;
+:Actualitzar traça d'imports i estats sense crear cobrament fictici;
+stop
+@enduml
+```
+
+**Selecció fiscal verificada (no fixar R2):** R2 identifica concurs de creditors (art. 80.Tres LIVA); S és modalitat per substitució i I, per diferències, independents del motiu R1/R2/R3/R4/R5. La resolució d'operacions i alteracions de preu de l'art. 80.Dos LIVA són causes de R1 si aquest és el motiu real; R4 inclou errors no monetaris i altres supòsits; per rectificar factura simplificada considerar R5. El SIF classificarà cada rectificativa segons causa, factura original i imports, no per la paraula «canvi de curs». [AEAT, procediments de facturació (FAQ 21/07/2026)](https://sede.agenciatributaria.gob.es/Sede/ca_es/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/procedimientos-facturacion.html) · [RD 1619/2012, art. 15](https://www.boe.es/buscar/act.php?id=BOE-A-2012-14696#a15).
+
+**Proves proposades, NO EXECUTADES:** segon JASOM d'una persona ja beneficiària (sense segon dret), canvi de destí amb preu igual/superior/inferior, baixa de destí amb saldo novell gastat parcialment, nova vigència d'un any sense modificar l'original, devolució posterior de JASOM amb saldo derivat encara disponible, doble click/reintent i canvi concurrent amb consum del saldo.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
