@@ -285,7 +285,7 @@ Note over S,A: No hi ha commit distribuït SIF/Moodle. El checkpoint/worker són
 
 ### Diagrames d'activitat A127 — subfluxos concrets, font i estat
 
-**Traça de pantalla:** canvi d'estat d'una edició des de la intranet; [wrapper actual `ajax/cursos/desarCanvisEstatEnviarMsg.php`](../../codi-drive/intranet-actual/ajax/cursos/desarCanvisEstatEnviarMsg.php#L11-L27), que llegeix `any`, `mes`, `curs`, `estatAnt`, `estat` per GET i crida `Intranet::desarCanvisEstatEnviarMsg_PreviIniciCursos()`. **Estat actual verificat: només el wrapper**, no el cos del mètode, els botons, la plantilla de correu ni els efectes persistents. Els dos diagrames finals són DISSENY amb regles de negoci confirmades i tasques tècniques pendents, **no codi implantat ni diagrames complets de tota la pàgina**. Aquestes accions pertanyen a UC-127 per estat, i a UC-114 per canvi de dades/versió; no fusionar-les.
+**Traça de pantalla:** canvi d'estat d'una edició des de la intranet; [wrapper actual `ajax/cursos/desarCanvisEstatEnviarMsg.php`](../../codi-drive/intranet-actual/ajax/cursos/desarCanvisEstatEnviarMsg.php#L11-L27), que llegeix `any`, `mes`, `curs`, `estatAnt`, `estat` per GET i crida `Intranet::desarCanvisEstatEnviarMsg_PreviIniciCursos()`. **Revisió ampliada:** el wrapper, el cos COMPLET del mètode a Intranet.php i les sentències SQL actuals ja s'han contrastat, incloses les branques d'anul·lació, pendent i actiu. Queden per comprovar la resta de handlers JS de la pàgina, els permisos desplegats, els resultats de BD i el lliurament real dels correus. Els dos diagrames finals són DISSENY amb regles de negoci confirmades i tasques tècniques pendents, **no codi implantat ni diagrames complets de tota la pàgina**. Aquestes accions pertanyen a UC-127 per estat, i a UC-114 per canvi de dades/versió; no fusionar-les.
 
 #### A127-01 — ACTUAL: controlador de canvi d'estat (límit verificat)
 
@@ -297,9 +297,10 @@ start
 :Deserialitzar usuari i intranet des de la sessió;
 :Cridar Intranet::desarCanvisEstatEnviarMsg_PreviIniciCursos(...);
 note right
-  Cos del mètode no contrastat:
-  no suposar efectes sobre inscripcions,
-  correu, factures o Moodle.
+  Aquest bloc només representa
+  el wrapper, no el mètode complet.
+  Vegeu els diagrames detallats
+  ACTUALS de cada estat a continuació.
 end note
 :Retornar al client la resposta del mètode;
 stop
@@ -369,4 +370,195 @@ stop
 @enduml
 ```
 
-**Proves proposades, no executades:** (1) anul·lar amb tres persones: cap trasllat ni baixa per defecte i tres avisos rastrejables, una petició de canvi resolta independentment de les altres; (2) persona que no respon: inscripció encara a l'edició anul·lada; (3) canvi de data sense anul·lació: avís i cap exigència d'acceptació prèvia, amb alternativa si no li va bé; (4) factura o cobrament existent: cap devolució, rectificació o segona captura només per la notificació; (5) error d'enviament: reintentar només el missatge pendent, sense repetir el canvi d'estat ni els efectes individuals. Per tancar RM-037 falta contrastar la pàgina, els modals i el mètode llegat complet i executar aquestes proves.
+**Proves proposades, no executades:** (1) anul·lar amb tres persones: cap trasllat ni baixa per defecte i tres avisos rastrejables, una petició de canvi resolta independentment de les altres; (2) persona que no respon: inscripció encara a l'edició anul·lada; (3) canvi de data sense anul·lació: avís i cap exigència d'acceptació prèvia, amb alternativa si no li va bé; (4) factura o cobrament existent: cap devolució, rectificació o segona captura només per la notificació; (5) error d'enviament: reintentar només el missatge pendent, sense repetir el canvi d'estat ni els efectes individuals. Per tancar RM-037 falta contrastar els handlers JS i tots els modals de la pàgina, la resposta del servei a l'entorn real i executar aquestes proves; **el mètode llegat complet ja s'ha llegit**.
+
+
+## 7. Diagrames d'activitat de l'estat d'edició amb el PHP complet
+
+**Pàgina de preinici:** [`Intranet.php` L18948–18980](../../codi-drive/intranet-actual/Intranet.php#L18948-L18980) mostra cercador per any/mes i botó Cerca; [L18987–19224](../../codi-drive/intranet-actual/Intranet.php#L18987-L19224) genera taula de resultats amb codi, títol, inscrits, pagats, altres, estat i acció d'informació; inclou el botó **«Desa canvis i envia»**. [`desarCanvisEstatEnviarMsg.php`](../../codi-drive/intranet-actual/ajax/cursos/desarCanvisEstatEnviarMsg.php#L11-L27) és el controlador del canvi, i el cos complet [`Intranet::desarCanvisEstatEnviarMsg_PreviIniciCursos()`](../../codi-drive/intranet-actual/Intranet.php#L19238-L20127) executa les branques següents. **No suposar que la consulta de la pàgina és una transacció ni que els estats `T` tinguin una branca executiva pròpia en aquest mètode.**
+
+### A127-CAN · Anul·lació — ACTUAL, consulta `INSC CURS=0` i baixa automàtica
+
+```plantuml
+@startuml
+title A127-CAN ACTUAL | Anul·lar edició segons Intranet.php
+start
+:Rebre GET any, mes, curs, estatAnt i estat;
+if (estat ANUL·LAR o ANUL·LAT?) then (Sí)
+  :Llegir edició i tutor de curs;
+  :Preparar comunicacions a tutor i equip intern;
+  :UPDATE curs.ESTAT = 0;
+  :Consultar curs antic i aula;
+  :UPDATE aula / cursos amb valors d'anul·lació;
+  :Buscar possibles edicions futures obertes;
+  :SELECT inscripcions amb INSC CURS = 0;
+  while (Queda una inscripció retornada?) is (Sí)
+    :UPDATE inscripcions INSC CURS = X;
+    :Guardar data, actor, motiu CURS ANUL·LAT;
+    :Consultar factura i forma de pagament;
+    :Construir missatge d'anul·lació per alumne;
+    :Preparar correu a alumne i còpia interna;
+  endwhile (No)
+  :Retornar text de resultat;
+else (No)
+  :Seguir branques PENDENT / ACTIU / cap branca;
+endif
+note right
+  Només es modifica a X el conjunt
+  seleccionat amb INSC CURS = 0.
+  No afirma baixa de TOTS els actius.
+  Actualitzacions i correus són seqüencials.
+end note
+stop
+@enduml
+```
+
+**Fonts exactes:** [L19263–19448](../../codi-drive/intranet-actual/Intranet.php#L19263-L19448), [L19500–19569](../../codi-drive/intranet-actual/Intranet.php#L19500-L19569), [L19580–19650](../../codi-drive/intranet-actual/Intranet.php#L19580-L19650), SQL [`buscarInscrCursByCursInsc` L695](../../codi-drive/intranet-actual/Intranet.php#L695-L695) i [`updInscBaixaCurs` L1044–1046](../../codi-drive/intranet-actual/Intranet.php#L1044-L1046). No s'ha comprovat encara si algun efecte de Moodle es dispara a través d'altres rutines fora d'aquest mètode.
+
+### A127-CAN · Anul·lació — FINAL, regla confirmada (detall per inscrit)
+
+```plantuml
+@startuml
+title A127-CAN FINAL | Anul·lació i decisió individual
+start
+:Actor amb permís selecciona anul·lació;
+:Validar estat real, versió i clau idempotent;
+:Inventariar totes les inscripcions i operacions vinculades;
+:Registrar canvi estat a edició i event amb actor;
+:Conservar totes les inscripcions a l'edició original;
+:Desar avís a outbox per a cada persona inscrita;
+:Notificar anul·lació i oferir edició o curs alternatius;
+while (Queda una persona pendent de resposta?) is (Sí)
+  if (Sol·licita canvi d'edició o curs?) then (Sí)
+    :Verificar destí i plaça;
+    :Consultar factura, imports i ingressos reals de la persona;
+    :Tramitar UC canvi curs i efecte fiscal/econòmic si existeix;
+    if (Canvi individual confirmat?) then (Sí)
+      :Actualitzar inscripció i accés acadèmic;
+      :Comunicar el resultat real;
+    else (No)
+      :Mantenir inscripció original i obrir incidència;
+    endif
+  else (Encara no respon)
+    :Mantenir inscripció original i estat pendent;
+    break
+  endif
+endwhile (No)
+:No executar devolució o baixa automàtiques per anul·lar;
+stop
+@enduml
+```
+
+**La regla de manca de resposta no fixa cap termini:** el diagrama no suposa caducitat ni baixa per silenci. Tractar l'estat pendent com a registre per inscrit; els reintents han de processar només fases no completades.
+
+### A127-PEN · Marcar PENDENT — ACTUAL i FINAL
+
+```plantuml
+@startuml
+title A127-PEN ACTUAL | Marcar curs pendent i avisar tutor
+start
+:Rebre GET estat = PENDENT;
+:UPDATE curs.ESTAT = P;
+:UPDATE cursos.codi_udg = #;
+:Consultar dades edició, tutor i aula;
+:Construir/llançar comunicacions de curs pendent;
+:Marcar flags d'avís de tutor i aula;
+:Retornar text de resultat;
+note right
+  No es veu una fase de rollback
+  conjunta de les dues actualitzacions
+  i les comunicacions.
+end note
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title A127-PEN FINAL | Canvi a pendent traçable
+start
+:Autoritzar actor i validar transició contra estat/versió real;
+if (Transició permesa i nova?) then (Sí)
+  :Registrar canvi a pendent amb idempotència;
+  :Sincronitzar estats curs i cursos i resultat real;
+  :Encolar avís a tutor quan correspongui;
+  if (Avís fallit?) then (Sí)
+    :Registrar lliurament pendent i reintentar només avís;
+  else (No)
+    :Mostrar estat pendent i comunicacions confirmades;
+  endif
+else (No)
+  :Retornar estat existent o conflicte sense repetir enviament;
+endif
+stop
+@enduml
+```
+
+**Fonts:** [`Intranet.php` L19653–19815](../../codi-drive/intranet-actual/Intranet.php#L19653-L19815), SQL [L1116–1121](../../codi-drive/intranet-actual/Intranet.php#L1116-L1121). L'objectiu de final no està implantat pel simple fet que `curs` i `cursos` ja tinguin estats.
+
+### A127-ACT · Marcar ACTIU — ACTUAL i FINAL
+
+```plantuml
+@startuml
+title A127-ACT ACTUAL | Activació des de PENDENT o ANUL·LAT
+start
+:Rebre GET estat = ACTIU i estatAnt;
+if (estatAnt PENDENT o ANUL·LAT?) then (Sí)
+  :UPDATE curs.ESTAT = 1;
+  :UPDATE cursos.codi_udg = NULL;
+  :Consultar curs i tutor;
+  :Preparar avisos al tutor;
+  :SELECT inscripcions de la convocatòria segons query pròpia;
+  while (Queda una inscripció retornada?) is (Sí)
+    :Consultar factura i forma de pagament;
+    :UPDATE inscripcions.correu_pendent_inici = X;
+    :Preparar comunicació d'inici a alumne i còpia interna;
+    :Afegir text de resultat al client;
+  endwhile (No)
+else (No)
+  :No executar la branca ACTIU d'aquest mètode;
+endif
+note right
+  El text de resultat d'avís
+  pot dir erròniament "anul·lació".
+  L'UPDATE de correu no canvia
+  INSC CURS en aquesta branca.
+end note
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title A127-ACT FINAL | Activar edició sense duplicar efectes
+start
+:Verificar actor, estat real i transició vers ACTIU;
+if (Transició autoritzada?) then (Sí)
+  :Consultar inscripcions i operacions afectades;
+  :Registrar versió i activar curs coherentment;
+  :Encolar avís d'inici per destinatari admissible;
+  :Distingir pendent d'avís i avís ja lliurat;
+  if (Hi ha inscripció pendent o baixa prèvia?) then (Sí)
+    :No reactivar automàticament ni inventar cobrament;
+    :Derivar recuperació acadèmica per inscripció si es decideix;
+  endif
+  :Mostrar "activat" i resultat real de cada comunicació;
+else (No)
+  :Retornar conflicte o estat existent sense segona emissió;
+endif
+stop
+@enduml
+```
+
+**Fonts:** [`Intranet.php` L19819–20120](../../codi-drive/intranet-actual/Intranet.php#L19819-L20120) i [`updCorreuPendentInici` L1149](../../codi-drive/intranet-actual/Intranet.php#L1149-L1149). Els missatges del nou sistema han de correspondre al canvi executat; evitar indicar anul·lació després d'un avís d'activació.
+
+### Matriu de tancament d'aquestes accions
+
+| Acció | Actual llegit al PHP/SQL | Regla FINAL confirmada / DISSENY | Prova executable |
+| --- | --- | --- | --- |
+| Cercar edició i obrir acció | UI PHP de cercador i taula de resultats verificada; handlers JS i captures no completats. | Cada acció només disponible per actor/edició autoritzat, amb dades de l'estat real. | Cercar any/mes buit, edició absent, dues aules, rol sense permís i selecció d'estat. |
+| ANUL·LAR/ANUL·LAT | Estat de l'edició 0; `INSC CURS=0 → X`; avís per fila seleccionada, factures consultades. | **No donar de baixa ni moure inicialment cap inscripció; avisar totes les inscrites i oferir canvi d'edició o de curs.** | Inscripció `0` i `1`, persona sense resposta, pagada/facturada, error d'avís, callback tardà. |
+| PENDENT | Estat `P`, `codi_udg=#`, avís al tutor. | Transició versionada i comunicació idempotent, sense efectes bancaris. | Reintent, canvis concurrents, tutor absent, fallada de lliurament. |
+| ACTIU | Estat `1`, `codi_udg=NULL` des de PENDENT/ANUL·LAT; flag de correu `X`, missatge de resultat potencialment erroni. | Activació amb estat consistent i text correcte; no reviure inscripció prèviament donada de baixa per inèrcia. | PENDENT→ACTIU, ANUL·LAT→ACTIU, reintent i fallada parcial. |
+
+**Límit de completitud:** s'han contrastat l'estructura de la pàgina i el PHP del canvi d'estat, però manca completar l'encadenament d'esdeveniments JS i els modals reals, les captures, el desplegament i les proves. Aquests diagrames completen les branques del mètode **amb el coneixement disponible**, sense donar per tancada la totalitat de RM-037.
