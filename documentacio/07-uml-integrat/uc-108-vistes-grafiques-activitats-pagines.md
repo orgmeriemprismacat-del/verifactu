@@ -127,12 +127,16 @@ flowchart TD
   I -->|Sí| IA{"Inscripció web desbloquejada per secretaria/suport per persona+tastet?"}
   IA -->|No| IB["Inscripció web bloquejada; contactar secretaria/suport perquè desbloquegi"]
   IA -->|Sí| IC["Secretaria/suport ja ha desbloquejat; la persona torna al formulari i l'envia"]
-  I -->|No| ID["Retornar estat anterior; política dels altres estats pendent DEC-108-03"]
+  I -->|No| ID{"La persona s'ha donat de baixa o secretaria ha denegat la petició anterior?"}
+  ID -->|Sí| IDA["Permetre nova inscripció directa al formulari web, sense desbloqueig"]
+  IDA --> IDB["Conservar historial de baixa/denegació; crear nova petició idempotent"]
+  IDB --> L
+  ID -->|No| IDC["Estat no classificat: no crear alta sense comprovació"]
   IC --> K["Crear nova sol·licitud autoritzada una vegada; FREE_SAMPLE si DEC-108-06"]
   H -->|No| J["Crear sol·licitud gratuïta una vegada"]
   J --> L["Vincular FREE_SAMPLE només si DEC-108-06 ho aprova"]
   K --> L
-  ID --> IE([Fi sense nova alta])
+  IDC --> IE([Fi sense nova alta])
   IB --> IE
   L --> M{"Opció de màrqueting expressa?"}
   M -->|Sí| N["UC-125: registrar opció i confirmar segons DEC-108-04"]
@@ -184,4 +188,4 @@ flowchart TD
   D --> L
 ```
 
-**DEC-108-03c ACORDADA:** accés actiu al mateix tastet → mostrar «ja estàs inscrita» sense crear una segona sol·licitud ni exigir desbloqueig. **DEC-108-03b ACORDADA:** si la primera sol·licitud encara està pendent d'alta al campus, avisar que ja hi ha una petició pendent i no crear cap altra alta; no exigir desbloqueig de secretaria/suport. **DEC-108-03a ACORDADA:** accés caducat → secretaria/suport desbloqueja la inscripció web per persona+tastet i és la persona qui torna a emplenar i enviar el formulari; secretaria/suport no inscriu directament. El PHP actual no acredita aquest control. **Abans de considerar la proposta FINAL aprovada:** concretar el mecanisme de l'autorització i resoldre la resta de [DEC-108-01…07](../06-fitxes-funcionals/uc-108.md#20-decisions-que-volem-definir-amb-negoci-abans-de-passar-a-un-altre-uc). Els subdiagrames PlantUML dels dotze apartats tenen estats independents i no s'han substituït per aquesta vista resumida.
+**DEC-108-03d ACORDADA:** després de baixa de la persona o petició denegada per secretaria, es permet una nova inscripció des del formulari web sense desbloqueig; es conserva l'historial i s'evita la doble alta. **DEC-108-03c ACORDADA:** accés actiu al mateix tastet → mostrar «ja estàs inscrita» sense crear una segona sol·licitud ni exigir desbloqueig. **DEC-108-03b ACORDADA:** si la primera sol·licitud encara està pendent d'alta al campus, avisar que ja hi ha una petició pendent i no crear cap altra alta; no exigir desbloqueig de secretaria/suport. **DEC-108-03a ACORDADA:** accés caducat → secretaria/suport desbloqueja la inscripció web per persona+tastet i és la persona qui torna a emplenar i enviar el formulari; secretaria/suport no inscriu directament. El PHP actual no acredita aquest control. **Abans de considerar la proposta FINAL aprovada:** concretar el mecanisme de l'autorització i resoldre la resta de [DEC-108-01…07](../06-fitxes-funcionals/uc-108.md#20-decisions-que-volem-definir-amb-negoci-abans-de-passar-a-un-altre-uc). Els subdiagrames PlantUML dels dotze apartats tenen estats independents i no s'han substituït per aquesta vista resumida.
