@@ -164,7 +164,7 @@ try {
     $sql = "SELECT i.ID, i.USUARI, i.ANY, i.MES, i.CURS, i.NOM,
                    i.COGNOMS, i.CORREU, i.Poblacio
             FROM inscripcions AS i
-            WHERE i.ID = ? AND i.PERENNE = '0' AND i.\`INSC CURS\` = '1'
+            WHERE i.ID = ? AND i.PERENNE = '0' AND i.`INSC CURS` = '1'
               AND EXISTS (
                 SELECT 1 FROM curs AS c
                 INNER JOIN aula ON c.ID_AULA = aula.ID_AULA
@@ -238,7 +238,7 @@ try {
     // Actualització inequívoca per ID_INSC. Tot el lot passa o es reverteix.
     $update = $db->connexio->prepare(
         "UPDATE inscripcions SET PERENNE = '1'
-         WHERE ID = ? AND \`INSC CURS\` = '1' AND PERENNE = '0'"
+         WHERE ID = ? AND `INSC CURS` = '1' AND PERENNE = '0'"
     );
     if (!$update) {
         aoAbort('ERROR_ACTUALITZACIO', 500);
