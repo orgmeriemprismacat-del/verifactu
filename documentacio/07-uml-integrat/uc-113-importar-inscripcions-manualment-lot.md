@@ -4,6 +4,18 @@
 
 **Estat verificat:** la migració defineix `enrollment_import_run` i `enrollment_import_item` amb hash d'origen, versió de format, estats, comptadors, hash de fila, snapshots, fila original i identificador final; també defineix `commercial_operation`. **No s'ha acreditat** a `sif/src` un parser/importador de fitxers d'inscripcions o un servei que ompli aquestes taules, ni s'ha acreditat la creació de matrícules al llegat des d'aquestes classes. `HistoricalInvoiceMigrationService` importa **factures històriques**, no matrícules: no reutilitzar-lo per UC-113.
 
+## 0. Decisions de negoci confirmades el 22/09/2026 — corregir l'abast
+
+**FUNCIONALITAT ACTUAL CONFIRMADA:** inscripcions ordinàries i de grup des de la WEB; inscripció manual de secretaria normalment també des de la WEB, sense apartat propi d'alta manual a la intranet. Secretaria disposa de la capacitat d'introduir preus i descomptes excepcionals i donar d'alta en cursos no disponibles a la web pública; cal localitzar les vies i permisos PHP concrets. [Fitxa funcional, DEC-113-01/03](../06-fitxes-funcionals/uc-113.md#0-aclariment-funcional-aportat-per-negoci-el-22092026-preval-sobre-els-exemples-generics-daquest-esborrany).
+
+**FUNCIONALITAT ACTUAL DIFERENT:** el canvi de curs i la regularització d'una inscripció antiga es fan amb l'acció «Canvi de curs» dins «Mostrar la informació de l'alumne» a la INTRANET. Mapar UC-026 i variants d'ajust econòmic/fiscal; no crear una segona alta com a suposada importació UC-113.
+
+**CASOS SEPARATS CONFIRMATS:** (A) crear inscripció a PrisMa; (B) preparar pujada a Moodle d'inscripcions ja existents, i dins de Moodle, (B1) pujada d'alumnes als cursos i (B2) pujada d'aules obertes: **B1 i B2 requereixen dos casos d'ús i diagrames independents**, amb identificadors pendents de comprovar contra el catàleg. Els diagrames d'activitat del lot 04 cobreixen només UNA ACCIÓ de B1 i no constitueixen el diagrama acabat d'UC-113.
+
+**EXTENSIÓ DE LOTS DE LA FITXA:** `enrollment_import_run/item` i el diagrama d'un importador de fitxers a PrisMa són un DISSENY PENDENT D'ABAST; no s'ha confirmat cap ús actual ni cal tractar-lo com a feina acordada només per haver-se dibuixat. Mantenir la proposta diferenciada fins a verificar l'existència real i una decisió explícita de producte. El cas canònic actual d'alta manual ha de contrastar-se amb els handlers web i les excepcions de secretaria, no amb el CSV de Moodle.
+
+**Tasques de documentació que no requereixen cap pregunta nova a negoci:** inventari de rutes d'alta curs/grup, comprovació de permisos de secretaria i classes que permeten excepcions, acció real de canvi de curs i pantalles d'alumnes/aules obertes, amb diagrames ACTUAL i FINAL per cadascuna i per cada apartat.
+
 ## 1. Fitxa funcional específica
 
 | Element | Contracte |
