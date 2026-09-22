@@ -6,6 +6,18 @@
 
 **Conclusió verificable:** `Cursos > Inici de cursos > Pujada d'alumnes` de la intranet **no importa noves inscripcions a PrisMa**: llegeix inscripcions existents, les marca `INSC CURS=1` i construeix un CSV de càrrega a Moodle. L'operació de **crear/importar inscripcions a PrisMa** descrita per UC-113 és una funcionalitat objectiu diferent; es conserva el seu UC. La preparació/exportació del CSV és una funcionalitat existent amb inici, actor, estat i resultat propis: **CAND-UC-MOODLE-CSV-01**, que no s'ha de barrejar automàticament amb UC-113 ni amb la conciliació posterior UC-129. Cal comparar aquest candidat amb tot el catàleg abans d'assignar-li un número nou.
 
+## 0. Rectificació d'abast després de les respostes de negoci (22/09/2026)
+
+**L'auditoria estàtica inicial d'aquest lot NO substitueix les regles explicades per l'usuària.** La inscripció ordinària, de grup i en general també la manual de secretaria es tramiten des de la **web**; la intranet actual **no té un apartat propi per a alta manual**. Secretaria pot indicar preus/descomptes no oferts a la web pública i inscriure en cursos no disponibles públicament. Cal localitzar els endpoints i permisos específics, sense suposar que una crida pública pot executar-los.
+
+**Canvi de curs i regularització d'una inscripció antiga:** via **«Mostrar la informació de l'alumne» > «Canvi de curs» a la intranet**, amb UC-026 i casos dependents segons efectes; no són un importador de lots.
+
+**Separació de casos confirmada:** alta a PrisMa ≠ pujada a Moodle; **pujada d'alumnes a curs i pujada d'aules obertes són DOS casos d'ús**, no només una variant indistinta. El nom provisional CAND-UC-MOODLE-CSV-01 d'aquest informe identifica només la pujada d'alumnes; obrir també CAND-UC-MOODLE-AO-01 per a aula oberta, amb mapatge de numeració pendent de contrastar amb els 142 UC. UC-129 tracta la conciliació posterior, no substitueix els dos casos d'acció.
+
+**L'importador de fitxers d'inscripcions a PrisMa descrit en els apartats 2 i 5 és DISSENY PENDENT D'ABAST, no una funcionalitat actual acreditada ni una implementació aprovada.** No convertir-lo automàticament en backlog executable; primer completar el mapa real d'altes web i decidir si hi ha necessitat d'importació en lot. Els diagrames de la secció 4 continuen sent parcials, només de l'acció de confirmar la pujada d'alumnes.
+
+[Fitxa funcional amb decisions confirmades](../06-fitxes-funcionals/uc-113.md) · [fitxa UML delimitada](uc-113-importar-inscripcions-manualment-lot.md).
+
 ## 1. Inventari verificat de la pantalla i les accions actuals
 
 | Acció / variant | Codi i comportament del fitxer actual | UC i límits |
@@ -17,7 +29,7 @@
 | Marcar cada inscripció i afegir fila al CSV | [JS L112–168](../../codi-drive/intranet-actual/js/cursos-inici-cursos-pujar-alumnes.js#L112-L168) envia un POST per cada fila marcada a [pujarInscripcions.php](../../codi-drive/intranet-actual/ajax/inici/pujarInscripcions.php#L19-L30), que delega en [Intranet::pujar_Inscripcions](../../codi-drive/intranet-actual/Intranet.php#L4151-L4201). [SQL L1075–1076](../../codi-drive/intranet-actual/Intranet.php#L1073-L1077) fa `UPDATE inscripcions SET INSC CURS=1, GRUP=?` per `USUARI, CURS, ANY, MES, INSC CURS=0`; a continuació el PHP afegeix al CSV usuari, nom, cognoms, email, població i codi de curs+aula. | **No crea cap inscripció nova**; escriu estat acadèmic de la inscripció existent i un fitxer extern. La semàntica `INSC CURS=1` NO acredita per si sola que Moodle hagi processat amb èxit la fila. |
 | Retornar enllaç al CSV | [JS L150–165](../../codi-drive/intranet-actual/js/cursos-inici-cursos-pujar-alumnes.js#L150-L165) insereix un enllaç `https://intranet.prisma.cat/fitxers/<fitxer>`; el fitxer incorpora dades personals. | No s'ha comprovat l'autorització efectiva del directori al servidor. Requereix descàrrega autenticada, retenció i accés restringit; no interpretar la URL com a prova de càrrega real a Moodle. |
 
-**Variant existent d'aula oberta:** [crearFitxerAO.php](../../codi-drive/intranet-actual/ajax/inici/crearFitxerAO.php), [pujarAulesObertes.php](../../codi-drive/intranet-actual/ajax/inici/pujarAulesObertes.php) i [Intranet::pujar_AO L3515–3565](../../codi-drive/intranet-actual/Intranet.php#L3515-L3565) fan un procés de CSV separat i modifiquen `PERENNE`, no són una importació UC-113. Inventariar-la com a variant pròpia abans de donar per complet el cas d'ús d'exportació acadèmica.
+**Cas d'ús SEPARAT confirmat — pujada d'aula oberta (CAND-UC-MOODLE-AO-01):** [crearFitxerAO.php](../../codi-drive/intranet-actual/ajax/inici/crearFitxerAO.php), [pujarAulesObertes.php](../../codi-drive/intranet-actual/ajax/inici/pujarAulesObertes.php) i [Intranet::pujar_AO L3515–3565](../../codi-drive/intranet-actual/Intranet.php#L3515-L3565) fan un procés de CSV separat i modifiquen `PERENNE`, no són una importació UC-113. Inventariar-la com a variant pròpia abans de donar per complet el cas d'ús d'exportació acadèmica.
 
 ## 2. Diferències entre la fitxa UC-113 i el codi verificat
 
@@ -155,6 +167,6 @@ stop
 
 - **UC-113 DOC:** revisió dirigida amb nova evidència, però NO TANCAT perquè falta localitzar/validar TOTES les rutes d'alta manual o d'importació a PrisMa. **UC-113 IMP:** SQL DEFINIT; servei d'importació i canal NO ACREDITATS. **UC-113 TEST:** NO EXECUTAT.
 - **CAND-UC-MOODLE-CSV-01 DOC:** acció i mètodes reals CONTRASTATS AMB CODI; falta verificar pantalla desplegada, regla empresarial d'accés, permisos i importació externa efectiva. **IMP:** codi llegat EXISTENT, mecanisme final de control/conciliació NO ACREDITAT; **TEST:** NO EXECUTAT.
-- **Per continuar sense barrejar casos:** completar aquest candidat com a UC amb número després de revisar el catàleg, continuar UC-114 (versionat de producte/edició) en una auditoria separada quan pertoqui. **UC-111 explícitament EXCLÒS d'aquest lot.**
+- **Per continuar sense barrejar casos:** completar dos candidats de pujada Moodle — alumnes i aules obertes — amb casos funcionals/diagrames separats, després de revisar el catàleg; UC-114 (versionat de producte/edició) ja té un lot 03 independent. **UC-111 explícitament EXCLÒS d'aquest lot.**
 
 [Fitxa UC-113](uc-113-importar-inscripcions-manualment-lot.md) · [fitxa original](../06-fitxes-funcionals/uc-113.md) · [UC-107](uc-107-detectar-inscripcio-duplicada.md) · [UC-095](uc-095-estat-academic-deute-pendent.md) · [UC-124](uc-124-reconciliar-acces-certificat-baixa-deute.md) · [UC-129](uc-129-reconciliar-prisma-moodle-matricules.md) · [reg. mestre](../00-index-i-pla/42-registre-mestre-cobertura-funcional-implementacio-documentacio.md).
