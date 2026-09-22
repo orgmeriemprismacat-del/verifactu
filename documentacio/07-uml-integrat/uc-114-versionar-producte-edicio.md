@@ -1,6 +1,6 @@
 # UC-114 · Versionar canvis de producte o edició amb operacions obertes
 
-**Objectiu de la fitxa original:** versionar **nom, dates, hores, preu, fiscalitat i regles**, mantenint els snapshots acceptats d'operacions obertes o obrint-ne un canvi explícit; mai substituir silenciosament les dades que un pagador ja va acceptar. **Decisions pendents:** quins canvis mantenen l'oferta, quins exigeixen consentiment nou i qui pot modificar/cancel·lar una edició amb reserves.
+**Objectiu de la fitxa original:** versionar **nom, dates, hores, preu, fiscalitat i regles**, mantenint els snapshots acceptats d'operacions obertes o obrint-ne un canvi explícit; mai substituir silenciosament les dades que un pagador ja va acceptar. **Decisions de negoci confirmades el 22/09/2026:** els canvis de data, horari, modalitat, hores i acreditació es notifiquen sense exigir acceptació prèvia; si a l'alumne no li van bé, se li ofereix canvi d'edició. La mateixa persona de l'equip amb accés a la intranet decideix el canvi, sense segona aprovació interna. Els termes econòmics d'ofertes ja acceptades es preserven; si es proposa canviar-los, es genera una oferta nova. La cancel·lació d'edició segueix UC-127, amb regla pròpia.
 
 **Evidència del repositori:** `master_data_change_request` està definida amb `ENTITY_TYPE/KEY`, `BASE_VERSION`, `PROPOSED_VERSION`, `CHANGESET_JSON`, `AFFECTED_OPEN_OPERATIONS_JSON`, motiu, decisió, actor i correlació. El SQL imposa unicitat de `ENTITY_TYPE+ENTITY_KEY+PROPOSED_VERSION`. `commercial_operation_line` preserva `PRICE_RULE_VERSION` i `SNAPSHOT_JSON`; `RedsysPaymentIntentService::create()` rebutja reutilitzar el mateix `DS_ORDER` amb un snapshot/import/venciment canviats. **No s'ha acreditat** un `MasterDataChangeService` PHP que executi impact analysis, autorització i propagació al llegat.
 
@@ -8,10 +8,10 @@
 
 | Aspecte | Regla |
 | --- | --- |
-| Actors | Gestió que proposa el canvi, responsable acadèmic/comercial i assessorament fiscal quan canvia la classificació fiscal; comprador afectat quan cal acceptar una nova oferta. |
+| Actors | Persona de l'equip amb accés a intranet que efectua i decideix el canvi sense segona aprovació interna (identificació i autorització en servidor), persones inscrites destinatàries de l'avís i, només si canvien termes econòmics acceptats, pagador destinatari d'una nova oferta. Si una correcció fiscal específica requereix tractament especial, es tramita pel seu UC, no es pressuposa una segona aprovació per editar l'edició. |
 | Entrada | Producte/curs/edició, versió antiga i proposada, camps canviats (nom, dates, hores, preu, descomptes, aforament, fiscalitat), causa, `EFFECTIVE_AT` i instant de publicació; identitats d'operacions obertes afectades. |
 | Versió de canvi | `master_data_change_request` conserva el changeset i la llista d'operacions obertes **com a JSON**. Són camps de proposta, no garantia d'identificar totes les operacions si no hi ha consulta/lock real. |
-| Operacions ja acceptades | Preu, dates, plaça i règim fiscal del snapshot antic es mantenen com a història de l'oferta; en canvis materials cal política d'acceptació i una **nova versió** UC-112/121, no overwrite de `SNAPSHOT_JSON`. |
+| Operacions ja acceptades | El snapshot històric, el preu pactat i la factura existent no es reescriuen. Els canvis excepcionals de data/horari/modalitat/hores/acreditació **es notifiquen, sense exigir acceptació prèvia**; si no van bé, s'ofereix canvi d'edició. Si es pretén substituir les condicions **econòmiques** acceptades, cal una nova oferta/ordre quan pertoqui (UC-112/121); separar la comunicació de l'eventual tractament individual fiscal o acadèmic. |
 | Factures emeses | `InvoiceService` persisteix factura fiscal; UC-114 **no és permís** per actualitzar `factura_linia`, data/import o hash després d'emetre. Un servei efectivament modificat deriva a UC-71/74/72 segons l'operació real. |
 | Diners i places | Canviar catàleg no és `CHARGE`, `REFUND` ni confirmació de capacitat. Si una reserva queda incompatible amb la nova edició, UC-115/121 classifica disponibilitat i oferta; pagaments reals anteriors es concilien per separat. |
 
@@ -19,9 +19,9 @@
 
 1. L'operador prepara una proposta `BASE_VERSION→PROPOSED_VERSION` i calcula una vista prèvia dels canvis de nom, dates/hores, preus, aforament i fiscalitat.
 2. Un coordinador **pendent** busca operacions en curs, reserves, intents TPV i factures que referencien el producte/edició, i desa exactament quines ofertes/participants estan afectats. No identificar impacte només per les inscripcions que encara no s'han cobrat: pot haver-hi callback pendent o factura anterior.
-3. Decideix per cada categoria d'operació si conserva oferta anterior, envia nova proposta d'acceptació UC-121, allibera/reassigna plaça UC-115 o obre incidència/correcció. La política concreta i els permisos són **bloquejants no definits pel DDL**.
-4. Després d'aprovació, publica nova versió de catàleg i enregistra actor, data i resultat de propagació a la BD llegada; si la propagació falla, deixa incidència/reconciliació, no marca totes les operacions com actualitzades.
-5. Les noves compres usen la versió nova; les existents mantenen el snapshot anterior **fins a nova acceptació expressa**. `RedsysPaymentIntentService` rebutja canviar les dades d'una mateixa ordre, per la qual cosa un nou snapshot necessita nova oferta/ordre quan pertoqui.
+3. Distingeix: (a) modificació informativa de data/horari/modalitat/hores/acreditació, que es **notifica** i ofereix canvi d'edició si no va bé, sense demanar consentiment previ; (b) modificació de condicions **econòmiques** d'una oferta ja acceptada, que no substitueix l'oferta històrica i requereix proposta nova UC-112/121; (c) anul·lació de l'edició, que segueix UC-127. Les autoritzacions de servidor i el tractament per operació encara s'han d'implementar/verificar.
+4. La mateixa persona de l'equip amb accés a intranet decideix i publica la versió, **sense segona aprovació interna**; s'enregistra actor, data i resultat de propagació a la BD llegada, i, si falla, queda incidència/reconciliació sense afirmar que totes les operacions s'han actualitzat.
+5. Les noves compres usen la versió publicada. Les existents preserven el snapshot històric; els canvis notificables no requereixen acceptació expressa abans de comunicar i aplicar l'edició modificada. **Un canvi dels termes econòmics ja acceptats** no s'incorpora silenciosament: cal una nova oferta acceptada, i una nova ordre quan pertoqui; `RedsysPaymentIntentService` rebutja canviar dades d'un mateix `DS_ORDER`.
 6. Si ja s'havia emès factura, una modificació real de prestació/import segueix la classificació fiscal i els moviments per inscripció corresponents; el canvi del catàleg no edita l'original.
 
 ### Alternatives i proves
@@ -29,12 +29,12 @@
 | Escenari | Control |
 | --- | --- |
 | Canvi de títol intern sense impacte en l'oferta | Registrar versió i política de presentació; no reescriure títol fiscal emès. |
-| Canvi de data d'un taller amb reserves acceptades | Identificar persones afectades, gestionar consentiment/alternativa i dret de plaça; no actualitzar silenciosament l'edició del snapshot. |
+| Canvi de data d'un taller amb reserves acceptades | Notificar les persones afectades; si el canvi no els va bé, oferir canvi d'edició. Preservar la història de l'oferta i classificar qualsevol afectació econòmica/fiscal per separat, **sense exigir acceptació prèvia de la nova data**. |
 | Pujada de preu mentre existeix `DS_ORDER` pendent | No reutilitzar mateixa ordre amb total nou; nova acceptació i oferta separada quan sigui aplicable. |
 | Callback vell després de publicar nova versió | Processar el fet bancari real i reconciliar oferta antiga/plaça, en lloc d'emetre automàticament al preu nou. |
 | Dos operadors publiquen la mateixa `PROPOSED_VERSION` | La unicitat SQL evita dues files amb aquesta clau, però **no** garanteix la gestió de conflictes del catàleg llegat: lock/versionat aplicatiu pendent. |
 
-**Pendents:** política d'impacte, aprovacions i consentiment, comparació entre esquemes de les BDs, publicació i rollback de dades mestres, proves concurrents i callbacks de snapshots antics. Sense proves PHP executades.
+**Pendents tècnics/documentals:** contrastar permisos al backend, ruta del canvi de preu, missatges reals, comparació entre esquemes, publicació i recuperació de dades mestres, totes les accions per pàgina, proves concurrents i callbacks d'ofertes antigues. **No estan pendents de decisió la regla de notificació ni l'absència de segona aprovació interna.** Sense proves PHP executades.
 
 ### 1.3. Edició modificada des de la intranet amb reserves, ofertes i factures obertes
 
@@ -156,3 +156,10 @@ Note over S,Offer: No es modifica cap factura emesa ni es crea pagament per canv
 
 **Estat de la fitxa:** contrast parcial actual→objectiu; **no tancada funcionalment**. El cos dels mètodes llegats, els permisos interns, les escriptures concretes de BD, la ruta de preus i el desplegament continuen pendents de comprovació. UC-111 i UC-113 no s'han inclòs en aquesta auditoria.
 
+### Regles operatives verificades amb la responsable de negoci · 22/09/2026
+
+El preu habitual d'un curs es determina per les hores mitjançant `ID_PREU` i `preus`; excepcionalment es pot canviar des de la base de dades assignant un altre `ID_PREU`. No atribuir un selector de preus al formulari `desarCanvisDadesEdicio.php`, que no el rep. Els canvis d'edició són excepcionals, i la mateixa persona de l'equip amb accés a la intranet pot decidir-los sense una segona validació interna; distingir-ho del control d'autenticació, rol i traça a servidor.
+
+**Canvi informatiu:** notificar el canvi de data (inclòs ajornar dos dies), hora, modalitat, hores o acreditació; si no agrada, oferir canvi d'edició. **No requerir acceptació prèvia** d'aquest canvi. **Canvi de preu ja acceptat:** conservar l'oferta econòmica acceptada i, si es pretén modificar-ne el contingut econòmic, presentar-ne una de nova. **Anul·lació de l'edició:** seguir [UC-127](uc-127-canvi-estat-edicio-operacions-afectades.md), no importar-ne la pauta al simple ajornament.
+
+Aquesta decisió corregeix les formulacions anteriors que exigien «consentiment» o «nova acceptació expressa» indiscriminadament per canvis de data/horari; els diagrames de seqüència i d'activitat han de seguir aquesta distinció en revisar-los. [Fitxa funcional UC-114](../06-fitxes-funcionals/uc-114.md).
