@@ -31,6 +31,7 @@
 | Cas | Resposta |
 | --- | --- |
 | Mateix usuari clica dues vegades | Reús idempotent de l'operació i la inscripció; no duplicar mail ni termini sense regla expressa. |
+| Sol·licitud pendent d'alta al campus | **DEC-108-03b ACORDADA (22/09/2026):** si la mateixa persona torna a enviar el formulari del mateix tastet mentre la primera sol·licitud segueix pendent, mostrar que ja té una sol·licitud pendent i no crear una segona alta. No exigir desbloqueig de secretaria/suport, reservat al cas d'accés caducat. El PHP actual només cerca historial `INSC_CURS=1` en la comprovació JS; protegir també el servidor abans d'INSERT. Pendent d'aplicar i provar. |
 | Tastet expirat | **DEC-108-03a ACORDADA (22/09/2026):** secretaria o suport desbloqueja la inscripció web per a aquella persona i tastet; **és la persona qui torna a emplenar i enviar el formulari**, no secretaria/suport qui l'inscriu. La caducitat no habilita una alta o renovació automàtica; el servidor ha de comprovar el desbloqueig abans d'admetre la nova alta. El procediment, la vigència i el registre tècnic concrets resten per definir, i no són codi ja implementat. |
 | Preu comercial passa de zero a import positiu | Una altra classificació/oferta i acceptació UC-112; no convertir retrospectivament la reserva gratuïta en factura cobrada. |
 | Mailing no consentit | Alta gratuïta igualment possible; registrar `NO` sense marcar-lo com a consentiment implícit. |
