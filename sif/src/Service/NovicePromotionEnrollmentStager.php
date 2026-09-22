@@ -121,6 +121,19 @@ final class NovicePromotionEnrollmentStager
                 ];
             }
 
+            $otherOrigins = $this->many(
+                $sifDb,
+                "SELECT UUID_OPERATION FROM commercial_operation
+                 WHERE SOURCE_TYPE = 'CURS' AND SOURCE_ID = ?
+                   AND PRODUCT_TYPE = 'CURS' AND PRODUCT_CODE = 'JASOM' FOR UPDATE",
+                [(string) $enrollmentId]
+            );
+            if ($otherOrigins !== []) {
+                throw SifException::conflict(
+                    'JASOM enrollment already has another operation; reconcile the original instead of duplicating it.'
+                );
+            }
+
             $uuidOperation = $this->uuids->generate();
             $statement = $sifDb->prepare(
                 'INSERT INTO commercial_operation
