@@ -47,8 +47,34 @@ final class NovicePromotionGrantService
                 [$uuidOperation]
             );
 
-            if ($operation === null
-                || strtoupper((string) $operation['SOURCE_TYPE']) !== 'CURS'
+            if ($operation === null) {
+                throw SifException::conflict('Origin operation was not found.');
+            }
+
+            // Read-only replay resolution comes FIRST: a delayed callback must
+            // not re-grant a right even when the original operation has since
+            // been refunded/cancelled or its academic status was archived.
+            $alreadyIssued = $this->one(
+                $db,
+                'SELECT g.UUID_ENTITLEMENT, g.ORIGINAL_CASH_AMOUNT, e.EXPIRES_AT, e.STATUS
+                 FROM novice_promotion_grant g
+                 JOIN commercial_entitlement e ON e.UUID_ENTITLEMENT = g.UUID_ENTITLEMENT
+                 WHERE g.ORIGIN_UUID_OPERATION = ? FOR UPDATE',
+                [$uuidOperation]
+            );
+            if ($alreadyIssued !== null) {
+                $db->commit();
+
+                return [
+                    'uuid_entitlement' => (string) $alreadyIssued['UUID_ENTITLEMENT'],
+                    'original_amount' => (string) $alreadyIssued['ORIGINAL_CASH_AMOUNT'],
+                    'expires_at' => (string) $alreadyIssued['EXPIRES_AT'],
+                    'status' => (string) $alreadyIssued['STATUS'],
+                    'idempotency_reused' => true,
+                ];
+            }
+
+            if (strtoupper((string) $operation['SOURCE_TYPE']) !== 'CURS'
                 || strtoupper((string) $operation['PRODUCT_CODE']) !== 'JASOM'
                 || strtoupper((string) $operation['CURRENCY']) !== 'EUR'
                 || !in_array((string) $operation['STATUS'], ['PAID', 'INVOICED', 'COMPLETED'], true)
