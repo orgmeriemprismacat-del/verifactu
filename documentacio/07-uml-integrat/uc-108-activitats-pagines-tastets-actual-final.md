@@ -718,7 +718,7 @@ endif
  :Consultar estat real de petició i matrícula; només secretaria fa manualment l'alta al campus en la fase actual (DEC-108-05a);
 if (Accés Moodle confirmat després d'alta manual?) then (Sí)
   :Mostrar activació efectiva al campus i venciment una setmana després (DEC-108-02b ACORDADA), si les dates estan verificades;
-  :Secretaria envia el correu operatiu d'accés activat després de l'alta manual, també amb butlletí No (DEC-108-05b);
+  :Consultar estat del correu operatiu d'accés que secretaria envia després de l'alta manual, també amb butlletí No (DEC-108-05b); obrir la pàgina no ha de disparar-ne cap altre;
 else (No)
   :Mostrar sol·licitud rebuda / alta manual per secretaria encara pendent, sense afirmar accés;
 endif
