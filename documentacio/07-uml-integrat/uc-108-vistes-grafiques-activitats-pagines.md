@@ -183,17 +183,14 @@ flowchart TD
   GX -->|Sí| GM["Conserva les claus d'accés existents"]
   GX -->|No| GN["Secretaria crea MANUALMENT el compte nou; el CAMPUS envia AUTOMÀTICAMENT per correu les claus a la persona (DEC-108-05f)"]
   GM --> GE["Secretaria envia MANUALMENT la PLANTILLA EXISTENT: només informa que l'accés està activat, sense enllaç ni instruccions de claus; també amb butlletí No (DEC-108-05b/c/d/e)"]
-  GN --> GI{"Ha rebut el correu automàtic de claus?"}
-  GI -->|Sí| GE
-  GI -->|No| GIN["Incidència de credencials gestionada per separat; NO bloqueja l’avís manual si l’accés és actiu (DEC-108-05g)"]
-  GIN --> GS["Secretaria intenta reenviar o regenerar les claus des del CAMPUS (DEC-108-05i)"]
+  GN --> GE
+  GN -.-> GI{"Circuit INDEPENDENT: correu de claus rebut?"}
+  GI -->|No| GIN["Incidència de credencials per separat; NO bloqueja l’avís MANUAL (DEC-108-05g)"]
+  GIN --> GS["Secretaria intenta reenviar o regenerar claus des del CAMPUS (DEC-108-05i)"]
   GS --> GR{"Incidència de claus resolta?"}
-  GR -->|Sí| GE
   GR -->|No| GT["Isa: suport tècnic (DEC-108-05h)"]
   GT --> GU{"Incidència resolta?"}
-  GU -->|Sí| GE
-  GU -->|No| GV["Desenvolupament: Meriem; gestionar incidència per separat (DEC-108-05h)"]
-  GV --> GE
+  GU -->|No| GV["Desenvolupament: Meriem; incidència separada (DEC-108-05h)"]
   F -->|No| H["Mostrar sol·licitud rebuda / alta MANUAL pendent per secretaria en 24–48 h laborals; una setmana només des de l'activació real (DEC-108-02a/b/05a)"]
   GE --> I{"Hi ha incidència de sincronització o comunicació?"}
   H --> I
