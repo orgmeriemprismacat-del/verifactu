@@ -24,7 +24,7 @@
 2. UC-107 detecta una alta equivalent per persona i tastet actiu (sense inventar una convocatòria per al flux continu acordat); si existeix, torna a mostrar l'accés anterior sense crear una segona operació.
 3. En la fase actual, el web només crea/reutilitza una **sol·licitud pendent**. **Secretaria realitza MANUALMENT l'alta al campus** dins del termini comunicat de 24–48 hores laborals i activa l'accés. Només quan l'activació és real es registra/verifica l'inici del període d'una setmana i el venciment (DEC-108-05a/02a/02b). La futura automatització d'alta al campus es vol per al **2027**, però queda **fora d'abast**. Si s'aprova DEC-108-06, un orquestrador SIF podria registrar/reutilitzar `NON_BILLABLE/FREE_SAMPLE` sense fer ni simular l'alta Moodle automàtica.
 4. Es registra la decisió de mailing a part, amb prova de què es va acceptar o rebutjar; amb «Sí» explícit i persistència comercial correcta, subscripció al butlletí directa en enviar el formulari sense correu de confirmació (DEC-108-04b). «No» o manca de «Sí» no genera subscripció; una fallada comercial no desfà l'alta acadèmica. Això no altera la classificació gratuïta.
-5. Es comunica l'accés **després que secretaria hagi completat manualment l'alta i se n'hagi confirmat l'activació real**, quan el destinatari és l'alumne correcte. En reintent equivalent no es genera una nova entrada fiscal/econòmica ni s'atorguen dos accessos contradictoris.
+5. **DEC-108-05b ACORDADA:** després que secretaria hagi completat manualment l'alta i s'hagi activat realment l'accés, **secretaria envia un correu operatiu a la persona per informar-la que ja pot accedir al campus**. És diferent del correu de sol·licitud rebuda i s'envia independentment del «Sí/No» del butlletí, també amb «No». Cal verificar el procediment, el destinatari i l'evidència real de l'enviament sense pressupostar-ne el mecanisme tècnic. En reintent equivalent no es genera una nova entrada fiscal/econòmica ni s'atorguen dos accessos contradictoris.
 
 ### 1.2. Alternatives i proves
 
@@ -32,6 +32,7 @@
 | --- | --- |
 | Mateix usuari clica dues vegades | Reús idempotent de l'operació i la inscripció; no duplicar mail ni termini sense regla expressa. |
 | Disponibilitat del tastet | **DEC-108-02c ACORDADA (22/09/2026):** la inscripció web es pot sol·licitar en qualsevol moment mentre el tastet estigui actiu, sense convocatòries ni terminis d'inscripció per dates. Revalidar al servidor l'estat actiu del tastet en enviar el formulari; si ha passat a inactiu, no donar d'alta. Les regles de reintents per persona continuen vigents. La consulta actual `reptes.ESTAT=1` és visible al codi, però cal provar la ruta d'alta i el canvi d'estat entre obrir i enviar formulari. |
+| Correu d'accés després de l'alta | **DEC-108-05b ACORDADA (22/09/2026):** quan secretaria ha completat l'alta manual i l'accés és efectiu, **envia a la persona un correu operatiu informant que ja pot accedir al campus**. No confondre'l amb el correu de recepció de sol·licitud. És independent de la subscripció comercial, també amb butlletí «No». Verificar procediment, contingut, destinatari, moment i traça; no afirmar que el PHP ja executa un enviament automàtic. |
 | Procés d'alta actual i futur | **DEC-108-05a ACORDADA (22/09/2026):** secretaria tramita **manualment** l'alta/activació al campus després de rebre la petició web. La petició és pendent fins a l'alta real i no desencadena cap automatització de matrícula Moodle. La millora d'alta automàtica es vol per al **2027**, fora d'abast ara. Pendent de verificar traça real de l'alta manual, dates i avisos. |
 | Durada d'accés efectiva | **DEC-108-02b ACORDADA (22/09/2026):** una setmana comptada des del moment en què secretaria activa realment l'accés al campus, no des de la data d'enviament de la petició ni d'una alta encara sense accés. Pendent de verificar inici, venciment i configuració PHP/Moodle; el text web d'una setmana no acredita l'aplicació al campus. |
 | Termini d'alta al campus | **DEC-108-02a ACORDADA (22/09/2026):** mantenir **24–48 hores laborals** com a termini comunicat perquè secretaria doni d'alta la persona al campus després de rebre la sol·licitud web. El PHP actual ja comunica aquest termini; cal contrastar que formulari, correus i confirmació siguin coherents i que la recepció de la petició no es presenti com a alta efectiva. **DEC-108-02b ACORDADA:** una setmana d'accés des de l'activació efectiva per secretaria al campus; pendent de verificar dates i configuració reals, no des de l'enviament del formulari. |
@@ -43,7 +44,7 @@
 | Mailing no consentit | **DEC-108-04a ACORDADA (22/09/2026):** el formulari del tastet inclou subscripció opcional al butlletí amb elecció «Sí/No». Si escull «No», pot inscriure's igualment al tastet i rebre les comunicacions operatives; no es crea una alta comercial ni s'infereix un «Sí» de la inscripció. **DEC-108-04b ACORDADA:** si tria «Sí» explícit, es dona d'alta directament al butlletí en enviar el formulari, **sense correu/enllaç de confirmació addicional**, sempre que l'alta comercial es registri amb èxit. Resten per concretar text/evidència/versió i implementació del consentiment a UC-125. Cal canviar JS/PHP/vista/correus i executar proves. |
 | El llegat falla després d'enregistrar l'operació | Reintentar l'alta amb el mateix identificador i reconciliar UC-53, mai emetre factura o `CHARGE` com a compensació tècnica. |
 
-**Pendents de tancament:** traçar la petició web pendent i la **intervenció manual de secretaria** al campus, identificador de recurs, dates d'activació/venciment reals, duplicats, consentiment i proves de regressió; no s'han executat proves PHP. **No incloure la futura automatització de 2027 com a tasca d'implementació de la fase actual.**
+**Pendents de tancament:** traçar la petició web pendent, la **intervenció manual de secretaria** al campus i el **correu operatiu posterior d'accés activat (DEC-108-05b), independent del butlletí**, identificador de recurs, dates d'activació/venciment reals, duplicats, consentiment i proves de regressió; no s'han executat proves PHP. **No incloure la futura automatització de 2027 com a tasca d'implementació de la fase actual.**
 
 ### 1.3. Endpoint llegat de tastet i diferència entre alta gratuïta i mailing
 
@@ -163,7 +164,7 @@ opt Hi ha sol·licitud nova vàlida
  SEC->>C: Donar d'alta i activar manualment l'accés al tastet
  C-->>SEC: Alta efectiva i dates d'activació/venciment
  Note over SEC,C: DEC-108-02b. La setmana comença amb l'activació real; evidència de dates per verificar.
- SEC-->>P: Comunicació operativa de l'accés real (procediment a verificar)
+ SEC-->>P: Enviar correu operatiu: ja pots accedir al campus [DEC-108-05b; també amb butlletí No; enviament real per verificar]
 end
 Note over UI,C: Ni l'enviament web ni un registre FREE_SAMPLE activen automàticament Moodle.
 ```
