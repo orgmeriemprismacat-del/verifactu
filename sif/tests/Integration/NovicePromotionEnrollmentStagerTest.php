@@ -46,9 +46,10 @@ final class NovicePromotionEnrollmentStagerTest
     public function testRejectsInscriptionWithNoviceDecisionAlreadyRecorded(): void
     {
         $db = $this->fixture(1);
-        Assert::throws(SifException::class, static function () use ($db): void {
+        $price = $this->price();
+        Assert::throws(SifException::class, static function () use ($db, $price): void {
             (new NovicePromotionEnrollmentStager(new UuidGenerator()))
-                ->stage($db, $db, 10, 'student:canonical:12345678Z', $this->price());
+                ->stage($db, $db, 10, 'student:canonical:12345678Z', $price);
         }, 409);
     }
 
@@ -56,9 +57,10 @@ final class NovicePromotionEnrollmentStagerTest
     {
         $db = $this->fixture(0);
         $db->exec("UPDATE inscripcions SET CURS = 'ALTRE'");
-        Assert::throws(SifException::class, static function () use ($db): void {
+        $price = $this->price();
+        Assert::throws(SifException::class, static function () use ($db, $price): void {
             (new NovicePromotionEnrollmentStager(new UuidGenerator()))
-                ->stage($db, $db, 10, 'student:canonical:12345678Z', $this->price());
+                ->stage($db, $db, 10, 'student:canonical:12345678Z', $price);
         }, 409);
     }
 
