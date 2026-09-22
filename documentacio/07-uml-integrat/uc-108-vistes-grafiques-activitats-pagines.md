@@ -117,7 +117,10 @@ flowchart TD
   E --> F["Enviar petició amb request_id"]
   F --> G["Servidor: validar dades, actor, producte i petició existent sota concurrència"]
   G --> H{"Petició compatible anterior?"}
-  H -->|Sí| I{"Accés anterior caducat?"}
+  H -->|Sí| HP{"Sol·licitud d'alta al campus pendent?"}
+  HP -->|Sí| HQ["Mostrar: ja tens una sol·licitud pendent; recuperar mateixa petició"]
+  HQ --> HR([Fi sense cap altra inscripció ni desbloqueig])
+  HP -->|No| I{"Accés anterior caducat?"}
   I -->|Sí| IA{"Inscripció web desbloquejada per secretaria/suport per persona+tastet?"}
   IA -->|No| IB["Inscripció web bloquejada; contactar secretaria/suport perquè desbloquegi"]
   IA -->|Sí| IC["Secretaria/suport ja ha desbloquejat; la persona torna al formulari i l'envia"]
@@ -178,4 +181,4 @@ flowchart TD
   D --> L
 ```
 
-**DEC-108-03a ACORDADA:** accés caducat → secretaria/suport desbloqueja la inscripció web per persona+tastet i és la persona qui torna a emplenar i enviar el formulari; secretaria/suport no inscriu directament. El PHP actual no acredita aquest control. **Abans de considerar la proposta FINAL aprovada:** concretar el mecanisme de l'autorització i resoldre la resta de [DEC-108-01…07](../06-fitxes-funcionals/uc-108.md#20-decisions-que-volem-definir-amb-negoci-abans-de-passar-a-un-altre-uc). Els subdiagrames PlantUML dels dotze apartats tenen estats independents i no s'han substituït per aquesta vista resumida.
+**DEC-108-03b ACORDADA:** si la primera sol·licitud encara està pendent d'alta al campus, avisar que ja hi ha una petició pendent i no crear cap altra alta; no exigir desbloqueig de secretaria/suport. **DEC-108-03a ACORDADA:** accés caducat → secretaria/suport desbloqueja la inscripció web per persona+tastet i és la persona qui torna a emplenar i enviar el formulari; secretaria/suport no inscriu directament. El PHP actual no acredita aquest control. **Abans de considerar la proposta FINAL aprovada:** concretar el mecanisme de l'autorització i resoldre la resta de [DEC-108-01…07](../06-fitxes-funcionals/uc-108.md#20-decisions-que-volem-definir-amb-negoci-abans-de-passar-a-un-altre-uc). Els subdiagrames PlantUML dels dotze apartats tenen estats independents i no s'han substituït per aquesta vista resumida.
