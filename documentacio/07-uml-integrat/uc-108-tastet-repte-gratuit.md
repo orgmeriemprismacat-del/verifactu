@@ -174,7 +174,11 @@ opt Hi ha sol·licitud nova vàlida
   Note over SEC,C: Conserva les claus d'accés que ja tenia
  else Persona nova al campus
   C-->>P: Correu AUTOMÀTIC del CAMPUS amb claus d'accés en crear compte nou [DEC-108-05f; verificar tramesa real]
-  opt Correu de claus no rebut
+ end
+ par Avís manual d'accés activat després de l'alta real
+  SEC-->>P: Enviar IGUALMENT PLANTILLA MANUAL: accés activat, independent de recepció de claus [DEC-108-05b/c/d/e/f/g; també butlletí No]
+ and Circuit independent de claus
+  opt Persona nova que no rep el correu de claus
    P-->>SEC: Comunicar incidència de credencials [circuit concret per verificar]
    SEC->>C: Intentar reenviar o regenerar claus des del campus [DEC-108-05i; funció real per verificar]
    alt Secretaria no resol la incidència
@@ -182,10 +186,9 @@ opt Hi ha sol·licitud nova vàlida
    else Secretaria resol la incidència
     Note over SEC,C: Registrar resultat de la intervenció, sense exposar claus
    end
-   Note over SEC,C: DEC-108-05g: gestionar incidència de claus per separat; NO retardar el missatge manual si l'accés ja és actiu
+   Note over SEC,C: DEC-108-05g: incidència de claus SEPARADA de l'avís manual i sense bloquejar-lo
   end
  end
- SEC-->>P: Enviar IGUALMENT PLANTILLA MANUAL: accés activat, independent de recepció de claus [DEC-108-05b/c/d/e/f/g; també butlletí No]
 end
 Note over UI,C: Ni l'enviament web ni un registre FREE_SAMPLE activen automàticament Moodle.
 ```
