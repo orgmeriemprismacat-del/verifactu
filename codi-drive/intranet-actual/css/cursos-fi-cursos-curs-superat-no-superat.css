@@ -1,0 +1,45 @@
+.card-blau .tipusMissatge {
+	background: var(--lightGray1);
+	color: var(--gray1);
+}
+
+.card-blau .tipusMissatge:before,
+.card-blau .tipusMissatge:focus {
+	background: var(--lightGray2);
+}
+
+.card-blau .tipusMissatge.marcat {
+	background: var(--blauPrisma);
+	color: var(--white);
+}
+
+.card-blau .tipusMissatge.marcat:before,
+.card-blau .tipusMissatge.marcat:focus {
+	background: var(--blauFosc1);
+}
+
+.btn-action.qualificador,
+.btn-action.participacions,
+.btn-action.qualificador:hover,
+.btn-action.participacions:hover {
+    align-items: center;
+    background: var(--blauPrisma);
+    border-radius: 50%;
+    box-shadow: 0 4px 20px 0 var(--lightGrayOpacity2), 0 7px 10px -5px var(--lightBlueOpacity2);
+    color: var(--white);
+    display: flex;
+    justify-content: center;
+    margin: 0 auto;
+    padding: 10px !important;
+}
+
+.btn-action.qualificador:before,
+.btn-action.participacions:before {
+    height: 0;
+}
+
+.btn-action.qualificador:hover,
+.btn-action.participacions:hover {
+    background-color: var(--blauFosc1);
+    box-shadow: 0 14px 26px -12px var(--lightBlueOpacity2), 0 4px 23px 0 var(--lightGrayOpacity2), 0 8px 10px -5px var(--lightBlueOpacity2);
+}

@@ -1,0 +1,114 @@
+.cnt-dades-pers .form-group > label,
+.cnt-dades-curr .form-group > label,
+.cnt-coment .form-group > label {
+    padding-right: 0.2rem;
+    width: 110px;
+}
+
+.cnt-dades-pers .form-group > .form-control,
+.cnt-dades-curr .form-group > .form-control,
+.cnt-dades-curr .form-group > .select,
+.cnt-coment .form-group > .form-control  {
+    max-width: calc( 100% - 110px );
+    width: 100%;
+}
+
+.edit .cnt-dades-pers .apartat .d-flex:nth-child(2) .form-group > label {
+    width: 110px;
+}
+
+.edit .cnt-dades-pers .apartat .d-flex:nth-child(2) .form-group > .form-control {
+    max-width: calc( 100% - 110px );
+}
+
+.perfil.select ul {
+    z-index: 3000;
+}
+
+@media screen and (min-width: 778px) {
+
+    .edit .cnt-dades-pers .apartat .d-flex:nth-child(1) .form-group > label,
+    .edit .cnt-dades-curr .form-group > label,
+    .edit .cnt-coment .form-group > label {
+        padding-right: 0.5rem;
+        width: 140px;
+    }
+    .edit .cnt-dades-pers .apartat .d-flex:nth-child(1) .form-group > .form-control,
+    .edit .cnt-dades-curr .form-group > .form-control,
+    .edit .cnt-dades-curr .form-group > .select,
+    .edit .cnt-coment .form-group > .form-control  {
+        max-width: calc( 100% - 140px );
+        width: 100%;
+    }
+}
+
+@media screen and (min-width: 1530px) {
+    .edit .cnt-dades-pers .apartat .d-flex:nth-child(1) .form-group > label,
+    .edit .cnt-dades-curr .form-group > label,
+    .edit .cnt-coment .form-group > label {
+        width: 240px;
+    }
+    .edit .cnt-dades-pers .apartat .d-flex:nth-child(1) .form-group > .form-control,
+    .edit .cnt-dades-curr .form-group > .form-control,
+    .edit .cnt-dades-curr .form-group > .select,
+    .edit .cnt-coment .form-group > .form-control  {
+        max-width: calc( 100% - 240px );
+    }
+    .edit .cnt-dades-pers .apartat .d-flex:nth-child(2) .form-group > label {
+        width: 180px;
+    }
+
+    .edit .cnt-dades-pers .apartat .d-flex:nth-child(2) .form-group > .form-control {
+        max-width: calc( 100% - 180px );
+    }
+}
+
+@media screen and (min-width: 1200px) {
+    .edit .cnt-dades-pers .apartat .d-flex:nth-child(1) .form-group > label,
+    .edit .cnt-dades-curr .form-group > label,
+    .edit .cnt-coment .form-group > label {
+        width: 180px;
+    }
+    .edit .cnt-dades-pers .apartat .d-flex:nth-child(1) .form-group > .form-control,
+    .edit .cnt-dades-curr .form-group > .form-control,
+    .edit .cnt-dades-curr .form-group > .select,
+    .edit .cnt-coment .form-group > .form-control  {
+        max-width: calc( 100% - 180px );
+    }
+}
+
+
+@media screen and (max-width: 575px) {
+    .apartat .form-group {
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+    }
+
+    .apartat .form-group label {
+        font-size: 1rem;
+    }
+
+    .cnt-dades-pers .apartat > .d-flex {
+        padding-bottom: 0;
+    }
+
+
+    label {
+        width: auto !important;
+        padding: 0 !important;
+        padding-bottom: 5px !important;
+    }
+
+    .form-control {
+        width: 100%;
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+
+    .select {
+        width: 100%;
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+}

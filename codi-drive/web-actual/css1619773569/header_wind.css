@@ -1,0 +1,52 @@
+.top-menu {
+	background: var(--bg-mes-info);
+	color: var(--text-mes-info)
+}
+
+.top-menu p {
+	margin: 0
+}
+
+.top-menu a, .top-menu span {
+	font-size: .93rem;
+	font-weight: 600;
+	letter-spacing: .3px
+}
+
+.top-menu .fa-phone {
+	font-size: .8rem;
+	margin-right: 5px;
+	transform: rotate(90deg)
+}
+
+.top-menu a i {
+	font-size: 1.15rem
+}
+
+.prisma-header .prisma-nav {
+	padding: 7px 0;
+	z-index: 99;
+	margin-bottom: 0
+}
+
+.prisma-nav .container-fluid {
+	padding: 0
+}
+
+.prisma-nav .navbar-nav>li>a {
+	color: white;
+	text-transform: uppercase
+}
+
+.prisma-nav .navbar-nav>li>a:hover, .prisma-nav .navbar-nav>li>a:focus {
+	background: inherit;
+	color: var(--text-hover-capcalera)
+}
+
+.prisma-nav .navbar-nav>li.dropdown.li-blue {
+	display: none
+}
+
+.navbarPrisma {
+	width: auto !important
+}

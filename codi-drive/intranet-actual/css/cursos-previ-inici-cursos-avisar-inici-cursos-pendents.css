@@ -1,0 +1,17 @@
+.titolCurs {
+   color: var(--blauFosc1);
+}
+
+textarea.obs {
+   border: 1px solid var(--lightGray2);
+   padding: 5px 8px;
+}
+
+.saveObs {
+   color: var(--info);
+   cursor: pointer;
+}
+
+.avisar-alumne {
+   cursor: pointer;
+}

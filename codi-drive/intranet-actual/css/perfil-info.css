@@ -1,0 +1,80 @@
+.img-profile {
+    border: 3px solid var(--white);
+    border-radius: 50%;
+    z-index: 10;
+    max-width: 235px;
+}
+
+.rols {
+    color: var(--darkGray1);
+    border-radius: 5px;
+    left: 0;
+    transform: none;
+    margin: 0;
+    text-align: center;
+    width: auto !important;
+}
+
+.rol-1 {
+    background: var(--lightPurple4);
+}
+
+.rol-2 {
+    background: var(--lightBlue3);
+}
+
+.rol-3 {
+    background: var(--lightGreen4);
+}
+
+.rol-4 {
+    background: var(--lightYellow1);
+}
+
+.rol-5 {
+    background: var(--lightGreen3);
+}
+
+.rol-6 {
+    background: var(--lightRose1);
+}
+
+.rol-7 {
+    background: var(--lightRed4);
+}
+
+.rol-8 {
+    background: var(--lightPurple2);
+}
+
+.change-pass i {
+    color: var(--white);
+}
+
+img.img-change {
+    max-width: 190px;
+}
+
+#modalChangePass p.titol-apartat {
+    color: var(--blauPrisma);
+    align-items: center;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+#modalChangePass .modal-dialog {
+    max-width: 890px;
+}
+
+@media (min-width: 1200px) {
+	.apartat .form-group .form-control,
+	.apartat .form-group .select {
+		width: 70%;
+	}
+
+	.apartat .form-group label {
+		width: 30%;
+		padding-right: 0.5rem;
+	}
+}

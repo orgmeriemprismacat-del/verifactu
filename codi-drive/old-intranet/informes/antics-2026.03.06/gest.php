@@ -1,0 +1,1174 @@
+<?php
+session_name("sessio_admin");
+session_start();
+if(isset($_SESSION['usuari']) && isset($_SESSION['contrasenya_encriptada']) && ($_SESSION['rol']=="admin"))
+{
+?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<?php
+// aquí s'obté el codi del curs
+$url= $_SERVER["REQUEST_URI"];
+$pos = strpos($url, 'shortname');
+$codi_curs = substr($url, $pos+10);
+
+$conexion = mysqli_connect('localhost','suport','1324GiRoNa','gestio');
+
+mysqli_set_charset ($conexion, "utf8");
+
+if (mysqli_connect_errno())
+{
+	echo "No es pot connectar: " . mysqli_connect_error() . "<br><br>Si continua, podeu posar-vos en contacte amb suport@prisma.cat. <br>Disculpeu les molèsties.";
+}
+else
+{
+	$result = mysqli_query ($conexion,"SELECT `NOM CURS` AS ncurs, AULA FROM cursos WHERE id_Curs='".$codi_curs."'");
+	$row = mysqli_fetch_array($result);
+}
+
+?>
+<title>Informe del curs <?php echo $codi_curs; ?></title>
+<link rel="stylesheet" href="../css/estilo_back.css"/>
+<link rel="stylesheet" href="../css/estil_informe.css"/>
+
+<script>
+	function imprimeix()
+	{
+		document.getElementById("imprimir").style.visibility = 'hidden';
+		window.print();
+		document.getElementById("imprimir").style.visibility = 'visible';
+	}
+</script>
+
+</head>
+
+<?php
+
+// Valoració segons els continguts de cada mòdul:
+
+// Mòdul 1
+$enunciat1="Concretar i definir el concepte de «temps» tot reflexionant sobre les creences que es tenen amb relació a aquest tema i que determinen el valor que donem al nostre temps i al temps que compartim.";
+$enunciat2="Conèixer els principis bàsics de la gestió del temps i treballar els conceptes de «temps perdut», «temps guanyat», «eficàcia» i «eficiència».";
+$enunciat3="Analitzar els vuit principis o lleis que regulen el nostre temps i conèixer els vuit aprenentatges que se’n deriven per tal de gestionar-lo positivament.";
+
+// Mòdul 2
+$enunciat4="Estudiar la relació existent entre la gestió del temps i els nivells d’estrès, d’autoestima i de motivació.";
+$enunciat5="Estudiar els diferents tipus de personalitat i la seva relació amb la gestió del temps.";
+$enunciat6="Reflexionar entorn de la manera de comunicar i de relacionar-se com a variables en la gestió del temps..";
+$enunciat7="Analitzar les variables que incideixen en una mala gestió del temps del professorat i les conseqüències que comporten.";
+$enunciat8="Conèixer recursos per millorar la gestió personal i professional del temps.";
+$enunciat9="Conèixer els factors extrínsecs que poden impedir gestionar positivament el temps personal en la professió docent.";
+
+// Mòdul 3
+$enunciat10="Conèixer i analitzar les característiques dels docents en harmonia amb el temps.";
+$enunciat11="Conèixer els diferents “vampirs del temps” que hi ha en els centres educatius.";
+$enunciat12="Conèixer els elements “vampiritzants” en la gestió del temps que es comparteix dins dels centres educatius.";
+$enunciat13="Analitzar les variables que faciliten una bona gestió del temps compartit.";
+$enunciat14="Valorar el treball en equip com a estratègia d’optimització del temps que es comparteix i com a element de creixement professional.";
+$enunciat15="Analitzar les reunions com a elements “vampiritzants” o com a elements “dinamitzadors” del temps que es comparteix.";
+$enunciat16="Conèixer i analitzar les 12 competències o capacitats que cal desenvolupar per tal de ser un docent en harmonia amb el temps.";
+
+// Valoració segons el grau de participació i interacció dels participants a les diferents activitats per mòdul:
+
+// Mòdul 1
+$enunciat17="Grau de participació.";
+$enunciat18="Grau d’interacció entre els participants.";
+
+// Mòdul 2
+$enunciat19="Grau de participació.";
+$enunciat20="Grau d’interacció entre els participants.";
+
+// Mòdul 3
+$enunciat21="Grau de participació.";
+$enunciat22="Grau d’interacció entre els participants.";
+
+// ANÀLISI DE LES ACTIVITATS COMPLEMENTÀRIES (DEBATS, RACÓ D’INTERCANVI I P@SSADÍS)
+$enunciat23="Resposta dels participants al DEBAT 1.";
+$enunciat24="Resposta dels participants al DEBAT 2.";
+$enunciat25="Resposta dels participants al DEBAT 3.";
+$enunciat26="Hi ha debats iniciats pels participants?";
+$enunciat27="Hi ha recursos proposats pels participants en el RACÓ D'INTERCANVI?";
+
+ /***************************************************************/
+
+?>
+
+
+<body topmargin="0" style="background-color:#FFFFFF !important;">
+	<table width="100%" align="center" bgcolor="#FFFFFF" cellspacing="0" cellpadding="0">
+        <tr>
+            <td align="center">
+                <div id="login">
+                    <div id="llegenda_curs">
+
+							<?php
+
+                            // comprovem si hi ha dades guardades
+							$conexion = mysqli_connect("localhost","suport","1324GiRoNa","gestio");
+							if (mysqli_connect_errno())
+							{
+								echo "No es pot connectar: " . mysqli_connect_error();
+							}
+							mysqli_set_charset($conexion, "utf8");
+
+							$result = mysqli_query ($conexion, "SELECT * FROM informe_tutor WHERE codic='".$codi_curs."' AND finalitzat IS NOT NULL");
+							$result_t = mysqli_query ($conexion, "SELECT NOM, COGNOMS FROM personal, cursos WHERE id_Curs='".$codi_curs."' AND DNI=DNI_TUTOR");
+
+							if (mysqli_num_rows($result)>0)
+							{
+								// mostrem el que hi ha guardat
+
+								$row_r = mysqli_fetch_array($result);
+								$row_t = mysqli_fetch_array($result_t);
+
+								$cadena=explode("#", $row_r['radios']);
+
+							 ?>
+
+
+										<table border="0" align="center" width="100%" vspace="0" cellpadding="0" cellspacing="0" class="taula">
+										 	<tr>
+												<td colspan="2" class="titol secretaria">
+													INFORME D’AVALUACIÓ I VALORACIÓ DE L’ACTIVITAT REALITZAT PEL FORMADOR/TUTOR<br /><br />
+                                                    <?php echo $row_t['NOM']." ".$row_t['COGNOMS']; ?>
+												</td>
+											</tr>
+                                            <tr class="apartat">
+												<td colspan="2">
+													ANÀLISI DE LES EXPECTATIVES (fòrum PRESENTACIÓ I EXPECTATIVES i ESPAI DE COMIAT)
+												</td>
+											</tr>
+											<tr>
+												<td class="celda" colspan="2">
+													<p><?php echo $row_r['expectatives']; ?></p>
+												</td>
+											</tr>
+										</table>
+										<br>
+										<table border="0" align="center" width="100%" vspace="0" style="margin-top:0px; padding-bottom:5px;" cellpadding="0" cellspacing="0" class="celda">
+									<tr class="apartat">
+										<td colspan="8">
+											GRAU D'ASSOLIMENT DELS OBJECTIUS DE CADA MÒDUL
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8">
+
+										</td>
+									</tr>
+									<tr>
+										<td class="celda2" colspan="8">
+											<p><strong class="fort2">VALORACIÓ SEGONS ELS CONTINGUTS DE CADA MÒDUL:</strong></p>
+										</td>
+									</tr>
+                                    <tr>
+                                    	<td colspan="8" class="modul">
+
+                                        </td>
+                                    </tr>
+									<tr>
+										<td width="780" class="apartat2" colspan="2">
+											<strong class="fort">MÒDUL 1</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">0</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">1</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">2</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">3</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">4</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">5</strong>
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td colspan="2">
+											<p><?php echo $enunciat1; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg1" value="0" <?php if ($cadena[1]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg1" value="1" <?php if ($cadena[1]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg1" value="2" <?php if ($cadena[1]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg1" value="3" <?php if ($cadena[1]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg1" value="4" <?php if ($cadena[1]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg1" value="5" <?php if ($cadena[1]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td colspan="2">
+											<p><?php echo $enunciat2; ?></p>
+										<td align="center">
+											<input type="radio" name="preg2" value="0" <?php if ($cadena[2]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg2" value="1" <?php if ($cadena[2]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg2" value="2" <?php if ($cadena[2]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg2" value="3" <?php if ($cadena[2]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg2" value="4" <?php if ($cadena[2]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg2" value="5" <?php if ($cadena[2]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr>
+										<td colspan="2">
+											<p><?php echo $enunciat3; ?></p>
+										</td>
+                                        <td align="center">
+											<input type="radio" name="preg3" value="0" <?php if ($cadena[3]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg3" value="1" <?php if ($cadena[3]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg3" value="2" <?php if ($cadena[3]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg3" value="3" <?php if ($cadena[3]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg3" value="4" <?php if ($cadena[3]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg3" value="5" <?php if ($cadena[3]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+                                    <tr>
+                                    	<td colspan="8" class="modul">
+
+                                        </td>
+                                    </tr>
+									<tr>
+										<td width="780" class="apartat2" colspan="2">
+											<strong class="fort">MÒDUL 2</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">0</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">1</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">2</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">3</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">4</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">5</strong>
+										</td>
+									</tr>
+                                    <tr class="borde_inferior">
+										<td colspan="2">
+											<p><?php echo $enunciat4; ?></p>
+										</td>
+                                        <td align="center">
+											<input type="radio" name="preg4" value="0" <?php if ($cadena[4]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg4" value="1" <?php if ($cadena[4]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg4" value="2" <?php if ($cadena[4]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg4" value="3" <?php if ($cadena[4]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg4" value="4" <?php if ($cadena[4]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg4" value="5" <?php if ($cadena[4]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td colspan="2">
+											<p><?php echo $enunciat5; ?></p>
+										</td>
+                                        <td align="center">
+											<input type="radio" name="preg5" value="0" <?php if ($cadena[5]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg5" value="1" <?php if ($cadena[5]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg5" value="2" <?php if ($cadena[5]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg5" value="3" <?php if ($cadena[5]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg5" value="4" <?php if ($cadena[5]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg5" value="5" <?php if ($cadena[5]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td colspan="2">
+											<p><?php echo $enunciat6; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg6" value="0" <?php if ($cadena[6]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg6" value="1" <?php if ($cadena[6]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg6" value="2" <?php if ($cadena[6]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg6" value="3" <?php if ($cadena[6]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg6" value="4" <?php if ($cadena[6]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg6" value="5" <?php if ($cadena[6]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td colspan="2">
+											<p><?php echo $enunciat7; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg7" value="0" <?php if ($cadena[7]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg7" value="1" <?php if ($cadena[7]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg7" value="2" <?php if ($cadena[7]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg7" value="3" <?php if ($cadena[7]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg7" value="4" <?php if ($cadena[7]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg7" value="5" <?php if ($cadena[7]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td colspan="2">
+											<p><?php echo $enunciat8; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg8" value="0" <?php if ($cadena[8]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg8" value="1" <?php if ($cadena[8]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg8" value="2" <?php if ($cadena[8]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg8" value="3" <?php if ($cadena[8]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg8" value="4" <?php if ($cadena[8]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg8" value="5" <?php if ($cadena[8]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr>
+										<td colspan="2">
+											<p><?php echo $enunciat9; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg9" value="0" <?php if ($cadena[9]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg9" value="1" <?php if ($cadena[9]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg9" value="2" <?php if ($cadena[9]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg9" value="3" <?php if ($cadena[9]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg9" value="4" <?php if ($cadena[9]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg9" value="5" <?php if ($cadena[9]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+                                    <tr>
+                                    	<td colspan="8" class="modul">
+
+                                        </td>
+                                    </tr>
+									<tr>
+										<td width="780" class="apartat2" colspan="2">
+											<strong class="fort">MÒDUL 3</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">0</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">1</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">2</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">3</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">4</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">5</strong>
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										  <td colspan="2">
+											  <p><?php echo $enunciat10; ?></p>
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg10" value="0" <?php if ($cadena[10]=='0') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg10" value="1" <?php if ($cadena[10]=='1') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg10" value="2" <?php if ($cadena[10]=='2') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg10" value="3" <?php if ($cadena[10]=='3') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg10" value="4" <?php if ($cadena[10]=='4') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg10" value="5" <?php if ($cadena[10]=='5') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+									  </tr>
+									  <tr class="borde_inferior">
+										  <td colspan="2">
+											  <p><?php echo $enunciat11; ?></p>
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg11" value="0" <?php if ($cadena[11]=='0') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg11" value="1" <?php if ($cadena[11]=='1') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg11" value="2" <?php if ($cadena[11]=='2') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg11" value="3" <?php if ($cadena[11]=='3') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg11" value="4" <?php if ($cadena[11]=='4') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg11" value="5" <?php if ($cadena[11]=='5') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+									  </tr>
+									  <tr class="borde_inferior">
+										  <td colspan="2">
+											  <p><?php echo $enunciat12; ?></p>
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg12" value="0" <?php if ($cadena[12]=='0') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg12" value="1" <?php if ($cadena[12]=='1') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg12" value="2" <?php if ($cadena[12]=='2') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg12" value="3" <?php if ($cadena[12]=='3') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg12" value="4" <?php if ($cadena[12]=='4') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg12" value="5" <?php if ($cadena[12]=='5') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+									  </tr>
+									  <tr class="borde_inferior">
+										  <td colspan="2">
+											  <p><?php echo $enunciat13; ?></p>
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg13" value="0" <?php if ($cadena[13]=='0') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg13" value="1" <?php if ($cadena[13]=='1') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg13" value="2" <?php if ($cadena[13]=='2') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg13" value="3" <?php if ($cadena[13]=='3') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg13" value="4" <?php if ($cadena[13]=='4') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg13" value="5" <?php if ($cadena[13]=='5') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+									  </tr>
+									  <tr class="borde_inferior">
+										  <td colspan="2">
+											  <p><?php echo $enunciat14; ?></p>
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg14" value="0" <?php if ($cadena[14]=='0') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg14" value="1" <?php if ($cadena[14]=='1') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg14" value="2" <?php if ($cadena[14]=='2') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg14" value="3" <?php if ($cadena[14]=='3') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg14" value="4" <?php if ($cadena[14]=='4') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg14" value="5" <?php if ($cadena[14]=='5') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+									  </tr>
+									  <tr class="borde_inferior">
+										  <td colspan="2">
+											  <p><?php echo $enunciat15; ?></p>
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg15" value="0" <?php if ($cadena[15]=='0') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg15" value="1" <?php if ($cadena[15]=='1') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg15" value="2" <?php if ($cadena[15]=='2') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg15" value="3" <?php if ($cadena[15]=='3') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg15" value="4" <?php if ($cadena[15]=='4') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg15" value="5" <?php if ($cadena[15]=='5') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+									  </tr>
+									  <tr>
+										  <td colspan="2">
+											  <p><?php echo $enunciat16; ?></p>
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg16" value="0" <?php if ($cadena[16]=='0') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg16" value="1" <?php if ($cadena[16]=='1') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg16" value="2" <?php if ($cadena[16]=='2') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg16" value="3" <?php if ($cadena[16]=='3') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg16" value="4" <?php if ($cadena[16]=='4') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+										  <td align="center">
+											  <input type="radio" name="preg16" value="5" <?php if ($cadena[16]=='5') {echo ('checked');} ?> disabled="disabled">
+										  </td>
+									  </tr>
+									<tr>
+										<td class="celda" colspan="8">&nbsp;
+
+										</td>
+									</tr>
+									<tr>
+										<td class="celda2" colspan="8">
+											<p><strong class="fort2">VALORACIÓ SEGONS EL GRAU DE PARTICIPACIÓ I INTERACCIÓ DELS PARTICIPANTS A LES DIFERENTS ACTIVITATS PER MÒDUL: </strong></p>
+										</td>
+									</tr>
+                                     <tr>
+                                    	<td colspan="8" class="modul">
+
+                                        </td>
+                                    </tr>
+									<tr>
+										<td width="780" class="apartat2" colspan="2">
+											<strong class="fort">MÒDUL 1</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">0</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">1</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">2</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">3</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">4</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">5</strong>
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td colspan="2">
+											<p><?php echo $enunciat17; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg17" value="0" <?php if ($cadena[17]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg17" value="1" <?php if ($cadena[17]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg17" value="2" <?php if ($cadena[17]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg17" value="3" <?php if ($cadena[17]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg17" value="4" <?php if ($cadena[17]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg17" value="5" <?php if ($cadena[17]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+                           <tr>
+										<td colspan="2">
+											<p><?php echo $enunciat18; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg18" value="0" <?php if ($cadena[18]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg18" value="1" <?php if ($cadena[18]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg18" value="2" <?php if ($cadena[18]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg18" value="3" <?php if ($cadena[18]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg18" value="4" <?php if ($cadena[18]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg18" value="5" <?php if ($cadena[18]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr>
+                                    	<td colspan="8" class="modul">
+
+                                        </td>
+                                    </tr>
+									<tr>
+										<td width="780" class="apartat2" colspan="2">
+											<strong class="fort">MÒDUL 2</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">0</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">1</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">2</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">3</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">4</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">5</strong>
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+						  <td colspan="2">
+							  <p><?php echo $enunciat19; ?></p>
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg19" value="0" <?php if ($cadena[19]=='0') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg19" value="1" <?php if ($cadena[19]=='1') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg19" value="2" <?php if ($cadena[19]=='2') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg19" value="3" <?php if ($cadena[19]=='3') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg19" value="4" <?php if ($cadena[19]=='4') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg19" value="5" <?php if ($cadena[19]=='5') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+					  </tr>
+					  <tr>
+						  <td colspan="2">
+							  <p><?php echo $enunciat20; ?></p>
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg20" value="0" <?php if ($cadena[20]=='0') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg20" value="1" <?php if ($cadena[20]=='1') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg20" value="2" <?php if ($cadena[20]=='2') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg20" value="3" <?php if ($cadena[20]=='3') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg20" value="4" <?php if ($cadena[20]=='4') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+						  <td align="center">
+							  <input type="radio" name="preg20" value="5" <?php if ($cadena[20]=='5') {echo ('checked');} ?> disabled="disabled">
+						  </td>
+					  </tr>
+									<tr>
+                                    	<td colspan="8" class="modul">
+
+                                        </td>
+                                    </tr>
+									<tr>
+										<td width="780" class="apartat2" colspan="2">
+											<strong class="fort">MÒDUL 3</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">0</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">1</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">2</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">3</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">4</strong>
+										</td>
+										<td width="25" align="center" class="apartat2">
+											<strong class="fort">5</strong>
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td colspan="2">
+											<p><?php echo $enunciat21; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg21" value="0" <?php if ($cadena[21]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg21" value="1" <?php if ($cadena[21]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg21" value="2" <?php if ($cadena[21]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg21" value="3" <?php if ($cadena[21]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg21" value="4" <?php if ($cadena[21]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg21" value="5" <?php if ($cadena[21]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+												 <tr>
+										<td colspan="2">
+											<p><?php echo $enunciat22; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg22" value="0" <?php if ($cadena[22]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg22" value="1" <?php if ($cadena[22]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg22" value="2" <?php if ($cadena[22]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg22" value="3" <?php if ($cadena[22]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg22" value="4" <?php if ($cadena[22]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg22" value="5" <?php if ($cadena[22]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr>
+										<td colspan="8">&nbsp;
+										</td>
+									</tr>
+									<tr class="apartat">
+										<td colspan="8">
+											ACTIVITATS QUE MÉS DEBAT HAN GENERAT
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8">
+											<p><?php echo $row_r['mes_debat']; ?></p>
+										</td>
+									</tr>
+									<tr>
+										<td colspan="8">&nbsp;
+										</td>
+									</tr>
+									<tr class="apartat">
+										<td colspan="8">
+											ACTIVITATS QUE MENYS DEBAT HAN GENERAT
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8">
+											<p><?php echo $row_r['menys_debat']; ?></p>
+										</td>
+									</tr>
+									<tr>
+										<td colspan="8">&nbsp;
+										</td>
+									</tr>
+									<tr class="apartat">
+										<td>
+											ANÀLISI DE LES ACTIVITATS COMPLEMENTÀRIES (DEBATS, RACÓ D’INTERCANVI i P@SSADÍS)
+										</td>
+                                        <td width="25" align="center">
+											NO PROPOSAT
+										</td>
+										<td width="25" align="center">
+											0
+										</td>
+										<td width="25" align="center">
+											1
+										</td>
+										<td width="25" align="center">
+											2
+										</td>
+										<td width="25" align="center">
+											3
+										</td>
+										<td width="25" align="center">
+											4
+										</td>
+										<td width="25" align="center">
+											5
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td>
+											<p><?php echo $enunciat23; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg23" value="C" <?php if ($cadena[23]=='C') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg23" value="0" <?php if ($cadena[23]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg23" value="1" <?php if ($cadena[23]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg23" value="2" <?php if ($cadena[23]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg23" value="3" <?php if ($cadena[23]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg23" value="4" <?php if ($cadena[23]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg23" value="5" <?php if ($cadena[23]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td>
+											<p><?php echo $enunciat24; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg24" value="C" <?php if ($cadena[24]=='C') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg24" value="0" <?php if ($cadena[24]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg24" value="1" <?php if ($cadena[24]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg24" value="2" <?php if ($cadena[24]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg24" value="3" <?php if ($cadena[24]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg24" value="4" <?php if ($cadena[24]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg24" value="5" <?php if ($cadena[24]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td>
+											<p><?php echo $enunciat25; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="C" <?php if ($cadena[25]=='C') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="0" <?php if ($cadena[25]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="1" <?php if ($cadena[25]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="2" <?php if ($cadena[25]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="3" <?php if ($cadena[25]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="4" <?php if ($cadena[25]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="5" <?php if ($cadena[25]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td>
+											<p><?php echo $enunciat25; ?></p>
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="C" <?php if ($cadena[25]=='C') {echo ('checked');} ?> disabled="disabled">
+										</td>
+													  <td align="center">
+											<input type="radio" name="preg25" value="0" <?php if ($cadena[25]=='0') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="1" <?php if ($cadena[25]=='1') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="2" <?php if ($cadena[25]=='2') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="3" <?php if ($cadena[25]=='3') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="4" <?php if ($cadena[25]=='4') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											<input type="radio" name="preg25" value="5" <?php if ($cadena[25]=='5') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr class="borde_inferior">
+										<td colspan="4">
+											<p><?php echo $enunciat26; ?></p>
+										</td>
+										<td align="center">
+											SÍ
+										</td>
+										<td align="center">
+											<input type="radio" name="preg26" value="si" <?php if ($cadena[26]=='si') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											NO
+										</td>
+										<td align="center">
+											<input type="radio" name="preg26" value="no" <?php if ($cadena[26]=='no') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr>
+										<td colspan="4">
+											<p><?php echo $enunciat27; ?></p>
+										</td>
+										<td align="center">
+											SÍ
+										</td>
+										<td align="center">
+											<input type="radio" name="preg27" value="si" <?php if ($cadena[27]=='si') {echo ('checked');} ?> disabled="disabled">
+										</td>
+										<td align="center">
+											NO
+										</td>
+										<td align="center">
+											<input type="radio" name="preg27" value="no" <?php if ($cadena[27]=='no') {echo ('checked');} ?> disabled="disabled">
+										</td>
+									</tr>
+									<tr>
+										<td colspan="8">&nbsp;
+										</td>
+									</tr>
+									<?php
+										if ($row_r['observacions']!="")
+										{
+									?>
+
+									<tr>
+										<td colspan="8" class="apartat2">
+											<strong class="fort">Altres observacions</strong>
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8">
+											<p><?php echo $row_r['observacions']; ?></p>
+										</td>
+									</tr>
+									<?php
+										}
+									?>
+
+									<tr>
+										<td colspan="8">&nbsp;
+										</td>
+									</tr>
+									<tr class="apartat">
+										<td colspan="8">
+											DUBTES I CONSULTES (Incidències i dubtes de contingut, temporalització, tècniques...)
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8">
+											<p><?php echo $row_r['dubtes']; ?></p>
+										</td>
+									</tr>
+									<tr>
+										<td colspan="8">&nbsp;
+										</td>
+									</tr>
+									<tr class="apartat">
+										<td colspan="8">
+											INCIDÈNCIES REBUDES AL CORREU
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8">
+											<p><?php echo $row_r['incidencies']; ?></p>
+										</td>
+									</tr>
+									<tr>
+										<td colspan="8">&nbsp;
+										</td>
+									</tr>
+									<tr class="apartat">
+										<td colspan="8">
+											ANÀLISI DE L’ENQUESTA DE SATISFACCIÓ
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8">
+											<p><?php echo $row_r['enquesta']; ?></p>
+										</td>
+									</tr>
+									<tr>
+										<td colspan="8">&nbsp;
+										</td>
+									</tr>
+									<tr class="apartat">
+										<td colspan="8">
+											ANÀLISI DE LES VALORACIONS FINALS
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8">
+											<p><?php echo $row_r['valoracions']; ?></p>
+										</td>
+									</tr>
+									<tr class="apartat">
+										<td colspan="8">
+											PROPOSTA DE MILLORES DEL TUTOR/A
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8">
+											<p><?php echo $row_r['millores']; ?></p>
+										</td>
+									</tr>
+									<tr>
+										<td colspan="8">&nbsp;
+										</td>
+									</tr>
+									<tr class="apartat">
+										<td colspan="8">
+											ALTRES COMENTARIS DEL TUTOR/A
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8">
+											<p><?php echo $row_r['comentaris']; ?></p>
+										</td>
+									</tr>
+									<tr>
+										<td class="celda" colspan="8" align="center">
+											<input id="imprimir" type="button" name="imprimir" value="IMPRIMIR" onclick="imprimeix()">
+										</td>
+									</tr>
+								</table>
+										<?php
+
+							}
+
+                                        ?>
+
+                </div>
+            </td>
+        </tr>
+	</table>
+</body>
+</html>
+
+<?php
+}
+else
+{
+	header("Location: ../acces.php");
+	exit;
+}
+?>

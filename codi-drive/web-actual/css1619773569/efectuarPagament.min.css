@@ -1,0 +1,163 @@
+.prisma-container {
+	font-family: 'Roboto';
+}
+
+.tota-pagina {
+	min-height: calc(100vh - 643px);
+}
+
+.preu {
+  font-size: 2rem;
+}
+
+.email {
+  color: var(--text-blue-link);
+}
+
+/* #########################        LOADING        ######################### */
+#modalLoading .modal-content {
+	background: transparent;
+}
+
+#loading-wrapper {
+	align-items: center;
+	display: flex;
+	justify-content: center;
+	min-height: 246px;
+}
+
+#loading-text {
+	color: var(--bg-white);
+	display: block;
+	font-family: 'Roboto', 'PT Sans Narrow', sans-serif;
+	font-size: 1.13rem;
+	height: 30px;
+	left: 50%;
+	margin: -7px 0 0 -45px;
+	position: absolute;
+	text-align: center;
+	top: 50%;
+	width: 100px;
+}
+
+#loading-content {
+	height: 160px;
+	width: 160px;
+}
+
+#loading-content:after {
+	bottom: 15px;
+	content: "";
+	left: 15px;
+	position: absolute;
+	right: 15px;
+	top: 15px;
+}
+
+#loading-content:before {
+	bottom: 5px;
+	content: "";
+	left: 5px;
+	right: 5px;
+	top: 5px;
+	position: absolute;
+}
+
+#loading-content {
+	-webkit-animation: loader 2s linear infinite;
+	-moz-animation: loader 2s linear infinite;
+	-o-animation: loader 2s linear infinite;
+	animation: loader 2s linear infinite;
+	border: 5px solid transparent;
+	border-top-color: var(--loading-color-1);
+	border-bottom-color: var(--loading-color-1);
+	border-radius: 50%;
+}
+
+#loading-content:before {
+	-webkit-animation: loader 3s linear infinite;
+	-moz-animation: loader 2s linear infinite;
+	-o-animation: loader 2s linear infinite;
+	animation: loader 3s linear infinite;
+	border: 5px solid transparent;
+	border-top-color: var(--loading-color-2);
+	border-bottom-color: var(--loading-color-2);
+	border-radius: 50%;
+}
+
+#loading-content:after {
+	-webkit-animation: loader 1.5s linear infinite;
+	animation: loader 1.5s linear infinite;
+	-moz-animation: loader 2s linear infinite;
+	-o-animation: loader 2s linear infinite;
+	border: 5px solid transparent;
+	border-top-color: var(--loading-color-3);
+	border-bottom-color: var(--loading-color-3);
+	border-radius: 50%;
+}
+
+@-webkit-keyframes loaders {
+	0% {
+		-webkit-transform: rotate(0deg);
+		-ms-transform: rotate(0deg);
+		transform: rotate(0deg);
+	}
+
+	100% {
+		-webkit-transform: rotate(360deg);
+		-ms-transform: rotate(360deg);
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes loader {
+	0% {
+		-webkit-transform: rotate(0deg);
+		-ms-transform: rotate(0deg);
+		transform: rotate(0deg);
+	}
+
+	100% {
+		-webkit-transform: rotate(360deg);
+		-ms-transform: rotate(360deg);
+		transform: rotate(360deg);
+	}
+}
+
+/* #########################         BOTONS         ######################### */
+.boto-blau-disable {
+  background: #EFF1F6;
+  color: #505050;
+  font-weight: 400;
+  margin: 10px auto 0.33rem auto;
+  position: relative;
+  text-transform: uppercase;
+  padding: 8px 20px;
+  width: 50%;
+  z-index: 1;
+}
+
+.boto-blau-disable:before {
+  background: #e6eaf5;
+  border-radius: 2px;
+  color: white;
+  content: "";
+  height: 0;
+  bottom: 0;
+  position: absolute;
+  left: 0;
+  -moz-transition: all .3s ease;
+  -o-transition: all .3s ease;
+  -webkit-transition: all .3s ease;
+  transition: all .3s ease;
+  width: 100%;
+  z-index: -1;
+}
+
+.boto-blau-disable:hover:before {
+  height: 100%;
+}
+
+.boto-blau-disable, .boto-blau {
+	width: 250px;
+}

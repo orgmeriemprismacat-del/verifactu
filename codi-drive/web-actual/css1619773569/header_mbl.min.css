@@ -1,0 +1,217 @@
+/*@media (min-width:768px) {
+  .container {
+    margin: 0 auto !important
+  }
+}*/
+
+.top-menu {
+  display: none !important
+}
+
+.prisma-header .prisma-nav {
+  margin-bottom: 0;
+  padding: 5px 0;
+  z-index: 99
+}
+
+.prisma-header .container {
+  padding: 0 8px
+}
+
+.prisma-header .container-fluid {
+  padding: 0
+}
+
+.navbar-header {
+  margin-left: 0 !important;
+  margin-right: 0 !important
+}
+
+button.navbar-toggle.collapsed {
+  display: block;
+  font-size: 2rem;
+  margin: 6px 5px 0 0;
+  padding: 4px 10px 0 5px
+}
+
+a.navbar-brand.prisma-brand {
+  height: fit-content;
+  margin-left: 0 !important;
+  padding: 9px 0;
+  vertical-align: middle
+}
+
+.prisma-header .navbarPrisma {
+  background-color: var(--text-blue-link);
+  height: 100%;
+  left: 0;
+  margin: 0 !important;
+  overflow: visible !important;
+  overflow-x: hidden;
+  padding-bottom: 0;
+  position: fixed;
+  top: 0;
+  transition: 0.5s;
+  width: 0;
+  z-index: 2
+}
+
+.prisma-header .navbarPrisma ul.nav.navbar-nav.navbar-right {
+  height: 100%;
+  margin: 0;
+  overflow-y: scroll
+}
+
+.prisma-header .navbarPrisma a {
+  display: block;
+  font-size: 1.3rem;
+  text-decoration: none;
+  transition: 0.3s
+}
+
+.prisma-header .navbarPrisma a.closebtn {
+  background: var(--bg-white);
+  border-radius: 50%;
+  padding: 3px 10px;
+  right: -38px;
+  top: 8px
+}
+
+.prisma-header .navbarPrisma ul>li.dropdown {
+  border-bottom: 1px solid var(--border-bottom-gray-extra-light);
+  width: 100%
+}
+
+.prisma-header .navbarPrisma ul>li.dropdown .prisma-header .navbarPrisma .li-white {
+  background-color: var(--bg-white)
+}
+
+.prisma-header .navbarPrisma .li-white {
+  background: var(--bg-white);
+}
+
+.prisma-header .navbarPrisma .li-campus {
+  background: var(--bg-mes-info)
+}
+
+.prisma-header .navbarPrisma .li-blue {
+  background: var(--text-blue-link)
+}
+
+.prisma-header .navbarPrisma .li-white a, .prisma-header .navbarPrisma .li-white a:hover, .prisma-header .navbarPrisma .li-white a:focus, .prisma-header .navbarPrisma .li-white a:active {
+  color: var(--text-body-gray);
+  background: none
+}
+
+.prisma-header .navbarPrisma .li-campus a, .prisma-header .navbarPrisma .li-campus a:hover, .prisma-header .navbarPrisma .li-campus a:focus, .prisma-header .navbarPrisma .li-campus a:active {
+  color: var(--text-mes-info);
+  background: none
+}
+
+.prisma-header .navbarPrisma .li-blue a, .prisma-header .navbarPrisma .li-blue a:hover, .prisma-header .navbarPrisma .li-blue a:focus, .prisma-header .navbarPrisma .li-blue a:active {
+  color: var(--bg-white);
+  background: none
+}
+
+#pagina {
+  transition: margin-left .5s
+}
+
+.sideNavBarPrismaObert {
+  background-color: rgba(0, 0, 0, .4)
+}
+
+.sideNavBarContainerPrismaObert {
+  margin-left: 300px;
+  overflow: hidden
+}
+
+.prisma-nav .navbar-nav>li.dropdown.mobile {
+  padding: 15px 5px;
+}
+
+.prisma-nav .navbar-nav>li.dropdown.mobile>a {
+  font-size: 1.2rem;
+  line-height: 0
+}
+
+.prisma-nav .navbar-nav>li.dropdown.computer {
+  padding: 5px
+}
+
+.prisma-nav .navbar-nav>li.dropdown.computer>a {
+  font-size: 1.1rem
+}
+
+.navbar-nav>li.li-campus.mobile>a {
+  padding: 0 15px;
+}
+
+.dropdown > .float-right {
+    margin-top: 5px;
+    font-size: 20px;
+    position: absolute;
+    top: 20px;
+    right: 10px;
+}
+
+#sideNavPrisma {
+    /* width: 100%; */
+    max-width: 270px;
+    height: 100vh;
+}
+
+.ps,.ps2 {
+    overflow: hidden!important;
+    overflow-anchor: none;
+    -ms-overflow-style: none;
+    touch-action: auto;
+    -ms-touch-action: auto
+}
+
+.ps,.ps2 {
+    overflow-y: auto!important;
+    overflow-x: auto!important;
+    scrollbar-color: rgba(0,0,0,.5) rgba(0,0,0,.075);
+    scrollbar-width: thin
+}
+
+.ps::-webkit-scrollbar,.ps2::-webkit-scrollbar {
+    -webkit-appearance: none
+}
+
+.ps::-webkit-scrollbar:vertical,.ps2::-webkit-scrollbar:vertical {
+    width: 7px
+}
+
+.ps::-webkit-scrollbar:horizontal,.ps2::-webkit-scrollbar:horizontal {
+    height: 7px
+}
+
+.ps::-webkit-scrollbar-button:increment,.ps::-webkit-scrollbar-button,.ps2::-webkit-scrollbar-button:increment,.ps2::-webkit-scrollbar-button {
+    display: none
+}
+
+.ps::-webkit-scrollbar-thumb {
+    background-color: rgba(0,0,0,.5)
+}
+
+.ps2::-webkit-scrollbar-thumb {
+    background-color: #4c5a77
+}
+
+#navBarPrisma {
+    position: relative !important;
+    width: 100% !important;
+    height: 100vh !important;
+    flex-wrap: nowrap !important;
+    flex-direction: column !important;
+}
+
+#navBarPrisma {
+    position: relative !important;
+    width: 100% !important;
+    height: 100vh !important;
+    flex-wrap: nowrap !important;
+    flex-direction: column !important;
+}

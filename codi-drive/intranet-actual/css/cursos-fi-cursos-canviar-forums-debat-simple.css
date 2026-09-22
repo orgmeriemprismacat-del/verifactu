@@ -1,0 +1,101 @@
+#content-page {
+	height: 88%;
+	height: calc(100%-100px);
+}
+
+/* ###### Elements marcats ###### */
+
+.card-blau .boto-blau.marcat {
+  background: var(--green1);
+}
+
+.card-blau .boto-blau.marcat:hover, .card-blau .boto-blau.marcat:focus {
+  box-shadow: 0 14px 26px -12px var(--lightGreenOpacity2), 0 4px 23px 0 var(--lightGrayOpacity2), 0 8px 10px -5px var(--lightGreenOpacity2);
+}
+
+.card-blau .boto-blau.marcat:before {
+  background: var(--green2);
+}
+
+.card-blau .boto-blau.no_marcat,
+.card-blau .boto-blau.no_generat {
+  background: var(--red2);
+}
+
+.card-blau .boto-blau.no_marcat:hover,
+.card-blau .boto-blau.no_marcat:focus,
+.card-blau .boto-blau.no_generat:hover,
+.card-blau .boto-blau.no_generat:focus {
+  box-shadow: 0 14px 26px -12px var(--lightRedOpacity2), 0 4px 23px 0 var(--lightGrayOpacity2), 0 8px 10px -5px var(--lightRedOpacity2);
+}
+
+.card-blau .boto-blau.no_marcat:before,
+.card-blau .boto-blau.no_generat:before {
+  background: var(--red3);
+}
+
+.card-blau .boto-blau.generat {
+	background: none;
+	border: 0;
+	box-shadow: none;
+	color: var(--blauPrisma);
+	cursor: text;
+}
+
+.card-blau .boto-blau.generat:before {
+	background: none;
+}
+
+.element-cercat-marcat {
+	border-bottom: 2px solid var(--orangeText1);
+}
+
+.card-blau .card-body .titol-apartat i {
+	font-size: 1.4rem;
+	color: var(--color-botons-edicio);
+	cursor: pointer;
+	margin-top: -4px;
+}
+
+.card-blau .card-body .titol-apartat i:hover {
+	color: var(--color-botons-edicio-hover);
+}
+
+/* ###### Table ###### */
+
+table td .select .select-list {
+	text-align: center;
+	width: 150px;
+}
+
+table td .select .select-list li {
+	height: fit-content;
+	height: -moz-fit-content;
+}
+
+table td .select .element-selected {
+	justify-content: center;
+}
+
+table tr .edit i,
+table tr .search i {
+	font-size: 1.4rem;
+}
+
+table td i.copy {
+	cursor: pointer;
+}
+
+label.estat {
+  color: var(--gray-dark);
+  background: var(--lightRed1);
+  border-radius: 5px;
+  left: 0;
+  transform: none;
+  margin: 0;
+  text-align: center;
+}
+
+.table td:nth-child(6) div div {
+    width: 340px;
+}

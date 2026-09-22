@@ -1,0 +1,27 @@
+.card-blau .tipusInsc {
+	background: var(--lightGray1);
+	color: var(--gray1);
+}
+
+.card-blau .tipusInsc:before,
+.card-blau .tipusInsc:focus {
+	background: var(--lightGray2);
+}
+
+.card-blau .tipusInsc.marcat {
+	background: var(--blauPrisma);
+	color: var(--white);
+}
+
+.card-blau .tipusInsc.marcat:before,
+.card-blau .tipusInsc.marcat:focus {
+	background: var(--blauFosc1);
+}
+
+.banc .select-list {
+	width: 100px
+}
+
+.table tr i.pointer {
+	font-size: 2rem;
+}

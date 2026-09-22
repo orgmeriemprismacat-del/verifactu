@@ -1,0 +1,322 @@
+.single-tutor {
+   max-width: 815px;
+}
+
+.single-tutor img {
+   max-width: 255px;
+}
+
+h1 {
+   font-family: "Times New Roman", Times, serif;
+   font-size: 2rem;
+}
+
+h1:before {
+   border-bottom: none
+}
+
+h2.prisma-titulacio {
+   color: var(--text-light-gray);
+   font-size: 1.13rem;
+}
+
+p {
+   text-align: justify;
+}
+
+.separacio-peu {
+   padding-bottom: 50px;
+}
+
+/* Cursos que el tutor tutoritza */
+
+.cursos-tutoritzats {
+   background-color: var(--bg-body-destacat-color);
+}
+
+.nou.cdd {
+    background: var(--bg-cdd)!important
+}
+
+.nou.subvencio {
+    background: var(--boto-inscripcio)!important
+}
+
+.cursos-tutoritzats h2.h1 {
+   padding-top: 2rem;
+}
+
+.curs-tutoritat-tutor-container {
+   background-color: var(--borders-hover);
+   border: 1px solid var(--borders);
+}
+
+.curs-tutoritat-tutor-container:hover {
+   border: 1px solid var(--borders-hover);
+   box-shadow: var(--box-shadow-curs) 0 0 10px;
+}
+
+
+
+
+.curs-tutoritat-tutor-container:hover .prisma-tutor-overlay {
+   border-top-left-radius: 5px;
+   border-top-right-radius: 5px;
+   opacity: .8
+}
+
+.curs-tutoritat-tutor-container:hover .prisma-tutor-overlay .prisma-tutor-middle {
+   opacity: 1
+}
+
+.curs-tutoritat-tutor {
+   background: var(--bg-white);
+   border-top-left-radius: 2px;
+   border-top-right-radius: 2px;
+   padding: 15px 20px 10px 20px;
+}
+
+.curs-tutoritat-tutor .media-heading {
+   clear: none;
+   font-size: 1.30rem;
+   margin-bottom: 5px;
+   margin-top: 0;
+   line-height: 1.4
+}
+
+.curs-tutoritat-tutor .event-schedule {
+   flex-flow: wrap;
+}
+
+.curs-tutoritat-tutor .event-schedule span {
+   margin-right: 8px;
+}
+/* .curs-tutoritat-tutor .event-schedule span.espai {
+   margin-right: 0;
+} */
+/* .curs-tutoritat-tutor .event-schedule > div {
+   margin-right: 10px;
+} */
+.curs-tutoritat-tutor .event-schedule div.perfil-curs {
+   margin-bottom: 0 !important;
+}
+.curs-tutoritat-tutor .event-schedule i.far.fa-clock,
+.curs-tutoritat-tutor .event-schedule i.fas.fa-signal {
+    margin-right: 5px;
+}
+.curs-tutoritat-tutor .event-schedule i.fas.fa-signal {
+   font-size: .87rem;
+}
+
+/* .curs-tutoritat-tutor  p.descripcio-curta {
+   margin-top: 10px;
+} */
+
+/* .curs-tutoritat-tutor .altres-tutoritzacio,
+.tots_cursos p {
+   margin-bottom: 8px;
+} */
+
+.prisma-tutor-overlay img {
+   backface-visibility: hidden;
+   border-bottom-left-radius: 2px;
+   border-bottom-right-radius: 2px;
+   display: block;
+   height: 100%;
+   opacity: 1;
+   object-fit: cover;
+   transition: .5s ease
+}
+
+.prisma-tutor-overlay .prisma-tutor-middle {
+   left: 50%;
+   opacity: 0;
+   top: 50%;
+   transform: translate(-50%, -50%);
+   -webkit-transform: translate(-50%, -50%);
+   -ms-transform: translate(-50%, -50%);
+   transition: .5s ease;
+   width: -moz-max-content;
+   width: max-content;
+}
+
+.prisma-tutor-overlay .prisma-tutor-text {
+   background-color: var(--bg-black);
+   border: 1px solid var(--bg-black);
+   border-radius: 1px;
+   color: var(--bg-white);
+   opacity: .9;
+   outline: none;
+   padding: 2px 11px;
+   transition: all 0.3s ease
+}
+
+.noComencat {
+    right:0;
+    top:20px
+}
+
+.noComencat,
+.noComencat>.border{
+    position:absolute;
+    width:180px
+}
+
+.noComencat .nom {
+    color: var(--bg-white);
+    font-family: Roboto,sans-serif;
+    font-size: 16px;
+    padding-right: 10px;
+    position: absolute;
+    right: 0;
+    text-align: right;
+    top: 4px;
+    width: 165px
+}
+
+
+.tots_cursos {
+   padding-left: 0;
+}
+
+.no-trobat {
+   align-items: center;
+   display: flex;
+   flex-direction: column;
+   margin-bottom: 20px;
+}
+.no-trobat h1 {
+   color: var(--text-blue-link);
+   font-family: 'Roboto', 'Nunito Sans', sans-serif;
+   font-weight: 400;
+   text-transform: uppercase;
+   margin-top: 30px;
+   margin-bottom: 30px;
+}
+.no-trobat h1:before {
+   border: none;
+}
+.no-trobat img {
+   margin-top: 25px;
+   width: 85%;
+}
+
+@media screen and (min-width:660px) {
+   .no-trobat img {
+      width: 45%;
+   }
+}
+
+@media screen and (min-width:768px) {
+   .no-trobat img {
+      width: 50%;
+   }
+
+   .no-trobat h1 {
+      font-size: 2.2rem;
+   }
+
+   .no-trobat p {
+      font-size: 1.1rem;
+      margin-bottom: 20px;
+   }
+}
+
+@media screen and (min-width:992px) {
+   .curs-tutoritat-tutor  {
+      padding: 10px 15px 5px 15px;
+   }
+   .prisma-tutor-overlay img {
+      border-bottom-left-radius: 0;
+      border-top-right-radius: 2px;
+   }
+   .no-trobat img {
+      width: 45%;
+   }
+   .no-trobat h1 {
+      font-size: 2.8rem;
+   }
+   .no-trobat p {
+      font-size: 1.2rem;
+      margin-bottom: 28px;
+   }
+}
+
+@media screen and (min-width:992px) and (max-width:1200px) {
+   .col-md-8 {
+      width: 70.666667% !important;
+   }
+   .col-md-4 {
+      width: 29.333333% !important
+   }
+}
+
+@media screen and (min-width:1200px) {
+   .prisma-tutor-overlay img {
+      height: 245px;
+      object-fit: cover;
+   }
+   .no-trobat img {
+      width: 30%;
+   }
+}
+
+
+/* Perfil pendent */
+div.perfil-curs {
+	margin-top: 1px;
+}
+
+.perfilPendent .border {
+	border: 12px solid black !important;
+	border-left: 8px solid transparent !important;
+	margin: 0;
+	opacity: 0.2;
+	right: 0;
+}
+
+.perfilPendent, .perfilPendent>.border {
+
+	position: relative;
+	width: 62px;
+}
+
+.perfilPendent .nom {
+	color: var(--bg-white);
+	border-bottom-right-radius: 3px;
+	border-top-right-radius: 3px;
+	font-family: Roboto, sans-serif;
+	font-size: 0.8rem;
+	padding-right: 6px;
+	right: 0;
+	text-align: right;
+	top: 0;
+	width: 50px;
+}
+
+div.perfil-curs span {
+  color: var(--bg-white);
+  font-family: 'Roboto';
+  font-weight: 400;
+}
+
+.biblioteca .perfilPendent .nom {
+  background: #7e560c;
+}
+.biblioteca:hover .perfilPendent .nom {
+  background: #724e0a;
+}
+
+.diversitat .perfilPendent .nom {
+  background: #2b676e;
+}
+.diversitat:hover .perfilPendent .nom {
+  background: #245e65;
+}
+
+.immersio .perfilPendent .nom {
+  background: #7e528c;
+}
+.immersio:hover .perfilPendent .nom {
+  background: #754a82;
+}

@@ -1,0 +1,215 @@
+/* #################### ESTRUCTURA GENERAL #################### */
+h2 {
+	font-size: 1.71rem;
+	line-height: 35px
+}
+
+h3 {
+	font-size: 1.33rem;
+	padding-top: 5px
+}
+
+hr {
+	border: 0;
+	border-top: 1px solid var(--border-separacio-apartats);
+	margin: 30px auto
+}
+
+/* ####################     ACCORDION     #################### */
+.panel-default, .panel-heading.collapsed {
+	background: var(--bg-mes-info)
+}
+
+.panel-default {
+	border: 1px solid var(--bg-accord);
+	border-radius: 4px;
+	margin-top: 6px
+}
+
+.panel-heading {
+	/* border-top-left-radius: 3px;
+  border-top-right-radius: 3px; */
+	cursor: pointer;
+	padding: 0.7rem 1rem;
+}
+
+.panel-heading:not(.collapsed) {
+	background: var(--bg-accord);
+	color: var(--text-capcalera-marcada)
+}
+
+.panel-heading.collapsed:hover {
+	background-color: var(--bg-capcalera-marcada)
+}
+
+.panel-heading .panel-title {
+	font-size: 1.13rem;
+	font-weight: 500;
+	margin-bottom: 0;
+	margin-top: 0;
+	padding-top: 0
+}
+
+.panel-heading h2.panel-title  {
+	line-height: 24px;
+}
+
+.panel-collapse {
+	background: var(--bg-body-white);
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+	color: var(--text-body-gray)
+}
+
+.panel-body {
+	border-top: 1px solid var(--border-capcalera);
+	padding: 15px
+}
+
+.panel-body p:last-child {
+	margin-bottom: 0
+}
+
+/* ####################      LLISTES      #################### */
+
+.llistes {
+	margin-bottom: 20px;
+	margin-left: 30px;
+	padding: 0
+}
+
+.llistes {
+	margin-bottom: 20px;
+	margin-left: 30px;
+	padding: 0
+}
+
+.llistes>li>.llistes {
+	/* margin-bottom: 5px; */
+	/* margin-left: 20px; */
+	margin-top: 10px
+}
+
+.llistes li {
+   line-height: 24px;
+   margin-bottom: 10px
+}
+
+.llistes li:last-child {
+	margin-bottom: 20px
+}
+
+ul.llistes {
+	list-style: disc
+}
+
+ul.llistes ul.llistes {
+	list-style-type: circle
+}
+
+.llistes > li > .llistes {
+   margin-bottom: 5px;
+   margin-left: 20px;
+   margin-top: 10px
+}
+
+ol.llistes.ordenat {
+	list-style: upper-alpha;
+}
+
+.llistes>li>.llistes>li>ul.llistes {
+	list-style-type: none;
+	text-indent: -15px
+}
+
+.llistes>li>.llistes>li>ul.llistes>li:before {
+	content: "- ";
+	line-height: 24px;
+	margin-bottom: 10px;
+	margin-left: 5px
+}
+
+.llistes>li>.llistes>li>ol.llistes {
+	margin-left: 0;
+}
+
+.llistes.fi, .llistes.fi li:last-child {
+	margin-bottom: 0
+}
+
+/* ####################   RECONEIXEMENT   #################### */
+
+#reconeixement-formacio-permanent {
+	margin-top: 35px;
+}
+
+.reconeixements .fas.fa-certificate {
+	color: var(--bg-icona-exclamation);
+	font-size: 1.43rem
+}
+
+ul.list-exc li {
+	list-style-type: none;
+}
+
+ul.list-exc li i.fas.fa-exclamation-circle {
+	color: var(--text-blue-link);
+	margin-left: -25px;
+	margin-right: 10px;
+}
+
+.certificacio img {
+	/* margin-top: 15px; */
+	max-width: 467px;
+	/* width: 100% */
+}
+
+/* ####################      QUI SOM      #################### */
+/* RES */
+/* ####################       FISS        #################### */
+.cnt-fiss img {
+	max-width: 105px;
+}
+/* #################### NOMENAMENTS I PERFIlS #################### */
+.text-departament {
+  margin: 15px 35px
+}
+.text-departament i.fas.fa-quote-left {
+  margin-left: -24px;
+  margin-right: 11px
+}
+
+.text-departament p {
+  color: var(--text-gray)
+}
+
+/* RES */
+
+
+.separacio {
+	border-top: 1px solid var(--border-separacio-apartats)
+}
+
+#acreditacio-formacio-bonificable {
+	margin-top: 40px;
+}
+
+p.panel-title {
+	font-family: 'Roboto','Nunito Sans',sans-serif;
+	padding-top: 2px
+}
+
+.panel-body .requisits {
+	font-size: 1.12rem;
+	margin-bottom: 0.8rem;
+	margin-top: 1.33rem;
+}
+
+.espai-inferior {
+	margin-bottom: 15px
+}
+
+.fiss>p>img {
+	float: left;
+	padding: 0 20px 0 25px
+}

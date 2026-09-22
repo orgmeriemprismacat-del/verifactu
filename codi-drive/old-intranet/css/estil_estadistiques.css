@@ -1,0 +1,14 @@
+.table tbody tr td,
+.table.table-hover tr th
+{
+padding:3px !important;
+font-size:12px !important;
+font-family:Arial, Helvetica, sans-serif;
+}
+
+.titol
+{
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:14px;
+	color: #5A7Cb8;
+}

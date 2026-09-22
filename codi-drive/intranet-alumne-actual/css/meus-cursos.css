@@ -1,0 +1,196 @@
+#cursosAcabats .table:nth-child(1) tr td:nth-child(3) {
+  min-width: 155px;
+}
+#cursosAcabats .table:nth-child(1) tr td:nth-child(4) {
+  min-width: 110px;
+}
+#cursosAcabats .table:nth-child(1) tr td:nth-child(5) {
+  min-width: 200px;
+}
+
+table.llegenda {
+    max-width: 1020px;
+}
+.table.llegenda tr td:nth-child(1) {
+  min-width: 290px;
+}
+.table tr i {
+    font-size: 2rem;
+}
+
+label.inscrit {
+    background: var(--lightBlue3);
+}
+label.pendent-inscrit {
+    background: var(--lightRose2);
+}
+
+label.no-aprovat {
+  background: var(--lightYellow1);
+}
+label.pendent-pagar, label.tramitant-access {
+  background: var(--lightOrange1);
+}
+label.tramitant {
+  background: var(--lightGreen2);
+}
+label.pendent-validacio {
+  background: var(--lightPurple2);
+}
+label.cert-fp-prisma {
+  background: var(--lightBlue1);
+}
+label.cert-prisma {
+  background: var(--lightBlue1);
+}
+label.cert-dept {
+  background: var(--lightRed1);
+}
+label.titulacio {
+  background: var(--lightGreen3);
+}
+label.bolcat {
+  background: var(--lightBrown1);
+}
+label.properament {
+  background: var(--lightGray1);
+}
+label.preuDest.subv, label.preuDest.entitat {
+  background: var(--blau1);
+  color: white;
+}
+label.preuDest.regal {
+  background: var(--red1);
+  color: white;
+}
+
+.card-blau .boto-blau.accesAO.demana-access {
+    width: 182px !important;
+}
+.card-blau .boto-blau.accesAO.access {
+    width: 120px !important;
+}
+
+.perfils .competencia_digital {
+    color: var(--text-perfil-competencia);
+}
+.perfils .plastica {
+    color: var(--text-perfil-plastica);
+}
+.perfils .metodes {
+    color: var(--text-perfil-metodes);
+}
+.perfils .immersio {
+    color: var(--text-perfil-immersio);
+}
+.perfils .biblioteca {
+    color: var(--text-perfil-biblioteca);
+}
+.perfils .diversitat {
+    color: var(--text-perfil-diversitat);
+}
+
+#modalInfoDadesCurs .modal-dialog {
+  max-width: 1330px;
+}
+
+#modalInfoDadesCurs .titol-apartat {
+  font-size: 1.3rem;
+}
+
+#modalInfoDadesCurs #dades-curs > .apartat > div{
+    border: 1px solid var(--lightGray2);
+}
+
+#modalInfoDadesCurs .titol-dades {
+    background: var(--blauFosc1);
+    color: var(--white);
+}
+
+#modalInfoDadesCurs .text-tutor .nomComplet {
+    font-size: 1.25rem;
+}
+
+#modalInfoDadesCurs .tutor-overlay img {
+  border-radius: 50%;
+  max-width: 100px;
+}
+
+
+#modalInfoCompartirCurs .modal-dialog {
+  max-width: 800px;
+}
+
+#modalInfoCompartirCurs a > img {
+  max-width: 100px;
+  opacity: 1;
+}
+
+#modalInfoCompartirCurs a:hover > img {
+  opacity: 0.7;
+}
+
+#modalInfoCompartirCurs a:hover {
+  cursor: pointer;
+}
+
+#modalInfoCompartirCurs .cnt-copy button i {
+    font-size: 1.3rem;
+}
+
+#modalInfoCompartirCurs .cnt-copy div {
+    background: var(--light);
+    border: 1px solid var(--lightGray2);
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+#modalInfoCompartirCurs .cnt-copy button {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.titol-consentiment {
+  font-weight: bold;
+  color: var(--blauFosc2);
+}
+
+.card-blau .boto-blau.consentiment {
+    background: var(--lightGray1);
+    color: var(--darkGray1);
+    border: 1px solid var(--lightGray2);
+}
+
+.card-blau .boto-blau.consentiment:before {
+    background: var(--lightGrayOpacity1);
+}
+
+.card-blau .boto-blau.consentiment.active {
+  color: var(--white);
+  border: none;
+}
+
+.card-blau .boto-blau.success.active {
+    background: var(--green1);
+}
+
+.card-blau .boto-blau.success.active:before {
+    background: var(--green2);
+}
+
+.card-blau .boto-blau.wrong.active {
+    background: var(--red1);
+}
+
+.card-blau .boto-blau.wrong.active::before {
+    background: var(--red3);
+}
+
+.avis {
+   background: var(--lightBlue1);
+   border: 1px solid var(--lightBlueOpacity2);
+   border-radius: 5px;
+}
+
+.avis i {
+   color: var(--blauFosc1);
+}

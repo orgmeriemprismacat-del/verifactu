@@ -1,0 +1,157 @@
+h2 {
+    line-height: 2.33rem;
+    margin-bottom: 1.5rem;
+    padding-top: 0rem
+}
+
+.pagina-sortejos {
+    background: var(--bg-body-destacat-color);
+}
+
+hr {
+    margin: 1rem auto
+}
+
+.cnt-icona-titol {
+    display: inline-block;
+    height: 1rem
+}
+
+.cnt-icona-titol i.fas.fa-square.titol {
+    font-size: .47rem;
+    margin-right: .33rem;
+    margin-top: .4rem
+}
+
+.sortejos-container {
+    background-color: var(--borders-hover);
+    border: 1px solid var(--borders)
+}
+
+.panel-body .sortejos-container,
+.panel-body .sortejos-container:hover {
+    background-color: none;
+    border: 0;
+}
+
+.sortejos-container:hover {
+    border: 1px solid var(--borders-hover);
+}
+
+.sortejos {
+    background: var(--bg-white)
+}
+
+.sortejos .nou {
+    font-size: 1rem;
+    margin-top: 2px;
+    padding: 3px 8px;
+}
+
+.sortejos a h4 {
+    font-size: 1.27rem;
+    line-height: 1.8rem
+}
+
+.sortejos .event-schedule {
+    line-height: 1.87rem
+}
+
+.back-banner {
+    background: var(--bg-black)!important;
+    clip-path: inset(0);
+    height: 300px;
+}
+
+.baner {
+    left: 0;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.85;
+    position: absolute;
+    top: 0;
+    width: 100%;
+}
+
+.back-banner .escrit p {
+    font-size: 3rem;
+    line-height: 3rem;
+}
+
+.back-banner.sortejos .escrit {
+    top: 0;
+    max-width: 798px;
+}
+
+.prisma-sub-overlay {
+    height: 130px
+}
+
+.sortejos-container:hover .prisma-sub-overlay {
+    opacity: .8
+}
+
+.prisma-sub-overlay img {
+    backface-visibility: hidden;
+    display: block;
+    object-fit: cover;
+    opacity: 1;
+    transition: .5s ease;
+    height: 100%;
+    width: 100%;
+}
+
+.prisma-sub-overlay .prisma-sub-middle {
+    left: 50%;
+    opacity: 0;
+    top: 50%;
+    transform: translate(-50%,-50%);
+    -webkit-transform: translate(-50%,-50%);
+    -ms-transform: translate(-50%,-50%);
+    transition: .5s ease
+}
+
+.sortejos-container:hover .prisma-sub-middle {
+    opacity: 1
+}
+
+.prisma-sub-overlay .prisma-sub-middle button {
+    background-color: var(--bg-black);
+    border: 1px solid var(--bg-black);
+    color: var(--bg-white);
+    outline: none;
+    padding: .13rem .73rem;
+    transition: all 0.3s ease
+}
+
+@media screen and (min-width: 768px) {
+    .sortejos {
+        border:0;
+    }
+
+    .prisma-sub-overlay {
+        height: auto
+    }
+}
+
+/* .atri {
+    margin-top: 1rem;
+    width: 100%
+}
+
+@media screen and (min-width: 768px) {
+    .atri {
+        max-width:815px
+    }
+} */
+@media screen and (min-width: 1200px) {
+   .educacio-news img {
+      height: 305px !important;
+   }
+   .sorteig-reis-2022 img {
+      height: 315px !important;
+   }
+   .sorteig-3000-2020 img {
+      height: 275px !important;
+   }
+}

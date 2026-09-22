@@ -1,0 +1,71 @@
+/* AQUEST FITXER ÉS UITLITZAT PER:
+/intranet/revisions.php  */
+
+.linia_desactivada
+{
+	color: #D4D4D4;
+}
+
+.error
+{
+	color: #a9444;
+}
+
+.nav 
+{
+	display: block !important;
+}
+
+*, ::after, ::before
+{
+	box-sizing: content-box !important;
+}
+
+.btn-group-vertical>.btn-group:after, .btn-group-vertical>.btn-group:before, .btn-toolbar:after, .btn-toolbar:before, .clearfix:after, .clearfix:before, .container-fluid:after, .container-fluid:before, .container:after, .container:before, .dl-horizontal dd:after, .dl-horizontal dd:before, .form-horizontal .form-group:after, .form-horizontal .form-group:before, .modal-footer:after, .modal-footer:before, .modal-header:after, .modal-header:before, .nav:after, .nav:before, .navbar-collapse:after, .navbar-collapse:before, .navbar-header:after, .navbar-header:before, .navbar:after, .navbar:before, .pager:after, .pager:before, .panel-body:after, .panel-body:before, .row:after, .row:before
+{
+	display: unset !important;
+}
+
+body {
+	background-color: #EAEAEA !important;
+}
+
+#main {
+	background-color: #ffffff;
+}
+
+.table-hover>tbody>tr:hover {
+	background-color: #FDF1E5 !important;
+}
+
+table th {
+  color: #fff;
+  background-color: #5A7Cb8;
+  text-align: center;
+}
+
+table tr {
+	text-align: center;
+}
+
+.loader {
+	border: 5px solid #f3f3f3;
+	border-radius: 50%;
+	border-top: 5px solid #3498db;
+	width: 8px;
+	height: 8px;
+	-webkit-animation: spin 2s linear infinite; /* Safari */
+	animation: spin 2s linear infinite;
+}
+
+/* Safari loader*/
+@-webkit-keyframes spin {
+	0% { -webkit-transform: rotate(0deg); }
+	100% { -webkit-transform: rotate(360deg); }
+}
+
+/* loader */
+@keyframes spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}

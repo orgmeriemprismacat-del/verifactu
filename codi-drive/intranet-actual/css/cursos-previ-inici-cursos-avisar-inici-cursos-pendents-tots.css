@@ -1,0 +1,43 @@
+.titolCurs
+{
+    color: var(--blauFosc1);
+}
+
+.table tbody tr.tutor
+{
+    background: rgb(233 180 30 / 28%);
+}
+
+textarea.obs
+{ padding: 5px 8px;
+
+    border: 1px solid var(--lightGray2); 
+}
+
+.saveObs
+{ cursor: pointer;
+
+    color: var(--info); 
+}
+
+.avisar-alumne,
+.avisar-tutor
+{
+    cursor: pointer;
+}
+
+.cntDataMaxim
+{ border-radius: 5px;
+    background: var(--lightBlue1) !important; 
+}
+
+#hourLastStart
+{
+    background: var(--white);
+}
+
+label.active
+{ font-weight: 600;
+
+    background: inherit; 
+}

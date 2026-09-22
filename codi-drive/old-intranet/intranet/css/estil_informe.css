@@ -1,0 +1,85 @@
+.titol 
+{
+	font-size: 16px; 
+	font-weight: bold;
+	color: #201f1f;
+	padding:10px;
+}
+
+.titol.secretaria
+{
+	padding: 0 0 30px 0;
+}
+
+.enviat 
+{
+	font-size: 14px; 
+	text-align: center;
+}
+
+.apartat td
+{
+	background-color: #cfcfcf;
+	color:#201f1f;
+	font-weight:bolder;
+	padding:2px 5px;
+	font-size: 14px;
+	height:15px;
+}
+
+.apartat2
+{
+	background-color: #e7e2e2;
+	color:#201f1f;
+	font-weight:bold;
+	padding:5px;
+	font-size: 13px;
+}
+
+.modul
+{
+	padding-top:7px;
+	font-size: 12px;
+}
+
+.celda
+{
+	font-size: 12px;
+}
+
+.celda p,
+.taula p
+{
+	padding: 0 3px;
+	font-size: 12px;
+	text-align:justify;
+}
+
+.celda2
+{
+	background-color: #c1baba;
+}
+
+.fort
+{
+	color:#201f1f;
+	font-size: 12px;	
+}
+
+.fort2
+{
+	color:#201f1f;
+	font-size: 13px;
+	font-weight:bold;
+}
+
+.quadre
+{
+	font-size: 12px;
+}
+
+.borde_inferior td
+{
+	border-bottom:1px solid #201f1f;
+}
+

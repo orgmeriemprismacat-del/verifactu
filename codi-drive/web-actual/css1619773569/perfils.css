@@ -1,0 +1,150 @@
+/* #################### ESTRUCTURA GENERAL #################### */
+h2 {
+	line-height: 2.33rem;
+	margin-bottom: 1.5rem;
+	padding-top: 0rem;
+}
+.noComencat{right:0;top:20px}.noComencat,.noComencat>.border{position:absolute;width:180px}.noComencat .nom{color:var(--bg-white);font-family:Roboto,sans-serif;font-size:16px;padding-right:10px;position:absolute;right:0;text-align:right;top:4px;width:165px}
+
+.diversitat {
+	color: var(--text-diversitat);
+}
+
+.immersio {
+	color: var(--text-immersio);
+}
+
+.biblioteca {
+	color: var(--text-biblioteca);
+}
+
+.plastica {
+	color: var(--text-plastica);
+}
+
+.competencia_digital {
+	color: var(--text-competencia);
+}
+
+.metodes {
+	color: var(--text-metodes);
+}
+
+.nou.cdd{background:var(--bg-cdd)!important}
+
+hr {
+	margin: 1rem auto;
+}
+
+/* #################### CONTENIDOR CURSOS AMB PERFIL #################### */
+
+.cursos-perfil {
+	background: var(--bg-body-destacat-color);
+}
+
+.titol-perfil {
+	line-height: 2rem;
+}
+
+.cnt-icona-titol {
+	display: inline-block;
+	height: 1rem;
+}
+
+.cnt-icona-titol i.fas.fa-square.titol {
+	font-size: 0.47rem;
+	margin-right: 0.33rem;
+	margin-top: 0.4rem;
+}
+
+/* ********************   BLOC UN CURS AMB PERFIL   ******************** */
+
+.curs-perfil-container {
+	background-color: var(--borders-hover);
+	border: 1px solid var(--borders);
+}
+
+.curs-perfil-container:hover {
+	border: 1px solid var(--borders-hover);
+	box-shadow: var(--box-shadow-curs) 0 0 10px;
+}
+
+.curs-perfil {
+	background: var(--bg-white);
+}
+
+.curs-perfil .nou {
+  font-size: 1rem;
+  margin-top: 0;
+  padding: 3px 8px;
+}
+
+.curs-perfil a h4 {
+	font-size: 1.27rem;
+	line-height: 1.8rem;
+}
+
+.curs-perfil .event-schedule {
+	line-height: 1.87rem;
+}
+
+.prisma-perfil-overlay {
+	height: 130px;
+}
+
+.curs-perfil-container:hover .prisma-perfil-overlay {
+	opacity: .8;
+}
+
+.prisma-perfil-overlay img {
+	backface-visibility: hidden;
+	display: block;
+	cursor: pointer;
+	object-fit: cover;
+	opacity: 1;
+	transition: .5s ease;
+}
+
+.prisma-perfil-overlay .prisma-perfil-middle {
+	left: 50%;
+	opacity: 0;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	-webkit-transform: translate(-50%, -50%);
+	-ms-transform: translate(-50%, -50%);
+	transition: .5s ease;
+}
+
+.curs-perfil-container:hover .prisma-perfil-middle {
+	opacity: 1;
+}
+
+.prisma-perfil-overlay .prisma-perfil-middle button {
+	background-color: var(--bg-black);
+	border: 1px solid var(--bg-black);
+	color: var(--bg-white);
+	outline: none;
+	padding: 0.13rem 0.73rem;
+	transition: all 0.3s ease;
+}
+
+@media screen and (min-width: 768px)  {
+	.curs-perfil {
+		border: 0;
+	}
+	.prisma-perfil-overlay {
+		height: auto;
+	}
+}
+
+/* #################### CONTENIDOR PREGUNTES #################### */
+.atri{
+	margin-top: 1rem;
+	width: 100%;
+}
+
+@media screen and (min-width: 768px)  {
+	.atri {
+		max-width: 815px;
+	}
+}

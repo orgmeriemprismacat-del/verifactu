@@ -1,0 +1,121 @@
+#cntPage,input,textarea {
+    font-family: 'Roboto','Nunito Sans',sans-serif
+}
+
+h1 {
+    margin: 8px 0
+}
+
+h1:before {
+    border: 0
+}
+
+h1.barra:before {
+    border-bottom: 3px solid var(--text-blue-link);
+}
+
+.subtitol {
+    color: var(--text-gray);
+    font-size: 1.13rem;
+    line-height: 17px
+}
+
+.banner-img {
+    height: 220px;
+    object-fit: cover
+}
+
+h2 {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.cnt-icon {
+    border-radius: 50%;
+    background: var(--text-blue-link);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 40px;
+    height: 40px;
+}
+
+.cnt-icon .icon {
+  color: #ffffff;font-size: 0.7em;
+}
+
+.cnt-icon.union img{
+  width: 40px;
+}
+.cnt-icon.prisma .icon{
+  width: 15px;
+}
+
+.cnt-icon.descomptes {
+    background: #f1f4f9;
+    width: 50px;
+    height: 50px;
+}
+
+.cnt-icon.descomptes .icon {
+    width: 45px;
+}
+
+.cnt-icon.carnet-jove .icon {
+    width: 55px;
+}
+
+.cnt-icon.carnet-jove {
+    background: none;
+    width: auto;
+}
+
+h3 {
+    font-size: 1.35rem
+}
+
+.table {
+    border: 1px solid var(--border-capcalera);
+    max-width: 500px;
+}
+
+.table>thead>tr>th {
+    vertical-align: middle
+}
+
+tr td,tr th {
+    text-align: center
+}
+
+tr td:first-child,tr th:first-child {
+    padding-left: 15px!important;
+    text-align: left
+}
+
+thead tr {
+    background: var(--bg-accord-thead)
+}
+
+.table-striped>tbody>tr:nth-of-type(odd) {
+    background: var(--bg-body-white)
+}
+
+.table-striped>tbody>tr:nth-of-type(even) {
+    background: var(--table-striped-even)
+}
+
+.table-hover>tbody>tr:hover {
+    background: var(--table-hover)
+}
+
+.table>tbody>tr>td,.table>thead>tr>th {
+    padding: 8px;
+    line-height: 1.43;
+    border-top: 1px solid var(--border-capcalera)
+}
+
+.table>thead:first-child>tr:first-child>th {
+    border-top: 0
+}

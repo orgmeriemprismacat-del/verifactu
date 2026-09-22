@@ -1,0 +1,51 @@
+label.tipus.frase
+{
+    background: #a01ba2;
+}
+
+label.tipus.inici
+{
+    background: #a62f47;
+}
+
+label.tipus.edicio
+{
+    background: #b06c12;
+}
+
+label.tipus.publi-prisma
+{
+    background: #2783be;
+}
+
+label.tipus.publi-consell
+{
+    background: #13b2a2;
+}
+
+label.tipus.publi-humor
+{
+    background: #6fa20a;
+}
+
+label.tipus.dia
+{
+    background: #f92f86;
+}
+
+label.label.penjat
+{
+    color: white;  background: #55b4d1;
+}
+
+label.label.lightRed,
+label.label.lightRed i
+{
+    color: white !important;  background: #d155a5;
+}
+
+label.label.lightGreen,
+label.label.lightGreen i
+{ color: white !important;
+    background: #8da94a; 
+}

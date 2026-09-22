@@ -1,0 +1,82 @@
+.alert {
+	border: 0;
+	border-radius: 5px;
+	line-height: 25px;
+	padding: 20px 15px;
+	position: relative;
+}
+
+.alert.alert-danger {
+	box-shadow: 0 4px 20px 0 var(--lightGrayOpacity2), 0 7px 10px -5px var(--lightRedOpacity3);
+	background-color: var(--red2);
+	color: var(--white);
+}
+
+.alert.alert-warning {
+	box-shadow: 0 4px 20px 0 var(--lightOrangeOpacity2), 0 7px 10px -5px var(--lightOrangeOpacity3);
+	background-color: var(--orange2);
+	color: var(--orange1);
+}
+
+.alert.alert-success {
+	box-shadow: 0 4px 20px 0 var(--lightGrayOpacity2), 0 7px 10px -5px var(--lightGreenOpacity3);
+	background-color: var(--green2);
+	color: var(--white);
+}
+
+.alert.alert-with-icon {
+	margin-top: 1rem;
+	padding-left: 3.5rem;
+}
+
+.alert.alert-danger i,
+.alert.alert-danger svg {
+	color: var(--red1);
+}
+
+.alert.alert-warning i,
+.alert.alert-warning svg {
+	color: var(--orange1);
+}
+
+.alert.alert-success i,
+.alert.alert-success svg {
+	color: var(--green1);
+}
+
+.alert.alert-with-icon i[data-notify=icon] {
+	background-color: var(--white);
+	border-radius: 50%;
+	box-shadow: 0 16px 38px -12px var(--darkGrayOpacity1), 0 4px 25px 0 var(--lightGrayOpacity1), 0 8px 10px -5px var(--lightGrayOpacity2);
+	display: block;
+	font-size: 20px;
+	left: 15px;
+	margin-top: -39px;
+	max-width: 38px;
+	padding: 9px;
+	position: absolute;
+}
+
+.alert .close {
+	color: var(--white);
+	opacity: .8;
+	outline: none;
+}
+
+.alert .close:hover {
+	opacity: 1 !important;
+}
+
+.alert.alert-warning  .close i {
+	color: var(--orange1));
+	font-size: 0.8rem;
+}
+
+.alert span {
+	display: block;
+	font-size: 1rem;
+	margin-bottom: 0.25rem;
+	margin-top: 0.25rem;
+	max-width: 89%;
+	text-align: left;
+}

@@ -1,0 +1,71 @@
+#mostrar-factura .element-cercat-marcat {
+	border-bottom: 2px solid var(--orangeText1);
+}
+
+/* ################## TAULA RESULTAT CERCA ################## */
+#resultats-cerca table td {
+	vertical-align: middle !important;
+}
+
+#resultats-cerca table td button {
+	margin: 0 auto;
+}
+
+/* ################## APARTAT CURSOS ################## */
+.table tr i {
+	cursor: pointer;
+	font-size: 2rem;
+}
+
+.table tr i.fas {
+	font-size: 1.8rem;
+}
+
+/* ################## APARTAT ACCIONS ################## */
+.modal-dialog.modal-info {
+	width: 90% !important;
+	max-width: 1400px;
+}
+
+.card-blau .card-body .titol-apartat i {
+	font-size: 1.4rem;
+	color: var(--color-botons-edicio);
+	cursor: pointer;
+	margin-top: -4px;
+}
+
+.card-blau .card-body .titol-apartat i:hover {
+	color: var(--color-botons-edicio-hover);
+}
+
+.modal-info .loading-wrapper {
+	position: absolute;
+	z-index: 10;
+}
+
+.modal-info .result-success {
+	position: absolute;
+	z-index: 10;
+	width: 50%;
+}
+
+.modal-info .result-success.danger {
+	background: var(--red1);
+	color: var(--white);
+}
+
+.modal-info .opacity-02 {
+	opacity: 0.2 !important;
+}
+
+
+@media screen and (min-width: 768px) {
+	.apartat .una-fila .form-group label {
+		padding-right: 2%;
+		width: 17%;
+	}
+
+	.apartat .una-fila .form-group textarea.form-control {
+		width: 83%;
+	}
+}

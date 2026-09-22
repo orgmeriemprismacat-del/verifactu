@@ -1,0 +1,31 @@
+.titolCurs {
+   color: var(--blauFosc1);
+}
+
+textarea.obs {
+   border: 1px solid var(--lightGray2);
+   padding: 5px 8px;
+}
+
+.saveObs {
+   color: var(--info);
+   cursor: pointer;
+}
+
+.avisar-alumne {
+   cursor: pointer;
+}
+
+.cntDataMaxim {
+   background: var(--lightBlue1) !important;
+   border-radius: 5px;
+}
+
+#hourLastStart {
+   background: var(--white);
+}
+
+label.active {
+    background: inherit;
+    font-weight: 600;
+}

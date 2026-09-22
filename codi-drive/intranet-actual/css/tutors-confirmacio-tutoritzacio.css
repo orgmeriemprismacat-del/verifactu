@@ -1,0 +1,53 @@
+.table td {
+    vertical-align: middle;
+}
+
+.tutor-overlay img {
+    border-radius: 50%;
+    z-index: 10;
+    max-width: 80px;
+}
+
+.tutor-overlay img {
+    border-radius: 50%;
+    z-index: 10;
+    max-width: 80px;
+}
+
+.text-tutor {
+    text-align: left;
+    flex: 1;
+    max-width: 200px;
+}
+
+.table thead th:nth-child(3) {
+    width: 5%;
+}
+
+.table thead th:nth-child(2) {
+    width: 15%;
+}
+
+.table thead th:nth-child(1) {
+    width: 40%;
+}
+
+.table thead th:nth-child(4) {
+    width: 30%;
+}
+
+.table thead th:nth-child(5) {
+    width: 10%;
+}
+
+@media screen and (max-width: 992px) {
+    .text-tutor {
+        text-align: center;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .table th:nth-child(1), .table td:nth-child(1) {
+        display: none;
+    }
+}

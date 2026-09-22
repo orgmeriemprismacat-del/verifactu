@@ -1,0 +1,656 @@
+body {
+	font-family: Arial, Verdana, Helvetica, sans-serif;
+	font-size:11px;
+	margin-bottom:50px;
+	margin-top:25px;
+	background-color:#EAEAEA;
+}
+
+#main_content {
+	margin-top:100px;
+	padding:25px 25px 10px 25px;
+	border:1px solid #CCCCCC;
+	color:#666666;
+}
+
+#main {
+	margin-top:20px;
+	padding:25px 25px 25px 25px;
+	border:1px solid #CCCCCC;
+	color:#666666;
+}
+
+#logo {
+	padding:25px 50px 15px 50px;
+	text-align:justify;
+	font-size:9px;
+	width:200px;
+	position:relative;
+	display:block;
+	float:left;
+}
+
+#info_user {
+	padding:10px 50px;
+	text-align:justify;
+	font-size:9px;
+	width:200px;
+	position:relative;
+	display:block;
+	float:left;
+	text-align:right;
+	margin-left:250px;
+	margin-top:60px;
+}
+
+#foot {
+	padding:25px 50px;
+	text-align:justify;
+	font-size:9px;
+	color:#666;
+}
+
+#login {
+	padding:0px 20px 0px 20px;
+}
+
+#menu {
+	margin: 0;
+	height:35px;text-align:center;
+}
+
+.nav_on {
+	width:135px;
+	height:25px;
+	margin:0 auto;
+	display:block;
+	float:left;
+	background-color:#333333;
+	text-align:center;
+	padding-top:12px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:15px;
+	color:#CCCCCC;
+	text-decoration:none;
+	-webkit-border-radius: 15px 15px 0px 0px;
+	border-radius: 15px 15px 0px 0px;
+}
+
+.nav a,
+.res,
+.nav a:visited {
+	width:135px;
+	height:25px;
+	margin:0 auto;
+	display:block;
+	float:left;
+	background-color:#CCCCCC;
+	text-align:center;
+	padding-top:12px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:14px;
+	color:#666666;
+	text-decoration:none;
+	-webkit-border-radius: 15px 15px 0px 0px;
+	border-radius: 15px 15px 0px 0px;
+}
+
+.nav a:hover {
+	/* width:135px;
+	height:25px;
+	margin:0 auto;
+	display:block;
+	float:left; */
+	background-color:#333333;
+	/* text-align:center;
+	padding-top:12px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:15px; */
+	color:#CCCCCC;
+	text-decoration:none;
+	/* -webkit-border-radius: 15px 15px 0px 0px;
+	border-radius: 15px 15px 0px 0px; */
+}
+
+#menu .nav a {
+	width: auto;
+	padding-left: 25px;
+	padding-right: 25px;
+}
+
+.nav_on2 {
+	width:135px;
+	height:35px;
+	margin:0 auto;
+	display:block;
+	float:left;
+	background-color:#333333;
+	text-align:center;
+	padding-top:2px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:15px;
+	color:#CCCCCC;
+	text-decoration:none;
+	-webkit-border-radius: 15px 15px 0px 0px;
+	border-radius: 15px 15px 0px 0px;
+}
+
+.nav2 a,
+.nav2 a:visited {
+	width:135px;
+	height:35px;
+	margin:0 auto;
+	display:block;
+	float:left;
+	background-color:#CCCCCC;
+	text-align:center;
+	padding-top:2px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:14px;
+	color:#666666;
+	text-decoration:none;
+	-webkit-border-radius: 15px 15px 0px 0px;
+	border-radius: 15px 15px 0px 0px;
+}
+
+.nav2 a:hover {
+	/* width:135px;
+	height:35px;
+	margin:0 auto;
+	display:block;
+	float:left; */
+	background-color:#333333;
+	/* text-align:center;
+	padding-top:2px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:15px; */
+	color:#CCCCCC;
+	text-decoration:none;
+	/* -webkit-border-radius: 15px 15px 0px 0px;
+	border-radius: 15px 15px 0px 0px; */
+}
+#menu .nav a, #menu .nav_on {
+	width: auto;
+	padding-left: 15px;
+	padding-right: 15px;
+}
+
+/****************************** BOT�NS RODONS **********************************/
+
+#menu_botons {
+	height:55px;
+	text-align:center;
+	margin-top: 20px;
+}
+
+#menu_botons2 {
+	height:55px;
+	text-align:center;
+	margin-top: 5px;
+}
+
+.nav_on_rodo {
+	width:135px;
+	height:30px;
+	margin-left:10px;
+	display:block;
+	float:left;
+	background-color:#365894;
+	text-align:center;
+	padding:5px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:15px;
+	color:#FCFCFC;
+	text-decoration:none;
+	-webkit-border-radius: 15px;
+	border-radius: 15px;
+}
+
+.nav_rodo a {
+	width:135px;
+	height:30px;
+	margin-left:10px;
+	display:block;
+	float:left;
+	background-color:#A5C7E5;
+	text-align:center;
+	padding:5px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:14px;
+	color:#365894;
+	text-decoration:none;
+	-webkit-border-radius: 15px;
+	border-radius: 15px;
+}
+
+.nav_rodo a:hover {
+	width:135px;
+	height:30px;
+	margin-left:10px;
+	display:block;
+	float:left;
+	background-color:#365894;
+	text-align:center;
+	padding:5px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:15px;
+	color:#FCFCFC;
+	text-decoration:none;
+	-webkit-border-radius: 15px;
+	border-radius: 15px;
+}
+
+.nav_on2_rodo {
+	width:135px;
+	height:35px;
+	margin-left:10px;
+	display:block;
+	float:left;
+	background-color:#365894;
+	text-align:center;
+	padding:5px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:15px;
+	color:#FCFCFC;
+	text-decoration:none;
+	-webkit-border-radius: 15px;
+	border-radius: 15px;
+}
+
+.nav2_rodo a {
+	width:135px;
+	height:35px;
+	margin-left:10px;
+	display:block;
+	float:left;
+	background-color:#A5C7E5;
+	text-align:center;
+	padding:5px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:14px;
+	color:#365894;
+	text-decoration:none;
+	-webkit-border-radius: 15px;
+	border-radius: 15px;
+}
+
+.nav2_rodo a:hover {
+	width:135px;
+	height:35px;
+	margin-left:10px;
+	display:block;
+	float:left;
+	background-color:#365894;
+	text-align:center;
+	padding:5px;
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:15px;
+	color:#FCFCFC;
+	text-decoration:none;
+	-webkit-border-radius: 15px;
+	border-radius: 15px;
+}
+
+/****************************** FI BOTONS RODONS **********************************/
+
+/*#llegenda {
+	width:1000px;
+	text-align:right;
+}*/
+
+.ppal_on {
+	background-color:#666666;
+}
+
+.ppal a {
+	background-color:#DDDDDD;
+}
+
+.ppal a:hover {
+	background-color:#666666;
+}
+
+
+#llegenda_cursos {
+	width:1100px;
+	text-align:left;
+}
+
+.titols_llegenda {
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:11px;
+	color:#FFF;
+	background-color:#5A7Cb8;
+	padding:5px;
+	text-align:left;
+}
+
+
+.titols_llegenda_curs {
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:13px;
+	color:#FFF;
+	background-color:#00519E;
+	padding:5px;
+	text-align:left;
+}
+
+
+.info_pay {
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:11px;
+	color:#333;
+	padding:5px;
+	text-align:left;
+}
+
+
+.info_curs {
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:12px;
+	color:#333;
+	padding:5px;
+	text-align:left;
+	margin:0px;
+}
+
+.info_pay td {
+	border-bottom:1px solid #CCC;
+	padding-bottom:2px;
+	padding-top:3px;
+}
+
+.info_pay input {
+	font-size:9px;
+	margin:0;
+	padding:0;
+}
+
+.info_pay select {
+	font-size:9px;
+}
+
+.info_pay input.import_pagat {
+	font-family:Arial, Helvetica, sans-serif;
+	width:35px;
+	font-size:11px;
+	text-align:center;
+}
+
+.info_pay input.import_pagat2 {
+	font-family:Arial, Helvetica, sans-serif;
+	width:50px;
+	font-size:11px;
+	text-align:center;
+}
+
+.info_pay input.data {
+	font-family:Arial, Helvetica, sans-serif;
+	width:60px;
+	font-size:11px;
+	text-align:center;
+}
+
+.info_curs td {
+	border-bottom:1px solid #CCC;
+	padding-bottom:3px;
+	padding-top:4px;
+	vertical-align:top;
+}
+
+
+.radio {
+	text-align:center;
+}
+
+
+.bt_pay {
+	margin-bottom:15px;
+	margin-top:10px;
+	text-align:right;
+}
+
+
+
+
+
+
+.enter {
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:14px;
+	color:#999999;
+	margin:0px;
+}
+
+
+hr  {
+  background-color:#CCCCCC;
+  border:1px none;
+  color:#666666;
+  height:1px;
+}
+
+h1 {
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:24px;
+	color:#002F68;
+	margin:0px;
+}
+
+h2 {
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:21px;
+	color:#002F68;
+	margin:0px;
+}
+
+h3 {
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:18px;
+	color:#333333;
+	margin:0px;
+}
+
+h4 {
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:16px;
+	color:#666666;
+	margin:0px;
+}
+
+h5 {
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:16px;
+	color:#002F68;
+	margin:0px;
+}
+
+
+h6 {
+	font-family:Arial, Helvetica, sans-serif;
+	font-weight:bold;
+	font-size:12px;
+	color:#666666;
+	margin:0px;
+}
+
+
+.text {
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:12px;
+	color:#666666;
+	margin:0px;
+	line-height:18px;
+}
+
+
+.insc td {
+	padding: 5px 0;
+}
+
+
+
+.insc td input,
+.insc td textarea  {
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:12px;
+	color:#666666;
+}
+
+
+.insc2 td {
+	margin-top:-10px;
+}
+
+
+
+.insc2 td input,
+.insc2 td textarea  {
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:12px;
+	color:#666666;
+}
+
+
+.botones {
+
+    border-color: #2C8ED1 #1C74B3 #0D5B97;
+    border-left: 1px solid #1C74B3;
+    border-right: 1px solid #1C74B3;
+    border-style: solid;
+    border-width: 1px;
+    box-shadow: 0 1px 0 #DDDDDD, 0 1px 0 rgba(255, 255, 255, 0.2) inset;
+    color: #FFFFFF;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+	padding:5px 10px;
+	font-size:12px;
+	font-weight:bold;
+	cursor:pointer;
+	background:#5a7cb8;
+	background: -moz-linear-gradient(center top , #3A5587, #5a7cb8) repeat scroll 0 0 transparent;
+	border-radius:5px;
+}
+
+.botones2 {
+
+    border-color: #7d8a92 #868c90 #87898a;
+    border-left: 1px solid #7d8a92;
+    border-right: 1px solid #7d8a92;
+    border-style: solid;
+    border-width: 1px;
+    box-shadow: 0 1px 0 #DDDDDD, 0 1px 0 rgba(255, 255, 255, 0.2) inset;
+    color: #FFFFFF;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+	padding:5px 10px;
+	font-size:12px;
+	font-weight:bold;
+	cursor:pointer;
+	background:#5d6e7a;
+	background: -moz-linear-gradient(center top , #87898a, #5d6e7a) repeat scroll 0 0 transparent;
+	border-radius:5px;
+}
+
+#bt_qualificacions {
+	background-image:url(https://www.prisma.cat/intranet/img/qualificacions.png);
+	background-position:top;
+	background-repeat:no-repeat;
+	width:25px;
+	height:25px
+}
+
+#bt_qualificacions:hover {
+	background-image:url(https://www.prisma.cat/intranet/img/qualificacions.png);
+	background-position:bottom;
+	background-repeat:no-repeat;
+	width:25px;
+	height:25px;
+	cursor:pointer;
+}
+
+#bt_participacions {
+	background-image:url(https://www.prisma.cat/intranet/img/participacions.png);
+	background-position:top;
+	background-repeat:no-repeat;
+	width:25px;
+	height:25px
+}
+
+#bt_participacions:hover {
+	background-image:url(https://www.prisma.cat/intranet/img/participacions.png);
+	background-position:bottom;
+	background-repeat:no-repeat;
+	width:25px;
+	height:25px;
+	cursor:pointer;
+}
+
+/********************************* BOTO TANCAR SESSIO **************************************/
+
+.myButton {
+
+        -moz-box-shadow:inset 0px 1px 0px 0px #cf866c;
+        -webkit-box-shadow:inset 0px 1px 0px 0px #cf866c;
+        box-shadow:inset 0px 1px 0px 0px #cf866c;
+
+        background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #d0451b), color-stop(1, #bc3315));
+        background:-moz-linear-gradient(top, #d0451b 5%, #bc3315 100%);
+        background:-webkit-linear-gradient(top, #d0451b 5%, #bc3315 100%);
+        background:-o-linear-gradient(top, #d0451b 5%, #bc3315 100%);
+        background:-ms-linear-gradient(top, #d0451b 5%, #bc3315 100%);
+        background:linear-gradient(to bottom, #d0451b 5%, #bc3315 100%);
+filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#d0451b', endColorstr='#bc3315',GradientType=0);
+
+        background-color:#d0451b;
+
+        -moz-border-radius:3px;
+        -webkit-border-radius:3px;
+        border-radius:3px;
+
+        border:1px solid #942911;
+
+        display:inline-block;
+        color:#ffffff;
+        font-family:arial;
+        font-size:13px;
+        font-weight:normal;
+        padding:6px 24px;
+        text-decoration:none;
+
+        text-shadow:0px 1px 0px #854629;
+
+    }
+    .myButton:hover {
+
+        background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #bc3315), color-stop(1, #d0451b));
+        background:-moz-linear-gradient(top, #bc3315 5%, #d0451b 100%);
+        background:-webkit-linear-gradient(top, #bc3315 5%, #d0451b 100%);
+        background:-o-linear-gradient(top, #bc3315 5%, #d0451b 100%);
+        background:-ms-linear-gradient(top, #bc3315 5%, #d0451b 100%);
+        background:linear-gradient(to bottom, #bc3315 5%, #d0451b 100%);
+filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#bc3315', endColorstr='#d0451b',GradientType=0);
+
+        background-color:#bc3315;
+    }
+    .myButton:active {
+        position:relative;
+        top:1px;
+    }

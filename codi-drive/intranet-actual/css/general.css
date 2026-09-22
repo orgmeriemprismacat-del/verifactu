@@ -1,0 +1,608 @@
+@import url(variables.css);
+
+body
+{ font-family: 'Myriad Pro', 'Roboto', 'Nunito Sans', Arial;  min-height: 100vh;
+
+    background-color: var(--lightGray1); 
+}
+
+.color-prisma
+{
+    color: var(--blauPrisma);
+}
+
+.background-prisma,
+.bg-pris
+{
+    background: var(--blauPrisma);
+}
+
+a
+{
+    color: var(--blauPrisma);
+}
+
+a:hover
+{ text-decoration: none;
+
+    color: var(--blauFosc1); 
+}
+
+.hide
+{
+    display: none !important;
+}
+
+.text-success
+{
+    color: var(--greenText1) !important;
+}
+
+.text-alert
+{
+    color: var(--orangeText1) !important;
+}
+
+.text-danger
+{
+    color: var(--redText1) !important;
+}
+
+.destacat-blau,
+.destacat-blau label
+{
+    background: var(--lightBlue1) !important;
+}
+
+.element-cercat-marcat
+{
+    border-bottom: 2px solid var(--orangeText1);
+}
+
+label.label
+{ left: 0;  margin: 0;  transform: none;  text-align: center;
+
+    color: var(--darkGray1);  border-radius: 5px; 
+}
+
+label.label i,
+label.label svg
+{ font-size: 1.4rem !important;
+
+    color: var(--darkGray1) !important; 
+}
+
+label.label.lightGreen
+{
+    background: var(--lightGreen2);
+}
+
+label.label.lightBlue
+{
+    background: var(--lightBlue3);
+}
+a label.label.lightBlue:hover
+{
+    background: var(--lightBlue4);
+}
+
+label.label.lightOrange
+{
+    background: var(--lightOrange1);
+}
+a label.label.lightOrange:hover
+{
+    background: var(--lightOrange2);
+}
+
+label.label.lightRed
+{
+    background: var(--lightRed2);
+}
+a label.label.lightRed:hover
+{
+    background: var(--lightRed3);
+}
+
+label.label.lightPurple
+{
+    background: var(--lightPurple2);
+}
+a label.label.lightPurple:hover
+{
+    background: var(--lightPurple3);
+}
+
+label.label.lightGray
+{
+    background: var(--lightGray1);
+}
+a label.label.lightGray:hover
+{
+    background: var(--lightGray2);
+}
+
+label.label.lightRose
+{
+    background: var(--lightRose1);
+}
+a label.label.lightRose:hover
+{
+    background: var(--lightRose2);
+}
+
+/* ################## MATERIAL ICONS ################## */
+@font-face
+{
+    font-family: 'Material Icons';  font-weight: 400;  font-style: normal;  src: url(https://fonts.gstatic.com/s/materialicons/v70/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2) format('woff2');
+}
+
+.material-icons
+{
+    font-family: 'Material Icons';  font-size: 24px;  font-weight: normal;  font-style: normal;  line-height: 1;  display: inline-block;  white-space: nowrap;  letter-spacing: normal;  text-transform: none;  word-wrap: normal;  direction: ltr;  -webkit-font-feature-settings: 'liga';  -webkit-font-smoothing: antialiased;
+}
+
+/* ################## ESTRUCTURA ################## */
+.contingut
+{ position: relative;  top: 0;
+
+    height: 100vh; 
+}
+
+a[data-toggle=collapse][aria-expanded=true] .caret
+{
+    -webkit-transform: rotate(180deg);                      transform: rotate(180deg);
+}
+
+.caret
+{
+    -webkit-transition: all .15s ease-in;                      transition: all .15s ease-in;
+}
+
+.pointer
+{
+    cursor: pointer;
+}
+
+.btn-menu
+{ width: 40px;
+    height: 40px; 
+}
+
+/* ################## SCROLL ################## */
+.ps,
+.ps2
+{
+    overflow: hidden !important;  overflow-anchor: none;  -ms-overflow-style: none;          touch-action: auto;  -ms-touch-action: auto;
+}
+
+.ps,
+.ps2
+{ overflow-x: auto !important; 
+    overflow-y: auto !important;  scrollbar-color: var(--darkGrayOpacity1) var(--lightGrayOpacity1);  scrollbar-width: thin;
+}
+
+.ps::-webkit-scrollbar,
+.ps2::-webkit-scrollbar
+{
+    -webkit-appearance: none;
+}
+
+.ps::-webkit-scrollbar:vertical,
+.ps2::-webkit-scrollbar:vertical
+{
+    width: 7px;
+}
+
+.ps::-webkit-scrollbar:horizontal,
+.ps2::-webkit-scrollbar:horizontal
+{
+    height: 7px;
+}
+
+.ps::-webkit-scrollbar-button:increment,
+.ps::-webkit-scrollbar-button,
+.ps2::-webkit-scrollbar-button:increment,
+.ps2::-webkit-scrollbar-button
+{
+    display: none;
+}
+
+.ps::-webkit-scrollbar-thumb
+{
+    background-color: var(--darkGrayOpacity1);
+}
+
+.ps2::-webkit-scrollbar-thumb
+{
+    background-color: var(--darkBlueGray);
+}
+
+/* .ps::-webkit-scrollbar-track {
+	border-radius: 50px;
+}*/
+/* ################## ESTRUCTURA. SIDEBAR ################## */
+.sidebar
+{ z-index: 1060;  top: 0;  bottom: 0;  left: 0;  max-height: 100%;  transition: all .5s ease;
+
+    box-shadow: 0 16px 38px -12px var(--darkGrayOpacity1), 0 4px 25px 0 var(--lightGrayOpacity1), 0 8px 10px -5px var(--lightGrayOpacity2); 
+}
+
+.sidebar-background
+{ z-index: 1; top: 0;  left: 0;  display: block; 
+
+    background-image: url(https://intranet.prisma.cat/img/sidebar.jpg);  background-position: 50%;  background-size: cover; 
+}
+
+.sidebar-background:after
+{ position: absolute;  z-index: 3; display: block;  width: 100%;  height: 100%;  content: '';  opacity: .8; 
+    background: var(--blauPrisma); 
+}
+
+.sidebar
+{
+    width: 80px;
+}
+
+.tooltip-prisma
+{ position: absolute;  z-index: 1100; border-radius: 5px; 
+    background: var(--darkBlue); 
+}
+
+.tooltip-prisma:after
+{ position: absolute;  top: 50%; right: 100%;  margin-top: -5px; 
+
+    content: '';  border-width: 5px;  border-style: solid;  border-color: transparent var(--darkBlue) transparent transparent; 
+}
+
+.sidebar.active
+{
+    width: var(--sidebarWidth);
+}
+
+.sidebar.active ~ .mainpanel
+{
+    width: calc(100% - var(--sidebarWidth));
+    /* left: var(--sidebarWidth); */
+}
+
+.sidebar .sidebar-wrapper
+{ z-index: 4; overflow: auto; 
+
+    height: 100vh; 
+}
+
+.sidebar.active .caret
+{
+    display: inline-block;  width: 0; height: 0;  margin-left: 2px;  vertical-align: middle;  border-top: 4px dashed;  border-top: 4px solid\9;  border-right: 4px solid transparent;  border-left: 4px solid transparent; 
+}
+
+.sidebar .sidebar-mini
+{ margin: 0 !important;
+
+    text-align: center; 
+}
+
+.sidebar.active .sidebar-wrapper .user .user-info [data-toggle=collapse] ~ div > ul > li > a .sidebar-mini,
+.sidebar.active .sidebar-wrapper > .nav [data-toggle=collapse] ~ div > ul > li > a .sidebar-mini
+{ position: relative; 
+
+    display: inherit;  float: left;  width: 48px;  height: auto; margin-right: 10px;  text-align: center;  letter-spacing: 1px;  text-transform: uppercase; 
+}
+
+.sidebar .sidebar-normal
+{ width: 0;  height: 0;
+
+    opacity: 0; 
+}
+
+.sidebar.active .sidebar-wrapper .user .user-info [data-toggle=collapse] ~ div > ul > li > a .sidebar-normal,
+.sidebar.active .sidebar-wrapper > .nav [data-toggle=collapse] ~ div > ul > li > a .sidebar-normal
+{ position: relative; 
+
+    display: block;  width: auto;  height: auto; margin: 0;  white-space: nowrap;  opacity: 1; 
+}
+
+.sidebar .user:after
+{ position: absolute;  right: 15px;  bottom: 0;  width: calc(100% - 30px); height: 1px;  content: ''; 
+
+    background-color: var(--lightBlue1); 
+}
+
+.sidebar .user .photo
+{ z-index: 5; overflow: hidden;  width: 60px;  height: 60px;  -webkit-transition: all .3s linear;                  transition: all .3s linear; 
+
+    box-shadow: 0 16px 38px -12px var(--darkGrayOpacity1), 0 4px 25px 0 var(--lightGrayOpacity2), 0 8px 10px -5px var(--lightGrayOpacity2);  object-fit: cover; 
+}
+
+.sidebar .user a
+{ padding: .5rem 15px;
+
+    color: var(--white); 
+}
+
+.sidebar .user .user-info
+{ width: 0;
+
+    opacity: 0; 
+}
+
+.sidebar.active .user .user-info
+{ font-size: 1.5rem;
+
+    opacity: 1; 
+}
+
+.sidebar .user .user-info > a
+{
+    display: block;  padding-right: 50px;
+}
+
+.sidebar .user .user-info > a > p
+{ font-size: 1.1rem; 
+
+    display: block;  margin: 0;  opacity: 1;
+}
+
+.sidebar .user .user-info .caret
+{
+    position: absolute;  top: 22px;  right: 15px;
+}
+
+.sidebar .logout
+{ font-size: 1.7rem; width: 0; 
+
+    opacity: 0; 
+}
+
+.sidebar.active .logout
+{ width: auto;
+
+    opacity: 1; 
+}
+
+.sidebar .nav
+{ display: block;
+
+    margin-top: 5px; 
+}
+
+.sidebar .nav .nav-item
+{
+    position: relative;
+}
+
+.sidebar .nav li .dropdown-menu a,
+.sidebar .nav li a
+{ font-size: 14px;  margin: 10px 10px 0;  padding-right: 10px;  padding-left: 10px;  text-transform: capitalize; color: var(--darkGray2); 
+    border-radius: 3px; 
+}
+
+.sidebar .nav li:first-child > a
+{
+    margin: 0 10px;
+}
+
+.sidebar .nav li:hover:not(.active) > a
+{
+    background-color: var(--lightGrayOpacity3);
+}
+
+.sidebar .nav .nav-item .nav-link
+{ display: flex;  align-items: center;  justify-content: center;
+
+    color: var(--white); 
+}
+
+.sidebar.active .nav .nav-item .nav-link
+{
+    justify-content: start;
+}
+
+.sidebar li.active > a
+{
+    background-color: var(--white);
+}
+
+.sidebar .nav .nav-item.active > a:not([data-toggle=collapse])
+{ text-align: center; opacity: 1; 
+    /* color: var(--darkBlue); */
+    color: var(--darkGray2);  box-shadow: 0 4px 20px 0 var(--lightGrayOpacity2), 0 7px 10px -5px var(--lightBlueOpacity1); 
+}
+
+.sidebar.active .nav .nav-item.active > a
+{
+    justify-content: start;
+}
+
+.sidebar .nav .nav-item.active i
+{
+    /* color: #8995ad; */
+    /* color: var(--darkBlue); */
+    color: var(--darkGray2);
+}
+
+.sidebar .nav i
+{ font-size: 24px;  line-height: 30px;  float: left;  width: 30px; text-align: center; 
+
+    color: var(--lightBlue1); 
+}
+
+.sidebar.active .nav i
+{
+    margin-right: 10px;
+}
+
+.sidebar .nav .caret
+{ width: 0;  height: 0;
+
+    opacity: 0; 
+}
+
+.sidebar.active .nav .caret
+{
+    position: absolute;  right: 10px;  opacity: 1;
+}
+
+.sidebar .nav p
+{ width: 0;  height: 0;
+
+    opacity: 0; 
+}
+
+.sidebar.active .nav p
+{ font-size: 16px;  line-height: 30px;  position: relative; 
+
+    display: block;  height: auto;  margin: 0;  white-space: nowrap; opacity: 1; 
+}
+
+.sidebar .collapse .nav p
+{
+    font-size: 14px;
+}
+
+/* ################## ESTRUCTURA. MAINPANEL ################## */
+.mainpanel
+{ width: calc(100% - 80px);
+    max-height: 100%;  -webkit-transition: .33s, cubic-bezier(.685, .0473, .346, 1);                  transition: .33s, cubic-bezier(.685, .0473, .346, 1); /* left: 80px; */
+          transition: all .5s ease;
+}
+
+h1
+{ font-size: 1.5rem;  margin-bottom: 0;
+
+    color: var(--darkBlue); 
+}
+
+h1 i
+{
+    margin-bottom: 5px;
+}
+
+.card:first-of-type
+{
+    margin-top: 2rem;
+}
+
+.card
+{ width: 100%; margin-top: 4rem;  margin-bottom: 30px;  padding: 1.5rem; 
+
+    border: 0;  border-radius: 6px;  background: var(--white);  box-shadow: 0 1px 4px 0 var(--lightGrayOpacity2); 
+}
+
+.card-blau .card-header
+{ margin-top: -55px;  margin-bottom: 10px;  padding: 10px; color: var(--white);  border: 0; 
+    border-radius: 3px;  background: linear-gradient(60deg, var(--blauPrisma), var(--blauFosc2));  box-shadow: 0 4px 20px 0 var(--lightGrayOpacity2), 0 7px 10px -5px var(--lightBlueOpacity2); 
+}
+
+.card-blau .titol-apartat
+{ font-size: 1.1rem;  align-items: center;  text-align: center; text-transform: uppercase; 
+
+    color: var(--blauPrisma); 
+}
+
+.card-blau .card-body .titol-apartat i
+{
+    font-size: 1.4rem;  margin-top: -4px; cursor: pointer;  color: var(--color-botons-edicio); 
+}
+
+.card-blau .card-body .titol-apartat i:hover
+{
+    color: var(--color-botons-edicio-hover);
+}
+
+.card-blau .card-footer
+{ border: 0;
+    background: var(--white); 
+}
+
+.card-blau .boto-blau
+{ font-size: 1rem;  position: relative;  z-index: 1; display: flex; 
+    align-items: center;  justify-content: center;  padding: .5rem 1rem;  cursor: pointer;  text-align: center;  text-transform: uppercase;  color: var(--white);  border: 0;  border-radius: .2rem;  background: var(--blauPrisma);  box-shadow: 0 4px 20px 0 var(--lightGrayOpacity2), 0 7px 10px -5px var(--lightBlueOpacity2); 
+}
+
+.card-blau .boto-blau:hover,
+.card-blau .boto-blau:focus
+{
+    box-shadow: 0 14px 26px -12px var(--lightBlueOpacity2), 0 4px 23px 0 var(--lightGrayOpacity2), 0 8px 10px -5px var(--lightBlueOpacity2);
+}
+
+.card-blau .boto-blau:focus
+{ outline: none;
+    background: var(--blauFosc1); 
+}
+
+/* ################## ESTRUCTURA. RESPONSIVE ################## */
+.mainpanel .breadccrump button
+{
+    display: none;
+}
+
+@media (max-width: 991px)
+{
+    .mainpanel .breadccrump button
+    {
+        display: flex;  width: 35px;  height: 35px;  outline: none;
+    }
+
+    .navbar-toogle i
+    {
+        color: var(--lightBlue1);
+    }
+}
+
+.close-layer
+{ font-weight: bold;  z-index: 2; top: 0;  left: auto;  overflow-x: hidden;  padding-top: 15px;  padding-left: 295px;  content: '';  cursor: pointer;  -webkit-transition: all .37s ease-in;                  transition: all .37s ease-in;  opacity: 1; 
+    background: var(--darkGrayOpacity1); 
+}
+
+.close-layer .material-icons
+{
+    font-size: 28px;
+}
+
+@media (max-width: 360px)
+{
+    .sidebar
+    {
+        width: 0;
+    }
+
+    .mainpanel
+    {
+        width: 100%;
+    }
+}
+
+/* ################## BOTONS ################## */
+.boto-blau
+{ position: relative;  z-index: 1; padding: .5rem 0;  text-transform: uppercase;  border-radius: 2px; 
+    background: var(--blauPrisma); 
+}
+
+button.boto-blau:before
+{ position: absolute;     z-index: -1; bottom: 0;  left: 0;  width: 100%;  height: 0;  content: '';  -webkit-transition: all .3s ease;             -moz-transition: all .3s ease;            -o-transition: all .3s ease;          transition: all .3s ease;  border-radius: 2px; 
+    background: var(--blauFosc1); 
+}
+
+.boto-blau:hover:before
+{
+    height: 100%;
+}
+
+.no-button:focus
+{
+    outline: none;
+}
+
+.no-button:hover
+{
+    color: var(--blauPrisma);
+}
+
+/* ################## ICONES ################## */
+i.no-disponible,
+svg.no-disponible
+{
+    cursor: default !important;  opacity: .3;
+}

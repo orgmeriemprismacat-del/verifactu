@@ -1,0 +1,79 @@
+.table
+{
+    border: 1px solid var(--table-border);
+}
+
+.table th
+{
+    background: var(--table-header);
+}
+
+.table td,
+.table th
+{
+    padding: .5rem;  vertical-align: middle !important;
+}
+
+.table tbody tr:nth-of-type(odd)
+{
+    background: var(--table-striped-1);
+}
+
+.table tbody tr:nth-of-type(even)
+{
+    background: var(--table-striped-2);
+}
+
+.table tbody tr:hover
+{
+    background-color: var(--table-hover);
+}
+
+.table tr i,
+.table tr svg
+{
+    color: var(--blauPrisma);
+}
+
+.table tr i:hover,
+.table tr svg:hover
+{
+    color: var(--blauFosc1);
+}
+
+.table-order thead th.sorting
+{
+    position: relative;  cursor: pointer;
+}
+
+.table-order thead th.sorting:before,
+.table-order thead th.sorting:after
+{
+    position: absolute;  top: 0;  bottom: .65em;  display: block;  display: flex;  align-items: center; justify-content: center;  height: 100%;  opacity: .5; 
+}
+
+.table-order thead th.sorting:before
+{
+    right: 1em;  content: '\2191';
+}
+
+.table-order thead th.sorting:after
+{
+    right: .5em;  content: '\2193';
+}
+
+.table-order thead th.sorting.asc:before,
+.table-order thead th.sorting.desc:after
+{
+    opacity: 1;
+}
+
+.table-order thead th.sorting.asc:before,
+.table-order thead th.sorting.asc:after
+{
+    color: var(--blauPrisma);
+}
+.table.table-xl-responsive tr:hover td
+{
+    background: #ebf1ff !important;
+}

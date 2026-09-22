@@ -1,0 +1,73 @@
+:root {
+  --white: #FFFFFF;
+  --color-prisma: #5A7BB8;
+
+  /************** BACKGROUNDS **************/
+  --bg-marc-treball: #E7F1EE;
+  --bg-modal-danger: #C94551;
+  --bg-modal-danger-hover: #B03C47;
+  --bg-modal-alert: #eca96f;
+  --bg-modal-alert-hover: #d7945b;
+  --bg-tutoria-1: #A3BE8D;
+  --bg-tutoria-2: #D5E4C8;
+  --bg-tutoria-striped: rgb(163 190 141 / 20%);
+  --bg-edicio: #FEEEF4;
+
+  /************** BORDER **************/
+
+  /************** TEXT COLORS **************/
+  --text-tutoria-table: #354825;
+	--orangeText1: #FF9800;
+  --text-button: #0D6482;
+  --text-button-hover: #474747;
+  --text-marcat: #505050;
+  --correct-color: #BCD1A9;
+  --warining-color: #E16671;
+  --color-curs-login: #23527C;
+  --link-hover-login: #B8975A;
+  --color-peu-login: #99ACCA;
+  --text-list: #242424;
+  --text-modal: #616161;
+
+	/* ################################# BLAUS ################################# */
+	--lightBlue1: #E4EAf6;
+	--lightBlue2: #E8F0FE;
+	--lightBlue3: #C4E6FF;
+	--lightBlueOpacity1: rgba(60, 72, 88, .4);
+	--lightBlueOpacity2: rgba(73, 107, 170, .4);
+	--lightBlueOpacity3: rgb(228, 234, 246, 0.7);
+	--blau1: #7B98C5;
+	--blau2: #EAEEF6;
+	--blauPrisma: #496BAA;
+	--blauFosc1: #3D5A92;
+	--blauFosc2: #22488C;
+	--blue2: #60759A;
+	--darkBlue: #414959;
+	--darkBlueGray: #4c5a77;
+
+	/* ################################ GRISOS ################################ */
+	--lightGray1: #EEE;
+	--lightGray2: #CCC;
+	--lightGrayOpacity1: rgba(0, 0, 0, .075);
+	--lightGrayOpacity2: rgba(0, 0, 0, .2);
+	--lightGrayOpacity3: hsla(0, 0%, 78.4%, .2);
+	--gray1: #5E5E5E;
+	--gray2: #737373;
+	--darkGray1: #495057;
+	--darkGray2: #3C4858;
+	--darkGrayOpacity1: rgba(0, 0, 0, .5);
+
+	/* ################################ TABLE ################################ */
+	--table-border: #D7DEEE;
+	--table-header: #EAEEF6;
+	--table-hover: #E7E6E6;
+	--table-striped-1: #FFF;
+	--table-striped-2: #F7F7F7;
+
+	/* ################################ ELEMENTS ################################ */
+	/* --bg-edicio: #ffe5ee; */
+	/* --bg-edicio: #fff2e5; */
+	--bg-edicio: #FEEEF4;
+	--color-botons-edicio: #CF646C;
+	--color-botons-edicio-hover: #C1525B;
+}

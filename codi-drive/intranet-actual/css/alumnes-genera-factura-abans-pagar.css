@@ -1,0 +1,15 @@
+/* Taula */
+.table tr i {
+	cursor: pointer;
+	font-size: 2rem;
+	display: flex;
+	justify-content: center;
+}
+
+.table tr td {
+	vertical-align: middle;
+}
+
+#modalConsultaFactura .modal-dialog {
+	max-width: 700px;
+}

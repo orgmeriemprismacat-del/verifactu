@@ -1,0 +1,81 @@
+h2 {
+	font-size: 1.6rem;
+	margin-bottom: 8px;
+}
+
+h3 {
+	font-size: 1.2rem;
+	margin-bottom: 20px;
+	margin-top: 0
+}
+
+.diversitat {
+	color: var(--text-diversitat)
+}
+
+.biblioteca {
+	color: var(--text-biblioteca)
+}
+
+.immersio {
+	color: var(--text-immersio)
+}
+
+.plastica {
+	color: var(--text-plastica)
+}
+
+.competencia_digital {
+	color: var(--text-competencia)
+}
+
+.metodes {
+	color: var(--text-metodes)
+}
+
+.nou.cdd{background:var(--bg-cdd)!important}
+
+table {
+	border: 1px solid var(--bg-accord);
+	border-collapse: collapse;
+	border-spacing: 0
+}
+
+.table>thead>tr>th {
+	vertical-align: middle
+}
+
+tr td, tr th {
+	text-align: center
+}
+
+tr td:first-child, tr th:first-child {
+	padding-left: 15px !important;
+	text-align: left
+}
+
+thead tr {
+	background: var(--bg-accord-thead)
+}
+
+.table-striped>tbody>tr:nth-of-type(odd) {
+	background: var(--bg-body-white)
+}
+
+.table-striped>tbody>tr:nth-of-type(even) {
+	background: var(--table-striped-even)
+}
+
+.table-hover>tbody>tr:hover {
+	background: var(--table-hover)
+}
+
+.table>tbody>tr>td, .table>thead>tr>th {
+	padding: 8px;
+	line-height: 1.43;
+	border-top: 1px solid var(--border-capcalera)
+}
+
+.table>thead:first-child>tr:first-child>th {
+	border-top: 0
+}

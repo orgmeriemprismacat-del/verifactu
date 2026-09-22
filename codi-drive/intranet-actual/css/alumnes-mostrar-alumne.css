@@ -1,0 +1,286 @@
+.cerca-av,
+.cerca-av2
+{
+    display: flex;
+}
+
+/* ################## TAULA RESULTAT CERCA ################## */
+#resultats-cerca table td
+{
+    vertical-align: middle !important;
+}
+
+#resultats-cerca table td button
+{
+    margin: 0 auto;
+}
+
+#mostrar-alumne .element-cercat-marcat
+{
+    border-bottom: 2px solid var(--orangeText1);
+}
+
+#mostra-tots-registres
+{
+    right: 0;
+}
+
+/* ################## APARTATS ################## */
+.card-blau .card-body i.send-result,
+.card-blau .card-body svg.send-result
+{
+    font-size: 2rem;  margin-top: -4px; cursor: pointer;  color: var(--color-botons-edicio); 
+}
+
+.card-blau .card-body i.send-apartat:hover
+{
+    color: var(--color-botons-edicio-hover);
+}
+
+/* ################## APARTAT CURSOS ################## */
+.table tr i,
+.table tr svg
+{ font-size: 2rem;
+
+    cursor: pointer; 
+}
+
+.table tr i.fas
+{
+    font-size: 1.8rem;
+}
+
+.modal-dialog.modal-info
+{
+    width: 95% !important;  max-width: 1400px;
+}
+
+#modalConfirmacioCanvi .modal-dialog
+{
+    width: 90% !important;  max-width: 1400px;
+}
+
+.modal-info .loading-wrapper
+{
+    position: absolute;  z-index: 10;
+}
+
+.modal-info label
+{ line-height: 20px;
+
+    pointer-events: all; 
+}
+
+.modal-info label i,
+.modal-info label svg
+{
+    font-size: calc(1.9rem + -.955vw);
+}
+
+.modal-info .btn-action,
+.modal-info .btn-action-disable
+{ display: flex; 
+    align-items: center;  justify-content: center;  margin: 0 auto;  padding: 10px; color: var(--white);  border-radius: 50%;  background: var(--blauPrisma);  box-shadow: 0 4px 20px 0 var(--lightGrayOpacity2), 0 7px 10px -5px var(--lightBlueOpacity2); 
+}
+
+.modal-info .btn-action:hover
+{
+    background-color: var(--blauFosc1);  box-shadow: 0 14px 26px -12px var(--lightBlueOpacity2), 0 4px 23px 0 var(--lightGrayOpacity2), 0 8px 10px -5px var(--lightBlueOpacity2);
+}
+
+.modal-info .btn-action-disable,
+.no-disponible
+{
+    cursor: default !important;  opacity: .3;
+}
+
+.modal-info .url
+{
+    font-size: 1rem;
+}
+
+.modal-info .apartat .form-group textarea.form-control
+{
+    min-height: 60px;  padding: 5px 8px;  resize: none;
+}
+
+.result-success
+{
+    position: absolute;  z-index: 10;  width: 50%;
+}
+
+.result-success.danger
+{ color: var(--white);
+    background: var(--red1); 
+}
+
+.opacity-02
+{
+    opacity: .2 !important;
+}
+
+.modal-info font
+{
+    font-size: 1rem;
+}
+
+@media screen and (min-width: 768px)
+{
+    .apartat .una-fila .form-group label
+    { width: 17%;
+        padding-right: 2%; 
+    }
+
+    .apartat .una-fila .form-group textarea.form-control
+    {
+        width: 83%;
+    }
+}
+
+#modalDonarBaixa .modal-dialog
+{
+    max-width: 700px;
+}
+
+#modalConsultaFactura .modal-dialog
+{
+    max-width: 700px;
+}
+
+#modalConsultaFactura .fletxa-left,
+#modalConsultaFactura .fletxa-right
+{ font-size: 2.7rem;
+
+    color: var(--blauPrisma); 
+}
+
+#resultats-cerca .table tr i.generada
+{
+    color: var(--orange3);
+}
+
+#resultats-cerca .table tr i.generada:hover
+{
+    color: var(--orange4);
+}
+
+.text-danger td
+{
+    color: var(--redText1);
+}
+
+.text-warning td
+{
+    color: var(--orangeText1) !important;
+}
+
+#modalConsultaCertificat .modal-dialog
+{
+    max-width: 820px !important;
+}
+
+.boto-certificat
+{ font-size: .9rem;  position: relative;  z-index: 1; display: flex; 
+    align-items: center;  justify-content: center;  padding: .5rem 1rem;  cursor: pointer;  text-align: center;  text-transform: uppercase;  border: 1px solid var(--blau1);  border-radius: .2rem;  background: var(--white); 
+}
+
+.boto-certificat:hover
+{
+    background: var(--lightBlue2);
+}
+
+.boto-certificat.marcat
+{ color: var(--white);
+    background: var(--blauPrisma); 
+}
+
+.text-accio
+{
+    min-width: 60px;
+}
+
+#factura-insc.no-edit
+{
+    cursor: pointer;  pointer-events: all; color: var(--blauPrisma); 
+}
+
+#factura-insc.no-edit:hover
+{
+    cursor: pointer;  color: var(--blauFosc1);
+}
+
+
+/* ################## APARTAT OBSERVACIONS GENERALS ################## */
+#observacions-generals .datacol,
+#observacions-generals .quicol,
+#observacions-generals .obscol
+{
+    width: 100%;
+}
+
+@media (min-width: 576px)
+{
+    #observacions-generals .datacol
+    {
+        width: 20%;
+    }
+
+    #observacions-generals .quicol
+    {
+        width: 20%;
+    }
+
+    #observacions-generals .obscol
+    {
+        width: 60%;
+    }
+}
+
+#observacions-generals .datacol,
+#observacions-generals .quicol,
+#observacions-generals .obscol,
+#observacions-generals .ocultcol
+{
+    background: var(--lightBlue2);
+}
+
+#observacions-generals > div > div
+{
+    border: 1px solid var(--table-border);
+}
+
+#observacions-generals > div > div i
+{ font-size: 1.2rem;
+
+    cursor: pointer; 
+}
+
+#observacions-generals > div > div i:hover
+{
+    color: var(--blauPrisma);
+}
+
+/* ################## Modal afegir OBSERVACIONS GENERALS ################## */
+#modalObservacions label
+{
+    font-size: 1.2rem;
+}
+
+#modalObservacions label.active
+{
+    font-size: 1rem;
+}
+
+#modalObservacions .btn i
+{
+    font-size: 1.3rem;  margin-top: -4px;
+}
+
+
+@media screen and (max-width: 576px)
+{
+    .form-control
+    {
+        display: block !important;
+    }
+}

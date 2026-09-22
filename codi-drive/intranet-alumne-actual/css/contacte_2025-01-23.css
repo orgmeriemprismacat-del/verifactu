@@ -1,0 +1,81 @@
+.form-control, .select {
+   margin-bottom: 0.3rem !important;
+}
+
+#tipus-consulta ul li {
+   color: var(--blue2);
+}
+
+#tipus-consulta ul li strong {
+   color: var(--darkGray1);
+}
+
+#cnt-devices,
+#cnt-systems,
+#cnt-browsers {
+   color: var(--gray1);
+}
+
+.device {
+   height: 90px;
+}
+
+.device img {
+   max-width: 35px;
+}
+
+.device span {
+   font-size: 35px;
+}
+
+.device p {
+   margin: 0 !important;
+}
+
+.device:hover {
+   box-shadow: #ABABAB 0 0 10px;
+   cursor: pointer;
+   border: 1px solid var(--lightGray2);
+   border-radius: 5px;
+   background: var(--light);
+}
+
+.device:hover p {
+   font-weight: 500;
+   font-weight: bold;
+}
+
+.device.active {
+   border: 1px solid var(--lightGray2);
+   background: var(--light);
+   border-radius: 5px;
+}
+
+.device.active p {
+   font-weight: bold;
+}
+
+.apartat-contacte .icones {
+   background: var(--table-border);
+   border-radius: 50%;
+   height: 90px;
+   width: 90px;
+}
+
+.apartat-contacte .icones>i {
+   font-size: 2.3rem;
+   color: var(--blauPrisma);
+}
+
+.apartat-contacte .titol-contacte {
+   font-size: 1.55rem;
+   font-weight: bold;
+}
+
+.apartat-contacte p {
+   color: var(--dark);
+}
+
+.whatsapp i {
+    font-size: 1.8rem;
+}

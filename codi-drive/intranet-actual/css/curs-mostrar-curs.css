@@ -1,0 +1,7 @@
+#mostrar-curs .element-cercat-marcat {
+	border-bottom: 2px solid var(--orangeText1);
+}
+
+.cerca-av, .cerca-av2  {
+	display: flex;
+}

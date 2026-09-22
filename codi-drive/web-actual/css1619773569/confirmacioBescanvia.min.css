@@ -1,0 +1,12 @@
+.prisma-container {
+	font-family: 'Roboto';
+}
+
+.email {
+  color: var(--text-blue-link);
+}
+
+.banner-img {
+  height: 200px;
+  object-fit: cover;
+}

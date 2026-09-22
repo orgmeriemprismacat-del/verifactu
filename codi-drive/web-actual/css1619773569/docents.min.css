@@ -1,0 +1,63 @@
+.prisma-course-1x {
+	margin-bottom: 10px
+}
+
+.prisma-single-docent {
+	border: 1px solid var(--borders);
+	border-radius: 2px;
+	margin-bottom: 40px
+}
+
+.prisma-single-docent:hover {
+	border: 1px solid var(--borders-hover);
+	box-shadow: var(--box-shadow-curs) 0 0 10px;
+	cursor: pointer
+}
+
+.prisma-single-docent:hover .prisma-docent-overlay {
+	background: var(--bg-opacitat-docent);
+	border-radius: 2px
+}
+
+.prisma-single-docent:hover a {
+	color: var(--text-blue-link)
+}
+
+img.prisma-docent-image-small {
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+	height: auto;
+	max-width: 100%
+}
+
+.prisma-single-docent:hover .prisma-docent-overlay img {
+	opacity: .9
+}
+
+.docent-name {
+	background: var(--bg-white);
+	min-height: 57px
+}
+
+.docent-name a {
+	min-height: 37px
+}
+
+h2 {
+	font-size: 1rem;
+	font-weight: 500;
+	line-height: 17px;
+	margin-top: 0;
+	margin-bottom: 0;
+	padding: 10px
+}
+
+.min-espaiat {
+	letter-spacing: -.5px
+}
+
+@media screen and (min-width:324px) and (max-width:660px) {
+	.docent-name {
+		min-height: 65px
+	}
+}

@@ -1,0 +1,73 @@
+.table {
+	border: 1px solid var(--table-border);
+}
+
+.table th {
+	background: var(--table-header);
+}
+
+.table td, .table th {
+	padding: .5rem;
+	vertical-align: middle !important;
+}
+
+.table tbody tr:nth-of-type(odd) {
+	background: var(--table-striped-1);
+}
+
+.table tbody tr:nth-of-type(even) {
+	background: var(--table-striped-2);
+}
+
+.table tbody tr:hover {
+	background-color: var(--table-hover);
+}
+
+.table tr i {
+	color: var(--blauPrisma);
+}
+
+.table tr i:hover {
+	color: var(--blauFosc1);
+}
+
+.table-order thead th.sorting {
+	position: relative;
+	cursor: pointer;
+}
+
+.table-order thead th.sorting:before,
+.table-order thead th.sorting:after {
+	position: absolute;
+	bottom: .65em;
+	display: block;
+	opacity: .5;
+	top: 0;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.table-order thead th.sorting:before {
+	right: 1em;
+	content: "\2191";
+}
+
+.table-order thead th.sorting:after {
+	right: .5em;
+	content: "\2193";
+}
+
+.table-order thead th.sorting.asc:before,
+.table-order thead th.sorting.desc:after {
+	opacity: 1;
+}
+
+.table-order thead th.sorting.asc:before,
+.table-order thead th.sorting.asc:after {
+	color: var(--blauPrisma);
+}
+.table.table-xl-responsive tr:hover td {
+    background: #ebf1ff !important;
+}

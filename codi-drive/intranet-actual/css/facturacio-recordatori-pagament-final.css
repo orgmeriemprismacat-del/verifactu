@@ -1,0 +1,76 @@
+th#th-codi,
+th#th-nom {
+    min-width: 85px;
+}
+th#th-cog {
+    min-width: 120px;
+}
+th:nth-child(7) {
+    min-width: 105px;
+}
+
+label.red {
+    background: var(--red2);
+    color: white;
+}
+
+@media screen and (min-width: 1200px) {
+   .table tbody tr.text-danger td > div > div.desc-fila {
+       color: var(--bs-code-color);
+   }
+   .table tbody tr.text-turquesa td > div > div.desc-fila {
+       color: var(--bs-info);
+   }
+}
+
+@media screen and (max-width: 1200px) {
+   .table.table-xl-responsive tr td > div:hover > div {
+      background: #dce4f6 !important
+   }
+   .table.table-xl-responsive tr>td > div > div.desc-fila,
+   .table.table-xl-responsive tr:nth-of-type(odd)>td > div > div.desc-fila {
+      background-color: white;
+   }
+   .table.table-xl-responsive tr td > div > div:nth-child(1) {
+      background: var(--lightBlue2);
+   }
+
+   .table.table-xl-responsive tbody tr.text-danger td > div > div.titol-fila {
+       background: #ffebf5;
+   }
+   .table.table-xl-responsive tr.text-danger,
+   .table.table-xl-responsive tr.text-danger td  {
+        border-color: #f5bdd9;
+    }
+    .table.table-xl-responsive tr.text-danger:hover div.desc-fila {
+        /* background: #ffedf2 !important; */
+    }
+    .table.table-xl-responsive tr.text-danger td > div:hover > div {
+        background: #fedeed !important
+    }
+    .table.table-xl-responsive tbody tr.text-turquesa td > div > div.titol-fila {
+        background: #e1faff;
+    }
+    .table.table-xl-responsive tr.text-turquesa,
+    .table.table-xl-responsive tr.text-turquesa td {
+        border-color: #a7e7f3;
+    }
+    .table.table-xl-responsive tr.text-turquesa:hover div.desc-fila {
+        /* background: #c6f5ff !important; */
+    }
+    .table.table-xl-responsive tr.text-turquesa td > div:hover > div {
+        background: #c5f3fd !important
+    }
+    .table.table-xl-responsive tbody tr.text-danger td > div > div.desc-fila,
+    .table.table-xl-responsive tbody tr.text-turquesa td > div > div.desc-fila {
+      background: white;
+   }
+   .table.table-xl-responsive tr td > div > div {
+      border-top: 0;
+   }
+}
+
+.bg-body {
+    background: var(--lightBlue2) !important;
+    width: 600px;
+}

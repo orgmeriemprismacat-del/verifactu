@@ -1,0 +1,452 @@
+var marginTop, domain="https://www.prisma.cat/";
+function mostrarHeaderFooter() {
+	$.ajax({
+		async: !0,
+		url: "https://www.prisma.cat/ajax/mostrar_header_2.php",
+		cache: !0,
+		type: "GET",
+		success: function(pagina) {
+			$("header").html(pagina);
+			$('.closebtn').css('display', 'none');
+			if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+				$('.navbar-nav > li').addClass('mobile');
+			} else {
+				$('.navbar-nav > li').addClass('computer');
+			}
+			$('.prisma-header').on('focus', '.form-control', function(){
+				$(this).next().next().addClass('active');
+			});
+			$('.prisma-header').on('blur', '.form-control', function(){
+				if ($(this).val()=='')
+					$(this).next().next().removeClass('active');
+			});
+		}
+	});
+	$.ajax({
+		async: !0,
+		url: "https://www.prisma.cat/ajax/mostrar_footer_2.php",
+		cache: !0,
+		type: "GET",
+		success: function(pagina) {
+			$("footer").html(pagina);
+
+			adjustStyle();
+
+			$(window).resize(function() {
+				adjustStyle();
+			});
+
+			$('.form-footer').on('focus', '.form-control', function(){
+				$('.form-footer label').hide();
+			});
+			$('.form-footer').on('blur', '.form-control', function(){
+				if ($('#adreca-electronica').val()=='')
+					$('.form-footer label').show();
+			});
+
+			function mostrarErrorButlleti(missatgeError) {
+				$('#modalErrorBody').html(missatgeError);
+				$('#modalError').modal('show')
+			}
+
+			function mostrarSuccessButlleti(missatgeSuccess) {
+				$('#modalOkBody').html(missatgeSuccess);
+				$('#modalOK').modal('show');
+			}
+
+			function validacioCorreuButlleti() {
+				var email = $('#adreca-electronica').val();
+				var error = "";
+				if (email.length != 0) {
+					var tfld_email = $.trim(email);
+					var emailFilter = /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/;
+					var illegalChars = /[\(\)\<\>\,\;\:\\\"\[\]]/;
+					if (!emailFilter.test(tfld_email)) {
+						error = "El correu electr\u00F2nic no és v\u00E0lid";
+					} else if (email.match(illegalChars)) {
+						error = "El correu electr\u00F2nic té car\u0E0cters no permesos";
+					}
+				}
+				else
+					error = "Cal omplir el camp";
+				return error;
+			}
+
+			$('.form-footer').on('click', '#news', function(){
+				if (validacioCorreuButlleti() != '') {
+					var missatgeError = "<p>Cal omplir el camp de l'adreça electrònica.</p>";
+					mostrarErrorButlleti(missatgeError);
+				} else {
+					var correu = $('#adreca-electronica').val();
+					var comprovaSpam = $("#butlletiSpam").val();
+					$.ajax({
+						url: "https://www.prisma.cat/ajax/mailingNou.php?correu=" + correu
+						+ "&comprova"+comprovaSpam,
+						cache: !1,
+						type: "GET",
+						success: function(message) {
+							if (message == "ok") {
+								var missatgeConsultaOK = "<p>T'has subscrit correctament al nostre butlletí electrònic.</p>";
+								missatgeConsultaOK += "<p>En breu rebràs un missatge de confirmació en del correu ";
+								missatgeConsultaOK += "<strong><span class='correu_consulta'>" + correu + "</span></strong>.</p>";
+								missatgeConsultaOK += "<p>Si el missatge no arriba en 15 minuts, revisa la carpeta del correu brossa. ";
+								missatgeConsultaOK += "<p>Gr&agrave;cies per confiar en PrisMa!</p>";
+								mostrarSuccessButlleti(missatgeConsultaOK)
+							} else {
+								mostrarErrorButlleti(message)
+							}
+						}
+					})
+				}
+			});
+
+			function checkAcceptCookies() {
+					if(localStorage.getItem("acceptCookies") == 'true'){
+						$('#cntCookies').hide();
+					}
+			}
+			checkAcceptCookies();
+		}
+	})
+}
+function acceptCookies() {
+	localStorage.setItem("acceptCookies", "true");
+	$('#cntCookies').slideUp();
+	consentGrantedAdStorage();
+	consentGrantedAdUserData();
+	consentGrantedAdPersonalization();
+	consentGrantedAnalyticsStorage();
+}
+mostrarHeaderFooter();
+var urlPagina = window.location.pathname.split('?')[0];
+if (urlPagina.substr(-1) == "/") urlPagina = urlPagina.substr(0, urlPagina.length - 1);
+var dispositiu;
+if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+	dispositiu = "mobil";
+	$('#boto-tancar').css('display', 'none');
+	$('#top-menu').remove()
+} else {
+	dispositiu = "ordinador"
+}
+
+function mostrarContacte() {
+	var reqPage = $.ajax({
+		url: domain + "ajax/mostrar_contacte.php",
+		method: "GET",
+		data: {
+			url : urlPagina,
+			dispositiu : dispositiu
+		},
+		dataType: "html"
+	});
+	reqPage.done(function( contingut ) {
+		$("#pagina").html(contingut);
+
+		$('.prisma-contact').on('focus', '.form-control', function() {
+			$(this).prev().addClass('active');
+		});
+		$('.prisma-contact').on('blur', '.form-control', function() {
+			if ($(this).val().trim() == '')
+				$(this).prev().removeClass('active');
+		});
+
+		afegirValidacions()
+	});
+	reqPage.fail(function( jqXHR, textStatus, errorThrown ) {
+		errorFunction( jqXHR, textStatus, errorThrown, "Hi ha hagut un error en el request de la pàgina: " );
+	});
+}
+
+mostrarContacte();
+
+function afegirValidacions() {
+	document.getElementById("name").onchange = function() {
+		validacioNom()
+	};
+	document.getElementById("name").onblur = function() {
+		validacioNom()
+	};
+	document.getElementById("name").onfocus = function() {
+		eliminarError("nom_erroni")
+	};
+
+	document.getElementById("email").onchange = function() {
+		validacioEmail();
+		validacioCorreu()
+	};
+	document.getElementById("email").onblur = function() {
+		validacioEmail();
+		validacioCorreu()
+	};
+	document.getElementById("email").onfocus = function() {
+		eliminarError("correu_erroni")
+	};
+
+	document.getElementById("telf").onchange = function() {
+		validacioTelefon()
+	};
+	document.getElementById("telf").onblur = function() {
+		validacioTelefon()
+	};
+	document.getElementById("telf").onfocus = function() {
+		eliminarError("telf_erroni")
+	};
+
+	document.getElementById("message").onchange = function() {
+		validacioConsulta()
+	};
+	document.getElementById("message").onblur = function() {
+		validacioConsulta()
+	};
+	document.getElementById("message").onfocus = function() {
+		eliminarError("message_erroni")
+	};
+
+	document.getElementById("form_enviar_dades").onclick = function() {
+		validacioFormulari()
+	}
+}
+
+function validacioNom() {
+	return validacioCampBuit("name", "nom_erroni")
+}
+
+function validacioTelefon() {
+	var telf = $('#telf').val();
+	var error = "";
+	error = validacioCampBuit("telf", "telf_erroni");
+	if (telf.length != 0) {
+		var stripped = telf.replace(/[\(\)\.\-\ ]/g, '');
+		if (!(stripped.length == 9)) {
+			error = "Llargada incorrecta";
+			mostrarError("telf_erroni", error, "130px")
+		} else if (isNaN(stripped)) {
+			error = "Car\u00E0cters no permesos";
+			mostrarError("telf_erroni", error, "160px")
+		} else {
+			eliminarError("telf_erroni")
+		}
+	}
+	return error
+}
+
+function validacioCorreu() {
+	var email = $('#email').val();
+	var error = "";
+	if (email.length != 0) {
+		var tfld_email = $.trim(email);
+		var emailFilter = /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/;
+		var illegalChars = /[\(\)\<\>\,\;\:\\\"\[\]]/;
+		if (!emailFilter.test(tfld_email)) {
+			error = "Correu electr\u00F2nic no v\u00E0lid";
+			mostrarError("correu_erroni", error, "180px")
+		} else if (email.match(illegalChars)) {
+			error = "Car\u0E0cters no permesos";
+			mostrarError("correu_erroni", error, "170px")
+		}
+		if (error == "") {
+			eliminarError("correu_erroni")
+		}
+	}
+	return error
+}
+
+function validacioEmail() {
+	return validacioCampBuit("email", "correu_erroni")
+}
+
+function validacioConsulta() {
+	return validacioCampBuit("message", "message_erroni")
+}
+
+function mostrarError(id_error, error, mida_error) {
+	$("#" + id_error).html(error);
+	$("#" + id_error).css("width", mida_error);
+	$("#" + id_error).addClass("erroni text-center text-white")
+}
+
+function eliminarError(id_error) {
+	$("#" + id_error).html("");
+	$("#" + id_error).removeClass("erroni")
+}
+
+function validacioCampBuit(id, id_error) {
+	var error = "";
+	if ($("#" + id).val().length == 0) {
+		error = "Camp obligatori";
+		mostrarError(id_error, error, "115px")
+	} else {
+		eliminarError(id_error)
+	}
+	return error
+}
+
+function validacioFormulari() {
+	var comprovacio = "";
+	var validarNom = validacioNom();
+	var validEmailNoBuit = validacioEmail();
+	var validacioCorreus = validacioCorreu();
+	var validTel = validacioTelefon();
+	var validConsulta = validacioConsulta();
+	if (validarNom.length != 0) comprovacio += "<li>Nom</li>";
+	if (validEmailNoBuit.length != 0 || validacioCorreus.length != 0) comprovacio += "<li>Correu electr\u00F2nic</li>";
+	if (validTel.length != 0) comprovacio += "<li>Tel\u00e8fon</li>";
+	if (validConsulta.length != 0) comprovacio += "<li>Missatge</li>";
+	if (comprovacio != "") {
+		var missatgeError = "<p>Els camps seg\u00FCents s\u00F3n incorrectes:</p><ul class='errors'>" + comprovacio + "</ul>";
+		mostrarModalError(missatgeError)
+	} else {
+		var missatgeConsulta = enviarConsulta()
+	}
+	return (comprovacio == "")
+}
+
+function enviarConsulta() {
+	var nom = $("#name").val();
+	var email = $("#email").val();
+	var telf = $("#telf").val();
+	var missatge = $("#message").val();
+	missatge = missatge.replace(/\n/g, "<br>");
+	var comprovaSpam = $("#comprovaSpam").val();
+	var apartats = [
+		["nom", nom],
+		['email', email],
+		['telf', telf],
+		['missatge', missatge],
+		['comprovaSpam', comprovaSpam]
+	];
+
+	$.ajax({
+		url: "https://www.prisma.cat/ajax/enviarConsulta.php?apartats=" + JSON.stringify(apartats) + "&length=" + apartats.length,
+		cache: !1,
+		type: "GET",
+		success: function(message) {
+			if (message == "ok") {
+				var missatgeConsultaOK = "<p>La teva consulta s'ha enviat correctament.</p>";
+				missatgeConsultaOK += "<p>En 24-48 hores laborables ens posarem en contacte amb tu a trav&eacute;s del correu ";
+				missatgeConsultaOK += "<strong><span class='correu_consulta'>" + email + "</span></strong>.</p>";
+				missatgeConsultaOK += "<p>Gr&agrave;cies per contactar amb PrisMa.</p>";
+				mostrarModalSuccess(missatgeConsultaOK)
+			} else {
+				mostrarModalError(message)
+			}
+		}
+	})
+}
+
+function mostrarModalError(missatgeError) {
+	$('#modalErrorsBody').html(missatgeError);
+	$('#modalErrors').modal('show')
+}
+
+function mostrarModalSuccess(missatgeSuccess) {
+	$('#modalSuccessBody').html(missatgeSuccess);
+	$('#modalSuccess').modal('show');
+  	$("#modalSuccess").on('hide.bs.modal', function(){
+		$("#name").val('');
+		$("#email").val('');
+		$("#telf").val('');
+		$("#message").val('');
+
+		$("#name").prev().removeClass('active');
+		$("#email").prev().removeClass('active');
+		$("#telf").prev().removeClass('active');
+		$("#message").prev().removeClass('active');
+	});
+}
+
+function adjustStyle() {
+	screenWidth = parseInt($(this).width());
+
+	if (screenWidth < 575) {
+		$('.prisma-footer .panel').css('display', 'none');
+		$('.accordion-footer').removeClass('active');
+		$('.accordion-footer').click(function() {
+			this.classList.toggle("active");
+			var panel = this.nextElementSibling;
+			if (panel.style.display === "block") {
+				panel.style.display = "none";
+				panel.style.maxHeight = null
+			} else {
+				panel.style.display = "block";
+				panel.style.maxHeight = panel.scrollHeight + "px"
+			}
+		})
+	}
+	else {
+		$('.accordion-footer').removeClass('active');
+		$('.prisma-footer .panel').css('display', 'block')
+	}
+}
+
+function afegirCSS() {
+	$('body').append("<link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Roboto:100,100i,300,400,400i,500,500i,700,700i|Nunito+Sans&display=swap' />");
+	$('body').append("<link rel='stylesheet' href='https://www.prisma.cat/css1619773569/font-awesome-prisma.min.css?ver=1.0' />");
+	$('body').append("<link rel='shortcut icon' type='image/x-icon' href='https://www.prisma.cat/favicon.ico'/>");
+	$('body').append("<link rel='stylesheet' href='https://www.prisma.cat/css1619773569/404.min.css?ver=2.0' />")
+}
+
+afegirCSS();
+
+function openNav() {
+	$(".navbarPrisma").css('width', '270px');
+	$('.closebtn').css('display', 'block');
+	$('.navBarPrisma').addClass('w-100');
+	$("#pagina").addClass('sideNavBarPrismaObert');
+	$("#pagina > .container").addClass('sideNavBarContainerPrismaObert');
+	$('body').css('overflow-y', 'hidden')
+}
+
+function closeNav() {
+	$(".navbarPrisma").css('width', '0');
+	$('.closebtn').css('display', 'none');
+	$('.navBarPrisma').removeClass('w-100');
+	$("#pagina").removeClass('sideNavBarPrismaObert');
+	$("#pagina > .container").removeClass('sideNavBarContainerPrismaObert');
+	$('body').css('overflow-y', 'auto')
+}
+
+window.onscroll = function() {
+	noPerdreHeader()
+};
+
+function noPerdreHeader() {
+	if (document.body.scrollTop > 0 || document.documentElement.scrollTop > 0) {
+		$('.top-menu').slideUp( "400", function() {
+			$('#top-menu').css('display', 'none');
+			$('#nav-header').css('position', 'fixed');
+			$('.prisma-container').css('margin-top', '71px');
+	  });
+		$('#nav-header').css('top', '0px');
+	} else {
+		if (!(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))) {
+			$('.prisma-container').css('margin-top', '0px');
+			$('.top-menu').slideDown( "400", function() {
+		  });
+			$('#nav-header').css('position', 'inherit')
+
+		}
+	}
+}
+
+function errorFunction( jqXHR, textStatus, errorThrown, msg ) {
+	// afegirHeaderModalError("Oops...!");
+	var msgError = msg;
+	if (jqXHR.status === 0)
+		msgError += "<strong>Verifica la connexió</strong>";
+	else if (jqXHR.status === 404)
+		msgError += "<strong>Page Not Found</strong>";
+	else if (jqXHR.status === 500)
+		msgError += "<strong>Internal Server Error [500]</strong>";
+	else if (textStatus === 'parsererror')
+		msgError += "<strong>Requested JSON parse failed</strong>";
+	else if (textStatus === 'timeout')
+		msgError += "<strong>Time out error</strong>";
+	else if (textStatus === 'abort')
+		msgError += "<strong>Ajax request aborted</strong>";
+	else if (jqXHR.status === 0)
+		msgError += "<strong>"+jqXHR.responseText+"</strong>";
+
+	$('#modalErrorBody').html(msgError);
+	$('#modalError').modal('show');
+}

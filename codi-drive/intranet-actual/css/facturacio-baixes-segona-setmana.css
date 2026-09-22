@@ -1,0 +1,88 @@
+ table tr th:nth-child(10) {
+    width: 10%;
+}
+table tr th:nth-child(9),
+table tr th:nth-child(12) {
+   min-width: 160px;
+}
+th#th-codi,
+th#th-nom {
+    min-width: 60px;
+    padding: 5px!important;
+    text-align: left;
+}
+th#th-cog {
+    min-width: 100px;
+    padding: 5px !important;
+    text-align: left;
+}
+.card-blau .boto-blau.rounded-circle:before {
+    border-radius: 50% !important;
+}
+textarea.form-control {
+    padding: 6px 3px; height: 60px;
+}
+.card-blau table tbody tr td .boto-blau {
+    padding: 0.7rem 0.5rem !important;
+    width: 50px !important;
+}
+.bg-body {
+    background: var(--lightBlue2) !important;
+}
+.modal .modal-dialog.modal-success {
+    max-width: 900px;
+}
+@media screen and (min-width: 1200px) {
+   .table tbody tr.text-danger td > div > div.desc-fila {
+       color: var(--bs-code-color);
+   }
+   .table tbody tr.text-turquesa td > div > div.desc-fila {
+       color: var(--bs-info);
+   }
+}
+
+@media screen and (max-width: 1200px) {
+   .table.table-xl-responsive tr td > div:hover > div {
+      background: #dce4f6 !important
+   }
+   .table.table-xl-responsive tr:nth-of-type(odd)>td > div > div.desc-fila {
+      background-color: white;
+   }
+   .table.table-xl-responsive tr td > div > div:nth-child(1) {
+      background: var(--lightBlue2);
+   }
+
+   .table.table-xl-responsive tbody tr.text-danger td > div > div.titol-fila {
+       background: #ffebf5;
+   }
+   .table.table-xl-responsive tr.text-danger,
+   .table.table-xl-responsive tr.text-danger td  {
+        border-color: #f5bdd9;
+    }
+    .table.table-xl-responsive tr.text-danger:hover div.desc-fila {
+        /* background: #ffedf2 !important; */
+    }
+    .table.table-xl-responsive tr.text-danger td > div:hover > div {
+        background: #fedeed !important
+    }
+    .table.table-xl-responsive tbody tr.text-turquesa td > div > div.titol-fila {
+        background: #e1faff;
+    }
+    .table.table-xl-responsive tr.text-turquesa,
+    .table.table-xl-responsive tr.text-turquesa td {
+        border-color: #a7e7f3;
+    }
+    .table.table-xl-responsive tr.text-turquesa:hover div.desc-fila {
+        /* background: #c6f5ff !important; */
+    }
+    .table.table-xl-responsive tr.text-turquesa td > div:hover > div {
+        background: #c5f3fd !important
+    }
+    .table.table-xl-responsive tbody tr.text-danger td > div > div.desc-fila,
+    .table.table-xl-responsive tbody tr.text-turquesa td > div > div.desc-fila {
+      background: white;
+   }
+   .table.table-xl-responsive tr td > div > div {
+      border-top: 0;
+   }
+}

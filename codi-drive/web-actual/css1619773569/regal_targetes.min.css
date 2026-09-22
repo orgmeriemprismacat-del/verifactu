@@ -1,0 +1,397 @@
+@font-face {
+	font-family: 'Gobold CUTS';
+	src: url('https://www.prisma.cat/fonts/Gobold_CUTS.ttf');
+	/* Para Internet Explorer */
+	src: local('Gobold CUTS'),
+		/* Para el resto de navegadores */
+		url('https://www.prisma.cat/fonts/Gobold_CUTS.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'SignPainter';
+	src: url('https://www.prisma.cat/fonts/SignPainter-HouseScript-Regular.ttf');
+	/* Para Internet Explorer */
+	src: local('SignPainter'),
+		/* Para el resto de navegadores */
+		url('https://www.prisma.cat/fonts/SignPainter-HouseScript-Regular.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Gobold Bold';
+	src: url('https://www.prisma.cat/fonts/Gobold_Bold.ttf');
+	/* Para Internet Explorer */
+	src: local('Gobold Bold'),
+		/* Para el resto de navegadores */
+		url('https://www.prisma.cat/fonts/Gobold_Bold.ttf') format('truetype');
+}
+
+/* ESTIL 1. TARGETA FÍSICA */
+.estil-1 .cnt-nom.fisic {
+	color: #5A669F;
+}
+.estil-1 .cnt-dedicatoria.fisic {
+	color: #5A669F;
+}
+.estil-1 .cnt-origen.fisic {
+	color: #5A669F;
+}
+.estil-1 .cnt-codi-regal.fisic {
+	color: #923A5B;
+}
+.estil-1 .cnt-curs.fisic {
+	color: #FFFFFF;
+}
+
+/* ESTIL 1. TARGETA digital */
+.estil-1 .cnt-nom.digital {
+	color: #5A669F;
+}
+.estil-1 .cnt-dedicatoria.digital {
+	color: #5A669F;
+}
+.estil-1 .cnt-origen.digital {
+	color: #5A669F;
+}
+.estil-1 .cnt-codi-regal.digital {
+	color: #FFFFFF;
+}
+.estil-1 .cnt-curs.digital {
+	color: #C3355D;
+}
+
+/* ESTIL 2. TARGETA FÍSICA */
+.estil-2 .cnt-nom.fisic {
+	color: #5A669F;
+}
+.estil-2 .cnt-dedicatoria.fisic {
+	color: #5A669F;
+}
+.estil-2 .cnt-origen.fisic {
+	color: #5A669F;
+}
+.estil-2 .cnt-codi-regal.fisic {
+	color: #923A5B;
+}
+.estil-2 .cnt-curs.fisic {
+	color: #FFFFFF;
+}
+
+/* ESTIL 2. TARGETA digital */
+.estil-2 .cnt-nom.digital {
+	color: #5A669F;
+}
+.estil-2 .cnt-dedicatoria.digital {
+	color: #5A669F;
+}
+.estil-2 .cnt-origen.digital {
+	color: #5A669F;
+}
+.estil-2 .cnt-codi-regal.digital {
+	color: #FFFFFF;
+}
+.estil-2 .cnt-curs.digital {
+	color: #C3355D;
+}
+
+/* ESTIL 3. TARGETA FÍSICA */
+.estil-3 .cnt-nom.fisic {
+	color: #5A669F;
+}
+.estil-3 .cnt-dedicatoria.fisic {
+	color: #5A669F;
+}
+.estil-3 .cnt-origen.fisic {
+	color: #5A669F;
+}
+.estil-3 .cnt-codi-regal.fisic {
+	color: #6C9359;
+}
+.estil-3 .cnt-curs.fisic {
+	color: #FFFFFF;
+}
+
+/* ESTIL 3. TARGETA digital */
+.estil-3 .cnt-nom.digital {
+	color: #5A669F;
+}
+.estil-3 .cnt-dedicatoria.digital {
+	color: #5A669F;
+}
+.estil-3 .cnt-origen.digital {
+	color: #5A669F;
+}
+.estil-3 .cnt-codi-regal.digital {
+	color: #FFFFFF;
+}
+.estil-3 .cnt-curs.digital {
+	color: #16954E;
+}
+
+/* ESTIL 4. TARGETA FÍSICA */
+.estil-4 .cnt-nom.fisic {
+	color: #AC323A;
+}
+.estil-4 .cnt-dedicatoria.fisic {
+	color: #5A669F;
+}
+.estil-4 .cnt-origen.fisic {
+	color: #5A669F;
+}
+.estil-4 .cnt-codi-regal.fisic {
+	color: #5B8D96;
+}
+.estil-4 .cnt-curs.fisic {
+	color: #FFFFFF;
+}
+
+/* ESTIL 4. TARGETA digital */
+/* .estil-4 .cnt-nom.digital {
+	color: #AC323A;
+}
+.estil-4 .cnt-dedicatoria.digital {
+	color: #5A669F;
+}
+.estil-4 .cnt-origen.digital {
+	color: #5A669F;
+}
+.estil-4 .cnt-codi-regal.digital {
+	color: #FFFFFF;
+}
+.estil-4 .cnt-curs.digital {
+	color: #5B8D96;
+} */
+.estil-4 .cnt-nom.digital,
+.estil-5 .cnt-nom.digital,
+.estil-6 .cnt-nom.digital {
+	color: #282828;
+}
+.estil-4 .cnt-dedicatoria.digital,
+.estil-5 .cnt-dedicatoria.digital,
+.estil-6 .cnt-dedicatoria.digital {
+	color: #282828;
+}
+.estil-4 .cnt-origen.digital,
+.estil-5 .cnt-origen.digital,
+.estil-6 .cnt-origen.digital {
+	color: #282828;
+}
+.estil-4 .cnt-codi-regal.digital,
+.estil-5 .cnt-codi-regal.digital,
+.estil-6 .cnt-codi-regal.digital {
+	color: #FFFFFF;
+}
+.estil-4 .cnt-curs.digital,
+.estil-5 .cnt-curs.digital,
+.estil-6 .cnt-curs.digital {
+	color: #282828;
+}
+
+.regalar-curs {
+	height: 695px;
+	margin: 0 auto;
+}
+
+.regalar-curs, .cnt-nom.digital {
+	width: 820px;
+}
+
+.cnt-nom {
+	font-family: Gobold CUTS, Myriad Pro, Arial, Verdana;
+	text-align: center;
+}
+
+.cnt-nom.fisic {
+	font-size: 20px;
+
+	margin-left: 15px;
+	margin-top: 370px;
+	width: 340px;
+	height: 60px;
+}
+
+.cnt-nom.digital {
+	font-size: 30px;
+	margin-top: 25px;
+	padding-left: 10px;
+	padding-right: 10px;
+	height: 60px;
+}
+
+
+.cnt-dedicatoria {
+	font-family: SignPainter, Myriad Pro, Arial, Verdana;
+	text-align: center;
+}
+
+.cnt-dedicatoria.fisic {
+	font-size: 22px;
+	padding: 20px;
+
+	margin-left: 25px;
+	margin-top: 490px;
+	width: 320px;
+	height: 150px;
+}
+
+.cnt-dedicatoria.digital {
+	font-size: 22px;
+	padding: 20px;
+	margin-left: 40px;
+	margin-top: 135px;
+	width: 370px;
+	height: 190px;
+}
+
+.cnt-origen {
+	font-family: SignPainter, Myriad Pro, Arial, Verdana;
+	text-align: center;
+}
+
+.cnt-origen.fisic {
+	font-size: 18px;
+}
+
+.cnt-origen.digital {
+	font-size: 18px;
+}
+
+.cnt-codi-regal.fisic,
+.cnt-curs.fisic {
+	margin-left: 435px;
+	width: 370px;
+}
+
+.cnt-codi-regal {
+	font-family: Gobold Bold, Myriad Pro, Arial, Verdana;
+	text-align: center;
+}
+
+.cnt-codi-regal.fisic {
+	font-size: 20px;
+
+	margin-top: 485px;
+	padding-top: 10px;
+	height: 35px;
+}
+
+.cnt-codi-regal.digital {
+	font-size: 18px;
+	margin-top: 140px;
+	margin-left: 530px;
+	padding-top: 68px;
+	width: 130px;
+}
+
+.cnt-curs {
+	font-family: Gobold CUTS, Myriad Pro, Arial, Verdana;
+	text-align: center;
+}
+
+.cnt-curs.fisic {
+	font-size: 20px;
+	line-height: 20px;
+	height: 95px;
+}
+
+.cnt-curs.digital {
+	font-size: 19px;
+  margin-left: 420px;
+  width: 355px;
+}
+
+
+.estil-4 .cnt-nom,
+.estil-4 .cnt-curs,
+.estil-4 .cnt-codi-regal,
+.estil-5 .cnt-nom,
+.estil-5 .cnt-curs,
+.estil-4 .cnt-codi-regal,
+.estil-6 .cnt-nom,
+.estil-6 .cnt-curs,
+.estil-6 .cnt-codi-regal {
+  font-family: 'Roboto';
+}
+
+.cnt-curs.tamany-1.fisic {
+	font-size: 33px;
+	margin-top: 610px;
+}
+
+.cnt-curs.tamany-1.digital {
+	font-size: 33px;
+	margin-top: 300px;
+}
+
+.cnt-curs.tamany-2.fisic {
+   font-size: 29px;
+	margin-top: 590px;
+}
+
+.cnt-curs.tamany-2.digital {
+   font-size: 27px;
+   margin-top: 280px;
+}
+
+.cnt-curs.tamany-3.fisic {
+	font-size: 23px;
+	margin-top: 590px;
+}
+
+.cnt-curs.tamany-3.digital {
+	font-size: 20px;
+	line-height: 20px;
+	margin-top: 290px;
+}
+
+.cnt-curs.tamany-4.fisic {
+	font-size: 19px;
+	margin-top: 580px;
+}
+
+.cnt-curs.tamany-4.digital {
+	font-size: 16px;
+	line-height: 18px;
+	margin-top: 290px;
+}
+
+/*
+.cnt-curs.tamany-2 {
+	font-size: 27px;
+	line-height: 30px;
+   height: 60px;
+}
+
+.cnt-curs.tamany-2.fisic {
+	margin-top: 580px;
+}
+
+.cnt-curs.tamany-2.digital {
+
+  margin-top: 270px;
+}
+
+.cnt-curs.tamany-3 {
+	font-size: 23px;
+	line-height: 28px;
+   height: 60px;
+}
+
+.cnt-curs.tamany-3.fisic {
+	margin-top: 580px;
+}
+
+.cnt-curs.tamany-3.digital {
+	margin-top: 270px;
+}
+
+.cnt-curs.tamany-4 {
+	font-size: 17px;
+	line-height: 25px;
+   height: 55px;
+}
+
+.cnt-curs.tamany-4.fisic {
+	margin-top: 580px;
+}
+
+.cnt-curs.tamany-4.digital {
+	margin-top: 270px;
+} */

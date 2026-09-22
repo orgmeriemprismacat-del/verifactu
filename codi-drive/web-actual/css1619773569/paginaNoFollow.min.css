@@ -1,0 +1,40 @@
+.h3 {
+	font-size:1.75rem;
+	padding: 0;
+}
+
+.h5 {
+	font-size: 1.35rem;
+}
+
+ol.llistes {
+   margin-left: 15px;
+}
+
+.llistes>li>.llistes>li>ul.llistes.nivell2 {
+  list-style-type: circle;
+}
+
+.llistes>li>.llistes>li>ul.llistes>li:before {
+  content: " ";
+  margin-left: 15px;
+}
+
+ol.vuit {
+	list-style-type: none;
+}
+
+ol.vuit > li:before {
+   content: "8.1 ";
+   line-height: 24px;
+   margin-bottom: 10px;
+   margin-left: -25px;
+}
+
+.separacio-peu-nofollow {
+    margin-bottom: 20px;
+}
+
+.separacio-peu-nofollow.cookies {
+    margin-bottom: 30px;
+}

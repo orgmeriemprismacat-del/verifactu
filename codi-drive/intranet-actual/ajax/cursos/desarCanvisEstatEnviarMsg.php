@@ -1,0 +1,35 @@
+<?php
+
+include ('../../ConnexioIntranet.php');
+include ('../../ConnexioWeb.php');
+include ('../../Text.php');
+include ('../../Usuari.php');
+include ('../../Intranet.php');
+include ('../../inc/missatgesError.php');
+session_start();
+
+try {
+	$_SESSION['usuari'] = unserialize($_SESSION['usuari']);
+	$_SESSION['intranet'] = unserialize($_SESSION['intranet']);
+
+	/* CHANGED Canviar GET per POST */
+	$any 			= $_GET['any'];
+	$mes 			= $_GET['mes'];
+	$curs		 	= $_GET['curs'];
+	$estatAnt = $_GET['estatAnt'];
+	$estat 		= $_GET['estat'];
+
+	$mostrar = 	$_SESSION['intranet']->desarCanvisEstatEnviarMsg_PreviIniciCursos($any, $mes, $curs, $estatAnt, $estat);
+
+	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
+	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
+
+	echo $mostrar;
+}
+catch(Exception $e) {
+	echo missatgeError($e->getCode());
+	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
+	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
+}
+
+?>

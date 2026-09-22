@@ -1,0 +1,389 @@
+.dades {
+  line-height: 2.33rem;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.dades .dada {
+  font-weight: normal;
+}
+
+h3 {
+	font-size: 1.33rem;
+}
+
+.prisma-container {
+	font-family: 'Roboto';
+}
+
+/* #########################       FORUMLARI       ######################### */
+
+.form-group:focus-within label {
+	color: var(--color-label-input-focus);
+	font-weight: 500
+}
+
+.prisma-container label  {
+	color: var(--color-label-input);
+	left: 13px;
+	margin-top: 6px;
+	pointer-events: none;
+	position: absolute;
+	/* -webkit-transform: translateY(6px); */
+	/* transform: translateY(6px); */
+	transition: all 0.25s ease;
+	-webkit-backface-visibility: hidden;
+}
+
+.req {
+	color: #8d9cb7;
+	font-weight: bold;
+}
+
+.prisma-container label.active {
+	color: var(--color-label-active);
+	background: var(--bg-white);
+	font-size: .8rem;
+	left: 6px;
+	line-height: 10px;
+	margin-bottom: 0;
+	-webkit-transform: translateY(-10px);
+	transform: translateY(-10px);
+}
+
+.prisma-container label.active .fons {
+	background: var(--bg-body-color);
+	display: block;
+	height: 5px;
+	position: absolute;
+	width: 100%;
+	z-index: -2;
+}
+
+.prisma-container label.active .camp {
+	padding: 0 5px;
+}
+
+.prisma-container label.active .req {
+	display: none;
+}
+
+.select, #poble_box {
+	background-color: var(--bg-white);
+	border: 1px solid var(--border-input);
+	box-shadow: none;
+	color: var(--color-label-input);
+	cursor: pointer;
+	height: 35px;
+	padding-left: 13px;
+}
+
+.select .element-selected {
+	display: block;
+	font-weight: 500;
+}
+
+.select i {
+	color: var(--text-gray);
+	right: 20px;
+	width: 0;
+}
+
+.select>ul {
+	background: var(--bg-white);
+	border: 1px solid #d4d0d0;
+	border-top: 0;
+	box-shadow: var(--box-shadow-curs) 0px 7px 12px -4px;
+	display: none;
+	left: -1px;
+	margin-left: 0;
+	margin-top: 34px;
+	overflow: hidden;
+	padding-left: 0;
+	text-indent: 0.33rem;
+	top: 0;
+	width: 100%;
+	z-index: 10;
+}
+
+.col-6 .select>ul {
+	width: 100.4%;
+}
+
+.select>ul>li {
+	cursor: pointer;
+	display: block;
+	line-height: 15px;
+	list-style: outside none none;
+	padding: 0.7em 0.3em;
+}
+
+.select>ul>li:hover {
+	background: var(--bg-body-destacat-color);
+}
+
+.select>ul>li>a {
+	color: var(--text-dark-gray);
+}
+
+/* #########################        ALERTES        ######################### */
+.erroni {
+	background-color: var(--bg-danger);
+	border-radius: 6px;
+	padding: 5px 8px;
+	position: absolute;
+	top: 0;
+	right: 0;
+	z-index: 1;
+}
+
+.erroni:after {
+	content: "";
+	border-color: transparent var(--bg-danger) transparent transparent;
+	border-style: solid;
+	border-width: 5px;
+	margin-top: -5px;
+	position: absolute;
+	right: 100%;
+	top: 50%;
+}
+
+.select_erroni.erroni {
+	top: -38px;
+}
+
+.select_erroni.erroni:after {
+	border-color: var(--bg-danger) transparent transparent transparent;
+	margin-top: 17px;
+	right: 50%;
+}
+
+/* #########################        LOADING        ######################### */
+#modalLoading .modal-content {
+	background: transparent;
+}
+
+#loading-wrapper {
+	align-items: center;
+	display: flex;
+	justify-content: center;
+	min-height: 246px;
+}
+
+#loading-text {
+	color: var(--bg-white);
+	display: block;
+	font-family: 'Roboto', 'PT Sans Narrow', sans-serif;
+	font-size: 1.13rem;
+	height: 30px;
+	left: 50%;
+	margin: -7px 0 0 -45px;
+	position: absolute;
+	text-align: center;
+	top: 50%;
+	width: 100px;
+}
+
+#loading-content {
+	height: 160px;
+	width: 160px;
+}
+
+#loading-content:after {
+	bottom: 15px;
+	content: "";
+	left: 15px;
+	position: absolute;
+	right: 15px;
+	top: 15px;
+}
+
+#loading-content:before {
+	bottom: 5px;
+	content: "";
+	left: 5px;
+	right: 5px;
+	top: 5px;
+	position: absolute;
+}
+
+#loading-content {
+	-webkit-animation: loader 2s linear infinite;
+	-moz-animation: loader 2s linear infinite;
+	-o-animation: loader 2s linear infinite;
+	animation: loader 2s linear infinite;
+	border: 5px solid transparent;
+	border-top-color: var(--loading-color-1);
+	border-bottom-color: var(--loading-color-1);
+	border-radius: 50%;
+}
+
+#loading-content:before {
+	-webkit-animation: loader 3s linear infinite;
+	-moz-animation: loader 2s linear infinite;
+	-o-animation: loader 2s linear infinite;
+	animation: loader 3s linear infinite;
+	border: 5px solid transparent;
+	border-top-color: var(--loading-color-2);
+	border-bottom-color: var(--loading-color-2);
+	border-radius: 50%;
+}
+
+#loading-content:after {
+	-webkit-animation: loader 1.5s linear infinite;
+	animation: loader 1.5s linear infinite;
+	-moz-animation: loader 2s linear infinite;
+	-o-animation: loader 2s linear infinite;
+	border: 5px solid transparent;
+	border-top-color: var(--loading-color-3);
+	border-bottom-color: var(--loading-color-3);
+	border-radius: 50%;
+}
+
+@-webkit-keyframes loaders {
+	0% {
+		-webkit-transform: rotate(0deg);
+		-ms-transform: rotate(0deg);
+		transform: rotate(0deg);
+	}
+
+	100% {
+		-webkit-transform: rotate(360deg);
+		-ms-transform: rotate(360deg);
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes loader {
+	0% {
+		-webkit-transform: rotate(0deg);
+		-ms-transform: rotate(0deg);
+		transform: rotate(0deg);
+	}
+
+	100% {
+		-webkit-transform: rotate(360deg);
+		-ms-transform: rotate(360deg);
+		transform: rotate(360deg);
+	}
+}
+
+/* #########################         MODALS         ######################### */
+.modal-prisma {
+	max-width: 330px;
+}
+
+.modal-prisma {
+  max-width: 500px;
+}
+
+.modal-prisma span {
+  font-weight: bold;
+}
+
+.modal-prisma .close {
+	font-size: 1.8rem;
+	margin: -1rem -1rem -1rem auto;
+	padding: 1rem 1rem;
+	position: absolute;
+	right: 11px;
+	top: 8px;
+}
+
+.modal-prisma .modal-title {
+	border-bottom: 1px solid var(--border-input);
+	font-size: 1.1rem;
+	padding: 15px 0 15px 0;
+	color: var(--text-blue-link);
+	font-weight: bold;
+	width: -webkit-fill-available;
+}
+
+.btn-danger {
+  font-weight: 400;
+  margin: 2px auto 5px auto;
+  padding: 5px 0;
+  position: relative;
+  text-transform: uppercase;
+  width: 202px;
+  z-index: 1;
+}
+
+.btn-danger {
+  background: var(--bg-danger);
+}
+
+.btn-danger:before {
+  content: "";
+  height: 0;
+  border-radius: 2px;
+  bottom: 0;
+  position: absolute;
+  left: 0;
+  width: 100%;
+  z-index: -1;
+  -moz-transition: all .3s ease;
+  -o-transition: all .3s ease;
+  -webkit-transition: all .3s ease;
+  transition: all .3s ease;
+}
+
+.btn-danger:before {
+  background: var(--bg-danger-hover);
+}
+
+.btn-danger:hover:before {
+  height: 100%;
+}
+
+.boto-blau {
+	width: 250px;
+}
+
+/* ############# pagament no trobat ############# */
+.no-trobat {
+	align-items: center;
+	display: flex;
+	flex-direction: column;
+	margin-bottom: 20px;
+}
+
+.no-trobat img {
+	margin-top: 25px;
+	height: 50vh;
+}
+
+.no-trobat h1 {
+	color: var(--text-blue-link);
+	font-size: 2.8rem;
+	font-weight: 400;
+	text-transform: uppercase;
+	margin-top: 30px;
+	margin-bottom: 30px;
+}
+
+.no-trobat h1:before {
+	border: none;
+}
+
+.no-trobat p {
+	font-size: 1.2rem;
+	margin-bottom: 28px;
+}
+
+@media screen and (min-width: 660px) and (max-width: 767px) {
+	.no-trobat h1 {
+		font-size: 2.2rem;
+	}
+
+	.no-trobat p {
+		font-size: 1.1rem;
+		margin-bottom: 20px;
+	}
+}
+
+@media screen and (max-width: 500px) {
+	.no-trobat img {
+		height: 40vh;
+	}
+}

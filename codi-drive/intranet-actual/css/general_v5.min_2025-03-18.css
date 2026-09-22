@@ -1,0 +1,5 @@
+li.breadcrumb-item {
+    color: var(--darkBlue);
+    font-size: 1.5rem;
+    font-weight: 500;
+}

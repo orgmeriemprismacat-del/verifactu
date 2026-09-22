@@ -1,0 +1,31 @@
+
+.etiqPrice {
+    right: 0;
+    top: 25px
+}
+
+.etiqPrice .border {
+    border: 16px solid #77002a!important;
+    border-left: 16px solid transparent!important;
+    margin: 0;
+    opacity: .85;
+    right: 0;
+		width: 120px
+}
+
+.etiqPrice,.etiqPrice>.border {
+    position: absolute;
+    width: 120px
+}
+
+.etiqPrice .nom {
+    color: var(--bg-white);
+    font-family: Roboto,sans-serif;
+    font-size: 16px;
+    padding-right: 15px;
+    position: absolute;
+    right: 0;
+    text-align: right;
+    top: 4px;
+    width: 120px
+}

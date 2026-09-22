@@ -1,0 +1,6 @@
+<?php
+
+$mostrar = ''
+echo $mostrar;
+
+?>

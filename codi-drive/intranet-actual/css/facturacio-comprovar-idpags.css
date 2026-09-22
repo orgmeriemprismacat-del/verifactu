@@ -1,0 +1,19 @@
+#content-page {
+	height: 88%;
+	height: calc(100%-100px);
+}
+
+.card-blau .card-body {
+	max-height: 500px;
+}
+
+/* ###### Table ###### */
+.table tr i {
+	cursor:pointer;
+	font-size: 2rem;
+}
+
+.card-blau .card-body i.no-disponible {
+	cursor: default;
+	opacity: 0.3;
+}

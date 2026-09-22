@@ -1,0 +1,9 @@
+.table tr i.edita-entitat {
+	cursor: pointer;
+	font-size: 1.6rem;
+	color: var(--color-botons-edicio);
+}
+
+.table tr i.edita-entitat:hover {
+	color: var(--color-botons-edicio-hover);
+}

@@ -1,0 +1,148 @@
+h2 {
+    line-height: 2.33rem;
+    margin-bottom: 1.5rem;
+    padding-top: 0rem
+}
+
+.cursos-subvencionats {
+    background: var(--bg-body-destacat-color);
+}
+
+.diversitat {
+    color: var(--text-diversitat)
+}
+
+.immersio {
+    color: var(--text-immersio)
+}
+
+.biblioteca {
+    color: var(--text-biblioteca)
+}
+
+.plastica {
+    color: var(--text-plastica)
+}
+
+.competencia_digital {
+    color: var(--text-competencia)
+}
+
+.metodes {
+    color: var(--text-metodes)
+}
+
+hr {
+    margin: 1rem auto
+}
+
+.titol-perfil {
+    line-height: 2rem
+}
+
+.cnt-icona-titol {
+    display: inline-block;
+    height: 1rem
+}
+
+.cnt-icona-titol i.fas.fa-square.titol {
+    font-size: .47rem;
+    margin-right: .33rem;
+    margin-top: .4rem
+}
+
+.curs-sub-container {
+    background-color: var(--borders-hover);
+    border: 1px solid var(--borders)
+}
+
+.curs-sub-container:hover {
+    border: 1px solid var(--borders-hover);
+    box-shadow: var(--box-shadow-curs) 0 0 10px
+}
+
+.curs-sub {
+    background: var(--bg-white)
+}
+
+.curs-sub .nou {
+    font-size: 1rem;
+    margin-top: 0;
+    padding: 3px 8px;
+}
+
+.curs-sub .nou.cdd {
+    background: var(--bg-packs)!important;
+}
+
+.curs-sub a h4 {
+    font-size: 1.27rem;
+    line-height: 1.8rem
+}
+
+.curs-sub .event-schedule {
+    line-height: 1.87rem
+}
+
+.prisma-sub-overlay {
+    height: 130px
+}
+
+.curs-sub-container:hover .prisma-sub-overlay {
+    opacity: .8
+}
+
+.prisma-sub-overlay img {
+    backface-visibility: hidden;
+    display: block;
+    cursor: pointer;
+    object-fit: cover;
+    opacity: 1;
+    transition: .5s ease;
+    height: 100%;
+    width: 100%;
+}
+
+.prisma-sub-overlay .prisma-sub-middle {
+    left: 50%;
+    opacity: 0;
+    top: 50%;
+    transform: translate(-50%,-50%);
+    -webkit-transform: translate(-50%,-50%);
+    -ms-transform: translate(-50%,-50%);
+    transition: .5s ease
+}
+
+.curs-sub-container:hover .prisma-sub-middle {
+    opacity: 1
+}
+
+.prisma-sub-overlay .prisma-sub-middle button {
+    background-color: var(--bg-black);
+    border: 1px solid var(--bg-black);
+    color: var(--bg-white);
+    outline: none;
+    padding: .13rem .73rem;
+    transition: all 0.3s ease
+}
+
+@media screen and (min-width: 768px) {
+    .curs-sub {
+        border:0;
+    }
+
+    .prisma-sub-overlay {
+        height: auto
+    }
+}
+
+.atri {
+    margin-top: 1rem;
+    width: 100%
+}
+
+@media screen and (min-width: 768px) {
+    .atri {
+        max-width:815px
+    }
+}

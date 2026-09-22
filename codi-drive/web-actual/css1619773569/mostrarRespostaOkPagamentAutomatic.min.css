@@ -1,0 +1,32 @@
+body {
+	font-family: 'Roboto';
+}
+
+.email {
+  color: var(--text-blue-link);
+}
+
+/* #########################         no trobat         ######################### */
+.page-error-content {
+  display: flex;
+  align-content: center;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.page-error-content img {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.page-error-content h1:before {
+  border: 0;
+}
+
+.page-error-content h1 {
+  margin: 3rem 0rem 4rem 0;
+}
+
+.page-error-content {
+  margin: 5rem;
+}

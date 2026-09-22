@@ -1,0 +1,32 @@
+label.tipus, .table tr i {
+  cursor: pointer;
+}
+
+.table tr i {
+  font-size: 2rem;
+}
+
+.table tr i:hover {
+    color: var(--blauFosc1);
+}
+
+label.label.lightOrange2{
+  background: var(--lightOrange2);
+}
+label.label.lightRed3{
+  background: var(--lightRed3);
+}
+label.label.lightGreen4{
+  background: var(--lightGreen4);
+}
+label.label.lightPurple3{
+  background: var(--lightPurple3);
+}
+
+#th-estat {
+	min-width: 105px;
+}
+
+#th-codi {
+	min-width: 100px;
+}
