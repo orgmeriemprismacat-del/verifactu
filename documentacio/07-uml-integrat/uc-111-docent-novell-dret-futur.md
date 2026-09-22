@@ -153,7 +153,7 @@ Note over V,R: Coordinació no implementada, no ALTERAR factura original ni gene
 **Correcció de font:** el cos del mètode de validació, el mapa SQL i el constructor de l'apartat s'han aportat al xat posteriorment al lot 02. Les notes anteriors de «mètode no recuperat» són HISTÒRIQUES. El SQL confirma que actualitza recent_titulat.VALIDAT (1/2); no deduir que s'hagi comprovat ingrés ni emès cap promoció.
 ## 6. Diagrames d'activitat del cas UC-111
 
-**Els quatre diagrames següents reprodueixen subfluxos comprovables o proposats del CAS UC-111, no la totalitat de totes les pàgines compartides.** El mètode d'Intranet ha estat aportat i el diagrama ACTUAL de validació reflecteix la seva escriptura a `recent_titulat.VALIDAT`; el codi de cobrament i generació del benefici futur no s'ha acreditat aquí. Els fluxos FINALS són contractes objectiu, no programació acabada. Per a l'auditoria de les pàgines i apartats sencers continua oberta RM-037; no donar per acabada la documentació només per l'existència d'aquests diagrames.
+**Els diagrames següents representen subfluxos comprovables o proposats del cas UC-111, incloses les dues branques de la vista de pagament; no substitueixen l'auditoria de TOTS els apartats de les pàgines compartides.** El mètode d'Intranet ha estat aportat i el diagrama ACTUAL de validació reflecteix la seva escriptura a `recent_titulat.VALIDAT`; el codi de cobrament i generació del benefici futur no s'ha acreditat aquí. Els fluxos FINALS són contractes objectiu, no programació acabada. Per a l'auditoria de les pàgines i apartats sencers continua oberta RM-037; no donar per acabada la documentació només per l'existència d'aquests diagrames.
 **Abast:** subfluxos de la pàgina d'inscripció i de l'apartat «recent titulat» de la pàgina de validació; **NO** diagrama complet de totes les accions de les dues pàgines. Marcar els estats del servidor llegat que no s'han pogut recuperar com a NO VERIFICATS.
 
 ### 4.1. Inscripció web — subflux actual observable
@@ -330,6 +330,68 @@ stop
 ```
 
 **Nota:** saldo promocional concedit addicionalment a JASOM pagat ≠ saldo monetari prepagat pendent de consumir; no invocar directament el ledger de compensació monetària existent com si fos el mateix tipus de valor. Valorar emmagatzematge del saldo comercial i events de consum amb traça de factura i import sense duplicar CHARGE.
+### 4.3 ter. Pàgina de pagament JASOM — dues branques ACTUALS discrepants i porta FINAL
+
+**Font:** [PagamentCursAutomatic.php::mostrar() L274–305](../../codi-drive/web-actual/PagamentCursAutomatic.php#L274-L305) i [L339–379](../../codi-drive/web-actual/PagamentCursAutomatic.php#L339-L379). Ambdues consulten l'existència de recent_titulat pel mateix ID_INSC, però **no en llegeixen VALIDAT**; en una branca l'existència fa mostrar targeta i en una altra la fa ocultar. El mètode inclou `$recentTitulat == 0;` (comparació, no inicialització). **Diagrames de UI, no prova de que l'endpoint accepti/cobri una petició abans de validar.**
+
+```plantuml
+@startuml
+title UC-111 | Vista de pagament JASOM | ACTUAL (dues branques de UI)
+start
+:Obtenir import de matrícula i pagat;
+:Consultar SELECT ID FROM recent_titulat WHERE ID_INSC = ?;
+:Resultat només EXISTEIX/NO EXISTEIX sense llegir VALIDAT;
+if (Branca mostrar() i import pendent?) then (Sí)
+ if (JASOM i fila recent_titulat existeix?) then (Sí)
+  :Mostrar targeta encara que VALIDAT pugui ser 0, 1 o 2;
+ else (No)
+  :Mostrar missatge «validarem el títol» per JASOM;
+ endif
+else (Branca vista de confirmació)
+ if (JASOM i fila recent_titulat NO existeix?) then (Sí)
+  :Mostrar targeta i transferència;
+ else (No)
+  :Ocultar pagament i indicar validació pendent;
+ endif
+endif
+:Renderitzar vista; servidor de cobrament NO inspeccionat en aquest diagrama;
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title UC-111 | Porta de pagament JASOM | FINAL requerit
+start
+:Carregar matrícula, estat de sol·licitud novell i import pendent;
+if (Existeix sol·licitud de novell?) then (Sí)
+ if (VALIDAT == 0 o manca decisió secretaria?) then (Sí)
+  :No generar/mostrar opció de pagament;
+  :Rebutjar al servidor intents directes de pagament;
+  stop
+ else (No)
+  :Decisió 1 o 2 registrada i auditable;
+ endif
+else (No)
+ :Matrícula JASOM sense sol·licitud novell: circuit de pagament ordinari;
+endif
+:Mostrar import correcte amb altres descomptes, segons snapshot comercial;
+if (Hi ha import pendent?) then (Sí)
+ :Habilitar pagament i comprovar mateixa porta al servidor;
+ :Registrar només pagament bancari efectiu rebut;
+else (No)
+ :Mostrar curs íntegrament pagat;
+endif
+if (Novell VALIDAT == 1 i curs origen totalment cobrat?) then (Sí)
+ :Generar/reutilitzar dret promocional idempotent;
+else (No)
+ :No generar dret;
+endif
+stop
+@enduml
+```
+
+**Proves bloquejants definides, NO EXECUTADES:** matrícula novell pendent amb URL de pagament directa; aprovada i denegada amb import pendent; sense sol·licitud novell; doble retorn Redsys; matrícula pagada parcialment; recàrrega de les dues vistes; variables inicialitzades i validació de l'estat també al servidor.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
