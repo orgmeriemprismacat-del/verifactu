@@ -185,7 +185,7 @@ Note over S,R: Aquesta adaptació NO està implementada ni provada.
 
 - [Pàgina COMPLETA «Generar fitxer pujada alumnes» — 2 activitats ACTUAL/FINAL + 12 activitats dels apartats i fitxa funcional](uc-moodle-pujada-alumnes-fitxa-activitats.md).
 - [UC-113 — diagrames d'alta web/manual i frontera correcta del lot](uc-113-activitats-alta-manual-i-importador-lot.md).
-- [Pujada d'aules obertes — fitxa/10 activitats independents](uc-moodle-aules-obertes-fitxa-activitats.md).
+- [Pujada d'aules obertes — URL real, fitxa funcional de 21 apartats](../06-fitxes-funcionals/uc-moodle-pujada-aules-obertes.md) i [16 activitats ACTUAL/FINAL de pàgina completa i set apartats, més UML de casos/classes/seqüència](uc-moodle-aules-obertes-fitxa-activitats.md).
 - [Fitxa funcional UC-113 (21 apartats, casos relacionats i proves)](../06-fitxes-funcionals/uc-113.md).
 
 **Estat:** URL, codi de la pantalla, selectors/edificació, generació del CSV i UPDATE llegat **localitzats**. La configuració real del desplegament, el procés de càrrega efectiva a Moodle i les proves de recuperació **no s'han verificat**. No mantenir una tasca genèrica de «trobar l'importador existent» perquè aquesta URL ja l'identifica.
