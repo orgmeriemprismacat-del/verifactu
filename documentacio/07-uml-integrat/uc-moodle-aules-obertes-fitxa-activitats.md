@@ -26,6 +26,98 @@
 | AO04 Fila | POST, `PERENNE=1`, creació de línia CSV i fallades | ACTUAL/FINAL |
 | AO05 Resultat | Modal, enllaç CSV, importació externa i verificació a Moodle | ACTUAL/FINAL; destí de lot existent per mapar |
 
+## 2.1 Diagrames d'activitat de la PÀGINA COMPLETA — ACTUAL i FINAL
+
+Aquest recorregut és propi de la URL/pàgina d'aules obertes i **NO** del generador de fitxer d'inici de cursos `/cursos/inici-cursos/generar-fitxer-pujada-alumnes/`, que disposa de la seva fitxa independent.
+
+### P-MOODLE-AO-01 — Pàgina ACTUAL completa
+
+```plantuml
+@startuml
+title Pujar aules obertes | PAGINA COMPLETA ACTUAL
+start
+:Obrir pagina intranet fi de cursos pujar aules obertes;
+if (Sessio de pagina valida?) then (Si)
+  :JS carrega ajax/mostrarMain amb pathname;
+  if (Rol de visualitzacio autoritzat?) then (Si)
+    :Consultar exPujadaAO i recuperar inscripcions EXISTENTS;
+    if (Hi ha candidates?) then (Si)
+      :Mostrar curs, participant, tutor, certificat, pagament i pendent;
+      :Mostrar Pujar/No Pujar per fila;
+      :Operador selecciona les persones per aula oberta;
+      if (Confirma amb permis d'edicio al JS?) then (Si)
+        :POST crearFitxerAO.php;
+        if (Fitxer inicial creat?) then (Si)
+          if (Hi ha persones marcades?) then (Si)
+            while (Queda alguna fila marcada?) is (Si)
+              :POST pujarAulesObertes.php sense esperar altres POST;
+              :UPDATE inscripcions SET PERENNE=1;
+              :Afegir fila al CSV despres de l'UPDATE;
+              :Mostrar resposta/error individual;
+            endwhile (No)
+            :Afegir enllac CSV en la resposta de la darrera posicio;
+          else (No)
+            :Mostrar avís cap canvi seleccionat;
+          endif
+        else (No)
+          :Mostrar error en crear fitxer;
+        endif
+      else (No)
+        :No pujar o mostrar denegacio local;
+      endif
+    else (No)
+      :Mostrar estat buit;
+    endif
+  else (No)
+    :Mostrar denegacio de visualitzacio;
+  endif
+else (No)
+  :Redirigir a inici intranet;
+endif
+:Cap resultat de carrega real Moodle verificat en aquesta pagina;
+stop
+@enduml
+```
+
+### P-MOODLE-AO-01 — Pàgina FINAL, proposta d'adaptació
+
+```plantuml
+@startuml
+title Pujar aules obertes | PAGINA COMPLETA FINAL
+start
+:Validar sessio, rol i edicio al backend;
+if (Autoritzat?) then (Si)
+  :Carregar participants ja inscrits i estat PERENNE real;
+  :Mostrar tutor, certificat i pendent sense inferir cobrament;
+  if (Hi ha candidates?) then (Si)
+    :Seleccionar files per ID_INSC i desti aula oberta;
+    :Validar condicions acadèmiques i permisos al servidor;
+    if (Hi ha files admissibles?) then (Si)
+      :Crear o recuperar lot academic idempotent;
+      :Preparar CSV privat amb codificacio i files valides;
+      while (Queden files per preparar?) is (Si)
+        :Desar resultat de la fila i estat PREPARAT;
+      endwhile (No)
+      if (Lot complet i fitxer coherent?) then (Si)
+        :Oferir CSV a operador autoritzat amb recompte final;
+      else (No)
+        :Mostrar incidencies i recuperacio per fila;
+      endif
+    else (No)
+      :Mostrar cap fila seleccionada sense crear fitxer;
+    endif
+  else (No)
+    :Mostrar estat buit;
+  endif
+else (No)
+  :Denegar consulta, exportacio i canvi d'estat;
+endif
+:Verificar posteriorment resultat de matrícula Moodle amb UC-129;
+:No modificar factura, pagament ni certificat per generar CSV;
+stop
+@enduml
+```
+
 ## 3. Diagrames d'activitat de pàgina i apartats
 
 ### AO01 · Accés i llista de candidates
