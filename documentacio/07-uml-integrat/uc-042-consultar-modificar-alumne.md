@@ -121,3 +121,16 @@ Note over S,F: Canviar email no valida identitat fiscal ni autoritza veure factu
 ## Traçabilitat
 
 [UC-42 original](../06-fitxes-funcionals/uc-042.md) · [UC-120 dades personals](uc-120-canvi-dades-personals-propagacio.md) · [UC-126 identitat](uc-126-identitat-contacte-conflicte-sistemes.md) · [UC-129 Moodle](uc-129-reconciliar-prisma-moodle-matricules.md) · [UC-74 correcció](uc-074-classificar-correccio-fiscal.md) · [LegacyCourseSnapshotRepository](../../sif/src/Repository/LegacyCourseSnapshotRepository.php) · [LegacySyncRepository](../../sif/src/Repository/LegacySyncRepository.php) · [Migració personal_data_change_request](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql).
+
+## 8. Contrast visual i traça d'accions de la fitxa alumne
+
+**Set captures de la pantalla real** `/alumnes/mostrar-alumne/` rebudes el 22/09/2026, indexades **sense publicar els originals amb dades personals**: [auditoria visual, matriu d'accions i 6 diagrames d'activitat actual/final](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md).
+
+La captura de la pàgina revela cerca bàsica/avançada, dades personals editables, inscripcions pendents/acabades, «Mostra tots els registres», observacions generals i icones per fila (consulta, canvi de curs, baixa, factura i certificat). Dues captures del modal «Dades del curs» mostren dades acadèmiques, personals de la **inscripció** i pagament separades; una altra mostra factura; i dues més mostren els formularis de baixa i de canvi de curs **abans d'executar-los**. No assumir que totes les imatges pertanyen a la mateixa inscripció, ni que un camp `PAGAMENT` a la UI constitueix un cobrament verificat.
+
+**Traça del codi existent:** [`alumnes-mostrar-alumne.php` L47–48](../../codi-drive/intranet-actual/alumnes-mostrar-alumne.php#L47-L48) carrega el JS **minificat**; [JS llegible L821–900](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L821-L900) documenta el botó de tots els registres i els modals; [L1009–1115](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1009-L1115) separa edició de dades d'inscripció de dades de pagament. Comparar el minificat servit i el JS llegible abans de donar per demostrada la coincidència de cada handler al desplegament. «Mostrar factura» és consulta UC-007, **no emissió fiscal**.
+
+**Límits dels UC:** UC-042 comprèn consulta/edició de la fitxa operativa i observacions; les accions de baixes corresponen a UC-027/072; el canvi de curs/edició a UC-026/071; moviment de fons a UC-105 i factura a UC-007/074 segons el fet real. La casella de «No enviar correu» forma part dels formularis visibles, no acredita que s'hagi enviat o suprimit un correu. El modal «Previsualitza el canvi» és anterior a la confirmació i a l'execució: **cap canvi efectiu es pot donar per acreditat només amb aquesta captura**.
+
+**Estat de completitud:** evidència visual indexada i diagrames per pantalla + subfluxos baixa/canvi; falta veure variants de cerca avançada, formularis d'edició i de confirmació, comprovar el desplegament, autorització per objecte i executar proves. No publicar les captures originals al GitHub públic, ni substituir dades personals dels originals per dades aparentment reals a la documentació.
+
