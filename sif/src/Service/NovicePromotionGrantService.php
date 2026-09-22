@@ -160,49 +160,70 @@ final class NovicePromotionGrantService
                 throw SifException::conflict('JASOM origin enrollment reference is not available.');
             }
 
-            $invoiceRelation = $this->one(
+            // InvoiceService may produce one issued JASOM invoice with N
+            // payments, OR separate F1/F2 invoices for individual installment
+            // orders. Aggregate each distinct origin invoice once by its
+            // existing fact_rels enrollment reference, excluding rectifications.
+            $invoices = $this->many(
                 $db,
-                'SELECT ID FROM fact_rels WHERE UUID_FACTURA = ? AND SOURCE_TYPE = ? AND SOURCE_ID = ? LIMIT 1',
-                [$uuidInvoice, 'INSCRIPCIO', (int) $sourceId]
-            );
-            if ($invoiceRelation === null) {
-                throw SifException::conflict('JASOM invoice is not linked to the origin enrollment.');
-            }
-
-            $invoice = $this->one(
-                $db,
-                'SELECT UUID_FACTURA, TOTAL, ESTAT_COBRAMENT, ESTAT_FACTURA
-                 FROM factura WHERE UUID_FACTURA = ? FOR UPDATE',
-                [$uuidInvoice]
+                "SELECT f.UUID_FACTURA, f.TOTAL, f.ESTAT_COBRAMENT, f.ESTAT_FACTURA
+                 FROM factura f
+                 WHERE f.TIPUS_FACTURA IN ('F1', 'F2')
+                   AND EXISTS (
+                       SELECT 1 FROM fact_rels rel
+                       WHERE rel.UUID_FACTURA = f.UUID_FACTURA
+                         AND rel.SOURCE_TYPE = 'INSCRIPCIO' AND rel.SOURCE_ID = ?
+                   )
+                 ORDER BY f.DATA_EMISSIO, f.UUID_FACTURA FOR UPDATE",
+                [(int) $sourceId]
             );
 
-            if ($invoice === null
-                || $invoice['ESTAT_COBRAMENT'] !== 'PAID'
-                || $invoice['ESTAT_FACTURA'] !== 'ISSUED'
-            ) {
-                throw SifException::conflict('JASOM origin invoice is not issued and fully paid.');
-            }
-
-            $total = $this->money((string) $invoice['TOTAL']);
             $operationNet = $this->money((string) $operation['NET_AMOUNT']);
-            $cash = $this->one(
-                $db,
-                "SELECT COALESCE(SUM(CASE
-                    WHEN pt.TIPUS_MOVIMENT = 'CHARGE' THEN pa.IMPORT_ASSIGNAT
-                    WHEN pt.TIPUS_MOVIMENT = 'REFUND' THEN -pa.IMPORT_ASSIGNAT
-                    ELSE 0 END), 0) AS NET_CASH
-                 FROM payment_allocation pa
-                 JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
-                 WHERE pa.UUID_FACTURA = ? AND pt.ESTAT = 'CONFIRMED'",
-                [$uuidInvoice]
-            );
-            $netCash = $this->money((string) ($cash['NET_CASH'] ?? '0.00'));
+            $invoicedTotal = 0;
+            $netCash = 0;
+            $originInvoiceFound = false;
+            $invoiceIds = [];
 
-            // This first grant path admits fully CASH-paid single-invoice JASOM
-            // only. Mixed compensation/payment and overpayment require a
-            // distinct approved policy and cannot silently mint extra value.
-            if ($total <= 0 || $total !== $operationNet || $netCash !== $total) {
-                throw SifException::conflict('JASOM is not fully paid with reconciled cash payments.');
+            foreach ($invoices as $invoice) {
+                $uuid = (string) $invoice['UUID_FACTURA'];
+                $invoiceIds[] = $uuid;
+                $originInvoiceFound = $originInvoiceFound || $uuid === $uuidInvoice;
+
+                if ($invoice['ESTAT_COBRAMENT'] !== 'PAID'
+                    || $invoice['ESTAT_FACTURA'] !== 'ISSUED'
+                ) {
+                    throw SifException::conflict('Every JASOM origin invoice must be fully paid and issued.');
+                }
+
+                $invoiceTotal = $this->money((string) $invoice['TOTAL']);
+                if ($invoiceTotal <= 0) {
+                    throw SifException::conflict('JASOM origin invoice amount must be positive.');
+                }
+
+                $cash = $this->one(
+                    $db,
+                    "SELECT COALESCE(SUM(CASE
+                        WHEN pt.TIPUS_MOVIMENT = 'CHARGE' THEN pa.IMPORT_ASSIGNAT
+                        WHEN pt.TIPUS_MOVIMENT = 'REFUND' THEN -pa.IMPORT_ASSIGNAT
+                        ELSE 0 END), 0) AS NET_CASH
+                     FROM payment_allocation pa
+                     JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
+                     WHERE pa.UUID_FACTURA = ? AND pt.ESTAT = 'CONFIRMED'",
+                    [$uuid]
+                );
+                $invoiceNetCash = $this->money((string) ($cash['NET_CASH'] ?? '0.00'));
+                if ($invoiceNetCash !== $invoiceTotal) {
+                    throw SifException::conflict('JASOM invoice has mixed, missing or overpaid cash allocations.');
+                }
+
+                $invoicedTotal += $invoiceTotal;
+                $netCash += $invoiceNetCash;
+            }
+
+            if (!$originInvoiceFound || $netCash <= 0 || $invoicedTotal !== $operationNet
+                || $netCash !== $operationNet
+            ) {
+                throw SifException::conflict('JASOM enrollment is not fully reconciled across all origin invoices.');
             }
 
             $now ??= new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid'));
@@ -220,6 +241,7 @@ final class NovicePromotionGrantService
                 'original_expiry_preserved_for_remainder' => true,
                 'validation_ref' => (string) $validation['UUID_VALIDATION'],
                 'origin_invoice_ref' => $uuidInvoice,
+                'origin_invoice_refs' => $invoiceIds,
             ], JSON_UNESCAPED_SLASHES);
             if ($snapshot === false) {
                 throw new \RuntimeException('Could not encode novice promotion rule snapshot.');
