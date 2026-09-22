@@ -498,6 +498,54 @@ stop
 ```
 
 **Límit del diagrama:** un import retornat només es pot anul·lar o reclamar una vegada. Si el saldo derivat també s'ha reutilitzat en un curs posterior, cal traçar qualsevol canvi/baixa addicional abans de determinar l'import net pendent. El calendari de festius del còmput documental s'ha de concretar per configuració, no queda definit com a festius d'una localitat determinada en la resposta de negoci.
+### 4.3 septies. SIF desenvolupat en branca: preparar expedient, projectar decisió, conciliar fraccions i concedir
+
+**ESTAT REAL D'AQUEST DIAGRAMA:** `NovicePromotionEnrollmentStager` i `NovicePromotionSecretaryDecisionProjector` són classes PHP internes preparades, però **encara no s'invoquen des del formulari d'inscripció ni des de l'acció autenticada real de secretaria**; tampoc no està connectada la porta del servidor que ha d'impedir obrir la intenció de Redsys quan `VALIDAT=0`. L'enllaç `NovicePromotionInvoiceLinkService` i la concessió sí estan cablejats al handler/worker de factura del canal CURS en la branca, després del commit d'`InvoiceService`, però **NO hi ha proves MySQL/TPV executades ni desplegament**. `NOT_STAGED` no significa absència de sol·licitud novell: cal distingir la matrícula sense sol·licitud de la manca de projecció abans de marcar cap circuit com a acabat.
+
+```plantuml
+@startuml
+title UC-111 | Branca de desenvolupament SIF: preparacio, decisio i concessio
+start
+:Alta real JASOM + sol·licitud recent_titulat=0 al llegat;
+:Backend HA DE cridar stager amb identitat canònica i preu calculat (ENCARA NO CONNECTAT);
+:SIF registra operació/PARTICIPANT PENDING_VALIDATION;
+:Secretaria revisa prova i deixa decisió Sí/No al llegat;
+:Backend autenticat HA DE cridar projector (ENCARA NO CONNECTAT);
+if (Decisió llegat VALIDAT=0?) then (Sí)
+ :Mantenir PENDING_VALIDATION;
+ :Porta de pagament servidor encara per integrar: DENEGAR intent directe;
+ stop
+endif
+:Projector contrasta JASOM, document-identitat i actor;
+:Registrar discount_validation i obrir READY_FOR_PAYMENT;
+if (Decisió REJECTED?) then (Sí)
+ :Permetre matrícula ordinària, sense dret futur;
+else (VALIDATED)
+ :Marcar dret promocional com a POSSIBLE després de cobrar íntegrament;
+endif
+:Redsys signat i processament de factura/cobrament per InvoiceService;
+:Només DESPRÉS del commit, enllaç d'operació, matrícula i factures F1/F2;
+if (Origen SIF NOT_STAGED?) then (Sí)
+ :No concedir; marcar necessitat de conciliació operativa;
+ stop
+endif
+if (Decisió era VALIDATED?) then (Sí)
+ if (Sumatori de factures i CHARGE nets = NET_AMOUNT JASOM?) then (Sí)
+  :Concedir/reutilitzar únic dret per persona en transacció;
+  :Dret ISSUED sense CODE_HASH ni correu: lliurament PENDENT;
+ else (No)
+  :No concedir; conservar PAYMENT_PENDING o obrir incidència;
+ endif
+else (REJECTED)
+ :No crear saldo novell;
+endif
+stop
+@enduml
+```
+
+**Camps i enllaços:** `commercial_operation.SOURCE_ID=inscripcions.ID`; `commercial_operation_party.PARTY_KEY` identifica de manera canònica una persona; `discount_validation` desa decisió de secretaria; `fact_rels` vincula **totes** les factures d'origen de la matrícula sense sumar duplicadament la mateixa factura; `commercial_operation.UUID_FACTURA` manté la primera factura d'origen com a referència; `novice_promotion_grant.UUID_FACTURA` n'és una referència principal i `commercial_entitlement.RULE_SNAPSHOT_JSON.origin_invoice_refs` permet reconstruir el conjunt immutable del moment de la concessió. No duplicar CHARGE ni modificar les factures originals.
+
+**Talls encara bloquejants:** resolutor d'identitat estable per garantir «una vegada per persona»; connexió dels serveis d'alta i secretaria amb accions autenticades; porta prèvia a Redsys; política fiscal global de factures per fracció; credencials i documents personals del llegat públic; conciliació de casos `NOT_STAGED`; codi bescanviable/notificació amb reintents; consum/cancel·lació i saldos derivats. [Auditoria detallada i proves preparades](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
