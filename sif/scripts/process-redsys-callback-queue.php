@@ -91,7 +91,7 @@ try {
         new IncidentRepository(),
         5
     );
-    $counts = ['claimed' => 0, 'processed' => 0, 'retried' => 0, 'incidents' => 0];
+    $counts = ['claimed' => 0, 'processed' => 0, 'retried' => 0, 'incidents' => 0, 'jasom_not_staged' => 0];
 
     for ($index = 0; $index < $limit; $index++) {
         $result = $worker->runOne($db, $workerId, new DateTimeImmutable());
@@ -100,6 +100,12 @@ try {
         }
 
         $counts['claimed']++;
+        // NOT_STAGED covers ordinary JASOM without a novice request too.
+        // Operators must reconcile these against the real legacy request log;
+        // the counter is NOT proof of a missing novice benefit.
+        if (($result['novice_promotion_sync'] ?? null) === 'NOT_STAGED') {
+            $counts['jasom_not_staged']++;
+        }
         $status = (string) ($result['status'] ?? 'PROCESSED');
         if ($status === 'RETRY') {
             $counts['retried']++;
