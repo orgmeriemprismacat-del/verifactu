@@ -95,7 +95,7 @@ class PujarInscripcions {
 class ConnexioWeb {
   <<BD web existent>>
   +SELECT matricules pendents
-  +UPDATE inscripcions INSC_CUR S i GRUP
+  +UPDATE inscripcions INSC_CURS i GRUP
 }
 class FitxerCSV {
   <<fitxer real>>
