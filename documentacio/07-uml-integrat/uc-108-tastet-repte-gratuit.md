@@ -74,6 +74,7 @@
 left to right direction
 actor "Participant" as P
 actor "Secretaria (alta manual al campus)" as G
+usecase "Activar accés manualment al campus (fase actual)" as Manual
 rectangle "SIF + alta gratuïta" {
  usecase "UC-108\nRegistrar tastet/repte gratuït" as Main
  usecase "UC-107\nEvitar alta duplicada" as Dup
@@ -82,11 +83,11 @@ rectangle "SIF + alta gratuïta" {
  usecase "Registrar consentiment de mailing separat" as Mail
 }
 P --> Main
-G --> Main
+G --> Manual
 Main ..> Dup : <<include>>
 Main ..> Op : <<include>>
 Main ..> Access : <<include>>
-G --> Access : alta Moodle posterior MANUAL
+Manual ..> Access : després de petició web pendent
 P --> Mail
 @enduml
 ```
@@ -114,9 +115,11 @@ class MailingConsentGateway {
 }
 FreeSampleEnrollmentService --> CommercialOperationRepository : NON_BILLABLE/FREE_SAMPLE
 FreeSampleEnrollmentService --> LegacyEnrollmentGateway : sol·licitud pendent (no alta Moodle automàtica)
-' L'alta real del campus és manual per secretaria en la fase actual; automatització desitjada el 2027.
+%% L'alta real del campus és manual per secretaria en la fase actual; automatització desitjada el 2027.
 FreeSampleEnrollmentService --> MailingConsentGateway : decisió independent
 ```
+
+**DEC-108-05a:** aquests serveis i repositoris són DISSENY. L’alta del campus no la fa `FreeSampleEnrollmentService` en la fase actual: secretaria la realitza manualment. Automatització desitjada per al 2027, no implementació actual.
 
 Cap servei fiscal, de pagaments o d'intencions Redsys participa en aquest diagrama perquè **no hi ha import a cobrar**.
 
@@ -126,41 +129,43 @@ Cap servei fiscal, de pagaments o d'intencions Redsys participa en aquest diagra
 sequenceDiagram
 autonumber
 actor P as Participant
-participant UI as Canal de tastets [pendent]
-participant S as FreeSampleEnrollmentService [DISSENY]
-participant O as commercial_operation [SQL definit]
-participant L as BD acadèmica llegada
+participant UI as Canal web de tastets
+participant S as Sol·licitud gratuïta [DISSENY]
+participant O as commercial_operation [SQL definit, DEC-108-06 PENDENT]
+participant L as BD de sol·licituds
 participant M as MailingConsentGateway [DISSENY]
-P->>UI: Sol·licitar tastet/repte i indicar opció de mailing
-UI->>S: register(persona,producte,edició,requestId)
-S->>S: Comprovar gratuïtat i duplicat UC-107
-alt Alta equivalent anterior
- S-->>UI: Reutilitzar ID_INSC i accés
-else Nova alta vàlida
- S->>O: Persistir NON_BILLABLE/FREE_SAMPLE [writer pendent]
- S->>L: Crear/reutilitzar sol·licitud PENDENT [DISSENY, sense alta Moodle automàtica]
- L-->>S: ID de sol·licitud i estat pendent
- S-->>UI: Sol·licitud rebuda, alta al campus pendent
-end
-UI-->>P: Confirmació de sol·licitud rebuda, no d'accés Moodle
-Note over P,L: DEC-108-05a: secretaria tramita MANUALMENT l'alta al campus; automatització 2027 fora d'abast actual
 actor SEC as Secretaria
-SEC->>L: Fer manualment l'alta al campus i activar accés
-L-->>SEC: Confirmació d'alta i dates reals al campus
-Note over SEC,L: Una setmana des de l'activació efectiva (DEC-108-02b); verificació de dades reals pendent
-SEC-->>P: Avisar de l'accés real (procediment concret per verificar)
-opt No hi havia nova alta (sol·licitud equivalent)
- UI-->>P: Estat de la sol·licitud existent
+participant C as Campus Moodle [alta MANUAL]
+P->>UI: Enviar formulari del tastet actiu, amb opció de butlletí
+UI->>S: Registrar sol·licitud (dades, tastet, requestId)
+S->>S: Validar disponibilitat i estat previ segons DEC-108-03
+alt Ja té petició pendent o accés actiu
+ S-->>UI: Mostrar estat existent sense nova sol·licitud
+else Nova sol·licitud vàlida
+ opt DEC-108-06 aprova operació no facturable
+  S->>O: Registrar o reutilitzar FREE_SAMPLE [DISSENY]
+ end
+ S->>L: Crear sol·licitud PENDENT idempotent, no matrícula Moodle
+ L-->>S: Identificador i estat pendent
+ S-->>UI: Sol·licitud rebuda; alta manual pendent
 end
-UI->>M: recordChoice(persona,SÍ/NO,evidència) [pendent]
-alt Sí explícit
- M->>M: Activar butlletí directament, sense correu de confirmació [DISSENY, DEC-108-04b]
- M-->>UI: Resultat comercial real o incidència de persistència
-else No o manca de Sí
- M-->>UI: No crear alta comercial
+UI-->>P: Confirmació de petició, sense afirmar accés al campus
+opt Hi ha sol·licitud nova vàlida
+ UI->>M: Registrar opció comercial independent Sí/No i evidència
+ alt Sí explícit i alta comercial reeixida
+  M->>M: Activar butlletí directament, sense correu de confirmació
+ else No o manca de Sí
+  M-->>UI: No crear alta comercial
+ else Sí amb fallada comercial
+  M-->>UI: Registrar incidència; no anul·lar sol·licitud acadèmica
+ end
+ Note over SEC,C: DEC-108-05a. Secretaria fa l'alta MANUAL durant la fase actual; automatització desitjada per al 2027, fora d'abast.
+ SEC->>C: Donar d'alta i activar manualment l'accés al tastet
+ C-->>SEC: Alta efectiva i dates d'activació/venciment
+ Note over SEC,C: DEC-108-02b. La setmana comença amb l'activació real; evidència de dates per verificar.
+ SEC-->>P: Comunicació operativa de l'accés real (procediment a verificar)
 end
-UI-->>P: Resultat comercial separat de l'alta acadèmica MANUAL, sense factura ni cobrament
-Note over O,M: El consentiment no és conseqüència automàtica de la gratuïtat
+Note over UI,C: Ni l'enviament web ni un registre FREE_SAMPLE activen automàticament Moodle.
 ```
 
 ## 5. Traçabilitat
