@@ -371,7 +371,7 @@ start
 partition "Navegador" {
   :Obrir formulari del tastet; inscripció contínua mentre estigui actiu (DEC-108-02c);
   :Mostrar requisits, alta al campus en 24–48 h laborals i una setmana d'accés des de l'activació real de secretaria (DEC-108-02a/b ACORDADES);
-  :Omplir dades necessàries i opció comercial separada;
+  :Omplir dades necessàries i triar «Sí/No» per al butlletí opcional al mateix formulari (DEC-108-04a);
   :Enviar una petició amb request_id estable;
 }
 partition "Servidor de sol·licituds" {
@@ -417,7 +417,7 @@ partition "Servidor de sol·licituds" {
     :Crear petició gratuïta idempotent;
     :Vincular operació FREE_SAMPLE si DEC-108-06;
   endif
-  :Registrar només la decisió comercial que s'hagi expressat UC-125;
+  :Registrar per separat l'elecció «Sí/No» de butlletí UC-125 només segons la seva finalitat; «No» o manca de «Sí» no genera subscripció comercial (DEC-108-04a);
   :Programar tramitació acadèmica i avís operatiu;
 }
 partition "Navegador" {
@@ -525,14 +525,14 @@ stop
 title P-TAS-03 C | Dades finals i mailing FINALS
 start
 :Triar procedència, Altres si escau i comentaris opcionals;
-:Mostrar finalitat, text i opció comercial diferenciats;
+:Mostrar al formulari opció explícita «Sí/No» de butlletí opcional, separada de la inscripció (DEC-108-04a);
 if (Persona opta per Sí explícit?) then (Sí)
   :Registrar elecció UC-125 i confirmació si acordada;
 else (No)
-  :Registrar No/absència segons DEC-108-04;
+  :No atribuir un Sí a l'absència d'elecció; si tria No, registrar-la separadament segons UC-125;
   :No subscriure comercialment;
 endif
-:En tots dos casos mantenir la sol·licitud gratuïta;
+:Amb Sí o No, permetre la sol·licitud gratuïta sense condicionar-la a l'alta comercial;
 :Avisos operatius segueixen circuit propi;
 stop
 @enduml
@@ -645,13 +645,13 @@ endif
 if (DEC-108-06: registrar operació no facturable?) then (Sí)
   :Vincular NON_BILLABLE/FREE_SAMPLE;
 endif
-:Persistir decisió de comunicacions independent UC-125;
+:Persistir decisió comercial «Sí/No» independent UC-125, sense subscripció comercial si No o manca Sí (DEC-108-04a);
 :Registrar procés acadèmic pendent i notificació operativa;
 if (Alguna fase posterior falla?) then (Sí)
   :Guardar incidència i reintentar només aquella fase;
 endif
 :Retornar ID, estat de sol·licitud i token segur si aprovat;
-:Mai crear factura, TPV, CHARGE o alta mailing sense Sí;
+:Mai crear factura, TPV o CHARGE; no crear alta mailing si No o manca Sí; no equiparar un Sí amb subscripció ja confirmada (DEC-108-04a);
 stop
 @enduml
 ```
@@ -797,7 +797,7 @@ stop
 | 02.D | `Tastet::__mostraBotoInscripcio` → ruta `/inscripcions/tastets/{slug}` | 108 | Navegació → producte revalidat al servidor de l'alta. | TG-108-01/08 |
 | 03.A | `mostrar_inscripcio_tastets.php`, `InscripcioTastet::__construct/mostrar` → `reptes` | 108 | Formulari dinàmic → tastet actiu, sense convocatòria d'inscripció pròpia; revalidar l'estat actiu en l'enviament. | TG-108-01/01a/08 |
 | 03.B | `InscripcioTastet::__mostrarDadesPersonals`, validacions JS | 108/126 | Validació navegador → validació server / identitat correcta. | TG-108-02/03 |
-| 03.C | `InscripcioTastet::__mostrarFinal`, JS `mailing='yes'` | 108/125 | Alta comercial automàtica → opció separada. | TG-108-06/07 |
+| 03.C | `InscripcioTastet::__mostrarFinal`, JS `mailing='yes'` | 108/125 | Alta comercial automàtica → **DEC-108-04a ACORDADA: elecció opcional Sí/No al formulari; No no impedeix la inscripció ni els avisos operatius.** | TG-108-06/06a/06b/07 |
 | 03.D | `buscarSiHaRealitzatElTastet.php` → `inscripcions_reptes.INSC_CURS=1` | 108/107 | Modal «Tanca», sense protecció pendents → **DEC-108-03b: mostrar avís de sol·licitud pendent i no crear alta nova; aplicar al servidor amb lock; caducats segons DEC-108-03a; **actius segons DEC-108-03c: mostrar ja inscrita sense alta nova ni desbloqueig; baixa/denegació segons DEC-108-03d: nova sol·licitud web sense desbloqueig.** | TG-108-04/05/05d/05e/05f/05g |
 | 03.E | `enviarInscripcioTastet.php` → `inscripcions_reptes`, `mailing`; token i correus | 108/125/129 | Efectes successius → orquestració/reintent separat. | TG-108-06/09/12/13 |
 | 04.A | `mostrar_confirmacio_inscripcio_tastet_automatic.php` → token/HMAC, ID/INSC_CURS | 108/126 | Comprovació de token i registre → permís de lectura al subjecte i minimització. | TG-108-11 |
@@ -805,6 +805,6 @@ stop
 
 ## 6. Decisions pendents abans de donar aquests diagrames per «finals»
 
-**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02a ACORDADA:** mantenir alta al campus en 24–48 hores laborals després de rebre la sol·licitud, sense confondre petició rebuda amb accés activat. **DEC-108-02b ACORDADA:** una setmana d'accés des de l'activació real per secretaria al campus, no des de l'enviament de la petició. **DEC-108-02c ACORDADA:** tastets oberts a sol·licituds en qualsevol moment mentre `reptes.ESTAT=1`, sense convocatòries d'inscripció; revalidar disponibilitat en l'enviament. **DEC-108-02 OBERTA parcialment:** còmput tècnic exacte del venciment; **la repetició després de caducar requereix autorització**. **DEC-108-03:** sol·licituds pendents (DEC-108-03b), accessos actius (DEC-108-03c), caducats (DEC-108-03a) i baixa/denegació (DEC-108-03d) ACORDATS. **DEC-108-03d ACORDADA:** després de baixa voluntària o petició denegada, nova inscripció directa al formulari web sense desbloqueig; conservar historial, validar i prevenir dobles altes. **DEC-108-03c ACORDADA:** amb accés actiu al mateix tastet, mostrar que ja està inscrita i no crear una altra sol·licitud, sense desbloqueig. **DEC-108-03b ACORDADA:** segona petició de la mateixa persona i tastet mentre la primera segueix pendent d'alta al campus → mostrar avís «Ja tens una sol·licitud pendent» i no crear cap altra alta ni exigir desbloqueig. **DEC-108-03a ACORDADA:** si l'accés ha caducat, secretaria/suport desbloqueja la inscripció web per aquella persona+tastet i és la persona qui torna a omplir i enviar el formulari; via de sol·licitud, control tècnic i vigència pendents. **DEC-108-04:** elecció i confirmació de mailing. **DEC-108-05:** qui gestiona l'accés Moodle i qui acredita dates. **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
+**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02a ACORDADA:** mantenir alta al campus en 24–48 hores laborals després de rebre la sol·licitud, sense confondre petició rebuda amb accés activat. **DEC-108-02b ACORDADA:** una setmana d'accés des de l'activació real per secretaria al campus, no des de l'enviament de la petició. **DEC-108-02c ACORDADA:** tastets oberts a sol·licituds en qualsevol moment mentre `reptes.ESTAT=1`, sense convocatòries d'inscripció; revalidar disponibilitat en l'enviament. **DEC-108-02 OBERTA parcialment:** còmput tècnic exacte del venciment; **la repetició després de caducar requereix autorització**. **DEC-108-03:** sol·licituds pendents (DEC-108-03b), accessos actius (DEC-108-03c), caducats (DEC-108-03a) i baixa/denegació (DEC-108-03d) ACORDATS. **DEC-108-03d ACORDADA:** després de baixa voluntària o petició denegada, nova inscripció directa al formulari web sense desbloqueig; conservar historial, validar i prevenir dobles altes. **DEC-108-03c ACORDADA:** amb accés actiu al mateix tastet, mostrar que ja està inscrita i no crear una altra sol·licitud, sense desbloqueig. **DEC-108-03b ACORDADA:** segona petició de la mateixa persona i tastet mentre la primera segueix pendent d'alta al campus → mostrar avís «Ja tens una sol·licitud pendent» i no crear cap altra alta ni exigir desbloqueig. **DEC-108-03a ACORDADA:** si l'accés ha caducat, secretaria/suport desbloqueja la inscripció web per aquella persona+tastet i és la persona qui torna a omplir i enviar el formulari; via de sol·licitud, control tècnic i vigència pendents. **DEC-108-04a ACORDADA:** butlletí opcional amb elecció explícita «Sí/No» al formulari del tastet; No no bloqueja inscripció ni comunicacions operatives, i no hi ha alta comercial sense Sí. **DEC-108-04 OBERTA parcialment:** text/evidència/versió i confirmació de l'elecció Sí (UC-125). **DEC-108-05:** qui gestiona l'accés Moodle i qui acredita dates. **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
 
 **Estat real:** la representació ACTUAL està contrastada amb el codi esmentat; la regla de reinscripció amb autorització és **ACORDADA però NO IMPLEMENTADA**, i la resta del flux FINAL encara està per aprovar. S'han de revisar les decisions amb Meriem, actualitzar les condicions exactes dels diagrames i després executar les proves. **No iniciar l'auditoria d'altres UC mentre la revisió funcional d'aquest cas segueix oberta.**
