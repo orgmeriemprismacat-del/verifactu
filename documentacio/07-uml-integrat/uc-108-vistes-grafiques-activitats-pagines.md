@@ -117,11 +117,16 @@ flowchart TD
   E --> F["Enviar petició amb request_id"]
   F --> G["Servidor: validar dades, actor, producte i petició existent sota concurrència"]
   G --> H{"Petició compatible anterior?"}
-  H -->|Sí| I["Aplicar DEC-108-03: pendent/actiu/caducat/baixa"]
+  H -->|Sí| I{"Accés anterior caducat?"}
+  I -->|Sí| IA{"Autorització secretaria o suport verificable per persona i tastet?"}
+  IA -->|No| IB["No crear alta ni reactivar accés; informar de secretaria/suport"]
+  IA -->|Sí| IC["Registrar autorització i permetre reinscripció controlada"]
+  I -->|No| ID["DEC-108-03: altres estats pendents de concretar"]
+  IC --> K["Crear nova sol·licitud autoritzada una vegada; FREE_SAMPLE si DEC-108-06"]
   H -->|No| J["Crear sol·licitud gratuïta una vegada"]
-  J --> K["Vincular FREE_SAMPLE només si DEC-108-06 ho aprova"]
-  I --> L["Retornar estat i ID real"]
+  J --> L["Vincular FREE_SAMPLE només si DEC-108-06 ho aprova"]
   K --> L
+  ID --> L
   L --> M{"Opció de màrqueting expressa?"}
   M -->|Sí| N["UC-125: registrar opció i confirmar segons DEC-108-04"]
   M -->|No| O["No inscriure al mailing comercial"]
@@ -172,4 +177,4 @@ flowchart TD
   D --> L
 ```
 
-**Abans de considerar la proposta FINAL aprovada:** resoldre [DEC-108-01…07](../06-fitxes-funcionals/uc-108.md#20-decisions-que-volem-definir-amb-negoci-abans-de-passar-a-un-altre-uc). Els subdiagrames PlantUML dels dotze apartats tenen estats independents i no s'han substituït per aquesta vista resumida.
+**DEC-108-03a ACORDADA:** accés caducat → reinscripció només amb autorització de secretaria o suport; el PHP actual no acredita aquest control. **Abans de considerar la proposta FINAL aprovada:** concretar el mecanisme de l'autorització i resoldre la resta de [DEC-108-01…07](../06-fitxes-funcionals/uc-108.md#20-decisions-que-volem-definir-amb-negoci-abans-de-passar-a-un-altre-uc). Els subdiagrames PlantUML dels dotze apartats tenen estats independents i no s'han substituït per aquesta vista resumida.
