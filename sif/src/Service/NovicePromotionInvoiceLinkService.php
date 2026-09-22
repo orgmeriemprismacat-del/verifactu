@@ -56,9 +56,6 @@ final class NovicePromotionInvoiceLinkService
                 throw SifException::conflict('JASOM was paid before the secretary decision opened payment.');
             }
             $alreadyLinked = trim((string) ($operation['UUID_FACTURA'] ?? ''));
-            if ($alreadyLinked !== '' && $alreadyLinked !== $uuidInvoice) {
-                throw SifException::conflict('JASOM operation is linked to another invoice.');
-            }
 
             $validations = $this->many(
                 $db,
@@ -72,20 +69,52 @@ final class NovicePromotionInvoiceLinkService
                 throw SifException::conflict('Secretary decision is not properly staged for JASOM.');
             }
 
-            $invoice = $this->one(
+            // An enrollment may be invoiced once and paid in installments,
+            // or its legacy Redsys channel may issue one F1/F2 per payment.
+            // DISTINCT is enforced by EXISTS: fact_rels may have many links
+            // for an invoice, but its TOTAL must be counted only once.
+            $invoices = $this->many(
                 $db,
-                'SELECT UUID_FACTURA, TOTAL, ESTAT_FACTURA, ESTAT_COBRAMENT
-                 FROM factura WHERE UUID_FACTURA = ? FOR UPDATE',
-                [$uuidInvoice]
+                "SELECT f.UUID_FACTURA, f.TOTAL, f.ESTAT_FACTURA, f.ESTAT_COBRAMENT
+                 FROM factura f
+                 WHERE f.TIPUS_FACTURA IN ('F1', 'F2')
+                   AND EXISTS (
+                       SELECT 1 FROM fact_rels rel
+                       WHERE rel.UUID_FACTURA = f.UUID_FACTURA
+                         AND rel.SOURCE_TYPE = 'INSCRIPCIO' AND rel.SOURCE_ID = ?
+                   )
+                 ORDER BY f.DATA_EMISSIO, f.UUID_FACTURA FOR UPDATE",
+                [$enrollmentId]
             );
-            if ($invoice === null || $invoice['ESTAT_FACTURA'] !== 'ISSUED') {
-                throw SifException::conflict('Origin JASOM invoice has not been issued.');
-            }
-            if ((string) $invoice['TOTAL'] !== (string) $operation['NET_AMOUNT']) {
-                throw SifException::conflict('JASOM invoice amount differs from approved origin operation.');
+
+            $invoiceIds = [];
+            $invoicedCents = 0;
+            $everyInvoicePaid = $invoices !== [];
+            foreach ($invoices as $invoice) {
+                $invoiceIds[] = (string) $invoice['UUID_FACTURA'];
+                if ($invoice['ESTAT_FACTURA'] !== 'ISSUED') {
+                    throw SifException::conflict('JASOM has an invoice that is not in issued state.');
+                }
+
+                $invoiceCents = $this->cents((string) $invoice['TOTAL']);
+                if ($invoiceCents <= 0) {
+                    throw SifException::conflict('JASOM has a non-positive origin invoice.');
+                }
+
+                $invoicedCents += $invoiceCents;
+                $everyInvoicePaid = $everyInvoicePaid && $invoice['ESTAT_COBRAMENT'] === 'PAID';
             }
 
-            $fullyPaid = $invoice['ESTAT_COBRAMENT'] === 'PAID';
+            if (!in_array($uuidInvoice, $invoiceIds, true)) {
+                throw SifException::conflict('Issued JASOM invoice is not an origin invoice for the enrollment.');
+            }
+
+            $expectedCents = $this->cents((string) $operation['NET_AMOUNT']);
+            if ($expectedCents <= 0 || $invoicedCents > $expectedCents) {
+                throw SifException::conflict('Origin invoices exceed the approved JASOM course total.');
+            }
+
+            $fullyPaid = $invoicedCents === $expectedCents && $everyInvoicePaid;
             $nextStatus = $fullyPaid ? 'PAID' : 'PAYMENT_PENDING';
             if ($operation['STATUS'] === 'COMPLETED' && $fullyPaid) {
                 $nextStatus = 'COMPLETED';
@@ -96,7 +125,7 @@ final class NovicePromotionInvoiceLinkService
                  SET UUID_FACTURA = ?, STATUS = ?
                  WHERE UUID_OPERATION = ?'
             );
-            $stmt->execute([$uuidInvoice, $nextStatus, (string) $operation['UUID_OPERATION']]);
+            $stmt->execute([$alreadyLinked !== '' ? $alreadyLinked : $uuidInvoice, $nextStatus, (string) $operation['UUID_OPERATION']]);
 
             $approved = $validations[0]['STATUS'] === 'VALIDATED';
             $db->commit();
@@ -105,6 +134,7 @@ final class NovicePromotionInvoiceLinkService
                 'status' => $approved ? ($fullyPaid ? 'ELIGIBLE_FOR_GRANT' : 'WAITING_FULL_PAYMENT') : 'DENIED',
                 'uuid_operation' => (string) $operation['UUID_OPERATION'],
                 'grant_eligible' => $approved && $fullyPaid,
+                'linked_invoice_count' => count($invoices),
             ];
         } catch (\Throwable $exception) {
             if ($db->inTransaction()) {
@@ -112,6 +142,16 @@ final class NovicePromotionInvoiceLinkService
             }
             throw $exception;
         }
+    }
+
+    private function cents(string $value): int
+    {
+        if (!preg_match('/^(-?)(\d{1,10})(?:\.(\d{1,2}))?$/D', trim($value), $m)) {
+            throw SifException::validation('Invalid JASOM invoice amount.');
+        }
+
+        $cents = (int) $m[2] * 100 + (int) str_pad($m[3] ?? '', 2, '0');
+        return $m[1] === '-' ? -$cents : $cents;
     }
 
     private function one(\PDO $db, string $sql, array $parameters): ?array
