@@ -7,6 +7,7 @@ namespace Prisma\Sif\Tests\Integration;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Service\NovicePromotionGrantService;
+use Prisma\Sif\Service\NovicePromotionGrantReconciler;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\Fixtures;
 use Prisma\Sif\Tests\Support\TestDatabase;
@@ -130,6 +131,71 @@ final class NovicePromotionGrantServiceTest
         Assert::throws(SifException::class, static function () use ($db, $operation): void {
             (new NovicePromotionGrantService(new UuidGenerator()))->issueForOperation($db, $operation);
         }, 409);
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_grant')->fetchColumn());
+    }
+
+    public function testPostPaymentReconciliationIssuesGrantOnlyOnce(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->createOrigin($db, 'student:novice:reconcile1', 'JASOM', 'VALIDATED', 120, 120);
+        $reconciler = new NovicePromotionGrantReconciler(
+            new NovicePromotionGrantService(new UuidGenerator())
+        );
+
+        $first = $reconciler->run($db);
+        $second = $reconciler->run($db);
+
+        Assert::same(1, $first['candidates']);
+        Assert::same(1, $first['issued']);
+        Assert::same(0, $first['conflicts']);
+        Assert::same(0, $first['errors']);
+        Assert::same(0, $second['candidates']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_grant')->fetchColumn());
+    }
+
+    public function testPostPaymentReconciliationWaitsForRemainingInstallment(): void
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOrigin($db, 'student:novice:reconcile2', 'JASOM', 'VALIDATED', 120, 50);
+        $reconciler = new NovicePromotionGrantReconciler(
+            new NovicePromotionGrantService(new UuidGenerator())
+        );
+
+        Assert::same(0, $reconciler->run($db)['candidates']);
+
+        $statement = $db->prepare('SELECT UUID_FACTURA FROM commercial_operation WHERE UUID_OPERATION = ?');
+        $statement->execute([$operation]);
+        $invoiceUuid = (string) $statement->fetchColumn();
+        RegisterPaymentTest::paymentServiceFor($db)->registerPayment([
+            'idempotency_key' => 'NOVICE|REMAINING|' . $operation,
+            'movement_type' => 'CHARGE',
+            'method' => 'TRANSFERENCIA',
+            'source_channel' => 'INTRANET',
+            'amount' => '70.00',
+            'movement_date' => '2026-09-23 10:00:00',
+            'reference' => 'NOVICE-SECOND-' . $operation,
+            'allocations' => [[
+                'uuid_factura' => $invoiceUuid,
+                'amount' => '70.00',
+                'allocation_type' => 'INVOICE_PAYMENT',
+            ]],
+        ]);
+
+        $after = $reconciler->run($db);
+        Assert::same(1, $after['issued']);
+        Assert::same(0, $after['conflicts']);
+        Assert::same('120.00', (string) $db->query('SELECT ORIGINAL_CASH_AMOUNT FROM novice_promotion_grant')->fetchColumn());
+    }
+
+    public function testPostPaymentReconciliationSkipsRejectedOrPendingNovice(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->createOrigin($db, 'student:novice:reconcile3', 'JASOM', 'REQUESTED', 120, 120);
+        $reconciler = new NovicePromotionGrantReconciler(
+            new NovicePromotionGrantService(new UuidGenerator())
+        );
+
+        Assert::same(0, $reconciler->run($db)['candidates']);
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_grant')->fetchColumn());
     }
 
