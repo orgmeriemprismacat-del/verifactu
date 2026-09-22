@@ -1,6 +1,6 @@
 # UC-127 · Canviar l'estat d'una edició i resoldre totes les operacions afectades
 
-**Objectiu canònic:** l'activació, ajornament, tancament o cancel·lació d'una edició ha de produir un **event massiu identificable** i un inventari de reserves, inscripcions, factures i pagaments afectats. Cada inscrit/operació rep **una decisió individual**: mantenir, traslladar, cancel·lar, retornar, crear saldo, rectificar o no actuar. **Bloquejant:** la política per estat i situació de facturació/cobrament l'han de definir negoci, cobraments i assessoria fiscal; no hi ha una única operació «cancel·lar edició = retornar tots els cobraments».
+**Objectiu canònic:** l'activació, ajornament, tancament o cancel·lació d'una edició ha de produir un **event massiu identificable** i un inventari de reserves, inscripcions, factures i pagaments afectats. Cada inscrit/operació rep **una decisió individual**: mantenir, traslladar, cancel·lar, retornar, crear saldo, rectificar o no actuar. **Decisió de negoci confirmada 22/09/2026:** en anul·lar l'edició, s'avisa les persones inscrites i se'ls ofereix canvi d'edició o de curs; **la inscripció es manté a l'edició original fins que se'n resolgui la situació**. No convertir l'anul·lació en trasllat, baixa o devolució automàtiques. El tractament econòmic/fiscal individual s'ha de classificar segons la situació real, sense inventar ingressos ni reescriure factures.
 
 ## 1. Evidència revisada
 
@@ -12,7 +12,7 @@
 
 | Unitat | Contracte |
 | --- | --- |
-| Actors | Gestió acadèmica, responsable de cobraments i, per canvis fiscals, validador autoritzat; alumne/pagador rep proposta o notificació segons la decisió individual. |
+| Actors | Persona de l'equip amb accés a intranet que decideix el canvi d'estat, sense segona aprovació interna; persones inscrites destinatàries de la comunicació d'anul·lació i alternatives. Els efectes econòmics/fiscals derivats es tramiten amb les autoritzacions dels UC corresponents. |
 | Capçalera massiva | `EDITION_KEY` (any, mes, curs o recurs inequívoc), estat anterior/nou, versions, causa, data efectiva, actor, `REQUEST_ID`, correlació, conjunt d'operacions trobades i nombre d'incidències. **No s'ha acreditat taula específica de lot per edició** amb item/resultat idempotent. |
 | Registre per afectat | `UUID_OPERATION`, `ID_INSC`, línia de pack/grup, titular, pagador, estat de plaça, inscripció, accés, factura/es, pagaments **reals**, import individual atribuït, decisió i resultat d'execució. |
 | Abans del pagament | Revocar o renovar reserva/enllaç segons UC-115/121; sense ingrés real, **cap `REFUND`**. Si es proposa altra edició/preu, cal nova acceptació quan la política ho exigeixi. |
@@ -24,8 +24,8 @@
 
 1. Gestió proposa `ACTIVE→POSTPONED/CLOSED/CANCELLED` o transició real acordada. El servei **pendent** consulta versions, publica previsualització amb nombre i IDs d'operacions afectades, incloses intencions TPV pendents i callbacks encara en cua, reserves, pagaments, factures i components de packs/grups.
 2. Classifica el lot en **fitxes individuals de decisió**: sense cobrament i sense factura, factura abans de cobrar, pagament parcial, ingrés complet individual, pack, grup amb empresa pagadora, plaça ja traslladada, factura correctora existent o incidència.
-3. Congela l'abast i aprova el canvi amb actor/regla/versionat. Cal definir un model append-only per a cada item i la seva clau idempotent; `AFFECTED_OPEN_OPERATIONS_JSON` **no prova que cada membre hagi estat resolt**.
-4. Publica estat/versió d'edició i obre ordres individuals UC-71/72/115/121 segons decisió. Si canvia la data d'una prestació ja venuda, preservar el snapshot anterior i documentar acceptació de nova oferta quan correspon.
+3. La mateixa persona de l'equip amb accés a intranet decideix el canvi, sense segon aprovador intern; registra actor/regla/versionat. Si s'anul·la l'edició, notifica a les persones inscrites i **conserva les inscripcions a l'edició original mentre esperen resolució**, oferint canvi d'edició o de curs. Cal definir un model append-only per a cada item i la seva clau idempotent; `AFFECTED_OPEN_OPERATIONS_JSON` **no prova que cada membre hagi estat resolt**.
+4. Publica l'estat/versió de l'edició i registra els avisos i les alternatives. No mou ni dona de baixa les inscripcions per defecte en anul·lar: obre una resolució individual quan l'afectat decideixi o existeixi una decisió aplicable. Els canvis de data sense anul·lació se **notifiquen**, i, si no van bé, s'ofereix canvi d'edició (UC-114); no s'exigeix acceptació prèvia de la data. Si es canvien termes econòmics acceptats, preparar oferta nova, no mutar el snapshot original.
 5. Per cada inscrit afectat amb diners reals, reconcilia import origen i saldo disponible **per `ID_INSC`**, titular i destí. Un moviment intern B→C no és un segon `CHARGE`; retorn només després de sortida real i amb idempotència.
 6. Per cada document emès, classifica efecte fiscal i registra la correcció apropiada **només si correspon al cas individual**; no alterar de forma massiva `factura_linia` o `ESTAT_AEAT`.
 7. Confirma resultats acadèmics/Moodle en un procés separat. El lot queda amb comptador d'items resolts/pendents/error, i els callbacks antics s'encaminen a conciliació, no es descarten perquè el curs està cancel·lat.
@@ -274,3 +274,11 @@ Note over S,A: No hi ha commit distribuït SIF/Moodle. El checkpoint/worker són
 ## 6. Traçabilitat
 
 [UC-127 original](../06-fitxes-funcionals/uc-127.md) · [UC-114 versió producte](uc-114-versionar-producte-edicio.md) · [UC-122 component pack](uc-122-composicio-pack-component-indisponible.md) · [UC-105 traspassos](uc-105-reassignar-repartir-pagament.md) · [UC-124 estats acadèmics](uc-124-reconciliar-acces-certificat-baixa-deute.md) · [UC-121 reserva caducada](uc-121-repreuar-renovar-reserva-caducada.md) · [LegacyCourseSnapshotRepository](../../sif/src/Repository/LegacyCourseSnapshotRepository.php) · [Migració master_data_change_request i events](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [Model de fons individuals](00-revisio-moviments-inscripcions.md).
+
+### Regla concreta per a una edició anul·lada · decisió confirmada 22/09/2026
+
+**ACTUAL segons negoci, fins a contrast final del cos PHP i la pantalla:** enviar missatge d'anul·lació a les persones inscrites oferint **canviar d'edició o de curs** i **mantenir de moment la inscripció a l'edició original**. No derivar del sol canvi d'estat un trasllat/baixa acadèmica, baixa Moodle, devolució o rectificació fiscal. La mateixa persona de l'equip amb accés a la intranet decideix el canvi, sense segona aprovació interna. El resultat real de cada opció es documentarà segons les rutes específiques ja existents; cap import bancari es considera retornat sense l'operació corresponent.
+
+**No barrejar ajornament i anul·lació:** si només canvia la data/hora/modalitat/hores/acreditació, es **notifica** i s'ofereix altra edició si no va bé, **sense exigir una acceptació prèvia**; el manteniment provisional a una edició anul·lada i l'oferta de canviar d'edició **o de curs** són el flux propi de l'anul·lació. No tractar com a «decisions pendents de negoci» aquestes dues regles ja facilitades. [Fitxa funcional UC-127](../06-fitxes-funcionals/uc-127.md).
+
+**Limitació:** el codi complet d'`Intranet::desarCanvisEstatEnviarMsg_PreviIniciCursos()` i els seus efectes reals, les plantilles/destinataris i totes les variants de pantalla no s'han acabat de contrastar aquí. Una descripció històrica que el mètode «pot donar de baixa alumnes» no és prova que això sigui el comportament desitjat abans de rebre una resposta a una edició anul·lada.
