@@ -385,18 +385,18 @@ stop
 
 ## 7. Cerca avançada, dades personals, observacions i certificats — contrast sense captures noves
 
-**Tall de codi:** \`main\` @ \`e71958b3026549bde09fb4b25f2ec3ba370937ec\`, en la data indicada al principi del document. **Límit:** les captures VIS-AL-01–07 no mostren oberts aquests formularis; els fluxos ACTUALS següents provenen exclusivament del JS/PHP versionat, no de proves d'interfície ni d'una sessió a producció. [Fitxa funcional UC-042, annex d'accions](../06-fitxes-funcionals/uc-042.md) i [UML UC-042](uc-042-consultar-modificar-alumne.md).
+**Tall de codi:** `main` @ `e71958b3026549bde09fb4b25f2ec3ba370937ec`, en la data indicada al principi del document. **Límit:** les captures VIS-AL-01–07 no mostren oberts aquests formularis; els fluxos ACTUALS següents provenen exclusivament del JS/PHP versionat, no de proves d'interfície ni d'una sessió a producció. [Fitxa funcional UC-042, annex d'accions](../06-fitxes-funcionals/uc-042.md) i [UML UC-042](uc-042-consultar-modificar-alumne.md).
 
 | ID i apartat | Codi ACTUAL acreditat | Objectiu FINAL / prova pendent |
 | --- | --- | --- |
-| AL-CERCA · cerca bàsica/avançada | [JS L115–194](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L115-L194) llegeix 4 criteris bàsics (DNI, correu, nom i cognoms) i fins a 16 criteris avançats de curs, inscripció, certificat, contacte i altres camps; **si la cerca avançada està oculta, n'esborra els criteris per a la petició**. Cerca buida → modal d'avís. [L307–329](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L307-L329) obre/tanca filtres i els neteja. [L331–511](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L331-L511) llança un GET per criteri a \`searchUserBy{camp}.php\`, interseca els identificadors retornats al navegador i distingeix 0, 1, 2–2000 i més de 2000 resultats. [L512–559](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L512-L559) carrega/ordena la taula de múltiples persones. | Consulta autoritzada de subjectes, límit de resultats i respostes tipificades; una cerca nova invalida les respostes tardanes de l'anterior. **T-AL-14:** bàsica/avançada amb un criteri, diversos filtres, neteja, una coincidència, múltiples, massa registres, error d'un endpoint i dues cerques encavalcades. |
-| AL-PERSONAL · editar/desar/cancel·lar dades visibles | [JS L639–717](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L639-L717) transforma \`div\` a \`input\`, valida camps obligatoris/telèfon i envia **GET amb identificador i dades personals a la URL** a [\`guardarDadesPersonals.php\` L16–32](../../codi-drive/intranet-actual/ajax/alumnes/guardarDadesPersonals.php#L16-L32), que crida [\`guardarDadesPersonals_resultatCerca()\` L6099–6123](../../codi-drive/intranet-actual/Intranet.php#L6099-L6123): UPDATE d'un registre d'inscripció. El callback considera èxit el text sense «Error/error» i repinta l'input com a lectura. [JS L795–812](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L795-L812): **«Cancel·lar» repinta el valor actual modificat del camp, no l'original, sense escriure'l a BD.** | POST autoritzat, validació server-side i registre de camp/actor/abans/després; resposta real de commit i lectura coherent; la cancel·lació restaura les dades originals. **T-AL-15:** cancel·lar després d'editar; nom/correu invàlids; alta amb factura històrica; error de servidor, rol sense permís i edició concurrent. |
-| AL-OBS · observacions generals | [JS L903–1003](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L903-L1003): botó afegir obre modal; si el camp no és buit, **GET** amb observació i identificador a [\`afegirObservacio.php\`](../../codi-drive/intranet-actual/ajax/alumnes/afegirObservacio.php); rellegeix la llista amb \`mostrarObservacions.php\`. Botó amagar envia GET a \`amagarObservacio.php\` i elimina la fila de la vista en una resposta textual sense error. [\`Intranet.php\` L6765–6884](../../codi-drive/intranet-actual/Intranet.php#L6765-L6884) consulta \`aobservacions\`, executa INSERT d'observació general i **UPDATE \`VISIBLE=0\`** per ocultar-la: ocultar **no és esborrar físicament**. L'INSERT no retorna un \`OK\` explícit; el JS tracta una resposta buida com a èxit si després pot rellegir la llista. | Autorització per subjecte i observació, POST per mutacions, entrada controlada, idempotència/actor i resposta estructurada; conservar història i no mostrar una observació oculta en consultes ordinàries. **T-AL-16:** buida, doble clic, fallada de desament o relectura, amagar una observació aliena, visibilitat després de refrescar. |
-| AL-CERT · modal, tipus, previsualització, descàrrega | [JS L881–900 i L2327–2487](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2327-L2487): icona de certificat digital o de «cursant», GET a \`mostraModalConsultaCertificat.php\`, canvi de variant per botons i GET a \`mostrarCertificat.php\` amb \`download=false\` per previsualització, o \`download=true\` per generació i descàrrega d'arxiu. [\`Intranet.php\` L9892–9955](../../codi-drive/intranet-actual/Intranet.php#L9892-L9955) construeix el modal amb \`INSCRIT\` o opcions \`DIGITAL/PAPER/SOBRE\`. [L9955–10320](../../codi-drive/intranet-actual/Intranet.php#L9955-L10320) genera HTML o un PDF temporal amb dompdf segons variant; en el camí de descàrrega, el nom de fitxer es forma amb identificació de la persona i curs. | No donar per fet que la icona disponible equival a acreditació comprovada: autoritzar inscripció i tipus de certificat, verificar criteris acadèmics i estat real de lliurament. Generar PDF en ubicació privada, nom opac i descàrrega autenticada, sense ruta pública amb DNI/NIF ni exposició a versions de control. **T-AL-17:** INSCRIT vs DIGITAL/PAPER/SOBRE, document no disponible, fallada de previsualització/PDF, reintent i ID d'altra persona. |
+| AL-CERCA · cerca bàsica/avançada | [JS L115–194](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L115-L194) llegeix 4 criteris bàsics (DNI, correu, nom i cognoms) i fins a 16 criteris avançats de curs, inscripció, certificat, contacte i altres camps; **si la cerca avançada està oculta, n'esborra els criteris per a la petició**. Cerca buida → modal d'avís. [L307–329](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L307-L329) obre/tanca filtres i els neteja. [L331–511](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L331-L511) llança un GET per criteri a `searchUserBy{camp}.php`, interseca els identificadors retornats al navegador i distingeix 0, 1, 2–2000 i més de 2000 resultats. [L512–559](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L512-L559) carrega/ordena la taula de múltiples persones. | Consulta autoritzada de subjectes, límit de resultats i respostes tipificades; una cerca nova invalida les respostes tardanes de l'anterior. **T-AL-14:** bàsica/avançada amb un criteri, diversos filtres, neteja, una coincidència, múltiples, massa registres, error d'un endpoint i dues cerques encavalcades. |
+| AL-PERSONAL · editar/desar/cancel·lar dades visibles | [JS L639–717](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L639-L717) transforma `div` a `input`, valida camps obligatoris/telèfon i envia **GET amb identificador i dades personals a la URL** a [`guardarDadesPersonals.php` L16–32](../../codi-drive/intranet-actual/ajax/alumnes/guardarDadesPersonals.php#L16-L32), que crida [`guardarDadesPersonals_resultatCerca()` L6099–6123](../../codi-drive/intranet-actual/Intranet.php#L6099-L6123): UPDATE d'un registre d'inscripció. El callback considera èxit el text sense «Error/error» i repinta l'input com a lectura. [JS L795–812](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L795-L812): **«Cancel·lar» repinta el valor actual modificat del camp, no l'original, sense escriure'l a BD.** | POST autoritzat, validació server-side i registre de camp/actor/abans/després; resposta real de commit i lectura coherent; la cancel·lació restaura les dades originals. **T-AL-15:** cancel·lar després d'editar; nom/correu invàlids; alta amb factura històrica; error de servidor, rol sense permís i edició concurrent. |
+| AL-OBS · observacions generals | [JS L903–1003](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L903-L1003): botó afegir obre modal; si el camp no és buit, **GET** amb observació i identificador a [`afegirObservacio.php`](../../codi-drive/intranet-actual/ajax/alumnes/afegirObservacio.php); rellegeix la llista amb `mostrarObservacions.php`. Botó amagar envia GET a `amagarObservacio.php` i elimina la fila de la vista en una resposta textual sense error. [`Intranet.php` L6765–6884](../../codi-drive/intranet-actual/Intranet.php#L6765-L6884) consulta `aobservacions`, executa INSERT d'observació general i **UPDATE `VISIBLE=0`** per ocultar-la: ocultar **no és esborrar físicament**. L'INSERT no retorna un `OK` explícit; el JS tracta una resposta buida com a èxit si després pot rellegir la llista. | Autorització per subjecte i observació, POST per mutacions, entrada controlada, idempotència/actor i resposta estructurada; conservar història i no mostrar una observació oculta en consultes ordinàries. **T-AL-16:** buida, doble clic, fallada de desament o relectura, amagar una observació aliena, visibilitat després de refrescar. |
+| AL-CERT · modal, tipus, previsualització, descàrrega | [JS L881–900 i L2327–2487](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2327-L2487): icona de certificat digital o de «cursant», GET a `mostraModalConsultaCertificat.php`, canvi de variant per botons i GET a `mostrarCertificat.php` amb `download=false` per previsualització, o `download=true` per generació i descàrrega d'arxiu. [`Intranet.php` L9892–9955](../../codi-drive/intranet-actual/Intranet.php#L9892-L9955) construeix el modal amb `INSCRIT` o opcions `DIGITAL/PAPER/SOBRE`. [L9955–10320](../../codi-drive/intranet-actual/Intranet.php#L9955-L10320) genera HTML o un PDF temporal amb dompdf segons variant; en el camí de descàrrega, el nom de fitxer es forma amb identificació de la persona i curs. | No donar per fet que la icona disponible equival a acreditació comprovada: autoritzar inscripció i tipus de certificat, verificar criteris acadèmics i estat real de lliurament. Generar PDF en ubicació privada, nom opac i descàrrega autenticada, sense ruta pública amb DNI/NIF ni exposició a versions de control. **T-AL-17:** INSCRIT vs DIGITAL/PAPER/SOBRE, document no disponible, fallada de previsualització/PDF, reintent i ID d'altra persona. |
 
 ### AL-CERCA — ACTUAL
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title AL-CERCA ACTUAL | Cerca bàsica, avançada i múltiples resultats
 start
@@ -427,11 +427,11 @@ else (No)
 endif
 stop
 @enduml
-\`\`\`
+```
 
 ### AL-CERCA — FINAL
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title AL-CERCA FINAL | Filtrar subjectes autoritzats
 start
@@ -457,11 +457,11 @@ else (No)
 endif
 stop
 @enduml
-\`\`\`
+```
 
 ### AL-PERSONAL — ACTUAL
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title AL-PERSONAL ACTUAL | Desar o cancel·lar dades personals
 start
@@ -491,11 +491,11 @@ else (No)
 endif
 stop
 @enduml
-\`\`\`
+```
 
 ### AL-PERSONAL — FINAL
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title AL-PERSONAL FINAL | Perfil amb dades originals i traça
 start
@@ -522,11 +522,11 @@ else (No)
 endif
 stop
 @enduml
-\`\`\`
+```
 
 ### AL-OBS — ACTUAL
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title AL-OBS ACTUAL | Afegir o ocultar observació general
 start
@@ -552,11 +552,11 @@ elseif (Clic amagar observació?) then (Sí)
 endif
 stop
 @enduml
-\`\`\`
+```
 
 ### AL-OBS — FINAL
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title AL-OBS FINAL | Registre i ocultació traçables
 start
@@ -577,11 +577,11 @@ endif
 :Mostrar resultats només al subjecte autoritzat;
 stop
 @enduml
-\`\`\`
+```
 
 ### AL-CERT — ACTUAL
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title AL-CERT ACTUAL | Consulta, previsualització i PDF
 start
@@ -608,11 +608,11 @@ else (No)
 endif
 stop
 @enduml
-\`\`\`
+```
 
 ### AL-CERT — FINAL
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title AL-CERT FINAL | Certificat autoritzat i fitxer privat
 start
@@ -632,11 +632,11 @@ else (No)
 endif
 stop
 @enduml
-\`\`\`
+```
 
 ## 8. Incidència de protecció de dades detectada al repositori (sense reproduir cap document)
 
-En l'arbre de \`main\` consultat en aquest lot hi ha **centenars de fitxers generats amb un patró de nom de certificat i un identificador personal dins \`codi-drive/intranet-actual/ajax/alumnes/\`**. La consulta de l'arbre **no ha obert els arxius ni verificat el seu contingut o si encara són accessibles a producció**. El codi [\`Intranet::generaCertificat()\` L10249–10260](../../codi-drive/intranet-actual/Intranet.php#L10249-L10260) construeix un nom amb identificació personal/curs, desa temporalment el PDF i retorna el nom; el JS construeix un enllaç sota el directori AJAX [L2403–2446](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2403-L2446). És un **risc de publicació i conservació de dades**, independent del canvi fiscal del SIF. **No** posar a la documentació exemples de noms concrets, dades d'alumnes, URL de certificats ni contingut de cap PDF.
+En l'arbre de `main` consultat en aquest lot hi ha **centenars de fitxers generats amb un patró de nom de certificat i un identificador personal dins `codi-drive/intranet-actual/ajax/alumnes/`**. La consulta de l'arbre **no ha obert els arxius ni verificat el seu contingut o si encara són accessibles a producció**. El codi [`Intranet::generaCertificat()` L10249–10260](../../codi-drive/intranet-actual/Intranet.php#L10249-L10260) construeix un nom amb identificació personal/curs, desa temporalment el PDF i retorna el nom; el JS construeix un enllaç sota el directori AJAX [L2403–2446](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2403-L2446). És un **risc de publicació i conservació de dades**, independent del canvi fiscal del SIF. **No** posar a la documentació exemples de noms concrets, dades d'alumnes, URL de certificats ni contingut de cap PDF.
 
 **Acció proposada per la persona responsable del repositori/infraestructura:** restringir immediatament l'accés als artefactes de certificat si escau, revisar la seva presència en l'historial públic i qualsevol còpia desplegada, i gestionar la incidència de privacitat pel procediment intern aplicable. No n'hi ha prou d'ocultar-los en una branca documental; cal distingir eliminació de la vista actual, historial Git i URL públiques del servidor. Migrar la generació temporal a ubicació privada amb nom opac i descàrrega autenticada, a més de prevenir futures incorporacions d'arxius generats al control de versions. Aquest informe **no ha canviat la visibilitat del repositori, netejat l'historial ni modificat el servidor**.
 
