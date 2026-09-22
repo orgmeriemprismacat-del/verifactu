@@ -163,3 +163,254 @@ El preu habitual d'un curs es determina per les hores mitjançant `ID_PREU` i `p
 **Canvi informatiu:** notificar el canvi de data (inclòs ajornar dos dies), hora, modalitat, hores o acreditació; si no agrada, oferir canvi d'edició. **No requerir acceptació prèvia** d'aquest canvi. **Canvi de preu ja acceptat:** conservar l'oferta econòmica acceptada i, si es pretén modificar-ne el contingut econòmic, presentar-ne una de nova. **Anul·lació de l'edició:** seguir [UC-127](uc-127-canvi-estat-edicio-operacions-afectades.md), no importar-ne la pauta al simple ajornament.
 
 Aquesta decisió corregeix les formulacions anteriors que exigien «consentiment» o «nova acceptació expressa» indiscriminadament per canvis de data/horari; els diagrames de seqüència i d'activitat han de seguir aquesta distinció en revisar-los. [Fitxa funcional UC-114](../06-fitxes-funcionals/uc-114.md).
+
+
+## 7. Diagrames d'activitat contrastats per acció de la pantalla
+
+**Inventari de pàgina de consulta d'edicions:** `cursos-consultar-edicions-curs.php` → `ajax/mostrarMain.php` (comprova rol per al contingut dinàmic) → `Intranet::mostrarInformacioCurs_Cursos()` → apartats `dades-estat-inscripcio`, `dades-edicio`, `dades-aula` i modal d'alumnat [Intranet.php L17014–17038](../../codi-drive/intranet-actual/Intranet.php#L17014-L17038). Les dades d'edició comparen `cursos` amb `curs` i mostren divergències; les dades d'aula inclouen visibilitat Moodle i consulta d'alumnat. **Aquest inventari és de PHP generat, no substitueix encara la captura i verificació dels handlers JS de cada botó.** Els mètodes de desament i importació **sí que s'han llegit complets** [fitxa funcional contrastada](../06-fitxes-funcionals/uc-114.md#23-fitxa-funcional-de-les-accions-reals-dedició--contrast-del-codi-complet-22092026).
+
+### A114-00 · Consulta d'edició/aules — ACTUAL
+
+```plantuml
+@startuml
+title A114-00 ACTUAL | Consulta edició i apartats (PHP render)
+start
+:Entrar a cursos-consultar-edicions-curs.php;
+:ajax/mostrarMain.php consulta rol de visualització;
+if (Pot visualitzar pàgina?) then (Sí)
+  :Carregar pàgina dinàmica;
+  :GET mostrarInfoEdicioCurs amb idCurs i cercaPer;
+  :Consultar curs, cursos i aula;
+  :Calcular visibilitat inscripció i enllaç web;
+  :Comparar valors de curs i cursos;
+  if (Hi ha divergències?) then (Sí)
+    :Mostrar avisos de divergència;
+  endif
+  :Mostrar apartat estat inscripció;
+  :Mostrar dades edició i dades aula;
+  :Consultar existència i visibilitat Moodle per aula;
+  :Oferir consulta alumnat des de la vista d'aula;
+else (No)
+  :Mostrar missatge de manca de permís;
+endif
+stop
+@enduml
+```
+
+**Font:** [`mostrarMain.php`](../../codi-drive/intranet-actual/ajax/mostrarMain.php), [`Intranet.php` L17014–17038](../../codi-drive/intranet-actual/Intranet.php#L17014-L17038), [L17252–17325](../../codi-drive/intranet-actual/Intranet.php#L17252-L17325) i [L17960–18116](../../codi-drive/intranet-actual/Intranet.php#L17960-L18116). La comprovació de permís de la pàgina no demostra el control de recursos de cada endpoint AJAX.
+
+### A114-00 · Consulta d'edició/aules — FINAL
+
+```plantuml
+@startuml
+title A114-00 FINAL | Consulta versionada i accions autoritzades
+start
+:Autenticar actor i autoritzar consulta d'edició al servidor;
+if (Actor/edició accessibles?) then (Sí)
+  :Llegir versió, estat real, ofertes afectades i dades d'aula;
+  :Comparar valors curs, cursos i aula amb versió SIF;
+  if (Divergències?) then (Sí)
+    :Mostrar diferències i incidència de reconciliació;
+  endif
+  :Mostrar apartats i accions autoritzades;
+  :Consultar Moodle i import/factures per canal autoritzat;
+  :No alterar snapshots ni documents en una simple consulta;
+else (No)
+  :Denegar sense revelar dades de l'edició;
+endif
+stop
+@enduml
+```
+
+### A114-01 · Desar dades d'edició — ACTUAL, mètode complet
+
+```plantuml
+@startuml
+title A114-01 ACTUAL | Desar edició en dues taules
+start
+:POST desarCanvisDadesEdicio amb idCurs i camps;
+:Normalitzar dates no buides, altrament NULL;
+:Obrir connexió a BD web;
+:Mostrar SQL i valors de depuració a la resposta;
+if (Es pot preparar UPDATE cursos?) then (Sí)
+  :UPDATE cursos WHERE id_Curs LIKE idCurs prefix;
+else (No)
+  :Llançar error 4313;
+  stop
+endif
+:Mostrar SQL i valors de depuració a la resposta;
+if (Es pot preparar UPDATE curs?) then (Sí)
+  :UPDATE curs WHERE ID_CURS = idCurs;
+  :Retornar OK;
+else (No)
+  :Llançar error 4314;
+endif
+note right
+  Al mètode no es veu transaction/rollback.
+  La consulta amb LIKE pot afectar
+  diversos registres de cursos.
+  No rep idPreu.
+end note
+stop
+@enduml
+```
+
+**Font:** [`Intranet.php` L18238–18324](../../codi-drive/intranet-actual/Intranet.php#L18238-L18324), SQL dels dos UPDATE [L1108–1113](../../codi-drive/intranet-actual/Intranet.php#L1108-L1113). No atribuir a la consulta `LIKE` canvis de files no comprovats en BD: el risc és potencial i cal test amb dues aules.
+
+### A114-01 · Desar dades d'edició — FINAL, regla negoci incorporada
+
+```plantuml
+@startuml
+title A114-01 FINAL | Versió i avís sense consentiment indiscriminat
+start
+:POST de canvi amb id edició, versió base, actor i motiu;
+:Verificar permís servidor, claus exactes i validar dades;
+if (Versió concurrent o dades invàlides?) then (Sí)
+  :Denegar sense UPDATE i mostrar conflicte/error;
+else (No)
+  :Consultar registres de curs/cursos i operacions afectades;
+  if (Canvien termes econòmics ja acceptats?) then (Sí)
+    :Mantenir preu i snapshot antic;
+    :Proposar nova oferta per acceptació expressa;
+  else (No)
+    :Aplicar canvi versionat i consistent a taules afectades;
+    if (Canvien dates, hores, horari, modalitat o acreditació?) then (Sí)
+      :Registrar avisos a inscrits després del commit;
+      :Oferir canvi d'edició si no els va bé;
+      note right
+        El canvi es notifica.
+        No cal acceptació prèvia.
+      end note
+    endif
+  endif
+  :Retornar estat real sense SQL ni dades de depuració;
+endif
+stop
+@enduml
+```
+
+### A114-02 · Desar dades d'aula — ACTUAL, error parcial acreditat al codi
+
+```plantuml
+@startuml
+title A114-02 ACTUAL | Edició de dades aula
+start
+:POST idCurs, idAula, aula, dates i observacions;
+:Normalitzar data revisió i informe;
+if (Es pot preparar UPDATE cursos?) then (Sí)
+  :UPDATE cursos WHERE id_Curs = idCurs concatenat amb aula;
+else (No)
+  :Llançar error 4315;
+  stop
+endif
+if (idAula és zero?) then (Sí)
+  :Llançar error 4317 DESPRÉS del primer UPDATE;
+  stop
+else (No)
+  if (Es pot preparar UPDATE aula?) then (Sí)
+    :UPDATE aula WHERE ID_AULA i AULA coincideixen;
+  else (No)
+    :Llançar error 4316;
+  endif
+endif
+note right
+  No es veu rollback ni return final.
+  Hi ha referència debug a dataBloq
+  no definida dins d'aquest mètode.
+end note
+stop
+@enduml
+```
+
+**Font:** [`Intranet.php` L18334–18385](../../codi-drive/intranet-actual/Intranet.php#L18334-L18385) i SQL [L1114–1115](../../codi-drive/intranet-actual/Intranet.php#L1114-L1115). Una excepció no acredita automàticament rollback d'un `UPDATE` previ.
+
+### A114-02 · Desar dades d'aula — FINAL
+
+```plantuml
+@startuml
+title A114-02 FINAL | Validació abans de les dues escriptures
+start
+:Identificar actor, edició, aula i versió base;
+:Autoritzar i validar idAula, aula, dades i existència;
+if (idAula zero o edició/aula invàlida?) then (Sí)
+  :Denegar sense cap UPDATE;
+else (No)
+  :Consultar estat anterior i possible impacte de la modificació;
+  :Iniciar transacció i actualitzar registres coherents;
+  if (Les dues escriptures han completat?) then (Sí)
+    :Commit i registrar versió, actor i resultat;
+    :Retornar confirmació tipificada;
+  else (No)
+    :Rollback i registrar error sense confirmar canvi;
+  endif
+endif
+stop
+@enduml
+```
+
+### A114-04 · Importació CSV — ACTUAL, tres escriptures per fila
+
+```plantuml
+@startuml
+title A114-04 ACTUAL | Importació CSV i 3 INSERT per edició
+start
+:Seleccionar CSV, resolució i número de tràmit;
+if (Validació del formulari superada?) then (Sí)
+  :Analitzar CSV i mostrar files seleccionables;
+  if (Hi ha files marcades?) then (Sí)
+    :Per cada fila llançar POST a inserirCurs.php;
+    :insertCurs executa INSERT curs;
+    :insertCurs executa INSERT aula;
+    :insertCurs executa INSERT cursos;
+    note right
+      Insercions successives al PHP
+      sense transaction visible;
+      cada crida gestiona la seva resposta.
+    end note
+    :Enviar petició separada a inserirNumTramit.php;
+    :Mostrar èxit/error de files i tràmit per callbacks;
+  else (No)
+    :Mostrar cap fila seleccionada;
+  endif
+else (No)
+  :Mostrar errors de fitxer, resolució o tràmit;
+endif
+stop
+@enduml
+```
+
+**Font:** [JS L50–115 i L210–310](../../codi-drive/intranet-actual/js/cursos-afegir-modificar-edicions.js#L210-L310), [`insertCurs()` L18855–18900](../../codi-drive/intranet-actual/Intranet.php#L18855-L18900) i [`inserirNumTramit()` L18907–18923](../../codi-drive/intranet-actual/Intranet.php#L18907-L18923). Una fila fallida pot haver executat INSERT previs; verificar en BD de proves la consistència de cada cas.
+
+### A114-04 · Importació CSV — FINAL
+
+```plantuml
+@startuml
+title A114-04 FINAL | Importació de fila i tràmit idempotents
+start
+:Validar actor i fitxer al servidor;
+:Analitzar CSV i classificar files noves, repetides i conflictes;
+:Mostrar previsualització i files elegibles;
+if (Hi ha files autoritzades?) then (Sí)
+  :Crear identificador de lot/filera i claus idempotents;
+  :Per cada fila elegible validar referències i versió;
+  if (Fila ja creada idempotentment?) then (Sí)
+    :Recuperar resultat existent sense duplicar INSERT;
+  else (No)
+    :Escriure curs, aula i cursos coherentment;
+    if (Fila completada?) then (Sí)
+      :Commit i conservar resultat de fila;
+    else (No)
+      :Rollback de fila i registrar incidència;
+    endif
+  endif
+  :Esperar i conciliar els resultats de totes les files;
+  :Registrar tràmit segons política del lot i resultats reals;
+  :Retornar resum per fila i no afirmar èxit total si hi ha errors;
+else (No)
+  :Mostrar motius de denegació o cap fila vàlida;
+endif
+stop
+@enduml
+```
+
+**Criteri de revisió i proves:** [fitxa funcional UC-114, secció 23](../06-fitxes-funcionals/uc-114.md) fixa orígens, resultats, alternatives i P114-01–06. Els diagrames ACTUALS reprodueixen codi observable, inclosos errors; els FINALS són contracte objectiu i no impliquen implementació ni proves executades. Encara cal connectar tots els controladors JS, controls/accions dels modals i captures reals de la pàgina a RM-037.
