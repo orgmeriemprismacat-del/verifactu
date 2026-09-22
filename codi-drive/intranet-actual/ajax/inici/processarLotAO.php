@@ -160,7 +160,7 @@ try {
                          $name, $surname, $email, $city);
     $rows = [];
     foreach ($ids as $id) {
-        if (!$select->execute() || !$select->fetch()) {
+        if (!$select->execute() || !$select->store_result() || !$select->fetch()) {
             aoAbort('FILA_NO_DISPONIBLE', 409);
         }
         $rows[] = [
