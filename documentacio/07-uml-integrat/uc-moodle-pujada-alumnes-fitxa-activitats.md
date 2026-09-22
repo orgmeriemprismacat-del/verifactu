@@ -1,6 +1,10 @@
 # Cas d'ús específic — Pujada d'alumnes als cursos de Moodle
 
-**ID funcional provisional:** CAND-UC-MOODLE-ALUMNES-01. La usuària confirma que és un UC **independent de la pujada d'aules obertes i d'UC-113**; atribuir ID numèric definitiu després de comprovar els 142 identificadors del catàleg. **Revisió:** 22/09/2026, codi `main` a `e71958b3026549bde09fb4b25f2ec3ba370937ec`. L'**importador de matrícules en lot EXISTENT** no s'ha de confondre amb el generador de CSV; si aquest importador és el destí del fitxer, el registre de resultat real s'ha de traçar al mètode/procediment corresponent, no fingir una crida Moodle al PHP d'aquesta pantalla.
+**URL exacta confirmada per Meriem (22/09/2026):** https://intranet.prisma.cat/cursos/inici-cursos/generar-fitxer-pujada-alumnes/ · **Nom de la pantalla:** «Generar fitxer pujada alumnes». Aquest és l'**importador de matrícules en lot de la intranet** al qual es referia l'usuària en aquesta revisió; el codi PHP mostra que, dins d'aquesta pàgina, es genera el fitxer amb alumnes **ja inscrits a PrisMa** i s'actualitza l'estat acadèmic origen. **No postular un segon importador no localitzat ni un parser de noves matrícules a PrisMa per explicar aquesta URL.**
+
+**Fonts directes:** [pàgina PHP](../../codi-drive/intranet-actual/cursos-inici-cursos-pujar-alumnes.php) (títol literal «Generar fitxer pujada alumnes»); [JS de la pàgina](../../codi-drive/intranet-actual/js/cursos-inici-cursos-pujar-alumnes.js); [`ajax/mostrarMain.php`](../../codi-drive/intranet-actual/ajax/mostrarMain.php), que resol l'URL via el registre `apartats` a BD i mostra la funció corresponent; [mètode de vista](../../codi-drive/intranet-actual/Intranet.php#L3619-L3832); [creació de fitxer](../../codi-drive/intranet-actual/Intranet.php#L4124-L4149) i [actualització + fila CSV](../../codi-drive/intranet-actual/Intranet.php#L4158-L4201). La correspondència entre aquesta URL i el procés empresarial és confirmació de negoci; no s'han comprovat el rewrite del servidor, el contingut productiu de BD ni l'operació posterior al campus.
+
+**Frontera funcional:** «importació de matrícules en lot» és el nom operatiu que usa negoci per a aquesta pantalla. En aquest codi concret la sortida és un CSV per a càrrega a Moodle; **no hi ha INSERT de noves files d'inscripció a PrisMa ni resposta de matrícula confirmada per Moodle**. La càrrega posterior del CSV a Moodle, si escau, és una operació posterior no visible al PHP/JS d'aquesta URL; l'acreditació d'accés i la conciliació són d'UC-129. La **pujada d'aules obertes** usa una altra pàgina i un altre cas d'ús. La creació d'inscripcions manuals a la web roman diferenciada com a canal d'UC-113.
 
 ## 1. Fitxa funcional detallada
 
@@ -19,7 +23,7 @@
 
 ## 2. Contracte de resultat i errors
 
-**Resultat actual:** l'operador tria persones i aula, el sistema prepara fitxer, marca les inscripcions elegides i ofereix el CSV. **Resultat final previst:** a) fitxer preparat i custodiat; b) resultat per participant; c) importació/matrícula Moodle confirmada separadament; d) incidències per fitxer incomplet, error de destí o discrepància d'usuari/curs; e) idempotència de reexecució; f) cap efecte fiscal inferit. El procediment d'importació en lot **existeix** per confirmació de negoci, però el seu punt d'entrada i destí concret no són identificables amb certesa en aquest recorregut PHP.
+**Resultat actual:** l'operador tria persones i aula en aquesta **URL exacta de la intranet**, el sistema prepara fitxer, marca les inscripcions elegides i ofereix el CSV. **Resultat final previst:** a) fitxer preparat i custodiat; b) resultat per participant; c) importació/matrícula Moodle confirmada separadament; d) incidències per fitxer incomplet, error de destí o discrepància d'usuari/curs; e) idempotència de reexecució; f) cap efecte fiscal inferit. **L'operació en lot identificada per negoci és justament la d'aquesta URL, amb el punt d'entrada i els mètodes PHP ja traçats.** Únicament falta acreditar el pas posterior de càrrega i confirmació en Moodle, que no consta al codi d'aquesta pàgina.
 
 **Errors contrastats:** cap fila marcada, error en crear fitxer, error en UPDATE, fallada d'escriptura CSV, POSTs concurrents i resultats desordenats, usuari sense permisos client, cursos/aules mal associats, alumne ja inscrit o amb deute, duplicat a Moodle i fitxer descarregable amb dades personals. No assumir que un correu de confirmació o l'estat `INSC CURS=1` acrediten per ells sols l'èxit a Moodle.
 
@@ -32,7 +36,118 @@
 | A03 | Consulta i edició de persona | `modalEditaInscripcio_pujadaAlumnes`, `actualitzaDadesPersonals_pujadaAlumnes` | ACTUAL/FINAL A03 |
 | A04 | Confirmar i crear CSV | `crearFitxerPujadaInscripcions.php` i mètode PHP | ACTUAL/FINAL A04 |
 | A05 | Actualització de la matrícula origen i fila CSV | `pujarInscripcions.php`, `updPujadaInsc` | ACTUAL/FINAL A05 |
-| A06 | Resum/descàrrega i frontera importador campus | JS, ruta de fitxer; destinació d'importador per acreditar | ACTUAL/FINAL A06 |
+| A06 | Resum i descàrrega del lot preparat; frontera de la càrrega posterior al campus | JS, URL de fitxer; resultat Moodle no verificat en aquesta pantalla | ACTUAL/FINAL A06 |
+
+## 3.1 Diagrames d'activitat de la PÀGINA COMPLETA — ACTUAL i FINAL
+
+**Abast de pàgina:** URL confirmada, control de sessió, càrrega dinàmica del `mainpanel`, consulta de candidates/edicions, selecció, avisos, edició opcional, generació de CSV, modificació acadèmica per fila, modal de resum i descàrrega. Els apartats A01–A06 següents en fan el desglossament. No presentar una càrrega Moodle com a resultat ja observat.
+
+### P-MOODLE-AL-01 — Pàgina ACTUAL completa
+
+```plantuml
+@startuml
+title URL generar-fitxer-pujada-alumnes | PAGINA COMPLETA ACTUAL
+start
+:Obrir URL intranet indicada per negoci;
+if (Sessió de pàgina vàlida?) then (Sí)
+  :JS demana ajax/mostrarMain.php amb window.location.pathname;
+  if (Rol autoritzat a visualitzar apartat?) then (Sí)
+    :Intranet consulta el paràmetre oberturaAules i IniciPujadaInsc_vella;
+    if (Hi ha inscripcions candidates?) then (Sí)
+      :Mostrar dades, curs/edició, grup i nombre per aula;
+      :Etiquetar REALITZAT, DUPLICADA, DEUTOR segons consultes;
+      :Marcar Pujar per defecte, No Pujar si es detecta deute;
+      :Permetre canviar marques i aula;
+      if (Operador obre el modal d'edició?) then (Sí)
+        :AJAX consulta dades i opcionalment UPDATE de dades personals;
+      endif
+      if (Prem Confirma amb tePermisEdicio JS?) then (Sí)
+        :Crear fitxer CSV amb capçalera;
+        if (Error en crear fitxer?) then (Sí)
+          :Mostrar alerta d'error;
+        else (No)
+          if (Hi ha botons marcats?) then (Sí)
+            while (Resta alguna fila marcada?) is (Sí)
+              :Enviar AJAX de fila sense esperar les altres;
+              :UPDATE inscripcions INSC CURS=1 i GRUP=aula;
+              :Després afegir fila al mateix fitxer CSV;
+              :Mostrar resposta o error d'aquella petició;
+            endwhile (No)
+            :Mostrar enllaç CSV quan respon la darrera posició;
+            note right
+              La darrera posicio del bucle
+              no garanteix que tots els
+              AJAX previs hagin acabat.
+            end note
+          else (No)
+            :Mostrar avís cap canvi marcat;
+            note right
+              En aquest recorregut el fitxer
+              de capçalera ja s'ha creat.
+            end note
+          endif
+        endif
+      else (No)
+        :No confirmar; o mostrar denegació si manca permís client;
+      endif
+    else (No)
+      :Mostrar No hi ha resultats;
+    endif
+  else (No)
+    :Mostrar No tens permisos per visualitzar aquesta pàgina;
+  endif
+else (No)
+  :Redirigir a intranet inici;
+endif
+:Cap resposta d'importació real Moodle en aquesta pàgina;
+stop
+@enduml
+```
+
+### P-MOODLE-AL-01 — Pàgina FINAL, adaptació proposada
+
+```plantuml
+@startuml
+title URL generar-fitxer-pujada-alumnes | PAGINA COMPLETA FINAL
+start
+:Identificar sessió, rol i edicions autoritzades al servidor;
+if (Autoritzat?) then (Sí)
+  :Carregar candidates amb ID_INSC real i estat de destí conegut;
+  :Mostrar avisos de realització, duplicat i deute amb política aprovada;
+  if (Hi ha candidates?) then (Sí)
+    :Seleccionar participants i aula per ID_INSC;
+    if (Modificar dades personals?) then (Sí)
+      :Autoritzar canvis al servidor i guardar amb traça;
+      :No modificar documents fiscals ja emesos;
+    endif
+    :Validar marques i destins abans de crear un lot;
+    if (Hi ha almenys una fila admissible?) then (Sí)
+      :Crear o recuperar execució idempotent per lot;
+      :Preparar fitxer privat amb format CSV correcte;
+      while (Queden files per preparar?) is (Sí)
+        :Revalidar ID_INSC, curs, aula i permisos;
+        :Escriure fila i persistir resultat recuperable;
+      endwhile (No)
+      if (El fitxer i totes les files són coherents?) then (Sí)
+        :Mostrar resum complet i descàrrega protegida;
+        :Registrar estat FITXER PREPARAT;
+      else (No)
+        :Mostrar errors de fila i recuperació sense falsa matrícula;
+      endif
+    else (No)
+      :Mostrar cap fila seleccionada sense crear fitxer;
+    endif
+  else (No)
+    :Mostrar estat buit;
+  endif
+else (No)
+  :Denegar lectura i escriptura al servidor;
+endif
+:No afirmar matrícula Moodle fins a prova posterior de destí UC-129;
+:No crear cap factura ni cobrament per generar el fitxer;
+stop
+@enduml
+```
 
 ## 4. Diagrames d'activitat de cada apartat
 
@@ -281,6 +396,6 @@ stop
 
 ## 6. Traçabilitat i estat
 
-**DOC:** funció actual, apartats i diagrames de pàgina documentats a partir del PHP i el JS, **frontera del sistema importador existent pendent de mapar en el punt concret de càrrega**. **IMP:** el codi llegat existeix; la consistència per fila, autorització, idempotència i reconciliació final no s'han acreditat. **TEST/producció:** no executat/no comprovat. **No és UC-113**, no és [pujada d'aules obertes](uc-moodle-aules-obertes-fitxa-activitats.md) i no és UC-129, que comprova la correspondència posterior.
+**DOC:** **URL exacta, vista PHP, JS, endpoints, consultes, accions i resultat del lot de la intranet identificats i documentats**. El procés posterior de càrrega efectiva en Moodle, si escau, és la frontera pendent de verificació; no hi ha un segon importador genèric de PrisMa per localitzar per aquest motiu. **IMP:** el codi llegat existeix; la consistència per fila, autorització, idempotència i reconciliació final no s'han acreditat. **TEST/producció:** no executat/no comprovat. **No és UC-113**, no és [pujada d'aules obertes](uc-moodle-aules-obertes-fitxa-activitats.md) i no és UC-129, que comprova la correspondència posterior.
 
 [UC-113](../06-fitxes-funcionals/uc-113.md) · [UC-129](uc-129-reconciliar-prisma-moodle-matricules.md) · [UC-95](uc-095-estat-academic-deute-pendent.md) · [registre mestre](../00-index-i-pla/42-registre-mestre-cobertura-funcional-implementacio-documentacio.md).
