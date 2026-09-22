@@ -2,7 +2,7 @@
 
 **Objectiu del catàleg:** separar l'evidència de titulació i la seva validació de la compra d'origen; **només després de confirmar el cobrament** s'emet una sola vegada el benefici futur. No es modifica ni es torna a emetre la factura inicial per concedir el dret.
 
-**Estat revisat el 22/09/2026:** les migracions defineixen `discount_validation`, `discount_evidence`, `commercial_entitlement` i `commercial_entitlement_event`. El PHP web llegat identifica la promoció de novell i, quan `CURS='JASOM'` i es marca novell, crea `recent_titulat(ID_INSC)`; la intranet té un botó de validació que crida `Intranet::sendMsgValidatCurosProfessorNovell()`. **No s'ha pogut recuperar el cos d'aquest mètode llegat en aquesta auditoria**, ni acreditar el servei SIF que emet el dret després del pagament. La comunicació del canal web anuncia un **codi de descompte futur per un import monetari**, però no demostra que sigui un saldo prepagat; les condicions exactes, caducitat, transferibilitat i emissió/consum real queden pendents de contrast i decisió. [Auditoria específica UC-111](00-auditoria-casos-pendents-lot-02-uc-111-2026-09-22.md).
+**Estat revisat el 22/09/2026:** les migracions defineixen `discount_validation`, `discount_evidence`, `commercial_entitlement` i `commercial_entitlement_event`. El PHP web llegat identifica la promoció de novell i, quan `CURS='JASOM'` i es marca novell, crea `recent_titulat(ID_INSC)`; la intranet té un botó de validació que crida `Intranet::sendMsgValidatCurosProfessorNovell()`. **El cos del mètode i el SQL d'actualització han estat aportats posteriorment per l'usuària:** la validació Sí/No actualitza `recent_titulat.VALIDAT` a 1/2 i prepara correus segons el tipus de descompte. L'extracte no mostra cap comprovació del cobrament real ni cap INSERT de promoció futura, i tampoc acredita el servei SIF que emet el dret després del pagament. La comunicació del canal web anuncia un **codi de descompte futur per un import monetari**, però no demostra que sigui un saldo prepagat; les condicions exactes, caducitat, transferibilitat i emissió/consum real queden pendents de contrast i decisió. [Auditoria específica UC-111](00-auditoria-casos-pendents-lot-02-uc-111-2026-09-22.md).
 
 ## 1. Fitxa específica
 
@@ -146,6 +146,11 @@ Note over V,R: Coordinació no implementada, no ALTERAR factura original ni gene
 
 [UC-111 original](../06-fitxes-funcionals/uc-111.md) · [UC-117 drets](uc-117-cicle-vida-codi-dret-futur.md) · [UC-116 evidències original](../06-fitxes-funcionals/uc-116.md) · [UC-20d cupó](uc-020d-aplicar-codi-promocional.md) · [UC-02 cobrament](uc-002-registrar-cobrament-factura.md) · [Migració dret/evidència](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [CreditBalanceService: diferent d'un cupó](../../sif/src/Service/CreditBalanceService.php) · [Traçabilitat monetària](00-revisio-moviments-inscripcions.md).
 
+## 5 bis. Decisions de negoci confirmades i preguntes encara obertes
+
+**CONFIRMAT:** promoció només a JASOM; títol expedit fa menys d'un any i comprovació de títol/data/titularitat; inscripció abans de la validació del justificant; si document incorrecte, secretaria reclama acreditació manualment; sense resposta en 48 h o acreditació impossible, es rebutja el benefici i es conserva la inscripció amb preu corresponent; si s'acredita, missatge d'aprovació i preu novell; codi futur igual al valor efectivament pagat per la inscripció origen. El còmput exacte del termini, la política monetària del preu actual i la futura i les condicions de consum continuen PENDENTS.
+
+**Correcció de font:** el cos del mètode de validació, el mapa SQL i el constructor de l'apartat s'han aportat al xat posteriorment al lot 02. Les notes anteriors de «mètode no recuperat» són HISTÒRIQUES. El SQL confirma que actualitza recent_titulat.VALIDAT (1/2); no deduir que s'hagi comprovat ingrés ni emès cap promoció.
 ## 6. Diagrames d'activitat del cas UC-111
 
 **Els quatre diagrames següents reprodueixen subfluxos comprovables o proposats del CAS UC-111, no la totalitat de totes les pàgines compartides.** Els fluxos ACTUALS NO afirmen el que fa el mètode d'Intranet no recuperat. Els fluxos FINALS són contractes objectiu, no programació acabada. Per a l'auditoria de les pàgines i apartats sencers continua oberta RM-037; no donar per acabada la documentació només per l'existència d'aquests diagrames.
@@ -203,36 +208,59 @@ stop
 @enduml
 ```
 
-### 4.3. Intranet · Validar descomptes · apartat docent novell — subflux actual observable
+### 4.3. Intranet · Validar descomptes · apartat docent novell — subflux ACTUAL contrastat amb extractes aportats
+
+**Font complementària privada:** el mètode de construcció de la pàgina, el router, les consultes SQL i el mètode PHP de validació aportats al xat, a més del [JS versionat](../../codi-drive/intranet-actual/js/alumnes-validar-descomptes.js#L42-L117) i l'[endpoint](../../codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatProfessorNovell.php). No copiar justificants ni destinataris de prova.
 
 ```plantuml
 @startuml
-title UC-111 | Apartat intranet recent titulat | ACTUAL observable
+title UC-111 | Intranet apartat recent titulat | ACTUAL contrastat
 start
-:Obrir pàgina intranet i carregar mostrarMain.php;
-:Visualitzar files de inscripcions_recent_titulat;
-:Clicar indicador resguard-valid;
-:Canviar classe CSS i text Sí/No al navegador;
-if (Operador clica validatResguard?) then (sí)
- :Llegir ID_INSC i Sí/No visual;
- :AJAX GET sendMsgValidatProfessorNovell.php;
- :Endpoint obre sessió i delega a Intranet::sendMsgValidatCurosProfessorNovell;
- note right
-  COS DEL MÈTODE NO VERIFICAT
-  Canvi BD, generació de cupó,
-  verificació bancària i correu
-  no acreditats en aquest lot.
- end note
- if (Resposta HTML inclou "error"?) then (sí)
-  :Mostrar modal d'error;
- else (no)
-  :Mostrar modal Canvi aplicat;
+:Obrir la pàgina de validar descomptes;
+:Mostrar apartats recent titulat i descomptes ordinaris;
+:Consultar recent_titulat amb VALIDAT = 0;
+if (Hi ha sol·licituds pendents?) then (Sí)
+ :Consultar inscripció de cada ID_INSC;
+ :Construir enllaç al justificant amb dades de matrícula;
+ :Mostrar fila, indicador visual Sí inicial i botó Aplicar i enviar;
+ :Operador consulta justificació i commuta indicador Sí/No;
+ if (Prem Aplicar i enviar?) then (Sí)
+  :JS envia GET idInsc i verificat;
+  :Controller invoca Intranet::sendMsgValidatCurosProfessorNovell;
+  :Consultar inscripció, curs, preus i paràmetres;
+  if (verificat == 1?) then (Sí)
+   :UPDATE recent_titulat SET VALIDAT = 1 WHERE ID_INSC = ?;
+  else (No)
+   :UPDATE recent_titulat SET VALIDAT = 2 WHERE ID_INSC = ?;
+  endif
+  if (TIPUS_DESC entre 0 i 3?) then (Sí)
+   :Preparar correus i dades de pagament;
+  else (No)
+   if (TIPUS_DESC == 4?) then (Sí)
+    :Preparar missatge específic USOC;
+   endif
+  endif
+  :Retornar text OK;
+  if (Resposta JS conté «error»?) then (Sí)
+   :Mostrar modal error;
+  else (No)
+   :Mostrar modal «Canvi aplicat»;
+  endif
  endif
+else (No)
+ :Mostrar «No hi ha resultats»;
 endif
+note right
+ Aquest mètode no mostra comprovació
+ de pagament real, alta de promoció
+ ni ajust directe de A_PAGAR.
+ Tampoc acredita cap job de 48 hores.
+end note
 stop
 @enduml
 ```
 
+**Límit:** el SQL real és UPDATE recent_titulat.VALIDAT per ID_INSC; les consultes de canvi d'inscripcions.VALID_DESC / A_PAGAR són separades i no les executa directament el mètode aportat. L'emissió del codi futur i la comprovació de cobrament resten per rastrejar a altres rutes.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
