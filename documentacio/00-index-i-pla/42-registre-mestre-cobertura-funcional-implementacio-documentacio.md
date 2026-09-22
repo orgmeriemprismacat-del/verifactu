@@ -53,6 +53,11 @@ No substituir automàticament les 142 fitxes: modificar cada fitxa quan existeix
 
 **I-07 Històric i immutabilitat.** Emesa la factura, no reescriure camps fiscals ni número; correccions segons operació i criteri fiscal documentats. Preservar origen, emissor, versió i situació NO_VERIFACTU dels documents històrics; no tornar-los a emetre sense classificació.
 
+## 2 bis. Auditories de casos d'ús per lots (estat verificat)
+
+- **Lot 01 — 22/09/2026:** [UC-106, 107, 108, 109, 110, 112, 115, 122 i 125 — auditoria contra el PHP web i SQL actual](../07-uml-integrat/00-auditoria-casos-pendents-lot-01-2026-09-22.md). S'han contrastat nou UC de manera dirigida, **no tancats funcionalment**, i s'han corregit notes històriques de les fitxes UC-108, UC-110 i UC-125. UC-108: alta gratuïta força mailing=1 malgrat rebre opció; UC-110: DescompteAmic sí fixa TIPUS_INSC='G'; UC-125: SQL 000006 i scripts de mailing sí estan a main. Proves, desplegament, pantalla completa, cas d'ús exhaustiu i diagrames d'activitat de totes les pàgines: **PENDENTS**. La pàgina d'alta del tastet té al lot 01 un **primer diagrama només de l'endpoint**, etiquetat parcial, i no substitueix el treball íntegre RM-037.
+- **Pendents de revisar en lots següents:** 133 fitxes restants del catàleg de 142 i les variants d'acció identificades en cada pantalla; la xifra no vol dir que aquests 133 casos siguin absents ni que els nou revisats estiguin validats o tancats.
+
 ## 3. Registre d'accions — IMPLEMENTACIÓ i DOCUMENTACIÓ
 
 Cada ID RM representa una feina de tancament amb dues pistes: **DOC** (actualitzar fitxes, pantalles, UML, dades i decisions) i **IMP** (PHP, SQL, adaptadors, autorització i proves). Quan una garantia ja existeix al core, NO reprogramar-la: provar-la i completar només els buits indicats.
