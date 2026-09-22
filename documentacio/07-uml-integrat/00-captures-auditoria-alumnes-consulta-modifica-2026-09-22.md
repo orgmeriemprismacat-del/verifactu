@@ -211,3 +211,174 @@ stop
 Els set originals permeten reconstruir l'inventari visual principal però **no** mostren: cerca avançada oberta, edició de dades personals amb validació/guardat, accions d'editar inscripció i pagament en ús, formulari complet d'observacions, modal acadèmic accionat, previsualització posterior al botó de canvi, confirmació final, resultat/error de la baixa i del canvi, modal de factura sense document i gestió de permisos per cada acció. Cal contrastar el JS **minificat carregat** amb el codi llegible, mètodes PHP llargs de l'alumnat, autoritzacions de cada endpoint, BD i proves d'entorn. **No inferir** que l'absència de captura equival a absència de funcionalitat.
 
 **Estat del lot visual:** inventari de set vistes i diagrames globals + dos subfluxos integrats documentalment; **NO** auditoria exhaustiva de totes les accions ni implementació. Les captures originals queden fora del repositori públic; no inventar enllaços d'imatges.
+
+## 6. Continuació sense més captures: codi de les accions executables
+
+**Límit de la font:** aquest apartat és lectura **estàtica del codi** que hi ha a GitHub, no una captura addicional ni un test de producció. S'ha recuperat el cos complet d'`Intranet.php` i els mètodes indicats a la taula, contrastat el JS no minificat i examinat el fitxer minificat inclòs per la pàgina. La presència al minificat dels noms de mètode i rutes següents **corrobora la correspondència d'aquests punts d'entrada**, però no acredita que l'asset servit al navegador sigui idèntic al del repositori ni que totes dues versions siguin semànticament equivalents.
+
+| Acció | Circuit existent comprovat i punts sensibles | Diferència FINAL i test |
+| --- | --- | --- |
+| AL-CONSULTA · Informació d'inscripció | [`modalConsultaInformacio_resultatCerca()` L6917–7472](../../codi-drive/intranet-actual/Intranet.php#L6917-L7472): consulta `buscarInfoMostraInfo` per `idInsc`, complementa dades del curs, tutor, inscripcions i Moodle nou/antic i construeix el modal amb dades personals, acadèmiques i de pagament. El JS ofereix editar **dades de la inscripció** i **dades de pagament** per separat [L1009–1115](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1009-L1115). | Autorització a servidor per identificador d'inscripció, estat d'origen de cada camp i resultat de Moodle; consulta no ha de modificar pagament ni factura. **T-AL-08:** ID d'una inscripció aliena, curs absent, Moodle indisponible, modal d'edició vs consulta. |
+| AL-EDICIONPERSONAL · Dades personals | [`guardarDadesPersonals_resultatCerca()` L6099–6123](../../codi-drive/intranet-actual/Intranet.php#L6099-L6123): executa `updInscDadesPersCerca` amb identificador de registre; aquest mètode llegat no demostra propagació a totes les matrícules/Moodle ni actualització d'un receptor fiscal de factura emesa. | Separar contacte corrent de receptor fiscal històric; camp/actor/inscripció i destinacions traçables (UC-042/120/126). **T-AL-09:** canviar dades amb factura existent no reescriu document original. |
+| AL-EDITPAG · Edició de dades de pagament al modal | [`guardarDadesPagament_modalsresultatCerca()` L7525–7571](../../codi-drive/intranet-actual/Intranet.php#L7525-L7571) passa `A_PAGAR`, `PAGAMENT`, dates, `IDPAG`, observacions, fraccionament, `FACTURA_RELACIONADA` i reclamació a una consulta `updInscDadesPagInfo` en el registre de la inscripció. **És una escriptura directa del resum llegat, no prova d'un cobrament bancari, d'un nou moviment `CHARGE` ni de l'emissió d'una factura.** | Formulari de gestió amb permís, justificació i conciliació contra diners/document real; no editar el PDF fiscal ni crear un ingrés perquè un camp canvia; UC-002/062/074/105 segons fet. **T-AL-10:** modificar `PAGAMENT` sense ingrés → no inventar transacció. |
+| AL-BAIXA · Confirmar baixa individual | [`confirmaBaixa_modalDonarBaixa()` L9172–9465](../../codi-drive/intranet-actual/Intranet.php#L9172-L9465) consulta la inscripció, si `INSC CURS='1'` intenta baixa Moodle nou i després antic, inclosa aula oberta si `PERENNE='1'`; consulta altres dades, pot preparar correu al tutor, invoca [`__donarBaixaRegistreInscripcions()` L9472–9495](../../codi-drive/intranet-actual/Intranet.php#L9472-L9495), que executa `updInscBaixaCurs`, i segons la casella envia comunicació d'alumne i gestió. **Són efectes seqüencials; el mètode revisat no mostra una transacció única entre BD, Moodle i correu ni un assentament bancari.** | Distingir canvi administratiu, baixa acadèmica efectiva, missatge, deute/saldo/devolució i document fiscal; registrar fase/actor i reintentar només etapes pendents. **T-AL-11:** Moodle falla després d'alguna baixa, email falla després d'UPDATE i reintent; cap devolució automàtica implícita. |
+| AL-CANVI · Realitzar canvi de curs després de confirmar | [`realitzarCanviCurs_modalCanviCurs()` L8513–9082](../../codi-drive/intranet-actual/Intranet.php#L8513-L9082) llegeix inscripció d'origen, utilitza els imports `apagarC/pagatC/despesesC` rebuts com a arguments, incorpora textos de canvi i observacions, crea una inscripció de destí amb `insertRegInscCanvi` i [L8767–8779](../../codi-drive/intranet-actual/Intranet.php#L8767-L8779), dona de baixa origen amb `updInscCanviCurs` segons estat i prova baixes Moodle en branques concretes [L8796–8888](../../codi-drive/intranet-actual/Intranet.php#L8796-L8888). **El mètode inclou `echo` de SQL i valors de la inscripció** [L8522–8546 i L8759–8765](../../codi-drive/intranet-actual/Intranet.php#L8522-L8546); no cal replicar aquestes dades privades a la documentació. Cap transacció conjunta amb Moodle/correu ni write fiscal SIF es veu en aquest mètode. | Validar destí i tots els imports/qualificació al servidor, conservar origen i destí amb correlació, conciliar fons reals per titular, preservar factura immutable i registrar cada fase; no repetir canvi per refresc/doble clic. **T-AL-12:** falla destí, fallada Moodle, petició duplicada, pagament parcial i factura de tercers. |
+| AL-FACTURA · Consultar i descarregar | [`modalConsultaFactura_resultatCerca()` L9624–9653](../../codi-drive/intranet-actual/Intranet.php#L9624-L9653) busca factura relacionada i invoca `generaFactura(factura,false)` per mostrar-la en el modal; això no acredita que **el clic** emeti una factura fiscal nova. El JS [L2169–2240](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2169-L2240) controla factura absent/error, modal i petició separada de descàrrega. | Consultar PDF/estat del document vigent amb permís de receptor i traça de descàrrega; no confondre representació HTML o PDF històric amb emissió fiscal. **T-AL-13:** factura inexistent, grup amb tercer pagador, falla generació/descàrrega, consulta repetida sense registre fiscal addicional. |
+
+**Troballes de codi que no depenen de captures noves:**
+
+- **Descàrrega de factura:** [JS L2224–2240](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2224-L2240) declara callback `.done(function(res){...})` però al seu interior utilitza `resD` per comprovar error, construir URL i nom de fitxer. En el JS no minificat de tall no hi ha cap altra aparició de `resD`; en aquesta ruta això pot provocar `ReferenceError` i interrompre la descàrrega. **Verificar al minificat i navegador abans de concloure que falla al desplegament**; corregir amb resposta tipificada/variable coherent i permisos sobre l'arxiu.
+- **Canvi de curs:** [JS L1543–1560](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1543-L1560) accepta el modal si `!conté(error) || !conté(404)`: l'OR fa que n'hi hagi prou que manqui una de les dues cadenes i pot interpretar una resposta d'error com a èxit. [JS L1675–1695](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1675-L1695) i el wrapper [`realitzarCanviCurs_CanviCurs.php` L20–37](../../codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php#L20-L37) envien/importen imports per GET. El cos de backend no mostra un recàlcul comercial independent dels imports aportats com a arguments abans de crear la inscripció de destí. **No afirmar que s'ha produït frau ni import incorrecte**; definir test de manipulació de petició i comparació contra valors autoritatius.
+- **Baixa individual ≠ anul·lació d'edició:** `confirmaBaixa_modalDonarBaixa()` és una decisió sobre una inscripció concreta i pot efectuar baixa Moodle i `updInscBaixaCurs`. **No utilitzar-la per inferir el comportament final de l'anul·lació massiva UC-127**, on la regla confirmada és conservar inicialment les inscripcions a l'edició anul·lada mentre s'ofereix canvi d'edició o de curs.
+- **Minificat existent al repositori:** [pàgina PHP L47–48](../../codi-drive/intranet-actual/alumnes-mostrar-alumne.php#L47-L48) inclou `alumnes-mostrar-alumne.min.js?ver=1.4`. El minificat del `main` conté els noms dels quatre modals, endpoints d'execució de baixa/canvi, consulta/descàrrega de factura i botons «Mostra tots els registres»; no s'ha fet comparació sintàctica completa ni prova del fitxer servit. Això **no** és justificació per deixar tota la fitxa pendent fins a noves captures.
+
+### AL-INFO · Modal complet d'informació d'inscripció — ACTUAL / FINAL
+
+```plantuml
+@startuml
+title AL-INFO ACTUAL | Consulta d'inscripció acadèmica i pagament
+start
+:Seleccionar icona informació de la inscripció;
+:GET mostraModalConsultaInformacio amb idInsc;
+:Consultar registre d'inscripció i dades del curs;
+if (Registre i curs existeixen?) then (Sí)
+  :Consultar comptador, tutor i dades Moodle nou/antic;
+  :Construir modal amb dades personals i acadèmiques;
+  :Mostrar apartat diferenciat de dades pagament;
+  if (Clic editar dades inscripció?) then (Sí)
+    :Habilitar formulari de dades inscripció;
+  elseif (Clic editar dades pagament?) then (Sí)
+    :Habilitar formulari de dades pagament;
+  elseif (Clic enllaç campus?) then (Sí)
+    :Obrir consulta acadèmica en una altra pàgina;
+  endif
+else (No)
+  :Retornar missatge d'error de consulta;
+endif
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title AL-INFO FINAL | Consulta separada de cada dada operativa
+start
+:Autoritzar actor i idInsc al servidor;
+if (Inscripció accessible?) then (Sí)
+  :Carregar perfil i estat acadèmic de l'origen verificat;
+  :Carregar resum econòmic reconciliat amb pagaments;
+  :Mostrar dades i accions segons rol i titular;
+  if (Editar contacte/inscripció?) then (Sí)
+    :Tramitar UC-042/120/126 amb traça i versió;
+  elseif (Editar dades econòmiques?) then (Sí)
+    :Derivar a UC de cobrament/assignació/rectificació;
+    :No reescriure factura ni inventar ingrés;
+  elseif (Obrir Moodle?) then (Sí)
+    :Autoritzar destí i mostrar disponibilitat/estat real;
+  endif
+else (No)
+  :Denegar sense revelar dades ni PDF de tercers;
+endif
+stop
+@enduml
+```
+
+### AL-EDITPAG · Desar dades de pagament al llegat — ACTUAL / FINAL
+
+```plantuml
+@startuml
+title AL-EDITPAG ACTUAL | Modificació resum llegat
+start
+:Obrir modal informació d'una inscripció;
+:Editar dades de pagament;
+:Enviar camps modificats per AJAX;
+:PHP normalitza dates i factura buida;
+:Executar UPDATE de dades pagament per idInsc;
+:Retornar text de resultat;
+note right
+  Aquest UPDATE no acredita un nou
+  ingrés bancari, ni crea per si sol
+  un registre fiscal del SIF.
+end note
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title AL-EDITPAG FINAL | Canvi econòmic amb fet acreditat
+start
+:Identificar actor i inscripció i comprovar autorització;
+:Consultar factura immutable i cobraments reals;
+if (Correcció de camp administratiu sense diners nous?) then (Sí)
+  :Registrar motiu, abans/després i font de verificació;
+  :Aplicar correcció sense crear CHARGE/REFUND;
+elseif (Hi ha cobrament o reassignació real?) then (Sí)
+  :Registrar transacció/assignació amb idempotència;
+  :Actualitzar resum llegat per projecció reconciliada;
+elseif (Cal corregir factura emesa?) then (Sí)
+  :Derivar a UC fiscal corresponent;
+  :Mantenir l'original i registrar document corrector;
+else (No)
+  :No modificar resum; registrar incidència o falta d'evidència;
+endif
+:Retornar estats reals per inscripció i document;
+stop
+@enduml
+```
+
+### AL-FACTURA · Consulta de factura i acció de descàrrega — ACTUAL / FINAL
+
+```plantuml
+@startuml
+title AL-FACTURA ACTUAL | Modal document i descàrrega JS
+start
+:Prémer icona de factura per una inscripció;
+:GET mostraModalConsultaFactura amb idInsc;
+:Consultar factura relacionada;
+if (Existeix factura?) then (Sí)
+  :generaFactura(factura, false) construeix vista;
+  :Mostrar modal de factura;
+  if (Clic descarregar?) then (Sí)
+    :GET descarregaFactura amb id del document;
+    :Callback done rep res;
+    :JS utilitza resD per error, URL i nom fitxer;
+    note right
+      En JS llegible resD no apareix declarat.
+      Possible ReferenceError a verificar
+      també en minificat i navegador.
+    end note
+  endif
+else (No)
+  :Mostrar modal absència/error;
+endif
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title AL-FACTURA FINAL | Visualitzar/baixar document autoritzat
+start
+:Autenticar i autoritzar actor i document per receptor;
+if (Factura existent i accessible?) then (Sí)
+  :Carregar versió fiscal immutable i estat de document;
+  :Mostrar vista només a subjectes autoritzats;
+  if (Clic descarregar?) then (Sí)
+    :Sol·licitar PDF amb identificador documental validat;
+    if (Document preparat?) then (Sí)
+      :Descàrrega segura amb nom i ruta coherents;
+      :Registrar resultat de lliurament si escau;
+    else (No)
+      :Mostrar error de document sense emetre factura nova;
+    endif
+  endif
+else (No)
+  :Mostrar absència o denegació sense dades de tercers;
+endif
+stop
+@enduml
+```
+
+**Tancament d'aquest contrast sense captures:** mètodes d'inscripció, baixa, canvi i consulta de factura llegits al `main`; diagrames d'informació/pagament/factura afegits per completar accions de la pàgina. Encara NO s'han executat transaccions, proves de navegador, callbacks ni proves de seguretat i no es dona per fet que el servidor real executi aquesta versió del codi.
+
