@@ -386,12 +386,16 @@ partition "Servidor de sol·licituds" {
     if (Accés anterior caducat?) then (Sí)
       :Exigir autorització de secretaria o suport;
       if (Autorització verificable per persona i tastet?) then (Sí)
-        :Permetre reinscripció i conservar traça de l'autorització;
+        :Registrar autorització vinculada al titular i al tastet;
+        :Crear nova sol·licitud autoritzada de manera idempotent;
       else (No)
-        :Denegar nova alta i indicar via de contacte;
+        :Denegar nova alta; indicar via de contacte;
+        stop
       endif
     else (No)
-      :Retornar mateixa sol·licitud o decisió d'estat encara oberta;
+      :Retornar estat de la sol·licitud anterior;
+      :No crear una altra alta;
+      stop
     endif
   else (No)
     :Crear petició gratuïta idempotent;
