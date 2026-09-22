@@ -2,7 +2,7 @@
 
 **Abast de la fitxa original:** emissió, titular, regla, caducitat, reserva, consum, anul·lació i reversió, amb idempotència i història. **Bloquejant de negoci:** tipus de dret, transferibilitat, acumulació, caducitat, reserva i reversió després de cancel·lació. Un codi de descompte **no és** per definició saldo de diners ja cobrats, i un regal prepagat no s'ha de convertir silenciosament en descompte comercial.
 
-**Evidència:** la migració defineix `commercial_entitlement` (UUID, `ENTITLEMENT_TYPE`, `CODE_HASH`, `HOLDER_PARTY_KEY`, `ORIGIN_UUID_OPERATION`, `CONSUMED_UUID_OPERATION`, `RULE_VERSION/SNAPSHOT_JSON`, `FACE_VALUE`, `DISCOUNT_PERCENT`, `STATUS`, dates, `IDEMPOTENCY_KEY`) i `commercial_entitlement_event` amb origen/destí d'estat i correlació. **No s'ha identificat un gestor PHP del cicle de drets** a `sif/src/Service`. `LegacyCourseInvoicePayloadBuilder` pot portar codi/import al snapshot fiscal, però no valida ni consumeix el dret.
+**Evidència:** la migració defineix `commercial_entitlement` (UUID, `ENTITLEMENT_TYPE`, `CODE_HASH`, `HOLDER_PARTY_KEY`, `ORIGIN_UUID_OPERATION`, `CONSUMED_UUID_OPERATION`, `RULE_VERSION/SNAPSHOT_JSON`, `FACE_VALUE`, `DISCOUNT_PERCENT`, `STATUS`, dates, `IDEMPOTENCY_KEY`) i `commercial_entitlement_event` amb origen/destí d'estat i correlació. **No hi ha encara un gestor PHP GENÈRIC del cicle de drets** (reserva, N consums, reversió, activació i lliurament) a `sif/src/Service`. **Excepció concreta en aquesta branca:** [NovicePromotionGrantService](../../sif/src/Service/NovicePromotionGrantService.php) implementa només l'emissió transaccional del dret novell UC-111, a partir d'una JASOM validada i cobrada completament. Aquesta peça NO es pot utilitzar com a gestor genèric UC-117 ni acredita que s'hagi executat/lliurat una promoció. `LegacyCourseInvoicePayloadBuilder` pot portar codi/import al snapshot fiscal, però no valida ni consumeix el dret.
 
 ## 1. Fitxa funcional
 
@@ -44,6 +44,9 @@ Si el codi s'ha tancat durant un canvi de curs, la reversió d'aquest canvi ha d
 | CE-04 | Canvi de curs tanca DATAF i després es desfà | Revisió de dret i nou event, sense reobertura automàtica. |
 | CE-05 | Codi públic multiús | Model d'usos individuals, no un sol CONSUMED_UUID_OPERATION per totes les compres. |
 
+### Relació amb UC-111 — concessió aïllada, consum/correu no integrats
+
+La [migració `novice_promotion_grant`](../../sif/database/migrations/2026_09_22_000008_add_novice_promotion_grant.sql) imposa una concessió de **saldo promocional** per persona amb valor original i disponible. La gestió de N consums de l'UC-111 no es pot expressar només amb `commercial_entitlement.CONSUMED_UUID_OPERATION` (singular); cal modelar aplicacions múltiples amb traça i idempotència abans de connectar UC-20d. La concessió guarda `CODE_HASH=NULL`: l'emissió segura d'un codi, activació i notificació recuperable és una fase posterior al commit, encara PENDENT. No confondre saldo promocional nou amb `credit_balance` de diners ja pagats ni transformar el grant en `payment_transaction`.
 ## 2. UML de casos d'ús
 
 ```plantuml
