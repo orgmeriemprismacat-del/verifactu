@@ -1,0 +1,308 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Prisma\Sif\Service;
+
+use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Exception\SifException;
+
+/**
+ * UC-111: idempotent, one-per-person promotional grant for a fully paid JASOM.
+ *
+ * This INTERNAL service is invoked only after the SIF has reconciled the
+ * original invoice and its payments. No amount, approval flag or holder ID is
+ * accepted from a browser, a Redsys redirect or the caller.
+ *
+ * It grants the right; it deliberately does NOT generate a redeemable token,
+ * send email, record bank payments or apply a credit compensation. Those are
+ * separate idempotent steps and cannot be inferred from a successful grant.
+ */
+final class NovicePromotionGrantService
+{
+    public const RULE_VERSION = 'NOVICE_JASOM_V1';
+    public const VALIDATION_TYPE = 'NOVICE_TEACHER';
+
+    public function __construct(private UuidGenerator $uuids)
+    {
+    }
+
+    public function issueForOperation(\PDO $db, string $uuidOperation, ?\DateTimeImmutable $now = null): array
+    {
+        if ($db->inTransaction()) {
+            throw new \LogicException('Novice grant requires an independent transaction after payment reconciliation.');
+        }
+
+        if (trim($uuidOperation) === '') {
+            throw SifException::validation('Origin operation is required.');
+        }
+
+        $db->beginTransaction();
+
+        try {
+            $operation = $this->one(
+                $db,
+                'SELECT * FROM commercial_operation WHERE UUID_OPERATION = ? FOR UPDATE',
+                [$uuidOperation]
+            );
+
+            if ($operation === null
+                || strtoupper((string) $operation['SOURCE_TYPE']) !== 'CURS'
+                || strtoupper((string) $operation['PRODUCT_CODE']) !== 'JASOM'
+                || strtoupper((string) $operation['CURRENCY']) !== 'EUR'
+                || !in_array((string) $operation['STATUS'], ['PAID', 'INVOICED', 'COMPLETED'], true)
+            ) {
+                throw SifException::conflict('Origin is not a reconciled JASOM course operation.');
+            }
+
+            $validations = $this->many(
+                $db,
+                'SELECT * FROM discount_validation
+                 WHERE UUID_OPERATION = ? AND DISCOUNT_TYPE = ? FOR UPDATE',
+                [$uuidOperation, self::VALIDATION_TYPE]
+            );
+
+            if (count($validations) !== 1) {
+                throw SifException::conflict('A single novice validation is required.');
+            }
+
+            $validation = $validations[0];
+            if ($validation['STATUS'] !== 'VALIDATED'
+                || $validation['VALIDATED_AT'] === null
+                || trim((string) ($validation['VALIDATED_BY'] ?? '')) === ''
+            ) {
+                throw SifException::conflict('Novice qualification has not been approved by the secretariat.');
+            }
+
+            $holder = trim((string) $validation['SUBJECT_PARTY_KEY']);
+            if ($holder === '') {
+                throw SifException::conflict('Verified novice holder is missing.');
+            }
+
+            $participants = $this->many(
+                $db,
+                'SELECT PARTY_KEY FROM commercial_operation_party
+                 WHERE UUID_OPERATION = ? AND PARTY_ROLE = ? FOR UPDATE',
+                [$uuidOperation, 'PARTICIPANT']
+            );
+
+            if (count($participants) !== 1 || (string) $participants[0]['PARTY_KEY'] !== $holder) {
+                throw SifException::conflict('Novice holder must be the single enrolled participant.');
+            }
+
+            // Uniqueness is also enforced by uq_novice_grant_person in MySQL.
+            // A repeat of the SAME operation returns the original right;
+            // a second JASOM never grants a second right to the same person.
+            $existing = $this->one(
+                $db,
+                'SELECT g.UUID_ENTITLEMENT, g.ORIGIN_UUID_OPERATION, g.ORIGINAL_CASH_AMOUNT,
+                        e.EXPIRES_AT, e.STATUS
+                 FROM novice_promotion_grant g
+                 JOIN commercial_entitlement e ON e.UUID_ENTITLEMENT = g.UUID_ENTITLEMENT
+                 WHERE g.HOLDER_PARTY_KEY = ? FOR UPDATE',
+                [$holder]
+            );
+
+            if ($existing !== null) {
+                if ((string) $existing['ORIGIN_UUID_OPERATION'] !== $uuidOperation) {
+                    throw SifException::conflict('Novice promotion already granted for this person.');
+                }
+
+                $db->commit();
+
+                return [
+                    'uuid_entitlement' => (string) $existing['UUID_ENTITLEMENT'],
+                    'original_amount' => (string) $existing['ORIGINAL_CASH_AMOUNT'],
+                    'expires_at' => (string) $existing['EXPIRES_AT'],
+                    'status' => (string) $existing['STATUS'],
+                    'idempotency_reused' => true,
+                ];
+            }
+
+            $uuidInvoice = trim((string) ($operation['UUID_FACTURA'] ?? ''));
+            if ($uuidInvoice === '') {
+                throw SifException::conflict('JASOM origin has no linked invoice.');
+            }
+
+            $invoice = $this->one(
+                $db,
+                'SELECT UUID_FACTURA, TOTAL, ESTAT_COBRAMENT, ESTAT_FACTURA
+                 FROM factura WHERE UUID_FACTURA = ? FOR UPDATE',
+                [$uuidInvoice]
+            );
+
+            if ($invoice === null
+                || $invoice['ESTAT_COBRAMENT'] !== 'PAID'
+                || $invoice['ESTAT_FACTURA'] !== 'ISSUED'
+            ) {
+                throw SifException::conflict('JASOM origin invoice is not issued and fully paid.');
+            }
+
+            $total = $this->money((string) $invoice['TOTAL']);
+            $operationNet = $this->money((string) $operation['NET_AMOUNT']);
+            $cash = $this->one(
+                $db,
+                "SELECT COALESCE(SUM(CASE
+                    WHEN pt.TIPUS_MOVIMENT = 'CHARGE' THEN pa.IMPORT_ASSIGNAT
+                    WHEN pt.TIPUS_MOVIMENT = 'REFUND' THEN -pa.IMPORT_ASSIGNAT
+                    ELSE 0 END), 0) AS NET_CASH
+                 FROM payment_allocation pa
+                 JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
+                 WHERE pa.UUID_FACTURA = ? AND pt.ESTAT = 'CONFIRMED'",
+                [$uuidInvoice]
+            );
+            $netCash = $this->money((string) ($cash['NET_CASH'] ?? '0.00'));
+
+            // This first grant path admits fully CASH-paid single-invoice JASOM
+            // only. Mixed compensation/payment and overpayment require a
+            // distinct approved policy and cannot silently mint extra value.
+            if ($total <= 0 || $total !== $operationNet || $netCash !== $total) {
+                throw SifException::conflict('JASOM is not fully paid with reconciled cash payments.');
+            }
+
+            $now ??= new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid'));
+            $localNow = $now->setTimezone(new \DateTimeZone('Europe/Madrid'));
+            $utc = new \DateTimeZone('UTC');
+            $issuedAt = $localNow->setTimezone($utc)->format('Y-m-d H:i:s');
+            $expiresAt = $localNow->modify('+1 year')->setTimezone($utc)->format('Y-m-d H:i:s');
+            $amount = $this->formatMoney($netCash);
+            $uuidEntitlement = $this->uuids->generate();
+            $snapshot = json_encode([
+                'rule' => self::RULE_VERSION,
+                'origin' => 'JASOM',
+                'promotional_value_not_prepaid_cash' => true,
+                'discounts_applied_before_promotion' => true,
+                'original_expiry_preserved_for_remainder' => true,
+                'validation_ref' => (string) $validation['UUID_VALIDATION'],
+                'origin_invoice_ref' => $uuidInvoice,
+            ], JSON_UNESCAPED_SLASHES);
+            if ($snapshot === false) {
+                throw new \RuntimeException('Could not encode novice promotion rule snapshot.');
+            }
+
+            $this->execute(
+                $db,
+                'INSERT INTO commercial_entitlement
+                 (UUID_ENTITLEMENT, ENTITLEMENT_TYPE, CODE_HASH, HOLDER_PARTY_KEY,
+                  ORIGIN_UUID_OPERATION, RULE_VERSION, RULE_SNAPSHOT_JSON, FACE_VALUE,
+                  CURRENCY, STATUS, ISSUED_AT, EXPIRES_AT, IDEMPOTENCY_KEY)
+                 VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                    $uuidEntitlement,
+                    'FUTURE_DISCOUNT',
+                    $holder,
+                    $uuidOperation,
+                    self::RULE_VERSION,
+                    $snapshot,
+                    $amount,
+                    'EUR',
+                    'ISSUED',
+                    $issuedAt,
+                    $expiresAt,
+                    'NOVICE|V1|' . hash('sha256', $holder),
+                ]
+            );
+
+            $this->execute(
+                $db,
+                'INSERT INTO novice_promotion_grant
+                 (UUID_ENTITLEMENT, HOLDER_PARTY_KEY, ORIGIN_UUID_OPERATION,
+                  UUID_VALIDATION, UUID_FACTURA, ORIGINAL_CASH_AMOUNT, AVAILABLE_AMOUNT)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [
+                    $uuidEntitlement,
+                    $holder,
+                    $uuidOperation,
+                    (string) $validation['UUID_VALIDATION'],
+                    $uuidInvoice,
+                    $amount,
+                    $amount,
+                ]
+            );
+
+            $this->execute(
+                $db,
+                'INSERT INTO commercial_entitlement_event
+                 (UUID_EVENT, UUID_ENTITLEMENT, ACTION, RESULT, FROM_STATUS, TO_STATUS,
+                  UUID_OPERATION, ACTOR_TYPE, ACTOR_ID, CORRELATION_ID, CAUSATION_ID,
+                  REASON_CODE, CHANGESET_JSON, OCCURRED_AT)
+                 VALUES (?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?, ?)',
+                [
+                    $this->uuids->generate(),
+                    $uuidEntitlement,
+                    'ISSUE',
+                    'SUCCESS',
+                    'ISSUED',
+                    $uuidOperation,
+                    'SYSTEM',
+                    $uuidEntitlement,
+                    (string) $validation['UUID_VALIDATION'],
+                    'NOVICE_JASOM_FULLY_PAID',
+                    json_encode(['amount' => $amount, 'currency' => 'EUR'], JSON_THROW_ON_ERROR),
+                    $issuedAt,
+                ]
+            );
+
+            $this->execute(
+                $db,
+                'UPDATE discount_validation SET FUTURE_ENTITLEMENT_REF = ?
+                 WHERE UUID_VALIDATION = ? AND FUTURE_ENTITLEMENT_REF IS NULL',
+                [$uuidEntitlement, (string) $validation['UUID_VALIDATION']]
+            );
+
+            $db->commit();
+
+            return [
+                'uuid_entitlement' => $uuidEntitlement,
+                'original_amount' => $amount,
+                'expires_at' => $expiresAt,
+                'status' => 'ISSUED',
+                'idempotency_reused' => false,
+            ];
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function money(string $value): int
+    {
+        if (!preg_match('/^(-?)(\d{1,10})(?:\.(\d{1,2}))?$/D', trim($value), $matches)) {
+            throw SifException::validation('Invalid monetary amount.');
+        }
+
+        $cents = ((int) $matches[2] * 100) + (int) str_pad($matches[3] ?? '', 2, '0');
+        return $matches[1] === '-' ? -$cents : $cents;
+    }
+
+    private function formatMoney(int $cents): string
+    {
+        if ($cents < 0) {
+            throw SifException::validation('Negative novice promotion amount.');
+        }
+
+        return intdiv($cents, 100) . '.' . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
+    }
+
+    private function one(\PDO $db, string $sql, array $params): ?array
+    {
+        $rows = $this->many($db, $sql, $params);
+        return $rows[0] ?? null;
+    }
+
+    private function many(\PDO $db, string $sql, array $params): array
+    {
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    private function execute(\PDO $db, string $sql, array $params): void
+    {
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+    }
+}
