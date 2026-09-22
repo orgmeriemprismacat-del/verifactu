@@ -79,13 +79,66 @@ final class NovicePromotionInvoiceLinkServiceTest
         Assert::same('120.00', $granted['original_amount']);
     }
 
-    private function fixture(string $operationStatus, ?string $validationStatus, int $firstPayment): array
+    public function testSeparateFiftyAndSeventyEuroInvoicesGrantOneHundredTwentyOnlyAfterBothPayments(): void
+    {
+        [$db, $operation, $firstInvoice] = $this->fixture('READY_FOR_PAYMENT', 'VALIDATED', 50, 50);
+        $links = new NovicePromotionInvoiceLinkService();
+        $first = $links->attach($db, 10, $firstInvoice);
+        Assert::same('WAITING_FULL_PAYMENT', $first['status']);
+        Assert::same(1, $first['linked_invoice_count']);
+
+        $secondInvoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'NOVICE|LINK|SECOND-INSTALLMENT|' . $operation,
+            'emesa_abans_cobrament' => 1,
+            'totals' => [
+                'import_base' => '70.00',
+                'taxable_base' => '70.00',
+                'total' => '70.00',
+            ],
+            'lines' => [[
+                'unit_price' => '70.00',
+                'base' => '70.00',
+                'import_base' => '70.00',
+                'taxable_base' => '70.00',
+                'total' => '70.00',
+            ]],
+        ]))['uuid_factura'];
+
+        $this->payment($db, $secondInvoice, '70.00', 'SECOND-INSTALLMENT');
+        $linked = $links->attach($db, 10, $secondInvoice);
+        Assert::same('ELIGIBLE_FOR_GRANT', $linked['status']);
+        Assert::same(2, $linked['linked_invoice_count']);
+        Assert::same($firstInvoice, (string) $db->query('SELECT UUID_FACTURA FROM commercial_operation')->fetchColumn());
+
+        $granted = (new NovicePromotionGrantService(new UuidGenerator()))
+            ->issueForOperation($db, $operation);
+        Assert::same('120.00', $granted['original_amount']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_grant')->fetchColumn());
+
+        $snapshot = (string) $db->query('SELECT RULE_SNAPSHOT_JSON FROM commercial_entitlement')->fetchColumn();
+        $decoded = json_decode($snapshot, true, 512, JSON_THROW_ON_ERROR);
+        Assert::same(2, count($decoded['origin_invoice_refs']));
+    }
+
+    private function fixture(string $operationStatus, ?string $validationStatus, int $firstPayment, int $firstInvoiceAmount = 120): array
     {
         $db = TestDatabase::fresh();
         $operation = (new UuidGenerator())->generate();
         $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
             'idempotency_key' => 'NOVICE|LINK|INVOICE|' . $operation,
             'emesa_abans_cobrament' => 1,
+            'totals' => [
+                'import_base' => $firstInvoiceAmount . '.00',
+                'taxable_base' => $firstInvoiceAmount . '.00',
+                'total' => $firstInvoiceAmount . '.00',
+            ],
+            'lines' => [[
+                'unit_price' => $firstInvoiceAmount . '.00',
+                'base' => $firstInvoiceAmount . '.00',
+                'import_base' => $firstInvoiceAmount . '.00',
+                'taxable_base' => $firstInvoiceAmount . '.00',
+                'total' => $firstInvoiceAmount . '.00',
+            ]],
         ]))['uuid_factura'];
 
         $db->prepare(
