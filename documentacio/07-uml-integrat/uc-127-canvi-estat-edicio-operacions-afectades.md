@@ -282,3 +282,91 @@ Note over S,A: No hi ha commit distribuït SIF/Moodle. El checkpoint/worker són
 **No barrejar ajornament i anul·lació:** si només canvia la data/hora/modalitat/hores/acreditació, es **notifica** i s'ofereix altra edició si no va bé, **sense exigir una acceptació prèvia**; el manteniment provisional a una edició anul·lada i l'oferta de canviar d'edició **o de curs** són el flux propi de l'anul·lació. No tractar com a «decisions pendents de negoci» aquestes dues regles ja facilitades. [Fitxa funcional UC-127](../06-fitxes-funcionals/uc-127.md).
 
 **Limitació:** el codi complet d'`Intranet::desarCanvisEstatEnviarMsg_PreviIniciCursos()` i els seus efectes reals, les plantilles/destinataris i totes les variants de pantalla no s'han acabat de contrastar aquí. Una descripció històrica que el mètode «pot donar de baixa alumnes» no és prova que això sigui el comportament desitjat abans de rebre una resposta a una edició anul·lada.
+
+### Diagrames d'activitat A127 — subfluxos concrets, font i estat
+
+**Traça de pantalla:** canvi d'estat d'una edició des de la intranet; [wrapper actual `ajax/cursos/desarCanvisEstatEnviarMsg.php`](../../codi-drive/intranet-actual/ajax/cursos/desarCanvisEstatEnviarMsg.php#L11-L27), que llegeix `any`, `mes`, `curs`, `estatAnt`, `estat` per GET i crida `Intranet::desarCanvisEstatEnviarMsg_PreviIniciCursos()`. **Estat actual verificat: només el wrapper**, no el cos del mètode, els botons, la plantilla de correu ni els efectes persistents. Els dos diagrames finals són DISSENY amb regles de negoci confirmades i tasques tècniques pendents, **no codi implantat ni diagrames complets de tota la pàgina**. Aquestes accions pertanyen a UC-127 per estat, i a UC-114 per canvi de dades/versió; no fusionar-les.
+
+#### A127-01 — ACTUAL: controlador de canvi d'estat (límit verificat)
+
+```plantuml
+@startuml
+title A127-01 ACTUAL | Canvi d'estat, wrapper PHP verificat
+start
+:Rebre GET any, mes, curs, estatAnt i estat;
+:Deserialitzar usuari i intranet des de la sessió;
+:Cridar Intranet::desarCanvisEstatEnviarMsg_PreviIniciCursos(...);
+note right
+  Cos del mètode no contrastat:
+  no suposar efectes sobre inscripcions,
+  correu, factures o Moodle.
+end note
+:Retornar al client la resposta del mètode;
+stop
+@enduml
+```
+
+#### A127-02 — FINAL: anul·lació d'edició (decisió de negoci confirmada)
+
+```plantuml
+@startuml
+title A127-02 FINAL | Anul·lar edició i oferir alternatives
+start
+:Gestió selecciona anul·lació de l'edició;
+:Validar actor i edició al servidor;
+:Inventariar inscripcions, reserves i operacions afectades;
+:Registrar transició d'estat i actor amb idempotència;
+:Deixar cada inscripció a l'edició ORIGINAL;
+:Enviar missatge d'anul·lació a les persones inscrites;
+:Oferir canvi d'edició O de curs;
+if (La persona sol·licita una alternativa?) then (Sí)
+  :Tramitar la sol·licitud individual en el UC corresponent;
+  :Comprovar plaça, inscripció, pagament i factura reals;
+  if (Alternativa executada i verificada?) then (Sí)
+    :Actualitzar l'estat de la inscripció afectada;
+    :Notificar resultat real del canvi;
+  else (No)
+    :Mantenir situació anterior;
+    :Registrar incidència o pendent per a aquella persona;
+  endif
+else (No / pendent de resposta)
+  :Mantenir la inscripció a l'edició anul·lada;
+  :Registrar resposta pendent, sense trasllat automàtic;
+endif
+:No executar devolució, baixa Moodle ni rectificació
+pel sol fet d'anul·lar l'edició;
+stop
+@enduml
+```
+
+**Variant econòmica:** si hi ha una petició individual amb diferència d'import, factura existent o cobrament real, la decisió i els documents/moviments se'n deriven als UC econòmics i fiscals; no han de quedar ocults dins la notificació. **Respostes i terminis no acreditats:** no inventar una caducitat de la petició ni un trasllat forçat per manca de resposta.
+
+#### A127-03 — FINAL: canvi de data/horari sense anul·lació (vinculat a UC-114)
+
+```plantuml
+@startuml
+title A127-03 FINAL | Canvi notificable, no anul·lació
+start
+:Gestió decideix canvi excepcional d'edició;
+:Validar actor, versió i operacions afectades;
+:Publicar canvi de data, horari, modalitat,
+hores o acreditació amb traça;
+:Notificar persones inscrites del canvi;
+note right
+  No cal acceptació prèvia
+  de la nova data/condició comunicada.
+  Els termes econòmics ja acceptats
+  no es reescriuen.
+end note
+if (La persona indica que no li va bé?) then (Sí)
+  :Oferir canvi d'edició;
+  :Tramitar la sol·licitud individual;
+else (No)
+  :Continuar amb l'edició modificada;
+endif
+:Conservar snapshot històric i documents emesos;
+stop
+@enduml
+```
+
+**Proves proposades, no executades:** (1) anul·lar amb tres persones: cap trasllat ni baixa per defecte i tres avisos rastrejables, una petició de canvi resolta independentment de les altres; (2) persona que no respon: inscripció encara a l'edició anul·lada; (3) canvi de data sense anul·lació: avís i cap exigència d'acceptació prèvia, amb alternativa si no li va bé; (4) factura o cobrament existent: cap devolució, rectificació o segona captura només per la notificació; (5) error d'enviament: reintentar només el missatge pendent, sense repetir el canvi d'estat ni els efectes individuals. Per tancar RM-037 falta contrastar la pàgina, els modals i el mètode llegat complet i executar aquestes proves.
