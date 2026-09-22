@@ -119,9 +119,27 @@ final class NovicePromotionGrantService
                 ];
             }
 
+            if (trim((string) ($validation['FUTURE_ENTITLEMENT_REF'] ?? '')) !== '') {
+                throw SifException::conflict('Novice validation refers to a pre-existing or unimported entitlement.');
+            }
+
             $uuidInvoice = trim((string) ($operation['UUID_FACTURA'] ?? ''));
             if ($uuidInvoice === '') {
                 throw SifException::conflict('JASOM origin has no linked invoice.');
+            }
+
+            $sourceId = trim((string) ($operation['SOURCE_ID'] ?? ''));
+            if ($sourceId === '' || !ctype_digit($sourceId) || (int) $sourceId <= 0) {
+                throw SifException::conflict('JASOM origin enrollment reference is not available.');
+            }
+
+            $invoiceRelation = $this->one(
+                $db,
+                'SELECT ID FROM fact_rels WHERE UUID_FACTURA = ? AND SOURCE_TYPE = ? AND SOURCE_ID = ? LIMIT 1',
+                [$uuidInvoice, 'INSCRIPCIO', (int) $sourceId]
+            );
+            if ($invoiceRelation === null) {
+                throw SifException::conflict('JASOM invoice is not linked to the origin enrollment.');
             }
 
             $invoice = $this->one(
@@ -243,12 +261,14 @@ final class NovicePromotionGrantService
                 ]
             );
 
-            $this->execute(
-                $db,
+            $validationLink = $db->prepare(
                 'UPDATE discount_validation SET FUTURE_ENTITLEMENT_REF = ?
-                 WHERE UUID_VALIDATION = ? AND FUTURE_ENTITLEMENT_REF IS NULL',
-                [$uuidEntitlement, (string) $validation['UUID_VALIDATION']]
+                 WHERE UUID_VALIDATION = ? AND FUTURE_ENTITLEMENT_REF IS NULL'
             );
+            $validationLink->execute([$uuidEntitlement, (string) $validation['UUID_VALIDATION']]);
+            if ($validationLink->rowCount() !== 1) {
+                throw SifException::conflict('Novice validation was already linked to another entitlement.');
+            }
 
             $db->commit();
 
