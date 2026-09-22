@@ -384,12 +384,12 @@ partition "Servidor de sol·licituds" {
   if (Existeix sol·licitud compatible?) then (Sí)
     :Comprovar estat segons DEC-108-03;
     if (Accés anterior caducat?) then (Sí)
-      :Exigir autorització de secretaria o suport;
-      if (Autorització verificable per persona i tastet?) then (Sí)
-        :Registrar autorització vinculada al titular i al tastet;
-        :Crear nova sol·licitud autoritzada de manera idempotent;
+      :Comprovar si secretaria/suport ha desbloquejat la inscripció web de persona+tastet;
+      if (Desbloqueig verificable per persona i tastet?) then (Sí)
+        :Acceptar l'enviament del formulari fet per la persona;
+        :Crear nova sol·licitud idempotent vinculada al desbloqueig;
       else (No)
-        :Denegar nova alta; indicar via de contacte;
+        :Bloquejar enviament i indicar contacte amb secretaria/suport;
         stop
       endif
     else (No)
@@ -524,7 +524,7 @@ stop
 
 ### 3.6 Apartat 03.D — validar i decidir davant una altra inscripció
 
-**Font específica:** [`buscarSiHaRealitzatElTastet.php`](../../codi-drive/web-actual/ajax/buscarSiHaRealitzatElTastet.php#L20-L45) consulta `CURS+DNI+INSC_CURS=1`. [JS L835–878](../../codi-drive/web-actual/js1619773569/mostrarInscripcionsTastets.min.js#L835-L878) mostra modal; [HTML del modal](../../codi-drive/web-actual/InscripcioTastet.php#L307-L326) té «Tanca», no botó «Continuar». **DEC-108-03a ACORDADA:** si l'accés anterior ha caducat, una nova inscripció requereix autorització de secretaria o suport. El control concret de l'autorització i el tractament dels altres estats resten per definir.
+**Font específica:** [`buscarSiHaRealitzatElTastet.php`](../../codi-drive/web-actual/ajax/buscarSiHaRealitzatElTastet.php#L20-L45) consulta `CURS+DNI+INSC_CURS=1`. [JS L835–878](../../codi-drive/web-actual/js1619773569/mostrarInscripcionsTastets.min.js#L835-L878) mostra modal; [HTML del modal](../../codi-drive/web-actual/InscripcioTastet.php#L307-L326) té «Tanca», no botó «Continuar». **DEC-108-03a ACORDADA:** si l'accés anterior ha caducat, secretaria/suport desbloqueja la inscripció web per persona+tastet i la persona torna a fer l'enviament del formulari; secretaria/suport no crea la nova inscripció. El mecanisme de desbloqueig i el tractament dels altres estats resten per definir.
 
 ```plantuml
 @startuml
@@ -563,9 +563,10 @@ else (Sí)
       :Mostrar accés vigent, no duplicar;
     else (No)
       if (Accés anterior caducat?) then (Sí)
-        :Requerir autorització de secretaria o suport;
-        if (Autorització vàlida per persona i tastet?) then (Sí)
-          :Permetre reinscripció autoritzada i registrar traça;
+        :Bloquejar la inscripció web fins al desbloqueig de secretaria/suport;
+        if (Inscripció desbloquejada per persona+tastet?) then (Sí)
+          :La persona torna al formulari i envia la nova sol·licitud;
+          :Servidor valida el desbloqueig i crea alta idempotent;
         else (No)
           :No crear altra alta ni reactivar accés;
           :Informar de contacte amb secretaria o suport;
@@ -780,6 +781,6 @@ stop
 
 ## 6. Decisions pendents abans de donar aquests diagrames per «finals»
 
-**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02:** termini 24/48 h, una setmana des de l'accés efectiu, convocatòria o tastet continu; **la repetició després de caducar requereix autorització**. **DEC-108-03:** gestió de duplicats pendents/actius/baixes encara oberta. **DEC-108-03a ACORDADA:** si l'accés ha caducat, nova inscripció exclusivament amb autorització de secretaria o suport; via de sol·licitud, prova, vigència i execució del permís pendents. **DEC-108-04:** elecció i confirmació de mailing. **DEC-108-05:** qui gestiona l'accés Moodle i qui acredita dates. **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
+**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02:** termini 24/48 h, una setmana des de l'accés efectiu, convocatòria o tastet continu; **la repetició després de caducar requereix autorització**. **DEC-108-03:** gestió de duplicats pendents/actius/baixes encara oberta. **DEC-108-03a ACORDADA:** si l'accés ha caducat, secretaria/suport desbloqueja la inscripció web per aquella persona+tastet i és la persona qui torna a omplir i enviar el formulari; via de sol·licitud, control tècnic i vigència pendents. **DEC-108-04:** elecció i confirmació de mailing. **DEC-108-05:** qui gestiona l'accés Moodle i qui acredita dates. **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
 
 **Estat real:** la representació ACTUAL està contrastada amb el codi esmentat; la regla de reinscripció amb autorització és **ACORDADA però NO IMPLEMENTADA**, i la resta del flux FINAL encara està per aprovar. S'han de revisar les decisions amb Meriem, actualitzar les condicions exactes dels diagrames i després executar les proves. **No iniciar l'auditoria d'altres UC mentre la revisió funcional d'aquest cas segueix oberta.**
