@@ -148,7 +148,7 @@ Note over V,R: Coordinació no implementada, no ALTERAR factura original ni gene
 
 ## 5 bis. Decisions de negoci confirmades i preguntes encara obertes
 
-**CONFIRMAT — negoci 22/09/2026:** només la inscripció a JASOM permet demanar promoció novell. El títol ha d'haver estat expedit fa menys d'un any a la data d'inici de JASOM i secretaria comprova manualment el títol, la data i el titular. La inscripció es crea abans de la revisió i **només després de l'aprovació/denegació** es faciliten opcions de pagament. L'acreditació incorrecta provoca requeriment manual, fins a 48 hores **laborables** per esmenar i denegació quan secretaria prem No, sense cancel·lar la matrícula. **Un únic benefici:** es paga i es gaudeix de JASOM al seu preu comercial aplicable; si està acreditat i JASOM queda COMPLETAMENT PAGAT, s'emet automàticament un codi promocional **pel valor efectivament pagat** per aplicar en qualsevol curs posterior, dins d'un any des de l'emissió i combinable amb altres descomptes. Amb un dret de 90 € i compra de 70 €, el llegat genera un nou codi de 20 €; al SIF s'ha ACORDAT mantenir un únic saldo PROMOCIONAL disponible de 20 € dins el mateix dret, sense codi residual nou. En un curs de 120 €, el client abona la diferència de 30 €. Una devolució de JASOM provoca anul·lació MANUAL del codi i, si ja s'ha gastat, reclamació del valor aplicat. El romanent conserva la caducitat ORIGINAL del dret i els altres descomptes s'apliquen ABANS de consumir saldo. En cas de retorn de JASOM, un apartat intern ha de permetre cancel·lar el saldo disponible sense esborrar els consums i reclamar el valor utilitzat. La classificació comptable/fiscal del dret, el còmput operatiu d'hores laborables, ja està confirmat que el dret promocional novell es concedeix UNA SOLA VEGADA PER PERSONA, i el canvi o baixa del curs de destinació segueix el procés ordinari, amb trasllat al nou curs si es canvia i amb rectificativa més saldo nou d'un any si es dona de baixa. Resten per concretar els imports efectivament recuperables en una baixa segons condicions i el tractament fiscal/comptable de cada tram.
+**CONFIRMAT — negoci 22/09/2026:** només la inscripció a JASOM permet demanar promoció novell. El títol ha d'haver estat expedit fa menys d'un any a la data d'inici de JASOM i secretaria comprova manualment el títol, la data i el titular. La inscripció es crea abans de la revisió i **només després de l'aprovació/denegació** es faciliten opcions de pagament. L'acreditació incorrecta provoca requeriment manual, fins a 48 hores **comptades en dies feiners des de l'enviament del missatge de secretaria, excloent caps de setmana i festius**, per esmenar i denegació quan secretaria prem No, sense cancel·lar la matrícula. **Un únic benefici:** es paga i es gaudeix de JASOM al seu preu comercial aplicable; si està acreditat i JASOM queda COMPLETAMENT PAGAT, s'emet automàticament un codi promocional **pel valor efectivament pagat** per aplicar en qualsevol curs posterior, dins d'un any des de l'emissió i combinable amb altres descomptes. Amb un dret de 90 € i compra de 70 €, el llegat genera un nou codi de 20 €; al SIF s'ha ACORDAT mantenir un únic saldo PROMOCIONAL disponible de 20 € dins el mateix dret, sense codi residual nou. En un curs de 120 €, el client abona la diferència de 30 €. Una devolució de JASOM provoca anul·lació MANUAL del codi i, si ja s'ha gastat, reclamació del valor aplicat. El romanent conserva la caducitat ORIGINAL del dret i els altres descomptes s'apliquen ABANS de consumir saldo. En cas de retorn de JASOM, un apartat intern ha de permetre cancel·lar el saldo disponible sense esborrar els consums i reclamar el valor utilitzat. La classificació comptable/fiscal del dret i la configuració de quin calendari festiu s'aplica encara requereixen treball tècnic; ja està confirmat que el dret promocional novell es concedeix UNA SOLA VEGADA PER PERSONA, i el canvi o baixa del curs de destinació segueix el procés ordinari, amb trasllat al nou curs si es canvia i amb rectificativa més saldo nou d'un any si es dona de baixa. Resten per concretar els imports efectivament recuperables en una baixa segons condicions i el tractament fiscal/comptable de cada tram.
 
 **Correcció de font:** el cos del mètode de validació, el mapa SQL i el constructor de l'apartat s'han aportat al xat posteriorment al lot 02. Les notes anteriors de «mètode no recuperat» són HISTÒRIQUES. El SQL confirma que actualitza recent_titulat.VALIDAT (1/2); no deduir que s'hagi comprovat ingrés ni emès cap promoció.
 ## 6. Diagrames d'activitat del cas UC-111
@@ -194,8 +194,9 @@ if (Sol·licita promoció novell?) then (Sí)
  if (Acreditació correcta?) then (Sí)
   :Secretaria aprova dret condicional;
  else (No)
-  :Secretaria demana esmena manualment;
-  if (Rebut document vàlid dins 48 h laborables?) then (Sí)
+  :Secretaria envia requeriment i registra instant d'enviament;
+  :Calcular 48 h en dies feiners excloent caps de setmana i festius;
+  if (Rebut document vàlid dins 48 h laborables des de l'enviament?) then (Sí)
    :Secretaria comprova acreditació corregida;
    if (Acreditació correcta ara?) then (Sí)
     :Secretaria aprova dret condicional;
@@ -462,6 +463,36 @@ stop
 **Selecció fiscal verificada (no fixar R2):** R2 identifica concurs de creditors (art. 80.Tres LIVA); S és modalitat per substitució i I, per diferències, independents del motiu R1/R2/R3/R4/R5. La resolució d'operacions i alteracions de preu de l'art. 80.Dos LIVA són causes de R1 si aquest és el motiu real; R4 inclou errors no monetaris i altres supòsits; per rectificar factura simplificada considerar R5. El SIF classificarà cada rectificativa segons causa, factura original i imports, no per la paraula «canvi de curs». [AEAT, procediments de facturació (FAQ 21/07/2026)](https://sede.agenciatributaria.gob.es/Sede/ca_es/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/procedimientos-facturacion.html) · [RD 1619/2012, art. 15](https://www.boe.es/buscar/act.php?id=BOE-A-2012-14696#a15).
 
 **Proves proposades, NO EXECUTADES:** segon JASOM d'una persona ja beneficiària (sense segon dret), canvi de destí amb preu igual/superior/inferior, baixa de destí amb saldo novell gastat parcialment, nova vigència d'un any sense modificar l'original, devolució posterior de JASOM amb saldo derivat encara disponible, doble click/reintent i canvi concurrent amb consum del saldo.
+### 4.3 sexies. Devolució encadenada: baixa destí i retorn posterior de JASOM — FINAL acordat
+
+**Decisió CONFIRMADA (22/09/2026):** quan un consum promocional ha passat a ser un SALDO DERIVAT de baixa del curs de destinació, un retorn posterior del pagament de JASOM no genera reclamació duplicada pel consum anterior. Cal bloquejar el valor disponible del saldo derivat i reclamar **només** la seva part reutilitzada. Exemple: saldo novell inicial 90 €, aplicació 90 € a un curs, baixa amb rectificativa i nou saldo de baixa 90 €, nova aplicació 40 € i disponible 50 €: retornar JASOM implica cancel·lar 50 € i reclamar 40 €, **no** reclamar simultàniament els primers 90 €. Si hi ha romanent de la promoció novell original també s'anul·la sense solapar trams.
+
+```plantuml
+@startuml
+title UC-111 | JASOM retornat després de baixa del curs destí | FINAL
+start
+:Verificar retorn real de JASOM i localitzar dret promocional originari;
+:Bloquejar dret, consums, saldos derivats i operacions concurrents;
+:Reconstruir traça origen JASOM - consum - baixa - rectificativa - saldo derivat;
+:Identificar import del dret original que no s'hagi consumit;
+:Anul·lar només aquest romanent original disponible;
+if (El consum s'ha convertit en saldo DERIVAT de baixa?) then (Sí)
+ :Identificar saldo derivat disponible i consumit posteriorment;
+ :Anul·lar només el disponible del saldo derivat;
+ if (El saldo derivat s'ha reutilitzat?) then (Sí)
+  :Crear/reutilitzar reclamació NOMÉS per la part reutilitzada;
+ endif
+ :No reclamar de nou el consum inicial que ja va donar lloc al saldo derivat;
+else (No)
+ :Reclamar el consum de dret novell que continuï en matrícules vigents;
+endif
+:Registrar events, imports i enllaços origen-destí amb idempotència;
+:Conservar factures i rectificatives immutables;
+stop
+@enduml
+```
+
+**Límit del diagrama:** un import retornat només es pot anul·lar o reclamar una vegada. Si el saldo derivat també s'ha reutilitzat en un curs posterior, cal traçar qualsevol canvi/baixa addicional abans de determinar l'import net pendent. El calendari de festius del còmput documental s'ha de concretar per configuració, no queda definit com a festius d'una localitat determinada en la resposta de negoci.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
