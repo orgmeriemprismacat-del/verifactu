@@ -53,6 +53,19 @@ No substituir automàticament les 142 fitxes: modificar cada fitxa quan existeix
 
 **I-07 Històric i immutabilitat.** Emesa la factura, no reescriure camps fiscals ni número; correccions segons operació i criteri fiscal documentats. Preservar origen, emissor, versió i situació NO_VERIFACTU dels documents històrics; no tornar-los a emetre sense classificació.
 
+## 2.a. Porta obligatòria per donar una fitxa per «auditada i documentada»
+
+**Correcció del mètode de treball (22/09/2026).** Un document separat d'auditoria i un diagrama parcial NO substitueixen les fitxes funcionals finals ni els diagrames d'activitat per pàgina i apartat que exigeix RM-037. Abans d'anunciar «fitxa acabada», reunir i enllaçar aquests quatre lliurables:
+
+1. **Fitxa funcional individual** a documentacio/06-fitxes-funcionals/uc-NNN.md, amb accions actuals contrastades, actors, camps/taules, regles i variants, errors, flux actual, modificació proposada, flux final, proves i decisions obertes; distingir text heretat del model objectiu i observació del PHP actual.
+2. **Fitxa UML individual** a documentacio/07-uml-integrat/uc-NNN-...md, amb diagrama de casos d'ús, classes (EXISTENT/DISSENY), seqüència i enllaç explícit als diagrames d'activitat corresponents, sense confondre auditoria i implementació.
+3. **Diagrama d'activitat ACTUAL i FINAL de cada pàgina i cadascun dels apartats implicats**, identificant a quins UC pertany cada acció (RM-037), en un document de pàgines o a la fitxa UML. Un subflux de l'endpoint no és un diagrama de tota la pàgina; marcar explícitament el que no s'ha pogut contrastar, sense inventar el comportament del PHP absent.
+4. **Matriu de traçabilitat i proves** per acció: pàgina/apartat/botó → JS → ruta → classe/mètode → BD/efecte → UC/variant → diagrama → canvi d'implementació → prova. Registrar resultat real de prova només quan s'hagi executat, i estat independent de DOC/IMP/TEST.
+
+**Estat en aquest tall:** dels nou UC del lot 01, la [UC-108 disposa d'una fitxa funcional específica](../06-fitxes-funcionals/uc-108.md) i d'un [document de quatre pàgines amb diagrames d'activitat ACTUAL/FINAL i apartats](../07-uml-integrat/uc-108-activitats-pagines-tastets-actual-final.md), encara en revisió de decisions i proves. Els altres **vuit UC del lot 01 (106, 107, 109, 110, 112, 115, 122 i 125) NO s'han completat en aquest mateix format**: la seva auditoria dirigida NO els tanca ni permet saltar-los. [UC-111](../06-fitxes-funcionals/uc-111.md) disposa de fitxa funcional ampliada i [quatre diagrames de subfluxos parcials](../07-uml-integrat/00-auditoria-casos-pendents-lot-02-uc-111-2026-09-22.md#4-diagrames-dactivitat-daccions-uc-111-rm-037), però NO té acreditats tots els apartats de les pàgines compartides de web i intranet: continua **DOC PARCIAL / IMP NO ACREDITADA / TEST NO EXECUTAT**. No confondre els vuit pendents del lot 01 amb vuit casos d'ús absents del catàleg.
+
+**Regla d'ordre:** completar la documentació funcional i d'activitats de cadascun d'aquests casos abans de marcar-los «acabats»; no continuar amb fitxes successives només per incrementar el recompte de casos auditats.
+
 ## 2 bis. Auditories de casos d'ús per lots (estat verificat)
 
 - **UC-108 · DEC-108-05b ACORDADA (22/09/2026):** **després de completar l'alta manual al campus i activar realment l'accés, secretaria envia un correu operatiu a la persona informant que ja hi pot accedir**. És diferent del correu de sol·licitud rebuda i s'envia també si s'ha triat «No» al butlletí; el consentiment comercial no hi intervé. **PENDENT DE VERIFICAR/PROVAR:** com gestiona secretaria l'enviament, el destinatari, plantilla, traça i incidències, i la correspondència amb activació real (TG-108-09b); el PHP d'inscripció web revisat no acredita aquest correu posterior ni el mecanisme tècnic. Vegeu [auditoria lot 01, apartat 2 bis](../07-uml-integrat/00-auditoria-casos-pendents-lot-01-2026-09-22.md).
