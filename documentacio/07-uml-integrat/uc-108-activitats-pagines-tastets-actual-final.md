@@ -418,7 +418,9 @@ partition "Servidor de sol·licituds" {
     :Vincular operació FREE_SAMPLE si DEC-108-06;
   endif
   :Registrar per separat l'elecció «Sí/No» de butlletí UC-125 amb evidència; «No» o manca de «Sí» no genera subscripció comercial. Amb «Sí» explícit, tramitar alta directa al butlletí en enviar el formulari, sense correu de confirmació (DEC-108-04a/b); si falla l'alta comercial, registrar incidència sense anul·lar la sol·licitud del tastet;
-  :Programar tramitació acadèmica i avís operatiu;
+  :Deixar sol·licitud pendent de tramitació acadèmica MANUAL per secretaria (DEC-108-05a);
+  :Enviar avís operatiu de sol·licitud rebuda, no d'accés concedit;
+  :No crear matrícula Moodle automàticament en aquest flux;
 }
 partition "Navegador" {
   :Mostrar resultat de sol·licitud REAL;
@@ -654,7 +656,8 @@ if (Ha triat Sí explícit?) then (Sí)
 else (No)
   :No donar d'alta al butlletí; continuar inscripció gratuïta i avisos operatius (DEC-108-04a);
 endif
-:Registrar procés acadèmic pendent i notificació operativa;
+:Registrar petició pendent d'alta MANUAL per secretaria i notificació operativa de sol·licitud rebuda (DEC-108-05a);
+:No executar alta automàtica Moodle en aquesta fase; automatització desitjada per al 2027 i fora d'abast;
 if (Alguna fase posterior falla?) then (Sí)
   :Guardar incidència i reintentar només aquella fase;
 endif
@@ -710,11 +713,11 @@ if (No autoritzat o token invàlid?) then (Sí)
   :No revelar email, document o existència aliena;
   stop
 endif
-:Consultar estat real de petició i matrícula;
-if (Accés Moodle confirmat?) then (Sí)
+:Consultar estat real de petició i matrícula; només secretaria fa manualment l'alta al campus en la fase actual (DEC-108-05a);
+if (Accés Moodle confirmat després d'alta manual?) then (Sí)
   :Mostrar activació efectiva al campus i venciment una setmana després (DEC-108-02b ACORDADA), si les dates estan verificades;
 else (No)
-  :Mostrar sol·licitud rebuda / alta acadèmica pendent;
+  :Mostrar sol·licitud rebuda / alta manual per secretaria encara pendent, sense afirmar accés;
 endif
 :Mostrar incidència i via de contacte si escau;
 :No afirmar pagament, factura ni consentiment comercial;
@@ -781,14 +784,14 @@ stop
 title P-TAS-04 B/C | Missatge FINAL condicionat
 start
 if (Sol·licitud rebuda però sense accés?) then (Sí)
-  :Mostrar petició rebuda, alta al campus en 24–48 h laborals i una setmana d'accés des de l'activació real de secretaria (DEC-108-02a/b ACORDADES);
+  :Mostrar petició rebuda, pendent de tramitació MANUAL per secretaria en 24–48 h laborals i una setmana d'accés des de l'activació real (DEC-108-02a/b, DEC-108-05a ACORDADES);
   :No mostrar «ja tens accés»;
 else (No)
   :Mostrar matrícula i dates confirmades si existeixen;
 endif
 if (Notificació o Moodle han fallat?) then (Sí)
   :Mostrar incidència/pendent i via de contacte;
-  :Reintentar només la fase pendent al servidor;
+  :Reintentar només les fases tècniques idempotents; si l'alta MANUAL de secretaria és pendent o ha fallat, registrar/escalar la incidència sense crear automàticament la matrícula Moodle;
 endif
 :No atribuir consentiment de mailing ni resultat fiscal;
 stop
@@ -813,6 +816,6 @@ stop
 
 ## 6. Decisions pendents abans de donar aquests diagrames per «finals»
 
-**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02a ACORDADA:** mantenir alta al campus en 24–48 hores laborals després de rebre la sol·licitud, sense confondre petició rebuda amb accés activat. **DEC-108-02b ACORDADA:** una setmana d'accés des de l'activació real per secretaria al campus, no des de l'enviament de la petició. **DEC-108-02c ACORDADA:** tastets oberts a sol·licituds en qualsevol moment mentre `reptes.ESTAT=1`, sense convocatòries d'inscripció; revalidar disponibilitat en l'enviament. **DEC-108-02 OBERTA parcialment:** còmput tècnic exacte del venciment; **la repetició després de caducar requereix autorització**. **DEC-108-03:** sol·licituds pendents (DEC-108-03b), accessos actius (DEC-108-03c), caducats (DEC-108-03a) i baixa/denegació (DEC-108-03d) ACORDATS. **DEC-108-03d ACORDADA:** després de baixa voluntària o petició denegada, nova inscripció directa al formulari web sense desbloqueig; conservar historial, validar i prevenir dobles altes. **DEC-108-03c ACORDADA:** amb accés actiu al mateix tastet, mostrar que ja està inscrita i no crear una altra sol·licitud, sense desbloqueig. **DEC-108-03b ACORDADA:** segona petició de la mateixa persona i tastet mentre la primera segueix pendent d'alta al campus → mostrar avís «Ja tens una sol·licitud pendent» i no crear cap altra alta ni exigir desbloqueig. **DEC-108-03a ACORDADA:** si l'accés ha caducat, secretaria/suport desbloqueja la inscripció web per aquella persona+tastet i és la persona qui torna a omplir i enviar el formulari; via de sol·licitud, control tècnic i vigència pendents. **DEC-108-04a ACORDADA:** butlletí opcional amb elecció explícita «Sí/No» al formulari del tastet; No no bloqueja inscripció ni comunicacions operatives, i no hi ha alta comercial sense Sí. **DEC-108-04b ACORDADA:** amb Sí explícit i persistència comercial satisfactòria, alta directa al butlletí en enviar el formulari, sense correu/enllaç de confirmació; no afirmar-la si la persistència falla. **DEC-108-04 OBERTA parcialment:** text/evidència/versió del consentiment i detalls de registre (UC-125); les altres vies de subscripció tenen circuit propi. **DEC-108-05:** qui gestiona l'accés Moodle i qui acredita dates. **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
+**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02a ACORDADA:** mantenir alta al campus en 24–48 hores laborals després de rebre la sol·licitud, sense confondre petició rebuda amb accés activat. **DEC-108-02b ACORDADA:** una setmana d'accés des de l'activació real per secretaria al campus, no des de l'enviament de la petició. **DEC-108-02c ACORDADA:** tastets oberts a sol·licituds en qualsevol moment mentre `reptes.ESTAT=1`, sense convocatòries d'inscripció; revalidar disponibilitat en l'enviament. **DEC-108-02 OBERTA parcialment:** còmput tècnic exacte del venciment; **la repetició després de caducar requereix autorització**. **DEC-108-03:** sol·licituds pendents (DEC-108-03b), accessos actius (DEC-108-03c), caducats (DEC-108-03a) i baixa/denegació (DEC-108-03d) ACORDATS. **DEC-108-03d ACORDADA:** després de baixa voluntària o petició denegada, nova inscripció directa al formulari web sense desbloqueig; conservar historial, validar i prevenir dobles altes. **DEC-108-03c ACORDADA:** amb accés actiu al mateix tastet, mostrar que ja està inscrita i no crear una altra sol·licitud, sense desbloqueig. **DEC-108-03b ACORDADA:** segona petició de la mateixa persona i tastet mentre la primera segueix pendent d'alta al campus → mostrar avís «Ja tens una sol·licitud pendent» i no crear cap altra alta ni exigir desbloqueig. **DEC-108-03a ACORDADA:** si l'accés ha caducat, secretaria/suport desbloqueja la inscripció web per aquella persona+tastet i és la persona qui torna a omplir i enviar el formulari; via de sol·licitud, control tècnic i vigència pendents. **DEC-108-04a ACORDADA:** butlletí opcional amb elecció explícita «Sí/No» al formulari del tastet; No no bloqueja inscripció ni comunicacions operatives, i no hi ha alta comercial sense Sí. **DEC-108-04b ACORDADA:** amb Sí explícit i persistència comercial satisfactòria, alta directa al butlletí en enviar el formulari, sense correu/enllaç de confirmació; no afirmar-la si la persistència falla. **DEC-108-04 OBERTA parcialment:** text/evidència/versió del consentiment i detalls de registre (UC-125); les altres vies de subscripció tenen circuit propi. **DEC-108-05a ACORDADA:** secretaria fa manualment l'alta al campus en la fase actual, un cop rebuda la sol·licitud web; el formulari i els workers no han de crear automàticament la matrícula Moodle ara. L'automatització es vol per al 2027 però queda fora de l'abast actual. Pendent verificar el registre real de dates d'activació/venciment i l'avís d'accés (UC-129). **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
 
 **Estat real:** la representació ACTUAL està contrastada amb el codi esmentat; la regla de reinscripció amb autorització és **ACORDADA però NO IMPLEMENTADA**, i la resta del flux FINAL encara està per aprovar. S'han de revisar les decisions amb Meriem, actualitzar les condicions exactes dels diagrames i després executar les proves. **No iniciar l'auditoria d'altres UC mentre la revisió funcional d'aquest cas segueix oberta.**
