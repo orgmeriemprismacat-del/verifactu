@@ -388,6 +388,11 @@ partition "Servidor de sol·licituds" {
       :No crear cap alta nova ni demanar desbloqueig;
       stop
     endif
+    if (Accés actiu al mateix tastet?) then (Sí)
+      :Mostrar que ja està inscrita;
+      :No crear una altra sol·licitud ni demanar desbloqueig;
+      stop
+    endif
     if (Accés anterior caducat?) then (Sí)
       :Comprovar si secretaria/suport ha desbloquejat la inscripció web de persona+tastet;
       if (Desbloqueig verificable per persona i tastet?) then (Sí)
@@ -529,7 +534,7 @@ stop
 
 ### 3.6 Apartat 03.D — validar i decidir davant una altra inscripció
 
-**Font específica:** [`buscarSiHaRealitzatElTastet.php`](../../codi-drive/web-actual/ajax/buscarSiHaRealitzatElTastet.php#L20-L45) consulta `CURS+DNI+INSC_CURS=1`. [JS L835–878](../../codi-drive/web-actual/js1619773569/mostrarInscripcionsTastets.min.js#L835-L878) mostra modal; [HTML del modal](../../codi-drive/web-actual/InscripcioTastet.php#L307-L326) té «Tanca», no botó «Continuar». **DEC-108-03a ACORDADA:** si l'accés anterior ha caducat, secretaria/suport desbloqueja la inscripció web per persona+tastet i la persona torna a fer l'enviament del formulari; secretaria/suport no crea la nova inscripció. El mecanisme de desbloqueig i els estats d'accés encara actiu/baixa/denegació resten per definir. **DEC-108-03b ACORDADA:** amb una sol·licitud d'alta al campus encara pendent, mostrar que ja hi ha una sol·licitud pendent i no crear-ne una altra, sense demanar desbloqueig.
+**Font específica:** [`buscarSiHaRealitzatElTastet.php`](../../codi-drive/web-actual/ajax/buscarSiHaRealitzatElTastet.php#L20-L45) consulta `CURS+DNI+INSC_CURS=1`. [JS L835–878](../../codi-drive/web-actual/js1619773569/mostrarInscripcionsTastets.min.js#L835-L878) mostra modal; [HTML del modal](../../codi-drive/web-actual/InscripcioTastet.php#L307-L326) té «Tanca», no botó «Continuar». **DEC-108-03a ACORDADA:** si l'accés anterior ha caducat, secretaria/suport desbloqueja la inscripció web per persona+tastet i la persona torna a fer l'enviament del formulari; secretaria/suport no crea la nova inscripció. El mecanisme de desbloqueig i els estats de baixa/denegació resten per definir. **DEC-108-03c ACORDADA:** amb accés actiu, mostrar que ja està inscrita i impedir una segona sol·licitud, sense demanar desbloqueig. **DEC-108-03b ACORDADA:** amb una sol·licitud d'alta al campus encara pendent, mostrar que ja hi ha una sol·licitud pendent i no crear-ne una altra, sense demanar desbloqueig.
 
 ```plantuml
 @startuml
@@ -567,7 +572,8 @@ else (Sí)
     :No aplicar desbloqueig de secretaria/suport;
   else (No)
     if (Accés actiu?) then (Sí)
-      :Mostrar accés vigent, no duplicar;
+      :Mostrar «Ja estàs inscrit/a en aquest tastet»;
+      :No crear una altra sol·licitud ni demanar desbloqueig;
     else (No)
       if (Accés anterior caducat?) then (Sí)
         :Bloquejar la inscripció web fins al desbloqueig de secretaria/suport;
@@ -781,13 +787,13 @@ stop
 | 03.A | `mostrar_inscripcio_tastets.php`, `InscripcioTastet::__construct/mostrar` → `reptes` | 108 | Formulari dinàmic → identificador inequívoc de producte/convocatòria. | TG-108-08 |
 | 03.B | `InscripcioTastet::__mostrarDadesPersonals`, validacions JS | 108/126 | Validació navegador → validació server / identitat correcta. | TG-108-02/03 |
 | 03.C | `InscripcioTastet::__mostrarFinal`, JS `mailing='yes'` | 108/125 | Alta comercial automàtica → opció separada. | TG-108-06/07 |
-| 03.D | `buscarSiHaRealitzatElTastet.php` → `inscripcions_reptes.INSC_CURS=1` | 108/107 | Modal «Tanca», sense protecció pendents → **DEC-108-03b: mostrar avís de sol·licitud pendent i no crear alta nova; aplicar al servidor amb lock; caducats segons DEC-108-03a.** | TG-108-04/05/05d |
+| 03.D | `buscarSiHaRealitzatElTastet.php` → `inscripcions_reptes.INSC_CURS=1` | 108/107 | Modal «Tanca», sense protecció pendents → **DEC-108-03b: mostrar avís de sol·licitud pendent i no crear alta nova; aplicar al servidor amb lock; caducats segons DEC-108-03a; **actius segons DEC-108-03c: mostrar ja inscrita sense alta nova ni desbloqueig.** | TG-108-04/05/05d/05e |
 | 03.E | `enviarInscripcioTastet.php` → `inscripcions_reptes`, `mailing`; token i correus | 108/125/129 | Efectes successius → orquestració/reintent separat. | TG-108-06/09/12/13 |
 | 04.A | `mostrar_confirmacio_inscripcio_tastet_automatic.php` → token/HMAC, ID/INSC_CURS | 108/126 | Comprovació de token i registre → permís de lectura al subjecte i minimització. | TG-108-11 |
 | 04.B/C | `PaginaConfirmacioTastet::mostrarPaginaConfirmacio` → email i text orientatiu | 108/129 | Sol·licitud rebuda amb previsió d'accés → mostrar estat d'accés efectiu quan existeixi. | TG-108-09/10 |
 
 ## 6. Decisions pendents abans de donar aquests diagrames per «finals»
 
-**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02:** termini 24/48 h, una setmana des de l'accés efectiu, convocatòria o tastet continu; **la repetició després de caducar requereix autorització**. **DEC-108-03:** la política de sol·licituds pendents està acordada (DEC-108-03b); gestió d'accés actiu i baixa/denegació encara oberta. **DEC-108-03b ACORDADA:** segona petició de la mateixa persona i tastet mentre la primera segueix pendent d'alta al campus → mostrar avís «Ja tens una sol·licitud pendent» i no crear cap altra alta ni exigir desbloqueig. **DEC-108-03a ACORDADA:** si l'accés ha caducat, secretaria/suport desbloqueja la inscripció web per aquella persona+tastet i és la persona qui torna a omplir i enviar el formulari; via de sol·licitud, control tècnic i vigència pendents. **DEC-108-04:** elecció i confirmació de mailing. **DEC-108-05:** qui gestiona l'accés Moodle i qui acredita dates. **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
+**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02:** termini 24/48 h, una setmana des de l'accés efectiu, convocatòria o tastet continu; **la repetició després de caducar requereix autorització**. **DEC-108-03:** sol·licituds pendents (DEC-108-03b), accessos actius (DEC-108-03c) i caducats (DEC-108-03a) ACORDATS; baixa/denegació encara oberta. **DEC-108-03c ACORDADA:** amb accés actiu al mateix tastet, mostrar que ja està inscrita i no crear una altra sol·licitud, sense desbloqueig. **DEC-108-03b ACORDADA:** segona petició de la mateixa persona i tastet mentre la primera segueix pendent d'alta al campus → mostrar avís «Ja tens una sol·licitud pendent» i no crear cap altra alta ni exigir desbloqueig. **DEC-108-03a ACORDADA:** si l'accés ha caducat, secretaria/suport desbloqueja la inscripció web per aquella persona+tastet i és la persona qui torna a omplir i enviar el formulari; via de sol·licitud, control tècnic i vigència pendents. **DEC-108-04:** elecció i confirmació de mailing. **DEC-108-05:** qui gestiona l'accés Moodle i qui acredita dates. **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
 
 **Estat real:** la representació ACTUAL està contrastada amb el codi esmentat; la regla de reinscripció amb autorització és **ACORDADA però NO IMPLEMENTADA**, i la resta del flux FINAL encara està per aprovar. S'han de revisar les decisions amb Meriem, actualitzar les condicions exactes dels diagrames i després executar les proves. **No iniciar l'auditoria d'altres UC mentre la revisió funcional d'aquest cas segueix oberta.**
