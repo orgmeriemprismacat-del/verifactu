@@ -148,7 +148,7 @@ Note over V,R: Coordinació no implementada, no ALTERAR factura original ni gene
 
 ## 5 bis. Decisions de negoci confirmades i preguntes encara obertes
 
-**CONFIRMAT — negoci 22/09/2026:** només la inscripció a JASOM permet demanar promoció novell. El títol ha d'haver estat expedit fa menys d'un any a la data d'inici de JASOM i secretaria comprova manualment el títol, la data i el titular. La inscripció es crea abans de la revisió i **només després de l'aprovació/denegació** es faciliten opcions de pagament. L'acreditació incorrecta provoca requeriment manual, fins a 48 hores **laborables** per esmenar i denegació quan secretaria prem No, sense cancel·lar la matrícula. **Un únic benefici:** es paga i es gaudeix de JASOM al seu preu comercial aplicable; si està acreditat i JASOM queda COMPLETAMENT PAGAT, s'emet automàticament un codi promocional **pel valor efectivament pagat** per aplicar en qualsevol curs posterior, dins d'un any des de l'emissió i combinable amb altres descomptes. Amb un dret de 90 € i compra de 70 €, el llegat genera un nou codi de 20 €; per al SIF es valora un únic saldo PROMOCIONAL disponible de 20 €. En un curs de 120 €, el client abona la diferència de 30 €. Una devolució de JASOM provoca anul·lació MANUAL del codi i, si ja s'ha gastat, reclamació del valor aplicat. La classificació comptable/fiscal del dret, la política exacta dels romanents, el moment concret d'expiració del romanent, el càlcul d'hores laborables i els fluxos de devolució del segon curs queden en definició.
+**CONFIRMAT — negoci 22/09/2026:** només la inscripció a JASOM permet demanar promoció novell. El títol ha d'haver estat expedit fa menys d'un any a la data d'inici de JASOM i secretaria comprova manualment el títol, la data i el titular. La inscripció es crea abans de la revisió i **només després de l'aprovació/denegació** es faciliten opcions de pagament. L'acreditació incorrecta provoca requeriment manual, fins a 48 hores **laborables** per esmenar i denegació quan secretaria prem No, sense cancel·lar la matrícula. **Un únic benefici:** es paga i es gaudeix de JASOM al seu preu comercial aplicable; si està acreditat i JASOM queda COMPLETAMENT PAGAT, s'emet automàticament un codi promocional **pel valor efectivament pagat** per aplicar en qualsevol curs posterior, dins d'un any des de l'emissió i combinable amb altres descomptes. Amb un dret de 90 € i compra de 70 €, el llegat genera un nou codi de 20 €; al SIF s'ha ACORDAT mantenir un únic saldo PROMOCIONAL disponible de 20 € dins el mateix dret, sense codi residual nou. En un curs de 120 €, el client abona la diferència de 30 €. Una devolució de JASOM provoca anul·lació MANUAL del codi i, si ja s'ha gastat, reclamació del valor aplicat. El romanent conserva la caducitat ORIGINAL del dret i els altres descomptes s'apliquen ABANS de consumir saldo. En cas de retorn de JASOM, un apartat intern ha de permetre cancel·lar el saldo disponible sense esborrar els consums i reclamar el valor utilitzat. La classificació comptable/fiscal del dret, el còmput operatiu d'hores laborables, la baixa del curs de destinació i la recurrència de JASOM encara estan en definició.
 
 **Correcció de font:** el cos del mètode de validació, el mapa SQL i el constructor de l'apartat s'han aportat al xat posteriorment al lot 02. Les notes anteriors de «mètode no recuperat» són HISTÒRIQUES. El SQL confirma que actualitza recent_titulat.VALIDAT (1/2); no deduir que s'hagi comprovat ingrés ni emès cap promoció.
 ## 6. Diagrames d'activitat del cas UC-111
@@ -280,7 +280,7 @@ stop
 ```
 
 **Límit:** el SQL real és UPDATE recent_titulat.VALIDAT per ID_INSC; les consultes de canvi d'inscripcions.VALID_DESC / A_PAGAR són separades i no les executa directament el mètode aportat. L'emissió del codi futur i la comprovació de cobrament resten per rastrejar a altres rutes.
-### 4.3 bis. Codi futur: consum i romanent — ACTUAL de negoci i FINAL proposat
+### 4.3 bis. Codi futur: consum i romanent — ACTUAL de negoci i FINAL acordat
 
 **ACTUAL de negoci confirmat per l'usuària, però generador automàtic PHP no identificat en aquesta lectura del repositori:** si es gasta una part d'un codi, es concedeix un altre codi pel romanent; si el curs costa més, es paga la diferència. No deduir d'aquesta explicació que les escriptures, l'ordre de càlcul o els reintents del servidor estiguin acreditats.
 
@@ -307,11 +307,11 @@ stop
 
 ```plantuml
 @startuml
-title UC-111 | Consum parcial amb saldo promocional | FINAL EN VALORACIÓ
+title UC-111 | Consum parcial amb saldo promocional | FINAL acordat
 start
 :Presentar dret de promoció associat al titular;
 :Comprovar titular, vigència d'un any, estat i dret disponible;
-:Calcular preu net després d'altres descomptes segons regla acordada;
+:Calcular preu NET després d'aplicar els altres descomptes elegibles;
 :Bloquejar saldo promocional i operació de compra simultàniament;
 :Aplicació = mínim entre import net elegible i saldo disponible;
 :Registrar un sol consum promocional idempotent, no un cobrament extern;
@@ -320,7 +320,7 @@ if (Queda import per pagar del curs?) then (Sí)
  :Cobrar només la diferència real pels canals habituals;
 endif
 if (Queda saldo promocional?) then (Sí)
- :Conservar romanent en el MATEIX dret (pendent d'aprovació);
+ :Conservar romanent en el MATEIX dret, amb DATAF original;
 else (No)
  :Marcar dret exhaurit;
 endif
@@ -392,6 +392,42 @@ stop
 ```
 
 **Proves bloquejants definides, NO EXECUTADES:** matrícula novell pendent amb URL de pagament directa; aprovada i denegada amb import pendent; sense sol·licitud novell; doble retorn Redsys; matrícula pagada parcialment; recàrrega de les dues vistes; variables inicialitzades i validació de l'estat també al servidor.
+### 4.3 quater. Intranet SIF · Apartat de cancel·lació i reclamació de saldos — FINAL pendent d'implementar
+
+**Regla CONFIRMADA:** si es retorna el pagament de JASOM origen, anul·lar manualment el saldo disponible i reclamar el valor que ja s'ha consumit, amb història auditable. Exemple: valor original 90 €, consumit 70 €, disponible 20 € → saldo disponible anul·lat 20 €, reclamació pendent 70 €; no es desfà retroactivament el consum de la destinació ni es declara falsament cobrat l'import reclamat.
+
+```plantuml
+@startuml
+title UC-111 | Intranet: cancel·lar saldo promocional per devolució JASOM | FINAL
+start
+:Secretaria obre apartat de saldos promocionals;
+:Cerca dret per identificador de saldo o matrícula JASOM origen;
+:Servidor comprova rol i consulta estat, import concedit, romanent i consums;
+:Mostrar dades mínimes, curs origen, destins, imports i venciment;
+if (No té permisos o no existeix?) then (Sí)
+ :Denegar operació i registrar incidència;
+ stop
+endif
+:Operador registra motiu devolució d'origen i confirma cancel·lació;
+:Enviar ordre amb idempotència i autorització servidor;
+:Bloquejar dret i consum concurrent dins una mateixa transacció;
+if (Ja està cancel·lat?) then (Sí)
+ :Retornar resultat preexistent sense duplicar reclamació;
+else (No)
+ :Registrar esdeveniment de cancel·lació amb actor, motiu i data;
+ :Bloquejar ús futur i anul·lar import disponible;
+ if (Ja existeix consum a altres cursos?) then (Sí)
+  :Crear/reutilitzar expedient de reclamació per l'import consumit;
+  :Deixar reclamació PENDENT, no comptabilitzar cobrament fictici;
+ endif
+endif
+:Mostrar dret cancel·lat, import anul·lat i consum a reclamar;
+:Conservar història original de concessió, ús i devolució;
+stop
+@enduml
+```
+
+**Control pendent de concretar:** rol concret de cancel·lació, missatges i plantilla de reclamació, devolució parcial, regularització de la factura del curs de destinació si correspon i acció després d'una baixa d'aquest curs. El requeriment de la pàgina i de l'auditoria està confirmat; el codi, els tests i el desplegament NO.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
