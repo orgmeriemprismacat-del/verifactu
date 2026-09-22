@@ -47,6 +47,7 @@ require_once $root . '/ConnexioWeb.php';
 require_once $root . '/Text.php';
 require_once $root . '/Usuari.php';
 require_once $root . '/inc/AOBatchCsv.php';
+require_once $root . '/inc/AOBatchFiles.php';
 
 $db = null;
 $temp = null;
@@ -186,6 +187,8 @@ try {
     if (!is_writable($dir)) {
         aoAbort('ERROR_DIRECTORI_CSV', 500);
     }
+    // Esborrar CSV caducats i temporals antics quan es prepara un nou lot.
+    aoCleanupExports($dir);
     $token = bin2hex(random_bytes(24));
     $temp = $dir . '/.pujada-ao-' . $token . '.tmp';
     $final = $dir . '/pujada-ao-' . $token . '.csv';
