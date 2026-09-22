@@ -2,7 +2,7 @@
 
 **Objectiu canònic:** cada execució i **cada fila** de l'alta manual/importació conserva origen, validació, resultat i operació creada o reutilitzada. La inscripció acadèmica **no crea factura, pagament ni import fictici**. La fitxa original deixa com a bloquejants formats, camps, permisos, política de duplicats i responsable de resoldre files rebutjades.
 
-**Estat verificat:** la migració defineix `enrollment_import_run` i `enrollment_import_item` amb hash d'origen, versió de format, estats, comptadors, hash de fila, snapshots, fila original i identificador final; també defineix `commercial_operation`. **No s'ha acreditat** a `sif/src` un parser/importador de fitxers d'inscripcions o un servei que ompli aquestes taules, ni s'ha acreditat la creació de matrícules al llegat des d'aquestes classes. `HistoricalInvoiceMigrationService` importa **factures històriques**, no matrícules: no reutilitzar-lo per UC-113.
+**Estat verificat:** l'importador de matrícules en lot existeix segons negoci; el seu executable real no s'ha identificat inequívocament en aquesta revisió. La migració defineix `enrollment_import_run` i `enrollment_import_item` amb hash d'origen, versió de format, estats, comptadors, hash de fila, snapshots, fila original i identificador final; també defineix `commercial_operation`. **No s'ha acreditat** a `sif/src` un parser/importador de fitxers d'inscripcions o un servei que ompli aquestes taules, ni s'ha acreditat la creació de matrícules al llegat des d'aquestes classes. `HistoricalInvoiceMigrationService` importa **factures històriques**, no matrícules: no reutilitzar-lo per UC-113.
 
 ## 0. Decisions de negoci confirmades el 22/09/2026 — corregir l'abast
 
@@ -106,7 +106,7 @@ Main ..> Result : <<include>>
 @enduml
 ```
 
-## 3. UML de classes — esquema definit i importador pendent
+## 3. UML de classes — esquema SIF definit; integració de l'importador existent NO identificada
 
 ```mermaid
 classDiagram
@@ -142,7 +142,7 @@ EnrollmentImportService --> LegacyEnrollmentGateway : matrícula
 
 **No** hi ha fletxa de l'importador a `HistoricalInvoiceMigrationService` perquè importar matrícules no significa importar factures.
 
-## 4. UML de seqüència — lot mixt amb fila duplicada (DISSENY)
+## 4. UML de seqüència — adaptació SIF proposada al lot existent (NO és una descripció del parser actual)
 
 ```mermaid
 sequenceDiagram
