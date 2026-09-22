@@ -382,8 +382,17 @@ partition "Servidor de sol·licituds" {
   endif
   :Consultar petició i matrícula preexistents sota lock;
   if (Existeix sol·licitud compatible?) then (Sí)
-    :Aplicar política d'estat DEC-108-03;
-    :Retornar mateixa sol·licitud o decisió explícita;
+    :Comprovar estat segons DEC-108-03;
+    if (Accés anterior caducat?) then (Sí)
+      :Exigir autorització de secretaria o suport;
+      if (Autorització verificable per persona i tastet?) then (Sí)
+        :Permetre reinscripció i conservar traça de l'autorització;
+      else (No)
+        :Denegar nova alta i indicar via de contacte;
+      endif
+    else (No)
+      :Retornar mateixa sol·licitud o decisió d'estat encara oberta;
+    endif
   else (No)
     :Crear petició gratuïta idempotent;
     :Vincular operació FREE_SAMPLE si DEC-108-06;
@@ -511,7 +520,7 @@ stop
 
 ### 3.6 Apartat 03.D — validar i decidir davant una altra inscripció
 
-**Font específica:** [`buscarSiHaRealitzatElTastet.php`](../../codi-drive/web-actual/ajax/buscarSiHaRealitzatElTastet.php#L20-L45) consulta `CURS+DNI+INSC_CURS=1`. [JS L835–878](../../codi-drive/web-actual/js1619773569/mostrarInscripcionsTastets.min.js#L835-L878) mostra modal; [HTML del modal](../../codi-drive/web-actual/InscripcioTastet.php#L307-L326) té «Tanca», no botó «Continuar». La decisió futura de reinscripció és DEC-108-03.
+**Font específica:** [`buscarSiHaRealitzatElTastet.php`](../../codi-drive/web-actual/ajax/buscarSiHaRealitzatElTastet.php#L20-L45) consulta `CURS+DNI+INSC_CURS=1`. [JS L835–878](../../codi-drive/web-actual/js1619773569/mostrarInscripcionsTastets.min.js#L835-L878) mostra modal; [HTML del modal](../../codi-drive/web-actual/InscripcioTastet.php#L307-L326) té «Tanca», no botó «Continuar». **DEC-108-03a ACORDADA:** si l'accés anterior ha caducat, una nova inscripció requereix autorització de secretaria o suport. El control concret de l'autorització i el tractament dels altres estats resten per definir.
 
 ```plantuml
 @startuml
@@ -549,8 +558,18 @@ else (Sí)
     if (Accés actiu?) then (Sí)
       :Mostrar accés vigent, no duplicar;
     else (No)
-      :DEC-108-03: decidir expirat/baixa/denegat;
-      :Reutilitzar, renovar o rebutjar segons acord;
+      if (Accés anterior caducat?) then (Sí)
+        :Requerir autorització de secretaria o suport;
+        if (Autorització vàlida per persona i tastet?) then (Sí)
+          :Permetre reinscripció autoritzada i registrar traça;
+        else (No)
+          :No crear altra alta ni reactivar accés;
+          :Informar de contacte amb secretaria o suport;
+        endif
+      else (No)
+        :DEC-108-03 OBERTA: baixa/denegat i altres estats;
+        :Aplicar només la regla d'estat aprovada;
+      endif
     endif
   endif
 endif
@@ -757,6 +776,6 @@ stop
 
 ## 6. Decisions pendents abans de donar aquests diagrames per «finals»
 
-**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02:** termini 24/48 h, una setmana des de l'accés efectiu, convocatòria o tastet continu i repetició. **DEC-108-03:** duplicats segons pendent/actiu/caducat/baixa. **DEC-108-04:** elecció i confirmació de mailing. **DEC-108-05:** qui gestiona l'accés Moodle i qui acredita dates. **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
+**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02:** termini 24/48 h, una setmana des de l'accés efectiu, convocatòria o tastet continu; **la repetició després de caducar requereix autorització**. **DEC-108-03:** gestió de duplicats pendents/actius/baixes encara oberta. **DEC-108-03a ACORDADA:** si l'accés ha caducat, nova inscripció exclusivament amb autorització de secretaria o suport; via de sol·licitud, prova, vigència i execució del permís pendents. **DEC-108-04:** elecció i confirmació de mailing. **DEC-108-05:** qui gestiona l'accés Moodle i qui acredita dates. **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
 
-**Estat real:** la representació ACTUAL està contrastada amb el codi esmentat; el flux FINAL està redactat però **no aprovat ni implementat**. S'han de revisar les decisions amb Meriem, actualitzar les condicions exactes dels diagrames i després executar les proves. **No iniciar l'auditoria d'altres UC mentre la revisió funcional d'aquest cas segueix oberta.**
+**Estat real:** la representació ACTUAL està contrastada amb el codi esmentat; la regla de reinscripció amb autorització és **ACORDADA però NO IMPLEMENTADA**, i la resta del flux FINAL encara està per aprovar. S'han de revisar les decisions amb Meriem, actualitzar les condicions exactes dels diagrames i després executar les proves. **No iniciar l'auditoria d'altres UC mentre la revisió funcional d'aquest cas segueix oberta.**
