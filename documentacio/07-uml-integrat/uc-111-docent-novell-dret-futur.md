@@ -148,7 +148,7 @@ Note over V,R: Coordinació no implementada, no ALTERAR factura original ni gene
 
 ## 5 bis. Decisions de negoci confirmades i preguntes encara obertes
 
-**CONFIRMAT — font negoci 22/09/2026:** la promoció es demana només a JASOM; la titulació ha de ser anterior a la DATA D'INICI de JASOM en menys d'un any, amb document, data i titularitat comprovats manualment. L'alta es registra primer, sense presentar opcions de pagament. Secretaria aprova o denega; quan el document no serveix demana acreditació manualment i, si no es respon en 48 hores o no es pot acreditar, prem No: el sistema denega el codi, manté la inscripció i comunica el resultat. Només DESPRÉS de la decisió positiva o negativa es faciliten opcions de pagament. **No existeixen dos descomptes novell:** JASOM conserva el preu del descompte ordinari que pertoqui; el benefici novell és un únic codi/saldo per a una inscripció posterior pel valor dels diners efectivament PAGATS a JASOM. Un rebuig impedeix generar el codi. La qualificació comptable del «saldo guardat», el còmput precís de 48 h, el dret davant pagament parcial i l'ús/consum encara s'han de concretar; no inferir-los del nom promoció.
+**CONFIRMAT — negoci 22/09/2026:** només la inscripció a JASOM permet demanar promoció novell. El títol ha d'haver estat expedit fa menys d'un any a la data d'inici de JASOM i secretaria comprova manualment el títol, la data i el titular. La inscripció es crea abans de la revisió i **només després de l'aprovació/denegació** es faciliten opcions de pagament. L'acreditació incorrecta provoca requeriment manual, fins a 48 hores **laborables** per esmenar i denegació quan secretaria prem No, sense cancel·lar la matrícula. **Un únic benefici:** es paga i es gaudeix de JASOM al seu preu comercial aplicable; si està acreditat i JASOM queda COMPLETAMENT PAGAT, s'emet automàticament un codi promocional **pel valor efectivament pagat** per aplicar en qualsevol curs posterior, dins d'un any des de l'emissió i combinable amb altres descomptes. Amb un dret de 90 € i compra de 70 €, el llegat genera un nou codi de 20 €; per al SIF es valora un únic saldo PROMOCIONAL disponible de 20 €. En un curs de 120 €, el client abona la diferència de 30 €. Una devolució de JASOM provoca anul·lació MANUAL del codi i, si ja s'ha gastat, reclamació del valor aplicat. La classificació comptable/fiscal del dret, la política exacta dels romanents, el moment concret d'expiració del romanent, el càlcul d'hores laborables i els fluxos de devolució del segon curs queden en definició.
 
 **Correcció de font:** el cos del mètode de validació, el mapa SQL i el constructor de l'apartat s'han aportat al xat posteriorment al lot 02. Les notes anteriors de «mètode no recuperat» són HISTÒRIQUES. El SQL confirma que actualitza recent_titulat.VALIDAT (1/2); no deduir que s'hagi comprovat ingrés ni emès cap promoció.
 ## 6. Diagrames d'activitat del cas UC-111
@@ -179,55 +179,54 @@ stop
 @enduml
 ```
 
-### 4.2. Inscripció web JASOM i dret futur — subflux FINAL requerit (pendent d'implementar)
+### 4.2. JASOM, acreditació, cobrament i concessió — diagrama FINAL objectiu
 
 ```plantuml
 @startuml
-title UC-111 | Sol·licitud JASOM, validació, pagament i dret futur | FINAL
+title UC-111 FINAL | Alta JASOM, acreditació, cobrament íntegre i benefici
 start
-:Rebre petició d'inscripció al curs JASOM i opció de docent novell;
-:Validar producte JASOM, actor, edició i preu ordinari/descompte elegit;
-:Crear/reutilitzar inscripció i operació comercial PENDENT;
-if (Sol·licita docent novell?) then (Sí)
- :Sol·licitar justificant de titulació;
- :Registrar evidència custodiada i estat pendent;
- :Comparar expedició del títol amb DATA D'INICI de JASOM;
- :Secretaria revisa manualment document, titularitat i data;
- if (Document vàlid?) then (Sí)
-  :Secretaria aprova el dret condicional;
+:Sol·licitar inscripció JASOM amb preu i descompte comercial elegits;
+:Crear/reutilitzar matrícula i operació origen, sense pagament habilitat;
+if (Sol·licita promoció novell?) then (Sí)
+ :Registrar sol·licitud i custodiar justificant;
+ :Comprovar títol expedit fa menys d'un any a l'inici de JASOM;
+ :Secretaria revisa titulació, data i titular;
+ if (Acreditació correcta?) then (Sí)
+  :Secretaria aprova dret condicional;
  else (No)
   :Secretaria demana esmena manualment;
-  if (Acredita dins termini de 48 h?) then (Sí)
-   :Secretaria torna a revisar el document;
-   if (Ara acredita requisits?) then (Sí)
+  if (Rebut document vàlid dins 48 h laborables?) then (Sí)
+   :Secretaria comprova acreditació corregida;
+   if (Acreditació correcta ara?) then (Sí)
     :Secretaria aprova dret condicional;
    else (No)
-    :Secretaria prem No i denega dret futur;
+    :Secretaria denega dret futur;
    endif
   else (No)
-   :Secretaria prem No després de revisar el venciment;
-   :Denegar dret futur sense cancel·lar matrícula;
+   :Secretaria revisa venciment i prem No;
+   :Denegar dret sense cancel·lar JASOM;
   endif
  endif
 else (No)
- :Matrícula ordinària sense dret novell;
+ :Continuar sense promoció novell;
 endif
-:Comunicar resultat de validació i preu que correspongui a JASOM;
-:Habilitar opcions de pagament només ARA, després de la decisió;
-:Registrar pagament real al SIF i atribuir-lo a JASOM;
-if (Dret novell aprovat i ingrés elegible acreditat?) then (Sí)
- :Emetre o recuperar idempotentment codi/dret futur;
- :Valor del dret = diners realment pagats a JASOM segons política pendent;
- :Comunicar codi únic després de registrar-lo;
+:Comunicar decisió i preu de JASOM sense descompte novell addicional;
+:Habilitar opcions de pagament NOMÉS després de la decisió;
+:Processar i atribuir cobrament real a JASOM;
+if (Títol acreditat i JASOM pagat ÍNTEGRAMENT?) then (Sí)
+ :Emetre/recuperar UN dret comercial idempotent;
+ :Valor promocional = diners realment pagats en l'operació JASOM;
+ :Vigència: un any des de la concessió;
+ :Notificar codi i condicions;
 else (No)
- :No emetre codi;
+ :No generar codi; conservar ingrés i/o deute ordinari;
 endif
-:Conservar factura originària immutable i no crear cobrament fictici;
+:No reescriure factura JASOM ni crear segon cobrament bancari;
 stop
 @enduml
 ```
 
-**Limitació:** la política d'atorgament amb pagaments parcials, la naturalesa econòmica del «saldo», el còmput de les 48 h i el contracte de pagament/factura posterior a la decisió estan pendents d'especificació; el diagrama FINAL és un esborrany normatiu i no prova una implementació existent.
+**Límits oberts:** concreció del calendari de 48 h laborables, classificació fiscal/comptable del descompte promocional, valor elegible en pagaments sobrant/excedent i retorns, regla de recurrència de JASOM i generador PHP actual pendent d'identificar. FINAL no equival a implementat.
 ### 4.3. Intranet · Validar descomptes · apartat docent novell — subflux ACTUAL contrastat amb extractes aportats
 
 **Font complementària privada:** el mètode de construcció de la pàgina, el router, les consultes SQL i el mètode PHP de validació aportats al xat, a més del [JS versionat](../../codi-drive/intranet-actual/js/alumnes-validar-descomptes.js#L42-L117) i l'[endpoint](../../codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatProfessorNovell.php). No copiar justificants ni destinataris de prova.
@@ -281,6 +280,56 @@ stop
 ```
 
 **Límit:** el SQL real és UPDATE recent_titulat.VALIDAT per ID_INSC; les consultes de canvi d'inscripcions.VALID_DESC / A_PAGAR són separades i no les executa directament el mètode aportat. L'emissió del codi futur i la comprovació de cobrament resten per rastrejar a altres rutes.
+### 4.3 bis. Codi futur: consum i romanent — ACTUAL de negoci i FINAL proposat
+
+**ACTUAL de negoci confirmat per l'usuària, però generador automàtic PHP no identificat en aquesta lectura del repositori:** si es gasta una part d'un codi, es concedeix un altre codi pel romanent; si el curs costa més, es paga la diferència. No deduir d'aquesta explicació que les escriptures, l'ordre de càlcul o els reintents del servidor estiguin acreditats.
+
+```plantuml
+@startuml
+title UC-111 | Consum parcial actual de negoci (PHP pendent de contrastar)
+start
+:Presentar codi promocional al formulari d'un curs posterior;
+:Comprovar condicions comercials del codi (implementació per auditar);
+:Determinar preu del curs amb altres descomptes compatibles;
+if (Preu final supera valor del codi?) then (Sí)
+ :Aplicar valor del codi;
+ :Cobrar diferència restant;
+else (No)
+ :Aplicar fins a l'import del curs;
+ if (Queda valor promocional?) then (Sí)
+  :Generar nou codi pel romanent (pràctica actual comunicada);
+ endif
+endif
+:Marcar/traçar ús del codi inicial (escriptura SQL per auditar);
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title UC-111 | Consum parcial amb saldo promocional | FINAL EN VALORACIÓ
+start
+:Presentar dret de promoció associat al titular;
+:Comprovar titular, vigència d'un any, estat i dret disponible;
+:Calcular preu net després d'altres descomptes segons regla acordada;
+:Bloquejar saldo promocional i operació de compra simultàniament;
+:Aplicació = mínim entre import net elegible i saldo disponible;
+:Registrar un sol consum promocional idempotent, no un cobrament extern;
+:Restar consum al disponible i registrar origen/destí;
+if (Queda import per pagar del curs?) then (Sí)
+ :Cobrar només la diferència real pels canals habituals;
+endif
+if (Queda saldo promocional?) then (Sí)
+ :Conservar romanent en el MATEIX dret (pendent d'aprovació);
+else (No)
+ :Marcar dret exhaurit;
+endif
+:Mantenir expedients de factura JASOM i curs nou per separat;
+stop
+@enduml
+```
+
+**Nota:** saldo promocional concedit addicionalment a JASOM pagat ≠ saldo monetari prepagat pendent de consumir; no invocar directament el ledger de compensació monetària existent com si fos el mateix tipus de valor. Valorar emmagatzematge del saldo comercial i events de consum amb traça de factura i import sense duplicar CHARGE.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
