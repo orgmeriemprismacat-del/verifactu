@@ -14,7 +14,7 @@
 
 **Separació de casos confirmada:** alta a PrisMa ≠ pujada a Moodle; **pujada d'alumnes a curs i pujada d'aules obertes són DOS casos d'ús**, no només una variant indistinta. El nom provisional CAND-UC-MOODLE-CSV-01 d'aquest informe identifica només la pujada d'alumnes; obrir també CAND-UC-MOODLE-AO-01 per a aula oberta, amb mapatge de numeració pendent de contrastar amb els 142 UC. UC-129 tracta la conciliació posterior, no substitueix els dos casos d'acció.
 
-**RECTIFICACIÓ: importador de matrícules en lot EXISTENT confirmat per negoci.** La seva existència funcional és un fet confirmat; el que encara falta és la traça del seu executable, entrada i destí, que **no s'ha d'atribuir al generador de CSV d'aquesta pàgina**. No planificar un importador nou per manca de nom de fitxer. Els diagrames de la secció 4 continuen sent parcials, només de l'acció de confirmar la pujada d'alumnes; les activitats pròpies d'UC-113 i dels dos UC Moodle separats consten als nous documents enllaçats al final.
+**RECTIFICACIÓ: importador de matrícules en lot EXISTENT A LA INTRANET, confirmat per negoci.** La seva existència funcional és un fet confirmat; el que encara falta és la traça del seu executable, entrada i destí, que **no s'ha d'atribuir al generador de CSV d'aquesta pàgina**. No planificar un importador nou per manca de nom de fitxer. Els diagrames de la secció 4 continuen sent parcials, només de l'acció de confirmar la pujada d'alumnes; les activitats pròpies d'UC-113 i dels dos UC Moodle separats consten als nous documents enllaçats al final.
 
 [Fitxa funcional amb decisions confirmades](../06-fitxes-funcionals/uc-113.md) · [fitxa UML delimitada](uc-113-importar-inscripcions-manualment-lot.md).
 
