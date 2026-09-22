@@ -47,7 +47,7 @@ else {
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/modals.min.css?ver=1.0"/>
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/cursos-fi-cursos-pujar-aules-obertes.css?ver=1.0"/>
 		<script src="https://intranet.prisma.cat/js/general.js?ver=1.0"></script>
-		<script src="https://intranet.prisma.cat/js/cursos-fi-cursos-pujar-aules-obertes.js?ver=1.1"></script>
+		<script src="https://intranet.prisma.cat/js/cursos-fi-cursos-pujar-aules-obertes.js?ver=1.2"></script>
 	</body>
 </html>
 <?php } ?>
