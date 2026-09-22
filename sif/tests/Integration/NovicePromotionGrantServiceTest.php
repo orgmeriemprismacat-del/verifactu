@@ -95,6 +95,10 @@ final class NovicePromotionGrantServiceTest
 
         $db->prepare("UPDATE commercial_entitlement SET STATUS = 'CANCELLED' WHERE UUID_ENTITLEMENT = ?")
             ->execute([$first['uuid_entitlement']]);
+        $db->prepare("UPDATE commercial_operation SET STATUS = 'CANCELLED' WHERE UUID_OPERATION = ?")
+            ->execute([$operation]);
+        $db->prepare("UPDATE discount_validation SET STATUS = 'CANCELLED' WHERE UUID_OPERATION = ?")
+            ->execute([$operation]);
 
         $repeat = $service->issueForOperation($db, $operation);
         Assert::same(true, $repeat['idempotency_reused']);
