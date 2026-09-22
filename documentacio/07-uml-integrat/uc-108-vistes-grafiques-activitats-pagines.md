@@ -118,9 +118,9 @@ flowchart TD
   F --> G["Servidor: validar dades, actor, producte i petició existent sota concurrència"]
   G --> H{"Petició compatible anterior?"}
   H -->|Sí| I{"Accés anterior caducat?"}
-  I -->|Sí| IA{"Autorització secretaria o suport verificable per persona i tastet?"}
-  IA -->|No| IB["No crear alta ni reactivar accés; informar de secretaria/suport"]
-  IA -->|Sí| IC["Registrar autorització i permetre reinscripció controlada"]
+  I -->|Sí| IA{"Inscripció web desbloquejada per secretaria/suport per persona+tastet?"}
+  IA -->|No| IB["Inscripció web bloquejada; contactar secretaria/suport perquè desbloquegi"]
+  IA -->|Sí| IC["Secretaria/suport ja ha desbloquejat; la persona torna al formulari i l'envia"]
   I -->|No| ID["Retornar estat anterior; política dels altres estats pendent DEC-108-03"]
   IC --> K["Crear nova sol·licitud autoritzada una vegada; FREE_SAMPLE si DEC-108-06"]
   H -->|No| J["Crear sol·licitud gratuïta una vegada"]
@@ -178,4 +178,4 @@ flowchart TD
   D --> L
 ```
 
-**DEC-108-03a ACORDADA:** accés caducat → reinscripció només amb autorització de secretaria o suport; el PHP actual no acredita aquest control. **Abans de considerar la proposta FINAL aprovada:** concretar el mecanisme de l'autorització i resoldre la resta de [DEC-108-01…07](../06-fitxes-funcionals/uc-108.md#20-decisions-que-volem-definir-amb-negoci-abans-de-passar-a-un-altre-uc). Els subdiagrames PlantUML dels dotze apartats tenen estats independents i no s'han substituït per aquesta vista resumida.
+**DEC-108-03a ACORDADA:** accés caducat → secretaria/suport desbloqueja la inscripció web per persona+tastet i és la persona qui torna a emplenar i enviar el formulari; secretaria/suport no inscriu directament. El PHP actual no acredita aquest control. **Abans de considerar la proposta FINAL aprovada:** concretar el mecanisme de l'autorització i resoldre la resta de [DEC-108-01…07](../06-fitxes-funcionals/uc-108.md#20-decisions-que-volem-definir-amb-negoci-abans-de-passar-a-un-altre-uc). Els subdiagrames PlantUML dels dotze apartats tenen estats independents i no s'han substituït per aquesta vista resumida.
