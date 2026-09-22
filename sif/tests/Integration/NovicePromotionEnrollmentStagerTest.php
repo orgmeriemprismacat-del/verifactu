@@ -68,10 +68,11 @@ final class NovicePromotionEnrollmentStagerTest
     {
         $db = $this->fixture(0);
         $service = new NovicePromotionEnrollmentStager(new UuidGenerator());
-        $service->stage($db, $db, 10, 'student:canonical:12345678Z', $this->price());
+        $price = $this->price();
+        $service->stage($db, $db, 10, 'student:canonical:12345678Z', $price);
 
-        Assert::throws(SifException::class, static function () use ($db, $service): void {
-            $service->stage($db, $db, 10, 'student:different', $this->price());
+        Assert::throws(SifException::class, static function () use ($db, $service, $price): void {
+            $service->stage($db, $db, 10, 'student:different', $price);
         }, 409);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
     }
