@@ -2,6 +2,8 @@
 
 **Versió:** 0.9 PER DEFINIR AMB MERIEM · 22/09/2026 · Font: `main` a `e71958b3026549bde09fb4b25f2ec3ba370937ec`. **Lliurable:** 4 pàgines amb un diagrama ACTUAL i un FINAL cadascuna, més diagrames propis dels 12 apartats/accions agrupats segons el seu flux amb decisions i efectes separats. **ACTUAL** és lectura del codi disponible, no prova de l'execució productiva; **FINAL** és disseny preliminar condicionat a les decisions de [fitxa funcional UC-108, apartat 20](../06-fitxes-funcionals/uc-108.md#20-decisions-que-volem-definir-amb-negoci-abans-de-passar-a-un-altre-uc).
 
+**Vista gràfica a GitHub:** [obrir els diagrames de les quatre pàgines, ACTUAL i FINAL](uc-108-vistes-grafiques-activitats-pagines.md). Els 32 diagrames PlantUML d'aquesta pàgina continuen sent la font UML detallada de cada pàgina i apartat.
+
 **Regla:** no substituir un diagrama de pàgina per un dibuix genèric d'endpoint; les pàgines reals i cada acció amb decisió/efecte propi han de tenir traça. **L'alta del tastet UC-108 és gratuïta i no té TPV/AEAT**; el butlletí és un flux adjacent UC-125, no un pas obligatori de la matrícula. Les capçaleres/peus i cookies comuns de tota la web es maparan als seus casos de comunicació i cookies, no es copiaran com a activitats comercials d'UC-108.
 
 ## 0. Índex de pàgines i apartats auditats
