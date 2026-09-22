@@ -23,9 +23,12 @@ function aoAbort(string $code, int $status = 400): void
 
 final class AOBatchException extends RuntimeException
 {
-    public function __construct(string $code, public int $httpStatus)
+    public $httpStatus;
+
+    public function __construct(string $code, int $httpStatus)
     {
         parent::__construct($code);
+        $this->httpStatus = $httpStatus;
     }
 }
 
@@ -74,7 +77,8 @@ try {
     }
     $ids = json_decode($rawIds, true);
     if (!is_array($ids) || count($ids) < 1 || count($ids) > 200 ||
-        !array_is_list($ids) || count(array_unique($ids, SORT_REGULAR)) !== count($ids)) {
+        array_keys($ids) !== range(0, count($ids) - 1) ||
+        count(array_unique($ids, SORT_REGULAR)) !== count($ids)) {
         aoAbort('SELECCIO_INVALIDA', 422);
     }
     foreach ($ids as $id) {
