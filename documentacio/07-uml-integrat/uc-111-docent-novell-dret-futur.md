@@ -148,12 +148,12 @@ Note over V,R: Coordinació no implementada, no ALTERAR factura original ni gene
 
 ## 5 bis. Decisions de negoci confirmades i preguntes encara obertes
 
-**CONFIRMAT:** promoció només a JASOM; títol expedit fa menys d'un any i comprovació de títol/data/titularitat; inscripció abans de la validació del justificant; si document incorrecte, secretaria reclama acreditació manualment; sense resposta en 48 h o acreditació impossible, es rebutja el benefici i es conserva la inscripció amb preu corresponent; si s'acredita, missatge d'aprovació i preu novell; codi futur igual al valor efectivament pagat per la inscripció origen. El còmput exacte del termini, la política monetària del preu actual i la futura i les condicions de consum continuen PENDENTS.
+**CONFIRMAT — font negoci 22/09/2026:** la promoció es demana només a JASOM; la titulació ha de ser anterior a la DATA D'INICI de JASOM en menys d'un any, amb document, data i titularitat comprovats manualment. L'alta es registra primer, sense presentar opcions de pagament. Secretaria aprova o denega; quan el document no serveix demana acreditació manualment i, si no es respon en 48 hores o no es pot acreditar, prem No: el sistema denega el codi, manté la inscripció i comunica el resultat. Només DESPRÉS de la decisió positiva o negativa es faciliten opcions de pagament. **No existeixen dos descomptes novell:** JASOM conserva el preu del descompte ordinari que pertoqui; el benefici novell és un únic codi/saldo per a una inscripció posterior pel valor dels diners efectivament PAGATS a JASOM. Un rebuig impedeix generar el codi. La qualificació comptable del «saldo guardat», el còmput precís de 48 h, el dret davant pagament parcial i l'ús/consum encara s'han de concretar; no inferir-los del nom promoció.
 
 **Correcció de font:** el cos del mètode de validació, el mapa SQL i el constructor de l'apartat s'han aportat al xat posteriorment al lot 02. Les notes anteriors de «mètode no recuperat» són HISTÒRIQUES. El SQL confirma que actualitza recent_titulat.VALIDAT (1/2); no deduir que s'hagi comprovat ingrés ni emès cap promoció.
 ## 6. Diagrames d'activitat del cas UC-111
 
-**Els quatre diagrames següents reprodueixen subfluxos comprovables o proposats del CAS UC-111, no la totalitat de totes les pàgines compartides.** Els fluxos ACTUALS NO afirmen el que fa el mètode d'Intranet no recuperat. Els fluxos FINALS són contractes objectiu, no programació acabada. Per a l'auditoria de les pàgines i apartats sencers continua oberta RM-037; no donar per acabada la documentació només per l'existència d'aquests diagrames.
+**Els quatre diagrames següents reprodueixen subfluxos comprovables o proposats del CAS UC-111, no la totalitat de totes les pàgines compartides.** El mètode d'Intranet ha estat aportat i el diagrama ACTUAL de validació reflecteix la seva escriptura a `recent_titulat.VALIDAT`; el codi de cobrament i generació del benefici futur no s'ha acreditat aquí. Els fluxos FINALS són contractes objectiu, no programació acabada. Per a l'auditoria de les pàgines i apartats sencers continua oberta RM-037; no donar per acabada la documentació només per l'existència d'aquests diagrames.
 **Abast:** subfluxos de la pàgina d'inscripció i de l'apartat «recent titulat» de la pàgina de validació; **NO** diagrama complet de totes les accions de les dues pàgines. Marcar els estats del servidor llegat que no s'han pogut recuperar com a NO VERIFICATS.
 
 ### 4.1. Inscripció web — subflux actual observable
@@ -179,35 +179,55 @@ stop
 @enduml
 ```
 
-### 4.2. Inscripció web — subflux objectiu pendent
+### 4.2. Inscripció web JASOM i dret futur — subflux FINAL requerit (pendent d'implementar)
 
 ```plantuml
 @startuml
-title UC-111 | Alta i dret futur | OBJECTIU, no implementat
+title UC-111 | Sol·licitud JASOM, validació, pagament i dret futur | FINAL
 start
-:Verificar actor, dades i elegibilitat de la promoció;
-:Crear/reutilitzar operació i inscripció origen amb regla versionada;
-if (Sol·licita docent novell?) then (sí)
- :Rebre prova via emmagatzematge restringit;
- :Registrar evidència i decisió pendent sense dret nou;
- if (Evidència validada per persona autoritzada?) then (sí)
-  :Conservar decisió aprovada i traça d'actor;
-  if (Cobrament REAL origen confirmat i conciliat?) then (sí)
-   :Crear/reutilitzar UNA promoció comercial
-   lligada a origen, titular i regla;
-   :Enviar comunicació posterior al commit;
-  else (no)
-   :Esperar cobrament; no emetre promoció;
+:Rebre petició d'inscripció al curs JASOM i opció de docent novell;
+:Validar producte JASOM, actor, edició i preu ordinari/descompte elegit;
+:Crear/reutilitzar inscripció i operació comercial PENDENT;
+if (Sol·licita docent novell?) then (Sí)
+ :Sol·licitar justificant de titulació;
+ :Registrar evidència custodiada i estat pendent;
+ :Comparar expedició del títol amb DATA D'INICI de JASOM;
+ :Secretaria revisa manualment document, titularitat i data;
+ if (Document vàlid?) then (Sí)
+  :Secretaria aprova el dret condicional;
+ else (No)
+  :Secretaria demana esmena manualment;
+  if (Acredita dins termini de 48 h?) then (Sí)
+   :Secretaria torna a revisar el document;
+   if (Ara acredita requisits?) then (Sí)
+    :Secretaria aprova dret condicional;
+   else (No)
+    :Secretaria prem No i denega dret futur;
+   endif
+  else (No)
+   :Secretaria prem No després de revisar el venciment;
+   :Denegar dret futur sense cancel·lar matrícula;
   endif
- else (no)
-  :Denegar o deixar pendent justificació amb motiu;
  endif
+else (No)
+ :Matrícula ordinària sense dret novell;
 endif
-:No alterar factura fiscal de la compra original;
+:Comunicar resultat de validació i preu que correspongui a JASOM;
+:Habilitar opcions de pagament només ARA, després de la decisió;
+:Registrar pagament real al SIF i atribuir-lo a JASOM;
+if (Dret novell aprovat i ingrés elegible acreditat?) then (Sí)
+ :Emetre o recuperar idempotentment codi/dret futur;
+ :Valor del dret = diners realment pagats a JASOM segons política pendent;
+ :Comunicar codi únic després de registrar-lo;
+else (No)
+ :No emetre codi;
+endif
+:Conservar factura originària immutable i no crear cobrament fictici;
 stop
 @enduml
 ```
 
+**Limitació:** la política d'atorgament amb pagaments parcials, la naturalesa econòmica del «saldo», el còmput de les 48 h i el contracte de pagament/factura posterior a la decisió estan pendents d'especificació; el diagrama FINAL és un esborrany normatiu i no prova una implementació existent.
 ### 4.3. Intranet · Validar descomptes · apartat docent novell — subflux ACTUAL contrastat amb extractes aportats
 
 **Font complementària privada:** el mètode de construcció de la pàgina, el router, les consultes SQL i el mètode PHP de validació aportats al xat, a més del [JS versionat](../../codi-drive/intranet-actual/js/alumnes-validar-descomptes.js#L42-L117) i l'[endpoint](../../codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatProfessorNovell.php). No copiar justificants ni destinataris de prova.
@@ -272,19 +292,18 @@ if (Operador té rol i abast per validar?) then (no)
  :Denegar accés i registrar intent;
  stop
 else (sí)
- :Mostrar informació mínima i estat del cobrament origen;
+ :Mostrar prova i estat pendent, SENSE habilitar pagament encara;
  :Seleccionar aprovar/rebutjar amb motiu i confirmació;
  :POST segur amb CSRF o equivalent i idempotència;
  :Servidor comprova permís, titularitat, versions i evidència;
  if (Decisió aprovada?) then (sí)
-  :Persistir validació acadèmica i actor;
-  if (Pagament confirmat i dret no emès?) then (sí)
-   :IssueOrReuse promoció una sola vegada;
-  else (no)
-   :Deixar dret pendent o recuperar existent;
-  endif
+  :Persistir aprovació condicionada a JASOM, sense nou descompte al curs;
+  :Comunicar aprovació i habilitar opcions de pagament;
+  :Esperar cobrament real i processar dret futur fora d'aquest botó;
  else (no)
-  :Persistir denegació motivada sense promoció nova;
+  :Persistir denegació motivada sense promoció futura;
+  :Conservar inscripció JASOM i preu ordinari corresponent;
+  :Comunicar denegació i habilitar opcions de pagament;
  endif
  :Notificar el resultat real segons estat posterior al commit;
  :Actualitzar pantalla amb estat retornat pel servidor;
