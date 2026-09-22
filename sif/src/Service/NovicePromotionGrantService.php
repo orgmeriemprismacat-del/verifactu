@@ -37,6 +37,7 @@ final class NovicePromotionGrantService
             throw SifException::validation('Origin operation is required.');
         }
 
+        $holder = null;
         $db->beginTransaction();
 
         try {
@@ -279,6 +280,39 @@ final class NovicePromotionGrantService
                 'status' => 'ISSUED',
                 'idempotency_reused' => false,
             ];
+        } catch (\PDOException $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            // Concurrent workers may race after both see no grant. The UNIQUE
+            // index is authoritative; recover an equivalent winner after commit.
+            if ((string) $exception->getCode() === '23000' && $holder !== null) {
+                $winner = $this->one(
+                    $db,
+                    'SELECT g.UUID_ENTITLEMENT, g.ORIGIN_UUID_OPERATION, g.ORIGINAL_CASH_AMOUNT,
+                            e.EXPIRES_AT, e.STATUS
+                     FROM novice_promotion_grant g
+                     JOIN commercial_entitlement e ON e.UUID_ENTITLEMENT = g.UUID_ENTITLEMENT
+                     WHERE g.HOLDER_PARTY_KEY = ?',
+                    [$holder]
+                );
+                if ($winner !== null) {
+                    if ((string) $winner['ORIGIN_UUID_OPERATION'] !== $uuidOperation) {
+                        throw SifException::conflict('Novice promotion already granted for this person.');
+                    }
+
+                    return [
+                        'uuid_entitlement' => (string) $winner['UUID_ENTITLEMENT'],
+                        'original_amount' => (string) $winner['ORIGINAL_CASH_AMOUNT'],
+                        'expires_at' => (string) $winner['EXPIRES_AT'],
+                        'status' => (string) $winner['STATUS'],
+                        'idempotency_reused' => true,
+                    ];
+                }
+            }
+
+            throw $exception;
         } catch (\Throwable $exception) {
             if ($db->inTransaction()) {
                 $db->rollBack();
