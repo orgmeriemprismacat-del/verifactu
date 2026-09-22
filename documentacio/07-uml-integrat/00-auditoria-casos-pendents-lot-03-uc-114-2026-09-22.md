@@ -40,9 +40,9 @@
 
 ## 4. Contracte objectiu i modificacions pendents
 
-**DOC-114:** completar les seccions de la fitxa i matrius de pantalles amb les accions A114-01–04; localitzar formularis, botons, mètodes reals de `Intranet.php`, taules/camps llegits/escrits i efectes de notificació, PDF, places i Moodle. Identificar el flux de preus que no apareix al wrapper A114-01. Per cada acció fer diagrama actual/final, incloent alternatives; el diagrama de canvi d'estat no substitueix els de modificació de dades ni importació CSV. No modificar UC-111 ni UC-113 en aquest lot.
+**DOC-114:** les decisions sobre notificacions, aprovació i preu ja estan incorporades a les fitxes funcionals UC-114/127; completar la traça tècnica i les matrius de pantalles amb les accions A114-01–04; localitzar formularis, botons, mètodes reals de `Intranet.php`, taules/camps llegits/escrits i efectes de notificació, PDF, places i Moodle. Identificar el flux de preus que no apareix al wrapper A114-01. Per cada acció fer diagrama actual/final, incloent alternatives; el diagrama de canvi d'estat no substitueix els de modificació de dades ni importació CSV. No modificar UC-111 ni UC-113 en aquest lot.
 
-**IMP-114:** introduir un `MasterDataChangeService` / repositori / `OpenOperationsLookup` **com a DISSENY, no classes PHP acreditades**, i un adaptador autoritzat per a l'operació llegat: validar versió base (control d'edició concurrent), previsualitzar afectats, classificar impacte per operació i línia, aprovar segons rol, publicar de manera idempotent i registrar el resultat real de cada sistema o incidència. L'estat fiscal i econòmic no es modifica a través de simples canvis de catàleg. Per CSV, definir idempotència per edició i retorn de resultats per fila abans de publicar una operació completa; no equiparar la selecció de files a una transacció conjunta demostrada.
+**IMP-114:** la mateixa persona de l'equip amb accés a intranet decideix el canvi sense segona aprovació interna; el servidor ha d'identificar i autoritzar l'actor. Introduir un `MasterDataChangeService` / repositori / `OpenOperationsLookup` **com a DISSENY, no classes PHP acreditades**, i un adaptador autoritzat per a l'operació llegat: validar versió base (control d'edició concurrent), previsualitzar afectats, classificar impacte per operació i línia, aprovar segons rol, publicar de manera idempotent i registrar el resultat real de cada sistema o incidència. L'estat fiscal i econòmic no es modifica a través de simples canvis de catàleg. Per CSV, definir idempotència per edició i retorn de resultats per fila abans de publicar una operació completa; no equiparar la selecció de files a una transacció conjunta demostrada.
 
 **BD-114:** `master_data_change_request` ja està **DEFINIDA** a [000005 L196–217](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql#L196-L217) amb versions, JSON d'impacte, aprovació i índex únic per `ENTITY_TYPE + ENTITY_KEY + PROPOSED_VERSION`; `commercial_operation_line` ja defineix `PRICE_RULE_VERSION` i `SNAPSHOT_JSON` a [L6–35](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql#L6-L35). **No hi ha prova aquí de writer PHP, aplicació de la migració ni reconstrucció consistent de totes les operacions afectades:** la llista JSON no substitueix la consulta, bloqueig i correlació real amb les dades d'origen.
 
@@ -84,13 +84,20 @@ else (No)
   :Calcular camps canviats;
   :Consultar i correlacionar reserves, ofertes,
   intents TPV i factures per operació;
-  if (Canvi material per alguna operació?) then (Sí)
-    :Classificar afectats i bloquejar publicació insegura;
-    :Proposar continuïtat o nova acceptació UC-121;
+  if (Canvi de preu/termes econòmics ja acceptats?) then (Sí)
+    :Conservar oferta econòmica i snapshot original;
+    :Proposar nova oferta UC-112/121;
+    :No aplicar preu nou sense nova acceptació;
   else (No)
-    :Registrar canvi administratiu amb traça;
+    if (Canvi de data, horari, modalitat, hores o acreditació?) then (Sí)
+      :Registrar canvi i persones afectades;
+      :Notificar sense requerir acceptació prèvia;
+      :Oferir canvi d'edició si no va bé;
+    else (No)
+      :Registrar canvi administratiu amb traça;
+    endif
   endif
-  if (Canvi autoritzat i condicions resoltes?) then (Sí)
+  if (Actor autoritzat i condicions resoltes?) then (Sí)
     :Registrar decisió de versió;
     :Publicar a catàleg amb control de concurrència;
     if (Propagació acreditada?) then (Sí)
@@ -186,3 +193,13 @@ stop
 **DOC UC-114:** ampliació amb accions i diagrames parcials; **no** revisió de tota la UI o variants de tota la base de codi. **IMP UC-114:** SQL proposat/existent i protecció Redsys parcial; orquestració i adaptació de canals pendents d'acreditar. **TEST/BD/DEPLOY:** no executat/no verificat. **Cap modificació de codi ni de la BD d'explotació** en aquesta auditoria. **UC-111 i UC-113:** exclosos deliberadament del lot.
 
 **Abans de declarar UC-114 cobert:** recuperar el cos dels mètodes `Intranet::desarCanvisDadesEdicio`, `desarCanvisDadesAulaEdicio`, `desarCanvisEstatEnviarMsg_PreviIniciCursos` i `insertCurs`; mapar la ruta de canvi de preu i les consultes de tots els editors; identificar totes les accions de les pantalles i el desplegament actiu; executar proves V114 amb BD i callbacks d'entorn de proves. No interpretar la impossibilitat de recuperar el cos del fitxer de grans dimensions com absència del mètode o dels seus controls.
+
+## 8. Correcció de decisions de negoci documentades (22/09/2026)
+
+La responsable ha confirmat que els canvis excepcionals d'una edició sobre **data (inclòs ajornar dos dies), horari, modalitat, hores i acreditació es notifiquen sense exigir acceptació prèvia**; si a la persona no li van bé, se li ofereix una altra edició. Aquest fet corregeix la formulació genèrica d'aquest lot que podia equiparar tots els canvis materials a «nova acceptació». **Les ofertes econòmiques ja acceptades no es modifiquen unilateralment**: si es pretén canviar-ne els termes econòmics es necessita nova oferta. La mateixa persona de l'equip amb accés a intranet pren la decisió sense segona aprovació interna; verificar identitat, autorització i traça segueix sent obligació del backend.
+
+**Anul·lació (UC-127), diferent d'ajornament:** s'envia avís a les persones inscrites i s'ofereix canvi **d'edició o de curs**. Mentrestant, les inscripcions **continuen a l'edició original** fins que se'n resol la situació; no es pressuposa canvi de curs, devolució o baixa immediats. Els efectes fiscals/econòmics específics es registren amb el seu UC; la notificació no certifica execució de retorn ni canvi Moodle.
+
+**Preus i importacions:** el preu habitual depèn de les hores i de l'assignació `ID_PREU` a la taula `preus`, amb possible reassignació excepcional d'un altre `ID_PREU` directament a la BD. La política d'errors parcials de CSV i altres detalls no acreditats **no es tornen a preguntar de manera genèrica**: primer s'han de contrastar els handlers i la documentació disponibles, i només plantejar una decisió si hi ha realment dues conductes de negoci alternatives sense resposta existent.
+
+[Fitxa funcional UC-114 corregida](../06-fitxes-funcionals/uc-114.md) · [Fitxa funcional UC-127 corregida](../06-fitxes-funcionals/uc-127.md).
