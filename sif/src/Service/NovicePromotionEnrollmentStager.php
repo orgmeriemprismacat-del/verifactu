@@ -108,7 +108,7 @@ final class NovicePromotionEnrollmentStager
                     || (string) $participant['PARTY_KEY'] !== $canonicalPartyKey
                     || $this->normalizedIdentity((string) $participant['NIF_CIF']) !== $identity
                     || $this->cents((string) $existing['NET_AMOUNT']) !== $net
-                    || (string) $existing['PRICE_SNAPSHOT_JSON'] !== $priceJson
+                    || $this->canonicalJson((string) $existing['PRICE_SNAPSHOT_JSON']) !== $this->canonicalJson($priceJson)
                 ) {
                     throw SifException::conflict('A conflicting novice enrollment was already staged.');
                 }
@@ -172,6 +172,30 @@ final class NovicePromotionEnrollmentStager
             }
             throw $exception;
         }
+    }
+
+    private function canonicalJson(string $json): string
+    {
+        $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+
+        return json_encode($this->canonicalize($data), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function canonicalize(mixed $value): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        if (array_is_list($value)) {
+            return array_map(fn (mixed $part): mixed => $this->canonicalize($part), $value);
+        }
+
+        ksort($value, SORT_STRING);
+        foreach ($value as $key => $part) {
+            $value[$key] = $this->canonicalize($part);
+        }
+        return $value;
     }
 
     private function cents(string $value): int
