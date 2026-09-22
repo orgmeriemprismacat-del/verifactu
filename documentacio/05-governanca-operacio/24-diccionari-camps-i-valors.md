@@ -557,6 +557,12 @@ versionat al snapshot.
 admissible. `FUTURE_ENTITLEMENT_REF` no pot generar-se dues vegades per la
 mateixa clau idempotent.
 
+### UC-111 · Validació i concessió novell — esquema preparat, no integrat
+
+- `discount_validation.DISCOUNT_TYPE = NOVICE_TEACHER`: valor tècnic previst per identificar una validació de titulació novell en la compra JASOM; `STATUS=VALIDATED` exigeix data, actor i persona participant corresponent. La capa d'adaptació del llegat `recent_titulat` a aquesta validació SIF NO està implementada encara.
+- `commercial_entitlement.ENTITLEMENT_TYPE = FUTURE_DISCOUNT`, `RULE_VERSION = NOVICE_JASOM_V1`: saldo promocional concedit addicionalment a JASOM pagat, **NO** fons monetaris prepagats ni una nova transacció CHARGE. `CODE_HASH=NULL` i `STATUS=ISSUED` identifiquen un dret ja registrat però encara **sense codi bescanviable activat/lliurat**; no deduir que ha estat notificat.
+- `novice_promotion_grant` (migració additiva [000008](../../sif/database/migrations/2026_09_22_000008_add_novice_promotion_grant.sql)): `UUID_ENTITLEMENT` (PK i FK al dret), `HOLDER_PARTY_KEY` (UNIQUE per persona), `ORIGIN_UUID_OPERATION` (UNIQUE), `UUID_VALIDATION` (UNIQUE), `UUID_FACTURA`, `ORIGINAL_CASH_AMOUNT` i `AVAILABLE_AMOUNT`. La BD exigeix `ORIGINAL_CASH_AMOUNT > 0` i `0 <= AVAILABLE_AMOUNT <= ORIGINAL_CASH_AMOUNT`. Els imports estan expressats en euros `DECIMAL(12,2)`, no en cèntims.
+- `NovicePromotionGrantService::issueForOperation` ([PHP](../../sif/src/Service/NovicePromotionGrantService.php)): consulta ella mateixa la validació, persona, vinculació factura/inscripció i cobraments confirmats del SIF. Només concedeix si factura JASOM emesa i totalment pagada amb diners efectivament atribuïts a l'operació; bloqueja reemissió en una altra inscripció JASOM de la mateixa persona. L'adaptador de validació i el hook de postpagament són PENDENTS, així com els consums múltiples, derivacions i anul·lacions.
 ### payment_link.STATUS
 
 - `ACTIVE`
