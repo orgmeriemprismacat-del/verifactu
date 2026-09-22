@@ -2,7 +2,7 @@
 
 **Revisió:** 22/09/2026; font PHP de `main` a `e71958b3026549bde09fb4b25f2ec3ba370937ec`; decisions de negoci confirmades a [fitxa UC-113](../06-fitxes-funcionals/uc-113.md). **No confondre:** importar matrícules en lot (existeix, codi concret pendent de mapar), crear una alta web, generar CSV per Moodle, importar el CSV al campus i canviar un curs a la intranet. Els diagrames de la web mostren les seccions funcionalment rellevants d'UC-113: no pretenen substituir els diagrames de totes les altres ofertes/variants del catàleg RM-037.
 
-**Estats de font:** ACTUAL = comportament observat al PHP o confirmat per negoci; ACTUAL — INTERIOR NO ACREDITAT = existeix el procés segons negoci però no podem explicar-ne honestament les branques internes; FINAL OBJECTIU = especificació per adaptar i provar, **no** codi desplegat. No afirmar que l'importador funciona d'una manera no aportada per les fonts. Tots els diagrames separen el resultat acadèmic d'ingrés i factura.
+**Estats de font:** ACTUAL = comportament observat al PHP o confirmat per negoci; **L'IMPORTADOR EN LOT ESTÀ A LA INTRANET** segons negoci; la pàgina `cursos-inici-cursos-pujar-alumnes.php` i `Intranet::pujar_Inscripcions()` constitueixen components localitzats de la preparació de lots CSV, però encara cal verificar la correspondència completa amb l'importador de matrícules esmentat. ACTUAL — INTERIOR NO ACREDITAT = existeix el procés a la intranet segons negoci però no podem explicar-ne honestament totes les branques internes; FINAL OBJECTIU = especificació per adaptar i provar, **no** codi desplegat. No afirmar que l'importador funciona d'una manera no aportada per les fonts. Tots els diagrames separen el resultat acadèmic d'ingrés i factura.
 
 ## Índex de pàgines, apartats i frontera
 
@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | P113-01 | Web, inscripció curs / alta manual secretaria | Accés i curs, dades/preus excepcionals, alta i resultat | Alta web acreditada; mecanisme d'excepcions secretaria CONFIRMAT PER NEGOCI, codi específic no mapat. |
 | P113-02 | Web, inscripció de grup | Responsables, participants i resultat per participant | Existència confirmada; diferenciar handlers de grup ordinari, amics i pack en el catàleg corresponent. |
-| P113-03 | Importador de matrícules en lot EXISTENT | Entrada/execució i errors/repeticions | Existència confirmada; internals del parser/format/pantalla NO ACREDITATS: diagrama actual de frontera, no flux intern inventat. |
+| P113-03 | **Intranet: importador de matrícules en lot EXISTENT** | Entrada/execució i errors/repeticions; [pantalla de pujada d'alumnes](../../codi-drive/intranet-actual/cursos-inici-cursos-pujar-alumnes.php) i [mètode de generació de fila CSV](../../codi-drive/intranet-actual/Intranet.php#L4151-L4201) identificats per al recorregut de pujada. | Canal intranet confirmat; correspondència exacta de l'importador amb la preparació CSV i la seva càrrega final pendent d'acreditar: no inventar el parser. |
 | P113-04 | Intranet, «Mostrar la informació de l'alumne > Canvi de curs» | Derivació a UC-026, **fora** del cas UC-113 | Acció confirmada; diagrames complets del canvi corresponden a UC-026. |
 
 ## Pàgines i apartats — activitats actuals i finals
@@ -200,10 +200,11 @@ title P113-03.A · Importador existent: entrada i execució | ACTUAL — INTERIO
 start
 :Operador utilitza l'importador EXISTENT de matrícules en lot;
 note right
-  Existència confirmada per negoci.
-  Pantalla, parser, tipus d'arxiu,
-  destí i classes no identificats
-  amb certesa en les fonts auditades.
+  Existència i canal INTRANET confirmats.
+  La pàgina de pujada d'alumnes i el
+  CSV existeixen en el repositori.
+  Les classes internes de l'importador
+  i el destí encara no s'han acreditat.
 end note
 :Executar importació en lot;
 :Resultat real per fila pendent de recuperar de la font;
