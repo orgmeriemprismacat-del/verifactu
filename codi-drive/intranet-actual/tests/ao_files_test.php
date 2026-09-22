@@ -26,7 +26,7 @@ try {
     $removed = aoCleanupExports($dir, $now);
     if ($removed !== 2 || file_exists($oldCsv) || file_exists($oldTmp) ||
         !file_exists($freshCsv) || !file_exists($unrelated)) {
-        throw new RuntimeException('La política de retenció no s'ha respectat');
+        throw new RuntimeException("La política de retenció no s'ha respectat");
     }
     echo "PASS: retenció AO (2 caducats eliminats, fitxers vigents conservats).\n";
 } finally {
