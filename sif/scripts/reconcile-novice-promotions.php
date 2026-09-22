@@ -15,8 +15,8 @@ if (PHP_SAPI !== 'cli') {
 }
 
 $config = require dirname(__DIR__) . '/config/sif.php';
-if (($config['env'] ?? 'local') === 'production') {
-    fwrite(STDERR, "Production reconciliation requires an approved deployment and runbook.\n");
+if (($config['env'] ?? '') !== 'test') {
+    fwrite(STDERR, "Novice reconciliation CLI is restricted to SIF_ENV=test until preproduction approval.\n");
     exit(1);
 }
 
@@ -31,6 +31,10 @@ foreach (array_slice($argv, 1) as $argument) {
 
 try {
     $db = ConnectionFactory::make($config);
+    $databaseName = (string) $db->query('SELECT DATABASE()')->fetchColumn();
+    if (!preg_match('/^sif_test(?:_[a-z0-9_]+)?$/D', $databaseName)) {
+        throw new RuntimeException('Reconciliation is allowed only on isolated sif_test databases.');
+    }
     $reconciler = new NovicePromotionGrantReconciler(
         new NovicePromotionGrantService(new UuidGenerator())
     );
