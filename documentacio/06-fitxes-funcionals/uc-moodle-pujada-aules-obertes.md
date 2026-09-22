@@ -99,7 +99,7 @@ La pàgina carrega un `mainpanel` des del servidor, amb navegació i títol de l
 
 La pàgina d'aules obertes **no** inclou selector d'aula, modal d'edició personal ni botó de cerca de l'alumne; són accions de l'altra pàgina de pujada que apareixen reutilitzades al final del JS, sota `#pujada-inscr`. En aquesta vista el DOM rellevant és `#pujar-ao`. El text inicial del botó d'una fila és «Qualifica» al HTML i «Pujar» un cop s'executa el JS; documentar tots dos sense definir «Qualifica» com una altra acció de qualificació acadèmica.
 
-Al SQL es construeix una llista `$ids` mitjançant concatenació de `OR` entre inscripcions, però la condició és `$cnt < $stmt->num_rows()-1` i **`$cnt` s'inicialitza a 0 i no s'incrementa al bucle** ([L3319–3324](../../codi-drive/intranet-actual/Intranet.php#L3319-L3324)); amb tres o més registres pot faltar un operador entre predicats. **És un defecte comprovable del codi versionat, no un test de producció.** El SQL FINAL ha de consultar les candidates amb JOIN i paràmetres o IDs parametrizats, no concatenar predicats.
+El SQL actual construeix una llista `$ids` concatenant predicats `i.ID=...` amb `OR`; `$cnt` s'inicialitza a zero i **no s'incrementa** ([L3319–3324](../../codi-drive/intranet-actual/Intranet.php#L3319-L3324)). En aquest bucle, per **dues o més** files, la condició `$cnt < num_rows-1` roman certa i intercala `OR` després de la primera; **no és correcte atribuir-li per això sol una manca d'operador en una tercera fila**. El risc contrastable és la construcció dinàmica de SQL amb una llista d'IDs recuperats, el manteniment difícil d'aquesta condició i la dependència d'un segon `SELECT` amb `INNER JOIN` que pot descartar candidates. El FINAL pot utilitzar consulta parametrizada/joins sobre l'estat de les candidates sense una concatenació manual de predicats.
 
 ## 13. Disseny FINAL de l'operació de lot de la pantalla
 
@@ -128,7 +128,7 @@ Controlar al backend l'actor, el rol i el curs, protegir la ruta de descàrrega 
 | AO-AT-01 | Obrir URL confirmada amb sessió vàlida / caducada | Càrrega de l'apartat segons rol / redirecció-denegació quan manca sessió. |
 | AO-AT-02 | Sense inscripcions candidates | Botó no disponible; no hi ha CSV ni canvis a BD. |
 | AO-AT-03 | Inscripció amb `INSC CURS=0` o `PERENNE=1` | No pot ser seleccionada ni actualitzada forçant POST; resposta tipificada. |
-| AO-AT-04 | Tres candidates que compleixen la consulta inicial | Llistat mostra les tres; SQL no falla per `OR` concatenat ni exclou files legítimes per error del bucle `$cnt`. |
+| AO-AT-04 | Tres candidates que compleixen `exPujadaAO` i les unions amb curs/aula/tutor | Llistat mostra les tres; el tractament de la llista d'IDs no perd candidates i no confon absència de JOIN amb `PERENNE` ja actualitzat. |
 | AO-AT-05 | Una candidata sense dades relacionades de tutor | Resultat coherent i explícit per vista/consulta; no atribuir el buit al camp `PERENNE` si el JOIN no la retorna. |
 | AO-AT-06 | Botó inicial «Qualifica» / JS carregat | Funció visual real «Pujar/No Pujar»; sense funció de qualificar el curs. |
 | AO-AT-07 | Desmarcar totes les files i confirmar | Avís sense crear fitxer de capçalera ni modificar BD. |
