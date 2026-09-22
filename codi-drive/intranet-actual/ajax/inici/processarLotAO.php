@@ -29,32 +29,6 @@ final class AOBatchException extends RuntimeException
     }
 }
 
-function aoCsvCell($value): string
-{
-    $value = (string) $value;
-    // No permetre salt de línia ni fórmules en camps rebuts de BD.
-    if (preg_match('/[\r\n]/', $value) || preg_match('/^\s*[=+\-@]/u', $value)) {
-        aoAbort('DADES_CSV_INVALIDES', 422);
-    }
-    if (!mb_check_encoding($value, 'UTF-8')) {
-        aoAbort('CODIFICACIO_INVALIDA', 422);
-    }
-    $encoded = mb_convert_encoding($value, 'ISO-8859-1', 'UTF-8');
-    if (mb_convert_encoding($encoded, 'UTF-8', 'ISO-8859-1') !== $value) {
-        aoAbort('CARACTER_NO_ADMES_CSV', 422);
-    }
-    return $encoded;
-}
-
-function aoWriteCsvRow($handle, array $fields): void
-{
-    $encoded = array_map('aoCsvCell', $fields);
-    // Escape explícit buit: només les cometes dobles són l'escapat CSV.
-    if (fputcsv($handle, $encoded, ';', '"', '') === false) {
-        aoAbort('ERROR_ESCRIPTURA_CSV', 500);
-    }
-}
-
 // Sessió validada amb el mecanisme EXISTENT de la intranet; chdir manté els
 // includes relatius de comprovarSessio.php i dels connectors de BD llegats.
 $root = dirname(__DIR__, 2);
@@ -69,6 +43,7 @@ require_once $root . '/ConnexioIntranet.php';
 require_once $root . '/ConnexioWeb.php';
 require_once $root . '/Text.php';
 require_once $root . '/Usuari.php';
+require_once $root . '/inc/AOBatchCsv.php';
 
 $db = null;
 $temp = null;
@@ -278,9 +253,12 @@ try {
     if ($final !== null && is_file($final)) {
         unlink($final);
     }
-    aoRespond($error instanceof AOBatchException ? $error->httpStatus : 500, [
+    $isCsvValidation = $error instanceof AOCsvException;
+    $status = $error instanceof AOBatchException ? $error->httpStatus :
+        ($isCsvValidation && $error->getMessage() !== 'ERROR_ESCRIPTURA_CSV' ? 422 : 500);
+    aoRespond($status, [
         'ok' => false,
-        'error' => $error instanceof AOBatchException
+        'error' => ($error instanceof AOBatchException || $isCsvValidation)
             ? $error->getMessage() : 'ERROR_INTERN_LOT',
     ]);
 }
