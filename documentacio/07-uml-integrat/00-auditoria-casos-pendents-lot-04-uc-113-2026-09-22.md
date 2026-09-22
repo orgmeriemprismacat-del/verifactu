@@ -14,7 +14,7 @@
 
 **Separació de casos confirmada:** alta a PrisMa ≠ pujada a Moodle; **pujada d'alumnes a curs i pujada d'aules obertes són DOS casos d'ús**, no només una variant indistinta. El nom provisional CAND-UC-MOODLE-CSV-01 d'aquest informe identifica només la pujada d'alumnes; obrir també CAND-UC-MOODLE-AO-01 per a aula oberta, amb mapatge de numeració pendent de contrastar amb els 142 UC. UC-129 tracta la conciliació posterior, no substitueix els dos casos d'acció.
 
-**L'importador de fitxers d'inscripcions a PrisMa descrit en els apartats 2 i 5 és DISSENY PENDENT D'ABAST, no una funcionalitat actual acreditada ni una implementació aprovada.** No convertir-lo automàticament en backlog executable; primer completar el mapa real d'altes web i decidir si hi ha necessitat d'importació en lot. Els diagrames de la secció 4 continuen sent parcials, només de l'acció de confirmar la pujada d'alumnes.
+**RECTIFICACIÓ: importador de matrícules en lot EXISTENT confirmat per negoci.** La seva existència funcional és un fet confirmat; el que encara falta és la traça del seu executable, entrada i destí, que **no s'ha d'atribuir al generador de CSV d'aquesta pàgina**. No planificar un importador nou per manca de nom de fitxer. Els diagrames de la secció 4 continuen sent parcials, només de l'acció de confirmar la pujada d'alumnes; les activitats pròpies d'UC-113 i dels dos UC Moodle separats consten als nous documents enllaçats al final.
 
 [Fitxa funcional amb decisions confirmades](../06-fitxes-funcionals/uc-113.md) · [fitxa UML delimitada](uc-113-importar-inscripcions-manualment-lot.md).
 
@@ -144,7 +144,7 @@ stop
 
 **DOC:** inventariar la ruta **real** de les altes manuals a PrisMa (si existeix), els formats d'importació de matrícules a PrisMa, els rols, la persona/edició/estat, el tractament de `PAGAMENT`/factures històriques, mètodes i proves. No reutilitzar com a font actual el procés `pujar_Inscripcions` perquè aquest fa UPDATE + CSV Moodle, no INSERT de matrícula PrisMa. Distingir UC-113 de la importació històrica de FACTURES UC-011.
 
-**IMP:** quan s'aprovin formats i política, programar EnrollmentImportService i repo sobre `enrollment_import_run/item` i integració idempotent per fila; validar identitat entre lots, evitar efectes monetaris/fiscals ficticis, controlar recuperació després de fallada de la BD acadèmica; garantir permisos backend. No materialitzar un importador imaginant columnes no corroborades.
+**IMP:** mantenir l'importador en lot EXISTENT i identificar-ne el parser/destí; **adaptar-lo** al SIF allà on faltin traça, validador, idempotència per fila, permisos i controls monetaris/fiscals. `EnrollmentImportService` i el repositori nous són candidats d'adaptació i NO la prova que no existeixi importació actual. No imposar formats, columnes ni reemplaçament complet no comprovats.
 
 **Proves UC-113 encara pendents:** fitxer repetit, mateixa inscripció en lots diferents, dues persones amb email compartit, mateixa persona dues edicions, error d'una fila entre 20, reintent després d'alta escrita però sense resposta, marca llegat `PAGAMENT=1` sense prova bancària, inscripció amb factura anterior, cap nova factura/CHARGE per importació.
 
@@ -165,8 +165,16 @@ stop
 
 ## 7. Estat i següents comprovacions
 
-- **UC-113 DOC:** revisió dirigida amb nova evidència, però NO TANCAT perquè falta localitzar/validar TOTES les rutes d'alta manual o d'importació a PrisMa. **UC-113 IMP:** SQL DEFINIT; servei d'importació i canal NO ACREDITATS. **UC-113 TEST:** NO EXECUTAT.
+- **UC-113 DOC:** revisió dirigida amb nova evidència, però NO TANCAT perquè falta localitzar/validar TOTES les rutes d'alta manual o d'importació a PrisMa. **UC-113 IMP:** importador funcional EXISTENT confirmat per negoci, però el codi i la integració SIF del canal **NO LOCALITZATS/NO ACREDITATS** en el tall revisat; model SQL de traça definit sense acreditació d'ús actual. **UC-113 TEST:** NO EXECUTAT.
 - **CAND-UC-MOODLE-CSV-01 DOC:** acció i mètodes reals CONTRASTATS AMB CODI; falta verificar pantalla desplegada, regla empresarial d'accés, permisos i importació externa efectiva. **IMP:** codi llegat EXISTENT, mecanisme final de control/conciliació NO ACREDITAT; **TEST:** NO EXECUTAT.
 - **Per continuar sense barrejar casos:** completar dos candidats de pujada Moodle — alumnes i aules obertes — amb casos funcionals/diagrames separats, després de revisar el catàleg; UC-114 (versionat de producte/edició) ja té un lot 03 independent. **UC-111 explícitament EXCLÒS d'aquest lot.**
 
 [Fitxa UC-113](uc-113-importar-inscripcions-manualment-lot.md) · [fitxa original](../06-fitxes-funcionals/uc-113.md) · [UC-107](uc-107-detectar-inscripcio-duplicada.md) · [UC-095](uc-095-estat-academic-deute-pendent.md) · [UC-124](uc-124-reconciliar-acces-certificat-baixa-deute.md) · [UC-129](uc-129-reconciliar-prisma-moodle-matricules.md) · [reg. mestre](../00-index-i-pla/42-registre-mestre-cobertura-funcional-implementacio-documentacio.md).
+
+## 8. Tancament de la confusió detectada i fitxes separades
+
+- [UC-113: fitxa funcional consolidada d'alta manual + importació en lot EXISTENT](../06-fitxes-funcionals/uc-113.md) i [activitats actual/final, amb l'interior de l'importador identificat com a font pendent d'acreditar](uc-113-activitats-alta-manual-i-importador-lot.md).
+- [Pujada d'alumnes: fitxa pròpia amb 12 diagrames d'activitat per pàgina/apartat](uc-moodle-pujada-alumnes-fitxa-activitats.md).
+- [Pujada d'aules obertes: fitxa pròpia amb 10 diagrames d'activitat per pàgina/apartat](uc-moodle-aules-obertes-fitxa-activitats.md).
+
+**L'existència d'un importador en lot NO es discuteix; el nom i recorregut executables no s'han atribuït sense prova.**
