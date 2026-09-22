@@ -134,3 +134,248 @@ La captura de la pàgina revela cerca bàsica/avançada, dades personals editabl
 
 **Estat de completitud:** evidència visual indexada i diagrames per pantalla + subfluxos baixa/canvi; falta veure variants de cerca avançada, formularis d'edició i de confirmació, comprovar el desplegament, autorització per objecte i executar proves. No publicar les captures originals al GitHub públic, ni substituir dades personals dels originals per dades aparentment reals a la documentació.
 
+## 9. Diagrames d'activitat de la resta d'accions d'«Alumnes / Consulta - Modifica»
+
+**Origen contrastat:** [inventari de pantalla i codi, apartats 7–8](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md#7-cerca-avançada-dades-personals-observacions-i-certificats--contrast-sense-captures-noves), [fitxa funcional UC-042, apartat 24](../06-fitxes-funcionals/uc-042.md#24-fitxa-funcional-per-acció-cerca-avançada-perfil-observacions-i-certificats). **Aquests diagrames ACTUALS deriven dels JS i PHP de `main`, no de captures que encara no tenim ni de tests executats.** Els diagrames FINALS són el contracte proposat, incloses les distincions acadèmiques/fiscals i de privacitat. No confondre consulta de certificat amb elegibilitat acadèmica aprovada: la seva reconciliació és UC-124; no confondre desament de contacte amb reemissió d'una factura històrica.
+
+### AL-CERCA — ACTUAL
+
+```plantuml
+@startuml
+title AL-CERCA ACTUAL | Cerca bàsica, avançada i múltiples resultats
+start
+:Entrar a Consulta - Modifica;
+:Omplir DNI, email, nom/cognoms o obrir cerca avançada;
+if (Cerca avançada oculta?) then (Sí)
+  :Ignorar filtres avançats a la petició;
+else (No)
+  :Llegir filtres avançats i normalitzar "qualsevol";
+endif
+if (Tots els camps aplicables són buits?) then (Sí)
+  :Mostrar avís «Omple un camp»;
+else (No)
+  :Per cada criteri llançar GET searchUserByCamp;
+  :Recollir identificadors de cada resposta;
+  :Intersectar llistes al navegador;
+  if (Cap coincidència?) then (Sí)
+    :Mostrar avís sense resultats;
+  elseif (Més de 2000?) then (Sí)
+    :Mostrar avís per acotar la cerca;
+  elseif (Una sola coincidència?) then (Sí)
+    :GET mostrarInformacioUsuari per subjecte;
+    :Mostrar fitxa i inscripcions;
+  else (Diverses)
+    :GET mostrarTaulaUsuaris;
+    :Mostrar llista ordenable i selecció de subjecte;
+  endif
+endif
+stop
+@enduml
+```
+
+### AL-CERCA — FINAL
+
+```plantuml
+@startuml
+title AL-CERCA FINAL | Filtrar subjectes autoritzats
+start
+:Autenticar actor i carregar formulari;
+:Seleccionar cerca bàsica o avançada;
+:Normalitzar criteris i eliminar filtres ocults;
+if (Cerca sense criteris vàlids?) then (Sí)
+  :Mostrar error sense executar consulta;
+else (No)
+  :Enviar consulta autoritzada amb identificador de cerca;
+  :Descartar resultats tardans de cerques anteriors;
+  :Aplicar filtres i límits al servidor;
+  if (Sense resultats?) then (Sí)
+    :Mostrar cap coincidència;
+  elseif (Excés de resultats?) then (Sí)
+    :Demanar filtres addicionals;
+  elseif (Una coincidència?) then (Sí)
+    :Obrir fitxa si actor té dret a veure-la;
+  else (Diverses)
+    :Mostrar llista mínima i ordenable amb autorització;
+    :Obrir només el subjecte autoritzat seleccionat;
+  endif
+endif
+stop
+@enduml
+```
+
+### AL-PERSONAL — ACTUAL
+
+```plantuml
+@startuml
+title AL-PERSONAL ACTUAL | Desar o cancel·lar dades personals
+start
+:Obrir resultat alumne i prémer editar;
+if (tePermisEdicio al navegador?) then (Sí)
+  :Convertir camps visibles en inputs;
+  :Modificar nom, contacte o altres dades;
+  if (Clic cancel·lar?) then (Sí)
+    :Convertir inputs a text amb VALOR ACTUAL;
+    :No enviar UPDATE;
+    note right
+      Pot mostrar un canvi que NO
+      està desat en base de dades.
+    end note
+  elseif (Clic desar?) then (Sí)
+    :Validar camps obligatoris i telèfon al JS;
+    if (Validació client correcta?) then (Sí)
+      :GET guardarDadesPersonals amb dades a URL;
+      :PHP UPDATE inscripcions per idInsc;
+      :Mostrar guardat si text no conté Error/error;
+    else (No)
+      :Mostrar camps erronis;
+    endif
+  endif
+else (No)
+  :Mostrar avís de manca de permisos;
+endif
+stop
+@enduml
+```
+
+### AL-PERSONAL — FINAL
+
+```plantuml
+@startuml
+title AL-PERSONAL FINAL | Perfil amb dades originals i traça
+start
+:Carregar camps originals i versió de la inscripció;
+:Autoritzar actor i àmbit de l'edició al servidor;
+if (Actor autoritzat?) then (Sí)
+  :Editar camps en memòria sense escriptura;
+  if (Cancel·la?) then (Sí)
+    :Restaurar valors persistits originals;
+  elseif (Desa?) then (Sí)
+    :POST de canvis amb versió base i camps permesos;
+    :Validar dada i destinacions al servidor;
+    if (Conflicte o dades invàlides?) then (Sí)
+      :Mostrar errors i estat real, sense escriptura;
+    else (No)
+      :Registrar abans/després i aplicar canvi;
+      :Preservar receptor i factura històrics;
+      :Confirmar només el desament verificat;
+      :Rellegir camps persistits;
+    endif
+  endif
+else (No)
+  :Denegar sense exposar ni modificar dades;
+endif
+stop
+@enduml
+```
+
+### AL-OBS — ACTUAL
+
+```plantuml
+@startuml
+title AL-OBS ACTUAL | Afegir o ocultar observació general
+start
+:Mostrar observacions generals de l'alumne;
+if (Clic afegir observació?) then (Sí)
+  :Obrir modal i introduir text;
+  if (Text no buit?) then (Sí)
+    :GET afegirObservacio amb text i DNI;
+    :INSERT aobservacions amb actor de sessió;
+    :GET mostrarObservacions per refrescar;
+    :Mostrar «guardat» si resposta sense Error/error;
+  else (No)
+    :Mostrar avís camp buit;
+  endif
+elseif (Clic amagar observació?) then (Sí)
+  if (tePermisEdicio al navegador?) then (Sí)
+    :GET amagarObservacio amb ID de la nota;
+    :UPDATE aobservacions VISIBLE = 0;
+    :Eliminar fila de la vista si text sense Error/error;
+  else (No)
+    :Mostrar avís sense permís;
+  endif
+endif
+stop
+@enduml
+```
+
+### AL-OBS — FINAL
+
+```plantuml
+@startuml
+title AL-OBS FINAL | Registre i ocultació traçables
+start
+:Identificar actor, alumne i registre existent;
+if (Afegir observació?) then (Sí)
+  :Validar text i permís al servidor;
+  :POST amb clau d'operació i actor;
+  :INSERT i confirmar ID, data i estat real;
+  :Rellegir llista de notes visibles;
+elseif (Ocultar observació?) then (Sí)
+  :Validar permisos i pertinença de la nota a l'alumne;
+  :POST per ocultar amb motiu/traça si escau;
+  :Canviar visibilitat sense esborrar historial;
+  :Confirmar ID i estat real de la nota;
+else (No)
+  :No alterar observacions;
+endif
+:Mostrar resultats només al subjecte autoritzat;
+stop
+@enduml
+```
+
+### AL-CERT — ACTUAL
+
+```plantuml
+@startuml
+title AL-CERT ACTUAL | Consulta, previsualització i PDF
+start
+:Prémer icona certificat o «cursant» per inscripció;
+:GET mostraModalConsultaCertificat per idInsc i tipus;
+:PHP genera vista inicial del certificat;
+if (Tipus INSCRIT?) then (Sí)
+  :Mostrar botó «Cursant el curs»;
+else (No)
+  :Mostrar variants Digital, Paper i Sobre;
+endif
+if (Selecciona variant?) then (Sí)
+  :GET mostrarCertificat download=false;
+  :Substituir HTML de la previsualització;
+endif
+if (Clic descarregar i tePermisEdicio al JS?) then (Sí)
+  :GET mostrarCertificat download=true;
+  :Generar arxiu PDF temporal amb nom basat en DNI i curs;
+  :Construir enllaç de descàrrega;
+  :Sol·licitar eliminarArxiu després del clic;
+  :Mostrar resultat segons callbacks;
+else (No)
+  :Tancar o mantenir vista sense descàrrega;
+endif
+stop
+@enduml
+```
+
+### AL-CERT — FINAL
+
+```plantuml
+@startuml
+title AL-CERT FINAL | Certificat autoritzat i fitxer privat
+start
+:Identificar actor, inscripció i modalitat de certificat;
+:Verificar dret acadèmic, tipus i autorització de lectura;
+if (Consulta admissible?) then (Sí)
+  :Mostrar només variants legítimes;
+  :Previsualitzar document per canal autenticat;
+  if (Demana descarregar?) then (Sí)
+    :Validar autorització novament al servidor;
+    :Generar fitxer amb identificador opac en ubicació privada;
+    :Lliurar per endpoint segur sense exposar DNI a ruta pública;
+    :Registrar accés si correspon i destruir temporal amb seguretat;
+  endif
+else (No)
+  :Mostrar estat no disponible sense dades d'altri;
+endif
+stop
+@enduml
+```
+
+**Tancament:** les vuit representacions cobreixen cerca, canvi de dades personals, observacions i certificat. Queden proves de navegador i autorització per objecte, captura de variants i confirmació real dels resultats. La [incidència de fitxers de certificat generats al repositori](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md#8-incidència-de-protecció-de-dades-detectada-al-repositori-sense-reproduir-cap-document) està separada del flux fiscal del SIF. No copiar ni publicar arxius amb dades personals a la documentació.
