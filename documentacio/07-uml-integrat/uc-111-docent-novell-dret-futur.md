@@ -145,3 +145,122 @@ Note over V,R: Coordinació no implementada, no ALTERAR factura original ni gene
 ## 5. Traçabilitat
 
 [UC-111 original](../06-fitxes-funcionals/uc-111.md) · [UC-117 drets](uc-117-cicle-vida-codi-dret-futur.md) · [UC-116 evidències original](../06-fitxes-funcionals/uc-116.md) · [UC-20d cupó](uc-020d-aplicar-codi-promocional.md) · [UC-02 cobrament](uc-002-registrar-cobrament-factura.md) · [Migració dret/evidència](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [CreditBalanceService: diferent d'un cupó](../../sif/src/Service/CreditBalanceService.php) · [Traçabilitat monetària](00-revisio-moviments-inscripcions.md).
+
+## 6. Diagrames d'activitat del cas UC-111
+
+**Els quatre diagrames següents reprodueixen subfluxos comprovables o proposats del CAS UC-111, no la totalitat de totes les pàgines compartides.** Els fluxos ACTUALS NO afirmen el que fa el mètode d'Intranet no recuperat. Els fluxos FINALS són contractes objectiu, no programació acabada. Per a l'auditoria de les pàgines i apartats sencers continua oberta RM-037; no donar per acabada la documentació només per l'existència d'aquests diagrames.
+**Abast:** subfluxos de la pàgina d'inscripció i de l'apartat «recent titulat» de la pàgina de validació; **NO** diagrama complet de totes les accions de les dues pàgines. Marcar els estats del servidor llegat que no s'han pogut recuperar com a NO VERIFICATS.
+
+### 4.1. Inscripció web — subflux actual observable
+
+```plantuml
+@startuml
+title UC-111 | Alta curs i sol·licitud docent novell | ACTUAL parcial
+start
+:Rebre dades d'inscripció, titulació i novell via GET;
+:Construir missatge d'alta i imports;
+if (novell i descompte tipus 0-3?) then (sí)
+ :Preparar missatge amb validació del títol,
+ reserva i codi futur després del pagament;
+endif
+:INSERT inscripcions (ID_INSC, IDPAG, imports, dades);
+if (curs == JASOM i novell?) then (sí)
+ :INSERT recent_titulat (ID_INSC);
+else (no)
+ :No inserir recent_titulat en aquesta branca;
+endif
+:Continuar tramitació i comunicacions del handler;
+stop
+@enduml
+```
+
+### 4.2. Inscripció web — subflux objectiu pendent
+
+```plantuml
+@startuml
+title UC-111 | Alta i dret futur | OBJECTIU, no implementat
+start
+:Verificar actor, dades i elegibilitat de la promoció;
+:Crear/reutilitzar operació i inscripció origen amb regla versionada;
+if (Sol·licita docent novell?) then (sí)
+ :Rebre prova via emmagatzematge restringit;
+ :Registrar evidència i decisió pendent sense dret nou;
+ if (Evidència validada per persona autoritzada?) then (sí)
+  :Conservar decisió aprovada i traça d'actor;
+  if (Cobrament REAL origen confirmat i conciliat?) then (sí)
+   :Crear/reutilitzar UNA promoció comercial
+   lligada a origen, titular i regla;
+   :Enviar comunicació posterior al commit;
+  else (no)
+   :Esperar cobrament; no emetre promoció;
+  endif
+ else (no)
+  :Denegar o deixar pendent justificació amb motiu;
+ endif
+endif
+:No alterar factura fiscal de la compra original;
+stop
+@enduml
+```
+
+### 4.3. Intranet · Validar descomptes · apartat docent novell — subflux actual observable
+
+```plantuml
+@startuml
+title UC-111 | Apartat intranet recent titulat | ACTUAL observable
+start
+:Obrir pàgina intranet i carregar mostrarMain.php;
+:Visualitzar files de inscripcions_recent_titulat;
+:Clicar indicador resguard-valid;
+:Canviar classe CSS i text Sí/No al navegador;
+if (Operador clica validatResguard?) then (sí)
+ :Llegir ID_INSC i Sí/No visual;
+ :AJAX GET sendMsgValidatProfessorNovell.php;
+ :Endpoint obre sessió i delega a Intranet::sendMsgValidatCurosProfessorNovell;
+ note right
+  COS DEL MÈTODE NO VERIFICAT
+  Canvi BD, generació de cupó,
+  verificació bancària i correu
+  no acreditats en aquest lot.
+ end note
+ if (Resposta HTML inclou "error"?) then (sí)
+  :Mostrar modal d'error;
+ else (no)
+  :Mostrar modal Canvi aplicat;
+ endif
+endif
+stop
+@enduml
+```
+
+### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
+
+```plantuml
+@startuml
+title UC-111 | Apartat intranet docent novell | OBJECTIU, no implementat
+start
+:Carregar justificants del titular autoritzat;
+if (Operador té rol i abast per validar?) then (no)
+ :Denegar accés i registrar intent;
+ stop
+else (sí)
+ :Mostrar informació mínima i estat del cobrament origen;
+ :Seleccionar aprovar/rebutjar amb motiu i confirmació;
+ :POST segur amb CSRF o equivalent i idempotència;
+ :Servidor comprova permís, titularitat, versions i evidència;
+ if (Decisió aprovada?) then (sí)
+  :Persistir validació acadèmica i actor;
+  if (Pagament confirmat i dret no emès?) then (sí)
+   :IssueOrReuse promoció una sola vegada;
+  else (no)
+   :Deixar dret pendent o recuperar existent;
+  endif
+ else (no)
+  :Persistir denegació motivada sense promoció nova;
+ endif
+ :Notificar el resultat real segons estat posterior al commit;
+ :Actualitzar pantalla amb estat retornat pel servidor;
+endif
+stop
+@enduml
+```
