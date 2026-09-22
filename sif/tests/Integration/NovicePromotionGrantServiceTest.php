@@ -86,6 +86,49 @@ final class NovicePromotionGrantServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_grant')->fetchColumn());
     }
 
+    public function testReusingCancelledOriginalDoesNotMintAnotherRight(): void
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOrigin($db, 'student:novice:6', 'JASOM', 'VALIDATED', 120, 120);
+        $service = new NovicePromotionGrantService(new UuidGenerator());
+        $first = $service->issueForOperation($db, $operation);
+
+        $db->prepare("UPDATE commercial_entitlement SET STATUS = 'CANCELLED' WHERE UUID_ENTITLEMENT = ?")
+            ->execute([$first['uuid_entitlement']]);
+
+        $repeat = $service->issueForOperation($db, $operation);
+        Assert::same(true, $repeat['idempotency_reused']);
+        Assert::same('CANCELLED', $repeat['status']);
+        Assert::same($first['uuid_entitlement'], $repeat['uuid_entitlement']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_grant')->fetchColumn());
+    }
+
+    public function testPreexistingValidationEntitlementReferencePreventsSecondGrant(): void
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOrigin($db, 'student:novice:7', 'JASOM', 'VALIDATED', 120, 120);
+        $db->prepare("UPDATE discount_validation SET FUTURE_ENTITLEMENT_REF = 'legacy-imported-right'
+                      WHERE UUID_OPERATION = ?")->execute([$operation]);
+
+        Assert::throws(SifException::class, static function () use ($db, $operation): void {
+            (new NovicePromotionGrantService(new UuidGenerator()))->issueForOperation($db, $operation);
+        }, 409);
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_grant')->fetchColumn());
+    }
+
+    public function testInvoiceMustBelongToOriginEnrollment(): void
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOrigin($db, 'student:novice:8', 'JASOM', 'VALIDATED', 120, 120);
+        $db->prepare("UPDATE commercial_operation SET SOURCE_ID = '999' WHERE UUID_OPERATION = ?")
+            ->execute([$operation]);
+
+        Assert::throws(SifException::class, static function () use ($db, $operation): void {
+            (new NovicePromotionGrantService(new UuidGenerator()))->issueForOperation($db, $operation);
+        }, 409);
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_grant')->fetchColumn());
+    }
+
     private function createOrigin(
         \PDO $db,
         string $holder,
