@@ -29,6 +29,8 @@ use Prisma\Sif\Service\PaymentPayloadValidator;
 use Prisma\Sif\Service\RedsysCallbackDispatcher;
 use Prisma\Sif\Service\RedsysCallbackWorker;
 use Prisma\Sif\Service\RedsysCourseInvoiceService;
+use Prisma\Sif\Service\NovicePromotionInvoiceLinkService;
+use Prisma\Sif\Service\NovicePromotionGrantService;
 use Prisma\Sif\Service\RedsysGiftInvoiceService;
 use Prisma\Sif\Service\RedsysGroupInvoiceService;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
@@ -74,8 +76,10 @@ try {
         new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
     );
     $redsysPayloads = new RedsysInvoicePayloadBuilder($notifications);
+    $noviceLinks = new NovicePromotionInvoiceLinkService();
+    $noviceGrants = new NovicePromotionGrantService(new UuidGenerator());
     $dispatcher = new RedsysCallbackDispatcher([
-        new RedsysCourseInvoiceService($notifications, new LegacyCourseSnapshotRepository(), new LegacyCourseInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
+        new RedsysCourseInvoiceService($notifications, new LegacyCourseSnapshotRepository(), new LegacyCourseInvoicePayloadBuilder(), $redsysPayloads, $invoiceService, $noviceLinks, $noviceGrants),
         new RedsysPackInvoiceService($notifications, new LegacyPackSnapshotRepository(), new LegacyPackInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysGroupInvoiceService($notifications, new LegacyGroupSnapshotRepository(), new LegacyGroupInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysGiftInvoiceService($notifications, new LegacyGiftSnapshotRepository(), new LegacyGiftInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
