@@ -1,6 +1,6 @@
 # UC-116 — diagrames d'activitat per pàgina i apartat (RM-037)
 
-**Versió del codi observat:** main @ e71958b3026549bde09fb4b25f2ec3ba370937ec (22/09/2026). **Estat:** diagrames delimitats per les fonts visibles; la pàgina/formulari que crida l'upload no s'ha identificat, ni el cos de \`Intranet::mostrarPage\` / \`sendMsgValidatCurosDescomptes\`; per tant, aquests punts es marquen **PENDENT DE CONTRAST**. No és una representació completa de totes les pàgines de la web o de la intranet. [Auditoria i matriu d'accions](00-auditoria-casos-pendents-lot-05-uc-116-2026-09-22.md).
+**Versió del codi observat:** main @ e71958b3026549bde09fb4b25f2ec3ba370937ec (22/09/2026). **Estat:** diagrames delimitats per les fonts visibles; la pàgina/formulari que crida l'upload no s'ha identificat, ni el cos de `Intranet::mostrarPage` / `sendMsgValidatCurosDescomptes`; per tant, aquests punts es marquen **PENDENT DE CONTRAST**. No és una representació completa de totes les pàgines de la web o de la intranet. [Auditoria i matriu d'accions](00-auditoria-casos-pendents-lot-05-uc-116-2026-09-22.md).
 
 ## 1. Pàgina pública «Descomptes» — cinc apartats visibles
 
@@ -8,7 +8,7 @@
 
 ### ACTUAL — pàgina informativa
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title Descomptes | Pàgina pública ACTUAL (només render i enllaços acreditats)
 start
@@ -37,11 +37,11 @@ note right
 end note
 stop
 @enduml
-\`\`\`
+```
 
 ### FINAL — informació i vies segons evidència realment necessària (DISSENY)
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title Descomptes | Pàgina pública FINAL (contracte proposat)
 start
@@ -56,7 +56,7 @@ endif
 :No incrustar URLs de justificants ni dades personals a la pàgina;
 stop
 @enduml
-\`\`\`
+```
 
 **Pendents:** URL/pàgina real de cadascun dels formularis, variants i tipus de preu vigents, condicions de grup i si la comprovació USOC comporta o no càrrega documental. Aquests apartats corresponen també als UC comercials respectius; no reinterpretar-los tots com a UC-116.
 
@@ -66,7 +66,7 @@ stop
 
 ### ACTUAL — endpoint de pujada i preparació d'avís
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title UC-116 | Apartat upload web ACTUAL (formulari desconegut)
 start
@@ -89,11 +89,11 @@ note right
 end note
 stop
 @enduml
-\`\`\`
+```
 
 ### FINAL — endpoint de recepció i custòdia (DISSENY)
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title UC-116 | Apartat upload web FINAL (contracte a implementar)
 start
@@ -124,17 +124,17 @@ endif
 :No crear factura, cobrament ni aprovació comercial automàtica;
 stop
 @enduml
-\`\`\`
+```
 
 **Pendents:** identificar la pàgina/URL d'origen i els controls del navegador, verificació al servidor productiu, política per tipus de descompte, protocol d'accés, retenció i gestió de fitxer prèviament compartit amb una URL directa.
 
 ## 3. Pàgina intranet «Validar descomptes» — dos apartats amb accions diferents
 
-**Fonts:** [alumnes-validar-descomptes.php](../../codi-drive/intranet-actual/alumnes-validar-descomptes.php), [JS](../../codi-drive/intranet-actual/js/alumnes-validar-descomptes.js), [mostrarMain.php](../../codi-drive/intranet-actual/ajax/mostrarMain.php) i [wrapper de decisió](../../codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php). La pàgina inclou els selectors \`#inscripcions\` (descompte) i \`#inscripcions_recent_titulat\` (resguard); el segon apartat té funcionalitat pròpia, però **no es revisa el seu UC** en aquest lot.
+**Fonts:** [alumnes-validar-descomptes.php](../../codi-drive/intranet-actual/alumnes-validar-descomptes.php), [JS](../../codi-drive/intranet-actual/js/alumnes-validar-descomptes.js), [mostrarMain.php](../../codi-drive/intranet-actual/ajax/mostrarMain.php) i [wrapper de decisió](../../codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php). La pàgina inclou els selectors `#inscripcions` (descompte) i `#inscripcions_recent_titulat` (resguard); el segon apartat té funcionalitat pròpia, però **no es revisa el seu UC** en aquest lot.
 
 ### ACTUAL — càrrega de pàgina i acció de descompte
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title UC-116 | Intranet Validar descomptes ACTUAL (PHP/JS recuperat)
 start
@@ -171,11 +171,11 @@ else (no)
 endif
 stop
 @enduml
-\`\`\`
+```
 
 ### FINAL — revisió i decisió amb permisos/traça (DISSENY)
 
-\`\`\`plantuml
+```plantuml
 @startuml
 title UC-116 | Intranet Validar descomptes FINAL (contracte proposat)
 start
@@ -207,6 +207,6 @@ endif
 :Conservar termini de retenció aprovat i estat del justificant separats de factura;
 stop
 @enduml
-\`\`\`
+```
 
-**Pendents per completar RM-037:** estructura exacta d'apartats generada per \`Intranet::mostrarPage\`, accions de la taula i el mètode de persistència; ampliar diagrames de la pàgina completa quan estiguin acreditades les fonts. Els subfluxos del resguard novell **no s'auditen ni es donen per completats** en UC-116.
+**Pendents per completar RM-037:** estructura exacta d'apartats generada per `Intranet::mostrarPage`, accions de la taula i el mètode de persistència; ampliar diagrames de la pàgina completa quan estiguin acreditades les fonts. Els subfluxos del resguard novell **no s'auditen ni es donen per completats** en UC-116.
