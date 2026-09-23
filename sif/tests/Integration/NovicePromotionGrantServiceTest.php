@@ -232,6 +232,26 @@ final class NovicePromotionGrantServiceTest
         Assert::same(false, array_key_exists('token', $first));
         Assert::same(false, array_key_exists('token', $second));
         Assert::same(false, str_contains((string) $row['TOKEN_CIPHERTEXT'], 'NOV-'));
+        $decoded = openssl_decrypt(
+            (string) $row['TOKEN_CIPHERTEXT'],
+            'aes-256-gcm',
+            hex2bin($secretKeyHex),
+            OPENSSL_RAW_DATA,
+            (string) $row['TOKEN_NONCE'],
+            (string) $row['TOKEN_TAG'],
+            'UC111|' . $grant['uuid_entitlement']
+        );
+        Assert::matchesRegularExpression('/^NOV-[A-F0-9]{40}$/D', (string) $decoded);
+        Assert::same(hash('sha256', (string) $decoded), $row['CODE_HASH']);
+        Assert::same(false, openssl_decrypt(
+            (string) $row['TOKEN_CIPHERTEXT'],
+            'aes-256-gcm',
+            hex2bin($secretKeyHex),
+            OPENSSL_RAW_DATA,
+            (string) $row['TOKEN_NONCE'],
+            (string) $row['TOKEN_TAG'],
+            'UC111|wrong-entitlement'
+        ));
     }
 
     public function testCancelledNoviceGrantCannotPrepareNewCode(): void
@@ -249,6 +269,26 @@ final class NovicePromotionGrantServiceTest
                 ->prepare($db, $grant['uuid_entitlement'], str_repeat('a', 64), 'test-v1');
         }, 409);
 
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_code_outbox')->fetchColumn());
+    }
+
+    public function testRefundedOriginCannotPrepareCodeAfterGrant(): void
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOrigin($db, 'student:novice:token-refunded', 'JASOM', 'VALIDATED', 120, 120);
+        $grant = (new NovicePromotionGrantService(new UuidGenerator()))
+            ->issueForOperation($db, $operation);
+
+        $db->prepare("UPDATE factura f
+                       JOIN novice_promotion_grant g ON g.UUID_FACTURA = f.UUID_FACTURA
+                       SET f.ESTAT_COBRAMENT = 'PENDING'
+                       WHERE g.UUID_ENTITLEMENT = ?")
+            ->execute([$grant['uuid_entitlement']]);
+
+        Assert::throws(SifException::class, static function () use ($db, $grant): void {
+            (new NovicePromotionCodePreparationService(new UuidGenerator()))
+                ->prepare($db, $grant['uuid_entitlement'], str_repeat('a', 64), 'test-v1');
+        }, 409);
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_code_outbox')->fetchColumn());
     }
 
