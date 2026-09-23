@@ -178,7 +178,7 @@ flowchart TD
   C -->|No| D["Error sense revelar dades d'altres persones"]
   C -->|Sí| E["Recuperar sol·licitud i estat acadèmic real; l'alta al campus és manual per secretaria (DEC-108-05a)"]
   E --> F{"Moodle confirma accés efectiu?"}
-  F -->|Sí| G["Activació manual efectiva per secretaria: venciment 7 DIES DESPRÉS A LA MATEIXA HORA, si verificat (DEC-108-02b/d/05a)"]
+  F -->|Sí| G["Activació manual efectiva per secretaria: venciment EXACTAMENT 7 DIES DESPRÉS A LA MATEIXA HORA, MAI fins a 23.59 h (DEC-108-02b/d/05a)"]
   G --> GX{"Ja era membre del campus?"}
   GX -->|Sí| GM["Conserva les claus d'accés existents"]
   GX -->|No| GN["Secretaria crea MANUALMENT el compte nou; el CAMPUS envia AUTOMÀTICAMENT per correu les claus a la persona (DEC-108-05f)"]
