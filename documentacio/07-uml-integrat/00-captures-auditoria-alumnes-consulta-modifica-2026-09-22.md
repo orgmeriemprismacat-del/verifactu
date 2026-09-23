@@ -1,5 +1,7 @@
 # Auditoria visual — Alumnes / Consulta - Modifica
 
+**Exclusió expressa per al tancament d'aquest punt (23/09/2026):** les referències històriques a proves de Moodle/correus d'aquest informe són només traçabilitat de flux; **NO s'han revisat ni s'han d'executar dins del punt**, i no són condició de tancament del lot documental. Els tests de sortida vigents que no estan exclosos i l'estat real consten al [tancament de pantalla](01-tancament-documental-pantalla-alumnes-consulta-modifica-2026-09-23.md). Cap captura nova requerida per completar l'inventari de codi.
+
 **Pantalla:** `https://intranet.prisma.cat/alumnes/mostrar-alumne/`. **Data del contrast:** 22/09/2026. **Font visual:** set captures facilitades a la conversa; **els originals NO es publiquen en aquest repositori**, perquè contenen informació identificable d'alumnes i dades de facturació. Les captures de pantalla permeten identificar controls i formularis visibles, **no demostren que s'hagi executat una baixa, canvi de curs, pagament o emissió**. **Font de codi:** `main` al tall `e71958b3026549bde09fb4b25f2ec3ba370937ec`. **Abast:** àrea d'alumnes de la intranet principal; no forma part de la pàgina «Mostrar curs» de UC-114 ni de la pantalla d'estats UC-127. **Proves:** no executades; captures i codi revisats documentalment.
 
 ## 1. Inventari de les set vistes rebudes — sense reproduir dades privades
