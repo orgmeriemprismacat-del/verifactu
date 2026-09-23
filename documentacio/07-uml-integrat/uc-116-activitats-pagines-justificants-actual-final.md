@@ -1,6 +1,6 @@
 # UC-116 — diagrames d'activitat ACTUAL i FINAL per pàgina i apartat
 
-**Revisió de contingut:** 22/09/2026. **Font PHP/JS:** main @ e71958b3026549bde09fb4b25f2ec3ba370937ec. **Proveniència de P03:** els detalls interns del render i de la decisió d'`Intranet.php` provenen de la traça documental incorporada anteriorment a aquest dossier, amb enllaços de línia; en aquesta revisió el connector no ha retornat el cos del fitxer gran per corroborar-lo independentment. **No interpretar P03 com a prova de desplegament, autorització efectiva ni correu enviat.** **Cobertura del UC-116:** pàgina informativa de descomptes, formulari públic de curs normal (selecció i aportació de justificant), pantalla de confirmació derivada, pàgina de validació intranet (consulta/decisió). L'apartat de resguard de recent titulació de la mateixa pàgina és una acció DIFERENT: enllaç al seu UC; no reinterpretar-la com si fos UC-116. **Etiqueta ACTUAL:** observació estàtica del repo, no prova de desplegament. **Etiqueta FINAL:** contracte proposat, no implementat. [Fitxa UC-116](../06-fitxes-funcionals/uc-116.md#22-especificacio-consolidada-uc-116--codi-actual-i-contracte-final) · [auditoria](00-auditoria-casos-pendents-lot-05-uc-116-2026-09-22.md).
+**Revisió de contingut:** 22/09/2026. **Font PHP/JS:** main @ e71958b3026549bde09fb4b25f2ec3ba370937ec. **Proveniència de P03:** els detalls interns del render i de la decisió d'`Intranet.php` provenen de la traça documental incorporada anteriorment a aquest dossier, amb enllaços de línia; en aquesta revisió el connector no ha retornat el cos del fitxer gran per corroborar-lo independentment. **No interpretar P03 com a prova de desplegament, autorització efectiva ni correu enviat.** **Cobertura del UC-116:** pàgina informativa de descomptes, formulari públic de curs normal (selecció i aportació de justificant), pantalla de confirmació derivada, pàgina de validació intranet (consulta/decisió). L'apartat de resguard de recent titulació de la mateixa pàgina és una acció DIFERENT: enllaç al seu UC; no reinterpretar-la com si fos UC-116. **Etiqueta ACTUAL:** observació estàtica del repo, no prova de desplegament. **Etiqueta FINAL:** contracte amb cinc decisions funcionals ACORDADES el 23/09/2026 — revisió MANUAL de secretaria, NO PAGAMENT mentre pendent, inscripció CONSERVADA i nova oferta si es denega, retenció durant termini definit amb eliminació posterior, permisos diferenciats per rol/persona. Valors exactes del termini i de la matriu de permisos NO definits. No implementat. [Fitxa UC-116](../06-fitxes-funcionals/uc-116.md#22-especificacio-consolidada-uc-116--codi-actual-i-contracte-final) · [auditoria](00-auditoria-casos-pendents-lot-05-uc-116-2026-09-22.md).
 
 ## P01 · Pàgina pública de descomptes — cinc apartats
 
@@ -115,7 +115,8 @@ else (No)
  :Documentar font de comprovació interna o externa;
 endif
 :Recalcular/import congelar al servidor segons estat del dret;
-:No activar TPV amb preu condicionat a validació pendent;
+:Marcar inscripció amb descompte PENDENT de revisió manual de secretaria;
+:Bloquejar pagament en servidor/TPV fins a resolució de la revisió;
 stop
 @enduml
 ```
@@ -176,7 +177,9 @@ if (Regla requereix prova?) then (Sí)
 else (No)
  :Crear o reutilitzar alta segons regla i elegibilitat;
 endif
-:Mostrar estat real i només les instruccions econòmiques autoritzades;
+:Si descompte pendent, mostrar inscripció vigent i pagament BLOQUEJAT;
+:No generar enllaç TPV ni permetre cobrar mentre la revisió continua pendent;
+:Si no hi ha dret documental pendent, aplicar la regla comercial pròpia;
 :No comunicar aprovació ni factura/cobrament inexistents;
 :No deixar cap prova personal al webroot o Git;
 stop
@@ -223,12 +226,13 @@ stop
 @startuml
 title P03-A Intranet | FINAL | autorització d'accés a cada prova
 start
-:Operador obre expedients pendents autoritzats;
-:Servidor valida rol, finalitat i abast per inscripció;
+:Secretaria/revisor autoritzat obre expedients pendents de revisió MANUAL;
+:Servidor valida rol o persona, finalitat i abast per inscripció;
+:Comprovar permís específic de VISUALITZACIÓ de l'expedient;
 if (Dret a visualitzar expedient?) then (Sí)
  :Mostrar categoria necessària, estat i metadata mínima;
  if (Operador sol·licita veure prova?) then (Sí)
-  :Backend comprova permís de LECTURA del document i vigència;
+  :Backend comprova permís específic de LECTURA del document i vigència;
   :Verificar hash i llegir bytes des de storage privat;
   if (Document íntegre i accessible?) then (Sí)
    :Servir contingut pel canal autoritzat i auditar accés;
@@ -288,23 +292,32 @@ stop
 @startuml
 title P03-B Intranet | FINAL | revisió segura i efectes separats
 start
-:Revisor amb rol específic obre validació vigent;
-:Servidor comprova actor/recurs, prova íntegra i regla de preu;
-if (Autoritzat, evidència aplicable i versió vigent?) then (Sí)
- :Registrar decisió ACCEPTADA o DENEGADA amb motiu mínim i actor;
- :Recalcular preu comercial exacte segons producte i dret;
- if (Ja hi ha factura per la prestació?) then (Sí)
-  :Preservar factura original;
-  :Classificar necessitat de rectificativa/saldo/retorn per UC corresponents;
+:Secretaria amb permís específic de DECISIÓ inicia revisió MANUAL;
+:Servidor comprova persona/rol, inscripció, prova íntegra i versió de regla;
+if (Autorització de DECISIÓ i evidència aplicable vigents?) then (Sí)
+ if (Secretaria accepta el dret?) then (ACCEPTA)
+  :Registrar ACCEPTACIÓ manual amb actor/data i evidència;
+  :Fixar import autoritzat per la regla comercial;
+  :Resoldre l'estat pendent i habilitar només llavors l'opció de pagament;
+ else (DENEGA)
+  :Registrar DENEGACIÓ manual amb actor/data i motiu intern mínim;
+  :MANTENIR la inscripció vigent;
+  :Calcular i oferir el pagament de l'import que correspongui;
+  :Resoldre l'estat pendent i habilitar l'opció de pagament del nou import;
+ endif
+ if (Hi ha factura/pagament històric preexistent?) then (Sí)
+  :Preservar factura original i classificar incidència fiscal/econòmica;
  else (No)
-  :Actualizar oferta/obligació pendent abans d'emetre;
+  :No facturar ni cobrar automàticament per la decisió;
  endif
  :Sincronitzar estat llegat de manera controlada;
- :Notificar resultat real de forma idempotent amb text genèric;
+ :Notificar resultat real sense adjuntar el document ni URL pública;
 else (No)
- :Denegar acció/obrir incidència sense canviar factura ni import;
+ :Denegar acció sense resoldre pendent ni habilitar pagament;
 endif
-:Separar retenció de la prova de la conservació fiscal;
+:Conservar la prova durant un TERMINI DEFINIT pendent de durada concreta;
+:Després del termini aprovat eliminar bytes/còpies i acreditar supressió;
+:Conservar factura fiscal segons regla separada;
 stop
 @enduml
 ```
@@ -321,3 +334,15 @@ stop
 | P03 / recent titulat | `#inscripcions_recent_titulat` → `validatResguard`, endpoint diferent | **Fora de l'abast UC-116**; consultar UC propi, no duplicar | Identificat com a apartat diferent; no reauditat aquí. |
 
 **Tancament RM-037 en l'abast UC-116:** els apartats actuals visibles a les fonts inspeccionades tenen diagrama ACTUAL/FINAL, incloent la frontera amb els altres UC. **No s'afirma:** haver inspeccionat totes les altres pantalles i rutes del repositori, ni el desplegament, ni executat PlantUML contra un renderitzador, ni verificada l'aplicació d'aquest disseny.
+
+## Decisions incorporades als diagrames finals (23/09/2026)
+
+| Decisió de l'usuària | Diagramació FINAL | Contrast amb ACTUAL |
+| --- | --- | --- |
+| Secretaria revisa MANUALMENT | P03-B inclou revisió manual, decisió i actor identificat. | El JS actual envia SÍ/NO a l'endpoint; no equival a un expedient segur amb prova custodiada. |
+| Pagament BLOQUEJAT mentre pendent | P02-A i P02-B no habiliten TPV/cobrament mentre continua PENDENT; P03-B desbloqueja després de decisió. | L'alta llegada `VALID_DESC=0` no prova per si sola bloqueig integral de tots els canals de pagament. |
+| Denegació conserva inscripció i ofereix pagar import pertinent | P03-B manté l'alta, recalcula nova oferta, resol pendent i presenta pagament sense càrrec automàtic. | La branca de denegació llegada es representa al diagrama ACTUAL amb els efectes que descriu la traça P03, no com a garantia d'aquest contracte nou. |
+| Retenció durant termini definit i eliminació posterior | P03-B i custòdia FINAL diferencien bytes de factura immutable i exigeixen supressió real al venciment aprovat. | El text llegat promet eliminació, però no hi ha prova de destrucció de totes les còpies; durada exacta NO decidida. |
+| Permisos diferenciats per persona o rol d'intranet | P03-A separa visibilitat d'expedient i lectura de fitxer; P03-B exigeix permís específic de decisió. | Rol actual de visualització de pàgina no acredita aquests permisos per acció. Matriu exacta encara NO definida. |
+
+**Les etiquetes ACTUAL i FINAL no són intercanviables.** Les decisions són regles desitjades confirmades per la usuària, no proves de canvis aplicats al PHP. El termini numèric, permisos concrets per rol/persona i el preu alternatiu per producte resten per concretar al configurar el sistema; no es dedueixen de la fitxa.
