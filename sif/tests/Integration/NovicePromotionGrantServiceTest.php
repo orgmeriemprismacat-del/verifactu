@@ -9,6 +9,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Service\NovicePromotionGrantService;
 use Prisma\Sif\Service\NovicePromotionCodePreparationService;
 use Prisma\Sif\Service\NovicePromotionGrantReconciler;
+use Prisma\Sif\Service\NovicePromotionDeliveryAttemptService;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\Fixtures;
 use Prisma\Sif\Tests\Support\TestDatabase;
@@ -329,6 +330,115 @@ final class NovicePromotionGrantServiceTest
 
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_code_outbox')->fetchColumn());
         Assert::same('ISSUED', (string) $db->query('SELECT STATUS FROM commercial_entitlement')->fetchColumn());
+    }
+
+    public function testDeliveryRequiresIndependentlyVerifiedRecipient(): void
+    {
+        [$db, $entitlement] = $this->deliveryFixture('student:novice:delivery1');
+        $delivery = new NovicePromotionDeliveryAttemptService(new UuidGenerator());
+        Assert::throws(SifException::class, static function () use ($db, $entitlement, $delivery): void {
+            $delivery->claim($db, $entitlement);
+        }, 409);
+
+        Assert::same('PREPARED', (string) $db->query('SELECT STATUS FROM novice_promotion_code_outbox')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT ATTEMPTS FROM novice_promotion_code_outbox')->fetchColumn());
+    }
+
+    public function testDeliveryAttemptReusesSameEncryptedTokenAndObservesBackoff(): void
+    {
+        [$db, $entitlement] = $this->deliveryFixture('student:novice:delivery2');
+        $this->seedVerifiedRecipientForTest($db, $entitlement);
+        $service = new NovicePromotionDeliveryAttemptService(new UuidGenerator());
+        $start = new \DateTimeImmutable('2026-09-23 11:00:00', new \DateTimeZone('UTC'));
+        $originalHash = (string) $db->query('SELECT CODE_HASH FROM commercial_entitlement')->fetchColumn();
+        $originalCiphertext = (string) $db->query('SELECT TOKEN_CIPHERTEXT FROM novice_promotion_code_outbox')->fetchColumn();
+
+        $first = $service->claim($db, $entitlement, $start);
+        Assert::same('CLAIMED', $first['status']);
+        Assert::same('IN_FLIGHT', $service->claim($db, $entitlement, $start->modify('+1 minute'))['status']);
+        Assert::same('FAILED', $service->recordResult($db, $entitlement, $first['claim_id'], false, $start)['status']);
+        Assert::same('BACKOFF', $service->claim($db, $entitlement, $start->modify('+30 minutes'))['status']);
+
+        $second = $service->claim($db, $entitlement, $start->modify('+61 minutes'));
+        Assert::same('CLAIMED', $second['status']);
+        Assert::notSame($first['claim_id'], $second['claim_id']);
+        Assert::same('SENT', $service->recordResult($db, $entitlement, $second['claim_id'], true, $start->modify('+61 minutes'))['status']);
+        Assert::same('ALREADY_SENT', $service->claim($db, $entitlement, $start->modify('+62 minutes'))['status']);
+        Assert::same($originalHash, (string) $db->query('SELECT CODE_HASH FROM commercial_entitlement')->fetchColumn());
+        Assert::same($originalCiphertext, (string) $db->query('SELECT TOKEN_CIPHERTEXT FROM novice_promotion_code_outbox')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT ATTEMPTS FROM novice_promotion_code_outbox')->fetchColumn());
+        Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='DELIVER'")->fetchColumn());
+    }
+
+    public function testStaleDeliveryResultCannotConfirmReclaimedAttempt(): void
+    {
+        [$db, $entitlement] = $this->deliveryFixture('student:novice:delivery3');
+        $this->seedVerifiedRecipientForTest($db, $entitlement);
+        $service = new NovicePromotionDeliveryAttemptService(new UuidGenerator());
+        $start = new \DateTimeImmutable('2026-09-23 11:00:00', new \DateTimeZone('UTC'));
+        $first = $service->claim($db, $entitlement, $start);
+        $second = $service->claim($db, $entitlement, $start->modify('+31 minutes'));
+        Assert::same('CLAIMED', $second['status']);
+
+        Assert::throws(SifException::class, static function () use ($service, $db, $entitlement, $first): void {
+            $service->recordResult($db, $entitlement, $first['claim_id'], true);
+        }, 409);
+        Assert::same('SENDING', (string) $db->query('SELECT STATUS FROM novice_promotion_code_outbox')->fetchColumn());
+        Assert::same('SENT', $service->recordResult($db, $entitlement, $second['claim_id'], true)['status']);
+    }
+
+    public function testCancelledOrRefundedOriginCannotClaimPreparedCode(): void
+    {
+        [$db, $entitlement] = $this->deliveryFixture('student:novice:delivery4');
+        $this->seedVerifiedRecipientForTest($db, $entitlement);
+        $service = new NovicePromotionDeliveryAttemptService(new UuidGenerator());
+
+        $db->prepare("UPDATE commercial_entitlement SET STATUS = 'CANCELLED' WHERE UUID_ENTITLEMENT = ?")
+            ->execute([$entitlement]);
+
+        Assert::throws(SifException::class, static function () use ($service, $db, $entitlement): void {
+            $service->claim($db, $entitlement);
+        }, 409);
+
+        $db->prepare("UPDATE commercial_entitlement SET STATUS = 'ACTIVE' WHERE UUID_ENTITLEMENT = ?")
+            ->execute([$entitlement]);
+        $db->prepare(
+            "UPDATE factura f JOIN novice_promotion_grant g
+             ON g.UUID_FACTURA = f.UUID_FACTURA
+             SET f.ESTAT_COBRAMENT = 'PENDING' WHERE g.UUID_ENTITLEMENT = ?"
+        )->execute([$entitlement]);
+        Assert::throws(SifException::class, static function () use ($service, $db, $entitlement): void {
+            $service->claim($db, $entitlement);
+        }, 409);
+        Assert::same(0, (int) $db->query('SELECT ATTEMPTS FROM novice_promotion_code_outbox')->fetchColumn());
+    }
+
+    private function deliveryFixture(string $holder): array
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOrigin($db, $holder, 'JASOM', 'VALIDATED', 120, 120);
+        $grant = (new NovicePromotionGrantService(new UuidGenerator()))
+            ->issueForOperation($db, $operation);
+        (new NovicePromotionCodePreparationService(new UuidGenerator()))
+            ->prepare($db, $grant['uuid_entitlement'], str_repeat('a', 64), 'test-v1');
+
+        return [$db, $grant['uuid_entitlement']];
+    }
+
+    private function seedVerifiedRecipientForTest(\PDO $db, string $entitlement): void
+    {
+        // Synthetic test data: the ACTUAL address-verification workflow has
+        // NOT been implemented, so production MUST NOT write this row yet.
+        $stmt = $db->prepare(
+            'INSERT INTO novice_promotion_verified_recipient
+             (UUID_ENTITLEMENT, EMAIL, VERIFIED_AT, VERIFICATION_REF, RECORDED_BY)
+             VALUES (?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([
+            $entitlement, 'test-recipient@example.invalid',
+            '2026-09-23 09:00:00', 'TEST|VERIFICATION|' . $entitlement,
+            'test-only',
+        ]);
     }
 
     private function createOrigin(
