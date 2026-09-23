@@ -642,3 +642,177 @@ En l'arbre de `main` consultat en aquest lot hi ha **centenars de fitxers genera
 
 **Estat:** AL-CERCA, AL-PERSONAL, AL-OBS i AL-CERT documentats al nivell de JS/PHP accessible amb vuit diagrames addicionals ACTUAL/FINAL; **no** equival a proves executades de permisos, descàrrega de certificats, desplegament o absència de filtració.
 
+
+## 9. Edició del modal d'inscripció i notificació de pagament — contrast de codi
+
+**Abast:** accions diferenciades del modal **«Dades personals» de la inscripció** i **«Dades pagament»** de `/alumnes/mostrar-alumne/`. El contrast és del codi `main` al tall indicat al document, **no** del que s'ha executat en producció. El modal visible a VIS-AL-02/03 no mostra les accions executades ni el resultat; no s'han incorporat captures noves.
+
+| ID / acció | ACTUAL contrastat per codi | Contracte FINAL i prova |
+| --- | --- | --- |
+| AL-INSC-EDIT · editar i desar dades d'una inscripció concreta | [JS L1072–1206](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1072-L1206) habilita `#dades-inscripcio`, valida al client i envia **GET** amb dades personals, `INSC CURS`, `PERENNE`, `INSC_MAILING`, certificat, generat, data/motiu/autor de baixa, observacions i comentaris a [`guardarDadesPersonals_ConsultaInformacio.php`](../../codi-drive/intranet-actual/ajax/alumnes/guardarDadesPersonals_ConsultaInformacio.php). [`guardarDadesPersonals_modalsresultatCerca()` L7473–7510](../../codi-drive/intranet-actual/Intranet.php#L7473-L7510) executa **un UPDATE directe de `inscripcions` per ID**; la consulta SQL de `updInscDadesPersInfo` [L1053](../../codi-drive/intranet-actual/Intranet.php#L1053-L1053) inclou tots aquests camps. No hi ha, dins d'aquest mètode, coordinació visible de cada canvi d'estat amb Moodle, dels canvis fiscals o de les comunicacions comercials. **Un UPDATE directe no prova una baixa acadèmica completa ni un consentiment comercial vàlid.** | Separar edició de contacte, estat de matrícula/baixa, drets de certificat i consentiment de comunicacions; autorització per actor/inscripció/camp al servidor, validació i versió, traça per transició i propagació a Moodle/UC corresponent quan pertoqui; el valor `INSC_MAILING` llegat no pot substituir l'evidència d'alta/baixa comercial UC-125. **T-AL-18:** canvi d'estat a X des del formulari, matrícula a Moodle, certificat existent, consentiment no acreditat, factura emesa i dues edicions concurrents. |
+| AL-INSC-CANCEL · cancel·lar edició d'inscripció o pagament | [JS L1341–1365](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1341-L1365) invoca `cancelEditarApartat()` sobre els dos apartats. La funció compartida converteix els inputs en text segons **el valor actual de l'input**, sense fer POST/GET de desament; queda pendent provar-ne el resultat exacte en navegador, però pot mostrar una dada modificada com si fos l'original. | Descartar el buffer d'edició i restaurar dades efectivament desades; sense baixa, nou ingrés, notificació ni factura per cancel·lar. **T-AL-19:** canviar `INSC CURS` i `PAGAMENT` i cancel·lar per separat, comprovant pantalla contra lectura real de BD. |
+| AL-PAG-SAVE · desar únicament les dades de pagament | [JS L1311–1317 i L1388–1452](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1388-L1452) selecciona `guardarDadesPagament_ConsultaInformacio.php`, enviant imports i referències per GET; [wrapper PHP](../../codi-drive/intranet-actual/ajax/alumnes/guardarDadesPagament_ConsultaInformacio.php) invoca [`guardarDadesPagament_modalsresultatCerca()` L7525–7563](../../codi-drive/intranet-actual/Intranet.php#L7525-L7563), que actualitza el resum llegat `A_PAGAR/PAGAMENT/IDPAG/FACTURA_RELACIONADA` i altres camps d'una inscripció. **Aquesta ruta no invoca el mètode d'enviar l'avís de fraccionament**. | Correcció justificada amb import i cobrament real verificats, permís, versió, traça i resposta de persistència; no registrar automàticament un `CHARGE`, devolució ni nou document fiscal. **T-AL-20:** desament amb `PAGAMENT` superior a ingrés acreditat, factura immutable i error de SQL; cap correu de fraccionament per la ruta de «Desar» sola. |
+| AL-PAG-SEND · desar **i** enviar avís de fraccionament | [JS L1319–1326 i L1388–1446](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1319-L1446) tria un altre endpoint, [`guardarEnviarDadesPagament_ConsultaInformacio.php`](../../codi-drive/intranet-actual/ajax/alumnes/guardarEnviarDadesPagament_ConsultaInformacio.php), que **primer** invoca el mateix UPDATE de resum, i **després** `enviarNotificacioObsPagament_modalsresultatCerca()` [L7572–7674](../../codi-drive/intranet-actual/Intranet.php#L7572-L7674). El mètode calcula pendent a partir dels arguments, consulta la inscripció, incorpora observacions de fraccionament i `recPag` al text i construeix dos enviaments (còpia interna i alumne/a). No es veu, en el wrapper, transacció conjunta, outbox ni idempotència d'avís. El JS considera èxit una resposta textual sense «Error/error»; **els dos resultats no es distingeixen en un objecte estructurat**. | Separar `PERSISTIT / NOTIFICACIÓ_PENDENT / NOTIFICACIÓ_ENVIADA / ERROR`; confirmar un rebut/comunicació com a lliurat només amb evidència del proveïdor, sense afirmar que el camp `PAGAMENT` és cobrament bancari. Reintentar **només** l'enviament pendent, amb deduplicació per inscripció/versió d'avís. **T-AL-21:** es desa la fila però falla un dels destinataris; repetir petició no duplica la nota/avís ni crea un cobrament; opció `recPag` activa/inactiva i import pendent correcte. |
+| AL-PAG-UI · resultat i cancel·lació després de resposta d'error | [JS L1448–1475](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1448-L1475): **tant si el text rebut indica error com si indica èxit**, l'animació posterior converteix els inputs en text amb els valors editats i retira els botons de desar/cancel·lar. El text de confirmació, per tant, no equival a relectura de l'estat de BD. | Amb error, mantenir edició i valors originals consultables, mostrar estat del servidor sense simular desament; després de commit confirmat, rellegir la projecció reconciliada. **T-AL-22:** HTTP correcte amb resposta «error», timeout i resposta parcial de correu. |
+
+### AL-INSC-EDIT — ACTUAL
+
+```plantuml
+@startuml
+title AL-INSC-EDIT ACTUAL | Desar dades d'inscripció al registre llegat
+start
+:Obrir modal informació d'una inscripció;
+:Prémer editar dades inscripció;
+:Modificar contacte, estat matrícula, mailing,
+certificat, baixa o observacions;
+if (Clic desar i validació JS correcta?) then (Sí)
+  :GET guardarDadesPersonals_ConsultaInformacio
+  amb tots els camps i idinsc;
+  :Convertir dates i fer UPDATE inscripcions WHERE ID;
+  if (Resposta textual sense «Error/error»?) then (Sí)
+    :Mostrar avís de guardat;
+  else (No)
+    :Mostrar error;
+  endif
+  :Convertir inputs a text segons valor actual
+  després de l'animació del callback;
+else (No)
+  :Mostrar validació o mantenir edició;
+endif
+note right
+  L'UPDATE directe de INSC CURS,
+  INSC_MAILING i CERTIFICAT
+  no prova efectes complets en
+  Moodle, consentiment o SIF.
+end note
+stop
+@enduml
+```
+
+### AL-INSC-EDIT — FINAL
+
+```plantuml
+@startuml
+title AL-INSC-EDIT FINAL | Edició per domini i estat reconciliat
+start
+:Autoritzar actor, inscripció i camps permesos;
+:Consultar valors originals i versió;
+:Previsualitzar canvis separats per domini;
+if (Només contacte/administratiu?) then (Sí)
+  :Validar i desar camps, traça i versió;
+elseif (Canvia estat de matrícula o baixa?) then (Sí)
+  :Derivar a UC de baixa/canvi/accés amb Moodle;
+elseif (Canvia certificat o generat?) then (Sí)
+  :Verificar dret acadèmic i historial UC-124;
+elseif (Canvia comunicació comercial?) then (Sí)
+  :Aplicar UC-125 amb evidència i revocació pròpies;
+elseif (Canvia receptor o dada fiscal històrica?) then (Sí)
+  :Conservar document immutable i derivar a UC fiscal;
+endif
+:Retornar resultats i pendents per sistema;
+:Rellegir dades efectivament persistides;
+stop
+@enduml
+```
+
+### AL-PAG-SAVE/SEND — ACTUAL
+
+```plantuml
+@startuml
+title AL-PAG-SAVE/SEND ACTUAL | Desar resum vs desar i enviar
+start
+:Editar Dades pagament al modal de la inscripció;
+:Introduir imports, dates, IDPAG, observacions i reclamació;
+if (Clic Desar?) then (Sí)
+  :GET guardarDadesPagament_ConsultaInformacio;
+  :UPDATE resum llegat inscripcions;
+elseif (Clic Desar i enviar?) then (Sí)
+  :GET guardarEnviarDadesPagament_ConsultaInformacio;
+  :UPDATE resum llegat inscripcions;
+  :Consultar dades curs/inscripció;
+  :Calcular pendent amb arguments de la petició;
+  :Preparar correu alumne i còpia interna;
+endif
+if (Resposta textual sense error?) then (Sí)
+  :Mostrar text de guardat;
+else (No)
+  :Mostrar error;
+endif
+:Callback repinta els valors editats en mode lectura;
+note right
+  No se separen resultat SQL
+  i resultat del correu per destinatari.
+  Pagament editat no prova CHARGE.
+end note
+stop
+@enduml
+```
+
+### AL-PAG-SAVE/SEND — FINAL
+
+```plantuml
+@startuml
+title AL-PAG-SAVE/SEND FINAL | Persistència i notificació independents
+start
+:Autoritzar actor i inscripció;
+:Consultar cobrament real, pagador, factura i versió;
+:Validar correcció econòmica vs nova transacció real;
+if (Correcció admissible?) then (Sí)
+  :Desar canvi justificat i versió;
+  if (Operador demana enviar avís?) then (Sí)
+    :Encolar comunicació idempotent després del commit;
+    :Separar resultat de còpia interna i de destinatari;
+    if (Algun avís pendent o fallit?) then (Sí)
+      :Mostrar desament complet i enviament pendent;
+      :Reintentar només destinatari pendent;
+    else (No)
+      :Mostrar estats d'enviament verificats;
+    endif
+  else (No)
+    :No crear cap avís de fraccionament;
+  endif
+  :Rellegir estat econòmic reconciliat;
+else (No)
+  :Denegar canvis sense mutar saldo ni documents;
+endif
+stop
+@enduml
+```
+
+### AL-PAG-UI — ACTUAL / FINAL
+
+```plantuml
+@startuml
+title AL-PAG-UI ACTUAL | Error textual però valors repintats
+start
+:AJAX de desament retorna HTTP correcte;
+if (Text conté Error/error?) then (Sí)
+  :Mostrar avís d'error;
+else (No)
+  :Mostrar avís d'èxit;
+endif
+:Esperar animació;
+:Convertir inputs editats a camps no editables;
+:Retirar Desar i Cancel·lar;
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title AL-PAG-UI FINAL | Error no confirma dades no desades
+start
+:Rebre resposta estructurada per canvi i avís;
+if (Commit de dades verificat?) then (Sí)
+  :Rellegir i mostrar resum persistent;
+  :Mostrar avís completat o pendent separadament;
+else (No)
+  :Mantenir edició i descartar falsa confirmació;
+  :Mostrar error i valors originals disponibles;
+endif
+stop
+@enduml
+```
+
+**Seguretat del circuit documental:** l'acció de generació de certificats empra un fitxer temporal, un enllaç de descàrrega i una petició posterior de neteja. L'endpoint de neteja del llegat no mostra comprovació de pertinença del fitxer a un temporal emès per aquella petició. **No publicar detalls operatius de la superfície fins a la correcció**; registrar la vulnerabilitat al canal intern de seguretat i substituir el nom proporcionat pel client per un identificador de descàrrega vinculat al servidor, autoritzat i amb ruta privada controlada. Cap prova intrusiva ni petició contra producció s'ha fet en aquesta auditoria.
+
