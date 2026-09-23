@@ -586,6 +586,43 @@ stop
 ```
 
 **Límit de la traça:** `SENT` significa acceptació del proveïdor, no lliurament efectiu a l'alumne. Una caiguda després d'una acceptació però abans de registrar-la pot comportar un segon correu amb el **mateix codi**, però no una segona concessió; les reclamacions obsoletes no poden registrar un resultat nou. Després d'una cancel·lació o devolució caldrà també impedir la redempció, encara que un missatge ja hagi sortit. La comprovació immediata prèvia al MAILER i a cada CONSUM està pendent.
+### 4.3 nonies. Confirmació de la bústia i worker privat de correu — SISÈ TALL, NO CONNECTAT
+
+**Estat d'implementació:** serveis PHP interns `NovicePromotionEmailVerificationService`, `NovicePromotionDeliveryAttemptService` (reserva i recuperació de l'intent), `NovicePromotionSealedCodeDecoder` i `NovicePromotionPrivateMailWorker` programats en branca. Només hi ha **interfícies**, no adaptadors SMTP, endpoints de sessió, configuració de claus, ni execució programada del worker. Cap mail promocional s'ha enviat. Les proves MySQL estan ajornades expressament.
+
+```plantuml
+@startuml
+title UC-111 | Verificar bústia i recuperar el mateix codi (BRANCA)
+start
+:Persona titular autenticada demana verificar adreça (endpoint PENDENT);
+:SIF comprova titular i dret vigent; genera repte aleatori;
+:Persistir únicament HASH i venciment 15 min;
+:Transport intern HA D'ENVIAR repte a la bústia (adapter PENDENT);
+if (Repte correcte i titular autenticat?) then (Sí)
+ :Desar prova de control de l'adreça al destinatari verificat;
+else (No, caducat o 5 errors)
+ :No registrar adreça verificada;
+ stop
+endif
+:Reclamar outbox PREPARED o FAILED amb CLAIM_ID;
+:Comprovar dret, destinació, saldo, validació i totes les factures JASOM;
+if (Condicions actualment vàlides?) then (Sí)
+ :Recuperar token xifrat i clau de versió per canal privat;
+ :Descodificar i comparar CODE_HASH sense revelar-lo al web;
+ :Mailer privat HA D'ENVIAR mateix codi (adapter PENDENT);
+ if (Proveïdor accepta?) then (Sí)
+  :Registrar SENT i event DELIVER per CLAIM_ID actual;
+ else (No o resposta incerta)
+  :Registrar FAILED/backoff o revisió; reintentar MATEIX codi;
+ endif
+else (No)
+ :No lliurar; registrar bloqueig/incidència;
+endif
+stop
+@enduml
+```
+
+**Límit de coherència:** el dret cancel·lat/retornat ha de ser rebutjat també al moment de cada bescanvi; el bloqueig previ a l'enviament no resol una devolució posterior. `SENT` és acceptació del proveïdor, no recepció ni lectura. Un reintent pot repetir un correu sense recrear el token ni el saldo. [Auditoria del sisè tall](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
