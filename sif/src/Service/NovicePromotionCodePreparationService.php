@@ -264,10 +264,10 @@ final class NovicePromotionCodePreparationService
 
     private function cents(string $amount): int
     {
-        if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', trim($amount), $match)) {
+        if (!preg_match('/^(\d{1,10})(?:\.(\d{1,2}))?$/D', trim($amount), $match)) {
             throw SifException::validation('Invalid promotional balance.');
         }
 
-        return (int) $match[0] * 100 + (int) str_pad($match[1] ?? '', 2, '0');
+        return (int) $match[1] * 100 + (int) str_pad($match[2] ?? '', 2, '0');
     }
 }
