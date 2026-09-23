@@ -116,3 +116,19 @@
 **DOC:** identificada la pàgina real de curs normal, els seus apartats i el JS de càrrega, el mapatge TIPUS 0–8, `VALID_DESC`, l'ordre inscripció→upload→confirmació i l'error de resposta `0`. La lògica interna de decisió de la classe `Intranet` continua classificada «FONT NO RECUPERADA», en lloc de donar-ne un resultat inventat. Hi ha diagrames de pàgina actual/final al dossier d'activitats.
 
 **IMP:** cap canvi de PHP, JS, BD, permisos, servidor o repositori productiu executat com a part d'aquesta revisió. **TEST:** cap prova d'integració o d'accés real executada. **Incidència de dades:** contenció/retirada del Git i de webroot no acreditada.
+
+## 8. Decisions FUNCIONALS acordades per Meriem el 23/09/2026 — FINAL, no comportament ACTUAL
+
+La [fitxa funcional 2.1](../06-fitxes-funcionals/uc-116.md#decisions-uc-116-fixades-expressament-el-23092026), la [fitxa UML i seqüència](uc-116-custodiar-evidencies-descompte.md#63-decisions-confirmades-per-lusuaria--final-no-actual) i els [diagrames d'activitat P02-A, P02-B, P03-A i P03-B FINAL](uc-116-activitats-pagines-justificants-actual-final.md#decisions-incorporades-als-diagrames-finals-23092026) incorporen aquestes decisions, **sense reescriure el comportament del PHP llegat**:
+
+| Codi | Criteri expressament acordat | Conseqüència documental FINAL | Dades que NO s'han decidit |
+| --- | --- | --- | --- |
+| DEC116-01 | Secretaria revisa **manualment** els justificants per descompte. | Upload no aprova dret; alta amb descompte pendent conserva estat PENDENT fins a decisió manual atribuïda. | Prova exacta, vigència i tractament extern USOC segons modalitat. |
+| DEC116-02 | **No permetre pagar** mentre el descompte és pendent. | Bloquejar l'operació afectada al servidor/TPV i als punts de cobrament controlables; si arriba una transferència externa imprevista, tractar-la com a incidència de conciliació i no com a dret aprovat. | Detall de canals i incidència econòmica per pagaments històrics. |
+| DEC116-03 | Amb **denegació**, mantenir inscripció i oferir pagament de l'import que correspongui. | No anul·lar, no carregar automàticament; recomputar import pertinent i oferir pagament només després de resoldre. | Tarifa alternativa per producte/variant i tractament d'operacions ja facturades històricament. |
+| DEC116-04 | Conservar document durant **termini definit** i després eliminar. | Política diferenciada de la retenció fiscal i eliminació física amb prova al venciment aprovat. | Nombre de dies/anys, inici del còmput i excepcions que validi la persona responsable de dades. |
+| DEC116-05 | **Permisos diferenciats per persona o rol d'intranet**. | Comprovar al backend accés a expedient, lectura de document i dret de decidir amb permisos independents i abast de recurs. | Matriu concreta de rols/persones i responsables dels permisos; no inferir del dret de visualització. |
+
+**Equivalència amb la fitxa funcional:** aquesta taula ordena els cinc criteris en l'ordre del missatge de l'usuària; la fitxa funcional conserva identificadors DEC116-01…06 d'esborrany anteriors per a aspectes comercials/seguretat. Per tant, citar el criteri textual al mateix temps que el document fins que es normalitzi l'enumeració; cap d'aquests criteris es pot marcar com a implementat per la presència del diagrama.
+
+**Proves afegides a la fitxa (UC116-T11–T14), NO EXECUTADES:** pagament pendent impedit, acceptació manual i desbloqueig, denegació amb inscripció vigent/nova oferta, i permisos diferenciats per lectura/decisió. **DOC de decisions: incorporat. IMP: pendent. TEST: no executat.**
