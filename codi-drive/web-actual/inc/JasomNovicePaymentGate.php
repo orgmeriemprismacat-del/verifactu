@@ -20,7 +20,7 @@ final class JasomNovicePaymentGate
         }
 
         $stmt = $db->prepare(
-            "SELECT i.ID, i.CURS, i.A_PAGAR, i.PAGAMENT, r.VALIDAT
+            "SELECT i.ID, i.CURS, i.A_PAGAR, i.PAGAMENT, r.ID, r.VALIDAT
              FROM inscripcions i
              LEFT JOIN recent_titulat r ON r.ID_INSC = i.ID
              WHERE i.IDPAG = ?
@@ -36,11 +36,30 @@ final class JasomNovicePaymentGate
             throw new RuntimeException('PAYMENT_NOT_AVAILABLE');
         }
 
-        $stmt->bind_result($enrollmentId, $courseCode, $coursePrice, $alreadyPaid, $noviceDecision);
+        $stmt->bind_result($enrollmentId, $courseCode, $coursePrice, $alreadyPaid, $noviceRowId, $noviceDecision);
         $stmt->fetch();
         $stmt->close();
 
-        if ((string) $courseCode === 'JASOM' && $noviceDecision !== null) {
+        return self::authorizeEnrollment([
+            'enrollment_id' => $enrollmentId,
+            'course_code' => $courseCode,
+            'course_price' => $coursePrice,
+            'already_paid' => $alreadyPaid,
+            'novice_row_present' => $noviceRowId !== null,
+            'novice_decision' => $noviceDecision,
+        ], $post);
+    }
+
+    /** Pure policy for deterministic unit tests; only DB-fetched values qualify. */
+    public static function authorizeEnrollment(array $enrollment, array $post): array
+    {
+        $idpag = trim((string) ($post['idPag'] ?? ''));
+        if ($idpag === '' || !ctype_digit($idpag) || (int) $idpag < 1) {
+            throw new RuntimeException('PAYMENT_NOT_AVAILABLE');
+        }
+        $courseCode = (string) ($enrollment['course_code'] ?? '');
+        $noviceDecision = $enrollment['novice_decision'] ?? null;
+        if ($courseCode === 'JASOM' && ($enrollment['novice_row_present'] ?? false)) {
             // 0 = waiting for the secretary; 1 = approved; 2 = denied.
             // A null/unknown value on an existing row is NOT a denial.
             if (!in_array((string) $noviceDecision, ['1', '2'], true)) {
@@ -48,8 +67,8 @@ final class JasomNovicePaymentGate
             }
         }
 
-        $total = self::cents((string) $coursePrice);
-        $paid = self::cents((string) ($alreadyPaid ?? '0.00'));
+        $total = self::cents((string) ($enrollment['course_price'] ?? ''));
+        $paid = self::cents((string) ($enrollment['already_paid'] ?? '0.00'));
         $requestedRaw = trim(str_replace(',', '.', (string) ($post['importPagare'] ?? '')));
         $requested = self::cents($requestedRaw);
 
@@ -67,7 +86,7 @@ final class JasomNovicePaymentGate
 
         return [
             'idpag' => $idpag,
-            'enrollment_id' => (int) $enrollmentId,
+            'enrollment_id' => (int) ($enrollment['enrollment_id'] ?? 0),
             'course_code' => (string) $courseCode,
             'total_amount' => self::amount($total),
             'already_paid_amount' => self::amount($paid),
