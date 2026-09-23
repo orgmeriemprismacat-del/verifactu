@@ -544,3 +544,7 @@ stop
 ```
 
 **Proves pendents T-AL-18–22:** inscripció i pagament editats amb cancel·lació; error SQL; canvis de matrícula i mailing; «Desar» sense avisar; «Desar i enviar» amb enviament parcial i reintent idempotent, separant sempre resultat del desament i de la comunicació. **Estat:** contrast de codi versionat sense proves ni desplegament verificats.
+
+## 10. Inventari complet d'interaccions i diagrames finals addicionals
+
+[Registre de tancament documental de «Alumnes / Consulta - Modifica»](01-tancament-documental-pantalla-alumnes-consulta-modifica-2026-09-23.md) amb AL-01–25, **24 controls/accions atribuïts a la pantalla i un endpoint addicional que no s'hi atribueix sense evidència**, rutes AJAX, casos d'ús responsables, 7 diagrames més per les variants abans fusionades i proves de sortida. Els subdiagrames nous distingeixen (a) edició de contacte versus estat/mailing/certificat, (b) «desar» versus «desar i enviar» dades de pagament, (c) modal individual/regal/grup/pack i relació de pagador, i (d) navegar versus visualitzar/baixar factura. **Registre i diagrames documentats ≠ codi corregit ni tests executats**. Resta obtenir evidència amb dades sintètiques dels formularis i permisos de servidor, i resoldre separadament la incidència de privacitat dels certificats.
