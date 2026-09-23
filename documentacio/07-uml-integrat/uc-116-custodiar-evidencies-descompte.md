@@ -1,6 +1,6 @@
 # UC-116 · Custodiar i revisar evidències sensibles de descompte
 
-**Objectiu canònic de la fitxa original:** cada justificant té hash, custòdia protegida, finalitat, controls d'accés, decisió i termini de retenció; no queda exposat al webroot ni reduït a un correu. **Decisions acordades el 23/09/2026:** revisió MANUAL de secretaria, pagament BLOQUEJAT mentre pendent, inscripció CONSERVADA i nova oferta de pagament després de denegació, retenció durant termini definit amb posterior supressió i permisos diferenciats per persona/rol. **Encara per concretar:** evidència exacta per `TIPUS_DESC`, durada numèrica i còmput del termini, matriu de rols i política jurídica/ubicació amb negoci i protecció de dades.
+**Objectiu canònic de la fitxa original:** cada justificant té hash, custòdia protegida, finalitat, controls d'accés, decisió i termini de retenció; no queda exposat al webroot ni reduït a un correu. **Decisions acordades el 23/09/2026:** revisió MANUAL de secretaria, pagament BLOQUEJAT mentre pendent, inscripció CONSERVADA i nova oferta de pagament després de denegació, retenció durant termini definit amb posterior supressió i permisos diferenciats per persona/rol. **Encara per concretar:** evidència exacta per `TIPUS_DESC`, TRES MESOS des de la resolució manual; rols Secretaria, Gestió i Facturació. La política jurídica/ubicació i les autoritzacions exactes de Gestió/Facturació encara requereixen validació amb negoci i protecció de dades.
 
 **Evidència d'esquema:** `discount_evidence` conté `UUID_VALIDATION` (FK a `discount_validation`), `STORAGE_REF`, `CONTENT_HASH`, `MIME_TYPE`, `SIZE_BYTES`, `ACCESS_CLASSIFICATION=RESTRICTED` per defecte, `PURPOSE_CODE`, `RETENTION_POLICY_CODE`, `DELETE_AFTER`, `DELETED_AT` i `DELETION_PROOF_HASH`. `UNIQUE(UUID_VALIDATION,CONTENT_HASH)` només deduplica fitxers dins una validació. **No s'ha acreditat** un servei PHP que encripti/carregui/verifiqui bytes, protegeixi descàrregues, controli accessos o n'executi la supressió. `DocumentRepository` tracta documents de factura, **no prova la custòdia dels justificants**.
 
@@ -12,14 +12,14 @@
 | Recepció | Validar format, extensió/MIME real, mida i integritat i transportar per canal restringit. Generar hash dels **bytes**, no només d'una ruta o nom de fitxer, i guardar `STORAGE_REF` opac fora del webroot. |
 | Custòdia | Permisos de lectura per finalitat i rol; l'existència de `ACCESS_CLASSIFICATION` a la BD **no és autorització executable**. No exposar `STORAGE_REF` com a URL directa pública. |
 | Revisió | Secretaria revisa MANUALMENT i registra actor/rol autoritzat, instant, evidència i ACCEPTACIÓ/DENEGACIÓ. Permisos de veure expedient, llegir bytes i decidir són diferenciats. No habilitar pagament mentre la revisió és pendent; amb denegació, mantenir inscripció i oferir pagar el nou import. Text públic genèric per a factura (UC-20b). |
-| Retenció/supressió | ACORDAT conservar durant un termini DEFINIT i després eliminar. Durada exacta, inici del còmput i excepcions són PENDENTS de política aprovada; al venciment eliminar bytes/còpies amb prova, no només `DELETED_AT`. |
+| Retenció/supressió | ACORDAT conservar durant un termini DEFINIT i després eliminar. TRES MESOS comptats des de la resolució manual de la revisió; excepcions documentades de conservació i tractament d'expedients sense decisió requeriran política aprovada; al venciment eliminar bytes/còpies amb prova, no només `DELETED_AT`. |
 | Economia/fiscalitat | Validar una evidència **no és** `CHARGE`, `REFUND`, factura ni moviment de fons. Si s'aprova després d'emetre, una rectificació/ajust requereix UC-90 i classificació fiscal separada; no fer `UPDATE` sobre línia original. |
 
 ### 1.1. Flux objectiu
 
 1. La persona/gestió inicia validació de descompte amb tipus, regla, finalitat i rol legitimats; un controlador de dades **pendent** especifica quina evidència concreta és necessària, sense sol·licitar-ne més.
 2. El servei de custòdia **pendent** valida bytes, calcula `CONTENT_HASH`, els emmagatzema en ubicació protegida i només després escriu la metadata `discount_evidence` associada a `UUID_VALIDATION`; si un dels dos passos falla, deixa incidència recuperable i no declara el fitxer custodiat.
-3. Secretaria, amb permís diferenciat de LECTURA i de DECISIÓ per persona/rol, revisa MANUALMENT i registra resultat; mentre PENDENT, el sistema NO permet pagar aquesta operació.
+3. Secretaria, amb permís diferenciat de LECTURA i de DECISIÓ per persona/rol (rols d'intranet implicats: Secretaria, Gestió i Facturació), revisa MANUALMENT i registra resultat; mentre PENDENT, el sistema NO permet pagar aquesta operació.
 4. Si ACCEPTAT: fixar import autoritzat i obrir opció de pagament. Si DENEGAT: MANTENIR inscripció i oferir el pagament de l'import que correspongui, sense càrrec automàtic ni anul·lació. La capa comercial passa **només la decisió/valor de descompte** al snapshot fiscal. `LegacyCourseInvoicePayloadBuilder` pot transportar motiu intern i text de visualització, però **no garanteix** que el document PDF exclogui el motiu intern.
 5. En caducar el termini s'aplica la política aprovada, incloent dependències/revisions, destrucció real i prova, sense esborrar un registre fiscal immutable com a «neteja» del justificant.
 
@@ -138,17 +138,22 @@ else Prova íntegra i actor autoritzat
   C-->>P: Oferir pagament del preu autoritzat
  else DENEGACIÓ manual
   S->>R: Registrar DENEGACIÓ, actor i instant
-  S->>C: Conservar inscripció i determinar import corresponent
+  S->>C: Conservar ID_INSC i consultar dret d'exalumne per curs/edició
+  alt Exalumne elegible
+   C->>C: TIPUS_DESC=1; A_PAGAR=descomptes.PREU vigent tipus 1
+  else No exalumne
+   C->>C: TIPUS_DESC=0; A_PAGAR=preu.IMPORT ordinari vigent
+  end
   C-->>P: Oferir pagament del nou import sense càrrec automàtic
  end
 end
-opt Termini de conservació DEFINIT vençut, supressió autoritzada
+opt Han passat TRES MESOS des de decisió manual, supressió autoritzada
  S->>Store: delete(STORAGE_REF i còpies sota control)
  Store-->>S: Prova de supressió
  S->>R: markDeletion(DELETED_AT, DELETION_PROOF_HASH)
 end
 Note over S,R: DDL definit; serveis/retenció no acreditats com a PHP existent
-Note over G,C: Durada exacta i matriu de rols pendents; cap pagament amb revisió pendent
+Note over G,C: Rols Secretaria, Gestió i Facturació; permisos exactes de Gestió/Facturació per ratificar; cap pagament pendent
 ```
 
 ## 5. Traçabilitat
@@ -183,6 +188,14 @@ Note over G,C: Durada exacta i matriu de rols pendents; cap pagament amb revisi�
 
 ### 6.3. Decisions confirmades per l'usuària — FINAL, NO ACTUAL
 
-La [fitxa funcional 2.1](../06-fitxes-funcionals/uc-116.md#decisions-uc-116-fixades-expressament-el-23092026) fixa: **(1)** secretaria revisa manualment els justificants exigibles; **(2)** no es pot pagar mentre el descompte és pendent; **(3)** la denegació conserva la inscripció i ofereix pagar l'import pertinent; **(4)** conservar durant un termini definit i després eliminar; **(5)** permisos diferenciats per persona/rol. Els [diagrames P02-A/P02-B/P03-A/P03-B FINAL](uc-116-activitats-pagines-justificants-actual-final.md#decisions-incorporades-als-diagrames-finals-23092026) reflecteixen les cinc regles.
+La [fitxa funcional 2.1](../06-fitxes-funcionals/uc-116.md#decisions-uc-116-fixades-expressament-el-23092026) fixa: **(1)** secretaria revisa manualment els justificants exigibles; **(2)** no es pot pagar mentre el descompte és pendent; **(3)** la denegació conserva la inscripció i ofereix pagar l'import pertinent; **(4)** conservar durant TRES MESOS des de la resolució manual i després eliminar; **(5)** permisos diferenciats entre els rols Secretaria, Gestió i Facturació. Els [diagrames P02-A/P02-B/P03-A/P03-B FINAL](uc-116-activitats-pagines-justificants-actual-final.md#decisions-incorporades-als-diagrames-finals-23092026) reflecteixen les cinc regles.
 
-**Pendents de concretar:** durada numèrica i còmput de retenció, matriu persona/rol→permís, prova exacta per modalitat, tarifa alternativa concreta de cada producte. **ACTUAL:** no s'ha modificat PHP ni s'ha acreditat la implantació de les regles. **DOC de decisions: ACORDAT; IMP/TEST: PENDENT/NO EXECUTAT.**
+**Concretat:** durada de tres mesos des de la decisió, rols Secretaria/Gestió/Facturació i regla d'import alternativa que ja existeix al llegat: exalumne elegible → `descomptes.PREU` tipus 1; en cas contrari → `preu.IMPORT` ordinari, ambdós vigents per curs/edició. **Pendents de ratificació:** assignació concreta de permisos de Gestió/Facturació, prova exacta per modalitat i excepcions justificades de retenció. **ACTUAL:** no s'ha modificat PHP ni s'ha acreditat la implantació de les regles. **DOC de decisions: ACORDAT; IMP/TEST: PENDENT/NO EXECUTAT.**
+
+### 6.4. Regla econòmica després de denegació i matriu de rols
+
+El [diagrama P03-B ACTUAL](uc-116-activitats-pagines-justificants-actual-final.md#p03-b--intranet-apartat-validar-descomptes--decisio-i-comunicacio) ja descriu **dret d'exalumne → preu d'exalumne i `TIPUS_DESC=1`; en cas contrari → preu ordinari i `TIPUS_DESC=0`**, actualitzant `inscripcions.A_PAGAR` i `VALID_DESC=2`. [`calcularPreu.php`](../../codi-drive/web-actual/ajax/calcularPreu.php#L24-L39) llegeix `preu.IMPORT` i `descomptes.PREU` actius per tarifa/edició, i [L131–155](../../codi-drive/web-actual/ajax/calcularPreu.php#L131-L155) reconeix l'exalumne. **FINAL acordat:** conservar aquesta bifurcació, validar al servidor l'elegibilitat i la tarifa aplicable del curs/edició, mantenir la inscripció i oferir pagar només després de la decisió manual, sense càrrec automàtic. No inventar import numèric fix.
+
+**Rols indicats per l'usuària:** **Secretaria, Gestió i Facturació**. La revisió manual i la decisió són de **Secretaria**; l'accés al document no és equivalent a consultar l'import. La [matriu operativa proposada a la fitxa funcional, §17.1](../06-fitxes-funcionals/uc-116.md#171-matriu-dels-tres-rols-dades-confirmades-i-assignacio-operativa-proposada) aplica mínim privilegi fins que es ratifiquin els permisos concrets de Gestió i Facturació. Cap d'aquests permisos és garantia executable pel sol fet de tenir un UML.
+
+**Retenció:** `DELETE_AFTER` es fixa a **tres mesos des de la resolució manual** del document, i després s'eliminen bytes/còpies amb prova de supressió. Per a expedients sense decisió i excepcions aprovades cal una política diferent; no traslladar la retenció de carnets a les factures fiscals.
