@@ -52,6 +52,30 @@ final class NovicePromotionEmailVerificationService
         try {
             $this->assertHolderHasLiveRight($db, $uuidEntitlement, $authenticatedPartyKey, $timestamp);
 
+            // Switching email must suspend delivery to an older verified
+            // address. Once delivery has started, require manual review
+            // rather than racing a recipient change against the mailer.
+            $recipientStmt = $db->prepare(
+                'SELECT EMAIL FROM novice_promotion_verified_recipient
+                 WHERE UUID_ENTITLEMENT = ? FOR UPDATE'
+            );
+            $recipientStmt->execute([$uuidEntitlement]);
+            $previousEmail = $recipientStmt->fetchColumn();
+            if (is_string($previousEmail) && $previousEmail !== $email) {
+                $outboxStmt = $db->prepare(
+                    'SELECT STATUS FROM novice_promotion_code_outbox
+                     WHERE UUID_ENTITLEMENT = ? FOR UPDATE'
+                );
+                $outboxStmt->execute([$uuidEntitlement]);
+                if (in_array($outboxStmt->fetchColumn(), ['SENDING', 'SENT'], true)) {
+                    throw SifException::conflict('Recipient change after a delivery attempt requires manual review.');
+                }
+
+                $db->prepare(
+                    'DELETE FROM novice_promotion_verified_recipient WHERE UUID_ENTITLEMENT = ?'
+                )->execute([$uuidEntitlement]);
+            }
+
             $stmt = $db->prepare(
                 'SELECT COUNT(*) FROM novice_promotion_email_challenge
                  WHERE UUID_ENTITLEMENT = ? AND CREATED_AT >= ?'
@@ -195,8 +219,8 @@ final class NovicePromotionEmailVerificationService
             $existingEmail = $verified->fetchColumn();
 
             if (in_array($deliveryStatus, ['SENDING', 'SENT'], true)
-                && $existingEmail !== false
-                && (string) $existingEmail !== (string) $challenge['EMAIL']
+                && ($existingEmail === false
+                    || (string) $existingEmail !== (string) $challenge['EMAIL'])
             ) {
                 throw SifException::conflict('Changing the recipient during or after delivery requires manual review.');
             }
