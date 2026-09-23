@@ -36,6 +36,7 @@ final class NovicePromotionPrivateMailWorker
         $claimId = (string) $claim['claim_id'];
         $code = null;
         $keyHex = null;
+        $verifiedEmail = null;
         $prepared = false;
         try {
             // Revalidate entitlement, participant, verified recipient and ALL
@@ -43,7 +44,8 @@ final class NovicePromotionPrivateMailWorker
             $sealed = $this->attempts->loadClaimForPrivateMailer($db, $uuidEntitlement, $claimId);
             $keyHex = $this->keys->getHexKeyForVersion((string) $sealed['key_version']);
             $code = $this->decoder->decode($sealed, $keyHex);
-            $prepared = true;
+            $verifiedEmail = (string) $sealed['verified_email'];
+            $prepared = filter_var($verifiedEmail, FILTER_VALIDATE_EMAIL) !== false;
         } catch (\Throwable $ignored) {
             // No code, recipient, SQL exception or key may leak to the caller.
         } finally {
@@ -64,7 +66,7 @@ final class NovicePromotionPrivateMailWorker
             // Deterministic message key may be forwarded to providers with
             // deduplication support; SMTP alone cannot guarantee one email.
             $accepted = $this->mailer->sendPromotionCode(
-                (string) $sealedRecipient = $this->recipientForClaim($db, $uuidEntitlement, $claimId),
+                (string) $verifiedEmail,
                 (string) $code,
                 'UC111-PROMO-' . $uuidEntitlement
             );
@@ -72,7 +74,7 @@ final class NovicePromotionPrivateMailWorker
             // A transport timeout is ambiguous; a retry may deliver the same
             // message twice, but does not change CODE_HASH or create a grant.
         } finally {
-            unset($code, $sealedRecipient);
+            unset($code, $verifiedEmail);
         }
 
         try {
@@ -86,23 +88,4 @@ final class NovicePromotionPrivateMailWorker
         return ['status' => (string) $recorded['status']];
     }
 
-    /**
-     * Prefer recipient from the claim-time verified row. The claim had
-     * already validated it; this second lookup detects an unexpected change.
-     */
-    private function recipientForClaim(\PDO $db, string $uuidEntitlement, string $claimId): string
-    {
-        $stmt = $db->prepare(
-            "SELECT p.EMAIL
-             FROM novice_promotion_verified_recipient p
-             JOIN novice_promotion_code_outbox o ON o.UUID_ENTITLEMENT = p.UUID_ENTITLEMENT
-             WHERE p.UUID_ENTITLEMENT = ? AND o.STATUS = 'SENDING' AND o.CLAIM_ID = ?"
-        );
-        $stmt->execute([$uuidEntitlement, $claimId]);
-        $email = $stmt->fetchColumn();
-        if (!is_string($email) || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
-            throw SifException::conflict('Verified promotion recipient changed during delivery.');
-        }
-        return $email;
-    }
 }
