@@ -546,6 +546,46 @@ stop
 **Camps i enllaços:** `commercial_operation.SOURCE_ID=inscripcions.ID`; `commercial_operation_party.PARTY_KEY` identifica de manera canònica una persona; `discount_validation` desa decisió de secretaria; `fact_rels` vincula **totes** les factures d'origen de la matrícula sense sumar duplicadament la mateixa factura; `commercial_operation.UUID_FACTURA` manté la primera factura d'origen com a referència; `novice_promotion_grant.UUID_FACTURA` n'és una referència principal i `commercial_entitlement.RULE_SNAPSHOT_JSON.origin_invoice_refs` permet reconstruir el conjunt immutable del moment de la concessió. No duplicar CHARGE ni modificar les factures originals.
 
 **Talls encara bloquejants:** resolutor d'identitat estable per garantir «una vegada per persona»; connexió dels serveis d'alta i secretaria amb accions autenticades; porta prèvia a Redsys; política fiscal global de factures per fracció; credencials i documents personals del llegat públic; conciliació de casos `NOT_STAGED`; codi bescanviable/notificació amb reintents; consum/cancel·lació i saldos derivats. [Auditoria detallada i proves preparades](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
+### 4.3 octies. Preparació del codi, reserva de lliurament i recuperació d'intents — BRANCA, NO DESPLEGAT
+
+**ESTAT:** [NovicePromotionCodePreparationService](../../sif/src/Service/NovicePromotionCodePreparationService.php) registra un únic codi xifrat i hash de bescanvi; [NovicePromotionDeliveryAttemptService](../../sif/src/Service/NovicePromotionDeliveryAttemptService.php) registra només les reclamacions d'intent. **No existeix encara el mailer, l'acreditació real del control de l'adreça, el formulari de bescanvi ni el consum del saldo; cap codi real no ha estat enviat.**
+
+```plantuml
+@startuml
+title UC-111 | Preparar codi i reservar lliurament (sense email real)
+start
+:Concessió novell única, JASOM íntegrament cobrat;
+:Tornar a validar totes les factures d'origen i CHARGE nets;
+if (Dret actiu, titular validat i pagaments íntegres?) then (Sí)
+ :Generar un sol codi aleatori i CODE_HASH;
+ :Xifrar token amb clau externa i AAD per dret;
+ :Guardar outbox PREPARED i event ACTIVATE;
+else (No)
+ :NO preparar cap codi;
+ stop
+endif
+:Procés independent de verificació de correu (ENCARA PENDENT);
+if (Hi ha evidència d'adreça verificada?) then (Sí)
+ :Comprovar dret, venciment i totes les factures de JASOM;
+ if (Elegible per al lliurament?) then (Sí)
+  :Reservar intent SENDING amb CLAIM_ID sense desxifrar;
+  :FUTUR mailer privat revalida abans de comunicar el MATEIX codi;
+  if (Proveïdor accepta?) then (Sí)
+   :Registrar SENT i event DELIVER amb CLAIM_ID vigent;
+  else (No o fallada)
+   :Registrar FAILED, BACKOFF i reintent del MATEIX token;
+  endif
+ else (No)
+  :Bloquejar intent i obrir incidència per revisió;
+ endif
+else (No)
+ :No reservar cap enviament ni inferir email verificat de la matrícula;
+endif
+stop
+@enduml
+```
+
+**Límit de la traça:** `SENT` significa acceptació del proveïdor, no lliurament efectiu a l'alumne. Una caiguda després d'una acceptació però abans de registrar-la pot comportar un segon correu amb el **mateix codi**, però no una segona concessió; les reclamacions obsoletes no poden registrar un resultat nou. Després d'una cancel·lació o devolució caldrà també impedir la redempció, encara que un missatge ja hagi sortit. La comprovació immediata prèvia al MAILER i a cada CONSUM està pendent.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
