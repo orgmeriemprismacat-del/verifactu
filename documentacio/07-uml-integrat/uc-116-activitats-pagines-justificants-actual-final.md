@@ -1,6 +1,6 @@
 # UC-116 — diagrames d'activitat ACTUAL i FINAL per pàgina i apartat
 
-**Revisió de contingut:** 22/09/2026. **Font PHP/JS:** main @ e71958b3026549bde09fb4b25f2ec3ba370937ec. **Proveniència de P03:** els detalls interns del render i de la decisió d'`Intranet.php` provenen de la traça documental incorporada anteriorment a aquest dossier, amb enllaços de línia; en aquesta revisió el connector no ha retornat el cos del fitxer gran per corroborar-lo independentment. **No interpretar P03 com a prova de desplegament, autorització efectiva ni correu enviat.** **Cobertura del UC-116:** pàgina informativa de descomptes, formulari públic de curs normal (selecció i aportació de justificant), pantalla de confirmació derivada, pàgina de validació intranet (consulta/decisió). L'apartat de resguard de recent titulació de la mateixa pàgina és una acció DIFERENT: enllaç al seu UC; no reinterpretar-la com si fos UC-116. **Etiqueta ACTUAL:** observació estàtica del repo, no prova de desplegament. **Etiqueta FINAL:** contracte amb cinc decisions funcionals ACORDADES el 23/09/2026 — revisió MANUAL de secretaria, NO PAGAMENT mentre pendent, inscripció CONSERVADA i nova oferta si es denega, retenció durant termini definit amb eliminació posterior, permisos diferenciats per rol/persona. Valors exactes del termini i de la matriu de permisos NO definits. No implementat. [Fitxa UC-116](../06-fitxes-funcionals/uc-116.md#22-especificacio-consolidada-uc-116--codi-actual-i-contracte-final) · [auditoria](00-auditoria-casos-pendents-lot-05-uc-116-2026-09-22.md).
+**Revisió de contingut:** 22/09/2026. **Font PHP/JS:** main @ e71958b3026549bde09fb4b25f2ec3ba370937ec. **Proveniència de P03:** els detalls interns del render i de la decisió d'`Intranet.php` provenen de la traça documental incorporada anteriorment a aquest dossier, amb enllaços de línia; en aquesta revisió el connector no ha retornat el cos del fitxer gran per corroborar-lo independentment. **No interpretar P03 com a prova de desplegament, autorització efectiva ni correu enviat.** **Cobertura del UC-116:** pàgina informativa de descomptes, formulari públic de curs normal (selecció i aportació de justificant), pantalla de confirmació derivada, pàgina de validació intranet (consulta/decisió). L'apartat de resguard de recent titulació de la mateixa pàgina és una acció DIFERENT: enllaç al seu UC; no reinterpretar-la com si fos UC-116. **Etiqueta ACTUAL:** observació estàtica del repo, no prova de desplegament. **Etiqueta FINAL:** contracte amb cinc decisions funcionals ACORDADES el 23/09/2026 — revisió MANUAL de secretaria, NO PAGAMENT mentre pendent, inscripció CONSERVADA i nova oferta si es denega, retenció durant termini definit amb eliminació posterior, permisos diferenciats per rol/persona. Termini fixat a **TRES MESOS des de la resolució manual**; rols identificats: **Secretaria, Gestió i Facturació**. El detall de permisos de Gestió i Facturació es descriu com a proposta de mínim privilegi a la fitxa funcional, pendent de ratificació. No implementat. [Fitxa UC-116](../06-fitxes-funcionals/uc-116.md#22-especificacio-consolidada-uc-116--codi-actual-i-contracte-final) · [auditoria](00-auditoria-casos-pendents-lot-05-uc-116-2026-09-22.md).
 
 ## P01 · Pàgina pública de descomptes — cinc apartats
 
@@ -226,13 +226,16 @@ stop
 @startuml
 title P03-A Intranet | FINAL | autorització d'accés a cada prova
 start
-:Secretaria/revisor autoritzat obre expedients pendents de revisió MANUAL;
-:Servidor valida rol o persona, finalitat i abast per inscripció;
+:Secretaria obre expedients pendents de revisió MANUAL;
+:Identificar rol de la intranet: Secretaria, Gestió o Facturació;
+:Servidor valida persona/rol, acció, finalitat i abast per inscripció;
+:Consultar matriu de permisos diferenciats (assignació concreta ratificada);
 :Comprovar permís específic de VISUALITZACIÓ de l'expedient;
 if (Dret a visualitzar expedient?) then (Sí)
  :Mostrar categoria necessària, estat i metadata mínima;
  if (Operador sol·licita veure prova?) then (Sí)
-  :Backend comprova permís específic de LECTURA del document i vigència;
+  :Backend comprova permís de LECTURA dels bytes segons rol/persona;
+:Facturació consulta import/estat sense accés implícit al document;
   :Verificar hash i llegir bytes des de storage privat;
   if (Document íntegre i accessible?) then (Sí)
    :Servir contingut pel canal autoritzat i auditar accés;
@@ -293,6 +296,7 @@ stop
 title P03-B Intranet | FINAL | revisió segura i efectes separats
 start
 :Secretaria amb permís específic de DECISIÓ inicia revisió MANUAL;
+:Gestió i Facturació NO reben aquest dret automàticament pel nom del rol;
 :Servidor comprova persona/rol, inscripció, prova íntegra i versió de regla;
 if (Autorització de DECISIÓ i evidència aplicable vigents?) then (Sí)
  if (Secretaria accepta el dret?) then (ACCEPTA)
@@ -302,7 +306,13 @@ if (Autorització de DECISIÓ i evidència aplicable vigents?) then (Sí)
  else (DENEGA)
   :Registrar DENEGACIÓ manual amb actor/data i motiu intern mínim;
   :MANTENIR la inscripció vigent;
-  :Calcular i oferir el pagament de l'import que correspongui;
+  :Comprovar dret existent al preu d'exalumne PrisMa;
+if (Exalumne elegible a l'edició?) then (Sí)
+ :TIPUS_DESC=1 i A_PAGAR=descomptes.PREU tipus 1 aplicable;
+else (No)
+ :TIPUS_DESC=0 i A_PAGAR=preu.IMPORT ordinari aplicable;
+endif
+:Revalidar tarifa i oferir pagament del nou import;
   :Resoldre l'estat pendent i habilitar l'opció de pagament del nou import;
  endif
  if (Hi ha factura/pagament històric preexistent?) then (Sí)
@@ -315,7 +325,8 @@ if (Autorització de DECISIÓ i evidència aplicable vigents?) then (Sí)
 else (No)
  :Denegar acció sense resoldre pendent ni habilitar pagament;
 endif
-:Conservar la prova durant un TERMINI DEFINIT pendent de durada concreta;
+:Conservar la prova TRES MESOS des de la resolució MANUAL de secretaria;
+:Fixar DELETE_AFTER a partir de la data de decisió;
 :Després del termini aprovat eliminar bytes/còpies i acreditar supressió;
 :Conservar factura fiscal segons regla separada;
 stop
@@ -341,8 +352,8 @@ stop
 | --- | --- | --- |
 | Secretaria revisa MANUALMENT | P03-B inclou revisió manual, decisió i actor identificat. | El JS actual envia SÍ/NO a l'endpoint; no equival a un expedient segur amb prova custodiada. |
 | Pagament BLOQUEJAT mentre pendent | P02-A i P02-B no habiliten TPV/cobrament mentre continua PENDENT; P03-B desbloqueja després de decisió. | L'alta llegada `VALID_DESC=0` no prova per si sola bloqueig integral de tots els canals de pagament. |
-| Denegació conserva inscripció i ofereix pagar import pertinent | P03-B manté l'alta, recalcula nova oferta, resol pendent i presenta pagament sense càrrec automàtic. | La branca de denegació llegada es representa al diagrama ACTUAL amb els efectes que descriu la traça P03, no com a garantia d'aquest contracte nou. |
-| Retenció durant termini definit i eliminació posterior | P03-B i custòdia FINAL diferencien bytes de factura immutable i exigeixen supressió real al venciment aprovat. | El text llegat promet eliminació, però no hi ha prova de destrucció de totes les còpies; durada exacta NO decidida. |
-| Permisos diferenciats per persona o rol d'intranet | P03-A separa visibilitat d'expedient i lectura de fitxer; P03-B exigeix permís específic de decisió. | Rol actual de visualització de pàgina no acredita aquests permisos per acció. Matriu exacta encara NO definida. |
+| Denegació conserva inscripció i aplica preu del codi existent | P03-B manté l'alta: exalumne elegible → TIPUS_DESC 1 i tarifa exalumne; si no → TIPUS_DESC 0 i preu ordinari. Desbloqueig de pagament després de la decisió, mai càrrec automàtic. | La branca del diagrama ACTUAL ja mostra la bifurcació exalumne/preu normal i UPDATE de TIPUS_DESC/VALID_DESC/A_PAGAR segons traça P03. |
+| Retenció durant TRES MESOS i eliminació posterior | P03-B computa els tres mesos des de la decisió de secretaria i diferencia bytes de factura immutable. | El text llegat promet eliminació, però no hi ha prova de destrucció de totes les còpies. |
+| Secretaria, Gestió i Facturació amb permisos diferenciats | P03-A separa visibilitat d'expedient i lectura de prova; P03-B reserva la revisió manual a Secretaria autoritzada. Proposta de mínim privilegi per als altres dos rols a la fitxa funcional, pendent de ratificació. | Rol actual de visualització de pàgina no acredita aquests permisos per acció. |
 
-**Les etiquetes ACTUAL i FINAL no són intercanviables.** Les decisions són regles desitjades confirmades per la usuària, no proves de canvis aplicats al PHP. El termini numèric, permisos concrets per rol/persona i el preu alternatiu per producte resten per concretar al configurar el sistema; no es dedueixen de la fitxa.
+**Les etiquetes ACTUAL i FINAL no són intercanviables.** L'usuària ha fixat TRES MESOS i ha identificat els rols Secretaria, Gestió i Facturació; la regla de preu després de denegació deriva del codi/dossier actual: tarifa d'exalumne si compleix requisits o tarifa ordinària en cas contrari, amb consulta del valor aplicable al curs/edició. Només les assignacions d'accés específiques de Gestió/Facturació i possibles excepcions a la política de dades estan pendents de ratificació; cap canvi de PHP ni test s'ha executat.
