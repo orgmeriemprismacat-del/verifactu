@@ -60,7 +60,8 @@ final class NovicePromotionCodePreparationService
                         e.ORIGIN_UUID_OPERATION, g.AVAILABLE_AMOUNT,
                         v.STATUS AS VALIDATION_STATUS,
                         o.STATUS AS DELIVERY_STATUS,
-                        op.STATUS AS ORIGIN_STATUS,
+                        op.STATUS AS ORIGIN_STATUS, op.SOURCE_ID AS ORIGIN_ENROLLMENT_ID,
+                        op.NET_AMOUNT AS ORIGIN_NET_AMOUNT,
                         f.ESTAT_COBRAMENT AS ORIGIN_INVOICE_PAYMENT_STATUS
                  FROM commercial_entitlement e
                  JOIN novice_promotion_grant g ON g.UUID_ENTITLEMENT = e.UUID_ENTITLEMENT
@@ -77,6 +78,9 @@ final class NovicePromotionCodePreparationService
             }
 
             if ($right['DELIVERY_STATUS'] !== null) {
+                if ($right['STATUS'] === 'CANCELLED' || $right['STATUS'] === 'EXPIRED') {
+                    throw SifException::conflict('A cancelled or expired promotion cannot be prepared for delivery.');
+                }
                 if ($right['CODE_HASH'] === null) {
                     throw SifException::conflict('An existing promotion outbox has no redemption hash.');
                 }
@@ -100,6 +104,67 @@ final class NovicePromotionCodePreparationService
                 || (string) $right['EXPIRES_AT'] <= $timestamp
             ) {
                 throw SifException::conflict('Novice promotion is not eligible for token activation.');
+            }
+
+            // Recheck the ENTIRE JASOM enrollment at delivery preparation, not
+            // only its first UUID_FACTURA. A second installment may have been
+            // refunded after the original right was granted.
+            $sourceId = trim((string) $right['ORIGIN_ENROLLMENT_ID']);
+            if ($sourceId === '' || !ctype_digit($sourceId) || (int) $sourceId < 1) {
+                throw SifException::conflict('Promotion origin enrollment is invalid.');
+            }
+
+            $invoiceStmt = $db->prepare(
+                "SELECT f.UUID_FACTURA, f.TOTAL, f.ESTAT_FACTURA, f.ESTAT_COBRAMENT
+                 FROM factura f
+                 WHERE f.TIPUS_FACTURA IN ('F1', 'F2')
+                   AND EXISTS (
+                       SELECT 1 FROM fact_rels r
+                       WHERE r.UUID_FACTURA = f.UUID_FACTURA
+                         AND r.SOURCE_TYPE = 'INSCRIPCIO' AND r.SOURCE_ID = ?
+                   )
+                 ORDER BY f.DATA_EMISSIO, f.UUID_FACTURA FOR UPDATE"
+            );
+            $invoiceStmt->execute([(int) $sourceId]);
+            $invoices = $invoiceStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            $netInvoiced = 0;
+            $netPaid = 0;
+            foreach ($invoices as $invoice) {
+                if ($invoice['ESTAT_FACTURA'] !== 'ISSUED'
+                    || $invoice['ESTAT_COBRAMENT'] !== 'PAID'
+                ) {
+                    throw SifException::conflict('An origin JASOM invoice is not issued and fully paid.');
+                }
+
+                $totalCents = $this->cents((string) $invoice['TOTAL']);
+                if ($totalCents <= 0) {
+                    throw SifException::conflict('Invalid JASOM origin invoice total.');
+                }
+
+                $payment = $this->one(
+                    $db,
+                    "SELECT COALESCE(SUM(CASE
+                        WHEN pt.TIPUS_MOVIMENT = 'CHARGE' THEN pa.IMPORT_ASSIGNAT
+                        WHEN pt.TIPUS_MOVIMENT = 'REFUND' THEN -pa.IMPORT_ASSIGNAT
+                        ELSE 0 END), 0) AS NET_CASH
+                     FROM payment_allocation pa
+                     JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
+                     WHERE pa.UUID_FACTURA = ? AND pt.ESTAT = 'CONFIRMED'",
+                    [(string) $invoice['UUID_FACTURA']]
+                );
+                $paidCents = $this->cents((string) ($payment['NET_CASH'] ?? '0.00'));
+                if ($paidCents !== $totalCents) {
+                    throw SifException::conflict('An origin JASOM invoice was refunded or lacks reconciled cash.');
+                }
+
+                $netInvoiced += $totalCents;
+                $netPaid += $paidCents;
+            }
+
+            $expectedCents = $this->cents((string) $right['ORIGIN_NET_AMOUNT']);
+            if ($expectedCents <= 0 || $netInvoiced !== $expectedCents || $netPaid !== $expectedCents) {
+                throw SifException::conflict('Novice promotion origin has changed since its grant.');
             }
 
             // 160 bits of cryptographic randomness; no names, DNI, invoices,
