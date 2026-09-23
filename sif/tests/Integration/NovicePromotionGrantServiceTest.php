@@ -292,6 +292,29 @@ final class NovicePromotionGrantServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_code_outbox')->fetchColumn());
     }
 
+    public function testFractionalCentDifferenceAfterGrantBlocksCodePreparation(): void
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOrigin($db, 'student:novice:token-cents', 'JASOM', 'VALIDATED', 120, 120);
+        $grant = (new NovicePromotionGrantService(new UuidGenerator()))
+            ->issueForOperation($db, $operation);
+
+        // Simulate an inconsistent or tampered invoice whose total differs
+        // from the real confirmed allocation by just ONE CENT.
+        $db->prepare(
+            'UPDATE factura f
+             JOIN novice_promotion_grant g ON g.UUID_FACTURA = f.UUID_FACTURA
+             SET f.TOTAL = 120.01 WHERE g.UUID_ENTITLEMENT = ?'
+        )->execute([$grant['uuid_entitlement']]);
+
+        Assert::throws(SifException::class, static function () use ($db, $grant): void {
+            (new NovicePromotionCodePreparationService(new UuidGenerator()))
+                ->prepare($db, $grant['uuid_entitlement'], str_repeat('a', 64), 'test-v1');
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM novice_promotion_code_outbox')->fetchColumn());
+    }
+
     public function testInvalidWrappingKeyNeverWritesOrActivatesToken(): void
     {
         $db = TestDatabase::fresh();
