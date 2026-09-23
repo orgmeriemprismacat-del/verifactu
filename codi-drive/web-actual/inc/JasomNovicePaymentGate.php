@@ -24,7 +24,7 @@ final class JasomNovicePaymentGate
              FROM inscripcions i
              LEFT JOIN recent_titulat r ON r.ID_INSC = i.ID
              WHERE i.IDPAG = ?
-               AND i." . self::activeEnrollmentPredicate() . "
+               AND i.`INSC CURS` IN ('0', '1', 'M')
              LIMIT 2"
         );
         $stmt->bind_param('s', $idpag);
@@ -74,11 +74,6 @@ final class JasomNovicePaymentGate
             'payment_amount' => self::amount($requested),
             'novice_decision' => $noviceDecision === null ? null : (int) $noviceDecision,
         ];
-    }
-
-    private static function activeEnrollmentPredicate(): string
-    {
-        return "(\`INSC CURS\` = '0' OR \`INSC CURS\` = '1' OR \`INSC CURS\` = 'M')";
     }
 
     private static function cents(string $value): int
