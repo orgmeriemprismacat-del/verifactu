@@ -1,6 +1,6 @@
 # UC-116 · Custodiar i revisar evidències sensibles de descompte
 
-**Objectiu canònic de la fitxa original:** cada justificant té hash, custòdia protegida, finalitat, controls d'accés, decisió i termini de retenció; no queda exposat al webroot ni reduït a un correu. **Bloquejant:** determinar per `TIPUS_DESC` quina evidència es demana, la base jurídica/necessitat de custòdia, rols habilitats, ubicació i termini de supressió amb negoci i protecció de dades.
+**Objectiu canònic de la fitxa original:** cada justificant té hash, custòdia protegida, finalitat, controls d'accés, decisió i termini de retenció; no queda exposat al webroot ni reduït a un correu. **Decisions acordades el 23/09/2026:** revisió MANUAL de secretaria, pagament BLOQUEJAT mentre pendent, inscripció CONSERVADA i nova oferta de pagament després de denegació, retenció durant termini definit amb posterior supressió i permisos diferenciats per persona/rol. **Encara per concretar:** evidència exacta per `TIPUS_DESC`, durada numèrica i còmput del termini, matriu de rols i política jurídica/ubicació amb negoci i protecció de dades.
 
 **Evidència d'esquema:** `discount_evidence` conté `UUID_VALIDATION` (FK a `discount_validation`), `STORAGE_REF`, `CONTENT_HASH`, `MIME_TYPE`, `SIZE_BYTES`, `ACCESS_CLASSIFICATION=RESTRICTED` per defecte, `PURPOSE_CODE`, `RETENTION_POLICY_CODE`, `DELETE_AFTER`, `DELETED_AT` i `DELETION_PROOF_HASH`. `UNIQUE(UUID_VALIDATION,CONTENT_HASH)` només deduplica fitxers dins una validació. **No s'ha acreditat** un servei PHP que encripti/carregui/verifiqui bytes, protegeixi descàrregues, controli accessos o n'executi la supressió. `DocumentRepository` tracta documents de factura, **no prova la custòdia dels justificants**.
 
@@ -11,16 +11,16 @@
 | Sol·licitud | Relacionar subjecte, `ID_INSC`, dret de descompte, norma comercial, verificació que cal fer, actor i finalitat. No incloure diagnòstic o dades innecessàries al concepte de factura ni al log de Redsys. |
 | Recepció | Validar format, extensió/MIME real, mida i integritat i transportar per canal restringit. Generar hash dels **bytes**, no només d'una ruta o nom de fitxer, i guardar `STORAGE_REF` opac fora del webroot. |
 | Custòdia | Permisos de lectura per finalitat i rol; l'existència de `ACCESS_CLASSIFICATION` a la BD **no és autorització executable**. No exposar `STORAGE_REF` com a URL directa pública. |
-| Revisió | Enllaçar justificant a `UUID_VALIDATION`, decisió, validador i instant. Guardar informació mínima de motiu intern; preparar text visible de descompte **diferent** i genèric per a la factura (UC-20b). |
-| Retenció/supressió | Definir termini real i política de legal hold quan correspongui; en venciment, comprovar autoritzacions i eliminar bytes/metadades segons política amb prova, no marcar només `DELETED_AT` sense verificació. |
+| Revisió | Secretaria revisa MANUALMENT i registra actor/rol autoritzat, instant, evidència i ACCEPTACIÓ/DENEGACIÓ. Permisos de veure expedient, llegir bytes i decidir són diferenciats. No habilitar pagament mentre la revisió és pendent; amb denegació, mantenir inscripció i oferir pagar el nou import. Text públic genèric per a factura (UC-20b). |
+| Retenció/supressió | ACORDAT conservar durant un termini DEFINIT i després eliminar. Durada exacta, inici del còmput i excepcions són PENDENTS de política aprovada; al venciment eliminar bytes/còpies amb prova, no només `DELETED_AT`. |
 | Economia/fiscalitat | Validar una evidència **no és** `CHARGE`, `REFUND`, factura ni moviment de fons. Si s'aprova després d'emetre, una rectificació/ajust requereix UC-90 i classificació fiscal separada; no fer `UPDATE` sobre línia original. |
 
 ### 1.1. Flux objectiu
 
 1. La persona/gestió inicia validació de descompte amb tipus, regla, finalitat i rol legitimats; un controlador de dades **pendent** especifica quina evidència concreta és necessària, sense sol·licitar-ne més.
 2. El servei de custòdia **pendent** valida bytes, calcula `CONTENT_HASH`, els emmagatzema en ubicació protegida i només després escriu la metadata `discount_evidence` associada a `UUID_VALIDATION`; si un dels dos passos falla, deixa incidència recuperable i no declara el fitxer custodiat.
-3. Un operador amb rol adequat accedeix a la prova mitjançant una acció auditada, registra decisió i versió de la regla, i restringeix qualsevol descàrrega a la finalitat aprovada.
-4. La capa comercial passa **només la decisió/valor de descompte** al snapshot fiscal. `LegacyCourseInvoicePayloadBuilder` pot transportar motiu intern i text de visualització, però **no garanteix** que el document PDF exclogui el motiu intern.
+3. Secretaria, amb permís diferenciat de LECTURA i de DECISIÓ per persona/rol, revisa MANUALMENT i registra resultat; mentre PENDENT, el sistema NO permet pagar aquesta operació.
+4. Si ACCEPTAT: fixar import autoritzat i obrir opció de pagament. Si DENEGAT: MANTENIR inscripció i oferir el pagament de l'import que correspongui, sense càrrec automàtic ni anul·lació. La capa comercial passa **només la decisió/valor de descompte** al snapshot fiscal. `LegacyCourseInvoicePayloadBuilder` pot transportar motiu intern i text de visualització, però **no garanteix** que el document PDF exclogui el motiu intern.
 5. En caducar el termini s'aplica la política aprovada, incloent dependències/revisions, destrucció real i prova, sense esborrar un registre fiscal immutable com a «neteja» del justificant.
 
 ### 1.2. Alternatives i proves
@@ -108,36 +108,47 @@ DiscountEvidenceService --> DiscountEvidenceRepository : metadades i decisió
 DiscountEvidenceService --> ProtectedEvidenceStorage : bytes i integritat
 ```
 
-## 4. Seqüència — custòdia, revisió i retenció (DISSENY)
+## 4. Seqüència — custòdia, revisió, pagament i retenció (DISSENY; DECISIONS ACORDADES)
 
 ```mermaid
 sequenceDiagram
 actor P as Persona
-actor G as Gestió autoritzada
+actor G as Secretaria autoritzada
 participant S as DiscountEvidenceService [DISSENY]
 participant Store as ProtectedEvidenceStorage [DISSENY]
 participant R as DiscountEvidenceRepository [DISSENY]
+participant C as Servei comercial i pagament [DISSENY]
 P->>S: Adjuntar prova a UUID_VALIDATION per canal segur
-S->>S: Comprovar format, necessitat i hash de bytes
+S->>S: Comprovar necessitat, format i hash de bytes
 S->>Store: write(bytes) fora del webroot
 Store-->>S: STORAGE_REF restringit
-S->>R: appendMetadata(UUID_VALIDATION,hash,finalitat,retenció)
+S->>R: appendMetadata(UUID_VALIDATION, hash, finalitat i retenció)
 R-->>S: UUID_EVIDENCE
-G->>S: Revisar UUID_EVIDENCE
-S->>R: Comprovar rol/finalitat i accés
-S->>Store: verifyHash(STORAGE_REF,CONTENT_HASH)
-alt Hash o permís incorrecte
- S-->>G: Accés/validació rebutjats, incidència
-else Prova íntegra
- S->>R: Registrar decisió de validació separada
- S-->>G: Dret de descompte aprovat/rebutjat
+S->>C: Estat descompte PENDENT; pagament BLOQUEJAT
+G->>S: Revisió MANUAL de la prova
+S->>R: Comprovar permís específic LECTURA i DECISIÓ per persona/rol
+S->>Store: verifyHash(STORAGE_REF, CONTENT_HASH)
+alt Permís o integritat incorrectes
+ S-->>G: Accés/decisió rebutjats, obrir incidència
+ Note over S,C: Mantenir pagament bloquejat mentre revisió pendent
+else Prova íntegra i actor autoritzat
+ alt ACCEPTACIÓ manual
+  S->>R: Registrar ACCEPTACIÓ, actor i instant
+  S->>C: Fixar import autoritzat i resoldre pendent
+  C-->>P: Oferir pagament del preu autoritzat
+ else DENEGACIÓ manual
+  S->>R: Registrar DENEGACIÓ, actor i instant
+  S->>C: Conservar inscripció i determinar import corresponent
+  C-->>P: Oferir pagament del nou import sense càrrec automàtic
+ end
 end
-opt Retenció vençuda i supressió autoritzada
- S->>Store: delete(STORAGE_REF)
+opt Termini de conservació DEFINIT vençut, supressió autoritzada
+ S->>Store: delete(STORAGE_REF i còpies sota control)
  Store-->>S: Prova de supressió
- S->>R: markDeletion(DELETED_AT,DELETION_PROOF_HASH)
+ S->>R: markDeletion(DELETED_AT, DELETION_PROOF_HASH)
 end
-Note over S,R: DDL present, custòdia física i permisos executable NO acreditats.
+Note over S,R: DDL definit; serveis/retenció no acreditats com a PHP existent
+Note over G,C: Durada exacta i matriu de rols pendents; cap pagament amb revisió pendent
 ```
 
 ## 5. Traçabilitat
@@ -169,3 +180,9 @@ Note over S,R: DDL present, custòdia física i permisos executable NO acreditat
 **DOC:** contracte actual/final de les pàgines i apartats UC-116 identificats consolidat amb variants 0–8, matriu d'accions i criteris de prova; la traça interna de `Intranet.php` depèn de comprovació directa pendent de font gran, i les regles DEC116-01–05 requereixen responsable de negoci/dades. **IMP:** cap adaptació efectuada; **TEST:** cap prova executada; **SEGURETAT:** la publicació de documents del llegat en Git/webroot exigeix contenció separada, no acreditada. No confondre la conclusió DOC amb «SIF UC-116 acabat».
 
 **Límit d'abast:** JASOM/recents titulats (UC-111), importació d'alumnes (UC-113), edicions (UC-114), packs i canals propis no queden revisats aquí, encara que algun comparteixi tipus de dada o pantalla.
+
+### 6.3. Decisions confirmades per l'usuària — FINAL, NO ACTUAL
+
+La [fitxa funcional 2.1](../06-fitxes-funcionals/uc-116.md#decisions-uc-116-fixades-expressament-el-23092026) fixa: **(1)** secretaria revisa manualment els justificants exigibles; **(2)** no es pot pagar mentre el descompte és pendent; **(3)** la denegació conserva la inscripció i ofereix pagar l'import pertinent; **(4)** conservar durant un termini definit i després eliminar; **(5)** permisos diferenciats per persona/rol. Els [diagrames P02-A/P02-B/P03-A/P03-B FINAL](uc-116-activitats-pagines-justificants-actual-final.md#decisions-incorporades-als-diagrames-finals-23092026) reflecteixen les cinc regles.
+
+**Pendents de concretar:** durada numèrica i còmput de retenció, matriu persona/rol→permís, prova exacta per modalitat, tarifa alternativa concreta de cada producte. **ACTUAL:** no s'ha modificat PHP ni s'ha acreditat la implantació de les regles. **DOC de decisions: ACORDAT; IMP/TEST: PENDENT/NO EXECUTAT.**
