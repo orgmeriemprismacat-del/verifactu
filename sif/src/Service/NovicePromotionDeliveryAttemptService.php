@@ -110,6 +110,82 @@ final class NovicePromotionDeliveryAttemptService
     }
 
     /**
+     * INTERNAL private-mailer handoff for the CURRENT claim.
+     *
+     * Rechecks the right, verified address, holder and EVERY JASOM installment
+     * immediately before exposing ONLY the sealed token to the private
+     * worker. A public HTTP controller must never expose this return value.
+     */
+    public function loadClaimForPrivateMailer(
+        \PDO $db,
+        string $uuidEntitlement,
+        string $claimId,
+        ?\DateTimeImmutable $now = null
+    ): array {
+        $this->assertOutsideTransaction($db);
+        if ($uuidEntitlement === '' || $claimId === '') {
+            throw SifException::validation('Delivery claim reference is required.');
+        }
+
+        $now ??= new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $timestamp = $now->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        $oldestClaim = $now->setTimezone(new \DateTimeZone('UTC'))->modify('-30 minutes')
+            ->format('Y-m-d H:i:s');
+
+        $db->beginTransaction();
+        try {
+            $right = $this->one(
+                $db,
+                'SELECT e.UUID_ENTITLEMENT, e.STATUS AS RIGHT_STATUS, e.CODE_HASH, e.EXPIRES_AT,
+                        e.HOLDER_PARTY_KEY, g.ORIGIN_UUID_OPERATION, g.AVAILABLE_AMOUNT,
+                        v.STATUS AS VALIDATION_STATUS, op.SOURCE_ID AS ENROLLMENT_ID,
+                        op.STATUS AS ORIGIN_STATUS, op.NET_AMOUNT AS ORIGIN_NET_AMOUNT,
+                        p.EMAIL AS VERIFIED_EMAIL, p.VERIFIED_AT,
+                        o.STATUS AS OUTBOX_STATUS, o.CLAIM_ID, o.CLAIMED_AT,
+                        o.TOKEN_CIPHERTEXT, o.TOKEN_NONCE, o.TOKEN_TAG, o.WRAP_KEY_VERSION
+                 FROM novice_promotion_code_outbox o
+                 JOIN commercial_entitlement e ON e.UUID_ENTITLEMENT = o.UUID_ENTITLEMENT
+                 JOIN novice_promotion_grant g ON g.UUID_ENTITLEMENT = e.UUID_ENTITLEMENT
+                 JOIN discount_validation v ON v.UUID_VALIDATION = g.UUID_VALIDATION
+                 JOIN commercial_operation op ON op.UUID_OPERATION = g.ORIGIN_UUID_OPERATION
+                 LEFT JOIN novice_promotion_verified_recipient p
+                    ON p.UUID_ENTITLEMENT = e.UUID_ENTITLEMENT
+                 WHERE o.UUID_ENTITLEMENT = ? FOR UPDATE',
+                [$uuidEntitlement]
+            );
+
+            if ($right === null
+                || $right['OUTBOX_STATUS'] !== 'SENDING'
+                || (string) $right['CLAIM_ID'] !== $claimId
+                || $right['CLAIMED_AT'] === null
+                || (string) $right['CLAIMED_AT'] < $oldestClaim
+            ) {
+                throw SifException::conflict('Promotion delivery claim is no longer current.');
+            }
+
+            $this->assertReady($db, $right, $timestamp);
+
+            $sealed = [
+                'uuid_entitlement' => $uuidEntitlement,
+                'claim_id' => $claimId,
+                'verified_email' => (string) $right['VERIFIED_EMAIL'],
+                'code_hash' => (string) $right['CODE_HASH'],
+                'nonce' => (string) $right['TOKEN_NONCE'],
+                'tag' => (string) $right['TOKEN_TAG'],
+                'ciphertext' => (string) $right['TOKEN_CIPHERTEXT'],
+                'key_version' => (string) $right['WRAP_KEY_VERSION'],
+            ];
+            $db->commit();
+            return $sealed;
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
+    /**
      * Called ONLY after the trusted future SMTP provider reports a result.
      * A timeout is ambiguous: retrying can deliver the same code twice, but
      * never creates a different code or a second grant.
