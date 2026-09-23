@@ -379,3 +379,168 @@ stop
 ```
 
 **Tancament:** les vuit representacions cobreixen cerca, canvi de dades personals, observacions i certificat. Queden proves de navegador i autorització per objecte, captura de variants i confirmació real dels resultats. La [incidència de fitxers de certificat generats al repositori](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md#8-incidència-de-protecció-de-dades-detectada-al-repositori-sense-reproduir-cap-document) està separada del flux fiscal del SIF. No copiar ni publicar arxius amb dades personals a la documentació.
+
+## 10. Edició d'inscripció i notificació fraccionament: activitats separades
+
+**Fonts ACTUALS contrastades:** [fitxa funcional UC-042, apartat 25](../06-fitxes-funcionals/uc-042.md#25-edició-de-la-inscripció-i-doble-acció-de-pagament-desar--desar-i-enviar), [auditoria de pantalla, apartat 9](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md#9-edició-del-modal-dinscripció-i-notificació-de-pagament--contrast-de-codi), JS de `alumnes-mostrar-alumne.js` i mètodes PHP de `Intranet.php`. Les imatges facilitades mostren dades en consulta, no desaments o lliuraments executats. **No confondre** una edició directa de `INSC CURS` amb una baixa/alta coordinada en Moodle, ni `INSC_MAILING` amb evidència d'acceptació de comunicacions comercials, ni `PAGAMENT` llegat amb ingrés bancari real.
+
+### AL-INSC-EDIT — ACTUAL
+
+```plantuml
+@startuml
+title AL-INSC-EDIT ACTUAL | Desar dades d'inscripció al registre llegat
+start
+:Obrir modal informació d'una inscripció;
+:Prémer editar dades inscripció;
+:Modificar contacte, estat matrícula, mailing,
+certificat, baixa o observacions;
+if (Clic desar i validació JS correcta?) then (Sí)
+  :GET guardarDadesPersonals_ConsultaInformacio
+  amb tots els camps i idinsc;
+  :Convertir dates i fer UPDATE inscripcions WHERE ID;
+  if (Resposta textual sense «Error/error»?) then (Sí)
+    :Mostrar avís de guardat;
+  else (No)
+    :Mostrar error;
+  endif
+  :Convertir inputs a text segons valor actual
+  després de l'animació del callback;
+else (No)
+  :Mostrar validació o mantenir edició;
+endif
+note right
+  L'UPDATE directe de INSC CURS,
+  INSC_MAILING i CERTIFICAT
+  no prova efectes complets en
+  Moodle, consentiment o SIF.
+end note
+stop
+@enduml
+```
+
+### AL-INSC-EDIT — FINAL
+
+```plantuml
+@startuml
+title AL-INSC-EDIT FINAL | Edició per domini i estat reconciliat
+start
+:Autoritzar actor, inscripció i camps permesos;
+:Consultar valors originals i versió;
+:Previsualitzar canvis separats per domini;
+if (Només contacte/administratiu?) then (Sí)
+  :Validar i desar camps, traça i versió;
+elseif (Canvia estat de matrícula o baixa?) then (Sí)
+  :Derivar a UC de baixa/canvi/accés amb Moodle;
+elseif (Canvia certificat o generat?) then (Sí)
+  :Verificar dret acadèmic i historial UC-124;
+elseif (Canvia comunicació comercial?) then (Sí)
+  :Aplicar UC-125 amb evidència i revocació pròpies;
+elseif (Canvia receptor o dada fiscal històrica?) then (Sí)
+  :Conservar document immutable i derivar a UC fiscal;
+endif
+:Retornar resultats i pendents per sistema;
+:Rellegir dades efectivament persistides;
+stop
+@enduml
+```
+
+### AL-PAG-SAVE/SEND — ACTUAL
+
+```plantuml
+@startuml
+title AL-PAG-SAVE/SEND ACTUAL | Desar resum vs desar i enviar
+start
+:Editar Dades pagament al modal de la inscripció;
+:Introduir imports, dates, IDPAG, observacions i reclamació;
+if (Clic Desar?) then (Sí)
+  :GET guardarDadesPagament_ConsultaInformacio;
+  :UPDATE resum llegat inscripcions;
+elseif (Clic Desar i enviar?) then (Sí)
+  :GET guardarEnviarDadesPagament_ConsultaInformacio;
+  :UPDATE resum llegat inscripcions;
+  :Consultar dades curs/inscripció;
+  :Calcular pendent amb arguments de la petició;
+  :Preparar correu alumne i còpia interna;
+endif
+if (Resposta textual sense error?) then (Sí)
+  :Mostrar text de guardat;
+else (No)
+  :Mostrar error;
+endif
+:Callback repinta els valors editats en mode lectura;
+note right
+  No se separen resultat SQL
+  i resultat del correu per destinatari.
+  Pagament editat no prova CHARGE.
+end note
+stop
+@enduml
+```
+
+### AL-PAG-SAVE/SEND — FINAL
+
+```plantuml
+@startuml
+title AL-PAG-SAVE/SEND FINAL | Persistència i notificació independents
+start
+:Autoritzar actor i inscripció;
+:Consultar cobrament real, pagador, factura i versió;
+:Validar correcció econòmica vs nova transacció real;
+if (Correcció admissible?) then (Sí)
+  :Desar canvi justificat i versió;
+  if (Operador demana enviar avís?) then (Sí)
+    :Encolar comunicació idempotent després del commit;
+    :Separar resultat de còpia interna i de destinatari;
+    if (Algun avís pendent o fallit?) then (Sí)
+      :Mostrar desament complet i enviament pendent;
+      :Reintentar només destinatari pendent;
+    else (No)
+      :Mostrar estats d'enviament verificats;
+    endif
+  else (No)
+    :No crear cap avís de fraccionament;
+  endif
+  :Rellegir estat econòmic reconciliat;
+else (No)
+  :Denegar canvis sense mutar saldo ni documents;
+endif
+stop
+@enduml
+```
+
+### AL-PAG-UI — ACTUAL / FINAL
+
+```plantuml
+@startuml
+title AL-PAG-UI ACTUAL | Error textual però valors repintats
+start
+:AJAX de desament retorna HTTP correcte;
+if (Text conté Error/error?) then (Sí)
+  :Mostrar avís d'error;
+else (No)
+  :Mostrar avís d'èxit;
+endif
+:Esperar animació;
+:Convertir inputs editats a camps no editables;
+:Retirar Desar i Cancel·lar;
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title AL-PAG-UI FINAL | Error no confirma dades no desades
+start
+:Rebre resposta estructurada per canvi i avís;
+if (Commit de dades verificat?) then (Sí)
+  :Rellegir i mostrar resum persistent;
+  :Mostrar avís completat o pendent separadament;
+else (No)
+  :Mantenir edició i descartar falsa confirmació;
+  :Mostrar error i valors originals disponibles;
+endif
+stop
+@enduml
+```
+
+**Proves pendents T-AL-18–22:** inscripció i pagament editats amb cancel·lació; error SQL; canvis de matrícula i mailing; «Desar» sense avisar; «Desar i enviar» amb enviament parcial i reintent idempotent, separant sempre resultat del desament i de la comunicació. **Estat:** contrast de codi versionat sense proves ni desplegament verificats.
