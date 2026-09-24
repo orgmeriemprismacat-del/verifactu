@@ -42,3 +42,7 @@ El xat pont ha de revisar el xat antic per blocs petits, detectar informacio que
 - `00-control/mapa-xats.md`: quins xats crear i que posar a cada xat.
 - `00-control/guia-xat-pont.md`: instruccions exactes per al xat pont.
 
+
+## Taulers Trello del SIF (vigent des del 24/09/2026)
+
+El mapa actualitzat dels 12 taulers, els recomptes per llista i el procediment per reconciliar targetes es troben a [00-control/trello/README.md](00-control/trello/README.md). Els inventaris massius de Trello creats a partir d'exports antics s'han retirat; la font de targetes privades és Trello en directe.
