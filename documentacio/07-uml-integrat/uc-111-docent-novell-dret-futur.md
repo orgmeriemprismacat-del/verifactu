@@ -699,7 +699,7 @@ stop
 @enduml
 ```
 
-**Exemple DEC-23:** promoció JASOM 90 € → consum inicial 90 € → baixa rectificada del destí i dret derivat 90 € → nou consum 40 € i romanent derivat 50 € → si es retorna JASOM, proposar cancel·lar 50 € i recuperar 40 €; el consum inicial 90 € ja és antecedent del dret derivat, NO un segon import exigible. [Deu tests unitaris purs](../../sif/tests/Unit/NovicePromotionLineagePolicyTest.php) i [set de política de baixa](../../sif/tests/Unit/NovicePromotionDestinationAdjustmentPolicyTest.php) només escrits. Les classes no construeixen factures rectificatives, no ordenen reintegraments bancaris i no executen plans de recuperació.
+**Exemple DEC-23:** promoció JASOM 90 € → consum inicial 90 € → baixa rectificada del destí i dret derivat 90 € → nou consum 40 € i romanent derivat 50 € → si es retorna JASOM, proposar cancel·lar 50 € i recuperar 40 €; el consum inicial 90 € ja és antecedent del dret derivat, NO un segon import exigible. [Tretze tests unitaris purs](../../sif/tests/Unit/NovicePromotionLineagePolicyTest.php) i [set de política de baixa](../../sif/tests/Unit/NovicePromotionDestinationAdjustmentPolicyTest.php) només escrits. Les classes no construeixen factures rectificatives, no ordenen reintegraments bancaris i no executen plans de recuperació.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
