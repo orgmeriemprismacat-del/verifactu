@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Domain\NovicePromotionApprovedCancellationPolicy;
+use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Domain\NovicePromotionDestinationAdjustmentPolicy;
 use Prisma\Sif\Domain\NovicePromotionRectificationEvidencePolicy;
 use Prisma\Sif\Exception\SifException;
@@ -30,7 +31,8 @@ final class NovicePromotionDerivedBalanceActivationService
         private NovicePromotionAdjustmentApprovalSourceInterface $approvals,
         private NovicePromotionRectificationEvidencePolicy $fiscalEvidence = new NovicePromotionRectificationEvidencePolicy(),
         private NovicePromotionDestinationAdjustmentPolicy $adjustments = new NovicePromotionDestinationAdjustmentPolicy(),
-        private NovicePromotionApprovedCancellationPolicy $decisions = new NovicePromotionApprovedCancellationPolicy()
+        private NovicePromotionApprovedCancellationPolicy $decisions = new NovicePromotionApprovedCancellationPolicy(),
+        private UuidGenerator $uuids = new UuidGenerator()
     ) {
     }
 
@@ -306,6 +308,40 @@ final class NovicePromotionDerivedBalanceActivationService
             if ($stmt->rowCount() !== 1) {
                 throw SifException::conflict('Cancellation approval changed concurrently.');
             }
+
+            // The canonical entitlement event belongs to the ROOT right;
+            // the changeset records the distinct derived right, approved
+            // commercial split and independent expiry. This is NOT an
+            // accounting transaction, refund or a bank charge.
+            $audit = $db->prepare(
+                'INSERT INTO commercial_entitlement_event
+                 (UUID_EVENT, UUID_ENTITLEMENT, ACTION, RESULT, UUID_OPERATION,
+                  ACTOR_TYPE, ACTOR_ID, CORRELATION_ID, CAUSATION_ID,
+                  REASON_CODE, CHANGESET_JSON, OCCURRED_AT)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $audit->execute([
+                $this->uuids->generate(),
+                (string) $root['UUID_ENTITLEMENT'],
+                'DERIVED_ACTIVATE',
+                'SUCCESS',
+                (string) $application['UUID_DESTINATION_OPERATION'],
+                'SECRETARIAT',
+                (string) $approval['reviewer_id'],
+                $uuidDerivedReview,
+                (string) $approval['decision_id'],
+                'APPROVED_CANCELLATION_PROMOTION',
+                json_encode([
+                    'uuid_derived_balance' => $uuidDerivedReview,
+                    'uuid_original_application' => (string) $application['UUID_APPLICATION'],
+                    'uuid_rectificative' => (string) $review['UUID_RECTIFICATIVE_FACTURA'],
+                    'promotional_amount' => (string) $plan['promotional_derived_amount'],
+                    'promotional_forfeited_amount' => (string) $plan['promotional_forfeited'],
+                    'cash_amount_routed_separately' => (string) $plan['cash_refund_or_credit_eligible'],
+                    'expires_at_utc' => $expiryUtc,
+                ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+                $timestamp,
+            ]);
 
             $db->commit();
             return [
