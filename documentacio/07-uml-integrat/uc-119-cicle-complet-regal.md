@@ -1,6 +1,6 @@
 # UC-119 · Cicle complet d'un regal o codi de bescanvi
 
-**Objectiu:** vincular la compra d'un regal, la factura del comprador, el pagament real, la titularitat del dret, el lliurament del codi, el bescanvi per una inscripció i qualsevol expiració/canvi/devolució **sense comptar dues vegades el mateix diner**. Aquesta és la coordinació de UC-17 (compra), UC-18 (bescanvi) i UC-18a (excepcions); no els substitueix.
+**Objectiu:** vincular la compra d'un regal, la factura del comprador, el pagament real, la titularitat del dret, el lliurament del codi, el bescanvi per una inscripció i qualsevol expiració/canvi/devolució **sense comptar dues vegades el mateix diner**. **Ampliació de contrast 25/09/2026:** seccions 8–11 incorporen les classes, pàgines i seqüències observades de PHP/JS llegat; les classes i seqüències del `GiftLifecycleCoordinator` a 3–6 continuen sent **DISSENY NO IMPLEMENTAT**, no es poden confondre amb el mètode llegat `enviarInscripcioBescanvia.php`. Aquesta és la coordinació de UC-17 (compra), UC-18 (bescanvi) i UC-18a (excepcions); no els substitueix.
 
 **Estat contrastat:** compra i facturació parcialment implementades per `RedsysGiftInvoiceService`, `LegacyGiftInvoicePayloadBuilder` i `InvoiceService`. Les migracions defineixen `commercial_operation`, `commercial_operation_party`, `commercial_operation_line`, `operation_line_invoice_link`, `commercial_entitlement` i `commercial_entitlement_event`. **No s'ha identificat al PHP SIF un orquestrador d'extrem a extrem, un writer complet de drets/consums o una conciliació de fons de regal cap a inscripció.** Els components de coordinació representats aquí són **DISSENY**, encara que la BD ja tingui taules.
 
@@ -360,3 +360,152 @@ Note over Life,Mail: El reenviament mai no ha de cridar InvoiceService::issueInv
 [UC-119 original](../06-fitxes-funcionals/uc-119.md) · [UC-17 compra](uc-017-comprar-regal.md) · [UC-18 bescanvi](uc-018-bescanviar-regal.md) · [UC-18a incidències](uc-018a-regal-caducat-duplicat.md) · [Model de fons per inscripció](00-revisio-moviments-inscripcions.md) · [Taula commercial_operation](../../sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql) · [Taules operació/dret/event](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [RedsysGiftInvoiceService](../../sif/src/Service/RedsysGiftInvoiceService.php).
 
 **Proves no executades; el cicle integral, permisos, writer de drets, conciliació entre BDs i ledger quantitatiu continuen pendents.**
+
+## 8. Matriu de components ACTUALS per pàgina i apartat
+
+[Fitxa funcional UC-119 v2.0](../06-fitxes-funcionals/uc-119.md) · [auditoria de fonts del lot 08](00-auditoria-casos-pendents-lot-08-uc-119-2026-09-25.md) · [18 diagrames P01–P09 ACTUAL/FINAL](uc-119-activitats-pagines-regal-actual-final.md).
+
+| Pàgina / etapa | PHP/JS i SQL real observats | Diferència de coordinació final |
+| --- | --- | --- |
+| P01–P03, compra i previsualització | [`RegalCurs.php` L71–750](../../codi-drive/web-actual/RegalCurs.php#L655-L750), [`mostrarRegal.min.js` L161–351](../../codi-drive/web-actual/js1619773569/mostrarRegal.min.js#L161-L351): curs/hores, tarifa, dedicatòria, `base_convert(uniqid(),16,36)`, codi en targeta HTML. | Previsualització sense dret monetari activat ni credencial bescanviable pública. |
+| P04–P05, comprar i PDF | [`ajax/enviarInscripcioRegal.php`](../../codi-drive/web-actual/ajax/enviarInscripcioRegal.php), [`RegalCurs.php` L893–1090, L1418–1445](../../codi-drive/web-actual/RegalCurs.php#L1418-L1445): dades/import/codi GET; `INSERT regal` i PDF digital de targeta amb codi al nom. | Codi protegit, preu validat al servidor, comanda idempotent i targeta lliurada amb autorització; encara no pagada en la fase de crear comanda. |
+| P06, resultat del pagament de regal | [`respostaPagamentRegal.php` L121–321](../../codi-drive/web-actual/respostaPagamentRegal.php#L121-L321), [`LegacyGiftInvoicePayloadBuilder.php`](../../sif/src/Service/LegacyGiftInvoicePayloadBuilder.php): `regal.FACT_REL`, comprador com a receptor i codi íntegre al detall del payload fiscal. | Només ingrés extern signat/validat crea `CHARGE`; activació del dret per origen; separar codi de bescanvi del document fiscal nou. |
+| P07–P08, consulta codi i formulari de bescanvi | [`BescanviaRegal.php` L145–245, L441–787](../../codi-drive/web-actual/BescanviaRegal.php#L145-L245), [JS L139–230](../../codi-drive/web-actual/js1619773569/mostrarBescanvia.min.js#L139-L230): GET per codi i comprovació `FACT_REL/USAT`, `CCURS` hores o curs concret i formulari per beneficiari. | Consulta minimitzada sense exposar informació del comprador; bloqueig de dret i lloc només al punt de reserva. |
+| P09, inscripció de bescanvi | [`enviarInscripcioBescanvia.php` L422–508, L602–608](../../codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php#L422-L608): llegeix `FACT_REL`, crea `inscripcions.A_PAGAR=0` i després `UPDATE regal SET USAT=ID_INSC WHERE CODI=?`. | Alta+consum idempotents per dret/operació, sense doble matrícula; assignació de valor intern amb origen de pagament de compra. |
+
+## 9. Diagrama UML de casos d'ús ACTUAL — compra i bescanvi públics observats
+
+```plantuml
+@startuml
+left to right direction
+actor "Comprador" as B
+actor "Persona amb codi regal" as R
+rectangle "Web de regal | ACTUAL identificat" {
+ usecase "Triar curs/hores, destinatari i estil" as Choose
+ usecase "Previsualitzar targeta i generar codi provisional" as Preview
+ usecase "Crear comanda a regal i targeta PDF" as Order
+ usecase "Iniciar pagament de regal" as Pay
+ usecase "Consultar FACT_REL i USAT per codi" as Check
+ usecase "Triar curs/edicio i dades de beneficiari" as Select
+ usecase "INSERT inscripcions A_PAGAR=0" as Enrol
+ usecase "Marcar regal USAT=ID_INSC" as Used
+}
+B --> Choose
+B --> Preview
+B --> Order
+B --> Pay
+R --> Check
+R --> Select
+R --> Enrol
+Enrol ..> Used : <<include>>
+note right of Preview
+ Codigo antes de compra.
+ No demuestra pago.
+end note
+note right of Check
+ Comprobacion previa por GET,
+ no reserva atomica de derecho.
+end note
+@enduml
+```
+
+## 10. Classes ACTUALS — no confondre-les amb el coordinador final
+
+```mermaid
+classDiagram
+direction LR
+class MostrarRegalJS {
+ <<JS existent>>
+ +mostrarPagina()
+ +enviarInscripcioRegal()
+}
+class RegalCursPHP {
+ <<PHP existent>>
+ +mostrarPrevisualitzacio(...)
+ +enviarInscripcioRegal(...)
+}
+class RegalSQL {
+ <<BD llegada>>
+ +ID
+ +CODI
+ +IMPORT
+ +CCURS
+ +FACT_REL
+ +USAT
+}
+class BescanviaRegalPHP {
+ <<PHP existent>>
+ +codiRegalValid(codi)
+ +buscarCursRegalat(codi)
+ +mostrarFormulari(...)
+}
+class EnviarInscripcioBescanviaPHP {
+ <<PHP endpoint existent>>
+ +insertInscripcio(...)
+ +updateUsat(codi,idInsc)
+}
+class InscripcionsSQL {
+ <<BD llegada>>
+ +ID
+ +IDPAG
+ +A_PAGAR
+ +FACTURA_RELACIONADA
+}
+class LegacyGiftSnapshotRepository {
+ <<SIF PHP existent>>
+ +loadById(db,id)
+ +loadByCode(db,codi)
+}
+class LegacyGiftInvoicePayloadBuilder {
+ <<SIF PHP existent>>
+ +build(snapshot) payload
+}
+MostrarRegalJS --> RegalCursPHP : GET comprar
+RegalCursPHP --> RegalSQL : INSERT comanda
+BescanviaRegalPHP --> RegalSQL : SELECT FACT_REL/USAT i CCURS
+EnviarInscripcioBescanviaPHP --> RegalSQL : SELECT FACT_REL, UPDATE USAT
+EnviarInscripcioBescanviaPHP --> InscripcionsSQL : INSERT alta
+LegacyGiftSnapshotRepository --> RegalSQL : SELECT compra
+LegacyGiftSnapshotRepository --> LegacyGiftInvoicePayloadBuilder : snapshot de factura
+```
+
+**Precisió UML:** `RegalCursPHP` i `EnviarInscripcioBescanviaPHP` del mapa representen els components i les operacions identificades, no una firma de mètode concreta que existeixi en un objecte PHP del mateix nom. `GiftLifecycleCoordinator` de la secció 3 és de **DISSENY**. `LegacyGiftInvoicePayloadBuilder` existeix però no implementa el bescanvi ni la conciliació monetària del regal.
+
+## 11. Seqüència ACTUAL — consulta, alta i consum separats; contrast amb FINAL
+
+```mermaid
+sequenceDiagram
+actor R as Persona que vol bescanviar
+participant UI as mostrarBescanvia.min.js
+participant V as codiRegalValid.php
+participant Q as BescanviaRegal.php
+participant G as BD regal
+participant E as enviarInscripcioBescanvia.php
+participant I as BD inscripcions
+R->>UI: Introduir codi
+UI->>V: GET codiRegal
+V->>Q: codiRegalValid(codi)
+Q->>G: SELECT FACT_REL, USAT WHERE CODI LIKE ?
+G-->>Q: Dades de fila o sense registre
+Q-->>UI: Error d'inexistent/pendent/usat o resposta buida
+alt Codi habilitat a la consulta
+ UI->>Q: GET buscarCursRegalat(codi) via wrapper
+ Q->>G: SELECT CCURS WHERE CODI LIKE ?
+ G-->>UI: Curs concret o hores
+ R->>UI: Triar curs/edicio i donar dades personals
+ UI->>UI: GET inscripcioDuplicada (comprovacio previa)
+ UI->>E: GET enviarInscripcioBescanvia amb codi i dades
+ E->>G: SELECT FACT_REL WHERE CODI=?
+ G-->>E: FACT_REL llegat
+ E->>I: INSERT inscripcions amb A_PAGAR=0 i FACTURA_RELACIONADA
+ I-->>E: ID_INSC nou
+ E->>G: UPDATE regal SET USAT=ID_INSC WHERE CODI=?
+ E-->>UI: Token/resultat de confirmacio
+end
+Note over V,E: Dos GET separats: no lock de dret ni WHERE USAT=0 al consum final inspeccionat
+Note over E,I: No evidencia de ledger REGAL vers ID_INSC ni un segon cobrament en aquest endpoint
+```
+
+**Seqüència FINAL:** mantenir la [seqüència d'extrem a extrem de la secció 4](#4-sequencia-completa--compra-ingressada-i-bescanvi-posterior) i les accions d'activació/lliurament 6.1–6.4 només com a **disseny**. Cal associar `UUID_ENTITLEMENT` a origen de valor de compra verificat, fer reserva/concurrència amb idempotència, reconciliar alta llegada i dret SIF entre BDs, i registrar aplicació interna al participant sense crear un nou `CHARGE` de la compra. Les variants de regal d'hores versus curs concret i les excepcions de caducitat/devolució no queden provades pel diagrama ACTUAL de P09.
+
+**Traçabilitat i estat:** [fitxa de 21 apartats](../06-fitxes-funcionals/uc-119.md), [18 activitats P01–P09](uc-119-activitats-pagines-regal-actual-final.md), [auditoria de fonts, riscos i T01–T14](00-auditoria-casos-pendents-lot-08-uc-119-2026-09-25.md). DOC contrastada per als camins identificats; IMPLEMENTACIÓ integral, TEST i PRODUCCIÓ no acreditats.
