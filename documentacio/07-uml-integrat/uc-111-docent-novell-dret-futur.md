@@ -623,6 +623,42 @@ stop
 ```
 
 **Límit de coherència:** el dret cancel·lat/retornat ha de ser rebutjat també al moment de cada bescanvi; el bloqueig previ a l'enviament no resol una devolució posterior. `SENT` és acceptació del proveïdor, no recepció ni lectura. Un reintent pot repetir un correu sense recrear el token ni el saldo. [Auditoria del sisè tall](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
+### 4.3 decies. Consum parcial d'un únic saldo promocional — codi intern preparat, connector checkout PENDENT
+
+**Estat real:** [migració 000012 · aplicació per matrícula](../../sif/database/migrations/2026_09_25_000012_add_novice_promotion_application.sql), [NovicePromotionRedemptionService](../../sif/src/Service/NovicePromotionRedemptionService.php) i [NovicePromotionAmountPolicy](../../sif/src/Domain/NovicePromotionAmountPolicy.php) implementats EN BRANCA. No hi ha encara connexió al formulari del curs de DESTINACIÓ, a l'acció autenticada de bescanvi, al motor de preus final ni a l'emissor de factures; cap consum real acreditat. Els estats i fluxos descriuen comportament del codi escrit que cal integrar, no un circuit desplegat. Proves MySQL ajornades expressament.
+
+```plantuml
+@startuml
+title UC-111 | Aplicar un saldo novell a diversos cursos posteriors
+start
+:Titular autenticat indica codi i matrícula destinació;
+:Backend HA DE persistir preu net de curs DESPRÉS dels altres descomptes;
+:RedemptionService contrasta hash, titular, vigència i cobrament íntegre JASOM;
+if (Codi/destí vàlids, sense factura ni intent Redsys?) then (Sí)
+ :Reservar min(saldo disponible, net ordinari) o import parcial vàlid;
+ :Reduir AVAILABLE_AMOUNT i inserir aplicació RESERVED amb clau idempotent;
+else (No)
+ :Rebutjar sense tocar saldo ni banc;
+ stop
+endif
+:Backend de preus i fiscal HA D'INCORPORAR descompte a la destinació (PENDENT);
+if (Factura emesa i import residual realment liquidat?) then (Sí)
+ :Confirmar snapshot final i import de factura concordants;
+ :Marcar aplicació APPLIED amb destí i factura;
+ :NO descomptar de nou el saldo; conservar venciment original;
+else (No)
+ if (Cap intenció Redsys ni factura, i fracàs confirmat?) then (Sí)
+  :Alliberar reserva no aplicada i retornar import al mateix saldo;
+ else (No o resultat ambigu)
+  :No retornar saldo; conciliar intenció/callback i factura;
+ endif
+endif
+:Cada nou curs genera una altra aplicació sobre el MATEIX dret;
+stop
+@enduml
+```
+
+**Límit especial de curs totalment cobert:** el registre de consum admet saldo que redueixi el net final a zero NOMÉS si el sistema fiscal emet una factura final vàlida de total zero i l'operació es considera liquidada sense crear un `CHARGE` bancari fictici. **Aquest emissor i la seva política fiscal encara no estan integrats ni acreditats.** El canvi/baixa de DESTINACIÓ no és `release` si existeix factura: cal traça fiscal i, quan pertoqui, saldo de baixa DERIVAT amb el seu propi venciment i rastreig de procedència, sense reobrir el dret inicial com si el consum no hagués existit. [Fitxa UC-111](../06-fitxes-funcionals/uc-111.md) · [UC-117](uc-117-cicle-vida-codi-dret-futur.md).
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
