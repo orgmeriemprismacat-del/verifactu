@@ -732,6 +732,8 @@ endif
 stop
 @enduml
 ```
+**Proposta denegada:** [migració 000015](../../sif/database/migrations/2026_09_25_000015_reject_pending_novice_derived_review.sql) i `rejectPendingReview` permeten transició `PENDING_FISCAL_REVIEW → REJECTED` (romanent ZERO, dates de concessió NULL), diferent de cancel·lar un dret ACTIU. Motiu, operador i instant queden en l'expedient; la validació dels permisos de l'operador és PENDENT.
+
 **NO IMPLEMENTAT:** l'acció d'aprovació real, les rectificatives emeses per aquests serveis, el consum del dret derivat i la cancel·lació executiva del saldo quan es retorni JASOM. No comptar propostes pendents com a drets actius ni acceptar un identificador d'actor proporcionat pel navegador com a autenticació. [Auditoria del tall](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
 
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
