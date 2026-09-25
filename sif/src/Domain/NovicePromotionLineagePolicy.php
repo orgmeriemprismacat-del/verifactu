@@ -96,7 +96,11 @@ final class NovicePromotionLineagePolicy
             $allocated = $right['available'];
             foreach ($allocationById as $application) {
                 if ($application['right_id'] === $right['id']
-                    && !in_array($application['status'], ['RELEASED', 'CANCELLED'], true)
+                    && !in_array(
+                        $application['status'],
+                        ['RELEASED', 'CANCELLED', 'REPLACED_BY_TRANSFER'],
+                        true
+                    )
                 ) {
                     $allocated += $application['amount'];
                 }
