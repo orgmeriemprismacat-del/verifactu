@@ -659,6 +659,47 @@ stop
 ```
 
 **Límit especial de curs totalment cobert:** el registre de consum admet saldo que redueixi el net final a zero NOMÉS si el sistema fiscal emet una factura final vàlida de total zero i l'operació es considera liquidada sense crear un `CHARGE` bancari fictici. **Aquest emissor i la seva política fiscal encara no estan integrats ni acreditats.** El canvi/baixa de DESTINACIÓ no és `release` si existeix factura: cal traça fiscal i, quan pertoqui, saldo de baixa DERIVAT amb el seu propi venciment i rastreig de procedència, sense reobrir el dret inicial com si el consum no hagués existit. [Fitxa UC-111](../06-fitxes-funcionals/uc-111.md) · [UC-117](uc-117-cicle-vida-codi-dret-futur.md).
+### 4.3 undecies. Canvi de destí, baixa amb saldo derivat i devolució posterior de JASOM — MODEL EN BRANCA
+
+**Estat:** [migració 000013](../../sif/database/migrations/2026_09_25_000013_add_novice_promotion_lineage.sql), [NovicePromotionDestinationAdjustmentPolicy](../../sif/src/Domain/NovicePromotionDestinationAdjustmentPolicy.php) i [NovicePromotionLineagePolicy](../../sif/src/Domain/NovicePromotionLineagePolicy.php) programades. Les polítiques són CÀLCULS PURS; NO hi ha gestor fiscal de baixa/canvi, servei de concessió/consum derivat, mutació econòmica ni cancel·lació real del dret. Els registres pendents de revisió fiscal NO s'han de tractar com a codis gastables; les proves MySQL estan ajornades.
+
+```plantuml
+@startuml
+title UC-111 | Canvi, baixa i procedencia d'un saldo promocional
+start
+:Aplicacio promocional APPLIED sobre curs DESTINACIO;
+if (Es canvia de curs?) then (Canvi)
+ :Tramitar procediment de canvi ordinari i rectificativa (INTEGRACIO PENDENT);
+ if (Promocio aplicada cap al preu net del curs nou?) then (Si)
+  :Traspassar atribucio al nou desti sense nou consum;
+  :Conservar saldo original i venciment, guardar cadena de transferencies;
+ else (No)
+  :Bloquejar traspas automatic; gestionar diferencia comercial/fiscal;
+ endif
+else (Baixa)
+ :Secretaria valida condicions de baixa i documentacio fiscal (PENDENT);
+ :Separar import PROMOCIONAL elegible i import de DINERS REALS;
+ if (Hi ha valor promocional elegible?) then (Si)
+  :Crear dret de BAIXA diferent, lligat a rectificativa i aplicacio origen;
+  :Un any propi des de la data de concessio del saldo de baixa;
+ else (No)
+  :No crear saldo derivat promocional;
+ endif
+ :Tramitar devolucio/credit de diners reals per circuit independent;
+endif
+if (Despres es retorna JASOM?) then (Si)
+ :Bloquejar noves reserves i conciliar reserves en curs;
+ :Recorrer dret NOVELL i tots els saldos de baixa descendents;
+ :Proposar anul.lacio de romanents original i derivats;
+ :Reclamar nomes promocio aplicada en destinacions ACTIVEs vigents;
+ :No recomptar usos antics substituits per transferencies o saldos derivats;
+ :Revisio de secretaria/fiscal abans de cancel.lacio i reclamacio (PENDENT);
+endif
+stop
+@enduml
+```
+
+**Exemple DEC-23:** promoció JASOM 90 € → consum inicial 90 € → baixa rectificada del destí i dret derivat 90 € → nou consum 40 € i romanent derivat 50 € → si es retorna JASOM, proposar cancel·lar 50 € i recuperar 40 €; el consum inicial 90 € ja és antecedent del dret derivat, NO un segon import exigible. [Deu tests unitaris purs](../../sif/tests/Unit/NovicePromotionLineagePolicyTest.php) i [set de política de baixa](../../sif/tests/Unit/NovicePromotionDestinationAdjustmentPolicyTest.php) només escrits. Les classes no construeixen factures rectificatives, no ordenen reintegraments bancaris i no executen plans de recuperació.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
