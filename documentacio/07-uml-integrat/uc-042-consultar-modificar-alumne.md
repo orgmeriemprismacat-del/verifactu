@@ -121,3 +121,434 @@ Note over S,F: Canviar email no valida identitat fiscal ni autoritza veure factu
 ## Traçabilitat
 
 [UC-42 original](../06-fitxes-funcionals/uc-042.md) · [UC-120 dades personals](uc-120-canvi-dades-personals-propagacio.md) · [UC-126 identitat](uc-126-identitat-contacte-conflicte-sistemes.md) · [UC-129 Moodle](uc-129-reconciliar-prisma-moodle-matricules.md) · [UC-74 correcció](uc-074-classificar-correccio-fiscal.md) · [LegacyCourseSnapshotRepository](../../sif/src/Repository/LegacyCourseSnapshotRepository.php) · [LegacySyncRepository](../../sif/src/Repository/LegacySyncRepository.php) · [Migració personal_data_change_request](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql).
+
+## 8. Contrast visual i traça d'accions de la fitxa alumne
+
+**Set captures de la pantalla real** `/alumnes/mostrar-alumne/` rebudes el 22/09/2026, indexades **sense publicar els originals amb dades personals**: [auditoria visual, matriu d'accions i 6 diagrames d'activitat actual/final](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md).
+
+La captura de la pàgina revela cerca bàsica/avançada, dades personals editables, inscripcions pendents/acabades, «Mostra tots els registres», observacions generals i icones per fila (consulta, canvi de curs, baixa, factura i certificat). Dues captures del modal «Dades del curs» mostren dades acadèmiques, personals de la **inscripció** i pagament separades; una altra mostra factura; i dues més mostren els formularis de baixa i de canvi de curs **abans d'executar-los**. No assumir que totes les imatges pertanyen a la mateixa inscripció, ni que un camp `PAGAMENT` a la UI constitueix un cobrament verificat.
+
+**Traça del codi existent:** [`alumnes-mostrar-alumne.php` L47–48](../../codi-drive/intranet-actual/alumnes-mostrar-alumne.php#L47-L48) carrega el JS **minificat**; [JS llegible L821–900](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L821-L900) documenta el botó de tots els registres i els modals; [L1009–1115](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1009-L1115) separa edició de dades d'inscripció de dades de pagament. Comparar el minificat servit i el JS llegible abans de donar per demostrada la coincidència de cada handler al desplegament. «Mostrar factura» és consulta UC-007, **no emissió fiscal**.
+
+**Límits dels UC:** UC-042 comprèn consulta/edició de la fitxa operativa i observacions; les accions de baixes corresponen a UC-027/072; el canvi de curs/edició a UC-026/071; moviment de fons a UC-105 i factura a UC-007/074 segons el fet real. La casella de «No enviar correu» forma part dels formularis visibles, no acredita que s'hagi enviat o suprimit un correu. El modal «Previsualitza el canvi» és anterior a la confirmació i a l'execució: **cap canvi efectiu es pot donar per acreditat només amb aquesta captura**.
+
+**Estat de completitud:** evidència visual indexada i diagrames per pantalla + subfluxos baixa/canvi; falta veure variants de cerca avançada, formularis d'edició i de confirmació, comprovar el desplegament, autorització per objecte i executar proves. No publicar les captures originals al GitHub públic, ni substituir dades personals dels originals per dades aparentment reals a la documentació.
+
+## 9. Diagrames d'activitat de la resta d'accions d'«Alumnes / Consulta - Modifica»
+
+**Origen contrastat:** [inventari de pantalla i codi, apartats 7–8](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md#7-cerca-avançada-dades-personals-observacions-i-certificats--contrast-sense-captures-noves), [fitxa funcional UC-042, apartat 24](../06-fitxes-funcionals/uc-042.md#24-fitxa-funcional-per-acció-cerca-avançada-perfil-observacions-i-certificats). **Aquests diagrames ACTUALS deriven dels JS i PHP de `main`, no de captures que encara no tenim ni de tests executats.** Els diagrames FINALS són el contracte proposat, incloses les distincions acadèmiques/fiscals i de privacitat. No confondre consulta de certificat amb elegibilitat acadèmica aprovada: la seva reconciliació és UC-124; no confondre desament de contacte amb reemissió d'una factura històrica.
+
+### AL-CERCA — ACTUAL
+
+```plantuml
+@startuml
+title AL-CERCA ACTUAL | Cerca bàsica, avançada i múltiples resultats
+start
+:Entrar a Consulta - Modifica;
+:Omplir DNI, email, nom/cognoms o obrir cerca avançada;
+if (Cerca avançada oculta?) then (Sí)
+  :Ignorar filtres avançats a la petició;
+else (No)
+  :Llegir filtres avançats i normalitzar "qualsevol";
+endif
+if (Tots els camps aplicables són buits?) then (Sí)
+  :Mostrar avís «Omple un camp»;
+else (No)
+  :Per cada criteri llançar GET searchUserByCamp;
+  :Recollir identificadors de cada resposta;
+  :Intersectar llistes al navegador;
+  if (Cap coincidència?) then (Sí)
+    :Mostrar avís sense resultats;
+  elseif (Més de 2000?) then (Sí)
+    :Mostrar avís per acotar la cerca;
+  elseif (Una sola coincidència?) then (Sí)
+    :GET mostrarInformacioUsuari per subjecte;
+    :Mostrar fitxa i inscripcions;
+  else (Diverses)
+    :GET mostrarTaulaUsuaris;
+    :Mostrar llista ordenable i selecció de subjecte;
+  endif
+endif
+stop
+@enduml
+```
+
+### AL-CERCA — FINAL
+
+```plantuml
+@startuml
+title AL-CERCA FINAL | Filtrar subjectes autoritzats
+start
+:Autenticar actor i carregar formulari;
+:Seleccionar cerca bàsica o avançada;
+:Normalitzar criteris i eliminar filtres ocults;
+if (Cerca sense criteris vàlids?) then (Sí)
+  :Mostrar error sense executar consulta;
+else (No)
+  :Enviar consulta autoritzada amb identificador de cerca;
+  :Descartar resultats tardans de cerques anteriors;
+  :Aplicar filtres i límits al servidor;
+  if (Sense resultats?) then (Sí)
+    :Mostrar cap coincidència;
+  elseif (Excés de resultats?) then (Sí)
+    :Demanar filtres addicionals;
+  elseif (Una coincidència?) then (Sí)
+    :Obrir fitxa si actor té dret a veure-la;
+  else (Diverses)
+    :Mostrar llista mínima i ordenable amb autorització;
+    :Obrir només el subjecte autoritzat seleccionat;
+  endif
+endif
+stop
+@enduml
+```
+
+### AL-PERSONAL — ACTUAL
+
+```plantuml
+@startuml
+title AL-PERSONAL ACTUAL | Desar o cancel·lar dades personals
+start
+:Obrir resultat alumne i prémer editar;
+if (tePermisEdicio al navegador?) then (Sí)
+  :Convertir camps visibles en inputs;
+  :Modificar nom, contacte o altres dades;
+  if (Clic cancel·lar?) then (Sí)
+    :Convertir inputs a text amb VALOR ACTUAL;
+    :No enviar UPDATE;
+    note right
+      Pot mostrar un canvi que NO
+      està desat en base de dades.
+    end note
+  elseif (Clic desar?) then (Sí)
+    :Validar camps obligatoris i telèfon al JS;
+    if (Validació client correcta?) then (Sí)
+      :GET guardarDadesPersonals amb dades a URL;
+      :PHP UPDATE inscripcions per idInsc;
+      :Mostrar guardat si text no conté Error/error;
+    else (No)
+      :Mostrar camps erronis;
+    endif
+  endif
+else (No)
+  :Mostrar avís de manca de permisos;
+endif
+stop
+@enduml
+```
+
+### AL-PERSONAL — FINAL
+
+```plantuml
+@startuml
+title AL-PERSONAL FINAL | Perfil amb dades originals i traça
+start
+:Carregar camps originals i versió de la inscripció;
+:Autoritzar actor i àmbit de l'edició al servidor;
+if (Actor autoritzat?) then (Sí)
+  :Editar camps en memòria sense escriptura;
+  if (Cancel·la?) then (Sí)
+    :Restaurar valors persistits originals;
+  elseif (Desa?) then (Sí)
+    :POST de canvis amb versió base i camps permesos;
+    :Validar dada i destinacions al servidor;
+    if (Conflicte o dades invàlides?) then (Sí)
+      :Mostrar errors i estat real, sense escriptura;
+    else (No)
+      :Registrar abans/després i aplicar canvi;
+      :Preservar receptor i factura històrics;
+      :Confirmar només el desament verificat;
+      :Rellegir camps persistits;
+    endif
+  endif
+else (No)
+  :Denegar sense exposar ni modificar dades;
+endif
+stop
+@enduml
+```
+
+### AL-OBS — ACTUAL
+
+```plantuml
+@startuml
+title AL-OBS ACTUAL | Afegir o ocultar observació general
+start
+:Mostrar observacions generals de l'alumne;
+if (Clic afegir observació?) then (Sí)
+  :Obrir modal i introduir text;
+  if (Text no buit?) then (Sí)
+    :GET afegirObservacio amb text i DNI;
+    :INSERT aobservacions amb actor de sessió;
+    :GET mostrarObservacions per refrescar;
+    :Mostrar «guardat» si resposta sense Error/error;
+  else (No)
+    :Mostrar avís camp buit;
+  endif
+elseif (Clic amagar observació?) then (Sí)
+  if (tePermisEdicio al navegador?) then (Sí)
+    :GET amagarObservacio amb ID de la nota;
+    :UPDATE aobservacions VISIBLE = 0;
+    :Eliminar fila de la vista si text sense Error/error;
+  else (No)
+    :Mostrar avís sense permís;
+  endif
+endif
+stop
+@enduml
+```
+
+### AL-OBS — FINAL
+
+```plantuml
+@startuml
+title AL-OBS FINAL | Registre i ocultació traçables
+start
+:Identificar actor, alumne i registre existent;
+if (Afegir observació?) then (Sí)
+  :Validar text i permís al servidor;
+  :POST amb clau d'operació i actor;
+  :INSERT i confirmar ID, data i estat real;
+  :Rellegir llista de notes visibles;
+elseif (Ocultar observació?) then (Sí)
+  :Validar permisos i pertinença de la nota a l'alumne;
+  :POST per ocultar amb motiu/traça si escau;
+  :Canviar visibilitat sense esborrar historial;
+  :Confirmar ID i estat real de la nota;
+else (No)
+  :No alterar observacions;
+endif
+:Mostrar resultats només al subjecte autoritzat;
+stop
+@enduml
+```
+
+### AL-CERT — ACTUAL
+
+```plantuml
+@startuml
+title AL-CERT ACTUAL | Consulta, previsualització i PDF
+start
+:Prémer icona certificat o «cursant» per inscripció;
+:GET mostraModalConsultaCertificat per idInsc i tipus;
+:PHP genera vista inicial del certificat;
+if (Tipus INSCRIT?) then (Sí)
+  :Mostrar botó «Cursant el curs»;
+else (No)
+  :Mostrar variants Digital, Paper i Sobre;
+endif
+if (Selecciona variant?) then (Sí)
+  :GET mostrarCertificat download=false;
+  :Substituir HTML de la previsualització;
+endif
+if (Clic descarregar i tePermisEdicio al JS?) then (Sí)
+  :GET mostrarCertificat download=true;
+  :Generar arxiu PDF temporal amb nom basat en DNI i curs;
+  :Construir enllaç de descàrrega;
+  :Sol·licitar eliminarArxiu després del clic;
+  :Mostrar resultat segons callbacks;
+else (No)
+  :Tancar o mantenir vista sense descàrrega;
+endif
+stop
+@enduml
+```
+
+### AL-CERT — FINAL
+
+```plantuml
+@startuml
+title AL-CERT FINAL | Certificat autoritzat i fitxer privat
+start
+:Identificar actor, inscripció i modalitat de certificat;
+:Verificar dret acadèmic, tipus i autorització de lectura;
+if (Consulta admissible?) then (Sí)
+  :Mostrar només variants legítimes;
+  :Previsualitzar document per canal autenticat;
+  if (Demana descarregar?) then (Sí)
+    :Validar autorització novament al servidor;
+    :Generar fitxer amb identificador opac en ubicació privada;
+    :Lliurar per endpoint segur sense exposar DNI a ruta pública;
+    :Registrar accés si correspon i destruir temporal amb seguretat;
+  endif
+else (No)
+  :Mostrar estat no disponible sense dades d'altri;
+endif
+stop
+@enduml
+```
+
+**Tancament:** les vuit representacions cobreixen cerca, canvi de dades personals, observacions i certificat. Queden proves de navegador i autorització per objecte, captura de variants i confirmació real dels resultats. La [incidència de fitxers de certificat generats al repositori](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md#8-incidència-de-protecció-de-dades-detectada-al-repositori-sense-reproduir-cap-document) està separada del flux fiscal del SIF. No copiar ni publicar arxius amb dades personals a la documentació.
+
+## 10. Edició d'inscripció i notificació fraccionament: activitats separades
+
+**Fonts ACTUALS contrastades:** [fitxa funcional UC-042, apartat 25](../06-fitxes-funcionals/uc-042.md#25-edició-de-la-inscripció-i-doble-acció-de-pagament-desar--desar-i-enviar), [auditoria de pantalla, apartat 9](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md#9-edició-del-modal-dinscripció-i-notificació-de-pagament--contrast-de-codi), JS de `alumnes-mostrar-alumne.js` i mètodes PHP de `Intranet.php`. Les imatges facilitades mostren dades en consulta, no desaments o lliuraments executats. **No confondre** una edició directa de `INSC CURS` amb una baixa/alta coordinada en Moodle, ni `INSC_MAILING` amb evidència d'acceptació de comunicacions comercials, ni `PAGAMENT` llegat amb ingrés bancari real.
+
+### AL-INSC-EDIT — ACTUAL
+
+```plantuml
+@startuml
+title AL-INSC-EDIT ACTUAL | Desar dades d'inscripció al registre llegat
+start
+:Obrir modal informació d'una inscripció;
+:Prémer editar dades inscripció;
+:Modificar contacte, estat matrícula, mailing,
+certificat, baixa o observacions;
+if (Clic desar i validació JS correcta?) then (Sí)
+  :GET guardarDadesPersonals_ConsultaInformacio
+  amb tots els camps i idinsc;
+  :Convertir dates i fer UPDATE inscripcions WHERE ID;
+  if (Resposta textual sense «Error/error»?) then (Sí)
+    :Mostrar avís de guardat;
+  else (No)
+    :Mostrar error;
+  endif
+  :Convertir inputs a text segons valor actual
+  després de l'animació del callback;
+else (No)
+  :Mostrar validació o mantenir edició;
+endif
+note right
+  L'UPDATE directe de INSC CURS,
+  INSC_MAILING i CERTIFICAT
+  no prova efectes complets en
+  Moodle, consentiment o SIF.
+end note
+stop
+@enduml
+```
+
+### AL-INSC-EDIT — FINAL
+
+```plantuml
+@startuml
+title AL-INSC-EDIT FINAL | Edició per domini i estat reconciliat
+start
+:Autoritzar actor, inscripció i camps permesos;
+:Consultar valors originals i versió;
+:Previsualitzar canvis separats per domini;
+if (Només contacte/administratiu?) then (Sí)
+  :Validar i desar camps, traça i versió;
+elseif (Canvia estat de matrícula o baixa?) then (Sí)
+  :Derivar a UC de baixa/canvi/accés amb Moodle;
+elseif (Canvia certificat o generat?) then (Sí)
+  :Verificar dret acadèmic i historial UC-124;
+elseif (Canvia comunicació comercial?) then (Sí)
+  :Aplicar UC-125 amb evidència i revocació pròpies;
+elseif (Canvia receptor o dada fiscal històrica?) then (Sí)
+  :Conservar document immutable i derivar a UC fiscal;
+endif
+:Retornar resultats i pendents per sistema;
+:Rellegir dades efectivament persistides;
+stop
+@enduml
+```
+
+### AL-PAG-SAVE/SEND — ACTUAL
+
+```plantuml
+@startuml
+title AL-PAG-SAVE/SEND ACTUAL | Desar resum vs desar i enviar
+start
+:Editar Dades pagament al modal de la inscripció;
+:Introduir imports, dates, IDPAG, observacions i reclamació;
+if (Clic Desar?) then (Sí)
+  :GET guardarDadesPagament_ConsultaInformacio;
+  :UPDATE resum llegat inscripcions;
+elseif (Clic Desar i enviar?) then (Sí)
+  :GET guardarEnviarDadesPagament_ConsultaInformacio;
+  :UPDATE resum llegat inscripcions;
+  :Consultar dades curs/inscripció;
+  :Calcular pendent amb arguments de la petició;
+  :Preparar correu alumne i còpia interna;
+endif
+if (Resposta textual sense error?) then (Sí)
+  :Mostrar text de guardat;
+else (No)
+  :Mostrar error;
+endif
+:Callback repinta els valors editats en mode lectura;
+note right
+  No se separen resultat SQL
+  i resultat del correu per destinatari.
+  Pagament editat no prova CHARGE.
+end note
+stop
+@enduml
+```
+
+### AL-PAG-SAVE/SEND — FINAL
+
+```plantuml
+@startuml
+title AL-PAG-SAVE/SEND FINAL | Persistència i notificació independents
+start
+:Autoritzar actor i inscripció;
+:Consultar cobrament real, pagador, factura i versió;
+:Validar correcció econòmica vs nova transacció real;
+if (Correcció admissible?) then (Sí)
+  :Desar canvi justificat i versió;
+  if (Operador demana enviar avís?) then (Sí)
+    :Encolar comunicació idempotent després del commit;
+    :Separar resultat de còpia interna i de destinatari;
+    if (Algun avís pendent o fallit?) then (Sí)
+      :Mostrar desament complet i enviament pendent;
+      :Reintentar només destinatari pendent;
+    else (No)
+      :Mostrar estats d'enviament verificats;
+    endif
+  else (No)
+    :No crear cap avís de fraccionament;
+  endif
+  :Rellegir estat econòmic reconciliat;
+else (No)
+  :Denegar canvis sense mutar saldo ni documents;
+endif
+stop
+@enduml
+```
+
+### AL-PAG-UI — ACTUAL / FINAL
+
+```plantuml
+@startuml
+title AL-PAG-UI ACTUAL | Error textual però valors repintats
+start
+:AJAX de desament retorna HTTP correcte;
+if (Text conté Error/error?) then (Sí)
+  :Mostrar avís d'error;
+else (No)
+  :Mostrar avís d'èxit;
+endif
+:Esperar animació;
+:Convertir inputs editats a camps no editables;
+:Retirar Desar i Cancel·lar;
+stop
+@enduml
+```
+
+```plantuml
+@startuml
+title AL-PAG-UI FINAL | Error no confirma dades no desades
+start
+:Rebre resposta estructurada per canvi i avís;
+if (Commit de dades verificat?) then (Sí)
+  :Rellegir i mostrar resum persistent;
+  :Mostrar avís completat o pendent separadament;
+else (No)
+  :Mantenir edició i descartar falsa confirmació;
+  :Mostrar error i valors originals disponibles;
+endif
+stop
+@enduml
+```
+
+**Proves pendents T-AL-18–22:** inscripció i pagament editats amb cancel·lació; error SQL; canvis de matrícula i mailing; «Desar» sense avisar; «Desar i enviar» amb enviament parcial i reintent idempotent, separant sempre resultat del desament i de la comunicació. **Estat:** contrast de codi versionat sense proves ni desplegament verificats.
+
+## 10. Inventari complet d'interaccions i diagrames finals addicionals
+
+[Registre de tancament documental de «Alumnes / Consulta - Modifica»](01-tancament-documental-pantalla-alumnes-consulta-modifica-2026-09-23.md) amb AL-01–25, **24 controls/accions atribuïts a la pantalla i un endpoint addicional que no s'hi atribueix sense evidència**, rutes AJAX, casos d'ús responsables, 7 diagrames més per les variants abans fusionades i proves de sortida. Els subdiagrames nous distingeixen (a) edició de contacte versus estat/mailing/certificat, (b) «desar» versus «desar i enviar» dades de pagament, (c) modal individual/regal/grup/pack i relació de pagador, i (d) navegar versus visualitzar/baixar factura. **Registre i diagrames documentats ≠ codi corregit ni tests executats**. Resta obtenir evidència amb dades sintètiques dels formularis i permisos de servidor, i resoldre separadament la incidència de privacitat dels certificats.
+
+## 10. Matriu unificada del punt de pantalla
+
+[AL-01–24: matriu de controls de la pantalla, accions, subcasos, set diagrames d'activitat complementaris i portes concretes de tancament](01-tancament-documental-pantalla-alumnes-consulta-modifica-2026-09-23.md), juntament amb [els 26 diagrames actual/final de l'auditoria de pantalla](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md). **Estat:** inventari documental contrastat contra el JS/PHP del tall `main` indicat als documents, sense prova d'execució o d'asset desplegat. **Proves de Moodle i correus expressament excloses d'aquest punt**, sense atribuir-los resultats ni certificar el comportament; resten proves no excloses i correccions executives. La ruta addicional AL-25 no ha estat acreditada com a botó d'aquesta pàgina i no es representa com a acció visible.
