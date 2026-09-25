@@ -1,6 +1,6 @@
 # UC-118 · Gestionar el grup abans d'emetre o cobrar
 
-**Objectiu canònic:** preparar/validar responsable, participants, cursos, tram de descompte, pagador, receptor i línies, i **bloquejar el snapshot abans del TPV**. La fitxa original deixa pendents el moment de tancament del grup, recalcular trams i determinar factura/receptor per composició.
+**Objectiu canònic:** preparar/validar responsable, participants, cursos, tram de descompte, pagador, receptor i línies, i **bloquejar el snapshot abans del TPV**. **Ampliació específica 25/09/2026:** el PHP/JS web de grup actual (un curs i edició per grup) s'ha contrastat i documentat a les seccions 6–9. Els apartats 1–5 són contracte original i disseny SIF, no una declaració que `GroupCheckoutCoordinator` existeixi. La fitxa original deixa pendents el moment de tancament del grup, recalcular trams i determinar factura/receptor per composició.
 
 **Evidència de PHP existent:** `LegacyGroupSnapshotRepository::loadByIdpag()` busca inscripcions llegades `TIPUS_INSC='G'` amb un `IDPAG` compartit i el responsable a `respGrups`; `LegacyGroupInvoicePayloadBuilder::build()` exigeix responsable i almenys un participant, produeix **una línia `INSCRIPCIO` per membre** més les relacions de grup i cada inscrit, amb un receptor construït a partir de `responsible`. `RedsysGroupInvoiceService` pot facturar des del snapshot d'intenció validada o recuperar l'estat llegat després de la notificació. **Cap d'aquests components és un editor/orquestrador de grup previ** amb càlcul general de tram, control de places o decisió fiscal de receptor; `IDPAG` compartit **no acredita un sol titular econòmic legítim**.
 
@@ -163,3 +163,153 @@ Note over C,L: Grup previ, trams i ledger són disseny, la construcció fiscal d
 ## 5. Traçabilitat
 
 [UC-118 original](../06-fitxes-funcionals/uc-118.md) · [UC-16 facturació de grup](uc-016-facturar-grup.md) · [UC-16a alta després d'emetre](uc-016a-afegir-participant-grup-emes.md) · [UC-16b baixa després d'emetre](uc-016b-treure-participant-grup-emes.md) · [UC-112 snapshot](uc-112-congelar-snapshot-abans-tpv.md) · [LegacyGroupSnapshotRepository](../../sif/src/Repository/LegacyGroupSnapshotRepository.php) · [LegacyGroupInvoicePayloadBuilder](../../sif/src/Service/LegacyGroupInvoicePayloadBuilder.php) · [RedsysGroupInvoiceService](../../sif/src/Service/RedsysGroupInvoiceService.php) · [Registre de fons individual](00-revisio-moviments-inscripcions.md).
+
+## 6. Contrast de la pàgina web ACTUAL del grup (UC-118)
+
+[Fitxa funcional UC-118 v2.0](../06-fitxes-funcionals/uc-118.md) · [auditoria lot 07](00-auditoria-casos-pendents-lot-07-uc-118-2026-09-25.md) · [14 diagrames P01–P07 ACTUAL/FINAL](uc-118-activitats-pagines-grup-actual-final.md).
+
+| Pas | Acció i fonts PHP/JS observades | Límit funcional |
+| --- | --- | --- |
+| P01 informació/trams | [`DescompteGrup.php` L187–405](../../codi-drive/web-actual/DescompteGrup.php#L187-L405) consulta `descomptes_grup` i mostra import per tram/hores; text 3+ i aula exclusiva 15+. | Mostrar disponibilitat comercial no acredita reserva física/capacitat d'aula. |
+| P02 selecció | [PHP L457–695](../../codi-drive/web-actual/DescompteGrup.php#L457-L695) i [JS L249–342](../../codi-drive/web-actual/js1619773569/mostrarDescompteGrup.min.js#L249-L342): un curs, botons Grup/Centre escolar, continuar/tornar. | El suport multiproducte del SIF és disseny, no el recorregut públic observat. |
+| P03 contacte | [PHP L695–890](../../codi-drive/web-actual/DescompteGrup.php#L695-L890), [JS L504–610](../../codi-drive/web-actual/js1619773569/mostrarDescompteGrup.min.js#L504-L610): centre/CIF en modalitat escolar i persona de contacte. | Representant/centre/contacte/pagador/receptor no es poden suposar coincidents. |
+| P04 edició/participants | [PHP L900–904, L1007–1115](../../codi-drive/web-actual/DescompteGrup.php#L1007-L1115), [JS L781–948](../../codi-drive/web-actual/js1619773569/mostrarDescompteGrup.min.js#L781-L948): «Afegeix alumne» transmet dades per GET i el PHP fa append a `dadesGrup[]` de sessió; JS exigeix 3+ i edició abans de resum. | No és alta `inscripcions`, reserva de plaça, lock ni comprovació de duplicats al cos d'append. |
+| P05 resum | [PHP L1201–1404](../../codi-drive/web-actual/DescompteGrup.php#L1201-L1404) recompta membres i consulta vector de preus de l'objecte de sessió. | El recompte de sessió no revalida en el tram inspeccionat la vigència del `ID_PREU` just abans del commit. |
+| P06 enviar/alta | [JS L1191–1232](../../codi-drive/web-actual/js1619773569/mostrarDescompteGrup.min.js#L1191-L1232) → [PHP L1405–1430, 1569–1611, 1874–1955, 2090–2098](../../codi-drive/web-actual/DescompteGrup.php#L1874-L2098): calcular tram, darrer `IDPAG+1`, INSERT `respGrups` i N `inscripcions`, confirmació token. | No s'ha identificat transacció/identificador concurrent segur ni reintent idempotent; alta NO és cobrament bancari ni factura emesa. |
+| P07 frontera | [`LegacyGroupSnapshotRepository.php`](../../sif/src/Repository/LegacyGroupSnapshotRepository.php) i [`LegacyGroupInvoicePayloadBuilder.php`](../../sif/src/Service/LegacyGroupInvoicePayloadBuilder.php): membres G per IDPAG i receptor des de `respGrups`. | El builder existent no determina per si sol receptor fiscal legítim de centre/escola ni recalcula tram. |
+
+## 7. UML de casos d'ús — ACTUAL delimitat a la web de grup
+
+```plantuml
+@startuml
+left to right direction
+actor "Persona de contacte de grup" as R
+rectangle "Web de descompte de grup | ACTUAL" {
+ usecase "Consultar trams, hores i cursos" as P1
+ usecase "Escollir Grup o Centre escolar" as P2
+ usecase "Introduir contacte i, si escau, centre/CIF" as P3
+ usecase "Afegir alumne a la sessio" as Add
+ usecase "Escollir edicio i veure resum" as Sum
+ usecase "Crear responsable i N inscripcions" as Save
+ usecase "Preparar enllac de pagament" as Link
+}
+R --> P1
+R --> P2
+R --> P3
+R --> Add
+R --> Sum
+R --> Save
+Save ..> Link : <<include>>
+@enduml
+```
+
+Aquest diagrama ACTUAL representa controls identificats en `mostrarDescompteGrup.min.js` i `DescompteGrup.php`. **No conté** fictíciament edició multi-curs en la mateixa alta, autorització fiscal completa, pressupost immutable, reserves de places o recepció efectiva d'un pagament.
+
+## 8. Classes i seqüència ACTUALS separades del disseny original
+
+### 8.1. Mapa de classes/taules ACTUALS observades
+
+```mermaid
+classDiagram
+direction LR
+class DescompteGrupPHP {
+ <<PHP existent: objecte serialitzat en sessio>>
+ +mostraFormulariInscripcionsGrup(codi,tipus)
+ +mostraFormulariDadesContacte(...)
+ +afegirDadesAlumne(...)
+ +mostraFormulariDadesCursIGrup(...)
+ +mostraResumDades(...)
+ +enviarDades(comentaris,mailing,tipus)
+}
+class MostrarDescompteGrupJS {
+ <<JS existent>>
+ +mostrarPagina()
+ +enviarDades()
+}
+class RespGrupsSQL {
+ <<BD llegada>>
+ +IDPAG
+ +NOM
+ +DNI
+}
+class InscripcionsSQL {
+ <<BD llegada>>
+ +ID
+ +IDPAG
+ +TIPUS_INSC
+ +A_PAGAR
+}
+class DescomptesGrupSQL {
+ <<BD llegada>>
+ +ID_PREU
+ +NUM_ALUMN_MIN
+ +NUM_ALUMN_MAX
+ +preu
+}
+class LegacyGroupSnapshotRepository {
+ <<PHP SIF existent>>
+ +loadByIdpag(db,idpag,amount) snapshot
+}
+class LegacyGroupInvoicePayloadBuilder {
+ <<PHP SIF existent>>
+ +build(snapshot) invoicePayload
+}
+MostrarDescompteGrupJS --> DescompteGrupPHP : GET de passos
+DescompteGrupPHP --> DescomptesGrupSQL : SELECT tarifa i tram
+DescompteGrupPHP --> RespGrupsSQL : INSERT en enviar
+DescompteGrupPHP --> InscripcionsSQL : N INSERT en enviar
+LegacyGroupSnapshotRepository --> InscripcionsSQL : SELECT per IDPAG
+LegacyGroupSnapshotRepository --> RespGrupsSQL : SELECT contacte
+LegacyGroupSnapshotRepository --> LegacyGroupInvoicePayloadBuilder : snapshot de lectura
+```
+
+**Distingir:** les classes `GroupCheckoutCoordinator` i `GroupDiscountPolicy` de l'apartat 3 són **DISSENY**, no invocades per `DescompteGrup.php` en aquest circuit.
+
+### 8.2. Seqüència ACTUAL — del modal de grup a l'enllaç de pagament
+
+```mermaid
+sequenceDiagram
+actor R as Persona de contacte
+participant UI as Pagina i JS de grup
+participant A as AJAX PHP (passos)
+participant G as DescompteGrup (sessio)
+participant T as descomptes_grup
+participant C as respGrups
+participant I as inscripcions
+R->>UI: Triar curs i Grup/Centre escolar
+UI->>A: GET formulari grup/contacte
+A->>G: Mostrar formularis i consultar trams
+G->>T: SELECT preu per ID_PREU i interval
+R->>UI: Introduir dades de contacte
+R->>UI: Afegir participant
+UI->>A: GET afegirAlumne_desompteGrup
+A->>G: afegirDadesAlumne (append en sessio)
+R->>UI: Triar edicio i confirmar resum
+UI->>A: GET mostrar_resum_dades
+A->>G: comptar membres, calcular total del vector de preus
+R->>UI: Envia dades
+UI->>A: GET enviaDades_DescompteGrup
+A->>G: enviarDades
+G->>I: SELECT darrer IDPAG i sumar 1
+G->>C: INSERT contacte amb IDPAG
+loop Cada participant de sessio
+ G->>I: INSERT inscrit TIPUS_INSC G, IDPAG i A_PAGAR
+end
+G-->>A: token de confirmacio de grup
+A-->>UI: resultat
+UI-->>R: Redirigir a pagina de confirmacio
+Note over G,I: No hi ha transaccio o lock general acreditats en el cos revisat
+Note over UI,I: No representa callback Redsys ni factura emesa
+```
+
+## 9. Traçabilitat de decisions i estats independents
+
+| Regla/incident | ACTUAL documentat | FINAL pendent d'implementar/provar |
+| --- | --- | --- |
+| Tram per nombre | `descomptes_grup` i `count(dadesGrup)`, preu per participant; mínim 3 validat al JS. | Validació de mínim, tram vigent, places i preu per línia al servidor en confirmar. |
+| Centre/contacte/receptor | Centre/CIF en formulari; `respGrups` i builder usen contacte com a receptor. | Pagador/receptor fiscal/representant separats abans de bloquejar oferta. |
+| Identificador/transacció | SELECT últim IDPAG+1 i N inserts. | UUID/identificador atòmic, idempotència, commits coherents. |
+| Grup pre-TPV | P05 mostra resum i P06 fa altes abans de cobrar. | Congelar composició, tarifa, receptor, pagador i places; snapshot UC-112/63. |
+| Postfactura | Fora de les accions actuals d'aquesta pàgina. | UC-016a/016b; no editar factura emesa. |
+
+**DOC revisada dins la pantalla/superfícies identificades; IMP del coordinador: PENDENT; TEST: NO EXECUTAT; producció NO VERIFICADA.** El conjunt original de grups amb diferents cursos/edicions resta una possibilitat de disseny, no una capacitat del recorregut públic inspeccionat.
