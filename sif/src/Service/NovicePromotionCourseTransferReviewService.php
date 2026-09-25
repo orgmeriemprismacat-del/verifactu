@@ -107,7 +107,7 @@ final class NovicePromotionCourseTransferReviewService
 
             $oldOperation = $this->one(
                 $db,
-                'SELECT UUID_OPERATION, SOURCE_TYPE, SOURCE_ID, UUID_FACTURA, CURRENCY
+                'SELECT UUID_OPERATION, SOURCE_TYPE, SOURCE_ID, UUID_FACTURA, CURRENCY, CREATED_AT
                  FROM commercial_operation WHERE UUID_OPERATION = ? FOR UPDATE',
                 [(string) $source['UUID_DESTINATION_OPERATION']]
             );
@@ -125,6 +125,10 @@ final class NovicePromotionCourseTransferReviewService
                 || $uuidNewOperation === (string) $right['ORIGIN_UUID_OPERATION']
                 || $oldOperation['SOURCE_TYPE'] !== 'CURS'
                 || $oldOperation['CURRENCY'] !== 'EUR'
+                || trim((string) ($oldOperation['SOURCE_ID'] ?? '')) === ''
+                || trim((string) ($newOperation['SOURCE_ID'] ?? '')) === ''
+                || (string) $oldOperation['SOURCE_ID'] === (string) $newOperation['SOURCE_ID']
+                || (string) $newOperation['CREATED_AT'] < (string) $oldOperation['CREATED_AT']
                 || (string) $oldOperation['UUID_FACTURA'] !== (string) $source['UUID_DESTINATION_FACTURA']
                 || $newOperation['SOURCE_TYPE'] !== 'CURS'
                 || $newOperation['PRODUCT_TYPE'] !== 'CURS'
@@ -134,6 +138,30 @@ final class NovicePromotionCourseTransferReviewService
                 || trim((string) ($newOperation['UUID_INTENT'] ?? '')) !== ''
             ) {
                 throw SifException::conflict('Replacement must be a distinct unbilled course of the same commercial currency.');
+            }
+
+            // Never stage a second promotional path on a replacement
+            // operation: this record is attribution of an EXISTING use.
+            if ($this->one(
+                $db,
+                'SELECT UUID_APPLICATION FROM novice_promotion_application
+                 WHERE UUID_DESTINATION_OPERATION = ? FOR UPDATE',
+                [$uuidNewOperation]
+            ) !== null
+                || $this->one(
+                    $db,
+                    'SELECT UUID_DERIVED_APPLICATION FROM novice_promotion_derived_application
+                     WHERE UUID_DESTINATION_OPERATION = ? FOR UPDATE',
+                    [$uuidNewOperation]
+                ) !== null
+                || $this->one(
+                    $db,
+                    'SELECT UUID_TRANSFER FROM novice_promotion_application_transfer
+                     WHERE TO_UUID_OPERATION = ? AND STATUS <> ? FOR UPDATE',
+                    [$uuidNewOperation, 'CANCELLED']
+                ) !== null
+            ) {
+                throw SifException::conflict('Replacement already has promotional use or a transfer review.');
             }
 
             foreach ([(string) $oldOperation['UUID_OPERATION'], $uuidNewOperation] as $operationUuid) {
