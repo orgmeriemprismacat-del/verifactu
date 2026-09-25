@@ -133,6 +133,7 @@ final class NovicePromotionRedemptionService
                 || $destination['CURRENCY'] !== 'EUR'
                 || $destination['STATUS'] !== 'READY_FOR_PAYMENT'
                 || trim((string) ($destination['UUID_FACTURA'] ?? '')) !== ''
+                || trim((string) ($destination['UUID_INTENT'] ?? '')) !== ''
                 || (string) $destination['UUID_OPERATION'] === (string) $right['ORIGIN_UUID_OPERATION']
                 || (string) $destination['CREATED_AT'] < (string) $right['ISSUED_AT']
             ) {
@@ -505,9 +506,24 @@ final class NovicePromotionRedemptionService
             );
             if ($destination === null
                 || trim((string) ($destination['UUID_FACTURA'] ?? '')) !== ''
+                || trim((string) ($destination['UUID_INTENT'] ?? '')) !== ''
                 || !in_array((string) $destination['STATUS'], ['READY_FOR_PAYMENT', 'PAYMENT_PENDING', 'CANCELLED'], true)
             ) {
-                throw SifException::conflict('Destination invoice/payment must be reconciled before release.');
+                // A pending or ambiguous Redsys intent CANNOT be released just
+                // because an HTTP request claims payment failure/expiry.
+                throw SifException::conflict('Destination payment intent/invoice requires reconciliation before release.');
+            }
+
+            $sourceId = trim((string) ($destination['SOURCE_ID'] ?? ''));
+            if ($sourceId === '' || !ctype_digit($sourceId) || (int) $sourceId < 1
+                || $this->one(
+                    $db,
+                    "SELECT ID FROM fact_rels WHERE SOURCE_TYPE = 'INSCRIPCIO'
+                     AND SOURCE_ID = ? LIMIT 1",
+                    [(int) $sourceId]
+                ) !== null
+            ) {
+                throw SifException::conflict('Destination has an origin invoice or an invalid enrollment reference.');
             }
 
             $entitlementUuid = (string) $application['UUID_ENTITLEMENT'];
