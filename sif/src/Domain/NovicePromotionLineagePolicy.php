@@ -13,7 +13,8 @@ namespace Prisma\Sif\Domain;
  * belong to a separate fiscal/credit refund workflow.
  *
  * Right: ['id', 'parent_application_id'=>null|string, 'issued'=>'90.00',
- *         'available'=>'0.00', 'status'=>'ACTIVE'|'CANCELLED'|'EXPIRED']
+ *         'available'=>'0.00', 'forfeited'=>'0.00' (separately evidenced),
+ *         'status'=>'ACTIVE'|'CANCELLED'|'EXPIRED']
  * Application: ['id','right_id','amount'=>'90.00','status'=>
  *   'ACTIVE'|'REPLACED_BY_TRANSFER'|'REPLACED_BY_DERIVED'|'RELEASED'|'CANCELLED'|'RESERVED',
  *   'successor_application_id'=>null|string,'derived_right_id'=>null|string]
@@ -41,7 +42,11 @@ final class NovicePromotionLineagePolicy
             }
             $issued = $this->cents((string) ($right['issued'] ?? ''));
             $available = $this->cents((string) ($right['available'] ?? ''));
-            if ($issued <= 0 || $available > $issued) {
+            // Any value extinguished by an approved cancellation policy must
+            // be supported by separate auditable evidence, not disappear from
+            // the ledger as an unexplained gap.
+            $forfeited = $this->cents((string) ($right['forfeited'] ?? '0.00'));
+            if ($issued <= 0 || $available + $forfeited > $issued) {
                 throw new \InvalidArgumentException('Invalid promotional right amount.');
             }
             if ($status !== 'ACTIVE' && $available > 0) {
@@ -52,12 +57,14 @@ final class NovicePromotionLineagePolicy
                 'parent_application_id' => $right['parent_application_id'] ?? null,
                 'issued' => $issued,
                 'available' => $available,
+                'forfeited' => $forfeited,
                 'status' => $status,
             ];
         }
 
         if (!isset($rightById[$rootRightId])
             || $rightById[$rootRightId]['parent_application_id'] !== null
+            || $rightById[$rootRightId]['status'] !== 'ACTIVE'
         ) {
             throw new \InvalidArgumentException('Missing or non-rooted JASOM promotion.');
         }
@@ -90,10 +97,12 @@ final class NovicePromotionLineagePolicy
             ];
         }
 
-        // Validate every right's local budget, even when some of its value
-        // was forfeited by the destination cancellation policy (<=, not =).
+        // Require FULL conservation within every right: unused value,
+        // live or converted applications, and separately evidenced forfeiture.
+        // A missing 70-euro destination cannot silently vanish from a 90-euro
+        // original as if the refund plan were complete.
         foreach ($rightById as $right) {
-            $allocated = $right['available'];
+            $allocated = $right['available'] + $right['forfeited'];
             foreach ($allocationById as $application) {
                 if ($application['right_id'] === $right['id']
                     && !in_array(
@@ -105,8 +114,8 @@ final class NovicePromotionLineagePolicy
                     $allocated += $application['amount'];
                 }
             }
-            if ($allocated > $right['issued']) {
-                throw new \InvalidArgumentException('Promotional ledger exceeds a right original value.');
+            if ($allocated !== $right['issued']) {
+                throw new \InvalidArgumentException('Promotional right has an unexplained gap or double-counted value.');
             }
         }
 
