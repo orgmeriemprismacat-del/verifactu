@@ -1,5 +1,7 @@
 # UC-122 · Gestionar la composició d’un pack i la indisponibilitat d’un component
 
+**Contrast dirigit 25/09/2026:** els apartats 1–6 preserven els límits de la revisió inicial i el disseny proposat; els apartats 7–10 inclouen el circuit PHP/JS ACTUAL de catàleg, alta i builder fiscal i el diferencien del gestor FINAL de canvis per component. DDL i diagrames NO acrediten execució de reserva/gestió de substitucions.
+
 **Cas del catàleg:** cada component del pack ha de tenir línia identificada, plaça, preu, descompte i tractament fiscal; substitució, baixa parcial i cancel·lació exigeixen una decisió econòmica i fiscal. **Bloquejant explícit:** negoci i assessoria fiscal han de definir quins components són obligatoris/substituïbles i el càlcul de baixa parcial.
 
 ## 1. Codi real i límit funcional
@@ -160,3 +162,125 @@ Note over C,Legacy: L’orquestració de substitució NO està implementada pel 
 ## 6. Traçabilitat
 
 [UC-122 original](../06-fitxes-funcionals/uc-122.md) · [UC-71 canvi](uc-071-registrar-canvi-curs-complet.md) · [UC-72 baixa](uc-072-registrar-baixa-decisio-economica.md) · [UC-105 traspassos](uc-105-reassignar-repartir-pagament.md) · [UC-115 places](uc-115-reservar-alliberar-places.md) · [LegacyPackSnapshotRepository](../../sif/src/Repository/LegacyPackSnapshotRepository.php) · [LegacyPackInvoicePayloadBuilder](../../sif/src/Service/LegacyPackInvoicePayloadBuilder.php) · [RedsysPackInvoiceService](../../sif/src/Service/RedsysPackInvoiceService.php) · [Línies comercials i vincle fiscal](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [Traça de fons](00-revisio-moviments-inscripcions.md).
+
+
+## 7. Traçabilitat per pàgina, apartat i classes reals
+
+[Fitxa funcional v2.0](../06-fitxes-funcionals/uc-122.md) · [15 activitats ACTUAL/FINAL per P01–P08](uc-122-activitats-pagines-pack-actual-final.md) · [auditoria lot 11](00-auditoria-casos-pendents-lot-11-uc-122-2026-09-25.md).
+
+| ID | Superfície ACTUAL | Control/codi observat i límit |
+| --- | --- | --- |
+| P01–P02 | Llistat/filtres i fitxa individual | `pagina_packs.php`/`mostrar_packs.php`; `pagina_pack.php`/`mostrar_pack.php` → `InfoPack`, mostra edicions/preu i botó d'inscripció disponible/no disponible; la visibilitat del pack no prova reserva de places per línia. |
+| P03–P04 | Inscripció pack, dades i preu | `InscripcioPack::mostrar()` consulta edicions i mostra dades personals/curriculars/preu; `obtenirPreusPack.php` suma `preu.IMPORT` per cursos i l'import del pack i retorna dos totals, no ordinal/preu per component. |
+| P05 | Confirmar i crear N inscripcions | JS GET `idPack,preuPack,preuCursos` + dades personals → `enviarInscripcioPack.php`. Consulta components, darrer `IDPAG+1`, reparteix `$aux=$preuPack` contra preu ordinari de cada curs i insereix N registres `TIPUS_INSC=P, OBSERVACIONS=PACK|idPack`. El preu global rebut del client no es revalida contra tarifa de pack a l'INSERT inspeccionat. |
+| P06 | Confirmació/enllaç | Token de confirmació i URL `/pagaments/` a partir d'`IDPAG`; preparar URL no prova `CHARGE`. |
+| P07 | Builder fiscal inicial | `LegacyPackSnapshotRepository::loadByIdpag` ordena `A_PAGAR DESC,ID` i identifica pack per marcador; `LegacyPackInvoicePayloadBuilder::build` genera 2+ línies, receptor de la primera, i amb base implícita primer índex sense descompte i següents `total/0,75`. |
+| P08 | Substitució/baixa per component | **Només FINAL:** no s'ha identificat pàgina/servei d'orquestració de nova reserva, versió, baixa/rectificació i moviments individuals en el recorregut auditat. |
+
+## 8. UML de casos d'ús — recorregut ACTUAL concret
+
+```plantuml
+@startuml
+left to right direction
+actor "Persona compradora" as B
+actor "Canal fiscal SIF" as F
+rectangle "UC-122 ACTUAL delimitat | pack inicial" {
+ usecase "Consultar llistat i fitxa de pack" as Browse
+ usecase "Obrir inscripcio i veure components" as Form
+ usecase "Consultar preus totals del pack" as Price
+ usecase "Enviar alta de tots els cursos" as Submit
+ usecase "Crear N inscripcions amb IDPAG comu" as Insert
+ usecase "Construir factura inicial de N cursos" as Invoice
+}
+B --> Browse
+B --> Form
+Form ..> Price : <<include>>
+B --> Submit
+Submit ..> Insert : <<include>>
+F --> Invoice
+note right of Invoice
+ Builder existent: no gestiona
+ substitucio individual ni
+ decisio fiscal postfactura.
+end note
+@enduml
+```
+
+**El cas FINAL de l'apartat 3** descriu una orquestració de canvis de components que no s'ha acreditat com a UI/servei executable actual.
+
+## 9. Classes ACTUALS i seqüència amb ordinal comercial no reconstruïble
+
+```mermaid
+classDiagram
+direction LR
+class InfoPack {
+ <<PHP existent>>
+ +mostrarInfo()
+}
+class InscripcioPack {
+ <<PHP existent>>
+ +mostrar()
+}
+class EnviarInscripcioPackPHP {
+ <<PHP GET existent>>
+ +createPackInscriptions()
+}
+class Inscripcions {
+ <<Taula llegada>>
+ +ID
+ +IDPAG
+ +A_PAGAR
+ +TIPUS_INSC
+ +OBSERVACIONS
+}
+class LegacyPackSnapshotRepository {
+ <<PHP SIF existent>>
+ +loadByIdpag(db,idpag,payment) snapshot
+}
+class LegacyPackInvoicePayloadBuilder {
+ <<PHP SIF existent>>
+ +build(snapshot) payload
+}
+class CommercialOperationLine {
+ <<DDL FINAL definit; writer de substitucio no acreditat>>
+ +UUID_LINE
+ +PARENT_UUID_LINE
+ +ORDRE
+ +NET_AMOUNT
+}
+InfoPack --> InscripcioPack : oferta visible
+EnviarInscripcioPackPHP --> Inscripcions : N INSERT TIPUS_INSC P
+LegacyPackSnapshotRepository --> Inscripcions : SELECT ORDER BY A_PAGAR DESC,ID
+LegacyPackSnapshotRepository --> LegacyPackInvoicePayloadBuilder : snapshot
+```
+
+```mermaid
+sequenceDiagram
+actor B as Comprador
+participant UI as Formulari pack + JS
+participant Prices as obtenirPreusPack.php
+participant Enroll as enviarInscripcioPack.php
+participant DB as inscripcions
+participant Repo as LegacyPackSnapshotRepository SIF
+participant Builder as LegacyPackInvoicePayloadBuilder SIF
+B->>UI: Seleccionar pack i completar dades
+UI->>Prices: GET idPack i idPreu
+Prices-->>UI: preuCursosOriginal i preuPack
+UI->>Enroll: GET idPack, preuPack, preuCursos i dades personals
+Enroll->>Enroll: Consultar packs/edicions, darrer IDPAG + 1
+loop Cada curs del pack en ordre del SELECT inicial
+ Enroll->>Enroll: Consultar preu ordinari i assignar A_PAGAR segons aux
+ Enroll->>DB: INSERT inscripcio TIPUS_INSC=P, IDPAG, PACK|ID_PACK
+end
+Enroll-->>UI: token confirmacio/enllac pagament
+Note over UI,DB: L'alta i l'oferta no proven que hi hagi cobrament real.
+Repo->>DB: SELECT per IDPAG, ORDER BY A_PAGAR DESC,ID
+DB-->>Repo: N inscripcions ordenades pel valor existent
+Repo->>Builder: Snapshot amb items en aquest ordre
+Builder->>Builder: Primer index sense descompte; posteriors inferits a 25% si base absent
+Note over Repo,Builder: Ordre de lectura fiscal no acredita ordre de venda ni regla originaria.
+```
+
+## 10. Distinció de documentació, implementació i proves
+
+**DOC revisada:** pàgines P01–P07 ACTUAL/FINAL; P08 només FINAL, [auditoria de 16 escenaris UC122-T01–T16](00-auditoria-casos-pendents-lot-11-uc-122-2026-09-25.md). **IMP observada:** formularis, alta de components i builder inicial; **IMP no acreditada:** càlcul/traça d'ordinal per línia, reserva efectiva de totes les places, recomposició després de pagament i ajust econòmic/fiscal individual. **TEST:** proves existents del builder de factura inicial localitzades però no executades en aquest lot; proves de component indisponible no executades. **PRODUCCIÓ:** no verificada. Les decisions d'obligatorietat, alternativa i regla de preu especial no es dedueixen de `$aux` ni del 25 % inferit al constructor.
