@@ -154,6 +154,35 @@ final class NovicePromotionLineagePolicyTest
         });
     }
 
+    public function testUnexplainedMissingHistoricalConsumptionFailsClosed(): void
+    {
+        Assert::throws(\InvalidArgumentException::class, function (): void {
+            $this->policy()->planOriginalRefund('jasom', [
+                $this->right('jasom', null, '90.00', '20.00'),
+            ], []);
+        });
+    }
+
+    public function testSeparatelyEvidencedForfeitureDoesNotBecomeAnotherClaim(): void
+    {
+        $right = $this->right('jasom', null, '90.00', '20.00');
+        $right['forfeited'] = '20.00';
+        $result = $this->policy()->planOriginalRefund('jasom', [$right], [
+            $this->application('active-course', 'jasom', '50.00', 'ACTIVE'),
+        ]);
+        Assert::same('20.00', $result['total_cancel_available']);
+        Assert::same('50.00', $result['total_recover_active']);
+    }
+
+    public function testAlreadyCancelledOriginalCannotBePlannedAgain(): void
+    {
+        $right = $this->right('jasom', null, '90.00', '0.00', 'CANCELLED');
+        $right['forfeited'] = '90.00';
+        Assert::throws(\InvalidArgumentException::class, function () use ($right): void {
+            $this->policy()->planOriginalRefund('jasom', [$right], []);
+        });
+    }
+
     private function policy(): NovicePromotionLineagePolicy
     {
         return new NovicePromotionLineagePolicy();
