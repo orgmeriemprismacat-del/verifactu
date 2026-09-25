@@ -46,6 +46,13 @@ final class NovicePromotionApprovedCancellationPolicy
                 throw new \InvalidArgumentException('Authenticated cancellation approval lacks final decision evidence.');
             }
         }
+        if (strlen($approval['decision_id']) > 100
+            || strlen($approval['reviewer_id']) > 100
+            || strlen($approval['evidence_ref']) > 140
+        ) {
+            throw new \InvalidArgumentException('Cancellation approval evidence reference exceeds supported length.');
+        }
+
         $createdAt = (string) ($review['CREATED_AT'] ?? '');
         $approvedAt = $approval['approved_at_utc'];
         if (preg_match('/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/D', $createdAt) !== 1
