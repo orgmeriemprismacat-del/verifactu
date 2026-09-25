@@ -1,5 +1,7 @@
 # UC-121 · Repreuar o renovar una reserva caducada abans del pagament
 
+**Contrast 25/09/2026:** els apartats 1–5 preserven el disseny original, mentre que els apartats 6–9 separen les classes/seqüències PHP ACTUALS del renovador FINAL no acreditat. No considerar el diagrama original d'UC-121 una prova que el servei existeixi.
+
 **Objectiu canònic:** una reserva/operació caducada **no recupera automàticament el preu antic**; es comprova disponibilitat actual, es prepara una proposta amb nova versió, reserva i enllaç, i el pagador l'accepta explícitament **abans de cobrar**. La fitxa original deixa pendents tolerància de caducitat i canvis de preu/plaça que exigeixen acceptació nova.
 
 **Codi revisat:** `RedsysPaymentIntentService::create()` desa `EXPIRES_AT` opcional i compara aquest camp amb el d'una intenció repetida per **el mateix `DS_ORDER`**. `RedsysCallbackService::receiveAuthorizedCallback()` verifica signatura, intenció existent i import/divisa/terminal i crea job per resposta autoritzada; **en el codi inspeccionat no compara `EXPIRES_AT` amb l'instant del callback**, de manera que una resposta d'una ordre vella amb import correcte **no prova** que encara tingui plaça o oferta vigent. `payment_link` i `capacity_reservation` estan definits a SQL, però **no s'ha acreditat** el servei PHP que caduqui/renovi l'enllaç i la plaça conjuntament.
@@ -160,3 +162,149 @@ end
 ## 5. Traçabilitat
 
 [UC-121 original](../06-fitxes-funcionals/uc-121.md) · [UC-106 reserva](uc-106-crear-reserva-abans-pagament.md) · [UC-115 aforament](uc-115-reservar-alliberar-places.md) · [UC-112 snapshot](uc-112-congelar-snapshot-abans-tpv.md) · [UC-63 intenció](uc-063-crear-intencio-redsys.md) · [UC-104 excés](uc-104-gestionar-exces-cobrament.md) · [RedsysPaymentIntentService](../../sif/src/Service/RedsysPaymentIntentService.php) · [RedsysCallbackService](../../sif/src/Service/RedsysCallbackService.php) · [Esquema payment_link](../../sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql) · [Esquema capacity_reservation](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql).
+
+
+## 6. Matriu d'actors, pàgines i serveis ACTUALS verificats
+
+[Fitxa funcional UC-121 v2.0](../06-fitxes-funcionals/uc-121.md) · [11 activitats per superfície P01–P06](uc-121-activitats-pagines-reserva-caducada-actual-final.md) · [auditoria lot 10](00-auditoria-casos-pendents-lot-10-uc-121-2026-09-25.md).
+
+| Peça | ACTUAL del codi | Distinció amb FINAL |
+| --- | --- | --- |
+| P01/P02 pagament curs | [`PagamentCursAutomatic.php` L26–117, 265–317, 328–395, 431–498](../../codi-drive/web-actual/PagamentCursAutomatic.php#L265-L317): consulta `IDPAG`, `A_PAGAR/PAGAMENT`, calcula pendent i mostra targeta/transferència segons cas. | Pàgina de pagar la inscripció, **no** revisió de la vigència de `capacity_reservation` ni nou preu/acceptació en el recorregut inspeccionat. |
+| P03 portal alumne | [`IntranetAlumne::obtenirUrlPagament()` L2947–2978](../../codi-drive/intranet-alumne-actual/IntranetAlumne.php#L2947-L2978): xifra `IDPAG` i construeix URL. | L'URL xifrada no constitueix renovació de `payment_link` ni verifica plaça/preu en el mètode. |
+| P04 intenció | [`RedsysPaymentIntentService::create()` L19–85](../../sif/src/Service/RedsysPaymentIntentService.php#L19-L85): snapshot obligatori, venciment opcional i equivalència/conflicte per la mateixa `DS_ORDER`. | Existeix PHP d'intenció; `ExpiredReservationRenewalService` és **DISSENY**. |
+| P05 callback | [`RedsysCallbackService::receiveAuthorizedCallback()` L21–90](../../sif/src/Service/RedsysCallbackService.php#L21-L90) i [`assertMatchesIntent()` L134–143](../../sif/src/Service/RedsysCallbackService.php#L134-L143): signatura/ordre/import/divisa/terminal i cua. | El callback no consulta `EXPIRES_AT`/plaça, no és autorització automàtica de renovació. |
+| P06 proposta i revocació | [DDL payment_link i capacity_reservation](../../sif/database/migrations/2026_09_16_000004_add_commercial_operation_and_fiscal_fields.sql#L129-L151) i [000005](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql#L54-L73). | **Només FINAL** per manca de pàgina i writer/worker de renovació identificats. |
+
+## 7. UML de casos d'ús ACTUAL delimitat
+
+```plantuml
+@startuml
+left to right direction
+actor "Pagador" as P
+actor "Portal alumne" as A
+actor "Redsys" as B
+rectangle "Pagament actual i SIF parcial | NO workflow UC121" {
+ usecase "Consultar import pendent IDPAG" as Show
+ usecase "Obtenir URL xifrada IDPAG" as Link
+ usecase "Crear/reutilitzar intencio DS_ORDER" as Intent
+ usecase "Validar callback bancari i encuar" as Callback
+}
+P --> Show
+A --> Link
+P --> Intent
+B --> Callback
+note right of Intent
+ Compara EXPIRES_AT si es
+ reintenta mateixa DS_ORDER.
+ No renova plaça ni oferta.
+end note
+note right of Callback
+ No compara EXPIRES_AT,
+ payment_link o aforament.
+end note
+@enduml
+```
+
+**La figura de l'apartat 2 és el cas FINAL,** no un botó que el pagador pugui prémer avui en una pantalla de renovació acreditada.
+
+## 8. Diagrama de classes i seqüència ACTUALS separats del disseny
+
+### 8.1. Mapa de classes/taules observades
+
+```mermaid
+classDiagram
+direction LR
+class PagamentCursAutomatic {
+ <<PHP llegat existent>>
+ +__construct(idPag)
+ +mostrar()
+ +mostrarPaginaConfirmacio()
+}
+class IntranetAlumne {
+ <<PHP portal existent>>
+ +obtenirUrlPagament(tipusInsc,idPag)
+}
+class RedsysPaymentIntentService {
+ <<PHP SIF existent>>
+ +create(db,input) array
+}
+class RedsysCallbackService {
+ <<PHP SIF existent>>
+ +receiveAuthorizedCallback(db,signedData) array
+}
+class Inscripcions {
+ <<BD llegada>>
+ +IDPAG
+ +A_PAGAR
+ +PAGAMENT
+}
+class RedsysPaymentIntent {
+ <<DDL i repositori SIF>>
+ +DS_ORDER
+ +EXPECTED_AMOUNT
+ +EXPIRES_AT
+ +SNAPSHOT_JSON
+}
+class PaymentLink {
+ <<DDL definida; writer renovador no acreditat>>
+ +STATUS
+ +EXPIRES_AT
+ +REPLACED_BY_UUID
+}
+class CapacityReservation {
+ <<DDL definida; servei renovador no acreditat>>
+ +STATUS
+ +EXPIRES_AT
+ +LOCK_VERSION
+}
+PagamentCursAutomatic --> Inscripcions : SELECT per IDPAG
+IntranetAlumne --> Inscripcions : URL sobre IDPAG
+RedsysPaymentIntentService --> RedsysPaymentIntent : find/insert
+RedsysCallbackService --> RedsysPaymentIntent : find amb lock
+```
+
+**`PaymentLink` i `CapacityReservation` no s'uneixen amb fletxes d'invocació executada** perquè no s'ha acreditat un `ExpiredReservationRenewalService` que les coordini. Són DDL de disseny, no relacions de runtime verificades.
+
+### 8.2. Seqüència ACTUAL de les dues peces SIF reals
+
+```mermaid
+sequenceDiagram
+actor P as Canal de compra
+participant I as RedsysPaymentIntentService PHP
+participant DB as redsys_payment_intent
+participant B as Redsys
+participant C as RedsysCallbackService PHP
+participant Q as Cua de callbacks
+P->>I: create(ds_order,snapshot,amount,expires_at?)
+I->>DB: findByDsOrder(ds_order)
+alt DS_ORDER existent i payload equivalent
+ DB-->>I: UUID_INTENT previ
+ I-->>P: idempotency_reused
+else DS_ORDER existent amb venciment/snapshot/import diferent
+ I-->>P: conflicte
+else DS_ORDER nova
+ I->>DB: INSERT intent PENDING
+ I-->>P: UUID_INTENT nou
+end
+B->>C: notificacio signada DS_ORDER, import, moneda, terminal
+C->>DB: findByDsOrder amb lock
+C->>C: Validar import/divisa/terminal i codi de resposta
+opt Resposta VALIDATED
+ C->>Q: encolar job
+end
+C-->>B: resultat del callback
+Note over C,DB: Aquest metode NO compara EXPIRES_AT/places.
+Note over I,Q: Seqüencia d'intencio + callback, no el workflow renovador complet.
+```
+
+## 9. Matriu d'estats DOC/IMP/TEST de UC-121
+
+| Element | DOC | IMP contrastada | TEST |
+| --- | --- | --- | --- |
+| Mostrar pendent i URL llegats P01–P03 | Actual/final documentats | PHP/JS observats; no coordinació de renovació identificada | No executat |
+| Reutilització/conflicte DS_ORDER P04 | Contrasts i seqüència | `RedsysPaymentIntentService` existent | Tests de repositori definits, no executats aquí |
+| Callback antic P05 | Venciment comercial separat de diners reals | `RedsysCallbackService` existent sense test de caducitat d'oferta en `assertMatchesIntent()` | UC121-T08–T10 pendents |
+| Nova oferta/revogació/reserva P06 | Només FINAL | DDL previst; servei/pàgina renovadora no acreditats | UC121-T01–T07, T11–T14 pendents |
+
+**No reauditar aquí** modalitats de packs/grups/regals ni UC-111/113/114; els principis de durada i disponibilitat han de validar-se en cada canal. No declarar desplegat ni testat el renovador pel simple fet que es defineixin `EXPIRES_AT`, `REPLACED_BY_UUID` o un diagrama FINAL.
