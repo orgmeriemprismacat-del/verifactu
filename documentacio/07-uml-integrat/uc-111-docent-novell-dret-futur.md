@@ -700,6 +700,40 @@ stop
 ```
 
 **Exemple DEC-23:** promoció JASOM 90 € → consum inicial 90 € → baixa rectificada del destí i dret derivat 90 € → nou consum 40 € i romanent derivat 50 € → si es retorna JASOM, proposar cancel·lar 50 € i recuperar 40 €; el consum inicial 90 € ja és antecedent del dret derivat, NO un segon import exigible. [Tretze tests unitaris purs](../../sif/tests/Unit/NovicePromotionLineagePolicyTest.php) i [set de política de baixa](../../sif/tests/Unit/NovicePromotionDestinationAdjustmentPolicyTest.php) només escrits. Les classes no construeixen factures rectificatives, no ordenen reintegraments bancaris i no executen plans de recuperació.
+### 4.3 duodecies. Proposta de canvi/baixa amb referència fiscal real — NOVÈ TALL
+
+**ACTUAL A BRANCA, NO CONNECTAT A LES PANTALLES NI APROVAT:** [NovicePromotionDestinationCancellationReviewService](../../sif/src/Service/NovicePromotionDestinationCancellationReviewService.php) i [NovicePromotionCourseTransferReviewService](../../sif/src/Service/NovicePromotionCourseTransferReviewService.php) comproven la factura original i la rectificativa i creen únicament registres `PENDING_FISCAL_REVIEW`. El backend autenticat, el treball fiscal i la confirmació real continuen pendents; els dos serveis NO escriuen cap consum, pagament o saldo gastable.
+```plantuml
+@startuml
+title UC-111 | Revisio fiscal previa de canvi o baixa (codi parcial)
+start
+:Secretaria autenticada acorda canvi o baixa (INTEGRACIO PENDENT);
+:Sistema fiscal emet la rectificativa real (INTEGRACIO PENDENT);
+:SIF comprova factura origen i enllac factura_rectificacio;
+if (Rectificativa emesa i relacionada al curs aplicat?) then (No)
+ :Bloquejar sense saldo derivat ni traspas;
+ stop
+endif
+if (Canvi de curs?) then (Si)
+ :Validar mateix titular i curs nou amb preu ordinari autentic;
+ if (Promocio cap dins del preu net nou?) then (Si)
+  :Registrar traspas PENDING_FISCAL_REVIEW amb actor/evidencia;
+ else (No)
+  :Bloquejar i derivar a ajust economic/fiscal;
+ endif
+else (Baixa)
+ :Separar import promocional proposat i diner real confirmat;
+ :Validar que cap component supera la seva procedencia;
+ :Registrar proposta de dret derivat PENDING_FISCAL_REVIEW;
+ :Romanent derivat=0; sense data de concessio ni caducitat;
+endif
+:FUTUR pas diferent: aprovar economicament i fiscalment;
+:FUTUR pas atòmic: confirmar traspas O tancar consum i activar dret derivat;
+stop
+@enduml
+```
+**NO IMPLEMENTAT:** l'acció d'aprovació real, les rectificatives emeses per aquests serveis, el consum del dret derivat i la cancel·lació executiva del saldo quan es retorni JASOM. No comptar propostes pendents com a drets actius ni acceptar un identificador d'actor proporcionat pel navegador com a autenticació. [Auditoria del tall](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
+
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
