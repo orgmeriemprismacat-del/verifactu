@@ -294,3 +294,233 @@ Note over PS,DB: No s'emet una altra factura en aquesta seqüència
 - [InvoiceBeforePaymentServiceTest.php](../../sif/tests/Integration/InvoiceBeforePaymentServiceTest.php).
 
 **Criteri de revisió:** «classe executable», «flux documental previst» i «integració acreditada» són afirmacions diferents. Aquesta fitxa acredita l'existència de codi i de proves al repositori; **no afirma haver executat les proves ni haver verificat el desplegament**.
+
+## 7. Diagrames d'activitat de la pantalla real «Generar factura abans de pagar»
+
+**Fonts:** [auditoria detallada de la pantalla i taula d'accions FAP-01–06](02-auditoria-pantalla-factura-abans-pagar-2026-09-25.md), [fitxa funcional UC-004, apartat 22](../06-fitxes-funcionals/uc-004.md#22-fitxa-funcional-per-accions-reals-de-generar-factura-abans-de-pagar-25092026), JS i PHP llegats referenciats en aquests documents. **ACTUAL = codi llegat llegit, no prova de desplegament; FINAL = integració fiscal SIF objectiu, no comportament implantat.** La previsualització del llegat és POSTERIOR a l'INSERT: no confondre-la amb una confirmació fiscal anterior a emetre. Els vuit diagrames representen la pàgina i subaccions separades; no compten com a vuit casos d'ús nous.
+
+### FAP-PAG · Pàgina completa — ACTUAL
+
+```plantuml
+@startuml
+title FAP-PAG ACTUAL | Generar factura abans de pagar en 3 passos
+start
+:Entrar a pantalla amb sessió;
+:Pas 1 cercar inscripcions per DNI;
+:Afegir o treure registres localment;
+if (Selecció no buida i permís client?) then (Sí)
+  :Calcular IDs, total, cursos i edicions al navegador;
+  if (Més d'un curs o edició?) then (Sí)
+    :Mostrar error i romandre al pas 1;
+  else (No)
+    :Sol·licitar text de mes per AJAX;
+    :Mostrar pas 2 sense esperar la resposta del mes;
+    :Escollir text entitat, concepte i observacions;
+    if (Clic continuar amb camps visibles?) then (Sí)
+      :POST a emissió llegada amb dades del navegador;
+      :INSERT factura llegada i UPDATE inscripcions;
+      if (Resposta textual sense error?) then (Sí)
+        :Mostrar «Factura creada!»;
+        :Consultar dades de factura i registres en paral·lel;
+        :Mostrar pas 3, previsualització i possible PDF;
+      else (No)
+        :Mostrar error; estat fiscal real no reconciliat aquí;
+      endif
+    endif
+  endif
+else (No)
+  :Mostrar cap selecció o manca de permís al client;
+endif
+stop
+@enduml
+```
+
+### FAP-PAG · Pàgina completa — FINAL
+
+```plantuml
+@startuml
+title FAP-PAG FINAL | Selecció autoritzada i factura única SIF
+start
+:Autenticar actor i autoritzar canal d'emissió;
+:Consultar al servidor inscripcions facturables i ja facturades;
+:Seleccionar IDs únics i receptor fiscal per ID intern;
+:Carregar pagador, oferta original, cobraments i documents;
+if (Inscripció incompatible o factura existent?) then (Sí)
+  :Mostrar conflicte i document relacionat; no reemetre;
+else (No)
+  :Recalcular import i línies al servidor;
+  :Generar previsualització immutable amb versió i clau d'operació;
+  if (Operador confirma l'oferta fiscal?) then (Sí)
+    :Validar de nou versió, imports, receptor i idempotència;
+    :Emetre una factura al SIF amb numeració i cadena fiscal;
+    if (Commit fiscal confirmat o mateixa petició recuperada?) then (Sí)
+      :Projectar vincles llegats després del commit;
+      :Mostrar UUID, número i estat pendent de cobrament;
+      :Preparar/consultar PDF i QR sense reemetre;
+    else (No)
+      :Mostrar error o estat desconegut; reconciliar abans de reintentar;
+    endif
+  else (No)
+    :No crear factura ni cobrament;
+  endif
+endif
+stop
+@enduml
+```
+
+### FAP-SEL · Selecció i validació de curs/edició — ACTUAL
+
+```plantuml
+@startuml
+title FAP-SEL ACTUAL | Afegir/treure i avançar des del DOM
+start
+:Introduir DNI no buit i cercar;
+:Mostrar files sense factura llegada relacionada;
+while (Operador tria files?) is (Sí)
+  if (Afegir?) then (Sí)
+    :Copiar HTML de la fila a selecció;
+    :Desactivar acció local d'afegir;
+  else (Treure)
+    :Eliminar fila seleccionada i reactivar icona;
+  endif
+endwhile (No)
+if (Clic continuar al pas 2?) then (Sí)
+  :Recórrer files del DOM;
+  :Afegir IDs a idsInsc global sense buidar-lo;
+  :Sumar A_PAGAR visible com float;
+  :Agrupar curs i edició dels textos del DOM;
+  if (Hi ha dos cursos o dues edicions?) then (Sí)
+    :Mostrar error;
+  else (No)
+    :Mostrar pas 2 amb preu i concepte preparats;
+  endif
+endif
+stop
+@enduml
+```
+
+### FAP-SEL · Selecció i validació — FINAL
+
+```plantuml
+@startuml
+title FAP-SEL FINAL | Selecció per IDs i dades del servidor
+start
+:Consultar registres autoritzats sense dades excessives;
+:Afegir o treure IDs estables en conjunt sense repetits;
+if (Clic continuar?) then (Sí)
+  :Recarregar cada inscripció al servidor amb estat i versió;
+  if (Alguna inscripció no és elegible o ja està facturada?) then (Sí)
+    :Bloquejar emissió i mostrar causa per fila;
+  else (No)
+    :Validar compatibilitat curs/edició i receptor;
+    :Calcular línies i totals decimals de l'oferta acceptada;
+    :Mostrar proposta traçable sense mutació fiscal;
+  endif
+endif
+stop
+@enduml
+```
+
+### FAP-EMISSIO · Confirmar factura a empresa — ACTUAL
+
+```plantuml
+@startuml
+title FAP-EMISSIO ACTUAL | Emissor llegat sense SIF
+start
+:Pas 2 amb entitat en text, concepte i total DOM;
+:Clic continuar al pas 3;
+:POST generaFacturaElectronica_Factures.php;
+:Buscar entitat per RAO LIKE text i llegir primera coincidència;
+:Consultar ordre i factura relacionada més recents;
+:Calcular cadascun dels números com últim + 1;
+:INSERT a factures llegades;
+while (Queda un ID dins inscripcions rebudes?) is (Sí)
+  :UPDATE factura relacionada, reclamació,
+  observacions de pagament i entitat per ID;
+endwhile (No)
+:Retornar HTML amb identificador de factura;
+note right
+  No es veu lock/transaction únics
+  ni verificació de factura existent per ID
+  en aquest mètode.
+end note
+stop
+@enduml
+```
+
+### FAP-EMISSIO · Confirmar factura — FINAL
+
+```plantuml
+@startuml
+title FAP-EMISSIO FINAL | Commit SIF i projecció llegada posterior
+start
+:Confirmar previsualització amb versió i actor autoritzat;
+:Comprovar receptor, línies, totals i estat fiscal real per IDs;
+if (Ja existeix factura d'operació equivalent?) then (Sí)
+  :Recuperar UUID i número sense nova emissió;
+elseif (Conflicte de receptor, estat o import?) then (Sí)
+  :Denegar i obrir incidència; no usar una clau nova a cegues;
+else (No)
+  :Cridar emissor únic SIF sense payment inicial;
+  :Reservar sèrie i número i persistir factura i registre fiscal;
+  :Confirmar transacció, hash i cua corresponents;
+  :Projectar relacions llegades correlacionades;
+endif
+:Retornar UUID, número, estat cobrament i estat documental;
+stop
+@enduml
+```
+
+### FAP-DOC · Consultar factura ja emesa — ACTUAL
+
+```plantuml
+@startuml
+title FAP-DOC ACTUAL | Consulta/PDF posterior a INSERT
+start
+:Rebre resposta textual del POST d'emissió;
+if (Text no conté error?) then (Sí)
+  :Mostrar «Factura creada!» i extreure ID de l'HTML;
+  :Llançar consultes de dades i persones vinculades;
+  if (Consulta de dades completa?) then (Sí)
+    :Mostrar pas 3 i botó Previsualitza;
+    if (Clic previsualitzar?) then (Sí)
+      :GET mostraPrevFactura i obrir modal;
+      if (Clic descarregar?) then (Sí)
+        :GET descarregaFactura per fitxer temporal;
+        :Iniciar descàrrega i GET neteja del temporal;
+      endif
+    endif
+  else (No)
+    :Mostrar error de consulta després d'emetre;
+  endif
+else (No)
+  :Mostrar error sense prova de rollback fiscal;
+endif
+stop
+@enduml
+```
+
+### FAP-DOC · Consultar factura — FINAL
+
+```plantuml
+@startuml
+title FAP-DOC FINAL | Document immutable després del commit
+start
+:Consultar UUID fiscal existent amb actor autoritzat;
+:Mostrar estat real de factura, AEAT, cobrament i document;
+if (Document READY i accessible?) then (Sí)
+  :Previsualitzar PDF existent amb QR i dades de la factura;
+  if (Clic descarregar?) then (Sí)
+    :Lliurar document immutable per endpoint autoritzat;
+  endif
+elseif (Document PENDING o fallit?) then (Sí)
+  :Mostrar pendent/incidència i reprendre només el job documental;
+  :No emetre una segona factura;
+else (No)
+  :Denegar sense exposar document ni receptor d'altri;
+endif
+stop
+@enduml
+```
+
+**Estat:** prova d'emissió, comprovació de numeració i autorització real, previsualització prèvia i connexió de l'adaptador intranet-SIF **pendents**. No modificar cap factura real per obtenir captures. [Punts de prova FAP-T01–06](02-auditoria-pantalla-factura-abans-pagar-2026-09-25.md#1-fitxes-funcionals-de-cada-acció-i-rastre-del-codi-actual).
