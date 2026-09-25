@@ -4,6 +4,9 @@
 
 **Llegenda:** ACTUAL = font PHP/JS versionada, amb URL confirmada per negoci; FINAL = comportament objectiu documentat per poder adaptar la pantalla, no desplegat; TEST = prova definida però no executada. No atribuir rols concrets o regles de deute no observats al servidor.
 
+
+**Actualització de desenvolupament (22/09/2026):** [implementació CANDIDATA en branca, canvis del PHP/JS, estat de les 17 proves i límits de recuperació](../07-uml-integrat/pujada-aules-obertes-implementacio-proves-2026-09-22.md). Els diagrames **ACTUAL** continuen representant `main` i els **FINAL** són l'objectiu; la branca proposa implementar aquest objectiu però **encara no està desplegada ni comprovada amb la BD real**.
+
 ## 1. Metadades, actor, objectiu i abast
 
 **Actor iniciador:** usuari de la intranet amb accés de visualització a l'apartat i permís d'edició, segons les comprovacions realment implementades; el nom de rol administratiu concret no queda establert únicament per aquesta pantalla. **Objectiu:** seleccionar inscripcions EXISTENTS de cursos per preparar el CSV d'aules obertes i registrar a la BD llegada l'estat `PERENNE=1` de les files seleccionades. **No crea cap nova inscripció, no canvia l'aula de curs de la persona i no registra un cobrament o factura.**
