@@ -303,6 +303,131 @@ final class NovicePromotionDestinationCancellationReviewService
         }
     }
 
+    /**
+     * Deny an UNISSUED proposal after an authenticated manual review.
+     * Rejecting a draft NEVER cancels/refunds an active right, edits a fiscal
+     * invoice, or fabricates issue/expiry timestamps. A previously rejected
+     * draft cannot silently be re-opened with another eligible amount.
+     */
+    public function rejectPendingReview(
+        \PDO $db,
+        string $uuidDerivedBalance,
+        string $authorizedReviewerId,
+        string $reasonCode,
+        ?\DateTimeImmutable $now = null
+    ): array {
+        if ($db->inTransaction()) {
+            throw new \LogicException('Cancellation review decision requires an independent transaction.');
+        }
+        if (trim($uuidDerivedBalance) === '' || trim($authorizedReviewerId) === ''
+            || strlen($authorizedReviewerId) > 100
+            || !in_array($reasonCode, [
+                'DOCUMENTATION_INCOMPLETE',
+                'CANCELLATION_POLICY_DENIED',
+                'RECTIFICATIVE_MISMATCH',
+                'MANUAL_FISCAL_REVIEW_DENIED',
+            ], true)
+        ) {
+            throw SifException::validation('Invalid authenticated cancellation review denial.');
+        }
+
+        $now ??= new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $timestamp = $now->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        $db->beginTransaction();
+        try {
+            $lookup = $this->one(
+                $db,
+                'SELECT ROOT_UUID_ENTITLEMENT FROM novice_promotion_derived_balance
+                 WHERE UUID_DERIVED_BALANCE = ?',
+                [$uuidDerivedBalance]
+            );
+            if ($lookup === null) {
+                throw SifException::conflict('Cancellation review proposal does not exist.');
+            }
+            $rootLock = $this->one(
+                $db,
+                'SELECT UUID_ENTITLEMENT FROM commercial_entitlement
+                 WHERE UUID_ENTITLEMENT = ? FOR UPDATE',
+                [(string) $lookup['ROOT_UUID_ENTITLEMENT']]
+            );
+            if ($rootLock === null) {
+                throw SifException::conflict('Cancellation review origin no longer exists.');
+            }
+            $review = $this->one(
+                $db,
+                'SELECT STATUS, ROOT_UUID_ENTITLEMENT, AVAILABLE_PROMOTIONAL_AMOUNT,
+                        ISSUED_AT, EXPIRES_AT, POLICY_SNAPSHOT_JSON
+                 FROM novice_promotion_derived_balance
+                 WHERE UUID_DERIVED_BALANCE = ? FOR UPDATE',
+                [$uuidDerivedBalance]
+            );
+            if ($review === null
+                || (string) $review['ROOT_UUID_ENTITLEMENT'] !== (string) $lookup['ROOT_UUID_ENTITLEMENT']
+            ) {
+                throw SifException::conflict('Cancellation review changed during decision.');
+            }
+
+            $snapshot = json_decode((string) $review['POLICY_SNAPSHOT_JSON'], true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($snapshot)) {
+                throw SifException::conflict('Cancellation review provenance is not readable.');
+            }
+            if ($review['STATUS'] === 'REJECTED') {
+                $decision = $snapshot['review_decision'] ?? null;
+                if (!is_array($decision)
+                    || ($decision['reason_code'] ?? null) !== $reasonCode
+                    || ($decision['reviewed_by'] ?? null) !== $authorizedReviewerId
+                ) {
+                    throw SifException::conflict('Cancellation proposal has a different existing review decision.');
+                }
+                $db->commit();
+                return [
+                    'uuid_derived_balance' => $uuidDerivedBalance,
+                    'status' => 'REJECTED',
+                    'idempotency_reused' => true,
+                ];
+            }
+
+            if ($review['STATUS'] !== 'PENDING_FISCAL_REVIEW'
+                || $review['ISSUED_AT'] !== null
+                || $review['EXPIRES_AT'] !== null
+                || $this->cents((string) $review['AVAILABLE_PROMOTIONAL_AMOUNT']) !== 0
+            ) {
+                throw SifException::conflict('Only a never-issued, unspendable proposal can be rejected here.');
+            }
+
+            $snapshot['review_decision'] = [
+                'status' => 'REJECTED',
+                'reason_code' => $reasonCode,
+                'reviewed_by' => $authorizedReviewerId,
+                'reviewed_at_utc' => $timestamp,
+            ];
+            $stmt = $db->prepare(
+                "UPDATE novice_promotion_derived_balance
+                 SET STATUS = 'REJECTED', POLICY_SNAPSHOT_JSON = ?
+                 WHERE UUID_DERIVED_BALANCE = ? AND STATUS = 'PENDING_FISCAL_REVIEW'"
+            );
+            $stmt->execute([
+                json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+                $uuidDerivedBalance,
+            ]);
+            if ($stmt->rowCount() !== 1) {
+                throw SifException::conflict('Cancellation review was concurrently changed.');
+            }
+
+            $db->commit();
+            return [
+                'uuid_derived_balance' => $uuidDerivedBalance,
+                'status' => 'REJECTED',
+                'idempotency_reused' => false,
+            ];
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
     private function one(\PDO $db, string $sql, array $parameters): ?array
     {
         $rows = $this->many($db, $sql, $parameters);
