@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Domain\NovicePromotionApprovedTransferPolicy;
 use Prisma\Sif\Domain\NovicePromotionRectificationEvidencePolicy;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
@@ -27,6 +28,7 @@ final class NovicePromotionFirstTransferConfirmationService
     public function __construct(
         private NovicePromotionAdjustmentApprovalSourceInterface $approvals,
         private NovicePromotionRectificationEvidencePolicy $fiscal = new NovicePromotionRectificationEvidencePolicy(),
+        private NovicePromotionApprovedTransferPolicy $decisions = new NovicePromotionApprovedTransferPolicy(),
         private UuidGenerator $uuids = new UuidGenerator()
     ) {
     }
@@ -143,6 +145,12 @@ final class NovicePromotionFirstTransferConfirmationService
                 || $approvedAt < (string) $transfer['CREATED_AT']
             ) {
                 throw SifException::conflict('Approved first transfer differs from its pending course-change review.');
+            }
+
+            try {
+                $this->decisions->assertMatches($approval, $uuidTransfer, $transfer, $timestamp);
+            } catch (\InvalidArgumentException $exception) {
+                throw SifException::conflict('Final course-change approval differs from its immutable review.');
             }
 
             $original = $this->one(
