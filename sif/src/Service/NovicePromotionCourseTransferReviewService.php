@@ -157,8 +157,10 @@ final class NovicePromotionCourseTransferReviewService
                 || $this->one(
                     $db,
                     'SELECT UUID_TRANSFER FROM novice_promotion_application_transfer
-                     WHERE TO_UUID_OPERATION = ? AND STATUS <> ? FOR UPDATE',
-                    [$uuidNewOperation, 'CANCELLED']
+                     WHERE TO_UUID_OPERATION = ? AND STATUS <> ?
+                       AND (UUID_ORIGINAL_APPLICATION IS NULL OR UUID_ORIGINAL_APPLICATION <> ?)
+                     FOR UPDATE',
+                    [$uuidNewOperation, 'CANCELLED', $uuidOriginalApplication]
                 ) !== null
             ) {
                 throw SifException::conflict('Replacement already has promotional use or a transfer review.');
