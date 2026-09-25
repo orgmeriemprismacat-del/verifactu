@@ -244,10 +244,9 @@ class ElectronicInvoiceDelivery {
 }
 GeneraFacturaAbansPagarJS --> GeneraFacturaElectronicaWrapper : POST empresa/conceptes
 GeneraFacturaElectronicaWrapper --> Intranet : delega creacio llegada
-InvoiceRepository --> DocumentRepository : factura existent per metadada
 ```
 
-**Precisions:** la fletxa `InvoiceRepository → DocumentRepository` representa **dependència de dades prevista entre una factura i el registre de document**, no una invocació real observada; en el codi revisat, `DocumentRepository` rep el UUID factura d'un caller extern. **No s'atribueix cap invocació de transport a `electronic_invoice_delivery`.**
+**Precisions:** no s'ha traçat cap invocació real entre `InvoiceRepository` i `DocumentRepository`; en el codi revisat, `DocumentRepository` rep un UUID de factura de qui l'invoqui, sense escriure el fitxer. **No s'atribueix cap invocació de transport a `electronic_invoice_delivery`.**
 
 ```mermaid
 sequenceDiagram
