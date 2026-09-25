@@ -349,10 +349,28 @@ final class NovicePromotionRedemptionService
             if ($invoice === null || $invoice['ESTAT_FACTURA'] !== 'ISSUED'
                 || $invoice['ESTAT_COBRAMENT'] !== 'PAID'
                 || !in_array((string) $invoice['TIPUS_FACTURA'], ['F1', 'F2'], true)
-                || $finalNet <= 0
+                || $finalNet < 0
                 || $this->cents((string) $invoice['TOTAL']) !== $finalNet
             ) {
                 throw SifException::conflict('Destination invoice is not an issued fully settled final price.');
+            }
+
+            // A 100%-covered course must NOT invent a zero-euro bank
+            // transaction; a partially covered course must match the actual
+            // confirmed net CASH attributed to the issued final invoice.
+            $settledCash = $this->one(
+                $db,
+                "SELECT COALESCE(SUM(CASE
+                    WHEN pt.TIPUS_MOVIMENT = 'CHARGE' THEN pa.IMPORT_ASSIGNAT
+                    WHEN pt.TIPUS_MOVIMENT = 'REFUND' THEN -pa.IMPORT_ASSIGNAT
+                    ELSE 0 END), 0) AS NET_CASH
+                 FROM payment_allocation pa
+                 JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
+                 WHERE pa.UUID_FACTURA = ? AND pt.ESTAT = 'CONFIRMED'",
+                [$uuidDestinationInvoice]
+            );
+            if ($this->cents((string) ($settledCash['NET_CASH'] ?? '0.00')) !== $finalNet) {
+                throw SifException::conflict('Final destination invoice lacks exactly matched confirmed cash settlement.');
             }
 
             $sourceId = trim((string) ($destination['SOURCE_ID'] ?? ''));
