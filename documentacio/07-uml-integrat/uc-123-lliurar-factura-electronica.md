@@ -1,5 +1,7 @@
 # UC-123 · Generar i lliurar una factura electrònica en format i canal acordats
 
+**Contrast de codi 25/09/2026:** els apartats 1–6 descriuen el contracte i el disseny; els apartats 7–10 afegeixen els recorreguts ACTUALS observats de factura prèvia, consulta/PDF i registre de metadades. El nom del mètode llegat `generarFacturaElectronica_Alumnes` **no és prova** de generació en format específic ni transport.
+
 **Objectiu canònic:** `E_FACT` és una preferència/indicador, **no el document ni la seva prova de lliurament**. El catàleg exigeix conservar format, versió, destinatari, consentiment quan pertoqui, hash del fitxer, canal, resultats, errors i reintents. **Bloquejant de negoci/protecció de dades:** format, canal, autorització del destinatari, SLA i política de reintent.
 
 ## 1. Codi real i dades definides
@@ -156,3 +158,133 @@ Note over S,Channel: No hi ha servei complet de generació/lliurament acreditat 
 ## 6. Traçabilitat
 
 [UC-123 original](../06-fitxes-funcionals/uc-123.md) · [UC-32 preferència](uc-032-marcar-factura-electronica.md) · [UC-36 documents](uc-036-generar-consultar-documents.md) · [UC-55 custòdia](uc-055-custodiar-reintentar-documents.md) · [UC-01 emissió](uc-001-emetre-o-reutilitzar-factura.md) · [DocumentRepository](../../sif/src/Repository/DocumentRepository.php) · [InvoiceRepository](../../sif/src/Repository/InvoiceRepository.php) · [Migració electronic_invoice_delivery](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql).
+
+
+## 7. Matriu de pàgines / apartats ACTUALS, sense inferir lliurament
+
+[Fitxa funcional v2.0](../06-fitxes-funcionals/uc-123.md) · [13 activitats P01–P07 ACTUAL/FINAL](uc-123-activitats-pagines-factura-electronica-actual-final.md) · [auditoria lot 12](00-auditoria-casos-pendents-lot-12-uc-123-2026-09-25.md).
+
+| ID | Codi i acció ACTUAL | Límit |
+| --- | --- | --- |
+| P01 | [`alumnes-genera-factura-abans-pagar.js` L90–236](../../codi-drive/intranet-actual/js/alumnes-genera-factura-abans-pagar.js#L90-L236): cercar/seleccionar inscripcions, preparar cursos/edicions i sumar `A_PAGAR` al JS. | **Emissió prèvia**, no elecció de format/canal electrònic. |
+| P02 | [JS L304–389](../../codi-drive/intranet-actual/js/alumnes-genera-factura-abans-pagar.js#L304-L389) POST a [`generaFacturaElectronica_Factures.php`](../../codi-drive/intranet-actual/ajax/alumnes/generaFacturaElectronica_Factures.php): empresa, conceptes, import, inscripcions. Wrapper crida `generarFacturaElectronica_Alumnes()`. | Nom històric i text «Factura creada!» **no acrediten** fitxer electrònic/canal/prova; cos del gran `Intranet.php` no rellegit amb aquesta extracció. |
+| P03 | [JS L371–452](../../codi-drive/intranet-actual/js/alumnes-genera-factura-abans-pagar.js#L371-L452): consultar dades/inscripcions, previsualitzar, descarregar i sol·licitar eliminació de fitxer temporal. | PDF/visualització interns no equivalen a lliurament al receptor fiscal. |
+| P04 | [`alumnes-factura.js` L321–434](../../codi-drive/intranet-actual/js/alumnes-factura.js#L321-L434) + [`guardarDadesFactura_Factures.php`](../../codi-drive/intranet-actual/ajax/alumnes/guardarDadesFactura_Factures.php): modal editable de raó, CIF, conceptes, etc., GET. | Dades de factura emesa SIF immutables; preferència `E_FACT` és UC032, correcció real via UC fiscal. |
+| P05 | [JS L635–707](../../codi-drive/intranet-actual/js/alumnes-factura.js#L635-L707) + [`descarregaFactura.php`](../../codi-drive/intranet-actual/ajax/alumnes/descarregaFactura.php): previsualització/descàrrega de PDF amb `Dompdf`. | No genera ni valida estàndard electrònic del receptor ni prova recepció. |
+| P06 | [`DocumentRepository.php` L9–39](../../sif/src/Repository/DocumentRepository.php#L9-L39) registra només `factura_documents` tipus PDF/XML/QR, SHA-256 dels bytes rebuts; [`InvoiceRepository.php` L81–124](../../sif/src/Repository/InvoiceRepository.php#L81-L124) insereix `E_FACT=0`. | No escriptura de bytes físics al repositori; `E_FACT` no és estat de lliurament. |
+| P07 | [SQL 000005 L242–269](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql#L242-L269) defineix comandes, formats, canals, intents, prova de `electronic_invoice_delivery`. | **Només FINAL** per a writer/worker/transport: no acreditat com a execució. |
+
+## 8. UML de casos d'ús del circuit ACTUAL inspeccionat
+
+```plantuml
+@startuml
+left to right direction
+actor "Operador intranet" as O
+rectangle "UC123: punts de contacte ACTUALS (no lliurament complet)" {
+ usecase "Seleccionar inscripcions per factura previa" as Sel
+ usecase "Enviar empresa i concepte a crear factura" as Issue
+ usecase "Consultar/previsualitzar factura" as View
+ usecase "Descarregar PDF" as Pdf
+ usecase "Editar dades de factura llegada" as Edit
+}
+O --> Sel
+O --> Issue
+O --> View
+O --> Pdf
+O --> Edit
+note right of Issue
+ El wrapper es diu facturaElectronica.
+ No transmet format/canal/destinatari
+ de factura electronica acordada.
+end note
+@enduml
+```
+
+**El diagrama de l'apartat 3 és el cas FINAL** de generació/lliurament, no una acció observada del pas 2 d'emissió llegat.
+
+## 9. Classes i seqüència ACTUALS versus FINAL
+
+```mermaid
+classDiagram
+direction LR
+class GeneraFacturaAbansPagarJS {
+ <<JS llegat existent>>
+ +seleccionarInscripcions()
+ +enviarEmpresaConceptes()
+ +mostrarFacturaCreada()
+ +previsualitzarDescarregar()
+}
+class GeneraFacturaElectronicaWrapper {
+ <<PHP POST llegat existent>>
+ +generarFacturaElectronica_Alumnes(...)
+}
+class Intranet {
+ <<PHP llegat gran; metode invocat, cos no rellegit en aquest lot>>
+ +generarFacturaElectronica_Alumnes(...)
+ +guardarDadesFactura_Factures(...)
+ +generaFactura(id,download)
+}
+class DocumentRepository {
+ <<PHP SIF existent, nomes metadada>>
+ +registerDocument(db,uuidFactura,type,path,contents) array
+}
+class InvoiceRepository {
+ <<PHP SIF existent>>
+ +createInvoiceGraph(db,payload,seq,chainState) array
+}
+class ElectronicInvoiceDelivery {
+ <<DDL definida, writer/transport no acreditats>>
+ +UUID_DELIVERY
+ +UUID_FACTURA
+ +FACTURA_DOCUMENT_ID
+ +FORMAT_CODE
+ +FORMAT_VERSION
+ +CHANNEL
+ +STATUS
+}
+GeneraFacturaAbansPagarJS --> GeneraFacturaElectronicaWrapper : POST empresa/conceptes
+GeneraFacturaElectronicaWrapper --> Intranet : delega creacio llegada
+InvoiceRepository --> DocumentRepository : factura existent per metadada
+```
+
+**Precisions:** la fletxa `InvoiceRepository → DocumentRepository` representa **dependència de dades prevista entre una factura i el registre de document**, no una invocació real observada; en el codi revisat, `DocumentRepository` rep el UUID factura d'un caller extern. **No s'atribueix cap invocació de transport a `electronic_invoice_delivery`.**
+
+```mermaid
+sequenceDiagram
+actor O as Operador
+participant JS as Intranet: generar factura abans de pagar
+participant W as generaFacturaElectronica_Factures.php
+participant I as Intranet PHP (cos no rellegit)
+participant Data as Wrappers consulta factura/inscripcions
+participant Download as descarregaFactura.php
+O->>JS: Triar inscripcions i entitat, omplir conceptes
+JS->>JS: Sumar preuTotal des de DOM
+JS->>W: POST empresa, conceptes, preu, cursos, edicions, inscripcions
+W->>I: generarFacturaElectronica_Alumnes(...)
+I-->>W: resposta
+W-->>JS: text d'estat
+alt Text no conte error
+ JS-->>O: Factura creada!
+ JS->>Data: POST consultar dades/inscripcions de factura
+ Data-->>JS: HTML de consulta
+ O->>JS: Previsualitzar/descarregar
+ JS->>Download: GET id de factura
+ Download->>I: generaFactura(id,true)
+ I-->>Download: resultat
+ Download-->>JS: resultat per iniciar descarrega
+else Resposta conté error
+ JS-->>O: missatge d'error
+end
+Note over JS,Download: No evidencia format electronic validat, transport ni prova de recepcio en aquest recorregut.
+```
+
+## 10. Estats de cobertura i invariants
+
+| Component | Documentat | Implementació verificada al codi | Prova/deploy |
+| --- | --- | --- | --- |
+| P01–P05, pantalla interna de factura/PDF | ACTUAL i proposta FINAL | JS i wrappers PHP contrastats; cos `Intranet.php` no rellegit | No executat/no verificat |
+| `DocumentRepository`, `E_FACT=0` | ACTUAL i límit de funcionalitat | PHP SIF real: SHA-256/metadada i indicador inicial | Test de metadada **definit**, no executat en aquest lot |
+| `electronic_invoice_delivery` | DDL i contracte FINAL | Writer/generador/transport de format acordat **no acreditats** | Cap test e2e executat |
+| Fiscalitat original | Factura emesa immutable | No és objectiu del procés d'enviament | Reintentar document ≠ reemetre factura |
+
+**DOC:** 13 activitats per set superfícies, cas/classe/seqüència ACTUAL ampliats. **IMP:** parcial per UI/PDF i metadades; lliurament no acreditat. **TEST:** no executat. **PRODUCCIÓ:** no verificada.
