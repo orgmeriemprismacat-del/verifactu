@@ -238,8 +238,9 @@ final class NovicePromotionRedemptionService
      * real settlement. This method records application, NOT bank payment.
      *
      * Only a fully settled, single destination invoice is supported here.
-     * Multi-invoice destination, zero-euro invoice and fiscal adjustment
-     * variants must be integrated explicitly with the fiscal service.
+     * A fully promo-covered checkout needs a legitimate zero-total issued
+     * invoice that the fiscal system marks settled WITHOUT a bank payment.
+     * Multiple destination invoices and rectification remain unintegrated.
      */
     public function confirmApplied(
         \PDO $db,
@@ -253,12 +254,32 @@ final class NovicePromotionRedemptionService
 
         $db->beginTransaction();
         try {
+            // All promotion writers lock entitlement FIRST, application SECOND.
+            // The initial id lookup does not lock and is rechecked below.
+            $lookup = $this->one(
+                $db,
+                'SELECT UUID_ENTITLEMENT FROM novice_promotion_application WHERE UUID_APPLICATION = ?',
+                [$uuidApplication]
+            );
+            if ($lookup === null) {
+                throw SifException::conflict('Promotion application was not found.');
+            }
+            $entitlementLock = $this->one(
+                $db,
+                'SELECT UUID_ENTITLEMENT FROM commercial_entitlement WHERE UUID_ENTITLEMENT = ? FOR UPDATE',
+                [(string) $lookup['UUID_ENTITLEMENT']]
+            );
+            if ($entitlementLock === null) {
+                throw SifException::conflict('Promotional right no longer exists.');
+            }
             $application = $this->one(
                 $db,
                 'SELECT * FROM novice_promotion_application WHERE UUID_APPLICATION = ? FOR UPDATE',
                 [$uuidApplication]
             );
-            if ($application === null) {
+            if ($application === null
+                || (string) $application['UUID_ENTITLEMENT'] !== (string) $lookup['UUID_ENTITLEMENT']
+            ) {
                 throw SifException::conflict('Promotion application was not found.');
             }
 
@@ -431,12 +452,32 @@ final class NovicePromotionRedemptionService
         $timestamp = $now->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
         $db->beginTransaction();
         try {
+            // All promotion writers lock entitlement FIRST, application SECOND.
+            // The initial id lookup does not lock and is rechecked below.
+            $lookup = $this->one(
+                $db,
+                'SELECT UUID_ENTITLEMENT FROM novice_promotion_application WHERE UUID_APPLICATION = ?',
+                [$uuidApplication]
+            );
+            if ($lookup === null) {
+                throw SifException::conflict('Promotion application was not found.');
+            }
+            $entitlementLock = $this->one(
+                $db,
+                'SELECT UUID_ENTITLEMENT FROM commercial_entitlement WHERE UUID_ENTITLEMENT = ? FOR UPDATE',
+                [(string) $lookup['UUID_ENTITLEMENT']]
+            );
+            if ($entitlementLock === null) {
+                throw SifException::conflict('Promotional right no longer exists.');
+            }
             $application = $this->one(
                 $db,
                 'SELECT * FROM novice_promotion_application WHERE UUID_APPLICATION = ? FOR UPDATE',
                 [$uuidApplication]
             );
-            if ($application === null) {
+            if ($application === null
+                || (string) $application['UUID_ENTITLEMENT'] !== (string) $lookup['UUID_ENTITLEMENT']
+            ) {
                 throw SifException::conflict('Promotion reservation was not found.');
             }
             if ($application['STATUS'] === 'RELEASED') {
