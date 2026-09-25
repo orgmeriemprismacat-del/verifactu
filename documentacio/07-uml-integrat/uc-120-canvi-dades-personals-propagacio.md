@@ -1,6 +1,6 @@
 # UC-120 · Tramitar una sol·licitud de canvi de dades personals i propagar-la
 
-**Objectiu canònic:** registrar abans/després, justificació, decisió, actor i sistemes afectats; **cap factura emesa ni snapshot històric es reescriu**. La fitxa original deixa pendent determinar qui aprova cada camp, a quins sistemes es propaga i el tractament de rectificació/supressió sense alterar documents històrics.
+**Objectiu canònic:** registrar abans/després, justificació, decisió, actor i sistemes afectats; **cap factura emesa ni snapshot històric es reescriu**. **Contrast 25/09/2026:** el portal alumne ACTUAL envia una petició per correu; la intranet interna ACTUAL pot fer UPDATE directe d'una inscripció. Els apartats 6–9 afegeixen aquesta separació al model, sense presentar el servei final com a implementat. La fitxa original deixa pendent determinar qui aprova cada camp, a quins sistemes es propaga i el tractament de rectificació/supressió sense alterar documents històrics.
 
 **Evidència SQL:** `personal_data_change_request` inclou `SUBJECT_KEY`, `REQUESTER_ACTOR_ID`, `CHANGESET_JSON`, `JUSTIFICATION`, `EVIDENCE_STORAGE_REF/HASH`, estat i revisió, `PROPAGATION_STATUS`, `PROPAGATION_RESULT_JSON`, `AFFECTED_OPEN_OPERATIONS_JSON`, correlació i timestamps. **No s'ha acreditat** una classe PHP que gestioni la petició, autoritzi l'actor, modifiqui les dades acadèmiques i propagui per tots els canals. L'existència d'aquesta taula **no** implica que el canvi s'hagi completat en llegat, facturació, aula o enviaments.
 
@@ -146,3 +146,123 @@ Note over C,F: Orquestració i propagació no acreditades al PHP actual.
 ## 5. Traçabilitat
 
 [UC-120 original](../06-fitxes-funcionals/uc-120.md) · [UC-114 versions](uc-114-versionar-producte-edicio.md) · [UC-112 snapshot](uc-112-congelar-snapshot-abans-tpv.md) · [UC-05 correcció](uc-005-rectificar-factura.md) · [UC-53 reconciliació](uc-053-detectar-resoldre-divergencies.md) · [Migració personal_data_change_request](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [LegacySyncService: sincronització fiscal diferent](../../sif/src/Service/LegacySyncService.php).
+
+
+## 6. Components ACTUALS contrastats
+
+| Component | Tipus | Responsabilitat observada |
+| --- | --- | --- |
+| `intranet-alumne/dades-personals.php` + JS | ACTUAL | Consultar/editar visualment dades i enviar proposta. |
+| `IntranetAlumne::enviarMsgSolicitantModificacioDades()` | ACTUAL | Rellegir dades, comparar abans/després i preparar correus; no muta perfil. |
+| `guardarDadesPersonals.php` | ACTUAL | Wrapper GET cap a mutació interna d'una inscripció. |
+| `guardarDadesPersonals_ConsultaInformacio.php` | ACTUAL | Wrapper ampli per dades personals + estat/mailing/certificat/baixa. |
+| `Intranet::guardarDadesPersonals_resultatCerca()` | ACTUAL segons traça UC-042 | UPDATE d'una fila d'`inscripcions` per ID; no propagació general. |
+| `personal_data_change_request` | DISSENY SQL | Petició, revisió, evidència, propagació i resultats; writer no acreditat. |
+
+## 7. UML de casos d'ús — ACTUAL
+
+```plantuml
+@startuml
+left to right direction
+actor "Alumne" as A
+actor "Operador intranet" as O
+rectangle "UC-120 ACTUAL" {
+ usecase "Consultar dades" as V
+ usecase "Enviar peticio per correu" as R
+ usecase "Editar dades d'una inscripcio" as E
+ usecase "Editar modal ampli d'inscripcio" as M
+}
+A --> V
+A --> R
+O --> E
+O --> M
+note right of R
+ No aplica UPDATE.
+ Compara i prepara comunicacions.
+end note
+note right of E
+ UPDATE d'una inscripcio
+ segons traça UC-042.
+end note
+@enduml
+```
+
+## 8. Classes i seqüències ACTUALS
+
+```mermaid
+classDiagram
+class DadesPersonalsJS {
+ <<ACTUAL>>
+ +mostrarDadesEditables()
+ +enviarMsgSolicitantModificacioDades()
+}
+class IntranetAlumne {
+ <<ACTUAL>>
+ +mostrarDadesPersonalsCurriculars()
+ +mostrarDadesPersonalsCurricularsEditables()
+ +enviarMsgSolicitantModificacioDades()
+}
+class GuardarDadesPersonalsEndpoint {
+ <<ACTUAL>>
+ +GET(idInsc,dades)
+}
+class Intranet {
+ <<ACTUAL, cos gran traçat a UC042>>
+ +guardarDadesPersonals_resultatCerca()
+ +guardarDadesPersonals_modalsresultatCerca()
+}
+class Inscripcions {
+ <<BD llegada>>
+ +ID
+ +NOM
+ +COGNOMS
+ +DNI
+ +CORREU
+}
+DadesPersonalsJS --> IntranetAlumne : peticio alumne
+GuardarDadesPersonalsEndpoint --> Intranet : mutacio interna
+Intranet --> Inscripcions : UPDATE per ID
+```
+
+```mermaid
+sequenceDiagram
+actor A as Alumne
+participant UI as Portal alumne
+participant IA as IntranetAlumne
+participant Mail as Correu
+A->>UI: Editar dades i enviar
+UI->>IA: GET proposta + idInsc
+IA->>IA: Rellegir dades de l'usuari i comparar camps
+alt Cap canvi
+ IA-->>UI: No canvi
+else Hi ha diferencies
+ IA->>Mail: Preparar missatge a Secretaria
+ IA->>Mail: Preparar confirmacio a l'alumne
+ IA-->>UI: Resultat de la peticio
+end
+Note over IA,Mail: No s'acredita INSERT a personal_data_change_request ni UPDATE del perfil
+```
+
+```mermaid
+sequenceDiagram
+actor O as Operador
+participant UI as Intranet interna
+participant E as guardarDadesPersonals.php
+participant I as Intranet
+participant DB as inscripcions
+O->>UI: Editar dades personals
+UI->>E: GET idInsc + dades
+E->>I: guardarDadesPersonals_resultatCerca(...)
+I->>DB: UPDATE registre per ID segons traça UC042
+DB-->>I: resultat
+I-->>UI: text d'exit/error
+Note over UI,DB: No prova propagacio a altres matricules, Moodle o documents fiscals
+```
+
+## 9. Disseny FINAL: petició i propagació
+
+El model de les seccions 1–4 continua sent **FINAL**. S'afegeix una regla explícita: la petició de l'alumne i l'edició administrativa directa són **dos orígens diferents** que desemboquen en el mateix historial de canvi, però poden tenir requisits d'aprovació diferents. El servei FINAL ha de registrar before/after, actor, base version, decisió, destinacions i resultats. Els camps de baixa, mailing i certificat del modal llegat es descomponen en ordres/UC específics.
+
+Vegeu els [12 diagrames ACTUAL/FINAL](uc-120-activitats-dades-personals-actual-final.md) i l'[auditoria lot 09](00-auditoria-casos-pendents-lot-09-uc-120-2026-09-25.md).
+
+**Estat:** DOC contrastada; servei `PersonalDataChangeService`/propagador no acreditat; proves no executades; producció no verificada.
