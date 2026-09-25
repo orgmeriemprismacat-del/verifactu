@@ -597,6 +597,7 @@ mateixa clau idempotent.
 - `NovicePromotionCourseTransferReviewService::stageFirstTransfer`: mateix titular al curs antic/nou, curs diferent en `READY_FOR_PAYMENT` i sense intenció/factura ni promoció addicional, snapshot de preu ordinari de SIF, import transferible íntegre i rectificativa vinculada al curs original. `novice_promotion_application_transfer.STATUS=PENDING_FISCAL_REVIEW` no modifica l'aplicació `APPLIED` original ni acredita un canvi complet.
 - [Migració 000014](../../sif/database/migrations/2026_09_25_000014_add_novice_promotion_transfer_review_evidence.sql): `novice_promotion_application_transfer.REVIEW_ACTOR_ID` i `.POLICY_EVIDENCE_REF` conserven qui sol·licita la revisió i la política invocada. Els camps són informatius mentre no hi hagi autenticació i aprovació externa acreditada; la seva mera presència no implica consentiment ni autorització. Canvis successius i derivacions des de drets derivats romanen per integrar.
 
+- `novice_promotion_derived_balance.STATUS=REJECTED` ([migració 000015](../../sif/database/migrations/2026_09_25_000015_reject_pending_novice_derived_review.sql)): proposta de baixa DENEGADA sense concessió prèvia, romanent 0, `ISSUED_AT=NULL`, `EXPIRES_AT=NULL`; diferent de `CANCELLED` sobre un dret que sí havia estat concedit. `rejectPendingReview` conserva `review_decision.reason_code`, `reviewed_by` i `reviewed_at_utc` al `POLICY_SNAPSHOT_JSON` amb idempotència. Cap denegació no recrea una promoció original, un `CHARGE` ni una rectificativa.
 ### payment_link.STATUS
 
 - `ACTIVE`
