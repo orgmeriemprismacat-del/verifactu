@@ -211,6 +211,8 @@ final class NovicePromotionCourseTransferReviewService
                     || (string) $previous['TO_UUID_OPERATION'] !== $uuidNewOperation
                     || (string) $previous['UUID_RECTIFICATIVE_FACTURA'] !== $uuidRectificativeInvoice
                     || (string) $previous['AMOUNT'] !== (string) $plan['transfer_promotion']
+                    || (string) $previous['REVIEW_ACTOR_ID'] !== $authorizedActorId
+                    || (string) $previous['POLICY_EVIDENCE_REF'] !== $policyEvidenceRef
                 ) {
                     throw SifException::conflict('A different original course transfer already exists.');
                 }
@@ -228,14 +230,16 @@ final class NovicePromotionCourseTransferReviewService
                 'INSERT INTO novice_promotion_application_transfer
                  (UUID_TRANSFER, ROOT_UUID_ENTITLEMENT, UUID_ORIGINAL_APPLICATION,
                   UUID_DERIVED_APPLICATION, PREVIOUS_UUID_TRANSFER, FROM_UUID_OPERATION,
-                  TO_UUID_OPERATION, UUID_RECTIFICATIVE_FACTURA, AMOUNT, STATUS, IDEMPOTENCY_KEY)
-                 VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?)'
+                  TO_UUID_OPERATION, UUID_RECTIFICATIVE_FACTURA, AMOUNT, STATUS,
+                  IDEMPOTENCY_KEY, REVIEW_ACTOR_ID, POLICY_EVIDENCE_REF)
+                 VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $uuidTransfer, (string) $right['UUID_ENTITLEMENT'], $uuidOriginalApplication,
                 (string) $source['UUID_DESTINATION_OPERATION'], $uuidNewOperation,
                 $uuidRectificativeInvoice, (string) $plan['transfer_promotion'],
                 'PENDING_FISCAL_REVIEW', $idempotencyKey,
+                $authorizedActorId, $policyEvidenceRef,
             ]);
 
             $db->commit();
