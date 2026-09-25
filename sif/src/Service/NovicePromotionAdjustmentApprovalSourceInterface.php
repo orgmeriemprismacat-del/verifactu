@@ -25,4 +25,14 @@ interface NovicePromotionAdjustmentApprovalSourceInterface
      * approved_promotional_amount, approved_cash_amount.
      */
     public function approvedCancellation(string $uuidDerivedReview): ?array;
+
+    /**
+     * @return array<string, string>|null Mandatory keys:
+     * review_uuid, decision_type, decision_id, decision, reviewer_id,
+     * evidence_ref, approved_at_utc, uuid_original_application,
+     * uuid_rectificative, uuid_new_operation, approved_promotional_amount.
+     * The source must independently establish that the final course-change
+     * decision was authorized and that its commercial amount is approved.
+     */
+    public function approvedFirstTransfer(string $uuidTransferReview): ?array;
 }
