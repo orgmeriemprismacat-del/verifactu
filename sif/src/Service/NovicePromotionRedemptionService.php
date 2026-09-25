@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Domain\NovicePromotionAmountPolicy;
 use Prisma\Sif\Exception\SifException;
 
 /**
@@ -178,10 +179,16 @@ final class NovicePromotionRedemptionService
             $this->assertOriginalJasomStillPaid($db, (string) $right['ORIGIN_UUID_OPERATION']);
 
             $available = $this->cents((string) $right['AVAILABLE_AMOUNT']);
-            $amount = $desired ?? min($available, $ordinaryNet);
-            if ($amount <= 0 || $amount > $available || $amount > $ordinaryNet) {
+            try {
+                $selection = (new NovicePromotionAmountPolicy())->allocate(
+                    (string) $right['AVAILABLE_AMOUNT'],
+                    $this->money($ordinaryNet),
+                    $desired === null ? null : $this->money($desired)
+                );
+            } catch (\InvalidArgumentException $exception) {
                 throw SifException::conflict('Promotion exceeds the available balance or later course net price.');
             }
+            $amount = $this->cents($selection['applied_amount']);
 
             $uuidApplication = $this->uuids->generate();
             $amountText = $this->money($amount);
