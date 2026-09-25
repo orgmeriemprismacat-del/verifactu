@@ -20,9 +20,8 @@ if (($config['env'] ?? 'local') === 'production') {
     exit(1);
 }
 
-[$recordType, $selector, $input] = parsePreviewArgs(array_slice($argv, 1));
-
 try {
+    [$recordType, $selector, $input] = (new \Prisma\Sif\Cli\FiscalRecordArguments())->parse(array_slice($argv, 1));
     $sifDb = ConnectionFactory::make($config);
     $invoices = new ManualPaymentInvoiceRepository();
     $invoice = $selector['type'] === 'uuid'
@@ -34,10 +33,6 @@ try {
     if (($invoice['ESTAT_AEAT'] ?? '') === 'NO_VERIFACTU' || ($invoice['ESTAT_FACTURA'] ?? '') === 'HISTORICAL') {
         throw SifException::validation('Historical NO_VERIFACTU invoices do not accept fiscal records');
     }
-    if ($recordType === 'SUBSANACIO' && ($invoice['ESTAT_FACTURA'] ?? '') === 'CANCELLED') {
-        throw SifException::conflict('Cancelled invoices do not accept subsanation records');
-    }
-
     $previous = (new FiscalRecordRepository(new HashCalculator()))
         ->latestForInvoice($sifDb, $invoice['UUID_FACTURA']);
     if ($previous === null) {
@@ -49,10 +44,25 @@ try {
         ? $builder->cancellation($invoice, $previous, $input)
         : $builder->subsanation($invoice, $previous, $input);
 
+    $records = new FiscalRecordRepository(new HashCalculator());
+    $key = $builder->idempotencyKey($recordType, $invoice, $payload, $input);
+    $existing = $records->findQueuedResult($sifDb, $key, false, $payload['request_hash']);
+    $xml = null;
+    if ($existing === null) {
+        (new \Prisma\Sif\Service\FiscalRecordTransitionValidator())->validate($invoice, $previous, $payload);
+        $payload = $records->previewPayload($sifDb, $recordType, $payload);
+        if (isset($payload['aeat'])) {
+            $xml = (new \Prisma\Sif\Aeat\XmlCodec())->request($payload['aeat']);
+        }
+    }
+
     echo json_encode([
         'ok' => true,
         'dry_run' => true,
-        'idempotency_key' => 'AEAT|' . $builder->idempotencyKey($recordType, $invoice, $payload, $input),
+        'idempotency_key' => 'AEAT|' . $key,
+        'existing_result' => $existing,
+        'xml_preview' => $xml,
+        'advisory_only' => true,
         'payload' => $payload,
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
     exit(0);
@@ -63,60 +73,5 @@ try {
         'error' => $exception->getMessage(),
         'code' => $exception->getCode(),
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
-    exit(1);
-}
-
-function parsePreviewArgs(array $args): array
-{
-    $type = strtoupper((string) previewOption($args, ['--type=']));
-    $uuid = previewOption($args, ['--uuid-factura=', '--uuid=']);
-    $number = previewOption($args, ['--num-visible=', '--num-fact=']);
-    $selector = $uuid !== null
-        ? ['type' => 'uuid', 'value' => $uuid]
-        : ($number !== null ? ['type' => 'num_visible', 'value' => $number] : null);
-    $input = [];
-
-    foreach ([
-        'reason' => ['--reason=', '--motiu='],
-        'subsanation_kind' => ['--subsanation-kind=', '--tipus-subsanacio='],
-        'detail' => ['--detail=', '--detall='],
-        'correction_summary' => ['--correction-summary=', '--resum-correccio='],
-        'created_by' => ['--created-by=', '--usuari='],
-        'reference' => ['--reference=', '--referencia='],
-    ] as $key => $prefixes) {
-        $value = previewOption($args, $prefixes);
-        if ($value !== null) {
-            $input[$key] = $value;
-        }
-    }
-
-    if (!in_array($type, ['ANULACIO', 'SUBSANACIO'], true) || $selector === null || !isset($input['reason'])) {
-        previewUsage();
-    }
-    if ($type === 'SUBSANACIO' && !isset($input['subsanation_kind'])) {
-        previewUsage();
-    }
-
-    return [$type, $selector, $input];
-}
-
-function previewOption(array $args, array $prefixes): ?string
-{
-    foreach ($args as $arg) {
-        foreach ($prefixes as $prefix) {
-            if (str_starts_with((string) $arg, $prefix)) {
-                $value = trim(substr((string) $arg, strlen($prefix)));
-
-                return $value === '' ? null : $value;
-            }
-        }
-    }
-
-    return null;
-}
-
-function previewUsage(): void
-{
-    fwrite(STDERR, "Usage: php sif/scripts/preview-fiscal-record.php --type=ANULACIO|SUBSANACIO (--uuid-factura=UUID|--num-visible=NUM) --reason=REASON [--subsanation-kind=SUBSANACION|RECHAZO_PREVIO|SIN_REGISTRO_PREVIO] [--detail=TEXT] [--correction-summary=TEXT] [--created-by=USER] [--reference=REF]\n");
     exit(1);
 }

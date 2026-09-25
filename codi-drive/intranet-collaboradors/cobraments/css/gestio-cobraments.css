@@ -1,0 +1,12 @@
+.mainpanel .modal-content {
+    max-width: calc(100% - var(--sidebarWidth2));
+    margin: 0 auto;
+}
+
+.mainpanel.active .modal-content {
+  max-width: calc(100% - var(--sidebarWidth));
+}
+
+.modal-dialog.modal-dialog-centered.modal-notify.modal-scroll {
+    width: 100%;
+}

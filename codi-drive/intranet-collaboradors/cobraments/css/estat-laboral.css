@@ -1,0 +1,29 @@
+.mainpanel .modal-content {
+    max-width: calc(100% - var(--sidebarWidth2));
+    margin: 0 auto;
+}
+
+.mainpanel.active .modal-content {
+  max-width: calc(100% - var(--sidebarWidth));
+}
+
+.modal-dialog.modal-dialog-centered.modal-notify.modal-scroll {
+    width: 100%;
+}
+
+a {
+  font-weight: bold;
+}
+
+form ul {
+  text-align:left;
+  color: #1A1A1A;
+}
+
+form ul li {
+  list-style: none !important
+}
+
+textarea {
+  height: 65px;
+}

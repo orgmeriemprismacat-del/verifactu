@@ -1012,6 +1012,46 @@ La signatura Redsys valida les dades del TPV, pero el vincle amb l'origen funcio
 Impacte:
 La migracio SQL i el contracte documental queden preparats. Un `DS_ORDER` repetit nomes es idempotent si coincideixen import, resposta, signatura i intencio; qualsevol discrepancia es una incidencia bloquejant. Encara cal implementar repositori/servei, integrar els punts de creacio de Redsys, connectar el callback als orquestradors i executar les proves amb PHP/MySQL.
 
+## 2026-09-22 - Fixar `main` com a inventari provisional i no com a base validada
+
+Decisió:
+Prendre el commit `e71958b` només com a fotografia provisional del material
+recopilat. Abans de desenvolupar més cal resoldre els conflictes versionats,
+reconciliar la branca UML encara divergent, regenerar el catàleg i els hashes,
+reexecutar lint/proves/migracions sobre el `HEAD` actual i decidir el tractament
+de les còpies `codi-drive` amb possibles dades personals.
+
+Motiu:
+El volum incorporat és substancial, però les evidències verdes són anteriors a
+81 canvis de runtime/proves/SQL. UC-77 trenca el contracte de 21 apartats, les
+142 fitxes acumulen 1.874 hashes desactualitzats, `ConnectionFactoryTest.php`
+conté marcadors de conflicte i el commit d'arxius actuals ha incorporat 589 PDF
+entre 3.356 fitxers de snapshots.
+
+Impacte:
+No s'ha de confondre presència de codi, UML o snapshots amb validació del
+producte. Queden bloquejats nous commits amplis, publicació de
+`intranet-collaboradors` i qualsevol `GO` fins a netejar la base, revisar dades,
+obtenir una suite actual reproduïble i tornar a establir traçabilitat coherent.
+
+## 2026-09-22 - Retirar artefactes PDF i rutes de certificat del `HEAD`
+
+Decisió:
+Eliminar els 589 PDF versionats i els 476 fitxers amb `certificat` a la ruta,
+amb un total de 1.065 fitxers sense solapament. No incloure en aquesta retirada
+la còpia local no versionada `intranet-collaboradors`.
+
+Motiu:
+Els artefactes no són necessaris per compilar el SIF i poden contenir dades o
+evidències que requereixen una política de custòdia diferent del repositori de
+codi.
+
+Impacte:
+Les eliminacions queden preparades a l'índex mitjançant `git rm`, sense commit
+ni push. Els objectes continuen a l'historial Git; qualsevol purga de
+l'historial remot requereix una decisió separada perquè reescriu commits i
+afecta totes les còpies del repositori.
+
 ## 2026-06-20 - Contracte executable i operacio del circuit asincron Redsys
 ## 2026-06-19 - Els callbacks Redsys es processen amb una cua asincrona propia
 
@@ -1024,3 +1064,132 @@ La resposta a Redsys no pot dependre de facturacio ni de consultes legacy. Un du
 Impacte:
 Queden implementats `CURS`, `PACK`, `GRUP`, `REGAL` i `USOC_ALUMNE`, worker CLI finit i preflight de nomes lectura. REGAL usa ID numeric congelat, USOC conserva `entity_amount` i la sincronitzacio legacy automatica continua exclosa. L'activacio productiva segueix sotmesa al go/no-go de preproduccio.
 
+## 2026-09-23 - Separar DTO de pantalla i payload fiscal SIF
+
+Decisio:
+Els endpoints interns no acceptaran directament el payload fiscal complet des del navegador. La UI envia un DTO limitat; el servidor autentica, autoritza, valida i deriva actor, canal, serie, tipus de moviment, assignacions i relacions abans de cridar el servei SIF.
+
+Motiu:
+Exposar camps interns permetria manipular identitat, accio fiscal, receptor copiat o relacions. A mes, reenviar totes les dades durant `confirm` permetria canviar l'operacio despres del preview.
+
+Impacte:
+`15-contractes-api-pantalles-internes.md` fixa DTO, mapatges, errors i proves. `confirm` nomes rep el token de preview i la confirmacio; el servidor recupera la instantania congelada, revalida estat i aplica idempotencia. Els endpoints de baix nivell continuen fora de l'abast directe del navegador.
+
+
+## 2026-09-23 - Correlació AEAT i idempotència de correccions
+
+Decisió:
+Una referència fiscal reutilitzada ha de coincidir amb la factura i el
+contingut original de la petició. Les respostes AEAT es correlacionen per
+emissor, número/data, tipus d'operació i marques de correcció. Un duplicat
+requereix revisió i no es converteix automàticament en acceptació.
+
+Motiu:
+La regressió ha reproduït la reutilització incorrecta d'una anul·lació
+d'una altra factura per una comprovació situada al mètode equivocat.
+La mateixa identitat fiscal també pot tenir alta, subsanacions i anul·lació;
+comprovar només número/data és insuficient.
+
+Impacte:
+Corregits FiscalRecordRepository i ResponseParser, amb proves executables.
+La huella oficial queda al snapshot AEAT; el digest HASH_FACT continua
+essent intern. El transport candidat segueix limitat a proves externes i
+la declaració no es fa signable amb evidències sintètiques.
+El preflight usa les dependències reals de cURL/mTLS i valida el certificat
+localment sense afirmar confiança AEAT, revocació o representació.
+
+
+Validació d'aquesta decisió:
+363 proves de regressió correctes, cap fallada, en una BD de revisió separada.
+El manifest local 2026-09-23-aeat-review-source-manifest.json identifica els
+fitxers verificats; cap hash ha canviat durant l'execució final.
+El preflight bloquejat per dependències/configuració reals és un resultat
+esperat i no es reetiqueta com a preparació per producció.
+
+
+## 2026-09-23 - Preview fiscal consultiu i confirmació revalidada
+
+Decisió:
+Preview i confirmació CLI comparteixen parser i validació de transicions.
+El preview oficial ha de validar XML/XSD sense cap INSERT/UPDATE. Hora,
+ordre i huella proposats són provisionals i la confirmació els regenera
+sota el bloqueig transaccional, després de comprovar idempotència i estat.
+No es tracta del token de confirmació de la futura UI.
+
+Motiu:
+Els CLI antics no admetien corrected_fields ni totes les variants d'anul·lació
+i el preview podia acceptar operacions que el servei rebutjava. L'àlies de
+subsanació SIN_REGISTRO_PREVIO ha d'exigir rebuig previ com RECHAZO_PREVIO.
+
+Impacte:
+Afegits parser i validador compartits i proves que llancen els processos CLI
+reals. El contingut JSON, no la ruta del fitxer, determina la petició idempotent.
+Les columnes de resum AEAT de la cua es poblen des de la resposta; el registre
+conserva el detall complet. cURL local activat, certificat real encara pendent.
+
+Validació final:
+371 proves de regressió correctes i cap fallada. No hi ha canvis de hashes
+de codi durant la prova. El preflight confirma cURL actiu i manté el bloqueig
+per certificat usable i directori privat no configurats; no hi ha enviament AEAT.
+
+## 2026-09-24 — Verificació executable de la integritat AEAT
+
+Decisió: bloquejar XmlCodec si falta un recurs del manifest o no coincideix
+el seu SHA-256; normalitzar els recursos locals a UTF-8 sense BOM i LF.
+Afegir un verificador de només lectura dels intents desats, amb estats
+RESPONSE_RECORDED, INCOMPLETE, FAILED_ATTEMPT i INVALID. Només el primer
+amb integritat correcta retorna codi de sortida zero.
+Motiu: un manifest merament informatiu no detectava alteracions abans de
+validar XML; la presència de fitxers tampoc acreditava un intent complet.
+Límit: els hashes no autentiquen una substitució conjunta de fitxers i manifest,
+ni constitueixen WORM o evidència d'acceptació AEAT. No hi ha enviaments externs.
+
+Verificació final 2026-09-24: **374 passed, 0 failed** a la BD aïllada
+sif_test_aeat_review_20260923; cap canvi dels hashes de codi durant la regressió.
+Logs locals a sif/var/evidence/2026-09-24-aeat-integrity-regression.log,
+2026-09-24-aeat-integrity-preflight.json i
+2026-09-24-aeat-integrity-source-manifest.json. Les 26 proves específiques
+consten a 2026-09-23-aeat-integrity-tests.log. Cap enviament AEAT ni commit/push.
+
+## 2026-09-24 — Espera persistent després d'un intent fallit
+
+Decisió: renovar NEXT_SEND_AT a 60 segons des del final quan el transport
+llança una excepció o retorna un temps d'espera invàlid, abans de propagar
+l'error al processador de retries. Mantenir també l'espera preventiva inicial.
+Motiu: comptar únicament des de l'inici consumia part de l'espera durant la
+petició fallida. El límit global ha de continuar actiu després d'un reinici.
+Validació: 27 proves específiques correctes; timeout i espera invàlida
+coberts amb transport sintètic i MySQL aïllat. No s'ha enviat res a AEAT.
+Límit: una terminació abrupta no executa el catch; conserva el termini
+preventiu i necessita la recuperació explícita del lock antic.
+
+## 2026-09-24 — Respectar la marca de revisió de la resposta
+
+Decisió: propagar requires_review des de la resposta al resultat del processador
+i consultar-la al worker, inclosa duplicate=true, encara que l'estat sigui ACCEPTED.
+Motiu: el parser podia marcar revisió, però el worker només examinava l'estat fiscal.
+La incidència AEAT_REVIEW conserva la necessitat d'actuació sense canviar l'estat
+retornat ni reenviar una resposta ja processada. No resol la conciliació del duplicat.
+Validació: 28 proves específiques correctes amb transport sintètic i BD aïllada;
+cap enviament extern. Lint dels tres fitxers PHP correcte.
+
+## 2026-09-24 — Verificació de concurrència i límit després de recuperació
+
+Decisió: conservar el comportament actual del worker i cobrir-lo amb proves
+sobre dues connexions MySQL independents. El lock global precedeix qualsevol
+recuperació; els intents consumits no es reinicien en recuperar un lock antic.
+La recuperació amb pressupost esgotat bloqueja la cadena i obre una incidència,
+sense reenviar ni passar al registre següent. Repetir el cicle no duplica la incidència.
+Validació: 30 proves específiques correctes amb transport sintètic, BD aïllada
+i cap enviament AEAT. No acredita recuperació del servidor davant una caiguda real.
+
+## 2026-09-24 — Evidència vigent de la infraestructura local
+
+Decisió:
+Donar per validat l'entorn local de proves amb PHP 8.4.25/MySQL 8.4.10 i el conjunt actual de deu migracions, basant-se en instal·lació buida, reexecució, lint de 328 PHP i suite completa de 378 proves sense fallades. Conservar els logs i el manifest de fonts a sif/var/evidence/2026-09-24-infra-*.
+
+Motiu:
+Les execucions anteriors no cobrien tots els canvis incorporats posteriorment. La comprovació del 24 de setembre cobreix el codi actual, inclosos els controls d'infraestructura i les darreres proves AEAT; no hi ha hagut canvis de fonts durant la validació.
+
+Impacte:
+El preflight local és satisfactori. El go/no-go continua NO-GO per manca de clau Redsys i de les quatre taules legacy requerides. Un GO del script només té abast technical_preflight_only i production_authorized=false; no substitueix qualificació externa, restauració, permisos ni portes G1..G7. No cal canviar l'estat global ni activar cap canal real.

@@ -74,6 +74,8 @@ final class FiscalQueueProcessor
                 'queue_id' => (int) $item['ID'],
                 'attempts' => (int) $item['ATTEMPTS'],
                 'aeat_status' => $status,
+                'requires_review' => ($response['requires_review'] ?? false) === true
+                    || ($response['duplicate'] ?? false) === true || $status !== 'ACCEPTED',
             ];
         } catch (\Throwable $exception) {
             return $this->failure($item, $exception);

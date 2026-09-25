@@ -1,0 +1,4 @@
+sif/database/migrations/*.sql text eol=lf
+sif/resources/aeat/*.xsd text eol=lf
+sif/resources/aeat/*.wsdl text eol=lf
+sif/resources/aeat/*.json text eol=lf

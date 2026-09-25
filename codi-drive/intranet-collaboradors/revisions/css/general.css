@@ -1,0 +1,110 @@
+.marc_activitat {
+	align-items: center;
+	display: flex;
+	justify-content: center;
+	flex-direction: column;
+	min-height: 100vh;
+}
+
+.p-act {
+	padding: 8px 15px;
+}
+
+.inici {
+	height: 95vh;
+}
+
+button, [role=button], button:focus, [role=button]:focus {
+	border: 0;
+	font-size: 16px;
+	padding: 10px 45px;
+	text-decoration: none;
+	/* width: 210px; */
+}
+
+button:hover, button:active, [role=button]:hover {
+	text-decoration: none;
+}
+
+button:focus, [role=button] {
+	outline: none !important;
+}
+
+.modal-notify .modal-header {
+	border: 0;
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+}
+
+.modal-notify.modal-danger .modal-header {
+	background: var(--bg-modal-danger);
+	color: var(--white);
+}
+
+.modal-header .close {
+	margin: -1px -1px -1px auto;
+	padding: 1px 1px;
+}
+
+.modal-header {
+	padding: 10px 15px;
+}
+
+span.white-text {
+	color: var(--white) !important;
+}
+
+.modal-notify .close {
+	opacity: 1;
+}
+
+.modal-notify .modal-body {
+	color: var(--text-modal);
+	text-align: justify;
+	padding: 15px;
+}
+
+ul.errors {
+	list-style: square;
+	line-height: 24px;
+	margin-bottom: 0;
+}
+
+.modal-footer {
+	padding: 8px;
+	text-align: center;
+}
+
+.modal-footer .btn {
+	font-size: 14px;
+	padding: 8px 21px;
+	text-transform: uppercase;
+}
+
+.modal-footer .btn-danger {
+	background-color: var(--bg-modal-danger);
+	border: var(--bg-modal-danger);
+	box-shadow: 0 2px 5px 0 rgba(0, 0, 0, .16), 0 2px 10px 0 rgba(0, 0, 0, .12);
+}
+
+.modal-footer .btn-danger:hover {
+	background-color: var(--bg-modal-danger-hover);
+	border: var(--bg-modal-danger-hover);
+	box-shadow: 0 5px 11px 0 rgba(0, 0, 0, .18), 0 4px 15px 0 rgba(0, 0, 0, .15);
+	outline: 0;
+}
+
+.modal-footer .btn-alert {
+	background-color: var(--bg-modal-alert);
+	border: var(--bg-modal-alert);
+	box-shadow: 0 2px 5px 0 rgba(0, 0, 0, .16), 0 2px 10px 0 rgba(0, 0, 0, .12);
+	color: var(--white);
+}
+
+.modal-footer .btn-alert:hover {
+	background-color: var(--bg-modal-alert-hover);
+	border: var(--bg-modal-alert-hover);
+	box-shadow: 0 5px 11px 0 rgba(0, 0, 0, .18), 0 4px 15px 0 rgba(0, 0, 0, .15);
+	outline: 0;
+	color: var(--white);
+}

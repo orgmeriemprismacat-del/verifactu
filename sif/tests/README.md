@@ -22,7 +22,7 @@ El helper carrega `sif/var/test-env.json` i restaura les variables del procés
 quan acaba. `Test`, `Migrate`, `Preflight` i `GoNoGo` retornen el codi de sortida
 PHP. No s'ha afegit PHP al PATH global: el helper usa el binari local.
 
-`Test` buida les 60 taules de negoci de **sif_test** i conserva el ledger de
+`Test` buida les 62 taules de negoci/control de **sif_test** i conserva el ledger de
 migracions. No s'ha d'executar contra dades a conservar. Exigeix `SIF_ENV=test`,
 nom `sif_test` o `sif_test_*`, i comprova també el nom real de la connexió.
 Un lock MySQL impedeix dues suites simultànies a la mateixa BD.
@@ -73,8 +73,22 @@ php sif/scripts/go-no-go-preproduction.php
 ordenat i registra nom/SHA-256 només quan el fitxer acaba correctament.
 Una migració aplicada canviada o absent bloqueja l'execució; crear migracions
 additives per evolucionar un esquema ja desplegat. El preflight contrasta
-cada hash, les 60 taules i les columnes declarades en CREATE/ADD COLUMN.
+cada hash, les 62 taules i les columnes declarades en CREATE/ADD COLUMN.
 No és una comparació completa de tipus, índexs, triggers o grants.
+
+El conjunt vigent amb el worker AEAT a 2026-09-23 conté deu fitxers de migració: s'ordenen pel
+nom complet, no pel sufix numèric (hi ha sufixos repetits en dates diferents).
+`.gitattributes` fixa LF per a aquests SQL. Això evita que el checkout de
+Windows canviï els bytes i invalidi els hashes del ledger; la comprovació
+SHA-256 continua sent estricta, sense ignorar diferències de contingut.
+
+`MigrationInfrastructureTest` executa les migracions reals, comprova que la
+reexecució conserva dades, detecta hashes/taules/columnes alterats, verifica
+la neteja de dades i el restabliment de foreign keys, i rebutja una segona
+suite o l'entorn productiu abans de buidar la BD. Les proves de preflight i
+go/no-go executen també els CLI amb `PHP_BINARY`, validen JSON i codis de
+sortida i comproven que un `NO-GO` no s'amaga darrere de la presència dels
+fitxers. No envien peticions a Redsys ni a AEAT.
 
 MySQL fa commits implícits de DDL. Una fallada parcial no es desfà amb
 ROLLBACK: no manipular el ledger per simular èxit. En aquesta instància
@@ -89,3 +103,24 @@ no l'acceptarà silenciosament: cal revisar la seva situació explícitament.
 Les proves actuals combinen tests executables i comprovacions estàtiques.
 El smoke de concurrència existent és seqüencial; una suite verda no acredita
 concurrència real multiprocés, integració dels canals, restauració ni AEAT.
+
+## Evidència local
+
+Els logs d'execució es conserven a `sif/var/evidence/`, fora de Git. Els
+fitxers amb prefix `2026-09-23-` documenten la represa sobre el codi integrat,
+inclosa una instal·lació de les nou migracions en una BD temporal buida i la
+seva reexecució. La BD temporal s'elimina després de la comprovació.
+Una prova anterior no valida canvis de codi posteriors: contrastar sempre
+el manifest de hashes de l'execució amb els fitxers que es volen desplegar.
+
+### Execució completa del 2026-09-24
+
+Els fitxers `sif/var/evidence/2026-09-24-infra-*` documenten la validació
+actual: deu migracions en instal·lació buida i reexecució idempotent, 62 taules
+de model, lint de 328 PHP i **378 passed, 0 failed** a la suite completa.
+El manifest no presenta canvis de fonts durant aquesta execució.
+
+`Preflight` retorna exit 0. `GoNoGo` retorna exit 1/NO-GO per la clau Redsys
+absent i les taules legacy `inscripcions`, `curs`, `regal` i `respGrups` absents.
+Les proves AEAT fan servir dobles de transport; no s'ha enviat res a serveis
+externs. La validació local no substitueix les portes de producció.

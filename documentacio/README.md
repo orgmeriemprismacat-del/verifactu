@@ -37,6 +37,7 @@
 - `03-canvis-pendents/12-contracte-tecnic-pantalles-internes.md`: contracte implementable de pantalles, endpoints interns, serveis SIF, permisos, avisos, auditoria i criteris d'acceptacio.
 - `03-canvis-pendents/13-fitxes-ui-pantalles-internes.md`: fitxes visuals i d'interaccio per a pagaments, factura previa, consulta/rectificacio, portals externs i avisos VERI*FACTU.
 - `03-canvis-pendents/14-backlog-implementacio-pantalles-internes.md`: backlog ordenat per integrar les pantalles amb el codi actual, retirar mutacions llegades i validar cada tall.
+- `03-canvis-pendents/15-contractes-api-pantalles-internes.md`: esquemes HTTP, DTO, mapatge als serveis SIF, errors i proves de contracte de les pantalles internes i portals.
 
 ## 5. Estat final
 

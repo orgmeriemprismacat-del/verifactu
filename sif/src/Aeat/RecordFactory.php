@@ -28,6 +28,9 @@ final class RecordFactory
         if (array_diff(array_keys($fields), $order)) {
             throw new \InvalidArgumentException('Unknown AEAT record fields.');
         }
+        if ($previous !== null) {
+            (new XmlCodec())->request($previous);
+        }
         $fields['IDVersion'] = '1.0';
         $fields['Encadenamiento'] = $previous === null ? ['PrimerRegistro' => 'S']
             : ['RegistroAnterior' => $this->identity($previous) + ['Huella' => $previous['record']['Huella']]];
@@ -76,6 +79,45 @@ final class RecordFactory
             $result[$field] = $value;
         }
         return $result;
+    }
+
+    /** Corrected fields are complete. Never modify the original invoice or snapshot. */
+    public function correct(array $original, array $fields, array $previous, string $mode,
+        \DateTimeImmutable $generatedAt): array
+    {
+        if ($original['type'] !== 'RegistroAlta') {
+            throw new \InvalidArgumentException('Only an alta can be subsanated.');
+        }
+        $candidate = ['type' => 'RegistroAlta', 'record' => $fields];
+        if ($this->identity($candidate) !== $this->identity($original)) {
+            throw new \InvalidArgumentException('Subsanation cannot change invoice identity.');
+        }
+        $fields['Subsanacion'] = 'S';
+        $fields['RechazoPrevio'] = match ($mode) {
+            'SUBSANACION' => 'N',
+            'RECHAZO_PREVIO', 'SIN_REGISTRO_PREVIO' => 'X',
+            'SUBSANACION_RECHAZADA' => 'S',
+            default => throw new \InvalidArgumentException('Unknown subsanation mode.'),
+        };
+        return $this->freeze('RegistroAlta', $original['header'], $fields, $previous, $generatedAt);
+    }
+
+    public function cancel(array $original, array $previous, string $mode,
+        \DateTimeImmutable $generatedAt): array
+    {
+        $id = [];
+        foreach ($this->identity($original) as $key => $value) {
+            $id[$key . 'Anulada'] = $value;
+        }
+        $flags = match ($mode) {
+            'NORMAL' => ['SinRegistroPrevio' => 'N', 'RechazoPrevio' => 'N'],
+            'RECHAZO_PREVIO' => ['SinRegistroPrevio' => 'N', 'RechazoPrevio' => 'S'],
+            'SIN_REGISTRO_PREVIO' => ['SinRegistroPrevio' => 'S', 'RechazoPrevio' => 'N'],
+            default => throw new \InvalidArgumentException('Unknown cancellation mode.'),
+        };
+        return $this->freeze('RegistroAnulacion', $original['header'],
+            ['IDFactura' => $id] + $flags + ['SistemaInformatico' => $original['record']['SistemaInformatico']],
+            $previous, $generatedAt);
     }
 
     private function checkAlta(array $record): void

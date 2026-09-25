@@ -8,12 +8,17 @@ final class FiscalRecordPayloadBuilder
 {
     public function cancellation(array $invoice, array $previousRecord, array $input): array
     {
-        return $this->basePayload('ANULACIO', 'RegistroAnulacion', $invoice, $previousRecord, $input);
+        $payload = $this->basePayload('ANULACIO', 'RegistroAnulacion', $invoice, $previousRecord, $input);
+        $payload['cancellation_mode'] = $input['cancellation_mode'] ?? 'NORMAL';
+        if (!in_array($payload['cancellation_mode'], ['NORMAL', 'RECHAZO_PREVIO', 'SIN_REGISTRO_PREVIO'], true)) {
+            throw SifException::validation('Invalid cancellation mode');
+        }
+        return $payload;
     }
 
     public function subsanation(array $invoice, array $previousRecord, array $input): array
     {
-        $payload = $this->basePayload('SUBSANACIO', 'Subsanacion', $invoice, $previousRecord, $input);
+        $payload = $this->basePayload('SUBSANACIO', 'RegistroAlta', $invoice, $previousRecord, $input);
         $payload['subsanation_kind'] = $this->subsanationKind(
             $this->requiredString($input, ['subsanation_kind', 'tipus_subsanacio'], 'subsanation kind')
         );
@@ -21,6 +26,12 @@ final class FiscalRecordPayloadBuilder
             $input,
             ['correction_summary', 'resum_correccio']
         );
+        if (isset($payload['aeat_original'])) {
+            if (!is_array($input['corrected_fields'] ?? null)) {
+                throw SifException::validation('Official subsanation requires complete corrected_fields');
+            }
+            $payload['corrected_fields'] = $input['corrected_fields'];
+        }
 
         return $payload;
     }
@@ -50,7 +61,7 @@ final class FiscalRecordPayloadBuilder
         array $previousRecord,
         array $input
     ): array {
-        return [
+        $payload = [
             'record_type' => $recordType,
             'aeat_record_type' => $aeatRecordType,
             'uuid_factura' => $invoice['UUID_FACTURA'],
@@ -69,6 +80,15 @@ final class FiscalRecordPayloadBuilder
             'created_by' => $this->optionalString($input, ['created_by', 'user', 'usuari']),
             'reference' => $this->optionalString($input, ['reference', 'referencia']),
         ];
+        $previousPayload = json_decode((string) ($previousRecord['PAYLOAD_JSON'] ?? '{}'), true);
+        if (isset($previousPayload['aeat'])) {
+            $payload['aeat_original'] = $previousPayload['aeat'];
+        }
+        // Stable request fingerprint excludes mutable state and generated chain data.
+        $payload['request_hash'] = (new PayloadIdempotencyValidator())->calculateHash([
+            'invoice' => $invoice['UUID_FACTURA'], 'type' => $recordType, 'input' => $input,
+        ]);
+        return $payload;
     }
 
     private function subsanationKind(string $value): string
@@ -80,7 +100,7 @@ final class FiscalRecordPayloadBuilder
         ];
         $kind = $aliases[$kind] ?? $kind;
 
-        if (!in_array($kind, ['SUBSANACION', 'RECHAZO_PREVIO', 'SIN_REGISTRO_PREVIO'], true)) {
+        if (!in_array($kind, ['SUBSANACION', 'RECHAZO_PREVIO', 'SIN_REGISTRO_PREVIO', 'SUBSANACION_RECHAZADA'], true)) {
             throw SifException::validation('Invalid subsanation kind');
         }
 

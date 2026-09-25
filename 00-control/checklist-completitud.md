@@ -831,3 +831,157 @@ Una area es pot marcar com a revisada quan:
 - [ ] Executar `SIF-PANT-SEC-001..004` al repositori i entorn reals.
 - [ ] Generar, indexar i calcular hashes dels paquets `EVID-UI-*`.
 - [ ] Revisar cada paquet amb responsable diferent de qui executa quan sigui possible.
+
+## Recopilació de l'estat real del repositori - 2026-09-22
+
+- [x] Inventariats commits, branques, documentació, SIF, proves, migracions,
+  fitxes, UML, runtime local i snapshots de `codi-drive` sense llegir el JSONL.
+- [x] Confirmats 102 PHP de `src`, 63 scripts, 3 endpoints, 135 tests/344
+  mètodes, 9 migracions i 61 taules úniques.
+- [x] Confirmats PHP 8.4.25 i MySQL 8.4.10 portables; MySQL no s'ha iniciat en
+  aquesta recopilació.
+- [x] Detectats marcadors de conflicte versionats en dos fitxers i error de
+  sintaxi a `ConnectionFactoryTest.php`.
+- [x] Detectats UC-77 amb 22 apartats i 1.874 hashes incorrectes en les 142
+  fitxes funcionals.
+- [x] Inventariades 142 fitxes UML, 428 blocs Mermaid i 212 PlantUML; detectada
+  branca UML remota encara divergent amb 113 commits no integrats a `main`.
+- [x] Inventariats 3.356 fitxers versionats de `codi-drive` (589 PDF) i 3.523
+  fitxers locals de `intranet-collaboradors` (2.957 PDF) sense obrir-los.
+- [ ] Resoldre els dos conflictes versionats i passar lint sobre tot el PHP.
+- [ ] Decidir si `codi-drive` pot romandre a GitHub; revisar dades personals,
+  secrets, llicència/finalitat i, si cal, retirar-lo també de l'historial.
+- [ ] Restaurar o decidir conscientment les regles de `.gitignore`; no afegir
+  `intranet-collaboradors` en bloc.
+- [ ] Reconciliar la branca UML divergent i verificar/renderitzar el resultat.
+- [ ] Regenerar les 142 fitxes, recuperar 21 apartats per fitxa i 0 errors de
+  hash abans de tornar-les a publicar.
+- [ ] Iniciar només el MySQL local aïllat i reexecutar lint, migracions, suite,
+  preflight i go/no-go sobre el `HEAD` que resulti de la neteja.
+- [ ] Mantenir `[NO-GO]` fins a completar aquestes portes.
+
+## Retirada de PDF i certificats de `codi-drive` - 2026-09-22
+
+- [x] Verificats 589 PDF i 476 rutes amb `certificat`, sense solapament.
+- [x] Validat que els 1.065 objectius eren fitxers versionats dins de
+  `codi-drive`.
+- [x] Eliminats els 1.065 fitxers amb `git rm` i confirmada la seva absència del
+  directori de treball.
+- [x] Confirmat que `intranet-collaboradors` no s'ha modificat.
+- [ ] Revisar i reforçar `.gitignore` abans d'afegir nous snapshots.
+- [ ] Decidir si n'hi ha prou amb retirar-los del `HEAD` o si cal purgar-los de
+  l'historial GitHub per motius de protecció de dades.
+- [ ] Fer commit/push només amb autorització explícita.
+
+## Contractes API de pantalles internes - 2026-09-23
+
+- [x] Definit el contracte HTTP comu, estats i estructura d'errors.
+- [x] Separats DTO de pantalla i payload fiscal derivat pel servidor.
+- [x] Definits preview/confirm amb instantania congelada i idempotencia.
+- [x] Definits consulta de factures i calcul servidor de `available_actions`.
+- [x] Definits contractes de pagament, factura previa i rectificacio.
+- [x] Definits resum VERI*FACTU i consulta/descarrega de portal extern.
+- [x] Documentats codis d'error, camps sensibles, compatibilitat i proves de contracte.
+- [ ] Implementar i versionar els DTO/endpoints al repositori real.
+- [ ] Automatitzar les proves de contracte i enllacar-les amb `SIF-PANT-SEC-*`.
+
+## Integració AEAT verificada localment - 2026-09-23
+
+- [x] Annex executable d'alta, anul·lació, subsanació i evidències.
+- [x] XSD/WSDL locals identificats per origen i SHA-256.
+- [x] Vector oficial de huella, XML/XSD i ordre després de persistir JSON.
+- [x] Correlació de resposta amb identitat, operació i marques de correcció.
+- [x] Conflicte idempotent entre factures cobert i corregit.
+- [x] Certificat sintètic: contrasenya, vigència, clau i metadades sense secrets.
+- [x] Evidències amb hashes, escriptura exclusiva i bloqueig de path traversal.
+- [x] Worker: snapshot estable, espera global, retry/dead-letter i bloqueig de cua.
+- [x] 15 proves AEAT locals correctes en BD aïllada; 20 fitxers amb lint correcte.
+- [x] Preflight coherent amb el transport cURL/mTLS de proves.
+- [ ] Completar el mapatge fiscal de tots els canals.
+- [x] Completar els CLI de correcció (continuació del mateix dia).
+- [ ] Provar certificat/apoderament real des del servidor i usuari del worker.
+- [ ] Configurar i provar ACL, planificador, alertes, renovació i recuperació.
+- [ ] Executar els casos externs AEAT amb XML/resposta real i CSV quan existeixi.
+- [ ] Tancar conciliació de duplicats/timeouts i expedient G1..G7.
+- [ ] Habilitar producció només després de qualificació; declaració encara esborrany.
+
+
+- [x] Regressió completa del tall final: 363 passed, 0 failed.
+- [x] Manifest de codi i logs conservats a sif/var/evidence, sense deriva de hashes.
+- [x] Preflight local comprovat: ready_to_send=false; bloquejos reals visibles.
+- [x] Activar cURL al PHP portable local.
+- [ ] Configurar certificat/evidències privades i verificar dependències a l'entorn real del worker.
+
+## Continuació CLI i projecció de resposta AEAT - 2026-09-23
+
+- [x] CLI amb corrected-fields local i variants completes d'anul·lació/subsanació.
+- [x] Preview XML/XSD sense escriptures i transicions compartides amb confirmació.
+- [x] Rebuig de selectors ambigus, opcions repetides/desconegudes i fitxers invàlids.
+- [x] Rebuig previ obligatori també per l'àlies de subsanació SIN_REGISTRO_PREVIO.
+- [x] CSV, codi, resum UTF-8 d'error i espera persistits a fiscal_queue.
+- [x] cURL activat al PHP portable local; sense canvis de PHP global.
+- [x] 23 proves específiques correctes, inclosos CLI reals; lint de 13 fitxers.
+- [ ] Certificat/apoderament real, configuració privada i proves externes AEAT.
+- [ ] Mapatge fiscal validat de tots els canals i operació del servidor.
+
+- [x] Regressió completa de la continuació: 371 passed, 0 failed.
+- [x] Preflight confirma cURL actiu i bloqueja l'enviament sense certificat/configuració.
+- [x] Logs i manifest 2026-09-23-aeat-cli conservats; cap deriva de hashes.
+
+## Integritat AEAT — 2026-09-24
+
+- [x] Verificar els cinc hashes abans de validar XML i al preflight.
+- [x] Fixar UTF-8 sense BOM i LF per als recursos locals del manifest.
+- [x] CLI de només lectura per verificar peticions/respostes desades.
+- [x] Detectar alteracions, parelles incompletes i intents fallits.
+- [x] 26 proves específiques correctes; lint de set fitxers PHP correcte.
+- [x] Preflight confirma bundled_schemas_integrity=true.
+- [ ] Certificat real, ACL/retenció, configuració privada i qualificació externa.
+
+Verificació final 2026-09-24: **374 passed, 0 failed** a la BD aïllada
+sif_test_aeat_review_20260923; cap canvi dels hashes de codi durant la regressió.
+Logs locals a sif/var/evidence/2026-09-24-aeat-integrity-regression.log,
+2026-09-24-aeat-integrity-preflight.json i
+2026-09-24-aeat-integrity-source-manifest.json. Les 26 proves específiques
+consten a 2026-09-23-aeat-integrity-tests.log. Cap enviament AEAT ni commit/push.
+
+## Espera després de fallades del transport — 2026-09-24
+
+- [x] Renovar el mínim global de 60 segons després d'excepcions del transport.
+- [x] Aplicar la mateixa espera quan el transport retorna un interval invàlid.
+- [x] Provar persistència després de reiniciar el worker, amb retry individual vençut.
+- [x] 27 proves específiques correctes; lint de dos fitxers i diff --check correctes.
+- [x] Conservar el log 2026-09-24-aeat-retry-tests.log a sif/var/evidence.
+- [ ] Qualificar timeouts i recuperació al servidor amb evidències externes AEAT.
+
+## Propagació de revisió AEAT — 2026-09-24
+
+- [x] Propagar requires_review i duplicate al resultat del processador.
+- [x] Obrir AEAT_REVIEW també per respostes ACCEPTED marcades per revisar.
+- [x] Provar que no es reenvia el registre ni es repeteix la incidència al cicle següent.
+- [x] Provar que una acceptació ordinària no obre incidència.
+- [x] 28 proves específiques correctes; lint de tres fitxers PHP correcte.
+- [ ] Conciliació operativa de duplicats amb resposta i evidències reals AEAT.
+
+## Concurrència i recuperació AEAT — 2026-09-24
+
+- [x] Provar exclusió entre dues connexions MySQL amb lock global ocupat.
+- [x] Provar que WORKER_BUSY no recupera files ni consumeix intents.
+- [x] Provar represa explícita després d'alliberar el lock global.
+- [x] Provar dead-letter amb pressupost esgotat i bloqueig del registre següent.
+- [x] Provar que cicles repetits no dupliquen la incidència de pressupost esgotat.
+- [x] 30 proves específiques correctes; lint del fitxer de proves correcte.
+- [ ] Prova de caiguda i recuperació al servidor real amb evidències conservades.
+
+## Validació executable local actualitzada — 2026-09-24
+
+- [x] PHP 8.4.25 i MySQL 8.4.10 configurats en entorn local aïllat.
+- [x] Deu migracions aplicades i hashes verificats a sif_test.
+- [x] Instal·lació des de zero en BD temporal, reexecució idempotent i 62 taules verificades.
+- [x] Suite completa actual: 378 passed, 0 failed; inclou regressions d'infraestructura i AEAT.
+- [x] Lint de 328 fitxers PHP i manifest sense canvis de fonts durant la validació.
+- [x] Preflight SIF correcte i go/no-go executat amb NO-GO esperat i causes explícites.
+- [x] Logs locals 2026-09-24-infra-* conservats a sif/var/evidence/ i comandaments documentats.
+- [ ] Configurar la clau Redsys de proves i un esquema/dades legacy de preproducció vàlids.
+- [ ] Completar certificat/configuració privada i qualificació externa AEAT.
+- [ ] Validar integració real, permisos, restauració al servidor i portes G1..G7 abans de producció.

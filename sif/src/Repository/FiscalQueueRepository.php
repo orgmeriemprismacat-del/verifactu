@@ -113,10 +113,17 @@ final class FiscalQueueRepository
 
         $db->prepare(
             "UPDATE fiscal_queue
-             SET STATUS = 'SENT', SENT_AT = NOW(), LOCKED_AT = NULL,
+             SET AEAT_CSV = ?, AEAT_ERROR_CODE = ?, AEAT_ERROR_MESSAGE = ?, FLOW_WAIT_SECONDS = ?,
+                 STATUS = 'SENT', SENT_AT = NOW(), LOCKED_AT = NULL,
                  NEXT_RETRY_AT = NULL, LAST_ERROR = NULL
              WHERE ID = ?"
-        )->execute([$queueItem['ID']]);
+        )->execute([
+            isset($response['csv']) ? mb_substr((string) $response['csv'], 0, 120, 'UTF-8') : null,
+            isset($response['error_code']) ? mb_substr((string) $response['error_code'], 0, 80, 'UTF-8') : null,
+            isset($response['error_message']) ? mb_substr((string) $response['error_message'], 0, 500, 'UTF-8') : null,
+            $response['flow_wait_seconds'] ?? null,
+            $queueItem['ID'],
+        ]);
 
         $record = $db->prepare(
             'UPDATE factura_registres

@@ -1,0 +1,260 @@
+@charset "utf-8";
+/* CSS Document */
+
+@font-face {
+  font-family: 'Myriad Pro';
+    src: url('https://www.prisma.cat/fonts/MyriadPro-Regular.otf'); /* Para Internet Explorer */
+    src: local('Myriad Pro'), /* Para el resto de navegadores */
+         url('https://www.prisma.cat/fonts/MyriadPro-Regular.otf') format('opentype');
+}
+
+body {
+	align-items: center;
+   background-image: url(https://www.prisma.cat/documents/imatges/fons/activitats.png);
+   display: flex;
+   font-family: 'Myriad Pro', Roboto, 'Arial', sans-serif;
+   height: 100vh;
+   margin:0;
+}
+
+#tot {
+   background-color:#FFFFFF;
+	box-shadow: 0px 0px 30px -10px #565454;
+   height: fit-content;
+	margin:20px auto;
+	width:1000px;
+}
+
+.cos_error {
+  padding-bottom: 10px;
+  padding-top: 11px;
+}
+
+.cos_error, .peu {
+	text-align: center;
+}
+
+.peu {
+  color: #99ACCA;
+  padding-bottom: 25px;
+}
+
+.peu a {
+  color: #99ACCA;
+}
+
+.peu a:hover {
+  color: #B8975A;
+}
+
+#cap {
+  background-image: url(../img/banner_tutoria_2.png);
+  background-repeat: no-repeat;
+  padding: 150px 52px 0 0;
+  text-align:right;
+}
+
+.titol {
+	font-family: Myriad Pro, Arial, Verdana;
+	font-size: 25px;
+	color: #5D636F;
+}
+
+.tutors {
+   margin: 20px 50px 0 50px;
+}
+
+.tutors p {
+   text-align: right;
+}
+
+.cnt-tutors {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+.foto-2, .foto {
+   align-items: center;
+   display: flex;
+   flex-direction: column;
+   margin-left: 50px;
+}
+
+.foto-2 p {
+  color: #9d9d9d;
+  cursor: pointer;
+ padding-top: 10px;
+}
+
+.foto p {
+   padding-top: 10px;
+}
+
+.foto-2:hover img {
+  opacity: 1;
+}
+
+.foto-2 img {
+   cursor: pointer;
+  opacity: 0.8;
+}
+
+.foto-2.active img {
+  opacity: 1;
+}
+
+.foto-2.active p {
+  color: #343846;
+}
+
+.foto-2:hover p {
+  color: #343846;
+}
+
+#contingut {
+	margin:0 50px;
+}
+
+.nomAlumne {
+  color: #343846;
+  width: 100%;
+}
+
+input[type="text"], textarea {
+  color: #343846;
+  border: 1px solid #cccccc;
+  -webkit-border-radius: 2px;
+  -moz-border-radius: 2px;
+  border-radius: 2px;
+  margin-bottom: 15px;
+  outline: none;
+  padding: 10px 5px;
+  width: 100%;
+}
+
+input[type=text]:hover, input[type=text]:active, input[type=text]:focus, textarea:hover {
+  border: 1px solid #5A7BB8;
+  width: 100%;
+}
+
+input[type=text] {
+  height: 39px;
+}
+
+textarea {
+   height: 120px;
+}
+
+.boto {
+	text-align:center;
+	padding-bottom:15px;
+}
+
+p.enviat {
+	text-align: center;
+	color: #5D636F;
+}
+
+.boto input[type=submit] {
+	background-color:#6c87b8;
+
+	-moz-border-radius:3px;
+	-webkit-border-radius:3px;
+	border-radius:3px;
+
+	border:1px solid #5373ad;
+
+	display:inline-block;
+	color:#ffffff;
+	font-size: 16px;
+	font-weight:normal;
+	padding:3px 10px;
+	text-decoration:none;
+}
+
+.boto input[type=submit]:hover {
+	background-color:#5a7BB8;
+}
+
+.modal-content {
+   border: 0;
+   border-top-left-radius: 2px;
+   border-top-right-radius: 2px;
+}
+
+.modal-notify .modal-header {
+    border: 0;
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
+}
+
+.modal-notify.modal-danger .modal-header {
+    background: #e04949;
+    color: #fff;
+}
+
+.modal-title-danger, .modal-title-success {
+    color: #fff;
+    float: left;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.modal-header .close {
+    margin: -1px -1px -1px auto;
+    padding: 1px 1px;
+}
+
+.modal-header {
+  padding: 10px 15px;
+}
+
+span.white-text {
+    color: #fff !important;
+}
+
+.modal-notify .close {
+    opacity: 1;
+}
+
+.modal-notify .modal-body {
+    color: #616161;
+    text-align: justify;
+    padding: 15px;
+}
+
+ul.errors {
+    list-style: square;
+    line-height: 24px;
+    margin-bottom: 0;
+}
+
+.modal-footer {
+    padding: 8px;
+    text-align: center;
+}
+
+.modal-footer .btn {
+    font-size: 14px;
+    padding: 8px 21px;
+    text-transform: uppercase;
+}
+
+.modal-footer .btn-danger {
+    background-color: #e04949;
+    border: #e04949;
+    box-shadow: 0 2px 5px 0 rgba(0,0,0,.16), 0 2px 10px 0 rgba(0,0,0,.12);
+    color: white !important;
+}
+
+.modal-footer .btn-danger:hover {
+    background-color: #d43f3a;
+    border: #d43f3a;
+    box-shadow: 0 5px 11px 0 rgba(0,0,0,.18), 0 4px 15px 0 rgba(0,0,0,.15);
+    outline: 0;
+}
+
+span.correu_consulta {
+  color: #99ACCA;
+}

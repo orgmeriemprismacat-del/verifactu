@@ -14,8 +14,7 @@ final class FiscalRecordScriptsTest
         Assert::stringContainsString('PHP_SAPI !== \'cli\'', $source);
         Assert::stringContainsString('SIF_ENV=production', $source);
         Assert::stringContainsString('new FiscalRecordPayloadBuilder()', $source);
-        Assert::stringContainsString('--type=', $source);
-        Assert::stringContainsString('--subsanation-kind=', $source);
+        Assert::stringContainsString('FiscalRecordArguments', $source);
         Assert::stringContainsString('dry_run', $source);
 
         foreach (['createCancellation', 'createSubsanation', 'new PaymentService(', 'new InvoiceService('] as $forbidden) {
@@ -33,8 +32,7 @@ final class FiscalRecordScriptsTest
         Assert::stringContainsString('new FiscalRecordRepository(new HashCalculator())', $source);
         Assert::stringContainsString('createCancellationByUuid', $source);
         Assert::stringContainsString('createSubsanationByNumVisible', $source);
-        Assert::stringContainsString('--uuid-factura=', $source);
-        Assert::stringContainsString('--num-visible=', $source);
+        Assert::stringContainsString('FiscalRecordArguments', $source);
 
         foreach (['new PaymentService(', 'new InvoiceService(', 'LegacySyncService'] as $forbidden) {
             if (str_contains($source, $forbidden)) {

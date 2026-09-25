@@ -1,0 +1,223 @@
+body, .marc_activitat {
+    background: var(--white) !important;
+}
+
+.no-inscrit {
+    height: calc(100vh - 72px);
+}
+
+.prisma-header {
+    background: var(--bg-tutoria-1);
+}
+
+a {
+    color: #526b3e;
+    font-weight: bold;
+}
+
+a:hover {
+    color: var(--text-tutoria-table);
+    text-decoration: none;
+}
+
+label.active {
+    font-weight: bold;
+    font-size: 0.95rem;
+    background: none;
+}
+
+h1 {
+    font-size: 2.14rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 3rem;
+    margin-top: 2rem;
+    position: relative;
+    text-align: left;
+    width: 100%
+}
+
+h1:before {
+    border-bottom: 3px solid #a3be8d;
+    bottom: -10px;
+    content: "";
+    left: 0;
+    transform: scaleX(1);
+    transition: all .3s ease-in-out;
+    width: 70px;
+    position: absolute;
+}
+
+.table.table-header thead tr {
+    background: var(--bg-tutoria-1);
+    color: var(--white);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background: rgb(163 190 141 / 10%);
+}
+
+.table-hover tbody tr:hover {
+    background: rgb(163 190 141 / 25%);
+}
+
+.table tr {
+    border: 1px solid #ccc;
+}
+
+.table thead tr {
+    color: var(--text-tutoria-table);
+    background: var(--bg-tutoria-2);
+    font-weight: bold;
+}
+
+/* .marc_activitat > .container {
+    box-shadow: 0px 0px 30px -10px #565454;
+} */
+
+.table tr p {
+    margin-bottom: 0 !important;
+}
+
+.table td, .table th {
+    vertical-align: middle;
+}
+
+.table td:nth-child(2) {
+    text-align: center;
+}
+
+td button {
+    margin: 0 auto;
+}
+
+.element-cercat-marcat {
+    border-bottom: 2px solid var(--orangeText1);
+}
+
+.boto-verd {
+    align-items: center;
+    background: #5d745d;
+    border: 0;
+    border-radius: 0.2rem;
+    box-shadow: 0 4px 20px 0 var(--lightGrayOpacity2), 0 7px 10px -5px var(--lightBlueOpacity2);
+    color: var(--white);
+    cursor: pointer;
+    display: flex;
+    font-size: 1rem;
+    justify-content: center;
+    position: relative;
+    text-align: center;
+    z-index: 1;
+}
+
+button.boto-verd:before {
+	background: #354d35;
+	border-radius: 2px;
+	bottom: 0;
+	content: "";
+	height: 0;
+	left: 0;
+	position: absolute;
+	-moz-transition: all .3s ease;
+	-o-transition: all .3s ease;
+	-webkit-transition: all .3s ease;
+	transition: all .3s ease;
+	width: 100%;
+	z-index: -1;
+}
+
+.boto-verd:hover:before {
+	height: 100%;
+}
+
+.btn-group {
+    background: #eee;
+    border-radius: 25px;
+}
+.btn-group .btn-switch {
+    border-radius: 25px;
+    background: #eee;
+    border-radius: 25px;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+}
+
+.btn-group .btn-switch:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.btn-group .no-revisat.active {
+    background: rgb(201 69 81 / 40%);
+    border: 1px solid var(--color-botons-edicio);
+    font-weight: bold;
+    color: #71121b;
+}
+
+.btn-group .revisat.active {
+    background: var(--lightBlueOpacity2);
+    border: 1px solid var(--lightGrayOpacity2);
+    font-weight: bold;
+    color: var(--darkBlue);
+    background: rgb(93 116 93 / 30%);
+    color: var(--text-tutoria-table);
+}
+
+.btn-group .btn-switch:hover {
+    background: #dedede;
+}
+
+.btn-group .btn-switch.no-revisat.active:hover {
+    background: rgb(201 69 81 / 50%);
+}
+
+.btn-group .btn-switch.revisat.active:hover {
+    background: rgb(73 107 170 / 50%);
+    background: rgb(93 116 93 / 50%);
+}
+
+.removeInputs {
+    font-size: 1.7rem;
+    color: #c37040;
+}
+
+.removeInputs:hover {
+    color: #a9592b;
+    cursor: pointer;
+}
+
+.modal-success .modal-title {
+    color: #5E5E5E;
+    font-size: 1.875em;
+    color: var(--text-tutoria-table);
+}
+
+.modal-notify.modal-danger .modal-header {
+    background: none;
+}
+
+.modal .modal-header p.modal-title {
+    font-size: 1.875em;
+}
+
+.modal .modal-header .close {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: var(--gray2);
+    cursor: pointer;
+    font-size: 2rem;
+    font-weight: normal;
+    height: 1.2em;
+    justify-content: center;
+    line-height: 1.2;
+    overflow: hidden;
+    outline: none;
+    padding: 0;
+    position: absolute;
+    right: -3px;
+    top: -3px;
+    transition: color 0.1s ease-out;
+    width: 1.2em;
+}

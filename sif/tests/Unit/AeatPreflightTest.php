@@ -44,6 +44,9 @@ final class AeatPreflightTest
             Assert::same(true, $result['checks']['xsd_readable']);
             Assert::same(true, $result['checks']['certificate_readable']);
             Assert::same(true, $result['checks']['certificate_password_present']);
+            Assert::same(false, $result['checks']['certificate_usable']);
+            Assert::same(false, $result['checks']['test_endpoint_allowed']);
+            Assert::same(false, $result['ready']);
             if (str_contains(json_encode($result), 'not-returned-secret')) {
                 Assert::fail('AEAT preflight must not expose certificate passwords');
             }

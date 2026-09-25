@@ -4,6 +4,7 @@ namespace Prisma\Sif\Tests\Database;
 
 use Prisma\Sif\Database\MigrationRunner;
 use Prisma\Sif\Tests\Support\Assert;
+use Prisma\Sif\Tests\Support\ScriptRunner;
 use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class MigrationInfrastructureTest
@@ -17,13 +18,13 @@ final class MigrationInfrastructureTest
     {
         $db = TestDatabase::fresh();
         $runner = $this->runner();
-        Assert::same(60, count($runner->expectedSchema()));
-        Assert::same(6, (int) $db->query('SELECT COUNT(*) FROM sif_schema_migration')->fetchColumn());
+        Assert::same(62, count($runner->expectedSchema()));
+        Assert::same(count($runner->files()), (int) $db->query('SELECT COUNT(*) FROM sif_schema_migration')->fetchColumn());
         Assert::same(false, in_array(false, $runner->inspect($db), true));
         Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='enrollment_import_item' AND COLUMN_NAME='ROW_NUMBER'")->fetchColumn());
         $db->exec("UPDATE fiscal_chain_state SET LAST_FISCAL_ORDER=42 WHERE ID=1");
         $messages = $runner->migrate($db);
-        Assert::same(6, count($messages));
+        Assert::same(count($runner->files()), count($messages));
         foreach ($messages as $message) {
             Assert::stringContainsString('Skipped ', $message);
         }
@@ -89,6 +90,24 @@ final class MigrationInfrastructureTest
             Assert::throws(\RuntimeException::class, static fn () => TestDatabase::assertSafeTestConfig($config));
         }
         TestDatabase::assertSafeTestConfig(['env'=>'test', 'db'=>['dsn'=>'mysql:host=localhost;dbname=sif_test']]);
+    }
+
+    public function testRunnerRejectsConcurrentSuiteAndProductionBeforeResettingData(): void
+    {
+        $db = TestDatabase::fresh();
+        $db->exec('UPDATE fiscal_chain_state SET LAST_FISCAL_ORDER=73 WHERE ID=1');
+        try {
+            // The parent suite holds the advisory lock throughout its execution.
+            $result = ScriptRunner::run('tests/run-tests.php');
+            Assert::same(1, $result['exit_code']);
+            Assert::stringContainsString('Another test suite is using this database.', $result['stderr']);
+            $result = ScriptRunner::run('tests/run-tests.php', ['SIF_ENV' => 'production']);
+            Assert::same(1, $result['exit_code']);
+            Assert::stringContainsString('Tests require SIF_ENV=test', $result['stderr']);
+            Assert::same(73, (int) $db->query('SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID=1')->fetchColumn());
+        } finally {
+            TestDatabase::fresh();
+        }
     }
 }
 

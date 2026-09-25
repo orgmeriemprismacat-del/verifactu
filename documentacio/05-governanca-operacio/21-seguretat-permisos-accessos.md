@@ -439,6 +439,14 @@ Metadades permeses al panell o expedient, sempre sense secrets:
 
 ## 10. Acces documental dins del SIF
 
+Revisió tècnica 2026-09-23: `ClientCertificate` comprova PKCS#12, vigència i
+parella clau/certificat; `SoapTransport` verifica TLS i limita l'endpoint a
+proves. `EvidenceStore` conserva petició/resposta en fitxers exclusius amb
+hash i sense secrets. L'exclusió del repositori no prova per si sola que una
+ruta sigui privada: cal verificar webroots, ACL Windows/permisos Unix,
+retenció i backup al servidor. El preflight local no comprova revocació ni
+representació davant AEAT. Vegeu l'[annex AEAT](../01-compliment-aeat/annex-integracio-aeat.md).
+
 La declaracio responsable i la informacio de versio han d'estar accessibles dins del SIF de forma rapida, clara i llegible.
 
 Pantalla recomanada:

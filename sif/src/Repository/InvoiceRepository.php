@@ -53,10 +53,17 @@ final class InvoiceRepository
         $previousHash = $chainState['LAST_HASH'] ?? null;
 
         $recordPayload = $this->recordPayload($payload, $uuid, $numVisible, $fiscalOrder);
+        $issuedAt = new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid'));
+        $aeat = (new \Prisma\Sif\Aeat\RegistrationSnapshot())->invoice(
+            $db, $chainState, $payload, $numVisible, $issuedAt
+        );
+        if ($aeat !== null) {
+            $recordPayload['aeat'] = $aeat;
+        }
         $hash = $this->hashCalculator->calculate($recordPayload, $previousHash);
         $jsonPayload = $this->encodePayload($recordPayload);
 
-        $this->insertInvoice($db, $payload, $uuid, $year, $seq, $numVisible);
+        $this->insertInvoice($db, $payload, $uuid, $year, $seq, $numVisible, $issuedAt);
         $this->insertLines($db, $payload, $uuid);
         $this->insertFiscalRecord($db, $uuid, $fiscalOrder, $hash, $previousHash, $jsonPayload);
         $this->updateChainState($db, $fiscalOrder, $hash);
@@ -71,7 +78,8 @@ final class InvoiceRepository
         ];
     }
 
-    private function insertInvoice(\PDO $db, array $payload, string $uuid, int $year, int $seq, string $numVisible): void
+    private function insertInvoice(\PDO $db, array $payload, string $uuid, int $year, int $seq, string $numVisible,
+        \DateTimeImmutable $issuedAt): void
     {
         $stmt = $db->prepare(
             'INSERT INTO factura (
@@ -81,7 +89,7 @@ final class InvoiceRepository
                 BILLING_CP, BILLING_POBLACIO, BILLING_PROVINCIA, BILLING_PAIS, BILLING_EMAIL,
                 IMPORT_BASE, DESC_IMPORT, BASE_IMPOSABLE, IVA_REGIM, IVA_PCT, IVA_IMPORT,
                 TOTAL, SOURCE_CHANNEL, CREATED_BY
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, 0, ?, \'ISSUED\', \'PENDING\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, \'ISSUED\', \'PENDING\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         $stmt->execute([
@@ -93,6 +101,7 @@ final class InvoiceRepository
             $seq,
             $numVisible,
             $payload['type'],
+            $issuedAt->format('Y-m-d H:i:s'),
             !empty($payload['emesa_abans_cobrament']) ? 1 : 0,
             isset($payload['payment']) ? 'PAID' : 'PENDING',
             $payload['billing']['name'],

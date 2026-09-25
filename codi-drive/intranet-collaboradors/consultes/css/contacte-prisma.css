@@ -1,0 +1,153 @@
+/* ##################  CARD TREBALLADOR  ################## */
+.people {
+    border: 1px solid var(--lightGray2);
+    background: var(--light);
+    border-radius: 7px;
+}
+
+.people.escollit {
+    border: 1px solid var(--blau1);
+    background: var(--lightBlue2);
+}
+
+.people:hover {
+    background: #eaf6f0;
+    cursor: pointer;
+}
+
+.people-overlay img {
+    border: 3px solid #FFFFFF;
+    border-radius: 50%;
+    z-index: 10;
+}
+
+.people span.bg {
+    height: 100px;
+    top: 0;
+    left: 0;
+    border-radius: 4px 4px 0px 0px;
+    transition: all 0.4s ease;
+    background: linear-gradient(140deg, #f0144c, #960ce2);
+    background: linear-gradient(146deg, #286a50, #17a2b8);
+    z-index: 1;
+}
+
+.people-overlay {
+    z-index: 5;
+}
+
+p.name {
+    font-size: 1.2rem;
+}
+
+.people-selecciona {
+    width: 100%;
+    background-color: #286a50;
+    border-color: #286a50;
+    color: var(--white);
+}
+
+.people-escollit {
+    background-color: #d5efe2;
+    box-shadow: #d5efe2 0 0 20px;
+}
+
+.people-selecciona:hover {
+    background-color: var(--tutorPrisMaHover);
+}
+
+p.name.dept {
+    font-size: 1.3rem;
+    color: #286a50;
+    margin-bottom: 9px !important;
+}
+
+.tel {
+    font-size: 1.2rem;
+}
+
+.tel .fa-phone {
+  transform: rotate(90deg);
+  background: var(--table-border);
+  padding: 10px;
+  border-radius: 50%;
+}
+
+/* ##################               PRIORITAT              ################## */
+
+.prioritat {
+    max-width: 200px;
+}
+
+.prioritat:hover {
+    box-shadow: #ABABAB 0 0 10px;
+    cursor: pointer;
+    border: 1px solid var(--lightGray2);
+    border-radius: 5px;
+    background: var(--light);
+}
+
+.prioritat.active {
+    border: 1px solid var(--lightGray2);
+    background: var(--light);
+    border-radius: 5px;
+}
+
+.people-overlay img {
+    width: 105px!important;
+}
+
+.prioritat img {
+    width: 70px !important;
+}
+
+/* ##################      CNT DEVICES, PRIORITAT, SO      ################## */
+#cnt-devices,
+#cnt-systems,
+#cnt-browsers {
+   color: var(--gray1);
+}
+
+.device {
+   min-height: 90px;
+}
+
+.device img {
+   max-width: 35px;
+}
+
+.device span {
+   font-size: 35px;
+}
+
+.device p {
+   margin: 0 !important;
+}
+
+.device:hover {
+   box-shadow: #ABABAB 0 0 10px;
+   cursor: pointer;
+   border: 1px solid var(--lightGray2);
+   border-radius: 5px;
+   background: var(--light);
+}
+
+.device:hover p {
+   font-weight: 500;
+   font-weight: bold;
+}
+
+.device.active {
+   border: 1px solid var(--lightGray2);
+   background: var(--light);
+   border-radius: 5px;
+}
+
+.device.active p {
+   font-weight: bold;
+}
+
+/* ##################              FORMULARI              ################## */
+.req {
+    color: var(--bgTutorPrisMa);
+}
