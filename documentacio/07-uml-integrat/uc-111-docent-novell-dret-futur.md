@@ -736,6 +736,38 @@ stop
 
 **NO IMPLEMENTAT:** l'acció d'aprovació real, les rectificatives emeses per aquests serveis, el consum del dret derivat i la cancel·lació executiva del saldo quan es retorni JASOM. No comptar propostes pendents com a drets actius ni acceptar un identificador d'actor proporcionat pel navegador com a autenticació. [Auditoria del tall](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
 
+### 4.3 terdecies. Confirmació autoritzada de baixa original o primer traspàs — DESÈ TALL
+
+**Codi PHP a BRANCA, NO desplegat ni connectat:** [NovicePromotionDerivedBalanceActivationService](../../sif/src/Service/NovicePromotionDerivedBalanceActivationService.php) i [NovicePromotionFirstTransferConfirmationService](../../sif/src/Service/NovicePromotionFirstTransferConfirmationService.php) exigeixen [una font final d'aprovació independent](../../sif/src/Service/NovicePromotionAdjustmentApprovalSourceInterface.php) que encara NO té implementació real. Els registres PENDING i les factures rectificatives no constitueixen aprovació. La confirmació exigeix documents fiscals i preus reals ja persistits i imports concordants, però els connectors de secretaria/checkout continuen pendents.
+```plantuml
+@startuml
+title UC-111 | Confirmar proposta amb aprovacio autentica i prova fiscal
+start
+:Proposta PENDING_FISCAL_REVIEW de canvi o baixa;
+:FUTUR gestor autenticat resol aprovacio independent;
+if (Aprovacio final vinculada a imports, titular i documents?) then (No)
+ :Bloquejar, sense consumir ni activar cap dret;
+ stop
+endif
+:Tornar a comprovar JASOM i factures reals; bloquejar dret arrel;
+if (Baixa original?) then (Si)
+ :Comprovar aplicacio APPLIED i rectificativa del curs cancel.lat;
+ :Cerrar aplicacio historica com REVERSED / CONVERTED_TO_DERIVED;
+ :Activar saldo derivat separat amb import elegible i any propi;
+ :Registrar event DERIVED_ACTIVATE, sense CHARGE;
+else (Primer traspas)
+ :Comprovar rectificativa antiga i nova factura final liquidada;
+ :Comprovar net final i import traspassat al snapshot fiscal;
+ :Cerrar aplicacio historica com REVERSED / TRANSFERRED_TO_COURSE;
+ :Confirmar traspas al curs nou, sense segona despesa promocional;
+ :Registrar event TRANSFER, sense CHARGE promocional;
+endif
+:FUTUR adaptar al checkout i al registre complet de procedencia;
+stop
+@enduml
+```
+**Pendent abans d'activació real:** adaptador de decisions autoritzades, interacció amb secretaria, emissió fiscal real, successius canvis, baixa del curs traspassat, consum del saldo derivat, snapshot de devolució de JASOM amb bloquejos i proves. El fet d'escriure serveis que exigeixen una font d'aprovació NO prova que la font existeixi. No s'han fet proves MySQL; les [cinc unit tests purs de decisió de baixa](../../sif/tests/Unit/NovicePromotionApprovedCancellationPolicyTest.php) i [cinc de traspàs](../../sif/tests/Unit/NovicePromotionApprovedTransferPolicyTest.php) no tenen resultat d'execució.
+
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
