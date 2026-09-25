@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Domain\NovicePromotionApprovedCancellationPolicy;
 use Prisma\Sif\Domain\NovicePromotionDestinationAdjustmentPolicy;
 use Prisma\Sif\Domain\NovicePromotionRectificationEvidencePolicy;
 use Prisma\Sif\Exception\SifException;
@@ -28,7 +29,8 @@ final class NovicePromotionDerivedBalanceActivationService
     public function __construct(
         private NovicePromotionAdjustmentApprovalSourceInterface $approvals,
         private NovicePromotionRectificationEvidencePolicy $fiscalEvidence = new NovicePromotionRectificationEvidencePolicy(),
-        private NovicePromotionDestinationAdjustmentPolicy $adjustments = new NovicePromotionDestinationAdjustmentPolicy()
+        private NovicePromotionDestinationAdjustmentPolicy $adjustments = new NovicePromotionDestinationAdjustmentPolicy(),
+        private NovicePromotionApprovedCancellationPolicy $decisions = new NovicePromotionApprovedCancellationPolicy()
     ) {
     }
 
@@ -234,20 +236,12 @@ final class NovicePromotionDerivedBalanceActivationService
 
             $this->assertOriginalJasomStillPaid($db, (string) $root['ORIGIN_UUID_OPERATION']);
 
-            foreach ([
-                'review_uuid' => $uuidDerivedReview,
-                'uuid_original_application' => (string) $application['UUID_APPLICATION'],
-                'uuid_rectificative' => (string) $review['UUID_RECTIFICATIVE_FACTURA'],
-                'approved_promotional_amount' => (string) $review['PROMOTIONAL_ORIGIN_AMOUNT'],
-                'approved_cash_amount' => (string) ($snapshot['proposed_cash_amount'] ?? ''),
-                'evidence_ref' => (string) ($snapshot['policy_evidence_ref'] ?? ''),
-            ] as $key => $expected) {
-                if ((string) ($approval[$key] ?? '') !== $expected) {
-                    throw SifException::conflict('The external approval does not match this immutable cancellation proposal.');
-                }
-            }
-            if ($approvedAt < (string) $review['CREATED_AT']) {
-                throw SifException::conflict('Approval predates the cancellation proposal.');
+            try {
+                $this->decisions->assertMatches(
+                    $approval, $uuidDerivedReview, $review, $application, $snapshot, $timestamp
+                );
+            } catch (\InvalidArgumentException $exception) {
+                throw SifException::conflict('The external approval does not match this immutable cancellation proposal.');
             }
 
             try {
