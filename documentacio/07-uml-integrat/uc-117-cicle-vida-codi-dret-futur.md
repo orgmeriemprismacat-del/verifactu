@@ -84,6 +84,14 @@ El cicle de vida ja pot mantenir una atribució a través de N cursos sense conv
 
 **Encara no executiu:** falta l'expedient/freeze de devolució JASOM i el motor de cancel·lació/reclamació; pending reviews/reservations bloquegen el càlcul.
 
+### 1.9. UC-111 — freeze del graf abans de retornar JASOM
+
+La devolució del JASOM ja té una frontera explícita entre pla i execució comercial. [NovicePromotionRootRefundReviewService](../../sif/src/Service/NovicePromotionRootRefundReviewService.php) persisteix el graf canònic i congela el root com `REFUND_REVIEW`, impedint noves operacions UC-111. [NovicePromotionRootRefundExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php) només amb aprovació exacta torna a projectar i comparar el hash, cancel·la romanents i crea ítems `PENDING_RECOVERY` pels nodes terminals actuals.
+
+El review/executor NO fa el refund bancari de JASOM i NO cobra la recuperació. Aquest desacoblament és deliberat: evita convertir un valor promocional en diners o un deute sense el circuit fiscal/pagaments corresponent. `000021/000022` conserven la traça.
+
+**Pendent UC-117:** resolució dels recovery items amb evidència externa, coordinació amb el `payment_transaction.REFUND` real de JASOM i notificacions.
+
 ## 2. UML de casos d'ús
 
 ```plantuml
