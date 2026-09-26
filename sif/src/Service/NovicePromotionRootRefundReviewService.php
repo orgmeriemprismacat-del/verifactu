@@ -418,19 +418,22 @@ final class NovicePromotionRootRefundReviewService
             }
             $settlement = $this->one(
                 $db,
-                "SELECT COALESCE(SUM(CASE
-                    WHEN pt.TIPUS_MOVIMENT = 'CHARGE' THEN pa.IMPORT_ASSIGNAT
-                    WHEN pt.TIPUS_MOVIMENT = 'REFUND' THEN -pa.IMPORT_ASSIGNAT
-                    ELSE 0 END), 0) AS NET_CASH
+                "SELECT
+                    COALESCE(SUM(CASE
+                        WHEN pt.TIPUS_MOVIMENT = 'CHARGE' THEN pa.IMPORT_ASSIGNAT
+                        ELSE 0 END), 0) AS CHARGE_TOTAL,
+                    COALESCE(SUM(CASE
+                        WHEN pt.TIPUS_MOVIMENT = 'REFUND' THEN pa.IMPORT_ASSIGNAT
+                        ELSE 0 END), 0) AS REFUND_TOTAL
                  FROM payment_allocation pa
                  JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
                  WHERE pa.UUID_FACTURA = ? AND pt.ESTAT = 'CONFIRMED'",
                 [(string) $invoice['UUID_FACTURA']]
             );
-            if ($this->cents((string) ($settlement['NET_CASH'] ?? '0.00'))
-                !== $invoiceCents
-            ) {
-                throw SifException::conflict('Original JASOM already has a refund or incomplete settlement.');
+            $charges = $this->cents((string) ($settlement['CHARGE_TOTAL'] ?? '0.00'));
+            $refunds = $this->cents((string) ($settlement['REFUND_TOTAL'] ?? '0.00'));
+            if ($charges !== $invoiceCents || $refunds !== 0) {
+                throw SifException::conflict('Original JASOM already has a confirmed refund or incomplete original charge.');
             }
             $total += $invoiceCents;
         }
