@@ -634,6 +634,16 @@ mateixa clau idempotent.
 - `NovicePromotionRootRefundPlanService::planLocked`: aplica el graf a `NovicePromotionLineagePolicy` i retorna `cancel_available`, `recover_active_applications`, totals, `review_required=true`, `execution_performed=false`. NO canvia BD, factura ni diners.
 - Proves pures: [5 successive approval](../../sif/tests/Unit/NovicePromotionApprovedSuccessiveTransferPolicyTest.php) + [7 projector/graf](../../sif/tests/Unit/NovicePromotionLineageProjectionPolicyTest.php), escrites, no executades.
 
+### UC-111 · Freeze i execució comercial del retorn JASOM — tall 14
+
+- `novice_promotion_root_refund_review` ([000021](../../sif/database/migrations/2026_09_27_000021_add_novice_root_refund_review.sql)): `UUID_REVIEW`, root, titular, operació JASOM, `PLAN_HASH`, `PLAN_JSON`, estat `PENDING_APPROVAL|REJECTED|CANCELLED|EXECUTED`, actor/evidència de petició, decisió i idempotència. L'obertura exigeix JASOM encara íntegrament pagat i un pla sense ambigüitats; `commercial_entitlement.STATUS=REFUND_REVIEW` és un HOLD reversible, no cancel·lació ni refund.
+- `NovicePromotionRootRefundPlanFingerprintPolicy`: ordena `cancel_available` per `right_id` i `recover_active_applications` per `application_id`, valida imports/identitat i retorna JSON/hash canònic. Review i execució han de coincidir en hash I JSON.
+- `NovicePromotionRootRefundReviewService`: `openReview` calcula pla sota locks, persisteix fingerprint i fa `ACTIVE→REFUND_REVIEW`; `rejectPendingReview/cancelPendingReview` fan `REFUND_REVIEW→ACTIVE` amb actor/motiu i cap moviment econòmic.
+- `NovicePromotionAdjustmentApprovalSourceInterface::approvedRootRefund`: decisió final esperada `NOVICE_ROOT_JASOM_REFUND` lligada a review/root/hash/totals/evidència. No significa que s'hagi executat un `payment_transaction.REFUND`.
+- `novice_promotion_root_refund_recovery` ([000022](../../sif/database/migrations/2026_09_27_000022_add_novice_root_refund_recovery_items.sql)): ítem de workflow per valor promocional que continua aplicat. `SOURCE_KIND=ORIGINAL_APPLICATION|DERIVED_APPLICATION|TRANSFER`, UUID font, operació destí, import, estat `PENDING_RECOVERY|RECOVERED|WAIVED|CANCELLED`, resolució. NO és factura ni càrrec.
+- `NovicePromotionRootRefundExecutionService`: només review PENDING + root REFUND_REVIEW + aprovació exacta. Revalida JASOM encara pagat, recalcula graf i fingerprint; crea recovery items per nodes terminals ACTIVE, posa `novice_promotion_grant.AVAILABLE_AMOUNT=0`, cancel·la drets derivats emesos amb `JASOM_ROOT_REFUND`, root `→CANCELLED`, review `→EXECUTED`. Retorna `origin_bank_refund_performed=false` i `automatic_recovery_charge_performed=false`.
+- Proves pures: [5 fingerprint](../../sif/tests/Unit/NovicePromotionRootRefundPlanFingerprintPolicyTest.php), [5 approval](../../sif/tests/Unit/NovicePromotionApprovedRootRefundPolicyTest.php) i cas REFUND_REVIEW al projector. No executades; MySQL ajornat.
+
 ### payment_link.STATUS
 
 - `ACTIVE`
