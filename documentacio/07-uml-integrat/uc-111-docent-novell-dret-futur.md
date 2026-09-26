@@ -837,6 +837,45 @@ stop
 ```
 **Pendent:** segon/tercer traspàs confirmat, baixa del successor d'aquests, baixes que parteixen d'una `derived_application`, connector d'aprovació real i executor de devolució JASOM. [000018](../../sif/database/migrations/2026_09_26_000018_allow_derived_balance_from_confirmed_transfer.sql) i [000019](../../sif/database/migrations/2026_09_26_000019_close_confirmed_transfer_into_derived_balance.sql) només estan en branca; MySQL no executat.
 
+### 4.3 sexdecies. Traspàs successiu i projecció de procedència per retornar JASOM — TRETZÈ TALL
+
+**Nou en branca:** un canvi de curs pot partir de l'últim traspàs CONFIRMED o d'una aplicació de saldo derivat APPLIED; el predecessor es tanca com a història i el nou curs conserva exactament el mateix import promocional.
+```plantuml
+@startuml
+title UC-111 | Canvis successius i graf actual per devolucio JASOM
+start
+:Exposicio actual = derived_application APPLIED o transfer CONFIRMED;
+:Rectificativa del curs actual + nou curs READY_FOR_PAYMENT;
+:Review valida mateix titular, quote servidor i import transferible;
+:Registrar nou transfer PENDING_FISCAL_REVIEW;
+:FUTUR font autenticada resol aprovacio;
+if (Aprovacio exacta?) then (No)
+ :No mutar predecessor;
+ stop
+endif
+:Confirmar factura/residual del curs nou;
+:Revalidar JASOM completament pagat;
+if (Font era derived_application?) then (Si)
+ :Marcar derived_application TRANSFERRED;
+else (No)
+ :Marcar previous transfer CANCELLED / TRANSFERRED_TO_COURSE;
+endif
+:Confirmar nou transfer sense segon debit;
+:Projectar SQL -> graf logic;
+:Predecessors substituits = REPLACED_*;
+:Node terminal = ACTIVE;
+if (Hi ha PENDING o RESERVED?) then (Si)
+ :Bloquejar pla de devolucio JASOM;
+else (No)
+ :Planificar cancel_available + recover_active_applications;
+ :NO executar encara cap cancel.lacio o reclamacio;
+endif
+stop
+@enduml
+```
+**Serveis:** [SuccessiveTransferReviewService](../../sif/src/Service/NovicePromotionSuccessiveTransferReviewService.php), [SuccessiveTransferConfirmationService](../../sif/src/Service/NovicePromotionSuccessiveTransferConfirmationService.php), [LineageProjectionPolicy](../../sif/src/Domain/NovicePromotionLineageProjectionPolicy.php), [LineageSnapshotService](../../sif/src/Service/NovicePromotionLineageSnapshotService.php) i [RootRefundPlanService](../../sif/src/Service/NovicePromotionRootRefundPlanService.php). El pla és només lectura sota locks i `execution_performed=false`.
+**Pendent:** freeze/expedient de devolució, resolució d'intents pendents, aprovació efectiva, cancel·lació de saldos, reclamació i integració bancària/fiscal. MySQL no executat.
+
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
