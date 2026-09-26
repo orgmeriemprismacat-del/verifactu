@@ -86,11 +86,11 @@ El cicle de vida ja pot mantenir una atribució a través de N cursos sense conv
 
 ### 1.9. UC-111 — freeze del graf abans de retornar JASOM
 
-La devolució del JASOM ja té una frontera explícita entre pla i execució comercial. [NovicePromotionRootRefundReviewService](../../sif/src/Service/NovicePromotionRootRefundReviewService.php) persisteix el graf canònic i congela el root com `REFUND_REVIEW`, impedint noves operacions UC-111. [NovicePromotionRootRefundExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php) només amb aprovació exacta torna a projectar i comparar el hash, cancel·la romanents i crea ítems `PENDING_RECOVERY` pels nodes terminals actuals.
+La devolució del JASOM ja té una frontera explícita entre pla, refund real i conseqüències promocionals. [NovicePromotionRootRefundReviewService](../../sif/src/Service/NovicePromotionRootRefundReviewService.php) persisteix el graf canònic i congela el root com `REFUND_REVIEW`, impedint noves operacions UC-111. El root es manté congelat mentre el circuit extern executa el refund real de JASOM. [NovicePromotionOriginRefundEvidenceSourceInterface](../../sif/src/Service/NovicePromotionOriginRefundEvidenceSourceInterface.php) + [NovicePromotionOriginRefundEvidencePolicy](../../sif/src/Domain/NovicePromotionOriginRefundEvidencePolicy.php) exigeixen evidència exacta, i [000024](../../sif/database/migrations/2026_09_27_000024_add_novice_origin_refund_evidence.sql) la persisteix.
 
-El review/executor NO fa el refund bancari de JASOM i NO cobra la recuperació. Aquest desacoblament és deliberat: evita convertir un valor promocional en diners o un deute sense el circuit fiscal/pagaments corresponent. `000021/000022` conserven la traça.
+[NovicePromotionRootRefundExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php) només després del refund confirmat i reconciliat (`CHARGE_TOTAL=TOTAL`, `REFUND_TOTAL=TOTAL` per factura) torna a projectar/comparar el hash, cancel·la romanents i crea `PENDING_RECOVERY`. El servei NO inicia el refund i NO cobra la recuperació; aquest desacoblament evita convertir un valor promocional en diners o deute sense evidència del circuit fiscal/pagaments.
 
-**Pendent UC-117:** resolució dels recovery items amb evidència externa, coordinació amb el `payment_transaction.REFUND` real de JASOM i notificacions.
+**Pendent UC-117:** connector real que executi/observi el `payment_transaction.REFUND`, resolució dels recovery items amb evidència externa i notificacions.
 
 ### 1.10. UC-111 — tancament auditable dels imports a recuperar
 
@@ -98,6 +98,11 @@ Després d'executar les conseqüències promocionals del retorn JASOM, cada expo
 
 **Semàntica:** `RECOVERED` = un sistema extern verificat acredita la recuperació; no significa que SIF hagi creat un CHARGE. 000023 conserva resolution id/actor/evidència. El connector real segueix pendent.
 
+### 1.11. UC-111 — refund JASOM confirmat sota freeze
+
+El freeze `REFUND_REVIEW` no és només una espera d'aprovació: es manté fins que el refund real de JASOM queda confirmat externament i conciliat a BD. Només llavors s'extingeix el valor promocional i es generen els recovery items. Això evita cancel·lar el dret si falla el refund bancari.
+
+[000024](../../sif/database/migrations/2026_09_27_000024_add_novice_origin_refund_evidence.sql) i [NovicePromotionOriginRefundEvidencePolicy](../../sif/src/Domain/NovicePromotionOriginRefundEvidencePolicy.php) formalitzen aquesta porta. Refund parcial o no conciliat manté el root congelat.
 ## 2. UML de casos d'ús
 
 ```plantuml
