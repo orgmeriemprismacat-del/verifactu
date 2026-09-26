@@ -28,10 +28,17 @@ final class NovicePromotionLineageProjectionPolicy
         $rootUuid = (string) ($root['UUID_ENTITLEMENT'] ?? '');
         $rootStatus = (string) ($root['ENTITLEMENT_STATUS'] ?? '');
         if ($rootUuid === ''
-            || !in_array($rootStatus, ['ACTIVE', 'CANCELLED', 'EXPIRED'], true)
+            || !in_array($rootStatus, ['ACTIVE', 'REFUND_REVIEW', 'CANCELLED', 'EXPIRED'], true)
         ) {
             throw new \InvalidArgumentException('Invalid root entitlement snapshot.');
         }
+
+        // REFUND_REVIEW is a temporary commercial freeze, not a historical
+        // cancellation. The lineage must still be planned as ACTIVE while
+        // the persisted review is compared/rejected/executed.
+        $logicalRootStatus = $rootStatus === 'REFUND_REVIEW'
+            ? 'ACTIVE'
+            : $rootStatus;
 
         $rootRightId = 'root:' . $rootUuid;
         $rights = [[
@@ -40,7 +47,7 @@ final class NovicePromotionLineageProjectionPolicy
             'issued' => $this->money($this->cents((string) ($root['ORIGINAL_CASH_AMOUNT'] ?? ''))),
             'available' => $this->money($this->cents((string) ($root['AVAILABLE_AMOUNT'] ?? ''))),
             'forfeited' => '0.00',
-            'status' => $rootStatus,
+            'status' => $logicalRootStatus,
         ]];
 
         $originalById = $this->index($originalApplications, 'UUID_APPLICATION');
