@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Domain\NovicePromotionRootRefundPlanFingerprintPolicy;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 
@@ -30,6 +31,8 @@ final class NovicePromotionRootRefundReviewService
     public function __construct(
         private NovicePromotionRootRefundPlanService $plans
             = new NovicePromotionRootRefundPlanService(),
+        private NovicePromotionRootRefundPlanFingerprintPolicy $fingerprints
+            = new NovicePromotionRootRefundPlanFingerprintPolicy(),
         private UuidGenerator $uuids = new UuidGenerator()
     ) {
     }
@@ -102,12 +105,14 @@ final class NovicePromotionRootRefundReviewService
             );
 
             $plan = $this->plans->planLocked($db, $rootUuid);
-            $canonicalPlan = $this->canonicalPlan($plan);
-            $planJson = json_encode(
-                $canonicalPlan,
-                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
-            );
-            $planHash = hash('sha256', $planJson);
+            try {
+                $fingerprint = $this->fingerprints->fingerprint($plan);
+            } catch (\InvalidArgumentException $exception) {
+                throw SifException::conflict('Root refund plan cannot be canonicalized safely.');
+            }
+            $canonicalPlan = $fingerprint['canonical'];
+            $planJson = $fingerprint['json'];
+            $planHash = $fingerprint['hash'];
             $uuidReview = $this->uuids->generate();
 
             $insert = $db->prepare(
@@ -327,26 +332,6 @@ final class NovicePromotionRootRefundReviewService
             }
             throw $exception;
         }
-    }
-
-    private function canonicalPlan(array $plan): array
-    {
-        $cancel = $plan['cancel_available'] ?? [];
-        $recover = $plan['recover_active_applications'] ?? [];
-        usort($cancel, static fn (array $a, array $b): int
-            => strcmp((string) $a['right_id'], (string) $b['right_id']));
-        usort($recover, static fn (array $a, array $b): int
-            => strcmp((string) $a['application_id'], (string) $b['application_id']));
-
-        return [
-            'root_uuid_entitlement' => (string) $plan['root']['uuid_entitlement'],
-            'holder_party_key' => (string) $plan['root']['holder_party_key'],
-            'origin_uuid_operation' => (string) $plan['root']['origin_uuid_operation'],
-            'cancel_available' => $cancel,
-            'recover_active_applications' => $recover,
-            'total_cancel_available' => (string) $plan['total_cancel_available'],
-            'total_recover_active' => (string) $plan['total_recover_active'],
-        ];
     }
 
     private function lockRoot(\PDO $db, string $rootUuid): array
