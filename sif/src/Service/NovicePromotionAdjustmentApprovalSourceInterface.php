@@ -56,4 +56,16 @@ interface NovicePromotionAdjustmentApprovalSourceInterface
      * approved_promotional_amount.
      */
     public function approvedSuccessiveTransfer(string $uuidTransferReview): ?array;
+
+    /**
+     * Final authorization of the commercial consequences that must precede
+     * the actual bank refund of the original JASOM.
+     *
+     * Mandatory keys: review_uuid, decision_type, decision_id, decision,
+     * reviewer_id, evidence_ref, approved_at_utc, root_uuid_entitlement,
+     * plan_hash, total_cancel_available, total_recover_active.
+     *
+     * Returning APPROVED here does NOT itself prove a bank REFUND happened.
+     */
+    public function approvedRootRefund(string $uuidReview): ?array;
 }
