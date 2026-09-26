@@ -126,6 +126,31 @@ final class NovicePromotionLineageProjectionPolicyTest
         });
     }
 
+    public function testRefundReviewFreezeProjectsAsLogicalActiveForRevalidation(): void
+    {
+        $projector = new NovicePromotionLineageProjectionPolicy();
+        $graph = $projector->project(
+            [
+                'UUID_ENTITLEMENT' => 'root-1',
+                'ENTITLEMENT_STATUS' => 'REFUND_REVIEW',
+                'ORIGINAL_CASH_AMOUNT' => '90.00',
+                'AVAILABLE_AMOUNT' => '50.00',
+            ],
+            [[
+                'UUID_APPLICATION' => 'a1',
+                'AMOUNT' => '40.00',
+                'STATUS' => 'APPLIED',
+                'REASON_CODE' => null,
+            ]],
+            [],
+            [],
+            []
+        );
+        $plan = $this->plan($graph);
+        Assert::same('50.00', $plan['total_cancel_available']);
+        Assert::same('40.00', $plan['total_recover_active']);
+    }
+
     private function project(
         array $originalApplications,
         array $derivedBalances,
