@@ -803,6 +803,40 @@ stop
 ```
 **No resol encara:** canvi o baixa del curs finançat amb aquest saldo derivat, nous saldos descendents, retorn executable de JASOM, UI/autenticació, factura zero i connectors de Redsys/fiscalitat. El saldo derivat manté la seva pròpia caducitat; reservar no la prorroga. [Cinc proves pures d'elegibilitat](../../sif/tests/Unit/NovicePromotionDerivedBalanceEligibilityPolicyTest.php) escrites i no executades.
 
+### 4.3 quindecies. Baixa del curs traspassat → nou saldo derivat — DOTZÈ TALL
+
+**Nou en branca:** el saldo derivat pot apuntar a `SOURCE_UUID_TRANSFER`, de manera que la baixa s'atribueix al curs ACTUAL després del canvi i no a la matrícula històrica anterior.
+```plantuml
+@startuml
+title UC-111 | Baixa del curs actual després d'un traspas confirmat
+start
+:Traspas A -> B ja CONFIRMED;
+:Baixa del curs B amb rectificativa real;
+:Review comprova B, factura final, participant i cash residual;
+if (Hi ha un traspas successor de B?) then (Si)
+ :Rebutjar; cal actuar sobre l'ultim curs de la cadena;
+ stop
+endif
+:Crear saldo derivat PENDING amb SOURCE_UUID_TRANSFER;
+:FUTUR font autenticada resol aprovacio;
+if (Aprovacio exacta i JASOM encara pagat?) then (No)
+ :No activar saldo;
+ stop
+endif
+:Reconciliar de nou factura i CHARGE-REFUND de B;
+if (Cash ha canviat des de la review?) then (Si)
+ :Bloquejar i recalcular la baixa;
+ stop
+endif
+:Tancar traspas B com CANCELLED / CONVERTED_TO_DERIVED;
+:Activar nou saldo derivat amb any propi;
+:Auditar DERIVED_ACTIVATE_TRANSFER;
+:No restaurar saldo JASOM original;
+stop
+@enduml
+```
+**Pendent:** segon/tercer traspàs confirmat, baixa del successor d'aquests, baixes que parteixen d'una `derived_application`, connector d'aprovació real i executor de devolució JASOM. [000018](../../sif/database/migrations/2026_09_26_000018_allow_derived_balance_from_confirmed_transfer.sql) i [000019](../../sif/database/migrations/2026_09_26_000019_close_confirmed_transfer_into_derived_balance.sql) només estan en branca; MySQL no executat.
+
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
