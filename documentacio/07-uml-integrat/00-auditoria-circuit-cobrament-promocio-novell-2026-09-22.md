@@ -161,6 +161,15 @@
 `NovicePromotionLineageSnapshotService::projectLocked` llegeix i bloqueja totes les files del root dins la transacció del caller, sense commit. `NovicePromotionRootRefundPlanService::planLocked` aplica `NovicePromotionLineagePolicy` i retorna només un pla revisable; no executa cap cancel·lació/reclamació. Això resol el càlcul de DEC-23 però NO la seva execució.
 **Proves escrites, no executades:** 5 de binding d'aprovació successiva + 7 de projecció/graf. Casos: A→B→C només C recuperable; ús derivat traspassat només successor recuperable; transfer convertit a derivat exclou predecessor; PENDING/RESERVED/orfes bloquegen. MySQL expressament ajornat.
 
+## 3 quindecies. Freeze i execució promocional prèvia al refund JASOM — tall 14
+
+**Problema de carrera resolt en disseny/codi:** un pla correcte deixa de ser-ho si, mentre espera aprovació, l'alumne gasta saldo. `novice_promotion_root_refund_review` (000021) persisteix pla/hash i `NovicePromotionRootRefundReviewService` passa root a `REFUND_REVIEW` dins la mateixa transacció del càlcul. Els serveis UC-111 requereixen ACTIVE, per tant el freeze bloqueja noves reserves/traspassos/concessions. Rebutjar/cancel·lar el review reobre ACTIVE sense efectes econòmics.
+`NovicePromotionRootRefundPlanFingerprintPolicy` ordena cancel·lacions i recuperacions per ID lògic i crea JSON/hash canònic; a execució es recalcula sota locks i s'exigeix igualtat de hash I JSON. `REFUND_REVIEW` es projecta com ACTIVE només a efectes del graf. Qualsevol PENDING/RESERVED o canvi de successor impedeix l'execució.
+**Aprovació:** `approvedRootRefund` + `NovicePromotionApprovedRootRefundPolicy` exigeixen decisió final vinculada a review/root/PLAN_HASH/totals/evidència/data. No són prova de moviment bancari.
+**Execució comercial:** 000022 crea `novice_promotion_root_refund_recovery`; `NovicePromotionRootRefundExecutionService` revalida que el JASOM encara estigui pagat, reprojecta, compara hash, crea un recovery per cada node ACTIVE terminal, posa romanents root/derivats a zero, cancel·la drets promocionals i marca review EXECUTED. No toca l'estat del curs on hi ha l'aplicació actual: aquest curs és l'evidència del valor que s'ha de recuperar. L'ítem recovery referencia aquella operació.
+**No confondre EXECUTED amb refund bancari:** `origin_bank_refund_performed=false`; si el banc/TPV ja ha retornat JASOM abans, el servei falla i obliga a incidència. No crea CHARGE de recuperació. El workflow fiscal/pagaments real ha d'invocar-se després amb les seves pròpies garanties.
+**Proves pures escrites:** 5 fingerprint + 5 approval + 1 nou cas REFUND_REVIEW del projector. MySQL/concurrència/rollback real no executats.
+
 ## 4. Proves de sortida (no confondre proves locals del càlcul amb proves d'integració)
 
 | ID | Entrada/escenari | Resultat necessari |
