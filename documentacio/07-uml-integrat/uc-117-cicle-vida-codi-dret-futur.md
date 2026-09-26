@@ -103,6 +103,12 @@ Després d'executar les conseqüències promocionals del retorn JASOM, cada expo
 El freeze `REFUND_REVIEW` no és només una espera d'aprovació: es manté fins que el refund real de JASOM queda confirmat externament i conciliat a BD. Només llavors s'extingeix el valor promocional i es generen els recovery items. Això evita cancel·lar el dret si falla el refund bancari.
 
 [000024](../../sif/database/migrations/2026_09_27_000024_add_novice_origin_refund_evidence.sql) i [NovicePromotionOriginRefundEvidencePolicy](../../sif/src/Domain/NovicePromotionOriginRefundEvidencePolicy.php) formalitzen aquesta porta. Refund parcial o no conciliat manté el root congelat.
+### 1.8. UC-111 — finalitzar recovery workflow sense confondre resolt i cobrat
+
+Després del refund real de JASOM i de la cancel·lació promocional, cada ús actiu genera un recovery auditable. Quan tots els items tenen resolució externa (`RECOVERED`, `WAIVED` o `CANCELLED`), [NovicePromotionRootRefundRecoveryCompletionService](../../sif/src/Service/NovicePromotionRootRefundRecoveryCompletionService.php) pot marcar el review `RECOVERY_RESOLVED` i conservar un resum per import/estat. La [migració 000025](../../sif/database/migrations/2026_09_27_000025_close_novice_root_refund_recovery_workflow.sql) afegeix data+resum i amplia els CHECKs.
+
+**Semàntica important:** `RECOVERY_RESOLVED` vol dir «cap work item pendent», no «tot l'import cobrat». `all_value_recovered` només és cert quan el total de `RECOVERED` coincideix amb el total congelat; WAIVED i CANCELLED continuen com a resultats finals explícits. El servei de tancament no fa cap CHARGE/refund/factura.
+
 ## 2. UML de casos d'ús
 
 ```plantuml
