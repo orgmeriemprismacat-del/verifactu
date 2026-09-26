@@ -768,6 +768,41 @@ stop
 ```
 **Pendent abans d'activació real:** adaptador de decisions autoritzades, interacció amb secretaria, emissió fiscal real, successius canvis, baixa del curs traspassat, consum del saldo derivat, snapshot de devolució de JASOM amb bloquejos i proves. El fet d'escriure serveis que exigeixen una font d'aprovació NO prova que la font existeixi. No s'han fet proves MySQL; les [cinc unit tests purs de decisió de baixa](../../sif/tests/Unit/NovicePromotionApprovedCancellationPolicyTest.php) i [cinc de traspàs](../../sif/tests/Unit/NovicePromotionApprovedTransferPolicyTest.php) no tenen resultat d'execució.
 
+### 4.3 quaterdecies. Consum parcial del saldo de baixa ACTIVE — ONZÈ TALL
+
+**Codi intern preparat, no UI:** [NovicePromotionDerivedBalanceRedemptionService](../../sif/src/Service/NovicePromotionDerivedBalanceRedemptionService.php) consumeix el saldo de baixa per titular autenticat i UUID intern; no emet un segon codi `NOV-*`. La migració 000017 endureix la reserva/aplicació derivada i la política pura separa titular/vigència.
+```plantuml
+@startuml
+title UC-111 | Gastar un saldo de baixa derivat sense nou codi
+start
+:Titular autenticat selecciona saldo derivat ACTIVE (connector PENDENT);
+:Backend calcula net del curs després d'altres descomptes;
+:Persistir novice_derived_balance_quote TRUSTED_SIF_PRICING;
+:Bloquejar dret JASOM arrel i saldo derivat;
+if (JASOM pagat, mateix titular, saldo vigent i disponible?) then (No)
+ :Bloquejar reserva;
+ stop
+endif
+:Reservar import parcial o màxim possible;
+:Reduir AVAILABLE_PROMOTIONAL_AMOUNT i inserir RESERVED;
+:Checkout real HA D'EMETRE factura/preu final (PENDENT);
+if (Factura final + residual conciliats abans del venciment?) then (Sí)
+ :Validar novice_derived_application del snapshot;
+ :Marcar APPLIED sense segon dèbit;
+ :Auditar DERIVED_APPLY;
+else (No)
+ if (Sense intent Redsys ni factura i fracàs acreditat?) then (Sí)
+  :Restaurar import al MATEIX saldo derivat;
+  :Marcar RELEASED i auditar;
+ else (Ambigu)
+  :No retornar saldo; conciliar pagament/fiscalitat;
+ endif
+endif
+stop
+@enduml
+```
+**No resol encara:** canvi o baixa del curs finançat amb aquest saldo derivat, nous saldos descendents, retorn executable de JASOM, UI/autenticació, factura zero i connectors de Redsys/fiscalitat. El saldo derivat manté la seva pròpia caducitat; reservar no la prorroga. [Cinc proves pures d'elegibilitat](../../sif/tests/Unit/NovicePromotionDerivedBalanceEligibilityPolicyTest.php) escrites i no executades.
+
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
