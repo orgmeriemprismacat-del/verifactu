@@ -644,6 +644,14 @@ mateixa clau idempotent.
 - `NovicePromotionRootRefundExecutionService`: només review PENDING + root REFUND_REVIEW + aprovació exacta. Revalida JASOM encara pagat, recalcula graf i fingerprint; crea recovery items per nodes terminals ACTIVE, posa `novice_promotion_grant.AVAILABLE_AMOUNT=0`, cancel·la drets derivats emesos amb `JASOM_ROOT_REFUND`, root `→CANCELLED`, review `→EXECUTED`. Retorna `origin_bank_refund_performed=false` i `automatic_recovery_charge_performed=false`.
 - Proves pures: [5 fingerprint](../../sif/tests/Unit/NovicePromotionRootRefundPlanFingerprintPolicyTest.php), [5 approval](../../sif/tests/Unit/NovicePromotionApprovedRootRefundPolicyTest.php) i cas REFUND_REVIEW al projector. No executades; MySQL ajornat.
 
+### UC-111 · Resolució externa dels recovery items — tall 15
+
+- [000023](../../sif/database/migrations/2026_09_27_000023_add_novice_recovery_resolution_evidence.sql): `RESOLUTION_ID` UNIQUE, `RESOLVED_BY`, `RESOLUTION_EVIDENCE_REF`; un `PENDING_RECOVERY` no pot tenir evidència de resolució i qualsevol estat final n'ha de tenir.
+- `NovicePromotionRecoveryResolutionSourceInterface::resolvedRecovery`: frontera externa autoritativa; retorna recovery, resolució `RECOVERED|WAIVED|CANCELLED`, actor, evidència, data, root, source kind/uuid, destí i import. No hi ha adaptador real encara.
+- `NovicePromotionRecoveryResolutionPolicy`: binding exacte entre evidència i recovery pendent; valida tipus, import, destí, source, actor/evidència i cronologia.
+- `NovicePromotionRootRefundRecoveryResolutionService`: només amb root `CANCELLED`; actualitza estat i `RESOLUTION_CODE` (`EXTERNAL_RECOVERY_CONFIRMED`, `AUTHORIZED_RECOVERY_WAIVER`, `RECOVERY_ITEM_CANCELLED`), audita `ROOT_RECOVERY_RESOLVE` i retorna `monetary_transaction_created=false`. No crea payment_transaction/factura/credit_balance.
+- [5 tests purs](../../sif/tests/Unit/NovicePromotionRecoveryResolutionPolicyTest.php) escrits, no executats.
+
 ### payment_link.STATUS
 
 - `ACTIVE`
