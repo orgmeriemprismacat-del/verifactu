@@ -70,6 +70,12 @@ Un `novice_promotion_derived_balance.ACTIVE` ja té un primer servei específic 
 
 **Encara no és un gestor genèric UC-117:** el checkout/pricing/fiscalitat real no està connectat; no hi ha canvi o baixa d'una `derived_application.APPLIED`, traspassos derivats confirmats, descendència de saldos de baixa executable ni cancel·lació del graf en retornar JASOM. La futura projecció al [NovicePromotionLineagePolicy](../../sif/src/Domain/NovicePromotionLineagePolicy.php) ha de convertir aplicacions derivades SQL en nodes ACTIVE/RESERVED/REPLACED_BY_TRANSFER/REPLACED_BY_DERIVED/RELEASED/CANCELLED sense comptar dos cops el valor. [Cinc tests purs d'elegibilitat](../../sif/tests/Unit/NovicePromotionDerivedBalanceEligibilityPolicyTest.php), no executats; MySQL ajornat.
 
+### 1.7. UC-111 — descendent derivat després d'un curs traspassat
+
+El model de procedència ja permet que una baixa del curs ACTUAL després d'un traspàs confirmat generi un nou dret derivat sense tornar a referenciar l'aplicació històrica: [000018](../../sif/database/migrations/2026_09_26_000018_allow_derived_balance_from_confirmed_transfer.sql) introdueix `SOURCE_UUID_TRANSFER`. [NovicePromotionTransferredDestinationCancellationReviewService](../../sif/src/Service/NovicePromotionTransferredDestinationCancellationReviewService.php) prepara la review i [NovicePromotionTransferredCancellationActivationService](../../sif/src/Service/NovicePromotionTransferredCancellationActivationService.php) tanca el traspàs actual i activa el saldo derivat només amb aprovació final i reconciliació renovada. [000019](../../sif/database/migrations/2026_09_26_000019_close_confirmed_transfer_into_derived_balance.sql) conserva el `CLOSE_REASON` del traspàs.
+
+**Interpretació de procedència:** aplicació original → traspàs confirmat → saldo derivat NO són tres consums. L'aplicació antiga i el traspàs tancat són predecessors històrics; només el saldo derivat i els seus usos vius representen valor pendent. En una futura devolució de JASOM, no sumar predecessors substituïts. Encara falta el projector SQL→graf i la cobertura de traspàs successiu o transferència nascuda d'una aplicació derivada.
+
 ## 2. UML de casos d'ús
 
 ```plantuml
