@@ -96,10 +96,20 @@ final class NovicePromotionLineageProjectionPolicy
                 throw new \InvalidArgumentException('Issued derived right has ambiguous provenance.');
             }
 
+            $declaredParent = trim((string) ($balance['PARENT_UUID_DERIVED_BALANCE'] ?? ''));
             if ($sourceOriginal !== '') {
+                if ($declaredParent !== '') {
+                    throw new \InvalidArgumentException('Original application child right cannot invent a derived parent.');
+                }
                 $this->singleEdge($derivedFromOriginal, $sourceOriginal, $id, 'original application derived right');
                 $parentApplicationId = 'app:' . $sourceOriginal;
             } elseif ($sourceDerived !== '') {
+                if (!isset($derivedApplicationById[$sourceDerived])
+                    || $declaredParent === ''
+                    || $declaredParent !== (string) $derivedApplicationById[$sourceDerived]['UUID_DERIVED_BALANCE']
+                ) {
+                    throw new \InvalidArgumentException('Derived child right does not match its parent balance.');
+                }
                 $this->singleEdge($derivedFromApplication, $sourceDerived, $id, 'derived application child right');
                 $parentApplicationId = 'dapp:' . $sourceDerived;
             } else {
@@ -201,6 +211,41 @@ final class NovicePromotionLineageProjectionPolicy
                 'successor_application_id' => $successor,
                 'derived_right_id' => $derivedRight,
             ];
+        }
+
+        // A right born from a transfer must declare the same parent derived
+        // balance that the transfer was moving, unless the transfer belongs
+        // directly to the root JASOM right (then parent must be NULL).
+        foreach ($derivedBalanceById as $balanceId => $balance) {
+            if ($balance['STATUS'] === 'REJECTED') {
+                continue;
+            }
+            $sourceTransfer = trim((string) ($balance['SOURCE_UUID_TRANSFER'] ?? ''));
+            if ($sourceTransfer === '') {
+                continue;
+            }
+            $rightId = $this->transferRightId(
+                $sourceTransfer,
+                $transferById,
+                $originalById,
+                $derivedApplicationById,
+                $derivedBalanceById,
+                $transferRightMemo,
+                []
+            );
+            $declaredParent = trim((string) ($balance['PARENT_UUID_DERIVED_BALANCE'] ?? ''));
+            if ($rightId === $rootRightId) {
+                if ($declaredParent !== '') {
+                    throw new \InvalidArgumentException('Root transfer child right cannot invent a derived parent.');
+                }
+            } else {
+                $expectedParent = str_starts_with($rightId, 'right:')
+                    ? substr($rightId, 6)
+                    : '';
+                if ($expectedParent === '' || $declaredParent !== $expectedParent) {
+                    throw new \InvalidArgumentException('Transfer-derived right does not match the right being moved.');
+                }
+            }
         }
 
         // All non-rejected derived rights must point to an application that
