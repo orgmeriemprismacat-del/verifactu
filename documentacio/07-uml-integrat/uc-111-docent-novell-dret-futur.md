@@ -876,6 +876,45 @@ stop
 **Serveis:** [SuccessiveTransferReviewService](../../sif/src/Service/NovicePromotionSuccessiveTransferReviewService.php), [SuccessiveTransferConfirmationService](../../sif/src/Service/NovicePromotionSuccessiveTransferConfirmationService.php), [LineageProjectionPolicy](../../sif/src/Domain/NovicePromotionLineageProjectionPolicy.php), [LineageSnapshotService](../../sif/src/Service/NovicePromotionLineageSnapshotService.php) i [RootRefundPlanService](../../sif/src/Service/NovicePromotionRootRefundPlanService.php). El pla és només lectura sota locks i `execution_performed=false`.
 **Pendent:** freeze/expedient de devolució, resolució d'intents pendents, aprovació efectiva, cancel·lació de saldos, reclamació i integració bancària/fiscal. MySQL no executat.
 
+### 4.3 septdecies. Freeze i conseqüències comercials del retorn JASOM — CATORZÈ TALL
+
+```plantuml
+@startuml
+title UC-111 | Retorn JASOM: freeze, revalidacio i consequencies promocionals
+start
+:Secretaria inicia expedient de retorn JASOM;
+:Bloquejar root + graf complet;
+:Calcular cancel_available + recover_active;
+if (Hi ha PENDING/RESERVED/orfes?) then (Si)
+ :Bloquejar expedient;
+ stop
+endif
+:Persistir PLAN_JSON + PLAN_HASH;
+:Root ACTIVE -> REFUND_REVIEW;
+:Noves operacions UC-111 queden bloquejades;
+:FUTUR font autenticada decideix;
+if (Rebutjat o retirat?) then (Si)
+ :Review REJECTED/CANCELLED;
+ :Root REFUND_REVIEW -> ACTIVE;
+ stop
+endif
+:Recalcular graf sota els mateixos locks;
+if (Hash o JSON han canviat?) then (Si)
+ :No executar; reconstruir expedient;
+ stop
+endif
+:Comprovar que JASOM encara NO ha estat retornat;
+:Crear PENDING_RECOVERY per cada exposicio ACTIVE terminal;
+:Posar romanents root/derivats a 0;
+:Cancel.lar root i drets derivats;
+:Review -> EXECUTED;
+:Auditar ROOT_REFUND_EXECUTE;
+:NO executar encara el REFUND bancari ni cap CHARGE;
+stop
+@enduml
+```
+**Implementat aïlladament:** [ReviewService](../../sif/src/Service/NovicePromotionRootRefundReviewService.php), [ExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php), [000021](../../sif/database/migrations/2026_09_27_000021_add_novice_root_refund_review.sql), [000022](../../sif/database/migrations/2026_09_27_000022_add_novice_root_refund_recovery_items.sql). PENDENT: connector real de secretaria, refund bancari/fiscal de JASOM, resolució dels recoveries i proves MySQL.
+
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
