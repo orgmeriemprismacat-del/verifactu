@@ -665,7 +665,7 @@ mateixa clau idempotent.
 - `RECOVERY_SUMMARY_JSON`: resum auditable del pla de recuperació resolt: `expected_total`, `accounted_total`, `recovered_amount`, `waived_amount`, `cancelled_amount`, recomptes de cada estat, `total_items`, `all_items_resolved`, `all_value_recovered`, `completed_at_utc`, `monetary_transaction_created_by_closure=false`. `all_value_recovered=false` és compatible amb un workflow RESOLT quan existeixen WAIVED/CANCELLED.
 - `NovicePromotionRecoveryCompletionPolicy`: només review `EXECUTED`; cada ítem final ha de conservar RESOLUTION_ID/actor/evidència/data/codi i la suma de RECOVERED+WAIVED+CANCELLED ha de ser exactament `PLAN_JSON.total_recover_active`. Un PENDING o diferència d'import bloqueja el tancament. Pla 0 € pot tancar amb zero items.
 - `NovicePromotionRootRefundRecoveryCompletionService::closeResolvedWorkflow`: exigeix root comercial `CANCELLED`, review `EXECUTED` amb evidència de refund bancari, bloqueja tots els items i desa el resum només si la política quadra. Audita `ROOT_RECOVERY_CLOSE`; `monetary_transaction_created=false`. És idempotent sobre `RECOVERY_RESOLVED`.
-- [Cinc proves unitàries pures](../../sif/tests/Unit/NovicePromotionRecoveryCompletionPolicyTest.php) escrites, no executades; migració 000025/MySQL ajornats.
+- [Cinc proves unitàries pures](../../sif/tests/Unit/NovicePromotionRecoveryCompletionPolicyTest.php) escrites, no executades; migració 000025/MySQL ajornats. La [migració correctiva 000026](../../sif/database/migrations/2026_09_27_000026_keep_origin_refund_evidence_after_recovery_closure.sql) manté obligatòria l'evidència del refund JASOM també quan el review ja és `RECOVERY_RESOLVED`; així el canvi d'estat final no relaxa el CHECK introduït a 000024.
 
 ### payment_link.STATUS
 
