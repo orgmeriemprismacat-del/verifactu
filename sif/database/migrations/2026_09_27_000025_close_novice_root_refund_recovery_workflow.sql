@@ -1,0 +1,36 @@
+-- UC-111 / DEC-23:
+-- Close the recovery WORKFLOW only after every recovery item has a verified
+-- final resolution. RECOVERY_RESOLVED does NOT mean every amount was paid:
+-- items may be RECOVERED, WAIVED or CANCELLED, each with its own evidence.
+--
+-- Additive migration: preserve prior migration hashes.
+ALTER TABLE novice_promotion_root_refund_review
+    DROP CHECK chk_novice_root_refund_status,
+    DROP CHECK chk_novice_root_refund_decision,
+    ADD COLUMN RECOVERY_COMPLETED_AT DATETIME NULL,
+    ADD COLUMN RECOVERY_SUMMARY_JSON JSON NULL,
+    ADD CONSTRAINT chk_novice_root_refund_status CHECK (
+        STATUS IN (
+            'PENDING_APPROVAL','REJECTED','CANCELLED',
+            'EXECUTED','RECOVERY_RESOLVED'
+        )
+    ),
+    ADD CONSTRAINT chk_novice_root_refund_decision CHECK (
+        (STATUS = 'PENDING_APPROVAL'
+            AND DECIDED_BY IS NULL AND DECISION_REASON IS NULL
+            AND DECIDED_AT IS NULL AND EXECUTED_AT IS NULL
+            AND RECOVERY_COMPLETED_AT IS NULL AND RECOVERY_SUMMARY_JSON IS NULL)
+        OR (STATUS IN ('REJECTED','CANCELLED')
+            AND DECIDED_BY IS NOT NULL AND DECISION_REASON IS NOT NULL
+            AND DECIDED_AT IS NOT NULL AND EXECUTED_AT IS NULL
+            AND RECOVERY_COMPLETED_AT IS NULL AND RECOVERY_SUMMARY_JSON IS NULL)
+        OR (STATUS = 'EXECUTED'
+            AND DECIDED_BY IS NOT NULL AND DECISION_REASON IS NOT NULL
+            AND DECIDED_AT IS NOT NULL AND EXECUTED_AT IS NOT NULL
+            AND RECOVERY_COMPLETED_AT IS NULL AND RECOVERY_SUMMARY_JSON IS NULL)
+        OR (STATUS = 'RECOVERY_RESOLVED'
+            AND DECIDED_BY IS NOT NULL AND DECISION_REASON IS NOT NULL
+            AND DECIDED_AT IS NOT NULL AND EXECUTED_AT IS NOT NULL
+            AND RECOVERY_COMPLETED_AT IS NOT NULL
+            AND RECOVERY_SUMMARY_JSON IS NOT NULL)
+    );
