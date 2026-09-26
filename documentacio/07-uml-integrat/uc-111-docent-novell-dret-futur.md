@@ -915,6 +915,33 @@ stop
 ```
 **Implementat aïlladament:** [ReviewService](../../sif/src/Service/NovicePromotionRootRefundReviewService.php), [ExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php), [000021](../../sif/database/migrations/2026_09_27_000021_add_novice_root_refund_review.sql), [000022](../../sif/database/migrations/2026_09_27_000022_add_novice_root_refund_recovery_items.sql). PENDENT: connector real de secretaria, refund bancari/fiscal de JASOM, resolució dels recoveries i proves MySQL.
 
+### 4.3 octodecies. Resolució dels recovery items — QUINZÈ TALL
+
+```plantuml
+@startuml
+title UC-111 | Tancar una recuperacio promocional sense crear cobrament
+start
+:Recovery PENDING_RECOVERY creat en cancel.lar JASOM;
+:Consultar sistema extern autoritatiu (connector PENDENT);
+if (Hi ha evidencia exacta?) then (No)
+ :Mantenir PENDING_RECOVERY;
+ stop
+endif
+if (Resultat extern?) then (RECOVERED)
+ :Marcar RECOVERED;
+elseif (WAIVED)
+ :Marcar WAIVED;
+else (CANCELLED)
+ :Marcar CANCELLED;
+endif
+:Guardar resolution_id, actor, evidence_ref i data;
+:Auditar ROOT_RECOVERY_RESOLVE;
+:NO crear CHARGE/REFUND/factura;
+stop
+@enduml
+```
+**Implementat només com a frontera/evidència:** [ResolutionSourceInterface](../../sif/src/Service/NovicePromotionRecoveryResolutionSourceInterface.php), [ResolutionPolicy](../../sif/src/Domain/NovicePromotionRecoveryResolutionPolicy.php), [ResolutionService](../../sif/src/Service/NovicePromotionRootRefundRecoveryResolutionService.php), [000023](../../sif/database/migrations/2026_09_27_000023_add_novice_recovery_resolution_evidence.sql). Connector real pendent.
+
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
