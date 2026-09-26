@@ -880,7 +880,7 @@ stop
 
 ```plantuml
 @startuml
-title UC-111 | Retorn JASOM: freeze, revalidacio i consequencies promocionals
+title UC-111 | Retorn JASOM: freeze, refund confirmat i consequencies promocionals
 start
 :Secretaria inicia expedient de retorn JASOM;
 :Bloquejar root + graf complet;
@@ -893,27 +893,37 @@ endif
 :Root ACTIVE -> REFUND_REVIEW;
 :Noves operacions UC-111 queden bloquejades;
 :FUTUR font autenticada decideix;
-if (Rebutjat o retirat?) then (Si)
+if (Rebutjat o retirat abans del refund?) then (Si)
  :Review REJECTED/CANCELLED;
  :Root REFUND_REVIEW -> ACTIVE;
  stop
 endif
-:Recalcular graf sota els mateixos locks;
-if (Hash o JSON han canviat?) then (Si)
- :No executar; reconstruir expedient;
+:Sistema extern executa refund REAL de JASOM;
+:Root continua REFUND_REVIEW durant el refund;
+if (Evidencia externa de refund complet?) then (No)
+ :Mantenir freeze; no cancel.lar promocio;
  stop
 endif
-:Comprovar que JASOM encara NO ha estat retornat;
+:Verificar per factura CHARGE_TOTAL = TOTAL i REFUND_TOTAL = TOTAL;
+if (Refund intern no esta totalment conciliat?) then (Si)
+ :Mantenir freeze i obrir incidencia;
+ stop
+endif
+:Recalcular graf sota els mateixos locks;
+if (Hash o JSON han canviat?) then (Si)
+ :No executar; reconstruir/revisar expedient;
+ stop
+endif
 :Crear PENDING_RECOVERY per cada exposicio ACTIVE terminal;
 :Posar romanents root/derivats a 0;
 :Cancel.lar root i drets derivats;
-:Review -> EXECUTED;
+:Review -> EXECUTED amb evidencia refund;
 :Auditar ROOT_REFUND_EXECUTE;
-:NO executar encara el REFUND bancari ni cap CHARGE;
+:NO crear refund ni CHARGE en aquest servei;
 stop
 @enduml
 ```
-**Implementat aïlladament:** [ReviewService](../../sif/src/Service/NovicePromotionRootRefundReviewService.php), [ExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php), [000021](../../sif/database/migrations/2026_09_27_000021_add_novice_root_refund_review.sql), [000022](../../sif/database/migrations/2026_09_27_000022_add_novice_root_refund_recovery_items.sql). PENDENT: connector real de secretaria, refund bancari/fiscal de JASOM, resolució dels recoveries i proves MySQL.
+**Implementat aïlladament i ordre corregit:** [ReviewService](../../sif/src/Service/NovicePromotionRootRefundReviewService.php), [ExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php), [OriginRefundEvidenceSource](../../sif/src/Service/NovicePromotionOriginRefundEvidenceSourceInterface.php), [OriginRefundEvidencePolicy](../../sif/src/Domain/NovicePromotionOriginRefundEvidencePolicy.php), [000021](../../sif/database/migrations/2026_09_27_000021_add_novice_root_refund_review.sql), [000022](../../sif/database/migrations/2026_09_27_000022_add_novice_root_refund_recovery_items.sql) i [000024](../../sif/database/migrations/2026_09_27_000024_add_novice_origin_refund_evidence.sql). El refund bancari real es fa FORA d'aquest executor mentre el root està congelat; l'executor només continua quan la font externa i `payment_allocation/payment_transaction` acrediten refund complet. PENDENT: connector real que iniciï/observi el refund, resolució operativa dels recoveries i proves MySQL.
 
 ### 4.3 octodecies. Resolució dels recovery items — QUINZÈ TALL
 
@@ -942,6 +952,11 @@ stop
 ```
 **Implementat només com a frontera/evidència:** [ResolutionSourceInterface](../../sif/src/Service/NovicePromotionRecoveryResolutionSourceInterface.php), [ResolutionPolicy](../../sif/src/Domain/NovicePromotionRecoveryResolutionPolicy.php), [ResolutionService](../../sif/src/Service/NovicePromotionRootRefundRecoveryResolutionService.php), [000023](../../sif/database/migrations/2026_09_27_000023_add_novice_recovery_resolution_evidence.sql). Connector real pendent.
 
+### 4.3 novodecies. Refund JASOM confirmat abans de cancel·lar promoció — SETZÈ TALL
+
+**Correcció d'ordre del tall 14:** `REFUND_REVIEW` es manté durant l'operació bancària. [NovicePromotionOriginRefundEvidenceSourceInterface](../../sif/src/Service/NovicePromotionOriginRefundEvidenceSourceInterface.php) aporta evidència autoritativa del refund i [NovicePromotionOriginRefundEvidencePolicy](../../sif/src/Domain/NovicePromotionOriginRefundEvidencePolicy.php) la vincula al review/root/origen/import. [000024](../../sif/database/migrations/2026_09_27_000024_add_novice_origin_refund_evidence.sql) persisteix aquesta evidència en l'expedient EXECUTED.
+
+El [RootRefundExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php) exigeix, a més, `CHARGE_TOTAL=TOTAL` i `REFUND_TOTAL=TOTAL` per cada factura JASOM abans de cancel·lar drets o crear recoveries. Per tant, un refund parcial o una notificació externa encara no conciliada deixa el root congelat, no cancel·lat. [Cinc tests purs](../../sif/tests/Unit/NovicePromotionOriginRefundEvidencePolicyTest.php) escrits, no executats.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
