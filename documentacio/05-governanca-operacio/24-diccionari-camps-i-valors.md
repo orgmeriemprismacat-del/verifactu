@@ -624,6 +624,16 @@ mateixa clau idempotent.
 - `NovicePromotionTransferredCancellationActivationService`: abans d'activar, revalida aprovació, rectificativa, titular, arrel JASOM i torna a calcular el cash actual de la factura del curs traspassat. Si `CHARGE−REFUND` ja no coincideix amb el cash guardat al review, obliga a recalcular. Si tot quadra, tanca el traspàs i activa el nou saldo derivat en una transacció, amb event `DERIVED_ACTIVATE_TRANSFER` i any propi. No executa la part monetària.
 - [Cinc tests purs](../../sif/tests/Unit/NovicePromotionApprovedTransferredCancellationPolicyTest.php) comproven binding d'aprovació; no executats. Les migracions 000018/000019 tampoc s'han executat.
 
+### UC-111 · Traspàs successiu i graf de devolució JASOM — tall 13
+
+- [000020](../../sif/database/migrations/2026_09_27_000020_harden_successive_novice_transfer_sources.sql): `novice_promotion_derived_application.STATUS=TRANSFERRED` exigeix `CLOSED_AT` i `REASON_CODE=TRANSFERRED_TO_COURSE`. Índex `(PREVIOUS_UUID_TRANSFER, STATUS)` per seguir la cadena de canvis.
+- `NovicePromotionSuccessiveTransferReviewService`: `source_kind=DERIVED_APPLICATION|PREVIOUS_TRANSFER`; només font actual (`APPLIED` o `CONFIRMED`), sense descendent/baixa existent, mateix titular, rectificativa real i nou curs sense promoció/factura/intenció. `novice_promotion_transfer_quote` ha de portar `source_kind`, `source_id`, `ordinary_net`, `source=TRUSTED_SIF_PRICING`, `stage=BEFORE_TRANSFERRED_PROMOTION`. Escriu PENDING; no modifica saldos.
+- `NovicePromotionSuccessiveTransferConfirmationService`: decisió `approvedSuccessiveTransfer`, binding exacte, snapshot final `novice_promotion_transfer` amb source kind/id, factura F1/F2 final i residual CHARGE−REFUND. Tanca predecessor i confirma fill en una transacció. Un traspàs és atribució, no consum nou.
+- `NovicePromotionLineageProjectionPolicy`: converteix ledger SQL en IDs lògics `root:/right:/app:/dapp:/transfer:` i estats `ACTIVE/RESERVED/RELEASED/CANCELLED/REPLACED_BY_TRANSFER/REPLACED_BY_DERIVED`. `PENDING_FISCAL_REVIEW` bloqueja; `REJECTED` no és dret; exigeix successor únic i parent derivat coherent.
+- `NovicePromotionLineageSnapshotService::projectLocked`: només dins una transacció existent; lock order `root/grant → original apps → derived balances → derived apps → transfers`; no fa commit. Retorna graf i recomptes.
+- `NovicePromotionRootRefundPlanService::planLocked`: aplica el graf a `NovicePromotionLineagePolicy` i retorna `cancel_available`, `recover_active_applications`, totals, `review_required=true`, `execution_performed=false`. NO canvia BD, factura ni diners.
+- Proves pures: [5 successive approval](../../sif/tests/Unit/NovicePromotionApprovedSuccessiveTransferPolicyTest.php) + [7 projector/graf](../../sif/tests/Unit/NovicePromotionLineageProjectionPolicyTest.php), escrites, no executades.
+
 ### payment_link.STATUS
 
 - `ACTIVE`
