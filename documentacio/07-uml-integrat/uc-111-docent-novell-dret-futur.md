@@ -957,6 +957,34 @@ stop
 **Correcció d'ordre del tall 14:** `REFUND_REVIEW` es manté durant l'operació bancària. [NovicePromotionOriginRefundEvidenceSourceInterface](../../sif/src/Service/NovicePromotionOriginRefundEvidenceSourceInterface.php) aporta evidència autoritativa del refund i [NovicePromotionOriginRefundEvidencePolicy](../../sif/src/Domain/NovicePromotionOriginRefundEvidencePolicy.php) la vincula al review/root/origen/import. [000024](../../sif/database/migrations/2026_09_27_000024_add_novice_origin_refund_evidence.sql) persisteix aquesta evidència en l'expedient EXECUTED.
 
 El [RootRefundExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php) exigeix, a més, `CHARGE_TOTAL=TOTAL` i `REFUND_TOTAL=TOTAL` per cada factura JASOM abans de cancel·lar drets o crear recoveries. Per tant, un refund parcial o una notificació externa encara no conciliada deixa el root congelat, no cancel·lat. [Cinc tests purs](../../sif/tests/Unit/NovicePromotionOriginRefundEvidencePolicyTest.php) escrits, no executats.
+### 4.3 sexdecies. Tancar recoveries resolts sense fingir cobrament — DISSETÈ TALL
+
+```plantuml
+@startuml
+title UC-111 | Tancament final del workflow de recuperacions
+start
+:Review root ja EXECUTED i JASOM refund confirmat;
+:Root promocional CANCELLED;
+:Llegir tots els recovery items sota lock;
+if (Queda algun PENDING_RECOVERY?) then (Si)
+ :No tancar workflow;
+ stop
+endif
+:Verificar evidencia final de cada item;
+:Sumar RECOVERED + WAIVED + CANCELLED;
+if (Suma != total_recover_active congelat?) then (Si)
+ :Bloquejar per inconsistencia;
+ stop
+endif
+:Persistir resum per estat i import;
+:Review -> RECOVERY_RESOLVED;
+:Auditar ROOT_RECOVERY_CLOSE;
+:No crear cap moviment monetari;
+stop
+@enduml
+```
+`RECOVERY_RESOLVED` no equival a «tot cobrat»: `all_value_recovered=true` només quan tot el valor està en `RECOVERED`; imports `WAIVED/CANCELLED` queden explícits al resum. Amb pla de recoveries 0 €, el workflow es pot tancar sense fabricar ítems de valor zero. MySQL no executat.
+
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
