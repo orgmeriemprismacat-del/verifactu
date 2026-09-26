@@ -170,6 +170,13 @@
 **No confondre EXECUTED amb refund bancari:** `origin_bank_refund_performed=false`; si el banc/TPV ja ha retornat JASOM abans, el servei falla i obliga a incidència. No crea CHARGE de recuperació. El workflow fiscal/pagaments real ha d'invocar-se després amb les seves pròpies garanties.
 **Proves pures escrites:** 5 fingerprint + 5 approval + 1 nou cas REFUND_REVIEW del projector. MySQL/concurrència/rollback real no executats.
 
+## 3 sexdecies. Resolució dels recovery items sense inventar CHARGE — tall 15
+
+**Decisió d'arquitectura:** no hi ha servei genèric de recuperació/refund identificat al repositori revisat que justifiqui crear un moviment monetari automàtic. Els `PENDING_RECOVERY` són per tant work items, no deutes bancaris.
+000023 afegeix evidència de resolució i UNIQUE de `RESOLUTION_ID`. `NovicePromotionRecoveryResolutionSourceInterface` delega la prova real a un origen autoritatiu; `NovicePromotionRecoveryResolutionPolicy` verifica coincidència exacta amb l'ítem congelat.
+`NovicePromotionRootRefundRecoveryResolutionService` només resol si el root ja és CANCELLED i la font externa confirma `RECOVERED/WAIVED/CANCELLED`. Audita l'acció però `monetary_transaction_created=false`; no crea CHARGE, REFUND, factura ni credit_balance.
+**Pendent:** adaptador real comptable/pagaments, permisos/autenticació, notificació a secretaria/alumne i proves MySQL. 5 tests purs escrits, no executats.
+
 ## 4. Proves de sortida (no confondre proves locals del càlcul amb proves d'integració)
 
 | ID | Entrada/escenari | Resultat necessari |
