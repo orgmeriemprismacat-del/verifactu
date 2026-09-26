@@ -93,6 +93,12 @@ No substituir automàticament les 142 fitxes: modificar cada fitxa quan existeix
 
 [Fitxa UC-111](../06-fitxes-funcionals/uc-111.md) · [UML](../07-uml-integrat/uc-111-docent-novell-dret-futur.md) · [UC-117](../07-uml-integrat/uc-117-cicle-vida-codi-dret-futur.md) · [auditoria](../07-uml-integrat/00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
 
+**UC-111 — QUINZÈ TALL (27/09/2026), RESOLUCIÓ AUDITABLE DE PENDING_RECOVERY:**
+
+[000023](../../sif/database/migrations/2026_09_27_000023_add_novice_recovery_resolution_evidence.sql) afegeix `RESOLUTION_ID` únic, actor i evidència als work items creats pel retorn JASOM. Com que la cerca al repositori no ha identificat un servei genèric contrastat de refund/recuperació reutilitzable, NO s'ha inventat cap CHARGE o factura nova. [NovicePromotionRecoveryResolutionSourceInterface](../../sif/src/Service/NovicePromotionRecoveryResolutionSourceInterface.php) defineix una font externa autoritativa i [NovicePromotionRecoveryResolutionPolicy](../../sif/src/Domain/NovicePromotionRecoveryResolutionPolicy.php) exigeix coincidència exacta recovery/root/source/destí/import/evidència/data. [NovicePromotionRootRefundRecoveryResolutionService](../../sif/src/Service/NovicePromotionRootRefundRecoveryResolutionService.php) només resol quan root ja és CANCELLED; passa a `RECOVERED|WAIVED|CANCELLED`, audita `ROOT_RECOVERY_RESOLVE` i retorna `monetary_transaction_created=false`. [5 tests purs](../../sif/tests/Unit/NovicePromotionRecoveryResolutionPolicyTest.php) escrits, no executats. **PENDENT:** adaptador real comptable/pagaments, refund bancari JASOM, notificacions i MySQL/concurrència. `main`/producció intactes.
+
+[Fitxa UC-111](../06-fitxes-funcionals/uc-111.md) · [UML](../07-uml-integrat/uc-111-docent-novell-dret-futur.md) · [UC-117](../07-uml-integrat/uc-117-cicle-vida-codi-dret-futur.md) · [auditoria](../07-uml-integrat/00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
+
 ## 2.a. Porta obligatòria per donar una fitxa per «auditada i documentada»
 
 **Correcció del mètode de treball (22/09/2026).** Un document separat d'auditoria i un diagrama parcial NO substitueixen les fitxes funcionals finals ni els diagrames d'activitat per pàgina i apartat que exigeix RM-037. Abans d'anunciar «fitxa acabada», reunir i enllaçar aquests quatre lliurables:
