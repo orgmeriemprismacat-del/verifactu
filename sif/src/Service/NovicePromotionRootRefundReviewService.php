@@ -279,6 +279,16 @@ final class NovicePromotionRootRefundReviewService
                 throw SifException::conflict('Only an active refund hold can be released without execution.');
             }
 
+            // Never unfreeze after any confirmed refund has altered the JASOM
+            // settlement. Once money has started moving back, reopening the
+            // promotion could allow value to be spent after its origin was
+            // returned. Such a case must stay frozen for reconciliation or
+            // approved execution.
+            $this->assertOriginalJasomStillPaid(
+                $db,
+                (string) $review['ORIGIN_UUID_OPERATION']
+            );
+
             $stmt = $db->prepare(
                 'UPDATE novice_promotion_root_refund_review
                  SET STATUS = ?, DECIDED_BY = ?, DECISION_REASON = ?, DECIDED_AT = ?
