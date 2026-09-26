@@ -251,6 +251,36 @@ final class NovicePromotionTransferredCancellationActivationService
                 throw SifException::conflict('Final transferred cancellation approval differs from its immutable review.');
             }
 
+            // Reconcile the transferred destination AGAIN at activation time.
+            // A refund or payment mutation between review and approval must
+            // invalidate the old proposed split instead of minting a derived
+            // balance from stale cash evidence.
+            $promotion = $this->cents((string) $transfer['AMOUNT']);
+            $ordinaryNet = $this->cents((string) $transfer['ORDINARY_NET_BEFORE_PROMOTION']);
+            $finalNet = $this->cents((string) $transfer['FINAL_NET_AMOUNT']);
+            $invoiceTotal = $this->cents((string) ($sourceInvoice['TOTAL'] ?? ''));
+            $settlement = $this->one(
+                $db,
+                "SELECT COALESCE(SUM(CASE
+                    WHEN pt.TIPUS_MOVIMENT = 'CHARGE' THEN pa.IMPORT_ASSIGNAT
+                    WHEN pt.TIPUS_MOVIMENT = 'REFUND' THEN -pa.IMPORT_ASSIGNAT
+                    ELSE 0 END), 0) AS NET_CASH
+                 FROM payment_allocation pa
+                 JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
+                 WHERE pa.UUID_FACTURA = ? AND pt.ESTAT = 'CONFIRMED'",
+                [(string) $transfer['UUID_DESTINATION_FACTURA']]
+            );
+            $currentCash = $this->cents((string) ($settlement['NET_CASH'] ?? '0.00'));
+            if ($promotion <= 0
+                || $finalNet < 0
+                || $ordinaryNet !== $promotion + $finalNet
+                || $invoiceTotal !== $finalNet
+                || $currentCash !== $finalNet
+                || $this->money($currentCash) !== (string) ($snapshot['original_cash_reconciled'] ?? '')
+            ) {
+                throw SifException::conflict('Transferred destination cash changed after review; cancellation must be recalculated.');
+            }
+
             $this->assertOriginalJasomStillPaid(
                 $db,
                 (string) $root['ORIGIN_UUID_OPERATION']
@@ -438,6 +468,14 @@ final class NovicePromotionTransferredCancellationActivationService
         ) {
             throw SifException::conflict('Original JASOM no longer matches its fully paid invoices.');
         }
+    }
+
+    private function money(int $cents): string
+    {
+        if ($cents < 0) {
+            throw SifException::validation('Negative transferred cancellation cash is invalid.');
+        }
+        return intdiv($cents, 100) . '.' . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 
     private function cents(string $amount): int
