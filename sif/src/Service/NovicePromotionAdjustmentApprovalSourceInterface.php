@@ -35,4 +35,13 @@ interface NovicePromotionAdjustmentApprovalSourceInterface
      * decision was authorized and that its commercial amount is approved.
      */
     public function approvedFirstTransfer(string $uuidTransferReview): ?array;
+
+    /**
+     * Final decision for cancelling the CURRENT course reached through a
+     * confirmed transfer. Mandatory keys: review_uuid, decision_type,
+     * decision_id, decision, reviewer_id, evidence_ref, approved_at_utc,
+     * uuid_source_transfer, uuid_rectificative,
+     * approved_promotional_amount, approved_cash_amount.
+     */
+    public function approvedTransferredCancellation(string $uuidDerivedReview): ?array;
 }
