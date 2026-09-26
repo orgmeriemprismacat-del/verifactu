@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Domain\NovicePromotionApprovedRootRefundPolicy;
+use Prisma\Sif\Domain\NovicePromotionOriginRefundEvidencePolicy;
 use Prisma\Sif\Domain\NovicePromotionRootRefundPlanFingerprintPolicy;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 
 /**
  * UC-111 / DEC-23:
- * Execute ONLY the PROMOTIONAL/COMMERCIAL consequences of an independently
- * approved frozen JASOM refund review.
+ * Execute ONLY the PROMOTIONAL/COMMERCIAL consequences AFTER an independently
+ * approved frozen JASOM review AND the real JASOM refund is externally
+ * confirmed and reconciled in payment_transaction/payment_allocation.
  *
  * Atomic effects:
  * - root grant AVAILABLE_AMOUNT -> 0;
@@ -22,25 +24,25 @@ use Prisma\Sif\Exception\SifException;
  * - refund review -> EXECUTED + approval evidence;
  * - commercial_entitlement_event audit.
  *
- * Explicitly NOT performed:
- * - bank refund of JASOM;
+ * Explicitly NOT performed by this service:
+ * - initiating the bank refund of JASOM (it must already be confirmed);
  * - CHARGE/debt collection;
  * - new factura/rectificative;
  * - automatic recovery settlement.
- *
- * The actual JASOM refund workflow should proceed only after this returns
- * origin_bank_refund_performed=false and its own fiscal/payment checks pass.
  */
 final class NovicePromotionRootRefundExecutionService
 {
     public function __construct(
         private NovicePromotionAdjustmentApprovalSourceInterface $approvals,
+        private NovicePromotionOriginRefundEvidenceSourceInterface $originRefunds,
         private NovicePromotionRootRefundPlanService $plans
             = new NovicePromotionRootRefundPlanService(),
         private NovicePromotionRootRefundPlanFingerprintPolicy $fingerprints
             = new NovicePromotionRootRefundPlanFingerprintPolicy(),
         private NovicePromotionApprovedRootRefundPolicy $decisions
             = new NovicePromotionApprovedRootRefundPolicy(),
+        private NovicePromotionOriginRefundEvidencePolicy $refundEvidence
+            = new NovicePromotionOriginRefundEvidencePolicy(),
         private UuidGenerator $uuids = new UuidGenerator()
     ) {
     }
@@ -65,6 +67,13 @@ final class NovicePromotionRootRefundExecutionService
             || (string) ($approval['decision'] ?? '') !== 'APPROVED'
         ) {
             throw SifException::conflict('No independently finalized root-JASOM refund approval is available.');
+        }
+
+        $originRefund = $this->originRefunds->confirmedOriginRefund($uuidReview);
+        if (!is_array($originRefund)
+            || (string) ($originRefund['review_uuid'] ?? '') !== $uuidReview
+        ) {
+            throw SifException::conflict('The original JASOM refund is not independently confirmed yet.');
         }
 
         $now ??= new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
@@ -111,7 +120,8 @@ final class NovicePromotionRootRefundExecutionService
                     'uuid_review' => $uuidReview,
                     'root_uuid_entitlement' => (string) $review['ROOT_UUID_ENTITLEMENT'],
                     'status' => 'EXECUTED',
-                    'origin_bank_refund_performed' => false,
+                    'origin_bank_refund_confirmed' => true,
+                    'origin_bank_refund_performed_by_this_service' => false,
                     'idempotency_reused' => true,
                 ];
             }
@@ -133,12 +143,24 @@ final class NovicePromotionRootRefundExecutionService
                 throw SifException::conflict('Root refund approval differs from the frozen review.');
             }
 
-            // Commercial consequences are executed BEFORE the actual bank
-            // refund. If JASOM was already refunded elsewhere, fail closed:
-            // this is an incident requiring reconciliation, not a normal path.
-            $this->assertOriginalJasomStillPaid(
+            try {
+                $this->refundEvidence->assertMatches(
+                    $originRefund,
+                    $review,
+                    $this->money($this->cents((string) $root['ORIGINAL_CASH_AMOUNT'])),
+                    $timestamp
+                );
+            } catch (\InvalidArgumentException $exception) {
+                throw SifException::conflict('Confirmed JASOM refund evidence differs from the frozen review.');
+            }
+
+            // The promotion remains frozen while the external payment system
+            // performs the actual refund. Only AFTER confirmed CHARGE and
+            // REFUND allocations net to zero do we cancel promotional value.
+            $this->assertOriginalJasomFullyRefunded(
                 $db,
-                (string) $root['ORIGIN_UUID_OPERATION']
+                (string) $root['ORIGIN_UUID_OPERATION'],
+                $this->cents((string) $root['ORIGINAL_CASH_AMOUNT'])
             );
 
             $currentPlan = $this->plans->planLocked(
@@ -236,7 +258,10 @@ final class NovicePromotionRootRefundExecutionService
                      DECIDED_AT = ?,
                      EXECUTED_AT = ?,
                      APPROVAL_DECISION_ID = ?,
-                     APPROVAL_EVIDENCE_REF = ?
+                     APPROVAL_EVIDENCE_REF = ?,
+                     ORIGIN_REFUND_EVIDENCE_ID = ?,
+                     ORIGIN_REFUND_CONFIRMED_AT = ?,
+                     ORIGIN_REFUNDED_AMOUNT = ?
                  WHERE UUID_REVIEW = ? AND STATUS = 'PENDING_APPROVAL'"
             );
             $finish->execute([
@@ -245,6 +270,9 @@ final class NovicePromotionRootRefundExecutionService
                 $timestamp,
                 (string) $approval['decision_id'],
                 (string) $approval['evidence_ref'],
+                (string) $originRefund['refund_evidence_id'],
+                (string) $originRefund['confirmed_at_utc'],
+                (string) $originRefund['refunded_amount'],
                 $uuidReview,
             ]);
             if ($finish->rowCount() !== 1) {
@@ -268,7 +296,7 @@ final class NovicePromotionRootRefundExecutionService
                 (string) $approval['reviewer_id'],
                 $uuidReview,
                 (string) $approval['decision_id'],
-                'PROMOTION_CANCELLED_BEFORE_JASOM_REFUND',
+                'PROMOTION_CANCELLED_AFTER_JASOM_REFUND',
                 json_encode([
                     'plan_hash' => (string) $review['PLAN_HASH'],
                     'cancelled_available_amount'
@@ -276,7 +304,9 @@ final class NovicePromotionRootRefundExecutionService
                     'pending_recovery_amount'
                         => (string) $fingerprint['canonical']['total_recover_active'],
                     'recovery_items_created' => $createdRecoveries,
-                    'origin_bank_refund_performed' => false,
+                    'origin_bank_refund_confirmed' => true,
+                    'origin_refund_evidence_id' => (string) $originRefund['refund_evidence_id'],
+                    'origin_bank_refund_performed_by_this_service' => false,
                 ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
                 $timestamp,
             ]);
@@ -292,7 +322,9 @@ final class NovicePromotionRootRefundExecutionService
                 'pending_recovery_amount'
                     => (string) $fingerprint['canonical']['total_recover_active'],
                 'recovery_items_created' => $createdRecoveries,
-                'origin_bank_refund_performed' => false,
+                'origin_bank_refund_confirmed' => true,
+                'origin_refund_evidence_id' => (string) $originRefund['refund_evidence_id'],
+                'origin_bank_refund_performed_by_this_service' => false,
                 'automatic_recovery_charge_performed' => false,
                 'idempotency_reused' => false,
             ];
@@ -367,6 +399,7 @@ final class NovicePromotionRootRefundExecutionService
                     e.STATUS AS ENTITLEMENT_STATUS,
                     e.HOLDER_PARTY_KEY,
                     g.ORIGIN_UUID_OPERATION,
+                    g.ORIGINAL_CASH_AMOUNT,
                     v.STATUS AS VALIDATION_STATUS
              FROM commercial_entitlement e
              JOIN novice_promotion_grant g
@@ -382,22 +415,23 @@ final class NovicePromotionRootRefundExecutionService
         return $row;
     }
 
-    private function assertOriginalJasomStillPaid(
+    private function assertOriginalJasomFullyRefunded(
         \PDO $db,
-        string $uuidOperation
+        string $uuidOperation,
+        int $expectedOriginalCents
     ): void {
         $origin = $this->one(
             $db,
-            'SELECT SOURCE_TYPE, SOURCE_ID, PRODUCT_CODE, STATUS, NET_AMOUNT
+            'SELECT SOURCE_TYPE, SOURCE_ID, PRODUCT_CODE, NET_AMOUNT
              FROM commercial_operation WHERE UUID_OPERATION = ? FOR UPDATE',
             [$uuidOperation]
         );
         if ($origin === null
             || $origin['SOURCE_TYPE'] !== 'CURS'
             || $origin['PRODUCT_CODE'] !== 'JASOM'
-            || !in_array((string) $origin['STATUS'], ['PAID', 'INVOICED', 'COMPLETED'], true)
+            || $this->cents((string) $origin['NET_AMOUNT']) !== $expectedOriginalCents
         ) {
-            throw SifException::conflict('Original JASOM must still be fully paid before commercial refund consequences execute.');
+            throw SifException::conflict('Original JASOM no longer matches the frozen refund origin.');
         }
 
         $sourceId = trim((string) ($origin['SOURCE_ID'] ?? ''));
@@ -407,7 +441,7 @@ final class NovicePromotionRootRefundExecutionService
 
         $invoices = $this->many(
             $db,
-            "SELECT f.UUID_FACTURA, f.TOTAL, f.ESTAT_FACTURA, f.ESTAT_COBRAMENT
+            "SELECT f.UUID_FACTURA, f.TOTAL, f.ESTAT_FACTURA
              FROM factura f
              WHERE f.TIPUS_FACTURA IN ('F1','F2')
                AND EXISTS (
@@ -421,38 +455,38 @@ final class NovicePromotionRootRefundExecutionService
 
         $total = 0;
         foreach ($invoices as $invoice) {
-            if ($invoice['ESTAT_FACTURA'] !== 'ISSUED'
-                || $invoice['ESTAT_COBRAMENT'] !== 'PAID'
-            ) {
-                throw SifException::conflict('Original JASOM has a nonissued or unpaid invoice.');
+            if ($invoice['ESTAT_FACTURA'] !== 'ISSUED') {
+                throw SifException::conflict('Original JASOM invoice is no longer issued.');
             }
             $invoiceCents = $this->cents((string) $invoice['TOTAL']);
             if ($invoiceCents <= 0) {
                 throw SifException::conflict('Original JASOM invoice amount is invalid.');
             }
+
             $settlement = $this->one(
                 $db,
-                "SELECT COALESCE(SUM(CASE
-                    WHEN pt.TIPUS_MOVIMENT = 'CHARGE' THEN pa.IMPORT_ASSIGNAT
-                    WHEN pt.TIPUS_MOVIMENT = 'REFUND' THEN -pa.IMPORT_ASSIGNAT
-                    ELSE 0 END), 0) AS NET_CASH
+                "SELECT
+                    COALESCE(SUM(CASE
+                        WHEN pt.TIPUS_MOVIMENT = 'CHARGE' THEN pa.IMPORT_ASSIGNAT
+                        ELSE 0 END), 0) AS CHARGE_TOTAL,
+                    COALESCE(SUM(CASE
+                        WHEN pt.TIPUS_MOVIMENT = 'REFUND' THEN pa.IMPORT_ASSIGNAT
+                        ELSE 0 END), 0) AS REFUND_TOTAL
                  FROM payment_allocation pa
                  JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
                  WHERE pa.UUID_FACTURA = ? AND pt.ESTAT = 'CONFIRMED'",
                 [(string) $invoice['UUID_FACTURA']]
             );
-            if ($this->cents((string) ($settlement['NET_CASH'] ?? '0.00'))
-                !== $invoiceCents
-            ) {
-                throw SifException::conflict('Original JASOM already contains a refund or incomplete settlement.');
+            $charges = $this->cents((string) ($settlement['CHARGE_TOTAL'] ?? '0.00'));
+            $refunds = $this->cents((string) ($settlement['REFUND_TOTAL'] ?? '0.00'));
+            if ($charges !== $invoiceCents || $refunds !== $invoiceCents) {
+                throw SifException::conflict('Original JASOM refund is not fully reconciled invoice by invoice.');
             }
             $total += $invoiceCents;
         }
 
-        if ($total <= 0
-            || $total !== $this->cents((string) $origin['NET_AMOUNT'])
-        ) {
-            throw SifException::conflict('Original JASOM total no longer matches paid invoices.');
+        if ($total <= 0 || $total !== $expectedOriginalCents) {
+            throw SifException::conflict('Original JASOM refunded invoices do not match the frozen amount.');
         }
     }
 
