@@ -92,6 +92,12 @@ El review/executor NO fa el refund bancari de JASOM i NO cobra la recuperació. 
 
 **Pendent UC-117:** resolució dels recovery items amb evidència externa, coordinació amb el `payment_transaction.REFUND` real de JASOM i notificacions.
 
+### 1.10. UC-111 — tancament auditable dels imports a recuperar
+
+Després d'executar les conseqüències promocionals del retorn JASOM, cada exposició terminal queda en `novice_promotion_root_refund_recovery.PENDING_RECOVERY`. [NovicePromotionRootRefundRecoveryResolutionService](../../sif/src/Service/NovicePromotionRootRefundRecoveryResolutionService.php) no cobra res: només consumeix una [font externa autoritativa](../../sif/src/Service/NovicePromotionRecoveryResolutionSourceInterface.php) i registra `RECOVERED`, `WAIVED` o `CANCELLED` amb evidència exacta.
+
+**Semàntica:** `RECOVERED` = un sistema extern verificat acredita la recuperació; no significa que SIF hagi creat un CHARGE. 000023 conserva resolution id/actor/evidència. El connector real segueix pendent.
+
 ## 2. UML de casos d'ús
 
 ```plantuml
