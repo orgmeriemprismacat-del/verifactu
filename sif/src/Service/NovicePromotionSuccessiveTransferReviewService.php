@@ -102,9 +102,15 @@ final class NovicePromotionSuccessiveTransferReviewService
 
         $db->beginTransaction();
         try {
+            $rootUuid = $this->sourceRootUuid($db, $sourceKind, $sourceId);
+            if ($rootUuid === null) {
+                throw SifException::conflict('Current promotional transfer source does not exist.');
+            }
+            $root = $this->lockRoot($db, $rootUuid);
             $source = $this->lockSource($db, $sourceKind, $sourceId);
-            $root = $this->lockRoot($db, $source['root_uuid']);
-            if ((string) $source['holder_party_key'] !== (string) $root['HOLDER_PARTY_KEY']) {
+            if ((string) $source['root_uuid'] !== (string) $root['UUID_ENTITLEMENT']
+                || (string) $source['holder_party_key'] !== (string) $root['HOLDER_PARTY_KEY']
+            ) {
                 throw SifException::conflict('Current transfer source holder differs from the novice root.');
             }
 
@@ -316,6 +322,27 @@ final class NovicePromotionSuccessiveTransferReviewService
             }
             throw $exception;
         }
+    }
+
+    private function sourceRootUuid(\PDO $db, string $kind, string $sourceId): ?string
+    {
+        if ($kind === 'PREVIOUS_TRANSFER') {
+            $row = $this->one(
+                $db,
+                'SELECT ROOT_UUID_ENTITLEMENT
+                 FROM novice_promotion_application_transfer WHERE UUID_TRANSFER = ?',
+                [$sourceId]
+            );
+        } else {
+            $row = $this->one(
+                $db,
+                'SELECT ROOT_UUID_ENTITLEMENT
+                 FROM novice_promotion_derived_application
+                 WHERE UUID_DERIVED_APPLICATION = ?',
+                [$sourceId]
+            );
+        }
+        return $row === null ? null : (string) $row['ROOT_UUID_ENTITLEMENT'];
     }
 
     private function lockSource(\PDO $db, string $kind, string $sourceId): array
