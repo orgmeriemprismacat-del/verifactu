@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Domain\NovicePromotionAmountPolicy;
+use Prisma\Sif\Domain\NovicePromotionDerivedBalanceEligibilityPolicy;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 
@@ -29,7 +30,8 @@ final class NovicePromotionDerivedBalanceRedemptionService
 {
     public function __construct(
         private UuidGenerator $uuids = new UuidGenerator(),
-        private NovicePromotionAmountPolicy $amounts = new NovicePromotionAmountPolicy()
+        private NovicePromotionAmountPolicy $amounts = new NovicePromotionAmountPolicy(),
+        private NovicePromotionDerivedBalanceEligibilityPolicy $eligibility = new NovicePromotionDerivedBalanceEligibilityPolicy()
     ) {
     }
 
@@ -96,12 +98,17 @@ final class NovicePromotionDerivedBalanceRedemptionService
             );
             if ($derived === null
                 || (string) $derived['ROOT_UUID_ENTITLEMENT'] !== (string) $root['UUID_ENTITLEMENT']
-                || (string) $derived['HOLDER_PARTY_KEY'] !== $party
-                || $derived['STATUS'] !== 'ACTIVE'
-                || $derived['ISSUED_AT'] === null || $derived['EXPIRES_AT'] === null
-                || (string) $derived['EXPIRES_AT'] <= $timestamp
-                || $reservedUntil > (string) $derived['EXPIRES_AT']
             ) {
+                throw SifException::conflict('Derived promotional balance lineage is invalid.');
+            }
+            try {
+                $this->eligibility->assertReservable(
+                    $derived,
+                    $party,
+                    $nowUtc,
+                    $reservationUtc
+                );
+            } catch (\InvalidArgumentException $exception) {
                 throw SifException::conflict('Derived promotional balance is not active for this authenticated holder.');
             }
 
@@ -331,14 +338,14 @@ final class NovicePromotionDerivedBalanceRedemptionService
                 return $this->appliedResult($application, true);
             }
 
-            if ($application['STATUS'] !== 'RESERVED'
-                || $application['RESERVATION_EXPIRES_AT'] === null
-                || (string) $application['RESERVATION_EXPIRES_AT'] <= $timestamp
-                || $derived['STATUS'] !== 'ACTIVE'
-                || $derived['EXPIRES_AT'] === null
-                || (string) $derived['EXPIRES_AT'] <= $timestamp
-                || (string) $derived['HOLDER_PARTY_KEY'] !== (string) $root['HOLDER_PARTY_KEY']
-            ) {
+            try {
+                $this->eligibility->assertConfirmable(
+                    $derived,
+                    $application,
+                    (string) $root['HOLDER_PARTY_KEY'],
+                    $now->setTimezone(new \DateTimeZone('UTC'))
+                );
+            } catch (\InvalidArgumentException $exception) {
                 throw SifException::conflict('Derived promotion is not eligible for final application.');
             }
 
