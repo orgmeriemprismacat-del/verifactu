@@ -44,4 +44,16 @@ interface NovicePromotionAdjustmentApprovalSourceInterface
      * approved_promotional_amount, approved_cash_amount.
      */
     public function approvedTransferredCancellation(string $uuidDerivedReview): ?array;
+
+    /**
+     * Final decision for moving the CURRENT promotional attribution to
+     * another course when the current source is either an APPLIED derived
+     * application or an already CONFIRMED transfer.
+     *
+     * Mandatory keys: review_uuid, decision_type, decision_id, decision,
+     * reviewer_id, evidence_ref, approved_at_utc, source_kind,
+     * source_id, uuid_rectificative, uuid_new_operation,
+     * approved_promotional_amount.
+     */
+    public function approvedSuccessiveTransfer(string $uuidTransferReview): ?array;
 }
