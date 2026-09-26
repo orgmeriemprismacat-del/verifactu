@@ -76,6 +76,14 @@ El model de procedència ja permet que una baixa del curs ACTUAL després d'un t
 
 **Interpretació de procedència:** aplicació original → traspàs confirmat → saldo derivat NO són tres consums. L'aplicació antiga i el traspàs tancat són predecessors històrics; només el saldo derivat i els seus usos vius representen valor pendent. En una futura devolució de JASOM, no sumar predecessors substituïts. Encara falta el projector SQL→graf i la cobertura de traspàs successiu o transferència nascuda d'una aplicació derivada.
 
+### 1.8. UC-111 — traspàs successiu i projecció canònica del graf
+
+El cicle de vida ja pot mantenir una atribució a través de N cursos sense convertir cada canvi en consum nou. [NovicePromotionSuccessiveTransferReviewService](../../sif/src/Service/NovicePromotionSuccessiveTransferReviewService.php) crea la revisió des de `DERIVED_APPLICATION.APPLIED` o l'últim `PREVIOUS_TRANSFER.CONFIRMED`; [NovicePromotionSuccessiveTransferConfirmationService](../../sif/src/Service/NovicePromotionSuccessiveTransferConfirmationService.php) tanca el predecessor i confirma el successor amb el mateix import. La [migració 000020](../../sif/database/migrations/2026_09_27_000020_harden_successive_novice_transfer_sources.sql) deixa explícit el tancament de l'aplicació derivada.
+
+[NovicePromotionLineageProjectionPolicy](../../sif/src/Domain/NovicePromotionLineageProjectionPolicy.php) és ara la projecció canònica entre les quatre taules UC-111 i el graf de `NovicePromotionLineagePolicy`; [NovicePromotionLineageSnapshotService](../../sif/src/Service/NovicePromotionLineageSnapshotService.php) el llegeix sota locks i [NovicePromotionRootRefundPlanService](../../sif/src/Service/NovicePromotionRootRefundPlanService.php) calcula el pla sense mutar. Això evita interpretar `REVERSED`, `CANCELLED` o `TRANSFERRED` de forma aïllada.
+
+**Encara no executiu:** falta l'expedient/freeze de devolució JASOM i el motor de cancel·lació/reclamació; pending reviews/reservations bloquegen el càlcul.
+
 ## 2. UML de casos d'ús
 
 ```plantuml
