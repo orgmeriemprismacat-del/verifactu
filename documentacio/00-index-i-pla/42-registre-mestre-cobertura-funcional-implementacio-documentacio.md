@@ -309,3 +309,8 @@ Aquesta taula és un **punt de partida verificable**, no l'inventari complet del
 Aquest document deixa de ser un inventari de buits i passa a registre de tancament quan: (a) totes les funcionalitats ACTUALS dins l'abast, no només els 142 IDs, estan inventariades i traçades; (b) les variants de negoci i decisions del xat original estan reconciliades; (c) les fitxes expliquen **estat actual → modificacions → estat final** i referencien la classe i taula correctes; (d) tots els RM P0 aplicables tenen implementació i prova executada amb evidència; (e) els P1/P2 tenen decisió d'abast o planificació explícita; (f) els informes datats no s'utilitzen com a prova de versions posteriors; (g) la custòdia del xat original es manté privada.
 
 **No s'afirma en aquesta versió:** que s'hagi executat la suite MySQL, que s'hagin inspeccionat els 192 recorreguts en producció, que les 142 fitxes s'hagin validat semànticament una per una, que s'hagi aprovat el règim fiscal de la botiga/SL o que el sistema ja pugui entrar en producció.
+
+
+## Revisió global de codi — 25/09/2026
+
+[Informe, fonts i rutes del tall actual](../../00-control/revisio-codi-drive-2026-09-25/informe.md). Inventari complet i escaneig estàtic de les set aplicacions, amb lectura semàntica dirigida i pendents de cobertura explícits. Abans de preguntar dades d’un UC, consultar aquest índex, llegir el codi específic i contrastar les decisions ja documentades. No implica validació funcional de tots els casos.

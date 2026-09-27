@@ -796,3 +796,69 @@ al servidor, el certificat i la qualificació externa. Cap enviament ni commit/p
 - Evidències locals: sif/var/evidence/2026-09-24-infra-{migrations.txt,clean-install.txt,tests.txt,lint.txt,manifest.json,preflight.json,go-no-go.json}. Instruccions: sif/tests/README.md i sif/scripts/local-test.ps1.
 - Aquest resultat actualitza les regressions anteriors i inclou les darreres proves de recuperació AEAT. No acredita enviaments externs, certificat, integració legacy real, restauració al servidor ni les portes G1..G7. Estat global NO-GO.
 - Sense lectura del xat antic, enviaments externs, commit ni push. Conservats els canvis previs del repositori.
+
+
+## 2026-09-25 — Continuació de revisió UML: UC-108
+
+Reconciliades fitxa, casos d’ús, classes, seqüència i activitats del tastet amb les decisions DEC-108 ja acordades. Corregida la dependència UC-125 sobre alta directa al butlletí. L’auditoria del lot 01, apartat 6, conserva troballes i pendents concrets; correccions històriques UC-108/110/125 ja incorporades identificades. Cap decisió nova de negoci, canvi de PHP ni prova funcional. UC-108 continua obert pels detalls identificats; no es dona per completada la revisió dels 142 casos.
+
+
+## 2026-09-25 — DEC-108-06: tastets fora del SIF
+
+**DEC-108-06 ACORDADA (25/09/2026):** per decisió de la usuària, els tastets es gestionen només al web, la intranet i el campus. No es crea cap operació SIF `commercial_operation` / `NON_BILLABLE` / `FREE_SAMPLE` per la sol·licitud gratuïta. Aquesta exclusió no afecta una compra posterior de pagament, que tindrà el seu cas propi.
+
+Font: resposta explícita «només a la web intranet i campus». Actualitzada la documentació UML integrada i l’auditoria del lot 01; cap canvi de codi ni de dades.
+
+
+### 25/09/2026 — Desbloqueig d’un sol ús, DEC-108-03e
+
+**DEC-108-03e ACORDADA (25/09/2026):** cada desbloqueig de secretaria/suport autoritza una única nova inscripció de la mateixa persona al mateix tastet després de caducar l’accés. Un cop utilitzat, repetir el tastet després d’una nova caducitat requereix una nova autorització. Els reintents de la mateixa petició no són noves inscripcions. DEC-108-03f confirma que el desbloqueig no caduca abans d’utilitzar-lo.
+
+Font: confirmació explícita de la usuària a la proposta d’una única nova inscripció. Actualitzades fitxes, activitats, seqüència i contracte de classes de disseny; criteri tècnic derivat i proves TG-108-DU1–DU4 identificats com a pendents, sense modificar PHP ni BD.
+
+
+### 25/09/2026 — Confirmació del còmput d’accés (DEC-108-02b/d)
+
+La usuària confirma que els **7 dies d’accés comencen amb l’activació efectiva al campus**, no amb l’enviament del formulari web. Es conserva la regla ja acordada: venciment set dies després a la mateixa hora de l’activació. La caducitat del desbloqueig és una qüestió separada: resolta posteriorment a DEC-108-03f, sense termini abans del primer ús. Es manté el desbloqueig d’un sol ús (DEC-108-03e).
+
+
+### 25/09/2026 — Vigència del desbloqueig
+
+**DEC-108-03f ACORDADA (25/09/2026):** el desbloqueig no té caducitat temporal mentre no s’hagi utilitzat: la persona pot enviar el formulari quan vulgui. Es manté l’ús únic per persona+tastet (DEC-108-03e) i la validació que el tastet estigui actiu. Els set dies d’accés comencen amb l’activació efectiva al campus (DEC-108-02b/d), no amb el desbloqueig ni amb l’enviament del formulari.
+
+Font: resposta explícita «pot fer-ho quan vulgui». Decisió documental; implementació i proves no acreditades per aquesta actualització.
+
+
+### 25/09/2026 — Canal de petició del desbloqueig
+
+**DEC-108-03g ACORDADA (25/09/2026):** la persona demana el desbloqueig del tastet per correu electrònic. Secretaria/suport gestiona el desbloqueig segons DEC-108-03a; l’enviament del correu no és una nova inscripció ni activa l’accés al campus. Després del desbloqueig, és la persona qui emplena i envia el formulari web. El desbloqueig es fa des del campus (DEC-108-03h); l’adreça destinatària i el control concret del campus no s’han precisat.
+
+Font: resposta explícita «escriu un coreu». Actualització documental; cap correu enviat ni canvi de codi.
+
+
+### 25/09/2026 — Sistema de gestió del desbloqueig
+
+**DEC-108-03h ACORDADA (25/09/2026):** secretaria o suport fa el desbloqueig des del campus, segons resposta explícita de la usuària. El canal de petició és el correu electrònic (03g). Resta identificar l’acció concreta del campus i el seu efecte sobre l’accés i la possible reinscripció web; no s’infereix una sincronització campus→web ni un nou servei automàtic. Es mantenen les regles acordades d’ús únic, absència de caducitat abans de l’ús i set dies des de l’activació efectiva.
+
+Actualització de fitxes i diagrames; no s’ha operat al campus ni modificat PHP/BD.
+
+
+### 25/09/2026 — Acció concreta al campus i coherència pendent
+
+**DEC-108-03i ACORDADA (25/09/2026):** el desbloqueig es fa canviant la data de venciment al campus. Aquesta és l’acció concreta confirmada per la usuària. **COHERÈNCIA PENDENT:** precisar si aquest canvi renova directament l’accés existent o si encara cal el nou formulari web descrit a DEC-108-03a/e/f, i des de quin instant es calcula el nou venciment. No afirmar que canviar la data crea una autorització web ni una nova matrícula. La regla dels set dies des de l’activació efectiva es manté; no s’infereix un còmput des del primer inici de sessió. El circuit de repetició de tastet i la pròrroga per incidència de claus no s’assimilen automàticament.
+
+Font: resposta explícita «Canvieu la data de venciment». La usuària demana agrupar les preguntes per agilitzar la definició. Actualització documental; cap acció executada al campus.
+
+
+### 25/09/2026 — Renovació aclarida per la usuària
+
+**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+
+Font: respostes agrupades 1–3 de la usuària. La renovació queda definida documentalment; no s’ha executat cap canvi al campus, enviament ni prova funcional.
+
+
+## 2026-09-25 — UC-108: decisions contrastades i revisió de codi-drive
+
+**Decisions confirmades el 25/09/2026:** (DEC-108-03m) es pot tornar a renovar si la persona ho demana, tot i que la usuària indica que això no passa habitualment; no s’ha establert un màxim numèric ni una renovació automàtica. (DEC-108-01a) la identificació per comprovar repetició del tastet és el **DNI**, conjuntament amb el tastet. (DEC-108-07) avisos de tastets i butlletí general pertanyen a **la mateixa subscripció**; no dissenyar dues subscripcions independents per aquests dos noms. Els avisos operatius d’accés/renovació continuen independents de l’opció comercial.
+
+Preferència expressa: revisar primer tot el codi disponible i la documentació abans de preguntar dades deduïbles. Inventari i contrast global a `00-control/revisio-codi-drive-2026-09-25/`; lectura semàntica dirigida i escaneig automàtic es distingeixen explícitament.

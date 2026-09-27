@@ -1,5 +1,11 @@
 # UC-108 — Diagrames d'activitat UML de TOTES les pàgines i els apartats del recorregut tastets
 
+**Decisions confirmades el 25/09/2026:** (DEC-108-03m) es pot tornar a renovar si la persona ho demana, tot i que la usuària indica que això no passa habitualment; no s’ha establert un màxim numèric ni una renovació automàtica. (DEC-108-01a) la identificació per comprovar repetició del tastet és el **DNI**, conjuntament amb el tastet. (DEC-108-07) avisos de tastets i butlletí general pertanyen a **la mateixa subscripció**; no dissenyar dues subscripcions independents per aquests dos noms. Els avisos operatius d’accés/renovació continuen independents de l’opció comercial.
+
+**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+
+**Lectura de l’historial:** les notes anteriors de 03a/e/f sobre nova inscripció i vigència del desbloqueig es conserven com a antecedents superats; no prevalen sobre 03j/k/l.
+
 **Versió:** 0.9 PER DEFINIR AMB MERIEM · 22/09/2026 · Font: `main` a `e71958b3026549bde09fb4b25f2ec3ba370937ec`. **Lliurable:** 4 pàgines amb un diagrama ACTUAL i un FINAL cadascuna, més diagrames propis dels 12 apartats/accions agrupats segons el seu flux amb decisions i efectes separats. **ACTUAL** és lectura del codi disponible, no prova de l'execució productiva; **FINAL** és disseny preliminar condicionat a les decisions de [fitxa funcional UC-108, apartat 20](../06-fitxes-funcionals/uc-108.md#20-decisions-que-volem-definir-amb-negoci-abans-de-passar-a-un-altre-uc).
 
 **Vista gràfica a GitHub:** [obrir els diagrames de les quatre pàgines, ACTUAL i FINAL](uc-108-vistes-grafiques-activitats-pagines.md). Els 32 diagrames PlantUML d'aquesta pàgina continuen sent la font UML detallada de cada pàgina i apartat.
@@ -167,17 +173,13 @@ stop
 
 ```plantuml
 @startuml
-title P-TAS-01 D | Avisos FINAL pendent DEC-108-07
+title P-TAS-01 D | Subscripció única FINAL acordada DEC-108-07
 start
-:Usuari tria opcionalment finalitat avís;
-if (Tria també butlletí comercial?) then (Sí)
-  :Recollir consentiment diferenciat UC-125;
-else (No)
-  :Cap subscripció a butlletí comercial;
-endif
-:Validar email, text i finalitats al servidor;
-:Registrar petició i confirmació per destí quan pertoqui;
-:Mostrar estat real, no alta efectiva només pel clic;
+:Mostrar una sola subscripció comercial per avisos de tastets i butlletí;
+:Recollir elecció explícita i email;
+:Validar email i evidència al servidor;
+:Tramitar la mateixa subscripció UC-125 pel canal corresponent;
+:Mostrar resultat real, sense afirmar alta només pel clic;
 :No crear cap inscripció al tastet;
 stop
 @enduml
@@ -394,14 +396,11 @@ partition "Servidor de sol·licituds" {
       stop
     endif
     if (Accés anterior caducat?) then (Sí)
-      :Comprovar si secretaria/suport ha desbloquejat la inscripció web de persona+tastet;
-      if (Desbloqueig verificable per persona i tastet?) then (Sí)
-        :Acceptar l'enviament del formulari fet per la persona;
-        :Crear nova sol·licitud idempotent vinculada al desbloqueig;
-      else (No)
-        :Bloquejar enviament i indicar contacte amb secretaria/suport;
-        stop
-      endif
+      :No crear nova sol·licitud; indicar renovació per correu;
+      :Secretaria/suport canvia venciment al campus a set dies des del canvi;
+      :Qui fa el canvi envia l’avís amb la plantilla inicial;
+      :Accés amb compte existent, sense formulari nou (03j/k/l);
+      stop
     else (No)
       if (Baixa de la persona o petició denegada?) then (Sí)
         :Permetre que la persona enviï nova sol·licitud web sense desbloqueig;
@@ -415,12 +414,12 @@ partition "Servidor de sol·licituds" {
     endif
   else (No)
     :Crear petició gratuïta idempotent;
-    :Vincular operació FREE_SAMPLE si DEC-108-06;
   endif
+  :Conservar petició al web/intranet, sense registre al SIF (DEC-108-06);
   :Registrar per separat l'elecció «Sí/No» de butlletí UC-125 amb evidència; «No» o manca de «Sí» no genera subscripció comercial. Amb «Sí» explícit, tramitar alta directa al butlletí en enviar el formulari, sense correu de confirmació (DEC-108-04a/b); si falla l'alta comercial, registrar incidència sense anul·lar la sol·licitud del tastet;
   :Deixar sol·licitud pendent de tramitació acadèmica MANUAL per secretaria (DEC-108-05a);
   :Enviar avís operatiu de sol·licitud rebuda, no d'accés concedit;
-  :Secretaria prepara el correu d'accés amb una PLANTILLA JA EXISTENT i l'envia MANUALMENT després de l'alta real (DEC-108-05b/c/d), també amb butlletí No; no programar enviament automàtic al web;
+  :Deixar l’actuació manual posterior de secretaria fora d’aquesta resposta web; vegeu P-TAS-04 i seqüència UC-108;
   :No crear matrícula Moodle automàticament en aquest flux;
 }
 partition "Navegador" {
@@ -587,14 +586,10 @@ else (Sí)
       :No crear una altra sol·licitud ni demanar desbloqueig;
     else (No)
       if (Accés anterior caducat?) then (Sí)
-        :Bloquejar la inscripció web fins al desbloqueig de secretaria/suport;
-        if (Inscripció desbloquejada per persona+tastet?) then (Sí)
-          :La persona torna al formulari i envia la nova sol·licitud;
-          :Servidor valida el desbloqueig i crea alta idempotent;
-        else (No)
-          :No crear altra alta ni reactivar accés;
-          :Informar de contacte amb secretaria o suport;
-        endif
+        :No crear nova inscripció web; petició de renovació per correu;
+        :Secretaria/suport fixa venciment a set dies des del canvi al campus;
+        :Qui modifica la data envia l’avís amb la plantilla inicial;
+        :La persona accedeix amb el compte existent (03j/k/l);
       else (No)
         if (Baixa de la persona o sol·licitud denegada?) then (Sí)
           :Permetre nova inscripció directa des de formulari web;
@@ -642,14 +637,12 @@ title P-TAS-03 E | Enviament FINAL proposat
 start
 :POST amb request_id, producte validable i dades mínimes;
 :Revalidar oferta, persona, estat i opció mailing al servidor;
-if (Sol·licitud vàlida?) then (No)
+if (Sol·licitud invàlida?) then (Sí)
   :Error tipificat sense alta;
   stop
 endif
 :Crear o recuperar petició gratuïta amb idempotència;
-if (DEC-108-06: registrar operació no facturable?) then (Sí)
-  :Vincular NON_BILLABLE/FREE_SAMPLE;
-endif
+:Gestionar petició al web/intranet i accés al campus, sense operació SIF (DEC-108-06);
 :Persistir decisió comercial «Sí/No» independent UC-125 amb evidència;
 if (Ha triat Sí explícit?) then (Sí)
   :Activar subscripció directament en enviar formulari sense correu/enllaç de confirmació (DEC-108-04b);
@@ -659,10 +652,10 @@ else (No)
 endif
 :Registrar petició pendent d'alta MANUAL per secretaria i notificació operativa de sol·licitud rebuda (DEC-108-05a);
 :No executar alta automàtica Moodle en aquesta fase;
-:El correu operatiu d'accés activat es prepara a partir d'una PLANTILLA JA EXISTENT que NOMÉS informa de l'accés, sense enllaç ni instruccions de claus, i l'ENVIA MANUALMENT secretaria després de l'alta real (DEC-108-05b/c/d/e). Quan secretaria crea MANUALMENT un compte NOU al campus, el CAMPUS envia AUTOMÀTICAMENT per correu les claus a aquella persona (DEC-108-05f); no és un correu del web ni el de la plantilla manual. **DEC-108-05g:** si el correu de claus no arriba, mantenir igualment l'avís manual posterior a l'activació real i gestionar la incidència de claus per separat; l'avís no demostra recepció de claus ni entrada al campus. **DEC-108-05h i DEC-108-05i:** secretaria intenta primer reenviar o regenerar claus des del campus; si no ho resol, deriva a Isa (suport tècnic) i després a desenvolupament (Meriem). **DEC-108-05j/k:** si la incidència de claus impedeix entrar-hi durant part de la setmana, cal PRORROGAR l'accés: **NOVA SETMANA COMPLETA a partir de la resolució de la incidència (DEC-108-05k)**, no sumar només els dies perduts al venciment original. Acreditar l'instant de resolució; **secretaria o Isa ajusten el venciment real al campus (DEC-108-05l)** i, després de concedir la nova setmana, **Isa o secretaria envien MANUALMENT, utilitzant LA MATEIXA plantilla existent que l'avís inicial d'accés activat, amb el missatge adaptat per a la pròrroga (DEC-108-05o/p), el correu que comunica a la persona que tindrà 7 dies d'accés, SENSE data exacta de venciment (DEC-108-05m i DEC-108-05n)**; el campus no dispara automàticament aquest avís en modificar el venciment. Verificar permisos, acció concreta, nou venciment al campus i tramesa manual mitjançant comprovació del procediment real; no pressuposar cap registre de seguiment d'incidències o pròrrogues a la intranet (DEC-108-05q). L'alta automàtica al campus prevista per al 2027 és fora d'abast;
-if (Alguna fase posterior falla?) then (Sí)
-  :Guardar incidència i reintentar només aquella fase;
-endif
+note right
+  L’alta manual de secretaria, els avisos i la pròrroga són actuacions posteriors.
+  Vegeu P-TAS-04 i la seqüència UC-108; no condicionen la resposta web.
+end note
 :Retornar ID, estat de sol·licitud i token segur si aprovat;
 :Mai crear factura, TPV o CHARGE; no crear mailing si No o manca Sí. Amb Sí explícit, alta comercial directa sense segon correu, però només declarar-la efectiva si ha quedat registrada (DEC-108-04a/b);
 stop
@@ -819,6 +812,55 @@ stop
 
 ## 6. Decisions pendents abans de donar aquests diagrames per «finals»
 
-**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02a ACORDADA:** mantenir alta al campus en 24–48 hores laborals després de rebre la sol·licitud, sense confondre petició rebuda amb accés activat. **DEC-108-02b/d ACORDADES:** una setmana d'accés des de l'activació real per secretaria al campus, no des de l'enviament de la petició, **amb venciment EXACTAMENT set dies després a la mateixa hora de l'activació**; per a la pròrroga, EXACTAMENT set dies després a la mateixa hora de la resolució de la incidència, **mai fins a les 23.59 h**. **DEC-108-02c ACORDADA:** tastets oberts a sol·licituds en qualsevol moment mentre `reptes.ESTAT=1`, sense convocatòries d'inscripció; revalidar disponibilitat en l'enviament. **DEC-108-02 · REGLA HORÀRIA ACORDADA (DEC-108-02d):** venciment set dies després a la mateixa hora d'inici en accés ordinari i en pròrroga; pendent comprovar el càlcul i l'aplicació efectius al campus, no definir una altra hora de negoci; **la repetició després de caducar requereix autorització**. **DEC-108-03:** sol·licituds pendents (DEC-108-03b), accessos actius (DEC-108-03c), caducats (DEC-108-03a) i baixa/denegació (DEC-108-03d) ACORDATS. **DEC-108-03d ACORDADA:** després de baixa voluntària o petició denegada, nova inscripció directa al formulari web sense desbloqueig; conservar historial, validar i prevenir dobles altes. **DEC-108-03c ACORDADA:** amb accés actiu al mateix tastet, mostrar que ja està inscrita i no crear una altra sol·licitud, sense desbloqueig. **DEC-108-03b ACORDADA:** segona petició de la mateixa persona i tastet mentre la primera segueix pendent d'alta al campus → mostrar avís «Ja tens una sol·licitud pendent» i no crear cap altra alta ni exigir desbloqueig. **DEC-108-03a ACORDADA:** si l'accés ha caducat, secretaria/suport desbloqueja la inscripció web per aquella persona+tastet i és la persona qui torna a omplir i enviar el formulari; via de sol·licitud, control tècnic i vigència pendents. **DEC-108-04a ACORDADA:** butlletí opcional amb elecció explícita «Sí/No» al formulari del tastet; No no bloqueja inscripció ni comunicacions operatives, i no hi ha alta comercial sense Sí. **DEC-108-04b ACORDADA:** amb Sí explícit i persistència comercial satisfactòria, alta directa al butlletí en enviar el formulari, sense correu/enllaç de confirmació; no afirmar-la si la persistència falla. **DEC-108-04 OBERTA parcialment:** text/evidència/versió del consentiment i detalls de registre (UC-125); les altres vies de subscripció tenen circuit propi. **DEC-108-05a ACORDADA:** secretaria fa manualment l'alta al campus en la fase actual, un cop rebuda la sol·licitud web; el formulari i els workers no han de crear automàticament la matrícula Moodle ara. L'automatització es vol per al 2027 però queda fora de l'abast actual. **DEC-108-05b ACORDADA:** després d'haver completat l'alta manual efectiva, secretaria envia un correu operatiu a la persona informant que ja pot accedir al campus; és diferent de la confirmació de recepció i també s'envia si ha triat No al butlletí. **DEC-108-05c ACORDADA:** per ara secretaria prepara i envia el correu MANUALMENT; el sistema no el dispara automàticament i no s'ha d'implementar una automatització de tramesa en la fase actual. **DEC-108-05d ACORDADA:** secretaria utilitza una PLANTILLA JA PREPARADA per a aquest correu; el text literal, la ubicació i els camps concrets de la plantilla encara s'han de contrastar. **DEC-108-05e ACORDADA:** el correu manual només informa de l'accés activat, sense enllaç al campus ni instruccions per obtenir claus; els membres existents conserven les claus. **DEC-108-05f ACORDADA:** quan secretaria dona d'alta MANUALMENT una persona que encara no té compte al campus, el CAMPUS li envia AUTOMÀTICAMENT per correu les claus; és independent del correu manual posterior i no representa una alta Moodle automàtica. Pendent de comprovar plantilla, disparador i resultat reals del correu del campus, sense consignar claus en la documentació. Pendent verificar el registre real de dates d'activació/venciment, destinatari, plantilla, evidència de l'enviament i possible implementació tècnica del correu (UC-129). **DEC-108-05g ACORDADA:** si un nou membre no rep el correu automàtic de claus, secretaria envia igualment la plantilla manual informativa DESPRÉS de l'activació real; registrar/tractar la incidència de claus separadament, sense equiparar avís enviat a credencials rebudes o sessió iniciada. **DEC-108-05h/i ACORDADES:** incidència de claus separada de l'avís manual: secretaria és el primer punt d'atenció i intenta reenviar o regenerar les claus des del campus; si no ho resol, deriva a Isa (suport tècnic) i, si persisteix, a desenvolupament (Meriem). Funcions reals de campus, permisos i traça pendents de contrastar, sense exposar credencials ni duplicar comptes. **DEC-108-05j/k/l ACORDADES:** quan una incidència de claus impedeix entrar durant part de la setmana, **concedir una NOVA SETMANA COMPLETA des de la resolució acreditada de la incidència**, no conservar el venciment original ni afegir només els dies perduts. **Secretaria o Isa modifiquen el venciment al campus (DEC-108-05l)** i es comunica **per correu la nova data de venciment a la persona després de concedir la pròrroga (DEC-108-05m)**. **DEC-108-05q — SITUACIÓ ACTUAL:** no hi ha seguiment específic de la incidència de claus ni de la pròrroga a la intranet o en cap eina addicional. Aquesta manca de seguiment no elimina l'ajust del venciment al campus ni l'avís manual, i no autoritza a donar per provada la seva execució. **DEC-108-05m, DEC-108-05n, DEC-108-05o i DEC-108-05p ACORDADES:** el missatge de pròrroga informa que tindrà 7 dies d'accés, sense data exacta de venciment; **Isa o secretaria l'envien MANUALMENT utilitzant LA MATEIXA plantilla que l'avís inicial, amb el missatge adaptat per a la pròrroga**, i el campus no l'envia automàticament pel canvi del venciment. Pendent de contrastar la plantilla, el destinatari i la traça real de la tramesa. Verificar instant de resolució, inclusivitat de l'hora final, permisos, actor que executa el canvi, registre i nou venciment Moodle/BD; no confondre-ho amb una nova matrícula ni amb l'avís manual d'activació. **DEC-108-06:** registrar o no al SIF una operació `FREE_SAMPLE` per cada alta gratuïta. **DEC-108-07:** separar avís de tastets, butlletí i peu compartit.
+**DEC-108-01:** política d'identitat/token/lectura del resultat. **DEC-108-02a ACORDADA:** mantenir alta al campus en 24–48 hores laborals després de rebre la sol·licitud, sense confondre petició rebuda amb accés activat. **DEC-108-02b/d ACORDADES:** una setmana d'accés des de l'activació real per secretaria al campus, no des de l'enviament de la petició, **amb venciment EXACTAMENT set dies després a la mateixa hora de l'activació**; per a la pròrroga, EXACTAMENT set dies després a la mateixa hora de la resolució de la incidència, **mai fins a les 23.59 h**. **DEC-108-02c ACORDADA:** tastets oberts a sol·licituds en qualsevol moment mentre `reptes.ESTAT=1`, sense convocatòries d'inscripció; revalidar disponibilitat en l'enviament. **DEC-108-02 · REGLA HORÀRIA ACORDADA (DEC-108-02d):** venciment set dies després a la mateixa hora d'inici en accés ordinari i en pròrroga; pendent comprovar el càlcul i l'aplicació efectius al campus, no definir una altra hora de negoci; **la repetició després de caducar requereix autorització**. **DEC-108-03:** sol·licituds pendents (DEC-108-03b), accessos actius (DEC-108-03c), caducats (DEC-108-03a) i baixa/denegació (DEC-108-03d) ACORDATS. **DEC-108-03d ACORDADA:** després de baixa voluntària o petició denegada, nova inscripció directa al formulari web sense desbloqueig; conservar historial, validar i prevenir dobles altes. **DEC-108-03c ACORDADA:** amb accés actiu al mateix tastet, mostrar que ja està inscrita i no crear una altra sol·licitud, sense desbloqueig. **DEC-108-03b ACORDADA:** segona petició de la mateixa persona i tastet mentre la primera segueix pendent d'alta al campus → mostrar avís «Ja tens una sol·licitud pendent» i no crear cap altra alta ni exigir desbloqueig. **DEC-108-03a ACORDADA:** si l'accés ha caducat, secretaria/suport desbloqueja la inscripció web per aquella persona+tastet i és la persona qui torna a omplir i enviar el formulari; via de sol·licitud per correu acordada (DEC-108-03g); control tècnic pendent; ús únic i sense caducitat temporal acordats (DEC-108-03e/f). **DEC-108-04a ACORDADA:** butlletí opcional amb elecció explícita «Sí/No» al formulari del tastet; No no bloqueja inscripció ni comunicacions operatives, i no hi ha alta comercial sense Sí. **DEC-108-04b ACORDADA:** amb Sí explícit i persistència comercial satisfactòria, alta directa al butlletí en enviar el formulari, sense correu/enllaç de confirmació; no afirmar-la si la persistència falla. **DEC-108-04 OBERTA parcialment:** text/evidència/versió del consentiment i detalls de registre (UC-125); les altres vies de subscripció tenen circuit propi. **DEC-108-05a ACORDADA:** secretaria fa manualment l'alta al campus en la fase actual, un cop rebuda la sol·licitud web; el formulari i els workers no han de crear automàticament la matrícula Moodle ara. L'automatització es vol per al 2027 però queda fora de l'abast actual. **DEC-108-05b ACORDADA:** després d'haver completat l'alta manual efectiva, secretaria envia un correu operatiu a la persona informant que ja pot accedir al campus; és diferent de la confirmació de recepció i també s'envia si ha triat No al butlletí. **DEC-108-05c ACORDADA:** per ara secretaria prepara i envia el correu MANUALMENT; el sistema no el dispara automàticament i no s'ha d'implementar una automatització de tramesa en la fase actual. **DEC-108-05d ACORDADA:** secretaria utilitza una PLANTILLA JA PREPARADA per a aquest correu; el text literal, la ubicació i els camps concrets de la plantilla encara s'han de contrastar. **DEC-108-05e ACORDADA:** el correu manual només informa de l'accés activat, sense enllaç al campus ni instruccions per obtenir claus; els membres existents conserven les claus. **DEC-108-05f ACORDADA:** quan secretaria dona d'alta MANUALMENT una persona que encara no té compte al campus, el CAMPUS li envia AUTOMÀTICAMENT per correu les claus; és independent del correu manual posterior i no representa una alta Moodle automàtica. Pendent de comprovar plantilla, disparador i resultat reals del correu del campus, sense consignar claus en la documentació. Pendent verificar el registre real de dates d'activació/venciment, destinatari, plantilla, evidència de l'enviament i possible implementació tècnica del correu (UC-129). **DEC-108-05g ACORDADA:** si un nou membre no rep el correu automàtic de claus, secretaria envia igualment la plantilla manual informativa DESPRÉS de l'activació real; registrar/tractar la incidència de claus separadament, sense equiparar avís enviat a credencials rebudes o sessió iniciada. **DEC-108-05h/i ACORDADES:** incidència de claus separada de l'avís manual: secretaria és el primer punt d'atenció i intenta reenviar o regenerar les claus des del campus; si no ho resol, deriva a Isa (suport tècnic) i, si persisteix, a desenvolupament (Meriem). Funcions reals de campus, permisos i traça pendents de contrastar, sense exposar credencials ni duplicar comptes. **DEC-108-05j/k/l ACORDADES:** quan una incidència de claus impedeix entrar durant part de la setmana, **concedir una NOVA SETMANA COMPLETA des de la resolució acreditada de la incidència**, no conservar el venciment original ni afegir només els dies perduts. **Secretaria o Isa modifiquen el venciment al campus (DEC-108-05l)** i es comunica **per correu que tindrà 7 dies d’accés, sense data exacta de venciment, després de concedir la pròrroga (DEC-108-05m/n/o/p)**. **DEC-108-05q — SITUACIÓ ACTUAL:** no hi ha seguiment específic de la incidència de claus ni de la pròrroga a la intranet o en cap eina addicional. Aquesta manca de seguiment no elimina l'ajust del venciment al campus ni l'avís manual, i no autoritza a donar per provada la seva execució. **DEC-108-05m, DEC-108-05n, DEC-108-05o i DEC-108-05p ACORDADES:** el missatge de pròrroga informa que tindrà 7 dies d'accés, sense data exacta de venciment; **Isa o secretaria l'envien MANUALMENT utilitzant LA MATEIXA plantilla que l'avís inicial, amb el missatge adaptat per a la pròrroga**, i el campus no l'envia automàticament pel canvi del venciment. Pendent de contrastar la plantilla, el destinatari i la traça real de la tramesa. Verificar instant de resolució, aplicació del venciment set dies després a la mateixa hora ja acordada, permisos, actor que executa el canvi i nou venciment al campus, sense exigir un registre addicional de seguiment (DEC-108-05q); no confondre-ho amb una nova matrícula ni amb l'avís manual d'activació. **DEC-108-06 ACORDADA (25/09/2026):** per decisió de la usuària, els tastets es gestionen només al web, la intranet i el campus. No es crea cap operació SIF `commercial_operation` / `NON_BILLABLE` / `FREE_SAMPLE` per la sol·licitud gratuïta. Aquesta exclusió no afecta una compra posterior de pagament, que tindrà el seu cas propi. **DEC-108-07 ACORDADA:** avisos de tastets i butlletí són la mateixa subscripció; ajustar els controls/textos que els separen i traçar el peu compartit.
 
-**Estat real:** la representació ACTUAL està contrastada amb el codi esmentat; la regla de reinscripció amb autorització és **ACORDADA però NO IMPLEMENTADA**, i la resta del flux FINAL encara està per aprovar. S'han de revisar les decisions amb Meriem, actualitzar les condicions exactes dels diagrames i després executar les proves. **No iniciar l'auditoria d'altres UC mentre la revisió funcional d'aquest cas segueix oberta.**
+**Estat documental reconciliat (25/09/2026):** la representació ACTUAL remet al tall de codi citat, no al desplegament. Les regles DEC-108-02a–d, 03a–d, 04a/b i 05a–q ja estan acordades i no s’han de tornar a presentar com a decisions obertes. Resten per definir identitat/token (01), detalls tècnics del desbloqueig, text/evidència de consentiment (04), adequació dels controls a la subscripció única ja acordada (07). Implementació i proves continuen sense quedar acreditades per aquests diagrames. **No iniciar l'auditoria d'altres UC mentre la revisió funcional d'aquest cas segueix oberta.**
+
+
+### Precisió del desbloqueig d’un sol ús
+
+**DEC-108-03e ACORDADA (25/09/2026):** cada desbloqueig de secretaria/suport autoritza una única nova inscripció de la mateixa persona al mateix tastet després de caducar l’accés. Un cop utilitzat, repetir el tastet després d’una nova caducitat requereix una nova autorització. Els reintents de la mateixa petició no són noves inscripcions. DEC-108-03f confirma que el desbloqueig no caduca abans d’utilitzar-lo.
+
+**Criteri tècnic derivat (disseny, no implementat):** vincular el desbloqueig a la nova sol·licitud acceptada i consumir-lo juntament amb la persistència d’aquesta sol·licitud. Un formulari invàlid o una alta no persistida no el consumeix. Dues peticions simultànies no poden crear dues altes amb el mateix desbloqueig; un reintent equivalent recupera la sol·licitud ja creada. No és un nou registre SIF ni un seguiment de les incidències de claus.
+
+
+### 25/09/2026 — Vigència del desbloqueig
+
+**DEC-108-03f ACORDADA (25/09/2026):** el desbloqueig no té caducitat temporal mentre no s’hagi utilitzat: la persona pot enviar el formulari quan vulgui. Es manté l’ús únic per persona+tastet (DEC-108-03e) i la validació que el tastet estigui actiu. Els set dies d’accés comencen amb l’activació efectiva al campus (DEC-108-02b/d), no amb el desbloqueig ni amb l’enviament del formulari.
+
+Font: resposta explícita «pot fer-ho quan vulgui». Decisió documental; implementació i proves no acreditades per aquesta actualització.
+
+
+### 25/09/2026 — Canal de petició del desbloqueig
+
+**DEC-108-03g ACORDADA (25/09/2026):** la persona demana el desbloqueig del tastet per correu electrònic. Secretaria/suport gestiona el desbloqueig segons DEC-108-03a; l’enviament del correu no és una nova inscripció ni activa l’accés al campus. Després del desbloqueig, és la persona qui emplena i envia el formulari web. El desbloqueig es fa des del campus (DEC-108-03h); l’adreça destinatària i el control concret del campus no s’han precisat.
+
+Font: resposta explícita «escriu un coreu». Actualització documental; cap correu enviat ni canvi de codi.
+
+
+### 25/09/2026 — Sistema de gestió del desbloqueig
+
+**DEC-108-03h ACORDADA (25/09/2026):** secretaria o suport fa el desbloqueig des del campus, segons resposta explícita de la usuària. El canal de petició és el correu electrònic (03g). Resta identificar l’acció concreta del campus i el seu efecte sobre l’accés i la possible reinscripció web; no s’infereix una sincronització campus→web ni un nou servei automàtic. Es mantenen les regles acordades d’ús únic, absència de caducitat abans de l’ús i set dies des de l’activació efectiva.
+
+Actualització de fitxes i diagrames; no s’ha operat al campus ni modificat PHP/BD.
+
+
+### 25/09/2026 — Acció concreta al campus i coherència pendent
+
+**DEC-108-03i ACORDADA (25/09/2026):** el desbloqueig es fa canviant la data de venciment al campus. Aquesta és l’acció concreta confirmada per la usuària. **COHERÈNCIA PENDENT:** precisar si aquest canvi renova directament l’accés existent o si encara cal el nou formulari web descrit a DEC-108-03a/e/f, i des de quin instant es calcula el nou venciment. No afirmar que canviar la data crea una autorització web ni una nova matrícula. La regla dels set dies des de l’activació efectiva es manté; no s’infereix un còmput des del primer inici de sessió. El circuit de repetició de tastet i la pròrroga per incidència de claus no s’assimilen automàticament.
+
+Font: resposta explícita «Canvieu la data de venciment». La usuària demana agrupar les preguntes per agilitzar la definició. Actualització documental; cap acció executada al campus.
+
+
+### 25/09/2026 — Renovació aclarida per la usuària
+
+**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+
+Font: respostes agrupades 1–3 de la usuària. La renovació queda definida documentalment; no s’ha executat cap canvi al campus, enviament ni prova funcional.
+
+
+### Contrast de les respostes amb el codi disponible — 25/09/2026
+
+**Contrast amb codi abans de preguntar:** `web-actual/ajax/buscarSiHaRealitzatElTastet.php:20` consulta `CURS=? AND DNI=? AND INSC_CURS=1`; acredita el criteri DNI+tastet, però no una consulta del venciment real al campus. `web-actual/ajax/enviarInscripcioTastet.php:213,255–269` força mailing a 1 i consulta/insereix `mailing`: la persistència llegida no respecta encara l’opció No acordada. `Tastets.php:200–239` i `js1619773569/mostrarTastets.min.js:238–259` conserven textos i controls de xerrades/dues opcions: són una discrepància de la còpia, no motiu per tornar a preguntar si el negoci vol dues subscripcions. La decisió 07 és única; resta adequar el codi i comprovar els consumidors reals.
+
+La resta de l’autenticació i l’accés segur a la confirmació no es dedueix només de conèixer el DNI. No s’ha accedit al campus ni s’han enviat correus.

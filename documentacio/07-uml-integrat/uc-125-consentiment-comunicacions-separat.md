@@ -1,5 +1,7 @@
 # UC-125 · Gestionar el consentiment de comunicacions separat de la inscripció
 
+**Decisions confirmades el 25/09/2026:** (DEC-108-03m) es pot tornar a renovar si la persona ho demana, tot i que la usuària indica que això no passa habitualment; no s’ha establert un màxim numèric ni una renovació automàtica. (DEC-108-01a) la identificació per comprovar repetició del tastet és el **DNI**, conjuntament amb el tastet. (DEC-108-07) avisos de tastets i butlletí general pertanyen a **la mateixa subscripció**; no dissenyar dues subscripcions independents per aquests dos noms. Els avisos operatius d’accés/renovació continuen independents de l’opció comercial.
+
 **Objectiu canònic:** alta, confirmació, denegació, canvi i retirada amb finalitat, canal, abast, versió del text, font, data i evidència. **Cap alta acadèmica, factura, compra o tastet gratuït acredita automàticament consentiment de comunicacions comercials.** Bloquejant de la fitxa original: finalitats, canals, textos/versionats, doble confirmació, caducitat i mecanismes de retirada.
 
 ## 1. Evidència del repositori i decisions pendents
@@ -23,7 +25,7 @@ UC-108 permet alta gratuïta sense presumpció de mailing; UC-120 tracta dades p
 
 1. El canal de compra, tastet o intranet mostra el text **concret versionat** i permet registrar per separat la decisió pertinent. No marcar l'opció comercial a partir del fet d'enviar el formulari o pagar.
 2. Un gestor **pendent** valida identitat, finalitat i canal, registra event amb opció/instant/origen i crea o reusa la prova del mateix `REQUEST_ID` sense duplicar canvis.
-3. Si la política exigeix doble confirmació, no marcar l'opció com a plenament confirmada fins a comprovar el pas de verificació. La necessitat, termini i mecanisme de doble confirmació **estan pendents d'aprovació**, no es presumeixen implementats.
+3. Si la política exigeix doble confirmació, no marcar l'opció com a plenament confirmada fins a comprovar el pas de verificació. Per al formulari del tastet, **DEC-108-04b ja acorda alta directa amb Sí explícit i persistència satisfactòria, sense segon correu/enllaç de confirmació**. Per a les altres vies, necessitat, termini i mecanisme continuen pendents de la política específica; no generalitzar la regla del tastet.
 4. Propagar decisió al sistema de comunicació per la mateixa clau de persona+finalitat+canal; només informar «sincronitzat» quan el destí l'ha confirmat. Si falla, deixar incidència/reintent idempotent.
 5. En retirada, registrar nou event vinculat a l'anterior, revocar futurs enviaments de la finalitat/canal pertinents i comprovar que les cues pendents no tornen a marcar el contacte com a actiu per una sincronització antiga.
 6. Si la persona canvia email o es detecta duplicat de subjecte, UC-126 resol titularitat abans d'unificar historials; no traslladar un consentiment antic a una persona diferent per coincidència de correu.
@@ -53,7 +55,8 @@ UC-108 permet alta gratuïta sense presumpció de mailing; UC-120 tracta dades p
 
 | ID | Escenari | Resultat exigible |
 | --- | --- | --- |
-| CM-125-01 | `inscripcio_mailing.php` tramita una sol·licitud però no es confirma | Sol·licitud identificada; no declarar subscripció confirmada per haver enviat un correu. |
+| CM-125-01 | `mailingNou.php` desa una sol·licitud a `subscriptors` i envia l’enllaç, però no consta confirmació | Sol·licitud identificada; no declarar subscripció confirmada per haver enviat un correu. `inscripcio_mailing.php` consulta l’opció; aquesta prova no aplica a l’alta directa del tastet DEC-108-04b. |
+| CM-125-01a | Formulari del tastet amb Sí explícit; persistència comercial correcta o fallida | Alta directa sense segon correu només si la persistència té èxit; si falla, informar del resultat comercial sense anul·lar la petició acadèmica. Vegeu TG-108-02a. |
 | CM-125-02 | Inscripció a tastet gratuït amb opció comercial negativa | Alta/accés acadèmic segons regla, cap subscripció promocional implícita. |
 | CM-125-03 | `CORREU` coincideix per alumne i gestor d'una entitat | Dos subjectes/abasts; no compartir automàticament decisió ni accés documental. |
 | CM-125-04 | Retirada amb campanya comercial ja pendent a l'outbox | Revalidar l'opció vigent i impedir l'enviament pendent d'aquella finalitat. |
@@ -153,3 +156,10 @@ Note over C,M: No hi ha connector ni model d'events acreditats al PHP SIF consul
 ## 8. Dues accions diferents a la fitxa de l'alumne: mailing i avís operatiu de pagament
 
 [Matriu exhaustiva de la pantalla, AL-12 i AL-15](01-tancament-documental-pantalla-alumnes-consulta-modifica-2026-09-23.md) documenta dues operacions que **no es poden equiparar**. L'edició ordinària de la inscripció envia `mailing` per GET a [`guardarDadesPersonals_ConsultaInformacio.php`](../../codi-drive/intranet-actual/ajax/alumnes/guardarDadesPersonals_ConsultaInformacio.php), que escriu `INSC_MAILING` amb altres camps acadèmics i personals; el mètode no registra una prova separada de consentiment comercial en aquesta acció. «Desar i enviar» dades de pagament és, en canvi, una **comunicació operativa de fraccionament/recordatori**: [`guardarEnviarDadesPagament_ConsultaInformacio.php`](../../codi-drive/intranet-actual/ajax/alumnes/guardarEnviarDadesPagament_ConsultaInformacio.php) escriu primer el resum de pagament i intenta enviar després un missatge a alumne/còpia interna. **Ni canviar el flag llegat acredita alta publicitària, ni l'avís de pagament és prova d'acceptació comercial**. Flux final: consentiment, retirada, propòsit i persona per UC-125; comunicacions operatives per cas de pagament independent, amb estat d'enviament i resultat separats de l'UPDATE. T-125-INTRA-04: editar dada administrativa amb `mailing=1` sense evidència no genera subscripció; T-125-INTRA-05: «desar i enviar» recordatori no afegeix contacte a cap llista comercial; proves no executades.
+
+
+### Contrast de les respostes amb el codi disponible — 25/09/2026
+
+**Contrast amb codi abans de preguntar:** `web-actual/ajax/buscarSiHaRealitzatElTastet.php:20` consulta `CURS=? AND DNI=? AND INSC_CURS=1`; acredita el criteri DNI+tastet, però no una consulta del venciment real al campus. `web-actual/ajax/enviarInscripcioTastet.php:213,255–269` força mailing a 1 i consulta/insereix `mailing`: la persistència llegida no respecta encara l’opció No acordada. `Tastets.php:200–239` i `js1619773569/mostrarTastets.min.js:238–259` conserven textos i controls de xerrades/dues opcions: són una discrepància de la còpia, no motiu per tornar a preguntar si el negoci vol dues subscripcions. La decisió 07 és única; resta adequar el codi i comprovar els consumidors reals.
+
+La resta de l’autenticació i l’accés segur a la confirmació no es dedueix només de conèixer el DNI. No s’ha accedit al campus ni s’han enviat correus.

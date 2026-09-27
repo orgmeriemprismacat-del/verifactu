@@ -1,5 +1,11 @@
 # Auditoria funcional pendent — lot 01 · alta i checkout web (22/09/2026)
 
+**Decisions confirmades el 25/09/2026:** (DEC-108-03m) es pot tornar a renovar si la persona ho demana, tot i que la usuària indica que això no passa habitualment; no s’ha establert un màxim numèric ni una renovació automàtica. (DEC-108-01a) la identificació per comprovar repetició del tastet és el **DNI**, conjuntament amb el tastet. (DEC-108-07) avisos de tastets i butlletí general pertanyen a **la mateixa subscripció**; no dissenyar dues subscripcions independents per aquests dos noms. Els avisos operatius d’accés/renovació continuen independents de l’opció comercial.
+
+**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+
+**Lectura de l’historial:** les notes anteriors de 03a/e/f sobre nova inscripció i vigència del desbloqueig es conserven com a antecedents superats; no prevalen sobre 03j/k/l.
+
 **Tall del codi:** `main` a `e71958b3026549bde09fb4b25f2ec3ba370937ec`. **Estat:** primera revisió de 9 UC: 106, 107, 108, 109, 110, 112, 115, 122 i 125. **No és** una validació dels altres UC, de les 192 pantalles, dels desplegaments ni una execució de proves. Els enllaços de codi apunten a la versió de tall. La revisió contrasta l'endpoint existent **com a codi versionat**, no acredita que el mateix fitxer sigui el desplegat.
 
 [Registre mestre RM-001–037](../00-index-i-pla/42-registre-mestre-cobertura-funcional-implementacio-documentacio.md) · [matriu d'accions precedent](../04-estat-final/41-matriu-superficie-executable-casos.md) · [matriu de pantalles](../03-canvis-pendents/12-matriu-pantalles-abans-despres.md).
@@ -10,7 +16,7 @@
 | --- | --- | --- | --- |
 | [106](uc-106-crear-reserva-abans-pagament.md) · reserva abans de pagar | [Alta curs](../../codi-drive/web-actual/ajax/enviarInscripcio.php) i [alta pack](../../codi-drive/web-actual/ajax/enviarInscripcioPack.php) escriuen inscripcions llegades i deriven `IDPAG` llegint l'últim valor; [RedsysPaymentIntentService](../../sif/src/Service/RedsysPaymentIntentService.php) crea intenció `PENDING`. | La fitxa distingeix correctament intenció Redsys de reserva de plaça. Falta traçar cada variant: alta confirmada/provisional, reintent, edició, compte empresa, pack N i situació del correu prepagament. No equiparar alta a la BD llegada amb `capacity_reservation` efectiva. | Servei de comercial/reserva, idempotència entre canals, vincle ID_INSC/operació/plaça i política de caducitat. **P-106-01:** dues sol·licituds simultànies, una sola reserva/IDPAG segons política; cap factura/cobrament per la reserva. |
 | [107](uc-107-detectar-inscripcio-duplicada.md) · alta duplicada | [enviarInscripcio.php, 164–189](../../codi-drive/web-actual/ajax/enviarInscripcio.php#L164-L189) consulta si la persona **ja ha realitzat** el curs per CURS/DNI/GENERAT=1 i construeix un text informatiu; no es desprèn d'aquesta consulta el bloqueig d'alta simultània en la mateixa edició. [Pack](../../codi-drive/web-actual/ajax/enviarInscripcioPack.php#L175-L185) consulta historial per reconèixer antic alumne, no una clau única de nova reserva. | Cal separar «ja havia fet el curs» i «ja té aquesta inscripció/checkout actiu». La fitxa estableix objectiu, però no fa una matriu contrastada de cada handler ni la política de baixa/nova alta. | Unicitat de negoci persona+producte+edició+estat, reús idempotent i bloqueig concurrent sobre llegat/operació. **P-107-01:** doble clic i dos DS_ORDER de mateixa compra → cap alta/càrrec duplicats; distingir dues edicions legítimes i email compartit. |
-| [108](uc-108-tastet-repte-gratuit.md) · tastet gratuït | [handler real, 15–51](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L15-L51): rep `nom,cog,dni,email,poblacio,conegut,comentaris,mailing,codiCurs`; consulta `reptes` actiu. [90–117](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L90-L117): diu «gratuït», avisa d'alta en 24/48 h laborals i una setmana d'accés després de l'alta. [222–234](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L222-L234): insereix `inscripcions_reptes`, sense factura/CHARGE en aquesta ruta. | **Correcció necessària:** la fitxa deia que `web-actual` no era accessible; ara sí. El camp `mailing` es llegeix però el handler fixa [`$mailingBD = '1'`](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L210-L214), insereix l'email a `mailing` si no existia [255–269](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L255-L269) i mostra en el correu un text que pressuposa acceptació [75–79](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L75-L79). **Això contradiu el resultat objectiu UC-108/125.** No hi ha comprovació prèvia visible de duplicat per DNI+repte abans d'INSERT en aquest handler. | Separar consentiment; no mostrar acceptació no produïda; antidualta idempotent i seguiment de l'accés real Moodle; operació FREE_SAMPLE si s'adopta el model comercial. **P-108-01:** `mailing=No` → alta gratuïta sense insert a mailing ni text fals; **P-108-02:** doble alta per mateix repte → reús/estat explicitat; cap factura/cobrament. |
+| [108](uc-108-tastet-repte-gratuit.md) · tastet gratuït | [handler real, 15–51](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L15-L51): rep `nom,cog,dni,email,poblacio,conegut,comentaris,mailing,codiCurs`; consulta `reptes` actiu. [90–117](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L90-L117): diu «gratuït», avisa d'alta en 24/48 h laborals i una setmana d'accés després de l'alta. [222–234](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L222-L234): insereix `inscripcions_reptes`, sense factura/CHARGE en aquesta ruta. | **Correcció necessària:** la fitxa deia que `web-actual` no era accessible; ara sí. El camp `mailing` es llegeix però el handler fixa [`$mailingBD = '1'`](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L210-L214), insereix l'email a `mailing` si no existia [255–269](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L255-L269) i mostra en el correu un text que pressuposa acceptació [75–79](../../codi-drive/web-actual/ajax/enviarInscripcioTastet.php#L75-L79). **Això contradiu el resultat objectiu UC-108/125.** No hi ha comprovació prèvia visible de duplicat per DNI+repte abans d'INSERT en aquest handler. | Separar consentiment; no mostrar acceptació no produïda; antidualta idempotent i seguiment de l'accés real Moodle; registre SIF descartat per DEC-108-06 (25/09/2026). **P-108-01:** `mailing=No` → alta gratuïta sense insert a mailing ni text fals; **P-108-02:** doble alta per mateix repte → reús/estat explicitat; cap factura/cobrament. |
 | [109](uc-109-inscripcio-curs-subvencionat.md) · subvenció | [enviarInscripcio.php, 586–610](../../codi-drive/web-actual/ajax/enviarInscripcio.php#L586-L610): `tipusCurs == 'S'` força `$preuDescompte = 0` en la inscripció llegada; continua amb `IDPAG`/comunicacions del flux d'alta. | El codi **no identifica per aquesta branca** el finançador, conveni, import finançat, receptor fiscal o ingrés de l'entitat. La fitxa l'explica com a decisió pendent, no com a `FREE_SAMPLE`; cal revisar els programes reals en dades i pantalla abans de fixar variants. | Contracte per programa: quota individual, finançament, copagament i receptor/s, estat `SUBSIDISED_PENDING_DECISION`; prohibir factura/càrrec de zero com a substitut. **P-109-01:** quota alumne 0 i finançador pendent → dues magnituds diferenciades, cap ingrés fictici. |
 | [110](uc-110-descompte-amics-dues-inscripcions.md) · amics | [DescompteAmic::__insertBD](../../codi-drive/web-actual/DescompteAmic.php#L92-L138) fixa **`TIPUS_INSC='G'`**, `INSC_MAILING='0'`, calcula preu individual via `__getPriceOffer()`; [preu](../../codi-drive/web-actual/DescompteAmic.php#L423-L462) usa paràmetre `descompteAmics`; [enviament dels dos participants](../../codi-drive/web-actual/DescompteAmic.php#L1360-L1394) comparteix un `IDPAG`. [`respGrups`](../../codi-drive/web-actual/DescompteAmic.php#L149-L163) rep el responsable. | **Correcció de la fitxa:** no deixar «tipologia G no acreditada»; el codi actual sí que l'estableix. Però `G` i `respGrups` **no acrediten** que es pugui facturar amb les regles fiscals d'un grup ordinari o amb receptor únic sense verificar el destí i els imports de les dues persones. | Decidir receptor/s; preservar 2 cursos/edicions/imports, 1 fet bancari si es cobra conjuntament; prova del builder real amb `G` i comparació del contracte de grup. **P-110-01:** dos amics en cursos diferents, mateix IDPAG → 2 inscripcions, 2 imports, receptor/s classificats, cap doble CHARGE. |
 | [112](uc-112-congelar-snapshot-abans-tpv.md) · snapshot | [RedsysPaymentIntentService::create](../../sif/src/Service/RedsysPaymentIntentService.php#L15-L72) exigeix `snapshot` JSON no buit i conserva import/DS_ORDER/origen; compara intents amb el mateix DS_ORDER; [alta web de curs](../../codi-drive/web-actual/ajax/enviarInscripcio.php#L15-L82) rep preus/descomptes i [pack](../../codi-drive/web-actual/ajax/enviarInscripcioPack.php#L64-L67) preus via GET. | La fitxa ja diferencia intenció persistent de snapshot comercial complet. Falta traçar els camps reals de cada modal/pantalla i la recomputació independent al servidor: el fet de rebre preu de formulari no n'acredita l'origen autoritzat, i JSON no buit no implica esquema fiscal/comercial vàlid. | Constructor/validador per tipus de producte, snapshot acceptat i versionat abans d'intent; comparar amb ID_INSC i reserva. **P-112-01:** modificar preu/receptor al client o després de DS_ORDER → preu servidor i conflicte/noves oferta i ordre segons estat; cap callback recalculant el preu mutable. |
@@ -94,7 +100,7 @@
 | **AUD-108-TEST-52 · TG-108-09q** | Incidència de claus resolta i nova setmana concedida al mateix tastet, sense seguiment específic a la intranet ni eina addicional. | **PENDENT DE PROVA OPERATIVA:** contrastar la vigència efectiva al campus i l'avís manual de set dies, sense exigir per a la fase actual un tiquet, fitxa de seguiment o registre específic d'incidències que no existeix. Els registres ordinaris del campus i les evidències de la prova, si estan disponibles, són diferents d'un circuit de seguiment operatiu. |
 | **AUD-108-DOC-53 · DEC-108-02d ACORDADA** | **Hora exacta de venciment dels 7 dies:** l'accés venç **set dies després A LA MATEIXA HORA que comença**, no a les 23.59 h del setè dia. Accés ordinari: des de l'activació efectiva al campus (DEC-108-02b). Pròrroga per incidència de claus: des de la resolució efectiva de la incidència (DEC-108-05k), encara que el canvi de venciment o el correu es facin després. | Regla de negoci ACORDADA el 23/09/2026. **PENDENT DE VERIFICAR/EXECUTAR:** instants reals d'inici, configuració del campus/BD i comportament al límit exacte. No introduir arredoniment a final de dia ni regles de fus horari no acordades. |
 | **AUD-108-TEST-54 · TG-108-09r** | Accés ordinari i pròrroga amb hora d'inici coneguda (p. ex. 14:10) i no coincident amb final de dia. | **PENDENT DE PROVA OPERATIVA:** verificar que l'accés ordinari i la pròrroga caduquen exactament set dies després a la mateixa hora d'inici respectiva, i que no continuen fins a les 23.59 h. Contrastar el comportament just abans, en el límit i just després del venciment, sense inferir automatització ni seguiment específic d'incidències. |
-| **AUD-108-DEC-PENDENT** | La via per sol·licitar el desbloqueig, la pantalla/servei que utilitza secretaria/suport, la vigència i la reutilització del permís encara **NO estan definides**. **DEC-108-03a/b/c/d ja ACORDADES** per a accessos caducats, sol·licituds pendents, accessos actius i baixa/denegació, respectivament. | **NO inventar la implementació** fins a definir els detalls pendents. L'exigència de desbloqueig s'aplica als accessos caducats, no a baixes/denegacions ni a peticions pendents o accessos actius. |
+| **AUD-108-DEC-PENDENT** | Actualització 25/09/2026: petició per correu, gestió des del campus, ús únic i sense caducitat temporal **ACORDATS** (03e–h). Resten l’acció concreta del campus i la verificació dels efectes sobre web/accés. **DEC-108-03a/b/c/d ja ACORDADES** per a accessos caducats, sol·licituds pendents, accessos actius i baixa/denegació, respectivament. | **NO inventar la implementació** fins a definir els detalls pendents. L'exigència de desbloqueig s'aplica als accessos caducats, no a baixes/denegacions ni a peticions pendents o accessos actius. |
 
 **Documents actualitzats:** [fitxa funcional UC-108](../06-fitxes-funcionals/uc-108.md), [diagrames d'activitat ACTUAL/FINAL per pàgina i apartat](uc-108-activitats-pagines-tastets-actual-final.md) i [vistes gràfiques GitHub](uc-108-vistes-grafiques-activitats-pagines.md). Els diagrames finals són disseny; cap fitxer PHP ha estat modificat per aquesta decisió.
 
@@ -125,7 +131,9 @@ stop
 @enduml
 ```
 
-### Activitat FINAL — contracte objectiu PENDENT
+### Activitat FINAL — esborrany històric anterior a la consolidació
+
+**Superat parcialment per les decisions DEC-108:** aquest exemple inicial no és el contracte vigent per a FREE_SAMPLE, les convocatòries ni l’alta al campus. Per implementar o revisar, seguir la [fitxa UC-108](uc-108-tastet-repte-gratuit.md) i les [activitats detallades](uc-108-activitats-pagines-tastets-actual-final.md), que incorporen inscripció contínua, alta manual i exclusió del SIF acordada a DEC-108-06.
 
 ```plantuml
 @startuml
@@ -162,7 +170,9 @@ stop
 
 **A completar a RM-037:** diagrama d'activitat **actual i final per a cada pàgina i cada apartat**, no només aquest endpoint; afegir actors/particions, totes les alternatives de la interfície, claus de traça, punts d'entrada, UC/variants, classes/taules i proves per pantalla.
 
-## 4. Canvis documentals a aplicar al catàleg
+## 4. Canvis documentals identificats al tall inicial
+
+**Reconciliació del 25/09/2026:** les correccions de disponibilitat del handler/mailing d’UC-108 (§1.3), `TIPUS_INSC=G` d’UC-110 (§1.3) i SQL/endpoints d’UC-125 (§1 i §2.1) ja consten a les fitxes actuals. Les entrades següents es conserven com a troballes històriques, no com a ordres de repetir aquelles correccions. La cobertura completa de pantalles, implementació i proves no es dona per tancada. La revisió semàntica activa continua a UC-108.
 
 - **UC-108:** substituir la nota «codi web-actual no disponible» per la traça concreta de L15–344; explicitar `mailingBD=1` i missatge de consentiment assumit; separar una setmana d'accés descrita al correu de confirmació efectiva Moodle; revisar promoció residual sense assignació identificada.
 - **UC-110:** rectificar l'afirmació que el tipus `G` no està acreditat a DescompteAmic, perquè el codi fixa `TIPUS_INSC='G'`. Mantenir pendent, però, si les regles de factura/receptor de grup ordinari són reutilitzables en el descompte d'amics.
@@ -175,9 +185,89 @@ stop
 | --- | --- |
 | Fitxes i PHP de nou UC | Revisió dirigida de contingut i fragments de codi actual; **no** traça exhaustiva de totes les accions/ramificacions o del desplegament. |
 | Contrastos amb evidència nova | UC-108: handler/mailing; UC-110: TIPUS_INSC=G; UC-125: SQL consentiment i endpoints presents; UC-107: alerta d'antic alumne ≠ deduplicació de checkout; UC-122: distribució seqüencial de preu. |
-| Documentació a corregir | Notes anteriors a l'arbre actual de main i matriu acció → UC → mètode → BD → prova. |
+| Documentació | Correccions puntuals UC-108/110/125 incorporades a les fitxes; resta reconciliar cobertura per acció i evidències. Vegeu §6 per a UC-108. |
 | Classes/serveis proposats | Comercial, reserva/capacitat, alta gratuïta, consentiment, atribució per inscripció, composició pack: **DISSENY/parcial segons cas**, no acreditar implementació pel diagrama. |
 | Proves/DB/desplegament | **NO EXECUTAT / NO VERIFICAT** en aquesta auditoria. Tots P-106..P-125 són proves proposades, no resultats. |
 | Casos no revisats en aquest lot | Els altres 133 UC del catàleg de 142, incloses variants a/b/c, romanen amb l'estat previ; no pressuposa que siguin absents o incorrectes. |
 
 **Propera unitat de traçabilitat:** fitxa de pantalla/acció amb URL efectiva → control JS → endpoint → classe/mètode → query/taula i efectes → UC principal/variants → diagrama activitat actual/final → prova reproduïble. Prioritzar el checkout de curs, packs, grup/amics i tastets, perquè comparteixen escriptors antics i tenen regles diferents.
+
+## 6. Revisió semàntica UC-108 — 25/09/2026
+
+Abast: fitxa canònica, UML de casos d’ús/classes/seqüència, activitats detallades i consulta de les vistes gràfiques. Les decisions ja acordades de la pròpia fitxa són la font de negoci; no s’introdueixen decisions noves ni es modifica PHP.
+
+| Troballa | Correcció / estat |
+| --- | --- |
+| FREE_SAMPLE obligatori al diagrama de casos d’ús/classes però opcional a la seqüència | Inicialment condicionada a DEC-108-06; després de la resposta de la usuària, registre SIF descartat i retirat dels diagrames vigents. |
+| Seqüència sense branca explícita per caducat no desbloquejat | Afegides denegació, entrada vàlida després de desbloqueig i baixa/denegació sense desbloqueig, segons DEC-108-03a–d. La resposta conserva l’error o estat real. |
+| Activitat del formulari vinculava FREE_SAMPLE només en primera petició | Pas inicialment condicionat; eliminat dels diagrames vigents després de DEC-108-06. |
+| Acció manual de secretaria dibuixada dins la resposta del servidor | Derivada al circuit posterior P-TAS-04/seqüència; la petició web no espera l’alta manual ni el seu correu. |
+| Text anunciava comunicar una data exacta de pròrroga | Alineat amb DEC-108-05m–p: avís manual de 7 dies sense data exacta. |
+| Seqüència demanava registre de la intervenció malgrat DEC-108-05q | Retirada l’exigència de registre addicional; es conserva la verificació del venciment al campus. |
+| Conclusió de l’annex deia que la resta del flux estava per aprovar | Separades decisions ja acordades i detalls encara oberts. |
+| UC-125 deixava doble confirmació oberta també per tastets | Explicitada l’excepció ja acordada DEC-108-04b; corregit el handler de CM-125-01 i afegida prova directa CM-125-01a. |
+
+**Per tancar documentalment UC-108:** resoldre DEC-108-01 (identitat/token), el mecanisme verificable del desbloqueig d’un sol ús i sense caducitat temporal, els detalls de text/evidència de DEC-108-04 i l’adequació del codi a DEC-108-07 ja acordada (subscripció única). Contrastar encara els detalls de plantilla/procediment marcats com a no verificats i renderitzar els diagrames. No reobrir durada, responsables, modalitat manual ni regles de reinscripció ja acordades.
+
+**Estat d’aquesta passada:** coherència documental millorada; no és tancament complet del cas. Comprovació de canvis, enllaços locals i delimitadors dels blocs; sense compilació/renderització de PlantUML/Mermaid ni proves funcionals. No es declaren revisats semànticament els altres vuit casos del lot.
+
+
+### Decisió posterior de la usuària — DEC-108-06
+
+**DEC-108-06 ACORDADA (25/09/2026):** per decisió de la usuària, els tastets es gestionen només al web, la intranet i el campus. No es crea cap operació SIF `commercial_operation` / `NON_BILLABLE` / `FREE_SAMPLE` per la sol·licitud gratuïta. Aquesta exclusió no afecta una compra posterior de pagament, que tindrà el seu cas propi.
+
+Actualitzats la fitxa, casos d’ús, classes, seqüència, activitats detallades i vistes gràfiques. El diagrama històric de §3 es conserva expressament superat. Decisió tancada documentalment; no acredita implementació ni proves.
+
+
+### 25/09/2026 — Desbloqueig d’un sol ús, DEC-108-03e
+
+**DEC-108-03e ACORDADA (25/09/2026):** cada desbloqueig de secretaria/suport autoritza una única nova inscripció de la mateixa persona al mateix tastet després de caducar l’accés. Un cop utilitzat, repetir el tastet després d’una nova caducitat requereix una nova autorització. Els reintents de la mateixa petició no són noves inscripcions. DEC-108-03f confirma que el desbloqueig no caduca abans d’utilitzar-lo.
+
+Font: confirmació explícita de la usuària a la proposta d’una única nova inscripció. Actualitzades fitxes, activitats, seqüència i contracte de classes de disseny; criteri tècnic derivat i proves TG-108-DU1–DU4 identificats com a pendents, sense modificar PHP ni BD.
+
+
+### 25/09/2026 — Confirmació del còmput d’accés (DEC-108-02b/d)
+
+La usuària confirma que els **7 dies d’accés comencen amb l’activació efectiva al campus**, no amb l’enviament del formulari web. Es conserva la regla ja acordada: venciment set dies després a la mateixa hora de l’activació. La caducitat del desbloqueig és una qüestió separada: resolta posteriorment a DEC-108-03f, sense termini abans del primer ús. Es manté el desbloqueig d’un sol ús (DEC-108-03e).
+
+
+### 25/09/2026 — Vigència del desbloqueig
+
+**DEC-108-03f ACORDADA (25/09/2026):** el desbloqueig no té caducitat temporal mentre no s’hagi utilitzat: la persona pot enviar el formulari quan vulgui. Es manté l’ús únic per persona+tastet (DEC-108-03e) i la validació que el tastet estigui actiu. Els set dies d’accés comencen amb l’activació efectiva al campus (DEC-108-02b/d), no amb el desbloqueig ni amb l’enviament del formulari.
+
+Font: resposta explícita «pot fer-ho quan vulgui». Decisió documental; implementació i proves no acreditades per aquesta actualització.
+
+
+### 25/09/2026 — Canal de petició del desbloqueig
+
+**DEC-108-03g ACORDADA (25/09/2026):** la persona demana el desbloqueig del tastet per correu electrònic. Secretaria/suport gestiona el desbloqueig segons DEC-108-03a; l’enviament del correu no és una nova inscripció ni activa l’accés al campus. Després del desbloqueig, és la persona qui emplena i envia el formulari web. El desbloqueig es fa des del campus (DEC-108-03h); l’adreça destinatària i el control concret del campus no s’han precisat.
+
+Font: resposta explícita «escriu un coreu». Actualització documental; cap correu enviat ni canvi de codi.
+
+
+### 25/09/2026 — Sistema de gestió del desbloqueig
+
+**DEC-108-03h ACORDADA (25/09/2026):** secretaria o suport fa el desbloqueig des del campus, segons resposta explícita de la usuària. El canal de petició és el correu electrònic (03g). Resta identificar l’acció concreta del campus i el seu efecte sobre l’accés i la possible reinscripció web; no s’infereix una sincronització campus→web ni un nou servei automàtic. Es mantenen les regles acordades d’ús únic, absència de caducitat abans de l’ús i set dies des de l’activació efectiva.
+
+Actualització de fitxes i diagrames; no s’ha operat al campus ni modificat PHP/BD.
+
+
+### 25/09/2026 — Acció concreta al campus i coherència pendent
+
+**DEC-108-03i ACORDADA (25/09/2026):** el desbloqueig es fa canviant la data de venciment al campus. Aquesta és l’acció concreta confirmada per la usuària. **COHERÈNCIA PENDENT:** precisar si aquest canvi renova directament l’accés existent o si encara cal el nou formulari web descrit a DEC-108-03a/e/f, i des de quin instant es calcula el nou venciment. No afirmar que canviar la data crea una autorització web ni una nova matrícula. La regla dels set dies des de l’activació efectiva es manté; no s’infereix un còmput des del primer inici de sessió. El circuit de repetició de tastet i la pròrroga per incidència de claus no s’assimilen automàticament.
+
+Font: resposta explícita «Canvieu la data de venciment». La usuària demana agrupar les preguntes per agilitzar la definició. Actualització documental; cap acció executada al campus.
+
+
+### 25/09/2026 — Renovació aclarida per la usuària
+
+**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+
+Font: respostes agrupades 1–3 de la usuària. La renovació queda definida documentalment; no s’ha executat cap canvi al campus, enviament ni prova funcional.
+
+
+### Contrast de les respostes amb el codi disponible — 25/09/2026
+
+**Contrast amb codi abans de preguntar:** `web-actual/ajax/buscarSiHaRealitzatElTastet.php:20` consulta `CURS=? AND DNI=? AND INSC_CURS=1`; acredita el criteri DNI+tastet, però no una consulta del venciment real al campus. `web-actual/ajax/enviarInscripcioTastet.php:213,255–269` força mailing a 1 i consulta/insereix `mailing`: la persistència llegida no respecta encara l’opció No acordada. `Tastets.php:200–239` i `js1619773569/mostrarTastets.min.js:238–259` conserven textos i controls de xerrades/dues opcions: són una discrepància de la còpia, no motiu per tornar a preguntar si el negoci vol dues subscripcions. La decisió 07 és única; resta adequar el codi i comprovar els consumidors reals.
+
+La resta de l’autenticació i l’accés segur a la confirmació no es dedueix només de conèixer el DNI. No s’ha accedit al campus ni s’han enviat correus.

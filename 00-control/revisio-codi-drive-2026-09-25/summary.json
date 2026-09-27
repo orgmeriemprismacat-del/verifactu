@@ -1,0 +1,1233 @@
+{
+  "date": "2026-09-25",
+  "head": "1001d37cbc84d0241b57f58a1153c5c59567237e",
+  "totalFiles": 5837,
+  "sourceFiles": 2252,
+  "uniqueSourceHashes": 1998,
+  "duplicateGroups": 203,
+  "appStats": {
+    "intranet-actual": {
+      "files": 657,
+      "bytes": 21443668,
+      "php": 336,
+      "js": 129,
+      "source": 474,
+      "thirdParty": 3,
+      "historicalName": 82,
+      "withDocRef": 46
+    },
+    "intranet-alumne-actual": {
+      "files": 101,
+      "bytes": 5497852,
+      "php": 60,
+      "js": 9,
+      "source": 69,
+      "thirdParty": 6,
+      "historicalName": 6,
+      "withDocRef": 1
+    },
+    "intranet-collaboradors": {
+      "files": 3523,
+      "bytes": 601930257,
+      "php": 471,
+      "js": 23,
+      "source": 494,
+      "thirdParty": 6,
+      "historicalName": 222,
+      "withDocRef": 0
+    },
+    "intranet-nova-canvis-verifactu": {
+      "files": 2,
+      "bytes": 1453559,
+      "php": 2,
+      "js": 0,
+      "source": 2,
+      "thirdParty": 0,
+      "historicalName": 0,
+      "withDocRef": 0
+    },
+    "old-intranet": {
+      "files": 760,
+      "bytes": 24841664,
+      "php": 576,
+      "js": 22,
+      "source": 601,
+      "thirdParty": 210,
+      "historicalName": 84,
+      "withDocRef": 0
+    },
+    "pay-prisma-cat-canvis-verifactu": {
+      "files": 23,
+      "bytes": 383349,
+      "php": 23,
+      "js": 0,
+      "source": 23,
+      "thirdParty": 0,
+      "historicalName": 0,
+      "withDocRef": 0
+    },
+    "arrel": {
+      "files": 1,
+      "bytes": 3931,
+      "php": 0,
+      "js": 0,
+      "source": 0,
+      "thirdParty": 0,
+      "historicalName": 0,
+      "withDocRef": 0
+    },
+    "web-actual": {
+      "files": 770,
+      "bytes": 148257663,
+      "php": 481,
+      "js": 107,
+      "source": 589,
+      "thirdParty": 3,
+      "historicalName": 81,
+      "withDocRef": 40
+    }
+  },
+  "candidateComparison": [
+    {
+      "path": "intranet-nova-canvis-verifactu/ajax/alumnes/efectuarPagament.php",
+      "homologue": "intranet-actual/ajax/alumnes/efectuarPagament.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "intranet-nova-canvis-verifactu/Intranet.php",
+      "homologue": "intranet-actual/Intranet.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": [
+        {
+          "operation": "INSERT INTO",
+          "table": "inscripcions",
+          "line": 941
+        },
+        {
+          "operation": "INSERT INTO",
+          "table": "factures",
+          "line": 952
+        },
+        {
+          "operation": "INSERT INTO",
+          "table": "factures",
+          "line": 957
+        },
+        {
+          "operation": "UPDATE",
+          "table": "factures",
+          "line": 972
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 974
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 977
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 979
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 982
+        },
+        {
+          "operation": "UPDATE",
+          "table": "factures",
+          "line": 984
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 985
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 986
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 991
+        },
+        {
+          "operation": "UPDATE",
+          "table": "factures",
+          "line": 995
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 998
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1005
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1007
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1012
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1014
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1016
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1018
+        },
+        {
+          "operation": "UPDATE",
+          "table": "factures",
+          "line": 1020
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1021
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1024
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1025
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1026
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1028
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1029
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1030
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1031
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1032
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1034
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1037
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1054
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1055
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1056
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1057
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1058
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1063
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1064
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1066
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1067
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1071
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1072
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1073
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1074
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1076
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 13171
+        },
+        {
+          "operation": "UPDATE",
+          "table": "INSCRIPCIO",
+          "line": 31158
+        }
+      ]
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/ajax/efectuarPagament.php",
+      "homologue": "web-actual/ajax/efectuarPagament.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/ajax/efectuarPagamentRegal.php",
+      "homologue": "web-actual/ajax/efectuarPagamentRegal.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/ajax/efectuarPagamentRegalAutomatic.php",
+      "homologue": "web-actual/ajax/efectuarPagamentRegalAutomatic.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/codificarHash.php",
+      "homologue": "intranet-actual/codificarHash.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/ConnexioBBDD_PreparedStatment.php",
+      "homologue": "web-actual/ConnexioBBDD_PreparedStatment.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/ConnexioIntranet.php",
+      "homologue": "intranet-actual/ConnexioIntranet.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/ConnexioPay.php",
+      "homologue": null,
+      "status": "sense_homoleg_mateixa_ruta",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/ConnexioWeb.php",
+      "homologue": "intranet-actual/ConnexioWeb.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/doit.php",
+      "homologue": null,
+      "status": "sense_homoleg_mateixa_ruta",
+      "sifEndpointReference": false,
+      "writes": [
+        {
+          "operation": "INSERT INTO",
+          "table": "factures",
+          "line": 257
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 277
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 290
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 303
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 318
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 590
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 830
+        }
+      ]
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/inc/apiRedsys.php",
+      "homologue": "web-actual/inc/apiRedsys.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/PagamentCursAutomatic.php",
+      "homologue": "web-actual/PagamentCursAutomatic.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/PagamentGrupAutomatic.php",
+      "homologue": "web-actual/PagamentGrupAutomatic.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/PagamentRegalAutomatic.php",
+      "homologue": "web-actual/PagamentRegalAutomatic.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/PagamentTallerAutomatic.php",
+      "homologue": "web-actual/PagamentTallerAutomatic.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php",
+      "homologue": "web-actual/pagina_efectuar_pagament_automatic.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php",
+      "homologue": "web-actual/pagina_efectuar_pagament_grup_automatic.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_regal_automatic.php",
+      "homologue": "web-actual/pagina_efectuar_pagament_regal_automatic.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_taller_automatic.php",
+      "homologue": "web-actual/pagina_efectuar_pagament_taller_automatic.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": []
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/realitzaPagamentAutomatic.php",
+      "homologue": "web-actual/realitzaPagamentAutomatic.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": [
+        {
+          "operation": "INSERT INTO",
+          "table": "factures",
+          "line": 243
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 263
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 276
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 289
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 304
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 576
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 816
+        }
+      ]
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/realitzaPagamentGrupAutomatic.php",
+      "homologue": "web-actual/realitzaPagamentGrupAutomatic.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": [
+        {
+          "operation": "INSERT INTO",
+          "table": "factures",
+          "line": 361
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 398
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 399
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 530
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 667
+        }
+      ]
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/realitzaPagamentPackAutomatic.php",
+      "homologue": "web-actual/realitzaPagamentPackAutomatic.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": [
+        {
+          "operation": "INSERT INTO",
+          "table": "factures",
+          "line": 502
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 527
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 528
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 529
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 593
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 821
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 1027
+        }
+      ]
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/realitzaPagamentRegalAutomatic.php",
+      "homologue": "web-actual/realitzaPagamentRegalAutomatic.php",
+      "status": "diferent",
+      "sifEndpointReference": false,
+      "writes": [
+        {
+          "operation": "INSERT INTO",
+          "table": "factures",
+          "line": 148
+        }
+      ]
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/realitzaPagamentTallerAutomatic.php",
+      "homologue": "web-actual/realitzaPagamentTallerAutomatic.php",
+      "status": "identic",
+      "sifEndpointReference": false,
+      "writes": [
+        {
+          "operation": "INSERT INTO",
+          "table": "factures",
+          "line": 245
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 265
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 278
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 291
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 306
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 531
+        },
+        {
+          "operation": "UPDATE",
+          "table": "inscripcions",
+          "line": 772
+        }
+      ]
+    }
+  ],
+  "core": [
+    {
+      "path": "intranet-actual/ajax/cursos/Info.php",
+      "lines": 2035,
+      "functions": 31,
+      "classes": [
+        "Info"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "intranet-actual/Intranet.php",
+      "lines": 39230,
+      "functions": 510,
+      "classes": [
+        "Intranet"
+      ],
+      "writes": 108
+    },
+    {
+      "path": "intranet-actual/Template.php",
+      "lines": 389,
+      "functions": 26,
+      "classes": [
+        "Template"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "intranet-alumne-actual/IntranetAlumne.php",
+      "lines": 3530,
+      "functions": 68,
+      "classes": [
+        "IntranetAlumne"
+      ],
+      "writes": 7
+    },
+    {
+      "path": "intranet-alumne-actual/js/general.js",
+      "lines": 465,
+      "functions": 26,
+      "classes": [
+        "Missatge"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "intranet-alumne-actual/lib/class.soapclient.php",
+      "lines": 992,
+      "functions": 30,
+      "classes": [
+        "nusoap_client",
+        "soapclient"
+      ],
+      "writes": 2
+    },
+    {
+      "path": "intranet-alumne-actual/lib/class.soap_transport_http.php",
+      "lines": 1307,
+      "functions": 22,
+      "classes": [
+        "soap_transport_http"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "intranet-alumne-actual/lib/class.wsdl.php",
+      "lines": 1938,
+      "functions": 29,
+      "classes": [
+        "wsdl"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "intranet-alumne-actual/Usuari.php",
+      "lines": 240,
+      "functions": 22,
+      "classes": [
+        "Usuari"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "intranet-collaboradors/cobraments/js/general.js",
+      "lines": 466,
+      "functions": 26,
+      "classes": [
+        "Missatge"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "intranet-collaboradors/consultes/js/general.js",
+      "lines": 471,
+      "functions": 27,
+      "classes": [
+        "Missatge"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "intranet-collaboradors/IntranetTutor.php",
+      "lines": 2650,
+      "functions": 71,
+      "classes": [
+        "IntranetTutor"
+      ],
+      "writes": 6
+    },
+    {
+      "path": "intranet-collaboradors/lib/class.soapclient.php",
+      "lines": 992,
+      "functions": 30,
+      "classes": [
+        "nusoap_client",
+        "soapclient"
+      ],
+      "writes": 2
+    },
+    {
+      "path": "intranet-collaboradors/lib/class.soap_transport_http.php",
+      "lines": 1307,
+      "functions": 22,
+      "classes": [
+        "soap_transport_http"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "intranet-collaboradors/lib/class.wsdl.php",
+      "lines": 1938,
+      "functions": 29,
+      "classes": [
+        "wsdl"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "intranet-nova-canvis-verifactu/Intranet.php",
+      "lines": 37604,
+      "functions": 495,
+      "classes": [
+        "Intranet"
+      ],
+      "writes": 107
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/inc/apiRedsys.php",
+      "lines": 208,
+      "functions": 21,
+      "classes": [
+        "RedsysAPI"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/PagamentCursAutomatic.php",
+      "lines": 657,
+      "functions": 22,
+      "classes": [
+        "PagamentCursAutomatic"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/PagamentGrupAutomatic.php",
+      "lines": 889,
+      "functions": 26,
+      "classes": [
+        "PagamentGrupAutomatic"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "pay-prisma-cat-canvis-verifactu/PagamentTallerAutomatic.php",
+      "lines": 608,
+      "functions": 22,
+      "classes": [
+        "PagamentTallerAutomatic"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/ajax/InscripcioCursAfiliat.php",
+      "lines": 763,
+      "functions": 24,
+      "classes": [
+        "InscripcioCurs"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/BescanviaRegal.php",
+      "lines": 1041,
+      "functions": 26,
+      "classes": [
+        "BescanviaRegal"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/Curs.php",
+      "lines": 2759,
+      "functions": 62,
+      "classes": [
+        "Curs"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/CursActual.php",
+      "lines": 1347,
+      "functions": 31,
+      "classes": [
+        "CursActual"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/CursActualSubvencio.php",
+      "lines": 1518,
+      "functions": 35,
+      "classes": [
+        "CursActual"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/CursSubvencio.php",
+      "lines": 2388,
+      "functions": 52,
+      "classes": [
+        "Curs"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/DescompteAmic.php",
+      "lines": 1857,
+      "functions": 38,
+      "classes": [
+        "DescompteAmic"
+      ],
+      "writes": 4
+    },
+    {
+      "path": "web-actual/DescompteGrup.php",
+      "lines": 2669,
+      "functions": 30,
+      "classes": [
+        "DescompteGrup"
+      ],
+      "writes": 4
+    },
+    {
+      "path": "web-actual/EdicioPack.php",
+      "lines": 589,
+      "functions": 27,
+      "classes": [
+        "EdicioPack"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/inc/apiRedsys.php",
+      "lines": 208,
+      "functions": 21,
+      "classes": [
+        "RedsysAPI"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/Info.php",
+      "lines": 2393,
+      "functions": 36,
+      "classes": [
+        "Info"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/InfoPack.php",
+      "lines": 1928,
+      "functions": 32,
+      "classes": [
+        "InfoPack"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/InfoSubvencio.php",
+      "lines": 2176,
+      "functions": 32,
+      "classes": [
+        "Info"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/InfoTaller.php",
+      "lines": 931,
+      "functions": 29,
+      "classes": [
+        "InfoTaller"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/InscripcioCurs.php",
+      "lines": 886,
+      "functions": 26,
+      "classes": [
+        "InscripcioCurs"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/InscripcioCursAfiliat.php",
+      "lines": 903,
+      "functions": 26,
+      "classes": [
+        "InscripcioCurs"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/JornadaStmt.php",
+      "lines": 812,
+      "functions": 33,
+      "classes": [
+        "JornadaStmt"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/Pack.php",
+      "lines": 1184,
+      "functions": 37,
+      "classes": [
+        "Pack"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/PagamentCursAutomatic.php",
+      "lines": 590,
+      "functions": 22,
+      "classes": [
+        "PagamentCursAutomatic"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/PagamentGrupAutomatic.php",
+      "lines": 826,
+      "functions": 26,
+      "classes": [
+        "PagamentGrupAutomatic"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/PagamentTallerAutomatic.php",
+      "lines": 608,
+      "functions": 22,
+      "classes": [
+        "PagamentTallerAutomatic"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/RegalCurs.php",
+      "lines": 1544,
+      "functions": 23,
+      "classes": [
+        "RegalCurs"
+      ],
+      "writes": 1
+    },
+    {
+      "path": "web-actual/Tastet.php",
+      "lines": 544,
+      "functions": 22,
+      "classes": [
+        "Tastet"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/Template.php",
+      "lines": 503,
+      "functions": 39,
+      "classes": [
+        "Template"
+      ],
+      "writes": 0
+    },
+    {
+      "path": "web-actual/Trobada.php",
+      "lines": 989,
+      "functions": 38,
+      "classes": [
+        "Trobada"
+      ],
+      "writes": 1
+    }
+  ],
+  "largestUnreferenced": [
+    {
+      "path": "intranet-nova-canvis-verifactu/Intranet.php",
+      "lines": 37604,
+      "functions": 495
+    },
+    {
+      "path": "intranet-collaboradors/informes/proj.php",
+      "lines": 3870,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/tsa.php",
+      "lines": 3596,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/ia.php",
+      "lines": 3308,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/reg.php",
+      "lines": 3226,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/edem.php",
+      "lines": 3223,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/cnv.php",
+      "lines": 2989,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/tea.php",
+      "lines": 2969,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/adop.php",
+      "lines": 2939,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/cat.php",
+      "lines": 2840,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/logo.php",
+      "lines": 2827,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/dfd.php",
+      "lines": 2809,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/htp.php",
+      "lines": 2806,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/neuro.php",
+      "lines": 2766,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/cemi.php",
+      "lines": 2756,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/tel.php",
+      "lines": 2738,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/sist.php",
+      "lines": 2712,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/bull.php",
+      "lines": 2663,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/IntranetTutor.php",
+      "lines": 2650,
+      "functions": 71
+    },
+    {
+      "path": "intranet-collaboradors/informes/jasom.php",
+      "lines": 2647,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/clee.php",
+      "lines": 2643,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/dam.php",
+      "lines": 2643,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/intel.php",
+      "lines": 2618,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/mans.php",
+      "lines": 2578,
+      "functions": 0
+    },
+    {
+      "path": "intranet-collaboradors/informes/med.php",
+      "lines": 2478,
+      "functions": 0
+    }
+  ],
+  "familyCounts": {
+    "inscripcions": 79,
+    "tastets": 27,
+    "pagaments": 145,
+    "factures": 67,
+    "alumnes": 197,
+    "cataleg": 381,
+    "comunicacions": 48,
+    "campus": 48,
+    "descomptes": 52,
+    "seguretat": 11,
+    "documents": 0
+  }
+}

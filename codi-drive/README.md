@@ -61,3 +61,8 @@ Les bases de dades llegades aporten la instantània necessària o reben una sinc
 Les còpies actuals poden contenir configuració o literals sensibles. Els patrons de fitxers `parametres-connexio*.php` estan ignorats, però això no garanteix que la resta del codi estigui sanejat. Abans d'afegir qualsevol còpia a Git cal fer una revisió de secrets, eliminar credencials del codi i carregar-les des d'un magatzem o entorn protegit.
 
 No s'ha de fer commit, push ni desplegament d'aquestes carpetes sense una decisió explícita i una revisió prèvia.
+
+
+## Revisió global de codi — 25/09/2026
+
+[Informe, fonts i rutes del tall actual](../00-control/revisio-codi-drive-2026-09-25/informe.md). Inventari complet i escaneig estàtic de les set aplicacions, amb lectura semàntica dirigida i pendents de cobertura explícits. Abans de preguntar dades d’un UC, consultar aquest índex, llegir el codi específic i contrastar les decisions ja documentades. No implica validació funcional de tots els casos.
