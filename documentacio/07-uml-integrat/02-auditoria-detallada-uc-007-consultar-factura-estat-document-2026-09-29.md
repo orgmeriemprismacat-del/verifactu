@@ -1,7 +1,7 @@
 # UC-007 · Auditoria detallada de consulta de factura, estat i document — 2026-09-29
 
 **Estat documental:** AUDITAT EN DETALL / CANVIS DOCUMENTALS APLICATS.  
-**Estat runtime:** PENDENT DE PROVES DE PREPRODUCCIÓ.  
+**Estat runtime:** NUCLI READ-ONLY IMPLEMENTAT PARCIALMENT; TESTS ESCRITS NO EXECUTATS; AUTH HTTP/UC-080 PENDENTS.  
 **Abast:** pantalla llegada <code>/alumnes/factura/</code>, entrades AL-16–AL-18 de la fitxa d'alumne, model SIF i frontera UC-07/36/55/78/80.  
 **No acredita:** desplegament productiu, permisos reals de servidor web, dades productives, execució dels tests, integritat física de documents ni conformitat fiscal externa.
 
@@ -15,7 +15,7 @@
 - <code>codi-drive/intranet-actual/Intranet.php</code>
 - wrappers AJAX de consulta, previsualització, descàrrega, edició, anul·lació i neteja de temporals.
 - <code>codi-drive/intranet-actual/Usuari.php</code> i <code>inc/comprovarSessio.php</code>.
-- migració SIF core, <code>InvoiceRepository</code>, <code>FiscalRecordRepository</code>, <code>PaymentRepository</code> i <code>DocumentRepository</code>.
+- migració SIF core, <code>InvoiceRepository</code>, <code>FiscalRecordRepository</code>, <code>PaymentRepository</code> i <code>DocumentRepository</code>; després de l'auditoria s'han afegit <code>InvoiceReadRepository</code>, <code>InvoiceQueryService</code> i <code>InvoiceVisibilityPolicyInterface</code>.
 - fitxes UC-007, UC-036, UC-055, UC-078, UC-080 i catàleg final de casos d'ús.
 - tests existents de documents, històrics i endpoints; localitzats però no executats.
 
@@ -580,6 +580,19 @@ E --> F[Si existeix temporal tècnic, cleanup server-side per ID opac i TTL]
 - HttpEndpointsTest comprova textualment endpoints de factura/pagament/redsys, no existeix prova E2E de consulta autoritzada de factura/document.
 - Les proves d'emissió/pagament/rectificació cobreixen efectes dels seus UCs, no la invariant «N lectures = zero mutacions».
 
-# 14. Criteri de tancament
+# 14. Implementació iniciada
+
+| Peça | Estat després de l'auditoria |
+| --- | --- |
+| `InvoiceReadRepository` | IMPLEMENTAT: lectura exacta, sense writes ni paths interns |
+| `InvoiceQueryService` | IMPLEMENTAT PARCIAL: view/search amb política obligatòria |
+| `InvoiceVisibilityPolicyInterface` | IMPLEMENTAT com a contracte; política concreta pendent |
+| Errors 403/404 | IMPLEMENTATS a `SifException` |
+| `InvoiceQueryServiceTest` | PROVES ESCRITES; no executades en aquesta revisió |
+| Endpoint HTTP UC-007 | PENDENT fins tenir actor/scope resolt server-side |
+| UC-080 bytes/auditoria | PENDENT |
+
+Les proves escrites cobreixen zero mutació, denegació, not found, cerca exacta sense wildcard implícit, absència de `PATH_FITXER` en metadata i separació entre cobrament i rectificativa.
+# 15. Criteri de tancament
 
 UC-007 es podrà marcar **IMPLEMENTAT I PROVAT** només quan existeixi una ruta de consulta server-side que apliqui política per recurs, retorni projecció estructurada per UUID, integri estats sense mutació, derivi bytes a UC-080, i la matriu anterior tingui evidència reproduïble de preproducció. Fins aleshores, el cas queda **DOCUMENTAT I AUDITAT ESTÀTICAMENT / IMPLEMENTACIÓ FINAL PENDENT**.
