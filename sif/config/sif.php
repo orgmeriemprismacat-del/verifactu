@@ -23,6 +23,12 @@ return [
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
     ],
+    'novice_promotion' => [
+        // 32-byte AES wrapping key encoded as 64 hex chars. Keep it only in
+        // the runtime secret store/environment, never in Git.
+        'wrapping_key_hex' => getenv('SIF_NOVICE_PROMO_WRAP_KEY_HEX') ?: '',
+        'key_version' => getenv('SIF_NOVICE_PROMO_KEY_VERSION') ?: 'v1',
+    ],
     'aeat' => [
         'wsdl' => getenv('SIF_AEAT_WSDL') ?: '',
         'endpoint' => getenv('SIF_AEAT_ENDPOINT') ?: '',
