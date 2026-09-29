@@ -342,7 +342,7 @@ El FINAL compartit queda, per tant, expressat amb dos fets separats:
 1. decisió original = `REJECTED`;
 2. oferta alternativa AP = `ACCEPTED/PAYABLE` si compleix política i tarifa i no hi ha bloqueig econòmic/fiscal.
 
-Vegeu [UC-020 activitats ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md#5-p05--intranet-validar-descomptes).
+Vegeu [UC-020 activitats ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md).
 
 ## Matriu d'accions i límits
 
