@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Tests\Integration;
 
+use Prisma\Sif\Aeat\XmlCodec;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\{FiscalQueueRepository, IncidentRepository};
@@ -35,6 +36,8 @@ final class AeatReviewReconciliationServiceTest
 
         $queue = $db->query('SELECT * FROM fiscal_queue LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
         $record = $db->query('SELECT ID FROM factura_registres LIMIT 1')->fetchColumn();
+        $payload = json_decode((string) $queue['PAYLOAD_JSON'], true);
+        $requestHash = hash('sha256', (new XmlCodec())->request($payload['aeat']));
         $db->exec("UPDATE fiscal_queue SET STATUS = 'REVIEW', LAST_ERROR = 'remote result pending local commit'");
         $db->prepare(
             "INSERT INTO aeat_submission_attempt
@@ -45,7 +48,7 @@ final class AeatReviewReconciliationServiceTest
             '11111111-2222-4333-8444-555555555555',
             (int) $record,
             (int) $queue['ID'],
-            str_repeat('a', 64),
+            $requestHash,
             'CSV-RECONCILED',
             json_encode(['csv' => 'CSV-RECONCILED', 'flow_wait_seconds' => 60]),
         ]);
@@ -124,4 +127,43 @@ final class AeatReviewReconciliationServiceTest
         Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
         Assert::same('PENDING', $db->query('SELECT ESTAT_AEAT FROM factura_registres')->fetchColumn());
     }
+
+    public function testRejectsTerminalAttemptWhoseRequestHashDoesNotMatchSnapshot(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->issue($db, 'AEAT|RECONCILE|HASH-MISMATCH');
+
+        $queue = $db->query('SELECT * FROM fiscal_queue LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $record = $db->query('SELECT ID FROM factura_registres LIMIT 1')->fetchColumn();
+        $db->exec("UPDATE fiscal_queue SET STATUS = 'REVIEW'");
+        $db->prepare(
+            "INSERT INTO aeat_submission_attempt
+             (UUID_ATTEMPT, FACTURA_REGISTRE_ID, FISCAL_QUEUE_ID, ATTEMPT_NO, ENVIRONMENT,
+              ENDPOINT_CODE, REQUEST_HASH, RESPONSE_JSON, STATUS, STARTED_AT, FINISHED_AT)
+             VALUES (?, ?, ?, 1, 'preproduction', 'AEAT_WORKER', ?, ?, 'ACCEPTED', NOW(6), NOW(6))"
+        )->execute([
+            'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+            (int) $record,
+            (int) $queue['ID'],
+            str_repeat('f', 64),
+            json_encode(['csv' => 'WRONG-HASH']),
+        ]);
+
+        Assert::throws(
+            SifException::class,
+            fn () => (new AeatReviewReconciliationService(
+                new TransactionRunner($db),
+                new FiscalQueueRepository(),
+                new IncidentRepository()
+            ))->reconcile(
+                (int) $queue['ID'],
+                'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+                'tester'
+            ),
+            409
+        );
+
+        Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+    }
+
 }
