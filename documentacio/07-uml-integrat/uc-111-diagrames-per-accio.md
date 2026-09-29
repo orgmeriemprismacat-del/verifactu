@@ -6,7 +6,7 @@
 
 ## A111-01 · Alta JASOM i obertura d'expedient novell
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-01-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-01.1 · Cas d'ús ACTUAL / FINAL
 
@@ -14,7 +14,6 @@
 @startuml
 title A111-01 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Alumne" as Actor
 rectangle "ACTUAL" {
   usecase "enviarInscripcio.php" as Current
 }
@@ -47,7 +46,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-01 | Seqüència resumida
-actor "Alumne" as Actor
 participant "enviarInscripcio.php" as Legacy
 participant "NovicePromotionEnrollmentStager" as Final
 database "Legacy data" as LegacyDB
@@ -82,7 +80,7 @@ stop
 
 ## A111-02 · Pujar i custodiar evidència de titulació
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-02-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-02.1 · Cas d'ús ACTUAL / FINAL
 
@@ -90,7 +88,6 @@ stop
 @startuml
 title A111-02 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Alumne" as Actor
 rectangle "ACTUAL" {
   usecase "enviarImatgeSocRecentTitulat.php" as Current
 }
@@ -123,7 +120,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-02 | Seqüència resumida
-actor "Alumne" as Actor
 participant "enviarImatgeSocRecentTitulat.php" as Legacy
 participant "Storage/Evidence Adapter [PENDENT]" as Final
 database "Legacy data" as LegacyDB
@@ -159,7 +155,7 @@ stop
 
 ## A111-03 · Decisió de secretaria
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-03-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-03.1 · Cas d'ús ACTUAL / FINAL
 
@@ -167,7 +163,6 @@ stop
 @startuml
 title A111-03 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Secretaria" as Actor
 rectangle "ACTUAL" {
   usecase "Intranet + sendMsgValidatProfessorNovell" as Current
 }
@@ -200,7 +195,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-03 | Seqüència resumida
-actor "Secretaria" as Actor
 participant "Intranet + sendMsgValidatProfessorNovell" as Legacy
 participant "NovicePromotionSecretaryDecisionProjector" as Final
 database "Legacy data" as LegacyDB
@@ -237,7 +231,7 @@ stop
 
 ## A111-04 · Conciliar JASOM pagat i concedir dret únic
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-04-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-04.1 · Cas d'ús ACTUAL / FINAL
 
@@ -245,7 +239,6 @@ stop
 @startuml
 title A111-04 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Worker SIF" as Actor
 rectangle "ACTUAL" {
   usecase "Callback/generació legacy parcial" as Current
 }
@@ -278,7 +271,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-04 | Seqüència resumida
-actor "Worker SIF" as Actor
 participant "Callback/generació legacy parcial" as Legacy
 participant "NovicePromotionGrantService" as Final
 database "Legacy data" as LegacyDB
@@ -318,7 +310,7 @@ stop
 
 ## A111-05 · Preparar i lliurar el codi
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-05-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-05.1 · Cas d'ús ACTUAL / FINAL
 
@@ -326,7 +318,6 @@ stop
 @startuml
 title A111-05 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Worker privat" as Actor
 rectangle "ACTUAL" {
   usecase "Correu/codi legacy parcial" as Current
 }
@@ -359,7 +350,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-05 | Seqüència resumida
-actor "Worker privat" as Actor
 participant "Correu/codi legacy parcial" as Legacy
 participant "CodePreparation + EmailVerification + DeliveryAttempt + PrivateMailWorker" as Final
 database "Legacy data" as LegacyDB
@@ -400,7 +390,7 @@ stop
 
 ## A111-06 · Reservar, aplicar o alliberar saldo original
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-06-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-06.1 · Cas d'ús ACTUAL / FINAL
 
@@ -408,7 +398,6 @@ stop
 @startuml
 title A111-06 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Checkout" as Actor
 rectangle "ACTUAL" {
   usecase "obtenirDadesPromo.php / promocions" as Current
 }
@@ -441,7 +430,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-06 | Seqüència resumida
-actor "Checkout" as Actor
 participant "obtenirDadesPromo.php / promocions" as Legacy
 participant "NovicePromotionRedemptionService" as Final
 database "Legacy data" as LegacyDB
@@ -482,7 +470,7 @@ stop
 
 ## A111-07 · Canviar el curs de destinació
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-07-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-07.1 · Cas d'ús ACTUAL / FINAL
 
@@ -490,7 +478,6 @@ stop
 @startuml
 title A111-07 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Secretaria/Checkout" as Actor
 rectangle "ACTUAL" {
   usecase "Flux general canvi de curs" as Current
 }
@@ -523,7 +510,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-07 | Seqüència resumida
-actor "Secretaria/Checkout" as Actor
 participant "Flux general canvi de curs" as Legacy
 participant "First/Successive Transfer Review + Confirmation" as Final
 database "Legacy data" as LegacyDB
@@ -561,7 +547,7 @@ stop
 
 ## A111-08 · Baixa de curs i concessió de saldo derivat
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-08-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-08.1 · Cas d'ús ACTUAL / FINAL
 
@@ -569,7 +555,6 @@ stop
 @startuml
 title A111-08 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Secretaria" as Actor
 rectangle "ACTUAL" {
   usecase "Baixa general / sense lineage canònic" as Current
 }
@@ -602,7 +587,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-08 | Seqüència resumida
-actor "Secretaria" as Actor
 participant "Baixa general / sense lineage canònic" as Legacy
 participant "Cancellation Review + Derived Activation" as Final
 database "Legacy data" as LegacyDB
@@ -640,7 +624,7 @@ stop
 
 ## A111-09 · Consum parcial del saldo derivat
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-09-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-09.1 · Cas d'ús ACTUAL / FINAL
 
@@ -648,7 +632,6 @@ stop
 @startuml
 title A111-09 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Checkout" as Actor
 rectangle "ACTUAL" {
   usecase "Sense model canònic" as Current
 }
@@ -681,7 +664,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-09 | Seqüència resumida
-actor "Checkout" as Actor
 participant "Sense model canònic" as Legacy
 participant "NovicePromotionDerivedBalanceRedemptionService" as Final
 database "Legacy data" as LegacyDB
@@ -721,7 +703,7 @@ stop
 
 ## A111-10 · Projectar la cadena de procedència
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-10-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-10.1 · Cas d'ús ACTUAL / FINAL
 
@@ -729,7 +711,6 @@ stop
 @startuml
 title A111-10 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "SIF" as Actor
 rectangle "ACTUAL" {
   usecase "Traça dispersa" as Current
 }
@@ -762,7 +743,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-10 | Seqüència resumida
-actor "SIF" as Actor
 participant "Traça dispersa" as Legacy
 participant "LineageSnapshot + Projection + Policy" as Final
 database "Legacy data" as LegacyDB
@@ -799,7 +779,7 @@ stop
 
 ## A111-11 · Obrir review i freeze per devolució JASOM
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-11-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-11.1 · Cas d'ús ACTUAL / FINAL
 
@@ -807,7 +787,6 @@ stop
 @startuml
 title A111-11 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Operador refund" as Actor
 rectangle "ACTUAL" {
   usecase "Manual/dispers" as Current
 }
@@ -840,7 +819,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-11 | Seqüència resumida
-actor "Operador refund" as Actor
 participant "Manual/dispers" as Legacy
 participant "RootRefundPlan + RootRefundReview" as Final
 database "Legacy data" as LegacyDB
@@ -876,7 +854,7 @@ stop
 
 ## A111-12 · Executar conseqüències del refund i tancar recoveries
 
-[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md#a111-12-) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
+[Fitxa de l'acció](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat global](uc-111-tracabilitat-implementacio.md)
 
 ### A111-12.1 · Cas d'ús ACTUAL / FINAL
 
@@ -884,7 +862,6 @@ stop
 @startuml
 title A111-12 | Cas d'ús ACTUAL / FINAL
 left to right direction
-actor "Refund/Recovery" as Actor
 rectangle "ACTUAL" {
   usecase "Sense workflow canònic" as Current
 }
@@ -917,7 +894,6 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-12 | Seqüència resumida
-actor "Refund/Recovery" as Actor
 participant "Sense workflow canònic" as Legacy
 participant "RootRefundExecution + RecoveryResolution + RecoveryCompletion" as Final
 database "Legacy data" as LegacyDB
