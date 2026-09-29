@@ -1,31 +1,25 @@
 <?php
 
-include ('../../ConnexioIntranet.php');
-include ('../../ConnexioWeb.php');
-include ('../../Text.php');
-include ('../../Date.php');
-include ('../../Usuari.php');
-include ('../../Intranet.php');
-include ('../../inc/missatgesError.php');
-session_start();
+$root = dirname(__DIR__, 2);
+require_once $root . '/Date.php';
+require_once $root . '/LegacyInvoiceReadContext.php';
+
+$user = null;
+$intranet = null;
 
 try {
+    [$user, $intranet] = LegacyInvoiceReadContext::open();
 
-	$_SESSION['usuari'] = unserialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = unserialize($_SESSION['intranet']);
+    $idInsc = trim((string) ($_GET['idInsc'] ?? ''));
+    if (!ctype_digit($idInsc) || (int) $idInsc <= 0) {
+        throw new InvalidArgumentException('Identificador d’inscripció no vàlid', 422);
+    }
 
-	$idInsc	= $_GET['idInsc'];
-
-	echo $_SESSION['intranet']->modalConsultaFactura_resultatCerca($idInsc);
-
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-
+    echo $intranet->modalConsultaFactura_resultatCerca((int) $idInsc);
+} catch (Throwable $exception) {
+    $code = (int) $exception->getCode();
+    http_response_code($code >= 400 && $code <= 599 ? $code : 500);
+    echo 'Error: ' . $exception->getMessage();
+} finally {
+    LegacyInvoiceReadContext::persist($user, $intranet);
 }
-catch(Exception $e) {
-	echo missatgeError($e->getCode());
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-}
-
-?>
