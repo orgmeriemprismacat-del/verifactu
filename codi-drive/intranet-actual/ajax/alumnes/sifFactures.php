@@ -84,6 +84,15 @@ try {
     $status = (int) ($response['_http_status'] ?? 200);
     unset($response['_http_status']);
 
+    if ($status === 401 || $status >= 500 || $status === 0) {
+        http_response_code(502);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'SIF internal service unavailable',
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return;
+    }
+
     http_response_code($status >= 100 && $status <= 599 ? $status : 502);
     echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $exception) {
