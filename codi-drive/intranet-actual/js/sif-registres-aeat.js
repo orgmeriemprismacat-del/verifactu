@@ -129,9 +129,11 @@
         ).join('');
 
         const attempts = Array.isArray(data.attempts) ? data.attempts : [];
+        const latestAttemptNo = attempts.reduce((max, attempt) => Math.max(max, Number(attempt.ATTEMPT_NO) || 0), 0);
         document.getElementById('sif-aeat-attempts').innerHTML = attempts.length ? attempts.map(attempt => {
             const terminal = ['ACCEPTED', 'ACCEPTED_WITH_ERRORS', 'REJECTED'].includes(String(attempt.STATUS));
-            const reconcile = String(queue.STATUS) === 'REVIEW' && terminal
+            const isLatest = Number(attempt.ATTEMPT_NO) === latestAttemptNo;
+            const reconcile = String(queue.STATUS) === 'REVIEW' && terminal && isLatest
                 ? '<button class="btn btn-sm btn-warning sif-aeat-reconcile" data-attempt="' +
                     esc(attempt.UUID_ATTEMPT) + '">Conciliar sense reenviar</button>'
                 : '—';
