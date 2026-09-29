@@ -86,10 +86,11 @@
 | Camp | Valor |
 | --- | --- |
 | Curs original | `NovicePromotionDestinationCancellationReviewService` + `NovicePromotionDerivedBalanceActivationService` |
-| Curs traspassat | `NovicePromotionTransferredDestinationCancellationReviewService` + `NovicePromotionTransferredCancellationActivationService` |
+| Curs traspassat | `NovicePromotionTransferredDestinationCancellationReviewService` + `NovicePromotionTransferredCancellationActivationService` — en aquest tall, curs actual assolit pel **primer traspàs confirmat** de l'aplicació original |
 | Regla | separar component promocional de diners reals; saldo derivat amb **nou any propi**; no restaurar saldo JASOM |
 | Evidència | rectificativa real + aprovació independent + revalidació del cash abans d'activar |
-| Estat | IMPLEMENTAT_BRANCA en els casos modelats · adaptador real d'aprovació PENDENT · NO PROVAT MySQL |
+| Encara no executable | baixa directa d'una `novice_promotion_derived_application.APPLIED` i baixa després d'un segon/tercer traspàs: l'esquema/projecció en preserven la procedència, però falta servei específic review+activation per aquests orígens |
+| Estat | IMPLEMENTAT_BRANCA per baixa original i baixa del primer curs traspassat · derivada/successiva PENDENT · adaptador real d'aprovació PENDENT · NO PROVAT MySQL |
 
 ## A111-09 · Consum parcial del saldo derivat
 
