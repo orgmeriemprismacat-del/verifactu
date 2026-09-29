@@ -8,10 +8,16 @@ require_once $root . '/LegacyInvoiceReadContext.php';
 $user = null;
 $intranet = null;
 
+if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
+    http_response_code(405);
+    echo 'Error: mètode no permès';
+    return;
+}
+
 try {
     [$user, $intranet] = LegacyInvoiceReadContext::open();
 
-    $id = trim((string) ($_GET['id'] ?? ''));
+    $id = trim((string) ($_POST['id'] ?? ''));
     if ($id === '' || !ctype_digit($id)) {
         throw new InvalidArgumentException('Factura relacionada no vàlida', 422);
     }
