@@ -1,32 +1,23 @@
 <?php
 
-include ('../../ConnexioIntranet.php');
-include ('../../ConnexioWeb.php');
-include ('../../Text.php');
-include ('../../Date.php');
-include ('../../Usuari.php');
-include ('../../Intranet.php');
-include ('../../inc/missatgesError.php');
-session_start();
+$root = dirname(__DIR__, 2);
+require_once $root . '/Date.php';
+require_once $root . '/LegacyInvoiceReadContext.php';
+
+$user = null;
+$intranet = null;
 
 try {
+    [$user, $intranet] = LegacyInvoiceReadContext::open();
 
-	$_SESSION['usuari'] = unserialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = unserialize($_SESSION['intranet']);
+    $dni = (string) ($_GET['dni'] ?? '');
+    $cercaPer = (string) ($_GET['cercaPer'] ?? '');
 
-	$dni 			= $_GET['dni'];
-	$cercaPer 	= $_GET['cercaPer'];
-
-	echo $_SESSION['intranet']->mostrarTotesFacturesUsuari_Factures($dni, $cercaPer);
-
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-
+    echo $intranet->mostrarTotesFacturesUsuari_Factures($dni, $cercaPer);
+} catch (Throwable $exception) {
+    $code = (int) $exception->getCode();
+    http_response_code($code >= 400 && $code <= 599 ? $code : 500);
+    echo 'Error: ' . $exception->getMessage();
+} finally {
+    LegacyInvoiceReadContext::persist($user, $intranet);
 }
-catch(Exception $e) {
-	echo missatgeError($e->getCode());
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-}
-
-?>
