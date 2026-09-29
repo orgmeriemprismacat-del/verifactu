@@ -3,7 +3,9 @@
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
+use Prisma\Sif\Repository\UsocFinancingCaseRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 
 final class RedsysUsocInvoiceService implements RedsysIntentHandler
@@ -13,9 +15,13 @@ final class RedsysUsocInvoiceService implements RedsysIntentHandler
         private LegacyUsocSnapshotRepository $legacySnapshots,
         private LegacyUsocInvoicePayloadBuilder $legacyPayloads,
         private RedsysInvoicePayloadBuilder $redsysPayloads,
-        private InvoiceService $invoices
+        private InvoiceService $invoices,
+        ?UsocFinancingCaseRepository $cases = null
     ) {
+        $this->cases = $cases ?? new UsocFinancingCaseRepository(new UuidGenerator());
     }
+
+    private UsocFinancingCaseRepository $cases;
 
     public function sourceType(): string
     {
@@ -32,6 +38,18 @@ final class RedsysUsocInvoiceService implements RedsysIntentHandler
         $basePayload = $this->legacyPayloads->buildStudentPayload($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
         $result = $this->invoices->issueInvoice($payload);
+        $inscriptionId = (int) ($snapshot['inscription']['ID'] ?? 0);
+        $studentAmount = number_format((float) ($payload['payment']['amount'] ?? 0), 2, '.', '');
+        $case = $this->cases->recordStudentInvoice(
+            $sifDb,
+            $inscriptionId,
+            (int) ($payload['payment']['idpag'] ?? 0),
+            (string) $result['uuid_factura'],
+            $studentAmount,
+            number_format((float) $entityAmount, 2, '.', ''),
+            $dsOrder
+        );
+        $result['usoc_case'] = $case;
         $result['entity_invoice_pending'] = [
             'source_type' => 'USOC_ENTITAT',
             'requires_explicit_billing' => true,
@@ -60,6 +78,16 @@ final class RedsysUsocInvoiceService implements RedsysIntentHandler
         $basePayload = $this->legacyPayloads->buildStudentPayload($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
         $result = $this->invoices->issueInvoice($payload);
+        $case = $this->cases->recordStudentInvoice(
+            $sifDb,
+            (int) $snapshot['inscription']['ID'],
+            $idpag,
+            (string) $result['uuid_factura'],
+            $studentAmount,
+            (string) ($snapshot['usoc']['entity_amount'] ?? $usocAmount),
+            $dsOrder
+        );
+        $result['usoc_case'] = $case;
         $result['legacy_sync'] = [
             'relations' => $payload['relations'] ?? [],
             'estat_cobrament' => isset($payload['payment']) ? 'PAID' : 'PENDING',
