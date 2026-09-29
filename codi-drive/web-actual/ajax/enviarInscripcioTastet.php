@@ -11,6 +11,24 @@ include("../MailSMTP.php");
 include("../MailSMTPComvive.php");
 include("../MailSMTPFile.php");
 
+function validarNifNieUc108($document) {
+	$document = strtoupper(preg_replace('/[\s\.\-]+/', '', trim($document)));
+	$letters = 'TRWAGMYFPDXBNJZSQVHLCKE';
+
+	if (preg_match('/^[0-9]{8}[A-Z]$/', $document)) {
+		$numero = intval(substr($document, 0, 8));
+		return $letters[$numero % 23] === substr($document, -1);
+	}
+
+	if (preg_match('/^[XYZ][0-9]{7}[A-Z]$/', $document)) {
+		$prefix = ['X' => '0', 'Y' => '1', 'Z' => '2'];
+		$numero = intval($prefix[$document[0]].substr($document, 1, 7));
+		return $letters[$numero % 23] === substr($document, -1);
+	}
+
+	return false;
+}
+
 try {
 	$input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
 
@@ -32,6 +50,7 @@ try {
 
 	$urlTastet = isset($input['urlTastet']) ? trim($input['urlTastet']) : '';
 	$codiCursLegacy = isset($input['codiCurs']) ? trim($input['codiCurs']) : '';
+	$tipusDoc = isset($input['tipus_doc']) ? trim($input['tipus_doc']) : '';
 
 	$textNom->arreglarParaulaBD('noms');
 	$textCog->arreglarParaulaBD('noms');
@@ -42,8 +61,41 @@ try {
 	if ($textComentaris != null) $textComentaris->arreglarParaulaBD('text');
 	if ($textEmailConf != null) $textEmailConf->arreglarParaulaBD('email');
 
-	if ($textEmailConf != null && $textEmailConf->obtenirText() !== $textEmail->obtenirText()) {
+	$nomValidat = $textNom->obtenirText();
+	$cognomsValidats = $textCog->obtenirText();
+	$documentValidat = $textDocumentacio->obtenirText();
+	$emailValidat = $textEmail->obtenirText();
+	$poblacioValidada = $textPoblacio->obtenirText();
+	$conegutValidat = $textConegut->obtenirText();
+
+	if ($nomValidat == '' || $cognomsValidats == '' || $documentValidat == '' ||
+		$emailValidat == '' || $poblacioValidada == '' || $conegutValidat == '') {
+		echo "Error: falten camps obligatoris.";
+		return;
+	}
+
+	if (filter_var($emailValidat, FILTER_VALIDATE_EMAIL) === false) {
+		echo "Error: el correu electrònic no és vàlid.";
+		return;
+	}
+
+	if ($textEmailConf != null && strcasecmp($textEmailConf->obtenirText(), $emailValidat) !== 0) {
 		echo "Error: els correus electrònics no coincideixen.";
+		return;
+	}
+
+	if ($tipusDoc == 'NIF/NIE' && !validarNifNieUc108($documentValidat)) {
+		echo "Error: el NIF/NIE no és vàlid.";
+		return;
+	}
+
+	if ($tipusDoc != '' && $tipusDoc != 'NIF/NIE' && mb_strlen(trim($documentValidat)) < 3) {
+		echo "Error: el document identificatiu no és vàlid.";
+		return;
+	}
+
+	if (preg_match('/\d/u', $poblacioValidada)) {
+		echo "Error: la població no és vàlida.";
 		return;
 	}
 
