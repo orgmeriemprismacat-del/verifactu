@@ -8,47 +8,51 @@ class InscripcioTastet {
    private $titol; /** Text El titol de la jorna. ex. Alumnat amb Altes Capacitats */
    private $url; /** URL L'enllaç de la Inscripcio. Si no n'hi ha, valdrà null  */
    private $dispositiu; /** string Mobil si el dispositiu és mobil i altrament, ordinador */
-   private $estat; /** string Mobil si el dispositiu és mobil i ordindador si el dispositiu és mobil  */
+   private $estat; /** int Estat del tastet per poder mostrar el formulari */
+   private $tipus; /** int Tipus d'inscripció */
 
    /*********************************** FUNCIONS CONSTRUCTORS ***********************************/
 
    public function __construct($idUrl, $tipus, $dispositiu) {
+      $this->codi = null;
+      $this->titol = null;
+      $this->url = null;
+      $this->dispositiu = $dispositiu;
       $this->tipus = $tipus;
-      $this->estat=1;
-      if ($tipus==0) {
-         $this->tipus = 0;
+      $this->estat = 0;
 
-         $this->dispositiu = $dispositiu;
-         $this->url = new Url($idUrl);
+      if ($tipus != 0 || $idUrl == null || $idUrl == '')
+         return;
 
-         require_once 'ConnexioBBDD_PreparedStatment.php';
-         $connexio = new ConnexioBBDDSTMT();
-         $connexio->connectarBD();
-         $cns = "SELECT CODI_CURS, TITOL FROM reptes WHERE ID_URL=? AND ESTAT=1";
-         $stm = $connexio->prepare($cns);
-         $stm->bind_param("d", $idUrl);
-         $stm->execute();
-         $stm->store_result();
-         if ( $stm->num_rows() <= 0 ) {
-            $this->estat=0;
-         }
-         else {
-            $stm->bind_result($codi, $titol);
-            $stm->fetch();
-         }
-         $connexio->closeStmt();
+      $this->url = new Url($idUrl);
+
+      require_once 'ConnexioBBDD_PreparedStatment.php';
+      $connexio = new ConnexioBBDDSTMT();
+      $connexio->connectarBD();
+
+      $cns = "SELECT CODI_CURS, TITOL FROM reptes WHERE ID_URL=? AND ESTAT=1";
+      $stm = $connexio->prepare($cns);
+      $stm->bind_param("d", $idUrl);
+      $stm->execute();
+      $stm->store_result();
+
+      if ( $stm->num_rows() > 0 ) {
+         $stm->bind_result($codi, $titol);
+         $stm->fetch();
 
          require_once 'Text.php';
-         if ( $codi!=null AND $codi!='' )
+         if ( $codi != null AND $codi != '' )
             $this->codi = new Text($codi);
-         else
-            $this->codi = null;
 
-         if ( $titol!=null AND $titol!='' )
+         if ( $titol != null AND $titol != '' )
             $this->titol = new Text($titol);
-         else
-            $this->titol = null;
+
+         if ( $this->codi !== null AND $this->titol !== null )
+            $this->estat = 1;
       }
+
+      $connexio->closeStmt();
+      $connexio->desconectarBD();
    }
 
    /*********************************** FUNCIONS CONSULTAR ATRIBUTS ***********************************/
@@ -82,6 +86,9 @@ class InscripcioTastet {
    * @return Retorna el contingut de la pàgina d'inscripció d'un curs
    */
    public function mostrar() {
+      if ( $this->estat != 1 )
+         throw new Exception('',404);
+
       $mostrar="<div class='d-flex flex-column'>";
       $mostrar .= "<h1 class='mb-4'>Formulari d'inscripci&oacute</h1>
       <h2 class='pt-3 mt-0'>Tastet: <span class='nom-curs'>".$this->obtenirTitol()->obtenirTextHTML()."</span></h2>";
@@ -167,7 +174,7 @@ class InscripcioTastet {
    */
    private function __mostrarDadesPersonals() {
       $mostrar = "<div class='form-dades'>
-         <p>Aquesta inscripció és totalment <strong>gratuïta</strong>. Un cop s'hagi formalitzat (en 24/48 hores a partir de la sol·licitud d'inscripció), tindràs accés al tastet durant <strong>una setmana</strong>.</p>
+         <p>Aquesta inscripció és totalment <strong>gratuïta</strong>. Un cop s'hagi formalitzat (en 24/48 hores laborals a partir de la sol·licitud d'inscripció), tindràs accés al tastet durant <strong>una setmana</strong>.</p>
 		 <h3>Dades personals</h3>";
       $mostrar.="   <div class='d-flex flex-column flex-md-row algin-items-center justify-content-center'>
             <div class='col-12 col-md-6 pl-0 pr-0 pr-md-2'>".$this->mostrarInput("nom", "Nom", "text", "nom_cognom_erroni", "1")."</div>
@@ -312,7 +319,7 @@ class InscripcioTastet {
    		<div class='modal-dialog modal-dialog-centered modal-notify modal-prisma' role='document'>
    			<div class='modal-content'>
    				<div class='modal-header border-0 justify-content-center'>
-   					<p class='modal-title m-0 text-center' id='modalInscripcioDuplicadaTitle'>CONFIRMA LA INSCRIPCIÓ</p>
+   					<p class='modal-title m-0 text-center' id='modalInscripcioDuplicadaTitle'>INSCRIPCIÓ JA EXISTENT</p>
    					<button role='button' class='close position-absolute' data-dismiss='modal' aria-label='Close'><span aria-hidden='true'>×</span></button>
    				</div>
    				<div class='modal-body text-center' id='modalInscripcioDuplicadaBody'></div>
