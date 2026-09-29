@@ -85,6 +85,32 @@ final class RedsysPackInvoiceServiceTest
         Assert::same(910, (int) $payment['IDPAG']);
     }
 
+    public function testRejectsPackWhenValidatedRedsysAmountDiffersFromInvoiceLines(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new RedsysPackLegacySpyPdo($this->legacyPackRows());
+        $notifications = new RedsysNotificationRepository();
+        $service = $this->service($notifications, $sifDb);
+
+        $notifications->recordReceived(
+            $sifDb,
+            'ORDERPACKMISMATCH',
+            910,
+            '205.00',
+            '0000',
+            true,
+            ['source' => 'pack-test'],
+            'VALIDATED'
+        );
+
+        Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $service): void {
+            $service->issueFromValidatedNotification($sifDb, $legacyDb, 'ORDERPACKMISMATCH');
+        }, 409);
+
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     public function testRejectsNonValidatedNotificationBeforeLoadingLegacySnapshot(): void
     {
         $sifDb = TestDatabase::fresh();
