@@ -140,11 +140,16 @@ try {
       $moneda="978";
       $trans="0";
 
-      $intent = (new SifRedsysCourseIntentClient())->create(
-         (int) $idPag,
-         (float) $importPagare,
-         $terminal
-      );
+      try {
+         $intent = (new SifRedsysCourseIntentClient())->create(
+            (int) $idPag,
+            (float) $importPagare,
+            $terminal
+         );
+      } catch (Throwable $exception) {
+         http_response_code(503);
+         exit('No podem preparar el pagament en aquest moment. Torna-ho a provar més tard o contacta amb secretaria.');
+      }
       $order = (string) $intent['ds_order'];
       $importPagare = (float) $intent['amount'];
       $id = $order;
