@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/uc-111-grant-code-uml-2026-09-29
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
