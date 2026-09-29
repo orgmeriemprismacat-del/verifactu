@@ -5,7 +5,8 @@ namespace Prisma\Sif\Service;
 use Prisma\Sif\Aeat\XmlCodec;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Exception\SifException;
-use Prisma\Sif\Repository\{FiscalQueueRepository, IncidentRepository};
+use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\{FiscalQueueRepository, IncidentRepository, OperationalEventRepository};
 
 final class AeatReviewReconciliationService
 {
@@ -89,12 +90,32 @@ final class AeatReviewReconciliationService
             );
 
             $this->incidents->resolveAeatQueueReview($db, (string) $item['UUID_FACTURA'], $queueId);
-            $this->incidents->open(
-                $db,
-                (string) $item['UUID_FACTURA'],
-                'AEAT_RECONCILED',
-                'Queue ID ' . $queueId . ': reconciled attempt ' . $attemptUuid . ' by ' . $actorId
-            );
+            (new OperationalEventRepository(new UuidGenerator()))->append($db, [
+                'operation_type' => 'AEAT_RECONCILE',
+                'source_type' => 'FISCAL_QUEUE',
+                'source_id' => (string) $queueId,
+                'uuid_factura' => (string) $item['UUID_FACTURA'],
+                'uuid_payment' => null,
+                'fiscal_impact' => 'STATE_UPDATE',
+                'economic_impact' => 'NONE',
+                'status' => 'COMPLETED',
+                'reason_code' => 'AEAT_RECONCILED',
+                'before_snapshot' => [
+                    'queue_status' => 'REVIEW',
+                    'attempt_uuid' => $attemptUuid,
+                    'attempt_status' => $remoteStatus,
+                ],
+                'after_snapshot' => [
+                    'queue_status' => 'SENT',
+                    'aeat_status' => $remoteStatus,
+                ],
+                'actor_type' => 'USER',
+                'actor_id' => $actorId,
+                'actor_role' => null,
+                'source_channel' => 'INTRANET',
+                'correlation_id' => 'AEAT-RECONCILE:' . $queueId . ':' . $attemptUuid,
+                'occurred_at' => (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s'),
+            ]);
 
             return [
                 'ok' => true,
