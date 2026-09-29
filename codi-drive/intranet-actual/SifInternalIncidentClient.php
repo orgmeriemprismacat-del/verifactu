@@ -72,26 +72,7 @@ final class SifInternalIncidentClient
             'X-SIF-Signature: ' . $signature,
         ];
 
-        $curl = curl_init($this->url);
-        if ($curl === false) {
-            throw new RuntimeException('Could not initialize SIF incident HTTP client');
-        }
-        curl_setopt_array($curl, [
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_POSTFIELDS => $body,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => $this->timeout,
-            CURLOPT_FOLLOWLOCATION => false,
-        ]);
-        $response = curl_exec($curl);
-        $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        $error = curl_error($curl);
-        curl_close($curl);
-
-        if (!is_string($response)) {
-            throw new RuntimeException($error !== '' ? $error : 'Could not reach SIF incident API');
-        }
+        [$status, $response] = $this->send($headers, $body);
 
         $decoded = json_decode($response, true);
         if (!is_array($decoded)) {
@@ -99,6 +80,65 @@ final class SifInternalIncidentClient
         }
         $decoded['_http_status'] = $status;
         return $decoded;
+    }
+
+    private function send(array $headers, string $body): array
+    {
+        if (function_exists('curl_init')) {
+            $curl = curl_init($this->url);
+            if ($curl === false) {
+                throw new RuntimeException('Could not initialize SIF incident HTTP client');
+            }
+
+            curl_setopt_array($curl, [
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_POSTFIELDS => $body,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => $this->timeout,
+                CURLOPT_FOLLOWLOCATION => false,
+            ]);
+            $response = curl_exec($curl);
+            $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $error = curl_error($curl);
+            curl_close($curl);
+
+            if (!is_string($response)) {
+                throw new RuntimeException(
+                    $error !== '' ? 'Could not reach SIF incident API: ' . $error : 'Could not reach SIF incident API'
+                );
+            }
+
+            return [$status, $response];
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => implode("\r\n", $headers),
+                'content' => $body,
+                'timeout' => $this->timeout,
+                'ignore_errors' => true,
+            ],
+        ]);
+
+        $response = file_get_contents($this->url, false, $context);
+        if ($response === false) {
+            throw new RuntimeException('Could not reach SIF incident API');
+        }
+
+        return [$this->httpStatus($http_response_header ?? []), $response];
+    }
+
+    private function httpStatus(array $headers): int
+    {
+        foreach ($headers as $header) {
+            if (preg_match('/^HTTP\/\S+\s+(\d{3})\b/i', (string) $header, $matches) === 1) {
+                return (int) $matches[1];
+            }
+        }
+
+        return 0;
     }
 
     private function assertSecureUrl(string $url): void
