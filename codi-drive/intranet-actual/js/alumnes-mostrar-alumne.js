@@ -1350,9 +1350,52 @@ function mostrarModalConsultaInformacio(id) {
 					}
 				});
 				$('#dades-pagament').on('click', '#factura-insc.no-edit', function() {
-					var numFactura = parseInt( $('#factura-insc').html() );
-					var urlConf = 'https://intranet.prisma.cat/alumnes/factura/#/factRel/'+numFactura;
-					window.location.replace(urlConf);
+					var idInscFactura = id;
+					var requestSif = $.ajax({
+						url: path + "alumnes/buscarFacturesSif.php",
+						method: "GET",
+						data: {
+							source_type: "INSCRIPCIO",
+							source_id: idInscFactura,
+							limit: 20
+						},
+						dataType: "json"
+					});
+
+					requestSif.done(function(res) {
+						if (res && res.ok === true && Array.isArray(res.results) && res.results.length === 1) {
+							var uuid = res.results[0].uuid_factura;
+							window.location.replace(
+								'https://intranet.prisma.cat/alumnes/factura/#/uuid/' + encodeURIComponent(uuid)
+							);
+							return;
+						}
+
+						if (res && res.ok === true && Array.isArray(res.results) && res.results.length > 1) {
+							mostrarModalLoading();
+							mostrarModalConsultaFactura(idInscFactura);
+							return;
+						}
+
+						if (res && res.ok === true && Array.isArray(res.results) && res.results.length === 0) {
+							var numFactura = parseInt($('#factura-insc').html(), 10);
+							if (!isNaN(numFactura)) {
+								window.location.replace(
+									'https://intranet.prisma.cat/alumnes/factura/#/factRel/' + numFactura
+								);
+								return;
+							}
+						}
+
+						uc007MostrarErrorAlumne("No s'ha pogut resoldre la factura de la inscripció");
+					});
+
+					requestSif.fail(function(jqXHR) {
+						var message = "No s'ha pogut consultar el SIF";
+						if (jqXHR.responseJSON && jqXHR.responseJSON.error)
+							message = jqXHR.responseJSON.error;
+						uc007MostrarErrorAlumne(message);
+					});
 				});
 
 				$('#dades-pagament').on('click', '.cancelar-apartat', function() {
