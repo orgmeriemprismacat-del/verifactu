@@ -18,20 +18,24 @@ try {
 	$_SESSION['usuari'] = unserialize($_SESSION['usuari']);
 	$_SESSION['intranet'] = unserialize($_SESSION['intranet']);
 
-	$idInsc 			= $_GET['idinsc'];
-	$anyC 				= $_GET['any'];
-	$mesC 				= $_GET['mes'];
-	$cursC 				= $_GET['curs'];
-	$numeroCanvi 		= $_GET['numero'];
-	$apagarC	 		= $_GET['apagar'];
-	$pagatC				= $_GET['pagat'];
-	$pendentC 			= $_GET['pendent'] ?? ((float) $apagarC - (float) $pagatC);
-	$despesesC 		= $_GET['despeses'];
-	$obsCanvi 			= $_GET['obs'];
-	$motiuCanvi 		= $_GET['motiu'];
-	$enviarCoreu 		= $_GET['enviarCoreu'];
-	$tipusDesc 			= $_GET['tipusDesc'];
-	$validDesc 			= $_GET['validDesc'];
+	$request = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST'
+		? $_POST
+		: $_GET;
+
+	$idInsc 			= $request['idinsc'];
+	$anyC 				= $request['any'];
+	$mesC 				= $request['mes'];
+	$cursC 				= $request['curs'];
+	$numeroCanvi 		= $request['numero'];
+	$apagarC	 		= $request['apagar'];
+	$pagatC				= $request['pagat'];
+	$pendentC 			= $request['pendent'] ?? ((float) $apagarC - (float) $pagatC);
+	$despesesC 		= $request['despeses'];
+	$obsCanvi 			= $request['obs'];
+	$motiuCanvi 		= $request['motiu'];
+	$enviarCoreu 		= $request['enviarCoreu'];
+	$tipusDesc 			= $request['tipusDesc'];
+	$validDesc 			= $request['validDesc'];
 
 	if (getenv('SIF_COURSE_CHANGE_PREVIEW_ENFORCED') === '1') {
 		$actorText = $_SESSION['usuari']->getUsuari();
@@ -43,9 +47,9 @@ try {
 			$roles = [];
 		}
 
-		$manualPriceReason = trim((string) ($_GET['sif_manual_price_reason'] ?? ''));
-		$expectedFiscalDecision = trim((string) ($_GET['sif_expected_fiscal_decision'] ?? ''));
-		$expectedEconomicDecision = trim((string) ($_GET['sif_expected_economic_decision'] ?? ''));
+		$manualPriceReason = trim((string) ($request['sif_manual_price_reason'] ?? ''));
+		$expectedFiscalDecision = trim((string) ($request['sif_expected_fiscal_decision'] ?? ''));
+		$expectedEconomicDecision = trim((string) ($request['sif_expected_economic_decision'] ?? ''));
 
 		if ($actorId === '' || $roles === []) {
 			throw new Exception('Invalid SIF course change actor', 422);
