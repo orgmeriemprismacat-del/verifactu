@@ -41,6 +41,11 @@
 
 ## 4. UI intranet
 
+- [ ] `SIF_UC007_QUERY_ENABLED=0` → fallback llegat només per rollout explícit.
+- [ ] `SIF_UC007_QUERY_ENABLED=1` + error HMAC/403/5xx → **no** fallback al llegat.
+- [ ] `SIF_UC080_DOCUMENT_ENABLED=0` → cap lliurament de bytes.
+- [ ] `SIF_UC080_DOCUMENT_ENABLED=1` → descàrrega només per UC-080, no per `descarregaFactura.php`.
+
 - [ ] Resultat SIF mostra badge SIF i estats separats.
 - [ ] Detall SIF és només lectura.
 - [ ] No apareixen editar/anul·lar/regenerar en el bloc SIF.
