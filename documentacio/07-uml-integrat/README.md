@@ -21,10 +21,10 @@ Aquesta carpeta conté les **142 fitxes integrades del catàleg**, amb una revis
 | UC-11 | Importar factura històrica | [Fitxa i UML](uc-011-importar-factura-historica.md) | `[BASE]` |
 | UC-12 | Gestionar el cicle de morositat i reclamació | [Fitxa i UML](uc-012-morositat-reclamacio.md) | `[PARCIAL]` |
 | UC-13 | Orquestrar la doble facturació USOC | [Fitxa i UML](uc-013-orquestrar-doble-facturacio-usoc.md) | `[PARCIAL]` |
-| UC-14 | Comprar curs normal per Redsys | [Fitxa i UML](uc-014-comprar-curs-redsys.md) | `[ASYNC/PARCIAL]` |
+| UC-14 | Comprar curs normal per Redsys | [Fitxa i UML](uc-014-comprar-curs-redsys.md) · [classes A/F](uc-014-classes-actual-final.md) · [seqüències A/F](uc-014-sequencies-actual-final.md) · [activitats RM-037](uc-014-activitats-pagines-redsys-actual-final.md) · [auditoria](uc-014-auditoria-tracabilitat-2026-09-29.md) | `[ASYNC/PARCIAL · DOC AMPLIADA 29/09]` |
 | UC-14a | Comprar taller | [Fitxa i UML](uc-014a-comprar-taller.md) | `[PARCIAL]` |
 | UC-14b | Comprar jornada | [Fitxa i UML](uc-014b-comprar-jornada.md) | `[PARCIAL]` |
-| UC-15 | Comprar pack | [Fitxa i UML](uc-015-comprar-pack.md) · [Auditoria](uc-015-auditoria-tracabilitat-2026-09-29.md) · [Classes](uc-015-classes-actual-final.md) · [Seqüències](uc-015-sequencies-actual-final.md) · [Activitats](uc-015-activitats-pagines-pack-actual-final.md) | `[REVIEWED/ASYNC/PARCIAL]` |
+| UC-15 | Comprar pack | [Fitxa i UML](uc-015-comprar-pack.md) | `[BASE/ASYNC/PARCIAL]` |
 | UC-16 | Facturar grup | [Fitxa i UML](uc-016-facturar-grup.md) | `[BASE/ASYNC/PARCIAL]` |
 | UC-16a | Afegir participant després d'emetre | [Fitxa i UML](uc-016a-afegir-participant-grup-emes.md) | `[DISSENY]` |
 | UC-16b | Treure participant després d'emetre | [Fitxa i UML](uc-016b-treure-participant-grup-emes.md) | `[DISSENY]` |
