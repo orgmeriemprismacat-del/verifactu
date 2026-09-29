@@ -29,6 +29,9 @@ use Prisma\Sif\Service\PaymentPayloadValidator;
 use Prisma\Sif\Service\RedsysCallbackDispatcher;
 use Prisma\Sif\Service\RedsysCallbackWorker;
 use Prisma\Sif\Service\RedsysCourseInvoiceService;
+use Prisma\Sif\Service\NovicePromotionInvoiceLinkService;
+use Prisma\Sif\Service\NovicePromotionGrantService;
+use Prisma\Sif\Service\NovicePromotionCodePreparationService;
 use Prisma\Sif\Service\RedsysGiftInvoiceService;
 use Prisma\Sif\Service\RedsysGroupInvoiceService;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
@@ -74,8 +77,23 @@ try {
         new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
     );
     $redsysPayloads = new RedsysInvoicePayloadBuilder($notifications);
+    $noviceLinks = new NovicePromotionInvoiceLinkService();
+    $noviceGrants = new NovicePromotionGrantService(new UuidGenerator());
+    $noviceCodes = new NovicePromotionCodePreparationService(new UuidGenerator());
+    $noviceConfig = $config['novice_promotion'] ?? [];
     $dispatcher = new RedsysCallbackDispatcher([
-        new RedsysCourseInvoiceService($notifications, new LegacyCourseSnapshotRepository(), new LegacyCourseInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
+        new RedsysCourseInvoiceService(
+            $notifications,
+            new LegacyCourseSnapshotRepository(),
+            new LegacyCourseInvoicePayloadBuilder(),
+            $redsysPayloads,
+            $invoiceService,
+            $noviceLinks,
+            $noviceGrants,
+            $noviceCodes,
+            (string) ($noviceConfig['wrapping_key_hex'] ?? ''),
+            (string) ($noviceConfig['key_version'] ?? 'v1')
+        ),
         new RedsysPackInvoiceService($notifications, new LegacyPackSnapshotRepository(), new LegacyPackInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysGroupInvoiceService($notifications, new LegacyGroupSnapshotRepository(), new LegacyGroupInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysGiftInvoiceService($notifications, new LegacyGiftSnapshotRepository(), new LegacyGiftInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
@@ -87,7 +105,7 @@ try {
         new IncidentRepository(),
         5
     );
-    $counts = ['claimed' => 0, 'processed' => 0, 'retried' => 0, 'incidents' => 0];
+    $counts = ['claimed' => 0, 'processed' => 0, 'retried' => 0, 'incidents' => 0, 'jasom_not_staged' => 0];
 
     for ($index = 0; $index < $limit; $index++) {
         $result = $worker->runOne($db, $workerId, new DateTimeImmutable());
@@ -96,6 +114,12 @@ try {
         }
 
         $counts['claimed']++;
+        // NOT_STAGED covers ordinary JASOM without a novice request too.
+        // Operators must reconcile these against the real legacy request log;
+        // the counter is NOT proof of a missing novice benefit.
+        if (($result['novice_promotion_sync'] ?? null) === 'NOT_STAGED') {
+            $counts['jasom_not_staged']++;
+        }
         $status = (string) ($result['status'] ?? 'PROCESSED');
         if ($status === 'RETRY') {
             $counts['retried']++;

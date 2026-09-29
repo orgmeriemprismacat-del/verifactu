@@ -241,7 +241,7 @@ Regles de visibilitat:
 - una factura de grup o empresa no exposa dades d'altres participants;
 - l'empresa/responsable accedeix per correu, enllaç segur o futur espai específic, no per la intranet principal;
 - l'auditor és només lectura;
-- el PDF/QR es serveix des del SIF **mitjançant UC-80**, sense exposar paths interns; UC-07 mostra la factura, estats i metadades autoritzades.
+- el PDF/QR es serveix des del SIF, sense exposar paths interns.
 
 Estat: model funcional definit; panell i control d'accés final encara no detectats al codi revisat.
 
@@ -460,7 +460,7 @@ La taula següent amplia la matriu inicial i manté separats el cas de negoci, e
 | UC-33 | Desactivar URL de pagament | Operador | `[DISSENY]` | No esborra ni altera una factura emesa. |
 | UC-34 | Consultar dashboard | Tècnica/operador | `[DISSENY]` | Panell `pay.prisma.cat/sif` pendent. |
 | UC-35 | Consultar registre, cadena i estat AEAT | Tècnica/auditor | `[DISSENY]` | Dades base existents; UI i respostes AEAT pendents. |
-| UC-36 | Generar/consultar PDF, QR o XML | Automàtic/usuari | `[PARCIAL]` | `DocumentRepository` existeix; generador/custòdia es coordinen amb UC-55/78 i el servei segur de bytes és UC-80. |
+| UC-36 | Generar/consultar PDF, QR o XML | Automàtic/usuari | `[PARCIAL]` | `DocumentRepository` existeix; generador i servei segur pendents. |
 | UC-37 | Exportar període fiscal | Tècnica/Adam/auditor | `[DISSENY]` | Format, hash, registre i permisos pendents. |
 | UC-38 | Configurar SIF i certificat | Responsable tècnica | `[DISSENY]` | Secrets i certificat fora del repo; implementació pendent. |
 | UC-39 | Executar proves i go/no-go | Responsable tècnica | `[BASE/PARCIAL]` | Runner, preflights i gate disponibles; entorn real pendent. |
@@ -492,7 +492,7 @@ La taula següent amplia la matriu inicial i manté separats el cas de negoci, e
 | `pay.prisma.cat/sif/factures` | UC-07, UC-02, UC-05, UC-28 |
 | `pay.prisma.cat/sif/registres` | UC-35, UC-09, UC-30, UC-31 |
 | `pay.prisma.cat/sif/incidencies` | UC-08 |
-| `pay.prisma.cat/sif/documents` | UC-07, UC-36, UC-55, UC-78, UC-80 |
+| `pay.prisma.cat/sif/documents` | UC-36 |
 | `pay.prisma.cat/sif/versions` | UC-10, UC-46 |
 | `pay.prisma.cat/sif/exports` | UC-37 |
 | `pay.prisma.cat/sif/configuracio` | UC-38 |
@@ -824,7 +824,7 @@ no es poden absorbir en una frase genèrica de venda o pagament.
 | UC-108 | Registrar un tastet o repte gratuït com a operació no facturable | Alumne/ecommerce | `[LEGACY/DISSENY]` | Es registra la inscripció i la classificació `NON_BILLABLE/FREE_SAMPLE`; no es crea factura, pagament ni enllaç, i el consentiment de mailing queda separat i acreditable. |
 | UC-109 | Registrar una inscripció a curs subvencionat sense cobrament individual | Alumne/ecommerce/gestió | `[LEGACY/PENDENT/BLOQUEJANT]` | L'operació queda classificada com `SUBSIDISED_PENDING_DECISION`, amb finançador i evidència; no s'inventa un pagament de zero ni es decideix sense acord si cal factura a l'alumne, al finançador o cap factura. |
 | UC-110 | Gestionar el descompte d'amics amb dues inscripcions i un pagador | Dos participants/pagador | `[LEGACY/DISSENY/BLOQUEJANT]` | Dues persones poden triar cursos diferents, compartir operació/intenció i tenir un pagador; cada participant, línia, descompte i relació amb la factura queda congelat sense confondre pagador i receptor. |
-| UC-111 | Validar docent novell i generar un dret de descompte futur | Alumne/validador/gestió | `[LEGACY/DISSENY/BLOQUEJANT]` | La titulació i validació són evidència separada; després del pagament confirmat es crea una promoció o crèdit comercial futur idempotent, mai una alteració de la factura ja emesa. |
+| UC-111 | Validar docent novell i generar un dret de descompte futur | Alumne/validador/gestió | `[LEGACY/DISSENY/BLOQUEJANT]` | La titulació i validació són evidència separada; després del JASOM íntegrament pagat es concedeix una sola vegada un **dret promocional futur** pel valor elegible, amb consum parcial i traça de canvis/baixes, mai com a segon CHARGE ni alteració de la factura d'origen. |
 | UC-112 | Congelar preu, descompte, places i classificació fiscal abans del TPV | Ecommerce/SIF | `[LEGACY/DISSENY/BLOQUEJANT]` | Abans de crear la intenció Redsys es persisteix un snapshot versionat de producte, edició, places, import, descompte, pagador, receptor i tractament fiscal; el callback no recalcula dades vives. |
 
 ### 29.1. Evidència de codi
@@ -838,6 +838,12 @@ no es poden absorbir en una frase genèrica de venda o pagament.
 - `web-actual/DescompteAmic.php` crea dues inscripcions, un únic `IDPAG`, una
   persona pagadora a `respGrups` i calcula el descompte sobre dos cursos que
   poden ser diferents.
+
+### 29.1 bis. Paquet documental específic UC-111
+
+Per la seva extensió, UC-111 disposa d'una descomposició pròpia sense crear nous IDs de cas: [fitxa funcional](../06-fitxes-funcionals/uc-111.md), [fitxes d'acció A111-01…12](../06-fitxes-funcionals/uc-111-accions.md), [casos d'ús ACTUAL/FINAL](../07-uml-integrat/uc-111-casos-us-actual-final.md), [classes](../07-uml-integrat/uc-111-classes-actual-final.md), [seqüències](../07-uml-integrat/uc-111-sequencies-actual-final.md), [activitats](../07-uml-integrat/uc-111-activitats-actual-final.md), [48 diagrames 1:1 per A111-01…12](../07-uml-integrat/uc-111-diagrames-per-accio.md) i [traçabilitat d'implementació](../07-uml-integrat/uc-111-tracabilitat-implementacio.md). El document [integrat històric](../07-uml-integrat/uc-111-docent-novell-dret-futur.md) conserva l'evolució dels talls.
+
+Aquesta ampliació documental **no canvia el recompte de 142 casos** i tampoc converteix el flux en producció acreditada: MySQL, connectors finals i desplegament continuen separats de la cobertura documental.
 
 ### 29.2. Regla de frontera
 

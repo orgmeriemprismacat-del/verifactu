@@ -1316,3 +1316,45 @@ CommercialOperation "1" --> "0..*" PaymentLink
 Les quatre classes marcades `schema 000004` representen taules ja descrites a
 la migració, no classes PHP implementades. Aquest límit evita tornar a confondre
 una inscripció o un `IDPAG` amb factura, intenció Redsys o pagament.
+
+
+## 18. UC-111 · Docent novell, dret futur i procedència `[BRANCA/PARCIAL]`
+
+UC-111 ja no es representa només com una promoció genèrica. La branca conté un conjunt específic de serveis per expedient, concessió, lliurament, consum parcial, canvis/baixes, saldos derivats i devolució de JASOM. El submodel complet i separat ACTUAL/FINAL és [UC-111 · classes](../07-uml-integrat/uc-111-classes-actual-final.md).
+
+```plantuml
+@startuml
+title UC-111 | resum de classes al model general
+class NovicePromotionEnrollmentStager
+class NovicePromotionSecretaryDecisionProjector
+class NovicePromotionGrantService
+class NovicePromotionCodePreparationService
+class NovicePromotionRedemptionService
+class NovicePromotionDerivedBalanceRedemptionService
+class NovicePromotionSuccessiveTransferReviewService
+class NovicePromotionSuccessiveTransferConfirmationService
+class NovicePromotionLineageSnapshotService
+class NovicePromotionLineageProjectionPolicy
+class NovicePromotionRootRefundReviewService
+class NovicePromotionRootRefundExecutionService
+class NovicePromotionRootRefundRecoveryResolutionService
+class NovicePromotionRootRefundRecoveryCompletionService
+
+NovicePromotionEnrollmentStager --> NovicePromotionSecretaryDecisionProjector
+NovicePromotionSecretaryDecisionProjector --> NovicePromotionGrantService
+NovicePromotionGrantService --> NovicePromotionCodePreparationService
+NovicePromotionGrantService --> NovicePromotionRedemptionService
+NovicePromotionRedemptionService --> NovicePromotionSuccessiveTransferReviewService
+NovicePromotionRedemptionService --> NovicePromotionDerivedBalanceRedemptionService
+NovicePromotionSuccessiveTransferReviewService --> NovicePromotionSuccessiveTransferConfirmationService
+NovicePromotionDerivedBalanceRedemptionService --> NovicePromotionLineageSnapshotService
+NovicePromotionSuccessiveTransferConfirmationService --> NovicePromotionLineageSnapshotService
+NovicePromotionLineageSnapshotService --> NovicePromotionLineageProjectionPolicy
+NovicePromotionLineageSnapshotService --> NovicePromotionRootRefundReviewService
+NovicePromotionRootRefundReviewService --> NovicePromotionRootRefundExecutionService
+NovicePromotionRootRefundExecutionService --> NovicePromotionRootRefundRecoveryResolutionService
+NovicePromotionRootRefundRecoveryResolutionService --> NovicePromotionRootRefundRecoveryCompletionService
+@enduml
+```
+
+**Límit d'aquest resum:** les fletxes indiquen dependència funcional del lifecycle, no necessàriament injecció PHP directa entre totes les classes. Consultar el [submodel UC-111](../07-uml-integrat/uc-111-classes-actual-final.md) i la [matriu de traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md) per distingir codi existent, polítiques, interfaces i integracions pendents. Les proves MySQL continuen no executades.
