@@ -13,8 +13,12 @@ include("../MailSMTP.php");
 include("../MailSMTPComvive.php");
 include("../MailSMTPFile.php");
 
+function normalitzarNifNieUc108($document) {
+	return strtoupper(preg_replace('/[\s\.\-]+/', '', trim($document)));
+}
+
 function validarNifNieUc108($document) {
-	$document = strtoupper(preg_replace('/[\s\.\-]+/', '', trim($document)));
+	$document = normalitzarNifNieUc108($document);
 	$letters = 'TRWAGMYFPDXBNJZSQVHLCKE';
 
 	if (preg_match('/^[0-9]{8}[A-Z]$/', $document)) {
@@ -97,9 +101,12 @@ try {
 		return;
 	}
 
-	if ($tipusDoc == 'NIF/NIE' && !validarNifNieUc108($documentValidat)) {
-		echo "Error: el NIF/NIE no és vàlid.";
-		return;
+	if ($tipusDoc == 'NIF/NIE') {
+		if (!validarNifNieUc108($documentValidat)) {
+			echo "Error: el NIF/NIE no és vàlid.";
+			return;
+		}
+		$documentValidat = normalitzarNifNieUc108($documentValidat);
 	}
 
 	if ($tipusDoc != '' && $tipusDoc != 'NIF/NIE' && mb_strlen(trim($documentValidat)) < 3) {
@@ -159,10 +166,22 @@ try {
 	$textTitolCurs->arreglarParaulaBD('text_no_mod');
 
 	// El precheck del navegador no és autoritatiu: repetir al servidor abans de qualsevol efecte.
-	$documentacioCheck = $textDocumentacio->obtenirText();
-	$cnsDuplicat = "SELECT ID FROM inscripcions_reptes
-		WHERE CURS=? AND DNI=? AND INSC_CURS=1
-		LIMIT 1";
+	$documentacioCheck = ($tipusDoc == 'NIF/NIE')
+		? $documentValidat
+		: $textDocumentacio->obtenirText();
+
+	if ($tipusDoc == 'NIF/NIE') {
+		$cnsDuplicat = "SELECT ID FROM inscripcions_reptes
+			WHERE CURS=?
+			AND REPLACE(REPLACE(REPLACE(UPPER(DNI),' ',''),'.',''),'-','')=?
+			AND INSC_CURS=1
+			LIMIT 1";
+	}
+	else {
+		$cnsDuplicat = "SELECT ID FROM inscripcions_reptes
+			WHERE CURS=? AND DNI=? AND INSC_CURS=1
+			LIMIT 1";
+	}
 	$stmt = $connexio->prepare($cnsDuplicat);
 	$stmt->bind_param("ss", $codiCurs, $documentacioCheck);
 	$stmt->execute();
@@ -202,7 +221,7 @@ try {
 	$nom = $textNom->obtenirText();
 	$cog = $textCog->obtenirText();
 	$nomCognoms = $nom." ".$cog;
-	$documentacio = $textDocumentacio->obtenirText();
+	$documentacio = ($tipusDoc == 'NIF/NIE') ? $documentValidat : $textDocumentacio->obtenirText();
 	$email = $textEmail->obtenirText();
 	$poblacio = $textPoblacio->obtenirText();
 	$titolCurs = $textTitolCurs->obtenirText();
@@ -298,7 +317,7 @@ try {
 	$nomBD = $textNom->obtenirText();
 	$cogBD = $textCog->obtenirText();
 	$nomCognomsBD = $nomBD." ".$cogBD;
-	$documentacioBD = $textDocumentacio->obtenirText();
+	$documentacioBD = $documentacio;
 	$emailBD = $textEmail->obtenirText();
 	$poblacioBD = $textPoblacio->obtenirText();
 	$conegutBD = $textConegut->obtenirText();
