@@ -539,9 +539,8 @@ try {
 				$perfilsBD, $titulacionsBD, $telfBD, $comentarisBD, $pagFraccBD, $mailingBD,
 				$preuCurs, $usuariBD, $idPag, $perenne, $conegutBD, $tipusInsc, $observacions);
 
-			$aux = $preuPack;
+			$aux = round((float) $preuPack, 2);
 			$tipusInsc = 'P';
-			$observacions = 'PACK|'.$idPack;
 			for ( $i=0; $i<count($edicions); $i++ ) {
 				$edicio = $edicions[$i];
 
@@ -557,11 +556,24 @@ try {
 				$stmt2->bind_result($preuCursOriginal);
 				$stmt2->fetch();
 
-				$preuCurs = $aux;
-				if ( $aux >= $preuCursOriginal ) {
-					$preuCurs = $preuCursOriginal;
-					$aux -= $preuCursOriginal;
-				}
+				$preuCursOriginal = round((float) $preuCursOriginal, 2);
+				$preuCurs = round(min($aux, $preuCursOriginal), 2);
+				$aux = round(max(0, $aux - $preuCurs), 2);
+				$descompteCurs = round(max(0, $preuCursOriginal - $preuCurs), 2);
+				$descomptePct = $preuCursOriginal > 0
+					? round(($descompteCurs / $preuCursOriginal) * 100, 2)
+					: 0.0;
+
+				/* Snapshot comercial mínim per no reconstruir ordre/imports després del cobrament. */
+				$observacions = sprintf(
+					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f',
+					$idPack,
+					$i + 1,
+					$preuCursOriginal,
+					$descompteCurs,
+					$descomptePct,
+					$preuCurs
+				);
 
 				/* Executo el insert */
 				$stmt->execute();
