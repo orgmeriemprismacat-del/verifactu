@@ -393,7 +393,7 @@ Vegeu [UC-009 · Activitats ACTUAL/FINAL](./uc-009-activitats-actual-final.md). 
 - document de desplegament a `05-governanca-operacio/uc-009-panell-registres-aeat-desplegament.md`.
 
 ### 7.5. Estat que encara no es declara
-- no s'afirma que els tests s'hagin executat satisfactòriament en aquesta revisió;
+- **verificat en CI 2026-09-30:** suite SIF sobre `sif_test*` amb **558 proves passades i 0 fallades**, més lint PHP i sintaxi JS del panell;
 - no s'afirma recepció real per AEAT;
 - no s'afirma certificat productiu qualificat;
 - l'alta del nou apartat a la BD de menú de preproducció no s'ha executat des del repositori;
