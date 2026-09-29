@@ -1009,7 +1009,7 @@ ManualPriceAdjustmentService ..> ManualRectificationService : UC-74/05 si factur
 
 **No executar en cadena automàticament:** `OperationalEventRepository::append()` desa un event però no aprova l'import; `RedsysPaymentIntentService::create()` rebutja reusar `DS_ORDER` amb snapshot/import diferent; `ManualRectificationService` emet una factura R separada quan una classificació fiscal ho justifica. La UC-94 no té un únic commit demostrable que englobi proposta, canvi d'intenció, document fiscal, transferència i llegat.
 
-### 6.4. Subvista transversal de job, integritat, descàrrega i històric — UC-55/80/11/97 (DISSENY)
+### 6.4. Subvista transversal de job, integritat, descàrrega i històric — UC-55/80/11/97 (PARCIAL)
 
 `factura_documents` només imposa un ID únic de fila i `document_job` només una `IDEMPOTENCY_KEY` única; **no** hi ha garantia automàtica d'un document per factura/tipus/versió ni de fitxer físic disponible. El repo PHP `DocumentRepository::registerDocument()` **no** retorna `factura_documents.ID`. Les classes proposades de custòdia han de recuperar/contrastar la identitat de la metadata i els bytes abans de marcar un job com a complet.
 
@@ -1045,6 +1045,22 @@ class HistoricalOriginalCustodyService {
  <<DISSENY: original antic, no importador PHP>>
  +attachOriginal(uuidFactura,issuer,sourceId,bytes) result
  +auditInventory(scope) report
+}
+class ResolvedDocumentAuthorizationPolicy {
+ <<PHP EXISTENT>>
+ +canDownload(actor,invoice,relations,document) bool
+}
+class PrivateDocumentStore {
+ <<PHP EXISTENT>>
+ +readVerified(path,expectedHash) bytes
+}
+class DocumentAccessRepository {
+ <<PHP EXISTENT>>
+ +findById(db,documentId) array?
+}
+class FiscalDocumentAccessRepository {
+ <<PHP EXISTENT>>
+ +append(db,event) uuid
 }
 class InvoiceDocumentAccessService {
  <<DISSENY: servei únic UC-55/80>>
