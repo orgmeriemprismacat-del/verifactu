@@ -56,7 +56,13 @@ try {
         (int) $id
     );
 
-    $factura = (string) ($_POST['factura'] ?? '');
+    $facturaActual = legacyInvoiceRelationForUpdate((int) $id);
+    $facturaEnviada = trim((string) ($_POST['factura'] ?? ''));
+    if ($facturaEnviada !== '' && $facturaEnviada !== $facturaActual) {
+        throw new RuntimeException('La factura relacionada és immutable en aquest flux', 409);
+    }
+    $factura = $facturaActual;
+
     $rao = (string) ($_POST['rao'] ?? '');
     $cif = (string) ($_POST['cif'] ?? '');
     $cp = (string) ($_POST['cp'] ?? '');
@@ -88,5 +94,36 @@ try {
     }
     if (is_object($intranetObject)) {
         $_SESSION['intranet'] = serialize($intranetObject);
+    }
+}
+
+
+function legacyInvoiceRelationForUpdate(int $invoiceId): string
+{
+    $connection = new ConnexioWeb();
+
+    try {
+        $connection->connectarBD();
+        $stmt = $connection->prepare(
+            'SELECT factura_relacionada FROM factures WHERE ID = ? LIMIT 1'
+        );
+        $stmt->bind_param('i', $invoiceId);
+        $stmt->execute();
+        $stmt->store_result();
+
+        if ($stmt->num_rows() <= 0) {
+            $connection->closeStmt();
+            throw new RuntimeException('Factura llegada no trobada', 404);
+        }
+
+        $stmt->bind_result($relation);
+        $stmt->fetch();
+        $connection->closeStmt();
+
+        return (string) $relation;
+    } finally {
+        if (isset($connection->connexio) && $connection->connexio instanceof mysqli) {
+            $connection->desconectarBD();
+        }
     }
 }
