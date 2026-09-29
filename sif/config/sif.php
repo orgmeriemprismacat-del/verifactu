@@ -41,25 +41,10 @@ return [
         'max_clock_skew_seconds' => (int) (getenv('SIF_INTERNAL_API_MAX_SKEW') ?: 300),
         'signed_path' => getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php',
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
-        'incident_signed_path' => getenv('SIF_INTERNAL_INCIDENT_SIGNED_PATH') ?: '/api/incidents/manage.php',
-    ],
-    'incidents' => [
-        'read_roles' => array_values(array_filter(array_map(
-            'trim',
-            explode(',', getenv('SIF_INCIDENT_READ_ROLES') ?: '')
-        ))),
-        'manage_roles' => array_values(array_filter(array_map(
-            'trim',
-            explode(',', getenv('SIF_INCIDENT_MANAGE_ROLES') ?: '')
-        ))),
-        'max_results' => (int) (getenv('SIF_INCIDENT_QUERY_MAX_RESULTS') ?: 50),
+        'aeat_operations_signed_path' => getenv('SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH') ?: '/api/aeat/operations.php',
     ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
-    ],
-    'novice_promotion' => [
-        'wrapping_key_hex' => getenv('SIF_NOVICE_PROMO_WRAP_KEY_HEX') ?: '',
-        'key_version' => getenv('SIF_NOVICE_PROMO_KEY_VERSION') ?: 'v1',
     ],
     'aeat' => [
         'wsdl' => getenv('SIF_AEAT_WSDL') ?: '',
@@ -77,6 +62,10 @@ return [
         'read_roles' => array_values(array_filter(array_map(
             'trim',
             explode(',', getenv('SIF_AEAT_READ_ROLES') ?: '')
+        ))),
+        'reconcile_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_AEAT_RECONCILE_ROLES') ?: '')
         ))),
     ],
 ];
