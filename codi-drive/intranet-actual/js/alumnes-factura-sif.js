@@ -7,7 +7,7 @@
         var criteria = {};
 
         if (input.dni) criteria.participant_document = input.dni;
-        if (input.email) criteria.billing_email = input.email;
+        if (input.email) criteria.participant_email = input.email;
         if (input.factRel) criteria.factura_relacionada = input.factRel;
         if (input.factNum) criteria.num_visible = input.factNum;
 
