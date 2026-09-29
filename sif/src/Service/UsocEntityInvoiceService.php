@@ -35,7 +35,8 @@ final class UsocEntityInvoiceService
             $sifDb,
             (string) $input['student_invoice_uuid'],
             $inscriptionId,
-            $idpag
+            $idpag,
+            $studentAmount
         );
         $payload = $this->payloads->buildEntityPayload($snapshot, $input);
         $result = $this->invoices->issueInvoice($payload);
