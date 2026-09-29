@@ -6,6 +6,8 @@
 class MailSMTPComvive {
     private $mailer; /**< Text PHPMailerAutoload*/
     private $firma; /**< Text firma del missatge */
+    private $enviat = false; /**< bool Resultat de PHPMailer::send() */
+    private $error = ''; /**< string ErrorInfo de PHPMailer si l'enviament falla */
 
    /*********************************** FUNCIONS CONSTRUCTORS ***********************************/
    /*
@@ -66,7 +68,17 @@ class MailSMTPComvive {
       $this->mailer->Subject = $subject;
       $missatges = $missatge.$this->firma->obtenirText();
       $this->mailer->msgHTML($missatges);
-      $this->mailer->send();
+      $this->enviat = $this->mailer->send();
+      if (!$this->enviat)
+         $this->error = $this->mailer->ErrorInfo;
+   }
+
+   public function enviat() {
+      return $this->enviat;
+   }
+
+   public function obtenirError() {
+      return $this->error;
    }
 }
 ?>
