@@ -160,6 +160,41 @@ InvoiceDocumentAccessService --> DocumentAvailabilityService
 ```
 
 **Implementat:** servei de consulta, repositori de lectura, contracte de política i `ResolvedInvoiceVisibilityPolicy` fail-closed sobre un scope ja resolt pel servidor; també existeix CLI read-only no productiu per validació. **Pendent:** adaptador que construeixi aquest scope des d'identitat/rol real, endpoint HTTP autenticat i UC-80. El repositori de lectura no retorna `PATH_FITXER`.
+## 3.1. Seqüència implementada parcialment — consulta interna signada
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador intranet
+participant UI as alumnes-factura-sif.js
+participant B as sifFactures.php
+participant S as SifInternalApiClient
+participant API as /api/factures/query.php
+participant H as InternalApiAuthenticator
+participant G as InvoiceQueryGateway
+participant Q as InvoiceQueryService
+participant DB as SIF
+O->>UI: Cercar / obrir factura
+UI->>B: POST criteris o UUID
+B->>B: comprovarSessio + rols vigents BD
+B->>S: actorId + rols + payload
+S->>API: POST HMAC + timestamp + request_id
+API->>H: verificar signatura i anti-replay
+H->>DB: INSERT internal_api_request
+API->>G: view/search(actor autenticat)
+G->>G: InternalInvoiceScopeResolver
+G->>Q: actor amb invoice_scope
+Q->>DB: SELECT factura/linies/rels/estats/doc metadata
+DB-->>Q: read model
+Q-->>API: projecció FULL/MINIMAL
+API-->>S: JSON
+S-->>B: JSON
+B-->>UI: JSON sense secret/path intern
+UI-->>O: taula/modal només lectura
+```
+
+La cerca per DNI/email té dues branques al pont: coincidència amb receptor fiscal i resolució d'IDs d'inscripció llegada → `fact_rels.SOURCE_ID`; els resultats es dedupliquen per UUID. L'API SIF no confon participant amb receptor.
+
 ## 4. Seqüència FINAL — consultar factura i, opcionalment, demanar document
 
 ~~~mermaid
