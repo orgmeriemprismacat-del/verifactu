@@ -84,6 +84,7 @@ try {
 	$poblacio = $textPoblacio->obtenirText();
 	$titolCurs = $textTitolCurs->obtenirText();
 	$conegut = $textConegut->obtenirText();
+	$comentaris = '';
 	if ($textComentaris != null)
 		$comentaris = $textComentaris->obtenirText();
 
@@ -270,30 +271,11 @@ try {
 		$connexio->closeStmt();
 	}
 
-	$cnsPoble = "SELECT ID FROM poblacions WHERE CP=? AND POBLE=?";
-	$stmt=$connexio->prepare($cnsPoble);
-	$stmt->bind_param("ds", $codiPostalBD, $poblacioBD);
-	$stmt->execute();
-	$stmt->store_result();
-	if ( $stmt->num_rows() <= 0 ) {
-		$connexio->closeStmt();
-
-		$insertMailing = "INSERT INTO poblacions_validar (CP, POBLE) VALUES (?,?)";
-		$stmt=$connexio->prepare($insertMailing);
-		$stmt->bind_param("ds", $codiPostalBD, $poblacioBD);
-		$stmt->execute();
-		$stmt->fetch();
-	}
-	$connexio->closeStmt();
-
-	if ( $promocioAplicada != '' ) {
-		$updPromo = "UPDATE promocions SET USED = 1 WHERE CODI_DESCOMPTE = ?";
-		$stmt=$connexio->prepare($updPromo);
-		$stmt->bind_param("s", $codiDescomptePromo);
-		$codiDescomptePromo = explode('|', $promocioAplicada)[0];
-		$stmt->execute();
-		$connexio->closeStmt();
-	}
+	/*
+	 * Els blocs antics de codi postal i promocions s'han retirat d'aquest handler:
+	 * el formulari actual de tastets no envia CP ni promoció i les variables
+	 * $codiPostalBD / $promocioAplicada no tenien cap origen en aquest flux.
+	 */
 
 	/* ######################################################################### */
 
