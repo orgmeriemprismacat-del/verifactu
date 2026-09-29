@@ -2,40 +2,56 @@
 
 **Objectiu:** tenir les activitats separades per pàgina/apartat i per estat ACTUAL/FINAL, en lloc de dependre només del document UML integrat.
 
-## 1. Web d'inscripció JASOM · ACTUAL observable
+## 1. Web d'inscripció JASOM · ACTUAL contrastat
 
 ```plantuml
 @startuml
-title UC-111 | Web alta JASOM | ACTUAL observable
+title UC-111 | Web inscripció | ACTUAL contrastat
 start
-:Rebre dades d'inscripció i opció novell;
-:Crear inscripció legacy;
-if (CURS = JASOM i novell?) then (sí)
+:Rebre dades d'inscripció, curs, preu,
+descompte ordinari i opció novell;
+:Validar camps legacy;
+:Calcular preu segons regles actuals;
+:INSERT inscripcions;
+if (CURS = JASOM i novell = sí?) then (sí)
   :INSERT recent_titulat(ID_INSC);
-  :Preparar comunicació de validació futura;
+  :VALIDAT queda pendent (0);
+  :Informar que secretaria revisarà la titulació;
+  :Permetre pujada del resguard;
 else (no)
-  :Continuar flux ordinari;
+  :No crear recent_titulat en aquesta ruta;
 endif
+if (S'ha aplicat promoció/descompte ordinari?) then (sí)
+  :Persistir/consumir segons circuit legacy independent;
+endif
+:Continuar comunicacions d'alta;
 stop
 @enduml
 ```
 
-## 2. Web d'inscripció JASOM · FINAL/SIF
+## 2. Web d'inscripció JASOM · FINAL
 
 ```plantuml
 @startuml
-title UC-111 | Web alta JASOM | FINAL objectiu
+title UC-111 | Web inscripció JASOM | FINAL
 start
-:Autenticar/identificar participant i pagador;
-:Crear/reutilitzar CommercialOperation JASOM;
-:Congelar participants, curs/edició i preu;
+:Autenticar o identificar participant;
+:Validar curs/edició i quote de preu;
 if (Sol·licita docent novell?) then (sí)
+  if (Producte és JASOM?) then (no)
+    :Rebutjar opció novell al servidor;
+    stop
+  endif
+  :Crear/reutilitzar commercial_operation JASOM;
+  :Congelar participant, preu i versió de regla;
   :Crear/reutilitzar expedient PENDING_VALIDATION;
-  :Acceptar evidència només per storage segur;
+  :Rebre evidència amb storage privat,
+MIME/mida/hash i owner;
+  :Mantenir pagament BLOQUEJAT mentre PENDING;
 else (no)
-  :Continuar checkout sense UC-111;
+  :Continuar checkout JASOM ordinari;
 endif
-:No concedir cap dret encara;
+:No concedir cap dret en l'alta;
 stop
 @enduml
 ```
@@ -44,7 +60,7 @@ stop
 
 ```plantuml
 @startuml
-title UC-111 | Justificant docent novell | ACTUAL vs FINAL
+title UC-111 | Evidència docent novell | ACTUAL vs FINAL
 start
 partition "ACTUAL legacy" {
   :POST fitxer + camps;
@@ -53,30 +69,41 @@ partition "ACTUAL legacy" {
   :Preparar comunicació;
 }
 partition "FINAL requerit" {
-  :Autenticar titular;
+  :Autenticar titular/operació;
   :Validar mida, MIME i tipus;
-  :Generar nom opac;
+  :Generar identificador opac;
   :Desar fora d'accés públic;
-  :Persistir hash, owner, retenció i audit event;
-  :Permetre lectura només a rol autoritzat;
+  :Persistir hash, owner, retenció i versió;
+  :Permetre esmena sense destruir evidència anterior;
+  :Lectura només per rol autoritzat;
 }
 stop
 @enduml
 ```
 
-## 4. Intranet · validar docent novell · ACTUAL observable
+## 4. Intranet alumnes-validar-descomptes · ACTUAL contrastat
 
 ```plantuml
 @startuml
-title UC-111 | Intranet validar descompte | ACTUAL observable
+title UC-111 | Intranet validar docent novell | ACTUAL contrastat
 start
-:Carregar files recent_titulat;
-:Operador canvia Sí/No visual;
-if (Clica validar?) then (sí)
-  :JS llegeix ID_INSC + valor visual;
-  :AJAX GET sendMsgValidatProfessorNovell.php;
-  :Delegar a Intranet::sendMsgValidatCurosProfessorNovell;
-  if (Resposta conté error?) then (sí)
+:Carregar mostrarMain.php;
+:Mostrar files recent_titulat pendents;
+:Operador alterna Sí/No només al DOM;
+if (Clica "validar"?) then (sí)
+  :JS llegeix ID_INSC + estat visual;
+  :GET sendMsgValidatProfessorNovell.php;
+  :Deserialitzar sessió i delegar a Intranet;
+  :Carregar inscripció/curs/preu/dades;
+  if (verificat = 1?) then (sí)
+    :UPDATE recent_titulat.VALIDAT = 1;
+    :Preparar correu d'aprovació + opcions de pagament;
+  else (no)
+    :UPDATE recent_titulat.VALIDAT = 2;
+    :Preparar correu de denegació + opcions de pagament;
+  endif
+  :Enviar correu a alumne i secretaria;
+  if (Resposta textual conté "error"?) then (sí)
     :Mostrar modal error;
   else (no)
     :Mostrar "Canvi aplicat";
@@ -86,67 +113,127 @@ stop
 @enduml
 ```
 
-## 5. Intranet · validar docent novell · FINAL
+## 5. Intranet alumnes-validar-descomptes · FINAL
 
 ```plantuml
 @startuml
 title UC-111 | Intranet validar docent novell | FINAL
 start
 :Autenticar secretaria i comprovar rol/abast;
-:Carregar evidència mínima i estat actual;
+:Carregar operació, participant, evidències i estat;
 :Mostrar PENDING / VALIDATED / REJECTED;
-:Operador tria decisió i motiu;
+:Comprovar títol, titular i data d'expedició
+respecte DATAI de JASOM;
+if (Cal esmena documental?) then (sí)
+  :Registrar requeriment i instant d'enviament;
+  :Calcular venciment 48 h en dies feiners
+segons calendari configurat;
+  :Mantenir PENDING;
+  stop
+endif
+:Operador tria Aprovar o Denegar + motiu;
 :POST segur amb CSRF/idempotència;
-:Servidor rellegeix expedient i versió;
-if (Conflicte o falta permís?) then (sí)
+:Servidor rellegeix versió i autorització;
+if (Conflicte o sense permís?) then (sí)
   :Rebutjar i auditar;
   stop
 endif
 if (Aprovat?) then (sí)
-  :Persistir/projectar VALIDATED;
-  if (JASOM completament pagat?) then (sí)
-    :Concedir/reutilitzar dret únic;
-  else (no)
-    :Esperar conciliació de cobrament;
-  endif
+  :Persistir/projectar VALIDATED + actor/data/regla;
 else (no)
-  :Persistir REJECTED amb motiu;
+  :Persistir/projectar REJECTED + motiu;
 endif
-:Notificar només després del commit;
+:Obrir pagament només després de decisió 1/2;
+:Commit;
+:Notificar resultat;
+note right
+  La concessió del benefici NO es fa aquí
+  si JASOM encara no està completament pagat.
+end note
 stop
 @enduml
 ```
 
-## 6. Pagament JASOM i concessió · FINAL
+## 6. Pagament JASOM · ACTUAL contrastat
 
 ```plantuml
 @startuml
-title UC-111 | JASOM pagat -> dret novell únic | FINAL
+title UC-111 | Pagament JASOM | ACTUAL contrastat
 start
-:Rebre/conciliar factura(s) JASOM;
-:Verificar VALIDATED;
-:Bloquejar operació i titular;
-if (Totes F1/F2 ISSUED/PAID?) then (no)
+:Obrir PagamentCursAutomatic.php;
+if (Hi ha sol·licitud novell?) then (sí)
+  :Consultar recent_titulat;
+  note right
+    La vista legacy té branques inconsistents:
+    existència de fila vs VALIDAT i inicialització.
+  end note
+endif
+:Iniciar pagament;
+:realitzaPagamentAutomatic.php registra/actualitza cobrament;
+if (pendentPagar = 0 i CURS = JASOM?) then (sí)
+  :SELECT recent_titulat WHERE ID_INSC=? AND VALIDAT=1;
+  if (VALIDAT=1?) then (sí)
+    :SELECT últim codi MACABODETITULAR del DNI;
+    note right
+      Còpia auditada:
+      no hi ha INSERT del dret nou aquí
+      i el correu antic conté un codi literal.
+    end note
+    :Preparar text promocional legacy;
+  endif
+endif
+:Enviar confirmació de pagament;
+stop
+@enduml
+```
+
+## 7. Pagament JASOM i concessió · FINAL implementat a la branca
+
+```plantuml
+@startuml
+title UC-111 | Pagament JASOM -> dret -> codi | FINAL
+start
+:Processar callback Redsys validat;
+:InvoiceService emet/reutilitza factura i payment;
+:COMMIT econòmic;
+:NovicePromotionInvoiceLinkService vincula factura a operació;
+if (Decisió secretaria és VALIDATED?) then (no)
   :No concedir dret;
   stop
 endif
-:Sumar CHARGE confirmats - REFUND;
-if (Cash net = totals factura = NET_AMOUNT?) then (no)
-  :Bloquejar i deixar per conciliació;
+if (Totes les F1/F2 JASOM estan ISSUED i PAID?) then (no)
+  :Deixar PAYMENT_PENDING;
   stop
 endif
-if (Ja existeix dret per holder?) then (sí)
-  :Reutilitzar dret;
-else (no)
-  :Crear dret únic amb import elegible;
+:Reconciliar CHARGE confirmats - REFUND;
+if (Cash net != total factures o != NET_AMOUNT?) then (sí)
+  :Bloquejar concessió i requerir conciliació;
+  stop
 endif
-:Preparar codi de forma xifrada;
+:NovicePromotionGrantService.issueForOperation();
+if (Ja existeix dret d'aquesta operació?) then (sí)
+  :Reutilitzar entitlement;
+else (no)
+  if (La persona ja va rebre benefici novell abans?) then (sí)
+    :Conflicte; no crear segon dret;
+    stop
+  endif
+  :Crear commercial_entitlement + novice_promotion_grant;
+  :Registrar event ISSUE;
+endif
+:COMMIT grant;
+:NovicePromotionCodePreparationService.prepare();
+:Generar token NOV-* aleatori;
+:Guardar només hash al dret;
+:Xifrar token a outbox amb secret runtime;
+:Marcar dret ACTIVE i outbox PREPARED;
+:COMMIT preparació de codi;
 :No crear CHARGE promocional;
 stop
 @enduml
 ```
 
-## 7. Consum del saldo original · FINAL
+## 8. Consum del saldo original · FINAL
 
 ```plantuml
 @startuml
@@ -176,7 +263,7 @@ stop
 @enduml
 ```
 
-## 8. Canvi de curs · FINAL
+## 9. Canvi de curs · FINAL
 
 ```plantuml
 @startuml
@@ -204,7 +291,7 @@ stop
 @enduml
 ```
 
-## 9. Baixa del curs destí i saldo derivat · FINAL
+## 10. Baixa del curs destí i saldo derivat · FINAL
 
 ```plantuml
 @startuml
@@ -233,7 +320,7 @@ stop
 @enduml
 ```
 
-## 10. Consum del saldo derivat · FINAL
+## 11. Consum del saldo derivat · FINAL
 
 ```plantuml
 @startuml
@@ -258,7 +345,7 @@ stop
 @enduml
 ```
 
-## 11. Devolució JASOM · review, freeze i recovery · FINAL
+## 12. Devolució JASOM · review, freeze i recovery · FINAL
 
 ```plantuml
 @startuml
@@ -288,22 +375,22 @@ stop
 @enduml
 ```
 
-## 12. Matriu pàgina/apartat → activitat
+## 13. Matriu pàgina/apartat → activitat
 
 | Superfície | ACTUAL | FINAL |
 | --- | --- | --- |
 | web alta curs | §1 | §2 |
 | pujada justificant | §3 | §3 |
 | intranet validar descomptes | §4 | §5 |
-| pagament JASOM | parcial/dispers | §6 |
-| checkout curs posterior | consulta legacy | §7 |
-| canvi curs | flux general legacy | §8 |
-| baixa curs | no canònic | §9 |
-| saldo derivat | inexistent com a model canònic | §10 |
-| refund JASOM | manual/dispers | §11 |
+| pagament JASOM | §6 | §7 |
+| checkout curs posterior | consulta legacy | §8 |
+| canvi curs | flux general legacy | §9 |
+| baixa curs | no canònic | §10 |
+| saldo derivat | inexistent com a model canònic | §11 |
+| refund JASOM | manual/dispers | §12 |
 
-## 13. Estat
+## 14. Estat
 
-Les activitats FINAL dels §§6–11 corresponen a serveis de la branca, però els adaptadors d'UI/autenticació/pricing/fiscalitat/evidències externes no estan acreditats com a desplegats. **No s'han executat proves MySQL en aquesta auditoria.**
+Les activitats FINAL dels §§7–12 corresponen a serveis de la branca, però els adaptadors d'UI/autenticació/pricing/fiscalitat/evidències externes no estan acreditats com a desplegats. **No s'han executat proves MySQL en aquesta auditoria.**
 
 [Fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) · [Classes](uc-111-classes-actual-final.md) · [Seqüències](uc-111-sequencies-actual-final.md) · [Traçabilitat](uc-111-tracabilitat-implementacio.md)
