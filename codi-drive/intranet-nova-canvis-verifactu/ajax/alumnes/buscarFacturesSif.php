@@ -21,6 +21,8 @@ try {
         'billing_nif' => isset($_GET['billing_nif']) ? trim((string) $_GET['billing_nif']) : '',
         'billing_email' => isset($_GET['billing_email']) ? trim((string) $_GET['billing_email']) : '',
         'factura_relacionada' => isset($_GET['factura_relacionada']) ? trim((string) $_GET['factura_relacionada']) : '',
+        'source_type' => isset($_GET['source_type']) ? trim((string) $_GET['source_type']) : '',
+        'source_id' => isset($_GET['source_id']) ? trim((string) $_GET['source_id']) : '',
     ];
 
     $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 50;
