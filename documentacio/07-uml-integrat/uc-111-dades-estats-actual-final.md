@@ -308,7 +308,7 @@ end note
 
 ## 7. Estat del refund JASOM i recovery
 
-La branca conté dues migracions històriques amb prefix \`000025\` que redefinien el mateix CHECK. La [migració correctiva 000027](../../sif/database/migrations/2026_09_27_000027_reconcile_novice_root_refund_states.sql) conserva la unió coherent d'estats sense reescriure l'historial.
+La branca conté dues migracions històriques amb prefix \`000025\` que redefinien el mateix CHECK. El `MigrationRunner` les distingeix perquè registra el **nom complet del fitxer** (`MIGRATION_FILE`) al ledger; per tant no hi ha col·lisió de clau entre els dos noms. La [migració correctiva 000027](../../sif/database/migrations/2026_09_27_000027_reconcile_novice_root_refund_states.sql) resol el conflicte real dels constraints i conserva la unió coherent d'estats sense reescriure l'historial.
 
 \`\`\`plantuml
 @startuml
