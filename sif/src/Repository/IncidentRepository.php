@@ -28,4 +28,21 @@ final class IncidentRepository
             'ok' => true,
         ];
     }
+
+    public function resolveAeatQueueReview(\PDO $db, string $uuidFactura, int $queueId): int
+    {
+        $prefix = 'Queue ID ' . $queueId . ':%';
+        $stmt = $db->prepare(
+            "UPDATE errors_verifactu
+             SET ESTAT = 'RESOLVED'
+             WHERE UUID_FACTURA = ?
+               AND ESTAT = 'OPEN'
+               AND TIPUS_INCIDENCIA LIKE 'AEAT_%'
+               AND DETAILS LIKE ?"
+        );
+        $stmt->execute([$uuidFactura, $prefix]);
+
+        return $stmt->rowCount();
+    }
+
 }
