@@ -6,6 +6,8 @@ class SifInternalApiClient
     private string $signedPath;
     private string $keyId;
     private string $secret;
+    private string $courseChangeUrl;
+    private string $courseChangeSignedPath;
     private int $timeout;
 
     public function __construct(
@@ -13,12 +15,16 @@ class SifInternalApiClient
         ?string $signedPath = null,
         ?string $keyId = null,
         ?string $secret = null,
-        int $timeout = 10
+        int $timeout = 10,
+        ?string $courseChangeUrl = null,
+        ?string $courseChangeSignedPath = null
     ) {
         $this->url = trim((string) ($url ?? getenv('SIF_INTERNAL_API_URL') ?: ''));
         $this->signedPath = trim((string) ($signedPath ?? getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php'));
         $this->keyId = trim((string) ($keyId ?? getenv('SIF_INTERNAL_API_KEY_ID') ?: ''));
         $this->secret = trim((string) ($secret ?? getenv('SIF_INTERNAL_API_SECRET') ?: ''));
+        $this->courseChangeUrl = trim((string) ($courseChangeUrl ?? getenv('SIF_COURSE_CHANGE_API_URL') ?: ''));
+        $this->courseChangeSignedPath = trim((string) ($courseChangeSignedPath ?? getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php'));
         $this->timeout = max(1, min(30, $timeout));
 
         if ($this->url === '' || $this->keyId === '' || $this->secret === '') {
@@ -43,8 +49,34 @@ class SifInternalApiClient
         ]);
     }
 
+    public function previewCourseChange(string $actorId, array $roles, array $payload): array
+    {
+        if ($this->courseChangeUrl === '') {
+            throw new RuntimeException('SIF course change API is not configured');
+        }
+
+        return $this->requestTo(
+            $this->courseChangeUrl,
+            $this->courseChangeSignedPath,
+            $actorId,
+            $roles,
+            $payload
+        );
+    }
+
     private function request(string $actorId, array $roles, array $payload): array
     {
+        return $this->requestTo($this->url, $this->signedPath, $actorId, $roles, $payload);
+    }
+
+    private function requestTo(
+        string $url,
+        string $signedPath,
+        string $actorId,
+        array $roles,
+        array $payload
+    ): array {
+
         $actorId = trim($actorId);
         if ($actorId === '') {
             throw new InvalidArgumentException('Missing SIF actor id');
@@ -69,7 +101,7 @@ class SifInternalApiClient
         $bodyHash = hash('sha256', $body);
         $canonical = implode("\n", [
             'POST',
-            $this->signedPath,
+            $signedPath,
             $timestamp,
             $requestId,
             $actorId,
@@ -89,7 +121,7 @@ class SifInternalApiClient
             'X-SIF-Signature: ' . $signature,
         ];
 
-        [$status, $response] = $this->send($headers, $body);
+        [$status, $response] = $this->send($url, $headers, $body);
 
         $decoded = json_decode($response, true);
         if (!is_array($decoded)) {
@@ -100,10 +132,10 @@ class SifInternalApiClient
         return $decoded;
     }
 
-    private function send(array $headers, string $body): array
+    private function send(string $url, array $headers, string $body): array
     {
         if (function_exists('curl_init')) {
-            $curl = curl_init($this->url);
+            $curl = curl_init($url);
             if ($curl === false) {
                 throw new RuntimeException('Could not initialize SIF HTTP client');
             }
@@ -141,7 +173,7 @@ class SifInternalApiClient
             ],
         ]);
 
-        $response = file_get_contents($this->url, false, $context);
+        $response = file_get_contents($url, false, $context);
         if ($response === false) {
             throw new RuntimeException('Could not reach SIF internal API');
         }
