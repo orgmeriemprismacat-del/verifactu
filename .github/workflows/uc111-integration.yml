@@ -3,7 +3,7 @@ name: UC-111 integration verification
 on:
   push:
     branches:
-      - integrate/uc-111-clean-2026-09-29
+      - integrate/uc-111-clean-v2-2026-09-29
   pull_request:
     branches:
       - main
