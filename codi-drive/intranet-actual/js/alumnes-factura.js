@@ -327,7 +327,11 @@ function uc007RenderResultatsSif(resultats, titol) {
 		html += '<td>' + uc007EscapeHtml(totals.total || '') + '</td>';
 		html += '<td>' + uc007EscapeHtml(invoice.estat_factura || '') + '</td>';
 		html += '<td>' + uc007EscapeHtml(invoice.estat_cobrament || '') + '</td>';
-		html += '<td>' + uc007EscapeHtml(invoice.estat_aeat || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(invoice.estat_aeat || '');
+		if (invoice.estat_aeat_divergent === true) {
+			html += ' <span class="label label-warning" title="L’estat de factura i l’últim registre fiscal no coincideixen">revisar</span>';
+		}
+		html += '</td>';
 		html += '<td><button type="button" class="btn btn-default btn-xs uc007-sif-info" data-uuid="' +
 			uc007EscapeHtml(invoice.uuid_factura || '') + '">Informació</button></td>';
 		html += '</tr>';
@@ -395,7 +399,11 @@ function uc007RenderFacturaSif(res) {
 	html += uc007Dl('Data emissió', invoice.data_emissio);
 	html += uc007Dl('Estat factura', invoice.estat_factura);
 	html += uc007Dl('Estat cobrament', invoice.estat_cobrament);
-	html += uc007Dl('Estat AEAT', invoice.estat_aeat);
+	html += uc007Dl('Estat AEAT factura', invoice.estat_aeat_factura || invoice.estat_aeat);
+	if (invoice.estat_aeat_registre)
+		html += uc007Dl('Estat AEAT últim registre', invoice.estat_aeat_registre);
+	if (invoice.estat_aeat_divergent === true)
+		html += '<dt>AEAT</dt><dd><span class="label label-warning">Divergència a revisar</span></dd>';
 	html += uc007Dl('E_FACT', invoice.e_fact);
 	html += uc007Dl('Receptor', billing.name);
 	html += uc007Dl('NIF/CIF', billing.nif);
