@@ -82,6 +82,9 @@ class InscripcioTastet {
    * @return Retorna el contingut de la pàgina d'inscripció d'un curs
    */
    public function mostrar() {
+      if ($this->estat != 1)
+         throw new Exception('',404);
+
       $mostrar="<div class='d-flex flex-column'>";
       $mostrar .= "<h1 class='mb-4'>Formulari d'inscripci&oacute</h1>
       <h2 class='pt-3 mt-0'>Tastet: <span class='nom-curs'>".$this->obtenirTitol()->obtenirTextHTML()."</span></h2>";
