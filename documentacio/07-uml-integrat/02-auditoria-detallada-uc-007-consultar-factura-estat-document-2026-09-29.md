@@ -1,7 +1,7 @@
 # UC-007 · Auditoria detallada de consulta de factura, estat i document — 2026-09-29
 
 **Estat documental:** AUDITAT EN DETALL / CANVIS DOCUMENTALS APLICATS.  
-**Estat runtime:** NUCLI READ-ONLY IMPLEMENTAT PARCIALMENT; TESTS ESCRITS NO EXECUTATS; AUTH HTTP/UC-080 PENDENTS.  
+**Estat runtime:** CONSULTA INTERNA READ-ONLY + HMAC + PONT INTRANET + UI SIF IMPLEMENTATS PARCIALMENT; PROVES RUNTIME AJORNADES; UC-080 BYTES PENDENT.  
 **Abast:** pantalla llegada <code>/alumnes/factura/</code>, entrades AL-16–AL-18 de la fitxa d'alumne, model SIF i frontera UC-07/36/55/78/80.  
 **No acredita:** desplegament productiu, permisos reals de servidor web, dades productives, execució dels tests, integritat física de documents ni conformitat fiscal externa.
 
@@ -598,3 +598,10 @@ Les proves escrites cobreixen zero mutació, denegació, not found, cerca exacta
 # 15. Criteri de tancament
 
 UC-007 es podrà marcar **IMPLEMENTAT I PROVAT** només quan existeixi una ruta de consulta server-side que apliqui política per recurs, retorni projecció estructurada per UUID, integri estats sense mutació, derivi bytes a UC-080, i la matriu anterior tingui evidència reproduïble de preproducció. Fins aleshores, el cas queda **DOCUMENTAT I AUDITAT ESTÀTICAMENT / IMPLEMENTACIÓ FINAL PENDENT**.
+
+
+## 15.1. Implementació posterior a l'auditoria
+
+Després del tancament estàtic s'han implementat el repositori/servei de lectura, política de scope, gateway, validació de criteris, API interna HMAC amb anti-replay, client server-to-server, pont AJAX autenticat, feature flag, cerca SIF i detall read-only, resolució participant/receptor i override AL-17. `replaceRols()` substitueix els rols de sessió pels rols vigents de BD durant `comprovarSessio.php`.
+
+Les proves noves i de regressió es mantenen **AJORNADES** a [03-proves-pendents-uc-007-implementacio.md](03-proves-pendents-uc-007-implementacio.md). Aquest ajornament no converteix cap cas runtime en verificat.
