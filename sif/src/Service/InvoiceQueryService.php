@@ -49,9 +49,10 @@ final class InvoiceQueryService
                 continue;
             }
 
+            $fiscalRecord = $this->invoices->latestFiscalRecord($this->db, $uuid);
             $summary = [
                 'ok' => true,
-                'invoice' => $this->invoiceProjection($invoice),
+                'invoice' => $this->invoiceProjection($invoice, $fiscalRecord),
                 'relations' => $relations,
             ];
             $projected = $this->visibility->project($actor, $summary);
@@ -69,20 +70,28 @@ final class InvoiceQueryService
     {
         $uuid = (string) $invoice['UUID_FACTURA'];
 
+        $fiscalRecord = $this->invoices->latestFiscalRecord($this->db, $uuid);
+
         return [
             'ok' => true,
-            'invoice' => $this->invoiceProjection($invoice),
+            'invoice' => $this->invoiceProjection($invoice, $fiscalRecord),
             'lines' => $this->invoices->findLines($this->db, $uuid),
             'relations' => $relations,
             'rectifications' => $this->invoices->findRectifications($this->db, $uuid),
             'payments' => $this->invoices->findPayments($this->db, $uuid),
-            'fiscal_record' => $this->invoices->latestFiscalRecord($this->db, $uuid),
+            'fiscal_record' => $fiscalRecord,
             'documents' => $this->invoices->findDocumentMetadata($this->db, $uuid),
         ];
     }
 
-    private function invoiceProjection(array $invoice): array
+    private function invoiceProjection(array $invoice, ?array $fiscalRecord = null): array
     {
+        $invoiceAeat = $invoice['ESTAT_AEAT'] ?? null;
+        $recordAeat = $fiscalRecord['ESTAT_AEAT'] ?? null;
+        $aeatDivergent = $recordAeat !== null
+            && $recordAeat !== ''
+            && $invoiceAeat !== $recordAeat;
+
         return [
             'uuid_factura' => $invoice['UUID_FACTURA'],
             'num_visible' => $invoice['NUM_VISIBLE'],
@@ -96,7 +105,10 @@ final class InvoiceQueryService
             'e_fact' => (int) $invoice['E_FACT'],
             'estat_factura' => $invoice['ESTAT_FACTURA'],
             'estat_cobrament' => $invoice['ESTAT_COBRAMENT'],
-            'estat_aeat' => $invoice['ESTAT_AEAT'],
+            'estat_aeat' => $invoiceAeat,
+            'estat_aeat_factura' => $invoiceAeat,
+            'estat_aeat_registre' => $recordAeat,
+            'estat_aeat_divergent' => $aeatDivergent,
             'billing' => [
                 'name' => $invoice['BILLING_NOM_RAO'],
                 'nif' => $invoice['BILLING_NIF_CIF'],
