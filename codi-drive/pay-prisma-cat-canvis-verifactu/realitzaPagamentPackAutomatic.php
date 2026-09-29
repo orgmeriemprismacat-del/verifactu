@@ -163,11 +163,27 @@
 		$kc = 'sq7HjrUOBfKmC576ILgskD5srU870gJ7'; //Clave recuperada de CANALES
 		$firma = $miObj->createMerchantSignatureNotif($kc,$datos);
 
+		if (!is_string($signatureRecibida) || !hash_equals((string) $firma, (string) $signatureRecibida)) {
+			throw new Exception('Signatura Redsys no valida', 422);
+		}
+
 	  $ordre = $miObj->getParameter('Ds_Order');
 		$dateComanda = $miObj->getParameter('Ds_Date');
 		$horaComanda = $miObj->getParameter('Ds_Hour');
 		$preu = $miObj->getParameter('Ds_Amount');
 	  $codiResposta = $miObj->getParameter("Ds_Response");
+
+		$ordreLegacy = trim((string) $order);
+		$ordreRedsys = trim((string) $ordre);
+		$importLegacy = number_format((float) $importPag, 2, '.', '');
+		$importRedsys = number_format(((float) $preu) / 100, 2, '.', '');
+
+		if ($ordreLegacy === '' || $ordreRedsys === '' || !hash_equals($ordreRedsys, $ordreLegacy)) {
+			throw new Exception('Ordre Redsys no coherent amb el callback legacy', 409);
+		}
+		if ($importRedsys !== $importLegacy) {
+			throw new Exception('Import Redsys no coherent amb el callback legacy', 409);
+		}
 
 		$nomFromProves = "Gestió PrisMa";
 		$correuFromProves = "gestio@prisma.cat";
