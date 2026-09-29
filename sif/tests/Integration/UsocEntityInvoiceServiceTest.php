@@ -4,10 +4,12 @@ namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
+use Prisma\Sif\Repository\UsocStudentInvoiceLinkRepository;
 use Prisma\Sif\Service\LegacyUsocInvoicePayloadBuilder;
 use Prisma\Sif\Service\UsocEntityInvoiceService;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\TestDatabase;
+use Prisma\Sif\Tests\Support\Fixtures;
 
 final class UsocEntityInvoiceServiceTest
 {
@@ -21,14 +23,17 @@ final class UsocEntityInvoiceServiceTest
             $this->courseRow(),
         ]);
         $service = $this->service($sifDb);
+        $studentInvoice = $this->seedStudentInvoice($sifDb);
+        $input = $this->entityInput();
+        $input['student_invoice_uuid'] = $studentInvoice['uuid_factura'];
 
-        $first = $service->issueEntityFromExplicitInput($legacyDb, $this->entityInput());
-        $second = $service->issueEntityFromExplicitInput($legacyDb, $this->entityInput());
+        $first = $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
+        $second = $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
 
         Assert::same(true, $first['ok']);
         Assert::same(false, $first['idempotency_reused']);
         Assert::same(false, $first['payment_registered']);
-        Assert::same('11111111-2222-3333-4444-555555555555', $first['student_invoice_uuid']);
+        Assert::same($studentInvoice['uuid_factura'], $first['student_invoice_uuid']);
         Assert::same(true, $second['idempotency_reused']);
         Assert::same($first['uuid_factura'], $second['uuid_factura']);
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
@@ -42,7 +47,7 @@ final class UsocEntityInvoiceServiceTest
             ->fetch(\PDO::FETCH_ASSOC);
 
         Assert::same(
-            'INTRANET|USOC_ENTITAT|ID_INSC:880|FACT_ALUMNE:11111111-2222-3333-4444-555555555555',
+            'INTRANET|USOC_ENTITAT|ID_INSC:880|FACT_ALUMNE:' . $studentInvoice['uuid_factura'],
             $invoice['IDEMPOTENCY_KEY']
         );
         Assert::same('25.00', $invoice['TOTAL']);
@@ -64,14 +69,17 @@ final class UsocEntityInvoiceServiceTest
             $this->courseRow(),
         ]);
         $service = $this->service($sifDb);
+        $studentInvoice = $this->seedStudentInvoice($sifDb);
+        $input = $this->entityInput();
+        $input['student_invoice_uuid'] = $studentInvoice['uuid_factura'];
 
-        $service->issueEntityFromExplicitInput($legacyDb, $this->entityInput());
+        $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
 
-        $changed = $this->entityInput();
+        $changed = $input;
         $changed['amount'] = '24.00';
 
         $exception = Assert::throws(SifException::class, function () use ($legacyDb, $service, $changed): void {
-            $service->issueEntityFromExplicitInput($legacyDb, $changed);
+            $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $changed);
         }, 409);
 
         Assert::same('Idempotency key already exists with different payload', $exception->getMessage());
@@ -88,14 +96,17 @@ final class UsocEntityInvoiceServiceTest
             $this->courseRow(),
         ]);
         $service = $this->service($sifDb);
+        $studentInvoice = $this->seedStudentInvoice($sifDb);
+        $input = $this->entityInput();
+        $input['student_invoice_uuid'] = $studentInvoice['uuid_factura'];
 
-        $service->issueEntityFromExplicitInput($legacyDb, $this->entityInput());
+        $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
 
-        $changed = $this->entityInput();
+        $changed = $input;
         $changed['billing']['nif'] = 'G99999999';
 
         $exception = Assert::throws(SifException::class, function () use ($legacyDb, $service, $changed): void {
-            $service->issueEntityFromExplicitInput($legacyDb, $changed);
+            $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $changed);
         }, 409);
 
         Assert::same('Idempotency key already exists with different payload', $exception->getMessage());
@@ -109,7 +120,8 @@ final class UsocEntityInvoiceServiceTest
         unset($input['billing']);
 
         Assert::throws(SifException::class, function () use ($legacyDb, $input): void {
-            $this->service(TestDatabase::fresh())->issueEntityFromExplicitInput($legacyDb, $input);
+            $sifDb = TestDatabase::fresh();
+            $this->service($sifDb)->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
         }, 422);
 
         Assert::same([], $legacyDb->preparedSql);
@@ -122,10 +134,47 @@ final class UsocEntityInvoiceServiceTest
         unset($input['student_invoice_uuid']);
 
         Assert::throws(SifException::class, function () use ($legacyDb, $input): void {
-            $this->service(TestDatabase::fresh())->issueEntityFromExplicitInput($legacyDb, $input);
+            $this->service(TestDatabase::fresh())->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
         }, 422);
 
         Assert::same([], $legacyDb->preparedSql);
+    }
+
+    public function testRejectsStudentInvoiceFromAnotherInscription(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new UsocEntityLegacySpyPdo([
+            $this->inscriptionRow(),
+            $this->courseRow(),
+        ]);
+        $service = $this->service($sifDb);
+        $studentInvoice = $this->seedStudentInvoice($sifDb, 999);
+
+        $input = $this->entityInput();
+        $input['student_invoice_uuid'] = $studentInvoice['uuid_factura'];
+
+        Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $service, $input): void {
+            $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
+        }, 409);
+
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
+    private function seedStudentInvoice(\PDO $sifDb, int $inscriptionId = 880): array
+    {
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'REDSYS|USOC_ALUMNE|IDPAG:980|ORDER:ORDERUSOC980',
+            'source_channel' => 'REDSYS',
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => $inscriptionId,
+                'idpag' => 980,
+                'ds_order' => 'ORDERUSOC980',
+                'visible_alumne' => 1,
+            ]],
+        ]);
+
+        return IssueInvoiceTest::serviceFor($sifDb)->issueInvoice($payload);
     }
 
     private function service(\PDO $sifDb): UsocEntityInvoiceService
@@ -133,7 +182,8 @@ final class UsocEntityInvoiceServiceTest
         return new UsocEntityInvoiceService(
             new LegacyUsocSnapshotRepository(),
             new LegacyUsocInvoicePayloadBuilder(),
-            IssueInvoiceTest::serviceFor($sifDb)
+            IssueInvoiceTest::serviceFor($sifDb),
+            new UsocStudentInvoiceLinkRepository()
         );
     }
 
@@ -141,6 +191,7 @@ final class UsocEntityInvoiceServiceTest
     {
         return [
             'idpag' => 980,
+            'id_insc' => 880,
             'student_amount' => '75.00',
             'amount' => '25.00',
             'student_invoice_uuid' => '11111111-2222-3333-4444-555555555555',
