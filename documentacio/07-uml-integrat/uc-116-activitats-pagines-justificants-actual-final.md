@@ -1,10 +1,10 @@
 # UC-116 — diagrames d'activitat ACTUAL i FINAL per pàgina i apartat
 
-**Revisió de contingut:** 22/09/2026. **Font PHP/JS:** main @ e71958b3026549bde09fb4b25f2ec3ba370937ec. **Proveniència de P03:** els detalls interns del render i de la decisió d'`Intranet.php` provenen de la traça documental incorporada anteriorment a aquest dossier, amb enllaços de línia; en aquesta revisió el connector no ha retornat el cos del fitxer gran per corroborar-lo independentment. **No interpretar P03 com a prova de desplegament, autorització efectiva ni correu enviat.** **Cobertura del UC-116:** pàgina informativa de descomptes, formulari públic de curs normal (selecció i aportació de justificant), pantalla de confirmació derivada, pàgina de validació intranet (consulta/decisió). L'apartat de resguard de recent titulació de la mateixa pàgina és una acció DIFERENT: enllaç al seu UC; no reinterpretar-la com si fos UC-116. **Etiqueta ACTUAL:** observació estàtica del repo, no prova de desplegament. **Etiqueta FINAL:** contracte amb cinc decisions funcionals ACORDADES el 23/09/2026 — revisió MANUAL de secretaria, NO PAGAMENT mentre pendent, inscripció CONSERVADA i nova oferta si es denega, retenció durant termini definit amb eliminació posterior, permisos diferenciats per rol/persona. Termini fixat a **TRES MESOS des de la resolució manual**; rols identificats: **Secretaria, Gestió i Facturació**. El detall de permisos de Gestió i Facturació es descriu com a proposta de mínim privilegi a la fitxa funcional, pendent de ratificació. No implementat. [Fitxa UC-116](../06-fitxes-funcionals/uc-116.md#22-especificacio-consolidada-uc-116--codi-actual-i-contracte-final) · [auditoria](00-auditoria-casos-pendents-lot-05-uc-116-2026-09-22.md).
+**Revisió de contingut:** 29/09/2026. **Correcció compartida UC-020:** P01 referencia ara la classe activa `PaginaDescomptes`; P03-B incorpora la distinció entre denegació del dret original i nova oferta Alumne PrisMa. **Font PHP/JS:** main @ e71958b3026549bde09fb4b25f2ec3ba370937ec. **Proveniència de P03:** els detalls interns del render i de la decisió d'`Intranet.php` provenen de la traça documental incorporada anteriorment a aquest dossier, amb enllaços de línia; en aquesta revisió el connector no ha retornat el cos del fitxer gran per corroborar-lo independentment. **No interpretar P03 com a prova de desplegament, autorització efectiva ni correu enviat.** **Cobertura del UC-116:** pàgina informativa de descomptes, formulari públic de curs normal (selecció i aportació de justificant), pantalla de confirmació derivada, pàgina de validació intranet (consulta/decisió). L'apartat de resguard de recent titulació de la mateixa pàgina és una acció DIFERENT: enllaç al seu UC; no reinterpretar-la com si fos UC-116. **Etiqueta ACTUAL:** observació estàtica del repo, no prova de desplegament. **Etiqueta FINAL:** contracte amb cinc decisions funcionals ACORDADES el 23/09/2026 — revisió MANUAL de secretaria, NO PAGAMENT mentre pendent, inscripció CONSERVADA i nova oferta si es denega, retenció durant termini definit amb eliminació posterior, permisos diferenciats per rol/persona. Termini fixat a **TRES MESOS des de la resolució manual**; rols identificats: **Secretaria, Gestió i Facturació**. El detall de permisos de Gestió i Facturació es descriu com a proposta de mínim privilegi a la fitxa funcional, pendent de ratificació. No implementat. [Fitxa UC-116](../06-fitxes-funcionals/uc-116.md#22-especificacio-consolidada-uc-116--codi-actual-i-contracte-final) · [auditoria](00-auditoria-casos-pendents-lot-05-uc-116-2026-09-22.md).
 
 ## P01 · Pàgina pública de descomptes — cinc apartats
 
-**Fonts:** [pàgina](../../codi-drive/web-actual/pagina_descomptes.php), [endpoint de render](../../codi-drive/web-actual/ajax/mostrar_pagina_descomptes.php), [classe Descomptes.php](../../codi-drive/web-actual/Descomptes.php#L185-L265). Mapa d'apartats: 1 exalumne PrisMa (identificació interna), 2 Carnet Jove (marcar casella i càlcul), 3 socials (document + validació posterior), 4 USOC (comprovació externa de l'afiliació), 5 grups/centres (tarifes per nombre i enllaç a inscripció grupal). No totes les famílies exigeixen l'upload UC-116.
+**Fonts:** [pàgina](../../codi-drive/web-actual/pagina_descomptes.php), [endpoint de render](../../codi-drive/web-actual/ajax/mostrar_pagina_descomptes.php), [classe activa PaginaDescomptes.php](../../codi-drive/web-actual/PaginaDescomptes.php#L210-L323). Mapa d'apartats: 1 Alumne PrisMa (identificació interna), 2 Carnet Jove (marcar casella i càlcul), 3 socials (document + validació posterior), 4 USOC (comprovació externa de l'afiliació), 5 grups/centres (tarifes per nombre i enllaç a inscripció grupal). No totes les famílies exigeixen l'upload UC-116.
 
 ### P01 — ACTUAL
 
@@ -272,9 +272,9 @@ if (verificat == 1?) then (Sí)
   en el mètode inspeccionat.
  end note
 else (No)
- :Comprovar si persona és exalumne;
+ :Comprovar si persona és Alumne PrisMa;
  if (És exalumne?) then (Sí)
-  :Assignar preu d'exalumne i TIPUS_DESC=1;
+  :Assignar tarifa Alumne PrisMa i TIPUS_DESC=1;
  else (No)
   :Assignar preu normal i TIPUS_DESC=0;
  endif
@@ -306,8 +306,8 @@ if (Autorització de DECISIÓ i evidència aplicable vigents?) then (Sí)
  else (DENEGA)
   :Registrar DENEGACIÓ manual amb actor/data i motiu intern mínim;
   :MANTENIR la inscripció vigent;
-  :Comprovar dret existent al preu d'exalumne PrisMa;
-if (Exalumne elegible a l'edició?) then (Sí)
+  :Registrar la DENEGACIÓ del dret original i comprovar una NOVA decisió Alumne PrisMa;
+if (Alumne PrisMa elegible a l'edició?) then (Sí)
  :TIPUS_DESC=1 i A_PAGAR=descomptes.PREU tipus 1 aplicable;
 else (No)
  :TIPUS_DESC=0 i A_PAGAR=preu.IMPORT ordinari aplicable;
@@ -332,6 +332,17 @@ endif
 stop
 @enduml
 ```
+
+### Precisió compartida amb UC-020 — estat de pagament després d'una denegació
+
+Quan la denegació deixa el llegat com `TIPUS_DESC=1, VALID_DESC=2, A_PAGAR=preuAP`, `VALID_DESC=2` descriu la **denegació del dret original**, no hauria de representar que la nova oferta AP és no pagable. L'auditoria UC-020 ha verificat que les rutes actives de confirmació/pagament passen per `PagamentCursAutomatic` i que targeta/transferència no interpreten aquest estat de manera homogènia.
+
+El FINAL compartit queda, per tant, expressat amb dos fets separats:
+
+1. decisió original = `REJECTED`;
+2. oferta alternativa AP = `ACCEPTED/PAYABLE` si compleix política i tarifa i no hi ha bloqueig econòmic/fiscal.
+
+Vegeu [UC-020 activitats ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md#5-p05--intranet-validar-descomptes).
 
 ## Matriu d'accions i límits
 
