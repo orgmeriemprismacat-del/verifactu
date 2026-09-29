@@ -44,6 +44,8 @@ class SifInternalClient
             'billing_nif',
             'billing_email',
             'factura_relacionada',
+            'source_type',
+            'source_id',
         ];
         $query = [];
 
