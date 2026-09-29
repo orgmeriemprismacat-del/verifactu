@@ -20,9 +20,20 @@ class Tastet {
 	/* #################################    FUNCIONS CONSTRUCTORS    ################################# */
 
 	public function __construct( $idUrl, $dispositiu ) {
+		$this->titol = null;
+		$this->codiCurs = '';
+		$this->shortDesc = [];
+		$this->intro = [];
+		$this->url = null;
+		$this->cursOrig = null;
+		$this->imgPortada = null;
+		$this->imgCurs = null;
+		$this->dispositiu = $dispositiu;
+		$this->estat = 0;
+
 		require_once 'ConnexioBBDD_PreparedStatment.php';
 		$connexio = new ConnexioBBDDSTMT();
-    	$connexio->connectarBD();
+		$connexio->connectarBD();
 
 		$cns = "SELECT TITOL, CODI_CURS, SHORT_DESC, PRESENTACIO,
 		ID_URL, ID_IMG_LARGE, ID_IMG_SMALL, CURS_ORIG
@@ -32,23 +43,25 @@ class Tastet {
 		$stmt->bind_param("dd", $estat, $idUrl);
 		$estat = 1;
 		$stmt->execute();
+		$stmt->store_result();
+
+		if ( $stmt->num_rows() <= 0 ) {
+			$connexio->closeStmt();
+			$connexio->desconectarBD();
+			return;
+		}
+
 		$stmt->bind_result($titol, $codiCurs, $shortDesc, $intro,
-		$idUrl, $idImgLarge, $idImgSmall, $cursOrig);
+		$idUrlBD, $idImgLarge, $idImgSmall, $cursOrig);
 		$stmt->fetch();
 		$connexio->closeStmt();
-
 		$connexio->desconectarBD();
 
 		if ( $titol != null AND $titol != '' )
 			$this->titol = new Text($titol);
-		else
-			$this->titol= null;
 
-		if ( $codiCurs != null AND $codiCurs != '' ) {
+		if ( $codiCurs != null AND $codiCurs != '' )
 			$this->codiCurs = $codiCurs;
-		}
-		else
-			$this->codiCurs = '';
 
 		if ( $shortDesc != null AND $shortDesc != '' ) {
 			$descripcions = explode('|',$shortDesc);
@@ -58,8 +71,6 @@ class Tastet {
 				$this->shortDesc[] = $descripcio;
 			}
 		}
-		else
-			$this->shortDesc = [];
 
 		if ( $intro != null AND $intro != '' ) {
 			$texts = explode('|',$intro);
@@ -69,37 +80,25 @@ class Tastet {
 				$this->intro[] = $paragraf;
 			}
 		}
-		else
-			$this->intro = [];
 
 		require_once 'Curs.php';
 		if ( $cursOrig != null AND $cursOrig != '' ) {
 			$cursOrigin = new Curs($cursOrig, $dispositiu);
-			if ( $cursOrigin->obtenirEstat() == 1 ) {
+			if ( $cursOrigin->obtenirEstat() == 1 )
 				$this->cursOrig = $cursOrigin;
-			}
 		}
-		else
-			$this->cursOrig = '';
 
 		require_once 'Url.php';
-		if ( $idUrl != null AND $idUrl != '' )
-			$this->url = new Url($idUrl);
-		else
-			$this->url = null;
+		if ( $idUrlBD != null AND $idUrlBD != '' )
+			$this->url = new Url($idUrlBD);
 
 		require_once 'Imatge.php';
 		if ( $idImgLarge != null AND $idImgLarge != '' )
 			$this->imgPortada = new Imatge($idImgLarge);
-		else
-			$this->imgPortada = null;
 
 		if ( $idImgSmall != null AND $idImgSmall != '' )
 			$this->imgCurs = new Imatge($idImgSmall);
-		else
-			$this->imgCurs = null;
 
-		$this->dispositiu = $dispositiu;
 		$this->estat = 1;
 	}
 
@@ -186,6 +185,9 @@ class Tastet {
 	/* #################################  FUNCIONS MOSTRAR ELEMENTS  ################################# */
 
 	public function mostrarBlocTastet() {
+		if ( $this->estat != 1 )
+			throw new Exception('',404);
+
 		$altImg = $this->__obtenirImgCurs()->obtenirAlt();
 		$versioImg = $this->__obtenirImgCurs()->obtenirVersio();
 		$linkImg = "https://www.prisma.cat".$this->__obtenirImgCurs()->obtenirLink();
@@ -197,18 +199,26 @@ class Tastet {
 		}
 
 		$labelInfo = "<label>Més informació</label>";
+		$nivells = "";
+		$relacioCurs = "";
+		$cursOrig = $this->__obtenirCursOrig();
 
-		$nivells.="<i class='fas fa-signal mr-2'></i>";
-		$cntNiv = 0;
-		while ( $cntNiv < count($this->__obtenirCursOrig()->obtenirNivells()) ) {
-			 $niv=$this->__obtenirCursOrig()->obtenirNivell($cntNiv)->obtenirText();
-			 if ($cntNiv!=0)
-					$nivells .= "<span class='mx-1'>|</span>";
-			 if ( $cntNiv == count($this->nivells) - 1)
-					 $nivells .= "<span>".$niv."</span>";
-			 else
+		if ( $cursOrig !== null AND $cursOrig->obtenirEstat() == 1 ) {
+			$nivellsCurs = $cursOrig->obtenirNivells();
+			if ( is_array($nivellsCurs) AND count($nivellsCurs) > 0 ) {
+				$nivells .= "<i class='fas fa-signal mr-2'></i>";
+				$cntNiv = 0;
+				while ( $cntNiv < count($nivellsCurs) ) {
+					$niv = $cursOrig->obtenirNivell($cntNiv)->obtenirText();
+					if ($cntNiv != 0)
+						$nivells .= "<span class='mx-1'>|</span>";
 					$nivells .= "<span class='m-0'>".$niv."</span>";
-			 $cntNiv++;
+					$cntNiv++;
+				}
+			}
+
+			$relacioCurs = "<p>Aquest curs està relacionat amb el curs <a href='".$cursOrig->obtenirUrl()->obtenirLink()."'>
+			<strong>".$cursOrig->obtenirTitol()->obtenirTextHTML()."</strong></a>.</p>";
 		}
 
 		$linkTastet = $this->__obtenirUrl()->obtenirLink();
@@ -221,14 +231,12 @@ class Tastet {
 							<h3 class='my-0 mb-2'>".$this->__obtenirTitol()->obtenirTextHTML()."</h3>
 						</div>
 					  <div class='d-flex flex-wrap align-items-center info'>
-					    <!--<i class='fa fa-clock mr-2'></i><span class=''>1 setmana</span>-->
 							".$nivells."
 					  </div>
 					</div>
 				</div>
 				".$shortDescs."
-				<p>Aquest curs està relacionat amb el curs <a href='".$this->__obtenirCursOrig()->obtenirUrl()->obtenirLink()."'>
-				<strong>".$this->__obtenirCursOrig()->obtenirTitol()->obtenirTextHTML()."</strong></a>.</p>
+				".$relacioCurs."
 			</div>
 			<div class='col-12 col-md-5 seccio2 px-0 bg-white d-flex align-items-center w-100'>
 				<div class='img-overlay h-100' style=''>
@@ -249,16 +257,21 @@ class Tastet {
 	}
 
 	public function mostrarTastetComCurs() {
+		if ( $this->estat != 1 )
+			throw new Exception('',404);
+
 		$codi = $this->codiCurs;
 
-		$linkImg  ="https://www.prisma.cat".$this->__obtenirImgCurs()->obtenirLink();
+		$linkImgBase = "https://www.prisma.cat".$this->__obtenirImgCurs()->obtenirLink();
+		$versioImg = $this->__obtenirImgCurs()->obtenirVersio();
 		$dscImg = $this->__obtenirImgCurs()->obtenirAlt();
 		$titolHTML = $this->__obtenirTitol()->obtenirTextHTML();
 		$titol = $this->__obtenirTitol()->obtenirText();
 		$linkUrl = "https://www.prisma.cat".$this->__obtenirUrl()->obtenirLink();
 
-		$linkImg .= "?ver=".$versioImg;
-      $linkImgOrig = substr($linkImg, 0, -4);
+		$posExt = strrpos($linkImgBase, ".");
+		$linkImgOrig = ($posExt !== false) ? substr($linkImgBase, 0, $posExt) : $linkImgBase;
+		$linkImg = $linkImgBase."?ver=".$versioImg;
       $linkImgWeb = $linkImgOrig.".webp?ver=".$versioImg;
 
       $linkImg540JPG=$linkImgOrig."-345.jpg?ver=".$versioImg;
@@ -303,6 +316,7 @@ class Tastet {
 			</a>
 		</div>";
 		$tagInfoCourse = "";
+		$footerInfoCourse = "";
       $footerInfoCourse .= "<div class='related-course-footer clear-both d-flex flex-row align-items-center justify-content-between py-0'>
 			<button class='mesinfo position-relative font-weight-bold border-0 border-radius-2 w-100 flex-shrink-1 px-2 py-3'
 			onclick=\"mostraInfoCurs('".$linkUrl."')\">
@@ -330,6 +344,9 @@ class Tastet {
    * @return Retorna la pàgina de trobada
    */
 	public function retornarPaginaUnTastet() {
+		if ( $this->estat != 1 )
+			throw new Exception('',404);
+
     	$pagina = "<div class='container'><div class='row'><div class='col-12'>";
 		$pagina .= $this->__mostrarSeccio1();
 		$pagina .= $this->__mostrarSeccio2();
@@ -350,9 +367,12 @@ class Tastet {
    */
 	private function __mostrarSeccio1() {
 		$titol = $this->__obtenirTitol()->obtenirTextHTML();
-		$titolCursOrig = $this->__obtenirCursOrig()->obtenirTitol()->obtenirTextHTML();
+		$cursOrig = $this->__obtenirCursOrig();
+		$subtitol = "Tastet gratuït";
 
-		$subtitol = "Tastet del curs ".$titolCursOrig;
+		if ( $cursOrig !== null AND $cursOrig->obtenirEstat() == 1 )
+			$subtitol = "Tastet del curs ".$cursOrig->obtenirTitol()->obtenirTextHTML();
+
 		$textButton = "<i class='fas fa-long-arrow-alt-left mr-2'></i>Tastets";
 
 		$mostrar = "<div class='titol my-4'>
@@ -393,7 +413,7 @@ class Tastet {
 			</picture>
 		</div>";
 
-		$mostrar .= $containerBanner;
+		$mostrar = $containerBanner;
 		return $mostrar;
 	}
 
@@ -411,7 +431,7 @@ class Tastet {
    * @return Retorna el contingut de la secció 3
    */
 	private function __mostrarSeccio3() {
-		$mostrar .= $this->__mostraTextIntroductori();
+		$mostrar = $this->__mostraTextIntroductori();
 
 		return $mostrar;
 	}
@@ -431,15 +451,15 @@ class Tastet {
    */
 	private function __mostrarSeccio5() {
 		$cursOrig = $this->__obtenirCursOrig();
-		$mostrar = "<div class='separacio-peu d-flex flex-column'>";
-		if ( $cursOrig->obtenirEstat() == 1 ) {
-			$mostrar .= "<h2 class='h1'>Curs original del tastet</h2><div class='row'>";
+		if ( $cursOrig === null OR $cursOrig->obtenirEstat() != 1 )
+			return "";
 
-			$mostrar .= "<div class='d-flex flex-row flex-wrap mx-3'>";
-			$mostrar .= $cursOrig->crearTastet();
-			$mostrar .= $cursOrig->mostrarCursBescanviaInscripcio(1200);
-			$mostrar .= '</div>';
-		}
+		$mostrar = "<div class='separacio-peu d-flex flex-column'>";
+		$mostrar .= "<h2 class='h1'>Curs original del tastet</h2><div class='row'>";
+		$mostrar .= "<div class='d-flex flex-row flex-wrap mx-3'>";
+		$mostrar .= $cursOrig->crearTastet();
+		$mostrar .= $cursOrig->mostrarCursBescanviaInscripcio(1200);
+		$mostrar .= '</div>';
 		$mostrar .= "</div></div>";
 		return $mostrar;
 	}
@@ -458,10 +478,15 @@ class Tastet {
 			$intro .= "<p>
 				Com tots els tastets, és <span class='font-weight-bold'>completament gratuït</span> i es pot fer de manera autònoma.
 			</p>";
-			$intro .= "<p>
-				Si us agrada el que hi veieu i teniu més interès en el tema, us animem a fer el curs <a href='".$this->__obtenirCursOrig()->obtenirUrl()->obtenirLink()."'>
-				<strong>".$this->__obtenirCursOrig()->obtenirTitol()->obtenirTextHTML()."</strong></a>, que amplia els continguts, compta amb acompanyament tutorial i està reconegut com a formació permanent del professorat.
-			</p>";
+
+			$cursOrig = $this->__obtenirCursOrig();
+			if ( $cursOrig !== null AND $cursOrig->obtenirEstat() == 1 ) {
+				$intro .= "<p>
+					Si us agrada el que hi veieu i teniu més interès en el tema, us animem a fer el curs <a href='".$cursOrig->obtenirUrl()->obtenirLink()."'>
+					<strong>".$cursOrig->obtenirTitol()->obtenirTextHTML()."</strong></a>, que amplia els continguts, compta amb acompanyament tutorial i està reconegut com a formació permanent del professorat.
+				</p>";
+			}
+
 			$intro .= "<p>
 				Som-hi, doncs! Esperem que gaudiu de l'experiència!
 			</p>";
