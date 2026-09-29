@@ -69,58 +69,260 @@ Moodle ..> Main : <<extend>> (matrícula afectada)
 
 ## UML de classes
 
+### ACTUAL — pantalla llegada i mutació directa
+
 ```mermaid
 classDiagram
-class StudentProfileService {
- <<DISSENY: no acreditat>>
- +getAuthorized(actor,idInsc) profile
- +proposeChange(actor,idInsc,changes) request
+direction LR
+class AlumnesMostrarAlumneJs {
+ <<JS existent>>
+ +cercar()
+ +editarDadesPersonals()
+ +editarInscripcio()
+ +editarPagament()
+ +mostrarCertificat()
 }
-class LegacyCourseSnapshotRepository {
- <<PHP existent: lector per emissió>>
- +loadByIdpag(legacyDb,idpag,currentPaymentAmount) array
+class AjaxAlumnesLegacy {
+ <<PHP existent · wrappers GET>>
+ +guardarDadesPersonals.php
+ +guardarDadesPersonals_ConsultaInformacio.php
+ +guardarDadesPagament_ConsultaInformacio.php
+ +afegirObservacio.php
+ +amagarObservacio.php
 }
-class PersonalDataChangeRepository {
- <<DISSENY: personal_data_change_request SQL>>
- +append(db,request) result
- +recordDestination(db,requestId,destination,result) result
+class Intranet {
+ <<PHP existent>>
+ +guardarDadesPersonals_resultatCerca()
+ +guardarDadesPersonals_modalsresultatCerca()
+ +guardarDadesPagament_modalsresultatCerca()
+ +afegirObservacioGeneral_resultatCerca()
+ +amagarObservacioGeneral_resultatCerca()
 }
-class CanonicalIdentityResolutionService {
- <<DISSENY: UC-126>>
- +resolve(requestId,decision) mapping
+class ConnexioWeb {
+ <<PHP existent>>
+ +prepare(sql)
+ +connectarBD()
 }
-StudentProfileService --> PersonalDataChangeRepository : canvis actuals
-StudentProfileService --> CanonicalIdentityResolutionService : subjecte
-StudentProfileService ..> LegacyCourseSnapshotRepository : font llegada, no autorització
+class inscripcions {
+ <<BD llegada>>
+ NOM
+ COGNOMS
+ CORREU
+ DNI
+ TELEFON
+ ADRECA
+ A_PAGAR
+ PAGAMENT
+ INSC_MAILING
+ CERTIFICAT
+}
+class aobservacions {
+ <<BD llegada>>
+ DNI
+ OBSERVACIO
+ VISIBLE
+}
+AlumnesMostrarAlumneJs --> AjaxAlumnesLegacy : GET
+AjaxAlumnesLegacy --> Intranet : sessió desserialitzada
+Intranet --> ConnexioWeb
+ConnexioWeb --> inscripcions : SELECT/UPDATE
+ConnexioWeb --> aobservacions : INSERT/UPDATE
 ```
 
-## UML de seqüència — email actual amb factura antiga
+**Límit ACTUAL:** els controls `tePermisEdicio` del navegador no acrediten autorització per recurs/camp al servidor; diversos canvis barregen perfil, estat acadèmic, mailing, certificat i dades de pagament.
+
+### SIF parcial implementat — consulta i proposta, sense aplicar encara al llegat
+
+```mermaid
+classDiagram
+direction LR
+class StudentProfileService {
+ <<PHP EXISTENT · PARCIAL>>
+ +view(actor,idInsc) array
+ +proposeChange(actor,idInsc,changes,requestId,correlationId,justification) array
+}
+class StudentProfileReadRepository {
+ <<PHP EXISTENT · READ ONLY>>
+ +findByEnrollmentId(legacyDb,idInsc) array?
+}
+class StudentProfileAuthorizationPolicyInterface {
+ <<PHP CONTRACTE EXISTENT>>
+ +canView(actor,profile) bool
+ +canChange(actor,profile,changes) bool
+}
+class ResolvedStudentProfileAuthorizationPolicy {
+ <<PHP EXISTENT · FAIL CLOSED>>
+ +canView(actor,profile) bool
+ +canChange(actor,profile,changes) bool
+}
+class PersonalDataChangeRepository {
+ <<PHP EXISTENT>>
+ +findByRequestId(db,requestId) array?
+ +create(db,request) void
+}
+class personal_data_change_request {
+ <<SQL 000005 EXISTENT>>
+ UUID_PERSONAL_CHANGE_REQUEST
+ SUBJECT_KEY
+ REQUESTER_ACTOR_ID
+ CHANGESET_JSON
+ STATUS
+ PROPAGATION_STATUS
+ CORRELATION_ID
+}
+StudentProfileService --> StudentProfileReadRepository : perfil actual
+StudentProfileService --> StudentProfileAuthorizationPolicyInterface : autorització
+ResolvedStudentProfileAuthorizationPolicy ..|> StudentProfileAuthorizationPolicyInterface
+StudentProfileService --> PersonalDataChangeRepository : REQUESTED/REUSED
+PersonalDataChangeRepository --> personal_data_change_request
+```
+
+**Implementat en la branca d'auditoria:** allowlist exclusiva de perfil (`nom/cognoms/correu/dni/telèfon/adreça/codi_postal/població/perfil/titulació`), `NO_CHANGE`, reús idempotent per `request_id` equivalent i `409 CONFLICT` si el mateix ID es reutilitza amb payload diferent. **No s'aplica encara cap UPDATE a `inscripcions`.**
+
+### FINAL — aplicació i propagació governades
+
+```mermaid
+classDiagram
+direction LR
+class StudentProfileCommandAdapter {
+ <<PENDENT>>
+ +view(authenticatedActor,idInsc) result
+ +requestChange(command) result
+ +applyChange(requestId,expectedVersion) result
+}
+class StudentProfileService
+class StudentProfileChangeApplier {
+ <<PENDENT>>
+ +apply(requestId,expectedVersion) result
+}
+class PersonalDataChangeRepository
+class StudentProfileAuthorizationPolicyInterface
+class OperationalEventRepository
+class CanonicalIdentityResolutionService {
+ <<DISSENY UC-126>>
+ +resolve(requestId,decision) mapping
+}
+class ProfilePropagationCoordinator {
+ <<PENDENT UC-120/129>>
+ +propagate(requestId,destination) result
+}
+class InvoiceCorrectionClassifier {
+ <<DERIVACIÓ UC-074>>
+ +classify(profileChange,issuedDocuments) decision
+}
+StudentProfileCommandAdapter --> StudentProfileService
+StudentProfileCommandAdapter --> StudentProfileChangeApplier
+StudentProfileService --> StudentProfileAuthorizationPolicyInterface
+StudentProfileService --> PersonalDataChangeRepository
+StudentProfileChangeApplier --> PersonalDataChangeRepository
+StudentProfileChangeApplier --> CanonicalIdentityResolutionService
+StudentProfileChangeApplier --> ProfilePropagationCoordinator
+StudentProfileChangeApplier --> InvoiceCorrectionClassifier : només si dada fiscal històrica afectada
+StudentProfileChangeApplier --> OperationalEventRepository : before/after/resultat
+```
+
+## UML de seqüència
+
+### ACTUAL — editar correu directament a la inscripció llegada
 
 ```mermaid
 sequenceDiagram
+autonumber
 actor G as Gestió
-participant S as StudentProfileService [DISSENY]
-participant L as inscripcions [llegat]
-participant P as personal_data_change_request [SQL]
-participant F as factura [SIF, immutable]
-participant M as Moodle [integració pendent]
-G->>S: Modificar email d'ID_INSC
-S->>L: Consultar subjecte/inscripcions
-S->>F: Identificar receptor fiscal i docs previs
-S-->>G: Abans/després i sistemes afectats
-G->>S: Aprovar canvi de contacte
-S->>P: Desar petició, causa i destins [writer pendent]
-S->>L: Propagar email actual [adaptador pendent]
-opt Existeix usuari Moodle a sincronitzar
- S->>M: Canviar contacte autoritzat i verificar
+participant JS as alumnes-mostrar-alumne.js
+participant AJAX as guardarDadesPersonals.php
+participant I as Intranet
+participant DB as inscripcions
+
+G->>JS: editar email i Desar
+JS->>AJAX: GET idInsc + dades personals
+AJAX->>I: guardarDadesPersonals_resultatCerca(...)
+I->>DB: UPDATE ... WHERE ID=?
+DB-->>I: execute()
+I-->>AJAX: "OK"
+AJAX-->>JS: text
+JS-->>G: missatge i valors locals
+Note over JS,DB: No hi ha relectura obligatòria, versió base ni prova d'autorització per ID al mètode auditat.
+```
+
+### SIF parcial implementat — registrar una proposta sense tocar el llegat
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Adaptador autenticat [pendent]
+participant S as StudentProfileService
+participant P as ResolvedStudentProfileAuthorizationPolicy
+participant L as StudentProfileReadRepository
+participant Legacy as inscripcions
+participant R as PersonalDataChangeRepository
+participant DB as personal_data_change_request
+
+A->>S: proposeChange(actor,idInsc,changes,requestId,correlationId)
+S->>L: findByEnrollmentId(idInsc)
+L->>Legacy: SELECT perfil
+Legacy-->>L: perfil actual
+L-->>S: profile
+S->>P: canView/canChange(actor,profile)
+alt scope absent o sense WRITE
+ P-->>S: false
+ S-->>A: 403
+else autoritzat
+ S->>S: allowlist + diff before/after
+ S->>R: findByRequestId(requestId)
+ alt mateix request i payload
+  R-->>S: existent equivalent
+  S-->>A: REUSED
+ else mateix request i payload diferent
+  S-->>A: 409 CONFLICT
+ else cap canvi real
+  S-->>A: NO_CHANGE
+ else petició nova
+  S->>R: create(REQUESTED,PENDING)
+  R->>DB: INSERT changeset/actor/correlació
+  S-->>A: REQUESTED
+ end
 end
-S-->>G: Estat per destí, BILLING_EMAIL històric intacte
-Note over S,F: Canviar email no valida identitat fiscal ni autoritza veure factura de grup.
+Note over S,Legacy: En aquesta fase el SIF NO actualitza inscripcions.
+```
+
+### FINAL — aplicar i propagar mantenint factura històrica immutable
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant A as Adaptador POST autenticat
+participant S as StudentProfileService
+participant P as personal_data_change_request
+participant Apply as StudentProfileChangeApplier
+participant L as inscripcions [llegat]
+participant F as factura [SIF immutable]
+participant O as operational_event
+participant M as Destinacions UC-120/129
+
+G->>A: confirmar canvi requestId + expectedVersion
+A->>S: validar actor, recurs i request
+S->>P: rellegir REQUESTED i changeset
+S->>F: comprovar si hi ha document fiscal històric afectat
+alt correcció fiscal necessària
+ S-->>A: derivació UC-074, sense reescriure factura
+else canvi de perfil aplicable
+ A->>Apply: apply(requestId,expectedVersion)
+ Apply->>L: lock/relectura i UPDATE allowlist
+ Apply->>L: SELECT valors persistits
+ Apply->>M: propagar per destí amb estat propi
+ Apply->>O: before/after + actor + correlació + resultat
+ Apply->>P: COMPLETED/PARTIAL/FAILED
+ Apply-->>A: resultat tipificat per destí
+ A-->>G: estat persistent verificat
+end
+Note over F,L: BILLING_* i PDF originals no es modifiquen per un canvi posterior de perfil.
 ```
 
 ## Traçabilitat
 
-[UC-42 original](../06-fitxes-funcionals/uc-042.md) · [UC-120 dades personals](uc-120-canvi-dades-personals-propagacio.md) · [UC-126 identitat](uc-126-identitat-contacte-conflicte-sistemes.md) · [UC-129 Moodle](uc-129-reconciliar-prisma-moodle-matricules.md) · [UC-74 correcció](uc-074-classificar-correccio-fiscal.md) · [LegacyCourseSnapshotRepository](../../sif/src/Repository/LegacyCourseSnapshotRepository.php) · [LegacySyncRepository](../../sif/src/Repository/LegacySyncRepository.php) · [Migració personal_data_change_request](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql).
+[UC-42 original](../06-fitxes-funcionals/uc-042.md) · [Auditoria de completitud 2026-09-29](02-auditoria-completitud-uc-042-2026-09-29.md) · [UC-120 dades personals](uc-120-canvi-dades-personals-propagacio.md) · [UC-126 identitat](uc-126-identitat-contacte-conflicte-sistemes.md) · [UC-129 Moodle](uc-129-reconciliar-prisma-moodle-matricules.md) · [UC-74 correcció](uc-074-classificar-correccio-fiscal.md) · [LegacyCourseSnapshotRepository](../../sif/src/Repository/LegacyCourseSnapshotRepository.php) · [LegacySyncRepository](../../sif/src/Repository/LegacySyncRepository.php) · [Migració personal_data_change_request](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql).
 
 ## 8. Contrast visual i traça d'accions de la fitxa alumne
 
