@@ -26,6 +26,7 @@ if (!isset($configOk) || !$configOk || !isset($_SESSION['usuari']) || !isset($_S
 require_once $root . '/Intranet.php';
 require_once $root . '/SifInternalApiClient.php';
 require_once $root . '/SifLegacyInvoiceMutationGuard.php';
+require_once $root . '/LegacyInvoiceMutationAuthorization.php';
 
 $usuariObject = null;
 $intranetObject = null;
@@ -37,6 +38,13 @@ try {
     if (!is_object($usuariObject) || !is_object($intranetObject)) {
         throw new RuntimeException('Sessió no vàlida', 401);
     }
+
+    LegacyInvoiceMutationAuthorization::assertSameOrigin();
+    LegacyInvoiceMutationAuthorization::assertCanEdit(
+        $usuariObject,
+        $intranetObject,
+        '/alumnes/factura/'
+    );
 
     $id = trim((string) ($_POST['id'] ?? ''));
     if (!ctype_digit($id) || (int) $id <= 0) {
