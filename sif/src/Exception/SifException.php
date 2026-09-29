@@ -13,4 +13,14 @@ final class SifException extends \RuntimeException
     {
         return new self($message, 409);
     }
+
+    public static function forbidden(string $message): self
+    {
+        return new self($message, 403);
+    }
+
+    public static function notFound(string $message): self
+    {
+        return new self($message, 404);
+    }
 }
