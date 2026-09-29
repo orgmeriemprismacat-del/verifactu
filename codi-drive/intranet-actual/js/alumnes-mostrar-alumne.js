@@ -2167,6 +2167,160 @@ function mostrarModalDonarBaixa(id) {
 
 //Mostra el modal de consulta la factura de la inscripció amb id id
 function mostrarModalConsultaFactura(id) {
+	var search = $.ajax({
+		url: path + "alumnes/buscarFacturesSif.php",
+		method: "GET",
+		data: {
+			source_type: "INSCRIPCIO",
+			source_id: id,
+			limit: 20
+		},
+		dataType: "json"
+	});
+
+	search.done(function(res) {
+		if (!res || res.ok !== true) {
+			uc007MostrarErrorAlumne((res && res.error) ? res.error : "Resposta SIF no vàlida");
+			return;
+		}
+
+		if (!Array.isArray(res.results) || res.results.length === 0) {
+			mostrarModalConsultaFacturaLlegat(id);
+			return;
+		}
+
+		if (res.results.length === 1) {
+			uc007MostrarFacturaSifAlumne(res.results[0].uuid_factura);
+			return;
+		}
+
+		uc007MostrarSelectorFacturesSifAlumne(res.results);
+	});
+
+	search.fail(function(jqXHR) {
+		amagarLoadingModal();
+		var message = "No s'ha pogut resoldre la factura SIF de la inscripció";
+		if (jqXHR.responseJSON && jqXHR.responseJSON.error)
+			message = jqXHR.responseJSON.error;
+		uc007MostrarErrorAlumne(message);
+	});
+}
+
+function uc007MostrarSelectorFacturesSifAlumne(resultats) {
+	var html = '<div class="uc007-sif-readonly">';
+	html += '<p><span class="badge bg-info">SIF · només lectura</span></p>';
+	html += '<p>Aquesta inscripció està relacionada amb més d’una factura SIF.</p>';
+	html += '<div class="list-group">';
+
+	resultats.forEach(function(invoice) {
+		html += '<button type="button" class="list-group-item list-group-item-action uc007-sif-invoice-choice" data-uuid="' +
+			uc007EscapeHtmlAlumne(invoice.uuid_factura || '') + '">';
+		html += '<strong>' + uc007EscapeHtmlAlumne(invoice.num_visible || '') + '</strong>';
+		html += ' · ' + uc007EscapeHtmlAlumne(invoice.tipus_serie || '');
+		html += ' · ' + uc007EscapeHtmlAlumne(invoice.estat_factura || '');
+		html += ' · cobrament ' + uc007EscapeHtmlAlumne(invoice.estat_cobrament || '');
+		html += '</button>';
+	});
+
+	html += '</div></div>';
+
+	$("#modalConsultaFactura .modal-body").html(html);
+	amagarLoadingModal();
+	bootstrap.Modal.getOrCreateInstance(document.getElementById('modalConsultaFactura')).show();
+
+	$('#modalConsultaFactura').off('click.uc007Sif').on('click.uc007Sif', '.uc007-sif-invoice-choice', function() {
+		uc007MostrarFacturaSifAlumne($(this).attr('data-uuid'));
+	});
+}
+
+function uc007MostrarFacturaSifAlumne(uuid) {
+	var request = $.ajax({
+		url: path + "alumnes/consultaFacturaSif.php",
+		method: "GET",
+		data: { uuid: uuid },
+		dataType: "json"
+	});
+
+	request.done(function(res) {
+		if (!res || res.ok !== true) {
+			uc007MostrarErrorAlumne((res && res.error) ? res.error : "Resposta SIF no vàlida");
+			return;
+		}
+
+		var invoice = res.invoice || {};
+		var billing = invoice.billing || {};
+		var totals = invoice.totals || {};
+		var html = '<div class="uc007-sif-readonly">';
+		html += '<p><span class="badge bg-info">SIF · només lectura</span></p>';
+		html += '<h4>' + uc007EscapeHtmlAlumne(invoice.num_visible || '') + '</h4>';
+		html += '<dl class="row">';
+		html += uc007DlAlumne('UUID', invoice.uuid_factura);
+		html += uc007DlAlumne('Data emissió', invoice.data_emissio);
+		html += uc007DlAlumne('Estat factura', invoice.estat_factura);
+		html += uc007DlAlumne('Estat cobrament', invoice.estat_cobrament);
+		html += uc007DlAlumne('Estat AEAT', invoice.estat_aeat);
+		html += uc007DlAlumne('Receptor', billing.name);
+		html += uc007DlAlumne('NIF/CIF', billing.nif);
+		html += uc007DlAlumne('Total', totals.total);
+		html += '</dl>';
+
+		if (Array.isArray(res.rectifications) && res.rectifications.length > 0) {
+			html += '<h5>Relació de rectificació</h5><ul>';
+			res.rectifications.forEach(function(rect) {
+				html += '<li>' +
+					uc007EscapeHtmlAlumne(rect.RECTIFICATIVA_NUM_VISIBLE || rect.UUID_FACTURA_RECTIFICATIVA || '') +
+					' → ' +
+					uc007EscapeHtmlAlumne(rect.RECTIFICADA_NUM_VISIBLE || rect.UUID_FACTURA_RECTIFICADA || '') +
+					'</li>';
+			});
+			html += '</ul>';
+		}
+
+		if (Array.isArray(res.documents) && res.documents.length > 0) {
+			html += '<h5>Documents</h5><ul>';
+			res.documents.forEach(function(doc) {
+				html += '<li>' + uc007EscapeHtmlAlumne(doc.TIPUS || '') + ' · ' +
+					uc007EscapeHtmlAlumne(doc.ESTAT || '') +
+					' <span class="text-muted">(descàrrega segura UC-080 pendent)</span></li>';
+			});
+			html += '</ul>';
+		}
+
+		html += '</div>';
+
+		$("#modalConsultaFactura .modal-body").html(html);
+		amagarLoadingModal();
+		bootstrap.Modal.getOrCreateInstance(document.getElementById('modalConsultaFactura')).show();
+	});
+
+	request.fail(function(jqXHR) {
+		amagarLoadingModal();
+		var message = "No s'ha pogut consultar la factura SIF";
+		if (jqXHR.responseJSON && jqXHR.responseJSON.error)
+			message = jqXHR.responseJSON.error;
+		uc007MostrarErrorAlumne(message);
+	});
+}
+
+function uc007DlAlumne(label, value) {
+	if (value === null || typeof value === 'undefined' || value === '')
+		return '';
+	return '<dt class="col-sm-4">' + uc007EscapeHtmlAlumne(label) + '</dt><dd class="col-sm-8">' +
+		uc007EscapeHtmlAlumne(value) + '</dd>';
+}
+
+function uc007EscapeHtmlAlumne(value) {
+	return $('<div/>').text(String(value === null || typeof value === 'undefined' ? '' : value)).html();
+}
+
+function uc007MostrarErrorAlumne(message) {
+	amagarLoadingModal();
+	afegirHeaderModalError("Alerta SIF");
+	afegirTextModalError(uc007EscapeHtmlAlumne(message));
+	mostrarModalError();
+}
+
+function mostrarModalConsultaFacturaLlegat(id) {
 	var upd = $.ajax({
 	   url: path + "alumnes/mostraModalConsultaFactura.php",
 	   method: "GET",
@@ -2229,14 +2383,14 @@ function mostrarModalConsultaFactura(id) {
 	            upd2.done(function( res ) {
 	               amagarModalConsultaFactura();
 	               amagarLoadingModal();
-	               if (!resD.toLowerCase().includes("error")) {
+	               if (!res.toLowerCase().includes("error")) {
 	                  var link = document.createElement('a');
 	                  link.setAttribute("id", "download-fact-" + nclick);
-	                  link.href = path + "alumnes/" + resD;
-	                  link.download = resD + '.pdf';
+	                  link.href = path + "alumnes/" + res;
+	                  link.download = res + '.pdf';
 	                  link.click();
 	                  $.ajax({
-	                     url: path + "alumnes/eliminarArxiu.php?filename=" + resD,
+	                     url: path + "alumnes/eliminarArxiu.php?filename=" + res,
 	                     cache: false,
 	                     type: "GET",
 	                     success: function(data) {
@@ -2271,7 +2425,7 @@ function mostrarModalConsultaFactura(id) {
 	            });
 
 	            upd2.fail(function( jqXHR, textStatus, errorThrown ) {
-	               rerrorFunction( jqXHR, textStatus, errorThrown,
+	               errorFunction( jqXHR, textStatus, errorThrown,
 	                  "Hi ha hagut algun error a l'hora de guardar la informació': " );
 	            });
 	         });
@@ -2319,7 +2473,7 @@ function mostrarModalConsultaFactura(id) {
 	});
 
 	upd.fail(function( jqXHR, textStatus, errorThrown ) {
-	   rerrorFunction( jqXHR, textStatus, errorThrown,
+	   errorFunction( jqXHR, textStatus, errorThrown,
 	      "Hi ha hagut algun error a l'hora de guardar la informació': " );
 	});
 }
