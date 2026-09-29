@@ -4,24 +4,33 @@ namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
+use Prisma\Sif\Repository\UsocStudentInvoiceLinkRepository;
 
 final class UsocEntityInvoiceService
 {
     public function __construct(
         private LegacyUsocSnapshotRepository $legacySnapshots,
         private LegacyUsocInvoicePayloadBuilder $payloads,
-        private InvoiceService $invoices
+        private InvoiceService $invoices,
+        private UsocStudentInvoiceLinkRepository $studentInvoices
     ) {
     }
 
-    public function issueEntityFromExplicitInput(\PDO $legacyDb, array $input): array
+    public function issueEntityFromExplicitInput(\PDO $sifDb, \PDO $legacyDb, array $input): array
     {
         $this->assertExplicitEntityInput($input);
         $idpag = $this->positiveInt($input['idpag'], 'Invalid USOC IDPAG');
+        $inscriptionId = $this->positiveInt($input['id_insc'], 'Invalid USOC inscription ID');
         $studentAmount = $this->positiveMoney($input['student_amount'], 'Invalid USOC student amount');
         $entityAmount = $this->positiveMoney($input['amount'], 'Invalid USOC entity amount');
 
-        $snapshot = $this->legacySnapshots->loadByIdpag($legacyDb, $idpag, $studentAmount, $entityAmount);
+        $snapshot = $this->legacySnapshots->loadByIdpag($legacyDb, $idpag, $studentAmount, $entityAmount, $inscriptionId);
+        $this->studentInvoices->assertMatches(
+            $sifDb,
+            (string) $input['student_invoice_uuid'],
+            $inscriptionId,
+            $idpag
+        );
         $payload = $this->payloads->buildEntityPayload($snapshot, $input);
         $result = $this->invoices->issueInvoice($payload);
         $result['payment_registered'] = false;
@@ -32,7 +41,7 @@ final class UsocEntityInvoiceService
 
     private function assertExplicitEntityInput(array $input): void
     {
-        foreach (['idpag', 'student_amount', 'amount', 'student_invoice_uuid', 'billing'] as $field) {
+        foreach (['idpag', 'id_insc', 'student_amount', 'amount', 'student_invoice_uuid', 'billing'] as $field) {
             if (!array_key_exists($field, $input) || $input[$field] === '') {
                 throw SifException::validation("Missing USOC entity field {$field}");
             }
