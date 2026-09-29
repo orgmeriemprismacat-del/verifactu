@@ -144,6 +144,7 @@ La UI:
 - mostra la proposta fiscal amb text comprensible;
 - mostra pendent o excés;
 - incorpora el resum SIF al modal final de confirmació;
+- converteix la confirmació final a **POST** quan la nova UI està activa, evitant posar imports i motius a la URL;
 - bloqueja confirmació automàtica quan el SIF detecta múltiples factures.
 
 La pantalla principal carrega aquest fitxer només amb:
@@ -159,7 +160,8 @@ Quan `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1`, `realitzarCanviCurs_CanviCurs.php`:
 3. envia al SIF preu original, estàndard, final, despeses, curs origen/destí i motiu de preu manual;
 4. el SIF substitueix import original/pagat pels valors SIF quan existeix una única factura; el wrapper també rellegeix origen i `PAGAMENT` des de BD llegada en absència de SIF, de manera que el navegador no pot imposar un import ja pagat;
 5. compara la decisió recalculada amb la vista just abans de confirmar;
-6. si la decisió ha canviat o el cas és ambigu, **no executa** `realitzarCanviCurs_modalCanviCurs()`.
+6. si la decisió ha canviat o el cas és ambigu, **no executa** `realitzarCanviCurs_modalCanviCurs()`;
+7. el wrapper accepta POST per la ruta nova i conserva GET únicament com a compatibilitat del flux llegat mentre dura la migració.
 
 Aquesta capa encara no converteix el PHP llegat en una transacció distribuïda ni resol Moodle/correu.
 
@@ -303,6 +305,7 @@ end
 
 ### P1 per completar UC-071
 
+- substituir definitivament el GET compatible de l'executor llegat per un comandament POST autenticat amb protecció CSRF/anti-replay d'usuari;
 - substituir l'executor llegat per `CourseChangeCoordinator`;
 - persistir `course_change_event` de forma idempotent;
 - implementar ledger `enrollment_fund_movement`;
