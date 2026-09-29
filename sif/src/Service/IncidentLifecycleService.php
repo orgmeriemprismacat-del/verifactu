@@ -119,7 +119,6 @@ final class IncidentLifecycleService
             $correlationId
         ): array {
             $incident = $this->requireIncident($db, $incidentId, true);
-            $this->assertActive($incident);
 
             $severity = strtoupper(trim((string) ($payload['severity'] ?? $incident['SEVERITY'] ?? 'MEDIUM')));
             if (!in_array($severity, ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], true)) {
@@ -143,6 +142,7 @@ final class IncidentLifecycleService
             ]);
 
             if (!$action['reused']) {
+                $this->assertActive($incident);
                 $this->incidents->updateLifecycle(
                     $db,
                     $incidentId,
@@ -187,7 +187,6 @@ final class IncidentLifecycleService
             $evidence
         ): array {
             $incident = $this->requireIncident($db, $incidentId, true);
-            $this->assertActive($incident);
 
             $action = $this->actions->append($db, [
                 'incident_id' => $incidentId,
@@ -204,6 +203,10 @@ final class IncidentLifecycleService
                 'correlation_id' => $correlationId,
                 'idempotency_key' => $idempotencyKey,
             ]);
+
+            if (!$action['reused']) {
+                $this->assertActive($incident);
+            }
 
             return [
                 'ok' => true,
@@ -241,9 +244,6 @@ final class IncidentLifecycleService
             $correlationId
         ): array {
             $incident = $this->requireIncident($db, $incidentId, true);
-            if (!in_array((string) $incident['ESTAT'], ['RESOLVED', 'DISMISSED'], true)) {
-                throw SifException::conflict('Only closed incidents can be reopened');
-            }
 
             $action = $this->actions->append($db, [
                 'incident_id' => $incidentId,
@@ -262,6 +262,9 @@ final class IncidentLifecycleService
             ]);
 
             if (!$action['reused']) {
+                if (!in_array((string) $incident['ESTAT'], ['RESOLVED', 'DISMISSED'], true)) {
+                    throw SifException::conflict('Only closed incidents can be reopened');
+                }
                 $this->incidents->updateLifecycle(
                     $db,
                     $incidentId,
@@ -317,7 +320,6 @@ final class IncidentLifecycleService
             $evidence
         ): array {
             $incident = $this->requireIncident($db, $incidentId, true);
-            $this->assertActive($incident);
 
             $action = $this->actions->append($db, [
                 'incident_id' => $incidentId,
@@ -336,6 +338,7 @@ final class IncidentLifecycleService
             ]);
 
             if (!$action['reused']) {
+                $this->assertActive($incident);
                 $this->incidents->updateLifecycle(
                     $db,
                     $incidentId,
