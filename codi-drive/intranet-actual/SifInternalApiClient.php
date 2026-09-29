@@ -89,6 +89,48 @@ class SifInternalApiClient
             'X-SIF-Signature: ' . $signature,
         ];
 
+        [$status, $response] = $this->send($headers, $body);
+
+        $decoded = json_decode($response, true);
+        if (!is_array($decoded)) {
+            throw new RuntimeException('Invalid SIF internal API response');
+        }
+
+        $decoded['_http_status'] = $status;
+        return $decoded;
+    }
+
+    private function send(array $headers, string $body): array
+    {
+        if (function_exists('curl_init')) {
+            $curl = curl_init($this->url);
+            if ($curl === false) {
+                throw new RuntimeException('Could not initialize SIF HTTP client');
+            }
+
+            curl_setopt_array($curl, [
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_POSTFIELDS => $body,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => $this->timeout,
+                CURLOPT_FOLLOWLOCATION => false,
+            ]);
+
+            $response = curl_exec($curl);
+            $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $error = curl_error($curl);
+            curl_close($curl);
+
+            if (!is_string($response)) {
+                throw new RuntimeException(
+                    $error !== '' ? 'Could not reach SIF internal API: ' . $error : 'Could not reach SIF internal API'
+                );
+            }
+
+            return [$status, $response];
+        }
+
         $context = stream_context_create([
             'http' => [
                 'method' => 'POST',
@@ -104,13 +146,7 @@ class SifInternalApiClient
             throw new RuntimeException('Could not reach SIF internal API');
         }
 
-        $decoded = json_decode($response, true);
-        if (!is_array($decoded)) {
-            throw new RuntimeException('Invalid SIF internal API response');
-        }
-
-        $decoded['_http_status'] = $this->httpStatus($http_response_header ?? []);
-        return $decoded;
+        return [$this->httpStatus($http_response_header ?? []), $response];
     }
 
     private function normalizeRoles(array $roles): array
