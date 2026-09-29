@@ -1006,30 +1006,20 @@ function mostrarModalPrevisualitzaFactura( id ) {
 
 					requestDown.done(function( resD ) {
 
-						if (!resD.toLowerCase().includes("error")) {
+						resD = $.trim(resD);
+						if (resD !== '' && !resD.toLowerCase().includes("error")) {
 							var link = document.createElement('a');
 							link.setAttribute("id", "download-fact-" + nclick);
-							link.href = path + "alumnes/" + resD;
-							link.download = resD + '.pdf';
+							link.href = path + "alumnes/" + encodeURIComponent(resD);
+							link.download = resD;
+							document.body.appendChild(link);
 							link.click();
-							var requestDown = $.ajax({
-								url: path + "alumnes/descarregaFactura.php",
-								method: "GET",
-								data: { id : idFact },
-								dataType: "html"
-							});
+							link.remove();
 
-							requestDown.done(function( resD ) {
-								afegirHeaderModalSuccess("Generat!");
-								afegirTextModalSuccess("S'ha generat la factura correctament");
-								mostrarModalSuccess();
-								nclick++;
-							});
-
-							requestDown.fail(function( jqXHRRem, textStatusRem, errorThrownRem ) {
-								errorFunction( jqXHRRem, textStatusRem, errorThrownRem,
-									"Hi ha hagut algun error a l'hora d'eliminar la factura de servidor: " );
-							});
+							afegirHeaderModalSuccess("Descarregada");
+							afegirTextModalSuccess("S'ha iniciat la descàrrega de la factura");
+							mostrarModalSuccess();
+							nclick++;
 						}
 						else {
 							afegirHeaderModalError("Hi ha hagut un error al generar la descarrega");
