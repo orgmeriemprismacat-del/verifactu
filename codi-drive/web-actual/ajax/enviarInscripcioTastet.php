@@ -30,7 +30,8 @@ function validarNifNieUc108($document) {
 }
 
 try {
-	$input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
+	$esPost = ($_SERVER['REQUEST_METHOD'] === 'POST');
+	$input = $esPost ? $_POST : $_GET;
 
 	$textNom = new Text(isset($input['nom']) ? $input['nom'] : '');
 	$textCog = new Text(isset($input['cog']) ? $input['cog'] : '');
@@ -48,9 +49,19 @@ try {
 	if (isset($input['email_conf']) && trim($input['email_conf']) != '')
 		$textEmailConf = new Text($input['email_conf']);
 
+	if ($esPost && $textEmailConf === null) {
+		echo "Error: cal confirmar el correu electrònic.";
+		return;
+	}
+
 	$urlTastet = isset($input['urlTastet']) ? trim($input['urlTastet']) : '';
 	$codiCursLegacy = isset($input['codiCurs']) ? trim($input['codiCurs']) : '';
 	$tipusDoc = isset($input['tipus_doc']) ? trim($input['tipus_doc']) : '';
+
+	if ($esPost && $tipusDoc !== 'NIF/NIE' && $tipusDoc !== 'Altres') {
+		echo "Error: cal indicar el tipus de document identificatiu.";
+		return;
+	}
 
 	$textNom->arreglarParaulaBD('noms');
 	$textCog->arreglarParaulaBD('noms');
