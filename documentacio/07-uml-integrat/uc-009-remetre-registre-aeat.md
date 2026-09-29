@@ -384,9 +384,17 @@ end
 
 Vegeu [UC-009 · Activitats ACTUAL/FINAL](./uc-009-activitats-actual-final.md). Aquest document cobreix worker, claim/fencing, immutabilitat, SOAP, resposta, retry, resultat incert, stale locks, preflight, panell, reconciliació i activació de producció.
 
-### 7.4. Estat que encara no es declara
+### 7.4. Extensió operativa 2026-09-30
+- panell intranet `sif-registres-aeat.php` amb API interna HMAC i CSRF per mutacions;
+- `AeatReviewReconciliationService` per tancar `REVIEW` només contra un intent terminal del mateix job;
+- cap reconciliació d'un intent `UNCERTAIN`;
+- cap segon SOAP durant la conciliació;
+- incidència del queue marcada `RESOLVED` i nova traça `AEAT_RECONCILED`;
+- document de desplegament a `05-governanca-operacio/uc-009-panell-registres-aeat-desplegament.md`.
+
+### 7.5. Estat que encara no es declara
 - no s'afirma que els tests s'hagin executat satisfactòriament en aquesta revisió;
 - no s'afirma recepció real per AEAT;
 - no s'afirma certificat productiu qualificat;
-- no s'afirma panell web complet;
+- l'alta del nou apartat a la BD de menú de preproducció no s'ha executat des del repositori;
 - no s'afirma producció habilitada.
