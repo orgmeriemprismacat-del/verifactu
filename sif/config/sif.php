@@ -63,5 +63,9 @@ return [
             'trim',
             explode(',', getenv('SIF_AEAT_READ_ROLES') ?: '')
         ))),
+        'reconcile_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_AEAT_RECONCILE_ROLES') ?: '')
+        ))),
     ],
 ];
