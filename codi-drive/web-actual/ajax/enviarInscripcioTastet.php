@@ -217,45 +217,8 @@ try {
 
 	/* ######################################################################### */
 
-	$subject = "Inscripció al tastet ".$titolCurs;
-
-	$nomFromHead = 'Secretaria PrisMa';
-	$correuFromHead = 'inscripcions@prisma.cat';
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = 'Secretaria PrisMa';
-	$correuTo = 'inscripcions@prisma.cat';
-	// $correuTo = 'meriem.prisma.cat@gmail.com';
-
-	$mailCopiaInsc = new MailSMTPComvive($usernameInsc, $passwordInsc, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subjectMailInsc, $msgInsc);
-
-	$nomFromHead = 'Secretaria PrisMa';
-	$correuFromHead = 'secretaria@prisma.cat';
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = "PrisMa Secretaria";
-	$correuTo = "resguard.secretaria@prisma.cat";
-	// $correuTo = 'meriem.prisma.cat@gmail.com';
-
-	$subject2 = "Inscripció al tastet ".$titolCurs." ".$dataInsc;
-
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject2, $missatge);
-
-	$nomTo = 'Secretaria PrisMa';
-	$correuTo = 'inscripcions@prisma.cat';
-	// $correuTo = 'meriem.prisma.cat@gmail.com';
-
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject, $missatge);
-
 	/* ######################################################################### */
+	// Primer persistim la petició. Les notificacions s'executen després de tenir un ID real.
 	$nomBD = $textNom->obtenirText();
 	$cogBD = $textCog->obtenirText();
 	$nomCognomsBD = $nomBD." ".$cogBD;
@@ -301,80 +264,92 @@ try {
 	$tokenRaw = $iv.$hmac.$ciphertext_raw;
 	$hashIdInserit = 'v2.'.rtrim(strtr(base64_encode($tokenRaw), '+/', '-_'), '=');
 
-	echo $hashIdInserit;
-
-	$nomFromHead = $nameUser;
-	$correuFromHead = $username;
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = "PrisMa Secretaria";
-	$correuTo = "inscripcions.prisma@gmail.com";
-	// $correuTo = 'meriem.prisma.cat@gmail.com';
-
-	$mailCopia = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subjectMailInsc, $msgInsc);
-
-	if ($mailingBD == '1') {
-		$cnsMailing = "SELECT ID FROM mailing WHERE MAIL=?";
-		$stmt=$connexio->prepare($cnsMailing);
-		$stmt->bind_param("s", $emailBD);
-		$stmt->execute();
-		$stmt->store_result();
-		if ( $stmt->num_rows() <= 0 ) {
-			$connexio->closeStmt();
-
-			$insertMailing = "INSERT INTO mailing (mail, nom, usuari) VALUES (?, ?, ?)";
-			$stmt=$connexio->prepare($insertMailing);
-			$stmt->bind_param("ssd", $emailBD, $nomBD, $usuariBD);
+	$errorsSMTP = [];
+	try {
+		// Alta comercial obligatòria associada al tastet. Un email existent no es duplica.
+		if ($mailingBD == '1') {
+			$cnsMailing = "SELECT ID FROM mailing WHERE MAIL=?";
+			$stmt = $connexio->prepare($cnsMailing);
+			$stmt->bind_param("s", $emailBD);
 			$stmt->execute();
-			$stmt->fetch();
+			$stmt->store_result();
+
+			if ( $stmt->num_rows() <= 0 ) {
+				$connexio->closeStmt();
+				$insertMailing = "INSERT INTO mailing (mail, nom, usuari) VALUES (?, ?, ?)";
+				$stmt = $connexio->prepare($insertMailing);
+				$stmt->bind_param("ssd", $emailBD, $nomBD, $usuariBD);
+				$stmt->execute();
+				$stmt->fetch();
+			}
+			$connexio->closeStmt();
 		}
-		$connexio->closeStmt();
+
+		$subject = "Inscripció al tastet ".$titolCurs;
+		$subject2 = "Inscripció al tastet ".$titolCurs." ".$dataInsc;
+
+		$mailCopiaInsc = new MailSMTPComvive(
+			$usernameInsc, $passwordInsc,
+			'Secretaria PrisMa', 'inscripcions@prisma.cat',
+			$nomCognoms, $email,
+			'Secretaria PrisMa', 'inscripcions@prisma.cat',
+			$subjectMailInsc, $msgInsc
+		);
+		if (!$mailCopiaInsc->enviat()) $errorsSMTP[] = 'copia-inscripcions';
+
+		$mailCopiaSecreResguard = new MailSMTPComvive(
+			$username, $password,
+			'Secretaria PrisMa', 'secretaria@prisma.cat',
+			$nomCognoms, $email,
+			'PrisMa Secretaria', 'resguard.secretaria@prisma.cat',
+			$subject2, $missatge
+		);
+		if (!$mailCopiaSecreResguard->enviat()) $errorsSMTP[] = 'resguard-secretaria-1';
+
+		$mailCopiaSecre = new MailSMTPComvive(
+			$username, $password,
+			'Secretaria PrisMa', 'secretaria@prisma.cat',
+			$nomCognoms, $email,
+			'Secretaria PrisMa', 'inscripcions@prisma.cat',
+			$subject, $missatge
+		);
+		if (!$mailCopiaSecre->enviat()) $errorsSMTP[] = 'secretaria';
+
+		$mailCopiaGmail = new MailSMTPComvive(
+			$username, $password,
+			$nameUser, $username,
+			$nomCognoms, $email,
+			'PrisMa Secretaria', 'inscripcions.prisma@gmail.com',
+			$subjectMailInsc, $msgInsc
+		);
+		if (!$mailCopiaGmail->enviat()) $errorsSMTP[] = 'copia-gmail';
+
+		$mailCopiaResguard2 = new MailSMTPComvive(
+			$username, $password,
+			$nameUser, $username,
+			$nomCognoms, $email,
+			'PrisMa Secretaria', 'resguard.secretaria@prisma.cat',
+			$subject2, $missatge
+		);
+		if (!$mailCopiaResguard2->enviat()) $errorsSMTP[] = 'resguard-secretaria-2';
+
+		$mailAlumne = new MailSMTPComvive(
+			$username, $password,
+			$nameUser, $username,
+			$nomCognoms, $email,
+			$nomCognoms, $email,
+			$subject, $missatge
+		);
+		if (!$mailAlumne->enviat()) $errorsSMTP[] = 'participant';
+	}
+	catch(Throwable $sideEffectError) {
+		error_log('UC-108: error posterior a la persistencia de la peticio. Codi '.$sideEffectError->getCode());
 	}
 
-	/* ######################################################################### */
+	if (count($errorsSMTP) > 0)
+		error_log('UC-108: SMTP no lliurat en '.implode(',', $errorsSMTP).'. Peticio '.$idInserit);
 
-	//buscar el username i el password d'autentificació de prisma
-	$cnsParam = "SELECT VALOR FROM params WHERE TIPUS=? AND DATAI<=CURRENT_TIMESTAMP
-					AND (DATAF IS NULL OR DATAF>=CURRENT_TIMESTAMP)";
-	$stmt=$connexio->prepare($cnsParam);
-	$stmt->bind_param("s", $tipusParam);
-	$tipusParam = 'autentificacioInscripcio';
-	$stmt->execute();
-	$stmt->bind_result($valor);
-	$stmt->fetch();
-	$autentificacioInscripcio = explode('|',$valor);
-	$username = $autentificacioInscripcio[0];
-	$password = $autentificacioInscripcio[1];
-	$nameUser = $autentificacioInscripcio[2];
-
-	$nomFromHead = $nameUser;
-	$correuFromHead = $username;
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$connexio->closeStmt();
-
-
-	$subject = "Inscripció al tastet ".$titolCurs;
-	$nomTo = "PrisMa Secretaria";
-	$correuTo = "resguard.secretaria@prisma.cat";
-	$subject2 = "Inscripció al tastet ".$titolCurs." ".$dataInsc;
-	// $correuTo = 'meriem.prisma.cat@gmail.com';
-
-	$mailCopia = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject2, $missatge);
-
-	$nomTo = $nomCognoms;
-	$correuTo = $email;
-	// $correuTo = 'meriem.prisma.cat@gmail.com';
-
-	$mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject, $missatge);
+	echo $hashIdInserit;
 
 	$connexio->desconectarBD();
 }
