@@ -124,36 +124,6 @@ final class InvoiceReadRepository
             $params[] = (string) $criteria[$key];
         }
 
-        $hasSourceType = array_key_exists('source_type', $criteria)
-            && $criteria['source_type'] !== null
-            && $criteria['source_type'] !== '';
-        $hasSourceId = array_key_exists('source_id', $criteria)
-            && $criteria['source_id'] !== null
-            && $criteria['source_id'] !== '';
-
-        if ($hasSourceType xor $hasSourceId) {
-            throw SifException::validation('source_type and source_id must be provided together');
-        }
-
-        if ($hasSourceType && $hasSourceId) {
-            $sourceType = strtoupper(trim((string) $criteria['source_type']));
-            if (!preg_match('/^[A-Z0-9_]{1,30}$/D', $sourceType)) {
-                throw SifException::validation('Invalid invoice source type');
-            }
-            if (!is_int($criteria['source_id']) && !ctype_digit((string) $criteria['source_id'])) {
-                throw SifException::validation('Invalid invoice source id');
-            }
-
-            $where[] = 'EXISTS (
-                SELECT 1 FROM fact_rels rel_source
-                WHERE rel_source.UUID_FACTURA = f.UUID_FACTURA
-                  AND rel_source.SOURCE_TYPE = ?
-                  AND rel_source.SOURCE_ID = ?
-            )';
-            $params[] = $sourceType;
-            $params[] = (int) $criteria['source_id'];
-        }
-
         if (array_key_exists('factura_relacionada', $criteria)
             && $criteria['factura_relacionada'] !== null
             && $criteria['factura_relacionada'] !== '') {
