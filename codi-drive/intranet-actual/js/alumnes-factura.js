@@ -162,10 +162,22 @@ requestMain.done(function( message ) {
 		if ( tipusCerca == 'factNum' ) {
 			inputCerca = 'fact-num';
 		}
-		$('#mostrar-factura #'+inputCerca).val(hashUrl);
-		$('#mostrar-factura #'+inputCerca).prev().addClass('active');
-
-		$('#cercar-factura').click();
+		if ( tipusCerca == 'uuid' ) {
+			mostrarModalLoading();
+			window.uc007SifSearch({
+				uuid: decodeURIComponent(hashUrl),
+				dni: '',
+				email: '',
+				factRel: '',
+				factNum: '',
+				cercaPer: 'FACTURA SIF'
+			});
+		}
+		else {
+			$('#mostrar-factura #'+inputCerca).val(hashUrl);
+			$('#mostrar-factura #'+inputCerca).prev().addClass('active');
+			$('#cercar-factura').click();
+		}
 	}
 
 
@@ -179,6 +191,9 @@ requestMain.fail(function( jqXHR, textStatus, errorThrown ) {
 /* UC-007 · Consulta SIF read-only amb fallback llegat */
 window.uc007SifSearch = function(params) {
 	var criteria = {};
+
+	if (params.uuid)
+		criteria.uuid_factura = params.uuid;
 
 	/* DNI del formulari antic pot ser participant i no receptor fiscal.
 	Només s'usa directament com BILLING_NIF quan no hi ha cap altre criteri. */
