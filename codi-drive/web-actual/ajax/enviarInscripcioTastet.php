@@ -195,7 +195,7 @@ try {
 
 	/* ######################################################################### */
 	$textConsentimentMailing = "
-			<p>Et recordem que amb aquesta inscripció has acceptat rebre correus electrònics informatius dels nostres cursos i serveis. Tot i això, podràs donar-te de baixa de la nostra llista de correus en qualsevol moment.</p>";
+			<p>Amb aquesta inscripció gratuïta et donarem d'alta al nostre butlletí electrònic. Si no vols continuar rebent aquests missatges, te'n podràs donar de baixa en qualsevol moment.</p>";
 
 	/* ######################################################################### */
 	$nom = $textNom->obtenirText();
@@ -218,7 +218,6 @@ try {
 	$titolCursHtml = htmlspecialchars($titolCurs, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 	$conegutHtml = htmlspecialchars($conegut, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 	$comentarisHtml = htmlspecialchars($comentaris, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-	$documentacioSubject = preg_replace('/[\r\n]+/', ' ', $documentacio);
 	$nomCognomsHeader = preg_replace('/[\r\n]+/', ' ', $nomCognoms);
 
 	/* ######################################################################### */
@@ -259,7 +258,7 @@ try {
 	$msgInsc .= "<p><strong>Preu:</strong> Gratuït</p>";
 	$msgInsc .= "<p><strong>Comentaris:</strong> ".$comentarisHtml."</p>";
 
-	$subjectMailInsc = "Inscripció tastet ".$codiCurs." - ".$documentacioSubject;
+	$subjectMailInsc = "Inscripció tastet ".$codiCurs;
 	if ($comentaris != '' )
 		$subjectMailInsc .= " + O";
 	/* ######################################################################### */
@@ -328,6 +327,7 @@ try {
 	$connexio->closeStmt();
 
 	$hashIdInserit = Uc108ConfirmationToken::issue($idInserit, $urlTastet, $keyEncr);
+	$subjectMailInsc .= " #".$idInserit;
 
 	$errorsSMTP = [];
 	try {
