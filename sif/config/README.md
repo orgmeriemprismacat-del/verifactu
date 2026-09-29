@@ -18,6 +18,7 @@ La consulta HTTP de factures és **fail-closed**. Sense aquestes variables no s'
 
 ### Intranet
 
+- `SIF_INVOICE_QUERY_UI_ENABLED=1`: activa el mòdul JS UC-007 a `/alumnes/factura/`. Per defecte, absent/0, la pantalla continua 100% llegada.
 - `SIF_INTERNAL_API_URL`: URL server-to-server de `sif/public/api/factures/query.php`.
 - `SIF_INTERNAL_API_KEY_ID`: mateix key id.
 - `SIF_INTERNAL_API_SECRET`: mateix secret.
