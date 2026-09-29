@@ -3,8 +3,8 @@
 **Estat documental:** AUDITAT EN DETALL / CANVIS DOCUMENTALS APLICATS.  
 **Estat backend després del merge a `main` (PR #18, 2026-09-30):** LIFECYCLE PARCIAL IMPLEMENTAT; API INTERNA + WRITER D'ACCIONS + IDEMPOTÈNCIA + INTEGRACIÓ REDSYS/AEAT.  
 **Estat UI:** PENDENT.  
-**Estat proves:** ESCRITES / NO EXECUTADES EN AQUESTA AUDITORIA.  
-**No acredita:** desplegament productiu, rols reals, dades productives, execució de tests, E2E de navegador ni homologació externa.
+**Estat proves:** SUITE BACKEND CI EXECUTADA · 555 PASSED / 0 FAILED.  
+**No acredita:** desplegament productiu, rols reals, dades productives, E2E de navegador, concurrència específica, preproducció ni homologació externa.
 
 ## 1. Fonts revisades
 
@@ -131,8 +131,8 @@ A més continuen sent rellevants:
 
 ## 8. Pendents bloquejants per considerar UC-008 complet
 
-- [ ] Executar migracions en `sif_test*`.
-- [ ] Executar `php sif/tests/run-tests.php`.
+- [x] Executar migracions en `sif_test*` via CI.
+- [x] Executar `php sif/tests/run-tests.php`: **555 passed, 0 failed**.
 - [ ] Corregir qualsevol regressió detectada.
 - [ ] Implementar UI del panell d'incidències.
 - [ ] Configurar i provar rols reals.
@@ -147,8 +147,8 @@ A més continuen sent rellevants:
 ```text
 DOCUMENTAT      = AUDITAT I ACTUALITZAT
 IMPLEMENTAT     = PARCIAL BACKEND
-VERIFICAT       = ESTÀTICAMENT
-PROVAT          = NO EXECUTAT EN AQUESTA AUDITORIA
+VERIFICAT       = ESTÀTICAMENT + CI PHP/MYSQL
+PROVAT          = SUITE BACKEND CI · 555 PASSED / 0 FAILED
 UI              = PENDENT
 UML CLASSES     = ACTUALITZAT
 UML SEQÜÈNCIA   = ACTUALITZAT
@@ -156,3 +156,16 @@ UML ACTIVITATS  = ACTUAL/FINAL CREAT
 TRAÇABILITAT    = ACTUALITZADA
 TANCAMENT UC    = NO
 ```
+
+
+## 10. Evidència d'execució
+
+| Evidència | Resultat |
+| --- | --- |
+| PR post-merge | #21 |
+| Run 36638546735 · UC-111 integration verification | **555 passed, 0 failed** |
+| Run 36638546786 · SIF PHP and MySQL checks | **555 passed, 0 failed** |
+| Lint PHP | **PASS** |
+| PHP / MySQL del segon run | PHP 8.4 / MySQL 8.4 |
+| BD legacy de test | creada i usada pel workflow |
+| E2E navegador / preproducció | **PENDENT** |

@@ -47,8 +47,8 @@ jobs:
       - name: PHP 8.2 extensions
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.2"
-          extensions: pdo_mysql, mbstring, openssl, dom, curl
+          php-version: "8.4"
+          extensions: pdo_mysql, openssl, mbstring, dom, curl
           coverage: none
 
       - name: PHP syntax SIF
