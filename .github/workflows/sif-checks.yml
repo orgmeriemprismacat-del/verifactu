@@ -4,6 +4,12 @@ on:
   pull_request:
     paths:
       - "sif/**"
+      - "codi-drive/intranet-actual/SifInternalAeatClient.php"
+      - "codi-drive/intranet-actual/sif-registres-aeat.php"
+      - "codi-drive/intranet-actual/ajax/sif/**"
+      - "codi-drive/intranet-actual/js/sif-registres-aeat.js"
+      - "codi-drive/intranet-actual/css/sif-registres-aeat.css"
+      - "documentacio/05-governanca-operacio/**"
       - "documentacio/06-fitxes-funcionals/**"
       - "documentacio/07-uml-integrat/**"
       - ".github/workflows/sif-checks.yml"
@@ -45,8 +51,17 @@ jobs:
           extensions: pdo_mysql, mbstring, openssl, dom, curl
           coverage: none
 
-      - name: PHP syntax
+      - name: PHP syntax SIF
         run: find sif -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: PHP syntax UC-009 intranet
+        run: |
+          php -l codi-drive/intranet-actual/SifInternalAeatClient.php
+          php -l codi-drive/intranet-actual/sif-registres-aeat.php
+          php -l codi-drive/intranet-actual/ajax/sif/sifAeat.php
+
+      - name: JavaScript syntax UC-009 intranet
+        run: node --check codi-drive/intranet-actual/js/sif-registres-aeat.js
 
       - name: SIF test suite
         run: php sif/tests/run-tests.php
