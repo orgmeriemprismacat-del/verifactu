@@ -1,6 +1,6 @@
 # UC-71 · Registrar un canvi de curs complet — fitxa de cas d'ús i UML
 
-**Naturalesa:** expedient de negoci que coordina canvi administratiu, responsabilitat econòmica, relacions entre inscripcions i eventual correcció fiscal. **Estat:** DISSENY/PARCIAL. El catàleg i la fitxa original defineixen el cas; la migració conté `course_change_event` i existeix `OperationalEventRepository`, però **no s'ha acreditat un servei SIF que executi tot UC-71**. No s'ha creat cap classe ni taula nova amb aquest document.
+**Naturalesa:** expedient de negoci que coordina canvi administratiu, responsabilitat econòmica, relacions entre inscripcions i eventual correcció fiscal. **Estat:** PARCIAL IMPLEMENTAT. Existeix la nova capa de previsualització SIF (`CourseChangeImpactClassifier`, `CourseChangePreviewService`, `CourseChangePreviewGateway`, API HMAC i UI feature-flagged), però **encara no existeix l'orquestrador complet que executi UC-071, UC-005/074, ledger de fons i `course_change_event` de manera idempotent**.
 
 **Límit respecte a UC-26:** UC-26 és l'acció administrativa de canviar curs; UC-71 és el registre integral d'origen/destí, diferència, decisions, moviments i resultats. UC-05, UC-02, UC-28, UC-29 i UC-29a són operacions específiques que l'expedient pot necessitar; no s'executen totes per defecte.
 
@@ -519,3 +519,115 @@ stop
 
 **Variant d'error actual observada:** el JS que rep el modal utilitza `!includes("error") || !includes("404")` [L1543–1560](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1543-L1560), que pot admetre com a resposta vàlida un error que no contingui ambdues cadenes. El mètode d'execució també imprimeix dades de depuració [L8522–8546](../../codi-drive/intranet-actual/Intranet.php#L8522-L8546). Cap d'aquests errors és una decisió de negoci. **Proves T-AL-12-A–H**, definides però no executades, a [fitxa funcional](../06-fitxes-funcionals/uc-071.md#23-auditoria-del-mètode-executable-de-canvi-de-curs-sense-captures-noves). No equiparar `PAGAMENT` del registre llegat amb ingrés real ni `FACTURA_RELACIONADA` amb autorització per refer document.
 
+
+
+## 9. Implementació 29/09/2026 — previsualització de preu, fiscalitat i economia
+
+[Detall complet de la nova interfície i desplegament](03-implementacio-interficie-canvi-curs-2026-09-29.md).
+
+### 9.1. Classes implementades
+
+```mermaid
+classDiagram
+direction LR
+class CourseChangeImpactClassifier {
+ <<PHP IMPLEMENTAT>>
+ +classify(input) array
+}
+class CourseChangePreviewService {
+ <<PHP IMPLEMENTAT>>
+ +preview(input) array
+}
+class CourseChangePreviewGateway {
+ <<PHP IMPLEMENTAT>>
+ +preview(actor,payload) array
+}
+class InvoiceReadRepository {
+ <<PHP EXISTENT>>
+ +search(db,criteria,limit) array
+ +findLines(db,uuid) array
+ +findRelations(db,uuid) array
+ +findPayments(db,uuid) array
+}
+class InternalApiAuthenticator {
+ <<PHP EXISTENT>>
+}
+class SifInternalApiClient {
+ <<PHP EXISTENT AMPLIAT>>
+ +previewCourseChange(actor,roles,payload) array
+}
+class AlumnesCanviCursSifJs {
+ <<JS IMPLEMENTAT>>
+ +preview()
+ +renderPreview()
+}
+class CourseChangeCoordinator {
+ <<FINAL PENDENT>>
+ +confirm(command) result
+}
+CourseChangePreviewGateway --> CourseChangePreviewService
+CourseChangePreviewService --> InvoiceReadRepository
+CourseChangePreviewService --> CourseChangeImpactClassifier
+SifInternalApiClient ..> InternalApiAuthenticator
+AlumnesCanviCursSifJs --> SifInternalApiClient : via bridge PHP
+CourseChangeCoordinator ..> CourseChangePreviewService
+```
+
+### 9.2. Seqüència de previsualització implementada
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant UI as JS canvi curs SIF
+participant B as Bridge Intranet
+participant A as API SIF HMAC
+participant P as CourseChangePreviewService
+participant I as InvoiceReadRepository
+participant C as CourseChangeImpactClassifier
+O->>UI: escollir destí / editar preu
+UI->>UI: detectar STANDARD o MANUAL
+alt MANUAL sense motiu
+ UI-->>O: bloqueig local
+else dades completes
+ UI->>B: POST preview
+ B->>A: petició signada actor+rol
+ A->>P: preview
+ P->>I: buscar factura per ID_INSC
+ alt una factura
+  I-->>P: línia + pagaments assignats
+ else cap factura
+  I-->>P: context sense factura
+ else múltiples
+  I-->>P: MULTIPLE
+ end
+ P->>C: classificar import/concepte/fons
+ C-->>P: SAME/HIGHER/LOWER + fiscal + econòmic
+ P-->>UI: resultat tipificat
+ UI-->>O: resum abans de confirmar
+end
+```
+
+### 9.3. Regles implementades
+
+- **Preu manual:** si `proposed_target_amount != standard_target_amount`, és obligatori un motiu específic.
+- **Més car:** es calcula `AMOUNT_DUE`; això no crea cap `CHARGE`.
+- **Més barat:** es calcula `EXCESS_TO_RESOLVE`; això no crea cap `REFUND` ni saldo automàtic.
+- **Mateix import + curs diferent + factura:** proposta `RECTIFY_AND_REISSUE`.
+- **Mateix servei + import diferent + factura:** proposta `RECTIFY_DIFFERENCE`.
+- **Sense factura:** `NONE`.
+- **Múltiples factures:** `REVIEW_REQUIRED` i el canvi llegat queda bloquejat quan el preflight és obligatori.
+- Quan existeix una única factura SIF, la previsualització prioritza import de línia i assignacions de pagament SIF sobre els imports del navegador.
+
+### 9.4. Frontera que continua pendent
+
+La implementació actual **no** fa encara:
+
+- INSERT idempotent a `course_change_event`;
+- `enrollment_fund_movement`;
+- emissió real de rectificativa;
+- emissió de la nova factura de substitució;
+- refund/saldo;
+- substitució del mètode llegat `realitzarCanviCurs_modalCanviCurs()`.
+
+Per tant, el nou codi és una **capa de decisió i preflight executiva**, no l'orquestrador final.
