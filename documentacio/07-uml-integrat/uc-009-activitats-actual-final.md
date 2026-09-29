@@ -253,12 +253,16 @@ El mateix resultat s'ha d'exposar al panell intern en mode lectura, sense revela
 
 ## 11. A09-10 · Panell `pay.prisma.cat/sif/registres-aeat`
 
-### ACTUAL
+### ACTUAL implementat a la branca 2026-09-30
 
 ```mermaid
 flowchart TD
-    A[Responsable tècnica] --> B[No hi ha pantalla específica localitzada]
-    B --> C[Operació actual via CLI / BD / evidència privada]
+    A[GET /sif-registres-aeat.php] --> B[Sessió intranet]
+    B --> C[Proxy ajax/sif/sifAeat.php]
+    C --> D[HMAC servidor-servidor]
+    D --> E[/api/aeat/operations.php]
+    E --> F[summary / list / detail / preflight]
+    F --> G[Resum + cua + registre + intents + incidències]
 ```
 
 ### FINAL — pàgina i apartats
@@ -303,9 +307,9 @@ No ha de mostrar:
 
 ## 12. A09-11 · Reconciliació de REVIEW
 
-### ACTUAL
+### ACTUAL implementat a la branca 2026-09-30
 
-No hi ha una acció d'UI específica. L'estat REVIEW creat per la correcció bloqueja el head i evita el reenviament cec.
+La UI mostra «Conciliar sense reenviar» només per un job `REVIEW` amb intent terminal remot `ACCEPTED`, `ACCEPTED_WITH_ERRORS` o `REJECTED`. El backend torna a validar el mateix `FISCAL_QUEUE_ID`, bloqueja files amb `FOR UPDATE`, regenera l'XML des del snapshot fiscal immutable i persisteix el resultat original sense cap segon SOAP. Un intent `UNCERTAIN` continua en `REVIEW`.
 
 ### FINAL
 
@@ -363,14 +367,14 @@ flowchart TD
 | Evidència privada | `EvidenceStore` |
 | Preflight | `AeatPreflight`, `preflight-aeat-worker.php` |
 | Proves | `AeatWorkflowTest`, `FiscalQueueProcessorTest`, tests AEAT unit/integració |
-| Panell | PENDENT d'implementació |
+| Panell | Implementat a la branca 2026-09-30; alta al menú de l'entorn pendent |
 
 ## 15. Estat de tancament
 
 - **Documentat:** sí, inclosos ACTUAL/FINAL.
 - **Implementat backend preproducció:** sí, amb fencing, ledger d'intents i REVIEW incorporats a la branca.
-- **Panell web:** pendent.
-- **Proves escrites:** sí; ampliades per intents i resultat incert.
+- **Panell web:** implementat; alta/configuració del menú de preproducció pendent.
+- **Proves escrites:** sí; ampliades per intents, resultat incert, fencing, consulta operativa i reconciliació REVIEW.
 - **Proves executades en entorn `sif_test*`:** pendents d'evidència.
 - **Enviament AEAT real de preproducció:** pendent d'evidència.
 - **Producció:** no habilitada.
