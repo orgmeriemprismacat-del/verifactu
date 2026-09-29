@@ -4,6 +4,7 @@ namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Repository\InvoiceReadRepository;
 use Prisma\Sif\Service\CourseChangeImpactClassifier;
+use Prisma\Sif\Service\CourseChangePreviewGateway;
 use Prisma\Sif\Service\CourseChangePreviewService;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\TestDatabase;
@@ -99,6 +100,52 @@ final class CourseChangePreviewServiceTest
         Assert::same('MULTIPLE', $result['invoice_resolution']);
         Assert::same('REVIEW_REQUIRED', $result['impact']['fiscal_decision']);
         Assert::same(false, $result['can_confirm_legacy_change']);
+    }
+
+    public function testGatewayRejectsActorWithoutAllowedRole(): void
+    {
+        $db = TestDatabase::fresh();
+        $gateway = new CourseChangePreviewGateway($this->service($db), ['GESTIO']);
+
+        Assert::throws(\Prisma\Sif\Exception\SifException::class, static function () use ($gateway): void {
+            $gateway->preview([
+                'actor_id' => 'operator-1',
+                'roles' => ['CONSULTA'],
+            ], [
+                'source_enrollment_id' => 42,
+                'source_course' => 'Curs A',
+                'target_course' => 'Curs B',
+                'original_amount' => '100.00',
+                'standard_target_amount' => '100.00',
+                'proposed_target_amount' => '100.00',
+                'paid_amount' => '0.00',
+                'management_fee' => '0.00',
+            ]);
+        }, 403);
+    }
+
+    public function testGatewayAllowsConfiguredRole(): void
+    {
+        $db = TestDatabase::fresh();
+        $gateway = new CourseChangePreviewGateway($this->service($db), ['GESTIO']);
+
+        $result = $gateway->preview([
+            'actor_id' => 'operator-1',
+            'roles' => ['gestio'],
+        ], [
+            'source_enrollment_id' => 42,
+            'source_course' => 'Curs A',
+            'target_course' => 'Curs B',
+            'original_amount' => '100.00',
+            'standard_target_amount' => '100.00',
+            'proposed_target_amount' => '100.00',
+            'paid_amount' => '0.00',
+            'management_fee' => '0.00',
+        ]);
+
+        Assert::same(true, $result['ok']);
+        Assert::same('operator-1', $result['actor']['actor_id']);
+        Assert::same(['GESTIO'], $result['actor']['roles']);
     }
 
     private function service(\PDO $db): CourseChangePreviewService
