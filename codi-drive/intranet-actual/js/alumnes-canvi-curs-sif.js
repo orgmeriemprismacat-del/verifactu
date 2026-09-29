@@ -401,7 +401,17 @@
             sif_expected_economic_decision: impact.economic_decision || ''
         };
 
-        options.data = $.extend({}, originalOptions.data || {}, extra);
+        options.type = 'POST';
+        options.method = 'POST';
+
+        if (typeof options.data === 'string') {
+            var suffix = $.param(extra);
+            options.data = options.data
+                ? options.data + '&' + suffix
+                : suffix;
+        } else {
+            options.data = $.extend({}, originalOptions.data || options.data || {}, extra);
+        }
     });
 
     $(document).ajaxComplete(function (_event, _xhr, settings) {
