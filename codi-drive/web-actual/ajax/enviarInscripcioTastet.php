@@ -202,9 +202,6 @@ try {
 	$correuTo = 'inscripcions@prisma.cat';
 	// $correuTo = 'meriem.prisma.cat@gmail.com';
 
-	$mailCopiaInsc = new MailSMTPComvive($usernameInsc, $passwordInsc, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subjectMailInsc, $msgInsc);
 
 	$nomFromHead = 'Secretaria PrisMa';
 	$correuFromHead = 'secretaria@prisma.cat';
@@ -217,17 +214,11 @@ try {
 
 	$subject2 = "Inscripció al tastet ".$titolCurs." ".$dataInsc;
 
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject2, $missatge);
 
 	$nomTo = 'Secretaria PrisMa';
 	$correuTo = 'inscripcions@prisma.cat';
 	// $correuTo = 'meriem.prisma.cat@gmail.com';
 
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject, $missatge);
 
 	/* ######################################################################### */
 	$nomBD = $textNom->obtenirText();
@@ -263,6 +254,35 @@ try {
 	$idInserit = $connexio->lastInsertId();
 	$stmt->fetch();
 	$connexio->closeStmt();
+
+	/*
+	 * Les notificacions internes es fan només després que la sol·licitud
+	 * existeixi a inscripcions_reptes. Així no es genera un correu d'una
+	 * alta que després no hagi pogut persistir.
+	 */
+	$mailCopiaInsc = new MailSMTPComvive(
+		$usernameInsc, $passwordInsc,
+		'Secretaria PrisMa', 'inscripcions@prisma.cat',
+		$nomCognoms, $email,
+		'Secretaria PrisMa', 'inscripcions@prisma.cat',
+		$subjectMailInsc, $msgInsc
+	);
+
+	$mailCopiaResguard = new MailSMTPComvive(
+		$username, $password,
+		'Secretaria PrisMa', 'secretaria@prisma.cat',
+		$nomCognoms, $email,
+		'PrisMa Secretaria', 'resguard.secretaria@prisma.cat',
+		$subject2, $missatge
+	);
+
+	$mailCopiaSecretaria = new MailSMTPComvive(
+		$username, $password,
+		'Secretaria PrisMa', 'secretaria@prisma.cat',
+		$nomCognoms, $email,
+		'Secretaria PrisMa', 'inscripcions@prisma.cat',
+		$subject, $missatge
+	);
 
 	$ivlen = openssl_cipher_iv_length($cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
