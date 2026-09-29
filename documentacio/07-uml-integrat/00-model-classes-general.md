@@ -1368,6 +1368,12 @@ PaymentReallocationService --> EnrollmentFundMovementRepository : drets per ID_I
 
 **Precaució de model:** una `payment_allocation` negativa normal **no és** una reversió segura del tram antic: la consulta PHP actual simplement suma imports i no guarda `reversed_by_event`, versió efectiva o origen de la correcció. La previsualització de saldo no el reserva: la comprovació de `UUID_PAYMENT`, import, titular, event extern, retorns i peticions idempotents s'ha de repetir sota bloqueig de l'arrel P quan s'aplica. Dos operadors que reparteixin els mateixos 20 € han de serialitzar-se i no crear F2/20 + F3/20 sobre P amb saldo únic 20. Les classes de la subvista són **disseny**, no mètodes de `PaymentRepository` existents.
 
+## 6.5. Submodel UC-111 · docent novell i cicle de vida promocional
+
+El model general no replica les desenes de classes específiques incorporades a la branca per UC-111. La vista canònica separada és [UC-111 · classes ACTUAL/FINAL](uc-111-classes-actual-final.md), amb quatre subdiagrames: llegat observable; concessió/lliurament; consum/canvi/saldos derivats; procedència/root-refund. La correspondència amb accions A111-01…12, taules, migracions i proves és a [UC-111 · traçabilitat](uc-111-tracabilitat-implementacio.md).
+
+**Estat:** serveis PHP presents a la branca per la major part del lifecycle; connectors d'UI/autenticació/storage/pricing/fiscalitat/evidències externes i execució MySQL continuen pendents. Aquest enllaç evita inflar el model general i, alhora, impedeix que UC-111 quedi invisible al model de classes.
+
 ## 7. Traçabilitat i criteri de manteniment
 
 - [Model de classes ja existent al projecte](../04-estat-final/31-diagrames-classes-sif.md) i [matriu transversal de diagrames](../04-estat-final/35-matriu-tracabilitat-diagrames.md).
