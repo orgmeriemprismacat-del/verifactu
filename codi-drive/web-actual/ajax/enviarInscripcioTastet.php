@@ -13,6 +13,7 @@ include("../MailSMTP.php");
 include("../MailSMTPComvive.php");
 include("../MailSMTPFile.php");
 include("../Uc108Validation.php");
+include("../Uc108ConfirmationToken.php");
 
 try {
 	$esPost = ($_SERVER['REQUEST_METHOD'] === 'POST');
@@ -326,17 +327,7 @@ try {
 	$stmt->fetch();
 	$connexio->closeStmt();
 
-	$ivlen = openssl_cipher_iv_length($cipher);
-	$iv = openssl_random_pseudo_bytes($ivlen);
-	$payloadToken = json_encode([
-		'id' => intval($idInserit),
-		'url' => $urlTastet,
-		'iat' => time()
-	]);
-	$ciphertext_raw = openssl_encrypt($payloadToken, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
-	$hmac = hash_hmac('sha256', $iv.$ciphertext_raw, $keyEncr, $as_binary=true);
-	$tokenRaw = $iv.$hmac.$ciphertext_raw;
-	$hashIdInserit = 'v2.'.rtrim(strtr(base64_encode($tokenRaw), '+/', '-_'), '=');
+	$hashIdInserit = Uc108ConfirmationToken::issue($idInserit, $urlTastet, $keyEncr);
 
 	$errorsSMTP = [];
 	try {
