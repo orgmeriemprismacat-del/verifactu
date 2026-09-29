@@ -10,12 +10,12 @@ Inventari verificat:
 
 | Element | Base actual | Branca `feature/redsys-async-queue` | Cobertura documental |
 |---|---:|---:|---|
-| PHP totals dins `sif/` | 262 al checkout de treball actual | La comparació històrica de branca queda pendent de recalcular després de consolidar aquests canvis | 36, apartat 3 |
+| PHP totals dins `sif/` | 270 a la branca UC-042 (262 baseline + 8 fitxers PHP UC-042) | La comparació històrica de branca queda pendent de recalcular després de consolidar aquests canvis | 36, apartat 3 |
 | SQL totals dins `sif/database` | 7: 5 migracions, 1 seed i 1 plantilla de permisos | `redsys_callback_queue` continua addicional a la branca asíncrona | 34 i 36, apartats 3 i 8 |
-| Classes/interfícies de producció del SIF | 76 declaracions a `sif/src` | Les classes de l'operació comercial del document 31 continuen `[DISSENY]` | 31, apartats 2-17 |
-| Classes `*Test` | 119 | Recompte actual del checkout; branca pendent de reconciliació | 31, apartat 13; 36, apartats 3 i 8 |
-| Mètodes `test*` | 265 | Inclou les proves afegides al checkout de treball | 31, apartat 13; 36, apartats 3 i 8 |
-| Fitxers PHP dins `sif/tests` | 123 | Inclou suport/runner a més de classes `*Test` | 31, apartat 13; 36, apartats 3 i 8 |
+| Classes/interfícies de producció del SIF | 81 declaracions a `sif/src` (76 baseline + 5 UC-042) | Les classes de l'operació comercial del document 31 continuen `[DISSENY]` | 31, apartats 2-17 |
+| Classes `*Test` | 122 (119 baseline + 3 UC-042) | Recompte actual del checkout; branca pendent de reconciliació | 31, apartat 13; 36, apartats 3 i 8 |
+| Mètodes `test*` | 275 (265 baseline + 10 UC-042) | Inclou les proves afegides al checkout de treball | 31, apartat 13; 36, apartats 3 i 8 |
+| Fitxers PHP dins `sif/tests` | 126 (123 baseline + 3 UC-042) | Inclou suport/runner a més de classes `*Test` | 31, apartat 13; 36, apartats 3 i 8 |
 | Classes principals del llegat | 10 als candidats; ara també `IntranetAlumne`, `IntranetTutor` i el domini comercial web | Sense canvi a la branca SIF | 31, apartats 10, 14 i 15; 37, apartat 5 |
 | Fitxers PHP de `codi-drive` | 1.920 en 7 carpetes: 25 candidats i 1.895 actuals/històrics | Sense canvi a la branca SIF | 36, apartat 4; 37, apartats 2 i 3 |
 | Scripts operatius | 58 al checkout actual | La branca asíncrona afegeix scripts de cua; recompte final pendent de fusió | 32, apartat 18, i aquesta matriu |
@@ -45,6 +45,7 @@ Inventari verificat:
 | Canals i domini actuals | `IntranetAlumne`, `IntranetTutor`, classes de curs/edició/pack/inscripció/descompte/regal/pagament i punts d'entrada procedimentals | 31, apartats 10.1-10.3; 36, apartat 4; 37, apartat 5 |
 | Operació comercial descoberta al codi | `ajax/enviarInscripcio.php`, `ajax/enviarInscripcioTastet.php`, `InscripcioTastet`, `DescompteAmic`, `recent_titulat`, `inscripcions_reptes`, `respGrups` | 33, apartat 29; 38, apartat 17; 40, apartats 5-7 |
 | Gestió administrativa objectiu | Classificador fiscal, perfils, canvi de curs, baixa, ajusts i reclamacions | 31, apartat 16.1; 32, apartats 40-42; 38, apartats 4-7 |
+| Perfil alumne UC-042 | `StudentProfileService`, `StudentProfileReadRepository`, `PersonalDataChangeRepository`, política d'autorització resolta i taula `personal_data_change_request` | 31, apartat 18; 32, apartat 49; `07-uml-integrat/uc-042-consultar-modificar-alumne.md` |
 | Registre, evidència i governança objectiu | Anul·lació/subsanació, worker AEAT, documents, outbox, incidències, auditoria, versions, exports, reconciliació i continuïtat | 31, apartats 16.2-16.3; 32, apartats 42-44; 34, apartats 13-14; 38 |
 
 El catàleg de l'apartat 11 del document 31 conserva l'inventari individual de
@@ -115,7 +116,7 @@ La taula `redsys_callback_queue` només és present a la branca `feature/redsys-
 | Descomptes i pagador empresa | UC-20 i variants, UC-21 | 32, apartats 8 i 12 |
 | Transferència, fraccions i reclamacions cobrades | UC-22, UC-23, UC-24, UC-56 | 32, apartats 15 i 23 |
 | Canvi de curs, baixa i efectes posteriors | UC-26 a UC-33 | 32, apartat 21 |
-| Persones, entitats i visibilitat | UC-41, UC-42, UC-45, UC-59 | 32, apartats 28 i 29 |
+| Persones, entitats i visibilitat | UC-41, UC-42, UC-45, UC-59 | 31, apartat 18; 32, apartats 28, 29 i 49 |
 | Compatibilitat i sincronització llegat | UC-44, UC-47, UC-53 | 32, apartats 20 i 31; 36, apartats 2 i 4 |
 | Proformes, documents i correus | UC-36, UC-43, UC-48 a UC-50, UC-55, UC-58 | 32, apartats 18, 29 i 30 |
 | Manteniment i continuïtat | UC-39, UC-40, UC-46, UC-57, UC-60 | 32, apartats 19, 32 i 34; 36, apartat 8 |
