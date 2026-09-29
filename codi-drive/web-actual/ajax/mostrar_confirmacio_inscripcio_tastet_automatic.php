@@ -1,4 +1,6 @@
 <?php
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
@@ -6,6 +8,7 @@ include("../inc/missatgesError.php");
 include("../Text.php");
 include("../Numero.php");
 include("../PaginaConfirmacioTastet.php");
+include("../Uc108ConfirmationToken.php");
 
 try {
 	if (!isset($_GET['keyEncr']) || trim($_GET['keyEncr']) === '')
@@ -18,7 +21,7 @@ try {
 
 	$cnsParam = "SELECT VALOR FROM params WHERE TIPUS=? AND DATAI<=CURRENT_TIMESTAMP
 					AND (DATAF IS NULL OR DATAF>=CURRENT_TIMESTAMP)";
-	$stmt=$connexio->prepare($cnsParam);
+	$stmt = $connexio->prepare($cnsParam);
 	$stmt->bind_param("s", $tipusParam);
 	$tipusParam = 'keyEncriptar';
 	$stmt->execute();
@@ -58,14 +61,13 @@ try {
 	}
 
 	$connexio->desconectarBD();
-
 	echo $mostrar;
 }
-catch(Exception $e) {
-	if ($e->getCode()==404)
-      echo mostrarPagina404();
-   else
-      echo missatgeError($e->getCode());
+catch(Throwable $e) {
+	if ($e->getCode() == 404)
+		echo mostrarPagina404();
+	else
+		echo missatgeError($e->getCode());
 }
 
 ?>

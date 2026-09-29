@@ -1,4 +1,6 @@
 <?php
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
@@ -10,6 +12,8 @@ include("../Mail.php");
 include("../MailSMTP.php");
 include("../MailSMTPComvive.php");
 include("../MailSMTPFile.php");
+include("../Uc108Validation.php");
+include("../Uc108ConfirmationToken.php");
 
 try {
 	// Compatibilitat temporal amb clients antics GET; el flux actual usa POST
@@ -43,8 +47,23 @@ try {
 			throw new Exception('',404);
 	}
 
-	$connexio = new ConnexioBBDDSTMT();
-	$connexio->connectarBD();
+	$textEmailConf = null;
+	if (isset($input['email_conf']) && trim($input['email_conf']) != '')
+		$textEmailConf = new Text($input['email_conf']);
+
+	if ($esPost && $textEmailConf === null) {
+		echo "Error: cal confirmar el correu electrònic.";
+		return;
+	}
+
+	$urlTastet = isset($input['urlTastet']) ? trim($input['urlTastet']) : '';
+	$codiCursLegacy = isset($input['codiCurs']) ? trim($input['codiCurs']) : '';
+	$tipusDoc = isset($input['tipus_doc']) ? trim($input['tipus_doc']) : '';
+
+	if ($esPost && $tipusDoc !== 'NIF/NIE' && $tipusDoc !== 'Altres') {
+		echo "Error: cal indicar el tipus de document identificatiu.";
+		return;
+	}
 
 	$textNom->arreglarParaulaBD('noms');
 	$textCog->arreglarParaulaBD('noms');
@@ -53,8 +72,48 @@ try {
 	$textPoblacio->arreglarParaulaBD('noms');
 	$textConegut->arreglarParaulaBD('text_no_mod');
 	if ($textComentaris != null) $textComentaris->arreglarParaulaBD('text');
-	$textMailing->arreglarParaulaBD('text');
-	$textCodiCurs->arreglarParaulaBD('text_maj');
+	if ($textEmailConf != null) $textEmailConf->arreglarParaulaBD('email');
+
+	$nomValidat = $textNom->obtenirText();
+	$cognomsValidats = $textCog->obtenirText();
+	$documentValidat = $textDocumentacio->obtenirText();
+	$emailValidat = $textEmail->obtenirText();
+	$poblacioValidada = $textPoblacio->obtenirText();
+	$conegutValidat = $textConegut->obtenirText();
+
+	if ($nomValidat == '' || $cognomsValidats == '' || $documentValidat == '' ||
+		$emailValidat == '' || $poblacioValidada == '' || $conegutValidat == '') {
+		echo "Error: falten camps obligatoris.";
+		return;
+	}
+
+	if (!Uc108Validation::validarEmail($emailValidat)) {
+		echo "Error: el correu electrònic no és vàlid.";
+		return;
+	}
+
+	if ($textEmailConf != null && strcasecmp($textEmailConf->obtenirText(), $emailValidat) !== 0) {
+		echo "Error: els correus electrònics no coincideixen.";
+		return;
+	}
+
+	if ($tipusDoc == 'NIF/NIE') {
+		if (!Uc108Validation::validarNifNie($documentValidat)) {
+			echo "Error: el NIF/NIE no és vàlid.";
+			return;
+		}
+		$documentValidat = Uc108Validation::normalitzarNifNie($documentValidat);
+	}
+
+	if ($tipusDoc != '' && $tipusDoc != 'NIF/NIE' && mb_strlen(trim($documentValidat)) < 3) {
+		echo "Error: el document identificatiu no és vàlid.";
+		return;
+	}
+
+	if (preg_match('/\d/u', $poblacioValidada)) {
+		echo "Error: la població no és vàlida.";
+		return;
+	}
 
 	$dataInsc = date('d')."-".date('m')."-".date('Y')." ".date('H').":".date('i');
 
@@ -85,6 +144,36 @@ try {
 	$textTitolCurs = new Text($titol);
 	$textTitolCurs->arreglarParaulaBD('text_no_mod');
 
+	// El precheck del navegador no és autoritatiu: repetir al servidor abans de qualsevol efecte.
+	$documentacioCheck = ($tipusDoc == 'NIF/NIE')
+		? $documentValidat
+		: $textDocumentacio->obtenirText();
+
+	if ($tipusDoc == 'NIF/NIE') {
+		$cnsDuplicat = "SELECT ID FROM inscripcions_reptes
+			WHERE CURS=?
+			AND REPLACE(REPLACE(REPLACE(UPPER(DNI),' ',''),'.',''),'-','')=?
+			AND INSC_CURS=1
+			LIMIT 1";
+	}
+	else {
+		$cnsDuplicat = "SELECT ID FROM inscripcions_reptes
+			WHERE CURS=? AND DNI=? AND INSC_CURS=1
+			LIMIT 1";
+	}
+	$stmt = $connexio->prepare($cnsDuplicat);
+	$stmt->bind_param("ss", $codiCurs, $documentacioCheck);
+	$stmt->execute();
+	$stmt->store_result();
+
+	if ($stmt->num_rows() > 0) {
+		$connexio->closeStmt();
+		$connexio->desconectarBD();
+		echo "DUPLICATE";
+		return;
+	}
+	$connexio->closeStmt();
+
 	/* ######################################################################### */
 	//consulta per buscar la key de prisma $key
 	$cnsParam = "SELECT VALOR FROM params WHERE TIPUS=? AND DATAI<=CURRENT_TIMESTAMP
@@ -105,13 +194,13 @@ try {
 
 	/* ######################################################################### */
 	$textConsentimentMailing = "
-			<p>Et recordem que amb aquesta inscripció has acceptat rebre correus electrònics informatius dels nostres cursos i serveis. Tot i això, podràs donar-te de baixa de la nostra llista de correus en qualsevol moment.</p>";
+			<p>Amb aquesta inscripció gratuïta et donarem d'alta al nostre butlletí electrònic. Si no vols continuar rebent aquests missatges, te'n podràs donar de baixa en qualsevol moment.</p>";
 
 	/* ######################################################################### */
 	$nom = $textNom->obtenirText();
 	$cog = $textCog->obtenirText();
 	$nomCognoms = $nom." ".$cog;
-	$documentacio = $textDocumentacio->obtenirText();
+	$documentacio = ($tipusDoc == 'NIF/NIE') ? $documentValidat : $textDocumentacio->obtenirText();
 	$email = $textEmail->obtenirText();
 	$poblacio = $textPoblacio->obtenirText();
 	$titolCurs = $textTitolCurs->obtenirText();
@@ -119,6 +208,16 @@ try {
 	$comentaris = '';
 	if ($textComentaris != null)
 		$comentaris = $textComentaris->obtenirText();
+
+	$nomHtml = htmlspecialchars($nom, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$nomCognomsHtml = htmlspecialchars($nomCognoms, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$documentacioHtml = htmlspecialchars($documentacio, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$emailHtml = htmlspecialchars($email, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$poblacioHtml = htmlspecialchars($poblacio, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$titolCursHtml = htmlspecialchars($titolCurs, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$conegutHtml = htmlspecialchars($conegut, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$comentarisHtml = htmlspecialchars($comentaris, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$nomCognomsHeader = preg_replace('/[\r\n]+/', ' ', $nomCognoms);
 
 	/* ######################################################################### */
 
@@ -133,15 +232,15 @@ try {
 	</p>";
 
 	/* ######################################################################### */
-	$missatge = "<p>Benvolgut/da ".$nom.",</p>";
+	$missatge = "<p>Benvolgut/da ".$nomHtml.",</p>";
 	$missatge .= "<p>Et comuniquem que ja hem rebut la teva sol·licitud d'inscripció per al tastet en línia ";
-	$missatge .= "<strong style='color: #496baa'>".$titolCurs."</strong> ";
+	$missatge .= "<strong style='color: #496baa'>".$titolCursHtml."</strong> ";
 	$missatge .= " amb les dades personals següents:</p>";
 	$missatge .= "<div style='background-color:#e8ecf5;border:1px solid #d7deee;border-radius:2px;padding:5px 25px;margin-bottom:20px'>
-		<p><strong>Nom:</strong> ".$nomCognoms."</p>
-		<p><strong>NIF/NIE/passaport:</strong> ".$documentacio."</p>
-		<p><strong>Correu electrònic:</strong> ".$email."</p>
-		<p><strong>Població:</strong> ".$poblacio."</p>
+		<p><strong>Nom:</strong> ".$nomCognomsHtml."</p>
+		<p><strong>NIF/NIE/passaport:</strong> ".$documentacioHtml."</p>
+		<p><strong>Correu electrònic:</strong> ".$emailHtml."</p>
+		<p><strong>Població:</strong> ".$poblacioHtml."</p>
 	</div>";
 	$missatge .= $textIniciCurs;
 	$missatge .= $textPagament;
@@ -149,16 +248,16 @@ try {
 	$missatge .= $textConsentimentMailing;
 	$missatge .= "<p>Per a qualsevol consulta, no dubtis a posar-te en contacte amb nosaltres.</p>";
 
-	$msgInsc = "<p><strong>Nom:</strong> ".$nomCognoms."</p>";
-	$msgInsc .= "<p><strong>Document:</strong> ".$documentacio."</p>";
-	$msgInsc .= "<p><strong>Email:</strong> ".$email."</p>";
-	$msgInsc .= "<p><strong>Població:</strong> ".$poblacio."</p>";
-	$msgInsc .= "<p><strong>Tastet:</strong> ".$titolCurs."</p>";
-	$msgInsc .= "<p><strong>Com has conegut aquest curs?:</strong> ".$conegut."</p>";
+	$msgInsc = "<p><strong>Nom:</strong> ".$nomCognomsHtml."</p>";
+	$msgInsc .= "<p><strong>Document:</strong> ".$documentacioHtml."</p>";
+	$msgInsc .= "<p><strong>Email:</strong> ".$emailHtml."</p>";
+	$msgInsc .= "<p><strong>Població:</strong> ".$poblacioHtml."</p>";
+	$msgInsc .= "<p><strong>Tastet:</strong> ".$titolCursHtml."</p>";
+	$msgInsc .= "<p><strong>Com has conegut aquest curs?:</strong> ".$conegutHtml."</p>";
 	$msgInsc .= "<p><strong>Preu:</strong> Gratuït</p>";
-	$msgInsc .= "<p><strong>Comentaris:</strong> ".$comentaris."</p>";
+	$msgInsc .= "<p><strong>Comentaris:</strong> ".$comentarisHtml."</p>";
 
-	$subjectMailInsc = "Inscripció tastet ".$codiCurs." - ".$documentacio;
+	$subjectMailInsc = "Inscripció tastet ".$codiCurs;
 	if ($comentaris != '' )
 		$subjectMailInsc .= " + O";
 	/* ######################################################################### */
@@ -221,14 +320,15 @@ try {
 
 
 	/* ######################################################################### */
+	// Primer persistim la petició. Les notificacions s'executen després de tenir un ID real.
 	$nomBD = $textNom->obtenirText();
 	$cogBD = $textCog->obtenirText();
 	$nomCognomsBD = $nomBD." ".$cogBD;
-	$documentacioBD = $textDocumentacio->obtenirText();
+	$documentacioBD = $documentacio;
 	$emailBD = $textEmail->obtenirText();
 	$poblacioBD = $textPoblacio->obtenirText();
 	$conegutBD = $textConegut->obtenirText();
-	$codiCursBD = $textCodiCurs->obtenirText();
+	$codiCursBD = $codiCurs;
 	$titolCursBD = $textTitolCurs->obtenirText();
 
 	$comentarisBD = '';
@@ -241,7 +341,6 @@ try {
 	preg_match_all('!\d+!', $clean, $numero);
 	$usuariBD = implode(' ', $numero[0]);
 
-	$currentDate = 'CURRENT_DATE';
 
 	$insertBD = "INSERT INTO inscripcions_reptes (CURS, DATA_INSC, NOM, COGNOMS,
 					 CORREU, DNI, POBLACIO, COMENTARIS, USUARI_MDL, CONEGUT)
@@ -315,14 +414,26 @@ try {
 		if ( $stmt->num_rows() <= 0 ) {
 			$connexio->closeStmt();
 
-			$insertMailing = "INSERT INTO mailing (mail, nom, usuari) VALUES (?, ?, ?)";
-			$stmt=$connexio->prepare($insertMailing);
-			$stmt->bind_param("ssd", $emailBD, $nomBD, $usuariBD);
+	$errorsSMTP = [];
+	try {
+		// Alta comercial obligatòria associada al tastet. Un email existent no es duplica.
+		if ($mailingBD == '1') {
+			$cnsMailing = "SELECT ID FROM mailing WHERE MAIL=?";
+			$stmt = $connexio->prepare($cnsMailing);
+			$stmt->bind_param("s", $emailBD);
 			$stmt->execute();
-			$stmt->fetch();
+			$stmt->store_result();
+
+			if ( $stmt->num_rows() <= 0 ) {
+				$connexio->closeStmt();
+				$insertMailing = "INSERT INTO mailing (mail, nom, usuari) VALUES (?, ?, ?)";
+				$stmt = $connexio->prepare($insertMailing);
+				$stmt->bind_param("ssd", $emailBD, $nomBD, $usuariBD);
+				$stmt->execute();
+				$stmt->fetch();
+			}
+			$connexio->closeStmt();
 		}
-		$connexio->closeStmt();
-	}
 
 	/*
 	 * Els blocs antics de codi postal i promocions s'han retirat d'aquest handler:
@@ -330,51 +441,14 @@ try {
 	 * $codiPostalBD / $promocioAplicada no tenien cap origen en aquest flux.
 	 */
 
-	/* ######################################################################### */
+	if (count($errorsSMTP) > 0)
+		error_log('UC-108: SMTP no lliurat en '.implode(',', $errorsSMTP).'. Peticio '.$idInserit);
 
-	//buscar el username i el password d'autentificació de prisma
-	$cnsParam = "SELECT VALOR FROM params WHERE TIPUS=? AND DATAI<=CURRENT_TIMESTAMP
-					AND (DATAF IS NULL OR DATAF>=CURRENT_TIMESTAMP)";
-	$stmt=$connexio->prepare($cnsParam);
-	$stmt->bind_param("s", $tipusParam);
-	$tipusParam = 'autentificacioInscripcio';
-	$stmt->execute();
-	$stmt->bind_result($valor);
-	$stmt->fetch();
-	$autentificacioInscripcio = explode('|',$valor);
-	$username = $autentificacioInscripcio[0];
-	$password = $autentificacioInscripcio[1];
-	$nameUser = $autentificacioInscripcio[2];
-
-	$nomFromHead = $nameUser;
-	$correuFromHead = $username;
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$connexio->closeStmt();
-
-
-	$subject = "Inscripció al tastet ".$titolCurs;
-	$nomTo = "PrisMa Secretaria";
-	$correuTo = "resguard.secretaria@prisma.cat";
-	$subject2 = "Inscripció al tastet ".$titolCurs." ".$dataInsc;
-	// $correuTo = 'meriem.prisma.cat@gmail.com';
-
-	$mailCopia = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject2, $missatge);
-
-	$nomTo = $nomCognoms;
-	$correuTo = $email;
-	// $correuTo = 'meriem.prisma.cat@gmail.com';
-
-	$mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject, $missatge);
+	echo $hashIdInserit;
 
 	$connexio->desconectarBD();
 }
-catch(Exception $e) {
+catch(Throwable $e) {
 	if ($e->getCode()==404)
       echo mostrarPagina404();
    else

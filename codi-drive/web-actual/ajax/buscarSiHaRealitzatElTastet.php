@@ -1,23 +1,26 @@
 <?php
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
 include("../Text.php");
-include("../Date.php");
 
 // Compatibilitat temporal amb clients antics GET; el flux actual usa POST.
 $request = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
 $doc = isset($request['doc']) ? $request['doc'] : '';
 $curs = isset($request['curs']) ? $request['curs'] : '';
 
-//Consulta ajax per comprovar si el usuari XXX ha realitzat el curs xxx (retornar l'edicio|any en que va fer-lo)
+	if ($doc == '') {
+		echo '';
+		return;
+	}
 
-try {
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
 
-	$mostrar='';
+	$curs = '';
 
 	$cnsInsc = "SELECT DATA_INSC FROM inscripcions_reptes WHERE CURS=? AND DNI=? AND INSC_CURS=1";
    $stmt=$connexio->prepare($cnsInsc);
@@ -36,24 +39,38 @@ try {
 		$stmt->bind_result($titol);
 		$stmt->fetch();
 		$connexio->closeStmt();
+	}
 
-		$objDate = new Date($dataInsc);
-		$textDate = $objDate->getPronomEl().$objDate->getDataLlarga();
+	if ($curs == '') {
+		$connexio->desconectarBD();
+		echo "Error: el tastet no està disponible.";
+		return;
+	}
 
-		$mostrar = $titol."|".$textDate;
+	$mostrar = '';
+	$cnsInsc = "SELECT ID
+		FROM inscripcions_reptes
+		WHERE CURS=? AND DNI=? AND INSC_CURS=1
+		LIMIT 1";
+	$stmt = $connexio->prepare($cnsInsc);
+	$stmt->bind_param("ss", $curs, $doc);
+	$stmt->execute();
+	$stmt->store_result();
+
+	if ($stmt->num_rows() > 0) {
+		$mostrar = 'DUPLICATE';
 	}
 	else {
 		$connexio->closeStmt();
 	}
 	$connexio->desconectarBD();
 
+	$connexio->closeStmt();
+	$connexio->desconectarBD();
 	echo $mostrar;
 }
-catch(Exception $e) {
-	if ($e->getCode()==404)
-      echo mostrarPagina404();
-   else
-      echo missatgeError($e->getCode());
+catch(Throwable $e) {
+	echo missatgeError($e->getCode());
 }
 
 ?>

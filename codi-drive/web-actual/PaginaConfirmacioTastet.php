@@ -163,14 +163,16 @@ class PaginaConfirmacioTastet {
    */
    public function mostrarPaginaConfirmacio() {
       $titol = $this->obtenirTitol()->obtenirText();
+      $emailHtml = htmlspecialchars($this->obtenirCorreu()->obtenirText(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
       $mostrar="<div class='d-flex flex-column'>";
       $mostrar .= "<div class='container'><div class='row'>";
       $mostrar .= "<h1 class='mb-4 w-100'>Confirmació de la inscripció</h1>";
-      $mostrar .= "<p>La teva sol·licitud ha estat enviada.</p>
-      <p>Consulta la safata d'entrada o el correu brossa (<em>spam</em>) de l'adreça
-      <span class='font-weight-bold email'>".$this->obtenirCorreu()->obtenirText()."</span>
-      per comprovar que has rebut el missatge de confirmació de la inscripció.</p>
+      $mostrar .= "<p>La teva sol·licitud ha quedat registrada.</p>
+      <p>L'adreça associada a la petició és
+      <span class='font-weight-bold email'>".$emailHtml."</span>.
+      Si reps el missatge de confirmació, revisa també el correu brossa (<em>spam</em>).
+      Si no el reps, <strong>no cal que tornis a enviar el formulari</strong>; contacta amb secretaria perquè comprovi l'estat de la petició.</p>
       <p>La inscripció del tastet és totalment gratuïta.</p>
       <div class='p-3 mt-2' style='background: #e8ecf5 !important;'>
       <p><i class='fas fa-exclamation-circle ml-0'></i>En un període de 24/48 hores laborals podràs accedir al tastet <span class='font-weight-bold'>amb les teves claus</span> del campus virtual de PrisMa. En cas que encara no hagis fet cap curs amb nosaltres i no disposis de claus, rebràs un correu electrònic amb les dades d'accés.</p>

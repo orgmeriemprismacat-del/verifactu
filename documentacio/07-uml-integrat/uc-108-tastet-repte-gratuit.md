@@ -1,14 +1,21 @@
 # UC-108 · Gestionar un tastet o repte gratuït al web, la intranet i el campus
 
-**Decisions confirmades el 25/09/2026:** (DEC-108-03m) es pot tornar a renovar si la persona ho demana, tot i que la usuària indica que això no passa habitualment; no s’ha establert un màxim numèric ni una renovació automàtica. (DEC-108-01a) la identificació per comprovar repetició del tastet és el **DNI**, conjuntament amb el tastet. (DEC-108-07) avisos de tastets i butlletí general pertanyen a **la mateixa subscripció**; no dissenyar dues subscripcions independents per aquests dos noms. Els avisos operatius d’accés/renovació continuen independents de l’opció comercial.
+## Revisió d'auditoria 29/09/2026
 
-**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+**Criteri vigent:** DEC-108-04 = alta obligatòria al mailing com a condició del tastet gratuït, amb baixa posterior i sense selector Sí/No. DEC-108-06 = **OBERTA** entre `commercial_operation NON_BILLABLE/FREE_SAMPLE` i exclusió del SIF. Les redaccions anteriors que indiquin mailing opcional o DEC-108-06 tancada queden superades.
+
+Diagrames dedicats creats: [classes ACTUAL/FINAL](uc-108-classes-actual-final.md) · [seqüències ACTUAL/FINAL](uc-108-sequencies-actual-final.md) · [auditoria i traçabilitat](uc-108-auditoria-tracabilitat-2026-09-29.md).
+
+
+**Decisions confirmades el 25/09/2026:** (DEC-108-03m) es pot tornar a sol·licitar el tastet quan la persona ho demana, però si l'accés està caducat s'aplica DEC-108-03a: desbloqueig persona+tastet i nova sol·licitud web; no hi ha renovació automàtica. (DEC-108-01a) la identificació per comprovar repetició del tastet és el **DNI**, conjuntament amb el tastet. (DEC-108-07) avisos de tastets i butlletí general pertanyen a **la mateixa subscripció**; no dissenyar dues subscripcions independents per aquests dos noms. Els avisos operatius d’accés/renovació continuen independents de l’opció comercial.
+
+**DEC-108-03j/k/l — SUPERADES:** la redacció que permetia renovar un accés caducat només canviant el venciment, sense formulari nou, **no és la regla vigent**. Regla actual: si l'accés ha caducat, secretaria/suport desbloqueja **persona+tastet** i la persona torna al formulari web i envia una **nova sol·licitud**, conservant historial (DEC-108-03a). La pròrroga per incidència de credencials és un cas diferent: si la incidència ha impedit entrar, s'ajusta el venciment per donar set dies complets des de la resolució.
 
 **Lectura de l’historial:** les notes anteriors de 03a/e/f sobre nova inscripció i vigència del desbloqueig es conserven com a antecedents superats; no prevalen sobre 03j/k/l.
 
 **Objectiu canònic:** gestionar la sol·licitud i l’accés al tastet gratuït al web, la intranet i el campus, sense registre al SIF, factura, pagament ni enllaç de pagament. El consentiment de mailing és independent de la gratuïtat.
 
-**DEC-108-06 ACORDADA (25/09/2026):** per decisió de la usuària, els tastets es gestionen només al web, la intranet i el campus. No es crea cap operació SIF `commercial_operation` / `NON_BILLABLE` / `FREE_SAMPLE` per la sol·licitud gratuïta. Aquesta exclusió no afecta una compra posterior de pagament, que tindrà el seu cas propi.
+**DEC-108-06 — OBERTA:** cal decidir si la petició gratuïta es correlaciona amb `commercial_operation NON_BILLABLE/FREE_SAMPLE` o si resta fora del SIF. Cap opció crea factura, pagament, `CHARGE` ni registre AEAT.
 
 **Límit del model:** les taules comercials del SIF poden existir per altres circuits; no són una dependència ni una implementació pendent d’UC-108. El control de duplicats, l’accés temporal i el consentiment es resolen dins dels sistemes del tastet.
 
@@ -20,20 +27,20 @@
 | --- | --- |
 | Actors | Participant, canal web i **secretaria, que fa manualment l'alta al campus en la fase actual** (DEC-108-05a). El participant pot accedir al tastet sense haver consentit rebre correus comercials. L'automatització de l'alta al campus es vol per al 2027 i és fora de l'abast actual. |
 | Entrada | Identitat i `ID_INSC` si existeix, tastet/repte i edició, accés ofert, període/venciment acordat, `REQUEST_ID`, `CORRELATION_ID` i clau idempotent; elecció de mailing amb instant i text de consentiment separats. |
-| Àmbit de gestió | Web, intranet i campus. Sense operació comercial al SIF per l’alta gratuïta (DEC-108-06). |
+| Àmbit de gestió | Web, intranet i campus. Integració SIF **pendent de DEC-108-06**: opcionalment `NON_BILLABLE/FREE_SAMPLE`; mai factura/pagament/AEAT pel tastet. |
 | Alta acadèmica | **DEC-108-05a ACORDADA:** el web crea una sol·licitud pendent; **secretaria fa MANUALMENT l'alta/activació al campus**, no el servidor web ni un worker automàtic. UC-107 impedeix duplicar una petició pendent o un accés encara actiu. **DEC-108-02b ACORDADA:** una setmana d'accés des de l'activació real feta per secretaria. Pendent de verificar l'inici/venciment i el registre real de Moodle/BD. Automatització desitjada per al 2027, no inclosa en l'abast actual. |
 | Efectes prohibits | **Cap** `factura`, `factura_registres`, `fiscal_queue`, `payment_transaction`, `payment_allocation`, `redsys_payment_intent`, `payment_link` ni entrada al ledger de fons. Import zero no és un `CHARGE` de zero. |
 | Consentiment | Elecció afirmativa o negativa i evidència diferenciada, control de finalitat i revocació segons el sistema de comunicació aprovat; no deduir consentiment de la inscripció. El servei concret de mailing no ha estat identificat. |
-| Resultat | `UUID_OPERATION` i `ID_INSC`/identificador d'accés reals, classe no facturable, dates, duplicats/resolució, i dada de mailing separada, sense simular documents fiscals. |
+| Resultat | `ID_INSC`/identificador de petició real, estat acadèmic, dates efectives, duplicats/resolució i estat de mailing. `UUID_OPERATION` només si DEC-108-06 aprova integració SIF. |
 
 ### 1.1. Flux objectiu
 
-1. El canal valida que el producte/edició és efectivament un tastet/repte **gratuït**. Un curs subvencionat o una compra amb preu final zero per aplicació de crèdit **no** es classifica automàticament com `FREE_SAMPLE`.
+1. El canal valida que el recurs és efectivament un tastet/repte **gratuït i actiu**. UC-108 no crea una convocatòria/edició artificial: la sol·licitud és contínua mentre `reptes.ESTAT=1`.
 2. UC-107 detecta una alta equivalent per persona i tastet actiu (sense inventar una convocatòria per al flux continu acordat); si existeix, torna a mostrar l'accés anterior sense crear una segona operació.
-3. En la fase actual, el web només crea/reutilitza una **sol·licitud pendent**. **Secretaria realitza MANUALMENT l'alta al campus** dins del termini comunicat de 24–48 hores laborals i activa l'accés. Només quan l'activació és real es registra/verifica l'inici del període d'una setmana i el venciment (DEC-108-05a/02a/02b). La futura automatització d'alta al campus es vol per al **2027**, però queda **fora d'abast**. DEC-108-06 exclou el registre de la sol·licitud gratuïta al SIF.
+3. En la fase actual, el web només crea/reutilitza una **sol·licitud pendent**. Secretaria realitza MANUALMENT l'alta al campus dins de 24–48 hores laborals i activa l'accés. El venciment és set dies exactes després de l'activació efectiva, a la mateixa hora. **DEC-108-06 no altera aquest flux i continua oberta.**
 4. Es registra la decisió de mailing a part, amb prova de què es va acceptar o rebutjar; amb «Sí» explícit i persistència comercial correcta, subscripció al butlletí directa en enviar el formulari sense correu de confirmació (DEC-108-04b). «No» o manca de «Sí» no genera subscripció; una fallada comercial no desfà l'alta acadèmica. Això no altera la classificació gratuïta.
 5. **DEC-108-05e ACORDADA:** el correu manual posterior de secretaria **només informa que ja hi ha accés activat, sense enllaç al campus ni instruccions per obtenir claus**. Si la persona ja era membre conserva les credencials; si encara no ho era, quan secretaria crea manualment el compte, **el campus li envia AUTOMÀTICAMENT per correu les claus** (DEC-108-05f), per un circuit diferent del correu manual de confirmació. **DEC-108-05g ACORDADA:** la fallada o no recepció del correu de claus NO bloqueja la tramesa MANUAL del missatge informatiu posterior de secretaria quan l'accés ja és actiu; la incidència de credencials es tracta independentment. El correu manual no prova que s'hagin rebut les claus ni que s'hagi iniciat sessió. **DEC-108-05h/i ACORDADES:** secretaria atén primer la incidència i intenta reenviar o regenerar les claus des del campus; si no ho resol, deriva a Isa (suport tècnic), i finalment a desenvolupament (Meriem) si persisteix. El circuit no bloqueja el correu informatiu manual. **DEC-108-05j ACORDADA:** si la incidència impedeix entrar durant part de la setmana, prorrogar l'accés per compensar el temps perdut, amb una NOVA SETMANA COMPLETA des de la resolució de la incidència (DEC-108-05k), sense afirmar cap automatització de la pròrroga. Verificar el comportament tècnic efectiu sense incloure credencials reals en aquest document.
-6. **DEC-108-05b ACORDADA:** després que secretaria hagi completat manualment l'alta i s'hagi activat realment l'accés, **secretaria PREPARA el correu operatiu amb una PLANTILLA JA EXISTENT i l'ENVIA MANUALMENT a la persona per informar-la que ja pot accedir al campus** (DEC-108-05c/d), sense enviament automàtic del web/campus en aquesta fase. És diferent del correu de sol·licitud rebuda i s'envia independentment del «Sí/No» del butlletí, també amb «No». Cal verificar el procediment, el destinatari i l'evidència real de l'enviament sense pressupostar-ne el mecanisme tècnic. En reintent equivalent no es genera una nova entrada fiscal/econòmica ni s'atorguen dos accessos contradictoris.
+6. **DEC-108-05b ACORDADA:** després de l'activació real, secretaria prepara i envia MANUALMENT l'avís operatiu amb la plantilla existent. És independent de l'estat posterior del mailing comercial. Compte nou: el campus envia credencials automàticament; compte existent: conserva les claus. En reintent equivalent no es genera una nova petició ni es reactiva el mailing.
 
 ### 1.2. Alternatives i proves
 
@@ -62,9 +69,9 @@
 | Baixa de la persona o petició denegada | **DEC-108-03d ACORDADA (22/09/2026):** la persona pot tornar-se a inscriure directament des del formulari web sense desbloqueig de secretaria/suport, tant si s'ha donat de baixa com si secretaria havia denegat la sol·licitud. Conservar historial anterior i crear una nova petició quan la persona l'enviï, amb protecció davant duplicats. Pendent d'adaptar PHP/JS, identificar els estats reals i provar-ho. No aplicar aquesta exempció a accessos caducats. |
 | Accés al tastet encara actiu | **DEC-108-03c ACORDADA (22/09/2026):** si la mateixa persona intenta inscriure's una altra vegada al mateix tastet mentre té l'accés actiu, mostrar que ja està inscrita i impedir una segona sol·licitud. No requerir desbloqueig de secretaria/suport, exclusiu d'accessos caducats. Pendent d'aplicar en PHP/JS i provar contra l'estat efectiu de Moodle/accés, no deduir-ho només de `INSC_CURS=1`. |
 | Sol·licitud pendent d'alta al campus | **DEC-108-03b ACORDADA (22/09/2026):** si la mateixa persona torna a enviar el formulari del mateix tastet mentre la primera sol·licitud segueix pendent, mostrar que ja té una sol·licitud pendent i no crear una segona alta. No exigir desbloqueig de secretaria/suport, reservat al cas d'accés caducat. El PHP actual només cerca historial `INSC_CURS=1` en la comprovació JS; protegir també el servidor abans d'INSERT. Pendent d'aplicar i provar. |
-| Tastet expirat | Renovació per correu: secretaria/suport modifica el venciment al campus a set dies des del canvi. Accés directe amb el compte existent, sense formulari ni nova inscripció. Qui canvia la data envia l’avís amb la plantilla inicial (DEC-108-03j/k/l). |
+| Tastet expirat | Secretaria/suport desbloqueja la inscripció per aquella persona+tastet; la persona torna al formulari i envia una nova sol·licitud. No es renova directament només canviant el venciment (DEC-108-03a; 03j/k/l superades). |
 | Preu comercial passa de zero a import positiu | Una altra classificació/oferta i acceptació UC-112; no convertir retrospectivament la reserva gratuïta en factura cobrada. |
-| Mailing no consentit | **DEC-108-04a ACORDADA (22/09/2026):** el formulari del tastet inclou subscripció opcional al butlletí amb elecció «Sí/No». Si escull «No», pot inscriure's igualment al tastet i rebre les comunicacions operatives; no es crea una alta comercial ni s'infereix un «Sí» de la inscripció. **DEC-108-04b ACORDADA:** si tria «Sí» explícit, es dona d'alta directament al butlletí en enviar el formulari, **sense correu/enllaç de confirmació addicional**, sempre que l'alta comercial es registri amb èxit. Resten per concretar text/evidència/versió i implementació del consentiment a UC-125. Cal canviar JS/PHP/vista/correus i executar proves. |
+| Mailing | **DEC-108-04 ACORDADA (25/09/2026):** l'alta al tastet gratuït comporta alta obligatòria al mailing, sense selector Sí/No; baixa posterior possible. Retry de la mateixa petició: no duplicar ni reactivar després d'una baixa. Cas tastet A → baixa → tastet B: OBERT. |
 | El llegat falla després d'enregistrar l'operació | Reintentar l'alta amb el mateix identificador i reconciliar UC-53, mai emetre factura o `CHARGE` com a compensació tècnica. |
 
 **Pendents de tancament:** traçar la petició web pendent, la **intervenció manual de secretaria** al campus i el **correu operatiu posterior d'accés activat (DEC-108-05b), independent del butlletí**, identificador de recurs, dates d'activació/venciment reals, duplicats, consentiment i proves de regressió; no s'han executat proves PHP. **No incloure la futura automatització de 2027 com a tasca d'implementació de la fase actual.**
@@ -95,7 +102,7 @@
 
 | Prova | Resultat exigible |
 | --- | --- |
-| TG-108-REN1: accés caducat i petició per correu | Renovar al campus sense nou formulari, nova inscripció ni registre SIF. |
+| TG-108-REN1: accés caducat i petició de repetició | Desbloqueig persona+tastet per secretaria/suport; després la persona fa una nova sol·licitud web; historial conservat. |
 | TG-108-REN2: canvi en un instant conegut | Venciment set dies després del canvi a la mateixa hora, no des del correu ni del primer inici de sessió. |
 | TG-108-REN3: canvi efectuat per secretaria o suport | Qui fa el canvi envia l’avís amb la plantilla inicial; comprovar destinatari i resultat real de l’enviament. |
 | TG-108-REN4: avís no lliurat després d’un canvi correcte | Distingir venciment real i resultat del correu; no afirmar que l’avís ha arribat. |
@@ -187,7 +194,7 @@ S->>S: Validar disponibilitat, DNI+tastet i estat previ segons DEC-108-01a/03
 alt Dades invàlides, tastet inactiu o estat no classificat
  S-->>UI: Error sense crear sol·licitud
 else Accés caducat
- S-->>UI: No crear nova petició; indicar renovació per correu i canvi de venciment al campus
+ S-->>UI: Indicar que cal desbloqueig persona+tastet; després nova sol·licitud web
 else Ja té petició pendent o accés actiu
  S-->>UI: Mostrar estat existent sense nova sol·licitud
 else Primera petició o baixa/denegació
@@ -279,7 +286,7 @@ Font: resposta explícita «Canvieu la data de venciment». La usuària demana a
 
 ### 25/09/2026 — Renovació aclarida per la usuària
 
-**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+**DEC-108-03j/k/l — SUPERADES:** la redacció que permetia renovar un accés caducat només canviant el venciment, sense formulari nou, **no és la regla vigent**. Regla actual: si l'accés ha caducat, secretaria/suport desbloqueja **persona+tastet** i la persona torna al formulari web i envia una **nova sol·licitud**, conservant historial (DEC-108-03a). La pròrroga per incidència de credencials és un cas diferent: si la incidència ha impedit entrar, s'ajusta el venciment per donar set dies complets des de la resolució.
 
 Font: respostes agrupades 1–3 de la usuària. La renovació queda definida documentalment; no s’ha executat cap canvi al campus, enviament ni prova funcional.
 

@@ -1,5 +1,15 @@
 <?php
 
+function obtenirUrlActualSenseQuery() {
+	$scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+	$host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+	$requestUri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/';
+	$path = parse_url($requestUri, PHP_URL_PATH);
+	if ($path === false || $path === null || $path === '')
+		$path = '/';
+	return $scheme.'://'.$host.$path;
+}
+
 function missatgeError( $codiError ) {
 	$error = "<div class='container no-trobat'>";
 	$error .= "<img src='https://www.prisma.cat/img/error_404.png' title='Error ".$codiError."'>";
@@ -7,7 +17,7 @@ function missatgeError( $codiError ) {
 	$error .= "<p class='text-centrat'>Refresca la pàgina. Si segueixes tenint el mateix error, contacte amb nosaltres a partir del nostre <a href='https://www.prisma.cat/contacte' title='Contacta amb PrisMa'>formulari de contacte</a> indicant l'error per poder-te ajudar més ràpidament.</p>";
 	$error .= "</div>";
 
-	$linkPage = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+	$linkPage = obtenirUrlActualSenseQuery();
 
 	$date = new DateTime();
 	$codiTime = $date->getTimestamp();
@@ -71,7 +81,7 @@ function missatgeErrorNoDisponible($msgError, $msgVisit) {
 	$error .= "Pot ser que la pàgina que estàs sol·licitant hagi deixat d'existir o bé que estigui pendent d'actualització.</p>";
 	$error .= "<p class='text-centrat'>".$msgVisit."</p></div>";
 
-	$linkPage = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+	$linkPage = obtenirUrlActualSenseQuery();
 
 	$date = new DateTime();
 	$codiTime = $date->getTimestamp();
@@ -103,7 +113,7 @@ function missatgeErrorPagament($msgError) {
 	$error .= "Hi ha hagut un error amb la pàgina que estàs sol·licitant.</p>";
 	$error .= "<p class='text-centrat'>Torna a la pàgina del pagament d'inscripció per tornar-ho a intentar.</p></div>";
 
-	$linkPage = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+	$linkPage = obtenirUrlActualSenseQuery();
 
 	$date = new DateTime();
 	$codiTime = $date->getTimestamp();
@@ -160,7 +170,7 @@ function mostrarPagina404() {
 
 	$connexio->desconectarBD();
 
-	$linkPage = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+	$linkPage = obtenirUrlActualSenseQuery();
 
 	$date = new DateTime();
 	$codiTime = $date->getTimestamp();
@@ -217,7 +227,7 @@ function mostrarPagina302() {
 
 	$connexio->desconectarBD();
 
-	$linkPage = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+	$linkPage = obtenirUrlActualSenseQuery();
 
 	$date = new DateTime();
 	$codiTime = $date->getTimestamp();
