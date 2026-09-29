@@ -115,8 +115,8 @@ class DocumentWorker {
  +runOne(now) result
 }
 class InvoiceDocumentAccessService {
- <<DISSENY: no acreditat>>
- +download(actor,documentId,token) bytes
+ <<DISSENY UC-080: no acreditat>>
+ +download(actor,documentId,tokenOrSession) bytes
 }
 DocumentWorker --> DocumentJobRepository : cua
 DocumentWorker --> FiscalDocumentGenerator : generar
