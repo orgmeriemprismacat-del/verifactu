@@ -148,6 +148,28 @@ final class UsocEntityInvoiceServiceTest
         Assert::same([], $legacyDb->preparedSql);
     }
 
+    public function testRejectsStudentInvoiceWithDifferentAmount(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new UsocEntityLegacySpyPdo([
+            $this->inscriptionRow(),
+            $this->courseRow(),
+        ]);
+        $service = $this->service($sifDb);
+        $studentInvoice = $this->seedStudentInvoice($sifDb);
+
+        $input = $this->entityInput();
+        $input['student_invoice_uuid'] = $studentInvoice['uuid_factura'];
+        $input['student_amount'] = '74.00';
+
+        Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $service, $input): void {
+            $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
+        }, 409);
+
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM usoc_financing_case')->fetchColumn());
+    }
+
     public function testRejectsStudentInvoiceFromAnotherInscription(): void
     {
         $sifDb = TestDatabase::fresh();
@@ -173,6 +195,18 @@ final class UsocEntityInvoiceServiceTest
         $payload = Fixtures::invoicePayload([
             'idempotency_key' => 'REDSYS|USOC_ALUMNE|IDPAG:980|ORDER:ORDERUSOC980',
             'source_channel' => 'REDSYS',
+            'totals' => [
+                'import_base' => '75.00',
+                'taxable_base' => '75.00',
+                'total' => '75.00',
+            ],
+            'lines' => [[
+                'unit_price' => '75.00',
+                'base' => '75.00',
+                'import_base' => '75.00',
+                'taxable_base' => '75.00',
+                'total' => '75.00',
+            ]],
             'relations' => [[
                 'source_type' => 'INSCRIPCIO',
                 'source_id' => $inscriptionId,
