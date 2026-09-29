@@ -24,6 +24,8 @@ class SifInternalDocumentClient
         if ($this->url === '' || $this->keyId === '' || $this->secret === '') {
             throw new RuntimeException('SIF internal document API is not configured');
         }
+
+        $this->assertSecureUrl($this->url);
     }
 
     public function download(string $actorId, array $roles, int $documentId): array
@@ -149,6 +151,34 @@ class SifInternalDocumentClient
             'headers' => $responseHeaders,
             'bytes' => $bytes,
         ];
+    }
+
+    private function assertSecureUrl(string $url): void
+    {
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            throw new RuntimeException('Invalid SIF internal API URL');
+        }
+
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+
+        if ($scheme === 'https') {
+            return;
+        }
+
+        $allowLocalHttp = filter_var(
+            getenv('SIF_INTERNAL_API_ALLOW_HTTP') ?: '0',
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        if ($allowLocalHttp
+            && $scheme === 'http'
+            && in_array($host, ['127.0.0.1', 'localhost', '::1'], true)) {
+            return;
+        }
+
+        throw new RuntimeException('SIF internal API requires HTTPS');
     }
 
     private function normalizeRoles(array $roles): array
