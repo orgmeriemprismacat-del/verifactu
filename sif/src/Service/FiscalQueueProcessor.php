@@ -277,23 +277,31 @@ final class FiscalQueueProcessor
         bool $markAttemptUncertain
     ): array {
         $message = $exception->getMessage();
-        $this->transactions->run(function (\PDO $db) use (
+        $incident = $this->transactions->run(function (\PDO $db) use (
             $item,
             $attemptUuid,
             $message,
             $incidentType,
             $markAttemptUncertain
-        ): void {
+        ): array {
             if ($attemptUuid !== null && $markAttemptUncertain && $this->attempts !== null) {
                 $this->attempts->fail($db, $attemptUuid, 'UNCERTAIN', $message);
             }
             $this->queue->holdForReview($db, $item, $message);
-            (new IncidentRepository())->open(
-                $db,
-                (string) $item['UUID_FACTURA'],
-                $incidentType,
-                'Queue ID ' . $item['ID'] . ': ' . $message
-            );
+
+            return (new IncidentRepository())->openDetailed($db, [
+                'uuid_factura' => (string) $item['UUID_FACTURA'],
+                'resource_type' => 'FISCAL_QUEUE',
+                'resource_id' => (string) $item['ID'],
+                'source_type' => 'AEAT_WORKER',
+                'source_id' => (string) $item['ID'],
+                'type' => $incidentType,
+                'message' => 'Queue ID ' . $item['ID'] . ': ' . $message,
+                'severity' => 'HIGH',
+                'correlation_id' => 'FISCAL_QUEUE:' . $item['ID'],
+                'idempotency_key' => $incidentType . '|QUEUE:' . $item['ID'],
+                'reason_code' => $incidentType,
+            ]);
         });
 
         return [
@@ -305,6 +313,8 @@ final class FiscalQueueProcessor
             'queue_status' => 'REVIEW',
             'requires_review' => true,
             'next_retry_at' => null,
+            'incident_id' => $incident['incident_id'],
+            'uuid_incident' => $incident['uuid_incident'],
             'error' => $message,
         ];
     }
