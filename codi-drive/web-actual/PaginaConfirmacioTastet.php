@@ -203,13 +203,14 @@ class PaginaConfirmacioTastet {
    */
    public function mostrarPaginaConfirmacio() {
       $titol = $this->obtenirTitol()->obtenirText();
+      $emailHtml = htmlspecialchars($this->obtenirCorreu()->obtenirText(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
       $mostrar="<div class='d-flex flex-column'>";
       $mostrar .= "<div class='container'><div class='row'>";
       $mostrar .= "<h1 class='mb-4 w-100'>Confirmació de la inscripció</h1>";
       $mostrar .= "<p>La teva sol·licitud ha quedat registrada.</p>
       <p>L'adreça associada a la petició és
-      <span class='font-weight-bold email'>".$this->obtenirCorreu()->obtenirText()."</span>.
+      <span class='font-weight-bold email'>".$emailHtml."</span>.
       Si reps el missatge de confirmació, revisa també el correu brossa (<em>spam</em>).
       Si no el reps, <strong>no cal que tornis a enviar el formulari</strong>; contacta amb secretaria perquè comprovi l'estat de la petició.</p>
       <p>La inscripció del tastet és totalment gratuïta.</p>
