@@ -81,6 +81,8 @@ La logica actual identificada es:
 
 - `consultaRolsEdiicio($page)` retorna els rols d'edicio de la pagina;
 - `consultaRolsUsuari()` retorna els rols de l'usuari;
+- `comprovarSessio.php` refresca ara els rols amb `Usuari::replaceRols()`, de manera que una revocació a `usuaris.ROLS` no queda acumulada indefinidament a l'objecte de sessió;
+- el pont UC-007 (`ajax/alumnes/sifFactures.php`) no accepta actor/rol del navegador: els llegeix de la sessió validada i signa la petició servidor-a-servidor amb HMAC.
 - el JS compara rols i calcula `tePermisEdicio`;
 - les pantalles poden mostrar o ocultar accions segons aquest resultat.
 
