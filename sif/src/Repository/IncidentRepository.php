@@ -15,33 +15,71 @@ final class IncidentRepository
 
     public function open(\PDO $db, ?string $uuidFactura, string $type, string $message): array
     {
-        return $this->openDetailed($db, [
+        $uuid = $this->uuidGenerator->generate();
+
+        $result = $this->openDetailed($db, [
             'uuid_factura' => $uuidFactura,
-            'resource_type' => $uuidFactura !== null ? 'INVOICE' : null,
+            'resource_type' => $uuidFactura === null ? 'SYSTEM' : 'INVOICE',
             'resource_id' => $uuidFactura,
-            'source_type' => 'LEGACY_OPEN',
+            'source_type' => 'SIF',
+            'source_id' => null,
             'type' => $type,
             'message' => $message,
             'severity' => 'MEDIUM',
+            'correlation_id' => 'INCIDENT:' . $uuid,
+            'idempotency_key' => 'INCIDENT|' . $uuid,
+            'reason_code' => strtoupper(trim($type)),
         ]);
+
+        return [
+            'ok' => true,
+            'incident_id' => $result['incident_id'],
+            'uuid_incident' => $result['uuid_incident'],
+        ];
     }
 
-    public function openDetailed(\PDO $db, array $input): array
+    public function openDetailed(\PDO $db, array $payload): array
     {
-        $type = strtoupper(trim((string) ($input['type'] ?? '')));
-        $message = trim((string) ($input['message'] ?? ''));
-        $severity = strtoupper(trim((string) ($input['severity'] ?? 'MEDIUM')));
-        $uuidFactura = $this->nullableString($input, 'uuid_factura', 36);
-        $uuidPayment = $this->nullableString($input, 'uuid_payment', 36);
-        $resourceType = $this->nullableUpperString($input, 'resource_type', 40);
-        $resourceId = $this->nullableString($input, 'resource_id', 120);
-        $sourceType = $this->nullableUpperString($input, 'source_type', 40);
-        $sourceId = $this->nullableString($input, 'source_id', 120);
-        $correlationId = $this->nullableString($input, 'correlation_id', 120);
-        $idempotencyKey = $this->nullableString($input, 'idempotency_key', 140);
-        $reasonCode = $this->nullableUpperString($input, 'reason_code', 80);
+        $uuidFactura = $this->nullable($payload, 'uuid_factura', 36);
+        $uuidPayment = $this->nullable($payload, 'uuid_payment', 36);
+        $resourceType = $this->nullableUpper($payload, 'resource_type', 40);
+        $resourceId = $this->nullable($payload, 'resource_id', 120);
+        $sourceType = $this->nullableUpper($payload, 'source_type', 40);
+        $sourceId = $this->nullable($payload, 'source_id', 120);
+        $type = strtoupper(trim((string) ($payload['type'] ?? '')));
+        $message = trim((string) ($payload['message'] ?? ''));
+        $severity = strtoupper(trim((string) ($payload['severity'] ?? 'MEDIUM')));
+        $correlationId = $this->nullable($payload, 'correlation_id', 120);
+        $idempotencyKey = $this->nullable($payload, 'idempotency_key', 140);
+        $reasonCode = $this->nullableUpper($payload, 'reason_code', 80);
 
-        $idempotencyPayload = [
+        if ($type === '' || strlen($type) > 50) {
+            throw SifException::validation('Invalid incident type');
+        }
+        if ($message === '') {
+            throw SifException::validation('Invalid incident message');
+        }
+        if (!in_array($severity, ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], true)) {
+            throw SifException::validation('Invalid incident severity');
+        }
+
+        if ($uuidFactura !== null) {
+            $stmt = $db->prepare('SELECT 1 FROM factura WHERE UUID_FACTURA = ? LIMIT 1');
+            $stmt->execute([$uuidFactura]);
+            if ($stmt->fetchColumn() === false) {
+                throw SifException::notFound('Incident invoice not found');
+            }
+        }
+
+        if ($uuidPayment !== null) {
+            $stmt = $db->prepare('SELECT 1 FROM payment_transaction WHERE UUID_PAYMENT = ? LIMIT 1');
+            $stmt->execute([$uuidPayment]);
+            if ($stmt->fetchColumn() === false) {
+                throw SifException::notFound('Incident payment not found');
+            }
+        }
+
+        $normalizedPayload = [
             'uuid_factura' => $uuidFactura,
             'uuid_payment' => $uuidPayment,
             'resource_type' => $resourceType,
@@ -53,47 +91,15 @@ final class IncidentRepository
             'severity' => $severity,
             'reason_code' => $reasonCode,
         ];
-        $idempotencyValidator = new PayloadIdempotencyValidator();
-        $idempotencyPayloadHash = $idempotencyKey !== null
-            ? $idempotencyValidator->calculateHash($idempotencyPayload)
-            : null;
 
-        if ($type === '' || strlen($type) > 50) {
-            throw SifException::validation('Invalid incident type');
-        }
-        if ($message === '') {
-            throw SifException::validation('Invalid incident message');
-        }
-        if (!in_array($severity, ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], true)) {
-            throw SifException::validation('Invalid incident severity');
-        }
-        if (($resourceType === null) !== ($resourceId === null)) {
-            throw SifException::validation('Incident resource_type and resource_id must be provided together');
-        }
-
-        if ($uuidFactura !== null) {
-            $this->assertUuid($uuidFactura, 'invoice');
-            $stmt = $db->prepare('SELECT 1 FROM factura WHERE UUID_FACTURA = ? LIMIT 1');
-            $stmt->execute([$uuidFactura]);
-            if ($stmt->fetchColumn() === false) {
-                throw SifException::notFound('Incident invoice not found');
-            }
-        }
-
-        if ($uuidPayment !== null) {
-            $this->assertUuid($uuidPayment, 'payment');
-            $stmt = $db->prepare('SELECT 1 FROM payment_transaction WHERE UUID_PAYMENT = ? LIMIT 1');
-            $stmt->execute([$uuidPayment]);
-            if ($stmt->fetchColumn() === false) {
-                throw SifException::notFound('Incident payment not found');
-            }
-        }
+        $validator = new PayloadIdempotencyValidator();
+        $payloadHash = $validator->calculateHash($normalizedPayload);
 
         if ($idempotencyKey !== null) {
             $existing = $this->findByIdempotencyKey($db, $idempotencyKey);
             if ($existing !== null) {
-                $idempotencyValidator->assertMatches(
-                    $idempotencyPayload,
+                $validator->assertMatches(
+                    $normalizedPayload,
                     (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? '')
                 );
 
@@ -102,22 +108,24 @@ final class IncidentRepository
                     'reused' => true,
                     'incident_id' => (int) $existing['ID'],
                     'uuid_incident' => (string) $existing['UUID_INCIDENT'],
-                    'status' => (string) $existing['ESTAT'],
                 ];
             }
         }
 
         $uuidIncident = $this->uuidGenerator->generate();
+        $correlationId ??= 'INCIDENT:' . $uuidIncident;
+        $reasonCode ??= $type;
 
         try {
-            $db->prepare(
+            $stmt = $db->prepare(
                 'INSERT INTO errors_verifactu (
                     UUID_INCIDENT, UUID_FACTURA, UUID_PAYMENT, RESOURCE_TYPE, RESOURCE_ID,
                     SOURCE_TYPE, SOURCE_ID, TIPUS_INCIDENCIA, SEVERITY, ASSIGNED_TO,
-                    CORRELATION_ID, IDEMPOTENCY_KEY, IDEMPOTENCY_PAYLOAD_HASH,
-                    REASON_CODE, ESTAT, DETAILS
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, \'OPEN\', ?)'
-            )->execute([
+                    CORRELATION_ID, IDEMPOTENCY_KEY, IDEMPOTENCY_PAYLOAD_HASH, REASON_CODE,
+                    ESTAT, DETAILS
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, \'OPEN\', ?)'
+            );
+            $stmt->execute([
                 $uuidIncident,
                 $uuidFactura,
                 $uuidPayment,
@@ -129,16 +137,16 @@ final class IncidentRepository
                 $severity,
                 $correlationId,
                 $idempotencyKey,
-                $idempotencyPayloadHash,
+                $idempotencyKey === null ? null : $payloadHash,
                 $reasonCode,
                 $message,
             ]);
         } catch (\PDOException $exception) {
-            if ($idempotencyKey !== null && (string) $exception->getCode() === '23000') {
+            if ((string) $exception->getCode() === '23000' && $idempotencyKey !== null) {
                 $existing = $this->findByIdempotencyKey($db, $idempotencyKey);
                 if ($existing !== null) {
-                    $idempotencyValidator->assertMatches(
-                        $idempotencyPayload,
+                    $validator->assertMatches(
+                        $normalizedPayload,
                         (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? '')
                     );
 
@@ -147,11 +155,9 @@ final class IncidentRepository
                         'reused' => true,
                         'incident_id' => (int) $existing['ID'],
                         'uuid_incident' => (string) $existing['UUID_INCIDENT'],
-                        'status' => (string) $existing['ESTAT'],
                     ];
                 }
             }
-
             throw $exception;
         }
 
@@ -160,7 +166,6 @@ final class IncidentRepository
             'reused' => false,
             'incident_id' => (int) $db->lastInsertId(),
             'uuid_incident' => $uuidIncident,
-            'status' => 'OPEN',
         ];
     }
 
@@ -170,11 +175,10 @@ final class IncidentRepository
             throw SifException::validation('Invalid incident id');
         }
 
-        $sql = 'SELECT * FROM errors_verifactu WHERE ID = ?';
+        $sql = 'SELECT * FROM errors_verifactu WHERE ID = ? LIMIT 1';
         if ($forUpdate) {
             $sql .= ' FOR UPDATE';
         }
-
         $stmt = $db->prepare($sql);
         $stmt->execute([$incidentId]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -184,28 +188,31 @@ final class IncidentRepository
 
     public function list(\PDO $db, array $filters = [], int $limit = 50): array
     {
-        $limit = max(1, min(100, $limit));
+        $limit = max(1, min(200, $limit));
         $where = [];
         $params = [];
 
-        foreach ([
+        $map = [
             'status' => ['ESTAT', 30, true],
             'severity' => ['SEVERITY', 20, true],
             'type' => ['TIPUS_INCIDENCIA', 50, true],
-            'assigned_to' => ['ASSIGNED_TO', 120, false],
-        ] as $field => [$column, $maxLength, $upper]) {
-            if (!array_key_exists($field, $filters) || $filters[$field] === null || $filters[$field] === '') {
+            'assignee_id' => ['ASSIGNED_TO', 120, false],
+            'uuid_factura' => ['UUID_FACTURA', 36, false],
+            'uuid_payment' => ['UUID_PAYMENT', 36, false],
+            'resource_type' => ['RESOURCE_TYPE', 40, true],
+            'resource_id' => ['RESOURCE_ID', 120, false],
+        ];
+
+        foreach ($map as $key => [$column, $maxLength, $upper]) {
+            if (!array_key_exists($key, $filters) || $filters[$key] === null || trim((string) $filters[$key]) === '') {
                 continue;
             }
-            $value = trim((string) $filters[$field]);
-            if ($value === '' || strlen($value) > $maxLength) {
-                throw SifException::validation('Invalid incident filter: ' . $field);
-            }
-            if ($upper) {
-                $value = strtoupper($value);
+            $value = trim((string) $filters[$key]);
+            if (strlen($value) > $maxLength) {
+                throw SifException::validation('Invalid incident filter: ' . $key);
             }
             $where[] = $column . ' = ?';
-            $params[] = $value;
+            $params[] = $upper ? strtoupper($value) : $value;
         }
 
         $sql = 'SELECT * FROM errors_verifactu';
@@ -216,7 +223,6 @@ final class IncidentRepository
 
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
-
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
@@ -225,25 +231,65 @@ final class IncidentRepository
         int $incidentId,
         string $status,
         string $severity,
-        ?string $assignedTo,
+        ?string $assigneeId,
         ?string $resolvedAt,
         ?string $resolutionNotes,
         ?string $closureCriteria
     ): void {
-        $db->prepare(
+        if ($incidentId < 1) {
+            throw SifException::validation('Invalid incident id');
+        }
+
+        $status = strtoupper(trim($status));
+        $severity = strtoupper(trim($severity));
+        if (!in_array($status, ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'DISMISSED'], true)) {
+            throw SifException::validation('Invalid incident status');
+        }
+        if (!in_array($severity, ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], true)) {
+            throw SifException::validation('Invalid incident severity');
+        }
+        if ($assigneeId !== null && (trim($assigneeId) === '' || strlen($assigneeId) > 120)) {
+            throw SifException::validation('Invalid incident assignee');
+        }
+
+        $stmt = $db->prepare(
             'UPDATE errors_verifactu
              SET ESTAT = ?, SEVERITY = ?, ASSIGNED_TO = ?, RESOLVED_AT = ?,
                  RESOLUTION_NOTES = ?, CLOSURE_CRITERIA = ?
              WHERE ID = ?'
-        )->execute([
-            strtoupper(trim($status)),
-            strtoupper(trim($severity)),
-            $assignedTo,
+        );
+        $stmt->execute([
+            $status,
+            $severity,
+            $assigneeId === null ? null : trim($assigneeId),
             $resolvedAt,
             $resolutionNotes,
             $closureCriteria,
             $incidentId,
         ]);
+        if ($stmt->rowCount() !== 1) {
+            $exists = $this->findById($db, $incidentId);
+            if ($exists === null) {
+                throw SifException::notFound('Incident not found');
+            }
+        }
+    }
+
+    public function resolveAeatQueueReview(\PDO $db, string $uuidFactura, int $queueId): int
+    {
+        $prefix = 'Queue ID ' . $queueId . ':%';
+        $stmt = $db->prepare(
+            "UPDATE errors_verifactu
+             SET ESTAT = 'RESOLVED', RESOLVED_AT = COALESCE(RESOLVED_AT, NOW(6)),
+                 RESOLUTION_NOTES = COALESCE(RESOLUTION_NOTES, 'AEAT queue reconciled without resend')
+             WHERE UUID_FACTURA = ?
+               AND ESTAT IN ('OPEN', 'IN_PROGRESS')
+               AND TIPUS_INCIDENCIA LIKE 'AEAT_%'
+               AND DETAILS LIKE ?"
+        );
+        $stmt->execute([$uuidFactura, $prefix]);
+
+        return $stmt->rowCount();
     }
 
     private function findByIdempotencyKey(\PDO $db, string $key): ?array
@@ -255,14 +301,13 @@ final class IncidentRepository
         return is_array($row) ? $row : null;
     }
 
-    private function nullableString(array $input, string $field, int $maxLength): ?string
+    private function nullable(array $input, string $field, int $maxLength): ?string
     {
-        $value = $input[$field] ?? null;
-        if ($value === null) {
+        if (!array_key_exists($field, $input) || $input[$field] === null) {
             return null;
         }
 
-        $value = trim((string) $value);
+        $value = trim((string) $input[$field]);
         if ($value === '' || strlen($value) > $maxLength) {
             throw SifException::validation('Invalid incident field: ' . $field);
         }
@@ -270,16 +315,9 @@ final class IncidentRepository
         return $value;
     }
 
-    private function nullableUpperString(array $input, string $field, int $maxLength): ?string
+    private function nullableUpper(array $input, string $field, int $maxLength): ?string
     {
-        $value = $this->nullableString($input, $field, $maxLength);
+        $value = $this->nullable($input, $field, $maxLength);
         return $value === null ? null : strtoupper($value);
-    }
-
-    private function assertUuid(string $value, string $label): void
-    {
-        if (preg_match('/^[0-9a-fA-F-]{36}$/D', $value) !== 1) {
-            throw SifException::validation('Invalid incident ' . $label . ' UUID');
-        }
     }
 }
