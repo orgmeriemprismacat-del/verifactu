@@ -169,7 +169,7 @@ try {
 	if ($stmt->num_rows() > 0) {
 		$connexio->closeStmt();
 		$connexio->desconectarBD();
-		echo "Error: ja constes inscrit/a en aquest tastet.";
+		echo "DUPLICATE";
 		return;
 	}
 	$connexio->closeStmt();
