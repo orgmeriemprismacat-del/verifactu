@@ -546,7 +546,7 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 
 ## 18. Criteri de tancament
 
-UC-20 no es pot marcarar com a COMPLET fins que:
+UC-20 no es pot marcar com a COMPLET fins que:
 
 - la política AP canònica estigui ratificada;
 - alta, denegació i canvi de curs consumeixin la mateixa política/versionat;
