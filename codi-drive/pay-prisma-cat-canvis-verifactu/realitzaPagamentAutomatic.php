@@ -474,35 +474,11 @@
 				}
 
 				if ( $validPromo == 1 ) {
-					//busquem el codi
-					$cnsPromo = "SELECT CODI_DESCOMPTE FROM promocions WHERE CODI_DESCOMPTE LIKE '%MACABODETITULAR#%' AND DNI = ? ORDER BY CODI_DESCOMPTE DESC LIMIT 1";
-					if ( $stmtPromo=$connexio->prepare($cnsPromo) ) {
-						$stmtPromo->bind_param("s", $dni);
-						$stmtPromo->execute();
-						$stmtPromo->bind_result($lastCodePromo);
-						$stmtPromo->fetch();
-						$connexio->closeStmt();
-					}
-					else {
-						throw new Exception('', 2024040901 );
-					}
-
-					//CREAR NUMERO ONLY
-					// CREAR REGISTRE CODI DESCOMPTE
-					// $codiPromoJul = "MACABODETITULAR#".(intval(explode('#', $lastCodePromo)[1]) + 1);
-					$codiPromoJul = $lastCodePromo;
-
-					$textDataPag = new Text($dateComanda);
-					$dataPagRevert = $textDataPag->replace('%2F','-');
-					$vectDataPagRevert = explode('/', $dataPagRevert);
-					$dataPag = $vectDataPagRevert[0]."-".$vectDataPagRevert[1]."-".(intval($vectDataPagRevert[2])+1);
-
-					$objDataPagament = new Text($dataPag);
-					$dataDataPagament = $objDataPagament->convertirDataLlarga();
-
-					$textPromoNovell .= "<p><strong>Atenció!</strong> Per facilitar-te l’entrada al món educatiu, t’oferim <strong>".$apagar." € de descompte</strong> en la matrícula de qualsevol dels nostres cursos! Per utilitzar el descompte, només cal que introdueixis el <strong>codi*</strong> <strong style='color: #496baa'>MACABODETITULAR#1103</strong> en el camp <strong>«Codi promocional»</strong> de la inscripció del curs a realitzar.</p>
-					<p>*Codi personal i intransferible. Un sol ús. Vàlid fins al ".$dataDataPagament."</p>";
-					$textPromoNovell .= "</div>";
+					// El codi ja no es consulta ni es mostra des del PHP legacy.
+					// El model FINAL el concedeix idempotentment després del cobrament
+					// reconciliat i el prepara en una outbox xifrada per al lliurament.
+					$textPromoNovell .= "<p><strong>Atenció!</strong> Hem confirmat que compleixes els requisits de la promoció per a docents novells i que la matrícula JASOM està completament pagada.</p>";
+					$textPromoNovell .= "<p>El teu codi personal de descompte es prepararà de manera segura i el rebràs en un missatge separat. No cal que facis cap altra acció.</p>";
 				}
 			}
 
