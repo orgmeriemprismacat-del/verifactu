@@ -38,6 +38,7 @@ final class RedsysUsocInvoiceService implements RedsysIntentHandler
             'entity_amount' => number_format((float) $entityAmount, 2, '.', ''),
             'student_invoice_uuid' => $result['uuid_factura'],
             'idpag' => $payload['payment']['idpag'] ?? null,
+            'id_insc' => (int) ($snapshot['inscription']['ID'] ?? 0),
         ];
 
         return $result;
@@ -47,14 +48,15 @@ final class RedsysUsocInvoiceService implements RedsysIntentHandler
         \PDO $sifDb,
         \PDO $legacyDb,
         string $dsOrder,
-        mixed $usocAmount
+        mixed $usocAmount,
+        int $inscriptionId
     ): array {
         $usocAmount = $this->usocAmount($usocAmount);
         $notification = $this->validatedNotification($sifDb, $dsOrder);
         $idpag = $this->idpag($notification);
         $studentAmount = $this->amount($notification);
 
-        $snapshot = $this->legacySnapshots->loadByIdpag($legacyDb, $idpag, $studentAmount, $usocAmount);
+        $snapshot = $this->legacySnapshots->loadByIdpag($legacyDb, $idpag, $studentAmount, $usocAmount, $inscriptionId);
         $basePayload = $this->legacyPayloads->buildStudentPayload($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
         $result = $this->invoices->issueInvoice($payload);
@@ -68,6 +70,7 @@ final class RedsysUsocInvoiceService implements RedsysIntentHandler
             'entity_amount' => $snapshot['usoc']['entity_amount'] ?? $usocAmount,
             'student_invoice_uuid' => $result['uuid_factura'],
             'idpag' => $idpag,
+            'id_insc' => (int) $snapshot['inscription']['ID'],
         ];
 
         return $result;
