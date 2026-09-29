@@ -142,8 +142,9 @@ try {
 	$poblacio = $textPoblacio->obtenirText();
 	$titolCurs = $textTitolCurs->obtenirText();
 	$conegut = $textConegut->obtenirText();
+	$comentaris = '';
 	if ($textComentaris != null)
-			$comentaris = $textComentaris->obtenirText();
+		$comentaris = $textComentaris->obtenirText();
 
 	/* ######################################################################### */
 
@@ -275,7 +276,6 @@ try {
 	preg_match_all('!\d+!', $clean, $numero);
 	$usuariBD = implode(' ', $numero[0]);
 
-	$currentDate = 'CURRENT_DATE';
 
 	$insertBD = "INSERT INTO inscripcions_reptes (CURS, DATA_INSC, NOM, COGNOMS,
 					 CORREU, DNI, POBLACIO, COMENTARIS, USUARI_MDL, CONEGUT)
