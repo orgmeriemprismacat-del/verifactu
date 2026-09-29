@@ -14,6 +14,11 @@ final class SifException extends \RuntimeException
         return new self($message, 409);
     }
 
+    public static function unauthorized(string $message): self
+    {
+        return new self($message, 401);
+    }
+
     public static function forbidden(string $message): self
     {
         return new self($message, 403);
