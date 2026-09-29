@@ -19,7 +19,7 @@ final class IncidentRepository
 
         $result = $this->openDetailed($db, [
             'uuid_factura' => $uuidFactura,
-            'resource_type' => $uuidFactura === null ? 'SYSTEM' : 'INVOICE',
+            'resource_type' => $uuidFactura === null ? null : 'INVOICE',
             'resource_id' => $uuidFactura,
             'source_type' => 'SIF',
             'source_id' => null,
@@ -61,6 +61,11 @@ final class IncidentRepository
         }
         if (!in_array($severity, ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], true)) {
             throw SifException::validation('Invalid incident severity');
+        }
+        if (($resourceType === null) !== ($resourceId === null)) {
+            throw SifException::validation(
+                'Incident resource_type and resource_id must be provided together'
+            );
         }
 
         if ($uuidFactura !== null) {
@@ -108,6 +113,7 @@ final class IncidentRepository
                     'reused' => true,
                     'incident_id' => (int) $existing['ID'],
                     'uuid_incident' => (string) $existing['UUID_INCIDENT'],
+                    'status' => (string) $existing['ESTAT'],
                 ];
             }
         }
@@ -155,6 +161,7 @@ final class IncidentRepository
                         'reused' => true,
                         'incident_id' => (int) $existing['ID'],
                         'uuid_incident' => (string) $existing['UUID_INCIDENT'],
+                        'status' => (string) $existing['ESTAT'],
                     ];
                 }
             }
@@ -166,6 +173,7 @@ final class IncidentRepository
             'reused' => false,
             'incident_id' => (int) $db->lastInsertId(),
             'uuid_incident' => $uuidIncident,
+            'status' => 'OPEN',
         ];
     }
 
