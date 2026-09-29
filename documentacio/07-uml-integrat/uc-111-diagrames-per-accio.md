@@ -677,11 +677,17 @@ partition ACTUAL {
 :Tramitar baixa/rectificativa general;
 }
 partition FINAL {
-:Separar promoció i diners reals;
-:Crear review no gastable;
-:Aprovar de forma independent;
-:Reconciliar de nou;
-:Activar saldo derivat amb nou any;
+:Identificar predecessor actual;
+if (Aplicació original o primer traspàs confirmat?) then (sí)
+  :Separar promoció i diners reals;
+  :Crear review no gastable;
+  :Aprovar de forma independent;
+  :Reconciliar de nou;
+  :Activar saldo derivat amb nou any;
+else (derived application / traspàs successiu)
+  :PENDENT servei review+activation específic;
+  :No activar automàticament;
+endif
 }
 stop
 @enduml
