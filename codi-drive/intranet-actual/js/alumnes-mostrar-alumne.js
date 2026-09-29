@@ -573,7 +573,6 @@ function cercarUSuari(dniUser) {
 		if (dniUser.trim() != '') {
 			$('#resultats-cerca').html(info);
 			$('#resultats-cerca').show();
-			carregarPromocioDocentNovell(dniUser);
 		}
 		else {
 			afegirHeaderModalError("Aquest alumne no té DNI!");
@@ -1351,9 +1350,52 @@ function mostrarModalConsultaInformacio(id) {
 					}
 				});
 				$('#dades-pagament').on('click', '#factura-insc.no-edit', function() {
-					var numFactura = parseInt( $('#factura-insc').html() );
-					var urlConf = 'https://intranet.prisma.cat/alumnes/factura/#/factRel/'+numFactura;
-					window.location.replace(urlConf);
+					var idInscFactura = id;
+					var requestSif = $.ajax({
+						url: path + "alumnes/buscarFacturesSif.php",
+						method: "GET",
+						data: {
+							source_type: "INSCRIPCIO",
+							source_id: idInscFactura,
+							limit: 20
+						},
+						dataType: "json"
+					});
+
+					requestSif.done(function(res) {
+						if (res && res.ok === true && Array.isArray(res.results) && res.results.length === 1) {
+							var uuid = res.results[0].uuid_factura;
+							window.location.replace(
+								'https://intranet.prisma.cat/alumnes/factura/#/uuid/' + encodeURIComponent(uuid)
+							);
+							return;
+						}
+
+						if (res && res.ok === true && Array.isArray(res.results) && res.results.length > 1) {
+							mostrarModalLoading();
+							mostrarModalConsultaFactura(idInscFactura);
+							return;
+						}
+
+						if (res && res.ok === true && Array.isArray(res.results) && res.results.length === 0) {
+							var numFactura = parseInt($('#factura-insc').html(), 10);
+							if (!isNaN(numFactura)) {
+								window.location.replace(
+									'https://intranet.prisma.cat/alumnes/factura/#/factRel/' + numFactura
+								);
+								return;
+							}
+						}
+
+						uc007MostrarErrorAlumne("No s'ha pogut resoldre la factura de la inscripció");
+					});
+
+					requestSif.fail(function(jqXHR) {
+						var message = "No s'ha pogut consultar el SIF";
+						if (jqXHR.responseJSON && jqXHR.responseJSON.error)
+							message = jqXHR.responseJSON.error;
+						uc007MostrarErrorAlumne(message);
+					});
 				});
 
 				$('#dades-pagament').on('click', '.cancelar-apartat', function() {
@@ -2168,6 +2210,160 @@ function mostrarModalDonarBaixa(id) {
 
 //Mostra el modal de consulta la factura de la inscripció amb id id
 function mostrarModalConsultaFactura(id) {
+	var search = $.ajax({
+		url: path + "alumnes/buscarFacturesSif.php",
+		method: "GET",
+		data: {
+			source_type: "INSCRIPCIO",
+			source_id: id,
+			limit: 20
+		},
+		dataType: "json"
+	});
+
+	search.done(function(res) {
+		if (!res || res.ok !== true) {
+			uc007MostrarErrorAlumne((res && res.error) ? res.error : "Resposta SIF no vàlida");
+			return;
+		}
+
+		if (!Array.isArray(res.results) || res.results.length === 0) {
+			mostrarModalConsultaFacturaLlegat(id);
+			return;
+		}
+
+		if (res.results.length === 1) {
+			uc007MostrarFacturaSifAlumne(res.results[0].uuid_factura);
+			return;
+		}
+
+		uc007MostrarSelectorFacturesSifAlumne(res.results);
+	});
+
+	search.fail(function(jqXHR) {
+		amagarLoadingModal();
+		var message = "No s'ha pogut resoldre la factura SIF de la inscripció";
+		if (jqXHR.responseJSON && jqXHR.responseJSON.error)
+			message = jqXHR.responseJSON.error;
+		uc007MostrarErrorAlumne(message);
+	});
+}
+
+function uc007MostrarSelectorFacturesSifAlumne(resultats) {
+	var html = '<div class="uc007-sif-readonly">';
+	html += '<p><span class="badge bg-info">SIF · només lectura</span></p>';
+	html += '<p>Aquesta inscripció està relacionada amb més d’una factura SIF.</p>';
+	html += '<div class="list-group">';
+
+	resultats.forEach(function(invoice) {
+		html += '<button type="button" class="list-group-item list-group-item-action uc007-sif-invoice-choice" data-uuid="' +
+			uc007EscapeHtmlAlumne(invoice.uuid_factura || '') + '">';
+		html += '<strong>' + uc007EscapeHtmlAlumne(invoice.num_visible || '') + '</strong>';
+		html += ' · ' + uc007EscapeHtmlAlumne(invoice.tipus_serie || '');
+		html += ' · ' + uc007EscapeHtmlAlumne(invoice.estat_factura || '');
+		html += ' · cobrament ' + uc007EscapeHtmlAlumne(invoice.estat_cobrament || '');
+		html += '</button>';
+	});
+
+	html += '</div></div>';
+
+	$("#modalConsultaFactura .modal-body").html(html);
+	amagarLoadingModal();
+	bootstrap.Modal.getOrCreateInstance(document.getElementById('modalConsultaFactura')).show();
+
+	$('#modalConsultaFactura').off('click.uc007Sif').on('click.uc007Sif', '.uc007-sif-invoice-choice', function() {
+		uc007MostrarFacturaSifAlumne($(this).attr('data-uuid'));
+	});
+}
+
+function uc007MostrarFacturaSifAlumne(uuid) {
+	var request = $.ajax({
+		url: path + "alumnes/consultaFacturaSif.php",
+		method: "GET",
+		data: { uuid: uuid },
+		dataType: "json"
+	});
+
+	request.done(function(res) {
+		if (!res || res.ok !== true) {
+			uc007MostrarErrorAlumne((res && res.error) ? res.error : "Resposta SIF no vàlida");
+			return;
+		}
+
+		var invoice = res.invoice || {};
+		var billing = invoice.billing || {};
+		var totals = invoice.totals || {};
+		var html = '<div class="uc007-sif-readonly">';
+		html += '<p><span class="badge bg-info">SIF · només lectura</span></p>';
+		html += '<h4>' + uc007EscapeHtmlAlumne(invoice.num_visible || '') + '</h4>';
+		html += '<dl class="row">';
+		html += uc007DlAlumne('UUID', invoice.uuid_factura);
+		html += uc007DlAlumne('Data emissió', invoice.data_emissio);
+		html += uc007DlAlumne('Estat factura', invoice.estat_factura);
+		html += uc007DlAlumne('Estat cobrament', invoice.estat_cobrament);
+		html += uc007DlAlumne('Estat AEAT', invoice.estat_aeat);
+		html += uc007DlAlumne('Receptor', billing.name);
+		html += uc007DlAlumne('NIF/CIF', billing.nif);
+		html += uc007DlAlumne('Total', totals.total);
+		html += '</dl>';
+
+		if (Array.isArray(res.rectifications) && res.rectifications.length > 0) {
+			html += '<h5>Relació de rectificació</h5><ul>';
+			res.rectifications.forEach(function(rect) {
+				html += '<li>' +
+					uc007EscapeHtmlAlumne(rect.RECTIFICATIVA_NUM_VISIBLE || rect.UUID_FACTURA_RECTIFICATIVA || '') +
+					' → ' +
+					uc007EscapeHtmlAlumne(rect.RECTIFICADA_NUM_VISIBLE || rect.UUID_FACTURA_RECTIFICADA || '') +
+					'</li>';
+			});
+			html += '</ul>';
+		}
+
+		if (Array.isArray(res.documents) && res.documents.length > 0) {
+			html += '<h5>Documents</h5><ul>';
+			res.documents.forEach(function(doc) {
+				html += '<li>' + uc007EscapeHtmlAlumne(doc.TIPUS || '') + ' · ' +
+					uc007EscapeHtmlAlumne(doc.ESTAT || '') +
+					' <span class="text-muted">(descàrrega segura UC-080 pendent)</span></li>';
+			});
+			html += '</ul>';
+		}
+
+		html += '</div>';
+
+		$("#modalConsultaFactura .modal-body").html(html);
+		amagarLoadingModal();
+		bootstrap.Modal.getOrCreateInstance(document.getElementById('modalConsultaFactura')).show();
+	});
+
+	request.fail(function(jqXHR) {
+		amagarLoadingModal();
+		var message = "No s'ha pogut consultar la factura SIF";
+		if (jqXHR.responseJSON && jqXHR.responseJSON.error)
+			message = jqXHR.responseJSON.error;
+		uc007MostrarErrorAlumne(message);
+	});
+}
+
+function uc007DlAlumne(label, value) {
+	if (value === null || typeof value === 'undefined' || value === '')
+		return '';
+	return '<dt class="col-sm-4">' + uc007EscapeHtmlAlumne(label) + '</dt><dd class="col-sm-8">' +
+		uc007EscapeHtmlAlumne(value) + '</dd>';
+}
+
+function uc007EscapeHtmlAlumne(value) {
+	return $('<div/>').text(String(value === null || typeof value === 'undefined' ? '' : value)).html();
+}
+
+function uc007MostrarErrorAlumne(message) {
+	amagarLoadingModal();
+	afegirHeaderModalError("Alerta SIF");
+	afegirTextModalError(uc007EscapeHtmlAlumne(message));
+	mostrarModalError();
+}
+
+function mostrarModalConsultaFacturaLlegat(id) {
 	var upd = $.ajax({
 	   url: path + "alumnes/mostraModalConsultaFactura.php",
 	   method: "GET",
@@ -2230,14 +2426,14 @@ function mostrarModalConsultaFactura(id) {
 	            upd2.done(function( res ) {
 	               amagarModalConsultaFactura();
 	               amagarLoadingModal();
-	               if (!resD.toLowerCase().includes("error")) {
+	               if (!res.toLowerCase().includes("error")) {
 	                  var link = document.createElement('a');
 	                  link.setAttribute("id", "download-fact-" + nclick);
-	                  link.href = path + "alumnes/" + resD;
-	                  link.download = resD + '.pdf';
+	                  link.href = path + "alumnes/" + res;
+	                  link.download = res + '.pdf';
 	                  link.click();
 	                  $.ajax({
-	                     url: path + "alumnes/eliminarArxiu.php?filename=" + resD,
+	                     url: path + "alumnes/eliminarArxiu.php?filename=" + res,
 	                     cache: false,
 	                     type: "GET",
 	                     success: function(data) {
@@ -2272,7 +2468,7 @@ function mostrarModalConsultaFactura(id) {
 	            });
 
 	            upd2.fail(function( jqXHR, textStatus, errorThrown ) {
-	               rerrorFunction( jqXHR, textStatus, errorThrown,
+	               errorFunction( jqXHR, textStatus, errorThrown,
 	                  "Hi ha hagut algun error a l'hora de guardar la informació': " );
 	            });
 	         });
@@ -2320,7 +2516,7 @@ function mostrarModalConsultaFactura(id) {
 	});
 
 	upd.fail(function( jqXHR, textStatus, errorThrown ) {
-	   rerrorFunction( jqXHR, textStatus, errorThrown,
+	   errorFunction( jqXHR, textStatus, errorThrown,
 	      "Hi ha hagut algun error a l'hora de guardar la informació': " );
 	});
 }
@@ -2572,148 +2768,3 @@ function amagarModalObservacions() {
 $('#modalObservacions').on('click', function() {
 	amagarModalObservacions()
 });
-
-
-function carregarPromocioDocentNovell(dniUser) {
-	$('#promocio-docent-novell').remove();
-
-	var panel = "<section id='promocio-docent-novell' class='card mt-4 mb-4'>";
-	panel += "<div class='card-header'><strong>Promoció docent novell</strong></div>";
-	panel += "<div class='card-body'><div class='text-muted'>Carregant informació del SIF...</div></div>";
-	panel += "</section>";
-	$('#resultats-cerca').append(panel);
-
-	$.ajax({
-		url: path + "alumnes/mostrarPromocioDocentNovell.php",
-		method: "GET",
-		data: { dni: dniUser },
-		dataType: "json",
-		global: false
-	}).done(function(res) {
-		if (!res || res.ok !== true) {
-			$('#promocio-docent-novell .card-body').html(
-				"<div class='alert alert-warning mb-0'>No s'ha pogut carregar la informació promocional del SIF.</div>"
-			);
-			return;
-		}
-
-		if (!res.rights || res.rights.length === 0) {
-			$('#promocio-docent-novell .card-body').html(
-				"<div class='text-muted'>Aquesta persona no té cap dret de promoció docent novell registrat.</div>"
-			);
-			return;
-		}
-
-		var html = "";
-		res.rights.forEach(function(right, index) {
-			html += renderPromocioDocentNovell(right, index);
-		});
-		$('#promocio-docent-novell .card-body').html(html);
-	}).fail(function() {
-		$('#promocio-docent-novell .card-body').html(
-			"<div class='alert alert-warning mb-0'>El SIF no està disponible o no està configurat per a aquesta consulta.</div>"
-		);
-	});
-}
-
-function renderPromocioDocentNovell(right, index) {
-	var estat = etiquetaEstatPromocio(right.display_status);
-	var original = formatEuro(right.original_amount);
-	var applied = formatEuro(right.applied_amount);
-	var reserved = formatEuro(right.reserved_amount);
-	var available = formatEuro(right.available_amount);
-	var origin = escapeHtml((right.origin.product_code || 'JASOM') + " " + (right.origin.product_edition || ''));
-
-	var html = "<div class='border rounded p-3" + (index > 0 ? " mt-3" : "") + "'>";
-	html += "<div class='d-flex justify-content-between align-items-start flex-wrap gap-2'>";
-	html += "<div><h5 class='mb-1'>Dret promocional docent novell</h5>";
-	html += "<div class='text-muted small'>Origen: " + origin + " · Inscripció #" + escapeHtml(right.origin.enrollment_id) + "</div></div>";
-	html += "<span class='badge text-bg-secondary'>" + estat + "</span></div>";
-
-	html += "<div class='row mt-3'>";
-	html += resumImport("Concedit", original);
-	html += resumImport("Utilitzat", applied);
-	html += resumImport("Reservat", reserved);
-	html += resumImport("Disponible", available);
-	html += "</div>";
-
-	html += "<div class='small mt-2'>";
-	html += "<strong>Concessió:</strong> " + formatDataPromocio(right.issued_at);
-	html += " · <strong>Caducitat:</strong> " + formatDataPromocio(right.expires_at);
-	html += " · <strong>Lliurament:</strong> " + escapeHtml(right.delivery_status || "pendent");
-	html += "</div>";
-
-	html += "<div class='mt-3'><strong>Historial d'ús</strong>";
-	if (!right.applications || right.applications.length === 0) {
-		html += "<div class='text-muted mt-1'>Encara no s'ha utilitzat aquest dret.</div>";
-	} else {
-		html += "<div class='table-responsive mt-2'><table class='table table-sm align-middle'>";
-		html += "<thead><tr><th>Estat</th><th>Curs destí</th><th>Import</th><th>Factura</th><th>Data</th></tr></thead><tbody>";
-		right.applications.forEach(function(app) {
-			html += "<tr>";
-			html += "<td>" + etiquetaAplicacioPromocio(app.status) + "</td>";
-			html += "<td>" + escapeHtml((app.destination_product_code || '') + " " + (app.destination_product_edition || '')) +
-				" <span class='text-muted'>#" + escapeHtml(app.destination_enrollment_id || '') + "</span></td>";
-			html += "<td>" + formatEuro(app.amount) + "</td>";
-			html += "<td>" + escapeHtml(app.invoice_number || "—") + "</td>";
-			html += "<td>" + formatDataPromocio(app.applied_at || app.reserved_at) + "</td>";
-			html += "</tr>";
-		});
-		html += "</tbody></table></div>";
-	}
-	html += "</div></div>";
-	return html;
-}
-
-function resumImport(label, value) {
-	return "<div class='col-6 col-md-3 mb-2'><div class='small text-muted'>" +
-		escapeHtml(label) + "</div><div class='fw-semibold'>" + escapeHtml(value) + "</div></div>";
-}
-
-function etiquetaEstatPromocio(status) {
-	var labels = {
-		GRANTED: "Concedit",
-		ACTIVE: "Actiu",
-		CODE_PREPARED: "Codi preparat",
-		DELIVERED: "Enviat",
-		PARTIALLY_RESERVED: "Reserva en curs",
-		PARTIALLY_USED: "Parcialment utilitzat",
-		EXHAUSTED: "Esgotat",
-		EXPIRED: "Caducat",
-		CANCELLED: "Cancel·lat"
-	};
-	return escapeHtml(labels[status] || status || "Desconegut");
-}
-
-function etiquetaAplicacioPromocio(status) {
-	var labels = {
-		RESERVED: "Reservat",
-		APPLIED: "Aplicat",
-		RELEASED: "Alliberat",
-		REVERSED: "Revertit"
-	};
-	return escapeHtml(labels[status] || status || "—");
-}
-
-function formatEuro(value) {
-	var number = Number(value);
-	if (!Number.isFinite(number)) return escapeHtml(String(value || "0.00")) + " €";
-	return number.toLocaleString('ca-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
-}
-
-function formatDataPromocio(value) {
-	if (!value) return "—";
-	var normalized = String(value).replace(" ", "T") + (String(value).includes("Z") ? "" : "Z");
-	var date = new Date(normalized);
-	if (isNaN(date.getTime())) return escapeHtml(String(value));
-	return date.toLocaleString('ca-ES');
-}
-
-function escapeHtml(value) {
-	return String(value == null ? "" : value)
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
-}
