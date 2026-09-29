@@ -20,6 +20,18 @@ class Tastet {
 	/* #################################    FUNCIONS CONSTRUCTORS    ################################# */
 
 	public function __construct( $idUrl, $dispositiu ) {
+		// Estat segur per defecte: només es marca actiu quan la consulta retorna un tastet actiu.
+		$this->titol = null;
+		$this->codiCurs = '';
+		$this->shortDesc = [];
+		$this->intro = [];
+		$this->url = null;
+		$this->cursOrig = null;
+		$this->imgPortada = null;
+		$this->imgCurs = null;
+		$this->dispositiu = $dispositiu;
+		$this->estat = 0;
+
 		require_once 'ConnexioBBDD_PreparedStatment.php';
 		$connexio = new ConnexioBBDDSTMT();
     	$connexio->connectarBD();
@@ -32,6 +44,14 @@ class Tastet {
 		$stmt->bind_param("dd", $estat, $idUrl);
 		$estat = 1;
 		$stmt->execute();
+		$stmt->store_result();
+
+		if ($stmt->num_rows() <= 0) {
+			$connexio->closeStmt();
+			$connexio->desconectarBD();
+			return;
+		}
+
 		$stmt->bind_result($titol, $codiCurs, $shortDesc, $intro,
 		$idUrl, $idImgLarge, $idImgSmall, $cursOrig);
 		$stmt->fetch();
@@ -80,7 +100,7 @@ class Tastet {
 			}
 		}
 		else
-			$this->cursOrig = '';
+			$this->cursOrig = null;
 
 		require_once 'Url.php';
 		if ( $idUrl != null AND $idUrl != '' )
@@ -99,7 +119,6 @@ class Tastet {
 		else
 			$this->imgCurs = null;
 
-		$this->dispositiu = $dispositiu;
 		$this->estat = 1;
 	}
 
