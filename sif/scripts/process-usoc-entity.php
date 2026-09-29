@@ -10,6 +10,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
+use Prisma\Sif\Repository\UsocStudentInvoiceLinkRepository;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacyUsocInvoicePayloadBuilder;
@@ -42,10 +43,11 @@ try {
     $service = new UsocEntityInvoiceService(
         new LegacyUsocSnapshotRepository(),
         new LegacyUsocInvoicePayloadBuilder(),
-        $invoiceService
+        $invoiceService,
+        new UsocStudentInvoiceLinkRepository()
     );
 
-    $result = $service->issueEntityFromExplicitInput($legacyDb, $input);
+    $result = $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
     $result['payment_registered'] = false;
 
     echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
