@@ -298,11 +298,21 @@ stop
 title UC-111 | Baixa curs destí -> saldo derivat | FINAL
 start
 :Identificar origen ACTUAL de la promoció;
-note right
-  Aplicació original,
-  aplicació derivada o
-  traspàs confirmat.
-end note
+if (Origen executable en aquest tall?) then (sí)
+  note right
+    Cobert amb servei:
+    - aplicació original
+    - primer traspàs confirmat
+  end note
+else (no)
+  note right
+    Encara PENDENT de servei específic:
+    - derived_application APPLIED
+    - segon/tercer traspàs
+  end note
+  :No activar saldo derivat automàticament;
+  stop
+endif
 :Registrar rectificativa real;
 :Separar component promocional i diners reals;
 :Crear review PENDING amb available=0;
@@ -393,4 +403,4 @@ stop
 
 Les activitats FINAL dels §§7–12 corresponen a serveis de la branca, però els adaptadors d'UI/autenticació/pricing/fiscalitat/evidències externes no estan acreditats com a desplegats. **No s'han executat proves MySQL en aquesta auditoria.**
 
-[Fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) · [Classes](uc-111-classes-actual-final.md) · [Seqüències](uc-111-sequencies-actual-final.md) · [Traçabilitat](uc-111-tracabilitat-implementacio.md)
+[Fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) · [Classes](uc-111-classes-actual-final.md) · [Seqüències](uc-111-sequencies-actual-final.md) · [Dades i estats](uc-111-dades-estats-actual-final.md) · [Traçabilitat](uc-111-tracabilitat-implementacio.md)

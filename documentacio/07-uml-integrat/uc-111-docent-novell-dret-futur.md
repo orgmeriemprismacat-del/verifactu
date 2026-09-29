@@ -13,7 +13,26 @@
 
 **Objectiu del catàleg:** separar l'evidència de titulació i la seva validació de la compra d'origen; **només després de confirmar el cobrament** s'emet una sola vegada el benefici futur. No es modifica ni es torna a emetre la factura inicial per concedir el dret.
 
-**Estat revisat el 22/09/2026:** les migracions defineixen `discount_validation`, `discount_evidence`, `commercial_entitlement` i `commercial_entitlement_event`. El PHP web llegat identifica la promoció de novell i, quan `CURS='JASOM'` i es marca novell, crea `recent_titulat(ID_INSC)`; la intranet té un botó de validació que crida `Intranet::sendMsgValidatCurosProfessorNovell()`. **El cos del mètode i el SQL d'actualització han estat aportats posteriorment per l'usuària:** la validació Sí/No actualitza `recent_titulat.VALIDAT` a 1/2 i prepara correus segons el tipus de descompte. L'extracte no mostra cap comprovació del cobrament real ni cap INSERT de promoció futura, i tampoc acredita el servei SIF que emet el dret després del pagament. La comunicació del canal web anuncia un **codi de descompte futur per un import monetari**, però no demostra que sigui un saldo prepagat; les condicions exactes, caducitat, transferibilitat i emissió/consum real queden pendents de contrast i decisió. [Auditoria específica UC-111](00-auditoria-casos-pendents-lot-02-uc-111-2026-09-22.md).
+> **Mapa documental 29/09/2026.** Aquest fitxer es conserva com a historial integrat i cronologia dels talls. Per auditar cobertura sense recórrer un document monolític, utilitzar com a vistes canòniques: [fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md), [casos d'ús ACTUAL/FINAL](uc-111-casos-us-actual-final.md), [classes ACTUAL/FINAL](uc-111-classes-actual-final.md), [seqüències ACTUAL/FINAL](uc-111-sequencies-actual-final.md), [activitats ACTUAL/FINAL](uc-111-activitats-actual-final.md), [dades i estats ACTUAL/FINAL](uc-111-dades-estats-actual-final.md), [diagrames 1:1 per acció](uc-111-diagrames-per-accio.md) i [matriu de traçabilitat](uc-111-tracabilitat-implementacio.md). Les seccions cronològiques d'aquest document poden descriure un estat anterior i s'han d'interpretar amb el tall que indiquen.
+
+
+**Estat revisat el 22/09/2026:** les migracions defineixen `discount_validation`, `discount_evidence`, `commercial_entitlement` i `commercial_entitlement_event`. El PHP web llegat identifica la promoció de novell i, quan `CURS='JASOM'` i es marca novell, crea `recent_titulat(ID_INSC)`; la intranet té un botó de validació que crida `Intranet::sendMsgValidatCurosProfessorNovell()`. **El cos del mètode i el SQL d'actualització han estat aportats posteriorment per l'usuària:** la validació Sí/No actualitza `recent_titulat.VALIDAT` a 1/2 i prepara correus segons el tipus de descompte. L'extracte no mostra cap comprovació del cobrament real ni cap INSERT de promoció futura, i tampoc acredita el servei SIF que emet el dret després del pagament. La comunicació del canal web anuncia un codi per valor monetari. Les decisions de negoci de concessió única per persona, import igual al JASOM íntegrament pagat, un any de vigència i consum parcial ja estan confirmades als apartats següents. **Auditoria posterior del llegat:** s'ha identificat un fragment que prepara el correu del codi al callback de pagament, però no s'hi observa INSERT d'un codi nou; el generador efectiu desplegat i el consumidor encara no estan verificats. No confondre-ho amb el saldo promocional aprovat ni amb saldo de fons prepagats. [Auditoria específica UC-111](00-auditoria-casos-pendents-lot-02-uc-111-2026-09-22.md).
+
+
+## Actualització d'auditoria i implementació — 29/09/2026
+
+**ACTUAL legacy contrastat:** `Intranet::sendMsgValidatCurosProfessorNovell()` actualitza `recent_titulat.VALIDAT=1/2` i comunica el resultat. El flux `realitzaPagamentAutomatic.php` entra en la branca promocional només quan JASOM queda completament pagat i `VALIDAT=1`, però la còpia legacy auditada només consultava un codi `MACABODETITULAR` existent i el correu contenia un literal; **això no era una concessió idempotent fiable**.
+
+**FINAL implementat progressivament en la branca `feat/uc-111-termini-i-auditoria-2026-09-22` (document cronològic; els talls posteriors amplien aquest llistat):**
+1. `RedsysCourseInvoiceService` actua després del commit de factura/pagament.
+2. `NovicePromotionInvoiceLinkService` exigeix decisió de secretaria i comprova pagament complet.
+3. `NovicePromotionGrantService` crea o reutilitza un únic `commercial_entitlement` per persona, amb import igual al JASOM efectivament reconciliat.
+4. En una transacció separada, `NovicePromotionCodePreparationService` genera un token aleatori `NOV-*`, desa només el hash al dret i el token xifrat a l'outbox.
+5. Un reintent reutilitza el mateix dret i la mateixa preparació; no crea un segon benefici ni un CHARGE fictici.
+6. El correu legacy de confirmació de pagament ja no mostra `MACABODETITULAR#1103` ni consulta un codi com si fos el dret nou.
+
+**Estat:** codi i documentació implementats en branca de desenvolupament fins als talls de lineage/refund descrits més avall; **no desplegat, no fusionat a `main`, proves MySQL/runtime encara pendents**. El transport final de correu segur continua sent una integració separada.
+
 
 ## 1. Fitxa específica
 
@@ -157,6 +176,11 @@ Note over V,R: Coordinació no implementada, no ALTERAR factura original ni gene
 
 [UC-111 original](../06-fitxes-funcionals/uc-111.md) · [UC-117 drets](uc-117-cicle-vida-codi-dret-futur.md) · [UC-116 evidències original](../06-fitxes-funcionals/uc-116.md) · [UC-20d cupó](uc-020d-aplicar-codi-promocional.md) · [UC-02 cobrament](uc-002-registrar-cobrament-factura.md) · [Migració dret/evidència](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [CreditBalanceService: diferent d'un cupó](../../sif/src/Service/CreditBalanceService.php) · [Traçabilitat monetària](00-revisio-moviments-inscripcions.md).
 
+### Contrast addicional: cobrament, generació del codi i termini
+
+Vegeu [l'auditoria dirigida del circuit de cobrament i promoció novell](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md), que distingeix els fragments llegats observats, els controls Redsys presents al SIF i les tasques de migració. **La creació efectiva i idempotent del dret encara NO està acreditada.** El fragment llegat prepara un missatge però no s'ha d'utilitzar com a servei de concessió nou.
+
+**Component PHP nou, sense integració funcional:** [NoviceEvidenceDeadlineCalculator](../../sif/src/Domain/NoviceEvidenceDeadlineCalculator.php) calcula 48 hores de dates feineres amb festius/ús horari injectats; [tests unitaris específics](../../sif/tests/Unit/NoviceEvidenceDeadlineCalculatorTest.php). Encara no existeix la connexió de la classe amb l'enviament real de secretaria, calendari de festius operatiu, estats d'acreditació, bloqueig de cobrament, concessió ni saldo. Cap diagrama final prova que aquests circuits ja s'executin.
 ## 5 bis. Decisions de negoci confirmades i preguntes encara obertes
 
 **CONFIRMAT — negoci 22/09/2026:** només la inscripció a JASOM permet demanar promoció novell. El títol ha d'haver estat expedit fa menys d'un any a la data d'inici de JASOM i secretaria comprova manualment el títol, la data i el titular. La inscripció es crea abans de la revisió i **només després de l'aprovació/denegació** es faciliten opcions de pagament. L'acreditació incorrecta provoca requeriment manual, fins a 48 hores **comptades en dies feiners des de l'enviament del missatge de secretaria, excloent caps de setmana i festius**, per esmenar i denegació quan secretaria prem No, sense cancel·lar la matrícula. **Un únic benefici:** es paga i es gaudeix de JASOM al seu preu comercial aplicable; si està acreditat i JASOM queda COMPLETAMENT PAGAT, s'emet automàticament un codi promocional **pel valor efectivament pagat** per aplicar en qualsevol curs posterior, dins d'un any des de l'emissió i combinable amb altres descomptes. Amb un dret de 90 € i compra de 70 €, el llegat genera un nou codi de 20 €; al SIF s'ha ACORDAT mantenir un únic saldo PROMOCIONAL disponible de 20 € dins el mateix dret, sense codi residual nou. En un curs de 120 €, el client abona la diferència de 30 €. Una devolució de JASOM provoca anul·lació MANUAL del codi i, si ja s'ha gastat, reclamació del valor aplicat. El romanent conserva la caducitat ORIGINAL del dret i els altres descomptes s'apliquen ABANS de consumir saldo. En cas de retorn de JASOM, un apartat intern ha de permetre cancel·lar el saldo disponible sense esborrar els consums i reclamar el valor utilitzat. La classificació comptable/fiscal del dret i la configuració de quin calendari festiu s'aplica encara requereixen treball tècnic; ja està confirmat que el dret promocional novell es concedeix UNA SOLA VEGADA PER PERSONA, i el canvi o baixa del curs de destinació segueix el procés ordinari, amb trasllat al nou curs si es canvia i amb rectificativa més saldo nou d'un any si es dona de baixa. Resten per concretar els imports efectivament recuperables en una baixa segons condicions i el tractament fiscal/comptable de cada tram.
@@ -504,6 +528,493 @@ stop
 ```
 
 **Límit del diagrama:** un import retornat només es pot anul·lar o reclamar una vegada. Si el saldo derivat també s'ha reutilitzat en un curs posterior, cal traçar qualsevol canvi/baixa addicional abans de determinar l'import net pendent. El calendari de festius del còmput documental s'ha de concretar per configuració, no queda definit com a festius d'una localitat determinada en la resposta de negoci.
+### 4.3 septies. SIF desenvolupat en branca: preparar expedient, projectar decisió, conciliar fraccions i concedir
+
+**ESTAT REAL D'AQUEST DIAGRAMA:** `NovicePromotionEnrollmentStager` i `NovicePromotionSecretaryDecisionProjector` són classes PHP internes preparades, però **encara no s'invoquen des del formulari d'inscripció ni des de l'acció autenticada real de secretaria**; tampoc no està connectada la porta del servidor que ha d'impedir obrir la intenció de Redsys quan `VALIDAT=0`. L'enllaç `NovicePromotionInvoiceLinkService` i la concessió sí estan cablejats al handler/worker de factura del canal CURS en la branca, després del commit d'`InvoiceService`, però **NO hi ha proves MySQL/TPV executades ni desplegament**. `NOT_STAGED` no significa absència de sol·licitud novell: cal distingir la matrícula sense sol·licitud de la manca de projecció abans de marcar cap circuit com a acabat.
+
+```plantuml
+@startuml
+title UC-111 | Branca de desenvolupament SIF: preparacio, decisio i concessio
+start
+:Alta real JASOM + sol·licitud recent_titulat=0 al llegat;
+:Backend HA DE cridar stager amb identitat canònica i preu calculat (ENCARA NO CONNECTAT);
+:SIF registra operació/PARTICIPANT PENDING_VALIDATION;
+:Secretaria revisa prova i deixa decisió Sí/No al llegat;
+:Backend autenticat HA DE cridar projector (ENCARA NO CONNECTAT);
+if (Decisió llegat VALIDAT=0?) then (Sí)
+ :Mantenir PENDING_VALIDATION;
+ :Porta de pagament servidor encara per integrar: DENEGAR intent directe;
+ stop
+endif
+:Projector contrasta JASOM, document-identitat i actor;
+:Registrar discount_validation i obrir READY_FOR_PAYMENT;
+if (Decisió REJECTED?) then (Sí)
+ :Permetre matrícula ordinària, sense dret futur;
+else (VALIDATED)
+ :Marcar dret promocional com a POSSIBLE després de cobrar íntegrament;
+endif
+:Redsys signat i processament de factura/cobrament per InvoiceService;
+:Només DESPRÉS del commit, enllaç d'operació, matrícula i factures F1/F2;
+if (Origen SIF NOT_STAGED?) then (Sí)
+ :No concedir; marcar necessitat de conciliació operativa;
+ stop
+endif
+if (Decisió era VALIDATED?) then (Sí)
+ if (Sumatori de factures i CHARGE nets = NET_AMOUNT JASOM?) then (Sí)
+  :Concedir/reutilitzar únic dret per persona en transacció;
+  :Dret ISSUED sense CODE_HASH ni correu: lliurament PENDENT;
+ else (No)
+  :No concedir; conservar PAYMENT_PENDING o obrir incidència;
+ endif
+else (REJECTED)
+ :No crear saldo novell;
+endif
+stop
+@enduml
+```
+
+**Camps i enllaços:** `commercial_operation.SOURCE_ID=inscripcions.ID`; `commercial_operation_party.PARTY_KEY` identifica de manera canònica una persona; `discount_validation` desa decisió de secretaria; `fact_rels` vincula **totes** les factures d'origen de la matrícula sense sumar duplicadament la mateixa factura; `commercial_operation.UUID_FACTURA` manté la primera factura d'origen com a referència; `novice_promotion_grant.UUID_FACTURA` n'és una referència principal i `commercial_entitlement.RULE_SNAPSHOT_JSON.origin_invoice_refs` permet reconstruir el conjunt immutable del moment de la concessió. No duplicar CHARGE ni modificar les factures originals.
+
+**Talls encara bloquejants:** resolutor d'identitat estable per garantir «una vegada per persona»; connexió dels serveis d'alta i secretaria amb accions autenticades; porta prèvia a Redsys; política fiscal global de factures per fracció; credencials i documents personals del llegat públic; conciliació de casos `NOT_STAGED`; codi bescanviable/notificació amb reintents; consum/cancel·lació i saldos derivats. [Auditoria detallada i proves preparades](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
+### 4.3 octies. Preparació del codi, reserva de lliurament i recuperació d'intents — BRANCA, NO DESPLEGAT
+
+**ESTAT:** [NovicePromotionCodePreparationService](../../sif/src/Service/NovicePromotionCodePreparationService.php) registra un únic codi xifrat i hash de bescanvi; [NovicePromotionDeliveryAttemptService](../../sif/src/Service/NovicePromotionDeliveryAttemptService.php) registra només les reclamacions d'intent. **No existeix encara el mailer, l'acreditació real del control de l'adreça, el formulari de bescanvi ni el consum del saldo; cap codi real no ha estat enviat.**
+
+```plantuml
+@startuml
+title UC-111 | Preparar codi i reservar lliurament (sense email real)
+start
+:Concessió novell única, JASOM íntegrament cobrat;
+:Tornar a validar totes les factures d'origen i CHARGE nets;
+if (Dret actiu, titular validat i pagaments íntegres?) then (Sí)
+ :Generar un sol codi aleatori i CODE_HASH;
+ :Xifrar token amb clau externa i AAD per dret;
+ :Guardar outbox PREPARED i event ACTIVATE;
+else (No)
+ :NO preparar cap codi;
+ stop
+endif
+:Procés independent de verificació de correu (ENCARA PENDENT);
+if (Hi ha evidència d'adreça verificada?) then (Sí)
+ :Comprovar dret, venciment i totes les factures de JASOM;
+ if (Elegible per al lliurament?) then (Sí)
+  :Reservar intent SENDING amb CLAIM_ID sense desxifrar;
+  :FUTUR mailer privat revalida abans de comunicar el MATEIX codi;
+  if (Proveïdor accepta?) then (Sí)
+   :Registrar SENT i event DELIVER amb CLAIM_ID vigent;
+  else (No o fallada)
+   :Registrar FAILED, BACKOFF i reintent del MATEIX token;
+  endif
+ else (No)
+  :Bloquejar intent i obrir incidència per revisió;
+ endif
+else (No)
+ :No reservar cap enviament ni inferir email verificat de la matrícula;
+endif
+stop
+@enduml
+```
+
+**Límit de la traça:** `SENT` significa acceptació del proveïdor, no lliurament efectiu a l'alumne. Una caiguda després d'una acceptació però abans de registrar-la pot comportar un segon correu amb el **mateix codi**, però no una segona concessió; les reclamacions obsoletes no poden registrar un resultat nou. Després d'una cancel·lació o devolució caldrà també impedir la redempció, encara que un missatge ja hagi sortit. La comprovació immediata prèvia al MAILER i a cada CONSUM està pendent.
+### 4.3 nonies. Confirmació de la bústia i worker privat de correu — SISÈ TALL, NO CONNECTAT
+
+**Estat d'implementació:** serveis PHP interns `NovicePromotionEmailVerificationService`, `NovicePromotionDeliveryAttemptService` (reserva i recuperació de l'intent), `NovicePromotionSealedCodeDecoder` i `NovicePromotionPrivateMailWorker` programats en branca. Només hi ha **interfícies**, no adaptadors SMTP, endpoints de sessió, configuració de claus, ni execució programada del worker. Cap mail promocional s'ha enviat. Les proves MySQL estan ajornades expressament.
+
+```plantuml
+@startuml
+title UC-111 | Verificar bústia i recuperar el mateix codi (BRANCA)
+start
+:Persona titular autenticada demana verificar adreça (endpoint PENDENT);
+:SIF comprova titular i dret vigent; genera repte aleatori;
+:Persistir únicament HASH i venciment 15 min;
+:Transport intern HA D'ENVIAR repte a la bústia (adapter PENDENT);
+if (Repte correcte i titular autenticat?) then (Sí)
+ :Desar prova de control de l'adreça al destinatari verificat;
+else (No, caducat o 5 errors)
+ :No registrar adreça verificada;
+ stop
+endif
+:Reclamar outbox PREPARED o FAILED amb CLAIM_ID;
+:Comprovar dret, destinació, saldo, validació i totes les factures JASOM;
+if (Condicions actualment vàlides?) then (Sí)
+ :Recuperar token xifrat i clau de versió per canal privat;
+ :Descodificar i comparar CODE_HASH sense revelar-lo al web;
+ :Mailer privat HA D'ENVIAR mateix codi (adapter PENDENT);
+ if (Proveïdor accepta?) then (Sí)
+  :Registrar SENT i event DELIVER per CLAIM_ID actual;
+ else (No o resposta incerta)
+  :Registrar FAILED/backoff o revisió; reintentar MATEIX codi;
+ endif
+else (No)
+ :No lliurar; registrar bloqueig/incidència;
+endif
+stop
+@enduml
+```
+
+**Límit de coherència:** el dret cancel·lat/retornat ha de ser rebutjat també al moment de cada bescanvi; el bloqueig previ a l'enviament no resol una devolució posterior. `SENT` és acceptació del proveïdor, no recepció ni lectura. Un reintent pot repetir un correu sense recrear el token ni el saldo. [Auditoria del sisè tall](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
+### 4.3 decies. Consum parcial d'un únic saldo promocional — codi intern preparat, connector checkout PENDENT
+
+**Estat real:** [migració 000012 · aplicació per matrícula](../../sif/database/migrations/2026_09_25_000012_add_novice_promotion_application.sql), [NovicePromotionRedemptionService](../../sif/src/Service/NovicePromotionRedemptionService.php) i [NovicePromotionAmountPolicy](../../sif/src/Domain/NovicePromotionAmountPolicy.php) implementats EN BRANCA. No hi ha encara connexió al formulari del curs de DESTINACIÓ, a l'acció autenticada de bescanvi, al motor de preus final ni a l'emissor de factures; cap consum real acreditat. Els estats i fluxos descriuen comportament del codi escrit que cal integrar, no un circuit desplegat. Proves MySQL ajornades expressament.
+
+```plantuml
+@startuml
+title UC-111 | Aplicar un saldo novell a diversos cursos posteriors
+start
+:Titular autenticat indica codi i matrícula destinació;
+:Backend HA DE persistir preu net de curs DESPRÉS dels altres descomptes;
+:RedemptionService contrasta hash, titular, vigència i cobrament íntegre JASOM;
+if (Codi/destí vàlids, sense factura ni intent Redsys?) then (Sí)
+ :Reservar min(saldo disponible, net ordinari) o import parcial vàlid;
+ :Reduir AVAILABLE_AMOUNT i inserir aplicació RESERVED amb clau idempotent;
+else (No)
+ :Rebutjar sense tocar saldo ni banc;
+ stop
+endif
+:Backend de preus i fiscal HA D'INCORPORAR descompte a la destinació (PENDENT);
+if (Factura emesa i import residual realment liquidat?) then (Sí)
+ :Confirmar snapshot final i import de factura concordants;
+ :Marcar aplicació APPLIED amb destí i factura;
+ :NO descomptar de nou el saldo; conservar venciment original;
+else (No)
+ if (Cap intenció Redsys ni factura, i fracàs confirmat?) then (Sí)
+  :Alliberar reserva no aplicada i retornar import al mateix saldo;
+ else (No o resultat ambigu)
+  :No retornar saldo; conciliar intenció/callback i factura;
+ endif
+endif
+:Cada nou curs genera una altra aplicació sobre el MATEIX dret;
+stop
+@enduml
+```
+
+**Límit especial de curs totalment cobert:** el registre de consum admet saldo que redueixi el net final a zero NOMÉS si el sistema fiscal emet una factura final vàlida de total zero i l'operació es considera liquidada sense crear un `CHARGE` bancari fictici. **Aquest emissor i la seva política fiscal encara no estan integrats ni acreditats.** El canvi/baixa de DESTINACIÓ no és `release` si existeix factura: cal traça fiscal i, quan pertoqui, saldo de baixa DERIVAT amb el seu propi venciment i rastreig de procedència, sense reobrir el dret inicial com si el consum no hagués existit. [Fitxa UC-111](../06-fitxes-funcionals/uc-111.md) · [UC-117](uc-117-cicle-vida-codi-dret-futur.md).
+### 4.3 undecies. Canvi de destí, baixa amb saldo derivat i devolució posterior de JASOM — MODEL EN BRANCA
+
+**Estat:** [migració 000013](../../sif/database/migrations/2026_09_25_000013_add_novice_promotion_lineage.sql), [NovicePromotionDestinationAdjustmentPolicy](../../sif/src/Domain/NovicePromotionDestinationAdjustmentPolicy.php) i [NovicePromotionLineagePolicy](../../sif/src/Domain/NovicePromotionLineagePolicy.php) programades. Les polítiques són CÀLCULS PURS; NO hi ha gestor fiscal de baixa/canvi, servei de concessió/consum derivat, mutació econòmica ni cancel·lació real del dret. Els registres pendents de revisió fiscal NO s'han de tractar com a codis gastables; les proves MySQL estan ajornades.
+
+```plantuml
+@startuml
+title UC-111 | Canvi, baixa i procedencia d'un saldo promocional
+start
+:Aplicacio promocional APPLIED sobre curs DESTINACIO;
+if (Es canvia de curs?) then (Canvi)
+ :Tramitar procediment de canvi ordinari i rectificativa (INTEGRACIO PENDENT);
+ if (Promocio aplicada cap al preu net del curs nou?) then (Si)
+  :Traspassar atribucio al nou desti sense nou consum;
+  :Conservar saldo original i venciment, guardar cadena de transferencies;
+ else (No)
+  :Bloquejar traspas automatic; gestionar diferencia comercial/fiscal;
+ endif
+else (Baixa)
+ :Secretaria valida condicions de baixa i documentacio fiscal (PENDENT);
+ :Separar import PROMOCIONAL elegible i import de DINERS REALS;
+ if (Hi ha valor promocional elegible?) then (Si)
+  :Crear dret de BAIXA diferent, lligat a rectificativa i aplicacio origen;
+  :Un any propi des de la data de concessio del saldo de baixa;
+ else (No)
+  :No crear saldo derivat promocional;
+ endif
+ :Tramitar devolucio/credit de diners reals per circuit independent;
+endif
+if (Despres es retorna JASOM?) then (Si)
+ :Bloquejar noves reserves i conciliar reserves en curs;
+ :Recorrer dret NOVELL i tots els saldos de baixa descendents;
+ :Proposar anul.lacio de romanents original i derivats;
+ :Reclamar nomes promocio aplicada en destinacions ACTIVEs vigents;
+ :No recomptar usos antics substituits per transferencies o saldos derivats;
+ :Revisio de secretaria/fiscal abans de cancel.lacio i reclamacio (PENDENT);
+endif
+stop
+@enduml
+```
+
+**Exemple DEC-23:** promoció JASOM 90 € → consum inicial 90 € → baixa rectificada del destí i dret derivat 90 € → nou consum 40 € i romanent derivat 50 € → si es retorna JASOM, proposar cancel·lar 50 € i recuperar 40 €; el consum inicial 90 € ja és antecedent del dret derivat, NO un segon import exigible. [Tretze tests unitaris purs](../../sif/tests/Unit/NovicePromotionLineagePolicyTest.php) i [set de política de baixa](../../sif/tests/Unit/NovicePromotionDestinationAdjustmentPolicyTest.php) només escrits. Les classes no construeixen factures rectificatives, no ordenen reintegraments bancaris i no executen plans de recuperació.
+### 4.3 duodecies. Proposta de canvi/baixa amb referència fiscal real — NOVÈ TALL
+
+**ACTUAL A BRANCA, NO CONNECTAT A LES PANTALLES NI APROVAT:** [NovicePromotionDestinationCancellationReviewService](../../sif/src/Service/NovicePromotionDestinationCancellationReviewService.php) i [NovicePromotionCourseTransferReviewService](../../sif/src/Service/NovicePromotionCourseTransferReviewService.php) comproven la factura original i la rectificativa i creen únicament registres `PENDING_FISCAL_REVIEW`. El backend autenticat, el treball fiscal i la confirmació real continuen pendents; els dos serveis NO escriuen cap consum, pagament o saldo gastable.
+```plantuml
+@startuml
+title UC-111 | Revisio fiscal previa de canvi o baixa (codi parcial)
+start
+:Secretaria autenticada acorda canvi o baixa (INTEGRACIO PENDENT);
+:Sistema fiscal emet la rectificativa real (INTEGRACIO PENDENT);
+:SIF comprova factura origen i enllac factura_rectificacio;
+if (Rectificativa emesa i relacionada al curs aplicat?) then (No)
+ :Bloquejar sense saldo derivat ni traspas;
+ stop
+endif
+if (Canvi de curs?) then (Si)
+ :Validar mateix titular i curs nou amb preu ordinari autentic;
+ if (Promocio cap dins del preu net nou?) then (Si)
+  :Registrar traspas PENDING_FISCAL_REVIEW amb actor/evidencia;
+ else (No)
+  :Bloquejar i derivar a ajust economic/fiscal;
+ endif
+else (Baixa)
+ :Separar import promocional proposat i diner real confirmat;
+ :Validar que cap component supera la seva procedencia;
+ :Registrar proposta de dret derivat PENDING_FISCAL_REVIEW;
+ :Romanent derivat=0; sense data de concessio ni caducitat;
+endif
+:FUTUR pas diferent: aprovar economicament i fiscalment;
+:FUTUR pas atòmic: confirmar traspas O tancar consum i activar dret derivat;
+stop
+@enduml
+```
+**Proposta denegada:** [migració 000015](../../sif/database/migrations/2026_09_25_000015_reject_pending_novice_derived_review.sql) i `rejectPendingReview` permeten transició `PENDING_FISCAL_REVIEW → REJECTED` (romanent ZERO, dates de concessió NULL), diferent de cancel·lar un dret ACTIU. Motiu, operador i instant queden en l'expedient; la validació dels permisos de l'operador és PENDENT.
+
+**NO IMPLEMENTAT:** l'acció d'aprovació real, les rectificatives emeses per aquests serveis, el consum del dret derivat i la cancel·lació executiva del saldo quan es retorni JASOM. No comptar propostes pendents com a drets actius ni acceptar un identificador d'actor proporcionat pel navegador com a autenticació. [Auditoria del tall](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md).
+
+### 4.3 terdecies. Confirmació autoritzada de baixa original o primer traspàs — DESÈ TALL
+
+**Codi PHP a BRANCA, NO desplegat ni connectat:** [NovicePromotionDerivedBalanceActivationService](../../sif/src/Service/NovicePromotionDerivedBalanceActivationService.php) i [NovicePromotionFirstTransferConfirmationService](../../sif/src/Service/NovicePromotionFirstTransferConfirmationService.php) exigeixen [una font final d'aprovació independent](../../sif/src/Service/NovicePromotionAdjustmentApprovalSourceInterface.php) que encara NO té implementació real. Els registres PENDING i les factures rectificatives no constitueixen aprovació. La confirmació exigeix documents fiscals i preus reals ja persistits i imports concordants, però els connectors de secretaria/checkout continuen pendents.
+```plantuml
+@startuml
+title UC-111 | Confirmar proposta amb aprovacio autentica i prova fiscal
+start
+:Proposta PENDING_FISCAL_REVIEW de canvi o baixa;
+:FUTUR gestor autenticat resol aprovacio independent;
+if (Aprovacio final vinculada a imports, titular i documents?) then (No)
+ :Bloquejar, sense consumir ni activar cap dret;
+ stop
+endif
+:Tornar a comprovar JASOM i factures reals; bloquejar dret arrel;
+if (Baixa original?) then (Si)
+ :Comprovar aplicacio APPLIED i rectificativa del curs cancel.lat;
+ :Cerrar aplicacio historica com REVERSED / CONVERTED_TO_DERIVED;
+ :Activar saldo derivat separat amb import elegible i any propi;
+ :Registrar event DERIVED_ACTIVATE, sense CHARGE;
+else (Primer traspas)
+ :Comprovar rectificativa antiga i nova factura final liquidada;
+ :Comprovar net final i import traspassat al snapshot fiscal;
+ :Cerrar aplicacio historica com REVERSED / TRANSFERRED_TO_COURSE;
+ :Confirmar traspas al curs nou, sense segona despesa promocional;
+ :Registrar event TRANSFER, sense CHARGE promocional;
+endif
+:FUTUR adaptar al checkout i al registre complet de procedencia;
+stop
+@enduml
+```
+**Pendent abans d'activació real:** adaptador de decisions autoritzades, interacció amb secretaria, emissió fiscal real, successius canvis, baixa del curs traspassat, consum del saldo derivat, snapshot de devolució de JASOM amb bloquejos i proves. El fet d'escriure serveis que exigeixen una font d'aprovació NO prova que la font existeixi. No s'han fet proves MySQL; les [cinc unit tests purs de decisió de baixa](../../sif/tests/Unit/NovicePromotionApprovedCancellationPolicyTest.php) i [cinc de traspàs](../../sif/tests/Unit/NovicePromotionApprovedTransferPolicyTest.php) no tenen resultat d'execució.
+
+### 4.3 quaterdecies. Consum parcial del saldo de baixa ACTIVE — ONZÈ TALL
+
+**Codi intern preparat, no UI:** [NovicePromotionDerivedBalanceRedemptionService](../../sif/src/Service/NovicePromotionDerivedBalanceRedemptionService.php) consumeix el saldo de baixa per titular autenticat i UUID intern; no emet un segon codi `NOV-*`. La migració 000017 endureix la reserva/aplicació derivada i la política pura separa titular/vigència.
+```plantuml
+@startuml
+title UC-111 | Gastar un saldo de baixa derivat sense nou codi
+start
+:Titular autenticat selecciona saldo derivat ACTIVE (connector PENDENT);
+:Backend calcula net del curs després d'altres descomptes;
+:Persistir novice_derived_balance_quote TRUSTED_SIF_PRICING;
+:Bloquejar dret JASOM arrel i saldo derivat;
+if (JASOM pagat, mateix titular, saldo vigent i disponible?) then (No)
+ :Bloquejar reserva;
+ stop
+endif
+:Reservar import parcial o màxim possible;
+:Reduir AVAILABLE_PROMOTIONAL_AMOUNT i inserir RESERVED;
+:Checkout real HA D'EMETRE factura/preu final (PENDENT);
+if (Factura final + residual conciliats abans del venciment?) then (Sí)
+ :Validar novice_derived_application del snapshot;
+ :Marcar APPLIED sense segon dèbit;
+ :Auditar DERIVED_APPLY;
+else (No)
+ if (Sense intent Redsys ni factura i fracàs acreditat?) then (Sí)
+  :Restaurar import al MATEIX saldo derivat;
+  :Marcar RELEASED i auditar;
+ else (Ambigu)
+  :No retornar saldo; conciliar pagament/fiscalitat;
+ endif
+endif
+stop
+@enduml
+```
+**No resol encara:** canvi o baixa del curs finançat amb aquest saldo derivat, nous saldos descendents, retorn executable de JASOM, UI/autenticació, factura zero i connectors de Redsys/fiscalitat. El saldo derivat manté la seva pròpia caducitat; reservar no la prorroga. [Cinc proves pures d'elegibilitat](../../sif/tests/Unit/NovicePromotionDerivedBalanceEligibilityPolicyTest.php) escrites i no executades.
+
+### 4.3 quindecies. Baixa del curs traspassat → nou saldo derivat — DOTZÈ TALL
+
+**Nou en branca:** el saldo derivat pot apuntar a `SOURCE_UUID_TRANSFER`, de manera que la baixa s'atribueix al curs ACTUAL després del canvi i no a la matrícula històrica anterior.
+```plantuml
+@startuml
+title UC-111 | Baixa del curs actual després d'un traspas confirmat
+start
+:Traspas A -> B ja CONFIRMED;
+:Baixa del curs B amb rectificativa real;
+:Review comprova B, factura final, participant i cash residual;
+if (Hi ha un traspas successor de B?) then (Si)
+ :Rebutjar; cal actuar sobre l'ultim curs de la cadena;
+ stop
+endif
+:Crear saldo derivat PENDING amb SOURCE_UUID_TRANSFER;
+:FUTUR font autenticada resol aprovacio;
+if (Aprovacio exacta i JASOM encara pagat?) then (No)
+ :No activar saldo;
+ stop
+endif
+:Reconciliar de nou factura i CHARGE-REFUND de B;
+if (Cash ha canviat des de la review?) then (Si)
+ :Bloquejar i recalcular la baixa;
+ stop
+endif
+:Tancar traspas B com CANCELLED / CONVERTED_TO_DERIVED;
+:Activar nou saldo derivat amb any propi;
+:Auditar DERIVED_ACTIVATE_TRANSFER;
+:No restaurar saldo JASOM original;
+stop
+@enduml
+```
+**Pendent:** segon/tercer traspàs confirmat, baixa del successor d'aquests, baixes que parteixen d'una `derived_application`, connector d'aprovació real i executor de devolució JASOM. [000018](../../sif/database/migrations/2026_09_26_000018_allow_derived_balance_from_confirmed_transfer.sql) i [000019](../../sif/database/migrations/2026_09_26_000019_close_confirmed_transfer_into_derived_balance.sql) només estan en branca; MySQL no executat.
+
+### 4.3 sexdecies. Traspàs successiu i projecció de procedència per retornar JASOM — TRETZÈ TALL
+
+**Nou en branca:** un canvi de curs pot partir de l'últim traspàs CONFIRMED o d'una aplicació de saldo derivat APPLIED; el predecessor es tanca com a història i el nou curs conserva exactament el mateix import promocional.
+```plantuml
+@startuml
+title UC-111 | Canvis successius i graf actual per devolucio JASOM
+start
+:Exposicio actual = derived_application APPLIED o transfer CONFIRMED;
+:Rectificativa del curs actual + nou curs READY_FOR_PAYMENT;
+:Review valida mateix titular, quote servidor i import transferible;
+:Registrar nou transfer PENDING_FISCAL_REVIEW;
+:FUTUR font autenticada resol aprovacio;
+if (Aprovacio exacta?) then (No)
+ :No mutar predecessor;
+ stop
+endif
+:Confirmar factura/residual del curs nou;
+:Revalidar JASOM completament pagat;
+if (Font era derived_application?) then (Si)
+ :Marcar derived_application TRANSFERRED;
+else (No)
+ :Marcar previous transfer CANCELLED / TRANSFERRED_TO_COURSE;
+endif
+:Confirmar nou transfer sense segon debit;
+:Projectar SQL -> graf logic;
+:Predecessors substituits = REPLACED_*;
+:Node terminal = ACTIVE;
+if (Hi ha PENDING o RESERVED?) then (Si)
+ :Bloquejar pla de devolucio JASOM;
+else (No)
+ :Planificar cancel_available + recover_active_applications;
+ :NO executar encara cap cancel.lacio o reclamacio;
+endif
+stop
+@enduml
+```
+**Serveis:** [SuccessiveTransferReviewService](../../sif/src/Service/NovicePromotionSuccessiveTransferReviewService.php), [SuccessiveTransferConfirmationService](../../sif/src/Service/NovicePromotionSuccessiveTransferConfirmationService.php), [LineageProjectionPolicy](../../sif/src/Domain/NovicePromotionLineageProjectionPolicy.php), [LineageSnapshotService](../../sif/src/Service/NovicePromotionLineageSnapshotService.php) i [RootRefundPlanService](../../sif/src/Service/NovicePromotionRootRefundPlanService.php). El pla és només lectura sota locks i `execution_performed=false`.
+**Pendent:** freeze/expedient de devolució, resolució d'intents pendents, aprovació efectiva, cancel·lació de saldos, reclamació i integració bancària/fiscal. MySQL no executat.
+
+### 4.3 septdecies. Freeze i conseqüències comercials del retorn JASOM — CATORZÈ TALL
+
+```plantuml
+@startuml
+title UC-111 | Retorn JASOM: freeze, refund confirmat i consequencies promocionals
+start
+:Secretaria inicia expedient de retorn JASOM;
+:Bloquejar root + graf complet;
+:Calcular cancel_available + recover_active;
+if (Hi ha PENDING/RESERVED/orfes?) then (Si)
+ :Bloquejar expedient;
+ stop
+endif
+:Persistir PLAN_JSON + PLAN_HASH;
+:Root ACTIVE -> REFUND_REVIEW;
+:Noves operacions UC-111 queden bloquejades;
+:FUTUR font autenticada decideix;
+if (Rebutjat o retirat abans del refund?) then (Si)
+ :Review REJECTED/CANCELLED;
+ :Root REFUND_REVIEW -> ACTIVE;
+ stop
+endif
+:Sistema extern executa refund REAL de JASOM;
+:Root continua REFUND_REVIEW durant el refund;
+if (Evidencia externa de refund complet?) then (No)
+ :Mantenir freeze; no cancel.lar promocio;
+ stop
+endif
+:Verificar per factura CHARGE_TOTAL = TOTAL i REFUND_TOTAL = TOTAL;
+if (Refund intern no esta totalment conciliat?) then (Si)
+ :Mantenir freeze i obrir incidencia;
+ stop
+endif
+:Recalcular graf sota els mateixos locks;
+if (Hash o JSON han canviat?) then (Si)
+ :No executar; reconstruir/revisar expedient;
+ stop
+endif
+:Crear PENDING_RECOVERY per cada exposicio ACTIVE terminal;
+:Posar romanents root/derivats a 0;
+:Cancel.lar root i drets derivats;
+:Review -> EXECUTED amb evidencia refund;
+:Auditar ROOT_REFUND_EXECUTE;
+:NO crear refund ni CHARGE en aquest servei;
+stop
+@enduml
+```
+**Implementat aïlladament i ordre corregit:** [ReviewService](../../sif/src/Service/NovicePromotionRootRefundReviewService.php), [ExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php), [OriginRefundEvidenceSource](../../sif/src/Service/NovicePromotionOriginRefundEvidenceSourceInterface.php), [OriginRefundEvidencePolicy](../../sif/src/Domain/NovicePromotionOriginRefundEvidencePolicy.php), [000021](../../sif/database/migrations/2026_09_27_000021_add_novice_root_refund_review.sql), [000022](../../sif/database/migrations/2026_09_27_000022_add_novice_root_refund_recovery_items.sql) i [000024](../../sif/database/migrations/2026_09_27_000024_add_novice_origin_refund_evidence.sql). El refund bancari real es fa FORA d'aquest executor mentre el root està congelat; l'executor només continua quan la font externa i `payment_allocation/payment_transaction` acrediten refund complet. PENDENT: connector real que iniciï/observi el refund, resolució operativa dels recoveries i proves MySQL.
+
+### 4.3 octodecies. Resolució dels recovery items — QUINZÈ TALL
+
+```plantuml
+@startuml
+title UC-111 | Tancar una recuperacio promocional sense crear cobrament
+start
+:Recovery PENDING_RECOVERY creat en cancel.lar JASOM;
+:Consultar sistema extern autoritatiu (connector PENDENT);
+if (Hi ha evidencia exacta?) then (No)
+ :Mantenir PENDING_RECOVERY;
+ stop
+endif
+if (Resultat extern?) then (RECOVERED)
+ :Marcar RECOVERED;
+elseif (WAIVED)
+ :Marcar WAIVED;
+else (CANCELLED)
+ :Marcar CANCELLED;
+endif
+:Guardar resolution_id, actor, evidence_ref i data;
+:Auditar ROOT_RECOVERY_RESOLVE;
+:NO crear CHARGE/REFUND/factura;
+stop
+@enduml
+```
+**Implementat només com a frontera/evidència:** [ResolutionSourceInterface](../../sif/src/Service/NovicePromotionRecoveryResolutionSourceInterface.php), [ResolutionPolicy](../../sif/src/Domain/NovicePromotionRecoveryResolutionPolicy.php), [ResolutionService](../../sif/src/Service/NovicePromotionRootRefundRecoveryResolutionService.php), [000023](../../sif/database/migrations/2026_09_27_000023_add_novice_recovery_resolution_evidence.sql). Connector real pendent.
+
+### 4.3 novodecies. Refund JASOM confirmat abans de cancel·lar promoció — SETZÈ TALL
+
+**Correcció d'ordre del tall 14:** `REFUND_REVIEW` es manté durant l'operació bancària. [NovicePromotionOriginRefundEvidenceSourceInterface](../../sif/src/Service/NovicePromotionOriginRefundEvidenceSourceInterface.php) aporta evidència autoritativa del refund i [NovicePromotionOriginRefundEvidencePolicy](../../sif/src/Domain/NovicePromotionOriginRefundEvidencePolicy.php) la vincula al review/root/origen/import. [000024](../../sif/database/migrations/2026_09_27_000024_add_novice_origin_refund_evidence.sql) persisteix aquesta evidència en l'expedient EXECUTED.
+
+El [RootRefundExecutionService](../../sif/src/Service/NovicePromotionRootRefundExecutionService.php) exigeix, a més, `CHARGE_TOTAL=TOTAL` i `REFUND_TOTAL=TOTAL` per cada factura JASOM abans de cancel·lar drets o crear recoveries. Per tant, un refund parcial o una notificació externa encara no conciliada deixa el root congelat, no cancel·lat. [Cinc tests purs](../../sif/tests/Unit/NovicePromotionOriginRefundEvidencePolicyTest.php) escrits, no executats.
+### 4.3 sexdecies. Tancar recoveries resolts sense fingir cobrament — DISSETÈ TALL
+
+```plantuml
+@startuml
+title UC-111 | Tancament final del workflow de recuperacions
+start
+:Review root ja EXECUTED i JASOM refund confirmat;
+:Root promocional CANCELLED;
+:Llegir tots els recovery items sota lock;
+if (Queda algun PENDING_RECOVERY?) then (Si)
+ :No tancar workflow;
+ stop
+endif
+:Verificar evidencia final de cada item;
+:Sumar RECOVERED + WAIVED + CANCELLED;
+if (Suma != total_recover_active congelat?) then (Si)
+ :Bloquejar per inconsistencia;
+ stop
+endif
+:Persistir resum per estat i import;
+:Review -> RECOVERY_RESOLVED;
+:Auditar ROOT_RECOVERY_CLOSE;
+:No crear cap moviment monetari;
+stop
+@enduml
+```
+`RECOVERY_RESOLVED` no equival a «tot cobrat»: `all_value_recovered=true` només quan tot el valor està en `RECOVERED`; imports `WAIVED/CANCELLED` queden explícits al resum. Amb pla de recoveries 0 €, el workflow es pot tancar sense fabricar ítems de valor zero. MySQL no executat.
+
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
@@ -534,3 +1045,15 @@ endif
 stop
 @enduml
 ```
+
+
+### Consulta / Modifica alumne · visualització del dret UC-111
+
+La fitxa interna de l'alumne incorpora un bloc **Promoció docent novell** carregat des del SIF. La vista no exposa el token bescanviable: mostra estat del dret, JASOM origen, import concedit, import aplicat, import reservat, saldo disponible, data de concessió, venciment i estat de lliurament. L'historial d'ús prové de `novice_promotion_application` i mostra per cada curs posterior `RESERVED/APPLIED/RELEASED/REVERSED`, import, inscripció destí, factura i data.
+
+Exemple canònic: dret inicial 90 €, aplicació confirmada de 70 € → **Concedit 90 € · Utilitzat 70 € · Disponible 20 €**. El romanent continua dins el mateix `UUID_ENTITLEMENT`; no es crea un codi residual nou.
+
+Implementació de branca:
+- `NovicePromotionStudentSummaryService`: projecció read-only per identitat.
+- `ajax/alumnes/mostrarPromocioDocentNovell.php`: pont autenticat intranet → SIF.
+- `js/alumnes-mostrar-alumne.js`: render del bloc i historial.

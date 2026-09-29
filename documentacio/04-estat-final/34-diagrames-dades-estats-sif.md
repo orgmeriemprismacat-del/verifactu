@@ -750,3 +750,77 @@ stateDiagram-v2
 econòmics. La primera pot acabar en `COMPLETED` sense factura ni pagament; la
 segona no pot avançar a `READY_FOR_PAYMENT` fins que negoci/fiscalitat decideixi
 finançador, receptor i document aplicable.
+
+## 17. UC-111 · Dades, procedència i estats `[BRANCA/PARCIAL]`
+
+UC-111 disposa d'un submodel propi perquè el dret novell, els consums parcials, els canvis de curs, els saldos de baixa i el refund de JASOM **no es poden representar com un únic descompte ni com un pagament**. La vista canònica detallada és [UC-111 · dades i estats ACTUAL/FINAL](../07-uml-integrat/uc-111-dades-estats-actual-final.md), amb 10 diagrames. Aquest apartat només n'és el resum per al model general SIF.
+
+```mermaid
+erDiagram
+  COMMERCIAL_ENTITLEMENT ||--|| NOVICE_PROMOTION_GRANT : "dret arrel"
+  NOVICE_PROMOTION_GRANT ||--o{ NOVICE_PROMOTION_APPLICATION : "consums originals"
+  NOVICE_PROMOTION_GRANT ||--o{ NOVICE_PROMOTION_APPLICATION_TRANSFER : "atribucions traspassades"
+  NOVICE_PROMOTION_GRANT ||--o{ NOVICE_PROMOTION_DERIVED_BALANCE : "saldos derivats"
+  NOVICE_PROMOTION_DERIVED_BALANCE ||--o{ NOVICE_PROMOTION_DERIVED_APPLICATION : "N consums parcials"
+  NOVICE_PROMOTION_DERIVED_BALANCE o|--o{ NOVICE_PROMOTION_DERIVED_BALANCE : "pare/descendent"
+  NOVICE_PROMOTION_APPLICATION o|--o| NOVICE_PROMOTION_APPLICATION_TRANSFER : "primer canvi"
+  NOVICE_PROMOTION_DERIVED_APPLICATION o|--o| NOVICE_PROMOTION_APPLICATION_TRANSFER : "canvi derivat"
+  NOVICE_PROMOTION_APPLICATION_TRANSFER o|--o| NOVICE_PROMOTION_APPLICATION_TRANSFER : "canvi successiu"
+  NOVICE_PROMOTION_APPLICATION o|--o| NOVICE_PROMOTION_DERIVED_BALANCE : "baixa original"
+  NOVICE_PROMOTION_DERIVED_APPLICATION o|--o| NOVICE_PROMOTION_DERIVED_BALANCE : "baixa derivada MODELADA"
+  NOVICE_PROMOTION_APPLICATION_TRANSFER o|--o| NOVICE_PROMOTION_DERIVED_BALANCE : "baixa del curs traspassat"
+  NOVICE_PROMOTION_GRANT ||--o{ NOVICE_PROMOTION_ROOT_REFUND_REVIEW : "review refund origen"
+  NOVICE_PROMOTION_ROOT_REFUND_REVIEW ||--o{ NOVICE_PROMOTION_ROOT_REFUND_RECOVERY : "recovery d'usos vius"
+```
+
+**Límit important:** l'enllaç `NOVICE_PROMOTION_DERIVED_APPLICATION -> NOVICE_PROMOTION_DERIVED_BALANCE` existeix al model de procedència, però **la baixa directa d'una `derived_application.APPLIED` encara no té un servei específic complet de review+activation**. La baixa de l'aplicació original i la baixa del curs assolit mitjançant el primer traspàs sí tenen serveis específics en la branca. No confondre capacitat de l'esquema amb flux executable.
+
+```mermaid
+stateDiagram-v2
+  [*] --> ROOT_ACTIVE
+  ROOT_ACTIVE --> REFUND_REVIEW: openReview / freeze
+  REFUND_REVIEW --> ROOT_ACTIVE: review rebutjat o cancel·lat
+  REFUND_REVIEW --> ROOT_CANCELLED: refund JASOM real + conseqüències executades
+
+  state "Aplicació / atribució promocional" as APPLY {
+    [*] --> RESERVED
+    RESERVED --> APPLIED: factura + residual conciliats
+    RESERVED --> RELEASED: fracàs segur abans d'intent/factura
+    APPLIED --> HIST_TRANSFER: canvi confirmat
+    APPLIED --> HIST_DERIVED: baixa aprovada
+  }
+
+  state "Saldo derivat" as DERIVED {
+    [*] --> PENDING_FISCAL_REVIEW
+    PENDING_FISCAL_REVIEW --> REJECTED
+    PENDING_FISCAL_REVIEW --> ACTIVE: aprovació independent
+    ACTIVE --> EXPIRED
+    ACTIVE --> CANCELLED: refund JASOM / causa autoritzada
+  }
+```
+
+```mermaid
+stateDiagram-v2
+  [*] --> PENDING_APPROVAL
+  PENDING_APPROVAL --> REJECTED
+  PENDING_APPROVAL --> CANCELLED
+  PENDING_APPROVAL --> APPROVED_WAITING_REFUND: handoff admès pel model
+  PENDING_APPROVAL --> EXECUTED: servei actual quan ja té aprovació + refund real
+  APPROVED_WAITING_REFUND --> EXECUTED: handoff futur/explicit
+  EXECUTED --> RECOVERY_RESOLVED: tots els recovery items resolts
+```
+
+Les dues migracions històriques amb prefix `000025` es registren correctament perquè `MigrationRunner` usa el **nom complet del fitxer** com a `MIGRATION_FILE`. El conflicte real era que totes dues redefinien el mateix CHECK d'estats. La migració additiva [000027](../../sif/database/migrations/2026_09_27_000027_reconcile_novice_root_refund_states.sql) fixa l'estat final coherent sense modificar els fitxers ja històrics.
+
+### 17.1. Invariants UC-111 que el model general ha de conservar
+
+- `novice_promotion_grant.AVAILABLE_AMOUNT` i els saldos derivats són **valor promocional**, no `payment_transaction` ni `credit_balance`.
+- Una fila `RESERVED` ja ha descomptat valor; `APPLIED` no torna a descomptar-lo.
+- Un transfer `CONFIRMED` és l'atribució actual del mateix consum, **no un consum nou**.
+- `TRANSFERRED_TO_COURSE` i `CONVERTED_TO_DERIVED` converteixen predecessors en història de procedència.
+- Reviews `PENDING_FISCAL_REVIEW` / `PENDING_APPROVAL` no són drets o refunds executats.
+- `REFUND_REVIEW` congela el dret arrel perquè no apareguin noves reserves mentre es compara el pla.
+- `PENDING_RECOVERY` és una tasca auditable de recuperació, no un CHARGE automàtic.
+- L'estat documental és estàtic: les migracions UC-111 i els fluxos MySQL continuen **NO EXECUTATS** en aquesta auditoria.
+
+[Fitxa UC-111](../06-fitxes-funcionals/uc-111.md) · [classes UC-111](../07-uml-integrat/uc-111-classes-actual-final.md) · [seqüències UC-111](../07-uml-integrat/uc-111-sequencies-actual-final.md) · [traçabilitat UC-111](../07-uml-integrat/uc-111-tracabilitat-implementacio.md)

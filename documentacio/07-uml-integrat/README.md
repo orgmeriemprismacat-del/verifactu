@@ -2,6 +2,8 @@
 
 Aquesta carpeta conté les **142 fitxes integrades del catàleg**, amb una revisió funcional **progressiva per acció concreta**. La presència de la fitxa i dels tres blocs de diagrama no significa que totes les accions estiguin completament auditades o provades; les ampliacions dirigides i els seus límits queden identificats a la matriu de traçabilitat. No és una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. La revisió és en una branca documental abans de fusionar-la.
 
+**Precisió de recompte:** el catàleg continua tenint **142 IDs/variants UC canònics**. Els fitxers addicionals `uc-111-*.md` creats per separar casos d'ús, classes, seqüències, activitats, dades/estats i traçabilitat són **vistes suplementàries del mateix UC-111** i no incrementen aquest total.
+
 ## Mapa dels 142 casos d'ús revisats
 
 **[Revisió de cobertura per acció i criteri UC-04](00-revisio-accions-pendents-uc04.md)** · **[Auditoria detallada UC-007](02-auditoria-detallada-uc-007-consultar-factura-estat-document-2026-09-29.md)** · **[Mapatge provisional de les 25 pantalles pendents](00-matriu-25-pantalles-per-validar.md)** · **[Traçabilitat de les accions revisades amb codi i proves pendents](00-matriu-traçabilitat-accions-revisades.md)** · **[Model general de classes](00-model-classes-general.md)** · **[Revisió transversal dels 142 casos](00-revisio-transversal-142-casos.md)** · **[Auditoria dels contractes core PHP](00-auditoria-contractes-core-php.md)** · **[Matriu dels 142 casos originals](00-matriu-cobertura-cataleg.md)** · **[Moviments econòmics per inscripció](00-revisio-moviments-inscripcions.md)**
@@ -131,7 +133,7 @@ Aquesta carpeta conté les **142 fitxes integrades del catàleg**, amb una revis
 | UC-108 | Registrar un tastet o repte gratuït com a operació no facturable | [Fitxa i UML](uc-108-tastet-repte-gratuit.md) | `[LEGACY/DISSENY]` |
 | UC-109 | Registrar una inscripció a curs subvencionat sense cobrament individual | [Fitxa i UML](uc-109-inscripcio-curs-subvencionat.md) | `[LEGACY/PENDENT/BLOQUEJANT]` |
 | UC-110 | Gestionar el descompte d'amics amb dues inscripcions i un pagador | [Fitxa i UML](uc-110-descompte-amics-dues-inscripcions.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
-| UC-111 | Validar docent novell i generar un dret de descompte futur | [Fitxa i UML](uc-111-docent-novell-dret-futur.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
+| UC-111 | Validar docent novell i generar un dret de descompte futur | [integrat](uc-111-docent-novell-dret-futur.md) · [casos](uc-111-casos-us-actual-final.md) · [classes](uc-111-classes-actual-final.md) · [seqüències](uc-111-sequencies-actual-final.md) · [activitats](uc-111-activitats-actual-final.md) · [dades/estats](uc-111-dades-estats-actual-final.md) · [1:1 per acció](uc-111-diagrames-per-accio.md) · [traçabilitat](uc-111-tracabilitat-implementacio.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-112 | Congelar preu, descompte, places i classificació fiscal abans del TPV | [Fitxa i UML](uc-112-congelar-snapshot-abans-tpv.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-113 | Importar o crear inscripcions manualment o en lot sense inventar cobrament | [Fitxa i UML](uc-113-importar-inscripcions-manualment-lot.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |
 | UC-114 | Versionar canvis de producte o edició amb operacions obertes | [Fitxa i UML](uc-114-versionar-producte-edicio.md) | `[LEGACY/DISSENY/BLOQUEJANT]` |

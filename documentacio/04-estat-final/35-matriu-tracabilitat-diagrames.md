@@ -305,3 +305,26 @@ UC-125 a UC-129 cobreixen consentiment de comunicacions, identitat entre
 sistemes, canvi massiu d'estat d'una edició, qualitat d'adreça i reconciliació
 Prisma/Moodle. Els diagrames 31, 32 i 34 encara no representen aquestes cinc
 extensions; aquesta absència queda explícita i no es confon amb cobertura.
+
+
+## 15. Cobertura específica UC-111 — paquet documental descompost
+
+UC-111 té una complexitat superior a una fitxa UML de tres blocs. A partir del 29/09/2026 la cobertura canònica és:
+
+| Peça | Fitxer | Estat |
+| --- | --- | --- |
+| fitxa funcional principal | [uc-111.md](../06-fitxes-funcionals/uc-111.md) | existent i actualitzada |
+| fitxes d'acció A111-01…12 | [uc-111-accions.md](../06-fitxes-funcionals/uc-111-accions.md) | suplementàries, no nou UC |
+| casos d'ús ACTUAL/FINAL | [uc-111-casos-us-actual-final.md](../07-uml-integrat/uc-111-casos-us-actual-final.md) | creada |
+| classes ACTUAL/FINAL | [uc-111-classes-actual-final.md](../07-uml-integrat/uc-111-classes-actual-final.md) | creada |
+| seqüències ACTUAL/FINAL | [uc-111-sequencies-actual-final.md](../07-uml-integrat/uc-111-sequencies-actual-final.md) | creada |
+| activitats ACTUAL/FINAL | [uc-111-activitats-actual-final.md](../07-uml-integrat/uc-111-activitats-actual-final.md) | creada |
+| dades + estats ACTUAL/FINAL | [uc-111-dades-estats-actual-final.md](../07-uml-integrat/uc-111-dades-estats-actual-final.md) | creada · 10 blocs UML |
+| quatre UML per cadascuna de les 12 accions | [uc-111-diagrames-per-accio.md](../07-uml-integrat/uc-111-diagrames-per-accio.md) | 48 blocs, cobertura 1:1 creada |
+| traçabilitat implementació | [uc-111-tracabilitat-implementacio.md](../07-uml-integrat/uc-111-tracabilitat-implementacio.md) | creada |
+| UML acumulatiu històric | [uc-111-docent-novell-dret-futur.md](../07-uml-integrat/uc-111-docent-novell-dret-futur.md) | es conserva com a cronologia |
+| auditoria dirigida | [00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md](../07-uml-integrat/00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md) | activa |
+
+**Cobertura tècnica actual:** classes i serveis de concessió, delivery, consum, transferències successives, saldos derivats, projecció de procedència i root-refund/recovery consten a la branca. La vista de dades/estats documenta també la correcció additiva `000027` dels CHECK del root-refund. **No provat:** execució MySQL, migracions en entorn real, concurrència end-to-end i desplegament. **No integrat completament:** storage de justificants, endpoints autenticats, pricing/fiscalitat real, transports/evidències externes.
+
+Aquesta secció complementa la regla de 142 casos: els nous fitxers UC-111 són vistes suplementàries del mateix identificador, no casos nous.

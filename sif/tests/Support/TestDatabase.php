@@ -55,7 +55,7 @@ final class TestDatabase
         (new MigrationRunner(dirname(__DIR__, 2) . '/database'))->migrate($db);
     }
 
-    public static function assertSafeTestConfig(array $config): void
+    private static function assertSafeTestConfig(array $config): void
     {
         if (($config['env'] ?? '') !== 'test') {
             throw new \RuntimeException('Destructive test actions require SIF_ENV=test.');

@@ -824,7 +824,7 @@ no es poden absorbir en una frase genèrica de venda o pagament.
 | UC-108 | Registrar un tastet o repte gratuït com a operació no facturable | Alumne/ecommerce | `[LEGACY/DISSENY]` | Es registra la inscripció i la classificació `NON_BILLABLE/FREE_SAMPLE`; no es crea factura, pagament ni enllaç, i el consentiment de mailing queda separat i acreditable. |
 | UC-109 | Registrar una inscripció a curs subvencionat sense cobrament individual | Alumne/ecommerce/gestió | `[LEGACY/PENDENT/BLOQUEJANT]` | L'operació queda classificada com `SUBSIDISED_PENDING_DECISION`, amb finançador i evidència; no s'inventa un pagament de zero ni es decideix sense acord si cal factura a l'alumne, al finançador o cap factura. |
 | UC-110 | Gestionar el descompte d'amics amb dues inscripcions i un pagador | Dos participants/pagador | `[LEGACY/DISSENY/BLOQUEJANT]` | Dues persones poden triar cursos diferents, compartir operació/intenció i tenir un pagador; cada participant, línia, descompte i relació amb la factura queda congelat sense confondre pagador i receptor. |
-| UC-111 | Validar docent novell i generar un dret de descompte futur | Alumne/validador/gestió | `[LEGACY/DISSENY/BLOQUEJANT]` | La titulació i validació són evidència separada; després del pagament confirmat es crea una promoció o crèdit comercial futur idempotent, mai una alteració de la factura ja emesa. |
+| UC-111 | Validar docent novell i generar un dret de descompte futur | Alumne/validador/gestió | `[LEGACY/DISSENY/BLOQUEJANT]` | La titulació i validació són evidència separada; després del JASOM íntegrament pagat es concedeix una sola vegada un **dret promocional futur** pel valor elegible, amb consum parcial i traça de canvis/baixes, mai com a segon CHARGE ni alteració de la factura d'origen. |
 | UC-112 | Congelar preu, descompte, places i classificació fiscal abans del TPV | Ecommerce/SIF | `[LEGACY/DISSENY/BLOQUEJANT]` | Abans de crear la intenció Redsys es persisteix un snapshot versionat de producte, edició, places, import, descompte, pagador, receptor i tractament fiscal; el callback no recalcula dades vives. |
 
 ### 29.1. Evidència de codi
@@ -838,6 +838,12 @@ no es poden absorbir en una frase genèrica de venda o pagament.
 - `web-actual/DescompteAmic.php` crea dues inscripcions, un únic `IDPAG`, una
   persona pagadora a `respGrups` i calcula el descompte sobre dos cursos que
   poden ser diferents.
+
+### 29.1 bis. Paquet documental específic UC-111
+
+Per la seva extensió, UC-111 disposa d'una descomposició pròpia sense crear nous IDs de cas: [fitxa funcional](../06-fitxes-funcionals/uc-111.md), [fitxes d'acció A111-01…12](../06-fitxes-funcionals/uc-111-accions.md), [casos d'ús ACTUAL/FINAL](../07-uml-integrat/uc-111-casos-us-actual-final.md), [classes](../07-uml-integrat/uc-111-classes-actual-final.md), [seqüències](../07-uml-integrat/uc-111-sequencies-actual-final.md), [activitats](../07-uml-integrat/uc-111-activitats-actual-final.md), [dades i estats ACTUAL/FINAL](../07-uml-integrat/uc-111-dades-estats-actual-final.md), [48 diagrames 1:1 per A111-01…12](../07-uml-integrat/uc-111-diagrames-per-accio.md) i [traçabilitat d'implementació](../07-uml-integrat/uc-111-tracabilitat-implementacio.md). El document [integrat històric](../07-uml-integrat/uc-111-docent-novell-dret-futur.md) conserva l'evolució dels talls.
+
+Aquesta ampliació documental **no canvia el recompte de 142 casos** i tampoc converteix el flux en producció acreditada: MySQL, connectors finals i desplegament continuen separats de la cobertura documental.
 
 ### 29.2. Regla de frontera
 

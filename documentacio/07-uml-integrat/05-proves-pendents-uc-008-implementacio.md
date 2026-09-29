@@ -119,3 +119,10 @@ Per marcar UC-008 com PROVAT conservar:
 
 - Run **36638546735**: 555 passed, 0 failed.
 - Run **36638546786**: lint PHP PASS i 555 passed, 0 failed sobre PHP 8.4 / MySQL 8.4.
+## 10. CI automatitzada
+
+S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-tests.php` amb PHP 8.4 i MySQL 8.4 en pull requests, canvis a `main` que afectin `sif/**` i execució manual (`workflow_dispatch`).
+
+Aquesta incorporació converteix la suite en **executable a CI**, però no acredita cap PASS fins que GitHub Actions hagi executat el workflow sobre el commit corresponent. Cal conservar l'enllaç/resultat de l'execució com a evidència de tancament.
+
+**Estat actual:** CI DEFINIDA / EXECUCIÓ PENDENT.

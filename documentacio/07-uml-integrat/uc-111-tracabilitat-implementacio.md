@@ -14,6 +14,7 @@
 | classes ACTUAL/FINAL | [uc-111-classes-actual-final.md](uc-111-classes-actual-final.md) | CREAT |
 | seqüències ACTUAL/FINAL | [uc-111-sequencies-actual-final.md](uc-111-sequencies-actual-final.md) | CREAT |
 | activitats ACTUAL/FINAL | [uc-111-activitats-actual-final.md](uc-111-activitats-actual-final.md) | CREAT |
+| dades + estats ACTUAL/FINAL | [uc-111-dades-estats-actual-final.md](uc-111-dades-estats-actual-final.md) | CREAT · 10 blocs UML |
 | 4 UML per cada acció | [uc-111-diagrames-per-accio.md](uc-111-diagrames-per-accio.md) | CREAT · 12 × 4 = 48 blocs |
 | traçabilitat funcional/codi/proves | aquest document | CREAT |
 | UML integrat cronològic | [uc-111-docent-novell-dret-futur.md](uc-111-docent-novell-dret-futur.md) | EXISTIA · actualitzat/enllaçat |
@@ -34,13 +35,13 @@
 | A111-03 Decisió | fitxes d'acció | pantalla/JS/endpoint intranet + `VALIDAT` | `NovicePromotionSecretaryDecisionProjector` | seq §1/2, act §4/5 | integration escrita | IMPLEMENTAT_BRANCA / endpoint segur pendent |
 | A111-04 Concessió | fitxes d'acció | generació legacy no acreditada completament | `RedsysCourseInvoiceService` → `NovicePromotionInvoiceLinkService` → `NovicePromotionGrantService` després del commit econòmic; `GrantReconciler` per conciliació | classes §2, seq §2, act §7 | integration escrita | IMPLEMENTAT_BRANCA / post-pagament cablejat / MySQL-runtime pendent |
 | A111-05 Codi/correu | fitxes d'acció | correu legacy corregit per no exposar codi literal; emissió legacy no canònica | `RedsysCourseInvoiceService` → `NovicePromotionCodePreparationService` després del grant; email verification + delivery + private worker | classes §2, seq §2/3, act §7 | unit/integration parcials | IMPLEMENTAT_BRANCA / preparació de codi cablejada / transport real pendent |
-| A111-06 Consum original | fitxes d'acció | consulta `promocions` legacy | `NovicePromotionRedemptionService` | classes §3, seq §4, act §7 | amount policy + integration preparada | IMPLEMENTAT_BRANCA / checkout pendent |
-| A111-07 Canvi curs | fitxes d'acció | canvi general legacy | first + successive transfer review/confirmation | classes §3, seq §5, act §8 | policies pures escrites | IMPLEMENTAT_BRANCA / connectors pendents |
-| A111-08 Baixa i derivat | fitxes d'acció | sense model canònic complet | cancellation review/activation original + transferred | classes §3, seq §5, act §9 | policies pures escrites | IMPLEMENTAT_BRANCA / aprovació real pendent |
-| A111-09 Consum derivat | fitxes d'acció | no canònic | `NovicePromotionDerivedBalanceRedemptionService` | classes §3, seq §6, act §10 | 5 tests pures elegibilitat | IMPLEMENTAT_BRANCA / MySQL pendent |
+| A111-06 Consum original | fitxes d'acció | consulta `promocions` legacy | `NovicePromotionRedemptionService` | classes §3, seq §4, act §8 | amount policy + integration preparada | IMPLEMENTAT_BRANCA / checkout pendent |
+| A111-07 Canvi curs | fitxes d'acció | canvi general legacy | first + successive transfer review/confirmation | classes §3, seq §5, act §9 | policies pures escrites | IMPLEMENTAT_BRANCA / connectors pendents |
+| A111-08 Baixa i derivat | fitxes d'acció | sense model canònic complet | review/activation d'aplicació original + baixa del **primer traspàs confirmat**; baixa directa de `derived_application.APPLIED` i successors múltiples encara sense servei específic | classes §3, seq §5, act §10, dades/estats §§5–6 | policies pures escrites | PARCIAL_BRANCA / aprovació real + orígens derivats/successius pendents |
+| A111-09 Consum derivat | fitxes d'acció | no canònic | `NovicePromotionDerivedBalanceRedemptionService` | classes §3, seq §6, act §11 | 5 tests pures elegibilitat | IMPLEMENTAT_BRANCA / MySQL pendent |
 | A111-10 Procedència | fitxes d'acció | dispersa | snapshot + projection + lineage policies | classes §4, seq §6 | projection/lineage tests escrites | IMPLEMENTAT_BRANCA |
-| A111-11 Review refund JASOM | fitxes d'acció | manual/dispers | plan + review service | classes §4, seq §6, act §11 | fingerprint/approval tests escrites | IMPLEMENTAT_BRANCA / evidència externa pendent |
-| A111-12 Execució/recovery | fitxes d'acció | no canònic | execution + recovery resolution/completion | classes §4, seq §6, act §11 | policies pures escrites | IMPLEMENTAT_BRANCA / integració real pendent |
+| A111-11 Review refund JASOM | fitxes d'acció | manual/dispers | plan + review service | classes §4, seq §6, act §12 | fingerprint/approval tests escrites | IMPLEMENTAT_BRANCA / evidència externa pendent |
+| A111-12 Execució/recovery | fitxes d'acció | no canònic | execution + recovery resolution/completion | classes §4, seq §6, act §12 | policies pures escrites | IMPLEMENTAT_BRANCA / integració real pendent |
 
 ## 2. Traçabilitat de persistència per tall
 
@@ -65,8 +66,9 @@
 | 000024 | evidència refund origen | RootRefundExecution | no |
 | 000025* | waiting state / tancament workflow | root refund lifecycle | no |
 | 000026 | conservar evidència després del tancament | RecoveryCompletion | no |
+| 000027 | reconciliar CHECK d'estats dels dos 000025 | esquema root-refund | no |
 
-`000025*`: a la branca hi ha dues migracions amb prefix temporal 000025 i noms diferents. **Abans d'aplicar en un entorn real cal revisar l'ordre/ledger de migracions** i confirmar que el runner usa el nom complet o un identificador inequívoc; no assumir que el prefix repetit és innocu.
+`000025*`: la branca conserva dues migracions històriques amb aquest prefix i noms diferents. El `MigrationRunner` ordena els fitxers per nom complet i registra `basename($file)` com a PK de `sif_schema_migration`, de manera que **no hi ha col·lisió de ledger entre els dos noms**. La incidència real era lògica: tots dos redefinien els mateixos `CHECK`; `000027` fixa additivament la unió final d'estats (`APPROVED_WAITING_REFUND` + `RECOVERY_RESOLVED`) sense reescriure hashes antics. Resta pendent validar el DDL real en MySQL.
 
 ## 3. Traçabilitat UML
 
@@ -76,6 +78,7 @@
 | classes | [uc-111-classes-actual-final.md](uc-111-classes-actual-final.md) | legacy, concessió/lliurament, consum/canvi, lineage/refund |
 | seqüències | [uc-111-sequencies-actual-final.md](uc-111-sequencies-actual-final.md) | alta/decisió, concessió, delivery, consum, canvi/baixa, refund |
 | activitats | [uc-111-activitats-actual-final.md](uc-111-activitats-actual-final.md) | per pàgina/apartat i per lifecycle |
+| dades + estats | [uc-111-dades-estats-actual-final.md](uc-111-dades-estats-actual-final.md) | legacy vs SIF, lifecycle original/derivat/transfer/refund i projecció SQL→graf |
 | cobertura UML 1:1 | [uc-111-diagrames-per-accio.md](uc-111-diagrames-per-accio.md) | 12 accions × cas d'ús + classes + seqüència + activitat = 48 blocs |
 | fitxa integrada històrica | [uc-111-docent-novell-dret-futur.md](uc-111-docent-novell-dret-futur.md) | font acumulativa; manté decisions/talls anteriors |
 | auditoria dirigida | [00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md) | troballes i evolució tècnica |
@@ -116,7 +119,7 @@
 3. **Aprovació externa:** les interfaces d'aprovació/evidència són contractes; cal adaptador real i auditat.
 4. **Pricing/fiscalitat:** checkout real ha de persistir snapshots finals, rectificatives i factures zero sense pagaments inventats.
 5. **Redsys/concurrència:** callbacks tardans i reserves han de compartir criteris de conciliació abans de release/freeze.
-6. **Migracions:** no aplicades; revisar també el doble prefix `000025`.
+6. **Migracions:** no aplicades; el runner usa el nom complet i no pateix col·lisió de ledger pels dos `000025`. `000027` corregeix el conflicte real dels CHECK finals; cal validar l'aplicació DDL i l'ordre efectiu en MySQL.
 7. **Proves:** MySQL i concurrència real ajornades; no marcar cap flux BD com a PROVAT.
 8. **Desplegament:** no acreditat; `main` i producció no són la branca auditada.
 
@@ -133,4 +136,4 @@ UC-111 només passa a **AUDITADA_COMPLETA** quan:
 
 ## 8. Navegació
 
-[Fitxa UC-111](../06-fitxes-funcionals/uc-111.md) · [Fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) · [Casos d'ús](uc-111-casos-us-actual-final.md) · [Classes](uc-111-classes-actual-final.md) · [Seqüències](uc-111-sequencies-actual-final.md) · [Activitats](uc-111-activitats-actual-final.md)
+[Fitxa UC-111](../06-fitxes-funcionals/uc-111.md) · [Fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) · [Casos d'ús](uc-111-casos-us-actual-final.md) · [Classes](uc-111-classes-actual-final.md) · [Seqüències](uc-111-sequencies-actual-final.md) · [Activitats](uc-111-activitats-actual-final.md) · [Dades i estats](uc-111-dades-estats-actual-final.md)
