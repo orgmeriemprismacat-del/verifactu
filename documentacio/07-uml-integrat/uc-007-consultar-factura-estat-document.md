@@ -2,7 +2,7 @@
 
 **Àmbit:** consulta autoritzada de l'estat fiscal, econòmic i dels documents d'una factura SIF. **No** equival a emetre, cobrar, rectificar, generar de nou un PDF, donar accés d'auditor ni exposar les dades de tots els inscrits d'una factura de grup.
 
-**Estat:** el catàleg preveu actors i regles de visibilitat; existeixen `factura`, `fact_rels`, `factura_documents` i `DocumentRepository::registerDocument()` per registrar metadades de documents. **No s'ha acreditat** un servei PHP segur de lectura/descàrrega i control d'accés final que implementi totes les regles d'UC-07. La migració defineix `fiscal_document_access`, però una taula definida no prova registres d'accés operatius.
+**Estat:** implementació parcial iniciada. Existeixen `InvoiceReadRepository`, `InvoiceQueryService` i `InvoiceVisibilityPolicyInterface`; el nucli és read-only, filtra mitjançant política injectada i no exposa `PATH_FITXER`. **Continuen pendents** la implementació concreta de política vinculada a identitat/rol real, l'adaptador HTTP autenticat i el servei UC-80 de bytes/auditoria. La migració defineix `fiscal_document_access`, però una taula definida no prova registres d'accés operatius.
 
 ## 1. Fitxa funcional
 
@@ -112,38 +112,31 @@ flowchart LR
   a_2 --> u_4
 ```
 
-## 3. Subdiagrama de classes — frontera FINAL UC-007 / UC-080
+## 3. Subdiagrama de classes — implementat parcial + frontera UC-080
 
-La consulta de factura i la descàrrega de bytes són responsabilitats diferents. UC-007 resol factura, estats, relacions i metadades documentals; UC-080 revalida el document concret i serveix bytes. UC-55/78 governen disponibilitat, generació, retry i custòdia.
-
-~~~mermaid
+```mermaid
 classDiagram
 direction LR
 class InvoiceQueryService {
- <<DISSENY UC-007>>
- +search(actor,criteria) result
- +view(actor,uuidFactura) result
+ <<PHP EXISTENT · UC-007>>
+ +search(actor,criteria,limit) array
+ +view(actor,uuidFactura) array
 }
-class InvoiceVisibilityPolicy {
- <<DISSENY UC-007>>
- +canView(actor,factura,relations) bool
+class InvoiceVisibilityPolicyInterface {
+ <<PHP CONTRACTE EXISTENT>>
+ +canView(actor,invoice,relations) bool
+ +project(actor,view) array
 }
 class InvoiceReadRepository {
- <<DISSENY UC-007>>
- +findByUuid(uuidFactura) array
- +search(criteria,scope) array
- +findLines(uuidFactura) array
- +findRectifications(uuidFactura) array
-}
-class InvoiceStateReadRepository {
- <<DISSENY UC-007>>
- +paymentState(uuidFactura) result
- +fiscalState(uuidFactura) result
- +aeatState(uuidFactura) result
-}
-class DocumentReadRepository {
- <<DISSENY UC-007>>
- +listMetadata(uuidFactura) array
+ <<PHP EXISTENT · READ ONLY>>
+ +findByUuid(db,uuid) array?
+ +findLines(db,uuid) array
+ +findRelations(db,uuid) array
+ +findRectifications(db,uuid) array
+ +findPayments(db,uuid) array
+ +latestFiscalRecord(db,uuid) array?
+ +findDocumentMetadata(db,uuid) array
+ +search(db,criteria,limit) array
 }
 class InvoiceDocumentAccessService {
  <<DISSENY UC-080>>
@@ -154,21 +147,13 @@ class DocumentAvailabilityService {
  <<DISSENY UC-055/078>>
  +check(documentId) result
 }
-class DocumentRepository {
- <<PHP existent>>
- +registerDocument(db,uuidFactura,type,path,contents) array
-}
-InvoiceQueryService --> InvoiceVisibilityPolicy : autoritza factura
-InvoiceQueryService --> InvoiceReadRepository : snapshot i relacions
-InvoiceQueryService --> InvoiceStateReadRepository : estats independents
-InvoiceQueryService --> DocumentReadRepository : metadata
-InvoiceDocumentAccessService --> DocumentAvailabilityService : bytes/hash
-DocumentAvailabilityService ..> DocumentRepository : metadata registrada
-InvoiceQueryService ..> InvoiceDocumentAccessService : quan es demanen bytes
-~~~
+InvoiceQueryService --> InvoiceVisibilityPolicyInterface : obligatòria
+InvoiceQueryService --> InvoiceReadRepository : consulta
+InvoiceQueryService ..> InvoiceDocumentAccessService : bytes, pendent
+InvoiceDocumentAccessService --> DocumentAvailabilityService
+```
 
-**Important:** els repositoris/serveis de lectura són disseny pendent. El mètode executable acreditat de DocumentRepository continua sent només registerDocument(); no serveix bytes ni autoritza actors.
-
+**Implementat:** servei de consulta, repositori de lectura i contracte de política. **Pendent:** política concreta resolta des d'identitat/rol server-side, endpoint HTTP autenticat i UC-80. El repositori de lectura no retorna `PATH_FITXER`.
 ## 4. Seqüència FINAL — consultar factura i, opcionalment, demanar document
 
 ~~~mermaid
@@ -176,9 +161,9 @@ sequenceDiagram
 autonumber
 actor A as Actor
 participant UI as Canal
-participant Q as InvoiceQueryService [DISSENY]
-participant Auth as InvoiceVisibilityPolicy [DISSENY]
-participant R as Repositoris de lectura [DISSENY]
+participant Q as InvoiceQueryService [PHP]
+participant Auth as InvoiceVisibilityPolicyInterface [contracte PHP / implementació pendent]
+participant R as InvoiceReadRepository [PHP]
 participant Doc as InvoiceDocumentAccessService [UC-080 DISSENY]
 participant Av as DocumentAvailabilityService [UC-055/078 DISSENY]
 A->>UI: Cercar/obrir factura
