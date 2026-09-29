@@ -6,8 +6,10 @@ include("../inc/missatgesError.php");
 include("../Text.php");
 include("../Date.php");
 
-$doc = $_GET['doc'];
-$curs = $_GET['curs'];
+// Compatibilitat temporal amb clients antics GET; el flux actual usa POST.
+$request = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
+$doc = isset($request['doc']) ? $request['doc'] : '';
+$curs = isset($request['curs']) ? $request['curs'] : '';
 
 //Consulta ajax per comprovar si el usuari XXX ha realitzat el curs xxx (retornar l'edicio|any en que va fer-lo)
 
