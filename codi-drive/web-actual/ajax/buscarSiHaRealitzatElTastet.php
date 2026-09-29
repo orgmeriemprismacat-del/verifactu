@@ -25,12 +25,12 @@ try {
 	if ($stmt->num_rows() > 0) {
 		$stmt->bind_result($dataInsc);
 		$stmt->fetch();
-	   $connexio->closeStmt();
+		$connexio->closeStmt();
 
 		$cnsTitol = "SELECT TITOL FROM reptes WHERE CODI_CURS=?";
-	   $stmt=$connexio->prepare($cnsTitol);
-	   $stmt->bind_param("s", $curs);
-	   $stmt->execute();
+		$stmt=$connexio->prepare($cnsTitol);
+		$stmt->bind_param("s", $curs);
+		$stmt->execute();
 		$stmt->bind_result($titol);
 		$stmt->fetch();
 		$connexio->closeStmt();
@@ -40,7 +40,9 @@ try {
 
 		$mostrar = $titol."|".$textDate;
 	}
-   $connexio->closeStmt();
+	else {
+		$connexio->closeStmt();
+	}
 	$connexio->desconectarBD();
 
 	echo $mostrar;
