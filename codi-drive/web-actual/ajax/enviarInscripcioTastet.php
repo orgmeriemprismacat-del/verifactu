@@ -29,6 +29,20 @@ try {
 	$textMailing = new Text($request['mailing']);
 	$textCodiCurs = new Text($request['codiCurs']);
 
+	$urlOrigen = isset($request['url']) ? trim($request['url']) : '';
+	$idUrlTastet = null;
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		if ($urlOrigen === '')
+			throw new Exception('',404);
+
+		$partsUrl = explode('/', rtrim($urlOrigen, '/'));
+		$slugTastet = $partsUrl[count($partsUrl)-1];
+		$idUrlTastet = buscarPagina('/tastets/'.$slugTastet);
+
+		if ($idUrlTastet == null || $idUrlTastet == '')
+			throw new Exception('',404);
+	}
+
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
 
@@ -45,11 +59,25 @@ try {
 	$dataInsc = date('d')."-".date('m')."-".date('Y')." ".date('H').":".date('i');
 
 	/* ######################################################################### */
-	$cnsINFO = "SELECT TITOL FROM reptes WHERE CODI_CURS=? AND ESTAT=1";
-	$stmt=$connexio->prepare($cnsINFO);
-	$stmt->bind_param("s", $codiCurs);
 	$codiCurs = $textCodiCurs->obtenirText();
+	if ($idUrlTastet !== null) {
+		$cnsINFO = "SELECT TITOL FROM reptes WHERE CODI_CURS=? AND ID_URL=? AND ESTAT=1";
+		$stmt=$connexio->prepare($cnsINFO);
+		$stmt->bind_param("sd", $codiCurs, $idUrlTastet);
+	}
+	else {
+		// Compatibilitat temporal amb clients GET antics.
+		$cnsINFO = "SELECT TITOL FROM reptes WHERE CODI_CURS=? AND ESTAT=1";
+		$stmt=$connexio->prepare($cnsINFO);
+		$stmt->bind_param("s", $codiCurs);
+	}
 	$stmt->execute();
+	$stmt->store_result();
+	if ($stmt->num_rows() != 1) {
+		$connexio->closeStmt();
+		$connexio->desconectarBD();
+		throw new Exception('',404);
+	}
 	$stmt->bind_result($titol);
 	$stmt->fetch();
 	$connexio->closeStmt();
