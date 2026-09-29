@@ -42,19 +42,6 @@ return [
         'signed_path' => getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php',
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
     ],
-    'internal_api' => [
-        'client_id' => getenv('SIF_INTERNAL_API_CLIENT_ID') ?: '',
-        'secret' => getenv('SIF_INTERNAL_API_SECRET') ?: '',
-        'max_clock_skew_seconds' => (int) (getenv('SIF_INTERNAL_API_MAX_SKEW') ?: 300),
-        'invoice_full_read_roles' => array_values(array_filter(array_map(
-            'trim',
-            preg_split('/[|,;]/', getenv('SIF_INVOICE_FULL_READ_ROLES') ?: '') ?: []
-        ))),
-        'invoice_minimal_read_roles' => array_values(array_filter(array_map(
-            'trim',
-            preg_split('/[|,;]/', getenv('SIF_INVOICE_MINIMAL_READ_ROLES') ?: '') ?: []
-        ))),
-    ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
     ],
