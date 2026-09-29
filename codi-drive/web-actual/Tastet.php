@@ -217,17 +217,23 @@ class Tastet {
 
 		$labelInfo = "<label>Més informació</label>";
 
-		$nivells.="<i class='fas fa-signal mr-2'></i>";
-		$cntNiv = 0;
-		while ( $cntNiv < count($this->__obtenirCursOrig()->obtenirNivells()) ) {
-			 $niv=$this->__obtenirCursOrig()->obtenirNivell($cntNiv)->obtenirText();
-			 if ($cntNiv!=0)
-					$nivells .= "<span class='mx-1'>|</span>";
-			 if ( $cntNiv == count($this->nivells) - 1)
-					 $nivells .= "<span>".$niv."</span>";
-			 else
-					$nivells .= "<span class='m-0'>".$niv."</span>";
-			 $cntNiv++;
+		$nivells = "";
+		$textCursOrig = "";
+		$cursOrig = $this->__obtenirCursOrig();
+
+		if ($cursOrig != null && $cursOrig->obtenirEstat() == 1) {
+			$nivellsCurs = $cursOrig->obtenirNivells();
+			if ($nivellsCurs != null && count($nivellsCurs) > 0) {
+				$nivells = "<i class='fas fa-signal mr-2'></i>";
+				for ($cntNiv = 0; $cntNiv < count($nivellsCurs); $cntNiv++) {
+					if ($cntNiv != 0)
+						$nivells .= "<span class='mx-1'>|</span>";
+					$nivells .= "<span class='m-0'>".$cursOrig->obtenirNivell($cntNiv)->obtenirText()."</span>";
+				}
+			}
+
+			$textCursOrig = "<p>Aquest curs està relacionat amb el curs <a href='".$cursOrig->obtenirUrl()->obtenirLink()."'>
+				<strong>".$cursOrig->obtenirTitol()->obtenirTextHTML()."</strong></a>.</p>";
 		}
 
 		$linkTastet = $this->__obtenirUrl()->obtenirLink();
@@ -246,8 +252,7 @@ class Tastet {
 					</div>
 				</div>
 				".$shortDescs."
-				<p>Aquest curs està relacionat amb el curs <a href='".$this->__obtenirCursOrig()->obtenirUrl()->obtenirLink()."'>
-				<strong>".$this->__obtenirCursOrig()->obtenirTitol()->obtenirTextHTML()."</strong></a>.</p>
+				".$textCursOrig."
 			</div>
 			<div class='col-12 col-md-5 seccio2 px-0 bg-white d-flex align-items-center w-100'>
 				<div class='img-overlay h-100' style=''>
@@ -270,14 +275,15 @@ class Tastet {
 	public function mostrarTastetComCurs() {
 		$codi = $this->codiCurs;
 
-		$linkImg  ="https://www.prisma.cat".$this->__obtenirImgCurs()->obtenirLink();
+		$versioImg = $this->__obtenirImgCurs()->obtenirVersio();
+		$linkImgBase ="https://www.prisma.cat".$this->__obtenirImgCurs()->obtenirLink();
 		$dscImg = $this->__obtenirImgCurs()->obtenirAlt();
 		$titolHTML = $this->__obtenirTitol()->obtenirTextHTML();
 		$titol = $this->__obtenirTitol()->obtenirText();
 		$linkUrl = "https://www.prisma.cat".$this->__obtenirUrl()->obtenirLink();
 
-		$linkImg .= "?ver=".$versioImg;
-      $linkImgOrig = substr($linkImg, 0, -4);
+		$linkImgOrig = substr($linkImgBase, 0, -4);
+		$linkImg = $linkImgBase."?ver=".$versioImg;
       $linkImgWeb = $linkImgOrig.".webp?ver=".$versioImg;
 
       $linkImg540JPG=$linkImgOrig."-345.jpg?ver=".$versioImg;
@@ -322,6 +328,7 @@ class Tastet {
 			</a>
 		</div>";
 		$tagInfoCourse = "";
+		$footerInfoCourse = "";
       $footerInfoCourse .= "<div class='related-course-footer clear-both d-flex flex-row align-items-center justify-content-between py-0'>
 			<button class='mesinfo position-relative font-weight-bold border-0 border-radius-2 w-100 flex-shrink-1 px-2 py-3'
 			onclick=\"mostraInfoCurs('".$linkUrl."')\">
@@ -369,9 +376,11 @@ class Tastet {
    */
 	private function __mostrarSeccio1() {
 		$titol = $this->__obtenirTitol()->obtenirTextHTML();
-		$titolCursOrig = $this->__obtenirCursOrig()->obtenirTitol()->obtenirTextHTML();
+		$cursOrig = $this->__obtenirCursOrig();
+		$subtitol = "Tastet gratuït";
 
-		$subtitol = "Tastet del curs ".$titolCursOrig;
+		if ($cursOrig != null && $cursOrig->obtenirEstat() == 1)
+			$subtitol = "Tastet del curs ".$cursOrig->obtenirTitol()->obtenirTextHTML();
 		$textButton = "<i class='fas fa-long-arrow-alt-left mr-2'></i>Tastets";
 
 		$mostrar = "<div class='titol my-4'>
@@ -451,7 +460,7 @@ class Tastet {
 	private function __mostrarSeccio5() {
 		$cursOrig = $this->__obtenirCursOrig();
 		$mostrar = "<div class='separacio-peu d-flex flex-column'>";
-		if ( $cursOrig->obtenirEstat() == 1 ) {
+		if ( $cursOrig != null && $cursOrig->obtenirEstat() == 1 ) {
 			$mostrar .= "<h2 class='h1'>Curs original del tastet</h2><div class='row'>";
 
 			$mostrar .= "<div class='d-flex flex-row flex-wrap mx-3'>";
@@ -477,10 +486,13 @@ class Tastet {
 			$intro .= "<p>
 				Com tots els tastets, és <span class='font-weight-bold'>completament gratuït</span> i es pot fer de manera autònoma.
 			</p>";
-			$intro .= "<p>
-				Si us agrada el que hi veieu i teniu més interès en el tema, us animem a fer el curs <a href='".$this->__obtenirCursOrig()->obtenirUrl()->obtenirLink()."'>
-				<strong>".$this->__obtenirCursOrig()->obtenirTitol()->obtenirTextHTML()."</strong></a>, que amplia els continguts, compta amb acompanyament tutorial i està reconegut com a formació permanent del professorat.
-			</p>";
+			$cursOrig = $this->__obtenirCursOrig();
+			if ($cursOrig != null && $cursOrig->obtenirEstat() == 1) {
+				$intro .= "<p>
+					Si us agrada el que hi veieu i teniu més interès en el tema, us animem a fer el curs <a href='".$cursOrig->obtenirUrl()->obtenirLink()."'>
+					<strong>".$cursOrig->obtenirTitol()->obtenirTextHTML()."</strong></a>, que amplia els continguts, compta amb acompanyament tutorial i està reconegut com a formació permanent del professorat.
+				</p>";
+			}
 			$intro .= "<p>
 				Som-hi, doncs! Esperem que gaudiu de l'experiència!
 			</p>";
