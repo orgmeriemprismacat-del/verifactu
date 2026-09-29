@@ -999,7 +999,7 @@ function mostrarModalPrevisualitzaFactura( id ) {
 					var idFact = $('#modalPrevisualizaFactura #factura-relacionada-fact').html().trim();
 					var requestDown = $.ajax({
 						url: path + "alumnes/descarregaFactura.php",
-						method: "GET",
+						method: "POST",
 						data: { id : idFact },
 						dataType: "html"
 					});
