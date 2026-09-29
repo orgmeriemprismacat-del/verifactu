@@ -7,11 +7,10 @@ include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
 include("../Text.php");
 
-try {
-	$input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
-	$doc = isset($input['doc']) ? trim($input['doc']) : '';
-	$urlTastet = isset($input['urlTastet']) ? trim($input['urlTastet']) : '';
-	$cursLegacy = isset($input['curs']) ? trim($input['curs']) : '';
+// Compatibilitat temporal amb clients antics GET; el flux actual usa POST.
+$request = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
+$doc = isset($request['doc']) ? $request['doc'] : '';
+$curs = isset($request['curs']) ? $request['curs'] : '';
 
 	if ($doc == '') {
 		echo '';
@@ -23,34 +22,22 @@ try {
 
 	$curs = '';
 
-	if ($urlTastet != '') {
-		$idUrl = buscarPagina($urlTastet);
-		if ($idUrl != null && $idUrl != '') {
-			$cnsRepte = "SELECT CODI_CURS FROM reptes WHERE ID_URL=? AND ESTAT=1";
-			$stmt = $connexio->prepare($cnsRepte);
-			$stmt->bind_param("d", $idUrl);
-			$stmt->execute();
-			$stmt->store_result();
+	$cnsInsc = "SELECT DATA_INSC FROM inscripcions_reptes WHERE CURS=? AND DNI=? AND INSC_CURS=1";
+   $stmt=$connexio->prepare($cnsInsc);
+   $stmt->bind_param("ss", $curs, $doc);
+   $stmt->execute();
+   $stmt->store_result();
+	if ($stmt->num_rows() > 0) {
+		$stmt->bind_result($dataInsc);
+		$stmt->fetch();
+		$connexio->closeStmt();
 
-			if ($stmt->num_rows() > 0) {
-				$stmt->bind_result($curs);
-				$stmt->fetch();
-			}
-			$connexio->closeStmt();
-		}
-	}
-	else if ($cursLegacy != '') {
-		// Compatibilitat temporal amb clients JS antics.
-		$cnsRepte = "SELECT CODI_CURS FROM reptes WHERE CODI_CURS=? AND ESTAT=1";
-		$stmt = $connexio->prepare($cnsRepte);
-		$stmt->bind_param("s", $cursLegacy);
+		$cnsTitol = "SELECT TITOL FROM reptes WHERE CODI_CURS=?";
+		$stmt=$connexio->prepare($cnsTitol);
+		$stmt->bind_param("s", $curs);
 		$stmt->execute();
-		$stmt->store_result();
-
-		if ($stmt->num_rows() > 0) {
-			$stmt->bind_result($curs);
-			$stmt->fetch();
-		}
+		$stmt->bind_result($titol);
+		$stmt->fetch();
 		$connexio->closeStmt();
 	}
 
@@ -73,6 +60,10 @@ try {
 	if ($stmt->num_rows() > 0) {
 		$mostrar = 'DUPLICATE';
 	}
+	else {
+		$connexio->closeStmt();
+	}
+	$connexio->desconectarBD();
 
 	$connexio->closeStmt();
 	$connexio->desconectarBD();

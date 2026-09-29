@@ -7,10 +7,7 @@ class PaginaConfirmacioTastet {
    private $id; /** id de la insripció */
    private $cursInsc; /** Text Curs del tastet. ex. ACRE */
    private $titol; /** Text El titol del curs de la Inscripcio ex: Coaching per a Docents */
-   private $imgAmple; /** Img la imatge llarge del tastet*/
-   private $cursOrig; /** Curs Curs original del repte */
    private $email; /** Text El email de la Inscripcio ex: suport@prisma.cat */
-   private $dni; /** Text El dni de la Inscripcio ex: 77922662L */
 
    /*********************************** FUNCIONS CONSTRUCTORS ***********************************/
 
@@ -18,60 +15,55 @@ class PaginaConfirmacioTastet {
       $this->id = $id;
       $this->cursInsc = null;
       $this->titol = null;
-      $this->imgAmple = null;
-      $this->cursOrig = null;
       $this->email = null;
-      $this->dni = null;
 
       $connexio = new ConnexioBBDDSTMT();
       $connexio->connectarBD();
 
-      $cnsInsc = "SELECT CURS, CORREU
-         FROM inscripcions_reptes
-         WHERE ID=? AND (INSC_CURS='0' OR INSC_CURS='1')";
+      $cnsInsc = "SELECT CURS, CORREU FROM inscripcions_reptes
+                  WHERE ID=? AND (INSC_CURS='0' OR INSC_CURS='1')";
       $stmt = $connexio->prepare($cnsInsc);
       $stmt->bind_param("d", $id);
       $stmt->execute();
       $stmt->store_result();
 
-      if ( $stmt->num_rows() == 1 ) {
-         $stmt->bind_result($cursInsc, $correu);
-         $stmt->fetch();
-         $connexio->closeStmt();
-
-         require_once 'Text.php';
-         if ($cursInsc != null && $cursInsc != '')
-            $this->cursInsc = new Text($cursInsc);
-
-         if ($correu != null && $correu != '')
-            $this->email = new Text($correu);
-
-         if ($this->cursInsc != null) {
-            // La confirmació és històrica: no exigir que el tastet continuï ESTAT=1.
-            $cnsRepte = "SELECT TITOL FROM reptes WHERE CODI_CURS=? LIMIT 1";
-            $stmt = $connexio->prepare($cnsRepte);
-            $stmt->bind_param("s", $cursInsc);
-            $stmt->execute();
-            $stmt->store_result();
-
-            if ($stmt->num_rows() > 0) {
-               $stmt->bind_result($nomCurs);
-               $stmt->fetch();
-               if ($nomCurs != null && $nomCurs != '')
-                  $this->titol = new Text($nomCurs);
-            }
-            $connexio->closeStmt();
-         }
-      }
-      else if ( $stmt->num_rows() > 1 ) {
+      if ($stmt->num_rows() > 1) {
          $connexio->closeStmt();
          $connexio->desconectarBD();
          throw new Exception('',2512);
       }
-      else {
+
+      if ($stmt->num_rows() == 0) {
          $connexio->closeStmt();
          $connexio->desconectarBD();
          throw new Exception('',2502);
+      }
+
+      $stmt->bind_result($cursInsc, $correu);
+      $stmt->fetch();
+      $connexio->closeStmt();
+
+      require_once 'Text.php';
+
+      if ($cursInsc!=null and $cursInsc!='')
+         $this->cursInsc = new Text($cursInsc);
+
+      if ($correu!=null and $correu!='')
+         $this->email = new Text($correu);
+
+      if ($this->cursInsc!=null) {
+         // La confirmació és històrica: no ha de desaparèixer només perquè
+         // el tastet s'hagi desactivat després de registrar la sol·licitud.
+         $cnsTastet = "SELECT TITOL FROM reptes WHERE CODI_CURS=? LIMIT 1";
+         $stmt = $connexio->prepare($cnsTastet);
+         $stmt->bind_param("s", $cursInsc);
+         $stmt->execute();
+         $stmt->bind_result($nomCurs);
+         $stmt->fetch();
+         $connexio->closeStmt();
+
+         if ($nomCurs!=null and $nomCurs!='')
+            $this->titol = new Text($nomCurs);
       }
 
       $connexio->desconectarBD();
@@ -88,28 +80,6 @@ class PaginaConfirmacioTastet {
       if ($this->titol==null)
          throw new Exception('',2503);
       return $this->titol;
-   }
-
-   /*
-   * @brief Obtens la imatge3 del repte
-   * @return la imatge3 del repte
-   * @throws Si el repte no té unna imatge, envia l'excepció 2504
-   */
-   private function obtenirImatge() {
-      if ($this->imgAmple==null)
-         throw new Exception('',2504);
-      return $this->imgAmple;
-   }
-
-   /*
-   * @brief Obtens el curs original
-   * @return Obtens el curs original
-   * @throws Si el repte no té un curs original, envia l'excepció 2505
-   */
-   private function obtenirCursOrig() {
-      if ($this->cursOrig==null)
-         throw new Exception('',2505);
-      return $this->cursOrig;
    }
 
    /**
@@ -133,16 +103,6 @@ class PaginaConfirmacioTastet {
       return $this->email;
    }
 
-   /*
-   * @brief Obtens el dni de la inscripció
-   * @return Obtens el dni de la inscripció
-   * @throws Si la encriptacio no té un dni, envia l'excepció 2515
-   */
-   private function obtenirDni() {
-      if ($this->dni==null)
-         throw new Exception('',2515);
-      return $this->dni;
-   }
    /*
    * @brief Obtens el id de la inscripció
    * @return Obtens el id de la inscripció

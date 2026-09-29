@@ -16,20 +16,36 @@ include("../Uc108Validation.php");
 include("../Uc108ConfirmationToken.php");
 
 try {
-	$esPost = ($_SERVER['REQUEST_METHOD'] === 'POST');
-	$input = $esPost ? $_POST : $_GET;
+	// Compatibilitat temporal amb clients antics GET; el flux actual usa POST
+	// per evitar dades personals a la URL.
+	$request = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
 
-	$textNom = new Text(isset($input['nom']) ? $input['nom'] : '');
-	$textCog = new Text(isset($input['cog']) ? $input['cog'] : '');
-	$textDocumentacio = new Text(isset($input['dni']) ? $input['dni'] : '');
-	$textEmail = new Text(isset($input['email']) ? $input['email'] : '');
-	$textPoblacio = new Text(isset($input['poblacio']) ? $input['poblacio'] : '');
-	$textConegut = new Text(isset($input['conegut']) ? $input['conegut'] : '');
-
-	if (isset($input['comentaris']) && $input['comentaris'] != '')
-		$textComentaris = new Text($input['comentaris']);
+	$textNom = new Text($request['nom']);
+	$textCog = new Text($request['cog']);
+	$textDocumentacio = new Text($request['dni']);
+	$textEmail = new Text($request['email']);
+	$textPoblacio = new Text($request['poblacio']);
+	$textConegut = new Text($request['conegut']);
+	if ( isset($request['comentaris']) && $request['comentaris'] != '')
+		$textComentaris = new Text($request['comentaris']);
 	else
 		$textComentaris = null;
+	$textMailing = new Text($request['mailing']);
+	$textCodiCurs = new Text($request['codiCurs']);
+
+	$urlOrigen = isset($request['url']) ? trim($request['url']) : '';
+	$idUrlTastet = null;
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		if ($urlOrigen === '')
+			throw new Exception('',404);
+
+		$partsUrl = explode('/', rtrim($urlOrigen, '/'));
+		$slugTastet = $partsUrl[count($partsUrl)-1];
+		$idUrlTastet = buscarPagina('/tastets/'.$slugTastet);
+
+		if ($idUrlTastet == null || $idUrlTastet == '')
+			throw new Exception('',404);
+	}
 
 	$textEmailConf = null;
 	if (isset($input['email_conf']) && trim($input['email_conf']) != '')
@@ -101,46 +117,29 @@ try {
 
 	$dataInsc = date('d')."-".date('m')."-".date('Y')." ".date('H').":".date('i');
 
-	$connexio = new ConnexioBBDDSTMT();
-	$connexio->connectarBD();
-
-	$codiCurs = '';
-	$titol = '';
-
-	if ($urlTastet != '') {
-		$idUrlTastet = buscarPagina($urlTastet);
-		if ($idUrlTastet != null && $idUrlTastet != '') {
-			$cnsINFO = "SELECT CODI_CURS, TITOL FROM reptes WHERE ID_URL=? AND ESTAT=1";
-			$stmt = $connexio->prepare($cnsINFO);
-			$stmt->bind_param("d", $idUrlTastet);
-			$stmt->execute();
-			$stmt->store_result();
-			if ($stmt->num_rows() > 0) {
-				$stmt->bind_result($codiCurs, $titol);
-				$stmt->fetch();
-			}
-			$connexio->closeStmt();
-		}
+	/* ######################################################################### */
+	$codiCurs = $textCodiCurs->obtenirText();
+	if ($idUrlTastet !== null) {
+		$cnsINFO = "SELECT TITOL FROM reptes WHERE CODI_CURS=? AND ID_URL=? AND ESTAT=1";
+		$stmt=$connexio->prepare($cnsINFO);
+		$stmt->bind_param("sd", $codiCurs, $idUrlTastet);
 	}
-	else if ($codiCursLegacy != '') {
-		// Compatibilitat temporal amb clients JS antics.
-		$cnsINFO = "SELECT CODI_CURS, TITOL FROM reptes WHERE CODI_CURS=? AND ESTAT=1";
-		$stmt = $connexio->prepare($cnsINFO);
-		$stmt->bind_param("s", $codiCursLegacy);
-		$stmt->execute();
-		$stmt->store_result();
-		if ($stmt->num_rows() > 0) {
-			$stmt->bind_result($codiCurs, $titol);
-			$stmt->fetch();
-		}
+	else {
+		// Compatibilitat temporal amb clients GET antics.
+		$cnsINFO = "SELECT TITOL FROM reptes WHERE CODI_CURS=? AND ESTAT=1";
+		$stmt=$connexio->prepare($cnsINFO);
+		$stmt->bind_param("s", $codiCurs);
+	}
+	$stmt->execute();
+	$stmt->store_result();
+	if ($stmt->num_rows() != 1) {
 		$connexio->closeStmt();
-	}
-
-	if ($codiCurs == '' || $titol == '') {
 		$connexio->desconectarBD();
-		echo "Error: el tastet no està disponible actualment.";
-		return;
+		throw new Exception('',404);
 	}
+	$stmt->bind_result($titol);
+	$stmt->fetch();
+	$connexio->closeStmt();
 
 	$textTitolCurs = new Text($titol);
 	$textTitolCurs->arreglarParaulaBD('text_no_mod');
@@ -291,6 +290,35 @@ try {
 
 	/* ######################################################################### */
 
+	$subject = "Inscripció al tastet ".$titolCurs;
+
+	$nomFromHead = 'Secretaria PrisMa';
+	$correuFromHead = 'inscripcions@prisma.cat';
+	$nomReplyHead = $nomCognoms;
+	$correuReplyHead = $email;
+
+	$nomTo = 'Secretaria PrisMa';
+	$correuTo = 'inscripcions@prisma.cat';
+	// $correuTo = 'meriem.prisma.cat@gmail.com';
+
+
+	$nomFromHead = 'Secretaria PrisMa';
+	$correuFromHead = 'secretaria@prisma.cat';
+	$nomReplyHead = $nomCognoms;
+	$correuReplyHead = $email;
+
+	$nomTo = "PrisMa Secretaria";
+	$correuTo = "resguard.secretaria@prisma.cat";
+	// $correuTo = 'meriem.prisma.cat@gmail.com';
+
+	$subject2 = "Inscripció al tastet ".$titolCurs." ".$dataInsc;
+
+
+	$nomTo = 'Secretaria PrisMa';
+	$correuTo = 'inscripcions@prisma.cat';
+	// $correuTo = 'meriem.prisma.cat@gmail.com';
+
+
 	/* ######################################################################### */
 	// Primer persistim la petició. Les notificacions s'executen després de tenir un ID real.
 	$nomBD = $textNom->obtenirText();
@@ -326,8 +354,65 @@ try {
 	$stmt->fetch();
 	$connexio->closeStmt();
 
-	$hashIdInserit = Uc108ConfirmationToken::issue($idInserit, $urlTastet, $keyEncr);
-	$subjectMailInsc .= " #".$idInserit;
+	/*
+	 * Les notificacions internes es fan només després que la sol·licitud
+	 * existeixi a inscripcions_reptes. Així no es genera un correu d'una
+	 * alta que després no hagi pogut persistir.
+	 */
+	$mailCopiaInsc = new MailSMTPComvive(
+		$usernameInsc, $passwordInsc,
+		'Secretaria PrisMa', 'inscripcions@prisma.cat',
+		$nomCognoms, $email,
+		'Secretaria PrisMa', 'inscripcions@prisma.cat',
+		$subjectMailInsc, $msgInsc
+	);
+
+	$mailCopiaResguard = new MailSMTPComvive(
+		$username, $password,
+		'Secretaria PrisMa', 'secretaria@prisma.cat',
+		$nomCognoms, $email,
+		'PrisMa Secretaria', 'resguard.secretaria@prisma.cat',
+		$subject2, $missatge
+	);
+
+	$mailCopiaSecretaria = new MailSMTPComvive(
+		$username, $password,
+		'Secretaria PrisMa', 'secretaria@prisma.cat',
+		$nomCognoms, $email,
+		'Secretaria PrisMa', 'inscripcions@prisma.cat',
+		$subject, $missatge
+	);
+
+	$ivlen = openssl_cipher_iv_length($cipher);
+	$iv = openssl_random_pseudo_bytes($ivlen);
+	$ciphertext_raw = openssl_encrypt($idInserit, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
+	// Els tokens nous autentiquen IV + ciphertext per evitar manipulació del primer bloc.
+	$hmac = hash_hmac('sha256', $iv.$ciphertext_raw, $keyEncr, $as_binary=true);
+	$hashIdInserit = base64_encode( $iv.$hmac.$ciphertext_raw );
+
+	echo $hashIdInserit;
+
+	$nomFromHead = $nameUser;
+	$correuFromHead = $username;
+	$nomReplyHead = $nomCognoms;
+	$correuReplyHead = $email;
+
+	$nomTo = "PrisMa Secretaria";
+	$correuTo = "inscripcions.prisma@gmail.com";
+	// $correuTo = 'meriem.prisma.cat@gmail.com';
+
+	$mailCopia = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
+										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+										$subjectMailInsc, $msgInsc);
+
+	if ($mailingBD == '1') {
+		$cnsMailing = "SELECT ID FROM mailing WHERE MAIL=?";
+		$stmt=$connexio->prepare($cnsMailing);
+		$stmt->bind_param("s", $emailBD);
+		$stmt->execute();
+		$stmt->store_result();
+		if ( $stmt->num_rows() <= 0 ) {
+			$connexio->closeStmt();
 
 	$errorsSMTP = [];
 	try {
@@ -350,66 +435,11 @@ try {
 			$connexio->closeStmt();
 		}
 
-		$subject = "Inscripció al tastet ".$titolCurs;
-		$subject2 = "Inscripció al tastet ".$titolCurs." ".$dataInsc;
-
-		$mailCopiaInsc = new MailSMTPComvive(
-			$usernameInsc, $passwordInsc,
-			'Secretaria PrisMa', 'inscripcions@prisma.cat',
-			$nomCognomsHeader, $email,
-			'Secretaria PrisMa', 'inscripcions@prisma.cat',
-			$subjectMailInsc, $msgInsc
-		);
-		if (!$mailCopiaInsc->enviat()) $errorsSMTP[] = 'copia-inscripcions';
-
-		$mailCopiaSecreResguard = new MailSMTPComvive(
-			$username, $password,
-			'Secretaria PrisMa', 'secretaria@prisma.cat',
-			$nomCognomsHeader, $email,
-			'PrisMa Secretaria', 'resguard.secretaria@prisma.cat',
-			$subject2, $missatge
-		);
-		if (!$mailCopiaSecreResguard->enviat()) $errorsSMTP[] = 'resguard-secretaria-1';
-
-		$mailCopiaSecre = new MailSMTPComvive(
-			$username, $password,
-			'Secretaria PrisMa', 'secretaria@prisma.cat',
-			$nomCognomsHeader, $email,
-			'Secretaria PrisMa', 'inscripcions@prisma.cat',
-			$subject, $missatge
-		);
-		if (!$mailCopiaSecre->enviat()) $errorsSMTP[] = 'secretaria';
-
-		$mailCopiaGmail = new MailSMTPComvive(
-			$username, $password,
-			$nameUser, $username,
-			$nomCognomsHeader, $email,
-			'PrisMa Secretaria', 'inscripcions.prisma@gmail.com',
-			$subjectMailInsc, $msgInsc
-		);
-		if (!$mailCopiaGmail->enviat()) $errorsSMTP[] = 'copia-gmail';
-
-		$mailCopiaResguard2 = new MailSMTPComvive(
-			$username, $password,
-			$nameUser, $username,
-			$nomCognomsHeader, $email,
-			'PrisMa Secretaria', 'resguard.secretaria@prisma.cat',
-			$subject2, $missatge
-		);
-		if (!$mailCopiaResguard2->enviat()) $errorsSMTP[] = 'resguard-secretaria-2';
-
-		$mailAlumne = new MailSMTPComvive(
-			$username, $password,
-			$nameUser, $username,
-			$nomCognomsHeader, $email,
-			$nomCognomsHeader, $email,
-			$subject, $missatge
-		);
-		if (!$mailAlumne->enviat()) $errorsSMTP[] = 'participant';
-	}
-	catch(Throwable $sideEffectError) {
-		error_log('UC-108: error posterior a la persistencia de la peticio. Codi '.$sideEffectError->getCode());
-	}
+	/*
+	 * Els blocs antics de codi postal i promocions s'han retirat d'aquest handler:
+	 * el formulari actual de tastets no envia CP ni promoció i les variables
+	 * $codiPostalBD / $promocioAplicada no tenien cap origen en aquest flux.
+	 */
 
 	if (count($errorsSMTP) > 0)
 		error_log('UC-108: SMTP no lliurat en '.implode(',', $errorsSMTP).'. Peticio '.$idInserit);

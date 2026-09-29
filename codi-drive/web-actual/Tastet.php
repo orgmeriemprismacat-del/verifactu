@@ -20,6 +20,7 @@ class Tastet {
 	/* #################################    FUNCIONS CONSTRUCTORS    ################################# */
 
 	public function __construct( $idUrl, $dispositiu ) {
+		// Estat segur per defecte: només es marca actiu quan la consulta retorna un tastet actiu.
 		$this->titol = null;
 		$this->codiCurs = '';
 		$this->shortDesc = [];
@@ -87,6 +88,8 @@ class Tastet {
 			if ( $cursOrigin->obtenirEstat() == 1 )
 				$this->cursOrig = $cursOrigin;
 		}
+		else
+			$this->cursOrig = null;
 
 		require_once 'Url.php';
 		if ( $idUrlBD != null AND $idUrlBD != '' )

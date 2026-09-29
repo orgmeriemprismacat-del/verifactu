@@ -11,14 +11,10 @@ include("../PaginaConfirmacioTastet.php");
 include("../Uc108ConfirmationToken.php");
 
 try {
-	$input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
-	$encr = isset($input['keyEncr']) ? trim($input['keyEncr']) : '';
-	$urlTastet = isset($input['urlTastet']) ? trim($input['urlTastet']) : '';
+	if (!isset($_GET['keyEncr']) || trim($_GET['keyEncr']) === '')
+		throw new Exception('',1401);
 
-	if ($encr == '') {
-		echo missatgeError('1401');
-		return;
-	}
+	$encr = trim($_GET['keyEncr']);
 
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
@@ -33,27 +29,33 @@ try {
 	$stmt->fetch();
 	$connexio->closeStmt();
 
-	$originalId = null;
-	$tokenValid = false;
+	$cipher = "AES-128-CBC";
+	$mostrar = '';
 
-	if (strpos($encr, Uc108ConfirmationToken::PREFIX) === 0) {
-		$payload = Uc108ConfirmationToken::verify($encr, $urlTastet, $keyEncr);
-		if ($payload !== null) {
-			$originalId = $payload['id'];
-			$tokenValid = true;
-		}
-	}
-	else {
-		$legacyId = Uc108ConfirmationToken::verifyLegacy($encr, $keyEncr);
-		if ($legacyId !== null) {
-			$originalId = $legacyId;
-			$tokenValid = true;
-		}
-	}
-	if ($tokenValid) {
-		$pagina = new PaginaConfirmacioTastet($originalId);
-		$mostrar = $pagina->mostrarPaginaConfirmacio();
-	}
+	$c = base64_decode($encr, true);
+	if ($c === false)
+		throw new Exception('',1401);
+   $cipher="AES-128-CBC";
+   $ivlen = openssl_cipher_iv_length($cipher);
+   $iv = substr($c, 0, $ivlen);
+   $hmac = substr($c, $ivlen, $sha2len=32);
+   $ciphertext_raw = substr($c, $ivlen+$sha2len);
+   $original_id = openssl_decrypt($ciphertext_raw, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
+   if (strlen($c) <= ($ivlen + $sha2len))
+      throw new Exception('',1401);
+
+   // Tokens nous: HMAC(IV + ciphertext). Es manté lectura de tokens antics
+   // HMAC(ciphertext) durant la transició perquè els enllaços ja emesos funcionin.
+   $calcmac = hash_hmac('sha256', $iv.$ciphertext_raw, $keyEncr, $as_binary=true);
+   $legacyCalcmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, $as_binary=true);
+
+   if (hash_equals($hmac, $calcmac) || hash_equals($hmac, $legacyCalcmac)) {
+		if ($original_id === false || !ctype_digit((string)$original_id))
+			throw new Exception('',1401);
+
+		$pagamentInscripcio= new PaginaConfirmacioTastet($original_id);
+		$mostrar = $pagamentInscripcio->mostrarPaginaConfirmacio();
+   }
 	else {
 		$mostrar = missatgeError('1401');
 	}

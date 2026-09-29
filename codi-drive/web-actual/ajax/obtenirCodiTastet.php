@@ -1,23 +1,20 @@
 <?php
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
+include("../inc/missatgesError.php");
 
 try {
-	$urlActual = isset($_GET['url']) ? trim($_GET['url']) : '';
-	if ($urlActual == '') {
-		echo '';
-		return;
-	}
+	if (!isset($_GET['url']) || trim($_GET['url']) === '')
+		throw new Exception('',404);
 
-	$partsLink = explode('/', $urlActual);
+	$urlActual = trim($_GET['url']);
+	$partsLink = explode('/', rtrim($urlActual, '/'));
 	$nomAmigable = $partsLink[count($partsLink)-1];
 	$urlConsulta = "/tastets/".$nomAmigable;
 	$idUrlConsulta = buscarPagina($urlConsulta);
 
-	if ($idUrlConsulta == null || $idUrlConsulta == '') {
-		echo '';
-		return;
-	}
+	if ($idUrlConsulta == null || $idUrlConsulta == '')
+		throw new Exception('',404);
 
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
@@ -28,19 +25,23 @@ try {
 	$stmt->execute();
 	$stmt->store_result();
 
-	$codiCurs = '';
-	if ($stmt->num_rows() > 0) {
-		$stmt->bind_result($codiCursBD);
-		$stmt->fetch();
-		$codiCurs = $codiCursBD;
+	if ($stmt->num_rows() != 1) {
+		$connexio->closeStmt();
+		$connexio->desconectarBD();
+		throw new Exception('',404);
 	}
 
+	$stmt->bind_result($codiCurs);
+	$stmt->fetch();
 	$connexio->closeStmt();
 	$connexio->desconectarBD();
 
 	echo $codiCurs;
 }
-catch(Throwable $e) {
-	echo '';
+catch(Exception $e) {
+	if ($e->getCode()==404)
+		echo mostrarPagina404();
+	else
+		echo missatgeError($e->getCode());
 }
 ?>
