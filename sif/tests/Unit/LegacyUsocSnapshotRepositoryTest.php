@@ -12,7 +12,7 @@ final class LegacyUsocSnapshotRepositoryTest
     {
         $db = new LegacyUsocSpyPdo([$this->inscriptionRow(), $this->courseRow()]);
 
-        $snapshot = (new LegacyUsocSnapshotRepository())->loadByIdpag($db, 980, '75.00', '25.00');
+        $snapshot = (new LegacyUsocSnapshotRepository())->loadByIdpag($db, 980, '75.00', '25.00', 880);
 
         Assert::same(880, $snapshot['inscription']['ID']);
         Assert::same(980, $snapshot['inscription']['IDPAG']);
@@ -63,7 +63,7 @@ final class LegacyUsocSnapshotRepositoryTest
         $db = new LegacyUsocSpyPdo([]);
 
         Assert::throws(SifException::class, function () use ($db): void {
-            (new LegacyUsocSnapshotRepository())->loadByIdpag($db, 0, '75.00', '25.00');
+            (new LegacyUsocSnapshotRepository())->loadByIdpag($db, 0, '75.00', '25.00', 880);
         }, 422);
 
         Assert::same([], $db->preparedSql);
@@ -76,7 +76,7 @@ final class LegacyUsocSnapshotRepositoryTest
         $db = new LegacyUsocSpyPdo([$row]);
 
         Assert::throws(SifException::class, function () use ($db): void {
-            (new LegacyUsocSnapshotRepository())->loadByIdpag($db, 980, '75.00', '25.00');
+            (new LegacyUsocSnapshotRepository())->loadByIdpag($db, 980, '75.00', '25.00', 880);
         }, 409);
 
         Assert::same(1, count($db->preparedSql));
