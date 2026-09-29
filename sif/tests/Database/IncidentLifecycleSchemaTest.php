@@ -26,6 +26,7 @@ final class IncidentLifecycleSchemaTest
             'ASSIGNED_TO VARCHAR(120) NULL',
             'CORRELATION_ID VARCHAR(120) NULL',
             'IDEMPOTENCY_KEY VARCHAR(140) NULL',
+            'IDEMPOTENCY_PAYLOAD_HASH CHAR(64) NULL',
             'RESOLVED_AT DATETIME(6) NULL',
             'RESOLUTION_NOTES TEXT NULL',
             'CLOSURE_CRITERIA TEXT NULL',
@@ -34,6 +35,7 @@ final class IncidentLifecycleSchemaTest
         }
 
         Assert::stringContainsString('uq_errors_verifactu_idempotency', $sql);
+        Assert::stringContainsString('PAYLOAD_HASH CHAR(64) NULL', $sql);
         Assert::stringContainsString('uq_sif_incident_action_idempotency', $sql);
     }
 }
