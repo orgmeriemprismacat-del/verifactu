@@ -43,15 +43,18 @@ try {
 			$roles = [];
 		}
 
-		$sourceCourse = trim((string) ($_GET['sif_source_course'] ?? ''));
-		$originalAmount = trim((string) ($_GET['sif_original_amount'] ?? ''));
 		$manualPriceReason = trim((string) ($_GET['sif_manual_price_reason'] ?? ''));
 		$expectedFiscalDecision = trim((string) ($_GET['sif_expected_fiscal_decision'] ?? ''));
 		$expectedEconomicDecision = trim((string) ($_GET['sif_expected_economic_decision'] ?? ''));
 
-		if ($actorId === '' || $roles === [] || $sourceCourse === '' || $originalAmount === '') {
-			throw new Exception('Invalid SIF course change context', 422);
+		if ($actorId === '' || $roles === []) {
+			throw new Exception('Invalid SIF course change actor', 422);
 		}
+
+		$source = loadLegacyCourseChangeSource((int) $idInsc);
+		$sourceCourse = $source['course'];
+		$originalAmount = $source['amount'];
+		$legacyPaidAmount = $source['paid'];
 
 		// Recalcular al servidor el preu estàndard de destí amb la mateixa lògica
 		// llegada que alimenta el formulari. El preu manual continua separat.
@@ -64,10 +67,7 @@ try {
 			$tipusDesc,
 			$validDesc
 		);
-		$standardTargetAmount = str_replace(',', '.', trim(strip_tags((string) $standardTargetRaw)));
-		if (!preg_match('/^\d+(?:\.\d{1,2})?$/D', $standardTargetAmount)) {
-			throw new Exception('Could not resolve authoritative target price', 422);
-		}
+		$standardTargetAmount = normalizeLegacyMoney($standardTargetRaw, 'target price');
 
 		$client = new SifInternalApiClient();
 		$preview = $client->previewCourseChange($actorId, $roles, [
@@ -77,7 +77,7 @@ try {
 			'original_amount' => $originalAmount,
 			'standard_target_amount' => $standardTargetAmount,
 			'proposed_target_amount' => (string) $apagarC,
-			'paid_amount' => (string) $pagatC,
+			'paid_amount' => $legacyPaidAmount,
 			'management_fee' => (string) $despesesC,
 			'manual_price_reason' => $manualPriceReason,
 		]);
@@ -111,6 +111,20 @@ try {
 		) {
 			throw new Exception('SIF economic decision changed before confirmation', 409);
 		}
+
+		// Quan el SIF pot reconstruir fons reals, no es permet que el navegador
+		// imposi un PAGAT diferent. En absència de factura SIF, el servei retorna
+		// el valor llegat obtingut al servidor.
+		$pagatC = normalizeLegacyMoney(
+			$impact['paid_amount'] ?? $legacyPaidAmount,
+			'paid amount'
+		);
+		$pendentC = number_format(
+			(float) $apagarC + (float) $despesesC - (float) $pagatC,
+			2,
+			'.',
+			''
+		);
 	}
 
 	echo $_SESSION['intranet']->realitzarCanviCurs_modalCanviCurs($idInsc, $anyC,
@@ -125,6 +139,63 @@ catch(Exception $e) {
 	echo missatgeError($e->getCode());
 	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
 	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
+}
+
+function loadLegacyCourseChangeSource(int $idInsc): array
+{
+	if ($idInsc <= 0) {
+		throw new Exception('Invalid enrollment id', 422);
+	}
+
+	$connection = new ConnexioWeb();
+
+	try {
+		$connection->connectarBD();
+		$stmt = $connection->prepare(
+			'SELECT `INSC CURS`, A_PAGAR, PAGAMENT
+			 FROM inscripcions
+			 WHERE ID = ?
+			 LIMIT 1'
+		);
+		$stmt->bind_param('i', $idInsc);
+		$stmt->execute();
+		$stmt->store_result();
+		$stmt->bind_result($course, $amount, $paid);
+
+		if (!$stmt->fetch()) {
+			throw new Exception('Enrollment not found', 404);
+		}
+
+		return [
+			'course' => trim((string) $course),
+			'amount' => normalizeLegacyMoney($amount, 'original amount'),
+			'paid' => normalizeLegacyMoney($paid ?? 0, 'paid amount'),
+		];
+	}
+	finally {
+		try {
+			$connection->closeStmt();
+		}
+		catch(Throwable $_ignored) {
+		}
+
+		if (isset($connection->connexio) && $connection->connexio instanceof mysqli) {
+			$connection->desconectarBD();
+		}
+	}
+}
+
+function normalizeLegacyMoney(mixed $value, string $field): string
+{
+	$text = str_replace(',', '.', trim(strip_tags((string) $value)));
+	if ($text === '') {
+		$text = '0';
+	}
+	if (!preg_match('/^\d+(?:\.\d{1,2})?$/D', $text)) {
+		throw new Exception('Invalid ' . $field, 422);
+	}
+
+	return number_format((float) $text, 2, '.', '');
 }
 
 ?>
