@@ -2,6 +2,7 @@
     'use strict';
 
     var endpoint = 'https://intranet.prisma.cat/ajax/alumnes/sifFactures.php';
+    var documentEndpoint = 'https://intranet.prisma.cat/ajax/alumnes/sifDocument.php';
 
     window.uc007SifSearch = function (input) {
         var criteria = {};
@@ -272,11 +273,7 @@
             ['MODE_RECTIFICACIO', 'Mode']
         ]);
 
-        appendRowsTable(body, 'Documents registrats', view.documents || [], [
-            ['TIPUS', 'Tipus'],
-            ['ESTAT', 'Estat'],
-            ['HASH_FITXER', 'Hash']
-        ]);
+        appendDocumentsTable(body, view.documents || []);
 
         $('#modalConsultaInformacio .modal-body').empty().append(body);
         $('#modalConsultaInformacio .editar-apartat').remove();
@@ -327,6 +324,102 @@
         table.append(body);
         wrapper.append($('<div>').addClass('table-responsive').append(table));
         parent.append(wrapper);
+    }
+
+    function appendDocumentsTable(parent, rows) {
+        if (!rows || rows.length === 0) {
+            return;
+        }
+
+        var wrapper = $('<div>').addClass('mb-4');
+        wrapper.append($('<h6>').text('Documents registrats'));
+
+        var table = $('<table>').addClass('table table-sm');
+        table.append(
+            $('<thead>').append(
+                $('<tr>')
+                    .append($('<th>').text('Tipus'))
+                    .append($('<th>').text('Estat'))
+                    .append($('<th>').text('Hash'))
+                    .append($('<th>').text('Acció'))
+            )
+        );
+
+        var tbody = $('<tbody>');
+        rows.forEach(function (row) {
+            var id = parseInt(row.ID, 10);
+            var hash = String(row.HASH_FITXER || '');
+            var button = $('<button>')
+                .attr('type', 'button')
+                .addClass('btn btn-sm btn-outline-primary')
+                .text('Descarregar');
+
+            if (!Number.isInteger(id) || id <= 0) {
+                button.prop('disabled', true);
+            } else {
+                button.on('click', function () {
+                    downloadSifDocument(id);
+                });
+            }
+
+            tbody.append(
+                $('<tr>')
+                    .append($('<td>').text(row.TIPUS || ''))
+                    .append($('<td>').text(row.ESTAT || ''))
+                    .append($('<td>').text(hash.length > 20 ? hash.substring(0, 20) + '…' : hash))
+                    .append($('<td>').append(button))
+            );
+        });
+
+        table.append(tbody);
+        wrapper.append($('<div>').addClass('table-responsive').append(table));
+        parent.append(wrapper);
+    }
+
+    function downloadSifDocument(documentId) {
+        mostrarModalLoading();
+
+        fetch(documentEndpoint, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8'
+            },
+            body: JSON.stringify({
+                document_id: documentId
+            })
+        }).then(function (response) {
+            if (!response.ok) {
+                var message = 'No s\'ha pogut descarregar el document.';
+                if (response.status === 403) message = 'No tens autorització per descarregar aquest document.';
+                if (response.status === 409) message = 'El document no supera la comprovació d\'integritat.';
+                if (response.status === 503) message = 'El document encara no està disponible.';
+                throw new Error(message);
+            }
+
+            var disposition = response.headers.get('Content-Disposition') || '';
+            var match = disposition.match(/filename="?([^";]+)"?/i);
+            var filename = match ? match[1] : 'factura-document-' + documentId;
+
+            return response.blob().then(function (blob) {
+                return {
+                    blob: blob,
+                    filename: filename
+                };
+            });
+        }).then(function (download) {
+            var url = window.URL.createObjectURL(download.blob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = download.filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            amagarLoadingModal();
+        }).catch(function (error) {
+            showSifError(error.message || 'No s\'ha pogut descarregar el document.');
+        });
     }
 
     function showSifError(message) {
