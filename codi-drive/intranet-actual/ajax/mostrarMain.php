@@ -33,6 +33,7 @@ session_start();
 			$stmtIntra->execute();
 			$stmtIntra->bind_result($icona, $nom1, $nivell1, $url1, $nivellPare1, $rols1);
 			$stmtIntra->fetch();
+			$rolsPagina = $rols1;
 			$connexioIntra->closeStmt();
 		}
 		else {
@@ -46,7 +47,7 @@ session_start();
 			if ( $stmtIntra=$connexioIntra->prepare($cnsApartatId) ) {
 				$stmtIntra->bind_param("d", $nivellPare1);
 				$stmtIntra->execute();
-				$stmtIntra->bind_result($icona, $nom1, $nivell1, $url1, $nivellPare1, $rols1);
+				$stmtIntra->bind_result($icona, $nom1, $nivell1, $url1, $nivellPare1, $rolsPare);
 				$stmtIntra->fetch();
 				$connexioIntra->closeStmt();
 			}
@@ -73,7 +74,7 @@ session_start();
 			</div>
 		</div>
 		<div id='content-page' class='px-3 py-2'>";
-		if (!$_SESSION['usuari']->tePermisVisualitzacio($rols1)) {
+		if (!$_SESSION['usuari']->tePermisVisualitzacio($rolsPagina)) {
 			$mostrar .= "<p>No tens permisos per visualitzar aquesta pàgina.</p>";
 		}
 		else {
