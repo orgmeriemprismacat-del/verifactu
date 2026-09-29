@@ -45,6 +45,10 @@ return [
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
     ],
+    'novice_promotion' => [
+        'wrapping_key_hex' => getenv('SIF_NOVICE_PROMO_WRAP_KEY_HEX') ?: '',
+        'key_version' => getenv('SIF_NOVICE_PROMO_KEY_VERSION') ?: 'v1',
+    ],
     'aeat' => [
         'wsdl' => getenv('SIF_AEAT_WSDL') ?: '',
         'endpoint' => getenv('SIF_AEAT_ENDPOINT') ?: '',

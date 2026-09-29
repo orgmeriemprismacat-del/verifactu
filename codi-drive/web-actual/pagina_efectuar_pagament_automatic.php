@@ -1,3 +1,27 @@
+<?php
+// UC-111: authoritative payment gate BEFORE rendering or building Redsys data.
+// This legacy bridge reads the enrollment and secretary decision, never the
+// course/amount/approval from the POST form as its source of truth.
+require_once __DIR__ . '/ConnexioBBDD_PreparedStatment.php';
+require_once __DIR__ . '/inc/JasomNovicePaymentGate.php';
+try {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        throw new RuntimeException('PAYMENT_NOT_AVAILABLE');
+    }
+    $paymentGateDb = new ConnexioBBDDSTMT();
+    $paymentGateDb->connectarBD();
+    try {
+        $validatedCheckout = JasomNovicePaymentGate::assertCanPrepare($paymentGateDb->connexio, $_POST);
+    } finally {
+        $paymentGateDb->desconectarBD();
+    }
+} catch (Throwable $exception) {
+    http_response_code(409);
+    header('Content-Type: text/plain; charset=utf-8');
+    // Do not leak whether the participant's academic documents were approved.
+    exit('Aquest pagament no està disponible. Torna a la inscripció o contacta amb secretaria.');
+}
+?>
 <!DOCTYPE HTML PUBLIC "-/W3C/DTD HTML 4.01/EN" "http:/www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http:/ogp.me/ns# fb: http:/ogp.me/ns/fb# video: http:/ogp.me/ns/video#">
 <head>
@@ -67,32 +91,32 @@
    <header></header>
 
    <div id='cnt-pagament' class="prisma-container container separacio-peu" role="main">
-      <div id='codiCurs' style='display:none'><?php echo $_POST['codiCurs']?></div>
+      <div id='codiCurs' style='display:none'><?php echo htmlspecialchars($validatedCheckout['course_code'], ENT_QUOTES, 'UTF-8'); ?></div>
       <div id='titol' style='display:none'><?php echo $_POST['titol']?></div>
       <div id='dni' style='display:none'><?php echo $_POST['dni']?></div>
       <div id='nom-titular' style='display:none'><?php echo $_POST['nom-titular']?></div>
       <div id='nom-alumne' style='display:none'><?php echo $_POST['nom-alumne']?></div>
-      <div id='import' style='display:none'><?php echo $_POST['import']?></div>
-      <div id='importPagat' style='display:none'><?php echo $_POST['importPagat']?></div>
+      <div id='import' style='display:none'><?php echo htmlspecialchars($validatedCheckout['total_amount'], ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='importPagat' style='display:none'><?php echo htmlspecialchars($validatedCheckout['already_paid_amount'], ENT_QUOTES, 'UTF-8'); ?></div>
       <div id='frac' style='display:none'><?php echo $_POST['frac']?></div>
       <div id='email' style='display:none'><?php echo $_POST['email']?></div>
 
       <?php
-      include("./ConnexioBBDD_PreparedStatment.php");
+      include_once("./ConnexioBBDD_PreparedStatment.php");
       include("./inc/buscarPaginaStmt.php");
       include("./inc/missatgesError.php");
       include("./inc/apiRedsys.php");
       include("./Mail.php");
 
-      $idPag = $_POST['idPag'];
-      $cursPag = $_POST['codiCurs'];
+      $idPag = $validatedCheckout['idpag'];
+      $cursPag = $validatedCheckout['course_code'];
       $titolPag = $_POST['titol'];
       $dniTitularPag = trim($_POST['dni']);//
       $nomTitularPag = $_POST['nom-titular'];
       $email = $_POST['email'];
-      $importAPagar = $_POST['import'];
-      $importPagare = floatval(str_replace(",", ".", $_POST['importPagare']));
-      $importPagat = floatval(str_replace(",", ".", $_POST['importPagat']));
+      $importAPagar = (float) $validatedCheckout['total_amount'];
+      $importPagare = (float) $validatedCheckout['payment_amount'];
+      $importPagat = (float) $validatedCheckout['already_paid_amount'];
       $frac = $_POST['frac'];
 
       $titular=stripslashes($nomTitularPag);
