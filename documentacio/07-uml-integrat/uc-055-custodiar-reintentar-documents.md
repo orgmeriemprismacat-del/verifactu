@@ -1,6 +1,6 @@
 # UC-55 · Generar, reintentar i custodiar documents fiscals
 
-**Frontera funcional.** UC-36 defineix la generació/consulta d'un PDF, QR o XML concret; UC-55 gestiona **la cua documental, els reintents, la versió del generador, la integritat i la custòdia**. UC-07 controla qui pot veure/baixar el document. La factura fiscal, un cop emesa, no s'anul·la ni es reemet perquè falli el PDF.
+**Frontera funcional.** UC-36 defineix l'obtenció/generació funcional d'un PDF, QR o XML concret; UC-55 gestiona **la cua documental, els reintents, la versió del generador, la integritat i la custòdia**. UC-07 consulta factura i metadades; **UC-80 controla qui pot rebre els bytes i registra l'accés/denegació**. La factura fiscal, un cop emesa, no s'anul·la ni es reemet perquè falli el PDF.
 
 **Evidència revisada:** `DocumentRepository::registerDocument()` existeix i registra a `factura_documents` tipus, path i SHA-256 dels bytes **rebuts**; `document_job` i `fiscal_document_access` estan definits en una migració SQL. **No s'ha identificat el generador final de PDF/QR/XML, el worker de `document_job`, el gestor d'emmagatzematge privat ni l'endpoint autoritzat de descàrrega** com a implementacions PHP completes. Per tant, el cicle complet dibuixat a continuació és **DISSENY/PARCIAL**, no prova de desplegament.
 
@@ -23,7 +23,7 @@
 3. Desa els bytes en storage privat, torna a llegir o verifica integritat i calcula SHA-256. Només aleshores crida el mètode **existent** `DocumentRepository::registerDocument()`; un `HASH_FITXER` a BD no prova per si sol que el fitxer estigui custodiat.
 4. El worker **proposat** enllaça `FACTURA_DOCUMENT_ID` i `STORAGE_KEY` al job i marca finalització, sense sobreescriure silenciosament un document de versió anterior.
 5. En error de generació, storage, hash o inserció, conserva `LAST_ERROR`, programa un reintent idempotent o obre incidència UC-08. **La política efectiva i el writer de retries encara no s'han acreditat al PHP.**
-6. A la consulta, UC-07 torna a autoritzar per actor, rol, receptor i document, serveix des de storage privat i deixa traça `fiscal_document_access`. Aquest pas és pendent de servei de lectura/descàrrega.
+6. A la consulta, UC-07 mostra l'estat/metadades autoritzades i UC-80 revalida actor, rol, receptor i document, serveix des de storage privat i deixa traça `fiscal_document_access`. Aquest pas és pendent de servei de lectura/descàrrega.
 
 ### 1.2. Alternatives i invariants
 
@@ -155,33 +155,40 @@ end
 Note over Inv,R: DocumentRepository existeix, la resta del workflow és OBJECTIU
 ```
 
-## 5. Seqüència de custòdia i descàrrega (DISSENY)
+## 5. Seqüència de custòdia i delegació d'accés (DISSENY)
 
-```mermaid
+La responsabilitat pròpia d'UC-55 acaba quan el document correcte està custodiat i verificable. UC-80 és qui decideix si un actor concret pot rebre els bytes.
+
+~~~mermaid
 sequenceDiagram
 actor A as Receptor/auditor
-participant UI as Canal [pendent]
-participant Access as InvoiceDocumentAccessService [DISSENY]
+participant UI as Canal
+participant U80 as InvoiceDocumentAccessService [UC-80 DISSENY]
+participant V as DocumentAvailabilityService [UC-55 DISSENY]
 participant Store as PrivateDocumentStore [DISSENY]
-participant Audit as fiscal_document_access [taula definida]
+participant Audit as fiscal_document_access [SQL]
 A->>UI: Sol·licitar documentId
-UI->>Access: download(actor,documentId,token/sessió)
-alt Identitat/visibilitat denegada
- Access->>Audit: Registrar DENIED
- Access-->>UI: Accés denegat sense path
-else Identitat/visibilitat autoritzada
- Access->>Store: readVerified(storageKey,hash)
- alt Bytes no disponibles o hash incorrecte
-  Store--xAccess: Error custòdia
-  Access->>Audit: Registrar FAIL
-  Access-->>UI: Incidència, no servir fitxer incorrecte
- else Bytes íntegres
-  Store-->>Access: Bytes
-  Access->>Audit: Registrar DOWNLOAD
-  Access-->>UI: Stream segur
- end
+UI->>U80: download(actor,documentId,token/sessió)
+U80->>U80: Autoritzar actor/document
+alt Denegat
+  U80->>Audit: DENIED
+  U80-->>UI: Accés denegat
+else Autoritzat
+  U80->>V: check(documentId)
+  V->>Store: readVerified(storageKey,hash)
+  alt Absència/hash incorrecte
+    Store--xV: Error
+    V-->>U80: UNAVAILABLE/INTEGRITY_ERROR
+    U80->>Audit: FAILED
+    U80-->>UI: Incidència, sense bytes
+  else Íntegre
+    Store-->>V: bytes
+    V-->>U80: bytes verificats
+    U80->>Audit: DOWNLOAD ALLOWED
+    U80-->>UI: Stream privat
+  end
 end
-```
+~~~
 
 ### 5.1. Acció independent: encolar un document després de confirmar la factura — DISSENY
 
