@@ -2331,6 +2331,47 @@ function uc007RenderFacturaSifAlumne(res) {
 	html += uc007DlAlumne('Total', totals.total);
 	html += '</dl>';
 
+	if (res.fiscal_record) {
+		html += '<h5>Registre fiscal</h5><dl class="row">';
+		html += uc007DlAlumne('Ordre fiscal', res.fiscal_record.FISCAL_ORDER);
+		html += uc007DlAlumne('Tipus registre', res.fiscal_record.TIPUS_REGISTRE);
+		html += uc007DlAlumne('Estat AEAT registre', res.fiscal_record.ESTAT_AEAT);
+		html += uc007DlAlumne('Creat', res.fiscal_record.DATE_CREATED);
+		html += uc007DlAlumne('Enviat', res.fiscal_record.DATE_SENT);
+		html += '</dl>';
+	}
+
+	if (Array.isArray(res.lines) && res.lines.length > 0) {
+		html += '<h5>Línies</h5><div class="table-responsive"><table class="table table-sm">';
+		html += '<thead><tr><th>#</th><th>Concepte</th><th>Detall</th><th>Quantitat</th><th>Total</th></tr></thead><tbody>';
+		res.lines.forEach(function(line) {
+			html += '<tr>';
+			html += '<td>' + uc007EscapeHtmlAlumne(line.ORDRE || '') + '</td>';
+			html += '<td>' + uc007EscapeHtmlAlumne(line.CONCEPTE || '') + '</td>';
+			html += '<td>' + uc007EscapeHtmlAlumne(line.DETALL || '') + '</td>';
+			html += '<td>' + uc007EscapeHtmlAlumne(line.QUANTITAT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtmlAlumne(line.TOTAL || '') + '</td>';
+			html += '</tr>';
+		});
+		html += '</tbody></table></div>';
+	}
+
+	if (Array.isArray(res.payments) && res.payments.length > 0) {
+		html += '<h5>Moviments econòmics</h5><div class="table-responsive"><table class="table table-sm">';
+		html += '<thead><tr><th>Data</th><th>Tipus</th><th>Mètode</th><th>Import</th><th>Assignat</th><th>Estat</th></tr></thead><tbody>';
+		res.payments.forEach(function(payment) {
+			html += '<tr>';
+			html += '<td>' + uc007EscapeHtmlAlumne(payment.DATA_MOVIMENT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtmlAlumne(payment.TIPUS_MOVIMENT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtmlAlumne(payment.METODE || '') + '</td>';
+			html += '<td>' + uc007EscapeHtmlAlumne(payment.IMPORT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtmlAlumne(payment.IMPORT_ASSIGNAT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtmlAlumne(payment.ESTAT || '') + '</td>';
+			html += '</tr>';
+		});
+		html += '</tbody></table></div>';
+	}
+
 	if (Array.isArray(res.rectifications) && res.rectifications.length > 0) {
 		html += '<h5>Relació de rectificació</h5><ul>';
 		res.rectifications.forEach(function(rect) {
