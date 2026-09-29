@@ -39,6 +39,8 @@ try {
         'billing_nif',
         'billing_email',
         'factura_relacionada',
+        'source_type',
+        'source_id',
     ] as $key) {
         if (array_key_exists($key, $_GET) && $_GET[$key] !== '') {
             $criteria[$key] = $_GET[$key];
