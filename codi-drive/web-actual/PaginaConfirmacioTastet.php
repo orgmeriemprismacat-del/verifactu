@@ -7,76 +7,65 @@ class PaginaConfirmacioTastet {
    private $id; /** id de la insripció */
    private $cursInsc; /** Text Curs del tastet. ex. ACRE */
    private $titol; /** Text El titol del curs de la Inscripcio ex: Coaching per a Docents */
-   private $imgAmple; /** Img la imatge llarge del tastet*/
-   private $cursOrig; /** Curs Curs original del repte */
    private $email; /** Text El email de la Inscripcio ex: suport@prisma.cat */
-   private $dni; /** Text El dni de la Inscripcio ex: 77922662L */
 
    /*********************************** FUNCIONS CONSTRUCTORS ***********************************/
 
    public function __construct($id) {
       $this->id = $id;
-      $connexio = new ConnexioBBDDSTMT();
-   	$connexio->connectarBD();
+      $this->cursInsc = null;
+      $this->titol = null;
+      $this->email = null;
 
-      $cnsInsc = "SELECT CURS, CORREU, DNI FROM inscripcions_reptes WHERE ID=? AND (INSC_CURS='0' OR INSC_CURS='1')";
-		$stmt=$connexio->prepare($cnsInsc);
-		$stmt->bind_param("d", $id);
-		$stmt->execute();
-		$stmt->store_result();
-		if ( $stmt->num_rows() == 1 ) {
-			$stmt->bind_result($cursInsc, $correu, $dni);
-			$stmt->fetch();
-         require_once 'Text.php';
-         require_once 'Imatge.php';
-         require_once 'Curs.php';
-         if ($cursInsc!=null and $cursInsc!='')
-            $this->cursInsc = new Text($cursInsc);
-         else
-            $this->cursInsc = null;
-         if ($correu!=null and $correu!='')
-            $this->email = new Text($correu);
-         else
-            $this->email = null;
-         if ($dni!=null and $dni!='')
-            $this->dni = new Text($dni);
-         else
-            $this->dni = null;
+      $connexio = new ConnexioBBDDSTMT();
+      $connexio->connectarBD();
+
+      $cnsInsc = "SELECT CURS, CORREU FROM inscripcions_reptes
+                  WHERE ID=? AND (INSC_CURS='0' OR INSC_CURS='1')";
+      $stmt = $connexio->prepare($cnsInsc);
+      $stmt->bind_param("d", $id);
+      $stmt->execute();
+      $stmt->store_result();
+
+      if ($stmt->num_rows() > 1) {
+         $connexio->closeStmt();
+         $connexio->desconectarBD();
+         throw new Exception('',2512);
+      }
+
+      if ($stmt->num_rows() == 0) {
+         $connexio->closeStmt();
+         $connexio->desconectarBD();
+         throw new Exception('',2502);
+      }
+
+      $stmt->bind_result($cursInsc, $correu);
+      $stmt->fetch();
+      $connexio->closeStmt();
+
+      require_once 'Text.php';
+
+      if ($cursInsc!=null and $cursInsc!='')
+         $this->cursInsc = new Text($cursInsc);
+
+      if ($correu!=null and $correu!='')
+         $this->email = new Text($correu);
+
+      if ($this->cursInsc!=null) {
+         // La confirmació és històrica: no ha de desaparèixer només perquè
+         // el tastet s'hagi desactivat després de registrar la sol·licitud.
+         $cnsTastet = "SELECT TITOL FROM reptes WHERE CODI_CURS=? LIMIT 1";
+         $stmt = $connexio->prepare($cnsTastet);
+         $stmt->bind_param("s", $cursInsc);
+         $stmt->execute();
+         $stmt->bind_result($nomCurs);
+         $stmt->fetch();
          $connexio->closeStmt();
 
-         if ($this->cursInsc!=null) {
-            $cnsEd = "SELECT TITOL, ID_IMG_LARGE, CURS_ORIG FROM reptes WHERE CODI_CURS=? AND ESTAT = 1";
-      		$stmt=$connexio->prepare($cnsEd);
-      		$stmt->bind_param("s", $cursInsc);
-      		$stmt->execute();
-            $stmt->bind_result($nomCurs, $imgAmple, $cursOrig);
-   			$stmt->fetch();
-            if ($nomCurs!=null and $nomCurs!='')
-               $this->titol = new Text($nomCurs);
-            else
-               $this->titol = null;
-            if ($imgAmple!=null and $imgAmple!='')
-               $this->imgAmple = new Imatge($imgAmple);
-            else
-               $this->imgAmple = null;
-            if ($cursOrig!=null and $cursOrig!='')
-               $this->cursOrig = new Curs($cursOrig, 'ordinador');
-            else
-               $this->cursOrig = null;
-         }
-         else {
-            $this->titol = null;
-            $this->imgAmple = null;
-            $this->cursOrig = null;
-         }
-		}
-      else if ( $stmt->num_rows() > 1 ) {
-         throw new Exception('',2512);
-		}
-      else {
-         throw new Exception('',2502);
-		}
-      $connexio->closeStmt();
+         if ($nomCurs!=null and $nomCurs!='')
+            $this->titol = new Text($nomCurs);
+      }
+
       $connexio->desconectarBD();
    }
 
@@ -91,28 +80,6 @@ class PaginaConfirmacioTastet {
       if ($this->titol==null)
          throw new Exception('',2503);
       return $this->titol;
-   }
-
-   /*
-   * @brief Obtens la imatge3 del repte
-   * @return la imatge3 del repte
-   * @throws Si el repte no té unna imatge, envia l'excepció 2504
-   */
-   private function obtenirImatge() {
-      if ($this->imgAmple==null)
-         throw new Exception('',2504);
-      return $this->imgAmple;
-   }
-
-   /*
-   * @brief Obtens el curs original
-   * @return Obtens el curs original
-   * @throws Si el repte no té un curs original, envia l'excepció 2505
-   */
-   private function obtenirCursOrig() {
-      if ($this->cursOrig==null)
-         throw new Exception('',2505);
-      return $this->cursOrig;
    }
 
    /**
@@ -136,16 +103,6 @@ class PaginaConfirmacioTastet {
       return $this->email;
    }
 
-   /*
-   * @brief Obtens el dni de la inscripció
-   * @return Obtens el dni de la inscripció
-   * @throws Si la encriptacio no té un dni, envia l'excepció 2515
-   */
-   private function obtenirDni() {
-      if ($this->dni==null)
-         throw new Exception('',2515);
-      return $this->dni;
-   }
    /*
    * @brief Obtens el id de la inscripció
    * @return Obtens el id de la inscripció
@@ -206,14 +163,16 @@ class PaginaConfirmacioTastet {
    */
    public function mostrarPaginaConfirmacio() {
       $titol = $this->obtenirTitol()->obtenirText();
+      $emailHtml = htmlspecialchars($this->obtenirCorreu()->obtenirText(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
       $mostrar="<div class='d-flex flex-column'>";
       $mostrar .= "<div class='container'><div class='row'>";
       $mostrar .= "<h1 class='mb-4 w-100'>Confirmació de la inscripció</h1>";
-      $mostrar .= "<p>La teva sol·licitud ha estat enviada.</p>
-      <p>Consulta la safata d'entrada o el correu brossa (<em>spam</em>) de l'adreça
-      <span class='font-weight-bold email'>".$this->obtenirCorreu()->obtenirText()."</span>
-      per comprovar que has rebut el missatge de confirmació de la inscripció.</p>
+      $mostrar .= "<p>La teva sol·licitud ha quedat registrada.</p>
+      <p>L'adreça associada a la petició és
+      <span class='font-weight-bold email'>".$emailHtml."</span>.
+      Si reps el missatge de confirmació, revisa també el correu brossa (<em>spam</em>).
+      Si no el reps, <strong>no cal que tornis a enviar el formulari</strong>; contacta amb secretaria perquè comprovi l'estat de la petició.</p>
       <p>La inscripció del tastet és totalment gratuïta.</p>
       <div class='p-3 mt-2' style='background: #e8ecf5 !important;'>
       <p><i class='fas fa-exclamation-circle ml-0'></i>En un període de 24/48 hores laborals podràs accedir al tastet <span class='font-weight-bold'>amb les teves claus</span> del campus virtual de PrisMa. En cas que encara no hagis fet cap curs amb nosaltres i no disposis de claus, rebràs un correu electrònic amb les dades d'accés.</p>

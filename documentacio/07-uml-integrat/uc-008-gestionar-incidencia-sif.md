@@ -1,212 +1,622 @@
 # UC-08 · Gestionar una incidència SIF — fitxa i UML integrats
 
-**Àmbit:** detectar, obrir, assignar, investigar i tancar una incidència fiscal, econòmica, documental o de sincronització. **La incidència no autoritza per si sola a modificar una factura emesa o a moure diners.** Cada acció correctora correspon al seu cas d'ús i ha de deixar rastre propi.
+**Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat del codi consultat:** `IncidentRepository::open(db,uuidFactura,type,message)` crea una fila `OPEN` a `errors_verifactu`. Existeix l'esquema `sif_incident_action` per registrar el cicle d'operació, però **no s'ha acreditat el workflow executable complet** (assignació, notes, prova de correcció, tancament) ni el panell final de `pay.prisma.cat/sif/incidencies`. Els workers poden obrir incidències de forma parcial.
+**Estat en aquesta branca (2026-09-29):** backend de lifecycle **IMPLEMENTAT PARCIALMENT**; API interna autenticada i integracions automàtiques Redsys/AEAT preparades; tests escrits però **NO EXECUTATS en aquesta auditoria**; panell final `pay.prisma.cat/sif/incidencies` i resum de la intranet encara pendents.
 
-## 1. Fitxa de cas d'ús
+**Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
-| Camp | Regla |
-| --- | --- |
-| Actors | Procés automàtic SIF/worker pot **obrir** incidència; responsable tècnica i operadors segons permís poden consultar/assignar/investigar; només persona autoritzada pot validar resolució de negocis/fiscalitat. |
-| Disparador | Error o anomalia: AEAT rebutja, cua queda bloquejada, PDF falla, callback contradictori, factura amb cobrament no reconciliat o diferència SIF↔llegat. |
-| Identificadors d'objecte | Factura, pagament, crèdit, inscripció, operació/event, job o prova, segons el cas. `IncidentRepository::open()` actual només admet `uuidFactura` opcional, tipus i missatge: falta generalitzar la vinculació a altres objectes. |
-| Entrada mínima codi existent | `type` no buit i màxim 50 caràcters, `message` no buit; `uuidFactura` nul o existent quan s'aporta. |
-| Resultat inicial actual | `errors_verifactu` fila `OPEN`; el servei retorna `ok=true`, **no retorna un ID d'incidència**. |
-| Resultat de negoci objectiu | Responsable assignada, historial d'accions i evidència de correcció; tancament únicament després de verificar la prova/conciliació corresponent. |
+## 1. Estat funcional i tècnic
 
-### 1.1. Flux actual d'obertura (IMPLEMENTAT)
+| Capacitat | Documentat | Backend | UI | Prova runtime |
+| --- | --- | --- | --- | --- |
+| Obrir incidència simple | Sí | Sí | N/A | pendent d'executar |
+| Identitat estable `UUID_INCIDENT` | Sí | Sí a migració nova | N/A | pendent |
+| Correlació i idempotència | Sí | Sí | N/A | pendent |
+| Vincular factura/pagament/recurs genèric | Sí | Sí | pendent | pendent |
+| Deduplicar per clau idempotent | Sí | Sí | N/A | pendent |
+| Llistar / consultar | Sí | Sí via API interna | pendent | pendent |
+| Assignar responsable | Sí | Sí via service/API | pendent | pendent |
+| Afegir evidència | Sí | Sí via service/API | pendent | pendent |
+| Resoldre amb evidència | Sí | Sí via service/API | pendent | pendent |
+| `DISMISSED` justificat | Sí | Sí via service/API | pendent | pendent |
+| Reobrir | Sí | Sí via service/API | pendent | pendent |
+| Historial `sif_incident_action` | Sí | Sí writer PHP | pendent | pendent |
+| Incidència Redsys | Sí | Sí i atòmica amb estat del job | N/A | pendent |
+| Incidència AEAT integritat | Sí | Sí | N/A | pendent |
+| Incidència AEAT retries esgotats | Sí | Sí | N/A | pendent |
+| Reparació automàtica genèrica | No convé | No | No | — |
+| Panell oficial | Sí | API disponible | **pendent** | pendent |
+| Resum intranet VERI*FACTU | Sí | no específic | **pendent** | pendent |
 
-1. Un servei/worker detecta una anomalia i la qualifica, sense alterar factura/pagament només per haver-la detectat.
-2. `IncidentRepository::open()` normalitza tipus/missatge i rebutja valors buits o fora de límit.
-3. Insereix a `errors_verifactu` `UUID_FACTURA`, `TIPUS_INCIDENCIA`, `ESTAT=OPEN`, `DETAILS`.
-4. Retorna `ok=true`. El nucli no assigna persona, no registra una prova de correcció i no tanca la incidència.
+## 2. Contracte de persistència
 
-### 1.2. Flux de gestió objectiu (NO ACREDITAT AL PHP CONSULTAT)
+### 2.1. Capçalera d'incidència
 
-5. El panell intern oficial ha de mostrar incidències i relacionar-les amb factura/pagament/inscripció/event; els avisos d'intranet són consulta secundària, no font de veritat.
-6. La persona autoritzada acusa recepció, assigna responsable, documenta diagnosi i acció correctora amb actor, data, motiu, resultat i evidència; cada transició es guarda a `sif_incident_action` o equivalent.
-7. La correcció s'executa pel cas d'ús pertinent: UC-09 per cua, UC-30/31 per registre, UC-02/28/29a per diners, UC-71/72 per canvi/baixa, UC-36/55 per documents. **No es permet una actualització manual silenciosa** dels imports o de la cadena fiscal.
-8. El tancament exigeix nova comprovació o prova satisfactòria, evidència i responsable de validació; sinó continua oberta/pendent. `DISMISSED` necessita justificació perquè no hi ha impacte material.
+`errors_verifactu` continua sent la capçalera canònica. La migració additiva `2026_09_29_000010_add_incident_lifecycle.sql` hi afegeix:
 
-### 1.3. Alternatives i riscos
+- `UUID_INCIDENT`;
+- `UUID_PAYMENT`;
+- `RESOURCE_TYPE` / `RESOURCE_ID`;
+- `SOURCE_TYPE` / `SOURCE_ID`;
+- `SEVERITY`;
+- `ASSIGNED_TO`;
+- `CORRELATION_ID`;
+- `IDEMPOTENCY_KEY`;
+- `REASON_CODE`;
+- `RESOLVED_AT`;
+- `RESOLUTION_NOTES`;
+- `CLOSURE_CRITERIA`.
 
-| Situació | Regla |
-| --- | --- |
-| Duplicat de la mateixa anomalia | Associar a una incidència existent per objecte i causa idèntica quan es pugui, mantenint les noves evidències; `IncidentRepository::open()` actual **no** comprova deduplicació. |
-| Falla l'obertura | El procés que havia fallat no pot afirmar «incidència creada» si la inserció també falla; cal alarma i recuperació segura. |
-| Error AEAT o transport amb resposta incerta | Conservar la prova/referència d'intent i validar resultat extern abans de reintentar o modificar un registre fiscal. |
-| Pagament d'una inscripció mal assignat | La correcció ha d'usar un moviment intern d'atribució/reversió traçable i, si cal, el contracte de pagament; **no** un segon `CHARGE` fictici. |
-| Incidència oberta per prova `FAIL` o `BLOCKED` | No tancar només per haver canviat codi; repetir prova i vincular-ne evidència satisfactòria. |
-| Accés de suport/auditor | Només accions de consulta permeses, sense resoldre incidències o executar canvis fiscals per tenir accés de lectura. |
-| Estat final | `RESOLVED` exigeix evidència; `DISMISSED` exigeix raó. Els estats estan **proposats** al document d'operació, no es dedueixen del mètode `open()`. |
+La migració és **additiva**: no modifica la migració core ja aplicada.
 
-**Persistència existent:** `errors_verifactu` per la fila inicial, `sif_incident_action` definida a migració amb `INCIDENT_ID`, `ACTION_TYPE`, `PREVIOUS_STATUS`, `NEW_STATUS`, `SEVERITY`, `ASSIGNEE_ID`, `ACTOR_ID`, `REASON_CODE`, `EVIDENCE_JSON`, `CORRELATION_ID`; **la definició SQL no prova que el workflow l'escrigui.**
+### 2.2. Historial immutable
 
-**Prova localitzada, NO executada:** `DocumentsAndIncidentsTest::testOpenIncidentStoresOpenFiscalIssue`; cobreix només l'obertura senzilla.
+`sif_incident_action` ja existia al DDL. La branca afegeix `IDEMPOTENCY_KEY` única i implementa `IncidentActionRepository::append()`.
 
-### 1.4. Incidència després d'emetre o cobrar: no reiniciar el fet confirmat
+Cada acció conserva:
 
-**El fet confirmat i la fase pendent són diferents.** El procediment de PrisMa «Generar factura abans de pagar» necessita una factura real abans de rebre la transferència; el circuit Redsys confirma `DS_ORDER` i encua un worker; «Passar pagaments» pot actualitzar dades acadèmiques llegades més tard. Una incidència de PDF, AEAT, URL, correu o sincronització pot produir-se **després** del commit SIF de `UUID_FACTURA` i/o `UUID_PAYMENT`. L'expedient d'incidència ha d'identificar explícitament quin fet ja s'ha confirmat i quin pas falta; **no** repetir l'emissió o el CHARGE com a manera de reiniciar tot el flux.
+- incidència;
+- tipus d'acció;
+- estat anterior/nou;
+- severitat;
+- responsable;
+- actor/rol;
+- motiu;
+- detalls;
+- evidència JSON;
+- correlació;
+- clau idempotent;
+- data.
 
-**Exemples de classificació per objecte.** (a) Factura emesa, `factura_documents` pendent: UC-36/55, sense segona factura. (b) Pagament Redsys validat i job en `RETRY`: UC-52 i comprovació de l'event bancari, sense ingrés manual paral·lel per CSV. (c) Factura i pagament confirmats però `PAGAMENT`/accés acadèmic llegats sense sincronitzar: UC-47/53/124/129, sense tornar a cobrar. (d) Inscripció coberta per factura d'empresa però URL individual encara activa: UC-33/50 i revisió de possibles intents iniciats, no esborrat de moviments existents. (e) `FACTURA_RELACIONADA` històric entra en conflicte amb una relació SIF: UC-53/82, no modificar la factura per encaixar el valor antic.
+## 3. Contracte PHP implementat
 
-**Identificació insuficient de l'obridor actual.** `IncidentRepository::open(db,uuidFactura,type,message)` només admet UUID de factura opcional, tipus i missatge; per un pagament orfe, job documental, intent Redsys o incidència d'`ID_INSC`, aquest contracte no guarda un UUID tipificat de l'objecte ni retorna ID de la incidència. La vinculació de `UUID_PAYMENT`, `DS_ORDER`, `ID_INSC`, worker/job, correlació, responsable, evidència i transicions d'estat constitueix una **ampliació de disseny**, no camps omplerts per l'obridor actual. Evitar incloure justificants privats o payloads complets de Redsys al text d'incidència que pugui veure personal sense aquest permís.
+### 3.1. Compatibilitat
 
-**Tancament verificable i reparació per fase.** No marcar `RESOLVED` només perquè s'ha repetit un endpoint, s'ha escrit una nota a `OBSERVACIONS` o un job ha passat a `PROCESSED`: tornar a consultar factura, pagament, document, estat extern i inscripció segons el tipus de cas i conservar prova del resultat. `errors_verifactu` amb una fila `OPEN` no acredita que hi hagi ja un panell d'assignació/tancament executable; les transicions i l'auditoria de resolució requereixen integració específica.
+El contracte històric continua disponible:
 
-### 1.5. Proves de reintents des d'incidències (no executades)
+~~~php
+IncidentRepository::open(PDO $db, ?string $uuidFactura, string $type, string $message)
+~~~
 
-| ID | Escenari | Resultat exigible |
-| --- | --- | --- |
-| IS-01 | Factura abans de cobrar confirmada però falla PDF | UUID i número conservats; només job documental reintentat. |
-| IS-02 | Pagament confirmat al SIF però inscripció encara «pendent» al llegat | Incidència de sincronització; cap CHARGE ni factura nous. |
-| IS-03 | Callback validat i job Redsys en RETRY, CSV mostra «sense factura» | Reprendre cua original o investigar; no emetre en paral·lel pel CSV. |
-| IS-04 | URL individual continua activa després de factura d'empresa | Corregir URL i tractar callbacks realment iniciats, sense esborrar diner confirmat. |
-| IS-05 | Incidència de pagament sense UUID_FACTURA assignable | Enllaçar UUID_PAYMENT/DS_ORDER/ID_INSC per contracte ampliat; no omplir UUID de factura inventat. |
-| IS-06 | Error d'AEAT resolt localment però resposta remota encara pendent | Mantenir estat extern pendent fins a evidència de resposta. |
-| IS-07 | Dues notificacions de la mateixa anomalia | Agrupar per causa/objecte amb nova evidència; evitar dues reparacions incompatibles. |
+per no trencar callers existents.
 
-## 2. Diagrama UML de casos d'ús
+El contracte ric és:
 
-```plantuml
+~~~php
+IncidentRepository::openDetailed(PDO $db, array $input)
+~~~
+
+i retorna:
+
+~~~text
+ok
+reused
+incident_id
+uuid_incident
+status
+~~~
+
+Quan hi ha `uuid_factura` o `uuid_payment`, el repositori comprova que l'objecte existeixi. Una clau idempotent reutilitzada amb un payload lògic diferent produeix conflicte.
+
+### 3.2. Lifecycle
+
+`IncidentLifecycleService` implementa:
+
+~~~text
+list
+view
+open
+assign
+addEvidence
+resolve
+dismiss
+reopen
+~~~
+
+Les operacions d'escriptura passen per `TransactionRunner`; `resolve()` exigeix criteri de tancament, notes i evidència.
+
+### 3.3. API interna
+
+`POST /api/incidents/manage.php`:
+
+- valida HMAC, timestamp i `request_id` amb `InternalApiAuthenticator`;
+- aplica anti-replay amb `internal_api_request`;
+- separa rols de lectura i gestió;
+- no confia en botons/JS per autoritzar;
+- ofereix accions `list/view/open/assign/evidence/resolve/dismiss/reopen`.
+
+Els rols es configuren amb:
+
+~~~text
+SIF_INCIDENT_READ_ROLES
+SIF_INCIDENT_MANAGE_ROLES
+~~~
+
+Si no hi ha rols configurats, el servei falla tancat.
+
+## 4. Actors i frontera de responsabilitat
+
+- **Worker SIF / AEAT / Redsys:** pot obrir incidències automàtiques correlacionades.
+- **Responsable tècnica / operador autoritzat:** pot consultar i gestionar segons rol servidor.
+- **Auditor fiscal/read-only:** consulta, però no assigna, resol, reintenta ni modifica.
+- **UC corrector específic:** executa la reparació real. UC-008/081 només governa l'expedient.
+
+No s'ha implementat un `RepairRouter` genèric perquè no és segur convertir “resoldre incidència” en un retry universal. La reparació deriva explícitament a UC-02/28/29a, UC-55/78, UC-74/77, UC-82, UC-124, etc.
+
+## 5. UML de casos d'ús
+
+~~~plantuml
 @startuml
 left to right direction
 actor "Worker SIF" as W
 actor "Responsable tècnica" as T
 actor "Operador autoritzat" as O
-rectangle "Panell d'incidències del SIF" {
- usecase "UC-08\nGestionar incidència" as Main
- usecase "Obrir incidència" as Open
- usecase "Assignar i investigar" as Work
- usecase "Executar acció correctora\namb cas d'ús específic" as Fix
- usecase "Repetir prova i\nvalidar evidència" as Verify
- usecase "Tancar amb justificació" as Close
+actor "Auditor read-only" as A
+rectangle "UC-008 · Gestió d'incidències" {
+ usecase "Obrir / reutilitzar
+incidència" as Open
+ usecase "Consultar expedient" as View
+ usecase "UC-081
+Gestionar lifecycle" as Life
+ usecase "Executar reparació
+amb UC específic" as Repair
 }
 W --> Open
-T --> Main
-O --> Main
-Main ..> Work : <<include>>
-Main ..> Verify : <<include>>
-Main ..> Close : <<include>>
-T --> Fix
-note bottom of Open
-  Nucli d'obertura implementat.
-  Cicle complet de panell pendent.
-end note
+T --> Open
+T --> View
+O --> View
+A --> View
+T --> Life
+O --> Life
+Life ..> View : <<include>>
+Life ..> Repair : <<extend>> acció autoritzada
 @enduml
-```
+~~~
 
-### Vista del cas d'ús a GitHub (Mermaid)
+## 6. Diagrama de classes — ACTUAL de la branca
 
-```mermaid
-flowchart LR
-  a_0["Worker SIF"]
-  a_1["Responsable tècnica"]
-  a_2["Operador autoritzat"]
-  subgraph SIF_BOUNDARY["Panell d'incidències del SIF"]
-    u_0(["UC-08<br/>Gestionar incidència"])
-    u_1(["Obrir incidència"])
-    u_2(["Assignar i investigar"])
-    u_3(["Executar acció correctora<br/>amb cas d'ús específic"])
-    u_4(["Repetir prova i<br/>validar evidència"])
-    u_5(["Tancar amb justificació"])
-  end
-  a_0 --> u_1
-  a_1 --> u_0
-  a_2 --> u_0
-  u_0 -.->|include| u_2
-  u_0 -.->|include| u_4
-  u_0 -.->|include| u_5
-  a_1 --> u_3
-```
-
-## 3. Diagrama de classes — capa implementada i objectiu
-
-```mermaid
+~~~mermaid
 classDiagram
 direction LR
+
 class IncidentRepository {
- <<PHP existent>>
- +open(db,uuidFactura,type,message) array
+  <<PHP EXISTENT>>
+  +open(db,uuidFactura,type,message) array
+  +openDetailed(db,input) array
+  +findById(db,id,forUpdate) array?
+  +list(db,filters,limit) array
+  +updateLifecycle(...) void
 }
-class IncidentWorkflowService {
- <<DISSENY: no acreditada>>
- +assign(incidentId,actor) result
- +addEvidence(incidentId,evidence) result
- +resolve(incidentId,verification) result
-}
+
 class IncidentActionRepository {
- <<DISSENY: writer no acreditat>>
- +append(db,action) string
+  <<PHP EXISTENT>>
+  +append(db,action) array
+  +listForIncident(db,id) array
 }
-class FiscalQueueProcessor {
- <<PHP existent>>
- +processNext() array
+
+class IncidentLifecycleService {
+  <<PHP EXISTENT>>
+  +list(actor,filters,limit) array
+  +view(actor,id) array
+  +open(actor,payload) array
+  +assign(actor,id,payload) array
+  +addEvidence(actor,id,payload) array
+  +resolve(actor,id,payload) array
+  +dismiss(actor,id,payload) array
+  +reopen(actor,id,payload) array
 }
+
+class InternalApiAuthenticator {
+  <<PHP EXISTENT>>
+  +authenticate(server,rawBody,method,path) array
+}
+
 class RedsysCallbackWorker {
- <<PHP existent>>
- +runOne(db,workerId,now) array
+  <<PHP EXISTENT>>
+  +runOne(db,workerId,now) array?
 }
-IncidentWorkflowService --> IncidentRepository : consulta incidència
-IncidentWorkflowService --> IncidentActionRepository : traça d'accions
-RedsysCallbackWorker --> IncidentRepository : incidència de job
-```
 
-La referència de `FiscalQueueProcessor` és contextual: el seu `failure()` consultat actualitza la cua/estat fiscal però **no acredita una crida directa a `IncidentRepository::open()`**. No s'ha dibuixat aquesta dependència inventada.
+class FiscalQueueProcessor {
+  <<PHP EXISTENT>>
+  +processNext() array
+  +processBatch(limit) array
+}
 
-## 4. Seqüència A — obrir incidència amb codi actual
+class IncidentPanel {
+  <<UI PENDENT>>
+  +list()
+  +detail()
+  +assign()
+  +evidence()
+  +close()
+}
 
-```mermaid
+class RepairRouter {
+  <<NO IMPLEMENTAR COM RETRY GENÈRIC>>
+  +deriveToSpecificUseCase()
+}
+
+IncidentLifecycleService --> IncidentRepository
+IncidentLifecycleService --> IncidentActionRepository
+InternalApiAuthenticator ..> IncidentLifecycleService : API manage.php
+RedsysCallbackWorker --> IncidentRepository
+FiscalQueueProcessor --> IncidentRepository
+IncidentPanel ..> IncidentLifecycleService : API interna
+IncidentLifecycleService ..> RepairRouter : frontera funcional
+~~~
+
+**Correcció respecte de la documentació anterior:** `FiscalQueueProcessor → IncidentRepository` és una dependència real. L'anterior UML la descrivia com a no acreditada i estava desactualitzat.
+
+## 7. Seqüència ACTUAL A — Redsys → incidència
+
+~~~mermaid
 sequenceDiagram
 autonumber
-participant S as Servei/worker que detecta error
+participant W as RedsysCallbackWorker
+participant Q as RedsysCallbackQueueRepository
 participant I as IncidentRepository
 participant DB as BD SIF
-S->>I: open(db,uuidFactura?,type,message)
-I->>I: Validar tipus i missatge
-alt Camps invàlids
- I--xS: Error de validació
-else Dades vàlides
- I->>DB: INSERT errors_verifactu (ESTAT OPEN)
- DB-->>I: Inserció
- I-->>S: ok=true
+
+W->>W: processor->process(job)
+alt conflicte funcional o intents esgotats
+  W->>DB: BEGIN
+  W->>Q: markIncident(job)
+  Q->>DB: UPDATE queue STATUS=INCIDENT
+  W->>I: openDetailed(REDSYS_CALLBACK, job UUID)
+  I->>DB: validar factura si existeix
+  I->>DB: buscar IDEMPOTENCY_KEY
+  alt ja existeix
+    I-->>W: reused + incident_id
+  else nova
+    I->>DB: INSERT errors_verifactu OPEN
+    I-->>W: incident_id + uuid_incident
+  end
+  W->>DB: COMMIT
+  W-->>W: status=INCIDENT
+else error recuperable
+  W->>Q: markRetry()
 end
-Note over I,DB: No hi ha ID d'incidència retornat, ni assignació/tancament en aquest mètode
-```
+~~~
 
-## 5. Seqüència B — gestió i tancament (DISSENY)
+**Invariant:** no pot quedar el job en `INCIDENT` perquè ha fet commit i fallar després la creació de l'expedient dins de la mateixa transacció.
 
-```mermaid
+## 8. Seqüència ACTUAL B — AEAT integritat / dead-letter
+
+~~~mermaid
 sequenceDiagram
 autonumber
-actor T as Responsable tècnica
-participant UI as Panell SIF [pendent]
-participant W as IncidentWorkflowService [DISSENY]
-participant A as IncidentActionRepository [DISSENY]
-participant Test as Prova/conciliació del cas
+participant P as FiscalQueueProcessor
+participant Q as FiscalQueueRepository
+participant I as IncidentRepository
 participant DB as BD SIF
-T->>UI: Obrir incidència i comprovar evidència inicial
-UI->>W: assign(id,actor) amb rol i motiu
-W->>A: append(OPEN→ACKNOWLEDGED)
-A->>DB: INSERT sif_incident_action
-T->>UI: Diagnosticar i executar acció correctora específica
-UI->>W: addEvidence(id,causa,versió,canvis)
-W->>A: append(IN_PROGRESS, evidència)
-T->>UI: Sol·licitar validació de tancament
-W->>Test: Repetir prova o conciliar objecte
-alt Prova/evidència insuficient
- Test-->>W: FAIL/BLOCKED
- W-->>UI: Incidència continua oberta
-else Verificació satisfactòria
- Test-->>W: PASS i referència evidència
- W->>A: append(RESOLVED, actor, motiu, prova)
- A->>DB: INSERT historial i UPDATE estat incidència
- W-->>UI: Tancament confirmat
+participant AEAT as Transport AEAT
+
+P->>Q: claimNext()
+alt payload/hash inconsistent
+  P->>DB: BEGIN
+  P->>Q: rejectIntegrity()
+  P->>I: openDetailed(FISCAL_PAYLOAD_CONFLICT)
+  I->>DB: INSERT/reuse incident
+  P->>DB: COMMIT
+  P-->>P: DEAD_LETTER + incident_id
+else payload íntegre
+  P->>AEAT: send()
+  alt error transport i queden intents
+    P->>Q: fail() -> RETRY
+  else error transport i intents esgotats
+    P->>DB: BEGIN
+    P->>Q: fail() -> DEAD_LETTER
+    P->>I: openDetailed(AEAT_DEAD_LETTER)
+    I->>DB: INSERT/reuse incident
+    P->>DB: COMMIT
+  end
 end
-Note over W,DB: Seqüència objectiu, IncidentWorkflowService i writer no acreditats
-```
+~~~
 
-## 6. Traçabilitat
+Un `DEAD_LETTER` local **no prova un rebuig remot**. La incidència ha de conservar aquesta distinció i UC-77 decideix el tractament fiscal.
 
-[Fitxa base UC-08](../06-fitxes-funcionals/uc-008.md) · [Catàleg i actors](../04-estat-final/33-casos-us-sif.md) · [Estat final operació/incidències](../04-estat-final/18-estat-final-operacio-incidencies.md) · [IncidentRepository](../../sif/src/Repository/IncidentRepository.php) · [Migració sif_incident_action](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql) · [DocumentsAndIncidentsTest](../../sif/tests/Integration/DocumentsAndIncidentsTest.php) · [Revisió de moviments d'inscripció](00-revisio-moviments-inscripcions.md).
+## 9. Seqüència ACTUAL C — gestió manual backend
+
+~~~mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant API as /api/incidents/manage.php
+participant H as InternalApiAuthenticator
+participant S as IncidentLifecycleService
+participant I as IncidentRepository
+participant A as IncidentActionRepository
+participant DB as BD SIF
+
+O->>API: POST signat action=assign/evidence/resolve
+API->>H: HMAC + timestamp + request_id + rols
+H->>DB: claim internal_api_request
+H-->>API: actor autenticat
+API->>S: acció(actor,payload)
+S->>S: comprovar rol servidor
+S->>DB: BEGIN
+S->>I: findById(... FOR UPDATE)
+S->>A: append(idempotency_key, actor, estat, evidència)
+A->>DB: INSERT sif_incident_action
+S->>I: updateLifecycle()
+I->>DB: UPDATE errors_verifactu
+S->>DB: COMMIT
+S-->>API: resultat tipificat
+API-->>O: JSON
+~~~
+
+## 10. Activitats ACTUAL/FINAL per pàgina i apartat
+
+### 10.1. Obertura automàtica
+
+#### ACTUAL
+
+~~~mermaid
+flowchart TD
+A[Worker detecta error] --> B{Redsys o AEAT cobert?}
+B -->|Redsys funcional/max retries| C[Transacció]
+C --> D[Job -> INCIDENT]
+D --> E[openDetailed amb job/correlació/idempotència]
+E --> F[COMMIT]
+B -->|AEAT integritat| G[rejectIntegrity]
+G --> H[openDetailed FISCAL_PAYLOAD_CONFLICT]
+B -->|AEAT retries esgotats| I[fail -> DEAD_LETTER]
+I --> J[openDetailed AEAT_DEAD_LETTER]
+B -->|altres orígens| K[Encara requereixen integració específica]
+~~~
+
+#### FINAL
+
+~~~mermaid
+flowchart TD
+A[Qualsevol detector SIF] --> B[Classificar recurs + causa]
+B --> C[Construir correlation/idempotency]
+C --> D[Obrir o reutilitzar expedient]
+D --> E[Conservar evidència mínima segura]
+E --> F[Notificar/resumir segons SLA]
+F --> G[Sense repetir efecte fiscal/econòmic]
+~~~
+
+### 10.2. Panell · llistat d'incidències
+
+#### ACTUAL
+
+~~~mermaid
+flowchart TD
+A[No hi ha UI acreditada] --> B[API interna action=list]
+B --> C[Autoritzar rol read/manage]
+C --> D[Filtrar estat/severitat/tipus/responsable]
+D --> E[Retornar JSON]
+~~~
+
+#### FINAL
+
+~~~mermaid
+flowchart TD
+A[pay.prisma.cat/sif/incidencies] --> B[Autenticar sessió]
+B --> C[API list]
+C --> D[Taula per prioritat/estat/origen]
+D --> E[Filtres]
+E --> F[Obrir detall]
+~~~
+
+### 10.3. Panell · detall
+
+#### ACTUAL
+
+~~~mermaid
+flowchart TD
+A[UI absent] --> B[API action=view]
+B --> C[IncidentRepository findById]
+C --> D[IncidentActionRepository listForIncident]
+D --> E[JSON capçalera + timeline]
+~~~
+
+#### FINAL
+
+~~~mermaid
+flowchart TD
+A[Obrir expedient] --> B[Capçalera]
+B --> C[Recurs/origen/correlació]
+C --> D[Timeline immutable]
+D --> E[Evidències]
+E --> F[Enllaços als UCs correctors]
+~~~
+
+### 10.4. Triage i assignació
+
+#### ACTUAL
+
+~~~mermaid
+flowchart TD
+A[POST action=assign] --> B[Rol manage?]
+B -->|no| C[403]
+B -->|sí| D[SELECT FOR UPDATE]
+D --> E{RESOLVED/DISMISSED?}
+E -->|sí| F[409]
+E -->|no| G[append ASSIGN idempotent]
+G --> H[ESTAT=IN_PROGRESS + responsable]
+~~~
+
+#### FINAL
+
+~~~mermaid
+flowchart TD
+A[Operador obre detall] --> B[Selecciona severitat/responsable]
+B --> C[Motiu obligatori]
+C --> D[Confirmar]
+D --> E[API assign]
+E --> F[Timeline + responsable visibles]
+~~~
+
+### 10.5. Investigació i evidències
+
+#### ACTUAL
+
+~~~mermaid
+flowchart TD
+A[POST action=evidence] --> B[Validar role + incident actiu]
+B --> C[EVIDENCE_JSON no buit]
+C --> D[append ADD_EVIDENCE]
+D --> E[Estat principal no canvia]
+~~~
+
+#### FINAL
+
+~~~mermaid
+flowchart TD
+A[Afegir evidència] --> B[Seleccionar tipus/referència]
+B --> C[No incloure secrets/PAN/tokens]
+C --> D[Guardar evidència o referència privada]
+D --> E[Timeline auditable]
+~~~
+
+### 10.6. Acció correctora
+
+#### ACTUAL
+
+~~~mermaid
+flowchart TD
+A[Diagnosi] --> B[UC-008 no modifica factura/diners]
+B --> C[Operador deriva manualment al UC específic]
+C --> D[Executar UC-02/55/74/77/82/etc.]
+D --> E[Tornar a UC-008 amb evidència]
+~~~
+
+#### FINAL
+
+~~~mermaid
+flowchart TD
+A[Diagnosi] --> B[Seleccionar reparació per tipus]
+B --> C{Acció segura i suportada?}
+C -->|no| D[Escalar/revisió humana]
+C -->|sí| E[Derivar explícitament al servei del UC específic]
+E --> F[Conservar correlació]
+F --> G[Verificar resultat abans de tancar]
+~~~
+
+### 10.7. Resolució
+
+#### ACTUAL
+
+~~~mermaid
+flowchart TD
+A[POST action=resolve] --> B[Rol manage]
+B --> C[closure_criteria obligatori]
+C --> D[resolution_notes obligatori]
+D --> E[evidence obligatòria]
+E --> F[SELECT FOR UPDATE]
+F --> G[append RESOLVE]
+G --> H[ESTAT=RESOLVED + RESOLVED_AT]
+~~~
+
+#### FINAL
+
+~~~mermaid
+flowchart TD
+A[Operador demana tancament] --> B[Repetir prova/conciliar font]
+B --> C{Resultat acreditat?}
+C -->|no| D[Mantenir obert + evidència FAIL/BLOCKED]
+C -->|sí| E[Registrar prova, criteri i notes]
+E --> F[RESOLVED]
+~~~
+
+### 10.8. Dismissal i reobertura
+
+#### ACTUAL
+
+~~~mermaid
+flowchart TD
+A[DISMISS] --> B[Motiu + criteri + notes]
+B --> C[append DISMISS]
+C --> D[ESTAT=DISMISSED]
+D --> E{Cal reobrir?}
+E -->|sí| F[action=reopen]
+F --> G[append REOPEN]
+G --> H[ESTAT=OPEN i netejar camps tancament]
+~~~
+
+#### FINAL
+
+~~~mermaid
+flowchart TD
+A[DISMISSED] --> B[Justificació material]
+B --> C[Comprovar que no hi ha impacte fiscal/econòmic pendent]
+C --> D[Guardar decisió]
+D --> E[Reobertura només amb nova causa/evidència]
+~~~
+
+### 10.9. Intranet principal · VERI*FACTU
+
+#### ACTUAL
+
+~~~mermaid
+flowchart TD
+A[Sidebar actual] --> B[No s'ha acreditat apartat UC-008]
+B --> C[Sense resum d'incidències]
+~~~
+
+#### FINAL
+
+~~~mermaid
+flowchart TD
+A[Intranet VERI*FACTU] --> B[Consultar resum SIF read-only]
+B --> C[Indicador obertes/crítiques]
+C --> D[Enllaç a pay.prisma.cat/sif/incidencies]
+D --> E[Resolució només al SIF]
+~~~
+
+## 11. Proves
+
+### Escrites a la branca
+
+- `IncidentLifecycleTest::testDetailedOpenReturnsStableIdentityAndReusesSameIdempotencyKey`.
+- `IncidentLifecycleTest::testDetailedOpenRejectsUnknownInvoiceInsteadOfPersistingOrphanReference`.
+- `IncidentLifecycleTest::testLifecycleAssignsAddsEvidenceAndResolvesWithImmutableActionHistory`.
+- `IncidentLifecycleTest::testReadOnlyActorCanViewButCannotMutateIncident`.
+- `IncidentLifecycleTest::testResolveRequiresClosureEvidence`.
+- `FiscalQueueProcessorTest` exigeix incidència `AEAT_DEAD_LETTER` al tercer error.
+- `HttpEndpointsTest` comprova que l'endpoint d'incidències usa autenticació i lifecycle.
+- `IncidentLifecycleSchemaTest` comprova la migració additiva.
+
+### Existents i relacionades
+
+- `DocumentsAndIncidentsTest::testOpenIncidentStoresOpenFiscalIssue`.
+- `RedsysCallbackWorkerTest::testFunctionalConflictBecomesIncidentWithoutRetry`.
+- `RedsysCallbackWorkerTest::testFifthTechnicalFailureBecomesIncident`.
+- `PayloadIdempotencyFlowTest` per `FISCAL_PAYLOAD_CONFLICT`.
+
+**Cap d'aquestes proves es marca PASS en aquest document fins a executar la suite PHP/MySQL.**
+
+## 12. Gaps pendents
+
+1. Implementar la UI real `pay.prisma.cat/sif/incidencies`.
+2. Implementar el resum read-only de la intranet `VERI*FACTU`.
+3. Definir i desplegar rols productius.
+4. Decidir SLA/prioritats i notificacions automàtiques.
+5. Afegir integracions d'obertura per documents, conciliació, legacy i altres workers que encara no criden UC-008.
+6. Provar concurrència real: dues obertures simultànies amb la mateixa clau i dues accions simultànies sobre el mateix expedient.
+7. Provar rollback Redsys quan falla l'INSERT d'incidència després de `markIncident`.
+8. Executar suite local/preproducció i conservar evidència.
+9. Validar redacció/retenció de `DETAILS` i `EVIDENCE_JSON` per evitar dades sensibles.
+
+## 13. Traçabilitat
+
+- [Fitxa funcional UC-008](../06-fitxes-funcionals/uc-008.md)
+- [UC-081 · lifecycle detallat](uc-081-cicle-complet-incidencia.md)
+- [Auditoria detallada UC-008](04-auditoria-detallada-uc-008-gestionar-incidencia-2026-09-29.md)
+- [Proves pendents UC-008](05-proves-pendents-uc-008-implementacio.md)
+- [IncidentRepository](../../sif/src/Repository/IncidentRepository.php)
+- [IncidentActionRepository](../../sif/src/Repository/IncidentActionRepository.php)
+- [IncidentLifecycleService](../../sif/src/Service/IncidentLifecycleService.php)
+- [API incidències](../../sif/public/api/incidents/manage.php)
+- [RedsysCallbackWorker](../../sif/src/Service/RedsysCallbackWorker.php)
+- [FiscalQueueProcessor](../../sif/src/Service/FiscalQueueProcessor.php)
+- [Migració lifecycle](../../sif/database/migrations/2026_09_29_000010_add_incident_lifecycle.sql)
+- [IncidentLifecycleTest](../../sif/tests/Integration/IncidentLifecycleTest.php)
+- [Estat final operació/incidències](../04-estat-final/18-estat-final-operacio-incidencies.md)
+- [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
+
+**Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
+**Estat de tancament tècnic:** backend parcial implementat; UI, configuració real i execució de proves continuen pendents.

@@ -4,6 +4,9 @@
 
 **Llegenda:** ACTUAL = lectura estàtica del PHP/JS versionat + ubicació de negoci; FINAL = objectiu d'adaptació no acreditat com a implantat; TEST = pendent d'execució. El número `CAND-UC-MOODLE-AO-01` és provisional fins a reconciliar el catàleg, però el cas funcional i la seva URL estan delimitats.
 
+
+**Actualització de desenvolupament (22/09/2026):** [implementació CANDIDATA del flux FINAL i pla de proves de la URL](pujada-aules-obertes-implementacio-proves-2026-09-22.md), en una branca separada sense desplegar; els diagrames ACTUAL descriuen encara `main`, no els endpoints nous com si fossin producció.
+
 ## 1. Identificació de pàgina i de les seves SET accions
 
 | Àmbit | Secció | Efecte i codi |

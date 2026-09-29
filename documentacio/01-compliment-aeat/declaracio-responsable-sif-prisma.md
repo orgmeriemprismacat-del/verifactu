@@ -135,6 +135,15 @@ ____________________________________
 
 ## Anexo técnico previsto
 
+Actualización técnica de 23/09/2026: existe una candidata local del protocolo
+AEAT y del transporte al entorno de pruebas. Véase el
+[anexo de integración y evidencias](annex-integracio-aeat.md). Siguen pendientes
+la prueba real con certificado/representación, la calificación de los canales,
+la operación en servidor y el expediente G1..G7. Se mantiene **BORRADOR, NO
+SUSCRIBIR**. El código documental `SIF-PRISMA` no debe copiarse al campo XML
+`IdSistemaInformatico`, cuya longitud máxima es de dos caracteres; se deberá
+documentar la correspondencia con el identificador confirmado de la versión.
+
 La versión definitiva podrá incorporar como anexo el visto bueno técnico de la versión 1.0.0 y una referencia al expediente de pruebas. El anexo técnico no sustituye la declaración de la entidad productora.
 
 ## Referencias normativas

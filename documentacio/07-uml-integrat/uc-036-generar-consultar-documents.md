@@ -1,6 +1,6 @@
 # UC-36 · Generar i consultar PDF, QR o XML — fitxa i UML
 
-**Frontera:** generar un artefacte de la factura, registrar-ne la versió/hash i permetre'n la consulta autoritzada. **No** és emetre la factura (UC-01), enviar el registre XML a AEAT (UC-09), ni consultar una factura ja accessible (UC-07). Els documents es basen en un **snapshot fiscal congelat**: no s'han de regenerar silenciosament a partir de dades personals o preus del llegat que poden haver canviat.
+**Frontera:** generar o obtenir l'estat/metadades d'un artefacte de factura i registrar-ne versió/hash. **La consulta de factura és UC-07 i l'autorització/servei dels bytes és UC-80**; UC-36 no és emetre la factura (UC-01) ni enviar el registre XML a AEAT (UC-09). Els documents es basen en un **snapshot fiscal congelat** i no es regeneren silenciosament a partir de dades vives del llegat.
 
 **Estat del repositori revisat:** `DocumentRepository::registerDocument()` implementa **únicament la inserció de metadades i hash SHA-256 de contingut**. La migració de BD defineix `factura_documents`, `document_job` i `fiscal_document_access`. **No s'ha acreditat** una classe PHP completa de generació PDF/QR/XML, un worker `document_job` ni un endpoint de lliurament/autorització que escrigui `fiscal_document_access`. La disponibilitat de `XmlCodec` per als registres AEAT **no prova la generació del XML documental descarregable d'una factura**.
 
@@ -23,7 +23,7 @@
 3. El generador **pendent** composa PDF amb representació/QR adequats a l'estat fiscal que pertoqui i, si es demana XML, el seu format documental. Abans de declarar una funció conforme a normativa, cal contrastar plantilla, QR, llegenda, estat AEAT i regles vigents amb especificacions oficials; aquest document no les valida.
 4. S'escriuen els bytes en un storage privat i es comprova el seu hash. `DocumentRepository::registerDocument()` **sí que existeix** i inserta a `factura_documents` tipus, path, hash SHA-256 i estat `CREATED`, **però la seva crida no escriu el fitxer físic**.
 5. El job objectiu s'enllaça amb `FACTURA_DOCUMENT_ID` i l'estat final; una fallada conserva `LAST_ERROR` i es reintenta segons política sense modificar factura fiscal.
-6. UC-07 valida receptor, identitat/rol/abast i registra `VIEW`/`DOWNLOAD` a `fiscal_document_access` abans de servir bytes des de storage; la ruta interna no ha de ser pública. **L'endpoint/writer final encara no està acreditat.**
+6. UC-07 pot mostrar l'estat i les metadades autoritzades del document. Quan l'actor demana bytes, **UC-80** revalida receptor/identitat/rol/abast, verifica disponibilitat/integritat amb UC-55/78, registra `VIEW`/`DOWNLOAD`/`DENIED` i serveix des de storage privat. **L'endpoint/writer final encara no està acreditat.**
 
 ### 1.2. Escenaris alternatius i invariants
 
@@ -117,8 +117,8 @@ class FiscalDocumentAccessRepository {
  +append(db,access) string
 }
 class InvoiceDocumentAccessService {
- <<DISSENY: no acreditada>>
- +download(actor,documentId) stream
+ <<DISSENY UC-080: no acreditada>>
+ +download(actor,documentId,tokenOrSession) stream
 }
 DocumentWorker --> DocumentJobRepository : claim/resultat
 DocumentWorker --> FiscalDocumentGenerator : bytes del snapshot
@@ -160,28 +160,29 @@ end
 Note over W,DB: Cua/generador/storage i complete són flux OBJECTIU, no mètodes PHP acreditats
 ```
 
-## 5. Seqüència B: consulta segura (DISSENY)
+## 5. Seqüència B: delegació de consulta i descàrrega (DISSENY)
 
-```mermaid
+UC-36 no replica la política d'accés. La consulta de la factura/document disponible es presenta a UC-07 i el lliurament dels bytes es delega a UC-80.
+
+~~~mermaid
 sequenceDiagram
-actor A as Alumne/empresa/auditor
-participant UI as Canal de consulta [pendent]
-participant Auth as VisibilityPolicy [DISSENY]
-participant Log as FiscalDocumentAccessRepository [DISSENY]
-participant Store as Storage privat
-A->>UI: Consultar/descarregar UUID_FACTURA, documentId
-UI->>Auth: Validar receptor, rol i visibilitat de factura i línies
-alt Sense dret d'accés
- Auth-->>UI: Denegat
- UI->>Log: append(DENIED,actor,requestId)
- UI-->>A: Resposta sense dades de tercers
-else Autoritzat
- Auth-->>UI: Permès
- UI->>Store: Obtenir fitxer privat i comparar SHA-256
- UI->>Log: append(DOWNLOAD,actor,documentId,result)
- UI-->>A: Servir bytes sense exposar path
+autonumber
+actor A as Actor
+participant U7 as UC-07 consulta [DISSENY]
+participant U36 as UC-36 document [DISSENY/PARCIAL]
+participant U80 as UC-80 accés [DISSENY]
+participant U55 as UC-55/78 disponibilitat [DISSENY]
+A->>U7: Obrir factura i documents
+U7->>U36: Consultar metadata/estat del document
+U36-->>U7: READY/PENDING/ERROR + documentId si existeix
+alt Actor demana bytes
+  U7->>U80: download(actor,documentId,token/sessió)
+  U80->>U55: verificar storage/hash/origen
+  U55-->>U80: disponible/incident
+  U80-->>A: stream autoritzat o denegació auditada
 end
-```
+Note over U36,U80: UC-36 no serveix paths ni substitueix la revalidació de UC-80.
+~~~
 
 ## 6. Traçabilitat
 

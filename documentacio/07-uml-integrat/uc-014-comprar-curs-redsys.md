@@ -2,7 +2,7 @@
 
 **Objectiu:** convertir una compra de curs/edició pagada realment per Redsys en una factura SIF i un cobrament econòmic atribuït a la **inscripció correcta**. Una intenció pendent, un callback denegat i un cobrament confirmat **no són el mateix estat**. Aquest cas és de compra de **curs ordinari**; taller i jornada tenen variants UC-14a/14b que no es donen per cobertes per aquesta fitxa.
 
-**Codi contrastat:** `RedsysPaymentIntentService` (UC-63), `RedsysCallbackService`/`RedsysCallbackWorker` (UC-03), `RedsysCourseInvoiceService`, `LegacyCourseInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService` i `PaymentRepository`. La integració final de l'ecommerce, disponibilitat de places, descompte justificat, accés acadèmic i atribució monetària per inscripció **no queden acreditades només per aquests serveis**.
+**Codi contrastat:** `RedsysPaymentIntentService` (UC-63), `RedsysCallbackService`/`RedsysCallbackWorker` (UC-03), `RedsysCourseInvoiceService`, `LegacyCourseInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService` i codi web llegat de pagament. La integració final de l'ecommerce, disponibilitat de places, descompte justificat, accés acadèmic i atribució monetària per inscripció **no queden acreditades només per aquests serveis**. **Revisió 29/09/2026:** el recorregut ACTUAL factura dins `realitzaPagamentAutomatic.php`; el FINAL separa intenció, callback, cua/worker i emissió SIF.
 
 ## 1. Fitxa del cas
 
@@ -156,3 +156,20 @@ Note over W,L: No es dona per acreditada la coordinació transaccional del ledge
 ## 5. Traçabilitat
 
 [Fitxa original UC-14](../06-fitxes-funcionals/uc-014.md) · [UC-63](uc-063-crear-intencio-redsys.md) · [UC-03](uc-003-processar-cobrament-redsys-asincron.md) · [UC-01](uc-001-emetre-o-reutilitzar-factura.md) · [Revisió dels fons](00-revisio-moviments-inscripcions.md) · [RedsysCourseInvoiceService](../../sif/src/Service/RedsysCourseInvoiceService.php) · [LegacyCourseInvoicePayloadBuilder](../../sif/src/Service/LegacyCourseInvoicePayloadBuilder.php) · [RedsysInvoicePayloadBuilder](../../sif/src/Service/RedsysInvoicePayloadBuilder.php) · [RedsysCourseInvoiceServiceTest](../../sif/tests/Integration/RedsysCourseInvoiceServiceTest.php).
+
+
+## 6. Lliurables detallats ACTUAL/FINAL — revisió 29/09/2026
+
+Aquest document principal conserva el model integrat del cas. La cobertura exhaustiva RM-037 es troba als documents següents:
+
+- [Diagrames de classes ACTUAL i FINAL](uc-014-classes-actual-final.md)
+- [Diagrames de seqüència ACTUAL i FINAL](uc-014-sequencies-actual-final.md)
+- [Diagrames d'activitat ACTUAL/FINAL de pàgines i apartats](uc-014-activitats-pagines-redsys-actual-final.md)
+- [Auditoria detallada i matriu de traçabilitat](uc-014-auditoria-tracabilitat-2026-09-29.md)
+
+### Estat
+
+- **DOCUMENTAT:** fitxa, casos d'ús, classes ACTUAL/FINAL, seqüències ACTUAL/FINAL i activitats per superfícies principals.
+- **IMPLEMENTAT:** nucli SIF Redsys i handler CURS; també existeix el circuit llegat, que s'ha de substituir/encapsular.
+- **VERIFICAT:** lectura estàtica del repositori.
+- **PENDENT:** adaptador ecommerce final, atribució monetària explícita per inscripció, sincronització acadèmica recuperable i proves executades end-to-end.

@@ -81,6 +81,8 @@ La logica actual identificada es:
 
 - `consultaRolsEdiicio($page)` retorna els rols d'edicio de la pagina;
 - `consultaRolsUsuari()` retorna els rols de l'usuari;
+- `comprovarSessio.php` refresca ara els rols amb `Usuari::replaceRols()`, de manera que una revocació a `usuaris.ROLS` no queda acumulada indefinidament a l'objecte de sessió;
+- el pont UC-007 (`ajax/alumnes/sifFactures.php`) no accepta actor/rol del navegador: els llegeix de la sessió validada i signa la petició servidor-a-servidor amb HMAC.
 - el JS compara rols i calcula `tePermisEdicio`;
 - les pantalles poden mostrar o ocultar accions segons aquest resultat.
 
@@ -438,6 +440,14 @@ Metadades permeses al panell o expedient, sempre sense secrets:
 - versio SIF i declaracio responsable vinculades a aquesta configuracio.
 
 ## 10. Acces documental dins del SIF
+
+Revisió tècnica 2026-09-23: `ClientCertificate` comprova PKCS#12, vigència i
+parella clau/certificat; `SoapTransport` verifica TLS i limita l'endpoint a
+proves. `EvidenceStore` conserva petició/resposta en fitxers exclusius amb
+hash i sense secrets. L'exclusió del repositori no prova per si sola que una
+ruta sigui privada: cal verificar webroots, ACL Windows/permisos Unix,
+retenció i backup al servidor. El preflight local no comprova revocació ni
+representació davant AEAT. Vegeu l'[annex AEAT](../01-compliment-aeat/annex-integracio-aeat.md).
 
 La declaracio responsable i la informacio de versio han d'estar accessibles dins del SIF de forma rapida, clara i llegible.
 

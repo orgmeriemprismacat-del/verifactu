@@ -6,6 +6,7 @@
 class MailSMTPComvive {
     private $mailer; /**< Text PHPMailerAutoload*/
     private $firma; /**< Text firma del missatge */
+    private $enviat = false; /**< bool resultat retornat per PHPMailer::send() */
 
    /*********************************** FUNCIONS CONSTRUCTORS ***********************************/
    /*
@@ -66,7 +67,22 @@ class MailSMTPComvive {
       $this->mailer->Subject = $subject;
       $missatges = $missatge.$this->firma->obtenirText();
       $this->mailer->msgHTML($missatges);
-      $this->mailer->send();
+      $this->enviat = $this->mailer->send();
+   }
+
+   /**
+   * @brief Indica si PHPMailer ha acceptat l'enviament.
+   * @return true si send() ha retornat true; false altrament.
+   */
+   public function enviat() {
+      return $this->enviat;
+   }
+
+   /**
+   * @brief Retorna l'últim ErrorInfo de PHPMailer, si n'hi ha.
+   */
+   public function obtenirError() {
+      return $this->mailer->ErrorInfo;
    }
 }
 ?>

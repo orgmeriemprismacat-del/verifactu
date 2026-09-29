@@ -26,6 +26,7 @@ final class RedsysPackInvoiceService implements RedsysIntentHandler
     {
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
+        $this->assertPaymentMatchesInvoice($payload);
 
         return $this->invoices->issueInvoice($payload);
     }
@@ -39,6 +40,7 @@ final class RedsysPackInvoiceService implements RedsysIntentHandler
         $snapshot = $this->legacySnapshots->loadByIdpag($legacyDb, $idpag, $amount);
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
+        $this->assertPaymentMatchesInvoice($payload);
         $result = $this->invoices->issueInvoice($payload);
         $result['legacy_sync'] = [
             'relations' => $payload['relations'] ?? [],
@@ -46,6 +48,23 @@ final class RedsysPackInvoiceService implements RedsysIntentHandler
         ];
 
         return $result;
+    }
+
+    private function assertPaymentMatchesInvoice(array $payload): void
+    {
+        $invoiceTotal = $payload['totals']['total'] ?? null;
+        $paymentAmount = $payload['payment']['amount'] ?? null;
+
+        if (!is_numeric($invoiceTotal) || !is_numeric($paymentAmount)) {
+            throw SifException::validation('Pack invoice/payment reconciliation data is incomplete');
+        }
+
+        $invoiceTotal = number_format((float) $invoiceTotal, 2, '.', '');
+        $paymentAmount = number_format((float) $paymentAmount, 2, '.', '');
+
+        if ($invoiceTotal !== $paymentAmount) {
+            throw SifException::conflict('Pack invoice total does not match validated Redsys amount');
+        }
     }
 
     private function validatedNotification(\PDO $sifDb, string $dsOrder): array

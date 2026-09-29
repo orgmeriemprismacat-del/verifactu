@@ -727,6 +727,14 @@ Quan una versio signada evolucioni amb canvis rellevants de compliment, s'haura 
 
 ## 15. Referencies Oficials
 
+Estat executable revisat el 2026-09-23:
+[annex d'integració AEAT](annex-integracio-aeat.md). Inclou alta, anul·lació,
+subsanació, huella, XSD, certificat, worker, retries, respostes i expedient.
+El transport disponible és una candidata limitada a proves externes. Les
+proves locals no acrediten remissió real ni converteixen `1.0.0` en signable.
+`HASH_FACT` conserva el digest JSON intern; la huella oficial és dins el
+snapshot `PAYLOAD_JSON.aeat.record.Huella`. No s'han de confondre.
+
 - AEAT - Certificacion de los sistemas informaticos: https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/cuestiones-generales/certificacion-sistemas-informaticos_.html
 - BOE - Orden HAC/1177/2024, articulo 15, contenido de la declaracion responsable: https://www.boe.es/buscar/act.php?id=BOE-A-2024-22138
 - AEAT - Ejemplos de declaraciones responsables: https://sede.agenciatributaria.gob.es/static_files/Sede/Tema/IVA/Verifactu/EjemplosDeclaracionResponsable%28V0.5.1%29.pdf

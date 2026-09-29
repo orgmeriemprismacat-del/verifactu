@@ -1,0 +1,57 @@
+.img-perfil img {
+    border-radius: 50%;
+    max-width: 300px;
+}
+
+.img-perfil:hover img {
+    border-radius: 50%;
+    max-width: 300px;
+    z-index: 1;
+    opacity: 0.4;
+    background: var(--darkGray2);
+    transition: 0.5s ease;
+}
+
+.img-perfil p {
+    font-size: 2rem;
+    color: var(--tutorPrisMa);
+}
+
+.edit-img-campus {
+    display: none !important;
+}
+
+.edit-img-campus i {
+  color: white;
+  font-size: 2.5rem;
+}
+
+.img-perfil:hover .edit-img-campus {
+	opacity: 1;
+	transition: .5s ease;
+	-ms-transform: translate(-50%,-50%);
+	z-index: 100;
+	width: 100%;
+	height: 100%;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+}
+
+.img-perfil:hover > div {
+    opacity: 1;
+    background: black;
+    border-radius: 50%;
+}
+
+.img-perfil:hover .edit-img-campus {
+    display: flex !important;
+}
+
+.cnt-perfil {
+  max-width: 900px;
+}
+
+.subtitol {
+    font-size: 1.3rem;
+}

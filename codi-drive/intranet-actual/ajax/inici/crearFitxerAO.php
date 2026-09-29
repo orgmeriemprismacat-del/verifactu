@@ -1,33 +1,14 @@
 <?php
-
-include ('../../ConnexioIntranet.php');
-include ('../../ConnexioWeb.php');
-include ('../../ConnexioMoodle.php');
-include ('../../ConnexioMoodleAntic.php');
-include ('../../Text.php');
-include ('../../Date.php');
-include ('../../Usuari.php');
-include ('../../Intranet.php');
-include ('../../inc/missatgesError.php');
-session_start();
-
-try {
-
-	$_SESSION['usuari'] = unserialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = unserialize($_SESSION['intranet']);
-
-	echo $_SESSION['intranet']->crearFitxerAO();
-
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-
-}
-catch(Exception $e) {
-	echo missatgeError($e->getCode());
-	// $_SESSION['usuari'] = null;
-	// $_SESSION['intranet'] = null;
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-}
-
-?>
+/**
+ * Endpoint llegat substituït pel processament únic i autoritzat del lot AO.
+ * No permetre invocacions directes que eludeixin CSRF, rol d'edició i ID_INSC.
+ * La pantalla actual envia una única petició a processarLotAO.php.
+ */
+http_response_code(410);
+header('Content-Type: application/json; charset=UTF-8');
+header('Cache-Control: no-store');
+echo json_encode([
+    'ok' => false,
+    'error' => 'ENDPOINT_AO_SUBSTITUIT',
+    'message' => 'Actualitza la pàgina de pujada d’aules obertes.'
+], JSON_UNESCAPED_UNICODE);

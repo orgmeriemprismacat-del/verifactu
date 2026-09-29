@@ -1,0 +1,32 @@
+{
+  "verified_local_date": "2026-09-23",
+  "source_retrieval_date": "2026-09-16",
+  "files": [
+    {
+      "file": "SuministroLR.xsd",
+      "sha256": "cbdac8d427cc5ab5d77ca48974cab0f35d6bb819c4c66db361681e3710aeba36",
+      "source": "https://prewww2.aeat.es/static_files/common/internet/dep/aplicaciones/es/aeat/tikeV1.0/cont/ws/SuministroLR.xsd"
+    },
+    {
+      "file": "SuministroInformacion.xsd",
+      "sha256": "ee4c1655175644de44c4c25055ffeb8e5f4bb4bc3834ce8254d4222ef18c8aa1",
+      "source": "https://prewww2.aeat.es/static_files/common/internet/dep/aplicaciones/es/aeat/tikeV1.0/cont/ws/SuministroInformacion.xsd"
+    },
+    {
+      "file": "RespuestaSuministro.xsd",
+      "sha256": "82acf80f785643caac13087aae66808ed721a13f08ca5218cf8ae81b695549ef",
+      "source": "https://prewww2.aeat.es/static_files/common/internet/dep/aplicaciones/es/aeat/tikeV1.0/cont/ws/RespuestaSuministro.xsd"
+    },
+    {
+      "file": "SistemaFacturacion.wsdl",
+      "sha256": "69cec5e85f39d1ca9f0a6b85b68419996c2945f9bc8354e42135bd6236e66226",
+      "source": "https://prewww2.aeat.es/static_files/common/internet/dep/aplicaciones/es/aeat/tikeV1.0/cont/ws/SistemaFacturacion.wsdl"
+    },
+    {
+      "file": "xmldsig-core-schema.xsd",
+      "sha256": "d102ad3df7664c307e0c2c776ba4a90513b1969974d8a940bae1a77f9f21e15d",
+      "source": "https://www.w3.org/TR/xmldsig-core/xmldsig-core-schema.xsd"
+    }
+  ],
+  "normalization": "UTF-8 without BOM; LF line endings"
+}

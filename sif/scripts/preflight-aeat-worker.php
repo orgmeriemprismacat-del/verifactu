@@ -12,6 +12,7 @@ if (PHP_SAPI !== 'cli') {
 }
 
 $config = require dirname(__DIR__) . '/config/sif.php';
+$config['aeat']['evidence_directory'] = getenv('SIF_AEAT_EVIDENCE_DIR') ?: '';
 $preflight = (new AeatPreflight())->check($config['aeat'] ?? []);
 $result = [
     'ok' => false,

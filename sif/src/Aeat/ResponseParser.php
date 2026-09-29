@@ -24,6 +24,10 @@ final class ResponseParser
         $bodyDoc = new \DOMDocument('1.0', 'UTF-8');
         $bodyDoc->appendChild($bodyDoc->importNode($root, true));
         $codec->validate($bodyDoc, 'RespuestaSuministro.xsd');
+        if ($xp->evaluate('string(r:Cabecera/sf:ObligadoEmision/sf:NIF)', $root)
+            !== ($snapshot['header']['ObligadoEmision']['NIF'] ?? null)) {
+            throw new \RuntimeException('AEAT response issuer mismatch.');
+        }
         $lines = $xp->query('r:RespuestaLinea', $root);
         if ($lines->length !== 1) {
             throw new \RuntimeException('Missing or ambiguous AEAT line response.');
@@ -37,6 +41,13 @@ final class ResponseParser
         $operation = $xp->evaluate('string(r:Operacion/sf:TipoOperacion)', $line);
         if ($operation !== ($snapshot['type'] === 'RegistroAnulacion' ? 'Anulacion' : 'Alta')) {
             throw new \RuntimeException('AEAT response operation mismatch.');
+        }
+        foreach (['Subsanacion', 'RechazoPrevio', 'SinRegistroPrevio'] as $flag) {
+            $returned = $xp->evaluate('string(r:Operacion/sf:' . $flag . ')', $line);
+            $expected = $snapshot['record'][$flag] ?? 'N';
+            if (($returned === '' ? 'N' : $returned) !== $expected) {
+                throw new \RuntimeException('AEAT response operation flags mismatch.');
+            }
         }
         $state = $xp->evaluate('string(r:EstadoRegistro)', $line);
         $status = match ($state) {

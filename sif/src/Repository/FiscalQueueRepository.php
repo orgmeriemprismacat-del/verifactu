@@ -12,7 +12,7 @@ final class FiscalQueueRepository
     {
         $stmt = $db->prepare(
             "UPDATE fiscal_queue
-             SET STATUS = 'RETRY', LOCKED_AT = NULL, NEXT_RETRY_AT = NULL,
+             SET STATUS = 'RETRY', LOCKED_AT = NULL, CLAIM_TOKEN = NULL, NEXT_RETRY_AT = NULL,
                  LAST_ERROR = 'Recovered stale worker lock'
              WHERE STATUS = 'PROCESSING' AND LOCKED_AT IS NOT NULL AND LOCKED_AT < ?"
         );
@@ -38,21 +38,25 @@ final class FiscalQueueRepository
             return null;
         }
 
-        $db->prepare(
+        $claimToken = $this->uuidV4();
+        $update = $db->prepare(
             "UPDATE fiscal_queue
-             SET STATUS = 'PROCESSING', ATTEMPTS = ATTEMPTS + 1, LOCKED_AT = NOW(), LAST_ERROR = NULL
-             WHERE ID = ?"
-        )->execute([$row['ID']]);
+             SET STATUS = 'PROCESSING', ATTEMPTS = ATTEMPTS + 1, LOCKED_AT = NOW(),
+                 CLAIM_TOKEN = ?, LAST_ERROR = NULL
+             WHERE ID = ? AND STATUS IN ('PENDING', 'RETRY')"
+        );
+        $update->execute([$claimToken, $row['ID']]);
+        if ($update->rowCount() !== 1) {
+            throw new \RuntimeException('Fiscal queue item could not be claimed.');
+        }
+
         $row['STATUS'] = 'PROCESSING';
         $row['ATTEMPTS'] = (int) $row['ATTEMPTS'] + 1;
+        $row['CLAIM_TOKEN'] = $claimToken;
 
         return $row;
     }
 
-    /**
-     * A queued registration must be the immutable registration originally chained.
-     * Never infer integrity from a queue item's own hash or its idempotency key.
-     */
     public function assertImmutablePayload(
         \PDO $db,
         array $queueItem,
@@ -92,10 +96,14 @@ final class FiscalQueueRepository
     {
         $stmt = $db->prepare(
             "UPDATE fiscal_queue SET STATUS = 'DEAD_LETTER', LAST_ERROR = ?,
-              LOCKED_AT = NULL, NEXT_RETRY_AT = NULL
-              WHERE ID = ? AND STATUS = 'PROCESSING'"
+              LOCKED_AT = NULL, CLAIM_TOKEN = NULL, NEXT_RETRY_AT = NULL
+              WHERE ID = ? AND STATUS = 'PROCESSING' AND CLAIM_TOKEN = ?"
         );
-        $stmt->execute([substr($message, 0, 2000), $queueItem['ID']]);
+        $stmt->execute([
+            substr($message, 0, 2000),
+            $queueItem['ID'],
+            $this->claimToken($queueItem),
+        ]);
         if ($stmt->rowCount() !== 1) {
             throw new \RuntimeException('Fiscal queue item could not be quarantined');
         }
@@ -111,12 +119,24 @@ final class FiscalQueueRepository
         $payload = $this->payload($queueItem);
         $responseJson = $this->encode($response);
 
-        $db->prepare(
+        $queue = $db->prepare(
             "UPDATE fiscal_queue
-             SET STATUS = 'SENT', SENT_AT = NOW(), LOCKED_AT = NULL,
+             SET AEAT_CSV = ?, AEAT_ERROR_CODE = ?, AEAT_ERROR_MESSAGE = ?, FLOW_WAIT_SECONDS = ?,
+                 STATUS = 'SENT', SENT_AT = NOW(), LOCKED_AT = NULL, CLAIM_TOKEN = NULL,
                  NEXT_RETRY_AT = NULL, LAST_ERROR = NULL
-             WHERE ID = ?"
-        )->execute([$queueItem['ID']]);
+             WHERE ID = ? AND STATUS = 'PROCESSING' AND CLAIM_TOKEN = ?"
+        );
+        $queue->execute([
+            isset($response['csv']) ? mb_substr((string) $response['csv'], 0, 120, 'UTF-8') : null,
+            isset($response['error_code']) ? mb_substr((string) $response['error_code'], 0, 80, 'UTF-8') : null,
+            isset($response['error_message']) ? mb_substr((string) $response['error_message'], 0, 500, 'UTF-8') : null,
+            $response['flow_wait_seconds'] ?? null,
+            $queueItem['ID'],
+            $this->claimToken($queueItem),
+        ]);
+        if ($queue->rowCount() !== 1) {
+            throw new \RuntimeException('Fiscal queue ownership was lost before completion.');
+        }
 
         $record = $db->prepare(
             'UPDATE factura_registres
@@ -144,38 +164,84 @@ final class FiscalQueueRepository
         string $error,
         int $maxAttempts,
         ?string $nextRetryAt
-    ): string
-    {
+    ): string {
         $status = (int) $queueItem['ATTEMPTS'] >= $maxAttempts ? 'DEAD_LETTER' : 'RETRY';
-        $db->prepare(
+        $stmt = $db->prepare(
             'UPDATE fiscal_queue
-             SET STATUS = ?, LAST_ERROR = ?, LOCKED_AT = NULL, NEXT_RETRY_AT = ?
-             WHERE ID = ?'
-        )->execute([
+             SET STATUS = ?, LAST_ERROR = ?, LOCKED_AT = NULL, CLAIM_TOKEN = NULL, NEXT_RETRY_AT = ?
+             WHERE ID = ? AND STATUS = \'PROCESSING\' AND CLAIM_TOKEN = ?'
+        );
+        $stmt->execute([
             $status,
             substr($error, 0, 2000),
             $status === 'RETRY' ? $nextRetryAt : null,
             $queueItem['ID'],
+            $this->claimToken($queueItem),
         ]);
+        if ($stmt->rowCount() !== 1) {
+            throw new \RuntimeException('Fiscal queue ownership was lost before failure handling.');
+        }
 
         if ($status === 'DEAD_LETTER') {
-            $payload = json_decode((string) $queueItem['PAYLOAD_JSON'], true);
-            if (is_array($payload) && isset($payload['fiscal_order'])) {
-                $db->prepare(
-                    "UPDATE factura_registres
-                     SET ESTAT_AEAT = 'ERROR', AEAT_RESPONSE_JSON = ?
-                     WHERE UUID_FACTURA = ? AND FISCAL_ORDER = ?"
-                )->execute([
-                    $this->encode(['status' => 'ERROR', 'message' => $error]),
-                    $queueItem['UUID_FACTURA'],
-                    $payload['fiscal_order'],
-                ]);
-            }
-            $db->prepare("UPDATE factura SET ESTAT_AEAT = 'ERROR' WHERE UUID_FACTURA = ?")
-                ->execute([$queueItem['UUID_FACTURA']]);
+            $this->markFiscalError($db, $queueItem, $error);
         }
 
         return $status;
+    }
+
+    public function holdForReview(\PDO $db, array $queueItem, string $reason): void
+    {
+        $stmt = $db->prepare(
+            "UPDATE fiscal_queue
+             SET STATUS = 'REVIEW', LAST_ERROR = ?, LOCKED_AT = NULL, CLAIM_TOKEN = NULL,
+                 NEXT_RETRY_AT = NULL
+             WHERE ID = ? AND STATUS = 'PROCESSING' AND CLAIM_TOKEN = ?"
+        );
+        $stmt->execute([
+            substr($reason, 0, 2000),
+            $queueItem['ID'],
+            $this->claimToken($queueItem),
+        ]);
+        if ($stmt->rowCount() !== 1) {
+            throw new \RuntimeException('Fiscal queue ownership was lost before review hold.');
+        }
+    }
+
+    public function exhaust(\PDO $db, array $queueItem, string $reason): void
+    {
+        $stmt = $db->prepare(
+            "UPDATE fiscal_queue
+             SET STATUS = 'DEAD_LETTER', LAST_ERROR = ?, LOCKED_AT = NULL, CLAIM_TOKEN = NULL,
+                 NEXT_RETRY_AT = NULL
+             WHERE ID = ? AND STATUS IN ('PENDING', 'RETRY') AND ATTEMPTS >= ?"
+        );
+        $stmt->execute([
+            substr($reason, 0, 2000),
+            $queueItem['ID'],
+            (int) $queueItem['ATTEMPTS'],
+        ]);
+        if ($stmt->rowCount() !== 1) {
+            throw new \RuntimeException('Exhausted fiscal queue item could not be quarantined.');
+        }
+        $this->markFiscalError($db, $queueItem, $reason);
+    }
+
+    private function markFiscalError(\PDO $db, array $queueItem, string $error): void
+    {
+        $payload = json_decode((string) $queueItem['PAYLOAD_JSON'], true);
+        if (is_array($payload) && isset($payload['fiscal_order'])) {
+            $db->prepare(
+                "UPDATE factura_registres
+                 SET ESTAT_AEAT = 'ERROR', AEAT_RESPONSE_JSON = ?
+                 WHERE UUID_FACTURA = ? AND FISCAL_ORDER = ?"
+            )->execute([
+                $this->encode(['status' => 'ERROR', 'message' => $error]),
+                $queueItem['UUID_FACTURA'],
+                $payload['fiscal_order'],
+            ]);
+        }
+        $db->prepare("UPDATE factura SET ESTAT_AEAT = 'ERROR' WHERE UUID_FACTURA = ?")
+            ->execute([$queueItem['UUID_FACTURA']]);
     }
 
     private function payload(array $queueItem): array
@@ -188,6 +254,15 @@ final class FiscalQueueRepository
         return $payload;
     }
 
+    private function claimToken(array $queueItem): string
+    {
+        $token = (string) ($queueItem['CLAIM_TOKEN'] ?? '');
+        if ($token === '') {
+            throw new \RuntimeException('Missing fiscal queue claim token.');
+        }
+        return $token;
+    }
+
     private function encode(array $value): string
     {
         $json = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -196,5 +271,16 @@ final class FiscalQueueRepository
         }
 
         return $json;
+    }
+
+    private function uuidV4(): string
+    {
+        $bytes = random_bytes(16);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+        $hex = bin2hex($bytes);
+
+        return substr($hex, 0, 8) . '-' . substr($hex, 8, 4) . '-' . substr($hex, 12, 4)
+            . '-' . substr($hex, 16, 4) . '-' . substr($hex, 20);
     }
 }

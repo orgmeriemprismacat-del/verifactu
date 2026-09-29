@@ -82,6 +82,9 @@ Definir camps, significat, valors permesos i taula on viuen.
 
 ### factura_registres.ESTAT_ENVIO
 
+Nota de correspondència executable (2026-09-23): la columna SQL vigent es
+diu `factura_registres.ESTAT_AEAT`; `ESTAT_ENVIO` és el nom documental anterior.
+
 - `PENDING`: registre fiscal creat, pendent d'enviament.
 - `SENT`: enviat a AEAT.
 - `ACCEPTED`: acceptat.
@@ -159,6 +162,29 @@ Definir camps, significat, valors permesos i taula on viuen.
 - `ADMIN_BD`: administracio tecnica reservada.
 
 ## 3. Regla general
+
+Correspondència del circuit AEAT implementat (2026-09-23):
+
+| Camp | Significat executable |
+| --- | --- |
+| `fiscal_queue.STATUS=DEAD_LETTER` | Intents esgotats o integritat incorrecta; revisió obligatòria. No és `FAILED`. |
+| `fiscal_queue.STATUS=SENT` | Resposta fiscal processada; pot contenir rebuig. |
+| `factura_registres.ESTAT_AEAT=ACCEPTED_WITH_ERRORS` | Acceptat amb errors; cal revisar/subsanar. |
+| `factura_registres.ESTAT_AEAT=ERROR` | Fallada tècnica esgotada; no equival a rebuig fiscal. |
+| `PAYLOAD_JSON.aeat` | Snapshot oficial de capçalera, tipus i registre immutable. |
+| `PAYLOAD_JSON.aeat.record.Huella` | SHA-256 oficial AEAT en majúscules. |
+| `HASH_FACT`, `HASH_FACT_ANT` | Digests JSON de la cadena interna, no huelles AEAT. |
+| `PAYLOAD_JSON.request_hash` | Empremta estable per comparar reusos de referència en anul·lació/subsanació. |
+| `aeat_worker_state.NEXT_SEND_AT` | Proper instant admès per al worker serial, persistent entre processos. |
+| `AEAT_RESPONSE_JSON.flow_wait_seconds` | Espera retornada per AEAT; el worker aplica un mínim conservador de 60 segons. |
+| `AEAT_RESPONSE_JSON.evidence_id` | Directori privat d'intent, amb XML i hashes. |
+| `AEAT_RESPONSE_JSON.csv` | CSV retornat, si existeix; no s'inventa en errors. |
+| `AEAT_RESPONSE_JSON.duplicate` | Rebuig per duplicat que exigeix conciliació; no acceptació automàtica. |
+
+Els camps `AEAT_CSV`, `AEAT_ERROR_CODE`, `AEAT_ERROR_MESSAGE` i
+`FLOW_WAIT_SECONDS` de la cua es poblen en processar la resposta. El JSON
+de resposta és la font completa; `AEAT_ERROR_MESSAGE` és un resum de màxim
+500 caràcters UTF-8. Els camps absents de la resposta es conserven com a NULL.
 
 Els estats fiscals no haurien de ser text lliure. Si cal un estat nou, s'ha d'afegir primer a aquest diccionari i despres a la BD/codi.
 

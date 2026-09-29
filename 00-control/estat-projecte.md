@@ -189,7 +189,6 @@ Actualitza els fitxers de control del projecte: estat-projecte.md, registre-deci
 
 ## 2026-06-20 - Implementacio asincrona Redsys: 9 de 9 completades
 
-<<<<<<< HEAD
 - Preparat un worktree aillat `feature/redsys-async-queue` amb PHP 8.4.22 i MySQL 8.0.40 de test.
 - Completades les targetes: `redsys_payment_intent`, `redsys_callback_queue`, callback transaccional, worker, dispatcher dels cinc origens, resultat persistent, reintents/incidencies, duplicats contradictoris i operacio CLI/preflight.
 - El callback ja no usa `IDPAG` de query string; valida import/divisa/terminal contra la intencio i conserva camps signats normalitzats.
@@ -592,11 +591,274 @@ L'usuari reclama confirmar el registre de qualsevol gestió que afecti un pagame
 - La base segura ha de superar totes quatre proves `SIF-PANT-SEC-*` abans d'habilitar confirmacions en preproduccio.
 - Una captura de boto bloquejat no substitueix una peticio directa rebutjada, i una pantalla d'exit no substitueix la prova d'idempotencia.
 - No s'ha carregat `xat-original`, no s'ha modificat codi ni s'ha fet commit o push.
-=======
+## 2026-06-20 - Nota complementaria de la branca Redsys
+
 - Preparat el worktree `feature/redsys-async-queue` amb PHP 8.4.22 i MySQL 8.0.40 de test.
 - Completades les nou targetes: intencions, cua durable, callback transaccional, worker, dispatcher dels cinc origens, resultat persistent, reintents/incidencies, duplicats contradictoris i operacio CLI/preflight.
 - El callback no usa `IDPAG` de query string; compara import, divisa i terminal amb la intencio i conserva els camps signats normalitzats.
 - El worker consumeix `SNAPSHOT_JSON` sense connexio ni sincronitzacio legacy automatica.
 - Verificacio: `276 passed, 0 failed`; preflight Redsys `ok=true`; migracions `000003` i `000004` aplicades sobre MySQL 8.0.40.
 - El go/no-go confirma el circuit Redsys asincron, pero continua `NO-GO` global per manca de BD legacy de preproduccio.
->>>>>>> feature/redsys-async-queue
+
+## 2026-09-22 - Recopilació de l'estat real del repositori
+
+- Branca activa `main`, alineada amb `origin/main` al commit `e71958b`
+  (`Arxiu actuals`). S'hi han fusionat el checkpoint SIF, la cua Redsys
+  asíncrona, el reforç d'idempotència i una part extensa de l'UML integrat.
+- Inventari SIF actual: 102 fitxers PHP a `src`, 63 scripts PHP, 3 endpoints
+  públics, 135 fitxers de prova amb 344 mètodes, 9 migracions i 61 taules
+  úniques creades per SQL.
+- Existeixen client/codec/transport AEAT, processador de cua fiscal, worker
+  Redsys, `MigrationRunner` i validació de hash d'idempotència. El
+  `PaymentActionGateway` continua sense cap ús al PHP d'execució fora de la
+  seva pròpia classe.
+- Hi ha 142 fitxes funcionals: 3 declaren `PARTIAL_CODE_AVAILABLE` i 139
+  `NOT_COMPLETE`; totes continuen en revisió de cas. El validador falla perquè
+  UC-77 té 22 apartats H2, i hi ha 1.874 referències de hash desactualitzades
+  que afecten les 142 fitxes i 18 fonts.
+- `documentacio/07-uml-integrat` conté 142 fitxes UML, 428 blocs Mermaid i 212
+  blocs PlantUML. La branca remota UML encara té 113 commits no ancestrals de
+  `main` i modifica 111 fitxes des del seu punt de divergència; cal reconciliar
+  abans de declarar el catàleg tancat.
+- L'entorn local portable ja existeix: PHP 8.4.25 i MySQL 8.4.10. MySQL no
+  estava iniciat durant aquesta recopilació. L'última evidència és de
+  2026-09-17 (`291 passed, 0 failed`, lint de 288 fitxers), però és anterior a
+  81 canvis posteriors de codi/proves/SQL i no valida el `HEAD` actual.
+- `main` conté marcadors de conflicte de merge versionats a
+  `estat-projecte.md` i `ConnectionFactoryTest.php`; aquest test produeix error
+  de sintaxi PHP. L'estat actual no és executable com a suite completa.
+- El commit `e71958b` va afegir 3.330 fitxers de `codi-drive`. En total n'hi ha
+  3.356 de versionats (288,55 MiB), inclosos 589 PDF i 476 rutes amb
+  `certificat` al nom. No s'han obert aquests documents: requereixen revisió de
+  dades personals, finalitat i autorització de publicació.
+- La còpia local `intranet-collaboradors` continua sense versionar: 3.523
+  fitxers, dels quals 2.957 són PDF. `.gitignore` té una modificació local que
+  elimina les exclusions de cinc snapshots; no s'ha de commitejar ni afegir
+  aquest directori sense una decisió explícita.
+- No s'ha llegit `xat-original`, no s'ha modificat `codi-drive` ni `sif`, no
+  s'ha iniciat MySQL i no s'ha fet commit ni push. L'estat continua `[NO-GO]`.
+
+## 2026-09-22 - Retirada de PDF i rutes de certificat de `codi-drive`
+
+- Eliminats del directori de treball 589 fitxers PDF versionats i 476 fitxers
+  versionats amb `certificat` a la ruta. Els dos conjunts no se solapaven: total
+  1.065 eliminacions, totes limitades a `codi-drive`.
+- La retirada s'ha fet amb `git rm`; les 1.065 eliminacions han quedat a
+  l'índex, però no s'ha fet commit ni push.
+- `codi-drive/intranet-collaboradors` no s'ha tocat i conserva 3.523 fitxers
+  locals sense versionar.
+- Els fitxers encara són recuperables i continuen presents a l'historial Git i
+  al repositori remot fins que s'autoritzi el tractament corresponent. Un commit
+  ordinari els retirarà del `HEAD`, però no els purgarà de commits anteriors.
+
+## 2026-09-23 - Contractes API de pantalles internes preparats
+
+- Creat `documentacio/03-canvis-pendents/15-contractes-api-pantalles-internes.md` amb peticions, respostes, estats HTTP, errors i mapatge als serveis SIF.
+- La frontera separa DTO de pantalla i payload SIF: actor, rol, canal, serie, tipus de moviment, assignacio i camps derivats els fixa el servidor.
+- La confirmacio consumeix un preview congelat i no torna a acceptar imports, receptor, linies o motius modificables pel client.
+- Els contractes de pagament, factura abans del cobrament i rectificacio s'han alineat amb els builders i resultats PHP existents.
+- Definits tambe consulta de factures, resum VERI*FACTU, portal extern, codis d'error, camps sensibles, versionat i proves de contracte.
+- No s'ha carregat `xat-original`, no s'ha modificat codi ni s'ha fet commit o push en aquest tall.
+
+## 2026-09-23 - Integració AEAT i revisió executable
+
+- Revisats els components actuals de snapshot, huella oficial, XML/XSD,
+  certificat PKCS#12, transport SOAP/mTLS de proves, evidències i worker
+  serial; preservats els canvis de les altres tasques.
+- Corregit un error a FiscalRecordRepository: la comprovació de request_hash
+  era al mètode de creació, amb variable inexistent. Ara valida el reús abans
+  de retornar el resultat i bloqueja referències d'una altra factura.
+- ResponseParser correlaciona també Subsanacion, RechazoPrevio i
+  SinRegistroPrevio. Una resposta d'alta inicial no accepta una subsanació.
+- Preflight alineat amb cURL, endpoint de proves, certificat usable i directori
+  privat d'evidències. Cap enviament real efectuat.
+- 15 proves específiques AEAT correctes (11 de protocol/seguretat i 4
+  d'integració) sobre PHP 8.4.25/MySQL 8.4.10. BD nova i aïllada:
+  sif_test_aeat_review_20260923. La BD de test compartida no s'ha buidat.
+- Lint de 20 fitxers revisats correcte. Recompte d'esquema actualitzat a 62
+  taules amb la migració additiva de control d'espera AEAT.
+- Creat documentacio/01-compliment-aeat/annex-integracio-aeat.md i manifest
+  SHA-256 dels esquemes a sif/resources/aeat/manifest.json. Actualitzats AEAT,
+  declaració, versions, seguretat i diccionari.
+- Pendent extern: certificat/representació real, servidor i ACL, classificació
+  fiscal de tots els canals, planificador/alertes, conciliació de duplicats,
+  proves AEAT i portes G1..G7. La candidata continua NO-GO productiu.
+- No s'ha llegit xat-original ni s'ha fet commit/push. No s'han alterat les
+  eliminacions de codi-drive que ja eren a l'índex.
+
+
+### Resultat final de la revisió AEAT
+
+- Regressió completa: **363 passed, 0 failed**, a la BD aïllada indicada.
+  L'error inicial del recompte de 61/62 taules ha quedat resolt.
+- Evidències locals fora de Git:
+  sif/var/evidence/2026-09-23-aeat-review-regression-final.log,
+  2026-09-23-aeat-review-protocol.log,
+  2026-09-23-aeat-review-source-manifest.json i
+  2026-09-23-aeat-review-preflight.json.
+- Cap hash de codi/proves/SQL/esquemes ha canviat durant la verificació final.
+- Preflight real local: ready_to_send=false. PHP local sense cURL activat i
+  sense certificat usable configurat. No s'ha iniciat cap connexió AEAT.
+
+## 2026-09-23 - Continuació: CLI fiscals i resposta AEAT
+
+- Els CLI preview-fiscal-record.php i process-fiscal-record.php comparteixen
+  FiscalRecordArguments i admeten corrected-fields local, tots els modes de
+  subsanació i cancellation-mode. Rebutgen opcions ambigües/repetides i JSON
+  malformat, buit, remot o superior a 1 MiB.
+- El preview valida el snapshot XML/XSD sense escriure ni avançar la cadena;
+  retorna XML provisional i aplica les mateixes regles de transició que la
+  confirmació. Els reusos idempotents retornen el resultat existent.
+- Corregit el bypass de rebuig previ de l'àlies SIN_REGISTRO_PREVIO en
+  subsanació oficial. Les regles comunes viuen a FiscalRecordTransitionValidator.
+- FiscalQueueRepository pobla AEAT_CSV, AEAT_ERROR_CODE, AEAT_ERROR_MESSAGE
+  i FLOW_WAIT_SECONDS. El resum UTF-8 no substitueix el text complet del JSON.
+- cURL activat exclusivament a sif/var/runtime/php/php.ini, fora de Git i
+  sense canviar el PHP global ni enviar peticions a AEAT.
+- 23 proves AEAT específiques correctes; 13 fitxers PHP revisats amb lint
+  correcte. Evidències del tall amb prefix 2026-09-23-aeat-cli a sif/var/evidence.
+- Cap commit/push, cap lectura de xat-original i cap canvi sobre les
+  eliminacions prèvies de codi-drive.
+
+Resultat final de la continuació:
+- Regressió **371 passed, 0 failed**, amb manifest sense canvis durant la prova.
+- Preflight: curl_extension=true, ready_to_send=false,
+  certificate_usable=false, evidence_directory_private=false.
+- Logs: sif/var/evidence/2026-09-23-aeat-cli-regression.log,
+  2026-09-23-aeat-cli-protocol.log, 2026-09-23-aeat-cli-preflight.json i
+  2026-09-23-aeat-cli-source-manifest.json. Estat productiu NO-GO.
+
+## Integritat d'esquemes i evidències AEAT — 2026-09-24
+
+Implementat SchemaManifest al constructor XmlCodec i al preflight: exigeix
+els cinc recursos i els SHA-256 del manifest. Recursos normalitzats a UTF-8
+sense BOM i LF, preservats amb .gitattributes.
+Nou CLI verify-aeat-evidence.php de només lectura: comprova parelles XML/JSON,
+hashes, límits de ruta i intents incomplets o fallits. No acredita acceptació AEAT.
+26 proves específiques correctes i lint de set fitxers PHP correcte.
+Preflight: bundled_schemas_integrity=true i ready_to_send=false.
+Certificat/configuració privada i qualificació externa encara pendents; NO-GO.
+
+Verificació final 2026-09-24: **374 passed, 0 failed** a la BD aïllada
+sif_test_aeat_review_20260923; cap canvi dels hashes de codi durant la regressió.
+Logs locals a sif/var/evidence/2026-09-24-aeat-integrity-regression.log,
+2026-09-24-aeat-integrity-preflight.json i
+2026-09-24-aeat-integrity-source-manifest.json. Les 26 proves específiques
+consten a 2026-09-23-aeat-integrity-tests.log. Cap enviament AEAT ni commit/push.
+
+## Espera global després d'errors del transport — 2026-09-24
+
+Corregit FlowControlledTransport: un timeout o un temps d'espera invàlid
+reinicia el mínim conservador de 60 segons des del final de l'intent.
+La prova d'integració simula l'expiració del termini inicial durant el
+transport i comprova que un worker nou respecta l'espera persistent sense
+incrementar els intents, encara que NEXT_RETRY_AT ja estigui vençut.
+Validació d'aquest canvi: 27 proves AEAT específiques correctes, cap fallada;
+lint dels dos fitxers PHP i diff --check correctes. Log local:
+sif/var/evidence/2026-09-24-aeat-retry-tests.log.
+No s'ha repetit la regressió completa; el resultat anterior de 374 proves
+correspon al tall d'integritat, anterior a aquesta correcció.
+Continuen pendents certificat real, configuració privada i proves externes.
+Cap enviament AEAT, commit/push ni lectura del xat antic.
+
+## Propagació de revisió AEAT — 2026-09-24
+
+FiscalQueueProcessor propaga requires_review i SerialWorker obre AEAT_REVIEW
+quan aquesta marca és certa, incloses respostes ACCEPTED amb revisió o duplicat.
+Es conserven l'estat fiscal i la resposta; no es reenvia el registre per la incidència.
+28 proves específiques correctes, cap fallada; lint de tres fitxers correcte.
+La prova nova cobreix requires_review i duplicate per separat, persistència de
+la incidència i absència de reenviament o incidències repetides en el cicle següent.
+També es comprova que una acceptació ordinària no obre una incidència.
+Log: sif/var/evidence/2026-09-24-aeat-review-flag-tests.log.
+No s'ha repetit la regressió completa. Certificat i qualificació externa pendents.
+Cap enviament AEAT, commit/push ni lectura del xat antic.
+
+## Proves de concurrència i recuperació AEAT — 2026-09-24
+
+Afegides dues proves a AeatWorkflowTest, sense canvis al codi de producció.
+Dues connexions MySQL comproven que WORKER_BUSY no reclama ni recupera files;
+alliberat el lock, la recuperació explícita reprèn l'intent amb pressupost.
+Un intent recuperat amb tres intents esgotats passa a DEAD_LETTER, obre una
+única AEAT_DEAD_LETTER i bloqueja el registre següent sense cridar el transport.
+Resultat: 30 proves específiques correctes, cap fallada; lint correcte.
+Log: sif/var/evidence/2026-09-24-aeat-recovery-tests.log.
+No s'ha repetit la regressió completa. Queda pendent la recuperació real
+al servidor, el certificat i la qualificació externa. Cap enviament ni commit/push.
+
+## Tancament de validació local PHP/MySQL — 2026-09-24
+
+- Entorn disponible: PHP 8.4.25 CLI amb pdo_mysql, openssl i mbstring; MySQL Community 8.4.10 local a 127.0.0.1:3307. Configuració i secrets a sif/var/, exclòs de Git.
+- Deu migracions verificades a sif_test. Instal·lació independent en una BD temporal buida: deu aplicades, reexecució idempotent i 62 taules de model verificades (més el ledger). BD temporal eliminada en acabar.
+- Suite completa del codi actual: **378 passed, 0 failed**. Lint: **328 fitxers PHP correctes**. Manifest contrastat sense canvis de fonts durant la validació.
+- Preflight SIF: exit 0, esquema verificat. Go/no-go: exit 1, NO-GO per clau Redsys absent i taules legacy inscripcions, curs, regal i respGrups absents. No s'han inventat secrets ni dades per obtenir GO.
+- La infraestructura comparteix MigrationRunner entre migracions, tests i preflight; comprova hashes, taules i columnes, protegeix el reset amb nom de BD/entorn i impedeix suites simultànies amb lock MySQL. Les proves cobreixen també fallades deliberades del ledger i de l'esquema.
+- Evidències locals: sif/var/evidence/2026-09-24-infra-{migrations.txt,clean-install.txt,tests.txt,lint.txt,manifest.json,preflight.json,go-no-go.json}. Instruccions: sif/tests/README.md i sif/scripts/local-test.ps1.
+- Aquest resultat actualitza les regressions anteriors i inclou les darreres proves de recuperació AEAT. No acredita enviaments externs, certificat, integració legacy real, restauració al servidor ni les portes G1..G7. Estat global NO-GO.
+- Sense lectura del xat antic, enviaments externs, commit ni push. Conservats els canvis previs del repositori.
+
+
+## 2026-09-25 — Continuació de revisió UML: UC-108
+
+Reconciliades fitxa, casos d’ús, classes, seqüència i activitats del tastet amb les decisions DEC-108 ja acordades. Corregida la dependència UC-125 sobre alta directa al butlletí. L’auditoria del lot 01, apartat 6, conserva troballes i pendents concrets; correccions històriques UC-108/110/125 ja incorporades identificades. Cap decisió nova de negoci, canvi de PHP ni prova funcional. UC-108 continua obert pels detalls identificats; no es dona per completada la revisió dels 142 casos.
+
+
+## 2026-09-25 — DEC-108-06: tastets fora del SIF
+
+**DEC-108-06 ACORDADA (25/09/2026):** per decisió de la usuària, els tastets es gestionen només al web, la intranet i el campus. No es crea cap operació SIF `commercial_operation` / `NON_BILLABLE` / `FREE_SAMPLE` per la sol·licitud gratuïta. Aquesta exclusió no afecta una compra posterior de pagament, que tindrà el seu cas propi.
+
+Font: resposta explícita «només a la web intranet i campus». Actualitzada la documentació UML integrada i l’auditoria del lot 01; cap canvi de codi ni de dades.
+
+
+### 25/09/2026 — Desbloqueig d’un sol ús, DEC-108-03e
+
+**DEC-108-03e ACORDADA (25/09/2026):** cada desbloqueig de secretaria/suport autoritza una única nova inscripció de la mateixa persona al mateix tastet després de caducar l’accés. Un cop utilitzat, repetir el tastet després d’una nova caducitat requereix una nova autorització. Els reintents de la mateixa petició no són noves inscripcions. DEC-108-03f confirma que el desbloqueig no caduca abans d’utilitzar-lo.
+
+Font: confirmació explícita de la usuària a la proposta d’una única nova inscripció. Actualitzades fitxes, activitats, seqüència i contracte de classes de disseny; criteri tècnic derivat i proves TG-108-DU1–DU4 identificats com a pendents, sense modificar PHP ni BD.
+
+
+### 25/09/2026 — Confirmació del còmput d’accés (DEC-108-02b/d)
+
+La usuària confirma que els **7 dies d’accés comencen amb l’activació efectiva al campus**, no amb l’enviament del formulari web. Es conserva la regla ja acordada: venciment set dies després a la mateixa hora de l’activació. La caducitat del desbloqueig és una qüestió separada: resolta posteriorment a DEC-108-03f, sense termini abans del primer ús. Es manté el desbloqueig d’un sol ús (DEC-108-03e).
+
+
+### 25/09/2026 — Vigència del desbloqueig
+
+**DEC-108-03f ACORDADA (25/09/2026):** el desbloqueig no té caducitat temporal mentre no s’hagi utilitzat: la persona pot enviar el formulari quan vulgui. Es manté l’ús únic per persona+tastet (DEC-108-03e) i la validació que el tastet estigui actiu. Els set dies d’accés comencen amb l’activació efectiva al campus (DEC-108-02b/d), no amb el desbloqueig ni amb l’enviament del formulari.
+
+Font: resposta explícita «pot fer-ho quan vulgui». Decisió documental; implementació i proves no acreditades per aquesta actualització.
+
+
+### 25/09/2026 — Canal de petició del desbloqueig
+
+**DEC-108-03g ACORDADA (25/09/2026):** la persona demana el desbloqueig del tastet per correu electrònic. Secretaria/suport gestiona el desbloqueig segons DEC-108-03a; l’enviament del correu no és una nova inscripció ni activa l’accés al campus. Després del desbloqueig, és la persona qui emplena i envia el formulari web. El desbloqueig es fa des del campus (DEC-108-03h); l’adreça destinatària i el control concret del campus no s’han precisat.
+
+Font: resposta explícita «escriu un coreu». Actualització documental; cap correu enviat ni canvi de codi.
+
+
+### 25/09/2026 — Sistema de gestió del desbloqueig
+
+**DEC-108-03h ACORDADA (25/09/2026):** secretaria o suport fa el desbloqueig des del campus, segons resposta explícita de la usuària. El canal de petició és el correu electrònic (03g). Resta identificar l’acció concreta del campus i el seu efecte sobre l’accés i la possible reinscripció web; no s’infereix una sincronització campus→web ni un nou servei automàtic. Es mantenen les regles acordades d’ús únic, absència de caducitat abans de l’ús i set dies des de l’activació efectiva.
+
+Actualització de fitxes i diagrames; no s’ha operat al campus ni modificat PHP/BD.
+
+
+### 25/09/2026 — Acció concreta al campus i coherència pendent
+
+**DEC-108-03i ACORDADA (25/09/2026):** el desbloqueig es fa canviant la data de venciment al campus. Aquesta és l’acció concreta confirmada per la usuària. **COHERÈNCIA PENDENT:** precisar si aquest canvi renova directament l’accés existent o si encara cal el nou formulari web descrit a DEC-108-03a/e/f, i des de quin instant es calcula el nou venciment. No afirmar que canviar la data crea una autorització web ni una nova matrícula. La regla dels set dies des de l’activació efectiva es manté; no s’infereix un còmput des del primer inici de sessió. El circuit de repetició de tastet i la pròrroga per incidència de claus no s’assimilen automàticament.
+
+Font: resposta explícita «Canvieu la data de venciment». La usuària demana agrupar les preguntes per agilitzar la definició. Actualització documental; cap acció executada al campus.
+
+
+### 25/09/2026 — Renovació aclarida per la usuària
+
+**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+
+Font: respostes agrupades 1–3 de la usuària. La renovació queda definida documentalment; no s’ha executat cap canvi al campus, enviament ni prova funcional.
+
+
+## 2026-09-25 — UC-108: decisions contrastades i revisió de codi-drive
+
+**Decisions confirmades el 25/09/2026:** (DEC-108-03m) es pot tornar a renovar si la persona ho demana, tot i que la usuària indica que això no passa habitualment; no s’ha establert un màxim numèric ni una renovació automàtica. (DEC-108-01a) la identificació per comprovar repetició del tastet és el **DNI**, conjuntament amb el tastet. (DEC-108-07) avisos de tastets i butlletí general pertanyen a **la mateixa subscripció**; no dissenyar dues subscripcions independents per aquests dos noms. Els avisos operatius d’accés/renovació continuen independents de l’opció comercial.
+
+Preferència expressa: revisar primer tot el codi disponible i la documentació abans de preguntar dades deduïbles. Inventari i contrast global a `00-control/revisio-codi-drive-2026-09-25/`; lectura semàntica dirigida i escaneig automàtic es distingeixen explícitament.

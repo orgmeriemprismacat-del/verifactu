@@ -1,34 +1,24 @@
 <?php
 
-include ('../../ConnexioIntranet.php');
-include ('../../ConnexioWeb.php');
-include ('../../Text.php');
-include ('../../Usuari.php');
-include ('../../Intranet.php');
-include ('../../inc/missatgesError.php');
-session_start();
+$root = dirname(__DIR__, 2);
+require_once $root . '/LegacyInvoiceReadContext.php';
+
+$user = null;
+$intranet = null;
 
 try {
-	$_SESSION['usuari'] = unserialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = unserialize($_SESSION['intranet']);
+    [$user, $intranet] = LegacyInvoiceReadContext::open();
 
-	$dni 			= $_GET['dni'];
-	$email 		= $_GET['email'];
-	$factRel 	= $_GET['factRel'];
-	$factNum 	= $_GET['factNum'];
+    $dni = (string) ($_GET['dni'] ?? '');
+    $email = (string) ($_GET['email'] ?? '');
+    $factRel = (string) ($_GET['factRel'] ?? '');
+    $factNum = (string) ($_GET['factNum'] ?? '');
 
-	$mostrar = 	$_SESSION['intranet']->buscarUsuaris_Factures($dni,
-					$email, $factRel, $factNum );
-
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-
-	echo $mostrar;
+    echo $intranet->buscarUsuaris_Factures($dni, $email, $factRel, $factNum);
+} catch (Throwable $exception) {
+    $code = (int) $exception->getCode();
+    http_response_code($code >= 400 && $code <= 599 ? $code : 500);
+    echo 'Error: ' . $exception->getMessage();
+} finally {
+    LegacyInvoiceReadContext::persist($user, $intranet);
 }
-catch(Exception $e) {
-	echo missatgeError($e->getCode());
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-}
-
-?>

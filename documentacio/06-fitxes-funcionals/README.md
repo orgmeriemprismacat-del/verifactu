@@ -22,7 +22,7 @@ Catàleg navegable generat des de `33-casos-us-sif.md`. Cada fitxa té 21 aparta
 | UC-14 | Comprar curs normal per Redsys | facturació i registre fiscal | `[ASYNC/PARCIAL]` | [uc-014.md](./uc-014.md) |
 | UC-14a | Comprar taller | facturació i registre fiscal | `[PARCIAL]` | [uc-014a.md](./uc-014a.md) |
 | UC-14b | Comprar jornada | facturació i registre fiscal | `[PARCIAL]` | [uc-014b.md](./uc-014b.md) |
-| UC-15 | Comprar pack | facturació i registre fiscal | `[BASE/ASYNC/PARCIAL]` | [uc-015.md](./uc-015.md) |
+| UC-15 | Comprar pack | facturació i registre fiscal | `[REVIEWED/ASYNC/PARCIAL]` | [uc-015.md](./uc-015.md) |
 | UC-16 | Facturar grup | facturació i registre fiscal | `[BASE/ASYNC/PARCIAL]` | [uc-016.md](./uc-016.md) |
 | UC-16a | Afegir participant després d'emetre | facturació i registre fiscal | `[DISSENY]` | [uc-016a.md](./uc-016a.md) |
 | UC-16b | Treure participant després d'emetre | facturació i registre fiscal | `[DISSENY]` | [uc-016b.md](./uc-016b.md) |

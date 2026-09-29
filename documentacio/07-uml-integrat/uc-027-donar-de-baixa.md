@@ -230,3 +230,85 @@ Note over UI,F: No es reverteix cap REFUND, saldo o rectificativa per un canvi d
 [Fitxa base UC-27](../06-fitxes-funcionals/uc-027.md) · [Fitxa UC-72](../06-fitxes-funcionals/uc-072.md) · [Fluxos de baixa](../03-canvis-pendents/04-fluxos-facturacio.md) · [Estat final d'operació](../04-estat-final/18-estat-final-operacio-incidencies.md) · [Seqüències del SIF](../04-estat-final/32-diagrames-sequencia-sif.md) · [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php) · [Migració d'events](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql) · [UC-28 devolució](uc-028-registrar-devolucio.md) · [UC-29 saldo](uc-029-crear-saldo.md) · [UC-05 rectificativa](uc-005-rectificar-factura.md).
 
 **Pendent de validar:** recorregut exacte del codi llegat de baixa, autoria i dates, justificants, titular del retorn, permisos, deduplicació, inscripció real de l'event i proves de gestió fins a la correcció fiscal.
+
+## 6. Diagrames d'activitat de la baixa individual des de la fitxa de l'alumne
+
+**Separació de responsabilitats:** [pantalla «Consulta - Modifica» i set captures indexades sense originals](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md); [fitxa funcional UC-027, apartat 23](../06-fitxes-funcionals/uc-027.md). **ACTUAL** documenta el JS i [`Intranet.php` L9107–9164](../../codi-drive/intranet-actual/Intranet.php#L9107-L9164), [L9172–9465](../../codi-drive/intranet-actual/Intranet.php#L9172-L9465) i [L9472–9495](../../codi-drive/intranet-actual/Intranet.php#L9472-L9495), sense assumir que el clic d'obrir el modal executa la baixa. **FINAL** és el comportament objectiu amb comprovació per etapa, no codi desplegat.
+
+### AL-027-A · Baixa individual — ACTUAL
+
+```plantuml
+@startuml
+title AL-027-A ACTUAL | Baixa individual del registre
+start
+:Prémer icona baixa de la inscripció;
+:GET mostraModalDonarBaixa per idInsc;
+:Consultar estat, import a pagar i PAGAMENT de la inscripció;
+:Mostrar modal amb motiu i casella no enviar correu;
+if (Clic Confirma la baixa?) then (Sí)
+  if (Motiu i idInsc no buits al JS?) then (Sí)
+    :GET confirmacioBaixa_DonarBaixa amb motiu i casella;
+    :PHP consulta inscripció actual;
+    if (Inscrit = 1?) then (Sí)
+      :Intentar donar de baixa Moodle nou o antic;
+      if (Té aula oberta perenne?) then (Sí)
+        :Intentar baixa corresponent al campus;
+      endif
+    endif
+    :Consultar tutor i preparar avisos segons condicions;
+    :Executar updInscBaixaCurs per idInsc;
+    if (Enviament a alumne habilitat?) then (Sí)
+      :Preparar/enviar correu de confirmació;
+    endif
+    :Retornar text;
+    :JS decideix èxit/error segons cadena de resposta;
+  else (No)
+    :Mostrar error de validació;
+  endif
+else (No)
+  :Tancar modal sense petició de baixa;
+endif
+note right
+  Seqüència BD, campus i correu:
+  no es veu transacció distribuïda.
+  PAGAMENT llegat no prova devolució.
+end note
+stop
+@enduml
+```
+
+### AL-027-A · Baixa individual — FINAL
+
+```plantuml
+@startuml
+title AL-027-A FINAL | Baixa amb fases auditades i decisió econòmica separada
+start
+:Carregar inscripció i actor autoritzat al servidor;
+:Presentar motiu i opció de comunicació;
+if (Motiu vàlid i confirmació explícita?) then (Sí)
+  :Validar versió, estat i idempotència de la comanda;
+  if (Baixa ja resolta?) then (Sí)
+    :Retornar resultat existent sense segon efecte;
+  else (No)
+    :Registrar baixa acadèmica de la inscripció;
+    :Propagar Moodle nou/antic amb resultat per destí;
+    if (Hi ha fallada acadèmica?) then (Sí)
+      :Registrar fase pendent i incidència;
+    endif
+    :Classificar deute, fons realment ingressats,
+    pagador i factura sense inventar devolució;
+    :Executar només la decisió econòmica/fiscal justificada
+    mitjançant UC-072/124 i UC específic si correspon;
+    :Encolar correu a qui pertoqui segons opció;
+    :Mostrar estat de baixa, campus, imports,
+    document i enviament individualment;
+  endif
+else (No)
+  :No registrar efecte nou;
+endif
+stop
+@enduml
+```
+
+**Diferència respecte a UC-127:** anul·lar una **edició** no és ordenar una baixa individual. Segons la regla confirmada d'UC-127, l'edició anul·lada conserva de moment les inscripcions originals mentre es proposen alternatives. [Proves T-AL-11-A–G](../06-fitxes-funcionals/uc-027.md#23-auditoria-del-mètode-executiu-de-baixa-individual-sense-captures-noves) **definides, no executades**. Manquen permisos i resultats del desplegament.
+

@@ -758,6 +758,48 @@ HistoricalInvoiceMigrationService --> HistoricalInvoiceMigrationRepository : fac
 
 **Frontera real:** `HistoricalInvoiceMigrationRepository::insertDocument()` insereix path/hash/estat declarat sense verificar físicament l'arxiu i `DocumentRepository::registerDocument()` només calcula SHA-256 del contingut **que se li passa**, no en fa la custòdia. `HistoricalInvoiceMigrationRepository` tampoc no crida `InvoiceService`, la cua AEAT ni `DocumentRepository` en importar metadades. El SQL `factura` té `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` sense emissor. [UC-11](uc-011-importar-factura-historica.md), [UC-97](uc-097-consultar-historic-associacio-sl.md).
 
+### 5.2. Subvista executable de consulta read-only de factura — UC-007
+
+```mermaid
+classDiagram
+direction LR
+class InvoiceQueryService {
+ <<PHP existent>>
+ +view(actor,uuidFactura) array
+ +search(actor,criteria,limit) array
+}
+class InvoiceReadRepository {
+ <<PHP existent · read only>>
+ +findByUuid(db,uuid) array?
+ +findLines(db,uuid) array
+ +findRelations(db,uuid) array
+ +findRectifications(db,uuid) array
+ +findPayments(db,uuid) array
+ +latestFiscalRecord(db,uuid) array?
+ +findDocumentMetadata(db,uuid) array
+ +search(db,criteria,limit) array
+}
+class InvoiceVisibilityPolicyInterface {
+ <<PHP contracte existent>>
+ +canView(actor,invoice,relations) bool
+ +project(actor,view) array
+}
+class ResolvedInvoiceVisibilityPolicy {
+ <<PHP existent · scope resolt server-side>>
+ +canView(actor,invoice,relations) bool
+ +project(actor,view) array
+}
+class InvoiceDocumentAccessService {
+ <<DISSENY UC-080>>
+ +download(actor,documentId,tokenOrSession) bytes
+}
+InvoiceQueryService --> InvoiceReadRepository
+InvoiceQueryService --> InvoiceVisibilityPolicyInterface
+ResolvedInvoiceVisibilityPolicy ..|> InvoiceVisibilityPolicyInterface
+InvoiceQueryService ..> InvoiceDocumentAccessService : bytes pendents
+```
+
+`InvoiceReadRepository` només executa SELECT i no retorna `PATH_FITXER` de `factura_documents`. `ResolvedInvoiceVisibilityPolicy` falla tancat si no rep `invoice_scope` i admet projecció `FULL` o `MINIMAL`; aquest scope **ha de provenir d'un adaptador autenticat del servidor**, no del payload del client. `InvoiceDocumentAccessService` continua sent disseny UC-080: el nucli de consulta no serveix bytes.
 ## 6. Classes del **disseny pendent** (NO són el PHP actual)
 
 ```mermaid
@@ -793,9 +835,10 @@ class CancellationCoordinator {
  +preview(command) result
  +confirm(command) result
 }
-class VisibilityPolicy {
- <<DISSENY: no implementada>>
+class InvoiceVisibilityPolicyInterface {
+ <<PHP CONTRACTE EXISTENT>>
  +canView(actor,factura,relations) bool
+ +project(actor,view) array
 }
 class InvoiceDocumentAccessService {
  <<DISSENY: UC-55/80, no implementada>>
@@ -831,7 +874,7 @@ CourseChangeCoordinator --> EnrollmentFundsOrchestrator
 CancellationCoordinator --> EnrollmentFundsOrchestrator
 EnrollmentFundsOrchestrator --> EnrollmentFundMovementRepository
 EnrollmentFundMovementRepository --> EnrollmentFundMovement
-InvoiceDocumentAccessService --> VisibilityPolicy
+InvoiceDocumentAccessService --> InvoiceVisibilityPolicyInterface
 AuthorizationGateway --> IdentityResolver
 AuthorizationGateway ..> InvoiceDocumentAccessService : lectura fiscal autoritzada
 IssuerRoutingRegistry ..> AuthorizationGateway : ruta només després d'autorització
@@ -966,7 +1009,7 @@ ManualPriceAdjustmentService ..> ManualRectificationService : UC-74/05 si factur
 
 **No executar en cadena automàticament:** `OperationalEventRepository::append()` desa un event però no aprova l'import; `RedsysPaymentIntentService::create()` rebutja reusar `DS_ORDER` amb snapshot/import diferent; `ManualRectificationService` emet una factura R separada quan una classificació fiscal ho justifica. La UC-94 no té un únic commit demostrable que englobi proposta, canvi d'intenció, document fiscal, transferència i llegat.
 
-### 6.4. Subvista transversal de job, integritat, descàrrega i històric — UC-55/80/11/97 (DISSENY)
+### 6.4. Subvista transversal de job, integritat, descàrrega i històric — UC-55/80/11/97 (PARCIAL)
 
 `factura_documents` només imposa un ID únic de fila i `document_job` només una `IDEMPOTENCY_KEY` única; **no** hi ha garantia automàtica d'un document per factura/tipus/versió ni de fitxer físic disponible. El repo PHP `DocumentRepository::registerDocument()` **no** retorna `factura_documents.ID`. Les classes proposades de custòdia han de recuperar/contrastar la identitat de la metadata i els bytes abans de marcar un job com a complet.
 
@@ -989,10 +1032,9 @@ class FiscalDocumentGenerator {
  <<DISSENY: PDF/QR/XML, no PHP acreditat>>
  +generate(snapshot,type,version) bytes
 }
-class PrivateDocumentStore {
- <<DISSENY: custòdia físicament verificada>>
+class PrivateDocumentWriter {
+ <<DISSENY: escriptura/custòdia física pendent>>
  +writeAndVerify(bytes) key
- +readVerified(key,sha256) bytes
 }
 class DocumentAvailabilityService {
  <<DISSENY: no PHP acreditat>>
@@ -1002,6 +1044,22 @@ class HistoricalOriginalCustodyService {
  <<DISSENY: original antic, no importador PHP>>
  +attachOriginal(uuidFactura,issuer,sourceId,bytes) result
  +auditInventory(scope) report
+}
+class ResolvedDocumentAuthorizationPolicy {
+ <<PHP EXISTENT>>
+ +canDownload(actor,invoice,relations,document) bool
+}
+class PrivateDocumentStore {
+ <<PHP EXISTENT>>
+ +readVerified(path,expectedHash) bytes
+}
+class DocumentAccessRepository {
+ <<PHP EXISTENT>>
+ +findById(db,documentId) array?
+}
+class FiscalDocumentAccessRepository {
+ <<PHP EXISTENT>>
+ +append(db,event) uuid
 }
 class InvoiceDocumentAccessService {
  <<DISSENY: servei únic UC-55/80>>
@@ -1018,9 +1076,9 @@ class DocumentRepository {
 }
 DocumentWorker --> DocumentJobRepository : encolat/reintent
 DocumentWorker --> FiscalDocumentGenerator : bytes de font fiscal
-DocumentWorker --> PrivateDocumentStore : desar/verificar
+DocumentWorker --> PrivateDocumentWriter : desar/verificar
 DocumentWorker ..> DocumentRepository : registra metadata; recuperar ID per via addicional
-HistoricalOriginalCustodyService --> PrivateDocumentStore : bytes ORIGINALS de l'arxiu llegat
+HistoricalOriginalCustodyService --> PrivateDocumentWriter : bytes ORIGINALS de l'arxiu llegat
 HistoricalOriginalCustodyService ..> DocumentRepository : només si metadata no existent i validada
 DocumentAvailabilityService --> PrivateDocumentStore : llegir i recalcular hash
 InvoiceDocumentAccessService --> VisibilityPolicy : consulta per document

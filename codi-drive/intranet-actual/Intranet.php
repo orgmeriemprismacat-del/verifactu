@@ -3334,7 +3334,7 @@ class Intranet
 		}
 
 		if ( $exResultats ) {
-			$cnsInterna = "SELECT c.ID_CURS, c.ANY, c.MES, c.CURS, i.Grup, i.NOM, i.COGNOMS,
+			$cnsInterna = "SELECT i.ID AS ID_INSC, c.ID_CURS, c.ANY, c.MES, c.CURS, i.Grup, i.NOM, i.COGNOMS,
 				i.CORREU, i.usuari, i.Poblacio, aula.GTAF_AULA, c.DATAF, i.CERTIFICAT, i.`OBS CERT`,
 				i.PERFIL, i.Titulacio, i.A_PAGAR, i.PAGAMENT,
 				p.NOM, p.COGNOMS, i.a_pagar-i.pagament AS pendent, i.reclamat
@@ -3351,7 +3351,7 @@ class Intranet
 				if ( $stmt->num_rows() > 0 ) {
 					$cursAnt = "";
 
-					$stmt->bind_result($idCurs, $any, $mes, $curs, $aula, $nom, $cognoms,
+					$stmt->bind_result($idInsc, $idCurs, $any, $mes, $curs, $aula, $nom, $cognoms,
 					$correu, $usuari, $poblacio, $codiGTAF, $dataF, $cert, $obsCert, $perfil,
 					$titulacio, $apagar, $pagament, $nomTutor, $cogTutor, $pendent, $reclament);
 
@@ -3404,7 +3404,7 @@ class Intranet
 							<td>".$usuari."</td>
 							<td>
 								<div class='d-flex flex-column flex-sm-row justify-content-center align-items-center w-100'>
-									<button id='puja-ao-".$idCurs."-".$usuari."' class='marcat boto-blau mt-2 px-4 d-flex'>Qualifica</button>
+									<button data-inscripcio-id='".(int)$idInsc."' id='puja-ao-".$idCurs."-".$usuari."' class='marcat boto-blau mt-2 px-4 d-flex'>Qualifica</button>
 								</div>
 							</td>
 							<td id='poblacio-".$idCurs."-".$usuari."'>".$poblacio."</td>

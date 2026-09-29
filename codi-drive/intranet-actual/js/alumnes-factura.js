@@ -129,56 +129,24 @@ requestMain.done(function( message ) {
 
 			cercaPer += elementsCercats;
 
+			/* UC-007: primer consulta SIF read-only; si no hi ha coincidències,
+			es conserva el circuit llegat com a fallback temporal de migració. */
+			if (typeof window.uc007SifSearch === 'function') {
+				window.uc007SifSearch({
+					dni: dni,
+					email: email,
+					factRel: factRel,
+					factNum: factNum,
+					cercaPer: cercaPer
+				});
+				return;
+			}
+
 			/* Cerca els usuaris amb les factures que el dni = dni o el email = email
 			correspongui amb la inscripció relacionada amb la factura o la factura
 			relacionada = factRel o el número de la factura = factNum */
-			var request = $.ajax({
-				url: path + "alumnes/consultaUsuarisFacturaRelacionada.php",
-				method: "GET",
-				data: {
-					dni : dni ,
-					email : email ,
-					factRel : factRel ,
-					factNum : factNum
-				},
-				dataType: "html"
-			});
+			cercarFacturesLlegat(dni, email, factRel, factNum);
 
-			request.done(function( dnies ) {
-				let vectDnies = dnies.split('#');
-				if ( dnies.toLowerCase().includes("error") ) {
-					afegirHeaderModalError("Alerta");
-					afegirTextModalError("Hi ha hagut un error a l'hora de fer la consulta d'usuaris");
-					mostrarModalError();
-					reloadUrl();
-				}
-				else if ( dnies.includes("No") && dnies.includes("resultats") ) {
-					afegirHeaderModalError("Alerta");
-					afegirTextModalError("No s'han trobat resultats");
-					mostrarModalError();
-				}
-				else if ( dnies.split('|') > 2000 ) {
-					afegirHeaderModalError("Alerta");
-					afegirTextModalError("El volum de dades cercat és molt gran. Si us plau, afegeix algun filtre més per acotar el volum de dades");
-					mostrarModalError();
-				}
-				else {
-					let vectDnies2 = vectDnies[1].split('|');
-					if ( vectDnies2.length == 1 ) {
-						//Hi ha un sol usuari amb la cerca realitzada
-						cercarUSuari(vectDnies2[0]);
-					}
-					else {
-						//Hi ha més d'un sol usuari amb la cerca realitzada
-						//Mostra la taula amb els usuaris trobats a partir de la cerca realitzada
-						mostraLlistatUsuaris(vectDnies[1], 'cog', 'asc')
-					}
-				}
-			});
-
-			request.fail(function( jqXHR, textStatus, errorThrown ) {
-				rerrorFunction( jqXHR, textStatus, errorThrown, "Hi ha hagut algun error a l'hora de fer la consulta d'usuaris: " );
-			});
 		}
 	});
 
@@ -194,10 +162,22 @@ requestMain.done(function( message ) {
 		if ( tipusCerca == 'factNum' ) {
 			inputCerca = 'fact-num';
 		}
-		$('#mostrar-factura #'+inputCerca).val(hashUrl);
-		$('#mostrar-factura #'+inputCerca).prev().addClass('active');
-
-		$('#cercar-factura').click();
+		if ( tipusCerca == 'uuid' ) {
+			mostrarModalLoading();
+			window.uc007SifSearch({
+				uuid: decodeURIComponent(hashUrl),
+				dni: '',
+				email: '',
+				factRel: '',
+				factNum: '',
+				cercaPer: 'FACTURA SIF'
+			});
+		}
+		else {
+			$('#mostrar-factura #'+inputCerca).val(hashUrl);
+			$('#mostrar-factura #'+inputCerca).prev().addClass('active');
+			$('#cercar-factura').click();
+		}
 	}
 
 
@@ -206,6 +186,372 @@ requestMain.done(function( message ) {
 requestMain.fail(function( jqXHR, textStatus, errorThrown ) {
 	errorFunction( jqXHR, textStatus, errorThrown, "Hi ha hagut un error en el request Main: " );
 });
+
+
+/* UC-007 · Consulta SIF read-only amb fallback llegat */
+window.uc007SifSearch = function(params) {
+	var criteria = {};
+
+	if (params.uuid)
+		criteria.uuid_factura = params.uuid;
+	if (params.factNum != '')
+		criteria.num_visible = params.factNum;
+	if (params.email != '')
+		criteria.participant_email = params.email;
+	if (params.factRel != '')
+		criteria.factura_relacionada = params.factRel;
+	if (params.dni != '')
+		criteria.participant_document = params.dni;
+
+	/* Si la combinació no es pot representar fidelment al SIF, mantenim el llegat. */
+	if ($.isEmptyObject(criteria)) {
+		cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum);
+		return;
+	}
+
+	var request = $.ajax({
+		url: path + "alumnes/sifFactures.php",
+		method: "POST",
+		contentType: "application/json; charset=utf-8",
+		data: JSON.stringify({
+			action: "search",
+			criteria: criteria,
+			limit: 50
+		}),
+		dataType: "json"
+	});
+
+	request.done(function(res) {
+		if (!res || res.ok !== true) {
+			uc007MostrarError((res && res.error) ? res.error : "Resposta SIF no vàlida");
+			return;
+		}
+
+		if (res.resolution === "FEATURE_DISABLED") {
+			if (params.uuid) {
+				uc007MostrarError("La consulta SIF està desactivada en aquest entorn");
+				return;
+			}
+			cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum);
+			return;
+		}
+
+		if (!Array.isArray(res.results) || res.results.length === 0) {
+			cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum);
+			return;
+		}
+
+		uc007RenderResultatsSif(res.results, params.cercaPer);
+	});
+
+	request.fail(function(jqXHR) {
+		amagarLoadingModal();
+		var message = "No s'ha pogut consultar el SIF";
+		if (jqXHR.responseJSON && jqXHR.responseJSON.error)
+			message = jqXHR.responseJSON.error;
+		uc007MostrarError(message);
+	});
+};
+
+function cercarFacturesLlegat(dni, email, factRel, factNum) {
+	var request = $.ajax({
+		url: path + "alumnes/consultaUsuarisFacturaRelacionada.php",
+		method: "GET",
+		data: {
+			dni : dni,
+			email : email,
+			factRel : factRel,
+			factNum : factNum
+		},
+		dataType: "html"
+	});
+
+	request.done(function(dnies) {
+		let vectDnies = dnies.split('#');
+		if (dnies.toLowerCase().includes("error")) {
+			afegirHeaderModalError("Alerta");
+			afegirTextModalError("Hi ha hagut un error a l'hora de fer la consulta d'usuaris");
+			mostrarModalError();
+			reloadUrl();
+		}
+		else if (dnies.includes("No") && dnies.includes("resultats")) {
+			amagarLoadingModal();
+			afegirHeaderModalError("Alerta");
+			afegirTextModalError("No s'han trobat resultats");
+			mostrarModalError();
+		}
+		else if (dnies.split('|').length > 2000) {
+			amagarLoadingModal();
+			afegirHeaderModalError("Alerta");
+			afegirTextModalError("El volum de dades cercat és molt gran. Si us plau, afegeix algun filtre més per acotar el volum de dades");
+			mostrarModalError();
+		}
+		else if (vectDnies.length < 2 || vectDnies[1].trim() === '') {
+			amagarLoadingModal();
+			afegirHeaderModalError("Alerta");
+			afegirTextModalError("No s'han trobat resultats");
+			mostrarModalError();
+		}
+		else {
+			let vectDnies2 = vectDnies[1].split('|').filter(function(value) {
+				return value.trim() !== '';
+			});
+			if (vectDnies2.length === 1)
+				cercarUSuari(vectDnies2[0]);
+			else
+				mostraLlistatUsuaris(vectDnies2.join('|'), 'cog', 'asc');
+		}
+	});
+
+	request.fail(function(jqXHR, textStatus, errorThrown) {
+		amagarLoadingModal();
+		if (typeof errorFunction === 'function')
+			errorFunction(jqXHR, textStatus, errorThrown, "Hi ha hagut algun error a l'hora de fer la consulta d'usuaris: ");
+	});
+}
+
+function uc007RenderResultatsSif(resultats, titol) {
+	var html = '<div class="apartat uc007-sif-results">';
+	html += '<div class="apartat-header"><strong>' + uc007EscapeHtml(titol) + '</strong>';
+	html += ' <span class="label label-info">SIF · només lectura</span></div>';
+	html += '<div class="table-responsive"><table class="table table-hover">';
+	html += '<thead><tr><th>Factura</th><th>Data</th><th>Receptor</th><th>Total</th><th>Factura</th><th>Cobrament</th><th>AEAT</th><th></th></tr></thead><tbody>';
+
+	resultats.forEach(function(invoice) {
+		var billing = invoice.billing || {};
+		var totals = invoice.totals || {};
+		html += '<tr>';
+		html += '<td>' + uc007EscapeHtml(invoice.num_visible || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(invoice.data_emissio || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(billing.name || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(totals.total || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(invoice.estat_factura || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(invoice.estat_cobrament || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(invoice.estat_aeat || '');
+		if (invoice.estat_aeat_divergent === true) {
+			html += ' <span class="label label-warning" title="L’estat de factura i l’últim registre fiscal no coincideixen">revisar</span>';
+		}
+		html += '</td>';
+		html += '<td><button type="button" class="btn btn-default btn-xs uc007-sif-info" data-uuid="' +
+			uc007EscapeHtml(invoice.uuid_factura || '') + '">Informació</button></td>';
+		html += '</tr>';
+	});
+
+	html += '</tbody></table></div></div>';
+	$('#resultats-cerca').html(html).show();
+	amagarLoadingModal();
+
+	$('#resultats-cerca').off('click.uc007Sif').on('click.uc007Sif', '.uc007-sif-info', function() {
+		var uuid = $(this).attr('data-uuid');
+		uc007MostrarFacturaSif(uuid);
+	});
+}
+
+function uc007MostrarFacturaSif(uuid) {
+	mostrarModalLoading();
+
+	var request = $.ajax({
+		url: path + "alumnes/sifFactures.php",
+		method: "POST",
+		contentType: "application/json; charset=utf-8",
+		data: JSON.stringify({
+			action: "view",
+			uuid_factura: uuid
+		}),
+		dataType: "json"
+	});
+
+	request.done(function(res) {
+		amagarLoadingModal();
+		if (!res || res.ok !== true) {
+			uc007MostrarError((res && res.error) ? res.error : "Resposta SIF no vàlida");
+			return;
+		}
+
+		$("#modalConsultaInformacio .modal-body").html(uc007RenderFacturaSif(res));
+		$("#modalConsultaInformacio")
+			.off('click.uc007Document')
+			.on('click.uc007Document', '.uc007-sif-document-download', function() {
+				uc007DescarregarDocumentSif(parseInt($(this).attr('data-document-id'), 10));
+			});
+		$("#modalConsultaInformacio").modal('show');
+	});
+
+	request.fail(function(jqXHR) {
+		amagarLoadingModal();
+		var message = "No s'ha pogut consultar la factura SIF";
+		if (jqXHR.responseJSON && jqXHR.responseJSON.error)
+			message = jqXHR.responseJSON.error;
+		uc007MostrarError(message);
+	});
+}
+
+function uc007RenderFacturaSif(res) {
+	var invoice = res.invoice || {};
+	var billing = invoice.billing || {};
+	var totals = invoice.totals || {};
+	var html = '<div class="uc007-sif-readonly">';
+	html += '<p><span class="label label-info">SIF · només lectura</span></p>';
+	html += '<h4>' + uc007EscapeHtml(invoice.num_visible || '') + '</h4>';
+	html += '<dl class="dl-horizontal">';
+	html += uc007Dl('UUID', invoice.uuid_factura);
+	html += uc007Dl('Tipus', invoice.tipus_factura);
+	html += uc007Dl('Data emissió', invoice.data_emissio);
+	html += uc007Dl('Estat factura', invoice.estat_factura);
+	html += uc007Dl('Estat cobrament', invoice.estat_cobrament);
+	html += uc007Dl('Estat AEAT factura', invoice.estat_aeat_factura || invoice.estat_aeat);
+	if (invoice.estat_aeat_registre)
+		html += uc007Dl('Estat AEAT últim registre', invoice.estat_aeat_registre);
+	if (invoice.estat_aeat_divergent === true)
+		html += '<dt>AEAT</dt><dd><span class="label label-warning">Divergència a revisar</span></dd>';
+	html += uc007Dl('E_FACT', invoice.e_fact);
+	html += uc007Dl('Receptor', billing.name);
+	html += uc007Dl('NIF/CIF', billing.nif);
+	html += uc007Dl('Email', billing.email);
+	html += uc007Dl('Total', totals.total);
+	html += '</dl>';
+
+	if (res.fiscal_record) {
+		html += '<h5>Registre fiscal</h5><dl class="dl-horizontal">';
+		html += uc007Dl('Ordre fiscal', res.fiscal_record.FISCAL_ORDER);
+		html += uc007Dl('Tipus registre', res.fiscal_record.TIPUS_REGISTRE);
+		html += uc007Dl('Estat AEAT registre', res.fiscal_record.ESTAT_AEAT);
+		html += uc007Dl('Creat', res.fiscal_record.DATE_CREATED);
+		html += uc007Dl('Enviat', res.fiscal_record.DATE_SENT);
+		html += '</dl>';
+	}
+
+	if (Array.isArray(res.lines) && res.lines.length > 0) {
+		html += '<h5>Línies</h5><div class="table-responsive"><table class="table table-condensed">';
+		html += '<thead><tr><th>#</th><th>Concepte</th><th>Detall</th><th>Quantitat</th><th>Total</th></tr></thead><tbody>';
+		res.lines.forEach(function(line) {
+			html += '<tr>';
+			html += '<td>' + uc007EscapeHtml(line.ORDRE || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(line.CONCEPTE || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(line.DETALL || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(line.QUANTITAT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(line.TOTAL || '') + '</td>';
+			html += '</tr>';
+		});
+		html += '</tbody></table></div>';
+	}
+
+	if (Array.isArray(res.payments) && res.payments.length > 0) {
+		html += '<h5>Moviments econòmics</h5><div class="table-responsive"><table class="table table-condensed">';
+		html += '<thead><tr><th>Data</th><th>Tipus</th><th>Mètode</th><th>Import</th><th>Assignat</th><th>Estat</th></tr></thead><tbody>';
+		res.payments.forEach(function(payment) {
+			html += '<tr>';
+			html += '<td>' + uc007EscapeHtml(payment.DATA_MOVIMENT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(payment.TIPUS_MOVIMENT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(payment.METODE || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(payment.IMPORT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(payment.IMPORT_ASSIGNAT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(payment.ESTAT || '') + '</td>';
+			html += '</tr>';
+		});
+		html += '</tbody></table></div>';
+	}
+
+	if (Array.isArray(res.rectifications) && res.rectifications.length > 0) {
+		html += '<h5>Rectificatives</h5><ul>';
+		res.rectifications.forEach(function(rect) {
+			html += '<li>' + uc007EscapeHtml(rect.RECTIFICATIVA_NUM_VISIBLE || rect.UUID_FACTURA_RECTIFICATIVA || '') +
+				' → ' + uc007EscapeHtml(rect.RECTIFICADA_NUM_VISIBLE || rect.UUID_FACTURA_RECTIFICADA || '') + '</li>';
+		});
+		html += '</ul>';
+	}
+
+	if (Array.isArray(res.documents) && res.documents.length > 0) {
+		html += '<h5>Documents</h5><ul>';
+		res.documents.forEach(function(doc) {
+			var documentId = parseInt(doc.ID, 10);
+			html += '<li>' + uc007EscapeHtml(doc.TIPUS || '') + ' · ' +
+				uc007EscapeHtml(doc.ESTAT || '');
+			if (!isNaN(documentId) && documentId > 0) {
+				html += ' <button type="button" class="btn btn-default btn-xs uc007-sif-document-download" ' +
+					'data-document-id="' + documentId + '">Descarregar</button>';
+			}
+			html += '</li>';
+		});
+		html += '</ul>';
+	}
+
+	html += '</div>';
+	return html;
+}
+
+function uc007DescarregarDocumentSif(documentId) {
+	if (!documentId || documentId <= 0) {
+		uc007MostrarError("Identificador de document no vàlid");
+		return;
+	}
+
+	if (typeof fetch !== 'function') {
+		uc007MostrarError("El navegador no permet la descàrrega segura del document");
+		return;
+	}
+
+	mostrarModalLoading();
+
+	fetch(path + "alumnes/sifDocument.php", {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json; charset=utf-8"
+		},
+		body: JSON.stringify({ document_id: documentId })
+	})
+	.then(function(response) {
+		if (!response.ok) {
+			return response.json().catch(function() {
+				return { error: "No s'ha pogut descarregar el document" };
+			}).then(function(payload) {
+				throw new Error(payload.error || "No s'ha pogut descarregar el document");
+			});
+		}
+
+		var disposition = response.headers.get("Content-Disposition") || "";
+		var match = disposition.match(/filename="?([^";]+)"?/i);
+		var filename = match ? match[1] : ("factura-document-" + documentId);
+		return response.blob().then(function(blob) {
+			return { blob: blob, filename: filename };
+		});
+	})
+	.then(function(result) {
+		var objectUrl = URL.createObjectURL(result.blob);
+		var link = document.createElement("a");
+		link.href = objectUrl;
+		link.download = result.filename;
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		setTimeout(function() {
+			URL.revokeObjectURL(objectUrl);
+		}, 1000);
+		amagarLoadingModal();
+	})
+	.catch(function(error) {
+		amagarLoadingModal();
+		uc007MostrarError(error.message || "No s'ha pogut descarregar el document");
+	});
+}
+
+function uc007Dl(label, value) {
+	if (value === null || typeof value === 'undefined' || value === '')
+		return '';
+	return '<dt>' + uc007EscapeHtml(label) + '</dt><dd>' + uc007EscapeHtml(value) + '</dd>';
+}
+
+function uc007EscapeHtml(value) {
+	return $('<div/>').text(String(value === null || typeof value === 'undefined' ? '' : value)).html();
+}
+
+function uc007MostrarError(message) {
+	amagarLoadingModal();
+	afegirHeaderModalError("Alerta SIF");
+	afegirTextModalError(uc007EscapeHtml(message));
+	mostrarModalError();
+}
 
 /* Mostra la taula amb els usuaris trobats a partir de la cerca realitzada
 ordenada per cognoms si orderby es cog, per nom si ordery es nom i per dni si
@@ -377,7 +723,7 @@ function mostrarModalConsultaInformacio( id ) {
 						var requestSavePag = $.ajax({
 							url: path + "alumnes/guardarDadesFactura_Factures.php",
 							global: false,
-							method: "GET",
+							method: "POST",
 							data: {
 								id: idFact,
 								factura: facturaFact,
@@ -556,7 +902,7 @@ function mostrarModalAnulaFactura( id ) {
 					$("#modalAnulaFactura").modal('hide');
 					var requestAnulFact = $.ajax({
 						url: path + "alumnes/anularFactura_Factures.php",
-						method: "GET",
+						method: "POST",
 						data: {
 							id : idAnul,
 							tornar : tornarAnul,
@@ -661,37 +1007,27 @@ function mostrarModalPrevisualitzaFactura( id ) {
 					var idFact = $('#modalPrevisualizaFactura #factura-relacionada-fact').html().trim();
 					var requestDown = $.ajax({
 						url: path + "alumnes/descarregaFactura.php",
-						method: "GET",
+						method: "POST",
 						data: { id : idFact },
 						dataType: "html"
 					});
 
 					requestDown.done(function( resD ) {
 
-						if (!resD.toLowerCase().includes("error")) {
+						resD = $.trim(resD);
+						if (resD !== '' && !resD.toLowerCase().includes("error")) {
 							var link = document.createElement('a');
 							link.setAttribute("id", "download-fact-" + nclick);
-							link.href = path + "alumnes/" + resD;
-							link.download = resD + '.pdf';
+							link.href = path + "alumnes/" + encodeURIComponent(resD);
+							link.download = resD;
+							document.body.appendChild(link);
 							link.click();
-							var requestDown = $.ajax({
-								url: path + "alumnes/descarregaFactura.php",
-								method: "GET",
-								data: { id : idFact },
-								dataType: "html"
-							});
+							link.remove();
 
-							requestDown.done(function( resD ) {
-								afegirHeaderModalSuccess("Generat!");
-								afegirTextModalSuccess("S'ha generat la factura correctament");
-								mostrarModalSuccess();
-								nclick++;
-							});
-
-							requestDown.fail(function( jqXHRRem, textStatusRem, errorThrownRem ) {
-								errorFunction( jqXHRRem, textStatusRem, errorThrownRem,
-									"Hi ha hagut algun error a l'hora d'eliminar la factura de servidor: " );
-							});
+							afegirHeaderModalSuccess("Descarregada");
+							afegirTextModalSuccess("S'ha iniciat la descàrrega de la factura");
+							mostrarModalSuccess();
+							nclick++;
 						}
 						else {
 							afegirHeaderModalError("Hi ha hagut un error al generar la descarrega");

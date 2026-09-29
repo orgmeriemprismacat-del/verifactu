@@ -1,10 +1,10 @@
 # UC-80 · Servir un document fiscal i registrar-ne l'accés o la denegació
 
-**Objectiu del catàleg:** autorització, token/caducitat, document immutable i auditoria de **cada consulta, descàrrega o denegació**. El servei proposat d'accés es denomina `InvoiceDocumentAccessService`, com al model transversal i a UC-55; no són dos serveis executables diferents. **Estat [DISSENY]:** es disposa de metadades de documents i d'una taula SQL d'accés, però no s'ha acreditat un controlador PHP del SIF que autentiqui l'usuari, resolgui el token i serveixi bytes amb verificació de permisos.
+**Objectiu del catàleg:** autorització, document immutable i auditoria de **cada consulta, descàrrega o denegació**. **Estat [IMPLEMENTACIÓ PARCIAL]:** existeixen `InvoiceDocumentAccessService`, `ResolvedDocumentAuthorizationPolicy`, `PrivateDocumentStore`, repositoris de lectura/auditoria i `public/api/documents/download.php` amb HMAC/anti-replay. La intranet disposa de proxy privat `sifDocument.php`; les proves runtime i canals externs/token continuen pendents.
 
 ## 1. Evidència i model d'accés
 
-`DocumentRepository::registerDocument()` crea una fila de `factura_documents` per `PDF/XML/QR`, ruta i hash, **sense desar físicament ni servir el contingut del fitxer**. `fiscal_document_access` conté `FACTURA_DOCUMENT_ID`, `UUID_FACTURA`, `ACTION`, `RESULT`, `TOKEN_FINGERPRINT`, `ACTOR_TYPE/ID/ROLE`, `SOURCE_CHANNEL`, `REQUEST_ID`, `CORRELATION_ID`, `REASON_CODE` i instants. **No s'ha acreditat un writer ni política executable d'autorització per aquesta taula**. `fact_rels.VISIBLE_ALUMNE` és un camp de relació documental, però **no substitueix** verificació d'identitat i titularitat d'una factura d'empresa.
+`DocumentRepository::registerDocument()` continua registrant metadata/hash i no custodia bytes per si sol. Ara `DocumentAccessRepository` recupera metadata interna, `PrivateDocumentStore` restringeix la ruta a `SIF_DOCUMENT_ROOT` i verifica SHA-256, i `FiscalDocumentAccessRepository` escriu `fiscal_document_access`. `ResolvedDocumentAuthorizationPolicy` exigeix scope `FULL`; `MINIMAL` no pot descarregar bytes.
 
 ## 2. Fitxa funcional específica
 
@@ -286,4 +286,18 @@ Note over Auth,Store: Endpoints i writer no acreditats, la revisió final de per
 
 ## 6. Traçabilitat
 
-[UC-80 original](../06-fitxes-funcionals/uc-080.md) · [UC-78 custòdia](uc-078-generar-custodiar-pdf-qr-xml.md) · [UC-102 accés alumne original](../06-fitxes-funcionals/uc-102.md) · [UC-61 pagament de l'alumne](uc-061-consultar-pendent-obtenir-enllac.md) · [UC-123 lliurament](uc-123-lliurar-factura-electronica.md) · [DocumentRepository](../../sif/src/Repository/DocumentRepository.php) · [Esquema d'accessos](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql).
+[UC-80 original](../06-fitxes-funcionals/uc-080.md) · [Auditoria UC-007 / entrada de consulta](02-auditoria-detallada-uc-007-consultar-factura-estat-document-2026-09-29.md) · [UC-78 custòdia](uc-078-generar-custodiar-pdf-qr-xml.md) · [UC-102 accés alumne original](../06-fitxes-funcionals/uc-102.md) · [UC-61 pagament de l'alumne](uc-061-consultar-pendent-obtenir-enllac.md) · [UC-123 lliurament](uc-123-lliurar-factura-electronica.md) · [DocumentRepository](../../sif/src/Repository/DocumentRepository.php) · [Esquema d'accessos](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql).
+
+
+## Implementació aplicada 2026-09-29
+
+- `DocumentAuthorizationPolicyInterface` i `ResolvedDocumentAuthorizationPolicy`: només scope `FULL` pot descarregar.
+- `DocumentAccessRepository`: recupera metadata/path exclusivament dins del backend.
+- `PrivateDocumentStore`: resolució sota `SIF_DOCUMENT_ROOT`, límit de mida, bytes reals i SHA-256.
+- `FiscalDocumentAccessRepository`: registra `DOWNLOAD` amb `ALLOWED/DENIED/FAILED` i reason code.
+- `InvoiceDocumentAccessService`: autoritza factura/document, verifica estat/bytes/hash i retorna bytes sense exposar path.
+- `public/api/documents/download.php`: endpoint intern POST signat HMAC + anti-replay, no URL pública del fitxer.
+- `SifInternalDocumentClient.php` + `ajax/alumnes/sifDocument.php`: proxy servidor-a-servidor i streaming al navegador amb `no-store`.
+- Les UI SIF de `/alumnes/factura/` i AL-17 descarreguen per `document_id` i Blob; no usen `eliminarArxiu.php`.
+
+**Proves:** ajornades segons [proves pendents UC-007/080](03-proves-pendents-uc-007-implementacio.md).

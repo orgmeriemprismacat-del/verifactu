@@ -1,0 +1,24 @@
+.table-order thead th.sorting:before {
+  right: 0.5rem;
+}
+
+.table-order thead th.sorting:after {
+  right: 0.1em;
+}
+
+.table-order thead th.sorting {
+    padding-left: 0.2rem;
+    padding-right: 16px;
+}
+
+#th-importBrut, #th-irpf {
+    min-width: 88px;
+}
+
+#th-cobrat {
+    min-width: 100px;
+}
+
+.table td:nth-child(10) {
+    max-width: 200px !important;
+}

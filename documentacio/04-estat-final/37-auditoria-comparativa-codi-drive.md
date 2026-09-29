@@ -245,3 +245,7 @@ producció VERI*FACTU: NO-GO
 ```
 
 La matriu completa de transformació és `38-matriu-transformacio-funcional-verifactu.md`; els serveis, seqüències, casos d'ús i dades corresponents són als documents 31 a 34.
+
+## Actualització de cobertura — 25/09/2026
+
+La [revisió global actual](../../00-control/revisio-codi-drive-2026-09-25/informe.md) inventaria 5.837 fitxers i 2.252 fonts textuals, amb índex de mètodes/entrades/SQL i rutes. La comparació actual de 25 candidats per homòleg de ruta dona 11 idèntics, 12 diferents i 2 sense homòleg a la mateixa ruta. Les xifres anteriors es conserven com a tall històric del 15/09. Es distingeix escaneig automàtic de lectura semàntica dirigida i de proves no executades.

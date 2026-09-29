@@ -247,6 +247,13 @@ Abans de tancar la versio `1.0.0`, cal completar:
 
 ## 8. Evidencia de canvis
 
+Tall tècnic 2026-09-23: integració AEAT local amb snapshot immutable, huella,
+validació XSD, transport mTLS de proves, respostes correlacionades i worker
+serial amb espera persistent. Migració additiva:
+`2026_09_23_000008_add_aeat_flow_control.sql`. No s'activa versió productiva.
+L'[annex AEAT](../01-compliment-aeat/annex-integracio-aeat.md) defineix les
+evidències externes pendents; el resultat local queda al registre de control.
+
 Cada canvi de versio ha de conservar, com a minim:
 
 - resum funcional del canvi;

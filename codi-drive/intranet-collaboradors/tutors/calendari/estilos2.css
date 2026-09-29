@@ -1,0 +1,44 @@
+* {margin: 0;padding: 0;font-family:Candara, Helvetica, Arial, Tahoma, sans-serif;}
+img{border:0}
+html,body{height:100%;width:100%;outline:0;overflow:hidden}
+body {text-align:center;margin:10px;width:100%;height:100%;overflow:hidden;background:#fff;padding:10px 0}
+
+.calendario_ajax{margin:0 auto;width:980px;position:relative}
+	.calendario_ajax h2{text-align:center;margin:0 0 10px 0;font-size:1.5em;color:#000}
+
+	.calendario_ajax table.calendario {margin:10px auto;width:100%;border:1px dotted #ccc;}
+		.calendario th {border:1px dotted #ccc;font-weight:bold;background:#5a7cb8;color:white;padding:10px;font-size:16px;}
+		.calendario td{padding:10px;text-align:center;border:1px dotted #ccc;width:100px;white-space:pre-line;font-size:24px;position:relative;background:#f6f6f6;}
+		.calendario td.evento {background:#E3EDFB; position:relative}
+	.calendario td.desactivada {background:#FEFEFE;}
+	.calendario td.hoy{font-weight:bold; background-color:#FCE6C5; position:relative}
+		a.agregar_evento{display:block;position:absolute;right:0px;top:0px; background:url(images/add.png) 50% 50% no-repeat;width:24px;height:24px;text-decoration:none}
+	.calendario td a{color:#5a7cb8;text-decoration:none;}
+
+	.verde,.ok{font-weight:bold;background:#5a7cb8;color:#fff}
+	.rojo{font-size:125% !important;font-weight:bold;color:red;}
+	
+	
+	.toggle {background:#fff;}
+		.siguiente,.anterior{color:#333333;text-decoration:none}
+
+	#mask {position:absolute;left:0;top:0;z-index:9000;background-color:#5a7cb8;display:none;width:100%;height:100%}
+
+	#respuesta_form,#respuesta{clear:both;padding:20px 0}
+  
+	.window {position:absolute;top:20px;right:20px;left:20px;bottom:20px;display:block;z-index:9999;padding:20px;background-color:#ffffff;overflow:auto}
+
+		.window h2{float:left;padding:0 0 20px 0;text-align:left;margin:0;font-size:1em;color:#969696}
+		.window a.close{float:right;font-size:11px !important;background:url(images/delete.png) 50% 50% no-repeat;text-decoration:none; padding-right: 30px;}
+		.window p{margin:5px 0;font-size:12px;border:1px solid #ccc;text-align:left;padding:5px;clear:both;}
+		
+		.window form{padding:20px 0 !important;clear:both}
+		.window input[type=text]{border:1px dotted #ccc;background:white;width:200px;padding:10px}
+		.window input[type=button]{border:0;width:35%;background:#ccc;float:right;padding:5px;margin:0 0 0 10px;}
+		.window p img{vertical-align:middle;float:right;border:0;width:16px;height:16px}
+		label.error {position:absolute;left:13px;top:13px;padding:0;width:20px;height:20px;background:url(images/delete.png) 50% 50% no-repeat;text-decoration:none;overflow:hidden;text-indent:-999em}
+		
+.cap
+{
+	font-weight:bold;color:white;padding:10px;font-size:20px;
+}

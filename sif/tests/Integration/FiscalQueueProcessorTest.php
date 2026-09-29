@@ -75,6 +75,8 @@ final class FiscalQueueProcessorTest
         Assert::same('DEAD_LETTER', (string) $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
         Assert::same('ERROR', (string) $db->query('SELECT ESTAT_AEAT FROM factura')->fetchColumn());
         Assert::same('ERROR', (string) $db->query('SELECT ESTAT_AEAT FROM factura_registres')->fetchColumn());
+        Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DEAD_LETTER'")->fetchColumn());
+        Assert::same($third['incident_id'], (int) $db->query("SELECT ID FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DEAD_LETTER'")->fetchColumn());
         Assert::stringContainsString(
             'AEAT test transport unavailable',
             (string) $db->query('SELECT LAST_ERROR FROM fiscal_queue')->fetchColumn()
@@ -166,6 +168,31 @@ final class FiscalQueueProcessorTest
         Assert::same('RETRY', (string) $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
         Assert::same($result['results'][0]['next_retry_at'], (string) $db->query('SELECT NEXT_RETRY_AT FROM fiscal_queue')->fetchColumn());
         Assert::same(false, $this->processor($db, $transport)->processNext()['processed']);
+    }
+
+
+    public function testObsoleteClaimCannotCompleteFiscalQueueItem(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'CLAIM|FENCING',
+        ]));
+        $repo = new FiscalQueueRepository();
+        $runner = new TransactionRunner($db);
+        $item = $runner->run(fn (\PDO $tx): ?array => $repo->claimNext($tx, 3));
+        Assert::notSame(null, $item);
+
+        $replacementToken = '11111111-2222-4333-8444-555555555555';
+        $stmt = $db->prepare('UPDATE fiscal_queue SET CLAIM_TOKEN = ? WHERE ID = ?');
+        $stmt->execute([$replacementToken, $item['ID']]);
+
+        Assert::throws(\RuntimeException::class, function () use ($runner, $repo, $item): void {
+            $runner->run(function (\PDO $tx) use ($repo, $item): void {
+                $repo->complete($tx, $item, 'ACCEPTED', [], null);
+            });
+        });
+        Assert::same('PROCESSING', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same($replacementToken, $db->query('SELECT CLAIM_TOKEN FROM fiscal_queue')->fetchColumn());
     }
 
     private function processor(\PDO $db, AeatTransport $transport): FiscalQueueProcessor

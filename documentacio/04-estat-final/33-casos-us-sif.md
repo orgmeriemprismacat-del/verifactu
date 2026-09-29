@@ -241,7 +241,7 @@ Regles de visibilitat:
 - una factura de grup o empresa no exposa dades d'altres participants;
 - l'empresa/responsable accedeix per correu, enllaç segur o futur espai específic, no per la intranet principal;
 - l'auditor és només lectura;
-- el PDF/QR es serveix des del SIF, sense exposar paths interns.
+- el PDF/QR es serveix des del SIF **mitjançant UC-80**, sense exposar paths interns; UC-07 mostra la factura, estats i metadades autoritzades.
 
 Estat: model funcional definit; panell i control d'accés final encara no detectats al codi revisat.
 
@@ -460,7 +460,7 @@ La taula següent amplia la matriu inicial i manté separats el cas de negoci, e
 | UC-33 | Desactivar URL de pagament | Operador | `[DISSENY]` | No esborra ni altera una factura emesa. |
 | UC-34 | Consultar dashboard | Tècnica/operador | `[DISSENY]` | Panell `pay.prisma.cat/sif` pendent. |
 | UC-35 | Consultar registre, cadena i estat AEAT | Tècnica/auditor | `[DISSENY]` | Dades base existents; UI i respostes AEAT pendents. |
-| UC-36 | Generar/consultar PDF, QR o XML | Automàtic/usuari | `[PARCIAL]` | `DocumentRepository` existeix; generador i servei segur pendents. |
+| UC-36 | Generar/consultar PDF, QR o XML | Automàtic/usuari | `[PARCIAL]` | `DocumentRepository` existeix; generador/custòdia es coordinen amb UC-55/78 i el servei segur de bytes és UC-80. |
 | UC-37 | Exportar període fiscal | Tècnica/Adam/auditor | `[DISSENY]` | Format, hash, registre i permisos pendents. |
 | UC-38 | Configurar SIF i certificat | Responsable tècnica | `[DISSENY]` | Secrets i certificat fora del repo; implementació pendent. |
 | UC-39 | Executar proves i go/no-go | Responsable tècnica | `[BASE/PARCIAL]` | Runner, preflights i gate disponibles; entorn real pendent. |
@@ -492,7 +492,7 @@ La taula següent amplia la matriu inicial i manté separats el cas de negoci, e
 | `pay.prisma.cat/sif/factures` | UC-07, UC-02, UC-05, UC-28 |
 | `pay.prisma.cat/sif/registres` | UC-35, UC-09, UC-30, UC-31 |
 | `pay.prisma.cat/sif/incidencies` | UC-08 |
-| `pay.prisma.cat/sif/documents` | UC-36 |
+| `pay.prisma.cat/sif/documents` | UC-07, UC-36, UC-55, UC-78, UC-80 |
 | `pay.prisma.cat/sif/versions` | UC-10, UC-46 |
 | `pay.prisma.cat/sif/exports` | UC-37 |
 | `pay.prisma.cat/sif/configuracio` | UC-38 |

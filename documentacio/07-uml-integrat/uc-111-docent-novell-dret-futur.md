@@ -1,5 +1,16 @@
 # UC-111 · Validar docent novell i generar un dret de descompte futur
 
+> **ACTUALITZACIÓ EXECUTABLE · 29/09/2026**
+>
+> Els diagrames històrics d’aquest document mantenen el contrast ACTUAL/OBJECTIU del tall del 22/09. La implementació canònica actual de la branca `integrate/uc-111-clean-v2-2026-09-29` es complementa amb:
+> - [classes ACTUAL/FINAL](uc-111-classes-actual-final.md);
+> - [seqüències ACTUAL/FINAL](uc-111-sequencies-actual-final.md);
+> - [activitats ACTUAL/FINAL](uc-111-activitats-actual-final.md);
+> - [traçabilitat d’implementació](uc-111-tracabilitat-implementacio.md).
+>
+> El circuit FINAL implementat és **factura/pagament committed → comprovació JASOM + VALIDATED + pagament complet → grant idempotent → preparació idempotent del codi → outbox xifrada**. La suite MySQL 8 del 29/09/2026 ha finalitzat amb **537 passades i 0 fallades**, incloent pagament 50 € + 70 €, callback duplicat i projecció 90/70/20 sense exposar token ni ciphertext. Això acredita la branca de desenvolupament/test, **no producció ni merge a `main`**.
+
+
 **Objectiu del catàleg:** separar l'evidència de titulació i la seva validació de la compra d'origen; **només després de confirmar el cobrament** s'emet una sola vegada el benefici futur. No es modifica ni es torna a emetre la factura inicial per concedir el dret.
 
 > **Mapa documental 29/09/2026.** Aquest fitxer es conserva com a historial integrat i cronologia dels talls. Per auditar cobertura sense recórrer un document monolític, utilitzar com a vistes canòniques: [fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md), [casos d'ús ACTUAL/FINAL](uc-111-casos-us-actual-final.md), [classes ACTUAL/FINAL](uc-111-classes-actual-final.md), [seqüències ACTUAL/FINAL](uc-111-sequencies-actual-final.md), [activitats ACTUAL/FINAL](uc-111-activitats-actual-final.md), [dades i estats ACTUAL/FINAL](uc-111-dades-estats-actual-final.md), [diagrames 1:1 per acció](uc-111-diagrames-per-accio.md) i [matriu de traçabilitat](uc-111-tracabilitat-implementacio.md). Les seccions cronològiques d'aquest document poden descriure un estat anterior i s'han d'interpretar amb el tall que indiquen.

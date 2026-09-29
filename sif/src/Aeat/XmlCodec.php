@@ -10,6 +10,7 @@ final class XmlCodec
     public function __construct(private ?string $schemaDir = null)
     {
         $this->schemaDir ??= dirname(__DIR__, 2) . '/resources/aeat';
+        (new SchemaManifest())->verify($this->schemaDir);
     }
 
     /** Native AEAT fields in XSD order. Lists represent repeated elements. */
@@ -27,10 +28,13 @@ final class XmlCodec
         $doc->appendChild($root);
         $header = $doc->createElementNS(self::BASE . 'SuministroLR.xsd', 'sum:Cabecera');
         $root->appendChild($header);
-        $this->append($doc, $header, $snapshot['header'] ?? []);
+        $this->append($doc, $header, $snapshot['header'] ?? [], 'CabeceraType');
         $entry = $doc->createElementNS(self::BASE . 'SuministroLR.xsd', 'sum:RegistroFactura');
         $root->appendChild($entry);
-        $this->append($doc, $entry, [$type => $record]);
+        $node = $doc->createElementNS(self::BASE . 'SuministroInformacion.xsd', 'sf:' . $type);
+        $entry->appendChild($node);
+        $this->append($doc, $node, $record, $type === 'RegistroAlta'
+            ? 'RegistroFacturacionAltaType' : 'RegistroFacturacionAnulacionType');
         $this->validate($doc, 'SuministroLR.xsd');
         $soap = new \DOMDocument('1.0', 'UTF-8');
         $envelope = $soap->createElementNS(self::SOAP, 'soap:Envelope');
@@ -85,8 +89,17 @@ final class XmlCodec
         }
     }
 
-    private function append(\DOMDocument $doc, \DOMElement $parent, array $values): void
+    private function append(\DOMDocument $doc, \DOMElement $parent, array $values, string|\DOMElement|null $spec = null): void
     {
+        // MySQL JSON reorders object keys. Derive element order from the bundled XSD,
+        // not from PHP/JSON insertion order, so a persisted snapshot remains valid.
+        $definitions = $this->definitions($spec);
+        if ($definitions !== []) {
+            if (array_diff(array_keys($values), array_keys($definitions))) {
+                throw new \InvalidArgumentException('Unknown AEAT fields for schema type.');
+            }
+            $values = array_replace(array_intersect_key($definitions, $values), $values);
+        }
         foreach ($values as $name => $value) {
             if (!is_string($name) || !preg_match('/^[A-Za-z][A-Za-z0-9]*$/D', $name) || $name === 'Signature') {
                 throw new \InvalidArgumentException('Invalid AEAT element name.');
@@ -95,7 +108,9 @@ final class XmlCodec
                 $node = $doc->createElementNS(self::BASE . 'SuministroInformacion.xsd', 'sf:' . $name);
                 $parent->appendChild($node);
                 if (is_array($item)) {
-                    $this->append($doc, $node, $item);
+                    $definition = $definitions[$name] ?? null;
+                    $nested = $definition?->getAttribute('type');
+                    $this->append($doc, $node, $item, $nested ? preg_replace('/^sf:/', '', $nested) : $definition);
                 } elseif (is_string($item)) {
                     $node->appendChild($doc->createTextNode($item));
                 } else {
@@ -103,5 +118,37 @@ final class XmlCodec
                 }
             }
         }
+    }
+
+    private function definitions(string|\DOMElement|null $spec): array
+    {
+        if ($spec === null) {
+            return [];
+        }
+        if (is_string($spec)) {
+            $schema = new \DOMDocument();
+            $schema->load($this->schemaDir . '/SuministroInformacion.xsd', LIBXML_NONET);
+            $xp = new \DOMXPath($schema);
+            $xp->registerNamespace('xs', 'http://www.w3.org/2001/XMLSchema');
+            $spec = $xp->query('/xs:schema/xs:complexType[@name="' . $spec . '"]')->item(0);
+            if (!$spec) {
+                return [];
+            }
+        }
+        $result = [];
+        foreach ($spec->childNodes as $child) {
+            if (!$child instanceof \DOMElement) {
+                continue;
+            }
+            if ($child->localName === 'element') {
+                $name = $child->getAttribute('name');
+                if ($name !== '') {
+                    $result[$name] = $child;
+                }
+            } elseif (in_array($child->localName, ['complexType', 'sequence', 'choice'], true)) {
+                $result += $this->definitions($child);
+            }
+        }
+        return $result;
     }
 }

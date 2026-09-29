@@ -3,9 +3,52 @@
 namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Tests\Support\Assert;
+use Prisma\Sif\Tests\Support\ScriptRunner;
+use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class GoNoGoPreproductionScriptTest
 {
+    public function testExecutableReportsCompleteSchemaButDoesNotAuthorizeProduction(): void
+    {
+        $db = TestDatabase::fresh();
+        $result = ScriptRunner::run('scripts/go-no-go-preproduction.php', [
+            'SIF_REDSYS_MERCHANT_KEY' => '',
+            'SIF_LEGACY_DB_DSN' => '',
+        ]);
+        Assert::same(1, $result['exit_code']);
+        Assert::same('', $result['stderr']);
+        $json = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
+        Assert::same('NO-GO', $json['go_no_go_decision']);
+        Assert::same(true, $json['checks']['schema_verified']);
+        Assert::same(true, $json['checks']['redsys_callback_queue_table']);
+        Assert::same(true, $json['checks']['academic_reconciliation_item_table']);
+        Assert::same(false, $json['checks']['redsys_merchant_key_configured']);
+        Assert::same(false, $json['checks']['legacy_database_configured']);
+        Assert::same('technical_preflight_only', $json['scope']);
+        Assert::same(false, $json['production_authorized']);
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
+    public function testExecutableRejectsMissingExtensionTableAndProductionEnvironment(): void
+    {
+        $db = TestDatabase::fresh();
+        $db->exec('RENAME TABLE academic_reconciliation_item TO test_hidden_academic_item');
+        try {
+            $result = ScriptRunner::run('scripts/go-no-go-preproduction.php', [
+                'SIF_ENV' => 'production',
+                'SIF_LEGACY_DB_DSN' => '',
+            ]);
+            Assert::same(1, $result['exit_code']);
+            $json = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
+            Assert::same(false, $json['checks']['schema_verified']);
+            Assert::same(false, $json['checks']['academic_reconciliation_item_table']);
+            Assert::same(false, $json['checks']['environment_not_production']);
+            Assert::same('NO-GO', $json['go_no_go_decision']);
+        } finally {
+            $db->exec('RENAME TABLE test_hidden_academic_item TO academic_reconciliation_item');
+        }
+    }
+
     public function testGoNoGoScriptChecksBlockingPreproductionReadiness(): void
     {
         $source = file_get_contents(dirname(__DIR__, 2) . '/scripts/go-no-go-preproduction.php');

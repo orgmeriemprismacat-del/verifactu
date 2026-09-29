@@ -1,0 +1,924 @@
+{
+  "timestamp": "2026-09-23T12:26:04.152Z",
+  "head": "e71958b3026549bde09fb4b25f2ec3ba370937ec",
+  "functionalCards": 142,
+  "uml": [
+    {
+      "file": "uc-001-emetre-o-reutilitzar-factura.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-002-registrar-cobrament-factura.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-003-processar-cobrament-redsys-asincron.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-004-emetre-factura-abans-cobrar.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-005-rectificar-factura.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-006-devolucio-saldo-compensacio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-007-consultar-factura-estat-document.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-008-gestionar-incidencia-sif.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-009-remetre-registre-aeat.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-010-gestionar-configuracio-versio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-011-importar-factura-historica.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-012-morositat-reclamacio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-013-orquestrar-doble-facturacio-usoc.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-014-comprar-curs-redsys.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-014a-comprar-taller.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-014b-comprar-jornada.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-015-comprar-pack.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-016-facturar-grup.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-016a-afegir-participant-grup-emes.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-016b-treure-participant-grup-emes.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-017-comprar-regal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-018-bescanviar-regal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-018a-regal-caducat-duplicat.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-019-validar-afiliacio-usoc.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-019a-facturar-part-alumne-usoc.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-019b-facturar-part-entitat-usoc.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-020-aplicar-alumne-prisma.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-020a-validar-carnet-jove.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-020b-aplicar-descompte-sensible.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-020c-aplicar-promocio-temporal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-020d-aplicar-codi-promocional.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-021-empresa-responsable-paga-inscripcions.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-022-registrar-transferencia.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-023-registrar-fraccio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-024-registrar-cobrament-reclamacio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-025-analitzar-fitxer-tpv.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-025a-comprovar-idpag-duplicats.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-026-canviar-de-curs.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-027-donar-de-baixa.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-028-registrar-devolucio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-029-crear-saldo.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-029a-aplicar-compensacio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-030-anul-lar-registre-improcedent.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-031-subsanar-registre.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-032-marcar-factura-electronica.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-033-desactivar-url-pagament.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-034-consultar-dashboard-sif.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-035-consultar-registre-cadena-estat-aeat.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-036-generar-consultar-documents.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-037-exportar-periode-fiscal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-038-configurar-sif-certificat.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-039-proves-gate-go-no-go.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-040-backup-restauracio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-041-crear-editar-entitat-responsable.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-042-consultar-modificar-alumne.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-043-gestionar-notificacions-recordatoris.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-044-consultar-mantenir-fact-rels-origen-legacy.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-045-activar-auditor-temporal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-046-activar-versio-declaracio-responsable.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-047-sincronitzar-estat-cap-llegat.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-048-proforma-no-fiscal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-049-enviar-factura-document-avis-correu.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-050-cicle-enllac-pagament.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-051-callback-redsys-anomal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-052-operar-cua-redsys.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-053-detectar-resoldre-divergencies.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-054-operar-cua-fiscal-respostes.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-055-custodiar-reintentar-documents.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-056-cercar-assignar-cobrament.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-057-mantenir-optimitzar-bd-sif.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-058-gestionar-outbox-notificacions.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-059-concedir-caducar-revocar-acces-auditor.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-060-monitorar-salut-cues-documents-backups-versio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-061-consultar-pendent-obtenir-enllac.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-062-iniciar-factura-cobrament-intranet.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-063-crear-intencio-redsys.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-064-reconciliar-candidata-codi-actual.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-065-presentar-factura-rebut-collaborador.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-066-gestionar-cobraments-collaborador.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-067-externalitzar-rotar-secrets-pagament.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-068-retirar-callbacks-escriptures-fiscals-llegades.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-069-confirmar-congelar-dades-fiscals.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-070-modificar-dades-mestres-despres-emetre.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-071-registrar-canvi-curs-complet.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-072-registrar-baixa-decisio-economica.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-073-documentar-ajust-descompte-despesa.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-074-classificar-correccio-fiscal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-075-crear-registre-anullacio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-076-crear-registre-subsanacio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-077-operar-enviament-aeat-retry-dead-letter.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-078-generar-custodiar-pdf-qr-xml.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-079-comunicacio-fiscal-auditable.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-080-servir-registrar-acces-document-fiscal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-081-cicle-complet-incidencia.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-082-reconciliar-sif-bd-llegada.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-083-registrar-activar-versio-declaracio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-084-crear-paquet-fiscal-auditoria.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-085-backup-restauracio-reconciliacio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-086-auditar-accio-pagament.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-087-validar-receptor-estranger-dades-incompletes.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-088-decidir-agrupacio-linies-factura-multiconcepte.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-089-canviar-concepte-despres-cobrament-emissio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-090-descompte-validat-despres-compra.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-091-descompte-grup-per-trams.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-092-registrar-venda-manual-intranet-telefon.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-093-canviar-receptor-fiscal-despres-compra-particular.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-094-ajustar-manualment-import-pagar-justificacio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-095-estat-academic-deute-pendent.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-096-prorroga-pagament-segona-setmana.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-097-consultar-historic-associacio-sl.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-098-classificar-circuit-fiscal-botiga-llibres-sl.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-099-limitar-intranet-tutors-no-fiscal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-100-registrar-operacio-informativa-no-facturable.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-101-domini-tls-separacio-entorns-pay-prisma.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-102-autoritzar-acces-alumne-sense-rol-intranet.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-103-delegar-canvi-anullacio-pagament-web-sif.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-104-gestionar-exces-cobrament.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-105-reassignar-repartir-pagament.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-106-crear-reserva-abans-pagament.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-107-detectar-inscripcio-duplicada.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-108-tastet-repte-gratuit.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-109-inscripcio-curs-subvencionat.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-110-descompte-amics-dues-inscripcions.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-111-docent-novell-dret-futur.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-112-congelar-snapshot-abans-tpv.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-113-importar-inscripcions-manualment-lot.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-114-versionar-producte-edicio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-115-reservar-alliberar-places.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-116-custodiar-evidencies-descompte.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-117-cicle-vida-codi-dret-futur.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-118-gestionar-grup-abans-facturar.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-119-cicle-complet-regal.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-120-canvi-dades-personals-propagacio.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-121-repreuar-renovar-reserva-caducada.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-122-composicio-pack-component-indisponible.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-123-lliurar-factura-electronica.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-124-reconciliar-acces-certificat-baixa-deute.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-125-consentiment-comunicacions-separat.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-126-identitat-contacte-conflicte-sistemes.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-127-canvi-estat-edicio-operacions-afectades.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-128-normalitzar-adreca-cp-poblacio-abans-factura.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    },
+    {
+      "file": "uc-129-reconciliar-prisma-moodle-matricules.md",
+      "plantuml": true,
+      "classDiagram": true,
+      "sequenceDiagram": true
+    }
+  ],
+  "umlCount": 142,
+  "blocksComplete": 142,
+  "codeSnapshot": [
+    {
+      "path": "sif/src/Aeat/RecordFactory.php",
+      "sha256": "211611655b3c1abd4ee84815aec6a0f24b2b830c37506cbf7718e3ef408bc8b1"
+    },
+    {
+      "path": "sif/src/Aeat/ResponseParser.php",
+      "sha256": "ae612a699d0e1fd939fc08366e083d04af73437a06277d51929a975f2a78944a"
+    },
+    {
+      "path": "sif/src/Aeat/XmlCodec.php",
+      "sha256": "a3d2ff614fdf3a8013ccdf7c4ff7d6c156ecbaabcbe7581bab597dc4a86e0a0c"
+    },
+    {
+      "path": "sif/src/Repository/FiscalRecordRepository.php",
+      "sha256": "12a09894ff150eb28268b5e94ab13810f623ba904f618ddab7895eaedcb9bf01"
+    },
+    {
+      "path": "sif/src/Repository/InvoiceRepository.php",
+      "sha256": "c1c9b752ceb755b5d483fcb8236ab1dad9ae176b253b13ab5c51d41229486673"
+    },
+    {
+      "path": "sif/src/Service/FiscalRecordPayloadBuilder.php",
+      "sha256": "0e58e7b9dbbf83ba382cb360d68abe826fec4651f03f6e2e0cebcb587b87ee74"
+    },
+    {
+      "path": "sif/src/Service/FiscalRecordService.php",
+      "sha256": "b626a1e39c27b8762aa82df20b012bd29cd9c09e5c5ee331a1b632b269b5f953"
+    },
+    {
+      "path": "sif/tests/Database/MigrationInfrastructureTest.php",
+      "sha256": "deb534a33b1d5784cd04d17174c52ae121712bd2ebbcc0eca6a7da8219761bb2"
+    },
+    {
+      "path": "sif/tests/Integration/FiscalRecordServiceTest.php",
+      "sha256": "c457d3bc03817581302aa08eddb95c028adb1c4ee4d2386eea5d21b139dcc0fb"
+    },
+    {
+      "path": "sif/tests/Integration/GoNoGoPreproductionScriptTest.php",
+      "sha256": "f830522c8ab016b8f75b7db83bb444da180c3a08fda9dae4f44ef50c5e03a900"
+    },
+    {
+      "path": "sif/tests/Integration/ManualPackInvoicePayloadBuilderTest.php",
+      "sha256": "860a64086f15b3875fe49dd43eabc1f79ecb07efdb00cae06ef7386de4113aa5"
+    },
+    {
+      "path": "sif/tests/Integration/PreflightScriptTest.php",
+      "sha256": "c53c9a368ede256e184478509502d02703103b5d860de781a928e843780ac0c5"
+    },
+    {
+      "path": "sif/tests/README.md",
+      "sha256": "a7584de3415b18b3dda400fbcec60e1300d81c543fa8cefb546e5e4539885e14"
+    },
+    {
+      "path": "sif/tests/Support/TestDatabase.php",
+      "sha256": "695d22713d58d52673fb6ebd22709f7cb8875113aebd8c044551ad1a675b597d"
+    },
+    {
+      "path": "sif/tests/Unit/ConnectionFactoryTest.php",
+      "sha256": "62c3350f5f850be1203bafdd8e419341e6a149021f8123caf69b22efcb369e97"
+    }
+  ],
+  "previousTests": "353 passed, 0 failed"
+}

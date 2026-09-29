@@ -3,6 +3,7 @@
 namespace Prisma\Sif\Aeat;
 
 use Prisma\Sif\Contract\AeatTransport;
+use Prisma\Sif\Exception\AeatDeliveryUncertainException;
 
 /** SOAP 1.1 over cURL/mTLS. No network access in construction or preview. */
 final class SoapTransport implements AeatTransport
@@ -58,16 +59,32 @@ final class SoapTransport implements AeatTransport
             $ok = curl_exec($curl);
             $http = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
             $errno = curl_errno($curl);
-            $this->evidence->response($attempt, $raw, $http);
+            try {
+                $this->evidence->response($attempt, $raw, $http);
+            } catch (\Throwable $error) {
+                throw new AeatDeliveryUncertainException(
+                    'AEAT response evidence could not be persisted; evidence=' . $attempt,
+                    0,
+                    $error
+                );
+            }
             if ($ok === false || $http !== 200) {
-                $this->evidence->failure($attempt, 'CURL_' . $errno . '_HTTP_' . $http);
-                throw new \RuntimeException('AEAT delivery uncertain; evidence=' . $attempt);
+                try {
+                    $this->evidence->failure($attempt, 'CURL_' . $errno . '_HTTP_' . $http);
+                } catch (\Throwable) {
+                    // The protected request/response attempt id still identifies the uncertain delivery.
+                }
+                throw new AeatDeliveryUncertainException('AEAT delivery uncertain; evidence=' . $attempt);
             }
             try {
                 $result = (new ResponseParser())->parse($raw, $snapshot);
             } catch (\Throwable $error) {
-                $this->evidence->failure($attempt, 'INVALID_SOAP_RESPONSE');
-                throw new \RuntimeException('AEAT response requires review; evidence=' . $attempt);
+                try {
+                    $this->evidence->failure($attempt, 'INVALID_SOAP_RESPONSE');
+                } catch (\Throwable) {
+                    // Preserve the original parsing failure as the cause of the uncertain outcome.
+                }
+                throw new AeatDeliveryUncertainException('AEAT response requires review; evidence=' . $attempt, 0, $error);
             }
             $result['request_xml'] = $request;
             $result['response']['evidence_id'] = $attempt;

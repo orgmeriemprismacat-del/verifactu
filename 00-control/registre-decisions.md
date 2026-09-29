@@ -1012,6 +1012,46 @@ La signatura Redsys valida les dades del TPV, pero el vincle amb l'origen funcio
 Impacte:
 La migracio SQL i el contracte documental queden preparats. Un `DS_ORDER` repetit nomes es idempotent si coincideixen import, resposta, signatura i intencio; qualsevol discrepancia es una incidencia bloquejant. Encara cal implementar repositori/servei, integrar els punts de creacio de Redsys, connectar el callback als orquestradors i executar les proves amb PHP/MySQL.
 
+## 2026-09-22 - Fixar `main` com a inventari provisional i no com a base validada
+
+Decisió:
+Prendre el commit `e71958b` només com a fotografia provisional del material
+recopilat. Abans de desenvolupar més cal resoldre els conflictes versionats,
+reconciliar la branca UML encara divergent, regenerar el catàleg i els hashes,
+reexecutar lint/proves/migracions sobre el `HEAD` actual i decidir el tractament
+de les còpies `codi-drive` amb possibles dades personals.
+
+Motiu:
+El volum incorporat és substancial, però les evidències verdes són anteriors a
+81 canvis de runtime/proves/SQL. UC-77 trenca el contracte de 21 apartats, les
+142 fitxes acumulen 1.874 hashes desactualitzats, `ConnectionFactoryTest.php`
+conté marcadors de conflicte i el commit d'arxius actuals ha incorporat 589 PDF
+entre 3.356 fitxers de snapshots.
+
+Impacte:
+No s'ha de confondre presència de codi, UML o snapshots amb validació del
+producte. Queden bloquejats nous commits amplis, publicació de
+`intranet-collaboradors` i qualsevol `GO` fins a netejar la base, revisar dades,
+obtenir una suite actual reproduïble i tornar a establir traçabilitat coherent.
+
+## 2026-09-22 - Retirar artefactes PDF i rutes de certificat del `HEAD`
+
+Decisió:
+Eliminar els 589 PDF versionats i els 476 fitxers amb `certificat` a la ruta,
+amb un total de 1.065 fitxers sense solapament. No incloure en aquesta retirada
+la còpia local no versionada `intranet-collaboradors`.
+
+Motiu:
+Els artefactes no són necessaris per compilar el SIF i poden contenir dades o
+evidències que requereixen una política de custòdia diferent del repositori de
+codi.
+
+Impacte:
+Les eliminacions queden preparades a l'índex mitjançant `git rm`, sense commit
+ni push. Els objectes continuen a l'historial Git; qualsevol purga de
+l'historial remot requereix una decisió separada perquè reescriu commits i
+afecta totes les còpies del repositori.
+
 ## 2026-06-20 - Contracte executable i operacio del circuit asincron Redsys
 ## 2026-06-19 - Els callbacks Redsys es processen amb una cua asincrona propia
 
@@ -1024,3 +1064,198 @@ La resposta a Redsys no pot dependre de facturacio ni de consultes legacy. Un du
 Impacte:
 Queden implementats `CURS`, `PACK`, `GRUP`, `REGAL` i `USOC_ALUMNE`, worker CLI finit i preflight de nomes lectura. REGAL usa ID numeric congelat, USOC conserva `entity_amount` i la sincronitzacio legacy automatica continua exclosa. L'activacio productiva segueix sotmesa al go/no-go de preproduccio.
 
+## 2026-09-23 - Separar DTO de pantalla i payload fiscal SIF
+
+Decisio:
+Els endpoints interns no acceptaran directament el payload fiscal complet des del navegador. La UI envia un DTO limitat; el servidor autentica, autoritza, valida i deriva actor, canal, serie, tipus de moviment, assignacions i relacions abans de cridar el servei SIF.
+
+Motiu:
+Exposar camps interns permetria manipular identitat, accio fiscal, receptor copiat o relacions. A mes, reenviar totes les dades durant `confirm` permetria canviar l'operacio despres del preview.
+
+Impacte:
+`15-contractes-api-pantalles-internes.md` fixa DTO, mapatges, errors i proves. `confirm` nomes rep el token de preview i la confirmacio; el servidor recupera la instantania congelada, revalida estat i aplica idempotencia. Els endpoints de baix nivell continuen fora de l'abast directe del navegador.
+
+
+## 2026-09-23 - Correlació AEAT i idempotència de correccions
+
+Decisió:
+Una referència fiscal reutilitzada ha de coincidir amb la factura i el
+contingut original de la petició. Les respostes AEAT es correlacionen per
+emissor, número/data, tipus d'operació i marques de correcció. Un duplicat
+requereix revisió i no es converteix automàticament en acceptació.
+
+Motiu:
+La regressió ha reproduït la reutilització incorrecta d'una anul·lació
+d'una altra factura per una comprovació situada al mètode equivocat.
+La mateixa identitat fiscal també pot tenir alta, subsanacions i anul·lació;
+comprovar només número/data és insuficient.
+
+Impacte:
+Corregits FiscalRecordRepository i ResponseParser, amb proves executables.
+La huella oficial queda al snapshot AEAT; el digest HASH_FACT continua
+essent intern. El transport candidat segueix limitat a proves externes i
+la declaració no es fa signable amb evidències sintètiques.
+El preflight usa les dependències reals de cURL/mTLS i valida el certificat
+localment sense afirmar confiança AEAT, revocació o representació.
+
+
+Validació d'aquesta decisió:
+363 proves de regressió correctes, cap fallada, en una BD de revisió separada.
+El manifest local 2026-09-23-aeat-review-source-manifest.json identifica els
+fitxers verificats; cap hash ha canviat durant l'execució final.
+El preflight bloquejat per dependències/configuració reals és un resultat
+esperat i no es reetiqueta com a preparació per producció.
+
+
+## 2026-09-23 - Preview fiscal consultiu i confirmació revalidada
+
+Decisió:
+Preview i confirmació CLI comparteixen parser i validació de transicions.
+El preview oficial ha de validar XML/XSD sense cap INSERT/UPDATE. Hora,
+ordre i huella proposats són provisionals i la confirmació els regenera
+sota el bloqueig transaccional, després de comprovar idempotència i estat.
+No es tracta del token de confirmació de la futura UI.
+
+Motiu:
+Els CLI antics no admetien corrected_fields ni totes les variants d'anul·lació
+i el preview podia acceptar operacions que el servei rebutjava. L'àlies de
+subsanació SIN_REGISTRO_PREVIO ha d'exigir rebuig previ com RECHAZO_PREVIO.
+
+Impacte:
+Afegits parser i validador compartits i proves que llancen els processos CLI
+reals. El contingut JSON, no la ruta del fitxer, determina la petició idempotent.
+Les columnes de resum AEAT de la cua es poblen des de la resposta; el registre
+conserva el detall complet. cURL local activat, certificat real encara pendent.
+
+Validació final:
+371 proves de regressió correctes i cap fallada. No hi ha canvis de hashes
+de codi durant la prova. El preflight confirma cURL actiu i manté el bloqueig
+per certificat usable i directori privat no configurats; no hi ha enviament AEAT.
+
+## 2026-09-24 — Verificació executable de la integritat AEAT
+
+Decisió: bloquejar XmlCodec si falta un recurs del manifest o no coincideix
+el seu SHA-256; normalitzar els recursos locals a UTF-8 sense BOM i LF.
+Afegir un verificador de només lectura dels intents desats, amb estats
+RESPONSE_RECORDED, INCOMPLETE, FAILED_ATTEMPT i INVALID. Només el primer
+amb integritat correcta retorna codi de sortida zero.
+Motiu: un manifest merament informatiu no detectava alteracions abans de
+validar XML; la presència de fitxers tampoc acreditava un intent complet.
+Límit: els hashes no autentiquen una substitució conjunta de fitxers i manifest,
+ni constitueixen WORM o evidència d'acceptació AEAT. No hi ha enviaments externs.
+
+Verificació final 2026-09-24: **374 passed, 0 failed** a la BD aïllada
+sif_test_aeat_review_20260923; cap canvi dels hashes de codi durant la regressió.
+Logs locals a sif/var/evidence/2026-09-24-aeat-integrity-regression.log,
+2026-09-24-aeat-integrity-preflight.json i
+2026-09-24-aeat-integrity-source-manifest.json. Les 26 proves específiques
+consten a 2026-09-23-aeat-integrity-tests.log. Cap enviament AEAT ni commit/push.
+
+## 2026-09-24 — Espera persistent després d'un intent fallit
+
+Decisió: renovar NEXT_SEND_AT a 60 segons des del final quan el transport
+llança una excepció o retorna un temps d'espera invàlid, abans de propagar
+l'error al processador de retries. Mantenir també l'espera preventiva inicial.
+Motiu: comptar únicament des de l'inici consumia part de l'espera durant la
+petició fallida. El límit global ha de continuar actiu després d'un reinici.
+Validació: 27 proves específiques correctes; timeout i espera invàlida
+coberts amb transport sintètic i MySQL aïllat. No s'ha enviat res a AEAT.
+Límit: una terminació abrupta no executa el catch; conserva el termini
+preventiu i necessita la recuperació explícita del lock antic.
+
+## 2026-09-24 — Respectar la marca de revisió de la resposta
+
+Decisió: propagar requires_review des de la resposta al resultat del processador
+i consultar-la al worker, inclosa duplicate=true, encara que l'estat sigui ACCEPTED.
+Motiu: el parser podia marcar revisió, però el worker només examinava l'estat fiscal.
+La incidència AEAT_REVIEW conserva la necessitat d'actuació sense canviar l'estat
+retornat ni reenviar una resposta ja processada. No resol la conciliació del duplicat.
+Validació: 28 proves específiques correctes amb transport sintètic i BD aïllada;
+cap enviament extern. Lint dels tres fitxers PHP correcte.
+
+## 2026-09-24 — Verificació de concurrència i límit després de recuperació
+
+Decisió: conservar el comportament actual del worker i cobrir-lo amb proves
+sobre dues connexions MySQL independents. El lock global precedeix qualsevol
+recuperació; els intents consumits no es reinicien en recuperar un lock antic.
+La recuperació amb pressupost esgotat bloqueja la cadena i obre una incidència,
+sense reenviar ni passar al registre següent. Repetir el cicle no duplica la incidència.
+Validació: 30 proves específiques correctes amb transport sintètic, BD aïllada
+i cap enviament AEAT. No acredita recuperació del servidor davant una caiguda real.
+
+## 2026-09-24 — Evidència vigent de la infraestructura local
+
+Decisió:
+Donar per validat l'entorn local de proves amb PHP 8.4.25/MySQL 8.4.10 i el conjunt actual de deu migracions, basant-se en instal·lació buida, reexecució, lint de 328 PHP i suite completa de 378 proves sense fallades. Conservar els logs i el manifest de fonts a sif/var/evidence/2026-09-24-infra-*.
+
+Motiu:
+Les execucions anteriors no cobrien tots els canvis incorporats posteriorment. La comprovació del 24 de setembre cobreix el codi actual, inclosos els controls d'infraestructura i les darreres proves AEAT; no hi ha hagut canvis de fonts durant la validació.
+
+Impacte:
+El preflight local és satisfactori. El go/no-go continua NO-GO per manca de clau Redsys i de les quatre taules legacy requerides. Un GO del script només té abast technical_preflight_only i production_authorized=false; no substitueix qualificació externa, restauració, permisos ni portes G1..G7. No cal canviar l'estat global ni activar cap canal real.
+
+
+## 2026-09-25 — Continuació de revisió UML: UC-108
+
+Reconciliades fitxa, casos d’ús, classes, seqüència i activitats del tastet amb les decisions DEC-108 ja acordades. Corregida la dependència UC-125 sobre alta directa al butlletí. L’auditoria del lot 01, apartat 6, conserva troballes i pendents concrets; correccions històriques UC-108/110/125 ja incorporades identificades. Cap decisió nova de negoci, canvi de PHP ni prova funcional. UC-108 continua obert pels detalls identificats; no es dona per completada la revisió dels 142 casos.
+
+
+## 2026-09-25 — DEC-108-06: tastets fora del SIF
+
+**DEC-108-06 ACORDADA (25/09/2026):** per decisió de la usuària, els tastets es gestionen només al web, la intranet i el campus. No es crea cap operació SIF `commercial_operation` / `NON_BILLABLE` / `FREE_SAMPLE` per la sol·licitud gratuïta. Aquesta exclusió no afecta una compra posterior de pagament, que tindrà el seu cas propi.
+
+Font: resposta explícita «només a la web intranet i campus». Actualitzada la documentació UML integrada i l’auditoria del lot 01; cap canvi de codi ni de dades.
+
+
+### 25/09/2026 — Desbloqueig d’un sol ús, DEC-108-03e
+
+**DEC-108-03e ACORDADA (25/09/2026):** cada desbloqueig de secretaria/suport autoritza una única nova inscripció de la mateixa persona al mateix tastet després de caducar l’accés. Un cop utilitzat, repetir el tastet després d’una nova caducitat requereix una nova autorització. Els reintents de la mateixa petició no són noves inscripcions. DEC-108-03f confirma que el desbloqueig no caduca abans d’utilitzar-lo.
+
+Font: confirmació explícita de la usuària a la proposta d’una única nova inscripció. Actualitzades fitxes, activitats, seqüència i contracte de classes de disseny; criteri tècnic derivat i proves TG-108-DU1–DU4 identificats com a pendents, sense modificar PHP ni BD.
+
+
+### 25/09/2026 — Confirmació del còmput d’accés (DEC-108-02b/d)
+
+La usuària confirma que els **7 dies d’accés comencen amb l’activació efectiva al campus**, no amb l’enviament del formulari web. Es conserva la regla ja acordada: venciment set dies després a la mateixa hora de l’activació. La caducitat del desbloqueig és una qüestió separada: resolta posteriorment a DEC-108-03f, sense termini abans del primer ús. Es manté el desbloqueig d’un sol ús (DEC-108-03e).
+
+
+### 25/09/2026 — Vigència del desbloqueig
+
+**DEC-108-03f ACORDADA (25/09/2026):** el desbloqueig no té caducitat temporal mentre no s’hagi utilitzat: la persona pot enviar el formulari quan vulgui. Es manté l’ús únic per persona+tastet (DEC-108-03e) i la validació que el tastet estigui actiu. Els set dies d’accés comencen amb l’activació efectiva al campus (DEC-108-02b/d), no amb el desbloqueig ni amb l’enviament del formulari.
+
+Font: resposta explícita «pot fer-ho quan vulgui». Decisió documental; implementació i proves no acreditades per aquesta actualització.
+
+
+### 25/09/2026 — Canal de petició del desbloqueig
+
+**DEC-108-03g ACORDADA (25/09/2026):** la persona demana el desbloqueig del tastet per correu electrònic. Secretaria/suport gestiona el desbloqueig segons DEC-108-03a; l’enviament del correu no és una nova inscripció ni activa l’accés al campus. Després del desbloqueig, és la persona qui emplena i envia el formulari web. El desbloqueig es fa des del campus (DEC-108-03h); l’adreça destinatària i el control concret del campus no s’han precisat.
+
+Font: resposta explícita «escriu un coreu». Actualització documental; cap correu enviat ni canvi de codi.
+
+
+### 25/09/2026 — Sistema de gestió del desbloqueig
+
+**DEC-108-03h ACORDADA (25/09/2026):** secretaria o suport fa el desbloqueig des del campus, segons resposta explícita de la usuària. El canal de petició és el correu electrònic (03g). Resta identificar l’acció concreta del campus i el seu efecte sobre l’accés i la possible reinscripció web; no s’infereix una sincronització campus→web ni un nou servei automàtic. Es mantenen les regles acordades d’ús únic, absència de caducitat abans de l’ús i set dies des de l’activació efectiva.
+
+Actualització de fitxes i diagrames; no s’ha operat al campus ni modificat PHP/BD.
+
+
+### 25/09/2026 — Acció concreta al campus i coherència pendent
+
+**DEC-108-03i ACORDADA (25/09/2026):** el desbloqueig es fa canviant la data de venciment al campus. Aquesta és l’acció concreta confirmada per la usuària. **COHERÈNCIA PENDENT:** precisar si aquest canvi renova directament l’accés existent o si encara cal el nou formulari web descrit a DEC-108-03a/e/f, i des de quin instant es calcula el nou venciment. No afirmar que canviar la data crea una autorització web ni una nova matrícula. La regla dels set dies des de l’activació efectiva es manté; no s’infereix un còmput des del primer inici de sessió. El circuit de repetició de tastet i la pròrroga per incidència de claus no s’assimilen automàticament.
+
+Font: resposta explícita «Canvieu la data de venciment». La usuària demana agrupar les preguntes per agilitzar la definició. Actualització documental; cap acció executada al campus.
+
+
+### 25/09/2026 — Renovació aclarida per la usuària
+
+**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+
+Font: respostes agrupades 1–3 de la usuària. La renovació queda definida documentalment; no s’ha executat cap canvi al campus, enviament ni prova funcional.
+
+
+## 2026-09-25 — UC-108: decisions contrastades i revisió de codi-drive
+
+**Decisions confirmades el 25/09/2026:** (DEC-108-03m) es pot tornar a renovar si la persona ho demana, tot i que la usuària indica que això no passa habitualment; no s’ha establert un màxim numèric ni una renovació automàtica. (DEC-108-01a) la identificació per comprovar repetició del tastet és el **DNI**, conjuntament amb el tastet. (DEC-108-07) avisos de tastets i butlletí general pertanyen a **la mateixa subscripció**; no dissenyar dues subscripcions independents per aquests dos noms. Els avisos operatius d’accés/renovació continuen independents de l’opció comercial.
+
+Preferència expressa: revisar primer tot el codi disponible i la documentació abans de preguntar dades deduïbles. Inventari i contrast global a `00-control/revisio-codi-drive-2026-09-25/`; lectura semàntica dirigida i escaneig automàtic es distingeixen explícitament.

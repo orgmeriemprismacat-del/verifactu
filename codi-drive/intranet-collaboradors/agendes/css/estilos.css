@@ -1,0 +1,80 @@
+img{border:0}
+html{height:100%;width:100%;outline:0;}
+/* body {text-align:center;margin:10px auto;width:97%;height:100%;background:#fff;padding:10px;outline:0;} */
+
+body {
+    font-family: Roboto, 'Arial', sans-serif;
+}
+
+.prisma-header {
+    background: #A3BE8D;
+}
+
+div#cos {
+    height: calc(100vh - 72px);
+}
+
+#cos a {
+    color: #526b3e;
+    font-weight: bold;
+}
+
+#agenda{width:100%;margin:0 auto; text-align:center;padding:20px; /*height:100%;*/ display: flex; flex-direction: column;justify-content: center; align-items: center;}
+#agenda h1{text-align:left;margin:0;font-size:1.5em;color:#312c2b}
+#agenda h2{text-align:left;margin:0;font-size:1em;color:#969696}
+#agenda p,
+#agenda div {
+    margin-bottom: 0px;
+
+	 font-size: 0.9rem;
+font-family: 'Candara';
+}
+
+#agenda > img {
+	width: 100px;
+	height: 100px;
+}
+
+#agenda table.calendario {width:100%;border:1px dotted #ccc;height: 100%; margin-bottom: 1rem; text-align: center;}
+
+.calendario th {border:1px dotted #ccc;font-weight:bold;background:#5a7cb8;color:white;padding:10px;font-size:16px;}
+.calendario td{padding:10px;text-align:center;border:1px dotted #ccc;width:100px;white-space:pre-line;font-size:14px;vertical-align: top;background:#f6f6f6;}
+
+	.calendario td.evento {background:#E3EDFB;}
+	.calendario td.desactivada {background:#FEFEFE;}
+	.calendario td.hoy{font-weight:bold; background-color:#FCE6C5}
+	a.agregar_evento{position:relative;margin-left:25px;margin-top:-25px}
+	.calendario td a{color:#5a7cb8;text-decoration:none;}
+
+.verde,.ok{font-weight:bold;color:green;}
+.rojo{font-size:125% !important;font-weight:bold;color:red;}
+.siguiente,.anterior{color:#333333;text-decoration:none}
+
+#mask {position:absolute;left:0;top:0;z-index:9000;background-color:#000;display:none;width:100%;height:100%}
+
+#respuesta_form,.respuesta{clear:both;padding:20px 0;}
+
+.window {position:fixed;left:0;top:0;width:440px;height:400px;display:none;z-index:9999;padding:20px;background-color:#ffffff;}
+
+	.window h2{float:left;padding:0 0 20px 0;text-align:left;margin:0;font-size:1em;color:#969696}
+	.window a.close{float:right;font-size:11px !important}
+	.window p{margin:5px 0;font-size:12px;border:1px solid #ccc;text-align:left;padding:5px;clear:both;}
+
+	.window form{padding:20px 0 !important;clear:both}
+	.window input[type=text]{border:1px dotted #ccc;background:white;width:200px;padding:10px}
+	.window input.enviar,.guardar_editar_evento{border:1px dotted #ccc;background:white;width:120px;background:#ccc;margin:0 0 0 10px;padding:10px}
+	.window p img{vertical-align:middle;float:right;border:0;width:16px;height:16px}
+
+	.form_editar{display:none}
+
+
+.colordia
+{
+	color:#F5B656;
+	font-weight:bold;
+}
+
+.cap
+{
+	font-weight:bold;color:white;padding:10px;font-size:20px;
+}

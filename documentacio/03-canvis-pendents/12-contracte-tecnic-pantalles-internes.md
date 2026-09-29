@@ -95,6 +95,8 @@ El token de preview ha d'estar signat o persistit, tenir caducitat curta i queda
 
 ## 5. Matriu d'endpoints interns
 
+Els esquemes detallats de peticio, resposta, errors i mapatge als builders SIF es defineixen a `15-contractes-api-pantalles-internes.md`.
+
 Les rutes son contractes proposats. Excepte els endpoints de baix nivell ja indicats, consten com a pendents d'implementar.
 
 | Metode i ruta proposada | Pantalla | Servei o font | Estat |

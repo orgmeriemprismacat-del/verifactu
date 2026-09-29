@@ -1,0 +1,25 @@
+name: Intranet AO batch checks
+
+on:
+  pull_request:
+    paths:
+      - "codi-drive/intranet-actual/**"
+      - ".github/workflows/intranet-ao-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-csv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP 8.2 amb mbstring i mysqli
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, mysqli
+          coverage: none
+      - name: Lint PHP/JS i proves CSV
+        run: sh codi-drive/intranet-actual/tests/run_ao_checks.sh

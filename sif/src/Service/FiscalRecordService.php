@@ -64,17 +64,12 @@ final class FiscalRecordService
                 ? $this->payloads->cancellation($invoice, $previous, $input)
                 : $this->payloads->subsanation($invoice, $previous, $input);
             $key = $this->payloads->idempotencyKey($recordType, $invoice, $payload, $input);
-            $existing = $this->records->findQueuedResult($db, $key, true);
+            $existing = $this->records->findQueuedResult($db, $key, true, $payload['request_hash']);
             if ($existing !== null) {
                 return $existing;
             }
 
-            if ($recordType === 'ANULACIO' && $previous['TIPUS_REGISTRE'] === 'ANULACIO') {
-                throw SifException::conflict('Invoice already has a cancellation record');
-            }
-            if ($recordType === 'SUBSANACIO' && $invoice['ESTAT_FACTURA'] === 'CANCELLED') {
-                throw SifException::conflict('Cancelled invoices do not accept subsanation records');
-            }
+            (new FiscalRecordTransitionValidator())->validate($invoice, $previous, $payload);
 
             return $this->records->create(
                 $db,
@@ -104,7 +99,7 @@ final class FiscalRecordService
                 ? $this->payloads->cancellation($invoice, $previous, $input)
                 : $this->payloads->subsanation($invoice, $previous, $input);
             $key = $this->payloads->idempotencyKey($recordType, $invoice, $payload, $input);
-            $existing = $this->records->findQueuedResult($db, $key, true);
+            $existing = $this->records->findQueuedResult($db, $key, true, $payload['request_hash']);
             if ($existing === null) {
                 throw new \RuntimeException('Duplicate key detected, but queued fiscal record could not be loaded.');
             }

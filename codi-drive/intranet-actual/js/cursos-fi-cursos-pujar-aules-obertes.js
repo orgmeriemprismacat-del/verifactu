@@ -35,131 +35,97 @@ requestMain.done(function( message ) {
 			}
 		});
 
-		/* ### FUNCIONALITATS PUJAR AULES OBERTES ### */
-		var textBotoPujar = "Pujar";
-		var textBotoNoPujar = "No Pujar";
-		$("#pujar-ao button.marcat").each(function() {
-			$(this).html(textBotoPujar);
+		/* ### PUJADA AULES OBERTES: UN SOL LOT, ID_INSC REAL ### */
+		var aoLotKey = null;
+		var aoLotSelection = null;
+		$("#pujar-ao button.marcat").text("Pujar");
+		$("#pujar-ao button.no_marcat").text("No Pujar");
+
+		$("#pujar-ao").on("click", "button.marcat", function(e) {
+			e.preventDefault();
+			$(this).text("No Pujar").removeClass("marcat").addClass("no_marcat");
 		});
-		$("#pujar-ao button.no_marcat").each(function() {
-			$(this).html(textBotoNoPujar);
+		$("#pujar-ao").on("click", "button.no_marcat", function(e) {
+			e.preventDefault();
+			$(this).text("Pujar").removeClass("no_marcat").addClass("marcat");
 		});
 
-		$("#pujar-ao").on("click", ".marcat", function(e) {
-			$(this).html(textBotoNoPujar);
-			$(this).removeClass("marcat");
-			$(this).addClass("no_marcat");
-		});
-		$("#pujar-ao").on("click", ".no_marcat", function(e) {
-			$(this).html(textBotoPujar);
-			$(this).removeClass("no_marcat");
-			$(this).addClass("marcat");
-		});
-
-		$('#modalActualitzarPerenne').on('hide.bs.modal', function (e) {
+		$('#modalActualitzarPerenne').on('hide.bs.modal', function () {
 			window.location.reload();
-		})
+		});
 
-		var fitxerPujada = "";
 		$("#pujar-ao").on("click", "#confirmar-pujada-ao", function(e) {
-			if ( tePermisEdicio ) {
-				var existeixAlgunCanvi = false;
-				$('#modalActualitzarPerenne .modal-body').html('');
-
-				var createAO = $.ajax({
-					url: path + "inici/crearFitxerAO.php",
-					method: "POST",
-					dataType: "html"
-				});
-
-				createAO.done(function( msgAO ) {
-					if ( msgAO.toLowerCase().includes("error") ) {
-						afegirHeaderModalError("Alerta");
-						afegirTextModalError("Hi ha hagut un error a l'hora de crear el fitxer");
-						mostrarModalError();
-					}
-					else {
-						fitxerPujada = msgAO;
-
-						$('#pujar-ao button.marcat').each(function(i,v) {
-							var idButton = $(this).attr('id');
-							var idCurs = idButton.split("-")[2];
-							var usuari = idButton.split("-")[3];
-
-							if ( idCurs != '' ) {
-								existeixAlgunCanvi = true;
-								var esPrimerCanviCert = true;
-
-								var msg = "<p>S'ha actualitzat el perenne de l'usuari <strong>"+usuari+"</strong> del curs ";
-								msg += " <strong>"+idCurs+"</strong></p>";
-
-								var anyUsuariAO = $('#pujar-ao #any-'+idCurs+'-'+usuari).html().trim();
-								var mesUsuariAO = $('#pujar-ao #mes-'+idCurs+'-'+usuari).html().trim();
-								var cursUsuariAO = $('#pujar-ao #curs-'+idCurs+'-'+usuari).html().trim();
-								var nomUsuariAO = $('#pujar-ao #nom-'+idCurs+'-'+usuari).html().trim();
-								var cognomsUsuariAO = $('#pujar-ao #cognoms-'+idCurs+'-'+usuari).html().trim();
-								var emailUsuariAO = $('#pujar-ao #email-'+idCurs+'-'+usuari).html().trim();
-								var poblacioUsuariAO = $('#pujar-ao #poblacio-'+idCurs+'-'+usuari).html().trim();
-
-								var updAO = $.ajax({
-									url: path + "inici/pujarAulesObertes.php",
-									method: "POST",
-									data: {
-										any : anyUsuariAO,
-										mes : mesUsuariAO,
-										curs : cursUsuariAO,
-										usuari : usuari,
-										fitxer: fitxerPujada,
-										nom: nomUsuariAO,
-										cognoms: cognomsUsuariAO,
-										email: emailUsuariAO,
-										poblacio: poblacioUsuariAO
-									},
-									dataType: "html"
-								});
-
-								updAO.done(function( msgAO ) {
-									if ( msgAO.toLowerCase().includes("error") ) {
-										afegirHeaderModalError("Alerta");
-										afegirTextModalError("Hi ha hagut un error a l'hora d'actualitzar el registre <strong>"+idCurs+"</strong> de l'usuari <strong>"+usuari+"</strong>");
-										mostrarModalError();
-									}
-									else {
-										if (esPrimerCanviCert) {
-											$('#modalActualitzarPerenne').modal('show');
-										}
-										esPrimerCanviCert = false;
-										$('#modalActualitzarPerenne .modal-body').append(msg);
-									}
-									if ($("#pujar-ao button.marcat").length === i+1) {
-										var msgF = "<a href='https://intranet.prisma.cat/fitxers/"+fitxerPujada+"' target='_blank'>Fitxer pujada aules obertes</a>";
-										$('#modalActualitzarPerenne .modal-body').append(msgF);
-									}
-								});
-
-								updAO.fail(function( jqXHR, textStatus, errorThrown ) {
-									rerrorFunction( jqXHR, textStatus, errorThrown, "Hi ha hagut algun error al actualitzar el registre <strong>"+idCurs+"</strong>: " );
-								});
-							}
-
-						});
-						if ( !existeixAlgunCanvi ) {
-							afegirHeaderModalError("Alerta");
-							afegirTextModalError("No has marcat cap canvi");
-							mostrarModalError();
-						}
-					}
-				});
-
-				createAO.fail(function( jqXHR, textStatus, errorThrown ) {
-					rerrorFunction( jqXHR, textStatus, errorThrown, "Hi ha hagut algun error a l'hora de crear el fitxer: " );
-				});
-
+			e.preventDefault();
+			if (!tePermisEdicio) {
+				mostrarModalNoTensPermisos();
+				return;
 			}
-			else {
-			   mostrarModalNoTensPermisos();
+			var ids = $("#pujar-ao button.marcat[data-inscripcio-id]").map(function() {
+				return Number($(this).attr("data-inscripcio-id"));
+			}).get();
+			if (!ids.length || ids.some(function(id) { return !Number.isSafeInteger(id) || id <= 0; })) {
+				afegirHeaderModalError("Alerta");
+				afegirTextModalError("No has marcat cap inscripció vàlida.");
+				mostrarModalError();
+				return;
 			}
-
+			ids.sort(function(a, b) { return a - b; });
+			var selection = JSON.stringify(ids);
+			if (aoLotSelection !== selection) {
+				aoLotKey = window.crypto.randomUUID ?
+					window.crypto.randomUUID() :
+					Array.from(window.crypto.getRandomValues(new Uint8Array(24)), function(v) {
+						return v.toString(16).padStart(2, "0");
+					}).join("");
+				aoLotSelection = selection;
+			}
+			var csrf = $("meta[name='ao-csrf']").attr("content");
+			var button = $(this).prop("disabled", true);
+			$.ajax({
+				url: path + "inici/processarLotAO.php",
+				method: "POST",
+				dataType: "json",
+				data: { ids: selection, lot_key: aoLotKey, csrf: csrf }
+			}).done(function(res) {
+				if (!res || res.ok !== true || !res.token) {
+					afegirHeaderModalError("Alerta");
+					afegirTextModalError("No s'ha pogut completar el lot.");
+					mostrarModalError();
+					return;
+				}
+				var body = $("#modalActualitzarPerenne .modal-body").empty();
+				$("<p>").text(
+					"Fitxer preparat: " + res.count + " inscripcions" +
+					(res.reused ? " (lot recuperat)." : ".")
+				).appendTo(body);
+				$("<a>", {
+					href: path + "inici/descarregarFitxerAO.php?token=" +
+						encodeURIComponent(res.token),
+					text: "Descarregar fitxer pujada aules obertes",
+					target: "_blank",
+					rel: "noopener"
+				}).appendTo(body);
+				$("#modalActualitzarPerenne").modal("show");
+			}).fail(function(xhr) {
+				var code = xhr.responseJSON && xhr.responseJSON.error;
+				var errors = {
+					SESSIO_NO_VALIDA: "La sessió ha caducat. Torna a entrar a la intranet.",
+					SENSE_PERMIS: "No tens permisos per realitzar aquesta acció.",
+					TOKEN_INVALID: "La pàgina ha caducat. Recarrega-la abans de confirmar.",
+					SELECCIO_INVALIDA: "La selecció d'alumnes no és vàlida.",
+					FILA_NO_DISPONIBLE: "Una inscripció ja no està disponible. Recarrega la pàgina.",
+					FILA_MODIFICADA_CONCURRENTMENT: "Una inscripció ha canviat. Recarrega la pàgina.",
+					DADES_CSV_INVALIDES: "Hi ha dades incompatibles amb el fitxer CSV.",
+					CARACTER_NO_ADMES_CSV: "Hi ha caràcters incompatibles amb la codificació del fitxer.",
+					LOT_CLAU_REUTILITZADA: "La selecció ha canviat. Recarrega la pàgina.",
+					FITXER_LOT_NO_DISPONIBLE: "El fitxer anterior ja no està disponible. Recarrega la pàgina."
+				};
+				afegirHeaderModalError("Alerta");
+				afegirTextModalError(errors[code] || "No s'ha pogut preparar el fitxer. No es dona el lot per completat.");
+				mostrarModalError();
+			}).always(function() {
+				button.prop("disabled", false);
+			});
 		});
 
 		/* ### FUNCIONALITATS PUJADA CURSOS - CREAR FITXER PUJADA ### */

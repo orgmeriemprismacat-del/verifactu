@@ -65,7 +65,7 @@ final class FiscalRecordServiceTest
             (string) $db->query('SELECT PAYLOAD_JSON FROM factura_registres ORDER BY FISCAL_ORDER DESC LIMIT 1')->fetchColumn(),
             true
         );
-        Assert::same('Subsanacion', $payload['aeat_record_type']);
+        Assert::same('RegistroAlta', $payload['aeat_record_type']);
         Assert::same('RECHAZO_PREVIO', $payload['subsanation_kind']);
     }
 

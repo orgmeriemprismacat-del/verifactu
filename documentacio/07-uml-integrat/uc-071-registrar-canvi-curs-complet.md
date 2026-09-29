@@ -427,3 +427,95 @@ Note over R,L: El servei actual de devolució exigeix factura i el ledger és pr
 ## 7. Fonts i enllaços
 
 [Fitxa original UC-71](../06-fitxes-funcionals/uc-071.md) · [UC-26 revisada](uc-026-canviar-de-curs.md) · [Revisió de fons per inscripció](00-revisio-moviments-inscripcions.md) · [Fluxos de canvi](../03-canvis-pendents/04-fluxos-facturacio.md) · [Seqüències generals](../04-estat-final/32-diagrames-sequencia-sif.md) · [Migració d'events](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql) · [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php) · [UC-05](uc-005-rectificar-factura.md) · [UC-28](uc-028-registrar-devolucio.md) · [UC-29](uc-029-crear-saldo.md).
+
+## 8. Diagrames d'activitat del canvi de curs real des de la fitxa de l'alumne
+
+**Font ACTUAL:** [auditoria de la pantalla amb set captures indexades, sense publicar els originals](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md), [JS L1543–1695](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1543-L1695), [endpoint d'execució](../../codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php#L20-L37) i [mètode PHP complet L8513–9082](../../codi-drive/intranet-actual/Intranet.php#L8513-L9082). L'única captura del canvi és del formulari **abans de previsualitzar**: la confirmació i l'efecte es descriuen aquí pel codi, no perquè s'hagin vist o provat. [Fitxa funcional de contrast](../06-fitxes-funcionals/uc-071.md#23-auditoria-del-mètode-executable-de-canvi-de-curs-sense-captures-noves).
+
+### AL-071-A · Selecció, previsualització i execució — ACTUAL
+
+```plantuml
+@startuml
+title AL-071-A ACTUAL | Canvi de curs des de modal llegat
+start
+:Prémer acció canviar curs de la inscripció;
+:GET mostrarModalCanviCurs per idInsc;
+:PHP consulta origen i possibles destinacions;
+:Mostrar any, mes, curs, variant de canvi,
+a pagar, pagat, pendent, despeses i motiu;
+:Seleccionar destinació i editar imports al navegador;
+:JS recalcula el pendent amb imports dels inputs;
+if (Clic Previsualitza el canvi?) then (Sí)
+  :Comprovar camps al JS i construir resum;
+  :Mostrar modalConfirmacioCanvi;
+  if (Clic confirmar-canvi?) then (Sí)
+    :GET realitzarCanviCurs_CanviCurs.php amb destinació,
+    imports del navegador, motiu i casella de correu;
+    :PHP llegeix registre origen i factura vinculada;
+    :Preparar text del canvi i IDPAG;
+    :INSERT inscripció nova per destí;
+    :UPDATE baixa/canvi de l'origen segons estat;
+    if (Origen tenia accés acadèmic?) then (Sí)
+      :Intentar baixes Moodle nou/antic corresponents;
+    endif
+    :Preparar avisos de canvi segons la selecció;
+    :Retornar resposta HTML i depuració;
+  else (No)
+    :Tornar al formulari o tancar sense petició de canvi;
+  endif
+else (No)
+  :No executar canvi;
+endif
+note right
+  INSERT destí, UPDATE origen i Moodle
+  són passos seqüencials. El mètode
+  imprímeix dades de l'alta en la resposta.
+  No equival a cobrament bancari nou.
+end note
+stop
+@enduml
+```
+
+### AL-071-A · Canvi de curs amb fons/document — FINAL
+
+```plantuml
+@startuml
+title AL-071-A FINAL | Canvi amb oferta i liquidació verificada
+start
+:Identificar actor i inscripció origen autoritzats;
+:Consultar destí i places, estat original,
+pagador, factures i cobraments reals;
+:Calcular al servidor preu, descompte,
+despeses, fons atribuïbles i diferència;
+:Mostrar previsualització amb origen, destí,
+import/cobrament/pendent i efecte documental;
+if (Confirma?) then (Sí)
+  :Validar versió, destí i clau idempotent;
+  if (Mateixa operació ja executada?) then (Sí)
+    :Retornar resultat existent;
+  else (No)
+    :Registrar event de canvi amb origen, destí i decisió;
+    :Crear/assignar destinació de manera consistent;
+    :Tramitar baixa/canvi de l'origen i efectes Moodle;
+    :Registrar només reassignació de fons realment cobrats;
+    if (Resta import pendent?) then (Sí)
+      :Registrar deute pendent, NO cobrament fictici;
+    elseif (Existeix excedent acreditat?) then (Sí)
+      :Tramitar decisió de devolució o saldo per titular;
+    endif
+    if (Canvia concepte/receptor/import de factura emesa?) then (Sí)
+      :Classificar correcció fiscal amb UC pertinent
+      sense reescriure factura original;
+    endif
+    :Registrar enviaments i resultat per fase;
+    :Mostrar completat, pendent o incidència reals;
+  endif
+else (No)
+  :No crear inscripció, moviment ni document;
+endif
+stop
+@enduml
+```
+
+**Variant d'error actual observada:** el JS que rep el modal utilitza `!includes("error") || !includes("404")` [L1543–1560](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1543-L1560), que pot admetre com a resposta vàlida un error que no contingui ambdues cadenes. El mètode d'execució també imprimeix dades de depuració [L8522–8546](../../codi-drive/intranet-actual/Intranet.php#L8522-L8546). Cap d'aquests errors és una decisió de negoci. **Proves T-AL-12-A–H**, definides però no executades, a [fitxa funcional](../06-fitxes-funcionals/uc-071.md#23-auditoria-del-mètode-executable-de-canvi-de-curs-sense-captures-noves). No equiparar `PAGAMENT` del registre llegat amb ingrés real ni `FACTURA_RELACIONADA` amb autorització per refer document.
+

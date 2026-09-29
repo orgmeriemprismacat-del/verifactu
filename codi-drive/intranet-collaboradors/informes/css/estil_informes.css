@@ -1,0 +1,125 @@
+body
+{
+	font-family: Arial, Verdana, Helvetica, sans-serif;
+	margin:0;
+	background-color: rgb(246, 246, 246);
+}
+
+#tot
+{
+	box-shadow: 0px 0px 30px -10px #565454;
+	margin:20px auto;
+	width:1000px;
+	background-color:#FFFFFF;
+}
+
+#cap
+{
+	background-image:url(https://campus.prisma.cat/intranet-collaboradors/img/banner_informe.png);
+	background-repeat:no-repeat;
+	background-color:#FFFFFF;
+	margin:0 auto;
+	height:193px;
+	width:1000px;
+}
+
+#cos
+{
+	background-color:#FFFFFF;
+	margin:0 auto;
+	width:1000px;
+}
+
+#peu
+{
+	color:#526b3e;
+	font-size:0.9rem;
+}
+
+#peu, #peu a {
+	color: #526b3e;
+}
+
+#peu a:hover {
+    color: #273917;
+    text-decoration: none;
+}
+
+.titol
+{
+	font-size: 1.1rem;
+	font-weight: bold;
+	color: #a3be8d;
+	padding:10px;
+}
+
+.enviat
+{
+	font-size: 1rem;
+	text-align: center;
+}
+
+.apartat td
+{
+	background-color:#a3be8d;
+	color:#FFFFFF;
+	font-weight:bolder;
+	padding:8px 5px;
+	font-size: 1rem;
+}
+
+.apartat2
+{
+	background-color:#d5e4c8;
+	color:#FFFFFF;
+	font-weight:bold;
+	padding:5px;
+	font-size: 1rem;
+}
+
+.modul
+{
+	padding-top:7px;
+	font-size: 1rem;
+}
+
+.celda
+{
+	/* font-size: 12px; */
+}
+
+.celda p,
+.taula p
+{
+	padding: 8px 3px;
+	font-size: 1rem;
+	margin-bottom: 0.2rem !important;
+}
+
+.celda2
+{
+	background-color: #f2fde9;
+}
+
+.fort
+{
+	color:#526b3e;
+	font-size: 1rem;
+}
+
+.fort2
+{
+	color:#526b3e;
+	font-size: 1rem;
+	font-weight:bold;
+}
+
+.quadre
+{
+	font-size: 1rem;
+}
+
+.borde_inferior td
+{
+	border-bottom:1px solid #d5e4c8;
+}

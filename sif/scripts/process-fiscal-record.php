@@ -21,9 +21,8 @@ if (($config['env'] ?? 'local') === 'production') {
     exit(1);
 }
 
-[$recordType, $selector, $input] = parseFiscalRecordArgs(array_slice($argv, 1));
-
 try {
+    [$recordType, $selector, $input] = (new \Prisma\Sif\Cli\FiscalRecordArguments())->parse(array_slice($argv, 1));
     $sifDb = ConnectionFactory::make($config);
     $service = new FiscalRecordService(
         new TransactionRunner($sifDb),
@@ -51,68 +50,5 @@ try {
         'error' => $exception->getMessage(),
         'code' => $exception->getCode(),
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
-    exit(1);
-}
-
-function parseFiscalRecordArgs(array $args): array
-{
-    $type = strtoupper((string) optionValue($args, ['--type=']));
-    $selector = selectorValue($args);
-    $input = [];
-
-    foreach ([
-        'reason' => ['--reason=', '--motiu='],
-        'subsanation_kind' => ['--subsanation-kind=', '--tipus-subsanacio='],
-        'detail' => ['--detail=', '--detall='],
-        'correction_summary' => ['--correction-summary=', '--resum-correccio='],
-        'created_by' => ['--created-by=', '--usuari='],
-        'reference' => ['--reference=', '--referencia='],
-    ] as $key => $prefixes) {
-        $value = optionValue($args, $prefixes);
-        if ($value !== null) {
-            $input[$key] = $value;
-        }
-    }
-
-    if (!in_array($type, ['ANULACIO', 'SUBSANACIO'], true) || $selector === null || !isset($input['reason'])) {
-        usage();
-    }
-    if ($type === 'SUBSANACIO' && !isset($input['subsanation_kind'])) {
-        usage();
-    }
-
-    return [$type, $selector, $input];
-}
-
-function selectorValue(array $args): ?array
-{
-    $uuid = optionValue($args, ['--uuid-factura=', '--uuid=']);
-    if ($uuid !== null) {
-        return ['type' => 'uuid', 'value' => $uuid];
-    }
-
-    $number = optionValue($args, ['--num-visible=', '--num-fact=']);
-
-    return $number === null ? null : ['type' => 'num_visible', 'value' => $number];
-}
-
-function optionValue(array $args, array $prefixes): ?string
-{
-    foreach ($args as $arg) {
-        foreach ($prefixes as $prefix) {
-            if (str_starts_with((string) $arg, $prefix)) {
-                $value = trim(substr((string) $arg, strlen($prefix)));
-
-                return $value === '' ? null : $value;
-            }
-        }
-    }
-
-    return null;
-}
-
-function usage(): void
-{
-    fwrite(STDERR, "Usage: php sif/scripts/process-fiscal-record.php --type=ANULACIO|SUBSANACIO (--uuid-factura=UUID|--num-visible=NUM) --reason=REASON [--subsanation-kind=SUBSANACION|RECHAZO_PREVIO|SIN_REGISTRO_PREVIO] [--detail=TEXT] [--correction-summary=TEXT] [--created-by=USER] [--reference=REF]\n");
     exit(1);
 }

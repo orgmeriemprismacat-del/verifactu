@@ -13,7 +13,8 @@ final class FiscalRecordRepository
     public function findQueuedResult(
         \PDO $db,
         string $idempotencyKey,
-        bool $forUpdate = false
+        bool $forUpdate = false,
+        ?string $requestHash = null
     ): ?array {
         $sql = 'SELECT * FROM fiscal_queue WHERE IDEMPOTENCY_KEY = ?';
         if ($forUpdate) {
@@ -30,6 +31,10 @@ final class FiscalRecordRepository
         $payload = json_decode((string) $row['PAYLOAD_JSON'], true);
         if (!is_array($payload)) {
             throw new \RuntimeException('Could not decode queued fiscal payload.');
+        }
+        if ($requestHash !== null && (!isset($payload['request_hash'])
+            || !hash_equals($payload['request_hash'], $requestHash))) {
+            throw \Prisma\Sif\Exception\SifException::conflict('Fiscal reference reused with different input');
         }
 
         $record = $db->prepare(
@@ -69,7 +74,7 @@ final class FiscalRecordRepository
         $chain = $this->lockChainState($db);
         $fiscalOrder = (int) $chain['LAST_FISCAL_ORDER'] + 1;
         $previousHash = $chain['LAST_HASH'] ?? null;
-        $payload['fiscal_order'] = $fiscalOrder;
+        $payload = $this->preparePayload($db, $recordType, $payload, $chain);
         $hash = $this->hashCalculator->calculate($payload, $previousHash);
         $json = $this->encode($payload);
 
@@ -91,6 +96,32 @@ final class FiscalRecordRepository
         }
 
         return $this->result($payload, $hash, $idempotencyKey, false);
+    }
+
+    /** Read-only and advisory: order/time are regenerated under lock at confirmation. */
+    public function previewPayload(\PDO $db, string $recordType, array $payload): array
+    {
+        $chain = $db->query('SELECT * FROM fiscal_chain_state WHERE ID = 1')->fetch(\PDO::FETCH_ASSOC);
+        if (!$chain) {
+            throw new \RuntimeException('Missing fiscal chain state.');
+        }
+        return $this->preparePayload($db, $recordType, $payload, $chain);
+    }
+
+    private function preparePayload(\PDO $db, string $recordType, array $payload, array $chain): array
+    {
+        $payload['fiscal_order'] = (int) $chain['LAST_FISCAL_ORDER'] + 1;
+        $requested = isset($payload['aeat_original']);
+        $previous = (new \Prisma\Sif\Aeat\RegistrationSnapshot())->previous($db, $chain, $requested);
+        if ($requested) {
+            $factory = new \Prisma\Sif\Aeat\RecordFactory();
+            $now = new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid'));
+            $payload['aeat'] = $recordType === 'ANULACIO'
+                ? $factory->cancel($payload['aeat_original'], $previous, $payload['cancellation_mode'], $now)
+                : $factory->correct($payload['aeat_original'], $payload['corrected_fields'], $previous,
+                    $payload['subsanation_kind'], $now);
+        }
+        return $payload;
     }
 
     private function lockChainState(\PDO $db): array

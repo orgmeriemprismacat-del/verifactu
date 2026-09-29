@@ -12,6 +12,7 @@ Documents d'entrada:
 
 - `12-contracte-tecnic-pantalles-internes.md`;
 - `13-fitxes-ui-pantalles-internes.md`;
+- `15-contractes-api-pantalles-internes.md`;
 - `../05-governanca-operacio/20-pla-proves-validacio-sif.md`;
 - `../05-governanca-operacio/21-seguretat-permisos-accessos.md`.
 
