@@ -61,6 +61,48 @@ try {
             $roles,
             (string) ($payload['uuid_factura'] ?? '')
         );
+    } elseif ($action === 'view_by_enrollment') {
+        $idInsc = (string) ($payload['id_insc'] ?? '');
+        if (!ctype_digit($idInsc) || (int) $idInsc <= 0) {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'error' => 'Invalid enrollment id']);
+            return;
+        }
+
+        $matches = $client->searchInvoices(
+            $actorId,
+            $roles,
+            ['source_ids' => [(int) $idInsc]],
+            20
+        );
+
+        $matchStatus = (int) ($matches['_http_status'] ?? 200);
+        if ($matchStatus >= 400) {
+            $response = $matches;
+        } else {
+            $results = is_array($matches['results'] ?? null) ? $matches['results'] : [];
+
+            if (count($results) === 0) {
+                $response = [
+                    'ok' => true,
+                    'resolution' => 'NO_SIF',
+                    'results' => [],
+                    '_http_status' => 200,
+                ];
+            } elseif (count($results) === 1) {
+                $uuid = (string) ($results[0]['uuid_factura'] ?? '');
+                $response = $client->viewInvoice($actorId, $roles, $uuid);
+                $response['resolution'] = 'VIEW';
+            } else {
+                $response = [
+                    'ok' => true,
+                    'resolution' => 'MULTIPLE',
+                    'results' => $results,
+                    'count' => count($results),
+                    '_http_status' => 200,
+                ];
+            }
+        }
     } elseif ($action === 'search') {
         $criteria = $payload['criteria'] ?? [];
         if (!is_array($criteria)) {
