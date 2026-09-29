@@ -2551,9 +2551,10 @@ function mostrarModalConsultaFacturaLlegat(id) {
 	                  link.download = res + '.pdf';
 	                  link.click();
 	                  $.ajax({
-	                     url: path + "alumnes/eliminarArxiu.php?filename=" + res,
+	                     url: path + "alumnes/eliminarArxiu.php",
 	                     cache: false,
-	                     type: "GET",
+	                     type: "POST",
+	                     data: { filename: res },
 	                     success: function(data) {
 	                        afegirHeaderModalSuccess("S'ha generat la factura correctament");
 	                        afegirTextModalSuccess('');
