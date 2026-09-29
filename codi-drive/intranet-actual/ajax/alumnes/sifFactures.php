@@ -69,12 +69,44 @@ try {
             return;
         }
 
-        $response = $client->searchInvoices(
-            $actorId,
-            $roles,
-            $criteria,
-            (int) ($payload['limit'] ?? 50)
-        );
+        $limit = (int) ($payload['limit'] ?? 50);
+        $participantDocument = trim((string) ($criteria['participant_document'] ?? ''));
+        unset($criteria['participant_document']);
+
+        if ($participantDocument !== '') {
+            if (strlen($participantDocument) > 32) {
+                http_response_code(422);
+                echo json_encode(['ok' => false, 'error' => 'Invalid participant document']);
+                return;
+            }
+
+            $receiverCriteria = $criteria;
+            $receiverCriteria['billing_nif'] = $participantDocument;
+            $responses = [
+                $client->searchInvoices($actorId, $roles, $receiverCriteria, $limit),
+            ];
+
+            $sourceIds = enrollmentIdsByDocument($participantDocument);
+            if ($sourceIds !== []) {
+                $participantCriteria = $criteria;
+                $participantCriteria['source_ids'] = $sourceIds;
+                $responses[] = $client->searchInvoices(
+                    $actorId,
+                    $roles,
+                    $participantCriteria,
+                    $limit
+                );
+            }
+
+            $response = mergeInvoiceSearchResponses($responses, $limit);
+        } else {
+            $response = $client->searchInvoices(
+                $actorId,
+                $roles,
+                $criteria,
+                $limit
+            );
+        }
     } else {
         http_response_code(422);
         echo json_encode(['ok' => false, 'error' => 'Unknown invoice query action']);
@@ -105,4 +137,68 @@ try {
     if (is_object($usuariObject)) {
         $_SESSION['usuari'] = serialize($usuariObject);
     }
+}
+
+
+function enrollmentIdsByDocument(string $document): array
+{
+    $connection = new ConnexioWeb();
+    $ids = [];
+
+    try {
+        $connection->connectarBD();
+        $stmt = $connection->prepare(
+            'SELECT ID FROM inscripcions WHERE DNI = ? ORDER BY ID DESC LIMIT 200'
+        );
+        $stmt->bind_param('s', $document);
+        $stmt->execute();
+        $stmt->store_result();
+        $stmt->bind_result($id);
+
+        while ($stmt->fetch()) {
+            $ids[(int) $id] = true;
+        }
+
+        $connection->closeStmt();
+    } finally {
+        if (isset($connection->connexio) && $connection->connexio instanceof mysqli) {
+            $connection->desconectarBD();
+        }
+    }
+
+    return array_keys($ids);
+}
+
+function mergeInvoiceSearchResponses(array $responses, int $limit): array
+{
+    $merged = [];
+    $status = 200;
+
+    foreach ($responses as $response) {
+        $responseStatus = (int) ($response['_http_status'] ?? 200);
+        if ($responseStatus >= 400) {
+            return $response;
+        }
+
+        foreach (($response['results'] ?? []) as $invoice) {
+            if (!is_array($invoice)) {
+                continue;
+            }
+
+            $uuid = trim((string) ($invoice['uuid_factura'] ?? ''));
+            if ($uuid !== '') {
+                $merged[$uuid] = $invoice;
+            }
+        }
+    }
+
+    $limit = max(1, min(100, $limit));
+    $results = array_slice(array_values($merged), 0, $limit);
+
+    return [
+        'ok' => true,
+        'results' => $results,
+        'count' => count($results),
+        '_http_status' => $status,
+    ];
 }
