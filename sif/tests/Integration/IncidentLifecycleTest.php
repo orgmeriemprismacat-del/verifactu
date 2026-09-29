@@ -47,6 +47,37 @@ final class IncidentLifecycleTest
         );
     }
 
+
+    public function testDetailedOpenRejectsChangedPayloadForSameIdempotencyKey(): void
+    {
+        $db = TestDatabase::fresh();
+        $repository = new IncidentRepository();
+
+        $base = [
+            'resource_type' => 'TEST_CASE',
+            'resource_id' => 'UC08-IDEMPOTENCY',
+            'source_type' => 'TEST',
+            'source_id' => 'suite',
+            'type' => 'MANUAL_REVIEW',
+            'message' => 'Original incident payload',
+            'severity' => 'HIGH',
+            'idempotency_key' => 'TEST|INCIDENT|PAYLOAD|CONFLICT',
+            'reason_code' => 'TEST_CONFLICT',
+        ];
+
+        $repository->openDetailed($db, $base);
+
+        Assert::throws(
+            SifException::class,
+            fn () => $repository->openDetailed($db, array_merge($base, [
+                'message' => 'Changed incident payload',
+            ])),
+            409
+        );
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
+    }
+
     public function testDetailedOpenRejectsUnknownInvoiceInsteadOfPersistingOrphanReference(): void
     {
         $db = TestDatabase::fresh();
@@ -114,6 +145,81 @@ final class IncidentLifecycleTest
         Assert::same(false, empty($row['RESOLVED_AT']));
         Assert::same('La prova es repeteix i passa.', $row['CLOSURE_CRITERIA']);
         Assert::same(4, (int) $db->query('SELECT COUNT(*) FROM sif_incident_action')->fetchColumn());
+    }
+
+
+    public function testLifecycleRetriesAreIdempotentAfterStateChanges(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $actor = $this->manager();
+
+        $opened = $service->open($actor, [
+            'type' => 'RETRY_TEST',
+            'message' => 'Lifecycle retry test',
+            'reason_code' => 'TEST_OPEN',
+            'idempotency_key' => 'TEST|UC08|RETRY|OPEN',
+        ]);
+
+        $assignPayload = [
+            'assignee_id' => 'operator-2',
+            'reason_code' => 'TRIAGE',
+            'idempotency_key' => 'TEST|UC08|RETRY|ASSIGN',
+        ];
+        $firstAssign = $service->assign($actor, $opened['incident_id'], $assignPayload);
+        $secondAssign = $service->assign($actor, $opened['incident_id'], $assignPayload);
+
+        Assert::same(false, $firstAssign['reused']);
+        Assert::same(true, $secondAssign['reused']);
+
+        $resolvePayload = [
+            'reason_code' => 'VERIFIED_FIXED',
+            'idempotency_key' => 'TEST|UC08|RETRY|RESOLVE',
+            'closure_criteria' => 'Repeated verification passes.',
+            'resolution_notes' => 'Resolved once.',
+            'evidence' => ['test' => 'PASS'],
+        ];
+        $firstResolve = $service->resolve($actor, $opened['incident_id'], $resolvePayload);
+        $secondResolve = $service->resolve($actor, $opened['incident_id'], $resolvePayload);
+
+        Assert::same(false, $firstResolve['reused']);
+        Assert::same(true, $secondResolve['reused']);
+        Assert::same(
+            3,
+            (int) $db->query('SELECT COUNT(*) FROM sif_incident_action')->fetchColumn()
+        );
+    }
+
+    public function testActionIdempotencyRejectsDifferentAssigneeForSameKey(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $actor = $this->manager();
+
+        $opened = $service->open($actor, [
+            'type' => 'ASSIGN_CONFLICT',
+            'message' => 'Assignment conflict test',
+            'reason_code' => 'TEST_OPEN',
+            'idempotency_key' => 'TEST|UC08|ASSIGN-CONFLICT|OPEN',
+        ]);
+
+        $service->assign($actor, $opened['incident_id'], [
+            'assignee_id' => 'operator-2',
+            'reason_code' => 'TRIAGE',
+            'idempotency_key' => 'TEST|UC08|ASSIGN-CONFLICT',
+        ]);
+
+        Assert::throws(
+            SifException::class,
+            fn () => $service->assign($actor, $opened['incident_id'], [
+                'assignee_id' => 'operator-3',
+                'reason_code' => 'TRIAGE',
+                'idempotency_key' => 'TEST|UC08|ASSIGN-CONFLICT',
+            ]),
+            409
+        );
+
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM sif_incident_action')->fetchColumn());
     }
 
     public function testReadOnlyActorCanViewButCannotMutateIncident(): void
