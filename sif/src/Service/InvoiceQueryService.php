@@ -11,16 +11,16 @@ final class InvoiceQueryService
     public function __construct(
         private \PDO $db,
         private InvoiceReadRepository $invoices,
-        private InvoiceVisibilityPolicyInterface $visibility
+        private InvoiceVisibilityPolicyInterface $visibility,
+        private ?InvoiceQueryCriteriaValidator $criteriaValidator = null
     ) {
+        $this->criteriaValidator ??= new InvoiceQueryCriteriaValidator();
     }
 
     public function view(array $actor, string $uuidFactura): array
     {
-        $uuidFactura = trim($uuidFactura);
-        if ($uuidFactura === '') {
-            throw SifException::validation('Invoice UUID is required');
-        }
+        $criteria = $this->criteriaValidator->validate(['uuid_factura' => $uuidFactura]);
+        $uuidFactura = $criteria['uuid_factura'];
 
         $invoice = $this->invoices->findByUuid($this->db, $uuidFactura);
         if ($invoice === null) {
@@ -37,6 +37,7 @@ final class InvoiceQueryService
 
     public function search(array $actor, array $criteria, int $limit = 50): array
     {
+        $criteria = $this->criteriaValidator->validate($criteria);
         $rows = $this->invoices->search($this->db, $criteria, $limit);
         $results = [];
 
