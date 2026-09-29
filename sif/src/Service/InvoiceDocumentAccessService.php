@@ -68,6 +68,7 @@ final class InvoiceDocumentAccessService
             'document' => [
                 'id' => (int) $document['ID'],
                 'uuid_factura' => $uuidFactura,
+                'num_visible' => (string) ($invoice['NUM_VISIBLE'] ?? ''),
                 'type' => strtoupper((string) $document['TIPUS']),
                 'hash' => strtolower((string) $document['HASH_FITXER']),
                 'status' => $status,
