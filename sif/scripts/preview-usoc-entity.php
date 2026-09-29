@@ -5,6 +5,7 @@ require dirname(__DIR__) . '/src/autoload.php';
 use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
+use Prisma\Sif\Repository\UsocStudentInvoiceLinkRepository;
 use Prisma\Sif\Service\LegacyUsocInvoicePayloadBuilder;
 
 if (PHP_SAPI !== 'cli') {
@@ -25,10 +26,18 @@ try {
     $input = readPayloadFile($payloadFile);
     assertExplicitEntityInput($input);
     $idpag = positiveInt($input['idpag'], 'Invalid USOC IDPAG');
+    $inscriptionId = positiveInt($input['id_insc'], 'Invalid USOC inscription ID');
     $studentAmount = positiveMoney($input['student_amount'], 'Invalid USOC student amount');
     $entityAmount = positiveMoney($input['amount'], 'Invalid USOC entity amount');
+    $sifDb = ConnectionFactory::make($config);
     $legacyDb = ConnectionFactory::makeLegacy($config);
-    $snapshot = (new LegacyUsocSnapshotRepository())->loadByIdpag($legacyDb, $idpag, $studentAmount, $entityAmount);
+    $snapshot = (new LegacyUsocSnapshotRepository())->loadByIdpag($legacyDb, $idpag, $studentAmount, $entityAmount, $inscriptionId);
+    (new UsocStudentInvoiceLinkRepository())->assertMatches(
+        $sifDb,
+        (string) $input['student_invoice_uuid'],
+        $inscriptionId,
+        $idpag
+    );
     $payload = (new LegacyUsocInvoicePayloadBuilder())->buildEntityPayload($snapshot, $input);
 
     echo json_encode([
@@ -85,7 +94,7 @@ function readPayloadFile(string $payloadFile): array
 
 function assertExplicitEntityInput(array $input): void
 {
-    foreach (['idpag', 'student_amount', 'amount', 'student_invoice_uuid', 'billing'] as $field) {
+    foreach (['idpag', 'id_insc', 'student_amount', 'amount', 'student_invoice_uuid', 'billing'] as $field) {
         if (!array_key_exists($field, $input) || $input[$field] === '') {
             throw SifException::validation("Missing USOC entity field {$field}");
         }
