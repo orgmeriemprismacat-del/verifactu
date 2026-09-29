@@ -89,8 +89,8 @@ El JS ja no envia `preuCursos`/`preuPack` i `enviarInscripcioPack.php` recalcula
 ### UC15-P0-03 · Callback legacy fiscal
 `realitzaPagamentPackAutomatic.php` encara calcula numeració i insereix `factures` directament.
 
-### UC15-P0-04 · Signatura
-El callback llegit calcula signatura Redsys, però no s'ha acreditat la comparació bloquejant amb la signatura rebuda abans de mutar dades.
+### UC15-P0-04 · Signatura — CORREGIT 2026-09-30
+Els dos callbacks legacy de pack comparen ara de forma bloquejant la signatura calculada amb `Ds_Signature` mitjançant `hash_equals()`. També es bloqueja si `Ds_Order` o `Ds_Amount` signats no coincideixen amb els valors legacy utilitzats pel procés.
 
 ### UC15-P0-05 · Ordinal comercial
 `LegacyPackSnapshotRepository` ordena per `A_PAGAR DESC, ID`, mentre el builder aplica la regla del descompte segons índex. Això no equival a l'ordinal de l'oferta.
@@ -157,3 +157,19 @@ Configuració:
 Afegida `RedsysPaymentIntentTest::testCreatesPackIntentWithFrozenCommercialSnapshot()`, amb `SOURCE_TYPE=PACK`, ordinal de components i receptor dins del snapshot.
 
 **Execució de les proves:** continua pendent d'evidència runtime/CI.
+
+
+## 11. Enduriment temporal del callback legacy — 2026-09-30
+
+Mentre el callback fiscal legacy encara no s'ha retirat, s'han aplicat mesures de contenció als dos copies:
+- validació bloquejant de signatura Redsys;
+- conciliació de `Ds_Order` amb l'ordre legacy;
+- conciliació de `Ds_Amount` amb l'import legacy;
+- eliminació de correus i sortides de depuració;
+- eliminació de la clau Redsys del codi font;
+- lectura de la clau des de `SIF_REDSYS_MERCHANT_KEY`;
+- fallada tancada si la clau no està configurada.
+
+**Desplegament:** abans de desplegar aquests callbacks cal configurar `SIF_REDSYS_MERCHANT_KEY` al runtime corresponent. La retirada del secret del codi no elimina la necessitat de **rotar la clau**, perquè el secret havia estat versionat històricament.
+
+Aquest enduriment és transitori i **no substitueix UC-68**: el callback legacy continua contenint numeració/INSERT de factura i UPDATE d'inscripcions fins que el worker SIF sigui l'únic emissor.
