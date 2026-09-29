@@ -123,14 +123,42 @@ final class RedsysCallbackWorkerTest
         $this->queuedJob($db, 'ORDERINCIDENT1');
         $worker = $this->workerWithOutcome(SifException::conflict('amount mismatch'));
 
-        $worker->runOne($db, 'worker-a', new \DateTimeImmutable('2030-06-19 10:00:00'));
+        $result = $worker->runOne($db, 'worker-a', new \DateTimeImmutable('2030-06-19 10:00:00'));
         $job = $db->query('SELECT * FROM redsys_callback_queue')->fetch(\PDO::FETCH_ASSOC);
+        $incident = $db->query('SELECT ID, UUID_INCIDENT FROM errors_verifactu WHERE ESTAT = \'OPEN\'')
+            ->fetch(\PDO::FETCH_ASSOC);
 
         Assert::same('INCIDENT', $job['STATUS']);
-        Assert::same(
-            1,
-            (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE ESTAT = 'OPEN'")->fetchColumn()
+        Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE ESTAT = 'OPEN'")->fetchColumn());
+        Assert::same((int) $incident['ID'], $result['incident_id']);
+        Assert::same((string) $incident['UUID_INCIDENT'], $result['uuid_incident']);
+    }
+
+    public function testIncidentInsertFailureRollsBackQueueIncidentTransition(): void
+    {
+        $db = TestDatabase::fresh();
+        $job = $this->queuedJob($db, 'ORDERROLLBACK1');
+        $fakeInvoice = '00000000-0000-4000-8000-000000000077';
+        $stmt = $db->prepare('UPDATE redsys_callback_queue SET UUID_FACTURA = ? WHERE ID = ?');
+        $stmt->execute([$fakeInvoice, $job['ID']]);
+
+        $worker = $this->workerWithOutcome(SifException::conflict('amount mismatch'));
+
+        Assert::throws(
+            SifException::class,
+            fn () => $worker->runOne(
+                $db,
+                'worker-a',
+                new \DateTimeImmutable('2030-06-19 10:00:00')
+            ),
+            404
         );
+
+        $after = $db->query('SELECT STATUS, UUID_FACTURA FROM redsys_callback_queue')
+            ->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('PROCESSING', $after['STATUS']);
+        Assert::same($fakeInvoice, $after['UUID_FACTURA']);
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
     }
 
     public function testRecoversStaleProcessingLock(): void
