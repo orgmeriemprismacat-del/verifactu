@@ -26,6 +26,7 @@
 - S'elimina el doble `closeStmt()` del detector de duplicats.
 - `$comentaris` queda inicialitzat.
 - Es retiren blocs residuals de CP/promoció sense origen al formulari actual.
+- Les notificacions internes que abans s'intentaven abans de l'INSERT es mouen després de persistir `inscripcions_reptes`, evitant correus d'una alta que no hagi arribat a existir.
 
 ### P-TAS-04 · Confirmació
 
@@ -53,6 +54,7 @@
 - UC108-CONF-01 · retall de token.
 - UC108-P04-01 · dependències innecessàries de confirmació.
 - UC108-DATA-02 · comentaris sense inicialitzar.
+- UC108-FLOW-02 · correus interns previs a l'INSERT.
 - UC108-LEG-01/02 · CP/promoció residual.
 - UC108-SEC-04 · SQL concatenat a `obtenirCodiTastet.php`.
 - UC108-HTTP-01 · PII via GET en el flux web actual nou.
@@ -63,8 +65,8 @@
 No s'implementa encara perquè requereix esquema, semàntica d'estats o proves:
 
 1. **Idempotència atòmica / concurrència:** request id, unique key o lock. No inventar la semàntica de `INSC_CURS`.
-2. **Estat pendent/actiu/caducat/baixa/denegació:** cal confirmar BD/intranet/Moodle.
-3. **Outbox/reintents SMTP:** encara hi ha correus PRE/POST-INSERT; només s'ha exposat el resultat de `send()`.
+2. **Estat pendent/actiu/caducat/baixa/denegació:** cal confirmar BD/intranet/Moodle. La cerca dirigida al repositori no ha trobat cap consumidor d'intranet de `inscripcions_reptes`/`INSC_CURS`; no s'inventa la semàntica.
+3. **Outbox/reintents SMTP:** els correus interns PRE-INSERT ja s'han mogut després de persistir, però encara falta outbox/retry, estat persistent de lliurament i separar completament els efectes posteriors.
 4. **Resposta JSON tipificada:** el handler continua retornant token textual per compatibilitat.
 5. **Caducitat del token:** DEC-108-01 continua oberta.
 6. **Retirada del fallback GET:** fer-ho després de verificar que no hi ha clients antics.
