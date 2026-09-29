@@ -12,6 +12,7 @@ final class LegacyPackInvoicePayloadBuilder
     {
         $pack = $this->requiredArray($snapshot, 'pack');
         $items = $this->requiredArray($snapshot, 'items');
+        $items = $this->orderedItems($items);
 
         if (count($items) < 2) {
             throw SifException::validation('Pack invoice requires at least two lines');
@@ -65,6 +66,40 @@ final class LegacyPackInvoicePayloadBuilder
             'lines' => $lines,
             'relations' => $relations,
         ];
+    }
+
+    private function orderedItems(array $items): array
+    {
+        $withOrdinal = array_filter(
+            $items,
+            static fn (mixed $item): bool => is_array($item) && array_key_exists('ordinal', $item)
+        );
+
+        // Legacy fallback snapshots do not yet carry the commercial ordinal.
+        // Preserve their current order rather than guessing a different one.
+        if ($withOrdinal === []) {
+            return $items;
+        }
+        if (count($withOrdinal) !== count($items)) {
+            throw SifException::validation('Pack snapshot mixes items with and without ordinal');
+        }
+
+        usort($items, static function (array $left, array $right): int {
+            return (int) $left['ordinal'] <=> (int) $right['ordinal'];
+        });
+
+        $expected = 1;
+        foreach ($items as $item) {
+            $ordinal = $item['ordinal'];
+            if ((!is_int($ordinal) && !(is_string($ordinal) && ctype_digit($ordinal)))
+                || (int) $ordinal !== $expected
+            ) {
+                throw SifException::validation('Pack snapshot ordinals must be contiguous from 1');
+            }
+            $expected++;
+        }
+
+        return $items;
     }
 
     private function billing(array $inscription): array
