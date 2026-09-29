@@ -448,9 +448,9 @@ E --> F[Si existeix temporal tècnic, cleanup server-side per ID opac i TTL]
 
 | Ref | Troballa |
 | --- | --- |
-| AUTH-01 | mostrarMain pot comprovar rols de l'ancestre perquè reutilitza rols1 al breadcrumb. |
+| AUTH-01 | **CORREGIT a main:** `mostrarMain.php` conserva `ROLS_VISUALITZAR` de la pàgina en `rolsPagina`; els rols del breadcrumb ja no sobreescriuen la decisió. |
 | AUTH-02 | tePermisVisualitzacio només compara rols; no autoritza factura/document. |
-| AUTH-03 | wrappers F02–F07 desserialitzen sessió però no revaliden rol/recurs dins del wrapper revisat. |
+| AUTH-03 | **CORREGIT parcialment a main:** F02–F07 i AL-17 llegat passen per `LegacyInvoiceReadContext`, que refresca sessió/rol i comprova `ROLS_VISUALITZAR`. La política fina per recurs és la del camí SIF; el fallback llegat conserva autorització per rol de pàgina. |
 | AUTH-04 | **CORREGIT a main:** `comprovarSessio.php` usa `replaceRols()` i substitueix els rols de sessió pels rols vigents de BD abans del pont SIF. La prova runtime de revocació continua ajornada. |
 | F02-01 | existeixCerca pot usar-se abans d'inicialitzar-se. |
 | F02-02 | %, _ mantenen semàntica LIKE si el client els envia. |
@@ -468,7 +468,7 @@ E --> F[Si existeix temporal tècnic, cleanup server-side per ID opac i TTL]
 | F06-01 | ID fila es converteix en FACTURA_RELACIONADA; la identitat seleccionada es perd. |
 | F06-02 | original i rectificativa poden quedar com pàgines d'un únic PDF reconstruït. |
 | F07-01 | GENERAT es modifica durant la descàrrega i s'usa també com a gate GTAF/anul·lació. |
-| F07-02 | el JS principal fa dues crides al generador per una descàrrega. |
+| F07-02 | **CORREGIT a main:** F07 principal fa una sola crida a `descarregaFactura.php`; s'ha eliminat la segona generació. |
 | F07-03 | filename temporal sempre prefix A, fins i tot per rectificatives R. |
 | F07-04 | nom/estat pot provenir de l'última fila del grup sense ORDER BY. |
 | F07-05 | file_put_contents no es comprova abans de retornar filename. |
@@ -477,8 +477,8 @@ E --> F[Si existeix temporal tècnic, cleanup server-side per ID opac i TTL]
 | PDF-03 | el generador llegat no acredita QR/UUID/hash/estat AEAT de VERI*FACTU. |
 | AL17-01 | el segon html(res) substitueix fletxes després de registrar-ne handlers; download és al footer i no queda substituït. |
 | AL18-01 | callback usa resD tot i declarar res. |
-| AL18-02 | eliminarArxiu rep filename del client i crida unlink sense validació visible de root/propietari. |
-| AL18-03 | cleanup pot competir temporalment amb la lectura del navegador. |
+| AL18-02 | **CORREGIT a main:** `eliminarArxiu.php` és POST, revalida sessió, accepta només basename PDF i limita `realpath` a `ajax/alumnes`; els documents SIF no passen per aquest endpoint. |
+| AL18-03 | **CORREGIT funcionalment:** la factura llegada ja no esborra el temporal immediatament després de `link.click()`; s'ha afegit cleanup CLI amb TTL. La prova de regressió queda ajornada. |
 
 # 10. Model SIF: dades existents i gaps de consulta
 
@@ -615,3 +615,15 @@ Les proves noves i de regressió es mantenen **AJORNADES** a [03-proves-pendents
 - `FEATURE_DISABLED` és l'únic bypass explícit de rollout cap al llegat; errors d'autenticació, HMAC, permisos o servei **no** fan fallback silenciós.
 - AL-16 i AL-17 resolen primer la factura per `view_by_enrollment`; `NO_SIF` o flag desactivat conserva el llegat mentre dura la migració.
 - Les proves de rollout, permisos, HMAC, storage i regressió continuen ajornades a [03-proves-pendents-uc-007-implementacio.md](03-proves-pendents-uc-007-implementacio.md).
+
+
+### 16.1. Correccions del fallback llegat aplicades
+
+- `mostrarMain.php`: rol de pàgina separat del rol dels ancestres del breadcrumb.
+- F02–F07/AL-17 llegats: context comú `LegacyInvoiceReadContext` amb sessió refrescada i `ROLS_VISUALITZAR` server-side.
+- Edició/anul·lació: POST, `ROLS_EDITAR` server-side, origen/XHR i `SifLegacyInvoiceMutationGuard` activable amb `SIF_BLOCK_LEGACY_INVOICE_MUTATIONS=1`.
+- `descarregaFactura.php`: POST i validació d'origen; el JS fa una sola generació i usa el nom retornat sense afegir `.pdf` de nou.
+- `eliminarArxiu.php`: POST, basename PDF, root fix i comprovació d'`unlink`.
+- `maintenance/cleanupFacturaTemporals.php`: neteja CLI amb TTL només dels temporals `A<ANY>-<ORDRE>-<timestamp>.pdf` del generador llegat.
+- AL-18 llegat: ja no fa cleanup immediat després del clic de descàrrega; evita la cursa browser/unlink.
+- Les proves d'aquestes correccions continuen AJORNADES al document 03.
