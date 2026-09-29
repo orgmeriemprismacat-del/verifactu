@@ -117,8 +117,8 @@ class FiscalDocumentAccessRepository {
  +append(db,access) string
 }
 class InvoiceDocumentAccessService {
- <<DISSENY: no acreditada>>
- +download(actor,documentId) stream
+ <<DISSENY UC-080: no acreditada>>
+ +download(actor,documentId,tokenOrSession) stream
 }
 DocumentWorker --> DocumentJobRepository : claim/resultat
 DocumentWorker --> FiscalDocumentGenerator : bytes del snapshot
