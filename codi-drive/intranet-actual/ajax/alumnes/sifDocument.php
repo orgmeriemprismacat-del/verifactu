@@ -3,6 +3,18 @@
 $root = dirname(__DIR__, 2);
 chdir($root);
 
+$uc080Enabled = filter_var(
+    getenv('SIF_UC080_DOCUMENT_ENABLED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+
+if (!$uc080Enabled) {
+    http_response_code(503);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'error' => 'SIF document delivery is disabled']);
+    return;
+}
+
 if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
     http_response_code(405);
     header('Content-Type: application/json; charset=utf-8');
