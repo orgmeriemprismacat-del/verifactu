@@ -12,28 +12,7 @@ include("../Mail.php");
 include("../MailSMTP.php");
 include("../MailSMTPComvive.php");
 include("../MailSMTPFile.php");
-
-function normalitzarNifNieUc108($document) {
-	return strtoupper(preg_replace('/[\s\.\-]+/', '', trim($document)));
-}
-
-function validarNifNieUc108($document) {
-	$document = normalitzarNifNieUc108($document);
-	$letters = 'TRWAGMYFPDXBNJZSQVHLCKE';
-
-	if (preg_match('/^[0-9]{8}[A-Z]$/', $document)) {
-		$numero = intval(substr($document, 0, 8));
-		return $letters[$numero % 23] === substr($document, -1);
-	}
-
-	if (preg_match('/^[XYZ][0-9]{7}[A-Z]$/', $document)) {
-		$prefix = ['X' => '0', 'Y' => '1', 'Z' => '2'];
-		$numero = intval($prefix[$document[0]].substr($document, 1, 7));
-		return $letters[$numero % 23] === substr($document, -1);
-	}
-
-	return false;
-}
+include("../Uc108Validation.php");
 
 try {
 	$esPost = ($_SERVER['REQUEST_METHOD'] === 'POST');
@@ -91,7 +70,7 @@ try {
 		return;
 	}
 
-	if (filter_var($emailValidat, FILTER_VALIDATE_EMAIL) === false) {
+	if (!Uc108Validation::validarEmail($emailValidat)) {
 		echo "Error: el correu electrònic no és vàlid.";
 		return;
 	}
@@ -102,11 +81,11 @@ try {
 	}
 
 	if ($tipusDoc == 'NIF/NIE') {
-		if (!validarNifNieUc108($documentValidat)) {
+		if (!Uc108Validation::validarNifNie($documentValidat)) {
 			echo "Error: el NIF/NIE no és vàlid.";
 			return;
 		}
-		$documentValidat = normalitzarNifNieUc108($documentValidat);
+		$documentValidat = Uc108Validation::normalitzarNifNie($documentValidat);
 	}
 
 	if ($tipusDoc != '' && $tipusDoc != 'NIF/NIE' && mb_strlen(trim($documentValidat)) < 3) {
