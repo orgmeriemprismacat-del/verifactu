@@ -2,6 +2,7 @@
     'use strict';
 
     var endpoint = 'https://intranet.prisma.cat/ajax/alumnes/sifFactures.php';
+    var documentEndpoint = 'https://intranet.prisma.cat/ajax/alumnes/sifDocument.php';
 
     document.addEventListener('click', function (event) {
         var target = event.target && event.target.closest
@@ -188,11 +189,7 @@
             ['MOTIU', 'Motiu']
         ]);
 
-        appendTable(body, 'Documents registrats', view.documents || [], [
-            ['TIPUS', 'Tipus'],
-            ['ESTAT', 'Estat'],
-            ['HASH_FITXER', 'Hash']
-        ]);
+        appendDocuments(body, view.documents || []);
 
         $('#modalConsultaFactura .modal-body').empty().append(body);
         hideLegacyDownload();
@@ -245,6 +242,86 @@
         table.append(tbody);
         wrapper.append($('<div>').addClass('table-responsive').append(table));
         parent.append(wrapper);
+    }
+
+    function appendDocuments(parent, rows) {
+        if (!rows || rows.length === 0) {
+            return;
+        }
+
+        var wrapper = $('<div>').addClass('mb-4');
+        wrapper.append($('<h6>').text('Documents registrats'));
+
+        var list = $('<div>').addClass('list-group');
+        rows.forEach(function (row) {
+            var id = parseInt(row.ID, 10);
+            var label = [row.TIPUS || 'Document', row.ESTAT || ''].filter(Boolean).join(' · ');
+            var button = $('<button>')
+                .attr('type', 'button')
+                .addClass('list-group-item list-group-item-action')
+                .text(label);
+
+            if (!Number.isInteger(id) || id <= 0) {
+                button.prop('disabled', true);
+            } else {
+                button.on('click', function () {
+                    downloadSifDocument(id);
+                });
+            }
+
+            list.append(button);
+        });
+
+        wrapper.append(list);
+        parent.append(wrapper);
+    }
+
+    function downloadSifDocument(documentId) {
+        if (typeof mostrarModalLoading === 'function') {
+            mostrarModalLoading();
+        }
+
+        fetch(documentEndpoint, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8'
+            },
+            body: JSON.stringify({
+                document_id: documentId
+            })
+        }).then(function (response) {
+            if (!response.ok) {
+                var message = 'No s\'ha pogut descarregar el document.';
+                if (response.status === 403) message = 'No tens autorització per descarregar aquest document.';
+                if (response.status === 409) message = 'El document no supera la comprovació d\'integritat.';
+                if (response.status === 503) message = 'El document encara no està disponible.';
+                throw new Error(message);
+            }
+
+            var disposition = response.headers.get('Content-Disposition') || '';
+            var match = disposition.match(/filename="?([^";]+)"?/i);
+            var filename = match ? match[1] : 'factura-document-' + documentId;
+
+            return response.blob().then(function (blob) {
+                return {
+                    blob: blob,
+                    filename: filename
+                };
+            });
+        }).then(function (download) {
+            var url = window.URL.createObjectURL(download.blob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = download.filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            hideLoading();
+        }).catch(function (error) {
+            showError(error.message || 'No s\'ha pogut descarregar el document.');
+        });
     }
 
     function hideLegacyDownload() {
