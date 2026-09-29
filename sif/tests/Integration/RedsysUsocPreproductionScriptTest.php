@@ -23,8 +23,9 @@ final class RedsysUsocPreproductionScriptTest
         Assert::stringContainsString('new LegacyUsocSnapshotRepository()', $source);
         Assert::stringContainsString('new LegacyUsocInvoicePayloadBuilder()', $source);
         Assert::stringContainsString('new RedsysInvoicePayloadBuilder($notifications)', $source);
-        Assert::stringContainsString('$service->issueStudentFromValidatedNotification($sifDb, $legacyDb, $dsOrder, $usocAmount)', $source);
+        Assert::stringContainsString('$service->issueStudentFromValidatedNotification($sifDb, $legacyDb, $dsOrder, $usocAmount, $inscriptionId)', $source);
         Assert::stringContainsString('--usoc-amount=', $source);
+        Assert::stringContainsString('--id-insc=', $source);
         Assert::stringContainsString('entity_invoice_pending', $source);
         Assert::stringContainsString('legacy_sync_executed', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
