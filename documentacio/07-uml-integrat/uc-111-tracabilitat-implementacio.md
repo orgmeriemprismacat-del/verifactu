@@ -4,6 +4,27 @@
 **Branca contrastada:** `feat/uc-111-termini-i-auditoria-2026-09-22`.  
 **Regla:** "fitxer present" no equival a "provat" ni a "desplegat".
 
+## 0. Inventari de fitxes i diagrames UC-111
+
+| Artefacte requerit | Fitxer | Estat 29/09/2026 |
+| --- | --- | --- |
+| fitxa funcional canònica | [uc-111.md](../06-fitxes-funcionals/uc-111.md) | EXISTIA · actualitzada |
+| fitxes per acció A111-01…12 | [uc-111-accions.md](../06-fitxes-funcionals/uc-111-accions.md) | CREADA |
+| casos d'ús ACTUAL/FINAL | [uc-111-casos-us-actual-final.md](uc-111-casos-us-actual-final.md) | CREAT |
+| classes ACTUAL/FINAL | [uc-111-classes-actual-final.md](uc-111-classes-actual-final.md) | CREAT |
+| seqüències ACTUAL/FINAL | [uc-111-sequencies-actual-final.md](uc-111-sequencies-actual-final.md) | CREAT |
+| activitats ACTUAL/FINAL | [uc-111-activitats-actual-final.md](uc-111-activitats-actual-final.md) | CREAT |
+| 4 UML per cada acció | [uc-111-diagrames-per-accio.md](uc-111-diagrames-per-accio.md) | CREAT · 12 × 4 = 48 blocs |
+| traçabilitat funcional/codi/proves | aquest document | CREAT |
+| UML integrat cronològic | [uc-111-docent-novell-dret-futur.md](uc-111-docent-novell-dret-futur.md) | EXISTIA · actualitzat/enllaçat |
+| auditoria inicial 22/09 | [lot 02](00-auditoria-casos-pendents-lot-02-uc-111-2026-09-22.md) | EXISTIA · marcada HISTÒRICA |
+| auditoria tècnica evolutiva | [circuit cobrament/promoció](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md) | EXISTIA · activa |
+| classes generals SIF | [31](../04-estat-final/31-diagrames-classes-sif.md) | ACTUALITZAT amb UC-111 |
+| seqüències generals SIF | [32](../04-estat-final/32-diagrames-sequencia-sif.md) | ACTUALITZAT amb UC-111 |
+| matriu general de diagrames | [35](../04-estat-final/35-matriu-tracabilitat-diagrames.md) | ACTUALITZADA amb paquet UC-111 |
+
+**Conclusió de l'inventari:** dins del paquet documental definit per aquesta auditoria **ja no falta cap tipus de peça** (fitxa, cas d'ús, classes, seqüència, activitat o traçabilitat). El que continua pendent és **validació del contingut contra runtime i proves**, no la mera existència documental. Els fitxers suplementaris no creen nous IDs: el catàleg continua en 142 UC/variants canònics.
+
 ## 1. Cobertura per acció
 
 | Acció | Fitxa | Codi ACTUAL / font | Codi FINAL/branca | UML | Proves | Estat |
