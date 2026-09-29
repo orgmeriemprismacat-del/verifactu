@@ -207,6 +207,73 @@ final class FiscalQueueRepository
         }
     }
 
+
+    public function reviewForUpdate(\PDO $db, int $queueId): array
+    {
+        $stmt = $db->prepare(
+            "SELECT * FROM fiscal_queue WHERE ID = ? AND STATUS = 'REVIEW' FOR UPDATE"
+        );
+        $stmt->execute([$queueId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($row === false) {
+            throw SifException::conflict('AEAT queue item is not available for review reconciliation');
+        }
+
+        return $row;
+    }
+
+    public function reconcileReview(
+        \PDO $db,
+        array $queueItem,
+        string $aeatStatus,
+        array $response,
+        string $requestXml
+    ): void {
+        if (!in_array($aeatStatus, ['ACCEPTED', 'ACCEPTED_WITH_ERRORS', 'REJECTED'], true)) {
+            throw SifException::conflict('Invalid terminal AEAT status for review reconciliation');
+        }
+
+        $payload = $this->payload($queueItem);
+        $responseJson = $this->encode($response);
+
+        $queue = $db->prepare(
+            "UPDATE fiscal_queue
+             SET AEAT_CSV = ?, AEAT_ERROR_CODE = ?, AEAT_ERROR_MESSAGE = ?, FLOW_WAIT_SECONDS = ?,
+                 STATUS = 'SENT', SENT_AT = COALESCE(SENT_AT, NOW()), LOCKED_AT = NULL,
+                 CLAIM_TOKEN = NULL, NEXT_RETRY_AT = NULL, LAST_ERROR = NULL
+             WHERE ID = ? AND STATUS = 'REVIEW'"
+        );
+        $queue->execute([
+            isset($response['csv']) ? mb_substr((string) $response['csv'], 0, 120, 'UTF-8') : null,
+            isset($response['error_code']) ? mb_substr((string) $response['error_code'], 0, 80, 'UTF-8') : null,
+            isset($response['error_message']) ? mb_substr((string) $response['error_message'], 0, 500, 'UTF-8') : null,
+            $response['flow_wait_seconds'] ?? null,
+            $queueItem['ID'],
+        ]);
+        if ($queue->rowCount() !== 1) {
+            throw SifException::conflict('AEAT review job changed before reconciliation');
+        }
+
+        $record = $db->prepare(
+            'UPDATE factura_registres
+             SET XML_PAYLOAD = ?, AEAT_RESPONSE_JSON = ?, ESTAT_AEAT = ?, DATE_SENT = COALESCE(DATE_SENT, NOW())
+             WHERE UUID_FACTURA = ? AND FISCAL_ORDER = ?'
+        );
+        $record->execute([
+            $requestXml,
+            $responseJson,
+            $aeatStatus,
+            $queueItem['UUID_FACTURA'],
+            $payload['fiscal_order'],
+        ]);
+        if ($record->rowCount() !== 1) {
+            throw SifException::conflict('AEAT review does not match the immutable fiscal registration');
+        }
+
+        $db->prepare('UPDATE factura SET ESTAT_AEAT = ? WHERE UUID_FACTURA = ?')
+            ->execute([$aeatStatus, $queueItem['UUID_FACTURA']]);
+    }
+
     public function exhaust(\PDO $db, array $queueItem, string $reason): void
     {
         $stmt = $db->prepare(
