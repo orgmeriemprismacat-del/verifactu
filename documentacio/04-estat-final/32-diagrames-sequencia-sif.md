@@ -1542,7 +1542,7 @@ sequenceDiagram
 
 ## 49. UC-111 · Docent novell, consum, derivació i devolució JASOM `[BRANCA/PARCIAL]`
 
-La seqüència completa UC-111 és massa ampla per a una única cadena lineal: es divideix en alta/decisió/concessió, lliurament, consum original, canvi/baixa, consum derivat i root-refund. Les sis seqüències canòniques es mantenen a [UC-111 · seqüències ACTUAL/FINAL](../07-uml-integrat/uc-111-sequencies-actual-final.md).
+La seqüència completa UC-111 és massa ampla per a una única cadena lineal: es divideix en alta/decisió/concessió, lliurament, consum original, canvi/baixa, consum derivat i root-refund. Les sis seqüències canòniques es mantenen a [UC-111 · seqüències ACTUAL/FINAL](../07-uml-integrat/uc-111-sequencies-actual-final.md); els canvis d'estat associats es documenten a [UC-111 · dades i estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md).
 
 ```plantuml
 @startuml
@@ -1576,4 +1576,4 @@ end
 @enduml
 ```
 
-**No inferir integració completa:** el codi de serveis existeix a la branca, però els adaptadors finals de sessió/rol, storage documental, pricing, emissió fiscal, transport de correu i evidències externes no estan acreditats com a desplegats. [Fitxes d'acció UC-111](../06-fitxes-funcionals/uc-111-accions.md) · [traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md).
+**No inferir integració completa:** el codi de serveis existeix a la branca, però els adaptadors finals de sessió/rol, storage documental, pricing, emissió fiscal, transport de correu i evidències externes no estan acreditats com a desplegats. [Fitxes d'acció UC-111](../06-fitxes-funcionals/uc-111-accions.md) · [dades/estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md) · [traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md).
