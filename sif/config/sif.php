@@ -20,6 +20,22 @@ return [
         'invoice' => getenv('SIF_SERIES_INVOICE') ?: 'A',
         'rectification' => getenv('SIF_SERIES_RECTIFICATION') ?: 'R',
     ],
+    'invoice_query' => [
+        'full_read_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_INVOICE_FULL_READ_ROLES') ?: '')
+        ))),
+        'minimal_read_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_INVOICE_MINIMAL_READ_ROLES') ?: '')
+        ))),
+        'max_results' => (int) (getenv('SIF_INVOICE_QUERY_MAX_RESULTS') ?: 50),
+    ],
+    'internal_api' => [
+        'key_id' => getenv('SIF_INTERNAL_API_KEY_ID') ?: '',
+        'secret' => getenv('SIF_INTERNAL_API_SECRET') ?: '',
+        'max_clock_skew_seconds' => (int) (getenv('SIF_INTERNAL_API_MAX_SKEW') ?: 300),
+    ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
     ],
