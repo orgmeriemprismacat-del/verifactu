@@ -31,11 +31,16 @@ return [
         ))),
         'max_results' => (int) (getenv('SIF_INVOICE_QUERY_MAX_RESULTS') ?: 50),
     ],
+    'documents' => [
+        'root' => getenv('SIF_DOCUMENT_ROOT') ?: '',
+        'max_bytes' => (int) (getenv('SIF_DOCUMENT_MAX_BYTES') ?: 20971520),
+    ],
     'internal_api' => [
         'key_id' => getenv('SIF_INTERNAL_API_KEY_ID') ?: '',
         'secret' => getenv('SIF_INTERNAL_API_SECRET') ?: '',
         'max_clock_skew_seconds' => (int) (getenv('SIF_INTERNAL_API_MAX_SKEW') ?: 300),
         'signed_path' => getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php',
+        'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
     ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
