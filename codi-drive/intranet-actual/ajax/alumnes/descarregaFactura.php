@@ -5,6 +5,8 @@ require_once '../../lib/dompdf/autoload.inc.php';
 $root = dirname(__DIR__, 2);
 require_once $root . '/LegacyInvoiceReadContext.php';
 require_once $root . '/LegacyInvoiceMutationAuthorization.php';
+require_once $root . '/SifInternalApiClient.php';
+require_once $root . '/SifLegacyInvoiceMutationGuard.php';
 
 $user = null;
 $intranet = null;
@@ -20,9 +22,14 @@ try {
     LegacyInvoiceMutationAuthorization::assertSameOrigin();
 
     $id = trim((string) ($_POST['id'] ?? ''));
-    if ($id === '' || !ctype_digit($id)) {
+    if ($id === '' || !ctype_digit($id) || (int) $id <= 0) {
         throw new InvalidArgumentException('Factura relacionada no vàlida', 422);
     }
+
+    (new SifLegacyInvoiceMutationGuard())->assertLegacyRelationAllowed(
+        $user,
+        (int) $id
+    );
 
     echo $intranet->generaFactura((int) $id, true);
 } catch (Throwable $exception) {
