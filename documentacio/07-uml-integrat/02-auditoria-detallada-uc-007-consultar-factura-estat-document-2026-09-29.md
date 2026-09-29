@@ -586,9 +586,11 @@ E --> F[Si existeix temporal tècnic, cleanup server-side per ID opac i TTL]
 | --- | --- |
 | `InvoiceReadRepository` | IMPLEMENTAT: lectura exacta, sense writes ni paths interns |
 | `InvoiceQueryService` | IMPLEMENTAT PARCIAL: view/search amb política obligatòria |
-| `InvoiceVisibilityPolicyInterface` | IMPLEMENTAT com a contracte; política concreta pendent |
+| `InvoiceVisibilityPolicyInterface` | IMPLEMENTAT com a contracte |
+| `ResolvedInvoiceVisibilityPolicy` | IMPLEMENTAT: scope fail-closed per UUID i projecció FULL/MINIMAL; origen autenticat del scope encara pendent |
 | Errors 403/404 | IMPLEMENTATS a `SifException` |
-| `InvoiceQueryServiceTest` | PROVES ESCRITES; no executades en aquesta revisió |
+| `InvoiceQueryServiceTest` / `ResolvedInvoiceVisibilityPolicyTest` | PROVES ESCRITES; no executades en aquesta revisió |
+| `query-invoice.php` / `InvoiceQueryScriptTest` | CLI read-only no productiu + prova real del script escrites |
 | Endpoint HTTP UC-007 | PENDENT fins tenir actor/scope resolt server-side |
 | UC-080 bytes/auditoria | PENDENT |
 
