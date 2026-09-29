@@ -75,6 +75,8 @@ final class FiscalQueueProcessorTest
         Assert::same('DEAD_LETTER', (string) $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
         Assert::same('ERROR', (string) $db->query('SELECT ESTAT_AEAT FROM factura')->fetchColumn());
         Assert::same('ERROR', (string) $db->query('SELECT ESTAT_AEAT FROM factura_registres')->fetchColumn());
+        Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DEAD_LETTER'")->fetchColumn());
+        Assert::same($third['incident_id'], (int) $db->query("SELECT ID FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DEAD_LETTER'")->fetchColumn());
         Assert::stringContainsString(
             'AEAT test transport unavailable',
             (string) $db->query('SELECT LAST_ERROR FROM fiscal_queue')->fetchColumn()

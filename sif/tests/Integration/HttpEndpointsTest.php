@@ -64,6 +64,19 @@ final class HttpEndpointsTest
         }
     }
 
+    public function testIncidentManagementEndpointUsesAuthenticatedLifecycleService(): void
+    {
+        $source = $this->readEndpoint('api/incidents/manage.php');
+
+        Assert::stringContainsString('/src/autoload.php', $source);
+        Assert::stringContainsString('InternalApiAuthenticator', $source);
+        Assert::stringContainsString('IncidentLifecycleService', $source);
+        Assert::stringContainsString('IncidentActionRepository', $source);
+        Assert::stringContainsString('$service->assign', $source);
+        Assert::stringContainsString('$service->resolve', $source);
+        Assert::stringContainsString('$service->dismiss', $source);
+    }
+
     public function testJsonResponseSupportsInvalidJsonAndThrowableResponses(): void
     {
         $source = file_get_contents(dirname(__DIR__, 2) . '/src/Http/JsonResponse.php');

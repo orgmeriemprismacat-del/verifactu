@@ -18,7 +18,15 @@ final class MigrationInfrastructureTest
     {
         $db = TestDatabase::fresh();
         $runner = $this->runner();
-        Assert::same(73, count($runner->expectedSchema()));
+        $declaredTables = [];
+        foreach ($runner->files() as $file) {
+            $sql = (string) file_get_contents($file);
+            preg_match_all('/CREATE TABLE IF NOT EXISTS\s+(\w+)/i', $sql, $matches);
+            foreach ($matches[1] as $table) {
+                $declaredTables[$table] = true;
+            }
+        }
+        Assert::same(count($declaredTables), count($runner->expectedSchema()));
         Assert::same(count($runner->files()), (int) $db->query('SELECT COUNT(*) FROM sif_schema_migration')->fetchColumn());
         Assert::same(false, in_array(false, $runner->inspect($db), true));
         Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='enrollment_import_item' AND COLUMN_NAME='ROW_NUMBER'")->fetchColumn());

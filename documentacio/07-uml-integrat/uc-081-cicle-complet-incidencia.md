@@ -1,10 +1,10 @@
 # UC-81 · Gestionar el cicle complet d'una incidència SIF
 
-**Objectiu del catàleg:** prioritat, assignació, accions, canvis d'estat, resolució i evidència. **Estat [PARCIAL/DISSENY].** El PHP pot **obrir** una incidència a `errors_verifactu`, però no s'ha acreditat un gestor de tot el cicle amb permisos, assignació, pla de reparació i verificació de tancament.
+**Objectiu del catàleg:** prioritat, assignació, accions, canvis d'estat, resolució i evidència. **Estat en aquesta branca [PARCIAL IMPLEMENTAT].** UC-081 és el detall de lifecycle del cas mare [UC-008](uc-008-gestionar-incidencia-sif.md). Existeixen `IncidentLifecycleService`, `IncidentActionRepository`, persistència ampliada i API interna autenticada; UI, configuració productiva i execució de proves continuen pendents.
 
 ## 1. Evidència i límits
 
-`IncidentRepository::open(PDO,?uuidFactura,type,message)` comprova tipus i missatge i insereix `errors_verifactu(UUID_FACTURA,TIPUS_INCIDENCIA,ESTAT='OPEN',DETAILS)`. Retorna `ok=true` **sense retornar l'ID d'incidència** i no implementa transicions d'estat. La migració defineix `sif_incident_action` amb `INCIDENT_ID`, `ACTION_TYPE`, estat anterior/nou, severitat, `ASSIGNEE_ID`, actor/rol, motiu, detalls, `EVIDENCE_JSON`, correlació i data. **No s'ha acreditat un writer PHP de `sif_incident_action` ni el workflow complet**. `FiscalQueueRepository::fail()` pot deixar la cua en `DEAD_LETTER` i posar `ESTAT_AEAT=ERROR`, però **no crea una incidència assignada automàticament** per aquesta funció.
+`IncidentRepository::open()` es manté per compatibilitat, però `openDetailed()` ja genera `UUID_INCIDENT`, retorna `incident_id`, valida factura/pagament quan s'aporten i suporta recurs, correlació i idempotència. `IncidentActionRepository` escriu `sif_incident_action` append-only i `IncidentLifecycleService` implementa assignació, evidència, resolució, `DISMISSED` i reobertura. La cua fiscal crea incidència tant per conflicte d'integritat com quan els retries acaben en `DEAD_LETTER`; això no converteix l'estat local en resposta remota AEAT.
 
 Una incidència documental, de notificació, de callback Redsys o de divergència del llegat ha d'identificar també el recurs corresponent, no només `UUID_FACTURA`: el model de vincle d'incidència amb múltiples referències i correlacions és una decisió pendent.
 
@@ -29,15 +29,15 @@ Una incidència documental, de notificació, de callback Redsys o de divergènci
 5. Verificar resultat final, registrar accions i evidència, tancar quan tots els efectes pendents del cas estan resolts o justificar expressament el tancament parcial segons política.
 6. Provar: dos avisos del mateix error, incident de factura ja cancel·lada, AEAT accepta però timeout local, PDF absent, callback Redsys tardà, assignació a rol no autoritzat, càrrec bancari real que no apareix al llegat i retry que només havia fallat a Moodle.
 
-**Pendents:** codi/taula d'idempotència d'incidència i reparacions, permisos/SLA, model d'enllaç a recursos, writer i visualització de `sif_incident_action`, notificació a responsables i tests de tancament amb evidència.
+**Pendents:** UI del panell, rols productius/SLA, notificació a responsables, integracions d'obertura encara no connectades, proves de concurrència i execució real dels tests. La reparació continua sent responsabilitat del UC específic; no s'implementa un retry general.
 
 ### 2.1. Lloc de resolució, objectes afectats i límit de l'obridor actual
 
-**Lloc oficial i abast funcional.** El document `25-panell-sif-pay-prisma.md` fixa `pay.prisma.cat/sif/incidencies` com a punt de **gestió i resolució oficial**; l'apartat VERI*FACTU de la intranet principal mostra només resum, avisos i accés al SIF. La fitxa de procediment preveu `GET /api/incidents` i `POST /api/incidents/{id}/actions` com a **endpoints a crear**, no una API ja comprovada. Assignar responsable, afegir notes, revisar, resoldre i notificar la intranet són actuacions de la futura pantalla amb permisos de servidor, **no** efectes implementats per `IncidentRepository::open()`.
+**Lloc oficial i abast funcional.** El document `25-panell-sif-pay-prisma.md` fixa `pay.prisma.cat/sif/incidencies` com a punt de gestió i resolució oficial; la UI encara és pendent. El backend disposa ara de `POST /api/incidents/manage.php`, autenticat amb HMAC/anti-replay, amb `list/view/open/assign/evidence/resolve/dismiss/reopen`. L'apartat VERI*FACTU de la intranet principal continua sent només un disseny de resum/enllaç.
 
-**Vincular a l'objecte afectat sense inventar factura.** La llista de casos prevista per al panell inclou: error d'AEAT o retries, PDF/QR no generat, cobrament real sense factura/assignació, factura prèvia pendent, callback Redsys duplicat o validat però no conciliat, CSV TPV amb coincidències múltiples, transferència assignada a una factura incorrecta i dades fiscals incompletes. Un **cobrament orfe** pot tenir `UUID_PAYMENT` i `DS_ORDER` però encara cap `UUID_FACTURA`; `IncidentRepository::open(db,?uuidFactura,type,message)` només admet UUID de factura opcional i no torna l'ID de la incidència. La correlació tipificada per pagament, job/ordre, inscripció i fitxer d'evidència requereix **un contracte/writer addicional pendent**, no omplir una factura fictícia al camp opcional.
+**Vincular a l'objecte afectat sense inventar factura.** `openDetailed()` admet `UUID_PAYMENT` i parella `RESOURCE_TYPE/RESOURCE_ID` a més de factura, per tant un cobrament orfe, job o inscripció no necessita una factura fictícia. El model és genèric, però encara cal connectar tots els detectors i decidir tipologies/retenció de cada recurs.
 
-**Transicions i prova de tancament.** `sif_incident_action` preveu actor, responsable, estat anterior/nou, raó i evidència, però la seva existència al DDL **no acredita** que el PHP actual hi escrigui. Una incidència AEAT es tanca quan hi ha resultat extern revisat, no només `SENT`; una incidència de PDF quan es comproven els bytes/hash i l'accés, no només `CREATED`; una incidència de pagament/inscripció quan es concilien `UUID_PAYMENT`, assignació real i resum llegat, no només després de concatenar `OBSERVACIONS`. La matrícula Moodle pot continuar pendent encara que la part fiscal quedi resolta.
+**Transicions i prova de tancament.** `IncidentActionRepository` ja escriu actor, responsable, estat anterior/nou, raó, evidència, correlació i idempotència. `resolve()` exigeix criteri, notes i evidència. Continua sent obligatori verificar la destinació real: `SENT` no és acceptació AEAT, `CREATED` no prova bytes i una nota llegada no prova conciliació o Moodle.
 
 **Auditor i suport.** El panell preveu `AUDITOR_FISCAL`/`AEAT_READONLY` de lectura: poden consultar l'expedient fiscal autoritzat, però **no** assignar-se una reparació, reintentar un job o marcar una incidència resolta. La documentació enumera suport/gestió segons el cas; els permisos efectius i la separació de responsabilitats han de comprovar-se **al servidor**, no per una targeta visible del dashboard.
 
@@ -82,18 +82,26 @@ Main ..> Close : <<include>> (resolució verificada)
 ```mermaid
 classDiagram
 class IncidentLifecycleService {
- <<DISSENY: no acreditat>>
- +triage(incidentId,actor) result
- +applyRepair(incidentId,command) result
- +close(incidentId,evidence) result
+ <<PHP EXISTENT · compartit UC-008/081>>
+ +list(actor,filters,limit) array
+ +view(actor,id) array
+ +open(actor,payload) array
+ +assign(actor,id,payload) array
+ +addEvidence(actor,id,payload) array
+ +resolve(actor,id,payload) array
+ +dismiss(actor,id,payload) array
+ +reopen(actor,id,payload) array
 }
 class IncidentRepository {
- <<PHP existent: només OPEN>>
+ <<PHP EXISTENT>>
  +open(db,uuidFactura,type,message) array
+ +openDetailed(db,input) array
+ +findById(db,id,forUpdate) array?
 }
 class IncidentActionRepository {
- <<DISSENY: sif_incident_action SQL definit>>
- +append(db,action) result
+ <<PHP EXISTENT>>
+ +append(db,action) array
+ +listForIncident(db,id) array
 }
 class RepairRouter {
  <<DISSENY: derivació a UC-77/78/82/74/28>>
@@ -110,15 +118,15 @@ IncidentLifecycleService --> RepairRouter : pas concret idempotent
 sequenceDiagram
 autonumber
 actor O as Operador
-participant S as IncidentLifecycleService [DISSENY]
+participant S as IncidentLifecycleService [PHP]
 participant I as IncidentRepository [PHP]
-participant A as sif_incident_action [SQL, writer pendent]
+participant A as IncidentActionRepository [PHP]
 participant Q as fiscal_queue / evidència AEAT
 participant R as RepairRouter [DISSENY]
 O->>S: Obrir incidència per job DEAD_LETTER
-S->>I: open(db,uuidFactura,AEAT_QUEUE,error)
-I-->>S: ok=true (sense INCIDENT_ID al retorn PHP)
-S->>A: Registrar triage/assignació [requereix identificador real]
+S->>I: openDetailed(recurs, causa, correlation, idempotency)
+I-->>S: incident_id + uuid_incident / reused
+S->>A: append triage/assignació idempotent
 S->>Q: Llegir factura, fiscal_order, intents i prova privada
 alt Resultat remot incert
  S-->>O: Cal comprovar estat abans de reintentar
@@ -127,15 +135,15 @@ else Reparació autoritzada i idempotent
  S->>R: executeApproved(command)
  R-->>S: Resultat o incidència parcial
  S->>Q: Verificar estat final del registre original
- S->>A: Guardar acció, prova i estat final
+ S->>A: append acció, prova i estat final
  S-->>O: Resolució comprovada o pendent
 end
-Note over S,A: L'obertura PHP existeix, triage, assignació i tancament no acreditats.
+Note over S,A: Backend de lifecycle existent a la branca; UI i execució de proves pendents.
 ```
 
 ## 6. Traçabilitat
 
-[UC-81 original](../06-fitxes-funcionals/uc-081.md) · [UC-77 cua AEAT](uc-077-operar-enviament-aeat-retry-dead-letter.md) · [UC-78 documents](uc-078-generar-custodiar-pdf-qr-xml.md) · [UC-82 conciliació original](../06-fitxes-funcionals/uc-082.md) · [UC-74 classificar](uc-074-classificar-correccio-fiscal.md) · [IncidentRepository](../../sif/src/Repository/IncidentRepository.php) · [FiscalQueueRepository](../../sif/src/Repository/FiscalQueueRepository.php) · [Migració accions d'incidència](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql).
+[UC-81 original](../06-fitxes-funcionals/uc-081.md) · [UC-008 cas mare](uc-008-gestionar-incidencia-sif.md) · [UC-77 cua AEAT](uc-077-operar-enviament-aeat-retry-dead-letter.md) · [UC-78 documents](uc-078-generar-custodiar-pdf-qr-xml.md) · [UC-82 conciliació](../06-fitxes-funcionals/uc-082.md) · [UC-74 classificar](uc-074-classificar-correccio-fiscal.md) · [IncidentRepository](../../sif/src/Repository/IncidentRepository.php) · [IncidentActionRepository](../../sif/src/Repository/IncidentActionRepository.php) · [IncidentLifecycleService](../../sif/src/Service/IncidentLifecycleService.php) · [API](../../sif/public/api/incidents/manage.php) · [Migració lifecycle](../../sif/database/migrations/2026_09_29_000010_add_incident_lifecycle.sql).
 
 ## Addenda transversal UC-77 — incidència AEAT per rebuig, DLQ o integritat (disseny pendent)
 
@@ -144,3 +152,8 @@ UC-77 ha d'obrir o reutilitzar una incidència correlacionada quan: (a) el hash/
 La reparació autoritzada ha de classificar evidències d'AEAT, resposta/CSV si existeixen, XML, identitat, hash, intent i correlació **abans** de reobrir el mateix job. L'error de xarxa no genera automàticament UC-76 ni una segona ALTA. Quan pertoqui avisar, UC-81 vincula l'alerta idempotent de UC-58; un problema amb l'outbox queda pendent de recuperació sense declarar el missatge enviat. Estat de bloqueig per integritat, assignació automàtica, writer d'accions i recuperació de l'outbox són propostes pendents, no funcionalitat demostrada.
 
 **Traça:** [UC-77 · seqüència i proves UC77-INT-01, UC77-DLQ-05/06](uc-077-operar-enviament-aeat-retry-dead-letter.md#5-uml-de-seqüència--contracte-objectiu-i-diferències-respecte-del-php-actual) · [UC-58](uc-058-gestionar-outbox-notificacions.md).
+
+
+## 7. Estat d'implementació 2026-09-29
+
+El lifecycle backend ja no és només disseny. Queden pendents la UI del panell, la configuració real de rols, SLA/notificacions, integracions addicionals i execució de la suite. Els diagrames d'activitat ACTUAL/FINAL per pàgina/apartat es mantenen al [UC-008 canònic](uc-008-gestionar-incidencia-sif.md) per no duplicar-los.
