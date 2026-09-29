@@ -7,9 +7,9 @@
 Diagrames dedicats creats: [classes ACTUAL/FINAL](uc-108-classes-actual-final.md) · [seqüències ACTUAL/FINAL](uc-108-sequencies-actual-final.md) · [auditoria i traçabilitat](uc-108-auditoria-tracabilitat-2026-09-29.md).
 
 
-**Decisions confirmades el 25/09/2026:** (DEC-108-03m) es pot tornar a renovar si la persona ho demana, tot i que la usuària indica que això no passa habitualment; no s’ha establert un màxim numèric ni una renovació automàtica. (DEC-108-01a) la identificació per comprovar repetició del tastet és el **DNI**, conjuntament amb el tastet. (DEC-108-07) avisos de tastets i butlletí general pertanyen a **la mateixa subscripció**; no dissenyar dues subscripcions independents per aquests dos noms. Els avisos operatius d’accés/renovació continuen independents de l’opció comercial.
+**Decisions confirmades el 25/09/2026:** (DEC-108-03m) es pot tornar a sol·licitar el tastet quan la persona ho demana, però si l'accés està caducat s'aplica DEC-108-03a: desbloqueig persona+tastet i nova sol·licitud web; no hi ha renovació automàtica. (DEC-108-01a) la identificació per comprovar repetició del tastet és el **DNI**, conjuntament amb el tastet. (DEC-108-07) avisos de tastets i butlletí general pertanyen a **la mateixa subscripció**; no dissenyar dues subscripcions independents per aquests dos noms. Els avisos operatius d’accés/renovació continuen independents de l’opció comercial.
 
-**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+**DEC-108-03j/k/l — SUPERADES:** la redacció que permetia renovar un accés caducat només canviant el venciment, sense formulari nou, **no és la regla vigent**. Regla actual: si l'accés ha caducat, secretaria/suport desbloqueja **persona+tastet** i la persona torna al formulari web i envia una **nova sol·licitud**, conservant historial (DEC-108-03a). La pròrroga per incidència de credencials és un cas diferent: si la incidència ha impedit entrar, s'ajusta el venciment per donar set dies complets des de la resolució.
 
 **Lectura de l’historial:** les notes anteriors de 03a/e/f sobre nova inscripció i vigència del desbloqueig es conserven com a antecedents superats; no prevalen sobre 03j/k/l.
 
@@ -69,7 +69,7 @@ Diagrames dedicats creats: [classes ACTUAL/FINAL](uc-108-classes-actual-final.md
 | Baixa de la persona o petició denegada | **DEC-108-03d ACORDADA (22/09/2026):** la persona pot tornar-se a inscriure directament des del formulari web sense desbloqueig de secretaria/suport, tant si s'ha donat de baixa com si secretaria havia denegat la sol·licitud. Conservar historial anterior i crear una nova petició quan la persona l'enviï, amb protecció davant duplicats. Pendent d'adaptar PHP/JS, identificar els estats reals i provar-ho. No aplicar aquesta exempció a accessos caducats. |
 | Accés al tastet encara actiu | **DEC-108-03c ACORDADA (22/09/2026):** si la mateixa persona intenta inscriure's una altra vegada al mateix tastet mentre té l'accés actiu, mostrar que ja està inscrita i impedir una segona sol·licitud. No requerir desbloqueig de secretaria/suport, exclusiu d'accessos caducats. Pendent d'aplicar en PHP/JS i provar contra l'estat efectiu de Moodle/accés, no deduir-ho només de `INSC_CURS=1`. |
 | Sol·licitud pendent d'alta al campus | **DEC-108-03b ACORDADA (22/09/2026):** si la mateixa persona torna a enviar el formulari del mateix tastet mentre la primera sol·licitud segueix pendent, mostrar que ja té una sol·licitud pendent i no crear una segona alta. No exigir desbloqueig de secretaria/suport, reservat al cas d'accés caducat. El PHP actual només cerca historial `INSC_CURS=1` en la comprovació JS; protegir també el servidor abans d'INSERT. Pendent d'aplicar i provar. |
-| Tastet expirat | Renovació per correu: secretaria/suport modifica el venciment al campus a set dies des del canvi. Accés directe amb el compte existent, sense formulari ni nova inscripció. Qui canvia la data envia l’avís amb la plantilla inicial (DEC-108-03j/k/l). |
+| Tastet expirat | Secretaria/suport desbloqueja la inscripció per aquella persona+tastet; la persona torna al formulari i envia una nova sol·licitud. No es renova directament només canviant el venciment (DEC-108-03a; 03j/k/l superades). |
 | Preu comercial passa de zero a import positiu | Una altra classificació/oferta i acceptació UC-112; no convertir retrospectivament la reserva gratuïta en factura cobrada. |
 | Mailing | **DEC-108-04 ACORDADA (25/09/2026):** l'alta al tastet gratuït comporta alta obligatòria al mailing, sense selector Sí/No; baixa posterior possible. Retry de la mateixa petició: no duplicar ni reactivar després d'una baixa. Cas tastet A → baixa → tastet B: OBERT. |
 | El llegat falla després d'enregistrar l'operació | Reintentar l'alta amb el mateix identificador i reconciliar UC-53, mai emetre factura o `CHARGE` com a compensació tècnica. |
@@ -102,7 +102,7 @@ Diagrames dedicats creats: [classes ACTUAL/FINAL](uc-108-classes-actual-final.md
 
 | Prova | Resultat exigible |
 | --- | --- |
-| TG-108-REN1: accés caducat i petició per correu | Renovar al campus sense nou formulari, nova inscripció ni registre SIF. |
+| TG-108-REN1: accés caducat i petició de repetició | Desbloqueig persona+tastet per secretaria/suport; després la persona fa una nova sol·licitud web; historial conservat. |
 | TG-108-REN2: canvi en un instant conegut | Venciment set dies després del canvi a la mateixa hora, no des del correu ni del primer inici de sessió. |
 | TG-108-REN3: canvi efectuat per secretaria o suport | Qui fa el canvi envia l’avís amb la plantilla inicial; comprovar destinatari i resultat real de l’enviament. |
 | TG-108-REN4: avís no lliurat després d’un canvi correcte | Distingir venciment real i resultat del correu; no afirmar que l’avís ha arribat. |
@@ -194,7 +194,7 @@ S->>S: Validar disponibilitat, DNI+tastet i estat previ segons DEC-108-01a/03
 alt Dades invàlides, tastet inactiu o estat no classificat
  S-->>UI: Error sense crear sol·licitud
 else Accés caducat
- S-->>UI: No crear nova petició; indicar renovació per correu i canvi de venciment al campus
+ S-->>UI: Indicar que cal desbloqueig persona+tastet; després nova sol·licitud web
 else Ja té petició pendent o accés actiu
  S-->>UI: Mostrar estat existent sense nova sol·licitud
 else Primera petició o baixa/denegació
@@ -286,7 +286,7 @@ Font: resposta explícita «Canvieu la data de venciment». La usuària demana a
 
 ### 25/09/2026 — Renovació aclarida per la usuària
 
-**DEC-108-03j/k/l — ACORDADES (25/09/2026), contracte vigent de renovació:** la persona demana la renovació per correu; secretaria o suport canvia la data de venciment al campus i aquest canvi és suficient per tornar a accedir amb el compte existent, **sense nou formulari web ni nova inscripció**. El venciment es fixa **set dies després del moment del canvi**, a la mateixa hora. **La mateixa persona que fa el canvi envia l’avís per correu utilitzant la plantilla de l’avís inicial d’accés.** No es crea cap operació SIF. Les regles anteriors d’autorització per tornar a enviar el formulari (03a en aquest punt, 03e/03f) i les proves de consum d’aquest permís queden **SUPERADES per aquesta aclariment**, no pendents d’implementar. La primera alta conserva set dies des de l’activació efectiva; la pròrroga per incidència de claus conserva el seu còmput específic des de la resolució, sense assimilar-la a aquesta renovació ordinària.
+**DEC-108-03j/k/l — SUPERADES:** la redacció que permetia renovar un accés caducat només canviant el venciment, sense formulari nou, **no és la regla vigent**. Regla actual: si l'accés ha caducat, secretaria/suport desbloqueja **persona+tastet** i la persona torna al formulari web i envia una **nova sol·licitud**, conservant historial (DEC-108-03a). La pròrroga per incidència de credencials és un cas diferent: si la incidència ha impedit entrar, s'ajusta el venciment per donar set dies complets des de la resolució.
 
 Font: respostes agrupades 1–3 de la usuària. La renovació queda definida documentalment; no s’ha executat cap canvi al campus, enviament ni prova funcional.
 
