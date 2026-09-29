@@ -23,6 +23,10 @@ La consulta HTTP de factures és **fail-closed**. Sense aquestes variables no s'
 - `SIF_INTERNAL_API_KEY_ID`: mateix key id.
 - `SIF_INTERNAL_API_SECRET`: mateix secret.
 - `SIF_INTERNAL_API_SIGNED_PATH`: mateix path canònic.
+- `SIF_INTERNAL_DOCUMENT_API_URL`: URL server-to-server de `sif/public/api/documents/download.php`.
+- `SIF_INTERNAL_DOCUMENT_SIGNED_PATH`: mateix path canònic de document; default `/api/documents/download.php`.
+- `SIF_DOCUMENT_ROOT`: directori privat real dels documents; ha d'estar fora del webroot.
+- `SIF_DOCUMENT_MAX_BYTES`: mida màxima que el servei accepta llegir/servir; default 20 MiB.
 
 El secret no s'envia al navegador. `ajax/alumnes/sifFactures.php` refresca la sessió des de BD, extreu actor/rol al servidor i `SifInternalApiClient` crea la signatura HMAC.
 
