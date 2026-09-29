@@ -715,7 +715,7 @@ function mostrarModalConsultaInformacio( id ) {
 						var requestSavePag = $.ajax({
 							url: path + "alumnes/guardarDadesFactura_Factures.php",
 							global: false,
-							method: "GET",
+							method: "POST",
 							data: {
 								id: idFact,
 								factura: facturaFact,
@@ -894,7 +894,7 @@ function mostrarModalAnulaFactura( id ) {
 					$("#modalAnulaFactura").modal('hide');
 					var requestAnulFact = $.ajax({
 						url: path + "alumnes/anularFactura_Factures.php",
-						method: "GET",
+						method: "POST",
 						data: {
 							id : idAnul,
 							tornar : tornarAnul,
