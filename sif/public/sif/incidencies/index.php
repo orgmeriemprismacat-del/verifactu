@@ -9,6 +9,13 @@ use Prisma\Sif\Service\PanelLaunchAuthenticator;
 
 $config = require dirname(__DIR__, 3) . '/config/sif.php';
 $panelConfig = $config['panel'] ?? [];
+
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: same-origin');
+header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
 $session = new IncidentPanelSession((string) ($panelConfig['session_name'] ?? 'SIFPANELSESSID'));
 $session->start();
 
