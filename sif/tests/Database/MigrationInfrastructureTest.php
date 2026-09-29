@@ -18,7 +18,7 @@ final class MigrationInfrastructureTest
     {
         $db = TestDatabase::fresh();
         $runner = $this->runner();
-        Assert::same(62, count($runner->expectedSchema()));
+        Assert::same(73, count($runner->expectedSchema()));
         Assert::same(count($runner->files()), (int) $db->query('SELECT COUNT(*) FROM sif_schema_migration')->fetchColumn());
         Assert::same(false, in_array(false, $runner->inspect($db), true));
         Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='enrollment_import_item' AND COLUMN_NAME='ROW_NUMBER'")->fetchColumn());
@@ -103,7 +103,7 @@ final class MigrationInfrastructureTest
             Assert::stringContainsString('Another test suite is using this database.', $result['stderr']);
             $result = ScriptRunner::run('tests/run-tests.php', ['SIF_ENV' => 'production']);
             Assert::same(1, $result['exit_code']);
-            Assert::stringContainsString('Tests require SIF_ENV=test', $result['stderr']);
+            Assert::stringContainsString('Destructive test actions require SIF_ENV=test.', $result['stderr']);
             Assert::same(73, (int) $db->query('SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID=1')->fetchColumn());
         } finally {
             TestDatabase::fresh();
