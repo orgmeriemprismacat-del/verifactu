@@ -1,7 +1,7 @@
 # UC-008 — Diagrames de seqüència ACTUAL i FINAL
 
 **Data:** 29/09/2026  
-**Regla:** ACTUAL descriu el backend executable integrat a `main`; FINAL incorpora les superfícies UI encara pendents.
+**Regla:** ACTUAL descriu backend i UI executable al repositori; FINAL conserva els passos operatius que encara depenen de desplegament/configuració.
 
 Vegeu [classes](uc-008-classes-actual-final.md), [activitats](uc-008-activitats-pagines-incidencies-actual-final.md) i [auditoria](04-auditoria-detallada-uc-008-gestionar-incidencia-2026-09-29.md).
 
@@ -142,7 +142,7 @@ sequenceDiagram
 autonumber
 actor O as Operador
 participant UI as pay.prisma.cat/sif/incidencies
-participant C as IncidentInternalApiClient [PENDENT]
+participant C as actions.php + IncidentPanelSession [IMPLEMENTAT CODI]
 participant API as API incidents
 participant S as IncidentLifecycleService
 
@@ -191,7 +191,7 @@ sequenceDiagram
 autonumber
 actor U as Usuari intranet
 participant IN as Intranet VERI*FACTU
-participant C as SummaryClient [PENDENT]
+participant C as SifInternalIncidentClient [IMPLEMENTAT CODI]
 participant S as SIF incidents
 
 U->>IN: obrir VERI*FACTU
