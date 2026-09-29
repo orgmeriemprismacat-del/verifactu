@@ -451,7 +451,7 @@ E --> F[Si existeix temporal tècnic, cleanup server-side per ID opac i TTL]
 | AUTH-01 | mostrarMain pot comprovar rols de l'ancestre perquè reutilitza rols1 al breadcrumb. |
 | AUTH-02 | tePermisVisualitzacio només compara rols; no autoritza factura/document. |
 | AUTH-03 | wrappers F02–F07 desserialitzen sessió però no revaliden rol/recurs dins del wrapper revisat. |
-| AUTH-04 | setRols afegeix rols i no elimina explícitament els revocats de l'objecte existent. |
+| AUTH-04 | **CORREGIT a main:** `comprovarSessio.php` usa `replaceRols()` i substitueix els rols de sessió pels rols vigents de BD abans del pont SIF. La prova runtime de revocació continua ajornada. |
 | F02-01 | existeixCerca pot usar-se abans d'inicialitzar-se. |
 | F02-02 | %, _ mantenen semàntica LIKE si el client els envia. |
 | F02-03 | contracte de resposta ad hoc amb # i | pot generar entrada buida. |
@@ -492,11 +492,12 @@ E --> F[Si existeix temporal tècnic, cleanup server-side per ID opac i TTL]
 | Estat de cobrament | factura.ESTAT_COBRAMENT | IMPLEMENTAT |
 | Registres fiscals | factura_registres + latestForInvoice | IMPLEMENTAT/PARCIAL |
 | Metadata documental | factura_documents + registerDocument | IMPLEMENTAT PARCIAL |
-| Cerca de factura per UUID/NUM_VISIBLE/receptor | repositori específic de lectura | PENDENT |
-| Política de visibilitat executable | actor/receptor/fact_rels/canal | PENDENT |
-| Llistat documental autoritzat | DocumentRead/Access service | PENDENT |
-| Streaming privat + audit access | UC-080 | PENDENT |
-| Storage/generador/worker documental | UC-55/78 | PENDENT |
+| Cerca de factura per UUID/NUM_VISIBLE/receptor/origen | `InvoiceReadRepository` + `InvoiceQueryCriteriaValidator` | IMPLEMENTAT PARCIAL |
+| Política de visibilitat interna | `InternalInvoiceScopeResolver` + `ResolvedInvoiceVisibilityPolicy` | IMPLEMENTAT per canal intern; externa alumne/empresa pendent UC-102/126 |
+| Pont intranet autenticat | `sifFactures.php` + `SifInternalApiClient` + HMAC/anti-replay | IMPLEMENTAT PARCIAL |
+| Llistat documental autoritzat | metadata a UC-007 + política UC-080 | IMPLEMENTAT PARCIAL |
+| Streaming privat + audit access | `InvoiceDocumentAccessService` + `PrivateDocumentStore` + `fiscal_document_access` | IMPLEMENTAT PARCIAL / rollout flag |
+| Storage/generador/worker documental | UC-55/78 | PENDENT/PARCIAL segons artefacte |
 
 **Gaps addicionals:** l'emissió base actual insereix E_FACT=0; fact_rels.VISIBLE_ALUMNE té default 1 i el productor també usa 1 si s'omet el camp. Cap d'aquests valors substitueix una decisió funcional/autorització.
 
@@ -587,12 +588,12 @@ E --> F[Si existeix temporal tècnic, cleanup server-side per ID opac i TTL]
 | `InvoiceReadRepository` | IMPLEMENTAT: lectura exacta, sense writes ni paths interns |
 | `InvoiceQueryService` | IMPLEMENTAT PARCIAL: view/search amb política obligatòria |
 | `InvoiceVisibilityPolicyInterface` | IMPLEMENTAT com a contracte |
-| `ResolvedInvoiceVisibilityPolicy` | IMPLEMENTAT: scope fail-closed per UUID i projecció FULL/MINIMAL; origen autenticat del scope encara pendent |
+| `ResolvedInvoiceVisibilityPolicy` | IMPLEMENTAT: scope fail-closed FULL/MINIMAL; per intranet el scope prové de rol autenticat via `InternalInvoiceScopeResolver` |
 | Errors 403/404 | IMPLEMENTATS a `SifException` |
 | `InvoiceQueryServiceTest` / `ResolvedInvoiceVisibilityPolicyTest` | PROVES ESCRITES; no executades en aquesta revisió |
 | `query-invoice.php` / `InvoiceQueryScriptTest` | CLI read-only no productiu + prova real del script escrites |
-| Endpoint HTTP UC-007 | PENDENT fins tenir actor/scope resolt server-side |
-| UC-080 bytes/auditoria | PENDENT |
+| Endpoint HTTP UC-007 | IMPLEMENTAT INTERN: `POST /api/factures/query.php` amb HMAC, timestamp i anti-replay |
+| UC-080 bytes/auditoria | IMPLEMENTAT PARCIAL: endpoint intern, storage privat, hash i `fiscal_document_access`; rollout/entorn i proves ajornats |
 
 Les proves escrites cobreixen zero mutació, denegació, not found, cerca exacta sense wildcard implícit, absència de `PATH_FITXER` en metadata i separació entre cobrament i rectificativa.
 # 15. Criteri de tancament
@@ -605,3 +606,12 @@ UC-007 es podrà marcar **IMPLEMENTAT I PROVAT** només quan existeixi una ruta 
 Després del tancament estàtic s'han implementat el repositori/servei de lectura, política de scope, gateway, validació de criteris, API interna HMAC amb anti-replay, client server-to-server, pont AJAX autenticat, feature flag, cerca SIF i detall read-only, resolució participant/receptor i override AL-17. `replaceRols()` substitueix els rols de sessió pels rols vigents de BD durant `comprovarSessio.php`.
 
 Les proves noves i de regressió es mantenen **AJORNADES** a [03-proves-pendents-uc-007-implementacio.md](03-proves-pendents-uc-007-implementacio.md). Aquest ajornament no converteix cap cas runtime en verificat.
+
+
+## 16. Rollout controlat
+
+- `SIF_UC007_QUERY_ENABLED=1` activa el pont de consulta SIF a la intranet; per defecte queda desactivat.
+- `SIF_UC080_DOCUMENT_ENABLED=1` activa la descàrrega segura de documents; per defecte queda desactivada.
+- `FEATURE_DISABLED` és l'únic bypass explícit de rollout cap al llegat; errors d'autenticació, HMAC, permisos o servei **no** fan fallback silenciós.
+- AL-16 i AL-17 resolen primer la factura per `view_by_enrollment`; `NO_SIF` o flag desactivat conserva el llegat mentre dura la migració.
+- Les proves de rollout, permisos, HMAC, storage i regressió continuen ajornades a [03-proves-pendents-uc-007-implementacio.md](03-proves-pendents-uc-007-implementacio.md).
