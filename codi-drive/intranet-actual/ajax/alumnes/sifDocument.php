@@ -3,6 +3,10 @@
 $root = dirname(__DIR__, 2);
 chdir($root);
 
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
+
 $uc080Enabled = filter_var(
     getenv('SIF_UC080_DOCUMENT_ENABLED') ?: '0',
     FILTER_VALIDATE_BOOLEAN
