@@ -2,7 +2,7 @@
 
 **Objectiu del catàleg:** separar l'evidència de titulació i la seva validació de la compra d'origen; **només després de confirmar el cobrament** s'emet una sola vegada el benefici futur. No es modifica ni es torna a emetre la factura inicial per concedir el dret.
 
-> **Mapa documental 29/09/2026.** Aquest fitxer es conserva com a historial integrat i cronologia dels talls. Per auditar cobertura sense recórrer un document monolític, utilitzar com a vistes canòniques: [fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md), [casos d'ús ACTUAL/FINAL](uc-111-casos-us-actual-final.md), [classes ACTUAL/FINAL](uc-111-classes-actual-final.md), [seqüències ACTUAL/FINAL](uc-111-sequencies-actual-final.md), [activitats ACTUAL/FINAL](uc-111-activitats-actual-final.md), [diagrames 1:1 per acció](uc-111-diagrames-per-accio.md) i [matriu de traçabilitat](uc-111-tracabilitat-implementacio.md). Les seccions cronològiques d'aquest document poden descriure un estat anterior i s'han d'interpretar amb el tall que indiquen.
+> **Mapa documental 29/09/2026.** Aquest fitxer es conserva com a historial integrat i cronologia dels talls. Per auditar cobertura sense recórrer un document monolític, utilitzar com a vistes canòniques: [fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md), [casos d'ús ACTUAL/FINAL](uc-111-casos-us-actual-final.md), [classes ACTUAL/FINAL](uc-111-classes-actual-final.md), [seqüències ACTUAL/FINAL](uc-111-sequencies-actual-final.md), [activitats ACTUAL/FINAL](uc-111-activitats-actual-final.md), [dades i estats ACTUAL/FINAL](uc-111-dades-estats-actual-final.md), [diagrames 1:1 per acció](uc-111-diagrames-per-accio.md) i [matriu de traçabilitat](uc-111-tracabilitat-implementacio.md). Les seccions cronològiques d'aquest document poden descriure un estat anterior i s'han d'interpretar amb el tall que indiquen.
 
 
 **Estat revisat el 22/09/2026:** les migracions defineixen `discount_validation`, `discount_evidence`, `commercial_entitlement` i `commercial_entitlement_event`. El PHP web llegat identifica la promoció de novell i, quan `CURS='JASOM'` i es marca novell, crea `recent_titulat(ID_INSC)`; la intranet té un botó de validació que crida `Intranet::sendMsgValidatCurosProfessorNovell()`. **El cos del mètode i el SQL d'actualització han estat aportats posteriorment per l'usuària:** la validació Sí/No actualitza `recent_titulat.VALIDAT` a 1/2 i prepara correus segons el tipus de descompte. L'extracte no mostra cap comprovació del cobrament real ni cap INSERT de promoció futura, i tampoc acredita el servei SIF que emet el dret després del pagament. La comunicació del canal web anuncia un codi per valor monetari. Les decisions de negoci de concessió única per persona, import igual al JASOM íntegrament pagat, un any de vigència i consum parcial ja estan confirmades als apartats següents. **Auditoria posterior del llegat:** s'ha identificat un fragment que prepara el correu del codi al callback de pagament, però no s'hi observa INSERT d'un codi nou; el generador efectiu desplegat i el consumidor encara no estan verificats. No confondre-ho amb el saldo promocional aprovat ni amb saldo de fons prepagats. [Auditoria específica UC-111](00-auditoria-casos-pendents-lot-02-uc-111-2026-09-22.md).
@@ -12,7 +12,7 @@
 
 **ACTUAL legacy contrastat:** `Intranet::sendMsgValidatCurosProfessorNovell()` actualitza `recent_titulat.VALIDAT=1/2` i comunica el resultat. El flux `realitzaPagamentAutomatic.php` entra en la branca promocional només quan JASOM queda completament pagat i `VALIDAT=1`, però la còpia legacy auditada només consultava un codi `MACABODETITULAR` existent i el correu contenia un literal; **això no era una concessió idempotent fiable**.
 
-**FINAL implementat en la branca `fix/uc-111-grant-code-uml-2026-09-29`:**
+**FINAL implementat progressivament en la branca `feat/uc-111-termini-i-auditoria-2026-09-22` (document cronològic; els talls posteriors amplien aquest llistat):**
 1. `RedsysCourseInvoiceService` actua després del commit de factura/pagament.
 2. `NovicePromotionInvoiceLinkService` exigeix decisió de secretaria i comprova pagament complet.
 3. `NovicePromotionGrantService` crea o reutilitza un únic `commercial_entitlement` per persona, amb import igual al JASOM efectivament reconciliat.
@@ -20,7 +20,7 @@
 5. Un reintent reutilitza el mateix dret i la mateixa preparació; no crea un segon benefici ni un CHARGE fictici.
 6. El correu legacy de confirmació de pagament ja no mostra `MACABODETITULAR#1103` ni consulta un codi com si fos el dret nou.
 
-**Estat:** codi i documentació implementats en branca; **no desplegat, no fusionat a `main`, proves MySQL/runtime encara pendents**. El transport final de correu segur continua sent una integració separada.
+**Estat:** codi i documentació implementats en branca de desenvolupament fins als talls de lineage/refund descrits més avall; **no desplegat, no fusionat a `main`, proves MySQL/runtime encara pendents**. El transport final de correu segur continua sent una integració separada.
 
 
 ## 1. Fitxa específica
