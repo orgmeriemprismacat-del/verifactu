@@ -403,6 +403,47 @@ function uc007RenderFacturaSif(res) {
 	html += uc007Dl('Total', totals.total);
 	html += '</dl>';
 
+	if (res.fiscal_record) {
+		html += '<h5>Registre fiscal</h5><dl class="dl-horizontal">';
+		html += uc007Dl('Ordre fiscal', res.fiscal_record.FISCAL_ORDER);
+		html += uc007Dl('Tipus registre', res.fiscal_record.TIPUS_REGISTRE);
+		html += uc007Dl('Estat AEAT registre', res.fiscal_record.ESTAT_AEAT);
+		html += uc007Dl('Creat', res.fiscal_record.DATE_CREATED);
+		html += uc007Dl('Enviat', res.fiscal_record.DATE_SENT);
+		html += '</dl>';
+	}
+
+	if (Array.isArray(res.lines) && res.lines.length > 0) {
+		html += '<h5>Línies</h5><div class="table-responsive"><table class="table table-condensed">';
+		html += '<thead><tr><th>#</th><th>Concepte</th><th>Detall</th><th>Quantitat</th><th>Total</th></tr></thead><tbody>';
+		res.lines.forEach(function(line) {
+			html += '<tr>';
+			html += '<td>' + uc007EscapeHtml(line.ORDRE || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(line.CONCEPTE || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(line.DETALL || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(line.QUANTITAT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(line.TOTAL || '') + '</td>';
+			html += '</tr>';
+		});
+		html += '</tbody></table></div>';
+	}
+
+	if (Array.isArray(res.payments) && res.payments.length > 0) {
+		html += '<h5>Moviments econòmics</h5><div class="table-responsive"><table class="table table-condensed">';
+		html += '<thead><tr><th>Data</th><th>Tipus</th><th>Mètode</th><th>Import</th><th>Assignat</th><th>Estat</th></tr></thead><tbody>';
+		res.payments.forEach(function(payment) {
+			html += '<tr>';
+			html += '<td>' + uc007EscapeHtml(payment.DATA_MOVIMENT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(payment.TIPUS_MOVIMENT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(payment.METODE || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(payment.IMPORT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(payment.IMPORT_ASSIGNAT || '') + '</td>';
+			html += '<td>' + uc007EscapeHtml(payment.ESTAT || '') + '</td>';
+			html += '</tr>';
+		});
+		html += '</tbody></table></div>';
+	}
+
 	if (Array.isArray(res.rectifications) && res.rectifications.length > 0) {
 		html += '<h5>Rectificatives</h5><ul>';
 		res.rectifications.forEach(function(rect) {
