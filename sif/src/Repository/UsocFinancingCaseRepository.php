@@ -26,6 +26,10 @@ final class UsocFinancingCaseRepository
             return $existing;
         }
 
+        if ($inscriptionId <= 0 || $idpag <= 0) {
+            throw SifException::validation('Invalid USOC financing case identity');
+        }
+
         $uuidCase = $this->uuidGenerator->generate();
         $stmt = $db->prepare(
             'INSERT INTO usoc_financing_case (
@@ -34,15 +38,28 @@ final class UsocFinancingCaseRepository
                 ENTITY_PAYMENT_STATUS, STATUS, CORRELATION_ID
             ) VALUES (?, ?, ?, ?, ?, ?, \'PAID\', \'PENDING\', \'PENDING_ENTITY_INVOICE\', ?)'
         );
-        $stmt->execute([
-            $uuidCase,
-            $inscriptionId,
-            $idpag,
-            $studentInvoiceUuid,
-            $studentAmount,
-            $entityAmount,
-            $correlationId,
-        ]);
+        try {
+            $stmt->execute([
+                $uuidCase,
+                $inscriptionId,
+                $idpag,
+                $studentInvoiceUuid,
+                $studentAmount,
+                $entityAmount,
+                $correlationId,
+            ]);
+        } catch (\PDOException $exception) {
+            if ((string) $exception->getCode() !== '23000') {
+                throw $exception;
+            }
+
+            $raced = $this->findByInscriptionAndIdpag($db, $inscriptionId, $idpag, true);
+            if ($raced === null) {
+                throw $exception;
+            }
+            $this->assertSameStudentCase($raced, $studentInvoiceUuid, $studentAmount, $entityAmount);
+            return $raced;
+        }
 
         return $this->findByInscriptionAndIdpag($db, $inscriptionId, $idpag, true)
             ?? throw new \RuntimeException('USOC financing case could not be reloaded after insert');
