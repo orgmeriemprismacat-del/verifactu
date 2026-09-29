@@ -140,6 +140,19 @@ final class InvoiceReadRepository
             $params[] = (int) $criteria['factura_relacionada'];
         }
 
+        if (isset($criteria['source_ids']) && is_array($criteria['source_ids']) && $criteria['source_ids'] !== []) {
+            $placeholders = implode(',', array_fill(0, count($criteria['source_ids']), '?'));
+            $where[] = "EXISTS (
+                SELECT 1 FROM fact_rels rel_source
+                WHERE rel_source.UUID_FACTURA = f.UUID_FACTURA
+                  AND rel_source.SOURCE_TYPE = 'INSCRIPCIO'
+                  AND rel_source.SOURCE_ID IN (" . $placeholders . ")
+            )";
+            foreach ($criteria['source_ids'] as $sourceId) {
+                $params[] = (int) $sourceId;
+            }
+        }
+
         if ($where === []) {
             throw SifException::validation('At least one invoice search criterion is required');
         }
