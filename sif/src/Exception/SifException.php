@@ -28,4 +28,9 @@ final class SifException extends \RuntimeException
     {
         return new self($message, 404);
     }
+
+    public static function unavailable(string $message): self
+    {
+        return new self($message, 503);
+    }
 }
