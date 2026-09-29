@@ -13,7 +13,7 @@ Una incidència documental, de notificació, de callback Redsys o de divergènci
 | Etapa | Contracte |
 | --- | --- |
 | Obrir | Fet verificable i classificat, font, moment, `UUID_FACTURA/UUID_PAYMENT/UUID_OPERATION/ID_INSC` si existeixen, error i correlació; deduplicar per **mateix incident lògic**, no suprimir incidències diferents per compartir factura. |
-| Triage | Assignar severitat, responsable, sistema/font, passos afectats i estat; `sif_incident_action` permet traçar canvis d'estat, però la política de prioritat/SLA i el writer són pendents. |
+| Triage | Assignar severitat, responsable, sistema/font, passos afectats i estat; `sif_incident_action` permet traçar canvis d'estat i el writer PHP ja està implementat; la política de prioritat/SLA continua pendent. |
 | Investigar | Preservar factura/registre/job/payment originals i evidències (resposta AEAT, hash de document, referència Redsys, estats Prisma). No guardar contrasenyes, dades de targeta o justificants sensibles en `DETAILS`. |
 | Decidir | Seleccionar **una reparació concreta**: reintentar el mateix job UC-77/78/79, conciliar SIF/llegat UC-82, classificar correcció fiscal UC-74, resoldre pagament UC-28/105 o actualitzar accés acadèmic UC-124. No executar totes les vies com un «retry general». |
 | Executar | Idempotència per comanda de reparació i registre d'acció amb actor/motiu/estat anterior/nou; els passos entre SIF i altres BDs poden fallar parcialment. Repetir el pas pendent, no duplicar `CHARGE`, factura, registre fiscal o retorn. |
@@ -22,14 +22,14 @@ Una incidència documental, de notificació, de callback Redsys o de divergènci
 
 ### Flux propi i proves
 
-1. Un procés/operador detecta un fet i consulta incidències obertes de mateixa operació, recurs i causa. `IncidentRepository::open()` pot inserir la fila base, però **la deduplicació i l'ID retornat requeriran adaptador/writer addicional**.
+1. Un procés/operador detecta un fet i consulta incidències obertes de mateixa operació, recurs i causa. `IncidentRepository::openDetailed()` obre o reutilitza la fila base amb clau idempotent i retorna `incident_id`/`uuid_incident`; el contracte legacy `open()` es manté per compatibilitat.
 2. Classificar severitat/afectació, assignar un responsable i registrar event `OPEN→TRIAGED/ASSIGNED` a `sif_incident_action` (nom de transició **orientatiu**, no enum SQL verificat).
 3. Recollir evidència original i comparar amb situació actual: import extern, factura/registre, job AEAT, document privat, pagador/titular i llegat acadèmic. Una dada discrepant no prova per si mateixa un pagament nou.
 4. Aprovar i executar **només** l'acció adequada; registrar `STARTED/SUCCEEDED/FAILED` i clau idempotent per comanda. Si la xarxa respon amb incertesa, reconciliar amb la font abans de reexecutar un efecte extern.
 5. Verificar resultat final, registrar accions i evidència, tancar quan tots els efectes pendents del cas estan resolts o justificar expressament el tancament parcial segons política.
 6. Provar: dos avisos del mateix error, incident de factura ja cancel·lada, AEAT accepta però timeout local, PDF absent, callback Redsys tardà, assignació a rol no autoritzat, càrrec bancari real que no apareix al llegat i retry que només havia fallat a Moodle.
 
-**Pendents:** UI del panell, rols productius/SLA, notificació a responsables, integracions d'obertura encara no connectades, proves de concurrència i execució real dels tests. La reparació continua sent responsabilitat del UC específic; no s'implementa un retry general.
+**Pendents:** UI del panell, rols productius/SLA, notificació a responsables, integracions d'obertura encara no connectades, proves de concurrència específica i preproducció. La suite backend CI ja està verificada amb 555 proves i 0 errors. La reparació continua sent responsabilitat del UC específic; no s'implementa un retry general.
 
 ### 2.1. Lloc de resolució, objectes afectats i límit de l'obridor actual
 
@@ -138,7 +138,7 @@ else Reparació autoritzada i idempotent
  S->>A: append acció, prova i estat final
  S-->>O: Resolució comprovada o pendent
 end
-Note over S,A: Backend de lifecycle existent a la branca; UI i execució de proves pendents.
+Note over S,A: Backend de lifecycle existent i verificat en CI; UI i preproducció pendents.
 ```
 
 ## 6. Traçabilitat
@@ -156,4 +156,9 @@ La reparació autoritzada ha de classificar evidències d'AEAT, resposta/CSV si 
 
 ## 7. Estat d'implementació 2026-09-29
 
-El lifecycle backend ja no és només disseny. Queden pendents la UI del panell, la configuració real de rols, SLA/notificacions, integracions addicionals i execució de la suite. Els diagrames d'activitat ACTUAL/FINAL per pàgina/apartat es mantenen al [UC-008 canònic](uc-008-gestionar-incidencia-sif.md) per no duplicar-los.
+El lifecycle backend ja no és només disseny i la suite CI està verificada (555/0). Queden pendents la UI del panell, la configuració real de rols, SLA/notificacions, integracions addicionals, concurrència específica i preproducció. Els diagrames d'activitat ACTUAL/FINAL per pàgina/apartat es mantenen al [UC-008 canònic](uc-008-gestionar-incidencia-sif.md) per no duplicar-los.
+
+
+## 8. Evidència CI 2026-09-29
+
+La implementació compartida UC-008/UC-081 ha estat executada dins la suite completa SIF en dos workflows de la PR post-merge #21: **555 passed, 0 failed** en els runs 36638546735 i 36638546786. Això valida backend i migracions en test CI, no la UI ni l'entorn productiu.
