@@ -14,6 +14,7 @@
 @startuml
 title A111-01 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Alumne" as Actor
 rectangle "ACTUAL" {
   usecase "enviarInscripcio.php" as Current
 }
@@ -88,6 +89,7 @@ stop
 @startuml
 title A111-02 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Alumne" as Actor
 rectangle "ACTUAL" {
   usecase "enviarImatgeSocRecentTitulat.php" as Current
 }
@@ -163,6 +165,7 @@ stop
 @startuml
 title A111-03 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Secretaria" as Actor
 rectangle "ACTUAL" {
   usecase "Intranet + sendMsgValidatProfessorNovell" as Current
 }
@@ -239,6 +242,7 @@ stop
 @startuml
 title A111-04 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Worker SIF" as Actor
 rectangle "ACTUAL" {
   usecase "Callback/generació legacy parcial" as Current
 }
@@ -318,6 +322,7 @@ stop
 @startuml
 title A111-05 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Worker privat" as Actor
 rectangle "ACTUAL" {
   usecase "Correu/codi legacy parcial" as Current
 }
@@ -398,6 +403,7 @@ stop
 @startuml
 title A111-06 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Checkout" as Actor
 rectangle "ACTUAL" {
   usecase "obtenirDadesPromo.php / promocions" as Current
 }
@@ -478,6 +484,7 @@ stop
 @startuml
 title A111-07 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Secretaria / Checkout" as Actor
 rectangle "ACTUAL" {
   usecase "Flux general canvi de curs" as Current
 }
@@ -555,6 +562,7 @@ stop
 @startuml
 title A111-08 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Secretaria" as Actor
 rectangle "ACTUAL" {
   usecase "Baixa general / sense lineage canònic" as Current
 }
@@ -632,6 +640,7 @@ stop
 @startuml
 title A111-09 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Checkout" as Actor
 rectangle "ACTUAL" {
   usecase "Sense model canònic" as Current
 }
@@ -711,6 +720,7 @@ stop
 @startuml
 title A111-10 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "SIF" as Actor
 rectangle "ACTUAL" {
   usecase "Traça dispersa" as Current
 }
@@ -787,6 +797,7 @@ stop
 @startuml
 title A111-11 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Operador refund" as Actor
 rectangle "ACTUAL" {
   usecase "Manual/dispers" as Current
 }
@@ -862,6 +873,7 @@ stop
 @startuml
 title A111-12 | Cas d'ús ACTUAL / FINAL
 left to right direction
+actor "Refund / Recovery" as Actor
 rectangle "ACTUAL" {
   usecase "Sense workflow canònic" as Current
 }
