@@ -44,6 +44,7 @@
             }
 
             if (response.resolution === 'NO_SIF') {
+                restoreLegacyControls();
                 if (typeof mostrarModalConsultaFactura === 'function') {
                     mostrarModalConsultaFactura(idInsc);
                     return;
@@ -250,6 +251,12 @@
         $('#modalConsultaFactura .download-factura').hide();
         $('#modalConsultaFactura .fletxa-left').hide();
         $('#modalConsultaFactura .fletxa-right').hide();
+    }
+
+    function restoreLegacyControls() {
+        $('#modalConsultaFactura .download-factura').show();
+        $('#modalConsultaFactura .fletxa-left').show();
+        $('#modalConsultaFactura .fletxa-right').show();
     }
 
     function showInvoiceModal() {
