@@ -12,18 +12,22 @@ include("../MailSMTPComvive.php");
 include("../MailSMTPFile.php");
 
 try {
-	$textNom = new Text($_GET['nom']);
-	$textCog = new Text($_GET['cog']);
-	$textDocumentacio = new Text($_GET['dni']);
-	$textEmail = new Text($_GET['email']);
-	$textPoblacio = new Text($_GET['poblacio']);
-	$textConegut = new Text($_GET['conegut']);
-	if ( $_GET['comentaris'] != '')
-		$textComentaris = new Text($_GET['comentaris']);
+	// Compatibilitat temporal amb clients antics GET; el flux actual usa POST
+	// per evitar dades personals a la URL.
+	$request = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
+
+	$textNom = new Text($request['nom']);
+	$textCog = new Text($request['cog']);
+	$textDocumentacio = new Text($request['dni']);
+	$textEmail = new Text($request['email']);
+	$textPoblacio = new Text($request['poblacio']);
+	$textConegut = new Text($request['conegut']);
+	if ( isset($request['comentaris']) && $request['comentaris'] != '')
+		$textComentaris = new Text($request['comentaris']);
 	else
 		$textComentaris = null;
-	$textMailing = new Text($_GET['mailing']);
-	$textCodiCurs = new Text($_GET['codiCurs']);
+	$textMailing = new Text($request['mailing']);
+	$textCodiCurs = new Text($request['codiCurs']);
 
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
@@ -235,7 +239,8 @@ try {
 	$ivlen = openssl_cipher_iv_length($cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
 	$ciphertext_raw = openssl_encrypt($idInserit, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
-	$hmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, $as_binary=true);
+	// Els tokens nous autentiquen IV + ciphertext per evitar manipulació del primer bloc.
+	$hmac = hash_hmac('sha256', $iv.$ciphertext_raw, $keyEncr, $as_binary=true);
 	$hashIdInserit = base64_encode( $iv.$hmac.$ciphertext_raw );
 
 	echo $hashIdInserit;
