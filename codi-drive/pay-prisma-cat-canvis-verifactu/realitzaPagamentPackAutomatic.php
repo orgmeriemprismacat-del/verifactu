@@ -16,20 +16,6 @@
 
 	include('inc/analitics.html');
 
-	$nomMe = 'Meriem';
-	$correuMe = "meriem.prisma.cat@gmail.com";
-	$subjectMe = "pagament automatic ".$order;
-	$missatge = "<p>DNI: ".$dniTitularPag."</p>
-	<p>IMPORT: ".$importPag."</p>
-	<p>FRAC: ".$frac."</p>
-	<p>IDPAG: ".$idPag."</p>
-	<p>ORDER: ".$order."</p>";
-	$mailMe = new Mail();
-	$mailMe->addHeaders($nomMe, $correuMe, $correuMe);
-	$mailMe->addSubject($subjectMe);
-	$mailMe->addTo($correuMe);
-	$mailMe->addMissatgeTiquet("<p>Hola</p>", $missatge, '');
-	$mailMe->sendMessage();
 
 	function obtenirMsgInfoBanc($codiResposta) {
 		if (intval($codiResposta)>=0 && intval($codiResposta)<=99) {
@@ -160,7 +146,10 @@
 		$signatureRecibida = $_POST["Ds_Signature"];
 
 		$decodec = $miObj->decodeMerchantParameters($datos);
-		$kc = 'sq7HjrUOBfKmC576ILgskD5srU870gJ7'; //Clave recuperada de CANALES
+		$kc = trim((string) getenv('SIF_REDSYS_MERCHANT_KEY'));
+		if ($kc === '') {
+			throw new Exception('Clau Redsys no configurada', 503);
+		}
 		$firma = $miObj->createMerchantSignatureNotif($kc,$datos);
 
 		if (!is_string($signatureRecibida) || !hash_equals((string) $firma, (string) $signatureRecibida)) {
@@ -185,16 +174,6 @@
 			throw new Exception('Import Redsys no coherent amb el callback legacy', 409);
 		}
 
-		$nomFromProves = "Gestió PrisMa";
-		$correuFromProves = "gestio@prisma.cat";
-		$correuReplyProves = "gestio@prisma.cat";
-
-		$mailProves = new Mail();
-		$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
-		$mailProves->addSubject("d");
-		$mailProves->addTo("merimari051094@gmail.com");
-		$mailProves->addMissatgeTiquet("hola", 'd', '');
-		$mailProves->sendMessage();
 
 		if (intval($codiResposta)>=0 && intval($codiResposta)<=99) {
 			$tipusError = obtenirMsgInfoBanc($codiResposta);
@@ -223,18 +202,7 @@
 
 			}
 
-			$nomFromProves = "Gestió PrisMa";
-			$correuFromProves = "gestio@prisma.cat";
-			$correuReplyProves = "gestio@prisma.cat";
 
-			$mailProves = new Mail();
-			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
-			$mailProves->addSubject("idpag");
-			$mailProves->addTo("merimari051094@gmail.com");
-			$mailProves->addMissatgeTiquet("hola", $idPag, '');
-			$mailProves->sendMessage();
-
-			echo $idPag."<br>";
 
 			$arrObs = explode(' ',$observacions);
 			$i = 0; $trobat = 0;
@@ -317,16 +285,6 @@
 			$datai = $edicions[0]->obtenirDataInici()->obtenirText();
 			$dataf = $edicions[count($edicions)-1]->obtenirDataFi()->obtenirText();
 
-			$nomFromProves = "Gestió PrisMa";
-			$correuFromProves = "gestio@prisma.cat";
-			$correuReplyProves = "gestio@prisma.cat";
-
-			$mailProves = new Mail();
-			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
-			$mailProves->addSubject("dates");
-			$mailProves->addTo("merimari051094@gmail.com");
-			$mailProves->addMissatgeTiquet("hola", $datai.$dataf, '');
-			$mailProves->sendMessage();
 
 			$dateDataF = new DateTime($dataf);
 		   $diaDataF=$dateDataF->format('j');
@@ -378,16 +336,6 @@
 				$frac = 1;
 			}
 
-			$nomFromProves = "Gestió PrisMa";
-			$correuFromProves = "gestio@prisma.cat";
-			$correuReplyProves = "gestio@prisma.cat";
-
-			$mailProves = new Mail();
-			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
-			$mailProves->addSubject("dates");
-			$mailProves->addTo("merimari051094@gmail.com");
-			$mailProves->addMissatgeTiquet("hola", $missatge, '');
-			$mailProves->sendMessage();
 
 			/* Enviem el missatge */
 			$mailGestio = new Mail();
@@ -424,20 +372,6 @@
 				$factura = $factRel;
 			}
 
-			$nomFromProves = "Gestió PrisMa";
-			$correuFromProves = "gestio@prisma.cat";
-			$correuReplyProves = "gestio@prisma.cat";
-
-			$nomFromProves = "Gestió PrisMa";
-			$correuFromProves = "gestio@prisma.cat";
-			$correuReplyProves = "gestio@prisma.cat";
-
-			$mailProves = new Mail();
-			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
-			$mailProves->addSubject("factura");
-			$mailProves->addTo("merimari051094@gmail.com");
-			$mailProves->addMissatgeTiquet("hola", $factura, '');
-			$mailProves->sendMessage();
 
 			/* Calculem l'any fiscal */
 			$anyFiscal = date('Y');
@@ -464,16 +398,6 @@
 				throw new Exception('',2003);
 			}
 
-			$nomFromProves = "Gestió PrisMa";
-			$correuFromProves = "gestio@prisma.cat";
-			$correuReplyProves = "gestio@prisma.cat";
-
-			$mailProves = new Mail();
-			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
-			$mailProves->addSubject("ordre");
-			$mailProves->addTo("merimari051094@gmail.com");
-			$mailProves->addMissatgeTiquet("hola", $ordreFact, '');
-			$mailProves->sendMessage();
 
 			/* Calculem el número  de la factura */
 
@@ -504,15 +428,6 @@
 
 			$codiPack = "P".$idPack;
 
-			$nomFromProves = "Gestió PrisMa";
-			$correuFromProves = "gestio@prisma.cat";
-			$correuReplyProves = "gestio@prisma.cat";
-
-			$mailProves = new Mail();
-			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);$mailProves->addSubject("pack");
-			$mailProves->addTo("merimari051094@gmail.com");
-			$mailProves->addMissatgeTiquet("hola", $concepte1." ".$concepte2." ".$entitat." ".$codiPack, '');
-			$mailProves->sendMessage();
 
 			/* afegir la factura a FACTURES */
 			$insertBD = "INSERT INTO factures (factura_relacionada, tipus, ANY, ORDRE, NUM, DATA,
@@ -846,7 +761,6 @@
 				/* ################# Enviar missatge a secretaria ################# */
 				$nomTo = "PrisMa Secreataria";
 				$correuTo = "secretaria@prisma.cat";
-				// $correuTo = "meriem.prisma.cat@gmail.com";
 
 				//enviar un email a la persona que ha fet la compra i a gestio@prisma.cat
 				$mailSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
