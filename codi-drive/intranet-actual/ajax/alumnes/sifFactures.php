@@ -71,22 +71,29 @@ try {
 
         $limit = (int) ($payload['limit'] ?? 50);
         $participantDocument = trim((string) ($criteria['participant_document'] ?? ''));
-        unset($criteria['participant_document']);
+        $participantEmail = trim((string) ($criteria['participant_email'] ?? ''));
+        unset($criteria['participant_document'], $criteria['participant_email']);
 
-        if ($participantDocument !== '') {
-            if (strlen($participantDocument) > 32) {
+        if ($participantDocument !== '' || $participantEmail !== '') {
+            if (strlen($participantDocument) > 32 || strlen($participantEmail) > 190) {
                 http_response_code(422);
-                echo json_encode(['ok' => false, 'error' => 'Invalid participant document']);
+                echo json_encode(['ok' => false, 'error' => 'Invalid participant identity']);
                 return;
             }
 
             $receiverCriteria = $criteria;
-            $receiverCriteria['billing_nif'] = $participantDocument;
+            if ($participantDocument !== '') {
+                $receiverCriteria['billing_nif'] = $participantDocument;
+            }
+            if ($participantEmail !== '') {
+                $receiverCriteria['billing_email'] = $participantEmail;
+            }
+
             $responses = [
                 $client->searchInvoices($actorId, $roles, $receiverCriteria, $limit),
             ];
 
-            $sourceIds = enrollmentIdsByDocument($participantDocument);
+            $sourceIds = enrollmentIdsByIdentity($participantDocument, $participantEmail);
             if ($sourceIds !== []) {
                 $participantCriteria = $criteria;
                 $participantCriteria['source_ids'] = $sourceIds;
@@ -140,17 +147,33 @@ try {
 }
 
 
-function enrollmentIdsByDocument(string $document): array
+function enrollmentIdsByIdentity(string $document, string $email): array
 {
     $connection = new ConnexioWeb();
     $ids = [];
 
     try {
         $connection->connectarBD();
-        $stmt = $connection->prepare(
-            'SELECT ID FROM inscripcions WHERE DNI = ? ORDER BY ID DESC LIMIT 200'
-        );
-        $stmt->bind_param('s', $document);
+
+        if ($document !== '' && $email !== '') {
+            $stmt = $connection->prepare(
+                'SELECT ID FROM inscripcions WHERE DNI = ? AND CORREU = ? ORDER BY ID DESC LIMIT 200'
+            );
+            $stmt->bind_param('ss', $document, $email);
+        } elseif ($document !== '') {
+            $stmt = $connection->prepare(
+                'SELECT ID FROM inscripcions WHERE DNI = ? ORDER BY ID DESC LIMIT 200'
+            );
+            $stmt->bind_param('s', $document);
+        } elseif ($email !== '') {
+            $stmt = $connection->prepare(
+                'SELECT ID FROM inscripcions WHERE CORREU = ? ORDER BY ID DESC LIMIT 200'
+            );
+            $stmt->bind_param('s', $email);
+        } else {
+            return [];
+        }
+
         $stmt->execute();
         $stmt->store_result();
         $stmt->bind_result($id);
