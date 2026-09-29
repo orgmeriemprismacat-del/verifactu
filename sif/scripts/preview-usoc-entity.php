@@ -36,7 +36,8 @@ try {
         $sifDb,
         (string) $input['student_invoice_uuid'],
         $inscriptionId,
-        $idpag
+        $idpag,
+        $studentAmount
     );
     $payload = (new LegacyUsocInvoicePayloadBuilder())->buildEntityPayload($snapshot, $input);
 
