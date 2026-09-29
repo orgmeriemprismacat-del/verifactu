@@ -41,6 +41,18 @@ return [
         'max_clock_skew_seconds' => (int) (getenv('SIF_INTERNAL_API_MAX_SKEW') ?: 300),
         'signed_path' => getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php',
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
+        'course_change_signed_path' => getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php',
+    ],
+    'course_change' => [
+        'preview_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(
+                ',',
+                getenv('SIF_COURSE_CHANGE_PREVIEW_ROLES')
+                    ?: getenv('SIF_INVOICE_FULL_READ_ROLES')
+                    ?: ''
+            )
+        ))),
     ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
