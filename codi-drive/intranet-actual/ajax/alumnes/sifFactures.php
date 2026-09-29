@@ -128,8 +128,8 @@ try {
         }
 
         $limit = (int) ($payload['limit'] ?? 50);
-        $participantDocument = trim((string) ($criteria['participant_document'] ?? ''));
-        $participantEmail = trim((string) ($criteria['participant_email'] ?? ''));
+        $participantDocument = strtoupper(trim((string) ($criteria['participant_document'] ?? '')));
+        $participantEmail = strtolower(trim((string) ($criteria['participant_email'] ?? '')));
         unset($criteria['participant_document'], $criteria['participant_email']);
 
         if ($participantDocument !== '' || $participantEmail !== '') {
@@ -273,8 +273,23 @@ function mergeInvoiceSearchResponses(array $responses, int $limit): array
         }
     }
 
+    $results = array_values($merged);
+    usort($results, static function (array $a, array $b): int {
+        $year = ((int) ($b['any_fact'] ?? 0)) <=> ((int) ($a['any_fact'] ?? 0));
+        if ($year !== 0) {
+            return $year;
+        }
+
+        $series = strcmp((string) ($a['tipus_serie'] ?? ''), (string) ($b['tipus_serie'] ?? ''));
+        if ($series !== 0) {
+            return $series;
+        }
+
+        return ((int) ($b['num_seq'] ?? 0)) <=> ((int) ($a['num_seq'] ?? 0));
+    });
+
     $limit = max(1, min(100, $limit));
-    $results = array_slice(array_values($merged), 0, $limit);
+    $results = array_slice($results, 0, $limit);
 
     return [
         'ok' => true,
