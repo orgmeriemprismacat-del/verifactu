@@ -2,11 +2,11 @@
 
 **Objectiu:** representar l'ordre de missatges i persistència dels subfluxos UC-111 sense confondre el codi legacy amb els serveis SIF desenvolupats a la branca.
 
-## 1. ACTUAL · alta web i decisió intranet observable
+## 1. ACTUAL · seqüència completa contrastada
 
 ```plantuml
 @startuml
-title UC-111 | ACTUAL observable | alta i validació legacy
+title UC-111 | ACTUAL contrastat | alta -> validació -> pagament -> comunicació legacy
 actor Alumne
 participant "enviarInscripcio.php" as Web
 database inscripcions
@@ -15,61 +15,116 @@ participant "enviarImatgeSocRecentTitulat.php" as Upload
 actor Secretaria
 participant "alumnes-validar-descomptes.js" as JS
 participant "sendMsgValidatProfessorNovell.php" as Endpoint
-participant "Intranet::sendMsgValidatCurosProfessorNovell" as Intranet
+participant "Intranet::sendMsgValidatCurosProfessorNovell()" as Intranet
+participant "PagamentCursAutomatic.php" as PaymentView
+participant "realitzaPagamentAutomatic.php" as Payment
+database promocions
+participant MailSMTPComvive as Mail
 
-Alumne -> Web : alta JASOM + novell
-Web -> inscripcions : INSERT
-alt JASOM + novell
-  Web -> recent_titulat : INSERT ID_INSC
+Alumne -> Web : alta de curs + opció novell
+Web -> inscripcions : INSERT matrícula
+alt CURS=JASOM i novell
+  Web -> recent_titulat : INSERT(ID_INSC), VALIDAT=0
 end
-Alumne -> Upload : pujar justificació
-Upload --> Alumne : resultat legacy
-Secretaria -> JS : Sí/No + validar
-JS -> Endpoint : GET idInsc, verificat
-Endpoint -> Intranet : delegar decisió
-Intranet -> recent_titulat : VALIDAT 1/2 (segons codi contrastat)
-Endpoint --> JS : resposta HTML
-JS --> Secretaria : modal resultat
-note over Intranet,recent_titulat
-  Aquesta seqüència NO acredita per si sola
-  concessió, pagament ni lliurament del codi.
+
+Alumne -> Upload : POST resguard/titulació
+Upload --> Alumne : resultat de pujada
+note over Upload
+  La còpia legacy no acredita encara
+  hash, storage privat ni versionat d'evidència.
 end note
+
+Secretaria -> JS : alternar Sí/No visual
+Secretaria -> JS : clicar validar
+JS -> Endpoint : GET idInsc, verificat
+Endpoint -> Intranet : sendMsgValidatCurosProfessorNovell()
+alt verificat = 1
+  Intranet -> recent_titulat : UPDATE VALIDAT=1
+  Intranet -> Mail : aprovat + opcions de pagament
+else verificat = 0
+  Intranet -> recent_titulat : UPDATE VALIDAT=2
+  Intranet -> Mail : denegat + opcions de pagament
+end
+Endpoint --> JS : "OK" / error textual
+
+Alumne -> PaymentView : obrir pàgina de pagament
+PaymentView -> recent_titulat : consulta legacy
+PaymentView --> Alumne : mostrar/ocultar opcions
+Alumne -> Payment : completar pagament
+
+alt JASOM completament pagat
+  Payment -> recent_titulat : SELECT ID_INSC AND VALIDAT=1
+  alt VALIDAT=1
+    Payment -> promocions : SELECT últim MACABODETITULAR del DNI
+    promocions --> Payment : codi existent o buit
+    note over Payment,promocions
+      A la còpia auditada NO hi ha INSERT
+      del nou dret en aquest punt.
+      El correu antic conté un literal de codi.
+    end note
+    Payment -> Mail : confirmació + text promocional legacy
+  else VALIDAT!=1
+    Payment -> Mail : confirmació sense benefici novell
+  end
+end
 @enduml
 ```
 
-## 2. FINAL/branca · expedient, decisió, cobrament i concessió
+**Punt de fallada ACTUAL:** el lloc funcional correcte és el final del cobrament complet, després d'haver validat recent_titulat.VALIDAT=1; però el PHP legacy auditat només consulta promocions i no demostra una concessió nova idempotent.
+
+## 2. FINAL implementat a la branca · pagament committed -> dret -> codi preparat
 
 ```plantuml
 @startuml
-title UC-111 | FINAL branca | preparar, validar, conciliar i concedir
-actor "Adaptador web" as Web
-participant NovicePromotionEnrollmentStager as Stage
-database "commercial_operation / party" as Op
+title UC-111 | FINAL | validació + pagament complet -> entitlement -> codi
 actor Secretaria
 participant NovicePromotionSecretaryDecisionProjector as Decision
 database discount_validation as Validation
+database commercial_operation as Operation
+participant RedsysCourseInvoiceService as CoursePayment
+participant InvoiceService as Invoice
 participant NovicePromotionInvoiceLinkService as Link
-participant NovicePromotionGrantReconciler as Reconcile
 participant NovicePromotionGrantService as Grant
-database "factura / fact_rels / payment_*" as Fiscal
+participant NovicePromotionCodePreparationService as Prepare
+database "factura / payment_*" as Fiscal
 database "commercial_entitlement / novice_promotion_grant" as Right
+database novice_promotion_code_outbox as Outbox
 
-Web -> Stage : stage(inscripció JASOM)
-Stage -> Op : create/reuse PREPARED
-Stage --> Web : UUID operation
-Secretaria -> Decision : projectDecision(ID_INSC)
-Decision -> Validation : VALIDATED o REJECTED
-alt VALIDATED
-  Decision -> Op : READY_FOR_PAYMENT
+Secretaria -> Decision : projectDecision(...)
+Decision -> Validation : VALIDATED / REJECTED
+Decision -> Operation : READY_FOR_PAYMENT
+
+... Redsys validat ...
+
+CoursePayment -> Invoice : issueInvoice(...)
+Invoice -> Fiscal : factura + payment + allocation
+Invoice --> CoursePayment : COMMIT + uuid_factura
+
+CoursePayment -> Link : attach(enrollment, invoice)
+Link -> Validation : comprovar decisió
+Link -> Fiscal : verificar F1/F2 i estat PAID
+Link -> Operation : PAYMENT_PENDING o PAID
+Link --> CoursePayment : grant_eligible?
+
+alt VALIDATED + JASOM completament pagat
+  CoursePayment -> Grant : issueForOperation(uuid)
+  Grant -> Fiscal : lock + CHARGE - REFUND
+  Grant -> Validation : VALIDATED
+  Grant -> Right : INSERT o reuse dret únic per persona
+  Grant --> CoursePayment : uuid_entitlement
+  CoursePayment -> Prepare : prepare(entitlement, runtime secret, key version)
+  Prepare -> Right : CODE_HASH + ACTIVE
+  Prepare -> Outbox : token aleatori xifrat + PREPARED
+  Prepare --> CoursePayment : prepared/reused
+else pendent o denegat
+  CoursePayment --> CoursePayment : no concedir dret
 end
 
-Link -> Fiscal : vincular factures F1/F2 a l'operació
-Reconcile -> Fiscal : buscar JASOM validat i completament cobrat
-Reconcile -> Grant : issueForOperation(uuid)
-Grant -> Fiscal : lock + verificar totals + CHARGE-REFUND
-Grant -> Validation : verificar VALIDATED
-Grant -> Right : INSERT/reuse dret únic per holder
-Grant --> Reconcile : entitlement
+note over Grant,Prepare
+  Són transaccions separades i idempotents.
+  Si la preparació del codi falla, el grant ja
+  existent es reutilitza en el reintent.
+end note
 @enduml
 ```
 

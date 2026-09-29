@@ -15,7 +15,10 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         private RedsysInvoicePayloadBuilder $redsysPayloads,
         private InvoiceService $invoices,
         private ?NovicePromotionInvoiceLinkService $noviceLinks = null,
-        private ?NovicePromotionGrantService $noviceGrants = null
+        private ?NovicePromotionGrantService $noviceGrants = null,
+        private ?NovicePromotionCodePreparationService $noviceCodes = null,
+        private string $noviceWrappingKeyHex = '',
+        private string $noviceKeyVersion = 'v1'
     ) {
     }
 
@@ -95,9 +98,24 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         $invoiceResult['novice_promotion_sync'] = $link['status'];
 
         if ($link['grant_eligible']) {
-            $invoiceResult['novice_promotion'] = $this->noviceGrants->issueForOperation(
+            // The economic invoice/payment is already committed. Granting and
+            // code preparation are intentionally two idempotent transactions:
+            // a retry reuses the same entitlement and the same prepared code.
+            $grant = $this->noviceGrants->issueForOperation(
                 $sifDb,
                 (string) $link['uuid_operation']
+            );
+            $invoiceResult['novice_promotion'] = $grant;
+
+            if ($this->noviceCodes === null) {
+                throw SifException::conflict('Novice promotion code preparation is not configured.');
+            }
+
+            $invoiceResult['novice_promotion_code'] = $this->noviceCodes->prepare(
+                $sifDb,
+                (string) $grant['uuid_entitlement'],
+                $this->noviceWrappingKeyHex,
+                $this->noviceKeyVersion
             );
         }
 
