@@ -180,6 +180,23 @@
 				}
 			}
 		}
+
+
+		/**
+	   * @brief Substitueix els rols de sessió pels rols vigents de BD.
+	   * @return Evita conservar rols revocats en refrescar la sessió.
+	   */
+		function replaceRols( $rols ) {
+			$this->rols = array();
+			if ($rols != null && $rols != '') {
+				$vectRols = explode('|', $rols);
+				for ($i=0; $i<count($vectRols); $i++) {
+					$rol = trim($vectRols[$i]);
+					if ($rol != '' && !in_array($rol, $this->rols, true))
+						$this->rols[] = $rol;
+				}
+			}
+		}
 	}
 
 ?>

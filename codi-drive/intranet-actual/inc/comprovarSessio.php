@@ -58,7 +58,7 @@ session_start();
 
 					if ( $originalPass == $savePass ) {
 						$configOk = true;
-						$_SESSION['usuari']-> setRols($rols);
+						$_SESSION['usuari']-> replaceRols($rols);
 						$_SESSION['usuari']-> setMenuExt($menuExt);
 						$_SESSION['usuari'] = serialize($_SESSION['usuari']);
 					}
