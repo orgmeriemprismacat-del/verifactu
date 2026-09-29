@@ -194,17 +194,14 @@ window.uc007SifSearch = function(params) {
 
 	if (params.uuid)
 		criteria.uuid_factura = params.uuid;
-
-	/* DNI del formulari antic pot ser participant i no receptor fiscal.
-	Només s'usa directament com BILLING_NIF quan no hi ha cap altre criteri. */
 	if (params.factNum != '')
 		criteria.num_visible = params.factNum;
 	if (params.email != '')
-		criteria.billing_email = params.email;
+		criteria.participant_email = params.email;
 	if (params.factRel != '')
 		criteria.factura_relacionada = params.factRel;
-	if (params.dni != '' && params.factNum == '' && params.email == '' && params.factRel == '')
-		criteria.billing_nif = params.dni;
+	if (params.dni != '')
+		criteria.participant_document = params.dni;
 
 	/* Si la combinació no es pot representar fidelment al SIF, mantenim el llegat. */
 	if ($.isEmptyObject(criteria)) {
@@ -213,9 +210,14 @@ window.uc007SifSearch = function(params) {
 	}
 
 	var request = $.ajax({
-		url: path + "alumnes/buscarFacturesSif.php",
-		method: "GET",
-		data: criteria,
+		url: path + "alumnes/sifFactures.php",
+		method: "POST",
+		contentType: "application/json; charset=utf-8",
+		data: JSON.stringify({
+			action: "search",
+			criteria: criteria,
+			limit: 50
+		}),
 		dataType: "json"
 	});
 
@@ -336,9 +338,13 @@ function uc007MostrarFacturaSif(uuid) {
 	mostrarModalLoading();
 
 	var request = $.ajax({
-		url: path + "alumnes/consultaFacturaSif.php",
-		method: "GET",
-		data: { uuid: uuid },
+		url: path + "alumnes/sifFactures.php",
+		method: "POST",
+		contentType: "application/json; charset=utf-8",
+		data: JSON.stringify({
+			action: "view",
+			uuid_factura: uuid
+		}),
 		dataType: "json"
 	});
 
@@ -350,6 +356,11 @@ function uc007MostrarFacturaSif(uuid) {
 		}
 
 		$("#modalConsultaInformacio .modal-body").html(uc007RenderFacturaSif(res));
+		$("#modalConsultaInformacio")
+			.off('click.uc007Document')
+			.on('click.uc007Document', '.uc007-sif-document-download', function() {
+				uc007DescarregarDocumentSif(parseInt($(this).attr('data-document-id'), 10));
+			});
 		$("#modalConsultaInformacio").modal('show');
 	});
 
@@ -395,15 +406,76 @@ function uc007RenderFacturaSif(res) {
 	if (Array.isArray(res.documents) && res.documents.length > 0) {
 		html += '<h5>Documents</h5><ul>';
 		res.documents.forEach(function(doc) {
+			var documentId = parseInt(doc.ID, 10);
 			html += '<li>' + uc007EscapeHtml(doc.TIPUS || '') + ' · ' +
-				uc007EscapeHtml(doc.ESTAT || '') +
-				' <span class="text-muted">(descàrrega UC-080 pendent)</span></li>';
+				uc007EscapeHtml(doc.ESTAT || '');
+			if (!isNaN(documentId) && documentId > 0) {
+				html += ' <button type="button" class="btn btn-default btn-xs uc007-sif-document-download" ' +
+					'data-document-id="' + documentId + '">Descarregar</button>';
+			}
+			html += '</li>';
 		});
 		html += '</ul>';
 	}
 
 	html += '</div>';
 	return html;
+}
+
+function uc007DescarregarDocumentSif(documentId) {
+	if (!documentId || documentId <= 0) {
+		uc007MostrarError("Identificador de document no vàlid");
+		return;
+	}
+
+	if (typeof fetch !== 'function') {
+		uc007MostrarError("El navegador no permet la descàrrega segura del document");
+		return;
+	}
+
+	mostrarModalLoading();
+
+	fetch(path + "alumnes/sifDocument.php", {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json; charset=utf-8"
+		},
+		body: JSON.stringify({ document_id: documentId })
+	})
+	.then(function(response) {
+		if (!response.ok) {
+			return response.json().catch(function() {
+				return { error: "No s'ha pogut descarregar el document" };
+			}).then(function(payload) {
+				throw new Error(payload.error || "No s'ha pogut descarregar el document");
+			});
+		}
+
+		var disposition = response.headers.get("Content-Disposition") || "";
+		var match = disposition.match(/filename="?([^";]+)"?/i);
+		var filename = match ? match[1] : ("factura-document-" + documentId);
+		return response.blob().then(function(blob) {
+			return { blob: blob, filename: filename };
+		});
+	})
+	.then(function(result) {
+		var objectUrl = URL.createObjectURL(result.blob);
+		var link = document.createElement("a");
+		link.href = objectUrl;
+		link.download = result.filename;
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		setTimeout(function() {
+			URL.revokeObjectURL(objectUrl);
+		}, 1000);
+		amagarLoadingModal();
+	})
+	.catch(function(error) {
+		amagarLoadingModal();
+		uc007MostrarError(error.message || "No s'ha pogut descarregar el document");
+	});
 }
 
 function uc007Dl(label, value) {
