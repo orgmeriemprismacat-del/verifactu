@@ -54,6 +54,54 @@ final class UsocEntityInvoiceServiceTest
         Assert::same(0, (int) $relation['VISIBLE_ALUMNE']);
     }
 
+    public function testRejectsSameIdempotencyKeyWithDifferentEntityAmount(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new UsocEntityLegacySpyPdo([
+            $this->inscriptionRow(),
+            $this->courseRow(),
+            $this->inscriptionRow(),
+            $this->courseRow(),
+        ]);
+        $service = $this->service($sifDb);
+
+        $service->issueEntityFromExplicitInput($legacyDb, $this->entityInput());
+
+        $changed = $this->entityInput();
+        $changed['amount'] = '24.00';
+
+        $exception = Assert::throws(SifException::class, function () use ($legacyDb, $service, $changed): void {
+            $service->issueEntityFromExplicitInput($legacyDb, $changed);
+        }, 409);
+
+        Assert::same('Idempotency key already exists with different payload', $exception->getMessage());
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
+    public function testRejectsSameIdempotencyKeyWithDifferentEntityRecipient(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new UsocEntityLegacySpyPdo([
+            $this->inscriptionRow(),
+            $this->courseRow(),
+            $this->inscriptionRow(),
+            $this->courseRow(),
+        ]);
+        $service = $this->service($sifDb);
+
+        $service->issueEntityFromExplicitInput($legacyDb, $this->entityInput());
+
+        $changed = $this->entityInput();
+        $changed['billing']['nif'] = 'G99999999';
+
+        $exception = Assert::throws(SifException::class, function () use ($legacyDb, $service, $changed): void {
+            $service->issueEntityFromExplicitInput($legacyDb, $changed);
+        }, 409);
+
+        Assert::same('Idempotency key already exists with different payload', $exception->getMessage());
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
     public function testRequiresExplicitEntityBillingBeforeLoadingLegacy(): void
     {
         $legacyDb = new UsocEntityLegacySpyPdo([]);
