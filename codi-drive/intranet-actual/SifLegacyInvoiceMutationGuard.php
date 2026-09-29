@@ -30,12 +30,33 @@ final class SifLegacyInvoiceMutationGuard
             return;
         }
 
+        $this->assertLegacyRelationAllowed($user, $legacyRelation);
+    }
+
+    public function assertLegacyRelationAllowed($user, $legacyRelation): void
+    {
+        if (!$this->enabled()) {
+            return;
+        }
+
+        $relation = (string) $legacyRelation;
+        if (!ctype_digit($relation) || (int) $relation <= 0) {
+            throw new InvalidArgumentException('Factura relacionada llegada no vàlida', 422);
+        }
+
+        if (!filter_var(getenv('SIF_UC007_QUERY_ENABLED') ?: '0', FILTER_VALIDATE_BOOLEAN)) {
+            throw new RuntimeException(
+                'La protecció de factures SIF està activada però la consulta UC-007 està desactivada',
+                503
+            );
+        }
+
         [$actorId, $roles] = $this->actor($user);
         $client = $this->client ?? new SifInternalApiClient();
         $response = $client->searchInvoices(
             $actorId,
             $roles,
-            ['factura_relacionada' => $legacyRelation],
+            ['factura_relacionada' => (int) $relation],
             5
         );
 
@@ -50,7 +71,7 @@ final class SifLegacyInvoiceMutationGuard
         $results = is_array($response['results'] ?? null) ? $response['results'] : [];
         if ($results !== []) {
             throw new RuntimeException(
-                'Factura governada pel SIF: la modificació directa llegada està bloquejada',
+                'Factura governada pel SIF: el flux llegat està bloquejat',
                 409
             );
         }
