@@ -393,4 +393,4 @@ stop
 
 Les activitats FINAL dels §§7–12 corresponen a serveis de la branca, però els adaptadors d'UI/autenticació/pricing/fiscalitat/evidències externes no estan acreditats com a desplegats. **No s'han executat proves MySQL en aquesta auditoria.**
 
-[Fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) · [Classes](uc-111-classes-actual-final.md) · [Seqüències](uc-111-sequencies-actual-final.md) · [Traçabilitat](uc-111-tracabilitat-implementacio.md)
+[Fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) · [Classes](uc-111-classes-actual-final.md) · [Seqüències](uc-111-sequencies-actual-final.md) · [Dades i estats](uc-111-dades-estats-actual-final.md) · [Traçabilitat](uc-111-tracabilitat-implementacio.md)
