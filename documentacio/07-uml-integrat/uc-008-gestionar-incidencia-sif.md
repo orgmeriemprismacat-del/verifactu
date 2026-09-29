@@ -2,7 +2,7 @@
 
 **Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat verificat (2026-09-29):** backend de lifecycle **IMPLEMENTAT PARCIALMENT I VERIFICAT EN CI**; API interna autenticada i integracions automàtiques Redsys/AEAT preparades. Les suites de la PR post-merge #21 han passat amb **555 proves i 0 errors** en dues execucions independents. El panell final `pay.prisma.cat/sif/incidencies`, el resum de la intranet i la preproducció continuen pendents.
+**Estat actual (2026-09-30):** backend de lifecycle **IMPLEMENTAT I VERIFICAT EN CI**; panell `pay.prisma.cat/sif/incidencies` i resum read-only de la intranet **IMPLEMENTATS AL CODI** amb handoff HMAC, sessió pròpia i CSRF. La preproducció, els rols/secrets productius i l'E2E de navegador continuen pendents.
 
 **Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
@@ -15,19 +15,19 @@
 | Correlació i idempotència | Sí | Sí | N/A | pendent |
 | Vincular factura/pagament/recurs genèric | Sí | Sí | pendent | pendent |
 | Deduplicar per clau idempotent | Sí | Sí | N/A | pendent |
-| Llistar / consultar | Sí | Sí via API interna | pendent | pendent |
-| Assignar responsable | Sí | Sí via service/API | pendent | pendent |
-| Afegir evidència | Sí | Sí via service/API | pendent | pendent |
-| Resoldre amb evidència | Sí | Sí via service/API | pendent | pendent |
-| `DISMISSED` justificat | Sí | Sí via service/API | pendent | pendent |
-| Reobrir | Sí | Sí via service/API | pendent | pendent |
-| Historial `sif_incident_action` | Sí | Sí writer PHP | pendent | pendent |
+| Llistar / consultar | Sí | API interna + sessió panell | implementat al codi | E2E pendent |
+| Assignar responsable | Sí | Sí via service/API | implementat al codi | E2E pendent |
+| Afegir evidència | Sí | Sí via service/API | implementat al codi | E2E pendent |
+| Resoldre amb evidència | Sí | Sí via service/API | implementat al codi | E2E pendent |
+| `DISMISSED` justificat | Sí | Sí via service/API | implementat al codi | E2E pendent |
+| Reobrir | Sí | Sí via service/API | implementat al codi | E2E pendent |
+| Historial `sif_incident_action` | Sí | Sí writer PHP | timeline implementat | E2E pendent |
 | Incidència Redsys | Sí | Sí i atòmica amb estat del job | N/A | pendent |
 | Incidència AEAT integritat | Sí | Sí | N/A | pendent |
 | Incidència AEAT retries esgotats | Sí | Sí | N/A | pendent |
 | Reparació automàtica genèrica | No convé | No | No | — |
-| Panell oficial | Sí | API disponible | **pendent** | pendent |
-| Resum intranet VERI*FACTU | Sí | no específic | **pendent** | pendent |
+| Panell oficial | Sí | sessió + lifecycle + CSRF | **implementat al codi** | desplegament/E2E pendent |
+| Resum intranet VERI*FACTU | Sí | client intern read-only + `summary` | **implementat al codi** | desplegament/E2E pendent |
 
 ## 2. Contracte de persistència
 
@@ -124,7 +124,7 @@ Les operacions d'escriptura passen per `TransactionRunner`; `resolve()` exigeix 
 - aplica anti-replay amb `internal_api_request`;
 - separa rols de lectura i gestió;
 - no confia en botons/JS per autoritzar;
-- ofereix accions `list/view/open/assign/evidence/resolve/dismiss/reopen`.
+- ofereix accions `summary/list/view/open/assign/evidence/resolve/dismiss/reopen`.
 
 Els rols es configuren amb:
 
@@ -224,7 +224,7 @@ class FiscalQueueProcessor {
 }
 
 class IncidentPanel {
-  <<UI PENDENT>>
+  <<UI IMPLEMENTADA AL CODI · DESPLEGAMENT PENDENT>>
   +list()
   +detail()
   +assign()
@@ -384,7 +384,7 @@ F --> G[Sense repetir efecte fiscal/econòmic]
 
 ~~~mermaid
 flowchart TD
-A[No hi ha UI acreditada] --> B[API interna action=list]
+A[UI SIF implementada al codi] --> B[actions.php action=list]
 B --> C[Autoritzar rol read/manage]
 C --> D[Filtrar estat/severitat/tipus/responsable]
 D --> E[Retornar JSON]
@@ -407,7 +407,7 @@ E --> F[Obrir detall]
 
 ~~~mermaid
 flowchart TD
-A[UI absent] --> B[API action=view]
+A[UI SIF implementada al codi] --> B[actions.php action=view]
 B --> C[IncidentRepository findById]
 C --> D[IncidentActionRepository listForIncident]
 D --> E[JSON capçalera + timeline]
