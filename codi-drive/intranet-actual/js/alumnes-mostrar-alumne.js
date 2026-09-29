@@ -2544,32 +2544,20 @@ function mostrarModalConsultaFacturaLlegat(id) {
 	            upd2.done(function( res ) {
 	               amagarModalConsultaFactura();
 	               amagarLoadingModal();
-	               if (!res.toLowerCase().includes("error")) {
+	               res = $.trim(res);
+	               if (res !== '' && !res.toLowerCase().includes("error")) {
 	                  var link = document.createElement('a');
 	                  link.setAttribute("id", "download-fact-" + nclick);
-	                  link.href = path + "alumnes/" + res;
-	                  link.download = res + '.pdf';
+	                  link.href = path + "alumnes/" + encodeURIComponent(res);
+	                  link.download = res;
+	                  document.body.appendChild(link);
 	                  link.click();
-	                  $.ajax({
-	                     url: path + "alumnes/eliminarArxiu.php",
-	                     cache: false,
-	                     type: "POST",
-	                     data: { filename: res },
-	                     success: function(data) {
-	                        afegirHeaderModalSuccess("S'ha generat la factura correctament");
-	                        afegirTextModalSuccess('');
-	                        amagarLoadingModal();
-	                        mostrarModalSuccess();
-	                        nclick++;
+	                  link.remove();
 
-	                          $('#modalSuccess').on('click', '.btn-danger', function() {
-	                             amagarModalSuccess();
-	                          });
-	                          $('#modalSuccess').on('click', '.close', function() {
-	                             amagarModalSuccess();
-	                          });
-	                     }
-	                  });
+	                  afegirHeaderModalSuccess("Descarregada");
+	                  afegirTextModalSuccess("S'ha iniciat la descàrrega de la factura");
+	                  mostrarModalSuccess();
+	                  nclick++;
 	               } else {
 	                    afegirHeaderModalError("Hi ha hagut un error al generar la descarrega!");
 	                    amagarLoadingModal();
