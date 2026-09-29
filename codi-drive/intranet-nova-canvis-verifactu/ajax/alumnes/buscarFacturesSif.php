@@ -1,22 +1,19 @@
 <?php
 
-include('../../Usuari.php');
-include('../../SifInternalClient.php');
-include('../../inc/missatgesError.php');
-include('../../inc/comprovarSessio.php');
+$intranetRoot = dirname(__DIR__, 2);
+if (!chdir($intranetRoot)) {
+    throw new RuntimeException('No es pot resoldre l\'arrel de la intranet');
+}
 
-session_start();
+include('inc/comprovarSessio.php');
+include('SifInternalClient.php');
 
 try {
-    if (!isset($_SESSION['usuari'])) {
-        throw new RuntimeException('Sessió no disponible', 401);
+    if (empty($configOk) || !isset($_SESSION['usuari'])) {
+        throw new RuntimeException('Sessió no vàlida', 401);
     }
 
     $_SESSION['usuari'] = unserialize($_SESSION['usuari']);
-
-    if (empty($configOk)) {
-        throw new RuntimeException('Sessió no vàlida', 401);
-    }
 
     $criteria = [
         'uuid_factura' => isset($_GET['uuid_factura']) ? trim((string) $_GET['uuid_factura']) : '',
