@@ -79,7 +79,7 @@ php sif/scripts/preflight-sif.php
 - [ ] assign/resolve registren actor i rol.
 - [ ] cap secret de configuració surt a la resposta.
 
-## 7. UI futura
+## 7. UI implementada al codi · E2E pendent
 
 - [ ] llistat per estat/severitat/tipus/responsable.
 - [ ] detall mostra resource/source/correlation sense exposar secrets.
@@ -92,8 +92,8 @@ php sif/scripts/preflight-sif.php
 
 ## 8. Intranet VERI*FACTU
 
-- [ ] indicador de pendents.
-- [ ] resum read-only.
+- [x] indicador/resum implementat al codi.
+- [x] resum read-only implementat al codi.
 - [ ] SIF indisponible → mostrar últim estat validat/indisponibilitat, no “0 incidències”.
 - [ ] resolució deriva al panell SIF.
 - [ ] la intranet no es converteix en font de veritat.
@@ -123,6 +123,6 @@ Per marcar UC-008 com PROVAT conservar:
 
 S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-tests.php` amb PHP 8.4 i MySQL 8.4 en pull requests, canvis a `main` que afectin `sif/**` i execució manual (`workflow_dispatch`).
 
-Aquesta incorporació converteix la suite en **executable a CI**, però no acredita cap PASS fins que GitHub Actions hagi executat el workflow sobre el commit corresponent. Cal conservar l'enllaç/resultat de l'execució com a evidència de tancament.
+La suite backend ja disposa d'evidència CI satisfactòria (555 passed, 0 failed). Els canvis de UI/handoff d'aquesta tanda han de tornar a passar CI i després E2E/preproducció abans de marcar-se verificats en runtime.
 
-**Estat actual:** CI DEFINIDA / EXECUCIÓ PENDENT.
+**Estat actual:** BACKEND CI VERIFICAT; CI DEL CANVI UI I E2E PENDENTS.
