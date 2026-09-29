@@ -77,7 +77,21 @@
             syncManualPriceUi();
             invalidatePreview();
         });
-        $('#pagat-nou-registre, #despeses-registre').on('input change', invalidatePreview);
+
+        var paid = $('#pagat-nou-registre');
+        paid.prop('readonly', true)
+            .attr('aria-readonly', 'true')
+            .attr('title', 'El pagat es rellegeix del SIF o del llegat servidor i no es pot editar com a preu.');
+        if (!$('#uc071-pagat-help').length) {
+            paid.after(
+                $('<div>', {
+                    id: 'uc071-pagat-help',
+                    'class': 'form-text'
+                }).text('Import ja pagat: dada econòmica de lectura. No es modifica des del canvi de curs.')
+            );
+        }
+
+        $('#despeses-registre').on('input change', invalidatePreview);
         $('#motiu-canvi').on('input change', invalidatePreview);
 
         syncManualPriceUi();
@@ -237,6 +251,18 @@
         );
 
         status.append(list);
+
+        if (impact.paid_amount && normalizedMoney(impact.paid_amount) !== null) {
+            $('#pagat-nou-registre').val(impact.paid_amount);
+
+            var targetTotal = normalizedMoney(impact.target_total);
+            var paidAmount = normalizedMoney(impact.paid_amount);
+            if (targetTotal !== null && paidAmount !== null) {
+                $('#pendent-nou-registre').val(
+                    (Number.parseFloat(targetTotal) - Number.parseFloat(paidAmount)).toFixed(2)
+                );
+            }
+        }
     }
 
     function renderError(message) {
@@ -260,9 +286,9 @@
                 return $.Deferred().reject({responseJSON: result}).promise();
             }
 
-            state.preview = result;
-            state.previewFingerprint = fingerprint(data);
             renderPreview(result);
+            state.preview = result;
+            state.previewFingerprint = fingerprint(payload());
             return result;
         });
     }
