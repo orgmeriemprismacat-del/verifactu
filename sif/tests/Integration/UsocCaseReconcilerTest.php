@@ -18,6 +18,18 @@ final class UsocCaseReconcilerTest
         $student = $invoices->issueInvoice(Fixtures::invoicePayload([
             'idempotency_key' => 'REDSYS|USOC_ALUMNE|IDPAG:980|ORDER:ORDERUSOC980',
             'source_channel' => 'REDSYS',
+            'totals' => [
+                'import_base' => '75.00',
+                'taxable_base' => '75.00',
+                'total' => '75.00',
+            ],
+            'lines' => [[
+                'unit_price' => '75.00',
+                'base' => '75.00',
+                'import_base' => '75.00',
+                'taxable_base' => '75.00',
+                'total' => '75.00',
+            ]],
             'relations' => [[
                 'source_type' => 'INSCRIPCIO',
                 'source_id' => 880,
@@ -29,6 +41,18 @@ final class UsocCaseReconcilerTest
         $entity = $invoices->issueInvoice(Fixtures::invoicePayload([
             'idempotency_key' => 'INTRANET|USOC_ENTITAT|ID_INSC:880|FACT_ALUMNE:' . $student['uuid_factura'],
             'source_channel' => 'INTRANET',
+            'totals' => [
+                'import_base' => '25.00',
+                'taxable_base' => '25.00',
+                'total' => '25.00',
+            ],
+            'lines' => [[
+                'unit_price' => '25.00',
+                'base' => '25.00',
+                'import_base' => '25.00',
+                'taxable_base' => '25.00',
+                'total' => '25.00',
+            ]],
             'relations' => [[
                 'source_type' => 'INSCRIPCIO',
                 'source_id' => 880,
