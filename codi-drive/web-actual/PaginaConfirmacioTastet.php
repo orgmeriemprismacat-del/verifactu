@@ -13,65 +13,59 @@ class PaginaConfirmacioTastet {
 
    public function __construct($id) {
       $this->id = $id;
-      $connexio = new ConnexioBBDDSTMT();
-   	$connexio->connectarBD();
+      $this->cursInsc = null;
+      $this->titol = null;
+      $this->email = null;
 
-      $cnsInsc = "SELECT CURS, CORREU FROM inscripcions_reptes WHERE ID=? AND (INSC_CURS='0' OR INSC_CURS='1')";
-		$stmt=$connexio->prepare($cnsInsc);
-		$stmt->bind_param("d", $id);
-		$stmt->execute();
-		$stmt->store_result();
-		if ( $stmt->num_rows() == 1 ) {
-			$stmt->bind_result($cursInsc, $correu);
-			$stmt->fetch();
-         require_once 'Text.php';
-         if ($cursInsc!=null and $cursInsc!='')
-            $this->cursInsc = new Text($cursInsc);
-         else
-            $this->cursInsc = null;
-         if ($correu!=null and $correu!='')
-            $this->email = new Text($correu);
-         else
-            $this->email = null;
-         if ($dni!=null and $dni!='')
-            $this->dni = new Text($dni);
-         else
-            $this->dni = null;
+      $connexio = new ConnexioBBDDSTMT();
+      $connexio->connectarBD();
+
+      $cnsInsc = "SELECT CURS, CORREU FROM inscripcions_reptes
+                  WHERE ID=? AND (INSC_CURS='0' OR INSC_CURS='1')";
+      $stmt = $connexio->prepare($cnsInsc);
+      $stmt->bind_param("d", $id);
+      $stmt->execute();
+      $stmt->store_result();
+
+      if ($stmt->num_rows() > 1) {
+         $connexio->closeStmt();
+         $connexio->desconectarBD();
+         throw new Exception('',2512);
+      }
+
+      if ($stmt->num_rows() == 0) {
+         $connexio->closeStmt();
+         $connexio->desconectarBD();
+         throw new Exception('',2502);
+      }
+
+      $stmt->bind_result($cursInsc, $correu);
+      $stmt->fetch();
+      $connexio->closeStmt();
+
+      require_once 'Text.php';
+
+      if ($cursInsc!=null and $cursInsc!='')
+         $this->cursInsc = new Text($cursInsc);
+
+      if ($correu!=null and $correu!='')
+         $this->email = new Text($correu);
+
+      if ($this->cursInsc!=null) {
+         // La confirmació és històrica: no ha de desaparèixer només perquè
+         // el tastet s'hagi desactivat després de registrar la sol·licitud.
+         $cnsTastet = "SELECT TITOL FROM reptes WHERE CODI_CURS=? LIMIT 1";
+         $stmt = $connexio->prepare($cnsTastet);
+         $stmt->bind_param("s", $cursInsc);
+         $stmt->execute();
+         $stmt->bind_result($nomCurs);
+         $stmt->fetch();
          $connexio->closeStmt();
 
-         if ($this->cursInsc!=null) {
-            $cnsEd = "SELECT TITOL, ID_IMG_LARGE, CURS_ORIG FROM reptes WHERE CODI_CURS=? AND ESTAT = 1";
-      		$stmt=$connexio->prepare($cnsEd);
-      		$stmt->bind_param("s", $cursInsc);
-      		$stmt->execute();
-            $stmt->bind_result($nomCurs, $imgAmple, $cursOrig);
-   			$stmt->fetch();
-            if ($nomCurs!=null and $nomCurs!='')
-               $this->titol = new Text($nomCurs);
-            else
-               $this->titol = null;
-            if ($imgAmple!=null and $imgAmple!='')
-               $this->imgAmple = new Imatge($imgAmple);
-            else
-               $this->imgAmple = null;
-            if ($cursOrig!=null and $cursOrig!='')
-               $this->cursOrig = new Curs($cursOrig, 'ordinador');
-            else
-               $this->cursOrig = null;
-         }
-         else {
-            $this->titol = null;
-            $this->imgAmple = null;
-            $this->cursOrig = null;
-         }
-		}
-      else if ( $stmt->num_rows() > 1 ) {
-         throw new Exception('',2512);
-		}
-      else {
-         throw new Exception('',2502);
-		}
-      $connexio->closeStmt();
+         if ($nomCurs!=null and $nomCurs!='')
+            $this->titol = new Text($nomCurs);
+      }
+
       $connexio->desconectarBD();
    }
 
