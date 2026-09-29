@@ -43,6 +43,7 @@ return [
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
         'aeat_operations_signed_path' => getenv('SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH') ?: '/api/aeat/operations.php',
         'incident_signed_path' => getenv('SIF_INTERNAL_INCIDENT_SIGNED_PATH') ?: '/api/incidents/manage.php',
+        'redsys_intent_signed_path' => getenv('SIF_INTERNAL_REDSYS_INTENT_SIGNED_PATH') ?: '/api/redsys/intents/create.php',
     ],
     'incidents' => [
         'read_roles' => array_values(array_filter(array_map(
@@ -57,6 +58,10 @@ return [
     ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
+        'intent_create_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_REDSYS_INTENT_CREATE_ROLES') ?: '')
+        ))),
     ],
     'novice_promotion' => [
         // 32-byte AES wrapping key encoded as 64 hex chars. Keep it only in
