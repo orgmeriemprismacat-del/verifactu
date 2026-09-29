@@ -298,11 +298,21 @@ stop
 title UC-111 | Baixa curs destí -> saldo derivat | FINAL
 start
 :Identificar origen ACTUAL de la promoció;
-note right
-  Aplicació original,
-  aplicació derivada o
-  traspàs confirmat.
-end note
+if (Origen executable en aquest tall?) then (sí)
+  note right
+    Cobert amb servei:
+    - aplicació original
+    - primer traspàs confirmat
+  end note
+else (no)
+  note right
+    Encara PENDENT de servei específic:
+    - derived_application APPLIED
+    - segon/tercer traspàs
+  end note
+  :No activar saldo derivat automàticament;
+  stop
+endif
 :Registrar rectificativa real;
 :Separar component promocional i diners reals;
 :Crear review PENDING amb available=0;
