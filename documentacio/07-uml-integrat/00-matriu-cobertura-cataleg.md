@@ -130,7 +130,7 @@ Per a cadascuna de les 185 targetes mare i les 192 pantalles/estats, conservar r
 | UC-68 | Retirar callbacks i escriptures fiscals llegades | `[DISSENY]` | [uc-068.md](../06-fitxes-funcionals/uc-068.md) | [Fitxa i diagrames](uc-068-retirar-callbacks-escriptures-fiscals-llegades.md) |
 | UC-69 | Confirmar i congelar dades fiscals | `[DISSENY/PARCIAL]` | [uc-069.md](../06-fitxes-funcionals/uc-069.md) | [Fitxa i diagrames](uc-069-confirmar-congelar-dades-fiscals.md) |
 | UC-70 | Modificar dades mestres després d'emetre | `[DISSENY]` | [uc-070.md](../06-fitxes-funcionals/uc-070.md) | [Fitxa i diagrames](uc-070-modificar-dades-mestres-despres-emetre.md) |
-| UC-71 | Registrar un canvi de curs complet | `[DISSENY/PARCIAL]` | [uc-071.md](../06-fitxes-funcionals/uc-071.md) | [Fitxa i diagrames](uc-071-registrar-canvi-curs-complet.md) |
+| UC-71 | Registrar un canvi de curs complet | `[PARCIAL_IMPLEMENTAT]` | [uc-071.md](../06-fitxes-funcionals/uc-071.md) | [Fitxa i diagrames](uc-071-registrar-canvi-curs-complet.md) · [Implementació UI/preview 29/09](03-implementacio-interficie-canvi-curs-2026-09-29.md) |
 | UC-72 | Registrar baixa i decisió econòmica | `[DISSENY/PARCIAL]` | [uc-072.md](../06-fitxes-funcionals/uc-072.md) | [Fitxa i diagrames](uc-072-registrar-baixa-decisio-economica.md) |
 | UC-73 | Documentar un ajust, descompte o despesa | `[DISSENY]` | [uc-073.md](../06-fitxes-funcionals/uc-073.md) | [Fitxa i diagrames](uc-073-documentar-ajust-descompte-despesa.md) |
 | UC-74 | Classificar una correcció fiscal | `[DISSENY/BLOQUEJANT]` | [uc-074.md](../06-fitxes-funcionals/uc-074.md) | [Fitxa i diagrames](uc-074-classificar-correccio-fiscal.md) |
