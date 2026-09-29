@@ -89,7 +89,7 @@ final class LegacyUsocSnapshotRepositoryTest
         $db = new LegacyUsocSpyPdo([$row]);
 
         Assert::throws(SifException::class, function () use ($db): void {
-            (new LegacyUsocSnapshotRepository())->loadByIdpag($db, 980, '75.00', '25.00');
+            (new LegacyUsocSnapshotRepository())->loadByIdpag($db, 980, '75.00', '25.00', 880);
         }, 409);
 
         Assert::same(1, count($db->preparedSql));
