@@ -1,0 +1,39 @@
+name: UC-111 integration verification
+
+on:
+  push:
+    branches:
+      - fix/uc-111-grant-code-uml-2026-09-29
+  workflow_dispatch:
+
+jobs:
+  sif-tests:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+      SIF_NOVICE_PROMO_WRAP_KEY_HEX: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+      SIF_NOVICE_PROMO_KEY_VERSION: test-v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, openssl, mbstring
+      - name: Run SIF test suite
+        run: php sif/tests/run-tests.php
