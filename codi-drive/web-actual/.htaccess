@@ -113,7 +113,7 @@ RewriteRule ^docents/(.+) /pagina_tutor.php
 RewriteRule ^docents /pagina_docents.php
 RewriteRule ^autors/(.+) /pagina_autor.php
 RewriteRule ^autors /pagina_autors.php
-RewriteRule ^tastets/confirmacio/(.+)$ /pagina_confirmacio_tastets_automatic.php?key=$1 [L,QSA]
+RewriteRule ^tastets/confirmacio/(.+)$ /pagina_confirmacio_tastets_automatic.php [L,QSA]
 RewriteRule ^tastets/(.+) /pagina_tastet.php
 RewriteRule ^tastets /pagina_tastets.php
 RewriteRule ^metodologia /pagina.php
