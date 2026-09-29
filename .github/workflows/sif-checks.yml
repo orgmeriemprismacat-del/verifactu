@@ -1,0 +1,65 @@
+name: SIF PHP and MySQL checks
+
+on:
+  pull_request:
+    paths:
+      - "sif/**"
+      - ".github/workflows/sif-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sif-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+      SIF_LEGACY_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_legacy_test;charset=utf8mb4
+      SIF_LEGACY_DB_USER: root
+      SIF_LEGACY_DB_PASSWORD: root
+      SIF_INTERNAL_API_KEY_ID: test-internal-key
+      SIF_INTERNAL_API_SECRET: test-internal-secret
+      SIF_INCIDENT_READ_ROLES: AUDITOR_FISCAL,SIF_ADMIN
+      SIF_INCIDENT_MANAGE_ROLES: SIF_ADMIN,RESPONSABLE_TECNICA
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 amb extensions SIF
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, openssl, mbstring
+          coverage: none
+
+      - name: Crear BD legacy de prova
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mysql-client
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot             -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      - name: Lint PHP SIF
+        run: |
+          find sif/src sif/public sif/tests sif/config sif/scripts -type f -name '*.php' -print0             | xargs -0 -n1 php -l
+
+      - name: Suite PHP/MySQL SIF
+        run: php sif/tests/run-tests.php

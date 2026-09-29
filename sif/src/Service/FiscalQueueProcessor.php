@@ -124,14 +124,22 @@ final class FiscalQueueProcessor
     private function integrityFailure(array $item, \Throwable $exception): array
     {
         $message = 'Fiscal queue integrity mismatch: ' . $exception->getMessage();
-        $this->transactions->run(function (\PDO $db) use ($item, $message): void {
+        $incident = $this->transactions->run(function (\PDO $db) use ($item, $message): array {
             $this->queue->rejectIntegrity($db, $item, $message);
-            (new IncidentRepository())->open(
-                $db,
-                (string) $item['UUID_FACTURA'],
-                'FISCAL_PAYLOAD_CONFLICT',
-                'Queue ID ' . $item['ID'] . ': ' . $message
-            );
+
+            return (new IncidentRepository())->openDetailed($db, [
+                'uuid_factura' => (string) $item['UUID_FACTURA'],
+                'resource_type' => 'FISCAL_QUEUE',
+                'resource_id' => (string) $item['ID'],
+                'source_type' => 'AEAT_WORKER',
+                'source_id' => (string) $item['ID'],
+                'type' => 'FISCAL_PAYLOAD_CONFLICT',
+                'message' => 'Queue ID ' . $item['ID'] . ': ' . $message,
+                'severity' => 'CRITICAL',
+                'correlation_id' => 'FISCAL_QUEUE:' . $item['ID'],
+                'idempotency_key' => 'FISCAL_PAYLOAD_CONFLICT|QUEUE:' . $item['ID'],
+                'reason_code' => 'IMMUTABLE_PAYLOAD_MISMATCH',
+            ]);
         });
 
         return [
@@ -141,6 +149,8 @@ final class FiscalQueueProcessor
             'attempts' => (int) $item['ATTEMPTS'],
             'queue_status' => 'DEAD_LETTER',
             'next_retry_at' => null,
+            'incident_id' => $incident['incident_id'],
+            'uuid_incident' => $incident['uuid_incident'],
             'error' => $message,
         ];
     }
@@ -154,15 +164,42 @@ final class FiscalQueueProcessor
         $nextRetryAt = (new \DateTimeImmutable('now'))
             ->modify('+' . $delay . ' seconds')
             ->format('Y-m-d H:i:s');
-        $status = $this->transactions->run(
-            fn (\PDO $db): string => $this->queue->fail(
+
+        $outcome = $this->transactions->run(function (\PDO $db) use (
+            $item,
+            $exception,
+            $nextRetryAt
+        ): array {
+            $status = $this->queue->fail(
                 $db,
                 $item,
                 $exception->getMessage(),
                 $this->maxAttempts,
                 $nextRetryAt
-            )
-        );
+            );
+
+            $incident = null;
+            if ($status === 'DEAD_LETTER') {
+                $incident = (new IncidentRepository())->openDetailed($db, [
+                    'uuid_factura' => (string) $item['UUID_FACTURA'],
+                    'resource_type' => 'FISCAL_QUEUE',
+                    'resource_id' => (string) $item['ID'],
+                    'source_type' => 'AEAT_WORKER',
+                    'source_id' => (string) $item['ID'],
+                    'type' => 'AEAT_DEAD_LETTER',
+                    'message' => 'Queue ID ' . $item['ID'] . ': ' . $exception->getMessage(),
+                    'severity' => 'HIGH',
+                    'correlation_id' => 'FISCAL_QUEUE:' . $item['ID'],
+                    'idempotency_key' => 'AEAT_DEAD_LETTER|QUEUE:' . $item['ID'],
+                    'reason_code' => 'AEAT_RETRIES_EXHAUSTED',
+                ]);
+            }
+
+            return ['status' => $status, 'incident' => $incident];
+        });
+
+        $status = $outcome['status'];
+        $incident = $outcome['incident'];
 
         return [
             'ok' => false,
@@ -171,6 +208,8 @@ final class FiscalQueueProcessor
             'attempts' => (int) $item['ATTEMPTS'],
             'queue_status' => $status,
             'next_retry_at' => $status === 'RETRY' ? $nextRetryAt : null,
+            'incident_id' => is_array($incident) ? $incident['incident_id'] : null,
+            'uuid_incident' => is_array($incident) ? $incident['uuid_incident'] : null,
             'error' => $exception->getMessage(),
         ];
     }

@@ -35,15 +35,14 @@ final class RedsysCallbackWorker
                 && in_array($exception->getCode(), [409, 422], true);
 
             if ($functional || $attempts >= $this->maxAttempts) {
-                $this->queue->markIncident($db, (int) $job['ID'], $exception->getMessage());
-                $this->incidents->open(
-                    $db,
-                    $job['UUID_FACTURA'] ?? null,
-                    'REDSYS_CALLBACK',
-                    $this->incidentDetails($job, $exception)
-                );
+                $incident = $this->moveToIncident($db, $job, $workerId, $exception);
 
-                return ['ok' => false, 'status' => 'INCIDENT'];
+                return [
+                    'ok' => false,
+                    'status' => 'INCIDENT',
+                    'incident_id' => $incident['incident_id'],
+                    'uuid_incident' => $incident['uuid_incident'],
+                ];
             }
 
             $delay = $this->retryDelayMinutes($attempts);
@@ -55,6 +54,46 @@ final class RedsysCallbackWorker
             );
 
             return ['ok' => false, 'status' => 'RETRY'];
+        }
+    }
+
+    private function moveToIncident(
+        \PDO $db,
+        array $job,
+        string $workerId,
+        \Throwable $exception
+    ): array {
+        $ownsTransaction = !$db->inTransaction();
+        if ($ownsTransaction) {
+            $db->beginTransaction();
+        }
+
+        try {
+            $this->queue->markIncident($db, (int) $job['ID'], $exception->getMessage());
+            $incident = $this->incidents->openDetailed($db, [
+                'uuid_factura' => $job['UUID_FACTURA'] ?? null,
+                'resource_type' => 'REDSYS_CALLBACK_JOB',
+                'resource_id' => (string) ($job['UUID_JOB'] ?? $job['ID']),
+                'source_type' => 'REDSYS_WORKER',
+                'source_id' => $workerId,
+                'type' => 'REDSYS_CALLBACK',
+                'message' => $this->incidentDetails($job, $exception),
+                'severity' => 'HIGH',
+                'correlation_id' => (string) ($job['UUID_JOB'] ?? ('REDSYS_QUEUE:' . $job['ID'])),
+                'idempotency_key' => 'REDSYS_CALLBACK|JOB:' . (string) ($job['UUID_JOB'] ?? $job['ID']),
+                'reason_code' => 'CALLBACK_PROCESSING_FAILED',
+            ]);
+
+            if ($ownsTransaction) {
+                $db->commit();
+            }
+
+            return $incident;
+        } catch (\Throwable $failure) {
+            if ($ownsTransaction && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $failure;
         }
     }
 
