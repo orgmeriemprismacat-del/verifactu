@@ -58,6 +58,11 @@ try {
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
 
+    if ($action === 'summary') {
+        JsonResponse::send($service->summary($actor));
+        return;
+    }
+
     if ($action === 'list') {
         $filters = $payload['filters'] ?? [];
         if (!is_array($filters)) {
