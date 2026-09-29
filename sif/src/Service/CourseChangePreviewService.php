@@ -150,7 +150,7 @@ final class CourseChangePreviewService
             $amount = $this->toCents((string) ($payment['IMPORT_ASSIGNAT'] ?? '0.00'));
             $type = strtoupper((string) ($payment['TIPUS_MOVIMENT'] ?? ''));
 
-            if ($type === 'CHARGE') {
+            if (in_array($type, ['CHARGE', 'COMPENSATION'], true)) {
                 $cents += $amount;
             } elseif ($type === 'REFUND') {
                 $cents -= $amount;
