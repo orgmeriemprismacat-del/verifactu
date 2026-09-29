@@ -37,6 +37,45 @@ final class RedsysPaymentIntentTest
         Assert::same('120.00', number_format((float) $loaded['EXPECTED_AMOUNT'], 2, '.', ''));
     }
 
+    public function testCreatesPackIntentWithFrozenCommercialSnapshot(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(
+            new RedsysPaymentIntentRepository(),
+            new UuidGenerator()
+        );
+
+        $created = $service->create($db, [
+            'ds_order' => 'ORDERPACKINTENT1',
+            'idpag' => 915,
+            'source_type' => 'PACK',
+            'source_id' => '77',
+            'expected_amount' => '210.00',
+            'currency' => 'EUR',
+            'terminal' => '1',
+            'snapshot' => [
+                'pack' => ['ID_PACK' => 77, 'TITOL' => 'Benestar docent'],
+                'billing' => ['name' => 'Maria Exemple', 'nif' => '12345678Z'],
+                'items' => [
+                    ['ordinal' => 1, 'inscription' => ['ID' => 501, 'A_PAGAR' => '120.00']],
+                    ['ordinal' => 2, 'inscription' => ['ID' => 502, 'A_PAGAR' => '90.00']],
+                ],
+            ],
+            'created_by' => 'web-checkout',
+        ]);
+
+        $loaded = (new RedsysPaymentIntentRepository())->findByDsOrder($db, 'ORDERPACKINTENT1');
+        $snapshot = json_decode((string) $loaded['SNAPSHOT_JSON'], true);
+
+        Assert::same(false, $created['idempotency_reused']);
+        Assert::same('PACK', $loaded['SOURCE_TYPE']);
+        Assert::same('77', (string) $loaded['SOURCE_ID']);
+        Assert::same('210.00', number_format((float) $loaded['EXPECTED_AMOUNT'], 2, '.', ''));
+        Assert::same(1, (int) $snapshot['items'][0]['ordinal']);
+        Assert::same(2, (int) $snapshot['items'][1]['ordinal']);
+        Assert::same('12345678Z', $snapshot['billing']['nif']);
+    }
+
     public function testEquivalentIntentReusesExistingDsOrder(): void
     {
         $db = TestDatabase::fresh();
