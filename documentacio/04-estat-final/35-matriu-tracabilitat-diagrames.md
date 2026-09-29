@@ -10,9 +10,9 @@ Inventari verificat:
 
 | Element | Base actual | Branca `feature/redsys-async-queue` | Cobertura documental |
 |---|---:|---:|---|
-| PHP totals dins `sif/` | 270 a la branca UC-042 (262 baseline + 8 fitxers PHP UC-042) | La comparació històrica de branca queda pendent de recalcular després de consolidar aquests canvis | 36, apartat 3 |
+| PHP totals dins `sif/` | 276 a la branca reconciliada (262 baseline + 6 fitxers SIF UC-007 recents + 8 fitxers UC-042) | La comparació històrica de branca queda pendent de recalcular després de consolidar aquests canvis | 36, apartat 3 |
 | SQL totals dins `sif/database` | 7: 5 migracions, 1 seed i 1 plantilla de permisos | `redsys_callback_queue` continua addicional a la branca asíncrona | 34 i 36, apartats 3 i 8 |
-| Classes/interfícies de producció del SIF | 81 declaracions a `sif/src` (76 baseline + 5 UC-042) | Les classes de l'operació comercial del document 31 continuen `[DISSENY]` | 31, apartats 2-17 |
+| Classes/interfícies de producció del SIF | 86 declaracions a `sif/src` (76 baseline + 5 UC-007 recents + 5 UC-042) | Les classes de l'operació comercial del document 31 continuen `[DISSENY]` | 31, apartats 2-17 |
 | Classes `*Test` | 122 (119 baseline + 3 UC-042) | Recompte actual del checkout; branca pendent de reconciliació | 31, apartat 13; 36, apartats 3 i 8 |
 | Mètodes `test*` | 275 (265 baseline + 10 UC-042) | Inclou les proves afegides al checkout de treball | 31, apartat 13; 36, apartats 3 i 8 |
 | Fitxers PHP dins `sif/tests` | 126 (123 baseline + 3 UC-042) | Inclou suport/runner a més de classes `*Test` | 31, apartat 13; 36, apartats 3 i 8 |
