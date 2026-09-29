@@ -2325,7 +2325,11 @@ function uc007RenderFacturaSifAlumne(res) {
 	html += uc007DlAlumne('Data emissió', invoice.data_emissio);
 	html += uc007DlAlumne('Estat factura', invoice.estat_factura);
 	html += uc007DlAlumne('Estat cobrament', invoice.estat_cobrament);
-	html += uc007DlAlumne('Estat AEAT', invoice.estat_aeat);
+	html += uc007DlAlumne('Estat AEAT factura', invoice.estat_aeat_factura || invoice.estat_aeat);
+	if (invoice.estat_aeat_registre)
+		html += uc007DlAlumne('Estat AEAT últim registre', invoice.estat_aeat_registre);
+	if (invoice.estat_aeat_divergent === true)
+		html += '<dt class="col-sm-4">AEAT</dt><dd class="col-sm-8"><span class="badge bg-warning">Divergència a revisar</span></dd>';
 	html += uc007DlAlumne('Receptor', billing.name);
 	html += uc007DlAlumne('NIF/CIF', billing.nif);
 	html += uc007DlAlumne('Total', totals.total);
