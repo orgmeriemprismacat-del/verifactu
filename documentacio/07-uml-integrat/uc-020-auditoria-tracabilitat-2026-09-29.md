@@ -1,6 +1,7 @@
 # UC-020 — Auditoria consolidada i matriu de traçabilitat
 
-**Data:** 30/09/2026  
+**Data d'auditoria base:** 29/09/2026  
+**Integració documental revisada:** 30/09/2026  
 **Abast:** síntesi de troballes contrastades durant l'auditoria del UC-020 i destinació documental/implementació.  
 **Mètode:** lectura estàtica del repositori. Les proves proposades no s'han executat en aquesta auditoria.
 
