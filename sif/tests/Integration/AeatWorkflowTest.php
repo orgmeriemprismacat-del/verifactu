@@ -300,6 +300,13 @@ final class AeatWorkflowTest
         Assert::same(1, (int) $db->query(
             "SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DELIVERY_UNCERTAIN'"
         )->fetchColumn());
+        Assert::same($result['incident_id'], (int) $db->query(
+            "SELECT ID FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DELIVERY_UNCERTAIN'"
+        )->fetchColumn());
+        Assert::matchesRegularExpression('/^[a-f0-9-]{36}$/', (string) $result['uuid_incident']);
+        Assert::same('FISCAL_QUEUE:1', (string) $db->query(
+            "SELECT CORRELATION_ID FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DELIVERY_UNCERTAIN'"
+        )->fetchColumn());
 
         Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce()['reason']);
         Assert::same(1, $transport->calls);
