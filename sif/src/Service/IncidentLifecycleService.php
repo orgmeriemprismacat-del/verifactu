@@ -36,6 +36,16 @@ final class IncidentLifecycleService
         ];
     }
 
+    public function summary(array $actor): array
+    {
+        $this->assertRead($actor);
+
+        return [
+            'ok' => true,
+            'summary' => $this->incidents->summary($this->db),
+        ];
+    }
+
     public function view(array $actor, int $incidentId): array
     {
         $this->assertRead($actor);
