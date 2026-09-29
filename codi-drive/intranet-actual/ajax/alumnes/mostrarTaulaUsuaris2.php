@@ -1,32 +1,23 @@
 <?php
-session_start();
 
-include ('../../ConnexioIntranet.php');
-include ('../../ConnexioWeb.php');
-include ('../../Text.php');
-include ('../../Usuari.php');
-include ('../../Intranet.php');
-include ('../../inc/missatgesError.php');
+$root = dirname(__DIR__, 2);
+require_once $root . '/LegacyInvoiceReadContext.php';
+
+$user = null;
+$intranet = null;
 
 try {
+    [$user, $intranet] = LegacyInvoiceReadContext::open();
 
-	$_SESSION['usuari'] = unserialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = unserialize($_SESSION['intranet']);
+    $dnies = (string) ($_GET['dnies'] ?? '');
+    $orderBy = (string) ($_GET['orderBy'] ?? '');
+    $asc = (string) ($_GET['asc'] ?? '');
 
-	$dnies 	= $_GET['dnies'];
-	$orderBy	= $_GET['orderBy'];
-	$asc		= $_GET['asc'];
-
-	echo $_SESSION['intranet']->mostrarTaulaUsuaris2_Alumnes($dnies, $orderBy, $asc);
-
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-
+    echo $intranet->mostrarTaulaUsuaris2_Alumnes($dnies, $orderBy, $asc);
+} catch (Throwable $exception) {
+    $code = (int) $exception->getCode();
+    http_response_code($code >= 400 && $code <= 599 ? $code : 500);
+    echo 'Error: ' . $exception->getMessage();
+} finally {
+    LegacyInvoiceReadContext::persist($user, $intranet);
 }
-catch(Exception $e) {
-	echo missatgeError($e->getCode());
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-}
-
-?>
