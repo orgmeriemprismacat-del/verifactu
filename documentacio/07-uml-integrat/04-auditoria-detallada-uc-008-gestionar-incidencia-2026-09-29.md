@@ -2,7 +2,7 @@
 
 **Estat documental:** AUDITAT EN DETALL / CANVIS DOCUMENTALS APLICATS.  
 **Estat backend després del merge a `main` (PR #18, 2026-09-30):** LIFECYCLE PARCIAL IMPLEMENTAT; API INTERNA + WRITER D'ACCIONS + IDEMPOTÈNCIA + INTEGRACIÓ REDSYS/AEAT.  
-**Estat UI:** PENDENT.  
+**Estat UI:** IMPLEMENTADA AL CODI / DESPLEGAMENT PENDENT DE VERIFICAR.  
 **Estat proves:** SUITE BACKEND CI EXECUTADA · 555 PASSED / 0 FAILED.  
 **No acredita:** desplegament productiu, rols reals, dades productives, E2E de navegador, concurrència específica, preproducció ni homologació externa.
 
@@ -36,8 +36,8 @@
 | UC08-09 | UML deia que `FiscalQueueProcessor` no cridava IncidentRepository | DOCUMENTACIÓ OBSOLETA, CORREGIDA |
 | UC08-10 | integritat fiscal obria incidència però DEAD_LETTER per retries esgotats no | CORREGIT |
 | UC08-11 | no hi havia API d'incidències autenticada | CORREGIT backend |
-| UC08-12 | no existeix UI `pay.prisma.cat/sif/incidencies` acreditada | PENDENT |
-| UC08-13 | no existeix resum específic VERI*FACTU a la intranet actual | PENDENT |
+| UC08-12 | UI `pay.prisma.cat/sif/incidencies` | CORREGIT AL CODI; desplegament/E2E pendent |
+| UC08-13 | resum VERI*FACTU a la intranet | CORREGIT AL CODI; alta menú/desplegament pendent |
 | UC08-14 | cap diagrama d'activitats ACTUAL/FINAL específic UC-008 | CORREGIT documentalment |
 | UC08-15 | UC-008 i UC-081 duplicaven lifecycle i noms de serveis | FRONTERA UNIFICADA |
 
@@ -114,7 +114,7 @@ La fitxa UML UC-008 conté ara activitats ACTUAL/FINAL per:
 8. dismissal/reobertura;
 9. resum intranet VERI*FACTU.
 
-La UI ACTUAL es documenta com a absent quan no hi ha codi real; no s'ha inventat una pantalla existent.
+La UI ACTUAL s'ha actualitzat amb el codi real del panell SIF i del resum intranet; `implementat al repositori` continua separat de `desplegat/verificat`.
 
 ## 7. Proves escrites
 
@@ -134,9 +134,9 @@ A més continuen sent rellevants:
 - [x] Executar migracions en `sif_test*` via CI.
 - [x] Executar `php sif/tests/run-tests.php`: **555 passed, 0 failed**.
 - [ ] Corregir qualsevol regressió detectada.
-- [ ] Implementar UI del panell d'incidències.
+- [x] Implementar UI del panell d'incidències al repositori; [ ] verificar desplegament/E2E.
 - [ ] Configurar i provar rols reals.
-- [ ] Implementar resum/enllaç read-only des de la intranet.
+- [x] Implementar resum/enllaç read-only des de la intranet; [ ] alta menú BD i verificació productiva.
 - [ ] Provar concurrència/idempotència amb dues peticions simultànies.
 - [ ] Provar rollback Redsys si falla la inserció d'incidència.
 - [ ] Validar dades sensibles/retenció d'evidències.
@@ -146,10 +146,10 @@ A més continuen sent rellevants:
 
 ```text
 DOCUMENTAT      = AUDITAT I ACTUALITZAT
-IMPLEMENTAT     = PARCIAL BACKEND
+IMPLEMENTAT     = BACKEND + UI CODI; OPERACIÓ PRODUCTIVA PENDENT
 VERIFICAT       = ESTÀTICAMENT + CI PHP/MYSQL
 PROVAT          = SUITE BACKEND CI · 555 PASSED / 0 FAILED
-UI              = PENDENT
+UI              = IMPLEMENTADA AL CODI / DESPLEGAMENT PENDENT
 UML CLASSES     = ACTUALITZAT
 UML SEQÜÈNCIA   = ACTUALITZAT
 UML ACTIVITATS  = ACTUAL/FINAL CREAT
