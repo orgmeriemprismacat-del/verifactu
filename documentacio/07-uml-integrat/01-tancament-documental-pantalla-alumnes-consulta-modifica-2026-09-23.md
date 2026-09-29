@@ -26,8 +26,8 @@
 | AL-14 | Editar dades de pagament — «Desar» | [JS L1311–1326, L1388–1490](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1388-L1490), [`guardarDadesPagament_modalsresultatCerca()` L7525–7571](../../codi-drive/intranet-actual/Intranet.php#L7525-L7571): GET i UPDATE del resum llegat `PAGAMENT/A_PAGAR/IDPAG/FACTURA_RELACIONADA`. | UC-042/002/062/074/105: aquest valor no crea cobrament bancari ni corregeix factura immutable; T-AL-10 conciliació i permisos. |
 | AL-15 | Editar dades de pagament — «Desar i enviar» i recordatori | [JS L1319–1343 i L1388–1490](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1319-L1343) envia GET separat a [`guardarEnviarDadesPagament_ConsultaInformacio.php`](../../codi-drive/intranet-actual/ajax/alumnes/guardarEnviarDadesPagament_ConsultaInformacio.php), que executa **primer** UPDATE de resum i **després** `enviarNotificacioObsPagament_modalsresultatCerca()` [L7572–7674](../../codi-drive/intranet-actual/Intranet.php#L7572-L7674). El control «recordatori» canvia una classe visual i una bandera que modifica el text del correu. El missatge d'èxit del JS és «canvis guardats», **no prova de lliurament**. | UC-042 i UC de reclamacions/comunicació operativa (NO UC-125 de consentiment publicitari): desar i enviar són fases amb resultats diferents; T-AL-F09 validar únicament desament a BD i estat que mostra la UI; excloure enviament, lliurament, recordatoris i qualsevol altra prova de correu. |
 | AL-16 | Obrir fitxa de factura des del camp del modal | [JS L1352–1357](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1352-L1357) navega a `/alumnes/factura/#/factRel/...`; aquesta és una **altra pantalla**. | UC-007: en aquest inventari és només navegació; l'auditoria de totes les accions de la pantalla de factures és un lot separat. T-AL-F10 permís de factura de grup amb pagador diferent. |
-| AL-17 | Icona de factura: consulta i pàgines | [JS L2169–2325](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2169-L2325): consulta `mostraModalConsultaFactura.php`; botons anterior/següent paginen la vista en el navegador; no són emissió fiscal. | UC-007/049 si s'envia: modal autoritzat, pàgina vàlida i estat documental; T-AL-F11 factura multipàgina, absent i tercer pagador. |
-| AL-18 | Descarregar factura i netejar temporal | [JS L2219–2267](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2219-L2267), [`descarregaFactura.php`](../../codi-drive/intranet-actual/ajax/alumnes/descarregaFactura.php): l'asset llegible i minificat del repositori usen `resD` sense declaració local en un callback `res`; el JS sol·licita `eliminarArxiu.php` després del clic al fitxer. | UC-007: callback coherent, descàrrega autenticada i temporal privat; T-AL-13 PDF real, error, permisos, neteja/retenció i absència de nova emissió. |
+| AL-17 | Icona de factura: consulta i pàgines | [JS L2169–2325](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2169-L2325): consulta `mostraModalConsultaFactura.php`; el primer `.html(res)` crea les fletxes i després se'n registren handlers directes, però un segon `.html(res)` substitueix el `modal-body` i deixa les noves fletxes sense aquests handlers. El botó `.download-factura` és al `modal-footer` i **no** queda substituït per aquest segon render. | UC-007/080: resoldre UUID autoritzat, separar consulta de factura de servei de bytes i provar factura multipàgina/absent/tercer pagador. |
+| AL-18 | Descarregar factura i netejar temporal | [JS L2219–2267](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2219-L2267) declara callback `res` però utilitza `resD`; si no existeix global accidental, el camí d'èxit pot fallar abans de descarregar. [`eliminarArxiu.php`](../../codi-drive/intranet-actual/ajax/alumnes/eliminarArxiu.php) rep `filename` per GET i executa `unlink($filename)` sense allowlist/root/propietari visibles al wrapper. La neteja s'inicia immediatament després de `link.click()`, amb possible cursa. | UC-080: streaming privat per documentId, revalidació server-side i audit; cap document fiscal immutable passa per `unlink(filename)` controlat pel client. T-AL-13/UC007-AL18: resposta correcta, error, permisos, cleanup segur i zero emissió nova. |
 | AL-19 | Baixa individual i missatge opcional | [JS L2035–2135](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L2035-L2135), [PHP L9172–9495](../../codi-drive/intranet-actual/Intranet.php#L9172-L9495); motiu, confirmació, estat Moodle/inscripció i avís es tracten successivament. | UC-027/072/124: no confondre amb anul·lació massiva d'edició UC-127; T-AL-11 baixa a la BD, factura/pagador i doble petició, sense executar ni revisar Moodle o correus. |
 | AL-20 | Canvi de curs: destinació, preu, despeses i previsualització | [JS L1543–1674 i L1812–2034](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1812-L2034): selectors d'any/mes/curs/variant; AJAX de cerca de preu del destí i despeses de gestió; càlcul de pendent al client; modal de previsualització separat. El preu cercat al backend per al formulari **no demostra que l'endpoint final el torni a calcular**. | UC-071/105/112: previsualització basada en snapshot comercial autoritatiu, plaça i ingressos reals; T-AL-12 preu/condicions variables, pagaments parcials, peticions tardanes. |
 | AL-21 | Confirmar, tornar enrere o tancar canvi | [JS L1675–1811](../../codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js#L1675-L1811), [PHP L8513–9082](../../codi-drive/intranet-actual/Intranet.php#L8513-L9082); torna al modal anterior sense execució o envia GET amb imports quan es confirma. | UC-071/105: executar canvi idempotent només després de confirmació, validar import/actor/plaça i fases d'origen/destí; T-AL-12 i prova de previsualització descartada. |
@@ -193,39 +193,45 @@ stop
 
 ### AL-DOC · Navegar o descarregar factura — FINAL de subacció
 
-```plantuml
+~~~plantuml
 @startuml
-title AL-DOC FINAL | Accions de factura des de la fitxa alumne
+title AL-DOC FINAL | Consulta de factura i document des de la fitxa alumne
 start
-:Seleccionar factura associada a una inscripció;
+:Seleccionar relació d'inscripció amb factura;
+:Resoldre UUID_FACTURA i autoritzar l'actor al servidor;
 if (Clic camp número factura?) then (Sí)
-  :Obrir pàgina de factures en ruta diferenciada;
-  :Autoritzar document a la pàgina de destinació;
+  :Obrir UC-007 amb UUID opac;
+  :Llegir factura/estats sense mutació;
 elseif (Clic icona factura?) then (Sí)
-  :Obrir modal de document de forma autoritzada;
-  if (Hi ha més pàgines?) then (Sí)
-    :Navegar pàgines sense modificar document;
-  endif
-  if (Clic descarregar?) then (Sí)
-    :Sol·licitar document immutable amb autorització;
-    :Lliurar PDF i netejar temporal privat amb control;
+  :Obrir vista UC-007 autoritzada;
+  :Llistar només metadata documental permesa;
+  if (Clic previsualitzar/descarregar?) then (Sí)
+    :Derivar a UC-080;
+    :Revalidar document, actor i grant/token;
+    :Comprovar bytes/hash via UC-55/78;
+    :Servir el mateix artefacte fiscal des de storage privat;
   endif
 endif
-:Cap consulta/navegació no crea factura ni cobrament;
+:Cap consulta, paginació o descàrrega crea factura ni cobrament;
+note right
+  No usar parseInt sobre NUM_VISIBLE/UUID.
+  No regenerar PDF del llegat.
+  No eliminar l'original amb filename del client.
+end note
 stop
 @enduml
-```
+~~~
 
 ## 3. Incidències comprovades al codi i treball d'implementació
 
 | Ref | Evidència concreta del tall de codi | Modificació necessària i prova de sortida |
 | --- | --- | --- |
 | AL-IMP-01 · privacitat documental | Els fitxers temporals de certificat generats tenen noms basats en identificació personal i diversos artefactes amb aquest patró ja apareixen a l'arbre de GitHub; veure [incidència detallada](00-captures-auditoria-alumnes-consulta-modifica-2026-09-22.md#8-incidència-de-protecció-de-dades-detectada-al-repositori-sense-reproduir-cap-document). | Activar circuit privat de gestió d'incidències, revisar exposició, permisos, HEAD/historial i còpies, temporal privat amb nom opac, endpoint de descàrrega autenticat i exclusió de Git. **No considerar corregit sense verificació de l'equip responsable.** |
-| AL-IMP-02 · neteja de temporals | [`eliminarArxiu.php`](../../codi-drive/intranet-actual/ajax/alumnes/eliminarArxiu.php) pren un nom de fitxer d'un GET i executa una operació d'eliminació al filesystem; al wrapper revisat no consta validació de nom, vinculació a l'actor ni comprovació de pertinença al directori de temporals. **No exposar al document cap ruta ni prova destructiva contra producció.** | Resoldre únicament un token opac cap a un temporal de l'actor al directori privat i restringir la neteja a objectes caducats/autoritzats; fer proves no destructives en entorn aïllat. Revisió de seguretat prioritària. |
+| AL-IMP-02 · neteja de temporals | [`eliminarArxiu.php`](../../codi-drive/intranet-actual/ajax/alumnes/eliminarArxiu.php) pren `filename` d'un GET i executa `unlink($filename)`; no es veu comprovació de directori arrel, `realpath`, extensió, propietari/sessió, token opac ni resultat d'`unlink`. La mateixa ruta s'usa també en certificats. **No executar proves destructives contra producció.** | Substituir el nom/path del client per identificador opac de temporal, validar que el recurs pertany a l'actor/directori privat i aplicar TTL server-side. Els documents fiscals UC-080 no s'esborren amb aquesta ruta. |
 | AL-IMP-03 · permisos | Molts handlers només consulten `tePermisEdicio` al navegador o desserialitzen sessió als wrappers; la revisió d'aquests mètodes no verifica autorització per recurs i per camp del SIF. | Controls d'actor/subjecte/inscripció/document/nota al backend, anti-CSRF en mutacions i proves de petició directa. No afirmar vulneració reproduïda sense proves. |
 | AL-IMP-04 · dades d'inscripció | El formulari mixt deixa canviar `INSC CURS`, data/motiu de baixa, `INSC_MAILING` i certificat amb un UPDATE llegat; la mateixa petició no acredita Moodle, consentiment ni elegibilitat. | Separar comandaments i validació de UC-042/120/124/125 i baixa UC-027/072, amb estat abans/després i propagació real. Provar que editar un camp ordinari no canvia la situació acadèmica/fiscal. |
 | AL-IMP-05 · import i enviament | «Desar i enviar» fa UPDATE + correu seqüencialment; un resultat de desament no acredita lliurament, i repetir la petició pot repetir l'enviament. | Outbox/estat per destinatari, idempotència i resposta per etapa; reconciliar amb pagaments reals i no equiparar text de recordatori a cobrament. |
-| AL-IMP-06 · errors JS | `resD` de descàrrega, modal d'informació de pagador amb condició d'èxit tautològica, canvi de curs amb OR insuficient i confirmacions basades en absència de «error». | Resultats JSON tipificats, tractament d'errors completat, reconsulta després de commit i tests UI del fitxer minificat realment servit. |
+| AL-IMP-06 · errors JS | A AL-18 el callback declara `res` però usa `resD`; el fail callback usa `rerrorFunction` no acreditada. A AL-17 el segon `.html(res)` substitueix les fletxes després d'haver registrat handlers directes; el botó download del footer no queda substituït. Altres fluxos continuen inferint error per substrings HTML. | Respostes estructurades, handlers delegats o registrats després del render final, ús coherent de la variable de callback i tests UI del bundle real servit. |
 | AL-IMP-07 · edicions no desades | «Cancel·lar» del perfil i dels apartats de modal repinta valors temporals; `save-result` d'inscripció també pot repintar inputs en un callback temporitzat després d'un error retornat al `.done()`. | Snapshot UI immutable original/versió, restauració real en cancel·lar/error i confirmació només amb persistència acreditada. |
 | AL-IMP-08 · canvi curs/baixa | Fluxos seqüencials amb import del navegador i integracions Moodle; documentats a [UC-071](uc-071-registrar-canvi-curs-complet.md) i [UC-027](uc-027-donar-de-baixa.md). | Idempotència, previsualització coherent, places/ingressos/factura reals, resultats per fase sense efectes duplicats. |
 | AL-IMP-09 · operació sobre factura | Botons de modal/paginació/descàrrega i URL de factures conflueixen a la fitxa però no han de ser tractats com a emissió fiscal. | Desacoblar consulta/descàrrega d'issueInvoice, validar receptor/titular i preservació documental per UC-007; prova «consultar N vegades → 0 emissions noves». |
