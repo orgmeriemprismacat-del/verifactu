@@ -54,7 +54,7 @@ try {
 
 				if (is_array($payload) && isset($payload['id']) && intval($payload['id']) > 0) {
 					$urlToken = isset($payload['url']) ? $payload['url'] : '';
-					if ($urlToken == '' || $urlTastet == '' || hash_equals($urlToken, $urlTastet)) {
+					if ($urlToken == '' || ($urlTastet != '' && hash_equals($urlToken, $urlTastet))) {
 						$originalId = intval($payload['id']);
 						$tokenValid = true;
 					}
