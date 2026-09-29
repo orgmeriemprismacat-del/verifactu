@@ -6,13 +6,17 @@ use Prisma\Sif\Exception\SifException;
 
 final class LegacyUsocSnapshotRepository
 {
-    public function loadByIdpag(\PDO $legacyDb, int $idpag, mixed $studentPaymentAmount, mixed $usocAmount = null): array
+    public function loadByIdpag(\PDO $legacyDb, int $idpag, mixed $studentPaymentAmount, mixed $usocAmount = null, ?int $inscriptionId = null): array
     {
         if ($idpag <= 0) {
             throw SifException::validation('Invalid legacy USOC IDPAG');
         }
 
-        $inscription = $this->findInscription($legacyDb, $idpag);
+        if ($inscriptionId !== null && $inscriptionId <= 0) {
+            throw SifException::validation('Invalid legacy USOC inscription ID');
+        }
+
+        $inscription = $this->findInscription($legacyDb, $idpag, $inscriptionId);
         if ($inscription === null) {
             throw SifException::conflict('Legacy USOC inscription not found for IDPAG');
         }
@@ -46,19 +50,25 @@ final class LegacyUsocSnapshotRepository
         ];
     }
 
-    private function findInscription(\PDO $legacyDb, int $idpag): ?array
+    private function findInscription(\PDO $legacyDb, int $idpag, ?int $inscriptionId): ?array
     {
-        $stmt = $legacyDb->prepare(
-            'SELECT ID, IDPAG, `ANY`, MES, CURS, NOM, COGNOMS, DNI, CORREU,
-                    ADRECA, Codi_Postal, Poblacio, FACTURA_RELACIONADA,
-                    A_PAGAR, PAGAMENT, TIPUS_DESC, VALID_DESC, FRACCIO, FRACCIONAT
-             FROM inscripcions
-             WHERE IDPAG = ?
-               AND (`INSC CURS` = \'0\' OR `INSC CURS` = \'1\' OR `INSC CURS` = \'M\')
-             ORDER BY ID
-             LIMIT 1'
-        );
-        $stmt->execute([$idpag]);
+        $sql = 'SELECT ID, IDPAG, `ANY`, MES, CURS, NOM, COGNOMS, DNI, CORREU,
+                       ADRECA, Codi_Postal, Poblacio, FACTURA_RELACIONADA,
+                       A_PAGAR, PAGAMENT, TIPUS_DESC, VALID_DESC, FRACCIO, FRACCIONAT
+                FROM inscripcions
+                WHERE IDPAG = ?
+                  AND (`INSC CURS` = \'0\' OR `INSC CURS` = \'1\' OR `INSC CURS` = \'M\')';
+        $params = [$idpag];
+
+        if ($inscriptionId !== null) {
+            $sql .= ' AND ID = ?';
+            $params[] = $inscriptionId;
+        } else {
+            $sql .= ' ORDER BY ID LIMIT 1';
+        }
+
+        $stmt = $legacyDb->prepare($sql);
+        $stmt->execute($params);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         return is_array($row) ? $row : null;
