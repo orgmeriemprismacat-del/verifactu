@@ -134,6 +134,8 @@ Fitxer nou:
 La UI:
 
 - mostra «Preu calculat del curs»;
+- manté **`Pagat` com a camp de només lectura**: el valor es rellegeix del SIF i, si no hi ha factura SIF, del llegat servidor;
+- recalcula visualment `Pendent` amb el `paid_amount` retornat pel SIF/servidor;
 - detecta si `#apagar-nou-registre` s'ha separat del preu calculat;
 - obre «Motiu de modificació manual del preu» només quan cal;
 - abans de «Previsualitza el canvi» demana classificació al SIF;
@@ -155,7 +157,7 @@ Quan `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1`, `realitzarCanviCurs_CanviCurs.php`:
 1. extreu actor i rols de la sessió;
 2. recalcula al servidor el preu estàndard de destinació amb `buscarPreuAPagar_modalCanviCurs()`;
 3. envia al SIF preu original, estàndard, final, despeses, curs origen/destí i motiu de preu manual;
-4. el SIF substitueix import original/pagat pels valors SIF quan existeix una única factura;
+4. el SIF substitueix import original/pagat pels valors SIF quan existeix una única factura; el wrapper també rellegeix origen i `PAGAMENT` des de BD llegada en absència de SIF, de manera que el navegador no pot imposar un import ja pagat;
 5. compara la decisió recalculada amb la vista just abans de confirmar;
 6. si la decisió ha canviat o el cas és ambigu, **no executa** `realitzarCanviCurs_modalCanviCurs()`.
 
@@ -296,6 +298,7 @@ end
 - provar UI amb dades sintètiques;
 - confirmar els noms de rols que poden previsualitzar/confirmar;
 - verificar que `buscarPreuAPagar_modalCanviCurs()` retorna únicament el valor monetari esperat a tots els tipus de descompte;
+- verificar que `Pagat` no es pot editar a la UI nova i que `Pendent` coincideix amb la relectura SIF/llegat;
 - verificar l'asset real desplegat i els dos feature flags.
 
 ### P1 per completar UC-071
