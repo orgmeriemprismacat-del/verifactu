@@ -2,7 +2,7 @@
 
 namespace Prisma\Sif\Service;
 
-use Prisma\Sif\Contract\InvoiceVisibilityPolicyInterface;
+use Prisma\Sif\Contract\DocumentAuthorizationPolicyInterface;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\DocumentAccessRepository;
 use Prisma\Sif\Repository\FiscalDocumentAccessRepository;
@@ -14,7 +14,7 @@ final class InvoiceDocumentAccessService
         private \PDO $db,
         private DocumentAccessRepository $documents,
         private InvoiceReadRepository $invoices,
-        private InvoiceVisibilityPolicyInterface $visibility,
+        private DocumentAuthorizationPolicyInterface $authorization,
         private PrivateDocumentStore $store,
         private FiscalDocumentAccessRepository $accessLog
     ) {
@@ -35,7 +35,7 @@ final class InvoiceDocumentAccessService
         $invoice = $this->invoices->findByUuid($this->db, $uuidFactura);
         $relations = $this->invoices->findRelations($this->db, $uuidFactura);
 
-        if ($invoice === null || !$this->visibility->canView($actor, $invoice, $relations)) {
+        if ($invoice === null || !$this->authorization->canDownload($actor, $invoice, $relations, $document)) {
             $this->audit($actor, $document, 'DENIED', 'INVOICE_SCOPE');
             throw SifException::forbidden('Document access denied');
         }
@@ -52,7 +52,11 @@ final class InvoiceDocumentAccessService
                 (string) $document['HASH_FITXER']
             );
         } catch (\Throwable $exception) {
-            $reason = $exception->getCode() === 409 ? 'HASH_MISMATCH' : 'STORAGE_UNAVAILABLE';
+            $reason = match ((int) $exception->getCode()) {
+                403 => 'PATH_OUTSIDE_STORAGE',
+                409 => 'HASH_MISMATCH',
+                default => 'STORAGE_UNAVAILABLE',
+            };
             $this->audit($actor, $document, 'FAILED', $reason);
             throw $exception;
         }
