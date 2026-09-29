@@ -46,6 +46,17 @@ interface NovicePromotionAdjustmentApprovalSourceInterface
     public function approvedTransferredCancellation(string $uuidDerivedReview): ?array;
 
     /**
+     * Final decision for cancelling a course whose CURRENT promotional
+     * attribution is an APPLIED derived-balance application.
+     *
+     * Mandatory keys: review_uuid, decision_type, decision_id, decision,
+     * reviewer_id, evidence_ref, approved_at_utc,
+     * uuid_source_derived_application, uuid_parent_derived_balance,
+     * uuid_rectificative, approved_promotional_amount, approved_cash_amount.
+     */
+    public function approvedDerivedApplicationCancellation(string $uuidDerivedReview): ?array;
+
+    /**
      * Final decision for moving the CURRENT promotional attribution to
      * another course when the current source is either an APPLIED derived
      * application or an already CONFIRMED transfer.
