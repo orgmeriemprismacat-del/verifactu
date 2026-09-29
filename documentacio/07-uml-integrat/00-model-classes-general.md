@@ -1032,10 +1032,9 @@ class FiscalDocumentGenerator {
  <<DISSENY: PDF/QR/XML, no PHP acreditat>>
  +generate(snapshot,type,version) bytes
 }
-class PrivateDocumentStore {
- <<DISSENY: custòdia físicament verificada>>
+class PrivateDocumentWriter {
+ <<DISSENY: escriptura/custòdia física pendent>>
  +writeAndVerify(bytes) key
- +readVerified(key,sha256) bytes
 }
 class DocumentAvailabilityService {
  <<DISSENY: no PHP acreditat>>
@@ -1077,9 +1076,9 @@ class DocumentRepository {
 }
 DocumentWorker --> DocumentJobRepository : encolat/reintent
 DocumentWorker --> FiscalDocumentGenerator : bytes de font fiscal
-DocumentWorker --> PrivateDocumentStore : desar/verificar
+DocumentWorker --> PrivateDocumentWriter : desar/verificar
 DocumentWorker ..> DocumentRepository : registra metadata; recuperar ID per via addicional
-HistoricalOriginalCustodyService --> PrivateDocumentStore : bytes ORIGINALS de l'arxiu llegat
+HistoricalOriginalCustodyService --> PrivateDocumentWriter : bytes ORIGINALS de l'arxiu llegat
 HistoricalOriginalCustodyService ..> DocumentRepository : només si metadata no existent i validada
 DocumentAvailabilityService --> PrivateDocumentStore : llegir i recalcular hash
 InvoiceDocumentAccessService --> VisibilityPolicy : consulta per document
