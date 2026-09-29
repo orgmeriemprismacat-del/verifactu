@@ -1,7 +1,7 @@
 # UC-008 · Auditoria detallada de gestió d'incidències — 2026-09-29
 
 **Estat documental:** AUDITAT EN DETALL / CANVIS DOCUMENTALS APLICATS.  
-**Estat backend en aquesta branca:** LIFECYCLE PARCIAL IMPLEMENTAT; API INTERNA + WRITER D'ACCIONS + IDEMPOTÈNCIA + INTEGRACIÓ REDSYS/AEAT.  
+**Estat backend després del merge a `main` (PR #18, 2026-09-30):** LIFECYCLE PARCIAL IMPLEMENTAT; API INTERNA + WRITER D'ACCIONS + IDEMPOTÈNCIA + INTEGRACIÓ REDSYS/AEAT.  
 **Estat UI:** PENDENT.  
 **Estat proves:** ESCRITES / NO EXECUTADES EN AQUESTA AUDITORIA.  
 **No acredita:** desplegament productiu, rols reals, dades productives, execució de tests, E2E de navegador ni homologació externa.
