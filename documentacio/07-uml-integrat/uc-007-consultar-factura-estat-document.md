@@ -127,6 +127,11 @@ class InvoiceVisibilityPolicyInterface {
  +canView(actor,invoice,relations) bool
  +project(actor,view) array
 }
+class ResolvedInvoiceVisibilityPolicy {
+ <<PHP EXISTENT · SCOPE SERVER-SIDE>>
+ +canView(actor,invoice,relations) bool
+ +project(actor,view) array
+}
 class InvoiceReadRepository {
  <<PHP EXISTENT · READ ONLY>>
  +findByUuid(db,uuid) array?
@@ -148,12 +153,13 @@ class DocumentAvailabilityService {
  +check(documentId) result
 }
 InvoiceQueryService --> InvoiceVisibilityPolicyInterface : obligatòria
+ResolvedInvoiceVisibilityPolicy ..|> InvoiceVisibilityPolicyInterface
 InvoiceQueryService --> InvoiceReadRepository : consulta
 InvoiceQueryService ..> InvoiceDocumentAccessService : bytes, pendent
 InvoiceDocumentAccessService --> DocumentAvailabilityService
 ```
 
-**Implementat:** servei de consulta, repositori de lectura i contracte de política. **Pendent:** política concreta resolta des d'identitat/rol server-side, endpoint HTTP autenticat i UC-80. El repositori de lectura no retorna `PATH_FITXER`.
+**Implementat:** servei de consulta, repositori de lectura, contracte de política i `ResolvedInvoiceVisibilityPolicy` fail-closed sobre un scope ja resolt pel servidor; també existeix CLI read-only no productiu per validació. **Pendent:** adaptador que construeixi aquest scope des d'identitat/rol real, endpoint HTTP autenticat i UC-80. El repositori de lectura no retorna `PATH_FITXER`.
 ## 4. Seqüència FINAL — consultar factura i, opcionalment, demanar document
 
 ~~~mermaid
