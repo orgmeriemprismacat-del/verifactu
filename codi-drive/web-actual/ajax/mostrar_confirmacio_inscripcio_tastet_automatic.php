@@ -11,8 +11,9 @@ include("../PaginaConfirmacioTastet.php");
 include("../Uc108ConfirmationToken.php");
 
 try {
-	$encr = isset($_GET['keyEncr']) ? trim($_GET['keyEncr']) : '';
-	$urlTastet = isset($_GET['urlTastet']) ? trim($_GET['urlTastet']) : '';
+	$input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
+	$encr = isset($input['keyEncr']) ? trim($input['keyEncr']) : '';
+	$urlTastet = isset($input['urlTastet']) ? trim($input['urlTastet']) : '';
 
 	if ($encr == '') {
 		echo missatgeError('1401');
