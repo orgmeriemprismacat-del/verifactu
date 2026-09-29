@@ -2,7 +2,7 @@
 
 **Objectiu:** conservar **dues obligacions/factures diferenciades** per una mateixa inscripció USOC: la part que paga l'alumne i la part que correspon a l'entitat. **No** confondre una única inscripció amb una única factura, ni interpretar un pagament Redsys de l'alumne com si hagués cobrat també la part de l'entitat.
 
-**Estat contrastat:** existeixen `RedsysUsocInvoiceService` (part alumne) i `UsocEntityInvoiceService` (factura explícita a l'entitat), `LegacyUsocSnapshotRepository` i `LegacyUsocInvoicePayloadBuilder`. El primer servei retorna explícitament `entity_invoice_pending`; el segon retorna `payment_registered=false`. **No es dedueix d'aquests serveis un orquestrador final atòmic que emeti dues factures, cobri dues parts i reconciliï el llegat en una sola transacció.**
+**Estat contrastat:** existeixen `RedsysUsocInvoiceService` (part alumne), `UsocEntityInvoiceService` (factura explícita a l'entitat), `LegacyUsocSnapshotRepository`, `UsocStudentInvoiceLinkRepository`, `UsocFinancingCaseRepository` i `UsocCaseReconciler`. El primer servei persisteix el checkpoint `PENDING_ENTITY_INVOICE`; el segon valida la factura alumne i persisteix `ENTITY_INVOICED`; el reconciliador deriva l'estat econòmic de les dues parts. **No existeix encara una única transacció atòmica que englobi validació comercial, dos cobraments i dues factures, ni un trigger automàtic de conciliació després del cobrament entitat.**
 
 ## 1. Fitxa funcional del cas mare
 
@@ -180,7 +180,7 @@ end
 
 La fletxa simplificada de Redsys al worker **representa el camí via callback signat i cua descrit a UC-03**, no una crida directa de Redsys al worker ni l'existència d'un orquestrador USOC complet.
 
-## 5. Diagrama d'estat de l'expedient (DISSENY)
+## 5. Diagrama d'estat de l'expedient (IMPLEMENTACIÓ PARCIAL + OBJECTIU)
 
 ```mermaid
 stateDiagram-v2
@@ -198,18 +198,18 @@ stateDiagram-v2
 
 **Aquest diagrama és la proposta d'estats de l'expedient**, no una classe o taula de workflow `UsocOrchestrator` identificada en l'actual codi.
 
-### 5.1. Acció independent: reconstruir l'expedient conjunt després de l'emissió de l'alumne — DISSENY/PARCIAL
+### 5.1. Acció independent: reconstruir l'expedient conjunt després de l'emissió de l'alumne — IMPLEMENTAT PARCIALMENT
 
 **Disparador:** el worker ha confirmat factura/cobrament de l'alumne, però el resultat `entity_invoice_pending` no arriba al panell, s'ha perdut la resposta, o falta la factura de la part entitat. **Actor:** procés de conciliació USOC / gestió autoritzada. **Entrada:** `DS_ORDER`, `UUID_FACTURA_ALUMNE` i `ID_INSC` acreditats, imports i receptor de la intenció congelada, fets fiscals i bancaris SIF actuals. **Postcondició:** expedient reconstruït amb **dues línies de finançament** i estat separat per factura/pagament, amb pas pendent només per la part que falta; **no tornar a cobrar ni emetre la factura alumne** per recuperar les dades de la part entitat.
 
-**Contrast de codi:** `RedsysUsocInvoiceService::issueFromIntentSnapshot()` retorna `entity_invoice_pending` en un array un cop ha delegat `InvoiceService::issueInvoice()`. El servei PHP no té en aquests mètodes un writer d'expedient USOC durable ni un procés que, a partir d'un `UUID_FACTURA_ALUMNE`, asseguri l'emissió posterior de la part entitat. `LegacyUsocSnapshotRepository::loadByIdpag()` llegeix el primer registre llegat d'un IDPAG (`ORDER BY ID LIMIT 1`), i no valida per si sol que aquest sigui l'inscrit fiscal de la factura alumne. `UsocEntityInvoiceService` només comprova que el UUID d'alumne aportat no sigui buit: cal contrastar-lo amb la factura SIF i l'ID_INSC abans d'autoritzar l'emissió (UC-19b).
+**Contrast de codi actualitzat 30/09/2026:** `RedsysUsocInvoiceService` persisteix `usoc_financing_case` després de la factura alumne. `LegacyUsocSnapshotRepository::loadByIdpag()` exigeix ara `ID_INSC` i consulta `IDPAG + ID`, sense `ORDER BY ID LIMIT 1`. `UsocEntityInvoiceService` exigeix `id_insc` i `UsocStudentInvoiceLinkRepository` valida que `student_invoice_uuid` correspongui a la mateixa inscripció/IDPAG, sigui una factura Redsys `USOC_ALUMNE` i tingui el total esperat. `UsocCaseReconciler` permet reconstruir i actualitzar l'estat de l'expedient. El que continua pendent és l'automatització del pas post-cobrament i l'E2E complet.
 
 ```plantuml
 @startuml
 left to right direction
 actor "Procés de conciliació USOC" as W
 actor "Operador autoritzat" as O
-rectangle "SIF PrisMa — UC-13 / RECUPERAR EXPEDIENT (DISSENY)" {
+rectangle "SIF PrisMa — UC-13 / RECUPERAR EXPEDIENT (IMPLEMENTAT PARCIAL)" {
  usecase "Reconciliar expedient després\nde factura alumne confirmada" as Reconcile
  usecase "Consultar factura i CHARGE alumne\nper ID_INSC + DS_ORDER" as Source
  usecase "Consultar si existeix factura entitat\ni deute/pagaments propis" as Entity
@@ -229,7 +229,7 @@ O --> Pay
 sequenceDiagram
 autonumber
 actor O as Gestió/worker conciliació
-participant C as UsocCaseReconciler [DISSENY]
+participant C as UsocCaseReconciler [IMPLEMENTAT]
 participant I as Factures/pagaments i fact_rels SIF [LECTURA]
 participant L as Llegat inscripcions [LECTURA]
 participant E as UsocEntityInvoiceService [PHP; UC-19b]
@@ -258,10 +258,10 @@ else Factura i cobrament alumne confirmats
   P-->>O: UUID_PAYMENT real, sense recrear factura alumne
  end
 end
-Note over C,P: Recuperador i checkpoint per cas no acreditats. La relectura evita inferir un ingrés d'entitat del cobrament de l'alumne.
+Note over C,P: Checkpoint i reconciliador implementats; la relectura evita inferir un ingrés d'entitat del cobrament de l'alumne. El trigger automàtic post-cobrament continua pendent.
 ```
 
-### 5.2. Acció independent: verificar i tancar l'expedient de finançament sense confondre dos pagadors — DISSENY
+### 5.2. Acció independent: verificar i tancar l'expedient de finançament sense confondre dos pagadors — IMPLEMENTAT PARCIALMENT
 
 **Disparador:** gestió vol marcar completat el finançament USOC d'una inscripció. **Precondicions:** factura alumne i factura entitat **diferents**, identitat fiscal/inscripció i import de cadascuna contrastats; assignacions de pagament reals per factura, i qualsevol `REFUND` o compensació posterior classificats per pagador. **Postcondició:** `FINANÇAMENT_CONCILIAT` com a **estat objectiu de l'expedient**, diferent d'estat acadèmic, certificat o acceptació AEAT; si la part entitat només està facturada o pagada parcialment, conservar deute i no declarar el cas complet.
 
@@ -269,7 +269,7 @@ Note over C,P: Recuperador i checkpoint per cas no acreditats. La relectura evit
 @startuml
 left to right direction
 actor "Responsable gestió/cobraments" as O
-rectangle "SIF PrisMa — UC-13 / TANCAMENT ECONÒMIC (DISSENY)" {
+rectangle "SIF PrisMa — UC-13 / TANCAMENT ECONÒMIC (IMPLEMENTAT PARCIAL)" {
  usecase "Conciliar dues parts USOC\ni estat del finançament" as Close
  usecase "Verificar factura i ingrés alumne" as Student
  usecase "Verificar factura i ingrés entitat" as Entity
@@ -318,7 +318,7 @@ Note over C,L: No hi ha coordinador o ledger per ID_INSC acreditat: un PAYMENT a
 
 [UC-13 original](../06-fitxes-funcionals/uc-013.md) · [UC-19a original](../06-fitxes-funcionals/uc-019a.md) · [UC-19b original](../06-fitxes-funcionals/uc-019b.md) · [Revisió fons inscripció](00-revisio-moviments-inscripcions.md) · [RedsysUsocInvoiceService](../../sif/src/Service/RedsysUsocInvoiceService.php) · [UsocEntityInvoiceService](../../sif/src/Service/UsocEntityInvoiceService.php) · [LegacyUsocInvoicePayloadBuilder](../../sif/src/Service/LegacyUsocInvoicePayloadBuilder.php) · [LegacyUsocSnapshotRepository](../../sif/src/Repository/LegacyUsocSnapshotRepository.php) · [RedsysUsocInvoiceServiceTest](../../sif/tests/Integration/RedsysUsocInvoiceServiceTest.php) · [UsocEntityInvoiceServiceTest](../../sif/tests/Integration/UsocEntityInvoiceServiceTest.php).
 
-**No acreditat:** classificació d'afiliació externa completa, pagament entitat real, prova d'extrem a extrem, classe d'orquestració, transacció conjunta o ledger per inscripció implementat.
+**No acreditat encara:** classificació d'afiliació externa completa, cobrament entitat real en E2E, adaptador/pantalla final, trigger automàtic de reconciliació i prova d'extrem a extrem. **Implementat al repositori:** identitat `ID_INSC`, validació factura alumne, `usoc_financing_case` i `UsocCaseReconciler`.
 
 
 ## 7. Auditoria específica 29/09/2026
@@ -394,4 +394,4 @@ Vegeu [auditoria i matriu UC-013](uc-013-auditoria-tracabilitat-2026-09-29.md).
 - IMPLEMENTAT: parcial.
 - VERIFICAT: estàticament contra codi.
 - TEST EXECUTAT: no acreditat.
-- PENDENT P0: identitat inequívoca d'inscripció, vinculació factura alumne↔ID_INSC/IDPAG i checkpoint durable de continuació.
+- P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, vinculació factura alumne↔ID_INSC/IDPAG/import i checkpoint durable. Pendents: trigger post-cobrament, adaptador final, E2E i decisions funcionals.
