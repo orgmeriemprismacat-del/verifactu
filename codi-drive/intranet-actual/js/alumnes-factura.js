@@ -129,7 +129,7 @@ requestMain.done(function( message ) {
 
 			cercaPer += elementsCercats;
 
-			/* Cerca els usuaris amb les factures que el dni = dni o el email = email
+			/* UC-007: prioritzar consulta SIF read-only. El mòdul nou només fa\n			fallback al circuit llegat quan el SIF respon correctament amb 0 resultats. */\n			if (typeof window.uc007SifSearch === 'function') {\n				window.uc007SifSearch({\n					dni: dni,\n					email: email,\n					factRel: factRel,\n					factNum: factNum,\n					cercaPer: cercaPer\n				});\n				return;\n			}\n\n			/* Cerca els usuaris amb les factures que el dni = dni o el email = email
 			correspongui amb la inscripció relacionada amb la factura o la factura
 			relacionada = factRel o el número de la factura = factNum */
 			var request = $.ajax({
