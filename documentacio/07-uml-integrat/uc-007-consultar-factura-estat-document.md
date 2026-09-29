@@ -112,81 +112,124 @@ flowchart LR
   a_2 --> u_4
 ```
 
-## 3. Subdiagrama de classes: existent i servei objectiu
+## 3. Subdiagrama de classes — frontera FINAL UC-007 / UC-080
 
-```mermaid
+La consulta de factura i la descàrrega de bytes són responsabilitats diferents. UC-007 resol factura, estats, relacions i metadades documentals; UC-080 revalida el document concret i serveix bytes. UC-55/78 governen disponibilitat, generació, retry i custòdia.
+
+~~~mermaid
 classDiagram
 direction LR
-class InvoiceDocumentAccessService {
- <<DISSENY: no implementada>>
+class InvoiceQueryService {
+ <<DISSENY UC-007>>
+ +search(actor,criteria) result
  +view(actor,uuidFactura) result
- +download(actor,documentId) stream
 }
-class VisibilityPolicy {
- <<DISSENY: no implementada>>
+class InvoiceVisibilityPolicy {
+ <<DISSENY UC-007>>
  +canView(actor,factura,relations) bool
 }
 class InvoiceReadRepository {
- <<DISSENY: no acreditat>>
- +findInvoice(uuidFactura) array
- +findVisibleRelations(uuidFactura,actor) array
+ <<DISSENY UC-007>>
+ +findByUuid(uuidFactura) array
+ +search(criteria,scope) array
+ +findLines(uuidFactura) array
+ +findRectifications(uuidFactura) array
+}
+class InvoiceStateReadRepository {
+ <<DISSENY UC-007>>
+ +paymentState(uuidFactura) result
+ +fiscalState(uuidFactura) result
+ +aeatState(uuidFactura) result
+}
+class DocumentReadRepository {
+ <<DISSENY UC-007>>
+ +listMetadata(uuidFactura) array
+}
+class InvoiceDocumentAccessService {
+ <<DISSENY UC-080>>
+ +listAuthorized(actor,scope) documents
+ +download(actor,documentId,tokenOrSession) bytes
+}
+class DocumentAvailabilityService {
+ <<DISSENY UC-055/078>>
+ +check(documentId) result
 }
 class DocumentRepository {
  <<PHP existent>>
  +registerDocument(db,uuidFactura,type,path,contents) array
 }
-class FiscalDocumentAccessRepository {
- <<DISSENY: writer no acreditat>>
- +append(db,event) string
-}
-InvoiceDocumentAccessService --> VisibilityPolicy : comprova actor i abast
-InvoiceDocumentAccessService --> InvoiceReadRepository : llegeix factura
-InvoiceDocumentAccessService --> FiscalDocumentAccessRepository : audita consulta/descàrrega
-InvoiceDocumentAccessService --> DocumentRepository : metadades registrades prèviament
-```
+InvoiceQueryService --> InvoiceVisibilityPolicy : autoritza factura
+InvoiceQueryService --> InvoiceReadRepository : snapshot i relacions
+InvoiceQueryService --> InvoiceStateReadRepository : estats independents
+InvoiceQueryService --> DocumentReadRepository : metadata
+InvoiceDocumentAccessService --> DocumentAvailabilityService : bytes/hash
+DocumentAvailabilityService ..> DocumentRepository : metadata registrada
+InvoiceQueryService ..> InvoiceDocumentAccessService : quan es demanen bytes
+~~~
 
-**Important:** no es dedueix que `DocumentRepository` exposi lectura o descarrega: el seu mètode comprovat és **només** `registerDocument()`. Les altres classes són noms del disseny, no fitxers PHP trobats.
+**Important:** els repositoris/serveis de lectura són disseny pendent. El mètode executable acreditat de DocumentRepository continua sent només registerDocument(); no serveix bytes ni autoritza actors.
 
-## 4. Seqüència — consulta/descàrrega autoritzada (DISSENY)
+## 4. Seqüència FINAL — consultar factura i, opcionalment, demanar document
 
-```mermaid
+~~~mermaid
 sequenceDiagram
 autonumber
-actor A as Actor (alumne/empresa/operador/auditor)
-participant UI as Canal de consulta [pendent]
-participant S as InvoiceDocumentAccessService [DISSENY]
-participant Auth as VisibilityPolicy [DISSENY]
-participant R as InvoiceReadRepository [DISSENY]
-participant Log as FiscalDocumentAccessRepository [DISSENY]
-participant Store as Storage privat
-A->>UI: Obrir factura
-UI->>S: view(actor,uuidFactura)
-S->>R: findInvoice() + fact_rels visibles
-R-->>S: Factura, estats, documents, relacions
-S->>Auth: canView(actor,factura,relations)
-alt Actor sense autorització
- Auth-->>S: false
- S->>Log: append(DENIED,actor,factura,requestId)
- S-->>UI: Accés denegat sense dades de tercers
+actor A as Actor
+participant UI as Canal
+participant Q as InvoiceQueryService [DISSENY]
+participant Auth as InvoiceVisibilityPolicy [DISSENY]
+participant R as Repositoris de lectura [DISSENY]
+participant Doc as InvoiceDocumentAccessService [UC-080 DISSENY]
+participant Av as DocumentAvailabilityService [UC-055/078 DISSENY]
+A->>UI: Cercar/obrir factura
+UI->>Q: search/view(actor,criteri|UUID)
+Q->>Auth: Resoldre abast de factura
+alt Sense autorització
+  Auth-->>Q: DENIED
+  Q-->>UI: Denegació sense dades de tercers
 else Autoritzat
- Auth-->>S: true
- S->>Log: append(VIEW,actor,factura,requestId)
- S-->>UI: Estat factura, cobrament i AEAT, documents permesos
- opt Actor sol·licita PDF/QR/XML
-  UI->>S: download(actor,documentId)
-  S->>Auth: Revalidar permís d'aquest document
-  S->>Store: Llegir fitxer privat i comprovar hash
-  S->>Log: append(DOWNLOAD,actor,documentId,result)
-  S-->>UI: Stream autoritzat (sense revelar path)
- end
+  Auth-->>Q: ALLOWED
+  Q->>R: SELECT factura, línies, relacions, rectificacions i estats
+  R-->>Q: Projecció autoritativa
+  Q-->>UI: UUID/NUM_VISIBLE + estats + metadata documental
+  opt Actor demana PDF/QR/XML
+    UI->>Doc: download(actor,documentId,token/sessió)
+    Doc->>Auth: Revalidar document/actor
+    Doc->>Av: Comprovar bytes, hash, UUID i disponibilitat
+    alt Disponible i íntegre
+      Av-->>Doc: bytes verificats
+      Doc-->>UI: Stream privat + registre d'accés
+    else Denegat/absent/hash incorrecte
+      Doc-->>UI: Resultat tipificat + registre d'intent/incidència
+    end
+  end
 end
-Note over S,Log: Aquesta seqüència objectiu NO està implementada per DocumentRepository::registerDocument()
-```
+Note over Q,R: UC-007 no executa UPDATE/INSERT fiscal o econòmic per una lectura.
+~~~
 
-## 5. Proves pendents i traçabilitat
+## 5. Cobertura detallada ACTUAL/FINAL
 
-Exigir proves per alumne receptor/no receptor, empresa i participants múltiples, grup, auditor només lectura, token caducat, ID manipulat, PDF pendent, hash incorrecte, fallada d'auditoria, accés registrat i absència de paths interns en resposta.
+L'auditoria per pantalla i subacció, amb F01–F07, AL-16–AL-18, diagrames ACTUAL/FINAL, incidències de permisos/identitat/PDF/històric i matriu de proves, queda consolidada a:
 
-[Fitxa original UC-07](../06-fitxes-funcionals/uc-007.md) · [Catàleg i regles de visibilitat](../04-estat-final/33-casos-us-sif.md) · [Migració document i accés](../../sif/database/migrations/2026_09_15_000003_add_functional_audit_control.sql) · [DocumentRepository](../../sif/src/Repository/DocumentRepository.php) · [Test metadades de document](../../sif/tests/Integration/DocumentsAndIncidentsTest.php) · [UC-21 empresa](uc-021-empresa-responsable-paga-inscripcions.md).
+**[Auditoria detallada UC-007 · 2026-09-29](02-auditoria-detallada-uc-007-consultar-factura-estat-document-2026-09-29.md).**
 
-**Pendent de validar:** permisos i canals reals, URL/entrega, custòdia de documents, generació efectiva i registre d'accés.
+Punts de tancament documental:
+
+- F05 consulta una fila per ID, però F06/F07 passen a FACTURA_RELACIONADA i poden reconstruir diverses files; FINAL conserva UUID_FACTURA.
+- El PDF llegat pot agrupar original i rectificativa; FINAL manté documents independents.
+- tePermisVisualitzacio/tePermisEdicio del client o de la pàgina no substitueixen autorització per recurs.
+- GENERAT no és un estat documental SIF fiable: està acoblat a descàrrega i a gates administratius.
+- L'emissor/text fiscal/logo del generador llegat són dades del codi/recurs actual, no prova de document històric immutable.
+- VISIBLE_ALUMNE=1 és una dada de relació, no una autorització completa.
+- CREATED a factura_documents és metadata; disponibilitat real exigeix storage/hash verificats.
+- La consulta repetida no crea emissió, pagament, rectificació ni document fiscal nou.
+
+## 6. Proves pendents i evidència existent
+
+**Tests localitzats, no executats en aquesta revisió:** DocumentsAndIncidentsTest comprova metadata/hash de registre; HistoricalInvoiceMigrationServiceTest comprova importació històrica sense alta/cua fiscal; HttpEndpointsTest cobreix textualment endpoints existents d'emissió/pagament/redsys. Cap d'aquests acredita encara actor → consulta autoritzada → document → audit d'accés.
+
+La matriu executable pendent és a l'auditoria detallada i inclou autorització per recurs, original/rectificativa, cerca, estats independents, històric, bytes/hash, token/grant, repetició/concurrència i invariants de zero mutació.
+
+[Fitxa funcional UC-07](../06-fitxes-funcionals/uc-007.md) · [Auditoria detallada UC-007](02-auditoria-detallada-uc-007-consultar-factura-estat-document-2026-09-29.md) · [Catàleg i regles de visibilitat](../04-estat-final/33-casos-us-sif.md) · [UC-55 custòdia](uc-055-custodiar-reintentar-documents.md) · [UC-78 generació/custòdia](uc-078-generar-custodiar-pdf-qr-xml.md) · [UC-80 accés documental](uc-080-servir-registrar-acces-document-fiscal.md) · [DocumentRepository](../../sif/src/Repository/DocumentRepository.php) · [Test metadades](../../sif/tests/Integration/DocumentsAndIncidentsTest.php).
+
+**Estat final d'aquesta revisió:** DOCUMENTAT I AUDITAT ESTÀTICAMENT; API/servei final de consulta, control d'accés executable, streaming privat i proves E2E encara pendents.
