@@ -27,8 +27,8 @@ class SifInternalApiClient
         $this->courseChangeSignedPath = trim((string) ($courseChangeSignedPath ?? getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php'));
         $this->timeout = max(1, min(30, $timeout));
 
-        if ($this->url === '' || $this->keyId === '' || $this->secret === '') {
-            throw new RuntimeException('SIF internal API is not configured');
+        if ($this->keyId === '' || $this->secret === '') {
+            throw new RuntimeException('SIF internal API credentials are not configured');
         }
     }
 
@@ -66,6 +66,10 @@ class SifInternalApiClient
 
     private function request(string $actorId, array $roles, array $payload): array
     {
+        if ($this->url === '') {
+            throw new RuntimeException('SIF invoice query API is not configured');
+        }
+
         return $this->requestTo($this->url, $this->signedPath, $actorId, $roles, $payload);
     }
 
