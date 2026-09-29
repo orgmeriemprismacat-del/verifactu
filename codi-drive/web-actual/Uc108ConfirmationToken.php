@@ -20,15 +20,15 @@ class Uc108ConfirmationToken {
 		]);
 
 		$ivLength = openssl_cipher_iv_length(self::CIPHER);
-		$iv = openssl_random_pseudo_bytes($ivLength);
-		if ($iv === false)
-			throw new RuntimeException('Unable to create IV');
+		$iv = random_bytes($ivLength);
+		$encryptionKey = self::deriveEncryptionKey($key);
+		$macKey = self::deriveMacKey($key);
 
-		$ciphertext = openssl_encrypt($payload, self::CIPHER, $key, OPENSSL_RAW_DATA, $iv);
+		$ciphertext = openssl_encrypt($payload, self::CIPHER, $encryptionKey, OPENSSL_RAW_DATA, $iv);
 		if ($ciphertext === false)
 			throw new RuntimeException('Unable to encrypt token');
 
-		$hmac = hash_hmac('sha256', $iv.$ciphertext, $key, true);
+		$hmac = hash_hmac('sha256', $iv.$ciphertext, $macKey, true);
 		return self::PREFIX.self::base64UrlEncode($iv.$hmac.$ciphertext);
 	}
 
@@ -47,12 +47,14 @@ class Uc108ConfirmationToken {
 		$iv = substr($raw, 0, $ivLength);
 		$hmac = substr($raw, $ivLength, self::HMAC_LENGTH);
 		$ciphertext = substr($raw, $ivLength + self::HMAC_LENGTH);
-		$calcMac = hash_hmac('sha256', $iv.$ciphertext, $key, true);
+		$encryptionKey = self::deriveEncryptionKey($key);
+		$macKey = self::deriveMacKey($key);
+		$calcMac = hash_hmac('sha256', $iv.$ciphertext, $macKey, true);
 
 		if (!hash_equals($hmac, $calcMac))
 			return null;
 
-		$payloadRaw = openssl_decrypt($ciphertext, self::CIPHER, $key, OPENSSL_RAW_DATA, $iv);
+		$payloadRaw = openssl_decrypt($ciphertext, self::CIPHER, $encryptionKey, OPENSSL_RAW_DATA, $iv);
 		if ($payloadRaw === false)
 			return null;
 
@@ -93,6 +95,14 @@ class Uc108ConfirmationToken {
 			return null;
 
 		return intval($id);
+	}
+
+	private static function deriveEncryptionKey($key) {
+		return substr(hash_hmac('sha256', 'uc108-encryption', $key, true), 0, 16);
+	}
+
+	private static function deriveMacKey($key) {
+		return hash_hmac('sha256', 'uc108-authentication', $key, true);
 	}
 
 	private static function base64UrlEncode($raw) {
