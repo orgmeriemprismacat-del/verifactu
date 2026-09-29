@@ -36,14 +36,14 @@ final class UsocEntityInvoiceServiceTest
         Assert::same($studentInvoice['uuid_factura'], $first['student_invoice_uuid']);
         Assert::same(true, $second['idempotency_reused']);
         Assert::same($first['uuid_factura'], $second['uuid_factura']);
-        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
-        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
+        Assert::same(2, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(2, (int) $sifDb->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
         Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
 
-        $invoice = $sifDb->query('SELECT IDEMPOTENCY_KEY, TOTAL, ESTAT_COBRAMENT, SOURCE_CHANNEL FROM factura')
+        $invoice = $sifDb->query("SELECT IDEMPOTENCY_KEY, TOTAL, ESTAT_COBRAMENT, SOURCE_CHANNEL FROM factura WHERE IDEMPOTENCY_KEY LIKE 'INTRANET|USOC_ENTITAT|%'")
             ->fetch(\PDO::FETCH_ASSOC);
-        $relation = $sifDb->query('SELECT SOURCE_TYPE, SOURCE_ID, RELATION_TYPE, VISIBLE_ALUMNE FROM fact_rels')
+        $relation = $sifDb->query("SELECT SOURCE_TYPE, SOURCE_ID, RELATION_TYPE, VISIBLE_ALUMNE FROM fact_rels WHERE RELATION_TYPE = 'USOC_ENTITY'")
             ->fetch(\PDO::FETCH_ASSOC);
 
         Assert::same(
@@ -78,12 +78,12 @@ final class UsocEntityInvoiceServiceTest
         $changed = $input;
         $changed['amount'] = '24.00';
 
-        $exception = Assert::throws(SifException::class, function () use ($legacyDb, $service, $changed): void {
+        $exception = Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $service, $changed): void {
             $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $changed);
         }, 409);
 
         Assert::same('Idempotency key already exists with different payload', $exception->getMessage());
-        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(2, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
     }
 
     public function testRejectsSameIdempotencyKeyWithDifferentEntityRecipient(): void
@@ -110,7 +110,7 @@ final class UsocEntityInvoiceServiceTest
         }, 409);
 
         Assert::same('Idempotency key already exists with different payload', $exception->getMessage());
-        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(2, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
     }
 
     public function testRequiresExplicitEntityBillingBeforeLoadingLegacy(): void
@@ -134,7 +134,8 @@ final class UsocEntityInvoiceServiceTest
         unset($input['student_invoice_uuid']);
 
         Assert::throws(SifException::class, function () use ($legacyDb, $input): void {
-            $this->service(TestDatabase::fresh())->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
+            $sifDb = TestDatabase::fresh();
+            $this->service($sifDb)->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
         }, 422);
 
         Assert::same([], $legacyDb->preparedSql);
