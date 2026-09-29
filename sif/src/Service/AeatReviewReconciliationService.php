@@ -49,6 +49,13 @@ final class AeatReviewReconciliationService
                 throw SifException::notFound('AEAT submission attempt not found for review job');
             }
 
+            $latestAttemptNo = (int) $db->query(
+                'SELECT COALESCE(MAX(ATTEMPT_NO), 0) FROM aeat_submission_attempt WHERE FISCAL_QUEUE_ID = ' . (int) $queueId
+            )->fetchColumn();
+            if ((int) $row['ATTEMPT_NO'] !== $latestAttemptNo) {
+                throw SifException::conflict('Only the latest AEAT submission attempt can reconcile a review job');
+            }
+
             $remoteStatus = strtoupper((string) $row['STATUS']);
             if (!in_array($remoteStatus, ['ACCEPTED', 'ACCEPTED_WITH_ERRORS', 'REJECTED'], true)) {
                 throw SifException::conflict('AEAT review cannot be reconciled without a persisted terminal remote result');
@@ -68,6 +75,10 @@ final class AeatReviewReconciliationService
             }
 
             $requestXml = (new XmlCodec())->request($payload['aeat']);
+            $requestHash = hash('sha256', $requestXml);
+            if (!hash_equals((string) $row['REQUEST_HASH'], $requestHash)) {
+                throw SifException::conflict('AEAT review attempt request hash does not match the immutable fiscal payload');
+            }
 
             $this->queue->reconcileReview(
                 $db,
