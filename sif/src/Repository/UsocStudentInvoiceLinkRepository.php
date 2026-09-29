@@ -10,7 +10,8 @@ final class UsocStudentInvoiceLinkRepository
         \PDO $sifDb,
         string $studentInvoiceUuid,
         int $inscriptionId,
-        int $idpag
+        int $idpag,
+        string $studentAmount
     ): void {
         if (trim($studentInvoiceUuid) === '') {
             throw SifException::validation('Missing USOC student invoice UUID');
@@ -23,7 +24,7 @@ final class UsocStudentInvoiceLinkRepository
         }
 
         $stmt = $sifDb->prepare(
-            'SELECT f.UUID_FACTURA, f.IDEMPOTENCY_KEY, f.SOURCE_CHANNEL,
+            'SELECT f.UUID_FACTURA, f.IDEMPOTENCY_KEY, f.SOURCE_CHANNEL, f.TOTAL,
                     r.SOURCE_TYPE, r.SOURCE_ID, r.IDPAG, r.VISIBLE_ALUMNE
              FROM factura AS f
              INNER JOIN fact_rels AS r ON r.UUID_FACTURA = f.UUID_FACTURA
@@ -47,6 +48,13 @@ final class UsocStudentInvoiceLinkRepository
             || !str_starts_with((string) ($row['IDEMPOTENCY_KEY'] ?? ''), $expectedPrefix)
         ) {
             throw SifException::conflict('USOC student invoice is not a Redsys USOC student invoice');
+        }
+
+        if (
+            number_format((float) ($row['TOTAL'] ?? 0), 2, '.', '')
+            !== number_format((float) $studentAmount, 2, '.', '')
+        ) {
+            throw SifException::conflict('USOC student invoice amount does not match student amount');
         }
     }
 }
