@@ -319,3 +319,79 @@ Note over C,L: No hi ha coordinador o ledger per ID_INSC acreditat: un PAYMENT a
 [UC-13 original](../06-fitxes-funcionals/uc-013.md) · [UC-19a original](../06-fitxes-funcionals/uc-019a.md) · [UC-19b original](../06-fitxes-funcionals/uc-019b.md) · [Revisió fons inscripció](00-revisio-moviments-inscripcions.md) · [RedsysUsocInvoiceService](../../sif/src/Service/RedsysUsocInvoiceService.php) · [UsocEntityInvoiceService](../../sif/src/Service/UsocEntityInvoiceService.php) · [LegacyUsocInvoicePayloadBuilder](../../sif/src/Service/LegacyUsocInvoicePayloadBuilder.php) · [LegacyUsocSnapshotRepository](../../sif/src/Repository/LegacyUsocSnapshotRepository.php) · [RedsysUsocInvoiceServiceTest](../../sif/tests/Integration/RedsysUsocInvoiceServiceTest.php) · [UsocEntityInvoiceServiceTest](../../sif/tests/Integration/UsocEntityInvoiceServiceTest.php).
 
 **No acreditat:** classificació d'afiliació externa completa, pagament entitat real, prova d'extrem a extrem, classe d'orquestració, transacció conjunta o ledger per inscripció implementat.
+
+
+## 7. Auditoria específica 29/09/2026
+
+### 7.1. Correcció sobre idempotència
+
+Després del contrast de `InvoiceService` i `PayloadIdempotencyValidator`, el risc de reutilitzar silenciosament una factura amb la mateixa clau i un payload fiscal diferent **no és pendent** al nucli actual: abans de reutilitzar, `InvoiceService::existingResultWithPaymentIfPresent()` executa `assertMatches()` contra `IDEMPOTENCY_PAYLOAD_HASH`.
+
+Per tant:
+- mateix payload + mateixa clau → reutilització idempotent;
+- mateixa clau + import/receptor/payload diferent → `CONFLICT`.
+
+Es manté una prova específica UC-013 per impedir regressions.
+
+### 7.2. Superfície ACTUAL incorporada a l'auditoria
+
+El flux llegat contrastat abans del SIF és:
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Alumne
+participant W as Web inscripció USOC
+participant J as mostrarInscripcionsAfiliats.min.js
+participant E as enviarInscripcioAfiliat.php
+participant DB as inscripcions
+participant U as FEUSOC
+participant G as Intranet validar descomptes
+participant I as Intranet::sendMsgValidatCurosDescomptes
+A->>W: Omplir dades i marcar afiliació USOC
+W->>J: Formulari
+J->>E: Enviar inscripció
+E->>DB: INSERT TIPUS_DESC=4, VALID_DESC pendent
+E->>U: Sol·licitar confirmació afiliació
+G->>DB: Consultar VALID_DESC=0
+G->>I: Decisió Sí/No
+alt Validada
+ I->>DB: VALID_DESC=1
+ I-->>A: Instruccions de pagament
+else Denegada
+ I->>DB: VALID_DESC=2 i possible nou A_PAGAR
+ I-->>A: Comunicar no aplicació USOC
+end
+```
+
+### 7.3. Diagrames d'activitat per pàgina
+
+La cobertura RM-037 completa del UC-013 s'ha separat en:
+
+[UC-013 · activitats ACTUAL/FINAL per pàgina i apartat](uc-013-activitats-pagines-actual-final.md)
+
+Inclou:
+- pàgina informativa USOC;
+- formulari dades personals;
+- dades curriculars;
+- curs/checkbox USOC;
+- alta de sol·licitud;
+- llistat de validació intranet;
+- decisió positiva;
+- decisió negativa;
+- Redsys/factura alumne;
+- factura entitat;
+- cobrament entitat;
+- conciliació;
+- canvi/baixa.
+
+### 7.4. Traçabilitat i estat
+
+Vegeu [auditoria i matriu UC-013](uc-013-auditoria-tracabilitat-2026-09-29.md).
+
+**Estat després de la revisió:**
+- DOCUMENTAT: ampliat i específic.
+- IMPLEMENTAT: parcial.
+- VERIFICAT: estàticament contra codi.
+- TEST EXECUTAT: no acreditat.
+- PENDENT P0: identitat inequívoca d'inscripció, vinculació factura alumne↔ID_INSC/IDPAG i checkpoint durable de continuació.
