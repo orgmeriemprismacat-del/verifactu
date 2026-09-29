@@ -105,7 +105,7 @@ final class UsocEntityInvoiceServiceTest
         $changed = $input;
         $changed['billing']['nif'] = 'G99999999';
 
-        $exception = Assert::throws(SifException::class, function () use ($legacyDb, $service, $changed): void {
+        $exception = Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $service, $changed): void {
             $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $changed);
         }, 409);
 
