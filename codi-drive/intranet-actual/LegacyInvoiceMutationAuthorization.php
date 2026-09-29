@@ -21,14 +21,29 @@ final class LegacyInvoiceMutationAuthorization
     {
         $origin = trim((string) ($_SERVER['HTTP_ORIGIN'] ?? ''));
         $referer = trim((string) ($_SERVER['HTTP_REFERER'] ?? ''));
-        $expected = 'https://intranet.prisma.cat';
+        $configured = getenv('INTRANET_ALLOWED_ORIGINS') ?: 'https://intranet.prisma.cat';
+        $allowedOrigins = array_values(array_filter(array_map(
+            static fn (string $value): string => rtrim(trim($value), '/'),
+            preg_split('/[;,]/', $configured) ?: []
+        )));
 
-        if ($origin !== '' && $origin !== $expected) {
+        if ($allowedOrigins === []) {
+            throw new RuntimeException('No hi ha orígens de la intranet configurats', 403);
+        }
+
+        if ($origin !== '' && !in_array(rtrim($origin, '/'), $allowedOrigins, true)) {
             throw new RuntimeException('Origen de petició no autoritzat', 403);
         }
 
-        if ($origin === '' && $referer !== '' && !str_starts_with($referer, $expected . '/')) {
-            throw new RuntimeException('Origen de petició no autoritzat', 403);
+        if ($origin === '' && $referer !== '') {
+            $refererOrigin = parse_url($referer, PHP_URL_SCHEME) . '://' . parse_url($referer, PHP_URL_HOST);
+            $refererPort = parse_url($referer, PHP_URL_PORT);
+            if ($refererPort !== null) {
+                $refererOrigin .= ':' . $refererPort;
+            }
+            if (!in_array($refererOrigin, $allowedOrigins, true)) {
+                throw new RuntimeException('Origen de petició no autoritzat', 403);
+            }
         }
 
         $requestedWith = strtolower(trim((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')));
