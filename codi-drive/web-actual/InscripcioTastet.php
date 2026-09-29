@@ -141,6 +141,8 @@ class InscripcioTastet {
       $pattern = "";
       $length = "";
       $llistat = "";
+      $idDiv = "";
+      $mostrar = "";
 
       if ( $required == "1" ) {
 	     $textAsterisk = "<span class='req ml-1'>*</span>";
@@ -160,7 +162,7 @@ class InscripcioTastet {
          $idDiv = " id='poble_box'";
       }
 
-      $mostrar .= "<div class='form-group field-wrap position-relative'".$idDiv.">
+      $mostrar = "<div class='form-group field-wrap position-relative'".$idDiv.">
       <label for='".$idInput."'><span class='camp'>".$nomInput."</span>".$textAsterisk."</label>
       <input type='".$typeInput."' class='form-control' id='".$idInput."' name='".$idInput."'".$length.$pattern.$textRequired.">
       <span id='".$idError."'></span>".$llistat."</div>";
