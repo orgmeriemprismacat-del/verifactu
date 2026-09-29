@@ -758,6 +758,48 @@ HistoricalInvoiceMigrationService --> HistoricalInvoiceMigrationRepository : fac
 
 **Frontera real:** `HistoricalInvoiceMigrationRepository::insertDocument()` insereix path/hash/estat declarat sense verificar físicament l'arxiu i `DocumentRepository::registerDocument()` només calcula SHA-256 del contingut **que se li passa**, no en fa la custòdia. `HistoricalInvoiceMigrationRepository` tampoc no crida `InvoiceService`, la cua AEAT ni `DocumentRepository` en importar metadades. El SQL `factura` té `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` sense emissor. [UC-11](uc-011-importar-factura-historica.md), [UC-97](uc-097-consultar-historic-associacio-sl.md).
 
+### 5.2. Subvista executable de consulta read-only de factura — UC-007
+
+```mermaid
+classDiagram
+direction LR
+class InvoiceQueryService {
+ <<PHP existent>>
+ +view(actor,uuidFactura) array
+ +search(actor,criteria,limit) array
+}
+class InvoiceReadRepository {
+ <<PHP existent · read only>>
+ +findByUuid(db,uuid) array?
+ +findLines(db,uuid) array
+ +findRelations(db,uuid) array
+ +findRectifications(db,uuid) array
+ +findPayments(db,uuid) array
+ +latestFiscalRecord(db,uuid) array?
+ +findDocumentMetadata(db,uuid) array
+ +search(db,criteria,limit) array
+}
+class InvoiceVisibilityPolicyInterface {
+ <<PHP contracte existent>>
+ +canView(actor,invoice,relations) bool
+ +project(actor,view) array
+}
+class ResolvedInvoiceVisibilityPolicy {
+ <<PHP existent · scope resolt server-side>>
+ +canView(actor,invoice,relations) bool
+ +project(actor,view) array
+}
+class InvoiceDocumentAccessService {
+ <<DISSENY UC-080>>
+ +download(actor,documentId,tokenOrSession) bytes
+}
+InvoiceQueryService --> InvoiceReadRepository
+InvoiceQueryService --> InvoiceVisibilityPolicyInterface
+ResolvedInvoiceVisibilityPolicy ..|> InvoiceVisibilityPolicyInterface
+InvoiceQueryService ..> InvoiceDocumentAccessService : bytes pendents
+```
+
+`InvoiceReadRepository` només executa SELECT i no retorna `PATH_FITXER` de `factura_documents`. `ResolvedInvoiceVisibilityPolicy` falla tancat si no rep `invoice_scope` i admet projecció `FULL` o `MINIMAL`; aquest scope **ha de provenir d'un adaptador autenticat del servidor**, no del payload del client. `InvoiceDocumentAccessService` continua sent disseny UC-080: el nucli de consulta no serveix bytes.
 ## 6. Classes del **disseny pendent** (NO són el PHP actual)
 
 ```mermaid
@@ -793,9 +835,10 @@ class CancellationCoordinator {
  +preview(command) result
  +confirm(command) result
 }
-class VisibilityPolicy {
- <<DISSENY: no implementada>>
+class InvoiceVisibilityPolicyInterface {
+ <<PHP CONTRACTE EXISTENT>>
  +canView(actor,factura,relations) bool
+ +project(actor,view) array
 }
 class InvoiceDocumentAccessService {
  <<DISSENY: UC-55/80, no implementada>>
@@ -831,7 +874,7 @@ CourseChangeCoordinator --> EnrollmentFundsOrchestrator
 CancellationCoordinator --> EnrollmentFundsOrchestrator
 EnrollmentFundsOrchestrator --> EnrollmentFundMovementRepository
 EnrollmentFundMovementRepository --> EnrollmentFundMovement
-InvoiceDocumentAccessService --> VisibilityPolicy
+InvoiceDocumentAccessService --> InvoiceVisibilityPolicyInterface
 AuthorizationGateway --> IdentityResolver
 AuthorizationGateway ..> InvoiceDocumentAccessService : lectura fiscal autoritzada
 IssuerRoutingRegistry ..> AuthorizationGateway : ruta només després d'autorització
