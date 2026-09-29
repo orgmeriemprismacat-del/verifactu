@@ -1,8 +1,8 @@
 # UC-008 — Diagrames de classes ACTUAL i FINAL
 
 **Data d'auditoria:** 29/09/2026  
-**Branca:** `audit/uc-008-incidencies-2026-09-29`  
-**Regla:** ACTUAL = codi PHP/SQL real de la branca. FINAL = arquitectura necessària per completar el panell i la integració d'usuari; no es presenta com a desplegada.
+**Estat de referència:** integrat a `main` mitjançant el PR #18 (2026-09-30); aquesta fitxa descriu el backend existent després del merge.  
+**Regla:** ACTUAL = codi PHP/SQL real integrat a `main`. FINAL = arquitectura necessària per completar el panell i la integració d'usuari; no es presenta com a desplegada.
 
 Vegeu també [fitxa integrada UC-008](uc-008-gestionar-incidencia-sif.md), [seqüències](uc-008-sequencies-actual-final.md), [activitats](uc-008-activitats-pagines-incidencies-actual-final.md) i [UC-081 lifecycle](uc-081-cicle-complet-incidencia.md).
 
