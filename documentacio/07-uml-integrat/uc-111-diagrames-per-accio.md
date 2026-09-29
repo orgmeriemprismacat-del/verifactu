@@ -510,12 +510,23 @@ Current ..> Target : substituir / encapsular
 @startuml
 title A111-07 | Classes/components
 class "Flux general canvi de curs" as Legacy <<ACTUAL>>
-class "First/Successive Transfer Review + Confirmation" as Final <<FINAL>>
-class "inscripció/factura antiga" as LegacyDB <<ACTUAL DATA>>
+class NovicePromotionCourseTransferReviewService
+class NovicePromotionFirstTransferConfirmationService
+class NovicePromotionSuccessiveTransferReviewService
+class NovicePromotionSuccessiveTransferConfirmationService
+class NovicePromotionApprovedTransferPolicy
+class NovicePromotionApprovedSuccessiveTransferPolicy
+interface NovicePromotionAdjustmentApprovalSourceInterface
 class "novice_promotion_application_transfer" as SIFDB <<FINAL DATA>>
-Legacy --> LegacyDB
-Legacy ..> Final : migració / adaptació
-Final --> SIFDB
+Legacy ..> NovicePromotionCourseTransferReviewService : migració / adaptació
+NovicePromotionCourseTransferReviewService --> SIFDB
+NovicePromotionFirstTransferConfirmationService --> SIFDB
+NovicePromotionSuccessiveTransferReviewService --> SIFDB
+NovicePromotionSuccessiveTransferConfirmationService --> SIFDB
+NovicePromotionFirstTransferConfirmationService --> NovicePromotionApprovedTransferPolicy
+NovicePromotionSuccessiveTransferConfirmationService --> NovicePromotionApprovedSuccessiveTransferPolicy
+NovicePromotionFirstTransferConfirmationService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionSuccessiveTransferConfirmationService --> NovicePromotionAdjustmentApprovalSourceInterface
 @enduml
 ```
 
@@ -600,12 +611,25 @@ Current ..> Target : substituir / encapsular
 @startuml
 title A111-08 | Classes/components
 class "Baixa general / sense lineage canònic" as Legacy <<ACTUAL>>
-class "Cancellation Review + Derived Activation" as Final <<FINAL>>
-class "factura/baixa legacy" as LegacyDB <<ACTUAL DATA>>
-class "novice_promotion_derived_balance" as SIFDB <<FINAL DATA>>
-Legacy --> LegacyDB
-Legacy ..> Final : migració / adaptació
-Final --> SIFDB
+class NovicePromotionDestinationCancellationReviewService
+class NovicePromotionDerivedBalanceActivationService
+class NovicePromotionTransferredDestinationCancellationReviewService
+class NovicePromotionTransferredCancellationActivationService
+class NovicePromotionApprovedCancellationPolicy
+class NovicePromotionApprovedTransferredCancellationPolicy
+interface NovicePromotionAdjustmentApprovalSourceInterface
+class "novice_promotion_derived_balance" as Derived <<FINAL DATA>>
+class "novice_promotion_application_transfer" as Transfer <<FINAL DATA>>
+Legacy ..> NovicePromotionDestinationCancellationReviewService : migració / adaptació
+NovicePromotionDestinationCancellationReviewService --> Derived
+NovicePromotionDerivedBalanceActivationService --> Derived
+NovicePromotionTransferredDestinationCancellationReviewService --> Derived
+NovicePromotionTransferredCancellationActivationService --> Derived
+NovicePromotionTransferredCancellationActivationService --> Transfer
+NovicePromotionDerivedBalanceActivationService --> NovicePromotionApprovedCancellationPolicy
+NovicePromotionTransferredCancellationActivationService --> NovicePromotionApprovedTransferredCancellationPolicy
+NovicePromotionDerivedBalanceActivationService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionTransferredCancellationActivationService --> NovicePromotionAdjustmentApprovalSourceInterface
 @enduml
 ```
 
@@ -773,12 +797,14 @@ Current ..> Target : substituir / encapsular
 @startuml
 title A111-10 | Classes/components
 class "Traça dispersa" as Legacy <<ACTUAL>>
-class "LineageSnapshot + Projection + Policy" as Final <<FINAL>>
-class "inscripcions/promocions disperses" as LegacyDB <<ACTUAL DATA>>
+class NovicePromotionLineageSnapshotService
+class NovicePromotionLineageProjectionPolicy
+class NovicePromotionLineagePolicy
 class "grant + applications + transfers + derived balances" as SIFDB <<FINAL DATA>>
-Legacy --> LegacyDB
-Legacy ..> Final : migració / adaptació
-Final --> SIFDB
+Legacy ..> NovicePromotionLineageSnapshotService : migració / adaptació
+NovicePromotionLineageSnapshotService --> SIFDB
+NovicePromotionLineageSnapshotService --> NovicePromotionLineageProjectionPolicy
+NovicePromotionLineageProjectionPolicy --> NovicePromotionLineagePolicy
 @enduml
 ```
 
@@ -850,12 +876,18 @@ Current ..> Target : substituir / encapsular
 @startuml
 title A111-11 | Classes/components
 class "Manual/dispers" as Legacy <<ACTUAL>>
-class "RootRefundPlan + RootRefundReview" as Final <<FINAL>>
-class "refund/origen manual" as LegacyDB <<ACTUAL DATA>>
-class "root_refund_review + fingerprint/hold" as SIFDB <<FINAL DATA>>
-Legacy --> LegacyDB
-Legacy ..> Final : migració / adaptació
-Final --> SIFDB
+class NovicePromotionRootRefundPlanService
+class NovicePromotionRootRefundReviewService
+class NovicePromotionRootRefundPlanFingerprintPolicy
+class NovicePromotionLineageSnapshotService
+class "novice_promotion_root_refund_review" as ReviewDB <<FINAL DATA>>
+class commercial_entitlement as Root <<FINAL DATA>>
+Legacy ..> NovicePromotionRootRefundReviewService : migració / adaptació
+NovicePromotionRootRefundReviewService --> NovicePromotionRootRefundPlanService
+NovicePromotionRootRefundPlanService --> NovicePromotionRootRefundPlanFingerprintPolicy
+NovicePromotionRootRefundPlanService --> NovicePromotionLineageSnapshotService
+NovicePromotionRootRefundReviewService --> ReviewDB
+NovicePromotionRootRefundReviewService --> Root : ACTIVE -> REFUND_REVIEW
 @enduml
 ```
 
@@ -929,12 +961,28 @@ Current ..> Target : substituir / encapsular
 @startuml
 title A111-12 | Classes/components
 class "Sense workflow canònic" as Legacy <<ACTUAL>>
-class "RootRefundExecution + RecoveryResolution + RecoveryCompletion" as Final <<FINAL>>
-class "refund/reclamacions disperses" as LegacyDB <<ACTUAL DATA>>
-class "root refund evidence / recovery items / resolution evidence" as SIFDB <<FINAL DATA>>
-Legacy --> LegacyDB
-Legacy ..> Final : migració / adaptació
-Final --> SIFDB
+class NovicePromotionRootRefundExecutionService
+class NovicePromotionRootRefundRecoveryResolutionService
+class NovicePromotionRootRefundRecoveryCompletionService
+class NovicePromotionApprovedRootRefundPolicy
+class NovicePromotionOriginRefundEvidencePolicy
+class NovicePromotionRecoveryResolutionPolicy
+class NovicePromotionRecoveryCompletionPolicy
+interface NovicePromotionAdjustmentApprovalSourceInterface
+interface NovicePromotionOriginRefundEvidenceSourceInterface
+interface NovicePromotionRecoveryResolutionSourceInterface
+class "root refund review + recovery/evidence" as SIFDB <<FINAL DATA>>
+Legacy ..> NovicePromotionRootRefundExecutionService : migració / adaptació
+NovicePromotionRootRefundExecutionService --> SIFDB
+NovicePromotionRootRefundRecoveryResolutionService --> SIFDB
+NovicePromotionRootRefundRecoveryCompletionService --> SIFDB
+NovicePromotionRootRefundExecutionService --> NovicePromotionApprovedRootRefundPolicy
+NovicePromotionRootRefundExecutionService --> NovicePromotionOriginRefundEvidencePolicy
+NovicePromotionRootRefundExecutionService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionRootRefundExecutionService --> NovicePromotionOriginRefundEvidenceSourceInterface
+NovicePromotionRootRefundRecoveryResolutionService --> NovicePromotionRecoveryResolutionPolicy
+NovicePromotionRootRefundRecoveryResolutionService --> NovicePromotionRecoveryResolutionSourceInterface
+NovicePromotionRootRefundRecoveryCompletionService --> NovicePromotionRecoveryCompletionPolicy
 @enduml
 ```
 
