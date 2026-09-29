@@ -1034,3 +1034,15 @@ endif
 stop
 @enduml
 ```
+
+
+### Consulta / Modifica alumne · visualització del dret UC-111
+
+La fitxa interna de l'alumne incorpora un bloc **Promoció docent novell** carregat des del SIF. La vista no exposa el token bescanviable: mostra estat del dret, JASOM origen, import concedit, import aplicat, import reservat, saldo disponible, data de concessió, venciment i estat de lliurament. L'historial d'ús prové de `novice_promotion_application` i mostra per cada curs posterior `RESERVED/APPLIED/RELEASED/REVERSED`, import, inscripció destí, factura i data.
+
+Exemple canònic: dret inicial 90 €, aplicació confirmada de 70 € → **Concedit 90 € · Utilitzat 70 € · Disponible 20 €**. El romanent continua dins el mateix `UUID_ENTITLEMENT`; no es crea un codi residual nou.
+
+Implementació de branca:
+- `NovicePromotionStudentSummaryService`: projecció read-only per identitat.
+- `ajax/alumnes/mostrarPromocioDocentNovell.php`: pont autenticat intranet → SIF.
+- `js/alumnes-mostrar-alumne.js`: render del bloc i historial.
