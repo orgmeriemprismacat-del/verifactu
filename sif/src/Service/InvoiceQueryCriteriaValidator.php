@@ -12,6 +12,7 @@ final class InvoiceQueryCriteriaValidator
         'billing_nif',
         'billing_email',
         'factura_relacionada',
+        'source_ids',
     ];
 
     public function validate(array $criteria): array
@@ -54,6 +55,28 @@ final class InvoiceQueryCriteriaValidator
                 throw SifException::validation('Invalid legacy invoice relation');
             }
             $clean['factura_relacionada'] = (int) $legacy;
+        }
+
+        if (array_key_exists('source_ids', $criteria) && $criteria['source_ids'] !== null) {
+            if (!is_array($criteria['source_ids'])) {
+                throw SifException::validation('Invalid invoice source ids');
+            }
+
+            $sourceIds = [];
+            foreach ($criteria['source_ids'] as $sourceId) {
+                $value = (string) $sourceId;
+                if (!ctype_digit($value) || (int) $value <= 0) {
+                    throw SifException::validation('Invalid invoice source id');
+                }
+                $sourceIds[(int) $value] = true;
+                if (count($sourceIds) > 200) {
+                    throw SifException::validation('Too many invoice source ids');
+                }
+            }
+
+            if ($sourceIds !== []) {
+                $clean['source_ids'] = array_keys($sourceIds);
+            }
         }
 
         if ($clean === []) {
