@@ -55,6 +55,7 @@
 | classes | [uc-111-classes-actual-final.md](uc-111-classes-actual-final.md) | legacy, concessió/lliurament, consum/canvi, lineage/refund |
 | seqüències | [uc-111-sequencies-actual-final.md](uc-111-sequencies-actual-final.md) | alta/decisió, concessió, delivery, consum, canvi/baixa, refund |
 | activitats | [uc-111-activitats-actual-final.md](uc-111-activitats-actual-final.md) | per pàgina/apartat i per lifecycle |
+| cobertura UML 1:1 | [uc-111-diagrames-per-accio.md](uc-111-diagrames-per-accio.md) | 12 accions × cas d'ús + classes + seqüència + activitat = 48 blocs |
 | fitxa integrada històrica | [uc-111-docent-novell-dret-futur.md](uc-111-docent-novell-dret-futur.md) | font acumulativa; manté decisions/talls anteriors |
 | auditoria dirigida | [00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md](00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md) | troballes i evolució tècnica |
 
