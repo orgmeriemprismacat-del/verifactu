@@ -58,6 +58,7 @@ return [
     ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
+        'sync_legacy_course' => filter_var(getenv('SIF_REDSYS_SYNC_LEGACY_COURSE') ?: 'false', FILTER_VALIDATE_BOOLEAN),
     ],
     'novice_promotion' => [
         // 32-byte AES wrapping key encoded as 64 hex chars. Keep it only in
