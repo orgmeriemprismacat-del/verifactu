@@ -129,6 +129,10 @@
 | Prohibició | no reclamar de nou consums històrics ja substituïts per transferència o saldo derivat |
 | Estat | IMPLEMENTAT_BRANCA · integració real de refund/recovery i MySQL PENDENTS |
 
+## Cobertura UML 1:1 per acció
+
+Cada A111-01…A111-12 disposa ara de **quatre diagrames propis** —cas d'ús, classes/components, seqüència i activitat— al document [UC-111 · diagrames 1:1 per acció](../07-uml-integrat/uc-111-diagrames-per-accio.md). Les vistes globals ACTUAL/FINAL continuen sent útils per entendre relacions entre accions, però aquest document 1:1 és la prova de cobertura de la porta «una acció → quatre diagrames».
+
 ## Matriu de cobertura documental de les accions
 
 | Acció | Casos d'ús | Classes | Seqüència | Activitat | Traçabilitat |
