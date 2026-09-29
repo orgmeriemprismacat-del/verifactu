@@ -4,6 +4,7 @@ namespace Prisma\Sif\Repository;
 
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Service\PayloadIdempotencyValidator;
 
 final class IncidentRepository
 {
@@ -40,6 +41,23 @@ final class IncidentRepository
         $idempotencyKey = $this->nullableString($input, 'idempotency_key', 140);
         $reasonCode = $this->nullableUpperString($input, 'reason_code', 80);
 
+        $idempotencyPayload = [
+            'uuid_factura' => $uuidFactura,
+            'uuid_payment' => $uuidPayment,
+            'resource_type' => $resourceType,
+            'resource_id' => $resourceId,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'type' => $type,
+            'message' => $message,
+            'severity' => $severity,
+            'reason_code' => $reasonCode,
+        ];
+        $idempotencyValidator = new PayloadIdempotencyValidator();
+        $idempotencyPayloadHash = $idempotencyKey !== null
+            ? $idempotencyValidator->calculateHash($idempotencyPayload)
+            : null;
+
         if ($type === '' || strlen($type) > 50) {
             throw SifException::validation('Invalid incident type');
         }
@@ -74,13 +92,10 @@ final class IncidentRepository
         if ($idempotencyKey !== null) {
             $existing = $this->findByIdempotencyKey($db, $idempotencyKey);
             if ($existing !== null) {
-                $this->assertEquivalentReuse($existing, [
-                    'UUID_FACTURA' => $uuidFactura,
-                    'UUID_PAYMENT' => $uuidPayment,
-                    'RESOURCE_TYPE' => $resourceType,
-                    'RESOURCE_ID' => $resourceId,
-                    'TIPUS_INCIDENCIA' => $type,
-                ]);
+                $idempotencyValidator->assertMatches(
+                    $idempotencyPayload,
+                    (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? '')
+                );
 
                 return [
                     'ok' => true,
@@ -99,8 +114,9 @@ final class IncidentRepository
                 'INSERT INTO errors_verifactu (
                     UUID_INCIDENT, UUID_FACTURA, UUID_PAYMENT, RESOURCE_TYPE, RESOURCE_ID,
                     SOURCE_TYPE, SOURCE_ID, TIPUS_INCIDENCIA, SEVERITY, ASSIGNED_TO,
-                    CORRELATION_ID, IDEMPOTENCY_KEY, REASON_CODE, ESTAT, DETAILS
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, \'OPEN\', ?)'
+                    CORRELATION_ID, IDEMPOTENCY_KEY, IDEMPOTENCY_PAYLOAD_HASH,
+                    REASON_CODE, ESTAT, DETAILS
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, \'OPEN\', ?)'
             )->execute([
                 $uuidIncident,
                 $uuidFactura,
@@ -113,6 +129,7 @@ final class IncidentRepository
                 $severity,
                 $correlationId,
                 $idempotencyKey,
+                $idempotencyPayloadHash,
                 $reasonCode,
                 $message,
             ]);
@@ -239,16 +256,6 @@ final class IncidentRepository
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         return is_array($row) ? $row : null;
-    }
-
-    private function assertEquivalentReuse(array $existing, array $expected): void
-    {
-        foreach ($expected as $column => $value) {
-            $existingValue = $existing[$column] ?? null;
-            if (($existingValue === null ? null : (string) $existingValue) !== ($value === null ? null : (string) $value)) {
-                throw SifException::conflict('Incident idempotency key reused with different payload');
-            }
-        }
     }
 
     private function nullableString(array $input, string $field, int $maxLength): ?string
