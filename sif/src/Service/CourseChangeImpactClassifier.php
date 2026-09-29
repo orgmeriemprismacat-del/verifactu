@@ -86,7 +86,7 @@ final class CourseChangeImpactClassifier
         ];
     }
 
-    private function money(array $input, string $field, string $default = null): int
+    private function money(array $input, string $field, ?string $default = null): int
     {
         $value = $input[$field] ?? $default;
         if ($value === null) {
