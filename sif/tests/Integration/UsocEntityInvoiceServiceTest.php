@@ -40,6 +40,7 @@ final class UsocEntityInvoiceServiceTest
         Assert::same(2, (int) $sifDb->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
         Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM usoc_financing_case')->fetchColumn());
 
         $invoice = $sifDb->query("SELECT IDEMPOTENCY_KEY, TOTAL, ESTAT_COBRAMENT, SOURCE_CHANNEL FROM factura WHERE IDEMPOTENCY_KEY LIKE 'INTRANET|USOC_ENTITAT|%'")
             ->fetch(\PDO::FETCH_ASSOC);
@@ -57,6 +58,12 @@ final class UsocEntityInvoiceServiceTest
         Assert::same(880, (int) $relation['SOURCE_ID']);
         Assert::same('USOC_ENTITY', $relation['RELATION_TYPE']);
         Assert::same(0, (int) $relation['VISIBLE_ALUMNE']);
+        $case = $sifDb->query('SELECT ID_INSC, IDPAG, UUID_STUDENT_INVOICE, UUID_ENTITY_INVOICE, STATUS FROM usoc_financing_case')->fetch(\PDO::FETCH_ASSOC);
+        Assert::same(880, (int) $case['ID_INSC']);
+        Assert::same(980, (int) $case['IDPAG']);
+        Assert::same($studentInvoice['uuid_factura'], $case['UUID_STUDENT_INVOICE']);
+        Assert::same($first['uuid_factura'], $case['UUID_ENTITY_INVOICE']);
+        Assert::same('ENTITY_INVOICED', $case['STATUS']);
     }
 
     public function testRejectsSameIdempotencyKeyWithDifferentEntityAmount(): void
