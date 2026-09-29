@@ -5,6 +5,22 @@ chdir($root);
 
 header('Content-Type: application/json; charset=utf-8');
 
+$uc007Enabled = filter_var(
+    getenv('SIF_UC007_QUERY_ENABLED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+
+if (!$uc007Enabled) {
+    http_response_code(200);
+    echo json_encode([
+        'ok' => true,
+        'resolution' => 'FEATURE_DISABLED',
+        'results' => [],
+        'count' => 0,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return;
+}
+
 if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
     http_response_code(405);
     echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
