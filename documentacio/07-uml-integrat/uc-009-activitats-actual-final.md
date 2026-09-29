@@ -375,6 +375,6 @@ flowchart TD
 - **Implementat backend preproducció:** sí, amb fencing, ledger d'intents i REVIEW incorporats a la branca.
 - **Panell web:** implementat; alta/configuració del menú de preproducció pendent.
 - **Proves escrites:** sí; ampliades per intents, resultat incert, fencing, consulta operativa i reconciliació REVIEW.
-- **Proves executades en entorn `sif_test*`:** pendents d'evidència.
+- **Proves executades en entorn `sif_test*`:** ✅ CI 2026-09-30 — **558 passed, 0 failed**; lint PHP SIF/intranet UC-009 i sintaxi JS correctes.
 - **Enviament AEAT real de preproducció:** pendent d'evidència.
 - **Producció:** no habilitada.
