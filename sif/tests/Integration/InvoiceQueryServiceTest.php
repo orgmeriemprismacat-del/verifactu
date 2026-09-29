@@ -6,7 +6,11 @@ use Prisma\Sif\Contract\InvoiceVisibilityPolicyInterface;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\DocumentRepository;
 use Prisma\Sif\Repository\InvoiceReadRepository;
+use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
+use Prisma\Sif\Repository\RectificationRepository;
 use Prisma\Sif\Service\InvoiceQueryService;
+use Prisma\Sif\Service\ManualRectificationPayloadBuilder;
+use Prisma\Sif\Service\ManualRectificationService;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\Fixtures;
 use Prisma\Sif\Tests\Support\TestDatabase;
@@ -99,6 +103,52 @@ final class InvoiceQueryServiceTest
         Assert::same($issued['uuid_factura'], $byNumber['results'][0]['uuid_factura']);
         Assert::same(0, $wildcardLiteral['count']);
         Assert::same(0, $deniedSearch['count']);
+    }
+
+    public function testViewKeepsPaymentsAndRectificationAsSeparateRelations(): void
+    {
+        $db = TestDatabase::fresh();
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'QUERY|ORIGINAL|WITH_PAYMENT',
+            'payment' => [
+                'idempotency_key' => 'PAYMENT|QUERY|ORIGINAL',
+                'movement_type' => 'CHARGE',
+                'method' => 'REDSYS',
+                'source_channel' => 'REDSYS',
+                'amount' => '120.00',
+                'movement_date' => '2026-09-29 10:00:00',
+                'provider_ref' => 'QUERY-PAYMENT-1',
+            ],
+        ]);
+        $original = IssueInvoiceTest::serviceFor($db)->issueInvoice($payload);
+
+        $rectificationService = new ManualRectificationService(
+            new ManualPaymentInvoiceRepository(),
+            new RectificationRepository(),
+            new ManualRectificationPayloadBuilder(),
+            IssueInvoiceTest::serviceFor($db)
+        );
+        $rectification = $rectificationService->issueByUuid($db, $original['uuid_factura'], [
+            'amount' => '-40.00',
+            'reason' => 'DEVOLUCIO_PARCIAL',
+            'mode' => 'DIFERENCIES',
+            'concept' => 'Rectificacio parcial',
+        ]);
+
+        $query = new InvoiceQueryService($db, new InvoiceReadRepository(), $this->allowAllPolicy());
+        $originalView = $query->view(['actor_id' => 'operator-test'], $original['uuid_factura']);
+        $rectificationView = $query->view(['actor_id' => 'operator-test'], $rectification['uuid_factura']);
+
+        Assert::same('RECTIFIED', $originalView['invoice']['estat_factura']);
+        Assert::same('PAID', $originalView['invoice']['estat_cobrament']);
+        Assert::same(1, count($originalView['payments']));
+        Assert::same(1, count($originalView['rectifications']));
+        Assert::same($rectification['uuid_factura'], $originalView['rectifications'][0]['UUID_FACTURA_RECTIFICATIVA']);
+
+        Assert::same('R', $rectificationView['invoice']['tipus_serie']);
+        Assert::same(0, count($rectificationView['payments']));
+        Assert::same(1, count($rectificationView['rectifications']));
+        Assert::same($original['uuid_factura'], $rectificationView['rectifications'][0]['UUID_FACTURA_RECTIFICADA']);
     }
 
     public function testSearchRejectsEmptyCriteriaAndInvalidLegacyRelation(): void
