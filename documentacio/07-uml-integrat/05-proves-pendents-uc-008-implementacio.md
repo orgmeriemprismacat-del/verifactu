@@ -1,6 +1,6 @@
-# UC-008 · Proves pendents d'execució
+# UC-008 · Proves executades i pendents
 
-Aquest document separa **tests escrits** de **tests realment executats**. La presència d'un fitxer de test no acredita PASS.
+Aquest document separa la **suite backend ja executada** de les proves E2E, concurrència i preproducció que encara falten. El 29/09/2026 les suites CI dels runs 36638546735 i 36638546786 han finalitzat amb **555 passed, 0 failed**.
 
 ## 1. Suite PHP/MySQL
 
@@ -24,34 +24,34 @@ php sif/scripts/preflight-sif.php
 ## 2. Repositori i identitat
 
 - [ ] open legacy continua creant fila OPEN.
-- [ ] openDetailed retorna `incident_id` i `uuid_incident`.
+- [x] openDetailed retorna `incident_id` i `uuid_incident`.
 - [ ] factura existent acceptada.
-- [ ] factura desconeguda → 404 i cap fila orfe.
+- [x] factura desconeguda → 404 i cap fila orfe.
 - [ ] pagament existent acceptat.
 - [ ] pagament desconegut → 404.
 - [ ] resource_type sense resource_id → 422.
-- [ ] mateixa idempotency key + mateix payload → reuse.
-- [ ] mateixa idempotency key + payload diferent → 409.
+- [x] mateixa idempotency key + mateix payload → reuse.
+- [x] mateixa idempotency key + payload diferent → 409.
 - [ ] dues obertures concurrents mateixa key → una sola capçalera.
 
 ## 3. Lifecycle
 
-- [ ] rol read pot list/view.
-- [ ] rol read no pot assign/resolve/dismiss.
+- [x] rol read pot list/view.
+- [x] rol read no pot assign/resolve/dismiss.
 - [ ] rol manage pot obrir.
-- [ ] assignació crea acció i `IN_PROGRESS`.
-- [ ] evidència crea timeline sense canviar estat.
-- [ ] resolve sense evidència → 422.
-- [ ] resolve amb evidència → `RESOLVED` + data + criteri.
+- [x] assignació crea acció i `IN_PROGRESS`.
+- [x] evidència crea timeline sense canviar estat.
+- [x] resolve sense evidència → 422.
+- [x] resolve amb evidència → `RESOLVED` + data + criteri.
 - [ ] dismiss amb justificació → `DISMISSED`.
 - [ ] reobrir només des de `RESOLVED/DISMISSED`.
-- [ ] acció idempotent repetida no duplica `sif_incident_action`.
+- [x] acció idempotent repetida no duplica `sif_incident_action`.
 - [ ] dues accions concurrents sobre mateix incident mantenen estat coherent.
 
 ## 4. Redsys
 
-- [ ] conflicte 409/422 → queue INCIDENT + expedient.
-- [ ] max retries → queue INCIDENT + expedient.
+- [x] conflicte 409/422 → queue INCIDENT + expedient.
+- [x] max retries → queue INCIDENT + expedient.
 - [ ] mateix job no crea expedients duplicats.
 - [ ] `incident_id` retornat.
 - [ ] simular error d'INSERT d'incidència després de markIncident → rollback deixa job sense canvi.
@@ -59,9 +59,9 @@ php sif/scripts/preflight-sif.php
 
 ## 5. AEAT
 
-- [ ] payload divergent → no transport + DEAD_LETTER + FISCAL_PAYLOAD_CONFLICT.
-- [ ] retry 1/2 → RETRY sense incidència final.
-- [ ] retry final → DEAD_LETTER + AEAT_DEAD_LETTER.
+- [x] payload divergent → no transport + DEAD_LETTER + FISCAL_PAYLOAD_CONFLICT.
+- [x] retry 1/2 → RETRY sense incidència final.
+- [x] retry final → DEAD_LETTER + AEAT_DEAD_LETTER.
 - [ ] mateix queue ID no duplica incidència.
 - [ ] acceptació/rebuig remot no es confon amb error local.
 - [ ] resposta remota incerta deriva a revisió UC-77 abans de retransmetre.
@@ -112,4 +112,10 @@ Per marcar UC-008 com PROVAT conservar:
 - prova de tancament amb evidència;
 - resultat preproducció.
 
-**Estat actual:** PENDENT D'EXECUCIÓ.
+**Estat actual:** SUITE BACKEND CI VERIFICADA (**555 passed, 0 failed**). Continuen pendents els ítems no marcats, especialment concurrència específica, rollback forçat, UI/E2E, permisos productius i preproducció.
+
+
+## 10. Evidència CI
+
+- Run **36638546735**: 555 passed, 0 failed.
+- Run **36638546786**: lint PHP PASS i 555 passed, 0 failed sobre PHP 8.4 / MySQL 8.4.
