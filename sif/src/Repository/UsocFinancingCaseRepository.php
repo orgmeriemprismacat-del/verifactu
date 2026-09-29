@@ -112,6 +112,37 @@ final class UsocFinancingCaseRepository
             ?? throw new \RuntimeException('USOC financing case could not be reloaded after entity invoice update');
     }
 
+    public function updateReconciliation(
+        \PDO $db,
+        int $inscriptionId,
+        int $idpag,
+        string $studentPaymentStatus,
+        string $entityPaymentStatus,
+        string $status
+    ): array {
+        $stmt = $db->prepare(
+            'UPDATE usoc_financing_case
+             SET STUDENT_PAYMENT_STATUS = ?,
+                 ENTITY_PAYMENT_STATUS = ?,
+                 STATUS = ?
+             WHERE ID_INSC = ? AND IDPAG = ?'
+        );
+        $stmt->execute([
+            $studentPaymentStatus,
+            $entityPaymentStatus,
+            $status,
+            $inscriptionId,
+            $idpag,
+        ]);
+
+        if ($stmt->rowCount() === 0) {
+            throw SifException::conflict('USOC financing case not found for reconciliation');
+        }
+
+        return $this->findByInscriptionAndIdpag($db, $inscriptionId, $idpag, true)
+            ?? throw new \RuntimeException('USOC financing case could not be reloaded after reconciliation');
+    }
+
     public function findByInscriptionAndIdpag(
         \PDO $db,
         int $inscriptionId,
