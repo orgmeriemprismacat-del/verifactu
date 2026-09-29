@@ -43,6 +43,7 @@ return [
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
         'aeat_operations_signed_path' => getenv('SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH') ?: '/api/aeat/operations.php',
         'incident_signed_path' => getenv('SIF_INTERNAL_INCIDENT_SIGNED_PATH') ?: '/api/incidents/manage.php',
+        'redsys_course_intent_signed_path' => getenv('SIF_INTERNAL_REDSYS_COURSE_INTENT_SIGNED_PATH') ?: '/api/redsys/course-intent.php',
     ],
     'incidents' => [
         'read_roles' => array_values(array_filter(array_map(
