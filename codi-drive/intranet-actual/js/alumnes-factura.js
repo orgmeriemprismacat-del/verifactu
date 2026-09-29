@@ -129,56 +129,24 @@ requestMain.done(function( message ) {
 
 			cercaPer += elementsCercats;
 
-			/* UC-007: prioritzar consulta SIF read-only. El mòdul nou només fa\n			fallback al circuit llegat quan el SIF respon correctament amb 0 resultats. */\n			if (typeof window.uc007SifSearch === 'function') {\n				window.uc007SifSearch({\n					dni: dni,\n					email: email,\n					factRel: factRel,\n					factNum: factNum,\n					cercaPer: cercaPer\n				});\n				return;\n			}\n\n			/* Cerca els usuaris amb les factures que el dni = dni o el email = email
+			/* UC-007: primer consulta SIF read-only; si no hi ha coincidències,
+			es conserva el circuit llegat com a fallback temporal de migració. */
+			if (typeof window.uc007SifSearch === 'function') {
+				window.uc007SifSearch({
+					dni: dni,
+					email: email,
+					factRel: factRel,
+					factNum: factNum,
+					cercaPer: cercaPer
+				});
+				return;
+			}
+
+			/* Cerca els usuaris amb les factures que el dni = dni o el email = email
 			correspongui amb la inscripció relacionada amb la factura o la factura
 			relacionada = factRel o el número de la factura = factNum */
-			var request = $.ajax({
-				url: path + "alumnes/consultaUsuarisFacturaRelacionada.php",
-				method: "GET",
-				data: {
-					dni : dni ,
-					email : email ,
-					factRel : factRel ,
-					factNum : factNum
-				},
-				dataType: "html"
-			});
+			cercarFacturesLlegat(dni, email, factRel, factNum);
 
-			request.done(function( dnies ) {
-				let vectDnies = dnies.split('#');
-				if ( dnies.toLowerCase().includes("error") ) {
-					afegirHeaderModalError("Alerta");
-					afegirTextModalError("Hi ha hagut un error a l'hora de fer la consulta d'usuaris");
-					mostrarModalError();
-					reloadUrl();
-				}
-				else if ( dnies.includes("No") && dnies.includes("resultats") ) {
-					afegirHeaderModalError("Alerta");
-					afegirTextModalError("No s'han trobat resultats");
-					mostrarModalError();
-				}
-				else if ( dnies.split('|') > 2000 ) {
-					afegirHeaderModalError("Alerta");
-					afegirTextModalError("El volum de dades cercat és molt gran. Si us plau, afegeix algun filtre més per acotar el volum de dades");
-					mostrarModalError();
-				}
-				else {
-					let vectDnies2 = vectDnies[1].split('|');
-					if ( vectDnies2.length == 1 ) {
-						//Hi ha un sol usuari amb la cerca realitzada
-						cercarUSuari(vectDnies2[0]);
-					}
-					else {
-						//Hi ha més d'un sol usuari amb la cerca realitzada
-						//Mostra la taula amb els usuaris trobats a partir de la cerca realitzada
-						mostraLlistatUsuaris(vectDnies[1], 'cog', 'asc')
-					}
-				}
-			});
-
-			request.fail(function( jqXHR, textStatus, errorThrown ) {
-				rerrorFunction( jqXHR, textStatus, errorThrown, "Hi ha hagut algun error a l'hora de fer la consulta d'usuaris: " );
-			});
 		}
 	});
 
@@ -206,6 +174,239 @@ requestMain.done(function( message ) {
 requestMain.fail(function( jqXHR, textStatus, errorThrown ) {
 	errorFunction( jqXHR, textStatus, errorThrown, "Hi ha hagut un error en el request Main: " );
 });
+
+
+/* UC-007 · Consulta SIF read-only amb fallback llegat */
+window.uc007SifSearch = function(params) {
+	var criteria = {};
+
+	/* DNI del formulari antic pot ser participant i no receptor fiscal.
+	Només s'usa directament com BILLING_NIF quan no hi ha cap altre criteri. */
+	if (params.factNum != '')
+		criteria.num_visible = params.factNum;
+	if (params.email != '')
+		criteria.billing_email = params.email;
+	if (params.factRel != '')
+		criteria.factura_relacionada = params.factRel;
+	if (params.dni != '' && params.factNum == '' && params.email == '' && params.factRel == '')
+		criteria.billing_nif = params.dni;
+
+	/* Si la combinació no es pot representar fidelment al SIF, mantenim el llegat. */
+	if ($.isEmptyObject(criteria)) {
+		cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum);
+		return;
+	}
+
+	var request = $.ajax({
+		url: path + "alumnes/buscarFacturesSif.php",
+		method: "GET",
+		data: criteria,
+		dataType: "json"
+	});
+
+	request.done(function(res) {
+		if (!res || res.ok !== true) {
+			uc007MostrarError((res && res.error) ? res.error : "Resposta SIF no vàlida");
+			return;
+		}
+
+		if (!Array.isArray(res.results) || res.results.length === 0) {
+			cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum);
+			return;
+		}
+
+		uc007RenderResultatsSif(res.results, params.cercaPer);
+	});
+
+	request.fail(function(jqXHR) {
+		amagarLoadingModal();
+		var message = "No s'ha pogut consultar el SIF";
+		if (jqXHR.responseJSON && jqXHR.responseJSON.error)
+			message = jqXHR.responseJSON.error;
+		uc007MostrarError(message);
+	});
+};
+
+function cercarFacturesLlegat(dni, email, factRel, factNum) {
+	var request = $.ajax({
+		url: path + "alumnes/consultaUsuarisFacturaRelacionada.php",
+		method: "GET",
+		data: {
+			dni : dni,
+			email : email,
+			factRel : factRel,
+			factNum : factNum
+		},
+		dataType: "html"
+	});
+
+	request.done(function(dnies) {
+		let vectDnies = dnies.split('#');
+		if (dnies.toLowerCase().includes("error")) {
+			afegirHeaderModalError("Alerta");
+			afegirTextModalError("Hi ha hagut un error a l'hora de fer la consulta d'usuaris");
+			mostrarModalError();
+			reloadUrl();
+		}
+		else if (dnies.includes("No") && dnies.includes("resultats")) {
+			amagarLoadingModal();
+			afegirHeaderModalError("Alerta");
+			afegirTextModalError("No s'han trobat resultats");
+			mostrarModalError();
+		}
+		else if (dnies.split('|').length > 2000) {
+			amagarLoadingModal();
+			afegirHeaderModalError("Alerta");
+			afegirTextModalError("El volum de dades cercat és molt gran. Si us plau, afegeix algun filtre més per acotar el volum de dades");
+			mostrarModalError();
+		}
+		else if (vectDnies.length < 2 || vectDnies[1].trim() === '') {
+			amagarLoadingModal();
+			afegirHeaderModalError("Alerta");
+			afegirTextModalError("No s'han trobat resultats");
+			mostrarModalError();
+		}
+		else {
+			let vectDnies2 = vectDnies[1].split('|').filter(function(value) {
+				return value.trim() !== '';
+			});
+			if (vectDnies2.length === 1)
+				cercarUSuari(vectDnies2[0]);
+			else
+				mostraLlistatUsuaris(vectDnies2.join('|'), 'cog', 'asc');
+		}
+	});
+
+	request.fail(function(jqXHR, textStatus, errorThrown) {
+		amagarLoadingModal();
+		if (typeof errorFunction === 'function')
+			errorFunction(jqXHR, textStatus, errorThrown, "Hi ha hagut algun error a l'hora de fer la consulta d'usuaris: ");
+	});
+}
+
+function uc007RenderResultatsSif(resultats, titol) {
+	var html = '<div class="apartat uc007-sif-results">';
+	html += '<div class="apartat-header"><strong>' + uc007EscapeHtml(titol) + '</strong>';
+	html += ' <span class="label label-info">SIF · només lectura</span></div>';
+	html += '<div class="table-responsive"><table class="table table-hover">';
+	html += '<thead><tr><th>Factura</th><th>Data</th><th>Receptor</th><th>Total</th><th>Factura</th><th>Cobrament</th><th>AEAT</th><th></th></tr></thead><tbody>';
+
+	resultats.forEach(function(invoice) {
+		var billing = invoice.billing || {};
+		var totals = invoice.totals || {};
+		html += '<tr>';
+		html += '<td>' + uc007EscapeHtml(invoice.num_visible || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(invoice.data_emissio || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(billing.name || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(totals.total || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(invoice.estat_factura || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(invoice.estat_cobrament || '') + '</td>';
+		html += '<td>' + uc007EscapeHtml(invoice.estat_aeat || '') + '</td>';
+		html += '<td><button type="button" class="btn btn-default btn-xs uc007-sif-info" data-uuid="' +
+			uc007EscapeHtml(invoice.uuid_factura || '') + '">Informació</button></td>';
+		html += '</tr>';
+	});
+
+	html += '</tbody></table></div></div>';
+	$('#resultats-cerca').html(html).show();
+	amagarLoadingModal();
+
+	$('#resultats-cerca').off('click.uc007Sif').on('click.uc007Sif', '.uc007-sif-info', function() {
+		var uuid = $(this).attr('data-uuid');
+		uc007MostrarFacturaSif(uuid);
+	});
+}
+
+function uc007MostrarFacturaSif(uuid) {
+	mostrarModalLoading();
+
+	var request = $.ajax({
+		url: path + "alumnes/consultaFacturaSif.php",
+		method: "GET",
+		data: { uuid: uuid },
+		dataType: "json"
+	});
+
+	request.done(function(res) {
+		amagarLoadingModal();
+		if (!res || res.ok !== true) {
+			uc007MostrarError((res && res.error) ? res.error : "Resposta SIF no vàlida");
+			return;
+		}
+
+		$("#modalConsultaInformacio .modal-body").html(uc007RenderFacturaSif(res));
+		$("#modalConsultaInformacio").modal('show');
+	});
+
+	request.fail(function(jqXHR) {
+		amagarLoadingModal();
+		var message = "No s'ha pogut consultar la factura SIF";
+		if (jqXHR.responseJSON && jqXHR.responseJSON.error)
+			message = jqXHR.responseJSON.error;
+		uc007MostrarError(message);
+	});
+}
+
+function uc007RenderFacturaSif(res) {
+	var invoice = res.invoice || {};
+	var billing = invoice.billing || {};
+	var totals = invoice.totals || {};
+	var html = '<div class="uc007-sif-readonly">';
+	html += '<p><span class="label label-info">SIF · només lectura</span></p>';
+	html += '<h4>' + uc007EscapeHtml(invoice.num_visible || '') + '</h4>';
+	html += '<dl class="dl-horizontal">';
+	html += uc007Dl('UUID', invoice.uuid_factura);
+	html += uc007Dl('Tipus', invoice.tipus_factura);
+	html += uc007Dl('Data emissió', invoice.data_emissio);
+	html += uc007Dl('Estat factura', invoice.estat_factura);
+	html += uc007Dl('Estat cobrament', invoice.estat_cobrament);
+	html += uc007Dl('Estat AEAT', invoice.estat_aeat);
+	html += uc007Dl('E_FACT', invoice.e_fact);
+	html += uc007Dl('Receptor', billing.name);
+	html += uc007Dl('NIF/CIF', billing.nif);
+	html += uc007Dl('Email', billing.email);
+	html += uc007Dl('Total', totals.total);
+	html += '</dl>';
+
+	if (Array.isArray(res.rectifications) && res.rectifications.length > 0) {
+		html += '<h5>Rectificatives</h5><ul>';
+		res.rectifications.forEach(function(rect) {
+			html += '<li>' + uc007EscapeHtml(rect.RECTIFICATIVA_NUM_VISIBLE || rect.UUID_FACTURA_RECTIFICATIVA || '') +
+				' → ' + uc007EscapeHtml(rect.RECTIFICADA_NUM_VISIBLE || rect.UUID_FACTURA_RECTIFICADA || '') + '</li>';
+		});
+		html += '</ul>';
+	}
+
+	if (Array.isArray(res.documents) && res.documents.length > 0) {
+		html += '<h5>Documents</h5><ul>';
+		res.documents.forEach(function(doc) {
+			html += '<li>' + uc007EscapeHtml(doc.TIPUS || '') + ' · ' +
+				uc007EscapeHtml(doc.ESTAT || '') +
+				' <span class="text-muted">(descàrrega UC-080 pendent)</span></li>';
+		});
+		html += '</ul>';
+	}
+
+	html += '</div>';
+	return html;
+}
+
+function uc007Dl(label, value) {
+	if (value === null || typeof value === 'undefined' || value === '')
+		return '';
+	return '<dt>' + uc007EscapeHtml(label) + '</dt><dd>' + uc007EscapeHtml(value) + '</dd>';
+}
+
+function uc007EscapeHtml(value) {
+	return $('<div/>').text(String(value === null || typeof value === 'undefined' ? '' : value)).html();
+}
+
+function uc007MostrarError(message) {
+	amagarLoadingModal();
+	afegirHeaderModalError("Alerta SIF");
+	afegirTextModalError(uc007EscapeHtml(message));
+	mostrarModalError();
+}
 
 /* Mostra la taula amb els usuaris trobats a partir de la cerca realitzada
 ordenada per cognoms si orderby es cog, per nom si ordery es nom i per dni si
