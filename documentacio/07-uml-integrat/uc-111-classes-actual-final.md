@@ -4,42 +4,62 @@
 
 ## 1. ACTUAL · peces legacy observables
 
-El circuit legacy és majoritàriament procedural i una part important de la lògica viu en `Intranet` i endpoints AJAX; per tant, no es força una falsa arquitectura de classes.
+El circuit legacy és majoritàriament procedural. El diagrama representa **fitxers, mètodes i taules reals** en lloc de fingir una arquitectura OO que no existeix.
 
 ```plantuml
 @startuml
-title UC-111 | ACTUAL observable | web i intranet legacy
+title UC-111 | ACTUAL contrastat | alta, validació, pagament i codi legacy
 class "ajax/enviarInscripcio.php" as EnviarInscripcio <<script>>
 class "ajax/enviarImatgeSocRecentTitulat.php" as UploadEvidence <<script>>
 class "alumnes-validar-descomptes.php" as Screen <<page>>
 class "js/alumnes-validar-descomptes.js" as Js <<script>>
 class "ajax/alumnes/sendMsgValidatProfessorNovell.php" as DecisionEndpoint <<script>>
-class "Intranet::sendMsgValidatCurosProfessorNovell" as IntranetMethod <<legacy>>
+class "Intranet::sendMsgValidatCurosProfessorNovell()" as IntranetMethod <<legacy>>
+class "PagamentCursAutomatic.php" as PaymentView <<legacy>>
+class "realitzaPagamentAutomatic.php" as PaymentHandler <<legacy>>
 class "ajax/obtenirDadesPromo.php" as PromoQuery <<script>>
+class MailSMTPComvive <<legacy>>
+class inscripcions <<table>>
 class recent_titulat <<table>>
 class promocions <<table>>
-class inscripcions <<table>>
 
-EnviarInscripcio --> inscripcions
+EnviarInscripcio --> inscripcions : INSERT matrícula
 EnviarInscripcio --> recent_titulat : JASOM + novell
-UploadEvidence ..> recent_titulat : documentació associada
+UploadEvidence ..> recent_titulat : resguard associat indirectament
 Screen --> Js
-Js --> DecisionEndpoint : GET legacy
+Js --> DecisionEndpoint : GET idInsc + verificat
 DecisionEndpoint --> IntranetMethod
-IntranetMethod ..> recent_titulat : VALIDAT
-PromoQuery --> promocions
+IntranetMethod --> recent_titulat : UPDATE VALIDAT=1/2
+IntranetMethod --> MailSMTPComvive : resultat + opcions de pagament
+
+PaymentView --> recent_titulat : consulta existència/estat incompleta
+PaymentView --> PaymentHandler : iniciar pagament
+PaymentHandler --> inscripcions : actualitza/consulta cobrament
+PaymentHandler --> recent_titulat : SELECT VALIDAT=1
+PaymentHandler --> promocions : SELECT últim MACABODETITULAR
+PaymentHandler --> MailSMTPComvive : confirmació de pagament + codi
+PromoQuery --> promocions : consultar vigència/USED/preu
+
+note right of PaymentHandler
+  Codi ACTUAL auditat:
+  - comprova JASOM + pendent=0 + VALIDAT=1
+  - consulta una promoció existent
+  - no acredita INSERT d'un dret nou
+  - la còpia antiga conté codi literal al correu
+end note
 @enduml
 ```
 
-**Límit:** aquest diagrama mostra dependències observades, no garanteix que `IntranetMethod` sigui l'únic escriptor de `promocions` ni que el circuit desplegat coincideixi exactament amb la còpia versionada.
+**Conclusió ACTUAL:** la decisió de secretaria i el cobrament existeixen, però el model legacy no garanteix per si sol unicitat per persona, emissió idempotent, saldo parcial únic ni traça origen→dret→consums.
 
-## 2. FINAL/branca · alta, decisió, concessió i lliurament
+## 2. FINAL/branca · validació, cobrament, concessió i preparació del codi
 
 ```plantuml
 @startuml
-title UC-111 | FINAL branca | concessió i lliurament
+title UC-111 | FINAL | validació + pagament complet -> dret únic -> codi preparat
 class NovicePromotionEnrollmentStager
 class NovicePromotionSecretaryDecisionProjector
+class RedsysCourseInvoiceService
 class NovicePromotionInvoiceLinkService
 class NovicePromotionGrantService
 class NovicePromotionGrantReconciler
@@ -52,19 +72,43 @@ interface NovicePromotionMailTransportInterface
 interface NoviceEmailChallengeTransportInterface
 class UuidGenerator
 
-NovicePromotionEnrollmentStager --> UuidGenerator
-NovicePromotionSecretaryDecisionProjector --> UuidGenerator
-NovicePromotionGrantService --> UuidGenerator
+database commercial_operation
+database discount_validation
+database "factura / payment_transaction / payment_allocation" as Fiscal
+database commercial_entitlement
+database novice_promotion_grant
+database novice_promotion_code_outbox
+database commercial_entitlement_event
+
+NovicePromotionEnrollmentStager --> commercial_operation
+NovicePromotionSecretaryDecisionProjector --> discount_validation
+NovicePromotionSecretaryDecisionProjector --> commercial_operation : READY_FOR_PAYMENT
+
+RedsysCourseInvoiceService --> NovicePromotionInvoiceLinkService : factura ja committed
+NovicePromotionInvoiceLinkService --> Fiscal : verificar F1/F2 PAID
+NovicePromotionInvoiceLinkService --> commercial_operation : PAID / PAYMENT_PENDING
+RedsysCourseInvoiceService --> NovicePromotionGrantService : només VALIDATED + fully paid
+NovicePromotionGrantService --> discount_validation : VALIDATED
+NovicePromotionGrantService --> Fiscal : CHARGE - REFUND reconciliat
+NovicePromotionGrantService --> commercial_entitlement : ISSUE únic
+NovicePromotionGrantService --> novice_promotion_grant
+NovicePromotionGrantService --> commercial_entitlement_event
+RedsysCourseInvoiceService --> NovicePromotionCodePreparationService : després del grant
+NovicePromotionCodePreparationService --> commercial_entitlement : CODE_HASH + ACTIVE
+NovicePromotionCodePreparationService --> novice_promotion_code_outbox : token xifrat PREPARED
 NovicePromotionGrantReconciler --> NovicePromotionGrantService
-NovicePromotionCodePreparationService --> NovicePromotionCodeKeyProviderInterface
+
+NovicePromotionCodePreparationService ..> NovicePromotionCodeKeyProviderInterface : secret runtime
 NovicePromotionEmailVerificationService --> NoviceEmailChallengeTransportInterface
-NovicePromotionDeliveryAttemptService --> UuidGenerator
 NovicePromotionPrivateMailWorker --> NovicePromotionDeliveryAttemptService
 NovicePromotionPrivateMailWorker --> NovicePromotionMailTransportInterface
 
-note right of NovicePromotionPrivateMailWorker
-  Transport real pendent.
-  No prova desplegament.
+note right of RedsysCourseInvoiceService
+  Tall transaccional:
+  1) factura/pagament committed
+  2) grant idempotent
+  3) codi preparat en una transacció separada
+  Un reintent reutilitza el mateix entitlement.
 end note
 @enduml
 ```
