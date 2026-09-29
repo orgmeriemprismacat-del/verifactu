@@ -54,7 +54,6 @@ final class IncidentActionRepository
         $idempotencyPayload = [
             'incident_id' => $incidentId,
             'action_type' => $actionType,
-            'previous_status' => $previousStatus,
             'new_status' => $newStatus,
             'severity' => $severity,
             'assignee_id' => $assigneeId,
