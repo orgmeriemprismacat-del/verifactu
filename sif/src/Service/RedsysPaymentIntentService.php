@@ -23,6 +23,15 @@ final class RedsysPaymentIntentService
             throw SifException::validation('Redsys payment intent snapshot is required');
         }
 
+        $idpag = $this->optionalPositiveInt($input['idpag'] ?? null);
+        $sourceType = $this->sourceType($input['source_type'] ?? null);
+        $sourceId = $this->sourceId($input['source_id'] ?? null);
+        $expectedAmount = $this->amount($input['expected_amount'] ?? null);
+
+        if ($sourceType === 'PACK') {
+            $this->validatePackSnapshot($snapshot, $idpag, $sourceId, $expectedAmount);
+        }
+
         $snapshotJson = json_encode(
             $snapshot,
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
@@ -34,10 +43,10 @@ final class RedsysPaymentIntentService
         $intent = [
             'uuid_intent' => $this->uuidGenerator->generate(),
             'ds_order' => $this->dsOrder($input['ds_order'] ?? null),
-            'idpag' => $this->optionalPositiveInt($input['idpag'] ?? null),
-            'source_type' => $this->sourceType($input['source_type'] ?? null),
-            'source_id' => $this->sourceId($input['source_id'] ?? null),
-            'expected_amount' => $this->amount($input['expected_amount'] ?? null),
+            'idpag' => $idpag,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'expected_amount' => $expectedAmount,
             'currency' => $this->currency($input['currency'] ?? 'EUR'),
             'terminal' => $this->terminal($input['terminal'] ?? null),
             'snapshot_json' => $snapshotJson,
@@ -64,6 +73,87 @@ final class RedsysPaymentIntentService
         }
 
         return $this->intents->insert($db, $intent);
+    }
+
+    private function validatePackSnapshot(
+        array $snapshot,
+        ?int $idpag,
+        string $sourceId,
+        string $expectedAmount
+    ): void {
+        if ($idpag === null) {
+            throw SifException::validation('Redsys pack payment intent requires IDPAG');
+        }
+
+        $pack = $snapshot['pack'] ?? null;
+        $items = $snapshot['items'] ?? null;
+        if (!is_array($pack) || !is_array($items) || count($items) < 2) {
+            throw SifException::validation('Redsys pack snapshot requires pack and at least two items');
+        }
+
+        $packId = $pack['ID_PACK'] ?? $pack['id_pack'] ?? $pack['id'] ?? null;
+        if (!is_numeric($packId) || (int) $packId <= 0 || (string) (int) $packId !== ltrim($sourceId, '0')) {
+            throw SifException::validation('Redsys pack snapshot source does not match pack ID');
+        }
+
+        $ordinals = [];
+        $sum = 0.0;
+        foreach ($items as $index => $item) {
+            if (!is_array($item)) {
+                throw SifException::validation('Invalid Redsys pack snapshot item ' . $index);
+            }
+
+            $ordinal = $item['ordinal'] ?? null;
+            if (!is_int($ordinal) && !(is_string($ordinal) && ctype_digit($ordinal))) {
+                throw SifException::validation('Redsys pack snapshot item ordinal is required');
+            }
+            $ordinal = (int) $ordinal;
+            if ($ordinal <= 0 || isset($ordinals[$ordinal])) {
+                throw SifException::validation('Redsys pack snapshot item ordinal must be unique and positive');
+            }
+            $ordinals[$ordinal] = true;
+
+            $inscription = $item['inscription'] ?? null;
+            $course = $item['course'] ?? null;
+            if (!is_array($inscription) || !is_array($course)) {
+                throw SifException::validation('Redsys pack snapshot item requires inscription and course');
+            }
+
+            foreach (['ID', 'ANY', 'MES', 'NOM', 'DNI'] as $field) {
+                if (!array_key_exists($field, $inscription) || $inscription[$field] === '' || $inscription[$field] === null) {
+                    throw SifException::validation('Missing Redsys pack inscription field ' . $field);
+                }
+            }
+
+            $itemIdpag = $inscription['IDPAG'] ?? $inscription['idpag'] ?? $idpag;
+            if (!is_numeric($itemIdpag) || (int) $itemIdpag !== $idpag) {
+                throw SifException::validation('Redsys pack snapshot item IDPAG mismatch');
+            }
+
+            $courseTitle = $course['NOM_CURS'] ?? $course['TITOL'] ?? $course['title'] ?? null;
+            if (!is_string($courseTitle) || trim($courseTitle) === '') {
+                throw SifException::validation('Redsys pack snapshot course title is required');
+            }
+
+            $lineTotal = $inscription['TOTAL'] ?? $inscription['total'] ?? $inscription['A_PAGAR'] ?? $inscription['a_pagar'] ?? null;
+            if (!is_numeric($lineTotal) || (float) $lineTotal < 0) {
+                throw SifException::validation('Invalid Redsys pack snapshot line total');
+            }
+            $sum += (float) $lineTotal;
+        }
+
+        ksort($ordinals);
+        $expectedOrdinal = 1;
+        foreach (array_keys($ordinals) as $ordinal) {
+            if ($ordinal !== $expectedOrdinal) {
+                throw SifException::validation('Redsys pack snapshot ordinals must be contiguous from 1');
+            }
+            $expectedOrdinal++;
+        }
+
+        if (number_format($sum, 2, '.', '') !== $expectedAmount) {
+            throw SifException::conflict('Redsys pack snapshot total does not match expected amount');
+        }
     }
 
     private function sameIntent(array $existing, array $intent): bool
