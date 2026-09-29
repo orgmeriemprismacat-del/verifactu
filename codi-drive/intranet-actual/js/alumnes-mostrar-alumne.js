@@ -1377,7 +1377,8 @@ function mostrarModalConsultaInformacio(id) {
 							return;
 						}
 
-						if (res && res.ok === true && res.resolution === "NO_SIF") {
+						if (res && res.ok === true &&
+							(res.resolution === "NO_SIF" || res.resolution === "FEATURE_DISABLED")) {
 							var numFactura = parseInt($('#factura-insc').html(), 10);
 							if (!isNaN(numFactura)) {
 								window.location.replace(
@@ -2228,7 +2229,7 @@ function mostrarModalConsultaFactura(id) {
 			return;
 		}
 
-		if (res.resolution === "NO_SIF") {
+		if (res.resolution === "NO_SIF" || res.resolution === "FEATURE_DISABLED") {
 			mostrarModalConsultaFacturaLlegat(id);
 			return;
 		}
