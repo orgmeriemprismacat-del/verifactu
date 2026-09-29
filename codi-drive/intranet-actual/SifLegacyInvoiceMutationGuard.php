@@ -5,7 +5,6 @@ final class SifLegacyInvoiceMutationGuard
     public function __construct(
         private ?SifInternalApiClient $client = null
     ) {
-        $this->client ??= new SifInternalApiClient();
     }
 
     public function assertLegacyMutationAllowed($user, $legacyInvoiceId): void
@@ -32,7 +31,8 @@ final class SifLegacyInvoiceMutationGuard
         }
 
         [$actorId, $roles] = $this->actor($user);
-        $response = $this->client->searchInvoices(
+        $client = $this->client ?? new SifInternalApiClient();
+        $response = $client->searchInvoices(
             $actorId,
             $roles,
             ['factura_relacionada' => $legacyRelation],
