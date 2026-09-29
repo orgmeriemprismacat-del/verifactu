@@ -49,8 +49,8 @@ final class RedsysUsocInvoiceServiceTest
             'VALIDATED'
         );
 
-        $first = $service->issueStudentFromValidatedNotification($sifDb, $legacyDb, 'ORDERUSOC980', '25.00');
-        $second = $service->issueStudentFromValidatedNotification($sifDb, $legacyDb, 'ORDERUSOC980', '25.00');
+        $first = $service->issueStudentFromValidatedNotification($sifDb, $legacyDb, 'ORDERUSOC980', '25.00', 880);
+        $second = $service->issueStudentFromValidatedNotification($sifDb, $legacyDb, 'ORDERUSOC980', '25.00', 880);
 
         Assert::same(true, $first['ok']);
         Assert::same(false, $first['idempotency_reused']);
@@ -87,6 +87,7 @@ final class RedsysUsocInvoiceServiceTest
         Assert::same('INSCRIPCIO', $relation['SOURCE_TYPE']);
         Assert::same(880, (int) $relation['SOURCE_ID']);
         Assert::same(980, (int) $relation['IDPAG']);
+        Assert::same(880, (int) $first['entity_invoice_pending']['id_insc']);
         Assert::same('ORDERUSOC980', $relation['DS_ORDER']);
         Assert::same(1, (int) $relation['VISIBLE_ALUMNE']);
         Assert::same('REDSYS', $payment['METODE']);
@@ -114,7 +115,7 @@ final class RedsysUsocInvoiceServiceTest
 
         Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $notifications): void {
             $this->service($notifications, $sifDb)
-                ->issueStudentFromValidatedNotification($sifDb, $legacyDb, 'ORDERUSOC981', null);
+                ->issueStudentFromValidatedNotification($sifDb, $legacyDb, 'ORDERUSOC981', null, 880);
         }, 422);
 
         Assert::same([], $legacyDb->preparedSql);
@@ -139,7 +140,7 @@ final class RedsysUsocInvoiceServiceTest
 
         Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $notifications): void {
             $this->service($notifications, $sifDb)
-                ->issueStudentFromValidatedNotification($sifDb, $legacyDb, 'ORDERUSOC982', '25.00');
+                ->issueStudentFromValidatedNotification($sifDb, $legacyDb, 'ORDERUSOC982', '25.00', 880);
         }, 409);
 
         Assert::same([], $legacyDb->preparedSql);
