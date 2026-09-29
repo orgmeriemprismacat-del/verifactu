@@ -1,0 +1,31 @@
+#sif-aeat-app .sif-metric {
+    min-height: 92px;
+}
+
+#sif-aeat-app .sif-metric .value {
+    font-size: 1.55rem;
+    font-weight: 700;
+}
+
+#sif-aeat-app .badge {
+    font-weight: 600;
+    letter-spacing: .02em;
+}
+
+#sif-aeat-detail code {
+    word-break: break-all;
+}
+
+#sif-aeat-incidents .incident {
+    border-left: 3px solid var(--bs-border-color);
+    padding-left: .75rem;
+    margin-bottom: .75rem;
+}
+
+#sif-aeat-incidents .incident[data-state="OPEN"] {
+    border-left-color: var(--bs-danger);
+}
+
+#sif-aeat-incidents .incident[data-state="RESOLVED"] {
+    border-left-color: var(--bs-success);
+}
