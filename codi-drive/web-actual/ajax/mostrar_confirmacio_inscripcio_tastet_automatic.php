@@ -38,9 +38,18 @@ try {
    $hmac = substr($c, $ivlen, $sha2len=32);
    $ciphertext_raw = substr($c, $ivlen+$sha2len);
    $original_id = openssl_decrypt($ciphertext_raw, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
-   $calcmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, $as_binary=true);
+   if (strlen($c) <= ($ivlen + $sha2len))
+      throw new Exception('',1401);
 
-   if (hash_equals($hmac, $calcmac)) {
+   // Tokens nous: HMAC(IV + ciphertext). Es manté lectura de tokens antics
+   // HMAC(ciphertext) durant la transició perquè els enllaços ja emesos funcionin.
+   $calcmac = hash_hmac('sha256', $iv.$ciphertext_raw, $keyEncr, $as_binary=true);
+   $legacyCalcmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, $as_binary=true);
+
+   if (hash_equals($hmac, $calcmac) || hash_equals($hmac, $legacyCalcmac)) {
+		if ($original_id === false || !ctype_digit((string)$original_id))
+			throw new Exception('',1401);
+
 		$pagamentInscripcio= new PaginaConfirmacioTastet($original_id);
 		$mostrar = $pagamentInscripcio->mostrarPaginaConfirmacio();
    }
