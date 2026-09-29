@@ -2,7 +2,7 @@
 
 **Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat en aquesta branca (2026-09-29):** backend de lifecycle **IMPLEMENTAT PARCIALMENT**; API interna autenticada i integracions automàtiques Redsys/AEAT preparades; tests escrits però **NO EXECUTATS en aquesta auditoria**; panell final `pay.prisma.cat/sif/incidencies` i resum de la intranet encara pendents.
+**Estat verificat (2026-09-29):** backend de lifecycle **IMPLEMENTAT PARCIALMENT I VERIFICAT EN CI**; API interna autenticada i integracions automàtiques Redsys/AEAT preparades. Les suites de la PR post-merge #21 han passat amb **555 proves i 0 errors** en dues execucions independents. El panell final `pay.prisma.cat/sif/incidencies`, el resum de la intranet i la preproducció continuen pendents.
 
 **Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
@@ -587,7 +587,7 @@ D --> E[Resolució només al SIF]
 - `RedsysCallbackWorkerTest::testFifthTechnicalFailureBecomesIncident`.
 - `PayloadIdempotencyFlowTest` per `FISCAL_PAYLOAD_CONFLICT`.
 
-**Cap d'aquestes proves es marca PASS en aquest document fins a executar la suite PHP/MySQL.**
+**Verificació CI:** runs 36638546735 i 36638546786, amb **555 passed / 0 failed**; el segon inclou PHP 8.4, MySQL 8.4, BD legacy i lint PHP. Les proves E2E, concurrència específica i preproducció continuen pendents.
 
 ## 12. Gaps pendents
 
@@ -598,7 +598,7 @@ D --> E[Resolució només al SIF]
 5. Afegir integracions d'obertura per documents, conciliació, legacy i altres workers que encara no criden UC-008.
 6. Provar concurrència real: dues obertures simultànies amb la mateixa clau i dues accions simultànies sobre el mateix expedient.
 7. Provar rollback Redsys quan falla l'INSERT d'incidència després de `markIncident`.
-8. Executar suite local/preproducció i conservar evidència.
+8. ~~Executar suite PHP/MySQL CI~~ **FET (555/0)**; resta executar preproducció i conservar evidència d'entorn.
 9. Validar redacció/retenció de `DETAILS` i `EVIDENCE_JSON` per evitar dades sensibles.
 
 ## 13. Traçabilitat
@@ -619,4 +619,4 @@ D --> E[Resolució només al SIF]
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
-**Estat de tancament tècnic:** backend parcial implementat; UI, configuració real i execució de proves continuen pendents.
+**Estat de tancament tècnic:** backend parcial implementat i verificat en CI; UI, configuració productiva, E2E/concurrència específica i preproducció continuen pendents.
