@@ -1320,7 +1320,7 @@ una inscripció o un `IDPAG` amb factura, intenció Redsys o pagament.
 
 ## 18. UC-111 · Docent novell, dret futur i procedència `[BRANCA/PARCIAL]`
 
-UC-111 ja no es representa només com una promoció genèrica. La branca conté un conjunt específic de serveis per expedient, concessió, lliurament, consum parcial, canvis/baixes, saldos derivats i devolució de JASOM. El submodel complet i separat ACTUAL/FINAL és [UC-111 · classes](../07-uml-integrat/uc-111-classes-actual-final.md).
+UC-111 ja no es representa només com una promoció genèrica. La branca conté un conjunt específic de serveis per expedient, concessió, lliurament, consum parcial, canvis/baixes, saldos derivats i devolució de JASOM. El submodel complet i separat ACTUAL/FINAL és [UC-111 · classes](../07-uml-integrat/uc-111-classes-actual-final.md); la persistència, els estats i la projecció de procedència es mantenen a [UC-111 · dades i estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md).
 
 ```plantuml
 @startuml
@@ -1357,4 +1357,4 @@ NovicePromotionRootRefundRecoveryResolutionService --> NovicePromotionRootRefund
 @enduml
 ```
 
-**Límit d'aquest resum:** les fletxes indiquen dependència funcional del lifecycle, no necessàriament injecció PHP directa entre totes les classes. Consultar el [submodel UC-111](../07-uml-integrat/uc-111-classes-actual-final.md) i la [matriu de traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md) per distingir codi existent, polítiques, interfaces i integracions pendents. Les proves MySQL continuen no executades.
+**Límit d'aquest resum:** les fletxes indiquen dependència funcional del lifecycle, no necessàriament injecció PHP directa entre totes les classes. Consultar el [submodel UC-111](../07-uml-integrat/uc-111-classes-actual-final.md), [dades/estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md) i la [matriu de traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md) per distingir codi existent, polítiques, interfaces i integracions pendents. Les proves MySQL continuen no executades.
