@@ -47,6 +47,7 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-01 | Seqüència resumida
+actor Alumne
 participant "enviarInscripcio.php" as Legacy
 participant "NovicePromotionEnrollmentStager" as Final
 database "Legacy data" as LegacyDB
@@ -122,6 +123,7 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-02 | Seqüència resumida
+actor Alumne
 participant "enviarImatgeSocRecentTitulat.php" as Legacy
 participant "Storage/Evidence Adapter [PENDENT]" as Final
 database "Legacy data" as LegacyDB
@@ -198,6 +200,7 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-03 | Seqüència resumida
+actor Secretaria
 participant "Intranet + sendMsgValidatProfessorNovell" as Legacy
 participant "NovicePromotionSecretaryDecisionProjector" as Final
 database "Legacy data" as LegacyDB
@@ -275,6 +278,7 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-04 | Seqüència resumida
+actor Worker
 participant "Callback/generació legacy parcial" as Legacy
 participant "NovicePromotionGrantService" as Final
 database "Legacy data" as LegacyDB
@@ -355,6 +359,8 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-05 | Seqüència resumida
+actor Worker
+participant "Transport correu" as Mail
 participant "Correu/codi legacy parcial" as Legacy
 participant "CodePreparation + EmailVerification + DeliveryAttempt + PrivateMailWorker" as Final
 database "Legacy data" as LegacyDB
@@ -436,6 +442,7 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-06 | Seqüència resumida
+actor Checkout
 participant "obtenirDadesPromo.php / promocions" as Legacy
 participant "NovicePromotionRedemptionService" as Final
 database "Legacy data" as LegacyDB
@@ -503,12 +510,23 @@ Current ..> Target : substituir / encapsular
 @startuml
 title A111-07 | Classes/components
 class "Flux general canvi de curs" as Legacy <<ACTUAL>>
-class "First/Successive Transfer Review + Confirmation" as Final <<FINAL>>
-class "inscripció/factura antiga" as LegacyDB <<ACTUAL DATA>>
+class NovicePromotionCourseTransferReviewService
+class NovicePromotionFirstTransferConfirmationService
+class NovicePromotionSuccessiveTransferReviewService
+class NovicePromotionSuccessiveTransferConfirmationService
+class NovicePromotionApprovedTransferPolicy
+class NovicePromotionApprovedSuccessiveTransferPolicy
+interface NovicePromotionAdjustmentApprovalSourceInterface
 class "novice_promotion_application_transfer" as SIFDB <<FINAL DATA>>
-Legacy --> LegacyDB
-Legacy ..> Final : migració / adaptació
-Final --> SIFDB
+Legacy ..> NovicePromotionCourseTransferReviewService : migració / adaptació
+NovicePromotionCourseTransferReviewService --> SIFDB
+NovicePromotionFirstTransferConfirmationService --> SIFDB
+NovicePromotionSuccessiveTransferReviewService --> SIFDB
+NovicePromotionSuccessiveTransferConfirmationService --> SIFDB
+NovicePromotionFirstTransferConfirmationService --> NovicePromotionApprovedTransferPolicy
+NovicePromotionSuccessiveTransferConfirmationService --> NovicePromotionApprovedSuccessiveTransferPolicy
+NovicePromotionFirstTransferConfirmationService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionSuccessiveTransferConfirmationService --> NovicePromotionAdjustmentApprovalSourceInterface
 @enduml
 ```
 
@@ -517,18 +535,30 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-07 | Seqüència resumida
-participant "Flux general canvi de curs" as Legacy
-participant "First/Successive Transfer Review + Confirmation" as Final
-database "Legacy data" as LegacyDB
-database "SIF data" as SIFDB
-participant "Fiscal / Approval / External" as Fiscal
-Secretaria -> Final : stage transfer
-Final -> Fiscal : validar rectificativa + preu nou
-Final -> SIFDB : PENDING_FISCAL_REVIEW
-Final -> Approval : decisió final
-Approval --> Final : APPROVED
-Final -> Fiscal : factura nova + residual cash
-Final -> SIFDB : predecessor històric + transfer CONFIRMED
+actor Secretaria
+participant NovicePromotionCourseTransferReviewService as FirstReview
+participant NovicePromotionFirstTransferConfirmationService as FirstConfirm
+participant NovicePromotionSuccessiveTransferReviewService as NextReview
+participant NovicePromotionSuccessiveTransferConfirmationService as NextConfirm
+interface NovicePromotionAdjustmentApprovalSourceInterface as Approval
+database novice_promotion_application_transfer as Transfer
+participant "Pricing / factura / rectificativa" as Fiscal
+alt primer canvi
+  Secretaria -> FirstReview : stageFirstTransfer(...)
+  FirstReview -> Fiscal : validar rectificativa + preu nou
+  FirstReview -> Transfer : PENDING_FISCAL_REVIEW
+  FirstConfirm -> Approval : approvedFirstTransfer(uuid)
+  Approval --> FirstConfirm : final APPROVED
+  FirstConfirm -> Fiscal : factura nova + residual cash
+  FirstConfirm -> Transfer : CONFIRMED
+else canvi successiu
+  Secretaria -> NextReview : stageFromDerivedApplication / stageFromConfirmedTransfer
+  NextReview -> Transfer : PENDING_FISCAL_REVIEW
+  NextConfirm -> Approval : approvedSuccessiveTransfer(uuid)
+  Approval --> NextConfirm : final APPROVED
+  NextConfirm -> Fiscal : factura nova + residual cash
+  NextConfirm -> Transfer : predecessor històric + successor CONFIRMED
+end
 @enduml
 ```
 
@@ -581,12 +611,25 @@ Current ..> Target : substituir / encapsular
 @startuml
 title A111-08 | Classes/components
 class "Baixa general / sense lineage canònic" as Legacy <<ACTUAL>>
-class "Cancellation Review + Derived Activation" as Final <<FINAL>>
-class "factura/baixa legacy" as LegacyDB <<ACTUAL DATA>>
-class "novice_promotion_derived_balance" as SIFDB <<FINAL DATA>>
-Legacy --> LegacyDB
-Legacy ..> Final : migració / adaptació
-Final --> SIFDB
+class NovicePromotionDestinationCancellationReviewService
+class NovicePromotionDerivedBalanceActivationService
+class NovicePromotionTransferredDestinationCancellationReviewService
+class NovicePromotionTransferredCancellationActivationService
+class NovicePromotionApprovedCancellationPolicy
+class NovicePromotionApprovedTransferredCancellationPolicy
+interface NovicePromotionAdjustmentApprovalSourceInterface
+class "novice_promotion_derived_balance" as Derived <<FINAL DATA>>
+class "novice_promotion_application_transfer" as Transfer <<FINAL DATA>>
+Legacy ..> NovicePromotionDestinationCancellationReviewService : migració / adaptació
+NovicePromotionDestinationCancellationReviewService --> Derived
+NovicePromotionDerivedBalanceActivationService --> Derived
+NovicePromotionTransferredDestinationCancellationReviewService --> Derived
+NovicePromotionTransferredCancellationActivationService --> Derived
+NovicePromotionTransferredCancellationActivationService --> Transfer
+NovicePromotionDerivedBalanceActivationService --> NovicePromotionApprovedCancellationPolicy
+NovicePromotionTransferredCancellationActivationService --> NovicePromotionApprovedTransferredCancellationPolicy
+NovicePromotionDerivedBalanceActivationService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionTransferredCancellationActivationService --> NovicePromotionAdjustmentApprovalSourceInterface
 @enduml
 ```
 
@@ -595,18 +638,32 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-08 | Seqüència resumida
-participant "Baixa general / sense lineage canònic" as Legacy
-participant "Cancellation Review + Derived Activation" as Final
-database "Legacy data" as LegacyDB
-database "SIF data" as SIFDB
-participant "Fiscal / Approval / External" as Fiscal
-Secretaria -> Final : stage cancellation review
-Final -> Fiscal : validar factura + rectificativa + cash
-Final -> SIFDB : PENDING (available=0)
-Final -> Approval : decisió final
-Approval --> Final : APPROVED
-Final -> Fiscal : reconciliar de nou
-Final -> SIFDB : tancar predecessor + ACTIVE derived + expiry pròpia
+actor Secretaria
+participant NovicePromotionDestinationCancellationReviewService as OriginalReview
+participant NovicePromotionDerivedBalanceActivationService as OriginalActivate
+participant NovicePromotionTransferredDestinationCancellationReviewService as TransferReview
+participant NovicePromotionTransferredCancellationActivationService as TransferActivate
+interface NovicePromotionAdjustmentApprovalSourceInterface as Approval
+database novice_promotion_derived_balance as Derived
+database novice_promotion_application_transfer as Transfer
+participant "Factura / rectificativa / cash" as Fiscal
+alt baixa aplicació original
+  Secretaria -> OriginalReview : stageOriginalApplicationReview(...)
+  OriginalReview -> Fiscal : validar factura + rectificativa + cash
+  OriginalReview -> Derived : PENDING_FISCAL_REVIEW / available=0
+  OriginalActivate -> Approval : approvedCancellation(review)
+  Approval --> OriginalActivate : final APPROVED
+  OriginalActivate -> Fiscal : reconciliar de nou + JASOM pagat
+  OriginalActivate -> Derived : ACTIVE + venciment propi
+else baixa curs traspassat
+  Secretaria -> TransferReview : stageFirstTransferredDestinationReview(...)
+  TransferReview -> Derived : PENDING amb SOURCE_UUID_TRANSFER
+  TransferActivate -> Approval : approvedTransferredCancellation(review)
+  Approval --> TransferActivate : final APPROVED
+  TransferActivate -> Fiscal : reconciliar de nou + JASOM pagat
+  TransferActivate -> Transfer : CANCELLED / CONVERTED_TO_DERIVED
+  TransferActivate -> Derived : ACTIVE + venciment propi
+end
 @enduml
 ```
 
@@ -620,11 +677,17 @@ partition ACTUAL {
 :Tramitar baixa/rectificativa general;
 }
 partition FINAL {
-:Separar promoció i diners reals;
-:Crear review no gastable;
-:Aprovar de forma independent;
-:Reconciliar de nou;
-:Activar saldo derivat amb nou any;
+:Identificar predecessor actual;
+if (Aplicació original o primer traspàs confirmat?) then (sí)
+  :Separar promoció i diners reals;
+  :Crear review no gastable;
+  :Aprovar de forma independent;
+  :Reconciliar de nou;
+  :Activar saldo derivat amb nou any;
+else (derived application / traspàs successiu)
+  :PENDENT servei review+activation específic;
+  :No activar automàticament;
+endif
 }
 stop
 @enduml
@@ -673,6 +736,7 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-09 | Seqüència resumida
+actor Checkout
 participant "Sense model canònic" as Legacy
 participant "NovicePromotionDerivedBalanceRedemptionService" as Final
 database "Legacy data" as LegacyDB
@@ -739,12 +803,14 @@ Current ..> Target : substituir / encapsular
 @startuml
 title A111-10 | Classes/components
 class "Traça dispersa" as Legacy <<ACTUAL>>
-class "LineageSnapshot + Projection + Policy" as Final <<FINAL>>
-class "inscripcions/promocions disperses" as LegacyDB <<ACTUAL DATA>>
+class NovicePromotionLineageSnapshotService
+class NovicePromotionLineageProjectionPolicy
+class NovicePromotionLineagePolicy
 class "grant + applications + transfers + derived balances" as SIFDB <<FINAL DATA>>
-Legacy --> LegacyDB
-Legacy ..> Final : migració / adaptació
-Final --> SIFDB
+Legacy ..> NovicePromotionLineageSnapshotService : migració / adaptació
+NovicePromotionLineageSnapshotService --> SIFDB
+NovicePromotionLineageSnapshotService --> NovicePromotionLineageProjectionPolicy
+NovicePromotionLineageProjectionPolicy --> NovicePromotionLineagePolicy
 @enduml
 ```
 
@@ -753,18 +819,18 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-10 | Seqüència resumida
-participant "Traça dispersa" as Legacy
-participant "LineageSnapshot + Projection + Policy" as Final
-database "Legacy data" as LegacyDB
-database "SIF data" as SIFDB
-participant "Fiscal / Approval / External" as Fiscal
+actor SIF
+participant NovicePromotionLineageSnapshotService as Snapshot
+participant NovicePromotionLineageProjectionPolicy as Projection
+participant NovicePromotionLineagePolicy as Policy
+database "grant + applications + transfers + derived balances" as SIFDB
 SIF -> Snapshot : projectLocked(root)
-Snapshot -> SIFDB : lock/load root + descendants
-Snapshot -> Projection : project(rows)
+Snapshot -> SIFDB : lock/load arrel + descendents
+Snapshot -> Projection : project(SQL rows)
 Projection -> Projection : validar parents/transfers/estats
-Projection --> Snapshot : graf lògic
-Snapshot -> Policy : plan exposure/refund-safe view
-Policy --> SIF : disponibles + usos vius
+Projection --> Snapshot : graf lògic prefixat app:/dapp:/transfer:/right:
+Snapshot -> Policy : validar conservació + reachability
+Policy --> SIF : disponibles + exposició viva
 @enduml
 ```
 
@@ -816,12 +882,18 @@ Current ..> Target : substituir / encapsular
 @startuml
 title A111-11 | Classes/components
 class "Manual/dispers" as Legacy <<ACTUAL>>
-class "RootRefundPlan + RootRefundReview" as Final <<FINAL>>
-class "refund/origen manual" as LegacyDB <<ACTUAL DATA>>
-class "root_refund_review + fingerprint/hold" as SIFDB <<FINAL DATA>>
-Legacy --> LegacyDB
-Legacy ..> Final : migració / adaptació
-Final --> SIFDB
+class NovicePromotionRootRefundPlanService
+class NovicePromotionRootRefundReviewService
+class NovicePromotionRootRefundPlanFingerprintPolicy
+class NovicePromotionLineageSnapshotService
+class "novice_promotion_root_refund_review" as ReviewDB <<FINAL DATA>>
+class commercial_entitlement as Root <<FINAL DATA>>
+Legacy ..> NovicePromotionRootRefundReviewService : migració / adaptació
+NovicePromotionRootRefundReviewService --> NovicePromotionRootRefundPlanService
+NovicePromotionRootRefundPlanService --> NovicePromotionRootRefundPlanFingerprintPolicy
+NovicePromotionRootRefundPlanService --> NovicePromotionLineageSnapshotService
+NovicePromotionRootRefundReviewService --> ReviewDB
+NovicePromotionRootRefundReviewService --> Root : ACTIVE -> REFUND_REVIEW
 @enduml
 ```
 
@@ -830,17 +902,20 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-11 | Seqüència resumida
-participant "Manual/dispers" as Legacy
-participant "RootRefundPlan + RootRefundReview" as Final
-database "Legacy data" as LegacyDB
-database "SIF data" as SIFDB
-participant "Fiscal / Approval / External" as Fiscal
-Operador -> Final : openReview(root)
-Final -> Snapshot : projectLocked
-Snapshot --> Final : graf coherent
-Final -> Plan : calcular cancel_available + recover_active
-Final -> SIFDB : review PENDING_APPROVAL + fingerprint + hold
-Final --> Operador : review oberta
+actor "Operador refund" as Operador
+participant NovicePromotionRootRefundReviewService as Review
+participant NovicePromotionRootRefundPlanService as Plan
+participant NovicePromotionLineageSnapshotService as Snapshot
+database novice_promotion_root_refund_review as ReviewDB
+database commercial_entitlement as Root
+Operador -> Review : openReview(root, evidence, key)
+Review -> Snapshot : projectLocked(root)
+Snapshot --> Review : graf coherent
+Review -> Plan : planLocked + fingerprint
+Plan --> Review : cancel_available + recover_active + hash
+Review -> ReviewDB : PENDING_APPROVAL + PLAN_JSON/HASH
+Review -> Root : ACTIVE -> REFUND_REVIEW
+Review --> Operador : review congelada
 @enduml
 ```
 
@@ -892,12 +967,28 @@ Current ..> Target : substituir / encapsular
 @startuml
 title A111-12 | Classes/components
 class "Sense workflow canònic" as Legacy <<ACTUAL>>
-class "RootRefundExecution + RecoveryResolution + RecoveryCompletion" as Final <<FINAL>>
-class "refund/reclamacions disperses" as LegacyDB <<ACTUAL DATA>>
-class "root refund evidence / recovery items / resolution evidence" as SIFDB <<FINAL DATA>>
-Legacy --> LegacyDB
-Legacy ..> Final : migració / adaptació
-Final --> SIFDB
+class NovicePromotionRootRefundExecutionService
+class NovicePromotionRootRefundRecoveryResolutionService
+class NovicePromotionRootRefundRecoveryCompletionService
+class NovicePromotionApprovedRootRefundPolicy
+class NovicePromotionOriginRefundEvidencePolicy
+class NovicePromotionRecoveryResolutionPolicy
+class NovicePromotionRecoveryCompletionPolicy
+interface NovicePromotionAdjustmentApprovalSourceInterface
+interface NovicePromotionOriginRefundEvidenceSourceInterface
+interface NovicePromotionRecoveryResolutionSourceInterface
+class "root refund review + recovery/evidence" as SIFDB <<FINAL DATA>>
+Legacy ..> NovicePromotionRootRefundExecutionService : migració / adaptació
+NovicePromotionRootRefundExecutionService --> SIFDB
+NovicePromotionRootRefundRecoveryResolutionService --> SIFDB
+NovicePromotionRootRefundRecoveryCompletionService --> SIFDB
+NovicePromotionRootRefundExecutionService --> NovicePromotionApprovedRootRefundPolicy
+NovicePromotionRootRefundExecutionService --> NovicePromotionOriginRefundEvidencePolicy
+NovicePromotionRootRefundExecutionService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionRootRefundExecutionService --> NovicePromotionOriginRefundEvidenceSourceInterface
+NovicePromotionRootRefundRecoveryResolutionService --> NovicePromotionRecoveryResolutionPolicy
+NovicePromotionRootRefundRecoveryResolutionService --> NovicePromotionRecoveryResolutionSourceInterface
+NovicePromotionRootRefundRecoveryCompletionService --> NovicePromotionRecoveryCompletionPolicy
 @enduml
 ```
 
@@ -906,19 +997,28 @@ Final --> SIFDB
 ```plantuml
 @startuml
 title A111-12 | Seqüència resumida
-participant "Sense workflow canònic" as Legacy
-participant "RootRefundExecution + RecoveryResolution + RecoveryCompletion" as Final
-database "Legacy data" as LegacyDB
-database "SIF data" as SIFDB
-participant "Fiscal / Approval / External" as Fiscal
-Refund -> Final : executeApprovedCommercialConsequences
-Final -> Evidence : verificar refund JASOM real
-Final -> SIFDB : cancel·lar romanents vius
-Final -> SIFDB : crear PENDING_RECOVERY per usos vius
-Recovery -> Final : resolveVerifiedRecovery(item)
-Final -> SIFDB : RECOVERED/WAIVED/CANCELLED + evidència
-Recovery -> Final : closeResolvedWorkflow
-Final -> SIFDB : resum + tancament
+actor "Operador refund" as Refund
+actor "Operador recovery" as RecoveryActor
+participant NovicePromotionRootRefundExecutionService as Execute
+participant NovicePromotionRootRefundRecoveryResolutionService as Resolve
+participant NovicePromotionRootRefundRecoveryCompletionService as Complete
+interface NovicePromotionAdjustmentApprovalSourceInterface as Approval
+interface NovicePromotionOriginRefundEvidenceSourceInterface as RefundEvidence
+interface NovicePromotionRecoveryResolutionSourceInterface as RecoveryEvidence
+database "root refund review + recovery items" as SIFDB
+Refund -> Execute : executeApprovedCommercialConsequences(review)
+Execute -> Approval : approvedRootRefund(review)
+Approval --> Execute : APPROVED
+Execute -> RefundEvidence : confirmedOriginRefund(review)
+RefundEvidence --> Execute : refund JASOM real
+Execute -> SIFDB : EXECUTED + cancel·lar romanents vius
+Execute -> SIFDB : crear PENDING_RECOVERY per usos actuals
+RecoveryActor -> Resolve : resolveVerifiedRecovery(item)
+Resolve -> RecoveryEvidence : evidència externa / waiver
+RecoveryEvidence --> Resolve : resolució verificada
+Resolve -> SIFDB : RECOVERED / WAIVED / CANCELLED
+RecoveryActor -> Complete : closeResolvedWorkflow(review)
+Complete -> SIFDB : RECOVERY_RESOLVED + summary
 @enduml
 ```
 
@@ -959,4 +1059,4 @@ stop
 | A111-11 | sí | §A111-11.1 | §A111-11.2 | §A111-11.3 | §A111-11.4 |
 | A111-12 | sí | §A111-12.1 | §A111-12.2 | §A111-12.3 | §A111-12.4 |
 
-**Estat:** cobertura documental 1:1 creada. Això no acredita renderització PlantUML, execució dels serveis, MySQL, concurrència, connectors ni desplegament. La vista funcional més detallada continua a [activitats ACTUAL/FINAL](uc-111-activitats-actual-final.md), [seqüències](uc-111-sequencies-actual-final.md) i [classes](uc-111-classes-actual-final.md).
+**Estat:** cobertura documental 1:1 creada. Això no acredita renderització PlantUML, execució dels serveis, MySQL, concurrència, connectors ni desplegament. La vista funcional més detallada continua a [activitats ACTUAL/FINAL](uc-111-activitats-actual-final.md), [seqüències](uc-111-sequencies-actual-final.md), [classes](uc-111-classes-actual-final.md) i [dades/estats](uc-111-dades-estats-actual-final.md).

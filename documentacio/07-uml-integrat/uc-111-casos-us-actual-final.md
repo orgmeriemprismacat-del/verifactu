@@ -1,6 +1,6 @@
 # UC-111 · Casos d'ús ACTUAL / FINAL
 
-**Document canònic de vistes de casos d'ús.** La [fitxa principal](../06-fitxes-funcionals/uc-111.md) conserva les regles de negoci i les decisions; les [fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) descomponen el cas per operació.
+**Document canònic de vistes de casos d'ús.** La [fitxa principal](../06-fitxes-funcionals/uc-111.md) conserva les regles de negoci i les decisions; les [fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) descomponen el cas per operació. La persistència i els lifecycles es documenten separadament a [dades i estats ACTUAL/FINAL](uc-111-dades-estats-actual-final.md).
 
 ## 1. Frontera ACTUAL observable
 

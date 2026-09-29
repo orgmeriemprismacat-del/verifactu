@@ -1538,3 +1538,42 @@ sequenceDiagram
   PayLink-->>Payer: URL segura
   Note over Intent,Audit: El callback no recalcula cursos ni descomptes vius
 ```
+
+
+## 49. UC-111 · Docent novell, consum, derivació i devolució JASOM `[BRANCA/PARCIAL]`
+
+La seqüència completa UC-111 és massa ampla per a una única cadena lineal: es divideix en alta/decisió/concessió, lliurament, consum original, canvi/baixa, consum derivat i root-refund. Les sis seqüències canòniques es mantenen a [UC-111 · seqüències ACTUAL/FINAL](../07-uml-integrat/uc-111-sequencies-actual-final.md); els canvis d'estat associats es documenten a [UC-111 · dades i estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md).
+
+```plantuml
+@startuml
+title UC-111 | resum de seqüència del lifecycle
+actor Alumne
+actor Secretaria
+participant "SIF UC-111" as SIF
+participant "Pricing/Fiscal" as Fiscal
+participant "Redsys/Banc" as Bank
+participant "Worker correu" as Mail
+participant "Refund/Recovery" as Recovery
+
+Alumne -> SIF : alta JASOM + sol·licitud
+Secretaria -> SIF : validar/rebutjar evidència
+Bank -> SIF : cobrament real conciliat
+SIF -> SIF : concedir/reutilitzar dret únic
+SIF -> Mail : preparar/lliurar codi
+Alumne -> SIF : reservar saldo en curs posterior
+SIF -> Fiscal : aplicar preu i factura final
+alt canvi o baixa
+  Secretaria -> SIF : decisió + rectificativa
+  SIF -> Fiscal : validar nova destinació o baixa
+  SIF -> SIF : transferir o crear saldo derivat
+end
+opt devolució posterior JASOM
+  Recovery -> SIF : obrir review + evidència refund
+  SIF -> SIF : congelar graf i cancel·lar romanents
+  SIF -> Recovery : recovery items només pels usos vius
+  Recovery -> SIF : resolució amb evidència
+end
+@enduml
+```
+
+**No inferir integració completa:** el codi de serveis existeix a la branca, però els adaptadors finals de sessió/rol, storage documental, pricing, emissió fiscal, transport de correu i evidències externes no estan acreditats com a desplegats. [Fitxes d'acció UC-111](../06-fitxes-funcionals/uc-111-accions.md) · [dades/estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md) · [traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md).

@@ -132,6 +132,10 @@ class NovicePromotionDerivedBalanceRedemptionService
 class NovicePromotionDerivedBalanceEligibilityPolicy
 class NovicePromotionDestinationAdjustmentPolicy
 class NovicePromotionRectificationEvidencePolicy
+class NovicePromotionApprovedCancellationPolicy
+class NovicePromotionApprovedTransferPolicy
+class NovicePromotionApprovedSuccessiveTransferPolicy
+class NovicePromotionApprovedTransferredCancellationPolicy
 interface NovicePromotionAdjustmentApprovalSourceInterface
 
 NovicePromotionRedemptionService --> NovicePromotionAmountPolicy
@@ -141,21 +145,25 @@ NovicePromotionDerivedBalanceRedemptionService --> NovicePromotionDerivedBalance
 NovicePromotionCourseTransferReviewService --> NovicePromotionDestinationAdjustmentPolicy
 NovicePromotionCourseTransferReviewService --> NovicePromotionRectificationEvidencePolicy
 NovicePromotionFirstTransferConfirmationService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionFirstTransferConfirmationService --> NovicePromotionApprovedTransferPolicy
 NovicePromotionFirstTransferConfirmationService --> NovicePromotionRectificationEvidencePolicy
 
 NovicePromotionSuccessiveTransferReviewService --> NovicePromotionDestinationAdjustmentPolicy
 NovicePromotionSuccessiveTransferConfirmationService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionSuccessiveTransferConfirmationService --> NovicePromotionApprovedSuccessiveTransferPolicy
 NovicePromotionSuccessiveTransferConfirmationService --> NovicePromotionRectificationEvidencePolicy
 
 NovicePromotionDestinationCancellationReviewService --> NovicePromotionDestinationAdjustmentPolicy
 NovicePromotionDestinationCancellationReviewService --> NovicePromotionRectificationEvidencePolicy
 NovicePromotionDerivedBalanceActivationService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionDerivedBalanceActivationService --> NovicePromotionApprovedCancellationPolicy
 NovicePromotionDerivedBalanceActivationService --> NovicePromotionDestinationAdjustmentPolicy
 NovicePromotionDerivedBalanceActivationService --> NovicePromotionRectificationEvidencePolicy
 
 NovicePromotionTransferredDestinationCancellationReviewService --> NovicePromotionDestinationAdjustmentPolicy
 NovicePromotionTransferredDestinationCancellationReviewService --> NovicePromotionRectificationEvidencePolicy
 NovicePromotionTransferredCancellationActivationService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionTransferredCancellationActivationService --> NovicePromotionApprovedTransferredCancellationPolicy
 NovicePromotionTransferredCancellationActivationService --> NovicePromotionDestinationAdjustmentPolicy
 NovicePromotionTransferredCancellationActivationService --> NovicePromotionRectificationEvidencePolicy
 @enduml
@@ -206,7 +214,7 @@ NovicePromotionRootRefundRecoveryCompletionService --> NovicePromotionRecoveryCo
 | consum original | `novice_promotion_application` |
 | saldos derivats | `novice_promotion_derived_balance`, `novice_promotion_derived_application` |
 | canvis de curs | `novice_promotion_application_transfer` |
-| refund/recovery | taules de review, recovery items i evidències de refund incorporades a les migracions 000021–000026 |
+| refund/recovery | taules de review, recovery items i evidències de refund incorporades a les migracions 000021–000027 |
 | auditoria | `commercial_entitlement_event`, operació/fiscalitat relacionada |
 
 ## 6. Classes no equivalents
@@ -230,4 +238,4 @@ NovicePromotionRootRefundRecoveryCompletionService --> NovicePromotionRecoveryCo
 
 ## 8. Navegació
 
-[Fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) · [Casos d'ús](uc-111-casos-us-actual-final.md) · [Seqüències](uc-111-sequencies-actual-final.md) · [Activitats](uc-111-activitats-actual-final.md) · [Traçabilitat](uc-111-tracabilitat-implementacio.md)
+[Fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) · [Casos d'ús](uc-111-casos-us-actual-final.md) · [Seqüències](uc-111-sequencies-actual-final.md) · [Activitats](uc-111-activitats-actual-final.md) · [Dades i estats](uc-111-dades-estats-actual-final.md) · [Traçabilitat](uc-111-tracabilitat-implementacio.md)

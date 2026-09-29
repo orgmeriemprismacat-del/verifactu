@@ -2,6 +2,8 @@
 
 **Àmbit:** les 142 fitxes específiques d'[aquest índex](README.md) comparades amb el catàleg original, el PHP i les migracions consultades a la branca documental. **Resultat de la revisió documental: 142/142 fitxes presents.** Això **no** acredita que els 142 casos siguin operatius, fiscalment validats, provats, desplegats o que els diagrames ja s'hagin renderitzat sense errors.
 
+**Actualització 29/09/2026:** s'han afegit documents **suplementaris** per descompondre UC-111 (fitxes d'acció i vistes ACTUAL/FINAL de casos, classes, seqüències, activitats i traçabilitat). No són nous identificadors UC i queden **fora del recompte canònic 142**. Per tant, qualsevol recompte físic de `uc-*.md` ha de filtrar el patró dels 142 IDs canònics i no assumir que tot fitxer auxiliar amb prefix `uc-111-` és una fitxa addicional del catàleg.
+
 ## 1. Què s'ha comprovat, què s'ha corregit i què NO s'ha provat
 
 | Control | Resultat contrastat |

@@ -86,10 +86,11 @@
 | Camp | Valor |
 | --- | --- |
 | Curs original | `NovicePromotionDestinationCancellationReviewService` + `NovicePromotionDerivedBalanceActivationService` |
-| Curs traspassat | `NovicePromotionTransferredDestinationCancellationReviewService` + `NovicePromotionTransferredCancellationActivationService` |
+| Curs traspassat | `NovicePromotionTransferredDestinationCancellationReviewService` + `NovicePromotionTransferredCancellationActivationService` — en aquest tall, curs actual assolit pel **primer traspàs confirmat** de l'aplicació original |
 | Regla | separar component promocional de diners reals; saldo derivat amb **nou any propi**; no restaurar saldo JASOM |
 | Evidència | rectificativa real + aprovació independent + revalidació del cash abans d'activar |
-| Estat | IMPLEMENTAT_BRANCA en els casos modelats · adaptador real d'aprovació PENDENT · NO PROVAT MySQL |
+| Encara no executable | baixa directa d'una `novice_promotion_derived_application.APPLIED` i baixa després d'un segon/tercer traspàs: l'esquema/projecció en preserven la procedència, però falta servei específic review+activation per aquests orígens |
+| Estat | IMPLEMENTAT_BRANCA per baixa original i baixa del primer curs traspassat · derivada/successiva PENDENT · adaptador real d'aprovació PENDENT · NO PROVAT MySQL |
 
 ## A111-09 · Consum parcial del saldo derivat
 
@@ -116,7 +117,7 @@
 | --- | --- |
 | Components | `NovicePromotionRootRefundPlanService`, `NovicePromotionRootRefundReviewService` |
 | Regla | abans d'efectes comercials, projectar tota la cadena; congelar noves reserves; no confondre proposta amb refund bancari |
-| Estats | `PENDING_APPROVAL`, `REFUND_REVIEW` i hold de l'arrel segons el workflow actual |
+| Estats | `commercial_entitlement.ACTIVE → REFUND_REVIEW`; review `PENDING_APPROVAL` (model també admet `APPROVED_WAITING_REFUND` després de 000027), amb retorn a ACTIVE si es rebutja/cancel·la o continuació a EXECUTED quan hi ha aprovació + refund d'origen confirmat |
 | Estat | IMPLEMENTAT_BRANCA · connector/autenticació real i proves MySQL PENDENTS |
 
 ## A111-12 · Executar conseqüències del refund JASOM i resoldre recuperacions
@@ -127,19 +128,20 @@
 | Polítiques | `NovicePromotionApprovedRootRefundPolicy`, `NovicePromotionOriginRefundEvidencePolicy`, `NovicePromotionRecoveryResolutionPolicy`, `NovicePromotionRecoveryCompletionPolicy` |
 | Regla | només després d'evidència del refund d'origen: cancel·lar romanents vius i crear recovery items pels imports promocionals actualment gastats; tancar cada recovery amb evidència, sense inventar cobrament |
 | Prohibició | no reclamar de nou consums històrics ja substituïts per transferència o saldo derivat |
+| Postcondicions | review `EXECUTED` després de cancel·lar romanents/crear recoveries; `RECOVERY_RESOLVED` només quan tots els items tenen `RECOVERED/WAIVED/CANCELLED` amb evidència |
 | Estat | IMPLEMENTAT_BRANCA · integració real de refund/recovery i MySQL PENDENTS |
 
 ## Cobertura UML 1:1 per acció
 
-Cada A111-01…A111-12 disposa ara de **quatre diagrames propis** —cas d'ús, classes/components, seqüència i activitat— al document [UC-111 · diagrames 1:1 per acció](../07-uml-integrat/uc-111-diagrames-per-accio.md). Les vistes globals ACTUAL/FINAL continuen sent útils per entendre relacions entre accions, però aquest document 1:1 és la prova de cobertura de la porta «una acció → quatre diagrames».
+Cada A111-01…A111-12 disposa ara de **quatre diagrames propis** —cas d'ús, classes/components, seqüència i activitat— al document [UC-111 · diagrames 1:1 per acció](../07-uml-integrat/uc-111-diagrames-per-accio.md). Les vistes globals ACTUAL/FINAL continuen sent útils per entendre relacions entre accions, però aquest document 1:1 és la prova de cobertura de la porta «una acció → quatre diagrames». La vista transversal de persistència i lifecycle és [UC-111 · dades i estats ACTUAL/FINAL](../07-uml-integrat/uc-111-dades-estats-actual-final.md); **no crea cap acció nova**, sinó que tanca la cobertura de dades/estats dels mateixos A111-01…12.
 
 ## Matriu de cobertura documental de les accions
 
-| Acció | Casos d'ús | Classes | Seqüència | Activitat | Traçabilitat |
-| --- | --- | --- | --- | --- | --- |
-| A111-01…03 | [casos d'ús](../07-uml-integrat/uc-111-casos-us-actual-final.md) | [classes](../07-uml-integrat/uc-111-classes-actual-final.md) | [seqüències](../07-uml-integrat/uc-111-sequencies-actual-final.md) | [activitats](../07-uml-integrat/uc-111-activitats-actual-final.md) | [matriu](../07-uml-integrat/uc-111-tracabilitat-implementacio.md) |
-| A111-04…06 | idem | idem | idem | idem | idem |
-| A111-07…09 | idem | idem | idem | idem | idem |
-| A111-10…12 | idem | idem | idem | idem | idem |
+| Acció | Casos d'ús | Classes | Seqüència | Activitat | Dades/estats | Traçabilitat |
+| --- | --- | --- | --- | --- | --- | --- |
+| A111-01…03 | [casos d'ús](../07-uml-integrat/uc-111-casos-us-actual-final.md) | [classes](../07-uml-integrat/uc-111-classes-actual-final.md) | [seqüències](../07-uml-integrat/uc-111-sequencies-actual-final.md) | [activitats](../07-uml-integrat/uc-111-activitats-actual-final.md) | [dades/estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md) | [matriu](../07-uml-integrat/uc-111-tracabilitat-implementacio.md) |
+| A111-04…06 | idem | idem | idem | idem | idem | idem |
+| A111-07…09 | idem | idem | idem | idem | idem | idem |
+| A111-10…12 | idem | idem | idem | idem | idem | idem |
 
 **Nota de control:** aquesta descomposició no substitueix la fitxa principal. Serveix perquè cada acció tingui actor, disparador, postcondició, codi i estat propis, seguint el criteri de revisió utilitzat a UC-04.

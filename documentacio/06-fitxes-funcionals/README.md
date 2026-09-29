@@ -2,6 +2,8 @@
 
 Catàleg navegable generat des de `33-casos-us-sif.md`. Cada fitxa té 21 apartats, però és un **esborrany estructurat**, no una anàlisi funcional completa. Cal revisar descripcions/checklists Trello, evidència de codi, dades reals, decisions fiscals, permisos i proves específiques abans de marcar cap fitxa com a preparada per programar o completa.
 
+**Comptatge canònic:** continuen existint **142 IDs/variants UC canònics**. Els fitxers suplementaris com [UC-111 · fitxes d'acció](uc-111-accions.md) descomponen un cas complex per auditar-lo i **no creen un UC nou ni entren al recompte 142**.
+
 | ID | Cas | Domini | Estat documental | Fitxa |
 | --- | --- | --- | --- | --- |
 | UC-01 | Emetre o reutilitzar factura | facturació i registre fiscal | `[BASE]` | [uc-001.md](./uc-001.md) |
@@ -127,7 +129,7 @@ Catàleg navegable generat des de `33-casos-us-sif.md`. Cada fitxa té 21 aparta
 | UC-108 | Registrar un tastet o repte gratuït com a operació no facturable | operació comercial i inscripció | `[LEGACY/DISSENY]` | [uc-108.md](./uc-108.md) |
 | UC-109 | Registrar una inscripció a curs subvencionat sense cobrament individual | operació comercial i inscripció | `[LEGACY/PENDENT/BLOQUEJANT]` | [uc-109.md](./uc-109.md) |
 | UC-110 | Gestionar el descompte d'amics amb dues inscripcions i un pagador | operació comercial i inscripció | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-110.md](./uc-110.md) |
-| UC-111 | Validar docent novell i generar un dret de descompte futur | operació comercial i inscripció | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-111.md](./uc-111.md) |
+| UC-111 | Validar docent novell i generar un dret de descompte futur | operació comercial i inscripció | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-111.md](./uc-111.md) · [accions A111-01…12](./uc-111-accions.md) |
 | UC-112 | Congelar preu, descompte, places i classificació fiscal abans del TPV | operació comercial i inscripció | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-112.md](./uc-112.md) |
 | UC-113 | Importar o crear inscripcions manualment o en lot sense inventar cobrament | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-113.md](./uc-113.md) |
 | UC-114 | Versionar canvis de producte o edició amb operacions obertes | cicle de vida comercial, acadèmic i documental | `[LEGACY/DISSENY/BLOQUEJANT]` | [uc-114.md](./uc-114.md) |

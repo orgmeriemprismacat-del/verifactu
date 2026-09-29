@@ -224,7 +224,8 @@ alt Canvi primer destí
 else Canvi successiu
   Secretaria -> NextReview : stageFromDerivedApplication / stageFromConfirmedTransfer
   NextReview -> Transfer : PENDING_FISCAL_REVIEW
-  NextConfirm -> Approval : decisió successiva
+  NextConfirm -> Approval : approvedSuccessiveTransfer
+  Approval --> NextConfirm : final APPROVED
   NextConfirm -> Transfer : CONFIRMED
 else Baixa destí original
   Secretaria -> CancelReview : stageOriginalApplicationReview
@@ -257,13 +258,22 @@ participant NovicePromotionRootRefundReviewService as Review
 participant NovicePromotionRootRefundExecutionService as Execute
 participant NovicePromotionRootRefundRecoveryResolutionService as Resolve
 participant NovicePromotionRootRefundRecoveryCompletionService as Complete
+interface NovicePromotionAdjustmentApprovalSourceInterface as Approval
+interface NovicePromotionOriginRefundEvidenceSourceInterface as RefundEvidence
+interface NovicePromotionRecoveryResolutionSourceInterface as RecoveryEvidence
 database "refund review / recovery items" as Recovery
 
 Checkout -> DerivedSpend : reserve(...)
 DerivedSpend -> Balance : AVAILABLE -= amount
 DerivedSpend -> DApp : RESERVED
-Checkout -> DerivedSpend : confirmApplied(...)
-DerivedSpend -> DApp : APPLIED
+alt factura/residual final correctes
+  Checkout -> DerivedSpend : confirmApplied(...)
+  DerivedSpend -> DApp : APPLIED
+else fracàs segur abans d'intent/factura
+  Checkout -> DerivedSpend : release(...)
+  DerivedSpend -> Balance : restaurar import
+  DerivedSpend -> DApp : RELEASED
+end
 
 Review -> Snapshot : projectLocked(root)
 Snapshot -> Projection : project(SQL rows)
@@ -271,16 +281,26 @@ Projection --> Snapshot : graf lògic
 Review -> Plan : plan + fingerprint
 Review -> Recovery : PENDING_APPROVAL + freeze
 
-Execute -> Recovery : carregar review aprovada
-Execute -> Execute : verificar evidència refund origen
+Execute -> Approval : approvedRootRefund(review)
+Approval --> Execute : final APPROVED
+Execute -> RefundEvidence : confirmedOriginRefund(review)
+RefundEvidence --> Execute : refund JASOM real acreditat
+Execute -> Recovery : revalidar plan/fingerprint
 Execute -> Balance : cancel·lar romanents vius
-Execute -> Recovery : crear PENDING_RECOVERY pels consums actuals
+Execute -> Recovery : EXECUTED + PENDING_RECOVERY pels usos actuals
 
-Resolve -> Recovery : RECOVERED / WAIVED / CANCELLED amb evidència
-Complete -> Recovery : tancar workflow només quan resolt
+Resolve -> RecoveryEvidence : evidència recovery / waiver / cancel·lació
+RecoveryEvidence --> Resolve : resolució verificada
+Resolve -> Recovery : RECOVERED / WAIVED / CANCELLED
+Complete -> Recovery : RECOVERY_RESOLVED quan tots estan tancats
 note over Execute,Recovery
   No crear un cobrament fictici.
   No reclamar predecessors històrics.
+  El model final (000027) admet també
+  APPROVED_WAITING_REFUND com a handoff,
+  però el servei actual executa directament
+  PENDING_APPROVAL -> EXECUTED quan ja té
+  aprovació i refund d'origen confirmat.
 end note
 @enduml
 ```
@@ -301,4 +321,4 @@ end note
 
 Aquestes seqüències reflecteixen el codi actual de la branca i el llegat contrastat, però **no impliquen execució de MySQL ni desplegament**. Els connectors de sessió, secretaria, pricing, emissió fiscal, transport de correu i evidències externes continuen sent portes d'integració.
 
-[Classes](uc-111-classes-actual-final.md) · [Activitats](uc-111-activitats-actual-final.md) · [Traçabilitat](uc-111-tracabilitat-implementacio.md)
+[Classes](uc-111-classes-actual-final.md) · [Activitats](uc-111-activitats-actual-final.md) · [Dades i estats](uc-111-dades-estats-actual-final.md) · [Traçabilitat](uc-111-tracabilitat-implementacio.md)
