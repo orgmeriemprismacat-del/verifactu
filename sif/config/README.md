@@ -51,5 +51,6 @@ La nova previsualització de canvi de curs està separada del circuit llegat i �
 - `SIF_COURSE_CHANGE_API_URL`: URL server-to-server de `sif/public/api/course-changes/preview.php`.
 - `SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH`: mateix path canònic configurat al SIF.
 - `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1`: abans d'executar `realitzarCanviCurs_modalCanviCurs()`, el wrapper torna a calcular el preu estàndard al servidor llegat, demana la classificació al SIF i rebutja el canvi si la decisió fiscal/econòmica ha variat, si falta motiu del preu manual o si existeixen múltiples factures SIF relacionades.
+- Amb `SIF_COURSE_CHANGE_UI_ENABLED=1`, la confirmació final del canvi es força a **POST**; el wrapper conserva GET només com a compatibilitat temporal del JS antic.
 
 **Ordre de desplegament recomanat:** configurar URL/secret/rol → activar només `SIF_COURSE_CHANGE_UI_ENABLED` en preproducció → validar els casos mateix/més/menys/preu manual → activar `SIF_COURSE_CHANGE_PREVIEW_ENFORCED`. Cap d'aquests flags emet per si sol una rectificativa, registra un cobrament o executa un refund.
