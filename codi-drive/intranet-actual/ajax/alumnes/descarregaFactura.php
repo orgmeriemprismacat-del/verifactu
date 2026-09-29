@@ -1,33 +1,26 @@
 <?php
 
 require_once '../../lib/dompdf/autoload.inc.php';
-use Dompdf\Dompdf;
 
-include ('../../ConnexioIntranet.php');
-include ('../../ConnexioWeb.php');
-include ('../../Text.php');
-include ('../../Usuari.php');
-include ('../../Intranet.php');
-include ('../../inc/missatgesError.php');
-session_start();
+$root = dirname(__DIR__, 2);
+require_once $root . '/LegacyInvoiceReadContext.php';
+
+$user = null;
+$intranet = null;
 
 try {
+    [$user, $intranet] = LegacyInvoiceReadContext::open();
 
-	$_SESSION['usuari'] = unserialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = unserialize($_SESSION['intranet']);
+    $id = trim((string) ($_GET['id'] ?? ''));
+    if ($id === '' || !ctype_digit($id)) {
+        throw new InvalidArgumentException('Factura relacionada no vàlida', 422);
+    }
 
-	$id	= $_GET['id'];
-
-	echo $_SESSION['intranet']->generaFactura($id, true);
-
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-
+    echo $intranet->generaFactura((int) $id, true);
+} catch (Throwable $exception) {
+    $code = (int) $exception->getCode();
+    http_response_code($code >= 400 && $code <= 599 ? $code : 500);
+    echo 'Error: ' . $exception->getMessage();
+} finally {
+    LegacyInvoiceReadContext::persist($user, $intranet);
 }
-catch(Exception $e) {
-	echo missatgeError($e->getCode());
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-}
-
-?>
