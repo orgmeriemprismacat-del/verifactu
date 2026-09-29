@@ -18,6 +18,7 @@ use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
@@ -35,6 +36,7 @@ use Prisma\Sif\Service\NovicePromotionCodePreparationService;
 use Prisma\Sif\Service\RedsysGiftInvoiceService;
 use Prisma\Sif\Service\RedsysGroupInvoiceService;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
+use Prisma\Sif\Service\RedsysLegacySyncProcessor;
 use Prisma\Sif\Service\RedsysPackInvoiceService;
 use Prisma\Sif\Service\RedsysUsocInvoiceService;
 
@@ -99,9 +101,19 @@ try {
         new RedsysGiftInvoiceService($notifications, new LegacyGiftSnapshotRepository(), new LegacyGiftInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysUsocInvoiceService($notifications, new LegacyUsocSnapshotRepository(), new LegacyUsocInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
     ]);
+    $processor = $dispatcher;
+    if (($config['redsys']['sync_legacy_course'] ?? false) === true) {
+        $legacyDb = ConnectionFactory::makeLegacy($config);
+        $processor = new RedsysLegacySyncProcessor(
+            $dispatcher,
+            $legacyDb,
+            new CourseLegacyPaymentSyncService()
+        );
+    }
+
     $worker = new RedsysCallbackWorker(
         new RedsysCallbackQueueRepository(new UuidGenerator()),
-        $dispatcher,
+        $processor,
         new IncidentRepository(),
         5
     );
