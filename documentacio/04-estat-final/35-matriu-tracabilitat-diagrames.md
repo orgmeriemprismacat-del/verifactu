@@ -319,6 +319,7 @@ UC-111 té una complexitat superior a una fitxa UML de tres blocs. A partir del 
 | classes ACTUAL/FINAL | [uc-111-classes-actual-final.md](../07-uml-integrat/uc-111-classes-actual-final.md) | creada |
 | seqüències ACTUAL/FINAL | [uc-111-sequencies-actual-final.md](../07-uml-integrat/uc-111-sequencies-actual-final.md) | creada |
 | activitats ACTUAL/FINAL | [uc-111-activitats-actual-final.md](../07-uml-integrat/uc-111-activitats-actual-final.md) | creada |
+| quatre UML per cadascuna de les 12 accions | [uc-111-diagrames-per-accio.md](../07-uml-integrat/uc-111-diagrames-per-accio.md) | 48 blocs, cobertura 1:1 creada |
 | traçabilitat implementació | [uc-111-tracabilitat-implementacio.md](../07-uml-integrat/uc-111-tracabilitat-implementacio.md) | creada |
 | UML acumulatiu històric | [uc-111-docent-novell-dret-futur.md](../07-uml-integrat/uc-111-docent-novell-dret-futur.md) | es conserva com a cronologia |
 | auditoria dirigida | [00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md](../07-uml-integrat/00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md) | activa |
