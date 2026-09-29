@@ -23,6 +23,7 @@ final class UsocEntityPreflightScriptTest
         Assert::stringContainsString('factura_table', $source);
         Assert::stringContainsString('factura_linia_table', $source);
         Assert::stringContainsString('fact_rels_table', $source);
+        Assert::stringContainsString('usoc_financing_case_table', $source);
         Assert::stringContainsString('fiscal_chain_state_seeded', $source);
         Assert::stringContainsString('legacy_inscripcions_table', $source);
         Assert::stringContainsString('legacy_curs_table', $source);
