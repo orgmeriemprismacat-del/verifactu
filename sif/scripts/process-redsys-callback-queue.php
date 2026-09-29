@@ -31,6 +31,7 @@ use Prisma\Sif\Service\RedsysCallbackWorker;
 use Prisma\Sif\Service\RedsysCourseInvoiceService;
 use Prisma\Sif\Service\NovicePromotionInvoiceLinkService;
 use Prisma\Sif\Service\NovicePromotionGrantService;
+use Prisma\Sif\Service\NovicePromotionCodePreparationService;
 use Prisma\Sif\Service\RedsysGiftInvoiceService;
 use Prisma\Sif\Service\RedsysGroupInvoiceService;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
@@ -78,8 +79,21 @@ try {
     $redsysPayloads = new RedsysInvoicePayloadBuilder($notifications);
     $noviceLinks = new NovicePromotionInvoiceLinkService();
     $noviceGrants = new NovicePromotionGrantService(new UuidGenerator());
+    $noviceCodes = new NovicePromotionCodePreparationService(new UuidGenerator());
+    $noviceConfig = $config['novice_promotion'] ?? [];
     $dispatcher = new RedsysCallbackDispatcher([
-        new RedsysCourseInvoiceService($notifications, new LegacyCourseSnapshotRepository(), new LegacyCourseInvoicePayloadBuilder(), $redsysPayloads, $invoiceService, $noviceLinks, $noviceGrants),
+        new RedsysCourseInvoiceService(
+            $notifications,
+            new LegacyCourseSnapshotRepository(),
+            new LegacyCourseInvoicePayloadBuilder(),
+            $redsysPayloads,
+            $invoiceService,
+            $noviceLinks,
+            $noviceGrants,
+            $noviceCodes,
+            (string) ($noviceConfig['wrapping_key_hex'] ?? ''),
+            (string) ($noviceConfig['key_version'] ?? 'v1')
+        ),
         new RedsysPackInvoiceService($notifications, new LegacyPackSnapshotRepository(), new LegacyPackInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysGroupInvoiceService($notifications, new LegacyGroupSnapshotRepository(), new LegacyGroupInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysGiftInvoiceService($notifications, new LegacyGiftSnapshotRepository(), new LegacyGiftInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
