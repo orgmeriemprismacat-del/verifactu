@@ -227,6 +227,15 @@ window.uc007SifSearch = function(params) {
 			return;
 		}
 
+		if (res.resolution === "FEATURE_DISABLED") {
+			if (params.uuid) {
+				uc007MostrarError("La consulta SIF està desactivada en aquest entorn");
+				return;
+			}
+			cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum);
+			return;
+		}
+
 		if (!Array.isArray(res.results) || res.results.length === 0) {
 			cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum);
 			return;
