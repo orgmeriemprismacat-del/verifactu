@@ -1370,7 +1370,7 @@ PaymentReallocationService --> EnrollmentFundMovementRepository : drets per ID_I
 
 ## 6.5. Submodel UC-111 · docent novell i cicle de vida promocional
 
-El model general no replica les desenes de classes específiques incorporades a la branca per UC-111. La vista canònica separada és [UC-111 · classes ACTUAL/FINAL](uc-111-classes-actual-final.md), amb quatre subdiagrames: llegat observable; concessió/lliurament; consum/canvi/saldos derivats; procedència/root-refund. La correspondència amb accions A111-01…12, taules, migracions i proves és a [UC-111 · traçabilitat](uc-111-tracabilitat-implementacio.md).
+El model general no replica les desenes de classes específiques incorporades a la branca per UC-111. La vista canònica separada és [UC-111 · classes ACTUAL/FINAL](uc-111-classes-actual-final.md), amb quatre subdiagrames: llegat observable; concessió/lliurament; consum/canvi/saldos derivats; procedència/root-refund. La persistència i lifecycles es documenten a [UC-111 · dades i estats ACTUAL/FINAL](uc-111-dades-estats-actual-final.md). La correspondència amb accions A111-01…12, taules, migracions i proves és a [UC-111 · traçabilitat](uc-111-tracabilitat-implementacio.md).
 
 **Estat:** serveis PHP presents a la branca per la major part del lifecycle; connectors d'UI/autenticació/storage/pricing/fiscalitat/evidències externes i execució MySQL continuen pendents. Aquest enllaç evita inflar el model general i, alhora, impedeix que UC-111 quedi invisible al model de classes.
 
