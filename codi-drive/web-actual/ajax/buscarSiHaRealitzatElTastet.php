@@ -4,7 +4,6 @@ include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
 include("../Text.php");
-include("../Date.php");
 
 try {
 	$input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
@@ -21,19 +20,18 @@ try {
 	$connexio->connectarBD();
 
 	$curs = '';
-	$titol = '';
 
 	if ($urlTastet != '') {
 		$idUrl = buscarPagina($urlTastet);
 		if ($idUrl != null && $idUrl != '') {
-			$cnsRepte = "SELECT CODI_CURS, TITOL FROM reptes WHERE ID_URL=? AND ESTAT=1";
+			$cnsRepte = "SELECT CODI_CURS FROM reptes WHERE ID_URL=? AND ESTAT=1";
 			$stmt = $connexio->prepare($cnsRepte);
 			$stmt->bind_param("d", $idUrl);
 			$stmt->execute();
 			$stmt->store_result();
 
 			if ($stmt->num_rows() > 0) {
-				$stmt->bind_result($curs, $titol);
+				$stmt->bind_result($curs);
 				$stmt->fetch();
 			}
 			$connexio->closeStmt();
@@ -41,14 +39,14 @@ try {
 	}
 	else if ($cursLegacy != '') {
 		// Compatibilitat temporal amb clients JS antics.
-		$cnsRepte = "SELECT CODI_CURS, TITOL FROM reptes WHERE CODI_CURS=? AND ESTAT=1";
+		$cnsRepte = "SELECT CODI_CURS FROM reptes WHERE CODI_CURS=? AND ESTAT=1";
 		$stmt = $connexio->prepare($cnsRepte);
 		$stmt->bind_param("s", $cursLegacy);
 		$stmt->execute();
 		$stmt->store_result();
 
 		if ($stmt->num_rows() > 0) {
-			$stmt->bind_result($curs, $titol);
+			$stmt->bind_result($curs);
 			$stmt->fetch();
 		}
 		$connexio->closeStmt();
@@ -61,22 +59,17 @@ try {
 	}
 
 	$mostrar = '';
-	$cnsInsc = "SELECT DATA_INSC
+	$cnsInsc = "SELECT ID
 		FROM inscripcions_reptes
 		WHERE CURS=? AND DNI=? AND INSC_CURS=1
-		ORDER BY DATA_INSC DESC LIMIT 1";
+		LIMIT 1";
 	$stmt = $connexio->prepare($cnsInsc);
 	$stmt->bind_param("ss", $curs, $doc);
 	$stmt->execute();
 	$stmt->store_result();
 
 	if ($stmt->num_rows() > 0) {
-		$stmt->bind_result($dataInsc);
-		$stmt->fetch();
-
-		$objDate = new Date($dataInsc);
-		$textDate = $objDate->getPronomEl().$objDate->getDataLlarga();
-		$mostrar = $titol."|".$textDate;
+		$mostrar = 'DUPLICATE';
 	}
 
 	$connexio->closeStmt();
