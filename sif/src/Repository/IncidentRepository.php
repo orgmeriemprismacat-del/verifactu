@@ -113,6 +113,7 @@ final class IncidentRepository
                     'reused' => true,
                     'incident_id' => (int) $existing['ID'],
                     'uuid_incident' => (string) $existing['UUID_INCIDENT'],
+                    'status' => (string) $existing['ESTAT'],
                 ];
             }
         }
@@ -160,6 +161,7 @@ final class IncidentRepository
                         'reused' => true,
                         'incident_id' => (int) $existing['ID'],
                         'uuid_incident' => (string) $existing['UUID_INCIDENT'],
+                        'status' => (string) $existing['ESTAT'],
                     ];
                 }
             }
@@ -171,6 +173,7 @@ final class IncidentRepository
             'reused' => false,
             'incident_id' => (int) $db->lastInsertId(),
             'uuid_incident' => $uuidIncident,
+            'status' => 'OPEN',
         ];
     }
 
