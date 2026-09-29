@@ -68,7 +68,7 @@
 | 000026 | conservar evidència després del tancament | RecoveryCompletion | no |
 | 000027 | reconciliar CHECK d'estats dels dos 000025 | esquema root-refund | no |
 
-`000025*`: la branca conserva dues migracions històriques amb aquest prefix i noms diferents. **La col·lisió lògica dels CHECK queda corregida additivament per 000027**, que admet tant `APPROVED_WAITING_REFUND` com `RECOVERY_RESOLVED` sense reescriure hashes antics. Abans d'aplicar en un entorn real continua sent obligatori confirmar que el runner identifica migracions pel nom complet i validar l'ordre del ledger.
+`000025*`: la branca conserva dues migracions històriques amb aquest prefix i noms diferents. El `MigrationRunner` ordena els fitxers per nom complet i registra `basename($file)` com a PK de `sif_schema_migration`, de manera que **no hi ha col·lisió de ledger entre els dos noms**. La incidència real era lògica: tots dos redefinien els mateixos `CHECK`; `000027` fixa additivament la unió final d'estats (`APPROVED_WAITING_REFUND` + `RECOVERY_RESOLVED`) sense reescriure hashes antics. Resta pendent validar el DDL real en MySQL.
 
 ## 3. Traçabilitat UML
 
@@ -119,7 +119,7 @@
 3. **Aprovació externa:** les interfaces d'aprovació/evidència són contractes; cal adaptador real i auditat.
 4. **Pricing/fiscalitat:** checkout real ha de persistir snapshots finals, rectificatives i factures zero sense pagaments inventats.
 5. **Redsys/concurrència:** callbacks tardans i reserves han de compartir criteris de conciliació abans de release/freeze.
-6. **Migracions:** no aplicades; `000027` corregeix documentalment/esquemàticament la col·lisió de CHECK dels dos `000025`, però cal validar runner/ordre/DDL real en MySQL.
+6. **Migracions:** no aplicades; el runner usa el nom complet i no pateix col·lisió de ledger pels dos `000025`. `000027` corregeix el conflicte real dels CHECK finals; cal validar l'aplicació DDL i l'ordre efectiu en MySQL.
 7. **Proves:** MySQL i concurrència real ajornades; no marcar cap flux BD com a PROVAT.
 8. **Desplegament:** no acreditat; `main` i producció no són la branca auditada.
 
