@@ -35,6 +35,7 @@ return [
         'key_id' => getenv('SIF_INTERNAL_API_KEY_ID') ?: '',
         'secret' => getenv('SIF_INTERNAL_API_SECRET') ?: '',
         'max_clock_skew_seconds' => (int) (getenv('SIF_INTERNAL_API_MAX_SKEW') ?: 300),
+        'signed_path' => getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php',
     ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
