@@ -4,6 +4,9 @@ $root = dirname(__DIR__, 2);
 chdir($root);
 
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
 
 $uc007Enabled = filter_var(
     getenv('SIF_UC007_QUERY_ENABLED') ?: '0',
