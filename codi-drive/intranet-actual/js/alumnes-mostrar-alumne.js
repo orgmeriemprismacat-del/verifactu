@@ -2535,7 +2535,7 @@ function mostrarModalConsultaFacturaLlegat(id) {
 	            var id2 = $('#modalConsultaFactura #factura-relacionada-fact').html().trim();
 	            var upd2 = $.ajax({
 	               url: path + "alumnes/descarregaFactura.php",
-	               method: "GET",
+	               method: "POST",
 	               data: {
 	                  id : id2
 	               },
