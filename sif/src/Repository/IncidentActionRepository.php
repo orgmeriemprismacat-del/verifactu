@@ -4,6 +4,7 @@ namespace Prisma\Sif\Repository;
 
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Service\PayloadIdempotencyValidator;
 
 final class IncidentActionRepository
 {
@@ -50,13 +51,28 @@ final class IncidentActionRepository
             throw SifException::validation('Invalid incident action idempotency key');
         }
 
+        $idempotencyPayload = [
+            'incident_id' => $incidentId,
+            'action_type' => $actionType,
+            'previous_status' => $previousStatus,
+            'new_status' => $newStatus,
+            'severity' => $severity,
+            'assignee_id' => $assigneeId,
+            'actor_id' => $actorId,
+            'actor_role' => $actorRole,
+            'reason_code' => $reasonCode,
+            'details' => $details,
+            'evidence' => $action['evidence'] ?? null,
+        ];
+        $idempotencyValidator = new PayloadIdempotencyValidator();
+        $payloadHash = $idempotencyValidator->calculateHash($idempotencyPayload);
+
         $existing = $this->findByIdempotencyKey($db, $idempotencyKey);
         if ($existing !== null) {
-            if ((int) $existing['INCIDENT_ID'] !== $incidentId
-                || (string) $existing['ACTION_TYPE'] !== $actionType
-                || (string) $existing['NEW_STATUS'] !== $newStatus) {
-                throw SifException::conflict('Incident action idempotency key reused with different payload');
-            }
+            $idempotencyValidator->assertMatches(
+                $idempotencyPayload,
+                (string) ($existing['PAYLOAD_HASH'] ?? '')
+            );
 
             return [
                 'reused' => true,
@@ -70,14 +86,15 @@ final class IncidentActionRepository
         try {
             $db->prepare(
                 'INSERT INTO sif_incident_action (
-                    UUID_ACTION, IDEMPOTENCY_KEY, INCIDENT_ID, ACTION_TYPE,
+                    UUID_ACTION, IDEMPOTENCY_KEY, PAYLOAD_HASH, INCIDENT_ID, ACTION_TYPE,
                     PREVIOUS_STATUS, NEW_STATUS, SEVERITY, ASSIGNEE_ID,
                     ACTOR_ID, ACTOR_ROLE, REASON_CODE, DETAILS,
                     EVIDENCE_JSON, CORRELATION_ID
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             )->execute([
                 $uuidAction,
                 $idempotencyKey,
+                $payloadHash,
                 $incidentId,
                 $actionType,
                 $previousStatus,
@@ -94,10 +111,12 @@ final class IncidentActionRepository
         } catch (\PDOException $exception) {
             if ((string) $exception->getCode() === '23000') {
                 $existing = $this->findByIdempotencyKey($db, $idempotencyKey);
-                if ($existing !== null
-                    && (int) $existing['INCIDENT_ID'] === $incidentId
-                    && (string) $existing['ACTION_TYPE'] === $actionType
-                    && (string) $existing['NEW_STATUS'] === $newStatus) {
+                if ($existing !== null) {
+                    $idempotencyValidator->assertMatches(
+                        $idempotencyPayload,
+                        (string) ($existing['PAYLOAD_HASH'] ?? '')
+                    );
+
                     return [
                         'reused' => true,
                         'action_id' => (int) $existing['ID'],
