@@ -1,6 +1,7 @@
 # Registre mestre de treball — cobertura funcional, implementació i documentació del SIF PrisMa
 
 **Data de tall:** 22/09/2026 · **Base tècnica:** main, commit e71958b3026549bde09fb4b25f2ec3ba370937ec.  
+**Revisió UC-014 — 29/09/2026:** auditoria detallada del recorregut de compra de curs per Redsys. El codi llegat factura dins `realitzaPagamentAutomatic.php`; el nucli SIF final disposa d'intenció, callback, cua/worker, handler `CURS` i `InvoiceService`, però l'adaptador ecommerce end-to-end no està acreditat. S'han creat [classes ACTUAL/FINAL](../07-uml-integrat/uc-014-classes-actual-final.md), [seqüències ACTUAL/FINAL](../07-uml-integrat/uc-014-sequencies-actual-final.md), [activitats RM-037](../07-uml-integrat/uc-014-activitats-pagines-redsys-actual-final.md) i [matriu d'auditoria](../07-uml-integrat/uc-014-auditoria-tracabilitat-2026-09-29.md). Estat: DOC AMPLIADA / IMP SIF PARCIAL / TEST NO ACREDITAT.  
 **Revisió UC-108 — 29/09/2026:** l'auditoria detallada posterior actualitza DEC-108-04 i reobre DEC-108-06; vegeu la [matriu consolidada UC-108](../07-uml-integrat/uc-108-auditoria-tracabilitat-2026-09-29.md). Aquesta nota preval sobre les entrades UC-108 antigues del tall 22/09.  
 **Tipus:** document viu de treball i auditoria de buits, **no** acta de conformitat, test executat, certificació fiscal ni autorització de producció.  
 **Estat inicial:** OBERT — catàleg de 142 UC existent, però cobertura exhaustiva de les funcionalitats actuals no acreditada.  

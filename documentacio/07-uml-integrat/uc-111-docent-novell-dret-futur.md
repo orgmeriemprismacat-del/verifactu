@@ -1,5 +1,16 @@
 # UC-111 · Validar docent novell i generar un dret de descompte futur
 
+> **ACTUALITZACIÓ EXECUTABLE · 29/09/2026**
+>
+> Els diagrames històrics d’aquest document mantenen el contrast ACTUAL/OBJECTIU del tall del 22/09. La implementació canònica actual de la branca `integrate/uc-111-clean-v2-2026-09-29` es complementa amb:
+> - [classes ACTUAL/FINAL](uc-111-classes-actual-final.md);
+> - [seqüències ACTUAL/FINAL](uc-111-sequencies-actual-final.md);
+> - [activitats ACTUAL/FINAL](uc-111-activitats-actual-final.md);
+> - [traçabilitat d’implementació](uc-111-tracabilitat-implementacio.md).
+>
+> El circuit FINAL implementat és **factura/pagament committed → comprovació JASOM + VALIDATED + pagament complet → grant idempotent → preparació idempotent del codi → outbox xifrada**. La suite MySQL 8 del 29/09/2026 ha finalitzat amb **537 passades i 0 fallades**, incloent pagament 50 € + 70 €, callback duplicat i projecció 90/70/20 sense exposar token ni ciphertext. Això acredita la branca de desenvolupament/test, **no producció ni merge a `main`**.
+
+
 **Objectiu del catàleg:** separar l'evidència de titulació i la seva validació de la compra d'origen; **només després de confirmar el cobrament** s'emet una sola vegada el benefici futur. No es modifica ni es torna a emetre la factura inicial per concedir el dret.
 
 **Estat revisat el 22/09/2026:** les migracions defineixen `discount_validation`, `discount_evidence`, `commercial_entitlement` i `commercial_entitlement_event`. El PHP web llegat identifica la promoció de novell i, quan `CURS='JASOM'` i es marca novell, crea `recent_titulat(ID_INSC)`; la intranet té un botó de validació que crida `Intranet::sendMsgValidatCurosProfessorNovell()`. **El cos del mètode i el SQL d'actualització han estat aportats posteriorment per l'usuària:** la validació Sí/No actualitza `recent_titulat.VALIDAT` a 1/2 i prepara correus segons el tipus de descompte. L'extracte no mostra cap comprovació del cobrament real ni cap INSERT de promoció futura, i tampoc acredita el servei SIF que emet el dret després del pagament. La comunicació del canal web anuncia un **codi de descompte futur per un import monetari**, però no demostra que sigui un saldo prepagat; les condicions exactes, caducitat, transferibilitat i emissió/consum real queden pendents de contrast i decisió. [Auditoria específica UC-111](00-auditoria-casos-pendents-lot-02-uc-111-2026-09-22.md).

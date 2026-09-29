@@ -57,6 +57,10 @@ return [
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
     ],
+    'novice_promotion' => [
+        'wrapping_key_hex' => getenv('SIF_NOVICE_PROMO_WRAP_KEY_HEX') ?: '',
+        'key_version' => getenv('SIF_NOVICE_PROMO_KEY_VERSION') ?: 'v1',
+    ],
     'aeat' => [
         'wsdl' => getenv('SIF_AEAT_WSDL') ?: '',
         'endpoint' => getenv('SIF_AEAT_ENDPOINT') ?: '',
@@ -70,5 +74,9 @@ return [
         'max_attempts' => (int) (getenv('SIF_AEAT_MAX_ATTEMPTS') ?: 3),
         'base_retry_seconds' => (int) (getenv('SIF_AEAT_BASE_RETRY_SECONDS') ?: 60),
         'max_retry_seconds' => (int) (getenv('SIF_AEAT_MAX_RETRY_SECONDS') ?: 3600),
+        'read_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_AEAT_READ_ROLES') ?: '')
+        ))),
     ],
 ];

@@ -13,7 +13,12 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         private LegacyCourseSnapshotRepository $legacySnapshots,
         private LegacyCourseInvoicePayloadBuilder $legacyPayloads,
         private RedsysInvoicePayloadBuilder $redsysPayloads,
-        private InvoiceService $invoices
+        private InvoiceService $invoices,
+        private ?NovicePromotionInvoiceLinkService $noviceLinks = null,
+        private ?NovicePromotionGrantService $noviceGrants = null,
+        private ?NovicePromotionCodePreparationService $noviceCodes = null,
+        private string $noviceWrappingKeyHex = '',
+        private string $noviceKeyVersion = 'v1'
     ) {
     }
 
@@ -27,7 +32,9 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
 
-        return $this->invoices->issueInvoice($payload);
+        $invoice = $this->invoices->issueInvoice($payload);
+
+        return $this->afterCommittedCourseInvoice($sifDb, $snapshot, $invoice);
     }
 
     public function issueFromValidatedNotification(
@@ -49,12 +56,70 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
         $result = $this->invoices->issueInvoice($payload);
+        $result = $this->afterCommittedCourseInvoice($sifDb, $snapshot, $result);
         $result['legacy_sync'] = [
             'relations' => $payload['relations'] ?? [],
             'estat_cobrament' => isset($payload['payment']) ? 'PAID' : 'PENDING',
         ];
 
         return $result;
+    }
+
+    /**
+     * Independent post-commit promotion step. InvoiceService has already
+     * committed the real invoice/payment; any failure below is retried by the
+     * Redsys job with the existing invoice's idempotency key.
+     *
+     * NOT_STAGED must be monitored: we refuse to infer secretary approval or
+     * invent a canonical identity from a callback snapshot.
+     */
+    private function afterCommittedCourseInvoice(\PDO $sifDb, array $snapshot, array $invoiceResult): array
+    {
+        if ($this->noviceLinks === null || $this->noviceGrants === null) {
+            return $invoiceResult;
+        }
+
+        $inscription = $snapshot['inscription'] ?? [];
+        if (!is_array($inscription) || strtoupper(trim((string) ($inscription['CURS'] ?? $inscription['curs'] ?? ''))) !== 'JASOM') {
+            return $invoiceResult;
+        }
+
+        $rawId = (string) ($inscription['ID'] ?? $inscription['id'] ?? '');
+        if ($rawId === '' || !ctype_digit($rawId) || (int) $rawId < 1) {
+            throw SifException::validation('JASOM callback lacks a verified enrollment reference.');
+        }
+
+        $uuidInvoice = trim((string) ($invoiceResult['uuid_factura'] ?? ''));
+        if ($uuidInvoice === '') {
+            throw SifException::conflict('JASOM invoice response has no persisted invoice reference.');
+        }
+
+        $link = $this->noviceLinks->attach($sifDb, (int) $rawId, $uuidInvoice);
+        $invoiceResult['novice_promotion_sync'] = $link['status'];
+
+        if ($link['grant_eligible']) {
+            // The economic invoice/payment is already committed. Granting and
+            // code preparation are intentionally two idempotent transactions:
+            // a retry reuses the same entitlement and the same prepared code.
+            $grant = $this->noviceGrants->issueForOperation(
+                $sifDb,
+                (string) $link['uuid_operation']
+            );
+            $invoiceResult['novice_promotion'] = $grant;
+
+            if ($this->noviceCodes === null) {
+                throw SifException::conflict('Novice promotion code preparation is not configured.');
+            }
+
+            $invoiceResult['novice_promotion_code'] = $this->noviceCodes->prepare(
+                $sifDb,
+                (string) $grant['uuid_entitlement'],
+                $this->noviceWrappingKeyHex,
+                $this->noviceKeyVersion
+            );
+        }
+
+        return $invoiceResult;
     }
 
     private function validatedNotification(\PDO $sifDb, string $dsOrder): array
