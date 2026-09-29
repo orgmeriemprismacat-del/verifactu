@@ -6,50 +6,85 @@ include("../inc/missatgesError.php");
 include("../Text.php");
 include("../Date.php");
 
-$doc = $_GET['doc'];
-$curs = $_GET['curs'];
-
-//Consulta ajax per comprovar si el usuari XXX ha realitzat el curs xxx (retornar l'edicio|any en que va fer-lo)
-
 try {
+	$input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
+	$doc = isset($input['doc']) ? trim($input['doc']) : '';
+	$urlTastet = isset($input['urlTastet']) ? trim($input['urlTastet']) : '';
+	$cursLegacy = isset($input['curs']) ? trim($input['curs']) : '';
+
+	if ($doc == '') {
+		echo '';
+		return;
+	}
+
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
 
-	$mostrar='';
+	$curs = '';
+	$titol = '';
 
-	$cnsInsc = "SELECT DATA_INSC FROM inscripcions_reptes WHERE CURS=? AND DNI=? AND INSC_CURS=1";
-   $stmt=$connexio->prepare($cnsInsc);
-   $stmt->bind_param("ss", $curs, $doc);
-   $stmt->execute();
-   $stmt->store_result();
+	if ($urlTastet != '') {
+		$idUrl = buscarPagina($urlTastet);
+		if ($idUrl != null && $idUrl != '') {
+			$cnsRepte = "SELECT CODI_CURS, TITOL FROM reptes WHERE ID_URL=? AND ESTAT=1";
+			$stmt = $connexio->prepare($cnsRepte);
+			$stmt->bind_param("d", $idUrl);
+			$stmt->execute();
+			$stmt->store_result();
+
+			if ($stmt->num_rows() > 0) {
+				$stmt->bind_result($curs, $titol);
+				$stmt->fetch();
+			}
+			$connexio->closeStmt();
+		}
+	}
+	else if ($cursLegacy != '') {
+		// Compatibilitat temporal amb clients JS antics.
+		$cnsRepte = "SELECT CODI_CURS, TITOL FROM reptes WHERE CODI_CURS=? AND ESTAT=1";
+		$stmt = $connexio->prepare($cnsRepte);
+		$stmt->bind_param("s", $cursLegacy);
+		$stmt->execute();
+		$stmt->store_result();
+
+		if ($stmt->num_rows() > 0) {
+			$stmt->bind_result($curs, $titol);
+			$stmt->fetch();
+		}
+		$connexio->closeStmt();
+	}
+
+	if ($curs == '') {
+		$connexio->desconectarBD();
+		echo "Error: el tastet no està disponible.";
+		return;
+	}
+
+	$mostrar = '';
+	$cnsInsc = "SELECT DATA_INSC
+		FROM inscripcions_reptes
+		WHERE CURS=? AND DNI=? AND INSC_CURS=1
+		ORDER BY DATA_INSC DESC LIMIT 1";
+	$stmt = $connexio->prepare($cnsInsc);
+	$stmt->bind_param("ss", $curs, $doc);
+	$stmt->execute();
+	$stmt->store_result();
+
 	if ($stmt->num_rows() > 0) {
 		$stmt->bind_result($dataInsc);
 		$stmt->fetch();
-	   $connexio->closeStmt();
-
-		$cnsTitol = "SELECT TITOL FROM reptes WHERE CODI_CURS=?";
-	   $stmt=$connexio->prepare($cnsTitol);
-	   $stmt->bind_param("s", $curs);
-	   $stmt->execute();
-		$stmt->bind_result($titol);
-		$stmt->fetch();
-		$connexio->closeStmt();
 
 		$objDate = new Date($dataInsc);
 		$textDate = $objDate->getPronomEl().$objDate->getDataLlarga();
-
 		$mostrar = $titol."|".$textDate;
 	}
-   $connexio->closeStmt();
-	$connexio->desconectarBD();
 
+	$connexio->closeStmt();
+	$connexio->desconectarBD();
 	echo $mostrar;
 }
-catch(Exception $e) {
-	if ($e->getCode()==404)
-      echo mostrarPagina404();
-   else
-      echo missatgeError($e->getCode());
+catch(Throwable $e) {
+	echo missatgeError($e->getCode());
 }
 
 ?>
