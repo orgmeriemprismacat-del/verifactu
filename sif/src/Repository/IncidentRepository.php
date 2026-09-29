@@ -137,13 +137,10 @@ final class IncidentRepository
             if ($idempotencyKey !== null && (string) $exception->getCode() === '23000') {
                 $existing = $this->findByIdempotencyKey($db, $idempotencyKey);
                 if ($existing !== null) {
-                    $this->assertEquivalentReuse($existing, [
-                        'UUID_FACTURA' => $uuidFactura,
-                        'UUID_PAYMENT' => $uuidPayment,
-                        'RESOURCE_TYPE' => $resourceType,
-                        'RESOURCE_ID' => $resourceId,
-                        'TIPUS_INCIDENCIA' => $type,
-                    ]);
+                    $idempotencyValidator->assertMatches(
+                        $idempotencyPayload,
+                        (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? '')
+                    );
 
                     return [
                         'ok' => true,
