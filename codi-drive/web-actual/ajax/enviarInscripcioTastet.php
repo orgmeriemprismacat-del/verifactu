@@ -211,6 +211,17 @@ try {
 	if ($textComentaris != null)
 		$comentaris = $textComentaris->obtenirText();
 
+	$nomHtml = htmlspecialchars($nom, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$nomCognomsHtml = htmlspecialchars($nomCognoms, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$documentacioHtml = htmlspecialchars($documentacio, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$emailHtml = htmlspecialchars($email, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$poblacioHtml = htmlspecialchars($poblacio, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$titolCursHtml = htmlspecialchars($titolCurs, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$conegutHtml = htmlspecialchars($conegut, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$comentarisHtml = htmlspecialchars($comentaris, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	$documentacioSubject = preg_replace('/[\r\n]+/', ' ', $documentacio);
+	$nomCognomsHeader = preg_replace('/[\r\n]+/', ' ', $nomCognoms);
+
 	/* ######################################################################### */
 
 	$textPagament = "<p>
@@ -224,15 +235,15 @@ try {
 	</p>";
 
 	/* ######################################################################### */
-	$missatge = "<p>Benvolgut/da ".$nom.",</p>";
+	$missatge = "<p>Benvolgut/da ".$nomHtml.",</p>";
 	$missatge .= "<p>Et comuniquem que ja hem rebut la teva sol·licitud d'inscripció per al tastet en línia ";
-	$missatge .= "<strong style='color: #496baa'>".$titolCurs."</strong> ";
+	$missatge .= "<strong style='color: #496baa'>".$titolCursHtml."</strong> ";
 	$missatge .= " amb les dades personals següents:</p>";
 	$missatge .= "<div style='background-color:#e8ecf5;border:1px solid #d7deee;border-radius:2px;padding:5px 25px;margin-bottom:20px'>
-		<p><strong>Nom:</strong> ".$nomCognoms."</p>
-		<p><strong>NIF/NIE/passaport:</strong> ".$documentacio."</p>
-		<p><strong>Correu electrònic:</strong> ".$email."</p>
-		<p><strong>Població:</strong> ".$poblacio."</p>
+		<p><strong>Nom:</strong> ".$nomCognomsHtml."</p>
+		<p><strong>NIF/NIE/passaport:</strong> ".$documentacioHtml."</p>
+		<p><strong>Correu electrònic:</strong> ".$emailHtml."</p>
+		<p><strong>Població:</strong> ".$poblacioHtml."</p>
 	</div>";
 	$missatge .= $textIniciCurs;
 	$missatge .= $textPagament;
@@ -240,16 +251,16 @@ try {
 	$missatge .= $textConsentimentMailing;
 	$missatge .= "<p>Per a qualsevol consulta, no dubtis a posar-te en contacte amb nosaltres.</p>";
 
-	$msgInsc = "<p><strong>Nom:</strong> ".$nomCognoms."</p>";
-	$msgInsc .= "<p><strong>Document:</strong> ".$documentacio."</p>";
-	$msgInsc .= "<p><strong>Email:</strong> ".$email."</p>";
-	$msgInsc .= "<p><strong>Població:</strong> ".$poblacio."</p>";
-	$msgInsc .= "<p><strong>Tastet:</strong> ".$titolCurs."</p>";
-	$msgInsc .= "<p><strong>Com has conegut aquest curs?:</strong> ".$conegut."</p>";
+	$msgInsc = "<p><strong>Nom:</strong> ".$nomCognomsHtml."</p>";
+	$msgInsc .= "<p><strong>Document:</strong> ".$documentacioHtml."</p>";
+	$msgInsc .= "<p><strong>Email:</strong> ".$emailHtml."</p>";
+	$msgInsc .= "<p><strong>Població:</strong> ".$poblacioHtml."</p>";
+	$msgInsc .= "<p><strong>Tastet:</strong> ".$titolCursHtml."</p>";
+	$msgInsc .= "<p><strong>Com has conegut aquest curs?:</strong> ".$conegutHtml."</p>";
 	$msgInsc .= "<p><strong>Preu:</strong> Gratuït</p>";
-	$msgInsc .= "<p><strong>Comentaris:</strong> ".$comentaris."</p>";
+	$msgInsc .= "<p><strong>Comentaris:</strong> ".$comentarisHtml."</p>";
 
-	$subjectMailInsc = "Inscripció tastet ".$codiCurs." - ".$documentacio;
+	$subjectMailInsc = "Inscripció tastet ".$codiCurs." - ".$documentacioSubject;
 	if ($comentaris != '' )
 		$subjectMailInsc .= " + O";
 	/* ######################################################################### */
@@ -356,7 +367,7 @@ try {
 		$mailCopiaInsc = new MailSMTPComvive(
 			$usernameInsc, $passwordInsc,
 			'Secretaria PrisMa', 'inscripcions@prisma.cat',
-			$nomCognoms, $email,
+			$nomCognomsHeader, $email,
 			'Secretaria PrisMa', 'inscripcions@prisma.cat',
 			$subjectMailInsc, $msgInsc
 		);
@@ -365,7 +376,7 @@ try {
 		$mailCopiaSecreResguard = new MailSMTPComvive(
 			$username, $password,
 			'Secretaria PrisMa', 'secretaria@prisma.cat',
-			$nomCognoms, $email,
+			$nomCognomsHeader, $email,
 			'PrisMa Secretaria', 'resguard.secretaria@prisma.cat',
 			$subject2, $missatge
 		);
@@ -374,7 +385,7 @@ try {
 		$mailCopiaSecre = new MailSMTPComvive(
 			$username, $password,
 			'Secretaria PrisMa', 'secretaria@prisma.cat',
-			$nomCognoms, $email,
+			$nomCognomsHeader, $email,
 			'Secretaria PrisMa', 'inscripcions@prisma.cat',
 			$subject, $missatge
 		);
@@ -383,7 +394,7 @@ try {
 		$mailCopiaGmail = new MailSMTPComvive(
 			$username, $password,
 			$nameUser, $username,
-			$nomCognoms, $email,
+			$nomCognomsHeader, $email,
 			'PrisMa Secretaria', 'inscripcions.prisma@gmail.com',
 			$subjectMailInsc, $msgInsc
 		);
@@ -392,7 +403,7 @@ try {
 		$mailCopiaResguard2 = new MailSMTPComvive(
 			$username, $password,
 			$nameUser, $username,
-			$nomCognoms, $email,
+			$nomCognomsHeader, $email,
 			'PrisMa Secretaria', 'resguard.secretaria@prisma.cat',
 			$subject2, $missatge
 		);
@@ -401,8 +412,8 @@ try {
 		$mailAlumne = new MailSMTPComvive(
 			$username, $password,
 			$nameUser, $username,
-			$nomCognoms, $email,
-			$nomCognoms, $email,
+			$nomCognomsHeader, $email,
+			$nomCognomsHeader, $email,
 			$subject, $missatge
 		);
 		if (!$mailAlumne->enviat()) $errorsSMTP[] = 'participant';
