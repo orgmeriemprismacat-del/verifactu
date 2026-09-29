@@ -7,10 +7,7 @@ class PaginaConfirmacioTastet {
    private $id; /** id de la insripció */
    private $cursInsc; /** Text Curs del tastet. ex. ACRE */
    private $titol; /** Text El titol del curs de la Inscripcio ex: Coaching per a Docents */
-   private $imgAmple; /** Img la imatge llarge del tastet*/
-   private $cursOrig; /** Curs Curs original del repte */
    private $email; /** Text El email de la Inscripcio ex: suport@prisma.cat */
-   private $dni; /** Text El dni de la Inscripcio ex: 77922662L */
 
    /*********************************** FUNCIONS CONSTRUCTORS ***********************************/
 
@@ -19,17 +16,15 @@ class PaginaConfirmacioTastet {
       $connexio = new ConnexioBBDDSTMT();
    	$connexio->connectarBD();
 
-      $cnsInsc = "SELECT CURS, CORREU, DNI FROM inscripcions_reptes WHERE ID=? AND (INSC_CURS='0' OR INSC_CURS='1')";
+      $cnsInsc = "SELECT CURS, CORREU FROM inscripcions_reptes WHERE ID=? AND (INSC_CURS='0' OR INSC_CURS='1')";
 		$stmt=$connexio->prepare($cnsInsc);
 		$stmt->bind_param("d", $id);
 		$stmt->execute();
 		$stmt->store_result();
 		if ( $stmt->num_rows() == 1 ) {
-			$stmt->bind_result($cursInsc, $correu, $dni);
+			$stmt->bind_result($cursInsc, $correu);
 			$stmt->fetch();
          require_once 'Text.php';
-         require_once 'Imatge.php';
-         require_once 'Curs.php';
          if ($cursInsc!=null and $cursInsc!='')
             $this->cursInsc = new Text($cursInsc);
          else
@@ -93,28 +88,6 @@ class PaginaConfirmacioTastet {
       return $this->titol;
    }
 
-   /*
-   * @brief Obtens la imatge3 del repte
-   * @return la imatge3 del repte
-   * @throws Si el repte no té unna imatge, envia l'excepció 2504
-   */
-   private function obtenirImatge() {
-      if ($this->imgAmple==null)
-         throw new Exception('',2504);
-      return $this->imgAmple;
-   }
-
-   /*
-   * @brief Obtens el curs original
-   * @return Obtens el curs original
-   * @throws Si el repte no té un curs original, envia l'excepció 2505
-   */
-   private function obtenirCursOrig() {
-      if ($this->cursOrig==null)
-         throw new Exception('',2505);
-      return $this->cursOrig;
-   }
-
    /**
    * @brief Obtens el codi del curs
    * @return El codi del curs.
@@ -136,16 +109,6 @@ class PaginaConfirmacioTastet {
       return $this->email;
    }
 
-   /*
-   * @brief Obtens el dni de la inscripció
-   * @return Obtens el dni de la inscripció
-   * @throws Si la encriptacio no té un dni, envia l'excepció 2515
-   */
-   private function obtenirDni() {
-      if ($this->dni==null)
-         throw new Exception('',2515);
-      return $this->dni;
-   }
    /*
    * @brief Obtens el id de la inscripció
    * @return Obtens el id de la inscripció
