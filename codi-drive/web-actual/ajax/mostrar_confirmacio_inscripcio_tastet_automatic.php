@@ -8,7 +8,10 @@ include("../Numero.php");
 include("../PaginaConfirmacioTastet.php");
 
 try {
-	$encr = substr(explode("?", $_SERVER["REQUEST_URI"])[1], "8", "-16");
+	if (!isset($_GET['keyEncr']) || trim($_GET['keyEncr']) === '')
+		throw new Exception('',1401);
+
+	$encr = trim($_GET['keyEncr']);
 
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
@@ -26,7 +29,9 @@ try {
 	$cipher = "AES-128-CBC";
 	$mostrar = '';
 
-	$c = base64_decode($encr);
+	$c = base64_decode($encr, true);
+	if ($c === false)
+		throw new Exception('',1401);
    $cipher="AES-128-CBC";
    $ivlen = openssl_cipher_iv_length($cipher);
    $iv = substr($c, 0, $ivlen);
