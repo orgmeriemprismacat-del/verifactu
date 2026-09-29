@@ -23,10 +23,11 @@ final class RedsysUsocPreviewScriptTest
         Assert::stringContainsString('new LegacyUsocSnapshotRepository()', $source);
         Assert::stringContainsString('new LegacyUsocInvoicePayloadBuilder()', $source);
         Assert::stringContainsString('new RedsysInvoicePayloadBuilder($notifications)', $source);
-        Assert::stringContainsString('loadByIdpag($legacyDb, $idpag, $studentAmount, $usocAmount)', $source);
+        Assert::stringContainsString('loadByIdpag($legacyDb, $idpag, $studentAmount, $usocAmount, $inscriptionId)', $source);
         Assert::stringContainsString('buildStudentPayload($snapshot)', $source);
         Assert::stringContainsString('buildFromValidatedNotification($sifDb, $dsOrder, $basePayload)', $source);
         Assert::stringContainsString('entity_invoice_pending', $source);
+        Assert::stringContainsString('--id-insc=', $source);
         Assert::stringContainsString('requires_explicit_billing', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
 
