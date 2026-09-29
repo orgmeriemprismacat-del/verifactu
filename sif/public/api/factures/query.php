@@ -13,6 +13,10 @@ use Prisma\Sif\Service\InvoiceQueryGateway;
 use Prisma\Sif\Service\InvoiceQueryService;
 use Prisma\Sif\Service\ResolvedInvoiceVisibilityPolicy;
 
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
+
 if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
     JsonResponse::send(['ok' => false, 'error' => 'Method not allowed'], 405);
     return;
