@@ -73,7 +73,7 @@ Per a cadascuna de les 185 targetes mare i les 192 pantalles/estats, conservar r
 | UC-19 | Validar afiliació USOC | `[DISSENY]` | [uc-019.md](../06-fitxes-funcionals/uc-019.md) | [Fitxa i diagrames](uc-019-validar-afiliacio-usoc.md) |
 | UC-19a | Facturar part de l'alumne USOC | `[BASE/ASYNC/PARCIAL]` | [uc-019a.md](../06-fitxes-funcionals/uc-019a.md) | [Fitxa i diagrames](uc-019a-facturar-part-alumne-usoc.md) |
 | UC-19b | Facturar diferència a USOC | `[BASE/PARCIAL]` | [uc-019b.md](../06-fitxes-funcionals/uc-019b.md) | [Fitxa i diagrames](uc-019b-facturar-part-entitat-usoc.md) |
-| UC-20 | Aplicar Alumne PrisMa | `[PARCIAL]` | [uc-020.md](../06-fitxes-funcionals/uc-020.md) | [Fitxa i diagrames](uc-020-aplicar-alumne-prisma.md) |
+| UC-20 | Aplicar Alumne PrisMa | `[PARCIAL/AUDITAT]` | [uc-020.md](../06-fitxes-funcionals/uc-020.md) | [UML integrat](uc-020-aplicar-alumne-prisma.md) · [Activitats per pàgina](uc-020-activitats-pagines-actual-final.md) · [Auditoria/traçabilitat](uc-020-auditoria-tracabilitat-2026-09-29.md) |
 | UC-20a | Validar Carnet Jove | `[DISSENY]` | [uc-020a.md](../06-fitxes-funcionals/uc-020a.md) | [Fitxa i diagrames](uc-020a-validar-carnet-jove.md) |
 | UC-20b | Aplicar descompte sensible | `[DISSENY]` | [uc-020b.md](../06-fitxes-funcionals/uc-020b.md) | [Fitxa i diagrames](uc-020b-aplicar-descompte-sensible.md) |
 | UC-20c | Aplicar promoció temporal | `[PARCIAL]` | [uc-020c.md](../06-fitxes-funcionals/uc-020c.md) | [Fitxa i diagrames](uc-020c-aplicar-promocio-temporal.md) |
