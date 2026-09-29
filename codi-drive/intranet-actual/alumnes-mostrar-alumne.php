@@ -45,7 +45,11 @@ else {
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/modals.min.css?ver=1.0"/>
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/alumnes-mostrar-alumne.css?ver=1.0"/>
 		<script src="https://intranet.prisma.cat/js/general_v5.js?ver=1.0"></script>
-		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne.js?ver=1.5"></script>
+		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne.min.js?ver=1.4"></script>
+<?php if (getenv('SIF_INVOICE_QUERY_UI_ENABLED') === '1') { ?>
+		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne-sif.js?ver=1.0"></script>
+<?php } ?>
+		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne-uc111.js?ver=1.0"></script>
 
 	</body>
 </html>
