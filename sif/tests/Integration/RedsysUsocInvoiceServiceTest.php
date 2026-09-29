@@ -65,6 +65,7 @@ final class RedsysUsocInvoiceServiceTest
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM usoc_financing_case')->fetchColumn());
 
         $invoice = $sifDb->query('SELECT IDEMPOTENCY_KEY, TOTAL, ESTAT_COBRAMENT FROM factura')
             ->fetch(\PDO::FETCH_ASSOC);
@@ -94,6 +95,14 @@ final class RedsysUsocInvoiceServiceTest
         Assert::same('75.00', $payment['IMPORT']);
         Assert::same('ORDERUSOC980', $payment['DS_ORDER']);
         Assert::same(980, (int) $payment['IDPAG']);
+        $case = $sifDb->query('SELECT ID_INSC, IDPAG, UUID_STUDENT_INVOICE, UUID_ENTITY_INVOICE, STATUS, STUDENT_PAYMENT_STATUS, ENTITY_PAYMENT_STATUS FROM usoc_financing_case')->fetch(\PDO::FETCH_ASSOC);
+        Assert::same(880, (int) $case['ID_INSC']);
+        Assert::same(980, (int) $case['IDPAG']);
+        Assert::same($first['uuid_factura'], $case['UUID_STUDENT_INVOICE']);
+        Assert::same(null, $case['UUID_ENTITY_INVOICE']);
+        Assert::same('PENDING_ENTITY_INVOICE', $case['STATUS']);
+        Assert::same('PAID', $case['STUDENT_PAYMENT_STATUS']);
+        Assert::same('PENDING', $case['ENTITY_PAYMENT_STATUS']);
     }
 
     public function testRejectsMissingUsocEntityAmountBeforeLoadingLegacy(): void
