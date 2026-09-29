@@ -4,6 +4,7 @@ namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Aeat\{SerialWorker, XmlCodec};
 use Prisma\Sif\Contract\AeatTransport;
+use Prisma\Sif\Exception\AeatDeliveryUncertainException;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Repository\{FiscalRecordRepository, ManualPaymentInvoiceRepository};
@@ -252,4 +253,57 @@ final class AeatWorkflowTest
         Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DEAD_LETTER'")->fetchColumn());
         Assert::same('ERROR', $db->query('SELECT ESTAT_AEAT FROM factura_registres ORDER BY FISCAL_ORDER LIMIT 1')->fetchColumn());
     }
+
+    public function testPersistsSubmissionAttemptBeforeAndAfterAcceptedDelivery(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload('AEAT-ATTEMPT-LEDGER'));
+        $transport = new class implements AeatTransport {
+            public function send(array $payload): array {
+                return ['status' => 'ACCEPTED', 'response' => [
+                    'csv' => 'LEDGER-CSV', 'flow_wait_seconds' => 60
+                ], 'request_xml' => (new XmlCodec())->request($payload['aeat'])];
+            }
+        };
+
+        $result = (new SerialWorker($db, $transport))->runOnce();
+
+        Assert::same('ACCEPTED', $result['aeat_status']);
+        Assert::matchesRegularExpression('/^[a-f0-9-]{36}$/', (string) $result['attempt_uuid']);
+        $attempt = $db->query('SELECT * FROM aeat_submission_attempt')->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('ACCEPTED', $attempt['STATUS']);
+        Assert::same('LEDGER-CSV', $attempt['RESPONSE_CSV']);
+        Assert::matchesRegularExpression('/^[a-f0-9]{64}$/', $attempt['REQUEST_HASH']);
+        Assert::same(1, (int) $attempt['ATTEMPT_NO']);
+    }
+
+    public function testUncertainDeliveryMovesQueueToReviewAndNeverBlindlyRetries(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload('AEAT-UNCERTAIN'));
+        $transport = new class implements AeatTransport {
+            public int $calls = 0;
+            public function send(array $payload): array {
+                $this->calls++;
+                throw new AeatDeliveryUncertainException('Synthetic remote outcome uncertain; evidence=test');
+            }
+        };
+        $worker = new SerialWorker($db, $transport);
+
+        $result = $worker->runOnce();
+
+        Assert::same(false, $result['ok']);
+        Assert::same('REVIEW', $result['queue_status']);
+        Assert::same(true, $result['requires_review']);
+        Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same('UNCERTAIN', $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DELIVERY_UNCERTAIN'"
+        )->fetchColumn());
+
+        Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
+        Assert::same(1, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
+    }
+
 }
