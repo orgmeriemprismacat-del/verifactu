@@ -4,6 +4,7 @@ require_once '../../lib/dompdf/autoload.inc.php';
 
 $root = dirname(__DIR__, 2);
 require_once $root . '/LegacyInvoiceReadContext.php';
+require_once $root . '/LegacyInvoiceMutationAuthorization.php';
 
 $user = null;
 $intranet = null;
@@ -16,6 +17,7 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
 
 try {
     [$user, $intranet] = LegacyInvoiceReadContext::open();
+    LegacyInvoiceMutationAuthorization::assertSameOrigin();
 
     $id = trim((string) ($_POST['id'] ?? ''));
     if ($id === '' || !ctype_digit($id)) {
