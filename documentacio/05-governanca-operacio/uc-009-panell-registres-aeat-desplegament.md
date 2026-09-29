@@ -118,3 +118,59 @@ El servidor torna a validar totes aquestes condicions dins d'una transacció.
 ## 7. Producció
 
 Aquest panell no habilita l'enviament AEAT de producció. `SoapTransport` continua limitat a l'endpoint de proves fins a la qualificació corresponent.
+
+
+## 8. Evidència executada el 2026-09-30
+
+Estat verificat a la PR #23:
+
+- `Intranet AO batch checks`: **PASS**.
+- `SIF PHP MySQL tests`: **PASS**.
+- `UC-111 integration verification`: **PASS**.
+- `SIF checks`: **PASS**.
+- Suite SIF: **558 proves passades, 0 fallades**.
+- Lint PHP del SIF: **PASS**.
+- Lint PHP dels fitxers UC-009 d'intranet: **PASS**.
+- Sintaxi JavaScript del panell UC-009: **PASS**.
+- PR #23: **mergeable** i marcada `Ready for review`.
+
+Durant la validació es va detectar un defecte transversal ja existent: `IncidentLifecycleService` i diversos fluxos cridaven `IncidentRepository::openDetailed()`, `findById()`, `list()` i `updateLifecycle()` sense que el repositori els implementés. La PR #23 completa aquesta capa i la suite passa de **543 passades / 14 fallades** a **558 passades / 0 fallades**.
+
+## 9. Tasques que no es poden executar només des del repositori
+
+Aquestes accions requereixen accés real a l'entorn i **no s'han de donar per fetes**:
+
+| Tasca | Estat | Per què no es pot executar des de GitHub |
+| --- | --- | --- |
+| Aplicar la migració `2026_09_29_000010_add_aeat_queue_claim_token.sql` a preproducció | PENDENT ENTORN | Requereix credencials i connexió MySQL de l'entorn SIF |
+| Configurar `SIF_AEAT_READ_ROLES` i `SIF_AEAT_RECONCILE_ROLES` | PENDENT ENTORN | Requereix configuració/secrets del servidor |
+| Configurar `SIF_INTERNAL_AEAT_URL`, key id i secret a intranet | PENDENT ENTORN | Requereix configuració privada del servidor; els secrets no s'han de versionar |
+| Donar d'alta `/sif-registres-aeat.php` a `apartats` | PENDENT ENTORN | Cal consultar l'ID pare i els rols reals de la BD d'intranet abans d'inserir |
+| Provar usuari autoritzat / no autoritzat a la intranet real | PENDENT ENTORN | Requereix sessió i usuaris reals de preproducció |
+| Provar `summary/list/detail/preflight` contra el SIF desplegat | PENDENT ENTORN | Requereix desplegament i xarxa interna entre intranet i SIF |
+| Provar `reconcile` sobre un cas REVIEW real de preproducció | PENDENT ENTORN | Requereix dades reals/controlades de preproducció i operadora autoritzada |
+| Enviament real a AEAT preproducció | PENDENT AEAT | Requereix certificat, representació/configuració i connectivitat AEAT |
+| Habilitar endpoint AEAT de producció | BLOQUEJAT | Només després de proves, qualificació i aprovació de release |
+
+## 10. Ordre recomanat de desplegament
+
+1. Fusionar la PR #23 després de revisió humana.
+2. Fer backup/config snapshot de preproducció.
+3. Aplicar migracions SIF pendents.
+4. Configurar rols i secrets només a l'entorn.
+5. Desplegar SIF i intranet.
+6. Executar `summary`, `list`, `detail` i `preflight`.
+7. Donar d'alta la pàgina a `apartats` amb l'ID pare i rols comprovats.
+8. Verificar permisos amb usuari autoritzat i usuari sense permís.
+9. Crear/usar un cas controlat `REVIEW`: verificar que `UNCERTAIN` no es pot conciliar i que un resultat terminal coincident sí es pot tancar sense nou SOAP.
+10. Conservar captures/logs/IDs de cua i intents com a evidència de preproducció.
+11. Fer la prova externa AEAT de preproducció.
+12. Mantenir producció bloquejada fins al tancament formal.
+
+## 11. Criteri actual de tancament
+
+**Codi i proves automàtiques: VERIFICAT.**
+
+**Desplegament i operació real: PENDENT D'ENTORN.**
+
+UC-009 només podrà passar a tancament operatiu quan constin evidències del desplegament de preproducció, permisos, panell real, reconciliació controlada i prova AEAT corresponent.
