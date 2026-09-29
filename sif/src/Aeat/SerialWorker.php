@@ -4,7 +4,7 @@ namespace Prisma\Sif\Aeat;
 
 use Prisma\Sif\Contract\AeatTransport;
 use Prisma\Sif\Database\TransactionRunner;
-use Prisma\Sif\Repository\{FiscalQueueRepository, IncidentRepository};
+use Prisma\Sif\Repository\{AeatSubmissionAttemptRepository, FiscalQueueRepository, IncidentRepository};
 use Prisma\Sif\Service\FiscalQueueProcessor;
 
 /** All real submissions for this single issuer must use this entry point. */
@@ -25,7 +25,8 @@ final class SerialWorker
             $this->db->exec('INSERT IGNORE INTO aeat_worker_state (ID) VALUES (1)');
             $processor = new FiscalQueueProcessor(new TransactionRunner($this->db),
                 new FiscalQueueRepository(), new FlowControlledTransport($this->db, $this->transport),
-                $this->maxAttempts, $this->baseRetrySeconds, $this->maxRetrySeconds);
+                $this->maxAttempts, $this->baseRetrySeconds, $this->maxRetrySeconds,
+                new AeatSubmissionAttemptRepository());
             if ($recoverStale) {
                 $processor->recoverStaleLocks(900);
             }
@@ -36,7 +37,7 @@ final class SerialWorker
             }
             if (in_array($head['STATUS'], ['PENDING', 'RETRY'], true) && (int) $head['ATTEMPTS'] >= $this->maxAttempts) {
                 (new TransactionRunner($this->db))->run(function (\PDO $db) use ($head): void {
-                    (new FiscalQueueRepository())->fail($db, $head, 'Attempt budget exhausted after recovery', $this->maxAttempts, null);
+                    (new FiscalQueueRepository())->exhaust($db, $head, 'Attempt budget exhausted after recovery');
                     (new IncidentRepository())->open($db, $head['UUID_FACTURA'], 'AEAT_DEAD_LETTER',
                         'Queue ID ' . $head['ID'] . ': attempt budget exhausted');
                 });
@@ -51,9 +52,10 @@ final class SerialWorker
                 return ['ok' => true, 'processed' => false, 'reason' => 'WAIT'];
             }
             $result = $processor->processNext();
-            if (($result['queue_status'] ?? '') === 'DEAD_LETTER'
+            if (($result['queue_status'] ?? '') !== 'REVIEW'
+                && (($result['queue_status'] ?? '') === 'DEAD_LETTER'
                 || ($result['requires_review'] ?? false) === true
-                || in_array($result['aeat_status'] ?? '', ['REJECTED', 'ACCEPTED_WITH_ERRORS'], true)) {
+                || in_array($result['aeat_status'] ?? '', ['REJECTED', 'ACCEPTED_WITH_ERRORS'], true))) {
                 (new IncidentRepository())->open($this->db, $head['UUID_FACTURA'], 'AEAT_REVIEW',
                     'Queue ID ' . $head['ID'] . ': review protected response/evidence');
             }

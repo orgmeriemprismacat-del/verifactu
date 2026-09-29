@@ -41,6 +41,7 @@ return [
         'max_clock_skew_seconds' => (int) (getenv('SIF_INTERNAL_API_MAX_SKEW') ?: 300),
         'signed_path' => getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php',
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
+        'aeat_operations_signed_path' => getenv('SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH') ?: '/api/aeat/operations.php',
     ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
@@ -62,5 +63,9 @@ return [
         'max_attempts' => (int) (getenv('SIF_AEAT_MAX_ATTEMPTS') ?: 3),
         'base_retry_seconds' => (int) (getenv('SIF_AEAT_BASE_RETRY_SECONDS') ?: 60),
         'max_retry_seconds' => (int) (getenv('SIF_AEAT_MAX_RETRY_SECONDS') ?: 3600),
+        'read_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_AEAT_READ_ROLES') ?: '')
+        ))),
     ],
 ];

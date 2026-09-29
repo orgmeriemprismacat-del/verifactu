@@ -14,6 +14,7 @@ final class FiscalQueueMetricsRepository
             'PENDING' => 0,
             'PROCESSING' => 0,
             'RETRY' => 0,
+            'REVIEW' => 0,
             'SENT' => 0,
             'DEAD_LETTER' => 0,
         ];
