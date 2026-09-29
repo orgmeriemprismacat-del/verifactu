@@ -11,6 +11,7 @@ use Prisma\Sif\Repository\RectificationRepository;
 use Prisma\Sif\Service\InvoiceQueryService;
 use Prisma\Sif\Service\ManualRectificationPayloadBuilder;
 use Prisma\Sif\Service\ManualRectificationService;
+use Prisma\Sif\Service\ResolvedInvoiceVisibilityPolicy;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\Fixtures;
 use Prisma\Sif\Tests\Support\TestDatabase;
@@ -149,6 +150,33 @@ final class InvoiceQueryServiceTest
         Assert::same(0, count($rectificationView['payments']));
         Assert::same(1, count($rectificationView['rectifications']));
         Assert::same($original['uuid_factura'], $rectificationView['rectifications'][0]['UUID_FACTURA_RECTIFICADA']);
+    }
+
+    public function testResolvedScopePolicyReturnsMinimalProjectionForScopedInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $issued = IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload());
+        $service = new InvoiceQueryService(
+            $db,
+            new InvoiceReadRepository(),
+            new ResolvedInvoiceVisibilityPolicy()
+        );
+        $actor = [
+            'actor_id' => 'student-test',
+            'invoice_scope' => [
+                'invoices' => [
+                    $issued['uuid_factura'] => 'MINIMAL',
+                ],
+            ],
+        ];
+
+        $result = $service->view($actor, $issued['uuid_factura']);
+
+        Assert::same($issued['uuid_factura'], $result['invoice']['uuid_factura']);
+        Assert::same(false, array_key_exists('billing', $result['invoice']));
+        Assert::same(false, array_key_exists('totals', $result['invoice']));
+        Assert::same([], $result['documents']);
+        Assert::same([], $result['payments']);
     }
 
     public function testSearchRejectsEmptyCriteriaAndInvalidLegacyRelation(): void
