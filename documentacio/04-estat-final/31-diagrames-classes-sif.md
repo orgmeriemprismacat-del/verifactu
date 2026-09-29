@@ -1020,6 +1020,48 @@ FiscalImpactClassifier ..> CreditBalanceService : saldo o compensació
 
 Aquest bloc substitueix conceptualment els updates dispersos de `guardarDadesPagament_modalsresultatCerca()`, `realitzarCanviCurs_modalCanviCurs()`, `confirmaBaixa_modalDonarBaixa()`, `guardarDadesFactura_Factures()` i `anularFactura()`. El controlador no modifica una factura: construeix una proposta, la classifica i executa serveis específics.
 
+### 16.1.a. Previsualització executable UC-071 `[IMPLEMENTAT/PARCIAL]`
+
+```mermaid
+classDiagram
+direction LR
+class CourseChangeImpactClassifier {
+  <<PHP existent>>
+  +classify(input) array
+}
+class CourseChangePreviewService {
+  <<PHP existent>>
+  +preview(input) array
+}
+class CourseChangePreviewGateway {
+  <<PHP existent>>
+  +preview(actor,payload) array
+}
+class InvoiceReadRepository {
+  <<PHP existent>>
+}
+class InternalApiAuthenticator {
+  <<PHP existent>>
+}
+class SifInternalApiClient {
+  <<Intranet existent ampliat>>
+  +previewCourseChange(actor,roles,payload) array
+}
+class CourseChangeService {
+  <<FINAL pendent>>
+  +previewChange(command)
+  +confirmChange(command)
+}
+CourseChangePreviewGateway --> CourseChangePreviewService
+CourseChangePreviewService --> InvoiceReadRepository
+CourseChangePreviewService --> CourseChangeImpactClassifier
+SifInternalApiClient ..> InternalApiAuthenticator
+CourseChangeService ..> CourseChangePreviewService : reutilitzar classificació
+```
+
+Aquesta subvista és **codi real de la branca UC-071**. Implementa SAME/HIGHER/LOWER, preu STANDARD/MANUAL amb motiu, `RECTIFY_DIFFERENCE`, `RECTIFY_AND_REISSUE`, `AMOUNT_DUE`, `EXCESS_TO_RESOLVE` i bloqueig `REVIEW_REQUIRED` quan hi ha múltiples factures. `CourseChangeService`/coordinador final continua pendent: el preview no emet factura ni mou diners.
+
+
 ### 16.2. Registres fiscals, evidències i operació
 
 ```mermaid
