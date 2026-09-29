@@ -25,7 +25,8 @@ final class UsocCaseReconciler
             throw SifException::conflict('USOC financing case not found');
         }
 
-        $studentStatus = $this->invoicePaymentStatus($db, (string) $case['UUID_STUDENT_INVOICE']);
+        $studentInvoice = $this->invoiceState($db, (string) $case['UUID_STUDENT_INVOICE']);
+        $studentStatus = $studentInvoice['status'];
         $entityUuid = trim((string) ($case['UUID_ENTITY_INVOICE'] ?? ''));
 
         if ($entityUuid === '') {
@@ -39,7 +40,23 @@ final class UsocCaseReconciler
             );
         }
 
-        $entityStatus = $this->invoicePaymentStatus($db, $entityUuid);
+        $entityInvoice = $this->invoiceState($db, $entityUuid);
+        $entityStatus = $entityInvoice['status'];
+
+        if (
+            !$this->sameMoney($studentInvoice['total'], (string) $case['STUDENT_AMOUNT'])
+            || !$this->sameMoney($entityInvoice['total'], (string) $case['ENTITY_AMOUNT'])
+        ) {
+            return $this->cases->updateReconciliation(
+                $db,
+                $inscriptionId,
+                $idpag,
+                $studentStatus,
+                $entityStatus,
+                'REVIEW_REQUIRED'
+            );
+        }
+
         $status = $this->caseStatus($studentStatus, $entityStatus);
 
         return $this->cases->updateReconciliation(
@@ -52,21 +69,29 @@ final class UsocCaseReconciler
         );
     }
 
-    private function invoicePaymentStatus(\PDO $db, string $uuidInvoice): string
+    private function invoiceState(\PDO $db, string $uuidInvoice): array
     {
         if ($uuidInvoice === '') {
             throw SifException::conflict('Missing invoice in USOC financing case');
         }
 
-        $stmt = $db->prepare('SELECT ESTAT_COBRAMENT FROM factura WHERE UUID_FACTURA = ?');
+        $stmt = $db->prepare('SELECT ESTAT_COBRAMENT, TOTAL FROM factura WHERE UUID_FACTURA = ?');
         $stmt->execute([$uuidInvoice]);
-        $status = $stmt->fetchColumn();
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        if ($status === false || trim((string) $status) === '') {
+        if (!is_array($row) || trim((string) ($row['ESTAT_COBRAMENT'] ?? '')) === '') {
             throw SifException::conflict('Invoice not found while reconciling USOC financing case');
         }
 
-        return strtoupper(trim((string) $status));
+        return [
+            'status' => strtoupper(trim((string) $row['ESTAT_COBRAMENT'])),
+            'total' => number_format((float) $row['TOTAL'], 2, '.', ''),
+        ];
+    }
+
+    private function sameMoney(string $left, string $right): bool
+    {
+        return number_format((float) $left, 2, '.', '') === number_format((float) $right, 2, '.', '');
     }
 
     private function caseStatus(string $studentStatus, string $entityStatus): string
