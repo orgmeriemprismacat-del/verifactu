@@ -62,8 +62,7 @@ try {
 	else
 		$textComentaris = null;
 	$textMailing = new Text($_GET['mailing']);
-	$numPreuCursos = new Numero($_GET['preuCursos']);
-	$numPreuPack = new Numero($_GET['preuPack']);
+	// Els imports rebuts del navegador no són autoritatius. Es recalculen des de BD.
 	$textIdPack = new Text($_GET['idPack']);
 
 	$textNom->arreglarParaulaBD('noms');
@@ -88,12 +87,12 @@ try {
 	$connexio->connectarBD();
 
 	/* ######################################################################### */
-	$cnsInfo = "SELECT TITOL FROM info_pack WHERE ID_PACK=? AND ESTAT=1";
+	$cnsInfo = "SELECT TITOL, ID_PREU FROM info_pack WHERE ID_PACK=? AND ESTAT=1";
 	if ( $stmt=$connexio->prepare($cnsInfo) ) {
 		$stmt->bind_param("s", $idPack);
 		$idPack = $textIdPack->obtenirText();
 		$stmt->execute();
-		$stmt->bind_result($titol);
+		$stmt->bind_result($titol, $idPreuPack);
 		$stmt->fetch();
 		$connexio->closeStmt();
 	}
@@ -153,6 +152,51 @@ try {
 	}
 	else {
 		throw new Exception('',2912);
+	}
+
+	if (count($edicions) < 2) {
+		throw new Exception('',2912);
+	}
+
+	/* ######################################################################### */
+	/* Preus autoritatius del pack: mai confiar en preuPack/preuCursos del client. */
+	$cnsPreuServidor = "SELECT IMPORT FROM preu
+		WHERE ID=? AND DATAI<=CURRENT_TIME AND (CURRENT_TIME<=DATAF OR DATAF IS NULL)
+		ORDER BY DATAI DESC LIMIT 1";
+	if ( $stmtPreuServidor = $connexio->prepare($cnsPreuServidor) ) {
+		$stmtPreuServidor->bind_param("d", $idPreuServidor);
+
+		$idPreuServidor = $idPreuPack;
+		$stmtPreuServidor->execute();
+		$stmtPreuServidor->bind_result($preuPackServidor);
+		if (!$stmtPreuServidor->fetch() || !is_numeric($preuPackServidor)) {
+			$connexio->closeStmt();
+			throw new Exception('',2906);
+		}
+		$preuPack = floatval($preuPackServidor);
+		$connexio->closeStmt();
+
+		$preuCursos = 0.0;
+		foreach ($edicions as $edicioPreu) {
+			if ( $stmtPreuServidor = $connexio->prepare($cnsPreuServidor) ) {
+				$idPreuServidor = $edicioPreu->obtenirIdPreu()->obtenirNumero();
+				$stmtPreuServidor->bind_param("d", $idPreuServidor);
+				$stmtPreuServidor->execute();
+				$stmtPreuServidor->bind_result($preuCursServidor);
+				if (!$stmtPreuServidor->fetch() || !is_numeric($preuCursServidor)) {
+					$connexio->closeStmt();
+					throw new Exception('',2907);
+				}
+				$preuCursos += floatval($preuCursServidor);
+				$connexio->closeStmt();
+			}
+			else {
+				throw new Exception('',2916);
+			}
+		}
+	}
+	else {
+		throw new Exception('',2916);
 	}
 
 	$datai = $edicions[0]->obtenirDataInici()->obtenirText();
@@ -215,8 +259,6 @@ try {
 
 	$titolPack = $textTitolCurs->obtenirText();
 	$pagFrac = $textPagFrac->obtenirText();
-	$preuPack = $numPreuPack->obtenirNumero();
-	$preuCursos = $numPreuCursos->obtenirNumero();
 	$mailing = $textMailing->obtenirText();
 
 	$msg = $templates->getTemplate_Inscripcions_Pagaments_MissatgeTextManeresPagar2();
