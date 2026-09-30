@@ -15,6 +15,8 @@
 - NUM_VISIBLE:
 - UUID_PAYMENT:
 - UUID_JOB:
+- SIF_REDSYS_COURSE_CUTOVER_ENABLED: 0 / 1
+- SIF_REDSYS_CALLBACK_URL configurada: SÍ / NO (no copiar secrets ni query sensible)
 
 ## 2. Preflight
 
@@ -133,6 +135,11 @@ Adjuntar només evidència sense secrets:
 
 ## 9. Decisió de tall
 
+- [ ] `SIF_REDSYS_CALLBACK_URL` configurada amb HTTPS
+- [ ] `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` només a preproducció durant la prova
+- [ ] `doit.php` retorna 410 amb cutover actiu
+- [ ] `realitzaPagamentAutomatic.php` retorna 410 amb cutover actiu
+- [ ] rollback (`cutover=0`) documentat abans de retirada definitiva
 - [ ] E2E real de preproducció complet
 - [ ] duplicat validat
 - [ ] parcial/complet validat
