@@ -19,7 +19,14 @@ $checks = [
     'legacy_database_connectivity' => false,
     'factura_table' => false,
     'payment_transaction_table' => false,
+    'payment_allocation_table' => false,
+    'redsys_payment_intent_table' => false,
     'redsys_notifications_table' => false,
+    'redsys_callback_queue_table' => false,
+    'callback_endpoint_present' => is_file(dirname(__DIR__) . '/public/api/redsys/callback.php'),
+    'course_intent_endpoint_present' => is_file(dirname(__DIR__) . '/public/api/redsys/course-intent.php'),
+    'worker_script_present' => is_file(dirname(__DIR__) . '/scripts/process-redsys-callback-queue.php'),
+    'verification_script_present' => is_file(dirname(__DIR__) . '/scripts/verify-redsys-course-preproduction.php'),
     'fiscal_chain_state_seeded' => false,
     'legacy_inscripcions_table' => false,
     'legacy_curs_table' => false,
@@ -31,7 +38,10 @@ try {
     $checks['sif_database_connectivity'] = true;
     $checks['factura_table'] = tableExists($sifDb, 'factura');
     $checks['payment_transaction_table'] = tableExists($sifDb, 'payment_transaction');
+    $checks['payment_allocation_table'] = tableExists($sifDb, 'payment_allocation');
+    $checks['redsys_payment_intent_table'] = tableExists($sifDb, 'redsys_payment_intent');
     $checks['redsys_notifications_table'] = tableExists($sifDb, 'redsys_notifications');
+    $checks['redsys_callback_queue_table'] = tableExists($sifDb, 'redsys_callback_queue');
     $checks['fiscal_chain_state_seeded'] = rowExists(
         $sifDb,
         'SELECT COUNT(*) FROM fiscal_chain_state WHERE ID = 1'
