@@ -130,7 +130,8 @@ try {
     $processor = new RedsysLegacySyncingProcessor(
         $dispatcher,
         $legacyDb,
-        new LegacySyncService(new LegacySyncRepository())
+        new LegacySyncService(new LegacySyncRepository()),
+        new CourseLegacyPaymentSyncService()
     );
     $worker = new RedsysCallbackWorker(
         new RedsysCallbackQueueRepository(new UuidGenerator()),

@@ -9,7 +9,8 @@ final class RedsysLegacySyncingProcessor implements RedsysJobProcessor
     public function __construct(
         private RedsysJobProcessor $inner,
         private \PDO $legacyDb,
-        private LegacySyncService $legacySync
+        private LegacySyncService $legacySync,
+        private ?CourseLegacyPaymentSyncService $coursePaymentSync = null
     ) {
     }
 
