@@ -77,7 +77,7 @@ final class InvoiceReadRepository
     public function latestFiscalRecord(\PDO $db, string $uuidFactura): ?array
     {
         $stmt = $db->prepare(
-            'SELECT ID, UUID_FACTURA, FISCAL_ORDER, TIPUS_REGISTRE, HASH_FACT, HASH_FACT_ANT,
+            'SELECT ID, UUID_FACTURA, FISCAL_ORDER, TIPUS_REGISTRE,
                     ESTAT_AEAT, DATE_CREATED, DATE_SENT
              FROM factura_registres
              WHERE UUID_FACTURA = ?
