@@ -130,58 +130,11 @@ El secret només viu al servidor de la intranet i al servidor SIF. No s'envia al
 
 ## 8. Proves ajornades per més endavant
 
-No s'han de considerar executades fins que es faci una sessió específica de validació.
+La llista canònica de proves queda a:
 
-### UC-007
-- rol FULL autoritzat;
-- rol MINIMAL;
-- rol no autoritzat;
-- rol revocat amb sessió oberta;
-- UUID aliè;
-- cerca per número, NIF, email, factura relacionada i inscripció;
-- múltiples factures per una inscripció;
-- original + rectificativa;
-- cobrament PENDING/PARTIAL/PAID/REFUND;
-- divergència entre `factura.ESTAT_AEAT` i últim registre;
-- cerca concurrent;
-- zero mutació fiscal/econòmica després de N consultes;
-- fallback llegat només quan no hi ha factura SIF.
+**[UC-007 · Proves pendents d'implementació](../07-uml-integrat/03-proves-pendents-uc-007-implementacio.md)**
 
-### API interna
-- signatura correcta;
-- signatura manipulada;
-- timestamp caducat;
-- key id incorrecte;
-- request id repetit;
-- body modificat després de signar;
-- rols no configurats;
-- migració anti-replay absent.
-
-### UC-080
-- PDF correcte;
-- XML correcte;
-- QR correcte;
-- document fora del root privat;
-- fitxer absent;
-- hash incorrecte;
-- document massa gran;
-- document amb estat no disponible;
-- rol MINIMAL intentant descarregar;
-- actor sense scope;
-- auditoria ALLOWED / DENIED / FAILED;
-- cap temporal llegat creat;
-- cap `unlink(filename)` sobre document SIF.
-
-### Intranet
-- cerca principal;
-- hash `#/uuid/`;
-- entrada AL-16;
-- modal AL-17;
-- descàrrega AL-18;
-- same-origin;
-- missatges 401/403/404/409/503;
-- feature flags OFF/ON;
-- regressió de factures llegades no migrades.
+No duplicar checklists en aquesta guia. Cap prova es considera executada fins disposar d'evidència posterior de local/preproducció.
 
 ## 9. Criteri per retirar el fallback llegat
 
