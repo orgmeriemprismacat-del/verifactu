@@ -56,6 +56,13 @@ return [
         ))),
         'max_results' => (int) (getenv('SIF_INCIDENT_QUERY_MAX_RESULTS') ?: 50),
     ],
+    'panel' => [
+        'launch_key_id' => getenv('SIF_PANEL_LAUNCH_KEY_ID') ?: '',
+        'launch_secret' => getenv('SIF_PANEL_LAUNCH_SECRET') ?: '',
+        'launch_path' => getenv('SIF_PANEL_INCIDENTS_PATH') ?: '/sif/incidencies/',
+        'max_clock_skew_seconds' => (int) (getenv('SIF_PANEL_LAUNCH_MAX_SKEW') ?: 120),
+        'session_name' => getenv('SIF_PANEL_SESSION_NAME') ?: 'SIFPANELSESSID',
+    ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
         'intent_create_roles' => array_values(array_filter(array_map(
