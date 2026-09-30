@@ -101,13 +101,22 @@ try {
     $contentType = strtolower(trim((string) ($headers['content-type'] ?? 'application/octet-stream')));
     if (!str_starts_with($contentType, 'application/pdf')
         && !str_starts_with($contentType, 'application/xml')
+        && !str_starts_with($contentType, 'image/png')
         && $contentType !== 'application/octet-stream') {
         $contentType = 'application/octet-stream';
     }
 
     $documentType = strtoupper(trim((string) ($headers['x-sif-document-type'] ?? 'BIN')));
-    $extension = $documentType === 'PDF' ? 'pdf' : ($documentType === 'XML' ? 'xml' : 'bin');
+    $extension = $documentType === 'PDF' ? 'pdf' : ($documentType === 'XML' ? 'xml' : ($documentType === 'QR' ? 'png' : 'bin'));
     $filename = 'factura-document-' . $documentId . '.' . $extension;
+    $upstreamDisposition = trim((string) ($headers['content-disposition'] ?? ''));
+    if ($upstreamDisposition !== ''
+        && preg_match('/filename="?([^";]+)"?/i', $upstreamDisposition, $matches) === 1) {
+        $candidate = preg_replace('/[^A-Za-z0-9._-]+/', '-', basename((string) $matches[1]));
+        if (is_string($candidate) && $candidate !== '' && strlen($candidate) <= 180) {
+            $filename = $candidate;
+        }
+    }
 
     http_response_code(200);
     header('Content-Type: ' . $contentType);
