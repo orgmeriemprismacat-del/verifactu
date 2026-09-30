@@ -4,6 +4,8 @@ namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
+use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\UsocFinancingCaseRepository;
 use Prisma\Sif\Repository\UsocStudentInvoiceLinkRepository;
 use Prisma\Sif\Service\LegacyUsocInvoicePayloadBuilder;
 use Prisma\Sif\Service\UsocEntityInvoiceService;
@@ -89,8 +91,28 @@ final class UsocEntityInvoiceServiceTest
             $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $changed);
         }, 409);
 
-        Assert::same('Idempotency key already exists with different payload', $exception->getMessage());
+        Assert::same('USOC financing case amount mismatch', $exception->getMessage());
         Assert::same(2, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
+    public function testRejectsEntityAmountMismatchBeforeIssuingInvoice(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new UsocEntityLegacySpyPdo([]);
+        $service = $this->service($sifDb);
+        $studentInvoice = $this->seedStudentInvoice($sifDb);
+
+        $input = $this->entityInput();
+        $input['student_invoice_uuid'] = $studentInvoice['uuid_factura'];
+        $input['amount'] = '24.00';
+
+        $exception = Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $service, $input): void {
+            $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
+        }, 409);
+
+        Assert::same('USOC financing case amount mismatch', $exception->getMessage());
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same([], $legacyDb->preparedSql);
     }
 
     public function testRejectsSameIdempotencyKeyWithDifferentEntityRecipient(): void
@@ -167,7 +189,7 @@ final class UsocEntityInvoiceServiceTest
         }, 409);
 
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
-        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM usoc_financing_case')->fetchColumn());
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM usoc_financing_case')->fetchColumn());
     }
 
     public function testRejectsStudentInvoiceFromAnotherInscription(): void
@@ -216,7 +238,19 @@ final class UsocEntityInvoiceServiceTest
             ]],
         ]);
 
-        return IssueInvoiceTest::serviceFor($sifDb)->issueInvoice($payload);
+        $invoice = IssueInvoiceTest::serviceFor($sifDb)->issueInvoice($payload);
+
+        (new UsocFinancingCaseRepository(new UuidGenerator()))->recordStudentInvoice(
+            $sifDb,
+            $inscriptionId,
+            980,
+            (string) $invoice['uuid_factura'],
+            '75.00',
+            '25.00',
+            'ORDERUSOC980'
+        );
+
+        return $invoice;
     }
 
     private function service(\PDO $sifDb): UsocEntityInvoiceService
