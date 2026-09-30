@@ -112,6 +112,27 @@ Main ..> Grant : <<include>> (validació i ingrés confirmats)
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Docent sol·licitant"]
+  a_1["Gestió autoritzada"]
+  a_2["Worker de pagament"]
+  subgraph SIF_BOUNDARY["SIF · docent novell"]
+    u_0(["UC-111nValidar docent i emetre dret futur"])
+    u_1(["Verificar prova de titulació"])
+    u_2(["Comprovar cobrament original real"])
+    u_3(["UC-117nCrear dret futur idempotent"])
+  end
+  a_0 --> u_0
+  a_1 --> u_1
+  a_2 --> u_2
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+```
+
 ## 3. Diagrama de classes
 
 ```mermaid
