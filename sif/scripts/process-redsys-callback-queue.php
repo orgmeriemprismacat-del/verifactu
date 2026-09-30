@@ -14,6 +14,7 @@ use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacyGiftSnapshotRepository;
 use Prisma\Sif\Repository\LegacyGroupSnapshotRepository;
 use Prisma\Sif\Repository\LegacyPackSnapshotRepository;
+use Prisma\Sif\Repository\LegacySyncRepository;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
@@ -25,6 +26,7 @@ use Prisma\Sif\Service\LegacyGiftInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacyGroupInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacyPackInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacyUsocInvoicePayloadBuilder;
+use Prisma\Sif\Service\LegacySyncService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
 use Prisma\Sif\Service\RedsysCallbackDispatcher;
 use Prisma\Sif\Service\RedsysCallbackWorker;
@@ -35,6 +37,7 @@ use Prisma\Sif\Service\NovicePromotionCodePreparationService;
 use Prisma\Sif\Service\RedsysGiftInvoiceService;
 use Prisma\Sif\Service\RedsysGroupInvoiceService;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
+use Prisma\Sif\Service\RedsysLegacySyncingProcessor;
 use Prisma\Sif\Service\RedsysPackInvoiceService;
 use Prisma\Sif\Service\RedsysUsocInvoiceService;
 
@@ -45,8 +48,15 @@ if (PHP_SAPI !== 'cli') {
 
 $baseDir = dirname(__DIR__);
 $config = require $baseDir . '/config/sif.php';
-if (($config['env'] ?? 'local') === 'production') {
-    fwrite(STDERR, "Refusing Redsys callback queue processing with SIF_ENV=production.\n");
+$allowProduction = filter_var(
+    getenv('SIF_REDSYS_WORKER_ALLOW_PRODUCTION') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+if (($config['env'] ?? 'local') === 'production' && !$allowProduction) {
+    fwrite(
+        STDERR,
+        "Refusing Redsys callback queue processing with SIF_ENV=production unless SIF_REDSYS_WORKER_ALLOW_PRODUCTION=1.\n"
+    );
     exit(1);
 }
 
@@ -67,6 +77,7 @@ if ($limit < 1 || $limit > 100 || $workerId === '') {
 
 try {
     $db = ConnectionFactory::make($config);
+    $legacyDb = ConnectionFactory::makeLegacy($config);
     $notifications = new RedsysNotificationRepository();
     $invoiceService = new InvoiceService(
         new TransactionRunner($db),
@@ -99,9 +110,14 @@ try {
         new RedsysGiftInvoiceService($notifications, new LegacyGiftSnapshotRepository(), new LegacyGiftInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysUsocInvoiceService($notifications, new LegacyUsocSnapshotRepository(), new LegacyUsocInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
     ]);
+    $processor = new RedsysLegacySyncingProcessor(
+        $dispatcher,
+        $legacyDb,
+        new LegacySyncService(new LegacySyncRepository())
+    );
     $worker = new RedsysCallbackWorker(
         new RedsysCallbackQueueRepository(new UuidGenerator()),
-        $dispatcher,
+        $processor,
         new IncidentRepository(),
         5
     );
