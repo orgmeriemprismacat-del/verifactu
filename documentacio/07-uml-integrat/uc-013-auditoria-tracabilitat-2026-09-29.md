@@ -69,7 +69,7 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 4. **Conciliació — IMPLEMENTADA PARCIALMENT:** `UsocCaseReconciler` i `reconcile-usoc-case.php` deriven l'estat a partir de les dues factures i els imports. Falta invocació automàtica després del cobrament entitat.
 
 ### P1
-4. Mutació de validació via GET → POST segur.
+4. Validació legacy via POST + CSRF + `ROLS_EDITAR` — IMPLEMENTADA; falta traça persistent SIF de la decisió.
 5. `IDPAG` llegat generat per últim+1 → mecanisme concurrent-safe.
 6. Adaptador/pantalla final de gestió de factura entitat.
 7. Connectar la interfície/API final amb `UsocEntityPaymentService`; evitar que el flux USOC utilitzi el registre genèric sense reconciliació.
