@@ -166,6 +166,6 @@ La policy implementada **no declara resoltes** les decisions de negoci sobre pag
 
 - [Fitxa UC-020](../06-fitxes-funcionals/uc-020.md)
 - [UML integrat](uc-020-aplicar-alumne-prisma.md)
-- [Seqüències ACTUAL/FINAL](uc-020-sequences-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-020-sequencies-actual-final.md)
 - [Activitats ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md)
 - [Auditoria i traçabilitat](uc-020-auditoria-tracabilitat-2026-09-29.md)
