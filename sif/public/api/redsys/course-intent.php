@@ -8,11 +8,15 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
+use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
+use Prisma\Sif\Service\LegacyPrismaStudentPriceSnapshotResolver;
+use Prisma\Sif\Service\PrismaStudentCourseCheckoutService;
 use Prisma\Sif\Service\RedsysCoursePaymentIntentService;
 use Prisma\Sif\Service\RedsysDsOrderGenerator;
 use Prisma\Sif\Service\RedsysPaymentIntentService;
+use Prisma\Sif\Domain\PrismaStudentDiscountPolicy;
 
 header('Cache-Control: private, no-store, max-age=0');
 header('Pragma: no-cache');
@@ -57,13 +61,21 @@ try {
         throw SifException::validation('Invalid JSON');
     }
 
+    $intentService = new RedsysPaymentIntentService(
+        new RedsysPaymentIntentRepository(),
+        new UuidGenerator()
+    );
     $service = new RedsysCoursePaymentIntentService(
         new LegacyCourseSnapshotRepository(),
-        new RedsysPaymentIntentService(
-            new RedsysPaymentIntentRepository(),
+        $intentService,
+        new RedsysDsOrderGenerator(),
+        new PrismaStudentCourseCheckoutService(
+            new LegacyPrismaStudentHistoryRepository(),
+            new PrismaStudentDiscountPolicy(),
+            $intentService,
             new UuidGenerator()
         ),
-        new RedsysDsOrderGenerator()
+        new LegacyPrismaStudentPriceSnapshotResolver()
     );
 
     JsonResponse::send([
