@@ -399,11 +399,16 @@ class Intranet
 			"buscaFactRelFact"		=> "SELECT factura_relacionada FROM factures WHERE cif LIKE ? GROUP BY FACTURA_RELACIONADA",
 			"buscaIdFactCif"			=> "SELECT ID FROM factures WHERE cif LIKE ? GROUP BY factura_relacionada",
 			"buscarIdFact"				=> "SELECT ID FROM factures WHERE factura_relacionada LIKE ? ORDER BY rao, any DESC, num DESC",
-			"buscarTotesFactId"		=> "SELECT f.ID, f.factura_relacionada, f.any, num, rao,
-											cif, f.import, f.curs, f.observacions, GENERAT, `INSC CURS`
-											fROM factures AS f INNER JOIN inscripcions as i
-											ON f.factura_relacionada=i.FACTURA_RELACIONADA
-											WHERE f.ID LIKE ? GROUP BY f.id ORDER BY rao, any DESC, num DESC",
+			"buscarTotesFactId"		=> "SELECT f.ID, f.factura_relacionada, f.any, f.num, f.rao,
+											f.cif, f.import, f.curs, f.observacions, f.GENERAT,
+											CASE
+												WHEN MAX(CASE WHEN i.`INSC CURS` = 'C' THEN 1 ELSE 0 END) = 1 THEN 'C'
+												WHEN MAX(CASE WHEN i.`INSC CURS` = 'D' THEN 1 ELSE 0 END) = 1 THEN 'D'
+												ELSE MAX(i.`INSC CURS`)
+											END AS INSC_CURS
+											FROM factures AS f LEFT JOIN inscripcions AS i
+											ON f.factura_relacionada = i.FACTURA_RELACIONADA
+											WHERE f.ID = ? GROUP BY f.ID ORDER BY f.rao, f.any DESC, f.num DESC",
 			"buscarInfoFacturaId"	=> "SELECT id, factura_relacionada, any, ordre,
 											num, data, data_pagament, generada, rao, cif,
 											adreca, cp, poblacio, concepte1, concepte2,
@@ -14532,14 +14537,43 @@ class Intranet
 
 		$conWeb->desconectarBD();
 
-		function cmpNumFact($a, $b) {
-		    if ($a[3] == $b[3]) {
-		        return 0;
-		    }
-		    return ($a[3] > $b[3]) ? -1 : 1;
-		}
+		usort($resultats, static function ($a, $b) {
+			$yearCompare = ((int) $b[2]) <=> ((int) $a[2]);
+			if ($yearCompare !== 0) {
+				return $yearCompare;
+			}
 
-		usort($resultats, "cmpNumFact");
+			$parse = static function ($visible): array {
+				$value = trim((string) $visible);
+				$series = '';
+				$sequence = 0;
+
+				if (preg_match('/^([A-Za-z]+).*?(\\d+)$/', $value, $matches) === 1) {
+					$series = strtoupper($matches[1]);
+					$sequence = (int) $matches[2];
+				}
+				elseif (preg_match('/(\\d+)$/', $value, $matches) === 1) {
+					$sequence = (int) $matches[1];
+				}
+
+				return [$series, $sequence, $value];
+			};
+
+			[$seriesA, $sequenceA, $visibleA] = $parse($a[3]);
+			[$seriesB, $sequenceB, $visibleB] = $parse($b[3]);
+
+			$seriesCompare = strcmp($seriesA, $seriesB);
+			if ($seriesCompare !== 0) {
+				return $seriesCompare;
+			}
+
+			$sequenceCompare = $sequenceB <=> $sequenceA;
+			if ($sequenceCompare !== 0) {
+				return $sequenceCompare;
+			}
+
+			return strnatcasecmp($visibleB, $visibleA);
+		});
 
 		if ( count($resultats) > 0 ) {
 			$tableFactures = "<p class='titol-apartat'>Totes les factures</p>";
