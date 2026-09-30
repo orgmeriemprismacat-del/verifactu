@@ -96,11 +96,11 @@ flowchart LR
   a_2["Pagador"]
   a_3["Gestió/facturació"]
   subgraph SIF_BOUNDARY["SIF · promoció d'amics"]
-    u_0(["UC-110nComprar dos cursos amb descompte d'amics"])
+    u_0(["UC-110<br/>Comprar dos cursos amb descompte d'amics"])
     u_1(["Validar dues inscripcions i elegibilitat"])
     u_2(["Calcular dues línies i congelar-les"])
     u_3(["Decidir receptor/s fiscal/s"])
-    u_4(["UC-03nConfirmar ingrés conjunt quan existeixi"])
+    u_4(["UC-03<br/>Confirmar ingrés conjunt quan existeixi"])
     u_5(["Atribuir imports a A i B"])
   end
   a_0 --> u_0
