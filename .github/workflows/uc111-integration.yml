@@ -31,10 +31,16 @@ jobs:
       SIF_DB_DSN: mysql:host=127.0.0.1;dbname=sif_test;charset=utf8mb4
       SIF_DB_USER: root
       SIF_DB_PASSWORD: root
+      SIF_LEGACY_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_legacy_test;charset=utf8mb4
+      SIF_LEGACY_DB_USER: root
+      SIF_LEGACY_DB_PASSWORD: root
       SIF_NOVICE_PROMO_WRAP_KEY_HEX: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
       SIF_NOVICE_PROMO_KEY_VERSION: test-v1
     steps:
       - uses: actions/checkout@v4
+      - name: Preparar BD legacy de proves
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
