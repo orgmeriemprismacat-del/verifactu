@@ -116,14 +116,14 @@ flowchart LR
   a_3["Operador autoritzat"]
   a_4["Worker de notificacions"]
   subgraph SIF_BOUNDARY["SIF PrisMa — cicle de regal"]
-    u_0(["UC-17nComprar i facturar regal"])
-    u_1(["UC-119 / activaciónCrear/activar dret després de pagament"])
-    u_2(["UC-119 / lliuramentnEnviar targeta o codi al destinatari"])
-    u_3(["UC-119 / reexpediciónReenviar targeta sense nou dret"])
-    u_4(["UC-18nBescanviar dret per inscripció"])
-    u_5(["UC-18anGestionar codi caducat, duplicat o disputat"])
-    u_6(["UC-71/72nCanvi o baixa posterior"])
-    u_7(["UC-28/29nRetorn o saldo classificat"])
+    u_0(["UC-17<br/>Comprar i facturar regal"])
+    u_1(["UC-119 / activació<br/>Crear/activar dret després de pagament"])
+    u_2(["UC-119 / lliurament<br/>Enviar targeta o codi al destinatari"])
+    u_3(["UC-119 / reexpedició<br/>Reenviar targeta sense nou dret"])
+    u_4(["UC-18<br/>Bescanviar dret per inscripció"])
+    u_5(["UC-18a<br/>Gestionar codi caducat, duplicat o disputat"])
+    u_6(["UC-71/72<br/>Canvi o baixa posterior"])
+    u_7(["UC-28/29<br/>Retorn o saldo classificat"])
   end
   a_0 --> u_0
   a_2 --> u_0
