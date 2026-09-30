@@ -43,7 +43,7 @@ php sif/scripts/preflight-sif.php
 - [x] evidència crea timeline sense canviar estat.
 - [x] resolve sense evidència → 422.
 - [x] resolve amb evidència → `RESOLVED` + data + criteri.
-- [ ] dismiss amb justificació → `DISMISSED`.
+- [x] dismiss amb justificació → `DISMISSED`, i reobertura posterior verificada.
 - [ ] reobrir només des de `RESOLVED/DISMISSED`.
 - [x] acció idempotent repetida no duplica `sif_incident_action`.
 - [ ] dues accions concurrents sobre mateix incident mantenen estat coherent.
@@ -53,8 +53,8 @@ php sif/scripts/preflight-sif.php
 - [x] conflicte 409/422 → queue INCIDENT + expedient.
 - [x] max retries → queue INCIDENT + expedient.
 - [ ] mateix job no crea expedients duplicats.
-- [ ] `incident_id` retornat.
-- [ ] simular error d'INSERT d'incidència després de markIncident → rollback deixa job sense canvi.
+- [x] `incident_id` retornat en els fluxos d'incidència coberts.
+- [x] error d'INSERT d'incidència després de `markIncident` → rollback verificat per `testIncidentInsertFailureRollsBackQueueIncidentTransition`.
 - [ ] dades de DETAILS no inclouen PAN/CVV/signatures/secrets.
 
 ## 5. AEAT
