@@ -147,7 +147,47 @@ S->>DB: COMMIT
 S-->>O: reused=true, cap segona transició
 ```
 
-## 5. SEQ-008-FINAL-A · Panell llistat i detall
+## 5. SEQ-008-ACTUAL-E · Concurrència idempotent real
+
+```mermaid
+sequenceDiagram
+autonumber
+participant A as Procés A
+participant B as Procés B
+participant IA as IncidentRepository A
+participant IB as IncidentRepository B
+participant DB as MySQL REPEATABLE READ
+
+par mateixa IDEMPOTENCY_KEY
+  A->>IA: openDetailed(payload)
+  B->>IB: openDetailed(payload)
+end
+IA->>DB: SELECT key (snapshot)
+IB->>DB: SELECT key (snapshot)
+par cursa INSERT
+  IA->>DB: INSERT unique key
+  IB->>DB: INSERT unique key
+end
+DB-->>IA: un INSERT guanya
+DB-->>IB: 1062 duplicate després del commit guanyador
+IB->>DB: SELECT key FOR UPDATE (current read)
+IB-->>B: reused=true, mateix incident_id
+IA-->>A: reused=false, incident_id
+Note over A,B: 1 errors_verifactu + 1 acció OPEN
+
+par dues assignacions mateix incident
+  A->>DB: SELECT incident FOR UPDATE
+  B->>DB: SELECT incident FOR UPDATE (espera)
+end
+A->>DB: append ASSIGN + UPDATE
+A-->>B: allibera lock
+B->>DB: llegeix estat actual + append ASSIGN + UPDATE
+Note over A,B: 2 accions coherents, 1 estat final IN_PROGRESS
+```
+
+**Evidència:** `IncidentConcurrencyTest` amb dos subprocessos PHP i dues connexions PDO independents; run `36661335874`.
+
+## 6. SEQ-008-FINAL-A · Panell llistat i detall
 
 ```mermaid
 sequenceDiagram
@@ -172,7 +212,7 @@ API->>S: view(actor,id)
 S-->>UI: capçalera + timeline
 ```
 
-## 6. SEQ-008-FINAL-B · Reparació explícita i tancament
+## 7. SEQ-008-FINAL-B · Reparació explícita i tancament
 
 ```mermaid
 sequenceDiagram
@@ -196,7 +236,7 @@ S-->>UI: RESOLVED
 Note over S,U: UC-008 no repeteix CHARGE/factura/registre fiscal per si sol
 ```
 
-## 7. SEQ-008-FINAL-C · Resum intranet read-only
+## 8. SEQ-008-FINAL-C · Resum intranet read-only
 
 ```mermaid
 sequenceDiagram
@@ -217,7 +257,7 @@ else SIF no disponible
 end
 ```
 
-## 8. Proves associades
+## 9. Proves associades
 
 - conflicte funcional Redsys → incidència sense retry;
 - cinquè error Redsys → incidència;
