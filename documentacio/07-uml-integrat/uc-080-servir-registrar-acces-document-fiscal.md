@@ -27,7 +27,7 @@
 5. Si es revoca un token o acaba el vincle autoritzat d'accés, impedir **noves** consultes; conservar el registre històric, les factures i els accessos previs.
 6. Provar: alumne d'una factura d'empresa, responsable de grup, `VISIBLE_ALUMNE=0`, email compartit, token caducat i reutilitzat, ruta pública manipulada, PDF absent/hash diferent, intents massius, denegació sense filtrar dades.
 
-**Pendents:** política d'autorització específica, emissor/resolvedor de tokens, storage físic, writer d'`fiscal_document_access`, registre de denegacions, revocació i proves de privacitat end-to-end.
+**Pendents:** canals externs/token/grant temporal, revocació específica fora de la sessió intranet, desplegament del storage per entorn i proves de privacitat end-to-end.
 
 ### 2.1. Diferenciar consulta d'alumne, empresa i auditor en el panell real
 
@@ -75,71 +75,97 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
-## 4. UML de classes — SQL i servidor d'arxius pendents
+## 4. UML de classes — implementació parcial executable
 
 ```mermaid
 classDiagram
 class InvoiceDocumentAccessService {
- <<DISSENY: servei unificat amb UC-55 i model general>>
- +listAuthorized(actor,scope) documents
- +download(actor,documentId,token) bytes
+ <<PHP EXISTENT>>
+ +download(actor,documentId) array
 }
-class DocumentAuthorizationPolicy {
- <<DISSENY: grup/empresa/alumne>>
- +canRead(actor,uuidFactura,relation) decision
+class DocumentAccessRepository {
+ <<PHP EXISTENT>>
+ +findById(db,documentId) array?
 }
-class FiscalDocumentAccessRepository {
- <<DISSENY: fiscal_document_access SQL>>
- +append(db,event) uuid
+class InvoiceReadRepository {
+ <<PHP EXISTENT>>
+ +findByUuid(db,uuid) array?
+ +findRelations(db,uuid) array
+}
+class ResolvedDocumentAuthorizationPolicy {
+ <<PHP EXISTENT>>
+ +canDownload(actor,invoice,relations,document) bool
 }
 class PrivateDocumentStore {
- <<DISSENY: bytes privats no acreditats>>
- +readAndVerify(storageKey,hash) bytes
+ <<PHP EXISTENT>>
+ +readVerified(path,hash) bytes
 }
-class DocumentRepository {
- <<PHP existent: només registre de metadades>>
- +registerDocument(db,uuidFactura,type,path,contents) array
+class FiscalDocumentAccessRepository {
+ <<PHP EXISTENT>>
+ +append(db,event) uuid
 }
-InvoiceDocumentAccessService --> DocumentAuthorizationPolicy : actor/document
-InvoiceDocumentAccessService --> PrivateDocumentStore : bytes/hashes
-InvoiceDocumentAccessService --> FiscalDocumentAccessRepository : intent i resultat
+class InternalApiAuthenticator {
+ <<PHP EXISTENT>>
+ +authenticate(server,body,method,path) actor
+}
+InvoiceDocumentAccessService --> DocumentAccessRepository
+InvoiceDocumentAccessService --> InvoiceReadRepository
+InvoiceDocumentAccessService --> ResolvedDocumentAuthorizationPolicy
+InvoiceDocumentAccessService --> PrivateDocumentStore
+InvoiceDocumentAccessService --> FiscalDocumentAccessRepository
+InternalApiAuthenticator ..> InvoiceDocumentAccessService : actor HMAC + anti-replay
 ```
 
-## 5. UML de seqüència — accés indegut i fitxer absent
+## 5. UML de seqüència — descàrrega executable
 
 ```mermaid
 sequenceDiagram
 autonumber
-actor A as Alumne
-participant S as InvoiceDocumentAccessService [DISSENY]
-participant P as DocumentAuthorizationPolicy [DISSENY]
-participant DB as factura_documents i fact_rels
-participant F as PrivateDocumentStore [DISSENY]
-participant Log as fiscal_document_access [SQL]
-A->>S: Demanar PDF de UUID_FACTURA per sessió/token
-S->>P: Validar identitat, token, representació i relacions
-alt Sense permís o token caducat
+actor U as Usuari intranet
+participant UI as sifDocument.php
+participant C as SifInternalDocumentClient
+participant API as POST /api/documents/download.php
+participant H as InternalApiAuthenticator
+participant S as InvoiceDocumentAccessService
+participant P as ResolvedDocumentAuthorizationPolicy
+participant R as DocumentAccessRepository
+participant F as PrivateDocumentStore
+participant Log as FiscalDocumentAccessRepository
+U->>UI: Descarregar document_id
+UI->>C: download(actorId,roles,documentId)
+C->>API: POST signat HMAC
+API->>H: validar key/timestamp/request/body/actor/rols
+H-->>API: actor autenticat
+API->>API: InternalInvoiceScopeResolver
+API->>S: download(actor,documentId)
+S->>R: findById(documentId)
+R-->>S: metadata interna + path/hash
+S->>P: canDownload(actor,invoice,relations,document)
+alt Scope absent o MINIMAL
  P-->>S: DENIED
- S->>Log: append(DOWNLOAD,DENIED,reason)
- S-->>A: Accés denegat sense dades de tercer
-else Accés autoritzat
+ S->>Log: DOWNLOAD/DENIED
+ S-->>API: 403
+else FULL
  P-->>S: ALLOWED
- S->>DB: Cercar document original i HASH_FITXER
- S->>F: readAndVerify(path,hash)
- alt Absent o hash erroni
-  F-->>S: ERROR_INTEGRITY
-  S->>Log: append(DOWNLOAD,FAILED_INTEGRITY)
-  S-->>A: Document temporalment no disponible
- else Bytes íntegres
-  F-->>S: bytes originals
-  S->>Log: append(DOWNLOAD,ALLOWED)
-  S-->>A: Stream privat del document
+ S->>F: readVerified(path,hash)
+ alt absent/path/hash invàlid
+  F--xS: 403/409/503
+  S->>Log: DOWNLOAD/FAILED
+  S-->>API: error tipificat
+ else bytes íntegres
+  F-->>S: bytes
+  S->>Log: DOWNLOAD/ALLOWED
+  S-->>API: bytes + metadata segura
+  API-->>C: stream privat
+  C-->>UI: bytes
+  UI-->>U: descàrrega navegador
  end
 end
-Note over S,F: Token, permisos, storage i auditoria encara són disseny.
 ```
 
-### 5.1. Acció independent: consultar el llistat de documents disponibles — UC-07/80, DISSENY
+**Implementat:** HMAC/anti-replay, scope intern per rols, lookup de document, política FULL, root privat, SHA-256, límit de mida, auditoria i proxy intranet. **Pendent:** canals externs/token/grant temporal i proves runtime ajornades.
+
+### 5.1. Acció independent: consultar metadades documentals — UC-07 implementat parcialment
 
 **Actor/disparador:** receptor, representant d'empresa, alumne o auditor autenticat obre el llistat de documents. **Precondicions:** identitat i representació verificades i abast de consulta resolt per recurs; en una factura d'empresa, la condició de participant no dóna dret automàtic al PDF complet ni a les dades fiscals dels altres inscrits. **Postcondició:** retornar **només metadades de documents autoritzats i realment disponibles**, amb estat de disponibilitat/absència clar; la consulta de llistat **no entrega bytes** ni autoritza futures descàrregues sense un control nou. En particular, `fact_rels.VISIBLE_ALUMNE=1` i `factura_documents.ESTAT=CREATED` no són dues autoritzacions suficients.
 
@@ -202,7 +228,7 @@ UI-->>A: Llistat restringit o denegació
 Note over S,Log: Servei/endpoint, política i writer encara no acreditats. Consultar el llistat no significa haver descarregat bytes.
 ```
 
-### 5.2. Acció independent: descarregar un document concret amb revocació/fitxer incert — UC-80, DISSENY
+### 5.2. Acció independent: descarregar un document concret — UC-80 implementat parcialment
 
 **Actor/disparador:** subjecte autoritzat prem «Descarregar» sobre un document seleccionat o obre un enllaç que havia rebut anteriorment. **Precondicions:** identitat actual, receptor/representació, `UUID_FACTURA`, `FACTURA_DOCUMENT_ID`, grant/token encara vigent **en aquesta petició**, bytes físics i SHA-256 congruents. **Postcondició:** bytes exactes del document autoritzat amb auditoria d'intent/resultat o rebuig sense path ni dades de tercers; un `HTTP 200` no acredita que la persona els hagi llegit. Quan el document és històric, cal acreditar igualment original versus reconstrucció i no presentar-lo com a VERI*FACTU retroactiu.
 
