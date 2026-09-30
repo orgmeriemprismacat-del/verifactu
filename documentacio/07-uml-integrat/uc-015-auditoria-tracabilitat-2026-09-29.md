@@ -17,15 +17,15 @@ Aquest registre diferencia:
 | Catàleg i fitxa pack | sí | sí | sí | proves navegador |
 | N inscripcions amb IDPAG comú | sí | sí | sí | substituir identitat concurrent |
 | Preu pack | sí | **sí, backend autoritatiu (30/09)** | sí | proves runtime |
-| Snapshot comercial | sí | parcial | sí | ordinal/receptor/preu versionat |
-| Intenció Redsys PACK | sí | **sí + endpoint intern autenticat (30/09)** | sí | connectar punt de pagament pack |
-| Callback SIF | sí | sí | sí | activació real canal |
+| Snapshot comercial | sí | **sí al checkout PACK** | sí | verificar origen canònic de l'ordinal |
+| Intenció Redsys PACK | sí | **sí + checkout connectat (30/09)** | sí | evidència runtime |
+| Callback SIF | sí | sí | sí | evidència de desplegament/runtime |
 | Callback legacy | sí | sí | sí | retirada |
 | Factura N línies | sí | sí | sí | prova end-to-end |
 | Conciliació factura/import Redsys | sí | **sí (29/09)** | sí | executar test |
 | Idempotència factura/payment | sí | sí | sí | evidència runtime |
-| Ledger ID_INSC | sí | no | sí | implementar |
-| Outbox correu | sí | no per aquest canal | sí | implementar |
+| Ledger ID_INSC | sí | **sí (30/09)** | sí | executar proves/runtime |
+| Outbox correu | sí | **sí al flux PACK asíncron (30/09)** | sí | executar worker/runtime |
 | Activitats ACTUAL/FINAL | **sí (29/09)** | n/a | sí | mantenir sincronitzat |
 | Classes ACTUAL/FINAL | **sí (29/09)** | n/a | sí | mantenir sincronitzat |
 | Seqüències ACTUAL/FINAL | **sí (29/09)** | n/a | sí | mantenir sincronitzat |
@@ -81,10 +81,10 @@ Exigeix:
 ## 6. Troballes P0
 
 ### UC15-P0-01 · Preu enviat pel navegador — CORREGIT AL CANAL D'ALTA 2026-09-30
-El JS ja no envia `preuCursos`/`preuPack` i `enviarInscripcioPack.php` recalcula el preu del pack i la suma dels cursos des de `info_pack/packs/curs/preu`. **Resta pendent** que aquest preu servidor quedi congelat dins la intenció SIF abans del TPV.
+El servidor recalcula el preu i grava metadata comercial per component. `PackPaymentGate` rellegeix aquesta informació, valida import/ordinal/receptor i crea un snapshot que `SifPaymentIntentClient` envia a la intenció SIF abans del TPV.
 
-### UC15-P0-02 · IDPAG concurrent
-`SELECT IDPAG ... ORDER BY IDPAG DESC LIMIT 1` + 1 no és un generador segur.
+### UC15-P0-02 · IDPAG concurrent — MITIGAT 2026-09-30
+L'allocator continua basant-se en `MAX(IDPAG)+1`, però `ConnexioBBDDSTMT::reserveIdPag()` serialitza la reserva amb `GET_LOCK()` i manté el lock fins a `releaseIdPag()`. Continua sent deute tècnic davant d'una seqüència pròpia, però ja no és el patró concurrent sense lock de l'auditoria inicial.
 
 ### UC15-P0-03 · Callback legacy fiscal
 `realitzaPagamentPackAutomatic.php` encara calcula numeració i insereix `factures` directament.
@@ -92,26 +92,26 @@ El JS ja no envia `preuCursos`/`preuPack` i `enviarInscripcioPack.php` recalcula
 ### UC15-P0-04 · Signatura — CORREGIT 2026-09-30
 Els dos callbacks legacy de pack comparen ara de forma bloquejant la signatura calculada amb `Ds_Signature` mitjançant `hash_equals()`. També es bloqueja si `Ds_Order` o `Ds_Amount` signats no coincideixen amb els valors legacy utilitzats pel procés.
 
-### UC15-P0-05 · Ordinal comercial
-`LegacyPackSnapshotRepository` ordena per `A_PAGAR DESC, ID`, mentre el builder aplica la regla del descompte segons índex. Això no equival a l'ordinal de l'oferta.
+### UC15-P0-05 · Ordinal comercial — PARCIALMENT CORREGIT 2026-09-30
+L'alta grava `PACK_ORDINAL`; `LegacyPackSnapshotRepository` el recupera i `LegacyPackInvoicePayloadBuilder` ordena per aquest ordinal i exigeix seqüència contigua. Resta verificar que el valor gravat prové de l'ordre comercial canònic del pack i no només de l'ordre per data de les edicions.
 
-### UC15-P0-06 · Receptor
-El receptor del builder prové del primer item; el primer item pot dependre de l'ordre per `A_PAGAR`.
+### UC15-P0-06 · Receptor — CORREGIT FAIL-CLOSED 2026-09-30
+`PackPaymentGate` construeix billing des de BD i el builder aplica `consistentBilling()` a totes les inscripcions. Si qualsevol component divergeix en dades fiscals, l'emissió es bloqueja amb conflicte.
 
 ### UC15-P0-07 · Conciliació import
 **Corregit al SIF el 2026-09-29:** `RedsysPackInvoiceService` bloqueja si total factura i import Redsys no coincideixen.
 
-### UC15-P0-08 · Punt de pagament genèric no resol N inscripcions de pack
-`ajax/mostrar_pagina_pagament.php` desxifra l'identificador i instancia sempre `PagamentCurs`. El constructor de `PagamentCurs` exigeix exactament una fila per `IDPAG` i llança error si n'hi ha més d'una. Un pack crea N files amb el mateix `IDPAG`. No s'ha localitzat una classe `PagamentPack` activa que resolgui aquest contracte; només existeix una plantilla visual de pack i callbacks específics. **Bloquejant:** definir/adaptar el punt de pagament PACK abans de connectar l'endpoint d'intenció al web.
+### UC15-P0-08 · Checkout PACK → intenció SIF — CORREGIT 2026-09-30
+La ruta `efectPagGrupsAuto` tracta explícitament `TIPUS_INSC='P'`. `PackPaymentGate` reconstrueix el checkout des de BD, `SifPaymentIntentClient` crea la intenció autenticada `SOURCE_TYPE=PACK` i el merchant URL de Redsys passa a `SIF_REDSYS_CALLBACK_URL`.
 
-### UC15-P0-09 · DS_ORDER generat amb temps al flux genèric
-`pagina_efectuar_pagament.php` genera actualment l'ordre amb `time()`. No es modifica en aquest lot perquè el DS_ORDER definitiu del pack s'ha de generar/coordinat amb la intenció SIF i no amb un pegat local que pugui afectar altres canals.
+### UC15-P0-09 · DS_ORDER del PACK — CORREGIT AL CANAL PACK 2026-09-30
+El canal PACK ja no usa `time()`: genera un DS_ORDER de 12 dígits, l'envia a la intenció SIF i exigeix que el SIF retorni el mateix valor abans de construir el formulari Redsys.
 
 ## 7. Troballes P1
 
-- ledger quantitatiu per ID_INSC;
-- retirar fraccionament del checkout o limitar-lo al contracte decidit;
-- outbox de correus;
+- retirar definitivament el callback fiscal legacy;
+- acreditar l'origen canònic de `PACK_ORDINAL`;
+- executar i evidenciar ledger/outbox en runtime;
 - sincronització acadèmica postcommit;
 - packs N i combinacions de descompte;
 - component indisponible (UC-122);
@@ -173,3 +173,38 @@ Mentre el callback fiscal legacy encara no s'ha retirat, s'han aplicat mesures d
 **Desplegament:** abans de desplegar aquests callbacks cal configurar `SIF_REDSYS_MERCHANT_KEY` al runtime corresponent. La retirada del secret del codi no elimina la necessitat de **rotar la clau**, perquè el secret havia estat versionat històricament.
 
 Aquest enduriment és transitori i **no substitueix UC-68**: el callback legacy continua contenint numeració/INSERT de factura i UPDATE d'inscripcions fins que el worker SIF sigui l'únic emissor.
+
+
+## 10. Revalidació d'implementació — 2026-09-30
+
+### Flux principal PACK acreditat per inspecció
+
+`PagamentGrupAutomatic (TIPUS_INSC=P)`
+→ `pagina_efectuar_pagament_grup_automatic.php`
+→ `PackPaymentGate::assertCanPrepare()`
+→ `SifPaymentIntentClient::create()`
+→ `/api/redsys/intents/create.php`
+→ Redsys
+→ callback SIF
+→ cua
+→ `RedsysPackInvoiceService::issueFromIntentSnapshot()`
+→ `InvoiceService`
+→ `PackEnrollmentFundAllocationService`
+→ `PackPaymentNotificationService`
+→ sincronització legacy posterior.
+
+### Ledger
+
+La migració `2026_09_30_000030_add_enrollment_fund_movement.sql` i el repositori `EnrollmentFundMovementRepository` implementen una atribució monetària immutable per `ID_INSC` sense crear CHARGE addicionals.
+
+### Prova de regressió ja escrita
+
+`RedsysPackInvoiceServiceTest::testIntentSnapshotCreatesOneDurableNotificationAcrossRetry()` verifica:
+- una factura i un únic cobrament extern;
+- dues atribucions `enrollment_fund_movement`;
+- imports 120 € + 90 € = 210 €;
+- mateix UUID_PAYMENT;
+- outbox únic;
+- reintent idempotent.
+
+Aquesta auditoria **no declara l'execució** d'aquesta prova si no hi ha evidència runtime/CI específica del commit.
