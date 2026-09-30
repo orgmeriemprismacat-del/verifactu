@@ -4,7 +4,9 @@ namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Contract\PayloadIdempotencyValidatorInterface;
 use Prisma\Sif\Database\TransactionRunner;
+use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 
@@ -17,7 +19,8 @@ final class InvoiceService
         private InvoiceRepository $invoices,
         private ?PaymentPayloadValidator $paymentValidator = null,
         private ?PaymentRepository $payments = null,
-        private ?PayloadIdempotencyValidatorInterface $idempotency = null
+        private ?PayloadIdempotencyValidatorInterface $idempotency = null,
+        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null
     ) {
         $this->idempotency ??= new PayloadIdempotencyValidator();
     }
@@ -26,11 +29,23 @@ final class InvoiceService
     {
         $payload = $this->validator->validate($payload);
 
+        if ($this->requiresBeforePaymentCoverage($payload) && $this->beforePaymentCoverage === null) {
+            throw new \RuntimeException(
+                'Invoice-before-payment payload requires the UC-004 coverage repository.'
+            );
+        }
+
         try {
             return $this->createOrReuseInvoice($payload);
         } catch (\PDOException $exception) {
             if (!$this->isDuplicateKeyException($exception)) {
                 throw $exception;
+            }
+
+            if ($this->isBeforePaymentCoverageConflict($exception)) {
+                throw SifException::conflict(
+                    'One or more INSCRIPCIO origins are already claimed by another invoice-before-payment operation'
+                );
             }
 
             return $this->reuseInvoiceAfterDuplicateKey($payload);
@@ -49,6 +64,16 @@ final class InvoiceService
             $seq = $this->sequences->next($db, $payload['series'], $year);
             $chainState = $this->invoices->lockChainState($db);
             $created = $this->invoices->createInvoiceGraph($db, $payload, $seq, $chainState);
+
+            if ($this->requiresBeforePaymentCoverage($payload)) {
+                $this->beforePaymentCoverage->claim(
+                    $db,
+                    $payload['relations'] ?? [],
+                    $created['uuid_factura'],
+                    $payload['idempotency_key']
+                );
+            }
+
             $payment = $this->createInitialPaymentIfPresent($db, $payload, $created['uuid_factura']);
 
             $result = [
@@ -73,7 +98,7 @@ final class InvoiceService
         }
 
         if (!is_array($payload['payment'])) {
-            throw \Prisma\Sif\Exception\SifException::validation('Invalid invoice payment block');
+            throw SifException::validation('Invalid invoice payment block');
         }
 
         if ($this->paymentValidator === null || $this->payments === null) {
@@ -118,7 +143,9 @@ final class InvoiceService
             $existing = $this->invoices->findByIdempotencyKey($db, $payload['idempotency_key'], true);
 
             if ($existing === null) {
-                throw new \RuntimeException('Duplicate key detected, but existing invoice could not be loaded.');
+                throw SifException::conflict(
+                    'Invoice uniqueness conflict could not be resolved as an idempotent retry'
+                );
             }
 
             return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
@@ -137,7 +164,7 @@ final class InvoiceService
         }
 
         if (!is_array($payload['payment'])) {
-            throw \Prisma\Sif\Exception\SifException::validation('Invalid invoice payment block');
+            throw SifException::validation('Invalid invoice payment block');
         }
 
         if ($this->paymentValidator === null || $this->payments === null) {
@@ -166,8 +193,20 @@ final class InvoiceService
         ];
     }
 
+    private function requiresBeforePaymentCoverage(array $payload): bool
+    {
+        return (int) ($payload['uc004_invoice_before_payment'] ?? 0) === 1;
+    }
+
     private function isDuplicateKeyException(\PDOException $exception): bool
     {
         return (string) $exception->getCode() === '23000';
+    }
+
+    private function isBeforePaymentCoverageConflict(\PDOException $exception): bool
+    {
+        $detail = (string) ($exception->errorInfo[2] ?? $exception->getMessage());
+
+        return str_contains($detail, 'uq_invoice_before_payment_source');
     }
 }

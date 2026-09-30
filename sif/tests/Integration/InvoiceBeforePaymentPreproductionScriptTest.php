@@ -21,6 +21,7 @@ final class InvoiceBeforePaymentPreproductionScriptTest
         Assert::stringContainsString('new InvoiceService(', $source);
         Assert::stringContainsString('new InvoiceBeforePaymentService(', $source);
         Assert::stringContainsString('new InvoiceBeforePaymentPayloadBuilder()', $source);
+        Assert::stringContainsString('new InvoiceBeforePaymentCoverageRepository()', $source);
         Assert::stringContainsString('issueBeforePayment($payload)', $source);
         Assert::stringContainsString('--payload-file=', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
