@@ -182,10 +182,9 @@ final class GiftEnrollmentStagerTest
             $holder,
             $this->price()
         );
-        $second = $redemption->redeem(
-            $db,
-            $command + ['idempotency_key' => 'UC018|SAGA|501|RETRY']
-        );
+        $retryCommand = $command;
+        $retryCommand['idempotency_key'] = 'UC018|SAGA|501|RETRY';
+        $second = $redemption->redeem($db, $retryCommand);
 
         Assert::same('CONSUMED', $first['status']);
         Assert::same(true, $stageReplay['idempotency_reused']);
