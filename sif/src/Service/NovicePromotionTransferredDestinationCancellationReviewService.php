@@ -134,6 +134,11 @@ final class NovicePromotionTransferredDestinationCancellationReviewService
                 throw SifException::conflict('Only a confirmed transfer with a traceable predecessor is supported here.');
             }
 
+            $parentDerivedBalanceUuid = $this->resolveTransferParentBalanceUuid(
+                $db,
+                $transfer
+            );
+
             if ($this->one(
                 $db,
                 "SELECT UUID_TRANSFER FROM novice_promotion_application_transfer
@@ -263,6 +268,7 @@ final class NovicePromotionTransferredDestinationCancellationReviewService
 
             $snapshot = [
                 'source_transfer' => $uuidTransfer,
+                'parent_derived_balance' => $parentDerivedBalanceUuid,
                 'source_operation' => (string) $transfer['TO_UUID_OPERATION'],
                 'source_invoice' => (string) $transfer['UUID_DESTINATION_FACTURA'],
                 'rectificative_invoice' => $uuidRectificative,
@@ -283,6 +289,8 @@ final class NovicePromotionTransferredDestinationCancellationReviewService
                     JSON_THROW_ON_ERROR
                 );
                 if ((string) $previous['IDEMPOTENCY_KEY'] !== $idempotencyKey
+                    || (string) ($previous['PARENT_UUID_DERIVED_BALANCE'] ?? '')
+                        !== (string) ($parentDerivedBalanceUuid ?? '')
                     || (string) $previous['UUID_RECTIFICATIVE_FACTURA'] !== $uuidRectificative
                     || (string) $previous['PROMOTIONAL_ORIGIN_AMOUNT']
                         !== (string) $plan['promotional_derived_amount']
@@ -313,12 +321,13 @@ final class NovicePromotionTransferredDestinationCancellationReviewService
                   HOLDER_PARTY_KEY, PROMOTIONAL_ORIGIN_AMOUNT,
                   AVAILABLE_PROMOTIONAL_AMOUNT, STATUS, ISSUED_AT, EXPIRES_AT,
                   POLICY_SNAPSHOT_JSON, IDEMPOTENCY_KEY)
-                 VALUES (?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, 0.00,
+                 VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, 0.00,
                          ?, NULL, NULL, ?, ?)'
             );
             $stmt->execute([
                 $uuidDerived,
                 (string) $root['UUID_ENTITLEMENT'],
+                $parentDerivedBalanceUuid,
                 $uuidTransfer,
                 (string) $transfer['TO_UUID_OPERATION'],
                 $uuidRectificative,
@@ -332,6 +341,7 @@ final class NovicePromotionTransferredDestinationCancellationReviewService
             $db->commit();
             return [
                 'uuid_derived_balance' => $uuidDerived,
+                'parent_uuid_derived_balance' => $parentDerivedBalanceUuid,
                 'source_uuid_transfer' => $uuidTransfer,
                 'status' => 'PENDING_FISCAL_REVIEW',
                 'proposed_promotional_amount' => (string) $plan['promotional_derived_amount'],
@@ -342,6 +352,86 @@ final class NovicePromotionTransferredDestinationCancellationReviewService
                 $db->rollBack();
             }
             throw $exception;
+        }
+    }
+
+    /**
+     * Resolve the derived right being moved by this transfer chain.
+     * NULL means the chain belongs directly to the original JASOM right.
+     */
+    private function resolveTransferParentBalanceUuid(
+        \PDO $db,
+        array $transfer
+    ): ?string {
+        $current = $transfer;
+        $visited = [];
+
+        while (true) {
+            $transferId = trim((string) ($current['UUID_TRANSFER'] ?? ''));
+            if ($transferId === '' || isset($visited[$transferId])) {
+                throw SifException::conflict(
+                    'Transfer lineage is cyclic or missing while staging cancellation.'
+                );
+            }
+            $visited[$transferId] = true;
+
+            $original = trim(
+                (string) ($current['UUID_ORIGINAL_APPLICATION'] ?? '')
+            );
+            $derived = trim(
+                (string) ($current['UUID_DERIVED_APPLICATION'] ?? '')
+            );
+            $previous = trim(
+                (string) ($current['PREVIOUS_UUID_TRANSFER'] ?? '')
+            );
+            $nonEmpty = ($original !== '' ? 1 : 0)
+                + ($derived !== '' ? 1 : 0)
+                + ($previous !== '' ? 1 : 0);
+            if ($nonEmpty !== 1) {
+                throw SifException::conflict(
+                    'Transfer has ambiguous promotional predecessor.'
+                );
+            }
+
+            if ($original !== '') {
+                return null;
+            }
+
+            if ($derived !== '') {
+                $source = $this->one(
+                    $db,
+                    'SELECT UUID_DERIVED_BALANCE, ROOT_UUID_ENTITLEMENT
+                     FROM novice_promotion_derived_application
+                     WHERE UUID_DERIVED_APPLICATION = ?
+                     FOR UPDATE',
+                    [$derived]
+                );
+                if ($source === null
+                    || (string) $source['ROOT_UUID_ENTITLEMENT']
+                        !== (string) $current['ROOT_UUID_ENTITLEMENT']
+                ) {
+                    throw SifException::conflict(
+                        'Transferred cancellation cannot resolve its derived parent.'
+                    );
+                }
+                return (string) $source['UUID_DERIVED_BALANCE'];
+            }
+
+            $parentTransfer = $this->one(
+                $db,
+                'SELECT * FROM novice_promotion_application_transfer
+                 WHERE UUID_TRANSFER = ? FOR UPDATE',
+                [$previous]
+            );
+            if ($parentTransfer === null
+                || (string) $parentTransfer['ROOT_UUID_ENTITLEMENT']
+                    !== (string) $current['ROOT_UUID_ENTITLEMENT']
+            ) {
+                throw SifException::conflict(
+                    'Transferred cancellation has a missing predecessor transfer.'
+                );
+            }
+            $current = $parentTransfer;
         }
     }
 
