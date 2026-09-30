@@ -208,3 +208,27 @@ La migració `2026_09_30_000030_add_enrollment_fund_movement.sql` i el repositor
 - reintent idempotent.
 
 Aquesta auditoria **no declara l'execució** d'aquesta prova si no hi ha evidència runtime/CI específica del commit.
+
+
+## 11. Enduriments addicionals — 2026-09-30
+
+### Checkout fail-closed
+S'han afegit controls abans de crear la intenció:
+- totes les dades de receptor han de coincidir entre components;
+- `PACK_BASE - PACK_DISCOUNT = PACK_TOTAL`;
+- `PACK_DISCOUNT_PCT` ha de reproduir l'import del descompte amb tolerància d'1 cèntim;
+- PACK i ordinals han de ser coherents;
+- import sol·licitat = pendent complet.
+
+### Configuració Redsys
+Per PACK, `pagina_efectuar_pagament_grup_automatic.php` utilitza:
+- `SIF_REDSYS_MERCHANT_KEY` per signar;
+- `REDSYS_MERCHANT_CODE` per codi de comerç;
+- `REDSYS_TERMINAL` per terminal.
+
+El mateix terminal es passa a la intenció SIF i al formulari Redsys. Si manca configuració del PACK, el flux falla tancat abans de preparar el TPV.
+
+### Evidència de test escrita
+`PackPaymentGateTest` cobreix pagament complet, rebuig parcial, pack ja pagat parcialment, ordinal absent, PACK inconsistent, ordinal duplicat/no contigu, receptor divergent, adreça divergent i descompte percentual inconsistent.
+
+**No s'ha acreditat execució CI d'aquests nous tests en aquesta auditoria.**
