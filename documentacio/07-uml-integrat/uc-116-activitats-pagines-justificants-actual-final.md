@@ -4,7 +4,7 @@
 
 ## P01 · Pàgina pública de descomptes — cinc apartats
 
-**Fonts:** [pàgina](../../codi-drive/web-actual/pagina_descomptes.php), [endpoint de render](../../codi-drive/web-actual/ajax/mostrar_pagina_descomptes.php), [classe Descomptes.php](../../codi-drive/web-actual/Descomptes.php#L185-L265). Mapa d'apartats: 1 exalumne PrisMa (identificació interna), 2 Carnet Jove (marcar casella i càlcul), 3 socials (document + validació posterior), 4 USOC (comprovació externa de l'afiliació), 5 grups/centres (tarifes per nombre i enllaç a inscripció grupal). No totes les famílies exigeixen l'upload UC-116.
+**Fonts:** [pàgina](../../codi-drive/web-actual/pagina_descomptes.php), [endpoint de render](../../codi-drive/web-actual/ajax/mostrar_pagina_descomptes.php), [classe activa PaginaDescomptes.php](../../codi-drive/web-actual/PaginaDescomptes.php#L210-L323). Mapa d'apartats: 1 Alumne PrisMa (identificació interna), 2 Carnet Jove (marcar casella i càlcul), 3 socials (document + validació posterior), 4 USOC (comprovació externa de l'afiliació), 5 grups/centres (tarifes per nombre i enllaç a inscripció grupal). No totes les famílies exigeixen l'upload UC-116.
 
 ### P01 — ACTUAL
 
@@ -252,7 +252,7 @@ stop
 
 ## P03-B · Intranet, apartat «Validar descomptes» — decisió i comunicació
 
-**Fonts:** [JS línies 28–94](../../codi-drive/intranet-actual/js/alumnes-validar-descomptes.js#L28-L94), [wrapper AJAX](../../codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php) i [Intranet::sendMsgValidatCurosDescomptes línies 15530–16090](../../codi-drive/intranet-actual/Intranet.php#L15530-L16090). El JS commuta SÍ/NO i, en prémer ENVIA, envia GET `idInsc/verificat`. El mètode actual: consulta dades d'inscripció i preus; si s'accepta, calcula preu descomptat per TIPUS_DESC 4–8 i estableix `VALID_DESC=1`; **en aquesta branca no es veu UPDATE d'`A_PAGAR`**. Si es denega, compara amb elegibilitat d'exalumne; escriu `TIPUS_DESC`, `VALID_DESC=2`, `A_PAGAR` segons el preu alternatiu; encara després hi ha un segon UPDATE de `VALID_DESC=2`. Calcula textos per fraccionament i una variant especial USOC i construeix correus a secretaria i a la persona. La creació d'objectes de correu no prova el resultat SMTP. No es veu control de rol específic per acció, condició d'estat/versió d'operació ni comprovació de factura emesa en aquest mètode.
+**Fonts:** [JS línies 28–94](../../codi-drive/intranet-actual/js/alumnes-validar-descomptes.js#L28-L94), [wrapper AJAX](../../codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php) i [Intranet::sendMsgValidatCurosDescomptes línies 15530–16090](../../codi-drive/intranet-actual/Intranet.php#L15530-L16090). El JS commuta SÍ/NO i, en prémer ENVIA, envia GET `idInsc/verificat`. El mètode actual: consulta dades d'inscripció i preus; si s'accepta, calcula preu descomptat per TIPUS_DESC 4–8 i estableix `VALID_DESC=1`; **en aquesta branca no es veu UPDATE d'`A_PAGAR`**. Si es denega, compara amb elegibilitat d'Alumne PrisMa; escriu `TIPUS_DESC`, `VALID_DESC=2`, `A_PAGAR` segons el preu alternatiu; encara després hi ha un segon UPDATE de `VALID_DESC=2`. Calcula textos per fraccionament i una variant especial USOC i construeix correus a secretaria i a la persona. La creació d'objectes de correu no prova el resultat SMTP. No es veu control de rol específic per acció, condició d'estat/versió d'operació ni comprovació de factura emesa en aquest mètode.
 
 ### P03-B — ACTUAL · aprovació/denegació
 
@@ -272,9 +272,9 @@ if (verificat == 1?) then (Sí)
   en el mètode inspeccionat.
  end note
 else (No)
- :Comprovar si persona és exalumne;
- if (És exalumne?) then (Sí)
-  :Assignar preu d'exalumne i TIPUS_DESC=1;
+ :Comprovar si persona és Alumne PrisMa;
+ if (És Alumne PrisMa?) then (Sí)
+  :Assignar tarifa Alumne PrisMa i TIPUS_DESC=1;
  else (No)
   :Assignar preu normal i TIPUS_DESC=0;
  endif
@@ -306,8 +306,8 @@ if (Autorització de DECISIÓ i evidència aplicable vigents?) then (Sí)
  else (DENEGA)
   :Registrar DENEGACIÓ manual amb actor/data i motiu intern mínim;
   :MANTENIR la inscripció vigent;
-  :Comprovar dret existent al preu d'exalumne PrisMa;
-if (Exalumne elegible a l'edició?) then (Sí)
+  :Registrar la DENEGACIÓ del dret original i comprovar una NOVA decisió Alumne PrisMa;
+if (Alumne PrisMa elegible a l'edició?) then (Sí)
  :TIPUS_DESC=1 i A_PAGAR=descomptes.PREU tipus 1 aplicable;
 else (No)
  :TIPUS_DESC=0 i A_PAGAR=preu.IMPORT ordinari aplicable;
@@ -333,11 +333,22 @@ stop
 @enduml
 ```
 
+### Precisió compartida amb UC-020 — estat de pagament després d'una denegació
+
+Quan la denegació deixa el llegat com `TIPUS_DESC=1, VALID_DESC=2, A_PAGAR=preuAP`, `VALID_DESC=2` descriu la **denegació del dret original**, no hauria de representar que la nova oferta AP és no pagable. L'auditoria UC-020 ha verificat que les rutes actives de confirmació/pagament passen per `PagamentCursAutomatic` i que targeta/transferència no interpreten aquest estat de manera homogènia.
+
+El FINAL compartit queda, per tant, expressat amb dos fets separats:
+
+1. decisió original = `REJECTED`;
+2. oferta alternativa AP = `ACCEPTED/PAYABLE` si compleix política i tarifa i no hi ha bloqueig econòmic/fiscal.
+
+Vegeu [UC-020 activitats ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md).
+
 ## Matriu d'accions i límits
 
 | Pàgina / apartat | Control → punt d'entrada → classe/taula | UC principal i connexions | Estat documental |
 | --- | --- | --- | --- |
-| P01 / Descomptes (5 seccions) | pagina_descomptes.php → Descomptes::mostrarPagina → preus/catàleg | UC-116 només secció que requereix document; UC de preus/descomptes i grups | Contrastat al PHP de main. |
+| P01 / Descomptes (5 seccions) | pagina_descomptes.php → PaginaDescomptes::mostrarPagina → preus/catàleg | UC-116 només secció que requereix document; UC de preus/descomptes i grups | Contrastat al PHP de main. |
 | P02 / Selecció i prova | pagina_inscripcions.php → JS → ajax/mostrar_inscripcio.php → InscripcioCurs.php; JS `validarFileCarnet` | UC-116, UC-20b i UC-107 quan duplicitat | Contrastat al PHP i JS de main. |
 | P02 / Alta, upload, confirmació | JS → enviarInscripcio.php → inscripcions; després JS → enviarImatgeCarnetInscripcio.php → webroot; després confirmació | UC-116 per prova; UC alta/validació/preu/fiscal separats | Contrastat al PHP/JS; resultat runtime del correu/storage no provat. |
 | P03 / Consulta de proves | shell intranet → mostrarMain → Intranet::mostrarPage / __mostrarPage_Alumnes_ValidarDescomptes; links per TIPUS_DESC 5..8 | UC-116, accés i decisió UC de validació de descomptes | Contrastat fins a render PHP inclòs. |
@@ -352,7 +363,7 @@ stop
 | --- | --- | --- |
 | Secretaria revisa MANUALMENT | P03-B inclou revisió manual, decisió i actor identificat. | El JS actual envia SÍ/NO a l'endpoint; no equival a un expedient segur amb prova custodiada. |
 | Pagament BLOQUEJAT mentre pendent | P02-A i P02-B no habiliten TPV/cobrament mentre continua PENDENT; P03-B desbloqueja després de decisió. | L'alta llegada `VALID_DESC=0` no prova per si sola bloqueig integral de tots els canals de pagament. |
-| Denegació conserva inscripció i aplica preu del codi existent | P03-B manté l'alta: exalumne elegible → TIPUS_DESC 1 i tarifa exalumne; si no → TIPUS_DESC 0 i preu ordinari. Desbloqueig de pagament després de la decisió, mai càrrec automàtic. | La branca del diagrama ACTUAL ja mostra la bifurcació exalumne/preu normal i UPDATE de TIPUS_DESC/VALID_DESC/A_PAGAR segons traça P03. |
+| Denegació conserva inscripció i aplica preu del codi existent | P03-B manté l'alta: Alumne PrisMa elegible → TIPUS_DESC 1 i tarifa Alumne PrisMa; si no → TIPUS_DESC 0 i preu ordinari. Desbloqueig de pagament després de la decisió, mai càrrec automàtic. | La branca del diagrama ACTUAL ja mostra la bifurcació exalumne/preu normal i UPDATE de TIPUS_DESC/VALID_DESC/A_PAGAR segons traça P03. |
 | Retenció durant TRES MESOS i eliminació posterior | P03-B computa els tres mesos des de la decisió de secretaria i diferencia bytes de factura immutable. | El text llegat promet eliminació, però no hi ha prova de destrucció de totes les còpies. |
 | Secretaria, Gestió i Facturació amb permisos diferenciats | P03-A separa visibilitat d'expedient i lectura de prova; P03-B reserva la revisió manual a Secretaria autoritzada. Proposta de mínim privilegi per als altres dos rols a la fitxa funcional, pendent de ratificació. | Rol actual de visualització de pàgina no acredita aquests permisos per acció. |
 
