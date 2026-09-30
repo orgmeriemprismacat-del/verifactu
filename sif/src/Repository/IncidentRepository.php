@@ -149,7 +149,12 @@ final class IncidentRepository
             ]);
         } catch (\PDOException $exception) {
             if ((string) $exception->getCode() === '23000' && $idempotencyKey !== null) {
-                $existing = $this->findByIdempotencyKey($db, $idempotencyKey);
+                // The INSERT may have waited for a concurrent transaction that
+                // committed the same idempotency key. Under MySQL REPEATABLE READ,
+                // a normal SELECT would still use the snapshot established by the
+                // pre-insert lookup and could miss that newly committed row.
+                // Force a current/locking read for duplicate-key recovery.
+                $existing = $this->findByIdempotencyKey($db, $idempotencyKey, true);
                 if ($existing !== null) {
                     $validator->assertMatches(
                         $normalizedPayload,
@@ -341,9 +346,13 @@ final class IncidentRepository
         return $stmt->rowCount();
     }
 
-    private function findByIdempotencyKey(\PDO $db, string $key): ?array
+    private function findByIdempotencyKey(\PDO $db, string $key, bool $currentRead = false): ?array
     {
-        $stmt = $db->prepare('SELECT * FROM errors_verifactu WHERE IDEMPOTENCY_KEY = ? LIMIT 1');
+        $sql = 'SELECT * FROM errors_verifactu WHERE IDEMPOTENCY_KEY = ? LIMIT 1';
+        if ($currentRead) {
+            $sql .= ' FOR UPDATE';
+        }
+        $stmt = $db->prepare($sql);
         $stmt->execute([$key]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
