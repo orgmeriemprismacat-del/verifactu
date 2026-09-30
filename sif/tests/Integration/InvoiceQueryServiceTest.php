@@ -74,7 +74,7 @@ final class InvoiceQueryServiceTest
             SifException::class,
             static fn () => $service->view(
                 ['actor_id' => 'operator-test'],
-                '00000000-0000-0000-0000-000000000000'
+                '11111111-1111-4111-8111-111111111111'
             ),
             404
         );
