@@ -11,6 +11,7 @@ include ('../../Intranet.php');
 include ('../../inc/missatgesError.php');
 include ('../../SifInternalUsocClient.php');
 include ('../../SifAuthenticatedActor.php');
+include ('../../LegacyDiscountValidationLookup.php');
 session_start();
 
 $usuariDeserialitzat = false;
@@ -86,35 +87,39 @@ try {
 	$idInsc = (int) $idInscRaw;
 	$verificat = (int) $verificatRaw;
 	$desiredValidDesc = $verificat === 1 ? 1 : 2;
+	$isUsoc = (new LegacyDiscountValidationLookup())->isUsoc($idInsc);
+	$beginDecision = ['tracked' => false, 'should_apply_legacy' => true];
+	$sifClient = null;
+	$actorId = '';
+	$actorRoles = [];
 
-	[$actorId, $actorRoles] = SifAuthenticatedActor::fromUser($_SESSION['usuari']);
-	$sifClient = new SifInternalUsocClient();
-	$beginResponse = $sifClient->beginValidationDecision(
-		$actorId,
-		$actorRoles,
-		$requestId,
-		$idInsc,
-		$desiredValidDesc
-	);
-	$beginDecision = assertSifValidationDecisionResponse($beginResponse);
+	if ($isUsoc) {
+		[$actorId, $actorRoles] = SifAuthenticatedActor::fromUser($_SESSION['usuari']);
+		$sifClient = new SifInternalUsocClient();
+		$beginResponse = $sifClient->beginValidationDecision(
+			$actorId,
+			$actorRoles,
+			$requestId,
+			$idInsc,
+			$desiredValidDesc
+		);
+		$beginDecision = assertSifValidationDecisionResponse($beginResponse);
 
-	if (
-		($beginDecision['tracked'] ?? false) === true
-		&& (string) ($beginDecision['state'] ?? '') === 'REVIEW_REQUIRED'
-	) {
-		http_response_code(409);
-		throw new Exception('Error: la decisió USOC requereix revisió manual abans de continuar.');
+		if ((string) ($beginDecision['state'] ?? '') === 'REVIEW_REQUIRED') {
+			http_response_code(409);
+			throw new Exception('Error: la decisió USOC requereix revisió manual abans de continuar.');
+		}
 	}
 
 	if (
-		($beginDecision['tracked'] ?? false) === true
+		$isUsoc
 		&& ($beginDecision['should_apply_legacy'] ?? false) !== true
 	) {
 		$resultat = 'La decisió USOC ja constava aplicada i ha quedat conciliada amb el SIF.';
 	} else {
 		$resultat = (string) $_SESSION['intranet']->sendMsgValidatCurosDescomptes($idInsc, $verificat);
 
-		if (($beginDecision['tracked'] ?? false) === true) {
+		if ($isUsoc) {
 			$completeResponse = $sifClient->completeValidationDecision(
 				$actorId,
 				$actorRoles,
