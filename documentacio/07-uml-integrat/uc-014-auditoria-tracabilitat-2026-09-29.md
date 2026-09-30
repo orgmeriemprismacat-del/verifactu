@@ -2,7 +2,7 @@
 
 **Data:** 29/09/2026  
 **Branca d'auditoria:** `audit/uc-014-completa-2026-09-29`  
-**Estat global:** **DOC AMPLIADA / IMP SIF AVANÇADA / E2E INTERN SIMULAT VERIFICAT PER CI / TALL PRODUCTIU I E2E REDSYS-PREPRODUCCIÓ PENDENTS**.
+**Estat global:** **DOC AMPLIADA / IMP SIF AVANÇADA / E2E INTERN + TOOLING PREPRODUCCIÓ VERIFICATS PER CI / E2E REDSYS-PREPRODUCCIÓ I TALL PRODUCTIU PENDENTS**.
 
 ## 1. Evidència revisada
 
@@ -37,6 +37,15 @@
 - `RedsysCourseInvoiceServiceTest`
 - `RedsysAsyncFlowTest`
 - `RedsysPaymentIntentTest`
+- `RedsysCourseEndToEndSimulatedTest`
+- `RedsysLegacySyncingProcessorCourseTest`
+- `RedsysCoursePreproductionBoundaryTest`
+
+### Tooling de preproducció
+- `sif/scripts/preflight-redsys-course.php`
+- `sif/scripts/preflight-redsys-callback-queue.php`
+- `sif/scripts/verify-redsys-course-preproduction.php`
+- `sif/scripts/process-redsys-course.php`
 
 ## 2. Matriu per acció
 
@@ -91,8 +100,8 @@
 | Codi SIF Redsys | Implementació real localitzada |
 | Adaptador ecommerce | IMPLEMENTAT EN CÒPIA CANDIDATA; DESPLEGAMENT NO ACREDITAT |
 | Ledger per inscripció | IMPLEMENTAT PER `payment_transaction/allocation`; projecció llegada connectada |
-| Tests | EXECUTATS EN CI; E2E INTERN SIMULAT VERD ALS 3 WORKFLOWS |
-| Preproducció | NO ACREDITADA |
+| Tests | EXECUTATS EN CI; E2E INTERN I BOUNDARIES DEL VERIFICADOR VERDS ALS 3 WORKFLOWS |
+| Preproducció | TOOLING PREPARAT I FAIL-CLOSED VERIFICAT; EXECUCIÓ REDSYS REAL NO ACREDITADA |
 | Producció | NO ACREDITADA |
 
 ## 5. Criteri de tancament del UC-014
@@ -113,6 +122,6 @@ Durant l'auditoria s'han observat secrets Redsys literals en còpies de codi del
 
 ## 7. Evidència CI i pla de tall final
 
-El wiring de sincronització de curs al worker Redsys ha estat integrat a `main` i verificat per CI. A més, `RedsysCourseEndToEndSimulatedTest` cobreix de forma integrada: intenció → callback validat → cua → worker → factura → `payment_transaction`/`payment_allocation` → projecció llegada; inclou callback duplicat i parcial→complet. Els workflows `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en verd sobre aquesta prova. Això acredita l'E2E **intern simulat**, però **no** una execució contra Redsys/preproducció real.
+El wiring de sincronització de curs al worker Redsys ha estat integrat a `main` i verificat per CI. `RedsysCourseEndToEndSimulatedTest` cobreix de forma integrada: intenció → callback validat → cua → worker → factura → `payment_transaction`/`payment_allocation` → projecció llegada; inclou callback duplicat i parcial→complet. A més, `RedsysCoursePreproductionBoundaryTest` verifica que el verificador falla tancat fora de `test/preproduction`, que la mutació queda darrere de `--execute`, que `--sync-legacy` exigeix evidència de projecció econòmica i que la sortida sanititza secrets/signatures/raw payloads. Els workflows `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en verd sobre aquest boundary. Això acredita l'E2E **intern simulat** i el **tooling de preproducció**, però **no** una execució contra Redsys/preproducció real.
 
 El procediment de tall operatiu queda definit a [UC-014 — Pla de tall final Redsys cap al SIF](uc-014-pla-tall-final-redsys-sif.md).
