@@ -29,7 +29,7 @@ final class InvoiceQueryCriteriaValidator
         $clean = [];
 
         if (($value = $this->stringValue($criteria, 'uuid_factura', 36)) !== null) {
-            if (preg_match('/^[0-9a-fA-F-]{36}$/D', $value) !== 1) {
+            if (preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/D', $value) !== 1) {
                 throw SifException::validation('Invalid invoice UUID');
             }
             $clean['uuid_factura'] = strtolower($value);
