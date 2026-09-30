@@ -384,22 +384,22 @@ class Intranet
 											FROM inscripcions WHERE ID = ?",
 			"buscaIdFactCorreu" 		=> "SELECT f.ID FROM factures AS f INNER JOIN inscripcions as i
 											ON f.factura_relacionada=i.FACTURA_RELACIONADA
-											WHERE CORREU LIKE ? GROUP BY f.ID",
+											WHERE CORREU LIKE ? ESCAPE '=' GROUP BY f.ID",
 			"buscaIdFactCorreuID" 	=> "SELECT f.ID FROM factures AS f INNER JOIN inscripcions as i
 											ON f.factura_relacionada=i.FACTURA_RELACIONADA
-											WHERE f.ID LIKE ? AND CORREU LIKE ? GROUP BY f.ID",
+											WHERE f.ID = ? AND CORREU LIKE ? ESCAPE '=' GROUP BY f.ID",
 			"buscaIdFactRel" 			=> "SELECT ID FROM factures AS f
-											WHERE factura_relacionada LIKE ? GROUP BY ID",
-			"buscaIdFactRelID" 		=> "SELECT ID FROM factures AS f WHERE ID LIKE ? AND
-											factura_relacionada LIKE ? GROUP BY ID",
+											WHERE CAST(factura_relacionada AS CHAR) LIKE ? ESCAPE '=' GROUP BY ID",
+			"buscaIdFactRelID" 		=> "SELECT ID FROM factures AS f WHERE ID = ? AND
+											CAST(factura_relacionada AS CHAR) LIKE ? ESCAPE '=' GROUP BY ID",
 			"buscaIdFactNum" 			=> "SELECT ID FROM factures AS f WHERE num = ? GROUP BY ID",
 			"buscaIdFactNumID" 		=> "SELECT ID FROM factures AS f WHERE ID LIKE ? AND
 											num = ? GROUP BY ID",
-			"buscaDniIdFact"			=> "SELECT CIF FROM factures WHERE ID LIKE ?",
-			"buscaFactRelInsc"		=> "SELECT FACTURA_RELACIONADA FROM inscripcions WHERE DNI LIKE ? GROUP BY FACTURA_RELACIONADA",
-			"buscaFactRelFact"		=> "SELECT factura_relacionada FROM factures WHERE cif LIKE ? GROUP BY FACTURA_RELACIONADA",
-			"buscaIdFactCif"			=> "SELECT ID FROM factures WHERE cif LIKE ? GROUP BY factura_relacionada",
-			"buscarIdFact"				=> "SELECT ID FROM factures WHERE factura_relacionada LIKE ? ORDER BY rao, any DESC, num DESC",
+			"buscaDniIdFact"			=> "SELECT CIF FROM factures WHERE ID = ?",
+			"buscaFactRelInsc"		=> "SELECT FACTURA_RELACIONADA FROM inscripcions WHERE DNI LIKE ? ESCAPE '=' GROUP BY FACTURA_RELACIONADA",
+			"buscaFactRelFact"		=> "SELECT factura_relacionada FROM factures WHERE cif LIKE ? ESCAPE '=' GROUP BY FACTURA_RELACIONADA",
+			"buscaIdFactCif"			=> "SELECT MIN(ID) FROM factures WHERE cif LIKE ? ESCAPE '=' GROUP BY factura_relacionada",
+			"buscarIdFact"				=> "SELECT ID FROM factures WHERE factura_relacionada = ? ORDER BY rao, any DESC, num DESC",
 			"buscarTotesFactId"		=> "SELECT f.ID, f.factura_relacionada, f.any, f.num, f.rao,
 											f.cif, f.import, f.curs, f.observacions, f.GENERAT,
 											CASE
@@ -14164,10 +14164,18 @@ class Intranet
 		$conWeb = new ConnexioWeb();
 		$conWeb->connectarBD();
 
-		$likeDni = "%".$dni."%";
-		$likeEmail = "%".$email."%";
-		$likeFactRel = "%".$factRel."%";
-		$likeNumFact = "%".$factNum."%";
+		$escapeLike = static function ($value) {
+			return strtr((string) $value, [
+				'=' => '==',
+				'%' => '=%',
+				'_' => '=_',
+			]);
+		};
+
+		$likeDni = "%".$escapeLike($dni)."%";
+		$likeEmail = "%".$escapeLike($email)."%";
+		$likeFactRel = "%".$escapeLike($factRel)."%";
+		$likeNumFact = "%".$escapeLike($factNum)."%";
 
 		$dnisProvisionals = [];
 		$dniDefinitius = [];
