@@ -49,6 +49,9 @@ else {
 <?php if (getenv('SIF_INVOICE_QUERY_UI_ENABLED') === '1') { ?>
 		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne-sif.js?ver=1.0"></script>
 <?php } ?>
+<?php if (getenv('SIF_USOC_UI_ENABLED') === '1') { ?>
+		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne-usoc.js?ver=1.0"></script>
+<?php } ?>
 
 			<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne-uc111.js?ver=1.0"></script>
 	</body>
