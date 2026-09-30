@@ -128,6 +128,8 @@ class NovicePromotionDestinationCancellationReviewService
 class NovicePromotionDerivedBalanceActivationService
 class NovicePromotionTransferredDestinationCancellationReviewService
 class NovicePromotionTransferredCancellationActivationService
+class NovicePromotionDerivedApplicationCancellationReviewService
+class NovicePromotionDerivedApplicationCancellationActivationService
 class NovicePromotionDerivedBalanceRedemptionService
 class NovicePromotionDerivedBalanceEligibilityPolicy
 class NovicePromotionDestinationAdjustmentPolicy
@@ -136,6 +138,7 @@ class NovicePromotionApprovedCancellationPolicy
 class NovicePromotionApprovedTransferPolicy
 class NovicePromotionApprovedSuccessiveTransferPolicy
 class NovicePromotionApprovedTransferredCancellationPolicy
+class NovicePromotionApprovedDerivedCancellationPolicy
 interface NovicePromotionAdjustmentApprovalSourceInterface
 
 NovicePromotionRedemptionService --> NovicePromotionAmountPolicy
@@ -166,9 +169,17 @@ NovicePromotionTransferredCancellationActivationService --> NovicePromotionAdjus
 NovicePromotionTransferredCancellationActivationService --> NovicePromotionApprovedTransferredCancellationPolicy
 NovicePromotionTransferredCancellationActivationService --> NovicePromotionDestinationAdjustmentPolicy
 NovicePromotionTransferredCancellationActivationService --> NovicePromotionRectificationEvidencePolicy
+
+NovicePromotionDerivedApplicationCancellationReviewService --> NovicePromotionDestinationAdjustmentPolicy
+NovicePromotionDerivedApplicationCancellationReviewService --> NovicePromotionRectificationEvidencePolicy
+NovicePromotionDerivedApplicationCancellationActivationService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionDerivedApplicationCancellationActivationService --> NovicePromotionApprovedDerivedCancellationPolicy
+NovicePromotionDerivedApplicationCancellationActivationService --> NovicePromotionDestinationAdjustmentPolicy
+NovicePromotionDerivedApplicationCancellationActivationService --> NovicePromotionRectificationEvidencePolicy
 @enduml
 ```
 
+**Lectura de procedència:** la baixa d'una `novice_promotion_derived_application.APPLIED` ja no és només un estat teòric. La review crea un `novice_promotion_derived_balance` fill amb `PARENT_UUID_DERIVED_BALANCE` i `SOURCE_UUID_DERIVED_APPLICATION`; l'activació aprovada tanca l'aplicació font com `CONVERTED_TO_DERIVED` i activa el fill sense recreditar el pare. La baixa del curs actual després d'un segon/tercer traspàs continua pendent d'un servei específic.
 ## 4. FINAL/branca · procedència i retorn JASOM
 
 ```plantuml
