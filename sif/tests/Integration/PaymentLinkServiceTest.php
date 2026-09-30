@@ -65,6 +65,24 @@ final class PaymentLinkServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_link')->fetchColumn());
     }
 
+    public function testRejectsLinkCurrencyDifferentFromCommercialOperation(): void
+    {
+        $db = TestDatabase::fresh();
+        $operation = $this->createOperation($db);
+        $service = $this->service($db, 'currency-token');
+
+        Assert::throws(SifException::class, static function () use ($service, $operation): void {
+            $service->issue([
+                'uuid_operation' => $operation['uuid_operation'],
+                'expected_amount' => '90.00',
+                'currency' => 'USD',
+                'expires_at' => '2026-10-05 20:00:00',
+            ]);
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_link')->fetchColumn());
+    }
+
     public function testRejectsLinkExpiryAfterCommercialOperationExpiry(): void
     {
         $db = TestDatabase::fresh();
