@@ -108,3 +108,37 @@ UC-014 només passa a **TANCAT AMB EVIDÈNCIA** quan:
 - la sincronització llegada és idempotent;
 - els callbacks llegats ja no tenen autoritat fiscal;
 - la prova end-to-end de preproducció queda adjunta amb evidències.
+
+
+## Execució assistida
+
+Abans de qualsevol tall:
+
+```bash
+php sif/scripts/preflight-redsys-course.php
+php sif/scripts/preflight-redsys-callback-queue.php
+```
+
+Amb una notificació Redsys de preproducció ja validada:
+
+```bash
+php sif/scripts/verify-redsys-course-preproduction.php <DS_ORDER>
+```
+
+Això només fa **dry-run**.
+
+Per executar emissió/cobrament a `test` o `preproduction`:
+
+```bash
+php sif/scripts/verify-redsys-course-preproduction.php <DS_ORDER> --execute
+```
+
+Per incloure la projecció llegada:
+
+```bash
+php sif/scripts/verify-redsys-course-preproduction.php <DS_ORDER> --execute --sync-legacy
+```
+
+El verificador rebutja qualsevol entorn diferent de `test` o `preproduction`.
+
+L'evidència s'ha de conservar amb la plantilla [UC-014 — Plantilla d'evidència de preproducció](uc-014-plantilla-evidencia-preproduccio.md).
