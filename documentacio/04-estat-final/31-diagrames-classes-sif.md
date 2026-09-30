@@ -1358,3 +1358,107 @@ NovicePromotionRootRefundRecoveryResolutionService --> NovicePromotionRootRefund
 ```
 
 **Límit d'aquest resum:** les fletxes indiquen dependència funcional del lifecycle, no necessàriament injecció PHP directa entre totes les classes. Consultar el [submodel UC-111](../07-uml-integrat/uc-111-classes-actual-final.md), [dades/estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md) i la [matriu de traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md) per distingir codi existent, polítiques, interfaces i integracions pendents. Les proves MySQL continuen no executades.
+
+## 18. UC-042 · perfil alumne: ACTUAL, SIF parcial i frontera FINAL `[PARCIAL]`
+
+### 18.1. ACTUAL llegat
+
+```mermaid
+classDiagram
+direction LR
+class AlumnesMostrarAlumneJs {
+ <<JS existent>>
+ +editarDadesPersonals()
+ +editarInscripcio()
+ +editarPagament()
+}
+class AjaxAlumnesLegacy {
+ <<PHP wrappers GET>>
+}
+class Intranet {
+ <<PHP existent>>
+ +guardarDadesPersonals_resultatCerca()
+ +guardarDadesPersonals_modalsresultatCerca()
+ +guardarDadesPagament_modalsresultatCerca()
+}
+class ConnexioWeb
+class inscripcions {
+ <<BD llegada>>
+}
+AlumnesMostrarAlumneJs --> AjaxAlumnesLegacy
+AjaxAlumnesLegacy --> Intranet
+Intranet --> ConnexioWeb
+ConnexioWeb --> inscripcions : UPDATE directe
+```
+
+### 18.2. SIF parcial implementat
+
+```mermaid
+classDiagram
+direction LR
+class StudentProfileService {
+ <<PHP existent>>
+ +view(actor,idInsc) array
+ +proposeChange(actor,idInsc,changes,requestId,correlationId,justification) array
+}
+class StudentProfileReadRepository {
+ <<PHP existent · read only>>
+ +findByEnrollmentId(legacyDb,idInsc) array?
+}
+class StudentProfileAuthorizationPolicyInterface {
+ <<PHP contracte existent>>
+ +canView(actor,profile) bool
+ +canChange(actor,profile,changes) bool
+}
+class ResolvedStudentProfileAuthorizationPolicy {
+ <<PHP existent · fail closed>>
+}
+class PersonalDataChangeRepository {
+ <<PHP existent>>
+ +findByRequestId(db,requestId) array?
+ +create(db,request) void
+}
+class personal_data_change_request {
+ <<SQL 000005>>
+}
+StudentProfileService --> StudentProfileReadRepository
+StudentProfileService --> StudentProfileAuthorizationPolicyInterface
+ResolvedStudentProfileAuthorizationPolicy ..|> StudentProfileAuthorizationPolicyInterface
+StudentProfileService --> PersonalDataChangeRepository
+PersonalDataChangeRepository --> personal_data_change_request
+```
+
+La capa SIF actual **consulta i registra la proposta**, però encara no propaga al llegat. L'allowlist exclou pagament, mailing, certificat, baixa i estat acadèmic. Mateix `request_id` + mateix payload es reutilitza; un payload diferent rep conflicte.
+
+### 18.3. FINAL pendent
+
+```mermaid
+classDiagram
+direction LR
+class StudentProfileCommandAdapter {
+ <<pendent>>
+ +requestChange(command)
+ +applyChange(requestId,expectedVersion)
+}
+class StudentProfileChangeApplier {
+ <<pendent>>
+ +apply(requestId,expectedVersion) result
+}
+class ProfilePropagationCoordinator {
+ <<pendent UC-120/129>>
+}
+class OperationalEventRepository
+class InvoiceCorrectionClassifier {
+ <<derivació UC-074>>
+}
+class StudentProfileService
+class PersonalDataChangeRepository
+StudentProfileCommandAdapter --> StudentProfileService
+StudentProfileCommandAdapter --> StudentProfileChangeApplier
+StudentProfileChangeApplier --> PersonalDataChangeRepository
+StudentProfileChangeApplier --> ProfilePropagationCoordinator
+StudentProfileChangeApplier --> OperationalEventRepository
+StudentProfileChangeApplier --> InvoiceCorrectionClassifier
+```
+
+Vegeu [UC-042 integrat](../07-uml-integrat/uc-042-consultar-modificar-alumne.md) i [auditoria de completitud](../07-uml-integrat/02-auditoria-completitud-uc-042-2026-09-29.md).
