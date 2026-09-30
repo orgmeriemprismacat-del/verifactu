@@ -23,6 +23,7 @@ if (!isset($configOk) || !$configOk || !isset($_SESSION['usuari'])) {
 
 require_once $root . '/SifInternalApiClient.php';
 require_once $root . '/LegacyInvoiceMutationAuthorization.php';
+require_once $root . '/LegacyUsocLifecycleGuard.php';
 
 $usuariObject = null;
 
@@ -62,6 +63,23 @@ try {
         echo json_encode(['ok' => false, 'error' => 'Invalid JSON']);
         return;
     }
+
+    $sourceEnrollmentId = $payload['source_enrollment_id'] ?? null;
+    if (
+        filter_var(
+            $sourceEnrollmentId,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        ) === false
+    ) {
+        throw new RuntimeException('Invalid source enrollment id', 422);
+    }
+
+    (new LegacyUsocLifecycleGuard())->assertMayUseLegacyMutation(
+        $usuariObject,
+        (int) $sourceEnrollmentId,
+        'course_change'
+    );
 
     $client = new SifInternalApiClient();
     $response = $client->previewCourseChange($actorId, $roles, $payload);
