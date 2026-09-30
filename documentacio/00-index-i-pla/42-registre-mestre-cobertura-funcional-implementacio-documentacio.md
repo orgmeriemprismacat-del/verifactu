@@ -373,3 +373,14 @@ Aquest document deixa de ser un inventari de buits i passa a registre de tancame
 ## Revisió global de codi — 25/09/2026
 
 [Informe, fonts i rutes del tall actual](../../00-control/revisio-codi-drive-2026-09-25/informe.md). Inventari complet i escaneig estàtic de les set aplicacions, amb lectura semàntica dirigida i pendents de cobertura explícits. Abans de preguntar dades d’un UC, consultar aquest índex, llegir el codi específic i contrastar les decisions ja documentades. No implica validació funcional de tots els casos.
+
+
+---
+
+## Rescat selectiu d'auditoria · 30/09/2026
+
+S'ha recuperat selectivament documentació de la branca històrica `docs/registre-mestre-auditoria-2026-09-22` sense fusionar-la sobre el `main` actual. El rescat incorpora les auditories dirigides UC-117–UC-125, els diagrames d'activitats ACTUAL/FINAL corresponents i dues auditories de pantalla de facturació que no existien com a artefactes independents a `main`.
+
+Registre i índex del rescat: [43-rescat-documentacio-auditoria-2026-09-30.md](43-rescat-documentacio-auditoria-2026-09-30.md).
+
+**Criteri de prevalença:** davant qualsevol discrepància, preval l'evidència executable i documental més recent verificada al `main`; els documents rescatats no rebaixen ni substitueixen auditories posteriors.
