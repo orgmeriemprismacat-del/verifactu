@@ -23,9 +23,9 @@
 | Validar afiliació | intranet | GET `sendMsgValidatCurosDescomptes.php` | `sendMsgValidatCurosDescomptes()` | VALID_DESC=1 | UC-019/013 | Sí | Sí | Sí | No |
 | Denegar afiliació | intranet | mateix endpoint | mateix mètode | VALID_DESC=2 i possible canvi A_PAGAR | UC-019 | Sí | Sí | Sí | No |
 | Emetre/cobrar alumne | worker/SIF | callback UC-03 | `RedsysUsocInvoiceService` | factura + payment + allocation | UC-019a/013 | Sí | Sí | Sí | Tests existeixen |
-| Persistir pendent entitat | SIF | resposta + checkpoint | `RedsysUsocInvoiceService` + `UsocFinancingCaseRepository` | `usoc_financing_case=PENDING_ENTITY_INVOICE` | UC-013 | Sí | Sí | Sí | Tests afegits, execució no acreditada |
+| Persistir pendent entitat | SIF | resposta + checkpoint | `RedsysUsocInvoiceService` + `UsocFinancingCaseRepository` | `usoc_financing_case=PENDING_ENTITY_INVOICE` | UC-013 | Sí | Sí | Sí | VERIFICAT CI · run 36657971568 |
 | Emetre factura entitat | UI autònoma intranet + API signada | `process-usoc-entity.php` | `UsocEntityInvoiceService` + `UsocStudentInvoiceLinkRepository` | factura PENDING, fact_rels USOC_ENTITY, checkpoint ENTITY_INVOICED | UC-019b/013 | Sí | Sí | Sí | Tests afegits, execució no acreditada |
-| Cobrar entitat | UI autònoma intranet + API signada + ruta preproducció | `process-usoc-entity-payment.php` | `UsocEntityPaymentService` → `ManualPaymentService`/`PaymentService` → `UsocCaseReconciler` | payment/allocation + actualització `usoc_financing_case` | UC-002/022/024/013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
+| Cobrar entitat | UI autònoma intranet + API signada + ruta preproducció | `process-usoc-entity-payment.php` | `UsocEntityPaymentService` → `ManualPaymentService`/`PaymentService` → `UsocCaseReconciler` | payment/allocation + actualització `usoc_financing_case` | UC-002/022/024/013 | Sí | Sí | Sí | VERIFICAT CI · run 36657971568 |
 | Conciliar dues parts | CLI/preproducció | `reconcile-usoc-case.php` | `UsocCaseReconciler` | actualitza `usoc_financing_case` segons estats de factura i imports | UC-013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
 | Canvi/baixa | intranet | fluxos compartits | UC-026/027/005 | rectificacions/moviments | UC-013+ | Parcial | Parcial | Parcial | No E2E |
 
@@ -93,7 +93,7 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 | US13-07 | UUID alumne aliè | bloqueig | TEST AFEGIT · CODI IMPLEMENTAT |
 | US13-08 | IDPAG ambigu | `ID_INSC` obligatori; no fallback | TEST AFEGIT · CODI IMPLEMENTAT |
 | US13-09 | factura entitat sense ingrés | PENDING, 0 payments | TEST EXISTENT |
-| US13-10 | cobrament entitat parcial real via PaymentService | `ENTITY_PARTIAL` | TEST INTEGRACIÓ AFEGIT · EXECUCIÓ NO ACREDITADA |
+| US13-10 | cobrament entitat parcial real via PaymentService | `ENTITY_PARTIAL` | PASS CI · run 36657971568 |
 | US13-11 | 10 € + 15 € sobre factura entitat de 25 € | `FINANCING_RECONCILED` | TEST INTEGRACIÓ AFEGIT · EXECUCIÓ NO ACREDITADA |
 | US13-12 | alumne=0 | circuit especial o bloqueig explícit | PENDENT DECISIÓ |
 
@@ -113,4 +113,4 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 **PREPRODUCCIÓ:** no acreditada.  
 **PRODUCCIÓ:** no acreditada.
 
-Els P0 estructurals ja estan implementats al repositori. El UC-013 encara no es marca TANCAT perquè falta execució acreditada de proves, connexió automàtica del cobrament entitat amb el reconciliador, adaptador/pantalla final, E2E i decisions funcionals pendents.
+Els P0 estructurals estan implementats i les proves USOC corresponents consten PASS al run CI `36657971568`. El UC-013 encara no es marca TANCAT perquè falta desplegament/configuració real de la UI, integració al menú/routing habitual i decisions funcionals pendents (curs gratuït i regla percentual històrica). La suite global del run queda vermella per una única fallida aliena al UC-013 (`InvoiceQueryServiceTest`, 404 vs 422).
