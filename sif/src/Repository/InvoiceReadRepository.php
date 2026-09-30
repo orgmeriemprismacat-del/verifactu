@@ -174,6 +174,27 @@ final class InvoiceReadRepository
             }
         }
 
+        if (isset($criteria['source_type']) || isset($criteria['source_ids'])) {
+            $sourceType = (string) ($criteria['source_type'] ?? '');
+            $sourceIds = $criteria['source_ids'] ?? [];
+
+            if ($sourceType === '' || !is_array($sourceIds) || $sourceIds === []) {
+                throw SifException::validation('Source type and source ids are required together');
+            }
+
+            $placeholders = implode(',', array_fill(0, count($sourceIds), '?'));
+            $where[] = 'EXISTS (
+                SELECT 1 FROM fact_rels rel_source
+                WHERE rel_source.UUID_FACTURA = f.UUID_FACTURA
+                  AND rel_source.SOURCE_TYPE = ?
+                  AND rel_source.SOURCE_ID IN (' . $placeholders . ')
+            )';
+            $params[] = $sourceType;
+            foreach ($sourceIds as $sourceId) {
+                $params[] = (int) $sourceId;
+            }
+        }
+
         if (array_key_exists('factura_relacionada', $criteria)
             && $criteria['factura_relacionada'] !== null
             && $criteria['factura_relacionada'] !== '') {
