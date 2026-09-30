@@ -300,13 +300,7 @@ class InscripcioPack{
    * @return Retorna el contingut del apartat de dades del curs de la pàgina d'inscripció d'un curs
    */
    private function __mostrarDadesCurs() {
-      $textPreu = "<h3>Dades del curs</h3><div id='preu'><p>Preu</p></div>";
-      $fracc = "<div class='form-group field-wrap position-relative'>
-         <input type='checkbox' name='fraccionat' id='pagament_fraccionat' class='mr-1'
-         value='Pagament fraccionat'><font id='text_carnet_jove'>
-         Vull fraccionar el pagament (sense recàrrec)</font>
-      </div>";
-      $msgInfo = "<div id='missInformatiuEdicioRec'></div>
+          <!-- UC-015: el fraccionament de packs no s'ofereix a ecommerce; les excepcions es gestionen per intranet. -->
       <div id='missInformatiuEdicioPerf'></div>
       <div id='cnt-codis-promocionals'></div>
       <div id='txtHint_conegut'>";
