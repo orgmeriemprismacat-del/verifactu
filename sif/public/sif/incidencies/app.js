@@ -148,6 +148,31 @@
             '<div><span class="label">' + esc(label) + '</span><div>' + (html ? value : esc(value)) + '</div></div>'
         ).join('');
 
+        const repairLinks = [];
+        const uuidFactura = String(incident.UUID_FACTURA || '');
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuidFactura)) {
+            repairLinks.push(
+                '<a class="button ghost" target="_blank" rel="noopener noreferrer" href="' +
+                'https://intranet.prisma.cat/alumnes-factura.php?uuid_factura=' + encodeURIComponent(uuidFactura) +
+                '">Obrir factura SIF</a>'
+            );
+        }
+
+        const resourceType = String(incident.RESOURCE_TYPE || '').toUpperCase();
+        const resourceId = String(incident.RESOURCE_ID || '');
+        if (resourceType === 'FISCAL_QUEUE' && /^\d+$/.test(resourceId) && Number(resourceId) > 0) {
+            repairLinks.push(
+                '<a class="button ghost" target="_blank" rel="noopener noreferrer" href="' +
+                'https://intranet.prisma.cat/sif-registres-aeat.php?queue_id=' + encodeURIComponent(resourceId) +
+                '">Obrir registre AEAT</a>'
+            );
+        }
+
+        const repairContainer = document.getElementById('repair-links');
+        repairContainer.innerHTML = repairLinks.length
+            ? '<div class="muted">Accés al cas corrector</div><div class="repair-actions">' + repairLinks.join('') + '</div>'
+            : '';
+
         document.getElementById('timeline').innerHTML = actions.length ? actions.map(action => {
             let evidence = '—';
             if (action.EVIDENCE_JSON) {
