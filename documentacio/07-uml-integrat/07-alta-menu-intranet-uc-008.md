@@ -36,7 +36,29 @@ Els rols del menú han de correspondre als mateixos codis de rol que arriben des
 
 El menú només controla visibilitat. L'autorització efectiva continua sent del backend SIF.
 
-## 3. Descoberta obligatòria abans de l'INSERT
+## 3. Preflight read-only executable
+
+Al servidor de la intranet, des de l'arrel on existeix `parametres-connexio-intranet.php`:
+
+```bash
+cd codi-drive/intranet-actual
+php preflight-sif-verifactu-menu.php \
+  | tee uc-008-menu-discovery.json
+```
+
+El script:
+
+- és CLI-only;
+- usa `ConnexioIntranet` i les credencials locals no versionades;
+- no conté `INSERT`, `UPDATE`, `DELETE` ni `REPLACE`;
+- busca exactament `/sif-verifactu.php`;
+- retorna `DUPLICATE_TARGET_URL` si ja hi ha més d'una fila;
+- retorna candidats de menú relacionats amb Facturació/SIF per poder confirmar pare, nivell, rols, ordre i icona;
+- conserva el resultat en JSON com a evidència.
+
+Aquest preflight **no forma part del go/no-go SIF** perquè consulta una BD d'intranet separada.
+
+## 4. Descoberta obligatòria abans de l'INSERT
 
 Executar **només lectura** a la BD de la intranet:
 
@@ -73,7 +95,7 @@ WHERE URL = '/sif-verifactu.php';
 
 Cal conservar el resultat com a evidència de desplegament.
 
-## 4. Valors que s'han de confirmar
+## 5. Valors que s'han de confirmar
 
 Abans d'escriure:
 
@@ -89,7 +111,7 @@ TARGET_URL      = /sif-verifactu.php
 
 No assumir que el node pare s'anomena exactament `Facturació`: s'ha de seleccionar pel resultat real de la consulta.
 
-## 5. INSERT idempotent — plantilla
+## 6. INSERT idempotent — plantilla
 
 **No executar fins substituir els quatre placeholders marcats.**
 
@@ -144,7 +166,7 @@ WHERE URL = '/sif-verifactu.php';
 -- ROLLBACK;
 ```
 
-## 6. Validacions abans del COMMIT
+## 7. Validacions abans del COMMIT
 
 La fila creada ha de complir tot això:
 
@@ -156,7 +178,7 @@ La fila creada ha de complir tot això:
 6. el nom és `VERI*FACTU`;
 7. el menú es renderitza sense alterar altres branques del sidebar.
 
-## 7. Prova funcional posterior
+## 8. Prova funcional posterior
 
 Amb un usuari autoritzat:
 
@@ -171,7 +193,7 @@ Amb un usuari sense rol:
 - l'entrada no s'hauria de mostrar si els rols de menú estan ben restringits;
 - encara que s'intenti obrir la URL directament, l'API SIF ha de respondre fail-closed.
 
-## 8. Rollback de configuració
+## 9. Rollback de configuració
 
 Si la fila creada és incorrecta i encara no hi ha dependències:
 
@@ -182,10 +204,11 @@ WHERE URL = '/sif-verifactu.php';
 
 Abans d'executar aquest rollback s'ha de verificar que només existeix la fila creada per UC-008.
 
-## 9. Estat de tancament
+## 10. Estat de tancament
 
 - Codi de la pàgina: **implementat**.
 - Contracte de menú: **verificat al codi real**.
+- Preflight read-only de descoberta: **implementat i protegit per test de contracte**.
 - Plantilla d'alta: **preparada i idempotent**.
 - ID pare, rols, ordre i icona productius: **pendents de consultar a la BD real**.
 - INSERT productiu: **no executat**.
