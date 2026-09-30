@@ -227,3 +227,8 @@ Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts 
 **Auditoria específica:** [registre 2026-09-29](uc-015-auditoria-tracabilitat-2026-09-29.md) · [classes ACTUAL/FINAL](uc-015-classes-actual-final.md) · [seqüències ACTUAL/FINAL](uc-015-sequencies-actual-final.md) · [activitats ACTUAL/FINAL](uc-015-activitats-pagines-pack-actual-final.md).
 
 [Fitxa UC-15 original](../06-fitxes-funcionals/uc-015.md) · [UC-03](uc-003-processar-cobrament-redsys-asincron.md) · [UC-63](uc-063-crear-intencio-redsys.md) · [UC-71](uc-071-registrar-canvi-curs-complet.md) · [Revisió de fons](00-revisio-moviments-inscripcions.md) · [RedsysPackInvoiceService](../../sif/src/Service/RedsysPackInvoiceService.php) · [LegacyPackInvoicePayloadBuilder](../../sif/src/Service/LegacyPackInvoicePayloadBuilder.php) · [RedsysPackInvoiceServiceTest](../../sif/tests/Integration/RedsysPackInvoiceServiceTest.php).
+
+
+## Preproducció canònica
+
+Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only i el processor manual injecta ledger/outbox i pot fer la sincronització legacy completa amb `--sync-legacy`. Per tant, ja no s'utilitza una reconstrucció legacy diferent del flux productiu per validar preproducció.
