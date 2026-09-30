@@ -65,7 +65,7 @@ final class IncidentPanelUiContractTest
         Assert::stringContainsString('name="resolution_notes" required', $index);
         Assert::stringContainsString('Criteri tancament', $app);
         Assert::stringContainsString('Resolució', $app);
-        Assert::stringContainsString('$targetStatus, \'DISMISSED\'', $service);
+        Assert::stringContainsString("return \$this->close(\$actor, \$incidentId, \$payload, 'DISMISSED', 'DISMISS');", $service);
     }
 
     public function testPanelHasNoBulkRetryAction(): void
