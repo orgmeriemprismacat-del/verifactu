@@ -538,6 +538,8 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 ## 17. Documents complementaris obligatoris
 
 - [Fitxa funcional UC-020](../06-fitxes-funcionals/uc-020.md)
+- [Classes ACTUAL/FINAL](uc-020-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-020-sequences-actual-final.md)
 - [Activitats per pàgina i apartat ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md)
 - [Auditoria i matriu de traçabilitat](uc-020-auditoria-tracabilitat-2026-09-29.md)
 - [UC-116 · activitats de justificants compartides](uc-116-activitats-pagines-justificants-actual-final.md)
@@ -556,3 +558,16 @@ UC-20 no es pot marcar com a COMPLET fins que:
 - existeixi relació explícita `UUID_OPERATION ↔ UUID_INTENT`;
 - pagament/factura consumeixin el mateix snapshot;
 - s'executin els tests AP E2E i es conservi evidència.
+
+
+## 19. Tall d'implementació — 30/09/2026
+
+A la branca d'auditoria UC-020 s'han afegit peces executables sense declarar tancades les decisions de negoci pendents:
+
+- `PrismaStudentDiscountPolicy`: política de **compatibilitat legacy versionada** `ALUMNE_PRISMA_LEGACY_V1`; conserva la inscripció-evidència i corregeix semànticament el cas de factura relacionada no nul·la sense afirmar que aquest criteri sigui la política futura.
+- `LegacyPrismaStudentHistoryRepository`: lectura de fets d'historial per document, separada de la decisió.
+- `CourseIntentSnapshotValidator`: valida el contracte `CURS` abans de crear una intenció Redsys.
+- `RedsysPaymentIntentService`: invoca el validador de `CURS` i rebutja incoherències de source, IDPAG, import o snapshot de descompte.
+- tests unitaris de la policy i tests d'integració de la intenció CURS/Alumne PrisMa.
+
+Continuen **PENDENTS** l'orquestrador del checkout, els writers runtime de `discount_validation`/`commercial_operation`, el vincle `UUID_OPERATION ↔ UUID_INTENT` i la substitució completa del flux que confia en imports del navegador.
