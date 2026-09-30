@@ -71,6 +71,10 @@ final class InternalApiAuthenticator
         $path = trim($path);
         $bodyHash = hash('sha256', $rawBody);
         $canonicalRoles = implode(',', $roles);
+        if (strlen($canonicalRoles) > 500) {
+            throw SifException::unauthorized('Internal API actor roles are too long');
+        }
+
         $canonical = implode("\n", [
             $method,
             $path,
