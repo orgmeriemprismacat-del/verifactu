@@ -95,12 +95,12 @@ flowchart LR
   a_1["Gestió autoritzada"]
   a_2["Pagador"]
   subgraph SIF_BOUNDARY["SIF · grup abans de la factura"]
-    u_0(["UC-118nGestionar grup obert"])
+    u_0(["UC-118<br/>Gestionar grup obert"])
     u_1(["Validar membres, edicions i places"])
     u_2(["Calcular tram i imports individuals"])
     u_3(["Decidir receptor i pagador"])
-    u_4(["UC-112nCongelar operació de grup"])
-    u_5(["UC-63nCrear intenció de grup"])
+    u_4(["UC-112<br/>Congelar operació de grup"])
+    u_5(["UC-63<br/>Crear intenció de grup"])
   end
   a_0 --> u_0
   a_1 --> u_0
