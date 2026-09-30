@@ -113,6 +113,7 @@ $csrf = $session->csrfToken();
                     <option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option>
                 </select>
                 <input id="filter-type" type="search" maxlength="50" placeholder="Tipus exacte">
+                <input id="filter-assignee" type="search" maxlength="120" placeholder="Responsable exacte">
             </div>
         </div>
         <div class="table-wrap">
