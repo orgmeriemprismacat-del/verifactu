@@ -185,14 +185,24 @@ final class UsocValidationDecisionServiceTest
 
     private function legacyDb(int $tipusDesc, int $validDesc): \PDO
     {
-        $db = new \PDO('sqlite::memory:');
-        $db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $dsn = (string) getenv('SIF_LEGACY_DB_DSN');
+        $user = (string) getenv('SIF_LEGACY_DB_USER');
+        $password = (string) getenv('SIF_LEGACY_DB_PASSWORD');
+        if ($dsn === '') {
+            throw new \RuntimeException('SIF_LEGACY_DB_DSN is required for USOC validation decision tests');
+        }
+
+        $db = new \PDO($dsn, $user, $password, [
+            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+        ]);
+        $db->exec('DROP TABLE IF EXISTS inscripcions');
         $db->exec(
             'CREATE TABLE inscripcions (
-                ID INTEGER PRIMARY KEY,
-                TIPUS_DESC INTEGER NOT NULL,
-                VALID_DESC INTEGER NOT NULL
-            )'
+                ID BIGINT PRIMARY KEY,
+                TIPUS_DESC INT NOT NULL,
+                VALID_DESC INT NOT NULL
+            ) ENGINE=InnoDB'
         );
         $stmt = $db->prepare(
             'INSERT INTO inscripcions (ID, TIPUS_DESC, VALID_DESC) VALUES (880, ?, ?)'
