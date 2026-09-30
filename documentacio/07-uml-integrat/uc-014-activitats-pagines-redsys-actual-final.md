@@ -168,7 +168,7 @@ stop
 @enduml
 ```
 
-**Implementació al repositori:** el pont candidat ja crea/reutilitza la intenció mitjançant `SifRedsysCourseIntentClient`. La MerchantURL SIF es pot activar amb `SIF_REDSYS_CALLBACK_URL` i exigeix HTTPS; mentre no estigui configurada es conserva el callback llegat com a fallback. El tall d'entorn continua **PENDENT D'ACREDITAR**.
+**Implementació al repositori:** el pont candidat ja crea/reutilitza la intenció mitjançant `SifRedsysCourseIntentClient`. La MerchantURL SIF exigeix `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i `SIF_REDSYS_CALLBACK_URL` HTTPS; la URL sola no activa el tall i amb el flag a `0` es conserva el callback llegat com a transició/rollback. El tall d'entorn continua **PENDENT D'ACREDITAR**.
 
 ## 4. P-CUR-04 — Callback servidor
 
@@ -302,13 +302,21 @@ else (No)
   :Crear factura/línies/registre/cua AEAT;
   :Crear payment_transaction/allocation;
 endif
-:Marcar job PROCESSED;
-if (Sincronització llegada pendent?) then (Sí)
-  :Executar postprocés idempotent;
-  if (Falla?) then (Sí)
-    :Registrar incidència i reintentar sense refacturar;
-  endif
+:CourseLegacyPaymentSyncService projecta PAGAMENT/DATA PAG/M→1;
+if (Falla sync llegada?) then (Sí)
+  :Registrar incidència/retry sense refacturar;
+  stop
 endif
+:CoursePaymentNotificationService crea/reutilitza outbox CURS;
+note right
+  Això només acredita una ordre durable PENDING.
+  El worker/transport d'email és UC-58 i continua pendent.
+end note
+if (Falla l'enqueue?) then (Sí)
+  :Retry/incidència sense segona factura ni CHARGE;
+  stop
+endif
+:Marcar job PROCESSED;
 stop
 @enduml
 ```
