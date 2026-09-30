@@ -138,8 +138,8 @@ flowchart LR
   a_1["Secretaria (alta manual al campus)"]
   subgraph SIF_BOUNDARY["Web i intranet de tastets"]
     u_0(["Activar accés manualment al campus (fase actual)"])
-    u_1(["UC-108nRegistrar tastet/repte gratuït"])
-    u_2(["UC-107nEvitar alta duplicada"])
+    u_1(["UC-108<br/>Registrar tastet/repte gratuït"])
+    u_2(["UC-107<br/>Evitar alta duplicada"])
     u_3(["Registrar sol·licitud pendent (sense alta Moodle automàtica)"])
     u_4(["Registrar consentiment de mailing separat"])
   end
