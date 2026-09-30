@@ -192,3 +192,20 @@ Acredita:
 - preservació de `409/422/403` funcionals al preview;
 - errors 5xx redactats;
 - cap mutació legacy quan el SIF exigeix orquestració específica.
+
+
+## Imports explícits USOC i curs gratuït
+
+**Run:** `36730189405`  
+**Resultat:** **SUCCESS · 730 passed / 0 failed**
+
+PASS:
+- `LegacyUsocInvoicePayloadBuilderTest::testUsesExplicitAmountsWithoutFixedUsocPercentage`
+- `LegacyUsocInvoicePayloadBuilderTest::testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined`
+
+Acredita:
+- el SIF no aplica un 20 % ni 25 % universal;
+- imports alumne/entitat provenen del snapshot explícit;
+- combinació 73/27 funciona correctament;
+- part alumne 0,00 € queda fail-closed;
+- el curs gratuït USOC continua requerint una decisió funcional/fiscal específica abans d'obrir un circuit nou.
