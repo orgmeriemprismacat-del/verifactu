@@ -231,4 +231,19 @@ El mateix terminal es passa a la intenció SIF i al formulari Redsys. Si manca c
 ### Evidència de test escrita
 `PackPaymentGateTest` cobreix pagament complet, rebuig parcial, pack ja pagat parcialment, ordinal absent, PACK inconsistent, ordinal duplicat/no contigu, receptor divergent, adreça divergent i descompte percentual inconsistent.
 
-**No s'ha acreditat execució CI d'aquests nous tests en aquesta auditoria.**
+**Execució CI acreditada:** run GitHub Actions `36658248618`, commit `d02bc540...`, resultat **619 passed / 0 failed**. La validació end-to-end/preproducció continua pendent.
+
+
+## 12. Evidència CI positiva — 2026-09-30
+
+Run: `36658248618` · workflow `SIF PHP MySQL tests` · commit `d02bc5406099b2417196fb107d799b35fba291aa`.
+
+**Resultat final:** **619 passed / 0 failed**.
+
+S'han observat PASS explícits per:
+- tots els `LegacyPackInvoicePayloadBuilderTest`;
+- tots els `RedsysPackInvoiceServiceTest`;
+- tots els `LegacyPackSnapshotRepositoryTest`;
+- tots els `PackPaymentGateTest`, inclòs el nou control percentatge/import.
+
+Un run immediatament anterior havia quedat vermell per `InvoiceQueryServiceTest::testViewReturnsNotFoundForUnknownInvoice` (UC-007, esperava 404 i rebia 422); no era una fallada UC-015. El run posterior ja és completament verd.
