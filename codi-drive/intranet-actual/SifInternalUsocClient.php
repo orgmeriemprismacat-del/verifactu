@@ -75,6 +75,21 @@ final class SifInternalUsocClient
         ]);
     }
 
+    public function lifecyclePlan(
+        string $actorId,
+        array $roles,
+        int $idInsc,
+        int $idpag,
+        string $operation
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'lifecycle_plan',
+            'id_insc' => $idInsc,
+            'idpag' => $idpag,
+            'operation' => trim($operation),
+        ]);
+    }
+
     public function beginValidationDecision(
         string $actorId,
         array $roles,
