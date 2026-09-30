@@ -52,8 +52,7 @@ $checks['usoc_manage_roles'] = $manageRoles !== [];
 
 $legacy = $config['legacy_db'] ?? [];
 $checks['legacy_database_configured'] =
-    trim((string) ($legacy['dsn'] ?? '')) !== ''
-    && trim((string) ($legacy['user'] ?? '')) !== '';
+    trim((string) ($legacy['dsn'] ?? '')) !== '';
 
 if ($checks['legacy_database_configured']) {
     try {
