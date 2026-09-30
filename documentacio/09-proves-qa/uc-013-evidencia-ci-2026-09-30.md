@@ -220,3 +220,22 @@ PASS específic:
 - `UsocIntranetUiContractTest::testStandaloneUsocIntranetUiUsesServerSideSignedClientAndCsrf`
 
 Acredita que el contracte de preflight declara també `SIF_USOC_UI_ENABLED` juntament amb secrets, signed path i rols USOC. El que resta pendent és executar aquest preflight contra la configuració real de preproducció i conservar-ne l'evidència.
+
+
+## Lifecycle USOC · planner per pagador
+
+**Runs:** `36733404401` i `36733404387`  
+**Resultat:** **744 passed / 0 failed** en tots dos workflows.
+
+PASS:
+- `UsocLifecyclePlanServiceTest::testCancellationPlanSeparatesPayersAndCapsRefundByRealFunds`
+- `UsocLifecyclePlanServiceTest::testCourseChangePlanNeverRefundsEntityWhenEntityInvoiceNotIssued`
+
+Acredita que:
+- alumne i entitat es planifiquen com a pagadors independents;
+- el màxim retornable de cada pagador no pot superar el seu `net_paid` real;
+- una factura entitat encara no emesa produeix `invoice_action=NONE`, `economic_action=NONE` i `max_refundable=0.00`;
+- el planner no executa rectificatives ni devolucions;
+- `lifecycle_plan` queda disponible a l'API interna USOC per construir un flux executiu posterior sense tornar al legacy cec.
+
+Continua pendent la capa **executiva fiscal/econòmica** de UC-026/027 per USOC: crear/autoritzar rectificatives, reemissions o refunds separats per factura i pagador segons el cas concret.
