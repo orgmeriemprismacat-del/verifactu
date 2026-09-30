@@ -28,6 +28,13 @@ final class GiftEnrollmentStagerTest
         Assert::same(true, $second['idempotency_reused']);
         Assert::same($first['uuid_operation'], $second['uuid_operation']);
         Assert::same('RESERVED', $first['status']);
+        Assert::same(
+            'RESERVED',
+            (string) $db->query('SELECT STATUS FROM commercial_entitlement')->fetchColumn()
+        );
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='RESERVE'"
+        )->fetchColumn());
         Assert::same(1, (int) $db->query(
             "SELECT COUNT(*) FROM commercial_operation
              WHERE SOURCE_TYPE='INSCRIPCIO' AND SOURCE_ID='501'"
@@ -64,6 +71,43 @@ final class GiftEnrollmentStagerTest
         Assert::same('COURSE-TEST', $party['PRODUCT_CODE']);
         Assert::same('2026/09', $party['PRODUCT_EDITION']);
         Assert::same(false, str_contains((string) $party['SNAPSHOT_JSON'], $code));
+    }
+
+    public function testSecondEnrollmentCannotStageSameReservedGift(): void
+    {
+        [$db, $code, $holder] = $this->fixture();
+        $service = $this->stager();
+        $first = $service->stage($db, $db, 501, $code, $holder, $this->price());
+
+        $db->prepare(
+            'INSERT INTO inscripcions
+             (ID, ANY, MES, CURS, DNI, NOM, COGNOMS, A_PAGAR,
+              FACTURA_RELACIONADA, pag_observacions, IDPAG, OBSERVACIONS)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([
+            502, 2026, '09', 'COURSE-TEST', '12345678Z', 'Persona', 'De prova',
+            '0.00', '987', $code, 9002, 'CURS REGAL',
+        ]);
+
+        Assert::throws(SifException::class, function () use (
+            $db,
+            $code,
+            $holder,
+            $service
+        ): void {
+            $service->stage($db, $db, 502, $code, $holder, $this->price());
+        }, 409);
+
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_operation WHERE SOURCE_TYPE='INSCRIPCIO'"
+        )->fetchColumn());
+        Assert::same($first['uuid_operation'], (string) $db->query(
+            "SELECT UUID_OPERATION FROM commercial_operation
+             WHERE SOURCE_TYPE='INSCRIPCIO'"
+        )->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='RESERVE'"
+        )->fetchColumn());
     }
 
     public function testRejectsCanonicalParticipantThatDoesNotOwnGiftEntitlement(): void
@@ -168,7 +212,7 @@ final class GiftEnrollmentStagerTest
             'code' => $code,
             'holder_party_key' => $holder,
             'destination_operation_uuid' => $staged['uuid_operation'],
-            'idempotency_key' => 'UC018|SAGA|501',
+            'idempotency_key' => $staged['redemption_idempotency_key'],
             'correlation_id' => 'UC018-SAGA-501',
             'actor_id' => 'web-gift-redemption',
         ];
@@ -183,7 +227,7 @@ final class GiftEnrollmentStagerTest
             $this->price()
         );
         $retryCommand = $command;
-        $retryCommand['idempotency_key'] = 'UC018|SAGA|501|RETRY';
+        $retryCommand['correlation_id'] = 'UC018-SAGA-501-RETRY';
         $second = $redemption->redeem($db, $retryCommand);
 
         Assert::same('CONSUMED', $first['status']);
