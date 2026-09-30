@@ -4,6 +4,11 @@ final class LegacyDiscountValidationLookup
 {
     public function isUsoc(int $idInsc): bool
     {
+        return (int) $this->enrollment($idInsc)['TIPUS_DESC'] === 4;
+    }
+
+    public function enrollment(int $idInsc): array
+    {
         if ($idInsc <= 0) {
             throw new InvalidArgumentException('Invalid enrollment id');
         }
@@ -22,7 +27,7 @@ final class LegacyDiscountValidationLookup
 
         try {
             $db->set_charset('utf8mb4');
-            $stmt = $db->prepare('SELECT TIPUS_DESC FROM inscripcions WHERE ID = ?');
+            $stmt = $db->prepare('SELECT ID, TIPUS_DESC, VALID_DESC, IDPAG FROM inscripcions WHERE ID = ?');
             if ($stmt === false) {
                 throw new RuntimeException('Could not prepare legacy discount lookup');
             }
@@ -32,13 +37,18 @@ final class LegacyDiscountValidationLookup
                 throw new RuntimeException('Could not execute legacy discount lookup');
             }
 
-            $stmt->bind_result($tipusDesc);
+            $stmt->bind_result($id, $tipusDesc, $validDesc, $idpag);
             if (!$stmt->fetch()) {
                 throw new RuntimeException('Enrollment not found for discount validation');
             }
             $stmt->close();
 
-            return (int) $tipusDesc === 4;
+            return [
+                'ID' => (int) $id,
+                'TIPUS_DESC' => (int) $tipusDesc,
+                'VALID_DESC' => (int) $validDesc,
+                'IDPAG' => $idpag === null ? null : (int) $idpag,
+            ];
         } finally {
             $db->close();
         }
