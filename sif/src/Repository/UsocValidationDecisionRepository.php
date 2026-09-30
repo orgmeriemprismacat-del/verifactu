@@ -122,6 +122,22 @@ final class UsocValidationDecisionRepository
             ?? throw SifException::conflict('USOC validation decision not found');
     }
 
+    public function findRequested(\PDO $db, int $limit = 100): array
+    {
+        $limit = max(1, min(500, $limit));
+        $stmt = $db->prepare(
+            "SELECT *
+             FROM usoc_validation_decision
+             WHERE STATE = 'REQUESTED'
+             ORDER BY REQUESTED_AT ASC, ID ASC
+             LIMIT ?"
+        );
+        $stmt->bindValue(1, $limit, \PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     public function findByRequestId(\PDO $db, string $requestId, bool $forUpdate = false): ?array
     {
         $sql = 'SELECT * FROM usoc_validation_decision WHERE REQUEST_ID = ?';
