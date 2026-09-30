@@ -58,6 +58,8 @@ fi
     SELECT CONCAT('factura_linia=', COUNT(*)) FROM factura_linia;
     SELECT CONCAT('payment_transaction=', COUNT(*)) FROM payment_transaction;
     SELECT CONCAT('payment_allocation=', COUNT(*)) FROM payment_allocation;
+    SELECT CONCAT('enrollment_fund_movement=', COUNT(*)) FROM enrollment_fund_movement;
+    SELECT CONCAT('notification_outbox=', COUNT(*)) FROM notification_outbox;
   "
 
   echo
@@ -67,6 +69,16 @@ fi
   echo "  RedsysPaymentIntentTest::testRejectsPackIntentWithoutCommercialOrdinal"
   echo "  LegacyPackInvoicePayloadBuilderTest::testUsesCommercialOrdinalWhenSnapshotItemsArriveOutOfOrder"
   echo "  RedsysPackInvoiceServiceTest::testRejectsPackWhenValidatedRedsysAmountDiffersFromInvoiceLines"
+  echo "  RedsysPackInvoiceServiceTest::testIntentSnapshotCreatesOneDurableNotificationAcrossRetry"
+  echo "  RedsysPackInvoiceServiceTest::testRejectsLegacyPackWithoutCompleteCommercialSnapshot"
+  echo "  LegacyPackInvoicePayloadBuilderTest::testRejectsPackLineWithoutExplicitCommercialAmounts"
+  echo "  LegacyPackCallbackBoundaryTest::testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode"
+  echo
+  echo "== Checkout PHP lint =="
+  "${PHP_BIN}" -l codi-drive/web-actual/inc/PackPaymentGate.php
+  "${PHP_BIN}" -l codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php
+  "${PHP_BIN}" -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
+  "${PHP_BIN}" -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
   echo
   echo "RESULT=PASS"
 } 2>&1 | tee "${REPORT_FILE}"
