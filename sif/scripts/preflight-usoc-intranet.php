@@ -61,6 +61,7 @@ echo json_encode([
         'SIF_INTERNAL_API_KEY_ID',
         'SIF_INTERNAL_API_SECRET',
         'SIF_USOC_MENU_ROLES',
+        'SIF_USOC_UI_ENABLED',
     ],
     'required_sif_env' => [
         'SIF_USOC_READ_ROLES',
