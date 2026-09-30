@@ -102,6 +102,24 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Comprador / pagador"]
+  actor_1["Redsys"]
+  subgraph SIF_BOX["Ecommerce / SIF PrisMa"]
+    uc_0(["UC-63<br/>Crear intenció Redsys"])
+    uc_1(["Congelar snapshot<br/>i DS_ORDER"])
+    uc_2(["Consultar o desar<br/>intenció idempotent"])
+    uc_3(["UC-03<br/>Processar callback<br/>posterior"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_3
+```
+
 ## 3. Subdiagrama de classes — codi existent
 
 ```mermaid

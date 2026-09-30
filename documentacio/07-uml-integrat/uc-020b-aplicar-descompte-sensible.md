@@ -78,6 +78,28 @@ Main ..> Freeze : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Persona sol·licitant"]
+  actor_1["Operador autoritzat"]
+  actor_2["Receptor de factura"]
+  subgraph SIF_BOX["SIF · descompte sensible"]
+    uc_0(["UC-20b<br/>Aplicar descompte sensible"])
+    uc_1(["Verificar dret amb accés restringit"])
+    uc_2(["Separar motiu intern i text visible"])
+    uc_3(["Congelar import i regla"])
+    uc_4(["UC-07<br/>Consulta fiscal filtrada"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  actor_2 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
 ## 3. Classes: transport existent i verificació/visibilitat pendents
 
 ```mermaid

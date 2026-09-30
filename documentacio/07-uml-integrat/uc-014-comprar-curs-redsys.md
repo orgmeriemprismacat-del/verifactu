@@ -63,6 +63,28 @@ CB ..> Alloc : <<include>> (OBJECTIU pendent)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne / pagador"]
+  actor_1["Redsys"]
+  actor_2["Worker SIF"]
+  subgraph SIF_BOX["Compra de curs SIF"]
+    uc_0(["UC-14<br/>Comprar curs ordinari"])
+    uc_1(["UC-63<br/>Crear intenció"])
+    uc_2(["UC-03<br/>Processar callback i job"])
+    uc_3(["UC-01<br/>Emetre factura amb cobrament"])
+    uc_4(["Atribuir cobrament<br/>a la inscripció"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  actor_1 --> uc_2
+  actor_2 --> uc_2
+  uc_2 -.->|include| uc_3
+  uc_2 -.->|include| uc_4
+```
+
 ## 3. Subdiagrama de classes reals i atribució objectiu
 
 ```mermaid

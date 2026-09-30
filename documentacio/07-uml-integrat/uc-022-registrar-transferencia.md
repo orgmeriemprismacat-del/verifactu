@@ -94,6 +94,23 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-22<br/>Registrar transferència"])
+    uc_1(["Identificar factura<br/>i referència bancària"])
+    uc_2(["UC-02<br/>Registrar cobrament<br/>sobre factura"])
+    uc_3(["UC-105<br/>Repartir una transferència<br/>entre factures"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+```
+
 ## 3. Diagrama de classes — adaptador de transferència
 
 ```mermaid

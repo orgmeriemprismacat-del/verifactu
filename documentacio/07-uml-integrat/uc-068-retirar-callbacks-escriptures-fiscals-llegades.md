@@ -74,6 +74,27 @@ Main ..> Reconcile : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable tècnica"]
+  actor_1["Administrador TPV"]
+  subgraph SIF_BOX["Web llegada → SIF"]
+    uc_0(["UC-68<br/>Retirar doble processament llegat"])
+    uc_1(["Inventariar URLs i escriptors actius"])
+    uc_2(["Provar callback/cua SIF de substitució"])
+    uc_3(["Desactivar vies fiscals duplicades"])
+    uc_4(["Conciliar notificacions en vol"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## UML de classes
 
 ```mermaid

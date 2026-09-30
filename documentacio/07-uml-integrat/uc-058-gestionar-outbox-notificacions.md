@@ -74,6 +74,29 @@ Retry ..> Main : <<extend>> (error o obsolescència)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Productor de comunicacions"]
+  actor_1["Worker d'enviament"]
+  actor_2["Operador d'incidències"]
+  subgraph SIF_BOX["SIF · outbox persistent"]
+    uc_0(["UC-58<br/>Gestionar outbox de notificacions"])
+    uc_1(["Inserir/reutilitzar ordre idempotent"])
+    uc_2(["Reclamar missatge i reservar intent"])
+    uc_3(["Enviar i persistir resposta del proveïdor"])
+    uc_4(["Reintentar o cancel·lar ordre pendent"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid

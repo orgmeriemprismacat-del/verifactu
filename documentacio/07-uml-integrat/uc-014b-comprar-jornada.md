@@ -59,6 +59,27 @@ Main ..> Intent : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Comprador/assistent"]
+  actor_1["Empresa/responsable"]
+  actor_2["Redsys"]
+  subgraph SIF_BOX["SIF · jornada"]
+    uc_0(["UC-14b<br/>Comprar jornada"])
+    uc_1(["Validar edició, data i assistents"])
+    uc_2(["UC-63<br/>Crear intenció TPV"])
+    uc_3(["UC-03<br/>Confirmar cobrament asíncron"])
+    uc_4(["UC-16<br/>Compra de diversos assistents"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  actor_2 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+```
+
 ## 3. Classes del nucli existent i encaminament pendent
 
 ```mermaid

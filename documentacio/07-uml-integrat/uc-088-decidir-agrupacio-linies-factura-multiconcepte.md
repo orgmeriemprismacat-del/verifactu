@@ -70,6 +70,25 @@ Main ..> Issue : <<include>> (decisió aprovada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió de vendes/facturació"]
+  subgraph SIF_BOX["SIF · compra multiconcepte"]
+    uc_0(["UC-88<br/>Decidir agrupació i línies"])
+    uc_1(["Comprovar emissor/receptor de cada servei"])
+    uc_2(["Classificar règims i agrupació"])
+    uc_3(["Validar imports i snapshots per línia"])
+    uc_4(["Emetre factures i assignar ingrés real"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## UML de classes
 
 ```mermaid

@@ -83,6 +83,29 @@ Incident ..> Main : <<extend>> (error o dubte)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker AEAT"]
+  actor_1["Gestió fiscal"]
+  actor_2["AEAT (entorn qualificat)"]
+  subgraph SIF_BOX["SIF · tramesa fiscal"]
+    uc_0(["UC-77<br/>Processar registre fiscal en cua"])
+    uc_1(["Reclamar job amb lock"])
+    uc_2(["Enviar i conservar prova de l'intent"])
+    uc_3(["Registrar resposta del mateix registre"])
+    uc_4(["Classificar dead-letter/incertesa"])
+  end
+  actor_0 --> uc_0
+  actor_2 --> uc_2
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## 4. UML de classes — efectiu i proposat
 
 ```mermaid

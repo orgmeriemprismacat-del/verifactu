@@ -83,6 +83,29 @@ O --> Money
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Destinatari"]
+  actor_1["Operador autoritzat"]
+  subgraph SIF_BOX["SIF · drets de regal [DISSENY]"]
+    uc_0(["UC-18a<br/>Gestionar regal caducat o duplicat"])
+    uc_1(["Consultar dret i historial"])
+    uc_2(["Comparar identitat i intent anterior"])
+    uc_3(["Registrar incidència i decisió"])
+    uc_4(["UC-18<br/>Recuperar bescanvi equivalent"])
+    uc_5(["UC-28/29<br/>Retorn o saldo quan correspongui"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_1 --> uc_4
+  actor_1 --> uc_5
+```
+
 ## 3. Classes: repositori actual vs orquestració proposada
 
 ```mermaid
