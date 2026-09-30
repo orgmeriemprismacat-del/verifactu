@@ -83,7 +83,14 @@ try {
             throw SifException::conflict('USOC financing case not found');
         }
 
-        JsonResponse::send(['ok' => true, 'case' => $case]);
+        JsonResponse::send([
+            'ok' => true,
+            'case' => $case,
+            'capabilities' => [
+                'read' => true,
+                'manage' => actorHasUsocRole($actor, $manageRoles),
+            ],
+        ]);
         return;
     }
 
@@ -160,6 +167,20 @@ try {
     JsonResponse::fromThrowable($exception);
 }
 
+function actorHasUsocRole(array $actor, array $allowedRoles): bool
+{
+    $actorRoles = array_values(array_filter(array_map(
+        static fn (mixed $role): string => strtoupper(trim((string) $role)),
+        (array) ($actor['roles'] ?? [])
+    )));
+    $allowed = array_values(array_filter(array_map(
+        static fn (mixed $role): string => strtoupper(trim((string) $role)),
+        $allowedRoles
+    )));
+
+    return $allowed !== [] && array_intersect($actorRoles, $allowed) !== [];
+}
+
 function assertUsocRole(array $actor, array $allowedRoles, string $scope): void
 {
     $actorRoles = array_values(array_filter(array_map(
@@ -171,7 +192,7 @@ function assertUsocRole(array $actor, array $allowedRoles, string $scope): void
         $allowedRoles
     )));
 
-    if ($allowed === [] || array_intersect($actorRoles, $allowed) === []) {
+    if (!actorHasUsocRole($actor, $allowedRoles)) {
         throw SifException::forbidden('USOC ' . $scope . ' role is not authorized');
     }
 }
