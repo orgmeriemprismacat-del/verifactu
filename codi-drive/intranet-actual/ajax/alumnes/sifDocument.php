@@ -127,9 +127,14 @@ try {
     header('X-Content-Type-Options: nosniff');
     echo $bytes;
 } catch (Throwable $exception) {
-    http_response_code(500);
+    $code = (int) $exception->getCode();
+    $status = $code >= 400 && $code <= 599 ? $code : 500;
+    http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok' => false, 'error' => 'SIF document proxy failed']);
+    echo json_encode([
+        'ok' => false,
+        'error' => $status >= 500 ? 'SIF document proxy failed' : $exception->getMessage(),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } finally {
     LegacyInvoiceReadContext::persist($usuariObject, $intranetObject);
 }
