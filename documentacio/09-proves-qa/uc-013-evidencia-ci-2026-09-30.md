@@ -153,3 +153,134 @@ Això acredita:
 - decisió de negoci sobre 20 % públic vs 25 % històric;
 - confirmació fiscal que la classificació EXEMPT del builder és correcta per totes les variants;
 - canvi/baixa/rectificativa E2E amb dos pagadors.
+
+
+## Lifecycle USOC · snapshot separat per pagador
+
+**Run:** `36728324711`  
+**Commit:** `43d6ad3ceec5daa3ed8dbb141d1acec940c95052`  
+**Resultat:** **SUCCESS · 728 passed / 0 failed**
+
+PASS específic:
+- `UsocLifecycleGuardServiceTest::testLifecycleGuardReturnsSeparatedPayerSnapshot`
+
+Aquesta prova acredita que, davant un expedient USOC amb dues factures:
+- la part alumne conserva la seva factura, total, cobrat, retornat i net pagat;
+- la part entitat conserva una factura i saldo independents;
+- un cobrament parcial d'USOC no altera ni es barreja amb el cobrament de l'alumne;
+- el lifecycle guard continua bloquejant el flux legacy i exposa `payer_snapshot` com a base per a UC-026/027.
+
+En l'escenari provat:
+- alumne: factura de 75,00 €, cobrada 75,00 €, net 75,00 €;
+- entitat: factura de 25,00 €, cobrada parcialment 10,00 €, net 10,00 €;
+- resultat del guard: `allowed=false`, `USOC_FINANCING_CASE_REQUIRES_ORCHESTRATION`.
+
+
+## Lifecycle · preview i bloqueig abans de confirmar
+
+**Run:** `36729541064`  
+**Resultat:** **SUCCESS · 728 passed / 0 failed**
+
+PASS específic:
+- `UsocLegacyLifecycleSecurityTest::testCourseChangeAndCancellationArePostCsrfAndFailClosedForUsoc`
+
+Acredita:
+- canvi de curs POST + CSRF + same-origin + permís;
+- baixa POST + CSRF + same-origin + permís;
+- guard USOC obligatori al backend;
+- guard USOC també al preview de canvi de curs;
+- preservació de `409/422/403` funcionals al preview;
+- errors 5xx redactats;
+- cap mutació legacy quan el SIF exigeix orquestració específica.
+
+
+## Imports explícits USOC i curs gratuït
+
+**Run:** `36730189405`  
+**Resultat:** **SUCCESS · 730 passed / 0 failed**
+
+PASS:
+- `LegacyUsocInvoicePayloadBuilderTest::testUsesExplicitAmountsWithoutFixedUsocPercentage`
+- `LegacyUsocInvoicePayloadBuilderTest::testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined`
+
+Acredita:
+- el SIF no aplica un 20 % ni 25 % universal;
+- imports alumne/entitat provenen del snapshot explícit;
+- combinació 73/27 funciona correctament;
+- part alumne 0,00 € queda fail-closed;
+- el curs gratuït USOC continua requerint una decisió funcional/fiscal específica abans d'obrir un circuit nou.
+
+
+## Preflight intranet USOC · feature flag
+
+**Run:** `36730434161`  
+**Resultat:** **SUCCESS · 730 passed / 0 failed**
+
+PASS específic:
+- `UsocIntranetUiContractTest::testStandaloneUsocIntranetUiUsesServerSideSignedClientAndCsrf`
+
+Acredita que el contracte de preflight declara també `SIF_USOC_UI_ENABLED` juntament amb secrets, signed path i rols USOC. El que resta pendent és executar aquest preflight contra la configuració real de preproducció i conservar-ne l'evidència.
+
+
+## Lifecycle USOC · planner per pagador
+
+**Runs:** `36733404401` i `36733404387`  
+**Resultat:** **744 passed / 0 failed** en tots dos workflows.
+
+PASS:
+- `UsocLifecyclePlanServiceTest::testCancellationPlanSeparatesPayersAndCapsRefundByRealFunds`
+- `UsocLifecyclePlanServiceTest::testCourseChangePlanNeverRefundsEntityWhenEntityInvoiceNotIssued`
+
+Acredita que:
+- alumne i entitat es planifiquen com a pagadors independents;
+- el màxim retornable de cada pagador no pot superar el seu `net_paid` real;
+- una factura entitat encara no emesa produeix `invoice_action=NONE`, `economic_action=NONE` i `max_refundable=0.00`;
+- el planner no executa rectificatives ni devolucions;
+- `lifecycle_plan` queda disponible a l'API interna USOC per construir un flux executiu posterior sense tornar al legacy cec.
+
+Continua pendent la capa **executiva fiscal/econòmica** de UC-026/027 per USOC: crear/autoritzar rectificatives, reemissions o refunds separats per factura i pagador segons el cas concret.
+
+
+## Protocol durable de validació · evidència actualitzada
+
+**Commit:** `b32f932bc841ee3362fbc578bd0ee11f5708498f`  
+**Runs:** `36732949788` i `36732950018`  
+**Resultat:** **742 passed / 0 failed** als dos workflows.
+
+PASS:
+- `UsocValidationDecisionBoundaryContractTest::testLegacyMutationIsStrictlyBetweenRequestedAndCommittedSifPhases`
+- `UsocValidationDecisionBoundaryContractTest::testSignedUsocApiExposesTwoPhaseValidationActionsAndRecoveryComponents`
+- `UsocValidationDecisionReconcileScriptTest::testReconcileScriptProcessesOnlyPersistedRequestedDecisions`
+- totes les proves de `UsocValidationDecisionServiceTest`.
+
+Acredita:
+- `REQUESTED` abans de la mutació legacy;
+- `COMMITTED` només després de contrastar el `VALID_DESC` real;
+- retry idempotent per `requestId`;
+- conflicte si el mateix `requestId` es reutilitza amb una decisió diferent;
+- `REVIEW_REQUIRED` davant divergència;
+- detecció de drift posterior;
+- reconciliació batch dels `REQUESTED` persistents.
+
+## Preflight USOC reforçat
+
+**Commit:** `d23848ce1ed511f86e76092dbce683cf9bc7f0a5`  
+**Runs:** `36734421729` i `36734421750`  
+**Resultat:** **SUCCESS** als dos workflows.
+
+En el run `36734421729`:
+- `UsocIntranetPreflightScriptTest::testPreflightRequiresCoreTablesServicesApiAndLegacyConnectivity` — PASS.
+- **748 passed / 0 failed**.
+
+El preflight exigeix ara:
+- taula `usoc_financing_case`;
+- taula `usoc_validation_decision`;
+- secrets i signed path de l'API interna;
+- rols read/manage;
+- DSN legacy i connectivitat real `SELECT 1`;
+- càrrega de `UsocLifecyclePlanService`;
+- càrrega de `UsocValidationDecisionService`;
+- existència de `public/api/usoc/manage.php`;
+- llistat explícit dels env vars necessaris d'intranet i SIF.
+
+Això tanca la validació estàtica/CI del preflight. Encara cal executar-lo amb la **configuració real de preproducció** i conservar-ne el JSON d'evidència.

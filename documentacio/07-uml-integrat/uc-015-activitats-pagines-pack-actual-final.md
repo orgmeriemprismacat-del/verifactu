@@ -15,7 +15,7 @@
 | PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | eliminar codi rollback |
 | PK-A07 | Factura pack | **InvoiceService al flux SIF; emissió legacy desactivada per defecte** | eliminar codi rollback |
 | PK-A08 | Distribució per inscripció | **ledger implementat** | evidència runtime |
-| PK-A09 | Confirmació/correu | **outbox SIF implementat; correu legacy inaccessible per defecte** | eliminar codi rollback |
+| PK-A09 | Confirmació/correu | **enqueue a outbox SIF implementat; worker/transport de lliurament UC-58 pendent; correu legacy inaccessible per defecte** | implementar/acreditar lliurament UC-58 i eliminar codi rollback |
 | PK-A10 | Variant fraccionada | ecommerce PACK força pagament complet | excepció només intranet/reconciliació |
 
 ## PK-A01 · Llistat de packs
@@ -224,8 +224,9 @@ C -->|fi| E[sum atribucions = cobrament]
 flowchart TD
 A[Factura/payment SIF] --> B[PackPaymentNotificationService]
 B --> C[NotificationOutboxRepository]
-C --> D[1 event idempotent]
-A --> E[Camí legacy encara pot enviar correu directe]
+C --> D[1 event idempotent PENDING]
+D --> E[UC-58 worker/transport pendent]
+A --> F[Camí legacy només rollback explícit]
 ```
 
 ### FINAL
@@ -266,10 +267,10 @@ No declarar UC-015 tancat fins que:
 1. els deu blocs anteriors tinguin correspondència codi → UC → prova;
 2. s'acrediti en runtime el checkout web amb snapshot backend i callback SIF;
 3. el callback legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
-4. s'acrediti que `PACK_ORDINAL` prové de l'ordre comercial canònic;
-5. les proves end-to-end PK-01..PK-11 s'hagin executat en preproducció; la capa unitària/integració ja té evidència CI verda (619/0).
+4. es mantingui el contracte estable `DATAI, ID_CURS` i es decideixi si cal una posició comercial explícita separada;
+5. les proves end-to-end PK-01..PK-11 s'hagin executat en preproducció; la capa unitària/integració ja té evidència CI verda (706/0).
 
 
 ## Evidència de proves automatitzades
 
-El 2026-09-30 la suite SIF ha finalitzat amb **619 passed / 0 failed** al commit `d02bc540...`. Aquesta evidència cobreix el contracte de checkout, snapshot, factura, conciliació, ledger i outbox del UC-015. Resta la validació visual/navegador i Redsys de preproducció.
+El 2026-09-30 la suite SIF ha finalitzat amb **706 passed / 0 failed** al commit `c961f193...`. Aquesta evidència cobreix el contracte de checkout, snapshot, factura, conciliació, ledger i outbox del UC-015. Resta la validació visual/navegador i Redsys de preproducció.

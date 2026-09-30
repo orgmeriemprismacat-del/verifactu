@@ -12,6 +12,11 @@ return [
         'user' => getenv('SIF_LEGACY_DB_USER') ?: '',
         'password' => getenv('SIF_LEGACY_DB_PASSWORD') ?: '',
     ],
+    'legacy_intranet_db' => [
+        'dsn' => getenv('SIF_LEGACY_INTRANET_DB_DSN') ?: '',
+        'user' => getenv('SIF_LEGACY_INTRANET_DB_USER') ?: '',
+        'password' => getenv('SIF_LEGACY_INTRANET_DB_PASSWORD') ?: '',
+    ],
     'issuer' => [
         'nif' => getenv('SIF_ISSUER_NIF') ?: 'G00000000',
         'name' => getenv('SIF_ISSUER_NAME') ?: 'Associacio PrisMa',
@@ -19,6 +24,12 @@ return [
     'series' => [
         'invoice' => getenv('SIF_SERIES_INVOICE') ?: 'A',
         'rectification' => getenv('SIF_SERIES_RECTIFICATION') ?: 'R',
+    ],
+    'invoice_before_payment' => [
+        'write_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_INVOICE_BEFORE_PAYMENT_WRITE_ROLES') ?: '')
+        ))),
     ],
     'invoice_query' => [
         'full_read_roles' => array_values(array_filter(array_map(
@@ -40,6 +51,7 @@ return [
         'secret' => getenv('SIF_INTERNAL_API_SECRET') ?: '',
         'max_clock_skew_seconds' => (int) (getenv('SIF_INTERNAL_API_MAX_SKEW') ?: 300),
         'signed_path' => getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php',
+        'invoice_before_payment_signed_path' => getenv('SIF_INTERNAL_UC004_SIGNED_PATH') ?: '/api/factures/before-payment.php',
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
         'course_change_signed_path' => getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php',
         'aeat_operations_signed_path' => getenv('SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH') ?: '/api/aeat/operations.php',
@@ -47,6 +59,8 @@ return [
         'redsys_intent_signed_path' => getenv('SIF_INTERNAL_REDSYS_INTENT_SIGNED_PATH') ?: '/api/redsys/intents/create.php',
         'redsys_course_status_signed_path' => getenv('SIF_INTERNAL_REDSYS_COURSE_STATUS_SIGNED_PATH') ?: '/api/redsys/course-status.php',
         'usoc_signed_path' => getenv('SIF_INTERNAL_USOC_SIGNED_PATH') ?: '/api/usoc/manage.php',
+        'novice_promotion_signed_path' => getenv('SIF_INTERNAL_NOVICE_PROMOTION_SIGNED_PATH') ?: '/api/novice-promotion/manage.php',
+        'gift_redemption_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_SIGNED_PATH') ?: '/api/gifts/redemption/redeem.php',
     ],
     'course_change' => [
         'preview_roles' => array_values(array_filter(array_map(
@@ -94,11 +108,21 @@ return [
             explode(',', getenv('SIF_REDSYS_INTENT_CREATE_ROLES') ?: '')
         ))),
     ],
+    'gift_redemption' => [
+        'manage_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_GIFT_REDEMPTION_MANAGE_ROLES') ?: '')
+        ))),
+    ],
     'novice_promotion' => [
         // 32-byte AES wrapping key encoded as 64 hex chars. Keep it only in
         // the runtime secret store/environment, never in Git.
         'wrapping_key_hex' => getenv('SIF_NOVICE_PROMO_WRAP_KEY_HEX') ?: '',
         'key_version' => getenv('SIF_NOVICE_PROMO_KEY_VERSION') ?: 'v1',
+        'manage_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_NOVICE_PROMOTION_MANAGE_ROLES') ?: '')
+        ))),
     ],
     'aeat' => [
         'wsdl' => getenv('SIF_AEAT_WSDL') ?: '',

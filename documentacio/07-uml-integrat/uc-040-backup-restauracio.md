@@ -68,6 +68,27 @@ Reconcile ..> Main : <<extend>> (reincorporació)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Administrador infraestructura"]
+  actor_1["Responsable tècnica SIF"]
+  subgraph SIF_BOX["SIF · backup i recuperació"]
+    uc_0(["UC-40<br/>Fer backup i prova de restauració"])
+    uc_1(["Congelar punt de tall i abast"])
+    uc_2(["Crear còpia/manifest/hash"])
+    uc_3(["Restaurar i verificar integritat"])
+    uc_4(["UC-82/85<br/>Reconciliar operacions posteriors"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## 3. UML de classes — model SQL i execució pendent
 
 ```mermaid

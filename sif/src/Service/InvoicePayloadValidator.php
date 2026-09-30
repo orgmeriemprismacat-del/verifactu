@@ -42,6 +42,8 @@ final class InvoicePayloadValidator
             }
         }
 
+        $this->assertExemptionReason($payload['totals']);
+
         if (!is_array($payload['lines']) || count($payload['lines']) < 1) {
             throw SifException::validation('Invoice requires at least one line');
         }
@@ -62,8 +64,26 @@ final class InvoicePayloadValidator
                     throw SifException::validation("Invalid invoice line amount {$key}");
                 }
             }
+
+            $this->assertExemptionReason($line);
         }
 
         return $payload;
+    }
+
+    private function assertExemptionReason(array $block): void
+    {
+        if (!array_key_exists('exemption_reason', $block) || $block['exemption_reason'] === null || $block['exemption_reason'] === '') {
+            return;
+        }
+
+        $reason = strtoupper(trim((string) $block['exemption_reason']));
+        if (!in_array($reason, ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'], true)) {
+            throw SifException::validation('Invalid exemption reason');
+        }
+
+        if (strtoupper(trim((string) ($block['iva_regim'] ?? ''))) !== 'EXEMPT') {
+            throw SifException::validation('Exemption reason requires EXEMPT IVA regime');
+        }
     }
 }

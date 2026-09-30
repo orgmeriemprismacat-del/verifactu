@@ -148,6 +148,113 @@ final class EnrollmentFundMovementRepository
         return $this->result($created, false);
     }
 
+    public function insertOrReuseCompensationAllocation(
+        \PDO $db,
+        array $movement
+    ): array {
+        foreach ([
+            'idempotency_key',
+            'order',
+            'uuid_payment',
+            'id_insc',
+            'amount',
+            'correlation_id',
+        ] as $field) {
+            if (!array_key_exists($field, $movement)
+                || $movement[$field] === null
+                || $movement[$field] === ''
+            ) {
+                throw SifException::validation(
+                    'Missing compensation enrollment fund movement field ' . $field
+                );
+            }
+        }
+
+        $normalized = [
+            'uuid_movement' => $this->uuidGenerator->generate(),
+            'idempotency_key' => trim((string) $movement['idempotency_key']),
+            'movement_type' => 'COMPENSATION_ALLOCATION',
+            'order' => (int) $movement['order'],
+            'uuid_payment' => trim((string) $movement['uuid_payment']),
+            'id_insc' => (int) $movement['id_insc'],
+            'amount' => $this->money($movement['amount']),
+            'currency' => strtoupper(trim((string) ($movement['currency'] ?? 'EUR'))),
+            'uuid_operation' => $this->optionalString($movement['uuid_operation'] ?? null),
+            'correlation_id' => trim((string) $movement['correlation_id']),
+            'notes' => $this->optionalString($movement['notes'] ?? null),
+        ];
+
+        if ($normalized['idempotency_key'] === ''
+            || strlen($normalized['idempotency_key']) > 160
+            || $normalized['order'] <= 0
+            || $normalized['id_insc'] <= 0
+            || (float) $normalized['amount'] <= 0
+            || $normalized['correlation_id'] === ''
+            || strlen($normalized['correlation_id']) > 120
+            || $normalized['currency'] === ''
+        ) {
+            throw SifException::validation('Invalid compensation enrollment fund movement values');
+        }
+
+        $payment = $this->lockPayment($db, $normalized['uuid_payment']);
+        if ((string) $payment['TIPUS_MOVIMENT'] !== 'CHARGE'
+            || (string) $payment['ESTAT'] !== 'CONFIRMED'
+        ) {
+            throw SifException::conflict(
+                'Compensation allocation requires a confirmed origin charge'
+            );
+        }
+
+        $existing = $this->findByIdempotencyKey($db, $normalized['idempotency_key'], true);
+        if ($existing !== null) {
+            $this->assertCompensationMatches($existing, $normalized);
+            return $this->result($existing, true);
+        }
+
+        try {
+            $db->prepare(
+                'INSERT INTO enrollment_fund_movement (
+                    UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
+                    UUID_PAYMENT, UUID_FACTURA, ID_FACTURA_LINIA,
+                    ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
+                    UUID_OPERATION, CORRELATION_ID, NOTES
+                 ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?)'
+            )->execute([
+                $normalized['uuid_movement'],
+                $normalized['idempotency_key'],
+                $normalized['movement_type'],
+                $normalized['order'],
+                $normalized['uuid_payment'],
+                $normalized['id_insc'],
+                $normalized['amount'],
+                $normalized['currency'],
+                $normalized['uuid_operation'],
+                $normalized['correlation_id'],
+                $normalized['notes'],
+            ]);
+        } catch (\PDOException $exception) {
+            if ((string) $exception->getCode() !== '23000') {
+                throw $exception;
+            }
+
+            $existing = $this->findByIdempotencyKey($db, $normalized['idempotency_key'], true);
+            if ($existing === null) {
+                throw $exception;
+            }
+            $this->assertCompensationMatches($existing, $normalized);
+            return $this->result($existing, true);
+        }
+
+        $created = $this->findByIdempotencyKey($db, $normalized['idempotency_key'], true);
+        if ($created === null) {
+            throw new \RuntimeException(
+                'Created compensation enrollment fund movement could not be loaded'
+            );
+        }
+
+        return $this->result($created, false);
+    }
+
     public function findByIdempotencyKey(
         \PDO $db,
         string $key,
@@ -189,6 +296,28 @@ final class EnrollmentFundMovementRepository
         if (!$matches) {
             throw SifException::conflict(
                 'Enrollment fund idempotency key already exists with different payload'
+            );
+        }
+    }
+
+    private function assertCompensationMatches(array $existing, array $movement): void
+    {
+        $matches =
+            (string) $existing['MOVEMENT_TYPE'] === $movement['movement_type']
+            && (int) $existing['ORDRE'] === $movement['order']
+            && (string) $existing['UUID_PAYMENT'] === $movement['uuid_payment']
+            && $existing['UUID_FACTURA'] === null
+            && $existing['ID_FACTURA_LINIA'] === null
+            && $existing['ID_INSC_ORIGEN'] === null
+            && (int) $existing['ID_INSC_DESTI'] === $movement['id_insc']
+            && $this->money($existing['IMPORT']) === $movement['amount']
+            && (string) $existing['CURRENCY'] === $movement['currency']
+            && (string) ($existing['UUID_OPERATION'] ?? '')
+                === (string) ($movement['uuid_operation'] ?? '');
+
+        if (!$matches) {
+            throw SifException::conflict(
+                'Compensation allocation idempotency key already exists with different payload'
             );
         }
     }

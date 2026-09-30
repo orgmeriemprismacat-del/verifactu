@@ -18,12 +18,16 @@ final class RedsysPackPreviewScriptTest
         Assert::stringContainsString('PHP_SAPI !== \'cli\'', $source);
         Assert::stringContainsString('SIF_ENV=production', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
-        Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
+        if (str_contains($source, 'ConnectionFactory::makeLegacy($config)')) {
+            Assert::fail('Redsys PACK preview must use the frozen intent snapshot, not reconstruct from legacy DB.');
+        }
         Assert::stringContainsString('new RedsysNotificationRepository()', $source);
-        Assert::stringContainsString('new LegacyPackSnapshotRepository()', $source);
+        Assert::stringContainsString('new RedsysPaymentIntentRepository()', $source);
+        Assert::stringContainsString("SOURCE_TYPE", $source);
+        Assert::stringContainsString("SNAPSHOT_JSON", $source);
         Assert::stringContainsString('new LegacyPackInvoicePayloadBuilder()', $source);
         Assert::stringContainsString('new RedsysInvoicePayloadBuilder($notifications)', $source);
-        Assert::stringContainsString('loadByIdpag($legacyDb, $idpag, $amount)', $source);
+        Assert::stringContainsString('json_decode((string) ($intent[\'SNAPSHOT_JSON\'] ?? \'\'), true)', $source);
         Assert::stringContainsString('buildFromValidatedNotification($sifDb, $dsOrder, $basePayload)', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
 

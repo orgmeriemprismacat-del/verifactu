@@ -34,6 +34,12 @@ try {
     $lines.Add('RedsysPaymentIntentTest::testRejectsPackIntentWithoutCommercialOrdinal')
     $lines.Add('LegacyPackInvoicePayloadBuilderTest::testUsesCommercialOrdinalWhenSnapshotItemsArriveOutOfOrder')
     $lines.Add('RedsysPackInvoiceServiceTest::testRejectsPackWhenValidatedRedsysAmountDiffersFromInvoiceLines')
+    $lines.Add('RedsysPackInvoiceServiceTest::testIntentSnapshotCreatesOneDurableNotificationAcrossRetry')
+    $lines.Add('RedsysPackInvoiceServiceTest::testRejectsLegacyPackWithoutCompleteCommercialSnapshot')
+    $lines.Add('LegacyPackInvoicePayloadBuilderTest::testRejectsPackLineWithoutExplicitCommercialAmounts')
+    $lines.Add('LegacyPackCallbackBoundaryTest::testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode')
+    $lines.Add('PackCommercialOrderBoundaryTest::testPackPresentationAndEnrollmentUseSameDeterministicOrder')
+    $lines.Add('PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop')
 
     if ($exitCode -ne 0) {
         $lines.Add('RESULT=FAIL')

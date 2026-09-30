@@ -88,6 +88,29 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Comprador"]
+  actor_1["Redsys"]
+  actor_2["Persona destinatària"]
+  subgraph SIF_BOX["SIF · Regal"]
+    uc_0(["UC-17<br/>Comprar regal"])
+    uc_1(["UC-63<br/>Crear intenció"])
+    uc_2(["UC-03<br/>Processar cobrament"])
+    uc_3(["UC-01<br/>Emetre factura del regal"])
+    uc_4(["UC-18<br/>Bescanviar dret per inscripció"])
+    uc_5(["UC-18a<br/>Gestionar caducat o duplicat"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  actor_1 --> uc_2
+  uc_2 -.->|include| uc_3
+  actor_2 --> uc_4
+  actor_2 --> uc_5
+```
+
 ## 3. Subdiagrama de classes de compra (no del bescanvi)
 
 ```mermaid

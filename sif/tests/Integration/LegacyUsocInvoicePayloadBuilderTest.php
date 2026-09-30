@@ -28,6 +28,7 @@ final class LegacyUsocInvoicePayloadBuilderTest
         Assert::same('100.00', $payload['totals']['import_base']);
         Assert::same('25.00', $payload['totals']['discount']);
         Assert::same('75.00', $payload['totals']['total']);
+        Assert::same('E1', $payload['totals']['exemption_reason']);
 
         Assert::same(1, count($payload['lines']));
         Assert::same('Comunicacio assertiva', $payload['lines'][0]['concept']);
@@ -38,6 +39,7 @@ final class LegacyUsocInvoicePayloadBuilderTest
         Assert::same('Descompte USOC', $payload['lines'][0]['discount_text']);
         Assert::same('TIPUS_DESC=4;VALID_DESC=1', $payload['lines'][0]['discount_internal_reason']);
         Assert::same('75.00', $payload['lines'][0]['total']);
+        Assert::same('E1', $payload['lines'][0]['exemption_reason']);
         Assert::same('INSCRIPCIO', $payload['lines'][0]['source_type']);
         Assert::same(880, $payload['lines'][0]['source_id']);
 
@@ -136,8 +138,10 @@ final class LegacyUsocInvoicePayloadBuilderTest
         Assert::same('USOC', $payload['billing']['name']);
         Assert::same('G00000000', $payload['billing']['nif']);
         Assert::same('25.00', $payload['totals']['total']);
+        Assert::same('E1', $payload['totals']['exemption_reason']);
         Assert::same('Diferencia USOC - Comunicacio assertiva', $payload['lines'][0]['concept']);
         Assert::same('25.00', $payload['lines'][0]['total']);
+        Assert::same('E1', $payload['lines'][0]['exemption_reason']);
         Assert::same('USOC_ENTITY', $payload['relations'][0]['relation_type']);
         Assert::same(0, $payload['relations'][0]['visible_alumne']);
         Assert::same('11111111-2222-3333-4444-555555555555', $payload['usoc']['student_invoice_uuid']);
@@ -148,6 +152,17 @@ final class LegacyUsocInvoicePayloadBuilderTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same('PENDING', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
+        Assert::same('E1', (string) $db->query('SELECT CAUSA_EXEMPCIO_NO_SUBJECTA FROM factura')->fetchColumn());
+        Assert::same('E1', (string) $db->query('SELECT CAUSA_EXEMPCIO_NO_SUBJECTA FROM factura_linia')->fetchColumn());
+
+        $record = json_decode(
+            (string) $db->query('SELECT PAYLOAD_JSON FROM factura_registres')->fetchColumn(),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        Assert::same('E1', $record['totals']['exemption_reason']);
+        Assert::same('E1', $record['lines'][0]['exemption_reason']);
 
         $relation = $db->query('SELECT SOURCE_TYPE, SOURCE_ID, RELATION_TYPE, VISIBLE_ALUMNE FROM fact_rels')
             ->fetch(\PDO::FETCH_ASSOC);
@@ -173,6 +188,56 @@ final class LegacyUsocInvoicePayloadBuilderTest
         Assert::throws(SifException::class, function () use ($notValidated): void {
             (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($notValidated);
         }, 409);
+    }
+
+    public function testUsesExplicitAmountsWithoutFixedUsocPercentage(): void
+    {
+        $snapshot = $this->usocSnapshot();
+        $snapshot['inscription']['A_PAGAR'] = '73.00';
+        $snapshot['inscription']['IMPORT_BASE'] = '100.00';
+        $snapshot['inscription']['DESC_IMPORT'] = '27.00';
+        $snapshot['usoc']['student_amount'] = '73.00';
+        $snapshot['usoc']['entity_amount'] = '27.00';
+        $snapshot['payment']['amount'] = '73.00';
+
+        $payload = (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($snapshot);
+
+        Assert::same('100.00', $payload['totals']['import_base']);
+        Assert::same('27.00', $payload['totals']['discount']);
+        Assert::same('73.00', $payload['totals']['total']);
+        Assert::same('27.00', $payload['lines'][0]['discount_amount']);
+        Assert::same('73.00', $payload['lines'][0]['total']);
+        Assert::same('73.00', $payload['usoc']['student_amount']);
+        Assert::same('27.00', $payload['usoc']['entity_amount']);
+    }
+
+    public function testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined(): void
+    {
+        $snapshot = $this->usocSnapshot();
+        $snapshot['inscription']['A_PAGAR'] = '0.00';
+        $snapshot['inscription']['IMPORT_BASE'] = '100.00';
+        $snapshot['inscription']['DESC_IMPORT'] = '100.00';
+        $snapshot['usoc']['student_amount'] = '0.00';
+        $snapshot['usoc']['entity_amount'] = '100.00';
+        $snapshot['payment']['amount'] = '0.00';
+
+        $exception = Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($snapshot);
+        }, 422);
+
+        Assert::same('Invalid USOC student amount', $exception->getMessage());
+    }
+
+    public function testRejectsInvalidExemptionReasonCode(): void
+    {
+        $payload = (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($this->usocSnapshot());
+        $payload['totals']['exemption_reason'] = 'E99';
+
+        $exception = Assert::throws(SifException::class, function () use ($payload): void {
+            (new InvoicePayloadValidator())->validate($payload);
+        }, 422);
+
+        Assert::same('Invalid exemption reason', $exception->getMessage());
     }
 
     public function testEntityPayloadRequiresExplicitBillingAmountAndStudentInvoice(): void

@@ -1,8 +1,8 @@
 # UC-008 — Diagrames de classes ACTUAL i FINAL
 
-**Data d'auditoria:** 29/09/2026  
+**Data d'auditoria:** 30/09/2026  
 **Estat de referència:** integrat a `main` mitjançant el PR #18 (2026-09-30); aquesta fitxa descriu el backend existent després del merge.  
-**Regla:** ACTUAL = codi PHP/SQL real integrat a `main`. FINAL = arquitectura necessària per completar el panell i la integració d'usuari; no es presenta com a desplegada.
+**Regla:** ACTUAL = codi PHP/SQL/JS real integrat a `main`. FINAL = arquitectura objectiu després de la implementació; els components ja codificats es marquen com a existents i només el desplegament/configuració d'entorn queda pendent.
 
 Vegeu també [fitxa integrada UC-008](uc-008-gestionar-incidencia-sif.md), [seqüències](uc-008-sequencies-actual-final.md), [activitats](uc-008-activitats-pagines-incidencies-actual-final.md) i [UC-081 lifecycle](uc-081-cicle-complet-incidencia.md).
 
@@ -132,47 +132,67 @@ FiscalQueueProcessor --> IncidentRepository : AEAT/integritat
 | `sif_incident_action` | AMPLIAT | idempotency key + payload hash; accions concurrents serialitzades per lock de capçalera |
 | UI de panell | IMPLEMENTADA AL CODI | handoff HMAC, sessió SIF, CSRF, vista, accions i resum intranet; desplegament pendent |
 
-## 3. CL-008-FINAL · Operació i superfícies que encara falten
+## 3. CL-008-FINAL · Arquitectura objectiu reconciliada
 
 ```mermaid
 classDiagram
 direction LR
 
-class IncidentPanelController {
-  <<PENDENT>>
-  +index()
-  +detail(id)
+class IncidentPanelPage {
+  <<IMPLEMENTAT>>
+  sif/public/sif/incidencies/index.php
 }
 
-class IncidentPanelView {
-  <<PENDENT>>
-  +renderList()
-  +renderTimeline()
-  +renderActions()
+class IncidentPanelActions {
+  <<IMPLEMENTAT>>
+  sif/public/sif/incidencies/actions.php
+  +summary()
+  +list()
+  +view()
+  +assign()
+  +evidence()
+  +resolve()
+  +dismiss()
+  +reopen()
+  +logout()
 }
 
-class IncidentInternalApiClient {
-  <<PENDENT>>
-  +list(filters) array
-  +view(id) array
-  +assign(id, command) array
-  +addEvidence(id, command) array
-  +resolve(id, command) array
-  +dismiss(id, command) array
-  +reopen(id, command) array
+class IncidentPanelClient {
+  <<IMPLEMENTAT JS>>
+  sif/public/sif/incidencies/app.js
 }
 
-class IntranetIncidentSummaryClient {
-  <<PENDENT>>
-  +summary() array
+class IncidentPanelSession {
+  <<IMPLEMENTAT>>
+  +start()
+  +establish(actor)
+  +actor()
+  +csrfToken()
+  +assertCsrf()
+  +destroy()
+}
+
+class PanelLaunchAuthenticator {
+  <<IMPLEMENTAT>>
+  +authenticate(input,path) array
+}
+
+class SifInternalIncidentClient {
+  <<IMPLEMENTAT INTRANET>>
+  +request(actorId,roles,payload) array
+}
+
+class SifPanelLaunchToken {
+  <<IMPLEMENTAT INTRANET>>
+  +create(actorId,roles) array
 }
 
 class IncidentLifecycleService {
-  <<EXISTENT>>
+  <<IMPLEMENTAT>>
 }
 
 class IncidentNotifier {
-  <<DECISIÓ PENDENT>>
+  <<OPCIONAL / DECISIÓ PENDENT>>
   +notifyAssignment()
   +notifyCritical()
 }
@@ -182,25 +202,37 @@ class RepairUseCase {
   +executeCorrelatedCommand()
 }
 
-IncidentPanelController --> IncidentPanelView
-IncidentPanelController --> IncidentInternalApiClient
-IncidentInternalApiClient --> IncidentLifecycleService
-IntranetIncidentSummaryClient --> IncidentLifecycleService : només lectura
-IncidentLifecycleService ..> IncidentNotifier : si s'aprova SLA/notificació
+IncidentPanelPage --> IncidentPanelClient
+IncidentPanelClient --> IncidentPanelActions
+IncidentPanelActions --> IncidentPanelSession
+IncidentPanelActions --> IncidentLifecycleService
+PanelLaunchAuthenticator --> IncidentPanelSession : estableix actor
+SifPanelLaunchToken --> PanelLaunchAuthenticator : handoff signat
+SifInternalIncidentClient --> IncidentLifecycleService : via API interna read-only
+IncidentLifecycleService ..> IncidentNotifier : només si s'aprova política
 IncidentLifecycleService ..> RepairUseCase : derivació explícita
 ```
+
+### Diferència ACTUAL / FINAL
+
+A nivell de codi, **ACTUAL i FINAL ja coincideixen en el nucli funcional**. El FINAL no requereix crear un segon controlador, una segona vista ni un segon client d'incidències. El que queda fora del repositori és:
+
+- desplegament/configuració real;
+- rols i secrets reals;
+- alta/verificació del menú de la intranet;
+- E2E de navegador/preproducció;
+- SLA/notificacions només si s'aproven funcionalment.
 
 ## 4. Regla de frontera
 
 No es crearà un segon `IncidentWorkflowService`. **UC-008 i UC-081 comparteixen `IncidentLifecycleService`**. La reparació d'una factura, pagament, document, cua AEAT o matrícula no es converteix en un mètode genèric del lifecycle: es deriva al cas d'ús responsable amb la mateixa correlació.
 
-## 5. Pendent per tancar FINAL
+## 5. Pendent per tancar entorn
 
 - desplegament/configuració productiva del panell;
 - alta del menú VERI*FACTU a la BD de menú de la intranet;
 - política real de rols, severitats i SLA;
 - notificacions si s'aproven;
-- integracions d'obertura de la resta de workers/processos;
 - evidència E2E de preproducció/producció.
 
 **UI existent al repositori:** `PanelLaunchAuthenticator`, `IncidentPanelSession`, `sif/public/sif/incidencies/*`, `SifInternalIncidentClient`, `SifPanelLaunchToken` i `sif-verifactu.php`.

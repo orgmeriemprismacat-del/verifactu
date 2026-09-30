@@ -46,7 +46,80 @@ final class UsocLifecycleGuardService
             'id_insc' => $idInsc,
             'idpag' => $idpag,
             'case' => $case,
+            'payer_snapshot' => $case === null ? null : $this->payerSnapshot($db, $case),
             'orphan_fiscal_evidence' => $orphanFiscalEvidence,
+        ];
+    }
+
+    private function payerSnapshot(\PDO $db, array $case): array
+    {
+        $studentUuid = trim((string) ($case['UUID_STUDENT_INVOICE'] ?? ''));
+        $entityUuid = trim((string) ($case['UUID_ENTITY_INVOICE'] ?? ''));
+
+        return [
+            'student' => $this->invoiceSnapshot($db, $studentUuid, 'student'),
+            'entity' => $entityUuid === ''
+                ? [
+                    'role' => 'entity',
+                    'invoice_uuid' => null,
+                    'invoice_status' => 'NOT_ISSUED',
+                    'payment_status' => 'PENDING',
+                    'total' => number_format((float) ($case['ENTITY_AMOUNT'] ?? 0), 2, '.', ''),
+                    'charged' => '0.00',
+                    'refunded' => '0.00',
+                    'net_paid' => '0.00',
+                ]
+                : $this->invoiceSnapshot($db, $entityUuid, 'entity'),
+        ];
+    }
+
+    private function invoiceSnapshot(\PDO $db, string $uuidInvoice, string $role): array
+    {
+        if ($uuidInvoice === '') {
+            throw SifException::conflict('Missing USOC ' . $role . ' invoice');
+        }
+
+        $stmt = $db->prepare(
+            'SELECT UUID_FACTURA, ESTAT_FACTURA, ESTAT_COBRAMENT, TOTAL
+             FROM factura
+             WHERE UUID_FACTURA = ?'
+        );
+        $stmt->execute([$uuidInvoice]);
+        $invoice = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!is_array($invoice)) {
+            throw SifException::conflict('USOC ' . $role . ' invoice not found');
+        }
+
+        $payments = $db->prepare(
+            "SELECT
+                COALESCE(SUM(CASE
+                    WHEN pt.ESTAT = 'CONFIRMED'
+                     AND pt.TIPUS_MOVIMENT IN ('CHARGE', 'COMPENSATION')
+                    THEN pa.IMPORT_ASSIGNAT ELSE 0 END), 0) AS CHARGED,
+                COALESCE(SUM(CASE
+                    WHEN pt.ESTAT = 'CONFIRMED'
+                     AND pt.TIPUS_MOVIMENT = 'REFUND'
+                    THEN pa.IMPORT_ASSIGNAT ELSE 0 END), 0) AS REFUNDED
+             FROM payment_allocation pa
+             INNER JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
+             WHERE pa.UUID_FACTURA = ?"
+        );
+        $payments->execute([$uuidInvoice]);
+        $money = $payments->fetch(\PDO::FETCH_ASSOC) ?: [];
+
+        $charged = number_format((float) ($money['CHARGED'] ?? 0), 2, '.', '');
+        $refunded = number_format((float) ($money['REFUNDED'] ?? 0), 2, '.', '');
+        $netPaid = number_format(max(0, (float) $charged - (float) $refunded), 2, '.', '');
+
+        return [
+            'role' => $role,
+            'invoice_uuid' => (string) $invoice['UUID_FACTURA'],
+            'invoice_status' => strtoupper(trim((string) $invoice['ESTAT_FACTURA'])),
+            'payment_status' => strtoupper(trim((string) $invoice['ESTAT_COBRAMENT'])),
+            'total' => number_format((float) $invoice['TOTAL'], 2, '.', ''),
+            'charged' => $charged,
+            'refunded' => $refunded,
+            'net_paid' => $netPaid,
         ];
     }
 

@@ -82,6 +82,29 @@ F3 ..> F4 : si és pagable
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne"]
+  actor_1["Ecommerce/intranet"]
+  actor_2["Gestió autoritzada"]
+  subgraph SIF_BOX["Descomptes · PrisMa"]
+    uc_0(["UC-20<br/>Aplicar Alumne PrisMa"])
+    uc_1(["Verificar dret segons regla"])
+    uc_2(["Calcular preu i snapshot"])
+    uc_3(["UC-14<br/>Compra i factura posterior"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+```
+
+
+
 ## 4. Diagrama de components ACTUAL
 
 ```mermaid
@@ -181,24 +204,38 @@ class PrismaStudentDiscountPolicy {
   +evaluate(subject,product,evaluationAt,currentEnrollment) Decision
 }
 
+class CommercialOfferService {
+  <<PHP IMPLEMENTAT EN AQUESTA BRANCA>>
+  +createOrReuse(input) array
+}
+
 class CommercialOperationRepository {
-  <<PENDENT RUNTIME>>
-  +createOrReuse(operation) CommercialOperation
-  +find(uuid) CommercialOperation
-  +linkIntent(uuidOperation,uuidIntent)
+  <<PHP IMPLEMENTAT EN AQUESTA BRANCA>>
+  +findByIdempotencyKey(db,key,forUpdate) array
+  +findByUuid(db,uuid,forUpdate) array
+  +insert(db,operation) array
+  +linkIntent(db,uuidOperation,uuidIntent,expectedCurrentIntent)
 }
 
 class DiscountValidationRepository {
-  <<PENDENT RUNTIME>>
-  +append(decision) DiscountValidation
-  +findByOperation(uuidOperation)
+  <<PHP IMPLEMENTAT EN AQUESTA BRANCA>>
+  +findByIdempotencyKey(db,key,forUpdate) array
+  +insert(db,validation) array
+}
+
+class PaymentLinkService {
+  <<PHP IMPLEMENTAT EN AQUESTA BRANCA>>
+  +issue(input) array
+  +resolve(token,accessedAt) array
+  +revoke(uuid,reason,actor,replacement,at) array
 }
 
 class PaymentLinkRepository {
-  <<PENDENT RUNTIME>>
-  +create(operation,amount,expiry)
-  +revoke(link,reason)
-  +validate(token)
+  <<PHP IMPLEMENTAT EN AQUESTA BRANCA>>
+  +findByUuid(db,uuid,forUpdate) array
+  +findByTokenHash(db,hash,forUpdate) array
+  +insert(db,link) array
+  +revoke(db,uuid,at,actor,reason,replacement) bool
 }
 
 class OperationalEventRepository {
@@ -255,16 +292,20 @@ class payment_link {
   EXPIRES_AT
 }
 
-PrismaStudentDiscountPolicy --> DiscountValidationRepository
-DiscountValidationRepository --> discount_validation
+PrismaStudentDiscountPolicy --> CommercialOfferService : decisió + regla [INTEGRACIÓ PENDENT]
+CommercialOfferService --> CommercialOperationRepository
+CommercialOfferService --> DiscountValidationRepository
+CommercialOfferService --> OperationalEventRepository
 CommercialOperationRepository --> commercial_operation
+DiscountValidationRepository --> discount_validation
+PaymentLinkService --> CommercialOperationRepository
+PaymentLinkService --> PaymentLinkRepository
 PaymentLinkRepository --> payment_link
-CommercialOperationRepository --> OperationalEventRepository
-CommercialOperationRepository --> RedsysPaymentIntentService : crear intent des de l'operació
+CommercialOperationRepository ..> RedsysPaymentIntentService : link UUID_INTENT [ORQUESTRACIÓ PENDENT]
 RedsysCourseInvoiceService --> LegacyCourseInvoicePayloadBuilder
 ```
 
-**Important:** no s'ha identificat una implementació runtime de `CommercialOperationRepository`, `DiscountValidationRepository` ni `PaymentLinkRepository`. Les taules existeixen al DDL, però no s'han de marcar com a servei implementat.
+**Estat actual de runtime:** aquesta branca ja implementa la persistència idempotent d'una oferta comercial (`CommercialOfferService`), els repositoris de `commercial_operation` i `discount_validation`, i el cicle bàsic de `payment_link` amb token opac, hash, expiració i revocació. **Encara no està implementada la política d'elegibilitat ni la connexió web/intranet → oferta → intenció Redsys.** `CommercialOperationRepository::linkIntent()` existeix com a primitive amb control optimista, però falta l'orquestrador que decideixi quan una nova intenció pot substituir l'anterior.
 
 ## 7. Seqüència ACTUAL — web d'inscripció
 
@@ -387,33 +428,47 @@ sequenceDiagram
     actor P as Persona
     participant UI as Web/Intranet
     participant Policy as PrismaStudentDiscountPolicy
-    participant DV as DiscountValidationRepository
-    participant CO as CommercialOperationRepository
-    participant PL as PaymentLinkRepository
-    participant OE as OperationalEventRepository
+    participant Offer as CommercialOfferService
+    participant CO as commercial_operation
+    participant DV as discount_validation
+    participant OE as operational_event
+    participant Link as PaymentLinkService
+    participant PL as payment_link
     participant RI as RedsysPaymentIntentService
 
     P->>UI: sol·licitar/confirmar oferta
     UI->>Policy: evaluate(subject,product,evaluationAt,currentEnrollment)
     Policy-->>UI: decisió + regla + imports
 
-    UI->>DV: append(decisió)
-    UI->>CO: createOrReuse(base,discount,net,snapshots)
-    CO->>OE: append(before/after, actor, correlation)
+    Note over UI,Policy: Policy i adaptador legacy encara PENDENTS
+
+    UI->>Offer: createOrReuse(imports,snapshots,discount,actor,correlation)
+    Offer->>CO: INSERT o reutilitzar per IDEMPOTENCY_KEY
+    Offer->>DV: INSERT validació si existeix bloc discount
+    Offer->>OE: append(COMMERCIAL_OFFER_CREATED)
+    Offer-->>UI: UUID_OPERATION + UUID_VALIDATION
 
     alt oferta pagable
-        UI->>PL: create(UUID_OPERATION,NET_AMOUNT,expiry)
-        PL-->>UI: payment link actiu
-        P->>UI: obrir/acceptar oferta
-        UI->>CO: rellegir operació i estat
-        UI->>PL: validar ACTIVE/expiry/expected amount
-        UI->>RI: create(CURS,DS_ORDER,NET_AMOUNT,snapshot)
+        UI->>Link: issue(UUID_OPERATION,expectedAmount,expiry)
+        Link->>CO: comprovar operació/import/vigència
+        Link->>PL: guardar només TOKEN_HASH
+        Link-->>UI: token opac + UUID_PAYMENT_LINK
+        P->>UI: obrir/acceptar link
+        UI->>Link: resolve(token)
+        Link->>PL: validar ACTIVE/expiry
+        Link->>CO: validar vigència de l'operació
+        Link-->>UI: operació + import esperat
+
+        Note over UI,RI: PENDENT: orquestrador oferta/link → Redsys
+        UI->>RI: create(CURS,DS_ORDER,expectedAmount,snapshot)
         RI-->>UI: UUID_INTENT
-        UI->>CO: linkIntent(UUID_OPERATION,UUID_INTENT)
+        UI->>CO: linkIntent(UUID_OPERATION,UUID_INTENT,expected)
     else pendent/no disponible
         UI-->>P: estat tipificat sense cobrament
     end
 ```
+
+**Tall d'implementació:** fins a `PaymentLinkService::resolve()` hi ha codi nou en aquesta branca; des de la creació de la intenció Redsys continua faltant l'adaptador que consumeixi l'operació/link i congeli el mateix snapshot comercial a `RedsysPaymentIntentService`.
 
 ## 11. Seqüència FINAL — factura posterior
 
@@ -540,6 +595,7 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 - [Fitxa funcional UC-020](../06-fitxes-funcionals/uc-020.md)
 - [Activitats per pàgina i apartat ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md)
 - [Auditoria i matriu de traçabilitat](uc-020-auditoria-tracabilitat-2026-09-29.md)
+- [Matriu canònica de proves AP-01…AP-84](uc-020-matriu-proves-ap-01-84.md)
 - [UC-116 · activitats de justificants compartides](uc-116-activitats-pagines-justificants-actual-final.md)
 - [UC-014 · compra curs Redsys](uc-014-comprar-curs-redsys.md)
 - [UC-071 · canvi de curs](uc-071-registrar-canvi-curs-complet.md)

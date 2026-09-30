@@ -164,19 +164,25 @@ class LegacyPackFiscalCallback {
   <<DESACTIVAT · ELIMINAR DESPRES ROLLBACK>>
 }
 class CanonicalPackOrderSource {
-  <<PENDENT ACREDITAR>>
+  <<ORDRE OPERATIU ESTABILITZAT; POSICIO COMERCIAL EXPLICITA PENDENT DECIDIR>>
   +orderedComponents(packId)
 }
-class AcademicEnrollmentSyncService {
-  <<PENDENT CONSOLIDAR>>
-  +syncAfterCommit(operation)
+class RedsysLegacySyncingProcessor {
+  <<IMPLEMENTAT>>
+  +process(sifDb,job) array
+}
+class LegacySyncService {
+  <<IMPLEMENTAT>>
+  +syncAfterSifSuccess(...)
+  +syncPackFullPayment(...)
 }
 
 PackPaymentGate --> CanonicalPackOrderSource : verificar origen ordinal
 SifPaymentIntentClient --> RedsysPackInvoiceService : via intent/callback/worker
 RedsysPackInvoiceService --> EnrollmentFundMovementRepository
 RedsysPackInvoiceService --> PackPaymentNotificationService
-RedsysPackInvoiceService --> AcademicEnrollmentSyncService : postcommit
+RedsysPackInvoiceService --> RedsysLegacySyncingProcessor : legacy_sync resultat
+RedsysLegacySyncingProcessor --> LegacySyncService : post-SIF
 LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 ```
 
@@ -186,7 +192,7 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 |---|---|---|
 | Preu definitiu | **Backend autoritatiu implementat** | Mantenir snapshot versionat i provar runtime |
 | Identitat operació | `MAX(IDPAG)+1` sota `GET_LOCK` | Seqüència pròpia si es decideix eliminar deute legacy |
-| Ordinal components | `PACK_ORDINAL` congelat i consumit | Acreditar que l'origen és l'ordre comercial canònic |
+| Ordinal components | `PACK_ORDINAL` congelat i consumit | Ordre actual `DATAI, ID_CURS`; decidir si cal posició comercial explícita |
 | Receptor fiscal | **Validació fail-closed entre tots els components** | Mantenir receptor explícit al snapshot |
 | Callback | Legacy desactivat per defecte; SIF autoritatiu | Eliminar codi històric després de rollback |
 | Numeració | Taula legacy | Seqüència fiscal SIF |
@@ -196,6 +202,6 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 ## 5. Estat
 
 - **Documentat:** sí.
-- **Implementat parcial:** sí.
+- **Implementat:** flux fiscal/econòmic principal sí; resten només dependències residuals d'entorn/retirada/UC-58.
 - **Verificat per inspecció:** sí.
-- **Pendent:** eliminar el codi legacy després de la finestra de rollback, acreditar l'origen canònic de `PACK_ORDINAL`, consolidar la sincronització acadèmica i obtenir evidència runtime/preproducció.
+- **Pendent:** eliminar el callback fiscal legacy després de la finestra de rollback, decidir si `PACK_ORDINAL` ha de provenir d'una posició comercial explícita independent de `DATAI` i obtenir evidència runtime/preproducció. La sincronització legacy post-SIF ja està implementada amb `RedsysLegacySyncingProcessor` + `LegacySyncService`.

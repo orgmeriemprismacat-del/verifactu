@@ -69,6 +69,27 @@ Main ..> Auth : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió autoritzada"]
+  actor_1["Receptor/representant acreditat"]
+  subgraph SIF_BOX["Consulta d'històric multiemissor"]
+    uc_0(["UC-97<br/>Consultar històric Associació/SL"])
+    uc_1(["Identificar emissor jurídic i origen"])
+    uc_2(["Distingir NO_VERIFACTU i SIF emès"])
+    uc_3(["Resoldre duplicats de numeració"])
+    uc_4(["Autoritzar accés al document real"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## UML de classes
 
 ```mermaid

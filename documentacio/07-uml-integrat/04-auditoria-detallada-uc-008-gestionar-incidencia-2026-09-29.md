@@ -1,6 +1,8 @@
 # UC-008 · Auditoria detallada de gestió d'incidències — 2026-09-29
 
-**Estat documental:** AUDITAT EN DETALL / CANVIS DOCUMENTALS APLICATS.  
+> **DOCUMENT HISTÒRIC — SUPERAT COM A ESTAT VIGENT.** Aquesta auditoria conserva la traça de les troballes i correccions del tall del 29/09. No s'ha d'utilitzar per determinar l'estat actual del UC-008. L'auditoria vigent és [`04b-auditoria-detallada-uc-008-2026-09-30.md`](04b-auditoria-detallada-uc-008-2026-09-30.md). Després de merges posteriors, la regressió completa del `main` ha passat **740/0** al run `36732555122`, incloent 61 PASS relacionats amb incidències/UC-008.
+
+**Estat documental:** HISTÒRIC / TRAÇA D'AUDITORIA CONSERVADA.  
 **Estat backend després del merge a `main` (PR #18, 2026-09-30):** LIFECYCLE PARCIAL IMPLEMENTAT; API INTERNA + WRITER D'ACCIONS + IDEMPOTÈNCIA + INTEGRACIÓ REDSYS/AEAT.  
 **Estat UI:** IMPLEMENTADA AL CODI / DESPLEGAMENT PENDENT DE VERIFICAR.  
 **Estat proves:** SUITE SIF + CONCURRÈNCIA REAL · **648 PASSED / 0 FAILED**; INTRANET AO · **SUCCESS**.  

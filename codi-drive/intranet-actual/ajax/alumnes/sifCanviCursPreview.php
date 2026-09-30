@@ -23,6 +23,7 @@ if (!isset($configOk) || !$configOk || !isset($_SESSION['usuari'])) {
 
 require_once $root . '/SifInternalApiClient.php';
 require_once $root . '/LegacyInvoiceMutationAuthorization.php';
+require_once $root . '/LegacyUsocLifecycleGuard.php';
 
 $usuariObject = null;
 
@@ -63,6 +64,23 @@ try {
         return;
     }
 
+    $sourceEnrollmentId = $payload['source_enrollment_id'] ?? null;
+    if (
+        filter_var(
+            $sourceEnrollmentId,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        ) === false
+    ) {
+        throw new RuntimeException('Invalid source enrollment id', 422);
+    }
+
+    (new LegacyUsocLifecycleGuard())->assertMayUseLegacyMutation(
+        $usuariObject,
+        (int) $sourceEnrollmentId,
+        'course_change'
+    );
+
     $client = new SifInternalApiClient();
     $response = $client->previewCourseChange($actorId, $roles, $payload);
 
@@ -81,10 +99,14 @@ try {
     http_response_code($status >= 100 && $status <= 599 ? $status : 502);
     echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $exception) {
-    http_response_code(500);
+    $code = (int) $exception->getCode();
+    $status = $code >= 400 && $code <= 599 ? $code : 500;
+    http_response_code($status);
     echo json_encode([
         'ok' => false,
-        'error' => 'SIF course change preview failed',
+        'error' => $status >= 500
+            ? 'SIF course change preview failed'
+            : $exception->getMessage(),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } finally {
     if (is_object($usuariObject)) {

@@ -250,6 +250,47 @@ Fitxers destacats:
 
 **Interpretació correcta de “verificat”:** aquestes proves acrediten el comportament del repositori i la integració automatitzada. No acrediten per si soles la configuració real del servidor, la BD del menú ni una sessió humana de navegador contra preproducció.
 
+## 5 bis. Revalidació contra el `main` posterior als merges del 30/09/2026
+
+Després de la primera reconciliació UC-008, `main` ha continuat avançant. S'ha comparat el tall UC-008 `14fb5175c8bc7bb3c9c27b4eaa0d03835a99e0dd` amb el `main` `e2fd82215dc9dbd1a6938014c19985adceebd3ed`.
+
+Resultat de la comparació:
+
+- **57 commits** posteriors al tall UC-008.
+- **166 fitxers** modificats en total.
+- D'entre les dependències directes o compartides inventariades pel UC-008, només ha canviat `sif/config/sif.php`.
+- El canvi de `sif/config/sif.php` és **purament additiu per UC-111**: afegeix `novice_promotion_signed_path` i `novice_promotion.manage_roles`. No modifica rols d'incidències, paths UC-008, HMAC del panell, lifecycle ni persistència d'incidències.
+- No han canviat `IncidentLifecycleService`, `IncidentRepository`, `IncidentActionRepository`, `InternalApiAuthenticator`, `PanelLaunchAuthenticator`, `IncidentPanelSession`, `SifInternalIncidentClient`, `sifIncidents.php`, `sifPanelLaunch.php` ni `sif/public/sif/incidencies/*` en aquest interval.
+
+### Regressió CI sobre el `main` actual
+
+El workflow **SIF PHP MySQL tests** de l'últim tall de codi SIF verificat, commit `e2fd82215dc9dbd1a6938014c19985adceebd3ed`, run **36732555122**, ha finalitzat en **success** amb:
+
+- **740 passed**
+- **0 failed**
+
+Dins d'aquest mateix run s'han comprovat explícitament **61 proves PASS** relacionades amb incidències/UC-008 i les seves integracions. Inclouen:
+
+- esquema i identitat d'incidències;
+- concurrència real d'obertura i assignació;
+- lifecycle, idempotència i conflicte per payload divergent;
+- rols read/manage;
+- HMAC, timestamp i anti-replay;
+- contracte de l'API interna;
+- sessió del panell i CSRF;
+- UI, timeline, tancament amb evidència i absència de bulk retry;
+- frontera read-only de la intranet i fallback davant caiguda del SIF;
+- handoff autenticat intranet → SIF;
+- preflight i verificador agregat de preproducció;
+- validador final d'evidències;
+- integracions Redsys i AEAT que obren/reutilitzen incidències.
+
+Aquesta regressió posterior confirma que els merges posteriors no han introduït una regressió detectable al codi UC-008.
+
+**Revalidació del capçal final de l'auditoria:** amb activitat paral·lela al repositori, l'últim capçal observat abans de tancar aquesta passada és `1b332f62add5ebe669b1fd3981fec1d6cc3257c4`. La comparació `e2fd8221...1b332f62` conté **17 commits / 11 fitxers** i **cap** afecta les dependències UC-008 inventariades (incident lifecycle/repositories, panell, API interna, bridge intranet, RedsysCallbackWorker, FiscalQueueProcessor o configuració compartida). Per tant, el run 740/0 continua sent l'evidència de regressió aplicable al codi UC-008 fins aquest punt de control.
+
+**Estat després de la revalidació:** `CODE_COMPLETE + DOCUMENTATION_RECONCILED + CURRENT_MAIN_REGRESSION_GREEN`. Continua pendent únicament el tancament d'entorn real.
+
 ## 6. Matriu Documentat / Implementat / Verificat / Pendent
 
 | Bloc | Documentat | Implementat | Verificat | Pendent |
@@ -273,6 +314,18 @@ Fitxers destacats:
 | Gate evidències | Sí | Sí | tests | generar JSON reals |
 
 ## 7. Mancances reals
+
+### 6 bis. Comprovació d'evidències de tancament
+
+S'ha comprovat el `main` actual i els artifacts dels workflows verds `36732555122` i `36732555092`.
+
+No consten al repositori ni als artifacts:
+
+- `uc-008-preproduction-evidence.json`;
+- `uc-008-menu-evidence.json`;
+- `uc-008-closure-validation.json`.
+
+Per tant, el resultat **740/0** acredita regressió de codi i contractes automatitzats, però **no acredita l'execució real de preproducció ni el tancament de l'entorn**. No s'ha fabricat ni inferit cap evidència absent.
 
 ### 7.1. Pendents obligatoris d'entorn
 
