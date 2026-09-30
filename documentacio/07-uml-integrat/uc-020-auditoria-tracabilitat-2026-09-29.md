@@ -98,7 +98,7 @@ No descriure AP ACTUAL com un percentatge fix. El codi usa `descomptes.PREU` com
 | Fitxa funcional UC-020 | existent, genèrica v1.1 | actualitzada v1.2 amb auditoria específica |
 | UML integrat UC-020 | existent, sobretot FINAL/SIF | actualitzat amb ACTUAL + FINAL |
 | Classes UC-020 | parcials dins UML | creat `uc-020-classes-actual-final.md` i mantingut resum integrat |
-| Seqüències UC-020 | una seqüència mixta | creat `uc-020-sequences-actual-final.md`; web + FINAL separats |
+| Seqüències UC-020 | una seqüència mixta | creat `uc-020-sequencies-actual-final.md`; web + FINAL separats |
 | Activitats per pàgina | **no existia dossier específic** | creat `uc-020-activitats-pagines-actual-final.md` |
 | Traçabilitat d'auditoria | dispersa | aquest document |
 | Pàgina compartida UC-116 | contenia referència P01 incorrecta | corregida en aquesta branca |
@@ -215,7 +215,7 @@ Quan canviï qualsevol d'aquests criteris s'ha de publicar una nova `RULE_VERSIO
 ### 7.4. Documents ACTUAL/FINAL disponibles
 
 - [Classes ACTUAL/FINAL](uc-020-classes-actual-final.md)
-- [Seqüències ACTUAL/FINAL](uc-020-sequences-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-020-sequencies-actual-final.md)
 - [Activitats ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md)
 - [UML integrat / cas d'ús](uc-020-aplicar-alumne-prisma.md)
 
