@@ -25,7 +25,8 @@ final class RedsysCourseReturnBoundaryTest
         $ko = $this->read('codi-drive/pay-prisma-cat-canvis-verifactu/respostaKoPagamentAutomatic.php');
 
         Assert::stringContainsString('SIF_REDSYS_CALLBACK_URL', $helper);
-        Assert::stringContainsString("'status' => 'UNVERIFIED'", $helper);
+        Assert::stringContainsString("'UNVERIFIED'", $helper);
+        Assert::stringContainsString("'status' => $authoritative ? $status : 'UNVERIFIED'", $helper);
         Assert::stringContainsString("if (\$status === 'CONFIRMED')", $helper);
         Assert::stringContainsString("uc014RenderPaymentReturn('OK')", $ok);
         Assert::stringContainsString("uc014RenderPaymentReturn('KO')", $ko);
