@@ -9,6 +9,20 @@ on:
       - "codi-drive/intranet-actual/ajax/sif/**"
       - "codi-drive/intranet-actual/js/sif-registres-aeat.js"
       - "codi-drive/intranet-actual/css/sif-registres-aeat.css"
+      - "codi-drive/intranet-actual/SifInternalUsocClient.php"
+      - "codi-drive/intranet-actual/alumnes-usoc-financament.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/usocFinancament.php"
+      - "codi-drive/intranet-actual/js/alumnes-usoc-financament.js"
+      - "codi-drive/intranet-actual/alumnes-validar-descomptes.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
+      - "codi-drive/intranet-actual/js/alumnes-validar-descomptes.js"
+      - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcio.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcio2.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioAfiliat.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioTaller.php"
       - "documentacio/05-governanca-operacio/**"
       - "documentacio/06-fitxes-funcionals/**"
       - "documentacio/07-uml-integrat/**"
@@ -62,6 +76,26 @@ jobs:
 
       - name: JavaScript syntax UC-009 intranet
         run: node --check codi-drive/intranet-actual/js/sif-registres-aeat.js
+
+      - name: PHP syntax UC-013 USOC intranet
+        run: |
+          php -l codi-drive/intranet-actual/SifInternalUsocClient.php
+          php -l codi-drive/intranet-actual/alumnes-usoc-financament.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/usocFinancament.php
+          php -l codi-drive/intranet-actual/alumnes-validar-descomptes.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php
+          php -l codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcio.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcio2.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioAfiliat.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioTaller.php
+
+      - name: JavaScript syntax UC-013 USOC intranet
+        run: |
+          node --check codi-drive/intranet-actual/js/alumnes-usoc-financament.js
+          node --check codi-drive/intranet-actual/js/alumnes-validar-descomptes.js
 
       - name: SIF test suite
         run: php sif/tests/run-tests.php
