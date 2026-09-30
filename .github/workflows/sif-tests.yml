@@ -4,12 +4,20 @@ on:
   pull_request:
     paths:
       - "sif/**"
+      - "codi-drive/web-actual/inc/PackPaymentGate.php"
+      - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
       - ".github/workflows/sif-tests.yml"
   push:
     branches:
       - main
     paths:
       - "sif/**"
+      - "codi-drive/web-actual/inc/PackPaymentGate.php"
+      - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
       - ".github/workflows/sif-tests.yml"
   workflow_dispatch:
 
@@ -57,6 +65,13 @@ jobs:
       - name: Preparar BD legacy de proves
         run: |
           mysql -h 127.0.0.1 -P 3306 -uroot -proot             -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      - name: Lint UC-015 pack checkout
+        run: |
+          php -l codi-drive/web-actual/inc/PackPaymentGate.php
+          php -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
 
       - name: Executar suite SIF
         run: php sif/tests/run-tests.php
