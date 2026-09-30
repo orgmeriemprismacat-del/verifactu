@@ -18,7 +18,10 @@ class SifInternalDocumentClient
         $this->url = trim((string) ($url ?? getenv('SIF_INTERNAL_DOCUMENT_API_URL') ?: ''));
         $this->signedPath = trim((string) ($signedPath ?? getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php'));
         $this->keyId = trim((string) ($keyId ?? getenv('SIF_INTERNAL_API_KEY_ID') ?: ''));
-        $this->secret = trim((string) ($secret ?? getenv('SIF_INTERNAL_API_SECRET') ?: ''));
+        $configuredSecret = $secret !== null
+            ? $secret
+            : (getenv('SIF_INTERNAL_API_SECRET') ?: '');
+        $this->secret = (string) $configuredSecret;
         $this->timeout = max(1, min(60, $timeout));
 
         if ($this->url === '' || $this->keyId === '' || $this->secret === '') {
