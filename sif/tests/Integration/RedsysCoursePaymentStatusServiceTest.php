@@ -87,6 +87,33 @@ final class RedsysCoursePaymentStatusServiceTest
         Assert::same('22222222-2222-4222-8222-222222222222', $confirmed['uuid_payment']);
     }
 
+    public function testProcessedWithoutInvoiceOrPaymentIsReview(): void
+    {
+        $db = TestDatabase::fresh();
+        $intent = $this->createIntent($db, 'STATUS000006', 706);
+        $record = (new RedsysNotificationRepository())->recordReceived(
+            $db,
+            'STATUS000006',
+            706,
+            '50.00',
+            '0000',
+            true,
+            $this->rawPayload('STATUS000006'),
+            'VALIDATED'
+        );
+        $queue = new RedsysCallbackQueueRepository(new UuidGenerator());
+        $job = $queue->enqueue($db, (int) $record['notification_id'], (string) $intent['UUID_INTENT']);
+        $db->prepare("UPDATE redsys_callback_queue SET STATUS = 'PROCESSED', PROCESSED_AT = NOW() WHERE ID = ?")
+            ->execute([$job['ID']]);
+
+        $result = $this->service()->status($db, 'STATUS000006', 706);
+
+        Assert::same('REVIEW', $result['status']);
+        Assert::same('PROCESSED', $result['queue_status']);
+        Assert::same(null, $result['uuid_factura']);
+        Assert::same(null, $result['uuid_payment']);
+    }
+
     public function testIncidentIsPresentedAsReview(): void
     {
         $db = TestDatabase::fresh();
