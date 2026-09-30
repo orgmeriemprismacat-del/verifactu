@@ -69,13 +69,13 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 4. **Conciliació — IMPLEMENTADA EN LA RUTA USOC:** `UsocEntityPaymentService` registra el cobrament i invoca `UsocCaseReconciler`; `reconcile-usoc-case.php` queda com a eina controlada de recuperació. L'endpoint genèric de pagaments no té aquest hook específic.
 
 ### P1
-4. Validació legacy via POST + CSRF + `ROLS_EDITAR` — IMPLEMENTADA; falta traça persistent SIF de la decisió.
+4. Validació legacy via POST + CSRF + `ROLS_EDITAR` — IMPLEMENTADA; traça persistent SIF en dues fases també IMPLEMENTADA amb `usoc_validation_decision`.
 5. `IDPAG` legacy — IMPLEMENTAT allocator compartit amb named lock MySQL als fluxos actuals identificats.
 6. Adaptador/pantalla final — IMPLEMENTAT EN REPOSITORI: pantalla autònoma + panell contextual a Consulta/Modifica alumne, sobre API interna HMAC i `capabilities.manage`.
 7. Menú implementat de forma fail-closed a `mostrarSideBarMenu.php` amb `SIF_USOC_MENU_ROLES`. Pendent validar configuració/rols/secrets amb `preflight-usoc-intranet.php` i desplegament real.
 8. E2E de servei amb reintent alumne, reintent entitat, pagament parcial i pagament complet — **PROVAT CI** al run `36660979100`; resta E2E navegador/preproducció i canvi/baixa.
 
-### P2 · Traça durable de la decisió legacy — disseny obligatori abans d'implementar
+### P2 · Traça durable de la decisió legacy — IMPLEMENTADA EN REPOSITORI
 
 La decisió `VALID_DESC=0→1/2` afecta la BD legacy però ha de quedar auditable també al SIF. No s'ha d'afegir una simple inserció posterior a `sif_audit_event`, perquè això aparentaria una atomicitat entre dues BDs que no existeix.
 
@@ -95,7 +95,7 @@ Protocol definit:
 6. El reconciliador ha de poder llegir `REQUESTED` sense `COMMITTED`, contrastar el `VALID_DESC` legacy real i completar o marcar `REVIEW_REQUIRED`.
 7. Un reintent amb mateix `requestId` i mateixa decisió és idempotent; mateixa identitat amb decisió contradictòria requereix un nou esdeveniment auditat, mai sobreescriptura.
 
-Aquesta peça queda **DOCUMENTADA / PENDENT D'IMPLEMENTACIÓ** perquè necessita coordinar el controlador legacy, l'API interna USOC i el repositori d'auditoria SIF com un protocol explícit de recuperació.
+Aquesta peça està **IMPLEMENTADA** mitjançant `UsocValidationDecisionService`, `UsocValidationDecisionRepository`, la migració `000031`, les accions internes `begin_validation_decision` / `complete_validation_decision`, la classificació local `LegacyDiscountValidationLookup` i el reconciliador `reconcile-usoc-validation-decisions.php`. Les proves de servei tenen PASS acreditat al run que executa `UsocValidationDecisionServiceTest`; resta acreditar el run més recent que inclou la prova de deriva post-commit.
 
 ### Decisió funcional
 9. Variant curs gratuït USOC / alumne=0.
