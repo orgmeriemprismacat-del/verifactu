@@ -171,9 +171,17 @@ end
 DB-->>IA: un INSERT guanya
 DB-->>IB: 1062 duplicate després del commit guanyador
 IB->>DB: SELECT key FOR UPDATE (current read)
-IB-->>B: reused=true, mateix incident_id
+alt fila visible en current read
+  IB-->>B: reused=true, mateix incident_id
+else 1062 encara propaga
+  B->>B: TransactionRunner fa ROLLBACK
+  B->>IB: reintenta open una sola vegada en transacció nova
+  IB->>DB: SELECT key
+  DB-->>IB: incidència guanyadora ja confirmada
+  IB-->>B: reused=true, mateix incident_id
+end
 IA-->>A: reused=false, incident_id
-Note over A,B: 1 errors_verifactu + 1 acció OPEN
+Note over A,B: defensa en dues capes; 1 errors_verifactu + 1 acció OPEN
 
 par dues assignacions mateix incident
   A->>DB: SELECT incident FOR UPDATE
