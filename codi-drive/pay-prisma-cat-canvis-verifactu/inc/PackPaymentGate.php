@@ -206,10 +206,7 @@ final class PackPaymentGate
 
         $requestedRaw = trim(str_replace(',', '.', (string) ($post['importPagare'] ?? '')));
         $requestedCents = self::cents($requestedRaw);
-        if ($requestedCents <= 0 || $requestedCents > $pendingCents) {
-            throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
-        }
-        if (!$fraccionat && $requestedCents !== $pendingCents) {
+        if ($requestedCents <= 0 || $requestedCents !== $pendingCents) {
             throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
         }
 
@@ -222,7 +219,7 @@ final class PackPaymentGate
             'already_paid_amount' => self::amount($paidCents),
             'pending_amount' => self::amount($pendingCents),
             'payment_amount' => self::amount($requestedCents),
-            'fraccionat' => $fraccionat,
+            'fraccionat' => false,
             'snapshot' => [
                 'pack' => ['ID_PACK' => $packId, 'TITOL' => 'Pack ' . $packId],
                 'billing' => $billing,
