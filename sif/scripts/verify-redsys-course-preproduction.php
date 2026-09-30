@@ -100,6 +100,12 @@ if ($execute) {
         $result['checks']['legacy_payment_sync_status_valid'] = is_array($legacyPaymentSync)
             && in_array((string) ($legacyPaymentSync['status'] ?? ''), ['PARTIALLY_PAID', 'PAID'], true)
             && is_numeric($legacyPaymentSync['projected_payment'] ?? null);
+
+        $notificationOutbox = $process['json']['notification_outbox'] ?? null;
+        $result['checks']['notification_outbox_present'] = is_array($notificationOutbox);
+        $result['checks']['notification_outbox_has_identity'] = is_array($notificationOutbox)
+            && trim((string) ($notificationOutbox['uuid_notification'] ?? '')) !== ''
+            && trim((string) ($notificationOutbox['status'] ?? '')) !== '';
     }
 }
 
