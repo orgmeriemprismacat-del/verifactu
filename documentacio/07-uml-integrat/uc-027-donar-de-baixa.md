@@ -93,6 +93,19 @@ El xat original identifica INSC_CURS amb valors 0 (no matriculat), 1 (matriculat
 | B-03 | Reactivar després de retorn, saldo consumit o rectificativa | Impedir simple canvi d'INSC_CURS; mostrar fases i requerir regularització expressa. |
 | B-04 | Baixa o reactivació amb deute/morositat o regal | Decisió de gestió segons regles reals, no confondre X, C, M amb situació fiscal. |
 | B-05 | Callback de pagament que arriba després de la baixa | Conservar el cobrament real, obrir conciliació i no reactivar la inscripció automàticament. |
+### 1.6. Protecció executable 30/09/2026 — POST/CSRF i guard USOC
+
+La confirmació de baixa individual ja **no s'executa per GET**. `alumnes-mostrar-alumne.js` i el minificat actiu envien POST + `csrf_alumnes_lifecycle` a `confirmacioBaixa_DonarBaixa.php`.
+
+El controlador, abans de `Intranet::confirmaBaixa_modalDonarBaixa()`:
+- comprova sessió, CSRF, same-origin i permís d'edició;
+- valida `ID_INSC` i motiu;
+- per inscripcions no-USOC conserva el flux legacy;
+- per `TIPUS_DESC=4`, consulta `LegacyUsocLifecycleGuard`;
+- si hi ha `usoc_financing_case`, bloqueja la baixa legacy amb conflicte abans de tocar inscripció, Moodle o comunicacions.
+
+La raó del bloqueig és funcional i econòmica: una baixa USOC fiscalitzada pot afectar dues factures i dos pagadors. El guard impedeix que el legacy tracti la inscripció com si hi hagués un únic import retornable. **No implementa encara** l'expedient UC-072 complet ni executa automàticament devolucions, saldos o rectificatives.
+
 ## 2. Diagrama UML de casos d'ús
 
 ```plantuml
@@ -247,8 +260,12 @@ start
 :Mostrar modal amb motiu i casella no enviar correu;
 if (Clic Confirma la baixa?) then (Sí)
   if (Motiu i idInsc no buits al JS?) then (Sí)
-    :GET confirmacioBaixa_DonarBaixa amb motiu i casella;
-    :PHP consulta inscripció actual;
+    :POST confirmacioBaixa_DonarBaixa amb motiu, casella i CSRF;
+    :PHP valida same-origin, permís i inscripció actual;
+    if (És USOC amb usoc_financing_case?) then (Sí)
+      :Bloquejar amb 409 abans de qualsevol mutació legacy;
+      stop
+    endif
     if (Inscrit = 1?) then (Sí)
       :Intentar donar de baixa Moodle nou o antic;
       if (Té aula oberta perenne?) then (Sí)
