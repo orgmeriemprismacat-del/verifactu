@@ -174,3 +174,21 @@ En l'escenari provat:
 - alumne: factura de 75,00 €, cobrada 75,00 €, net 75,00 €;
 - entitat: factura de 25,00 €, cobrada parcialment 10,00 €, net 10,00 €;
 - resultat del guard: `allowed=false`, `USOC_FINANCING_CASE_REQUIRES_ORCHESTRATION`.
+
+
+## Lifecycle · preview i bloqueig abans de confirmar
+
+**Run:** `36729541064`  
+**Resultat:** **SUCCESS · 728 passed / 0 failed**
+
+PASS específic:
+- `UsocLegacyLifecycleSecurityTest::testCourseChangeAndCancellationArePostCsrfAndFailClosedForUsoc`
+
+Acredita:
+- canvi de curs POST + CSRF + same-origin + permís;
+- baixa POST + CSRF + same-origin + permís;
+- guard USOC obligatori al backend;
+- guard USOC també al preview de canvi de curs;
+- preservació de `409/422/403` funcionals al preview;
+- errors 5xx redactats;
+- cap mutació legacy quan el SIF exigeix orquestració específica.
