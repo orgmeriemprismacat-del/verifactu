@@ -38,6 +38,8 @@ try {
     $lines.Add('RedsysPackInvoiceServiceTest::testRejectsLegacyPackWithoutCompleteCommercialSnapshot')
     $lines.Add('LegacyPackInvoicePayloadBuilderTest::testRejectsPackLineWithoutExplicitCommercialAmounts')
     $lines.Add('LegacyPackCallbackBoundaryTest::testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode')
+    $lines.Add('PackCommercialOrderBoundaryTest::testPackPresentationAndEnrollmentUseSameDeterministicOrder')
+    $lines.Add('PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop')
 
     if ($exitCode -ne 0) {
         $lines.Add('RESULT=FAIL')
