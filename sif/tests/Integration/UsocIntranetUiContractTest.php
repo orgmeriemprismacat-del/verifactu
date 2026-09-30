@@ -17,8 +17,9 @@ final class UsocIntranetUiContractTest
         $modalJs = file_get_contents($root . '/codi-drive/intranet-actual/js/alumnes-mostrar-alumne-usoc.js');
         $modalBridge = file_get_contents($root . '/codi-drive/intranet-actual/ajax/alumnes/sifUsoc.php');
         $context = file_get_contents($root . '/codi-drive/intranet-actual/LegacyUsocContext.php');
+        $preflight = file_get_contents($root . '/sif/scripts/preflight-usoc-intranet.php');
 
-        if ($page === false || $js === false || $controller === false || $client === false || $modalPage === false || $modalJs === false || $modalBridge === false || $context === false) {
+        if ($page === false || $js === false || $controller === false || $client === false || $modalPage === false || $modalJs === false || $modalBridge === false || $context === false || $preflight === false) {
             Assert::fail('Could not read USOC intranet UI contract files');
         }
 
@@ -61,6 +62,8 @@ final class UsocIntranetUiContractTest
         if (str_contains($js, 'X-SIF-Signature') || str_contains($page, 'SIF_INTERNAL_API_SECRET')) {
             Assert::fail('HMAC signing material must remain server-side.');
         }
+
+        Assert::stringContainsString('SIF_USOC_UI_ENABLED', $preflight);
 
         Assert::stringContainsString('X-SIF-Signature', $client);
         Assert::stringContainsString("hash_hmac('sha256'", $client);
