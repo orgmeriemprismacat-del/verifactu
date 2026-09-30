@@ -1,6 +1,9 @@
 let urlPagina = window.location.pathname.split('?')[0];
 let veureUnaFactura = "";
 let path = "https://intranet.prisma.cat/ajax/";
+let uc007SearchGeneration = 0;
+let uc007SifSearchRequest = null;
+let uc007LegacySearchRequest = null;
 
 let hashUrl = null;
 let tipusCerca = null;
@@ -190,6 +193,13 @@ requestMain.fail(function( jqXHR, textStatus, errorThrown ) {
 
 /* UC-007 · Consulta SIF read-only amb fallback llegat */
 window.uc007SifSearch = function(params) {
+	var generation = ++uc007SearchGeneration;
+
+	if (uc007SifSearchRequest && uc007SifSearchRequest.readyState !== 4)
+		uc007SifSearchRequest.abort();
+	if (uc007LegacySearchRequest && uc007LegacySearchRequest.readyState !== 4)
+		uc007LegacySearchRequest.abort();
+
 	var criteria = {};
 
 	if (params.uuid)
@@ -205,7 +215,7 @@ window.uc007SifSearch = function(params) {
 
 	/* Si la combinació no es pot representar fidelment al SIF, mantenim el llegat. */
 	if ($.isEmptyObject(criteria)) {
-		cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum);
+		cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum, generation);
 		return;
 	}
 
@@ -220,8 +230,12 @@ window.uc007SifSearch = function(params) {
 		}),
 		dataType: "json"
 	});
+	uc007SifSearchRequest = request;
 
 	request.done(function(res) {
+		if (generation !== uc007SearchGeneration)
+			return;
+
 		if (!res || res.ok !== true) {
 			uc007MostrarError((res && res.error) ? res.error : "Resposta SIF no vàlida");
 			return;
@@ -232,19 +246,27 @@ window.uc007SifSearch = function(params) {
 				uc007MostrarError("La consulta SIF està desactivada en aquest entorn");
 				return;
 			}
-			cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum);
+			cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum, generation);
 			return;
 		}
 
 		if (!Array.isArray(res.results) || res.results.length === 0) {
-			cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum);
+			if (params.uuid) {
+				amagarLoadingModal();
+				uc007MostrarError("No s'ha trobat la factura SIF sol·licitada");
+				return;
+			}
+			cercarFacturesLlegat(params.dni, params.email, params.factRel, params.factNum, generation);
 			return;
 		}
 
 		uc007RenderResultatsSif(res.results, params.cercaPer);
 	});
 
-	request.fail(function(jqXHR) {
+	request.fail(function(jqXHR, textStatus) {
+		if (generation !== uc007SearchGeneration || textStatus === "abort")
+			return;
+
 		amagarLoadingModal();
 		var message = "No s'ha pogut consultar el SIF";
 		if (jqXHR.responseJSON && jqXHR.responseJSON.error)
@@ -253,7 +275,13 @@ window.uc007SifSearch = function(params) {
 	});
 };
 
-function cercarFacturesLlegat(dni, email, factRel, factNum) {
+function cercarFacturesLlegat(dni, email, factRel, factNum, generation) {
+	if (!generation)
+		generation = ++uc007SearchGeneration;
+
+	if (uc007LegacySearchRequest && uc007LegacySearchRequest.readyState !== 4)
+		uc007LegacySearchRequest.abort();
+
 	var request = $.ajax({
 		url: path + "alumnes/consultaUsuarisFacturaRelacionada.php",
 		method: "GET",
@@ -265,8 +293,12 @@ function cercarFacturesLlegat(dni, email, factRel, factNum) {
 		},
 		dataType: "html"
 	});
+	uc007LegacySearchRequest = request;
 
 	request.done(function(dnies) {
+		if (generation !== uc007SearchGeneration)
+			return;
+
 		let vectDnies = dnies.split('#');
 		if (dnies.toLowerCase().includes("error")) {
 			afegirHeaderModalError("Alerta");
@@ -304,6 +336,9 @@ function cercarFacturesLlegat(dni, email, factRel, factNum) {
 	});
 
 	request.fail(function(jqXHR, textStatus, errorThrown) {
+		if (generation !== uc007SearchGeneration || textStatus === "abort")
+			return;
+
 		amagarLoadingModal();
 		if (typeof errorFunction === 'function')
 			errorFunction(jqXHR, textStatus, errorThrown, "Hi ha hagut algun error a l'hora de fer la consulta d'usuaris: ");
