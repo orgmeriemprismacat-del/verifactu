@@ -94,7 +94,35 @@ php sif/scripts/go-no-go-preproduction.php
 
 El go/no-go global incorpora també la presència/configuració bàsica del circuit UC-008. Un `NO-GO` bloqueja la validació E2E fins resoldre els checks fallits. Cap dels dos scripts autoritza per si mateix el pas a producció.
 
-## 7. Proves de desplegament
+## 7. E2E tècnic read-only de preproducció
+
+Després que el preflight i el go/no-go siguin verds, executar:
+
+```bash
+export SIF_E2E_INCIDENT_PANEL_URL="https://<host-preproduccio>/sif/incidencies/"
+export SIF_E2E_INCIDENT_ACTOR_ID="uc008-e2e-reader"
+export SIF_E2E_INCIDENT_READ_ROLE="<ROL_REAL_DE_LECTURA>"
+
+php sif/scripts/e2e-incidents-panel.php
+```
+
+El script:
+
+1. es nega a executar-se si `SIF_ENV=production`;
+2. exigeix URL HTTPS;
+3. genera handoff HMAC amb request-id únic;
+4. comprova `303` i cookie de sessió;
+5. obre el panell autenticat;
+6. comprova CSRF i que l'actor read-only no tingui controls de gestió;
+7. executa només `summary` i `list`;
+8. fa `logout`;
+9. comprova que la sessió queda invalidada.
+
+El script **no** executa `open`, `assign`, `evidence`, `resolve`, `dismiss` ni `reopen`.
+
+La sortida JSON s'ha de conservar com a evidència. Aquest E2E escriu únicament la traça anti-replay/sessió necessària per autenticar el handoff; no modifica cap incidència.
+
+## 8. Proves de desplegament
 
 1. Usuari sense rol de lectura → 403 al resum i al panell.
 2. Auditor → pot llistar/veure, no pot assignar ni tancar.
@@ -109,7 +137,7 @@ El go/no-go global incorpora també la presència/configuració bàsica del circ
 11. Validar que `SIF_PANEL_LAUNCH_SECRET` no apareix en HTML, JS, logs o respostes.
 12. Verificar que la sessió SIF es destrueix amb «Sortir».
 
-## 8. Evidència necessària per tancar
+## 9. Evidència necessària per tancar
 
 - URL productiva accessible per un rol autoritzat.
 - Captura/resposta del resum intranet.
