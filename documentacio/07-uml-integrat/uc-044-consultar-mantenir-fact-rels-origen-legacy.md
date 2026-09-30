@@ -70,6 +70,27 @@ Repair ..> Verify : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador SIF autoritzat"]
+  actor_1["Alumne amb permís"]
+  subgraph SIF_BOX["SIF · traçabilitat d'origen"]
+    uc_0(["UC-44<br/>Consultar/mantenir fact_rels"])
+    uc_1(["Verificar permisos i factura original"])
+    uc_2(["Comparar origen i referència llegada"])
+    uc_3(["UC-82<br/>Registrar divergència i reparació"])
+    uc_4(["Verificar resultat per destinació"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+  uc_3 -.->|include| uc_4
+```
+
 ## UML de classes
 
 ```mermaid
