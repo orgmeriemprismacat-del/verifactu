@@ -24,7 +24,7 @@
 | seqüències generals SIF | [32](../04-estat-final/32-diagrames-sequencia-sif.md) | ACTUALITZAT amb UC-111 |
 | matriu general de diagrames | [35](../04-estat-final/35-matriu-tracabilitat-diagrames.md) | ACTUALITZADA amb paquet UC-111 |
 
-**Conclusió de l'inventari:** dins del paquet documental definit per aquesta auditoria **ja no falta cap tipus de peça** (fitxa, cas d'ús, classes, seqüència, activitat o traçabilitat). A 30/09/2026 també s'ha sincronitzat A111-08 amb la baixa directa de `derived_application.APPLIED` i la migració `000028`; per tant, el buit detectat era de **contingut desactualitzat**, no de tipus documental absent. El que continua pendent és **validació del contingut contra runtime i proves**, no la mera existència documental. Els fitxers suplementaris no creen nous IDs: el catàleg continua en 142 UC/variants canònics.
+**Conclusió de l'inventari:** dins del paquet documental definit per aquesta auditoria **ja no falta cap tipus de peça** (fitxa, cas d'ús, classes, seqüència, activitat o traçabilitat). A 30/09/2026 A111-08 queda sincronitzada amb la baixa directa de `derived_application.APPLIED`, la migració `000028` i la baixa de qualsevol últim transfer confirmat; el buit detectat era de **contingut/cobertura de codi**, no de tipus documental absent. El que continua pendent és **validació del contingut contra runtime i proves**, no la mera existència documental. Els fitxers suplementaris no creen nous IDs: el catàleg continua en 142 UC/variants canònics.
 
 ## 1. Cobertura per acció
 
@@ -37,7 +37,7 @@
 | A111-05 Codi/correu | fitxes d'acció | correu legacy corregit per no exposar codi literal; emissió legacy no canònica | `RedsysCourseInvoiceService` → `NovicePromotionCodePreparationService` després del grant; email verification + delivery + private worker | classes §2, seq §2/3, act §7 | unit/integration parcials | IMPLEMENTAT_BRANCA / preparació de codi cablejada / transport real pendent |
 | A111-06 Consum original | fitxes d'acció | consulta `promocions` legacy | `NovicePromotionRedemptionService` | classes §3, seq §4, act §8 | amount policy + integration preparada | IMPLEMENTAT_BRANCA / checkout pendent |
 | A111-07 Canvi curs | fitxes d'acció | canvi general legacy | first + successive transfer review/confirmation | classes §3, seq §5, act §9 | policies pures escrites | IMPLEMENTAT_BRANCA / connectors pendents |
-| A111-08 Baixa i derivat | fitxes d'acció | sense model canònic complet | review/activation d'aplicació original + baixa del **primer traspàs confirmat** + review/activation directa de `derived_application.APPLIED`; baixa de l'últim **traspàs successiu** encara sense servei específic | classes §3, seq §5, act §10, dades/estats §§5–6 | policies pures escrites, inclosa `ApprovedDerivedCancellationPolicy` | IMPLEMENTAT_BRANCA per 3 orígens / aprovació real + baixa de transfer successiu pendents |
+| A111-08 Baixa i derivat | fitxes d'acció | sense model canònic complet | review/activation d'aplicació original + review/activation directa de `derived_application.APPLIED` + baixa de qualsevol **últim transfer CONFIRMED sense successor**, inclosos chains successius; parent derivat resolt recursivament | classes §3, seq §5, act §10, dades/estats §§5–6 | policies pures escrites, incloses approvals original/derived/transferred | IMPLEMENTAT_BRANCA per tots els orígens actuals modelats / adaptadors reals pendents |
 | A111-09 Consum derivat | fitxes d'acció | no canònic | `NovicePromotionDerivedBalanceRedemptionService` | classes §3, seq §6, act §11 | 5 tests pures elegibilitat | IMPLEMENTAT_BRANCA / MySQL pendent |
 | A111-10 Procedència | fitxes d'acció | dispersa | snapshot + projection + lineage policies | classes §4, seq §6 | projection/lineage tests escrites | IMPLEMENTAT_BRANCA |
 | A111-11 Review refund JASOM | fitxes d'acció | manual/dispers | plan + review service | classes §4, seq §6, act §12 | fingerprint/approval tests escrites | IMPLEMENTAT_BRANCA / evidència externa pendent |
@@ -93,7 +93,7 @@
 | CodePreparation / delivery | entitlement, code outbox, verified recipient/challenge |
 | RedemptionService | grant + `novice_promotion_application` + operation/factura/payment |
 | transfer services | `novice_promotion_application_transfer` + factura/rectificació |
-| cancellation/derived activation | `novice_promotion_derived_balance`; original/transfer/derived-application reviews i activacions, inclòs fill amb `PARENT_UUID_DERIVED_BALANCE` |
+| cancellation/derived activation | `novice_promotion_derived_balance`; review/activation des d'aplicació original, `derived_application` o últim transfer confirmat; transfer chains resolen `PARENT_UUID_DERIVED_BALANCE` del dret real que es mou |
 | DerivedBalanceRedemption | derived balance + derived application |
 | lineage snapshot/projection | grant, original/derived applications, transfers, derived balances |
 | root refund review/execution | review + recovery item + origin refund evidence |
@@ -119,11 +119,10 @@
 2. **Evidència documental:** la pujada legacy no compleix el model de storage privat auditable final.
 3. **Aprovació externa:** les interfaces d'aprovació/evidència són contractes; cal adaptador real i auditat. La baixa d'una `derived_application.APPLIED` ja té review+activation de branca, però no es pot executar sense aquesta font final.
 4. **Pricing/fiscalitat:** checkout real ha de persistir snapshots finals, rectificatives i factures zero sense pagaments inventats.
-5. **Baixa després d'un traspàs successiu:** els serveis de transfer successiu ja existeixen, però si l'exposició actual és el segon/tercer `transfer.CONFIRMED` falta encara el review+activation de baixa sobre l'últim transfer.
-6. **Redsys/concurrència:** callbacks tardans i reserves han de compartir criteris de conciliació abans de release/freeze.
-7. **Migracions:** no aplicades; el runner usa el nom complet i no pateix col·lisió de ledger pels dos `000025`. `000027` corregeix el conflicte real dels CHECK finals; cal validar l'aplicació DDL i l'ordre efectiu en MySQL.
-8. **Proves:** MySQL i concurrència real ajornades; no marcar cap flux BD com a PROVAT.
-9. **Desplegament:** no acreditat; `main` i producció no són la branca auditada.
+5. **Redsys/concurrència:** callbacks tardans i reserves han de compartir criteris de conciliació abans de release/freeze.
+6. **Migracions:** no aplicades; el runner usa el nom complet i no pateix col·lisió de ledger pels dos `000025`. `000027` corregeix el conflicte real dels CHECK finals; cal validar l'aplicació DDL i l'ordre efectiu en MySQL.
+7. **Proves:** MySQL i concurrència real ajornades; no marcar cap flux BD com a PROVAT.
+8. **Desplegament:** no acreditat; `main` i producció no són la branca auditada.
 
 ## 7. Porta documental de tancament
 
