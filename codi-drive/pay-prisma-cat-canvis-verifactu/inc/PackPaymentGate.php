@@ -49,7 +49,30 @@ final class PackPaymentGate
             throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
         }
 
-        return self::authorizeRows($rows, $post, $idpag);
+        $checkout = self::authorizeRows($rows, $post, $idpag);
+
+        $stmtPack = $db->prepare(
+            'SELECT TITOL, CODI FROM info_pack WHERE ID_PACK=? AND ESTAT=1'
+        );
+        if (!$stmtPack) {
+            throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
+        }
+        $packId = (int) $checkout['pack_id'];
+        $stmtPack->bind_param('d', $packId);
+        $stmtPack->execute();
+        $stmtPack->bind_result($packTitle, $packCode);
+        if (!$stmtPack->fetch() || trim((string) $packTitle) === '') {
+            $stmtPack->close();
+            throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
+        }
+        $stmtPack->close();
+
+        $checkout['pack_title'] = (string) $packTitle;
+        $checkout['pack_code'] = (string) $packCode;
+        $checkout['snapshot']['pack']['TITOL'] = (string) $packTitle;
+        $checkout['snapshot']['pack']['CODI'] = (string) $packCode;
+
+        return $checkout;
     }
 
     /** Pure-ish policy over DB-fetched rows for deterministic tests. */
@@ -189,8 +212,6 @@ final class PackPaymentGate
         if (!$fraccionat && $requestedCents !== $pendingCents) {
             throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
         }
-
-        $stmtPack = $db = null; // marker: title is resolved by caller when needed.
 
         return [
             'idpag' => $idpag,
