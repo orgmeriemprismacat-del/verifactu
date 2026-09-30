@@ -130,6 +130,27 @@ P --> Mail
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Participant"]
+  a_1["Secretaria (alta manual al campus)"]
+  subgraph SIF_BOUNDARY["Web i intranet de tastets"]
+    u_0(["Activar accés manualment al campus (fase actual)"])
+    u_1(["UC-108nRegistrar tastet/repte gratuït"])
+    u_2(["UC-107nEvitar alta duplicada"])
+    u_3(["Registrar sol·licitud pendent (sense alta Moodle automàtica)"])
+    u_4(["Registrar consentiment de mailing separat"])
+  end
+  a_0 --> u_1
+  a_1 --> u_0
+  u_1 -.->|include| u_2
+  u_1 -.->|include| u_3
+  u_0 -.-> u_3
+  a_0 --> u_4
+```
+
 ## 3. Diagrama de classes — disseny del web i la intranet, fora del SIF
 
 ```mermaid
