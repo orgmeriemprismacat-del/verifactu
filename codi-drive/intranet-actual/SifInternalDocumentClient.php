@@ -67,7 +67,7 @@ class SifInternalDocumentClient
 
         $headers = [
             'Content-Type: application/json; charset=utf-8',
-            'Accept: application/octet-stream, application/pdf, application/xml',
+            'Accept: application/octet-stream, application/pdf, application/xml, image/png',
             'X-SIF-Key-Id: ' . $this->keyId,
             'X-SIF-Timestamp: ' . $timestamp,
             'X-SIF-Request-Id: ' . $requestId,
