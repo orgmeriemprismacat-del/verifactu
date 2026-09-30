@@ -1582,4 +1582,4 @@ end
 @enduml
 ```
 
-**No inferir integració completa:** els serveis existeixen a la branca, però sessió/rol, storage documental, pricing, emissió fiscal, transport i evidències externes no estan acreditats com a desplegats. La baixa després d'un transfer successiu confirmat segueix pendent. [Fitxes d'acció UC-111](../06-fitxes-funcionals/uc-111-accions.md) · [dades/estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md) · [traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md).
+**No inferir integració completa:** els serveis existeixen a la branca, però sessió/rol, storage documental, pricing, emissió fiscal, transport i evidències externes no estan acreditats com a desplegats. La baixa del curs actual després de transfers successius ja queda representada actuant sobre l'últim `CONFIRMED`, amb resolució del parent promocional; el pendent és connectar-ho a runtime i verificar-ho en BD. [Fitxes d'acció UC-111](../06-fitxes-funcionals/uc-111-accions.md) · [dades/estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md) · [traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md).
