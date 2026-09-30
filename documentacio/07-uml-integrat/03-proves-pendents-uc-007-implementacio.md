@@ -21,6 +21,8 @@
 - [ ] NUM_VISIBLE exacte.
 - [ ] UUID exacte.
 - [ ] FACTURA_RELACIONADA llegada.
+- [ ] `SOURCE_TYPE=INSCRIPCIO` + `source_ids` resol una o diverses factures SIF.
+- [ ] `source_ids` sense `source_type` o amb IDs invàlids → 422.
 - [ ] Combinació de criteris = AND.
 - [ ] `%` i `_` no actuen com wildcard.
 - [ ] Criteri desconegut → 422.
@@ -35,7 +37,7 @@
 - [ ] Moviments econòmics separats.
 - [ ] Original i rectificativa separats.
 - [ ] Últim registre fiscal i estat AEAT coherents.
-- [ ] Metadata documental sense `PATH_FITXER`.
+- [ ] Metadata documental sense `PATH_FITXER` ni `HASH_FITXER` al read model UC-007.
 - [ ] N consultes → cap INSERT/UPDATE a factura, línies, registre fiscal, cua, pagaments o documents.
 - [ ] Només es permet l'escriptura tècnica del guard anti-replay/auditoria.
 
@@ -53,7 +55,7 @@
 - [ ] Factura SIF amb 0 resultats no impedeix consultar històric llegat.
 - [ ] Errors de configuració del pont no exposen secrets al navegador.
 
-## 5. Documents — UC-080 posterior
+## 5. Documents — UC-080
 
 - [ ] READY + bytes/hash correctes → stream exacte.
 - [ ] Metadata sense bytes → unavailable.
@@ -62,6 +64,9 @@
 - [ ] Original i rectificativa → dos documents independents.
 - [ ] Històric original vs reconstruït correctament etiquetat.
 - [ ] Cap document fiscal immutable passa per `eliminarArxiu.php`.
+- [ ] PDF/XML/QR mantenen MIME i extensió correctes.
+- [ ] Proxy intranet sense `X-Requested-With`/origen vàlid → denegació.
+- [ ] `fiscal_document_access` registra ALLOWED/DENIED/FAILED sense path ni secret.
 
 ## 6. Llegat pendent de regressió
 
