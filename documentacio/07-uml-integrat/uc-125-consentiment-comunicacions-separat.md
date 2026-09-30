@@ -101,7 +101,7 @@ flowchart LR
   a_1["Gestió autoritzada"]
   a_2["Plataforma de comunicacions"]
   subgraph SIF_BOUNDARY["Consentiment independent del SIF"]
-    u_0(["UC-125nGestionar consentiment"])
+    u_0(["UC-125<br/>Gestionar consentiment"])
     u_1(["Registrar text, finalitat i opció"])
     u_2(["Confirmar si política ho exigeix"])
     u_3(["Retirar i aturar futurs enviaments"])
