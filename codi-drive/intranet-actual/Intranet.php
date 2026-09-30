@@ -6014,7 +6014,7 @@ class Intranet
 			<div class='d-flex flex-column justify-content-center align-items-center
 				w-100 text-center border-bottom card-header '>
 				<p class='title font-weight-bold text-center py-3 mb-0 align-items-center
-				justify-content-center d-flex'>".$cercaPer."</p>
+				justify-content-center d-flex'>".$this->__escapeHtmlValue($cercaPer)."</p>
 			</div>
 			<div class='card-body px-0'>
 				<div id='dades-personals' class='d-flex flex-column
@@ -14613,12 +14613,12 @@ class Intranet
 				}
 
 				$tableFactures .= "<tr>
-				<td>".$resultats[$i][1]."</td>
-				<td>".$resultats[$i][2]."</td>
-				<td>".$resultats[$i][3]."</td>
-				<td>".$resultats[$i][4]."</td>
-				<td>".$resultats[$i][5]."</td>
-				<td>".$resultats[$i][6]."</td>
+				<td>".$this->__escapeHtmlValue($resultats[$i][1])."</td>
+				<td>".$this->__escapeHtmlValue($resultats[$i][2])."</td>
+				<td>".$this->__escapeHtmlValue($resultats[$i][3])."</td>
+				<td>".$this->__escapeHtmlValue($resultats[$i][4])."</td>
+				<td>".$this->__escapeHtmlValue($resultats[$i][5])."</td>
+				<td>".$this->__escapeHtmlValue($resultats[$i][6])."</td>
 				<td>
 					<div class='d-flex flex-column flex-sm-row justify-content-center align-items-center w-100'>
 						<i id='info-".$resultats[$i][0]."' class='material-icons cns-informacio' title='Consulta la informació'>info</i>
@@ -14729,6 +14729,7 @@ class Intranet
    */
 	public function modalConsultaInformacio_Factures($id) {
 		$conWeb = new ConnexioWeb();
+		$facturaTrobada = false;
 		$conWeb->connectarBD();
 		if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["buscarInfoFacturaId"] ) ) {
 			$stmt->bind_param("d", $id);
@@ -14739,12 +14740,20 @@ class Intranet
 				$generada, $rao, $cif, $adreca, $cp, $poblacio, $concepte1, $concepte2,
 				$import, $entitat, $formaPag, $curs, $hores, $obs, $efact);
 				$stmt->fetch();
+				$facturaTrobada = true;
 			}
 			$conWeb->closeStmt();
 		}
 		else {
 			throw new Exception('',4175);
 		}
+		if (!$facturaTrobada) {
+			$conWeb->desconectarBD();
+			throw new RuntimeException('Factura llegada no trobada', 404);
+		}
+
+		$dni = $tipusInsc = $fraccionat = $fraccio = $apagar = $pagament = $idPag = $obspag = null;
+
 		if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["buscarInfoFactInsc2"] ) ) {
 			$stmt->bind_param("d", $id);
 			$stmt->execute();
@@ -14775,17 +14784,17 @@ class Intranet
 			<p class='titol-apartat d-flex p-0 m-0'>Dades inscripció</p>
 			<div class='apartat d-flex flex-column flex-md-row justify-content-center align-items-center w-100'>
 				<div class='d-flex flex-column justify-content-center align-items-center w-100'>
-					".$this->__mostrarInput(1,"","Fraccionat", "active", "fraccionat-cns-fact", "no-edit", $fraccionat)."
-					".$this->__mostrarInput(1,"","Fraccio", "active", "fraccio-cns-fact", "no-edit", $fraccio)."
+					".$this->__mostrarInput(1,"","Fraccionat", "active", "fraccionat-cns-fact", "no-edit", $this->__escapeHtmlValue($fraccionat))."
+					".$this->__mostrarInput(1,"","Fraccio", "active", "fraccio-cns-fact", "no-edit", $this->__escapeHtmlValue($fraccio))."
 				</div>
 				<div class='d-flex flex-column justify-content-center align-items-center w-100'>
-					".$this->__mostrarInput(1,"","DNI", "active", "dni-cns-fact", "no-edit", $dni)."
-					".$this->__mostrarInput(1,"","A PAGAR", "active", "apagar-cns-fact", "no-edit", $apagar)."
+					".$this->__mostrarInput(1,"","DNI", "active", "dni-cns-fact", "no-edit", $this->__escapeHtmlValue($dni))."
+					".$this->__mostrarInput(1,"","A PAGAR", "active", "apagar-cns-fact", "no-edit", $this->__escapeHtmlValue($apagar))."
 				</div>
 			</div>
 			<div class='apartat d-flex flex-column flex-md-row justify-content-center align-items-center mb-3 w-100'>
 				<div class='una-fila d-flex flex-column flex-sm-row justify-content-center align-items-center w-100'>
-					".$this->__mostrarInput(1,"","OBS PAG", "active", "obspag-cns-fact", "no-edit", $obspag)."
+					".$this->__mostrarInput(1,"","OBS PAG", "active", "obspag-cns-fact", "no-edit", $this->__escapeHtmlValue($obspag))."
 				</div>
 			</div>
 		</div>
@@ -14797,36 +14806,36 @@ class Intranet
 			<div class='result-success hide'></div>
 			<div class='apartat d-flex flex-column flex-md-row justify-content-center align-items-center mb-3 w-100'>
 				<div class='d-flex flex-column justify-content-center align-items-center w-100'>
-					".$this->__mostrarInput(1,"hide","Id", "active", "id-cns-fact", "no-edit", $id)."
-					".$this->__mostrarInput(1,"","Factura", "active", "factura-cns-fact", "no-edit", $factRel)."
-					".$this->__mostrarInput(1,"","Any", "active", "any-cns-fact", "no-edit", $any)."
-					".$this->__mostrarInput(1,"","Data", "active", "data-cns-fact", "no-edit", $dataTr)."
-					".$this->__mostrarInput(1,"","Rao", "active", "rao-cns-fact", "no-edit editables", $rao)."
-					".$this->__mostrarInput(1,"","Codi postal", "active", "codipostal-cns-fact", "no-edit editables", $cp)."
-					".$this->__mostrarInput(1,"","Adreça", "active", "adreca-cns-fact", "no-edit editables", $adreca)."
-					".$this->__mostrarInput(1,"","Curs", "active", "curs-cns-fact", "no-edit", $curs)."
+					".$this->__mostrarInput(1,"hide","Id", "active", "id-cns-fact", "no-edit", $this->__escapeHtmlValue($id))."
+					".$this->__mostrarInput(1,"","Factura", "active", "factura-cns-fact", "no-edit", $this->__escapeHtmlValue($factRel))."
+					".$this->__mostrarInput(1,"","Any", "active", "any-cns-fact", "no-edit", $this->__escapeHtmlValue($any))."
+					".$this->__mostrarInput(1,"","Data", "active", "data-cns-fact", "no-edit", $this->__escapeHtmlValue($dataTr))."
+					".$this->__mostrarInput(1,"","Rao", "active", "rao-cns-fact", "no-edit editables", $this->__escapeHtmlValue($rao))."
+					".$this->__mostrarInput(1,"","Codi postal", "active", "codipostal-cns-fact", "no-edit editables", $this->__escapeHtmlValue($cp))."
+					".$this->__mostrarInput(1,"","Adreça", "active", "adreca-cns-fact", "no-edit editables", $this->__escapeHtmlValue($adreca))."
+					".$this->__mostrarInput(1,"","Curs", "active", "curs-cns-fact", "no-edit", $this->__escapeHtmlValue($curs))."
 				</div>
 				<div class='d-flex flex-column justify-content-center align-items-center w-100'>
-					".$this->__mostrarInput(1,"","Num", "active", "num-cns-fact", "no-edit", $num)."
-					".$this->__mostrarInput(1,"","Ordre", "active", "ordre-cns-fact", "no-edit", $ordre)."
-					".$this->__mostrarInput(1,"","Data pagament", "active", "data-pag-cns-fact", "no-edit", $dataPagTr)."
-					".$this->__mostrarInput(1,"","CIF", "active", "cif-cns-fact", "no-edit editables", $cif)."
-					".$this->__mostrarInput(1,"","Població", "active", "poblacio-cns-fact", "no-edit editables", $poblacio)."
-					".$this->__mostrarInput(1,"","Import", "active", "import-cns-fact", "no-edit", $import)."
-					".$this->__mostrarInput(1,"","Hores", "active", "hores-cns-fact", "no-edit", $hores)."
+					".$this->__mostrarInput(1,"","Num", "active", "num-cns-fact", "no-edit", $this->__escapeHtmlValue($num))."
+					".$this->__mostrarInput(1,"","Ordre", "active", "ordre-cns-fact", "no-edit", $this->__escapeHtmlValue($ordre))."
+					".$this->__mostrarInput(1,"","Data pagament", "active", "data-pag-cns-fact", "no-edit", $this->__escapeHtmlValue($dataPagTr))."
+					".$this->__mostrarInput(1,"","CIF", "active", "cif-cns-fact", "no-edit editables", $this->__escapeHtmlValue($cif))."
+					".$this->__mostrarInput(1,"","Població", "active", "poblacio-cns-fact", "no-edit editables", $this->__escapeHtmlValue($poblacio))."
+					".$this->__mostrarInput(1,"","Import", "active", "import-cns-fact", "no-edit", $this->__escapeHtmlValue($import))."
+					".$this->__mostrarInput(1,"","Hores", "active", "hores-cns-fact", "no-edit", $this->__escapeHtmlValue($hores))."
 				</div>
 			</div>
 			<div class='apartat d-flex flex-column justify-content-center align-items-center mb-1 w-100'>
 				<div class='d-flex flex-column justify-content-center align-items-center w-100 una-fila'>
-					".$this->__mostrarInput(1,"","Concepte1", "active", "concepte1-cns-fact", "no-edit editables", $concepte1)."
+					".$this->__mostrarInput(1,"","Concepte1", "active", "concepte1-cns-fact", "no-edit editables", $this->__escapeHtmlValue($concepte1))."
 				</div>
 				<div class='d-flex flex-column justify-content-center align-items-center w-100 una-fila'>
-					".$this->__mostrarInput(1,"","Concepte2", "active", "concepte2-cns-fact", "no-edit editables", $concepte2)."
+					".$this->__mostrarInput(1,"","Concepte2", "active", "concepte2-cns-fact", "no-edit editables", $this->__escapeHtmlValue($concepte2))."
 				</div>
 			</div>
 			<div class='apartat d-flex flex-column flex-md-row justify-content-center align-items-center w-100'>
 				<div class='d-flex flex-column flex-sm-row justify-content-center align-items-center w-100 una-fila'>
-					".$this->__mostrarInput(1,"",'Observacions', 'active', 'obs-cns-fact', 'no-edit editables', $obs)."
+					".$this->__mostrarInput(1,"",'Observacions', 'active', 'obs-cns-fact', 'no-edit editables', $this->__escapeHtmlValue($obs))."
 				</div>
 			</div>
 		</div>";
@@ -38902,6 +38911,14 @@ echo "usuarisBD: ".$usuarisBD[4]."<BR>";*/
 	*			Si tipus és 1, es mostrarà amb un div amb l'estil d'un input,
 	*			altrament es mostrarà un input
    */
+	private function __escapeHtmlValue($value) {
+		return htmlspecialchars(
+			(string) ($value ?? ''),
+			ENT_QUOTES | ENT_SUBSTITUTE,
+			'UTF-8'
+		);
+	}
+
 	private function __mostrarInput($tipus, $classForm, $nameLabel, $labelClass,
 	$idInput, $classInput, $valorInput) {
 		if ( $idInput == "" ) $textId = "";
