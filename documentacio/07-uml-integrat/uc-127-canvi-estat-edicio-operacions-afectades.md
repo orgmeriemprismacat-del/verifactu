@@ -98,12 +98,12 @@ flowchart LR
   a_1["Cobraments"]
   a_2["Responsable fiscal"]
   subgraph SIF_BOUNDARY["SIF · canvi massiu d'edició"]
-    u_0(["UC-127nCanviar estat edició"])
+    u_0(["UC-127<br/>Canviar estat edició"])
     u_1(["Inventariar operacions i imports individuals"])
     u_2(["Decidir trasllat/baixa per afectat"])
-    u_3(["UC-105/28/29nResoldre fons per inscrit"])
-    u_4(["UC-74nClassificar document fiscal"])
-    u_5(["UC-124/129nConciliar accés i matrícula"])
+    u_3(["UC-105/28/29<br/>Resoldre fons per inscrit"])
+    u_4(["UC-74<br/>Classificar document fiscal"])
+    u_5(["UC-124/129<br/>Conciliar accés i matrícula"])
   end
   a_0 --> u_0
   a_1 --> u_3
