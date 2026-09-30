@@ -81,6 +81,29 @@ A --> Intent
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Alumne/comprador"]
+  a_1["Gestió acadèmica"]
+  subgraph SIF_BOUNDARY["Reserva comercial + inscripció"]
+    u_0(["UC-106nCrear reserva abans de pagar"])
+    u_1(["UC-107nDetectar matrícula duplicada"])
+    u_2(["UC-115nReservar plaça real"])
+    u_3(["Guardar operació, preu i actors"])
+    u_4(["UC-112nCongelar abans del TPV"])
+    u_5(["UC-63nCrear intenció quan s'inicia pagament"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+  u_0 -.->|include| u_4
+  a_0 --> u_5
+```
+
 ## 3. Diagrama de classes: intenció executable vs reserva pendent
 
 ```mermaid
