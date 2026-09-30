@@ -62,16 +62,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: PHP 8.2 extensions
-
-      - name: Preparar BD legacy de proves
-        run: |
-          mysql -h 127.0.0.1 -P 3306 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+      - name: PHP 8.4 extensions
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
           extensions: pdo_mysql, openssl, mbstring, dom, curl
           coverage: none
+
+      - name: Preparar BD legacy de proves
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
       - name: PHP syntax SIF
         run: find sif -name '*.php' -print0 | xargs -0 -n1 php -l
