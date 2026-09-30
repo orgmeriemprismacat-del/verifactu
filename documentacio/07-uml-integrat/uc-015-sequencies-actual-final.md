@@ -1,6 +1,6 @@
 # UC-015 · Seqüències ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29
+**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-09-30
 
 ## 1. ACTUAL — alta del pack al web
 
@@ -20,23 +20,24 @@ Price->>DB: consulta info_pack/packs/preu
 Price-->>JS: preu original | preu pack
 JS-->>U: mostra preu
 U->>JS: confirma formulari
-JS->>Alta: GET dades + preuCursos + preuPack + idPack
-Alta->>DB: SELECT últim IDPAG
-Alta->>Alta: IDPAG = últim + 1
+JS->>Alta: GET dades del formulari + idPack
+Alta->>DB: rellegir preu pack i preus components
+Alta->>DB: GET_LOCK allocator IDPAG
+Alta->>Alta: reservar MAX(IDPAG)+1 sota lock
 loop cada component
- Alta->>DB: INSERT inscripcions TIPUS_INSC=P
+ Alta->>DB: INSERT TIPUS_INSC=P + PACK_ORDINAL/base/descompte/total
 end
+Alta->>DB: RELEASE_LOCK allocator IDPAG
 Alta->>Mail: correus alta
 Alta-->>JS: hash inscripció
 JS-->>U: redirecció confirmació
 ```
 
-### Riscos ACTUAL
+### Riscos ACTUAL residuals
 
-- import del pack provinent del client;
-- generació concurrent de `IDPAG`;
-- no hi ha snapshot comercial versionat;
-- no es conserva ordinal comercial explícit.
+- l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
+- cal acreditar que `PACK_ORDINAL` representa l'ordre comercial canònic;
+- el callback fiscal legacy continua existint com a camí antic.
 
 ## 2. ACTUAL — cobrament pack al callback llegat
 
@@ -49,7 +50,7 @@ participant DB as BD legacy
 participant Mail as Correus
 
 R->>CB: POST Ds_* + URL amb GET idPag/import/order
-CB->>CB: calcula signatura
+CB->>CB: valida signatura + DS_ORDER + import
 CB->>DB: cerca inscripcions IDPAG
 CB->>DB: calcula factura_relacionada / ordre fiscal
 CB->>DB: INSERT factures
@@ -60,7 +61,7 @@ CB->>DB: UPDATE FRACCIO si correspon
 CB->>Mail: confirmacions
 ```
 
-**Observació d'auditoria:** el fitxer llegit calcula la signatura però no s'ha acreditat una comparació bloquejant amb `Ds_Signature` abans de les escriptures.
+**Revalidació 30/09:** les còpies legacy inspeccionades ja bloquegen per signatura, `Ds_Order` i import; el risc residual és que aquest script encara pot fer escriptura fiscal directa i s'ha de retirar.
 
 ## 3. FINAL — intenció, callback i emissió SIF
 
@@ -68,8 +69,8 @@ CB->>Mail: confirmacions
 sequenceDiagram
 autonumber
 actor U as Alumne
-participant Web as PackCheckoutAdapter
-participant V as PackCommercialSnapshotValidator
+participant Gate as PackPaymentGate
+participant Client as SifPaymentIntentClient
 participant Intent as RedsysPaymentIntentService
 participant R as Redsys
 participant CB as RedsysCallbackService
@@ -80,14 +81,14 @@ participant P as RedsysPackInvoiceService
 participant I as InvoiceService
 participant L as EnrollmentFundMovementRepository
 participant Sync as AcademicEnrollmentSyncService
-participant Outbox as NotificationOutbox
+participant Outbox as PackPaymentNotificationService
 
-U->>Web: confirmar compra
-Web->>V: validar composició/preu/receptor/ordinal
-V-->>Web: snapshot congelat
-Web->>Intent: create(PACK, DS_ORDER, total, snapshot)
-Intent-->>Web: UUID_INTENT
-Web->>R: inicia TPV
+U->>Gate: confirmar pagament pack
+Gate->>Gate: rellegir BD i validar composició/preu/receptor/ordinal
+Gate-->>Client: snapshot congelat
+Client->>Intent: POST HMAC create(PACK, DS_ORDER, total, snapshot)
+Intent-->>Client: intenció acceptada
+Client->>R: construir TPV amb DS_ORDER/intenció
 R->>CB: callback signat
 CB->>CB: validar signatura + intent + import + moneda + terminal
 CB->>Q: enqueue
@@ -148,6 +149,9 @@ end
 
 - Seqüència ACTUAL web: documentada.
 - Seqüència ACTUAL callback: documentada.
-- Seqüència FINAL: documentada.
-- Control total factura/import Redsys: implementat el 2026-09-29.
-- Ledger per inscripció: pendent.
+- Seqüència FINAL: **majoritàriament implementada** al flux PACK asíncron.
+- Control total factura/import Redsys: implementat.
+- Checkout → intenció SIF: implementat.
+- Ledger per inscripció: implementat i cablejat al worker.
+- Outbox: implementat i cablejat al worker.
+- Pendent: retirar callback fiscal legacy, acreditar l'origen comercial de l'ordinal i executar proves d'entorn.
