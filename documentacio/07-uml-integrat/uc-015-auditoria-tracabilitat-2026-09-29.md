@@ -299,3 +299,27 @@ Prova afegida:
 - `LegacyPackCallbackBoundaryTest::testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode()`.
 
 El script `sif/scripts/process-redsys-pack.php` continua limitat a CLI i rebutja `SIF_ENV=production`; es considera eina de diagnòstic/reconciliació no productiva, no un segon callback.
+
+
+## 15. Revalidació exhaustiva contra main — 2026-09-30 (segona passada)
+
+### Estat real
+
+- **DOCUMENTAT:** fitxa funcional + UML integrat + classes + seqüències + activitats per pàgina existeixen.
+- **IMPLEMENTAT:** checkout PACK autoritatiu al servidor, intenció SIF, callback/cua/worker, factura N línies, reconciliació import, ledger `enrollment_fund_movement`, outbox `notification_outbox`, sincronització legacy post-SIF i guard HTTP 410 del callback fiscal legacy.
+- **VERIFICAT PER INSPECCIÓ:** cablejat de `PackPaymentGate`, `SifPaymentIntentClient`, `RedsysPackInvoiceService`, `PackEnrollmentFundAllocationService`, `PackPaymentNotificationService`, `RedsysLegacySyncingProcessor` i `LegacySyncService`.
+- **PENDENT D'EVIDÈNCIA D'ENTORN:** pagament real Redsys/preproducció, worker real amb secrets/URLs definitius i verificació navegador.
+
+### Correccions d'aquesta passada
+
+1. Els UML FINAL deixen d'inventar `AcademicEnrollmentSyncService`: el flux real usa `RedsysLegacySyncingProcessor` + `LegacySyncService` després de l'èxit SIF.
+2. El runner local UC-015 comprova explícitament les taules `enrollment_fund_movement` i `notification_outbox`.
+3. El runner local enumera els tests de regressió afegits després de la suite 619/0 i fa lint dels quatre PHP crítics del checkout PACK.
+4. La suite 619/0 continua sent evidència històrica vàlida del commit indicat, però **no s'utilitza com a prova que commits posteriors hagin executat els tests nous**.
+
+### Mancances residuals prioritzades
+
+- **P0 entorn:** executar E2E real/preproducció amb Redsys i conservar evidència de callback, cua, factura, payment, ledger, outbox i sincronització legacy.
+- **P1 comercial:** acreditar formalment la font canònica de `PACK_ORDINAL`.
+- **P1 retirada:** eliminar físicament `realitzaPagamentPackAutomatic.php` com a callback fiscal quan acabi la finestra de rollback.
+- **P2 llegat:** substituir si es decideix l'allocator `MAX(IDPAG)+1` sota lock per una seqüència pròpia.
