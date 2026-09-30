@@ -88,6 +88,27 @@ Main ..> Repair : <<include>> (reparació aprovada)
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Gestió acadèmica"]
+  a_1["Operador / API Moodle"]
+  subgraph SIF_BOUNDARY["Prisma + Moodle · reconciliació"]
+    u_0(["UC-129nReconciliar usuaris/cursos/matrícules"])
+    u_1(["Comparar identitats, cursos i rols"])
+    u_2(["UC-126nResoldre conflicte d'identitat"])
+    u_3(["UC-124nDecidir accés segons estat"])
+    u_4(["Aplicar reparació idempotent i verificar"])
+  end
+  a_0 --> u_0
+  a_1 --> u_4
+  u_0 -.->|include| u_1
+  u_2 -.-> u_0
+  u_3 -.-> u_0
+  u_0 -.->|include| u_4
+```
+
 ## 4. UML de classes — conciliació objectiu, lector fiscal existent
 
 ```mermaid
