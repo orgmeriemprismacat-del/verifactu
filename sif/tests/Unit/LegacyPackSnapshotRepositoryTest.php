@@ -34,7 +34,7 @@ final class LegacyPackSnapshotRepositoryTest
                     'PAGAMENT' => '0.00',
                     'FRACCIO' => 0,
                     'FRACCIONAT' => 0,
-                    'OBSERVACIONS' => 'alta PACK|44',
+                    'OBSERVACIONS' => 'alta PACK|44 PACK_ORDINAL|1 PACK_BASE|120.00 PACK_DISCOUNT|0.00 PACK_DISCOUNT_PCT|0.00 PACK_TOTAL|120.00',
                     'pag_observacions' => '',
                 ],
                 [
@@ -57,7 +57,7 @@ final class LegacyPackSnapshotRepositoryTest
                     'PAGAMENT' => '0.00',
                     'FRACCIO' => 0,
                     'FRACCIONAT' => 0,
-                    'OBSERVACIONS' => 'alta PACK|44',
+                    'OBSERVACIONS' => 'alta PACK|44 PACK_ORDINAL|2 PACK_BASE|120.00 PACK_DISCOUNT|30.00 PACK_DISCOUNT_PCT|25.00 PACK_TOTAL|90.00',
                     'pag_observacions' => '',
                 ],
             ],
