@@ -24,8 +24,8 @@
 | Denegar afiliació | intranet | mateix endpoint | mateix mètode | VALID_DESC=2 i possible canvi A_PAGAR | UC-019 | Sí | Sí | Sí | No |
 | Emetre/cobrar alumne | worker/SIF | callback UC-03 | `RedsysUsocInvoiceService` | factura + payment + allocation | UC-019a/013 | Sí | Sí | Sí | Tests existeixen |
 | Persistir pendent entitat | SIF | resposta + checkpoint | `RedsysUsocInvoiceService` + `UsocFinancingCaseRepository` | `usoc_financing_case=PENDING_ENTITY_INVOICE` | UC-013 | Sí | Sí | Sí | Tests afegits, execució no acreditada |
-| Emetre factura entitat | CLI/servei; pantalla pendent | `process-usoc-entity.php` | `UsocEntityInvoiceService` + `UsocStudentInvoiceLinkRepository` | factura PENDING, fact_rels USOC_ENTITY, checkpoint ENTITY_INVOICED | UC-019b/013 | Sí | Sí | Sí | Tests afegits, execució no acreditada |
-| Cobrar entitat | ruta USOC preproducció | `process-usoc-entity-payment.php` | `UsocEntityPaymentService` → `ManualPaymentService`/`PaymentService` → `UsocCaseReconciler` | payment/allocation + actualització `usoc_financing_case` | UC-002/022/024/013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
+| Emetre factura entitat | UI autònoma intranet + API signada | `process-usoc-entity.php` | `UsocEntityInvoiceService` + `UsocStudentInvoiceLinkRepository` | factura PENDING, fact_rels USOC_ENTITY, checkpoint ENTITY_INVOICED | UC-019b/013 | Sí | Sí | Sí | Tests afegits, execució no acreditada |
+| Cobrar entitat | UI autònoma intranet + API signada + ruta preproducció | `process-usoc-entity-payment.php` | `UsocEntityPaymentService` → `ManualPaymentService`/`PaymentService` → `UsocCaseReconciler` | payment/allocation + actualització `usoc_financing_case` | UC-002/022/024/013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
 | Conciliar dues parts | CLI/preproducció | `reconcile-usoc-case.php` | `UsocCaseReconciler` | actualitza `usoc_financing_case` segons estats de factura i imports | UC-013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
 | Canvi/baixa | intranet | fluxos compartits | UC-026/027/005 | rectificacions/moviments | UC-013+ | Parcial | Parcial | Parcial | No E2E |
 
@@ -72,7 +72,7 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 4. Validació legacy via POST + CSRF + `ROLS_EDITAR` — IMPLEMENTADA; falta traça persistent SIF de la decisió.
 5. `IDPAG` legacy — IMPLEMENTAT allocator compartit amb named lock MySQL als fluxos actuals identificats.
 6. Adaptador/pantalla final de gestió de factura entitat.
-7. Connectar la interfície/API final amb `UsocEntityPaymentService`; evitar que el flux USOC utilitzi el registre genèric sense reconciliació.
+7. Integrar `alumnes-usoc-financament.php` al menú/routing habitual de la intranet i validar configuració/rols amb `preflight-usoc-intranet.php`.
 8. Prova E2E amb callback duplicat i pagament entitat parcial/complet.
 
 ### Decisió funcional
