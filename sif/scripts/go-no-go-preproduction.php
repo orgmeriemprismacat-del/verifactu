@@ -13,6 +13,8 @@ if (PHP_SAPI !== 'cli') {
 $baseDir = dirname(__DIR__);
 $config = require $baseDir . '/config/sif.php';
 $env = (string) ($config['env'] ?? 'local');
+$incidentReadRoles = normalizeRoles((array) ($config['incidents']['read_roles'] ?? []));
+$incidentManageRoles = normalizeRoles((array) ($config['incidents']['manage_roles'] ?? []));
 $checks = [
     'schema_verified' => false,
     'php_pdo_mysql' => extension_loaded('pdo_mysql'),
@@ -24,6 +26,13 @@ $checks = [
     'sif_database_configured' => (string) ($config['db']['dsn'] ?? '') !== '',
     'legacy_database_configured' => (string) ($config['legacy_db']['dsn'] ?? '') !== '',
     'redsys_merchant_key_configured' => (string) ($config['redsys']['merchant_key'] ?? '') !== '',
+    'incident_panel_preflight_present' => is_file($baseDir . '/scripts/preflight-incidents-panel.php'),
+    'incident_read_roles_configured' => $incidentReadRoles !== [],
+    'incident_manage_roles_configured' => $incidentManageRoles !== [],
+    'incident_manage_roles_can_read' => array_diff($incidentManageRoles, $incidentReadRoles) === [],
+    'incident_internal_api_secret_strong' => strlen((string) ($config['internal_api']['secret'] ?? '')) >= 32,
+    'incident_panel_launch_secret_strong' => strlen((string) ($config['panel']['launch_secret'] ?? '')) >= 32,
+    'incident_panel_launch_path_exact' => (string) ($config['panel']['launch_path'] ?? '') === '/sif/incidencies/',
     'sif_database_connectivity' => false,
     'legacy_database_connectivity' => false,
     'factura_table' => false,
@@ -37,6 +46,8 @@ $checks = [
     'redsys_callback_queue_table' => false,
     'factura_documents_table' => false,
     'errors_verifactu_table' => false,
+    'sif_incident_action_table' => false,
+    'internal_api_request_table' => false,
     'fact_rels_table' => false,
     'fiscal_chain_state_seeded' => false,
     'legacy_inscripcions_table' => false,
@@ -180,6 +191,18 @@ $checks = [
         'src/Repository/DocumentRepository.php',
         'src/Repository/IncidentRepository.php',
     ]),
+    'incident_panel_circuit_present' => allFilesPresent($baseDir, [
+        'scripts/preflight-incidents-panel.php',
+        'src/Http/IncidentPanelSession.php',
+        'src/Service/PanelLaunchAuthenticator.php',
+        'src/Service/IncidentLifecycleService.php',
+        'src/Repository/IncidentActionRepository.php',
+        'public/api/incidents/manage.php',
+        'public/sif/incidencies/index.php',
+        'public/sif/incidencies/actions.php',
+        'public/sif/incidencies/app.js',
+        'public/sif/incidencies/style.css',
+    ]),
 ];
 $errors = [];
 
@@ -202,6 +225,8 @@ try {
         'redsys_callback_queue',
         'factura_documents',
         'errors_verifactu',
+        'sif_incident_action',
+        'internal_api_request',
         'fact_rels',
     ] as $table) {
         $checks[$table . '_table'] = tableExists($sifDb, $table);
@@ -247,6 +272,21 @@ if ($errors !== []) {
 
 echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
 exit($decision === 'GO' ? 0 : 1);
+
+function normalizeRoles(array $roles): array
+{
+    $normalized = [];
+    foreach ($roles as $role) {
+        $role = strtoupper(trim((string) $role));
+        if ($role !== '') {
+            $normalized[$role] = true;
+        }
+    }
+
+    $result = array_keys($normalized);
+    sort($result, SORT_STRING);
+    return $result;
+}
 
 function allFilesPresent(string $baseDir, array $relativePaths): bool
 {
