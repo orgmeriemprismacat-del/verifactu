@@ -192,9 +192,11 @@ $checks = [
         'src/Repository/IncidentRepository.php',
     ]),
     'incident_panel_e2e_present' => is_file($baseDir . '/scripts/e2e-incidents-panel.php'),
+    'incident_panel_verifier_present' => is_file($baseDir . '/scripts/verify-incidents-panel-preproduction.php'),
     'incident_panel_circuit_present' => allFilesPresent($baseDir, [
         'scripts/preflight-incidents-panel.php',
         'scripts/e2e-incidents-panel.php',
+        'scripts/verify-incidents-panel-preproduction.php',
         'src/Http/IncidentPanelSession.php',
         'src/Service/PanelLaunchAuthenticator.php',
         'src/Service/IncidentLifecycleService.php',
