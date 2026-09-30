@@ -61,7 +61,9 @@ else {
 		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne-usoc.js?ver=1.0"></script>
 <?php } ?>
 
-			<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne-uc111.js?ver=1.0"></script>
+<?php if (getenv('SIF_NOVICE_PROMOTION_UI_ENABLED') === '1') { ?>
+		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne-uc111.js?ver=1.1"></script>
+<?php } ?>
 	</body>
 </html>
 <?php } ?>

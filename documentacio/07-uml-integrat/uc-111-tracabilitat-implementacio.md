@@ -26,6 +26,21 @@
 
 **Conclusió de l'inventari:** dins del paquet documental definit per aquesta auditoria **ja no falta cap tipus de peça** (fitxa, cas d'ús, classes, seqüència, activitat o traçabilitat). El que continua pendent és **validació del contingut contra runtime i proves**, no la mera existència documental. Els fitxers suplementaris no creen nous IDs: el catàleg continua en 142 UC/variants canònics.
 
+
+## 0 bis. Estat executable verificat després del merge — 30/09/2026
+
+El paquet UC-111 del PR #14 es va fusionar a `main` el 29/09/2026. Les indicacions històriques d'aquesta matriu que diuen «MySQL pendent», «no executada» o «IMPLEMENTAT_BRANCA» s'han d'interpretar segons el tall on es van escriure, no com l'estat actual de les peces cobertes per la suite.
+
+**Evidència disponible:**
+- GitHub Actions / MySQL 8, PR #14: **537 proves passades, 0 fallades**.
+- `NovicePromotionPostPaymentFlowTest::testPartialThenFullPaymentThenDuplicateCallbackKeepsOneGrantAndOneCode`: PASS.
+- `NovicePromotionStudentSummaryServiceTest::testStudentSummaryShowsGrantedAppliedAndAvailableWithoutExposingCode`: PASS.
+- El paquet UC-111 és present a `main`.
+- La revisió del 30/09 reforça la frontera de Consulta / Modifica alumne amb feature flag, POST, same-origin, CSRF, política de visualització de `/alumnes/mostrar-alumne/` i prova `NovicePromotionIntranetBoundaryTest`.
+
+**No implica encara:** desplegament en producció, configuració del secret real, prova visual/manual del navegador, transport real del correu privat ni tancament de les decisions fiscal/comptables expressament pendents.
+
+
 ## 1. Cobertura per acció
 
 | Acció | Fitxa | Codi ACTUAL / font | Codi FINAL/branca | UML | Proves | Estat |
@@ -137,3 +152,10 @@ UC-111 només passa a **AUDITADA_COMPLETA** quan:
 ## 8. Navegació
 
 [Fitxa UC-111](../06-fitxes-funcionals/uc-111.md) · [Fitxes d'acció](../06-fitxes-funcionals/uc-111-accions.md) · [Casos d'ús](uc-111-casos-us-actual-final.md) · [Classes](uc-111-classes-actual-final.md) · [Seqüències](uc-111-sequencies-actual-final.md) · [Activitats](uc-111-activitats-actual-final.md) · [Dades i estats](uc-111-dades-estats-actual-final.md)
+
+
+### Bloqueig restant després del reforç de frontera · decisió secretaria → SIF
+
+La ruta legacy `sendMsgValidatProfessorNovell.php` ja queda protegida amb POST, CSRF, same-origin, permís d'edició i idempotència de petició. Això **no acredita encara** que la decisió s'hagi projectat al SIF.
+
+`NovicePromotionSecretaryDecisionProjector` està implementat i té proves pròpies, però en el tall revisat no hi ha un caller executable acreditat que, després del commit de `recent_titulat.VALIDAT`, resolgui l'operació UC-111 corresponent i invoqui `projectDecision(...)` amb l'actor autenticat. El bridge servidor→SIF ja està implementat a la branca de reforç del 30/09/2026 amb HMAC, rol de gestió, lookup idempotent del legacy i API interna que resol una única operació JASOM abans d'invocar el projector. A111-03 passa a **IMPLEMENTAT_BRANCA / E2E_HTTP_LEGACY_PENDENT** fins que la suite i una prova integrada amb les dues connexions acreditin el flux complet.
