@@ -5,6 +5,8 @@ $validatedPackCheckout = null;
 $packOrder = null;
 $packCallbackUrl = null;
 $redsysMerchantKey = trim((string) getenv('SIF_REDSYS_MERCHANT_KEY'));
+$packMerchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
+$packTerminal = trim((string) (getenv('REDSYS_TERMINAL') ?: '1'));
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if ($redsysMerchantKey === '') {
@@ -40,6 +42,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $preflightDb->closeStmt();
 
             if (in_array('P', $preflightTypes, true)) {
+                if ($packMerchantCode === '' || $packTerminal === '') {
+                    throw new RuntimeException('REDSYS_PACK_CONFIGURATION_NOT_AVAILABLE');
+                }
                 if ($preflightTypes !== ['P']) {
                     throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
                 }
@@ -60,7 +65,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     'source_id' => (string) $validatedPackCheckout['source_id'],
                     'expected_amount' => (string) $validatedPackCheckout['payment_amount'],
                     'currency' => 'EUR',
-                    'terminal' => '1',
+                    'terminal' => $packTerminal,
                     'snapshot' => $validatedPackCheckout['snapshot'],
                 ]);
 
@@ -230,7 +235,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
       // Valores de entrada
       $fuc="11250743";
       $terminal="1";
-		// $terminal="001";
+      if ($validatedPackCheckout !== null) {
+         $fuc = $packMerchantCode;
+         $terminal = $packTerminal;
+      }
       $moneda="978";
       $trans="0";
       if ($validatedPackCheckout !== null) {
@@ -279,7 +287,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
       //Datos de configuración
       $version="HMAC_SHA256_V1";
-		$kc = $redsysMerchantKey
+		$kc = $redsysMerchantKey;
 
       // Se generan los parámetros de la petición
       $request = "";
