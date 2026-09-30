@@ -20,7 +20,10 @@ final class CourseChangePreviewService
         $sourceCourse = $this->text($input['source_course'] ?? null, 'source_course', 180);
         $targetCourse = $this->text($input['target_course'] ?? null, 'target_course', 180);
 
-        $invoiceRows = $this->invoices->search($this->db, ['source_ids' => [$idInsc]], 20);
+        $invoiceRows = $this->invoices->search($this->db, [
+            'source_type' => 'INSCRIPCIO',
+            'source_ids' => [$idInsc],
+        ], 20);
         $invoiceResolution = count($invoiceRows) === 0
             ? 'NONE'
             : (count($invoiceRows) === 1 ? 'ONE' : 'MULTIPLE');
