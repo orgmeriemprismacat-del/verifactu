@@ -14,9 +14,10 @@ Ja està integrat a `main`:
 - `CourseLegacyPaymentSyncService`;
 - wiring de `CourseLegacyPaymentSyncService` dins `RedsysLegacySyncingProcessor`;
 - prova `RedsysLegacySyncingProcessorCourseTest`;
-- CI verd del wiring UC-014: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification`.
+- prova `RedsysCourseEndToEndSimulatedTest`, que cobreix pagament complet + callback duplicat i parcial → complet;
+- CI verd del wiring i de l'E2E intern UC-014: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification`.
 
-Això **no acredita encara** el tall productiu ni una prova end-to-end contra Redsys/preproducció.
+Això acredita un **E2E intern simulat** amb MySQL SIF real de test i projecció llegada controlada. **No acredita encara** el tall productiu ni una prova contra Redsys/preproducció real.
 
 ## Pas 1 — preproducció
 
