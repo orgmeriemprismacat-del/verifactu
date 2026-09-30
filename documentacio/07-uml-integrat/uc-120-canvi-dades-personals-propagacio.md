@@ -89,7 +89,7 @@ flowchart LR
   a_1["Gestió autoritzada"]
   a_2["Procés de sincronització"]
   subgraph SIF_BOUNDARY["SIF · canvi de dades personals"]
-    u_0(["UC-120nTramitar petició de canvi"])
+    u_0(["UC-120<br/>Tramitar petició de canvi"])
     u_1(["Verificar subjecte i permisos"])
     u_2(["Revisar camps i operacions afectades"])
     u_3(["Propagar a sistemes vigents"])
