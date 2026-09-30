@@ -309,3 +309,15 @@ Note over S,C: Create(intenció) és PHP real, expiració de A, publicació de B
 ## Traçabilitat
 
 [UC-94 original](../06-fitxes-funcionals/uc-094.md) · [UC-90 descompte tardà](uc-090-descompte-validat-despres-compra.md) · [UC-74 classificador](uc-074-classificar-correccio-fiscal.md) · [UC-104 excés](uc-104-gestionar-exces-cobrament.md) · [UC-105 reassignació](uc-105-reassignar-repartir-pagament.md) · [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php) · [LegacyCourseInvoicePayloadBuilder](../../sif/src/Service/LegacyCourseInvoicePayloadBuilder.php) · [PaymentService](../../sif/src/Service/PaymentService.php) · [Moviments d'inscripció](00-revisio-moviments-inscripcions.md).
+
+## Implementació parcial reutilitzada per UC-071 (29/09/2026)
+
+UC-094 continua sent **DISSENY** com a procés general d'ajust de preu amb proposta/aprovador/versió. Tanmateix, UC-071 ja implementa una part acotada del contracte:
+
+- `CourseChangeImpactClassifier` detecta si el preu final difereix del preu estàndard;
+- exigeix motiu quan `pricing_mode=MANUAL`;
+- la UI mostra preu estàndard i preu final per separat;
+- el preflight de canvi de curs recalcula el preu estàndard al servidor llegat abans d'executar;
+- cap preu manual registra per si sol `CHARGE`, `REFUND` ni canvia `factura.TOTAL`.
+
+Això **no implementa UC-094 complet**: falten proposta persistent, aprovador separat quan la política ho requereixi, control de versió de l'oferta i aplicador genèric fora del canvi de curs. Vegeu [implementació UC-071](03-implementacio-interficie-canvi-curs-2026-09-29.md).

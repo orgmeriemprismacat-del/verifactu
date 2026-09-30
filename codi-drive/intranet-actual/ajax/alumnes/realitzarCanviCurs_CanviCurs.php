@@ -12,6 +12,7 @@ include ('../../Mail.php');
 include ('../../inc/missatgesError.php');
 include ('../../LegacyInvoiceMutationAuthorization.php');
 include ('../../LegacyUsocLifecycleGuard.php');
+require_once ('../../SifInternalApiClient.php');
 session_start();
 
 $usuariDeserialitzat = false;
@@ -83,6 +84,87 @@ try {
 	if ($motiuCanvi === '') {
 		http_response_code(422);
 		throw new RuntimeException('Error: cal indicar el motiu del canvi.');
+	}
+
+	if (getenv('SIF_COURSE_CHANGE_PREVIEW_ENFORCED') === '1') {
+		$actorText = $_SESSION['usuari']->getUsuari();
+		$actorId = is_object($actorText) && method_exists($actorText, 'get')
+			? trim((string) $actorText->get())
+			: '';
+		$roles = $_SESSION['usuari']->getRols();
+		if (!is_array($roles)) {
+			$roles = [];
+		}
+		if ($actorId === '' || $roles === []) {
+			http_response_code(403);
+			throw new RuntimeException('Error: actor SIF no vàlid.');
+		}
+
+		$manualPriceReason = trim((string) ($_POST['sif_manual_price_reason'] ?? ''));
+		$expectedFiscalDecision = trim((string) ($_POST['sif_expected_fiscal_decision'] ?? ''));
+		$expectedEconomicDecision = trim((string) ($_POST['sif_expected_economic_decision'] ?? ''));
+
+		$source = loadLegacyCourseChangeSource($idInsc);
+		$standardTargetRaw = $_SESSION['intranet']->buscarPreuAPagar_modalCanviCurs(
+			$idInsc,
+			$anyC,
+			$mesC,
+			$cursC,
+			$source['amount'],
+			$tipusDesc,
+			$validDesc
+		);
+		$standardTargetAmount = normalizeLegacyCourseChangeMoney($standardTargetRaw, 'target price');
+
+		$client = new SifInternalApiClient();
+		$preview = $client->previewCourseChange($actorId, $roles, [
+			'source_enrollment_id' => $idInsc,
+			'source_course' => $source['course'],
+			'target_course' => $cursC,
+			'original_amount' => $source['amount'],
+			'standard_target_amount' => $standardTargetAmount,
+			'proposed_target_amount' => $apagarC,
+			'paid_amount' => $source['paid'],
+			'management_fee' => $despesesC,
+			'manual_price_reason' => $manualPriceReason,
+		]);
+
+		$previewStatus = (int) ($preview['_http_status'] ?? 0);
+		unset($preview['_http_status']);
+		if (
+			$previewStatus < 200
+			|| $previewStatus >= 300
+			|| ($preview['ok'] ?? false) !== true
+			|| ($preview['can_confirm_legacy_change'] ?? false) !== true
+		) {
+			http_response_code(409);
+			throw new RuntimeException('Error: el preflight SIF ha rebutjat el canvi.');
+		}
+
+		$impact = is_array($preview['impact'] ?? null) ? $preview['impact'] : [];
+		$actualFiscalDecision = (string) ($impact['fiscal_decision'] ?? '');
+		$actualEconomicDecision = (string) ($impact['economic_decision'] ?? '');
+		if ($expectedFiscalDecision !== '' && $expectedFiscalDecision !== $actualFiscalDecision) {
+			http_response_code(409);
+			throw new RuntimeException('Error: la decisió fiscal ha canviat abans de confirmar.');
+		}
+		if ($expectedEconomicDecision !== '' && $expectedEconomicDecision !== $actualEconomicDecision) {
+			http_response_code(409);
+			throw new RuntimeException('Error: la decisió econòmica ha canviat abans de confirmar.');
+		}
+
+		$pagatC = normalizeLegacyCourseChangeMoney(
+			$impact['paid_amount'] ?? $source['paid'],
+			'paid amount'
+		);
+		$pendentC = number_format(
+			(float) normalizeLegacyCourseChangeMoney($apagarC, 'target amount')
+			+ (float) normalizeLegacyCourseChangeMoney($despesesC, 'management fee')
+			- (float) $pagatC,
+			2,
+			'.',
+			''
+		);
 	}
 
 	echo $_SESSION['intranet']->realitzarCanviCurs_modalCanviCurs(

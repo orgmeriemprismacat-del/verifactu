@@ -1462,3 +1462,44 @@ StudentProfileChangeApplier --> InvoiceCorrectionClassifier
 ```
 
 Vegeu [UC-042 integrat](../07-uml-integrat/uc-042-consultar-modificar-alumne.md) i [auditoria de completitud](../07-uml-integrat/02-auditoria-completitud-uc-042-2026-09-29.md).
+
+### 16.1.a. Previsualització executable UC-071 `[IMPLEMENTAT/PARCIAL]`
+
+```mermaid
+classDiagram
+direction LR
+class CourseChangeImpactClassifier {
+  <<PHP existent>>
+  +classify(input) array
+}
+class CourseChangePreviewService {
+  <<PHP existent>>
+  +preview(input) array
+}
+class CourseChangePreviewGateway {
+  <<PHP existent>>
+  +preview(actor,payload) array
+}
+class InvoiceReadRepository {
+  <<PHP existent>>
+}
+class InternalApiAuthenticator {
+  <<PHP existent>>
+}
+class SifInternalApiClient {
+  <<Intranet existent ampliat>>
+  +previewCourseChange(actor,roles,payload) array
+}
+class CourseChangeService {
+  <<FINAL pendent>>
+  +previewChange(command)
+  +confirmChange(command)
+}
+CourseChangePreviewGateway --> CourseChangePreviewService
+CourseChangePreviewService --> InvoiceReadRepository
+CourseChangePreviewService --> CourseChangeImpactClassifier
+SifInternalApiClient ..> InternalApiAuthenticator
+CourseChangeService ..> CourseChangePreviewService : reutilitzar classificació
+```
+
+Aquesta subvista és **codi real de la branca UC-071**. Implementa SAME/HIGHER/LOWER, preu STANDARD/MANUAL amb motiu, `RECTIFY_DIFFERENCE`, `RECTIFY_AND_REISSUE`, `AMOUNT_DUE`, `EXCESS_TO_RESOLVE` i bloqueig `REVIEW_REQUIRED` quan hi ha múltiples factures. `CourseChangeService`/coordinador final continua pendent: el preview no emet factura ni mou diners.

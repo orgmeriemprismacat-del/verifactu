@@ -1668,3 +1668,64 @@ end
 ```
 
 La capa implementada en aquest tall s'atura **abans** de l'aplicació al llegat. No s'ha de connectar directament a l'UPDATE antic sense completar autorització per recurs, control de concurrència, auditoria i proves.
+
+## 50. UC-071 · previsualitzar import i tractament fiscal `[IMPLEMENTAT/PARCIAL]`
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant UI as alumnes-canvi-curs-sif.js
+participant Bridge as sifCanviCursPreview.php
+participant HMAC as InternalApiAuthenticator
+participant Preview as CourseChangePreviewService
+participant Inv as InvoiceReadRepository
+participant Calc as CourseChangeImpactClassifier
+O->>UI: destí + preu final
+alt preu final != estàndard
+ UI->>UI: exigir motiu de preu manual
+end
+UI->>Bridge: POST preview
+Bridge->>HMAC: petició signada amb actor i rols
+HMAC->>Preview: payload autenticat
+Preview->>Inv: buscar factura per ID_INSC
+alt una factura
+ Inv-->>Preview: línia + assignments reals
+else cap factura
+ Inv-->>Preview: cap factura
+else múltiples factures
+ Inv-->>Preview: múltiples
+end
+Preview->>Calc: original / estàndard / final / fee / paid / canvi concepte
+Calc-->>Preview: SAME-HIGHER-LOWER + fiscal + econòmic
+Preview-->>UI: preview tipificat
+UI-->>O: resum abans de confirmar
+```
+
+### 50.1. Preflight abans de l'executor llegat
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Gestió
+participant UI as Confirmació
+participant W as realitzarCanviCurs_CanviCurs.php
+participant Legacy as Intranet
+participant SIF as API preview UC-071
+participant Exec as realitzarCanviCurs_modalCanviCurs()
+O->>UI: confirmar
+UI->>W: petició + decisió mostrada
+W->>Legacy: recalcular preu estàndard al servidor
+Legacy-->>W: preu destí
+W->>SIF: recalcular classificació
+alt decisions han canviat / múltiples factures / manual sense motiu
+ SIF-->>W: bloqueig
+ W-->>UI: error; cap canvi
+else consistent
+ SIF-->>W: ok
+ W->>Exec: executar circuit llegat
+ Exec-->>UI: resultat
+end
+```
+
+El preflight s'activa amb `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1`. Encara no substitueix l'executor llegat ni executa UC-005/074.
