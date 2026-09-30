@@ -86,6 +86,21 @@ final class CommercialOfferServiceTest
         }, 409);
     }
 
+    public function testRejectsDiscountValidationAmountDifferentFromCommercialDiscount(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $input = $this->input();
+        $input['discount']['result_discount_amount'] = '29.00';
+
+        Assert::throws(SifException::class, static function () use ($service, $input): void {
+            $service->createOrReuse($input);
+        }, 422);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+    }
+
     public function testRejectsInconsistentCommercialAmountsBeforeWriting(): void
     {
         $db = TestDatabase::fresh();
