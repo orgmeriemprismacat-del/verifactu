@@ -10,10 +10,8 @@ function uc014ResolvePaymentReturn(string $browserReturn): array
     $idPagRaw = trim((string) ($_GET['idPag'] ?? ''));
 
     $safeEmail = filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '';
-    $statusEnabled = filter_var(
-        getenv('SIF_REDSYS_RETURN_STATUS_ENABLED') ?: '0',
-        FILTER_VALIDATE_BOOLEAN
-    );
+    $sifCallbackUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
+    $statusEnabled = $sifCallbackUrl !== '' && str_starts_with($sifCallbackUrl, 'https://');
 
     $paymentStatus = null;
     if ($statusEnabled && $dsOrder !== '' && ctype_digit($idPagRaw) && (int) $idPagRaw > 0) {
