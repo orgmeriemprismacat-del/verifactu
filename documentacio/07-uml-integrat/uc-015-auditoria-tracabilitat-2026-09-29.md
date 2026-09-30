@@ -20,7 +20,7 @@ Aquest registre diferencia:
 | Snapshot comercial | sí | **sí al checkout PACK** | sí | verificar origen canònic de l'ordinal |
 | Intenció Redsys PACK | sí | **sí + checkout connectat (30/09)** | sí | evidència runtime |
 | Callback SIF | sí | sí | sí | evidència de desplegament/runtime |
-| Callback legacy | sí | sí | sí | retirada |
+| Callback legacy | sí | **retirat per defecte (30/09)** | sí | eliminar codi mort quan acabi finestra rollback |
 | Factura N línies | sí | sí | sí | prova end-to-end |
 | Conciliació factura/import Redsys | sí | **sí (29/09)** | sí | executar test |
 | Idempotència factura/payment | sí | sí | sí | evidència runtime |
@@ -86,8 +86,8 @@ El servidor recalcula el preu i grava metadata comercial per component. `PackPay
 ### UC15-P0-02 · IDPAG concurrent — MITIGAT 2026-09-30
 L'allocator continua basant-se en `MAX(IDPAG)+1`, però `ConnexioBBDDSTMT::reserveIdPag()` serialitza la reserva amb `GET_LOCK()` i manté el lock fins a `releaseIdPag()`. Continua sent deute tècnic davant d'una seqüència pròpia, però ja no és el patró concurrent sense lock de l'auditoria inicial.
 
-### UC15-P0-03 · Callback legacy fiscal
-`realitzaPagamentPackAutomatic.php` encara calcula numeració i insereix `factures` directament.
+### UC15-P0-03 · Callback legacy fiscal — RETIRAT PER DEFECTE 2026-09-30
+`realitzaPagamentPackAutomatic.php` conserva codi històric per rollback, però abans de qualsevol mutació comprova `SIF_PACK_LEGACY_CALLBACK_ENABLED`. Per defecte és `0` i respon HTTP 410. Les compres PACK noves ja envien Redsys a `SIF_REDSYS_CALLBACK_URL`, de manera que el SIF és l'únic camí autoritatiu per defecte.
 
 ### UC15-P0-04 · Signatura — CORREGIT 2026-09-30
 Els dos callbacks legacy de pack comparen ara de forma bloquejant la signatura calculada amb `Ds_Signature` mitjançant `hash_equals()`. També es bloqueja si `Ds_Order` o `Ds_Amount` signats no coincideixen amb els valors legacy utilitzats pel procés.
@@ -109,7 +109,7 @@ El canal PACK ja no usa `time()`: genera un DS_ORDER de 12 dígits, l'envia a la
 
 ## 7. Troballes P1
 
-- retirar definitivament el callback fiscal legacy;
+- eliminar físicament el codi mort del callback legacy quan finalitzi la finestra de rollback;
 - acreditar l'origen canònic de `PACK_ORDINAL`;
 - executar i evidenciar ledger/outbox en runtime;
 - sincronització acadèmica postcommit;
@@ -129,7 +129,7 @@ El canal PACK ja no usa `time()`: genera un DS_ORDER de 12 dígits, l'envia a la
 
 UC-015 no pot passar a **VERIFICAT/TANCAT** fins que:
 - ecommerce creï la intenció SIF amb snapshot comercial;
-- el callback fiscal legacy deixi de ser autoritatiu;
+- el callback fiscal legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
 - ordinal, imports i receptor siguin congelats abans del TPV;
 - ledger per inscripció estigui resolt;
 - proves PK-01..PK-11 i de callback duplicat s'executin en entorn controlat.
@@ -284,3 +284,18 @@ També s'ha endurit `LegacyPackSnapshotRepository`: el fallback legacy exigeix s
 - `LegacyPackInvoicePayloadBuilderTest::testRejectsPackLineWithoutExplicitCommercialAmounts()`.
 
 **Execució CI d'aquests dos últims canvis:** pendent d'evidència al commit actual. La darrera suite acreditada anterior continua sent 619/619.
+
+
+## 14. Retirada operativa del callback fiscal legacy — 2026-09-30
+
+El callback `codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentPackAutomatic.php` ha deixat de ser autoritatiu per defecte.
+
+Comportament actual:
+- `SIF_PACK_LEGACY_CALLBACK_ENABLED` no configurat o fals → HTTP 410 abans de carregar el flux fiscal;
+- només `SIF_PACK_LEGACY_CALLBACK_ENABLED=1` permet executar el codi històric de rollback;
+- les compres PACK noves utilitzen `SIF_REDSYS_CALLBACK_URL` i entren pel callback/cua/worker SIF.
+
+Prova afegida:
+- `LegacyPackCallbackBoundaryTest::testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode()`.
+
+El script `sif/scripts/process-redsys-pack.php` continua limitat a CLI i rebutja `SIF_ENV=production`; es considera eina de diagnòstic/reconciliació no productiva, no un segon callback.
