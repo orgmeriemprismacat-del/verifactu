@@ -3,7 +3,7 @@
 **Estat documental:** AUDITAT EN DETALL / CANVIS DOCUMENTALS APLICATS.  
 **Estat backend després del merge a `main` (PR #18, 2026-09-30):** LIFECYCLE PARCIAL IMPLEMENTAT; API INTERNA + WRITER D'ACCIONS + IDEMPOTÈNCIA + INTEGRACIÓ REDSYS/AEAT.  
 **Estat UI:** IMPLEMENTADA AL CODI / DESPLEGAMENT PENDENT DE VERIFICAR.  
-**Estat proves:** SUITE BACKEND CI EXECUTADA · 555 PASSED / 0 FAILED.  
+**Estat proves:** SUITE SIF POST-UI EXECUTADA · **589 PASSED / 0 FAILED**; INTRANET AO · **SUCCESS**.  
 **No acredita:** desplegament productiu, rols reals, dades productives, E2E de navegador, concurrència específica, preproducció ni homologació externa.
 
 ## 1. Fonts revisades
@@ -132,7 +132,7 @@ A més continuen sent rellevants:
 ## 8. Pendents bloquejants per considerar UC-008 complet
 
 - [x] Executar migracions en `sif_test*` via CI.
-- [x] Executar `php sif/tests/run-tests.php`: **555 passed, 0 failed**.
+- [x] Executar `php sif/tests/run-tests.php` després d'integrar la UI: **589 passed, 0 failed** (run `36648545296`).
 - [ ] Corregir qualsevol regressió detectada.
 - [x] Implementar UI del panell d'incidències al repositori; [ ] verificar desplegament/E2E.
 - [ ] Configurar i provar rols reals.
@@ -148,7 +148,7 @@ A més continuen sent rellevants:
 DOCUMENTAT      = AUDITAT I ACTUALITZAT
 IMPLEMENTAT     = BACKEND + UI CODI; OPERACIÓ PRODUCTIVA PENDENT
 VERIFICAT       = ESTÀTICAMENT + CI PHP/MYSQL
-PROVAT          = SUITE BACKEND CI · 555 PASSED / 0 FAILED
+PROVAT          = SUITE SIF POST-UI · 589 PASSED / 0 FAILED + INTRANET AO SUCCESS
 UI              = IMPLEMENTADA AL CODI / DESPLEGAMENT PENDENT
 UML CLASSES     = ACTUALITZAT
 UML SEQÜÈNCIA   = ACTUALITZAT
@@ -165,6 +165,8 @@ TANCAMENT UC    = NO
 | PR post-merge | #21 |
 | Run 36638546735 · UC-111 integration verification | **555 passed, 0 failed** |
 | Run 36638546786 · SIF PHP and MySQL checks | **555 passed, 0 failed** |
+| Run 36648545296 · SIF PHP MySQL tests després de UI UC-008 | **589 passed, 0 failed** |
+| Run 36647777483 · Intranet AO batch checks | **SUCCESS** |
 | Lint PHP | **PASS** |
 | PHP / MySQL del segon run | PHP 8.4 / MySQL 8.4 |
 | BD legacy de test | creada i usada pel workflow |
