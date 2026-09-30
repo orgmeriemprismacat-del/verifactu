@@ -184,13 +184,7 @@ try {
 	else if ($tipusDescompte == 2) $textAlumne="(per ser titular d'un Carnet Jove)";
 	else if ($tipusDescompte == 3) $textAlumne='(per ser alumne/a de PrisMa)';
 
-	$cnsIdPag = "SELECT IDPAG FROM inscripcions ORDER BY IDPAG DESC LIMIT 1";
-	$stmt=$connexio->prepare($cnsIdPag);
-	$stmt->execute();
-	$stmt->bind_result($idPag);
-	$stmt->fetch();
-	$connexio->closeStmt();
-	$idPag = $idPag+1;
+	$idPag = $connexio->reserveIdPag();
 
 	$ivlen = openssl_cipher_iv_length($cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
@@ -472,6 +466,7 @@ try {
 	$idInserit = $connexio->lastInsertId();
 	$stmt->fetch();
 	$connexio->closeStmt();
+	$connexio->releaseIdPag();
 
 	$ivlen = openssl_cipher_iv_length($cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
