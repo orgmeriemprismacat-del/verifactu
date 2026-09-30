@@ -34,7 +34,7 @@ class EnviarInscripcioPack {
   +envia correus
 }
 class RealitzaPagamentPackAutomatic {
-  <<callback legacy>>
+  <<LEGACY DESACTIVAT PER DEFECTE>>
   +llegeix Redsys
   +crea factura legacy
   +reparteix PAGAMENT
@@ -54,7 +54,7 @@ RealitzaPagamentPackAutomatic --> EnviarInscripcioPack : usa IDPAG creat
 - `EdicioPack.php`: resol edició, curs, dates, preu i obertura.
 - `InscripcioPack.php`: genera el formulari.
 - `enviarInscripcioPack.php`: rep dades de navegador, calcula/rep imports, genera `IDPAG` i crea N files `inscripcions`.
-- `realitzaPagamentPackAutomatic.php`: processa el resultat Redsys al llegat i escriu directament `factures` i `inscripcions`.
+- `realitzaPagamentPackAutomatic.php`: conserva el codi històric, però està bloquejat per defecte amb HTTP 410 abans de qualsevol mutació.
 
 ## 2. Classes ACTUAL — SIF ja implementat
 
@@ -161,7 +161,7 @@ class PackPaymentNotificationService {
   <<IMPLEMENTAT>>
 }
 class LegacyPackFiscalCallback {
-  <<RETIRAR>>
+  <<DESACTIVAT · ELIMINAR DESPRES ROLLBACK>>
 }
 class CanonicalPackOrderSource {
   <<PENDENT ACREDITAR>>
@@ -188,7 +188,7 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 | Identitat operació | `MAX(IDPAG)+1` sota `GET_LOCK` | Seqüència pròpia si es decideix eliminar deute legacy |
 | Ordinal components | `PACK_ORDINAL` congelat i consumit | Acreditar que l'origen és l'ordre comercial canònic |
 | Receptor fiscal | **Validació fail-closed entre tots els components** | Mantenir receptor explícit al snapshot |
-| Callback | Script legacy amb escriptures directes | Callback SIF + cua + worker |
+| Callback | Legacy desactivat per defecte; SIF autoritatiu | Eliminar codi històric després de rollback |
 | Numeració | Taula legacy | Seqüència fiscal SIF |
 | Distribució monetària | **Ledger `enrollment_fund_movement` implementat** | Proves runtime/preproducció |
 | Notificacions | **Outbox implementat al flux SIF; PHP legacy encara existeix** | Retirar dependència del correu directe legacy |
@@ -198,4 +198,4 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 - **Documentat:** sí.
 - **Implementat parcial:** sí.
 - **Verificat per inspecció:** sí.
-- **Pendent:** retirada del callback fiscal llegat, acreditació de l'origen canònic de `PACK_ORDINAL`, consolidació de la sincronització acadèmica i evidència runtime/preproducció.
+- **Pendent:** eliminar el codi legacy després de la finestra de rollback, acreditar l'origen canònic de `PACK_ORDINAL`, consolidar la sincronització acadèmica i obtenir evidència runtime/preproducció.
