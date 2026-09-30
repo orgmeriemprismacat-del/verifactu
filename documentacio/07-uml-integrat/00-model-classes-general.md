@@ -790,16 +790,16 @@ class ResolvedInvoiceVisibilityPolicy {
  +project(actor,view) array
 }
 class InvoiceDocumentAccessService {
- <<DISSENY UC-080>>
- +download(actor,documentId,tokenOrSession) bytes
+ <<PHP EXISTENT · UC-080>>
+ +download(actor,documentId) array
 }
 InvoiceQueryService --> InvoiceReadRepository
 InvoiceQueryService --> InvoiceVisibilityPolicyInterface
 ResolvedInvoiceVisibilityPolicy ..|> InvoiceVisibilityPolicyInterface
-InvoiceQueryService ..> InvoiceDocumentAccessService : bytes pendents
+InvoiceQueryService ..> InvoiceDocumentAccessService : endpoint documental separat
 ```
 
-`InvoiceReadRepository` només executa SELECT i no retorna `PATH_FITXER` de `factura_documents`. `ResolvedInvoiceVisibilityPolicy` falla tancat si no rep `invoice_scope` i admet projecció `FULL` o `MINIMAL`; aquest scope **ha de provenir d'un adaptador autenticat del servidor**, no del payload del client. `InvoiceDocumentAccessService` continua sent disseny UC-080: el nucli de consulta no serveix bytes.
+`InvoiceReadRepository` només executa SELECT i no retorna `PATH_FITXER` de `factura_documents`. `ResolvedInvoiceVisibilityPolicy` falla tancat si no rep `invoice_scope` i admet projecció `FULL` o `MINIMAL`; aquest scope prové de la crida interna HMAC/rol. `InvoiceDocumentAccessService` és PHP existent i serveix bytes només per l'endpoint documental separat.
 ## 6. Classes del **disseny pendent** (NO són el PHP actual)
 
 ```mermaid
@@ -840,11 +840,6 @@ class InvoiceVisibilityPolicyInterface {
  +canView(actor,factura,relations) bool
  +project(actor,view) array
 }
-class InvoiceDocumentAccessService {
- <<DISSENY: UC-55/80, no implementada>>
- +listAuthorized(actor,scope) documents
- +download(actor,documentId,token) bytes
-}
 class IncidentWorkflowService {
  <<DISSENY: no implementada>>
  +assign(id,actor) result
@@ -874,9 +869,7 @@ CourseChangeCoordinator --> EnrollmentFundsOrchestrator
 CancellationCoordinator --> EnrollmentFundsOrchestrator
 EnrollmentFundsOrchestrator --> EnrollmentFundMovementRepository
 EnrollmentFundMovementRepository --> EnrollmentFundMovement
-InvoiceDocumentAccessService --> InvoiceVisibilityPolicyInterface
 AuthorizationGateway --> IdentityResolver
-AuthorizationGateway ..> InvoiceDocumentAccessService : lectura fiscal autoritzada
 IssuerRoutingRegistry ..> AuthorizationGateway : ruta només després d'autorització
 NotificationWorker ..> AuthorizationGateway : productor autoritzat abans de l'outbox
 AcademicEconomicPolicy ..> EnrollmentFundsOrchestrator : estat econòmic individual quan existeixi
@@ -1062,13 +1055,12 @@ class FiscalDocumentAccessRepository {
  +append(db,event) uuid
 }
 class InvoiceDocumentAccessService {
- <<DISSENY: servei únic UC-55/80>>
- +listAuthorized(actor,scope) documents
- +download(actor,documentId,token) bytes
+ <<PHP EXISTENT · UC-080>>
+ +download(actor,documentId) array
 }
-class VisibilityPolicy {
- <<DISSENY: autorització per actor/document>>
- +canView(actor,factura,relations) bool
+class ResolvedDocumentAuthorizationPolicy {
+ <<PHP EXISTENT>>
+ +canDownload(actor,invoice,relations,document) bool
 }
 class DocumentRepository {
  <<PHP real: metadata sense storage>>
@@ -1080,9 +1072,11 @@ DocumentWorker --> PrivateDocumentWriter : desar/verificar
 DocumentWorker ..> DocumentRepository : registra metadata; recuperar ID per via addicional
 HistoricalOriginalCustodyService --> PrivateDocumentWriter : bytes ORIGINALS de l'arxiu llegat
 HistoricalOriginalCustodyService ..> DocumentRepository : només si metadata no existent i validada
-DocumentAvailabilityService --> PrivateDocumentStore : llegir i recalcular hash
-InvoiceDocumentAccessService --> VisibilityPolicy : consulta per document
-InvoiceDocumentAccessService --> DocumentAvailabilityService : prova de bytes
+DocumentAvailabilityService --> PrivateDocumentStore : llegir i recalcular hash [disseny worker]
+InvoiceDocumentAccessService --> ResolvedDocumentAuthorizationPolicy : actor/document
+InvoiceDocumentAccessService --> PrivateDocumentStore : bytes/hash
+InvoiceDocumentAccessService --> DocumentAccessRepository : metadata
+InvoiceDocumentAccessService --> FiscalDocumentAccessRepository : audit
 ```
 
 **Límit multiemissor:** `HistoricalOriginalCustodyService` només ha d'adjuntar l'original a la factura **unívocament** identificada. Si Associació i SL aporten dues factures amb mateix número, l'únic model `factura` actual no pot guardar-les com dues files (UNIQUE global). El model d'emissor/persistència històrica és una decisió prèvia bloquejant de [UC-97](uc-097-consultar-historic-associacio-sl.md), no una funcionalitat que la classe proposada resolgui per màgia.
