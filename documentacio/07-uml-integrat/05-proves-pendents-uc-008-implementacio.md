@@ -1,6 +1,6 @@
 # UC-008 · Proves executades i pendents
 
-Aquest document separa la **suite automatitzada ja executada** de les proves E2E, concurrència i preproducció que encara falten. Després d'integrar panell i resum UC-008, el run `36648545296` ha finalitzat amb **589 passed, 0 failed** i `Intranet AO batch checks` run `36647777483` amb **success**.
+Aquest document separa la **suite automatitzada ja executada** de les proves E2E, concurrència i preproducció que encara falten. Després d'integrar UI, preflight i contractes read-only UC-008, el run `36658230379` ha finalitzat amb **618 passed, 0 failed**; `Intranet AO batch checks` run `36647777483` continua en **success**.
 
 ## 1. Suite PHP/MySQL
 
@@ -122,13 +122,14 @@ Per marcar UC-008 com PROVAT conservar:
 - prova de tancament amb evidència;
 - resultat preproducció.
 
-**Estat actual:** SUITE SIF POST-UI VERIFICADA (**589 passed, 0 failed**) + INTRANET AO **SUCCESS**. Continuen pendents els ítems no marcats, especialment concurrència específica, E2E de navegador, permisos/secrets productius i preproducció.
+**Estat actual:** SUITE SIF POST-PREFLIGHT VERIFICADA (**618 passed, 0 failed**) + INTRANET AO **SUCCESS**. Continuen pendents els ítems no marcats, especialment concurrència específica, E2E de navegador, permisos/secrets productius i preproducció.
 
 
 ## 11. Evidència CI
 
 - Runs inicials **36638546735** i **36638546786**: 555 passed, 0 failed.
-- Run **36648545296** després de la integració UI UC-008: **589 passed, 0 failed** sobre `main`.
+- Run **36648545296** després de la integració UI UC-008: **589 passed, 0 failed**.
+- Run **36658230379** després de preflight + go/no-go + frontera read-only: **618 passed, 0 failed**.
 - Run **36647777483** · Intranet AO batch checks: **success**.
 ## 12. CI automatitzada
 
@@ -136,4 +137,4 @@ S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-te
 
 La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
-**Estat actual:** SIF CI 589/0 + INTRANET AO SUCCESS; UI IMPLEMENTADA AL CODI / E2E PENDENT.
+**Estat actual:** SIF CI 618/0 + INTRANET AO SUCCESS; UI + PREFLIGHT IMPLEMENTATS / E2E PREPRODUCCIÓ PENDENT.
