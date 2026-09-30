@@ -2,7 +2,7 @@
 
 **Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat actual (2026-09-30):** backend, UI, preflight, E2E tècnic read-only, deduplicació, concurrència i deep-links de reparació **IMPLEMENTATS I VERIFICATS EN CI**. El run `36664237975` ha passat amb **670/0**; `Intranet AO batch checks` run `36647777483` continua en **success**. La preproducció amb secrets/rols reals, l'alta/configuració del menú a BD i l'E2E contra l'entorn real continuen pendents.
+**Estat actual (2026-09-30):** backend, UI, preflight, E2E tècnic read-only, deduplicació, concurrència, deep-links i gate final d'evidències **IMPLEMENTATS I VERIFICATS EN CI**. El run `36664788129` ha passat amb **677/0**; `Intranet AO batch checks` run `36647777483` continua en **success**. Només resten l'execució real de preproducció amb secrets/rols reals i l'alta/configuració del menú a BD si el preflight indica que encara falta.
 
 **Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
@@ -592,7 +592,7 @@ D --> E[Resolució només al SIF]
 - `RedsysCallbackWorkerTest::testFifthTechnicalFailureBecomesIncident`.
 - `PayloadIdempotencyFlowTest` per `FISCAL_PAYLOAD_CONFLICT`.
 
-**Verificació CI actual:** run **36664237975**, amb **670 passed / 0 failed** sobre PHP 8.4 + MySQL 8.4. Inclou concurrència real, deduplicació Redsys/AEAT, redacció sensible, API/UI, preflight, E2E tècnic read-only i deep-links a factura/AEAT. L'E2E contra preproducció real i la configuració productiva continuen pendents.
+**Verificació CI actual:** run **36664788129**, amb **677 passed / 0 failed** sobre PHP 8.4 + MySQL 8.4. Inclou concurrència real, deduplicació Redsys/AEAT, redacció sensible, API/UI, preflight, E2E tècnic read-only, deep-links i validador final d'evidències. L'E2E contra preproducció real i la configuració productiva continuen pendents.
 
 ## 12. Gaps pendents
 
@@ -623,4 +623,4 @@ D --> E[Resolució només al SIF]
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
-**Estat de tancament tècnic:** backend + UI + seguretat + idempotència + concurrència + preflight + E2E tècnic + deep-links de reparació implementats i verificats en CI (**670/0**). Pendents només configuració/desplegament de preproducció, E2E real i alta/configuració del menú de BD.
+**Estat de tancament tècnic:** backend + UI + seguretat + idempotència + concurrència + preflight + E2E tècnic + deep-links + gate d'evidències implementats i verificats en CI (**677/0**). Pendents només configuració/desplegament de preproducció, E2E real i alta/configuració del menú de BD si encara no existeix.
