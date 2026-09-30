@@ -1,7 +1,7 @@
 # UC-008 — Diagrames d'activitat ACTUAL/FINAL per pàgina i apartat
 
 **Data:** 29/09/2026  
-**Objectiu:** aplicar el criteri RM-037 al UC-008. Quan la UI encara no existeix, el diagrama ACTUAL ho diu explícitament i representa només el backend real; no s'inventa una pantalla.
+**Objectiu:** aplicar el criteri RM-037 al UC-008. El diagrama ACTUAL representa el backend i les superfícies UI realment versionades; desplegament, configuració productiva i E2E real es mantenen separats i no es presenten com a verificats.
 
 Vegeu [classes](uc-008-classes-actual-final.md), [seqüències](uc-008-sequencies-actual-final.md) i [fitxa integrada](uc-008-gestionar-incidencia-sif.md).
 
