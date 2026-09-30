@@ -597,11 +597,17 @@ rectangle "ACTUAL" {
   usecase "Baixa general / sense lineage canònic" as Current
 }
 rectangle "FINAL / branca" {
-  usecase "Cancellation Review + Derived Activation" as Target
+  usecase "Review + Activation\norigen original" as Original
+  usecase "Review + Activation\norigen transferit" as Transferred
+  usecase "Review + Activation\norigen derived_application" as DerivedUse
 }
 Actor --> Current
-Actor --> Target
-Current ..> Target : substituir / encapsular
+Actor --> Original
+Actor --> Transferred
+Actor --> DerivedUse
+Current ..> Original : substituir / encapsular
+Current ..> Transferred : preservar curs actual
+Current ..> DerivedUse : preservar pare/fill
 @enduml
 ```
 
@@ -615,21 +621,46 @@ class NovicePromotionDestinationCancellationReviewService
 class NovicePromotionDerivedBalanceActivationService
 class NovicePromotionTransferredDestinationCancellationReviewService
 class NovicePromotionTransferredCancellationActivationService
+class NovicePromotionDerivedApplicationCancellationReviewService
+class NovicePromotionDerivedApplicationCancellationActivationService
 class NovicePromotionApprovedCancellationPolicy
 class NovicePromotionApprovedTransferredCancellationPolicy
+class NovicePromotionApprovedDerivedCancellationPolicy
+class NovicePromotionDestinationAdjustmentPolicy
+class NovicePromotionRectificationEvidencePolicy
 interface NovicePromotionAdjustmentApprovalSourceInterface
 class "novice_promotion_derived_balance" as Derived <<FINAL DATA>>
+class "novice_promotion_derived_application" as DerivedApp <<FINAL DATA>>
 class "novice_promotion_application_transfer" as Transfer <<FINAL DATA>>
+
 Legacy ..> NovicePromotionDestinationCancellationReviewService : migració / adaptació
+
 NovicePromotionDestinationCancellationReviewService --> Derived
 NovicePromotionDerivedBalanceActivationService --> Derived
+NovicePromotionDerivedBalanceActivationService --> NovicePromotionApprovedCancellationPolicy
+
 NovicePromotionTransferredDestinationCancellationReviewService --> Derived
 NovicePromotionTransferredCancellationActivationService --> Derived
 NovicePromotionTransferredCancellationActivationService --> Transfer
-NovicePromotionDerivedBalanceActivationService --> NovicePromotionApprovedCancellationPolicy
 NovicePromotionTransferredCancellationActivationService --> NovicePromotionApprovedTransferredCancellationPolicy
+
+NovicePromotionDerivedApplicationCancellationReviewService --> DerivedApp
+NovicePromotionDerivedApplicationCancellationReviewService --> Derived
+NovicePromotionDerivedApplicationCancellationActivationService --> DerivedApp
+NovicePromotionDerivedApplicationCancellationActivationService --> Derived
+NovicePromotionDerivedApplicationCancellationActivationService --> NovicePromotionApprovedDerivedCancellationPolicy
+
+NovicePromotionDestinationCancellationReviewService --> NovicePromotionDestinationAdjustmentPolicy
+NovicePromotionTransferredDestinationCancellationReviewService --> NovicePromotionDestinationAdjustmentPolicy
+NovicePromotionDerivedApplicationCancellationReviewService --> NovicePromotionDestinationAdjustmentPolicy
+
+NovicePromotionDestinationCancellationReviewService --> NovicePromotionRectificationEvidencePolicy
+NovicePromotionTransferredDestinationCancellationReviewService --> NovicePromotionRectificationEvidencePolicy
+NovicePromotionDerivedApplicationCancellationReviewService --> NovicePromotionRectificationEvidencePolicy
+
 NovicePromotionDerivedBalanceActivationService --> NovicePromotionAdjustmentApprovalSourceInterface
 NovicePromotionTransferredCancellationActivationService --> NovicePromotionAdjustmentApprovalSourceInterface
+NovicePromotionDerivedApplicationCancellationActivationService --> NovicePromotionAdjustmentApprovalSourceInterface
 @enduml
 ```
 
@@ -643,10 +674,14 @@ participant NovicePromotionDestinationCancellationReviewService as OriginalRevie
 participant NovicePromotionDerivedBalanceActivationService as OriginalActivate
 participant NovicePromotionTransferredDestinationCancellationReviewService as TransferReview
 participant NovicePromotionTransferredCancellationActivationService as TransferActivate
+participant NovicePromotionDerivedApplicationCancellationReviewService as DerivedReview
+participant NovicePromotionDerivedApplicationCancellationActivationService as DerivedActivate
 interface NovicePromotionAdjustmentApprovalSourceInterface as Approval
 database novice_promotion_derived_balance as Derived
+database novice_promotion_derived_application as DerivedApp
 database novice_promotion_application_transfer as Transfer
 participant "Factura / rectificativa / cash" as Fiscal
+
 alt baixa aplicació original
   Secretaria -> OriginalReview : stageOriginalApplicationReview(...)
   OriginalReview -> Fiscal : validar factura + rectificativa + cash
@@ -657,12 +692,21 @@ alt baixa aplicació original
   OriginalActivate -> Derived : ACTIVE + venciment propi
 else baixa curs traspassat
   Secretaria -> TransferReview : stageFirstTransferredDestinationReview(...)
-  TransferReview -> Derived : PENDING amb SOURCE_UUID_TRANSFER
+  TransferReview -> Derived : PENDING / SOURCE_UUID_TRANSFER
   TransferActivate -> Approval : approvedTransferredCancellation(review)
   Approval --> TransferActivate : final APPROVED
   TransferActivate -> Fiscal : reconciliar de nou + JASOM pagat
   TransferActivate -> Transfer : CANCELLED / CONVERTED_TO_DERIVED
   TransferActivate -> Derived : ACTIVE + venciment propi
+else baixa curs pagat amb saldo derivat
+  Secretaria -> DerivedReview : stageDerivedApplicationReview(...)
+  DerivedReview -> Fiscal : validar factura + rectificativa + cash
+  DerivedReview -> Derived : PENDING / parent + SOURCE_UUID_DERIVED_APPLICATION
+  DerivedActivate -> Approval : approvedDerivedApplicationCancellation(review)
+  Approval --> DerivedActivate : final APPROVED
+  DerivedActivate -> Fiscal : reconciliar de nou + JASOM pagat
+  DerivedActivate -> DerivedApp : CONVERTED_TO_DERIVED
+  DerivedActivate -> Derived : child ACTIVE + venciment propi
 end
 @enduml
 ```
@@ -677,17 +721,30 @@ partition ACTUAL {
 :Tramitar baixa/rectificativa general;
 }
 partition FINAL {
-:Identificar predecessor actual;
-if (Aplicació original o primer traspàs confirmat?) then (sí)
-  :Separar promoció i diners reals;
-  :Crear review no gastable;
-  :Aprovar de forma independent;
-  :Reconciliar de nou;
-  :Activar saldo derivat amb nou any;
-else (derived application / traspàs successiu)
-  :PENDENT servei review+activation específic;
+:Identificar predecessor ACTUAL de la promoció;
+if (Aplicació original?) then (sí)
+  :Review original;
+elseif (Primer traspàs confirmat?) then (sí)
+  :Review amb SOURCE_UUID_TRANSFER;
+elseif (derived_application APPLIED?) then (sí)
+  :Review fill amb PARENT_UUID_DERIVED_BALANCE;
+  :SOURCE_UUID_DERIVED_APPLICATION;
+else (traspàs successiu)
+  :PENDENT servei de baixa sobre últim transfer;
   :No activar automàticament;
+  stop
 endif
+:Separar promoció i diners reals;
+:Crear review no gastable;
+:Obtenir aprovació independent;
+:Reconciliar de nou factura/cash + JASOM;
+if (Canvis després de review?) then (sí)
+  :Bloquejar i recalcular;
+  stop
+endif
+:Tancar predecessor com a històric;
+:Activar nou saldo derivat amb any propi;
+:No recreditar JASOM ni el dret pare consumit;
 }
 stop
 @enduml
