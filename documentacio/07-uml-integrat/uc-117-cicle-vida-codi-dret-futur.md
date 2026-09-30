@@ -115,7 +115,13 @@ Quan una `novice_promotion_derived_application.APPLIED` és el consum actual i e
 
 **Conservació del valor:** el saldo pare NO es recredita perquè l'import ja havia estat consumit pel curs cancel·lat. El successor promocional és el saldo fill, limitat per la política de baixa. En el graf de procedència: `right pare → dapp històrica REPLACED_BY_DERIVED → right fill`. Per un retorn posterior de JASOM s'ha de comptar només el romanent/consums VIUS del fill i altres branques vives, no tornar a sumar la dapp predecessora.
 
-**Frontera pendent:** si l'exposició actual és un `transfer.CONFIRMED` successiu (segon/tercer canvi), els serveis de transfer ja poden construir la cadena però encara falta el review+activation de la seva baixa. Això és el buit concret de lifecycle; no falta una nova categoria documental.
+**Frontera actualitzada 30/09/2026:** la baixa d'un `transfer.CONFIRMED` successiu ja reutilitza el review+activation de baixa transferida sobre l'últim transfer sense successor. El servei recorre `PREVIOUS_UUID_TRANSFER` per resoldre quin dret s'estava movent i conserva `PARENT_UUID_DERIVED_BALANCE` quan la cadena procedeix d'un saldo derivat. Per tant, aquest buit de lifecycle queda tancat a nivell de domini/branca; resten integracions runtime, autenticació, fiscalitat i proves MySQL.
+### 1.9. UC-111 — baixa del destí actual després de N traspassos
+
+`NovicePromotionTransferredDestinationCancellationReviewService` ja tracta **qualsevol últim transfer confirmat**. Si el predecessor és un altre transfer, recorre la cadena fins trobar l'aplicació original o derivada; si és derivada, recupera el seu `UUID_DERIVED_BALANCE` i l'exigeix com a parent del nou dret de baixa. `NovicePromotionTransferredCancellationActivationService` repeteix la resolució abans de mutar i bloqueja qualsevol review que apunti a un parent diferent.
+
+Això permet `root → transfer1 → transfer2 → baixa → derived` i `derivedRight → derivedApplication → transfer1 → transfer2 → baixa → childDerived` sense duplicar consum ni perdre procedència. Un transfer predecessor `CANCELLED/TRANSFERRED_TO_COURSE` és història; només l'últim `CONFIRMED` és exposició viva. No s'ha afegit una nova taula perquè el model 000018/000019 ja era suficient.
+
 ## 2. UML de casos d'ús
 
 ```plantuml
