@@ -181,6 +181,34 @@ try {
 	$connexioIntra->closeStmt();
 	$connexioIntra->desconectarBD();
 
+	/* Accés operatiu USOC fora de la taula apartats fins que existeixi
+	 * una migració/seed auditable de la BD intranet. Fail-closed: si no
+	 * hi ha rols configurats, l'enllaç no es mostra. */
+	$usocMenuRoles = array_values(array_filter(array_map(
+		'trim',
+		explode(',', getenv('SIF_USOC_MENU_ROLES') ?: '')
+	)));
+	$usocAllowed = false;
+	if ($usocMenuRoles !== []) {
+		foreach ($rols as $rolUsuari) {
+			if (in_array(trim((string) $rolUsuari), $usocMenuRoles, true)) {
+				$usocAllowed = true;
+				break;
+			}
+		}
+	}
+	if ($usocAllowed) {
+		$mostrar .= "<li class='nav-item";
+		if ($urlAct == '/alumnes-usoc-financament.php') $mostrar .= " active";
+		$mostrar .= "' data-nitem='".$nItem."'>
+			<a class='nav-link' href='".$path."/alumnes-usoc-financament.php'>
+				<span class='material-icons ml-1 mr-2'>account_balance</span>
+				<span class='sidebar-normal'>Finançament USOC</span>
+			</a>
+		</li>";
+		$nItem++;
+	}
+
 	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
 }
 catch(Exception $e) {
