@@ -39,6 +39,7 @@ $checks = [
     'redsys_notifications_table' => false,
     'redsys_callback_queue_table' => false,
     'notification_outbox_table' => false,
+    'enrollment_fund_movement_table' => false,
     'fiscal_chain_state_seeded' => false,
     'legacy_inscripcions_table' => false,
     'legacy_curs_table' => false,
@@ -58,6 +59,7 @@ try {
     $checks['redsys_notifications_table'] = tableExists($sifDb, 'redsys_notifications');
     $checks['redsys_callback_queue_table'] = tableExists($sifDb, 'redsys_callback_queue');
     $checks['notification_outbox_table'] = tableExists($sifDb, 'notification_outbox');
+    $checks['enrollment_fund_movement_table'] = tableExists($sifDb, 'enrollment_fund_movement');
     $checks['fiscal_chain_state_seeded'] = rowExists(
         $sifDb,
         'SELECT COUNT(*) FROM fiscal_chain_state WHERE ID = 1'
