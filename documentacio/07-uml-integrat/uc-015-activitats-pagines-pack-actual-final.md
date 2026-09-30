@@ -1,6 +1,6 @@
 # UC-015 · Activitats per pàgina i apartat ACTUAL / FINAL
 
-**Data d'auditoria:** 2026-09-29  
+**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-09-30  
 **Objectiu:** cobrir RM-037 per a les pantalles i processos implicats en la compra d'un pack.
 
 ## Inventari
@@ -9,14 +9,14 @@
 |---|---|---|---|
 | PK-A01 | Llistat de packs | codi legacy | conservar catàleg, sense efecte fiscal |
 | PK-A02 | Fitxa de pack | codi legacy | oferta versionada |
-| PK-A03 | Formulari inscripció | codi legacy | backend autoritatiu |
-| PK-A04 | Alta N inscripcions | codi legacy | operació comercial + snapshot |
-| PK-A05 | Creació URL/intenció | URL legacy | intenció SIF |
-| PK-A06 | Callback Redsys | callback legacy | callback SIF |
-| PK-A07 | Factura pack | factura legacy | InvoiceService |
-| PK-A08 | Distribució per inscripció | UPDATE camps legacy | ledger |
-| PK-A09 | Confirmació/correu | enviament directe | outbox |
-| PK-A10 | Variant fraccionada | exposada al web | només circuit autoritzat |
+| PK-A03 | Formulari inscripció | backend autoritatiu implementat | mantenir contracte |
+| PK-A04 | Alta N inscripcions | snapshot comercial implementat al legacy | consolidar model comercial |
+| PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | evidència runtime |
+| PK-A06 | Callback Redsys | callback SIF principal + legacy encara existent | retirar legacy |
+| PK-A07 | Factura pack | **InvoiceService al flux SIF** + legacy antic | retirar emissió legacy |
+| PK-A08 | Distribució per inscripció | **ledger implementat** | evidència runtime |
+| PK-A09 | Confirmació/correu | **outbox SIF implementat** + correu directe legacy | retirar dependència legacy |
+| PK-A10 | Variant fraccionada | ecommerce PACK força pagament complet | excepció només intranet/reconciliació |
 
 ## PK-A01 · Llistat de packs
 
@@ -97,14 +97,14 @@ G --> H[Crea operació/intenció]
 ### ACTUAL
 ```mermaid
 flowchart TD
-A[enviarInscripcioPack.php] --> B[SELECT últim IDPAG]
-B --> C[IDPAG + 1]
-C --> D[aux = preuPack rebut]
+A[enviarInscripcioPack.php] --> B[Rellegir preus servidor]
+B --> C[GET_LOCK allocator IDPAG]
+C --> D[MAX IDPAG + 1 sota lock]
 D --> E{per cada edició}
-E --> F[calcular A_PAGAR]
-F --> G[INSERT inscripcions TIPUS_INSC=P]
+E --> F[calcular base/descompte/total]
+F --> G[INSERT inscripcions + PACK_ORDINAL + snapshot]
 G --> E
-E -->|fi| H[Retornar hash]
+E -->|fi| H[RELEASE_LOCK i retornar hash]
 ```
 
 ### FINAL
@@ -122,9 +122,12 @@ E --> F[Crear intenció Redsys]
 ### ACTUAL
 ```mermaid
 flowchart TD
-A[IDPAG] --> B[URL xifrada de pagament]
-B --> C[pay.prisma.cat]
-C --> D[Preparació TPV legacy]
+A[IDPAG pack] --> B[PagamentGrupAutomatic TIPUS_INSC=P]
+B --> C[PackPaymentGate rellegeix BD]
+C --> D[Valida snapshot/import/receptor/ordinal]
+D --> E[SifPaymentIntentClient]
+E --> F[Intenció SOURCE_TYPE=PACK]
+F --> G[TPV Redsys amb callback SIF]
 ```
 
 ### FINAL
@@ -192,10 +195,13 @@ H --> I[factura + línies + registre + payment]
 ### ACTUAL
 ```mermaid
 flowchart TD
-A[importPag] --> B[inscripcions ORDER BY A_PAGAR DESC]
-B --> C[consumir import]
-C --> D[UPDATE PAGAMENT]
-D --> E[UPDATE FACTURA_RELACIONADA]
+A[UUID_PAYMENT únic] --> B[PackEnrollmentFundAllocationService]
+B --> C[Validar suma snapshot = payment = factura]
+C --> D{cada ID_INSC}
+D --> E[find invoice line]
+E --> F[insertOrReuse EXTERNAL_ALLOCATION]
+F --> D
+D -->|fi| G[2..N moviments sense CHARGE addicional]
 ```
 
 ### FINAL
@@ -213,9 +219,10 @@ C -->|fi| E[sum atribucions = cobrament]
 ### ACTUAL
 ```mermaid
 flowchart TD
-A[Alta/cobrament] --> B[Construir HTML]
-B --> C[Enviar correu directament]
-C --> D[Secretaria/alumne]
+A[Factura/payment SIF] --> B[PackPaymentNotificationService]
+B --> C[NotificationOutboxRepository]
+C --> D[1 event idempotent]
+A --> E[Camí legacy encara pot enviar correu directe]
 ```
 
 ### FINAL
@@ -232,10 +239,11 @@ D --> E[Enviament i traça]
 ### ACTUAL
 ```mermaid
 flowchart TD
-A[Formulari] --> B{checkbox pagament_fraccionat}
-B -- sí --> C[FRACCIONAT=1]
-C --> D[diversos pagaments possibles]
-B -- no --> E[pagament únic]
+A[Alta ecommerce PACK] --> B[FRACCIONAT=0]
+B --> C[PackPaymentGate]
+C --> D{PAGAMENT previ = 0 i import = pendent complet?}
+D -- no --> E[PACK_PARTIAL_REQUIRES_RECONCILIATION / bloqueig]
+D -- sí --> F[Un únic CHARGE]
 ```
 
 ### FINAL
@@ -253,7 +261,7 @@ E --> F[Classificació fiscal explícita]
 
 No declarar UC-015 tancat fins que:
 1. els deu blocs anteriors tinguin correspondència codi → UC → prova;
-2. el checkout web utilitzi snapshot backend;
+2. s'acrediti en runtime el checkout web amb snapshot backend i callback SIF;
 3. el callback legacy deixi d'emetre factura;
-4. el ledger per ID_INSC estigui implementat o hi hagi decisió formal alternativa;
-5. les proves PK-01..PK-11 s'hagin executat amb evidència.
+4. s'acrediti que `PACK_ORDINAL` prové de l'ordre comercial canònic;
+5. les proves PK-01..PK-11, ledger i outbox s'hagin executat amb evidència.
