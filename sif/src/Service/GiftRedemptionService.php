@@ -6,11 +6,14 @@ namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CommercialEntitlementRepository;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 
 final class GiftRedemptionService
 {
-    public function __construct(private CommercialEntitlementRepository $entitlements)
-    {
+    public function __construct(
+        private CommercialEntitlementRepository $entitlements,
+        private EnrollmentFundMovementRepository $fundMovements
+    ) {
     }
 
     public function preview(
@@ -82,7 +85,20 @@ final class GiftRedemptionService
                 if ((string) ($entitlement['CONSUMED_UUID_OPERATION'] ?? '') !== $destinationUuid) {
                     throw SifException::conflict('Gift was already redeemed for another operation');
                 }
-                $destination = $this->loadDestinationEnrollment($db, $destinationUuid, $holder);
+                $origin = $this->loadPaidGiftOrigin($db, $entitlement);
+                $destination = $this->loadDestinationEnrollment(
+                    $db,
+                    $destinationUuid,
+                    $holder,
+                    $entitlement
+                );
+                $allocation = $this->allocateGiftFunds(
+                    $db,
+                    $entitlement,
+                    $origin,
+                    $destination,
+                    $correlationId
+                );
                 $db->commit();
 
                 return [
@@ -90,13 +106,19 @@ final class GiftRedemptionService
                     'uuid_entitlement' => (string) $entitlement['UUID_ENTITLEMENT'],
                     'uuid_operation' => $destinationUuid,
                     'enrollment_id' => (string) $destination['SOURCE_ID'],
+                    'fund_movement_uuid' => $allocation['uuid_movement'],
                     'idempotency_reused' => true,
                 ];
             }
 
             $this->assertEligible($entitlement, $holder, $now);
-            $this->loadPaidGiftOrigin($db, $entitlement);
-            $destination = $this->loadDestinationEnrollment($db, $destinationUuid, $holder);
+            $origin = $this->loadPaidGiftOrigin($db, $entitlement);
+            $destination = $this->loadDestinationEnrollment(
+                $db,
+                $destinationUuid,
+                $holder,
+                $entitlement
+            );
 
             $reserve = $this->entitlements->reserve(
                 $db,
@@ -111,6 +133,14 @@ final class GiftRedemptionService
             if ($entitlement === null) {
                 throw new \RuntimeException('Reserved gift entitlement disappeared');
             }
+
+            $allocation = $this->allocateGiftFunds(
+                $db,
+                $entitlement,
+                $origin,
+                $destination,
+                $correlationId
+            );
 
             $consume = $this->entitlements->consume(
                 $db,
@@ -129,7 +159,12 @@ final class GiftRedemptionService
                 'uuid_entitlement' => (string) $entitlement['UUID_ENTITLEMENT'],
                 'uuid_operation' => $destinationUuid,
                 'enrollment_id' => (string) $destination['SOURCE_ID'],
-                'idempotency_reused' => (bool) ($reserve['reused'] || $consume['reused']),
+                'fund_movement_uuid' => $allocation['uuid_movement'],
+                'idempotency_reused' => (bool) (
+                    $reserve['reused']
+                    || $allocation['idempotency_reused']
+                    || $consume['reused']
+                ),
             ];
         } catch (\Throwable $exception) {
             if ($db->inTransaction()) {
@@ -204,10 +239,16 @@ final class GiftRedemptionService
         return $origin;
     }
 
-    private function loadDestinationEnrollment(\PDO $db, string $uuidOperation, string $holder): array
-    {
+    private function loadDestinationEnrollment(
+        \PDO $db,
+        string $uuidOperation,
+        string $holder,
+        array $entitlement
+    ): array {
         $stmt = $db->prepare(
-            "SELECT o.UUID_OPERATION, o.OPERATION_TYPE, o.SOURCE_TYPE, o.SOURCE_ID, o.STATUS
+            "SELECT o.UUID_OPERATION, o.OPERATION_TYPE, o.SOURCE_TYPE, o.SOURCE_ID, o.STATUS,
+                    o.CLASSIFICATION, o.CLASSIFICATION_REASON, o.CURRENCY,
+                    o.GROSS_AMOUNT, o.DISCOUNT_AMOUNT, o.NET_AMOUNT
              FROM commercial_operation o
              WHERE o.UUID_OPERATION = ? FOR UPDATE"
         );
@@ -233,7 +274,53 @@ final class GiftRedemptionService
             throw SifException::conflict('Destination enrollment does not belong to gift holder');
         }
 
+        if ((string) $operation['CURRENCY'] !== (string) $entitlement['CURRENCY']
+            || $this->money($operation['GROSS_AMOUNT'])
+                !== $this->money($entitlement['FACE_VALUE'])
+            || $this->money($operation['DISCOUNT_AMOUNT'])
+                !== $this->money($entitlement['FACE_VALUE'])
+            || $this->money($operation['NET_AMOUNT']) !== '0.00'
+            || strtoupper((string) $operation['CLASSIFICATION']) !== 'NON_BILLABLE'
+            || strtoupper((string) $operation['CLASSIFICATION_REASON']) !== 'GIFT_REDEMPTION'
+        ) {
+            throw SifException::conflict(
+                'Destination enrollment is not an exact-value gift redemption'
+            );
+        }
+
         return $operation;
+    }
+
+    private function allocateGiftFunds(
+        \PDO $db,
+        array $entitlement,
+        array $origin,
+        array $destination,
+        string $correlationId
+    ): array {
+        $idInsc = (int) $destination['SOURCE_ID'];
+        if ($idInsc <= 0) {
+            throw SifException::conflict('Destination enrollment ID is invalid');
+        }
+
+        return $this->fundMovements->insertOrReuseCompensationAllocation(
+            $db,
+            [
+                'idempotency_key' => sprintf(
+                    'FUND|GIFT|ENTITLEMENT:%s|INSC:%d',
+                    (string) $entitlement['UUID_ENTITLEMENT'],
+                    $idInsc
+                ),
+                'order' => 1,
+                'uuid_payment' => (string) $origin['UUID_PAYMENT'],
+                'id_insc' => $idInsc,
+                'amount' => $this->money($entitlement['FACE_VALUE']),
+                'currency' => (string) $entitlement['CURRENCY'],
+                'uuid_operation' => (string) $destination['UUID_OPERATION'],
+                'correlation_id' => $correlationId,
+                'notes' => 'UC-018 gift redemption compensation allocation',
+            ]
+        );
     }
 
     private function hashCode(string $code): string
