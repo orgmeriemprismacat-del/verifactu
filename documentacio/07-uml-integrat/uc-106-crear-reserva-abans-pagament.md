@@ -88,12 +88,12 @@ flowchart LR
   a_0["Alumne/comprador"]
   a_1["Gestió acadèmica"]
   subgraph SIF_BOUNDARY["Reserva comercial + inscripció"]
-    u_0(["UC-106nCrear reserva abans de pagar"])
-    u_1(["UC-107nDetectar matrícula duplicada"])
-    u_2(["UC-115nReservar plaça real"])
+    u_0(["UC-106<br/>Crear reserva abans de pagar"])
+    u_1(["UC-107<br/>Detectar matrícula duplicada"])
+    u_2(["UC-115<br/>Reservar plaça real"])
     u_3(["Guardar operació, preu i actors"])
-    u_4(["UC-112nCongelar abans del TPV"])
-    u_5(["UC-63nCrear intenció quan s'inicia pagament"])
+    u_4(["UC-112<br/>Congelar abans del TPV"])
+    u_5(["UC-63<br/>Crear intenció quan s'inicia pagament"])
   end
   a_0 --> u_0
   a_1 --> u_0
