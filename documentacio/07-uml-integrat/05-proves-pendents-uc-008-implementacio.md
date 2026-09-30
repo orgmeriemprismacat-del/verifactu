@@ -1,6 +1,6 @@
 # UC-008 · Proves executades i pendents
 
-Aquest document separa la **suite automatitzada ja executada** de les proves E2E, concurrència i preproducció que encara falten. Després d'integrar UI, preflight i contractes read-only UC-008, el run `36658230379` ha finalitzat amb **618 passed, 0 failed**; `Intranet AO batch checks` run `36647777483` continua en **success**.
+Aquest document separa la **suite automatitzada ja executada** de les proves que encara depenen de l'entorn real. L'evidència més recent específica del bloc UC-008 conservada a la documentació és el run `36664788129` amb **677 passed, 0 failed**; `Intranet AO batch checks` run `36647777483` continua en **success**. La concurrència, preflight, deep-links i gate d'evidències ja estan coberts per tests; el pendent és executar-los amb configuració real de preproducció i conservar-ne les evidències.
 
 ## 1. Suite PHP/MySQL
 
