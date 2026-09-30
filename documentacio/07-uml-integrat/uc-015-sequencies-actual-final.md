@@ -37,7 +37,7 @@ JS-->>U: redirecció confirmació
 
 - l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
 - cal acreditar que `PACK_ORDINAL` representa l'ordre comercial canònic;
-- el callback fiscal legacy continua existint com a camí antic.
+- el callback fiscal legacy conserva codi històric però està desactivat per defecte.
 
 ## 2. ACTUAL — cobrament pack al callback llegat
 
@@ -50,8 +50,12 @@ participant DB as BD legacy
 participant Mail as Correus
 
 R->>CB: POST Ds_* + URL amb GET idPag/import/order
-CB->>CB: valida signatura + DS_ORDER + import
-CB->>DB: cerca inscripcions IDPAG
+CB->>CB: comprovar SIF_PACK_LEGACY_CALLBACK_ENABLED
+alt desactivat per defecte
+ CB-->>R: HTTP 410
+else rollback explicit
+ CB->>CB: valida signatura + DS_ORDER + import
+ CB->>DB: cerca inscripcions IDPAG
 CB->>DB: calcula factura_relacionada / ordre fiscal
 CB->>DB: INSERT factures
 loop per A_PAGAR DESC
@@ -59,9 +63,10 @@ loop per A_PAGAR DESC
 end
 CB->>DB: UPDATE FRACCIO si correspon
 CB->>Mail: confirmacions
+end
 ```
 
-**Revalidació 30/09:** les còpies legacy inspeccionades ja bloquegen per signatura, `Ds_Order` i import; el risc residual és que aquest script encara pot fer escriptura fiscal directa i s'ha de retirar.
+**Revalidació 30/09:** el callback legacy queda desactivat per defecte amb HTTP 410 abans de qualsevol escriptura. El codi intern només queda disponible per rollback explícit.
 
 ## 3. FINAL — intenció, callback i emissió SIF
 
@@ -154,4 +159,4 @@ end
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
 - Outbox: implementat i cablejat al worker.
-- Pendent: retirar callback fiscal legacy, acreditar l'origen comercial de l'ordinal i executar proves d'entorn.
+- Pendent: eliminar el codi legacy després del rollback, acreditar l'origen comercial de l'ordinal i executar proves d'entorn.
