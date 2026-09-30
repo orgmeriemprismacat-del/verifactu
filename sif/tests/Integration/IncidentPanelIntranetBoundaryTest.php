@@ -54,6 +54,25 @@ final class IncidentPanelIntranetBoundaryTest
         }
     }
 
+    public function testIntranetFallbackNeverTurnsSifOutageIntoZeroIncidents(): void
+    {
+        $source = $this->readIntranet('js/sif-verifactu.js');
+
+        Assert::stringContainsString('sessionStorage.setItem', $source);
+        Assert::stringContainsString('sessionStorage.getItem', $source);
+        Assert::stringContainsString('darrera dada validada', $source);
+        Assert::stringContainsString('No es pot afirmar que hi hagi 0 incidències', $source);
+        Assert::stringContainsString('Llistat no disponible mentre el SIF és inaccessible', $source);
+
+        if (str_contains($source, 'localStorage.')) {
+            Assert::fail('Incident summary fallback must stay scoped to the browser session.');
+        }
+
+        if (str_contains($source, 'sessionStorage.setItem(cacheKey, JSON.stringify(incidents')) {
+            Assert::fail('Incident details must not be cached by the intranet fallback.');
+        }
+    }
+
     private function readIntranet(string $relativePath): string
     {
         $path = dirname(__DIR__, 3) . '/codi-drive/intranet-actual/' . $relativePath;
