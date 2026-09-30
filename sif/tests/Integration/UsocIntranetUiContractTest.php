@@ -41,6 +41,7 @@ final class UsocIntranetUiContractTest
         Assert::stringContainsString("post('reconcile'", $js);
         Assert::stringContainsString("post('lifecycle_plan'", $js);
         Assert::stringContainsString('renderLifecyclePlan', $js);
+        Assert::stringContainsString('usoc-lifecycle-preview, #usoc-lifecycle-operation', $js);
 
         Assert::stringContainsString("REQUEST_METHOD", $controller);
         Assert::stringContainsString("!== 'POST'", $controller);
