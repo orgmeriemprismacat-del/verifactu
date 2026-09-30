@@ -97,8 +97,8 @@ No descriure AP ACTUAL com un percentatge fix. El codi usa `descomptes.PREU` com
 | --- | --- | --- |
 | Fitxa funcional UC-020 | existent, genèrica v1.1 | actualitzada v1.2 amb auditoria específica |
 | UML integrat UC-020 | existent, sobretot FINAL/SIF | actualitzat amb ACTUAL + FINAL |
-| Classes UC-020 | parcials dins UML | ACTUAL i FINAL integrades al UML principal |
-| Seqüències UC-020 | una seqüència mixta | web, denegació, canvi de curs i FINAL |
+| Classes UC-020 | parcials dins UML | creat `uc-020-classes-actual-final.md` i mantingut resum integrat |
+| Seqüències UC-020 | una seqüència mixta | creat `uc-020-sequences-actual-final.md`; web + FINAL separats |
 | Activitats per pàgina | **no existia dossier específic** | creat `uc-020-activitats-pagines-actual-final.md` |
 | Traçabilitat d'auditoria | dispersa | aquest document |
 | Pàgina compartida UC-116 | contenia referència P01 incorrecta | corregida en aquesta branca |
@@ -171,3 +171,52 @@ Cap fila «PENDENT EXECUCIÓ» passa a VERIFICADA només perquè existeixi un te
 - [UML integrat UC-020](uc-020-aplicar-alumne-prisma.md)
 - [Activitats UC-020](uc-020-activitats-pagines-actual-final.md)
 - [UC-116 compartit](uc-116-activitats-pagines-justificants-actual-final.md)
+
+
+## 7. Tall executable 30/09/2026
+
+### 7.1. Codi creat
+
+| Peça | Estat | Finalitat |
+| --- | --- | --- |
+| `PrismaStudentDiscountPolicy` | IMPLEMENTAT_COMPATIBILITAT | Reprodueix la regla web sota `ALUMNE_PRISMA_LEGACY_V1` i retorna evidència concreta. |
+| `LegacyPrismaStudentHistoryRepository` | IMPLEMENTAT | Recupera fets d'historial per DNI sense decidir elegibilitat. |
+| `CourseIntentSnapshotValidator` | IMPLEMENTAT | Valida el contracte `CURS` abans de persistir una intenció Redsys. |
+| `RedsysPaymentIntentService` | MODIFICAT | Invoca el validador de CURS abans de serialitzar/desar l'intent. |
+| `PrismaStudentDiscountPolicyTest` | CREAT | Proves de compatibilitat de la regla legacy. |
+| `RedsysPaymentIntentTest` | AMPLIAT | Proves source/IDPAG/import/descompte Alumne PrisMa. |
+
+### 7.2. Incidències noves/reespecificades
+
+| ID | Troballa | Estat després del tall |
+| --- | --- | --- |
+| UC020-74 | Intenció `CURS` acceptava qualsevol snapshot no buit. | **CORREGIT CODI** amb `CourseIntentSnapshotValidator`. |
+| UC020-75 | `SOURCE_ID` no es contrastava amb `snapshot.inscription.ID`. | **CORREGIT CODI**. |
+| UC020-76 | `IDPAG` de la intenció no es contrastava amb el del snapshot CURS. | **CORREGIT CODI**. |
+| UC020-77 | `EXPECTED_AMOUNT` no es contrastava amb `snapshot.payment.amount`. | **CORREGIT CODI**. |
+| UC020-78 | Snapshot de descompte nou podia arribar sense `origin`/ `mode`. | **CORREGIT CODI per CURS nou**; els fallbacks del builder continuen per compatibilitat històrica. |
+| UC020-79 | Política AP no encapsulada i evidència reduïda a booleà. | **PARCIALMENT CORREGIT**: policy + repository; falta integrar-los al checkout. |
+| UC020-80 | Manca orquestrador server-side que persisteixi `discount_validation` + `commercial_operation`. | **PENDENT**. |
+| UC020-81 | Manca vincle runtime `UUID_OPERATION ↔ UUID_INTENT`. | **PENDENT**. |
+| UC020-82 | `RedsysInvoicePayloadBuilder` no imposa una invariant global de total factura vs cobrament per tots els casos. | **PENDENT TRANSVERSAL**; tractar amb cura fraccionaments. |
+
+### 7.3. Decisió d'implementació
+
+No s'ha canviat la política de negoci silenciosament. La nova policy està identificada explícitament com a **compatibilitat legacy**. En particular, continuen pendents de ratificació:
+
+- pagament parcial com a prova de dret;
+- `GENERAT=1`;
+- factura abans de cobrar;
+- autoacreditació de la matrícula actual;
+- prioritat/compatibilitat amb altres descomptes.
+
+Quan canviï qualsevol d'aquests criteris s'ha de publicar una nova `RULE_VERSION`, no editar el significat de `ALUMNE_PRISMA_LEGACY_V1`.
+
+### 7.4. Documents ACTUAL/FINAL disponibles
+
+- [Classes ACTUAL/FINAL](uc-020-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-020-sequences-actual-final.md)
+- [Activitats ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md)
+- [UML integrat / cas d'ús](uc-020-aplicar-alumne-prisma.md)
+
+Això completa el paquet documental de **cas d'ús + classes + seqüència + activitats + auditoria/traçabilitat** per UC-020.
