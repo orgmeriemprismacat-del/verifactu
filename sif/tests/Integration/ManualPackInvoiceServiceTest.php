@@ -147,7 +147,9 @@ final class ManualPackInvoiceServiceTest
             'PAGAMENT' => '0.00',
             'FRACCIO' => 0,
             'FRACCIONAT' => 0,
-            'OBSERVACIONS' => 'alta PACK|88',
+            'OBSERVACIONS' => $id === 531
+                ? 'alta PACK|88 PACK_ORDINAL|1 PACK_BASE|120.00 PACK_DISCOUNT|0.00 PACK_DISCOUNT_PCT|0.00 PACK_TOTAL|120.00'
+                : 'alta PACK|88 PACK_ORDINAL|2 PACK_BASE|120.00 PACK_DISCOUNT|30.00 PACK_DISCOUNT_PCT|25.00 PACK_TOTAL|90.00',
             'pag_observacions' => '',
         ];
     }
