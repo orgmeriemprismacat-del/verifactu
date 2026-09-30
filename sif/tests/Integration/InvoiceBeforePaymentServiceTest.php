@@ -38,6 +38,8 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
     }
 
     public function testBuilderDerivesIdempotencyAndForcesInvoiceBeforePaymentFlags(): void
@@ -47,12 +49,21 @@ final class InvoiceBeforePaymentServiceTest
             'source_channel' => 'REDSYS',
             'created_by' => '',
             'reference' => 'PRE 900',
+            'relations' => [[
+                'source_type' => 'inscripcio',
+                'source_id' => '900',
+                'relation_type' => 'ANY_CLIENT_VALUE',
+                'factura_relacionada' => 900,
+            ]],
         ]));
 
         Assert::same('INTRANET|FACTURA_ABANS_COBRAR|REF:PRE_900', $payload['idempotency_key']);
         Assert::same('INTRANET', $payload['source_channel']);
         Assert::same('intranet-factura-abans-cobrar', $payload['created_by']);
         Assert::same(1, $payload['emesa_abans_cobrament']);
+        Assert::same('INSCRIPCIO', $payload['relations'][0]['source_type']);
+        Assert::same(900, $payload['relations'][0]['source_id']);
+        Assert::same('ORIGIN', $payload['relations'][0]['relation_type']);
     }
 
     public function testRejectsPaymentBlockBeforeIssuingInvoice(): void
@@ -74,5 +85,152 @@ final class InvoiceBeforePaymentServiceTest
 
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
+    public function testRejectsMissingInscriptionOrigins(): void
+    {
+        $builder = new InvoiceBeforePaymentPayloadBuilder();
+        $input = Fixtures::invoicePayload();
+        unset($input['relations']);
+
+        Assert::throws(SifException::class, function () use ($builder, $input): void {
+            $builder->build($input);
+        }, 422);
+    }
+
+    public function testRejectsDuplicateInscriptionOriginsInsideSameRequest(): void
+    {
+        $builder = new InvoiceBeforePaymentPayloadBuilder();
+
+        Assert::throws(SifException::class, function () use ($builder): void {
+            $builder->build(Fixtures::invoicePayload([
+                'relations' => [
+                    [
+                        'source_type' => 'INSCRIPCIO',
+                        'source_id' => 900,
+                        'factura_relacionada' => 900,
+                    ],
+                    [
+                        'source_type' => 'INSCRIPCIO',
+                        'source_id' => '900',
+                        'factura_relacionada' => 900,
+                    ],
+                ],
+            ]));
+        }, 422);
+    }
+
+    public function testRejectsNonInscriptionOrigin(): void
+    {
+        $builder = new InvoiceBeforePaymentPayloadBuilder();
+
+        Assert::throws(SifException::class, function () use ($builder): void {
+            $builder->build(Fixtures::invoicePayload([
+                'relations' => [[
+                    'source_type' => 'PACK',
+                    'source_id' => 900,
+                ]],
+            ]));
+        }, 422);
+    }
+
+    public function testFailsClosedWhenInvoiceServiceHasNoBeforePaymentCoverageRepository(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoiceService = new \Prisma\Sif\Service\InvoiceService(
+            new \Prisma\Sif\Database\TransactionRunner($db),
+            new \Prisma\Sif\Service\InvoicePayloadValidator(),
+            new \Prisma\Sif\Repository\FiscalSequenceRepository(),
+            new \Prisma\Sif\Repository\InvoiceRepository(
+                new \Prisma\Sif\Domain\UuidGenerator(),
+                new \Prisma\Sif\Domain\HashCalculator()
+            )
+        );
+        $service = new InvoiceBeforePaymentService(
+            new InvoiceBeforePaymentPayloadBuilder(),
+            $invoiceService
+        );
+
+        Assert::throws(\RuntimeException::class, function () use ($service): void {
+            $service->issueBeforePayment(Fixtures::invoicePayload([
+                'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|REF:NO-COVERAGE-REPO',
+            ]));
+        });
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
+    }
+
+    public function testDifferentIdempotencyKeyCannotCoverSameInscriptionTwice(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new InvoiceBeforePaymentService(
+            new InvoiceBeforePaymentPayloadBuilder(),
+            IssueInvoiceTest::serviceFor($db)
+        );
+
+        $first = $service->issueBeforePayment(Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|REF:COVERAGE-1',
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 901,
+                'factura_relacionada' => 901,
+            ]],
+            'lines' => [[
+                'concept' => 'Curs cobertura',
+                'detail' => 'Primera factura',
+                'quantity' => '1.00',
+                'unit_price' => '120.00',
+                'base' => '120.00',
+                'import_base' => '120.00',
+                'discount_amount' => '0.00',
+                'taxable_base' => '120.00',
+                'iva_regim' => 'EXEMPT',
+                'iva_pct' => '0.00',
+                'iva_import' => '0.00',
+                'total' => '120.00',
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 901,
+            ]],
+        ]));
+
+        Assert::same(false, $first['idempotency_reused']);
+
+        $exception = Assert::throws(SifException::class, function () use ($service): void {
+            $service->issueBeforePayment(Fixtures::invoicePayload([
+                'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|REF:COVERAGE-2',
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 901,
+                    'factura_relacionada' => 901,
+                ]],
+                'lines' => [[
+                    'concept' => 'Curs cobertura',
+                    'detail' => 'Segona factura incompatible',
+                    'quantity' => '1.00',
+                    'unit_price' => '120.00',
+                    'base' => '120.00',
+                    'import_base' => '120.00',
+                    'discount_amount' => '0.00',
+                    'taxable_base' => '120.00',
+                    'iva_regim' => 'EXEMPT',
+                    'iva_pct' => '0.00',
+                    'iva_import' => '0.00',
+                    'total' => '120.00',
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 901,
+                ]],
+            ]));
+        }, 409);
+
+        Assert::stringContainsString('already claimed', $exception->getMessage());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            'SELECT LAST_NUM FROM fiscal_sequence WHERE TIPUS_SERIE = "A" AND ANY_FACT = 2026'
+        )->fetchColumn());
     }
 }
