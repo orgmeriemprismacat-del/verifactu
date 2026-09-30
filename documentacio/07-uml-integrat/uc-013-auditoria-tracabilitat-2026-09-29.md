@@ -117,7 +117,7 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 | US13-09 | factura entitat sense ingrés | PENDING, 0 payments | TEST EXISTENT |
 | US13-10 | cobrament entitat parcial real via PaymentService | `ENTITY_PARTIAL` | PASS CI · run 36657971568 |
 | US13-11 | reintents alumne/entitat + 10 € + 15 € sobre factura entitat de 25 € | `FINANCING_RECONCILED` | **PROVAT E2E CI · run 36660979100** |
-| US13-12 | alumne=0 | circuit especial o bloqueig explícit | PENDENT DECISIÓ |
+| US13-12 | alumne=0 | circuit especial o bloqueig explícit | **BLOQUEIG PROVAT** · `testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined`, run `36730189405`; decisió funcional/fiscal pendent |
 
 ## 6. Fitxers del paquet UC-013
 
@@ -136,3 +136,12 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 **PRODUCCIÓ:** no acreditada.
 
 Els P0 estructurals estan implementats. El run CI principal actual `36663075293` acaba **SUCCESS, 666 passed / 0 failed**, incloent el protocol durable de validació; el run `36660979100` ja havia acreditat l'E2E de doble facturació. El UC-013 encara no es marca TANCAT per desplegament/preproducció, canvi/baixa amb dos pagadors i decisions funcionals/fiscals pendents.
+
+
+### Evidència addicional · regla comercial no codificada al SIF
+
+El run `36730189405` acaba **SUCCESS, 730 passed / 0 failed** i incorpora:
+- `testUsesExplicitAmountsWithoutFixedUsocPercentage`: un snapshot 73,00 € alumne + 27,00 € entitat es construeix sense cap regla 20/25 hardcoded;
+- `testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined`: 0,00 € per la part alumne es rebutja amb validació fins que existeixi un circuit funcional/fiscal específic.
+
+Per tant, la discrepància 20 %/25 % queda com a decisió de negoci, no com a constant tècnica del SIF.
