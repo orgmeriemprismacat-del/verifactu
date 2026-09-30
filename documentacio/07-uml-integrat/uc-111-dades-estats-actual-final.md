@@ -289,7 +289,7 @@ APPLIED --> CANCELLED : tancament autoritzat\nsense successor
 
 **Implementació associada a `CONVERTED_TO_DERIVED`:** la [migració 000028](../../sif/database/migrations/2026_09_29_000028_close_derived_application_into_child_balance.sql) exigeix `CLOSED_AT` i `REASON_CODE=CONVERTED_TO_DERIVED` quan una aplicació derivada deixa de ser exposició activa. `NovicePromotionDerivedApplicationCancellationReviewService` crea el dret fill `PENDING_FISCAL_REVIEW` amb `PARENT_UUID_DERIVED_BALANCE` + `SOURCE_UUID_DERIVED_APPLICATION`; `NovicePromotionDerivedApplicationCancellationActivationService` revalida aprovació, rectificativa, cash i JASOM i fa atòmicament `APPLIED → CONVERTED_TO_DERIVED` + fill `PENDING → ACTIVE`, sense retornar l'import al pare.
 
-**No cobert encara:** si l'exposició actual és un segon/tercer `novice_promotion_application_transfer.CONFIRMED`, falta el servei específic de baixa sobre l'últim transfer. L'estat no s'ha d'inferir retrocedint a una aplicació predecessora.
+**Transferències successives i baixa:** `NovicePromotionTransferredDestinationCancellationReviewService::stageCurrentTransferredDestinationReview()` i `NovicePromotionTransferredCancellationActivationService` admeten l'últim `transfer.CONFIRMED` encara que provingui d'un `PREVIOUS_UUID_TRANSFER` o d'una `derived_application`. Abans de crear el saldo derivat, resolen el dret que la cadena transporta: parent NULL si és el dret JASOM original, o `PARENT_UUID_DERIVED_BALANCE=<right derivat>` si el transfer prové d'un saldo de baixa. Un transfer amb successor actiu no es pot donar de baixa com si encara fos el destí actual.
 ## 6. Estat dels traspassos de curs
 
 \`\`\`plantuml
