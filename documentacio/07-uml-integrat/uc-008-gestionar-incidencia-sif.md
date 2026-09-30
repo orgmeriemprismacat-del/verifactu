@@ -2,7 +2,7 @@
 
 **Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat actual (2026-09-30):** backend de lifecycle i UI **IMPLEMENTATS AL CODI**. Després de la integració del panell/resum, `SIF PHP MySQL tests` run `36648545296` ha passat amb **589/0** i `Intranet AO batch checks` run `36647777483` amb **success**. La preproducció, els rols/secrets productius i l'E2E de navegador continuen pendents.
+**Estat actual (2026-09-30):** backend, UI, preflight i contractes read-only **IMPLEMENTATS AL CODI**. El run `36658230379` ha passat amb **618/0**; `Intranet AO batch checks` run `36647777483` continua en **success**. La preproducció amb secrets/rols reals, l'alta de menú a BD i l'E2E de navegador continuen pendents.
 
 **Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
