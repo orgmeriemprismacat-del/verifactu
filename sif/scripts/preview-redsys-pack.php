@@ -4,7 +4,7 @@ require dirname(__DIR__) . '/src/autoload.php';
 
 use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Exception\SifException;
-use Prisma\Sif\Repository\LegacyPackSnapshotRepository;
+use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Service\LegacyPackInvoicePayloadBuilder;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
@@ -29,7 +29,6 @@ if ($dsOrder === '') {
 
 try {
     $sifDb = ConnectionFactory::make($config);
-    $legacyDb = ConnectionFactory::makeLegacy($config);
     $notifications = new RedsysNotificationRepository();
     $notification = $notifications->findByDsOrder($sifDb, $dsOrder);
 
@@ -41,9 +40,14 @@ try {
         throw SifException::conflict('Redsys notification is not validated');
     }
 
-    $idpag = idpag($notification);
-    $amount = amount($notification);
-    $snapshot = (new LegacyPackSnapshotRepository())->loadByIdpag($legacyDb, $idpag, $amount);
+    $intent = (new RedsysPaymentIntentRepository())->findByDsOrder($sifDb, $dsOrder);
+    if (!is_array($intent) || strtoupper(trim((string) ($intent['SOURCE_TYPE'] ?? ''))) !== 'PACK') {
+        throw SifException::validation('PACK Redsys intent not found');
+    }
+    $snapshot = json_decode((string) ($intent['SNAPSHOT_JSON'] ?? ''), true);
+    if (!is_array($snapshot)) {
+        throw SifException::validation('Invalid PACK Redsys intent snapshot');
+    }
     $basePayload = (new LegacyPackInvoicePayloadBuilder())->build($snapshot);
     $payload = (new RedsysInvoicePayloadBuilder($notifications))
         ->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
@@ -52,7 +56,7 @@ try {
         'ok' => true,
         'dry_run' => true,
         'ds_order' => $dsOrder,
-        'idpag' => $idpag,
+        'idpag' => (int) ($intent['IDPAG'] ?? 0),
         'payload' => $payload,
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
     exit(0);
@@ -64,27 +68,4 @@ try {
         'code' => $exception->getCode(),
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
     exit(1);
-}
-
-function idpag(array $notification): int
-{
-    if (!array_key_exists('IDPAG', $notification) || $notification['IDPAG'] === null || $notification['IDPAG'] === '') {
-        throw SifException::validation('Validated Redsys pack notification requires IDPAG');
-    }
-
-    $idpag = (int) $notification['IDPAG'];
-    if ($idpag <= 0) {
-        throw SifException::validation('Invalid Redsys pack IDPAG');
-    }
-
-    return $idpag;
-}
-
-function amount(array $notification): string
-{
-    if (!array_key_exists('IMPORT', $notification) || !is_numeric($notification['IMPORT'])) {
-        throw SifException::validation('Invalid Redsys pack amount');
-    }
-
-    return number_format((float) $notification['IMPORT'], 2, '.', '');
 }
