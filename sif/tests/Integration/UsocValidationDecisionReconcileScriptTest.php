@@ -24,7 +24,7 @@ final class UsocValidationDecisionReconcileScriptTest
         Assert::stringContainsString("'state' => 'ERROR'", $script);
 
         Assert::stringContainsString('usoc_validation_decision_table', $preflight);
-        Assert::stringContainsString("tableExists($db, 'usoc_validation_decision')", $preflight);
+        Assert::stringContainsString("tableExists(\$db, 'usoc_validation_decision')", $preflight);
 
         Assert::stringContainsString("WHERE STATE = 'REQUESTED'", $repository);
         Assert::stringContainsString('ORDER BY REQUESTED_AT ASC, ID ASC', $repository);
