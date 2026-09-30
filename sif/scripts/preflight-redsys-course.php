@@ -25,6 +25,7 @@ $checks = [
     'redsys_callback_queue_table' => false,
     'callback_endpoint_present' => is_file(dirname(__DIR__) . '/public/api/redsys/callback.php'),
     'course_intent_endpoint_present' => is_file(dirname(__DIR__) . '/public/api/redsys/course-intent.php'),
+    'course_status_endpoint_present' => is_file(dirname(__DIR__) . '/public/api/redsys/course-status.php'),
     'worker_script_present' => is_file(dirname(__DIR__) . '/scripts/process-redsys-callback-queue.php'),
     'verification_script_present' => is_file(dirname(__DIR__) . '/scripts/verify-redsys-course-preproduction.php'),
     'fiscal_chain_state_seeded' => false,
