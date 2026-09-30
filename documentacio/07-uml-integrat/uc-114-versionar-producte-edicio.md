@@ -78,6 +78,28 @@ P --> Renew
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Gestió acadèmica"]
+  a_1["Responsable comercial/fiscal"]
+  a_2["Pagador afectat"]
+  subgraph SIF_BOUNDARY["SIF · versió del catàleg"]
+    u_0(["UC-114nVersionar producte o edició"])
+    u_1(["Comparar versions i afectació"])
+    u_2(["Classificar operacions obertes"])
+    u_3(["Publicar versió aprovada"])
+    u_4(["UC-121nAcceptar oferta nova quan cal"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+  a_2 --> u_4
+```
+
 ## 3. Diagrama de classes: SQL present, orquestració pendent
 
 ```mermaid
