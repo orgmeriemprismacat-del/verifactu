@@ -12,10 +12,10 @@
 | PK-A03 | Formulari inscripció | backend autoritatiu implementat | mantenir contracte |
 | PK-A04 | Alta N inscripcions | snapshot comercial implementat al legacy | consolidar model comercial |
 | PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | evidència runtime |
-| PK-A06 | Callback Redsys | callback SIF principal + legacy encara existent | retirar legacy |
-| PK-A07 | Factura pack | **InvoiceService al flux SIF** + legacy antic | retirar emissió legacy |
+| PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | eliminar codi rollback |
+| PK-A07 | Factura pack | **InvoiceService al flux SIF; emissió legacy desactivada per defecte** | eliminar codi rollback |
 | PK-A08 | Distribució per inscripció | **ledger implementat** | evidència runtime |
-| PK-A09 | Confirmació/correu | **outbox SIF implementat** + correu directe legacy | retirar dependència legacy |
+| PK-A09 | Confirmació/correu | **outbox SIF implementat; correu legacy inaccessible per defecte** | eliminar codi rollback |
 | PK-A10 | Variant fraccionada | ecommerce PACK força pagament complet | excepció només intranet/reconciliació |
 
 ## PK-A01 · Llistat de packs
@@ -145,13 +145,16 @@ E --> F[TPV]
 ### ACTUAL
 ```mermaid
 flowchart TD
-A[POST Redsys + GET URL] --> B[realitzaPagamentPackAutomatic]
-B --> C[decodifica Ds_*]
-C --> D{Response 0..99?}
-D -- no --> E[Correu/error]
-D -- sí --> F[Consulta IDPAG]
-F --> G[Factura legacy]
-G --> H[UPDATE inscripcions]
+A[POST Redsys legacy] --> B[realitzaPagamentPackAutomatic]
+B --> C{SIF_PACK_LEGACY_CALLBACK_ENABLED?}
+C -- no --> D[HTTP 410 · cap mutació]
+C -- sí --> E[rollback explícit]
+E --> F[decodifica Ds_*]
+F --> G{Response 0..99?}
+G -- no --> H[Correu/error]
+G -- sí --> I[Consulta IDPAG]
+I --> J[Factura legacy només rollback]
+J --> K[UPDATE inscripcions]
 ```
 
 ### FINAL
@@ -262,7 +265,7 @@ E --> F[Classificació fiscal explícita]
 No declarar UC-015 tancat fins que:
 1. els deu blocs anteriors tinguin correspondència codi → UC → prova;
 2. s'acrediti en runtime el checkout web amb snapshot backend i callback SIF;
-3. el callback legacy deixi d'emetre factura;
+3. el callback legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
 4. s'acrediti que `PACK_ORDINAL` prové de l'ordre comercial canònic;
 5. les proves end-to-end PK-01..PK-11 s'hagin executat en preproducció; la capa unitària/integració ja té evidència CI verda (619/0).
 
