@@ -161,11 +161,24 @@ try {
          ."&frac=".rawurlencode((string) $frac)
          ."&import=".rawurlencode(number_format((float) $importPagare, 2, '.', ''));
 
+      // UC-014: el tall de MerchantURL és explícit. Configurar una URL SIF
+      // per si sola no canvia el callback; cal habilitar també el flag de cutover.
+      $courseCutoverEnabled = filter_var(
+         getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
       $sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
-      if ($sifMerchantUrl !== '' && !str_starts_with($sifMerchantUrl, 'https://')) {
-         throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_MUST_USE_HTTPS');
+      if ($courseCutoverEnabled) {
+         if ($sifMerchantUrl === '') {
+            throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER');
+         }
+         if (!str_starts_with($sifMerchantUrl, 'https://')) {
+            throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_MUST_USE_HTTPS');
+         }
+         $url = $sifMerchantUrl;
+      } else {
+         $url = $legacyMerchantUrl;
       }
-      $url = $sifMerchantUrl !== '' ? $sifMerchantUrl : $legacyMerchantUrl;
 
       $returnQuery = http_build_query([
          'email' => $email,
