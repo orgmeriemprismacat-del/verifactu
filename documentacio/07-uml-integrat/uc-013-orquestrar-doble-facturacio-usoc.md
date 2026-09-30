@@ -142,6 +142,31 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne / pagador"]
+  actor_1["Empresa/entitat USOC"]
+  actor_2["Operador facturació"]
+  actor_3["Redsys"]
+  subgraph SIF_BOX["SIF PrisMa · USOC"]
+    uc_0(["UC-13<br/>Orquestrar doble facturació"])
+    uc_1(["UC-19<br/>Validar afiliació/condicions"])
+    uc_2(["UC-19a<br/>Facturar i cobrar part alumne"])
+    uc_3(["UC-19b<br/>Facturar part entitat"])
+    uc_4(["UC-02<br/>Cobrar part entitat posterior"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_0
+  actor_3 --> uc_2
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_2 --> uc_4
+```
+
 ## 3. Subdiagrama de classes — dos handlers sense orquestrador fictici
 
 ```mermaid
@@ -363,6 +388,24 @@ Note over C,L: No hi ha coordinador o ledger per ID_INSC acreditat: un PAYMENT a
 | UO-13-10 | Entitat paga només una fracció del seu import | Expedient parcial i pendent restant, amb pagament alumne intacte. |
 | UO-13-11 | Una factura alumne i una entitat amb dos pagaments reals diferents | Finançament conciliable només quan ambdós imports i orígens estan contrastats per ID_INSC; cap duplicació del moviment alumne. |
 
+### 5.3. Planner de canvi/baixa per dos pagadors — IMPLEMENTAT
+
+`UsocLifecyclePlanService` consumeix el `payer_snapshot` del guard i genera una acció independent per:
+- pagador alumne;
+- pagador entitat.
+
+Invariants implementades:
+- no creuar fons entre pagadors;
+- no retornar imports no cobrats;
+- rectificar cada factura de manera independent;
+- mantenir bloquejada la mutació legacy fins que existeixi un flux SIF resolt.
+
+Per una factura encara no emesa, el planner retorna `invoice_action=NONE`, `economic_action=NONE` i `max_refundable=0.00`. Per una factura amb cobraments reals, `max_refundable` queda limitat a `net_paid`, no al total nominal facturat.
+
+La pantalla `alumnes-usoc-financament.php` exposa aquest pla en mode preview mitjançant `lifecycle_plan`; no executa cap rectificativa ni refund.
+
+**Proves CI:** runs `36733404401` i `36733404387`, **744 passed / 0 failed**.
+
 ## 6. Traçabilitat
 
 [UC-13 original](../06-fitxes-funcionals/uc-013.md) · [UC-19a original](../06-fitxes-funcionals/uc-019a.md) · [UC-19b original](../06-fitxes-funcionals/uc-019b.md) · [Revisió fons inscripció](00-revisio-moviments-inscripcions.md) · [RedsysUsocInvoiceService](../../sif/src/Service/RedsysUsocInvoiceService.php) · [UsocEntityInvoiceService](../../sif/src/Service/UsocEntityInvoiceService.php) · [LegacyUsocInvoicePayloadBuilder](../../sif/src/Service/LegacyUsocInvoicePayloadBuilder.php) · [LegacyUsocSnapshotRepository](../../sif/src/Repository/LegacyUsocSnapshotRepository.php) · [RedsysUsocInvoiceServiceTest](../../sif/tests/Integration/RedsysUsocInvoiceServiceTest.php) · [UsocEntityInvoiceServiceTest](../../sif/tests/Integration/UsocEntityInvoiceServiceTest.php).
@@ -443,4 +486,4 @@ Vegeu [auditoria i matriu UC-013](uc-013-auditoria-tracabilitat-2026-09-29.md).
 - IMPLEMENTAT: parcial.
 - VERIFICAT: estàticament contra codi.
 - TEST EXECUTAT: sí per nucli USOC i protocol durable; resta navegador/preproducció.
-- P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, traça durable de validació `REQUESTED/COMMITTED/REVIEW_REQUIRED`, vinculació factura alumne↔ID_INSC/IDPAG/import, checkpoint financer, emissió entitat protegida, cobrament/reconciliació específica USOC i adaptadors d'intranet. Pendents: desplegament/preflight, navegador/preproducció, canvi/baixa i decisions funcionals.
+- P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, traça durable de validació `REQUESTED/COMMITTED/REVIEW_REQUIRED`, vinculació factura alumne↔ID_INSC/IDPAG/import, checkpoint financer, emissió entitat protegida, cobrament/reconciliació específica USOC, adaptadors d'intranet i planner lifecycle separat per pagador. Pendents: desplegament/preflight real, navegador/preproducció, execució fiscal específica de canvi/baixa i decisions funcionals.

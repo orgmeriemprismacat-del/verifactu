@@ -48,51 +48,59 @@ OK-->>A: missatge visual
 4. El retorn OK/KO del navegador no és una prova suficient de persistència fiscal/econòmica.
 5. El callback duplicat no té una protecció idempotent equivalent a la del SIF nou en el fragment auditat.
 
-## 2. FINAL — intenció, callback, cua i emissió SIF
+## 2. FINAL — intenció, callback, cua, emissió i retorn autoritatiu
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor A as Alumne/pagador
-participant Web as EcommerceCoursePaymentAdapter [PENDENT]
-participant Intent as RedsysPaymentIntentService
+participant Web as pagina_efectuar_pagament_automatic.php
+participant IC as SifRedsysCourseIntentClient
+participant Intent as RedsysCoursePaymentIntentService
 participant R as Redsys
 participant C as RedsysCallbackService
 participant Q as RedsysCallbackQueue
 participant W as RedsysCallbackWorker
 participant D as RedsysCallbackDispatcher
 participant H as RedsysCourseInvoiceService
-participant LB as LegacyCourseInvoicePayloadBuilder
-participant RB as RedsysInvoicePayloadBuilder
 participant I as InvoiceService
-participant Sync as Sincronització llegada [PENDENT]
+participant Sync as RedsysLegacySyncingProcessor / CourseLegacyPaymentSyncService
+participant Ret as respostaOk/KoPagamentAutomatic.php
+participant SC as SifRedsysCourseStatusClient
+participant Status as RedsysCoursePaymentStatusService
 
-A->>Web: Confirma curs, edició i forma de pagament
-Web->>Web: revalida inscripció, places, receptor, preu i descompte
-Web->>Intent: create(CURS, source_id, IDPAG, expected_amount, currency, terminal, snapshot)
-Intent-->>Web: intent creat o reutilitzat
-Web->>R: redirecció amb DS_ORDER de la intenció
-R->>C: callback signat
+A->>Web: Confirma pagament de la inscripció
+Web->>IC: create(IDPAG, import sol·licitat, terminal)
+IC->>Intent: POST HMAC /api/redsys/course-intent.php
+Intent->>Intent: rellegeix inscripció i saldo pendent
+Intent-->>IC: DS_ORDER + import autoritatiu
+IC-->>Web: intenció creada/reutilitzada
+Web->>R: formulari TPV amb DS_ORDER de la intenció
+R->>C: callback signat a MerchantURL SIF [quan tall activat]
 C->>C: valida signatura + DS_ORDER + import + moneda + terminal
-C->>Q: persisteix notificació i encola
-C-->>R: HTTP sense factura
+C->>Q: persisteix notificació i encola/reutilitza job
+C-->>R: HTTP tècnic sense factura
 W->>Q: claimNext()
 Q-->>W: job únic
 W->>D: process(job)
 D->>H: issueFromIntentSnapshot()
-H->>LB: build(snapshot)
-LB-->>H: factura/línia/relació INSCRIPCIO
-H->>RB: buildFromValidatedNotification()
-RB-->>H: payload + CHARGE + idempotency keys
-H->>I: issueInvoice(payload)
+H->>I: issueInvoice(payload + CHARGE)
 I-->>H: UUID_FACTURA + UUID_PAYMENT + reused?
 H-->>W: resultat
 W->>Q: markProcessed(result)
-opt sincronització operativa
-  W->>Sync: aplicar estat acadèmic/llegat de forma idempotent
-end
+W->>Sync: projecció llegada idempotent
+R-->>Ret: retorn navegador OK o KO
+Ret->>SC: get(DS_ORDER, IDPAG)
+SC->>Status: POST HMAC /api/redsys/course-status.php
+Status->>Status: correlaciona intent + notificació + cua
+Status-->>SC: PENDING/PROCESSING/CONFIRMED/REJECTED/REVIEW
+SC-->>Ret: estat read-only
+Ret-->>A: mostra estat autoritatiu
+Note over Ret,Status: CONFIRMED només amb PROCESSED + UUID_FACTURA + UUID_PAYMENT
+Note over Web,C: SIF_REDSYS_CALLBACK_URL activa el tall; sense configurar, queda fallback llegat
 ```
 
+**Implementat i verificat per CI:** intenció SIF, callback/cua/worker, factura+cobrament, projecció llegada, consulta read-only d'estat i retorn OK/KO fail-closed. **Pendent d'entorn:** configurar la MerchantURL SIF i executar Redsys/preproducció real.
 ## 3. FINAL — callback duplicat
 
 ```mermaid
@@ -138,6 +146,6 @@ end
 ## 5. Estat
 
 **DOCUMENTAT:** seqüència ACTUAL, FINAL nominal, duplicat i conflicte.  
-**IMPLEMENTAT:** serveis SIF centrals; no l'adaptador ecommerce final.  
-**VERIFICAT:** estàticament.  
-**PENDENT:** execució end-to-end i reconciliació amb la web desplegada.
+**IMPLEMENTAT:** serveis SIF centrals, pont candidat d'intenció, callback/cua/worker, sync llegada i retorn autoritatiu OK/KO.  
+**VERIFICAT:** CI amb E2E intern simulat, idempotència, parcial→complet, boundaries de preproducció i tests del retorn autoritatiu.  
+**PENDENT:** desplegament/preproducció amb Redsys real, activació de `SIF_REDSYS_CALLBACK_URL` i retirada posterior de l'autoritat fiscal llegada.

@@ -22,7 +22,7 @@ El helper carrega `sif/var/test-env.json` i restaura les variables del procés
 quan acaba. `Test`, `Migrate`, `Preflight` i `GoNoGo` retornen el codi de sortida
 PHP. No s'ha afegit PHP al PATH global: el helper usa el binari local.
 
-`Test` buida les 62 taules de negoci/control de **sif_test** i conserva el ledger de
+`Test` buida les 63 taules de negoci/control de **sif_test** en aquesta branca i conserva el ledger de
 migracions. No s'ha d'executar contra dades a conservar. Exigeix `SIF_ENV=test`,
 nom `sif_test` o `sif_test_*`, i comprova també el nom real de la connexió.
 Un lock MySQL impedeix dues suites simultànies a la mateixa BD.
@@ -31,8 +31,7 @@ Un lock MySQL impedeix dues suites simultànies a la mateixa BD.
 legacy i Redsys, però el seu `GO` només és tècnic: sempre retorna
 `scope=technical_preflight_only` i `production_authorized=false`. No executa
 la suite ni acredita les portes G1..G7, permisos, restauració o homologació.
-La BD `sif_legacy_test` instal·lada és buida: no s'han inventat dades de negoci
-ni claus Redsys per fer passar aquestes comprovacions.
+Les BD `sif_legacy_test` i `sif_legacy_intranet_test` poden romandre buides per a la suite general: no s'inventen dades de negoci ni claus Redsys per fer passar comprovacions. Els scripts UC-004 que llegeixen dades llegades requereixen, en canvi, fixtures sintètiques o una preproducció controlada amb les taules necessàries.
 
 ## Reproducció en un altre entorn
 
@@ -43,7 +42,7 @@ Descarregar els paquets oficials:
 
 PHP necessita `pdo_mysql`, `openssl` i `mbstring`; configurar
 `date.timezone=Europe/Madrid`. Crear una instància MySQL 8 aïllada i les BD
-`sif_test` i `sif_legacy_test` amb `utf8mb4_unicode_ci`. L'usuari de tests té
+`sif_test`, `sif_legacy_test` i `sif_legacy_intranet_test` amb `utf8mb4_unicode_ci`. L'usuari de tests té
 privilegis només sobre aquestes BD; no és un usuari operatiu de producció.
 
 Configurar variables d'entorn (o el JSON local del helper Windows):
@@ -56,6 +55,9 @@ SIF_DB_PASSWORD=<secret local>
 SIF_LEGACY_DB_DSN=mysql:host=127.0.0.1;port=3307;dbname=sif_legacy_test;charset=utf8mb4
 SIF_LEGACY_DB_USER=sif_test
 SIF_LEGACY_DB_PASSWORD=<secret local>
+SIF_LEGACY_INTRANET_DB_DSN=mysql:host=127.0.0.1;port=3307;dbname=sif_legacy_intranet_test;charset=utf8mb4
+SIF_LEGACY_INTRANET_DB_USER=sif_test
+SIF_LEGACY_INTRANET_DB_PASSWORD=<secret local>
 ```
 
 Amb PHP al PATH, els comandaments portables són:
@@ -67,16 +69,26 @@ php sif/scripts/preflight-sif.php
 php sif/scripts/go-no-go-preproduction.php
 ```
 
+Per UC-004, la branca d'auditoria incorpora també el flux CLI segur basat en dades autoritatives:
+
+```text
+php sif/scripts/preflight-invoice-before-payment-from-legacy.php
+php sif/scripts/preview-invoice-before-payment-from-legacy.php --inscriptions=11,12 --entity-id=7 --created-by=usuari
+php sif/scripts/process-invoice-before-payment-from-legacy.php --inscriptions=11,12 --entity-id=7 --created-by=usuari --expected-fingerprint=<sha256>
+```
+
+El segon pas només prepara el payload i el fingerprint. El tercer torna a llegir les dues BDs llegades i **no emet** si el fingerprint ha canviat. Tots tres scripts refusen `SIF_ENV=production` en aquest tall.
+
 ## Migracions i recuperació
 
 `MigrationRunner` és compartit entre script, tests i preflight. Aplica SQL
 ordenat i registra nom/SHA-256 només quan el fitxer acaba correctament.
 Una migració aplicada canviada o absent bloqueja l'execució; crear migracions
 additives per evolucionar un esquema ja desplegat. El preflight contrasta
-cada hash, les 62 taules i les columnes declarades en CREATE/ADD COLUMN.
+cada hash, les 63 taules esperades en aquesta branca i les columnes declarades en CREATE/ADD COLUMN.
 No és una comparació completa de tipus, índexs, triggers o grants.
 
-El conjunt vigent amb el worker AEAT a 2026-09-23 conté deu fitxers de migració: s'ordenen pel
+El conjunt vigent en aquesta branca, després del reforç UC-004 del 2026-09-29, conté onze fitxers de migració: s'ordenen pel
 nom complet, no pel sufix numèric (hi ha sufixos repetits en dates diferents).
 `.gitattributes` fixa LF per a aquests SQL. Això evita que el checkout de
 Windows canviï els bytes i invalidi els hashes del ledger; la comprovació
@@ -115,10 +127,18 @@ el manifest de hashes de l'execució amb els fitxers que es volen desplegar.
 
 ### Execució completa del 2026-09-24
 
-Els fitxers `sif/var/evidence/2026-09-24-infra-*` documenten la validació
-actual: deu migracions en instal·lació buida i reexecució idempotent, 62 taules
-de model, lint de 328 PHP i **378 passed, 0 failed** a la suite completa.
-El manifest no presenta canvis de fonts durant aquesta execució.
+Els fitxers `sif/var/evidence/2026-09-24-infra-*` documenten aquella validació:
+deu migracions en instal·lació buida i reexecució idempotent, 62 taules de model,
+lint de 328 PHP i **378 passed, 0 failed** a la suite completa. El manifest no
+presenta canvis de fonts durant aquella execució.
+
+**Aquesta evidència és anterior als canvis UC-004 del 2026-09-29 i no els valida.**
+La branca afegeix una onzena migració (`2026_09_29_000009_guard_uc004_inscription_coverage.sql`),
+la taula `invoice_before_payment_coverage`, el repositori `InvoiceBeforePaymentCoverageRepository`,
+un backfill de factures SIF `EMESA_ABANS_COBRAMENT=1` des de `fact_rels INSCRIPCIO/ORIGIN`
+i amplia `InvoiceBeforePaymentServiceTest`. L'esquema esperat passa a 63 taules. Abans d'integrar
+aquests canvis cal tornar a executar `Migrate`, `Test` i `Preflight` en una BD `sif_test` aïllada
+i conservar un manifest/evidència nou.
 
 `Preflight` retorna exit 0. `GoNoGo` retorna exit 1/NO-GO per la clau Redsys
 absent i les taules legacy `inscripcions`, `curs`, `regal` i `respGrups` absents.

@@ -134,6 +134,30 @@ if (!$configOk || !filter_var(getenv('SIF_USOC_UI_ENABLED') ?: '0', FILTER_VALID
             <button type="button" class="btn btn-success" id="usoc-registrar-cobrament">Registrar cobrament</button>
         </div>
     </div>
+    <div class="card mb-3" id="usoc-lifecycle-plan">
+        <div class="card-header">5. Pla segur de canvi / baixa</div>
+        <div class="card-body">
+            <p class="text-muted">
+                Aquest apartat no executa rectificatives ni devolucions. Mostra el pla separat per pagador
+                abans de permetre cap flux SIF específic.
+            </p>
+            <div class="form-row align-items-end">
+                <div class="form-group col-md-4">
+                    <label for="usoc-lifecycle-operation">Operació</label>
+                    <select class="form-control" id="usoc-lifecycle-operation">
+                        <option value="course_change">Canvi de curs</option>
+                        <option value="cancellation">Baixa</option>
+                    </select>
+                </div>
+                <div class="form-group col-md-4">
+                    <button type="button" class="btn btn-outline-primary" id="usoc-lifecycle-preview">
+                        Calcular pla per pagador
+                    </button>
+                </div>
+            </div>
+            <div id="usoc-lifecycle-result" class="mt-3 d-none"></div>
+        </div>
+    </div>
 </div>
 <script src="https://intranet.prisma.cat/js/alumnes-usoc-financament.js?ver=1.0"></script>
 </body>

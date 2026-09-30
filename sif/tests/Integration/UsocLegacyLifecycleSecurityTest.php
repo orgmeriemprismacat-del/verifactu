@@ -19,8 +19,11 @@ final class UsocLegacyLifecycleSecurityTest
             $root . '/codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php'
         );
         $guard = file_get_contents($root . '/codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php');
+        $preview = file_get_contents($root . '/codi-drive/intranet-actual/ajax/alumnes/sifCanviCursPreview.php');
+        $lifecyclePreview = file_get_contents($root . '/codi-drive/intranet-actual/ajax/alumnes/sifUsocLifecyclePreview.php');
+        $lifecycleJs = file_get_contents($root . '/codi-drive/intranet-actual/js/alumnes-usoc-lifecycle-preview.js');
 
-        if ($page === false || $js === false || $minJs === false || $change === false || $cancel === false || $guard === false) {
+        if ($page === false || $js === false || $minJs === false || $change === false || $cancel === false || $guard === false || $preview === false || $lifecyclePreview === false || $lifecycleJs === false) {
             Assert::fail('Could not read USOC lifecycle security files');
         }
 
@@ -59,5 +62,29 @@ final class UsocLegacyLifecycleSecurityTest
         Assert::stringContainsString('TIPUS_DESC', $guard);
         Assert::stringContainsString('lifecycleGuard', $guard);
         Assert::stringContainsString('USOC', $guard);
+
+        Assert::stringContainsString('LegacyUsocLifecycleGuard', $preview);
+        Assert::stringContainsString("source_enrollment_id", $preview);
+        Assert::stringContainsString("'course_change'", $preview);
+        Assert::stringContainsString('http_response_code(', $preview);
+        Assert::stringContainsString('$status >= 100 && $status <= 599 ? $status : 502', $preview);
+        Assert::stringContainsString('$exception->getCode()', $preview);
+        Assert::stringContainsString('$code >= 400 && $code <= 599', $preview);
+        Assert::stringContainsString('$status >= 500', $preview);
+
+        Assert::stringContainsString('alumnes-usoc-lifecycle-preview.js', $page);
+        Assert::stringContainsString("REQUEST_METHOD", $lifecyclePreview);
+        Assert::stringContainsString("!== 'POST'", $lifecyclePreview);
+        Assert::stringContainsString('assertSameOrigin', $lifecyclePreview);
+        Assert::stringContainsString('assertCanEdit', $lifecyclePreview);
+        Assert::stringContainsString('csrf_alumnes_lifecycle', $lifecyclePreview);
+        Assert::stringContainsString('LegacyUsocLifecycleGuard', $lifecyclePreview);
+        Assert::stringContainsString('->inspect(', $lifecyclePreview);
+
+        Assert::stringContainsString('#modalDonarBaixa .confirma-baixa', $lifecycleJs);
+        Assert::stringContainsString("'cancellation'", $lifecycleJs);
+        Assert::stringContainsString('sifUsocLifecyclePreview.php', $lifecycleJs);
+        Assert::stringContainsString('X-CSRF-Token', $lifecycleJs);
+        Assert::stringContainsString('payer_snapshot', $lifecycleJs);
     }
 }

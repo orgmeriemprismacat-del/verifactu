@@ -81,6 +81,29 @@ Funds ..> Main : <<extend>> (nou import cobrat)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador"]
+  actor_1["Empresa/responsable"]
+  subgraph SIF_BOX["SIF + inscripcions"]
+    uc_0(["UC-16a<br/>Afegir participant a grup facturat"])
+    uc_1(["Validar grup, places i duplicats"])
+    uc_2(["Classificar canvi de factura"])
+    uc_3(["UC-01/05<br/>Document fiscal adequat"])
+    uc_4(["UC-02<br/>Registrar cobrament si arriba"])
+    uc_5(["Atribuir fons a nova inscripció"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_1 --> uc_4
+  uc_5 -.->|extend| uc_0
+```
+
 ## 3. Diagrama de classes — peces reals i orquestració pendent
 
 ```mermaid

@@ -68,6 +68,25 @@ Derive ..> Main : <<extend>> (fet amb impacte)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  subgraph SIF_BOX["SIF · traça d'acció no facturable"]
+    uc_0(["UC-100<br/>Registrar event informatiu"])
+    uc_1(["Classificar impacte fiscal i econòmic"])
+    uc_2(["Escriure event amb actor/motiu/snapshot"])
+    uc_3(["Derivar a emissió o cobrament real"])
+    uc_4(["Consultar resultat informatiu"])
+  end
+  actor_0 --> uc_0
+  actor_0 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid

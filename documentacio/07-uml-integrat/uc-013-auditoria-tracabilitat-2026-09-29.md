@@ -24,10 +24,10 @@
 | Denegar afiliació | intranet | mateix endpoint | mateix mètode | VALID_DESC=2 i possible canvi A_PAGAR | UC-019 | Sí | Sí | Sí | No |
 | Emetre/cobrar alumne | worker/SIF | callback UC-03 | `RedsysUsocInvoiceService` | factura + payment + allocation | UC-019a/013 | Sí | Sí | Sí | Tests existeixen |
 | Persistir pendent entitat | SIF | resposta + checkpoint | `RedsysUsocInvoiceService` + `UsocFinancingCaseRepository` | `usoc_financing_case=PENDING_ENTITY_INVOICE` | UC-013 | Sí | Sí | Sí | VERIFICAT CI · run 36657971568 |
-| Emetre factura entitat | UI autònoma + panell Consulta/Modifica alumne + API signada | `SifInternalUsocClient` / `/api/usoc/manage.php` | `UsocEntityInvoiceService` + `UsocFinancingCaseRepository::requireForEntityInvoice()` + `UsocStudentInvoiceLinkRepository` | valida checkpoint abans d'emetre; factura PENDING + `fact_rels` + `ENTITY_INVOICED` | UC-019b/013 | Sí | Sí | Sí | tests de servei/checkpoint PASS en CI; últim contracte UI pendent d'acreditar |
+| Emetre factura entitat | UI autònoma + panell Consulta/Modifica alumne + API signada | `SifInternalUsocClient` / `/api/usoc/manage.php` | `UsocEntityInvoiceService` + `UsocFinancingCaseRepository::requireForEntityInvoice()` + `UsocStudentInvoiceLinkRepository` | valida checkpoint abans d'emetre; factura PENDING + `fact_rels` + `ENTITY_INVOICED` | UC-019b/013 | Sí | Sí | Sí | tests de servei/checkpoint i contractes UI PASS en CI |
 | Cobrar entitat | UI autònoma + panell contextual + API signada + ruta preproducció | `register_entity_payment` / `process-usoc-entity-payment.php` | `UsocEntityPaymentService` → `PaymentService` → `UsocCaseReconciler` | payment/allocation + actualització immediata `usoc_financing_case` | UC-002/022/024/013 | Sí | Sí | Sí | VERIFICAT CI · run 36657971568 |
 | Conciliar dues parts | CLI/preproducció | `reconcile-usoc-case.php` | `UsocCaseReconciler` | actualitza `usoc_financing_case` segons estats de factura i imports | UC-013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
-| Canvi/baixa | intranet | fluxos compartits | UC-026/027/005 | rectificacions/moviments | UC-013+ | Parcial | Parcial | Parcial | No E2E |
+| Canvi/baixa | intranet + preview + planner USOC | `LegacyUsocLifecycleGuard` / `lifecycle_guard` / `lifecycle_plan` | `UsocLifecycleGuardService` + `UsocLifecyclePlanService` | bloqueig fail-closed + snapshot i pla separat per pagador; retorn màxim limitat al net real cobrat | UC-013/026/027 | Sí | Sí | Sí | runs `36733404401` i `36733404387` · 744/744 |
 
 ## 3. Evidència específica
 
@@ -117,7 +117,7 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 | US13-09 | factura entitat sense ingrés | PENDING, 0 payments | TEST EXISTENT |
 | US13-10 | cobrament entitat parcial real via PaymentService | `ENTITY_PARTIAL` | PASS CI · run 36657971568 |
 | US13-11 | reintents alumne/entitat + 10 € + 15 € sobre factura entitat de 25 € | `FINANCING_RECONCILED` | **PROVAT E2E CI · run 36660979100** |
-| US13-12 | alumne=0 | circuit especial o bloqueig explícit | PENDENT DECISIÓ |
+| US13-12 | alumne=0 | circuit especial o bloqueig explícit | **BLOQUEIG PROVAT** · `testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined`, run `36730189405`; decisió funcional/fiscal pendent |
 
 ## 6. Fitxers del paquet UC-013
 
@@ -135,4 +135,13 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 **PREPRODUCCIÓ:** no acreditada.  
 **PRODUCCIÓ:** no acreditada.
 
-Els P0 estructurals estan implementats. El run CI principal actual `36663075293` acaba **SUCCESS, 666 passed / 0 failed**, incloent el protocol durable de validació; el run `36660979100` ja havia acreditat l'E2E de doble facturació. El UC-013 encara no es marca TANCAT per desplegament/preproducció, canvi/baixa amb dos pagadors i decisions funcionals/fiscals pendents.
+Els P0 estructurals estan implementats. El run CI principal actual `36663075293` acaba **SUCCESS, 666 passed / 0 failed**, incloent el protocol durable de validació; el run `36660979100` ja havia acreditat l'E2E de doble facturació. El UC-013 encara no es marca TANCAT per desplegament/preproducció, execució fiscal específica de canvi/baixa amb dos pagadors i decisions funcionals/fiscals pendents; el guard i el planner d'aquests canvis ja estan implementats i provats.
+
+
+### Evidència addicional · regla comercial no codificada al SIF
+
+El run `36730189405` acaba **SUCCESS, 730 passed / 0 failed** i incorpora:
+- `testUsesExplicitAmountsWithoutFixedUsocPercentage`: un snapshot 73,00 € alumne + 27,00 € entitat es construeix sense cap regla 20/25 hardcoded;
+- `testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined`: 0,00 € per la part alumne es rebutja amb validació fins que existeixi un circuit funcional/fiscal específic.
+
+Per tant, la discrepància 20 %/25 % queda com a decisió de negoci, no com a constant tècnica del SIF.

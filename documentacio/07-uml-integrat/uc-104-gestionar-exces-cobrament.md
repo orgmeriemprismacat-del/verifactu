@@ -84,6 +84,29 @@ Resp --> Credit
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Operador cobraments"]
+  a_1["Responsable autoritzada"]
+  subgraph SIF_BOUNDARY["SIF · excés real de cobrament"]
+    u_0(["UC-104<br/>Gestionar excés cobrat"])
+    u_1(["Conciliar entrada bancària única"])
+    u_2(["Separar import aplicat i sobrant"])
+    u_3(["UC-56<br/>Assignar a un altre deute"])
+    u_4(["UC-28<br/>Registrar retorn real"])
+    u_5(["UC-29<br/>Concedir saldo autoritzat"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  a_1 --> u_3
+  a_1 --> u_4
+  a_1 --> u_5
+```
+
 ## 3. Classes — límit del model de pagaments real
 
 ```mermaid

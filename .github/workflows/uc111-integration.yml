@@ -3,11 +3,11 @@ name: UC-111 integration verification
 on:
   push:
     branches:
-      - fix/uc-111-grant-code-uml-2026-09-29
+      - main
+      - 'fix/uc-111-*'
   pull_request:
     branches:
       - main
-      - feat/uc-111-termini-i-auditoria-2026-09-22
   workflow_dispatch:
 
 jobs:

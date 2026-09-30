@@ -84,6 +84,27 @@ Main ..> Verify : <<include>> (reparació executada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió de conciliació"]
+  actor_1["SIF / base llegada"]
+  subgraph SIF_BOX["SIF · conciliació inter-BD"]
+    uc_0(["UC-82<br/>Reconciliar SIF i llegat"])
+    uc_1(["Comparar factura, pagament i inscripció"])
+    uc_2(["Registrar diferències per item"])
+    uc_3(["Classificar reparació i font del fet"])
+    uc_4(["Verificar i tancar cada item"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 4. UML de classes — sync PHP parcial vs conciliador pendent
 
 ```mermaid

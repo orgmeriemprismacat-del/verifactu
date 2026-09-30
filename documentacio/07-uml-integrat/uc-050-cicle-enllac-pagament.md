@@ -72,6 +72,27 @@ G --> Revoke
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Pagador autoritzat"]
+  actor_1["Gestió"]
+  subgraph SIF_BOX["SIF · enllaç de pagament"]
+    uc_0(["UC-50<br/>Gestionar enllaç"])
+    uc_1(["Crear token i venciment"])
+    uc_2(["Verificar token i pendent"])
+    uc_3(["UC-63<br/>Iniciar TPV autoritzat"])
+    uc_4(["UC-33<br/>Revocar enllaç"])
+  end
+  actor_1 --> uc_0
+  actor_0 --> uc_2
+  actor_0 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_4
+```
+
 ## 4. UML de classes — SQL existent vs PHP real
 
 ```mermaid

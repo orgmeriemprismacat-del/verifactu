@@ -70,6 +70,27 @@ Correct ..> Classify : <<extend>> (via correctora aprovada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió"]
+  actor_1["Responsable fiscal"]
+  subgraph SIF_BOX["SIF · concepte facturat"]
+    uc_0(["UC-89<br/>Revisar canvi de concepte"])
+    uc_1(["Distingir esborrany, cobrament i emissió"])
+    uc_2(["Conservar text i registre originals"])
+    uc_3(["UC-74<br/>Classificar correcció fiscal"])
+    uc_4(["Crear document corrector aprovat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+  uc_4 -.->|extend| uc_3
+```
+
 ## UML de classes
 
 ```mermaid

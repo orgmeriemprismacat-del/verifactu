@@ -76,6 +76,29 @@ T --> Send
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable autoritzada"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-31<br/>Subsanar registre"])
+    uc_1(["Localitzar factura i<br/>registre precedent"])
+    uc_2(["Identificar causa i<br/>tipus de subsanació"])
+    uc_3(["Afegir nou registre<br/>i encadenament"])
+    uc_4(["UC-09<br/>Remetre registre<br/>a AEAT"])
+    uc_5(["UC-05<br/>Rectificar factura<br/>(via diferent)"])
+    uc_6(["UC-30<br/>Anul·lar registre<br/>(via diferent)"])
+  end
+  actor_0 --> uc_0
+  actor_0 --> uc_5
+  actor_0 --> uc_6
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
+```
+
 ## 3. Subdiagrama de classes — nucli de subsanació existent
 
 ```mermaid

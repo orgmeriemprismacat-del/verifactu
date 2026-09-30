@@ -330,10 +330,14 @@ flowchart TD
     G --> H{Existeix usoc_financing_case?}
     H -- No --> E
     H -- Sí --> I[409 · bloquejar mutació legacy]
-    I --> J[Derivar a futura orquestració UC-026/027 de dos pagadors]
+    I --> J[lifecycle_plan signat al SIF]
+    J --> K[UsocLifecyclePlanService separa alumne i entitat]
+    K --> L[Calcular acció fiscal/econòmica per factura]
+    L --> M[Limitar qualsevol retorn al net real cobrat]
+    M --> N[Derivar a futura execució fiscal UC-026/027]
 ```
 
-**Abast:** el guard evita una modificació silenciosa d'un expedient USOC fiscalitzat. No executa encara rectificatives, reassignacions, devolucions o saldos del canvi/baixa.
+**Abast:** el guard evita una modificació silenciosa d'un expedient USOC fiscalitzat. `UsocLifecyclePlanService` genera ara un pla separat per pagador i limita el màxim retornable al `net_paid` real de cada factura. La pantalla USOC permet consultar aquest pla. Encara no executa rectificatives, reassignacions, devolucions o saldos.
 
 ### FINAL obligatori
 
@@ -364,7 +368,7 @@ flowchart TD
 | Factura entitat | Sí | Sí | Servei + pantalla autònoma + panell contextual implementats; desplegament/configuració pendent |
 | Cobrament entitat | Sí, dues UI + servei + script | Sí | UI autònoma + panell contextual implementats; menú fail-closed implementat; desplegament/configuració pendent |
 | Conciliació | Sí, servei/script | Sí | Implementada a la ruta específica USOC; script manual disponible |
-| Canvi/baixa | Sí, guard fail-closed | Sí | POST+CSRF + `UsocLifecycleGuardService`; orquestració completa pendent |
+| Canvi/baixa | Sí, guard + planner | Sí | POST+CSRF + `UsocLifecycleGuardService` + `UsocLifecyclePlanService` + UI de preview; execució fiscal específica pendent |
 
 ## 15. Pendents de codi derivats dels diagrames
 

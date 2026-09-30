@@ -114,6 +114,16 @@ RealitzaPagamentAutomatic --> CursLegacy
 classDiagram
 direction LR
 
+class SifRedsysCourseIntentClient {
+  <<EXISTENT PONT CANDIDAT>>
+  +create(idPag,requestedAmount,terminal) array
+}
+
+class RedsysCoursePaymentIntentService {
+  <<EXISTENT>>
+  +create(sifDb,legacyDb,input) array
+}
+
 class RedsysPaymentIntentService {
   <<EXISTENT>>
   +create(db,input) array
@@ -139,26 +149,10 @@ class RedsysCallbackDispatcher {
   +process(db,job) array
 }
 
-class RedsysIntentHandler {
-  <<interface EXISTENT>>
-  +sourceType() string
-  +issueFromIntentSnapshot(db,dsOrder,snapshot) array
-}
-
 class RedsysCourseInvoiceService {
   <<EXISTENT>>
   +sourceType() string
   +issueFromIntentSnapshot(db,dsOrder,snapshot) array
-}
-
-class LegacyCourseInvoicePayloadBuilder {
-  <<EXISTENT>>
-  +build(snapshot) array
-}
-
-class RedsysInvoicePayloadBuilder {
-  <<EXISTENT>>
-  +buildFromValidatedNotification(db,dsOrder,payload) array
 }
 
 class InvoiceService {
@@ -166,36 +160,50 @@ class InvoiceService {
   +issueInvoice(payload) array
 }
 
-class EcommerceCoursePaymentAdapter {
-  <<DISSENY/PENDENT>>
-  +prepareCoursePayment(request)
-  +createIntent(snapshot)
-  +redirectToRedsys()
+class CourseLegacyPaymentSyncService {
+  <<EXISTENT>>
+  +sync(sifDb,legacyDb,idpag,idInsc,uuidFactura,numVisible) array
+}
+
+class RedsysCoursePaymentStatusService {
+  <<EXISTENT>>
+  +status(db,dsOrder,idpag) array
+}
+
+class SifRedsysCourseStatusClient {
+  <<EXISTENT PONT CANDIDAT>>
+  +get(dsOrder,idPag) array
+}
+
+class CoursePaymentReturnStatus {
+  <<EXISTENT PONT CANDIDAT>>
+  +uc014ResolvePaymentReturn(browserReturn) array
+  +uc014RenderPaymentReturn(browserReturn)
 }
 
 class EnrollmentFundMovementRepository {
-  <<DISSENY/PENDENT>>
+  <<DISSENY/PENDENT UC-014>>
   +append(db,movement) string
 }
 
+SifRedsysCourseIntentClient --> RedsysCoursePaymentIntentService : POST HMAC
+RedsysCoursePaymentIntentService --> RedsysPaymentIntentService
 RedsysCallbackWorker --> RedsysCallbackQueueRepository
 RedsysCallbackWorker --> RedsysCallbackDispatcher
-RedsysCallbackDispatcher --> RedsysIntentHandler
-RedsysCourseInvoiceService ..|> RedsysIntentHandler
-RedsysCourseInvoiceService --> LegacyCourseInvoicePayloadBuilder
-RedsysCourseInvoiceService --> RedsysInvoicePayloadBuilder
-RedsysCourseInvoiceService --> InvoiceService
-EcommerceCoursePaymentAdapter --> RedsysPaymentIntentService
 RedsysCallbackDispatcher --> RedsysCourseInvoiceService : sourceType=CURS
-RedsysCallbackWorker ..> EnrollmentFundMovementRepository : atribució per inscripció [pendent]
+RedsysCourseInvoiceService --> InvoiceService
+RedsysCallbackWorker --> CourseLegacyPaymentSyncService : postprocés idempotent
+CoursePaymentReturnStatus --> SifRedsysCourseStatusClient
+SifRedsysCourseStatusClient --> RedsysCoursePaymentStatusService : POST HMAC read-only
+RedsysCoursePaymentStatusService --> RedsysPaymentIntentService : correlació per DS_ORDER/IDPAG
+RedsysCallbackWorker ..> EnrollmentFundMovementRepository : atribució quantitativa [pendent d'acreditar]
 ```
-
 ## 3. Correspondència ACTUAL → FINAL
 
 | Responsabilitat | ACTUAL | FINAL |
 | --- | --- | --- |
-| Mostrar estat/preu del curs | `PagamentCursAutomatic` | Adaptador ecommerce amb lectura autoritativa del servidor |
-| Crear ordre TPV | `time()` a la pàgina PHP | `RedsysPaymentIntentService` + intenció persistent |
+| Mostrar estat/preu del curs | `PagamentCursAutomatic` | pont candidat + serveis SIF amb rellegida autoritativa del servidor |
+| Crear ordre TPV | `time()` a la pàgina PHP | `SifRedsysCourseIntentClient` → `RedsysCoursePaymentIntentService` → intenció persistent |
 | Transportar dades al callback | GET de MerchantURL | `DS_ORDER` + snapshot de la intenció |
 | Validar callback | `RedsysAPI` dins script monolític | `RedsysCallbackService` |
 | Facturar | `INSERT factures` al callback | `InvoiceService` |
@@ -203,11 +211,11 @@ RedsysCallbackWorker ..> EnrollmentFundMovementRepository : atribució per inscr
 | Assignar a inscripció | implícit per `IDPAG` | relació + moviment quantitatiu per inscripció |
 | Numeració fiscal | càlcul al canal web | seqüència central SIF |
 | Reintents | no acreditats | idempotència per intenció/notificació/factura/pagament |
-| Postprocessat acadèmic | barrejat amb callback | sincronització posterior, idempotent i recuperable |
+| Postprocessat acadèmic | barrejat amb callback | `RedsysLegacySyncingProcessor` / `CourseLegacyPaymentSyncService` posterior al SIF |
 
 ## 4. Estat
 
 **DOCUMENTAT:** ACTUAL i FINAL.  
-**IMPLEMENTAT:** nucli FINAL de Redsys/SIF; adaptador ecommerce i atribució quantitativa continuen pendents.  
-**VERIFICAT:** lectura estàtica dels fitxers enllaçats.  
-**PENDENT:** prova integrada web → intenció → Redsys → callback → worker → factura/cobrament → sincronització acadèmica.
+**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs i retorn navegador read-only contra estat SIF. L'atribució quantitativa addicional per inscripció continua pendent d'acreditar dins UC-014.  
+**VERIFICAT:** CI amb E2E intern simulat, retorn autoritatiu i boundaries de preproducció; lectura estàtica del pont candidat.  
+**PENDENT:** desplegament/preproducció real, activació de MerchantURL SIF i retirada del callback fiscal llegat després de l'evidència.

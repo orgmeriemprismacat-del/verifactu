@@ -76,6 +76,29 @@ Incident ..> Main : <<extend>> (fallada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker de documents"]
+  actor_1["Gestió autoritzada"]
+  subgraph SIF_BOX["SIF · custòdia de documents"]
+    uc_0(["UC-78<br/>Generar i custodiar PDF/QR/XML"])
+    uc_1(["Llegir factura fiscal immutable"])
+    uc_2(["Generar i validar bytes"])
+    uc_3(["Desar privat i verificar hash"])
+    uc_4(["Registrar metadada i job"])
+    uc_5(["Obrir incidència si no és íntegre"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_5
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+  uc_5 -.->|extend| uc_0
+```
+
 ## 4. UML de classes — metadada PHP i worker pendent
 
 ```mermaid

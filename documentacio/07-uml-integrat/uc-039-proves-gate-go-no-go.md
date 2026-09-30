@@ -70,6 +70,27 @@ Main ..> Decide : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable tècnica"]
+  actor_1["Responsable fiscal"]
+  subgraph SIF_BOX["SIF · proves i go/no-go"]
+    uc_0(["UC-39<br/>Validar candidata i decidir"])
+    uc_1(["Executar runner i preflights"])
+    uc_2(["Acreditar fluxos funcionals i externs"])
+    uc_3(["Comprovar restauració i operació"])
+    uc_4(["Registrar GO/NO_GO per versió i entorn"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 4. UML de classes — scripts reals i gate de decisió pendent
 
 ```mermaid

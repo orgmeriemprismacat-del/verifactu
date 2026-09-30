@@ -211,8 +211,8 @@ start
 :Capturar estat complet del formulari;
 :Enviar consulta amb request_version;
 :Servidor valida persona, producte, edició i política;
-:Crear o recuperar discount_validation;
-:Crear o recuperar commercial_operation;
+:Cridar CommercialOfferService::createOrReuse();
+:Persistir/reutilitzar commercial_operation + discount_validation + operational_event;
 :Retornar offer_id/UUID_OPERATION + imports + expiry;
 if (Arriba resposta d'una versió antiga?) then (Sí)
  :Descartar;
@@ -284,7 +284,8 @@ stop
 @startuml
 title P03 | FINAL | resum d'operació comercial
 start
-:Validar token/link;
+:Cridar PaymentLinkService::resolve(token);
+:Validar hash, ACTIVE i expiració;
 :Recuperar commercial_operation;
 :Recuperar discount_validation vigent;
 :Recuperar ledger de pagaments/factura;
@@ -364,13 +365,17 @@ stop
 @startuml
 title P04 | FINAL | autorització única de cobrament
 start
-:Validar payment_link;
-:Recuperar UUID_OPERATION;
-:Comprovar STATUS, expiry i EXPECTED_AMOUNT;
+:Cridar PaymentLinkService::resolve(token);
+:Recuperar UUID_OPERATION i EXPECTED_AMOUNT;
+:Comprovar ACTIVE, expiry i vigència de l'operació;
 :Calcular saldo des del ledger;
 if (Operació PAYABLE?) then (Sí)
  :Habilitar només mètodes autoritzats;
  :Crear/reutilitzar intenció Redsys des de snapshot;
+note right
+  PENDENT en aquesta branca: adaptador
+  payment_link/commercial_operation -> RedsysPaymentIntentService
+end note
 else (No)
  :No mostrar instruccions executables;
 endif
@@ -580,6 +585,13 @@ endif
 stop
 @enduml
 ```
+
+### 4.5. Estat d'implementació del FINAL
+
+- `CommercialOfferService::createOrReuse()`: **implementat en aquesta branca**; encara no cridat pel web/intranet llegat.
+- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat en aquesta branca**; encara no substitueix les rutes llegades `/confirmacio/` i `/pagament/`.
+- Política `PrismaStudentDiscountPolicy`: **pendent de decisions de negoci i implementació**.
+- Adaptador `UUID_OPERATION/payment_link → RedsysPaymentIntentService`: **pendent**.
 
 ## 7. Matriu ACTUAL → FINAL
 

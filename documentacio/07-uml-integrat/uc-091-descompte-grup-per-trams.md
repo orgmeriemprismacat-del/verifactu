@@ -69,6 +69,27 @@ Post ..> Main : <<extend>> (membres canvien després)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió de grups"]
+  actor_1["Responsable pagador"]
+  subgraph SIF_BOX["SIF · tarifes de grup"]
+    uc_0(["UC-91<br/>Aplicar descompte per trams"])
+    uc_1(["Fixar participants elegibles i regla"])
+    uc_2(["Quantificar preu/descompte per inscrit"])
+    uc_3(["Congelar snapshot abans TPV/emissió"])
+    uc_4(["UC-90<br/>Resoldre canvi postcompra"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid

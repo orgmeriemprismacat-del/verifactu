@@ -48,6 +48,27 @@ Review ..> Main : <<extend>> (document rebut)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Tutor/col·laborador"]
+  actor_1["Gestió d'honoraris"]
+  subgraph SIF_BOX["Circuit de documents de proveïdor (fora d'emissió SIF)"]
+    uc_0(["UC-65<br/>Presentar factura o rebut propi"])
+    uc_1(["Verificar identitat i servei prestat"])
+    uc_2(["Custodiar document original i hash"])
+    uc_3(["Revisar/acceptar o rebutjar recepció"])
+    uc_4(["Consultar estat propi"])
+  end
+  actor_0 --> uc_0
+  actor_0 --> uc_4
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+```
+
 ## UML de classes — servei de proveïdors pendent vs auditories genèriques
 
 ```mermaid

@@ -107,6 +107,10 @@
 		return html;
 	}
 
+	function csrfToken() {
+		return String($('meta[name="csrf-token-alumnes-lifecycle"]').attr('content') || '');
+	}
+
 	function loadPromotion(dniUser) {
 		if (!dniUser || !$('#resultats-cerca').is(':visible')) return;
 
@@ -119,8 +123,8 @@
 
 		$.ajax({
 			url: '/ajax/alumnes/mostrarPromocioDocentNovell.php',
-			method: 'GET',
-			data: { dni: dniUser },
+			method: 'POST',
+			data: { dni: dniUser, csrfToken: csrfToken() },
 			dataType: 'json',
 			global: false
 		}).done(function (res) {

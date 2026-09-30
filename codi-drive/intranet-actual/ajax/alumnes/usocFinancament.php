@@ -60,6 +60,22 @@ try {
         '/alumnes/mostrar-alumne/'
     );
 
+    if ($action === 'lifecycle_plan') {
+        $operation = strtolower(trim((string) ($_POST['operation'] ?? '')));
+        if (!in_array($operation, ['course_change', 'cancellation'], true)) {
+            throw new InvalidArgumentException('Operació lifecycle USOC no vàlida', 422);
+        }
+
+        sendResult($client->lifecyclePlan(
+            $actorId,
+            $roles,
+            positiveInt($_POST['id_insc'] ?? null, 'ID inscripció no vàlid'),
+            positiveInt($_POST['idpag'] ?? null, 'IDPAG no vàlid'),
+            $operation
+        ));
+        return;
+    }
+
     if ($action === 'reconcile') {
         $result = $client->reconcile(
             $actorId,

@@ -154,9 +154,39 @@ try {
       $importPagare = (float) $intent['amount'];
       $id = $order;
 
-      $url="https://pay.prisma.cat/doit.php?idPag=".$idPag."&codiCurs=".$cursPag."&dni=".$dniTitularPag."&order=".$order."&frac=".$frac."&import=".$importPagare;
-      $urlOK="https://pay.prisma.cat/respostaOkPagament.php?email=".$email;
-      $urlKO="https://pay.prisma.cat/respostaKoPagament.php?email=".$email;
+      $legacyMerchantUrl="https://pay.prisma.cat/doit.php?idPag=".rawurlencode((string) $idPag)
+         ."&codiCurs=".rawurlencode((string) $cursPag)
+         ."&dni=".rawurlencode((string) $dniTitularPag)
+         ."&order=".rawurlencode((string) $order)
+         ."&frac=".rawurlencode((string) $frac)
+         ."&import=".rawurlencode(number_format((float) $importPagare, 2, '.', ''));
+
+      // UC-014: el tall de MerchantURL és explícit. Configurar una URL SIF
+      // per si sola no canvia el callback; cal habilitar també el flag de cutover.
+      $courseCutoverEnabled = filter_var(
+         getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
+      $sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
+      if ($courseCutoverEnabled) {
+         if ($sifMerchantUrl === '') {
+            throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER');
+         }
+         if (!str_starts_with($sifMerchantUrl, 'https://')) {
+            throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_MUST_USE_HTTPS');
+         }
+         $url = $sifMerchantUrl;
+      } else {
+         $url = $legacyMerchantUrl;
+      }
+
+      $returnQuery = http_build_query([
+         'email' => $email,
+         'order' => $order,
+         'idPag' => (int) $idPag,
+      ], '', '&', PHP_QUERY_RFC3986);
+      $urlOK="https://pay.prisma.cat/respostaOkPagamentAutomatic.php?".$returnQuery;
+      $urlKO="https://pay.prisma.cat/respostaKoPagamentAutomatic.php?".$returnQuery;
 
       $amount=$importPagare * 100;
 

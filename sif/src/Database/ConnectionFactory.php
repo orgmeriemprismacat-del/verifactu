@@ -14,6 +14,11 @@ final class ConnectionFactory
         return self::makeFromConfig($config['legacy_db'] ?? [], 'Legacy DB');
     }
 
+    public static function makeLegacyIntranet(array $config): \PDO
+    {
+        return self::makeFromConfig($config['legacy_intranet_db'] ?? [], 'Legacy intranet DB');
+    }
+
     private static function makeFromConfig(array $dbConfig, string $label): \PDO
     {
         $dsn = (string) ($dbConfig['dsn'] ?? '');

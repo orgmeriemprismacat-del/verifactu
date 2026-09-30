@@ -73,6 +73,28 @@ Bank --> Payment
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne autoritzat"]
+  actor_1["Pagador/responsable autoritzat"]
+  actor_2["Redsys"]
+  subgraph SIF_BOX["IntranetAlumne + SIF"]
+    uc_0(["UC-61<br/>Consultar pendent i obtenir URL"])
+    uc_1(["Comprovar autorització i titular"])
+    uc_2(["Calcular pendent i import individual"])
+    uc_3(["UC-50<br/>Obtenir token caducable"])
+    uc_4(["UC-03<br/>Confirmar ingrés extern"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_2 --> uc_4
+```
+
 ## 4. UML de classes — càlcul existent i portal pendent
 
 ```mermaid

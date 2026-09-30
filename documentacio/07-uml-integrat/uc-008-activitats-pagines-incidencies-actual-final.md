@@ -1,6 +1,6 @@
 # UC-008 — Diagrames d'activitat ACTUAL/FINAL per pàgina i apartat
 
-**Data:** 29/09/2026  
+**Data:** 30/09/2026  
 **Objectiu:** aplicar el criteri RM-037 al UC-008. El diagrama ACTUAL representa el backend i les superfícies UI realment versionades; desplegament, configuració productiva i E2E real es mantenen separats i no es presenten com a verificats.
 
 Vegeu [classes](uc-008-classes-actual-final.md), [seqüències](uc-008-sequencies-actual-final.md) i [fitxa integrada](uc-008-gestionar-incidencia-sif.md).
@@ -12,8 +12,8 @@ Vegeu [classes](uc-008-classes-actual-final.md), [seqüències](uc-008-sequencie
 | P-INC-01 | `pay.prisma.cat/sif/incidencies` · llistat | filtres, prioritat/estat, obrir detall | UI implementada al codi; desplegament no verificat | panell autenticat |
 | P-INC-02 | detall d'incidència | capçalera, recurs, timeline, evidències | UI + timeline implementats al codi | expedient complet |
 | P-INC-03 | accions de lifecycle | assignar, evidència, resoldre, dismiss, reobrir | UI + API + servei implementats; E2E pendent | controls per rol |
-| P-INC-04 | Intranet · VERI*FACTU | indicador, resum, enllaç | resum read-only + handoff implementats al codi | desplegament + fallback validat |
-| A-INC-05 | obertura automàtica | Redsys, AEAT integritat/dead-letter | implementat parcial | tots els detectors rellevants |
+| P-INC-04 | Intranet · VERI*FACTU | indicador, resum, fallback i handoff | resum read-only + fallback de sessió + handoff implementats | desplegament + E2E real |
+| A-INC-05 | obertura automàtica | Redsys, AEAT integritat/dead-letter | implementat per les fonts auditades del UC-008 | ampliar només quan s'incorpori un nou detector |
 | A-INC-06 | reparació | derivació a UC específic | manual/orquestrada per cas | derivació explícita correlacionada |
 
 ## 1. P-INC-01 · Llistat
@@ -244,8 +244,22 @@ G -->|sí| H[RESOLVE]
 
 ```mermaid
 flowchart TD
-A[Obrir sif-verifactu.php] --> B[AJAX read-only sifIncidents.php]
-B --> C[Consulta de factures SIF sí existeix però és un altre UC]
+A[Obrir sif-verifactu.php amb sessió intranet] --> B[Generar/reutilitzar CSRF de la pàgina]
+B --> C[JS demana summary + list a sifIncidents.php]
+C --> D{sifIncidents autoritza sessió + CSRF + acció read-only?}
+D -->|no| E[401/403]
+D -->|sí| F[SifInternalIncidentClient signa petició HMAC]
+F --> G[SIF Internal API]
+G --> H{SIF disponible?}
+H -->|sí| I[Render resum + incidències recents]
+I --> J[Guardar només resum vàlid a sessionStorage]
+H -->|no| K{hi ha resum vàlid de sessió?}
+K -->|sí| L[Mostrar darrera dada validada com stale]
+K -->|no| M[Mostrar indisponibilitat; mai fals 0]
+I --> N[Usuari prem Obrir incidències SIF]
+N --> O[sifPanelLaunch.php valida sessió + CSRF]
+O --> P[SifPanelLaunchToken crea handoff HMAC d'un sol ús]
+P --> Q[POST cap a pay.prisma.cat/sif/incidencies/]
 ```
 
 ### FINAL

@@ -72,6 +72,29 @@ Money ..> Main : <<extend>> (ingrés amb diferència)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió"]
+  actor_1["Aprovador autoritzat"]
+  subgraph SIF_BOX["SIF · ajust manual d'import"]
+    uc_0(["UC-94<br/>Ajustar import amb causa"])
+    uc_1(["Comprovar estat d'oferta/factura/ingrés"])
+    uc_2(["Comparar imports per línia i inscrit"])
+    uc_3(["Registrar abans/després i aprovador"])
+    uc_4(["UC-74<br/>Decidir document corrector"])
+    uc_5(["UC-28/29/105<br/>Resoldre fons reals"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+  uc_5 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid

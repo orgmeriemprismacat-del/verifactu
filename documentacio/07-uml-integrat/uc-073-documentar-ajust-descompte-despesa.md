@@ -82,6 +82,29 @@ Funds ..> Main : <<extend>> (moviment aprovat)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió comercial"]
+  actor_1["Responsable fiscal"]
+  actor_2["Pagador"]
+  subgraph SIF_BOX["SIF · ajust, descompte o despesa"]
+    uc_0(["UC-73<br/>Documentar ajust/descompte/despesa"])
+    uc_1(["Distingir cost intern i càrrec al client"])
+    uc_2(["Previsualitzar abans/després per línia"])
+    uc_3(["UC-74<br/>Classificar efecte de factura emesa"])
+    uc_4(["UC-28/105<br/>Executar diner real o traspàs"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  actor_2 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+  uc_4 -.->|extend| uc_0
+```
+
 ## 4. UML de classes — writer d'events existent, política pendent
 
 ```mermaid

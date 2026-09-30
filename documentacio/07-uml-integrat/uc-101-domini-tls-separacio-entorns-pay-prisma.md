@@ -52,6 +52,27 @@ Main ..> Gate : <<include>> (desplegament)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable infraestructura"]
+  actor_1["Responsable tècnica SIF"]
+  subgraph SIF_BOX["pay.prisma.cat · perímetre operatiu"]
+    uc_0(["UC-101<br/>Operar domini/TLS i entorns"])
+    uc_1(["Validar DNS, TLS i webroot reals"])
+    uc_2(["Comprovar autenticació/autorització API"])
+    uc_3(["Segregar BD, secrets i workers"])
+    uc_4(["UC-39<br/>Acreditar gate del runtime"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## UML de classes — configuració PHP vs host no verificat
 
 ```mermaid

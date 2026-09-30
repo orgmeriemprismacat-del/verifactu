@@ -116,10 +116,12 @@ requestMain.done(function( message ) {
 		var request = $.ajax({
 			url: path + "alumnes/sendMsgValidatProfessorNovell.php",
 			global: false,
-			method: "GET",
+			method: "POST",
 			data: {
 				idInsc: idInsc,
-				verificat: valid
+				verificat: valid,
+				csrfToken: obtenirCsrfValidarDescomptes(),
+				requestId: nouRequestIdValidarDescompte()
 			},
 			dataType: "html"
 		});

@@ -131,7 +131,7 @@ try {
 		ON p.ID_CURS = c.ID_CURS INNER JOIN informacio AS i ON c.CURS = i.CODI_CURS
 		WHERE ip.ID_PACK = ? AND p.PUBLIC=1 AND c.PUBLIC=1 AND c.CURS!='PROVA' AND
 		c.CURS NOT LIKE '%0%' AND c.ESTAT!='0' AND i.ESTAT = 1
-		AND c.CURS NOT LIKE '%JOR%' ORDER BY c.DATAI";
+		AND c.CURS NOT LIKE '%JOR%' ORDER BY c.DATAI, p.ID_CURS";
 	if ( $stmt = $connexio->prepare($cnsInfoOrig) ) {
 		$stmt->bind_param("d", $idPack);
 		$stmt->execute();
