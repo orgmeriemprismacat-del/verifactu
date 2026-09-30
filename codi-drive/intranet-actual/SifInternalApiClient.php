@@ -57,6 +57,38 @@ class SifInternalApiClient
         ]);
     }
 
+    public function previewInvoiceBeforePayment(
+        string $actorId,
+        array $roles,
+        array $inscriptionIds,
+        int $entityId,
+        string $observations = ''
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'preview',
+            'inscription_ids' => array_values($inscriptionIds),
+            'entity_id' => $entityId,
+            'observations' => trim($observations),
+        ]);
+    }
+
+    public function confirmInvoiceBeforePayment(
+        string $actorId,
+        array $roles,
+        array $inscriptionIds,
+        int $entityId,
+        string $expectedFingerprint,
+        string $observations = ''
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'confirm',
+            'inscription_ids' => array_values($inscriptionIds),
+            'entity_id' => $entityId,
+            'expected_fingerprint' => strtolower(trim($expectedFingerprint)),
+            'observations' => trim($observations),
+        ]);
+    }
+
     public function previewCourseChange(string $actorId, array $roles, array $payload): array
     {
         if ($this->courseChangeUrl === '') {

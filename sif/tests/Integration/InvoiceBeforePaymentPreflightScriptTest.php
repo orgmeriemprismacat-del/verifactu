@@ -22,6 +22,7 @@ final class InvoiceBeforePaymentPreflightScriptTest
         Assert::stringContainsString('factura_linia_table', $source);
         Assert::stringContainsString('factura_registres_table', $source);
         Assert::stringContainsString('fiscal_queue_table', $source);
+        Assert::stringContainsString('invoice_before_payment_coverage_table', $source);
         Assert::stringContainsString('payment_transaction_table', $source);
         Assert::stringContainsString('payment_allocation_table', $source);
         Assert::stringContainsString('fiscal_chain_state_seeded', $source);

@@ -7,6 +7,7 @@ use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Service\InvoicePayloadValidator;
@@ -126,7 +127,9 @@ final class IssueInvoiceTest
             new FiscalSequenceRepository(),
             new InvoiceRepository(new UuidGenerator(), new HashCalculator()),
             new PaymentPayloadValidator(),
-            new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+            new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator()),
+            null,
+            new InvoiceBeforePaymentCoverageRepository()
         );
     }
 

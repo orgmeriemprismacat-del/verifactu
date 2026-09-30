@@ -19,6 +19,7 @@ $checks = [
     'factura_registres_table' => false,
     'fiscal_queue_table' => false,
     'fact_rels_table' => false,
+    'invoice_before_payment_coverage_table' => false,
     'payment_transaction_table' => false,
     'payment_allocation_table' => false,
     'fiscal_chain_state_seeded' => false,
@@ -33,6 +34,7 @@ try {
     $checks['factura_registres_table'] = tableExists($sifDb, 'factura_registres');
     $checks['fiscal_queue_table'] = tableExists($sifDb, 'fiscal_queue');
     $checks['fact_rels_table'] = tableExists($sifDb, 'fact_rels');
+    $checks['invoice_before_payment_coverage_table'] = tableExists($sifDb, 'invoice_before_payment_coverage');
     $checks['payment_transaction_table'] = tableExists($sifDb, 'payment_transaction');
     $checks['payment_allocation_table'] = tableExists($sifDb, 'payment_allocation');
     $checks['fiscal_chain_state_seeded'] = rowExists(
