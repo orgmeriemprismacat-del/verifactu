@@ -14,7 +14,8 @@ final class RedsysPackInvoiceService implements RedsysIntentHandler
         private LegacyPackInvoicePayloadBuilder $legacyPayloads,
         private RedsysInvoicePayloadBuilder $redsysPayloads,
         private InvoiceService $invoices,
-        private ?PackPaymentNotificationService $packNotifications = null
+        private ?PackPaymentNotificationService $packNotifications = null,
+        private ?PackEnrollmentFundAllocationService $fundAllocations = null
     ) {
     }
 
@@ -30,6 +31,14 @@ final class RedsysPackInvoiceService implements RedsysIntentHandler
         $this->assertPaymentMatchesInvoice($payload);
 
         $result = $this->invoices->issueInvoice($payload);
+        if ($this->fundAllocations !== null) {
+            $result['fund_allocations'] = $this->fundAllocations->allocate(
+                $sifDb,
+                $dsOrder,
+                $snapshot,
+                $result
+            );
+        }
         if ($this->packNotifications !== null) {
             $result['notification_outbox'] = $this->packNotifications->enqueue(
                 $sifDb,
