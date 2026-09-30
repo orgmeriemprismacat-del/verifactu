@@ -264,7 +264,7 @@ Resultat de la comparació:
 
 ### Regressió CI sobre el `main` actual
 
-El workflow **SIF PHP MySQL tests** del commit `e2fd82215dc9dbd1a6938014c19985adceebd3ed`, run **36732555122**, ha finalitzat en **success** amb:
+El workflow **SIF PHP MySQL tests** de l'últim tall de codi SIF verificat, commit `e2fd82215dc9dbd1a6938014c19985adceebd3ed`, run **36732555122**, ha finalitzat en **success** amb:
 
 - **740 passed**
 - **0 failed**
@@ -286,6 +286,8 @@ Dins d'aquest mateix run s'han comprovat explícitament **61 proves PASS** relac
 - integracions Redsys i AEAT que obren/reutilitzen incidències.
 
 Aquesta regressió posterior confirma que els merges posteriors no han introduït una regressió detectable al codi UC-008.
+
+**Revalidació del capçal final de l'auditoria:** després d'aquest run, `main` ha avançat fins a `39c01c07c51f9848fd2332a9ad53a48611ff8e1e`. La comparació `e2fd8221...39c01c07` conté **9 commits / 7 fitxers** i **cap** afecta les dependències UC-008 inventariades (incident lifecycle/repositories, panell, API interna, bridge intranet, RedsysCallbackWorker, FiscalQueueProcessor o configuració compartida). Per tant, el run 740/0 continua sent l'evidència de regressió aplicable al codi UC-008 del capçal actual.
 
 **Estat després de la revalidació:** `CODE_COMPLETE + DOCUMENTATION_RECONCILED + CURRENT_MAIN_REGRESSION_GREEN`. Continua pendent únicament el tancament d'entorn real.
 
