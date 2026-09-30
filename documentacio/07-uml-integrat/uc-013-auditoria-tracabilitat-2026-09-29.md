@@ -72,7 +72,7 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 4. Validació legacy via POST + CSRF + `ROLS_EDITAR` — IMPLEMENTADA; falta traça persistent SIF de la decisió.
 5. `IDPAG` legacy — IMPLEMENTAT allocator compartit amb named lock MySQL als fluxos actuals identificats.
 6. Adaptador/pantalla final de gestió de factura entitat.
-7. Integrar `alumnes-usoc-financament.php` al menú/routing habitual de la intranet i validar configuració/rols amb `preflight-usoc-intranet.php`.
+7. Menú implementat de forma fail-closed a `mostrarSideBarMenu.php` amb `SIF_USOC_MENU_ROLES`. Pendent validar configuració/rols/secrets amb `preflight-usoc-intranet.php` i desplegament real.
 8. Prova E2E amb callback duplicat i pagament entitat parcial/complet.
 
 ### Decisió funcional
