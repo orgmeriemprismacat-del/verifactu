@@ -69,7 +69,8 @@ final class NovicePromotionSecretaryDecisionProjectorTest
         }, 409);
 
         Assert::same('PENDING_VALIDATION', (string) $db->query('SELECT STATUS FROM commercial_operation')->fetchColumn());
-        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same('PENDING', (string) $db->query('SELECT STATUS FROM discount_validation')->fetchColumn());
     }
 
     public function testDecisionCannotBeNewlyProjectedAfterPaymentGateOpened(): void
@@ -82,7 +83,8 @@ final class NovicePromotionSecretaryDecisionProjectorTest
             (new NovicePromotionSecretaryDecisionProjector(new UuidGenerator()))
                 ->projectDecision($db, $db, $uuid, 'secretaria-test');
         }, 409);
-        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same('PENDING', (string) $db->query('SELECT STATUS FROM discount_validation')->fetchColumn());
     }
 
     private function stage(int $legacyDecision): array
