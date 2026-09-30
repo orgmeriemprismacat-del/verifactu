@@ -17,6 +17,7 @@ Ja està integrat a `main`:
 - prova `RedsysCourseEndToEndSimulatedTest`, que cobreix pagament complet + callback duplicat i parcial → complet;
 - verificador `verify-redsys-course-preproduction.php` amb dry-run per defecte i execució explícita;
 - prova `RedsysCoursePreproductionBoundaryTest`, que blinda fail-closed, `--execute`, sync llegada completa i sanitització d'evidències;
+- cutover explícit amb `SIF_REDSYS_COURSE_CUTOVER_ENABLED` i prova `RedsysCourseCutoverBoundaryTest`; quan és `1`, la MerchantURL SIF és obligatòria i HTTPS, i `doit.php` / `realitzaPagamentAutomatic.php` responen 410 abans de qualsevol efecte;
 - retorn navegador read-only via `RedsysCoursePaymentStatusService`, `course-status.php` i client HMAC del pont candidat;
 - proves `RedsysCoursePaymentStatusServiceTest` i `RedsysCourseReturnBoundaryTest`, que impedeixen convertir URLOK/URLKO en autoritat de pagament;
 - CI verd del wiring, E2E intern i boundaries de preproducció UC-014: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification`.
@@ -25,7 +26,7 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
 
 ## Pas 1 — preproducció
 
-1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Mantenir `SIF_REDSYS_CALLBACK_URL` sense activar fins que els preflights siguin verds.
+1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Configurar `SIF_REDSYS_CALLBACK_URL` amb la URL HTTPS del callback SIF, però mantenir `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0` fins que els preflights siguin verds.
 2. Configurar credencials Redsys de proves i secrets d'API interna.
 3. Crear una intenció de curs ordinari.
 4. Comprovar:
@@ -52,13 +53,13 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
    - payload/import/order incompatible;
    - alumne morós `M -> 1` només quan queda totalment pagat.
 10. Reexecutar el worker/sync i confirmar idempotència.
-11. Activar `SIF_REDSYS_CALLBACK_URL` a la preproducció amb l'URL HTTPS de `sif/public/api/redsys/callback.php`.
+11. Amb `SIF_REDSYS_CALLBACK_URL` ja configurada, activar `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` només a preproducció. Si la URL és buida o no HTTPS, el checkout ha de fallar tancat.
 12. Fer un pagament Redsys de proves i comprovar el retorn navegador: primer pot mostrar `PROCESSING`, però només ha de mostrar `CONFIRMED` quan la cua sigui `PROCESSED` i existeixin `UUID_FACTURA` + `UUID_PAYMENT`.
 13. Comprovar també el retorn `REJECTED` i un cas `REVIEW`; una fallada de consulta no pot mostrar èxit.
 
 ## Pas 2 — tall de MerchantURL
 
-Només quan les proves anteriors siguin verdes i el retorn autoritatiu també hagi estat contrastat en preproducció:
+Només quan les proves anteriors siguin verdes i el retorn autoritatiu també hagi estat contrastat en preproducció. El tall es fa amb **dues peces de configuració**: `SIF_REDSYS_CALLBACK_URL=<https://.../sif/public/api/redsys/callback.php>` i `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1`. La URL sola no activa el tall.
 
 ```text
 pagina_efectuar_pagament_automatic.php
@@ -84,12 +85,12 @@ inscripcions
 
 ## Pas 3 — retirada de l'autoritat fiscal llegada
 
-Quan el callback SIF estigui actiu i acreditat:
+Quan `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1`, els callbacks candidats `doit.php` i `realitzaPagamentAutomatic.php` responen HTTP 410 abans de carregar dependències o executar efectes. Quan el callback SIF estigui actiu i acreditat:
 - `doit.php` i `realitzaPagamentAutomatic.php` deixen d'emetre factures;
 - no calculen numeració fiscal;
 - no creen cobraments fiscals;
 - no poden fer un segon efecte per callback duplicat;
-- poden quedar temporalment només per compatibilitat UX si cal.
+- poden quedar temporalment només com a via de rollback controlat mentre no s'hagi fet la retirada definitiva. El rollback previ a la retirada permanent consisteix a tornar `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0`; no s'ha d'utilitzar després d'eliminar l'autoritat fiscal llegada.
 
 ## Evidències obligatòries
 
