@@ -71,6 +71,43 @@ final class PackPaymentGateTest
         });
     }
 
+    public function testRejectsDifferentPackIdentifiersAcrossRows(): void
+    {
+        $rows = $this->rows();
+        $rows[1]['OBSERVACIONS'] = str_replace('PACK|77', 'PACK|78', $rows[1]['OBSERVACIONS']);
+
+        Assert::throws(\RuntimeException::class, function () use ($rows): void {
+            \PackPaymentGate::authorizeRows($rows, ['importPagare' => '210.00'], 910);
+        });
+    }
+
+    public function testRejectsDuplicateOrNonContiguousCommercialOrdinal(): void
+    {
+        $rows = $this->rows();
+        $rows[1]['OBSERVACIONS'] = str_replace('PACK_ORDINAL|2', 'PACK_ORDINAL|1', $rows[1]['OBSERVACIONS']);
+
+        Assert::throws(\RuntimeException::class, function () use ($rows): void {
+            \PackPaymentGate::authorizeRows($rows, ['importPagare' => '210.00'], 910);
+        });
+
+        $rows = $this->rows();
+        $rows[1]['OBSERVACIONS'] = str_replace('PACK_ORDINAL|2', 'PACK_ORDINAL|3', $rows[1]['OBSERVACIONS']);
+
+        Assert::throws(\RuntimeException::class, function () use ($rows): void {
+            \PackPaymentGate::authorizeRows($rows, ['importPagare' => '210.00'], 910);
+        });
+    }
+
+    public function testRejectsDivergentFiscalReceiverAtCheckout(): void
+    {
+        $rows = $this->rows();
+        $rows[1]['DNI'] = '87654321X';
+
+        Assert::throws(\RuntimeException::class, function () use ($rows): void {
+            \PackPaymentGate::authorizeRows($rows, ['importPagare' => '210.00'], 910);
+        });
+    }
+
     private function rows(): array
     {
         return [
