@@ -1,9 +1,9 @@
 # UC-008 — Diagrames de seqüència ACTUAL i FINAL
 
-**Data:** 29/09/2026  
+**Data:** 30/09/2026  
 **Regla:** ACTUAL descriu backend i UI executable al repositori; FINAL conserva els passos operatius que encara depenen de desplegament/configuració.
 
-Vegeu [classes](uc-008-classes-actual-final.md), [activitats](uc-008-activitats-pagines-incidencies-actual-final.md) i [auditoria](04-auditoria-detallada-uc-008-gestionar-incidencia-2026-09-29.md).
+Vegeu [classes](uc-008-classes-actual-final.md), [activitats](uc-008-activitats-pagines-incidencies-actual-final.md) i [auditoria vigent](04b-auditoria-detallada-uc-008-2026-09-30.md).
 
 ## 1. SEQ-008-ACTUAL-A · Redsys → INCIDENT atòmic
 
@@ -201,24 +201,34 @@ Note over A,B: 2 accions coherents, 1 estat final IN_PROGRESS
 sequenceDiagram
 autonumber
 actor O as Operador
-participant UI as pay.prisma.cat/sif/incidencies
-participant C as actions.php + IncidentPanelSession [IMPLEMENTAT CODI]
-participant API as API incidents
+participant UI as app.js / index.php
+participant A as actions.php
+participant PS as IncidentPanelSession
 participant S as IncidentLifecycleService
+participant R as IncidentRepository
+participant AR as IncidentActionRepository
 
-O->>UI: obrir incidències
-UI->>C: list(filters)
-C->>API: POST signat action=list
-API->>S: list(actor,filters)
-S-->>API: incidents
-API-->>C: JSON
-C-->>UI: files
+O->>UI: obrir panell autenticat
+UI->>A: POST action=list + CSRF
+A->>PS: actor() + assertCsrf()
+PS-->>A: actor autenticat
+A->>S: list(actor,filters,limit)
+S->>R: list(filters,limit)
+R-->>S: incidents
+S-->>A: JSON
+A-->>UI: llistat
+
 O->>UI: obrir expedient
-UI->>C: view(id)
-C->>API: POST signat action=view
-API->>S: view(actor,id)
-S-->>UI: capçalera + timeline
+UI->>A: POST action=view + incident_id + CSRF
+A->>PS: actor() + assertCsrf()
+A->>S: view(actor,id)
+S->>R: findById(id)
+S->>AR: listForIncident(id)
+S-->>A: capçalera + timeline
+A-->>UI: detall
 ```
+
+**Nota:** el panell SIF no torna a passar per l'API interna HMAC. Un cop establerta la sessió SIF mitjançant el handoff signat, `actions.php` treballa same-origin amb sessió + CSRF i invoca directament `IncidentLifecycleService`. L'API interna HMAC és la frontera servidor→servidor utilitzada, entre altres, pel resum read-only de la intranet.
 
 ## 7. SEQ-008-FINAL-B · Reparació explícita i tancament
 
