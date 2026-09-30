@@ -99,6 +99,7 @@ final class GiftRedemptionService
                     $destination,
                     $correlationId
                 );
+                $this->completeDestinationOperation($db, $destinationUuid);
                 $db->commit();
 
                 return [
@@ -152,6 +153,7 @@ final class GiftRedemptionService
                 $now
             );
 
+            $this->completeDestinationOperation($db, $destinationUuid);
             $db->commit();
 
             return [
@@ -321,6 +323,30 @@ final class GiftRedemptionService
                 'notes' => 'UC-018 gift redemption compensation allocation',
             ]
         );
+    }
+
+    private function completeDestinationOperation(\PDO $db, string $uuidOperation): void
+    {
+        $statement = $db->prepare(
+            "UPDATE commercial_operation
+             SET STATUS = 'COMPLETED'
+             WHERE UUID_OPERATION = ?
+               AND STATUS IN ('RESERVED', 'CONFIRMED')"
+        );
+        $statement->execute([$uuidOperation]);
+
+        $check = $db->prepare(
+            'SELECT STATUS FROM commercial_operation
+             WHERE UUID_OPERATION = ? FOR UPDATE'
+        );
+        $check->execute([$uuidOperation]);
+        $status = $check->fetchColumn();
+
+        if ($status === false || strtoupper((string) $status) !== 'COMPLETED') {
+            throw SifException::conflict(
+                'Gift destination operation could not be completed'
+            );
+        }
     }
 
     private function hashCode(string $code): string
