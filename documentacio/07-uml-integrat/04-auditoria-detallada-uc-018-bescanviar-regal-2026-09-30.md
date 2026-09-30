@@ -277,3 +277,10 @@ S'ha afegit una fase executable addicional al nucli UC-018:
 - bloqueig explícit de diferències de preu fins que hi hagi decisió funcional.
 
 Això tanca el buit «aplicació de fons explícita» sense crear una factura nova ni un segon cobrament. El NO-GO es manté per la materialització de l'alta acadèmica, API/UI, concurrència multiprocés i E2E/preproducció.
+
+
+## 17. Addenda — staging acadèmic i frontera HMAC
+
+S'ha implementat `GiftEnrollmentStager` com a pont post-commit entre `enviarInscripcioBescanvia.php` i el SIF. El contracte observat del llegat queda verificat (`A_PAGAR=0`, `FACTURA_RELACIONADA=FACT_REL`, codi a `pag_observacions`, curs regal i `USAT` no contradictori). El stager crea/reutilitza una operació `ENROLLMENT/INSCRIPCIO` no facturable, reserva el dret dins la mateixa transacció i impedeix un segon destí concurrent.
+
+També existeix l'endpoint intern POST `/api/gifts/redemption/redeem.php`, protegit amb HMAC/anti-replay i rol explícit. Orquestra staging + redeem sense persistir el codi en snapshots ni retornar-lo. La mutació final de `regal.USAT` continua separada fins implementar compare-and-set/reconciliació legacy.
