@@ -148,7 +148,7 @@ participant Worker as Worker asíncron
 participant SA as RedsysUsocInvoiceService
 participant B as LegacyUsocInvoicePayloadBuilder
 participant I as InvoiceService
-participant UI as Intranet gestió USOC [pendent]
+participant UI as Intranet gestió USOC [IMPLEMENTADA · UI autònoma + panell contextual]
 participant SE as UsocEntityInvoiceService
 participant Pay as PaymentService
 participant L as EnrollmentFundMovementRepository [PROPOSTA]
@@ -202,7 +202,7 @@ stateDiagram-v2
 
 **Disparador:** el worker ha confirmat factura/cobrament de l'alumne, però el resultat `entity_invoice_pending` no arriba al panell, s'ha perdut la resposta, o falta la factura de la part entitat. **Actor:** procés de conciliació USOC / gestió autoritzada. **Entrada:** `DS_ORDER`, `UUID_FACTURA_ALUMNE` i `ID_INSC` acreditats, imports i receptor de la intenció congelada, fets fiscals i bancaris SIF actuals. **Postcondició:** expedient reconstruït amb **dues línies de finançament** i estat separat per factura/pagament, amb pas pendent només per la part que falta; **no tornar a cobrar ni emetre la factura alumne** per recuperar les dades de la part entitat.
 
-**Contrast de codi actualitzat 30/09/2026:** `RedsysUsocInvoiceService` persisteix `usoc_financing_case` després de la factura alumne. `LegacyUsocSnapshotRepository::loadByIdpag()` exigeix ara `ID_INSC` i consulta `IDPAG + ID`, sense `ORDER BY ID LIMIT 1`. `UsocEntityInvoiceService` exigeix `id_insc` i `UsocStudentInvoiceLinkRepository` valida que `student_invoice_uuid` correspongui a la mateixa inscripció/IDPAG, sigui una factura Redsys `USOC_ALUMNE` i tingui el total esperat. `UsocCaseReconciler` permet reconstruir i actualitzar l'estat de l'expedient. El que continua pendent és l'automatització del pas post-cobrament i l'E2E complet.
+**Contrast de codi actualitzat 30/09/2026:** `RedsysUsocInvoiceService` persisteix `usoc_financing_case` després de la factura alumne. `LegacyUsocSnapshotRepository::loadByIdpag()` exigeix ara `ID_INSC` i consulta `IDPAG + ID`, sense `ORDER BY ID LIMIT 1`. `UsocEntityInvoiceService` exigeix `id_insc`; abans d'emetre, `UsocFinancingCaseRepository::requireForEntityInvoice()` comprova que existeixi el checkpoint amb la mateixa factura alumne i imports congelats, i `UsocStudentInvoiceLinkRepository` valida la relació amb `ID_INSC/IDPAG`. `UsocEntityPaymentService` registra el cobrament entitat i invoca automàticament `UsocCaseReconciler`. Continuen pendents l'E2E complet de negoci i el desplegament/configuració real de les UI.
 
 ```plantuml
 @startuml
@@ -258,7 +258,7 @@ else Factura i cobrament alumne confirmats
   P-->>O: UUID_PAYMENT real, sense recrear factura alumne
  end
 end
-Note over C,P: Checkpoint i reconciliador implementats; la relectura evita inferir un ingrés d'entitat del cobrament de l'alumne. El trigger automàtic post-cobrament continua pendent.
+Note over C,P: Checkpoint i reconciliador implementats. La ruta específica `UsocEntityPaymentService` reconcilia després del cobrament entitat; el registre genèric de pagaments no incorpora aquest hook.
 ```
 
 ### 5.2. Acció independent: verificar i tancar l'expedient de finançament sense confondre dos pagadors — IMPLEMENTAT PARCIALMENT
@@ -288,7 +288,7 @@ O --> Debt
 sequenceDiagram
 autonumber
 actor O as Gestió
-participant C as UsocCaseReconciler [DISSENY]
+participant C as UsocCaseReconciler [IMPLEMENTAT]
 participant F as Factures A/E i fact_rels SIF [LECTURA]
 participant P as payment_transaction/allocation [LECTURA]
 participant L as Inscripció/fons individuals [LECTURA/PROPOSTA]
@@ -318,7 +318,7 @@ Note over C,L: No hi ha coordinador o ledger per ID_INSC acreditat: un PAYMENT a
 
 [UC-13 original](../06-fitxes-funcionals/uc-013.md) · [UC-19a original](../06-fitxes-funcionals/uc-019a.md) · [UC-19b original](../06-fitxes-funcionals/uc-019b.md) · [Revisió fons inscripció](00-revisio-moviments-inscripcions.md) · [RedsysUsocInvoiceService](../../sif/src/Service/RedsysUsocInvoiceService.php) · [UsocEntityInvoiceService](../../sif/src/Service/UsocEntityInvoiceService.php) · [LegacyUsocInvoicePayloadBuilder](../../sif/src/Service/LegacyUsocInvoicePayloadBuilder.php) · [LegacyUsocSnapshotRepository](../../sif/src/Repository/LegacyUsocSnapshotRepository.php) · [RedsysUsocInvoiceServiceTest](../../sif/tests/Integration/RedsysUsocInvoiceServiceTest.php) · [UsocEntityInvoiceServiceTest](../../sif/tests/Integration/UsocEntityInvoiceServiceTest.php).
 
-**No acreditat encara:** classificació d'afiliació externa completa, cobrament entitat real en E2E, adaptador/pantalla final, trigger automàtic de reconciliació i prova d'extrem a extrem. **Implementat al repositori:** identitat `ID_INSC`, validació factura alumne, `usoc_financing_case` i `UsocCaseReconciler`.
+**No acreditat encara:** classificació d'afiliació externa completa, desplegament real de les UI, secrets/rols d'entorn, variant curs gratuït i prova E2E completa. **Implementat al repositori:** identitat `ID_INSC`, validació factura alumne, checkpoint `usoc_financing_case`, emissió entitat protegida per checkpoint, `UsocEntityPaymentService`, `UsocCaseReconciler`, API interna signada, pantalla autònoma i panell contextual.
 
 
 ## 7. Auditoria específica 29/09/2026
@@ -394,4 +394,4 @@ Vegeu [auditoria i matriu UC-013](uc-013-auditoria-tracabilitat-2026-09-29.md).
 - IMPLEMENTAT: parcial.
 - VERIFICAT: estàticament contra codi.
 - TEST EXECUTAT: no acreditat.
-- P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, vinculació factura alumne↔ID_INSC/IDPAG/import i checkpoint durable. Pendents: trigger post-cobrament, adaptador final, E2E i decisions funcionals.
+- P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, vinculació factura alumne↔ID_INSC/IDPAG/import, checkpoint durable, emissió entitat protegida, cobrament/reconciliació específica USOC i adaptadors d'intranet. Pendents: E2E completa, desplegament/preflight i decisions funcionals.
