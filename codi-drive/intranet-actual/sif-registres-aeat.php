@@ -59,6 +59,9 @@ $csrf = htmlspecialchars($_SESSION['sif_aeat_csrf'], ENT_QUOTES, 'UTF-8');
                     <p class="text-muted mb-0">Cua fiscal, resultat del registre, intents i incidències.</p>
                 </div>
                 <div class="d-flex gap-2">
+                    <a href="https://intranet.prisma.cat/sif-verifactu.php" class="btn btn-outline-secondary btn-sm">
+                        <i class="fa-solid fa-shield-halved me-1"></i> VERI*FACTU
+                    </a>
                     <button id="sif-aeat-preflight" class="btn btn-outline-secondary btn-sm" type="button">
                         <i class="fa-solid fa-shield-halved me-1"></i> Preflight
                     </button>
