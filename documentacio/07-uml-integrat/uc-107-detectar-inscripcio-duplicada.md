@@ -82,6 +82,27 @@ G --> Reconcile
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Alumne/comprador"]
+  a_1["Gestió autoritzada"]
+  subgraph SIF_BOUNDARY["SIF · control d'inscripcions duplicades"]
+    u_0(["UC-107<br/>Comprovar inscripció duplicada"])
+    u_1(["Comparar identitat, producte, edició i estats"])
+    u_2(["Reutilitzar operació equivalent"])
+    u_3(["UC-106<br/>Crear reserva només si és nova"])
+    u_4(["UC-53<br/>Conciliar duplicat acadèmic o econòmic"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_2 -.-> u_0
+  a_0 --> u_3
+  a_1 --> u_4
+```
+
 ## 3. Classes: validador de checkout existent vs detector pendent
 
 ```mermaid

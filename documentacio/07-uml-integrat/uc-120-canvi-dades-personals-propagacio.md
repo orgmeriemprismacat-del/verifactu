@@ -81,6 +81,28 @@ Fiscal ..> Main : <<extend>> (dada de factura emesa)
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Persona/representant acreditat"]
+  a_1["Gestió autoritzada"]
+  a_2["Procés de sincronització"]
+  subgraph SIF_BOUNDARY["SIF · canvi de dades personals"]
+    u_0(["UC-120<br/>Tramitar petició de canvi"])
+    u_1(["Verificar subjecte i permisos"])
+    u_2(["Revisar camps i operacions afectades"])
+    u_3(["Propagar a sistemes vigents"])
+    u_4(["Classificar document fiscal ja emès"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  a_2 --> u_3
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_4 -.-> u_0
+```
+
 ## 3. Diagrama de classes — SQL definit, propagació pendent
 
 ```mermaid
