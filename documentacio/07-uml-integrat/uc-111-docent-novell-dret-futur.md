@@ -1015,6 +1015,41 @@ stop
 ```
 `RECOVERY_RESOLVED` no equival a «tot cobrat»: `all_value_recovered=true` només quan tot el valor està en `RECOVERED`; imports `WAIVED/CANCELLED` queden explícits al resum. Amb pla de recoveries 0 €, el workflow es pot tancar sense fabricar ítems de valor zero. MySQL no executat.
 
+### 4.3.16. Baixa d'una aplicació derivada → saldo fill — TRETZÈ TALL
+
+**Codi de branca completat:** [NovicePromotionDerivedApplicationCancellationReviewService](../../sif/src/Service/NovicePromotionDerivedApplicationCancellationReviewService.php) + [NovicePromotionDerivedApplicationCancellationActivationService](../../sif/src/Service/NovicePromotionDerivedApplicationCancellationActivationService.php) cobreixen la baixa directa d'un curs on l'exposició promocional ACTUAL és una `novice_promotion_derived_application.APPLIED`. El nou dret és fill del saldo que va finançar el curs (`PARENT_UUID_DERIVED_BALANCE`) i apunta a l'aplicació font (`SOURCE_UUID_DERIVED_APPLICATION`).
+
+```plantuml
+@startuml
+title UC-111 | Baixa d'un curs pagat amb saldo derivat
+start
+:derived_balance pare ja havia finançat un curs;
+:derived_application = APPLIED;
+:Secretaria tramita baixa + rectificativa real (connector PENDENT);
+:Review bloqueja arrel i pare, valida titular/factura/cash;
+if (L'aplicació ja té traspàs actiu?) then (Sí)
+ :Rebutjar; seguir el curs actual del transfer;
+ stop
+endif
+:Crear child derived_balance PENDING;
+:PARENT_UUID_DERIVED_BALANCE = pare;
+:SOURCE_UUID_DERIVED_APPLICATION = aplicació;
+:available = 0, sense ISSUED_AT/EXPIRES_AT;
+:Font d'aprovació autenticada decideix (adaptador PENDENT);
+if (APPROVED i dades encara concorden?) then (No)
+ :No activar; recalcular/revisar;
+ stop
+endif
+:Reconciliar de nou factura, CHARGE-REFUND i JASOM;
+:Marcar aplicació font CONVERTED_TO_DERIVED;
+:NO recreditar el saldo pare;
+:Activar saldo fill amb import aprovat + any propi;
+:Auditar DERIVED_ACTIVATE_CHILD;
+stop
+@enduml
+```
+
+**Persistència:** [000028](../../sif/database/migrations/2026_09_29_000028_close_derived_application_into_child_balance.sql) exigeix `CLOSED_AT` i `REASON_CODE=CONVERTED_TO_DERIVED` a la `derived_application` històrica. El saldo fill conserva la procedència completa i és l'únic successor promocional de la part aprovada. La baixa d'un segon/tercer `transfer.CONFIRMED` continua pendent d'un servei específic sobre l'últim transfer de la cadena.
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
