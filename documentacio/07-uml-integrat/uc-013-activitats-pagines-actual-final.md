@@ -240,12 +240,13 @@ flowchart TD
     A[Input explícit entitat] --> B[UsocEntityInvoiceService]
     B --> C[Exigir billing + amount + student_invoice_uuid]
     C --> D[Carregar snapshot per IDPAG + ID_INSC]
-    D --> E[Validar UUID factura alumne + ID_INSC + IDPAG + import]
-    E --> F[Construir payload entitat]
-    F --> G[InvoiceService]
-    G --> H[Factura entitat PENDING]
-    H --> I[Persistir checkpoint ENTITY_INVOICED]
-    I --> J[payment_registered=false]
+    D --> E[Exigir checkpoint persistent i imports congelats]
+    E --> F[Validar UUID factura alumne + ID_INSC + IDPAG + import]
+    F --> G[Construir payload entitat]
+    G --> H[InvoiceService]
+    H --> I[Factura entitat PENDING]
+    I --> J[Persistir checkpoint ENTITY_INVOICED]
+    J --> K[payment_registered=false]
 ```
 
 ### FINAL
@@ -263,7 +264,7 @@ flowchart TD
 ## 11. Cobrament entitat
 
 ### ACTUAL / IMPLEMENTAT EN REPOSITORI
-`alumnes-usoc-financament.php` ofereix una UI autenticada per consultar l'expedient, emetre factura entitat i registrar cobraments. El navegador parla només amb `ajax/alumnes/usocFinancament.php`; aquest controlador valida CSRF i delega al `SifInternalUsocClient`, que signa la petició HMAC cap a `/api/usoc/manage.php`. `UsocEntityPaymentService` registra el cobrament al ledger general i reconcilia l'expedient. L'accés de menú està implementat directament a `mostrarSideBarMenu.php`, fail-closed per `SIF_USOC_MENU_ROLES`, sense assumir ni modificar la taula `apartats`.
+`alumnes-usoc-financament.php` ofereix una UI autenticada per consultar l'expedient, emetre factura entitat i registrar cobraments. Addicionalment, `alumnes-mostrar-alumne-usoc.js` injecta un panell contextual sota `#dades-pagament` del modal de Consulta/Modifica alumne quan existeix un expedient USOC; respecta `capabilities.manage` i reutilitza el mateix `SifInternalUsocClient`/API signada. El navegador parla només amb `ajax/alumnes/usocFinancament.php`; aquest controlador valida CSRF i delega al `SifInternalUsocClient`, que signa la petició HMAC cap a `/api/usoc/manage.php`. `UsocEntityPaymentService` registra el cobrament al ledger general i reconcilia l'expedient. L'accés de menú està implementat directament a `mostrarSideBarMenu.php`, fail-closed per `SIF_USOC_MENU_ROLES`, sense assumir ni modificar la taula `apartats`.
 
 ### FINAL
 
@@ -325,8 +326,8 @@ flowchart TD
 | Validar positiu | Sí | Sí | Sí |
 | Validar negatiu | Sí | Sí | Sí |
 | Pagament/factura alumne | Sí | Sí | Sí |
-| Factura entitat | Parcial | Sí | Servei sí, pantalla no |
-| Cobrament entitat | Sí, UI + servei + script | Sí | UI autònoma implementada; menú/routing pendent |
+| Factura entitat | Sí | Sí | Servei + pantalla autònoma + panell contextual implementats; desplegament/configuració pendent |
+| Cobrament entitat | Sí, dues UI + servei + script | Sí | UI autònoma + panell contextual implementats; menú fail-closed implementat; desplegament/configuració pendent |
 | Conciliació | Sí, servei/script | Sí | Implementada parcialment; trigger automàtic pendent |
 | Canvi/baixa | Parcial | Sí | Compartit amb altres UC |
 
