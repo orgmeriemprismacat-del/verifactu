@@ -69,6 +69,13 @@ final class PaymentLinkService
                 );
             }
 
+            $operationCurrency = strtoupper((string) $operation['CURRENCY']);
+            if ($currency !== $operationCurrency) {
+                throw SifException::conflict(
+                    'Payment link currency must match commercial operation currency'
+                );
+            }
+
             $netAmount = number_format((float) $operation['NET_AMOUNT'], 2, '.', '');
             if ($this->cents($expectedAmount) > $this->cents($netAmount)) {
                 throw SifException::conflict(
@@ -148,17 +155,32 @@ final class PaymentLinkService
                 throw SifException::forbidden('Commercial operation has expired');
             }
 
+            $operationCurrency = strtoupper((string) $operation['CURRENCY']);
+            if ((string) $link['CURRENCY'] !== $operationCurrency) {
+                throw SifException::conflict(
+                    'Payment link currency no longer matches commercial operation currency'
+                );
+            }
+
+            $linkAmount = number_format((float) $link['EXPECTED_AMOUNT'], 2, '.', '');
+            $operationNetAmount = number_format((float) $operation['NET_AMOUNT'], 2, '.', '');
+            if ($this->cents($linkAmount) > $this->cents($operationNetAmount)) {
+                throw SifException::conflict(
+                    'Payment link amount no longer matches commercial operation'
+                );
+            }
+
             $this->links->markAccessed($db, (string) $link['UUID_PAYMENT_LINK'], $accessedAt);
 
             return [
                 'uuid_payment_link' => (string) $link['UUID_PAYMENT_LINK'],
                 'uuid_operation' => (string) $link['UUID_OPERATION'],
                 'status' => (string) $link['STATUS'],
-                'expected_amount' => number_format((float) $link['EXPECTED_AMOUNT'], 2, '.', ''),
+                'expected_amount' => $linkAmount,
                 'currency' => (string) $link['CURRENCY'],
                 'expires_at' => $expiresAt,
                 'operation_status' => (string) $operation['STATUS'],
-                'operation_net_amount' => number_format((float) $operation['NET_AMOUNT'], 2, '.', ''),
+                'operation_net_amount' => $operationNetAmount,
             ];
         });
     }
