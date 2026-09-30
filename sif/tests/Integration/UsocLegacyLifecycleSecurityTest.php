@@ -45,10 +45,13 @@ final class UsocLegacyLifecycleSecurityTest
         Assert::stringContainsString('method: "POST"', $js);
         Assert::stringContainsString('csrfToken : obtenirCsrfAlumnesLifecycle()', $js);
         Assert::stringContainsString('pendent : pendent', $js);
+        Assert::stringContainsString('function mostrarErrorLifecycleAlumne', $js);
+        Assert::stringContainsString('jqXHR.status === 409', $js);
 
         Assert::stringContainsString('realitzarCanviCurs_CanviCurs.php",method:"POST"', $minJs);
         Assert::stringContainsString('confirmacioBaixa_DonarBaixa.php",method:"POST"', $minJs);
         Assert::stringContainsString('csrfToken:obtenirCsrfAlumnesLifecycle()', $minJs);
+        Assert::stringContainsString('function mostrarErrorLifecycleAlumne', $minJs);
 
         Assert::stringContainsString("['course_change', 'cancellation']", $guard);
         Assert::stringContainsString('TIPUS_DESC', $guard);
