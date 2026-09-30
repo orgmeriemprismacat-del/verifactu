@@ -11,11 +11,12 @@ final class IncidentPanelUiContractTest
         $index = $this->read('public/sif/incidencies/index.php');
         $app = $this->read('public/sif/incidencies/app.js');
 
-        foreach (['filter-status', 'filter-severity', 'filter-type'] as $filter) {
+        foreach (['filter-status', 'filter-severity', 'filter-type', 'filter-assignee'] as $filter) {
             Assert::stringContainsString($filter, $index);
         }
 
         Assert::stringContainsString("action: 'list'", $app);
+        Assert::stringContainsString("assignee_id: document.getElementById('filter-assignee')", $app);
         Assert::stringContainsString("action: 'view'", $app);
         Assert::stringContainsString('RESOURCE_TYPE', $app);
         Assert::stringContainsString('RESOURCE_ID', $app);
