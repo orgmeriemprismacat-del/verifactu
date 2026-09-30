@@ -109,6 +109,13 @@ Després del refund real de JASOM i de la cancel·lació promocional, cada ús a
 
 **Semàntica important:** `RECOVERY_RESOLVED` vol dir «cap work item pendent», no «tot l'import cobrat». `all_value_recovered` només és cert quan el total de `RECOVERED` coincideix amb el total congelat; WAIVED i CANCELLED continuen com a resultats finals explícits. El servei de tancament no fa cap CHARGE/refund/factura.
 
+### 1.8. UC-111 — baixa d'un ús derivat i creació d'un saldo fill
+
+Quan una `novice_promotion_derived_application.APPLIED` és el consum actual i el curs es dona de baixa, el flux ja té peces específiques: [NovicePromotionDerivedApplicationCancellationReviewService](../../sif/src/Service/NovicePromotionDerivedApplicationCancellationReviewService.php) crea un `novice_promotion_derived_balance.PENDING_FISCAL_REVIEW` amb `PARENT_UUID_DERIVED_BALANCE` i `SOURCE_UUID_DERIVED_APPLICATION`; [NovicePromotionDerivedApplicationCancellationActivationService](../../sif/src/Service/NovicePromotionDerivedApplicationCancellationActivationService.php), només després de `approvedDerivedApplicationCancellation`, rectificativa i reconciliació renovada, tanca la font `APPLIED → CONVERTED_TO_DERIVED` i activa el fill amb el seu import/venciment. [000028](../../sif/database/migrations/2026_09_29_000028_close_derived_application_into_child_balance.sql) endureix l'estat històric de la font.
+
+**Conservació del valor:** el saldo pare NO es recredita perquè l'import ja havia estat consumit pel curs cancel·lat. El successor promocional és el saldo fill, limitat per la política de baixa. En el graf de procedència: `right pare → dapp històrica REPLACED_BY_DERIVED → right fill`. Per un retorn posterior de JASOM s'ha de comptar només el romanent/consums VIUS del fill i altres branques vives, no tornar a sumar la dapp predecessora.
+
+**Frontera pendent:** si l'exposició actual és un `transfer.CONFIRMED` successiu (segon/tercer canvi), els serveis de transfer ja poden construir la cadena però encara falta el review+activation de la seva baixa. Això és el buit concret de lifecycle; no falta una nova categoria documental.
 ## 2. UML de casos d'ús
 
 ```plantuml
