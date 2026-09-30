@@ -110,13 +110,14 @@ final class PrismaStudentCourseCheckoutServiceTest
             ['ds_order' => 'UC020ORDER2A', 'terminal' => '1', 'created_by' => 'web-checkout']
         );
 
-        Assert::throws(SifException::class, static function () use ($db, $service): void {
+        $price = $this->price();
+        Assert::throws(SifException::class, static function () use ($db, $service, $price): void {
             $service->stageAndCreateIntent(
                 $db,
                 $db,
                 200,
                 'student:canonical:12345678Z',
-                $this->price(),
+                $price,
                 ['ds_order' => 'UC020ORDER2B', 'terminal' => '1', 'created_by' => 'web-checkout']
             );
         }, 409);
@@ -130,13 +131,14 @@ final class PrismaStudentCourseCheckoutServiceTest
         $db = $this->fixture(false);
         $service = $this->service();
 
-        Assert::throws(SifException::class, static function () use ($db, $service): void {
+        $price = $this->price();
+        Assert::throws(SifException::class, static function () use ($db, $service, $price): void {
             $service->stageAndCreateIntent(
                 $db,
                 $db,
                 200,
                 'student:canonical:12345678Z',
-                $this->price(),
+                $price,
                 ['ds_order' => 'UC020ORDER3', 'terminal' => '1']
             );
         }, 409);
