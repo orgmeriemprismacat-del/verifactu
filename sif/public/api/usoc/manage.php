@@ -98,6 +98,29 @@ try {
 
     assertUsocRole($actor, $manageRoles, 'manage');
 
+    if ($action === 'lifecycle_guard') {
+        $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
+        $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
+        $operation = strtolower(trim((string) ($payload['operation'] ?? '')));
+        if (!in_array($operation, ['course_change', 'cancellation'], true)) {
+            throw SifException::validation('Invalid USOC lifecycle operation');
+        }
+
+        $case = $cases->findByInscriptionAndIdpag($db, $idInsc, $idpag);
+        JsonResponse::send([
+            'ok' => true,
+            'guard' => [
+                'allowed' => $case === null,
+                'reason' => $case === null ? 'NO_SIF_USOC_CASE' : 'USOC_FINANCING_CASE_REQUIRES_ORCHESTRATION',
+                'operation' => $operation,
+                'id_insc' => $idInsc,
+                'idpag' => $idpag,
+                'case' => $case,
+            ],
+        ]);
+        return;
+    }
+
     if ($action === 'begin_validation_decision') {
         $legacyDb = ConnectionFactory::makeLegacy($config);
         $service = new UsocValidationDecisionService(
