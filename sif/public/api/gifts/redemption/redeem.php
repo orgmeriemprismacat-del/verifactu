@@ -13,6 +13,7 @@ use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Service\GiftEnrollmentStager;
 use Prisma\Sif\Service\GiftRedemptionService;
+use Prisma\Sif\Service\GiftRedemptionTrustedContextResolver;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\LegacyGiftUsageReconciler;
 
@@ -64,18 +65,19 @@ try {
 
     $enrollmentId = positiveGiftEnrollmentId($payload['enrollment_id'] ?? null);
     $giftCode = requiredGiftString($payload['gift_code'] ?? null, 'gift_code', 200);
-    $holderPartyKey = requiredGiftString(
-        $payload['holder_party_key'] ?? null,
-        'holder_party_key',
-        100
-    );
-    $trustedPrice = $payload['trusted_price_snapshot'] ?? null;
-    if (!is_array($trustedPrice)) {
-        throw SifException::validation('Trusted gift price snapshot is required');
-    }
 
     $legacyDb = ConnectionFactory::makeLegacy($config);
     $entitlements = new CommercialEntitlementRepository(new UuidGenerator());
+    $trustedContext = (new GiftRedemptionTrustedContextResolver(
+        $entitlements
+    ))->resolve(
+        $db,
+        $legacyDb,
+        $enrollmentId,
+        $giftCode
+    );
+    $holderPartyKey = (string) $trustedContext['holder_party_key'];
+    $trustedPrice = (array) $trustedContext['trusted_price_snapshot'];
 
     $stage = (new GiftEnrollmentStager(
         new UuidGenerator(),
