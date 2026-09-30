@@ -81,7 +81,7 @@ php sif/scripts/preflight-sif.php
 
 ## 7. UI implementada al codi · E2E pendent
 
-- [x] llistat amb filtres per estat, severitat i tipus; responsable visible al llistat. Filtre directe per responsable no implementat encara.
+- [x] llistat filtrable per estat, severitat, tipus i responsable (`assignee_id`), amb cobertura d'integració.
 - [x] detall mostra resource/source/correlation i no exposa secrets de configuració.
 - [x] timeline ordenat per `CREATED_AT, ID` i repositori d'accions append-only (sense UPDATE/DELETE).
 - [x] auditor/read-only queda denegat al backend; la intranet no exposa accions de mutació. Pendent només comprovació visual E2E dels controls.
