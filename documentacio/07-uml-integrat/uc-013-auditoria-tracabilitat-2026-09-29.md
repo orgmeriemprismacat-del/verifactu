@@ -70,7 +70,7 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 
 ### P1
 4. Validació legacy via POST + CSRF + `ROLS_EDITAR` — IMPLEMENTADA; falta traça persistent SIF de la decisió.
-5. `IDPAG` llegat generat per últim+1 → mecanisme concurrent-safe.
+5. `IDPAG` legacy — IMPLEMENTAT allocator compartit amb named lock MySQL als fluxos actuals identificats.
 6. Adaptador/pantalla final de gestió de factura entitat.
 7. Connectar la interfície/API final amb `UsocEntityPaymentService`; evitar que el flux USOC utilitzi el registre genèric sense reconciliació.
 8. Prova E2E amb callback duplicat i pagament entitat parcial/complet.
