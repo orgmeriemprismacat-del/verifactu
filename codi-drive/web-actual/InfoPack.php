@@ -169,7 +169,7 @@ class InfoPack extends Pack {
          JOIN curs AS c ON p.ID_CURS = c.ID_CURS INNER JOIN informacio AS i ON
          c.CURS = i.CODI_CURS WHERE ip.ID_URL = ? AND p.PUBLIC=1 AND c.PUBLIC=1
          AND c.CURS!='PROVA' AND c.CURS NOT LIKE '%0%' AND c.ESTAT!='0'
-         AND i.ESTAT = 1 AND c.CURS NOT LIKE '%JOR%' ORDER BY c.DATAI";
+         AND i.ESTAT = 1 AND c.CURS NOT LIKE '%JOR%' ORDER BY c.DATAI, p.ID_CURS";
 
       if ( $stmt = $connexio->prepare($cnsInfoOrig) ) {
          if ( $stmt3 = $connexio3->prepare($cnsidTema) ) {
