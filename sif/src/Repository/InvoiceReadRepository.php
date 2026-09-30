@@ -148,14 +148,28 @@ final class InvoiceReadRepository
 
             if ($sourceIds !== []) {
                 $placeholders = implode(',', array_fill(0, count($sourceIds), '?'));
-                $where[] = 'EXISTS (
+                $sourceType = strtoupper(trim((string) ($criteria['source_type'] ?? '')));
+                if ($sourceType !== '' && preg_match('/^[A-Z0-9_:-]{1,40}$/D', $sourceType) !== 1) {
+                    throw SifException::validation('Invalid source type');
+                }
+
+                $sourceClause = 'EXISTS (
                     SELECT 1 FROM fact_rels rel_source
                     WHERE rel_source.UUID_FACTURA = f.UUID_FACTURA
-                      AND rel_source.SOURCE_ID IN (' . $placeholders . ')
-                )';
+                      AND rel_source.SOURCE_ID IN (' . $placeholders . ')';
+
+                if ($sourceType !== '') {
+                    $sourceClause .= ' AND rel_source.SOURCE_TYPE = ?';
+                }
+
+                $sourceClause .= ')';
+                $where[] = $sourceClause;
 
                 foreach (array_keys($sourceIds) as $sourceId) {
                     $params[] = $sourceId;
+                }
+                if ($sourceType !== '') {
+                    $params[] = $sourceType;
                 }
             }
         }
