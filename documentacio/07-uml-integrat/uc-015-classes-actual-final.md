@@ -167,16 +167,22 @@ class CanonicalPackOrderSource {
   <<PENDENT ACREDITAR>>
   +orderedComponents(packId)
 }
-class AcademicEnrollmentSyncService {
-  <<PENDENT CONSOLIDAR>>
-  +syncAfterCommit(operation)
+class RedsysLegacySyncingProcessor {
+  <<IMPLEMENTAT>>
+  +process(sifDb,job) array
+}
+class LegacySyncService {
+  <<IMPLEMENTAT>>
+  +syncAfterSifSuccess(...)
+  +syncPackFullPayment(...)
 }
 
 PackPaymentGate --> CanonicalPackOrderSource : verificar origen ordinal
 SifPaymentIntentClient --> RedsysPackInvoiceService : via intent/callback/worker
 RedsysPackInvoiceService --> EnrollmentFundMovementRepository
 RedsysPackInvoiceService --> PackPaymentNotificationService
-RedsysPackInvoiceService --> AcademicEnrollmentSyncService : postcommit
+RedsysPackInvoiceService --> RedsysLegacySyncingProcessor : legacy_sync resultat
+RedsysLegacySyncingProcessor --> LegacySyncService : post-SIF
 LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 ```
 
@@ -198,4 +204,4 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 - **Documentat:** sí.
 - **Implementat parcial:** sí.
 - **Verificat per inspecció:** sí.
-- **Pendent:** eliminar el codi legacy després de la finestra de rollback, acreditar l'origen canònic de `PACK_ORDINAL`, consolidar la sincronització acadèmica i obtenir evidència runtime/preproducció.
+- **Pendent:** eliminar el callback fiscal legacy després de la finestra de rollback, acreditar l'origen canònic de `PACK_ORDINAL` i obtenir evidència runtime/preproducció. La sincronització legacy post-SIF ja està implementada amb `RedsysLegacySyncingProcessor` + `LegacySyncService`.
