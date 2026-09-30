@@ -76,6 +76,14 @@ final class RedsysCoursePreproductionBoundaryTest
             $source
         );
         Assert::stringContainsString(
+            "notification_outbox_present",
+            $source
+        );
+        Assert::stringContainsString(
+            "notification_outbox_has_identity",
+            $source
+        );
+        Assert::stringContainsString(
             "['PARTIALLY_PAID', 'PAID']",
             $source
         );
@@ -118,6 +126,7 @@ final class RedsysCoursePreproductionBoundaryTest
 
         foreach ([
             'payment_allocation_table',
+            'notification_outbox_table',
             'redsys_payment_intent_table',
             'redsys_callback_queue_table',
             'callback_endpoint_present',
