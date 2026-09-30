@@ -9,10 +9,10 @@ Vegeu [classes](uc-008-classes-actual-final.md), [seqüències](uc-008-sequencie
 
 | ID | Superfície | Apartats | ACTUAL | FINAL |
 | --- | --- | --- | --- | --- |
-| P-INC-01 | `pay.prisma.cat/sif/incidencies` · llistat | filtres, prioritat/estat, obrir detall | UI no acreditada; API list sí | panell autenticat |
-| P-INC-02 | detall d'incidència | capçalera, recurs, timeline, evidències | API view sí; UI no | expedient complet |
-| P-INC-03 | accions de lifecycle | assignar, evidència, resoldre, dismiss, reobrir | API/service sí; UI no | controls per rol |
-| P-INC-04 | Intranet · VERI*FACTU | indicador, resum, enllaç | no acreditat | read-only + fallback indisponibilitat |
+| P-INC-01 | `pay.prisma.cat/sif/incidencies` · llistat | filtres, prioritat/estat, obrir detall | UI implementada al codi; desplegament no verificat | panell autenticat |
+| P-INC-02 | detall d'incidència | capçalera, recurs, timeline, evidències | UI + timeline implementats al codi | expedient complet |
+| P-INC-03 | accions de lifecycle | assignar, evidència, resoldre, dismiss, reobrir | UI + API + servei implementats; E2E pendent | controls per rol |
+| P-INC-04 | Intranet · VERI*FACTU | indicador, resum, enllaç | resum read-only + handoff implementats al codi | desplegament + fallback validat |
 | A-INC-05 | obertura automàtica | Redsys, AEAT integritat/dead-letter | implementat parcial | tots els detectors rellevants |
 | A-INC-06 | reparació | derivació a UC específic | manual/orquestrada per cas | derivació explícita correlacionada |
 
@@ -22,7 +22,7 @@ Vegeu [classes](uc-008-classes-actual-final.md), [seqüències](uc-008-sequencie
 
 ```mermaid
 flowchart TD
-A[No hi ha pàgina UI acreditada] --> B[POST API action=list]
+A[Obrir UI SIF amb sessió autenticada] --> B[POST same-origin actions.php action=list]
 B --> C{rol read/manage?}
 C -->|no| D[403]
 C -->|sí| E[IncidentRepository list]
@@ -244,7 +244,7 @@ G -->|sí| H[RESOLVE]
 
 ```mermaid
 flowchart TD
-A[Sidebar/intranet actual] --> B[No hi ha resum UC-008 acreditat]
+A[Obrir sif-verifactu.php] --> B[AJAX read-only sifIncidents.php]
 B --> C[Consulta de factures SIF sí existeix però és un altre UC]
 ```
 
@@ -265,5 +265,5 @@ E --> G[Resolució només a pay.prisma.cat/sif]
 **Pàgines/superfícies identificades:** 4.  
 **Accions transversals amb activitat pròpia:** 2.  
 **Parells ACTUAL/FINAL:** 10.  
-**UI implementada:** 0 de 4 superfícies; backend API/lifecycle sí.  
+**UI implementada al repositori:** 4 de 4 superfícies; desplegament/runtime productiu encara no verificat.  
 **No s'ha inventat cap pantalla com a implementada.**
