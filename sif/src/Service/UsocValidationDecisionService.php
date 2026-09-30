@@ -50,6 +50,12 @@ final class UsocValidationDecisionService
             );
 
             $state = (string) $decision['STATE'];
+            if ($state === 'COMMITTED' && $current !== $desiredValidDesc) {
+                throw SifException::conflict(
+                    'Committed USOC validation decision no longer matches legacy state'
+                );
+            }
+
             if ($state === 'REQUESTED') {
                 if ($current === $desiredValidDesc) {
                     $decision = $this->decisions->markCommitted(
@@ -117,6 +123,13 @@ final class UsocValidationDecisionService
 
             $current = (int) $legacy['VALID_DESC'];
             $desired = (int) $decision['DESIRED_VALID_DESC'];
+
+            if ((string) $decision['STATE'] === 'COMMITTED' && $current !== $desired) {
+                throw SifException::conflict(
+                    'Committed USOC validation decision no longer matches legacy state'
+                );
+            }
+
             if ($current === $desired) {
                 $decision = $this->decisions->markCommitted(
                     $sifDb,
