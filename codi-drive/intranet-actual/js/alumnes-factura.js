@@ -735,7 +735,14 @@ function mostrarModalConsultaInformacio( id ) {
 			guardar resultat i cancelar i s'afageix el botó d'edició */
 			$('#modalConsultaInformacio #dades-factura').on('click', '.cancelar-apartat', function() {
 				if ( tePermisEdicio ) {
-					cancelEditarApartat('#modalConsultaInformacio #dades-factura');
+					var invoiceId = $('#id-cns-fact').html().trim();
+					if (invoiceId !== '') {
+						mostrarModalLoading();
+						mostrarModalConsultaInformacio(invoiceId);
+					}
+					else {
+						$("#modalConsultaInformacio").modal('hide');
+					}
 				}
 				else {
 				   mostrarModalNoTensPermisos();
