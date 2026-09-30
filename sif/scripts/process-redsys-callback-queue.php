@@ -7,6 +7,7 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\IncidentRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
@@ -30,6 +31,7 @@ use Prisma\Sif\Service\LegacyPackInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacyUsocInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacySyncService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
+use Prisma\Sif\Service\PackEnrollmentFundAllocationService;
 use Prisma\Sif\Service\PackPaymentNotificationService;
 use Prisma\Sif\Service\RedsysCallbackDispatcher;
 use Prisma\Sif\Service\RedsysCallbackWorker;
@@ -116,6 +118,9 @@ try {
             $invoiceService,
             new PackPaymentNotificationService(
                 new NotificationOutboxRepository(new UuidGenerator())
+            ),
+            new PackEnrollmentFundAllocationService(
+                new EnrollmentFundMovementRepository(new UuidGenerator())
             )
         ),
         new RedsysGroupInvoiceService($notifications, new LegacyGroupSnapshotRepository(), new LegacyGroupInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
