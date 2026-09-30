@@ -77,6 +77,24 @@ final class HttpEndpointsTest
         Assert::stringContainsString('$service->dismiss', $source);
     }
 
+    public function testIncidentPanelUsesSignedLaunchSessionAndCsrf(): void
+    {
+        $index = $this->readEndpoint('sif/incidencies/index.php');
+        $actions = $this->readEndpoint('sif/incidencies/actions.php');
+
+        Assert::stringContainsString('PanelLaunchAuthenticator', $index);
+        Assert::stringContainsString('InternalApiRequestRepository', $index);
+        Assert::stringContainsString('IncidentPanelSession', $index);
+        Assert::stringContainsString('session->establish', $index);
+
+        Assert::stringContainsString('IncidentPanelSession', $actions);
+        Assert::stringContainsString('HTTP_X_CSRF_TOKEN', $actions);
+        Assert::stringContainsString('IncidentLifecycleService', $actions);
+        Assert::stringContainsString('$action === \'summary\'', $actions);
+        Assert::stringContainsString('$service->resolve', $actions);
+        Assert::stringContainsString('$service->reopen', $actions);
+    }
+
     public function testJsonResponseSupportsInvalidJsonAndThrowableResponses(): void
     {
         $source = file_get_contents(dirname(__DIR__, 2) . '/src/Http/JsonResponse.php');
