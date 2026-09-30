@@ -74,6 +74,29 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de conciliació"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF · comprovació d'IDPAG"]
+    uc_0(["UC-25a<br/>Investigar IDPAG duplicats"])
+    uc_1(["Localitzar operacions i pagaments"])
+    uc_2(["Comparar identitat bancària i factura"])
+    uc_3(["Registrar diagnosi i evidència"])
+    uc_4(["UC-25<br/>Revisar fitxer TPV"])
+    uc_5(["UC-08<br/>Gestionar discrepància"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_5
+  actor_0 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
+
 ## 3. Diagrama de classes — consulta objectiu i peces PHP existents
 
 ```mermaid
