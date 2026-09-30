@@ -20,7 +20,7 @@ final class UsocValidationDecisionBoundaryContractTest
         $begin = strpos($endpoint, 'beginValidationDecision(');
         $legacyMutation = strpos($endpoint, 'sendMsgValidatCurosDescomptes($idInsc, $verificat)');
         $complete = strpos($endpoint, 'completeValidationDecision(');
-        $sessionMemo = strpos($endpoint, 'validar_descomptes_requests'][$requestId] = $resultat');
+        $sessionMemo = strpos($endpoint, "validar_descomptes_requests'][\$requestId] = \$resultat");
 
         if ($begin === false || $legacyMutation === false || $complete === false || $sessionMemo === false) {
             Assert::fail('USOC validation two-phase boundary markers are incomplete');
