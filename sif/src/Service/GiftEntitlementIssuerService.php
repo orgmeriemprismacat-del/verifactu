@@ -176,6 +176,7 @@ final class GiftEntitlementIssuerService
                     'from_status' => null,
                     'to_status' => 'ACTIVE',
                     'uuid_operation' => (string) $operation['UUID_OPERATION'],
+                    'actor_type' => 'SYSTEM',
                     'actor_id' => 'redsys-gift-worker',
                     'correlation_id' => 'UC017-' . substr(hash('sha256', $dsOrder), 0, 32),
                     'causation_id' => $entitlementKey,
