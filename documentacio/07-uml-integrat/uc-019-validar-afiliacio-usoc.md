@@ -80,6 +80,30 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne"]
+  actor_1["Gestió autoritzada"]
+  actor_2["Entitat USOC"]
+  subgraph SIF_BOX["Validació de descompte USOC"]
+    uc_0(["UC-19<br/>Validar condició USOC"])
+    uc_1(["Comprovar identitat i vigència"])
+    uc_2(["Registrar decisió i evidència"])
+    uc_3(["UC-19a<br/>Facturar part alumne després"])
+    uc_4(["UC-19b<br/>Facturar part entitat després"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_1 --> uc_3
+  actor_1 --> uc_4
+```
+
+
 ## 3. Classes existents i classes de disseny separades
 
 ```mermaid
