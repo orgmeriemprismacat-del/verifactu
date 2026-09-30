@@ -313,8 +313,7 @@ final class EnrollmentFundMovementRepository
             && $this->money($existing['IMPORT']) === $movement['amount']
             && (string) $existing['CURRENCY'] === $movement['currency']
             && (string) ($existing['UUID_OPERATION'] ?? '')
-                === (string) ($movement['uuid_operation'] ?? '')
-            && (string) $existing['CORRELATION_ID'] === $movement['correlation_id'];
+                === (string) ($movement['uuid_operation'] ?? '');
 
         if (!$matches) {
             throw SifException::conflict(
