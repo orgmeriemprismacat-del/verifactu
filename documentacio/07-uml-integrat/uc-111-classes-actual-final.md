@@ -179,7 +179,7 @@ NovicePromotionDerivedApplicationCancellationActivationService --> NovicePromoti
 @enduml
 ```
 
-**Lectura de procedència:** la baixa d'una `novice_promotion_derived_application.APPLIED` ja no és només un estat teòric. La review crea un `novice_promotion_derived_balance` fill amb `PARENT_UUID_DERIVED_BALANCE` i `SOURCE_UUID_DERIVED_APPLICATION`; l'activació aprovada tanca l'aplicació font com `CONVERTED_TO_DERIVED` i activa el fill sense recreditar el pare. La baixa del curs actual després d'un segon/tercer traspàs continua pendent d'un servei específic.
+**Lectura de procedència:** la baixa d'una `novice_promotion_derived_application.APPLIED` crea un saldo fill amb `PARENT_UUID_DERIVED_BALANCE` + `SOURCE_UUID_DERIVED_APPLICATION`; l'activació tanca la font `CONVERTED_TO_DERIVED` sense recreditar el pare. La baixa d'un curs assolit per qualsevol cadena de transferències també queda suportada quan s'actua sobre l'**últim `transfer.CONFIRMED` sense successor**: el servei resol recursivament si el valor traslladat pertany al dret arrel o a un saldo derivat i conserva aquest parent al nou saldo de baixa.
 ## 4. FINAL/branca · procedència i retorn JASOM
 
 ```plantuml
