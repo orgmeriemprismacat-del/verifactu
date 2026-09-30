@@ -134,7 +134,7 @@ final class IncidentInternalApiSecurityTest
         Assert::stringContainsString("'Method not allowed'], 405", $source);
         Assert::stringContainsString("Unknown incident action", $source);
         Assert::stringContainsString("max(1, min(100", $source);
-        Assert::stringContainsString("max(1, min($configuredMax, $requested))", $source);
+        Assert::stringContainsString('max(1, min($configuredMax, $requested))', $source);
     }
 
     private function authenticator(\PDO $db, string $keyId, string $secret): InternalApiAuthenticator
