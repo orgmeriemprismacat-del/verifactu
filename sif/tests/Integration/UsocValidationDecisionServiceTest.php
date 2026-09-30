@@ -155,6 +155,48 @@ final class UsocValidationDecisionServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM usoc_validation_decision')->fetchColumn());
     }
 
+    public function testCommittedDecisionDetectsLaterLegacyDrift(): void
+    {
+        $db = TestDatabase::fresh();
+        $legacy = $this->legacyDb(4, 0);
+        $service = $this->service();
+
+        $service->begin(
+            $db,
+            $legacy,
+            'req-usoc-validation-drift',
+            880,
+            1,
+            'secretaria-test',
+            ['ADMIN']
+        );
+        $legacy->exec('UPDATE inscripcions SET VALID_DESC = 1 WHERE ID = 880');
+        $service->complete($db, $legacy, 'req-usoc-validation-drift', 'secretaria-test');
+
+        $legacy->exec('UPDATE inscripcions SET VALID_DESC = 2 WHERE ID = 880');
+
+        Assert::throws(SifException::class, function () use ($db, $legacy, $service): void {
+            $service->begin(
+                $db,
+                $legacy,
+                'req-usoc-validation-drift',
+                880,
+                1,
+                'secretaria-test',
+                ['ADMIN']
+            );
+        }, 409);
+
+        Assert::throws(SifException::class, function () use ($db, $legacy, $service): void {
+            $service->complete(
+                $db,
+                $legacy,
+                'req-usoc-validation-drift',
+                'secretaria-test'
+            );
+        }, 409);
+    }
+
     public function testCompleteRejectsAnotherActor(): void
     {
         $db = TestDatabase::fresh();
