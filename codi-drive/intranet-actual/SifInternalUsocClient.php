@@ -60,6 +60,32 @@ final class SifInternalUsocClient
         ]);
     }
 
+    public function beginValidationDecision(
+        string $actorId,
+        array $roles,
+        string $requestId,
+        int $idInsc,
+        int $desiredValidDesc
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'begin_validation_decision',
+            'request_id' => trim($requestId),
+            'id_insc' => $idInsc,
+            'desired_valid_desc' => $desiredValidDesc,
+        ]);
+    }
+
+    public function completeValidationDecision(
+        string $actorId,
+        array $roles,
+        string $requestId
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'complete_validation_decision',
+            'request_id' => trim($requestId),
+        ]);
+    }
+
     public function reconcile(string $actorId, array $roles, int $idInsc, int $idpag): array
     {
         return $this->request($actorId, $roles, [
