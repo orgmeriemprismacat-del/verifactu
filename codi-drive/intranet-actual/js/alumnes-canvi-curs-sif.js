@@ -395,6 +395,7 @@
         var impact = state.preview && state.preview.impact ? state.preview.impact : {};
 
         var extra = {
+            csrfToken: $('meta[name="csrf-token-alumnes-lifecycle"]').attr('content') || '',
             pendent: currentValue('#pendent-nou-registre'),
             sif_source_course: data.source_course,
             sif_original_amount: data.original_amount,
