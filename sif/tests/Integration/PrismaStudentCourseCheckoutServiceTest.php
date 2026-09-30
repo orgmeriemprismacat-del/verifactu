@@ -96,6 +96,35 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
     }
 
+    public function testRetryWithAnotherDsOrderCannotReplaceLinkedIntent(): void
+    {
+        $db = $this->fixture(true);
+        $service = $this->service();
+
+        $service->stageAndCreateIntent(
+            $db,
+            $db,
+            200,
+            'student:canonical:12345678Z',
+            $this->price(),
+            ['ds_order' => 'UC020ORDER2A', 'terminal' => '1', 'created_by' => 'web-checkout']
+        );
+
+        Assert::throws(SifException::class, static function () use ($db, $service): void {
+            $service->stageAndCreateIntent(
+                $db,
+                $db,
+                200,
+                'student:canonical:12345678Z',
+                $this->price(),
+                ['ds_order' => 'UC020ORDER2B', 'terminal' => '1', 'created_by' => 'web-checkout']
+            );
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+        Assert::same('UC020ORDER2A', (string) $db->query('SELECT DS_ORDER FROM redsys_payment_intent')->fetchColumn());
+    }
+
     public function testIneligibleEnrollmentCreatesNoCommercialState(): void
     {
         $db = $this->fixture(false);
