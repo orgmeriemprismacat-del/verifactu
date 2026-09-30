@@ -6,6 +6,8 @@ include("../inc/missatgesError.php");
 include("../Text.php");
 include("../Numero.php");
 include("../PagamentCurs.php");
+include("../Edicio.php");
+include("../PagamentGrupAutomatic.php");
 
 try {
 	$encr = substr(explode("?", $_SERVER["REQUEST_URI"])[1], "8", "-16");
@@ -35,8 +37,30 @@ try {
    $original_idInsc = openssl_decrypt($ciphertext_raw, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
    $calcmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, $as_binary=true);
    if (hash_equals($hmac, $calcmac)) {
-		$pagamentInscripcio = new PagamentCurs($original_idInsc);
-		$mostrar = $pagamentInscripcio->mostrar();
+      if (!ctype_digit((string) $original_idInsc) || (int) $original_idInsc <= 0) {
+         throw new Exception('',1501);
+      }
+
+      $cnsTipusPagament = "SELECT COUNT(*)
+         FROM inscripcions
+         WHERE IDPAG=? AND TIPUS_INSC='P'
+           AND (`INSC CURS`='0' OR `INSC CURS`='1' OR `INSC CURS`='M')";
+      if (!$stmtTipusPagament = $connexio->prepare($cnsTipusPagament)) {
+         throw new Exception('',1501);
+      }
+      $stmtTipusPagament->bind_param("d", $original_idInsc);
+      $stmtTipusPagament->execute();
+      $stmtTipusPagament->bind_result($numPack);
+      $stmtTipusPagament->fetch();
+      $connexio->closeStmt();
+
+      if ((int) $numPack > 0) {
+         $pagamentInscripcio = new PagamentGrupAutomatic($original_idInsc);
+      }
+      else {
+         $pagamentInscripcio = new PagamentCurs($original_idInsc);
+      }
+      $mostrar = $pagamentInscripcio->mostrar();
    }
 	else {
 		$mostrar = missatgeError('1501');

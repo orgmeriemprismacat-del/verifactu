@@ -62,8 +62,7 @@ try {
 	else
 		$textComentaris = null;
 	$textMailing = new Text($_GET['mailing']);
-	$numPreuCursos = new Numero($_GET['preuCursos']);
-	$numPreuPack = new Numero($_GET['preuPack']);
+	// Els imports rebuts del navegador no són autoritatius. Es recalculen des de BD.
 	$textIdPack = new Text($_GET['idPack']);
 
 	$textNom->arreglarParaulaBD('noms');
@@ -88,12 +87,12 @@ try {
 	$connexio->connectarBD();
 
 	/* ######################################################################### */
-	$cnsInfo = "SELECT TITOL FROM info_pack WHERE ID_PACK=? AND ESTAT=1";
+	$cnsInfo = "SELECT TITOL, ID_PREU FROM info_pack WHERE ID_PACK=? AND ESTAT=1";
 	if ( $stmt=$connexio->prepare($cnsInfo) ) {
 		$stmt->bind_param("s", $idPack);
 		$idPack = $textIdPack->obtenirText();
 		$stmt->execute();
-		$stmt->bind_result($titol);
+		$stmt->bind_result($titol, $idPreuPack);
 		$stmt->fetch();
 		$connexio->closeStmt();
 	}
@@ -155,6 +154,51 @@ try {
 		throw new Exception('',2912);
 	}
 
+	if (count($edicions) < 2) {
+		throw new Exception('',2912);
+	}
+
+	/* ######################################################################### */
+	/* Preus autoritatius del pack: mai confiar en preuPack/preuCursos del client. */
+	$cnsPreuServidor = "SELECT IMPORT FROM preu
+		WHERE ID=? AND DATAI<=CURRENT_TIME AND (CURRENT_TIME<=DATAF OR DATAF IS NULL)
+		ORDER BY DATAI DESC LIMIT 1";
+	if ( $stmtPreuServidor = $connexio->prepare($cnsPreuServidor) ) {
+		$stmtPreuServidor->bind_param("d", $idPreuServidor);
+
+		$idPreuServidor = $idPreuPack;
+		$stmtPreuServidor->execute();
+		$stmtPreuServidor->bind_result($preuPackServidor);
+		if (!$stmtPreuServidor->fetch() || !is_numeric($preuPackServidor)) {
+			$connexio->closeStmt();
+			throw new Exception('',2906);
+		}
+		$preuPack = floatval($preuPackServidor);
+		$connexio->closeStmt();
+
+		$preuCursos = 0.0;
+		foreach ($edicions as $edicioPreu) {
+			if ( $stmtPreuServidor = $connexio->prepare($cnsPreuServidor) ) {
+				$idPreuServidor = $edicioPreu->obtenirIdPreu()->obtenirNumero();
+				$stmtPreuServidor->bind_param("d", $idPreuServidor);
+				$stmtPreuServidor->execute();
+				$stmtPreuServidor->bind_result($preuCursServidor);
+				if (!$stmtPreuServidor->fetch() || !is_numeric($preuCursServidor)) {
+					$connexio->closeStmt();
+					throw new Exception('',2907);
+				}
+				$preuCursos += floatval($preuCursServidor);
+				$connexio->closeStmt();
+			}
+			else {
+				throw new Exception('',2916);
+			}
+		}
+	}
+	else {
+		throw new Exception('',2916);
+	}
+
 	$datai = $edicions[0]->obtenirDataInici()->obtenirText();
 	$dataf = $edicions[count($edicions)-1]->obtenirDataFi()->obtenirText();
 
@@ -193,17 +237,7 @@ try {
 	}
 
 	/* ######################################################################### */
-	$cnsIdPag = "SELECT IDPAG FROM inscripcions ORDER BY IDPAG DESC LIMIT 1";
-	if ( $stmt=$connexio->prepare($cnsIdPag) ) {
-		$stmt->execute();
-		$stmt->bind_result($idPag);
-		$stmt->fetch();
-		$connexio->closeStmt();
-		$idPag = $idPag+1;
-	}
-	else {
-		throw new Exception('',2914);
-	}
+	$idPag = $connexio->reserveIdPag();
 
 	$ivlen = openssl_cipher_iv_length($cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
@@ -215,8 +249,6 @@ try {
 
 	$titolPack = $textTitolCurs->obtenirText();
 	$pagFrac = $textPagFrac->obtenirText();
-	$preuPack = $numPreuPack->obtenirNumero();
-	$preuCursos = $numPreuCursos->obtenirNumero();
 	$mailing = $textMailing->obtenirText();
 
 	$msg = $templates->getTemplate_Inscripcions_Pagaments_MissatgeTextManeresPagar2();
@@ -463,8 +495,8 @@ try {
 	$comentarisBD = '';
 	if ($textComentaris!=null) $comentarisBD = $textComentaris->obtenirText();
 
+	// UC-015: l'ecommerce de packs no crea fraccionament. Les excepcions es gestionen per intranet.
 	$pagFraccBD = 0;
-	if ($pagFrac == 'Yes') $pagFraccBD = 1;
 
 	if ($mailing=='Registred') $mailingBD = 'X';
 	else if ($mailing=='Yes') $mailingBD = '1';
@@ -497,9 +529,8 @@ try {
 				$perfilsBD, $titulacionsBD, $telfBD, $comentarisBD, $pagFraccBD, $mailingBD,
 				$preuCurs, $usuariBD, $idPag, $perenne, $conegutBD, $tipusInsc, $observacions);
 
-			$aux = $preuPack;
+			$aux = round((float) $preuPack, 2);
 			$tipusInsc = 'P';
-			$observacions = 'PACK|'.$idPack;
 			for ( $i=0; $i<count($edicions); $i++ ) {
 				$edicio = $edicions[$i];
 
@@ -515,16 +546,30 @@ try {
 				$stmt2->bind_result($preuCursOriginal);
 				$stmt2->fetch();
 
-				$preuCurs = $aux;
-				if ( $aux >= $preuCursOriginal ) {
-					$preuCurs = $preuCursOriginal;
-					$aux -= $preuCursOriginal;
-				}
+				$preuCursOriginal = round((float) $preuCursOriginal, 2);
+				$preuCurs = round(min($aux, $preuCursOriginal), 2);
+				$aux = round(max(0, $aux - $preuCurs), 2);
+				$descompteCurs = round(max(0, $preuCursOriginal - $preuCurs), 2);
+				$descomptePct = $preuCursOriginal > 0
+					? round(($descompteCurs / $preuCursOriginal) * 100, 2)
+					: 0.0;
+
+				/* Snapshot comercial mínim per no reconstruir ordre/imports després del cobrament. */
+				$observacions = sprintf(
+					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f',
+					$idPack,
+					$i + 1,
+					$preuCursOriginal,
+					$descompteCurs,
+					$descomptePct,
+					$preuCurs
+				);
 
 				/* Executo el insert */
 				$stmt->execute();
 			}
 			$connexio->closeStmt();
+			$connexio->releaseIdPag();
 		}
 		else {
 			throw new Exception('',2915);

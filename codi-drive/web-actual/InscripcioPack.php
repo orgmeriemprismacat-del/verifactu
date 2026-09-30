@@ -301,11 +301,7 @@ class InscripcioPack{
    */
    private function __mostrarDadesCurs() {
       $textPreu = "<h3>Dades del curs</h3><div id='preu'><p>Preu</p></div>";
-      $fracc = "<div class='form-group field-wrap position-relative'>
-         <input type='checkbox' name='fraccionat' id='pagament_fraccionat' class='mr-1'
-         value='Pagament fraccionat'><font id='text_carnet_jove'>
-         Vull fraccionar el pagament (sense recàrrec)</font>
-      </div>";
+      // UC-015: el fraccionament de packs no s'ofereix a ecommerce.
       $msgInfo = "<div id='missInformatiuEdicioRec'></div>
       <div id='missInformatiuEdicioPerf'></div>
       <div id='cnt-codis-promocionals'></div>
@@ -318,7 +314,6 @@ class InscripcioPack{
       <div class='' id='comHasConegut_altres'></div>";
       $mailing = "<div class='' id='txtHint_mailing'></div>";
 
-      // $mostrar = "<div class='form-dades'>".$textPreu.$fracc.$msgInfo.$comConec.$mailing."</div>";
       $mostrar = "<div class='form-dades'>".$textPreu.$msgInfo.$comConec.$mailing."</div>";
       return $mostrar;
    }

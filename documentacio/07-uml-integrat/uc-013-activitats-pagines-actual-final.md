@@ -108,7 +108,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[JS enviarInscripcioAfiliat] --> B[Generar IDPAG per últim valor + 1]
+    A[JS enviarInscripcioAfiliat] --> B[Reservar IDPAG amb allocator compartit + named lock]
     B --> C[INSERT inscripció]
     C --> D[TIPUS_DESC=4]
     D --> E[VALID_DESC pendent]
@@ -157,7 +157,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Gestió marca Sí] --> B[GET sendMsgValidatCurosDescomptes.php]
+    A[Gestió marca Sí] --> B[POST sendMsgValidatCurosDescomptes.php + CSRF]
     B --> C[Intranet::sendMsgValidatCurosDescomptes]
     C --> D[VALID_DESC=1]
     D --> E[Preparar instruccions de pagament]
@@ -183,7 +183,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Gestió marca No] --> B[GET endpoint validació]
+    A[Gestió marca No] --> B[POST endpoint validació + CSRF]
     B --> C[VALID_DESC=2]
     C --> D[Buscar preu alternatiu]
     D --> E[Pot actualitzar TIPUS_DESC i A_PAGAR]
@@ -216,7 +216,8 @@ flowchart TD
     D -- Sí --> F[Construir factura alumne]
     F --> G[InvoiceService]
     G --> H[Factura + payment alumne]
-    H --> I[Retornar entity_invoice_pending]
+    H --> I[Persistir usoc_financing_case]
+    I --> J[Retornar entity_invoice_pending + id_insc]
 ```
 
 ### FINAL
@@ -238,11 +239,13 @@ flowchart TD
 flowchart TD
     A[Input explícit entitat] --> B[UsocEntityInvoiceService]
     B --> C[Exigir billing + amount + student_invoice_uuid]
-    C --> D[Carregar snapshot per IDPAG]
-    D --> E[Construir payload entitat]
-    E --> F[InvoiceService]
-    F --> G[Factura entitat PENDING]
-    G --> H[payment_registered=false]
+    C --> D[Carregar snapshot per IDPAG + ID_INSC]
+    D --> E[Validar UUID factura alumne + ID_INSC + IDPAG + import]
+    E --> F[Construir payload entitat]
+    F --> G[InvoiceService]
+    G --> H[Factura entitat PENDING]
+    H --> I[Persistir checkpoint ENTITY_INVOICED]
+    I --> J[payment_registered=false]
 ```
 
 ### FINAL
@@ -259,8 +262,8 @@ flowchart TD
 
 ## 11. Cobrament entitat
 
-### ACTUAL
-No s'ha acreditat un endpoint UC-013 específic. El cobrament s'ha de fer via fluxos generals de cobrament, sense recrear la factura.
+### ACTUAL / IMPLEMENTAT EN REPOSITORI
+`UsocEntityPaymentService` valida que la factura sigui la `UUID_ENTITY_INVOICE` d'un expedient USOC, registra el cobrament mitjançant el ledger general i executa la conciliació. `process-usoc-entity-payment.php` és el punt d'entrada controlat de preproducció. La interfície final encara no està connectada.
 
 ### FINAL
 
@@ -277,8 +280,8 @@ flowchart TD
 
 ## 12. Conciliació final USOC
 
-### ACTUAL
-No hi ha orquestrador/reconciliador durable acreditat.
+### ACTUAL / IMPLEMENTAT EN REPOSITORI
+Existeixen `usoc_financing_case`, `UsocFinancingCaseRepository` i `UsocCaseReconciler`. La conciliació manual/controlada es pot executar amb `sif/scripts/reconcile-usoc-case.php`. Encara no està connectada automàticament després de cada cobrament de l'entitat.
 
 ### FINAL
 
@@ -323,17 +326,15 @@ flowchart TD
 | Validar negatiu | Sí | Sí | Sí |
 | Pagament/factura alumne | Sí | Sí | Sí |
 | Factura entitat | Parcial | Sí | Servei sí, pantalla no |
-| Cobrament entitat | Parcial | Sí | Flux específic no |
-| Conciliació | No | Sí | Disseny |
+| Cobrament entitat | Sí, servei/script | Sí | `UsocEntityPaymentService`; interfície final pendent |
+| Conciliació | Sí, servei/script | Sí | Implementada parcialment; trigger automàtic pendent |
 | Canvi/baixa | Parcial | Sí | Compartit amb altres UC |
 
 ## 15. Pendents de codi derivats dels diagrames
 
-1. Endpoint de validació USOC com a POST segur.
-2. Generació concurrent-safe d'identificador comercial/IDPAG llegat.
-3. Validació explícita factura alumne ↔ ID_INSC/IDPAG abans de factura entitat.
-4. Eliminar dependència d'`ORDER BY ID LIMIT 1` quan l'IDPAG no sigui inequívoc.
-5. Checkpoint/expedient USOC persistent.
-6. Adaptador/pantalla d'emissió entitat.
-7. Reconciliador final.
-8. Tractament definit per alumne=0/curs gratuït.
+1. Afegir traça persistent SIF/correlació de la decisió de validació legacy; POST + CSRF + permisos ja implementats.
+2. Mantenir el test de regressió de l'allocator IDPAG compartit; implementació actual protegida amb named lock.
+3. Adaptador/pantalla d'emissió entitat.
+4. Connectar la interfície/API final amb `UsocEntityPaymentService`.
+5. Executar i conservar evidència de la suite sobre `sif_test*`.
+6. Tractament definit per alumne=0/curs gratuït.

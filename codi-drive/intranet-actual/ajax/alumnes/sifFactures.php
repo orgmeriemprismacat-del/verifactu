@@ -30,25 +30,14 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
     return;
 }
 
-ob_start();
-require_once $root . '/inc/comprovarSessio.php';
-$sessionValidationOutput = ob_get_clean();
-
-if (!isset($configOk) || !$configOk || !isset($_SESSION['usuari'])) {
-    http_response_code(401);
-    echo json_encode(['ok' => false, 'error' => 'Session not authorized']);
-    return;
-}
-
+require_once $root . '/LegacyInvoiceReadContext.php';
 require_once $root . '/SifInternalApiClient.php';
 
 $usuariObject = null;
+$intranetObject = null;
 
 try {
-    $usuariObject = unserialize($_SESSION['usuari']);
-    if (!is_object($usuariObject)) {
-        throw new RuntimeException('Invalid authenticated session');
-    }
+    [$usuariObject, $intranetObject] = LegacyInvoiceReadContext::open();
 
     $actorText = $usuariObject->getUsuari();
     $actorId = is_object($actorText) && method_exists($actorText, 'get')
@@ -91,7 +80,7 @@ try {
         $matches = $client->searchInvoices(
             $actorId,
             $roles,
-            ['source_ids' => [(int) $idInsc]],
+            ['source_ids' => [(int) $idInsc], 'source_type' => 'INSCRIPCIO'],
             20
         );
 
@@ -158,6 +147,7 @@ try {
             if ($sourceIds !== []) {
                 $participantCriteria = $criteria;
                 $participantCriteria['source_ids'] = $sourceIds;
+                $participantCriteria['source_type'] = 'INSCRIPCIO';
                 $responses[] = $client->searchInvoices(
                     $actorId,
                     $roles,
@@ -202,9 +192,7 @@ try {
         'error' => 'SIF invoice query failed',
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } finally {
-    if (is_object($usuariObject)) {
-        $_SESSION['usuari'] = serialize($usuariObject);
-    }
+    LegacyInvoiceReadContext::persist($usuariObject, $intranetObject);
 }
 
 

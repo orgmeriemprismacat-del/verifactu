@@ -2,9 +2,11 @@
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
 use Prisma\Sif\Repository\UsocStudentInvoiceLinkRepository;
+use Prisma\Sif\Repository\UsocFinancingCaseRepository;
 
 final class UsocEntityInvoiceService
 {
@@ -12,9 +14,13 @@ final class UsocEntityInvoiceService
         private LegacyUsocSnapshotRepository $legacySnapshots,
         private LegacyUsocInvoicePayloadBuilder $payloads,
         private InvoiceService $invoices,
-        private UsocStudentInvoiceLinkRepository $studentInvoices
+        private UsocStudentInvoiceLinkRepository $studentInvoices,
+        ?UsocFinancingCaseRepository $cases = null
     ) {
+        $this->cases = $cases ?? new UsocFinancingCaseRepository(new UuidGenerator());
     }
+
+    private UsocFinancingCaseRepository $cases;
 
     public function issueEntityFromExplicitInput(\PDO $sifDb, \PDO $legacyDb, array $input): array
     {
@@ -29,10 +35,22 @@ final class UsocEntityInvoiceService
             $sifDb,
             (string) $input['student_invoice_uuid'],
             $inscriptionId,
-            $idpag
+            $idpag,
+            $studentAmount
         );
         $payload = $this->payloads->buildEntityPayload($snapshot, $input);
         $result = $this->invoices->issueInvoice($payload);
+        $case = $this->cases->recordEntityInvoice(
+            $sifDb,
+            $inscriptionId,
+            $idpag,
+            (string) $input['student_invoice_uuid'],
+            (string) $result['uuid_factura'],
+            $studentAmount,
+            $entityAmount,
+            (string) ($input['correlation_id'] ?? ('USOC|ID_INSC:' . $inscriptionId))
+        );
+        $result['usoc_case'] = $case;
         $result['payment_registered'] = false;
         $result['student_invoice_uuid'] = (string) $input['student_invoice_uuid'];
 

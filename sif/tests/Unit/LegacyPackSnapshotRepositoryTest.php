@@ -110,6 +110,127 @@ final class LegacyPackSnapshotRepositoryTest
         Assert::same('PACK', $payload['lines'][1]['discount_origin']);
     }
 
+    public function testLoadsExplicitPackCommercialSnapshotMetadata(): void
+    {
+        $db = new LegacyPackSnapshotSpyPdo([
+            [
+                [
+                    'ID' => 402,
+                    'IDPAG' => 901,
+                    'ANY' => 2026,
+                    'MES' => '07',
+                    'CURS' => 'DEF',
+                    'TIPUS_INSC' => 'P',
+                    'NOM' => 'Maria',
+                    'COGNOMS' => 'Exemple',
+                    'DNI' => '12345678Z',
+                    'CORREU' => 'maria@example.test',
+                    'ADRECA' => 'Carrer Exemple 1',
+                    'Codi_Postal' => '08001',
+                    'Poblacio' => 'Barcelona',
+                    'FACTURA_RELACIONADA' => null,
+                    'A_PAGAR' => '90.00',
+                    'INSC CURS' => '1',
+                    'PAGAMENT' => '0.00',
+                    'FRACCIO' => 0,
+                    'FRACCIONAT' => 0,
+                    'OBSERVACIONS' => 'PACK|44 PACK_ORDINAL|2 PACK_BASE|120.00 PACK_DISCOUNT|30.00 PACK_DISCOUNT_PCT|25.00 PACK_TOTAL|90.00',
+                    'pag_observacions' => '',
+                ],
+                [
+                    'ID' => 401,
+                    'IDPAG' => 901,
+                    'ANY' => 2026,
+                    'MES' => '06',
+                    'CURS' => 'ABC',
+                    'TIPUS_INSC' => 'P',
+                    'NOM' => 'Maria',
+                    'COGNOMS' => 'Exemple',
+                    'DNI' => '12345678Z',
+                    'CORREU' => 'maria@example.test',
+                    'ADRECA' => 'Carrer Exemple 1',
+                    'Codi_Postal' => '08001',
+                    'Poblacio' => 'Barcelona',
+                    'FACTURA_RELACIONADA' => null,
+                    'A_PAGAR' => '120.00',
+                    'INSC CURS' => '1',
+                    'PAGAMENT' => '0.00',
+                    'FRACCIO' => 0,
+                    'FRACCIONAT' => 0,
+                    'OBSERVACIONS' => 'PACK|44 PACK_ORDINAL|1 PACK_BASE|120.00 PACK_DISCOUNT|0.00 PACK_DISCOUNT_PCT|0.00 PACK_TOTAL|120.00',
+                    'pag_observacions' => '',
+                ],
+            ],
+            [
+                'ID_PACK' => 44,
+                'TITOL' => 'Benestar docent',
+                'CODI' => 'BDOC',
+            ],
+            [
+                'NOM_CURS' => 'Mindfulness a l aula',
+                'DATAI' => '2026-07-10',
+                'DATAF' => '2026-07-20',
+                'HORES' => '12',
+            ],
+            [
+                'NOM_CURS' => 'Gestio emocional',
+                'DATAI' => '2026-06-10',
+                'DATAF' => '2026-06-20',
+                'HORES' => '12',
+            ],
+        ]);
+
+        $snapshot = (new LegacyPackSnapshotRepository())->loadByIdpag($db, 901, '210.00');
+
+        Assert::same(2, $snapshot['items'][0]['ordinal']);
+        Assert::same('120.00', $snapshot['items'][0]['inscription']['IMPORT_BASE']);
+        Assert::same('30.00', $snapshot['items'][0]['inscription']['DESC_IMPORT']);
+        Assert::same('25.00', $snapshot['items'][0]['inscription']['DESC_PCT']);
+        Assert::same('90.00', $snapshot['items'][0]['inscription']['TOTAL']);
+        Assert::same(1, $snapshot['items'][1]['ordinal']);
+
+        $payload = (new LegacyPackInvoicePayloadBuilder())->build($snapshot);
+
+        Assert::same(401, $payload['lines'][0]['source_id']);
+        Assert::same('120.00', $payload['lines'][0]['total']);
+        Assert::same(402, $payload['lines'][1]['source_id']);
+        Assert::same('120.00', $payload['lines'][1]['import_base']);
+        Assert::same('30.00', $payload['lines'][1]['discount_amount']);
+        Assert::same('25.00', $payload['lines'][1]['discount_pct']);
+        Assert::same('90.00', $payload['lines'][1]['total']);
+    }
+
+    public function testRejectsInconsistentExplicitPackCommercialAmounts(): void
+    {
+        $db = new LegacyPackSnapshotSpyPdo([
+            [
+                [
+                    'ID' => 401,
+                    'IDPAG' => 902,
+                    'ANY' => 2026,
+                    'MES' => '06',
+                    'CURS' => 'ABC',
+                    'TIPUS_INSC' => 'P',
+                    'OBSERVACIONS' => 'PACK|44 PACK_ORDINAL|1 PACK_BASE|120.00 PACK_DISCOUNT|10.00 PACK_TOTAL|120.00',
+                ],
+                [
+                    'ID' => 402,
+                    'IDPAG' => 902,
+                    'ANY' => 2026,
+                    'MES' => '07',
+                    'CURS' => 'DEF',
+                    'TIPUS_INSC' => 'P',
+                    'OBSERVACIONS' => 'PACK|44 PACK_ORDINAL|2 PACK_BASE|120.00 PACK_DISCOUNT|30.00 PACK_TOTAL|90.00',
+                ],
+            ],
+            ['ID_PACK' => 44, 'TITOL' => 'Benestar docent', 'CODI' => 'BDOC'],
+        ]);
+
+        Assert::throws(SifException::class, function () use ($db): void {
+            (new LegacyPackSnapshotRepository())->loadByIdpag($db, 902, '210.00');
+        }, 409);
+    }
+
     public function testRejectsPackWithoutPackMarkerInObservations(): void
     {
         $db = new LegacyPackSnapshotSpyPdo([

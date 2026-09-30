@@ -10,6 +10,24 @@ final class LegacySyncService
     {
     }
 
+    public function syncPackFullPayment(
+        \PDO $legacyDb,
+        array $relations,
+        string $movementDate
+    ): void {
+        foreach ($relations as $relation) {
+            if (($relation['source_type'] ?? '') !== 'INSCRIPCIO' || !isset($relation['source_id'])) {
+                continue;
+            }
+
+            $this->repository->syncPackFullPayment(
+                $legacyDb,
+                (int) $relation['source_id'],
+                $movementDate
+            );
+        }
+    }
+
     public function syncAfterSifSuccess(
         \PDO $legacyDb,
         array $relations,

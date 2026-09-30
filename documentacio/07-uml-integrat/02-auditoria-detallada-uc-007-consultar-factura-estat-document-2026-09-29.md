@@ -596,6 +596,10 @@ E --> F[Si existeix temporal tècnic, cleanup server-side per ID opac i TTL]
 | UC-080 bytes/auditoria | IMPLEMENTAT PARCIAL: endpoint intern, storage privat, hash i `fiscal_document_access`; rollout/entorn i proves ajornats |
 
 Les proves escrites cobreixen zero mutació, denegació, not found, cerca exacta sense wildcard implícit, absència de `PATH_FITXER` en metadata i separació entre cobrament i rectificativa.
+### 14.1. Proves ajornades
+
+Per decisió de treball, les proves unitàries/integració/E2E i de preproducció es deixen **documentades però no s'executen en aquest tall**. No marcar cap cas com a verificat runtime fins disposar d'evidència posterior.
+
 # 15. Criteri de tancament
 
 UC-007 es podrà marcar **IMPLEMENTAT I PROVAT** només quan existeixi una ruta de consulta server-side que apliqui política per recurs, retorni projecció estructurada per UUID, integri estats sense mutació, derivi bytes a UC-080, i la matriu anterior tingui evidència reproduïble de preproducció. Fins aleshores, el cas queda **DOCUMENTAT I AUDITAT ESTÀTICAMENT / IMPLEMENTACIÓ FINAL PENDENT**.

@@ -3,9 +3,12 @@
 namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\LegacyPackSnapshotRepository;
+use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Service\LegacyPackInvoicePayloadBuilder;
+use Prisma\Sif\Service\PackPaymentNotificationService;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
 use Prisma\Sif\Service\RedsysPackInvoiceService;
 use Prisma\Sif\Tests\Support\Assert;
@@ -83,6 +86,88 @@ final class RedsysPackInvoiceServiceTest
         Assert::same('210.00', $payment['IMPORT']);
         Assert::same('ORDERPACK910', $payment['DS_ORDER']);
         Assert::same(910, (int) $payment['IDPAG']);
+    }
+
+    public function testIntentSnapshotCreatesOneDurableNotificationAcrossRetry(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $notifications = new RedsysNotificationRepository();
+        $service = new RedsysPackInvoiceService(
+            $notifications,
+            new LegacyPackSnapshotRepository(),
+            new LegacyPackInvoicePayloadBuilder(),
+            new RedsysInvoicePayloadBuilder($notifications),
+            IssueInvoiceTest::serviceFor($sifDb),
+            new PackPaymentNotificationService(
+                new NotificationOutboxRepository(new UuidGenerator())
+            )
+        );
+
+        $notifications->recordReceived(
+            $sifDb,
+            'ORDERPACKINTENT910',
+            910,
+            '210.00',
+            '0000',
+            true,
+            ['source' => 'pack-intent-test'],
+            'VALIDATED'
+        );
+
+        $snapshot = [
+            'pack' => [
+                'ID_PACK' => 77,
+                'TITOL' => 'Benestar docent',
+                'CODI' => 'BDOC',
+            ],
+            'payment' => [
+                'idpag' => 910,
+                'amount' => '210.00',
+            ],
+            'items' => [
+                [
+                    'ordinal' => 1,
+                    'inscription' => $this->legacyInscription(501, '06', 'ABC', '120.00', 901) + [
+                        'IMPORT_BASE' => '120.00',
+                        'DESC_IMPORT' => '0.00',
+                        'DESC_PCT' => '0.00',
+                        'TOTAL' => '120.00',
+                    ],
+                    'course' => ['NOM_CURS' => 'Gestio emocional'],
+                ],
+                [
+                    'ordinal' => 2,
+                    'inscription' => $this->legacyInscription(502, '07', 'DEF', '90.00', 902) + [
+                        'IMPORT_BASE' => '120.00',
+                        'DESC_IMPORT' => '30.00',
+                        'DESC_PCT' => '25.00',
+                        'TOTAL' => '90.00',
+                    ],
+                    'course' => ['NOM_CURS' => 'Mindfulness a l aula'],
+                ],
+            ],
+        ];
+
+        $first = $service->issueFromIntentSnapshot($sifDb, 'ORDERPACKINTENT910', $snapshot);
+        $second = $service->issueFromIntentSnapshot($sifDb, 'ORDERPACKINTENT910', $snapshot);
+
+        Assert::same(false, $first['notification_outbox']['idempotency_reused']);
+        Assert::same(true, $second['notification_outbox']['idempotency_reused']);
+        Assert::same('PENDING', $first['notification_outbox']['status']);
+        Assert::same('PACK_FULL_PAYMENT', $first['legacy_sync']['mode']);
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
+
+        $outbox = $sifDb->query(
+            "SELECT IDEMPOTENCY_KEY, TEMPLATE_CODE, RECIPIENT_TYPE, UUID_FACTURA, UUID_PAYMENT, STATUS
+             FROM notification_outbox"
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('NOTIFY|PACK_PAYMENT_CONFIRMED|ORDER:ORDERPACKINTENT910', $outbox['IDEMPOTENCY_KEY']);
+        Assert::same('PACK_PAYMENT_CONFIRMED', $outbox['TEMPLATE_CODE']);
+        Assert::same('ALUMNE', $outbox['RECIPIENT_TYPE']);
+        Assert::same($first['uuid_factura'], $outbox['UUID_FACTURA']);
+        Assert::same($first['uuid_payment'], $outbox['UUID_PAYMENT']);
+        Assert::same('PENDING', $outbox['STATUS']);
     }
 
     public function testRejectsPackWhenValidatedRedsysAmountDiffersFromInvoiceLines(): void

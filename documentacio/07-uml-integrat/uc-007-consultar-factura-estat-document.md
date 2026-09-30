@@ -2,7 +2,7 @@
 
 **Àmbit:** consulta autoritzada de l'estat fiscal, econòmic i dels documents d'una factura SIF. **No** equival a emetre, cobrar, rectificar, generar de nou un PDF, donar accés d'auditor ni exposar les dades de tots els inscrits d'una factura de grup.
 
-**Estat:** implementació parcial iniciada. Existeixen `InvoiceReadRepository`, `InvoiceQueryService` i `InvoiceVisibilityPolicyInterface`; el nucli és read-only, filtra mitjançant política injectada i no exposa `PATH_FITXER`. **Continuen pendents** la implementació concreta de política vinculada a identitat/rol real, l'adaptador HTTP autenticat i el servei UC-80 de bytes/auditoria. La migració defineix `fiscal_document_access`, però una taula definida no prova registres d'accés operatius.
+**Estat:** implementació parcial executable. Existeixen `InvoiceReadRepository`, `InvoiceQueryService`, `InvoiceVisibilityPolicyInterface`, `ResolvedInvoiceVisibilityPolicy`, endpoint intern HMAC `api/factures/query.php`, client servidor→servidor de la intranet i guard de convivència amb el llegat. UC-080 també disposa d'endpoint intern de download, `InvoiceDocumentAccessService`, `PrivateDocumentStore`, política FULL i writer `fiscal_document_access`. **Pendents:** configuració/desplegament per entorn i proves E2E/preproducció; el navegador no rep secrets ni paths interns.
 
 ## 1. Fitxa funcional
 
@@ -159,7 +159,7 @@ InvoiceQueryService ..> InvoiceDocumentAccessService : bytes, pendent
 InvoiceDocumentAccessService --> DocumentAvailabilityService
 ```
 
-**Implementat:** servei de consulta, repositori de lectura, contracte de política i `ResolvedInvoiceVisibilityPolicy` fail-closed sobre un scope ja resolt pel servidor; també existeix CLI read-only no productiu per validació. **Pendent:** adaptador que construeixi aquest scope des d'identitat/rol real, endpoint HTTP autenticat i UC-80. El repositori de lectura no retorna `PATH_FITXER`.
+**Implementat:** servei/repositori de lectura, política fail-closed, resolver de scope per rols signats, autenticació HMAC anti-replay, endpoint intern de consulta, clients/proxies de la intranet i servei UC-080 de bytes amb storage/hash/auditoria. El repositori de lectura no retorna `PATH_FITXER`. **Pendent:** activar/configurar secrets, rols, storage i feature flags per entorn i executar la bateria E2E documentada.
 ## 3.1. Seqüència implementada parcialment — consulta interna signada
 
 ```mermaid

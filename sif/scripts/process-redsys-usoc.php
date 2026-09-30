@@ -32,8 +32,8 @@ if (($config['env'] ?? 'local') === 'production') {
     exit(1);
 }
 
-[$dsOrder, $usocAmount] = parseRedsysUsocArgs(array_slice($argv, 1));
-if ($dsOrder === '' || $usocAmount === null) {
+[$dsOrder, $usocAmount, $inscriptionId] = parseRedsysUsocArgs(array_slice($argv, 1));
+if ($dsOrder === '' || $usocAmount === null || $inscriptionId === null) {
     usage('process');
 }
 
@@ -57,7 +57,7 @@ try {
         $invoiceService
     );
 
-    $result = $service->issueStudentFromValidatedNotification($sifDb, $legacyDb, $dsOrder, $usocAmount);
+    $result = $service->issueStudentFromValidatedNotification($sifDb, $legacyDb, $dsOrder, $usocAmount, $inscriptionId);
     $result['entity_invoice_pending'] = $result['entity_invoice_pending'] ?? [
         'source_type' => 'USOC_ENTITAT',
         'requires_explicit_billing' => true,
@@ -81,6 +81,7 @@ function parseRedsysUsocArgs(array $args): array
 {
     $dsOrder = '';
     $usocAmount = null;
+    $inscriptionId = null;
 
     foreach ($args as $arg) {
         $arg = (string) $arg;
@@ -94,12 +95,21 @@ function parseRedsysUsocArgs(array $args): array
             continue;
         }
 
+        if (str_starts_with($arg, '--id-insc=')) {
+            $value = substr($arg, strlen('--id-insc='));
+            if (!is_numeric($value) || (int) $value <= 0) {
+                throw SifException::validation('Invalid USOC inscription ID');
+            }
+            $inscriptionId = (int) $value;
+            continue;
+        }
+
         if (!str_starts_with($arg, '--') && $dsOrder === '') {
             $dsOrder = trim($arg);
         }
     }
 
-    return [$dsOrder, $usocAmount];
+    return [$dsOrder, $usocAmount, $inscriptionId];
 }
 
 function amount(mixed $value): string
@@ -120,7 +130,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-redsys-usoc.php DS_ORDER --usoc-amount=AMOUNT\n"
+        "Usage: php sif/scripts/{$script}-redsys-usoc.php DS_ORDER --usoc-amount=AMOUNT --id-insc=ID_INSC\n"
     );
     exit(1);
 }

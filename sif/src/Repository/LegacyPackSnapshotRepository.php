@@ -26,15 +26,34 @@ final class LegacyPackSnapshotRepository
         $items = [];
         foreach ($inscriptions as $inscription) {
             $inscription['IDPAG'] = $idpag;
+            $commercial = $this->commercialMetadata($inscription);
+
+            if (isset($commercial['base'])) {
+                $inscription['IMPORT_BASE'] = $commercial['base'];
+            }
+            if (isset($commercial['discount'])) {
+                $inscription['DESC_IMPORT'] = $commercial['discount'];
+            }
+            if (isset($commercial['discount_pct'])) {
+                $inscription['DESC_PCT'] = $commercial['discount_pct'];
+            }
+            if (isset($commercial['total'])) {
+                $inscription['TOTAL'] = $commercial['total'];
+            }
+
             $course = $this->findCourse($legacyDb, $inscription);
             if ($course === null) {
                 throw SifException::conflict('Legacy course not found for pack inscription');
             }
 
-            $items[] = [
+            $item = [
                 'inscription' => $inscription,
                 'course' => $course,
             ];
+            if (isset($commercial['ordinal'])) {
+                $item['ordinal'] = $commercial['ordinal'];
+            }
+            $items[] = $item;
         }
 
         return [
@@ -45,6 +64,55 @@ final class LegacyPackSnapshotRepository
                 'idpag' => $idpag,
             ],
         ];
+    }
+
+    private function commercialMetadata(array $inscription): array
+    {
+        $observations = trim((string) ($inscription['OBSERVACIONS'] ?? ''));
+        if ($observations === '') {
+            return [];
+        }
+
+        $values = [];
+        foreach (preg_split('/\s+/', $observations) ?: [] as $token) {
+            $parts = explode('|', $token, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+            $values[strtoupper(trim($parts[0]))] = trim($parts[1]);
+        }
+
+        $result = [];
+        if (isset($values['PACK_ORDINAL'])) {
+            if (!ctype_digit($values['PACK_ORDINAL']) || (int) $values['PACK_ORDINAL'] <= 0) {
+                throw SifException::validation('Invalid PACK_ORDINAL marker');
+            }
+            $result['ordinal'] = (int) $values['PACK_ORDINAL'];
+        }
+
+        foreach ([
+            'PACK_BASE' => 'base',
+            'PACK_DISCOUNT' => 'discount',
+            'PACK_DISCOUNT_PCT' => 'discount_pct',
+            'PACK_TOTAL' => 'total',
+        ] as $marker => $key) {
+            if (!isset($values[$marker])) {
+                continue;
+            }
+            if (!is_numeric($values[$marker]) || (float) $values[$marker] < 0) {
+                throw SifException::validation('Invalid ' . $marker . ' marker');
+            }
+            $result[$key] = $this->money($values[$marker]);
+        }
+
+        if (isset($result['base'], $result['discount'], $result['total'])) {
+            $calculatedTotal = $this->money((float) $result['base'] - (float) $result['discount']);
+            if ($calculatedTotal !== $result['total']) {
+                throw SifException::conflict('Pack commercial snapshot amounts are inconsistent');
+            }
+        }
+
+        return $result;
     }
 
     private function findPackInscriptionsByIdpag(\PDO $legacyDb, int $idpag): array

@@ -21,8 +21,8 @@ if (($config['env'] ?? 'local') === 'production') {
     exit(1);
 }
 
-[$dsOrder, $usocAmount] = parseRedsysUsocArgs(array_slice($argv, 1));
-if ($dsOrder === '' || $usocAmount === null) {
+[$dsOrder, $usocAmount, $inscriptionId] = parseRedsysUsocArgs(array_slice($argv, 1));
+if ($dsOrder === '' || $usocAmount === null || $inscriptionId === null) {
     usage('preview');
 }
 
@@ -33,7 +33,7 @@ try {
     $notification = validatedNotification($notifications, $sifDb, $dsOrder);
     $idpag = idpag($notification);
     $studentAmount = amount($notification, 'Invalid Redsys USOC student amount');
-    $snapshot = (new LegacyUsocSnapshotRepository())->loadByIdpag($legacyDb, $idpag, $studentAmount, $usocAmount);
+    $snapshot = (new LegacyUsocSnapshotRepository())->loadByIdpag($legacyDb, $idpag, $studentAmount, $usocAmount, $inscriptionId);
     $basePayload = (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($snapshot);
     $payload = (new RedsysInvoicePayloadBuilder($notifications))
         ->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
@@ -49,6 +49,7 @@ try {
             'entity_amount' => $snapshot['usoc']['entity_amount'] ?? $usocAmount,
             'student_invoice_uuid' => null,
             'idpag' => $idpag,
+            'id_insc' => $inscriptionId,
         ],
         'payload' => $payload,
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
@@ -67,6 +68,7 @@ function parseRedsysUsocArgs(array $args): array
 {
     $dsOrder = '';
     $usocAmount = null;
+    $inscriptionId = null;
 
     foreach ($args as $arg) {
         $arg = (string) $arg;
@@ -80,12 +82,21 @@ function parseRedsysUsocArgs(array $args): array
             continue;
         }
 
+        if (str_starts_with($arg, '--id-insc=')) {
+            $value = substr($arg, strlen('--id-insc='));
+            if (!is_numeric($value) || (int) $value <= 0) {
+                throw SifException::validation('Invalid USOC inscription ID');
+            }
+            $inscriptionId = (int) $value;
+            continue;
+        }
+
         if (!str_starts_with($arg, '--') && $dsOrder === '') {
             $dsOrder = trim($arg);
         }
     }
 
-    return [$dsOrder, $usocAmount];
+    return [$dsOrder, $usocAmount, $inscriptionId];
 }
 
 function validatedNotification(RedsysNotificationRepository $notifications, \PDO $sifDb, string $dsOrder): array
@@ -134,7 +145,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-redsys-usoc.php DS_ORDER --usoc-amount=AMOUNT\n"
+        "Usage: php sif/scripts/{$script}-redsys-usoc.php DS_ORDER --usoc-amount=AMOUNT --id-insc=ID_INSC\n"
     );
     exit(1);
 }

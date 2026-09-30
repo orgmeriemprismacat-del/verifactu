@@ -1,6 +1,6 @@
 # UC-013 · Auditoria detallada i matriu de traçabilitat
 
-**Data:** 29/09/2026  
+**Data:** 29/09/2026 · actualització d'implementació 30/09/2026  
 **Repositori:** `orgmeriemprismacat-del/verifactu`  
 **Branca d'auditoria:** `audit/uc-013-usoc-2026-09-29`
 
@@ -23,10 +23,10 @@
 | Validar afiliació | intranet | GET `sendMsgValidatCurosDescomptes.php` | `sendMsgValidatCurosDescomptes()` | VALID_DESC=1 | UC-019/013 | Sí | Sí | Sí | No |
 | Denegar afiliació | intranet | mateix endpoint | mateix mètode | VALID_DESC=2 i possible canvi A_PAGAR | UC-019 | Sí | Sí | Sí | No |
 | Emetre/cobrar alumne | worker/SIF | callback UC-03 | `RedsysUsocInvoiceService` | factura + payment + allocation | UC-019a/013 | Sí | Sí | Sí | Tests existeixen |
-| Retornar pendent entitat | SIF | resposta servei | `RedsysUsocInvoiceService` | només resposta transitòria | UC-013 | Sí | Sí | Sí | Tests existeixen |
-| Emetre factura entitat | CLI/servei; pantalla pendent | `process-usoc-entity.php` | `UsocEntityInvoiceService` | factura PENDING, fact_rels USOC_ENTITY | UC-019b/013 | Sí | Sí | Sí | Tests existeixen |
-| Cobrar entitat | flux genèric | pendent mapatge específic | `PaymentService` | payment/allocation | UC-002/022/024 | Sí | Parcial | Parcial | No E2E |
-| Conciliar dues parts | pendent | no acreditat | reconciliador DISSENY | estat expedient | UC-013 | Sí FINAL | No | Sí absència | No |
+| Persistir pendent entitat | SIF | resposta + checkpoint | `RedsysUsocInvoiceService` + `UsocFinancingCaseRepository` | `usoc_financing_case=PENDING_ENTITY_INVOICE` | UC-013 | Sí | Sí | Sí | Tests afegits, execució no acreditada |
+| Emetre factura entitat | CLI/servei; pantalla pendent | `process-usoc-entity.php` | `UsocEntityInvoiceService` + `UsocStudentInvoiceLinkRepository` | factura PENDING, fact_rels USOC_ENTITY, checkpoint ENTITY_INVOICED | UC-019b/013 | Sí | Sí | Sí | Tests afegits, execució no acreditada |
+| Cobrar entitat | ruta USOC preproducció | `process-usoc-entity-payment.php` | `UsocEntityPaymentService` → `ManualPaymentService`/`PaymentService` → `UsocCaseReconciler` | payment/allocation + actualització `usoc_financing_case` | UC-002/022/024/013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
+| Conciliar dues parts | CLI/preproducció | `reconcile-usoc-case.php` | `UsocCaseReconciler` | actualitza `usoc_financing_case` segons estats de factura i imports | UC-013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
 | Canvi/baixa | intranet | fluxos compartits | UC-026/027/005 | rectificacions/moviments | UC-013+ | Parcial | Parcial | Parcial | No E2E |
 
 ## 3. Evidència específica
@@ -62,16 +62,17 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 
 ## 4. Mancances tècniques prioritzades
 
-### P0
-1. **Identitat de la inscripció:** `LegacyUsocSnapshotRepository` usa `WHERE IDPAG=? ORDER BY ID LIMIT 1`; cal impedir una selecció silenciosa si hi ha més d'una inscripció candidata.
-2. **Relació factura alumne:** abans d'emetre la factura entitat cal demostrar que `student_invoice_uuid` correspon al mateix `ID_INSC/IDPAG`.
-3. **Checkpoint durable:** `entity_invoice_pending` és un array retornat; la continuació de l'expedient no pot dependre només de conservar la resposta en memòria/canal.
+### P0 — implementats en repositori el 30/09/2026
+1. **Identitat de la inscripció — TANCAT EN CODI:** `LegacyUsocSnapshotRepository` exigeix `ID_INSC` i consulta `IDPAG + ID`; s'ha eliminat `ORDER BY ID LIMIT 1`.
+2. **Relació factura alumne — TANCAT EN CODI:** `UsocStudentInvoiceLinkRepository` valida UUID, `ID_INSC`, `IDPAG`, canal/tipus Redsys USOC i total de la factura alumne.
+3. **Checkpoint durable — IMPLEMENTAT:** `usoc_financing_case` + `UsocFinancingCaseRepository` persisteixen factura alumne, factura entitat, imports i estat.
+4. **Conciliació — IMPLEMENTADA PARCIALMENT:** `UsocCaseReconciler` i `reconcile-usoc-case.php` deriven l'estat a partir de les dues factures i els imports. Falta invocació automàtica després del cobrament entitat.
 
 ### P1
-4. Mutació de validació via GET → POST segur.
-5. `IDPAG` llegat generat per últim+1 → mecanisme concurrent-safe.
+4. Validació legacy via POST + CSRF + `ROLS_EDITAR` — IMPLEMENTADA; falta traça persistent SIF de la decisió.
+5. `IDPAG` legacy — IMPLEMENTAT allocator compartit amb named lock MySQL als fluxos actuals identificats.
 6. Adaptador/pantalla final de gestió de factura entitat.
-7. Conciliació final de dos pagadors.
+7. Connectar la interfície/API final amb `UsocEntityPaymentService`; evitar que el flux USOC utilitzi el registre genèric sense reconciliació.
 8. Prova E2E amb callback duplicat i pagament entitat parcial/complet.
 
 ### Decisió funcional
@@ -89,11 +90,11 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 | US13-04 | factura entitat repetida equivalent | reús | TEST EXISTENT |
 | US13-05 | mateixa clau, amount diferent | CONFLICT | TEST AFEGIT EN AQUESTA BRANCA |
 | US13-06 | mateixa clau, NIF diferent | CONFLICT | TEST AFEGIT EN AQUESTA BRANCA |
-| US13-07 | UUID alumne aliè | bloqueig | PENDENT CODI |
-| US13-08 | IDPAG ambigu | bloqueig | PENDENT CODI |
+| US13-07 | UUID alumne aliè | bloqueig | TEST AFEGIT · CODI IMPLEMENTAT |
+| US13-08 | IDPAG ambigu | `ID_INSC` obligatori; no fallback | TEST AFEGIT · CODI IMPLEMENTAT |
 | US13-09 | factura entitat sense ingrés | PENDING, 0 payments | TEST EXISTENT |
-| US13-10 | pagament parcial entitat | PARTIAL | PENDENT E2E |
-| US13-11 | dues factures/dos cobraments | FINANÇAMENT_CONCILIAT | PENDENT CODI/E2E |
+| US13-10 | cobrament entitat parcial real via PaymentService | `ENTITY_PARTIAL` | TEST INTEGRACIÓ AFEGIT · EXECUCIÓ NO ACREDITADA |
+| US13-11 | 10 € + 15 € sobre factura entitat de 25 € | `FINANCING_RECONCILED` | TEST INTEGRACIÓ AFEGIT · EXECUCIÓ NO ACREDITADA |
 | US13-12 | alumne=0 | circuit especial o bloqueig explícit | PENDENT DECISIÓ |
 
 ## 6. Fitxers del paquet UC-013
@@ -112,4 +113,4 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 **PREPRODUCCIÓ:** no acreditada.  
 **PRODUCCIÓ:** no acreditada.
 
-El UC-013 no es pot marcar TANCAT fins que els P0 tinguin implementació i prova reproduïble.
+Els P0 estructurals ja estan implementats al repositori. El UC-013 encara no es marca TANCAT perquè falta execució acreditada de proves, connexió automàtica del cobrament entitat amb el reconciliador, adaptador/pantalla final, E2E i decisions funcionals pendents.

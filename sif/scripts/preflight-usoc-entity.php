@@ -19,6 +19,7 @@ $checks = [
     'factura_table' => false,
     'factura_linia_table' => false,
     'fact_rels_table' => false,
+    'usoc_financing_case_table' => false,
     'fiscal_chain_state_seeded' => false,
     'legacy_inscripcions_table' => false,
     'legacy_curs_table' => false,
@@ -31,6 +32,7 @@ try {
     $checks['factura_table'] = tableExists($sifDb, 'factura');
     $checks['factura_linia_table'] = tableExists($sifDb, 'factura_linia');
     $checks['fact_rels_table'] = tableExists($sifDb, 'fact_rels');
+    $checks['usoc_financing_case_table'] = tableExists($sifDb, 'usoc_financing_case');
     $checks['fiscal_chain_state_seeded'] = rowExists(
         $sifDb,
         'SELECT COUNT(*) FROM fiscal_chain_state WHERE ID = 1'

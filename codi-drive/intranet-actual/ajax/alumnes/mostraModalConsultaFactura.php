@@ -3,6 +3,8 @@
 $root = dirname(__DIR__, 2);
 require_once $root . '/Date.php';
 require_once $root . '/LegacyInvoiceReadContext.php';
+require_once $root . '/SifInternalApiClient.php';
+require_once $root . '/SifLegacyInvoiceMutationGuard.php';
 
 $user = null;
 $intranet = null;
@@ -14,6 +16,8 @@ try {
     if (!ctype_digit($idInsc) || (int) $idInsc <= 0) {
         throw new InvalidArgumentException('Identificador d’inscripció no vàlid', 422);
     }
+
+    (new SifLegacyInvoiceMutationGuard())->assertLegacyEnrollmentAllowed($user, (int) $idInsc);
 
     echo $intranet->modalConsultaFactura_resultatCerca((int) $idInsc);
 } catch (Throwable $exception) {

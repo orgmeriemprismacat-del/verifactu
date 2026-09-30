@@ -37,6 +37,149 @@ final class RedsysPaymentIntentTest
         Assert::same('120.00', number_format((float) $loaded['EXPECTED_AMOUNT'], 2, '.', ''));
     }
 
+    public function testCreatesPackIntentWithFrozenCommercialSnapshot(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(
+            new RedsysPaymentIntentRepository(),
+            new UuidGenerator()
+        );
+
+        $created = $service->create($db, [
+            'ds_order' => 'ORDERPACKINTENT1',
+            'idpag' => 915,
+            'source_type' => 'PACK',
+            'source_id' => '77',
+            'expected_amount' => '210.00',
+            'currency' => 'EUR',
+            'terminal' => '1',
+            'snapshot' => [
+                'pack' => ['ID_PACK' => 77, 'TITOL' => 'Benestar docent'],
+                'billing' => ['name' => 'Maria Exemple', 'nif' => '12345678Z'],
+                'items' => [
+                    [
+                        'ordinal' => 1,
+                        'inscription' => [
+                            'ID' => 501, 'IDPAG' => 915, 'ANY' => 2026, 'MES' => '06',
+                            'NOM' => 'Maria', 'DNI' => '12345678Z', 'A_PAGAR' => '120.00',
+                        ],
+                        'course' => ['NOM_CURS' => 'Gestio emocional'],
+                    ],
+                    [
+                        'ordinal' => 2,
+                        'inscription' => [
+                            'ID' => 502, 'IDPAG' => 915, 'ANY' => 2026, 'MES' => '07',
+                            'NOM' => 'Maria', 'DNI' => '12345678Z', 'A_PAGAR' => '90.00',
+                        ],
+                        'course' => ['NOM_CURS' => 'Mindfulness a l aula'],
+                    ],
+                ],
+            ],
+            'created_by' => 'web-checkout',
+        ]);
+
+        $loaded = (new RedsysPaymentIntentRepository())->findByDsOrder($db, 'ORDERPACKINTENT1');
+        $snapshot = json_decode((string) $loaded['SNAPSHOT_JSON'], true);
+
+        Assert::same(false, $created['idempotency_reused']);
+        Assert::same('PACK', $loaded['SOURCE_TYPE']);
+        Assert::same('77', (string) $loaded['SOURCE_ID']);
+        Assert::same('210.00', number_format((float) $loaded['EXPECTED_AMOUNT'], 2, '.', ''));
+        Assert::same(1, (int) $snapshot['items'][0]['ordinal']);
+        Assert::same(2, (int) $snapshot['items'][1]['ordinal']);
+        Assert::same('12345678Z', $snapshot['billing']['nif']);
+    }
+
+    public function testRejectsPackIntentWhenSnapshotTotalDiffersFromExpectedAmount(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(
+            new RedsysPaymentIntentRepository(),
+            new UuidGenerator()
+        );
+
+        $input = [
+            'ds_order' => 'ORDERPACKINTENT2',
+            'idpag' => 916,
+            'source_type' => 'PACK',
+            'source_id' => '77',
+            'expected_amount' => '200.00',
+            'currency' => 'EUR',
+            'terminal' => '1',
+            'snapshot' => [
+                'pack' => ['ID_PACK' => 77, 'TITOL' => 'Benestar docent'],
+                'items' => [
+                    [
+                        'ordinal' => 1,
+                        'inscription' => [
+                            'ID' => 511, 'IDPAG' => 916, 'ANY' => 2026, 'MES' => '06',
+                            'NOM' => 'Maria', 'DNI' => '12345678Z', 'A_PAGAR' => '120.00',
+                        ],
+                        'course' => ['NOM_CURS' => 'Gestio emocional'],
+                    ],
+                    [
+                        'ordinal' => 2,
+                        'inscription' => [
+                            'ID' => 512, 'IDPAG' => 916, 'ANY' => 2026, 'MES' => '07',
+                            'NOM' => 'Maria', 'DNI' => '12345678Z', 'A_PAGAR' => '90.00',
+                        ],
+                        'course' => ['NOM_CURS' => 'Mindfulness a l aula'],
+                    ],
+                ],
+            ],
+            'created_by' => 'web-checkout',
+        ];
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $input): void {
+            $service->create($db, $input);
+        }, 409);
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
+    public function testRejectsPackIntentWithoutCommercialOrdinal(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(
+            new RedsysPaymentIntentRepository(),
+            new UuidGenerator()
+        );
+
+        $input = [
+            'ds_order' => 'ORDERPACKINTENT3',
+            'idpag' => 917,
+            'source_type' => 'PACK',
+            'source_id' => '77',
+            'expected_amount' => '210.00',
+            'currency' => 'EUR',
+            'terminal' => '1',
+            'snapshot' => [
+                'pack' => ['ID_PACK' => 77, 'TITOL' => 'Benestar docent'],
+                'items' => [
+                    [
+                        'inscription' => [
+                            'ID' => 521, 'IDPAG' => 917, 'ANY' => 2026, 'MES' => '06',
+                            'NOM' => 'Maria', 'DNI' => '12345678Z', 'A_PAGAR' => '120.00',
+                        ],
+                        'course' => ['NOM_CURS' => 'Gestio emocional'],
+                    ],
+                    [
+                        'ordinal' => 2,
+                        'inscription' => [
+                            'ID' => 522, 'IDPAG' => 917, 'ANY' => 2026, 'MES' => '07',
+                            'NOM' => 'Maria', 'DNI' => '12345678Z', 'A_PAGAR' => '90.00',
+                        ],
+                        'course' => ['NOM_CURS' => 'Mindfulness a l aula'],
+                    ],
+                ],
+            ],
+            'created_by' => 'web-checkout',
+        ];
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $input): void {
+            $service->create($db, $input);
+        }, 422);
+    }
+
     public function testEquivalentIntentReusesExistingDsOrder(): void
     {
         $db = TestDatabase::fresh();

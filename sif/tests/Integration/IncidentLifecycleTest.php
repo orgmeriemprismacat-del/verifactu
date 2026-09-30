@@ -276,6 +276,215 @@ final class IncidentLifecycleTest
         );
     }
 
+    public function testLegacyOpenStillCreatesOpenIncidentWithIdentity(): void
+    {
+        $db = TestDatabase::fresh();
+
+        $result = (new IncidentRepository())->open(
+            $db,
+            null,
+            'SYSTEM_TEST',
+            'Legacy open remains supported'
+        );
+
+        $row = $db->query(
+            'SELECT ID, UUID_INCIDENT, ESTAT, RESOURCE_TYPE, RESOURCE_ID
+             FROM errors_verifactu'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same(true, $result['ok']);
+        Assert::same((int) $row['ID'], $result['incident_id']);
+        Assert::same((string) $row['UUID_INCIDENT'], $result['uuid_incident']);
+        Assert::same('OPEN', $row['ESTAT']);
+        Assert::same(null, $row['RESOURCE_TYPE']);
+        Assert::same(null, $row['RESOURCE_ID']);
+    }
+
+    public function testDetailedOpenAcceptsExistingPaymentAndRejectsUnknownPayment(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload(['emesa_abans_cobrament' => 1])
+        );
+        $payment = RegisterPaymentTest::paymentServiceFor($db)->registerPayment([
+            'idempotency_key' => 'TRANSFERENCIA|REF:UC08-PAYMENT',
+            'movement_type' => 'CHARGE',
+            'method' => 'TRANSFERENCIA',
+            'source_channel' => 'INTRANET',
+            'amount' => '120.00',
+            'movement_date' => '2026-09-30 01:00:00',
+            'reference' => 'UC08-PAYMENT',
+            'allocations' => [[
+                'uuid_factura' => $invoice['uuid_factura'],
+                'amount' => '120.00',
+                'allocation_type' => 'INVOICE_PAYMENT',
+            ]],
+        ]);
+
+        $repository = new IncidentRepository();
+        $opened = $repository->openDetailed($db, [
+            'uuid_payment' => $payment['uuid_payment'],
+            'resource_type' => 'PAYMENT',
+            'resource_id' => $payment['uuid_payment'],
+            'type' => 'PAYMENT_REVIEW',
+            'message' => 'Payment requires review',
+            'idempotency_key' => 'TEST|UC08|PAYMENT|KNOWN',
+        ]);
+
+        Assert::same(false, $opened['reused']);
+        Assert::same(
+            $payment['uuid_payment'],
+            (string) $db->query(
+                'SELECT UUID_PAYMENT FROM errors_verifactu WHERE ID = ' . (int) $opened['incident_id']
+            )->fetchColumn()
+        );
+
+        Assert::throws(
+            SifException::class,
+            fn () => $repository->openDetailed($db, [
+                'uuid_payment' => '00000000-0000-4000-8000-000000000099',
+                'resource_type' => 'PAYMENT',
+                'resource_id' => '00000000-0000-4000-8000-000000000099',
+                'type' => 'PAYMENT_REVIEW',
+                'message' => 'Unknown payment must fail closed',
+                'idempotency_key' => 'TEST|UC08|PAYMENT|UNKNOWN',
+            ]),
+            404
+        );
+
+        Assert::same(
+            1,
+            (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'PAYMENT_REVIEW'")
+                ->fetchColumn()
+        );
+    }
+
+    public function testDetailedOpenRequiresResourceTypeAndIdTogether(): void
+    {
+        $db = TestDatabase::fresh();
+        $repository = new IncidentRepository();
+
+        Assert::throws(
+            SifException::class,
+            fn () => $repository->openDetailed($db, [
+                'resource_type' => 'DOCUMENT_JOB',
+                'type' => 'RESOURCE_PAIR_TEST',
+                'message' => 'Missing resource id',
+                'idempotency_key' => 'TEST|UC08|RESOURCE|MISSING-ID',
+            ]),
+            422
+        );
+
+        Assert::throws(
+            SifException::class,
+            fn () => $repository->openDetailed($db, [
+                'resource_id' => 'job-42',
+                'type' => 'RESOURCE_PAIR_TEST',
+                'message' => 'Missing resource type',
+                'idempotency_key' => 'TEST|UC08|RESOURCE|MISSING-TYPE',
+            ]),
+            422
+        );
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
+    }
+
+    public function testManagerDismissesAndReopensOnlyClosedIncident(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $actor = $this->manager();
+
+        $opened = $service->open($actor, [
+            'type' => 'DISMISS_REOPEN_TEST',
+            'message' => 'Needs classification',
+            'reason_code' => 'TEST_OPEN',
+            'idempotency_key' => 'TEST|UC08|DISMISS-REOPEN|OPEN',
+        ]);
+
+        Assert::throws(
+            SifException::class,
+            fn () => $service->reopen($actor, $opened['incident_id'], [
+                'reason_code' => 'PREMATURE_REOPEN',
+                'idempotency_key' => 'TEST|UC08|DISMISS-REOPEN|PREMATURE',
+            ]),
+            409
+        );
+
+        $dismissed = $service->dismiss($actor, $opened['incident_id'], [
+            'reason_code' => 'NO_MATERIAL_IMPACT',
+            'idempotency_key' => 'TEST|UC08|DISMISS-REOPEN|DISMISS',
+            'closure_criteria' => 'No fiscal, economic or documentary impact remains.',
+            'resolution_notes' => 'False positive reviewed and justified.',
+        ]);
+
+        Assert::same('DISMISSED', $dismissed['status']);
+        $closedRow = $db->query(
+            'SELECT ESTAT, RESOLVED_AT, RESOLUTION_NOTES, CLOSURE_CRITERIA
+             FROM errors_verifactu'
+        )->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('DISMISSED', $closedRow['ESTAT']);
+        Assert::same(false, empty($closedRow['RESOLVED_AT']));
+        Assert::same('False positive reviewed and justified.', $closedRow['RESOLUTION_NOTES']);
+
+        $reopened = $service->reopen($actor, $opened['incident_id'], [
+            'reason_code' => 'NEW_EVIDENCE',
+            'idempotency_key' => 'TEST|UC08|DISMISS-REOPEN|REOPEN',
+            'details' => 'New evidence requires a second review.',
+            'evidence' => ['reference' => 'UC08-REOPEN-01'],
+        ]);
+
+        Assert::same('OPEN', $reopened['status']);
+        $openRow = $db->query(
+            'SELECT ESTAT, ASSIGNED_TO, RESOLVED_AT, RESOLUTION_NOTES, CLOSURE_CRITERIA
+             FROM errors_verifactu'
+        )->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('OPEN', $openRow['ESTAT']);
+        Assert::same(null, $openRow['ASSIGNED_TO']);
+        Assert::same(null, $openRow['RESOLVED_AT']);
+        Assert::same(null, $openRow['RESOLUTION_NOTES']);
+        Assert::same(null, $openRow['CLOSURE_CRITERIA']);
+        Assert::same(3, (int) $db->query('SELECT COUNT(*) FROM sif_incident_action')->fetchColumn());
+    }
+
+    public function testSummaryReturnsExactOpenAndCriticalCounts(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $actor = $this->manager();
+
+        $service->open($actor, [
+            'type' => 'CRITICAL_TEST',
+            'message' => 'Critical incident',
+            'severity' => 'CRITICAL',
+            'reason_code' => 'TEST_OPEN',
+            'idempotency_key' => 'TEST|UC08|SUMMARY|CRITICAL',
+        ]);
+        $high = $service->open($actor, [
+            'type' => 'HIGH_TEST',
+            'message' => 'High incident',
+            'severity' => 'HIGH',
+            'reason_code' => 'TEST_OPEN',
+            'idempotency_key' => 'TEST|UC08|SUMMARY|HIGH',
+        ]);
+
+        $service->resolve($actor, $high['incident_id'], [
+            'reason_code' => 'VERIFIED',
+            'idempotency_key' => 'TEST|UC08|SUMMARY|RESOLVE',
+            'closure_criteria' => 'Verification passes.',
+            'resolution_notes' => 'Resolved for summary test.',
+            'evidence' => ['test' => 'PASS'],
+        ]);
+
+        $summary = $service->summary($actor)['summary'];
+
+        Assert::same(2, $summary['total']);
+        Assert::same(1, $summary['open_total']);
+        Assert::same(1, $summary['critical_open']);
+        Assert::same(1, $summary['by_status']['OPEN']);
+        Assert::same(1, $summary['by_status']['RESOLVED']);
+    }
+
     private function service(\PDO $db): IncidentLifecycleService
     {
         return new IncidentLifecycleService(

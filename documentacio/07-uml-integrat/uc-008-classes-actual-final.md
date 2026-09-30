@@ -123,7 +123,7 @@ FiscalQueueProcessor --> IncidentRepository : AEAT/integritat
 | `FiscalQueueProcessor` | INTEGRAT | incidència per integritat i dead-letter final |
 | `errors_verifactu` | AMPLIAT | capçalera/lifecycle |
 | `sif_incident_action` | AMPLIAT | idempotency key + payload hash |
-| UI de panell | NO ACREDITADA | no hi ha shell autenticat del panell al repositori |
+| UI de panell | IMPLEMENTADA AL CODI | handoff HMAC, sessió SIF, CSRF, vista, accions i resum intranet; desplegament pendent |
 
 ## 3. CL-008-FINAL · Panell i adaptadors que falten
 
@@ -189,9 +189,11 @@ No es crearà un segon `IncidentWorkflowService`. **UC-008 i UC-081 comparteixen
 
 ## 5. Pendent per tancar FINAL
 
-- controlador/vista autenticats del panell;
-- client intern del panell i resum read-only d'intranet;
+- desplegament/configuració productiva del panell;
+- alta del menú VERI*FACTU a la BD de menú de la intranet;
 - política real de rols, severitats i SLA;
 - notificacions si s'aproven;
 - integracions d'obertura de la resta de workers/processos;
-- evidència de preproducció.
+- evidència E2E de preproducció/producció.
+
+**UI existent al repositori:** `PanelLaunchAuthenticator`, `IncidentPanelSession`, `sif/public/sif/incidencies/*`, `SifInternalIncidentClient`, `SifPanelLaunchToken` i `sif-verifactu.php`.

@@ -13,6 +13,8 @@ final class RedsysCallbackQueueScriptTest
         );
 
         Assert::stringContainsString('SIF_ENV=production', $source);
+        Assert::stringContainsString('SIF_REDSYS_WORKER_ALLOW_PRODUCTION', $source);
+        Assert::stringContainsString('RedsysLegacySyncingProcessor', $source);
         Assert::stringContainsString('RedsysCallbackWorker', $source);
         Assert::stringContainsString('--limit=', $source);
         Assert::stringContainsString('--worker-id=', $source);

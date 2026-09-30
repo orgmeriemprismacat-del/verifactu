@@ -16,9 +16,9 @@ Aquest registre diferencia:
 |---|---:|---:|---:|---:|
 | Catàleg i fitxa pack | sí | sí | sí | proves navegador |
 | N inscripcions amb IDPAG comú | sí | sí | sí | substituir identitat concurrent |
-| Preu pack | sí | sí | sí | backend autoritatiu |
+| Preu pack | sí | **sí, backend autoritatiu (30/09)** | sí | proves runtime |
 | Snapshot comercial | sí | parcial | sí | ordinal/receptor/preu versionat |
-| Intenció Redsys PACK | sí | sí | sí | connexió ecommerce |
+| Intenció Redsys PACK | sí | **sí + endpoint intern autenticat (30/09)** | sí | connectar punt de pagament pack |
 | Callback SIF | sí | sí | sí | activació real canal |
 | Callback legacy | sí | sí | sí | retirada |
 | Factura N línies | sí | sí | sí | prova end-to-end |
@@ -46,6 +46,7 @@ Aquest registre diferencia:
 ## 4. Codi SIF inspeccionat
 
 - `sif/src/Service/RedsysPaymentIntentService.php`
+- `sif/public/api/redsys/intents/create.php`
 - `sif/src/Service/RedsysCallbackService.php`
 - `sif/src/Service/RedsysCallbackDispatcher.php`
 - `sif/src/Service/RedsysCallbackWorker.php`
@@ -79,8 +80,8 @@ Exigeix:
 
 ## 6. Troballes P0
 
-### UC15-P0-01 · Preu enviat pel navegador
-`mostrarInscripcioPack.min.js` envia `preuCursos` i `preuPack`; `enviarInscripcioPack.php` els consumeix. El preu definitiu ha de ser rellegit/congelat al servidor.
+### UC15-P0-01 · Preu enviat pel navegador — CORREGIT AL CANAL D'ALTA 2026-09-30
+El JS ja no envia `preuCursos`/`preuPack` i `enviarInscripcioPack.php` recalcula el preu del pack i la suma dels cursos des de `info_pack/packs/curs/preu`. **Resta pendent** que aquest preu servidor quedi congelat dins la intenció SIF abans del TPV.
 
 ### UC15-P0-02 · IDPAG concurrent
 `SELECT IDPAG ... ORDER BY IDPAG DESC LIMIT 1` + 1 no és un generador segur.
@@ -88,8 +89,8 @@ Exigeix:
 ### UC15-P0-03 · Callback legacy fiscal
 `realitzaPagamentPackAutomatic.php` encara calcula numeració i insereix `factures` directament.
 
-### UC15-P0-04 · Signatura
-El callback llegit calcula signatura Redsys, però no s'ha acreditat la comparació bloquejant amb la signatura rebuda abans de mutar dades.
+### UC15-P0-04 · Signatura — CORREGIT 2026-09-30
+Els dos callbacks legacy de pack comparen ara de forma bloquejant la signatura calculada amb `Ds_Signature` mitjançant `hash_equals()`. També es bloqueja si `Ds_Order` o `Ds_Amount` signats no coincideixen amb els valors legacy utilitzats pel procés.
 
 ### UC15-P0-05 · Ordinal comercial
 `LegacyPackSnapshotRepository` ordena per `A_PAGAR DESC, ID`, mentre el builder aplica la regla del descompte segons índex. Això no equival a l'ordinal de l'oferta.
@@ -99,6 +100,12 @@ El receptor del builder prové del primer item; el primer item pot dependre de l
 
 ### UC15-P0-07 · Conciliació import
 **Corregit al SIF el 2026-09-29:** `RedsysPackInvoiceService` bloqueja si total factura i import Redsys no coincideixen.
+
+### UC15-P0-08 · Punt de pagament genèric no resol N inscripcions de pack
+`ajax/mostrar_pagina_pagament.php` desxifra l'identificador i instancia sempre `PagamentCurs`. El constructor de `PagamentCurs` exigeix exactament una fila per `IDPAG` i llança error si n'hi ha més d'una. Un pack crea N files amb el mateix `IDPAG`. No s'ha localitzat una classe `PagamentPack` activa que resolgui aquest contracte; només existeix una plantilla visual de pack i callbacks específics. **Bloquejant:** definir/adaptar el punt de pagament PACK abans de connectar l'endpoint d'intenció al web.
+
+### UC15-P0-09 · DS_ORDER generat amb temps al flux genèric
+`pagina_efectuar_pagament.php` genera actualment l'ordre amb `time()`. No es modifica en aquest lot perquè el DS_ORDER definitiu del pack s'ha de generar/coordinat amb la intenció SIF i no amb un pegat local que pugui afectar altres canals.
 
 ## 7. Troballes P1
 
@@ -126,3 +133,43 @@ UC-015 no pot passar a **VERIFICAT/TANCAT** fins que:
 - ordinal, imports i receptor siguin congelats abans del TPV;
 - ledger per inscripció estigui resolt;
 - proves PK-01..PK-11 i de callback duplicat s'executin en entorn controlat.
+
+
+## 10. Canvis addicionals 2026-09-30
+
+### Endpoint d'intenció
+Creat `sif/public/api/redsys/intents/create.php`:
+- només POST;
+- autenticació HMAC interna;
+- protecció anti-replay per `REQUEST_ID`;
+- rols autoritzats configurables;
+- `created_by` deriva de l'actor signat i no del JSON;
+- fail-closed si no hi ha rols configurats.
+
+Configuració:
+- `SIF_INTERNAL_REDSYS_INTENT_SIGNED_PATH`
+- `SIF_REDSYS_INTENT_CREATE_ROLES`
+
+### Preu servidor
+`enviarInscripcioPack.php` ja no consumeix imports del client com a font de veritat. El JS manté la consulta de preus només per visualització però no envia els totals a l'alta.
+
+### Prova d'intent PACK
+Afegida `RedsysPaymentIntentTest::testCreatesPackIntentWithFrozenCommercialSnapshot()`, amb `SOURCE_TYPE=PACK`, ordinal de components i receptor dins del snapshot.
+
+**Execució de les proves:** continua pendent d'evidència runtime/CI.
+
+
+## 11. Enduriment temporal del callback legacy — 2026-09-30
+
+Mentre el callback fiscal legacy encara no s'ha retirat, s'han aplicat mesures de contenció als dos copies:
+- validació bloquejant de signatura Redsys;
+- conciliació de `Ds_Order` amb l'ordre legacy;
+- conciliació de `Ds_Amount` amb l'import legacy;
+- eliminació de correus i sortides de depuració;
+- eliminació de la clau Redsys del codi font;
+- lectura de la clau des de `SIF_REDSYS_MERCHANT_KEY`;
+- fallada tancada si la clau no està configurada.
+
+**Desplegament:** abans de desplegar aquests callbacks cal configurar `SIF_REDSYS_MERCHANT_KEY` al runtime corresponent. La retirada del secret del codi no elimina la necessitat de **rotar la clau**, perquè el secret havia estat versionat històricament.
+
+Aquest enduriment és transitori i **no substitueix UC-68**: el callback legacy continua contenint numeració/INSERT de factura i UPDATE d'inscripcions fins que el worker SIF sigui l'únic emissor.

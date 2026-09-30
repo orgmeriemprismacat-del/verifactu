@@ -124,6 +124,56 @@ final class InvoiceReadRepository
             $params[] = (string) $criteria[$key];
         }
 
+        if (array_key_exists('source_ids', $criteria) && $criteria['source_ids'] !== null) {
+            if (!is_array($criteria['source_ids'])) {
+                throw SifException::validation('Invalid source ids');
+            }
+
+            $sourceIds = [];
+            foreach ($criteria['source_ids'] as $sourceId) {
+                if (!is_int($sourceId) && !ctype_digit((string) $sourceId)) {
+                    throw SifException::validation('Invalid source id');
+                }
+
+                $value = (int) $sourceId;
+                if ($value <= 0) {
+                    throw SifException::validation('Invalid source id');
+                }
+
+                $sourceIds[$value] = true;
+                if (count($sourceIds) > 200) {
+                    throw SifException::validation('Too many source ids');
+                }
+            }
+
+            if ($sourceIds !== []) {
+                $placeholders = implode(',', array_fill(0, count($sourceIds), '?'));
+                $sourceType = strtoupper(trim((string) ($criteria['source_type'] ?? '')));
+                if ($sourceType !== '' && preg_match('/^[A-Z0-9_:-]{1,40}$/D', $sourceType) !== 1) {
+                    throw SifException::validation('Invalid source type');
+                }
+
+                $sourceClause = 'EXISTS (
+                    SELECT 1 FROM fact_rels rel_source
+                    WHERE rel_source.UUID_FACTURA = f.UUID_FACTURA
+                      AND rel_source.SOURCE_ID IN (' . $placeholders . ')';
+
+                if ($sourceType !== '') {
+                    $sourceClause .= ' AND rel_source.SOURCE_TYPE = ?';
+                }
+
+                $sourceClause .= ')';
+                $where[] = $sourceClause;
+
+                foreach (array_keys($sourceIds) as $sourceId) {
+                    $params[] = $sourceId;
+                }
+                if ($sourceType !== '') {
+                    $params[] = $sourceType;
+                }
+            }
+        }
+
         if (array_key_exists('factura_relacionada', $criteria)
             && $criteria['factura_relacionada'] !== null
             && $criteria['factura_relacionada'] !== '') {
@@ -138,19 +188,6 @@ final class InvoiceReadRepository
                   AND rel.FACTURA_RELACIONADA = ?
             )';
             $params[] = (int) $criteria['factura_relacionada'];
-        }
-
-        if (isset($criteria['source_ids']) && is_array($criteria['source_ids']) && $criteria['source_ids'] !== []) {
-            $placeholders = implode(',', array_fill(0, count($criteria['source_ids']), '?'));
-            $where[] = "EXISTS (
-                SELECT 1 FROM fact_rels rel_source
-                WHERE rel_source.UUID_FACTURA = f.UUID_FACTURA
-                  AND rel_source.SOURCE_TYPE = 'INSCRIPCIO'
-                  AND rel_source.SOURCE_ID IN (" . $placeholders . ")
-            )";
-            foreach ($criteria['source_ids'] as $sourceId) {
-                $params[] = (int) $sourceId;
-            }
         }
 
         if ($where === []) {

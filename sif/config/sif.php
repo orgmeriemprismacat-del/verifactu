@@ -43,7 +43,18 @@ return [
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
         'aeat_operations_signed_path' => getenv('SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH') ?: '/api/aeat/operations.php',
         'incident_signed_path' => getenv('SIF_INTERNAL_INCIDENT_SIGNED_PATH') ?: '/api/incidents/manage.php',
-        'redsys_course_intent_signed_path' => getenv('SIF_INTERNAL_REDSYS_COURSE_INTENT_SIGNED_PATH') ?: '/api/redsys/course-intent.php',
+        'redsys_intent_signed_path' => getenv('SIF_INTERNAL_REDSYS_INTENT_SIGNED_PATH') ?: '/api/redsys/intents/create.php',
+        'usoc_signed_path' => getenv('SIF_INTERNAL_USOC_SIGNED_PATH') ?: '/api/usoc/manage.php',
+    ],
+    'usoc' => [
+        'read_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_USOC_READ_ROLES') ?: '')
+        ))),
+        'manage_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_USOC_MANAGE_ROLES') ?: '')
+        ))),
     ],
     'incidents' => [
         'read_roles' => array_values(array_filter(array_map(
@@ -56,9 +67,19 @@ return [
         ))),
         'max_results' => (int) (getenv('SIF_INCIDENT_QUERY_MAX_RESULTS') ?: 50),
     ],
+    'panel' => [
+        'launch_key_id' => getenv('SIF_PANEL_LAUNCH_KEY_ID') ?: '',
+        'launch_secret' => getenv('SIF_PANEL_LAUNCH_SECRET') ?: '',
+        'launch_path' => getenv('SIF_PANEL_INCIDENTS_PATH') ?: '/sif/incidencies/',
+        'max_clock_skew_seconds' => (int) (getenv('SIF_PANEL_LAUNCH_MAX_SKEW') ?: 120),
+        'session_name' => getenv('SIF_PANEL_SESSION_NAME') ?: 'SIFPANELSESSID',
+    ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
-        'sync_legacy_course' => filter_var(getenv('SIF_REDSYS_SYNC_LEGACY_COURSE') ?: 'false', FILTER_VALIDATE_BOOLEAN),
+        'intent_create_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_REDSYS_INTENT_CREATE_ROLES') ?: '')
+        ))),
     ],
     'novice_promotion' => [
         // 32-byte AES wrapping key encoded as 64 hex chars. Keep it only in

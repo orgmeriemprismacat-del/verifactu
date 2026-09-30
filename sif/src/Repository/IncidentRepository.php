@@ -19,7 +19,7 @@ final class IncidentRepository
 
         $result = $this->openDetailed($db, [
             'uuid_factura' => $uuidFactura,
-            'resource_type' => $uuidFactura === null ? 'SYSTEM' : 'INVOICE',
+            'resource_type' => $uuidFactura === null ? null : 'INVOICE',
             'resource_id' => $uuidFactura,
             'source_type' => 'SIF',
             'source_id' => null,
@@ -61,6 +61,11 @@ final class IncidentRepository
         }
         if (!in_array($severity, ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], true)) {
             throw SifException::validation('Invalid incident severity');
+        }
+        if (($resourceType === null) !== ($resourceId === null)) {
+            throw SifException::validation(
+                'Incident resource_type and resource_id must be provided together'
+            );
         }
 
         if ($uuidFactura !== null) {
@@ -108,6 +113,7 @@ final class IncidentRepository
                     'reused' => true,
                     'incident_id' => (int) $existing['ID'],
                     'uuid_incident' => (string) $existing['UUID_INCIDENT'],
+                    'status' => (string) $existing['ESTAT'],
                 ];
             }
         }
@@ -155,6 +161,7 @@ final class IncidentRepository
                         'reused' => true,
                         'incident_id' => (int) $existing['ID'],
                         'uuid_incident' => (string) $existing['UUID_INCIDENT'],
+                        'status' => (string) $existing['ESTAT'],
                     ];
                 }
             }
@@ -166,6 +173,7 @@ final class IncidentRepository
             'reused' => false,
             'incident_id' => (int) $db->lastInsertId(),
             'uuid_incident' => $uuidIncident,
+            'status' => 'OPEN',
         ];
     }
 
@@ -224,6 +232,47 @@ final class IncidentRepository
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function summary(\PDO $db): array
+    {
+        $rows = $db->query(
+            'SELECT ESTAT, SEVERITY, COUNT(*) AS TOTAL
+             FROM errors_verifactu
+             GROUP BY ESTAT, SEVERITY'
+        )->fetchAll(\PDO::FETCH_ASSOC);
+
+        $byStatus = [];
+        $bySeverity = [];
+        $openTotal = 0;
+        $criticalOpen = 0;
+
+        foreach ($rows as $row) {
+            $status = strtoupper((string) ($row['ESTAT'] ?? ''));
+            $severity = strtoupper((string) ($row['SEVERITY'] ?? ''));
+            $total = (int) ($row['TOTAL'] ?? 0);
+
+            $byStatus[$status] = ($byStatus[$status] ?? 0) + $total;
+            $bySeverity[$severity] = ($bySeverity[$severity] ?? 0) + $total;
+
+            if (in_array($status, ['OPEN', 'IN_PROGRESS'], true)) {
+                $openTotal += $total;
+                if ($severity === 'CRITICAL') {
+                    $criticalOpen += $total;
+                }
+            }
+        }
+
+        $lastUpdated = $db->query('SELECT MAX(UPDATED_AT) FROM errors_verifactu')->fetchColumn();
+
+        return [
+            'total' => array_sum($byStatus),
+            'open_total' => $openTotal,
+            'critical_open' => $criticalOpen,
+            'by_status' => $byStatus,
+            'by_severity' => $bySeverity,
+            'last_updated_at' => $lastUpdated === false ? null : $lastUpdated,
+        ];
     }
 
     public function updateLifecycle(

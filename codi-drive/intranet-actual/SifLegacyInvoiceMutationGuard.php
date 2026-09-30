@@ -33,6 +33,50 @@ final class SifLegacyInvoiceMutationGuard
         $this->assertLegacyRelationAllowed($user, $legacyRelation);
     }
 
+    public function assertLegacyEnrollmentAllowed($user, $enrollmentId): void
+    {
+        if (!$this->enabled()) {
+            return;
+        }
+
+        $id = (string) $enrollmentId;
+        if (!ctype_digit($id) || (int) $id <= 0) {
+            throw new InvalidArgumentException('Identificador d’inscripció no vàlid', 422);
+        }
+
+        $connection = new ConnexioWeb();
+
+        try {
+            $connection->connectarBD();
+            $stmt = $connection->prepare(
+                'SELECT FACTURA_RELACIONADA FROM inscripcions WHERE ID = ? LIMIT 1'
+            );
+            $value = (int) $id;
+            $stmt->bind_param('i', $value);
+            $stmt->execute();
+            $stmt->store_result();
+
+            if ($stmt->num_rows() <= 0) {
+                $connection->closeStmt();
+                return;
+            }
+
+            $stmt->bind_result($relation);
+            $stmt->fetch();
+            $connection->closeStmt();
+
+            if ($relation === null || $relation === '' || !ctype_digit((string) $relation)) {
+                return;
+            }
+
+            $this->assertLegacyRelationAllowed($user, (int) $relation);
+        } finally {
+            if (isset($connection->connexio) && $connection->connexio instanceof mysqli) {
+                $connection->desconectarBD();
+            }
+        }
+    }
+
     public function assertLegacyRelationAllowed($user, $legacyRelation): void
     {
         if (!$this->enabled()) {

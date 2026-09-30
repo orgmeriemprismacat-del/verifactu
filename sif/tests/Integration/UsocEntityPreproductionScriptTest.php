@@ -22,7 +22,8 @@ final class UsocEntityPreproductionScriptTest
         Assert::stringContainsString('new UsocEntityInvoiceService(', $source);
         Assert::stringContainsString('new LegacyUsocSnapshotRepository()', $source);
         Assert::stringContainsString('new LegacyUsocInvoicePayloadBuilder()', $source);
-        Assert::stringContainsString('issueEntityFromExplicitInput($legacyDb, $input)', $source);
+        Assert::stringContainsString('new UsocStudentInvoiceLinkRepository()', $source);
+        Assert::stringContainsString('issueEntityFromExplicitInput($sifDb, $legacyDb, $input)', $source);
         Assert::stringContainsString('--payload-file=', $source);
         Assert::stringContainsString('payment_registered', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);

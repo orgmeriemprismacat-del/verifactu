@@ -83,9 +83,18 @@ final class AeatReviewReconciliationServiceTest
             )->fetchColumn()
         );
         Assert::same(
-            1,
+            0,
             (int) $db->query(
                 "SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_RECONCILED'"
+            )->fetchColumn()
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM operational_event
+                 WHERE OPERATION_TYPE = 'AEAT_RECONCILE'
+                   AND REASON_CODE = 'AEAT_RECONCILED'
+                   AND STATUS = 'COMPLETED'"
             )->fetchColumn()
         );
     }

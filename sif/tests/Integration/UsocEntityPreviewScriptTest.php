@@ -17,11 +17,13 @@ final class UsocEntityPreviewScriptTest
         Assert::stringContainsString('/src/autoload.php', $source);
         Assert::stringContainsString('PHP_SAPI !== \'cli\'', $source);
         Assert::stringContainsString('SIF_ENV=production', $source);
+        Assert::stringContainsString('ConnectionFactory::make($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('new LegacyUsocSnapshotRepository()', $source);
         Assert::stringContainsString('new LegacyUsocInvoicePayloadBuilder()', $source);
-        Assert::stringContainsString('loadByIdpag($legacyDb, $idpag, $studentAmount, $entityAmount)', $source);
+        Assert::stringContainsString('loadByIdpag($legacyDb, $idpag, $studentAmount, $entityAmount, $inscriptionId)', $source);
         Assert::stringContainsString('buildEntityPayload($snapshot, $input)', $source);
+        Assert::stringContainsString('new UsocStudentInvoiceLinkRepository()', $source);
         Assert::stringContainsString('--payload-file=', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
 

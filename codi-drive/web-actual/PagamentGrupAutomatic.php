@@ -691,7 +691,6 @@ class PagamentGrupAutomatic {
       require_once 'Template.php';
       $templates = new Template();
       $urlEfectPagament = "https://www.prisma.cat/efectPagGrupsAuto/";
-      $urlEfectPagament = "https://www.prisma.cat/efectPagGrupsAutoProva/";
 
       $inputNom = $templates->getTemplate_Web_Formulari_Nom();
       $names_template = array("[NOM_LABEL]", "[ID_INPUT]", "[ID_SPAN_ERRONI]");

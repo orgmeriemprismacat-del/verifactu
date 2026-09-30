@@ -21,16 +21,30 @@ La consulta HTTP de factures és **fail-closed**. Sense aquestes variables no s'
 
 ### Intranet
 
-- `SIF_INVOICE_QUERY_UI_ENABLED=1`: activa el mòdul JS UC-007 a `/alumnes/factura/`. Per defecte, absent/0, la pantalla continua 100% llegada.
+- `SIF_UC007_QUERY_ENABLED=1`: activa el pont UC-007 de consulta SIF a la intranet. Per defecte, absent/0, `sifFactures.php` respon `FEATURE_DISABLED` i la pantalla conserva el fallback llegat.
 - `SIF_INTERNAL_API_URL`: URL server-to-server de `sif/public/api/factures/query.php`.
 - `SIF_INTERNAL_API_KEY_ID`: mateix key id.
 - `SIF_INTERNAL_API_SECRET`: mateix secret.
 - `SIF_INTERNAL_API_SIGNED_PATH`: mateix path canònic.
+- `SIF_UC080_DOCUMENT_ENABLED=1`: activa el proxy segur de descàrrega documental. Per defecte queda desactivat.
 - `SIF_INTERNAL_DOCUMENT_API_URL`: URL server-to-server de `sif/public/api/documents/download.php`.
 - `SIF_INTERNAL_DOCUMENT_SIGNED_PATH`: mateix path canònic de document; default `/api/documents/download.php`.
 
 El secret no s'envia al navegador. `ajax/alumnes/sifFactures.php` refresca la sessió des de BD, extreu actor/rol al servidor i `SifInternalApiClient` crea la signatura HMAC.
 
+- `SIF_BLOCK_LEGACY_INVOICE_MUTATIONS=1`: quan UC-007 està operatiu, impedeix que F05/F06/F07 i AL-17 tornin al generador/edició llegada per una factura que ja existeix al SIF. Si el SIF no es pot consultar, el guard falla tancat amb 503.
+- `INTRANET_ALLOWED_ORIGINS`: orígens permesos, separats per `;` o `,`, per a operacions llegades sensibles. Default actual: `https://intranet.prisma.cat`.
+
 ## Rotació
 
 Per rotar la clau sense exposar-la al repositori: actualitzar variables d'entorn als dos servidors dins la mateixa finestra de desplegament. No guardar secrets en PHP, Git, SQL de negoci, Trello ni documentació.
+
+
+## Ordre recomanat d'activació
+
+1. Configurar secrets HMAC i rols al SIF, mantenint `SIF_UC007_QUERY_ENABLED=0` a la intranet.
+2. Verificar connectivitat server-to-server i migració `internal_api_request` en preproducció.
+3. Activar `SIF_UC007_QUERY_ENABLED=1` i validar consulta read-only.
+4. Activar `SIF_BLOCK_LEGACY_INVOICE_MUTATIONS=1` per evitar regeneració/edició llegada de factures SIF.
+5. Configurar `SIF_DOCUMENT_ROOT` privat i, només quan els bytes/hash siguin correctes, activar `SIF_UC080_DOCUMENT_ENABLED=1`.
+6. Mantenir secrets i paths físics fora del repositori i fora del navegador.

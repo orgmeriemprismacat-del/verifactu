@@ -119,6 +119,30 @@ final class LegacyPackInvoicePayloadBuilderTest
         Assert::same(900, (int) $payment['IDPAG']);
     }
 
+    public function testUsesCommercialOrdinalWhenSnapshotItemsArriveOutOfOrder(): void
+    {
+        $snapshot = $this->packSnapshot();
+        $snapshot['items'] = array_reverse($snapshot['items']);
+
+        $payload = (new LegacyPackInvoicePayloadBuilder())->build($snapshot);
+
+        Assert::same(301, $payload['lines'][0]['source_id']);
+        Assert::same('120.00', $payload['lines'][0]['total']);
+        Assert::same(302, $payload['lines'][1]['source_id']);
+        Assert::same('90.00', $payload['lines'][1]['total']);
+        Assert::same('PACK', $payload['lines'][1]['discount_origin']);
+    }
+
+    public function testRejectsMixedPackOrdinalContract(): void
+    {
+        $snapshot = $this->packSnapshot();
+        unset($snapshot['items'][0]['ordinal']);
+
+        Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyPackInvoicePayloadBuilder())->build($snapshot);
+        }, 422);
+    }
+
     public function testRequiresAtLeastTwoPackLines(): void
     {
         $snapshot = $this->packSnapshot();
@@ -152,6 +176,7 @@ final class LegacyPackInvoicePayloadBuilderTest
             ],
             'items' => [
                 [
+                    'ordinal' => 1,
                     'inscription' => [
                         'ID' => 301,
                         'IDPAG' => 900,
@@ -179,6 +204,7 @@ final class LegacyPackInvoicePayloadBuilderTest
                     ],
                 ],
                 [
+                    'ordinal' => 2,
                     'inscription' => [
                         'ID' => 302,
                         'IDPAG' => 900,
