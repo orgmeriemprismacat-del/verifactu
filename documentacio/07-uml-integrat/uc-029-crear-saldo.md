@@ -88,6 +88,24 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de gestió"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-29<br/>Crear saldo a favor"])
+    uc_1(["Registrar titular,<br/>import i origen"])
+    uc_2(["UC-29a<br/>Aplicar saldo a factura"])
+    uc_3(["UC-05<br/>Rectificar factura<br/>si correspon"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  actor_0 --> uc_2
+  actor_0 --> uc_3
+```
+
+
 ## 3. Subdiagrama de classes — creació i cas vinculat
 
 ```mermaid
