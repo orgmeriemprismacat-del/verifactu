@@ -9833,9 +9833,9 @@ class Intranet
 			$fecha = new DateTime();
 			$tmp = $fecha->getTimestamp();
 
-			$options = new \\Dompdf\\Options();
+			$options = new \Dompdf\Options();
 			$options->set('isRemoteEnabled', true);
-			$dompdf = new \\Dompdf\\Dompdf($options);
+			$dompdf = new \Dompdf\Dompdf($options);
 			$dompdf->set_paper("A4", "portrait");
 			$dompdf->load_html($mostrar);
 			$dompdf->render();
