@@ -88,7 +88,7 @@ final class InvoiceRepository
                 ESTAT_FACTURA, ESTAT_AEAT, BILLING_NOM_RAO, BILLING_NIF_CIF, BILLING_ADRECA,
                 BILLING_CP, BILLING_POBLACIO, BILLING_PROVINCIA, BILLING_PAIS, BILLING_EMAIL,
                 IMPORT_BASE, DESC_IMPORT, BASE_IMPOSABLE, IVA_REGIM, IVA_PCT, IVA_IMPORT,
-                TOTAL, SOURCE_CHANNEL, CREATED_BY
+                CAUSA_EXEMPCIO_NO_SUBJECTA, TOTAL, SOURCE_CHANNEL, CREATED_BY
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, \'ISSUED\', \'PENDING\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
