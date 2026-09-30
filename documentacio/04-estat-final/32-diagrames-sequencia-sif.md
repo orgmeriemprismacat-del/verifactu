@@ -1542,7 +1542,7 @@ sequenceDiagram
 
 ## 49. UC-111 · Docent novell, consum, derivació i devolució JASOM `[BRANCA/PARCIAL]`
 
-La seqüència completa UC-111 és massa ampla per a una única cadena lineal: es divideix en alta/decisió/concessió, lliurament, consum original, canvi/baixa, consum derivat i root-refund. Les sis seqüències canòniques es mantenen a [UC-111 · seqüències ACTUAL/FINAL](../07-uml-integrat/uc-111-sequencies-actual-final.md); els canvis d'estat associats es documenten a [UC-111 · dades i estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md).
+La seqüència completa UC-111 es divideix en alta/decisió/concessió, lliurament, consum original, canvi/baixa, consum derivat, **baixa d'un ús derivat → saldo fill** i root-refund. Les seqüències canòniques es mantenen a [UC-111 · seqüències ACTUAL/FINAL](../07-uml-integrat/uc-111-sequencies-actual-final.md); els estats a [UC-111 · dades i estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md).
 
 ```plantuml
 @startuml
@@ -1564,8 +1564,14 @@ Alumne -> SIF : reservar saldo en curs posterior
 SIF -> Fiscal : aplicar preu i factura final
 alt canvi o baixa
   Secretaria -> SIF : decisió + rectificativa
-  SIF -> Fiscal : validar nova destinació o baixa
-  SIF -> SIF : transferir o crear saldo derivat
+  SIF -> Fiscal : validar destinació / baixa + cash
+  alt baixa d'un ús derivat
+    SIF -> SIF : crear child PENDING
+    SIF -> SIF : source APPLIED -> CONVERTED_TO_DERIVED
+    SIF -> SIF : child -> ACTIVE, pare no recreditat
+  else canvi / altres baixes suportades
+    SIF -> SIF : transferir o crear saldo derivat
+  end
 end
 opt devolució posterior JASOM
   Recovery -> SIF : obrir review + evidència refund
@@ -1576,4 +1582,4 @@ end
 @enduml
 ```
 
-**No inferir integració completa:** el codi de serveis existeix a la branca, però els adaptadors finals de sessió/rol, storage documental, pricing, emissió fiscal, transport de correu i evidències externes no estan acreditats com a desplegats. [Fitxes d'acció UC-111](../06-fitxes-funcionals/uc-111-accions.md) · [dades/estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md) · [traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md).
+**No inferir integració completa:** els serveis existeixen a la branca, però sessió/rol, storage documental, pricing, emissió fiscal, transport i evidències externes no estan acreditats com a desplegats. La baixa després d'un transfer successiu confirmat segueix pendent. [Fitxes d'acció UC-111](../06-fitxes-funcionals/uc-111-accions.md) · [dades/estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md) · [traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md).
