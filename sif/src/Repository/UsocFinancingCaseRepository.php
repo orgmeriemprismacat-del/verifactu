@@ -154,12 +154,8 @@ final class UsocFinancingCaseRepository
             $idpag,
         ]);
 
-        if ($stmt->rowCount() === 0) {
-            throw SifException::conflict('USOC financing case not found for reconciliation');
-        }
-
         return $this->findByInscriptionAndIdpag($db, $inscriptionId, $idpag, true)
-            ?? throw new \RuntimeException('USOC financing case could not be reloaded after reconciliation');
+            ?? throw SifException::conflict('USOC financing case not found for reconciliation');
     }
 
     public function findByInscriptionAndIdpag(
