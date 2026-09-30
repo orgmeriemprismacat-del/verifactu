@@ -31,6 +31,8 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
 }
 
 require_once $root . '/LegacyInvoiceReadContext.php';
+require_once $root . '/LegacyInvoiceMutationAuthorization.php';
+require_once $root . '/SifAuthenticatedActor.php';
 require_once $root . '/SifInternalApiClient.php';
 
 $usuariObject = null;
@@ -38,19 +40,8 @@ $intranetObject = null;
 
 try {
     [$usuariObject, $intranetObject] = LegacyInvoiceReadContext::open();
-
-    $actorText = $usuariObject->getUsuari();
-    $actorId = is_object($actorText) && method_exists($actorText, 'get')
-        ? trim((string) $actorText->get())
-        : '';
-    $roles = $usuariObject->getRols();
-    if (!is_array($roles)) {
-        $roles = [];
-    }
-
-    if ($actorId === '' || $roles === []) {
-        throw new RuntimeException('Authenticated actor has no usable identity or roles');
-    }
+    LegacyInvoiceMutationAuthorization::assertSameOrigin();
+    [$actorId, $roles] = SifAuthenticatedActor::fromUser($usuariObject);
 
     $rawBody = file_get_contents('php://input');
     $payload = json_decode($rawBody === false ? '' : $rawBody, true);
