@@ -130,6 +130,7 @@ $csrf = $session->csrfToken();
             <button id="close-detail" class="button ghost" type="button">Tancar</button>
         </div>
         <div id="detail-fields" class="detail-grid"></div>
+        <div id="repair-links" class="repair-links"></div>
         <h3>Historial</h3>
         <div id="timeline" class="timeline"></div>
 
