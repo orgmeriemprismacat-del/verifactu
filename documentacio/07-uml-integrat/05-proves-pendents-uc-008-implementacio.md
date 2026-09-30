@@ -166,7 +166,7 @@ Per marcar UC-008 com PROVAT conservar:
 - prova de tancament amb evidència;
 - resultat preproducció.
 
-**Estat actual:** SUITE SIF/readiness/deep-links VERIFICADA (**670 passed, 0 failed**, run `36664237975`) + INTRANET AO **SUCCESS**. El codi-side del UC-008 queda tancat; resten només l'execució agregada en preproducció i l'alta/configuració real del menú de BD.
+**Estat actual:** SUITE SIF/readiness/deep-links/evidence-gate VERIFICADA (**677 passed, 0 failed**, run `36664788129`) + INTRANET AO **SUCCESS**. El codi-side del UC-008 queda tancat; resta només executar els dos preflights reals d'entorn, completar l'alta de menú si cal i validar els JSON amb `validate-uc008-evidence.php`.
 
 
 ## 13. Evidència CI
@@ -178,6 +178,7 @@ Per marcar UC-008 com PROVAT conservar:
 - Run **36661335874** després de la correcció de cursa idempotent i tests de concurrència real: **648 passed, 0 failed**.
 - Run **36661808598** després del verificador agregat i integració go/no-go: **651 passed, 0 failed**.
 - Run **36664237975** després dels deep-links de reparació a factura/AEAT: **670 passed, 0 failed**.
+- Run **36664788129** després del validador final d'evidències i reconciliació de regressions paral·leles: **677 passed, 0 failed**.
 - Run **36647777483** · Intranet AO batch checks: **success**.
 ## 14. CI automatitzada
 
@@ -185,4 +186,4 @@ S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-te
 
 La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
-**Estat actual:** SIF CI **670/0** + INTRANET AO SUCCESS; backend/UI/preflight/E2E tècnic/concurrència/readiness/deep-links VERIFICATS / EXECUCIÓ AGREGADA PREPRODUCCIÓ + CONFIGURACIÓ MENÚ BD PENDENTS.
+**Estat actual:** SIF CI **677/0** + INTRANET AO SUCCESS; backend/UI/preflight/E2E tècnic/concurrència/readiness/deep-links/evidence-gate VERIFICATS / EXECUCIÓ REAL DE PREPRODUCCIÓ + CONFIGURACIÓ MENÚ BD PENDENTS.
