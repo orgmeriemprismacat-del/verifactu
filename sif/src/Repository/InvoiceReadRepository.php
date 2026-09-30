@@ -93,7 +93,7 @@ final class InvoiceReadRepository
     public function findDocumentMetadata(\PDO $db, string $uuidFactura): array
     {
         $stmt = $db->prepare(
-            'SELECT ID, UUID_FACTURA, TIPUS, HASH_FITXER, ESTAT, CREATED_AT
+            'SELECT ID, UUID_FACTURA, TIPUS, ESTAT, CREATED_AT
              FROM factura_documents
              WHERE UUID_FACTURA = ?
              ORDER BY CREATED_AT ASC, ID ASC'
