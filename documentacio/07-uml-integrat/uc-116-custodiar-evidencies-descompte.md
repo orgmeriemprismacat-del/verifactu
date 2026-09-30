@@ -86,7 +86,7 @@ flowchart LR
   a_1["Gestió amb accés restringit"]
   a_2["Procés de retenció"]
   subgraph SIF_BOUNDARY["Evidència de descompte"]
-    u_0(["UC-116nCustodiar i revisar evidència"])
+    u_0(["UC-116<br/>Custodiar i revisar evidència"])
     u_1(["Verificar fitxer i hash"])
     u_2(["Comprovar permisos i registrar decisió"])
     u_3(["Destruir prova vençuda amb evidència"])
