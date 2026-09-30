@@ -143,6 +143,16 @@ final class LegacyPackInvoicePayloadBuilderTest
         }, 422);
     }
 
+    public function testRejectsDivergentFiscalReceiverBetweenPackItems(): void
+    {
+        $snapshot = $this->packSnapshot();
+        $snapshot['items'][1]['inscription']['DNI'] = '87654321X';
+
+        Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyPackInvoicePayloadBuilder())->build($snapshot);
+        }, 409);
+    }
+
     public function testRequiresAtLeastTwoPackLines(): void
     {
         $snapshot = $this->packSnapshot();
