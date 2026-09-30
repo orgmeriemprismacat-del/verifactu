@@ -94,12 +94,12 @@ flowchart LR
   a_0["Operador autoritzat"]
   a_1["Validador responsable"]
   subgraph SIF_BOUNDARY["SIF · reassignació d'un pagament"]
-    u_0(["UC-105nReassignar o repartir pagament"])
+    u_0(["UC-105<br/>Reassignar o repartir pagament"])
     u_1(["Comprovar pagament i saldo origen"])
     u_2(["Previsualitzar trams i titulars"])
     u_3(["Registrar reversió i noves atribucions"])
-    u_4(["UC-86nAuditar decisió i resultat"])
-    u_5(["UC-74nClassificar impacte fiscal separat"])
+    u_4(["UC-86<br/>Auditar decisió i resultat"])
+    u_5(["UC-74<br/>Classificar impacte fiscal separat"])
   end
   a_0 --> u_0
   a_1 --> u_0
