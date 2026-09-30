@@ -142,6 +142,31 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Alumne / pagador"]
+  actor_1["Empresa/entitat USOC"]
+  actor_2["Operador facturació"]
+  actor_3["Redsys"]
+  subgraph SIF_BOX["SIF PrisMa · USOC"]
+    uc_0(["UC-13<br/>Orquestrar doble facturació"])
+    uc_1(["UC-19<br/>Validar afiliació/condicions"])
+    uc_2(["UC-19a<br/>Facturar i cobrar part alumne"])
+    uc_3(["UC-19b<br/>Facturar part entitat"])
+    uc_4(["UC-02<br/>Cobrar part entitat posterior"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_0
+  actor_3 --> uc_2
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_2 --> uc_4
+```
+
 ## 3. Subdiagrama de classes — dos handlers sense orquestrador fictici
 
 ```mermaid
