@@ -13,6 +13,7 @@ use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\DiscountSnapshotFileReader;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
@@ -81,12 +82,36 @@ try {
     $legacySync = $result['legacy_sync'] ?? ['relations' => [], 'estat_cobrament' => 'PAID'];
 
     if ($syncLegacy && ($result['ok'] ?? false) === true) {
+        $relations = $legacySync['relations'] ?? [];
         (new LegacySyncService(new LegacySyncRepository()))->syncAfterSifSuccess(
             $legacyDb,
-            $legacySync['relations'] ?? [],
+            $relations,
             (string) $result['uuid_factura'],
             (string) $result['num_visible'],
             (string) ($legacySync['estat_cobrament'] ?? 'PAID')
+        );
+
+        $notification = $notifications->findByDsOrder($sifDb, $dsOrder);
+        $idpag = is_array($notification) ? (int) ($notification['IDPAG'] ?? 0) : 0;
+        $idInsc = 0;
+        foreach ($relations as $relation) {
+            if (($relation['source_type'] ?? '') === 'INSCRIPCIO' && isset($relation['source_id'])) {
+                $idInsc = (int) $relation['source_id'];
+                break;
+            }
+        }
+
+        if ($idpag <= 0 || $idInsc <= 0) {
+            throw SifException::conflict('Could not resolve course identity for economic legacy sync');
+        }
+
+        $result['legacy_payment_sync'] = (new CourseLegacyPaymentSyncService())->sync(
+            $sifDb,
+            $legacyDb,
+            $idpag,
+            $idInsc,
+            (string) $result['uuid_factura'],
+            (string) $result['num_visible']
         );
         $result['legacy_sync_executed'] = true;
     } else {
