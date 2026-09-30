@@ -500,11 +500,16 @@ function uc007RenderFacturaSif(res) {
 		html += '<h5>Documents</h5><ul>';
 		res.documents.forEach(function(doc) {
 			var documentId = parseInt(doc.ID, 10);
+			var documentState = String(doc.ESTAT || '').toUpperCase();
+			var downloadable = ['CREATED', 'READY', 'ARCHIVED'].indexOf(documentState) !== -1;
 			html += '<li>' + uc007EscapeHtml(doc.TIPUS || '') + ' · ' +
-				uc007EscapeHtml(doc.ESTAT || '');
-			if (!isNaN(documentId) && documentId > 0) {
+				uc007EscapeHtml(documentState);
+			if (downloadable && !isNaN(documentId) && documentId > 0) {
 				html += ' <button type="button" class="btn btn-default btn-xs uc007-sif-document-download" ' +
 					'data-document-id="' + documentId + '">Descarregar</button>';
+			}
+			else if (!downloadable) {
+				html += ' <span class="label label-default">No disponible</span>';
 			}
 			html += '</li>';
 		});
