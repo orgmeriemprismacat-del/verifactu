@@ -178,9 +178,7 @@ final class PackPaymentGate
             }
             if ($billing === null) {
                 $billing = $currentBilling;
-            } elseif ($billing['nif'] !== $currentBilling['nif']
-                || $billing['name'] !== $currentBilling['name']
-            ) {
+            } elseif ($billing !== $currentBilling) {
                 throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
             }
 
