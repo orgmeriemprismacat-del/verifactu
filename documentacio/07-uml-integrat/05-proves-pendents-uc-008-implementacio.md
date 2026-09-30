@@ -132,6 +132,17 @@ cd codi-drive/intranet-actual
 php preflight-sif-verifactu-menu.php   | tee uc-008-menu-evidence.json
 ```
 
+Després de generar els dos fitxers, executar:
+
+```bash
+php sif/scripts/validate-uc008-evidence.php \
+  uc-008-preproduction-evidence.json \
+  uc-008-menu-evidence.json \
+  | tee uc-008-closure-validation.json
+```
+
+El tancament d'entorn només és vàlid si aquest últim JSON retorna `ok=true`. El validador també rebutja evidències que continguin claus amb secrets/passwords/signatures i exigeix que el menú estigui realment en estat `ALREADY_PRESENT`.
+
 Criteri de tancament:
 
 1. `uc-008-preproduction-evidence.json` → `ok=true`;
