@@ -82,7 +82,7 @@ final class StudentProfileService
             if (
                 (string) $existing['SUBJECT_KEY'] !== $expectedSubject
                 || (string) $existing['REQUESTER_ACTOR_ID'] !== $actorId
-                || $existing['CHANGESET'] !== $normalized
+                || $this->canonicalize($existing['CHANGESET']) !== $this->canonicalize($normalized)
                 || (string) $existing['CORRELATION_ID'] !== $correlationId
             ) {
                 throw SifException::conflict('Request ID already used with different student profile payload');
@@ -132,6 +132,24 @@ final class StudentProfileService
             'changes' => $normalized,
             'status' => 'REQUESTED',
         ];
+    }
+
+
+    private function canonicalize(mixed $value): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        foreach ($value as $key => $item) {
+            $value[$key] = $this->canonicalize($item);
+        }
+
+        if (!array_is_list($value)) {
+            ksort($value);
+        }
+
+        return $value;
     }
 
     private function normalizeChanges(array $profile, array $changes): array
