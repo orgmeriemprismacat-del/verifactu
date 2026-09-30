@@ -75,6 +75,31 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Receptor/representant"]
+  actor_1["Alumne autoritzat"]
+  actor_2["Gestió amb rol fiscal"]
+  subgraph SIF_BOX["SIF · consulta fiscal"]
+    uc_0(["UC-80<br/>Consultar o descarregar document"])
+    uc_1(["Validar sessió/token i titularitat"])
+    uc_2(["Verificar fitxer i hash real"])
+    uc_3(["Servir bytes originals"])
+    uc_4(["Registrar accés o denegació"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
+
+
 ## 4. UML de classes — implementació parcial executable
 
 ```mermaid

@@ -88,6 +88,31 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de gestió"]
+  actor_1["Titular econòmic"]
+  subgraph SIF_BOX["SIF + gestió d'inscripcions"]
+    uc_0(["UC-72<br/>Registrar baixa i decisió econòmica"])
+    uc_1(["UC-27<br/>Donar de baixa la inscripció"])
+    uc_2(["Registrar event i motiu"])
+    uc_3(["Previsualitzar fons<br/>i import retornable"])
+    uc_4(["UC-28<br/>Registrar retorn real"])
+    uc_5(["UC-29<br/>Crear saldo"])
+    uc_6(["UC-05<br/>Rectificar si canvia la factura"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
+  actor_0 --> uc_5
+  actor_0 --> uc_6
+```
+
 ## 3. Diagrama de classes: existent i model objectiu
 
 ```mermaid

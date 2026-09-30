@@ -83,6 +83,29 @@ Exception ..> Main : <<extend>> (dret invàlid)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Destinatari del regal"]
+  actor_1["Operador autoritzat"]
+  subgraph SIF_BOX["SIF · bescanvi de regal [OBJECTIU]"]
+    uc_0(["UC-18<br/>Bescanviar regal"])
+    uc_1(["Validar dret, titular i vigència"])
+    uc_2(["Reservar dret i plaça"])
+    uc_3(["Crear o vincular inscripció"])
+    uc_4(["Consumir dret i deixar event"])
+    uc_5(["UC-18a<br/>Tractar caducat o duplicat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_5
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+  uc_5 -.->|extend| uc_0
+```
+
 ## 3. Classes — compra existent vs bescanvi proposat
 
 ```mermaid

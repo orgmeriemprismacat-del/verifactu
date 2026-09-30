@@ -46,6 +46,26 @@ R --> Revoke
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable autoritzat"]
+  actor_1["Auditor temporal"]
+  subgraph SIF_BOX["SIF · accés auditor"]
+    uc_0(["UC-45<br/>Activar auditor temporal"])
+    uc_1(["Validar identitat, abast i durada"])
+    uc_2(["Concedir accés de només lectura"])
+    uc_3(["UC-80/37<br/>Consultar document/exportació"])
+    uc_4(["Revocar/caducar i auditar"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_4
+```
+
 ## 3. UML de classes — grant no implementat i traça SQL
 
 ```mermaid

@@ -71,6 +71,27 @@ Activate ..> Main : <<extend>> (proves i aprovació)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Administrador SIF"]
+  actor_1["Responsable fiscal/seguretat"]
+  subgraph SIF_BOX["SIF · configuració segura"]
+    uc_0(["UC-38<br/>Configurar entorn i certificat"])
+    uc_1(["Externalitzar i validar secrets"])
+    uc_2(["Comprovar P12 i representació"])
+    uc_3(["Executar preflights per entorn"])
+    uc_4(["UC-39/46<br/>Aprovar canvi i activació"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_2
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## 4. UML de classes — configuració carregada, governança pendent
 
 ```mermaid

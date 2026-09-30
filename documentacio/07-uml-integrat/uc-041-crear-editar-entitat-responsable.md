@@ -69,6 +69,27 @@ Correct ..> Main : <<extend>> (factura ja emesa amb error)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió"]
+  actor_1["Representant acreditat"]
+  subgraph SIF_BOX["SIF · entitat i responsable"]
+    uc_0(["UC-41<br/>Crear/editar entitat o responsable"])
+    uc_1(["Verificar identitat i representació"])
+    uc_2(["Distingir participant/pagador/receptor"])
+    uc_3(["Versionar perfil i impacte sobre operacions"])
+    uc_4(["UC-74<br/>Classificar correcció si ja hi ha factura"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid

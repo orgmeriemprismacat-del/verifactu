@@ -82,6 +82,27 @@ Issue ..> Main : <<extend>> (emissió autoritzada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Receptor fiscal o representant"]
+  actor_1["Gestió autoritzada"]
+  subgraph SIF_BOX["SIF · dades fiscals prèvies"]
+    uc_0(["UC-69<br/>Confirmar i congelar dades"])
+    uc_1(["Verificar receptor i representació"])
+    uc_2(["UC-128<br/>Validar adreça fiscal"])
+    uc_3(["Guardar decisió i versió"])
+    uc_4(["UC-01/04<br/>Emetre sobre snapshot aprovat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## 3. UML de classes — validació existent vs confirmació pendent
 
 ```mermaid

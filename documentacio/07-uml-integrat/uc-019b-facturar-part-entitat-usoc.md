@@ -80,6 +80,27 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  actor_1["Entitat USOC"]
+  subgraph SIF_BOX["SIF · part entitat USOC"]
+    uc_0(["UC-19b<br/>Facturar diferència a entitat"])
+    uc_1(["Verificar inscripció USOC<br/>i factura alumne"])
+    uc_2(["Capturar billing<br/>de l'entitat"])
+    uc_3(["UC-01<br/>Emetre factura entitat<br/>sense cobrament"])
+    uc_4(["UC-02<br/>Registrar cobrament real<br/>posterior"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
+```
+
 ## 3. Diagrama de classes — implementació real
 
 ```mermaid

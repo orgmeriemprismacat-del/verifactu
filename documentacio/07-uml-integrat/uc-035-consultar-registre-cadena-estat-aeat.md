@@ -85,6 +85,29 @@ T --> Incident
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable tècnica"]
+  actor_1["Auditor només lectura"]
+  actor_2["Operador autoritzat"]
+  subgraph SIF_BOX["SIF · consulta fiscal"]
+    uc_0(["UC-35<br/>Consultar registre, cadena i AEAT"])
+    uc_1(["Validar visibilitat i rol"])
+    uc_2(["Llegir història fiscal ordenada"])
+    uc_3(["Comparar hashes i estats"])
+    uc_4(["UC-08<br/>Investigar anomalia"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
+```
+
 ## 3. UML de classes — repositoris reals i consulta objectiu
 
 ```mermaid

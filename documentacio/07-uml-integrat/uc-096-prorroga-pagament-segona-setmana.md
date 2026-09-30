@@ -67,6 +67,27 @@ Recheck ..> Main : <<extend>> (venciment)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió acadèmica"]
+  actor_1["Alumne o pagador autoritzat"]
+  subgraph SIF_BOX["SIF/Prisma · pròrroga de pagament"]
+    uc_0(["UC-96<br/>Concedir pròrroga"])
+    uc_1(["Verificar ID_INSC, deute i rol"])
+    uc_2(["Aplicar regla segona setmana versionada"])
+    uc_3(["Reprogramar baixa/recordatori afectats"])
+    uc_4(["UC-95/124<br/>Revalidar deute abans del límit"])
+  end
+  actor_1 --> uc_0
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes — model acadèmic SQL vs servei de pròrroga pendent
 
 ```mermaid

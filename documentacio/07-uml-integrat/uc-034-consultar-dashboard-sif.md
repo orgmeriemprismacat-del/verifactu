@@ -90,6 +90,31 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable tècnica"]
+  actor_1["Operador autoritzat"]
+  subgraph SIF_BOX["SIF · Dashboard"]
+    uc_0(["UC-34<br/>Consultar dashboard"])
+    uc_1(["Validar rol i abast"])
+    uc_2(["Consultar comptadors<br/>amb origen i data"])
+    uc_3(["UC-08<br/>Consultar incidències"])
+    uc_4(["UC-35<br/>Consultar registres AEAT"])
+    uc_5(["UC-52<br/>Operar cua Redsys"])
+    uc_6(["UC-54<br/>Operar cua fiscal"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_0 --> uc_4
+  actor_0 --> uc_5
+  actor_0 --> uc_6
+```
+
 ## 3. Diagrama de classes — nucli parcial i agregador objectiu
 
 ```mermaid

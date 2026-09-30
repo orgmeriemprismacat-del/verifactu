@@ -76,6 +76,29 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Responsable tècnica"]
+  actor_1["Responsable fiscal"]
+  actor_2["Operador desplegament"]
+  subgraph SIF_BOX["SIF · versió i declaració"]
+    uc_0(["UC-83<br/>Registrar i activar versió"])
+    uc_1(["Congelar Git, artefacte, configuració i BD"])
+    uc_2(["Relacionar proves i declaració aprovades"])
+    uc_3(["UC-46<br/>Activar versió i verificar runtime"])
+    uc_4(["Registrar resultat i possible rollback"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_2
+  actor_2 --> uc_3
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 4. UML de classes — esquema definit, activador pendent
 
 ```mermaid

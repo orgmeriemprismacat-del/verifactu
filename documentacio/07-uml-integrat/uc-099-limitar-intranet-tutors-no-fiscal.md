@@ -72,6 +72,27 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Tutor/col·laborador"]
+  actor_1["Gestió autoritzada"]
+  subgraph SIF_BOX["Intranet tutor · perímetre no fiscal"]
+    uc_0(["UC-99<br/>Accés no fiscal del tutor"])
+    uc_1(["Validar tutor i encàrrec específic"])
+    uc_2(["UC-65/66<br/>Documents i honoraris propis"])
+    uc_3(["Denegar emissió/consulta fiscal aliena"])
+    uc_4(["Auditar intent i resultat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_2
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## UML de classes
 
 ```mermaid
