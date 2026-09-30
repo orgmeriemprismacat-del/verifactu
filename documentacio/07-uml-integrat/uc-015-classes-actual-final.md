@@ -1,6 +1,6 @@
 # UC-015 · Classes ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29  
+**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-09-30  
 **Abast:** ecommerce PrisMa, pay.prisma.cat, Redsys i SIF.  
 **Criteri:** separar estrictament classes i responsabilitats observades al codi actual de les responsabilitats objectiu.
 
@@ -92,13 +92,36 @@ class InvoiceService {
 }
 class InvoiceRepository
 class PaymentRepository
+class PackPaymentGate {
+  +assertCanPrepare(db,post) array
+  +authorizeRows(rows,post,idpag) array
+}
+class SifPaymentIntentClient {
+  +create(payload) array
+}
+class PackEnrollmentFundAllocationService {
+  +allocate(db,dsOrder,snapshot,invoiceResult) array
+}
+class EnrollmentFundMovementRepository {
+  +insertOrReuseExternalAllocation(db,movement) array
+}
+class PackPaymentNotificationService {
+  +enqueue(db,dsOrder,snapshot,invoiceResult) array
+}
+class NotificationOutboxRepository
 
 RedsysCallbackWorker --> RedsysCallbackDispatcher
 RedsysCallbackDispatcher --> RedsysPackInvoiceService
 RedsysPackInvoiceService --> LegacyPackInvoicePayloadBuilder
 RedsysPackInvoiceService --> RedsysInvoicePayloadBuilder
 RedsysPackInvoiceService --> LegacyPackSnapshotRepository : fallback legacy
+PackPaymentGate --> SifPaymentIntentClient : snapshot PACK
+SifPaymentIntentClient --> RedsysPaymentIntentService
 RedsysPackInvoiceService --> InvoiceService
+RedsysPackInvoiceService --> PackEnrollmentFundAllocationService
+PackEnrollmentFundAllocationService --> EnrollmentFundMovementRepository
+RedsysPackInvoiceService --> PackPaymentNotificationService
+PackPaymentNotificationService --> NotificationOutboxRepository
 InvoiceService --> InvoiceRepository
 InvoiceService --> PaymentRepository
 ```
@@ -110,63 +133,69 @@ InvoiceService --> PaymentRepository
 - `RedsysPackInvoiceService` emet des del snapshot de la intenció.
 - A partir de l'auditoria del 2026-09-29 el servei també bloqueja si **total factura != import Redsys validat**.
 - `InvoiceService` centralitza numeració i idempotència fiscal.
+- `PackPaymentGate` reconstrueix el checkout exclusivament des de BD i exigeix snapshot comercial complet.
+- `SifPaymentIntentClient` envia una petició HMAC autenticada a la intenció SIF abans del TPV.
+- `PackEnrollmentFundAllocationService` reparteix un únic `UUID_PAYMENT` a N `ID_INSC` amb moviments idempotents.
+- `PackPaymentNotificationService` registra notificació a outbox al flux asíncron principal.
 
-## 3. Classes FINAL
+## 3. Classes FINAL / objectiu residual
+
+La major part del disseny FINAL previst ja existeix a `main`. El diagrama següent mostra només les responsabilitats encara pendents de consolidar o retirar.
 
 ```mermaid
 classDiagram
 direction LR
-class PackCheckoutAdapter {
-  +preparePackOperation(input) PackSnapshot
-  +createPaymentIntent(snapshot) Intent
+class PackPaymentGate {
+  <<IMPLEMENTAT>>
 }
-class PackCommercialSnapshotValidator {
-  +validateComposition(snapshot)
-  +validateOrderedComponents(snapshot)
-  +validatePrice(snapshot)
-  +validateFiscalReceiver(snapshot)
+class SifPaymentIntentClient {
+  <<IMPLEMENTAT>>
 }
-class RedsysPaymentIntentService
-class RedsysCallbackService
-class RedsysPackInvoiceService
-class InvoiceService
+class RedsysPackInvoiceService {
+  <<IMPLEMENTAT>>
+}
 class EnrollmentFundMovementRepository {
-  +appendExternalAllocation(movement)
-  +appendTransfer(movement)
-  +reverse(movement)
+  <<IMPLEMENTAT>>
+}
+class PackPaymentNotificationService {
+  <<IMPLEMENTAT>>
+}
+class LegacyPackFiscalCallback {
+  <<RETIRAR>>
+}
+class CanonicalPackOrderSource {
+  <<PENDENT ACREDITAR>>
+  +orderedComponents(packId)
 }
 class AcademicEnrollmentSyncService {
+  <<PENDENT CONSOLIDAR>>
   +syncAfterCommit(operation)
 }
-class NotificationOutboxService {
-  +enqueueAfterCommit(template,event)
-}
 
-PackCheckoutAdapter --> PackCommercialSnapshotValidator
-PackCheckoutAdapter --> RedsysPaymentIntentService
-RedsysCallbackService --> RedsysPackInvoiceService
-RedsysPackInvoiceService --> InvoiceService
-RedsysPackInvoiceService --> EnrollmentFundMovementRepository : N atribucions
+PackPaymentGate --> CanonicalPackOrderSource : verificar origen ordinal
+SifPaymentIntentClient --> RedsysPackInvoiceService : via intent/callback/worker
+RedsysPackInvoiceService --> EnrollmentFundMovementRepository
+RedsysPackInvoiceService --> PackPaymentNotificationService
 RedsysPackInvoiceService --> AcademicEnrollmentSyncService : postcommit
-RedsysPackInvoiceService --> NotificationOutboxService : postcommit
+LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 ```
 
 ## 4. Diferències bloquejants ACTUAL → FINAL
 
 | Responsabilitat | ACTUAL | FINAL |
 |---|---|---|
-| Preu definitiu | Part del valor arriba del navegador | Backend autoritatiu + snapshot |
-| Identitat operació | `MAX(IDPAG)+1` | Identitat central/idempotent |
-| Ordinal components | Derivat de files/ordre SQL | Ordinal comercial congelat |
-| Receptor fiscal | Pot provenir del primer item | Receptor confirmat al snapshot |
+| Preu definitiu | **Backend autoritatiu implementat** | Mantenir snapshot versionat i provar runtime |
+| Identitat operació | `MAX(IDPAG)+1` sota `GET_LOCK` | Seqüència pròpia si es decideix eliminar deute legacy |
+| Ordinal components | `PACK_ORDINAL` congelat i consumit | Acreditar que l'origen és l'ordre comercial canònic |
+| Receptor fiscal | **Validació fail-closed entre tots els components** | Mantenir receptor explícit al snapshot |
 | Callback | Script legacy amb escriptures directes | Callback SIF + cua + worker |
 | Numeració | Taula legacy | Seqüència fiscal SIF |
-| Distribució monetària | Camps `PAGAMENT/A_PAGAR` | Ledger quantitatiu per ID_INSC |
-| Notificacions | PHP directe | Outbox postcommit |
+| Distribució monetària | **Ledger `enrollment_fund_movement` implementat** | Proves runtime/preproducció |
+| Notificacions | **Outbox implementat al flux SIF; PHP legacy encara existeix** | Retirar dependència del correu directe legacy |
 
 ## 5. Estat
 
 - **Documentat:** sí.
 - **Implementat parcial:** sí.
 - **Verificat per inspecció:** sí.
-- **Pendent:** adaptador ecommerce, snapshot comercial complet, ledger per inscripció, sincronització acadèmica i retirada del callback fiscal llegat.
+- **Pendent:** retirada del callback fiscal llegat, acreditació de l'origen canònic de `PACK_ORDINAL`, consolidació de la sincronització acadèmica i evidència runtime/preproducció.
