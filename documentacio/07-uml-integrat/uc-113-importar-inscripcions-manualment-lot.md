@@ -58,6 +58,20 @@ AO ..> REC : posterior, NO automatic comprovat
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Persona / responsable de grup"]
+  a_1["Secretaria"]
+  a_2["Gestió acadèmica"]
+  subgraph SIF_BOUNDARY["Campus i conciliació"]
+    u_0(["Editar dades i seleccionar aula"])
+    u_1(["Generar fitxer aules obertes"])
+  end
+  a_2 --> u_1
+```
+
 ## 3. UML de classes/mètodes ACTUALS del lot de la URL
 
 Les classes/mètodes d'aquest esquema són **els verificats en el PHP/JS versionat**; els fitxers AJAX fan de punts d'entrada. `mostrarMain.php` resol l'URL amb el registre d'`apartats` de la BD intranet; l'associació entre URL real i pàgina l'ha aportat Meriem i el fitxer PHP té el títol literal «Generar fitxer pujada alumnes».
