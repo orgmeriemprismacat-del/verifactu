@@ -2,7 +2,7 @@
 
 **Data:** 29/09/2026  
 **Branca d'auditoria:** `audit/uc-014-completa-2026-09-29`  
-**Estat global:** **DOC AMPLIADA / IMP SIF AVANÇADA / WIRING CURS VERIFICAT PER CI / TALL PRODUCTIU I E2E PREPRODUCCIÓ PENDENTS**.
+**Estat global:** **DOC AMPLIADA / IMP SIF AVANÇADA / E2E INTERN SIMULAT VERIFICAT PER CI / TALL PRODUCTIU I E2E REDSYS-PREPRODUCCIÓ PENDENTS**.
 
 ## 1. Evidència revisada
 
@@ -44,17 +44,17 @@
 | --- | --- | --- | --- | --- | --- |
 | A14-01 | Mostrar confirmació | `PagamentCursAutomatic::mostrarPaginaConfirmacio` + JS extern | llegeix `inscripcions/curs` | vista basada en estat autoritatiu | ACTUAL contrastat / FINAL pendent integració |
 | A14-02 | Mostrar pagament | `PagamentCursAutomatic::mostrar` | calcula pendent amb camps llegats | ledger + regles servidor | ACTUAL contrastat |
-| A14-03 | Preparar targeta | `pagina_efectuar_pagament_automatic.php` | usa POST del navegador | crear intent persistent | GAP P0 |
-| A14-04 | Crear DS_ORDER | `time()` | no hi ha intent previ acreditat | `RedsysPaymentIntentService` | SIF implementat / adaptador pendent |
-| A14-05 | Enviar import TPV | `importPagare * 100` | import del POST | `EXPECTED_AMOUNT` recomputat | GAP P0 |
+| A14-03 | Preparar targeta | `pagina_efectuar_pagament_automatic.php` | usa POST del navegador a l'ACTUAL | crear intent persistent | IMPLEMENTAT en la còpia candidata; desplegament no acreditat |
+| A14-04 | Crear DS_ORDER | `time()` | ACTUAL llegat | `RedsysPaymentIntentService` + generador servidor | IMPLEMENTAT i cobert per tests |
+| A14-05 | Enviar import TPV | `importPagare * 100` | ACTUAL llegat | `EXPECTED_AMOUNT` recomputat pel SIF | IMPLEMENTAT en el pont candidat; producció no acreditada |
 | A14-06 | Callback | `realitzaPagamentAutomatic.php` | GET + POST Redsys | `RedsysCallbackService` | migració pendent |
-| A14-07 | Signatura | `RedsysAPI` | comparació no localitzada | validació obligatòria | GAP P0; verificar versió desplegada |
-| A14-08 | Comparar ordre/import | script llegat | no acreditat | intenció vs callback | GAP P0 |
+| A14-07 | Signatura | `RedsysAPI` | comparació no localitzada a l'ACTUAL original | `RedsysSignatureValidator` + reforç callback candidat | IMPLEMENTAT; desplegament real pendent d'acreditar |
+| A14-08 | Comparar ordre/import | script llegat | no acreditat a l'ACTUAL original | intenció vs callback | IMPLEMENTAT i provat al circuit SIF/candidat |
 | A14-09 | Facturar | INSERT directe a `factures` | factura llegada | `InvoiceService` | FINAL implementat |
 | A14-10 | Numeració | MAX/últim + 1 | canal web | seqüència fiscal central | GAP P0 |
-| A14-11 | Registrar cobrament | UPDATE `inscripcions.PAGAMENT` | acumulatiu | `payment_transaction/allocation` | FINAL implementat parcial |
-| A14-12 | Fraccionament | `FRACCIO` + suma | mutació camp | moviments immutables | GAP P1 |
-| A14-13 | Callback duplicat | no acreditat | risc de segon efecte | idempotència | tests existents / execució no acreditada |
+| A14-11 | Registrar cobrament | UPDATE `inscripcions.PAGAMENT` | acumulatiu | `payment_transaction/allocation` + projecció llegada | IMPLEMENTAT; wiring CURS verificat per CI |
+| A14-12 | Fraccionament | `FRACCIO` + suma | mutació camp | moviments immutables + suma ledger | E2E intern parcial→complet verificat per CI |
+| A14-13 | Callback duplicat | no acreditat a l'ACTUAL original | risc de segon efecte | idempotència | E2E intern duplicat verificat per CI |
 | A14-14 | Correu | callback | enviament immediat | outbox/postcommit | pendent |
 | A14-15 | Retorn OK/KO | pàgines UX | assumeix resultat | consulta estat real | GAP P1 |
 | A14-16 | Sync acadèmica | barrejat/parcial | efectes postpagament | procés recuperable separat | pendent |
@@ -89,9 +89,9 @@
 | Activitats RM-037 | Documentades per 6 superfícies + variants |
 | Codi llegat | Contrastat estàticament |
 | Codi SIF Redsys | Implementació real localitzada |
-| Adaptador ecommerce | PENDENT |
-| Ledger per inscripció | PARCIAL/DISSENY |
-| Tests | EXISTENTS, NO ACREDITATS COM EXECUTATS |
+| Adaptador ecommerce | IMPLEMENTAT EN CÒPIA CANDIDATA; DESPLEGAMENT NO ACREDITAT |
+| Ledger per inscripció | IMPLEMENTAT PER `payment_transaction/allocation`; projecció llegada connectada |
+| Tests | EXECUTATS EN CI; E2E INTERN SIMULAT VERD ALS 3 WORKFLOWS |
 | Preproducció | NO ACREDITADA |
 | Producció | NO ACREDITADA |
 
@@ -113,6 +113,6 @@ Durant l'auditoria s'han observat secrets Redsys literals en còpies de codi del
 
 ## 7. Evidència CI i pla de tall final
 
-El wiring de sincronització de curs al worker Redsys ha estat integrat a `main` i verificat per CI en els workflows `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification`. Això acredita el codi i la suite automatitzada, però **no** una execució end-to-end contra Redsys/preproducció.
+El wiring de sincronització de curs al worker Redsys ha estat integrat a `main` i verificat per CI. A més, `RedsysCourseEndToEndSimulatedTest` cobreix de forma integrada: intenció → callback validat → cua → worker → factura → `payment_transaction`/`payment_allocation` → projecció llegada; inclou callback duplicat i parcial→complet. Els workflows `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en verd sobre aquesta prova. Això acredita l'E2E **intern simulat**, però **no** una execució contra Redsys/preproducció real.
 
 El procediment de tall operatiu queda definit a [UC-014 — Pla de tall final Redsys cap al SIF](uc-014-pla-tall-final-redsys-sif.md).
