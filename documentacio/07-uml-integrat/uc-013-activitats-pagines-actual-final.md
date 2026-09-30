@@ -336,5 +336,5 @@ flowchart TD
 2. Mantenir el test de regressió de l'allocator IDPAG compartit; implementació actual protegida amb named lock.
 3. Integrar la pantalla USOC al menú/routing habitual de la intranet.
 4. Validar en preproducció la configuració HMAC, rols i DB legacy amb `preflight-usoc-intranet.php`.
-5. Executar i conservar evidència de la suite sobre `sif_test*`.
+5. Evidència CI conservada a `documentacio/09-proves-qa/uc-013-evidencia-ci-2026-09-30.md`; proves USOC PASS al run `36657971568`. Resta validació de desplegament/preproducció.
 6. Tractament definit per alumne=0/curs gratuït.
