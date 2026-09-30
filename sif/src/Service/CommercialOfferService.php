@@ -227,6 +227,14 @@ final class CommercialOfferService
                 throw SifException::validation('Commercial offer discount must be an object');
             }
             $discount = $this->validateDiscount($input['discount']);
+            if (
+                $discount['result_discount_amount'] !== null
+                && $this->cents($discount['result_discount_amount']) !== $this->cents($discountAmount)
+            ) {
+                throw SifException::validation(
+                    'Discount validation result amount must match commercial offer discount amount'
+                );
+            }
         }
 
         return [
