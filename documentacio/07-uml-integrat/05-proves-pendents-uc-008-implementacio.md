@@ -23,13 +23,13 @@ php sif/scripts/preflight-sif.php
 
 ## 2. Repositori i identitat
 
-- [ ] open legacy continua creant fila OPEN.
+- [x] `open()` legacy continua creant fila `OPEN` amb identitat estable.
 - [x] openDetailed retorna `incident_id` i `uuid_incident`.
-- [ ] factura existent acceptada.
+- [x] factura existent acceptada i vinculada a la incidència.
 - [x] factura desconeguda → 404 i cap fila orfe.
-- [ ] pagament existent acceptat.
-- [ ] pagament desconegut → 404.
-- [ ] resource_type sense resource_id → 422.
+- [x] pagament existent acceptat i vinculat a `UUID_PAYMENT`.
+- [x] pagament desconegut → 404 i no persisteix fila orfe.
+- [x] `resource_type` i `resource_id` són parella obligatòria; absència d'un dels dos → 422.
 - [x] mateixa idempotency key + mateix payload → reuse.
 - [x] mateixa idempotency key + payload diferent → 409.
 - [ ] dues obertures concurrents mateixa key → una sola capçalera.
