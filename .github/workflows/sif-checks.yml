@@ -12,6 +12,7 @@ on:
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
       - "codi-drive/intranet-actual/alumnes-usoc-financament.php"
       - "codi-drive/intranet-actual/ajax/alumnes/usocFinancament.php"
+      - "codi-drive/intranet-actual/ajax/mostrarSideBarMenu.php"
       - "codi-drive/intranet-actual/js/alumnes-usoc-financament.js"
       - "codi-drive/intranet-actual/alumnes-validar-descomptes.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
@@ -82,6 +83,7 @@ jobs:
           php -l codi-drive/intranet-actual/SifInternalUsocClient.php
           php -l codi-drive/intranet-actual/alumnes-usoc-financament.php
           php -l codi-drive/intranet-actual/ajax/alumnes/usocFinancament.php
+          php -l codi-drive/intranet-actual/ajax/mostrarSideBarMenu.php
           php -l codi-drive/intranet-actual/alumnes-validar-descomptes.php
           php -l codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php
           php -l codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php
