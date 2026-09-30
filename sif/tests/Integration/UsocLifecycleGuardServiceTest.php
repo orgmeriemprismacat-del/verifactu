@@ -27,6 +27,47 @@ final class UsocLifecycleGuardServiceTest
         Assert::same('NO_SIF_USOC_CASE', $cancel['reason']);
     }
 
+    public function testBlocksOrphanUsocFiscalEvidenceWithoutFinancingCase(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'REDSYS|USOC_ALUMNE|IDPAG:980|ORDER:ORPHAN980',
+                'source_channel' => 'REDSYS',
+                'totals' => [
+                    'import_base' => '75.00',
+                    'taxable_base' => '75.00',
+                    'total' => '75.00',
+                ],
+                'lines' => [[
+                    'unit_price' => '75.00',
+                    'base' => '75.00',
+                    'import_base' => '75.00',
+                    'taxable_base' => '75.00',
+                    'total' => '75.00',
+                ]],
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 880,
+                    'idpag' => 980,
+                    'ds_order' => 'ORPHAN980',
+                    'visible_alumne' => 1,
+                ]],
+            ])
+        );
+
+        $service = new UsocLifecycleGuardService(
+            new UsocFinancingCaseRepository(new UuidGenerator())
+        );
+
+        $result = $service->check($db, 880, 980, 'course_change');
+
+        Assert::same(false, $result['allowed']);
+        Assert::same('USOC_FISCAL_EVIDENCE_WITHOUT_CASE_REQUIRES_REVIEW', $result['reason']);
+        Assert::same(null, $result['case']);
+        Assert::same($invoice['uuid_factura'], $result['orphan_fiscal_evidence']['UUID_FACTURA']);
+    }
+
     public function testBlocksLegacyChangeAndCancellationWhenUsocCaseExists(): void
     {
         $db = TestDatabase::fresh();
