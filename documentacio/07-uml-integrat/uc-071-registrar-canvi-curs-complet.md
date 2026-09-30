@@ -90,6 +90,36 @@ O --> Rect
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de gestió"]
+  actor_1["Pagador/titular econòmic"]
+  subgraph SIF_BOX["SIF + integració d'inscripcions"]
+    uc_0(["UC-71<br/>Registrar canvi de curs complet"])
+    uc_1(["UC-26<br/>Canviar inscripció"])
+    uc_2(["Previsualitzar<br/>diferència i fons disponibles"])
+    uc_3(["Registrar historial<br/>i correlació"])
+    uc_4(["Reassignar fons<br/>A → B"])
+    uc_5(["UC-02<br/>Cobrar diferència efectiva"])
+    uc_6(["UC-28<br/>Registrar devolució real"])
+    uc_7(["UC-29<br/>Crear saldo"])
+    uc_8(["UC-05<br/>Rectificar factura si cal"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+  actor_0 --> uc_5
+  actor_0 --> uc_6
+  actor_0 --> uc_7
+  actor_0 --> uc_8
+```
+
+
 Els casos de cobrament, devolució, saldo i rectificació són **accions posteriors condicionades** a la decisió i als fets; les relacions del diagrama no signifiquen que totes es disparin juntes ni que hi hagi un orquestrador executant-les avui.
 
 ## 3. Subdiagrama de classes: existent vs proposta
