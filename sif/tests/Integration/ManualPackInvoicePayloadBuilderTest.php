@@ -131,7 +131,7 @@ final class ManualPackInvoicePayloadBuilderTest
             'items' => [
                 [
                     'inscription' => array_replace(
-                        $this->inscription(321, '06', 'ABC', '120.00', 801),
+                        $this->inscription(321, '06', 'ABC', '120.00', 801, '120.00', '0.00', '0.00', 1),
                         $inscriptionOverrides
                     ),
                     'course' => [
@@ -143,7 +143,7 @@ final class ManualPackInvoicePayloadBuilderTest
                 ],
                 [
                     'inscription' => array_replace(
-                        $this->inscription(322, '07', 'DEF', '90.00', 802),
+                        $this->inscription(322, '07', 'DEF', '90.00', 802, '120.00', '30.00', '25.00', 2),
                         $inscriptionOverrides
                     ),
                     'course' => [
@@ -157,7 +157,7 @@ final class ManualPackInvoicePayloadBuilderTest
         ];
     }
 
-    private function inscription(int $id, string $month, string $course, string $amount, int $facturaRelacionada): array
+    private function inscription(int $id, string $month, string $course, string $amount, int $facturaRelacionada, string $base, string $discount, string $discountPct, int $ordinal): array
     {
         return [
             'ID' => $id,
@@ -175,6 +175,11 @@ final class ManualPackInvoicePayloadBuilderTest
             'Poblacio' => 'Barcelona',
             'FACTURA_RELACIONADA' => $facturaRelacionada,
             'A_PAGAR' => $amount,
+            'IMPORT_BASE' => $base,
+            'DESC_IMPORT' => $discount,
+            'DESC_PCT' => $discountPct,
+            'TOTAL' => $amount,
+            'PACK_ORDINAL' => $ordinal,
             'PAGAMENT' => '0.00',
             'FRACCIO' => 0,
         ];
