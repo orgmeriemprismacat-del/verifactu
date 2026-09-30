@@ -5868,57 +5868,69 @@ class Intranet
 	* 			 Per defecte s'ordenarà per cognoms ascendents
    */
 	public function mostrarTaulaUsuaris2_Alumnes($dnies, $orderby, $asc) {
-		if ($orderby != 'cog' && $orderby!='dni' && $orderby!='nom')
+		if ($orderby != 'cog' && $orderby != 'dni' && $orderby != 'nom')
 			$orderby = 'cog';
-		if ($asc!=1 and $asc!=0)
+		if ($asc != 1 && $asc != 0)
 			$asc = 1;
 
-		$vectDni = explode('|', $dnies);
+		$vectDni = array_values(array_filter(
+			array_map('trim', explode('|', (string) $dnies)),
+			static fn ($value) => $value !== ''
+		));
+		$resultats = [];
 
 		$conWeb = new ConnexioWeb();
 		$conWeb->connectarBD();
 
-		for ($i = 0; $i<count($vectDni); $i++) {
+		for ($i = 0; $i < count($vectDni); $i++) {
+			$nom = '';
+			$cog = '';
+
 			if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["buscaNomCogInscOrd"] ) ) {
 				$stmt->bind_param("s", $vectDni[$i]);
 				$stmt->execute();
-				$stmt->bind_result($nom, $cog);
-				$stmt->fetch();
+				$stmt->store_result();
+				if ($stmt->num_rows() > 0) {
+					$stmt->bind_result($nom, $cog);
+					$stmt->fetch();
+				}
 				$conWeb->closeStmt();
 			}
 			else {
 				throw new Exception('', 4012);
 			}
 
-			$resultats[$i][0] = $vectDni[$i];
-			$resultats[$i][1] = $nom;
-			$resultats[$i][2] = $cog;
+			/* Un candidat també pot ser un CIF de factura d'empresa sense inscripció personal. */
+			if ($nom === '' && $cog === '') {
+				if ( $stmt=$conWeb->prepare(
+					"SELECT rao FROM factures WHERE cif = ? ORDER BY any DESC, ID DESC LIMIT 1"
+				) ) {
+					$stmt->bind_param("s", $vectDni[$i]);
+					$stmt->execute();
+					$stmt->store_result();
+					if ($stmt->num_rows() > 0) {
+						$stmt->bind_result($raoEmpresa);
+						$stmt->fetch();
+						$nom = (string) $raoEmpresa;
+					}
+					$conWeb->closeStmt();
+				}
+				else {
+					throw new Exception('', 4012);
+				}
+			}
+
+			$resultats[] = [
+				$vectDni[$i],
+				(string) $nom,
+				(string) $cog,
+			];
 		}
 
-		function cmpDni($a, $b) {
-		    if ($a[0] == $b[0]) {
-		        return 0;
-		    }
-		    return ($a[0] < $b[0]) ? -1 : 1;
-		}
-
-		function cmpNom($a, $b) {
-		    if ($a[1] == $b[1]) {
-		        return 0;
-		    }
-		    return ($a[1] < $b[1]) ? -1 : 1;
-		}
-
-		function cmpCog($a, $b) {
-		    if ($a[2] == $b[2]) {
-		        return 0;
-		    }
-		    return ($a[2] < $b[2]) ? -1 : 1;
-		}
-
-		if ($orderby == 'cog') usort($resultats, "cmpCog");
-		else if ($orderby == 'nom') usort($resultats, "cmpNom");
-		else if ($orderby == 'dni') usort($resultats, "cmpDni");
+		$keyIndex = ['dni' => 0, 'nom' => 1, 'cog' => 2][$orderby];
+		usort($resultats, static function ($a, $b) use ($keyIndex) {
+			return strnatcasecmp((string) $a[$keyIndex], (string) $b[$keyIndex]);
+		});
 
 		$conWeb->desconectarBD();
 
@@ -5926,52 +5938,40 @@ class Intranet
 		$classNom = '';
 		$classDni = '';
 
-		if ($asc == 1) { //s'ordena ascendentment
+		if ($asc == 1) {
 			if ($orderby == 'cog') $classCog = ' asc';
 			else if ($orderby == 'nom') $classNom = ' asc';
 			else if ($orderby == 'dni') $classDni = ' asc';
 		}
-		else { //s'ordena desscendentment
+		else {
 			if ($orderby == 'cog') $classCog = ' desc';
 			else if ($orderby == 'nom') $classNom = ' desc';
 			else if ($orderby == 'dni') $classDni = ' desc';
 		}
 
-		//Mostra usuaris en format d'una taula ordenats per dni;
 		$mostrar = "<table class='table table-striped table-hover table-order text-center'>
 		<thead>
 			<tr>
-				<th id='th-dni' class='sorting".$classDni."'>DNI</th>
-				<th id='th-nom' class='sorting".$classNom."'>NOM</th>
+				<th id='th-dni' class='sorting".$classDni."'>DNI/CIF</th>
+				<th id='th-nom' class='sorting".$classNom."'>NOM / RAÓ</th>
 				<th id='th-cog' class='sorting".$classCog."'>COGNOMS</th>
 				<th></th>
 			</tr>
 		</thead>
 		<tbody>";
 
-		if ($asc == 1) {
-			$inici = 0;
-			$fi = count($resultats);
-			for ($i = $inici; $i<$fi; $i++) {
-				$mostrar .= "<tr>";
-				$mostrar .= "<td>".$resultats[$i][0]."</td>";
-				$mostrar .= "<td>".$resultats[$i][1]."</td>";
-				$mostrar .= "<td>".$resultats[$i][2]."</td>";
-				$mostrar .= "<td><button class='boto-blau seleccionar' id='".$resultats[$i][0]."'>Selecciona</button></td>";
-				$mostrar .= "</tr>";
-			}
-		}
-		else {
-			$inici = count($resultats);
-			$fi = 0;
-			for ($i = $inici-1; $i>=$fi; $i--) {
-				$mostrar .= "<tr>";
-				$mostrar .= "<td>".$resultats[$i][0]."</td>";
-				$mostrar .= "<td>".$resultats[$i][1]."</td>";
-				$mostrar .= "<td>".$resultats[$i][2]."</td>";
-				$mostrar .= "<td><button class='boto-blau seleccionar' id='".$resultats[$i][0]."'>Selecciona</button></td>";
-				$mostrar .= "</tr>";
-			}
+		$files = $asc == 1 ? $resultats : array_reverse($resultats);
+		foreach ($files as $resultat) {
+			$dniHtml = $this->__escapeHtmlValue($resultat[0]);
+			$nomHtml = $this->__escapeHtmlValue($resultat[1]);
+			$cogHtml = $this->__escapeHtmlValue($resultat[2]);
+
+			$mostrar .= "<tr>";
+			$mostrar .= "<td>".$dniHtml."</td>";
+			$mostrar .= "<td>".$nomHtml."</td>";
+			$mostrar .= "<td>".$cogHtml."</td>";
+			$mostrar .= "<td><button class='boto-blau seleccionar' id='".$dniHtml."'>Selecciona</button></td>";
+			$mostrar .= "</tr>";
 		}
 
 		$mostrar .= "</tbody></table>";
