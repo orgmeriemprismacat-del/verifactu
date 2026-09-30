@@ -14,6 +14,7 @@ $config = require dirname(__DIR__) . '/config/sif.php';
 $checks = [
     'sif_database' => false,
     'usoc_financing_case_table' => false,
+    'usoc_validation_decision_table' => false,
     'internal_api_key_id' => false,
     'internal_api_secret' => false,
     'internal_api_usoc_signed_path' => false,
@@ -26,6 +27,7 @@ try {
     $db = ConnectionFactory::make($config);
     $checks['sif_database'] = true;
     $checks['usoc_financing_case_table'] = tableExists($db, 'usoc_financing_case');
+    $checks['usoc_validation_decision_table'] = tableExists($db, 'usoc_validation_decision');
 } catch (Throwable $exception) {
     $databaseError = $exception->getMessage();
 }
