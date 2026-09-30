@@ -28,7 +28,15 @@ final class RedsysPackInvoiceService implements RedsysIntentHandler
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
         $this->assertPaymentMatchesInvoice($payload);
 
-        return $this->invoices->issueInvoice($payload);
+        $result = $this->invoices->issueInvoice($payload);
+        $result['legacy_sync'] = [
+            'mode' => 'PACK_FULL_PAYMENT',
+            'relations' => $payload['relations'] ?? [],
+            'estat_cobrament' => isset($payload['payment']) ? 'PAID' : 'PENDING',
+            'movement_date' => (string) ($payload['payment']['movement_date'] ?? date('Y-m-d H:i:s')),
+        ];
+
+        return $result;
     }
 
     public function issueFromValidatedNotification(\PDO $sifDb, \PDO $legacyDb, string $dsOrder): array
