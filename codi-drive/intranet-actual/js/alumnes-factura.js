@@ -781,47 +781,56 @@ function mostrarModalConsultaInformacio( id ) {
 						});
 
 						requestSavePag.done(function(res) {
-							if ( !res.includes("Error") && !res.includes("error") ) {
-								$('#modalConsultaInformacio #dades-factura .loading-wrapper').addClass('hide');
+							var saveSucceeded = !res.includes("Error") && !res.includes("error");
+							$('#modalConsultaInformacio #dades-factura .loading-wrapper').addClass('hide');
+							$('#modalConsultaInformacio #dades-factura .apartat').removeClass('opacity-02');
+
+							if (saveSucceeded) {
 								var msgOK = "<div class='alert alert-success alert-with-icon w-100 mb-2'>";
 								msgOK += "<i class='material-icons' data-notify='icon'>notifications</i>";
 								msgOK += "<button type='button' data-dismiss='alert' aria-label='Close' class='close'>";
 								msgOK += "<i class='material-icons'>close</i></button>";
 								msgOK += "<span>Els canvis s'han guardat correctament</span></div>";
 								$('#modalConsultaInformacio #dades-factura .result-success').html(msgOK);
-								$('#modalConsultaInformacio #dades-factura .result-success').removeClass('hide');
-							}
-							else {
-								var msgError = "<div class='alert alert-danger alert-with-icon w-100 mb-2'>";
-								msgError += "<i class='material-icons' data-notify='icon'>notifications</i>";
-								msgError += "<button type='button' data-dismiss='alert' aria-label='Close' class='close'>";
-								msgError += "<i class='material-icons'>close</i></button>";
-								msgError += "<span>Hi ha hagut un error amb el registre</span></div>";
-								$('#modalConsultaInformacio #dades-factura .result-success').html(msgError);
-								$('#modalConsultaInformacio #dades-factura .result-success').addClass('danger');
-								$('#modalConsultaInformacio #dades-factura .result-success').removeClass('hide');
-							}
-							setTimeout(function() {
-								$('#modalConsultaInformacio #dades-factura .result-success').fadeOut('slow', function() {
-									$('#modalConsultaInformacio #dades-factura .result-success').addClass('hide');
-									$('#modalConsultaInformacio #dades-factura .apartat').removeClass('opacity-02');
-									$("#modalConsultaInformacio #dades-factura .apartat .form-group .form-control.editables").each(function() {
-										var id = $(this).attr('id');
-										var text = $(this).val();
-										var parent = $(this).parent();
-										$(this).remove();
-										parent.append("<div class='form-control no-edit editables' id='" + id + "'>" + text + "</div>");
+								$('#modalConsultaInformacio #dades-factura .result-success')
+									.removeClass('hide danger');
+
+								setTimeout(function() {
+									$('#modalConsultaInformacio #dades-factura .result-success').fadeOut('slow', function() {
+										$('#modalConsultaInformacio #dades-factura .result-success').addClass('hide');
+										$("#modalConsultaInformacio #dades-factura .apartat .form-group .form-control.editables").each(function() {
+											var id = $(this).attr('id');
+											var text = $(this).val();
+											var parent = $(this).parent();
+											$(this).remove();
+											$('<div>', {
+												'class': 'form-control no-edit editables',
+												id: id
+											}).text(text).appendTo(parent);
+										});
+										$('#modalConsultaInformacio #dades-factura .save-result').html("edit");
+										$('#modalConsultaInformacio #dades-factura .save-result').addClass("editar-apartat");
+										$('#modalConsultaInformacio #dades-factura .save-result').removeClass("save-result");
+										$('#modalConsultaInformacio #dades-factura .cancelar-apartat').remove();
 									});
-									$('#modalConsultaInformacio #dades-factura .save-result').html("edit");
-									$('#modalConsultaInformacio #dades-factura .save-result').addClass("editar-apartat");
-									$('#modalConsultaInformacio #dades-factura .save-result').removeClass("save-result");
-									$('#modalConsultaInformacio #dades-factura .cancelar-apartat').remove();
-								});
-							}, 1500);
+								}, 1500);
+								return;
+							}
+
+							var msgError = "<div class='alert alert-danger alert-with-icon w-100 mb-2'>";
+							msgError += "<i class='material-icons' data-notify='icon'>notifications</i>";
+							msgError += "<button type='button' data-dismiss='alert' aria-label='Close' class='close'>";
+							msgError += "<i class='material-icons'>close</i></button>";
+							msgError += "<span>Hi ha hagut un error amb el registre</span></div>";
+							$('#modalConsultaInformacio #dades-factura .result-success').html(msgError);
+							$('#modalConsultaInformacio #dades-factura .result-success')
+								.addClass('danger')
+								.removeClass('hide');
 						});
 
 						requestSavePag.fail(function(jqXHR, textStatus, errorThrown) {
-							$("#modalConsultaInformacio").modal('hide');
+							$('#modalConsultaInformacio #dades-factura .loading-wrapper').addClass('hide');
+							$('#modalConsultaInformacio #dades-factura .apartat').removeClass('opacity-02');
 							errorFunction(jqXHR, textStatus, errorThrown,
 								"Hi ha hagut un error a l'hora de guardar les dades de la factura: ");
 						});
