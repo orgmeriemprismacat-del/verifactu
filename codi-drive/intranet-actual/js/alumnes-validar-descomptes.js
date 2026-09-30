@@ -1,6 +1,18 @@
 let urlPagina = window.location.pathname.split('?')[0];
 let path = "https://intranet.prisma.cat/ajax/";
 
+function obtenirCsrfValidarDescomptes() {
+	const meta = document.querySelector('meta[name="csrf-token-validar-descomptes"]');
+	return meta ? meta.getAttribute('content') : '';
+}
+
+function nouRequestIdValidarDescompte() {
+	if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+		return window.crypto.randomUUID();
+	}
+	return 'valid-desc-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
 /* Cada vegada que es faci una crida d'un ajax, s'executarà la funció mostrarModalLoading().
 Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoadingModal(). */
 $(document).bind("ajaxSend", function(){
@@ -65,10 +77,12 @@ requestMain.done(function( message ) {
 		var request = $.ajax({
 			url: path + "alumnes/sendMsgValidatCurosDescomptes.php",
 			global: false,
-			method: "GET",
+			method: "POST",
 			data: {
 				idInsc: idInsc,
-				verificat: valid
+				verificat: valid,
+				csrfToken: obtenirCsrfValidarDescomptes(),
+				requestId: nouRequestIdValidarDescompte()
 			},
 			dataType: "html"
 		});
