@@ -117,9 +117,31 @@ php sif/scripts/preflight-sif.php
 - [x] verificació de 303, cookie, CSRF, actor sense controls de gestió i logout.
 - [x] test que impedeix introduir mutacions al script.
 - [x] E2E integrat al verificador agregat i sanitització d'evidència provada.
-- [ ] **ÚNIC PENDENT D'ENTORN:** executar `php sif/scripts/verify-incidents-panel-preproduction.php | tee uc-008-preproduction-evidence.json` a preproducció amb URL/rols/secrets reals i adjuntar el JSON resultant.
+- [ ] **ÚNIC PENDENT D'ENTORN:** executar i conservar **dos JSON** amb configuració real: (1) `php sif/scripts/verify-incidents-panel-preproduction.php | tee uc-008-preproduction-evidence.json`; (2) des de `codi-drive/intranet-actual`, `php preflight-sif-verifactu-menu.php | tee uc-008-menu-evidence.json`. El primer ha de donar `ok=true`; el segon ha de donar `ALREADY_PRESENT` o bé els candidats reals per confirmar `parent_id/roles/order` abans de l'alta.
 
-## 11. Evidència de tancament
+## 11. Procediment únic de tancament d'entorn
+
+Executar sobre els entorns corresponents, sense reutilitzar secrets en fitxers:
+
+```bash
+# SIF / pay.prisma.cat
+php sif/scripts/verify-incidents-panel-preproduction.php   | tee uc-008-preproduction-evidence.json
+
+# Intranet / intranet.prisma.cat
+cd codi-drive/intranet-actual
+php preflight-sif-verifactu-menu.php   | tee uc-008-menu-evidence.json
+```
+
+Criteri de tancament:
+
+1. `uc-008-preproduction-evidence.json` → `ok=true`;
+2. el JSON no conté secrets ni passwords;
+3. `uc-008-menu-evidence.json` → `existing_target_count <= 1`;
+4. si `status=CONFIRM_PARENT_ROLES_ORDER_BEFORE_INSERT`, usar els candidats retornats per completar l'alta idempotent descrita a `07-alta-menu-intranet-uc-008.md`;
+5. després de l'alta, tornar a executar el preflight de menú i exigir `status=ALREADY_PRESENT`;
+6. comprovar amb un usuari read-only i un gestor que el deep-link de factura i AEAT obre el recurs esperat.
+
+## 12. Evidència de tancament
 
 Per marcar UC-008 com PROVAT conservar:
 
@@ -136,7 +158,7 @@ Per marcar UC-008 com PROVAT conservar:
 **Estat actual:** SUITE SIF/readiness/deep-links VERIFICADA (**670 passed, 0 failed**, run `36664237975`) + INTRANET AO **SUCCESS**. El codi-side del UC-008 queda tancat; resten només l'execució agregada en preproducció i l'alta/configuració real del menú de BD.
 
 
-## 12. Evidència CI
+## 13. Evidència CI
 
 - Runs inicials **36638546735** i **36638546786**: 555 passed, 0 failed.
 - Run **36648545296** després de la integració UI UC-008: **589 passed, 0 failed**.
@@ -146,7 +168,7 @@ Per marcar UC-008 com PROVAT conservar:
 - Run **36661808598** després del verificador agregat i integració go/no-go: **651 passed, 0 failed**.
 - Run **36664237975** després dels deep-links de reparació a factura/AEAT: **670 passed, 0 failed**.
 - Run **36647777483** · Intranet AO batch checks: **success**.
-## 13. CI automatitzada
+## 14. CI automatitzada
 
 S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-tests.php` amb PHP 8.4 i MySQL 8.4 en pull requests, canvis a `main` que afectin `sif/**` i execució manual (`workflow_dispatch`).
 
