@@ -209,3 +209,14 @@ Acredita:
 - combinació 73/27 funciona correctament;
 - part alumne 0,00 € queda fail-closed;
 - el curs gratuït USOC continua requerint una decisió funcional/fiscal específica abans d'obrir un circuit nou.
+
+
+## Preflight intranet USOC · feature flag
+
+**Run:** `36730434161`  
+**Resultat:** **SUCCESS · 730 passed / 0 failed**
+
+PASS específic:
+- `UsocIntranetUiContractTest::testStandaloneUsocIntranetUiUsesServerSideSignedClientAndCsrf`
+
+Acredita que el contracte de preflight declara també `SIF_USOC_UI_ENABLED` juntament amb secrets, signed path i rols USOC. El que resta pendent és executar aquest preflight contra la configuració real de preproducció i conservar-ne l'evidència.
