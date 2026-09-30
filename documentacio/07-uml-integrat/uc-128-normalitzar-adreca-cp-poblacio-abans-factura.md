@@ -86,6 +86,27 @@ G --> Later
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Receptor fiscal"]
+  a_1["Gestió facturació"]
+  subgraph SIF_BOUNDARY["SIF · adreça del receptor"]
+    u_0(["UC-128nNormalitzar adreça abans de facturar"])
+    u_1(["Validar país, CP i població"])
+    u_2(["Comparar dada original i proposta"])
+    u_3(["Confirmar receptor i congelar snapshot"])
+    u_4(["UC-120/74nGestionar canvi posterior"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+  a_1 --> u_4
+```
+
 ## 4. UML de classes — factura existent i normalitzador pendent
 
 ```mermaid
