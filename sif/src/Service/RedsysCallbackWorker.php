@@ -115,7 +115,6 @@ final class RedsysCallbackWorker
         $details = json_encode([
             'ds_order' => $job['DS_ORDER'] ?? null,
             'uuid_job' => $job['UUID_JOB'] ?? null,
-            'attempts' => (int) ($job['ATTEMPTS'] ?? 0),
             'exception' => $exception::class,
             'message' => $safeMessage,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
