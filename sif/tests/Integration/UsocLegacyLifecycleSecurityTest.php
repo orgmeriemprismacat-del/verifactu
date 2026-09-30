@@ -67,6 +67,9 @@ final class UsocLegacyLifecycleSecurityTest
         Assert::stringContainsString("source_enrollment_id", $preview);
         Assert::stringContainsString("'course_change'", $preview);
         Assert::stringContainsString('http_response_code($status)', $preview);
+        Assert::stringContainsString('$exception->getCode()', $preview);
+        Assert::stringContainsString('$code >= 400 && $code <= 599', $preview);
+        Assert::stringContainsString('$status >= 500', $preview);
 
         Assert::stringContainsString('alumnes-usoc-lifecycle-preview.js', $page);
         Assert::stringContainsString("REQUEST_METHOD", $lifecyclePreview);
