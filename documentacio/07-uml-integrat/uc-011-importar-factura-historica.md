@@ -84,6 +84,28 @@ Op --> Rec
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de migració autoritzat"]
+  subgraph SIF_BOX["SIF · facturació històrica"]
+    uc_0(["UC-11<br/>Importar factura històrica"])
+    uc_1(["Validar número i dades originals"])
+    uc_2(["Detectar import duplicat"])
+    uc_3(["Persistir factura, línies i relacions"])
+    uc_4(["Registrar document antic, si existeix"])
+    uc_5(["UC-53<br/>Reconciliar amb el llegat"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+  actor_0 --> uc_5
+```
+
+
 ## 3. Diagrama de classes del codi comprovat
 
 ```mermaid
