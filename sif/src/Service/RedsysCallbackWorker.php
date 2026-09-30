@@ -12,8 +12,10 @@ final class RedsysCallbackWorker
         private RedsysCallbackQueueRepository $queue,
         private RedsysJobProcessor $processor,
         private IncidentRepository $incidents,
-        private int $maxAttempts
+        private int $maxAttempts,
+        private ?SensitiveDataRedactor $redactor = null
     ) {
+        $this->redactor ??= new SensitiveDataRedactor();
     }
 
     public function runOne(\PDO $db, string $workerId, \DateTimeImmutable $now): ?array
@@ -31,11 +33,12 @@ final class RedsysCallbackWorker
             return $result;
         } catch (\Throwable $exception) {
             $attempts = (int) $job['ATTEMPTS'];
+            $safeMessage = $this->redactor->redact($exception->getMessage());
             $functional = $exception instanceof SifException
                 && in_array($exception->getCode(), [409, 422], true);
 
             if ($functional || $attempts >= $this->maxAttempts) {
-                $incident = $this->moveToIncident($db, $job, $workerId, $exception);
+                $incident = $this->moveToIncident($db, $job, $workerId, $exception, $safeMessage);
 
                 return [
                     'ok' => false,
@@ -50,7 +53,7 @@ final class RedsysCallbackWorker
                 $db,
                 (int) $job['ID'],
                 $now->modify("+{$delay} minutes"),
-                $exception->getMessage()
+                $safeMessage
             );
 
             return ['ok' => false, 'status' => 'RETRY'];
@@ -61,7 +64,8 @@ final class RedsysCallbackWorker
         \PDO $db,
         array $job,
         string $workerId,
-        \Throwable $exception
+        \Throwable $exception,
+        string $safeMessage
     ): array {
         $ownsTransaction = !$db->inTransaction();
         if ($ownsTransaction) {
@@ -69,7 +73,7 @@ final class RedsysCallbackWorker
         }
 
         try {
-            $this->queue->markIncident($db, (int) $job['ID'], $exception->getMessage());
+            $this->queue->markIncident($db, (int) $job['ID'], $safeMessage);
             $incident = $this->incidents->openDetailed($db, [
                 'uuid_factura' => $job['UUID_FACTURA'] ?? null,
                 'resource_type' => 'REDSYS_CALLBACK_JOB',
@@ -77,7 +81,7 @@ final class RedsysCallbackWorker
                 'source_type' => 'REDSYS_WORKER',
                 'source_id' => $workerId,
                 'type' => 'REDSYS_CALLBACK',
-                'message' => $this->incidentDetails($job, $exception),
+                'message' => $this->incidentDetails($job, $exception, $safeMessage),
                 'severity' => 'HIGH',
                 'correlation_id' => (string) ($job['UUID_JOB'] ?? ('REDSYS_QUEUE:' . $job['ID'])),
                 'idempotency_key' => 'REDSYS_CALLBACK|JOB:' . (string) ($job['UUID_JOB'] ?? $job['ID']),
@@ -107,16 +111,16 @@ final class RedsysCallbackWorker
         };
     }
 
-    private function incidentDetails(array $job, \Throwable $exception): string
+    private function incidentDetails(array $job, \Throwable $exception, string $safeMessage): string
     {
         $details = json_encode([
             'ds_order' => $job['DS_ORDER'] ?? null,
             'uuid_job' => $job['UUID_JOB'] ?? null,
             'attempts' => (int) ($job['ATTEMPTS'] ?? 0),
             'exception' => $exception::class,
-            'message' => $exception->getMessage(),
+            'message' => $safeMessage,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        return $details === false ? $exception->getMessage() : $details;
+        return $details === false ? $safeMessage : $details;
     }
 }
