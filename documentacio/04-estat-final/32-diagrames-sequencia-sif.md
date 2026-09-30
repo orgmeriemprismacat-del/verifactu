@@ -1577,3 +1577,94 @@ end
 ```
 
 **No inferir integració completa:** el codi de serveis existeix a la branca, però els adaptadors finals de sessió/rol, storage documental, pricing, emissió fiscal, transport de correu i evidències externes no estan acreditats com a desplegats. [Fitxes d'acció UC-111](../06-fitxes-funcionals/uc-111-accions.md) · [dades/estats](../07-uml-integrat/uc-111-dades-estats-actual-final.md) · [traçabilitat](../07-uml-integrat/uc-111-tracabilitat-implementacio.md).
+
+## 49. UC-042 · consulta i canvi de perfil `[PARCIAL]`
+
+### 49.1. ACTUAL llegat — mutació directa
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant JS as alumnes-mostrar-alumne.js
+participant W as wrapper PHP GET
+participant I as Intranet
+participant DB as inscripcions
+G->>JS: editar perfil
+JS->>W: GET idInsc + camps
+W->>I: guardarDadesPersonals_resultatCerca(...)
+I->>DB: UPDATE ... WHERE ID=?
+DB-->>I: execute()
+I-->>W: OK
+W-->>JS: text
+JS-->>G: repintar UI
+Note over JS,DB: Sense relectura/versió obligatòria al circuit auditat.
+```
+
+### 49.2. SIF parcial — proposta idempotent
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Adaptador autenticat [pendent]
+participant S as StudentProfileService
+participant Auth as StudentProfileAuthorizationPolicy
+participant Read as StudentProfileReadRepository
+participant Legacy as inscripcions
+participant Req as PersonalDataChangeRepository
+participant SIF as personal_data_change_request
+A->>S: proposeChange(actor,idInsc,changes,requestId,correlationId)
+S->>Read: findByEnrollmentId(idInsc)
+Read->>Legacy: SELECT
+Legacy-->>Read: perfil
+S->>Auth: canView + canChange
+alt no autoritzat
+ S-->>A: 403
+else autoritzat
+ S->>S: allowlist + diff
+ S->>Req: findByRequestId(requestId)
+ alt equivalent
+  S-->>A: REUSED
+ else conflicte
+  S-->>A: 409
+ else sense canvi
+  S-->>A: NO_CHANGE
+ else nova
+  Req->>SIF: INSERT REQUESTED/PENDING
+  S-->>A: REQUESTED
+ end
+end
+```
+
+### 49.3. FINAL — aplicar, rellegir i propagar
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant A as Adaptador POST
+participant S as StudentProfileService
+participant Apply as StudentProfileChangeApplier
+participant Legacy as inscripcions
+participant Dest as Propagació UC-120/129
+participant Audit as operational_event
+participant Fiscal as UC-074
+G->>A: confirmar requestId + expectedVersion
+A->>S: validar actor/recurs/request
+S-->>A: request vàlid
+A->>Apply: apply(...)
+Apply->>Legacy: lock + relectura
+alt dada fiscal d'un document emès afectada
+ Apply->>Fiscal: classificar correcció
+ Fiscal-->>A: derivació, factura original immutable
+else canvi de perfil aplicable
+ Apply->>Legacy: UPDATE allowlist
+ Apply->>Legacy: SELECT persistit
+ Apply->>Dest: propagar i obtenir resultat per destí
+ Apply->>Audit: before/after + actor + correlació
+ Apply-->>A: COMPLETED/PARTIAL/FAILED
+ A-->>G: estat verificat
+end
+```
+
+La capa implementada en aquest tall s'atura **abans** de l'aplicació al llegat. No s'ha de connectar directament a l'UPDATE antic sense completar autorització per recurs, control de concurrència, auditoria i proves.
