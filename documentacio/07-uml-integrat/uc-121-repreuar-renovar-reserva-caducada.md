@@ -84,6 +84,29 @@ G --> Incident
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Pagador/comprador"]
+  a_1["Gestió acadèmica"]
+  subgraph SIF_BOUNDARY["SIF · renovació oferta caducada"]
+    u_0(["UC-121nRepreuar reserva caducada"])
+    u_1(["UC-115nComprovar nova plaça"])
+    u_2(["Crear nova proposta i revocar enllaç vell"])
+    u_3(["Acceptar condicions noves"])
+    u_4(["UC-112/63nCongelar i crear intenció nova"])
+    u_5(["UC-08nIncidència de callback antic"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  a_0 --> u_3
+  a_0 --> u_4
+  a_1 --> u_5
+```
+
 ## 3. Classes: SQL i validació de Redsys existent
 
 ```mermaid
