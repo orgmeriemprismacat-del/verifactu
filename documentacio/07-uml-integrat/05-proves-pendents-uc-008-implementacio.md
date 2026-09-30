@@ -68,16 +68,16 @@ php sif/scripts/preflight-sif.php
 
 ## 6. API interna
 
-- [ ] GET → 405.
-- [ ] HMAC invàlid → 401.
-- [ ] timestamp caducat → 401.
-- [ ] request-id repetit → 409 anti-replay.
-- [ ] rol no configurat → 403 fail-closed.
-- [ ] action desconeguda → 422.
-- [ ] list aplica límit màxim.
-- [ ] view desconegut → 404.
-- [ ] assign/resolve registren actor i rol.
-- [ ] cap secret de configuració surt a la resposta.
+- [x] GET → 405, contracte verificat a l'endpoint.
+- [x] HMAC invàlid → 401.
+- [x] timestamp caducat → 401.
+- [x] request-id repetit → 409 anti-replay.
+- [x] rols de lectura/gestió buits → 403 fail-closed.
+- [x] action desconeguda → 422 via `SifException::validation`.
+- [x] list aplica límit màxim configurat i clamp de la petició.
+- [x] view desconegut → 404.
+- [x] assign/resolve registren `ACTOR_ID` i `ACTOR_ROLE` al journal.
+- [x] l'actor autenticat/retorns no exposen `secret`, `signature` ni `key_id`; secrets no formen part de la resposta.
 
 ## 7. UI implementada al codi · E2E pendent
 
