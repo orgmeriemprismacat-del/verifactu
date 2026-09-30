@@ -80,10 +80,14 @@ try {
 	);
 } catch (Throwable $e) {
 	$code = (int) $e->getCode();
-	if ($code >= 400 && $code <= 599) {
-		http_response_code($code);
+	$status = $code >= 400 && $code <= 599 ? $code : 500;
+	http_response_code($status);
+
+	if ($status >= 500) {
+		echo 'Error: no s’ha pogut completar l’operació.';
+	} else {
+		echo $e->getMessage() !== '' ? $e->getMessage() : missatgeError($status);
 	}
-	echo $e->getMessage() !== '' ? $e->getMessage() : missatgeError($code);
 } finally {
 	if ($usuariDeserialitzat && is_object($_SESSION['usuari'] ?? null)) {
 		$_SESSION['usuari'] = serialize($_SESSION['usuari']);
