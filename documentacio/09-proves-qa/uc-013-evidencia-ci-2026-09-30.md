@@ -239,3 +239,48 @@ Acredita que:
 - `lifecycle_plan` queda disponible a l'API interna USOC per construir un flux executiu posterior sense tornar al legacy cec.
 
 Continua pendent la capa **executiva fiscal/econòmica** de UC-026/027 per USOC: crear/autoritzar rectificatives, reemissions o refunds separats per factura i pagador segons el cas concret.
+
+
+## Protocol durable de validació · evidència actualitzada
+
+**Commit:** `b32f932bc841ee3362fbc578bd0ee11f5708498f`  
+**Runs:** `36732949788` i `36732950018`  
+**Resultat:** **742 passed / 0 failed** als dos workflows.
+
+PASS:
+- `UsocValidationDecisionBoundaryContractTest::testLegacyMutationIsStrictlyBetweenRequestedAndCommittedSifPhases`
+- `UsocValidationDecisionBoundaryContractTest::testSignedUsocApiExposesTwoPhaseValidationActionsAndRecoveryComponents`
+- `UsocValidationDecisionReconcileScriptTest::testReconcileScriptProcessesOnlyPersistedRequestedDecisions`
+- totes les proves de `UsocValidationDecisionServiceTest`.
+
+Acredita:
+- `REQUESTED` abans de la mutació legacy;
+- `COMMITTED` només després de contrastar el `VALID_DESC` real;
+- retry idempotent per `requestId`;
+- conflicte si el mateix `requestId` es reutilitza amb una decisió diferent;
+- `REVIEW_REQUIRED` davant divergència;
+- detecció de drift posterior;
+- reconciliació batch dels `REQUESTED` persistents.
+
+## Preflight USOC reforçat
+
+**Commit:** `d23848ce1ed511f86e76092dbce683cf9bc7f0a5`  
+**Runs:** `36734421729` i `36734421750`  
+**Resultat:** **SUCCESS** als dos workflows.
+
+En el run `36734421729`:
+- `UsocIntranetPreflightScriptTest::testPreflightRequiresCoreTablesServicesApiAndLegacyConnectivity` — PASS.
+- **748 passed / 0 failed**.
+
+El preflight exigeix ara:
+- taula `usoc_financing_case`;
+- taula `usoc_validation_decision`;
+- secrets i signed path de l'API interna;
+- rols read/manage;
+- DSN legacy i connectivitat real `SELECT 1`;
+- càrrega de `UsocLifecyclePlanService`;
+- càrrega de `UsocValidationDecisionService`;
+- existència de `public/api/usoc/manage.php`;
+- llistat explícit dels env vars necessaris d'intranet i SIF.
+
+Això tanca la validació estàtica/CI del preflight. Encara cal executar-lo amb la **configuració real de preproducció** i conservar-ne el JSON d'evidència.
