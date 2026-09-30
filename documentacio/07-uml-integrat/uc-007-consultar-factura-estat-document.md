@@ -144,19 +144,28 @@ class InvoiceReadRepository {
  +search(db,criteria,limit) array
 }
 class InvoiceDocumentAccessService {
- <<DISSENY UC-080>>
- +listAuthorized(actor,scope) documents
- +download(actor,documentId,tokenOrSession) bytes
+ <<PHP EXISTENT · UC-080>>
+ +download(actor,documentId) array
 }
-class DocumentAvailabilityService {
- <<DISSENY UC-055/078>>
- +check(documentId) result
+class ResolvedDocumentAuthorizationPolicy {
+ <<PHP EXISTENT>>
+ +canDownload(actor,invoice,relations,document) bool
+}
+class PrivateDocumentStore {
+ <<PHP EXISTENT>>
+ +readVerified(path,hash) bytes
+}
+class FiscalDocumentAccessRepository {
+ <<PHP EXISTENT>>
+ +append(db,event) uuid
 }
 InvoiceQueryService --> InvoiceVisibilityPolicyInterface : obligatòria
 ResolvedInvoiceVisibilityPolicy ..|> InvoiceVisibilityPolicyInterface
 InvoiceQueryService --> InvoiceReadRepository : consulta
-InvoiceQueryService ..> InvoiceDocumentAccessService : bytes, pendent
-InvoiceDocumentAccessService --> DocumentAvailabilityService
+InvoiceQueryService ..> InvoiceDocumentAccessService : bytes via endpoint separat
+InvoiceDocumentAccessService --> ResolvedDocumentAuthorizationPolicy
+InvoiceDocumentAccessService --> PrivateDocumentStore
+InvoiceDocumentAccessService --> FiscalDocumentAccessRepository
 ```
 
 **Implementat:** servei/repositori de lectura, política fail-closed, resolver de scope per rols signats, autenticació HMAC anti-replay, endpoint intern de consulta, clients/proxies de la intranet i servei UC-080 de bytes amb storage/hash/auditoria. El repositori de lectura no retorna `PATH_FITXER`. **Pendent:** activar/configurar secrets, rols, storage i feature flags per entorn i executar la bateria E2E documentada.
@@ -203,10 +212,10 @@ autonumber
 actor A as Actor
 participant UI as Canal
 participant Q as InvoiceQueryService [PHP]
-participant Auth as InvoiceVisibilityPolicyInterface [contracte PHP / implementació pendent]
+participant Auth as ResolvedInvoiceVisibilityPolicy [PHP]
 participant R as InvoiceReadRepository [PHP]
-participant Doc as InvoiceDocumentAccessService [UC-080 DISSENY]
-participant Av as DocumentAvailabilityService [UC-055/078 DISSENY]
+participant Doc as InvoiceDocumentAccessService [PHP UC-080]
+participant Av as PrivateDocumentStore [PHP]
 A->>UI: Cercar/obrir factura
 UI->>Q: search/view(actor,criteri|UUID)
 Q->>Auth: Resoldre abast de factura
@@ -258,4 +267,4 @@ La matriu executable pendent és a l'auditoria detallada i inclou autorització 
 
 [Fitxa funcional UC-07](../06-fitxes-funcionals/uc-007.md) · [Auditoria detallada UC-007](02-auditoria-detallada-uc-007-consultar-factura-estat-document-2026-09-29.md) · [Catàleg i regles de visibilitat](../04-estat-final/33-casos-us-sif.md) · [UC-55 custòdia](uc-055-custodiar-reintentar-documents.md) · [UC-78 generació/custòdia](uc-078-generar-custodiar-pdf-qr-xml.md) · [UC-80 accés documental](uc-080-servir-registrar-acces-document-fiscal.md) · [DocumentRepository](../../sif/src/Repository/DocumentRepository.php) · [Test metadades](../../sif/tests/Integration/DocumentsAndIncidentsTest.php).
 
-**Estat final d'aquesta revisió:** DOCUMENTAT I AUDITAT ESTÀTICAMENT; API/servei final de consulta, control d'accés executable, streaming privat i proves E2E encara pendents.
+**Estat final d'aquesta revisió:** DOCUMENTAT I IMPLEMENTAT PARCIALMENT: consulta interna signada, scope per rols, UI intranet, streaming privat UC-080 i bloqueig del llegat ja tenen codi. Pendents: desplegament/configuració per entorn i proves E2E ajornades.
