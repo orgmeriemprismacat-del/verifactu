@@ -287,7 +287,7 @@ Dins d'aquest mateix run s'han comprovat explícitament **61 proves PASS** relac
 
 Aquesta regressió posterior confirma que els merges posteriors no han introduït una regressió detectable al codi UC-008.
 
-**Revalidació del capçal final de l'auditoria:** després d'aquest run, `main` ha avançat fins a `39c01c07c51f9848fd2332a9ad53a48611ff8e1e`. La comparació `e2fd8221...39c01c07` conté **9 commits / 7 fitxers** i **cap** afecta les dependències UC-008 inventariades (incident lifecycle/repositories, panell, API interna, bridge intranet, RedsysCallbackWorker, FiscalQueueProcessor o configuració compartida). Per tant, el run 740/0 continua sent l'evidència de regressió aplicable al codi UC-008 del capçal actual.
+**Revalidació del capçal final de l'auditoria:** amb activitat paral·lela al repositori, l'últim capçal observat abans de tancar aquesta passada és `1b332f62add5ebe669b1fd3981fec1d6cc3257c4`. La comparació `e2fd8221...1b332f62` conté **17 commits / 11 fitxers** i **cap** afecta les dependències UC-008 inventariades (incident lifecycle/repositories, panell, API interna, bridge intranet, RedsysCallbackWorker, FiscalQueueProcessor o configuració compartida). Per tant, el run 740/0 continua sent l'evidència de regressió aplicable al codi UC-008 fins aquest punt de control.
 
 **Estat després de la revalidació:** `CODE_COMPLETE + DOCUMENTATION_RECONCILED + CURRENT_MAIN_REGRESSION_GREEN`. Continua pendent únicament el tancament d'entorn real.
 
