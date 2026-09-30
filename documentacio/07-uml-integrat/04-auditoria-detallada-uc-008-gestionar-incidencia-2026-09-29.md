@@ -3,7 +3,7 @@
 **Estat documental:** AUDITAT EN DETALL / CANVIS DOCUMENTALS APLICATS.  
 **Estat backend després del merge a `main` (PR #18, 2026-09-30):** LIFECYCLE PARCIAL IMPLEMENTAT; API INTERNA + WRITER D'ACCIONS + IDEMPOTÈNCIA + INTEGRACIÓ REDSYS/AEAT.  
 **Estat UI:** IMPLEMENTADA AL CODI / DESPLEGAMENT PENDENT DE VERIFICAR.  
-**Estat proves:** SUITE SIF POST-PREFLIGHT EXECUTADA · **618 PASSED / 0 FAILED**; INTRANET AO · **SUCCESS**.  
+**Estat proves:** SUITE SIF AMPLIADA · **645 PASSED / 0 FAILED**; INTRANET AO · **SUCCESS**.  
 **No acredita:** desplegament productiu, rols reals, dades productives, E2E de navegador, concurrència específica, preproducció ni homologació externa.
 
 ## 1. Fonts revisades
@@ -148,7 +148,7 @@ A més continuen sent rellevants:
 DOCUMENTAT      = AUDITAT I ACTUALITZAT
 IMPLEMENTAT     = BACKEND + UI CODI; OPERACIÓ PRODUCTIVA PENDENT
 VERIFICAT       = ESTÀTICAMENT + CI PHP/MYSQL
-PROVAT          = SUITE SIF POST-PREFLIGHT · 618 PASSED / 0 FAILED + INTRANET AO SUCCESS
+PROVAT          = SUITE SIF AMPLIADA · 645 PASSED / 0 FAILED + INTRANET AO SUCCESS
 UI              = IMPLEMENTADA AL CODI / DESPLEGAMENT PENDENT
 UML CLASSES     = ACTUALITZAT
 UML SEQÜÈNCIA   = ACTUALITZAT
@@ -167,6 +167,7 @@ TANCAMENT UC    = NO
 | Run 36638546786 · SIF PHP and MySQL checks | **555 passed, 0 failed** |
 | Run 36648545296 · SIF PHP MySQL tests després de UI UC-008 | **589 passed, 0 failed** |
 | Run 36658230379 · SIF PHP MySQL tests després de preflight/read-only | **618 passed, 0 failed** |
+| Run 36660840670 · SIF PHP MySQL tests després de deduplicació/redacció/E2E tècnic | **645 passed, 0 failed** |
 | Run 36647777483 · Intranet AO batch checks | **SUCCESS** |
 | Lint PHP | **PASS** |
 | PHP / MySQL del segon run | PHP 8.4 / MySQL 8.4 |
