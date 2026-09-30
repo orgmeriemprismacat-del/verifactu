@@ -112,7 +112,11 @@ final class GiftRedemptionService
                 ];
             }
 
-            $this->assertEligible($entitlement, $holder, $now);
+            if (strtoupper((string) $entitlement['STATUS']) === 'RESERVED') {
+                $this->assertReservedRedeemable($entitlement, $now);
+            } else {
+                $this->assertEligible($entitlement, $holder, $now);
+            }
             $origin = $this->loadPaidGiftOrigin($db, $entitlement);
             $destination = $this->loadDestinationEnrollment(
                 $db,
@@ -200,6 +204,17 @@ final class GiftRedemptionService
 
         if ($this->money($entitlement['FACE_VALUE'] ?? null) === '0.00') {
             throw SifException::conflict('Gift has no redeemable value');
+        }
+    }
+
+    private function assertReservedRedeemable(
+        array $entitlement,
+        ?\DateTimeImmutable $now
+    ): void {
+        if ($this->entitlements->isExpired($entitlement, $now)
+            || $this->money($entitlement['FACE_VALUE'] ?? null) === '0.00'
+        ) {
+            throw SifException::conflict('Reserved gift cannot be redeemed');
         }
     }
 
