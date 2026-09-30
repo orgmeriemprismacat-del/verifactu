@@ -95,7 +95,7 @@ Protocol definit:
 6. El reconciliador ha de poder llegir `REQUESTED` sense `COMMITTED`, contrastar el `VALID_DESC` legacy real i completar o marcar `REVIEW_REQUIRED`.
 7. Un reintent amb mateix `requestId` i mateixa decisió és idempotent; mateixa identitat amb decisió contradictòria requereix un nou esdeveniment auditat, mai sobreescriptura.
 
-Aquesta peça està **IMPLEMENTADA** mitjançant `UsocValidationDecisionService`, `UsocValidationDecisionRepository`, la migració `000031`, les accions internes `begin_validation_decision` / `complete_validation_decision`, la classificació local `LegacyDiscountValidationLookup` i el reconciliador `reconcile-usoc-validation-decisions.php`. Les proves de servei tenen PASS acreditat al run que executa `UsocValidationDecisionServiceTest`; resta acreditar el run més recent que inclou la prova de deriva post-commit.
+Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidationDecisionService`, `UsocValidationDecisionRepository`, la migració `000031`, les accions internes `begin_validation_decision` / `complete_validation_decision`, la classificació local `LegacyDiscountValidationLookup` i el reconciliador `reconcile-usoc-validation-decisions.php`. Run `36663075293`: **666 passed, 0 failed**, inclosa la prova de deriva post-commit.
 
 ### Decisió funcional
 9. Variant curs gratuït USOC / alumne=0.
@@ -135,4 +135,4 @@ Aquesta peça està **IMPLEMENTADA** mitjançant `UsocValidationDecisionService`
 **PREPRODUCCIÓ:** no acreditada.  
 **PRODUCCIÓ:** no acreditada.
 
-Els P0 estructurals estan implementats. El run CI `36660979100` sobre `e455d968...` acaba **SUCCESS, 646 passed / 0 failed**, incloent `UsocEndToEndFlowTest`. El UC-013 encara no es marca TANCAT perquè falta desplegament/configuració real de la UI, integració al menú/routing habitual i decisions funcionals pendents (curs gratuït i regla percentual històrica). La suite global del run queda vermella per una única fallida aliena al UC-013 (`InvoiceQueryServiceTest`, 404 vs 422).
+Els P0 estructurals estan implementats. El run CI principal actual `36663075293` acaba **SUCCESS, 666 passed / 0 failed**, incloent el protocol durable de validació; el run `36660979100` ja havia acreditat l'E2E de doble facturació. El UC-013 encara no es marca TANCAT per desplegament/preproducció, canvi/baixa amb dos pagadors i decisions funcionals/fiscals pendents.
