@@ -539,7 +539,7 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 
 - [Fitxa funcional UC-020](../06-fitxes-funcionals/uc-020.md)
 - [Classes ACTUAL/FINAL](uc-020-classes-actual-final.md)
-- [Seqüències ACTUAL/FINAL](uc-020-sequences-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-020-sequencies-actual-final.md)
 - [Activitats per pàgina i apartat ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md)
 - [Auditoria i matriu de traçabilitat](uc-020-auditoria-tracabilitat-2026-09-29.md)
 - [UC-116 · activitats de justificants compartides](uc-116-activitats-pagines-justificants-actual-final.md)
