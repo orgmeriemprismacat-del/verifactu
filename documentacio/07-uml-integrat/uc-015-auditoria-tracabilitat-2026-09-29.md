@@ -2,7 +2,7 @@
 
 ## 1. Resultat
 
-**Estat global:** IMPLEMENTACIÓ PARCIAL / DOCUMENTACIÓ COMPLETADA EN AQUEST LOT / PROVES D'ENTORN PENDENTS.
+**Estat global:** FLUX FISCAL/ECONÒMIC PRINCIPAL IMPLEMENTAT I VERIFICAT EN CI / DOCUMENTACIÓ COMPLETADA / E2E D'ENTORN PENDENT.
 
 Aquest registre diferencia:
 - **DOCUMENTAT:** existeix contracte o UML.
@@ -22,10 +22,10 @@ Aquest registre diferencia:
 | Callback SIF | sí | sí | sí | evidència de desplegament/runtime |
 | Callback legacy | sí | **retirat per defecte (30/09)** | sí | eliminar codi mort quan acabi finestra rollback |
 | Factura N línies | sí | sí | sí | prova end-to-end |
-| Conciliació factura/import Redsys | sí | **sí (29/09)** | sí | executar test |
+| Conciliació factura/import Redsys | sí | **sí (29/09)** | **sí, CI** | E2E/runtime |
 | Idempotència factura/payment | sí | sí | sí | evidència runtime |
-| Ledger ID_INSC | sí | **sí (30/09)** | sí | executar proves/runtime |
-| Outbox correu | sí | **sí al flux PACK asíncron (30/09)** | sí | executar worker/runtime |
+| Ledger ID_INSC | sí | **sí (30/09)** | **sí, CI** | E2E/runtime |
+| Outbox correu | sí | **enqueue sí al flux PACK asíncron (30/09)** | **sí, CI enqueue/idempotència** | worker/transport UC-58 + runtime |
 | Activitats ACTUAL/FINAL | **sí (29/09)** | n/a | sí | mantenir sincronitzat |
 | Classes ACTUAL/FINAL | **sí (29/09)** | n/a | sí | mantenir sincronitzat |
 | Seqüències ACTUAL/FINAL | **sí (29/09)** | n/a | sí | mantenir sincronitzat |
@@ -76,7 +76,7 @@ Exigeix:
 - zero factures;
 - zero `payment_transaction`.
 
-**Execució:** pendent d'evidència; no hi ha workflow associat al commit inspeccionat.
+**Execució en el punt inicial de l'auditoria:** pendent. Aquesta mancança queda resolta posteriorment pel run `36720150263` amb **706 passed / 0 failed**.
 
 ## 6. Troballes P0
 
@@ -110,9 +110,9 @@ El canal PACK ja no usa `time()`: genera un DS_ORDER de 12 dígits, l'envia a la
 ## 7. Troballes P1
 
 - eliminar físicament el codi mort del callback legacy quan finalitzi la finestra de rollback;
-- acreditar l'origen canònic de `PACK_ORDINAL`;
-- executar i evidenciar ledger/outbox en runtime;
-- sincronització acadèmica postcommit;
+- decidir si l'ordre estable `DATAI, ID_CURS` és suficient o cal una posició comercial explícita;
+- executar i evidenciar ledger/outbox en runtime/preproducció;
+- la sincronització legacy post-SIF ja està implementada; resta evidència d'entorn;
 - packs N i combinacions de descompte;
 - component indisponible (UC-122);
 - factura prèvia al cobrament (RM-016).
@@ -128,11 +128,11 @@ El canal PACK ja no usa `time()`: genera un DS_ORDER de 12 dígits, l'envia a la
 ## 9. Criteri de tancament
 
 UC-015 no pot passar a **VERIFICAT/TANCAT** fins que:
-- ecommerce creï la intenció SIF amb snapshot comercial;
+- el checkout ecommerce → intenció SIF → callback/worker continuï passant CI i es validi en preproducció;
 - el callback fiscal legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
-- ordinal, imports i receptor siguin congelats abans del TPV;
-- ledger per inscripció estigui resolt;
-- proves PK-01..PK-11 i de callback duplicat s'executin en entorn controlat.
+- es mantingui l'ordre estable `DATAI, ID_CURS` o es defineixi una posició comercial explícita;
+- ledger/outbox es verifiquin en runtime amb el mateix snapshot congelat;
+- proves PK-01..PK-11 i callback duplicat s'executin en entorn controlat.
 
 
 ## 10. Canvis addicionals 2026-09-30
@@ -156,7 +156,7 @@ Configuració:
 ### Prova d'intent PACK
 Afegida `RedsysPaymentIntentTest::testCreatesPackIntentWithFrozenCommercialSnapshot()`, amb `SOURCE_TYPE=PACK`, ordinal de components i receptor dins del snapshot.
 
-**Execució de les proves:** continua pendent d'evidència runtime/CI.
+**Execució de les proves:** CI acreditat posteriorment amb **706 passed / 0 failed**; continua pendent només l'evidència runtime/preproducció.
 
 
 ## 11. Enduriment temporal del callback legacy — 2026-09-30
