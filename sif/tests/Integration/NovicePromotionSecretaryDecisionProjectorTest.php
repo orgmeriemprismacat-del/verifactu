@@ -14,7 +14,7 @@ final class NovicePromotionSecretaryDecisionProjectorTest
 {
     public function testApprovedDecisionOpensPaymentAndIsIdempotent(): void
     {
-        [$db, $uuid] = $this->stage(1);
+        [$db, $uuid, $uuidValidation] = $this->stage(1);
         $projector = new NovicePromotionSecretaryDecisionProjector(new UuidGenerator());
         $decidedAt = new \DateTimeImmutable('2026-09-22 10:00:00', new \DateTimeZone('Europe/Madrid'));
 
@@ -24,6 +24,7 @@ final class NovicePromotionSecretaryDecisionProjectorTest
         Assert::same('VALIDATED', $first['decision']);
         Assert::same(false, $first['idempotency_reused']);
         Assert::same(true, $repeat['idempotency_reused']);
+        Assert::same($uuidValidation, $first['uuid_validation']);
         Assert::same($first['uuid_validation'], $repeat['uuid_validation']);
         Assert::same('READY_FOR_PAYMENT', (string) $db->query('SELECT STATUS FROM commercial_operation')->fetchColumn());
         Assert::same('BILLABLE', (string) $db->query('SELECT CLASSIFICATION FROM commercial_operation')->fetchColumn());
@@ -53,7 +54,8 @@ final class NovicePromotionSecretaryDecisionProjectorTest
         }, 409);
 
         Assert::same('PENDING_VALIDATION', (string) $db->query('SELECT STATUS FROM commercial_operation')->fetchColumn());
-        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same('PENDING', (string) $db->query('SELECT STATUS FROM discount_validation')->fetchColumn());
     }
 
     public function testWrongLegacyHolderCannotApproveSifParticipant(): void
@@ -119,6 +121,24 @@ final class NovicePromotionSecretaryDecisionProjectorTest
              VALUES (?, ?, ?, ?, ?, ?)'
         )->execute([$uuid, 'student:canonical:12345678Z', 'PARTICIPANT', '12345678Z', 'Persona de prova', '{}']);
 
-        return [$db, $uuid];
+        $uuidValidation = (new UuidGenerator())->generate();
+        $db->prepare(
+            'INSERT INTO discount_validation
+             (UUID_VALIDATION, UUID_OPERATION, DISCOUNT_TYPE, SUBJECT_PARTY_KEY,
+              STATUS, RULE_VERSION, RULE_SNAPSHOT_JSON, REQUESTED_AT, IDEMPOTENCY_KEY)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([
+            $uuidValidation,
+            $uuid,
+            'NOVICE_TEACHER',
+            'student:canonical:12345678Z',
+            'PENDING',
+            'NOVICE_JASOM_V1',
+            '{"source":"test-stage","decision":"PENDING"}',
+            '2026-09-22 07:00:00',
+            'NOVICE|REQUEST|' . $uuid,
+        ]);
+
+        return [$db, $uuid, $uuidValidation];
     }
 }
