@@ -1,6 +1,6 @@
 # UC-008 · Proves executades i pendents
 
-Aquest document separa la **suite backend ja executada** de les proves E2E, concurrència i preproducció que encara falten. El 29/09/2026 les suites CI dels runs 36638546735 i 36638546786 han finalitzat amb **555 passed, 0 failed**.
+Aquest document separa la **suite automatitzada ja executada** de les proves E2E, concurrència i preproducció que encara falten. Després d'integrar panell i resum UC-008, el run `36648545296` ha finalitzat amb **589 passed, 0 failed** i `Intranet AO batch checks` run `36647777483` amb **success**.
 
 ## 1. Suite PHP/MySQL
 
@@ -112,17 +112,18 @@ Per marcar UC-008 com PROVAT conservar:
 - prova de tancament amb evidència;
 - resultat preproducció.
 
-**Estat actual:** SUITE BACKEND CI VERIFICADA (**555 passed, 0 failed**). Continuen pendents els ítems no marcats, especialment concurrència específica, rollback forçat, UI/E2E, permisos productius i preproducció.
+**Estat actual:** SUITE SIF POST-UI VERIFICADA (**589 passed, 0 failed**) + INTRANET AO **SUCCESS**. Continuen pendents els ítems no marcats, especialment concurrència específica, E2E de navegador, permisos/secrets productius i preproducció.
 
 
 ## 10. Evidència CI
 
-- Run **36638546735**: 555 passed, 0 failed.
-- Run **36638546786**: lint PHP PASS i 555 passed, 0 failed sobre PHP 8.4 / MySQL 8.4.
+- Runs inicials **36638546735** i **36638546786**: 555 passed, 0 failed.
+- Run **36648545296** després de la integració UI UC-008: **589 passed, 0 failed** sobre `main`.
+- Run **36647777483** · Intranet AO batch checks: **success**.
 ## 10. CI automatitzada
 
 S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-tests.php` amb PHP 8.4 i MySQL 8.4 en pull requests, canvis a `main` que afectin `sif/**` i execució manual (`workflow_dispatch`).
 
-La suite backend ja disposa d'evidència CI satisfactòria. Els canvis de UI/handoff han de passar CI sobre el `main` resultant i després E2E/preproducció abans de marcar-se verificats en runtime.
+La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
-**Estat actual:** BACKEND CI VERIFICAT; UI IMPLEMENTADA AL CODI / E2E PENDENT.
+**Estat actual:** SIF CI 589/0 + INTRANET AO SUCCESS; UI IMPLEMENTADA AL CODI / E2E PENDENT.
