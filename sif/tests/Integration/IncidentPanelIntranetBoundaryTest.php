@@ -32,7 +32,7 @@ final class IncidentPanelIntranetBoundaryTest
         Assert::stringContainsString('$usuariObject->getUsuari()', $source);
         Assert::stringContainsString('$usuariObject->getRols()', $source);
 
-        foreach (["$payload['actor_id']", "$payload['roles']", "$payload['key_id']", "$payload['signature']"] as $untrusted) {
+        foreach (['$payload[\'actor_id\']', '$payload[\'roles\']', '$payload[\'key_id\']', '$payload[\'signature\']'] as $untrusted) {
             if (str_contains($source, $untrusted)) {
                 Assert::fail('Panel launch must not trust browser supplied identity/signature field: ' . $untrusted);
             }
