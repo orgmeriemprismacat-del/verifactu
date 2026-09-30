@@ -68,6 +68,34 @@ final class IncidentPanelUiContractTest
         Assert::stringContainsString("return \$this->close(\$actor, \$incidentId, \$payload, 'DISMISSED', 'DISMISS');", $service);
     }
 
+    public function testRepairLinksTargetExistingIntranetSurfaces(): void
+    {
+        $index = $this->read('public/sif/incidencies/index.php');
+        $app = $this->read('public/sif/incidencies/app.js');
+        $invoiceJs = $this->read('../codi-drive/intranet-actual/js/alumnes-factura-sif.js');
+        $aeatJs = $this->read('../codi-drive/intranet-actual/js/sif-registres-aeat.js');
+
+        Assert::stringContainsString('repair-links', $index);
+        Assert::stringContainsString('alumnes-factura.php?uuid_factura=', $app);
+        Assert::stringContainsString('sif-registres-aeat.php?queue_id=', $app);
+        Assert::stringContainsString("RESOURCE_TYPE || '').toUpperCase()", $app);
+        Assert::stringContainsString("resourceType === 'FISCAL_QUEUE'", $app);
+        Assert::stringContainsString('noopener noreferrer', $app);
+
+        Assert::stringContainsString("get('uuid_factura')", $invoiceJs);
+        Assert::stringContainsString('viewSifInvoice(deepLinkUuid)', $invoiceJs);
+        Assert::stringContainsString("get('queue_id')", $aeatJs);
+        Assert::stringContainsString('loadDetail(Number(deepQueueId))', $aeatJs);
+
+        foreach ([$invoiceJs, $aeatJs] as $target) {
+            foreach (["action: 'resolve'", "action: 'dismiss'", "action: 'assign'"] as $forbidden) {
+                if (str_contains($target, $forbidden)) {
+                    Assert::fail('Repair deep-link target must not auto-run incident mutation: ' . $forbidden);
+                }
+            }
+        }
+    }
+
     public function testPanelHasNoBulkRetryAction(): void
     {
         $index = strtolower($this->read('public/sif/incidencies/index.php'));
