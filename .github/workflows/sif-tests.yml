@@ -73,5 +73,18 @@ jobs:
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
 
+      - name: Lint UC-013 intranet USOC
+        run: |
+          php -l codi-drive/intranet-actual/LegacyDiscountValidationLookup.php
+          php -l codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php
+          php -l codi-drive/intranet-actual/SifAuthenticatedActor.php
+          php -l codi-drive/intranet-actual/SifInternalUsocClient.php
+          php -l codi-drive/intranet-actual/alumnes-mostrar-alumne.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php
+          node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js
+          node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.min.js
+
       - name: Executar suite SIF
         run: php sif/tests/run-tests.php
