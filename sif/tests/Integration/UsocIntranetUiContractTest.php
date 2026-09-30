@@ -30,6 +30,8 @@ final class UsocIntranetUiContractTest
         Assert::stringContainsString('SIF_USOC_UI_ENABLED', $page);
         Assert::stringContainsString('usoc-emetre-entitat', $page);
         Assert::stringContainsString('usoc-registrar-cobrament', $page);
+        Assert::stringContainsString('usoc-lifecycle-plan', $page);
+        Assert::stringContainsString('usoc-lifecycle-preview', $page);
 
         Assert::stringContainsString("method: 'POST'", $js);
         Assert::stringContainsString('csrfToken: csrfToken()', $js);
@@ -37,6 +39,8 @@ final class UsocIntranetUiContractTest
         Assert::stringContainsString("post('issue_entity_invoice'", $js);
         Assert::stringContainsString("post('register_entity_payment'", $js);
         Assert::stringContainsString("post('reconcile'", $js);
+        Assert::stringContainsString("post('lifecycle_plan'", $js);
+        Assert::stringContainsString('renderLifecyclePlan', $js);
 
         Assert::stringContainsString("REQUEST_METHOD", $controller);
         Assert::stringContainsString("!== 'POST'", $controller);
@@ -45,6 +49,8 @@ final class UsocIntranetUiContractTest
         Assert::stringContainsString('SifAuthenticatedActor::fromUser', $controller);
         Assert::stringContainsString('issueEntityInvoice', $controller);
         Assert::stringContainsString('registerEntityPayment', $controller);
+        Assert::stringContainsString('lifecycle_plan', $controller);
+        Assert::stringContainsString('lifecyclePlan', $controller);
         Assert::stringContainsString('LegacyUsocContext::open()', $controller);
         Assert::stringContainsString('assertSameOrigin', $controller);
         Assert::stringContainsString('assertCanEdit', $controller);
