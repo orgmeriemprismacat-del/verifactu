@@ -121,12 +121,13 @@ U11 ..> U12 : <<approved refund only>>
 | A111-05 | codi/correu | comportament legacy parcial | preparació xifrada + verificació + worker | implementat branca, connectors pendents |
 | A111-06 | consum original | consulta promo legacy | `RedemptionService` | implementat branca |
 | A111-07 | canvi de curs | flux general de canvi | review/confirm primer + successius | implementat branca |
-| A111-08 | baixa/saldo derivat | no model canònic | review/activation original i transferit | implementat branca |
+| A111-08 | baixa/saldo derivat | no model canònic | review/activation d'aplicació original, primer transfer confirmat i `derived_application.APPLIED`; baixa d'un transfer successiu encara pendent | implementat branca parcial per origen actual |
 | A111-09 | consum derivat | no model canònic | `DerivedBalanceRedemptionService` | implementat branca |
 | A111-10 | procedència | dispersa | snapshot + projection + lineage policy | implementat branca |
 | A111-11 | review refund arrel | manual/dispers | root refund review/plan | implementat branca |
 | A111-12 | conseqüències/recovery | no canònic | execution + resolution + completion | implementat branca |
 
+**Cobertura A111-08 actualitzada:** `NovicePromotionDerivedApplicationCancellationReviewService` + `NovicePromotionDerivedApplicationCancellationActivationService` cobreixen la baixa directa d'un curs que havia consumit un saldo derivat. Això no implica que la baixa després d'un segon/tercer transfer confirmat estigui resolta: aquest predecessor continua necessitant un servei específic sobre l'últim transfer de la cadena.
 ## 5. Regles que el diagrama NO autoritza a inferir
 
 - Un expedient `PENDING` no és un dret promocional.
