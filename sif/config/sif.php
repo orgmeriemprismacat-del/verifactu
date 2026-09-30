@@ -47,6 +47,7 @@ return [
         'redsys_intent_signed_path' => getenv('SIF_INTERNAL_REDSYS_INTENT_SIGNED_PATH') ?: '/api/redsys/intents/create.php',
         'redsys_course_status_signed_path' => getenv('SIF_INTERNAL_REDSYS_COURSE_STATUS_SIGNED_PATH') ?: '/api/redsys/course-status.php',
         'usoc_signed_path' => getenv('SIF_INTERNAL_USOC_SIGNED_PATH') ?: '/api/usoc/manage.php',
+        'novice_promotion_signed_path' => getenv('SIF_INTERNAL_NOVICE_PROMOTION_SIGNED_PATH') ?: '/api/novice-promotion/manage.php',
     ],
     'course_change' => [
         'preview_roles' => array_values(array_filter(array_map(
@@ -99,6 +100,10 @@ return [
         // the runtime secret store/environment, never in Git.
         'wrapping_key_hex' => getenv('SIF_NOVICE_PROMO_WRAP_KEY_HEX') ?: '',
         'key_version' => getenv('SIF_NOVICE_PROMO_KEY_VERSION') ?: 'v1',
+        'manage_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_NOVICE_PROMOTION_MANAGE_ROLES') ?: '')
+        ))),
     ],
     'aeat' => [
         'wsdl' => getenv('SIF_AEAT_WSDL') ?: '',
