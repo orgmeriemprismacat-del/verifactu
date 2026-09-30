@@ -7,6 +7,7 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
