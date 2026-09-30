@@ -86,11 +86,13 @@
 | Camp | Valor |
 | --- | --- |
 | Curs original | `NovicePromotionDestinationCancellationReviewService` + `NovicePromotionDerivedBalanceActivationService` |
-| Curs traspassat | `NovicePromotionTransferredDestinationCancellationReviewService` + `NovicePromotionTransferredCancellationActivationService` — en aquest tall, curs actual assolit pel **primer traspàs confirmat** de l'aplicació original |
-| Regla | separar component promocional de diners reals; saldo derivat amb **nou any propi**; no restaurar saldo JASOM |
-| Evidència | rectificativa real + aprovació independent + revalidació del cash abans d'activar |
-| Encara no executable | baixa directa d'una `novice_promotion_derived_application.APPLIED` i baixa després d'un segon/tercer traspàs: l'esquema/projecció en preserven la procedència, però falta servei específic review+activation per aquests orígens |
-| Estat | IMPLEMENTAT_BRANCA per baixa original i baixa del primer curs traspassat · derivada/successiva PENDENT · adaptador real d'aprovació PENDENT · NO PROVAT MySQL |
+| Curs traspassat | `NovicePromotionTransferredDestinationCancellationReviewService` + `NovicePromotionTransferredCancellationActivationService` — cobreix el curs actual assolit pel **primer traspàs confirmat** de l'aplicació original |
+| Curs pagat amb saldo derivat | `NovicePromotionDerivedApplicationCancellationReviewService` + `NovicePromotionDerivedApplicationCancellationActivationService` — crea un dret fill amb `PARENT_UUID_DERIVED_BALANCE` i `SOURCE_UUID_DERIVED_APPLICATION`, sense recreditar el pare |
+| Polítiques d'aprovació | `NovicePromotionApprovedCancellationPolicy`, `NovicePromotionApprovedTransferredCancellationPolicy`, `NovicePromotionApprovedDerivedCancellationPolicy` |
+| Regla | separar component promocional de diners reals; saldo derivat amb **nou any propi**; predecessor històric no torna a ser exposició activa; no restaurar saldo JASOM ni el saldo pare ja consumit |
+| Evidència | rectificativa real + aprovació independent + revalidació del cash i del JASOM abans d'activar |
+| Encara no executable | baixa del curs actual després d'un **segon/tercer traspàs**: els traspasos successius ja existeixen, però falta un review+activation de baixa que segueixi l'últim `PREVIOUS_UUID_TRANSFER` |
+| Estat | IMPLEMENTAT_BRANCA per baixa original, baixa del primer curs traspassat i baixa directa d'una `derived_application.APPLIED` · baixa de traspàs successiu PENDENT · adaptador real d'aprovació PENDENT · NO PROVAT MySQL |
 
 ## A111-09 · Consum parcial del saldo derivat
 
