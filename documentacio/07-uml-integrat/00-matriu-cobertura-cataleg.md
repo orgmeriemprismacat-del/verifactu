@@ -101,7 +101,7 @@ Per a cadascuna de les 185 targetes mare i les 192 pantalles/estats, conservar r
 | UC-39 | Executar proves i go/no-go | `[BASE/PARCIAL]` | [uc-039.md](../06-fitxes-funcionals/uc-039.md) | [Fitxa i diagrames](uc-039-proves-gate-go-no-go.md) |
 | UC-40 | Fer backup i restauració | `[DISSENY]` | [uc-040.md](../06-fitxes-funcionals/uc-040.md) | [Fitxa i diagrames](uc-040-backup-restauracio.md) |
 | UC-41 | Crear o editar entitat/responsable | `[DISSENY]` | [uc-041.md](../06-fitxes-funcionals/uc-041.md) | [Fitxa i diagrames](uc-041-crear-editar-entitat-responsable.md) |
-| UC-42 | Consultar/modificar alumne | `[DISSENY]` | [uc-042.md](../06-fitxes-funcionals/uc-042.md) | [Fitxa i diagrames](uc-042-consultar-modificar-alumne.md) |
+| UC-42 | Consultar/modificar alumne | `[PARCIAL]` | [uc-042.md](../06-fitxes-funcionals/uc-042.md) | [Fitxa i diagrames](uc-042-consultar-modificar-alumne.md) · [Auditoria 29/09](02-auditoria-completitud-uc-042-2026-09-29.md) |
 | UC-43 | Gestionar notificacions i recordatoris | `[DISSENY]` | [uc-043.md](../06-fitxes-funcionals/uc-043.md) | [Fitxa i diagrames](uc-043-gestionar-notificacions-recordatoris.md) |
 | UC-44 | Consultar i mantenir `fact_rels` i origen legacy | `[BASE/PARCIAL]` | [uc-044.md](../06-fitxes-funcionals/uc-044.md) | [Fitxa i diagrames](uc-044-consultar-mantenir-fact-rels-origen-legacy.md) |
 | UC-45 | Activar auditor temporal | `[DISSENY]` | [uc-045.md](../06-fitxes-funcionals/uc-045.md) | [Fitxa i diagrames](uc-045-activar-auditor-temporal.md) |
