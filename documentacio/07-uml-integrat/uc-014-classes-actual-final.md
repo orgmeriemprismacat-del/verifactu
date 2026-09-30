@@ -232,5 +232,5 @@ RedsysCallbackWorker ..> EnrollmentFundMovementRepository : atribució quantitat
 
 **DOCUMENTAT:** ACTUAL i FINAL.  
 **IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS i retorn navegador read-only contra estat SIF. L'atribució quantitativa addicional per inscripció continua pendent d'acreditar dins UC-014.  
-**VERIFICAT:** CI amb E2E intern simulat, retorn autoritatiu i boundaries de preproducció; lectura estàtica del pont candidat.  
+**VERIFICAT:** CI amb E2E intern simulat incloent `notification_outbox` CURS, duplicat i parcial→complet, retorn autoritatiu i boundaries de preproducció; lectura estàtica del pont candidat.  
 **PENDENT:** desplegament/preproducció real, activació de MerchantURL SIF i retirada del callback fiscal llegat després de l'evidència.
