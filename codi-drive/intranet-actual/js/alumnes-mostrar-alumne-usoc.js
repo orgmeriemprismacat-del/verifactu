@@ -34,7 +34,7 @@
                 return;
             }
 
-            renderCase(response.case || {});
+            renderCase(response.case || {}, response.capabilities || {});
         }).fail(function (xhr) {
             if (xhr.status === 409 || xhr.status === 404) {
                 removePanel();
@@ -67,7 +67,7 @@
         };
     }
 
-    function renderCase(usocCase) {
+    function renderCase(usocCase, capabilities) {
         var panel = ensurePanel();
         panel.empty();
 
@@ -91,6 +91,17 @@
         panel.append(summary(usocCase));
 
         var entityUuid = String(usocCase.UUID_ENTITY_INVOICE || '').trim();
+        var canManage = capabilities && capabilities.manage === true;
+
+        if (!canManage) {
+            panel.append(
+                $('<div>')
+                    .addClass('alert alert-secondary w-100')
+                    .text('Consulta només lectura. No tens rol de gestió USOC.')
+            );
+            bindPanelEvents(usocCase, false);
+            return;
+        }
 
         if (entityUuid === '') {
             panel.append(
@@ -117,7 +128,7 @@
         );
         panel.append(actions);
 
-        bindPanelEvents(usocCase);
+        bindPanelEvents(usocCase, true);
     }
 
     function summary(usocCase) {
@@ -195,7 +206,7 @@
         return wrapper;
     }
 
-    function bindPanelEvents(usocCase) {
+    function bindPanelEvents(usocCase, canManage) {
         var panel = $('#' + panelId);
 
         panel.off('.uc013');
@@ -203,6 +214,10 @@
         panel.on('click.uc013', '.uc013-refresh', function () {
             loadCurrentCase();
         });
+
+        if (!canManage) {
+            return;
+        }
 
         panel.on('click.uc013', '.uc013-reconcile', function () {
             var identity = currentIdentity();
@@ -229,12 +244,12 @@
                 name: value('#uc013-billing-name'),
                 nif: value('#uc013-billing-nif'),
                 address: value('#uc013-billing-address'),
-                postal_code: value('#uc013-billing-postal-code'),
+                cp: value('#uc013-billing-postal-code'),
                 city: value('#uc013-billing-city'),
                 email: value('#uc013-billing-email')
             };
 
-            if (!billing.name || !billing.nif || !billing.address || !billing.postal_code || !billing.city) {
+            if (!billing.name || !billing.nif || !billing.address || !billing.cp || !billing.city) {
                 showError('Cal completar les dades fiscals obligatòries de l’entitat.');
                 return;
             }
