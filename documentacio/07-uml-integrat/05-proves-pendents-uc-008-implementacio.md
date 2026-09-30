@@ -106,7 +106,7 @@ php sif/scripts/preflight-sif.php
 - [x] prova NO-GO si un rol gestor no té també lectura.
 - [x] comprovació read-only: el preflight no emet factures, no registra pagaments i no tanca incidències.
 - [x] integració dels checks UC-008 dins `go-no-go-preproduction.php`.
-- [ ] executar el preflight amb secrets/rols reals de preproducció i conservar-ne la sortida.
+- [x] preflight integrat al verificador agregat; l'execució real queda consolidada al punt únic de preproducció de l'apartat 10.
 
 ## 10. E2E read-only automatitzable
 
@@ -116,8 +116,8 @@ php sif/scripts/preflight-sif.php
 - [x] contracte read-only: només `summary`, `list` i `logout`.
 - [x] verificació de 303, cookie, CSRF, actor sense controls de gestió i logout.
 - [x] test que impedeix introduir mutacions al script.
-- [ ] executar-lo contra preproducció amb URL, secret i rol real.
-- [ ] conservar la sortida JSON de l'execució real.
+- [x] E2E integrat al verificador agregat i sanitització d'evidència provada.
+- [ ] **ÚNIC PENDENT D'ENTORN:** executar `php sif/scripts/verify-incidents-panel-preproduction.php | tee uc-008-preproduction-evidence.json` a preproducció amb URL/rols/secrets reals i adjuntar el JSON resultant.
 
 ## 11. Evidència de tancament
 
@@ -133,7 +133,7 @@ Per marcar UC-008 com PROVAT conservar:
 - prova de tancament amb evidència;
 - resultat preproducció.
 
-**Estat actual:** SUITE SIF amb concurrència real VERIFICADA (**648 passed, 0 failed**, run `36661335874`) + INTRANET AO **SUCCESS**. Ja no queda concurrència pendent; resten E2E real de preproducció, permisos/secrets productius, alta del menú de BD i superfícies SIF de reparació encara inexistents.
+**Estat actual:** SUITE SIF/readiness VERIFICADA (**651 passed, 0 failed**, run `36661808598`) + INTRANET AO **SUCCESS**. El codi-side del UC-008 queda tancat; resten l'execució agregada en preproducció, l'alta del menú de BD i les superfícies SIF de reparació encara inexistents.
 
 
 ## 12. Evidència CI
@@ -143,6 +143,7 @@ Per marcar UC-008 com PROVAT conservar:
 - Run **36658230379** després de preflight + go/no-go + frontera read-only: **618 passed, 0 failed**.
 - Run **36660840670** després de deduplicació Redsys/AEAT, redacció sensible, API/UI i E2E tècnic: **645 passed, 0 failed**.
 - Run **36661335874** després de la correcció de cursa idempotent i tests de concurrència real: **648 passed, 0 failed**.
+- Run **36661808598** després del verificador agregat i integració go/no-go: **651 passed, 0 failed**.
 - Run **36647777483** · Intranet AO batch checks: **success**.
 ## 13. CI automatitzada
 
@@ -150,4 +151,4 @@ S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-te
 
 La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
-**Estat actual:** SIF CI **648/0** + INTRANET AO SUCCESS; backend/UI/preflight/E2E tècnic/concurrència VERIFICATS / EXECUCIÓ E2E PREPRODUCCIÓ PENDENT.
+**Estat actual:** SIF CI **651/0** + INTRANET AO SUCCESS; backend/UI/preflight/E2E tècnic/concurrència/readiness VERIFICATS / EXECUCIÓ AGREGADA PREPRODUCCIÓ PENDENT.
