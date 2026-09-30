@@ -19,6 +19,40 @@ final class RedsysLegacySyncingProcessor implements RedsysJobProcessor
         $sync = $result['legacy_sync'] ?? null;
 
         if (!is_array($sync)) {
+            if (strtoupper(trim((string) ($job['SOURCE_TYPE'] ?? ''))) !== 'CURS'
+                || $this->coursePaymentSync === null
+            ) {
+                return $result;
+            }
+
+            $snapshot = json_decode((string) ($job['SNAPSHOT_JSON'] ?? ''), true);
+            $inscription = is_array($snapshot) ? ($snapshot['inscription'] ?? null) : null;
+            if (!is_array($inscription)) {
+                throw SifException::validation('Missing Redsys course inscription snapshot');
+            }
+
+            $idpagRaw = $snapshot['payment']['idpag'] ?? $inscription['IDPAG'] ?? null;
+            $idInscRaw = $inscription['ID'] ?? null;
+            if (!ctype_digit((string) $idpagRaw) || !ctype_digit((string) $idInscRaw)) {
+                throw SifException::validation('Invalid Redsys course identity for legacy payment sync');
+            }
+
+            $uuidFactura = trim((string) ($result['uuid_factura'] ?? ''));
+            $numVisible = trim((string) ($result['num_visible'] ?? ''));
+            if ($uuidFactura === '' || $numVisible === '') {
+                throw SifException::conflict('SIF course result lacks invoice identity for legacy payment sync');
+            }
+
+            $result['legacy_payment_sync'] = $this->coursePaymentSync->sync(
+                $sifDb,
+                $this->legacyDb,
+                (int) $idpagRaw,
+                (int) $idInscRaw,
+                $uuidFactura,
+                $numVisible
+            );
+            $result['legacy_sync_executed'] = true;
+
             return $result;
         }
 
