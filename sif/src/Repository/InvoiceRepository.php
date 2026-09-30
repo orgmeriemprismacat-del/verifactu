@@ -118,6 +118,7 @@ final class InvoiceRepository
             $payload['totals']['iva_regim'] ?? 'EXEMPT',
             $payload['totals']['iva_pct'] ?? '0.00',
             $payload['totals']['iva_import'] ?? '0.00',
+            $payload['totals']['exemption_reason'] ?? null,
             $payload['totals']['total'],
             $payload['source_channel'],
             $payload['created_by'] ?? null,
@@ -131,9 +132,9 @@ final class InvoiceRepository
                 UUID_FACTURA, ORDRE, CONCEPTE, DETALL, QUANTITAT, PREU_UNITARI,
                 IMPORT_BASE, DESC_ORIGEN, DESC_MODE, DESC_ID, DESC_CODI_PROMO,
                 DESC_PCT, DESC_IMPORT, DESC_TEXT_VISIBLE, DESC_MOTIU_INTERN,
-                BASE_IMPOSABLE, IVA_REGIM, IVA_PCT, IVA_IMPORT, TOTAL,
+                BASE_IMPOSABLE, IVA_REGIM, IVA_PCT, IVA_IMPORT, CAUSA_EXEMPCIO_NO_SUBJECTA, TOTAL,
                 SOURCE_TYPE, SOURCE_ID
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         foreach ($payload['lines'] as $index => $line) {
@@ -157,6 +158,7 @@ final class InvoiceRepository
                 $line['iva_regim'] ?? 'EXEMPT',
                 $line['iva_pct'] ?? '0.00',
                 $line['iva_import'] ?? '0.00',
+                $line['exemption_reason'] ?? null,
                 $line['total'],
                 $line['source_type'] ?? null,
                 $line['source_id'] ?? null,
