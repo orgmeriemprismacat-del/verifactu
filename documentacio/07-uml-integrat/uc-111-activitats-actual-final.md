@@ -300,14 +300,14 @@ start
 :Identificar origen ACTUAL de la promoció;
 if (Origen = aplicació original?) then (sí)
   :Review original + rectificativa;
-elseif (Origen = primer traspàs confirmat?) then (sí)
+elseif (Origen = últim transfer CONFIRMED?) then (sí)
   :Review amb SOURCE_UUID_TRANSFER;
+  :Resoldre dret parent de tota la cadena;
 elseif (Origen = derived_application APPLIED?) then (sí)
   :Review fill amb PARENT_UUID_DERIVED_BALANCE;
   :SOURCE_UUID_DERIVED_APPLICATION;
-else (segon/tercer traspàs confirmat)
-  :PENDENT servei de baixa sobre últim transfer;
-  :No activar saldo derivat automàticament;
+else (origen ambigu / transfer no actual)
+  :Bloquejar sense retrocedir a un predecessor històric;
   stop
 endif
 :Separar component promocional i diners reals;
