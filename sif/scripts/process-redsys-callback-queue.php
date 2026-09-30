@@ -16,6 +16,7 @@ use Prisma\Sif\Repository\LegacyGroupSnapshotRepository;
 use Prisma\Sif\Repository\LegacyPackSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
 use Prisma\Sif\Repository\LegacyUsocSnapshotRepository;
+use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
@@ -28,6 +29,7 @@ use Prisma\Sif\Service\LegacyPackInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacyUsocInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacySyncService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
+use Prisma\Sif\Service\PackPaymentNotificationService;
 use Prisma\Sif\Service\RedsysCallbackDispatcher;
 use Prisma\Sif\Service\RedsysCallbackWorker;
 use Prisma\Sif\Service\RedsysCourseInvoiceService;
@@ -105,7 +107,16 @@ try {
             (string) ($noviceConfig['wrapping_key_hex'] ?? ''),
             (string) ($noviceConfig['key_version'] ?? 'v1')
         ),
-        new RedsysPackInvoiceService($notifications, new LegacyPackSnapshotRepository(), new LegacyPackInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
+        new RedsysPackInvoiceService(
+            $notifications,
+            new LegacyPackSnapshotRepository(),
+            new LegacyPackInvoicePayloadBuilder(),
+            $redsysPayloads,
+            $invoiceService,
+            new PackPaymentNotificationService(
+                new NotificationOutboxRepository(new UuidGenerator())
+            )
+        ),
         new RedsysGroupInvoiceService($notifications, new LegacyGroupSnapshotRepository(), new LegacyGroupInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysGiftInvoiceService($notifications, new LegacyGiftSnapshotRepository(), new LegacyGiftInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
         new RedsysUsocInvoiceService($notifications, new LegacyUsocSnapshotRepository(), new LegacyUsocInvoicePayloadBuilder(), $redsysPayloads, $invoiceService),
