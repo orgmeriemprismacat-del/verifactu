@@ -263,7 +263,7 @@ flowchart TD
 ## 11. Cobrament entitat
 
 ### ACTUAL / IMPLEMENTAT EN REPOSITORI
-`UsocEntityPaymentService` valida que la factura sigui la `UUID_ENTITY_INVOICE` d'un expedient USOC, registra el cobrament mitjançant el ledger general i executa la conciliació. `process-usoc-entity-payment.php` és el punt d'entrada controlat de preproducció. La interfície final encara no està connectada.
+`alumnes-usoc-financament.php` ofereix una UI autenticada per consultar l'expedient, emetre factura entitat i registrar cobraments. El navegador parla només amb `ajax/alumnes/usocFinancament.php`; aquest controlador valida CSRF i delega al `SifInternalUsocClient`, que signa la petició HMAC cap a `/api/usoc/manage.php`. `UsocEntityPaymentService` registra el cobrament al ledger general i reconcilia l'expedient. La integració al menú/routing habitual encara és pendent.
 
 ### FINAL
 
@@ -326,7 +326,7 @@ flowchart TD
 | Validar negatiu | Sí | Sí | Sí |
 | Pagament/factura alumne | Sí | Sí | Sí |
 | Factura entitat | Parcial | Sí | Servei sí, pantalla no |
-| Cobrament entitat | Sí, servei/script | Sí | `UsocEntityPaymentService`; interfície final pendent |
+| Cobrament entitat | Sí, UI + servei + script | Sí | UI autònoma implementada; menú/routing pendent |
 | Conciliació | Sí, servei/script | Sí | Implementada parcialment; trigger automàtic pendent |
 | Canvi/baixa | Parcial | Sí | Compartit amb altres UC |
 
@@ -334,7 +334,7 @@ flowchart TD
 
 1. Afegir traça persistent SIF/correlació de la decisió de validació legacy; POST + CSRF + permisos ja implementats.
 2. Mantenir el test de regressió de l'allocator IDPAG compartit; implementació actual protegida amb named lock.
-3. Adaptador/pantalla d'emissió entitat.
-4. Connectar la interfície/API final amb `UsocEntityPaymentService`.
+3. Integrar la pantalla USOC al menú/routing habitual de la intranet.
+4. Validar en preproducció la configuració HMAC, rols i DB legacy amb `preflight-usoc-intranet.php`.
 5. Executar i conservar evidència de la suite sobre `sif_test*`.
 6. Tractament definit per alumne=0/curs gratuït.
