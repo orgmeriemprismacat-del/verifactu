@@ -328,3 +328,10 @@ UC-111 té una complexitat superior a una fitxa UML de tres blocs. A partir del 
 **Cobertura tècnica actual:** classes i serveis de concessió, delivery, consum, transferències successives, saldos derivats, projecció de procedència i root-refund/recovery consten a la branca. La vista de dades/estats documenta també la correcció additiva `000027` dels CHECK del root-refund. **No provat:** execució MySQL, migracions en entorn real, concurrència end-to-end i desplegament. **No integrat completament:** storage de justificants, endpoints autenticats, pricing/fiscalitat real, transports/evidències externes.
 
 Aquesta secció complementa la regla de 142 casos: els nous fitxers UC-111 són vistes suplementàries del mateix identificador, no casos nous.
+
+## Reintegració selectiva UC-042 — 2026-09-30
+
+- Capa SIF reintegrada sobre el `main` actual: `StudentProfileService`, `StudentProfileReadRepository`, `PersonalDataChangeRepository` i política d'autorització resolta server-side.
+- Proves reintegrades: `ResolvedStudentProfileAuthorizationPolicyTest`, `PersonalDataChangeRepositoryTest` i `StudentProfileServiceTest`.
+- Estat: **[PARCIAL]**. Consulta i proposta idempotent implementades; adaptador d'intranet, aplicador/propagació i evidència d'entorn continuen pendents.
+- No s'importen els recomptes globals de la branca antiga perquè havia divergit 1.228 commits de `main`.
