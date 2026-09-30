@@ -32,7 +32,12 @@ final class InvoiceQueryService
             throw SifException::forbidden('Invoice access denied');
         }
 
-        return $this->visibility->project($actor, $this->buildView($invoice, $relations));
+        $projected = $this->visibility->project($actor, $this->buildView($invoice, $relations));
+        if (!isset($projected['invoice']) || !is_array($projected['invoice'])) {
+            throw SifException::forbidden('Invoice projection is not authorized');
+        }
+
+        return $projected;
     }
 
     public function search(array $actor, array $criteria, int $limit = 50): array
@@ -56,7 +61,11 @@ final class InvoiceQueryService
                 'relations' => $relations,
             ];
             $projected = $this->visibility->project($actor, $summary);
-            $results[] = $projected['invoice'] ?? $projected;
+            if (!isset($projected['invoice']) || !is_array($projected['invoice'])) {
+                continue;
+            }
+
+            $results[] = $projected['invoice'];
         }
 
         return [
