@@ -4698,6 +4698,7 @@ class Intranet
 
 		$dnisProvisionals = [];
 		$dniDefinitius = [];
+		$existeixCerca = false;
 
 		/* Busco totes les inscripcions on el dni correspont a $dni */
 		if ( $dni != '' ) {
@@ -5676,8 +5677,8 @@ class Intranet
 							$j++;
 						}
 						if ( !$trobat ) {
+							if ( $dniUsuaris !== "#" ) $dniUsuaris .= "|";
 							$dniDefinitius[] = $dniRes;
-							if ( $i > 0 ) $dniUsuaris .= "|";
 							$dniUsuaris .= $dniRes;
 						}
 
@@ -14153,10 +14154,10 @@ class Intranet
 			if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["buscaFactRelInsc"] ) ) {
 				$stmt->bind_param("s", $likeDni);
 				$stmt->execute();
-				$stmt->bind_result($factRel);
+				$stmt->bind_result($factRelTrobat);
 				while ($stmt->fetch()) {
-					if ($factRel)
-						$facturesRelacionades[] = $factRel;
+					if ($factRelTrobat)
+						$facturesRelacionades[] = $factRelTrobat;
 				}
 				$conWeb->closeStmt();
 			}
@@ -14744,7 +14745,7 @@ class Intranet
 					".$this->__mostrarInput(1,"","Fraccio", "active", "fraccio-cns-fact", "no-edit", $fraccio)."
 				</div>
 				<div class='d-flex flex-column justify-content-center align-items-center w-100'>
-					".$this->__mostrarInput(1,"","DNI", "active", "obspag-cns-fact", "no-edit", $dni)."
+					".$this->__mostrarInput(1,"","DNI", "active", "dni-cns-fact", "no-edit", $dni)."
 					".$this->__mostrarInput(1,"","A PAGAR", "active", "apagar-cns-fact", "no-edit", $apagar)."
 				</div>
 			</div>
