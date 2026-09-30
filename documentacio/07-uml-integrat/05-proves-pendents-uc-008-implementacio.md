@@ -81,14 +81,14 @@ php sif/scripts/preflight-sif.php
 
 ## 7. UI implementada al codi · E2E pendent
 
-- [ ] llistat per estat/severitat/tipus/responsable.
-- [ ] detall mostra resource/source/correlation sense exposar secrets.
-- [ ] timeline ordenat i immutable.
+- [x] llistat amb filtres per estat, severitat i tipus; responsable visible al llistat. Filtre directe per responsable no implementat encara.
+- [x] detall mostra resource/source/correlation i no exposa secrets de configuració.
+- [x] timeline ordenat per `CREATED_AT, ID` i repositori d'accions append-only (sense UPDATE/DELETE).
 - [x] auditor/read-only queda denegat al backend; la intranet no exposa accions de mutació. Pendent només comprovació visual E2E dels controls.
-- [ ] RESOLVED requereix evidència visible.
-- [ ] DISMISSED mostra justificació.
+- [x] RESOLVED exigeix evidència tant a UI com backend i la mostra al timeline.
+- [x] DISMISSED exigeix criteri/notes i el detall mostra criteri de tancament i resolució.
 - [ ] enllaços de reparació van al UC/pantalla correcte.
-- [ ] cap botó “reintentar tot”.
+- [x] no existeix cap acció massiva “retry all / reintentar tot” al panell.
 
 ## 8. Intranet VERI*FACTU
 
