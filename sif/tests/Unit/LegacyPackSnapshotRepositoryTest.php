@@ -231,6 +231,36 @@ final class LegacyPackSnapshotRepositoryTest
         }, 409);
     }
 
+    public function testRejectsDifferentPackIdentifiersInsideSameIdpag(): void
+    {
+        $db = new LegacyPackSnapshotSpyPdo([
+            [
+                [
+                    'ID' => 501,
+                    'IDPAG' => 903,
+                    'ANY' => 2026,
+                    'MES' => '06',
+                    'CURS' => 'ABC',
+                    'TIPUS_INSC' => 'P',
+                    'OBSERVACIONS' => 'PACK|44',
+                ],
+                [
+                    'ID' => 502,
+                    'IDPAG' => 903,
+                    'ANY' => 2026,
+                    'MES' => '07',
+                    'CURS' => 'DEF',
+                    'TIPUS_INSC' => 'P',
+                    'OBSERVACIONS' => 'PACK|45',
+                ],
+            ],
+        ]);
+
+        Assert::throws(SifException::class, function () use ($db): void {
+            (new LegacyPackSnapshotRepository())->loadByIdpag($db, 903, '210.00');
+        }, 409);
+    }
+
     public function testRejectsPackWithoutPackMarkerInObservations(): void
     {
         $db = new LegacyPackSnapshotSpyPdo([
