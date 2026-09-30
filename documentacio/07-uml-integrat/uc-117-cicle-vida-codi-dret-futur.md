@@ -132,6 +132,27 @@ Undo ..> Main : <<extend>> (cancel·lació aprovada)
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Titular del dret"]
+  a_1["Gestió autoritzada"]
+  subgraph SIF_BOUNDARY["SIF · drets comercials"]
+    u_0(["UC-117nGestionar cicle del dret"])
+    u_1(["Validar regla, titular i caducitat"])
+    u_2(["Reservar durant checkout"])
+    u_3(["Consumir una sola vegada"])
+    u_4(["Registrar event de reversió"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_2 -.-> u_0
+  u_3 -.-> u_0
+  u_4 -.-> u_0
+```
+
 ## 3. Diagrama de classes — model SQL i PHP diferenciats
 
 ```mermaid
