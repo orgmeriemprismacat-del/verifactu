@@ -67,7 +67,7 @@ final class IncidentLifecycleService
         $idempotencyKey = $this->requiredString($payload, 'idempotency_key', 140);
         $correlationId = $this->correlationId($actor, $payload);
 
-        return $this->transactions->run(function (\PDO $db) use (
+        $operation = function (\PDO $db) use (
             $actor,
             $payload,
             $idempotencyKey,
@@ -108,7 +108,20 @@ final class IncidentLifecycleService
             }
 
             return $result;
-        });
+        };
+
+        try {
+            return $this->transactions->run($operation);
+        } catch (\PDOException $exception) {
+            if ((int) ($exception->errorInfo[1] ?? 0) !== 1062) {
+                throw $exception;
+            }
+
+            // The losing concurrent INSERT is retried only after TransactionRunner
+            // has rolled back its transaction. The new transaction can then see
+            // and reuse the committed incident/action created by the winner.
+            return $this->transactions->run($operation);
+        }
     }
 
     public function assign(array $actor, int $incidentId, array $payload): array
