@@ -26,26 +26,14 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
     return;
 }
 
-ob_start();
-require_once $root . '/inc/comprovarSessio.php';
-ob_end_clean();
-
-if (!isset($configOk) || !$configOk || !isset($_SESSION['usuari'])) {
-    http_response_code(401);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok' => false, 'error' => 'Session not authorized']);
-    return;
-}
-
+require_once $root . '/LegacyInvoiceReadContext.php';
 require_once $root . '/SifInternalDocumentClient.php';
 
 $usuariObject = null;
+$intranetObject = null;
 
 try {
-    $usuariObject = unserialize($_SESSION['usuari']);
-    if (!is_object($usuariObject)) {
-        throw new RuntimeException('Invalid authenticated session');
-    }
+    [$usuariObject, $intranetObject] = LegacyInvoiceReadContext::open();
 
     $actorText = $usuariObject->getUsuari();
     $actorId = is_object($actorText) && method_exists($actorText, 'get')
@@ -143,7 +131,5 @@ try {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok' => false, 'error' => 'SIF document proxy failed']);
 } finally {
-    if (is_object($usuariObject)) {
-        $_SESSION['usuari'] = serialize($usuariObject);
-    }
+    LegacyInvoiceReadContext::persist($usuariObject, $intranetObject);
 }
