@@ -36,6 +36,8 @@ final class UsocLegacyLifecycleSecurityTest
             Assert::stringContainsString('LegacyInvoiceMutationAuthorization::assertSameOrigin', $endpoint);
             Assert::stringContainsString('LegacyInvoiceMutationAuthorization::assertCanEdit', $endpoint);
             Assert::stringContainsString('LegacyUsocLifecycleGuard', $endpoint);
+            Assert::stringContainsString("if ($status >= 500)", $endpoint);
+            Assert::stringContainsString('no s’ha pogut completar l’operació', $endpoint);
 
             if (str_contains($endpoint, '$_GET[')) {
                 Assert::fail('Lifecycle mutation endpoints must not read mutation parameters from GET.');
