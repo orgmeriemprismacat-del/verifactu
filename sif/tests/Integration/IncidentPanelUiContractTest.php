@@ -50,7 +50,7 @@ final class IncidentPanelUiContractTest
 
         Assert::stringContainsString("action === 'resolve' && !evidenceRef", $app);
         Assert::stringContainsString('RESOLVED exigeix evidència de verificació', $app);
-        Assert::stringContainsString("$targetStatus === 'RESOLVED'", $service);
+        Assert::stringContainsString('$targetStatus === \'RESOLVED\'', $service);
         Assert::stringContainsString('Resolution evidence is required', $service);
     }
 
@@ -65,7 +65,7 @@ final class IncidentPanelUiContractTest
         Assert::stringContainsString('name="resolution_notes" required', $index);
         Assert::stringContainsString('Criteri tancament', $app);
         Assert::stringContainsString('Resolució', $app);
-        Assert::stringContainsString("$targetStatus, 'DISMISSED'", $service);
+        Assert::stringContainsString('$targetStatus, \'DISMISSED\'', $service);
     }
 
     public function testPanelHasNoBulkRetryAction(): void
