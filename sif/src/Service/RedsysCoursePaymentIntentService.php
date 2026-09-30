@@ -10,7 +10,9 @@ final class RedsysCoursePaymentIntentService
     public function __construct(
         private LegacyCourseSnapshotRepository $legacySnapshots,
         private RedsysPaymentIntentService $intents,
-        private RedsysDsOrderGenerator $orders
+        private RedsysDsOrderGenerator $orders,
+        private ?PrismaStudentCourseCheckoutService $prismaStudentCheckout = null,
+        private ?LegacyPrismaStudentPriceSnapshotResolver $prismaStudentPrices = null
     ) {
     }
 
@@ -44,6 +46,49 @@ final class RedsysCoursePaymentIntentService
         $dsOrder = trim((string) ($input['ds_order'] ?? ''));
         if ($dsOrder === '') {
             $dsOrder = $this->orders->generate();
+        }
+
+        if ((int) ($inscription['TIPUS_DESC'] ?? 0) === 1) {
+            if ($this->prismaStudentCheckout === null || $this->prismaStudentPrices === null) {
+                throw SifException::conflict('Alumne PrisMa checkout staging is not configured.');
+            }
+            if ((int) ($inscription['VALID_DESC'] ?? 0) !== 1) {
+                throw SifException::conflict('Alumne PrisMa discount is not in a payable state.');
+            }
+            if ($fractional || (float) $paid > 0.0 || $requested !== $pending) {
+                throw SifException::conflict(
+                    'Alumne PrisMa fractional or resumed payment requires an explicit fiscal checkout model.'
+                );
+            }
+
+            $trustedPrice = $this->prismaStudentPrices->resolve($legacyDb, $context);
+            $canonicalPartyKey = 'legacy-dni-sha256:' . hash(
+                'sha256',
+                strtoupper((string) preg_replace('/[\s.\-]+/u', '', trim((string) $inscription['DNI'])))
+            );
+
+            $staged = $this->prismaStudentCheckout->stageAndCreateIntent(
+                $sifDb,
+                $legacyDb,
+                (int) $inscription['ID'],
+                $canonicalPartyKey,
+                $trustedPrice,
+                [
+                    'ds_order' => $dsOrder,
+                    'terminal' => trim((string) ($input['terminal'] ?? '1')),
+                    'created_by' => trim((string) ($input['created_by'] ?? 'pay-prisma-cat')),
+                    'expires_at' => isset($input['expires_at']) ? trim((string) $input['expires_at']) : null,
+                ]
+            );
+
+            return $staged + [
+                'idpag' => $idpag,
+                'source_id' => (int) $inscription['ID'],
+                'amount' => $trustedPrice['net_amount'],
+                'pending_before' => $pending,
+                'currency' => 'EUR',
+                'terminal' => trim((string) ($input['terminal'] ?? '1')),
+            ];
         }
 
         $snapshot = $context;
