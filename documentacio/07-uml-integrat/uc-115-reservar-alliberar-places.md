@@ -85,6 +85,30 @@ G --> Wait
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Comprador"]
+  a_1["Gestió acadèmica"]
+  a_2["Procés de caducitat"]
+  subgraph SIF_BOUNDARY["SIF · capacitat i reserves"]
+    u_0(["UC-115nReservar i alliberar places"])
+    u_1(["Comprovar aforament amb concurrència"])
+    u_2(["Reservar plaça amb venciment"])
+    u_3(["Confirmar plaça quan pertoca"])
+    u_4(["Alliberar i auditar cancel·lació"])
+    u_5(["Gestionar llista d'espera [pendent]"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  a_2 --> u_4
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  a_1 --> u_3
+  a_1 --> u_5
+```
+
 ## 3. Classes — esquema SQL definit, servei no acreditat
 
 ```mermaid
