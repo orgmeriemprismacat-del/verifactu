@@ -2,6 +2,7 @@
     'use strict';
 
     const endpoint = 'https://intranet.prisma.cat/ajax/alumnes/usocFinancament.php';
+    let canManage = false;
 
     function csrfToken() {
         const meta = document.querySelector('meta[name="csrf-token-usoc-financament"]');
@@ -40,8 +41,22 @@
         badge.text(value);
     }
 
-    function renderCase(data) {
-        if (!data) return;
+    function applyCapabilities(capabilities) {
+        canManage = !!(capabilities && capabilities.manage === true);
+
+        $('#usoc-reconciliar, #usoc-emetre-entitat, #usoc-registrar-cobrament')
+            .prop('disabled', !canManage);
+
+        $('#usoc-financament')
+            .find('#usoc-student-uuid, #usoc-student-input-amount, #usoc-entity-input-amount, #usoc-billing-name, #usoc-billing-nif, #usoc-billing-email, #usoc-billing-address, #usoc-billing-cp, #usoc-billing-city, #usoc-billing-province, #usoc-billing-country, #usoc-payment-uuid, #usoc-payment-amount, #usoc-payment-date, #usoc-payment-reference, #usoc-payment-method, #usoc-payment-bank, #usoc-payment-notes')
+            .prop('disabled', !canManage);
+
+        if (!canManage) {
+            showAlert('info', 'Consulta només lectura. No tens rol de gestió USOC.');
+        }
+    }
+
+    function renderCase(data) {        if (!data) return;
         $('#usoc-student-invoice').text(data.UUID_STUDENT_INVOICE || '—');
         $('#usoc-student-amount').text(data.STUDENT_AMOUNT ? money(data.STUDENT_AMOUNT) + ' €' : '—');
         $('#usoc-student-status').text(data.STUDENT_PAYMENT_STATUS || '—');
@@ -86,8 +101,11 @@
         post('view', identity())
             .done(function (response) {
                 if (response.ok && response.case) {
+                    applyCapabilities(response.capabilities || {});
                     renderCase(response.case);
-                    showAlert('success', 'Expedient USOC carregat.');
+                    if (canManage) {
+                        showAlert('success', 'Expedient USOC carregat.');
+                    }
                 } else {
                     showAlert('danger', response.error || 'No s’ha pogut carregar l’expedient.');
                 }
@@ -98,6 +116,10 @@
     });
 
     $('#usoc-reconciliar').on('click', function () {
+        if (!canManage) {
+            showAlert('danger', 'No tens permisos per modificar aquest expedient USOC.');
+            return;
+        }
         post('reconcile', identity())
             .done(function (response) {
                 if (response.ok && response.case) {
@@ -113,6 +135,10 @@
     });
 
     $('#usoc-emetre-entitat').on('click', function () {
+        if (!canManage) {
+            showAlert('danger', 'No tens permisos per modificar aquest expedient USOC.');
+            return;
+        }
         const id = identity();
         const payload = {
             id_insc: id.id_insc,
@@ -146,6 +172,10 @@
     });
 
     $('#usoc-registrar-cobrament').on('click', function () {
+        if (!canManage) {
+            showAlert('danger', 'No tens permisos per modificar aquest expedient USOC.');
+            return;
+        }
         post('register_entity_payment', {
             uuid_entity_invoice: field('usoc-payment-uuid'),
             amount: field('usoc-payment-amount'),
