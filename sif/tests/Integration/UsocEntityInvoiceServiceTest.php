@@ -95,6 +95,49 @@ final class UsocEntityInvoiceServiceTest
         Assert::same(2, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
     }
 
+    public function testRequiresPersistedUsocCaseBeforeEntityInvoice(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new UsocEntityLegacySpyPdo([]);
+        $service = $this->service($sifDb);
+
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'REDSYS|USOC_ALUMNE|IDPAG:980|ORDER:NOCASE',
+            'source_channel' => 'REDSYS',
+            'totals' => [
+                'import_base' => '75.00',
+                'taxable_base' => '75.00',
+                'total' => '75.00',
+            ],
+            'lines' => [[
+                'unit_price' => '75.00',
+                'base' => '75.00',
+                'import_base' => '75.00',
+                'taxable_base' => '75.00',
+                'total' => '75.00',
+            ]],
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 880,
+                'idpag' => 980,
+                'ds_order' => 'NOCASE',
+                'visible_alumne' => 1,
+            ]],
+        ]);
+        $studentInvoice = IssueInvoiceTest::serviceFor($sifDb)->issueInvoice($payload);
+
+        $input = $this->entityInput();
+        $input['student_invoice_uuid'] = $studentInvoice['uuid_factura'];
+
+        $exception = Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $service, $input): void {
+            $service->issueEntityFromExplicitInput($sifDb, $legacyDb, $input);
+        }, 409);
+
+        Assert::same('USOC financing case is required before entity invoice', $exception->getMessage());
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same([], $legacyDb->preparedSql);
+    }
+
     public function testRejectsEntityAmountMismatchBeforeIssuingInvoice(): void
     {
         $sifDb = TestDatabase::fresh();
