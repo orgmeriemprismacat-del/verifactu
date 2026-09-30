@@ -32,7 +32,7 @@ final class LegacyUsocDiscountValidationSecurityTest
         Assert::stringContainsString("FILTER_VALIDATE_INT", $endpoint);
         Assert::stringContainsString("validar_descomptes_requests", $endpoint);
         Assert::stringContainsString("LegacyDiscountValidationLookup", $endpoint);
-        Assert::stringContainsString("->isUsoc($idInsc)", $endpoint);
+        Assert::stringContainsString('->isUsoc($idInsc)', $endpoint);
         Assert::stringContainsString("beginValidationDecision", $endpoint);
         Assert::stringContainsString("completeValidationDecision", $endpoint);
         Assert::stringContainsString("should_apply_legacy", $endpoint);
