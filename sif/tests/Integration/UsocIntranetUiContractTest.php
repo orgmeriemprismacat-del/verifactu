@@ -41,8 +41,7 @@ final class UsocIntranetUiContractTest
         Assert::stringContainsString("!== 'POST'", $controller);
         Assert::stringContainsString('hash_equals', $controller);
         Assert::stringContainsString('SifInternalUsocClient', $controller);
-        Assert::stringContainsString('getRols()', $controller);
-        Assert::stringContainsString('getUsuari()->get()', $controller);
+        Assert::stringContainsString('SifAuthenticatedActor::fromUser', $controller);
         Assert::stringContainsString('issueEntityInvoice', $controller);
         Assert::stringContainsString('registerEntityPayment', $controller);
         Assert::stringContainsString('LegacyUsocContext::open()', $controller);
