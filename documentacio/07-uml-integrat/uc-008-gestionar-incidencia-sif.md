@@ -569,16 +569,21 @@ D --> E[Resolució només al SIF]
 
 ## 11. Proves
 
-### Escrites a la branca
+### Escrites i executades
 
-- `IncidentLifecycleTest::testDetailedOpenReturnsStableIdentityAndReusesSameIdempotencyKey`.
-- `IncidentLifecycleTest::testDetailedOpenRejectsUnknownInvoiceInsteadOfPersistingOrphanReference`.
-- `IncidentLifecycleTest::testLifecycleAssignsAddsEvidenceAndResolvesWithImmutableActionHistory`.
-- `IncidentLifecycleTest::testReadOnlyActorCanViewButCannotMutateIncident`.
-- `IncidentLifecycleTest::testResolveRequiresClosureEvidence`.
-- `FiscalQueueProcessorTest` exigeix incidència `AEAT_DEAD_LETTER` al tercer error.
-- `HttpEndpointsTest` comprova que l'endpoint d'incidències usa autenticació i lifecycle.
-- `IncidentLifecycleSchemaTest` comprova la migració additiva.
+- `IncidentLifecycleTest`: identitat, referències factura/pagament/recurs, lifecycle, permisos, idempotència, filtres i summary.
+- `IncidentConcurrencyTest`: dues obertures simultànies amb la mateixa key i dues assignacions simultànies amb connexions/processos independents.
+- `IncidentInternalApiSecurityTest`: HMAC, timestamp, anti-replay, rols fail-closed, 404, journal d'actor/rol i límit de llistat.
+- `IncidentPanelLaunchAuthenticatorTest`: handoff signat i anti-replay del panell.
+- `IncidentPanelIntranetBoundaryTest`: intranet read-only, identitat des de sessió i fallback sense fals zero.
+- `IncidentPanelPreflightScriptTest`: GO/NO-GO de rols, secrets, paths i superfície.
+- `IncidentPanelE2eScriptTest`: E2E tècnic read-only preparat i bloqueig de production.
+- `IncidentPanelUiContractTest`: filtres, detall, timeline append-only, RESOLVED/DISMISSED i absència de retry massiu.
+- `RedsysCallbackWorkerTest`: rollback, deduplicació per job i redacció de dades sensibles.
+- `SensitiveDataRedactorTest`: PAN Luhn, CVV, signatures i secrets.
+- `FiscalQueueProcessorTest`: integritat, retries/dead-letter, deduplicació per queue i separació REJECTED remot/error local.
+- `AeatWorkflowTest`: resultat incert → REVIEW sense retransmissió cega.
+- `HttpEndpointsTest` i `IncidentLifecycleSchemaTest`: wiring HTTP i esquema.
 
 ### Existents i relacionades
 
@@ -587,19 +592,18 @@ D --> E[Resolució només al SIF]
 - `RedsysCallbackWorkerTest::testFifthTechnicalFailureBecomesIncident`.
 - `PayloadIdempotencyFlowTest` per `FISCAL_PAYLOAD_CONFLICT`.
 
-**Verificació CI:** runs 36638546735 i 36638546786, amb **555 passed / 0 failed**; el segon inclou PHP 8.4, MySQL 8.4, BD legacy i lint PHP. Les proves E2E, concurrència específica i preproducció continuen pendents.
+**Verificació CI actual:** run **36661335874**, amb **648 passed / 0 failed** sobre PHP 8.4 + MySQL 8.4. Inclou concurrència real amb dos processos, deduplicació Redsys/AEAT, redacció sensible, API/UI, preflight i E2E tècnic read-only. L'E2E contra preproducció real i la configuració productiva continuen pendents.
 
 ## 12. Gaps pendents
 
-1. Implementar la UI real `pay.prisma.cat/sif/incidencies`.
-2. Implementar el resum read-only de la intranet `VERI*FACTU`.
-3. Definir i desplegar rols productius.
-4. Decidir SLA/prioritats i notificacions automàtiques.
-5. Afegir integracions d'obertura per documents, conciliació, legacy i altres workers que encara no criden UC-008.
-6. Provar concurrència real: dues obertures simultànies amb la mateixa clau i dues accions simultànies sobre el mateix expedient.
-7. Provar rollback Redsys quan falla l'INSERT d'incidència després de `markIncident`.
-8. ~~Executar suite PHP/MySQL CI~~ **FET (555/0)**; resta executar preproducció i conservar evidència d'entorn.
-9. Validar redacció/retenció de `DETAILS` i `EVIDENCE_JSON` per evitar dades sensibles.
+1. **Desplegament real:** carregar secrets/rols de preproducció i executar `preflight-incidents-panel.php`.
+2. **E2E real:** executar `e2e-incidents-panel.php` contra la URL HTTPS de preproducció i conservar la sortida JSON.
+3. **Menú intranet:** consultar la BD real `apartats` i donar d'alta `/sif-verifactu.php` amb pare/ordre/rols reals.
+4. **Superfícies de reparació:** encara no existeixen pàgines SIF públiques de Factures/Registres AEAT; no s'inventen URLs des del panell d'incidències.
+5. **Governança operativa:** decidir SLA/prioritats i notificacions automàtiques si s'aproven.
+6. **Cobertura de detectors:** afegir integracions d'obertura per documents, conciliació, legacy i altres workers només quan el cas funcional corresponent ho requereixi.
+
+**Ja tancat al codi/CI:** UI, resum intranet, concurrència real, rollback Redsys, deduplicació Redsys/AEAT, redacció sensible, preflight i E2E tècnic read-only.
 
 ## 13. Traçabilitat
 
@@ -619,4 +623,4 @@ D --> E[Resolució només al SIF]
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
-**Estat de tancament tècnic:** backend parcial implementat i verificat en CI; UI, configuració productiva, E2E/concurrència específica i preproducció continuen pendents.
+**Estat de tancament tècnic:** backend + UI + seguretat + idempotència + concurrència + preflight + E2E tècnic implementats i verificats en CI (**648/0**). Pendents només configuració/desplegament de preproducció, E2E real, alta de menú i superfícies de reparació encara no implementades.
