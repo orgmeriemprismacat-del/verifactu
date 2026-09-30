@@ -313,6 +313,18 @@ Aquesta regressió posterior confirma que els merges posteriors no han introduï
 
 ## 7. Mancances reals
 
+### 6 bis. Comprovació d'evidències de tancament
+
+S'ha comprovat el `main` actual i els artifacts dels workflows verds `36732555122` i `36732555092`.
+
+No consten al repositori ni als artifacts:
+
+- `uc-008-preproduction-evidence.json`;
+- `uc-008-menu-evidence.json`;
+- `uc-008-closure-validation.json`.
+
+Per tant, el resultat **740/0** acredita regressió de codi i contractes automatitzats, però **no acredita l'execució real de preproducció ni el tancament de l'entorn**. No s'ha fabricat ni inferit cap evidència absent.
+
 ### 7.1. Pendents obligatoris d'entorn
 
 1. Executar:
