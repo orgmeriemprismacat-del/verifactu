@@ -11,17 +11,16 @@ use Prisma\Sif\Exception\SifException;
 
 /**
  * UC-111 / DEC-18/21/23:
- * Stage cancellation of the CURRENT destination reached through a CONFIRMED
- * first transfer. This fixes lineage: the new derived balance points to the
- * transfer, not back to the historical pre-transfer application.
+ * Stage cancellation of the CURRENT destination reached through ANY
+ * CONFIRMED transfer that has no active successor. The new derived balance
+ * points to that current transfer, never back to a historical predecessor.
  *
  * It creates ONLY PENDING_FISCAL_REVIEW evidence. No spendable balance,
  * refund, credit_balance, bank movement or fiscal invoice is created here.
  * The caller must be an authenticated internal backoffice workflow.
  *
- * This cut supports a CONFIRMED first transfer sourced from the original
- * novice application. Successive transfers and transfer sourced from an
- * already-derived application remain a separate integration.
+ * The legacy-named stageFirstTransferredDestinationReview() remains as a
+ * compatibility alias; new callers should use stageCurrentTransferredDestinationReview().
  */
 final class NovicePromotionTransferredDestinationCancellationReviewService
 {
@@ -33,6 +32,30 @@ final class NovicePromotionTransferredDestinationCancellationReviewService
     }
 
     public function stageFirstTransferredDestinationReview(
+        \PDO $db,
+        string $uuidTransfer,
+        string $uuidRectificative,
+        string $proposedEligiblePromotionalAmount,
+        string $proposedEligibleCashAmount,
+        string $authorizedActorId,
+        string $policyEvidenceRef,
+        string $idempotencyKey,
+        ?\DateTimeImmutable $now = null
+    ): array {
+        return $this->stageCurrentTransferredDestinationReview(
+            $db,
+            $uuidTransfer,
+            $uuidRectificative,
+            $proposedEligiblePromotionalAmount,
+            $proposedEligibleCashAmount,
+            $authorizedActorId,
+            $policyEvidenceRef,
+            $idempotencyKey,
+            $now
+        );
+    }
+
+    public function stageCurrentTransferredDestinationReview(
         \PDO $db,
         string $uuidTransfer,
         string $uuidRectificative,
@@ -101,12 +124,14 @@ final class NovicePromotionTransferredDestinationCancellationReviewService
             if ($transfer === null
                 || (string) $transfer['ROOT_UUID_ENTITLEMENT'] !== (string) $root['UUID_ENTITLEMENT']
                 || $transfer['STATUS'] !== 'CONFIRMED'
-                || $transfer['PREVIOUS_UUID_TRANSFER'] !== null
-                || $transfer['UUID_DERIVED_APPLICATION'] !== null
-                || trim((string) ($transfer['UUID_ORIGINAL_APPLICATION'] ?? '')) === ''
                 || trim((string) ($transfer['UUID_DESTINATION_FACTURA'] ?? '')) === ''
+                || (
+                    trim((string) ($transfer['UUID_ORIGINAL_APPLICATION'] ?? '')) === ''
+                    && trim((string) ($transfer['UUID_DERIVED_APPLICATION'] ?? '')) === ''
+                    && trim((string) ($transfer['PREVIOUS_UUID_TRANSFER'] ?? '')) === ''
+                )
             ) {
-                throw SifException::conflict('Only the confirmed first original-course transfer is supported here.');
+                throw SifException::conflict('Only a confirmed transfer with a traceable predecessor is supported here.');
             }
 
             if ($this->one(
