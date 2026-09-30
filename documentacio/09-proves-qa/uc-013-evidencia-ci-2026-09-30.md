@@ -153,3 +153,24 @@ Això acredita:
 - decisió de negoci sobre 20 % públic vs 25 % històric;
 - confirmació fiscal que la classificació EXEMPT del builder és correcta per totes les variants;
 - canvi/baixa/rectificativa E2E amb dos pagadors.
+
+
+## Lifecycle USOC · snapshot separat per pagador
+
+**Run:** `36728324711`  
+**Commit:** `43d6ad3ceec5daa3ed8dbb141d1acec940c95052`  
+**Resultat:** **SUCCESS · 728 passed / 0 failed**
+
+PASS específic:
+- `UsocLifecycleGuardServiceTest::testLifecycleGuardReturnsSeparatedPayerSnapshot`
+
+Aquesta prova acredita que, davant un expedient USOC amb dues factures:
+- la part alumne conserva la seva factura, total, cobrat, retornat i net pagat;
+- la part entitat conserva una factura i saldo independents;
+- un cobrament parcial d'USOC no altera ni es barreja amb el cobrament de l'alumne;
+- el lifecycle guard continua bloquejant el flux legacy i exposa `payer_snapshot` com a base per a UC-026/027.
+
+En l'escenari provat:
+- alumne: factura de 75,00 €, cobrada 75,00 €, net 75,00 €;
+- entitat: factura de 25,00 €, cobrada parcialment 10,00 €, net 10,00 €;
+- resultat del guard: `allowed=false`, `USOC_FINANCING_CASE_REQUIRES_ORCHESTRATION`.
