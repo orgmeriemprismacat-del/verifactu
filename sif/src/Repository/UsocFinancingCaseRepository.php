@@ -112,6 +112,25 @@ final class UsocFinancingCaseRepository
             ?? throw new \RuntimeException('USOC financing case could not be reloaded after entity invoice update');
     }
 
+    public function findByEntityInvoice(\PDO $db, string $uuidEntityInvoice, bool $forUpdate = false): ?array
+    {
+        $uuidEntityInvoice = trim($uuidEntityInvoice);
+        if ($uuidEntityInvoice === '') {
+            throw SifException::validation('Missing USOC entity invoice UUID');
+        }
+
+        $sql = 'SELECT * FROM usoc_financing_case WHERE UUID_ENTITY_INVOICE = ?';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$uuidEntityInvoice]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
+    }
+
     public function updateReconciliation(
         \PDO $db,
         int $inscriptionId,
