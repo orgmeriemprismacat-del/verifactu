@@ -19,8 +19,9 @@ final class UsocLegacyLifecycleSecurityTest
             $root . '/codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php'
         );
         $guard = file_get_contents($root . '/codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php');
+        $preview = file_get_contents($root . '/codi-drive/intranet-actual/ajax/alumnes/sifCanviCursPreview.php');
 
-        if ($page === false || $js === false || $minJs === false || $change === false || $cancel === false || $guard === false) {
+        if ($page === false || $js === false || $minJs === false || $change === false || $cancel === false || $guard === false || $preview === false) {
             Assert::fail('Could not read USOC lifecycle security files');
         }
 
@@ -59,5 +60,10 @@ final class UsocLegacyLifecycleSecurityTest
         Assert::stringContainsString('TIPUS_DESC', $guard);
         Assert::stringContainsString('lifecycleGuard', $guard);
         Assert::stringContainsString('USOC', $guard);
+
+        Assert::stringContainsString('LegacyUsocLifecycleGuard', $preview);
+        Assert::stringContainsString("source_enrollment_id", $preview);
+        Assert::stringContainsString("'course_change'", $preview);
+        Assert::stringContainsString("http_response_code($status)", $preview);
     }
 }
