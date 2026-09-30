@@ -497,9 +497,9 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 
 | Responsabilitat | DDL | Runtime localitzat | Estat UC-20 |
 | --- | --- | --- | --- |
-| Operació comercial | `commercial_operation` | No | PENDENT |
-| Parts de l'operació | `commercial_operation_party` | No | PENDENT |
-| Decisió de descompte | `discount_validation` | No | PENDENT |
+| Operació comercial | `commercial_operation` | `PrismaStudentCourseCheckoutService` | IMPLEMENTAT UC-020 |
+| Parts de l'operació | `commercial_operation_party` | `PrismaStudentCourseCheckoutService` | IMPLEMENTAT UC-020 |
+| Decisió de descompte | `discount_validation` | `PrismaStudentCourseCheckoutService` | IMPLEMENTAT UC-020 |
 | Link pagament | `payment_link` | No | PENDENT |
 | Event operatiu | `operational_event` | `OperationalEventRepository` | IMPLEMENTAT, integració UC-20 pendent |
 | Intenció Redsys | `redsys_payment_intent` | repositori + servei | IMPLEMENTAT |
@@ -571,3 +571,24 @@ A la branca d'auditoria UC-020 s'han afegit peces executables sense declarar tan
 - tests unitaris de la policy i tests d'integració de la intenció CURS/Alumne PrisMa.
 
 Continuen **PENDENTS** l'orquestrador del checkout, els writers runtime de `discount_validation`/`commercial_operation`, el vincle `UUID_OPERATION ↔ UUID_INTENT` i la substitució completa del flux que confia en imports del navegador.
+
+
+## 20. Orquestrador server-side UC-020
+
+S'ha afegit `PrismaStudentCourseCheckoutService`, que executa en servidor el tall comercial pre-TPV:
+
+1. rellegeix la matrícula real;
+2. consulta historial per DNI amb `LegacyPrismaStudentHistoryRepository`;
+3. avalua `PrismaStudentDiscountPolicy`;
+4. valida que el snapshot de preu autoritatiu coincideixi amb `A_PAGAR`;
+5. crea/reutilitza `commercial_operation`;
+6. crea/reutilitza `discount_validation`;
+7. construeix el snapshot CURS amb `origin=ALUMNE_PRISMA`;
+8. crea/reutilitza `redsys_payment_intent`;
+9. vincula `commercial_operation.UUID_INTENT`.
+
+El servei **sobreescriu** `source_type`, `source_id`, `idpag`, `expected_amount`, moneda i snapshot de qualsevol request externa. Per tant, els imports/tipus del navegador no poden esdevenir autoritatius dins d'aquest tall.
+
+També bloqueja que una operació ja vinculada a un `UUID_INTENT` sigui reassociada silenciosament a un DS_ORDER diferent.
+
+Continua pendent integrar aquest servei amb l'endpoint/pàgina legacy real de checkout i eliminar el camí antic basat en `preuCar/preuDescompte/tipusDescompte`.
