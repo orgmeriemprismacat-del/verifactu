@@ -91,7 +91,7 @@ try {
         $matches = $client->searchInvoices(
             $actorId,
             $roles,
-            ['source_ids' => [(int) $idInsc]],
+            ['source_ids' => [(int) $idInsc], 'source_type' => 'INSCRIPCIO'],
             20
         );
 
@@ -158,6 +158,7 @@ try {
             if ($sourceIds !== []) {
                 $participantCriteria = $criteria;
                 $participantCriteria['source_ids'] = $sourceIds;
+                $participantCriteria['source_type'] = 'INSCRIPCIO';
                 $responses[] = $client->searchInvoices(
                     $actorId,
                     $roles,
