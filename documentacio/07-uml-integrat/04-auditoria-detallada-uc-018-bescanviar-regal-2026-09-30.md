@@ -263,3 +263,17 @@ Després del tall documental inicial s'ha implementat una primera fase executabl
 - suite d'integració específica UC-018.
 
 Aquesta addenda canvia l'estat de «bescanvi no implementat» a **nucli de bescanvi implementat parcialment**. No canvia el NO-GO de producció: manca encara materialització de la inscripció, API/UI, aplicació quantitativa del valor i E2E/preproducció.
+
+
+## 16. Addenda — atribució econòmica a la inscripció
+
+S'ha afegit una fase executable addicional al nucli UC-018:
+
+- `EnrollmentFundMovementRepository::insertOrReuseCompensationAllocation()`;
+- reutilització del `CHARGE` original del regal;
+- moviment `COMPENSATION_ALLOCATION` cap a `ID_INSC_DESTI`;
+- idempotència estable per dret+inscripció;
+- atomicitat amb `RESERVE → ALLOCATION → CONSUME`;
+- bloqueig explícit de diferències de preu fins que hi hagi decisió funcional.
+
+Això tanca el buit «aplicació de fons explícita» sense crear una factura nova ni un segon cobrament. El NO-GO es manté per la materialització de l'alta acadèmica, API/UI, concurrència multiprocés i E2E/preproducció.
