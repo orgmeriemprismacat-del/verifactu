@@ -45,6 +45,11 @@ class PayloadIdempotencyValidator {
   +assertMatches(payload, storedHash) void
 }
 
+class SensitiveDataRedactor {
+  <<PHP seguretat>>
+  +redact(value) string
+}
+
 class InternalApiAuthenticator {
   <<PHP>>
   +authenticate(server, rawBody, method, path) array
@@ -102,6 +107,7 @@ IncidentLifecycleService --> IncidentRepository
 IncidentLifecycleService --> IncidentActionRepository
 IncidentRepository --> PayloadIdempotencyValidator
 IncidentActionRepository --> PayloadIdempotencyValidator
+RedsysCallbackWorker --> SensitiveDataRedactor : abans de persistir errors
 IncidentRepository --> errors_verifactu
 IncidentActionRepository --> sif_incident_action
 sif_incident_action --> errors_verifactu : INCIDENT_ID
@@ -114,18 +120,19 @@ FiscalQueueProcessor --> IncidentRepository : AEAT/integritat
 
 | Component | Estat | Observació |
 | --- | --- | --- |
-| `IncidentRepository` | IMPLEMENTAT | compatibilitat `open()` + contracte ric `openDetailed()` |
+| `IncidentRepository` | IMPLEMENTAT + CONCURRÈNCIA VERIFICADA | `open()` + `openDetailed()`; duplicate concurrent recuperat amb current read `FOR UPDATE` sota MySQL REPEATABLE READ |
 | `IncidentActionRepository` | IMPLEMENTAT | timeline append-only i idempotent |
 | `IncidentLifecycleService` | IMPLEMENTAT | lifecycle backend, sense reparació genèrica |
 | `PayloadIdempotencyValidator` | REUTILITZAT | hash canònic del payload, conflicte si divergeix |
 | `InternalApiAuthenticator` | IMPLEMENTAT PREVI | HMAC, timestamp, request-id i anti-replay |
-| `RedsysCallbackWorker` | INTEGRAT | job INCIDENT + expedient dins la mateixa transacció |
-| `FiscalQueueProcessor` | INTEGRAT | incidència per integritat i dead-letter final |
+| `SensitiveDataRedactor` | IMPLEMENTAT | redacció de PAN Luhn, CVV, signatures, secrets/password/merchant key |
+| `RedsysCallbackWorker` | INTEGRAT | job INCIDENT + expedient atòmic; payload estable per `UUID_JOB`; redacció sensible abans de `LAST_ERROR/DETAILS` |
+| `FiscalQueueProcessor` | INTEGRAT | incidència per integritat/dead-letter, deduplicada per `fiscal_queue.ID`; REVIEW per outcome incert |
 | `errors_verifactu` | AMPLIAT | capçalera/lifecycle |
-| `sif_incident_action` | AMPLIAT | idempotency key + payload hash |
+| `sif_incident_action` | AMPLIAT | idempotency key + payload hash; accions concurrents serialitzades per lock de capçalera |
 | UI de panell | IMPLEMENTADA AL CODI | handoff HMAC, sessió SIF, CSRF, vista, accions i resum intranet; desplegament pendent |
 
-## 3. CL-008-FINAL · Panell i adaptadors que falten
+## 3. CL-008-FINAL · Operació i superfícies que encara falten
 
 ```mermaid
 classDiagram
