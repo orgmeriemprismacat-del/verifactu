@@ -94,7 +94,7 @@ php sif/scripts/go-no-go-preproduction.php
 
 El go/no-go global incorpora també la presència/configuració bàsica del circuit UC-008. Un `NO-GO` bloqueja la validació E2E fins resoldre els checks fallits. Cap dels dos scripts autoritza per si mateix el pas a producció.
 
-## 6. Proves de desplegament
+## 7. Proves de desplegament
 
 1. Usuari sense rol de lectura → 403 al resum i al panell.
 2. Auditor → pot llistar/veure, no pot assignar ni tancar.
@@ -109,7 +109,7 @@ El go/no-go global incorpora també la presència/configuració bàsica del circ
 11. Validar que `SIF_PANEL_LAUNCH_SECRET` no apareix en HTML, JS, logs o respostes.
 12. Verificar que la sessió SIF es destrueix amb «Sortir».
 
-## 7. Evidència necessària per tancar
+## 8. Evidència necessària per tancar
 
 - URL productiva accessible per un rol autoritzat.
 - Captura/resposta del resum intranet.
