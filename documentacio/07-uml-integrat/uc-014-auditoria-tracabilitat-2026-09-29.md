@@ -2,7 +2,7 @@
 
 **Data:** 29/09/2026  
 **Branca d'auditoria:** `audit/uc-014-completa-2026-09-29`  
-**Estat global:** **DOC AMPLIADA / IMP SIF PARCIAL REAL / INTEGRACIÓ ECOMMERCE PENDENT / TEST NO ACREDITAT**.
+**Estat global:** **DOC AMPLIADA / IMP SIF AVANÇADA / WIRING CURS VERIFICAT PER CI / TALL PRODUCTIU I E2E PREPRODUCCIÓ PENDENTS**.
 
 ## 1. Evidència revisada
 
@@ -109,3 +109,10 @@ No marcar **TANCAT AMB EVIDÈNCIA** fins que:
 ## 6. Nota de seguretat
 
 Durant l'auditoria s'han observat secrets Redsys literals en còpies de codi del repositori. Aquest document no els reprodueix. Cal rotació/externalització segons la política de secrets i verificar quina configuració està activa abans de desplegar.
+
+
+## 7. Evidència CI i pla de tall final
+
+El wiring de sincronització de curs al worker Redsys ha estat integrat a `main` i verificat per CI en els workflows `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification`. Això acredita el codi i la suite automatitzada, però **no** una execució end-to-end contra Redsys/preproducció.
+
+El procediment de tall operatiu queda definit a [UC-014 — Pla de tall final Redsys cap al SIF](uc-014-pla-tall-final-redsys-sif.md).
