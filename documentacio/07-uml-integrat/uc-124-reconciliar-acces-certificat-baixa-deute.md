@@ -84,10 +84,10 @@ flowchart LR
   a_1["Cobraments / empresa pagadora"]
   a_2["Moodle / certificació"]
   subgraph SIF_BOUNDARY["SIF · estat acadèmic i econòmic"]
-    u_0(["UC-124nReconciliar accés i certificat"])
+    u_0(["UC-124<br/>Reconciliar accés i certificat"])
     u_1(["Verificar inscripció, deute i pagador"])
     u_2(["Decidir accés amb regla versionada"])
-    u_3(["UC-129nSincronitzar matrícula Moodle"])
+    u_3(["UC-129<br/>Sincronitzar matrícula Moodle"])
     u_4(["Registrar canvi amb evidència"])
   end
   a_0 --> u_0
