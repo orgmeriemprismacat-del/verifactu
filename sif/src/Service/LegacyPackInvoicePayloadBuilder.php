@@ -31,6 +31,7 @@ final class LegacyPackInvoicePayloadBuilder
         }
 
         $idpag = $this->idpag($snapshot, $firstInscription);
+        $billing = $this->consistentBilling($items);
         $lines = [];
         $relations = [
             [
@@ -61,7 +62,7 @@ final class LegacyPackInvoicePayloadBuilder
             'source_type' => 'PACK',
             'source_channel' => 'REDSYS',
             'created_by' => 'redsys-pack',
-            'billing' => $this->billing($firstInscription),
+            'billing' => $billing,
             'totals' => $this->totals($lines),
             'lines' => $lines,
             'relations' => $relations,
@@ -100,6 +101,29 @@ final class LegacyPackInvoicePayloadBuilder
         }
 
         return $items;
+    }
+
+    private function consistentBilling(array $items): array
+    {
+        $expected = null;
+
+        foreach ($items as $index => $item) {
+            $billing = $this->billing($this->itemInscription($item, $index));
+            if ($expected === null) {
+                $expected = $billing;
+                continue;
+            }
+
+            if ($billing !== $expected) {
+                throw SifException::conflict('Pack inscriptions contain divergent fiscal receiver data');
+            }
+        }
+
+        if ($expected === null) {
+            throw SifException::validation('Pack invoice requires billing data');
+        }
+
+        return $expected;
     }
 
     private function billing(array $inscription): array
