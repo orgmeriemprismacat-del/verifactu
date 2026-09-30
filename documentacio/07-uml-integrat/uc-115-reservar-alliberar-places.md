@@ -93,7 +93,7 @@ flowchart LR
   a_1["Gestió acadèmica"]
   a_2["Procés de caducitat"]
   subgraph SIF_BOUNDARY["SIF · capacitat i reserves"]
-    u_0(["UC-115nReservar i alliberar places"])
+    u_0(["UC-115<br/>Reservar i alliberar places"])
     u_1(["Comprovar aforament amb concurrència"])
     u_2(["Reservar plaça amb venciment"])
     u_3(["Confirmar plaça quan pertoca"])
