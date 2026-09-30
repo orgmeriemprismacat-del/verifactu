@@ -1,7 +1,7 @@
 # UC-007 · Auditoria detallada de consulta de factura, estat i document — 2026-09-29
 
 **Estat documental:** AUDITAT EN DETALL / CANVIS DOCUMENTALS APLICATS.  
-**Estat runtime:** CONSULTA INTERNA READ-ONLY + HMAC + PONT INTRANET + UI SIF IMPLEMENTATS PARCIALMENT; PROVES RUNTIME AJORNADES; UC-080 BYTES PENDENT.  
+**Estat runtime:** CONSULTA INTERNA READ-ONLY + HMAC + PONT INTRANET + UI SIF + UC-080 BYTES/HASH/AUDIT IMPLEMENTATS PARCIALMENT; PROVES RUNTIME AJORNADES.  
 **Abast:** pantalla llegada <code>/alumnes/factura/</code>, entrades AL-16–AL-18 de la fitxa d'alumne, model SIF i frontera UC-07/36/55/78/80.  
 **No acredita:** desplegament productiu, permisos reals de servidor web, dades productives, execució dels tests, integritat física de documents ni conformitat fiscal externa.
 
@@ -118,7 +118,7 @@ class DocumentReadRepository {
   +listMetadata(uuid)
 }
 class InvoiceDocumentAccessService {
-  <<DISSENY UC-080>>
+  <<PHP EXISTENT UC-080>>
   +listAuthorized(actor,scope)
   +download(actor,documentId,tokenOrSession)
 }
@@ -602,7 +602,7 @@ Per decisió de treball, les proves unitàries/integració/E2E i de preproducci�
 
 # 15. Criteri de tancament
 
-UC-007 es podrà marcar **IMPLEMENTAT I PROVAT** només quan existeixi una ruta de consulta server-side que apliqui política per recurs, retorni projecció estructurada per UUID, integri estats sense mutació, derivi bytes a UC-080, i la matriu anterior tingui evidència reproduïble de preproducció. Fins aleshores, el cas queda **DOCUMENTAT I AUDITAT ESTÀTICAMENT / IMPLEMENTACIÓ FINAL PENDENT**.
+UC-007 es podrà marcar **IMPLEMENTAT I PROVAT** quan el desplegament per entorn estigui configurat i la matriu pendent tingui evidència reproduïble de preproducció. La ruta server-side, projecció per UUID, scope intern, UI intranet i derivació de bytes a UC-080 ja tenen implementació parcial; el bloqueig actual és de rollout/proves, no d'absència del nucli.
 
 
 ## 15.1. Implementació posterior a l'auditoria
