@@ -209,11 +209,14 @@ participant NovicePromotionSuccessiveTransferReviewService as NextReview
 participant NovicePromotionSuccessiveTransferConfirmationService as NextConfirm
 participant NovicePromotionDestinationCancellationReviewService as CancelReview
 participant NovicePromotionTransferredDestinationCancellationReviewService as TransferCancelReview
+participant NovicePromotionDerivedApplicationCancellationReviewService as DerivedCancelReview
 participant NovicePromotionDerivedBalanceActivationService as Activate
 participant NovicePromotionTransferredCancellationActivationService as TransferActivate
+participant NovicePromotionDerivedApplicationCancellationActivationService as DerivedActivate
 interface NovicePromotionAdjustmentApprovalSourceInterface as Approval
 database novice_promotion_application_transfer as Transfer
 database novice_promotion_derived_balance as Derived
+database novice_promotion_derived_application as DerivedApp
 
 alt Canvi primer destí
   Secretaria -> TransferReview : stage
@@ -226,22 +229,32 @@ else Canvi successiu
   NextReview -> Transfer : PENDING_FISCAL_REVIEW
   NextConfirm -> Approval : approvedSuccessiveTransfer
   Approval --> NextConfirm : final APPROVED
-  NextConfirm -> Transfer : CONFIRMED
+  NextConfirm -> Transfer : predecessor històric + successor CONFIRMED
 else Baixa destí original
   Secretaria -> CancelReview : stageOriginalApplicationReview
   CancelReview -> Derived : PENDING_FISCAL_REVIEW
   Activate -> Approval : approvedCancellation
+  Approval --> Activate : final APPROVED
   Activate -> Derived : ACTIVE + nou venciment
 else Baixa curs traspassat
   Secretaria -> TransferCancelReview : stageFirstTransferredDestinationReview
   TransferCancelReview -> Derived : PENDING amb SOURCE_UUID_TRANSFER
   TransferActivate -> Approval : approvedTransferredCancellation
+  Approval --> TransferActivate : final APPROVED
   TransferActivate -> Transfer : CANCELLED / CONVERTED_TO_DERIVED
   TransferActivate -> Derived : ACTIVE + nou venciment
+else Baixa curs pagat amb saldo derivat
+  Secretaria -> DerivedCancelReview : stageDerivedApplicationReview
+  DerivedCancelReview -> Derived : child PENDING amb parent/source dapp
+  DerivedActivate -> Approval : approvedDerivedApplicationCancellation
+  Approval --> DerivedActivate : final APPROVED
+  DerivedActivate -> DerivedApp : CONVERTED_TO_DERIVED
+  DerivedActivate -> Derived : child ACTIVE + nou venciment
 end
 @enduml
 ```
 
+**Tall actual:** primer canvi, canvis successius i baixes amb origen aplicació original, primer traspàs o `derived_application.APPLIED` tenen serveis separats. Continua pendent la baixa del curs actual quan l'exposició viva és un segon/tercer traspàs confirmat.
 ## 6. FINAL/branca · consum derivat i devolució JASOM
 
 ```plantuml
