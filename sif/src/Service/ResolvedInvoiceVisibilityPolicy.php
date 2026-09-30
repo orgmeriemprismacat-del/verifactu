@@ -15,11 +15,23 @@ final class ResolvedInvoiceVisibilityPolicy implements InvoiceVisibilityPolicyIn
             return false;
         }
 
-        if (($scope['all'] ?? false) === true) {
-            return true;
+        if (array_key_exists($uuid, $scope['invoices'] ?? [])) {
+            return in_array(
+                strtoupper((string) $scope['invoices'][$uuid]),
+                ['FULL', 'MINIMAL'],
+                true
+            );
         }
 
-        return array_key_exists($uuid, $scope['invoices'] ?? []);
+        if (($scope['all'] ?? false) === true) {
+            return in_array(
+                strtoupper((string) ($scope['projection'] ?? '')),
+                ['FULL', 'MINIMAL'],
+                true
+            );
+        }
+
+        return false;
     }
 
     public function project(array $actor, array $view): array
