@@ -27,7 +27,7 @@ Catàleg navegable generat des de `33-casos-us-sif.md`. Cada fitxa té 21 aparta
 | UC-16a | Afegir participant després d'emetre | facturació i registre fiscal | `[DISSENY]` | [uc-016a.md](./uc-016a.md) |
 | UC-16b | Treure participant després d'emetre | facturació i registre fiscal | `[DISSENY]` | [uc-016b.md](./uc-016b.md) |
 | UC-17 | Comprar regal | facturació i registre fiscal | `[BASE/ASYNC/PARCIAL]` | [uc-017.md](./uc-017.md) |
-| UC-18 | Bescanviar regal | venda i descomptes | `[DISSENY]` | [uc-018.md](./uc-018.md) |
+| UC-18 | Bescanviar regal | venda i descomptes | `[REVIEWED/DISSENY/BLOQUEJANT]` | [uc-018.md](./uc-018.md) |
 | UC-18a | Gestionar regal caducat o duplicat | venda i descomptes | `[DISSENY]` | [uc-018a.md](./uc-018a.md) |
 | UC-19 | Validar afiliació USOC | facturació i registre fiscal | `[DISSENY]` | [uc-019.md](./uc-019.md) |
 | UC-19a | Facturar part de l'alumne USOC | facturació i registre fiscal | `[BASE/ASYNC/PARCIAL]` | [uc-019a.md](./uc-019a.md) |
