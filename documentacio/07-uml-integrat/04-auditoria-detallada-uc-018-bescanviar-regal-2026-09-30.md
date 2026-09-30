@@ -252,3 +252,14 @@ Producció UC-018: NO-GO
 ```
 
 La compra de regal pot estar implementada sense que el bescanvi ho estigui; són casos diferents.
+
+
+## 15. Addenda d'implementació posterior a l'auditoria
+
+Després del tall documental inicial s'ha implementat una primera fase executable:
+
+- `CommercialEntitlementRepository` amb transicions GIFT i events;
+- `GiftRedemptionService::preview()` i `redeem()`;
+- suite d'integració específica UC-018.
+
+Aquesta addenda canvia l'estat de «bescanvi no implementat» a **nucli de bescanvi implementat parcialment**. No canvia el NO-GO de producció: manca encara materialització de la inscripció, API/UI, aplicació quantitativa del valor i E2E/preproducció.
