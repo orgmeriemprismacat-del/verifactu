@@ -175,6 +175,44 @@ final class LegacyUsocInvoicePayloadBuilderTest
         }, 409);
     }
 
+    public function testUsesExplicitAmountsWithoutFixedUsocPercentage(): void
+    {
+        $snapshot = $this->usocSnapshot();
+        $snapshot['inscription']['A_PAGAR'] = '73.00';
+        $snapshot['inscription']['IMPORT_BASE'] = '100.00';
+        $snapshot['inscription']['DESC_IMPORT'] = '27.00';
+        $snapshot['usoc']['student_amount'] = '73.00';
+        $snapshot['usoc']['entity_amount'] = '27.00';
+        $snapshot['payment']['amount'] = '73.00';
+
+        $payload = (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($snapshot);
+
+        Assert::same('100.00', $payload['totals']['import_base']);
+        Assert::same('27.00', $payload['totals']['discount']);
+        Assert::same('73.00', $payload['totals']['total']);
+        Assert::same('27.00', $payload['lines'][0]['discount_amount']);
+        Assert::same('73.00', $payload['lines'][0]['total']);
+        Assert::same('73.00', $payload['usoc']['student_amount']);
+        Assert::same('27.00', $payload['usoc']['entity_amount']);
+    }
+
+    public function testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined(): void
+    {
+        $snapshot = $this->usocSnapshot();
+        $snapshot['inscription']['A_PAGAR'] = '0.00';
+        $snapshot['inscription']['IMPORT_BASE'] = '100.00';
+        $snapshot['inscription']['DESC_IMPORT'] = '100.00';
+        $snapshot['usoc']['student_amount'] = '0.00';
+        $snapshot['usoc']['entity_amount'] = '100.00';
+        $snapshot['payment']['amount'] = '0.00';
+
+        $exception = Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyUsocInvoicePayloadBuilder())->buildStudentPayload($snapshot);
+        }, 422);
+
+        Assert::same('Invalid USOC student amount', $exception->getMessage());
+    }
+
     public function testEntityPayloadRequiresExplicitBillingAmountAndStudentInvoice(): void
     {
         Assert::throws(SifException::class, function (): void {
