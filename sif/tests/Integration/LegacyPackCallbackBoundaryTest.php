@@ -8,7 +8,7 @@ final class LegacyPackCallbackBoundaryTest
 {
     public function testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode(): void
     {
-        $path = dirname(__DIR__, 2)
+        $path = dirname(__DIR__, 3)
             . '/codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentPackAutomatic.php';
 
         $source = file_get_contents($path);
