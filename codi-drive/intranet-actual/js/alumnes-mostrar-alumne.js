@@ -1,6 +1,11 @@
 var urlPagina = window.location.pathname.split('?')[0];
 let path = "https://intranet.prisma.cat/ajax/";
 let hashUrl = null;
+function obtenirCsrfAlumnesLifecycle() {
+	const meta = document.querySelector('meta[name="csrf-token-alumnes-lifecycle"]');
+	return meta ? meta.getAttribute('content') : '';
+}
+
 if ( window.location.hash.split('#')[1])
 	hashUrl = window.location.hash.split('#')[1].split('/')[1];
 
@@ -1723,7 +1728,7 @@ function mostrarModalCanviCurs(id) {
 	                  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalConfirmacioCanvi')).hide();
 	                  var req = $.ajax({
 	                     url: path + "alumnes/realitzarCanviCurs_CanviCurs.php",
-	                     method: "GET",
+	                     method: "POST",
 	                     data: {
 	                        idinsc : id,
 	                        any : any,
@@ -1732,12 +1737,14 @@ function mostrarModalCanviCurs(id) {
 	                        numero : numeroCanvi,
 	                        apagar : apagar,
 	                        pagat : pagat,
+	                        pendent : pendent,
 	                        despeses : despeses,
 	                        obs : obs,
 	                        motiu : motiu,
 	                        enviarCoreu : enviarCoreu,
 	                        tipusDesc : tipusDesc,
-	                        validDesc : validDesc
+	                        validDesc : validDesc,
+	                        csrfToken : obtenirCsrfAlumnesLifecycle()
 	                     },
 	                     dataType: "html"
 	                  });
@@ -2131,11 +2138,12 @@ function mostrarModalDonarBaixa(id) {
 
 						var upd2 = $.ajax({
 						   url: path + "alumnes/confirmacioBaixa_DonarBaixa.php",
-						   method: "GET",
+						   method: "POST",
 						   data: {
 						      idinsc : id2,
 						      motiu : motiu,
-						      enviarCoreu : enviarCoreu
+						      enviarCoreu : enviarCoreu,
+						      csrfToken : obtenirCsrfAlumnesLifecycle()
 						   },
 						   dataType: "html"
 						});
