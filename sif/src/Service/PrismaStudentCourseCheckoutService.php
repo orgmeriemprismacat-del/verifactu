@@ -73,6 +73,22 @@ final class PrismaStudentCourseCheckoutService
                     throw SifException::conflict('A conflicting Alumne PrisMa commercial operation already exists.');
                 }
                 $uuidOperation = (string) $existing['UUID_OPERATION'];
+
+                $linkedIntent = trim((string) ($existing['UUID_INTENT'] ?? ''));
+                if ($linkedIntent !== '') {
+                    $linkedOrder = $this->one(
+                        $sifDb,
+                        'SELECT DS_ORDER FROM redsys_payment_intent WHERE UUID_INTENT = ? FOR UPDATE',
+                        [$linkedIntent]
+                    );
+                    if ($linkedOrder === null
+                        || trim((string) ($intentRequest['ds_order'] ?? '')) !== (string) $linkedOrder['DS_ORDER']
+                    ) {
+                        throw SifException::conflict(
+                            'Commercial operation is already linked to another Redsys intent.'
+                        );
+                    }
+                }
             } else {
                 $uuidOperation = $this->uuids->generate();
                 $this->execute(
