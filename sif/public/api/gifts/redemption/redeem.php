@@ -14,6 +14,7 @@ use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Service\GiftEnrollmentStager;
 use Prisma\Sif\Service\GiftRedemptionService;
 use Prisma\Sif\Service\InternalApiAuthenticator;
+use Prisma\Sif\Service\LegacyGiftUsageReconciler;
 
 header('Cache-Control: private, no-store, max-age=0');
 header('Pragma: no-cache');
@@ -104,6 +105,12 @@ try {
         ]
     );
 
+    $legacyReconciliation = (new LegacyGiftUsageReconciler())->reconcile(
+        $legacyDb,
+        $giftCode,
+        $enrollmentId
+    );
+
     JsonResponse::send([
         'ok' => true,
         'stage' => [
@@ -114,10 +121,7 @@ try {
             'idempotency_reused' => (bool) $stage['idempotency_reused'],
         ],
         'redemption' => $result,
-        'legacy_reconciliation' => [
-            'enrollment_id' => $enrollmentId,
-            'expected_state' => 'USAT_EQUALS_ENROLLMENT_ID',
-        ],
+        'legacy_reconciliation' => $legacyReconciliation,
     ]);
 } catch (\Throwable $exception) {
     JsonResponse::fromThrowable($exception);
