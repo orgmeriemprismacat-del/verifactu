@@ -255,3 +255,32 @@ Run `36658376996` · commit `7dcad412...` · **SUCCESS**.
 - `php -l` correcte a les dues còpies de `PackPaymentGate.php`.
 - `php -l` correcte a les dues còpies de `pagina_efectuar_pagament_grup_automatic.php`.
 - Suite SIF: **619 passed / 0 failed**.
+
+
+## 13. Enduriment addicional — 2026-09-30
+
+### UC15-P0-09 · Builder fiscal sense heurística — CORREGIT
+
+`LegacyPackInvoicePayloadBuilder` ja no reconstrueix automàticament una base o un descompte del 25 % a partir d'`A_PAGAR`.
+
+Ara cada línia del pack ha de portar explícitament:
+
+- `TOTAL`;
+- `IMPORT_BASE`;
+- `DESC_IMPORT`;
+- `DESC_PCT`.
+
+El builder comprova que:
+
+`IMPORT_BASE - DESC_IMPORT = TOTAL`
+
+i rebutja amb conflicte qualsevol línia incompleta o inconsistent.
+
+També s'ha endurit `LegacyPackSnapshotRepository`: el fallback legacy exigeix snapshot comercial complet amb `PACK_ORDINAL`, `PACK_BASE`, `PACK_DISCOUNT`, `PACK_DISCOUNT_PCT` i `PACK_TOTAL`. Una inscripció antiga sense aquests marcadors no pot generar una factura SIF per reconstrucció.
+
+### Proves afegides
+
+- `RedsysPackInvoiceServiceTest::testRejectsLegacyPackWithoutCompleteCommercialSnapshot()`.
+- `LegacyPackInvoicePayloadBuilderTest::testRejectsPackLineWithoutExplicitCommercialAmounts()`.
+
+**Execució CI d'aquests dos últims canvis:** pendent d'evidència al commit actual. La darrera suite acreditada anterior continua sent 619/619.
