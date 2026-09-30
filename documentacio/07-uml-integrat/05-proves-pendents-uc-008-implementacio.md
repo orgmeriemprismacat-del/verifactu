@@ -87,7 +87,7 @@ php sif/scripts/preflight-sif.php
 - [x] auditor/read-only queda denegat al backend; la intranet no exposa accions de mutació. Pendent només comprovació visual E2E dels controls.
 - [x] RESOLVED exigeix evidència tant a UI com backend i la mostra al timeline.
 - [x] DISMISSED exigeix criteri/notes i el detall mostra criteri de tancament i resolució.
-- [ ] enllaços de reparació van al UC/pantalla correcte.
+- [ ] **BLOQUEJAT PER SUPERFÍCIE:** enllaços de reparació a factura/registre AEAT. El contracte està documentat, però `sif/public` encara no conté pantalles SIF de Factures ni Registres AEAT; no s'inventen URLs. El panell només pot enllaçar quan aquestes superfícies executable quedin definides.
 - [x] no existeix cap acció massiva “retry all / reintentar tot” al panell.
 
 ## 8. Intranet VERI*FACTU
