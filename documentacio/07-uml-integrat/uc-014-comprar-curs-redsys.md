@@ -2,7 +2,7 @@
 
 **Objectiu:** convertir una compra de curs/edició pagada realment per Redsys en una factura SIF i un cobrament econòmic atribuït a la **inscripció correcta**. Una intenció pendent, un callback denegat i un cobrament confirmat **no són el mateix estat**. Aquest cas és de compra de **curs ordinari**; taller i jornada tenen variants UC-14a/14b que no es donen per cobertes per aquesta fitxa.
 
-**Codi contrastat:** `RedsysPaymentIntentService` (UC-63), `RedsysCallbackService`/`RedsysCallbackWorker` (UC-03), `RedsysCourseInvoiceService`, `LegacyCourseInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService` i codi web llegat de pagament. La integració final de l'ecommerce, disponibilitat de places, descompte justificat, accés acadèmic i atribució monetària per inscripció **no queden acreditades només per aquests serveis**. **Revisió 29/09/2026:** el recorregut ACTUAL factura dins `realitzaPagamentAutomatic.php`; el FINAL separa intenció, callback, cua/worker i emissió SIF.
+**Codi contrastat:** `RedsysPaymentIntentService`/`RedsysCoursePaymentIntentService` (UC-63/UC-14), `RedsysCallbackService`/`RedsysCallbackWorker` (UC-03), `RedsysCourseInvoiceService`, `InvoiceService`, `CourseLegacyPaymentSyncService`, `RedsysCoursePaymentStatusService` i el pont candidat de `pay.prisma.cat` (`SifRedsysCourseIntentClient`, `SifRedsysCourseStatusClient`, retorns OK/KO). **Revisió 30/09/2026:** el repositori ja separa intenció, callback, cua/worker, emissió, projecció llegada i consulta read-only d'estat. El desplegament de la MerchantURL SIF i l'E2E Redsys real de preproducció continuen sense acreditar.
 
 ## 1. Fitxa del cas
 
@@ -17,12 +17,12 @@
 
 ### 1.1. Flux principal asíncron
 
-1. L'alumne selecciona curs i edició i confirma compra; l'adaptador ecommerce **objectiu** valida inscripció, preu, descompte, places i receptor fiscal i crea intenció `redsys_payment_intent` amb `DS_ORDER` i snapshot (UC-63). No es factura ni es registra `CHARGE` pel sol fet de preparar l'intent.
+1. L'alumne selecciona curs i edició i confirma compra; el pont candidat crida `SifRedsysCourseIntentClient`, i `RedsysCoursePaymentIntentService` rellegeix la inscripció/saldo i crea o reutilitza `redsys_payment_intent` amb `DS_ORDER` i snapshot. No es factura ni es registra `CHARGE` pel sol fet de preparar l'intent.
 2. Redsys rep la petició i envia callback signat. La recepció verifica signatura, import, divisa i terminal contra la intenció, desa notificació i encua job (UC-03); **la recepció HTTP no emet factura**.
 3. El worker reclama el job i `RedsysCallbackDispatcher` selecciona `RedsysCourseInvoiceService` amb `sourceType=CURS` i `SNAPSHOT_JSON` de la intenció.
 4. `RedsysCourseInvoiceService::issueFromIntentSnapshot()` passa el snapshot a `LegacyCourseInvoicePayloadBuilder::build()` (inscripció, curs, import i dades fiscals). `RedsysInvoicePayloadBuilder::buildFromValidatedNotification()` exigeix notificació `VALIDATED` i incorpora `payment`, `DS_ORDER` i `IDPAG`.
 5. `InvoiceService::issueInvoice()` crea/reutilitza factura, registre fiscal, cadena, cua AEAT, relació d'inscripció i moviment de cobrament inicial en la transacció del nucli.
-6. El worker marca el job processat amb els UUIDs. La sincronització d'inscripció, accés al curs, documents i estat del llegat són fases **diferents** que necessiten correlació/conciliació.
+6. El worker marca el job processat amb els UUIDs i el circuit de sync de curs projecta l'estat econòmic al llegat de forma idempotent. Altres efectes postpagament continuen sent fases separades i han de conservar correlació/recuperabilitat.
 7. **Requisit detectat en la revisió:** a més de la imputació a factura, registrar una atribució `EXTERNAL → INSCRIPCIÓ` per l'import real, vinculada a `UUID_PAYMENT` i al participant. **Aquesta taula/servei encara és proposta.**
 
 ### 1.2. Alternatives, errors i control dels imports
@@ -37,7 +37,7 @@
 | Un mateix `IDPAG` cobreix pack o grup | No passar-lo al handler de `CURS` per comoditat; UC-15/16 tenen N inscripcions i regles de visibilitat diferents. |
 | Compra confirmada però sincronització acadèmica falla | Factura i pagament persistits; incidència i recuperació idempotent del llegat, no una nova facturació. |
 
-**Proves localitzades, no executades:** `RedsysCourseInvoiceServiceTest`, `RedsysAsyncFlowTest`, `RedsysPaymentIntentTest`. Falta demostració del flux complet ecommerce–Redsys–SIF–inscripció acadèmica en l'entorn corresponent.
+**Proves executades en CI:** `RedsysCourseInvoiceServiceTest`, `RedsysAsyncFlowTest`, `RedsysPaymentIntentTest`, `RedsysCourseEndToEndSimulatedTest`, `RedsysLegacySyncingProcessorCourseTest`, `RedsysCoursePreproductionBoundaryTest`, `RedsysCoursePaymentStatusServiceTest` i `RedsysCourseReturnBoundaryTest`. Això acredita el circuit intern simulat i el retorn autoritatiu al repositori; **no acredita** una transacció Redsys real ni el desplegament a preproducció/producció.
 
 ## 2. Diagrama UML de casos d'ús
 
@@ -117,7 +117,7 @@ RedsysCourseInvoiceService --> InvoiceService : factura+CHARGE
 sequenceDiagram
 autonumber
 actor A as Alumne/pagador
-participant Web as Ecommerce [adaptador pendent]
+participant Web as pay.prisma.cat [pont candidat]
 participant Intent as RedsysPaymentIntentService
 participant Bank as Redsys
 participant C as RedsysCallbackService
@@ -130,7 +130,7 @@ participant R as RedsysInvoicePayloadBuilder
 participant I as InvoiceService
 participant L as EnrollmentFundMovementRepository [PROPOSTA]
 A->>Web: Confirmar curs, edició i pagament
-Web->>Intent: create(DS_ORDER, CURS, import, snapshot)
+Web->>Intent: client HMAC crea/reutilitza intenció CURS
 Intent-->>Web: UUID_INTENT pendent
 Web->>Bank: Redirecció TPV
 Bank->>C: Callback signat
@@ -170,6 +170,6 @@ Aquest document principal conserva el model integrat del cas. La cobertura exhau
 ### Estat
 
 - **DOCUMENTAT:** fitxa, casos d'ús, classes ACTUAL/FINAL, seqüències ACTUAL/FINAL i activitats per superfícies principals.
-- **IMPLEMENTAT:** nucli SIF Redsys i handler CURS; també existeix el circuit llegat, que s'ha de substituir/encapsular.
-- **VERIFICAT:** lectura estàtica del repositori.
-- **PENDENT:** adaptador ecommerce final, atribució monetària explícita per inscripció, sincronització acadèmica recuperable i proves executades end-to-end.
+- **IMPLEMENTAT:** nucli SIF Redsys, handler CURS, pont candidat d'intenció, projecció llegada i retorn navegador autoritatiu; el circuit llegat continua com a fallback fins al tall.
+- **VERIFICAT:** CI amb E2E intern simulat, duplicats, parcial→complet, boundaries de preproducció i retorn OK/KO read-only.
+- **PENDENT:** Redsys/preproducció real, activació de `SIF_REDSYS_CALLBACK_URL`, retirada de l'autoritat fiscal llegada i pendents independents d'outbox/postprocessat sense evidència pròpia.
