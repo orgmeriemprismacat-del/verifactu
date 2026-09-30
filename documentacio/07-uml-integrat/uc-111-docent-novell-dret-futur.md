@@ -120,10 +120,10 @@ flowchart LR
   a_1["Gestió autoritzada"]
   a_2["Worker de pagament"]
   subgraph SIF_BOUNDARY["SIF · docent novell"]
-    u_0(["UC-111nValidar docent i emetre dret futur"])
+    u_0(["UC-111<br/>Validar docent i emetre dret futur"])
     u_1(["Verificar prova de titulació"])
     u_2(["Comprovar cobrament original real"])
-    u_3(["UC-117nCrear dret futur idempotent"])
+    u_3(["UC-117<br/>Crear dret futur idempotent"])
   end
   a_0 --> u_0
   a_1 --> u_1
