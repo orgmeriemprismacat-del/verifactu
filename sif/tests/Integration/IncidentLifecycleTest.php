@@ -447,6 +447,44 @@ final class IncidentLifecycleTest
         Assert::same(3, (int) $db->query('SELECT COUNT(*) FROM sif_incident_action')->fetchColumn());
     }
 
+    public function testSummaryReturnsExactOpenAndCriticalCounts(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $actor = $this->manager();
+
+        $service->open($actor, [
+            'type' => 'CRITICAL_TEST',
+            'message' => 'Critical incident',
+            'severity' => 'CRITICAL',
+            'reason_code' => 'TEST_OPEN',
+            'idempotency_key' => 'TEST|UC08|SUMMARY|CRITICAL',
+        ]);
+        $high = $service->open($actor, [
+            'type' => 'HIGH_TEST',
+            'message' => 'High incident',
+            'severity' => 'HIGH',
+            'reason_code' => 'TEST_OPEN',
+            'idempotency_key' => 'TEST|UC08|SUMMARY|HIGH',
+        ]);
+
+        $service->resolve($actor, $high['incident_id'], [
+            'reason_code' => 'VERIFIED',
+            'idempotency_key' => 'TEST|UC08|SUMMARY|RESOLVE',
+            'closure_criteria' => 'Verification passes.',
+            'resolution_notes' => 'Resolved for summary test.',
+            'evidence' => ['test' => 'PASS'],
+        ]);
+
+        $summary = $service->summary($actor)['summary'];
+
+        Assert::same(2, $summary['total']);
+        Assert::same(1, $summary['open_total']);
+        Assert::same(1, $summary['critical_open']);
+        Assert::same(1, $summary['by_status']['OPEN']);
+        Assert::same(1, $summary['by_status']['RESOLVED']);
+    }
+
     private function service(\PDO $db): IncidentLifecycleService
     {
         return new IncidentLifecycleService(
