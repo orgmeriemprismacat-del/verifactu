@@ -92,8 +92,8 @@ L'allocator continua basant-se en `MAX(IDPAG)+1`, però `ConnexioBBDDSTMT::reser
 ### UC15-P0-04 · Signatura — CORREGIT 2026-09-30
 Els dos callbacks legacy de pack comparen ara de forma bloquejant la signatura calculada amb `Ds_Signature` mitjançant `hash_equals()`. També es bloqueja si `Ds_Order` o `Ds_Amount` signats no coincideixen amb els valors legacy utilitzats pel procés.
 
-### UC15-P0-05 · Ordinal comercial — PARCIALMENT CORREGIT 2026-09-30
-L'alta grava `PACK_ORDINAL`; `LegacyPackSnapshotRepository` el recupera i `LegacyPackInvoicePayloadBuilder` ordena per aquest ordinal i exigeix seqüència contigua. Resta verificar que el valor gravat prové de l'ordre comercial canònic del pack i no només de l'ordre per data de les edicions.
+### UC15-P0-05 · Ordinal comercial — ORDRE OPERATIU ESTABILITZAT 2026-09-30
+L'alta grava `PACK_ORDINAL`; `LegacyPackSnapshotRepository` el recupera i `LegacyPackInvoicePayloadBuilder` ordena per aquest ordinal i exigeix seqüència contigua. Alta, `Pack.php` i `InfoPack.php` utilitzen ara el mateix ordre determinista `ORDER BY c.DATAI, p.ID_CURS`. Això blinda l'ordre operatiu/presentat actual; resta una decisió funcional sobre si cal una posició comercial explícita independent de les dates.
 
 ### UC15-P0-06 · Receptor — CORREGIT FAIL-CLOSED 2026-09-30
 `PackPaymentGate` construeix billing des de BD i el builder aplica `consistentBilling()` a totes les inscripcions. Si qualsevol component divergeix en dades fiscals, l'emissió es bloqueja amb conflicte.
@@ -231,14 +231,14 @@ El mateix terminal es passa a la intenció SIF i al formulari Redsys. Si manca c
 ### Evidència de test escrita
 `PackPaymentGateTest` cobreix pagament complet, rebuig parcial, pack ja pagat parcialment, ordinal absent, PACK inconsistent, ordinal duplicat/no contigu, receptor divergent, adreça divergent i descompte percentual inconsistent.
 
-**Execució CI acreditada:** run GitHub Actions `36658248618`, commit `d02bc540...`, resultat **619 passed / 0 failed**. La validació end-to-end/preproducció continua pendent.
+**Execució CI acreditada:** run GitHub Actions `36720150263`, commit `c961f193...`, resultat **706 passed / 0 failed**. La validació end-to-end/preproducció continua pendent.
 
 
 ## 12. Evidència CI positiva — 2026-09-30
 
 Run: `36658248618` · workflow `SIF PHP MySQL tests` · commit `d02bc5406099b2417196fb107d799b35fba291aa`.
 
-**Resultat final:** **619 passed / 0 failed**.
+**Resultat final d'aquell run:** **619 passed / 0 failed**.
 
 S'han observat PASS explícits per:
 - tots els `LegacyPackInvoicePayloadBuilderTest`;
@@ -254,7 +254,7 @@ Run `36658376996` · commit `7dcad412...` · **SUCCESS**.
 
 - `php -l` correcte a les dues còpies de `PackPaymentGate.php`.
 - `php -l` correcte a les dues còpies de `pagina_efectuar_pagament_grup_automatic.php`.
-- Suite SIF: **619 passed / 0 failed**.
+- Suite SIF d'aquell run: **619 passed / 0 failed**.
 
 
 ## 13. Enduriment addicional — 2026-09-30
@@ -283,7 +283,7 @@ També s'ha endurit `LegacyPackSnapshotRepository`: el fallback legacy exigeix s
 - `RedsysPackInvoiceServiceTest::testRejectsLegacyPackWithoutCompleteCommercialSnapshot()`.
 - `LegacyPackInvoicePayloadBuilderTest::testRejectsPackLineWithoutExplicitCommercialAmounts()`.
 
-**Execució CI d'aquests dos últims canvis:** pendent d'evidència al commit actual. La darrera suite acreditada anterior continua sent 619/619.
+**Execució CI en aquell punt històric:** encara pendent per als dos canvis acabats d'afegir; la darrera suite acreditada aleshores era 619/619. Aquesta mancança queda resolta posteriorment pel run `36720150263` (706/0).
 
 
 ## 14. Retirada operativa del callback fiscal legacy — 2026-09-30
@@ -314,8 +314,8 @@ El script `sif/scripts/process-redsys-pack.php` continua limitat a CLI i rebutja
 
 1. Els UML FINAL deixen d'inventar `AcademicEnrollmentSyncService`: el flux real usa `RedsysLegacySyncingProcessor` + `LegacySyncService` després de l'èxit SIF.
 2. El runner local UC-015 comprova explícitament les taules `enrollment_fund_movement` i `notification_outbox`.
-3. El runner local enumera els tests de regressió afegits després de la suite 619/0 i fa lint dels quatre PHP crítics del checkout PACK.
-4. La suite 619/0 continua sent evidència històrica vàlida del commit indicat, però **no s'utilitza com a prova que commits posteriors hagin executat els tests nous**.
+3. El runner local enumera els tests de regressió afegits després de la suite històrica 619/0 i fa lint dels quatre PHP crítics del checkout PACK.
+4. El run `36720150263` sobre `c961f193...` acredita també els tests nous del UC-015; qualsevol canvi posterior haurà de tornar a executar CI abans de donar-lo per verificat.
 
 ### Mancances residuals prioritzades
 
@@ -323,3 +323,56 @@ El script `sif/scripts/process-redsys-pack.php` continua limitat a CLI i rebutja
 - **P1 comercial:** acreditar formalment la font canònica de `PACK_ORDINAL`.
 - **P1 retirada:** eliminar físicament `realitzaPagamentPackAutomatic.php` com a callback fiscal quan acabi la finestra de rollback.
 - **P2 llegat:** substituir si es decideix l'allocator `MAX(IDPAG)+1` sota lock per una seqüència pròpia.
+
+
+## 16. Evidència CI posterior al PR #53 — 2026-09-30
+
+GitHub Actions `SIF PHP MySQL tests`, run `36720150263`, commit `c961f1931687a1363a9a080a6715317645f9686e`: **706 passed / 0 failed**.
+
+PASS explícits rellevants per UC-015:
+- `LegacyPackCallbackBoundaryTest::testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode`;
+- `LegacyPackInvoicePayloadBuilderTest::testUsesCommercialOrdinalWhenSnapshotItemsArriveOutOfOrder`;
+- `LegacyPackInvoicePayloadBuilderTest::testRejectsPackLineWithoutExplicitCommercialAmounts`;
+- `RedsysPackInvoiceServiceTest::testIntentSnapshotCreatesOneDurableNotificationAcrossRetry`;
+- `RedsysPackInvoiceServiceTest::testRejectsPackWhenValidatedRedsysAmountDiffersFromInvoiceLines`;
+- `RedsysPackInvoiceServiceTest::testRejectsLegacyPackWithoutCompleteCommercialSnapshot`;
+- tots els controls actuals de `PackPaymentGateTest`.
+
+Això mou aquests blocs de **prova escrita** a **verificats en CI**. Continua pendent únicament l'evidència real de navegador/Redsys/preproducció i la decisió/contracte de l'ordre comercial de components.
+
+### Origen real actual de `PACK_ORDINAL`
+
+La revalidació del codi d'alta confirma que `PACK_ORDINAL = $i + 1` i que `$i` prové de la consulta de components ordenada amb `ORDER BY c.DATAI`. El mateix criteri cronològic s'utilitza a `Pack.php` i `InfoPack.php` per presentar els components.
+
+Per tant, avui l'ordinal és **coherent amb l'ordre de presentació cronològic del web**, però no existeix al repositori un camp explícit de posició comercial versionada a `packs`. Això és suficient per reproduir el comportament actual, però no per afirmar que existeix una ordre comercial independent de les dates. La decisió residual és una de dues:
+1. declarar formalment `DATAI + tie-break estable` com a contracte d'ordre comercial; o
+2. afegir una posició explícita/versionada a la definició del pack i usar-la a visualització, snapshot i factura.
+
+No s'introdueix ara una nova columna legacy sense evidència de l'esquema productiu i una decisió funcional explícita.
+
+
+## 17. Estabilització de l'ordre de components — 2026-09-30
+
+S'ha eliminat la indeterminació en empats de `DATAI` fent que els tres punts que defineixen/presenten el pack comparteixin `ORDER BY c.DATAI, p.ID_CURS`:
+- `codi-drive/web-actual/ajax/enviarInscripcioPack.php`;
+- `codi-drive/web-actual/Pack.php`;
+- `codi-drive/web-actual/InfoPack.php`.
+
+S'ha afegit `PackCommercialOrderBoundaryTest` per impedir que presentació i alta divergeixin i per comprovar que `PACK_ORDINAL` es congela després de la consulta ordenada.
+
+Això **no inventa** una nova columna de negoci: documenta i estabilitza el contracte actual. Si PrisMa necessita un ordre comercial independent de la cronologia, caldrà afegir-lo explícitament al model legacy i migrar els packs existents.
+
+
+## 18. Alineació dels scripts de preproducció — 2026-09-30
+
+S'ha detectat i corregit una divergència: `process-redsys-pack.php` podia emetre des de `issueFromValidatedNotification()` sense `PackEnrollmentFundAllocationService` ni `PackPaymentNotificationService`, i `--sync-legacy` no executava `syncPackFullPayment()`.
+
+Ara:
+- `preview-redsys-pack.php` llegeix `RedsysPaymentIntentRepository`, exigeix `SOURCE_TYPE=PACK` i construeix el payload des de `SNAPSHOT_JSON`;
+- `process-redsys-pack.php` usa `issueFromIntentSnapshot()`;
+- injecta `NotificationOutboxRepository` + `PackPaymentNotificationService`;
+- injecta `EnrollmentFundMovementRepository` + `PackEnrollmentFundAllocationService`;
+- `--sync-legacy` executa `syncAfterSifSuccess()` i `syncPackFullPayment()` quan el mode és `PACK_FULL_PAYMENT`;
+- els tests de scripts exigeixen explícitament aquestes dependències i impedeixen tornar a reconstruir el preview des de legacy.
+
+Aquesta correcció redueix el pendent E2E a **execució i evidència d'entorn**, no a divergència del codi de preproducció.
