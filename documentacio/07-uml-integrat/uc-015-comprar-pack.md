@@ -104,8 +104,8 @@ Callback ..> Invoice : <<include>> (autoritzat)
 Worker --> Funds
 Student --> Change
 note bottom of Funds
- Atribució per inscripció PENDENT.
- No duplicar el cobrament bancari.
+ Atribució per inscripció IMPLEMENTADA.
+ Un únic cobrament bancari, N atribucions internes.
 end note
 @enduml
 ```
@@ -163,18 +163,31 @@ class PaymentRepository {
  +createPayment(db,payload) array
 }
 class EnrollmentFundMovementRepository {
- <<PROPOSTA: no implementada>>
- +append(db,movement) string
+ <<IMPLEMENTAT>>
+ +lockPayment(db,uuidPayment) array
+ +findInvoiceLineForInscription(db,uuidFactura,idInsc) array
+ +insertOrReuseExternalAllocation(db,movement) array
+}
+class PackPaymentNotificationService {
+ <<IMPLEMENTAT · ENQUEUE>>
+ +enqueue(db,dsOrder,snapshot,invoiceResult) array
+}
+class NotificationOutboxRepository {
+ <<IMPLEMENTAT · ENQUEUE>>
+ +enqueue(db,message) array
 }
 RedsysPackInvoiceService ..|> RedsysIntentHandler
 RedsysPackInvoiceService --> LegacyPackInvoicePayloadBuilder : N línies
 RedsysPackInvoiceService --> RedsysInvoicePayloadBuilder : cobrament validat
 RedsysPackInvoiceService --> InvoiceService : factura de pack
+RedsysPackInvoiceService --> EnrollmentFundMovementRepository : N atribucions / mateix UUID_PAYMENT
+RedsysPackInvoiceService --> PackPaymentNotificationService : event postfactura
+PackPaymentNotificationService --> NotificationOutboxRepository
 InvoiceService --> InvoiceRepository : factura i relacions
 InvoiceService --> PaymentRepository : CHARGE inicial si payment
 ```
 
-`EnrollmentFundMovementRepository` es mostra com a model pendent, **sense una dependència fictícia dibuixada des de `InvoiceService`**.
+`EnrollmentFundMovementRepository` està implementat i és invocat per `PackEnrollmentFundAllocationService` des del handler PACK; no depèn d'`InvoiceService` perquè l'atribució econòmica es fa després d'obtenir `UUID_FACTURA` i `UUID_PAYMENT`.
 
 ## 4. Diagrama de seqüència — pack pagat, factura i distribució
 
@@ -182,7 +195,7 @@ InvoiceService --> PaymentRepository : CHARGE inicial si payment
 sequenceDiagram
 autonumber
 actor A as Alumne/pagador
-participant Web as Ecommerce [adaptador pendent]
+participant Web as Ecommerce PACK
 participant Intent as RedsysPaymentIntentService
 participant Bank as Redsys
 participant Callback as RedsysCallbackService
@@ -192,7 +205,8 @@ participant H as RedsysPackInvoiceService
 participant B as LegacyPackInvoicePayloadBuilder
 participant R as RedsysInvoicePayloadBuilder
 participant I as InvoiceService
-participant L as EnrollmentFundMovementRepository [PROPOSTA]
+participant O as NotificationOutbox
+participant L as EnrollmentFundMovementRepository
 A->>Web: Comprar pack amb N inscripcions
 Web->>Intent: create(PACK, DS_ORDER, import, snapshot N línies)
 Intent-->>Web: UUID_INTENT
@@ -210,14 +224,13 @@ H->>R: buildFromValidatedNotification()
 R-->>H: Payload amb un CHARGE real
 H->>I: issueInvoice(payload)
 I-->>H: UUID_FACTURA i UUID_PAYMENT
-H-->>W: Resultat
-W->>Q: PROCESSED i UUIDs
-opt Desglossament monetari per inscripció [DISSENY]
- loop Per cada inscripció i import validat
-  W->>L: append(EXTERNAL→ID_INSC, import_i, UUID_PAYMENT)
- end
+loop Cada inscripció i import congelat
+ H->>L: insertOrReuseExternalAllocation(UUID_PAYMENT,ID_INSC,import_i)
 end
-Note over W,L: Un pagament bancari, N atribucions internes. Integració del ledger no implementada.
+H->>O: enqueue notificació idempotent
+H-->>W: Resultat + ledger + outbox
+W->>Q: PROCESSED i UUIDs
+Note over H,O: Un pagament bancari, N atribucions internes. L'outbox queda PENDING fins al worker UC-58.
 ```
 
 ### 4.1. Seqüència — pagament únic i alternativa excepcional d'intranet (OBJECTIU)
