@@ -157,11 +157,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Gestió marca Sí] --> B[POST sendMsgValidatCurosDescomptes.php + CSRF]
-    B --> C[Intranet::sendMsgValidatCurosDescomptes]
-    C --> D[VALID_DESC=1]
-    D --> E[Preparar instruccions de pagament]
-    E --> F[Enviar comunicació]
+    A[Gestió marca Sí] --> B[POST + CSRF + requestId]
+    B --> C[LegacyDiscountValidationLookup::isUsoc]
+    C -- No USOC --> D[Flux legacy normal]
+    C -- USOC --> E[API begin_validation_decision]
+    E --> F{Estat durable}
+    F -- COMMITTED --> G[No repetir mutació ni correu]
+    F -- REVIEW_REQUIRED --> H[CONFLICT / revisió manual]
+    F -- REQUESTED --> I[Intranet::sendMsgValidatCurosDescomptes]
+    I --> J[VALID_DESC=1 + comunicació]
+    J --> K[API complete_validation_decision]
+    K --> L{Legacy coincideix?}
+    L -- Sí --> M[COMMITTED]
+    L -- No --> H
 ```
 
 ### FINAL
@@ -183,11 +191,20 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Gestió marca No] --> B[POST endpoint validació + CSRF]
-    B --> C[VALID_DESC=2]
-    C --> D[Buscar preu alternatiu]
-    D --> E[Pot actualitzar TIPUS_DESC i A_PAGAR]
-    E --> F[Enviar comunicació]
+    A[Gestió marca No] --> B[POST + CSRF + requestId]
+    B --> C[LegacyDiscountValidationLookup::isUsoc]
+    C -- No USOC --> D[Flux legacy normal]
+    C -- USOC --> E[API begin_validation_decision]
+    E --> F{REQUESTED?}
+    F -- No / COMMITTED --> G[No repetir efectes]
+    F -- REVIEW_REQUIRED --> H[Revisió manual]
+    F -- Sí --> I[Flux legacy de denegació]
+    I --> J[VALID_DESC=2]
+    J --> K[Recalcular si correspon + comunicació]
+    K --> L[API complete_validation_decision]
+    L --> M{Legacy coincideix amb 2?}
+    M -- Sí --> N[COMMITTED]
+    M -- No --> H
 ```
 
 ### FINAL
@@ -282,7 +299,7 @@ flowchart TD
 ## 12. Conciliació final USOC
 
 ### ACTUAL / IMPLEMENTAT EN REPOSITORI
-Existeixen `usoc_financing_case`, `UsocFinancingCaseRepository` i `UsocCaseReconciler`. La conciliació manual/controlada es pot executar amb `sif/scripts/reconcile-usoc-case.php`. Encara no està connectada automàticament després de cada cobrament de l'entitat.
+Existeixen `usoc_financing_case`, `UsocFinancingCaseRepository` i `UsocCaseReconciler`. La ruta específica `UsocEntityPaymentService` reconcilia automàticament després de cada cobrament de l'entitat; `sif/scripts/reconcile-usoc-case.php` queda com a via manual/controlada de recuperació.
 
 ### FINAL
 
@@ -328,12 +345,12 @@ flowchart TD
 | Pagament/factura alumne | Sí | Sí | Sí |
 | Factura entitat | Sí | Sí | Servei + pantalla autònoma + panell contextual implementats; desplegament/configuració pendent |
 | Cobrament entitat | Sí, dues UI + servei + script | Sí | UI autònoma + panell contextual implementats; menú fail-closed implementat; desplegament/configuració pendent |
-| Conciliació | Sí, servei/script | Sí | Implementada parcialment; trigger automàtic pendent |
+| Conciliació | Sí, servei/script | Sí | Implementada a la ruta específica USOC; script manual disponible |
 | Canvi/baixa | Parcial | Sí | Compartit amb altres UC |
 
 ## 15. Pendents de codi derivats dels diagrames
 
-1. Afegir traça persistent SIF/correlació de la decisió de validació legacy; POST + CSRF + permisos ja implementats.
+1. Traça persistent SIF de la decisió legacy — IMPLEMENTADA amb `usoc_validation_decision`, protocol REQUESTED/COMMITTED/REVIEW_REQUIRED i reconciliador CLI; resta desplegament/preflight real.
 2. Mantenir el test de regressió de l'allocator IDPAG compartit; implementació actual protegida amb named lock.
 3. Configurar `SIF_USOC_MENU_ROLES` i validar l'accés de menú al desplegament de preproducció.
 4. Validar en preproducció la configuració HMAC, rols i DB legacy amb `preflight-usoc-intranet.php`.
