@@ -26,8 +26,9 @@ final class LegacyUsocSnapshotRepositoryTest
         Assert::same(2, count($db->preparedSql));
         Assert::stringContainsString('FROM inscripcions', $db->preparedSql[0]);
         Assert::stringContainsString('IDPAG = ?', $db->preparedSql[0]);
+        Assert::stringContainsString('AND ID = ?', $db->preparedSql[0]);
         Assert::stringContainsString('FROM curs', $db->preparedSql[1]);
-        Assert::same([[980], [2026, '06', 'COM']], $db->executedParams);
+        Assert::same([[980, 880], [2026, '06', 'COM']], $db->executedParams);
     }
 
     public function testLoadsValidatedUsocSnapshotByExplicitInscriptionId(): void
