@@ -33,15 +33,48 @@ final class PackPaymentGate
         }
         $stmt->bind_param('d', $idpag);
         $stmt->execute();
-        $result = $stmt->get_result();
-        if (!$result) {
-            $stmt->close();
-            throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
-        }
+        $stmt->store_result();
+        $stmt->bind_result(
+            $rowId,
+            $rowIdpag,
+            $rowAny,
+            $rowMes,
+            $rowCurs,
+            $rowNom,
+            $rowCognoms,
+            $rowDni,
+            $rowCorreu,
+            $rowAdreca,
+            $rowCp,
+            $rowPoblacio,
+            $rowAPagar,
+            $rowPagament,
+            $rowFraccionat,
+            $rowObservacions,
+            $rowNomCurs
+        );
 
         $rows = [];
-        while ($row = $result->fetch_assoc()) {
-            $rows[] = $row;
+        while ($stmt->fetch()) {
+            $rows[] = [
+                'ID' => $rowId,
+                'IDPAG' => $rowIdpag,
+                'ANY' => $rowAny,
+                'MES' => $rowMes,
+                'CURS' => $rowCurs,
+                'NOM' => $rowNom,
+                'COGNOMS' => $rowCognoms,
+                'DNI' => $rowDni,
+                'CORREU' => $rowCorreu,
+                'ADRECA' => $rowAdreca,
+                'Codi_Postal' => $rowCp,
+                'Poblacio' => $rowPoblacio,
+                'A_PAGAR' => $rowAPagar,
+                'PAGAMENT' => $rowPagament,
+                'FRACCIONAT' => $rowFraccionat,
+                'OBSERVACIONS' => $rowObservacions,
+                'NOM_CURS' => $rowNomCurs,
+            ];
         }
         $stmt->close();
 
