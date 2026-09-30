@@ -29,6 +29,7 @@ use Prisma\Sif\Service\PaymentService;
 use Prisma\Sif\Service\UsocCaseReconciler;
 use Prisma\Sif\Service\UsocEntityInvoiceService;
 use Prisma\Sif\Service\UsocEntityPaymentService;
+use Prisma\Sif\Service\UsocLifecycleGuardService;
 use Prisma\Sif\Service\UsocValidationDecisionService;
 
 header('Cache-Control: private, no-store, max-age=0');
@@ -106,17 +107,14 @@ try {
             throw SifException::validation('Invalid USOC lifecycle operation');
         }
 
-        $case = $cases->findByInscriptionAndIdpag($db, $idInsc, $idpag);
         JsonResponse::send([
             'ok' => true,
-            'guard' => [
-                'allowed' => $case === null,
-                'reason' => $case === null ? 'NO_SIF_USOC_CASE' : 'USOC_FINANCING_CASE_REQUIRES_ORCHESTRATION',
-                'operation' => $operation,
-                'id_insc' => $idInsc,
-                'idpag' => $idpag,
-                'case' => $case,
-            ],
+            'guard' => (new UsocLifecycleGuardService($cases))->check(
+                $db,
+                $idInsc,
+                $idpag,
+                $operation
+            ),
         ]);
         return;
     }
