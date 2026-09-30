@@ -27,6 +27,7 @@ final class LegacyPackSnapshotRepository
         foreach ($inscriptions as $inscription) {
             $inscription['IDPAG'] = $idpag;
             $commercial = $this->commercialMetadata($inscription);
+            $this->assertCompleteCommercialSnapshot($commercial);
 
             if (isset($commercial['base'])) {
                 $inscription['IMPORT_BASE'] = $commercial['base'];
@@ -113,6 +114,17 @@ final class LegacyPackSnapshotRepository
         }
 
         return $result;
+    }
+
+    private function assertCompleteCommercialSnapshot(array $commercial): void
+    {
+        foreach (['ordinal', 'base', 'discount', 'discount_pct', 'total'] as $field) {
+            if (!array_key_exists($field, $commercial)) {
+                throw SifException::conflict(
+                    'Legacy pack inscription has no complete commercial snapshot'
+                );
+            }
+        }
     }
 
     private function findPackInscriptionsByIdpag(\PDO $legacyDb, int $idpag): array
