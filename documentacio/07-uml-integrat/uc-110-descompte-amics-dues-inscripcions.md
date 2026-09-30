@@ -87,6 +87,32 @@ Funds ..> Main : <<extend>> (pagament confirmat)
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Amic A"]
+  a_1["Amic B"]
+  a_2["Pagador"]
+  a_3["Gestió/facturació"]
+  subgraph SIF_BOUNDARY["SIF · promoció d'amics"]
+    u_0(["UC-110nComprar dos cursos amb descompte d'amics"])
+    u_1(["Validar dues inscripcions i elegibilitat"])
+    u_2(["Calcular dues línies i congelar-les"])
+    u_3(["Decidir receptor/s fiscal/s"])
+    u_4(["UC-03nConfirmar ingrés conjunt quan existeixi"])
+    u_5(["Atribuir imports a A i B"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  a_2 --> u_4
+  a_3 --> u_3
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+  u_5 -.-> u_0
+```
+
 ## 3. Diagrama de classes: builder genèric de grup ≠ integració d'amics
 
 ```mermaid
