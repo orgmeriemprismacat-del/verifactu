@@ -30,6 +30,15 @@ final class UsocEntityInvoiceService
         $studentAmount = $this->positiveMoney($input['student_amount'], 'Invalid USOC student amount');
         $entityAmount = $this->positiveMoney($input['amount'], 'Invalid USOC entity amount');
 
+        $this->cases->requireForEntityInvoice(
+            $sifDb,
+            $inscriptionId,
+            $idpag,
+            (string) $input['student_invoice_uuid'],
+            $studentAmount,
+            $entityAmount
+        );
+
         $snapshot = $this->legacySnapshots->loadByIdpag($legacyDb, $idpag, $studentAmount, $entityAmount, $inscriptionId);
         $this->studentInvoices->assertMatches(
             $sifDb,
