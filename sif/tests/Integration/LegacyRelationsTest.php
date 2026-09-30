@@ -54,12 +54,22 @@ final class LegacyRelationsTest
 
         Assert::same(1, count($legacyDb->preparedSql));
         Assert::stringContainsString('UPDATE inscripcions', $legacyDb->preparedSql[0]);
+        Assert::stringContainsString(
+            'FACTURA_RELACIONADA = COALESCE(FACTURA_RELACIONADA, ?)',
+            $legacyDb->preparedSql[0]
+        );
+        Assert::stringContainsString(
+            'LOCATE(?, COALESCE(OBSERVACIONS',
+            $legacyDb->preparedSql[0]
+        );
+        Assert::stringContainsString(
+            'ELSE CONCAT(COALESCE(OBSERVACIONS',
+            $legacyDb->preparedSql[0]
+        );
         Assert::same([
             500,
-            "\nSIF ",
-            'A2026/000001',
-            'PAID',
             '11111111-1111-4111-8111-111111111111',
+            "\nSIF A2026/000001 PAID 11111111-1111-4111-8111-111111111111",
             10,
         ], $legacyDb->executedParams[0]);
     }
