@@ -94,8 +94,8 @@ flowchart LR
   a_1["Gestió"]
   a_2["Canal de lliurament"]
   subgraph SIF_BOUNDARY["SIF · factura electrònica"]
-    u_0(["UC-123nGenerar i lliurar factura electrònica"])
-    u_1(["UC-32nComprovar preferència i destinatari"])
+    u_0(["UC-123<br/>Generar i lliurar factura electrònica"])
+    u_1(["UC-32<br/>Comprovar preferència i destinatari"])
     u_2(["Validar format i custodiar artefacte"])
     u_3(["Enviar i conservar prova del canal"])
     u_4(["Reintentar lliurament, no emissió"])
