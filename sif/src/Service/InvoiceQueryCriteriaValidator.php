@@ -14,8 +14,6 @@ final class InvoiceQueryCriteriaValidator
         'factura_relacionada',
         'source_type',
         'source_ids',
-        'source_ids',
-        'source_type',
     ];
 
     public function validate(array $criteria): array
@@ -50,17 +48,30 @@ final class InvoiceQueryCriteriaValidator
             $clean['billing_email'] = strtolower($value);
         }
 
-        if (($value = $this->stringValue($criteria, 'source_type', 30)) !== null) {
-            $value = strtoupper($value);
-            if (preg_match('/^[A-Z0-9_]+$/D', $value) !== 1) {
-                throw SifException::validation('Invalid source type');
+        if (array_key_exists('factura_relacionada', $criteria)
+            && $criteria['factura_relacionada'] !== null
+            && $criteria['factura_relacionada'] !== '') {
+            $legacy = (string) $criteria['factura_relacionada'];
+            if (!ctype_digit($legacy) || (int) $legacy <= 0) {
+                throw SifException::validation('Invalid legacy invoice relation');
             }
-            $clean['source_type'] = $value;
+            $clean['factura_relacionada'] = (int) $legacy;
         }
 
-        if (array_key_exists('source_ids', $criteria)) {
-            if (!is_array($criteria['source_ids'])) {
-                throw SifException::validation('Invalid source ids');
+        $hasSourceType = array_key_exists('source_type', $criteria)
+            && trim((string) ($criteria['source_type'] ?? '')) !== '';
+        $hasSourceIds = array_key_exists('source_ids', $criteria)
+            && $criteria['source_ids'] !== null;
+
+        if ($hasSourceType || $hasSourceIds) {
+            if (!$hasSourceType || !$hasSourceIds || !is_array($criteria['source_ids'])) {
+                throw SifException::validation('Source type and source ids are required together');
+            }
+
+            $sourceType = strtoupper(trim((string) $criteria['source_type']));
+            if (mb_strlen($sourceType, 'UTF-8') > 30
+                || preg_match('/^[A-Z0-9_:-]+$/D', $sourceType) !== 1) {
+                throw SifException::validation('Invalid source type');
             }
 
             $sourceIds = [];
@@ -69,56 +80,19 @@ final class InvoiceQueryCriteriaValidator
                 if (!ctype_digit($value) || (int) $value <= 0) {
                     throw SifException::validation('Invalid source id');
                 }
-                $sourceIds[(int) $value] = true;
-            }
 
-            if (count($sourceIds) > 200) {
-                throw SifException::validation('Too many source ids');
-            }
-
-            if ($sourceIds !== []) {
-                $clean['source_ids'] = array_keys($sourceIds);
-            }
-        }
-
-        if (array_key_exists('factura_relacionada', $criteria)
-            && $criteria['factura_relacionada'] !== null
-            && $criteria['factura_relacionada'] !== '') {
-            $legacy = (string) $criteria['factura_relacionada'];
-            if (!ctype_digit($legacy)) {
-                throw SifException::validation('Invalid legacy invoice relation');
-            }
-            $clean['factura_relacionada'] = (int) $legacy;
-        }
-
-        if (($value = $this->stringValue($criteria, 'source_type', 40)) !== null) {
-            $value = strtoupper($value);
-            if (preg_match('/^[A-Z0-9_:-]+$/D', $value) !== 1) {
-                throw SifException::validation('Invalid invoice source type');
-            }
-            $clean['source_type'] = $value;
-        }
-
-        if (array_key_exists('source_ids', $criteria) && $criteria['source_ids'] !== null) {
-            if (!is_array($criteria['source_ids'])) {
-                throw SifException::validation('Invalid invoice source ids');
-            }
-
-            $sourceIds = [];
-            foreach ($criteria['source_ids'] as $sourceId) {
-                $value = (string) $sourceId;
-                if (!ctype_digit($value) || (int) $value <= 0) {
-                    throw SifException::validation('Invalid invoice source id');
-                }
                 $sourceIds[(int) $value] = true;
                 if (count($sourceIds) > 200) {
-                    throw SifException::validation('Too many invoice source ids');
+                    throw SifException::validation('Too many source ids');
                 }
             }
 
-            if ($sourceIds !== []) {
-                $clean['source_ids'] = array_keys($sourceIds);
+            if ($sourceIds === []) {
+                throw SifException::validation('Source ids cannot be empty');
             }
+
+            $clean['source_type'] = $sourceType;
+            $clean['source_ids'] = array_keys($sourceIds);
         }
 
         if ($clean === []) {
