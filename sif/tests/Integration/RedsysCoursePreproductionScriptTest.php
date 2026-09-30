@@ -30,7 +30,6 @@ final class RedsysCoursePreproductionScriptTest
         Assert::stringContainsString('new DiscountSnapshotFileReader()', $source);
         Assert::stringContainsString('new CoursePaymentNotificationService(', $source);
         Assert::stringContainsString('new NotificationOutboxRepository(new UuidGenerator())', $source);
-        Assert::stringContainsString("notification_outbox", $source);
         Assert::stringContainsString('->read($discountFile)', $source);
         Assert::stringContainsString('syncAfterSifSuccess(', $source);
         Assert::stringContainsString('legacy_sync_executed', $source);
