@@ -362,7 +362,8 @@ class Intranet
 			"buscarInfoFactura"		=> "SELECT id, any, ordre, num, data, data_pagament,
 											generada, rao, cif, adreca, cp, poblacio, concepte1,
 											concepte2, import, entitat, curs, hores, observacions
-											FROM factures WHERE factura_relacionada = ?",
+											FROM factures WHERE factura_relacionada = ?
+											ORDER BY any ASC, ordre ASC, id ASC",
 			"buscarInfoFacturaByNum" => "SELECT id, any, ordre, num, data, data_pagament,
 											generada, rao, cif, adreca, cp, poblacio, concepte1,
 											concepte2, import, entitat, curs, hores, observacions
@@ -1053,7 +1054,7 @@ class Intranet
 											Titulacio=? WHERE ID=?",
 			"updInscFacturaPrePag"	=> "UPDATE inscripcions SET FACTURA_RELACIONADA=?,
 											reclamat=?, pag_observacions=?, ENTITAT = ? WHERE ID=?",
-			"updGeneratFactura"		=> "UPDATE factures SET generada = ? WHERE num = ?",
+			"updGeneratFactura"		=> "UPDATE factures SET generada = ? WHERE id = ?",
 			"updGeneratCertificat" 	=> "UPDATE inscripcions SET `OBS CERT` = ? WHERE ID = ?",
 			"updInscDadesPersInfo" 	=> "UPDATE inscripcions SET NOM=?, COGNOMS=?, CORREU=?, DNI=?,
 											TELEFON=?, ADRECA=?, Codi_Postal=?, Poblacio=?, PERFIL=?,
@@ -9629,6 +9630,7 @@ class Intranet
    */
 	public function modalConsultaFactura_resultatCerca($idInsc) {
 		$conWeb = new ConnexioWeb();
+		$facturaTrobada = false;
 		$conWeb->connectarBD();
 		if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["buscarFactura"] ) ) {
 			$stmt->bind_param("d", $idInsc);
@@ -9637,11 +9639,17 @@ class Intranet
 			if ($stmt->num_rows() > 0) {
 				$stmt->bind_result($factura);
 				$stmt->fetch();
+				$facturaTrobada = true;
 			}
 			$conWeb->closeStmt();
 		}
 		else {
 			throw new Exception('', 4125);
+		}
+
+		if (!$facturaTrobada) {
+			$conWeb->desconectarBD();
+			throw new RuntimeException('La inscripció no té cap factura llegada relacionada', 404);
 		}
 
 		$mostrar = $this->generaFactura($factura, false);
@@ -9673,9 +9681,8 @@ class Intranet
 		}
 		else {
 			$widthPantalla = "width: 100%;";
+			$mostrar = "";
 		}
-
-		$mostrar = "";
 
 		$conWeb = new ConnexioWeb();
 		$conWeb->connectarBD();
@@ -9815,35 +9822,49 @@ class Intranet
 			throw new Exception('', 4126);
 		}
 
+		if ($i === 0) {
+			$conWeb->desconectarBD();
+			throw new RuntimeException('Factura llegada no trobada', 404);
+		}
+
 		if ( $descarrega ) {
 			$mostrar .= "</body></html>";
 
 			$fecha = new DateTime();
 			$tmp = $fecha->getTimestamp();
 
-			if ( $generada == null || $generada == '' ) {
-				/* Actualitzar GENERAT a la taula factures */
-				if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["updGeneratFactura"] ) ) {
-					$stmt->bind_param("ss", $dataGenerada, $num);
-					$date = new DateTime( "now" );
-					$dataGenerada = date_format($date, 'Y-m-d');
-					$stmt->execute();
-					$conWeb->closeStmt();
-				}
-				else
-					throw new Exception('',4127);
-			}
-
-			//generar PDF
-			$options = new \Dompdf\Options();
+			$options = new \\Dompdf\\Options();
 			$options->set('isRemoteEnabled', true);
-			$dompdf = new \Dompdf\Dompdf($options);
+			$dompdf = new \\Dompdf\\Dompdf($options);
 			$dompdf->set_paper("A4", "portrait");
 			$dompdf->load_html($mostrar);
 			$dompdf->render();
 			$pdf = $dompdf->output();
-			$filename = "A".$any."-".$ordre."-".$tmp.".pdf";
-			file_put_contents($filename, $pdf);
+
+			$serieFitxer = "A";
+			if (preg_match('/^([A-Za-z]+)/', (string) $num, $serieMatch) === 1) {
+				$serieFitxer = strtoupper($serieMatch[1]);
+			}
+			$filename = $serieFitxer.$any."-".$ordre."-".$tmp.".pdf";
+			if (file_put_contents($filename, $pdf) === false) {
+				$conWeb->desconectarBD();
+				throw new RuntimeException('No s’ha pogut escriure el PDF temporal', 500);
+			}
+
+			if ( $generada == null || $generada == '' ) {
+				if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["updGeneratFactura"] ) ) {
+					$date = new DateTime("now");
+					$dataGenerada = date_format($date, 'Y-m-d');
+					$idGenerat = (int) $id;
+					$stmt->bind_param("si", $dataGenerada, $idGenerat);
+					$stmt->execute();
+					$conWeb->closeStmt();
+				}
+				else {
+					unlink($filename);
+					throw new Exception('',4127);
+				}
+			}
 
 			$mostrar = $filename;
 		}
@@ -15242,6 +15263,7 @@ class Intranet
    */
 	public function modalPrevisualitzaFactura_Factures($id) {
 		$conWeb = new ConnexioWeb();
+		$facturaTrobada = false;
 		$conWeb->connectarBD();
 		if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["buscarInfoFacturaId"] ) ) {
 			$stmt->bind_param("d", $id);
@@ -15252,6 +15274,7 @@ class Intranet
 				$generada, $rao, $cif, $adreca, $cp, $poblacio, $concepte1, $concepte2,
 				$import, $entitat, $formaPag, $curs, $hores, $obs, $efact);
 				$stmt->fetch();
+				$facturaTrobada = true;
 			}
 			$conWeb->closeStmt();
 		}
@@ -15259,6 +15282,10 @@ class Intranet
 			throw new Exception('',4187);
 		}
 		$conWeb->desconectarBD();
+
+		if (!$facturaTrobada) {
+			throw new RuntimeException('Factura llegada no trobada', 404);
+		}
 
 		$mostrar = $this->generaFactura($factRel, false);
 		$mostrar .= $this->__mostrarInput(1,"hide","ID", "active", "factura-relacionada-fact", "no-edit", $factRel);
