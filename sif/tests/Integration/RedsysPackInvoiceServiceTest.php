@@ -4,10 +4,12 @@ namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\LegacyPackSnapshotRepository;
 use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Service\LegacyPackInvoicePayloadBuilder;
+use Prisma\Sif\Service\PackEnrollmentFundAllocationService;
 use Prisma\Sif\Service\PackPaymentNotificationService;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
 use Prisma\Sif\Service\RedsysPackInvoiceService;
@@ -100,6 +102,9 @@ final class RedsysPackInvoiceServiceTest
             IssueInvoiceTest::serviceFor($sifDb),
             new PackPaymentNotificationService(
                 new NotificationOutboxRepository(new UuidGenerator())
+            ),
+            new PackEnrollmentFundAllocationService(
+                new EnrollmentFundMovementRepository(new UuidGenerator())
             )
         );
 
@@ -155,7 +160,22 @@ final class RedsysPackInvoiceServiceTest
         Assert::same(true, $second['notification_outbox']['idempotency_reused']);
         Assert::same('PENDING', $first['notification_outbox']['status']);
         Assert::same('PACK_FULL_PAYMENT', $first['legacy_sync']['mode']);
+        Assert::same(2, $first['fund_allocations']['count']);
+        Assert::same('210.00', $first['fund_allocations']['amount']);
+        Assert::same(2, $second['fund_allocations']['count']);
+        Assert::same(true, $second['fund_allocations']['movements'][0]['idempotency_reused']);
+        Assert::same(true, $second['fund_allocations']['movements'][1]['idempotency_reused']);
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
+        Assert::same(2, (int) $sifDb->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+        Assert::same(
+            '210.00',
+            number_format(
+                (float) $sifDb->query('SELECT SUM(IMPORT) FROM enrollment_fund_movement')->fetchColumn(),
+                2,
+                '.',
+                ''
+            )
+        );
 
         $outbox = $sifDb->query(
             "SELECT IDEMPOTENCY_KEY, TEMPLATE_CODE, RECIPIENT_TYPE, UUID_FACTURA, UUID_PAYMENT, STATUS
@@ -168,6 +188,18 @@ final class RedsysPackInvoiceServiceTest
         Assert::same($first['uuid_factura'], $outbox['UUID_FACTURA']);
         Assert::same($first['uuid_payment'], $outbox['UUID_PAYMENT']);
         Assert::same('PENDING', $outbox['STATUS']);
+
+        $fundRows = $sifDb->query(
+            "SELECT ID_INSC_DESTI, IMPORT, UUID_PAYMENT, UUID_FACTURA
+             FROM enrollment_fund_movement
+             ORDER BY ORDRE"
+        )->fetchAll(\PDO::FETCH_ASSOC);
+        Assert::same(501, (int) $fundRows[0]['ID_INSC_DESTI']);
+        Assert::same('120.00', $fundRows[0]['IMPORT']);
+        Assert::same(502, (int) $fundRows[1]['ID_INSC_DESTI']);
+        Assert::same('90.00', $fundRows[1]['IMPORT']);
+        Assert::same($first['uuid_payment'], $fundRows[0]['UUID_PAYMENT']);
+        Assert::same($first['uuid_factura'], $fundRows[1]['UUID_FACTURA']);
     }
 
     public function testRejectsPackWhenValidatedRedsysAmountDiffersFromInvoiceLines(): void
