@@ -9,6 +9,8 @@ include ('../../Date.php');
 include ('../../Usuari.php');
 include ('../../Intranet.php');
 include ('../../inc/missatgesError.php');
+include ('../../SifInternalUsocClient.php');
+include ('../../SifAuthenticatedActor.php');
 session_start();
 
 $usuariDeserialitzat = false;
@@ -83,8 +85,50 @@ try {
 
 	$idInsc = (int) $idInscRaw;
 	$verificat = (int) $verificatRaw;
+	$desiredValidDesc = $verificat === 1 ? 1 : 2;
 
-	$resultat = (string) $_SESSION['intranet']->sendMsgValidatCurosDescomptes($idInsc, $verificat);
+	[$actorId, $actorRoles] = SifAuthenticatedActor::fromUser($_SESSION['usuari']);
+	$sifClient = new SifInternalUsocClient();
+	$beginResponse = $sifClient->beginValidationDecision(
+		$actorId,
+		$actorRoles,
+		$requestId,
+		$idInsc,
+		$desiredValidDesc
+	);
+	$beginDecision = assertSifValidationDecisionResponse($beginResponse);
+
+	if (
+		($beginDecision['tracked'] ?? false) === true
+		&& (string) ($beginDecision['state'] ?? '') === 'REVIEW_REQUIRED'
+	) {
+		http_response_code(409);
+		throw new Exception('Error: la decisió USOC requereix revisió manual abans de continuar.');
+	}
+
+	if (
+		($beginDecision['tracked'] ?? false) === true
+		&& ($beginDecision['should_apply_legacy'] ?? false) !== true
+	) {
+		$resultat = 'La decisió USOC ja constava aplicada i ha quedat conciliada amb el SIF.';
+	} else {
+		$resultat = (string) $_SESSION['intranet']->sendMsgValidatCurosDescomptes($idInsc, $verificat);
+
+		if (($beginDecision['tracked'] ?? false) === true) {
+			$completeResponse = $sifClient->completeValidationDecision(
+				$actorId,
+				$actorRoles,
+				$requestId
+			);
+			$completeDecision = assertSifValidationDecisionResponse($completeResponse);
+			if ((string) ($completeDecision['state'] ?? '') !== 'COMMITTED') {
+				http_response_code(409);
+				throw new Exception(
+					'Error: la decisió legacy s’ha aplicat però la conciliació SIF ha quedat pendent de revisió.'
+				);
+			}
+		}
+	}
 
 	$_SESSION['validar_descomptes_requests'][$requestId] = $resultat;
 	if (count($_SESSION['validar_descomptes_requests']) > 50) {
@@ -111,6 +155,27 @@ try {
 	if ($intranetDeserialitzada && is_object($_SESSION['intranet'] ?? null)) {
 		$_SESSION['intranet'] = serialize($_SESSION['intranet']);
 	}
+}
+
+
+function assertSifValidationDecisionResponse(array $response): array
+{
+	$status = (int) ($response['_http_status'] ?? 0);
+	if ($status < 200 || $status >= 300 || ($response['ok'] ?? false) !== true) {
+		$message = trim((string) ($response['error'] ?? ''));
+		throw new Exception(
+			$message !== ''
+				? 'Error SIF USOC: ' . $message
+				: 'Error SIF USOC: no s’ha pogut registrar la decisió.'
+		);
+	}
+
+	$decision = $response['decision'] ?? null;
+	if (!is_array($decision)) {
+		throw new Exception('Error SIF USOC: resposta de decisió no vàlida.');
+	}
+
+	return $decision;
 }
 
 ?>
