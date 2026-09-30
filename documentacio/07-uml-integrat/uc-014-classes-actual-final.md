@@ -165,6 +165,17 @@ class CourseLegacyPaymentSyncService {
   +sync(sifDb,legacyDb,idpag,idInsc,uuidFactura,numVisible) array
 }
 
+class CoursePaymentNotificationService {
+  <<EXISTENT>>
+  +enqueue(db,dsOrder,snapshot,invoiceResult,legacyPaymentSync) array
+}
+
+class NotificationOutboxRepository {
+  <<EXISTENT · enqueue>>
+  +enqueue(db,message) array
+  +findByIdempotencyKey(db,key) array
+}
+
 class RedsysCoursePaymentStatusService {
   <<EXISTENT>>
   +status(db,dsOrder,idpag) array
@@ -192,7 +203,10 @@ RedsysCallbackWorker --> RedsysCallbackQueueRepository
 RedsysCallbackWorker --> RedsysCallbackDispatcher
 RedsysCallbackDispatcher --> RedsysCourseInvoiceService : sourceType=CURS
 RedsysCourseInvoiceService --> InvoiceService
-RedsysCallbackWorker --> CourseLegacyPaymentSyncService : postprocés idempotent
+RedsysCallbackWorker --> RedsysLegacySyncingProcessor : postprocés
+RedsysLegacySyncingProcessor --> CourseLegacyPaymentSyncService : projecció idempotent
+RedsysLegacySyncingProcessor --> CoursePaymentNotificationService : després de sync CURS
+CoursePaymentNotificationService --> NotificationOutboxRepository : enqueue idempotent
 CoursePaymentReturnStatus --> SifRedsysCourseStatusClient
 SifRedsysCourseStatusClient --> RedsysCoursePaymentStatusService : POST HMAC read-only
 RedsysCoursePaymentStatusService --> RedsysPaymentIntentService : correlació per DS_ORDER/IDPAG
@@ -212,10 +226,11 @@ RedsysCallbackWorker ..> EnrollmentFundMovementRepository : atribució quantitat
 | Numeració fiscal | càlcul al canal web | seqüència central SIF |
 | Reintents | no acreditats | idempotència per intenció/notificació/factura/pagament |
 | Postprocessat acadèmic | barrejat amb callback | `RedsysLegacySyncingProcessor` / `CourseLegacyPaymentSyncService` posterior al SIF |
+| Notificació de pagament | correus immediats dins callback | `CoursePaymentNotificationService` → `notification_outbox`; lliurament UC-58 separat |
 
 ## 4. Estat
 
 **DOCUMENTAT:** ACTUAL i FINAL.  
-**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs i retorn navegador read-only contra estat SIF. L'atribució quantitativa addicional per inscripció continua pendent d'acreditar dins UC-014.  
+**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS i retorn navegador read-only contra estat SIF. L'atribució quantitativa addicional per inscripció continua pendent d'acreditar dins UC-014.  
 **VERIFICAT:** CI amb E2E intern simulat, retorn autoritatiu i boundaries de preproducció; lectura estàtica del pont candidat.  
 **PENDENT:** desplegament/preproducció real, activació de MerchantURL SIF i retirada del callback fiscal llegat després de l'evidència.
