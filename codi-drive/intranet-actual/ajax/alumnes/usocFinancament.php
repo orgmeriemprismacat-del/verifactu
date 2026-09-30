@@ -1,50 +1,45 @@
 <?php
 
-include ('../../Text.php');
-include ('../../Usuari.php');
-include ('../../SifInternalUsocClient.php');
-session_start();
+$root = dirname(__DIR__, 2);
+chdir($root);
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: private, no-store, max-age=0');
 header('Pragma: no-cache');
 header('X-Content-Type-Options: nosniff');
 
-$usuariDeserialitzat = false;
+if (!filter_var(getenv('SIF_USOC_UI_ENABLED') ?: '0', FILTER_VALIDATE_BOOLEAN)) {
+    http_response_code(404);
+    echo json_encode(['ok' => false, 'error' => 'USOC UI disabled']);
+    return;
+}
+
+if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
+    header('Allow: POST');
+    http_response_code(405);
+    echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
+    return;
+}
+
+require_once $root . '/LegacyUsocContext.php';
+require_once $root . '/LegacyInvoiceMutationAuthorization.php';
+require_once $root . '/SifAuthenticatedActor.php';
+require_once $root . '/SifInternalUsocClient.php';
+
+$usuariObject = null;
+$intranetObject = null;
 
 try {
-    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-        header('Allow: POST');
-        http_response_code(405);
-        throw new RuntimeException('Method not allowed');
-    }
-
-    if (!isset($_SESSION['usuari'])) {
-        http_response_code(401);
-        throw new RuntimeException('Sessió no vàlida');
-    }
-
-    $_SESSION['usuari'] = unserialize($_SESSION['usuari']);
-    $usuariDeserialitzat = true;
-    if (!is_object($_SESSION['usuari'])) {
-        http_response_code(401);
-        throw new RuntimeException('Sessió no vàlida');
-    }
+    [$usuariObject, $intranetObject] = LegacyUsocContext::open();
+    LegacyInvoiceMutationAuthorization::assertSameOrigin();
 
     $csrfSessio = (string) ($_SESSION['csrf_usoc_financament'] ?? '');
     $csrfRebut = (string) ($_POST['csrfToken'] ?? '');
     if ($csrfSessio === '' || $csrfRebut === '' || !hash_equals($csrfSessio, $csrfRebut)) {
-        http_response_code(403);
-        throw new RuntimeException('Token CSRF no vàlid');
+        throw new RuntimeException('Token CSRF no vàlid', 403);
     }
 
-    $actorId = trim((string) $_SESSION['usuari']->getUsuari()->get());
-    $roles = (array) $_SESSION['usuari']->getRols();
-    if ($actorId === '' || $roles === []) {
-        http_response_code(403);
-        throw new RuntimeException('Actor SIF no autoritzat');
-    }
-
+    [$actorId, $roles] = SifAuthenticatedActor::fromUser($usuariObject);
     $client = new SifInternalUsocClient();
     $action = strtolower(trim((string) ($_POST['action'] ?? '')));
 
@@ -58,6 +53,12 @@ try {
         sendResult($result);
         return;
     }
+
+    LegacyInvoiceMutationAuthorization::assertCanEdit(
+        $usuariObject,
+        $intranetObject,
+        '/alumnes/mostrar-alumne/'
+    );
 
     if ($action === 'reconcile') {
         $result = $client->reconcile(
@@ -89,8 +90,7 @@ try {
             ],
         ];
 
-        $result = $client->issueEntityInvoice($actorId, $roles, $input);
-        sendResult($result);
+        sendResult($client->issueEntityInvoice($actorId, $roles, $input));
         return;
     }
 
@@ -113,45 +113,35 @@ try {
             }
         }
 
-        $result = $client->registerEntityPayment($actorId, $roles, $uuid, $payment);
-        sendResult($result);
+        sendResult($client->registerEntityPayment($actorId, $roles, $uuid, $payment));
         return;
     }
 
-    http_response_code(422);
-    throw new InvalidArgumentException('Acció USOC desconeguda');
+    throw new RuntimeException('Acció USOC desconeguda', 422);
 } catch (Throwable $exception) {
-    if (http_response_code() < 400) {
-        http_response_code(500);
-    }
-
+    $code = (int) $exception->getCode();
+    $status = $code >= 400 && $code <= 599 ? $code : 500;
+    http_response_code($status);
     echo json_encode([
         'ok' => false,
-        'error' => $exception->getMessage(),
+        'error' => $status >= 500 ? 'USOC operation failed' : $exception->getMessage(),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } finally {
-    if ($usuariDeserialitzat && is_object($_SESSION['usuari'] ?? null)) {
-        $_SESSION['usuari'] = serialize($_SESSION['usuari']);
-    }
+    LegacyUsocContext::persist($usuariObject, $intranetObject);
 }
 
 function sendResult(array $result): void
 {
     $status = (int) ($result['_http_status'] ?? 200);
     unset($result['_http_status']);
-
-    if ($status >= 400 && $status <= 599) {
-        http_response_code($status);
-    }
-
+    http_response_code($status >= 100 && $status <= 599 ? $status : 502);
     echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 
 function positiveInt(mixed $value, string $message): int
 {
     if (!is_numeric($value) || (int) $value <= 0) {
-        http_response_code(422);
-        throw new InvalidArgumentException($message);
+        throw new InvalidArgumentException($message, 422);
     }
     return (int) $value;
 }
@@ -159,8 +149,7 @@ function positiveInt(mixed $value, string $message): int
 function positiveMoney(mixed $value, string $message): string
 {
     if (!is_numeric($value) || (float) $value <= 0.0) {
-        http_response_code(422);
-        throw new InvalidArgumentException($message);
+        throw new InvalidArgumentException($message, 422);
     }
     return number_format((float) $value, 2, '.', '');
 }
@@ -169,8 +158,7 @@ function requiredString(mixed $value, string $message): string
 {
     $string = trim((string) $value);
     if ($string === '') {
-        http_response_code(422);
-        throw new InvalidArgumentException($message);
+        throw new InvalidArgumentException($message, 422);
     }
     return $string;
 }
@@ -185,8 +173,7 @@ function paymentMethod(mixed $value): string
 {
     $method = strtoupper(trim((string) $value));
     if (!in_array($method, ['TRANSFERENCIA', 'MANUAL'], true)) {
-        http_response_code(422);
-        throw new InvalidArgumentException('Mètode de cobrament no vàlid');
+        throw new InvalidArgumentException('Mètode de cobrament no vàlid', 422);
     }
     return $method;
 }
