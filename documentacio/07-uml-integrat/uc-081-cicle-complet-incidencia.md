@@ -1,6 +1,6 @@
 # UC-81 · Gestionar el cicle complet d'una incidència SIF
 
-**Objectiu del catàleg:** prioritat, assignació, accions, canvis d'estat, resolució i evidència. **Estat en aquesta branca [PARCIAL IMPLEMENTAT].** UC-081 és el detall de lifecycle del cas mare [UC-008](uc-008-gestionar-incidencia-sif.md). Existeixen `IncidentLifecycleService`, `IncidentActionRepository`, persistència ampliada i API interna autenticada; UI, configuració productiva i execució de proves continuen pendents.
+**Objectiu del catàleg:** prioritat, assignació, accions, canvis d'estat, resolució i evidència. **Estat [IMPLEMENTAT AL CODI / DESPLEGAMENT PARCIAL].** UC-081 és el detall de lifecycle del cas mare [UC-008](uc-008-gestionar-incidencia-sif.md). Lifecycle, API i UI del panell existeixen al repositori; configuració productiva i E2E continuen pendents.
 
 ## 1. Evidència i límits
 
@@ -29,11 +29,11 @@ Una incidència documental, de notificació, de callback Redsys o de divergènci
 5. Verificar resultat final, registrar accions i evidència, tancar quan tots els efectes pendents del cas estan resolts o justificar expressament el tancament parcial segons política.
 6. Provar: dos avisos del mateix error, incident de factura ja cancel·lada, AEAT accepta però timeout local, PDF absent, callback Redsys tardà, assignació a rol no autoritzat, càrrec bancari real que no apareix al llegat i retry que només havia fallat a Moodle.
 
-**Pendents:** UI del panell, rols productius/SLA, notificació a responsables, integracions d'obertura encara no connectades, proves de concurrència específica i preproducció. La suite backend CI ja està verificada amb 555 proves i 0 errors. La reparació continua sent responsabilitat del UC específic; no s'implementa un retry general.
+**Pendents:** desplegament/E2E del panell, rols productius/SLA, notificació a responsables, integracions d'obertura encara no connectades, proves de concurrència específica i preproducció. La suite backend CI ja està verificada. La reparació continua sent responsabilitat del UC específic; no s'implementa un retry general.
 
 ### 2.1. Lloc de resolució, objectes afectats i límit de l'obridor actual
 
-**Lloc oficial i abast funcional.** El document `25-panell-sif-pay-prisma.md` fixa `pay.prisma.cat/sif/incidencies` com a punt de gestió i resolució oficial; la UI encara és pendent. El backend disposa ara de `POST /api/incidents/manage.php`, autenticat amb HMAC/anti-replay, amb `list/view/open/assign/evidence/resolve/dismiss/reopen`. L'apartat VERI*FACTU de la intranet principal continua sent només un disseny de resum/enllaç.
+**Lloc oficial i abast funcional.** `pay.prisma.cat/sif/incidencies` és el punt de gestió i resolució oficial i la UI ja està implementada al repositori amb handoff HMAC, sessió i CSRF. L'API interna disposa de `summary/list/view/open/assign/evidence/resolve/dismiss/reopen`. La intranet implementa resum read-only i deriva qualsevol resolució al SIF.
 
 **Vincular a l'objecte afectat sense inventar factura.** `openDetailed()` admet `UUID_PAYMENT` i parella `RESOURCE_TYPE/RESOURCE_ID` a més de factura, per tant un cobrament orfe, job o inscripció no necessita una factura fictícia. El model és genèric, però encara cal connectar tots els detectors i decidir tipologies/retenció de cada recurs.
 
@@ -138,7 +138,7 @@ else Reparació autoritzada i idempotent
  S->>A: append acció, prova i estat final
  S-->>O: Resolució comprovada o pendent
 end
-Note over S,A: Backend de lifecycle existent i verificat en CI; UI i preproducció pendents.
+Note over S,A: Backend verificat en CI; UI implementada al codi, desplegament/E2E i preproducció pendents.
 ```
 
 ## 6. Traçabilitat
@@ -156,7 +156,7 @@ La reparació autoritzada ha de classificar evidències d'AEAT, resposta/CSV si 
 
 ## 7. Estat d'implementació 2026-09-29
 
-El lifecycle backend ja no és només disseny i la suite CI està verificada (555/0). Queden pendents la UI del panell, la configuració real de rols, SLA/notificacions, integracions addicionals, concurrència específica i preproducció. Els diagrames d'activitat ACTUAL/FINAL per pàgina/apartat es mantenen al [UC-008 canònic](uc-008-gestionar-incidencia-sif.md) per no duplicar-los.
+El lifecycle backend està verificat en CI i la UI del panell ja està implementada al repositori. Queden pendents desplegament/E2E, configuració real de rols, SLA/notificacions, integracions addicionals, concurrència específica i preproducció. Els diagrames d'activitat ACTUAL/FINAL per pàgina/apartat es mantenen al [UC-008 canònic](uc-008-gestionar-incidencia-sif.md) per no duplicar-los.
 
 
 ## 8. Evidència CI 2026-09-29
