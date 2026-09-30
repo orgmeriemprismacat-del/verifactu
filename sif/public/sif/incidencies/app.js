@@ -99,7 +99,8 @@
         const filters = {
             status: document.getElementById('filter-status').value || null,
             severity: document.getElementById('filter-severity').value || null,
-            type: document.getElementById('filter-type').value.trim() || null
+            type: document.getElementById('filter-type').value.trim() || null,
+            assignee_id: document.getElementById('filter-assignee').value.trim() || null
         };
         const response = await call({action: 'list', filters, limit: 100});
         const incidents = Array.isArray(response.incidents) ? response.incidents : [];
@@ -200,6 +201,7 @@
         document.getElementById(id).addEventListener('change', () => loadList().catch(error => showAlert(error.message)));
     });
     document.getElementById('filter-type').addEventListener('change', () => loadList().catch(error => showAlert(error.message)));
+    document.getElementById('filter-assignee').addEventListener('change', () => loadList().catch(error => showAlert(error.message)));
     document.getElementById('refresh').addEventListener('click', refreshAll);
     document.getElementById('close-detail').addEventListener('click', () => {
         detail.classList.add('hidden');
