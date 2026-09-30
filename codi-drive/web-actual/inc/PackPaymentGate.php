@@ -199,6 +199,12 @@ final class PackPaymentGate
         }
         usort($items, static fn (array $a, array $b): int => $a['ordinal'] <=> $b['ordinal']);
 
+        // UC-015 current SIF contract issues the complete pack from one external CHARGE.
+        // Historical/exceptional partial packs need the separate intranet reconciliation flow.
+        if ($paidCents !== 0) {
+            throw new RuntimeException('PACK_PARTIAL_REQUIRES_RECONCILIATION');
+        }
+
         $pendingCents = $totalCents - $paidCents;
         if ($pendingCents <= 0) {
             throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
