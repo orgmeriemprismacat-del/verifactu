@@ -300,7 +300,9 @@ class InscripcioPack{
    * @return Retorna el contingut del apartat de dades del curs de la pàgina d'inscripció d'un curs
    */
    private function __mostrarDadesCurs() {
-          <!-- UC-015: el fraccionament de packs no s'ofereix a ecommerce; les excepcions es gestionen per intranet. -->
+      $textPreu = "<h3>Dades del curs</h3><div id='preu'><p>Preu</p></div>";
+      // UC-015: el fraccionament de packs no s'ofereix a ecommerce.
+      $msgInfo = "<div id='missInformatiuEdicioRec'></div>
       <div id='missInformatiuEdicioPerf'></div>
       <div id='cnt-codis-promocionals'></div>
       <div id='txtHint_conegut'>";
@@ -312,7 +314,6 @@ class InscripcioPack{
       <div class='' id='comHasConegut_altres'></div>";
       $mailing = "<div class='' id='txtHint_mailing'></div>";
 
-      // $mostrar = "<div class='form-dades'>".$textPreu.$fracc.$msgInfo.$comConec.$mailing."</div>";
       $mostrar = "<div class='form-dades'>".$textPreu.$msgInfo.$comConec.$mailing."</div>";
       return $mostrar;
    }
