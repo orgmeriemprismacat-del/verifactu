@@ -428,4 +428,8 @@
         afegirTextModalError(message);
         mostrarModalError();
     }
+    var deepLinkUuid = new URLSearchParams(window.location.search).get('uuid_factura') || '';
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deepLinkUuid)) {
+        viewSifInvoice(deepLinkUuid);
+    }
 })(window, jQuery);
