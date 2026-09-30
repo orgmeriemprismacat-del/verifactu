@@ -20,6 +20,7 @@ use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
@@ -156,7 +157,6 @@ try {
             $counts['processed']++;
         }
     }
-
     echo json_encode(['ok' => true] + $counts, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), PHP_EOL;
     exit(0);
 } catch (Throwable $exception) {

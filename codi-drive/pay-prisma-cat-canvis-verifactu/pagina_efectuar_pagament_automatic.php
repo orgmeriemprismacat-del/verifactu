@@ -128,14 +128,31 @@ try {
 
       $miObj = new RedsysAPI;
 
-      // Valores de entrada
-      $fuc="11250743";
-      $terminal="1";
-		// $terminal="001";
+      // UC-014: l'import i el DS_ORDER deixen de ser autoritat del navegador.
+      // El SIF rellegeix la inscripció a la BD llegada i crea/reutilitza la intenció.
+      require_once __DIR__ . '/SifRedsysCourseIntentClient.php';
+
+      $fuc = trim((string) getenv('REDSYS_MERCHANT_CODE'));
+      if ($fuc === '') {
+         throw new RuntimeException('REDSYS_MERCHANT_CODE_NOT_CONFIGURED');
+      }
+      $terminal = trim((string) (getenv('REDSYS_TERMINAL') ?: '1'));
       $moneda="978";
       $trans="0";
-      $id=time();
-      $order = strval($id);
+
+      try {
+         $intent = (new SifRedsysCourseIntentClient())->create(
+            (int) $idPag,
+            (float) $importPagare,
+            $terminal
+         );
+      } catch (Throwable $exception) {
+         http_response_code(503);
+         exit('No podem preparar el pagament en aquest moment. Torna-ho a provar més tard o contacta amb secretaria.');
+      }
+      $order = (string) $intent['ds_order'];
+      $importPagare = (float) $intent['amount'];
+      $id = $order;
 
       $url="https://pay.prisma.cat/doit.php?idPag=".$idPag."&codiCurs=".$cursPag."&dni=".$dniTitularPag."&order=".$order."&frac=".$frac."&import=".$importPagare;
       $urlOK="https://pay.prisma.cat/respostaOkPagament.php?email=".$email;
@@ -160,10 +177,12 @@ try {
       $miObj->setParameter("DS_MERCHANT_URLOK",$urlOK);
       $miObj->setParameter("DS_MERCHANT_URLKO",$urlKO);
 
-      //Datos de configuración
+      // Datos de configuració: cap secret Redsys queda al codi.
       $version="HMAC_SHA256_V1";
-			// $kc = 'N5LhVEkBj0Btcimodf7F+6Pj6ZJTydPb';//Clave recuperada de CANALES
-			$kc = 'sq7HjrUOBfKmC576ILgskD5srU870gJ7';//Clave recuperada de CANALES prova
+      $kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
+      if ($kc === '') {
+         throw new RuntimeException('REDSYS_MERCHANT_KEY_NOT_CONFIGURED');
+      }
 
       // Se generan los parámetros de la petición
       $request = "";

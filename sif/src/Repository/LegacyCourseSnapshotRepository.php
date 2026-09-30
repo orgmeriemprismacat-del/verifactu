@@ -8,6 +8,20 @@ final class LegacyCourseSnapshotRepository
 {
     public function loadByIdpag(\PDO $legacyDb, int $idpag, mixed $currentPaymentAmount): array
     {
+        $context = $this->loadCourseContextByIdpag($legacyDb, $idpag);
+
+        return [
+            'inscription' => $context['inscription'],
+            'course' => $context['course'],
+            'payment' => [
+                'amount' => $this->money($currentPaymentAmount),
+                'idpag' => $idpag,
+            ],
+        ];
+    }
+
+    public function loadCourseContextByIdpag(\PDO $legacyDb, int $idpag): array
+    {
         if ($idpag <= 0) {
             throw SifException::validation('Invalid legacy IDPAG');
         }
@@ -18,27 +32,19 @@ final class LegacyCourseSnapshotRepository
         }
 
         $inscription['IDPAG'] = $idpag;
-
         $course = $this->findCourse($legacyDb, $inscription);
         if ($course === null) {
             throw SifException::conflict('Legacy course not found for inscription');
         }
 
-        return [
-            'inscription' => $inscription,
-            'course' => $course,
-            'payment' => [
-                'amount' => $this->money($currentPaymentAmount),
-                'idpag' => $idpag,
-            ],
-        ];
+        return ['inscription' => $inscription, 'course' => $course];
     }
 
     private function findInscriptionByIdpag(\PDO $legacyDb, int $idpag): ?array
     {
         $stmt = $legacyDb->prepare(
             'SELECT ID, `ANY`, MES, CURS, NOM, COGNOMS, DNI, CORREU, ADRECA, Codi_Postal,
-                    Poblacio, FACTURA_RELACIONADA, A_PAGAR, `INSC CURS`, PAGAMENT, FRACCIO
+                    Poblacio, FACTURA_RELACIONADA, A_PAGAR, `INSC CURS`, PAGAMENT, FRACCIONAT, FRACCIO
              FROM inscripcions
              WHERE IDPAG = ? AND (`INSC CURS` = \'0\' OR `INSC CURS` = \'1\' OR `INSC CURS` = \'M\')'
         );

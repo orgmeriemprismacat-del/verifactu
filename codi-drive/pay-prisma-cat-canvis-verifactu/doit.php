@@ -54,7 +54,10 @@
 		$signatureRecibida = $_POST["Ds_Signature"];
 
 		$decodec = $miObj->decodeMerchantParameters($datos);
-		$kc = 'sq7HjrUOBfKmC576ILgskD5srU870gJ7'; //Clave recuperada de CANALES
+		$kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
+		if ($kc === '') {
+			throw new RuntimeException('REDSYS_MERCHANT_KEY_NOT_CONFIGURED');
+		}
 		$firma = $miObj->createMerchantSignatureNotif($kc,$datos);
 
 	  $ordre = $miObj->getParameter('Ds_Order');
@@ -62,6 +65,22 @@
 		$horaComanda = $miObj->getParameter('Ds_Hour');
 		$preu = $miObj->getParameter('Ds_Amount');
 	  $codiResposta = $miObj->getParameter("Ds_Response");
+
+		// UC-014: cap efecte econòmic/fiscal abans de validar la notificació.
+		$normalizeSignature = static function (string $value): string {
+			return rtrim(strtr(trim($value), '-_', '+/'), '=');
+		};
+		if ($version !== 'HMAC_SHA256_V1'
+			|| !hash_equals($normalizeSignature((string) $firma), $normalizeSignature((string) $signatureRecibida))
+		) {
+			throw new RuntimeException('INVALID_REDSYS_SIGNATURE');
+		}
+		if ((string) $ordre !== (string) $order) {
+			throw new RuntimeException('REDSYS_ORDER_MISMATCH');
+		}
+		if (!is_numeric($preu) || (int) $preu !== (int) round(((float) $importPag) * 100)) {
+			throw new RuntimeException('REDSYS_AMOUNT_MISMATCH');
+		}
 
 		if (intval($codiResposta)>=0 && intval($codiResposta)<=99) {
 			$tipusError =  "Transacció autoritzada per a pagaments i preautoritzacions";
