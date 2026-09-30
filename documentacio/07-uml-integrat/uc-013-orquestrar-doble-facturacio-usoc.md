@@ -42,6 +42,55 @@
 
 **Proves executades:** el flux de doble facturació/cobrament està cobert per `UsocEndToEndFlowTest`; la decisió durable legacy↔SIF està coberta per `UsocValidationDecisionServiceTest`, inclosos retries, conflictes i deriva post-commit. La validació navegador/preproducció continua separada de les proves d'integració.
 
+### 1.2.a. Seqüència durable de validació USOC
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant UI as Intranet validar descomptes
+participant L as LegacyDiscountValidationLookup
+participant C as SifInternalUsocClient
+participant API as /api/usoc/manage.php
+participant V as UsocValidationDecisionService
+participant S as usoc_validation_decision
+participant DB as Legacy inscripcions
+G->>UI: Sí/No + requestId
+UI->>L: isUsoc(ID_INSC)
+alt No és TIPUS_DESC=4
+ L-->>UI: false
+ UI->>DB: flux legacy normal
+else És USOC
+ L-->>UI: true
+ UI->>C: beginValidationDecision(requestId, ID_INSC, desired)
+ C->>API: POST signat HMAC
+ API->>V: begin(...)
+ V->>DB: llegir TIPUS_DESC/VALID_DESC
+ V->>S: crear/reutilitzar REQUESTED
+ alt Retry i legacy ja coincideix
+  V->>S: COMMITTED
+  V-->>UI: should_apply_legacy=false
+ else Estat contradictori
+  V->>S: REVIEW_REQUIRED
+  V-->>UI: conflicte
+ else Pendent coherent
+  V-->>UI: should_apply_legacy=true
+  UI->>DB: aplicar VALID_DESC=1/2 + comunicació
+  UI->>C: completeValidationDecision(requestId)
+  C->>API: POST signat HMAC
+  API->>V: complete(...)
+  V->>DB: rellegir estat real
+  alt Coincideix
+   V->>S: COMMITTED + hash legacy
+  else Divergeix
+   V->>S: REVIEW_REQUIRED
+  end
+ end
+end
+```
+
+**Recuperació:** `reconcile-usoc-validation-decisions.php` llegeix només registres `REQUESTED`, contrasta el legacy i completa `COMMITTED` o deixa evidència de revisió/error sense repetir el correu ni la mutació original.
+
 ### 1.3. Validació manual, import de referència i curs gratuït USOC — contrast amb el circuit de PrisMa
 
 **U-VAL — validació abans del descompte:** el circuit descrit identifica el descompte «Afiliat USOC» amb `TIPUS_DESC=4`, però la persona que el demana pot estar pendent de comprovació (`VALID_DESC=0`). La intranet ha de confirmar manualment l'afiliació amb USOC abans d'establir `VALID_DESC=1` i permetre la compra/facturació amb aquest descompte (UC-19). Si no es confirma, el circuit ha de recalcular l'import de compra abans de l'emissió; si ja existeix factura, no corregir-ne l'import amb un UPDATE silenciós. Que el builder exigeixi `VALID_DESC=1` no acredita que la comprovació externa s'hagi dut a terme.
