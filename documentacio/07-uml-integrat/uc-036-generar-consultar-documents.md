@@ -89,6 +89,29 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker documental"]
+  actor_1["Operador autoritzat"]
+  actor_2["Receptor autoritzat"]
+  subgraph SIF_BOX["SIF · documents fiscals"]
+    uc_0(["UC-36<br/>Generar o consultar document"])
+    uc_1(["Generar document des de<br/>snapshot fiscal congelat"])
+    uc_2(["Registrar metadades i hash"])
+    uc_3(["UC-07<br/>Autoritzar consulta/descàrrega"])
+    uc_4(["UC-08<br/>Registrar incidència de generació"])
+  end
+  actor_0 --> uc_1
+  actor_1 --> uc_0
+  actor_2 --> uc_3
+  uc_1 -.->|include| uc_2
+  uc_0 -.->|extend| uc_1
+  uc_0 -.->|include| uc_3
+  actor_1 --> uc_4
+```
+
 ## 3. Subdiagrama de classes: codi existent / proposta separada
 
 ```mermaid

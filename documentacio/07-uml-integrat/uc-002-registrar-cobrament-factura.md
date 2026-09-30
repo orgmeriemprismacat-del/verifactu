@@ -628,6 +628,64 @@ Note over G,S: Guard previ i verificació transaccional a l'alta definitiva són
 | CP-02-15 | `amount=100`, F1/80 + F2/20 coherents; intent duplicat K amb repartiment F1/100 | Primer alta coherent; segon `CONFLICT` semàntic, no resposta que presenti distribució nova com a aplicada. |
 | CP-02-16 | Pagament nominal 100, trams 160; estats individuals de les factures semblen coherents | Detectar invariant **per UUID_PAYMENT** independentment de `ESTAT_COBRAMENT` per factura, obrir diagnosi sense alterar factura fiscal. |
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Canal de cobrament"]
+  actor_1["Banc / evidència externa"]
+  subgraph SIF_BOX["SIF PrisMa — UC-02 / VALIDAR CHARGE I TRAMS"]
+    uc_0(["Validar nou ingrés i trams proposats"])
+    uc_1(["Comprovar identitat bancària,<br/>import real i titular"])
+    uc_2(["Comprovar cada tram positiu<br/>i suma no superior a import"])
+    uc_3(["Registrar CHARGE i assignacions<br/>només amb invariant satisfet"])
+    uc_4(["UC-56<br/>Conciliar import no assignat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_0 --> uc_4
+```
+
+```mermaid
+sequenceDiagram
+autonumber
+actor C as Canal
+participant V as PaymentPayloadValidator [PHP]
+participant G as MoneyAllocationInvariantGuard [DISSENY]
+participant S as PaymentService [PHP]
+participant R as PaymentRepository [PHP]
+participant DB as payment_transaction + payment_allocation [SQL]
+C->>V: validate(CHARGE 100, F1/80 + F2/80)
+V-->>C: Payload estructuralment validat [PHP: sense prova de suma]
+C->>G: validateNewExternalReceipt(payload,evidence) [PENDENT]
+alt F1/80 + F2/80 = 160 > ingrés 100
+ G-->>C: CONFLICT, cap registre de CHARGE ni imputació
+else Hi ha tram zero/negatiu o titular incompatible
+ G-->>C: CONFLICT abans de cap escriptura
+else Trams F1/80 + F2/20, ingrés 100 acreditat
+ G-->>C: Invariant compatible [pendent d'equivalència de K]
+ C->>S: registerPayment(payload validat)
+ S->>R: findByIdempotencyKey(K,true) sota BEGIN
+ R-->>S: K inexistent
+ S->>R: createPayment(payload)
+ R->>DB: INSERT CHARGE 100, F1/80 i F2/20
+ R->>DB: Recalcular estats de F1 i F2, COMMIT del servei
+ S-->>C: UUID_PAYMENT únic, trams sumen 100
+end
+Note over G,S: Guard previ i verificació transaccional a l'alta definitiva són DISSENY. La validació externa aïllada no protegeix contra canvis concurrents.
+```
+
+| Prova pendent | Escenari | Resultat objectiu |
+| --- | --- | --- |
+| CP-02-12 | `amount=100`, dues allocations F1/80 i F2/80 | Rebutjar sobreatribució abans de persistir res; validator PHP actual deixa passar estructura/imports numèrics. |
+| CP-02-13 | `amount=100` i allocation F1/-20 o F1/0 | Rebutjar tram no positiu abans de qualsevol canvi d'`ESTAT_COBRAMENT`. |
+| CP-02-14 | `amount=100`, F1/80 i 20 sense atribució | Admetre només amb política de saldo pendent i ingrés real acreditat; no mostrar F2 pagada fins a UC-56. |
+| CP-02-15 | `amount=100`, F1/80 + F2/20 coherents; intent duplicat K amb repartiment F1/100 | Primer alta coherent; segon `CONFLICT` semàntic, no resposta que presenti distribució nova com a aplicada. |
+| CP-02-16 | Pagament nominal 100, trams 160; estats individuals de les factures semblen coherents | Detectar invariant **per UUID_PAYMENT** independentment de `ESTAT_COBRAMENT` per factura, obrir diagnosi sense alterar factura fiscal. |
+
 ## 6. Traçabilitat
 
 [Catàleg UC-02](../04-estat-final/33-casos-us-sif.md) · [Fitxa base UC-02](../06-fitxes-funcionals/uc-002.md) · [PaymentService](../../sif/src/Service/PaymentService.php) · [PaymentPayloadValidator](../../sif/src/Service/PaymentPayloadValidator.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [PaymentStatusCalculator](../../sif/src/Domain/PaymentStatusCalculator.php) · [ManualPaymentService](../../sif/src/Service/ManualPaymentService.php) · [ManualPaymentPayloadBuilder](../../sif/src/Service/ManualPaymentPayloadBuilder.php) · [RegisterPaymentTest](../../sif/tests/Integration/RegisterPaymentTest.php).

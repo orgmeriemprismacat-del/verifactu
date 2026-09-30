@@ -74,6 +74,27 @@ B --> Intent
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Comprador"]
+  actor_1["Ecommerce"]
+  actor_2["Gestió comercial"]
+  subgraph SIF_BOX["Promocions temporals · SIF"]
+    uc_0(["UC-20c<br/>Aplicar promoció temporal"])
+    uc_1(["Validar finestra i elegibilitat"])
+    uc_2(["Calcular import i congelar regla"])
+    uc_3(["UC-63<br/>Crear intenció al preu final"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+```
+
 ## 3. Classes executables i validador promocional pendent
 
 ```mermaid

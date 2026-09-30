@@ -84,6 +84,29 @@ Fix ..> Sync : <<extend>> (si és només resum llegat)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Procés de comparació"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF · reconciliació"]
+    uc_0(["UC-53<br/>Detectar i resoldre divergències"])
+    uc_1(["Comparar SIF i llegat"])
+    uc_2(["Registrar diferències i evidències"])
+    uc_3(["Executar acció específica<br/>de resolució"])
+    uc_4(["Revalidar resultat"])
+    uc_5(["UC-47<br/>Sincronitzar resum mínim"])
+  end
+  actor_0 --> uc_1
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_4
+  actor_1 --> uc_3
+  uc_3 -.->|extend| uc_5
+```
+
 ## 3. Subdiagrama de classes: coordinador compartit amb UC-82, codi existent i disseny pendent
 
 **Frontera amb UC-82:** UC-82 identifica i versiona una **execució de comparació** SIF–llegat, amb múltiples items; UC-53 és el **diagnòstic i la decisió de resolució d'un desacord** (també quan es detecta puntualment sense lot). No són dos sistemes de conciliació ni dos serveis PHP implementats. El nom `SifLegacyReconciliationService` és el **mateix coordinador proposat** per a totes dues fitxes. El repo de la capçalera `reconciliation_run` i el dels items `reconciliation_item` són responsabilitats diferents; les taules SQL estan definides, però aquests repositoris i el coordinador no han estat localitzats al PHP.

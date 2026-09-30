@@ -74,6 +74,27 @@ Main ..> Access : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Auditor amb abast limitat"]
+  actor_1["Responsable fiscal"]
+  subgraph SIF_BOX["SIF · paquet auditor"]
+    uc_0(["UC-84<br/>Crear paquet fiscal d'auditoria"])
+    uc_1(["UC-59<br/>Verificar accés temporal"])
+    uc_2(["Inventariar registres i dependències"])
+    uc_3(["Verificar fitxers i construir manifest"])
+    uc_4(["Custodiar paquet i registrar descàrrega"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
 ## 4. UML de classes — exportació SQL vs paquet complet pendent
 
 ```mermaid

@@ -71,6 +71,27 @@ Correct ..> Main : <<extend>> (factura existent)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Gestió"]
+  actor_1["Receptor/representant"]
+  subgraph SIF_BOX["SIF · receptor estranger"]
+    uc_0(["UC-87<br/>Validar dades fiscals"])
+    uc_1(["Comprovar país, subjecte i tipus ID"])
+    uc_2(["Aplicar matriu fiscal aprovada"])
+    uc_3(["Congelar receptor abans d'emetre"])
+    uc_4(["UC-93<br/>Derivar error postemissió"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+```
+
 ## UML de classes
 
 ```mermaid
