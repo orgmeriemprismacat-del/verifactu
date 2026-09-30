@@ -157,7 +157,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Gestió marca Sí] --> B[GET sendMsgValidatCurosDescomptes.php]
+    A[Gestió marca Sí] --> B[POST sendMsgValidatCurosDescomptes.php + CSRF]
     B --> C[Intranet::sendMsgValidatCurosDescomptes]
     C --> D[VALID_DESC=1]
     D --> E[Preparar instruccions de pagament]
@@ -183,7 +183,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Gestió marca No] --> B[GET endpoint validació]
+    A[Gestió marca No] --> B[POST endpoint validació + CSRF]
     B --> C[VALID_DESC=2]
     C --> D[Buscar preu alternatiu]
     D --> E[Pot actualitzar TIPUS_DESC i A_PAGAR]
@@ -332,7 +332,7 @@ flowchart TD
 
 ## 15. Pendents de codi derivats dels diagrames
 
-1. Endpoint de validació USOC com a POST segur.
+1. Afegir traça persistent SIF/correlació de la decisió de validació legacy; POST + CSRF + permisos ja implementats.
 2. Generació concurrent-safe d'identificador comercial/IDPAG llegat.
 3. Adaptador/pantalla d'emissió entitat.
 4. Connectar la interfície/API final amb `UsocEntityPaymentService`.
