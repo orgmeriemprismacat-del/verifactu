@@ -74,6 +74,7 @@ final class RedsysCourseEndToEndSimulatedTest
         Assert::same(null, $worker->runOne($db, 'e2e-worker', new \DateTimeImmutable('2030-06-19 10:01:00')));
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
         Assert::same('95.50', $legacy->payment);
     }
 
