@@ -234,6 +234,47 @@ final class IncidentRepository
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    public function summary(\PDO $db): array
+    {
+        $rows = $db->query(
+            'SELECT ESTAT, SEVERITY, COUNT(*) AS TOTAL
+             FROM errors_verifactu
+             GROUP BY ESTAT, SEVERITY'
+        )->fetchAll(\PDO::FETCH_ASSOC);
+
+        $byStatus = [];
+        $bySeverity = [];
+        $openTotal = 0;
+        $criticalOpen = 0;
+
+        foreach ($rows as $row) {
+            $status = strtoupper((string) ($row['ESTAT'] ?? ''));
+            $severity = strtoupper((string) ($row['SEVERITY'] ?? ''));
+            $total = (int) ($row['TOTAL'] ?? 0);
+
+            $byStatus[$status] = ($byStatus[$status] ?? 0) + $total;
+            $bySeverity[$severity] = ($bySeverity[$severity] ?? 0) + $total;
+
+            if (in_array($status, ['OPEN', 'IN_PROGRESS'], true)) {
+                $openTotal += $total;
+                if ($severity === 'CRITICAL') {
+                    $criticalOpen += $total;
+                }
+            }
+        }
+
+        $lastUpdated = $db->query('SELECT MAX(UPDATED_AT) FROM errors_verifactu')->fetchColumn();
+
+        return [
+            'total' => array_sum($byStatus),
+            'open_total' => $openTotal,
+            'critical_open' => $criticalOpen,
+            'by_status' => $byStatus,
+            'by_severity' => $bySeverity,
+            'last_updated_at' => $lastUpdated === false ? null : $lastUpdated,
+        ];
+    }
+
     public function updateLifecycle(
         \PDO $db,
         int $incidentId,
