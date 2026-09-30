@@ -85,6 +85,30 @@ Tech --> View
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Procés documental"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["SIF · operació documental"]
+    uc_0(["UC-55<br/>Custodiar i recuperar documents"])
+    uc_1(["Reclamar job i generar bytes"])
+    uc_2(["Comprovar storage, hash i versió"])
+    uc_3(["Registrar metadades del document"])
+    uc_4(["Programar reintent o incidència"])
+    uc_5(["UC-07<br/>Consulta autoritzada"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_4
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_4 -.->|extend| uc_0
+  actor_1 --> uc_5
+```
+
+
 ## 3. Diagrama de classes — PHP existent i disseny separat
 
 ```mermaid

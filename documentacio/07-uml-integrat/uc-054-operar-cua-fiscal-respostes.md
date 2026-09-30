@@ -94,6 +94,33 @@ Main ..> Class : <<include>> (si hi ha resposta)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker fiscal"]
+  actor_1["Responsable tècnica"]
+  actor_2["AEAT de proves"]
+  subgraph SIF_BOX["SIF · operació fiscal"]
+    uc_0(["UC-54<br/>Operar cua fiscal"])
+    uc_1(["Preflight i mètriques"])
+    uc_2(["UC-09<br/>Remetre registre individual"])
+    uc_3(["Recuperar locks i reintents"])
+    uc_4(["Classificar resposta de línia"])
+    uc_5(["UC-08<br/>Gestionar incidència"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_1
+  actor_1 --> uc_0
+  actor_1 --> uc_5
+  actor_2 --> uc_2
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
+
 ## 3. UML de classes operatives reals
 
 ```mermaid

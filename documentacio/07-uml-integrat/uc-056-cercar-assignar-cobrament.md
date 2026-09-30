@@ -86,6 +86,30 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de pagaments"]
+  actor_1["Responsable facturació"]
+  subgraph SIF_BOX["SIF · cerca i assignació"]
+    uc_0(["UC-56<br/>Cercar i assignar un cobrament"])
+    uc_1(["Cercar i identificar pagament real"])
+    uc_2(["Validar saldo i titularitat"])
+    uc_3(["Assignar UUID_PAYMENT existent"])
+    uc_4(["UC-02<br/>Registrar ingrés nou real"])
+    uc_5(["UC-86<br/>Auditar petició/resultat"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  actor_0 --> uc_4
+  uc_0 -.->|include| uc_5
+```
+
+
 ## 3. Diagrama de classes — el límit exacte del PHP actual
 
 ```mermaid
