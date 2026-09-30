@@ -865,7 +865,7 @@ endif
 stop
 @enduml
 ```
-**Pendent:** segon/tercer traspàs confirmat, baixa del successor d'aquests, baixes que parteixen d'una `derived_application`, connector d'aprovació real i executor de devolució JASOM. [000018](../../sif/database/migrations/2026_09_26_000018_allow_derived_balance_from_confirmed_transfer.sql) i [000019](../../sif/database/migrations/2026_09_26_000019_close_confirmed_transfer_into_derived_balance.sql) només estan en branca; MySQL no executat.
+**Pendent en aquell tall històric:** segon/tercer traspàs, baixa del successor i baixa des d'una `derived_application`. **Estat posterior:** els traspassos successius, la baixa directa d'una `derived_application.APPLIED` i la baixa de qualsevol últim `transfer.CONFIRMED` ja tenen serveis de branca. Continuen pendents connector d'aprovació real, integració fiscal/runtime i proves MySQL. [000018](../../sif/database/migrations/2026_09_26_000018_allow_derived_balance_from_confirmed_transfer.sql) i [000019](../../sif/database/migrations/2026_09_26_000019_close_confirmed_transfer_into_derived_balance.sql) continuen no aplicades.
 
 ### 4.3 sexdecies. Traspàs successiu i projecció de procedència per retornar JASOM — TRETZÈ TALL
 
@@ -1049,7 +1049,38 @@ stop
 @enduml
 ```
 
-**Persistència:** [000028](../../sif/database/migrations/2026_09_29_000028_close_derived_application_into_child_balance.sql) exigeix `CLOSED_AT` i `REASON_CODE=CONVERTED_TO_DERIVED` a la `derived_application` històrica. El saldo fill conserva la procedència completa i és l'únic successor promocional de la part aprovada. La baixa d'un segon/tercer `transfer.CONFIRMED` continua pendent d'un servei específic sobre l'últim transfer de la cadena.
+**Persistència:** [000028](../../sif/database/migrations/2026_09_29_000028_close_derived_application_into_child_balance.sql) exigeix `CLOSED_AT` i `REASON_CODE=CONVERTED_TO_DERIVED` a la `derived_application` històrica. El saldo fill conserva la procedència completa i és l'únic successor promocional de la part aprovada. **Actualització 30/09:** la baixa d'un segon/tercer `transfer.CONFIRMED` ja reutilitza els serveis de baixa transferida sobre l'últim transfer sense successor, resolent el parent derivat de la cadena quan correspon.
+### 4.3.17. Baixa de qualsevol últim traspàs confirmat — CONSOLIDACIÓ 30/09/2026
+
+**Generalització de la branca:** `NovicePromotionTransferredDestinationCancellationReviewService::stageCurrentTransferredDestinationReview()` accepta el transfer ACTUAL de la cadena, no només el primer. `stageFirstTransferredDestinationReview()` es conserva com a àlies de compatibilitat. El transfer ha d'estar `CONFIRMED` i no tenir successor actiu.
+```plantuml
+@startuml
+title UC-111 | Baixa després de N canvis de curs
+start
+:Exposició actual = últim transfer CONFIRMED;
+if (Existeix successor actiu?) then (Sí)
+ :Rebutjar; la baixa ha d'actuar sobre el curs més recent;
+ stop
+endif
+:Recórrer predecessor del transfer;
+if (Origen final = aplicació novell original?) then (Sí)
+ :parent derived = NULL;
+else (Origen final = derived_application)
+ :parent derived = UUID_DERIVED_BALANCE de l'aplicació;
+endif
+:Validar factura actual + rectificativa + cash + titular;
+:Crear review PENDING amb SOURCE_UUID_TRANSFER i parent resolt;
+:Obtenir aprovació externa FINAL (adaptador PENDENT);
+:Activació torna a resoldre el parent i exigeix coincidència;
+:Reconciliar de nou cash i JASOM;
+:Transfer actual -> CANCELLED / CONVERTED_TO_DERIVED;
+:Nou saldo derivat -> ACTIVE amb any propi;
+:No restaurar predecessors històrics ni saldo JASOM;
+stop
+@enduml
+```
+**Invariante:** A→B→C o dret derivat→B→C no són consums acumulatius. En donar de baixa C, A/B són història de procedència; el nou saldo de baixa descendeix del dret que realment estava sent traslladat per C. No ha calgut DDL addicional perquè `SOURCE_UUID_TRANSFER` i `PARENT_UUID_DERIVED_BALANCE` ja existien.
+
 ### 4.4. Intranet · Validar descomptes · apartat docent novell — subflux final pendent
 
 ```plantuml
