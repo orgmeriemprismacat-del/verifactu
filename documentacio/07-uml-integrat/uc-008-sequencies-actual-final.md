@@ -14,14 +14,17 @@ participant W as RedsysCallbackWorker
 participant Q as RedsysCallbackQueueRepository
 participant I as IncidentRepository
 participant V as PayloadIdempotencyValidator
+participant R as SensitiveDataRedactor
 participant DB as MySQL SIF
 
 W->>W: processor->process(job)
 alt conflicte funcional o maxAttempts
+  W->>R: redact(exception.message)
+  R-->>W: safeMessage
   W->>DB: BEGIN
   W->>Q: markIncident(job)
   Q->>DB: UPDATE STATUS=INCIDENT
-  W->>I: openDetailed(job, REDSYS_CALLBACK, key)
+  W->>I: openDetailed(job estable per UUID_JOB, REDSYS_CALLBACK, key)
   I->>V: calculateHash(payload)
   I->>DB: SELECT IDEMPOTENCY_KEY
   alt ja existeix
@@ -29,7 +32,13 @@ alt conflicte funcional o maxAttempts
     I-->>W: reused + incident_id
   else nou
     I->>DB: INSERT errors_verifactu OPEN
-    I-->>W: incident_id + uuid_incident
+    alt INSERT guanya
+      I-->>W: incident_id + uuid_incident
+    else duplicate concurrent 1062
+      I->>DB: SELECT IDEMPOTENCY_KEY FOR UPDATE
+      I->>V: assertMatches(payload, storedHash)
+      I-->>W: reused + incident_id
+    end
   end
   W->>DB: COMMIT
 else error recuperable
@@ -57,9 +66,12 @@ alt integritat incorrecta
   P->>DB: COMMIT
 else integritat correcta
   P->>A: send(payload)
-  alt transport correcte
-    P->>Q: complete(response)
-  else error i queden intents
+  alt resultat remot ACCEPTED / ACCEPTED_WITH_ERRORS / REJECTED
+    P->>Q: complete(response) -> SENT + ESTAT_AEAT remot
+  else outcome remot incert
+    P->>Q: holdForReview() -> REVIEW
+    P->>I: openDetailed(AEAT_DELIVERY_UNCERTAIN)
+  else error local/transport i queden intents
     P->>Q: fail() -> RETRY
   else error final
     P->>DB: BEGIN
