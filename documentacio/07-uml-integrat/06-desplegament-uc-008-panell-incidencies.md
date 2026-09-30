@@ -64,7 +64,7 @@ Facturació
   VERI*FACTU -> /sif-verifactu.php
 ```
 
-Aquesta alta de menú és una operació de configuració de BD i no s'ha inventat dins del repositori. Com a accés versionat, `sif-registres-aeat.php` ja inclou un enllaç a `sif-verifactu.php`.
+Aquesta alta de menú és una operació de configuració de BD i no s'ha inventat dins del repositori. Com a accés versionat, `sif-registres-aeat.php` ja inclou un enllaç a `sif-verifactu.php`. La descoberta i plantilla idempotent d'alta estan documentades a [`07-alta-menu-intranet-uc-008.md`](07-alta-menu-intranet-uc-008.md).
 
 ## 6. Preflight executable abans de navegador
 
