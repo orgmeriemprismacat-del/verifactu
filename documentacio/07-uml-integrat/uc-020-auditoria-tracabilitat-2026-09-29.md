@@ -101,6 +101,10 @@ No descriure AP ACTUAL com un percentatge fix. El codi usa `descomptes.PREU` com
 | Seqüències UC-020 | una seqüència mixta | web, denegació, canvi de curs i FINAL |
 | Activitats per pàgina | **no existia dossier específic** | creat `uc-020-activitats-pagines-actual-final.md` |
 | Traçabilitat d'auditoria | dispersa | aquest document |
+| Matriu AP-01…AP-84 | dispersa/incompleta | creada `uc-020-matriu-proves-ap-01-84.md` |
+| Runtime `commercial_operation` | només DDL | repositori + `CommercialOfferService` en aquesta branca |
+| Runtime `discount_validation` | només DDL | repositori + persistència transaccional en aquesta branca |
+| Runtime `payment_link` | només DDL | repositori + `PaymentLinkService` en aquesta branca |
 | Pàgina compartida UC-116 | contenia referència P01 incorrecta | corregida en aquesta branca |
 
 ## 4. Paquet de proves prioritzat
@@ -171,3 +175,33 @@ Cap fila «PENDENT EXECUCIÓ» passa a VERIFICADA només perquè existeixi un te
 - [UML integrat UC-020](uc-020-aplicar-alumne-prisma.md)
 - [Activitats UC-020](uc-020-activitats-pagines-actual-final.md)
 - [UC-116 compartit](uc-116-activitats-pagines-justificants-actual-final.md)
+- [Matriu AP-01…AP-84](uc-020-matriu-proves-ap-01-84.md)
+
+
+## 7. Implementació posterior a l'auditoria base — 30/09/2026
+
+Aquesta secció no reescriu les troballes històriques UC020-16…UC020-73; registra què queda implementat després de l'auditoria estàtica base.
+
+### 7.1. Runtime nou
+
+- `CommercialOperationRepository`: lectura per UUID/clau idempotent, inserció i primitive de vinculació optimista de `UUID_INTENT`.
+- `DiscountValidationRepository`: lectura idempotent i inserció de decisions versionades.
+- `PaymentLinkRepository`: persistència, resolució per hash, accés i revocació.
+- `CommercialOfferService`: crea/reutilitza transaccionalment `commercial_operation` + `discount_validation`, valida aritmètica `gross-discount=net` i registra `operational_event`.
+- `PaymentLinkService`: genera token opac, només persisteix SHA-256, comprova import màxim respecte del net, expiració, revocació i resolució del link.
+
+### 7.2. Tests nous
+
+- `CommercialOfferServiceTest`: creació, reús idempotent, conflicte de payload/clau i aritmètica inconsistent.
+- `PaymentLinkServiceTest`: token/hash, resolució, import superior al net, expiració, revocació i idempotència de revocació.
+
+Aquests tests estan **creats però no es declaren verificats** fins que s'executi la suite sobre `sif_test*` i es conservi l'evidència.
+
+### 7.3. Buits que continuen oberts
+
+1. `PrismaStudentDiscountPolicy`: no s'implementa fins ratificar `UC20-DEC-001…006`.
+2. Adaptador web/intranet llegada → `CommercialOfferService`.
+3. Substitució de les rutes llegades de confirmació/pagament per `PaymentLinkService`.
+4. Orquestrador `commercial_operation/payment_link → RedsysPaymentIntentService`.
+5. Política de múltiples intents Redsys sobre una mateixa operació abans d'usar `linkIntent()` com a flux principal.
+6. E2E historial → oferta AP → link → intent → callback → factura.
