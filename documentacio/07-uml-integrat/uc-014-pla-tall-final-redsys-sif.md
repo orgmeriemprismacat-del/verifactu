@@ -17,13 +17,15 @@ Ja està integrat a `main`:
 - prova `RedsysCourseEndToEndSimulatedTest`, que cobreix pagament complet + callback duplicat i parcial → complet;
 - verificador `verify-redsys-course-preproduction.php` amb dry-run per defecte i execució explícita;
 - prova `RedsysCoursePreproductionBoundaryTest`, que blinda fail-closed, `--execute`, sync llegada completa i sanitització d'evidències;
+- retorn navegador read-only via `RedsysCoursePaymentStatusService`, `course-status.php` i client HMAC del pont candidat;
+- proves `RedsysCoursePaymentStatusServiceTest` i `RedsysCourseReturnBoundaryTest`, que impedeixen convertir URLOK/URLKO en autoritat de pagament;
 - CI verd del wiring, E2E intern i boundaries de preproducció UC-014: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification`.
 
 Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecció llegada controlada i el **tooling de preproducció fail-closed**. **No acredita encara** una transacció contra Redsys/preproducció real ni el tall productiu.
 
 ## Pas 1 — preproducció
 
-1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades.
+1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Mantenir `SIF_REDSYS_CALLBACK_URL` sense activar fins que els preflights siguin verds.
 2. Configurar credencials Redsys de proves i secrets d'API interna.
 3. Crear una intenció de curs ordinari.
 4. Comprovar:
@@ -50,10 +52,13 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
    - payload/import/order incompatible;
    - alumne morós `M -> 1` només quan queda totalment pagat.
 10. Reexecutar el worker/sync i confirmar idempotència.
+11. Activar `SIF_REDSYS_CALLBACK_URL` a la preproducció amb l'URL HTTPS de `sif/public/api/redsys/callback.php`.
+12. Fer un pagament Redsys de proves i comprovar el retorn navegador: primer pot mostrar `PROCESSING`, però només ha de mostrar `CONFIRMED` quan la cua sigui `PROCESSED` i existeixin `UUID_FACTURA` + `UUID_PAYMENT`.
+13. Comprovar també el retorn `REJECTED` i un cas `REVIEW`; una fallada de consulta no pot mostrar èxit.
 
 ## Pas 2 — tall de MerchantURL
 
-Només quan les proves anteriors siguin verdes:
+Només quan les proves anteriors siguin verdes i el retorn autoritatiu també hagi estat contrastat en preproducció:
 
 ```text
 pagina_efectuar_pagament_automatic.php
@@ -109,7 +114,8 @@ UC-014 només passa a **TANCAT AMB EVIDÈNCIA** quan:
 - callback duplicat no duplica factura ni cobrament;
 - la sincronització llegada és idempotent;
 - els callbacks llegats ja no tenen autoritat fiscal;
-- la prova end-to-end de preproducció queda adjunta amb evidències.
+- la prova end-to-end de preproducció queda adjunta amb evidències;
+- els retorns OK/KO consulten l'estat SIF i no poden presentar `CONFIRMED` només pel redirect del navegador.
 
 
 ## Execució assistida
