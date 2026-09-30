@@ -46,6 +46,44 @@ final class FiscalQueueProcessorTest
         Assert::same(false, $empty['processed']);
     }
 
+    public function testRemoteRejectedResponseIsPersistedAsTerminalOutcomeNotLocalFailure(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'AEAT|REMOTE|REJECTED',
+        ]));
+        $transport = new class implements AeatTransport {
+            public function send(array $fiscalPayload): array
+            {
+                return [
+                    'status' => 'REJECTED',
+                    'request_xml' => '<test-request/>',
+                    'response' => [
+                        'error_code' => 'AEAT_TEST_REJECT',
+                        'error_message' => 'Synthetic remote rejection',
+                    ],
+                ];
+            }
+        };
+
+        $result = $this->processor($db, $transport)->processNext();
+
+        Assert::same(true, $result['ok']);
+        Assert::same(true, $result['processed']);
+        Assert::same('REJECTED', $result['aeat_status']);
+        Assert::same('SENT', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same('REJECTED', $db->query('SELECT ESTAT_AEAT FROM factura')->fetchColumn());
+        Assert::same('REJECTED', $db->query('SELECT ESTAT_AEAT FROM factura_registres')->fetchColumn());
+        Assert::same('AEAT_TEST_REJECT', $db->query('SELECT AEAT_ERROR_CODE FROM fiscal_queue')->fetchColumn());
+        Assert::same(
+            0,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA IN ('AEAT_DEAD_LETTER', 'AEAT_DELIVERY_UNCERTAIN')"
+            )->fetchColumn()
+        );
+    }
+
     public function testRetriesAndMovesPermanentTransportFailureToDeadLetter(): void
     {
         $db = TestDatabase::fresh();
