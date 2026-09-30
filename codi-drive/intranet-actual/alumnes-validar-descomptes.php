@@ -7,6 +7,10 @@ if (!$configOk) {
 	<?php
 }
 else {
+	if (empty($_SESSION['csrf_validar_descomptes'])) {
+		$_SESSION['csrf_validar_descomptes'] = bin2hex(random_bytes(32));
+	}
+	$csrfValidarDescomptes = $_SESSION['csrf_validar_descomptes'];
 ?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# video: http://ogp.me/ns/video#">
@@ -14,6 +18,7 @@ else {
 		<meta charset="utf-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="csrf-token-validar-descomptes" content="<?php echo htmlspecialchars($csrfValidarDescomptes, ENT_QUOTES, 'UTF-8'); ?>">
 
 		<title>Validar descomptes | Intranet</title>
 
