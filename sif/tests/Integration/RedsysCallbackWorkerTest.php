@@ -161,6 +161,60 @@ final class RedsysCallbackWorkerTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
     }
 
+    public function testReprocessingSameJobReusesSingleIncident(): void
+    {
+        $db = TestDatabase::fresh();
+        $job = $this->queuedJob($db, 'ORDERINCIDENTDEDUP1');
+        $worker = $this->workerWithOutcome(SifException::conflict('amount mismatch'));
+
+        $first = $worker->runOne($db, 'worker-a', new \DateTimeImmutable('2030-06-19 10:00:00'));
+
+        $stmt = $db->prepare(
+            "UPDATE redsys_callback_queue
+             SET STATUS = 'RETRY', AVAILABLE_AT = ?, LOCKED_AT = NULL, LOCKED_BY = NULL
+             WHERE ID = ?"
+        );
+        $stmt->execute(['2030-06-19 10:01:00', $job['ID']]);
+
+        $second = $worker->runOne($db, 'worker-b', new \DateTimeImmutable('2030-06-19 10:01:00'));
+
+        Assert::same($first['incident_id'], $second['incident_id']);
+        Assert::same($first['uuid_incident'], $second['uuid_incident']);
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE IDEMPOTENCY_KEY LIKE 'REDSYS_CALLBACK|JOB:%'"
+            )->fetchColumn()
+        );
+    }
+
+    public function testSensitiveExceptionDataIsRedactedBeforePersistence(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->queuedJob($db, 'ORDERREDACT1');
+        $message = 'gateway rejected pan=4111111111111111 cvv=123 '
+            . 'Ds_Signature=abcdef secret=topsecret standalone 4111 1111 1111 1111';
+        $worker = $this->workerWithOutcome(SifException::conflict($message));
+
+        $worker->runOne($db, 'worker-a', new \DateTimeImmutable('2030-06-19 10:00:00'));
+
+        $lastError = (string) $db->query('SELECT LAST_ERROR FROM redsys_callback_queue')->fetchColumn();
+        $details = (string) $db->query(
+            "SELECT DETAILS FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'REDSYS_CALLBACK'"
+        )->fetchColumn();
+
+        foreach (['4111111111111111', '4111 1111 1111 1111', 'cvv=123', 'abcdef', 'topsecret'] as $secret) {
+            if (str_contains($lastError, $secret) || str_contains($details, $secret)) {
+                Assert::fail('Sensitive Redsys value persisted: ' . $secret);
+            }
+        }
+
+        Assert::stringContainsString('[REDACTED]', $lastError);
+        Assert::stringContainsString('[REDACTED_PAN]', $lastError);
+        Assert::stringContainsString('[REDACTED]', $details);
+    }
+
     public function testRecoversStaleProcessingLock(): void
     {
         $db = TestDatabase::fresh();
