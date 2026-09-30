@@ -228,6 +228,42 @@ final class RedsysPackInvoiceServiceTest
         Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
     }
 
+    public function testRejectsLegacyPackWithoutCompleteCommercialSnapshot(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new RedsysPackLegacySpyPdo([
+            [
+                $this->legacyInscriptionWithoutSnapshot(501, '06', 'ABC', '120.00', 901),
+                $this->legacyInscriptionWithoutSnapshot(502, '07', 'DEF', '90.00', 902),
+            ],
+            [
+                'ID_PACK' => 77,
+                'TITOL' => 'Benestar docent',
+                'CODI' => 'BDOC',
+            ],
+        ]);
+        $notifications = new RedsysNotificationRepository();
+
+        $notifications->recordReceived(
+            $sifDb,
+            'ORDERPACKNOSNAPSHOT',
+            910,
+            '210.00',
+            '0000',
+            true,
+            ['source' => 'pack-test'],
+            'VALIDATED'
+        );
+
+        Assert::throws(SifException::class, function () use ($sifDb, $legacyDb, $notifications): void {
+            $this->service($notifications, $sifDb)
+                ->issueFromValidatedNotification($sifDb, $legacyDb, 'ORDERPACKNOSNAPSHOT');
+        }, 409);
+
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     public function testRejectsNonValidatedNotificationBeforeLoadingLegacySnapshot(): void
     {
         $sifDb = TestDatabase::fresh();
@@ -269,8 +305,8 @@ final class RedsysPackInvoiceServiceTest
     {
         return [
             [
-                $this->legacyInscription(501, '06', 'ABC', '120.00', 901),
-                $this->legacyInscription(502, '07', 'DEF', '90.00', 902),
+                $this->legacyInscription(501, '06', 'ABC', '120.00', 901, 1, '120.00', '0.00', '0.00'),
+                $this->legacyInscription(502, '07', 'DEF', '90.00', 902, 2, '120.00', '30.00', '25.00'),
             ],
             [
                 'ID_PACK' => 77,
@@ -292,8 +328,19 @@ final class RedsysPackInvoiceServiceTest
         ];
     }
 
-    private function legacyInscription(int $id, string $month, string $course, string $amount, int $facturaRelacionada): array
-    {
+    private function legacyInscription(
+        int $id,
+        string $month,
+        string $course,
+        string $amount,
+        int $facturaRelacionada,
+        int $ordinal = 1,
+        ?string $base = null,
+        string $discount = '0.00',
+        string $discountPct = '0.00'
+    ): array {
+        $base ??= $amount;
+
         return [
             'ID' => $id,
             'IDPAG' => 910,
@@ -314,9 +361,29 @@ final class RedsysPackInvoiceServiceTest
             'PAGAMENT' => '0.00',
             'FRACCIO' => 0,
             'FRACCIONAT' => 0,
-            'OBSERVACIONS' => 'alta PACK|77',
+            'OBSERVACIONS' => sprintf(
+                'alta PACK|77 PACK_ORDINAL|%d PACK_BASE|%s PACK_DISCOUNT|%s PACK_DISCOUNT_PCT|%s PACK_TOTAL|%s',
+                $ordinal,
+                $base,
+                $discount,
+                $discountPct,
+                $amount
+            ),
             'pag_observacions' => '',
         ];
+    }
+
+    private function legacyInscriptionWithoutSnapshot(
+        int $id,
+        string $month,
+        string $course,
+        string $amount,
+        int $facturaRelacionada
+    ): array {
+        $row = $this->legacyInscription($id, $month, $course, $amount, $facturaRelacionada);
+        $row['OBSERVACIONS'] = 'alta PACK|77';
+
+        return $row;
     }
 }
 
