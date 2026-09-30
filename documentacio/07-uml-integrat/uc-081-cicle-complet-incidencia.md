@@ -77,6 +77,29 @@ Main ..> Close : <<include>> (resolució verificada)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador"]
+  actor_1["Responsable assignat"]
+  actor_2["Workers SIF"]
+  subgraph SIF_BOX["SIF · gestió d'incidències"]
+    uc_0(["UC-81<br/>Gestionar cicle d'incidència"])
+    uc_1(["Obrir i deduplicar causa"])
+    uc_2(["Assignar, classificar i investigar"])
+    uc_3(["Executar reparació idempotent"])
+    uc_4(["Verificar i documentar tancament"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  actor_2 --> uc_1
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_3 -.->|extend| uc_0
+  uc_0 -.->|include| uc_4
+```
+
 ## 4. UML de classes — obertura PHP i accions pendents
 
 ```mermaid
