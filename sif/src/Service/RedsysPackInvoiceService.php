@@ -13,7 +13,8 @@ final class RedsysPackInvoiceService implements RedsysIntentHandler
         private LegacyPackSnapshotRepository $legacySnapshots,
         private LegacyPackInvoicePayloadBuilder $legacyPayloads,
         private RedsysInvoicePayloadBuilder $redsysPayloads,
-        private InvoiceService $invoices
+        private InvoiceService $invoices,
+        private ?PackPaymentNotificationService $packNotifications = null
     ) {
     }
 
@@ -29,6 +30,14 @@ final class RedsysPackInvoiceService implements RedsysIntentHandler
         $this->assertPaymentMatchesInvoice($payload);
 
         $result = $this->invoices->issueInvoice($payload);
+        if ($this->packNotifications !== null) {
+            $result['notification_outbox'] = $this->packNotifications->enqueue(
+                $sifDb,
+                $dsOrder,
+                $snapshot,
+                $result
+            );
+        }
         $result['legacy_sync'] = [
             'mode' => 'PACK_FULL_PAYMENT',
             'relations' => $payload['relations'] ?? [],
