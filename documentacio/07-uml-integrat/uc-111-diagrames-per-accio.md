@@ -691,7 +691,7 @@ alt baixa aplicació original
   OriginalActivate -> Fiscal : reconciliar de nou + JASOM pagat
   OriginalActivate -> Derived : ACTIVE + venciment propi
 else baixa curs traspassat
-  Secretaria -> TransferReview : stageFirstTransferredDestinationReview(...)
+  Secretaria -> TransferReview : stageCurrentTransferredDestinationReview(...)
   TransferReview -> Derived : PENDING / SOURCE_UUID_TRANSFER
   TransferActivate -> Approval : approvedTransferredCancellation(review)
   Approval --> TransferActivate : final APPROVED
@@ -724,14 +724,14 @@ partition FINAL {
 :Identificar predecessor ACTUAL de la promoció;
 if (Aplicació original?) then (sí)
   :Review original;
-elseif (Primer traspàs confirmat?) then (sí)
+elseif (Últim transfer CONFIRMED sense successor?) then (sí)
   :Review amb SOURCE_UUID_TRANSFER;
+  :Resoldre parent derivat real de la cadena;
 elseif (derived_application APPLIED?) then (sí)
   :Review fill amb PARENT_UUID_DERIVED_BALANCE;
   :SOURCE_UUID_DERIVED_APPLICATION;
-else (traspàs successiu)
-  :PENDENT servei de baixa sobre últim transfer;
-  :No activar automàticament;
+else (origen ambigu / transfer no actual)
+  :Bloquejar; no retrocedir a predecessor històric;
   stop
 endif
 :Separar promoció i diners reals;
