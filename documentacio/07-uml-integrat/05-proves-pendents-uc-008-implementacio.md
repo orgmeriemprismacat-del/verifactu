@@ -52,18 +52,18 @@ php sif/scripts/preflight-sif.php
 
 - [x] conflicte 409/422 → queue INCIDENT + expedient.
 - [x] max retries → queue INCIDENT + expedient.
-- [ ] mateix job no crea expedients duplicats.
+- [x] mateix job Redsys no crea expedients duplicats; clau i payload d'incidència estables per `UUID_JOB`.
 - [x] `incident_id` retornat en els fluxos d'incidència coberts.
 - [x] error d'INSERT d'incidència després de `markIncident` → rollback verificat per `testIncidentInsertFailureRollsBackQueueIncidentTransition`.
-- [ ] dades de DETAILS no inclouen PAN/CVV/signatures/secrets.
+- [x] `LAST_ERROR` i `DETAILS` Redsys redaccionen PAN/CVV/signatures/secrets abans de persistir.
 
 ## 5. AEAT
 
 - [x] payload divergent → no transport + DEAD_LETTER + FISCAL_PAYLOAD_CONFLICT.
 - [x] retry 1/2 → RETRY sense incidència final.
 - [x] retry final → DEAD_LETTER + AEAT_DEAD_LETTER.
-- [ ] mateix queue ID no duplica incidència.
-- [ ] acceptació/rebuig remot no es confon amb error local.
+- [x] mateix `fiscal_queue.ID` reutilitza una sola incidència `AEAT_DEAD_LETTER`.
+- [x] `REJECTED` remot es persisteix com a resultat terminal `SENT/REJECTED`, separat de retry/dead-letter local.
 - [x] resposta remota incerta → `REVIEW` + incidència `AEAT_DELIVERY_UNCERTAIN`; no es retransmet a cegues.
 
 ## 6. API interna
@@ -133,7 +133,7 @@ Per marcar UC-008 com PROVAT conservar:
 - prova de tancament amb evidència;
 - resultat preproducció.
 
-**Estat actual:** SUITE SIF POST-PREFLIGHT VERIFICADA (**618 passed, 0 failed**) + INTRANET AO **SUCCESS**. Continuen pendents els ítems no marcats, especialment concurrència específica, E2E de navegador, permisos/secrets productius i preproducció.
+**Estat actual:** SUITE SIF ampliada VERIFICADA (**645 passed, 0 failed**, run `36660840670`) + INTRANET AO **SUCCESS**. Continuen pendents els ítems no marcats, especialment concurrència específica, E2E real de preproducció, permisos/secrets productius i alta del menú de BD.
 
 
 ## 12. Evidència CI
@@ -141,6 +141,7 @@ Per marcar UC-008 com PROVAT conservar:
 - Runs inicials **36638546735** i **36638546786**: 555 passed, 0 failed.
 - Run **36648545296** després de la integració UI UC-008: **589 passed, 0 failed**.
 - Run **36658230379** després de preflight + go/no-go + frontera read-only: **618 passed, 0 failed**.
+- Run **36660840670** després de deduplicació Redsys/AEAT, redacció sensible, API/UI i E2E tècnic: **645 passed, 0 failed**.
 - Run **36647777483** · Intranet AO batch checks: **success**.
 ## 13. CI automatitzada
 
@@ -148,4 +149,4 @@ S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-te
 
 La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
-**Estat actual:** SIF CI 618/0 + INTRANET AO SUCCESS; UI + PREFLIGHT IMPLEMENTATS / E2E PREPRODUCCIÓ PENDENT.
+**Estat actual:** SIF CI **645/0** + INTRANET AO SUCCESS; UI + PREFLIGHT + E2E TÈCNIC IMPLEMENTATS / EXECUCIÓ E2E PREPRODUCCIÓ PENDENT.
