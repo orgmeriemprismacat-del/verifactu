@@ -69,6 +69,8 @@ final class GoNoGoPreproductionScriptTest
         Assert::stringContainsString('redsys_merchant_key_configured', $source);
         Assert::stringContainsString('incident_panel_preflight_present', $source);
         Assert::stringContainsString('incident_panel_e2e_present', $source);
+        Assert::stringContainsString('incident_panel_verifier_present', $source);
+        Assert::stringContainsString('verify-incidents-panel-preproduction.php', $source);
         Assert::stringContainsString('e2e-incidents-panel.php', $source);
         Assert::stringContainsString('incident_read_roles_configured', $source);
         Assert::stringContainsString('incident_manage_roles_can_read', $source);
