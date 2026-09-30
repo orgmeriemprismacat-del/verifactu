@@ -118,6 +118,20 @@ final class PackPaymentGateTest
         });
     }
 
+    public function testRejectsInconsistentDiscountPercentageAndAmount(): void
+    {
+        $rows = $this->rows();
+        $rows[1]['OBSERVACIONS'] = str_replace(
+            'PACK_DISCOUNT_PCT|25.00',
+            'PACK_DISCOUNT_PCT|10.00',
+            $rows[1]['OBSERVACIONS']
+        );
+
+        Assert::throws(\RuntimeException::class, function () use ($rows): void {
+            \PackPaymentGate::authorizeRows($rows, ['importPagare' => '210.00'], 910);
+        });
+    }
+
     private function rows(): array
     {
         return [
