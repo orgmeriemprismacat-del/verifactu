@@ -237,7 +237,7 @@ else Baixa destí original
   Approval --> Activate : final APPROVED
   Activate -> Derived : ACTIVE + nou venciment
 else Baixa curs traspassat
-  Secretaria -> TransferCancelReview : stageFirstTransferredDestinationReview
+  Secretaria -> TransferCancelReview : stageCurrentTransferredDestinationReview
   TransferCancelReview -> Derived : PENDING amb SOURCE_UUID_TRANSFER
   TransferActivate -> Approval : approvedTransferredCancellation
   Approval --> TransferActivate : final APPROVED
@@ -254,7 +254,7 @@ end
 @enduml
 ```
 
-**Tall actual:** primer canvi, canvis successius i baixes amb origen aplicació original, primer traspàs o `derived_application.APPLIED` tenen serveis separats. Continua pendent la baixa del curs actual quan l'exposició viva és un segon/tercer traspàs confirmat.
+**Tall actual:** primer canvi, canvis successius i baixes amb origen aplicació original, `derived_application.APPLIED` o **qualsevol últim transfer confirmat sense successor** tenen servei de branca. En la baixa del transfer, la cadena es recorre fins identificar el dret promocional real que s'estava movent i es conserva com a parent si era derivat.
 ## 6. FINAL/branca · consum derivat i devolució JASOM
 
 ```plantuml
