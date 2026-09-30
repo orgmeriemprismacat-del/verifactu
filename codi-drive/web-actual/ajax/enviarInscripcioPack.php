@@ -505,8 +505,8 @@ try {
 	$comentarisBD = '';
 	if ($textComentaris!=null) $comentarisBD = $textComentaris->obtenirText();
 
+	// UC-015: l'ecommerce de packs no crea fraccionament. Les excepcions es gestionen per intranet.
 	$pagFraccBD = 0;
-	if ($pagFrac == 'Yes') $pagFraccBD = 1;
 
 	if ($mailing=='Registred') $mailingBD = 'X';
 	else if ($mailing=='Yes') $mailingBD = '1';
