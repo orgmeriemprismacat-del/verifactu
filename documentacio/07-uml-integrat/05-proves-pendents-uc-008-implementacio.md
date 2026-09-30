@@ -84,7 +84,7 @@ php sif/scripts/preflight-sif.php
 - [ ] llistat per estat/severitat/tipus/responsable.
 - [ ] detall mostra resource/source/correlation sense exposar secrets.
 - [ ] timeline ordenat i immutable.
-- [ ] auditor no veu controls de mutació i el backend també els denega.
+- [x] auditor/read-only queda denegat al backend; la intranet no exposa accions de mutació. Pendent només comprovació visual E2E dels controls.
 - [ ] RESOLVED requereix evidència visible.
 - [ ] DISMISSED mostra justificació.
 - [ ] enllaços de reparació van al UC/pantalla correcte.
@@ -95,10 +95,20 @@ php sif/scripts/preflight-sif.php
 - [x] indicador/resum implementat al codi.
 - [x] resum read-only implementat al codi.
 - [ ] SIF indisponible → mostrar últim estat validat/indisponibilitat, no “0 incidències”.
-- [ ] resolució deriva al panell SIF.
-- [ ] la intranet no es converteix en font de veritat.
+- [x] resolució deriva al panell SIF mitjançant handoff signat.
+- [x] la intranet es manté read-only i no es converteix en font de veritat.
 
-## 9. Evidència de tancament
+## 9. Preflight de desplegament
+
+- [x] `sif/scripts/preflight-incidents-panel.php` implementat.
+- [x] prova GO amb rols/secrets/paths correctes.
+- [x] prova NO-GO amb rols buits i secrets febles.
+- [x] prova NO-GO si un rol gestor no té també lectura.
+- [x] comprovació read-only: el preflight no emet factures, no registra pagaments i no tanca incidències.
+- [x] integració dels checks UC-008 dins `go-no-go-preproduction.php`.
+- [ ] executar el preflight amb secrets/rols reals de preproducció i conservar-ne la sortida.
+
+## 10. Evidència de tancament
 
 Per marcar UC-008 com PROVAT conservar:
 
@@ -115,12 +125,12 @@ Per marcar UC-008 com PROVAT conservar:
 **Estat actual:** SUITE SIF POST-UI VERIFICADA (**589 passed, 0 failed**) + INTRANET AO **SUCCESS**. Continuen pendents els ítems no marcats, especialment concurrència específica, E2E de navegador, permisos/secrets productius i preproducció.
 
 
-## 10. Evidència CI
+## 11. Evidència CI
 
 - Runs inicials **36638546735** i **36638546786**: 555 passed, 0 failed.
 - Run **36648545296** després de la integració UI UC-008: **589 passed, 0 failed** sobre `main`.
 - Run **36647777483** · Intranet AO batch checks: **success**.
-## 10. CI automatitzada
+## 12. CI automatitzada
 
 S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-tests.php` amb PHP 8.4 i MySQL 8.4 en pull requests, canvis a `main` que afectin `sif/**` i execució manual (`workflow_dispatch`).
 
