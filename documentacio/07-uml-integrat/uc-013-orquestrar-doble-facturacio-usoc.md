@@ -2,7 +2,7 @@
 
 **Objectiu:** conservar **dues obligacions/factures diferenciades** per una mateixa inscripció USOC: la part que paga l'alumne i la part que correspon a l'entitat. **No** confondre una única inscripció amb una única factura, ni interpretar un pagament Redsys de l'alumne com si hagués cobrat també la part de l'entitat.
 
-**Estat contrastat:** existeixen `RedsysUsocInvoiceService` (part alumne), `UsocEntityInvoiceService` (factura explícita a l'entitat), `LegacyUsocSnapshotRepository`, `UsocStudentInvoiceLinkRepository`, `UsocFinancingCaseRepository` i `UsocCaseReconciler`. El primer servei persisteix el checkpoint `PENDING_ENTITY_INVOICE`; el segon valida la factura alumne i persisteix `ENTITY_INVOICED`; el reconciliador deriva l'estat econòmic de les dues parts. **No existeix encara una única transacció atòmica que englobi validació comercial, dos cobraments i dues factures, ni un trigger automàtic de conciliació després del cobrament entitat.**
+**Estat contrastat:** existeixen `RedsysUsocInvoiceService`, `UsocEntityInvoiceService`, `UsocFinancingCaseRepository`, `UsocEntityPaymentService`, `UsocCaseReconciler`, `UsocValidationDecisionService` i `UsocValidationDecisionRepository`. La decisió manual legacy es coordina amb el SIF mitjançant `REQUESTED/COMMITTED/REVIEW_REQUIRED`; la factura alumne crea el checkpoint financer; la factura entitat exigeix aquest checkpoint abans d'emetre; i el cobrament entitat reconcilia l'expedient. No es presumeix una transacció distribuïda única entre BD legacy, SIF, Redsys i comunicacions.
 
 ## 1. Fitxa funcional del cas mare
 
@@ -40,7 +40,7 @@
 | Fracció entitat, subvenció alternativa o modificació posterior | Cal decidir receptor, concepte, import i classificació del finançament, sense canviar les factures emeses en lloc; UC-05/71/72 quan correspongui. |
 | Factura i cobrament en BDs/canals diferents | No s'ha acreditat una transacció única alumne+entitat+inscripció; usar correlació, idempotència i conciliació entre fases. |
 
-**Proves localitzades, no executades:** `RedsysUsocInvoiceServiceTest`, `UsocEntityInvoiceServiceTest` i preflight/preproducció respectius. Existència de proves no acredita el cicle complet de dos pagadors fins a dues factures cobrades i dos imports atribuïts.
+**Proves executades:** el flux de doble facturació/cobrament està cobert per `UsocEndToEndFlowTest`; la decisió durable legacy↔SIF està coberta per `UsocValidationDecisionServiceTest`, inclosos retries, conflictes i deriva post-commit. La validació navegador/preproducció continua separada de les proves d'integració.
 
 ### 1.3. Validació manual, import de referència i curs gratuït USOC — contrast amb el circuit de PrisMa
 
@@ -393,5 +393,5 @@ Vegeu [auditoria i matriu UC-013](uc-013-auditoria-tracabilitat-2026-09-29.md).
 - DOCUMENTAT: ampliat i específic.
 - IMPLEMENTAT: parcial.
 - VERIFICAT: estàticament contra codi.
-- TEST EXECUTAT: no acreditat.
-- P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, vinculació factura alumne↔ID_INSC/IDPAG/import, checkpoint durable, emissió entitat protegida, cobrament/reconciliació específica USOC i adaptadors d'intranet. Pendents: E2E completa, desplegament/preflight i decisions funcionals.
+- TEST EXECUTAT: sí per nucli USOC i protocol durable; resta navegador/preproducció.
+- P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, traça durable de validació `REQUESTED/COMMITTED/REVIEW_REQUIRED`, vinculació factura alumne↔ID_INSC/IDPAG/import, checkpoint financer, emissió entitat protegida, cobrament/reconciliació específica USOC i adaptadors d'intranet. Pendents: desplegament/preflight, navegador/preproducció, canvi/baixa i decisions funcionals.
