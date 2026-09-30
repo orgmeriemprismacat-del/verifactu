@@ -15,7 +15,6 @@ final class InternalApiAuthenticator
         private int $maxClockSkewSeconds = 300
     ) {
         $this->keyId = trim($this->keyId);
-        $this->secret = trim($this->secret);
 
         if ($this->keyId === '' || $this->secret === '') {
             throw new \RuntimeException('Internal API authentication is not configured');
@@ -50,7 +49,7 @@ final class InternalApiAuthenticator
             throw SifException::unauthorized('Expired internal API request');
         }
 
-        if (preg_match('/^[0-9a-fA-F-]{36}$/D', $requestId) !== 1) {
+        if (preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/D', $requestId) !== 1) {
             throw SifException::unauthorized('Invalid internal API request id');
         }
 
