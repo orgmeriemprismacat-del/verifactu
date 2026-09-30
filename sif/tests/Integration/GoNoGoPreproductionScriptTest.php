@@ -67,6 +67,13 @@ final class GoNoGoPreproductionScriptTest
         Assert::stringContainsString('sif_database_connectivity', $source);
         Assert::stringContainsString('legacy_database_connectivity', $source);
         Assert::stringContainsString('redsys_merchant_key_configured', $source);
+        Assert::stringContainsString('incident_panel_preflight_present', $source);
+        Assert::stringContainsString('incident_read_roles_configured', $source);
+        Assert::stringContainsString('incident_manage_roles_can_read', $source);
+        Assert::stringContainsString('incident_internal_api_secret_strong', $source);
+        Assert::stringContainsString('incident_panel_launch_secret_strong', $source);
+        Assert::stringContainsString('incident_panel_circuit_present', $source);
+        Assert::stringContainsString('preflight-incidents-panel.php', $source);
         Assert::stringContainsString('manual_payment_circuit_present', $source);
         Assert::stringContainsString('manual_installment_circuit_present', $source);
         Assert::stringContainsString('manual_rectification_circuit_present', $source);
