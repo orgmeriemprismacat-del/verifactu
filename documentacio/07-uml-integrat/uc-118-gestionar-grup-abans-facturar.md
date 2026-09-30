@@ -87,6 +87,30 @@ G --> Freeze
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Responsable de grup"]
+  a_1["Gestió autoritzada"]
+  a_2["Pagador"]
+  subgraph SIF_BOUNDARY["SIF · grup abans de la factura"]
+    u_0(["UC-118nGestionar grup obert"])
+    u_1(["Validar membres, edicions i places"])
+    u_2(["Calcular tram i imports individuals"])
+    u_3(["Decidir receptor i pagador"])
+    u_4(["UC-112nCongelar operació de grup"])
+    u_5(["UC-63nCrear intenció de grup"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  a_2 --> u_5
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+  a_1 --> u_4
+```
+
 ## 3. UML de classes — gestió pendent i constructor fiscal real
 
 ```mermaid
