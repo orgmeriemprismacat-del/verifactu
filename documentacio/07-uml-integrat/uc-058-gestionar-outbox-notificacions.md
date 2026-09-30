@@ -4,7 +4,7 @@
 
 ## Evidència de l'esquema
 
-La migració d'auditoria defineix `notification_outbox` amb `UUID_NOTIFICATION`, `IDEMPOTENCY_KEY` **únic**, `TEMPLATE_CODE/VERSION`, `RECIPIENT_TYPE/HASH`, `PAYLOAD_JSON`, `UUID_FACTURA/UUID_PAYMENT` opcionals, `STATUS`, `NEXT_ATTEMPT_AT`, `SENT_AT` i correlació. `notification_delivery_attempt` conserva `ATTEMPT_NO`, `CHANNEL`, `PROVIDER_REF`, resultat i errors, amb unicitat per notificació+número d'intent. **No s'ha acreditat** un repositori/worker PHP SIF que reclami, enviï, reintenti i completi aquestes files; tampoc s'ha acreditat una taula/contracte específic de locks per a aquest outbox. No afirmar que l'enviament està implementat perquè existeix el SQL.
+La migració d'auditoria defineix `notification_outbox` amb `UUID_NOTIFICATION`, `IDEMPOTENCY_KEY` **únic**, `TEMPLATE_CODE/VERSION`, `RECIPIENT_TYPE/HASH`, `PAYLOAD_JSON`, `UUID_FACTURA/UUID_PAYMENT` opcionals, `STATUS`, `NEXT_ATTEMPT_AT`, `SENT_AT` i correlació. `notification_delivery_attempt` conserva `ATTEMPT_NO`, `CHANNEL`, `PROVIDER_REF`, resultat i errors, amb unicitat per notificació+número d'intent. **Revalidació 2026-09-30:** ja existeix `NotificationOutboxRepository` i UC-015 l'utilitza per fer `enqueue` idempotent a `notification_outbox`. Continua **no acreditat** el worker/transport PHP que reclami, enviï, reintenti i completi aquestes files; tampoc hi ha contracte de locks/lease implementat per a aquest outbox. No afirmar que l'enviament està implementat només perquè existeixen el SQL i l'enqueue.
 
 ## Fitxa funcional específica
 
@@ -84,10 +84,9 @@ class NotificationOutboxService {
  +cancelObsolete(uuidNotification) result
 }
 class NotificationOutboxRepository {
- <<DISSENY: taula SQL definida>>
- +insertOrReuse(db,message) notification
- +claimDue(db,worker) notification
- +complete(db,uuid,status) result
+ <<PARCIAL: enqueue implementat>>
+ +enqueue(db,message) notification
+ +findByIdempotencyKey(db,key) notification
 }
 class NotificationDeliveryAttemptRepository {
  <<DISSENY: taula SQL definida>>

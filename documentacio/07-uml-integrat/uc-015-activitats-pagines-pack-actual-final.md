@@ -15,7 +15,7 @@
 | PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | eliminar codi rollback |
 | PK-A07 | Factura pack | **InvoiceService al flux SIF; emissió legacy desactivada per defecte** | eliminar codi rollback |
 | PK-A08 | Distribució per inscripció | **ledger implementat** | evidència runtime |
-| PK-A09 | Confirmació/correu | **outbox SIF implementat; correu legacy inaccessible per defecte** | eliminar codi rollback |
+| PK-A09 | Confirmació/correu | **enqueue a outbox SIF implementat; worker/transport de lliurament UC-58 pendent; correu legacy inaccessible per defecte** | implementar/acreditar lliurament UC-58 i eliminar codi rollback |
 | PK-A10 | Variant fraccionada | ecommerce PACK força pagament complet | excepció només intranet/reconciliació |
 
 ## PK-A01 · Llistat de packs
@@ -224,8 +224,9 @@ C -->|fi| E[sum atribucions = cobrament]
 flowchart TD
 A[Factura/payment SIF] --> B[PackPaymentNotificationService]
 B --> C[NotificationOutboxRepository]
-C --> D[1 event idempotent]
-A --> E[Camí legacy encara pot enviar correu directe]
+C --> D[1 event idempotent PENDING]
+D --> E[UC-58 worker/transport pendent]
+A --> F[Camí legacy només rollback explícit]
 ```
 
 ### FINAL
