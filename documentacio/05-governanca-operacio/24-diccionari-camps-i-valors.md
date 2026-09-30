@@ -693,6 +693,13 @@ mateixa clau idempotent.
 - `NovicePromotionRootRefundRecoveryCompletionService::closeResolvedWorkflow`: exigeix root comercial `CANCELLED`, review `EXECUTED` amb evidència de refund bancari, bloqueja tots els items i desa el resum només si la política quadra. Audita `ROOT_RECOVERY_CLOSE`; `monetary_transaction_created=false`. És idempotent sobre `RECOVERY_RESOLVED`.
 - [Cinc proves unitàries pures](../../sif/tests/Unit/NovicePromotionRecoveryCompletionPolicyTest.php) escrites, no executades; migració 000025/MySQL ajornats. La [migració correctiva 000026](../../sif/database/migrations/2026_09_27_000026_keep_origin_refund_evidence_after_recovery_closure.sql) manté obligatòria l'evidència del refund JASOM també quan el review ja és `RECOVERY_RESOLVED`; així el canvi d'estat final no relaxa el CHECK introduït a 000024.
 
+### UC-111 · Baixa de curs finançat amb saldo derivat — tall 13
+
+- `NovicePromotionDerivedApplicationCancellationReviewService`: origen obligatori `novice_promotion_derived_application.STATUS=APPLIED`, mateix `ROOT_UUID_ENTITLEMENT`/titular, saldo pare `ACTIVE|EXPIRED`, sense transfer actiu i amb factura/rectificativa/cash coherents. Crea un `novice_promotion_derived_balance.PENDING_FISCAL_REVIEW` amb `PARENT_UUID_DERIVED_BALANCE=<saldo que va finançar el curs>`, `SOURCE_UUID_DERIVED_APPLICATION=<consum cancel·lat>`, disponible 0 i sense dates d'emissió.
+- `NovicePromotionAdjustmentApprovalSourceInterface::approvedDerivedApplicationCancellation` + `NovicePromotionApprovedDerivedCancellationPolicy`: la decisió final ha de quadrar review, dapp font, saldo pare, rectificativa, imports promocional/monetari, evidència i cronologia. La interfície continua sense adaptador real; el matching no autentica per si mateix.
+- `NovicePromotionDerivedApplicationCancellationActivationService`: revalida que la dapp continua `APPLIED`, que no s'ha traspassat, rectificativa/factura/participant, cash actual i JASOM. Després de l'aprovació, `APPLIED → CONVERTED_TO_DERIVED`, `CLOSED_AT`/`REASON_CODE` i fill `PENDING_FISCAL_REVIEW → ACTIVE` en una transacció. El pare NO s'incrementa; el fill rep només el component promocional aprovat i un any propi.
+- [Migració 000028](../../sif/database/migrations/2026_09_29_000028_close_derived_application_into_child_balance.sql): CHECK de `novice_promotion_derived_application.STATUS=CONVERTED_TO_DERIVED` amb `CLOSED_AT` i `REASON_CODE=CONVERTED_TO_DERIVED`. No executada en MySQL.
+
 ### payment_link.STATUS
 
 - `ACTIVE`
