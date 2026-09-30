@@ -38,7 +38,7 @@ final class RedsysCallbackWorker
                 && in_array($exception->getCode(), [409, 422], true);
 
             if ($functional || $attempts >= $this->maxAttempts) {
-                $incident = $this->moveToIncident($db, $job, $workerId, $exception, $safeMessage);
+                $incident = $this->moveToIncident($db, $job, $exception, $safeMessage);
 
                 return [
                     'ok' => false,
@@ -63,7 +63,6 @@ final class RedsysCallbackWorker
     private function moveToIncident(
         \PDO $db,
         array $job,
-        string $workerId,
         \Throwable $exception,
         string $safeMessage
     ): array {
@@ -79,7 +78,7 @@ final class RedsysCallbackWorker
                 'resource_type' => 'REDSYS_CALLBACK_JOB',
                 'resource_id' => (string) ($job['UUID_JOB'] ?? $job['ID']),
                 'source_type' => 'REDSYS_WORKER',
-                'source_id' => $workerId,
+                'source_id' => (string) ($job['UUID_JOB'] ?? $job['ID']),
                 'type' => 'REDSYS_CALLBACK',
                 'message' => $this->incidentDetails($job, $exception, $safeMessage),
                 'severity' => 'HIGH',
