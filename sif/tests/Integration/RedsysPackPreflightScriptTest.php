@@ -16,12 +16,23 @@ final class RedsysPackPreflightScriptTest
 
         Assert::stringContainsString('/src/autoload.php', $source);
         Assert::stringContainsString('PHP_SAPI !== \'cli\'', $source);
-        Assert::stringContainsString('environment_not_production', $source);
+        Assert::stringContainsString('environment_safe_for_worker', $source);
+        Assert::stringContainsString('SIF_REDSYS_WORKER_ALLOW_PRODUCTION', $source);
         Assert::stringContainsString('redsys_merchant_key_configured', $source);
+        Assert::stringContainsString('internal_api_key_configured', $source);
+        Assert::stringContainsString('internal_api_secret_configured', $source);
+        Assert::stringContainsString('intent_create_roles_configured', $source);
+        Assert::stringContainsString('callback_url_secure', $source);
+        Assert::stringContainsString('intent_api_url_secure', $source);
+        Assert::stringContainsString('checkout_actor_roles_configured', $source);
         Assert::stringContainsString('legacy_db_configured', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
+        Assert::stringContainsString('redsys_payment_intent', $source);
         Assert::stringContainsString('redsys_notifications', $source);
+        Assert::stringContainsString('redsys_callback_queue', $source);
+        Assert::stringContainsString('notification_outbox', $source);
+        Assert::stringContainsString('enrollment_fund_movement', $source);
         Assert::stringContainsString('payment_transaction', $source);
         Assert::stringContainsString('factura_linia', $source);
         Assert::stringContainsString('fact_rels', $source);
