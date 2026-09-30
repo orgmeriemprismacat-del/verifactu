@@ -237,17 +237,7 @@ try {
 	}
 
 	/* ######################################################################### */
-	$cnsIdPag = "SELECT IDPAG FROM inscripcions ORDER BY IDPAG DESC LIMIT 1";
-	if ( $stmt=$connexio->prepare($cnsIdPag) ) {
-		$stmt->execute();
-		$stmt->bind_result($idPag);
-		$stmt->fetch();
-		$connexio->closeStmt();
-		$idPag = $idPag+1;
-	}
-	else {
-		throw new Exception('',2914);
-	}
+	$idPag = $connexio->reserveIdPag();
 
 	$ivlen = openssl_cipher_iv_length($cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
@@ -579,6 +569,7 @@ try {
 				$stmt->execute();
 			}
 			$connexio->closeStmt();
+			$connexio->releaseIdPag();
 		}
 		else {
 			throw new Exception('',2915);
