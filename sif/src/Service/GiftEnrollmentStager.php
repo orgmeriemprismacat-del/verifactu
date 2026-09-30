@@ -207,6 +207,24 @@ final class GiftEnrollmentStager
                     $enrollmentId
                 );
 
+                if ($entitlementStatus === 'CONSUMED') {
+                    if ((string) ($entitlement['CONSUMED_UUID_OPERATION'] ?? '')
+                        !== (string) $existing['UUID_OPERATION']
+                    ) {
+                        throw SifException::conflict(
+                            'Consumed gift points to a different destination operation.'
+                        );
+                    }
+                } else {
+                    $this->entitlements->reserve(
+                        $sifDb,
+                        $entitlement,
+                        'UC018-STAGE-' . $enrollmentId,
+                        'gift-enrollment-stager',
+                        $idempotencyKey
+                    );
+                }
+
                 $sifDb->commit();
 
                 return [
@@ -214,6 +232,7 @@ final class GiftEnrollmentStager
                     'uuid_entitlement' => $uuidEntitlement,
                     'enrollment_id' => $enrollmentId,
                     'holder_party_key' => $canonicalPartyKey,
+                    'redemption_idempotency_key' => $idempotencyKey,
                     'status' => (string) $existing['STATUS'],
                     'idempotency_reused' => true,
                 ];
@@ -320,6 +339,14 @@ final class GiftEnrollmentStager
                 ]
             );
 
+            $this->entitlements->reserve(
+                $sifDb,
+                $entitlement,
+                'UC018-STAGE-' . $enrollmentId,
+                'gift-enrollment-stager',
+                $idempotencyKey
+            );
+
             $sifDb->commit();
 
             return [
@@ -327,6 +354,7 @@ final class GiftEnrollmentStager
                 'uuid_entitlement' => $uuidEntitlement,
                 'enrollment_id' => $enrollmentId,
                 'holder_party_key' => $canonicalPartyKey,
+                'redemption_idempotency_key' => $idempotencyKey,
                 'status' => 'RESERVED',
                 'idempotency_reused' => false,
             ];
