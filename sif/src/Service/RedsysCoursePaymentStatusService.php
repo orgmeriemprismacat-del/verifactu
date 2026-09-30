@@ -61,13 +61,19 @@ final class RedsysCoursePaymentStatusService
 
         $queueStatus = strtoupper((string) ($job['STATUS'] ?? ''));
         if ($queueStatus === 'PROCESSED') {
+            $uuidFactura = $this->nullableString($job['UUID_FACTURA'] ?? null);
+            $uuidPayment = $this->nullableString($job['UUID_PAYMENT'] ?? null);
+            if ($uuidFactura === null || $uuidPayment === null) {
+                return $this->result($dsOrder, $idpag, 'REVIEW', $queueStatus, null, null);
+            }
+
             return $this->result(
                 $dsOrder,
                 $idpag,
                 'CONFIRMED',
                 $queueStatus,
-                $this->nullableString($job['UUID_FACTURA'] ?? null),
-                $this->nullableString($job['UUID_PAYMENT'] ?? null)
+                $uuidFactura,
+                $uuidPayment
             );
         }
 
