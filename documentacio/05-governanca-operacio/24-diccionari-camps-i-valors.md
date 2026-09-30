@@ -700,6 +700,13 @@ mateixa clau idempotent.
 - `NovicePromotionDerivedApplicationCancellationActivationService`: revalida que la dapp continua `APPLIED`, que no s'ha traspassat, rectificativa/factura/participant, cash actual i JASOM. Després de l'aprovació, `APPLIED → CONVERTED_TO_DERIVED`, `CLOSED_AT`/`REASON_CODE` i fill `PENDING_FISCAL_REVIEW → ACTIVE` en una transacció. El pare NO s'incrementa; el fill rep només el component promocional aprovat i un any propi.
 - [Migració 000028](../../sif/database/migrations/2026_09_29_000028_close_derived_application_into_child_balance.sql): CHECK de `novice_promotion_derived_application.STATUS=CONVERTED_TO_DERIVED` amb `CLOSED_AT` i `REASON_CODE=CONVERTED_TO_DERIVED`. No executada en MySQL.
 
+### UC-111 · Baixa de qualsevol últim transfer confirmat — consolidació 30/09
+
+- `NovicePromotionTransferredDestinationCancellationReviewService::stageCurrentTransferredDestinationReview`: entrada canònica per donar de baixa el curs que correspon al **darrer** `novice_promotion_application_transfer.STATUS=CONFIRMED`. `stageFirstTransferredDestinationReview` queda com a àlies compatible. El servei rebutja qualsevol transfer que tingui successor actiu.
+- Resolució de parent: `UUID_ORIGINAL_APPLICATION` → parent derivat NULL; `UUID_DERIVED_APPLICATION` → parent = `novice_promotion_derived_application.UUID_DERIVED_BALANCE`; `PREVIOUS_UUID_TRANSFER` → recórrer predecessors fins resoldre un dels casos anteriors. Cicles, predecessors inexistents, múltiples camps origen o root diferent = conflicte.
+- El `novice_promotion_derived_balance` creat amb `SOURCE_UUID_TRANSFER` desa `PARENT_UUID_DERIVED_BALANCE` quan la cadena transportava valor d'un dret derivat. El replay idempotent també ha de coincidir en aquest parent.
+- `NovicePromotionTransferredCancellationActivationService` recalcula el mateix parent i rebutja l'activació si el review en declara un altre. Després revalida cash/JASOM i només llavors tanca el transfer i activa el nou saldo. No hi ha migració addicional: les columnes/constraints ja existien.
+
 ### payment_link.STATUS
 
 - `ACTIVE`
