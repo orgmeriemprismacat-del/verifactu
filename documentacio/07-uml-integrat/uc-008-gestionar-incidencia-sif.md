@@ -4,6 +4,8 @@
 
 **Estat actual (2026-09-30):** backend, UI, preflight, E2E tècnic read-only, deduplicació, concurrència, deep-links i gate final d'evidències **IMPLEMENTATS I VERIFICATS EN CI**. El run `36664788129` ha passat amb **677/0**; `Intranet AO batch checks` run `36647777483` continua en **success**. Només resten l'execució real de preproducció amb secrets/rols reals i l'alta/configuració del menú a BD si el preflight indica que encara falta.
 
+**Auditoria vigent:** [04b · auditoria detallada UC-008 · 2026-09-30](04b-auditoria-detallada-uc-008-2026-09-30.md).
+
 **Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
 ## 1. Estat funcional i tècnic
