@@ -55,12 +55,39 @@ final class RedsysGiftInvoiceServiceTest
         Assert::same('REGAL', $first['legacy_sync']['relations'][0]['source_type']);
         Assert::same(77, $first['legacy_sync']['relations'][0]['source_id']);
         Assert::same(true, $second['idempotency_reused']);
+        Assert::same(false, $first['gift_entitlement']['idempotency_reused']);
+        Assert::same(true, $second['gift_entitlement']['idempotency_reused']);
+        Assert::same(
+            $first['gift_entitlement']['uuid_entitlement'],
+            $second['gift_entitlement']['uuid_entitlement']
+        );
+        Assert::same('UNCLAIMED', $first['gift_entitlement']['holder_state']);
         Assert::same($first['uuid_factura'], $second['uuid_factura']);
         Assert::same($first['uuid_payment'], $second['uuid_payment']);
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same(1, (int) $sifDb->query(
+            "SELECT COUNT(*) FROM commercial_operation WHERE OPERATION_TYPE='GIFT_PURCHASE'"
+        )->fetchColumn());
+        Assert::same(1, (int) $sifDb->query(
+            "SELECT COUNT(*) FROM commercial_entitlement WHERE ENTITLEMENT_TYPE='GIFT'"
+        )->fetchColumn());
+        Assert::same(1, (int) $sifDb->query(
+            "SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='ISSUE'"
+        )->fetchColumn());
+        $giftEntitlement = $sifDb->query(
+            "SELECT CODE_HASH, HOLDER_PARTY_KEY, FACE_VALUE, STATUS
+             FROM commercial_entitlement WHERE ENTITLEMENT_TYPE='GIFT'"
+        )->fetch(\PDO::FETCH_ASSOC);
+        Assert::same(hash('sha256', 'REGAL-77'), (string) $giftEntitlement['CODE_HASH']);
+        Assert::stringContainsString(
+            'gift:unclaimed:',
+            (string) $giftEntitlement['HOLDER_PARTY_KEY']
+        );
+        Assert::same('120.00', (string) $giftEntitlement['FACE_VALUE']);
+        Assert::same('ACTIVE', (string) $giftEntitlement['STATUS']);
 
         $invoice = $sifDb->query('SELECT IDEMPOTENCY_KEY, TOTAL, ESTAT_COBRAMENT FROM factura')
             ->fetch(\PDO::FETCH_ASSOC);
