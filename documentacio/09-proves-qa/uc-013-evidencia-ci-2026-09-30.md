@@ -2,17 +2,17 @@
 
 **Data:** 30/09/2026  
 **Workflow:** `SIF PHP MySQL tests`  
-**Run acreditat principal:** `36660979100`  
-**Commit provat:** `e455d9682223bf7d26efb7129edf6f616ae4fcf4`  
+**Run acreditat principal:** `36663075293`  
+**Commit provat:** `3a15cb99b613c16a3e64c5ab96985b6bf3f2b387`  
 **Entorn:** GitHub Actions · PHP 8.4 · MySQL 8.4 · `sif_test` + `sif_legacy_test`
 
 ## Resultat global acreditat
 
-- **646 proves passades**
+- **666 proves passades**
 - **0 proves fallides**
 - Workflow: **SUCCESS**
 
-Aquest run incorpora el nucli UC-013, la protecció de checkpoint abans d'emetre la factura entitat, les dues superfícies d'intranet i la prova E2E transversal.
+Aquest run incorpora el nucli UC-013, la prova E2E de doble facturació, les dues superfícies d'intranet i el protocol durable de decisió legacy↔SIF `REQUESTED/COMMITTED/REVIEW_REQUIRED`.
 
 ## Prova E2E UC-013
 
@@ -99,6 +99,32 @@ El run `36657971568` havia demostrat que totes les proves USOC presents en aquel
 
 Runs intermedis també van detectar regressions de contract tests i fallades d'altres dominis. Aquestes evidències queden superades, per a l'estat del UC-013, pel run verd `36660979100`.
 
+## Decisió durable VALID_DESC
+
+Al run `36663075293` consten PASS:
+
+- `LegacyUsocDiscountValidationSecurityTest::testLegacyDiscountValidationUsesPostCsrfAndEditPermission`;
+- `UsocInternalApiContractTest::testSignedUsocApiAndIntranetClientExposeExpectedActions`;
+- `UsocValidationDecisionReconcileScriptTest::testReconcileScriptProcessesOnlyPersistedRequestedDecisions`;
+- `UsocValidationDecisionServiceTest::testBeginCreatesRequestedAndRetryAfterLegacyMutationAutoCommitsWithoutReapply`;
+- `testCompleteCommitsOnlyAfterLegacyReachedDesiredState`;
+- `testConflictingLegacyDecisionMovesRequestToReviewRequired`;
+- `testSameRequestIdCannotBeReusedForDifferentDecision`;
+- `testNonUsocDiscountIsNotTrackedAndMayContinueLegacyFlow`;
+- `testCommittedDecisionDetectsLaterLegacyDrift`;
+- `testCompleteRejectsAnotherActor`.
+
+Això acredita:
+
+1. `REQUESTED` es persisteix abans de la mutació legacy USOC.
+2. Si legacy ja va quedar modificat en un intent anterior, el retry reconcilia i retorna `should_apply_legacy=false`; no repeteix el mètode/correu.
+3. Una decisió contradictòria passa a `REVIEW_REQUIRED`.
+4. El mateix `requestId` no es pot reutilitzar amb un payload diferent.
+5. Els descomptes no-USOC no queden dependents del SIF.
+6. Una deriva posterior a `COMMITTED` es detecta com a conflicte.
+7. El reconciliador CLI només processa checkpoints `REQUESTED`.
+8. El preflight exigeix la taula `usoc_validation_decision`.
+
 ## Què es pot marcar ara com PROVAT
 
 - `ID_INSC + IDPAG` inequívocs;
@@ -123,7 +149,6 @@ Runs intermedis també van detectar regressions de contract tests i fallades d'a
 - desplegament real a preproducció dels secrets i rols `SIF_INTERNAL_USOC_*`, `SIF_USOC_*_ROLES`, menú i feature flag;
 - execució del preflight contra l'entorn de preproducció;
 - prova navegador → intranet real → API SIF real amb dataset anonimitzat;
-- traça SIF durable en dues fases de la decisió legacy `VALID_DESC` (cal evitar falsa atomicitat entre BDs);
 - circuit funcional/fiscal del curs gratuït USOC amb part alumne 0,00 €;
 - decisió de negoci sobre 20 % públic vs 25 % històric;
 - confirmació fiscal que la classificació EXEMPT del builder és correcta per totes les variants;
