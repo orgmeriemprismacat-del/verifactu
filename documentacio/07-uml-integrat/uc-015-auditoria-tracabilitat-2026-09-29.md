@@ -361,3 +361,18 @@ S'ha eliminat la indeterminació en empats de `DATAI` fent que els tres punts qu
 S'ha afegit `PackCommercialOrderBoundaryTest` per impedir que presentació i alta divergeixin i per comprovar que `PACK_ORDINAL` es congela després de la consulta ordenada.
 
 Això **no inventa** una nova columna de negoci: documenta i estabilitza el contracte actual. Si PrisMa necessita un ordre comercial independent de la cronologia, caldrà afegir-lo explícitament al model legacy i migrar els packs existents.
+
+
+## 18. Alineació dels scripts de preproducció — 2026-09-30
+
+S'ha detectat i corregit una divergència: `process-redsys-pack.php` podia emetre des de `issueFromValidatedNotification()` sense `PackEnrollmentFundAllocationService` ni `PackPaymentNotificationService`, i `--sync-legacy` no executava `syncPackFullPayment()`.
+
+Ara:
+- `preview-redsys-pack.php` llegeix `RedsysPaymentIntentRepository`, exigeix `SOURCE_TYPE=PACK` i construeix el payload des de `SNAPSHOT_JSON`;
+- `process-redsys-pack.php` usa `issueFromIntentSnapshot()`;
+- injecta `NotificationOutboxRepository` + `PackPaymentNotificationService`;
+- injecta `EnrollmentFundMovementRepository` + `PackEnrollmentFundAllocationService`;
+- `--sync-legacy` executa `syncAfterSifSuccess()` i `syncPackFullPayment()` quan el mode és `PACK_FULL_PAYMENT`;
+- els tests de scripts exigeixen explícitament aquestes dependències i impedeixen tornar a reconstruir el preview des de legacy.
+
+Aquesta correcció redueix el pendent E2E a **execució i evidència d'entorn**, no a divergència del codi de preproducció.
