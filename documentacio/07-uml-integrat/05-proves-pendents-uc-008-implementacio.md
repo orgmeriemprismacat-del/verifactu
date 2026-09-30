@@ -38,13 +38,13 @@ php sif/scripts/preflight-sif.php
 
 - [x] rol read pot list/view.
 - [x] rol read no pot assign/resolve/dismiss.
-- [ ] rol manage pot obrir.
+- [x] rol manage pot obrir; cobert pels fluxos d'integració de lifecycle.
 - [x] assignació crea acció i `IN_PROGRESS`.
 - [x] evidència crea timeline sense canviar estat.
 - [x] resolve sense evidència → 422.
 - [x] resolve amb evidència → `RESOLVED` + data + criteri.
 - [x] dismiss amb justificació → `DISMISSED`, i reobertura posterior verificada.
-- [ ] reobrir només des de `RESOLVED/DISMISSED`.
+- [x] reobrir només des de `RESOLVED/DISMISSED`; `OPEN` retorna 409.
 - [x] acció idempotent repetida no duplica `sif_incident_action`.
 - [ ] dues accions concurrents sobre mateix incident mantenen estat coherent.
 
@@ -64,7 +64,7 @@ php sif/scripts/preflight-sif.php
 - [x] retry final → DEAD_LETTER + AEAT_DEAD_LETTER.
 - [ ] mateix queue ID no duplica incidència.
 - [ ] acceptació/rebuig remot no es confon amb error local.
-- [ ] resposta remota incerta deriva a revisió UC-77 abans de retransmetre.
+- [x] resposta remota incerta → `REVIEW` + incidència `AEAT_DELIVERY_UNCERTAIN`; no es retransmet a cegues.
 
 ## 6. API interna
 
