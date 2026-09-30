@@ -24,6 +24,9 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("issue_entity_invoice", $api);
         Assert::stringContainsString("register_entity_payment", $api);
         Assert::stringContainsString("reconcile", $api);
+        Assert::stringContainsString("begin_validation_decision", $api);
+        Assert::stringContainsString("complete_validation_decision", $api);
+        Assert::stringContainsString("UsocValidationDecisionService", $api);
         Assert::stringContainsString("UsocStudentInvoiceLinkRepository", $api);
         Assert::stringContainsString("UsocEntityPaymentService", $api);
 
@@ -34,6 +37,8 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("public function issueEntityInvoice", $client);
         Assert::stringContainsString("public function registerEntityPayment", $client);
         Assert::stringContainsString("public function reconcile", $client);
+        Assert::stringContainsString("public function beginValidationDecision", $client);
+        Assert::stringContainsString("public function completeValidationDecision", $client);
 
         Assert::stringContainsString("SIF_USOC_READ_ROLES", $config);
         Assert::stringContainsString("SIF_USOC_MANAGE_ROLES", $config);
