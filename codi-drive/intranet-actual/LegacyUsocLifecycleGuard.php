@@ -60,6 +60,17 @@ final class LegacyUsocLifecycleGuard
 
         if ($guard['allowed'] !== true) {
             $label = $operation === 'course_change' ? 'canvi de curs' : 'baixa';
+            $reason = (string) ($guard['reason'] ?? '');
+
+            if ($reason === 'USOC_FISCAL_EVIDENCE_WITHOUT_CASE_REQUIRES_REVIEW') {
+                throw new RuntimeException(
+                    'Aquesta inscripció té evidència fiscal USOC al SIF però no té '
+                    . 'un expedient de finançament coherent. Cal reconciliar-la abans '
+                    . 'de tramitar el ' . $label . '.',
+                    409
+                );
+            }
+
             throw new RuntimeException(
                 'Aquesta inscripció USOC té un expedient SIF amb dues parts. '
                 . 'El ' . $label . ' s’ha de tramitar amb el flux SIF específic per evitar '
