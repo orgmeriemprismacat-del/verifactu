@@ -170,20 +170,42 @@ final class LegacyPackSnapshotRepository
 
     private function packIdFromInscriptions(array $inscriptions): int
     {
+        $packId = null;
+
         foreach ($inscriptions as $inscription) {
+            $currentPackId = null;
             $observations = (string) ($inscription['OBSERVACIONS'] ?? '');
-            foreach (preg_split('/\s+/', trim($observations)) ?: [] as $token) {
+
+            foreach (preg_split('/\\s+/', trim($observations)) ?: [] as $token) {
                 $parts = explode('|', $token);
                 if (count($parts) >= 2 && strtoupper($parts[0]) === 'PACK' && is_numeric($parts[1])) {
-                    $packId = (int) $parts[1];
-                    if ($packId > 0) {
-                        return $packId;
+                    $candidate = (int) $parts[1];
+                    if ($candidate > 0) {
+                        $currentPackId = $candidate;
+                        break;
                     }
                 }
             }
+
+            if ($currentPackId === null) {
+                throw SifException::validation('Missing PACK marker in legacy pack inscription');
+            }
+
+            if ($packId === null) {
+                $packId = $currentPackId;
+                continue;
+            }
+
+            if ($packId !== $currentPackId) {
+                throw SifException::conflict('Legacy pack inscriptions reference different PACK identifiers');
+            }
         }
 
-        throw SifException::validation('Missing PACK marker in legacy observations');
+        if ($packId === null) {
+            throw SifException::validation('Missing PACK marker in legacy observations');
+        }
+
+        return $packId;
     }
 
     private function money(mixed $value): string
