@@ -65,6 +65,23 @@ final class UsocFinancingCaseRepository
             ?? throw new \RuntimeException('USOC financing case could not be reloaded after insert');
     }
 
+    public function requireForEntityInvoice(
+        \PDO $db,
+        int $inscriptionId,
+        int $idpag,
+        string $studentInvoiceUuid,
+        string $studentAmount,
+        string $entityAmount
+    ): array {
+        $existing = $this->findByInscriptionAndIdpag($db, $inscriptionId, $idpag, true);
+        if ($existing === null) {
+            throw SifException::conflict('USOC financing case is required before entity invoice');
+        }
+
+        $this->assertSameStudentCase($existing, $studentInvoiceUuid, $studentAmount, $entityAmount);
+
+        return $existing;
+    }
     public function recordEntityInvoice(
         \PDO $db,
         int $inscriptionId,
