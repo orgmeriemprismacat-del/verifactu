@@ -2,7 +2,7 @@
 
 **Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat actual (2026-09-30):** backend, UI, preflight i contractes read-only **IMPLEMENTATS AL CODI**. El run `36658230379` ha passat amb **618/0**; `Intranet AO batch checks` run `36647777483` continua en **success**. La preproducció amb secrets/rols reals, l'alta de menú a BD i l'E2E de navegador continuen pendents.
+**Estat actual (2026-09-30):** backend, UI, preflight, E2E tècnic read-only, deduplicació i concurrència **IMPLEMENTATS I VERIFICATS EN CI**. El run `36661335874` ha passat amb **648/0**; `Intranet AO batch checks` run `36647777483` continua en **success**. La preproducció amb secrets/rols reals, l'alta de menú a BD i l'E2E de navegador contra l'entorn real continuen pendents.
 
 **Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
@@ -10,24 +10,24 @@
 
 | Capacitat | Documentat | Backend | UI | Prova runtime |
 | --- | --- | --- | --- | --- |
-| Obrir incidència simple | Sí | Sí | N/A | pendent d'executar |
-| Identitat estable `UUID_INCIDENT` | Sí | Sí a migració nova | N/A | pendent |
-| Correlació i idempotència | Sí | Sí | N/A | pendent |
-| Vincular factura/pagament/recurs genèric | Sí | Sí | pendent | pendent |
-| Deduplicar per clau idempotent | Sí | Sí | N/A | pendent |
-| Llistar / consultar | Sí | API interna + sessió panell | implementat al codi | E2E pendent |
-| Assignar responsable | Sí | Sí via service/API | implementat al codi | E2E pendent |
-| Afegir evidència | Sí | Sí via service/API | implementat al codi | E2E pendent |
-| Resoldre amb evidència | Sí | Sí via service/API | implementat al codi | E2E pendent |
-| `DISMISSED` justificat | Sí | Sí via service/API | implementat al codi | E2E pendent |
-| Reobrir | Sí | Sí via service/API | implementat al codi | E2E pendent |
-| Historial `sif_incident_action` | Sí | Sí writer PHP | timeline implementat | E2E pendent |
-| Incidència Redsys | Sí | Sí i atòmica amb estat del job | N/A | pendent |
-| Incidència AEAT integritat | Sí | Sí | N/A | pendent |
-| Incidència AEAT retries esgotats | Sí | Sí | N/A | pendent |
+| Obrir incidència simple | Sí | Sí | N/A | verificat CI |
+| Identitat estable `UUID_INCIDENT` | Sí | Sí a migració nova | N/A | verificat CI |
+| Correlació i idempotència | Sí | Sí | N/A | verificat CI |
+| Vincular factura/pagament/recurs genèric | Sí | Sí | detall implementat | verificat CI |
+| Deduplicar per clau idempotent | Sí | Sí + current read en cursa | N/A | verificat amb concurrència real |
+| Llistar / consultar | Sí | API interna + sessió panell | implementat al codi | CI/E2E tècnic verificat; preprod pendent |
+| Assignar responsable | Sí | Sí via service/API | implementat al codi | CI + concurrència verificades; preprod pendent |
+| Afegir evidència | Sí | Sí via service/API | implementat al codi | verificat CI; preprod pendent |
+| Resoldre amb evidència | Sí | Sí via service/API | implementat al codi | verificat CI; preprod pendent |
+| `DISMISSED` justificat | Sí | Sí via service/API | implementat al codi | verificat CI; preprod pendent |
+| Reobrir | Sí | Sí via service/API | implementat al codi | verificat CI; preprod pendent |
+| Historial `sif_incident_action` | Sí | Sí writer PHP append-only | timeline implementat | verificat CI; preprod pendent |
+| Incidència Redsys | Sí | atòmica + deduplicada + dades sensibles redaccionades | N/A | verificat CI |
+| Incidència AEAT integritat | Sí | Sí | N/A | verificat CI |
+| Incidència AEAT retries esgotats | Sí | deduplicada per queue | N/A | verificat CI |
 | Reparació automàtica genèrica | No convé | No | No | — |
-| Panell oficial | Sí | sessió + lifecycle + CSRF | **implementat al codi** | desplegament/E2E pendent |
-| Resum intranet VERI*FACTU | Sí | client intern read-only + `summary` | **implementat al codi** | desplegament/E2E pendent |
+| Panell oficial | Sí | sessió + lifecycle + CSRF | **implementat al codi** | E2E tècnic verificat; desplegament/E2E real pendent |
+| Resum intranet VERI*FACTU | Sí | read-only + fallback darrer resum validat | **implementat al codi** | Intranet AO + CI verificats; desplegament pendent |
 
 ## 2. Contracte de persistència
 
