@@ -86,13 +86,13 @@
 | Camp | Valor |
 | --- | --- |
 | Curs original | `NovicePromotionDestinationCancellationReviewService` + `NovicePromotionDerivedBalanceActivationService` |
-| Curs traspassat | `NovicePromotionTransferredDestinationCancellationReviewService` + `NovicePromotionTransferredCancellationActivationService` — cobreix el curs actual assolit pel **primer traspàs confirmat** de l'aplicació original |
+| Curs traspassat | `NovicePromotionTransferredDestinationCancellationReviewService` + `NovicePromotionTransferredCancellationActivationService` — cobreix **qualsevol últim `transfer.CONFIRMED`** sense successor; `stageFirstTransferredDestinationReview()` es conserva com a àlies i el mètode canònic nou és `stageCurrentTransferredDestinationReview()` |
 | Curs pagat amb saldo derivat | `NovicePromotionDerivedApplicationCancellationReviewService` + `NovicePromotionDerivedApplicationCancellationActivationService` — crea un dret fill amb `PARENT_UUID_DERIVED_BALANCE` i `SOURCE_UUID_DERIVED_APPLICATION`, sense recreditar el pare |
 | Polítiques d'aprovació | `NovicePromotionApprovedCancellationPolicy`, `NovicePromotionApprovedTransferredCancellationPolicy`, `NovicePromotionApprovedDerivedCancellationPolicy` |
 | Regla | separar component promocional de diners reals; saldo derivat amb **nou any propi**; predecessor històric no torna a ser exposició activa; no restaurar saldo JASOM ni el saldo pare ja consumit |
 | Evidència | rectificativa real + aprovació independent + revalidació del cash i del JASOM abans d'activar |
-| Encara no executable | baixa del curs actual després d'un **segon/tercer traspàs**: els traspasos successius ja existeixen, però falta un review+activation de baixa que segueixi l'últim `PREVIOUS_UUID_TRANSFER` |
-| Estat | IMPLEMENTAT_BRANCA per baixa original, baixa del primer curs traspassat i baixa directa d'una `derived_application.APPLIED` · baixa de traspàs successiu PENDENT · adaptador real d'aprovació PENDENT · NO PROVAT MySQL |
+| Procedència de transfer successiu | si la cadena prové d'una `derived_application`, la review resol el dret derivat que realment es trasllada i el conserva a `PARENT_UUID_DERIVED_BALANCE`; si prové del dret original, el parent és NULL. Sempre es rebutja un transfer que ja tingui successor actiu |
+| Estat | IMPLEMENTAT_BRANCA per baixa original, baixa de qualsevol últim transfer confirmat i baixa directa d'una `derived_application.APPLIED` · adaptador real d'aprovació PENDENT · NO PROVAT MySQL |
 
 ## A111-09 · Consum parcial del saldo derivat
 
