@@ -122,7 +122,28 @@ El script **no** executa `open`, `assign`, `evidence`, `resolve`, `dismiss` ni `
 
 La sortida JSON s'ha de conservar com a evidència. Aquest E2E escriu únicament la traça anti-replay/sessió necessària per autenticar el handoff; no modifica cap incidència.
 
-## 8. Proves de desplegament
+## 8. Evidència agregada UC-008
+
+Quan preflight i E2E estiguin preparats amb les variables reals de preproducció, executar una sola comanda:
+
+```bash
+php sif/scripts/verify-incidents-panel-preproduction.php \
+  | tee uc-008-preproduction-evidence.json
+```
+
+El verificador:
+
+- es nega a executar-se en `production`;
+- executa `preflight-incidents-panel.php`;
+- executa `e2e-incidents-panel.php`;
+- agrega els dos JSON;
+- elimina de l'evidència qualsevol clau que contingui secrets/passwords;
+- retorna exit code `0` només si **preflight i E2E són verds**;
+- manté `production_authorized=false`: aquesta evidència no substitueix l'aprovació humana del pas a producció.
+
+El fitxer JSON resultant és l'evidència recomanada per adjuntar a l'expedient UC-008.
+
+## 9. Proves de desplegament
 
 1. Usuari sense rol de lectura → 403 al resum i al panell.
 2. Auditor → pot llistar/veure, no pot assignar ni tancar.
@@ -137,7 +158,7 @@ La sortida JSON s'ha de conservar com a evidència. Aquest E2E escriu únicament
 11. Validar que `SIF_PANEL_LAUNCH_SECRET` no apareix en HTML, JS, logs o respostes.
 12. Verificar que la sessió SIF es destrueix amb «Sortir».
 
-## 9. Evidència necessària per tancar
+## 10. Evidència necessària per tancar
 
 - URL productiva accessible per un rol autoritzat.
 - Captura/resposta del resum intranet.
