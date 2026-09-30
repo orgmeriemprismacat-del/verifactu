@@ -13,6 +13,7 @@ final class InvoiceQueryCriteriaValidator
         'billing_email',
         'factura_relacionada',
         'source_ids',
+        'source_type',
     ];
 
     public function validate(array $criteria): array
@@ -55,6 +56,14 @@ final class InvoiceQueryCriteriaValidator
                 throw SifException::validation('Invalid legacy invoice relation');
             }
             $clean['factura_relacionada'] = (int) $legacy;
+        }
+
+        if (($value = $this->stringValue($criteria, 'source_type', 40)) !== null) {
+            $value = strtoupper($value);
+            if (preg_match('/^[A-Z0-9_:-]+$/D', $value) !== 1) {
+                throw SifException::validation('Invalid invoice source type');
+            }
+            $clean['source_type'] = $value;
         }
 
         if (array_key_exists('source_ids', $criteria) && $criteria['source_ids'] !== null) {
