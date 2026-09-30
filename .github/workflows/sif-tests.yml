@@ -8,6 +8,16 @@ on:
       - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
+      - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
+      - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
+      - "codi-drive/intranet-actual/SifInternalUsocClient.php"
+      - "codi-drive/intranet-actual/alumnes-mostrar-alumne.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php"
+      - "codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js"
+      - "codi-drive/intranet-actual/js/alumnes-mostrar-alumne.min.js"
       - ".github/workflows/sif-tests.yml"
   push:
     branches:
@@ -18,6 +28,16 @@ on:
       - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
+      - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
+      - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
+      - "codi-drive/intranet-actual/SifInternalUsocClient.php"
+      - "codi-drive/intranet-actual/alumnes-mostrar-alumne.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php"
+      - "codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js"
+      - "codi-drive/intranet-actual/js/alumnes-mostrar-alumne.min.js"
       - ".github/workflows/sif-tests.yml"
   workflow_dispatch:
 
