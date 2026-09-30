@@ -92,7 +92,7 @@ final class NovicePromotionEnrollmentStager
         try {
             $existing = $this->one(
                 $sifDb,
-                'SELECT UUID_OPERATION, STATUS, NET_AMOUNT, PRICE_SNAPSHOT_JSON
+                'SELECT UUID_OPERATION, STATUS, NET_AMOUNT, PRICE_SNAPSHOT_JSON, CREATED_AT
                  FROM commercial_operation WHERE IDEMPOTENCY_KEY = ? FOR UPDATE',
                 [$idempotencyKey]
             );
@@ -113,9 +113,16 @@ final class NovicePromotionEnrollmentStager
                     throw SifException::conflict('A conflicting novice enrollment was already staged.');
                 }
 
+                $uuidValidation = $this->ensureValidationRequest(
+                    $sifDb,
+                    (string) $existing['UUID_OPERATION'],
+                    $canonicalPartyKey
+                );
+
                 $sifDb->commit();
                 return [
                     'uuid_operation' => (string) $existing['UUID_OPERATION'],
+                    'uuid_validation' => $uuidValidation,
                     'status' => (string) $existing['STATUS'],
                     'idempotency_reused' => true,
                 ];
@@ -173,9 +180,16 @@ final class NovicePromotionEnrollmentStager
                 ]
             );
 
+            $uuidValidation = $this->ensureValidationRequest(
+                $sifDb,
+                $uuidOperation,
+                $canonicalPartyKey
+            );
+
             $sifDb->commit();
             return [
                 'uuid_operation' => $uuidOperation,
+                'uuid_validation' => $uuidValidation,
                 'status' => 'PENDING_VALIDATION',
                 'idempotency_reused' => false,
             ];
@@ -185,6 +199,76 @@ final class NovicePromotionEnrollmentStager
             }
             throw $exception;
         }
+    }
+
+    /**
+     * Create the PENDING validation request at enrollment time so documentary
+     * evidence can be linked BEFORE secretary makes the final decision.
+     *
+     * Older staged rows from before this change are repaired idempotently on
+     * the next stage() call. A final decision is never overwritten here.
+     */
+    private function ensureValidationRequest(
+        \PDO $db,
+        string $uuidOperation,
+        string $partyKey
+    ): string {
+        $rows = $this->many(
+            $db,
+            'SELECT UUID_VALIDATION, STATUS, SUBJECT_PARTY_KEY
+             FROM discount_validation
+             WHERE UUID_OPERATION = ? AND DISCOUNT_TYPE = ?
+             FOR UPDATE',
+            [$uuidOperation, NovicePromotionGrantService::VALIDATION_TYPE]
+        );
+
+        if ($rows !== []) {
+            if (count($rows) !== 1
+                || (string) $rows[0]['SUBJECT_PARTY_KEY'] !== $partyKey
+                || !in_array(
+                    (string) $rows[0]['STATUS'],
+                    ['PENDING', 'VALIDATED', 'REJECTED'],
+                    true
+                )
+            ) {
+                throw SifException::conflict(
+                    'Novice validation request is duplicated or belongs to another holder.'
+                );
+            }
+
+            return (string) $rows[0]['UUID_VALIDATION'];
+        }
+
+        $uuidValidation = $this->uuids->generate();
+        $ruleSnapshot = json_encode([
+            'rule' => NovicePromotionGrantService::RULE_VERSION,
+            'origin_program' => 'JASOM',
+            'source' => 'novice_enrollment_request',
+            'secretary_decision_pending' => true,
+            'documentary_evidence_required_before_approval' => true,
+            'not_an_origin_course_discount' => true,
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+
+        $this->execute(
+            $db,
+            'INSERT INTO discount_validation
+             (UUID_VALIDATION, UUID_OPERATION, DISCOUNT_TYPE,
+              SUBJECT_PARTY_KEY, STATUS, RULE_VERSION, RULE_SNAPSHOT_JSON,
+              REQUESTED_AT, IDEMPOTENCY_KEY)
+             VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), ?)',
+            [
+                $uuidValidation,
+                $uuidOperation,
+                NovicePromotionGrantService::VALIDATION_TYPE,
+                $partyKey,
+                'PENDING',
+                NovicePromotionGrantService::RULE_VERSION,
+                $ruleSnapshot,
+                'NOVICE|VALIDATION|' . $uuidOperation,
+            ]
+        );
+
+        return $uuidValidation;
     }
 
     private function canonicalJson(string $json): string
