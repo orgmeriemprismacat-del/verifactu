@@ -1,7 +1,7 @@
 <?php
 include("inc/comprovarSessio.php");
 
-if (!$configOk) {
+if (!$configOk || !filter_var(getenv('SIF_USOC_UI_ENABLED') ?: '0', FILTER_VALIDATE_BOOLEAN)) {
     ?>
     <script>window.location.href = "https://intranet.prisma.cat/"</script>
     <?php
