@@ -168,6 +168,8 @@ stop
 @enduml
 ```
 
+**Implementació al repositori:** el pont candidat ja crea/reutilitza la intenció mitjançant `SifRedsysCourseIntentClient`. La MerchantURL SIF es pot activar amb `SIF_REDSYS_CALLBACK_URL` i exigeix HTTPS; mentre no estigui configurada es conserva el callback llegat com a fallback. El tall d'entorn continua **PENDENT D'ACREDITAR**.
+
 ## 4. P-CUR-04 — Callback servidor
 
 ### 4.1 ACTUAL
@@ -268,6 +270,10 @@ endif
 stop
 @enduml
 ```
+
+**Implementació al repositori:** `respostaOkPagamentAutomatic.php` i `respostaKoPagamentAutomatic.php` deleguen a `CoursePaymentReturnStatus`, que consulta per HMAC `SifRedsysCourseStatusClient` → `POST /api/redsys/course-status.php` → `RedsysCoursePaymentStatusService`. Els estats exposats són `PENDING`, `PROCESSING`, `CONFIRMED`, `REJECTED` i `REVIEW`; `CONFIRMED` exigeix job `PROCESSED` amb `UUID_FACTURA` i `UUID_PAYMENT`. Si la consulta SIF no està activa o falla, el retorn queda `UNVERIFIED/PENDING` i no afirma èxit.
+
+**Verificació:** `RedsysCoursePaymentStatusServiceTest` i `RedsysCourseReturnBoundaryTest` han passat als tres workflows del PR #55. **Desplegament/preproducció real:** no acreditats.
 
 ## 6. P-CUR-06 — Worker SIF
 
