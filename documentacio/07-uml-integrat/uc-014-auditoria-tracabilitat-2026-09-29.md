@@ -109,3 +109,8 @@ No marcar **TANCAT AMB EVIDÈNCIA** fins que:
 ## 6. Nota de seguretat
 
 Durant l'auditoria s'han observat secrets Redsys literals en còpies de codi del repositori. Aquest document no els reprodueix. Cal rotació/externalització segons la política de secrets i verificar quina configuració està activa abans de desplegar.
+
+
+## 7. Pla de tall final Redsys → SIF
+
+El tall operatiu no s'ha d'activar sense evidència de preproducció. El procediment, proves i criteris de tancament queden definits a [UC-014 — Pla de tall final Redsys cap al SIF](uc-014-pla-tall-final-redsys-sif.md).
