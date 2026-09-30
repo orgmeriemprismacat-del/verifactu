@@ -44,6 +44,17 @@ return [
         'aeat_operations_signed_path' => getenv('SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH') ?: '/api/aeat/operations.php',
         'incident_signed_path' => getenv('SIF_INTERNAL_INCIDENT_SIGNED_PATH') ?: '/api/incidents/manage.php',
         'redsys_intent_signed_path' => getenv('SIF_INTERNAL_REDSYS_INTENT_SIGNED_PATH') ?: '/api/redsys/intents/create.php',
+        'usoc_signed_path' => getenv('SIF_INTERNAL_USOC_SIGNED_PATH') ?: '/api/usoc/manage.php',
+    ],
+    'usoc' => [
+        'read_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_USOC_READ_ROLES') ?: '')
+        ))),
+        'manage_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_USOC_MANAGE_ROLES') ?: '')
+        ))),
     ],
     'incidents' => [
         'read_roles' => array_values(array_filter(array_map(
