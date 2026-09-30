@@ -267,10 +267,10 @@ No declarar UC-015 tancat fins que:
 1. els deu blocs anteriors tinguin correspondència codi → UC → prova;
 2. s'acrediti en runtime el checkout web amb snapshot backend i callback SIF;
 3. el callback legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
-4. s'acrediti que `PACK_ORDINAL` prové de l'ordre comercial canònic;
-5. les proves end-to-end PK-01..PK-11 s'hagin executat en preproducció; la capa unitària/integració ja té evidència CI verda (619/0).
+4. es mantingui el contracte estable `DATAI, ID_CURS` i es decideixi si cal una posició comercial explícita separada;
+5. les proves end-to-end PK-01..PK-11 s'hagin executat en preproducció; la capa unitària/integració ja té evidència CI verda (706/0).
 
 
 ## Evidència de proves automatitzades
 
-El 2026-09-30 la suite SIF ha finalitzat amb **619 passed / 0 failed** al commit `d02bc540...`. Aquesta evidència cobreix el contracte de checkout, snapshot, factura, conciliació, ledger i outbox del UC-015. Resta la validació visual/navegador i Redsys de preproducció.
+El 2026-09-30 la suite SIF ha finalitzat amb **706 passed / 0 failed** al commit `c961f193...`. Aquesta evidència cobreix el contracte de checkout, snapshot, factura, conciliació, ledger i outbox del UC-015. Resta la validació visual/navegador i Redsys de preproducció.

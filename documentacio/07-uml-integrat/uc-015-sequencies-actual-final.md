@@ -36,7 +36,7 @@ JS-->>U: redirecció confirmació
 ### Riscos ACTUAL residuals
 
 - l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
-- cal acreditar que `PACK_ORDINAL` representa l'ordre comercial canònic;
+- `PACK_ORDINAL` queda determinat pel mateix ordre estable de presentació `DATAI, ID_CURS`; resta decidir si negoci requereix una posició explícita separada;
 - el callback fiscal legacy conserva codi històric però està desactivat per defecte.
 
 ## 2. ACTUAL — cobrament pack al callback llegat
@@ -159,4 +159,4 @@ end
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
 - Outbox: implementat i cablejat al worker.
-- Pendent: eliminar el codi legacy després del rollback, acreditar l'origen comercial de l'ordinal i executar proves d'entorn.
+- Pendent: eliminar el codi legacy després del rollback, decidir si cal una posició comercial explícita independent de l'ordre cronològic estable i executar proves d'entorn.
