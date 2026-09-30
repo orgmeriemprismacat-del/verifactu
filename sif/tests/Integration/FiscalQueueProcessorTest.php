@@ -171,6 +171,48 @@ final class FiscalQueueProcessorTest
     }
 
 
+    public function testRepeatedDeadLetterForSameQueueReusesSingleIncident(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'AEAT|DEADLETTER|DEDUP',
+        ]));
+        $transport = new class implements AeatTransport {
+            public function send(array $fiscalPayload): array
+            {
+                throw new \RuntimeException('Synthetic AEAT outage');
+            }
+        };
+        $processor = $this->processor($db, $transport);
+
+        $processor->processNext();
+        $this->makeRetryDue($db);
+        $processor->processNext();
+        $this->makeRetryDue($db);
+        $first = $processor->processNext();
+
+        Assert::same('DEAD_LETTER', $first['queue_status']);
+        $firstIncidentId = $first['incident_id'];
+
+        $db->exec(
+            "UPDATE fiscal_queue
+             SET STATUS = 'RETRY', ATTEMPTS = 2, NEXT_RETRY_AT = '2000-01-01 00:00:00',
+                 LOCKED_AT = NULL, LOCKED_BY = NULL"
+        );
+
+        $second = $processor->processNext();
+
+        Assert::same('DEAD_LETTER', $second['queue_status']);
+        Assert::same($firstIncidentId, $second['incident_id']);
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu
+                 WHERE TIPUS_INCIDENCIA = 'AEAT_DEAD_LETTER'"
+            )->fetchColumn()
+        );
+    }
+
     public function testObsoleteClaimCannotCompleteFiscalQueueItem(): void
     {
         $db = TestDatabase::fresh();
