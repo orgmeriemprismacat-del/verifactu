@@ -6,8 +6,6 @@ use Prisma\Sif\Exception\SifException;
 
 final class LegacyPackInvoicePayloadBuilder
 {
-    private const PACK_DISCOUNT_PCT = 25.0;
-
     public function build(array $snapshot): array
     {
         $pack = $this->requiredArray($snapshot, 'pack');
@@ -215,34 +213,50 @@ final class LegacyPackInvoicePayloadBuilder
 
     private function lineAmounts(array $inscription, int $index): array
     {
-        $total = $this->money($this->required($inscription, ['TOTAL', 'total', 'A_PAGAR', 'a_pagar'], 'inscription.A_PAGAR'));
-        $explicitBase = $this->optional($inscription, ['IMPORT_BASE', 'import_base', 'BASE', 'base', 'PREU_BASE', 'preu_base']);
-        $explicitDiscount = $this->optional($inscription, ['DESC_IMPORT', 'discount_amount', 'DESCOMPTE', 'descompte']);
+        $total = $this->money($this->required(
+            $inscription,
+            ['TOTAL', 'total'],
+            'inscription.TOTAL'
+        ));
+        $explicitBase = $this->optional(
+            $inscription,
+            ['IMPORT_BASE', 'import_base', 'BASE', 'base', 'PREU_BASE', 'preu_base']
+        );
+        $explicitDiscount = $this->optional(
+            $inscription,
+            ['DESC_IMPORT', 'discount_amount', 'DESCOMPTE', 'descompte']
+        );
+        $explicitPct = $this->optional(
+            $inscription,
+            ['DESC_PCT', 'discount_pct']
+        );
 
-        if ($explicitBase !== null && $explicitBase !== '') {
-            $base = $this->money($explicitBase);
-            $discount = $explicitDiscount === null || $explicitDiscount === ''
-                ? $this->money((float) $base - (float) $total)
-                : $this->money($explicitDiscount);
-            $pct = $this->optionalString($inscription, ['DESC_PCT', 'discount_pct'], $this->money(self::PACK_DISCOUNT_PCT));
-        } elseif ($index === 0) {
-            $base = $total;
-            $discount = '0.00';
-            $pct = null;
-        } else {
-            $base = $this->money(((float) $total) / (1.0 - (self::PACK_DISCOUNT_PCT / 100.0)));
-            $discount = $this->money((float) $base - (float) $total);
-            $pct = $this->money(self::PACK_DISCOUNT_PCT);
+        if ($explicitBase === null || $explicitBase === ''
+            || $explicitDiscount === null || $explicitDiscount === ''
+            || $explicitPct === null || $explicitPct === ''
+        ) {
+            throw SifException::conflict(
+                'Pack invoice requires explicit commercial amounts for every line'
+            );
         }
 
-        if ((float) $discount < 0.0) {
+        $base = $this->money($explicitBase);
+        $discount = $this->money($explicitDiscount);
+        $pct = $this->money($explicitPct);
+
+        if ((float) $discount < 0.0 || (float) $pct < 0.0 || (float) $pct > 100.0) {
             throw SifException::validation('Invalid pack discount amount');
+        }
+
+        $calculatedTotal = $this->money((float) $base - (float) $discount);
+        if ($calculatedTotal !== $total) {
+            throw SifException::conflict('Pack line commercial amounts are inconsistent');
         }
 
         return [
             'import_base' => $base,
             'discount_amount' => $discount,
-            'discount_pct' => $pct === null ? null : $this->money($pct),
+            'discount_pct' => $pct,
             'taxable_base' => $total,
             'total' => $total,
         ];
