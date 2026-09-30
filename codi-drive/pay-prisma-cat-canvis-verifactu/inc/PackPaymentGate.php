@@ -144,8 +144,16 @@ final class PackPaymentGate
             $base = self::cents($meta['PACK_BASE']);
             $discount = self::cents($meta['PACK_DISCOUNT']);
             $total = self::cents($meta['PACK_TOTAL']);
-            $discountPct = self::amount(self::cents($meta['PACK_DISCOUNT_PCT']));
+            $discountPctCents = self::cents($meta['PACK_DISCOUNT_PCT']);
+            if ($discountPctCents > 10000) {
+                throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
+            }
+            $discountPct = self::amount($discountPctCents);
             if ($base - $discount !== $total) {
+                throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
+            }
+            $expectedDiscount = (int) round(($base * $discountPctCents) / 10000);
+            if (abs($expectedDiscount - $discount) > 1) {
                 throw new RuntimeException('PACK_PAYMENT_NOT_AVAILABLE');
             }
 
