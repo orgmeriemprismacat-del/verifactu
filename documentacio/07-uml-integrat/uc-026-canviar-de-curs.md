@@ -97,6 +97,22 @@ C-->>O: Moviments executats i diferència pendent
 Note over C,L: Orquestració i repositori de fons encara no implementats
 ```
 
+### 1.5. Protecció executable 30/09/2026 — POST/CSRF i guard USOC
+
+El flux legacy de confirmació de canvi ja **no muta per GET**. La crida de `alumnes-mostrar-alumne.js` i del fitxer minificat executable envia POST a `realitzarCanviCurs_CanviCurs.php` amb token `csrf_alumnes_lifecycle`.
+
+Abans d'executar `Intranet::realitzarCanviCurs_modalCanviCurs()`, el servidor:
+- valida sessió, CSRF, same-origin i permís d'edició de `/alumnes/mostrar-alumne/`;
+- valida `ID_INSC` i motiu;
+- consulta localment `TIPUS_DESC` i `IDPAG`;
+- si no és USOC, conserva el flux legacy;
+- si és USOC, crida `LegacyUsocLifecycleGuard` → API signada `lifecycle_guard` → `UsocLifecycleGuardService`;
+- si existeix `usoc_financing_case`, retorna conflicte i **no executa el canvi legacy**.
+
+Aquesta protecció és **IMPLEMENTADA I PROVADA**, però no converteix UC-026/071 en un orquestrador complet. El canvi USOC amb dues factures continua requerint decidir separadament rectificació, reassignació, diferència, retorn/saldo i conciliació de cada pagador.
+
+També s'ha corregit una pèrdua de paràmetre: el JS torna a enviar `pendent` al controlador, que ja l'esperava.
+
 ## 2. Diagrama UML de casos d'ús — contracte de negoci
 
 ```plantuml
