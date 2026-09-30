@@ -271,7 +271,23 @@ final class RedsysCallbackTest
             'expected_amount' => $amount,
             'currency' => 'EUR',
             'terminal' => '1',
-            'snapshot' => ['billing' => ['tax_id' => '12345678Z']],
+            'snapshot' => $sourceType === 'CURS'
+                ? [
+                    'inscription' => [
+                        'ID' => 700,
+                        'IDPAG' => 700,
+                        'ANY' => 2026,
+                        'MES' => '10',
+                        'CURS' => 'ABC',
+                        'NOM' => 'Maria',
+                        'COGNOMS' => 'Exemple',
+                        'DNI' => '12345678Z',
+                        'A_PAGAR' => $amount,
+                    ],
+                    'course' => ['NOM_CURS' => 'Curs de prova'],
+                    'payment' => ['amount' => $amount],
+                ]
+                : ['billing' => ['tax_id' => '12345678Z']],
         ]);
     }
 
