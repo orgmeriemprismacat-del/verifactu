@@ -153,6 +153,20 @@ final class LegacyPackInvoicePayloadBuilderTest
         }, 409);
     }
 
+    public function testRejectsPackLineWithoutExplicitCommercialAmounts(): void
+    {
+        $snapshot = $this->packSnapshot();
+        unset(
+            $snapshot['items'][1]['inscription']['IMPORT_BASE'],
+            $snapshot['items'][1]['inscription']['DESC_IMPORT'],
+            $snapshot['items'][1]['inscription']['DESC_PCT']
+        );
+
+        Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyPackInvoicePayloadBuilder())->build($snapshot);
+        }, 409);
+    }
+
     public function testRequiresAtLeastTwoPackLines(): void
     {
         $snapshot = $this->packSnapshot();
@@ -203,6 +217,10 @@ final class LegacyPackInvoicePayloadBuilderTest
                         'Poblacio' => 'Barcelona',
                         'FACTURA_RELACIONADA' => 701,
                         'A_PAGAR' => '120.00',
+                        'TOTAL' => '120.00',
+                        'IMPORT_BASE' => '120.00',
+                        'DESC_IMPORT' => '0.00',
+                        'DESC_PCT' => '0.00',
                         'PAGAMENT' => '0.00',
                         'FRACCIO' => 0,
                     ],
@@ -231,6 +249,10 @@ final class LegacyPackInvoicePayloadBuilderTest
                         'Poblacio' => 'Barcelona',
                         'FACTURA_RELACIONADA' => 702,
                         'A_PAGAR' => '90.00',
+                        'TOTAL' => '90.00',
+                        'IMPORT_BASE' => '120.00',
+                        'DESC_IMPORT' => '30.00',
+                        'DESC_PCT' => '25.00',
                         'PAGAMENT' => '0.00',
                         'FRACCIO' => 0,
                     ],
