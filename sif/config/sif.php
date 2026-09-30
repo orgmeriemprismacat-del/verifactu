@@ -60,6 +60,7 @@ return [
         'redsys_course_status_signed_path' => getenv('SIF_INTERNAL_REDSYS_COURSE_STATUS_SIGNED_PATH') ?: '/api/redsys/course-status.php',
         'usoc_signed_path' => getenv('SIF_INTERNAL_USOC_SIGNED_PATH') ?: '/api/usoc/manage.php',
         'novice_promotion_signed_path' => getenv('SIF_INTERNAL_NOVICE_PROMOTION_SIGNED_PATH') ?: '/api/novice-promotion/manage.php',
+        'gift_redemption_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_SIGNED_PATH') ?: '/api/gifts/redemption/redeem.php',
     ],
     'course_change' => [
         'preview_roles' => array_values(array_filter(array_map(
@@ -105,6 +106,12 @@ return [
         'intent_create_roles' => array_values(array_filter(array_map(
             'trim',
             explode(',', getenv('SIF_REDSYS_INTENT_CREATE_ROLES') ?: '')
+        ))),
+    ],
+    'gift_redemption' => [
+        'manage_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_GIFT_REDEMPTION_MANAGE_ROLES') ?: '')
         ))),
     ],
     'novice_promotion' => [
