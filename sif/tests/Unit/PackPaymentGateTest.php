@@ -108,6 +108,16 @@ final class PackPaymentGateTest
         });
     }
 
+    public function testRejectsDivergentFiscalAddressAtCheckout(): void
+    {
+        $rows = $this->rows();
+        $rows[1]['ADRECA'] = 'Carrer Diferent 99';
+
+        Assert::throws(\RuntimeException::class, function () use ($rows): void {
+            \PackPaymentGate::authorizeRows($rows, ['importPagare' => '210.00'], 910);
+        });
+    }
+
     private function rows(): array
     {
         return [
