@@ -262,8 +262,8 @@ flowchart TD
 
 ## 11. Cobrament entitat
 
-### ACTUAL
-No s'ha acreditat un endpoint UC-013 específic. El cobrament s'ha de fer via fluxos generals de cobrament, sense recrear la factura.
+### ACTUAL / IMPLEMENTAT EN REPOSITORI
+`UsocEntityPaymentService` valida que la factura sigui la `UUID_ENTITY_INVOICE` d'un expedient USOC, registra el cobrament mitjançant el ledger general i executa la conciliació. `process-usoc-entity-payment.php` és el punt d'entrada controlat de preproducció. La interfície final encara no està connectada.
 
 ### FINAL
 
@@ -326,7 +326,7 @@ flowchart TD
 | Validar negatiu | Sí | Sí | Sí |
 | Pagament/factura alumne | Sí | Sí | Sí |
 | Factura entitat | Parcial | Sí | Servei sí, pantalla no |
-| Cobrament entitat | Parcial | Sí | Flux específic no |
+| Cobrament entitat | Sí, servei/script | Sí | `UsocEntityPaymentService`; interfície final pendent |
 | Conciliació | Sí, servei/script | Sí | Implementada parcialment; trigger automàtic pendent |
 | Canvi/baixa | Parcial | Sí | Compartit amb altres UC |
 
@@ -335,6 +335,6 @@ flowchart TD
 1. Endpoint de validació USOC com a POST segur.
 2. Generació concurrent-safe d'identificador comercial/IDPAG llegat.
 3. Adaptador/pantalla d'emissió entitat.
-4. Connectar el cobrament entitat amb `UsocCaseReconciler` de forma automàtica.
-5. Prova E2E amb callback duplicat + cobrament entitat parcial/complet.
+4. Connectar la interfície/API final amb `UsocEntityPaymentService`.
+5. Executar i conservar evidència de la suite sobre `sif_test*`.
 6. Tractament definit per alumne=0/curs gratuït.
