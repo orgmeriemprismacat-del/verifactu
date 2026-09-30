@@ -7,16 +7,21 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyPackSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
+use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacyPackInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacySyncService;
+use Prisma\Sif\Service\PackEnrollmentFundAllocationService;
+use Prisma\Sif\Service\PackPaymentNotificationService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
 use Prisma\Sif\Service\RedsysInvoicePayloadBuilder;
 use Prisma\Sif\Service\RedsysPackInvoiceService;
@@ -60,25 +65,52 @@ try {
         new PaymentPayloadValidator(),
         new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
     );
+    $intent = (new RedsysPaymentIntentRepository())->findByDsOrder($sifDb, $dsOrder);
+    if (!is_array($intent) || strtoupper(trim((string) ($intent['SOURCE_TYPE'] ?? ''))) !== 'PACK') {
+        throw new RuntimeException('PACK Redsys intent not found');
+    }
+    $snapshot = json_decode((string) ($intent['SNAPSHOT_JSON'] ?? ''), true);
+    if (!is_array($snapshot)) {
+        throw new RuntimeException('Invalid PACK Redsys intent snapshot');
+    }
+
     $service = new RedsysPackInvoiceService(
         $notifications,
         new LegacyPackSnapshotRepository(),
         new LegacyPackInvoicePayloadBuilder(),
         new RedsysInvoicePayloadBuilder($notifications),
-        $invoiceService
+        $invoiceService,
+        new PackPaymentNotificationService(
+            new NotificationOutboxRepository(new UuidGenerator())
+        ),
+        new PackEnrollmentFundAllocationService(
+            new EnrollmentFundMovementRepository(new UuidGenerator())
+        )
     );
 
-    $result = $service->issueFromValidatedNotification($sifDb, $legacyDb, $dsOrder);
+    $result = $service->issueFromIntentSnapshot($sifDb, $dsOrder, $snapshot);
     $legacySync = $result['legacy_sync'] ?? ['relations' => [], 'estat_cobrament' => 'PAID'];
 
     if ($syncLegacy && ($result['ok'] ?? false) === true) {
-        (new LegacySyncService(new LegacySyncRepository()))->syncAfterSifSuccess(
+        $legacySyncService = new LegacySyncService(new LegacySyncRepository());
+        $legacySyncService->syncAfterSifSuccess(
             $legacyDb,
             $legacySync['relations'] ?? [],
             (string) $result['uuid_factura'],
             (string) $result['num_visible'],
             (string) ($legacySync['estat_cobrament'] ?? 'PAID')
         );
+        if (($legacySync['mode'] ?? '') === 'PACK_FULL_PAYMENT') {
+            $movementDate = trim((string) ($legacySync['movement_date'] ?? ''));
+            if ($movementDate === '') {
+                throw new RuntimeException('Missing pack payment movement date for legacy sync');
+            }
+            $legacySyncService->syncPackFullPayment(
+                $legacyDb,
+                $legacySync['relations'] ?? [],
+                $movementDate
+            );
+        }
         $result['legacy_sync_executed'] = true;
     } else {
         $result['legacy_sync_executed'] = false;
