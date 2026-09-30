@@ -8,6 +8,10 @@ if (!$configOk) {
 	<?php
 }
 else {
+	if (empty($_SESSION['csrf_alumnes_lifecycle'])) {
+		$_SESSION['csrf_alumnes_lifecycle'] = bin2hex(random_bytes(32));
+	}
+	$csrfAlumnesLifecycle = $_SESSION['csrf_alumnes_lifecycle'];
 ?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# video: http://ogp.me/ns/video#">
@@ -15,6 +19,7 @@ else {
 		<meta charset="utf-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="csrf-token-alumnes-lifecycle" content="<?php echo htmlspecialchars($csrfAlumnesLifecycle, ENT_QUOTES, 'UTF-8'); ?>">
 
 		<title>Consulta / Modifica alumne | Intranet</title>
 
