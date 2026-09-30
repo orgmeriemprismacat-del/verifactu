@@ -2393,11 +2393,16 @@ function uc007RenderFacturaSifAlumne(res) {
 		html += '<h5>Documents</h5><ul>';
 		res.documents.forEach(function(doc) {
 			var documentId = parseInt(doc.ID, 10);
+			var documentState = String(doc.ESTAT || '').toUpperCase();
+			var downloadable = ['CREATED', 'READY', 'ARCHIVED'].indexOf(documentState) !== -1;
 			html += '<li>' + uc007EscapeHtmlAlumne(doc.TIPUS || '') + ' · ' +
-				uc007EscapeHtmlAlumne(doc.ESTAT || '');
-			if (!isNaN(documentId) && documentId > 0) {
+				uc007EscapeHtmlAlumne(documentState);
+			if (downloadable && !isNaN(documentId) && documentId > 0) {
 				html += ' <button type="button" class="btn btn-sm btn-outline-secondary uc007-sif-document-download" ' +
 					'data-document-id="' + documentId + '">Descarregar</button>';
+			}
+			else if (!downloadable) {
+				html += ' <span class="badge bg-secondary">No disponible</span>';
 			}
 			html += '</li>';
 		});
