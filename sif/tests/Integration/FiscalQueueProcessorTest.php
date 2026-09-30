@@ -235,7 +235,7 @@ final class FiscalQueueProcessorTest
         $db->exec(
             "UPDATE fiscal_queue
              SET STATUS = 'RETRY', ATTEMPTS = 2, NEXT_RETRY_AT = '2000-01-01 00:00:00',
-                 LOCKED_AT = NULL, LOCKED_BY = NULL"
+                 LOCKED_AT = NULL, CLAIM_TOKEN = NULL"
         );
 
         $second = $processor->processNext();
