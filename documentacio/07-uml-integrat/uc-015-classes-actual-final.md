@@ -202,6 +202,6 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 ## 5. Estat
 
 - **Documentat:** sí.
-- **Implementat parcial:** sí.
+- **Implementat:** flux fiscal/econòmic principal sí; resten només dependències residuals d'entorn/retirada/UC-58.
 - **Verificat per inspecció:** sí.
 - **Pendent:** eliminar el callback fiscal legacy després de la finestra de rollback, decidir si `PACK_ORDINAL` ha de provenir d'una posició comercial explícita independent de `DATAI` i obtenir evidència runtime/preproducció. La sincronització legacy post-SIF ja està implementada amb `RedsysLegacySyncingProcessor` + `LegacySyncService`.
