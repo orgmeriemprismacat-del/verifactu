@@ -31,6 +31,11 @@ final class LegacyUsocDiscountValidationSecurityTest
         Assert::stringContainsString("tePermisVisualitzacio", $endpoint);
         Assert::stringContainsString("FILTER_VALIDATE_INT", $endpoint);
         Assert::stringContainsString("validar_descomptes_requests", $endpoint);
+        Assert::stringContainsString("LegacyDiscountValidationLookup", $endpoint);
+        Assert::stringContainsString("->isUsoc($idInsc)", $endpoint);
+        Assert::stringContainsString("beginValidationDecision", $endpoint);
+        Assert::stringContainsString("completeValidationDecision", $endpoint);
+        Assert::stringContainsString("should_apply_legacy", $endpoint);
 
         if (str_contains($endpoint, '$_GET[')) {
             Assert::fail('USOC discount validation endpoint must not mutate from GET parameters.');
