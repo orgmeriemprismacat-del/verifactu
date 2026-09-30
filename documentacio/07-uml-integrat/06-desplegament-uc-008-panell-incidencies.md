@@ -66,6 +66,34 @@ Facturació
 
 Aquesta alta de menú és una operació de configuració de BD i no s'ha inventat dins del repositori. Com a accés versionat, `sif-registres-aeat.php` ja inclou un enllaç a `sif-verifactu.php`.
 
+## 6. Preflight executable abans de navegador
+
+Executar al servidor/preproducció, amb les variables reals carregades al procés:
+
+```bash
+php sif/scripts/preflight-incidents-panel.php
+```
+
+El resultat ha de retornar `"ok": true`. El script és **read-only** respecte del domini: no emet factures, no registra pagaments i no resol incidències. Comprova:
+
+- entorn `test` o `preproduction`;
+- extensions PHP necessàries;
+- rols de lectura i gestió;
+- que tots els rols gestors tinguin també lectura;
+- secrets HMAC de com a mínim 32 bytes/caràcters;
+- paths signats exactes;
+- skew del handoff entre 30 i 300 segons;
+- fitxers del panell/API;
+- esquema i taules `errors_verifactu`, `sif_incident_action` i `internal_api_request`.
+
+Després executar el control global:
+
+```bash
+php sif/scripts/go-no-go-preproduction.php
+```
+
+El go/no-go global incorpora també la presència/configuració bàsica del circuit UC-008. Un `NO-GO` bloqueja la validació E2E fins resoldre els checks fallits. Cap dels dos scripts autoritza per si mateix el pas a producció.
+
 ## 6. Proves de desplegament
 
 1. Usuari sense rol de lectura → 403 al resum i al panell.
