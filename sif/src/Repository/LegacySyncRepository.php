@@ -28,7 +28,9 @@ final class LegacySyncRepository
             $marker,
             $idInsc,
         ]);
-        public function syncPackFullPayment(
+    }
+
+    public function syncPackFullPayment(
         \PDO $legacyDb,
         int $idInsc,
         string $movementDate
@@ -43,6 +45,4 @@ final class LegacySyncRepository
              WHERE ID = ? AND TIPUS_INSC = 'P'"
         )->execute([$movementDate, $idInsc]);
     }
-
-}
 }
