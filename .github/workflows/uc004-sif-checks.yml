@@ -1,0 +1,36 @@
+name: UC-004 SIF secure flow checks
+
+on:
+  pull_request:
+    paths:
+      - "codi-drive/intranet-actual/SifInternalApiClient.php"
+      - "codi-drive/intranet-actual/SifInvoiceBeforePaymentAccess.php"
+      - "codi-drive/intranet-actual/Usuari.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifFacturaAbansPagar*.php"
+      - "codi-drive/intranet-actual/js/alumnes-genera-factura-abans-pagar.js"
+      - "codi-drive/intranet-actual/tests/uc004_sif_static_test.php"
+      - "codi-drive/intranet-actual/tests/run_uc004_sif_checks.sh"
+      - "sif/src/**"
+      - "sif/public/api/factures/before-payment.php"
+      - "sif/scripts/*invoice-before-payment*"
+      - "sif/database/migrations/*internal_api*"
+      - "sif/database/migrations/*uc004*"
+      - ".github/workflows/uc004-sif-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, mysqli, pdo_mysql
+          coverage: none
+      - name: UC-004 syntax and secure-contract checks
+        run: sh codi-drive/intranet-actual/tests/run_uc004_sif_checks.sh

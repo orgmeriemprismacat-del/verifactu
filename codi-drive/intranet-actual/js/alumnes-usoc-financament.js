@@ -44,7 +44,7 @@
     function applyCapabilities(capabilities) {
         canManage = !!(capabilities && capabilities.manage === true);
 
-        $('#usoc-reconciliar, #usoc-emetre-entitat, #usoc-registrar-cobrament')
+        $('#usoc-reconciliar, #usoc-emetre-entitat, #usoc-registrar-cobrament, #usoc-lifecycle-preview, #usoc-lifecycle-operation')
             .prop('disabled', !canManage);
 
         $('#usoc-financament')
@@ -112,6 +112,81 @@
             })
             .fail(function (xhr) {
                 showAlert('danger', xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'Error consultant l’expedient USOC.');
+            });
+    });
+
+    function renderLifecyclePlan(plan) {
+        const container = $('#usoc-lifecycle-result');
+        container.empty().removeClass('d-none');
+
+        if (!plan || !plan.requires_usoc_orchestration) {
+            container.append(
+                $('<div>').addClass('alert alert-info mb-0')
+                    .text('No hi ha un expedient USOC SIF que requereixi orquestració específica.')
+            );
+            return;
+        }
+
+        container.append(
+            $('<div>').addClass('alert alert-warning')
+                .text('Aquest és un pla de revisió. No executa rectificatives ni devolucions.')
+        );
+
+        const table = $('<table>').addClass('table table-sm table-bordered align-middle');
+        const head = $('<thead>').append(
+            $('<tr>')
+                .append($('<th>').text('Pagador'))
+                .append($('<th>').text('Factura'))
+                .append($('<th>').text('Acció factura'))
+                .append($('<th>').text('Net cobrat'))
+                .append($('<th>').text('Màxim retornable'))
+                .append($('<th>').text('Acció econòmica'))
+        );
+        const body = $('<tbody>');
+
+        (plan.actions || []).forEach(function (action) {
+            body.append(
+                $('<tr>')
+                    .append($('<td>').text(action.payer_role || '—'))
+                    .append($('<td>').addClass('text-break').text(action.invoice_uuid || '—'))
+                    .append($('<td>').text(action.invoice_action || '—'))
+                    .append($('<td>').text((action.net_paid || '0.00') + ' €'))
+                    .append($('<td>').text((action.max_refundable || '0.00') + ' €'))
+                    .append($('<td>').text(action.economic_action || '—'))
+            );
+        });
+
+        table.append(head).append(body);
+        container.append(table);
+    }
+
+    $('#usoc-lifecycle-preview').on('click', function () {
+        if (!canManage) {
+            showAlert('danger', 'No tens permisos per planificar operacions USOC.');
+            return;
+        }
+
+        const id = identity();
+        post('lifecycle_plan', {
+            id_insc: id.id_insc,
+            idpag: id.idpag,
+            operation: field('usoc-lifecycle-operation')
+        })
+            .done(function (response) {
+                if (response.ok && response.plan) {
+                    renderLifecyclePlan(response.plan);
+                    showAlert('info', 'Pla USOC calculat. Encara no s’ha executat cap canvi fiscal ni econòmic.');
+                } else {
+                    showAlert('danger', response.error || 'No s’ha pogut calcular el pla USOC.');
+                }
+            })
+            .fail(function (xhr) {
+                showAlert(
+                    'danger',
+                    xhr.responseJSON && xhr.responseJSON.error
+                        ? xhr.responseJSON.error
+                        : 'Error calculant el pla de canvi/baixa USOC.'
+                );
             });
     });
 

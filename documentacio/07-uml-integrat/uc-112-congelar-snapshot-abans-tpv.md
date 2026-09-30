@@ -86,6 +86,30 @@ Bank --> Callback
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Comprador"]
+  a_1["Ecommerce / adaptador"]
+  a_2["Redsys"]
+  subgraph SIF_BOUNDARY["SIF · congelació prèvia al TPV"]
+    u_0(["UC-112<br/>Congelar oferta i classificació"])
+    u_1(["UC-115<br/>Comprovar reserva real"])
+    u_2(["Validar imports/receptor/règim"])
+    u_3(["Persistir snapshot i versió"])
+    u_4(["UC-63<br/>Crear intenció per oferta acceptada"])
+    u_5(["UC-03<br/>Comprovar resposta amb intenció"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+  a_1 --> u_4
+  a_2 --> u_5
+```
+
 ## 3. Classes — límit de la validació real i contracte pendent
 
 ```mermaid

@@ -264,7 +264,7 @@ Resultat de la comparació:
 
 ### Regressió CI sobre el `main` actual
 
-El workflow **SIF PHP MySQL tests** del commit `e2fd82215dc9dbd1a6938014c19985adceebd3ed`, run **36732555122**, ha finalitzat en **success** amb:
+El workflow **SIF PHP MySQL tests** de l'últim tall de codi SIF verificat, commit `e2fd82215dc9dbd1a6938014c19985adceebd3ed`, run **36732555122**, ha finalitzat en **success** amb:
 
 - **740 passed**
 - **0 failed**
@@ -286,6 +286,8 @@ Dins d'aquest mateix run s'han comprovat explícitament **61 proves PASS** relac
 - integracions Redsys i AEAT que obren/reutilitzen incidències.
 
 Aquesta regressió posterior confirma que els merges posteriors no han introduït una regressió detectable al codi UC-008.
+
+**Revalidació del capçal final de l'auditoria:** amb activitat paral·lela al repositori, l'últim capçal observat abans de tancar aquesta passada és `1b332f62add5ebe669b1fd3981fec1d6cc3257c4`. La comparació `e2fd8221...1b332f62` conté **17 commits / 11 fitxers** i **cap** afecta les dependències UC-008 inventariades (incident lifecycle/repositories, panell, API interna, bridge intranet, RedsysCallbackWorker, FiscalQueueProcessor o configuració compartida). Per tant, el run 740/0 continua sent l'evidència de regressió aplicable al codi UC-008 fins aquest punt de control.
 
 **Estat després de la revalidació:** `CODE_COMPLETE + DOCUMENTATION_RECONCILED + CURRENT_MAIN_REGRESSION_GREEN`. Continua pendent únicament el tancament d'entorn real.
 
@@ -312,6 +314,18 @@ Aquesta regressió posterior confirma que els merges posteriors no han introduï
 | Gate evidències | Sí | Sí | tests | generar JSON reals |
 
 ## 7. Mancances reals
+
+### 6 bis. Comprovació d'evidències de tancament
+
+S'ha comprovat el `main` actual i els artifacts dels workflows verds `36732555122` i `36732555092`.
+
+No consten al repositori ni als artifacts:
+
+- `uc-008-preproduction-evidence.json`;
+- `uc-008-menu-evidence.json`;
+- `uc-008-closure-validation.json`.
+
+Per tant, el resultat **740/0** acredita regressió de codi i contractes automatitzats, però **no acredita l'execució real de preproducció ni el tancament de l'entorn**. No s'ha fabricat ni inferit cap evidència absent.
 
 ### 7.1. Pendents obligatoris d'entorn
 

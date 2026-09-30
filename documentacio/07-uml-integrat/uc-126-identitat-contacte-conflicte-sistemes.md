@@ -84,6 +84,28 @@ Main ..> Decide : <<include>>
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Persona interessada"]
+  a_1["Gestió autoritzada"]
+  a_2["Suport Moodle"]
+  subgraph SIF_BOUNDARY["Prisma · identitat entre sistemes"]
+    u_0(["UC-126<br/>Resoldre conflicte d'identitat"])
+    u_1(["Comparar identificadors i evidència"])
+    u_2(["Previsualitzar recursos afectats"])
+    u_3(["Aprovar equivalència o separació"])
+    u_4(["UC-120/129<br/>Propagar perfil i matrícula"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  a_2 --> u_4
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+```
+
 ## 4. UML de classes — snapshots existents, resolutor pendent
 
 ```mermaid

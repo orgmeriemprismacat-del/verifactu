@@ -1,560 +1,627 @@
 let urlPagina = window.location.pathname.split('?')[0];
 let path = "https://intranet.prisma.cat/ajax/";
-let idsInsc = [], entitatMarcada='', preuTotal=0, concepte1='', concepte2='';
-let cursos = [], edicions = [];
+let idsInsc = [];
+let uc004EntityId = 0;
+let uc004CsrfToken = '';
+let uc004Fingerprint = '';
+let uc004PreviewObservations = '';
+let uc004Preview = null;
 
-/* Cada vegada que es faci una crida d'un ajax, s'executarà la funció mostrarModalLoading().
-Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoadingModal(). */
+/* El loading global es conserva per coherència amb la resta de la intranet. */
 $(document).bind("ajaxSend", function(){
-	mostrarModalLoading();
+    mostrarModalLoading();
 }).bind("ajaxComplete", function(){
-	amagarLoadingModal();
+    amagarLoadingModal();
 });
 
 var requestMain = $.ajax({
-	url: "https://intranet.prisma.cat/ajax/mostrarMain.php?url="+urlPagina,
-	method: "GET",
-	data: { url : urlPagina },
-	dataType: "html"
+    url: "https://intranet.prisma.cat/ajax/mostrarMain.php?url=" + urlPagina,
+    method: "GET",
+    data: { url: urlPagina },
+    dataType: "html"
 });
 
-requestMain.done(function( message ) {
-	$('.mainpanel').html(message);
+requestMain.done(function(message) {
+    $('.mainpanel').html(message);
 
-	//quan es clica a qualsevol lloc fora del select, amago el desplegable
-	$(window).click(function() {
-		//amago el desplegable
-		$('.select .select-list').hide();
-		//retorno el triangle com esta per defecte
-		var triangle = $('.select').find("i");
-		triangle.removeClass("fa-angle-up").addClass("fa-angle-down");
-	});
+    initializeSecureUc004();
 
-	//quan estas focus en el camp, elimino el marcatge de l'input
-	$('#content-page').on('focus', '.form-control', function() {
-		$(this).parent().removeClass('element-cercat-marcat');
-	});
+    $(window).click(function() {
+        $('.select .select-list').hide();
+        $('.select').find("i").removeClass("fa-angle-up").addClass("fa-angle-down");
+    });
 
-	//marco el input de la cerca quan s'ha escrit alguna cosa en el camp
-	$('#content-page').on('blur', '.form-control', function() {
-		if ($(this).val().trim() == '')
-			$(this).removeClass('element-cercat-marcat');
-		else
-			$(this).addClass('element-cercat-marcat');
-	});
+    $('#content-page').on('focus', '.form-control', function() {
+        $(this).parent().removeClass('element-cercat-marcat');
+    });
 
-	$("#content-page .select").click(function(e) {
-		e.stopPropagation();
-		var lista = $(this).find("ul"),
-			triangle = $(this).find("i");
-		e.preventDefault();
-		$(this).find("ul").toggle();
-		if (lista.is(":hidden")) {
-			triangle.removeClass("fa-angle-up").addClass("fa-angle-down");
-		} else {
-			triangle.removeClass("fa-angle-down").addClass("fa-angle-up");
-		}
-	});
-	$("#content-page .select").on("click", "li", function(e) {
-		var texto = $(this).text(),
-			element = $(this).parent().prev(),
-			lista = $(this).closest("ul"),
-			triangle = $(this).parent().next(),
-			id = $(this).attr('id');
-		e.preventDefault();
-		e.stopPropagation();
-		element.text(texto);
-		lista.hide();
-		triangle.removeClass("fa-angle-up").addClass("fa-angle-down");
-		$(this).parent().parent().prev().addClass('active');
+    $('#content-page').on('blur', '.form-control', function() {
+        if ($(this).val().trim() === '') {
+            $(this).removeClass('element-cercat-marcat');
+        } else {
+            $(this).addClass('element-cercat-marcat');
+        }
+    });
 
-		//marco el select de la cerca quan s'ha escrit alguna cosa en el camp
-		if ( $(this).parent().parent().attr('id') == 'entitat-dispo')
-			entitatMarcada = texto;
-	});
+    $("#content-page .select").click(function(e) {
+        e.stopPropagation();
+        var list = $(this).find("ul");
+        var triangle = $(this).find("i");
+        e.preventDefault();
+        list.toggle();
 
-	/* Si premo la tecla ENTER, es reprodueix l'event de clicar del cercar-alumne*/
-	$( "#genera-factura-pas-1" ).keyup(function(evObject){
-		if (evObject.keyCode == 13)
-			$('#cercar-alumne').click();
-	});
+        if (list.is(":hidden")) {
+            triangle.removeClass("fa-angle-up").addClass("fa-angle-down");
+        } else {
+            triangle.removeClass("fa-angle-down").addClass("fa-angle-up");
+        }
+    });
 
-	/* Busco l'alumne o els diferents registres que poden coincidir amb la cerca */
-	$('#cercar-alumne').on('click', function() {
-		dni = $('#dni').val().trim();
-		if ( dni == ''	) {
-			afegirHeaderModalError("Oops...!");
-			afegirTextModalError("Omple un camp per poder fer la cerca");
-			mostrarModalError();
-		}
-		else {
-			var request = $.ajax({
-				url: path + "alumnes/mostrarInformacioInscripcio_generaFactura.php",
-				method: "GET",
-				data: { dni : dni },
-				dataType: "html"
-			});
+    $("#content-page .select").on("click", "li", function(e) {
+        var text = $(this).text();
+        var element = $(this).parent().prev();
+        var list = $(this).closest("ul");
+        var triangle = $(this).parent().next();
 
-			request.done(function( res ) {
-				$('#resultats-cerca').off();
-				$('#insc-rel-fact-rel').off();
+        e.preventDefault();
+        e.stopPropagation();
 
-				if ( !res.toLowerCase().includes("error") ) {
-					$('#resultats-cerca').html(res);
-					$('#resultats-cerca').show();
-				}
-				else {
-					afegirHeaderModalError("Alerta");
-					afegirTextModalError("Hi ha hagut un error a l'hora de mostrar la informació de la inscripció");
-					mostrarModalError();
-					reloadUrl();
-				}
+        element.text(text);
+        list.hide();
+        triangle.removeClass("fa-angle-up").addClass("fa-angle-down");
+        $(this).parent().parent().prev().addClass('active');
 
-				/* Si es clica sobré el botó .add-inscripcio, s'afegeix en el
-				bloc «INSCRIPCIONS RELACIONADES AMB LA FACTURA A GENERAR» la
-				inscripció amb la qual està relacionada */
-				$('#resultats-cerca').on('click', '.add-inscripcio', function() {
-					var id = $(this).attr('id');
-					var idInsc = $(this).attr('id').split('-')[2];
-					mostrarModalLoading();
-					// var trInsc = $('#'+id).parent().parent().html();
-					/* Afegim tots elments td del tr de la inscripció marcada excepte l'últim  */
-					var elementTractat = $('#'+id).parent();
-					var tds = "";
-					while ( elementTractat.prev().length > 0 ) {
-						elementTractat = elementTractat.prev();
-						var tdtemp = "<td>";
-						if (elementTractat.attr('id')) {
-							tdtemp = "<td ";
-							if (
-								elementTractat.attr('id').split('-')[0] == 'titol' ||
-								elementTractat.attr('id').split('-')[0] == 'hores'
-							)
-								tdtemp += "class='hide' ";
-							tdtemp += "id='"+elementTractat.attr('id')+"'>";
-						}
-						tds = tdtemp + elementTractat.html()+"</td>"+tds;
-					}
-					var trInsc = "<tr>"+tds;
-					trInsc += "<td><i id='remove-insc-"+idInsc+"' class='material-icons remove-inscripcio'>remove_circle</i></td>";
-					trInsc += "</tr>";
+        if ($(this).parent().parent().attr('id') === 'entitat-dispo') {
+            uc004EntityId = parseInt($(this).attr('data-entity-id'), 10) || 0;
+            invalidateUc004Preview();
 
-					/* Si existeix el table, vol dir que hi ha alguna inscripció
-					marcada, per tant simplement afegirem trInsc al final de tota la taula.
-					Si no existeix el table, vol dir que encara no s'havia afegit
-					cap inscripció, per tant cal crear la taula. */
-					if ( $('#insc-rel-fact-rel').html().includes("table") ) {
-						$('#insc-rel-fact-rel table tbody').append(trInsc);
-					}
-					else {
-						var theadInsc = $('#'+id).parent().parent().parent().prev().html();
-						var table = "<table class='table table-hover table-striped table-hover text-center'>";
-						table += "<thead>"+theadInsc+"</thead>";
-						table += "<tbody>";
-						table += trInsc;
-						table += "</tbody></table>";
-						$('#insc-rel-fact-rel').html(table);
-					}
+            if (uc004EntityId > 0 && selectedInscriptionIds().length > 0) {
+                refreshUc004Preview(false);
+            }
+        }
+    });
 
-					/* Elimino la classe perquè no es pugui afegir més d'una vegada
-					el registre a inscripcions relacionades*/
-					$(this).addClass('no-disponible');
-					$(this).removeClass('add-inscripcio');
-					amagarLoadingModal();
-					afegirHeaderModalSuccess("Afegit!");
-					afegirTextModalSuccess("La inscripció s'ha afegit correctament");
-					mostrarModalSuccess();
-					setTimeout(function(){
-						amagarModalSuccess();
-					}, 1000);
-				});
+    $("#genera-factura-pas-1").keyup(function(evObject) {
+        if (evObject.keyCode === 13) {
+            $('#cercar-alumne').click();
+        }
+    });
 
-				/* Si es clica sobré el botó .remove-inscripcio, s'elimina
-				la inscripció amb la qual està relacionada del bloc
-				«INSCRIPCIONS RELACIONADES AMB LA FACTURA A GENERAR» */
-				$('#insc-rel-fact-rel').on('click', '.remove-inscripcio', function() {
-					mostrarModalLoading();
-					var id = $(this).attr('id');
-					var idInsc = $(this).attr('id').split('-')[2];
-					$('#'+id).parent().parent().remove();
-					if ( !$('#insc-rel-fact-rel table tbody').html().includes('tr') ) {
-						var textBuit = "<p>No hi ha inscripcions relacionades amb la factura a generar.</p>";
-						$('#insc-rel-fact-rel').html(textBuit);
-					}
-					if ( $('#add-insc-'+idInsc) ) {
-						$('#add-insc-'+idInsc).addClass('add-inscripcio');
-						$('#add-insc-'+idInsc).removeClass('no-disponible');
-					}
-					amagarLoadingModal();
-				});
-			});
+    $('#cercar-alumne').on('click', function() {
+        var dni = $('#dni').val().trim();
 
-			request.fail(function( jqXHR, textStatus, errorThrown ) {
-				rerrorFunction( jqXHR, textStatus, errorThrown, "Hi ha hagut algun error  a l'hora de fer la consulta: " );
-			});
-		}
-	});
+        if (dni === '') {
+            showUc004Error("Omple el NIF/NIE per poder fer la cerca.");
+            return;
+        }
 
-	/* Quan cliquem el boto continue-pas-2, amaguem el bloc #genera-factura-pas-1
-	i mostrem el bloc #genera-factura-pas-2, creem la variable idsInsc
-	amb totes les ids de les inscripcions marcades, calculem el preu
-	total que cal pagar (la suma dels apagar de les inscripcions),
-	calculem el nom del concepte 1*/
-	$('#genera-factura-pas-1').on('click', '#continue-pas-2', function() {
-		if ( tePermisEdicio ) {
-			if ( $('#insc-rel-fact-rel').html().includes('table') ) {
-				var id = $(this).attr('id').split('-')[1];
-				cursos = [];
-				edicions = [];
-				preuTotal = 0;
-				mostrarModalLoading();
+        $.ajax({
+            url: path + "alumnes/mostrarInformacioInscripcio_generaFactura.php",
+            method: "GET",
+            data: { dni: dni },
+            dataType: "html"
+        }).done(function(res) {
+            $('#resultats-cerca').off();
+            $('#insc-rel-fact-rel').off();
 
-				/* idsInsc = totes les ids de les inscripcions marcades*/
-				$('#insc-rel-fact-rel table tbody tr td').each(function() {
-					var idTdChild = $(this).children().attr('id');
-					//Sabem que existeix un registre, perquè existeix el botó per eliminar
-					if ( idTdChild && idTdChild.split('-')[0]=='remove' && idTdChild.split('-')[1]=='insc') {
-						var idInsc = idTdChild.split('-')[2];
-						idsInsc.push( idInsc );
+            if (String(res).toLowerCase().includes("error")) {
+                showUc004Error("Hi ha hagut un error a l'hora de mostrar la informació de la inscripció.");
+                return;
+            }
 
-						//Busquem el valor del apagar d'aquest registre i incrementem el preu total
-						preuTotal += parseFloat( $('#apagar-'+idInsc).html() );
+            $('#resultats-cerca').html(res).show();
 
-						/*busco si el curs d'aquest registre ja existeix a l'array cursos.
-						Si no hi és, afegeixo a l'última posició una array amb el codi curs,
-						el titol del curs i un array amb el nom i cognom del registre */
-						var i=0, trobat=false;
-						while ( i<cursos.length && !trobat)  {
-							if ( cursos[i][0].toLowerCase() == $('#curs-'+idInsc).html().toLowerCase() )
-								trobat = true;
-							else
-								i++;
-						}
-						if ( !trobat ) {
-							cursos.push([$('#curs-'+idInsc).html(), $('#titol-'+idInsc).html(), [$('#nom-'+idInsc).html()+" "+$('#cognoms-'+idInsc).html()], $('#hores-'+idInsc).html() ]);
-						}
-						else {
-							cursos[i][2].push( $('#nom-'+idInsc).html()+" "+$('#cognoms-'+idInsc).html() );
-						}
+            $('#resultats-cerca').on('click', '.add-inscripcio', function() {
+                addSelectedInscription($(this));
+            });
 
-						/*busco si l'edició d'aquest registre ja existeix a l'array edicions.
-						Si no hi és afegeixo un array amb l'any i el mes del registre.*/
-						$('#any-'+idInsc).html();
-						$('#mes-'+idInsc).html();
-						i=0; trobat=false;
-						while ( i<edicions.length && !trobat)  {
-							if ( parseInt(edicions[i][0]) == parseInt($('#any-'+idInsc).html())
-							&& parseInt(edicions[i][1]) == parseInt($('#mes-'+idInsc).html()) )
-								trobat = true;
-							else
-								i++;
-						}
-						if ( !trobat ) {
-							edicions.push( [$('#any-'+idInsc).html(),$('#mes-'+idInsc).html()] );
-						}
-					}
-				});
+            $('#insc-rel-fact-rel').on('click', '.remove-inscripcio', function() {
+                removeSelectedInscription($(this));
+            });
+        }).fail(function(jqXHR, textStatus, errorThrown) {
+            errorFunction(
+                jqXHR,
+                textStatus,
+                errorThrown,
+                "Hi ha hagut algun error a l'hora de fer la consulta: "
+            );
+        });
+    });
 
-				if ( cursos.length > 1 || edicions.length > 1 ) {
-					afegirHeaderModalError("Alerta");
-					afegirTextModalError("No pots fer una factura de diferents cursos o de diferents edicions.");
-					amagarLoadingModal();
-					mostrarModalError();
-				}
-				else {
-					/* calculem el preu total que cal pagar */
-					$('#genera-factura-pas-2 #preu').html(preuTotal+" €");
+    $('#genera-factura-pas-1').on('click', '#continue-pas-2', function() {
+        if (!tePermisEdicio) {
+            mostrarModalNoTensPermisos();
+            return;
+        }
 
-					/* calculem el concepte 1 i el concepte 2 de la factura  */
-					/* Busquem tots els cursos i les persones que pertanyen aquell curs,
-					de manera que podem crear el concepte 1 = "Curs DOL, realitzat per:
-					Meriem Abjil Bajja"*/
-					concepte1 = "";
-					for ( var i=0; i<cursos.length; i++ ) {
-						if ( i>0 ) concepte1 += ". ";
-						concepte1 += "Curs "+cursos[i][1]+", realitzat per: ";
-						for ( var j=0; j<cursos[i][2].length; j++ ) {
-							if ( j>0) {
-								if ( j==cursos[i][2].length-1 )
-									concepte1 += " i ";
-								else
-									concepte1 += ", ";
-							}
-							concepte1 += cursos[i][2][j];
-						}
-					}
-					/* Busquem totes les edicions, de manera que podem crear el
-					concepte 3 = "Convocatòria abril 2021"*/
-					concepte2 = "";
-					for ( var i=0; i<edicions.length; i++ ) {
-						if ( i>0 ) concepte2 += ". ";
-						var textEdicio = edicions[i][1];
-						var textAny = edicions[i][0];
-						var requestMes = $.ajax({
-							url: path + "alumnes/calcularTextData.php",
-							method: "GET",
-							data: {
-								date : "2021-"+edicions[i][1]+"-07 00:00:00"
-							},
-							dataType: "html"
-						});
+        idsInsc = selectedInscriptionIds();
 
-						requestMes.done(function( mes ) {
-							if ( !mes.toLowerCase().includes("error") ) {
-								textEdicio = mes;
-							}
-							concepte2 += "Convocatòria "+textEdicio+" "+textAny;
-						});
+        if (idsInsc.length === 0) {
+            showUc004Error("No s'ha seleccionat cap inscripció.");
+            return;
+        }
 
-						requestMes.fail(function( jqXHRDadesFact, textStatusDadesFact, errorThrownDadesFact ) {
-							errorFunction( jqXHRDadesFact, textStatusDadesFact, errorThrownDadesFact,
-								"Hi ha hagut algun error al calcular el text del mes: " );
-							concepte2 += "Convocatòria "+textEdicio+" "+textAny;
-						});
+        invalidateUc004Preview();
+        clearUc004PreviewFields();
 
-					}
-					$('#genera-factura-pas-2 #concepte1').val(concepte1);
-					$('#genera-factura-pas-2 #concepte1').prev().addClass('active');
+        $('#genera-factura-pas-1').fadeOut('fast', function() {
+            $('#genera-factura-pas-2').fadeIn('fast');
+        });
+    });
 
-					$('#genera-factura-pas-1').fadeOut('fast', function() {
-						amagarLoadingModal();
-						$('#genera-factura-pas-2').fadeIn('fast', function() {
-							//
-						});
-					});
-				}
-			}
-			else {
-				afegirHeaderModalError("Alerta");
-				afegirTextModalError("No s'ha seleccionat cap inscripció");
-				mostrarModalError();
-			}
-		}
-		else {
-		   mostrarModalNoTensPermisos();
-		}
-	});
+    $('#observacions').on('change blur', function() {
+        if (uc004EntityId > 0 && selectedInscriptionIds().length > 0) {
+            refreshUc004Preview(true);
+        } else {
+            invalidateUc004Preview();
+        }
+    });
 
-	/* Quan cliquem el boto continue-pas-3, amaguem el bloc #genera-factura-pas-2
-	i mostrem el bloc #genera-factura-pas-3*/
-	$('#genera-factura-pas-2').on('click', '#continue-pas-3', function() {
-		var con1 = $('#concepte1').val().trim();
-		var preuV = $('#preu').html().trim();
-		if ( entitatMarcada == '' || con1 == '' || preuV == ''	) {
-			afegirHeaderModalError("Oops...!");
-			afegirTextModalError("Els camps <strong>Entitat</strong>, <strong>Concepte1</strong> i <strong>Preu</strong> no poden estar buits");
-			mostrarModalError();
-		}
-		else {
-			var observacions = $('#observacions').val().trim();
-			var request = $.ajax({
-				url: path + "alumnes/generaFacturaElectronica_Factures.php",
-				method: "POST",
-				data: {
-					empresa : entitatMarcada,
-					concepte1 : con1,
-					concepte2 : concepte2,
-					preu : preuTotal,
-					cursos:  JSON.stringify(cursos),
-					edicions:  JSON.stringify(edicions),
-					inscripcions:  JSON.stringify(idsInsc),
-					observacions:  observacions
-				},
-				dataType: "html"
-			});
+    $('#genera-factura-pas-2').on('click', '#continue-pas-3', function() {
+        if (!tePermisEdicio) {
+            mostrarModalNoTensPermisos();
+            return;
+        }
 
-			request.done(function( msg ) {
-				if ( !msg.toLowerCase().includes("error") ) {
-					afegirHeaderModalSuccess("Factura creada!");
-					afegirTextModalSuccess(msg);
-					mostrarModalSuccess();
-					var factura = $('#modalSuccess #factura-creada').html();
-					var requestDadesFactura = $.ajax({
-						url: path + "alumnes/mostraDadesFacturaElectronica_Factures.php",
-						method: "POST",
-						data: {
-							factura : factura
-						},
-						dataType: "html"
-					});
-					var requestInscrFactura = $.ajax({
-						url: path + "alumnes/mostraInscripcionsFacturaElectronica_Factures.php",
-						method: "POST",
-						data: {
-							factura : factura
-						},
-						dataType: "html"
-					});
+        idsInsc = selectedInscriptionIds();
 
-					requestDadesFactura.done(function( msgDadesFactura ) {
-						if ( !msg.toLowerCase().includes("error") ) {
-							$('#genera-factura-pas-3 .card-body').html(msgDadesFactura);
-							$('#genera-factura-pas-2').fadeOut('fast', function() {
-								$('#genera-factura-pas-3').fadeIn('fast');
-							});
-							$('#genera-factura-pas-3').on('click', '.cns-factura', function() {
-								var id = $(this).attr('id').split('-')[2];
-								$('.modal-info').off();
+        if (idsInsc.length === 0) {
+            showUc004Error("No hi ha inscripcions seleccionades.");
+            return;
+        }
 
-								var requestPrevFactura = $.ajax({
-									url: path + "alumnes/mostraPrevFactura_Factures.php",
-									method: "GET",
-									data: {
-										factura : id
-									},
-									dataType: "html"
-								});
-								requestPrevFactura.done(function( msgPrevFactura ) {
-									if ( !msgPrevFactura.toLowerCase().includes("error") ) {
-										$("#modalConsultaFactura .modal-body").html(msgPrevFactura);
-										$("#modalConsultaFactura").modal('show');
+        if (uc004EntityId <= 0) {
+            showUc004Error("Selecciona una entitat amb identificador intern vàlid.");
+            return;
+        }
 
-										$('.download-factura').off();
-										$('.fletxa-left').off();
-										$('.fletxa-right').off();
+        var observations = $('#observacions').val().trim();
 
-										var nclick = 0;
+        if (
+            uc004Fingerprint === ''
+            || uc004Preview === null
+            || observations !== uc004PreviewObservations
+        ) {
+            refreshUc004Preview(true);
+            return;
+        }
 
-										$('.download-factura').on('click', function() {
-											var id = $('#modalConsultaFactura #factura-relacionada-fact').html().trim();
-											var requestDownFactura = $.ajax({
-												url: path + "alumnes/descarregaFactura.php",
-												method: "GET",
-												data: {
-													id : id
-												},
-												dataType: "html"
-											});
-											requestDownFactura.done(function( msgDownFactura ) {
-												$("#modalConsultaFactura").modal('hide');
-												if ( !msgDownFactura.toLowerCase().includes("error") ) {
-													var link = document.createElement('a');
-													link.setAttribute("id", "download-fact-" + nclick);
-													link.href = path + "alumnes/" + msgDownFactura;
-													link.download = msgDownFactura;
-													link.click();
-													var requestRemoveFactura = $.ajax({
-														url: path + "alumnes/eliminarArxiu.php",
-														method: "GET",
-														data: {
-															filename : msgDownFactura
-														},
-														dataType: "html"
-													});
-													requestRemoveFactura.done(function( msg ) {
-														afegirHeaderModalSuccess("Generada!");
-														afegirTextModalSuccess("S'ha generat la factura correctament");
-														mostrarModalSuccess();
-														nclick++;
-													});
-												}
-												else {
-													afegirHeaderModalError("Alerta");
-													afegirTextModalError("Hi ha hagut algun error al descarregar la factura");
-													mostrarModalError();
-													reloadUrl();
-												}
-											});
-											requestDownFactura.fail(function( jqXHRDownFactura, textStatusDownFactura, errorThrownDownFactura ) {
-												errorFunction( jqXHRDownFactura, textStatusDownFactura, errorThrownDownFactura,
-													"Hi ha hagut algun error al descarregar la factura: " );
-											});
-										});
+        secureUc004Request({
+            action: 'confirm',
+            inscription_ids: idsInsc,
+            entity_id: uc004EntityId,
+            expected_fingerprint: uc004Fingerprint,
+            observations: observations
+        }).done(function(response) {
+            if (!response || response.ok !== true) {
+                showUc004Error(
+                    response && response.error
+                        ? response.error
+                        : "No s'ha pogut emetre la factura SIF."
+                );
+                return;
+            }
 
-										if ($('#factura-num-pagines')) {
-											numPaginesFactura = $('#factura-num-pagines').html();
-										}
+            renderUc004IssuedInvoice(response);
+            $('#genera-factura-pas-2').fadeOut('fast', function() {
+                $('#genera-factura-pas-3').fadeIn('fast');
+            });
 
-										$('.fletxa-left').on('click', function() {
-											if (paginaFactura > 1) {
-												$('#pagina-factura' + paginaFactura).fadeOut('fast', function() {
-													paginaFactura--;
-													$('#pagina-factura' + paginaFactura).fadeIn('fast', function() {
-														$('#factura-pagina-actual').html(paginaFactura);
-													});
-												});
-											}
-										});
-										$('.fletxa-right').on('click', function() {
-											if (paginaFactura < numPaginesFactura) {
-												$('#pagina-factura' + paginaFactura).fadeOut('fast', function() {
-													paginaFactura++;
-													$('#pagina-factura' + paginaFactura).fadeIn('fast', function() {
-														$('#factura-pagina-actual').html(paginaFactura);
-													});
-												});
-											}
-										});
+            afegirHeaderModalSuccess("Factura SIF creada!");
+            afegirTextModalSuccess(
+                "S'ha emès la factura " + String(response.num_visible || '') +
+                " i queda pendent de cobrament."
+            );
+            mostrarModalSuccess();
+        }).fail(function(jqXHR) {
+            if (jqXHR.status === 409) {
+                invalidateUc004Preview();
+                showUc004Error(
+                    "Les dades han canviat o una altra operació ja cobreix alguna inscripció. " +
+                    "Genera un nou preview abans de confirmar."
+                );
+                refreshUc004Preview(false);
+                return;
+            }
 
-									}
-									else {
-										afegirHeaderModalError("Alerta");
-										afegirTextModalError("Hi ha hagut algun error al previsualitzar la factura");
-										mostrarModalError();
-										reloadUrl();
-									}
+            if (jqXHR.status === 401 || jqXHR.status === 403) {
+                showUc004Error("No tens autorització per emetre aquesta factura.");
+                return;
+            }
 
-								});
-
-								requestPrevFactura.fail(function( jqXHRPrevFactura, textStatusPrevFactura, errorThrownPrevFactura ) {
-									errorFunction( jqXHRPrevFactura, textStatusPrevFactura, errorThrownPrevFactura,
-										"Hi ha hagut algun error al previsualitzar la factura: " );
-								});
-							});
-						}
-						else {
-							afegirHeaderModalError("Alerta");
-							afegirTextModalError("Hi ha hagut algun error al mostrar les dades de la factura");
-							mostrarModalError();
-							reloadUrl();
-						}
-					});
-
-					requestDadesFactura.fail(function( jqXHRDadesFact, textStatusDadesFact, errorThrownDadesFact ) {
-						errorFunction( jqXHRDadesFact, textStatusDadesFact, errorThrownDadesFact,
-							"Hi ha hagut algun error al mostrar les dades de la factura: " );
-					});
-
-					requestInscrFactura.done(function( msgInscrFactura ) {
-						if ( !msg.toLowerCase().includes("error") ) {
-							if ( msgInscrFactura == '' ) {
-								msgInscrFactura = "<p>No hi ha inscripcions relacionades amb la factura</p>";
-							}
-							$('#genera-factura-pas-3 .card-footer').append(msgInscrFactura);
-							$('#genera-factura-pas-2').fadeOut('fast', function() {
-								$('#genera-factura-pas-3 .card-footer').fadeIn('fast');
-							});
-						}
-						else {
-							afegirHeaderModalError("Alerta");
-							afegirTextModalError("Hi ha hagut algun error al mostrar les inscripcions relacionades amb la factura");
-							mostrarModalError();
-							reloadUrl();
-						}
-
-					});
-
-					requestInscrFactura.fail(function( jqXHRInscFact, textStatusInscFact, errorThrownInscrsFact ) {
-						errorFunction( jqXHRInscFact, textStatusInscFact, errorThrownInscrsFact,
-							"Hi ha hagut algun error al mostrar les inscripcions relacionades amb la factura: " );
-					});
-				}
-				else {
-					afegirHeaderModalError("Alerta");
-					afegirTextModalError("Hi ha hagut un error a l'hora de generar la factura");
-					mostrarModalError();
-					// reloadUrl();
-				}
-
-			});
-
-			request.fail(function( jqXHR, textStatus, errorThrown ) {
-				errorFunction( jqXHR, textStatus, errorThrown, "Hi ha hagut algun error al generar la factura: " );
-			});
-		}
-	});
+            var message = jqXHR.responseJSON && jqXHR.responseJSON.error
+                ? jqXHR.responseJSON.error
+                : "No s'ha pogut emetre la factura SIF.";
+            showUc004Error(message);
+        });
+    });
 });
 
-requestMain.fail(function( jqXHR, textStatus, errorThrown ) {
-	errorFunction( jqXHR, textStatus, errorThrown, "Hi ha hagut un error en el request Main: " );
+requestMain.fail(function(jqXHR, textStatus, errorThrown) {
+    errorFunction(
+        jqXHR,
+        textStatus,
+        errorThrown,
+        "Hi ha hagut un error en el request Main: "
+    );
 });
+
+function initializeSecureUc004() {
+    setUc004AuthoritativeFields();
+
+    var tokenRequest = $.ajax({
+        url: path + "alumnes/sifFacturaAbansPagarToken.php",
+        method: "GET",
+        dataType: "json",
+        cache: false
+    });
+
+    var entitiesRequest = $.ajax({
+        url: path + "alumnes/sifFacturaAbansPagarEntitats.php",
+        method: "GET",
+        dataType: "json",
+        cache: false
+    });
+
+    $.when(tokenRequest, entitiesRequest).done(function(tokenResult, entitiesResult) {
+        var tokenResponse = tokenResult[0];
+        var entitiesResponse = entitiesResult[0];
+
+        if (!tokenResponse || tokenResponse.ok !== true || !tokenResponse.csrf_token) {
+            disableUc004Mutation("No s'ha pogut iniciar la protecció CSRF.");
+            return;
+        }
+
+        uc004CsrfToken = String(tokenResponse.csrf_token);
+
+        if (!entitiesResponse || entitiesResponse.ok !== true) {
+            disableUc004Mutation("No s'han pogut carregar les entitats autoritzades.");
+            return;
+        }
+
+        populateUc004Entities(entitiesResponse.entities || []);
+    }).fail(function(jqXHR) {
+        if (jqXHR.status === 401 || jqXHR.status === 403) {
+            disableUc004Mutation("No tens permisos d'edició per aquesta operació.");
+            return;
+        }
+
+        disableUc004Mutation("No s'ha pogut inicialitzar el circuit segur de factura.");
+    });
+}
+
+function setUc004AuthoritativeFields() {
+    $('#concepte1').prop('readonly', true).attr('aria-readonly', 'true');
+    $('#preu').prop('readonly', true).attr('aria-readonly', 'true');
+}
+
+function populateUc004Entities(entities) {
+    var list = $('#entitat-dispo .select-list');
+    list.empty();
+
+    entities.forEach(function(entity) {
+        var id = parseInt(entity.id, 10);
+        if (!Number.isInteger(id) || id <= 0) {
+            return;
+        }
+
+        $('<li>')
+            .addClass('border-bottom')
+            .attr('data-entity-id', id)
+            .append(
+                $('<a>')
+                    .attr('href', '#')
+                    .text(entity.label || entity.name || ('Entitat ' + id))
+            )
+            .appendTo(list);
+    });
+
+    $('#entitat-dispo .element-selected').text('');
+    uc004EntityId = 0;
+    invalidateUc004Preview();
+}
+
+function addSelectedInscription(button) {
+    var id = button.attr('id');
+    var parts = String(id).split('-');
+    var idInsc = parts.length > 2 ? parts[2] : '';
+
+    if (!/^\d+$/.test(idInsc)) {
+        showUc004Error("No s'ha pogut identificar la inscripció.");
+        return;
+    }
+
+    var element = button.parent();
+    var cells = "";
+
+    while (element.prev().length > 0) {
+        element = element.prev();
+        var td = "<td>";
+        if (element.attr('id')) {
+            td = "<td ";
+            if (
+                element.attr('id').split('-')[0] === 'titol'
+                || element.attr('id').split('-')[0] === 'hores'
+            ) {
+                td += "class='hide' ";
+            }
+            td += "id='" + element.attr('id') + "'>";
+        }
+        cells = td + element.html() + "</td>" + cells;
+    }
+
+    var row = "<tr>" + cells
+        + "<td><i id='remove-insc-" + idInsc
+        + "' class='material-icons remove-inscripcio'>remove_circle</i></td></tr>";
+
+    if ($('#insc-rel-fact-rel').html().includes("table")) {
+        $('#insc-rel-fact-rel table tbody').append(row);
+    } else {
+        var thead = button.parent().parent().parent().prev().html();
+        $('#insc-rel-fact-rel').html(
+            "<table class='table table-hover table-striped table-hover text-center'>"
+            + "<thead>" + thead + "</thead><tbody>" + row + "</tbody></table>"
+        );
+    }
+
+    button.addClass('no-disponible').removeClass('add-inscripcio');
+    invalidateUc004Preview();
+
+    afegirHeaderModalSuccess("Afegit!");
+    afegirTextModalSuccess("La inscripció s'ha afegit correctament.");
+    mostrarModalSuccess();
+    setTimeout(function() {
+        amagarModalSuccess();
+    }, 1000);
+}
+
+function removeSelectedInscription(button) {
+    var parts = String(button.attr('id')).split('-');
+    var idInsc = parts.length > 2 ? parts[2] : '';
+
+    button.parent().parent().remove();
+
+    if ($('#insc-rel-fact-rel table tbody tr').length === 0) {
+        $('#insc-rel-fact-rel').html(
+            "<p>No hi ha inscripcions relacionades amb la factura a generar.</p>"
+        );
+    }
+
+    if (/^\d+$/.test(idInsc)) {
+        $('#add-insc-' + idInsc)
+            .addClass('add-inscripcio')
+            .removeClass('no-disponible');
+    }
+
+    idsInsc = selectedInscriptionIds();
+    invalidateUc004Preview();
+}
+
+function selectedInscriptionIds() {
+    var ids = [];
+    var seen = {};
+
+    $('#insc-rel-fact-rel .remove-inscripcio').each(function() {
+        var parts = String($(this).attr('id') || '').split('-');
+        var value = parts.length > 2 ? parts[2] : '';
+
+        if (/^\d+$/.test(value)) {
+            var id = parseInt(value, 10);
+            if (id > 0 && !seen[id]) {
+                seen[id] = true;
+                ids.push(id);
+            }
+        }
+    });
+
+    ids.sort(function(a, b) { return a - b; });
+    return ids;
+}
+
+function refreshUc004Preview(requireReviewAgain) {
+    idsInsc = selectedInscriptionIds();
+
+    if (idsInsc.length === 0 || uc004EntityId <= 0) {
+        invalidateUc004Preview();
+        return;
+    }
+
+    var observations = $('#observacions').val().trim();
+
+    secureUc004Request({
+        action: 'preview',
+        inscription_ids: idsInsc,
+        entity_id: uc004EntityId,
+        observations: observations
+    }).done(function(response) {
+        if (!response || response.ok !== true) {
+            invalidateUc004Preview();
+            showUc004Error(
+                response && response.error
+                    ? response.error
+                    : "No s'ha pogut preparar el preview SIF."
+            );
+            return;
+        }
+
+        uc004Preview = response;
+        uc004Fingerprint = String(response.fingerprint || '');
+        uc004PreviewObservations = observations;
+
+        if (!/^[a-f0-9]{64}$/.test(uc004Fingerprint)) {
+            invalidateUc004Preview();
+            showUc004Error("El SIF no ha retornat un fingerprint de preview vàlid.");
+            return;
+        }
+
+        renderUc004Preview(response);
+
+        if (requireReviewAgain) {
+            afegirHeaderModalSuccess("Preview actualitzat");
+            afegirTextModalSuccess(
+                "Les dades s'han reconstruït des del servidor. Revisa-les i torna a prémer «Genera factura»."
+            );
+            mostrarModalSuccess();
+        }
+    }).fail(function(jqXHR) {
+        invalidateUc004Preview();
+
+        if (jqXHR.status === 401 || jqXHR.status === 403) {
+            showUc004Error("No tens autorització per preparar aquesta factura.");
+            return;
+        }
+
+        var message = jqXHR.responseJSON && jqXHR.responseJSON.error
+            ? jqXHR.responseJSON.error
+            : "No s'ha pogut preparar el preview SIF.";
+        showUc004Error(message);
+    });
+}
+
+function renderUc004Preview(response) {
+    var context = response.context || {};
+    var totals = response.totals || {};
+    var billing = response.billing || {};
+    var lines = response.lines || [];
+
+    setUc004FieldValue('#concepte1', context.legacy_concept1 || '');
+    setUc004FieldValue('#preu', totals.total ? String(totals.total) + ' €' : '');
+
+    var wrapper = $('#uc004-sif-preview-info');
+    if (wrapper.length === 0) {
+        wrapper = $('<div>')
+            .attr('id', 'uc004-sif-preview-info')
+            .addClass('alert alert-info mt-3');
+        $('#genera-factura-pas-2 .card-body').append(wrapper);
+    }
+
+    wrapper.empty();
+    wrapper.append($('<strong>').text('Preview SIF autoritatiu'));
+    wrapper.append($('<div>').text(
+        'Receptor: ' + String(billing.name || '') + ' · ' + String(billing.nif || '')
+    ));
+    wrapper.append($('<div>').text(
+        'Inscripcions: ' + String((response.selection || {}).count || idsInsc.length)
+        + ' · Línies: ' + String(lines.length)
+        + ' · Total: ' + String(totals.total || '')
+    ));
+    wrapper.append($('<div>').text(
+        'Fingerprint: ' + uc004Fingerprint.substring(0, 16) + '…'
+    ));
+}
+
+function renderUc004IssuedInvoice(response) {
+    var body = $('#genera-factura-pas-3 .card-body');
+    var footer = $('#genera-factura-pas-3 .card-footer');
+
+    body.empty();
+    footer.empty().hide();
+
+    var wrapper = $('<div>').addClass('uc004-sif-issued');
+    wrapper.append(
+        $('<div>')
+            .addClass('alert alert-success')
+            .text(
+                'Factura SIF emesa. El cobrament continua pendent i es registrarà sobre el mateix UUID.'
+            )
+    );
+
+    var list = $('<dl>').addClass('row');
+    appendUc004Definition(list, 'Número', response.num_visible || '');
+    appendUc004Definition(list, 'UUID', response.uuid_factura || '');
+    appendUc004Definition(list, 'Reutilitzada', response.idempotency_reused ? 'Sí' : 'No');
+    appendUc004Definition(list, 'Cobrament', 'PENDING');
+    appendUc004Definition(
+        list,
+        'Receptor',
+        response.billing
+            ? String(response.billing.name || '') + ' · ' + String(response.billing.nif || '')
+            : ''
+    );
+    appendUc004Definition(
+        list,
+        'Inscripcions',
+        response.selection && response.selection.ids
+            ? response.selection.ids.join(', ')
+            : idsInsc.join(', ')
+    );
+
+    wrapper.append(list);
+    wrapper.append(
+        $('<p>')
+            .addClass('text-muted')
+            .text(
+                'El document fiscal SIF s\'ha de servir pel circuit de documents per UUID; '
+                + 'aquesta pantalla ja no genera ni elimina PDFs temporals llegats.'
+            )
+    );
+
+    body.append(wrapper);
+}
+
+function appendUc004Definition(list, label, value) {
+    if (value === undefined || value === null || String(value) === '') {
+        return;
+    }
+
+    list.append($('<dt>').addClass('col-sm-4').text(label));
+    list.append($('<dd>').addClass('col-sm-8').text(String(value)));
+}
+
+function secureUc004Request(payload) {
+    if (!/^[a-f0-9]{64}$/.test(uc004CsrfToken)) {
+        return $.Deferred()
+            .reject({
+                status: 403,
+                responseJSON: { error: 'CSRF no inicialitzat' }
+            })
+            .promise();
+    }
+
+    return $.ajax({
+        url: path + "alumnes/sifFacturaAbansPagar.php",
+        method: "POST",
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        headers: {
+            'X-CSRF-Token': uc004CsrfToken
+        },
+        data: JSON.stringify(payload)
+    });
+}
+
+function invalidateUc004Preview() {
+    uc004Fingerprint = '';
+    uc004PreviewObservations = '';
+    uc004Preview = null;
+    $('#uc004-sif-preview-info').remove();
+}
+
+function clearUc004PreviewFields() {
+    setUc004FieldValue('#concepte1', '');
+    setUc004FieldValue('#preu', '');
+}
+
+function setUc004FieldValue(selector, value) {
+    var field = $(selector);
+    if (field.is('input, textarea')) {
+        field.val(value);
+    } else {
+        field.text(value);
+    }
+
+    if (String(value).trim() !== '') {
+        field.prev().addClass('active');
+    }
+}
+
+function disableUc004Mutation(message) {
+    $('#continue-pas-2, #continue-pas-3').prop('disabled', true).addClass('no-disponible');
+    showUc004Error(message);
+}
+
+function showUc004Error(message) {
+    afegirHeaderModalError("Alerta");
+    afegirTextModalError(String(message));
+    mostrarModalError();
+}

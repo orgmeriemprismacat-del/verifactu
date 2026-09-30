@@ -90,6 +90,31 @@ Acad ..> Main : <<extend>> (accés afectat)
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Gestió acadèmica"]
+  a_1["Cobraments"]
+  a_2["Responsable fiscal"]
+  subgraph SIF_BOUNDARY["SIF · canvi massiu d'edició"]
+    u_0(["UC-127<br/>Canviar estat edició"])
+    u_1(["Inventariar operacions i imports individuals"])
+    u_2(["Decidir trasllat/baixa per afectat"])
+    u_3(["UC-105/28/29<br/>Resoldre fons per inscrit"])
+    u_4(["UC-74<br/>Classificar document fiscal"])
+    u_5(["UC-124/129<br/>Conciliar accés i matrícula"])
+  end
+  a_0 --> u_0
+  a_1 --> u_3
+  a_2 --> u_4
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_3 -.-> u_0
+  u_4 -.-> u_0
+  u_5 -.-> u_0
+```
+
 ## 4. UML de classes — capçalera SQL i coordinació d'items pendent
 
 ```mermaid

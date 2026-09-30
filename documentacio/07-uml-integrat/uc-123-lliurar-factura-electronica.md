@@ -86,6 +86,29 @@ Retry ..> Send : <<extend>> (error recuperable)
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Receptor fiscal autoritzat"]
+  a_1["Gestió"]
+  a_2["Canal de lliurament"]
+  subgraph SIF_BOUNDARY["SIF · factura electrònica"]
+    u_0(["UC-123<br/>Generar i lliurar factura electrònica"])
+    u_1(["UC-32<br/>Comprovar preferència i destinatari"])
+    u_2(["Validar format i custodiar artefacte"])
+    u_3(["Enviar i conservar prova del canal"])
+    u_4(["Reintentar lliurament, no emissió"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  a_2 --> u_3
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_3
+  u_4 -.-> u_3
+```
+
 ## 4. UML de classes — metadades reals, lliurament pendent
 
 ```mermaid

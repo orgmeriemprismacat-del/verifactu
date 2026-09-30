@@ -88,6 +88,29 @@ Funds ..> Main : <<extend>> (fons afectats)
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Comprador"]
+  a_1["Gestió acadèmica"]
+  a_2["Responsable fiscal"]
+  subgraph SIF_BOUNDARY["SIF · composició del pack"]
+    u_0(["UC-122<br/>Gestionar component indisponible"])
+    u_1(["Validar obligatorietat i plaça"])
+    u_2(["Repreuar cada línia i acceptar oferta"])
+    u_3(["Classificar efecte després de factura"])
+    u_4(["UC-105/28/29<br/>Moure valor individual justificat"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  a_2 --> u_3
+  u_0 -.->|include| u_1
+  u_2 -.-> u_0
+  u_3 -.-> u_0
+  u_4 -.-> u_0
+```
+
 ## 4. UML de classes — builder existent i coordinació pendent
 
 ```mermaid

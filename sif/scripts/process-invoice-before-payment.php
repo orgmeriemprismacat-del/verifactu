@@ -8,6 +8,7 @@ use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
 use Prisma\Sif\Service\InvoiceBeforePaymentService;
@@ -35,7 +36,11 @@ try {
         new TransactionRunner($sifDb),
         new InvoicePayloadValidator(),
         new FiscalSequenceRepository(),
-        new InvoiceRepository(new UuidGenerator(), new HashCalculator())
+        new InvoiceRepository(new UuidGenerator(), new HashCalculator()),
+        null,
+        null,
+        null,
+        new InvoiceBeforePaymentCoverageRepository()
     );
     $service = new InvoiceBeforePaymentService(
         new InvoiceBeforePaymentPayloadBuilder(),

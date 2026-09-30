@@ -3,6 +3,8 @@
 require dirname(__DIR__) . '/src/autoload.php';
 
 use Prisma\Sif\Database\ConnectionFactory;
+use Prisma\Sif\Service\UsocLifecyclePlanService;
+use Prisma\Sif\Service\UsocValidationDecisionService;
 
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "This script can only run from CLI.\n");
@@ -21,6 +23,10 @@ $checks = [
     'usoc_read_or_manage_roles' => false,
     'usoc_manage_roles' => false,
     'legacy_database_configured' => false,
+    'legacy_database_connectivity' => false,
+    'usoc_lifecycle_plan_service' => false,
+    'usoc_validation_decision_service' => false,
+    'usoc_api_endpoint_file' => false,
 ];
 
 try {
@@ -46,8 +52,21 @@ $checks['usoc_manage_roles'] = $manageRoles !== [];
 
 $legacy = $config['legacy_db'] ?? [];
 $checks['legacy_database_configured'] =
-    trim((string) ($legacy['dsn'] ?? '')) !== ''
-    && trim((string) ($legacy['user'] ?? '')) !== '';
+    trim((string) ($legacy['dsn'] ?? '')) !== '';
+
+if ($checks['legacy_database_configured']) {
+    try {
+        $legacyDb = ConnectionFactory::makeLegacy($config);
+        $checks['legacy_database_connectivity'] =
+            (int) $legacyDb->query('SELECT 1')->fetchColumn() === 1;
+    } catch (Throwable $exception) {
+        $legacyDatabaseError = $exception->getMessage();
+    }
+}
+
+$checks['usoc_lifecycle_plan_service'] = class_exists(UsocLifecyclePlanService::class);
+$checks['usoc_validation_decision_service'] = class_exists(UsocValidationDecisionService::class);
+$checks['usoc_api_endpoint_file'] = is_file(dirname(__DIR__) . '/public/api/usoc/manage.php');
 
 $ok = !in_array(false, $checks, true);
 
@@ -55,6 +74,7 @@ echo json_encode([
     'ok' => $ok,
     'checks' => $checks,
     'database_error' => $databaseError ?? null,
+    'legacy_database_error' => $legacyDatabaseError ?? null,
     'required_intranet_env' => [
         'SIF_INTERNAL_USOC_URL',
         'SIF_INTERNAL_USOC_SIGNED_PATH',

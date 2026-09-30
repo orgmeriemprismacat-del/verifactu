@@ -30,6 +30,7 @@ use Prisma\Sif\Service\UsocCaseReconciler;
 use Prisma\Sif\Service\UsocEntityInvoiceService;
 use Prisma\Sif\Service\UsocEntityPaymentService;
 use Prisma\Sif\Service\UsocLifecycleGuardService;
+use Prisma\Sif\Service\UsocLifecyclePlanService;
 use Prisma\Sif\Service\UsocValidationDecisionService;
 
 header('Cache-Control: private, no-store, max-age=0');
@@ -110,6 +111,27 @@ try {
         JsonResponse::send([
             'ok' => true,
             'guard' => (new UsocLifecycleGuardService($cases))->check(
+                $db,
+                $idInsc,
+                $idpag,
+                $operation
+            ),
+        ]);
+        return;
+    }
+
+    if ($action === 'lifecycle_plan') {
+        $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
+        $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
+        $operation = strtolower(trim((string) ($payload['operation'] ?? '')));
+        if (!in_array($operation, ['course_change', 'cancellation'], true)) {
+            throw SifException::validation('Invalid USOC lifecycle operation');
+        }
+
+        $guard = new UsocLifecycleGuardService($cases);
+        JsonResponse::send([
+            'ok' => true,
+            'plan' => (new UsocLifecyclePlanService($cases, $guard))->plan(
                 $db,
                 $idInsc,
                 $idpag,

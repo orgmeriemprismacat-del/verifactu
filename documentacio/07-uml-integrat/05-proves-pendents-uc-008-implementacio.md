@@ -1,6 +1,6 @@
 # UC-008 · Proves executades i pendents
 
-Aquest document separa la **suite automatitzada ja executada** de les proves que encara depenen de l'entorn real. L'evidència més recent específica del bloc UC-008 conservada a la documentació és el run `36664788129` amb **677 passed, 0 failed**; `Intranet AO batch checks` run `36647777483` continua en **success**. La concurrència, preflight, deep-links i gate d'evidències ja estan coberts per tests; el pendent és executar-los amb configuració real de preproducció i conservar-ne les evidències.
+Aquest document separa la **suite automatitzada ja executada** de les proves que encara depenen de l'entorn real. L'evidència específica del bloc UC-008 continua sent el run `36664788129` amb **677 passed, 0 failed**. A més, la regressió completa de l'últim tall de codi SIF verificat `e2fd82215dc9dbd1a6938014c19985adceebd3ed`, run `36732555122`, ha finalitzat amb **740 passed, 0 failed** i inclou 61 proves PASS relacionades amb incidències/UC-008. `Intranet AO batch checks` run `36647777483` continua en **success**. La concurrència, preflight, deep-links i gate d'evidències ja estan coberts per tests; el pendent és executar-los amb configuració real de preproducció i conservar-ne les evidències.
 
 ## 1. Suite PHP/MySQL
 
@@ -166,7 +166,7 @@ Per marcar UC-008 com PROVAT conservar:
 - prova de tancament amb evidència;
 - resultat preproducció.
 
-**Estat actual:** SUITE SIF/readiness/deep-links/evidence-gate VERIFICADA (**677 passed, 0 failed**, run `36664788129`) + INTRANET AO **SUCCESS**. El codi-side del UC-008 queda tancat; resta només executar els dos preflights reals d'entorn, completar l'alta de menú si cal i validar els JSON amb `validate-uc008-evidence.php`.
+**Estat actual:** baseline específica UC-008 **677/0** (run `36664788129`) + regressió completa de l'últim tall de codi SIF verificat **740/0** (run `36732555122`) + INTRANET AO **SUCCESS**. El codi-side del UC-008 queda tancat; resta només executar els dos preflights reals d'entorn, completar l'alta de menú si cal i validar els JSON amb `validate-uc008-evidence.php`.
 
 
 ## 13. Evidència CI
@@ -180,10 +180,11 @@ Per marcar UC-008 com PROVAT conservar:
 - Run **36664237975** després dels deep-links de reparació a factura/AEAT: **670 passed, 0 failed**.
 - Run **36664788129** després del validador final d'evidències i reconciliació de regressions paral·leles: **677 passed, 0 failed**.
 - Run **36647777483** · Intranet AO batch checks: **success**.
+- Run **36732555122** · regressió completa sobre `main` `e2fd82215...`: **740 passed, 0 failed**; 61 PASS relacionats amb incidències/UC-008.
 ## 14. CI automatitzada
 
 S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-tests.php` amb PHP 8.4 i MySQL 8.4 en pull requests, canvis a `main` que afectin `sif/**` i execució manual (`workflow_dispatch`).
 
 La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
-**Estat actual:** SIF CI **677/0** + INTRANET AO SUCCESS; backend/UI/preflight/E2E tècnic/concurrència/readiness/deep-links/evidence-gate VERIFICATS / EXECUCIÓ REAL DE PREPRODUCCIÓ + CONFIGURACIÓ MENÚ BD PENDENTS.
+**Estat actual:** baseline UC-008 **677/0** + regressió completa del tall SIF verificat **740/0** (run `36732555122`) + INTRANET AO SUCCESS; backend/UI/preflight/E2E tècnic/concurrència/readiness/deep-links/evidence-gate VERIFICATS / EXECUCIÓ REAL DE PREPRODUCCIÓ + CONFIGURACIÓ MENÚ BD PENDENTS.

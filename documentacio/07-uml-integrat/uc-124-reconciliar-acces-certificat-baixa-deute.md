@@ -76,6 +76,28 @@ Main ..> Audit : <<include>>
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Gestió acadèmica"]
+  a_1["Cobraments / empresa pagadora"]
+  a_2["Moodle / certificació"]
+  subgraph SIF_BOUNDARY["SIF · estat acadèmic i econòmic"]
+    u_0(["UC-124<br/>Reconciliar accés i certificat"])
+    u_1(["Verificar inscripció, deute i pagador"])
+    u_2(["Decidir accés amb regla versionada"])
+    u_3(["UC-129<br/>Sincronitzar matrícula Moodle"])
+    u_4(["Registrar canvi amb evidència"])
+  end
+  a_0 --> u_0
+  a_1 --> u_1
+  a_2 --> u_3
+  u_0 -.->|include| u_1
+  u_0 -.->|include| u_2
+  u_0 -.->|include| u_4
+```
+
 ## 4. UML de classes: resum llegat real i coordinació pendent
 
 ```mermaid
