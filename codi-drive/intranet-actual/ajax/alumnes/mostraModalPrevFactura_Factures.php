@@ -3,6 +3,8 @@
 $root = dirname(__DIR__, 2);
 require_once $root . '/Date.php';
 require_once $root . '/LegacyInvoiceReadContext.php';
+require_once $root . '/SifInternalApiClient.php';
+require_once $root . '/SifLegacyInvoiceMutationGuard.php';
 
 $user = null;
 $intranet = null;
@@ -14,6 +16,8 @@ try {
     if (!ctype_digit($id) || (int) $id <= 0) {
         throw new InvalidArgumentException('Identificador de factura no vàlid', 422);
     }
+
+    (new SifLegacyInvoiceMutationGuard())->assertLegacyMutationAllowed($user, (int) $id);
 
     echo $intranet->modalPrevisualitzaFactura_Factures((int) $id);
 } catch (Throwable $exception) {
