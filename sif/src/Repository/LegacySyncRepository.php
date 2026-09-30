@@ -41,6 +41,10 @@ final class LegacySyncRepository
                  `DATA PAG` = CASE
                      WHEN `DATA PAG` IS NULL OR `DATA PAG` = '' THEN ?
                      ELSE `DATA PAG`
+                 END,
+                 `INSC CURS` = CASE
+                     WHEN `INSC CURS` = 'M' THEN '1'
+                     ELSE `INSC CURS`
                  END
              WHERE ID = ? AND TIPUS_INSC = 'P'"
         )->execute([$movementDate, $idInsc]);
