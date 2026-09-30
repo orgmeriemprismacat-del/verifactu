@@ -82,12 +82,14 @@ try {
     $mime = match ($type) {
         'PDF' => 'application/pdf',
         'XML' => 'application/xml; charset=utf-8',
+        'QR' => 'image/png',
         default => 'application/octet-stream',
     };
 
     $extension = match ($type) {
         'PDF' => 'pdf',
         'XML' => 'xml',
+        'QR' => 'png',
         default => strtolower($type !== '' ? $type : 'bin'),
     };
 
