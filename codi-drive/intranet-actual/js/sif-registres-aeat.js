@@ -232,4 +232,9 @@
     });
 
     refreshAll();
+
+    const deepQueueId = new URLSearchParams(window.location.search).get('queue_id') || '';
+    if (/^\d+$/.test(deepQueueId) && Number(deepQueueId) > 0) {
+        loadDetail(Number(deepQueueId)).catch(error => showAlert(error.message));
+    }
 })();
