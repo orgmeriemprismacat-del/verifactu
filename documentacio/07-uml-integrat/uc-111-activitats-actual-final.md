@@ -298,26 +298,23 @@ stop
 title UC-111 | Baixa curs destí -> saldo derivat | FINAL
 start
 :Identificar origen ACTUAL de la promoció;
-if (Origen executable en aquest tall?) then (sí)
-  note right
-    Cobert amb servei:
-    - aplicació original
-    - primer traspàs confirmat
-  end note
-else (no)
-  note right
-    Encara PENDENT de servei específic:
-    - derived_application APPLIED
-    - segon/tercer traspàs
-  end note
+if (Origen = aplicació original?) then (sí)
+  :Review original + rectificativa;
+elseif (Origen = primer traspàs confirmat?) then (sí)
+  :Review amb SOURCE_UUID_TRANSFER;
+elseif (Origen = derived_application APPLIED?) then (sí)
+  :Review fill amb PARENT_UUID_DERIVED_BALANCE;
+  :SOURCE_UUID_DERIVED_APPLICATION;
+else (segon/tercer traspàs confirmat)
+  :PENDENT servei de baixa sobre últim transfer;
   :No activar saldo derivat automàticament;
   stop
 endif
-:Registrar rectificativa real;
 :Separar component promocional i diners reals;
 :Crear review PENDING amb available=0;
 :Obtenir aprovació independent;
-:Reconciliar de nou factura i cash;
+:Revalidar rectificativa + titular + JASOM;
+:Reconciliar de nou factura i cash actual;
 if (Dades han canviat?) then (sí)
   :Bloquejar i recalcular;
   stop
@@ -325,11 +322,13 @@ endif
 :Tancar predecessor com a històric;
 :Activar nou saldo derivat;
 :Fixar nou any propi de vigència;
+:No restaurar JASOM ni el dret pare consumit;
 :Enviar diners reals, si pertoquen, a circuit separat;
 stop
 @enduml
 ```
 
+**Implementació de branca:** la baixa directa d'una `novice_promotion_derived_application.APPLIED` usa `NovicePromotionDerivedApplicationCancellationReviewService` i `NovicePromotionDerivedApplicationCancellationActivationService`; el fill conserva `PARENT_UUID_DERIVED_BALANCE` i el predecessor passa a `CONVERTED_TO_DERIVED` sense recreditar el pare.
 ## 11. Consum del saldo derivat · FINAL
 
 ```plantuml
