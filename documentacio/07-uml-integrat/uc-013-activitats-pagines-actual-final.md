@@ -337,5 +337,5 @@ flowchart TD
 2. Mantenir el test de regressió de l'allocator IDPAG compartit; implementació actual protegida amb named lock.
 3. Configurar `SIF_USOC_MENU_ROLES` i validar l'accés de menú al desplegament de preproducció.
 4. Validar en preproducció la configuració HMAC, rols i DB legacy amb `preflight-usoc-intranet.php`.
-5. Evidència CI conservada a `documentacio/09-proves-qa/uc-013-evidencia-ci-2026-09-30.md`; proves USOC PASS al run `36657971568`. Resta validació de desplegament/preproducció.
+5. Evidència CI conservada a `documentacio/09-proves-qa/uc-013-evidencia-ci-2026-09-30.md`; run `36660979100` **SUCCESS, 646 passed / 0 failed**, incloent E2E de servei fins a `FINANCING_RECONCILED`. Resta validació navegador/desplegament/preproducció.
 6. Tractament definit per alumne=0/curs gratuït.
