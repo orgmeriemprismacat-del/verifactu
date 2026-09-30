@@ -309,7 +309,7 @@ extensions; aquesta absència queda explícita i no es confon amb cobertura.
 
 ## 15. Cobertura específica UC-111 — paquet documental descompost
 
-UC-111 té una complexitat superior a una fitxa UML de tres blocs. A partir del 29/09/2026 la cobertura canònica és:
+UC-111 té una complexitat superior a una fitxa UML de tres blocs. A partir del 30/09/2026 la cobertura canònica és:
 
 | Peça | Fitxer | Estat |
 | --- | --- | --- |
@@ -325,6 +325,6 @@ UC-111 té una complexitat superior a una fitxa UML de tres blocs. A partir del 
 | UML acumulatiu històric | [uc-111-docent-novell-dret-futur.md](../07-uml-integrat/uc-111-docent-novell-dret-futur.md) | es conserva com a cronologia |
 | auditoria dirigida | [00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md](../07-uml-integrat/00-auditoria-circuit-cobrament-promocio-novell-2026-09-22.md) | activa |
 
-**Cobertura tècnica actual:** classes i serveis de concessió, delivery, consum, transferències successives, saldos derivats, projecció de procedència i root-refund/recovery consten a la branca. La vista de dades/estats documenta també la correcció additiva `000027` dels CHECK del root-refund. **No provat:** execució MySQL, migracions en entorn real, concurrència end-to-end i desplegament. **No integrat completament:** storage de justificants, endpoints autenticats, pricing/fiscalitat real, transports/evidències externes.
+**Cobertura tècnica actual:** classes i serveis de concessió, delivery, consum, transferències successives, saldos derivats, **baixa directa d'una `derived_application.APPLIED` amb activació de saldo fill**, projecció de procedència i root-refund/recovery consten a la branca. La vista de dades/estats documenta `000027` (CHECK root-refund) i `000028` (`derived_application → CONVERTED_TO_DERIVED`). **Buit funcional concret:** baixa després d'un segon/tercer transfer confirmat. **No provat:** execució MySQL, migracions en entorn real, concurrència end-to-end i desplegament. **No integrat completament:** storage de justificants, endpoints autenticats, pricing/fiscalitat real, transports/evidències externes.
 
 Aquesta secció complementa la regla de 142 casos: els nous fitxers UC-111 són vistes suplementàries del mateix identificador, no casos nous.
