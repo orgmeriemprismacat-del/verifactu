@@ -15,9 +15,11 @@ Ja està integrat a `main`:
 - wiring de `CourseLegacyPaymentSyncService` dins `RedsysLegacySyncingProcessor`;
 - prova `RedsysLegacySyncingProcessorCourseTest`;
 - prova `RedsysCourseEndToEndSimulatedTest`, que cobreix pagament complet + callback duplicat i parcial → complet;
-- CI verd del wiring i de l'E2E intern UC-014: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification`.
+- verificador `verify-redsys-course-preproduction.php` amb dry-run per defecte i execució explícita;
+- prova `RedsysCoursePreproductionBoundaryTest`, que blinda fail-closed, `--execute`, sync llegada completa i sanitització d'evidències;
+- CI verd del wiring, E2E intern i boundaries de preproducció UC-014: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification`.
 
-Això acredita un **E2E intern simulat** amb MySQL SIF real de test i projecció llegada controlada. **No acredita encara** el tall productiu ni una prova contra Redsys/preproducció real.
+Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecció llegada controlada i el **tooling de preproducció fail-closed**. **No acredita encara** una transacció contra Redsys/preproducció real ni el tall productiu.
 
 ## Pas 1 — preproducció
 
