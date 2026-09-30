@@ -17,6 +17,7 @@ use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\UsocFinancingCaseRepository;
 use Prisma\Sif\Repository\UsocStudentInvoiceLinkRepository;
+use Prisma\Sif\Repository\UsocValidationDecisionRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
@@ -28,6 +29,7 @@ use Prisma\Sif\Service\PaymentService;
 use Prisma\Sif\Service\UsocCaseReconciler;
 use Prisma\Sif\Service\UsocEntityInvoiceService;
 use Prisma\Sif\Service\UsocEntityPaymentService;
+use Prisma\Sif\Service\UsocValidationDecisionService;
 
 header('Cache-Control: private, no-store, max-age=0');
 header('Pragma: no-cache');
@@ -95,6 +97,45 @@ try {
     }
 
     assertUsocRole($actor, $manageRoles, 'manage');
+
+    if ($action === 'begin_validation_decision') {
+        $legacyDb = ConnectionFactory::makeLegacy($config);
+        $service = new UsocValidationDecisionService(
+            new UsocValidationDecisionRepository(new UuidGenerator())
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'decision' => $service->begin(
+                $db,
+                $legacyDb,
+                requiredRequestId($payload['request_id'] ?? null),
+                positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID'),
+                desiredValidDesc($payload['desired_valid_desc'] ?? null),
+                (string) ($actor['actor_id'] ?? ''),
+                (array) ($actor['roles'] ?? [])
+            ),
+        ]);
+        return;
+    }
+
+    if ($action === 'complete_validation_decision') {
+        $legacyDb = ConnectionFactory::makeLegacy($config);
+        $service = new UsocValidationDecisionService(
+            new UsocValidationDecisionRepository(new UuidGenerator())
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'decision' => $service->complete(
+                $db,
+                $legacyDb,
+                requiredRequestId($payload['request_id'] ?? null),
+                (string) ($actor['actor_id'] ?? '')
+            ),
+        ]);
+        return;
+    }
 
     if ($action === 'reconcile') {
         $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
@@ -195,6 +236,29 @@ function assertUsocRole(array $actor, array $allowedRoles, string $scope): void
     if (!actorHasUsocRole($actor, $allowedRoles)) {
         throw SifException::forbidden('USOC ' . $scope . ' role is not authorized');
     }
+}
+
+function desiredValidDesc(mixed $value): int
+{
+    if (!is_numeric($value) || !in_array((int) $value, [1, 2], true)) {
+        throw SifException::validation('Invalid desired USOC validation decision');
+    }
+
+    return (int) $value;
+}
+
+function requiredRequestId(mixed $value): string
+{
+    $requestId = trim((string) $value);
+    if (
+        $requestId === ''
+        || strlen($requestId) > 120
+        || preg_match('/^[A-Za-z0-9._:-]+$/D', $requestId) !== 1
+    ) {
+        throw SifException::validation('Invalid USOC validation request id');
+    }
+
+    return $requestId;
 }
 
 function positiveInt(mixed $value, string $message): int
