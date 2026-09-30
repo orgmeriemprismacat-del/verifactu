@@ -126,6 +126,30 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Empresa o responsable"]
+  actor_1["Operador de facturació"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-21<br/>Empresa/responsable paga<br/>inscripcions"])
+    uc_1(["Identificar receptor,<br/>participants i imports"])
+    uc_2(["UC-04<br/>Emetre factura abans<br/>de cobrar"])
+    uc_3(["UC-02<br/>Registrar pagament posterior"])
+    uc_4(["UC-07<br/>Consultar factura autoritzada"])
+    uc_5(["UC-05<br/>Rectificar si canvia factura emesa"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_4
+  actor_1 --> uc_3
+  actor_1 --> uc_5
+```
+
+
 El diagrama és **funcional/objectiu**: l'accés de l'empresa a la consulta i el camí de pantalla no es declaren implementats. UC-04/UC-02 tenen cadascun una fitxa i una seqüència executables pròpies.
 
 ## 3. Diagrama de classes del nucli utilitzat

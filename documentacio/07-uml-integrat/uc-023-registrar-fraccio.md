@@ -89,6 +89,24 @@ Fr ..> Pending : <<include>> (objectiu de validació)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador autoritzat"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-23<br/>Registrar una fracció"])
+    uc_1(["Localitzar factura<br/>i inscripció"])
+    uc_2(["UC-02<br/>Registrar moviment econòmic"])
+    uc_3(["Consultar import pendent"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
+
 **Nota:** consultar/verificar l'import pendent abans del registre figura com a validació **objectiu**; el camí de `ManualInstallmentPaymentService` consultat no l'executa abans de delegar a `PaymentService`.
 
 ## 3. Subdiagrama de classes

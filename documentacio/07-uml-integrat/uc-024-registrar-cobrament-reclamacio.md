@@ -97,6 +97,26 @@ end note
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Operador de cobraments"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-24<br/>Registrar cobrament reclamat"])
+    uc_1(["Localitzar factura vigent"])
+    uc_2(["UC-02<br/>Registrar pagament<br/>sobre factura existent"])
+    uc_3(["UC-43<br/>Gestionar comunicacions<br/>de reclamació"])
+    uc_4(["UC-27<br/>Donar de baixa inscripció"])
+  end
+  actor_0 --> uc_0
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  actor_0 --> uc_3
+  actor_0 --> uc_4
+```
+
+
 ## 3. Subdiagrama de classes — PHP observat
 
 ```mermaid
