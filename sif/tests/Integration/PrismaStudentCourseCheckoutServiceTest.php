@@ -66,7 +66,7 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same(900, (int) $intent['IDPAG']);
         Assert::same('90.00', number_format((float) $intent['EXPECTED_AMOUNT'], 2, '.', ''));
         Assert::same('ALUMNE_PRISMA', $snapshot['discount']['origin']);
-        Assert::same(100, (int) $snapshot['discount']['validation_uuid'] !== 0 ? 100 : 0);
+        Assert::same(false, trim((string) $snapshot['discount']['validation_uuid']) === '');
         Assert::same(200, (int) $snapshot['inscription']['ID']);
     }
 
