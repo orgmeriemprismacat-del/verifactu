@@ -73,7 +73,7 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 5. `IDPAG` legacy — IMPLEMENTAT allocator compartit amb named lock MySQL als fluxos actuals identificats.
 6. Adaptador/pantalla final — IMPLEMENTAT EN REPOSITORI: pantalla autònoma + panell contextual a Consulta/Modifica alumne, sobre API interna HMAC i `capabilities.manage`.
 7. Menú implementat de forma fail-closed a `mostrarSideBarMenu.php` amb `SIF_USOC_MENU_ROLES`. Pendent validar configuració/rols/secrets amb `preflight-usoc-intranet.php` i desplegament real.
-8. Prova E2E amb callback duplicat i pagament entitat parcial/complet.
+8. E2E de servei amb reintent alumne, reintent entitat, pagament parcial i pagament complet — **PROVAT CI** al run `36660979100`; resta E2E navegador/preproducció i canvi/baixa.
 
 ### Decisió funcional
 9. Variant curs gratuït USOC / alumne=0.
@@ -94,7 +94,7 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 | US13-08 | IDPAG ambigu | `ID_INSC` obligatori; no fallback | TEST AFEGIT · CODI IMPLEMENTAT |
 | US13-09 | factura entitat sense ingrés | PENDING, 0 payments | TEST EXISTENT |
 | US13-10 | cobrament entitat parcial real via PaymentService | `ENTITY_PARTIAL` | PASS CI · run 36657971568 |
-| US13-11 | 10 € + 15 € sobre factura entitat de 25 € | `FINANCING_RECONCILED` | TEST INTEGRACIÓ AFEGIT · EXECUCIÓ NO ACREDITADA |
+| US13-11 | reintents alumne/entitat + 10 € + 15 € sobre factura entitat de 25 € | `FINANCING_RECONCILED` | **PROVAT E2E CI · run 36660979100** |
 | US13-12 | alumne=0 | circuit especial o bloqueig explícit | PENDENT DECISIÓ |
 
 ## 6. Fitxers del paquet UC-013
@@ -113,4 +113,4 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 **PREPRODUCCIÓ:** no acreditada.  
 **PRODUCCIÓ:** no acreditada.
 
-Els P0 estructurals estan implementats i les proves USOC corresponents consten PASS al run CI `36657971568`. El UC-013 encara no es marca TANCAT perquè falta desplegament/configuració real de la UI, integració al menú/routing habitual i decisions funcionals pendents (curs gratuït i regla percentual històrica). La suite global del run queda vermella per una única fallida aliena al UC-013 (`InvoiceQueryServiceTest`, 404 vs 422).
+Els P0 estructurals estan implementats. El run CI `36660979100` sobre `e455d968...` acaba **SUCCESS, 646 passed / 0 failed**, incloent `UsocEndToEndFlowTest`. El UC-013 encara no es marca TANCAT perquè falta desplegament/configuració real de la UI, integració al menú/routing habitual i decisions funcionals pendents (curs gratuït i regla percentual històrica). La suite global del run queda vermella per una única fallida aliena al UC-013 (`InvoiceQueryServiceTest`, 404 vs 422).
