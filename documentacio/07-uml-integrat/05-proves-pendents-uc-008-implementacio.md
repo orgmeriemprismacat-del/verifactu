@@ -94,7 +94,7 @@ php sif/scripts/preflight-sif.php
 
 - [x] indicador/resum implementat al codi.
 - [x] resum read-only implementat al codi.
-- [ ] SIF indisponible → mostrar últim estat validat/indisponibilitat, no “0 incidències”.
+- [x] SIF indisponible → mostra últim resum validat de la sessió o estat indisponible; mai fals “0 incidències”.
 - [x] resolució deriva al panell SIF mitjançant handoff signat.
 - [x] la intranet es manté read-only i no es converteix en font de veritat.
 
@@ -108,7 +108,18 @@ php sif/scripts/preflight-sif.php
 - [x] integració dels checks UC-008 dins `go-no-go-preproduction.php`.
 - [ ] executar el preflight amb secrets/rols reals de preproducció i conservar-ne la sortida.
 
-## 10. Evidència de tancament
+## 10. E2E read-only automatitzable
+
+- [x] `sif/scripts/e2e-incidents-panel.php` creat.
+- [x] bloqueig explícit de `production`.
+- [x] URL obligatòriament HTTPS.
+- [x] contracte read-only: només `summary`, `list` i `logout`.
+- [x] verificació de 303, cookie, CSRF, actor sense controls de gestió i logout.
+- [x] test que impedeix introduir mutacions al script.
+- [ ] executar-lo contra preproducció amb URL, secret i rol real.
+- [ ] conservar la sortida JSON de l'execució real.
+
+## 11. Evidència de tancament
 
 Per marcar UC-008 com PROVAT conservar:
 
@@ -125,13 +136,13 @@ Per marcar UC-008 com PROVAT conservar:
 **Estat actual:** SUITE SIF POST-PREFLIGHT VERIFICADA (**618 passed, 0 failed**) + INTRANET AO **SUCCESS**. Continuen pendents els ítems no marcats, especialment concurrència específica, E2E de navegador, permisos/secrets productius i preproducció.
 
 
-## 11. Evidència CI
+## 12. Evidència CI
 
 - Runs inicials **36638546735** i **36638546786**: 555 passed, 0 failed.
 - Run **36648545296** després de la integració UI UC-008: **589 passed, 0 failed**.
 - Run **36658230379** després de preflight + go/no-go + frontera read-only: **618 passed, 0 failed**.
 - Run **36647777483** · Intranet AO batch checks: **success**.
-## 12. CI automatitzada
+## 13. CI automatitzada
 
 S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-tests.php` amb PHP 8.4 i MySQL 8.4 en pull requests, canvis a `main` que afectin `sif/**` i execució manual (`workflow_dispatch`).
 
