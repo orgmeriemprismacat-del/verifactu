@@ -48,3 +48,22 @@ Per rotar la clau sense exposar-la al repositori: actualitzar variables d'entorn
 4. Activar `SIF_BLOCK_LEGACY_INVOICE_MUTATIONS=1` per evitar regeneració/edició llegada de factures SIF.
 5. Configurar `SIF_DOCUMENT_ROOT` privat i, només quan els bytes/hash siguin correctes, activar `SIF_UC080_DOCUMENT_ENABLED=1`.
 6. Mantenir secrets i paths físics fora del repositori i fora del navegador.
+
+
+## Canvi de curs — UC-071
+
+La previsualització del canvi de curs és server-to-server, signada amb HMAC i queda desactivada fins que els flags s'activen explícitament.
+
+### SIF / pay.prisma.cat
+
+- `SIF_COURSE_CHANGE_PREVIEW_ROLES`: rols autoritzats. Si no s'informa, reutilitza `SIF_INVOICE_FULL_READ_ROLES`; ambdues buides impliquen denegació.
+- `SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH`: path canònic HMAC; default `/api/course-changes/preview.php`.
+
+### Intranet
+
+- `SIF_COURSE_CHANGE_UI_ENABLED=1`: activa el mòdul JS UC-071.
+- `SIF_COURSE_CHANGE_API_URL`: URL HTTPS server-to-server del preview SIF.
+- `SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH`: mateix path canònic configurat al SIF.
+- `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1`: abans d'executar el canvi llegat, recalcula el preu estàndard al servidor, rellegeix origen/pagat i torna a validar la decisió al SIF.
+
+El preview no emet rectificatives, no registra cobraments i no executa devolucions. La confirmació final continua sotmesa a POST, CSRF, same-origin, permisos i guards de lifecycle de l'endpoint actual.
