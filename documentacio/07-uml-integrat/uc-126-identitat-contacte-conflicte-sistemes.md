@@ -92,11 +92,11 @@ flowchart LR
   a_1["Gestió autoritzada"]
   a_2["Suport Moodle"]
   subgraph SIF_BOUNDARY["Prisma · identitat entre sistemes"]
-    u_0(["UC-126nResoldre conflicte d'identitat"])
+    u_0(["UC-126<br/>Resoldre conflicte d'identitat"])
     u_1(["Comparar identificadors i evidència"])
     u_2(["Previsualitzar recursos afectats"])
     u_3(["Aprovar equivalència o separació"])
-    u_4(["UC-120/129nPropagar perfil i matrícula"])
+    u_4(["UC-120/129<br/>Propagar perfil i matrícula"])
   end
   a_0 --> u_0
   a_1 --> u_0
