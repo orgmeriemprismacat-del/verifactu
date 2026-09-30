@@ -220,3 +220,33 @@ Quan canviï qualsevol d'aquests criteris s'ha de publicar una nova `RULE_VERSIO
 - [UML integrat / cas d'ús](uc-020-aplicar-alumne-prisma.md)
 
 Això completa el paquet documental de **cas d'ús + classes + seqüència + activitats + auditoria/traçabilitat** per UC-020.
+
+
+## 8. Evidència CI del tall
+
+**Commit de codi verificat:** `9bbf09fcb1f4a1350cc7c3f380cedf99a2297895`  
+**PR:** #54  
+**Data:** 30/09/2026
+
+| Workflow | Run | Resultat |
+| --- | ---: | --- |
+| SIF checks | 110 | SUCCESS |
+| SIF PHP MySQL tests | 321 | **716 passed · 0 failed** |
+| UC-111 integration verification | 137 | SUCCESS |
+
+La primera execució MySQL del PR va detectar 20 fixtures antics de callback/worker que creaven intencions CURS incompletes. Es van **corregir els fixtures**, no es va relaxar el nou contracte. La reexecució final passa íntegrament.
+
+### Què acredita aquesta evidència
+
+- sintaxi PHP del SIF correcta;
+- regressió general de la suite SIF sense errors;
+- tests nous de `PrismaStudentDiscountPolicy` en verd;
+- tests nous de `CourseIntentSnapshotValidator`/intencions CURS en verd;
+- compatibilitat amb el flux UC-111 preservada.
+
+### Què NO acredita encara
+
+- checkout web real connectat a la policy;
+- escriptura runtime de `discount_validation` i `commercial_operation`;
+- E2E navegador → oferta server-side → Redsys → factura amb `DESC_ORIGEN=ALUMNE_PRISMA`;
+- preproducció/producció.
