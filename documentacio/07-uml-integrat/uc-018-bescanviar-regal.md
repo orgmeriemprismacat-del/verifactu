@@ -2,7 +2,7 @@
 
 **Finalitat documentada al catàleg:** el destinatari bescanvia un regal per una inscripció, **sense una factura nova per defecte**. UC-17 és la compra/factura/cobrament del regal; UC-18a tracta codis caducats, duplicats o disputats; UC-119 coordina el cicle complet del dret comercial.
 
-**Estat de codi:** existeix el circuit PHP de **compra** `RedsysGiftInvoiceService`, `LegacyGiftInvoicePayloadBuilder` i el snapshot del regal. La migració defineix `commercial_entitlement` i `commercial_entitlement_event`, però **no s'ha identificat al `sif/src` revisat un servei de bescanvi executable** que validi un codi, bloquegi el dret, el consumeixi i creï/vinculi la inscripció amb el llegat. **Tot el flux de bescanvi següent és contracte objectiu**; les taules SQL definides no són una prova d'execució.
+**Estat de codi (auditat 2026-09-30):** existeix el circuit PHP de **compra UC-017** `RedsysGiftInvoiceService`, `LegacyGiftSnapshotRepository`, `LegacyGiftInvoicePayloadBuilder` i l'esquema `commercial_entitlement`/`commercial_entitlement_event`. També existeix ús específic d'entitlement a UC-111, però **continua sense existir un servei/repository/controller de bescanvi GIFT acreditat**, ni UI/JS, ni gateway d'inscripció, ni proves UC-018. **Tot el flux de bescanvi següent continua sent contracte FINAL, no codi executable.**
 
 ## 1. Fitxa funcional del bescanvi
 
@@ -189,3 +189,16 @@ Note over U,C: Bescanvi i coordinació del canvi encara no són codi SIF acredit
 ## 5. Traçabilitat
 
 [UC-18 original](../06-fitxes-funcionals/uc-018.md) · [UC-18a original](../06-fitxes-funcionals/uc-018a.md) · [UC-17 compra](uc-017-comprar-regal.md) · [UC-119 complet original](../06-fitxes-funcionals/uc-119.md) · [Diccionari d'estats de dret comercial](../05-governanca-operacio/24-diccionari-camps-i-valors.md) · [Migració entitlement i events](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [LegacyGiftInvoicePayloadBuilder](../../sif/src/Service/LegacyGiftInvoicePayloadBuilder.php) · [Revisió de fons](00-revisio-moviments-inscripcions.md).
+
+
+## 6. Paquet d'auditoria 2026-09-30
+
+Per evitar confondre disseny amb implementació, aquest UC queda desglossat en:
+
+- [Classes ACTUAL/FINAL](uc-018-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-018-sequencies-actual-final.md)
+- [Activitats ACTUAL/FINAL per superfície](uc-018-activitats-pagines-bescanvi-regal-actual-final.md)
+- [Auditoria detallada](04-auditoria-detallada-uc-018-bescanviar-regal-2026-09-30.md)
+- [Proves pendents](05-proves-pendents-uc-018-implementacio.md)
+
+**Estat:** documentació específica revisada; implementació UC-018 = **NO-GO** fins que existeixi el flux executable de bescanvi i les proves associades.
