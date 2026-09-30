@@ -86,6 +86,30 @@ F --> Pay
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Alumne beneficiari"]
+  a_1["Gestió"]
+  a_2["Finançador"]
+  a_3["Assessoria/direcció"]
+  subgraph SIF_BOUNDARY["SIF · curs subvencionat"]
+    u_0(["UC-109nRegistrar inscripció subvencionada"])
+    u_1(["Registrar programa i finançador"])
+    u_2(["Classificar receptor i document fiscal"])
+    u_3(["UC-01/21nEmetre només si correspon"])
+    u_4(["UC-02nRegistrar ingrés efectiu posterior"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  a_2 --> u_1
+  a_3 --> u_2
+  u_0 -.->|include| u_1
+  a_1 --> u_3
+  a_2 --> u_4
+```
+
 ## 3. Classes — model SQL i orquestració pendent
 
 ```mermaid
