@@ -75,6 +75,28 @@ Per tant el conflicte semàntic d'una mateixa clau amb payload diferent queda pr
 7. Menú implementat de forma fail-closed a `mostrarSideBarMenu.php` amb `SIF_USOC_MENU_ROLES`. Pendent validar configuració/rols/secrets amb `preflight-usoc-intranet.php` i desplegament real.
 8. E2E de servei amb reintent alumne, reintent entitat, pagament parcial i pagament complet — **PROVAT CI** al run `36660979100`; resta E2E navegador/preproducció i canvi/baixa.
 
+### P2 · Traça durable de la decisió legacy — disseny obligatori abans d'implementar
+
+La decisió `VALID_DESC=0→1/2` afecta la BD legacy però ha de quedar auditable també al SIF. No s'ha d'afegir una simple inserció posterior a `sif_audit_event`, perquè això aparentaria una atomicitat entre dues BDs que no existeix.
+
+Protocol definit:
+
+1. **REQUESTED al SIF abans de mutar legacy**
+   - actor autenticat del backend;
+   - `ID_INSC`;
+   - decisió sol·licitada (APPROVE/REJECT);
+   - `requestId` estable del gest de secretaria;
+   - `correlationId = USOC|VALIDATION|ID_INSC:<id>`;
+   - cap factura ni cobrament.
+2. Si el SIF no pot persistir `REQUESTED`, la mutació legacy no s'executa.
+3. El legacy aplica `VALID_DESC=1/2` i la seva comunicació.
+4. **COMMITTED al SIF** amb la decisió efectivament aplicada i hash de l'estat.
+5. Si el pas 4 falla, el `REQUESTED` persistent permet detectar/reconciliar l'operació sense repetir cegament el correu o la mutació legacy.
+6. El reconciliador ha de poder llegir `REQUESTED` sense `COMMITTED`, contrastar el `VALID_DESC` legacy real i completar o marcar `REVIEW_REQUIRED`.
+7. Un reintent amb mateix `requestId` i mateixa decisió és idempotent; mateixa identitat amb decisió contradictòria requereix un nou esdeveniment auditat, mai sobreescriptura.
+
+Aquesta peça queda **DOCUMENTADA / PENDENT D'IMPLEMENTACIÓ** perquè necessita coordinar el controlador legacy, l'API interna USOC i el repositori d'auditoria SIF com un protocol explícit de recuperació.
+
 ### Decisió funcional
 9. Variant curs gratuït USOC / alumne=0.
 10. Consolidar percentatge comercial vigent.
