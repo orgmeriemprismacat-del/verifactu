@@ -44,7 +44,7 @@
     function applyCapabilities(capabilities) {
         canManage = !!(capabilities && capabilities.manage === true);
 
-        $('#usoc-reconciliar, #usoc-emetre-entitat, #usoc-registrar-cobrament')
+        $('#usoc-reconciliar, #usoc-emetre-entitat, #usoc-registrar-cobrament, #usoc-lifecycle-preview, #usoc-lifecycle-operation')
             .prop('disabled', !canManage);
 
         $('#usoc-financament')
