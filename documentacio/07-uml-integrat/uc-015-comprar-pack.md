@@ -2,7 +2,7 @@
 
 **Objectiu:** facturar i cobrar una **operació de pack** amb múltiples inscripcions, cadascuna amb curs, edició, import i descompte que li correspon. Un pagament del pack no és N cobraments bancaris independents, i la factura global no significa que es pugui perdre el detall de quantitat atribuïda a cada inscripció.
 
-**Estat:** auditoria específica completada documentalment; implementació SIF parcial. El 2026-09-30 s'han afegit preu servidor, endpoint d'intenció autenticat, validació de snapshot/ordinal, reconciliació d'import i enduriment del callback legacy. Proves d'entorn pendents.
+**Estat:** auditoria específica completada documentalment; flux fiscal/econòmic principal PACK implementat al SIF. Continuen pendents l'E2E de preproducció, l'acreditació de l'origen canònic de `PACK_ORDINAL`, la retirada física del callback fiscal legacy i el lliurament efectiu de notificacions (UC-58).
 
 **Codi consultat:** `RedsysPackInvoiceService`, `LegacyPackInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService` i la infraestructura UC-63/03. El builder actual **requereix almenys dues línies** i associa `PACK` i cada `INSCRIPCIO` a la factura. Les comprovacions de la composició comercial del pack i l'accés/inscripció final dels cursos continuen pendents d'acreditar al canal.
 
@@ -16,7 +16,7 @@
 | Factura | Una factura de pack amb **una línia per inscripció**, `source_type=INSCRIPCIO`, `source_id=ID`; relació principal `PACK` i relacions de cadascuna de les inscripcions; `visible_alumne=1` al constructor revisat. |
 | Descompte de pack al builder actual | Amb base/descompte explícits, es conserva informació aportada i es valida que el descompte no sigui negatiu. El builder exigeix base, descompte, percentatge i total explícits per cada línia; si manca qualsevol dada o no quadra `base - descompte = total`, rebutja l'emissió. Ja no reconstrueix automàticament un 25 %. |
 | Pagament | Una notificació Redsys `VALIDATED` aporta el **cobrament únic** del pack i l'assignació a factura, amb import total real de `DS_ORDER`. |
-| Assignació a inscripcions | **Pendent:** el mateix `UUID_PAYMENT` ha d'enllaçar amb una atribució per inscripció/línia per la seva quantitat real. No dividir automàticament a parts iguals. |
+| Assignació a inscripcions | **Implementat:** `PackEnrollmentFundAllocationService` grava N moviments idempotents a `enrollment_fund_movement`, tots vinculats al mateix `UUID_PAYMENT`, i exigeix que la suma coincideixi amb cobrament i factura. |
 
 ### 1.1. Flux principal asíncron
 
@@ -26,8 +26,8 @@
 4. `LegacyPackInvoicePayloadBuilder::build()` valida l'ID del pack i les inscripcions, genera les línies i totals, relacions `PACK` i `INSCRIPCIO` i congela els descomptes.
 5. `RedsysInvoicePayloadBuilder::buildFromValidatedNotification()` incorpora el bloc `payment` de la notificació `VALIDATED`, amb `DS_ORDER`/`IDPAG` a les relacions.
 6. `InvoiceService::issueInvoice()` crea/reutilitza una factura fiscal i un pagament inicial; el worker desa `UUID_FACTURA`/`UUID_PAYMENT` i estat `PROCESSED`.
-7. **Model econòmic objectiu pendent:** registrar N atribucions `EXTERNAL → INSCRIPCIÓ` segons imports específics de línies/participants, vinculades al mateix `UUID_PAYMENT`; la suma atribuïda no ha de superar l'import real cobrat.
-8. El servei acadèmic concedeix l'accés a cada curs/edició per l'inscrit que correspongui. Aquesta sincronització de l'ecommerce amb el llegat no queda demostrada per `InvoiceService`.
+7. `PackEnrollmentFundAllocationService` registra N atribucions `EXTERNAL_ALLOCATION → INSCRIPCIÓ` segons imports congelats, vinculades al mateix `UUID_PAYMENT`, i bloqueja si suma, factura o línies no coincideixen.
+8. `RedsysLegacySyncingProcessor` executa la sincronització legacy només després de l'èxit SIF mitjançant `LegacySyncService`; això cobreix la marca econòmica/relacions legacy, però no converteix l'outbox de notificacions en correu enviat.
 
 ### 1.2. Alternatives i controls necessaris
 
@@ -42,7 +42,7 @@
 | Descompte del 25 % del builder | Verificar contra la política real i l'snapshot comercial: no reconstruir un descompte diferent si s'aporta explicitament, ni generalitzar el 25 % a tots els tipus d'oferta. |
 | Una sola persona fa totes les inscripcions del pack | La factura pot ser una, però els `ID_INSC` de cada curs/edició continuen independents per permetre canvis, baixes i consulta. |
 
-**Proves localitzades, no executades:** `RedsysPackInvoiceServiceTest` i proves de payload del pack/flux asíncron. Les proves de factura no acrediten els moviments individuals de fons proposats.
+**Proves localitzades:** `RedsysPackInvoiceServiceTest`, `PackPaymentGateTest`, `LegacyPackInvoicePayloadBuilderTest`, `LegacyPackCallbackBoundaryTest` i scripts de preflight/preview. Hi ha evidència CI històrica 619/0 per un commit anterior; els tests afegits després d'aquell commit necessiten una nova execució acreditada.
 
 ### 1.3. Regles comercials reals i divisió excepcional del pack — contrast amb el xat original
 
