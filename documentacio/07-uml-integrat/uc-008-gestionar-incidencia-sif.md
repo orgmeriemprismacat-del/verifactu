@@ -2,7 +2,7 @@
 
 **Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat actual (2026-09-30):** backend, UI, preflight, E2E tècnic read-only, deduplicació i concurrència **IMPLEMENTATS I VERIFICATS EN CI**. El run `36661335874` ha passat amb **648/0**; `Intranet AO batch checks` run `36647777483` continua en **success**. La preproducció amb secrets/rols reals, l'alta de menú a BD i l'E2E de navegador contra l'entorn real continuen pendents.
+**Estat actual (2026-09-30):** backend, UI, preflight, E2E tècnic read-only, deduplicació, concurrència i deep-links de reparació **IMPLEMENTATS I VERIFICATS EN CI**. El run `36664237975` ha passat amb **670/0**; `Intranet AO batch checks` run `36647777483` continua en **success**. La preproducció amb secrets/rols reals, l'alta/configuració del menú a BD i l'E2E contra l'entorn real continuen pendents.
 
 **Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
@@ -592,18 +592,18 @@ D --> E[Resolució només al SIF]
 - `RedsysCallbackWorkerTest::testFifthTechnicalFailureBecomesIncident`.
 - `PayloadIdempotencyFlowTest` per `FISCAL_PAYLOAD_CONFLICT`.
 
-**Verificació CI actual:** run **36661335874**, amb **648 passed / 0 failed** sobre PHP 8.4 + MySQL 8.4. Inclou concurrència real amb dos processos, deduplicació Redsys/AEAT, redacció sensible, API/UI, preflight i E2E tècnic read-only. L'E2E contra preproducció real i la configuració productiva continuen pendents.
+**Verificació CI actual:** run **36664237975**, amb **670 passed / 0 failed** sobre PHP 8.4 + MySQL 8.4. Inclou concurrència real, deduplicació Redsys/AEAT, redacció sensible, API/UI, preflight, E2E tècnic read-only i deep-links a factura/AEAT. L'E2E contra preproducció real i la configuració productiva continuen pendents.
 
 ## 12. Gaps pendents
 
 1. **Desplegament real:** carregar secrets/rols de preproducció i executar `preflight-incidents-panel.php`.
 2. **E2E real:** executar `e2e-incidents-panel.php` contra la URL HTTPS de preproducció i conservar la sortida JSON.
 3. **Menú intranet:** consultar la BD real `apartats` i donar d'alta `/sif-verifactu.php` amb pare/ordre/rols reals.
-4. **Superfícies de reparació:** encara no existeixen pàgines SIF públiques de Factures/Registres AEAT; no s'inventen URLs des del panell d'incidències.
+4. **Superfícies de reparació/navegació:** el panell deriva a superfícies reals existents de la intranet: `alumnes-factura.php?uuid_factura=...` per factura SIF i `sif-registres-aeat.php?queue_id=...` per cua AEAT. Són deep-links de navegació; UC-008 no executa reparació automàtica.
 5. **Governança operativa:** decidir SLA/prioritats i notificacions automàtiques si s'aproven.
 6. **Cobertura de detectors:** afegir integracions d'obertura per documents, conciliació, legacy i altres workers només quan el cas funcional corresponent ho requereixi.
 
-**Ja tancat al codi/CI:** UI, resum intranet, concurrència real, rollback Redsys, deduplicació Redsys/AEAT, redacció sensible, preflight i E2E tècnic read-only.
+**Ja tancat al codi/CI:** UI, resum intranet, concurrència real, rollback Redsys, deduplicació Redsys/AEAT, redacció sensible, preflight, E2E tècnic read-only i deep-links a factura/AEAT.
 
 ## 13. Traçabilitat
 
@@ -623,4 +623,4 @@ D --> E[Resolució només al SIF]
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
-**Estat de tancament tècnic:** backend + UI + seguretat + idempotència + concurrència + preflight + E2E tècnic implementats i verificats en CI (**648/0**). Pendents només configuració/desplegament de preproducció, E2E real, alta de menú i superfícies de reparació encara no implementades.
+**Estat de tancament tècnic:** backend + UI + seguretat + idempotència + concurrència + preflight + E2E tècnic + deep-links de reparació implementats i verificats en CI (**670/0**). Pendents només configuració/desplegament de preproducció, E2E real i alta/configuració del menú de BD.
