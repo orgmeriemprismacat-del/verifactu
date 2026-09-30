@@ -6,10 +6,12 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\IncidentRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
+use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
+use Prisma\Sif\Service\CoursePaymentNotificationService;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacySyncService;
 use Prisma\Sif\Service\RedsysCallbackDispatcher;
@@ -47,6 +49,25 @@ final class RedsysCourseEndToEndSimulatedTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same('PENDING', $first['notification_outbox']['status']);
+        Assert::same(false, $first['notification_outbox']['idempotency_reused']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
+
+        $outbox = $db->query(
+            "SELECT IDEMPOTENCY_KEY, TEMPLATE_CODE, RECIPIENT_TYPE, RECIPIENT_HASH, PAYLOAD_JSON
+             FROM notification_outbox"
+        )->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('NOTIFY|COURSE_PAYMENT_CONFIRMED|ORDER:E2EFULL00001', $outbox['IDEMPOTENCY_KEY']);
+        Assert::same('COURSE_PAYMENT_CONFIRMED', $outbox['TEMPLATE_CODE']);
+        Assert::same('ALUMNE', $outbox['RECIPIENT_TYPE']);
+        Assert::same(hash('sha256', 'joan@example.invalid'), $outbox['RECIPIENT_HASH']);
+        $notificationPayload = json_decode((string) $outbox['PAYLOAD_JSON'], true);
+        Assert::same('PAID', $notificationPayload['payment_status']);
+        Assert::same('0.00', $notificationPayload['remaining_after']);
+        Assert::same(false, array_key_exists('email', $notificationPayload));
+        Assert::same(false, array_key_exists('dni', $notificationPayload));
+        Assert::same(false, str_contains((string) $outbox['PAYLOAD_JSON'], 'joan@example.invalid'));
+        Assert::same(false, str_contains((string) $outbox['PAYLOAD_JSON'], '87654321Z'));
 
         $duplicate = $callback->receiveCallback($db, $payload, true);
         Assert::same(true, $duplicate['duplicate']);
@@ -70,6 +91,13 @@ final class RedsysCourseEndToEndSimulatedTest
         Assert::same('50.00', $legacy->payment);
         Assert::same('0', $legacy->courseStatus);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
+        $partialPayload = json_decode(
+            (string) $db->query('SELECT PAYLOAD_JSON FROM notification_outbox ORDER BY ID LIMIT 1')->fetchColumn(),
+            true
+        );
+        Assert::same('PARTIALLY_PAID', $partialPayload['payment_status']);
+        Assert::same('70.00', $partialPayload['remaining_after']);
 
         $this->createIntent($db, 'E2EPART00002', '70.00', '120.00', true);
         $callback->receiveCallback($db, $this->callbackPayload('E2EPART00002', '70.00'), true);
@@ -80,6 +108,13 @@ final class RedsysCourseEndToEndSimulatedTest
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
+        $completePayload = json_decode(
+            (string) $db->query('SELECT PAYLOAD_JSON FROM notification_outbox ORDER BY ID DESC LIMIT 1')->fetchColumn(),
+            true
+        );
+        Assert::same('PAID', $completePayload['payment_status']);
+        Assert::same('0.00', $completePayload['remaining_after']);
     }
 
     private function circuit(\PDO $db, RedsysCourseE2ELegacyPdo $legacy): array
@@ -105,7 +140,10 @@ final class RedsysCourseEndToEndSimulatedTest
             new RedsysCallbackDispatcher([$handler]),
             $legacy,
             new LegacySyncService(new LegacySyncRepository()),
-            new CourseLegacyPaymentSyncService()
+            new CourseLegacyPaymentSyncService(),
+            new CoursePaymentNotificationService(
+                new NotificationOutboxRepository(new UuidGenerator())
+            )
         );
 
         $worker = new RedsysCallbackWorker(
