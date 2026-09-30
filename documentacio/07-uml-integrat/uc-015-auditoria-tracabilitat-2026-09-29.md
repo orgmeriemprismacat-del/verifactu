@@ -247,3 +247,11 @@ S'han observat PASS explícits per:
 - tots els `PackPaymentGateTest`, inclòs el nou control percentatge/import.
 
 Un run immediatament anterior havia quedat vermell per `InvoiceQueryServiceTest::testViewReturnsNotFoundForUnknownInvoice` (UC-007, esperava 404 i rebia 422); no era una fallada UC-015. El run posterior ja és completament verd.
+
+
+### Evidència CI amb lint del checkout PACK
+Run `36658376996` · commit `7dcad412...` · **SUCCESS**.
+
+- `php -l` correcte a les dues còpies de `PackPaymentGate.php`.
+- `php -l` correcte a les dues còpies de `pagina_efectuar_pagament_grup_automatic.php`.
+- Suite SIF: **619 passed / 0 failed**.
