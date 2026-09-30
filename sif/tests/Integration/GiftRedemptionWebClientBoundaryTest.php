@@ -22,13 +22,19 @@ final class GiftRedemptionWebClientBoundaryTest
         Assert::stringContainsString("X-SIF-Signature", $source);
         Assert::stringContainsString("hash('sha256', \$body)", $source);
         Assert::stringContainsString("requires HTTPS", $source);
-        Assert::stringContainsString("trusted_price_snapshot", $source);
-        Assert::stringContainsString("holder_party_key", $source);
+        Assert::stringContainsString(
+            "Gift redemption authority must be resolved inside SIF",
+            $source
+        );
+        Assert::stringContainsString(
+            "['holder_party_key', 'trusted_price_snapshot']",
+            $source
+        );
         Assert::same(false, str_contains($source, '?gift_code='));
         Assert::same(false, str_contains($source, 'http_build_query'));
     }
 
-    public function testLegacyWriterIsNotYetSilentlyWiredToUntrustedBrowserIdentity(): void
+    public function testLegacyWriterRemainsUnwiredUntilRetryBoundaryIsHardened(): void
     {
         $root = dirname(__DIR__, 3);
         $source = file_get_contents(
