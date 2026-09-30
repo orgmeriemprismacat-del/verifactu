@@ -91,12 +91,12 @@ flowchart LR
   a_0["Pagador/comprador"]
   a_1["Gestió acadèmica"]
   subgraph SIF_BOUNDARY["SIF · renovació oferta caducada"]
-    u_0(["UC-121nRepreuar reserva caducada"])
-    u_1(["UC-115nComprovar nova plaça"])
+    u_0(["UC-121<br/>Repreuar reserva caducada"])
+    u_1(["UC-115<br/>Comprovar nova plaça"])
     u_2(["Crear nova proposta i revocar enllaç vell"])
     u_3(["Acceptar condicions noves"])
-    u_4(["UC-112/63nCongelar i crear intenció nova"])
-    u_5(["UC-08nIncidència de callback antic"])
+    u_4(["UC-112/63<br/>Congelar i crear intenció nova"])
+    u_5(["UC-08<br/>Incidència de callback antic"])
   end
   a_0 --> u_0
   a_1 --> u_0
