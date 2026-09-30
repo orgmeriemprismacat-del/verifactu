@@ -6,6 +6,18 @@ function obtenirCsrfAlumnesLifecycle() {
 	return meta ? meta.getAttribute('content') : '';
 }
 
+function mostrarErrorLifecycleAlumne(jqXHR, fallback) {
+	let missatge = fallback;
+	if (jqXHR && (jqXHR.status === 409 || jqXHR.status === 422 || jqXHR.status === 403)) {
+		const resposta = (jqXHR.responseText || '').toString().trim();
+		if (resposta !== '' && resposta.length <= 800) missatge = resposta;
+	}
+	amagarLoadingModal();
+	afegirHeaderModalError("Alerta!");
+	afegirTextModalError(missatge);
+	mostrarModalError();
+}
+
 if ( window.location.hash.split('#')[1])
 	hashUrl = window.location.hash.split('#')[1].split('/')[1];
 
@@ -1784,9 +1796,11 @@ function mostrarModalCanviCurs(id) {
 	                     }
 	                  });
 
-	                  req.fail(function( jqXHR, textStatus, errorThrown ) {
-	                     rerrorFunction( jqXHR, textStatus, errorThrown,
-	                        "Hi ha hagut algun error a l'hora de consultar les dades: " );
+	                  req.fail(function( jqXHR ) {
+	                     mostrarErrorLifecycleAlumne(
+	                        jqXHR,
+	                        "Hi ha hagut un error a l'hora de realitzar el canvi de curs."
+	                     );
 	                  });
 	               });
 	               $('#modalConfirmacioCanvi').on('click', '#torna-canvi', function() {
@@ -2182,9 +2196,11 @@ function mostrarModalDonarBaixa(id) {
 						      }
 						});
 
-						upd2.fail(function( jqXHR, textStatus, errorThrown ) {
-						   rerrorFunction( jqXHR, textStatus, errorThrown,
-						      "Hi ha hagut algun error a l'hora d'actualitzar reclamacions': " );
+						upd2.fail(function( jqXHR ) {
+						   mostrarErrorLifecycleAlumne(
+						      jqXHR,
+						      "Hi ha hagut un error a l'hora de realitzar la baixa."
+						   );
 						});
 					}
 					else {
