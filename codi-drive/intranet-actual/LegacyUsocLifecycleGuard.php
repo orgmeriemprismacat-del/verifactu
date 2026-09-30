@@ -1,0 +1,71 @@
+<?php
+
+require_once __DIR__ . '/LegacyDiscountValidationLookup.php';
+require_once __DIR__ . '/SifAuthenticatedActor.php';
+require_once __DIR__ . '/SifInternalUsocClient.php';
+
+final class LegacyUsocLifecycleGuard
+{
+    public function __construct(
+        private ?LegacyDiscountValidationLookup $legacyLookup = null,
+        private ?SifInternalUsocClient $sifClient = null
+    ) {
+        $this->legacyLookup ??= new LegacyDiscountValidationLookup();
+    }
+
+    public function assertMayUseLegacyMutation(
+        object $user,
+        int $idInsc,
+        string $operation
+    ): void {
+        if (!in_array($operation, ['course_change', 'cancellation'], true)) {
+            throw new InvalidArgumentException('Invalid USOC lifecycle operation');
+        }
+
+        $enrollment = $this->legacyLookup->enrollment($idInsc);
+        if ((int) $enrollment['TIPUS_DESC'] !== 4) {
+            return;
+        }
+
+        $idpag = (int) ($enrollment['IDPAG'] ?? 0);
+        if ($idpag <= 0) {
+            throw new RuntimeException(
+                'La inscripció USOC no té un IDPAG vàlid i no es pot modificar amb el flux legacy.',
+                409
+            );
+        }
+
+        [$actorId, $roles] = SifAuthenticatedActor::fromUser($user);
+        $this->sifClient ??= new SifInternalUsocClient();
+        $response = $this->sifClient->lifecycleGuard(
+            $actorId,
+            $roles,
+            $idInsc,
+            $idpag,
+            $operation
+        );
+
+        $status = (int) ($response['_http_status'] ?? 0);
+        if ($status < 200 || $status >= 300 || ($response['ok'] ?? false) !== true) {
+            throw new RuntimeException(
+                'No s’ha pogut validar l’estat fiscal USOC abans de modificar la inscripció.',
+                503
+            );
+        }
+
+        $guard = $response['guard'] ?? null;
+        if (!is_array($guard) || !array_key_exists('allowed', $guard)) {
+            throw new RuntimeException('Resposta de control USOC no vàlida.', 502);
+        }
+
+        if ($guard['allowed'] !== true) {
+            $label = $operation === 'course_change' ? 'canvi de curs' : 'baixa';
+            throw new RuntimeException(
+                'Aquesta inscripció USOC té un expedient SIF amb dues parts. '
+                . 'El ' . $label . ' s’ha de tramitar amb el flux SIF específic per evitar '
+                . 'rectificar, retornar o reassignar imports del pagador incorrecte.',
+                409
+            );
+        }
+    }
+}
