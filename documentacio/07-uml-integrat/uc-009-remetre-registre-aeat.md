@@ -84,6 +84,31 @@ Send ..> Response : <<include>>
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker SIF"]
+  actor_1["AEAT (extern)"]
+  actor_2["Responsable tècnica"]
+  subgraph SIF_BOX["SIF PrisMa"]
+    uc_0(["UC-09<br/>Remetre registre fiscal"])
+    uc_1(["Reclamar job fiscal"])
+    uc_2(["Enviar snapshot AEAT<br/>amb evidència"])
+    uc_3(["Registrar resposta<br/>per registre"])
+    uc_4(["UC-08<br/>Gestionar incidència"])
+    uc_5(["UC-30/31<br/>Corregir registre<br/>segons classificació"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_2
+  actor_2 --> uc_4
+  actor_2 --> uc_5
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+```
+
+
 ## 3. Diagrama de classes — codi present a `main`
 
 ```mermaid
