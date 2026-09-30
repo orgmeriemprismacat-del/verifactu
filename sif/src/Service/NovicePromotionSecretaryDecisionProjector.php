@@ -104,70 +104,121 @@ final class NovicePromotionSecretaryDecisionProjector
 
             $existing = $this->many(
                 $sifDb,
-                'SELECT UUID_VALIDATION, STATUS, SUBJECT_PARTY_KEY
+                'SELECT UUID_VALIDATION, STATUS, SUBJECT_PARTY_KEY,
+                        RULE_SNAPSHOT_JSON
                  FROM discount_validation
                  WHERE UUID_OPERATION = ? AND DISCOUNT_TYPE = ? FOR UPDATE',
                 [$uuidOperation, NovicePromotionGrantService::VALIDATION_TYPE]
             );
 
-            if ($existing !== []) {
-                if (count($existing) !== 1
-                    || (string) $existing[0]['STATUS'] !== $status
-                    || (string) $existing[0]['SUBJECT_PARTY_KEY'] !== (string) $participant[0]['PARTY_KEY']
-                ) {
-                    throw SifException::conflict('A conflicting novice decision was already projected.');
-                }
+            if (count($existing) !== 1
+                || (string) $existing[0]['SUBJECT_PARTY_KEY']
+                    !== (string) $participant[0]['PARTY_KEY']
+            ) {
+                throw SifException::conflict(
+                    'A single staged novice validation request is required before secretary decision.'
+                );
+            }
 
-                if ($operation['STATUS'] !== 'READY_FOR_PAYMENT') {
-                    throw SifException::conflict('Projected decision is inconsistent with payment gate.');
+            $uuidValidation = (string) $existing[0]['UUID_VALIDATION'];
+            $existingStatus = (string) $existing[0]['STATUS'];
+
+            if (in_array($existingStatus, ['VALIDATED', 'REJECTED'], true)) {
+                if ($existingStatus !== $status
+                    || $operation['STATUS'] !== 'READY_FOR_PAYMENT'
+                ) {
+                    throw SifException::conflict(
+                        'A conflicting novice decision was already projected.'
+                    );
                 }
 
                 $sifDb->commit();
                 return [
-                    'uuid_validation' => (string) $existing[0]['UUID_VALIDATION'],
+                    'uuid_validation' => $uuidValidation,
                     'decision' => $status,
                     'idempotency_reused' => true,
                 ];
             }
 
-            if ($operation['STATUS'] !== 'PENDING_VALIDATION') {
-                throw SifException::conflict('Cannot project a new decision after opening payment.');
+            if ($existingStatus !== 'PENDING'
+                || $operation['STATUS'] !== 'PENDING_VALIDATION'
+            ) {
+                throw SifException::conflict(
+                    'Novice validation request is not pending secretary review.'
+                );
             }
 
-            $uuidValidation = $this->uuids->generate();
-            $decidedAt ??= new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid'));
-            $timestamp = $decidedAt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-            $ruleSnapshot = json_encode([
-                'rule' => NovicePromotionGrantService::RULE_VERSION,
-                'legacy_decision_status' => (int) $legacy[0]['VALIDAT'],
-                'secretary_manual_review' => true,
-                'origin_program' => 'JASOM',
-                'not_an_origin_course_discount' => true,
-                'source' => 'secretary_action_legacy_recent_titulat',
-            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            if ($approved) {
+                $readyEvidence = $this->many(
+                    $sifDb,
+                    "SELECT UUID_EVIDENCE
+                     FROM discount_evidence
+                     WHERE UUID_VALIDATION = ?
+                       AND EVIDENCE_TYPE = 'NOVICE_DEGREE_PROOF'
+                       AND PURPOSE_CODE = 'NOVICE_PROMOTION_VALIDATION'
+                       AND ACCESS_CLASSIFICATION = 'RESTRICTED'
+                       AND STORAGE_STATUS = 'READY'
+                       AND DELETED_AT IS NULL
+                     FOR UPDATE",
+                    [$uuidValidation]
+                );
+                if ($readyEvidence === []) {
+                    throw SifException::conflict(
+                        'Secretary cannot approve novice status without ready private documentary evidence.'
+                    );
+                }
+            }
 
-            $this->execute(
-                $sifDb,
-                'INSERT INTO discount_validation
-                 (UUID_VALIDATION, UUID_OPERATION, DISCOUNT_TYPE, SUBJECT_PARTY_KEY,
-                  STATUS, RULE_VERSION, RULE_SNAPSHOT_JSON, REQUESTED_AT,
-                  VALIDATED_AT, VALIDATED_BY, REJECTION_REASON, IDEMPOTENCY_KEY)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [
-                    $uuidValidation,
-                    $uuidOperation,
-                    NovicePromotionGrantService::VALIDATION_TYPE,
-                    (string) $participant[0]['PARTY_KEY'],
-                    $status,
-                    NovicePromotionGrantService::RULE_VERSION,
-                    $ruleSnapshot,
-                    (string) $operation['CREATED_AT'],
-                    $approved ? $timestamp : null,
-                    $secretaryActor,
-                    $approved ? null : 'SECRETARY_DENIED',
-                    'NOVICE|DECISION|' . $uuidOperation,
-                ]
+            $decidedAt ??= new \DateTimeImmutable(
+                'now',
+                new \DateTimeZone('Europe/Madrid')
             );
+            $timestamp = $decidedAt
+                ->setTimezone(new \DateTimeZone('UTC'))
+                ->format('Y-m-d H:i:s');
+
+            $snapshot = json_decode(
+                (string) $existing[0]['RULE_SNAPSHOT_JSON'],
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+            if (!is_array($snapshot)) {
+                throw SifException::conflict(
+                    'Novice validation request snapshot is unreadable.'
+                );
+            }
+            $snapshot['legacy_decision_status'] = (int) $legacy[0]['VALIDAT'];
+            $snapshot['secretary_manual_review'] = true;
+            $snapshot['secretary_decision_source']
+                = 'secretary_action_legacy_recent_titulat';
+            $snapshot['documentary_evidence_checked'] = $approved;
+            $snapshot['decision_projected_at_utc'] = $timestamp;
+
+            $decision = $sifDb->prepare(
+                'UPDATE discount_validation
+                 SET STATUS = ?, RULE_SNAPSHOT_JSON = ?,
+                     VALIDATED_AT = ?, VALIDATED_BY = ?,
+                     REJECTION_REASON = ?
+                 WHERE UUID_VALIDATION = ? AND STATUS = ?'
+            );
+            $decision->execute([
+                $status,
+                json_encode(
+                    $snapshot,
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
+                ),
+                $approved ? $timestamp : null,
+                $secretaryActor,
+                $approved ? null : 'SECRETARY_DENIED',
+                $uuidValidation,
+                'PENDING',
+            ]);
+            if ($decision->rowCount() !== 1) {
+                throw SifException::conflict(
+                    'Novice validation changed during secretary decision.'
+                );
+            }
 
             $updated = $sifDb->prepare(
                 "UPDATE commercial_operation
