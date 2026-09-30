@@ -24,7 +24,7 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
     return;
 }
 
-require_once $root . '/LegacyInvoiceReadContext.php';
+require_once $root . '/LegacyUsocContext.php';
 require_once $root . '/LegacyInvoiceMutationAuthorization.php';
 require_once $root . '/SifAuthenticatedActor.php';
 require_once $root . '/SifInternalUsocClient.php';
@@ -33,7 +33,7 @@ $usuariObject = null;
 $intranetObject = null;
 
 try {
-    [$usuariObject, $intranetObject] = LegacyInvoiceReadContext::open();
+    [$usuariObject, $intranetObject] = LegacyUsocContext::open();
     LegacyInvoiceMutationAuthorization::assertSameOrigin();
     [$actorId, $roles] = SifAuthenticatedActor::fromUser($usuariObject);
 
@@ -104,7 +104,7 @@ try {
         'error' => $status >= 500 ? 'USOC operation failed' : $exception->getMessage(),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } finally {
-    LegacyInvoiceReadContext::persist($usuariObject, $intranetObject);
+    LegacyUsocContext::persist($usuariObject, $intranetObject);
 }
 
 function positiveInt(mixed $value, string $message): int
