@@ -108,7 +108,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[JS enviarInscripcioAfiliat] --> B[Generar IDPAG per últim valor + 1]
+    A[JS enviarInscripcioAfiliat] --> B[Reservar IDPAG amb allocator compartit + named lock]
     B --> C[INSERT inscripció]
     C --> D[TIPUS_DESC=4]
     D --> E[VALID_DESC pendent]
@@ -333,7 +333,7 @@ flowchart TD
 ## 15. Pendents de codi derivats dels diagrames
 
 1. Afegir traça persistent SIF/correlació de la decisió de validació legacy; POST + CSRF + permisos ja implementats.
-2. Generació concurrent-safe d'identificador comercial/IDPAG llegat.
+2. Mantenir el test de regressió de l'allocator IDPAG compartit; implementació actual protegida amb named lock.
 3. Adaptador/pantalla d'emissió entitat.
 4. Connectar la interfície/API final amb `UsocEntityPaymentService`.
 5. Executar i conservar evidència de la suite sobre `sif_test*`.
