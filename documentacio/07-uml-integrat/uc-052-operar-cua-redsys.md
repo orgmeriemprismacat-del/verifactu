@@ -101,6 +101,29 @@ Main ..> End : <<include>> (si hi ha job)
 @enduml
 ```
 
+### Vista de casos d’ús per a GitHub (Mermaid)
+
+```mermaid
+flowchart LR
+  actor_0["Worker SIF"]
+  actor_1["Responsable tècnica"]
+  subgraph SIF_BOX["Cua Redsys · SIF"]
+    uc_0(["UC-52<br/>Operar cua Redsys"])
+    uc_1(["Recuperar locks caducats"])
+    uc_2(["Reclamar un job únic"])
+    uc_3(["Processar snapshot congelat"])
+    uc_4(["Marcar processat, retry o incidència"])
+    uc_5(["UC-08<br/>Gestionar incidència"])
+  end
+  actor_0 --> uc_0
+  actor_1 --> uc_5
+  uc_0 -.->|include| uc_1
+  uc_0 -.->|include| uc_2
+  uc_0 -.->|include| uc_3
+  uc_0 -.->|include| uc_4
+```
+
+
 ## 3. UML de classes del camí implementat
 
 ```mermaid
