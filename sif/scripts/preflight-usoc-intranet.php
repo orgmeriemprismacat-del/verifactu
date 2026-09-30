@@ -58,6 +58,7 @@ echo json_encode([
         'SIF_INTERNAL_USOC_SIGNED_PATH',
         'SIF_INTERNAL_API_KEY_ID',
         'SIF_INTERNAL_API_SECRET',
+        'SIF_USOC_MENU_ROLES',
     ],
     'required_sif_env' => [
         'SIF_USOC_READ_ROLES',
