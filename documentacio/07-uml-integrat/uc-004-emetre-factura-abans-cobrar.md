@@ -1,7 +1,7 @@
 # UC-04 · Emetre una factura abans de cobrar — fitxa i UML integrats
 
 **Estat documental:** primera fitxa revisada per cas concret; no certifica el desplegament.
-**Estat tècnic:** nucli de servei al repositori `main`; integració final de pantalla, autorització servidor i preproducció pendents segons la documentació existent.
+**Estat tècnic (revisió 2026-09-29):** nucli SIF d'emissió implementat; la branca incorpora relacions `INSCRIPCIO/ORIGIN`, claim concurrent UC-004, reconstrucció autoritativa d'inscripcions per ID, receptor per `entityId`, línies/total des de `A_PAGAR`, preview amb fingerprint i confirmació CLI amb nova lectura. Continuen pendents la integració HTTP de la pantalla, autorització/CSRF, classificador de cobertura transversal, document/auditoria i execució de proves/preproducció.
 **Relacions:** UC-01 (emissió comuna), UC-02 (cobrament posterior), UC-21 (empresa/responsable com a receptor/pagador), UC-22 (transferència, quan correspongui).
 **Abast d'aquesta fitxa:** crear una factura fiscal sense registrar simultàniament un cobrament. El pagament posterior és un *altre* cas d'ús; es mostra únicament com a seqüència vinculada.
 
@@ -24,7 +24,8 @@
 2. Si la petició no porta `idempotency_key` no buida, el constructor requereix una referència i genera una clau `INTRANET|FACTURA_ABANS_COBRAR|REF:<referència_normalitzada>`. Els noms acceptats per al camp de referència inclouen `reference`, `referencia`, `invoice_ref`, `external_ref` i `factura_relacionada`.
 3. El constructor força `source_channel = INTRANET` i `emesa_abans_cobrament = 1`; conserva `created_by` quan consta i, si no, posa el valor per defecte `intranet-factura-abans-cobrar`.
 4. El validador comú d'emissió requereix `idempotency_key`, `series`, `type`, `source_channel`, `billing`, `totals` i `lines`. Requereix `billing.name`, `billing.nif`, els imports `totals.import_base`, `totals.taxable_base`, `totals.total` i almenys una línia amb `concept`, `quantity`, `unit_price`, `base`, `total`. Aquestes són validacions **observades al codi**, no una afirmació que ja cobreixin tots els requisits fiscals finals.
-5. Els criteris per determinar el receptor fiscal, la composició de línies, els permisos concrets de cada pantalla i totes les dades fiscals addicionals són objecte del disseny funcional i encara necessiten contrast específic per a aquest cas.
+5. Per UC-004, el builder exigeix almenys una relació d'origen, normalitza `source_type=INSCRIPCIO`, `relation_type=ORIGIN`, exigeix `source_id` enter positiu i rebutja IDs repetits dins de la mateixa petició.
+6. El receptor fiscal, la selecció, el total i les línies bàsiques ja es reconstrueixen al servidor en la branca mitjançant repositoris llegats + assembler; els permisos de pantalla, la fiscalitat/comercialitat transversal i els efectes post-COMMIT encara necessiten integració/contrast.
 
 ### 1.2. Flux principal: UC-04
 
@@ -52,7 +53,7 @@
 
 ### 1.4. Dades persistides i resultat
 
-La implementació d'emissió crea registres a `factura`, `factura_linia`, `factura_registres`, `fiscal_chain_state`, `fiscal_queue` i, quan s'han proporcionat les relacions, `fact_rels`. La factura es crea amb `EMESA_ABANS_COBRAMENT = 1`, `ESTAT_COBRAMENT = PENDING` i `ESTAT_FACTURA = ISSUED`. L'emissió no crea `payment_transaction` ni `payment_allocation` inicials. La cua fiscal **no** és prova d'acceptació per l'AEAT: la remissió i el seu resultat són processos separats.
+La implementació d'emissió crea registres a `factura`, `factura_linia`, `factura_registres`, `fiscal_chain_state`, `fiscal_queue` i `fact_rels`. En aquesta branca, UC-004 exigeix relacions `INSCRIPCIO/ORIGIN`; la migració `2026_09_29_000009_guard_uc004_inscription_coverage.sql` crea `invoice_before_payment_coverage`, i `InvoiceBeforePaymentCoverageRepository` reclama els orígens dins de la mateixa transacció. La UNIQUE `uq_invoice_before_payment_source` impedeix dues **operacions UC-004** diferents sobre la mateixa inscripció sense imposar aquesta regla globalment a altres fluxos. La factura es crea amb `EMESA_ABANS_COBRAMENT = 1`, `ESTAT_COBRAMENT = PENDING` i `ESTAT_FACTURA = ISSUED`. L'emissió no crea `payment_transaction` ni `payment_allocation` inicials. La cua fiscal **no** és prova d'acceptació per l'AEAT: la remissió i el seu resultat són processos separats.
 
 ### 1.5. Accions posteriors relacionades, però independents
 
@@ -62,9 +63,9 @@ La implementació d'emissió crea registres a `factura`, `factura_linia`, `factu
 
 ### 1.6. Proves i punts pendents
 
-**Proves localitzades al repositori (no executades en aquesta revisió):** `InvoiceBeforePaymentServiceTest::testIssuesInvoiceBeforePaymentWithoutCreatingPayment`, `testBuilderDerivesIdempotencyAndForcesInvoiceBeforePaymentFlags` i `testRejectsPaymentBlockBeforeIssuingInvoice`. També hi ha proves de flux i de scripts en `sif/tests/Integration/`.
+**Proves localitzades al repositori (no executades en aquesta revisió):** `InvoiceBeforePaymentServiceTest` cobreix emissió sense cobrament, flags, rebuig de `payment` i, en aquesta branca, absència de relacions, origen no `INSCRIPCIO`, IDs repetits i conflicte 409 quan una altra clau intenta cobrir la mateixa inscripció. `InvoiceBeforePaymentFlowTest` cobreix el cobrament posterior sense segon registre fiscal; també hi ha proves de preview, preflight, processador de preproducció i idempotència en `sif/tests/Integration/`.
 
-**Pendent de demostrar per tancar funcionalment UC-04:** pantalla i accés real de l'operador; autorització al servidor; origen i fotografia de dades del receptor i de les línies; previsualització/confirmació i avís a l'operador; registre transversal d'auditoria quan correspongui; tractament d'errors en el canal; prova d'integració intranet → SIF → cobrament posterior; validació de les dades fiscals definitives.
+**Pendent de demostrar per tancar funcionalment UC-04:** pantalla i accés real de l'operador; autorització/CSRF al servidor; connexió de la UI a la preparació autoritativa ja implementada; classificador de cobertura transversal; document/auditoria; tractament d'errors en el canal; prova intranet → SIF → cobrament posterior i validació fiscal definitiva.
 
 ### 1.7. Revisió: factura pendent ≠ diners atribuïts — PENDENT
 
@@ -76,9 +77,9 @@ En emetre UC-04, **no** es crea cap entrada de fons per inscripció: la factura 
 
 **Circuit antic concret.** `/alumnes/genera-factura-abans-pagar/` cerca per NIF/NIE mitjançant `mostrarInformacioInscripcio_generaFactura.php`, afegeix files d'inscripció amb `.add-inscripcio` i permet avançar només si el JS considera que les files seleccionades són del **mateix curs i edició**. Calcula `idsInsc`, `preuTotal` a partir de `#apagar-{id}` de l'HTML, `concepte1` i `concepte2`, aquest últim amb la crida asíncrona `calcularTextData.php`. El tercer pas envia `entitatMarcada`, concepte i preu a `generaFacturaElectronica_Factures.php` i després mostra dades/participants i previsualització. El mètode històric `generarFacturaElectronica_Alumnes` **emet una factura abans de pagar**, encara que el seu nom suggereixi `E_FACT`.
 
-**Validacions d'integració pendents.** El JS pot acumular identificadors a `idsInsc` si es torna enrere; `entitatMarcada` és text visible i no una clau d'entitat amb dades fiscals congelades; el total procedeix del DOM; la unicitat de curs/edició i `tePermisEdicio` es comproven al navegador. El nou adaptador ha de reconstruir **al servidor** els ID seleccionats sense repeticions, verificar curs/edició i cobertura fiscal per cadascun, carregar per ID intern el receptor fiscal i recalcular les línies/total amb descomptes vigents de l'oferta confirmada. Ha d'esperar que `concepte2` estigui resolt abans de presentar la previsualització; no acceptar una ordre fiscal a partir d'un `preuTotal` manipulable del navegador.
+**Validacions d'integració.** El JS llegat continua podent acumular `idsInsc`, enviar `entitatMarcada` textual i calcular `preuTotal`/conceptes al navegador. En la branca, el camí nou ja rellegeix **al servidor** IDs sense repeticions, comprova mateix curs/edició, resol receptor per `entityId`, genera conceptes deterministes, suma `A_PAGAR` i calcula fingerprint. El que falta és substituir el POST llegat perquè la UI consumeixi aquest contracte, afegir autorització/CSRF i completar la classificació transversal de descomptes/fiscalitat.
 
-**Factura prèvia i reintent no equivalent.** `InvoiceBeforePaymentPayloadBuilder` sí que rebutja `payment` inicial i força `EMESA_ABANS_COBRAMENT=1`; però una clau basada en una referència de formulari **no prova** que cap `ID_INSC` estigui ja facturat amb una altra clau. Abans d'invocar `issueInvoice()`, cercar factura real existent per inscripció i `fact_rels`, distingir la mateixa operació d'una selecció/receptor/import canviats i bloquejar/derivar un conflicte a revisió. Un reintent equivalent recupera **el mateix UUID i número**, i no reobre numeració fiscal; una petició amb la mateixa clau però contingut fiscal diferent ha de donar conflicte, no afirmar equivalència només perquè retorna `idempotency_reused`.
+**Factura prèvia i reintent no equivalent.** `InvoiceBeforePaymentPayloadBuilder` rebutja `payment` inicial, força `EMESA_ABANS_COBRAMENT=1` i ara exigeix orígens `INSCRIPCIO/ORIGIN` únics dins la petició. La migració específica d'aquesta branca imposa una unicitat de cobertura **d'UC-004** a `invoice_before_payment_coverage`: una segona clau UC-004 sobre el mateix origen provoca conflicte 409. Un reintent equivalent recupera **el mateix UUID i número** i no reobre numeració fiscal; una petició amb la mateixa clau però contingut fiscal diferent també dona conflicte. Com que la taula és nova i específica d'UC-004, no reescriu `fact_rels` ni bloqueja automàticament variants legítimes d'altres canals. La cobertura transversal continua sent una decisió/classificació de negoci separada.
 
 **URL, consulta i document.** Si s'emet a empresa/responsable, conservar relació exacta amb les inscripcions cobertes i desactivar al servidor els enllaços individuals incompatibles, sense impedir que un pagament Redsys iniciat abans sigui reconciliat (UC-33/50/51). La factura es mostra com a **emesa i pendent de cobrament**, amb `E_FACT` separat i amb PDF/QR `READY` o `PENDING`; el llegat regenera el PDF via `descarregaFactura.php` i elimina un fitxer temporal amb `eliminarArxiu.php`, que **no constitueixen custòdia immutable** (UC-36). Si cau el job documental o AEAT després de confirmar la factura, reprendre aquesta fase amb el UUID existent, no generar un document fiscal nou per error.
 
@@ -97,7 +98,7 @@ En emetre UC-04, **no** es crea cap entrada de fons per inscripció: la factura 
 
 ### Actualització de reús d'emissió a main: la factura prèvia no admet afegir payment a la mateixa petició fiscal
 
-InvoiceService de main desa IDEMPOTENCY_PAYLOAD_HASH de la **petició completa** d'emissió i l'exigeix en reús; mateixa clau amb dades fiscals modificades o amb bloc payment afegit després → CONFLICT per assertMatches(). Una factura històrica sense fingerprint complet original no es reutilitza a cegues. El reintent equivalent de la factura **sense payment** sí recupera el mateix UUID/NUM_VISIBLE, si hi ha hash verificable. Aquest guard per K no acredita que no existeixi **una altra** factura que cobreixi la inscripció amb una clau distinta: el control entre claus de fact_rels/ID_INSC/receptor continua pendent.
+InvoiceService desa IDEMPOTENCY_PAYLOAD_HASH de la **petició completa** d'emissió i l'exigeix en reús; mateixa clau amb dades fiscals modificades o amb bloc payment afegit després → CONFLICT per assertMatches(). Una factura històrica sense fingerprint complet original no es reutilitza a cegues. El reintent equivalent de la factura **sense payment** sí recupera el mateix UUID/NUM_VISIBLE, si hi ha hash verificable. En aquesta branca, el control entre claus **UC-004** per `ID_INSC` queda reforçat amb `invoice_before_payment_coverage` i `uq_invoice_before_payment_source`; receptor/import/origen ja es reconstrueixen des de dades autoritatives en el flux CLI. Continua pendent la cobertura transversal d'altres canals i portar aquest preparador a la pantalla autenticada.
 
 L'ingrés posterior de la factura prèvia es registra exclusivament per UC-02 amb clau de **fet bancari real** i la factura original com a destí; el hash de la petició fiscal no prova CHARGE ni assignació. [UC-01, seccions 1.6 i 4.1](uc-001-emetre-o-reutilitzar-factura.md) i [UC-02](uc-002-registrar-cobrament-factura.md). Prova definida a main: PayloadIdempotencyFlowTest::testRetryCannotAddAnInitialPaymentToAnAlreadyIssuedInvoice (no executada en aquesta revisió).
 
@@ -241,7 +242,7 @@ else Entrada preparada
 end
 ```
 
-**Ordre transaccional verificat:** `TransactionRunner::run()` retorna el resultat del callback únicament després de confirmar `COMMIT`; si hi ha una excepció, executa `ROLLBACK` quan la transacció continua activa i propaga l'error. El diagrama representa la via d'èxit; la col·lisió SQL d'idempotència (`23000`) es recupera a `InvoiceService` mitjançant una **segona transacció** i rellegint la factura existent. No s'ha de comunicar èxit a l'operador abans d'aquesta confirmació. Aquest control transaccional no substitueix el guard pendent d'equivalència fiscal del payload.
+**Ordre transaccional verificat:** `TransactionRunner::run()` retorna el resultat del callback únicament després de confirmar `COMMIT`; si hi ha una excepció, executa `ROLLBACK` quan la transacció continua activa i propaga l'error. El diagrama representa la via d'èxit; la col·lisió SQL d'idempotència (`23000`) es recupera a `InvoiceService` mitjançant una **segona transacció** i rellegint la factura existent. No s'ha de comunicar èxit a l'operador abans d'aquesta confirmació. Aquest control transaccional es combina amb el hash d'equivalència del payload. En aquesta branca també hi ha claim de cobertura entre claus **d'UC-004** i preparació autoritativa de receptor, selecció i imports amb fingerprint; encara falten la cobertura transversal entre canals i l'adaptador HTTP autenticat de la intranet.
 
 **Precisió tècnica:** aquest diagrama combina el flux implementat de servei amb l'adaptador intranet *objectiu* identificat com a pendent. L'endpoint actual `sif/public/api/factures/issue.php` instancia `InvoiceService` directament; no s'ha de presentar com una crida ja demostrada a `InvoiceBeforePaymentService`.
 
@@ -292,5 +293,19 @@ Note over PS,DB: No s'emet una altra factura en aquesta seqüència
 - [FiscalSequenceRepository.php](../../sif/src/Repository/FiscalSequenceRepository.php).
 - [PaymentService.php](../../sif/src/Service/PaymentService.php).
 - [InvoiceBeforePaymentServiceTest.php](../../sif/tests/Integration/InvoiceBeforePaymentServiceTest.php).
+- [Migració guard cobertura UC-004](../../sif/database/migrations/2026_09_29_000009_guard_uc004_inscription_coverage.sql).
+- [InvoiceBeforePaymentCoverageRepository.php](../../sif/src/Repository/InvoiceBeforePaymentCoverageRepository.php).
+- [InvoiceBeforePaymentSelectionRepository.php](../../sif/src/Repository/InvoiceBeforePaymentSelectionRepository.php).
+- [InvoiceBeforePaymentBillingPartyRepository.php](../../sif/src/Repository/InvoiceBeforePaymentBillingPartyRepository.php).
+- [InvoiceBeforePaymentServerPayloadAssembler.php](../../sif/src/Service/InvoiceBeforePaymentServerPayloadAssembler.php).
+- [InvoiceBeforePaymentLegacyPreparationService.php](../../sif/src/Service/InvoiceBeforePaymentLegacyPreparationService.php).
+- [Preview des de legacy](../../sif/scripts/preview-invoice-before-payment-from-legacy.php).
+- [Confirmació des de legacy](../../sif/scripts/process-invoice-before-payment-from-legacy.php).
+- [Cas d'ús ACTUAL/FINAL](uc-004-cas-us-actual-final.md).
+- [Classes ACTUAL/FINAL](uc-004-classes-actual-final.md).
+- [Seqüències ACTUAL/FINAL](uc-004-sequencies-actual-final.md).
+- [Activitats ACTUAL/FINAL](uc-004-activitats-actual-final.md).
+- [Auditoria i mancances](uc-004-auditoria-tracabilitat-mancances.md).
+- [Inventari d'artefactes](uc-004-inventari-artefactes.md).
 
 **Criteri de revisió:** «classe executable», «flux documental previst» i «integració acreditada» són afirmacions diferents. Aquesta fitxa acredita l'existència de codi i de proves al repositori; **no afirma haver executat les proves ni haver verificat el desplegament**.
