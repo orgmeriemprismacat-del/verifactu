@@ -12,6 +12,8 @@ final class InvoiceQueryCriteriaValidator
         'billing_nif',
         'billing_email',
         'factura_relacionada',
+        'source_type',
+        'source_ids',
         'source_ids',
         'source_type',
     ];
@@ -46,6 +48,37 @@ final class InvoiceQueryCriteriaValidator
                 throw SifException::validation('Invalid billing email');
             }
             $clean['billing_email'] = strtolower($value);
+        }
+
+        if (($value = $this->stringValue($criteria, 'source_type', 30)) !== null) {
+            $value = strtoupper($value);
+            if (preg_match('/^[A-Z0-9_]+$/D', $value) !== 1) {
+                throw SifException::validation('Invalid source type');
+            }
+            $clean['source_type'] = $value;
+        }
+
+        if (array_key_exists('source_ids', $criteria)) {
+            if (!is_array($criteria['source_ids'])) {
+                throw SifException::validation('Invalid source ids');
+            }
+
+            $sourceIds = [];
+            foreach ($criteria['source_ids'] as $sourceId) {
+                $value = (string) $sourceId;
+                if (!ctype_digit($value) || (int) $value <= 0) {
+                    throw SifException::validation('Invalid source id');
+                }
+                $sourceIds[(int) $value] = true;
+            }
+
+            if (count($sourceIds) > 200) {
+                throw SifException::validation('Too many source ids');
+            }
+
+            if ($sourceIds !== []) {
+                $clean['source_ids'] = array_keys($sourceIds);
+            }
         }
 
         if (array_key_exists('factura_relacionada', $criteria)
