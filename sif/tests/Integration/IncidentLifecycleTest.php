@@ -447,6 +447,50 @@ final class IncidentLifecycleTest
         Assert::same(3, (int) $db->query('SELECT COUNT(*) FROM sif_incident_action')->fetchColumn());
     }
 
+    public function testListFiltersByStatusSeverityTypeAndAssignee(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $actor = $this->manager();
+
+        $first = $service->open($actor, [
+            'type' => 'FILTER_ALPHA',
+            'message' => 'First filter incident',
+            'severity' => 'HIGH',
+            'reason_code' => 'TEST_OPEN',
+            'idempotency_key' => 'TEST|UC08|FILTER|A',
+        ]);
+        $second = $service->open($actor, [
+            'type' => 'FILTER_BETA',
+            'message' => 'Second filter incident',
+            'severity' => 'MEDIUM',
+            'reason_code' => 'TEST_OPEN',
+            'idempotency_key' => 'TEST|UC08|FILTER|B',
+        ]);
+
+        $service->assign($actor, $first['incident_id'], [
+            'assignee_id' => 'operator-2',
+            'reason_code' => 'TRIAGE',
+            'idempotency_key' => 'TEST|UC08|FILTER|ASSIGN-A',
+        ]);
+        $service->assign($actor, $second['incident_id'], [
+            'assignee_id' => 'operator-3',
+            'reason_code' => 'TRIAGE',
+            'idempotency_key' => 'TEST|UC08|FILTER|ASSIGN-B',
+        ]);
+
+        $filtered = $service->list($actor, [
+            'status' => 'IN_PROGRESS',
+            'severity' => 'HIGH',
+            'type' => 'FILTER_ALPHA',
+            'assignee_id' => 'operator-2',
+        ]);
+
+        Assert::same(1, $filtered['count']);
+        Assert::same($first['incident_id'], (int) $filtered['incidents'][0]['ID']);
+        Assert::same('operator-2', $filtered['incidents'][0]['ASSIGNED_TO']);
+    }
+
     public function testSummaryReturnsExactOpenAndCriticalCounts(): void
     {
         $db = TestDatabase::fresh();
