@@ -288,7 +288,7 @@ Això tanca la validació estàtica/CI del preflight. Encara cal executar-lo amb
 
 ## Revalidació documental 02/10/2026
 
-**Main inspeccionat:** `22d47a2949e03fe4a170f831f6d7f8724f7cd40c`.
+**Main inspeccionat:** `434be933eccfd0b8805bc532a39760d7ec426a00`.
 
 Els components UC-013 documentats continuen presents al main actual per inspecció estàtica. GitHub no retorna cap workflow associat directament a aquest SHA, de manera que aquest document manté les execucions positives anteriors com a **evidència versionada dels commits UC-013 corresponents**, però no afirma una nova suite completa executada sobre el main del 02/10.
 
