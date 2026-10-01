@@ -1,6 +1,6 @@
 # Importador Trello — utilitat heretada
 
-**Revisió: 2026-09-24.** El nou mapa de taulers i el protocol de control és [el registre vigent](../trello/README.md). Aquest script és una utilitat històrica, **no** és la font de veritat de les targetes ni s'ha validat per als 12 taulers actuals. Els seus àlies només cobreixen parcialment l'estructura existent. No executar importacions massives sense revisar el codi, la correspondència exacta amb els ID dels taulers, la deduplicació entre taulers i fer una prova en sec.
+**Revisió històrica: 2026-09-24.** No forma part del flux normal de gestió actual. El nou mapa de taulers i el protocol de control és [el registre vigent](../trello/README.md). Aquest script és una utilitat històrica, **no** és la font de veritat de les targetes ni s'ha validat per als 12 taulers actuals. Els seus àlies només cobreixen parcialment l'estructura existent. No executar importacions massives sense revisar el codi, la correspondència exacta amb els ID dels taulers, la deduplicació entre taulers i fer una prova en sec.
 
 ## Credencials
 

@@ -1,41 +1,45 @@
 # Generador de fitxes funcionals
 
-MVP local per preparar i validar fitxes funcionals auditables. La síntesi semàntica la fa l'assistent seguint `INSTRUCTIONS.md`; els scripts PHP congelen les fonts i comproven mecànicament l'estructura, les cites i els estats.
+Eina local per preparar i validar fitxes funcionals auditables. La síntesi funcional s'ha de basar en fonts autoritzades; els scripts congelen fonts i comproven mecànicament estructura, cites i estats.
 
 ## Abast i autoritat
 
-- El generador és transversal i no substitueix les responsabilitats dels xats definides a `00-control/mapa-xats.md`.
-- Xat 3 continua sent el responsable de validar les decisions funcionals i fiscals.
-- El codi històric és evidència del comportament anterior, no autoritat sobre el disseny objectiu.
-- La sortida és sempre una previsualització. No modifica automàticament `documentacio/`, Trello ni cap font canònica.
-- Si el cas ja figura a `documentacio/04-estat-final/33-casos-us-sif.md`, la fitxa proposa completar-lo i no crea una especificació canònica paral·lela.
+- És una eina de suport; **no és la font canònica dels requisits**.
+- El codi històric és evidència del comportament anterior, no autoritat del disseny objectiu.
+- La sortida és una previsualització i no modifica automàticament `documentacio/`, Trello ni cap font canònica.
+- Si el cas ja existeix al catàleg, l'eina ajuda a completar-lo; no crea una especificació paral·lela.
+- Cap afirmació s'ha de considerar confirmada només perquè el validador estructural passi.
 
 ## Peces
 
-- `input.schema.json`: contracte de les dades aportades per cas.
-- `fixtures/canvi-curs.json`: entrada pilot d'UC-26.
-- `sources.php`: llista explícita de fonts permeses i el seu nivell de validació.
-- `output-template.md`: estructura exacta de 21 seccions.
+- `input.schema.json`: contracte de dades d'entrada.
+- `fixtures/`: entrades de prova.
+- `sources.php`: fonts permeses i nivell de validació.
+- `output-template.md`: estructura de la fitxa.
 - `INSTRUCTIONS.md`: regles de síntesi i classificació.
-- `prepare-functional-card.php`: genera el manifest amb fragments, línies, estat Git i SHA-256.
-- `validate-functional-card.php`: valida la fitxa contra el manifest congelat.
+- `prepare-functional-card.php`: manifest de fonts, línies, estat Git i SHA-256.
+- `validate-functional-card.php`: validació de la fitxa contra el manifest.
 
 ## Ús
 
-Des de l'arrel de `projecte-verifactu-pont`:
+Des de l'arrel del repositori:
 
 ```powershell
 php sif/scripts/prepare-functional-card.php --input=sif/tools/functional-card/fixtures/canvi-curs.json --output=$env:TEMP/canvi-curs.manifest.json
-```
-
-Amb el manifest, l'assistent emplena una còpia temporal de `output-template.md` aplicant `INSTRUCTIONS.md`. La previsualització s'ha de guardar fora de `documentacio/` i validar així:
-
-```powershell
 php sif/scripts/validate-functional-card.php --card=$env:TEMP/fitxa-canvi-curs.md --manifest=$env:TEMP/canvi-curs.manifest.json
 ```
 
-Els scripts retornen codi `0` quan acaben correctament. El validador retorna codi `1` quan detecta errors. El preparador rebutja sobreescriptures i no permet escriure la previsualització dins `documentacio/`.
+El preparador rebutja sobreescriptures i no ha d'escriure la previsualització dins `documentacio/`.
 
-## Límit de l'MVP
+## Límit
 
-No hi ha API de model, base vectorial ni interfície web. Afegir un cas nou requereix una entrada JSON i, quan calgui, una entrada explícita a `sources.php`. Cap afirmació pot ser `CONFIRMAT` si la seva font no consta com a `AUTORITZADA`, existeix i manté el hash del manifest.
+L'eina valida estructura i traçabilitat de fonts; no substitueix:
+
+- revisió del codi real;
+- decisions funcionals/fiscals;
+- verificació de BD;
+- UML ACTUAL/FINAL;
+- proves executables;
+- evidència de CI/preproducció.
+
+El criteri de completitud continua sent el del projecte i del UC, no el retorn `0` del validador.

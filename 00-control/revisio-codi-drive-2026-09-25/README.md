@@ -1,5 +1,7 @@
 # Índex de fonts de codi-drive — 25/09/2026
 
+> **Tall d'auditoria del 25/09/2026.** Es conserva com a evidència del codi revisat aquell dia. Per a l'estat actual, cal revalidar contra `main`, `codi-drive/README.md`, els UC i les proves posteriors.
+
 Tall local: `1001d37cbc84d0241b57f58a1153c5c59567237e`. Inventari de **5837 fitxers**, amb **2252 fonts de codi/configuració textual inspeccionades automàticament** i 1998 continguts font diferents per SHA-256.
 
 L’inventari cobreix les set aplicacions. La lectura semàntica dirigida es documenta a l’informe; no s’ha llegit manualment cada línia, executat les aplicacions ni acreditat el desplegament. Biblioteques i còpies es classifiquen per indicis de nom/capçalera, no per activitat efectiva.
