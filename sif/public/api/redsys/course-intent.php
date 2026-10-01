@@ -3,13 +3,19 @@
 require dirname(__DIR__, 3) . '/src/autoload.php';
 
 use Prisma\Sif\Database\ConnectionFactory;
+use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\CommercialOperationPartyRepository;
+use Prisma\Sif\Repository\CommercialOperationRepository;
+use Prisma\Sif\Repository\DiscountValidationRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
+use Prisma\Sif\Service\CommercialOfferService;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\LegacyPrismaStudentPriceSnapshotResolver;
 use Prisma\Sif\Service\PrismaStudentCourseCheckoutService;
@@ -61,10 +67,20 @@ try {
         throw SifException::validation('Invalid JSON');
     }
 
-    $intentService = new RedsysPaymentIntentService(
-        new RedsysPaymentIntentRepository(),
-        new UuidGenerator()
+    $uuid = new UuidGenerator();
+    $transactions = new TransactionRunner($sifDb);
+    $operations = new CommercialOperationRepository();
+    $intentRepository = new RedsysPaymentIntentRepository();
+    $intentService = new RedsysPaymentIntentService($intentRepository, $uuid);
+    $offers = new CommercialOfferService(
+        $transactions,
+        $operations,
+        new DiscountValidationRepository(),
+        new OperationalEventRepository($uuid),
+        $uuid,
+        new CommercialOperationPartyRepository()
     );
+
     $service = new RedsysCoursePaymentIntentService(
         new LegacyCourseSnapshotRepository(),
         $intentService,
@@ -72,8 +88,11 @@ try {
         new PrismaStudentCourseCheckoutService(
             new LegacyPrismaStudentHistoryRepository(),
             new PrismaStudentDiscountPolicy(),
+            $offers,
+            $operations,
+            $intentRepository,
             $intentService,
-            new UuidGenerator()
+            $transactions
         ),
         new LegacyPrismaStudentPriceSnapshotResolver()
     );
