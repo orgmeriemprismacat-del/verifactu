@@ -15,6 +15,8 @@
 - NUM_VISIBLE:
 - UUID_PAYMENT:
 - UUID_JOB:
+- UUID_NOTIFICATION:
+- NOTIFICATION_STATUS:
 - SIF_REDSYS_COURSE_CUTOVER_ENABLED: 0 / 1
 - SIF_REDSYS_CALLBACK_URL configurada: SÍ / NO (no copiar secrets ni query sensible)
 
@@ -78,7 +80,8 @@ Comprovar i anotar:
 - `factura`: UUID i NUM_VISIBLE;
 - `payment_transaction`: UUID, import, DS_ORDER, IDPAG;
 - `payment_allocation`: assignació;
-- `fiscal_queue`: registre pendent/enviat segons l'entorn.
+- `fiscal_queue`: registre pendent/enviat segons l'entorn;
+- `notification_outbox`: una fila `COURSE_PAYMENT_CONFIRMED` per `DS_ORDER`, amb UUID i estat; verificar que `PAYLOAD_JSON` no conté email, DNI, nom ni adreça.
 
 ## 6. Estat BD llegada
 
@@ -101,6 +104,7 @@ Comprovar:
 - resultat:
 - factura continua sent única:
 - cobrament continua sent únic:
+- notificació outbox continua sent única:
 - job duplicat/no duplicat:
 
 ### Pagament parcial
@@ -145,6 +149,9 @@ Adjuntar només evidència sense secrets:
 - [ ] parcial/complet validat
 - [ ] reintent validat
 - [ ] sync llegada idempotent
+- [ ] outbox CURS creada/reutilitzada idempotentment
+- [ ] `PAYLOAD_JSON` de notificació sense PII directa
+- [ ] estat del lliurament UC-58 documentat (no marcar enviat si només és `PENDING`)
 - [ ] cap secret a evidències
 - [ ] MerchantURL preparada per apuntar al callback SIF
 - [ ] retirada d'autoritat fiscal llegada planificada

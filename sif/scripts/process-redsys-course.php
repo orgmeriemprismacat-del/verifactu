@@ -7,13 +7,16 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
+use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
+use Prisma\Sif\Service\CoursePaymentNotificationService;
 use Prisma\Sif\Service\DiscountSnapshotFileReader;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
@@ -62,6 +65,7 @@ try {
     $legacyDb = ConnectionFactory::makeLegacy($config);
     $discountSnapshot = (new DiscountSnapshotFileReader())->read($discountFile);
     $notifications = new RedsysNotificationRepository();
+    $legacySnapshots = new LegacyCourseSnapshotRepository();
     $invoiceService = new InvoiceService(
         new TransactionRunner($sifDb),
         new InvoicePayloadValidator(),
@@ -72,7 +76,7 @@ try {
     );
     $service = new RedsysCourseInvoiceService(
         $notifications,
-        new LegacyCourseSnapshotRepository(),
+        $legacySnapshots,
         new LegacyCourseInvoicePayloadBuilder(),
         new RedsysInvoicePayloadBuilder($notifications),
         $invoiceService
@@ -112,6 +116,23 @@ try {
             $idInsc,
             (string) $result['uuid_factura'],
             (string) $result['num_visible']
+        );
+
+        $amount = is_array($notification) && is_numeric($notification['IMPORT'] ?? null)
+            ? number_format((float) $notification['IMPORT'], 2, '.', '')
+            : '';
+        if ($amount === '') {
+            throw SifException::conflict('Could not resolve course amount for notification outbox');
+        }
+        $notificationSnapshot = $legacySnapshots->loadByIdpag($legacyDb, $idpag, $amount);
+        $result['notification_outbox'] = (new CoursePaymentNotificationService(
+            new NotificationOutboxRepository(new UuidGenerator())
+        ))->enqueue(
+            $sifDb,
+            $dsOrder,
+            $notificationSnapshot,
+            $result,
+            $result['legacy_payment_sync']
         );
         $result['legacy_sync_executed'] = true;
     } else {

@@ -22,6 +22,7 @@ use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
+use Prisma\Sif\Service\CoursePaymentNotificationService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
@@ -131,7 +132,10 @@ try {
         $dispatcher,
         $legacyDb,
         new LegacySyncService(new LegacySyncRepository()),
-        new CourseLegacyPaymentSyncService()
+        new CourseLegacyPaymentSyncService(),
+        new CoursePaymentNotificationService(
+            new NotificationOutboxRepository(new UuidGenerator())
+        )
     );
     $worker = new RedsysCallbackWorker(
         new RedsysCallbackQueueRepository(new UuidGenerator()),

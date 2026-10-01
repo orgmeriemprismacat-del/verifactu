@@ -10,7 +10,8 @@ final class RedsysLegacySyncingProcessor implements RedsysJobProcessor
         private RedsysJobProcessor $inner,
         private \PDO $legacyDb,
         private LegacySyncService $legacySync,
-        private ?CourseLegacyPaymentSyncService $coursePaymentSync = null
+        private ?CourseLegacyPaymentSyncService $coursePaymentSync = null,
+        private ?CoursePaymentNotificationService $courseNotifications = null
     ) {
     }
 
@@ -53,6 +54,16 @@ final class RedsysLegacySyncingProcessor implements RedsysJobProcessor
                 $numVisible
             );
             $result['legacy_sync_executed'] = true;
+
+            if ($this->courseNotifications !== null) {
+                $result['notification_outbox'] = $this->courseNotifications->enqueue(
+                    $sifDb,
+                    (string) ($job['DS_ORDER'] ?? ''),
+                    $snapshot,
+                    $result,
+                    $result['legacy_payment_sync']
+                );
+            }
 
             return $result;
         }

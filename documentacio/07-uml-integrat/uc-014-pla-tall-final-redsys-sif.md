@@ -12,6 +12,7 @@ Ja està integrat a `main`:
 - callback SIF, cua i worker;
 - emissió via `RedsysCourseInvoiceService` + `InvoiceService`;
 - `CourseLegacyPaymentSyncService`;
+- productor durable `CoursePaymentNotificationService` → `notification_outbox` per cobrament CURS, idempotent per `DS_ORDER`;
 - wiring de `CourseLegacyPaymentSyncService` dins `RedsysLegacySyncingProcessor`;
 - prova `RedsysLegacySyncingProcessorCourseTest`;
 - prova `RedsysCourseEndToEndSimulatedTest`, que cobreix pagament complet + callback duplicat i parcial → complet;
@@ -44,11 +45,12 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
    - un sol `CHARGE`;
    - una sola assignació;
    - job `PROCESSED`;
-   - projecció llegada coherent a `inscripcions.PAGAMENT`.
+   - projecció llegada coherent a `inscripcions.PAGAMENT`;
+   - una ordre `notification_outbox` `COURSE_PAYMENT_CONFIRMED` amb `UUID_NOTIFICATION`, sense email/DNI/nom al payload.
 9. Repetir amb:
    - pagament parcial;
    - pagament complet;
-   - callback duplicat;
+   - callback duplicat, comprovant que no crea una segona ordre d'outbox;
    - reintent de worker;
    - payload/import/order incompatible;
    - alumne morós `M -> 1` només quan queda totalment pagat.
@@ -114,6 +116,8 @@ UC-014 només passa a **TANCAT AMB EVIDÈNCIA** quan:
 - parcial/complet són coherents;
 - callback duplicat no duplica factura ni cobrament;
 - la sincronització llegada és idempotent;
+- el productor de notificació deixa una única ordre durable per `DS_ORDER` i el preflight acredita `notification_outbox`;
+- abans del tall productiu s'ha decidit/implementat la política UC-58 de lliurament dels correus que deixa d'enviar el callback llegat;
 - els callbacks llegats ja no tenen autoritat fiscal;
 - la prova end-to-end de preproducció queda adjunta amb evidències;
 - els retorns OK/KO consulten l'estat SIF i no poden presentar `CONFIRMED` només pel redirect del navegador.
@@ -151,3 +155,8 @@ php sif/scripts/verify-redsys-course-preproduction.php <DS_ORDER> --execute --sy
 El verificador rebutja qualsevol entorn diferent de `test` o `preproduction`.
 
 L'evidència s'ha de conservar amb la plantilla [UC-014 — Plantilla d'evidència de preproducció](uc-014-plantilla-evidencia-preproduccio.md).
+
+
+## Dependència operativa UC-58
+
+El tall fiscal ja no necessita que el callback llegat enviï correus, perquè UC-014 deixa el fet de notificació de pagament de curs a `notification_outbox`. Però **no hi ha encara worker/transport genèric acreditat que lliuri aquesta ordre**. Per tant, un GO de preproducció pot validar la creació durable de l'avís, però el GO productiu ha de mantenir-se condicionat a UC-58 si es vol conservar el correu operatiu a alumne/gestió sense regressió funcional.
