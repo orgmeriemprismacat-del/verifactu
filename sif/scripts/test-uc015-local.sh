@@ -77,6 +77,7 @@ fi
   echo "  PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop"
   echo "  RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData"
   echo "  RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing"
+  echo "  PackCheckoutBoundaryTest::testPackCheckoutUsesServerAuthoritativeHolderAndEscapesPostedHtml"
   echo
   echo "== Checkout PHP lint =="
   "${PHP_BIN}" -l codi-drive/web-actual/inc/PackPaymentGate.php
