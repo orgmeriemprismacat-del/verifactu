@@ -7,6 +7,7 @@ $packCallbackUrl = null;
 $redsysMerchantKey = trim((string) getenv('SIF_REDSYS_MERCHANT_KEY'));
 $packMerchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
 $packTerminal = trim((string) (getenv('REDSYS_TERMINAL') ?: '1'));
+$packPaymentUrl = trim((string) (getenv('SIF_REDSYS_PAYMENT_URL') ?: ''));
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if ($redsysMerchantKey === '') {
@@ -42,7 +43,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $preflightDb->closeStmt();
 
             if (in_array('P', $preflightTypes, true)) {
-                if ($packMerchantCode === '' || $packTerminal === '') {
+                $paymentParts = parse_url($packPaymentUrl);
+                $paymentScheme = is_array($paymentParts)
+                    ? strtolower((string) ($paymentParts['scheme'] ?? ''))
+                    : '';
+                $paymentHost = is_array($paymentParts)
+                    ? strtolower((string) ($paymentParts['host'] ?? ''))
+                    : '';
+                $paymentPath = is_array($paymentParts)
+                    ? (string) ($paymentParts['path'] ?? '')
+                    : '';
+                $paymentAllowed = $paymentScheme === 'https'
+                    && in_array($paymentHost, ['sis.redsys.es', 'sis-t.redsys.es'], true)
+                    && $paymentPath === '/sis/realizarPago';
+                if ($packMerchantCode === '' || $packTerminal === '' || !$paymentAllowed) {
                     throw new RuntimeException('REDSYS_PACK_CONFIGURATION_NOT_AVAILABLE');
                 }
                 if ($preflightTypes !== ['P']) {
@@ -270,8 +284,8 @@ if ($validatedPackCheckout !== null) {
       }
 
       $url="https://www.prisma.cat/realitzaPagamentGrupAutomatic.php?idPag=".$idPag."&dni=".$dniTitularPag."&order=".$order."&import=".$importPagare."&tipusInsc=".$tipusInsc;
-      $urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php?email=".$email;
-      $urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php?email=".$email;
+      $urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php?email=".rawurlencode($email);
+      $urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php?email=".rawurlencode($email);
 
       if ( $tipusInsc == 'G' )
          $url="https://www.prisma.cat/realitzaPagamentGrupAutomatic.php?idPag=".$idPag."&dni=".$dniTitularPag."&order=".$order."&import=".$importPagare."&tipusInsc=".$tipusInsc;
@@ -286,6 +300,10 @@ if ($validatedPackCheckout !== null) {
       // echo $url."<br />";
 
       $amount=$importPagare * 100;
+
+      $redsysPaymentUrl = $validatedPackCheckout !== null
+         ? $packPaymentUrl
+         : 'https://sis.redsys.es/sis/realizarPago';
 
       $name='Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
 
@@ -327,8 +345,7 @@ if ($validatedPackCheckout !== null) {
                }
             ?>
          </div>
-         <form id='frm' name='frm' action='https://sis.redsys.es/sis/realizarPago' method='post'>
-   		<!-- <form id='frm' name='frm' action='https://sis-t.redsys.es:25443/sis/realizarPago' method='post'> -->
+         <form id='frm' name='frm' action='<?php echo htmlspecialchars($redsysPaymentUrl, ENT_QUOTES, 'UTF-8'); ?>' method='post'>
    		   <input type="hidden" name="producto" value="<?php echo $producto; ?>"/>
             <input type="hidden" name="rebut" value="<?php echo $id; ?>"/>
             <input type="hidden" name="Ds_SignatureVersion" value="<?php echo $version; ?>"/>
