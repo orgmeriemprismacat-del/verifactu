@@ -257,6 +257,40 @@ final class GiftEnrollmentStagerTest
         )->fetchColumn());
     }
 
+    public function testUnclaimedGiftIsClaimedInsideSameStagingTransaction(): void
+    {
+        [$db, $code, $holder] = $this->fixture();
+        $hash = hash('sha256', $code);
+        $unclaimed = CommercialEntitlementRepository::unclaimedGiftHolderKey($hash);
+        $statement = $db->prepare(
+            'UPDATE commercial_entitlement SET HOLDER_PARTY_KEY = ?'
+        );
+        $statement->execute([$unclaimed]);
+
+        $result = $this->stager()->stage(
+            $db,
+            $db,
+            501,
+            $code,
+            $holder,
+            $this->price()
+        );
+
+        Assert::same('RESERVED', $result['status']);
+        Assert::same(
+            $holder,
+            (string) $db->query(
+                'SELECT HOLDER_PARTY_KEY FROM commercial_entitlement'
+            )->fetchColumn()
+        );
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='CLAIM'"
+        )->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='RESERVE'"
+        )->fetchColumn());
+    }
+
     private function stager(): GiftEnrollmentStager
     {
         return new GiftEnrollmentStager(

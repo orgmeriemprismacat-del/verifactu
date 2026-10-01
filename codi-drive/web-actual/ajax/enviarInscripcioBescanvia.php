@@ -7,6 +7,7 @@ include("../Numero.php");
 include("../Date.php");
 include("../Text.php");
 include("../MailSMTPComvive.php");
+include("../inc/SifGiftRedemptionClient.php");
 
 try {
 	$textNom = new Text($_GET['nom']);
@@ -101,6 +102,19 @@ try {
 	$connexio->closeStmt();
 
 	$cipher = "AES-128-CBC";
+	$encryptEnrollmentId = static function($enrollmentId) use ($cipher, $keyEncr) {
+		$ivlen = openssl_cipher_iv_length($cipher);
+		$iv = openssl_random_pseudo_bytes($ivlen);
+		$ciphertext_raw = openssl_encrypt(
+			(string) $enrollmentId,
+			$cipher,
+			$keyEncr,
+			OPENSSL_RAW_DATA,
+			$iv
+		);
+		$hmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, true);
+		return base64_encode($iv.$hmac.$ciphertext_raw);
+	};
 
 	/* ######################################################################### */
 	$datesRealitzacio = $textDates->convertirMin();
@@ -115,6 +129,40 @@ try {
 	$stmt->bind_result($datai, $dataf, $hores, $data_resol);
 	$stmt->fetch();
 	$connexio->closeStmt();
+
+	/* ######################################################################### */
+	// Replay segur: si el SIF ja ha reconciliat el regal, reutilitzem la mateixa
+	// inscripció i no repetim els efectes laterals del writer.
+	$codiRegalReplay = $textCodiRegal->obtenirText();
+	$documentacioReplay = $textDocumentacio->convertirMaj();
+	$cnsGiftReplay = "SELECT r.USAT, i.CURS, i.DNI, i.pag_observacions
+		FROM regal r
+		LEFT JOIN inscripcions i ON i.ID=r.USAT
+		WHERE r.CODI=?";
+	$stmt=$connexio->prepare($cnsGiftReplay);
+	$stmt->bind_param("s", $codiRegalReplay);
+	$stmt->execute();
+	$stmt->bind_result($usatReplay, $cursReplay, $dniReplay, $codiReplay);
+	$hasGiftReplay = $stmt->fetch();
+	$connexio->closeStmt();
+
+	if ($hasGiftReplay && (int) $usatReplay > 0) {
+		$normalizeIdentity = static function($value) {
+			$value = strtoupper(trim((string) $value));
+			$value = preg_replace('/[^A-Z0-9]/', '', $value);
+			return is_string($value) ? $value : '';
+		};
+		if (strtoupper(trim((string) $cursReplay)) !== strtoupper(trim((string) $codiCurs))
+			|| $normalizeIdentity($dniReplay) !== $normalizeIdentity($documentacioReplay)
+			|| trim((string) $codiReplay) !== trim((string) $codiRegalReplay)
+		) {
+			throw new Exception('El regal ja està reconciliat amb una altra inscripció', 409);
+		}
+
+		echo $encryptEnrollmentId((int) $usatReplay);
+		$connexio->desconectarBD();
+		return;
+	}
 
 	/* ######################################################################### */
 	$textCursReconegut = "<p>Aquest curs està reconegut pel Departament d'Educació
@@ -178,7 +226,7 @@ try {
    $connexio->closeStmt();
 
 	/* ######################################################################### */
-	$idPag = $connexio->reserveIdPag();
+	// IDPAG es reserva només si realment cal crear una nova inscripció.
 
 
 	/* ######################################################################### */
@@ -413,17 +461,7 @@ try {
 										$subject, $missatge);
 
 	/* ######################################################################### */
-	//Buscar la factura relacionada amb el regal
-
-	$codiRegalBD = $textCodiRegal->obtenirText();
-
-	$cnsFact = "SELECT FACT_REL FROM regal WHERE CODI=?";
-	$stmt=$connexio->prepare($cnsFact);
-	$stmt->bind_param("s", $codiRegalBD);
-	$stmt->execute();
-	$stmt->bind_result($factRel);
-	$stmt->fetch();
-	$connexio->closeStmt();
+	// FACT_REL i USAT es llegeixen sota FOR UPDATE just abans de crear/reutilitzar la inscripció.
 
 	/* ######################################################################### */
 	$nomBD = $textNom->obtenirText();
@@ -483,28 +521,148 @@ try {
 	$perenne = 'X';
 	$aPagar = 0;
 
-	$insertBD = "INSERT INTO inscripcions (ANY, MES, CURS, DATA_INSC, NOM, COGNOMS,
+	$legacyGiftTransaction = false;
+	$idPagLockHeld = false;
+	try {
+		$connexio->connexio->begin_transaction();
+		$legacyGiftTransaction = true;
+
+		$cnsGiftLock = "SELECT FACT_REL, USAT FROM regal WHERE CODI=? FOR UPDATE";
+		$stmt=$connexio->prepare($cnsGiftLock);
+		$stmt->bind_param("s", $codiRegalBD);
+		$stmt->execute();
+		$stmt->bind_result($factRel, $giftUsedEnrollmentId);
+		$giftExists = $stmt->fetch();
+		$connexio->closeStmt();
+		if (!$giftExists) {
+			throw new Exception('No s\'ha trobat el regal', 404);
+		}
+
+		$idInserit = 0;
+		$candidateId = 0;
+		$candidateCourse = '';
+		$candidateDni = '';
+		$candidateAmount = null;
+		$candidateFactRel = null;
+		$candidateGiftCode = '';
+		$candidateObservations = '';
+
+		if ((int) $giftUsedEnrollmentId > 0) {
+			$cnsExisting = "SELECT ID, CURS, DNI, A_PAGAR, FACTURA_RELACIONADA,
+				pag_observacions, OBSERVACIONS
+				FROM inscripcions WHERE ID=? FOR UPDATE";
+			$stmt=$connexio->prepare($cnsExisting);
+			$stmt->bind_param("d", $giftUsedEnrollmentId);
+			$stmt->execute();
+			$stmt->bind_result(
+				$candidateId,
+				$candidateCourse,
+				$candidateDni,
+				$candidateAmount,
+				$candidateFactRel,
+				$candidateGiftCode,
+				$candidateObservations
+			);
+			$existingFound = $stmt->fetch();
+			$connexio->closeStmt();
+			if (!$existingFound) {
+				throw new Exception('El regal apunta a una inscripció inexistent', 409);
+			}
+		}
+		else {
+			$cnsExisting = "SELECT ID, CURS, DNI, A_PAGAR, FACTURA_RELACIONADA,
+				pag_observacions, OBSERVACIONS
+				FROM inscripcions
+				WHERE pag_observacions=?
+				ORDER BY ID DESC LIMIT 2 FOR UPDATE";
+			$stmt=$connexio->prepare($cnsExisting);
+			$stmt->bind_param("s", $codiRegalBD);
+			$stmt->execute();
+			$stmt->store_result();
+			$candidateCount = $stmt->num_rows();
+			if ($candidateCount > 1) {
+				$connexio->closeStmt();
+				throw new Exception('Hi ha més d\'una inscripció candidata per al mateix regal', 409);
+			}
+			if ($candidateCount === 1) {
+				$stmt->bind_result(
+					$candidateId,
+					$candidateCourse,
+					$candidateDni,
+					$candidateAmount,
+					$candidateFactRel,
+					$candidateGiftCode,
+					$candidateObservations
+				);
+				$stmt->fetch();
+			}
+			$connexio->closeStmt();
+		}
+
+		if ((int) $candidateId > 0) {
+			$normalizeIdentity = static function($value) {
+				$value = strtoupper(trim((string) $value));
+				$value = preg_replace('/[^A-Z0-9]/', '', $value);
+				return is_string($value) ? $value : '';
+			};
+			if (strtoupper(trim((string) $candidateCourse)) !== strtoupper(trim((string) $codiCursBD))
+				|| $normalizeIdentity($candidateDni) !== $normalizeIdentity($documentacioBD)
+				|| number_format((float) $candidateAmount, 2, '.', '') !== '0.00'
+				|| (string) $candidateFactRel !== (string) $factRel
+				|| trim((string) $candidateGiftCode) !== trim((string) $codiRegalBD)
+				|| stripos((string) $candidateObservations, 'CURS REGAL') === false
+			) {
+				throw new Exception('La inscripció existent del regal és contradictòria', 409);
+			}
+			$idInserit = (int) $candidateId;
+		}
+		else {
+			$idPag = $connexio->reserveIdPag();
+			$idPagLockHeld = true;
+
+			$insertBD = "INSERT INTO inscripcions (ANY, MES, CURS, DATA_INSC, NOM, COGNOMS,
 					 CORREU, DNI, ADRECA, Codi_Postal, POBLACIO, PERFIL, TITULACIO,
 					 TELEFON, OBSERVACIONS, COMENTARIS, INSC_MAILING, IDPAG,
 					 A_PAGAR, FACTURA_RELACIONADA,pag_observacions, USUARI, PERENNE, CONEGUT)
 					 VALUES (?,?,?,CURRENT_TIME,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-	$stmt=$connexio->prepare($insertBD);
-	$stmt->bind_param("dsssssssssssdsssdddsdss",
-		$any, $edicioBD, $codiCursBD, $nomBD, $cogBD, $emailBD, $documentacioBD,
-		$adrecaBD, $codiPostalBD, $poblacioBD,	$perfilsBD, $titulacionsBD, $telfBD,
-		$observacionsBD, $comentarisBD, $mailingBD, $idPag, $aPagar, $factRel, $codiRegalBD,
-		$usuariBD, $perenne, $conegutBD);
-	$stmt->execute();
-	$idInserit = $connexio->lastInsertId();
-	$stmt->fetch();
-	$connexio->closeStmt();
-	$connexio->releaseIdPag();
+			$stmt=$connexio->prepare($insertBD);
+			$stmt->bind_param("dsssssssssssdsssdddsdss",
+				$any, $edicioBD, $codiCursBD, $nomBD, $cogBD, $emailBD, $documentacioBD,
+				$adrecaBD, $codiPostalBD, $poblacioBD,	$perfilsBD, $titulacionsBD, $telfBD,
+				$observacionsBD, $comentarisBD, $mailingBD, $idPag, $aPagar, $factRel, $codiRegalBD,
+				$usuariBD, $perenne, $conegutBD);
+			$stmt->execute();
+			$idInserit = (int) $connexio->lastInsertId();
+			$connexio->closeStmt();
+			$connexio->releaseIdPag();
+			$idPagLockHeld = false;
+		}
 
-	$ivlen = openssl_cipher_iv_length($cipher);
-	$iv = openssl_random_pseudo_bytes($ivlen);
-	$ciphertext_raw = openssl_encrypt($idInserit, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
-	$hmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, $as_binary=true);
-	$hashIdInserit = base64_encode( $iv.$hmac.$ciphertext_raw );
+		if ((int) $idInserit <= 0) {
+			throw new Exception('No s\'ha pogut materialitzar la inscripció regal', 409);
+		}
+
+		$connexio->connexio->commit();
+		$legacyGiftTransaction = false;
+	}
+	catch(Throwable $writerException) {
+		if ($idPagLockHeld) {
+			$connexio->releaseIdPag();
+		}
+		if ($legacyGiftTransaction) {
+			$connexio->connexio->rollback();
+		}
+		throw $writerException;
+	}
+
+	// Frontera servidor→SIF: només ID compromès + codi. Holder i preu es
+	// resolen dins del SIF i el reintent reutilitza la mateixa ID_INSC.
+	$sifGiftRedemption = (new SifGiftRedemptionClient())->redeemCommittedEnrollment([
+		'enrollment_id' => (int) $idInserit,
+		'gift_code' => $codiRegalBD,
+	]);
+
+	$hashIdInserit = $encryptEnrollmentId($idInserit);
 
 	echo $hashIdInserit;
 
@@ -594,16 +752,11 @@ try {
 
 	/* ######################################################################### */
 
-	$updateBD = "UPDATE regal SET USAT=? WHERE CODI=?";
-	$stmt=$connexio->prepare($updateBD);
-	$stmt->bind_param("ds", $idInserit, $codiRegalBD);
-	$stmt->execute();
-	$stmt->fetch();
-	$connexio->closeStmt();
+	// regal.USAT ja ha estat reconciliat pel SIF amb compare-and-set.
 
 	$connexio->desconectarBD();
 }
-catch(Exception $e) {
+catch(Throwable $e) {
 	if ($e->getCode()==404)
       echo mostrarPagina404();
    else
