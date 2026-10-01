@@ -413,7 +413,7 @@ Troballes corregides:
 - `DS_MERCHANT_PRODUCTDESCRIPTION` de PACK ja no inclou DNI;
 - URL OK/KO del PACK ja no inclou email;
 - les pàgines de retorn validen/escapen qualsevol email legacy opcional;
-- `SIF_REDSYS_PAYMENT_URL` permet sandbox/producció amb allowlist d'host/path HTTPS.
+- `SIF_REDSYS_PAYMENT_URL` només accepta les dues URLs oficials exactes de Redsys: real i sandbox.
 
 Cobertura: `PackEnrollmentTransportBoundaryTest`, `PackCheckoutBoundaryTest`, `PackPaymentPrivacyBoundaryTest` i `RedsysPackPreflightScriptTest`.
 
