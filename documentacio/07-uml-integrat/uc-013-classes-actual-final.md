@@ -1,7 +1,7 @@
 # UC-013 · Classes ACTUAL / FINAL — Orquestrar la doble facturació USOC
 
 **Data d'auditoria:** 2026-10-02  
-**Main contrastat:** `22d47a2949e03fe4a170f831f6d7f8724f7cd40c`  
+**Main contrastat:** `434be933eccfd0b8805bc532a39760d7ec426a00`  
 **Abast:** web PrisMa, intranet, pay.prisma.cat/SIF, doble pagador alumne + entitat USOC, conciliació i lifecycle.  
 **Criteri:** ACTUAL descriu responsabilitats observades al codi; FINAL descriu l'arquitectura objectiu o residual. No es marca com implementat allò que només existeix com a disseny.
 
@@ -257,6 +257,6 @@ UsocCourseChangeExecutionService --> UsocLifecyclePlanService
 
 - **Documentat:** sí, ara també amb classes ACTUAL/FINAL separades.
 - **Implementat:** nucli de doble facturació, cobrament, checkpoint, conciliació, validació durable, UI i planner.
-- **Verificat:** inspecció estàtica contra `main@22d47a294...`.
+- **Verificat:** inspecció estàtica contra `main@434be933e...`.
 - **Provat:** existeix evidència CI específica en commits previs del UC-013; no hi ha workflow associat al SHA actual de main en aquesta auditoria.
 - **Pendent:** preproducció/navegador, configuració real, executor específic de canvi de curs, curs gratuït i validacions comercials/fiscals. La baixa ja disposa d'executor SIF per pagador.
