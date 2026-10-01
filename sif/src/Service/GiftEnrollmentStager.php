@@ -125,12 +125,6 @@ final class GiftEnrollmentStager
                 throw SifException::conflict('Active SIF gift entitlement was not found.');
             }
 
-            if ((string) ($entitlement['HOLDER_PARTY_KEY'] ?? '') !== $canonicalPartyKey) {
-                throw SifException::conflict(
-                    'Canonical participant does not match the gift entitlement holder.'
-                );
-            }
-
             if ($this->cents((string) ($entitlement['FACE_VALUE'] ?? ''))
                 !== $legacyGiftAmount
                 || strtoupper((string) ($entitlement['CURRENCY'] ?? ''))
@@ -182,6 +176,17 @@ final class GiftEnrollmentStager
                 $uuidEntitlement,
                 $enrollmentId
             );
+
+            $claim = $this->entitlements->claimGiftHolder(
+                $sifDb,
+                $entitlement,
+                $codeHash,
+                $canonicalPartyKey,
+                'UC018-CLAIM-' . $enrollmentId,
+                'gift-enrollment-stager',
+                $idempotencyKey
+            );
+            $entitlement['HOLDER_PARTY_KEY'] = $claim['holder_party_key'];
 
             $existing = $this->one(
                 $sifDb,

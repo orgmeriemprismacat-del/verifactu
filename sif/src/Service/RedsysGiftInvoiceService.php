@@ -2,19 +2,29 @@
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\CommercialEntitlementRepository;
 use Prisma\Sif\Repository\LegacyGiftSnapshotRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 
 final class RedsysGiftInvoiceService implements RedsysIntentHandler
 {
+    private GiftEntitlementIssuerService $giftEntitlements;
+
     public function __construct(
         private RedsysNotificationRepository $notifications,
         private LegacyGiftSnapshotRepository $legacySnapshots,
         private LegacyGiftInvoicePayloadBuilder $legacyPayloads,
         private RedsysInvoicePayloadBuilder $redsysPayloads,
-        private InvoiceService $invoices
+        private InvoiceService $invoices,
+        ?GiftEntitlementIssuerService $giftEntitlements = null
     ) {
+        $this->giftEntitlements = $giftEntitlements
+            ?? new GiftEntitlementIssuerService(
+                new UuidGenerator(),
+                new CommercialEntitlementRepository(new UuidGenerator())
+            );
     }
 
     public function sourceType(): string
@@ -76,6 +86,12 @@ final class RedsysGiftInvoiceService implements RedsysIntentHandler
 
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
         $result = $this->invoices->issueInvoice($payload);
+        $result['gift_entitlement'] = $this->giftEntitlements->issue(
+            $sifDb,
+            (array) ($snapshot['gift'] ?? []),
+            $result,
+            $dsOrder
+        );
         $result['legacy_sync'] = [
             'relations' => $payload['relations'] ?? [],
             'estat_cobrament' => isset($payload['payment']) ? 'PAID' : 'PENDING',

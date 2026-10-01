@@ -22,13 +22,19 @@ final class GiftRedemptionWebClientBoundaryTest
         Assert::stringContainsString("X-SIF-Signature", $source);
         Assert::stringContainsString("hash('sha256', \$body)", $source);
         Assert::stringContainsString("requires HTTPS", $source);
-        Assert::stringContainsString("trusted_price_snapshot", $source);
-        Assert::stringContainsString("holder_party_key", $source);
+        Assert::stringContainsString(
+            "Gift redemption authority must be resolved inside SIF",
+            $source
+        );
+        Assert::stringContainsString(
+            "['holder_party_key', 'trusted_price_snapshot']",
+            $source
+        );
         Assert::same(false, str_contains($source, '?gift_code='));
         Assert::same(false, str_contains($source, 'http_build_query'));
     }
 
-    public function testLegacyWriterIsNotYetSilentlyWiredToUntrustedBrowserIdentity(): void
+    public function testLegacyWriterUsesRecoverableGetOrCreateBeforeCallingSif(): void
     {
         $root = dirname(__DIR__, 3);
         $source = file_get_contents(
@@ -38,9 +44,41 @@ final class GiftRedemptionWebClientBoundaryTest
             Assert::fail('Could not read legacy gift enrollment writer');
         }
 
+        Assert::stringContainsString('SifGiftRedemptionClient', $source);
+        Assert::stringContainsString('begin_transaction()', $source);
+        Assert::stringContainsString('SELECT FACT_REL, USAT FROM regal', $source);
+        Assert::stringContainsString('FOR UPDATE', $source);
+        Assert::stringContainsString('WHERE pag_observacions=?', $source);
+        Assert::stringContainsString("'enrollment_id' => (int) \$idInserit", $source);
+        Assert::stringContainsString("'gift_code' => \$codiRegalBD", $source);
+        Assert::same(false, str_contains($source, "'holder_party_key' =>"));
+        Assert::same(false, str_contains($source, "'trusted_price_snapshot' =>"));
+        Assert::same(false, str_contains($source, 'UPDATE regal SET USAT'));
+
+        $clientCall = strpos($source, 'redeemCommittedEnrollment');
+        $response = strpos($source, 'echo $hashIdInserit');
+        Assert::same(true, is_int($clientCall) && is_int($response) && $clientCall < $response);
+    }
+
+    public function testCompletedGiftReplayReturnsExistingEnrollmentBeforeMailSideEffects(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $source = file_get_contents(
+            $root . '/codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php'
+        );
+        if (!is_string($source)) {
+            Assert::fail('Could not read legacy gift enrollment writer');
+        }
+
+        $replayLookup = strpos($source, 'SELECT r.USAT');
+        $firstMail = strpos($source, 'new MailSMTPComvive');
         Assert::same(
-            false,
-            str_contains($source, 'SifGiftRedemptionClient')
+            true,
+            is_int($replayLookup) && is_int($firstMail) && $replayLookup < $firstMail
+        );
+        Assert::stringContainsString(
+            'echo $encryptEnrollmentId((int) $usatReplay);',
+            $source
         );
     }
 }
