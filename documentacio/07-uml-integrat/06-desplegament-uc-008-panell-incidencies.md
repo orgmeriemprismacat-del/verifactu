@@ -143,6 +143,29 @@ El verificador:
 
 El fitxer JSON resultant és l'evidència recomanada per adjuntar a l'expedient UC-008.
 
+## 8 bis. Evidència E2E del gestor
+
+El verificador agregat de l'apartat anterior és deliberadament **read-only**. Per acreditar el lifecycle real d'un gestor cal una tercera evidència separada.
+
+Després d'exercitar manualment al panell una incidència sintètica amb:
+
+- `TIPUS_INCIDENCIA=UC008_E2E_MANAGER`;
+- `SOURCE_TYPE=UC008_E2E`;
+- `ASSIGN`;
+- `ADD_EVIDENCE`;
+- `RESOLVE`;
+
+executar:
+
+```bash
+php sif/scripts/verify-incident-manager-evidence.php <INCIDENT_ID> \
+  | tee uc-008-manager-e2e-evidence.json
+```
+
+El script és CLI-only i read-only. No modifica incidències; verifica el resultat ja persistit, el rol gestor, actor, correlació, evidència i criteris de tancament.
+
+Vegeu [08-evidencia-gestor-uc-008.md](08-evidencia-gestor-uc-008.md).
+
 ## 9. Proves de desplegament
 
 1. Usuari sense rol de lectura → 403 al resum i al panell.
@@ -168,3 +191,16 @@ El fitxer JSON resultant és l'evidència recomanada per adjuntar a l'expedient 
 - Log de replay bloquejat.
 - Resultat GitHub Actions de la suite SIF.
 - Resultat dels checks de la còpia de la intranet.
+
+
+## 11. Validació final de les tres evidències
+
+```bash
+php sif/scripts/validate-uc008-evidence.php \
+  uc-008-preproduction-evidence.json \
+  uc-008-menu-evidence.json \
+  uc-008-manager-e2e-evidence.json \
+  | tee uc-008-closure-validation.json
+```
+
+El gate final exigeix `preproduction`, scopes correctes, menú `ALREADY_PRESENT`, flux gestor complet i SHA-256 vàlids dels tres inputs.
