@@ -20,7 +20,7 @@ final class JasomNovicePaymentGate
         }
 
         $stmt = $db->prepare(
-            "SELECT i.ID, i.CURS, i.A_PAGAR, i.PAGAMENT, r.ID, r.VALIDAT
+            "SELECT i.ID, i.CURS, i.A_PAGAR, i.PAGAMENT, i.FRACCIONAT, r.ID, r.VALIDAT
              FROM inscripcions i
              LEFT JOIN recent_titulat r ON r.ID_INSC = i.ID
              WHERE i.IDPAG = ?
@@ -36,7 +36,7 @@ final class JasomNovicePaymentGate
             throw new RuntimeException('PAYMENT_NOT_AVAILABLE');
         }
 
-        $stmt->bind_result($enrollmentId, $courseCode, $coursePrice, $alreadyPaid, $noviceRowId, $noviceDecision);
+        $stmt->bind_result($enrollmentId, $courseCode, $coursePrice, $alreadyPaid, $fractional, $noviceRowId, $noviceDecision);
         $stmt->fetch();
         $stmt->close();
 
@@ -45,6 +45,7 @@ final class JasomNovicePaymentGate
             'course_code' => $courseCode,
             'course_price' => $coursePrice,
             'already_paid' => $alreadyPaid,
+            'fractional' => (int) $fractional,
             'novice_row_present' => $noviceRowId !== null,
             'novice_decision' => $noviceDecision,
         ], $post);
@@ -71,10 +72,15 @@ final class JasomNovicePaymentGate
         $paid = self::cents((string) ($enrollment['already_paid'] ?? '0.00'));
         $requestedRaw = trim(str_replace(',', '.', (string) ($post['importPagare'] ?? '')));
         $requested = self::cents($requestedRaw);
+        $pending = $total - $paid;
+        $fractional = (int) ($enrollment['fractional'] ?? 0) === 1;
 
         if ($total <= 0 || $paid < 0 || $paid >= $total || $requested <= 0
-            || $requested > $total - $paid
+            || $requested > $pending
         ) {
+            throw new RuntimeException('PAYMENT_NOT_AVAILABLE');
+        }
+        if (!$fractional && $requested !== $pending) {
             throw new RuntimeException('PAYMENT_NOT_AVAILABLE');
         }
 
@@ -91,6 +97,7 @@ final class JasomNovicePaymentGate
             'total_amount' => self::amount($total),
             'already_paid_amount' => self::amount($paid),
             'payment_amount' => self::amount($requested),
+            'fractional' => $fractional,
             'novice_decision' => $noviceDecision === null ? null : (int) $noviceDecision,
         ];
     }
