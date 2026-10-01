@@ -63,15 +63,15 @@ final class PackPaymentPrivacyBoundaryTest
                 Assert::fail('Could not load Redsys response page: ' . $path);
             }
 
-            Assert::stringContainsString("($_GET['email'] ?? '')", $source);
+            Assert::stringContainsString("(\$_GET['email'] ?? '')", $source);
             Assert::stringContainsString('FILTER_VALIDATE_EMAIL', $source);
             Assert::stringContainsString(
-                "htmlspecialchars($emailRaw, ENT_QUOTES, 'UTF-8')",
+                "htmlspecialchars(\$emailRaw, ENT_QUOTES, 'UTF-8')",
                 $source
             );
-            Assert::stringContainsString("$emailHint = $email !== ''", $source);
+            Assert::stringContainsString("\$emailHint = \$email !== ''", $source);
 
-            if (str_contains($source, "$email = $_GET['email'];")) {
+            if (str_contains($source, "\$email = \$_GET['email'];")) {
                 Assert::fail('Redsys response page must not trust raw email query data.');
             }
         }
