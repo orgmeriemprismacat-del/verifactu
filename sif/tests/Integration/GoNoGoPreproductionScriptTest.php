@@ -71,6 +71,16 @@ final class GoNoGoPreproductionScriptTest
         Assert::stringContainsString('historical_gift_entitlement_preflight_present', $source);
         Assert::stringContainsString('historical_gift_entitlement_circuit_present', $source);
         Assert::stringContainsString('historical_unused_gifts_covered', $source);
+        Assert::stringContainsString('gift_redemption_preflight_present', $source);
+        Assert::stringContainsString('gift_redemption_circuit_present', $source);
+        Assert::stringContainsString('gift_redemption_web_client_present', $source);
+        Assert::stringContainsString('gift_redemption_legacy_writer_present', $source);
+        Assert::stringContainsString('gift_redemption_key_id_configured', $source);
+        Assert::stringContainsString('gift_redemption_internal_api_secret_strong', $source);
+        Assert::stringContainsString('gift_redemption_clock_skew_valid', $source);
+        Assert::stringContainsString('gift_redemption_signed_path_exact', $source);
+        Assert::stringContainsString('gift_redemption_manage_roles_configured', $source);
+        Assert::stringContainsString('preflight-gift-redemption.php', $source);
         Assert::stringContainsString('preflight-historical-gift-entitlements.php', $source);
         Assert::stringContainsString('HistoricalGiftEntitlementBackfillService', $source);
         Assert::stringContainsString('incident_panel_e2e_present', $source);
