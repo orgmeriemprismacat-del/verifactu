@@ -82,6 +82,7 @@ final class PrismaStudentCourseCheckoutService
             'classification' => 'READY_FOR_PAYMENT',
             'classification_reason' => 'ALUMNE_PRISMA_VALIDATED',
             'status' => 'READY_FOR_PAYMENT',
+            'acceptable_existing_statuses' => ['READY_FOR_PAYMENT', 'INTENT_CREATED'],
             'currency' => 'EUR',
             'gross_amount' => $price['gross'],
             'discount_amount' => $price['discount'],
