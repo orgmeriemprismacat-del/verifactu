@@ -205,7 +205,7 @@ final class LegacyPackInvoicePayloadBuilder
             $line['discount_mode'] = 'PERCENT';
             $line['discount_pct'] = $amounts['discount_pct'];
             $line['discount_text'] = 'Descompte pack ' . rtrim(rtrim($amounts['discount_pct'], '0'), '.') . '%';
-            $line['discount_internal_reason'] = 'Descompte pack aplicat a la linia del segon curs';
+            $line['discount_internal_reason'] = 'Descompte pack aplicat al component segons el snapshot comercial';
         }
 
         return $line;
