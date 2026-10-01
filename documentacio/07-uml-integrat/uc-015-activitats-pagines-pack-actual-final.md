@@ -9,8 +9,8 @@
 |---|---|---|---|
 | PK-A01 | Llistat de packs | codi legacy | conservar catàleg, sense efecte fiscal |
 | PK-A02 | Fitxa de pack | codi legacy | oferta versionada |
-| PK-A03 | Formulari inscripció | backend autoritatiu implementat | mantenir contracte |
-| PK-A04 | Alta N inscripcions | snapshot comercial implementat al legacy | consolidar model comercial |
+| PK-A03 | Formulari inscripció | **GET legacy amb dades personals; preu backend autoritatiu** | migrar alta a POST i definir proteccions del canal |
+| PK-A04 | Alta N inscripcions | snapshot comercial implementat al legacy | model comercial explícit/versionat encara pendent |
 | PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | evidència runtime |
 | PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | eliminar codi rollback |
 | PK-A07 | Factura pack | **InvoiceService al flux SIF; emissió legacy desactivada per defecte** | eliminar codi rollback |
@@ -91,6 +91,8 @@ E --> F[Valida receptor]
 F --> G[Congela snapshot]
 G --> H[Crea operació/intenció]
 ```
+
+**Desalineació ACTUAL → FINAL revalidada 02/10:** `mostrarInscripcioPack.min.js` envia l'alta a `ajax/enviarInscripcioPack.php` amb `method: "GET"`, i el PHP consumeix `$_GET`. El servidor ja no confia en els imports del navegador i recalcula el preu des de BD, però el transport de l'alta encara exposa dades personals a la query string i no implementa el contracte FINAL de POST. No es considera resolt per l'enduriment del checkout de pagament, que és un pas posterior.
 
 ## PK-A04 · Alta de components
 
@@ -265,12 +267,14 @@ E --> F[Classificació fiscal explícita]
 
 No declarar UC-015 tancat fins que:
 1. els deu blocs anteriors tinguin correspondència codi → UC → prova;
-2. s'acrediti en runtime el checkout web amb snapshot backend i callback SIF;
-3. el callback legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
-4. es mantingui el contracte estable `DATAI, ID_CURS` i es decideixi si cal una posició comercial explícita separada;
-5. les proves end-to-end PK-01..PK-11 s'hagin executat en preproducció; la capa unitària/integració ja té evidència CI verda (706/0).
-
+2. l'alta pública del pack deixi d'enviar dades personals per GET i disposi del contracte POST/proteccions de canal definitives;
+3. s'acrediti en runtime el checkout web amb snapshot backend i callback SIF;
+4. el callback legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
+5. es mantingui el contracte estable `DATAI, ID_CURS` i es decideixi si cal una posició comercial explícita separada;
+6. les proves end-to-end PK-01..PK-11 s'hagin executat en preproducció; la capa unitària/integració disposa d'evidència CI verda del paquet UC-015.
 
 ## Evidència de proves automatitzades
 
 El 2026-09-30 la suite SIF ha finalitzat amb **706 passed / 0 failed** al commit `c961f193...`. Aquesta evidència cobreix el contracte de checkout, snapshot, factura, conciliació, ledger i outbox del UC-015. Resta la validació visual/navegador i Redsys de preproducció.
+
+**Revalidació 02/10:** el paquet UC-015 final es va fusionar a `41d6968...` i el workflow `SIF PHP MySQL tests` d'aquell commit també va acabar en **success** (run `36741186555`). El `main` auditat `9da7549...` té el workflow complet actual encara en cua; la CI anterior acredita el bloc UC-015 en el seu punt de fusió, però no substitueix la CI del HEAD actual.
