@@ -130,6 +130,9 @@ function sanitizeEvidence(array $value): array
             if (in_array($normalized, $forbiddenKeys, true)
                 || str_contains($normalized, 'secret')
                 || str_contains($normalized, 'password')
+                || str_contains($normalized, 'signature')
+                || str_contains($normalized, 'merchant_key')
+                || str_contains($normalized, 'certificate_password')
             ) {
                 continue;
             }
