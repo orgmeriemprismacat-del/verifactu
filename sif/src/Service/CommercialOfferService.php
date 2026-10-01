@@ -498,7 +498,6 @@ final class CommercialOfferService
             'PRODUCT_EDITION' => $payload['product_edition'],
             'CLASSIFICATION' => $payload['classification'],
             'CLASSIFICATION_REASON' => $payload['classification_reason'],
-            'STATUS' => $payload['status'],
             'CURRENCY' => $payload['currency'],
             'EXPIRES_AT' => $payload['expires_at'],
             'CREATED_BY' => $payload['created_by'],
