@@ -81,12 +81,13 @@ participant R as Redsys
 participant CB as RedsysCallbackService
 participant Q as CallbackQueue
 participant W as RedsysCallbackWorker
+participant SyncProc as RedsysLegacySyncingProcessor
 participant D as RedsysCallbackDispatcher
 participant P as RedsysPackInvoiceService
 participant I as InvoiceService
-participant L as EnrollmentFundMovementRepository
-participant Sync as AcademicEnrollmentSyncService
+participant L as PackEnrollmentFundAllocationService
 participant Outbox as PackPaymentNotificationService
+participant Legacy as LegacySyncService
 
 U->>Gate: confirmar pagament pack
 Gate->>Gate: rellegir BD i validar composició/preu/receptor/ordinal
@@ -98,20 +99,25 @@ R->>CB: callback signat
 CB->>CB: validar signatura + intent + import + moneda + terminal
 CB->>Q: enqueue
 W->>Q: claim
-W->>D: process(job)
+W->>SyncProc: process(job)
+SyncProc->>D: process(job)
 D->>P: issueFromIntentSnapshot()
-P->>P: construir N línies
-P->>P: validar total factura = import Redsys
+P->>P: construir N línies i validar total = import Redsys
 P->>I: issueInvoice()
 I-->>P: UUID_FACTURA + UUID_PAYMENT
-loop cada component
- P->>L: atribució UUID_PAYMENT → ID_INSC
-end
-P->>Sync: sincronitzar postcommit
-P->>Outbox: notificacions postcommit
-P-->>W: resultat
+P->>L: allocate(UUID_PAYMENT, N ID_INSC)
+L-->>P: N atribucions idempotents
+P->>Outbox: enqueue(PACK_PAYMENT_CONFIRMED)
+Outbox-->>P: event idempotent
+P-->>D: resultat + legacy_sync=PACK_FULL_PAYMENT
+D-->>SyncProc: resultat
+SyncProc->>Legacy: syncAfterSifSuccess()
+SyncProc->>Legacy: syncPackFullPayment()
+SyncProc-->>W: resultat + legacy_sync_executed
 W->>Q: PROCESSED
 ```
+
+**Revalidació 02/10:** el wrapper real del worker és `RedsysLegacySyncingProcessor`; no existeix cap `AcademicEnrollmentSyncService` en aquest flux. La sincronització legacy s'executa només després que el handler PACK hagi retornat una emissió SIF correcta.
 
 ## 4. FINAL — callback duplicat
 
@@ -159,4 +165,4 @@ end
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
 - Outbox: implementat i cablejat al worker.
-- Pendent: eliminar el codi legacy després del rollback, decidir si cal una posició comercial explícita independent de l'ordre cronològic estable i executar proves d'entorn.
+- Pendent: eliminar el codi legacy després del rollback, decidir si cal una posició comercial explícita independent de l'ordre cronològic estable, migrar l'alta pública del pack de GET a un contracte POST adequat i executar proves d'entorn.
