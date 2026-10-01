@@ -274,3 +274,8 @@ Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `S
 ## Evidència E2E reproduïble
 
 La verificació final d'un PACK ja es pot executar amb `php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>`. El verificador contrasta la cadena completa SIF i la sincronització legacy sense imprimir PII. Vegeu [plantilla d'evidència de preproducció](uc-015-plantilla-evidencia-preproduccio.md).
+
+
+## Frontera HTTP i privacitat del checkout
+
+L'alta pública de PACK utilitza POST; imports i mode de fraccionament no són autoritatius des del navegador. El formulari Redsys usa el titular del snapshot servidor, una descripció de producte sense DNI i, per PACK, URL OK/KO sense email. L'endpoint de pagament Redsys és configurable per entorn amb allowlist HTTPS. La protecció anti-abús/CSRF del formulari públic queda com a control web separat a decidir abans del tancament operatiu.
