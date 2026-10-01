@@ -113,9 +113,16 @@ final class NovicePromotionEnrollmentStager
                     throw SifException::conflict('A conflicting novice enrollment was already staged.');
                 }
 
+                $uuidValidation = $this->ensurePendingValidation(
+                    $sifDb,
+                    (string) $existing['UUID_OPERATION'],
+                    $canonicalPartyKey
+                );
+
                 $sifDb->commit();
                 return [
                     'uuid_operation' => (string) $existing['UUID_OPERATION'],
+                    'uuid_validation' => $uuidValidation,
                     'status' => (string) $existing['STATUS'],
                     'idempotency_reused' => true,
                 ];
@@ -173,9 +180,16 @@ final class NovicePromotionEnrollmentStager
                 ]
             );
 
+            $uuidValidation = $this->ensurePendingValidation(
+                $sifDb,
+                $uuidOperation,
+                $canonicalPartyKey
+            );
+
             $sifDb->commit();
             return [
                 'uuid_operation' => $uuidOperation,
+                'uuid_validation' => $uuidValidation,
                 'status' => 'PENDING_VALIDATION',
                 'idempotency_reused' => false,
             ];
@@ -185,6 +199,63 @@ final class NovicePromotionEnrollmentStager
             }
             throw $exception;
         }
+    }
+
+    private function ensurePendingValidation(
+        \PDO $db,
+        string $uuidOperation,
+        string $subjectPartyKey
+    ): string {
+        $rows = $this->many(
+            $db,
+            'SELECT UUID_VALIDATION, STATUS, SUBJECT_PARTY_KEY
+             FROM discount_validation
+             WHERE UUID_OPERATION = ? AND DISCOUNT_TYPE = ? FOR UPDATE',
+            [$uuidOperation, NovicePromotionGrantService::VALIDATION_TYPE]
+        );
+
+        if ($rows !== []) {
+            if (count($rows) !== 1
+                || (string) $rows[0]['SUBJECT_PARTY_KEY'] !== $subjectPartyKey
+                || !in_array((string) $rows[0]['STATUS'], ['PENDING', 'VALIDATED', 'REJECTED'], true)
+            ) {
+                throw SifException::conflict('A conflicting novice validation already exists.');
+            }
+
+            return (string) $rows[0]['UUID_VALIDATION'];
+        }
+
+        $uuidValidation = $this->uuids->generate();
+        $requestedAt = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
+            ->format('Y-m-d H:i:s');
+        $snapshot = json_encode([
+            'rule' => NovicePromotionGrantService::RULE_VERSION,
+            'origin_program' => 'JASOM',
+            'secretary_manual_review_required' => true,
+            'source' => 'novice_enrollment_stager',
+            'decision' => 'PENDING',
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+
+        $this->execute(
+            $db,
+            'INSERT INTO discount_validation
+             (UUID_VALIDATION, UUID_OPERATION, DISCOUNT_TYPE, SUBJECT_PARTY_KEY,
+              STATUS, RULE_VERSION, RULE_SNAPSHOT_JSON, REQUESTED_AT, IDEMPOTENCY_KEY)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                $uuidValidation,
+                $uuidOperation,
+                NovicePromotionGrantService::VALIDATION_TYPE,
+                $subjectPartyKey,
+                'PENDING',
+                NovicePromotionGrantService::RULE_VERSION,
+                $snapshot,
+                $requestedAt,
+                'NOVICE|REQUEST|' . $uuidOperation,
+            ]
+        );
+
+        return $uuidValidation;
     }
 
     private function canonicalJson(string $json): string
