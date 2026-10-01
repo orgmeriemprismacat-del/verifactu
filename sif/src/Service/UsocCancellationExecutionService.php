@@ -273,7 +273,7 @@ final class UsocCancellationExecutionService
         $this->cancellations->append($db, [
             'uuid_operational_event' => $eventUuid,
             'enrollment_id' => $idInsc,
-            'cancellation_reason' => $request['reason_code'] . '_' . strtoupper($role),
+            'cancellation_reason' => $request['reason_code'],
             'effective_at' => $occurredAt,
             'economic_decision' => $decision['economic_action'],
             'return_amount' => $decision['refund_amount'],
