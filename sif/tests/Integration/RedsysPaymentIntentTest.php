@@ -27,7 +27,7 @@ final class RedsysPaymentIntentTest
             'expected_amount' => '120.00',
             'currency' => 'EUR',
             'terminal' => '1',
-            'snapshot' => ['billing' => ['tax_id' => '12345678Z']],
+            'snapshot' => $this->courseSnapshot(700, 700, '120.00'),
             'created_by' => 'test',
         ]);
 
@@ -457,6 +457,93 @@ final class RedsysPaymentIntentTest
         }, 422);
     }
 
+    public function testCreatesCourseIntentWithPrismaStudentDiscountSnapshot(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(
+            new RedsysPaymentIntentRepository(),
+            new UuidGenerator()
+        );
+
+        $created = $service->create($db, [
+            'ds_order' => 'ORDERCOURSEAP1',
+            'idpag' => 930,
+            'source_type' => 'CURS',
+            'source_id' => '830',
+            'expected_amount' => '90.00',
+            'currency' => 'EUR',
+            'terminal' => '1',
+            'snapshot' => $this->courseSnapshot(830, 930, '90.00', [
+                'origin' => 'ALUMNE_PRISMA',
+                'mode' => 'FIXED_PRICE',
+                'base' => '120.00',
+                'amount' => '30.00',
+                'rule_version' => 'ALUMNE_PRISMA_LEGACY_V1',
+            ]),
+            'created_by' => 'web-checkout',
+        ]);
+
+        $loaded = (new RedsysPaymentIntentRepository())->findByDsOrder($db, 'ORDERCOURSEAP1');
+        $snapshot = json_decode((string) $loaded['SNAPSHOT_JSON'], true);
+
+        Assert::same(false, $created['idempotency_reused']);
+        Assert::same('ALUMNE_PRISMA', $snapshot['discount']['origin']);
+        Assert::same('90.00', number_format((float) $loaded['EXPECTED_AMOUNT'], 2, '.', ''));
+    }
+
+    public function testRejectsCourseIntentWhenSourceDoesNotMatchInscription(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(new RedsysPaymentIntentRepository(), new UuidGenerator());
+        $input = $this->intentInput('ORDERCOURSEAP2');
+        $input['source_id'] = '701';
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $input): void {
+            $service->create($db, $input);
+        }, 409);
+    }
+
+    public function testRejectsCourseIntentWhenIdpagDoesNotMatchSnapshot(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(new RedsysPaymentIntentRepository(), new UuidGenerator());
+        $input = $this->intentInput('ORDERCOURSEAP3');
+        $input['idpag'] = 701;
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $input): void {
+            $service->create($db, $input);
+        }, 409);
+    }
+
+    public function testRejectsCourseIntentWhenExpectedAmountDoesNotMatchSnapshotPayment(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(new RedsysPaymentIntentRepository(), new UuidGenerator());
+        $input = $this->intentInput('ORDERCOURSEAP4');
+        $input['expected_amount'] = '119.00';
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $input): void {
+            $service->create($db, $input);
+        }, 409);
+    }
+
+    public function testRejectsCourseDiscountSnapshotWithoutOrigin(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(new RedsysPaymentIntentRepository(), new UuidGenerator());
+        $input = $this->intentInput('ORDERCOURSEAP5');
+        $input['expected_amount'] = '90.00';
+        $input['snapshot'] = $this->courseSnapshot(700, 700, '90.00', [
+            'mode' => 'FIXED_PRICE',
+            'base' => '120.00',
+            'amount' => '30.00',
+        ]);
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $input): void {
+            $service->create($db, $input);
+        }, 422);
+    }
+
     private function intentInput(string $dsOrder): array
     {
         return [
@@ -467,8 +554,37 @@ final class RedsysPaymentIntentTest
             'expected_amount' => '120.00',
             'currency' => 'EUR',
             'terminal' => '1',
-            'snapshot' => ['billing' => ['tax_id' => '12345678Z']],
+            'snapshot' => $this->courseSnapshot(700, 700, '120.00'),
             'created_by' => 'test',
         ];
+    }
+
+    private function courseSnapshot(int $inscriptionId, int $idpag, string $amount, ?array $discount = null): array
+    {
+        $snapshot = [
+            'inscription' => [
+                'ID' => $inscriptionId,
+                'IDPAG' => $idpag,
+                'ANY' => 2026,
+                'MES' => '10',
+                'CURS' => 'ABC',
+                'NOM' => 'Maria',
+                'COGNOMS' => 'Exemple',
+                'DNI' => '12345678Z',
+                'A_PAGAR' => $amount,
+            ],
+            'course' => [
+                'NOM_CURS' => 'Curs de prova',
+            ],
+            'payment' => [
+                'amount' => $amount,
+            ],
+        ];
+
+        if ($discount !== null) {
+            $snapshot['discount'] = $discount;
+        }
+
+        return $snapshot;
     }
 }

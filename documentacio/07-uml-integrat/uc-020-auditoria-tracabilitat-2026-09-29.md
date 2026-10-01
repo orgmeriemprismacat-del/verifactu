@@ -97,8 +97,8 @@ No descriure AP ACTUAL com un percentatge fix. El codi usa `descomptes.PREU` com
 | --- | --- | --- |
 | Fitxa funcional UC-020 | existent, genèrica v1.1 | actualitzada v1.2 amb auditoria específica |
 | UML integrat UC-020 | existent, sobretot FINAL/SIF | actualitzat amb ACTUAL + FINAL |
-| Classes UC-020 | parcials dins UML | ACTUAL i FINAL integrades al UML principal |
-| Seqüències UC-020 | una seqüència mixta | web, denegació, canvi de curs i FINAL |
+| Classes UC-020 | parcials dins UML | `uc-020-classes-actual-final.md` + resum integrat |
+| Seqüències UC-020 | una seqüència mixta | `uc-020-sequencies-actual-final.md` + resum integrat |
 | Activitats per pàgina | **no existia dossier específic** | creat `uc-020-activitats-pagines-actual-final.md` |
 | Traçabilitat d'auditoria | dispersa | aquest document |
 | Matriu AP-01…AP-84 | dispersa/incompleta | creada `uc-020-matriu-proves-ap-01-84.md` |
@@ -173,6 +173,8 @@ Cap fila «PENDENT EXECUCIÓ» passa a VERIFICADA només perquè existeixi un te
 
 - [Fitxa UC-020](../06-fitxes-funcionals/uc-020.md)
 - [UML integrat UC-020](uc-020-aplicar-alumne-prisma.md)
+- [Classes ACTUAL/FINAL](uc-020-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-020-sequencies-actual-final.md)
 - [Activitats UC-020](uc-020-activitats-pagines-actual-final.md)
 - [UC-116 compartit](uc-116-activitats-pagines-justificants-actual-final.md)
 - [Matriu AP-01…AP-84](uc-020-matriu-proves-ap-01-84.md)
@@ -199,9 +201,49 @@ Aquests tests estan **creats però no es declaren verificats** fins que s'execut
 
 ### 7.3. Buits que continuen oberts
 
-1. `PrismaStudentDiscountPolicy`: no s'implementa fins ratificar `UC20-DEC-001…006`.
-2. Adaptador web/intranet llegada → `CommercialOfferService`.
-3. Substitució de les rutes llegades de confirmació/pagament per `PaymentLinkService`.
-4. Orquestrador `commercial_operation/payment_link → RedsysPaymentIntentService`.
-5. Política de múltiples intents Redsys sobre una mateixa operació abans d'usar `linkIntent()` com a flux principal.
-6. E2E historial → oferta AP → link → intent → callback → factura.
+1. `PrismaStudentDiscountPolicy` ja existeix sota `ALUMNE_PRISMA_LEGACY_V1`; continuen pendents de ratificació `UC20-DEC-001…006` i qualsevol canvi requerirà una nova versió.
+2. Adaptador web/intranet llegat → `CommercialOfferService` / `PrismaStudentCourseCheckoutService`.
+3. Substitució de les rutes llegades de confirmació/pagament per `PaymentLinkService` i/o operació servidor autoritativa.
+4. El nucli `PrismaStudentCourseCheckoutService → RedsysPaymentIntentService → commercial_operation.UUID_INTENT` està implementat; resta integrar-lo al canal real i coordinar-lo amb `payment_link`.
+5. Política completa de múltiples intents Redsys sobre una mateixa operació i substitució/revocació de links.
+6. E2E historial → oferta/operació AP → intent → callback → factura i evidència de preproducció.
+
+
+## 8. Tall executable UC-020 integrat — 30/09/2026
+
+### 8.1. Codi específic incorporat
+
+| Peça | Estat | Finalitat |
+| --- | --- | --- |
+| `PrismaStudentDiscountPolicy` | IMPLEMENTAT_COMPATIBILITAT | Reprodueix la regla web sota `ALUMNE_PRISMA_LEGACY_V1` i retorna evidència concreta sense tancar decisions futures. |
+| `LegacyPrismaStudentHistoryRepository` | IMPLEMENTAT | Recupera fets d'historial per document sense decidir elegibilitat. |
+| `CourseIntentSnapshotValidator` | IMPLEMENTAT | Valida source, inscripció, IDPAG, import i coherència del descompte per intencions CURS. |
+| `LegacyPrismaStudentPriceSnapshotResolver` | IMPLEMENTAT | Obté snapshot de preu autoritatiu des de dades llegades. |
+| `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI | Orquestra historial → policy → operació/validació → snapshot → intenció → vincle d'intent. |
+| `RedsysCoursePaymentIntentService` / `RedsysPaymentIntentService` | MODIFICAT | Consumeixen i validen el contracte CURS/AP abans del TPV. |
+
+Aquesta capa és **complementària**, no substitutiva, de la infraestructura comercial general descrita a 7.1 (`CommercialOfferService`, repositoris comercials i `PaymentLinkService`).
+
+### 8.2. Incidències resoltes o reduïdes
+
+| ID | Troballa | Estat integrat |
+| --- | --- | --- |
+| UC020-74 | Intenció CURS acceptava snapshot insuficient. | **CORREGIT CODI** amb `CourseIntentSnapshotValidator`. |
+| UC020-75 | `SOURCE_ID` no es contrastava amb la inscripció del snapshot. | **CORREGIT CODI**. |
+| UC020-76 | `IDPAG` no es contrastava amb el snapshot. | **CORREGIT CODI**. |
+| UC020-77 | `EXPECTED_AMOUNT` no es contrastava amb l'import de pagament. | **CORREGIT CODI**. |
+| UC020-78 | Snapshot de descompte podia arribar sense origen/mode coherent. | **CORREGIT per al contracte CURS nou**; es mantenen fallbacks històrics on pertoqui. |
+| UC020-79 | Política AP no encapsulada ni versionada. | **PARCIALMENT TANCAT** amb policy + historial; negoci futur pendent. |
+| UC020-80 | Manca orquestrador server-side d'operació/validació. | **IMPLEMENTAT_NUCLI** a `PrismaStudentCourseCheckoutService`; adaptador web pendent. |
+| UC020-81 | Manca vincle runtime `UUID_OPERATION ↔ UUID_INTENT`. | **IMPLEMENTAT_NUCLI**; integració de canal i política de múltiples intents pendents. |
+| UC020-82 | Invariant transversal factura vs cobrament. | **PENDENT TRANSVERSAL**; considerar fraccionaments. |
+
+### 8.3. Decisions que continuen pendents
+
+La implementació no modifica silenciosament la política de negoci. Es mantenen pendents, entre altres, pagament parcial com a prova, `GENERAT=1`, factura abans de cobrar, autoacreditació de la matrícula actual, prioritat amb altres descomptes i vigència temporal de l'oferta.
+
+## 9. Evidència històrica del PR #54 i revalidació requerida
+
+El tall original del PR #54 havia passat els tres workflows i la suite MySQL amb **716 passed / 0 failed**. Aquesta evidència és històrica del commit anterior a l'actualització amb `main`.
+
+Després d'integrar el `main` actual, el criteri per autoritzar el merge és tornar a executar els workflows sobre el nou HEAD i exigir-los verds. L'E2E navegador → oferta/operació server-side → Redsys → factura i la preproducció continuen fora de l'abast d'aquesta evidència.

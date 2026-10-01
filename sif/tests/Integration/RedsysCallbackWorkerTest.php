@@ -262,7 +262,21 @@ final class RedsysCallbackWorkerTest
             'expected_amount' => '80.00',
             'currency' => 'EUR',
             'terminal' => '1',
-            'snapshot' => ['billing' => ['tax_id' => '12345678Z']],
+            'snapshot' => [
+                'inscription' => [
+                    'ID' => 700,
+                    'IDPAG' => 700,
+                    'ANY' => 2026,
+                    'MES' => '10',
+                    'CURS' => 'ABC',
+                    'NOM' => 'Maria',
+                    'COGNOMS' => 'Exemple',
+                    'DNI' => '12345678Z',
+                    'A_PAGAR' => '80.00',
+                ],
+                'course' => ['NOM_CURS' => 'Curs de prova'],
+                'payment' => ['amount' => '80.00'],
+            ],
         ]);
         $notification = (new RedsysNotificationRepository())->recordReceived(
             $db,

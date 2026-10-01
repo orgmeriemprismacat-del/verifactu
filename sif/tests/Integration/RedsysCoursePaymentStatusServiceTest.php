@@ -174,6 +174,7 @@ final class RedsysCoursePaymentStatusServiceTest
             'snapshot' => [
                 'inscription' => [
                     'ID' => $idpag,
+                    'IDPAG' => $idpag,
                     'ANY' => 2026,
                     'MES' => '10',
                     'CURS' => 'RET',

@@ -43,8 +43,9 @@ final class LegacyCourseSnapshotRepository
     private function findInscriptionByIdpag(\PDO $legacyDb, int $idpag): ?array
     {
         $stmt = $legacyDb->prepare(
-            'SELECT ID, `ANY`, MES, CURS, NOM, COGNOMS, DNI, CORREU, ADRECA, Codi_Postal,
-                    Poblacio, FACTURA_RELACIONADA, A_PAGAR, `INSC CURS`, PAGAMENT, FRACCIONAT, FRACCIO
+            'SELECT ID, `ANY`, MES, CURS, DATA_INSC, NOM, COGNOMS, DNI, CORREU, ADRECA, Codi_Postal,
+                    Poblacio, FACTURA_RELACIONADA, A_PAGAR, `INSC CURS`, PAGAMENT, FRACCIONAT, FRACCIO,
+                    TIPUS_DESC, VALID_DESC
              FROM inscripcions
              WHERE IDPAG = ? AND (`INSC CURS` = \'0\' OR `INSC CURS` = \'1\' OR `INSC CURS` = \'M\')'
         );
@@ -63,7 +64,7 @@ final class LegacyCourseSnapshotRepository
         }
 
         $stmt = $legacyDb->prepare(
-            'SELECT NOM_CURS, DATAI, DATAF, HORES
+            'SELECT NOM_CURS, DATAI, DATAF, HORES, ID_PREU
              FROM curs
              WHERE `ANY` = ? AND MES = ? AND CURS = ?'
         );

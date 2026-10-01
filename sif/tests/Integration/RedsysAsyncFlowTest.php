@@ -94,13 +94,13 @@ final class RedsysAsyncFlowTest
             'ds_order' => $dsOrder,
             'idpag' => 400,
             'source_type' => 'CURS',
-            'source_id' => '400',
+            'source_id' => '410',
             'expected_amount' => '95.50',
             'currency' => 'EUR',
             'terminal' => '1',
             'snapshot' => [
                 'inscription' => [
-                    'ID' => 410, 'ANY' => 2026, 'MES' => '07', 'CURS' => 'LM',
+                    'ID' => 410, 'IDPAG' => 400, 'ANY' => 2026, 'MES' => '07', 'CURS' => 'LM',
                     'NOM' => 'Joan', 'COGNOMS' => 'Mostra', 'DNI' => '87654321Z',
                     'A_PAGAR' => '95.50', 'FACTURA_RELACIONADA' => 810,
                 ],
