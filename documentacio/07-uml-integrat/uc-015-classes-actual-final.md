@@ -28,8 +28,10 @@ class InscripcioPack {
 }
 class EnviarInscripcioPack {
   <<script PHP>>
+  +rep alta publica per GET [LEGACY]
+  +recalcula preu des de BD
   +crea IDPAG
-  +insereix N inscripcions
+  +insereix N inscripcions + snapshot
   +genera URL pagament
   +envia correus
 }
@@ -53,7 +55,7 @@ RealitzaPagamentPackAutomatic --> EnviarInscripcioPack : usa IDPAG creat
 - `Pack.php`: carrega la definició del pack, components, disponibilitat i metadades.
 - `EdicioPack.php`: resol edició, curs, dates, preu i obertura.
 - `InscripcioPack.php`: genera el formulari.
-- `enviarInscripcioPack.php`: rep dades de navegador, calcula/rep imports, genera `IDPAG` i crea N files `inscripcions`.
+- `enviarInscripcioPack.php`: rep dades personals per **GET**, recalcula els imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb el snapshot comercial. El preu és backend-authoritative, però el transport GET continua sent deute del canal.
 - `realitzaPagamentPackAutomatic.php`: conserva el codi històric, però està bloquejat per defecte amb HTTP 410 abans de qualsevol mutació.
 
 ## 2. Classes ACTUAL — SIF ja implementat
@@ -191,6 +193,7 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 | Responsabilitat | ACTUAL | FINAL |
 |---|---|---|
 | Preu definitiu | **Backend autoritatiu implementat** | Mantenir snapshot versionat i provar runtime |
+| Transport alta pública | **GET legacy amb dades personals** | POST i proteccions de canal definitives; evitar query string |
 | Identitat operació | `MAX(IDPAG)+1` sota `GET_LOCK` | Seqüència pròpia si es decideix eliminar deute legacy |
 | Ordinal components | `PACK_ORDINAL` congelat i consumit | Ordre actual `DATAI, ID_CURS`; decidir si cal posició comercial explícita |
 | Receptor fiscal | **Validació fail-closed entre tots els components** | Mantenir receptor explícit al snapshot |
@@ -204,4 +207,12 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 - **Documentat:** sí.
 - **Implementat:** flux fiscal/econòmic principal sí; resten només dependències residuals d'entorn/retirada/UC-58.
 - **Verificat per inspecció:** sí.
-- **Pendent:** eliminar el callback fiscal legacy després de la finestra de rollback, decidir si `PACK_ORDINAL` ha de provenir d'una posició comercial explícita independent de `DATAI` i obtenir evidència runtime/preproducció. La sincronització legacy post-SIF ja està implementada amb `RedsysLegacySyncingProcessor` + `LegacySyncService`.
+- **Pendent:** migrar l'alta pública del pack de GET a POST/proteccions de canal, eliminar el callback fiscal legacy després de la finestra de rollback, decidir si `PACK_ORDINAL` ha de provenir d'una posició comercial explícita independent de `DATAI` i obtenir evidència runtime/preproducció. La sincronització legacy post-SIF ja està implementada amb `RedsysLegacySyncingProcessor` + `LegacySyncService`.
+
+
+## 6. Revalidació 2026-10-02
+
+- No falta el diagrama de classes ACTUAL/FINAL: aquest fitxer existeix i cobreix web legacy, SIF i responsabilitats residuals.
+- El flux fiscal/econòmic PACK no ha canviat des de la fusió específica `41d6968...`; els canvis posteriors de `RedsysPaymentIntentService` afecten la validació de `CURS`, i el canvi del worker afegeix notificació de curs sense alterar la injecció PACK.
+- La classe/servei `AcademicEnrollmentSyncService` **no forma part** del UC-015 executable. La sincronització correcta és `RedsysLegacySyncingProcessor` → `LegacySyncService`.
+- La frontera menys madura continua sent l'alta pública: backend de preu endurit, però transport GET legacy.
