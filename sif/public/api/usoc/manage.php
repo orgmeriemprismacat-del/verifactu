@@ -189,6 +189,54 @@ try {
         return;
     }
 
+    if ($action === 'execute_cancellation') {
+        $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
+        $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
+        $input = $payload['input'] ?? null;
+        if (!is_array($input)) {
+            throw SifException::validation('Invalid USOC cancellation execution input');
+        }
+
+        $paymentService = new PaymentService(
+            new TransactionRunner($db),
+            new PaymentPayloadValidator(),
+            new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+        );
+        $guard = new UsocLifecycleGuardService($cases);
+
+        $service = new UsocCancellationExecutionService(
+            new UsocLifecyclePlanService($cases, $guard),
+            new UsocLifecycleExecutionRepository(new UuidGenerator()),
+            new ManualRectificationService(
+                new ManualPaymentInvoiceRepository(),
+                new RectificationRepository(),
+                new ManualRectificationPayloadBuilder(),
+                buildInvoiceService($db)
+            ),
+            new ManualRefundService(
+                new ManualPaymentInvoiceRepository(),
+                new ManualRefundPayloadBuilder(),
+                $paymentService
+            ),
+            new OperationalEventRepository(new UuidGenerator()),
+            new EnrollmentCancellationEventRepository(new UuidGenerator())
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'execution' => $service->execute(
+                $db,
+                $idInsc,
+                $idpag,
+                requiredRequestId($payload['request_id'] ?? null),
+                (string) ($actor['actor_id'] ?? ''),
+                (array) ($actor['roles'] ?? []),
+                $input
+            ),
+        ]);
+        return;
+    }
+
     if ($action === 'reconcile') {
         $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
         $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
