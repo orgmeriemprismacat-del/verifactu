@@ -3,7 +3,7 @@
 **Data:** 29/09/2026 · actualització d'implementació 30/09/2026 · revalidació exhaustiva 02/10/2026  
 **Repositori:** `orgmeriemprismacat-del/verifactu`  
 **Branca inicial d'auditoria:** `audit/uc-013-usoc-2026-09-29`  
-**Revalidació actual:** `audit/uc-013-completitud-2026-10-02` sobre `main@22d47a2949e03fe4a170f831f6d7f8724f7cd40c`
+**Revalidació actual:** `audit/uc-013-completitud-2026-10-02` sobre `main@434be933eccfd0b8805bc532a39760d7ec426a00`
 
 ## 1. Llegenda d'estats
 
@@ -156,7 +156,7 @@ Per tant, la discrepància 20 %/25 % queda com a decisió de negoci, no com a co
 
 ### Main contrastat
 
-`22d47a2949e03fe4a170f831f6d7f8724f7cd40c`.
+`434be933eccfd0b8805bc532a39760d7ec426a00`.
 
 ### Resultat per capa
 
@@ -197,7 +197,7 @@ La carpeta de proves conserva evidència positiva en commits del UC-013. En aque
 
 ## 9. Delta de main · executor de baixa USOC
 
-Entre `06ac56b9f...` i `22d47a294...` s'han incorporat canvis directament relacionats amb UC-013/027:
+Entre `06ac56b9f...` i `434be933e...` s'han incorporat canvis directament relacionats amb UC-013/027:
 
 - `sif/src/Service/UsocCancellationExecutionService.php`;
 - ampliacions a `LegacyUsocLifecycleGuard.php`;
@@ -217,3 +217,18 @@ Entre `06ac56b9f...` i `22d47a294...` s'han incorporat canvis directament relaci
 | Accions diferides | Sí | Sí | Sí | test present al commit actual |
 | Continuació cap a baixa legacy | Sí | Sí quan execution=COMPLETED | Sí | test present |
 | Executor canvi de curs | Sí com a objectiu | **No localitzat** | n/a | pendent |
+
+
+### UI i API de baixa · revalidació final del 02/10
+
+El delta fins a `main@434be933e...` completa el cablejat de navegador:
+`alumnes-usoc-lifecycle-preview.js`
+→ `sifUsocLifecyclePreview.php`
+→ `SifInternalUsocClient`
+→ `/api/usoc/manage.php`
+→ `UsocCancellationExecutionService`
+→ rectificativa/refund/checkpoint
+→ verificació `cancellation_execution_status`
+→ continuació controlada de la baixa legacy.
+
+Les proves contractuals i de seguretat també han estat ampliades al main, però **no hi ha workflow associat directament al SHA actual** en el moment de l'auditoria; per tant es classifiquen com a tests presents, no com a nova execució acreditada.
