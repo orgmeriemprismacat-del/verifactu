@@ -189,6 +189,25 @@ try {
         return;
     }
 
+    if ($action === 'cancellation_execution_status') {
+        $requestId = requiredRequestId($payload['request_id'] ?? null);
+        $execution = (new UsocLifecycleExecutionRepository(new UuidGenerator()))
+            ->findByRequestId($db, $requestId);
+
+        if ($execution === null) {
+            throw SifException::conflict('USOC cancellation execution not found');
+        }
+        if ((string) $execution['ACTOR_ID'] !== (string) ($actor['actor_id'] ?? '')) {
+            throw SifException::forbidden('USOC cancellation execution belongs to another actor');
+        }
+
+        JsonResponse::send([
+            'ok' => true,
+            'execution' => $execution,
+        ]);
+        return;
+    }
+
     if ($action === 'execute_cancellation') {
         $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
         $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
