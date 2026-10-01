@@ -20,10 +20,12 @@ final class UsocLifecycleExecutionRepository
         string $operation,
         string $actorId,
         array $roles,
-        array $request
+        array $request,
+        array $plan
     ): array {
         $operation = strtoupper(trim($operation));
         $requestHash = $this->hash($request);
+        $planHash = $this->hash($plan);
 
         $existing = $this->findByRequestId($db, $requestId, true);
         if ($existing !== null) {
@@ -42,12 +44,17 @@ final class UsocLifecycleExecutionRepository
             'INSERT INTO usoc_lifecycle_execution (
                 UUID_EXECUTION, REQUEST_ID, CORRELATION_ID,
                 ID_INSC, IDPAG, OPERATION, STATE,
-                ACTOR_ID, ACTOR_ROLES, REQUEST_HASH, REQUEST_JSON
-             ) VALUES (?, ?, ?, ?, ?, ?, \'REQUESTED\', ?, ?, ?, ?)'
+                ACTOR_ID, ACTOR_ROLES, REQUEST_HASH, REQUEST_JSON,
+                PLAN_HASH, PLAN_JSON
+             ) VALUES (?, ?, ?, ?, ?, ?, \'REQUESTED\', ?, ?, ?, ?, ?, ?)'
         );
 
         $requestJson = json_encode(
             $request,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        );
+        $planJson = json_encode(
+            $plan,
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
         );
 
@@ -63,6 +70,8 @@ final class UsocLifecycleExecutionRepository
                 implode(',', $this->normalizeRoles($roles)),
                 $requestHash,
                 $requestJson,
+                $planHash,
+                $planJson,
             ]);
         } catch (\PDOException $exception) {
             if ((string) $exception->getCode() !== '23000') {
