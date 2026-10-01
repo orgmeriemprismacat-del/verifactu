@@ -97,6 +97,25 @@ final class CommercialOfferServiceTest
         Assert::same('90.00', number_format((float) $party['LINE_AMOUNT'], 2, '.', ''));
     }
 
+    public function testEquivalentOfferCanBeReusedAfterLifecycleStatusTransition(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $input = $this->input();
+
+        $first = $service->createOrReuse($input);
+        $db->prepare(
+            "UPDATE commercial_operation SET STATUS = 'INTENT_CREATED' WHERE UUID_OPERATION = ?"
+        )->execute([$first['uuid_operation']]);
+
+        $second = $service->createOrReuse($input);
+
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same('INTENT_CREATED', $second['status']);
+        Assert::same($first['uuid_operation'], $second['uuid_operation']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+    }
+
     public function testSameOperationKeyWithDifferentPayloadConflicts(): void
     {
         $db = TestDatabase::fresh();
