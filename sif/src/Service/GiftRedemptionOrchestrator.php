@@ -10,7 +10,8 @@ final class GiftRedemptionOrchestrator
         private GiftRedemptionTrustedContextResolver $contextResolver,
         private GiftEnrollmentStager $stager,
         private GiftRedemptionService $redemption,
-        private LegacyGiftUsageReconciler $legacyReconciler
+        private LegacyGiftUsageReconciler $legacyReconciler,
+        private ?GiftRedemptionNotificationService $notifications = null
     ) {
     }
 
@@ -61,10 +62,23 @@ final class GiftRedemptionOrchestrator
             $enrollmentId
         );
 
+        $notificationOutbox = null;
+        if ($this->notifications !== null) {
+            $notificationOutbox = $this->notifications->enqueue(
+                $sifDb,
+                $legacyDb,
+                $enrollmentId,
+                $giftCode,
+                (string) $stage['uuid_entitlement'],
+                (string) $stage['uuid_operation']
+            );
+        }
+
         return [
             'stage' => $stage,
             'redemption' => $result,
             'legacy_reconciliation' => $legacyReconciliation,
+            'notification_outbox' => $notificationOutbox,
         ];
     }
 }
