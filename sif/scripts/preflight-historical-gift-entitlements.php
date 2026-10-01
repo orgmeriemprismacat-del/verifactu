@@ -97,7 +97,11 @@ if ($sifDb instanceof \PDO
             if (($item['legacy_used'] ?? true) === false
                 && !in_array(
                     (string) ($item['status'] ?? ''),
-                    ['ENTITLEMENT_PRESENT', 'READY_TO_BACKFILL'],
+                    [
+                        'ENTITLEMENT_PRESENT',
+                        'READY_TO_BACKFILL',
+                        'UNPAID_LEGACY_GIFT_NO_RIGHT',
+                    ],
                     true
                 )
             ) {
