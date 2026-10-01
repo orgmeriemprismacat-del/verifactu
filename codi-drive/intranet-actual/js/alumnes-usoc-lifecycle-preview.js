@@ -2,6 +2,8 @@
     'use strict';
 
     var allowLegacyCancellationClick = false;
+    var cancellationContext = null;
+    var executionModalId = 'uc013-usoc-cancellation-execution';
 
     function csrfToken() {
         var meta = document.querySelector('meta[name="csrf-token-alumnes-lifecycle"]');
@@ -18,7 +20,8 @@
 
         return {
             id_insc: Number(id),
-            operation: 'cancellation'
+            operation: 'cancellation',
+            legacy_reason: reason
         };
     }
 
@@ -31,6 +34,20 @@
             global: false,
             headers: {
                 'X-CSRF-Token': csrfToken()
+            },
+            data: JSON.stringify(payload)
+        });
+    }
+
+    function requestExecution(payload) {
+        return $.ajax({
+            url: path + 'alumnes/sifUsoc.php',
+            method: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json',
+            global: false,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
             },
             data: JSON.stringify(payload)
         });
@@ -67,8 +84,8 @@
         }
 
         return 'Aquesta inscripció USOC té dues parts econòmiques separades. '
-            + 'La baixa no es pot executar amb el flux legacy perquè cal decidir per separat '
-            + 'l’efecte sobre la factura i els diners de l’alumne i de l’entitat.'
+            + 'La baixa no es pot executar amb el flux legacy fins que el SIF '
+            + 'registri la decisió fiscal/econòmica de cada pagador.'
             + payerSummary(guard);
     }
 
@@ -87,6 +104,312 @@
         }
 
         window.alert(message);
+    }
+
+    function requestId(idInsc) {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return 'uc013-cancel-' + idInsc + '-' + window.crypto.randomUUID();
+        }
+
+        return 'uc013-cancel-' + idInsc + '-' + Date.now()
+            + '-' + Math.random().toString(16).slice(2);
+    }
+
+    function localTimestamp() {
+        var d = new Date();
+        function two(value) {
+            return String(value).padStart(2, '0');
+        }
+        return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate())
+            + ' ' + two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds());
+    }
+
+    function findPayerAction(plan, role) {
+        var actions = plan && Array.isArray(plan.actions) ? plan.actions : [];
+        for (var i = 0; i < actions.length; i++) {
+            if (String(actions[i].payer_role || '') === role) {
+                return actions[i];
+            }
+        }
+        return null;
+    }
+
+    function ensureExecutionModal() {
+        var existing = document.getElementById(executionModalId);
+        if (existing) {
+            return existing;
+        }
+
+        var modal = document.createElement('div');
+        modal.id = executionModalId;
+        modal.className = 'modal fade';
+        modal.tabIndex = -1;
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML =
+            '<div class="modal-dialog modal-xl modal-dialog-scrollable">'
+            + '<div class="modal-content">'
+            + '<div class="modal-header">'
+            + '<h5 class="modal-title">Baixa USOC · decisió fiscal i econòmica</h5>'
+            + '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tanca"></button>'
+            + '</div>'
+            + '<div class="modal-body">'
+            + '<div class="alert alert-warning">'
+            + 'La matrícula no es donarà de baixa al legacy fins que aquesta comanda '
+            + 'quedi COMPLETED al SIF. Alumne i entitat es tracten per separat.'
+            + '</div>'
+            + '<div id="uc013-cancel-plan"></div>'
+            + '<div id="uc013-cancel-error" class="alert alert-danger d-none"></div>'
+            + '</div>'
+            + '<div class="modal-footer">'
+            + '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Torna</button>'
+            + '<button type="button" class="btn btn-danger" id="uc013-cancel-confirm">'
+            + 'Registrar decisió i continuar baixa'
+            + '</button>'
+            + '</div>'
+            + '</div></div>';
+
+        document.body.appendChild(modal);
+
+        modal.addEventListener('hidden.bs.modal', function () {
+            if (cancellationContext && cancellationContext.completed !== true) {
+                var legacyModal = document.getElementById('modalDonarBaixa');
+                if (legacyModal && window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(legacyModal).show();
+                }
+            }
+        });
+
+        $('#uc013-cancel-confirm').on('click', function () {
+            submitCancellationExecution();
+        });
+
+        return modal;
+    }
+
+    function payerCard(role, label, action, legacyReason) {
+        if (!action) {
+            return '<div class="alert alert-danger">Falta el pla del pagador ' + escapeHtml(label) + '.</div>';
+        }
+
+        var invoiceUuid = String(action.invoice_uuid || '');
+        var total = String(action.invoice_total || action.total || '0.00');
+        var netPaid = String(action.net_paid || '0.00');
+        var maxRefundable = String(action.max_refundable || '0.00');
+        var prefix = 'uc013-' + role;
+
+        if (!invoiceUuid) {
+            return '<div class="card mb-3" data-payer="' + role + '">'
+                + '<div class="card-header"><strong>' + escapeHtml(label) + '</strong></div>'
+                + '<div class="card-body">'
+                + '<p class="mb-1">Factura: <strong>no emesa</strong></p>'
+                + '<p class="mb-0">No es crearà rectificativa ni refund per aquest pagador.</p>'
+                + '<input type="hidden" id="' + prefix + '-no-invoice" value="1">'
+                + '</div></div>';
+        }
+
+        var hasFunds = Number(maxRefundable) > 0;
+        return '<div class="card mb-3" data-payer="' + role + '">'
+            + '<div class="card-header"><strong>' + escapeHtml(label) + '</strong></div>'
+            + '<div class="card-body">'
+            + '<div class="row mb-3">'
+            + '<div class="col-md-6"><strong>Factura</strong><div class="text-break">' + escapeHtml(invoiceUuid) + '</div></div>'
+            + '<div class="col-md-2"><strong>Total</strong><div>' + escapeHtml(total) + ' €</div></div>'
+            + '<div class="col-md-2"><strong>Pagat net</strong><div>' + escapeHtml(netPaid) + ' €</div></div>'
+            + '<div class="col-md-2"><strong>Màxim retornable</strong><div>' + escapeHtml(maxRefundable) + ' €</div></div>'
+            + '</div>'
+
+            + '<div class="border rounded p-3 mb-3">'
+            + '<h6>Decisió fiscal</h6>'
+            + '<div class="row g-2">'
+            + '<div class="col-md-4"><label class="form-label">Acció</label>'
+            + '<select class="form-select uc013-fiscal-action" id="' + prefix + '-fiscal-action">'
+            + '<option value="DEFER_FISCAL" selected>Diferir revisió fiscal</option>'
+            + '<option value="RECTIFY">Emetre rectificativa</option>'
+            + '<option value="NO_FISCAL_EFFECT">Sense efecte fiscal</option>'
+            + '</select></div>'
+            + '<div class="col-md-8"><label class="form-label">Motiu/justificació</label>'
+            + '<input class="form-control" id="' + prefix + '-fiscal-reason" value="' + escapeAttr(legacyReason) + '"></div>'
+            + '</div>'
+            + '<div class="row g-2 mt-2 uc013-rect-fields d-none">'
+            + '<div class="col-md-3"><label class="form-label">Import rectificativa</label>'
+            + '<input type="number" step="0.01" max="-0.01" class="form-control" id="' + prefix + '-rect-amount" value="-' + escapeAttr(total) + '"></div>'
+            + '<div class="col-md-3"><label class="form-label">Mode</label>'
+            + '<select class="form-select" id="' + prefix + '-rect-mode">'
+            + '<option value="SUBSTITUCIO" selected>Substitució total</option>'
+            + '<option value="DIFERENCIES">Diferències</option>'
+            + '</select></div>'
+            + '<div class="col-md-6"><label class="form-label">Motiu rectificativa</label>'
+            + '<input class="form-control" id="' + prefix + '-rect-reason" value="ANULACIO_TOTAL"></div>'
+            + '</div></div>'
+
+            + '<div class="border rounded p-3">'
+            + '<h6>Decisió econòmica</h6>'
+            + '<div class="row g-2">'
+            + '<div class="col-md-4"><label class="form-label">Acció</label>'
+            + '<select class="form-select uc013-economic-action" id="' + prefix + '-economic-action">'
+            + (hasFunds
+                ? '<option value="DEFER_REFUND" selected>Diferir devolució</option>'
+                    + '<option value="REFUND">Registrar refund ja executat</option>'
+                    + '<option value="NO_REFUND">No retornar</option>'
+                : '<option value="NO_REFUND" selected>Sense fons retornables</option>')
+            + '</select></div>'
+            + '<div class="col-md-8"><label class="form-label">Motiu/seguiment</label>'
+            + '<input class="form-control" id="' + prefix + '-economic-reason" value="'
+            + (hasFunds ? '' : 'No hi ha fons reals retornables') + '"></div>'
+            + '</div>'
+            + '<div class="row g-2 mt-2 uc013-refund-fields d-none">'
+            + '<div class="col-md-3"><label class="form-label">Import refund</label>'
+            + '<input type="number" step="0.01" min="0.01" max="' + escapeAttr(maxRefundable)
+            + '" class="form-control" id="' + prefix + '-refund-amount" value="' + escapeAttr(maxRefundable) + '"></div>'
+            + '<div class="col-md-3"><label class="form-label">Data moviment</label>'
+            + '<input type="datetime-local" class="form-control" id="' + prefix + '-refund-date"></div>'
+            + '<div class="col-md-3"><label class="form-label">Referència bancària</label>'
+            + '<input class="form-control" id="' + prefix + '-refund-reference"></div>'
+            + '<div class="col-md-3"><label class="form-label">Banc</label>'
+            + '<input class="form-control" id="' + prefix + '-refund-bank"></div>'
+            + '</div></div>'
+            + '</div></div>';
+    }
+
+    function renderExecutionPlan(plan, identity) {
+        var student = findPayerAction(plan, 'student');
+        var entity = findPayerAction(plan, 'entity');
+
+        $('#uc013-cancel-plan').html(
+            '<p><strong>Inscripció:</strong> ' + escapeHtml(String(identity.id_insc))
+            + ' · <strong>IDPAG:</strong> ' + escapeHtml(String(plan.idpag || '—')) + '</p>'
+            + payerCard('student', 'Alumne', student, identity.legacy_reason)
+            + payerCard('entity', 'Entitat USOC', entity, identity.legacy_reason)
+        );
+
+        $('.uc013-fiscal-action').off('change.uc013').on('change.uc013', function () {
+            var card = $(this).closest('[data-payer]');
+            card.find('.uc013-rect-fields').toggleClass('d-none', $(this).val() !== 'RECTIFY');
+        });
+
+        $('.uc013-economic-action').off('change.uc013').on('change.uc013', function () {
+            var card = $(this).closest('[data-payer]');
+            card.find('.uc013-refund-fields').toggleClass('d-none', $(this).val() !== 'REFUND');
+        });
+    }
+
+    function decisionFor(role, action) {
+        var prefix = '#uc013-' + role;
+        if (!action || !action.invoice_uuid) {
+            return {
+                fiscal_action: 'NO_FISCAL_EFFECT',
+                fiscal_reason: 'Factura no emesa per aquest pagador',
+                economic_action: 'NO_REFUND',
+                economic_reason: 'Sense factura ni fons retornables'
+            };
+        }
+
+        var fiscalAction = String($(prefix + '-fiscal-action').val() || '');
+        var economicAction = String($(prefix + '-economic-action').val() || '');
+
+        var result = {
+            fiscal_action: fiscalAction,
+            fiscal_reason: String($(prefix + '-fiscal-reason').val() || '').trim(),
+            economic_action: economicAction,
+            economic_reason: String($(prefix + '-economic-reason').val() || '').trim()
+        };
+
+        if (fiscalAction === 'RECTIFY') {
+            result.rectification_amount = String($(prefix + '-rect-amount').val() || '').trim();
+            result.rectification_mode = String($(prefix + '-rect-mode').val() || '').trim();
+            result.rectification_reason = String($(prefix + '-rect-reason').val() || '').trim();
+        }
+
+        if (economicAction === 'REFUND') {
+            result.refund_amount = String($(prefix + '-refund-amount').val() || '').trim();
+            result.refund_movement_date = String($(prefix + '-refund-date').val() || '').trim().replace('T', ' ');
+            result.refund_reference = String($(prefix + '-refund-reference').val() || '').trim();
+            result.refund_bank = String($(prefix + '-refund-bank').val() || '').trim();
+        }
+
+        return result;
+    }
+
+    function showExecutionModal(plan, identity, button) {
+        var modal = ensureExecutionModal();
+        cancellationContext = {
+            identity: identity,
+            button: button,
+            plan: plan,
+            requestId: requestId(identity.id_insc),
+            completed: false
+        };
+
+        renderExecutionPlan(plan, identity);
+        $('#uc013-cancel-error').addClass('d-none').text('');
+
+        var legacyModal = document.getElementById('modalDonarBaixa');
+        if (legacyModal && window.bootstrap && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(legacyModal).hide();
+        }
+        bootstrap.Modal.getOrCreateInstance(modal).show();
+    }
+
+    function submitCancellationExecution() {
+        if (!cancellationContext) {
+            return;
+        }
+
+        var plan = cancellationContext.plan;
+        var identity = cancellationContext.identity;
+        var student = findPayerAction(plan, 'student');
+        var entity = findPayerAction(plan, 'entity');
+
+        var payload = {
+            action: 'execute_cancellation',
+            request_id: cancellationContext.requestId,
+            id_insc: identity.id_insc,
+            idpag: Number(plan.idpag || 0),
+            input: {
+                reason_code: 'BAIXA_INSCRIPCIO_USOC',
+                effective_at: localTimestamp(),
+                student: decisionFor('student', student),
+                entity: decisionFor('entity', entity)
+            }
+        };
+
+        $('#uc013-cancel-confirm').prop('disabled', true);
+        $('#uc013-cancel-error').addClass('d-none').text('');
+
+        requestExecution(payload)
+            .done(function (response) {
+                if (!response || response.ok !== true || !response.execution) {
+                    $('#uc013-cancel-error')
+                        .removeClass('d-none')
+                        .text((response && response.error) || 'No s’ha pogut registrar la baixa USOC.');
+                    return;
+                }
+
+                cancellationContext.completed = true;
+                bootstrap.Modal.getOrCreateInstance(
+                    document.getElementById(executionModalId)
+                ).hide();
+
+                allowLegacyCancellationClick = true;
+                $(cancellationContext.button).trigger('click');
+            })
+            .fail(function (xhr) {
+                var message = xhr && xhr.responseJSON && xhr.responseJSON.error
+                    ? xhr.responseJSON.error
+                    : 'No s’ha pogut registrar la decisió fiscal/econòmica USOC.';
+                $('#uc013-cancel-error').removeClass('d-none').text(message);
+            })
+            .always(function () {
+                $('#uc013-cancel-confirm').prop('disabled', false);
+            });
+    }
+
+    function escapeHtml(value) {
+        return $('<div>').text(String(value || '')).html();
+    }
+
+    function escapeAttr(value) {
+        return escapeHtml(value).replace(/"/g, '&quot;');
     }
 
     document.addEventListener('click', function (event) {
@@ -120,17 +443,28 @@
                     return;
                 }
 
-                if (guard.allowed !== true) {
-                    showBlock(blockedMessage(guard));
+                if (guard.allowed === true) {
+                    if (typeof amagarLoadingModal === 'function') {
+                        amagarLoadingModal();
+                    }
+                    allowLegacyCancellationClick = true;
+                    $(button).trigger('click');
                     return;
                 }
 
-                if (typeof amagarLoadingModal === 'function') {
-                    amagarLoadingModal();
+                if (
+                    String(guard.reason || '') === 'USOC_FINANCING_CASE_REQUIRES_ORCHESTRATION'
+                    && response.plan
+                    && response.plan.requires_usoc_orchestration === true
+                ) {
+                    if (typeof amagarLoadingModal === 'function') {
+                        amagarLoadingModal();
+                    }
+                    showExecutionModal(response.plan, identity, button);
+                    return;
                 }
 
-                allowLegacyCancellationClick = true;
-                $(button).trigger('click');
+                showBlock(blockedMessage(guard));
             })
             .fail(function (xhr) {
                 var message = xhr && xhr.responseJSON && xhr.responseJSON.error
