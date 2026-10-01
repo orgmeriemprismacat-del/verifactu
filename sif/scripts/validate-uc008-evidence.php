@@ -32,6 +32,8 @@ $menu = readJson($menuPath, 'menu');
 
 $result['checks']['preproduction_json_valid'] = $preproduction !== null;
 $result['checks']['menu_json_valid'] = $menu !== null;
+$result['checks']['preproduction_sha256_valid'] = isSha256($result['inputs']['preproduction_sha256']);
+$result['checks']['menu_sha256_valid'] = isSha256($result['inputs']['menu_sha256']);
 
 if ($preproduction !== null) {
     $result['checks']['preproduction_ok'] = ($preproduction['ok'] ?? false) === true;
@@ -149,4 +151,10 @@ function fileSha256(string $path): ?string
     return is_string($hash) && preg_match('/^[a-f0-9]{64}$/D', $hash) === 1
         ? $hash
         : null;
+}
+
+
+function isSha256(mixed $value): bool
+{
+    return is_string($value) && preg_match('/^[a-f0-9]{64}$/D', $value) === 1;
 }
