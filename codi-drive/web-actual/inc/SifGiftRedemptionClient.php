@@ -13,6 +13,7 @@ final class SifGiftRedemptionClient
 {
     private string $baseUrl;
     private string $signedPath;
+    private string $notificationSignedPath;
     private string $keyId;
     private string $secret;
     private string $actorId;
@@ -29,6 +30,10 @@ final class SifGiftRedemptionClient
             getenv('SIF_INTERNAL_GIFT_REDEMPTION_SIGNED_PATH')
                 ?: '/api/gifts/redemption/redeem.php'
         ));
+        $this->notificationSignedPath = trim((string) (
+            getenv('SIF_INTERNAL_GIFT_REDEMPTION_NOTIFICATION_SIGNED_PATH')
+                ?: '/api/gifts/redemption/notifications.php'
+        ));
         $this->keyId = trim((string) (getenv('SIF_INTERNAL_API_KEY_ID') ?: ''));
         $this->secret = trim((string) (getenv('SIF_INTERNAL_API_SECRET') ?: ''));
         $this->actorId = trim((string) (
@@ -43,6 +48,8 @@ final class SifGiftRedemptionClient
         if ($this->baseUrl === ''
             || $this->signedPath === ''
             || !str_starts_with($this->signedPath, '/')
+            || $this->notificationSignedPath === ''
+            || !str_starts_with($this->notificationSignedPath, '/')
             || $this->keyId === ''
             || $this->secret === ''
             || $this->actorId === ''
@@ -57,15 +64,79 @@ final class SifGiftRedemptionClient
     public function redeemCommittedEnrollment(array $trustedPayload): array
     {
         $this->validatePayload($trustedPayload);
+        $decoded = $this->postSigned($this->signedPath, $trustedPayload);
 
+        if (!is_array($decoded['redemption'] ?? null)
+            || !is_array($decoded['legacy_reconciliation'] ?? null)
+            || !is_array($decoded['notification_bundle'] ?? null)
+        ) {
+            throw new RuntimeException('Incomplete SIF gift redemption response');
+        }
+
+        return $decoded;
+    }
+
+    public function claimNotificationBundle(string $uuidNotification): array
+    {
+        $uuidNotification = $this->uuid($uuidNotification, 'notification');
+        $decoded = $this->postSigned(
+            $this->notificationSignedPath,
+            [
+                'action' => 'claim',
+                'uuid_notification' => $uuidNotification,
+            ]
+        );
+
+        if (!is_array($decoded['claim'] ?? null)
+            || !array_key_exists('should_send', $decoded['claim'])
+        ) {
+            throw new RuntimeException('Incomplete SIF notification claim response');
+        }
+
+        return $decoded['claim'];
+    }
+
+    public function completeNotificationBundle(
+        string $uuidNotification,
+        string $uuidDeliveryAttempt,
+        bool $accepted
+    ): array {
+        $decoded = $this->postSigned(
+            $this->notificationSignedPath,
+            [
+                'action' => 'complete',
+                'uuid_notification' => $this->uuid(
+                    $uuidNotification,
+                    'notification'
+                ),
+                'uuid_delivery_attempt' => $this->uuid(
+                    $uuidDeliveryAttempt,
+                    'delivery attempt'
+                ),
+                'accepted' => $accepted,
+                'error_code' => $accepted ? null : 'SMTP_SEND_FAILED',
+            ]
+        );
+
+        if (!is_array($decoded['delivery'] ?? null)) {
+            throw new RuntimeException(
+                'Incomplete SIF notification completion response'
+            );
+        }
+
+        return $decoded['delivery'];
+    }
+
+    private function postSigned(string $signedPath, array $payload): array
+    {
         $body = json_encode(
-            $trustedPayload,
+            $payload,
             JSON_UNESCAPED_UNICODE
                 | JSON_UNESCAPED_SLASHES
                 | JSON_PRESERVE_ZERO_FRACTION
         );
         if ($body === false) {
-            throw new RuntimeException('Could not encode SIF gift redemption request');
+            throw new RuntimeException('Could not encode SIF gift request');
         }
 
         $timestamp = (string) time();
@@ -73,7 +144,7 @@ final class SifGiftRedemptionClient
         $roles = implode(',', $this->roles);
         $canonical = implode("\n", [
             'POST',
-            $this->signedPath,
+            $signedPath,
             $timestamp,
             strtolower($requestId),
             $this->actorId,
@@ -83,7 +154,7 @@ final class SifGiftRedemptionClient
         $signature = hash_hmac('sha256', $canonical, $this->secret);
 
         [$status, $response] = $this->send(
-            $this->baseUrl . $this->signedPath,
+            $this->baseUrl . $signedPath,
             [
                 'Content-Type: application/json; charset=utf-8',
                 'Accept: application/json',
@@ -99,17 +170,15 @@ final class SifGiftRedemptionClient
 
         $decoded = json_decode($response, true);
         if (!is_array($decoded)) {
-            throw new RuntimeException('Invalid SIF gift redemption response');
+            throw new RuntimeException('Invalid SIF gift response');
         }
 
         if ($status < 200
             || $status >= 300
             || ($decoded['ok'] ?? false) !== true
-            || !is_array($decoded['redemption'] ?? null)
-            || !is_array($decoded['legacy_reconciliation'] ?? null)
         ) {
             throw new RuntimeException(
-                'SIF gift redemption was rejected: HTTP ' . $status
+                'SIF gift request was rejected: HTTP ' . $status
             );
         }
 
@@ -137,6 +206,19 @@ final class SifGiftRedemptionClient
                 );
             }
         }
+    }
+
+    private function uuid(string $value, string $label): string
+    {
+        $value = trim($value);
+        if (preg_match(
+            '/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/D',
+            $value
+        ) !== 1) {
+            throw new InvalidArgumentException('Invalid SIF ' . $label . ' UUID');
+        }
+
+        return strtolower($value);
     }
 
     private function send(string $url, array $headers, string $body): array
