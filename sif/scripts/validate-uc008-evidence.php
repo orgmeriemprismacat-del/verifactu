@@ -8,12 +8,12 @@ if (PHP_SAPI !== 'cli') {
 $args = $argv;
 array_shift($args);
 
-if (count($args) !== 2) {
-    fwrite(STDERR, "Usage: php sif/scripts/validate-uc008-evidence.php <preproduction.json> <menu.json>\n");
+if (count($args) !== 3) {
+    fwrite(STDERR, "Usage: php sif/scripts/validate-uc008-evidence.php <preproduction.json> <menu.json> <manager-e2e.json>\n");
     exit(2);
 }
 
-[$preproductionPath, $menuPath] = $args;
+[$preproductionPath, $menuPath, $managerPath] = $args;
 
 $result = [
     'ok' => false,
@@ -23,17 +23,21 @@ $result = [
     'inputs' => [
         'preproduction_sha256' => fileSha256($preproductionPath),
         'menu_sha256' => fileSha256($menuPath),
+        'manager_e2e_sha256' => fileSha256($managerPath),
     ],
     'checks' => [],
 ];
 
 $preproduction = readJson($preproductionPath, 'preproduction');
 $menu = readJson($menuPath, 'menu');
+$manager = readJson($managerPath, 'manager-e2e');
 
 $result['checks']['preproduction_json_valid'] = $preproduction !== null;
 $result['checks']['menu_json_valid'] = $menu !== null;
+$result['checks']['manager_e2e_json_valid'] = $manager !== null;
 $result['checks']['preproduction_sha256_valid'] = isSha256($result['inputs']['preproduction_sha256']);
 $result['checks']['menu_sha256_valid'] = isSha256($result['inputs']['menu_sha256']);
+$result['checks']['manager_e2e_sha256_valid'] = isSha256($result['inputs']['manager_e2e_sha256']);
 
 if ($preproduction !== null) {
     $result['checks']['preproduction_ok'] = ($preproduction['ok'] ?? false) === true;
@@ -79,6 +83,62 @@ if ($menu !== null) {
     $result['checks']['menu_unique_target'] = false;
     $result['checks']['menu_already_present'] = false;
     $result['checks']['menu_no_secrets'] = false;
+}
+
+
+if ($manager !== null) {
+    $managerChecks = is_array($manager['checks'] ?? null) ? $manager['checks'] : [];
+
+    $result['checks']['manager_e2e_ok'] = ($manager['ok'] ?? false) === true;
+    $result['checks']['manager_e2e_scope_valid'] =
+        ($manager['scope'] ?? '') === 'uc-008-manager-e2e-evidence';
+    $result['checks']['manager_e2e_environment_valid'] =
+        ($manager['environment'] ?? '') === 'preproduction';
+    $result['checks']['manager_e2e_read_only'] = ($manager['read_only'] ?? false) === true;
+    $result['checks']['manager_e2e_does_not_authorize_production'] =
+        ($manager['production_authorized'] ?? null) === false;
+    $result['checks']['manager_e2e_synthetic_incident'] =
+        ($managerChecks['synthetic_manager_incident'] ?? false) === true;
+    $result['checks']['manager_e2e_incident_resolved'] =
+        ($managerChecks['incident_resolved'] ?? false) === true;
+    $result['checks']['manager_e2e_assign_present'] =
+        ($managerChecks['assign_present'] ?? false) === true;
+    $result['checks']['manager_e2e_assign_manager_role'] =
+        ($managerChecks['assign_manager_role'] ?? false) === true;
+    $result['checks']['manager_e2e_add_evidence_present'] =
+        ($managerChecks['add_evidence_present'] ?? false) === true;
+    $result['checks']['manager_e2e_add_evidence_manager_role'] =
+        ($managerChecks['add_evidence_manager_role'] ?? false) === true;
+    $result['checks']['manager_e2e_add_evidence_payload_present'] =
+        ($managerChecks['add_evidence_payload_present'] ?? false) === true;
+    $result['checks']['manager_e2e_resolve_present'] =
+        ($managerChecks['resolve_present'] ?? false) === true;
+    $result['checks']['manager_e2e_resolve_manager_role'] =
+        ($managerChecks['resolve_manager_role'] ?? false) === true;
+    $result['checks']['manager_e2e_resolve_evidence_payload_present'] =
+        ($managerChecks['resolve_evidence_payload_present'] ?? false) === true;
+    $result['checks']['manager_e2e_no_secrets'] = !containsForbiddenKey($manager);
+} else {
+    foreach ([
+        'manager_e2e_ok',
+        'manager_e2e_scope_valid',
+        'manager_e2e_environment_valid',
+        'manager_e2e_read_only',
+        'manager_e2e_does_not_authorize_production',
+        'manager_e2e_synthetic_incident',
+        'manager_e2e_incident_resolved',
+        'manager_e2e_assign_present',
+        'manager_e2e_assign_manager_role',
+        'manager_e2e_add_evidence_present',
+        'manager_e2e_add_evidence_manager_role',
+        'manager_e2e_add_evidence_payload_present',
+        'manager_e2e_resolve_present',
+        'manager_e2e_resolve_manager_role',
+        'manager_e2e_resolve_evidence_payload_present',
+        'manager_e2e_no_secrets',
+    ] as $check) {
+        $result['checks'][$check] = false;
+    }
 }
 
 $failed = array_keys(array_filter(
