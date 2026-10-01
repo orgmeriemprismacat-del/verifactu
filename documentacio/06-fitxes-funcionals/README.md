@@ -1,8 +1,22 @@
 # Fitxes funcionals del SIF
 
-Catàleg navegable generat des de `33-casos-us-sif.md`. Cada fitxa té 21 apartats, però és un **esborrany estructurat**, no una anàlisi funcional completa. Cal revisar descripcions/checklists Trello, evidència de codi, dades reals, decisions fiscals, permisos i proves específiques abans de marcar cap fitxa com a preparada per programar o completa.
+Catàleg navegable dels **142 IDs/variants UC canònics**. Les fitxes són una capa funcional del projecte i s'han de contrastar amb el codi real, les dades, les decisions, els diagrames i les proves.
+
+Una fitxa pot estar molt detallada documentalment i continuar pendent d'implementació o verificació. Per això l'estat correcte d'un UC no s'ha de reduir a una sola etiqueta: cal distingir **documentat, implementat, provat, evidenciat i desplegat**.
 
 **Comptatge canònic:** continuen existint **142 IDs/variants UC canònics**. Els fitxers suplementaris com [UC-111 · fitxes d'acció](uc-111-accions.md) descomponen un cas complex per auditar-lo i **no creen un UC nou ni entren al recompte 142**.
+
+## Model d'estat
+
+Per interpretar la taula existent:
+
+- **Estat documental** descriu el nivell/origen de la fitxa, no un veredicte de producció.
+- **Implementació** s'ha de comprovar a `../../sif/` i a les integracions corresponents.
+- **Proves** s'han de comprovar a `../../sif/tests/`, CI i evidències.
+- **UML/auditoria** es troba a `../07-uml-integrat/`.
+- **Desplegament** només es pot afirmar amb evidència d'entorn.
+
+Objectiu per UC, quan aplica: fitxa funcional + fitxa integrada + classes A/F + seqüència A/F + activitats A/F + auditoria/traçabilitat + codi + proves + evidència.
 
 | ID | Cas | Domini | Estat documental | Fitxa |
 | --- | --- | --- | --- | --- |

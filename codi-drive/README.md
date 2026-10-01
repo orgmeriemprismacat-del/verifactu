@@ -2,6 +2,14 @@
 
 Aquest directori conserva còpies locals de diferents aplicacions PrisMa. No és el nou nucli SIF i no s'ha de desplegar directament des d'aquí. Serveix per identificar els punts de pagament i facturació que s'han d'adaptar al SIF centralitzat a `pay.prisma.cat`.
 
+## Rol dins del projecte
+
+**EVIDÈNCIA LEGACY / REFERÈNCIA — NO CODI DESPLEGABLE DEL SIF.**
+
+Aquest directori serveix per respondre quatre preguntes: què fa avui cada sistema, on hi ha mutacions fiscals/econòmiques, quina dada és necessària per al SIF i quan es pot retirar o bloquejar el comportament antic.
+
+La migració correcta no consisteix a copiar tot el legacy al SIF. Cal identificar la responsabilitat, implementar-la a la frontera correcta, provar-la i retirar la mutació antiga quan hi hagi evidència suficient.
+
 ## Carpetes i significat
 
 | Carpeta | Significat declarat | Ús en l'anàlisi |
@@ -66,3 +74,17 @@ No s'ha de fer commit, push ni desplegament d'aquestes carpetes sense una decisi
 ## Revisió global de codi — 25/09/2026
 
 [Informe, fonts i rutes del tall actual](../00-control/revisio-codi-drive-2026-09-25/informe.md). Inventari complet i escaneig estàtic de les set aplicacions, amb lectura semàntica dirigida i pendents de cobertura explícits. Abans de preguntar dades d’un UC, consultar aquest índex, llegir el codi específic i contrastar les decisions ja documentades. No implica validació funcional de tots els casos.
+
+
+## Criteri de retirada del legacy
+
+Una mutació antiga només s'ha de retirar o bloquejar quan el flux substitut:
+
+1. està implementat al SIF o adaptador corresponent;
+2. conserva les dades necessàries;
+3. té idempotència i auditoria adequades;
+4. passa proves del cas;
+5. disposa d'evidència de l'entorn necessari;
+6. té estratègia de rollback/reconciliació.
+
+Fins aleshores, el codi legacy és evidència de comportament i risc, no especificació del disseny objectiu.
