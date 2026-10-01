@@ -40,6 +40,11 @@ final class IncidentPanelEvidenceValidationScriptTest
             $json = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
             Assert::same(true, $json['ok']);
             Assert::same(true, $json['checks']['preproduction_ok']);
+            Assert::same(true, $json['checks']['preproduction_sha256_valid']);
+            Assert::same(true, $json['checks']['menu_sha256_valid']);
+            Assert::same(64, strlen((string) $json['inputs']['preproduction_sha256']));
+            Assert::same(64, strlen((string) $json['inputs']['menu_sha256']));
+            Assert::same(true, isset($json['validated_at']) && is_string($json['validated_at']));
             Assert::same(true, $json['checks']['menu_unique_target']);
             Assert::same(true, $json['checks']['menu_already_present']);
             Assert::same(true, $json['checks']['preproduction_no_secrets']);
@@ -254,6 +259,8 @@ final class IncidentPanelEvidenceValidationScriptTest
         Assert::stringContainsString('preproduction_environment_valid', $source);
         Assert::stringContainsString('preproduction_preflight_ok', $source);
         Assert::stringContainsString('preproduction_e2e_ok', $source);
+        Assert::stringContainsString('preproduction_sha256', $source);
+        Assert::stringContainsString('menu_sha256', $source);
         Assert::stringContainsString('menu_ok', $source);
         Assert::stringContainsString('menu_scope_valid', $source);
         Assert::stringContainsString('menu_already_present', $source);
