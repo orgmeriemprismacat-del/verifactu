@@ -189,22 +189,22 @@ Aquesta secció no reescriu les troballes històriques UC020-16…UC020-73; regi
 - `CommercialOperationRepository`: lectura per UUID/clau idempotent, inserció i primitive de vinculació optimista de `UUID_INTENT`.
 - `DiscountValidationRepository`: lectura idempotent i inserció de decisions versionades.
 - `PaymentLinkRepository`: persistència, resolució per hash, accés i revocació.
-- `CommercialOfferService`: crea/reutilitza transaccionalment `commercial_operation` + `discount_validation`, valida aritmètica `gross-discount=net` i registra `operational_event`.
+- `CommercialOfferService`: crea/reutilitza transaccionalment `commercial_operation` + `commercial_operation_party` + `discount_validation`, valida aritmètica `gross-discount=net` i registra `COMMERCIAL_OFFER_CREATED` a `operational_event`.
 - `PaymentLinkService`: genera token opac, només persisteix SHA-256, comprova import màxim respecte del net, expiració, revocació i resolució del link.
 
 ### 7.2. Tests nous
 
-- `CommercialOfferServiceTest`: creació, reús idempotent, conflicte de payload/clau i aritmètica inconsistent.
+- `CommercialOfferServiceTest`: creació, reús idempotent, parts comercials, lifecycle declarat, conflicte de payload/clau i aritmètica inconsistent.
 - `PaymentLinkServiceTest`: token/hash, resolució, import superior al net, expiració, revocació i idempotència de revocació.
 
-Aquests tests estan **creats però no es declaren verificats** fins que s'executi la suite sobre `sif_test*` i es conservi l'evidència.
+Aquests tests tenen evidència CI posterior al refactor del PR #97; vegeu la secció 10.
 
 ### 7.3. Buits que continuen oberts
 
 1. `PrismaStudentDiscountPolicy` ja existeix sota `ALUMNE_PRISMA_LEGACY_V1`; continuen pendents de ratificació `UC20-DEC-001…006` i qualsevol canvi requerirà una nova versió.
-2. Adaptador web/intranet llegat → `CommercialOfferService` / `PrismaStudentCourseCheckoutService`.
+2. Alta/confirmació web i intranet encara no consumeixen una oferta servidor autoritativa; el camí de targeta sí que consumeix `PrismaStudentCourseCheckoutService` via `course-intent`.
 3. Substitució de les rutes llegades de confirmació/pagament per `PaymentLinkService` i/o operació servidor autoritativa.
-4. El nucli `PrismaStudentCourseCheckoutService → RedsysPaymentIntentService → commercial_operation.UUID_INTENT` està implementat; resta integrar-lo al canal real i coordinar-lo amb `payment_link`.
+4. El nucli `PrismaStudentCourseCheckoutService → CommercialOfferService → RedsysPaymentIntentService → commercial_operation.UUID_INTENT` està implementat i integrat al canal real de targeta; resta coordinar-lo amb `payment_link`/transferència i altres canals.
 5. Política completa de múltiples intents Redsys sobre una mateixa operació i substitució/revocació de links.
 6. E2E historial → oferta/operació AP → intent → callback → factura i evidència de preproducció.
 
@@ -219,10 +219,10 @@ Aquests tests estan **creats però no es declaren verificats** fins que s'execut
 | `LegacyPrismaStudentHistoryRepository` | IMPLEMENTAT | Recupera fets d'historial per document sense decidir elegibilitat. |
 | `CourseIntentSnapshotValidator` | IMPLEMENTAT | Valida source, inscripció, IDPAG, import i coherència del descompte per intencions CURS. |
 | `LegacyPrismaStudentPriceSnapshotResolver` | IMPLEMENTAT | Obté snapshot de preu autoritatiu des de dades llegades. |
-| `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI | Orquestra historial → policy → operació/validació → snapshot → intenció → vincle d'intent. |
+| `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_CARD_CHECKOUT_VERIFICAT | Orquestra historial → policy → `CommercialOfferService` → operació/participant/validació → snapshot → intenció → vincle/lifecycle. |
 | `RedsysCoursePaymentIntentService` / `RedsysPaymentIntentService` | MODIFICAT | Consumeixen i validen el contracte CURS/AP abans del TPV. |
 
-Aquesta capa és **complementària**, no substitutiva, de la infraestructura comercial general descrita a 7.1 (`CommercialOfferService`, repositoris comercials i `PaymentLinkService`).
+Des del PR #97 aquesta capa ja no manté un writer SQL paral·lel: **reutilitza** la infraestructura comercial general de 7.1. `PaymentLinkService` continua sent infraestructura disponible però encara no forma part del camí AP de targeta.
 
 ### 8.2. Incidències resoltes o reduïdes
 
@@ -234,9 +234,11 @@ Aquesta capa és **complementària**, no substitutiva, de la infraestructura com
 | UC020-77 | `EXPECTED_AMOUNT` no es contrastava amb l'import de pagament. | **CORREGIT CODI**. |
 | UC020-78 | Snapshot de descompte podia arribar sense origen/mode coherent. | **CORREGIT per al contracte CURS nou**; es mantenen fallbacks històrics on pertoqui. |
 | UC020-79 | Política AP no encapsulada ni versionada. | **PARCIALMENT TANCAT** amb policy + historial; negoci futur pendent. |
-| UC020-80 | Manca orquestrador server-side d'operació/validació. | **IMPLEMENTAT_NUCLI** a `PrismaStudentCourseCheckoutService`; adaptador web pendent. |
-| UC020-81 | Manca vincle runtime `UUID_OPERATION ↔ UUID_INTENT`. | **IMPLEMENTAT_NUCLI**; integració de canal i política de múltiples intents pendents. |
+| UC020-80 | Manca orquestrador server-side d'operació/validació. | **IMPLEMENTAT_CARD_CHECKOUT_VERIFICAT** a `PrismaStudentCourseCheckoutService` reutilitzant `CommercialOfferService`; alta web/intranet pendents. |
+| UC020-81 | Manca vincle runtime `UUID_OPERATION ↔ UUID_INTENT`. | **IMPLEMENTAT_CARD_CHECKOUT_VERIFICAT** amb `CommercialOperationRepository::linkIntent()` + control de DS_ORDER; política de múltiples intents d'altres canals pendent. |
 | UC020-82 | Invariant transversal factura vs cobrament. | **PENDENT TRANSVERSAL**; considerar fraccionaments. |
+| UC020-83 | UC-020 mantenia un writer SQL propi de `commercial_operation`, `commercial_operation_party` i `discount_validation` en paral·lel al runtime compartit. | **TANCAT PR #97**: `PrismaStudentCourseCheckoutService` delega a `CommercialOfferService` i repositoris. |
+| UC020-84 | La transició `READY_FOR_PAYMENT → INTENT_CREATED` no genera encara un `operational_event` específic. | **PENDENT AUDITORIA LIFECYCLE**; l'event de creació d'oferta sí està implementat. |
 
 ### 8.3. Decisions que continuen pendents
 
@@ -247,3 +249,35 @@ La implementació no modifica silenciosament la política de negoci. Es mantenen
 El tall original del PR #54 havia passat els tres workflows i la suite MySQL amb **716 passed / 0 failed**. Aquesta evidència és històrica del commit anterior a l'actualització amb `main`.
 
 Després d'integrar el `main` actual, el criteri per autoritzar el merge és tornar a executar els workflows sobre el nou HEAD i exigir-los verds. L'E2E navegador → oferta/operació server-side → Redsys → factura i la preproducció continuen fora de l'abast d'aquesta evidència.
+
+
+## 10. Revalidació PR #97 — runtime comercial compartit — 02/10/2026
+
+El PR #97 substitueix el writer SQL específic d'Alumne PrisMa per la infraestructura comercial comuna.
+
+### 10.1. Canvis verificats
+
+- nou `CommercialOperationPartyRepository`;
+- `CommercialOfferService` persisteix operació + participant + validació en la mateixa transacció i registra `COMMERCIAL_OFFER_CREATED`;
+- el reús idempotent només admet els lifecycle states declarats explícitament;
+- `PrismaStudentCourseCheckoutService` deixa de fer SQL directe sobre les taules comercials;
+- `CommercialOperationRepository::transitionStatus()` formalitza la transició idempotent;
+- `RedsysPaymentIntentRepository::findByUuid()` permet verificar la intenció ja vinculada;
+- els timestamps d'una `discount_validation` creada pel writer anterior es reutilitzen per compatibilitat.
+
+### 10.2. Evidència CI
+
+Commit de codi verificat: `83b44eb98f4edfc468e90a14b6f9e2462ab2c47d`.
+
+| Workflow | Run | Resultat |
+| --- | ---: | --- |
+| SIF PHP MySQL tests | 617 | **841 passed · 0 failed** |
+| SIF checks | 343 | SUCCESS |
+| UC-111 integration verification | 483 | SUCCESS |
+| UC-004 SIF secure flow checks | 129 | SUCCESS |
+
+### 10.3. Estat després del refactor
+
+**Implementat i verificat:** policy de compatibilitat, historial, reconstrucció històrica de preu, oferta/participant/validació compartida, snapshot CURS, intenció Redsys de targeta, vincle d'intent i reintents idempotents.
+
+**Continua pendent:** alta/confirmació web autoritativa (encara rep imports/tipus del navegador), intranet, integració `payment_link`/transferència, event específic de la transició d'intent, E2E complet fins factura i evidència de preproducció.
