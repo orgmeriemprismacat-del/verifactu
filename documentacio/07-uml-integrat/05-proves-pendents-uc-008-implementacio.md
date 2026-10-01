@@ -138,6 +138,7 @@ Després de generar els dos fitxers, executar:
 php sif/scripts/validate-uc008-evidence.php \
   uc-008-preproduction-evidence.json \
   uc-008-menu-evidence.json \
+  uc-008-manager-e2e-evidence.json \
   | tee uc-008-closure-validation.json
 ```
 
@@ -151,18 +152,20 @@ El tancament d'entorn només és vàlid si aquest últim JSON retorna `ok=true`.
 - evidència de menú amb `ok=true` i `scope=uc-008-intranet-menu-discovery`;
 - `read_only=true`, `target_url=/sif-verifactu.php`, exactament una fila i `status=ALREADY_PRESENT`;
 - absència de claus amb secrets/passwords/signatures;
-- `uc-008-closure-validation.json` incorpora `validated_at` i els SHA-256 dels dos inputs, i el gate exigeix que ambdós hashes siguin vàlids.
+- `uc-008-manager-e2e-evidence.json` acredita en lectura el flux gestor real `ASSIGN → ADD_EVIDENCE → RESOLVE` sobre una incidència sintètica `UC008_E2E_MANAGER / UC008_E2E`;
+- `uc-008-closure-validation.json` incorpora `validated_at` i els SHA-256 dels **tres** inputs, i el gate exigeix que tots tres hashes siguin vàlids.
 
 Això evita que un JSON parcial, d'un altre script o generat només en entorn de test es pugui interpretar com a tancament de preproducció.
 
 Criteri de tancament:
 
-1. `uc-008-preproduction-evidence.json` → `ok=true`;
+1. `uc-008-preproduction-evidence.json` → `ok=true` i `environment=preproduction`;
 2. el JSON no conté secrets ni passwords;
 3. `uc-008-menu-evidence.json` → `existing_target_count <= 1`;
 4. si `status=CONFIRM_PARENT_ROLES_ORDER_BEFORE_INSERT`, usar els candidats retornats per completar l'alta idempotent descrita a `07-alta-menu-intranet-uc-008.md`;
 5. després de l'alta, tornar a executar el preflight de menú i exigir `status=ALREADY_PRESENT`;
-6. comprovar amb un usuari read-only i un gestor que el deep-link de factura i AEAT obre el recurs esperat.
+6. executar el flux gestor real sobre una incidència sintètica i generar `uc-008-manager-e2e-evidence.json` amb `verify-incident-manager-evidence.php`; ha de donar `ok=true` i `environment=preproduction`;
+7. comprovar amb un usuari read-only i un gestor que els deep-links de factura i AEAT obren el recurs esperat.
 
 ## 12. Evidència de tancament
 
@@ -200,3 +203,6 @@ S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-te
 La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
 **Estat actual:** baseline UC-008 **677/0** + regressió completa del tall SIF verificat **740/0** (run `36732555122`) + INTRANET AO SUCCESS; backend/UI/preflight/E2E tècnic/concurrència/readiness/deep-links/evidence-gate VERIFICATS / EXECUCIÓ REAL DE PREPRODUCCIÓ + CONFIGURACIÓ MENÚ BD PENDENTS.
+
+
+Vegeu també [Evidència E2E del flux gestor](08-evidencia-gestor-uc-008.md).
