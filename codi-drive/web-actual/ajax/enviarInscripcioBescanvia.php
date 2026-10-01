@@ -425,40 +425,7 @@ try {
 	$connexio->closeStmt();
 
 	/* ######################################################################### */
-
-	$nomFromHead = 'Secretaria PrisMa';
-	$correuFromHead = 'inscripcions@prisma.cat';
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = 'Secretaria PrisMa';
-	$correuTo = 'inscripcions@prisma.cat';
-
-	$mailCopiaInsc = new MailSMTPComvive($usernameInsc, $passwordInsc, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subjectMailInsc, $msgInsc);
-
-	$nomFromHead = 'Secretaria PrisMa';
-	$correuFromHead = 'secretaria@prisma.cat';
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = "PrisMa Secretaria";
-	$correuTo = "resguard.secretaria@prisma.cat";
-
-	$subject = "Inscripció al curs regal ".$titolCurs;
-	$subject2 = "Inscripció al curs regal ".$titolCurs." ".$dataInsc;
-
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject2, $missatge);
-
-	$nomTo = 'Secretaria PrisMa';
-	$correuTo = 'inscripcions@prisma.cat';
-
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject, $missatge);
+	// No s'envia cap SMTP abans que el SIF confirmi i reconciliï el bescanvi.
 
 	/* ######################################################################### */
 	// FACT_REL i USAT es llegeixen sota FOR UPDATE just abans de crear/reutilitzar la inscripció.
@@ -661,6 +628,46 @@ try {
 		'enrollment_id' => (int) $idInserit,
 		'gift_code' => $codiRegalBD,
 	]);
+
+	// Compatibilitat temporal amb el transport SMTP legacy: aquests enviaments
+	// només poden començar després de l'èxit SIF. La persistència/retry durable
+	// continua sent responsabilitat pendent d'UC-58.
+	/* ######################################################################### */
+
+	$nomFromHead = 'Secretaria PrisMa';
+	$correuFromHead = 'inscripcions@prisma.cat';
+	$nomReplyHead = $nomCognoms;
+	$correuReplyHead = $email;
+
+	$nomTo = 'Secretaria PrisMa';
+	$correuTo = 'inscripcions@prisma.cat';
+
+	$mailCopiaInsc = new MailSMTPComvive($usernameInsc, $passwordInsc, $nomFromHead, $correuFromHead,
+										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+										$subjectMailInsc, $msgInsc);
+
+	$nomFromHead = 'Secretaria PrisMa';
+	$correuFromHead = 'secretaria@prisma.cat';
+	$nomReplyHead = $nomCognoms;
+	$correuReplyHead = $email;
+
+	$nomTo = "PrisMa Secretaria";
+	$correuTo = "resguard.secretaria@prisma.cat";
+
+	$subject = "Inscripció al curs regal ".$titolCurs;
+	$subject2 = "Inscripció al curs regal ".$titolCurs." ".$dataInsc;
+
+	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
+										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+										$subject2, $missatge);
+
+	$nomTo = 'Secretaria PrisMa';
+	$correuTo = 'inscripcions@prisma.cat';
+
+	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
+										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+										$subject, $missatge);
+
 
 	$hashIdInserit = $encryptEnrollmentId($idInserit);
 
