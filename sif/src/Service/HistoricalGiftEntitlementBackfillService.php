@@ -207,18 +207,34 @@ final class HistoricalGiftEntitlementBackfillService
                 ];
             }
 
-            if (!$legacyUsed && in_array($status, ['CONSUMED', 'CANCELLED'], true)) {
+            if (!$legacyUsed) {
+                if (in_array($status, ['ISSUED', 'ACTIVE'], true)) {
+                    return $base + [
+                        'status' => 'ENTITLEMENT_PRESENT',
+                        'entitlement_status' => $status,
+                        'uuid_entitlement' => (string) $entitlement['UUID_ENTITLEMENT'],
+                    ];
+                }
+
+                if ($status === 'RESERVED') {
+                    return $base + [
+                        'status' => 'RESERVED_ENTITLEMENT_REVIEW',
+                        'reason' => 'Unused legacy gift has a reserved SIF entitlement.',
+                        'entitlement_status' => $status,
+                    ];
+                }
+
                 return $base + [
-                    'status' => 'CONFLICT_UNUSED_LEGACY_TERMINAL_SIF',
-                    'reason' => 'Legacy gift is unused but SIF entitlement is terminal.',
+                    'status' => 'CONFLICT_UNUSED_LEGACY_UNUSABLE_SIF',
+                    'reason' => 'Unused legacy gift has a non-redeemable SIF entitlement.',
                     'entitlement_status' => $status,
                 ];
             }
 
-            if (!$legacyUsed && $status === 'RESERVED') {
+            if (in_array($status, ['ISSUED', 'ACTIVE', 'RESERVED'], true)) {
                 return $base + [
-                    'status' => 'RESERVED_ENTITLEMENT_REVIEW',
-                    'reason' => 'Unused legacy gift has a reserved SIF entitlement.',
+                    'status' => 'USED_LEGACY_WITH_OPEN_SIF_ENTITLEMENT_REVIEW',
+                    'reason' => 'Legacy gift is used but SIF entitlement remains open.',
                     'entitlement_status' => $status,
                 ];
             }
