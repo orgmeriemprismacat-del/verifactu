@@ -1,6 +1,6 @@
 # UC-015 · Seqüències ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-09-30
+**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-10-01
 
 ## 1. ACTUAL — alta del pack al web
 
@@ -20,7 +20,7 @@ Price->>DB: consulta info_pack/packs/preu
 Price-->>JS: preu original | preu pack
 JS-->>U: mostra preu
 U->>JS: confirma formulari
-JS->>Alta: GET dades del formulari + idPack
+JS->>Alta: POST dades personals/formulari + idPack
 Alta->>DB: rellegir preu pack i preus components
 Alta->>DB: GET_LOCK allocator IDPAG
 Alta->>Alta: reservar MAX(IDPAG)+1 sota lock
@@ -35,6 +35,7 @@ JS-->>U: redirecció confirmació
 
 ### Riscos ACTUAL residuals
 
+- l'alta ja és POST i no transporta imports comercials des del navegador; queda pendent decidir/implantar una protecció anti-abús/origen específica del formulari públic;
 - l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
 - `PACK_ORDINAL` queda determinat pel mateix ordre estable de presentació `DATAI, ID_CURS`; resta decidir si negoci requereix una posició explícita separada;
 - el callback fiscal legacy conserva codi històric però està desactivat per defecte.
@@ -85,7 +86,8 @@ participant D as RedsysCallbackDispatcher
 participant P as RedsysPackInvoiceService
 participant I as InvoiceService
 participant L as EnrollmentFundMovementRepository
-participant Sync as AcademicEnrollmentSyncService
+participant LP as RedsysLegacySyncingProcessor
+participant Sync as LegacySyncService
 participant Outbox as PackPaymentNotificationService
 
 U->>Gate: confirmar pagament pack
@@ -98,7 +100,8 @@ R->>CB: callback signat
 CB->>CB: validar signatura + intent + import + moneda + terminal
 CB->>Q: enqueue
 W->>Q: claim
-W->>D: process(job)
+W->>LP: process(job)
+LP->>D: process(job)
 D->>P: issueFromIntentSnapshot()
 P->>P: construir N línies
 P->>P: validar total factura = import Redsys
@@ -107,9 +110,11 @@ I-->>P: UUID_FACTURA + UUID_PAYMENT
 loop cada component
  P->>L: atribució UUID_PAYMENT → ID_INSC
 end
-P->>Sync: sincronitzar postcommit
-P->>Outbox: notificacions postcommit
-P-->>W: resultat
+P->>Outbox: enqueue notificació idempotent
+P-->>D: resultat + legacy_sync
+D-->>LP: resultat
+LP->>Sync: syncAfterSifSuccess + syncPackFullPayment
+LP-->>W: resultat + legacy_sync_executed
 W->>Q: PROCESSED
 ```
 
