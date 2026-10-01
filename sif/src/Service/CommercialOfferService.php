@@ -248,6 +248,11 @@ final class CommercialOfferService
         }
 
         $parties = $this->validateParties($input['parties'] ?? []);
+        $status = strtoupper(trim((string) $input['status']));
+        $acceptableExistingStatuses = $this->acceptableExistingStatuses(
+            $input['acceptable_existing_statuses'] ?? null,
+            $status
+        );
 
         return [
             'idempotency_key' => $idempotencyKey,
@@ -260,7 +265,8 @@ final class CommercialOfferService
             'product_edition' => $this->nullableString($input['product_edition'] ?? null),
             'classification' => strtoupper(trim((string) $input['classification'])),
             'classification_reason' => strtoupper(trim((string) $input['classification_reason'])),
-            'status' => strtoupper(trim((string) $input['status'])),
+            'status' => $status,
+            'acceptable_existing_statuses' => $acceptableExistingStatuses,
             'currency' => $currency,
             'gross_amount' => $gross,
             'discount_amount' => $discountAmount,
@@ -328,6 +334,30 @@ final class CommercialOfferService
                 : null,
             'future_entitlement_ref' => $this->nullableString($input['future_entitlement_ref'] ?? null),
         ];
+    }
+
+    private function acceptableExistingStatuses(mixed $input, string $initialStatus): array
+    {
+        if ($input === null) {
+            return [$initialStatus];
+        }
+        if (!is_array($input) || !array_is_list($input) || $input === []) {
+            throw SifException::validation(
+                'Commercial offer acceptable_existing_statuses must be a non-empty list'
+            );
+        }
+
+        $statuses = [];
+        foreach ($input as $status) {
+            $normalized = strtoupper(trim((string) $status));
+            if ($normalized === '') {
+                throw SifException::validation('Commercial offer acceptable status cannot be empty');
+            }
+            $statuses[$normalized] = true;
+        }
+        $statuses[$initialStatus] = true;
+
+        return array_keys($statuses);
     }
 
     private function validateParties(mixed $input): array
@@ -509,6 +539,13 @@ final class CommercialOfferService
                     'Commercial offer idempotency key exists with different field: ' . $column
                 );
             }
+        }
+
+        $existingStatus = strtoupper(trim((string) ($existing['STATUS'] ?? '')));
+        if (!in_array($existingStatus, $payload['acceptable_existing_statuses'], true)) {
+            throw SifException::conflict(
+                'Commercial offer idempotency key exists with incompatible lifecycle status'
+            );
         }
 
         foreach ([
