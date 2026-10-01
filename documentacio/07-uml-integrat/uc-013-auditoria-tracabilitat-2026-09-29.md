@@ -1,8 +1,9 @@
 # UC-013 · Auditoria detallada i matriu de traçabilitat
 
-**Data:** 29/09/2026 · actualització d'implementació 30/09/2026  
+**Data:** 29/09/2026 · actualització d'implementació 30/09/2026 · revalidació exhaustiva 02/10/2026  
 **Repositori:** `orgmeriemprismacat-del/verifactu`  
-**Branca d'auditoria:** `audit/uc-013-usoc-2026-09-29`
+**Branca inicial d'auditoria:** `audit/uc-013-usoc-2026-09-29`  
+**Revalidació actual:** `audit/uc-013-completitud-2026-10-02` sobre `main@22d47a2949e03fe4a170f831f6d7f8724f7cd40c`
 
 ## 1. Llegenda d'estats
 
@@ -28,6 +29,8 @@
 | Cobrar entitat | UI autònoma + panell contextual + API signada + ruta preproducció | `register_entity_payment` / `process-usoc-entity-payment.php` | `UsocEntityPaymentService` → `PaymentService` → `UsocCaseReconciler` | payment/allocation + actualització immediata `usoc_financing_case` | UC-002/022/024/013 | Sí | Sí | Sí | VERIFICAT CI · run 36657971568 |
 | Conciliar dues parts | CLI/preproducció | `reconcile-usoc-case.php` | `UsocCaseReconciler` | actualitza `usoc_financing_case` segons estats de factura i imports | UC-013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
 | Canvi/baixa | intranet + preview + planner USOC | `LegacyUsocLifecycleGuard` / `lifecycle_guard` / `lifecycle_plan` | `UsocLifecycleGuardService` + `UsocLifecyclePlanService` | bloqueig fail-closed + snapshot i pla separat per pagador; retorn màxim limitat al net real cobrat | UC-013/026/027 | Sí | Sí | Sí | runs `36733404401` i `36733404387` · 744/744 |
+| Classes ACTUAL/FINAL | documentació | n/a | `uc-013-classes-actual-final.md` | responsabilitats legacy/SIF/persistència/final residual | UC-013 | **Sí 02/10** | n/a | Sí | n/a |
+| Seqüències ACTUAL/FINAL | documentació | n/a | `uc-013-sequencies-actual-final.md` | sol·licitud, validació, doble factura, cobrament, lifecycle | UC-013 | **Sí 02/10** | n/a | Sí | n/a |
 
 ## 3. Evidència específica
 
@@ -123,6 +126,8 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 
 - `documentacio/06-fitxes-funcionals/uc-013.md`
 - `documentacio/07-uml-integrat/uc-013-orquestrar-doble-facturacio-usoc.md`
+- `documentacio/07-uml-integrat/uc-013-classes-actual-final.md`
+- `documentacio/07-uml-integrat/uc-013-sequencies-actual-final.md`
 - `documentacio/07-uml-integrat/uc-013-activitats-pagines-actual-final.md`
 - `documentacio/07-uml-integrat/uc-013-auditoria-tracabilitat-2026-09-29.md`
 
@@ -131,7 +136,7 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 **DOC:** ampliada i específica.  
 **IMP:** parcial.  
 **VERIFICACIÓ ESTÀTICA:** sí.  
-**TEST EXECUTAT:** no acreditat.  
+**TEST EXECUTAT:** acreditat en commits específics del UC-013; el SHA actual de main no té workflow associat en aquesta revisió.  
 **PREPRODUCCIÓ:** no acreditada.  
 **PRODUCCIÓ:** no acreditada.
 
@@ -145,3 +150,70 @@ El run `36730189405` acaba **SUCCESS, 730 passed / 0 failed** i incorpora:
 - `testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined`: 0,00 € per la part alumne es rebutja amb validació fins que existeixi un circuit funcional/fiscal específic.
 
 Per tant, la discrepància 20 %/25 % queda com a decisió de negoci, no com a constant tècnica del SIF.
+
+
+## 8. Revalidació exhaustiva 02/10/2026
+
+### Main contrastat
+
+`22d47a2949e03fe4a170f831f6d7f8724f7cd40c`.
+
+### Resultat per capa
+
+| Capa | Documentat | Implementat | Verificat 02/10 | Pendent |
+|---|---:|---:|---:|---|
+| Fitxa funcional | Sí | n/a | Sí | mantenir sincronitzada |
+| UML integrat | Sí | n/a | Sí | mantenir sincronitzat |
+| Classes ACTUAL/FINAL | **Sí, creat** | n/a | Sí | mantenir sincronitzat |
+| Seqüències ACTUAL/FINAL | **Sí, creat** | n/a | Sí | mantenir sincronitzat |
+| Activitats per pàgina/apartat | Sí | n/a | Sí | petites correccions d'estat aplicades |
+| Factura/cobrament alumne | Sí | Sí | Sí | E2E entorn real |
+| Checkpoint `usoc_financing_case` | Sí | Sí | Sí | evidència preproducció |
+| Factura entitat | Sí | Sí | Sí | evidència preproducció |
+| Cobrament/conciliació entitat | Sí | Sí | Sí | evidència preproducció |
+| Decisió durable VALID_DESC | Sí | Sí | Sí | preflight/config real |
+| UI/API USOC | Sí | Sí al repositori | Sí | desplegament + rols/secrets |
+| Canvi/baixa | Sí | baixa: executor + guard + planner; canvi de curs: guard + planner | Sí | executor específic de canvi de curs; evidència CI/preproducció de la baixa |
+| Curs gratuït alumne=0 | Sí com a variant | bloqueig fail-closed | Sí | decisió funcional/fiscal |
+| IVA USOC | Sí | EXEMPT/E1 actual | Sí | validar cobertura fiscal |
+| 20 % / 25 % | Sí com a discrepància | no hardcoded al SIF | Sí | decisió comercial |
+
+### Evidència de proves
+
+La carpeta de proves conserva evidència positiva en commits del UC-013. En aquesta revalidació, GitHub no retorna cap workflow associat directament al SHA actual de `main`, per tant:
+- **VERIFICAT** = inspecció estàtica sobre main actual;
+- **PROVAT** = evidència CI versionada de commits específics del UC-013;
+- **PENDENT** = una nova execució de suite sobre el main actual i l'E2E navegador/preproducció.
+
+### Mancances residuals reals
+
+1. Executar `preflight-usoc-intranet.php` amb secrets, rols, DSN i feature flag de preproducció i conservar-ne l'evidència.
+2. Fer E2E navegador → intranet → API SIF → BD legacy/SIF en preproducció.
+3. Completar la capa executiva del canvi de curs (UC-026) per pagador/factura. La baixa (UC-027) ja té `UsocCancellationExecutionService`; cal acreditar-ne la suite i el flux de preproducció.
+4. Decidir el circuit de curs gratuït USOC (`student_amount=0`).
+5. Confirmar criteri comercial 20 %/25 % fora del nucli SIF.
+6. Validar fiscalment `EXEMPT/E1` per totes les variants USOC que utilitzen aquest builder.
+
+
+## 9. Delta de main · executor de baixa USOC
+
+Entre `06ac56b9f...` i `22d47a294...` s'han incorporat canvis directament relacionats amb UC-013/027:
+
+- `sif/src/Service/UsocCancellationExecutionService.php`;
+- ampliacions a `LegacyUsocLifecycleGuard.php`;
+- `sifUsocLifecyclePreview.php`;
+- `confirmacioBaixa_DonarBaixa.php`;
+- proves `UsocCancellationExecutionServiceTest.php`.
+
+### Classificació
+
+| Bloc | Documentat | Implementat | Verificat | Provat |
+|---|---:|---:|---:|---:|
+| Pla baixa separat per pagador | Sí | Sí | Sí | evidència prèvia del planner |
+| Executor baixa per pagador | Sí en aquesta revalidació | **Sí** | **Sí** | tests presents al main; run del SHA actual no acreditat |
+| Rectificativa alumne/entitat | Sí | Sí via `ManualRectificationService` | Sí | test present |
+| Refund alumne/entitat | Sí | Sí via `ManualRefundService` | Sí | test present |
+| Límits contra `max_refundable` | Sí | Sí | Sí | test present |
+| Accions diferides | Sí | Sí | Sí | test present al commit actual |
+| Continuació cap a baixa legacy | Sí | Sí quan execution=COMPLETED | Sí | test present |
+| Executor canvi de curs | Sí com a objectiu | **No localitzat** | n/a | pendent |
