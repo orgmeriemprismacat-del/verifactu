@@ -150,7 +150,8 @@ El tancament d'entorn només és vàlid si aquest últim JSON retorna `ok=true`.
 - `production_authorized=false`;
 - evidència de menú amb `ok=true` i `scope=uc-008-intranet-menu-discovery`;
 - `read_only=true`, `target_url=/sif-verifactu.php`, exactament una fila i `status=ALREADY_PRESENT`;
-- absència de claus amb secrets/passwords/signatures.
+- absència de claus amb secrets/passwords/signatures;
+- `uc-008-closure-validation.json` incorpora `validated_at` i els SHA-256 dels dos inputs, i el gate exigeix que ambdós hashes siguin vàlids.
 
 Això evita que un JSON parcial, d'un altre script o generat només en entorn de test es pugui interpretar com a tancament de preproducció.
 
