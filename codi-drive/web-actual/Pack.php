@@ -163,7 +163,7 @@ class Pack {
                c.CURS NOT LIKE '%0%' AND c.ESTAT!='0' AND r.ACTIU=1 AND i.ESTAT = 1
                AND c.CURS NOT LIKE '%JOR%' AND (a.ID_CUHO=17 OR a.ID_CUHO=13 OR (a.ID_CUHO!=17 AND h.DNI_TUTOR='GENERIC') OR
                (a.ID_CUHO!=17 AND h.DNI_TUTOR!='GENERIC' AND AULA='A' AND perfil='tutor' AND
-               ORDRE_TUTOR is not NULL)) ORDER BY c.DATAI";
+               ORDRE_TUTOR is not NULL)) ORDER BY c.DATAI, p.ID_CURS";
             if ( $stmt = $connexio->prepare($cnsInfoOrig) ) {
                if ( $stmt3 = $connexio3->prepare($cnsidTema) ) {
                    //echo $idPack;

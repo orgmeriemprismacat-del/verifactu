@@ -7,6 +7,7 @@ namespace Prisma\Sif\Tests\Integration;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CommercialEntitlementRepository;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Service\GiftRedemptionService;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\Fixtures;
@@ -53,6 +54,23 @@ final class GiftRedemptionServiceTest
             "SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT='CHARGE'"
         )->fetchColumn());
         Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM enrollment_fund_movement
+             WHERE MOVEMENT_TYPE='COMPENSATION_ALLOCATION'"
+        )->fetchColumn());
+        $movement = $db->query(
+            "SELECT m.UUID_PAYMENT, m.ID_INSC_DESTI, m.IMPORT, m.UUID_OPERATION,
+                    p.TIPUS_MOVIMENT, p.ESTAT
+             FROM enrollment_fund_movement m
+             JOIN payment_transaction p ON p.UUID_PAYMENT = m.UUID_PAYMENT
+             WHERE m.MOVEMENT_TYPE='COMPENSATION_ALLOCATION'"
+        )->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('501', (string) $movement['ID_INSC_DESTI']);
+        Assert::same('120.00', (string) $movement['IMPORT']);
+        Assert::same($destination, (string) $movement['UUID_OPERATION']);
+        Assert::same('CHARGE', (string) $movement['TIPUS_MOVIMENT']);
+        Assert::same('CONFIRMED', (string) $movement['ESTAT']);
+        Assert::same((string) $first['fund_movement_uuid'], (string) $second['fund_movement_uuid']);
+        Assert::same(1, (int) $db->query(
             "SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='RESERVE'"
         )->fetchColumn());
         Assert::same(1, (int) $db->query(
@@ -74,6 +92,62 @@ final class GiftRedemptionServiceTest
         Assert::same(1, (int) $db->query(
             "SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='CONSUME'"
         )->fetchColumn());
+    }
+
+    public function testDestinationWithDifferentValueIsBlockedBeforeConsumption(): void
+    {
+        [$db, $code, $holder, $destination] = $this->fixture(true);
+        $db->prepare(
+            "UPDATE commercial_operation
+             SET GROSS_AMOUNT='150.00', DISCOUNT_AMOUNT='120.00', NET_AMOUNT='30.00'
+             WHERE UUID_OPERATION = ?"
+        )->execute([$destination]);
+
+        Assert::throws(SifException::class, function () use (
+            $db,
+            $code,
+            $holder,
+            $destination
+        ): void {
+            $this->service()->redeem(
+                $db,
+                $this->command($code, $holder, $destination)
+            );
+        }, 409);
+
+        Assert::same(
+            'ACTIVE',
+            (string) $db->query('SELECT STATUS FROM commercial_entitlement')->fetchColumn()
+        );
+        Assert::same(
+            0,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM enrollment_fund_movement
+                 WHERE MOVEMENT_TYPE='COMPENSATION_ALLOCATION'"
+            )->fetchColumn()
+        );
+    }
+
+    public function testReplayBackfillsOrReusesSingleCompensationAllocation(): void
+    {
+        [$db, $code, $holder, $destination] = $this->fixture(true);
+        $service = $this->service();
+
+        $first = $service->redeem($db, $this->command($code, $holder, $destination));
+        $second = $service->redeem(
+            $db,
+            $this->command($code, $holder, $destination, 'UC018|REDEEM|SECOND-KEY')
+        );
+
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['fund_movement_uuid'], $second['fund_movement_uuid']);
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM enrollment_fund_movement
+                 WHERE MOVEMENT_TYPE='COMPENSATION_ALLOCATION'"
+            )->fetchColumn()
+        );
     }
 
     public function testWrongHolderGetsNeutralNotFound(): void
@@ -125,7 +199,8 @@ final class GiftRedemptionServiceTest
     private function service(): GiftRedemptionService
     {
         return new GiftRedemptionService(
-            new CommercialEntitlementRepository(new UuidGenerator())
+            new CommercialEntitlementRepository(new UuidGenerator()),
+            new EnrollmentFundMovementRepository(new UuidGenerator())
         );
     }
 

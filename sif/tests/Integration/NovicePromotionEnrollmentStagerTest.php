@@ -23,10 +23,16 @@ final class NovicePromotionEnrollmentStagerTest
         Assert::same(false, $first['idempotency_reused']);
         Assert::same(true, $second['idempotency_reused']);
         Assert::same($first['uuid_operation'], $second['uuid_operation']);
+        Assert::same($first['uuid_validation'], $second['uuid_validation']);
         Assert::same('PENDING_VALIDATION', $first['status']);
         Assert::same('90.00', (string) $db->query('SELECT NET_AMOUNT FROM commercial_operation')->fetchColumn());
         Assert::same('10.00', (string) $db->query('SELECT DISCOUNT_AMOUNT FROM commercial_operation')->fetchColumn());
-        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same('PENDING', (string) $db->query('SELECT STATUS FROM discount_validation')->fetchColumn());
+        Assert::same(
+            'student:canonical:12345678Z',
+            (string) $db->query('SELECT SUBJECT_PARTY_KEY FROM discount_validation')->fetchColumn()
+        );
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM commercial_entitlement')->fetchColumn());
     }

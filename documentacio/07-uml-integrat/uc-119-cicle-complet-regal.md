@@ -105,6 +105,36 @@ note right of Resend
 end note
 @enduml
 ```
+
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Comprador / pagador"]
+  a_1["Destinatari / beneficiari"]
+  a_2["Redsys"]
+  a_3["Operador autoritzat"]
+  a_4["Worker de notificacions"]
+  subgraph SIF_BOUNDARY["SIF PrisMa — cicle de regal"]
+    u_0(["UC-17<br/>Comprar i facturar regal"])
+    u_1(["UC-119 / activació<br/>Crear/activar dret després de pagament"])
+    u_2(["UC-119 / lliurament<br/>Enviar targeta o codi al destinatari"])
+    u_3(["UC-119 / reexpedició<br/>Reenviar targeta sense nou dret"])
+    u_4(["UC-18<br/>Bescanviar dret per inscripció"])
+    u_5(["UC-18a<br/>Gestionar codi caducat, duplicat o disputat"])
+    u_6(["UC-71/72<br/>Canvi o baixa posterior"])
+    u_7(["UC-28/29<br/>Retorn o saldo classificat"])
+  end
+  a_0 --> u_0
+  a_2 --> u_0
+  a_4 --> u_1
+  a_4 --> u_2
+  a_3 --> u_3
+  a_1 --> u_4
+  a_3 --> u_5
+  a_3 --> u_6
+  a_3 --> u_7
+```
 ## 3. Classes del cicle — codi real i orquestració pendent
 
 ```mermaid

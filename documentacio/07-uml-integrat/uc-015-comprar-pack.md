@@ -2,7 +2,7 @@
 
 **Objectiu:** facturar i cobrar una **operació de pack** amb múltiples inscripcions, cadascuna amb curs, edició, import i descompte que li correspon. Un pagament del pack no és N cobraments bancaris independents, i la factura global no significa que es pugui perdre el detall de quantitat atribuïda a cada inscripció.
 
-**Estat:** auditoria específica completada documentalment; flux fiscal/econòmic principal PACK implementat al SIF. Continuen pendents l'E2E de preproducció, l'acreditació de l'origen canònic de `PACK_ORDINAL`, la retirada física del callback fiscal legacy i el lliurament efectiu de notificacions (UC-58).
+**Estat:** auditoria específica completada documentalment; flux fiscal/econòmic principal PACK implementat al SIF. Continuen pendents l'E2E de preproducció, decidir si l'ordre comercial ha de ser independent de `DATAI`, la retirada física del callback fiscal legacy i el lliurament efectiu de notificacions (UC-58). L'ordre operatiu actual ja és determinista: `ORDER BY c.DATAI, p.ID_CURS`.
 
 **Codi consultat:** `RedsysPackInvoiceService`, `LegacyPackInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService` i la infraestructura UC-63/03. El builder actual **requereix almenys dues línies** i associa `PACK` i cada `INSCRIPCIO` a la factura. Les comprovacions de la composició comercial del pack i l'accés/inscripció final dels cursos continuen pendents d'acreditar al canal.
 
@@ -42,7 +42,7 @@
 | Descompte del 25 % del builder | Verificar contra la política real i l'snapshot comercial: no reconstruir un descompte diferent si s'aporta explicitament, ni generalitzar el 25 % a tots els tipus d'oferta. |
 | Una sola persona fa totes les inscripcions del pack | La factura pot ser una, però els `ID_INSC` de cada curs/edició continuen independents per permetre canvis, baixes i consulta. |
 
-**Proves localitzades:** `RedsysPackInvoiceServiceTest`, `PackPaymentGateTest`, `LegacyPackInvoicePayloadBuilderTest`, `LegacyPackCallbackBoundaryTest` i scripts de preflight/preview. Hi ha evidència CI històrica 619/0 per un commit anterior; els tests afegits després d'aquell commit necessiten una nova execució acreditada.
+**Proves localitzades:** `RedsysPackInvoiceServiceTest`, `PackPaymentGateTest`, `LegacyPackInvoicePayloadBuilderTest`, `LegacyPackCallbackBoundaryTest` i scripts de preflight/preview. Hi ha evidència CI posterior amb 706/0 que inclou els tests nous del UC-015; qualsevol canvi posterior ha de tornar a passar CI.
 
 ### 1.3. Regles comercials reals i divisió excepcional del pack — contrast amb el xat original
 
@@ -67,7 +67,7 @@
 | PK-07 | Baixa d'un únic curs del pack | Analitzar descompte/part atribuïda al curs i factura afectada; altres inscripcions intactes. |
 ### 1.5. Comprovació bloquejant de l'ordre del pack abans d'emetre
 
-**La consulta llegida no conserva l'ordinal comercial.** `LegacyPackSnapshotRepository::findPackInscriptionsByIdpag()` selecciona `TIPUS_INSC='P'` i ordena per `A_PAGAR DESC, ID`. `LegacyPackInvoicePayloadBuilder` assigna **per índex** el descompte: primera línia sense descompte si no consta base explícita, i 25 % reconstruït a les línies següents. La regla del pack habitual parla, en canvi, de **primer i segon curs de l'oferta acceptada**. Si els preus originals són diferents, hi ha fraccions/ajustos o canvia el pendent, ordenar per `A_PAGAR` pot permutar els cursos i situar el descompte en la línia equivocada. El builder també extreu **el receptor fiscal de la primera inscripció recuperada**, de manera que la permutació pot tenir efectes de receptor quan hi hagi dades personals divergents.
+**Estat actual de l'ordinal.** La consulta legacy de `LegacyPackSnapshotRepository` encara retorna files en ordre `A_PAGAR DESC, ID`, però extreu `PACK_ORDINAL`, `PACK_BASE`, `PACK_DISCOUNT`, `PACK_DISCOUNT_PCT` i `PACK_TOTAL` del snapshot comercial gravat a l'alta. `LegacyPackInvoicePayloadBuilder` reordena pels ordinals quan són presents, exigeix seqüència contigua i imports/descomptes explícits coherents; ja no reconstrueix automàticament un 25 %. Les compres noves PACK congelen l'ordinal des del mateix ordre determinista de presentació `DATAI, ID_CURS`. El pendent funcional és decidir si aquest ordre cronològic estable és el contracte comercial definitiu o si cal una posició explícita independent de dates.
 
 **Contracte del canal comercial pendent.** Abans de `issueInvoice()`, el checkout ha de proporcionar una llista **ordenada i versionada** de components amb `ID_INSC`, curs/edició, ordinal de l'oferta, import base, regla/descompte efectiu i total, i una identitat fiscal **confirmada** independent del resultat del `ORDER BY`. La composició s'ha de contrastar amb la font comercial del pack i l'import cobrat per Redsys; si només es disposa de saldos `A_PAGAR` o no és possible establir l'ordinal original, l'operació resta en incidència abans d'emetre, no es reconstrueix per conjectura. Una correcció posterior de component o una nova oferta es tracta per UC-122/71, **no** reordenant les línies de la factura ja emesa.
 
@@ -104,8 +104,8 @@ Callback ..> Invoice : <<include>> (autoritzat)
 Worker --> Funds
 Student --> Change
 note bottom of Funds
- Atribució per inscripció PENDENT.
- No duplicar el cobrament bancari.
+ Atribució per inscripció IMPLEMENTADA.
+ Un únic cobrament bancari, N atribucions internes.
 end note
 @enduml
 ```
@@ -163,18 +163,31 @@ class PaymentRepository {
  +createPayment(db,payload) array
 }
 class EnrollmentFundMovementRepository {
- <<PROPOSTA: no implementada>>
- +append(db,movement) string
+ <<IMPLEMENTAT>>
+ +lockPayment(db,uuidPayment) array
+ +findInvoiceLineForInscription(db,uuidFactura,idInsc) array
+ +insertOrReuseExternalAllocation(db,movement) array
+}
+class PackPaymentNotificationService {
+ <<IMPLEMENTAT · ENQUEUE>>
+ +enqueue(db,dsOrder,snapshot,invoiceResult) array
+}
+class NotificationOutboxRepository {
+ <<IMPLEMENTAT · ENQUEUE>>
+ +enqueue(db,message) array
 }
 RedsysPackInvoiceService ..|> RedsysIntentHandler
 RedsysPackInvoiceService --> LegacyPackInvoicePayloadBuilder : N línies
 RedsysPackInvoiceService --> RedsysInvoicePayloadBuilder : cobrament validat
 RedsysPackInvoiceService --> InvoiceService : factura de pack
+RedsysPackInvoiceService --> EnrollmentFundMovementRepository : N atribucions / mateix UUID_PAYMENT
+RedsysPackInvoiceService --> PackPaymentNotificationService : event postfactura
+PackPaymentNotificationService --> NotificationOutboxRepository
 InvoiceService --> InvoiceRepository : factura i relacions
 InvoiceService --> PaymentRepository : CHARGE inicial si payment
 ```
 
-`EnrollmentFundMovementRepository` es mostra com a model pendent, **sense una dependència fictícia dibuixada des de `InvoiceService`**.
+`EnrollmentFundMovementRepository` està implementat i és invocat per `PackEnrollmentFundAllocationService` des del handler PACK; no depèn d'`InvoiceService` perquè l'atribució econòmica es fa després d'obtenir `UUID_FACTURA` i `UUID_PAYMENT`.
 
 ## 4. Diagrama de seqüència — pack pagat, factura i distribució
 
@@ -182,7 +195,7 @@ InvoiceService --> PaymentRepository : CHARGE inicial si payment
 sequenceDiagram
 autonumber
 actor A as Alumne/pagador
-participant Web as Ecommerce [adaptador pendent]
+participant Web as Ecommerce PACK
 participant Intent as RedsysPaymentIntentService
 participant Bank as Redsys
 participant Callback as RedsysCallbackService
@@ -192,7 +205,8 @@ participant H as RedsysPackInvoiceService
 participant B as LegacyPackInvoicePayloadBuilder
 participant R as RedsysInvoicePayloadBuilder
 participant I as InvoiceService
-participant L as EnrollmentFundMovementRepository [PROPOSTA]
+participant O as NotificationOutbox
+participant L as EnrollmentFundMovementRepository
 A->>Web: Comprar pack amb N inscripcions
 Web->>Intent: create(PACK, DS_ORDER, import, snapshot N línies)
 Intent-->>Web: UUID_INTENT
@@ -210,14 +224,13 @@ H->>R: buildFromValidatedNotification()
 R-->>H: Payload amb un CHARGE real
 H->>I: issueInvoice(payload)
 I-->>H: UUID_FACTURA i UUID_PAYMENT
-H-->>W: Resultat
-W->>Q: PROCESSED i UUIDs
-opt Desglossament monetari per inscripció [DISSENY]
- loop Per cada inscripció i import validat
-  W->>L: append(EXTERNAL→ID_INSC, import_i, UUID_PAYMENT)
- end
+loop Cada inscripció i import congelat
+ H->>L: insertOrReuseExternalAllocation(UUID_PAYMENT,ID_INSC,import_i)
 end
-Note over W,L: Un pagament bancari, N atribucions internes. Integració del ledger no implementada.
+H->>O: enqueue notificació idempotent
+H-->>W: Resultat + ledger + outbox
+W->>Q: PROCESSED i UUIDs
+Note over H,O: Un pagament bancari, N atribucions internes. L'outbox queda PENDING fins al worker UC-58.
 ```
 
 ### 4.1. Seqüència — pagament únic i alternativa excepcional d'intranet (OBJECTIU)
@@ -251,3 +264,8 @@ Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts 
 **Auditoria específica:** [registre 2026-09-29](uc-015-auditoria-tracabilitat-2026-09-29.md) · [classes ACTUAL/FINAL](uc-015-classes-actual-final.md) · [seqüències ACTUAL/FINAL](uc-015-sequencies-actual-final.md) · [activitats ACTUAL/FINAL](uc-015-activitats-pagines-pack-actual-final.md).
 
 [Fitxa UC-15 original](../06-fitxes-funcionals/uc-015.md) · [UC-03](uc-003-processar-cobrament-redsys-asincron.md) · [UC-63](uc-063-crear-intencio-redsys.md) · [UC-71](uc-071-registrar-canvi-curs-complet.md) · [Revisió de fons](00-revisio-moviments-inscripcions.md) · [RedsysPackInvoiceService](../../sif/src/Service/RedsysPackInvoiceService.php) · [LegacyPackInvoicePayloadBuilder](../../sif/src/Service/LegacyPackInvoicePayloadBuilder.php) · [RedsysPackInvoiceServiceTest](../../sif/tests/Integration/RedsysPackInvoiceServiceTest.php).
+
+
+## Preproducció canònica
+
+Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only i el processor manual injecta ledger/outbox i pot fer la sincronització legacy completa amb `--sync-legacy`. Per tant, ja no s'utilitza una reconstrucció legacy diferent del flux productiu per validar preproducció.

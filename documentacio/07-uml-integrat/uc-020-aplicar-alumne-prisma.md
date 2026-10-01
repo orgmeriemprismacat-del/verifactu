@@ -200,8 +200,23 @@ classDiagram
 direction LR
 
 class PrismaStudentDiscountPolicy {
-  <<DISSENY>>
-  +evaluate(subject,product,evaluationAt,currentEnrollment) Decision
+  <<PHP IMPLEMENTAT_COMPATIBILITAT>>
+  +evaluate(history) Decision
+}
+
+class LegacyPrismaStudentHistoryRepository {
+  <<PHP IMPLEMENTAT>>
+  +findByDocument(legacyDb,document) array
+}
+
+class CourseIntentSnapshotValidator {
+  <<PHP IMPLEMENTAT>>
+  +validate(input) void
+}
+
+class PrismaStudentCourseCheckoutService {
+  <<PHP IMPLEMENTAT_NUCLI>>
+  +checkout(sifDb,legacyDb,input,trustedPriceSnapshot) array
 }
 
 class CommercialOfferService {
@@ -303,9 +318,13 @@ PaymentLinkService --> PaymentLinkRepository
 PaymentLinkRepository --> payment_link
 CommercialOperationRepository ..> RedsysPaymentIntentService : link UUID_INTENT [ORQUESTRACIÓ PENDENT]
 RedsysCourseInvoiceService --> LegacyCourseInvoicePayloadBuilder
+PrismaStudentCourseCheckoutService --> LegacyPrismaStudentHistoryRepository
+PrismaStudentCourseCheckoutService --> PrismaStudentDiscountPolicy
+PrismaStudentCourseCheckoutService --> RedsysPaymentIntentService
+RedsysPaymentIntentService --> CourseIntentSnapshotValidator : SOURCE_TYPE=CURS
 ```
 
-**Estat actual de runtime:** aquesta branca ja implementa la persistència idempotent d'una oferta comercial (`CommercialOfferService`), els repositoris de `commercial_operation` i `discount_validation`, i el cicle bàsic de `payment_link` amb token opac, hash, expiració i revocació. **Encara no està implementada la política d'elegibilitat ni la connexió web/intranet → oferta → intenció Redsys.** `CommercialOperationRepository::linkIntent()` existeix com a primitive amb control optimista, però falta l'orquestrador que decideixi quan una nova intenció pot substituir l'anterior.
+**Estat actual de runtime:** `main` ja aporta la persistència idempotent d'oferta i link (`CommercialOfferService`, repositoris comercials i `PaymentLinkService`). El tall UC-020 aporta a més `PrismaStudentDiscountPolicy` sota `ALUMNE_PRISMA_LEGACY_V1`, historial, validació del snapshot CURS i `PrismaStudentCourseCheckoutService`, que crea/reutilitza operació i validació, crea la intenció i vincula `UUID_OPERATION ↔ UUID_INTENT`. **Continua pendent connectar aquest nucli al checkout web/intranet llegat i definir/ratificar la política futura de negoci.**
 
 ## 7. Seqüència ACTUAL — web d'inscripció
 
@@ -552,9 +571,9 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 
 | Responsabilitat | DDL | Runtime localitzat | Estat UC-20 |
 | --- | --- | --- | --- |
-| Operació comercial | `commercial_operation` | No | PENDENT |
-| Parts de l'operació | `commercial_operation_party` | No | PENDENT |
-| Decisió de descompte | `discount_validation` | No | PENDENT |
+| Operació comercial | `commercial_operation` | `CommercialOperationRepository` + `CommercialOfferService` + `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI |
+| Parts de l'operació | `commercial_operation_party` | `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_UC020 |
+| Decisió de descompte | `discount_validation` | `DiscountValidationRepository` + `CommercialOfferService` + `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI |
 | Link pagament | `payment_link` | No | PENDENT |
 | Event operatiu | `operational_event` | `OperationalEventRepository` | IMPLEMENTAT, integració UC-20 pendent |
 | Intenció Redsys | `redsys_payment_intent` | repositori + servei | IMPLEMENTAT |
@@ -593,6 +612,8 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 ## 17. Documents complementaris obligatoris
 
 - [Fitxa funcional UC-020](../06-fitxes-funcionals/uc-020.md)
+- [Classes ACTUAL/FINAL](uc-020-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-020-sequencies-actual-final.md)
 - [Activitats per pàgina i apartat ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md)
 - [Auditoria i matriu de traçabilitat](uc-020-auditoria-tracabilitat-2026-09-29.md)
 - [Matriu canònica de proves AP-01…AP-84](uc-020-matriu-proves-ap-01-84.md)
@@ -612,3 +633,42 @@ UC-20 no es pot marcar com a COMPLET fins que:
 - existeixi relació explícita `UUID_OPERATION ↔ UUID_INTENT`;
 - pagament/factura consumeixin el mateix snapshot;
 - s'executin els tests AP E2E i es conservi evidència.
+
+
+## 19. Tall executable integrat — 30/09/2026
+
+El model FINAL ja té dues peces complementàries implementades:
+
+- **infraestructura comercial general:** repositoris de `commercial_operation`, `discount_validation`, `payment_link`, `CommercialOfferService` i `PaymentLinkService`;
+- **flux específic Alumne PrisMa:** `PrismaStudentDiscountPolicy`, `LegacyPrismaStudentHistoryRepository`, `CourseIntentSnapshotValidator`, `LegacyPrismaStudentPriceSnapshotResolver` i `PrismaStudentCourseCheckoutService`.
+
+La policy és deliberadament una regla de **compatibilitat legacy versionada** (`ALUMNE_PRISMA_LEGACY_V1`). No converteix les decisions pendents de negoci en decisions tancades.
+
+## 20. Seqüència implementada del nucli UC-020
+
+```mermaid
+sequenceDiagram
+autonumber
+actor UI as Checkout/Adaptador [pendent]
+participant C as PrismaStudentCourseCheckoutService
+participant H as LegacyPrismaStudentHistoryRepository
+participant P as PrismaStudentDiscountPolicy
+participant CO as commercial_operation / discount_validation
+participant RI as RedsysPaymentIntentService
+participant V as CourseIntentSnapshotValidator
+
+UI->>C: checkout(input, trustedPriceSnapshot)
+C->>H: findByDocument(DNI)
+H-->>C: historial acreditable
+C->>P: evaluate(historial)
+P-->>C: decisió + evidence + RULE_VERSION
+C->>CO: crear/reutilitzar operació + validació
+C->>RI: create(CURS, snapshot autoritatiu)
+RI->>V: validate(source/idpag/import/discount)
+V-->>RI: OK
+RI-->>C: UUID_INTENT
+C->>CO: vincular UUID_OPERATION ↔ UUID_INTENT
+C-->>UI: operació + intenció
+```
+
+**Pendent de tancament:** l'adaptador web/intranet que invoca aquest servei, la retirada del camí llegat autoritatiu basat en imports del navegador, l'E2E navegador → Redsys → factura i la validació de preproducció.

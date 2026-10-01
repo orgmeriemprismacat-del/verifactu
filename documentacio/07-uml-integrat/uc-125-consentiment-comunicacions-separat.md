@@ -93,6 +93,29 @@ Main ..> Sync : <<include>> (decisió registrada)
 @enduml
 ```
 
+### Vista Mermaid del cas d’ús
+
+```mermaid
+flowchart LR
+  a_0["Titular"]
+  a_1["Gestió autoritzada"]
+  a_2["Plataforma de comunicacions"]
+  subgraph SIF_BOUNDARY["Consentiment independent del SIF"]
+    u_0(["UC-125<br/>Gestionar consentiment"])
+    u_1(["Registrar text, finalitat i opció"])
+    u_2(["Confirmar si política ho exigeix"])
+    u_3(["Retirar i aturar futurs enviaments"])
+    u_4(["Propagar estat per canal"])
+  end
+  a_0 --> u_0
+  a_1 --> u_0
+  a_2 --> u_4
+  u_0 -.->|include| u_1
+  u_2 -.-> u_0
+  u_3 -.-> u_0
+  u_0 -.->|include| u_4
+```
+
 ## 4. UML de classes — contracte pendent, no facturació
 
 ```mermaid
