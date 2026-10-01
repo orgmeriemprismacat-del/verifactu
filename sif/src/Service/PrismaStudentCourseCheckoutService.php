@@ -8,6 +8,7 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\PrismaStudentDiscountPolicy;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CommercialOperationRepository;
+use Prisma\Sif\Repository\DiscountValidationRepository;
 use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 
@@ -29,6 +30,7 @@ final class PrismaStudentCourseCheckoutService
         private PrismaStudentDiscountPolicy $policy,
         private CommercialOfferService $offers,
         private CommercialOperationRepository $operations,
+        private DiscountValidationRepository $discounts,
         private RedsysPaymentIntentRepository $intentRepository,
         private RedsysPaymentIntentService $intents,
         private TransactionRunner $transactions
@@ -69,6 +71,19 @@ final class PrismaStudentCourseCheckoutService
         $edition = (string) $enrollment['ANY'] . '/' . (string) $enrollment['MES'];
         $createdBy = trim((string) ($intentRequest['created_by'] ?? 'uc-020-checkout'));
         $evaluationAt = $this->evaluationAt($trustedPriceSnapshot, $enrollment);
+        $requestedAt = $evaluationAt;
+        $validatedAt = $evaluationAt;
+        $existingValidation = $this->discounts->findByIdempotencyKey($sifDb, $validationKey);
+        if ($existingValidation !== null) {
+            $existingRequestedAt = trim((string) ($existingValidation['REQUESTED_AT'] ?? ''));
+            $existingValidatedAt = trim((string) ($existingValidation['VALIDATED_AT'] ?? ''));
+            if ($existingRequestedAt !== '') {
+                $requestedAt = $existingRequestedAt;
+            }
+            if ($existingValidatedAt !== '') {
+                $validatedAt = $existingValidatedAt;
+            }
+        }
 
         $offer = $this->offers->createOrReuse([
             'idempotency_key' => $operationKey,
@@ -123,8 +138,8 @@ final class PrismaStudentCourseCheckoutService
                     'evidence' => $decision['evidence'] ?? null,
                     'rule_version' => $decision['rule_version'],
                 ],
-                'requested_at' => $evaluationAt,
-                'validated_at' => $evaluationAt,
+                'requested_at' => $requestedAt,
+                'validated_at' => $validatedAt,
                 'validated_by' => 'PrismaStudentDiscountPolicy',
                 'result_discount_amount' => $price['discount'],
             ],
