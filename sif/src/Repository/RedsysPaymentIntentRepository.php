@@ -18,6 +18,20 @@ final class RedsysPaymentIntentRepository
         return $row ?: null;
     }
 
+    public function findByUuid(\PDO $db, string $uuidIntent, bool $forUpdate = false): ?array
+    {
+        $sql = 'SELECT * FROM redsys_payment_intent WHERE UUID_INTENT = ?';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$uuidIntent]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
     public function insert(\PDO $db, array $intent): array
     {
         $db->prepare(
