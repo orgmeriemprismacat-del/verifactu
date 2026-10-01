@@ -141,7 +141,18 @@ php sif/scripts/validate-uc008-evidence.php \
   | tee uc-008-closure-validation.json
 ```
 
-El tancament d'entorn només és vàlid si aquest últim JSON retorna `ok=true`. El validador també rebutja evidències que continguin claus amb secrets/passwords/signatures i exigeix que el menú estigui realment en estat `ALREADY_PRESENT`.
+El tancament d'entorn només és vàlid si aquest últim JSON retorna `ok=true`. El validador falla tancat i exigeix, a més:
+
+- evidència superior amb `scope=uc-008-preproduction-verification`;
+- `environment=preproduction` — una execució amb `SIF_ENV=test` **no pot tancar** el cas;
+- `checks.preflight_ok=true`;
+- `checks.e2e_ok=true`;
+- `production_authorized=false`;
+- evidència de menú amb `ok=true` i `scope=uc-008-intranet-menu-discovery`;
+- `read_only=true`, `target_url=/sif-verifactu.php`, exactament una fila i `status=ALREADY_PRESENT`;
+- absència de claus amb secrets/passwords/signatures.
+
+Això evita que un JSON parcial, d'un altre script o generat només en entorn de test es pugui interpretar com a tancament de preproducció.
 
 Criteri de tancament:
 
