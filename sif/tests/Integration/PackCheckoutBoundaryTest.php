@@ -53,6 +53,22 @@ final class PackCheckoutBoundaryTest
                 $source
             );
             Assert::stringContainsString(
+                "getenv('SIF_REDSYS_PAYMENT_URL')",
+                $source
+            );
+            Assert::stringContainsString(
+                "['sis.redsys.es', 'sis-t.redsys.es']",
+                $source
+            );
+            Assert::stringContainsString(
+                "\$redsysPaymentUrl = \$validatedPackCheckout !== null",
+                $source
+            );
+            Assert::stringContainsString(
+                "htmlspecialchars(\$redsysPaymentUrl, ENT_QUOTES, 'UTF-8')",
+                $source
+            );
+            Assert::stringContainsString(
                 "if (\$dniTitularPag === '' || trim(\$nomTitularPag) === '' || trim(\$email) === '')",
                 $source
             );
