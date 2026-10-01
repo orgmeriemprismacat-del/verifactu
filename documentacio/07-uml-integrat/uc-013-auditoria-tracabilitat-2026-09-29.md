@@ -27,7 +27,8 @@
 | Emetre factura entitat | UI autònoma + panell Consulta/Modifica alumne + API signada | `SifInternalUsocClient` / `/api/usoc/manage.php` | `UsocEntityInvoiceService` + `UsocFinancingCaseRepository::requireForEntityInvoice()` + `UsocStudentInvoiceLinkRepository` | valida checkpoint abans d'emetre; factura PENDING + `fact_rels` + `ENTITY_INVOICED` | UC-019b/013 | Sí | Sí | Sí | tests de servei/checkpoint i contractes UI PASS en CI |
 | Cobrar entitat | UI autònoma + panell contextual + API signada + ruta preproducció | `register_entity_payment` / `process-usoc-entity-payment.php` | `UsocEntityPaymentService` → `PaymentService` → `UsocCaseReconciler` | payment/allocation + actualització immediata `usoc_financing_case` | UC-002/022/024/013 | Sí | Sí | Sí | VERIFICAT CI · run 36657971568 |
 | Conciliar dues parts | CLI/preproducció | `reconcile-usoc-case.php` | `UsocCaseReconciler` | actualitza `usoc_financing_case` segons estats de factura i imports | UC-013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
-| Canvi/baixa | intranet + preview + planner USOC | `LegacyUsocLifecycleGuard` / `lifecycle_guard` / `lifecycle_plan` | `UsocLifecycleGuardService` + `UsocLifecyclePlanService` | bloqueig fail-closed + snapshot i pla separat per pagador; retorn màxim limitat al net real cobrat | UC-013/026/027 | Sí | Sí | Sí | runs `36733404401` i `36733404387` · 744/744 |
+| Canvi/baixa | intranet + preview/planner USOC | `LegacyUsocLifecycleGuard` / `lifecycle_guard` / `lifecycle_plan` | guard + planner | bloqueig fail-closed + snapshot/pla separat per pagador | UC-013/026/027 | Sí | Sí | Sí | 744/744 als runs previs |
+| Executar baixa USOC | modal intranet + API signada | `execute_cancellation` + checkpoint sessió | `UsocCancellationExecutionService` → rectificativa/refund per pagador | `usoc_lifecycle_execution`, `operational_event`, `enrollment_cancellation_event`, factures/payment | UC-013/027/005/002 | Sí | Sí | Sí | **run `36942709607`: 838/838 servei**; contracte handoff pendent últim run |
 
 ## 3. Evidència específica
 
@@ -135,7 +136,7 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 **PREPRODUCCIÓ:** no acreditada.  
 **PRODUCCIÓ:** no acreditada.
 
-Els P0 estructurals estan implementats. El run CI principal actual `36663075293` acaba **SUCCESS, 666 passed / 0 failed**, incloent el protocol durable de validació; el run `36660979100` ja havia acreditat l'E2E de doble facturació. El UC-013 encara no es marca TANCAT per desplegament/preproducció, execució fiscal específica de canvi/baixa amb dos pagadors i decisions funcionals/fiscals pendents; el guard i el planner d'aquests canvis ja estan implementats i provats.
+Els P0 estructurals estan implementats. El run `36660979100` acredita l'E2E de doble facturació; la decisió durable `VALID_DESC` també està implementada/provada. Per la baixa USOC, el run `36942709607` acaba **SUCCESS, 838 passed / 0 failed** i acredita l'executor per pagador, límits de refund, retry idempotent i decisions diferides. El UC-013 encara no es marca TANCAT perquè falta acreditar el contracte final de handoff UI→SIF→legacy, provar-lo en preproducció/navegador, implementar l'execució de canvi de curs i resoldre decisions funcionals/fiscals pendents.
 
 
 ### Evidència addicional · regla comercial no codificada al SIF
