@@ -41,6 +41,11 @@ final class ManualGiftInvoiceServiceTest
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same(1, (int) $sifDb->query("SELECT COUNT(*) FROM commercial_operation WHERE OPERATION_TYPE='GIFT_PURCHASE'")->fetchColumn());
+        Assert::same(1, (int) $sifDb->query("SELECT COUNT(*) FROM commercial_entitlement WHERE ENTITLEMENT_TYPE='GIFT' AND STATUS='ACTIVE'")->fetchColumn());
+        Assert::same($first['gift_entitlement']['uuid_operation'], $second['gift_entitlement']['uuid_operation']);
+        Assert::same($first['gift_entitlement']['uuid_entitlement'], $second['gift_entitlement']['uuid_entitlement']);
+        Assert::same(true, $second['gift_entitlement']['idempotency_reused']);
 
         $invoice = $sifDb->query('SELECT IDEMPOTENCY_KEY, SOURCE_CHANNEL, TOTAL, ESTAT_COBRAMENT FROM factura')
             ->fetch(\PDO::FETCH_ASSOC);
@@ -125,7 +130,8 @@ final class ManualGiftInvoiceServiceTest
         return new ManualGiftInvoiceService(
             new LegacyGiftSnapshotRepository(),
             new ManualGiftInvoicePayloadBuilder(),
-            IssueInvoiceTest::serviceFor($sifDb)
+            IssueInvoiceTest::serviceFor($sifDb),
+            $sifDb
         );
     }
 

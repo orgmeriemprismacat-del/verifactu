@@ -49,7 +49,8 @@ try {
     $service = new ManualGiftInvoiceService(
         new LegacyGiftSnapshotRepository(),
         new ManualGiftInvoicePayloadBuilder(),
-        $invoiceService
+        $invoiceService,
+        $sifDb
     );
 
     if (($selector['type'] ?? '') === 'id') {

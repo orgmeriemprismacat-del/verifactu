@@ -28,7 +28,9 @@ final class GiftEntitlementIssuerService
         \PDO $db,
         array $gift,
         array $invoiceResult,
-        string $dsOrder
+        string $dsOrder,
+        string $sourceChannel = 'REDSYS',
+        string $actorId = 'redsys-gift-worker'
     ): array {
         if ($db->inTransaction()) {
             throw new \LogicException('Gift entitlement issuance owns its transaction.');
@@ -45,6 +47,8 @@ final class GiftEntitlementIssuerService
         $uuidInvoice = $this->uuid($invoiceResult['uuid_factura'] ?? null, 'uuid_factura');
         $uuidPayment = $this->uuid($invoiceResult['uuid_payment'] ?? null, 'uuid_payment');
         $dsOrder = $this->required($dsOrder, 'ds_order', 100);
+        $sourceChannel = strtoupper($this->required($sourceChannel, 'source_channel', 30));
+        $actorId = $this->required($actorId, 'actor_id', 100);
 
         $codeHash = hash('sha256', $code);
         $operationKey = 'GIFT|PURCHASE|REGAL:' . $giftId;
@@ -93,7 +97,7 @@ final class GiftEntitlementIssuerService
                         $uuidOperation,
                         $operationKey,
                         'GIFT_PURCHASE',
-                        'REDSYS',
+                        $sourceChannel,
                         'REGAL',
                         (string) $giftId,
                         'REGAL',
@@ -109,7 +113,7 @@ final class GiftEntitlementIssuerService
                         $taxSnapshot,
                         $uuidInvoice,
                         $uuidPayment,
-                        'redsys-gift-worker',
+                        $actorId,
                     ]
                 );
 
@@ -177,7 +181,7 @@ final class GiftEntitlementIssuerService
                     'to_status' => 'ACTIVE',
                     'uuid_operation' => (string) $operation['UUID_OPERATION'],
                     'actor_type' => 'SYSTEM',
-                    'actor_id' => 'redsys-gift-worker',
+                    'actor_id' => $actorId,
                     'correlation_id' => 'UC017-' . substr(hash('sha256', $dsOrder), 0, 32),
                     'causation_id' => $entitlementKey,
                     'reason_code' => 'UC017_GIFT_PURCHASE',
