@@ -5,9 +5,9 @@ declare(strict_types=1);
 /**
  * Server-to-server client for UC-018.
  *
- * The caller MUST resolve holder_party_key and trusted_price_snapshot from
- * authoritative backend sources before calling this class. Do not pass values
- * copied from browser fields as authoritative identity or pricing.
+ * The caller sends only the committed legacy enrollment ID and the gift code.
+ * Canonical participant identity and price/tax context are resolved inside the
+ * SIF boundary; this client must never forward browser identity or amounts.
  */
 final class SifGiftRedemptionClient
 {
@@ -123,24 +123,19 @@ final class SifGiftRedemptionClient
             throw new InvalidArgumentException('Invalid trusted enrollment ID');
         }
 
-        foreach ([
-            'gift_code' => 200,
-            'holder_party_key' => 100,
-        ] as $field => $max) {
-            $value = trim((string) ($payload[$field] ?? ''));
-            if ($value === '' || strlen($value) > $max) {
-                throw new InvalidArgumentException(
-                    'Invalid trusted gift redemption field: ' . $field
-                );
-            }
+        $giftCode = trim((string) ($payload['gift_code'] ?? ''));
+        if ($giftCode === '' || strlen($giftCode) > 200) {
+            throw new InvalidArgumentException(
+                'Invalid trusted gift redemption field: gift_code'
+            );
         }
 
-        if (!is_array($payload['trusted_price_snapshot'] ?? null)
-            || ($payload['trusted_price_snapshot'] ?? []) === []
-        ) {
-            throw new InvalidArgumentException(
-                'Trusted gift price snapshot is required'
-            );
+        foreach (['holder_party_key', 'trusted_price_snapshot'] as $forbidden) {
+            if (array_key_exists($forbidden, $payload)) {
+                throw new InvalidArgumentException(
+                    'Gift redemption authority must be resolved inside SIF: ' . $forbidden
+                );
+            }
         }
     }
 

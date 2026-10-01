@@ -13,6 +13,16 @@ final class CommercialEntitlementRepository
     {
     }
 
+    public static function unclaimedGiftHolderKey(string $codeHash): string
+    {
+        $codeHash = strtolower(trim($codeHash));
+        if (!preg_match('/^[a-f0-9]{64}$/D', $codeHash)) {
+            throw SifException::validation('Invalid entitlement code hash');
+        }
+
+        return 'gift:unclaimed:' . $codeHash;
+    }
+
     public function findByCodeHash(\PDO $db, string $codeHash, bool $forUpdate = false): ?array
     {
         $codeHash = strtolower(trim($codeHash));
@@ -30,6 +40,84 @@ final class CommercialEntitlementRepository
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         return is_array($row) ? $row : null;
+    }
+
+    public function claimGiftHolder(
+        \PDO $db,
+        array $entitlement,
+        string $codeHash,
+        string $canonicalPartyKey,
+        string $correlationId,
+        string $actorId,
+        string $idempotencyKey,
+        ?\DateTimeImmutable $now = null
+    ): array {
+        $this->assertGift($entitlement);
+
+        $canonicalPartyKey = trim($canonicalPartyKey);
+        if ($canonicalPartyKey === '' || strlen($canonicalPartyKey) > 100) {
+            throw SifException::validation('Invalid canonical gift holder');
+        }
+
+        $current = trim((string) ($entitlement['HOLDER_PARTY_KEY'] ?? ''));
+        if ($current === $canonicalPartyKey) {
+            return [
+                'holder_party_key' => $canonicalPartyKey,
+                'reused' => true,
+            ];
+        }
+
+        $expectedUnclaimed = self::unclaimedGiftHolderKey($codeHash);
+        $status = strtoupper((string) ($entitlement['STATUS'] ?? ''));
+        if ($current !== $expectedUnclaimed
+            || !in_array($status, ['ISSUED', 'ACTIVE'], true)
+        ) {
+            throw SifException::conflict(
+                'Gift entitlement is already claimed or cannot change holder.'
+            );
+        }
+
+        $statement = $db->prepare(
+            'UPDATE commercial_entitlement
+             SET HOLDER_PARTY_KEY = ?
+             WHERE UUID_ENTITLEMENT = ?
+               AND HOLDER_PARTY_KEY = ?
+               AND STATUS = ?'
+        );
+        $statement->execute([
+            $canonicalPartyKey,
+            (string) $entitlement['UUID_ENTITLEMENT'],
+            $expectedUnclaimed,
+            $status,
+        ]);
+        if ($statement->rowCount() !== 1) {
+            throw SifException::conflict('Gift holder changed concurrently');
+        }
+
+        $at = $this->utc($now);
+        $this->appendEvent($db, [
+            'uuid_entitlement' => (string) $entitlement['UUID_ENTITLEMENT'],
+            'action' => 'CLAIM',
+            'result' => 'SUCCESS',
+            'from_status' => $status,
+            'to_status' => $status,
+            'uuid_operation' => null,
+            'actor_type' => 'SYSTEM',
+            'actor_id' => $actorId,
+            'correlation_id' => $correlationId,
+            'causation_id' => $idempotencyKey,
+            'reason_code' => 'UC018_CLAIM_HOLDER',
+            'changeset' => [
+                'previous_holder_state' => 'UNCLAIMED',
+                'holder_key_hash' => hash('sha256', $canonicalPartyKey),
+            ],
+            'occurred_at' => $at,
+        ]);
+
+        return [
+            'holder_party_key' => $canonicalPartyKey,
+            'reused' => false,
+        ];
     }
 
     public function reserve(
@@ -206,7 +294,7 @@ final class CommercialEntitlementRepository
             $event['from_status'] ?? null,
             $event['to_status'] ?? null,
             $event['uuid_operation'] ?? null,
-            'PERSON',
+            strtoupper(trim((string) ($event['actor_type'] ?? 'PERSON'))) ?: 'PERSON',
             trim((string) ($event['actor_id'] ?? '')) ?: null,
             $event['correlation_id'],
             $event['causation_id'] ?? null,

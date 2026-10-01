@@ -47,8 +47,16 @@ final class GiftRedemptionEndpointBoundaryTest
             $source
         );
         Assert::stringContainsString(
-            'trusted_price_snapshot',
+            'GiftRedemptionTrustedContextResolver',
             $source
+        );
+        Assert::same(
+            false,
+            str_contains($source, "\$payload['holder_party_key']")
+        );
+        Assert::same(
+            false,
+            str_contains($source, "\$payload['trusted_price_snapshot']")
         );
         Assert::same(false, str_contains($source, '$_GET'));
         Assert::same(false, str_contains($source, '?gift_code='));
