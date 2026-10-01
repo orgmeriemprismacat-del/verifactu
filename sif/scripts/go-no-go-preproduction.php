@@ -4,6 +4,10 @@ require dirname(__DIR__) . '/src/autoload.php';
 
 use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Database\MigrationRunner;
+use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\CommercialEntitlementRepository;
+use Prisma\Sif\Service\GiftEntitlementIssuerService;
+use Prisma\Sif\Service\HistoricalGiftEntitlementBackfillService;
 
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "This script can only run from CLI.\n");
@@ -27,6 +31,16 @@ $checks = [
     'legacy_database_configured' => (string) ($config['legacy_db']['dsn'] ?? '') !== '',
     'redsys_merchant_key_configured' => (string) ($config['redsys']['merchant_key'] ?? '') !== '',
     'incident_panel_preflight_present' => is_file($baseDir . '/scripts/preflight-incidents-panel.php'),
+    'historical_gift_entitlement_preflight_present' => is_file(
+        $baseDir . '/scripts/preflight-historical-gift-entitlements.php'
+    ),
+    'historical_gift_entitlement_circuit_present' => allFilesPresent($baseDir, [
+        'src/Service/HistoricalGiftEntitlementBackfillService.php',
+        'scripts/inventory-historical-gift-entitlements.php',
+        'scripts/process-historical-gift-entitlement-backfill.php',
+        'scripts/preflight-historical-gift-entitlements.php',
+    ]),
+    'historical_unused_gifts_covered' => false,
     'incident_read_roles_configured' => $incidentReadRoles !== [],
     'incident_manage_roles_configured' => $incidentManageRoles !== [],
     'incident_manage_roles_can_read' => array_diff($incidentManageRoles, $incidentReadRoles) === [],
@@ -209,6 +223,9 @@ $checks = [
     ]),
 ];
 $errors = [];
+$giftInventorySummary = null;
+$sifDb = null;
+$legacyDb = null;
 
 try {
     $sifDb = ConnectionFactory::make($config);
@@ -255,6 +272,21 @@ try {
     $errors['legacy_database'] = $exception->getMessage();
 }
 
+if ($sifDb instanceof \PDO && $legacyDb instanceof \PDO) {
+    try {
+        $entitlements = new CommercialEntitlementRepository(new UuidGenerator());
+        $giftInventory = (new HistoricalGiftEntitlementBackfillService(
+            $entitlements,
+            new GiftEntitlementIssuerService(new UuidGenerator(), $entitlements)
+        ))->inventory($sifDb, $legacyDb);
+        $giftInventorySummary = (array) ($giftInventory['summary'] ?? []);
+        $checks['historical_unused_gifts_covered'] =
+            (int) ($giftInventorySummary['blocking_unused'] ?? -1) === 0;
+    } catch (\Throwable $exception) {
+        $errors['historical_gift_entitlements'] = $exception->getMessage();
+    }
+}
+
 $failed = array_keys(array_filter($checks, static fn (bool $ok): bool => !$ok));
 $decision = count($failed) === 0 ? 'GO' : 'NO-GO';
 $result = [
@@ -268,6 +300,10 @@ $result = [
 
 if ($failed !== []) {
     $result['failed'] = $failed;
+}
+
+if (is_array($giftInventorySummary)) {
+    $result['historical_gift_inventory_summary'] = $giftInventorySummary;
 }
 
 if ($errors !== []) {
