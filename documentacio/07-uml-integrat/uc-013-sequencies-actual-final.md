@@ -1,7 +1,7 @@
 # UC-013 · Seqüències ACTUAL / FINAL — Orquestrar la doble facturació USOC
 
 **Data d'auditoria:** 2026-10-02  
-**Main contrastat:** `22d47a2949e03fe4a170f831f6d7f8724f7cd40c`
+**Main contrastat:** `434be933eccfd0b8805bc532a39760d7ec426a00`
 
 ## 1. ACTUAL — sol·licitud USOC
 
