@@ -5,6 +5,7 @@ namespace Prisma\Sif\Tests\Integration;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\CommercialOperationPartyRepository;
 use Prisma\Sif\Repository\CommercialOperationRepository;
 use Prisma\Sif\Repository\DiscountValidationRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
@@ -53,6 +54,47 @@ final class CommercialOfferServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+    }
+
+    public function testCreatesAndReusesCommercialPartiesInTheSameOffer(): void
+    {
+        $db = TestDatabase::fresh();
+        $uuid = new UuidGenerator();
+        $service = new CommercialOfferService(
+            new TransactionRunner($db),
+            new CommercialOperationRepository(),
+            new DiscountValidationRepository(),
+            new OperationalEventRepository($uuid),
+            $uuid,
+            new CommercialOperationPartyRepository()
+        );
+        $input = $this->input();
+        $input['parties'] = [[
+            'party_key' => 'student:501',
+            'party_role' => 'PARTICIPANT',
+            'nif_cif' => '12345678Z',
+            'nom_rao' => 'Persona de prova',
+            'email' => 'persona@example.invalid',
+            'product_code' => 'CURS-TEST',
+            'product_edition' => '2026-10',
+            'line_amount' => '90.00',
+            'snapshot' => [
+                'source' => 'legacy_inscription',
+                'source_id' => 501,
+            ],
+        ]];
+
+        $first = $service->createOrReuse($input);
+        $second = $service->createOrReuse($input);
+
+        Assert::same($first['uuid_operation'], $second['uuid_operation']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation_party')->fetchColumn());
+
+        $party = $db->query('SELECT * FROM commercial_operation_party')->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('student:501', $party['PARTY_KEY']);
+        Assert::same('PARTICIPANT', $party['PARTY_ROLE']);
+        Assert::same('90.00', number_format((float) $party['LINE_AMOUNT'], 2, '.', ''));
     }
 
     public function testSameOperationKeyWithDifferentPayloadConflicts(): void
