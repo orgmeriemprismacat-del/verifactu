@@ -28,7 +28,7 @@
 | Cobrar entitat | UI autònoma + panell contextual + API signada + ruta preproducció | `register_entity_payment` / `process-usoc-entity-payment.php` | `UsocEntityPaymentService` → `PaymentService` → `UsocCaseReconciler` | payment/allocation + actualització immediata `usoc_financing_case` | UC-002/022/024/013 | Sí | Sí | Sí | VERIFICAT CI · run 36657971568 |
 | Conciliar dues parts | CLI/preproducció | `reconcile-usoc-case.php` | `UsocCaseReconciler` | actualitza `usoc_financing_case` segons estats de factura i imports | UC-013 | Sí | Sí | Sí | Test afegit, execució no acreditada |
 | Canvi/baixa | intranet + preview/planner USOC | `LegacyUsocLifecycleGuard` / `lifecycle_guard` / `lifecycle_plan` | guard + planner | bloqueig fail-closed + snapshot/pla separat per pagador | UC-013/026/027 | Sí | Sí | Sí | 744/744 als runs previs |
-| Executar baixa USOC | modal intranet + API signada | `execute_cancellation` + checkpoint sessió | `UsocCancellationExecutionService` → rectificativa/refund per pagador | `usoc_lifecycle_execution`, `operational_event`, `enrollment_cancellation_event`, factures/payment | UC-013/027/005/002 | Sí | Sí | Sí | **run `36942709607`: 838/838 servei**; contracte handoff pendent últim run |
+| Executar baixa USOC | modal intranet + API signada | `execute_cancellation` + checkpoint sessió | `UsocCancellationExecutionService` → rectificativa/refund per pagador | `usoc_lifecycle_execution`, `operational_event`, `enrollment_cancellation_event`, factures/payment | UC-013/027/005/002 | Sí | Sí | Sí | **run `36942709607`: 838/838 servei**; contracte handoff **PASS · run 36943206570** |
 
 ## 3. Evidència específica
 
