@@ -323,6 +323,7 @@ No consten al repositori ni als artifacts:
 
 - `uc-008-preproduction-evidence.json`;
 - `uc-008-menu-evidence.json`;
+- `uc-008-manager-e2e-evidence.json`;
 - `uc-008-closure-validation.json`.
 
 Per tant, el resultat **740/0** acredita regressió de codi i contractes automatitzats, però **no acredita l'execució real de preproducció ni el tancament de l'entorn**. No s'ha fabricat ni inferit cap evidència absent.
@@ -346,7 +347,7 @@ També s'ha unificat el nom de l'evidència del menú a `uc-008-menu-evidence.js
 
 Aquest enduriment no canvia el lifecycle ni la UI del UC-008; reforça exclusivament la qualitat i traçabilitat de l'evidència necessària per declarar l'entorn tancat.
 
-A més, el resultat `uc-008-closure-validation.json` incorpora ara `validated_at` i els **SHA-256** dels dos fitxers d'entrada (`preproduction_sha256` i `menu_sha256`). El gate exigeix hashes vàlids de 64 caràcters, de manera que el resultat final queda lligat als JSON exactes que s'han validat sense exposar-ne el path ni el contingut.
+A més, el resultat `uc-008-closure-validation.json` incorpora ara `validated_at` i els **SHA-256 dels tres fitxers d'entrada** (`preproduction_sha256`, `menu_sha256` i `manager_e2e_sha256`). El gate exigeix hashes vàlids de 64 caràcters, de manera que el resultat final queda lligat als JSON exactes que s'han validat sense exposar-ne el path ni el contingut.
 
 ### 6 quater. Tancament del buit E2E de gestor — 02/10/2026
 
@@ -393,7 +394,7 @@ Els commits posteriors corregeixen aquests desfasaments i els runs finals són v
 4. Si `/sif-verifactu.php` no existeix a `apartats`, confirmar pare, nivell, rols, ordre i icona abans de fer l'alta.
 5. Tornar a executar el preflight del menú fins obtenir `ALREADY_PRESENT`.
 6. Validar el parell:
-   `php sif/scripts/validate-uc008-evidence.php uc-008-preproduction-evidence.json uc-008-menu-evidence.json`
+   `php sif/scripts/validate-uc008-evidence.php uc-008-preproduction-evidence.json uc-008-menu-evidence.json uc-008-manager-e2e-evidence.json`
 7. Conservar `uc-008-closure-validation.json` amb `ok=true`.
 8. Fer una passada de navegador amb:
    - usuari read-only;
