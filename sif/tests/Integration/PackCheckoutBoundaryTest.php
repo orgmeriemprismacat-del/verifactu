@@ -57,7 +57,11 @@ final class PackCheckoutBoundaryTest
                 $source
             );
             Assert::stringContainsString(
-                "['sis.redsys.es', 'sis-t.redsys.es']",
+                "'https://sis.redsys.es/sis/realizarPago'",
+                $source
+            );
+            Assert::stringContainsString(
+                "'https://sis-t.redsys.es:25443/sis/realizarPago'",
                 $source
             );
             Assert::stringContainsString(
