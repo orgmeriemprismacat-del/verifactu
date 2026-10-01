@@ -72,6 +72,27 @@ try {
                 throw new RuntimeException('Invalid USOC entity payment input', 422);
             }
             $response = $client->registerEntityPayment($actorId, $roles, $uuid, $payment);
+        } elseif ($action === 'execute_cancellation') {
+            $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid enrollment id');
+            $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid IDPAG');
+            $requestId = trim((string) ($payload['request_id'] ?? ''));
+            $input = $payload['input'] ?? null;
+            if (
+                $requestId === ''
+                || strlen($requestId) > 120
+                || preg_match('/^[A-Za-z0-9._:-]+$/D', $requestId) !== 1
+                || !is_array($input)
+            ) {
+                throw new RuntimeException('Invalid USOC cancellation input', 422);
+            }
+            $response = $client->executeCancellation(
+                $actorId,
+                $roles,
+                $requestId,
+                $idInsc,
+                $idpag,
+                $input
+            );
         } elseif ($action === 'reconcile') {
             $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid enrollment id');
             $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid IDPAG');
