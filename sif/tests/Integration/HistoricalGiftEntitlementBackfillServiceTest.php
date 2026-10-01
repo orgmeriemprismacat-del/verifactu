@@ -104,6 +104,35 @@ final class HistoricalGiftEntitlementBackfillServiceTest
         Assert::same(1, $result['summary']['blocking_unused']);
     }
 
+    public function testUnpaidLegacyGiftDoesNotCreateRightOrBlockCoverage(): void
+    {
+        [$db] = $this->fixture(false, false);
+        $db->exec('UPDATE regal SET FACT_REL = NULL WHERE ID = 77');
+
+        $result = $this->service()->inventory($db, $db);
+
+        Assert::same('UNPAID_LEGACY_GIFT_NO_RIGHT', $result['items'][0]['status']);
+        Assert::same(1, $result['summary']['unpaid_no_right']);
+        Assert::same(0, $result['summary']['blocking_unused']);
+        Assert::same(0, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_entitlement"
+        )->fetchColumn());
+    }
+
+    public function testSifPaidEvidenceWithoutLegacyFactRelNeedsReview(): void
+    {
+        [$db] = $this->fixture(false, true);
+        $db->exec('UPDATE regal SET FACT_REL = NULL WHERE ID = 77');
+
+        $result = $this->service()->inventory($db, $db);
+
+        Assert::same(
+            'LEGACY_PAYMENT_MARKER_MISSING_REVIEW',
+            $result['items'][0]['status']
+        );
+        Assert::same(1, $result['summary']['blocking_unused']);
+    }
+
     public function testAlreadyUsedHistoricalGiftIsCataloguedButNotBackfilled(): void
     {
         [$db] = $this->fixture(true, false);
