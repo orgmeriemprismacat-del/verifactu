@@ -43,19 +43,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $preflightDb->closeStmt();
 
             if (in_array('P', $preflightTypes, true)) {
-                $paymentParts = parse_url($packPaymentUrl);
-                $paymentScheme = is_array($paymentParts)
-                    ? strtolower((string) ($paymentParts['scheme'] ?? ''))
-                    : '';
-                $paymentHost = is_array($paymentParts)
-                    ? strtolower((string) ($paymentParts['host'] ?? ''))
-                    : '';
-                $paymentPath = is_array($paymentParts)
-                    ? (string) ($paymentParts['path'] ?? '')
-                    : '';
-                $paymentAllowed = $paymentScheme === 'https'
-                    && in_array($paymentHost, ['sis.redsys.es', 'sis-t.redsys.es'], true)
-                    && $paymentPath === '/sis/realizarPago';
+                $paymentAllowed = in_array(
+                    $packPaymentUrl,
+                    [
+                        'https://sis.redsys.es/sis/realizarPago',
+                        'https://sis-t.redsys.es:25443/sis/realizarPago',
+                    ],
+                    true
+                );
                 if ($packMerchantCode === '' || $packTerminal === '' || !$paymentAllowed) {
                     throw new RuntimeException('REDSYS_PACK_CONFIGURATION_NOT_AVAILABLE');
                 }
