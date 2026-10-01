@@ -1,5 +1,24 @@
 # Configuració SIF
 
+## Abast
+
+Aquest README és el catàleg de configuració versionada del SIF. Les **variables i contractes** es documenten aquí, però els **valors secrets o específics d'entorn no es guarden al repositori**.
+
+Famílies que s'han de mantenir documentades a mesura que creix el projecte:
+
+- connexions BD;
+- HMAC i APIs internes;
+- Redsys;
+- AEAT/certificat;
+- documents;
+- rols i permisos;
+- feature flags;
+- cues/workers;
+- integracions legacy;
+- configuració específica de UC.
+
+Una variable documentada no acredita que estigui configurada en preproducció o producció.
+
 ## Consulta interna de factures — UC-007
 
 La consulta HTTP de factures és **fail-closed**. Sense aquestes variables no s'ha d'activar el pont de la intranet.
