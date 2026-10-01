@@ -425,40 +425,11 @@ try {
 	$connexio->closeStmt();
 
 	/* ######################################################################### */
-
-	$nomFromHead = 'Secretaria PrisMa';
-	$correuFromHead = 'inscripcions@prisma.cat';
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = 'Secretaria PrisMa';
-	$correuTo = 'inscripcions@prisma.cat';
-
-	$mailCopiaInsc = new MailSMTPComvive($usernameInsc, $passwordInsc, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subjectMailInsc, $msgInsc);
-
-	$nomFromHead = 'Secretaria PrisMa';
-	$correuFromHead = 'secretaria@prisma.cat';
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = "PrisMa Secretaria";
-	$correuTo = "resguard.secretaria@prisma.cat";
-
+	// Els correus es difereixen fins després del commit legacy i de l'èxit SIF.
+	// MailSMTPComvive envia dins del constructor: no instanciar-lo abans del
+	// bescanvi autoritatiu evita notificacions prematures i duplicats en reintents.
 	$subject = "Inscripció al curs regal ".$titolCurs;
 	$subject2 = "Inscripció al curs regal ".$titolCurs." ".$dataInsc;
-
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject2, $missatge);
-
-	$nomTo = 'Secretaria PrisMa';
-	$correuTo = 'inscripcions@prisma.cat';
-
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject, $missatge);
 
 	/* ######################################################################### */
 	// FACT_REL i USAT es llegeixen sota FOR UPDATE just abans de crear/reutilitzar la inscripció.
@@ -665,6 +636,49 @@ try {
 	$hashIdInserit = $encryptEnrollmentId($idInserit);
 
 	echo $hashIdInserit;
+
+	// A partir d'aquí el SIF ja ha consumit/reconciliat el regal. Un replay
+	// complet retorna abans d'aquest punt, de manera que aquests correus no es
+	// tornen a generar per la mateixa inscripció.
+	$nomFromHead = 'Secretaria PrisMa';
+	$correuFromHead = 'inscripcions@prisma.cat';
+	$nomReplyHead = $nomCognoms;
+	$correuReplyHead = $email;
+	$nomTo = 'Secretaria PrisMa';
+	$correuTo = 'inscripcions@prisma.cat';
+
+	$mailCopiaInsc = new MailSMTPComvive(
+		$usernameInsc,
+		$passwordInsc,
+		$nomFromHead,
+		$correuFromHead,
+		$nomReplyHead,
+		$correuReplyHead,
+		$nomTo,
+		$correuTo,
+		$subjectMailInsc,
+		$msgInsc
+	);
+
+	$nomFromHead = 'Secretaria PrisMa';
+	$correuFromHead = 'secretaria@prisma.cat';
+	$nomReplyHead = $nomCognoms;
+	$correuReplyHead = $email;
+	$nomTo = 'Secretaria PrisMa';
+	$correuTo = 'inscripcions@prisma.cat';
+
+	$mailCopiaSecre = new MailSMTPComvive(
+		$username,
+		$password,
+		$nomFromHead,
+		$correuFromHead,
+		$nomReplyHead,
+		$correuReplyHead,
+		$nomTo,
+		$correuTo,
+		$subject,
+		$missatge
+	);
 
 	$nomFromHead = $nameUser;
 	$correuFromHead = $username;
