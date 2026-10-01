@@ -222,6 +222,53 @@ final class IncidentLifecycleTest
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM sif_incident_action')->fetchColumn());
     }
 
+    public function testMultiRoleManagerJournalRecordsEffectiveManageRole(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $actor = [
+            'actor_id' => 'operator-multirole',
+            'roles' => ['AUDITOR_FISCAL', 'SIF_ADMIN'],
+            'request_id' => 'test-request-multirole-manager',
+        ];
+
+        $opened = $service->open($actor, [
+            'type' => 'MULTIROLE_AUDIT',
+            'message' => 'Manager action with read and manage roles',
+            'reason_code' => 'TEST_OPEN',
+            'idempotency_key' => 'TEST|UC08|MULTIROLE|OPEN',
+        ]);
+
+        $service->assign($actor, $opened['incident_id'], [
+            'assignee_id' => 'operator-multirole',
+            'reason_code' => 'TRIAGE',
+            'idempotency_key' => 'TEST|UC08|MULTIROLE|ASSIGN',
+        ]);
+
+        $service->addEvidence($actor, $opened['incident_id'], [
+            'reason_code' => 'VERIFY',
+            'idempotency_key' => 'TEST|UC08|MULTIROLE|EVIDENCE',
+            'evidence' => ['reference' => 'MULTIROLE-EVIDENCE'],
+        ]);
+
+        $service->resolve($actor, $opened['incident_id'], [
+            'reason_code' => 'VERIFIED',
+            'idempotency_key' => 'TEST|UC08|MULTIROLE|RESOLVE',
+            'closure_criteria' => 'Multi-role manager audit role is correct.',
+            'resolution_notes' => 'Verified.',
+            'evidence' => ['reference' => 'MULTIROLE-RESOLVE'],
+        ]);
+
+        $roles = $db->query(
+            'SELECT DISTINCT ACTOR_ROLE
+             FROM sif_incident_action
+             WHERE INCIDENT_ID = ' . (int) $opened['incident_id'] . '
+             ORDER BY ACTOR_ROLE'
+        )->fetchAll(\PDO::FETCH_COLUMN);
+
+        Assert::same(['SIF_ADMIN'], $roles);
+    }
+
     public function testReadOnlyActorCanViewButCannotMutateIncident(): void
     {
         $db = TestDatabase::fresh();
