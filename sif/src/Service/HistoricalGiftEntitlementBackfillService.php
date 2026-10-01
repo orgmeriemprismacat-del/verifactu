@@ -320,7 +320,7 @@ final class HistoricalGiftEntitlementBackfillService
     {
         $statement = $db->prepare(
             "SELECT DISTINCT f.UUID_FACTURA, f.TOTAL, f.ESTAT_COBRAMENT,
-                    f.ESTAT_FACTURA, f.SOURCE_CHANNEL
+                    f.ESTAT_FACTURA, f.SOURCE_CHANNEL, f.CREATED_AT
              FROM fact_rels fr
              INNER JOIN factura f ON f.UUID_FACTURA = fr.UUID_FACTURA
              WHERE fr.SOURCE_TYPE = 'REGAL' AND fr.SOURCE_ID = ?
