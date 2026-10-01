@@ -78,7 +78,7 @@ final class GiftRedemptionLegacyMailBoundaryTest
         );
         Assert::same(true, str_contains($source, 'claimNotificationBundle'));
         Assert::same(true, str_contains($source, 'completeNotificationBundle'));
-        Assert::same(3, substr_count($source, 'postSigned('));
+        Assert::same(3, substr_count($source, '$this->postSigned('));
         Assert::same(true, str_contains($source, "hash('sha256', $body)"));
         Assert::same(false, str_contains($source, '?gift_code='));
     }
