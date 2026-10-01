@@ -1,6 +1,6 @@
 # UC-013 · Diagrames d'activitat ACTUAL / FINAL per pàgina i apartat
 
-**Data d'auditoria:** 29/09/2026  
+**Data d'auditoria:** 29/09/2026 · **Revalidació main:** 02/10/2026 (`06ac56b9f...`)  
 **Abast:** RM-037 — pàgina per pàgina i apartat per apartat.  
 **Regla:** ACTUAL = comportament contrastat al codi. FINAL = comportament objectiu del SIF. No confondre cap diagrama FINAL amb implementació ja desplegada.
 
@@ -250,7 +250,7 @@ flowchart TD
 
 ## 10. Factura entitat USOC
 
-### ACTUAL IMPLEMENTAT EN SERVEI, ADAPTADOR NO ACREDITAT
+### ACTUAL IMPLEMENTAT EN SERVEI I ADAPTADORS D'INTRANET
 
 ```mermaid
 flowchart TD
@@ -376,5 +376,14 @@ flowchart TD
 2. Mantenir el test de regressió de l'allocator IDPAG compartit; implementació actual protegida amb named lock.
 3. Configurar `SIF_USOC_MENU_ROLES` i validar l'accés de menú al desplegament de preproducció.
 4. Validar en preproducció la configuració HMAC, rols i DB legacy amb `preflight-usoc-intranet.php`.
-5. Evidència CI conservada a `documentacio/09-proves-qa/uc-013-evidencia-ci-2026-09-30.md`; run `36660979100` **SUCCESS, 646 passed / 0 failed**, incloent E2E de servei fins a `FINANCING_RECONCILED`. Resta validació navegador/desplegament/preproducció.
+5. Evidència CI conservada a `documentacio/09-proves-qa/uc-013-evidencia-ci-2026-09-30.md`; hi ha diversos runs positius específics del UC-013. Aquesta revalidació 02/10 no associa una nova suite al SHA actual de main. Resta validació navegador/desplegament/preproducció.
 6. Tractament definit per alumne=0/curs gratuït.
+
+
+## 16. Complements UML separats
+
+Per deixar el paquet al mateix nivell que els casos més avançats:
+- [Classes ACTUAL/FINAL](uc-013-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-013-sequencies-actual-final.md)
+
+Aquests fitxers separen explícitament responsabilitats i interaccions ACTUALS de les peces FINAL pendents, especialment la futura execució fiscal/econòmica de lifecycle.
