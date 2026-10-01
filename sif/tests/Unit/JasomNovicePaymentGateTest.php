@@ -72,6 +72,32 @@ final class JasomNovicePaymentGateTest
         });
     }
 
+    public function testNonFractionalEnrollmentRejectsPartialRequestedAmount(): void
+    {
+        $row = $this->enrollment();
+        $row['novice_decision'] = 1;
+        $row['fractional'] = 0;
+        $post = self::post();
+        $post['importPagare'] = '20.00';
+
+        Assert::throws(RuntimeException::class, static function () use ($row, $post): void {
+            \JasomNovicePaymentGate::authorizeEnrollment($row, $post);
+        });
+    }
+
+    public function testFractionalEnrollmentAllowsPartialRequestedAmount(): void
+    {
+        $row = $this->enrollment();
+        $row['novice_decision'] = 1;
+        $row['fractional'] = 1;
+        $post = self::post();
+        $post['importPagare'] = '20.00';
+
+        $allowed = \JasomNovicePaymentGate::authorizeEnrollment($row, $post);
+        Assert::same('20.00', $allowed['payment_amount']);
+        Assert::same(true, $allowed['fractional']);
+    }
+
     public function testCannotPayMoreThanRemainingOrRepeatFullyPaidCourse(): void
     {
         $row = $this->enrollment();
@@ -110,6 +136,7 @@ final class JasomNovicePaymentGateTest
             'course_code' => 'JASOM',
             'course_price' => '90.00',
             'already_paid' => '50.00',
+            'fractional' => 0,
             'novice_row_present' => true,
             'novice_decision' => 0,
         ];
