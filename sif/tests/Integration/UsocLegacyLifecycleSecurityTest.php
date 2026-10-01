@@ -94,6 +94,9 @@ final class UsocLegacyLifecycleSecurityTest
         Assert::stringContainsString('DEFER_REFUND', $lifecycleJs);
         Assert::stringContainsString('Registrar decisió i continuar baixa', $lifecycleJs);
         Assert::stringContainsString('allowLegacyCancellationClick = true', $lifecycleJs);
+        Assert::stringContainsString('executionPayload: null', $lifecycleJs);
+        Assert::stringContainsString('cancellationContext.executionPayload === null', $lifecycleJs);
+        Assert::stringContainsString('var payload = cancellationContext.executionPayload', $lifecycleJs);
 
         Assert::stringContainsString('usoc_cancellation_execution', $cancel);
         Assert::stringContainsString('assertMayUseLegacyMutation(', $cancel);
