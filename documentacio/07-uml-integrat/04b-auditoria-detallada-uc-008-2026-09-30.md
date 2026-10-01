@@ -346,6 +346,8 @@ També s'ha unificat el nom de l'evidència del menú a `uc-008-menu-evidence.js
 
 Aquest enduriment no canvia el lifecycle ni la UI del UC-008; reforça exclusivament la qualitat i traçabilitat de l'evidència necessària per declarar l'entorn tancat.
 
+A més, el resultat `uc-008-closure-validation.json` incorpora ara `validated_at` i els **SHA-256** dels dos fitxers d'entrada (`preproduction_sha256` i `menu_sha256`). El gate exigeix hashes vàlids de 64 caràcters, de manera que el resultat final queda lligat als JSON exactes que s'han validat sense exposar-ne el path ni el contingut.
+
 ### 7.1. Pendents obligatoris d'entorn
 
 1. Executar:
