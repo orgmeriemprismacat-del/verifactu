@@ -43,7 +43,7 @@ Al servidor de la intranet, des de l'arrel on existeix `parametres-connexio-intr
 ```bash
 cd codi-drive/intranet-actual
 php preflight-sif-verifactu-menu.php \
-  | tee uc-008-menu-discovery.json
+  | tee uc-008-menu-evidence.json
 ```
 
 El script:
@@ -212,3 +212,22 @@ Abans d'executar aquest rollback s'ha de verificar que només existeix la fila c
 - Plantilla d'alta: **preparada i idempotent**.
 - ID pare, rols, ordre i icona productius: **pendents de consultar a la BD real**.
 - INSERT productiu: **no executat**.
+
+
+## 10 bis. Contracte amb el validador final
+
+El fitxer final s'ha de conservar com:
+
+`uc-008-menu-evidence.json`
+
+Abans de poder tancar UC-008, `validate-uc008-evidence.php` exigeix que aquesta evidència compleixi simultàniament:
+
+- `ok=true`;
+- `scope=uc-008-intranet-menu-discovery`;
+- `read_only=true`;
+- `target_url=/sif-verifactu.php`;
+- `existing_target_count=1`;
+- `status=ALREADY_PRESENT`;
+- absència de claus de secrets/passwords/signatures.
+
+L'estat `CONFIRM_PARENT_ROLES_ORDER_BEFORE_INSERT` és una descoberta vàlida però **no tanca l'entorn**. Després de l'alta s'ha de repetir el preflight i conservar el JSON que retorni `ALREADY_PRESENT`.
