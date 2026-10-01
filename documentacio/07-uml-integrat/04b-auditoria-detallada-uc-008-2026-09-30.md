@@ -327,6 +327,25 @@ No consten al repositori ni als artifacts:
 
 Per tant, el resultat **740/0** acredita regressió de codi i contractes automatitzats, però **no acredita l'execució real de preproducció ni el tancament de l'entorn**. No s'ha fabricat ni inferit cap evidència absent.
 
+### 6 ter. Enduriment del gate de tancament — 02/10/2026
+
+En una revisió específica dels scripts de tancament s'ha detectat que el validador final podia acceptar una evidència amb `ok=true` generada sota `SIF_ENV=test`. Això era incompatible amb el criteri de tancament, que exigeix evidència de **preproducció real**.
+
+Canvis aplicats:
+
+- `validate-uc008-evidence.php` exigeix ara `environment=preproduction`;
+- exigeix `checks.preflight_ok=true`;
+- exigeix `checks.e2e_ok=true`;
+- exigeix `menu.ok=true`;
+- valida explícitament `scope=uc-008-intranet-menu-discovery`;
+- manté l'exigència d'una única entrada `/sif-verifactu.php` amb `status=ALREADY_PRESENT`;
+- s'han afegit proves negatives per impedir que `test`, un scope de menú incorrecte o un `ok=true` superior sense checks interns tanquin el gate;
+- la sanitització del verificador de preproducció s'ha alineat amb el validador final per eliminar també claus que continguin `signature`, `merchant_key` o `certificate_password`.
+
+També s'ha unificat el nom de l'evidència del menú a `uc-008-menu-evidence.json`.
+
+Aquest enduriment no canvia el lifecycle ni la UI del UC-008; reforça exclusivament la qualitat i traçabilitat de l'evidència necessària per declarar l'entorn tancat.
+
 ### 7.1. Pendents obligatoris d'entorn
 
 1. Executar:
