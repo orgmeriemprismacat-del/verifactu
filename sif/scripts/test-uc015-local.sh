@@ -80,6 +80,8 @@ fi
   echo "  PackCheckoutBoundaryTest::testPackCheckoutUsesServerAuthoritativeHolderAndEscapesPostedHtml"
   echo "  RedsysPackWorkerEndToEndTest::testPackWorkerReplayKeepsFiscalEconomicAndOutboxEffectsIdempotent"
   echo "  PackEnrollmentTransportBoundaryTest::testPackEnrollmentMutationUsesPostAndDoesNotReadGetParameters"
+  echo "  PackPaymentPrivacyBoundaryTest::testPackRedsysPayloadUsesNameNotDniAndOmitsEmailFromReturnUrls"
+  echo "  PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesTreatEmailAsOptionalEscapedHint"
   echo
   echo "== Checkout PHP lint =="
   "${PHP_BIN}" -l codi-drive/web-actual/inc/PackPaymentGate.php
