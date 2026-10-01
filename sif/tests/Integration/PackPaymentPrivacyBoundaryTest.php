@@ -50,14 +50,12 @@ final class PackPaymentPrivacyBoundaryTest
     public function testPaymentResponsePagesTreatEmailAsOptionalEscapedHint(): void
     {
         $root = dirname(__DIR__, 3);
-        $paths = [
+
+        $legacyPages = [
             $root . '/codi-drive/web-actual/respostaOkPagamentAutomatic.php',
             $root . '/codi-drive/web-actual/respostaKoPagamentAutomatic.php',
-            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/respostaOkPagamentAutomatic.php',
-            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/respostaKoPagamentAutomatic.php',
         ];
-
-        foreach ($paths as $path) {
+        foreach ($legacyPages as $path) {
             $source = file_get_contents($path);
             if (!is_string($source)) {
                 Assert::fail('Could not load Redsys response page: ' . $path);
@@ -75,5 +73,35 @@ final class PackPaymentPrivacyBoundaryTest
                 Assert::fail('Redsys response page must not trust raw email query data.');
             }
         }
-    }
-}
+
+        $payPages = [
+            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/respostaOkPagamentAutomatic.php',
+            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/respostaKoPagamentAutomatic.php',
+        ];
+        foreach ($payPages as $path) {
+            $source = file_get_contents($path);
+            if (!is_string($source)) {
+                Assert::fail('Could not load pay.prisma.cat Redsys response page: ' . $path);
+            }
+
+            Assert::stringContainsString(
+                "require_once __DIR__ . '/CoursePaymentReturnStatus.php'",
+                $source
+            );
+            Assert::stringContainsString('uc014RenderPaymentReturn(', $source);
+        }
+
+        $shared = file_get_contents(
+            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/CoursePaymentReturnStatus.php'
+        );
+        if (!is_string($shared)) {
+            Assert::fail('Could not load CoursePaymentReturnStatus.php');
+        }
+
+        Assert::stringContainsString("(\$_GET['email'] ?? '')", $shared);
+        Assert::stringContainsString('FILTER_VALIDATE_EMAIL', $shared);
+        Assert::stringContainsString(
+            "htmlspecialchars(\$view['email'], ENT_QUOTES, 'UTF-8')",
+            $shared
+        );
+    }}
