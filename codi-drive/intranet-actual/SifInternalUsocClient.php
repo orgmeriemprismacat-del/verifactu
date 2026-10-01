@@ -116,6 +116,17 @@ final class SifInternalUsocClient
         ]);
     }
 
+    public function cancellationExecutionStatus(
+        string $actorId,
+        array $roles,
+        string $requestId
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'cancellation_execution_status',
+            'request_id' => trim($requestId),
+        ]);
+    }
+
     public function executeCancellation(
         string $actorId,
         array $roles,
