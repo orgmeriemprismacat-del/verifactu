@@ -64,16 +64,64 @@ try {
         throw new RuntimeException('Operació lifecycle USOC no vàlida.', 422);
     }
 
-    $guard = (new LegacyUsocLifecycleGuard())->inspect(
+    $lifecycle = new LegacyUsocLifecycleGuard();
+    $idInsc = (int) $idInscRaw;
+
+    $completedRequestId = '';
+    if (
+        $operation === 'cancellation'
+        && isset($_SESSION['usoc_cancellation_execution'])
+        && is_array($_SESSION['usoc_cancellation_execution'])
+        && isset($_SESSION['usoc_cancellation_execution'][$idInsc])
+    ) {
+        $completedRequestId = trim(
+            (string) $_SESSION['usoc_cancellation_execution'][$idInsc]
+        );
+    }
+
+    if (
+        $completedRequestId !== ''
+        && $lifecycle->completedCancellationExecution(
+            $usuariObject,
+            $idInsc,
+            $completedRequestId
+        ) !== null
+    ) {
+        http_response_code(200);
+        echo json_encode([
+            'ok' => true,
+            'guard' => [
+                'tracked_usoc' => true,
+                'allowed' => true,
+                'reason' => 'USOC_CANCELLATION_EXECUTION_COMPLETED',
+                'operation' => $operation,
+                'id_insc' => $idInsc,
+            ],
+            'completed_request_id' => $completedRequestId,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return;
+    }
+
+    $guard = $lifecycle->inspect(
         $usuariObject,
-        (int) $idInscRaw,
+        $idInsc,
         $operation
     );
+
+    $plan = null;
+    if (
+        ($guard['tracked_usoc'] ?? false) === true
+        && ($guard['allowed'] ?? false) !== true
+        && (string) ($guard['reason'] ?? '') === 'USOC_FINANCING_CASE_REQUIRES_ORCHESTRATION'
+    ) {
+        $plan = $lifecycle->plan($usuariObject, $idInsc, $operation);
+    }
 
     http_response_code(200);
     echo json_encode([
         'ok' => true,
         'guard' => $guard,
+        'plan' => $plan,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $exception) {
     $code = (int) $exception->getCode();
