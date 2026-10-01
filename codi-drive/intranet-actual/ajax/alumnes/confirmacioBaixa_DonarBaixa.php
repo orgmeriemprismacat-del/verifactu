@@ -67,17 +67,33 @@ try {
 		throw new RuntimeException('Error: cal indicar el motiu de baixa.');
 	}
 
+	$usocRequestId = '';
+	if (
+		isset($_SESSION['usoc_cancellation_execution'])
+		&& is_array($_SESSION['usoc_cancellation_execution'])
+		&& isset($_SESSION['usoc_cancellation_execution'][$idInsc])
+	) {
+		$usocRequestId = trim((string) $_SESSION['usoc_cancellation_execution'][$idInsc]);
+	}
+
 	(new LegacyUsocLifecycleGuard())->assertMayUseLegacyMutation(
 		$_SESSION['usuari'],
 		$idInsc,
-		'cancellation'
+		'cancellation',
+		$usocRequestId !== '' ? $usocRequestId : null
 	);
 
-	echo $_SESSION['intranet']->confirmaBaixa_modalDonarBaixa(
+	$resultat = $_SESSION['intranet']->confirmaBaixa_modalDonarBaixa(
 		$idInsc,
 		$motiu,
 		$enviarCoreu
 	);
+
+	if ($usocRequestId !== '' && isset($_SESSION['usoc_cancellation_execution'][$idInsc])) {
+		unset($_SESSION['usoc_cancellation_execution'][$idInsc]);
+	}
+
+	echo $resultat;
 } catch (Throwable $e) {
 	$code = (int) $e->getCode();
 	$status = $code >= 400 && $code <= 599 ? $code : 500;
