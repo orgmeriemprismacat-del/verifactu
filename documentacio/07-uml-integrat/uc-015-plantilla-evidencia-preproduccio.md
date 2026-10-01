@@ -28,7 +28,7 @@ php sif/scripts/preflight-redsys-callback-queue.php
 ```
 
 Configuració esperada per preproducció:
-- `SIF_REDSYS_PAYMENT_URL=https://sis-t.redsys.es:25443/sis/realizarPago` (o endpoint sandbox oficial vigent);
+- `SIF_REDSYS_PAYMENT_URL=https://sis-t.redsys.es:25443/sis/realizarPago`;
 - `SIF_REDSYS_CALLBACK_URL` HTTPS;
 - API d'intenció/rols/secrets configurats.
 
