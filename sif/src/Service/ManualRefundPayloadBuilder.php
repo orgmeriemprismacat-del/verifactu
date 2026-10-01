@@ -19,8 +19,11 @@ final class ManualRefundPayloadBuilder
         $reference = $this->optionalString($input, ['reference', 'referencia', 'referencia_bancaria']);
         $bank = $this->optionalString($input, ['bank', 'banc']);
 
+        $explicitIdempotencyKey = $this->optionalString($input, ['idempotency_key']);
         $payload = [
-            'idempotency_key' => $this->idempotencyKey($uuidFactura, $input, $amount, $movementDate, $reference, $bank),
+            'idempotency_key' => $explicitIdempotencyKey !== null
+                ? $explicitIdempotencyKey
+                : $this->idempotencyKey($uuidFactura, $input, $amount, $movementDate, $reference, $bank),
             'movement_type' => 'REFUND',
             'method' => $method,
             'source_channel' => 'INTRANET',
