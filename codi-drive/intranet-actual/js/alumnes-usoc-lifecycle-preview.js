@@ -337,6 +337,7 @@
             button: button,
             plan: plan,
             requestId: requestId(identity.id_insc),
+            executionPayload: null,
             completed: false
         };
 
@@ -360,18 +361,26 @@
         var student = findPayerAction(plan, 'student');
         var entity = findPayerAction(plan, 'entity');
 
-        var payload = {
-            action: 'execute_cancellation',
-            request_id: cancellationContext.requestId,
-            id_insc: identity.id_insc,
-            idpag: Number(plan.idpag || 0),
-            input: {
-                reason_code: 'BAIXA_INSCRIPCIO_USOC',
-                effective_at: localTimestamp(),
-                student: decisionFor('student', student),
-                entity: decisionFor('entity', entity)
-            }
-        };
+        if (cancellationContext.executionPayload === null) {
+            cancellationContext.executionPayload = {
+                action: 'execute_cancellation',
+                request_id: cancellationContext.requestId,
+                id_insc: identity.id_insc,
+                idpag: Number(plan.idpag || 0),
+                input: {
+                    reason_code: 'BAIXA_INSCRIPCIO_USOC',
+                    effective_at: localTimestamp(),
+                    student: decisionFor('student', student),
+                    entity: decisionFor('entity', entity)
+                }
+            };
+
+            $('#' + executionModalId)
+                .find('input, select')
+                .prop('disabled', true);
+        }
+
+        var payload = cancellationContext.executionPayload;
 
         $('#uc013-cancel-confirm').prop('disabled', true);
         $('#uc013-cancel-error').addClass('d-none').text('');
