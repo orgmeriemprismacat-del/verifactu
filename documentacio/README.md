@@ -1,6 +1,18 @@
 # Projecte VERI*FACTU PrisMa
 
-> Punt d'entrada de la documentacio. Els documents estan separats per funcio: index/pla, compliment AEAT, context actual, canvis pendents, estat final i governanca/operacio.
+> Punt d'entrada de la documentació viva del projecte. Cal separar sempre **estat actual (AS-IS)**, **disseny objectiu (TO-BE)** i **mancança/pendent (GAP)**. Un document d'“estat final” descriu l'objectiu i no acredita per si sol que el codi estigui implementat, provat o desplegat.
+
+## Com llegir aquesta documentació
+
+| Tipus | Què representa |
+| --- | --- |
+| AS-IS | comportament, codi o dades observades avui |
+| TO-BE | arquitectura o comportament final acordat |
+| GAP | diferència entre AS-IS i TO-BE |
+| EVIDÈNCIA | prova reproduïble lligada a un commit, CI o entorn |
+| SNAPSHOT | fotografia històrica que no s'ha d'interpretar com a estat viu |
+
+Per a l'estat executable, la font principal és `../sif/`; per a l'estat i decisions transversals, `../00-control/`; per a comportament legacy, `../codi-drive/`.
 
 ## 1. Index i pla
 
@@ -172,3 +184,17 @@ Tipus d'incidencia:
 La fitxa documental no acredita que el cas estigui programat. Cal mirar
 `Estat de preparació`, `Estat d'implementació`, decisions pendents, proves i
 evidència abans de marcar cap cas com a complet o productiu.
+
+
+## 10. Evidències i QA
+
+- `09-evidencies/`: evidències versionades de tancaments, verificacions o execucions concretes.
+- `09-proves-qa/`: resultats i informes de QA vinculats a casos o commits.
+
+Aquests directoris no substitueixen la suite executable de `../sif/tests/`. Una evidència datada valida el tall al qual està vinculada, no canvis posteriors.
+
+## 11. Criteri de completitud documental per UC
+
+Quan aplica, cada UC hauria de poder traçar: fitxa funcional → fitxa integrada → classes ACTUAL/FINAL → seqüència ACTUAL/FINAL → activitats ACTUAL/FINAL per pàgina/apartat → auditoria/traçabilitat → codi → proves → evidència.
+
+No tots els 142 UC tenen encara el mateix nivell de descomposició separada. El README de `07-uml-integrat/` explicita aquesta diferència.
