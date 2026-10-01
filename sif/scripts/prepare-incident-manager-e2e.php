@@ -51,6 +51,7 @@ $result = [
         'manage_roles_configured' => $manageRoles !== [],
         'manager_role_configured' => $managerRole !== '',
         'manager_role_allowed' => $managerRole !== '' && in_array($managerRole, $manageRoles, true),
+        'manager_role_can_read' => $managerRole !== '' && in_array($managerRole, $readRoles, true),
     ],
 ];
 
