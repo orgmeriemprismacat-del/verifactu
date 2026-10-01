@@ -401,3 +401,20 @@ La sortida no inclou email, DNI/NIF, adreces ni `SNAPSHOT_JSON`. Si falta qualse
 ## 20. Hardening del checkout Redsys — 2026-10-01
 
 S'ha detectat que el flux PACK ja era autoritatiu per import/snapshot però encara reutilitzava `dni` i `nom-titular` del navegador per al formulari Redsys. S'ha corregit perquè el PACK substitueixi DNI/NIF, nom i email pels valors de `snapshot.billing` validats al servidor i falli tancat si falten. També s'han escapat els valors POST mostrats als camps ocults per eliminar la superfície XSS. La regressió queda coberta per `PackCheckoutBoundaryTest` sobre les dues còpies de `pagina_efectuar_pagament_grup_automatic.php`.
+
+
+## 21. Transport HTTP i privacitat de l'alta/TPV — 2026-10-01
+
+Troballes corregides:
+- `enviarInscripcioPack.php` era una mutació amb dades personals per GET; ara només admet POST i respon 405 a altres mètodes;
+- `pagFrac` ja no és una decisió enviada pel navegador: ecommerce fixa `No` i persisteix `FRACCIONAT=0`;
+- l'ajax concret d'alta PACK és POST, mentre les consultes de catàleg/preu continuen read-only;
+- `DS_MERCHANT_TITULAR` usa nom/cognoms del snapshot servidor;
+- `DS_MERCHANT_PRODUCTDESCRIPTION` de PACK ja no inclou DNI;
+- URL OK/KO del PACK ja no inclou email;
+- les pàgines de retorn validen/escapen qualsevol email legacy opcional;
+- `SIF_REDSYS_PAYMENT_URL` permet sandbox/producció amb allowlist d'host/path HTTPS.
+
+Cobertura: `PackEnrollmentTransportBoundaryTest`, `PackCheckoutBoundaryTest`, `PackPaymentPrivacyBoundaryTest` i `RedsysPackPreflightScriptTest`.
+
+**Residual de seguretat del formulari públic:** POST evita PII a URL i mutacions GET, però no equival a una protecció anti-abús/CSRF. Abans del desplegament definitiu convé decidir un control compatible amb el formulari públic (token de formulari o comprovació d'origen + rate limiting) sense confondre'l amb l'autenticació HMAC del SIF.
