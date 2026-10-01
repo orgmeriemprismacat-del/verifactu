@@ -11,7 +11,9 @@ use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\CommercialEntitlementRepository;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
+use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Service\GiftEnrollmentStager;
+use Prisma\Sif\Service\GiftRedemptionNotificationService;
 use Prisma\Sif\Service\GiftRedemptionOrchestrator;
 use Prisma\Sif\Service\GiftRedemptionService;
 use Prisma\Sif\Service\GiftRedemptionTrustedContextResolver;
@@ -76,7 +78,10 @@ try {
             $entitlements,
             new EnrollmentFundMovementRepository(new UuidGenerator())
         ),
-        new LegacyGiftUsageReconciler()
+        new LegacyGiftUsageReconciler(),
+        new GiftRedemptionNotificationService(
+            new NotificationOutboxRepository(new UuidGenerator())
+        )
     ))->execute(
         $db,
         $legacyDb,
@@ -99,6 +104,7 @@ try {
         ],
         'redemption' => $execution['redemption'],
         'legacy_reconciliation' => $execution['legacy_reconciliation'],
+        'notification_outbox' => $execution['notification_outbox'],
     ]);
 } catch (\Throwable $exception) {
     JsonResponse::fromThrowable($exception);
