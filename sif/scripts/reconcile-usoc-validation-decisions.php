@@ -13,13 +13,17 @@ if (PHP_SAPI !== 'cli') {
 }
 
 $config = require dirname(__DIR__) . '/config/sif.php';
+$args = array_slice($argv, 1);
+$limit = parseLimit($args);
+$allowProduction = in_array('--confirm-production', $args, true);
 
-if (($config['env'] ?? 'local') === 'production') {
-    fwrite(STDERR, "Refusing to reconcile USOC validation decisions with SIF_ENV=production.\n");
+if (($config['env'] ?? 'local') === 'production' && !$allowProduction) {
+    fwrite(
+        STDERR,
+        "Refusing production reconciliation without explicit --confirm-production.\n"
+    );
     exit(1);
 }
-
-$limit = parseLimit(array_slice($argv, 1));
 
 try {
     $db = ConnectionFactory::make($config);
