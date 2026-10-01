@@ -26,8 +26,14 @@ final class RedsysPackPreflightScriptTest
         Assert::stringContainsString('intent_api_url_secure', $source);
         Assert::stringContainsString('SIF_REDSYS_PAYMENT_URL', $source);
         Assert::stringContainsString('redsys_payment_url_allowed', $source);
-        Assert::stringContainsString("['sis.redsys.es', 'sis-t.redsys.es']", $source);
-        Assert::stringContainsString("'/sis/realizarPago'", $source);
+        Assert::stringContainsString(
+            "'https://sis.redsys.es/sis/realizarPago'",
+            $source
+        );
+        Assert::stringContainsString(
+            "'https://sis-t.redsys.es:25443/sis/realizarPago'",
+            $source
+        );
         Assert::stringContainsString('checkout_actor_roles_configured', $source);
         Assert::stringContainsString('legacy_db_configured', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
