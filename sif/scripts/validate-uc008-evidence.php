@@ -97,26 +97,52 @@ if ($manager !== null) {
     $result['checks']['manager_e2e_read_only'] = ($manager['read_only'] ?? false) === true;
     $result['checks']['manager_e2e_does_not_authorize_production'] =
         ($manager['production_authorized'] ?? null) === false;
+    $result['checks']['manager_e2e_manage_roles_configured'] =
+        ($managerChecks['manage_roles_configured'] ?? false) === true;
+    $result['checks']['manager_e2e_incident_exists'] =
+        ($managerChecks['incident_exists'] ?? false) === true;
     $result['checks']['manager_e2e_synthetic_incident'] =
         ($managerChecks['synthetic_manager_incident'] ?? false) === true;
     $result['checks']['manager_e2e_incident_resolved'] =
         ($managerChecks['incident_resolved'] ?? false) === true;
+    $result['checks']['manager_e2e_assignee_present'] =
+        ($managerChecks['assignee_present'] ?? false) === true;
+    $result['checks']['manager_e2e_resolved_at_present'] =
+        ($managerChecks['resolved_at_present'] ?? false) === true;
+    $result['checks']['manager_e2e_resolution_notes_present'] =
+        ($managerChecks['resolution_notes_present'] ?? false) === true;
+    $result['checks']['manager_e2e_closure_criteria_present'] =
+        ($managerChecks['closure_criteria_present'] ?? false) === true;
     $result['checks']['manager_e2e_assign_present'] =
         ($managerChecks['assign_present'] ?? false) === true;
     $result['checks']['manager_e2e_assign_manager_role'] =
         ($managerChecks['assign_manager_role'] ?? false) === true;
+    $result['checks']['manager_e2e_assign_actor_present'] =
+        ($managerChecks['assign_actor_present'] ?? false) === true;
+    $result['checks']['manager_e2e_assign_correlation_matches'] =
+        ($managerChecks['assign_correlation_matches'] ?? false) === true;
     $result['checks']['manager_e2e_add_evidence_present'] =
         ($managerChecks['add_evidence_present'] ?? false) === true;
     $result['checks']['manager_e2e_add_evidence_manager_role'] =
         ($managerChecks['add_evidence_manager_role'] ?? false) === true;
+    $result['checks']['manager_e2e_add_evidence_actor_present'] =
+        ($managerChecks['add_evidence_actor_present'] ?? false) === true;
+    $result['checks']['manager_e2e_add_evidence_correlation_matches'] =
+        ($managerChecks['add_evidence_correlation_matches'] ?? false) === true;
     $result['checks']['manager_e2e_add_evidence_payload_present'] =
         ($managerChecks['add_evidence_payload_present'] ?? false) === true;
     $result['checks']['manager_e2e_resolve_present'] =
         ($managerChecks['resolve_present'] ?? false) === true;
     $result['checks']['manager_e2e_resolve_manager_role'] =
         ($managerChecks['resolve_manager_role'] ?? false) === true;
+    $result['checks']['manager_e2e_resolve_actor_present'] =
+        ($managerChecks['resolve_actor_present'] ?? false) === true;
+    $result['checks']['manager_e2e_resolve_correlation_matches'] =
+        ($managerChecks['resolve_correlation_matches'] ?? false) === true;
     $result['checks']['manager_e2e_resolve_evidence_payload_present'] =
         ($managerChecks['resolve_evidence_payload_present'] ?? false) === true;
+    $result['checks']['manager_e2e_database_query_ok'] =
+        ($managerChecks['database_query_ok'] ?? false) === true;
     $result['checks']['manager_e2e_no_secrets'] = !containsForbiddenKey($manager);
 } else {
     foreach ([
@@ -125,16 +151,29 @@ if ($manager !== null) {
         'manager_e2e_environment_valid',
         'manager_e2e_read_only',
         'manager_e2e_does_not_authorize_production',
+        'manager_e2e_manage_roles_configured',
+        'manager_e2e_incident_exists',
         'manager_e2e_synthetic_incident',
         'manager_e2e_incident_resolved',
+        'manager_e2e_assignee_present',
+        'manager_e2e_resolved_at_present',
+        'manager_e2e_resolution_notes_present',
+        'manager_e2e_closure_criteria_present',
         'manager_e2e_assign_present',
         'manager_e2e_assign_manager_role',
+        'manager_e2e_assign_actor_present',
+        'manager_e2e_assign_correlation_matches',
         'manager_e2e_add_evidence_present',
         'manager_e2e_add_evidence_manager_role',
+        'manager_e2e_add_evidence_actor_present',
+        'manager_e2e_add_evidence_correlation_matches',
         'manager_e2e_add_evidence_payload_present',
         'manager_e2e_resolve_present',
         'manager_e2e_resolve_manager_role',
+        'manager_e2e_resolve_actor_present',
+        'manager_e2e_resolve_correlation_matches',
         'manager_e2e_resolve_evidence_payload_present',
+        'manager_e2e_database_query_ok',
         'manager_e2e_no_secrets',
     ] as $check) {
         $result['checks'][$check] = false;
