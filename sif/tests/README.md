@@ -5,6 +5,12 @@ Community 8.4.10. Els binaris, les dades, les credencials i els logs viuen
 exclusivament a `sif/var/`, exclòs de Git. No requereix Composer ni servei
 Windows global. MySQL escolta només a `127.0.0.1:3307`, amb MySQL X desactivat.
 
+## Com interpretar aquest README
+
+Les instruccions d'execució són vives. En canvi, els recomptes i execucions datades que apareixen més avall són **evidència històrica del commit/tall indicat** i no s'han d'usar com a resultat de `main` actual.
+
+Per validar un PR o desplegament cal executar la suite/checks sobre el commit objectiu i conservar la nova evidència. No s'ha de traslladar automàticament un “passed” antic a codi posterior.
+
 ## Execució en aquest ordinador
 
 Des de l'arrel del repositori, amb PowerShell:
@@ -22,7 +28,7 @@ El helper carrega `sif/var/test-env.json` i restaura les variables del procés
 quan acaba. `Test`, `Migrate`, `Preflight` i `GoNoGo` retornen el codi de sortida
 PHP. No s'ha afegit PHP al PATH global: el helper usa el binari local.
 
-`Test` buida les 63 taules de negoci/control de **sif_test** en aquesta branca i conserva el ledger de
+`Test` buida les 63 taules de negoci/control de **sif_test** en el tall documentat i conserva el ledger de
 migracions. No s'ha d'executar contra dades a conservar. Exigeix `SIF_ENV=test`,
 nom `sif_test` o `sif_test_*`, i comprova també el nom real de la connexió.
 Un lock MySQL impedeix dues suites simultànies a la mateixa BD.
@@ -85,10 +91,10 @@ El segon pas només prepara el payload i el fingerprint. El tercer torna a llegi
 ordenat i registra nom/SHA-256 només quan el fitxer acaba correctament.
 Una migració aplicada canviada o absent bloqueja l'execució; crear migracions
 additives per evolucionar un esquema ja desplegat. El preflight contrasta
-cada hash, les 63 taules esperades en aquesta branca i les columnes declarades en CREATE/ADD COLUMN.
+cada hash, les 63 taules esperades en el tall documentat i les columnes declarades en CREATE/ADD COLUMN.
 No és una comparació completa de tipus, índexs, triggers o grants.
 
-El conjunt vigent en aquesta branca, després del reforç UC-004 del 2026-09-29, conté onze fitxers de migració: s'ordenen pel
+El conjunt vigent en el tall documentat, després del reforç UC-004 del 2026-09-29, conté onze fitxers de migració: s'ordenen pel
 nom complet, no pel sufix numèric (hi ha sufixos repetits en dates diferents).
 `.gitattributes` fixa LF per a aquests SQL. Això evita que el checkout de
 Windows canviï els bytes i invalidi els hashes del ledger; la comprovació
@@ -136,8 +142,7 @@ presenta canvis de fonts durant aquella execució.
 La branca afegeix una onzena migració (`2026_09_29_000009_guard_uc004_inscription_coverage.sql`),
 la taula `invoice_before_payment_coverage`, el repositori `InvoiceBeforePaymentCoverageRepository`,
 un backfill de factures SIF `EMESA_ABANS_COBRAMENT=1` des de `fact_rels INSCRIPCIO/ORIGIN`
-i amplia `InvoiceBeforePaymentServiceTest`. L'esquema esperat passa a 63 taules. Abans d'integrar
-aquests canvis cal tornar a executar `Migrate`, `Test` i `Preflight` en una BD `sif_test` aïllada
+i amplia `InvoiceBeforePaymentServiceTest`. L'esquema esperat passa a 63 taules. Aquell tall requeria tornar a executar `Migrate`, `Test` i `Preflight` en una BD `sif_test` aïllada
 i conservar un manifest/evidència nou.
 
 `Preflight` retorna exit 0. `GoNoGo` retorna exit 1/NO-GO per la clau Redsys

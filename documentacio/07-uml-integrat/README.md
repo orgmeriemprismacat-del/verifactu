@@ -1,8 +1,36 @@
 # SIF PrisMa · Fitxes de casos d'ús i UML integrats
 
-Aquesta carpeta conté les **142 fitxes integrades del catàleg**, amb una revisió funcional **progressiva per acció concreta**. La presència de la fitxa i dels tres blocs de diagrama no significa que totes les accions estiguin completament auditades o provades; les ampliacions dirigides i els seus límits queden identificats a la matriu de traçabilitat. No és una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. La revisió és en una branca documental abans de fusionar-la.
+Aquesta carpeta conté les **142 fitxes integrades del catàleg**, amb una revisió funcional **progressiva per acció concreta**. La presència de la fitxa i dels tres blocs de diagrama no significa que totes les accions estiguin completament auditades o provades; les ampliacions dirigides i els seus límits queden identificats a la matriu de traçabilitat. No és una substitució automàtica ni una còpia massiva dels esborranys de `../06-fitxes-funcionals/`. La carpeta forma part de `main`; els documents datats o d'auditoria continuen sent fotografies del tall que indiquen.
 
 **Precisió de recompte:** el catàleg continua tenint **142 IDs/variants UC canònics**. Els fitxers addicionals `uc-111-*.md` creats per separar casos d'ús, classes, seqüències, activitats, dades/estats i traçabilitat són **vistes suplementàries del mateix UC-111** i no incrementen aquest total.
+
+## Nivell de cobertura
+
+Tots els 142 UC canònics tenen representació en aquesta àrea, però **no tots tenen encara el mateix nivell de descomposició separada**.
+
+En el tall revisat l'01/10/2026, i comptant només fitxers separats detectables per la convenció de nom, hi ha aproximadament:
+
+- 8 UC amb document separat de **classes ACTUAL/FINAL**;
+- 8 amb **seqüències ACTUAL/FINAL**;
+- 25 amb **activitats** separades;
+- 8 amb **auditoria/traçabilitat** separada;
+- 6 amb les quatre peces separades anteriors.
+
+Això **no significa** que la resta no contingui UML dins la fitxa integrada. Significa que el nivell d'auditoria exhaustiva UC-per-UC encara és progressiu.
+
+### Paquet objectiu per UC
+
+```text
+fitxa funcional
+→ fitxa integrada / cas d'ús ACTUAL i FINAL
+→ classes ACTUAL / FINAL
+→ seqüència ACTUAL / FINAL
+→ activitats ACTUAL / FINAL per pàgina o apartat
+→ auditoria i traçabilitat
+→ codi / proves / evidència
+```
+
+Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un artefacte buit.
 
 ## Mapa dels 142 casos d'ús revisats
 

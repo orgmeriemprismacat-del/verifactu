@@ -1,5 +1,24 @@
 # Configuració SIF
 
+## Abast
+
+Aquest README és el catàleg de configuració versionada del SIF. Les **variables i contractes** es documenten aquí, però els **valors secrets o específics d'entorn no es guarden al repositori**.
+
+Famílies que s'han de mantenir documentades a mesura que creix el projecte:
+
+- connexions BD;
+- HMAC i APIs internes;
+- Redsys;
+- AEAT/certificat;
+- documents;
+- rols i permisos;
+- feature flags;
+- cues/workers;
+- integracions legacy;
+- configuració específica de UC.
+
+Una variable documentada no acredita que estigui configurada en preproducció o producció.
+
 ## Consulta interna de factures — UC-007
 
 La consulta HTTP de factures és **fail-closed**. Sense aquestes variables no s'ha d'activar el pont de la intranet.
@@ -67,31 +86,3 @@ La previsualització del canvi de curs és server-to-server, signada amb HMAC i 
 - `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1`: abans d'executar el canvi llegat, recalcula el preu estàndard al servidor, rellegeix origen/pagat i torna a validar la decisió al SIF.
 
 El preview no emet rectificatives, no registra cobraments i no executa devolucions. La confirmació final continua sotmesa a POST, CSRF, same-origin, permisos i guards de lifecycle de l'endpoint actual.
-
-
-## Redsys PACK — UC-015
-
-El checkout PACK és fail-closed i no ha de reutilitzar imports, titular ni endpoint Redsys del navegador.
-
-### Web / ecommerce
-
-- `SIF_REDSYS_INTENT_API_URL`: endpoint HTTPS server-to-server de creació d'intencions Redsys.
-- `SIF_INTERNAL_REDSYS_INTENT_SIGNED_PATH`: path canònic HMAC de la creació d'intenció.
-- `SIF_INTERNAL_API_KEY_ID` / `SIF_INTERNAL_API_SECRET`: credencial HMAC compartida.
-- `SIF_REDSYS_INTENT_ACTOR_ID`: actor tècnic del checkout.
-- `SIF_REDSYS_INTENT_ACTOR_ROLES`: rols signats; no hi ha fallback permissiu.
-- `SIF_REDSYS_CALLBACK_URL`: MerchantURL HTTPS del callback SIF.
-- `SIF_REDSYS_PAYMENT_URL`: URL del formulari Redsys. Només s'accepten:
-  - producció: `https://sis.redsys.es/sis/realizarPago`;
-  - preproducció/sandbox: `https://sis-t.redsys.es:25443/sis/realizarPago` (o el mateix host/path amb port oficial vigent).
-- `REDSYS_MERCHANT_CODE`: FUC.
-- `REDSYS_TERMINAL`: terminal.
-- `SIF_REDSYS_MERCHANT_KEY`: secret Redsys; mai al repositori.
-
-`preflight-redsys-pack.php` comprova URL de callback, API d'intenció, endpoint de pagament Redsys, rols, secrets, connectivitat i taules necessàries.
-
-### Evidència
-
-- `php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>`: verificació read-only de la cadena completa UC-015.
-- En producció el verificador queda bloquejat per defecte; només es pot habilitar explícitament amb `SIF_UC015_EVIDENCE_ALLOW_PRODUCTION=1`.
-- La sortida no ha de contenir PII, signatures ni snapshots comercials.
