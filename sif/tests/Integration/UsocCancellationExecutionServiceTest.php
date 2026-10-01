@@ -184,6 +184,45 @@ final class UsocCancellationExecutionServiceTest
         )->fetchColumn());
     }
 
+    public function testCancellationRejectsInvalidReasonCodeAndTimestampBeforeCheckpoint(): void
+    {
+        [$db] = $this->caseWithStudentPaidAndEntityPartiallyPaid();
+
+        $badReason = $this->executionInput();
+        $badReason['reason_code'] = 'Baixa lliure amb espais';
+
+        Assert::throws(SifException::class, function () use ($db, $badReason): void {
+            $this->service($db)->execute(
+                $db,
+                880,
+                980,
+                'uc013-cancel-invalid-reason',
+                'secretaria-test',
+                ['ADMIN'],
+                $badReason
+            );
+        }, 422);
+
+        $badDate = $this->executionInput();
+        $badDate['effective_at'] = '02/10/2026 09:00';
+
+        Assert::throws(SifException::class, function () use ($db, $badDate): void {
+            $this->service($db)->execute(
+                $db,
+                880,
+                980,
+                'uc013-cancel-invalid-date',
+                'secretaria-test',
+                ['ADMIN'],
+                $badDate
+            );
+        }, 422);
+
+        Assert::same(0, (int) $db->query(
+            'SELECT COUNT(*) FROM usoc_lifecycle_execution'
+        )->fetchColumn());
+    }
+
     private function caseWithStudentPaidAndEntityPartiallyPaid(): array
     {
         $db = TestDatabase::fresh();
