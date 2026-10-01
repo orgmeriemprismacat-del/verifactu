@@ -92,14 +92,14 @@ try {
 
    <div id='cnt-pagament' class="prisma-container container separacio-peu" role="main">
       <div id='codiCurs' style='display:none'><?php echo htmlspecialchars($validatedCheckout['course_code'], ENT_QUOTES, 'UTF-8'); ?></div>
-      <div id='titol' style='display:none'><?php echo $_POST['titol']?></div>
-      <div id='dni' style='display:none'><?php echo $_POST['dni']?></div>
-      <div id='nom-titular' style='display:none'><?php echo $_POST['nom-titular']?></div>
-      <div id='nom-alumne' style='display:none'><?php echo $_POST['nom-alumne']?></div>
+      <div id='titol' style='display:none'><?php echo htmlspecialchars((string) ($_POST['titol'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='dni' style='display:none'><?php echo htmlspecialchars((string) ($_POST['dni'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='nom-titular' style='display:none'><?php echo htmlspecialchars((string) ($_POST['nom-titular'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='nom-alumne' style='display:none'><?php echo htmlspecialchars((string) ($_POST['nom-alumne'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
       <div id='import' style='display:none'><?php echo htmlspecialchars($validatedCheckout['total_amount'], ENT_QUOTES, 'UTF-8'); ?></div>
       <div id='importPagat' style='display:none'><?php echo htmlspecialchars($validatedCheckout['already_paid_amount'], ENT_QUOTES, 'UTF-8'); ?></div>
-      <div id='frac' style='display:none'><?php echo $_POST['frac']?></div>
-      <div id='email' style='display:none'><?php echo $_POST['email']?></div>
+      <div id='frac' style='display:none'><?php echo $validatedCheckout['fractional'] ? '1' : '0'; ?></div>
+      <div id='email' style='display:none'><?php echo htmlspecialchars((string) ($_POST['email'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
 
       <?php
       include_once("./ConnexioBBDD_PreparedStatment.php");
@@ -110,15 +110,16 @@ try {
 
       $idPag = $validatedCheckout['idpag'];
       $cursPag = $validatedCheckout['course_code'];
-      $titolPag = $_POST['titol'];
-      $dniTitularPag = trim($_POST['dni']);//
-      $nomTitularPag = $_POST['nom-titular'];
-      $email = $_POST['email'];
+      $titolPag = (string) ($_POST['titol'] ?? '');
+      $dniTitularPag = trim((string) ($_POST['dni'] ?? ''));
+      $nomTitularPag = (string) ($_POST['nom-titular'] ?? '');
+      $email = (string) ($_POST['email'] ?? '');
       $importAPagar = (float) $validatedCheckout['total_amount'];
       $importPagare = (float) $validatedCheckout['payment_amount'];
       $importPagat = (float) $validatedCheckout['already_paid_amount'];
-      $frac = $_POST['frac'];
+      $frac = $validatedCheckout['fractional'] ? '1' : '0';
 
+      $nomAlumnePag = (string) ($_POST['nom-alumne'] ?? '');
       $titular=stripslashes($nomTitularPag);
       $alumn=stripslashes($nomAlumnePag);
 
@@ -170,8 +171,8 @@ try {
       <h1>Pagament amb targeta</h1>
       <div class='d-flex flex-column tota-pagina'><div class='container'><div class='row'>
          <div class='d-flex flex-column cnt_enviar_dades border-0 align-items-center w-100 mb-4'>
-            <p><span class='font-weight-bold'>Titular de la targeta: </span><?php echo $nomTitularPag; ?></p>
-            <p><span class='font-weight-bold'>DNI: </span><?php echo $dniTitularPag; ?></p>
+            <p><span class='font-weight-bold'>Titular de la targeta: </span><?php echo htmlspecialchars($nomTitularPag, ENT_QUOTES, 'UTF-8'); ?></p>
+            <p><span class='font-weight-bold'>DNI: </span><?php echo htmlspecialchars($dniTitularPag, ENT_QUOTES, 'UTF-8'); ?></p>
             <?php
                if ($frac=='0') {
             ?>
@@ -189,7 +190,7 @@ try {
          </div>
          <form id='frm' name='frm' action='https://sis.redsys.es/sis/realizarPago' method='post'>
    		<!-- <form id='frm' name='frm' action='https://sis-t.redsys.es:25443/sis/realizarPago' method='post'> -->
-   		   <input type="hidden" name="producto" value="<?php echo $producto; ?>"/>
+   		   <input type="hidden" name="producto" value="<?php echo htmlspecialchars($producto, ENT_QUOTES, 'UTF-8'); ?>"/>
             <input type="hidden" name="rebut" value="<?php echo $id; ?>"/>
             <input type="hidden" name="Ds_SignatureVersion" value="<?php echo $version; ?>"/>
             <input type="hidden" name="Ds_MerchantParameters" value="<?php echo $params; ?>"/>
