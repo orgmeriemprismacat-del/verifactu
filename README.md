@@ -1,48 +1,126 @@
-# Projecte VERI*FACTU Pont
+# VERI*FACTU / SIF PrisMa
 
-Aquest projecte pont serveix per continuar la feina del xat antic sense tornar a carregar tota la conversa dins d'un unic xat.
+Repositori tècnic i documental del projecte de centralització de facturació, cobrament i traçabilitat fiscal de PrisMa, amb el **SIF de `pay.prisma.cat`** com a nucli de confiança.
 
-La regla principal es:
+Aquest repositori ja no és només un “projecte pont” documental: conté **codi executable, model de dades, migracions, APIs, workers, proves, documentació funcional, UML, auditories, evidències i còpies legacy de contrast**.
 
-```text
-Els xats no son la memoria del projecte.
-La memoria del projecte son aquests fitxers.
-```
+> **Estat:** projecte en desenvolupament i auditoria. La presència de codi, una fitxa o una prova no implica desplegament a producció ni autorització de posada en marxa.
 
-## Estructura
+## Objectiu
 
-- `documentacio/`: copia de la documentacio preparada al xat antic.
-- `xat-original/`: copia del registre complet del xat antic en format `.jsonl`.
-- `00-control/`: documents de coordinacio entre xats.
-
-## Punt d'entrada
-
-Per continuar, obre primer un xat pont i enganxa el text indicat a:
+El projecte busca substituir progressivament les escriptures fiscals i de cobrament disperses entre web, intranets i scripts legacy per una frontera centralitzada:
 
 ```text
-00-control/guia-xat-pont.md
+web / ecommerce / intranet / portals
+                 |
+                 v
+        adaptadors autenticats
+                 |
+                 v
+        SIF · pay.prisma.cat
+  factures · cobraments · Redsys
+  documents · traça · incidències
+                 |
+                 v
+          BD fiscal / AEAT
 ```
 
-El xat pont ha de revisar el xat antic per blocs petits, detectar informacio que falta als documents i anar completant la documentacio.
+Principis: immutabilitat fiscal, rectificació en lloc d'edició destructiva, numeració central, cadena de hash, idempotència amb comparació de payload, cues i reintents, auditoria append-only i reconciliació amb sistemes legacy.
 
-## Com evitar tornar a saturar el context
+## Fonts de veritat
 
-- No enganxar mai el `.jsonl` complet dins cap xat.
-- No demanar a cap xat que llegeixi tota la carpeta a la vegada.
-- Treballar sempre per area: AEAT, arquitectura, BD, pagaments, intranet, operacio, proves.
-- Al final de cada sessio, actualitzar `00-control/estat-projecte.md` i `00-control/registre-decisions.md`.
-- Quan una area estigui prou completa, obrir un xat especialitzat seguint `00-control/mapa-xats.md`.
+| Àmbit | Font principal |
+| --- | --- |
+| Codi SIF executable | `sif/` |
+| Model físic | `sif/database/migrations/` |
+| Proves executables | `sif/tests/` i workflows de `.github/` |
+| Estat i decisions del projecte | `00-control/` |
+| Documentació funcional i fiscal | `documentacio/` |
+| Fitxes funcionals UC | `documentacio/06-fitxes-funcionals/` |
+| UML i auditories UC | `documentacio/07-uml-integrat/` |
+| Evidències versionades | `documentacio/09-evidencies/` i `documentacio/09-proves-qa/` |
+| Codi anterior per contrast | `codi-drive/` |
+| Planificació de treball | Trello en directe; el repo només en conserva regles i mapes no sensibles |
 
-## Fitxers de control
+## Estructura del repositori
 
-- `00-control/estat-projecte.md`: resum viu del projecte.
-- `00-control/registre-decisions.md`: decisions importants i motiu.
-- `00-control/informacio-a-recuperar-del-xat-antic.md`: temes que cal buscar al xat antic.
-- `00-control/checklist-completitud.md`: control de revisio del xat antic i dels documents.
-- `00-control/mapa-xats.md`: quins xats crear i que posar a cada xat.
-- `00-control/guia-xat-pont.md`: instruccions exactes per al xat pont.
+- `sif/`: **nucli executable** del SIF: domini, serveis, repositoris, API, scripts, migracions i proves.
+- `documentacio/`: especificació funcional, compliment AEAT, arquitectura final, governança, fitxes, UML, QA i evidències.
+- `00-control/`: estat del projecte, decisions, planificació, auditories i criteris de seguiment.
+- `codi-drive/`: còpies de sistemes actuals/històrics per contrastar integració i migració; **no és el nou SIF desplegable**.
+- `.github/`: automatització CI i controls del repositori.
 
+## Estat: com s'ha de llegir
 
-## Taulers Trello del SIF (vigent des del 24/09/2026)
+Per a qualsevol cas d'ús o component s'han de separar almenys cinc dimensions:
 
-El mapa actualitzat dels 12 taulers, els recomptes per llista i el procediment per reconciliar targetes es troben a [00-control/trello/README.md](00-control/trello/README.md). Els inventaris massius de Trello creats a partir d'exports antics s'han retirat; la font de targetes privades és Trello en directe.
+1. **Documentat** — hi ha requisit, fitxa o decisió.
+2. **Implementat** — existeix codi executable integrat.
+3. **Provat** — hi ha prova automatitzada o validació reproduïble.
+4. **Evidenciat** — el resultat està vinculat a commit/CI/preproducció o evidència conservada.
+5. **Desplegat** — s'ha aplicat a l'entorn corresponent.
+
+No s'ha de deduir un estat dels altres. Una fitxa completa no prova implementació; una suite verda no acredita producció; un `GO` tècnic no és una autorització operativa.
+
+## Casos d'ús i paquet documental objectiu
+
+El catàleg manté **142 IDs/variants UC canònics**. Cada UC ha de poder traçar, quan aplica:
+
+```text
+UC-XXX
+├── fitxa funcional
+├── fitxa integrada / cas d'ús ACTUAL i FINAL
+├── diagrama de classes ACTUAL / FINAL
+├── diagrama de seqüència ACTUAL / FINAL
+├── activitats ACTUAL / FINAL per pàgina o apartat
+├── auditoria i matriu de traçabilitat
+├── codi / migracions / API afectades
+├── proves
+└── evidències
+```
+
+L'objectiu no és fabricar diagrames perquè sí: cada peça ha de distingir **què existeix avui**, **què és el disseny final** i **què queda pendent**.
+
+## Desenvolupament i proves
+
+Punt d'entrada tècnic: [`sif/README.md`](sif/README.md).
+
+Per a proves locals, migracions i preflight: [`sif/tests/README.md`](sif/tests/README.md).
+
+Els resultats de CI i les evidències datades són fotografies d'un commit concret. Per decidir si un canvi es pot integrar o desplegar, cal contrastar sempre el **commit actual** amb els checks corresponents.
+
+## Documentació
+
+Punt d'entrada: [`documentacio/README.md`](documentacio/README.md).
+
+Les carpetes `*_2026-..`, documents datats i snapshots es conserven com a història/evidència. No substitueixen els documents vius sense una indicació explícita.
+
+## Control del projecte
+
+Punt d'entrada: [`00-control/README.md`](00-control/README.md).
+
+Trello és la font de treball en directe. Els README de control no han d'intentar congelar recomptes massius que queden obsolets: han de descriure taxonomia, propietat de les tasques, traçabilitat i criteris.
+
+## Legacy
+
+[`codi-drive/README.md`](codi-drive/README.md) documenta les còpies de web, intranets i altres sistemes. Aquestes còpies serveixen per entendre comportament actual, detectar mutacions que s'han de retirar i validar la transició al SIF.
+
+**Legacy no és autoritat del disseny final** i no s'ha de desplegar des d'aquest directori.
+
+## Criteri de tancament
+
+Una peça no es considera completa només perquè existeixi. El tancament real exigeix, segons l'abast:
+
+- requisit i decisions resoltes;
+- codi integrat a `main`;
+- model/migracions coherents;
+- permisos i seguretat verificats;
+- proves unitàries/integració/E2E pertinents;
+- evidència vinculada al commit;
+- documentació i UML actualitzats;
+- preproducció quan sigui necessària;
+- i, separadament, decisió formal de desplegament/activació.
+
+## Històric del projecte pont
+
+Els mecanismes antics de “xat pont”, recuperació de converses i snapshots es mantenen a `00-control/` com a **històric de gestió del coneixement**. Ja no defineixen la identitat principal del repositori.
