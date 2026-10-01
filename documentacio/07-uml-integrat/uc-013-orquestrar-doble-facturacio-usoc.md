@@ -1,5 +1,7 @@
 # UC-13 · Orquestrar la doble facturació USOC — fitxa i UML integrats
 
+**Revalidació exhaustiva:** 02/10/2026 sobre `main@4ddf6ef72cc8ee21bd6c6563285bd6d7677b5df1`.
+
 **Objectiu:** conservar **dues obligacions/factures diferenciades** per una mateixa inscripció USOC: la part que paga l'alumne i la part que correspon a l'entitat. **No** confondre una única inscripció amb una única factura, ni interpretar un pagament Redsys de l'alumne com si hagués cobrat també la part de l'entitat.
 
 **Estat contrastat:** existeixen `RedsysUsocInvoiceService`, `UsocEntityInvoiceService`, `UsocFinancingCaseRepository`, `UsocEntityPaymentService`, `UsocCaseReconciler`, `UsocValidationDecisionService` i `UsocValidationDecisionRepository`. La decisió manual legacy es coordina amb el SIF mitjançant `REQUESTED/COMMITTED/REVIEW_REQUIRED`; la factura alumne crea el checkpoint financer; la factura entitat exigeix aquest checkpoint abans d'emetre; i el cobrament entitat reconcilia l'expedient. No es presumeix una transacció distribuïda única entre BD legacy, SIF, Redsys i comunicacions.
@@ -487,3 +489,13 @@ Vegeu [auditoria i matriu UC-013](uc-013-auditoria-tracabilitat-2026-09-29.md).
 - VERIFICAT: estàticament contra codi.
 - TEST EXECUTAT: sí per nucli USOC i protocol durable; resta navegador/preproducció.
 - P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, traça durable de validació `REQUESTED/COMMITTED/REVIEW_REQUIRED`, vinculació factura alumne↔ID_INSC/IDPAG/import, checkpoint financer, emissió entitat protegida, cobrament/reconciliació específica USOC, adaptadors d'intranet i planner lifecycle separat per pagador. Pendents: desplegament/preflight real, navegador/preproducció, execució fiscal específica de canvi/baixa i decisions funcionals.
+
+
+## 8. Paquet UML complet després de la revalidació 02/10/2026
+
+- [Classes ACTUAL/FINAL](uc-013-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-013-sequencies-actual-final.md)
+- [Activitats ACTUAL/FINAL per pàgina i apartat](uc-013-activitats-pagines-actual-final.md)
+- [Auditoria i traçabilitat](uc-013-auditoria-tracabilitat-2026-09-29.md)
+
+La separació permet distingir de manera explícita el codi que existeix avui de la capa FINAL encara pendent, principalment l'execució fiscal/econòmica de canvi/baixa i l'evidència de preproducció.
