@@ -48,7 +48,11 @@ final class IncidentPanelEvidenceValidationScriptTest
             Assert::same(64, strlen((string) $json['inputs']['manager_e2e_sha256']));
             Assert::same(true, $json['checks']['manager_e2e_ok']);
             Assert::same(true, $json['checks']['manager_e2e_synthetic_incident']);
+            Assert::same(true, $json['checks']['manager_e2e_assign_correlation_matches']);
+            Assert::same(true, $json['checks']['manager_e2e_add_evidence_correlation_matches']);
+            Assert::same(true, $json['checks']['manager_e2e_resolve_correlation_matches']);
             Assert::same(true, $json['checks']['manager_e2e_resolve_evidence_payload_present']);
+            Assert::same(true, $json['checks']['manager_e2e_database_query_ok']);
             Assert::same(true, isset($json['validated_at']) && is_string($json['validated_at']));
             Assert::same(true, $json['checks']['menu_unique_target']);
             Assert::same(true, $json['checks']['menu_already_present']);
@@ -380,16 +384,29 @@ final class IncidentPanelEvidenceValidationScriptTest
     private function validManagerChecks(): array
     {
         return [
+            'manage_roles_configured' => true,
+            'incident_exists' => true,
             'synthetic_manager_incident' => true,
             'incident_resolved' => true,
+            'assignee_present' => true,
+            'resolved_at_present' => true,
+            'resolution_notes_present' => true,
+            'closure_criteria_present' => true,
             'assign_present' => true,
             'assign_manager_role' => true,
+            'assign_actor_present' => true,
+            'assign_correlation_matches' => true,
             'add_evidence_present' => true,
             'add_evidence_manager_role' => true,
+            'add_evidence_actor_present' => true,
+            'add_evidence_correlation_matches' => true,
             'add_evidence_payload_present' => true,
             'resolve_present' => true,
             'resolve_manager_role' => true,
+            'resolve_actor_present' => true,
+            'resolve_correlation_matches' => true,
             'resolve_evidence_payload_present' => true,
+            'database_query_ok' => true,
         ];
     }
 }
