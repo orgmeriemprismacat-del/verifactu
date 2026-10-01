@@ -42,18 +42,7 @@
 
 	$nomMe = 'Meriem';
 	$correuMe = "meriem.prisma.cat@gmail.com";
-	$subjectMe = "pagament automatic ".$order;
-	$missatge = "<p>DNI: ".$dniTitularPag."</p>
-	<p>IMPORT: ".$importPag."</p>
-	<p>FRAC: ".$frac."</p>
-	<p>IDPAG: ".$idPag."</p>
-	<p>ORDER: ".$order."</p>";
-	$mailMe = new Mail();
-	$mailMe->addHeaders($nomMe, $correuMe, $correuMe);
-	$mailMe->addSubject($subjectMe);
-	$mailMe->addTo($correuMe);
-	$mailMe->addMissatgeTiquet("<p>Hola</p>", $missatge, '');
-	$mailMe->sendMessage();
+	// UC-014: no enviar notificacions de depuració abans de validar la signatura Redsys.
 
 	/* enviem intent de pagament */
 
