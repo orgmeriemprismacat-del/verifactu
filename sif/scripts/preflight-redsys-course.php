@@ -20,6 +20,7 @@ $checks = [
     'factura_table' => false,
     'payment_transaction_table' => false,
     'payment_allocation_table' => false,
+    'enrollment_fund_movement_table' => false,
     'notification_outbox_table' => false,
     'redsys_payment_intent_table' => false,
     'redsys_notifications_table' => false,
@@ -41,6 +42,7 @@ try {
     $checks['factura_table'] = tableExists($sifDb, 'factura');
     $checks['payment_transaction_table'] = tableExists($sifDb, 'payment_transaction');
     $checks['payment_allocation_table'] = tableExists($sifDb, 'payment_allocation');
+    $checks['enrollment_fund_movement_table'] = tableExists($sifDb, 'enrollment_fund_movement');
     $checks['notification_outbox_table'] = tableExists($sifDb, 'notification_outbox');
     $checks['redsys_payment_intent_table'] = tableExists($sifDb, 'redsys_payment_intent');
     $checks['redsys_notifications_table'] = tableExists($sifDb, 'redsys_notifications');
