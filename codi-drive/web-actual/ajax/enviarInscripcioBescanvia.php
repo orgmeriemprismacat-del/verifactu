@@ -426,39 +426,50 @@ try {
 
 	/* ######################################################################### */
 
-	$nomFromHead = 'Secretaria PrisMa';
-	$correuFromHead = 'inscripcions@prisma.cat';
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = 'Secretaria PrisMa';
-	$correuTo = 'inscripcions@prisma.cat';
-
-	$mailCopiaInsc = new MailSMTPComvive($usernameInsc, $passwordInsc, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subjectMailInsc, $msgInsc);
-
-	$nomFromHead = 'Secretaria PrisMa';
-	$correuFromHead = 'secretaria@prisma.cat';
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = "PrisMa Secretaria";
-	$correuTo = "resguard.secretaria@prisma.cat";
-
+	// Aquests tres correus abans s'enviaven aquí, abans de materialitzar la
+	// inscripció i abans de completar UC-018 al SIF. Com que
+	// MailSMTPComvive::__construct() envia immediatament, només en conservem
+	// l'especificació i els enviarem després d'un redeem SIF correcte.
 	$subject = "Inscripció al curs regal ".$titolCurs;
 	$subject2 = "Inscripció al curs regal ".$titolCurs." ".$dataInsc;
-
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject2, $missatge);
-
-	$nomTo = 'Secretaria PrisMa';
-	$correuTo = 'inscripcions@prisma.cat';
-
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject, $missatge);
+	$pendingGiftMailsAfterSif = [
+		[
+			'username' => $usernameInsc,
+			'password' => $passwordInsc,
+			'nomFrom' => 'Secretaria PrisMa',
+			'correuFrom' => 'inscripcions@prisma.cat',
+			'nomReply' => $nomCognoms,
+			'correuReply' => $email,
+			'nomTo' => 'Secretaria PrisMa',
+			'correuTo' => 'inscripcions@prisma.cat',
+			'subject' => $subjectMailInsc,
+			'missatge' => $msgInsc,
+		],
+		[
+			'username' => $username,
+			'password' => $password,
+			'nomFrom' => 'Secretaria PrisMa',
+			'correuFrom' => 'secretaria@prisma.cat',
+			'nomReply' => $nomCognoms,
+			'correuReply' => $email,
+			'nomTo' => 'PrisMa Secretaria',
+			'correuTo' => 'resguard.secretaria@prisma.cat',
+			'subject' => $subject2,
+			'missatge' => $missatge,
+		],
+		[
+			'username' => $username,
+			'password' => $password,
+			'nomFrom' => 'Secretaria PrisMa',
+			'correuFrom' => 'secretaria@prisma.cat',
+			'nomReply' => $nomCognoms,
+			'correuReply' => $email,
+			'nomTo' => 'Secretaria PrisMa',
+			'correuTo' => 'inscripcions@prisma.cat',
+			'subject' => $subject,
+			'missatge' => $missatge,
+		],
+	];
 
 	/* ######################################################################### */
 	// FACT_REL i USAT es llegeixen sota FOR UPDATE just abans de crear/reutilitzar la inscripció.
@@ -661,6 +672,23 @@ try {
 		'enrollment_id' => (int) $idInserit,
 		'gift_code' => $codiRegalBD,
 	]);
+
+	// MailSMTPComvive envia dins del constructor: cap notificació de bescanvi
+	// es materialitza fins que el SIF ha completat el redeem.
+	foreach ($pendingGiftMailsAfterSif as $pendingGiftMail) {
+		new MailSMTPComvive(
+			$pendingGiftMail['username'],
+			$pendingGiftMail['password'],
+			$pendingGiftMail['nomFrom'],
+			$pendingGiftMail['correuFrom'],
+			$pendingGiftMail['nomReply'],
+			$pendingGiftMail['correuReply'],
+			$pendingGiftMail['nomTo'],
+			$pendingGiftMail['correuTo'],
+			$pendingGiftMail['subject'],
+			$pendingGiftMail['missatge']
+		);
+	}
 
 	$hashIdInserit = $encryptEnrollmentId($idInserit);
 
