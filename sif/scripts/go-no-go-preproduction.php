@@ -15,10 +15,12 @@ if (PHP_SAPI !== 'cli') {
 }
 
 $baseDir = dirname(__DIR__);
+$repoRoot = dirname($baseDir);
 $config = require $baseDir . '/config/sif.php';
 $env = (string) ($config['env'] ?? 'local');
 $incidentReadRoles = normalizeRoles((array) ($config['incidents']['read_roles'] ?? []));
 $incidentManageRoles = normalizeRoles((array) ($config['incidents']['manage_roles'] ?? []));
+$giftRedemptionRoles = normalizeRoles((array) (($config['gift_redemption'] ?? [])['manage_roles'] ?? []));
 $checks = [
     'schema_verified' => false,
     'php_pdo_mysql' => extension_loaded('pdo_mysql'),
@@ -41,6 +43,32 @@ $checks = [
         'scripts/preflight-historical-gift-entitlements.php',
     ]),
     'historical_unused_gifts_covered' => false,
+    'gift_redemption_preflight_present' =>
+        is_file($baseDir . '/scripts/preflight-gift-redemption.php'),
+    'gift_redemption_circuit_present' => allFilesPresent($baseDir, [
+        'src/Service/GiftRedemptionTrustedContextResolver.php',
+        'src/Service/GiftEnrollmentStager.php',
+        'src/Service/GiftRedemptionService.php',
+        'src/Service/GiftRedemptionOrchestrator.php',
+        'public/api/gifts/redemption/redeem.php',
+        'scripts/retry-gift-redemption.php',
+        'scripts/preflight-gift-redemption.php',
+    ]),
+    'gift_redemption_web_client_present' =>
+        is_file($repoRoot . '/codi-drive/web-actual/inc/SifGiftRedemptionClient.php'),
+    'gift_redemption_legacy_writer_present' =>
+        is_file($repoRoot . '/codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php'),
+    'gift_redemption_key_id_configured' =>
+        trim((string) ($config['internal_api']['key_id'] ?? '')) !== '',
+    'gift_redemption_internal_api_secret_strong' =>
+        strlen((string) ($config['internal_api']['secret'] ?? '')) >= 32,
+    'gift_redemption_clock_skew_valid' =>
+        (int) ($config['internal_api']['max_clock_skew_seconds'] ?? 0) > 0
+        && (int) ($config['internal_api']['max_clock_skew_seconds'] ?? 0) <= 900,
+    'gift_redemption_signed_path_exact' =>
+        (string) ($config['internal_api']['gift_redemption_signed_path'] ?? '')
+        === '/api/gifts/redemption/redeem.php',
+    'gift_redemption_manage_roles_configured' => $giftRedemptionRoles !== [],
     'incident_read_roles_configured' => $incidentReadRoles !== [],
     'incident_manage_roles_configured' => $incidentManageRoles !== [],
     'incident_manage_roles_can_read' => array_diff($incidentManageRoles, $incidentReadRoles) === [],
