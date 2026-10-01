@@ -62,7 +62,6 @@ try {
 		$textTbTitulacio = new Text($_POST['tbTitulacio']);
 	else
 		$textTbTitulacio = null;
-	$textPagFrac = new Text($_POST['pagFrac']);
 	$textConegut = new Text($_POST['conegut']);
 	if ( $_POST['comentaris'] != '')
 		$textComentaris = new Text($_POST['comentaris']);
@@ -81,7 +80,6 @@ try {
 	$textPoblacio->arreglarParaulaBD('noms');
 	$textPerfil->arreglarParaulaBD('text_no_mod');
 	$textTitulacio->arreglarParaulaBD('text_no_mod');
-	$textPagFrac->arreglarParaulaBD('text');
 	$textConegut->arreglarParaulaBD('text_no_mod');
 	if ($textComentaris != null) $textComentaris->arreglarParaulaBD('text');
 	$textMailing->arreglarParaulaBD('text');
@@ -255,7 +253,7 @@ try {
 	$urlIdPag = "https://www.prisma.cat/pagaments/".$hashIdPag;
 
 	$titolPack = $textTitolCurs->obtenirText();
-	$pagFrac = $textPagFrac->obtenirText();
+	$pagFrac = 'No'; // UC-015 ecommerce PACK: no fraccionament autoritzat des del client.
 	$mailing = $textMailing->obtenirText();
 
 	$msg = $templates->getTemplate_Inscripcions_Pagaments_MissatgeTextManeresPagar2();
