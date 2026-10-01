@@ -1,6 +1,6 @@
 # UC-13 · Orquestrar la doble facturació USOC — fitxa i UML integrats
 
-**Revalidació exhaustiva:** 02/10/2026 sobre `main@22d47a2949e03fe4a170f831f6d7f8724f7cd40c`.
+**Revalidació exhaustiva:** 02/10/2026 sobre `main@434be933eccfd0b8805bc532a39760d7ec426a00`.
 
 **Objectiu:** conservar **dues obligacions/factures diferenciades** per una mateixa inscripció USOC: la part que paga l'alumne i la part que correspon a l'entitat. **No** confondre una única inscripció amb una única factura, ni interpretar un pagament Redsys de l'alumne com si hagués cobrat també la part de l'entitat.
 
