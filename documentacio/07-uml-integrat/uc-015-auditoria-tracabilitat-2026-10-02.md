@@ -4,7 +4,7 @@
 
 Auditoria executada contra `main` a:
 
-- commit: `9da75491ae824f674460d6d14b8f8db9934bcc18`;
+- commit: `47f8f834ab3ee44db64d8e8987f8b371766329f9`;
 - cas: **UC-015 · Comprar pack**;
 - objectiu: contrastar fitxa funcional, PHP/JS real, UML de classes, seqüències i activitats ACTUAL/FINAL, proves i traçabilitat;
 - criteri d'estat: separar **documentat**, **implementat**, **verificat** i **pendent**.
@@ -237,14 +237,14 @@ Això és evidència de CI del bloc UC-015 després dels enduriments de 30/09.
 
 ### HEAD auditat
 
-Entre `41d6968...` i `9da7549...` hi ha 202 commits. No s'han modificat els fitxers web/fitxes/core PACK; les dues dependències compartides rellevants han canviat així:
+Entre `41d6968...` i `47f8f83...` hi ha 222 commits. No s'han modificat els fitxers web/fitxes/core PACK; les dues dependències compartides rellevants han canviat així:
 
 - `RedsysPaymentIntentService`: s'ha afegit validació específica de `CURS`; la branca `PACK` continua cridant la mateixa `validatePackSnapshot()`;
 - `process-redsys-callback-queue.php`: s'ha afegit notificació de curs; la injecció del handler PACK continua intacta.
 
-A l'hora de l'auditoria, el workflow complet del HEAD `9da7549...` es troba encara **queued**:
+A l'hora de l'auditoria, el workflow complet del HEAD `47f8f83...` es troba encara **queued**:
 
-- run: https://github.com/orgmeriemprismacat-del/verifactu/actions/runs/36942588070
+- run: https://github.com/orgmeriemprismacat-del/verifactu/actions/runs/36943292835
 
 Per tant:
 
