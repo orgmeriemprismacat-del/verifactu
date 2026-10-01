@@ -1,5 +1,12 @@
 <?php
 
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+	header('Allow: POST');
+	http_response_code(405);
+	exit('Error: mètode no permès.');
+}
+
+
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
@@ -14,56 +21,56 @@ include("../MailSMTPComvive.php");
 include("../MailSMTP.php");
 
 try {
-	$textNom = new Text($_GET['nom']);
-	$textCog = new Text($_GET['cog']);
-	$textDocumentacio = new Text($_GET['dni']);
-	$numTelf = new Numero($_GET['telf']);
-	$textEmail = new Text($_GET['email']);
-	$textAdreca = new Text($_GET['adreca']);
-	$textCodiPostal = new Text($_GET['codiPostal']);
-	$textPoblacio = new Text($_GET['poblacio']);
-	$textPerfil = new Text($_GET['perfil']);
-	if ( $_GET['perfil'] == "Altres")
-		$textPerfilAltres = new Text($_GET['perfilAltres']);
+	$textNom = new Text($_POST['nom']);
+	$textCog = new Text($_POST['cog']);
+	$textDocumentacio = new Text($_POST['dni']);
+	$numTelf = new Numero($_POST['telf']);
+	$textEmail = new Text($_POST['email']);
+	$textAdreca = new Text($_POST['adreca']);
+	$textCodiPostal = new Text($_POST['codiPostal']);
+	$textPoblacio = new Text($_POST['poblacio']);
+	$textPerfil = new Text($_POST['perfil']);
+	if ( $_POST['perfil'] == "Altres")
+		$textPerfilAltres = new Text($_POST['perfilAltres']);
 	else
 		$textPerfilAltres = null;
-	if ( $_GET['titulacio'] == "Altres") {
-		$textTitulacio = new Text($_GET['titulacio']);
-		$textTitulacioAltres = new Text($_GET['titulacioAltres']);
+	if ( $_POST['titulacio'] == "Altres") {
+		$textTitulacio = new Text($_POST['titulacio']);
+		$textTitulacioAltres = new Text($_POST['titulacioAltres']);
 		$textTitulacioSecundaria = null;
 		$textTitulacioEstudiant = null;
 	}
-	else if ( $_GET['titulacio'] == "Prof. Ed. Secundària") {
+	else if ( $_POST['titulacio'] == "Prof. Ed. Secundària") {
 		$textTitulacio = new Text('Ed. Secundària');
 		$textTitulacioAltres = null;
-		$textTitulacioSecundaria = new Text($_GET['titulacioSecundaria']);
+		$textTitulacioSecundaria = new Text($_POST['titulacioSecundaria']);
 		$textTitulacioEstudiant = null;
 	}
-	else if ( $_GET['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
+	else if ( $_POST['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
 		$textTitulacio = new Text('Estudiant');
 		$textTitulacioAltres = null;
 		$textTitulacioSecundaria = null;
-		$textTitulacioEstudiant = new Text($_GET['titulacioEstudiant']);
+		$textTitulacioEstudiant = new Text($_POST['titulacioEstudiant']);
 	}
 	else {
-		$textTitulacio = new Text($_GET['titulacio']);
+		$textTitulacio = new Text($_POST['titulacio']);
 		$textTitulacioAltres = null;
 		$textTitulacioSecundaria = null;
 		$textTitulacioEstudiant = null;
 	}
-	if ( $_GET['tbTitulacio'] != '')
-		$textTbTitulacio = new Text($_GET['tbTitulacio']);
+	if ( $_POST['tbTitulacio'] != '')
+		$textTbTitulacio = new Text($_POST['tbTitulacio']);
 	else
 		$textTbTitulacio = null;
-	$textPagFrac = new Text($_GET['pagFrac']);
-	$textConegut = new Text($_GET['conegut']);
-	if ( $_GET['comentaris'] != '')
-		$textComentaris = new Text($_GET['comentaris']);
+	$textPagFrac = new Text($_POST['pagFrac']);
+	$textConegut = new Text($_POST['conegut']);
+	if ( $_POST['comentaris'] != '')
+		$textComentaris = new Text($_POST['comentaris']);
 	else
 		$textComentaris = null;
-	$textMailing = new Text($_GET['mailing']);
+	$textMailing = new Text($_POST['mailing']);
 	// Els imports rebuts del navegador no són autoritatius. Es recalculen des de BD.
-	$textIdPack = new Text($_GET['idPack']);
+	$textIdPack = new Text($_POST['idPack']);
 
 	$textNom->arreglarParaulaBD('noms');
 	$textCog->arreglarParaulaBD('noms');
