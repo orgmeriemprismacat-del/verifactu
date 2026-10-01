@@ -213,6 +213,7 @@ final class HistoricalGiftEntitlementBackfillServiceTest
                     'relations' => [[
                         'source_type' => 'REGAL',
                         'source_id' => 77,
+                        'factura_relacionada' => 987,
                         'visible_alumne' => 0,
                     ]],
                 ])
