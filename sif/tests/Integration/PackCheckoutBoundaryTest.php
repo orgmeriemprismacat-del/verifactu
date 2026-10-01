@@ -21,11 +21,23 @@ final class PackCheckoutBoundaryTest
             }
 
             Assert::stringContainsString(
-                "htmlspecialchars((string) (\$_POST['dni'] ?? ''), ENT_QUOTES, 'UTF-8')",
+                "htmlspecialchars(\$checkoutDisplayDni, ENT_QUOTES, 'UTF-8')",
                 $source
             );
             Assert::stringContainsString(
-                "htmlspecialchars((string) (\$_POST['nom-titular'] ?? ''), ENT_QUOTES, 'UTF-8')",
+                "htmlspecialchars(\$checkoutDisplayName, ENT_QUOTES, 'UTF-8')",
+                $source
+            );
+            Assert::stringContainsString(
+                "htmlspecialchars(\$checkoutDisplayEmail, ENT_QUOTES, 'UTF-8')",
+                $source
+            );
+            Assert::stringContainsString(
+                "\$checkoutDisplayDni = (string) (\$validatedPackCheckout['snapshot']['billing']['nif'] ?? '')",
+                $source
+            );
+            Assert::stringContainsString(
+                "\$checkoutDisplayName = (string) (\$validatedPackCheckout['snapshot']['billing']['name'] ?? '')",
                 $source
             );
             Assert::stringContainsString(
@@ -44,6 +56,10 @@ final class PackCheckoutBoundaryTest
                 "if (\$dniTitularPag === '' || trim(\$nomTitularPag) === '' || trim(\$email) === '')",
                 $source
             );
+
+            if (str_contains($source, "echo \$_POST['dni']") || str_contains($source, "echo \$_POST['email']")) {
+                Assert::fail('PACK checkout must not echo raw POST holder values.');
+            }
         }
     }
 }
