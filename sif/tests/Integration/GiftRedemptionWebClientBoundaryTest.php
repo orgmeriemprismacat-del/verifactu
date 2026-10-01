@@ -60,6 +60,33 @@ final class GiftRedemptionWebClientBoundaryTest
         Assert::same(true, is_int($clientCall) && is_int($response) && $clientCall < $response);
     }
 
+    public function testLegacyWriterStartsNoSmtpBeforeSifRedemptionSucceeds(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $source = file_get_contents(
+            $root . '/codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php'
+        );
+        if (!is_string($source)) {
+            Assert::fail('Could not read legacy gift enrollment writer');
+        }
+
+        $sifCall = strpos($source, 'redeemCommittedEnrollment');
+        $firstMail = strpos($source, 'new MailSMTPComvive');
+        Assert::same(
+            true,
+            is_int($sifCall) && is_int($firstMail) && $sifCall < $firstMail
+        );
+        Assert::same(6, substr_count($source, 'new MailSMTPComvive'));
+        Assert::stringContainsString(
+            'No s\'envia cap SMTP abans que el SIF confirmi',
+            $source
+        );
+        Assert::stringContainsString(
+            'persistència/retry durable',
+            $source
+        );
+    }
+
     public function testCompletedGiftReplayReturnsExistingEnrollmentBeforeMailSideEffects(): void
     {
         $root = dirname(__DIR__, 3);
