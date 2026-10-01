@@ -39,7 +39,7 @@ try {
     $lines.Add('LegacyPackInvoicePayloadBuilderTest::testRejectsPackLineWithoutExplicitCommercialAmounts')
     $lines.Add('LegacyPackCallbackBoundaryTest::testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode')
     $lines.Add('PackCommercialOrderBoundaryTest::testPackPresentationAndEnrollmentUseSameDeterministicOrder')
-    $lines.Add('PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop')
+    $lines.Add('PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop')\n    $lines.Add('RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData')\n    $lines.Add('RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing')
 
     if ($exitCode -ne 0) {
         $lines.Add('RESULT=FAIL')
