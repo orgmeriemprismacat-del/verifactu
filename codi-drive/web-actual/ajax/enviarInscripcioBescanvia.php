@@ -646,8 +646,6 @@ try {
 
 	$hashIdInserit = $encryptEnrollmentId($idInserit);
 
-	echo $hashIdInserit;
-
 	if ($giftMailShouldSend) {
 		$nomFromHead = 'Secretaria PrisMa';
 		$correuFromHead = 'inscripcions@prisma.cat';
@@ -785,6 +783,8 @@ try {
 	/* ######################################################################### */
 
 	// regal.USAT ja ha estat reconciliat pel SIF amb compare-and-set.
+
+	echo $hashIdInserit;
 
 	$connexio->desconectarBD();
 }
