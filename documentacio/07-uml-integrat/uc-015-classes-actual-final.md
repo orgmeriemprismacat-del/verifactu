@@ -1,6 +1,6 @@
 # UC-015 · Classes ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-09-30  
+**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-10-01  
 **Abast:** ecommerce PrisMa, pay.prisma.cat, Redsys i SIF.  
 **Criteri:** separar estrictament classes i responsabilitats observades al codi actual de les responsabilitats objectiu.
 
@@ -53,7 +53,7 @@ RealitzaPagamentPackAutomatic --> EnviarInscripcioPack : usa IDPAG creat
 - `Pack.php`: carrega la definició del pack, components, disponibilitat i metadades.
 - `EdicioPack.php`: resol edició, curs, dates, preu i obertura.
 - `InscripcioPack.php`: genera el formulari.
-- `enviarInscripcioPack.php`: rep dades de navegador, calcula/rep imports, genera `IDPAG` i crea N files `inscripcions`.
+- `enviarInscripcioPack.php`: rep per POST només les dades del formulari i `idPack`, rellegeix preus/composició al servidor, força ecommerce no fraccionat, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial.
 - `realitzaPagamentPackAutomatic.php`: conserva el codi històric, però està bloquejat per defecte amb HTTP 410 abans de qualsevol mutació.
 
 ## 2. Classes ACTUAL — SIF ja implementat
@@ -109,8 +109,19 @@ class PackPaymentNotificationService {
   +enqueue(db,dsOrder,snapshot,invoiceResult) array
 }
 class NotificationOutboxRepository
+class RedsysLegacySyncingProcessor {
+  +process(sifDb,job) array
+}
+class LegacySyncService {
+  +syncAfterSifSuccess(...)
+  +syncPackFullPayment(...)
+}
+class RedsysPackEvidenceVerifier {
+  +verify(sifDb,legacyDb,dsOrder) array
+}
 
-RedsysCallbackWorker --> RedsysCallbackDispatcher
+RedsysCallbackWorker --> RedsysLegacySyncingProcessor
+RedsysLegacySyncingProcessor --> RedsysCallbackDispatcher
 RedsysCallbackDispatcher --> RedsysPackInvoiceService
 RedsysPackInvoiceService --> LegacyPackInvoicePayloadBuilder
 RedsysPackInvoiceService --> RedsysInvoicePayloadBuilder
@@ -122,6 +133,10 @@ RedsysPackInvoiceService --> PackEnrollmentFundAllocationService
 PackEnrollmentFundAllocationService --> EnrollmentFundMovementRepository
 RedsysPackInvoiceService --> PackPaymentNotificationService
 PackPaymentNotificationService --> NotificationOutboxRepository
+RedsysLegacySyncingProcessor --> LegacySyncService : post-SIF
+RedsysPackEvidenceVerifier ..> RedsysPaymentIntentService : verifica persistencia
+RedsysPackEvidenceVerifier ..> InvoiceService : verifica efectes
+RedsysPackEvidenceVerifier ..> LegacySyncService : verifica sync
 InvoiceService --> InvoiceRepository
 InvoiceService --> PaymentRepository
 ```
@@ -137,6 +152,8 @@ InvoiceService --> PaymentRepository
 - `SifPaymentIntentClient` envia una petició HMAC autenticada a la intenció SIF abans del TPV.
 - `PackEnrollmentFundAllocationService` reparteix un únic `UUID_PAYMENT` a N `ID_INSC` amb moviments idempotents.
 - `PackPaymentNotificationService` registra notificació a outbox al flux asíncron principal.
+- `RedsysLegacySyncingProcessor` envolta el dispatcher i executa `LegacySyncService` només després de l'èxit SIF.
+- `RedsysPackEvidenceVerifier` comprova read-only la cadena tècnica/econòmica i la projecció legacy per `DS_ORDER`.
 
 ## 3. Classes FINAL / objectiu residual
 
@@ -160,6 +177,9 @@ class EnrollmentFundMovementRepository {
 class PackPaymentNotificationService {
   <<IMPLEMENTAT>>
 }
+class RedsysPackEvidenceVerifier {
+  <<IMPLEMENTAT · READ ONLY>>
+}
 class LegacyPackFiscalCallback {
   <<DESACTIVAT · ELIMINAR DESPRES ROLLBACK>>
 }
@@ -178,11 +198,12 @@ class LegacySyncService {
 }
 
 PackPaymentGate --> CanonicalPackOrderSource : verificar origen ordinal
-SifPaymentIntentClient --> RedsysPackInvoiceService : via intent/callback/worker
+SifPaymentIntentClient --> RedsysPackInvoiceService : via intencio + callback + dispatcher
 RedsysPackInvoiceService --> EnrollmentFundMovementRepository
 RedsysPackInvoiceService --> PackPaymentNotificationService
-RedsysPackInvoiceService --> RedsysLegacySyncingProcessor : legacy_sync resultat
+RedsysLegacySyncingProcessor --> RedsysPackInvoiceService : via dispatcher
 RedsysLegacySyncingProcessor --> LegacySyncService : post-SIF
+RedsysPackEvidenceVerifier ..> RedsysPackInvoiceService : comprova efectes persistits
 LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 ```
 
@@ -197,7 +218,8 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 | Callback | Legacy desactivat per defecte; SIF autoritatiu | Eliminar codi històric després de rollback |
 | Numeració | Taula legacy | Seqüència fiscal SIF |
 | Distribució monetària | **Ledger `enrollment_fund_movement` implementat** | Proves runtime/preproducció |
-| Notificacions | **Outbox implementat al flux SIF; PHP legacy encara existeix** | Retirar dependència del correu directe legacy |
+| Notificacions | **Outbox implementat al flux SIF; PHP legacy encara existeix** | Lliurament UC-58 + retirar dependència del correu directe legacy |
+| Evidència E2E | **Verificador read-only implementat** | Executar-lo en preproducció amb un DS_ORDER real |
 
 ## 5. Estat
 
