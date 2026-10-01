@@ -32,12 +32,15 @@ if ($preproduction !== null) {
     $result['checks']['preproduction_ok'] = ($preproduction['ok'] ?? false) === true;
     $result['checks']['preproduction_scope_valid'] =
         ($preproduction['scope'] ?? '') === 'uc-008-preproduction-verification';
+    $result['checks']['preproduction_environment_valid'] =
+        ($preproduction['environment'] ?? '') === 'preproduction';
     $result['checks']['preproduction_does_not_authorize_production'] =
         ($preproduction['production_authorized'] ?? null) === false;
     $result['checks']['preproduction_no_secrets'] = !containsForbiddenKey($preproduction);
 } else {
     $result['checks']['preproduction_ok'] = false;
     $result['checks']['preproduction_scope_valid'] = false;
+    $result['checks']['preproduction_environment_valid'] = false;
     $result['checks']['preproduction_does_not_authorize_production'] = false;
     $result['checks']['preproduction_no_secrets'] = false;
 }
@@ -46,6 +49,8 @@ if ($menu !== null) {
     $existingCount = (int) ($menu['existing_target_count'] ?? -1);
     $status = (string) ($menu['status'] ?? '');
 
+    $result['checks']['menu_scope_valid'] =
+        ($menu['scope'] ?? '') === 'uc-008-intranet-menu-discovery';
     $result['checks']['menu_read_only'] = ($menu['read_only'] ?? false) === true;
     $result['checks']['menu_target_url_valid'] =
         ($menu['target_url'] ?? '') === '/sif-verifactu.php';
@@ -53,6 +58,7 @@ if ($menu !== null) {
     $result['checks']['menu_already_present'] = $status === 'ALREADY_PRESENT';
     $result['checks']['menu_no_secrets'] = !containsForbiddenKey($menu);
 } else {
+    $result['checks']['menu_scope_valid'] = false;
     $result['checks']['menu_read_only'] = false;
     $result['checks']['menu_target_url_valid'] = false;
     $result['checks']['menu_unique_target'] = false;
