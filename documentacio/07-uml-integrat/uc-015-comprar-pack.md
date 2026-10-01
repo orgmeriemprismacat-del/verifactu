@@ -2,7 +2,7 @@
 
 **Objectiu:** facturar i cobrar una **operació de pack** amb múltiples inscripcions, cadascuna amb curs, edició, import i descompte que li correspon. Un pagament del pack no és N cobraments bancaris independents, i la factura global no significa que es pugui perdre el detall de quantitat atribuïda a cada inscripció.
 
-**Estat:** auditoria específica completada documentalment; flux fiscal/econòmic principal PACK implementat al SIF. Continuen pendents l'E2E de preproducció, decidir si l'ordre comercial ha de ser independent de `DATAI`, la retirada física del callback fiscal legacy i el lliurament efectiu de notificacions (UC-58). L'ordre operatiu actual ja és determinista: `ORDER BY c.DATAI, p.ID_CURS`.
+**Estat (revalidat 2026-10-02):** flux fiscal/econòmic principal PACK implementat al SIF. L'alta pública inicial continua sent legacy per GET, tot i que el preu es recalcula al servidor. Continuen pendents la migració del canal a POST/proteccions definitives, l'E2E de preproducció, decidir si l'ordre comercial ha de ser independent de `DATAI`, la retirada física del callback fiscal legacy i el lliurament efectiu de notificacions (UC-58). L'ordre operatiu actual és determinista: `ORDER BY c.DATAI, p.ID_CURS`.
 
 **Codi consultat:** `RedsysPackInvoiceService`, `LegacyPackInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService` i la infraestructura UC-63/03. El builder actual **requereix almenys dues línies** i associa `PACK` i cada `INSCRIPCIO` a la factura. Les comprovacions de la composició comercial del pack i l'accés/inscripció final dels cursos continuen pendents d'acreditar al canal.
 
@@ -20,7 +20,7 @@
 
 ### 1.1. Flux principal asíncron
 
-1. L'ecommerce valida disponibilitat i composició del pack, preu/descomptes i dades fiscals; crea una intenció UC-63 amb tipus `PACK`, `DS_ORDER`, import total i snapshot amb totes les inscripcions. No s'emet factura per una intenció sense cobrament.
+1. Després de l'alta legacy de les N inscripcions, el **checkout de pagament** rellegeix BD amb `PackPaymentGate`, valida composició, preu/descomptes, receptor i ordinal, i crea una intenció SIF amb tipus `PACK`, `DS_ORDER`, import total i snapshot amb totes les inscripcions. L'alta inicial encara arriba per GET; el checkout posterior ja és backend-authoritative. No s'emet factura per una intenció sense cobrament.
 2. Redsys comunica resultat signat; el callback UC-03 valida ordre i import, desa notificació i encua job només si autoritzat.
 3. El worker selecciona `RedsysPackInvoiceService` mitjançant `SOURCE_TYPE=PACK` i li lliura `SNAPSHOT_JSON`.
 4. `LegacyPackInvoicePayloadBuilder::build()` valida l'ID del pack i les inscripcions, genera les línies i totals, relacions `PACK` i `INSCRIPCIO` i congela els descomptes.
@@ -42,13 +42,13 @@
 | Descompte del 25 % del builder | Verificar contra la política real i l'snapshot comercial: no reconstruir un descompte diferent si s'aporta explicitament, ni generalitzar el 25 % a tots els tipus d'oferta. |
 | Una sola persona fa totes les inscripcions del pack | La factura pot ser una, però els `ID_INSC` de cada curs/edició continuen independents per permetre canvis, baixes i consulta. |
 
-**Proves localitzades:** `RedsysPackInvoiceServiceTest`, `PackPaymentGateTest`, `LegacyPackInvoicePayloadBuilderTest`, `LegacyPackCallbackBoundaryTest` i scripts de preflight/preview. Hi ha evidència CI posterior amb 706/0 que inclou els tests nous del UC-015; qualsevol canvi posterior ha de tornar a passar CI.
+**Proves localitzades:** `RedsysPackInvoiceServiceTest`, `PackPaymentGateTest`, `LegacyPackInvoicePayloadBuilderTest`, `LegacyPackCallbackBoundaryTest` i scripts de preflight/preview. El paquet UC-015 fusionat a `41d6968...` té `SIF PHP MySQL tests` en **success** (run `36741186555`). El HEAD auditat `9da7549...` tenia la CI completa encara en cua; qualsevol canvi posterior ha de tornar a passar CI.
 
 ### 1.3. Regles comercials reals i divisió excepcional del pack — contrast amb el xat original
 
 **Composició habitual (no universal):** PrisMa descriu packs de **dos cursos**, amb **dues inscripcions independents** relacionades pel mateix `IDPAG`, i preu total provinent de la taula de preus vinculada a packs. El descompte comercial de pack del 25 % es posa en **el segon curs**, no es reparteix per defecte entre les dues inscripcions. Abans d'emetre, cal validar el snapshot del pack real (ID_PACK, preu, dues inscripcions, imports base, descompte del segon curs i suma final) contra la lògica comercial corresponent; un builder fiscal no substitueix aquesta comprovació.
 
-**P-DESCOMPTE — estat actual:** `LegacyPackInvoicePayloadBuilder` ja exigeix imports/descomptes explícits per línia i rebutja snapshots incomplets o inconsistents. La política comercial concreta continua sent responsabilitat del snapshot de checkout, no del builder fiscal.
+**P-DESCOMPTE — estat actual:** `LegacyPackInvoicePayloadBuilder` ja exigeix imports/descomptes explícits per línia i rebutja snapshots incomplets o inconsistents. La política comercial concreta continua sent responsabilitat del snapshot de checkout, no del builder fiscal. El motiu intern de la línia s'ha neutralitzat en la revalidació 02/10 perquè el builder no afirmi que qualsevol descompte correspon necessàriament al «segon curs» quan el model admet PACK N.
 
 **P-EXCEPCIÓ — divisió de pagament només per intranet:** el xat original confirma que el client no escull fraccionar el pack a ecommerce; excepcionalment la gestió pot acceptar diversos pagaments reals i històricament hi pot haver **més d'una factura**. La documentació del flux final també preveu, en aquesta variant excepcional, **una factura per cada pagament real amb línies/imports aprovats**, i exigeix no dividir un mateix DS_ORDER en factures diferents. Aquest circuit no és el mateix que UC-23 (diversos pagaments sobre **una factura ja emesa**). Abans de desenvolupar-lo s'ha de decidir i documentar quina part del pack es factura en cada pas, com es reflecteix el descompte del segon curs, i com es relacionen les factures/inscripcions originals, sense facturar dues vegades el mateix servei. La fitxa no dona aquesta variant per executada ni n'estableix automàticament la qualificació fiscal.
 
@@ -269,3 +269,15 @@ Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts 
 ## Preproducció canònica
 
 Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only i el processor manual injecta ledger/outbox i pot fer la sincronització legacy completa amb `--sync-legacy`. Per tant, ja no s'utilitza una reconstrucció legacy diferent del flux productiu per validar preproducció.
+
+
+## Revalidació 2026-10-02
+
+Auditoria canònica: [uc-015-auditoria-tracabilitat-2026-10-02.md](uc-015-auditoria-tracabilitat-2026-10-02.md).
+
+Punts nous incorporats:
+- el formulari d'alta pública continua enviant dades per GET; això és ACTUAL legacy, no FINAL;
+- la seqüència real de postcommit és `RedsysLegacySyncingProcessor → LegacySyncService`;
+- `AcademicEnrollmentSyncService` no forma part del flux executable UC-015;
+- el text intern del descompte fiscal ja no pressuposa una línia/ordinal concreta;
+- el nucli PACK conserva evidència CI verda a la fusió específica `41d6968...`, mentre que la CI del HEAD auditat estava pendent de finalització.
