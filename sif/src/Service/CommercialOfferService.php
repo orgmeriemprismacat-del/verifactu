@@ -6,6 +6,7 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CommercialOperationRepository;
+use Prisma\Sif\Repository\CommercialOperationPartyRepository;
 use Prisma\Sif\Repository\DiscountValidationRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
 
@@ -16,7 +17,8 @@ final class CommercialOfferService
         private CommercialOperationRepository $operations,
         private DiscountValidationRepository $discounts,
         private OperationalEventRepository $events,
-        private UuidGenerator $uuidGenerator
+        private UuidGenerator $uuidGenerator,
+        private ?CommercialOperationPartyRepository $parties = null
     ) {
     }
 
@@ -60,6 +62,8 @@ final class CommercialOfferService
                     $payload['discount']
                 );
             }
+
+            $this->createParties($db, $operation['uuid_operation'], $payload['parties']);
 
             $eventUuid = $this->events->append($db, [
                 'operation_type' => 'COMMERCIAL_OFFER',
@@ -127,6 +131,12 @@ final class CommercialOfferService
                 $validation
             );
         }
+
+        $this->assertPartiesMatch(
+            $db,
+            (string) $existing['UUID_OPERATION'],
+            $payload['parties']
+        );
 
         return [
             'uuid_operation' => (string) $existing['UUID_OPERATION'],
@@ -237,6 +247,8 @@ final class CommercialOfferService
             }
         }
 
+        $parties = $this->validateParties($input['parties'] ?? []);
+
         return [
             'idempotency_key' => $idempotencyKey,
             'operation_type' => strtoupper(trim((string) $input['operation_type'])),
@@ -259,6 +271,7 @@ final class CommercialOfferService
             'expires_at' => $this->nullableString($input['expires_at'] ?? null),
             'created_by' => $this->nullableString($input['created_by'] ?? null),
             'discount' => $discount,
+            'parties' => $parties,
             'correlation_id' => trim((string) $input['correlation_id']),
             'actor_type' => strtoupper(trim((string) $input['actor_type'])),
             'actor_id' => $this->nullableString($input['actor_id'] ?? null),
@@ -315,6 +328,162 @@ final class CommercialOfferService
                 : null,
             'future_entitlement_ref' => $this->nullableString($input['future_entitlement_ref'] ?? null),
         ];
+    }
+
+    private function validateParties(mixed $input): array
+    {
+        if ($input === null || $input === []) {
+            return [];
+        }
+        if (!is_array($input) || !array_is_list($input)) {
+            throw SifException::validation('Commercial offer parties must be a list');
+        }
+        if ($this->parties === null) {
+            throw new \LogicException('Commercial offer party persistence is not configured');
+        }
+
+        $seen = [];
+        $result = [];
+        foreach ($input as $index => $party) {
+            if (!is_array($party)) {
+                throw SifException::validation('Invalid commercial offer party at index ' . $index);
+            }
+
+            foreach (['party_key', 'party_role', 'nom_rao'] as $field) {
+                if (!isset($party[$field]) || trim((string) $party[$field]) === '') {
+                    throw SifException::validation(
+                        'Missing commercial offer party field: ' . $field
+                    );
+                }
+            }
+
+            $partyKey = trim((string) $party['party_key']);
+            $partyRole = strtoupper(trim((string) $party['party_role']));
+            $unique = $partyKey . '|' . $partyRole;
+            if (isset($seen[$unique])) {
+                throw SifException::validation('Duplicate commercial offer party');
+            }
+            $seen[$unique] = true;
+
+            $legacyPersonId = $party['legacy_person_id'] ?? null;
+            if ($legacyPersonId !== null && $legacyPersonId !== '') {
+                if (!is_numeric($legacyPersonId) || (int) $legacyPersonId < 1) {
+                    throw SifException::validation('Invalid commercial offer legacy_person_id');
+                }
+                $legacyPersonId = (int) $legacyPersonId;
+            } else {
+                $legacyPersonId = null;
+            }
+
+            $lineAmount = null;
+            if (array_key_exists('line_amount', $party) && $party['line_amount'] !== null && $party['line_amount'] !== '') {
+                $lineAmount = $this->amount($party['line_amount'], 'party.line_amount');
+            }
+
+            $result[] = [
+                'party_key' => $partyKey,
+                'party_role' => $partyRole,
+                'legacy_person_id' => $legacyPersonId,
+                'nif_cif' => $this->nullableString($party['nif_cif'] ?? null),
+                'nom_rao' => trim((string) $party['nom_rao']),
+                'email' => $this->nullableString($party['email'] ?? null),
+                'product_code' => $this->nullableString($party['product_code'] ?? null),
+                'product_edition' => $this->nullableString($party['product_edition'] ?? null),
+                'line_amount' => $lineAmount,
+                'snapshot_json' => $this->snapshot(
+                    $party['snapshot'] ?? null,
+                    'party.snapshot',
+                    false
+                ),
+            ];
+        }
+
+        return $result;
+    }
+
+    private function createParties(\PDO $db, string $uuidOperation, array $parties): void
+    {
+        if ($parties === []) {
+            return;
+        }
+        if ($this->parties === null) {
+            throw new \LogicException('Commercial offer party persistence is not configured');
+        }
+
+        foreach ($parties as $party) {
+            $party['uuid_operation'] = $uuidOperation;
+            $this->parties->insert($db, $party);
+        }
+    }
+
+    private function assertPartiesMatch(\PDO $db, string $uuidOperation, array $parties): void
+    {
+        if ($parties === []) {
+            return;
+        }
+        if ($this->parties === null) {
+            throw new \LogicException('Commercial offer party persistence is not configured');
+        }
+
+        foreach ($parties as $party) {
+            $existing = $this->parties->find(
+                $db,
+                $uuidOperation,
+                $party['party_key'],
+                $party['party_role'],
+                true
+            );
+            if ($existing === null) {
+                throw SifException::conflict(
+                    'Commercial operation exists but an expected party is missing'
+                );
+            }
+
+            foreach ([
+                'PARTY_KEY' => 'party_key',
+                'PARTY_ROLE' => 'party_role',
+                'NIF_CIF' => 'nif_cif',
+                'NOM_RAO' => 'nom_rao',
+                'EMAIL' => 'email',
+                'PRODUCT_CODE' => 'product_code',
+                'PRODUCT_EDITION' => 'product_edition',
+            ] as $column => $field) {
+                if ($this->nullableString($existing[$column] ?? null) !== $party[$field]) {
+                    throw SifException::conflict(
+                        'Commercial operation party differs at field: ' . $column
+                    );
+                }
+            }
+
+            $existingLegacyPerson = $existing['LEGACY_PERSON_ID'] ?? null;
+            $expectedLegacyPerson = $party['legacy_person_id'];
+            if (
+                ($existingLegacyPerson === null) !== ($expectedLegacyPerson === null)
+                || ($existingLegacyPerson !== null && (int) $existingLegacyPerson !== $expectedLegacyPerson)
+            ) {
+                throw SifException::conflict(
+                    'Commercial operation party differs at field: LEGACY_PERSON_ID'
+                );
+            }
+
+            $existingAmount = $existing['LINE_AMOUNT'] ?? null;
+            $expectedAmount = $party['line_amount'];
+            if (
+                ($existingAmount === null) !== ($expectedAmount === null)
+                || ($existingAmount !== null
+                    && number_format((float) $existingAmount, 2, '.', '') !== $expectedAmount)
+            ) {
+                throw SifException::conflict(
+                    'Commercial operation party differs at field: LINE_AMOUNT'
+                );
+            }
+
+            if (!$this->sameJson($existing['SNAPSHOT_JSON'] ?? null, $party['snapshot_json'])) {
+                throw SifException::conflict(
+                    'Commercial operation party differs at field: SNAPSHOT_JSON'
+                );
+            }
+        }
     }
 
     private function assertOperationMatches(array $payload, array $existing): void
@@ -432,6 +601,7 @@ final class CommercialOfferService
                 'uuid_validation' => $validation['uuid_validation'],
                 'status' => $validation['status'],
             ],
+            'party_count' => count($operation['parties'] ?? []),
         ];
     }
 
