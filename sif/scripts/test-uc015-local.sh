@@ -74,7 +74,9 @@ fi
   echo "  LegacyPackInvoicePayloadBuilderTest::testRejectsPackLineWithoutExplicitCommercialAmounts"
   echo "  LegacyPackCallbackBoundaryTest::testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode"
   echo "  PackCommercialOrderBoundaryTest::testPackPresentationAndEnrollmentUseSameDeterministicOrder"
-  echo "  PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop"\n  echo "  RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData"\n  echo "  RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing"
+  echo "  PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop"
+  echo "  RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData"
+  echo "  RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing"
   echo
   echo "== Checkout PHP lint =="
   "${PHP_BIN}" -l codi-drive/web-actual/inc/PackPaymentGate.php
