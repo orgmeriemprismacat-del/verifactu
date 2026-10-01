@@ -99,5 +99,7 @@ final class UsocLegacyLifecycleSecurityTest
         Assert::stringContainsString('assertMayUseLegacyMutation(', $cancel);
         Assert::stringContainsString('$usocRequestId !== \'\' ? $usocRequestId : null', $cancel);
         Assert::stringContainsString("unset(\$_SESSION['usoc_cancellation_execution'][\$idInsc])", $cancel);
+        Assert::stringContainsString('$legacyCompleted = stripos', $cancel);
+        Assert::stringContainsString("stripos((string) \$resultat, 'error') === false", $cancel);
     }
 }
