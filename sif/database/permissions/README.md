@@ -13,3 +13,14 @@ Regles:
   rols;
 - la prova de permisos ha d'intentar `INSERT`, `UPDATE` i `DELETE` amb cada rol i
   conservar el resultat com a evidència de go/no-go.
+
+
+## Estat definit vs aplicat
+
+Cal distingir tres estats:
+
+- **definit al repositori**: existeix la plantilla SQL;
+- **verificat en un entorn**: s'han executat proves de privilegis i se n'ha conservat evidència;
+- **aplicat a producció**: els grants reals corresponen a la versió aprovada.
+
+No s'ha de deduir cap dels dos últims estats només perquè el fitxer existeixi a Git.
