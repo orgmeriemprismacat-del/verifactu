@@ -50,6 +50,18 @@ final class GiftRedemptionEndpointBoundaryTest
             'GiftRedemptionTrustedContextResolver',
             $source
         );
+        Assert::stringContainsString(
+            'GiftRedemptionNotificationService',
+            $source
+        );
+        Assert::stringContainsString(
+            'NotificationOutboxRepository',
+            $source
+        );
+        Assert::stringContainsString(
+            "'notification_outbox' => \$execution['notification_outbox']",
+            $source
+        );
         Assert::same(
             false,
             str_contains($source, "\$payload['holder_party_key']")
