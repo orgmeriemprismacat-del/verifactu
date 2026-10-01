@@ -104,6 +104,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $preflightDb->desconectarBD();
     }
 }
+$checkoutDisplayDni = (string) ($_POST['dni'] ?? '');
+$checkoutDisplayName = (string) ($_POST['nom-titular'] ?? '');
+$checkoutDisplayImport = (string) ($_POST['import'] ?? '');
+$checkoutDisplayPaid = (string) ($_POST['importPagat'] ?? '');
+$checkoutDisplayEmail = (string) ($_POST['email'] ?? '');
+
+if ($validatedPackCheckout !== null) {
+    $checkoutDisplayDni = (string) ($validatedPackCheckout['snapshot']['billing']['nif'] ?? '');
+    $checkoutDisplayName = (string) ($validatedPackCheckout['snapshot']['billing']['name'] ?? '');
+    $checkoutDisplayImport = (string) $validatedPackCheckout['total_amount'];
+    $checkoutDisplayPaid = (string) $validatedPackCheckout['already_paid_amount'];
+    $checkoutDisplayEmail = (string) ($validatedPackCheckout['snapshot']['billing']['email'] ?? '');
+}
 ?>
 <!DOCTYPE HTML PUBLIC "-/W3C/DTD HTML 4.01/EN" "http:/www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http:/ogp.me/ns# fb: http:/ogp.me/ns/fb# video: http:/ogp.me/ns/video#">
@@ -174,11 +187,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
    <header></header>
 
    <div id='cnt-pagament' class="prisma-container container separacio-peu" role="main">
-      <div id='dni' style='display:none'><?php echo htmlspecialchars((string) ($_POST['dni'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-      <div id='nom-titular' style='display:none'><?php echo htmlspecialchars((string) ($_POST['nom-titular'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-      <div id='import' style='display:none'><?php echo htmlspecialchars((string) ($_POST['import'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-      <div id='importPagat' style='display:none'><?php echo htmlspecialchars((string) ($_POST['importPagat'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-      <div id='email' style='display:none'><?php echo htmlspecialchars((string) ($_POST['email'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='dni' style='display:none'><?php echo htmlspecialchars($checkoutDisplayDni, ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='nom-titular' style='display:none'><?php echo htmlspecialchars($checkoutDisplayName, ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='import' style='display:none'><?php echo htmlspecialchars($checkoutDisplayImport, ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='importPagat' style='display:none'><?php echo htmlspecialchars($checkoutDisplayPaid, ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='email' style='display:none'><?php echo htmlspecialchars($checkoutDisplayEmail, ENT_QUOTES, 'UTF-8'); ?></div>
 
       <?php
       include("./ConnexioBBDD_PreparedStatment.php");
