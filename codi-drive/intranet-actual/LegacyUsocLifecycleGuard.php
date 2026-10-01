@@ -68,11 +68,75 @@ final class LegacyUsocLifecycleGuard
         return $guard;
     }
 
+    public function completedCancellationExecution(
+        object $user,
+        int $idInsc,
+        string $requestId
+    ): ?array {
+        $requestId = trim($requestId);
+        if ($requestId === '') {
+            return null;
+        }
+
+        $enrollment = $this->legacyLookup->enrollment($idInsc);
+        if ((int) $enrollment['TIPUS_DESC'] !== 4) {
+            return null;
+        }
+
+        $idpag = (int) ($enrollment['IDPAG'] ?? 0);
+        if ($idpag <= 0) {
+            throw new RuntimeException(
+                'La inscripció USOC no té un IDPAG vàlid per verificar la baixa.',
+                409
+            );
+        }
+
+        [$actorId, $roles] = SifAuthenticatedActor::fromUser($user);
+        $this->sifClient ??= new SifInternalUsocClient();
+        $response = $this->sifClient->cancellationExecutionStatus(
+            $actorId,
+            $roles,
+            $requestId
+        );
+
+        $status = (int) ($response['_http_status'] ?? 0);
+        if ($status < 200 || $status >= 300 || ($response['ok'] ?? false) !== true) {
+            throw new RuntimeException(
+                'No s’ha pogut verificar la comanda de baixa USOC al SIF.',
+                503
+            );
+        }
+
+        $execution = $response['execution'] ?? null;
+        if (!is_array($execution)) {
+            throw new RuntimeException('Resposta de baixa USOC no vàlida.', 502);
+        }
+
+        if (
+            (int) ($execution['ID_INSC'] ?? 0) !== $idInsc
+            || (int) ($execution['IDPAG'] ?? 0) !== $idpag
+            || strtoupper((string) ($execution['OPERATION'] ?? '')) !== 'CANCELLATION'
+            || strtoupper((string) ($execution['STATE'] ?? '')) !== 'COMPLETED'
+        ) {
+            return null;
+        }
+
+        return $execution;
+    }
+
     public function assertMayUseLegacyMutation(
         object $user,
         int $idInsc,
-        string $operation
+        string $operation,
+        ?string $completedRequestId = null
     ): void {
+        if (
+            $operation === 'cancellation'
+            && $completedRequestId !== null
+            && $this->completedCancellationExecution($user, $idInsc, $completedRequestId) !== null
+        ) {
+            return;
+        }
         $guard = $this->inspect($user, $idInsc, $operation);
         if (($guard['allowed'] ?? false) === true) {
             return;
