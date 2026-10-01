@@ -4,6 +4,10 @@ require dirname(__DIR__) . '/src/autoload.php';
 
 use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Database\MigrationRunner;
+use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\CommercialEntitlementRepository;
+use Prisma\Sif\Service\GiftEntitlementIssuerService;
+use Prisma\Sif\Service\HistoricalGiftEntitlementBackfillService;
 
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "This script can only run from CLI.\n");
@@ -15,6 +19,7 @@ $config = require $baseDir . '/config/sif.php';
 $env = (string) ($config['env'] ?? 'local');
 $incidentReadRoles = normalizeRoles((array) ($config['incidents']['read_roles'] ?? []));
 $incidentManageRoles = normalizeRoles((array) ($config['incidents']['manage_roles'] ?? []));
+$giftRedemptionRoles = normalizeRoles((array) (($config['gift_redemption'] ?? [])['manage_roles'] ?? []));
 $checks = [
     'schema_verified' => false,
     'php_pdo_mysql' => extension_loaded('pdo_mysql'),
@@ -33,6 +38,12 @@ $checks = [
     'incident_internal_api_secret_strong' => strlen((string) ($config['internal_api']['secret'] ?? '')) >= 32,
     'incident_panel_launch_secret_strong' => strlen((string) ($config['panel']['launch_secret'] ?? '')) >= 32,
     'incident_panel_launch_path_exact' => (string) ($config['panel']['launch_path'] ?? '') === '/sif/incidencies/',
+    'gift_redemption_preflight_present' => is_file($baseDir . '/scripts/preflight-gift-redemption.php'),
+    'gift_redemption_manage_roles_configured' => $giftRedemptionRoles !== [],
+    'gift_redemption_signed_path_exact' => (string) ($config['internal_api']['gift_redemption_signed_path'] ?? '') === '/api/gifts/redemption/redeem.php',
+    'gift_redemption_internal_api_secret_strong' => strlen((string) ($config['internal_api']['secret'] ?? '')) >= 32,
+    'gift_redemption_historical_coverage' => false,
+    'gift_redemption_historical_blockers_absent' => false,
     'sif_database_connectivity' => false,
     'legacy_database_connectivity' => false,
     'factura_table' => false,
@@ -171,6 +182,19 @@ $checks = [
         'scripts/preview-redsys-gift.php',
         'scripts/process-redsys-gift.php',
     ]),
+    'gift_redemption_circuit_present' => allFilesPresent($baseDir, [
+        'src/Service/GiftEntitlementIssuerService.php',
+        'src/Service/GiftRedemptionTrustedContextResolver.php',
+        'src/Service/GiftEnrollmentStager.php',
+        'src/Service/GiftRedemptionService.php',
+        'src/Service/GiftRedemptionOrchestrator.php',
+        'src/Service/HistoricalGiftEntitlementBackfillService.php',
+        'public/api/gifts/redemption/redeem.php',
+        'scripts/retry-gift-redemption.php',
+        'scripts/preflight-gift-redemption.php',
+        'scripts/preview-historical-gift-entitlements.php',
+        'scripts/process-historical-gift-entitlement.php',
+    ]),
     'redsys_usoc_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/RedsysUsocInvoiceService.php',
         'scripts/preflight-redsys-usoc.php',
@@ -209,6 +233,9 @@ $checks = [
     ]),
 ];
 $errors = [];
+$giftHistoricalInventory = null;
+$sifDb = null;
+$legacyDb = null;
 
 try {
     $sifDb = ConnectionFactory::make($config);
@@ -255,6 +282,30 @@ try {
     $errors['legacy_database'] = $exception->getMessage();
 }
 
+if ($sifDb instanceof \PDO
+    && $legacyDb instanceof \PDO
+    && ($checks['legacy_regal_table'] ?? false)
+    && ($checks['fact_rels_table'] ?? false)
+    && ($checks['payment_transaction_table'] ?? false)
+    && ($checks['payment_allocation_table'] ?? false)
+) {
+    try {
+        $entitlements = new CommercialEntitlementRepository(new UuidGenerator());
+        $giftHistoricalInventory = (new HistoricalGiftEntitlementBackfillService(
+            $entitlements,
+            new GiftEntitlementIssuerService(new UuidGenerator(), $entitlements)
+        ))->inventory($sifDb, $legacyDb);
+
+        $giftCounts = (array) ($giftHistoricalInventory['counts'] ?? []);
+        $checks['gift_redemption_historical_coverage'] =
+            (int) ($giftCounts['ready_backfill'] ?? -1) === 0;
+        $checks['gift_redemption_historical_blockers_absent'] =
+            (int) ($giftCounts['blocked'] ?? -1) === 0;
+    } catch (\Throwable $exception) {
+        $errors['gift_redemption_historical_inventory'] = $exception->getMessage();
+    }
+}
+
 $failed = array_keys(array_filter($checks, static fn (bool $ok): bool => !$ok));
 $decision = count($failed) === 0 ? 'GO' : 'NO-GO';
 $result = [
@@ -265,6 +316,13 @@ $result = [
     'environment' => $env,
     'checks' => $checks,
 ];
+
+if (is_array($giftHistoricalInventory)) {
+    $result['gift_redemption_historical_inventory'] = [
+        'counts' => $giftHistoricalInventory['counts'] ?? [],
+        'items' => $giftHistoricalInventory['items'] ?? [],
+    ];
+}
 
 if ($failed !== []) {
     $result['failed'] = $failed;
