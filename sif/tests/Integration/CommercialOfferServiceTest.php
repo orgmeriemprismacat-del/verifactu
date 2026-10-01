@@ -102,6 +102,7 @@ final class CommercialOfferServiceTest
         $db = TestDatabase::fresh();
         $service = $this->service($db);
         $input = $this->input();
+        $input['acceptable_existing_statuses'] = ['OFFERED', 'INTENT_CREATED'];
 
         $first = $service->createOrReuse($input);
         $db->prepare(
