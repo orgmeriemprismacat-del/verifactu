@@ -376,4 +376,23 @@ Ara:
 - els tests de scripts exigeixen explícitament aquestes dependències i impedeixen tornar a reconstruir el preview des de legacy.
 
 Aquesta correcció redueix el pendent E2E a **execució i evidència d'entorn**, no a divergència del codi de preproducció.
-\n\n## 19. Verificador d'evidència E2E — 2026-10-01\n\nNou servei `RedsysPackEvidenceVerifier` i CLI `verify-redsys-pack-evidence.php`. Donat un `DS_ORDER`, comprova de forma read-only:\n- intenció `SOURCE_TYPE=PACK`;\n- notificació `VALIDATED` i signatura validada;\n- identitat IDPAG/import coherent;\n- job callback `PROCESSED`;\n- factura `ISSUED/PAID`;\n- un únic `CHARGE` Redsys;\n- N línies i relacions PACK/INSCRIPCIO;\n- una assignació payment→factura;\n- N moviments `EXTERNAL_ALLOCATION` i suma exacta;\n- una outbox `PACK_PAYMENT_CONFIRMED`;\n- registre i cua fiscal;\n- `legacy_sync_executed=true`;\n- `PAGAMENT=A_PAGAR`, `DATA PAG` i marcador UUID de factura a les inscripcions legacy.\n\nLa sortida no inclou email, DNI/NIF, adreces ni `SNAPSHOT_JSON`. Si falta qualsevol baula, `ok=false` i el procés retorna codi 2. En producció queda bloquejat per defecte i requereix `SIF_UC015_EVIDENCE_ALLOW_PRODUCTION=1`.\n
+
+
+## 19. Verificador d'evidència E2E — 2026-10-01
+
+Nou servei `RedsysPackEvidenceVerifier` i CLI `verify-redsys-pack-evidence.php`. Donat un `DS_ORDER`, comprova de forma read-only:
+- intenció `SOURCE_TYPE=PACK`;
+- notificació `VALIDATED` i signatura validada;
+- identitat IDPAG/import coherent;
+- job callback `PROCESSED`;
+- factura `ISSUED/PAID`;
+- un únic `CHARGE` Redsys;
+- N línies i relacions PACK/INSCRIPCIO;
+- una assignació payment→factura;
+- N moviments `EXTERNAL_ALLOCATION` i suma exacta;
+- una outbox `PACK_PAYMENT_CONFIRMED`;
+- registre i cua fiscal;
+- `legacy_sync_executed=true`;
+- `PAGAMENT=A_PAGAR`, `DATA PAG` i marcador UUID de factura a les inscripcions legacy.
+
+La sortida no inclou email, DNI/NIF, adreces ni `SNAPSHOT_JSON`. Si falta qualsevol baula, `ok=false` i el procés retorna codi 2. En producció queda bloquejat per defecte i requereix `SIF_UC015_EVIDENCE_ALLOW_PRODUCTION=1`.
