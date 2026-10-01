@@ -117,7 +117,7 @@ php sif/scripts/preflight-sif.php
 - [x] verificació de 303, cookie, CSRF, actor sense controls de gestió i logout.
 - [x] test que impedeix introduir mutacions al script.
 - [x] E2E integrat al verificador agregat i sanitització d'evidència provada.
-- [ ] **ÚNIC PENDENT D'ENTORN:** executar i conservar **dos JSON** amb configuració real: (1) `php sif/scripts/verify-incidents-panel-preproduction.php | tee uc-008-preproduction-evidence.json`; (2) des de `codi-drive/intranet-actual`, `php preflight-sif-verifactu-menu.php | tee uc-008-menu-evidence.json`. El primer ha de donar `ok=true`; el segon ha de donar `ALREADY_PRESENT` o bé els candidats reals per confirmar `parent_id/roles/order` abans de l'alta.
+- [ ] **PENDENT D'ENTORN:** generar i conservar **tres JSON d'evidència** amb configuració real: (1) `uc-008-preproduction-evidence.json` amb preflight + E2E read-only; (2) `uc-008-menu-evidence.json` amb el menú en `ALREADY_PRESENT`; (3) `uc-008-manager-e2e-evidence.json` després d'exercitar el flux gestor real sobre la incidència sintètica. Només després es pot generar `uc-008-closure-validation.json`.
 
 ## 11. Procediment únic de tancament d'entorn
 
@@ -132,7 +132,7 @@ cd codi-drive/intranet-actual
 php preflight-sif-verifactu-menu.php   | tee uc-008-menu-evidence.json
 ```
 
-Després de generar els dos fitxers, executar:
+Després de generar els tres fitxers, executar:
 
 ```bash
 php sif/scripts/validate-uc008-evidence.php \
@@ -181,7 +181,7 @@ Per marcar UC-008 com PROVAT conservar:
 - prova de tancament amb evidència;
 - resultat preproducció.
 
-**Estat actual:** baseline específica UC-008 **677/0** (run `36664788129`) + regressió completa de l'últim tall de codi SIF verificat **740/0** (run `36732555122`) + INTRANET AO **SUCCESS**. El codi-side del UC-008 queda tancat; resta només executar els dos preflights reals d'entorn, completar l'alta de menú si cal i validar els JSON amb `validate-uc008-evidence.php`.
+**Estat actual:** baseline específica UC-008 **677/0** (run `36664788129`) + regressió completa de l'últim tall de codi SIF verificat **740/0** (run `36732555122`) + INTRANET AO **SUCCESS**. El codi-side del UC-008 queda tancat; resta executar els controls reals d'entorn, completar l'alta de menú si cal, exercitar el flux gestor sobre la incidència sintètica i validar les tres evidències amb `validate-uc008-evidence.php`.
 
 
 ## 13. Evidència CI
