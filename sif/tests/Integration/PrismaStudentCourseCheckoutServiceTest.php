@@ -106,6 +106,38 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
     }
 
+    public function testRetryReusesExistingValidationTimestampsFromPreviousWriter(): void
+    {
+        $db = $this->fixture(true);
+        $service = $this->service($db);
+        $request = [
+            'ds_order' => 'UC020ORDER2LEGACY',
+            'terminal' => '1',
+            'created_by' => 'web-checkout',
+        ];
+
+        $first = $service->stageAndCreateIntent(
+            $db, $db, 200, 'student:canonical:12345678Z', $this->price(), $request
+        );
+        $db->exec(
+            "UPDATE discount_validation
+             SET REQUESTED_AT = '2026-10-01 12:34:56',
+                 VALIDATED_AT = '2026-10-01 12:34:56'"
+        );
+
+        $second = $service->stageAndCreateIntent(
+            $db, $db, 200, 'student:canonical:12345678Z', $this->price(), $request
+        );
+
+        Assert::same($first['uuid_operation'], $second['uuid_operation']);
+        Assert::same($first['uuid_validation'], $second['uuid_validation']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same(
+            '2026-10-01 12:34:56',
+            (string) $db->query('SELECT REQUESTED_AT FROM discount_validation')->fetchColumn()
+        );
+    }
+
     public function testRetryWithAnotherDsOrderCannotReplaceLinkedIntent(): void
     {
         $db = $this->fixture(true);
@@ -185,12 +217,13 @@ final class PrismaStudentCourseCheckoutServiceTest
         $uuid = new UuidGenerator();
         $transactions = new TransactionRunner($db);
         $operations = new CommercialOperationRepository();
+        $discounts = new DiscountValidationRepository();
         $intentRepository = new RedsysPaymentIntentRepository();
         $intentService = new RedsysPaymentIntentService($intentRepository, $uuid);
         $offers = new CommercialOfferService(
             $transactions,
             $operations,
-            new DiscountValidationRepository(),
+            $discounts,
             new OperationalEventRepository($uuid),
             $uuid,
             new CommercialOperationPartyRepository()
@@ -201,6 +234,7 @@ final class PrismaStudentCourseCheckoutServiceTest
             new PrismaStudentDiscountPolicy(),
             $offers,
             $operations,
+            $discounts,
             $intentRepository,
             $intentService,
             $transactions
