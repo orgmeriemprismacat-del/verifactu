@@ -19,6 +19,11 @@ $result = [
     'ok' => false,
     'scope' => 'uc-008-evidence-validation',
     'production_authorized' => false,
+    'validated_at' => (new DateTimeImmutable('now'))->format(DATE_ATOM),
+    'inputs' => [
+        'preproduction_sha256' => fileSha256($preproductionPath),
+        'menu_sha256' => fileSha256($menuPath),
+    ],
     'checks' => [],
 ];
 
@@ -131,4 +136,17 @@ function containsForbiddenKey(array $value): bool
     }
 
     return false;
+}
+
+
+function fileSha256(string $path): ?string
+{
+    if (!is_file($path) || !is_readable($path)) {
+        return null;
+    }
+
+    $hash = hash_file('sha256', $path);
+    return is_string($hash) && preg_match('/^[a-f0-9]{64}$/D', $hash) === 1
+        ? $hash
+        : null;
 }
