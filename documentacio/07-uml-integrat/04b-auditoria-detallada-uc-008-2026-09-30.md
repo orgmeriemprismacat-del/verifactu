@@ -383,6 +383,42 @@ Hi ha dos runs vermells intermedis esperables mentre el canvi es feia en commits
 
 Els commits posteriors corregeixen aquests desfasaments i els runs finals són verds.
 
+### 6 quinquies. Punt de control CI definitiu del bloc de tancament — 02/10/2026
+
+El tall `902b1c793687c77b3c089c8c5096708b5341de89` incorpora el gate final de tres evidències, el verificador read-only del gestor, el preparador sintètic idempotent i la protecció que exigeix que el rol gestor també disposi de lectura.
+
+**GitHub Actions · SIF PHP MySQL tests · run `36942641296`:**
+
+- **837 passed**
+- **0 failed**
+- conclusion: **success**
+
+Proves UC-008 específiques verificades dins del mateix run:
+
+- `IncidentPanelEvidenceValidationScriptTest`: 8 PASS;
+- `IncidentPanelManagerE2ePreparationScriptTest`: 5 PASS;
+- `IncidentPanelManagerEvidenceScriptTest`: 3 PASS.
+
+Això cobreix explícitament:
+
+- tancament vàlid només amb les tres evidències correctes;
+- bloqueig d'evidència de `test` per tancar preproducció;
+- bloqueig de scope de menú incorrecte;
+- bloqueig d'un `ok=true` superior sense preflight/E2E interns verds;
+- SHA-256 dels tres inputs;
+- preparació idempotent de la incidència sintètica;
+- ACK explícit abans de la mutació de prova;
+- bloqueig de producció;
+- rol gestor obligatòriament de gestió **i lectura**;
+- absència d'efectes sobre factures/pagaments;
+- verificació read-only del lifecycle gestor;
+- rebuig d'una incidència no sintètica;
+- `ASSIGN → ADD_EVIDENCE → RESOLVE` amb actor, rol, correlació i evidència.
+
+Després d'aquest tall, el `main` ha avançat per altres UC. Al punt de control `47f8f834ab3ee44db64d8e8987f8b371766329f9`, la comparació des de `902b1c7...` conté **17 commits / 10 fitxers** i cap canvi funcional en les dependències UC-008; només s'han modificat documents UC-008 d'aquesta mateixa auditoria.
+
+**Estat tècnic consolidat:** `CODE_COMPLETE + DOC_RECONCILED + CLOSURE_GATE_HARDENED + MANAGER_E2E_PREPARED + CI_837_0`.
+
 ### 7.1. Pendents obligatoris d'entorn
 
 1. Executar:
