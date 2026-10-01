@@ -16,6 +16,8 @@
 
 	include('inc/analitics.html');
 
+	$mostrar = '';
+
 	include("./Template.php");
 	$templates = new Template();
 
@@ -895,13 +897,9 @@
 			$connexio->desconectarBD();
 	   }
 	}
-	catch(Exception $e) {
-		$mailMe = new Mail();
-		$mailMe->addHeaders($nomMe, $correuMe, $correuMe);
-		$mailMe->addSubject("Error ".$ordre);
-		$mailMe->addTo($correuMe);
-		$mailMe->addMissatgeTiquet("<p>Hola</p>", "Error ".$e->getCode().$e->getMessage(), '');
-		$mailMe->sendMessage();
+	catch (\Throwable $e) {
+		http_response_code(400);
+		error_log('UC-014 Redsys legacy callback rejected: ' . get_class($e));
 	}
 	echo $mostrar;
 
