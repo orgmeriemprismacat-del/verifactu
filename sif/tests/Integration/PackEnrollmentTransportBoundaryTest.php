@@ -20,11 +20,14 @@ final class PackEnrollmentTransportBoundaryTest
             Assert::fail('Could not load PACK enrollment transport files');
         }
 
+        $packAjax = strpos($js, 'url: path + "ajax/enviarInscripcioPack.php"');
+        Assert::same(true, $packAjax !== false);
+        $packAjaxSlice = substr($js, (int) $packAjax, 1000);
+        Assert::stringContainsString('method: "POST"', $packAjaxSlice);
         Assert::stringContainsString(
-            'url: path + "ajax/enviarInscripcioPack.php"',
+            'url: "https://www.prisma.cat/ajax/mostrar_header_2.php"',
             $js
         );
-        Assert::stringContainsString('method: "POST"', $js);
 
         Assert::stringContainsString("REQUEST_METHOD", $endpoint);
         Assert::stringContainsString("!== 'POST'", $endpoint);
@@ -33,6 +36,11 @@ final class PackEnrollmentTransportBoundaryTest
         Assert::stringContainsString("\$_POST['dni']", $endpoint);
         Assert::stringContainsString("\$_POST['email']", $endpoint);
         Assert::stringContainsString("\$_POST['idPack']", $endpoint);
+        Assert::stringContainsString("\$pagFrac = 'No'", $endpoint);
+
+        if (str_contains($endpoint, "\$_POST['pagFrac']")) {
+            Assert::fail('PACK ecommerce must not accept client-controlled fractional-payment mode.');
+        }
 
         if (str_contains($endpoint, '$_GET[')) {
             Assert::fail('PACK enrollment mutation must not read personal or mutation data from GET.');
