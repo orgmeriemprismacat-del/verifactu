@@ -43,6 +43,7 @@ try {
     $lines.Add('RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData')
     $lines.Add('RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing')
     $lines.Add('PackCheckoutBoundaryTest::testPackCheckoutUsesServerAuthoritativeHolderAndEscapesPostedHtml')
+    $lines.Add('RedsysPackWorkerEndToEndTest::testPackWorkerReplayKeepsFiscalEconomicAndOutboxEffectsIdempotent')
 
     if ($exitCode -ne 0) {
         $lines.Add('RESULT=FAIL')
