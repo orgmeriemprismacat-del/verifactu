@@ -80,11 +80,29 @@ final class UsocLegacyLifecycleSecurityTest
         Assert::stringContainsString('csrf_alumnes_lifecycle', $lifecyclePreview);
         Assert::stringContainsString('LegacyUsocLifecycleGuard', $lifecyclePreview);
         Assert::stringContainsString('->inspect(', $lifecyclePreview);
+        Assert::stringContainsString('->plan(', $lifecyclePreview);
+        Assert::stringContainsString('USOC_CANCELLATION_EXECUTION_COMPLETED', $lifecyclePreview);
+        Assert::stringContainsString('usoc_cancellation_execution', $lifecyclePreview);
 
         Assert::stringContainsString('#modalDonarBaixa .confirma-baixa', $lifecycleJs);
         Assert::stringContainsString("'cancellation'", $lifecycleJs);
         Assert::stringContainsString('sifUsocLifecyclePreview.php', $lifecycleJs);
         Assert::stringContainsString('X-CSRF-Token', $lifecycleJs);
         Assert::stringContainsString('payer_snapshot', $lifecycleJs);
+        Assert::stringContainsString('execute_cancellation', $lifecycleJs);
+        Assert::stringContainsString('DEFER_FISCAL', $lifecycleJs);
+        Assert::stringContainsString('DEFER_REFUND', $lifecycleJs);
+        Assert::stringContainsString('Registrar decisió i continuar baixa', $lifecycleJs);
+        Assert::stringContainsString('allowLegacyCancellationClick = true', $lifecycleJs);
+        Assert::stringContainsString('executionPayload: null', $lifecycleJs);
+        Assert::stringContainsString('cancellationContext.executionPayload === null', $lifecycleJs);
+        Assert::stringContainsString('var payload = cancellationContext.executionPayload', $lifecycleJs);
+
+        Assert::stringContainsString('usoc_cancellation_execution', $cancel);
+        Assert::stringContainsString('assertMayUseLegacyMutation(', $cancel);
+        Assert::stringContainsString('$usocRequestId !== \'\' ? $usocRequestId : null', $cancel);
+        Assert::stringContainsString("unset(\$_SESSION['usoc_cancellation_execution'][\$idInsc])", $cancel);
+        Assert::stringContainsString('$legacyCompleted = stripos', $cancel);
+        Assert::stringContainsString("stripos((string) \$resultat, 'error') === false", $cancel);
     }
 }

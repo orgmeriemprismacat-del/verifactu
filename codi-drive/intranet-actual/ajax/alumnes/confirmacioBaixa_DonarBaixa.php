@@ -89,7 +89,14 @@ try {
 		$enviarCoreu
 	);
 
-	if ($usocRequestId !== '' && isset($_SESSION['usoc_cancellation_execution'][$idInsc])) {
+	$legacyCompleted = stripos((string) $resultat, 'error') === false
+		&& stripos((string) $resultat, '404') === false;
+
+	if (
+		$legacyCompleted
+		&& $usocRequestId !== ''
+		&& isset($_SESSION['usoc_cancellation_execution'][$idInsc])
+	) {
 		unset($_SESSION['usoc_cancellation_execution'][$idInsc]);
 	}
 

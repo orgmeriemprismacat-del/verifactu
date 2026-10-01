@@ -31,6 +31,7 @@ final class IncidentPanelManagerE2ePreparationScriptTest
         Assert::same('', $first['stderr']);
         $firstJson = json_decode($first['stdout'], true, 512, JSON_THROW_ON_ERROR);
         Assert::same(true, $firstJson['ok']);
+        Assert::same(true, $firstJson['checks']['manager_role_can_read']);
         Assert::same(false, $firstJson['incident']['reused']);
         Assert::same('UC008_E2E_MANAGER', $firstJson['incident']['type']);
         Assert::same('UC008_E2E', $firstJson['incident']['source_type']);
@@ -85,6 +86,29 @@ final class IncidentPanelManagerE2ePreparationScriptTest
         $json = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
         Assert::same(false, $json['ok']);
         Assert::same(false, $json['checks']['explicit_mutation_ack']);
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
+    }
+
+    public function testPrepareRejectsManagerRoleWithoutReadPermission(): void
+    {
+        $db = TestDatabase::fresh();
+
+        $result = ScriptRunner::run(
+            'scripts/prepare-incident-manager-e2e.php',
+            [
+                'SIF_ENV' => 'test',
+                'SIF_INCIDENT_READ_ROLES' => 'AUDITOR_FISCAL',
+                'SIF_INCIDENT_MANAGE_ROLES' => 'SIF_ADMIN',
+                'SIF_E2E_INCIDENT_MANAGER_ROLE' => 'SIF_ADMIN',
+                'SIF_UC008_MANAGER_E2E_PREPARE' => 'YES',
+            ],
+            ['CI-UC008-MANAGER-NOREAD']
+        );
+
+        Assert::same(1, $result['exit_code']);
+        $json = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
+        Assert::same(false, $json['ok']);
+        Assert::same(false, $json['checks']['manager_role_can_read']);
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
     }
 
