@@ -1,6 +1,6 @@
 # UC-013 · Diagrames d'activitat ACTUAL / FINAL per pàgina i apartat
 
-**Data d'auditoria:** 29/09/2026  
+**Data d'auditoria:** 29/09/2026 · **Revalidació main:** 02/10/2026 (`4ddf6ef72...`)  
 **Abast:** RM-037 — pàgina per pàgina i apartat per apartat.  
 **Regla:** ACTUAL = comportament contrastat al codi. FINAL = comportament objectiu del SIF. No confondre cap diagrama FINAL amb implementació ja desplegada.
 
@@ -250,7 +250,7 @@ flowchart TD
 
 ## 10. Factura entitat USOC
 
-### ACTUAL IMPLEMENTAT EN SERVEI, ADAPTADOR NO ACREDITAT
+### ACTUAL IMPLEMENTAT EN SERVEI I ADAPTADORS D'INTRANET
 
 ```mermaid
 flowchart TD
@@ -337,7 +337,7 @@ flowchart TD
     M --> N[Derivar a futura execució fiscal UC-026/027]
 ```
 
-**Abast:** el guard evita una modificació silenciosa d'un expedient USOC fiscalitzat. `UsocLifecyclePlanService` genera ara un pla separat per pagador i limita el màxim retornable al `net_paid` real de cada factura. La pantalla USOC permet consultar aquest pla. Encara no executa rectificatives, reassignacions, devolucions o saldos.
+**Abast:** el guard evita una modificació silenciosa d'un expedient USOC fiscalitzat. `UsocLifecyclePlanService` genera un pla separat per pagador i limita el màxim retornable al `net_paid` real. Per **baixa**, `UsocCancellationExecutionService` ja pot executar rectificatives/refunds o diferir-los i, un cop la comanda SIF queda `COMPLETED`, autoritzar la baixa legacy. Per **canvi de curs**, encara falta l'executor fiscal/econòmic específic.
 
 ### FINAL obligatori
 
@@ -376,5 +376,62 @@ flowchart TD
 2. Mantenir el test de regressió de l'allocator IDPAG compartit; implementació actual protegida amb named lock.
 3. Configurar `SIF_USOC_MENU_ROLES` i validar l'accés de menú al desplegament de preproducció.
 4. Validar en preproducció la configuració HMAC, rols i DB legacy amb `preflight-usoc-intranet.php`.
-5. Evidència CI conservada a `documentacio/09-proves-qa/uc-013-evidencia-ci-2026-09-30.md`; run `36660979100` **SUCCESS, 646 passed / 0 failed**, incloent E2E de servei fins a `FINANCING_RECONCILED`. Resta validació navegador/desplegament/preproducció.
+5. Evidència CI conservada a `documentacio/09-proves-qa/uc-013-evidencia-ci-2026-09-30.md`; hi ha diversos runs positius específics del UC-013. Aquesta revalidació 02/10 no associa una nova suite al SHA actual de main. Resta validació navegador/desplegament/preproducció.
 6. Tractament definit per alumne=0/curs gratuït.
+
+
+## 16. Complements UML separats
+
+Per deixar el paquet al mateix nivell que els casos més avançats:
+- [Classes ACTUAL/FINAL](uc-013-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-013-sequencies-actual-final.md)
+
+Aquests fitxers separen explícitament responsabilitats i interaccions ACTUALS de les peces FINAL pendents, especialment la futura execució fiscal/econòmica de lifecycle.
+
+
+## 17. Baixa USOC · execució SIF actual
+
+### ACTUAL
+
+```mermaid
+flowchart TD
+    A[Gestió prepara baixa USOC] --> B[lifecycle_plan per pagador]
+    B --> C[UsocCancellationExecutionService]
+    C --> D{Alumne: acció fiscal?}
+    D -- RECTIFY --> E[ManualRectificationService alumne]
+    D -- DEFER/NO --> F[Persistir decisió]
+    C --> G{Alumne: acció econòmica?}
+    G -- REFUND --> H[ManualRefundService alumne]
+    G -- DEFER/NO --> F
+    C --> I{Entitat: acció fiscal/econòmica?}
+    I --> J[Executar o diferir separadament]
+    E --> K[OperationalEvent + EnrollmentCancellationEvent]
+    H --> K
+    J --> K
+    K --> L[Execution COMPLETED]
+    L --> M[LegacyUsocLifecycleGuard permet baixa legacy]
+```
+
+**Pendent:** evidència CI del SHA actual i E2E preproducció. El canvi de curs continua només amb guard + planner.
+
+
+### UI ACTUAL de baixa
+
+```mermaid
+flowchart TD
+    A[Usuari prem baixa] --> B[JS lifecycle preview]
+    B --> C[POST sifUsocLifecyclePreview.php]
+    C --> D{Guard permet legacy?}
+    D -- Sí --> E[Continuar baixa legacy]
+    D -- No, requereix USOC --> F[Mostrar modal alumne + entitat]
+    F --> G[Decidir RECTIFY/DEFER/NO fiscal]
+    F --> H[Decidir REFUND/DEFER/NO refund]
+    G --> I[POST execute_cancellation]
+    H --> I
+    I --> J{Execution ok?}
+    J -- No --> F
+    J -- Sí --> K[Marcar context completed]
+    K --> L[Tornar a disparar baixa]
+    L --> M[Guard comprova checkpoint COMPLETED]
+    M --> E
+```
