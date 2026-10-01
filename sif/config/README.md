@@ -102,12 +102,12 @@ El checkout PACK és fail-closed i no ha de reutilitzar imports, titular ni endp
 - `SIF_REDSYS_CALLBACK_URL`: MerchantURL HTTPS del callback SIF.
 - `SIF_REDSYS_PAYMENT_URL`: URL del formulari Redsys. Només s'accepten:
   - producció: `https://sis.redsys.es/sis/realizarPago`;
-  - preproducció/sandbox: `https://sis-t.redsys.es:25443/sis/realizarPago` (o el mateix host/path amb port oficial vigent).
+  - preproducció/sandbox: `https://sis-t.redsys.es:25443/sis/realizarPago`.
 - `REDSYS_MERCHANT_CODE`: FUC.
 - `REDSYS_TERMINAL`: terminal.
 - `SIF_REDSYS_MERCHANT_KEY`: secret Redsys; mai al repositori.
 
-`preflight-redsys-pack.php` comprova URL de callback, API d'intenció, endpoint de pagament Redsys, rols, secrets, connectivitat i taules necessàries.
+`preflight-redsys-pack.php` comprova URL de callback, API d'intenció, endpoint de pagament Redsys, rols, secrets, connectivitat i taules necessàries. L'endpoint de pagament només és vàlid si coincideix exactament amb una de les dues URLs oficials anteriors.
 
 ### Evidència
 
