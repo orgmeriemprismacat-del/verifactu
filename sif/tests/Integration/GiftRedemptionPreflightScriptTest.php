@@ -46,11 +46,11 @@ final class GiftRedemptionPreflightScriptTest
             'UPDATE ',
             'DELETE FROM ',
         ] as $forbidden) {
-            Assert::same(
-                false,
-                str_contains($source, $forbidden),
-                'UC-018 preflight must be read-only: ' . $forbidden
-            );
+            if (str_contains($source, $forbidden)) {
+                Assert::fail(
+                    'UC-018 preflight must be read-only: ' . $forbidden
+                );
+            }
         }
     }
 }
