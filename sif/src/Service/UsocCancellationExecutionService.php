@@ -273,7 +273,7 @@ final class UsocCancellationExecutionService
         $this->cancellations->append($db, [
             'uuid_operational_event' => $eventUuid,
             'enrollment_id' => $idInsc,
-            'cancellation_reason' => $request['reason_code'] . '_' . strtoupper($role),
+            'cancellation_reason' => $request['reason_code'],
             'effective_at' => $occurredAt,
             'economic_decision' => $decision['economic_action'],
             'return_amount' => $decision['refund_amount'],
@@ -362,8 +362,29 @@ final class UsocCancellationExecutionService
     {
         $reason = strtoupper(trim((string) ($input['reason_code'] ?? '')));
         $effectiveAt = trim((string) ($input['effective_at'] ?? ''));
-        if ($reason === '' || strlen($reason) > 80 || $effectiveAt === '') {
-            throw SifException::validation('USOC cancellation reason and effective_at are required');
+
+        if (
+            $reason === ''
+            || strlen($reason) > 80
+            || preg_match('/^[A-Z0-9_:-]+$/D', $reason) !== 1
+        ) {
+            throw SifException::validation('Invalid USOC cancellation reason code');
+        }
+
+        $date = \DateTimeImmutable::createFromFormat(
+            '!Y-m-d H:i:s',
+            $effectiveAt,
+            new \DateTimeZone('Europe/Madrid')
+        );
+        $dateErrors = \DateTimeImmutable::getLastErrors();
+        if (
+            $date === false
+            || ($dateErrors !== false
+                && (($dateErrors['warning_count'] ?? 0) > 0
+                    || ($dateErrors['error_count'] ?? 0) > 0))
+            || $date->format('Y-m-d H:i:s') !== $effectiveAt
+        ) {
+            throw SifException::validation('Invalid USOC cancellation effective_at');
         }
 
         return [
