@@ -71,6 +71,39 @@ final class HistoricalGiftEntitlementBackfillServiceTest
         Assert::same(1, $result['summary']['blocking_unused']);
     }
 
+    public function testUnusedGiftWithExpiredEntitlementStillBlocksCoverage(): void
+    {
+        [$db, $code] = $this->fixture(false, false);
+        $hash = hash('sha256', $code);
+        $db->prepare(
+            'INSERT INTO commercial_entitlement
+             (UUID_ENTITLEMENT, ENTITLEMENT_TYPE, CODE_HASH, HOLDER_PARTY_KEY,
+              ORIGIN_UUID_OPERATION, RULE_VERSION, RULE_SNAPSHOT_JSON, FACE_VALUE,
+              CURRENCY, STATUS, ISSUED_AT, IDEMPOTENCY_KEY)
+             VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([
+            '22222222-2222-4222-8222-222222222222',
+            'GIFT',
+            $hash,
+            CommercialEntitlementRepository::unclaimedGiftHolderKey($hash),
+            'GIFT_V1',
+            '{}',
+            '120.00',
+            'EUR',
+            'EXPIRED',
+            '2026-01-01 10:00:00',
+            'GIFT|ENTITLEMENT|TEST:77',
+        ]);
+
+        $result = $this->service()->inventory($db, $db);
+
+        Assert::same(
+            'CONFLICT_UNUSED_LEGACY_UNUSABLE_SIF',
+            $result['items'][0]['status']
+        );
+        Assert::same(1, $result['summary']['blocking_unused']);
+    }
+
     public function testAlreadyUsedHistoricalGiftIsCataloguedButNotBackfilled(): void
     {
         [$db] = $this->fixture(true, false);
