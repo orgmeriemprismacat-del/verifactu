@@ -1,53 +1,97 @@
-# Control vigent dels taulers Trello — VERI*FACTU / SIF
+# Control dels taulers Trello — VERI*FACTU / SIF
 
-**Reorganització:** 2026-09-24. Aquest és el nou punt d'entrada al control dels taulers; substitueix els inventaris massius i auditories de targetes basats en exports antics de juny. Els 9 taulers originals romanen actius, i s'han creat 3 taulers nous privats.
+Trello és la **font de treball en directe** del projecte. Aquest README documenta la taxonomia i les regles de traçabilitat; **no manté recomptes congelats de targetes**, perquè queden obsolets ràpidament.
 
-## Mapa de taulers i fotografia de targetes obertes
+## Estructura actual de treball
 
-| Codi | Tauler Trello | Registre de control | Llistes | Targetes obertes | Propietat principal |
-|---|---|---|---:|---:|---|
-| 01 | [Control del projecte](https://trello.com/b/SvAMw72z) | [Fitxer](01-control-projecte.md) | 104 | 3006 | decisions, riscos, planificació i dependències |
-| 02a | [Casos d'ús i anàlisi funcional](https://trello.com/b/hQ2UjYEq) | [Fitxer](02a-casos-us.md) | 69 | 3630 | casos d'ús, variants i actors |
-| 02b | [Fitxes funcionals i documentació de casos](https://trello.com/b/o2B8Hk5P) | [Fitxer](02b-fitxes-funcionals.md) | 60 | 1910 | fitxa mare, regles i acceptació |
-| 03 | [Desenvolupament SIF, BD i API](https://trello.com/b/yP3igQoz) | [Fitxer](03-desenvolupament-sif-bd-api.md) | 40 | 2945 | nucli fiscal, models, repositoris i API compartida |
-| 04 | [Intranet, interfície i notificacions](https://trello.com/b/3EQ4P4iV) | [Fitxer](04-intranet-interficie-notificacions.md) | 171 | 4500 | pantalles, rols visibles, correus i notificacions |
-| 05 | [Proves, entorns i producció](https://trello.com/b/1lPFsrKi) | [Fitxer](05-proves-entorns-produccio.md) | 190 | 3956 | tests, evidències, preproducció i go/no-go |
-| 06 | [SIF a pay.prisma.cat](https://trello.com/b/R47Ejs0b) | [Fitxer](06-sif-pay-prisma.md) | 159 | 2964 | panell i serveis propis de pay |
-| 07 | [Pagaments Redsys i conciliació](https://trello.com/b/SgBqwmaR) | [Fitxer](07-pagaments-redsys-conciliacio.md) | 10 | 129 | passarel·la, callbacks, intent i conciliació |
-| 08 | [Documentació, manuals i auditoria](https://trello.com/b/fBv1UTYz) | [Fitxer](08-documentacio-manuals-auditoria.md) | 19 | 1160 | documents, manuals i dossier AEAT |
-| 09 | [Web, ecommerce i checkout](https://trello.com/b/ie8YOSQi) | [Fitxer](09-web-ecommerce-checkout.md) | 7 | 1 | compra, preus, formularis, URL de pagament |
-| 10 | [Migració, històric i compatibilitat legacy](https://trello.com/b/VIBLvoO2) | [Fitxer](10-migracio-historic-legacy.md) | 7 | 1 | migració, convivència, compatibilitat i històric |
-| 11 | [Integració AEAT i registre fiscal](https://trello.com/b/dWueO7zI) | [Fitxer](11-aeat-registre-fiscal.md) | 7 | 1 | registre fiscal, transport AEAT i resposta |
+La planificació s'ha anat especialitzant. A l'01/10/2026 hi ha taulers actius, entre d'altres, per aquestes dimensions:
 
-**Total en la fotografia:** 24.200 targetes obertes als 9 taulers originals; 3 targetes PANELL addicionals als taulers nous (24.203 en 12 taulers). És un recompte de targetes obertes, NO de tasques pendents, úniques ni validacions completades. No inclou targetes arxivades. L'inventari cobreix totes les llistes obertes via paginació a data 2026-09-24.
+| Família | Propietat principal |
+| --- | --- |
+| 1 | control del projecte, decisions, riscos i dependències |
+| 2a | casos d'ús i anàlisi funcional |
+| 2b | fitxes funcionals |
+| 2c | diagrames de seqüència |
+| 2d | diagrames de classes |
+| 2e | diagrames d'activitat |
+| 3a | desenvolupament backend i API |
+| 3b | BD i modelat / especialitzacions de desenvolupament |
+| 4 / 4a / 4b / 4c | intranet, alumnes, facturació/cobrament, UX i notificacions |
+| 5 / 5a / 5b / 5c | proves, entorns i producció per superfície |
+| 6a / 6b | panell SIF i SIF a `pay.prisma.cat` |
+| 7 | pagaments, Redsys i conciliació |
+| 8 | documentació, manuals i auditoria |
+| 9 | web, ecommerce i checkout |
+| 10 | migració, històric i compatibilitat legacy |
+| 11 | integració AEAT i registre fiscal |
+| 12 | operació acadèmica, inscripcions i campus |
+| 13 | seguretat, permisos i privacitat |
+| 14 | operació, desplegament i recuperació |
+| 15 | auditories, troballes i evidències |
+| 16 | portals d'alumnes |
+| 17 | portals de tutors i col·laboradors |
 
-## Regla de propietat única
+Poden existir taulers antics, duplicats històrics o taulers de transició. Per decidir on crear una targeta nova s'ha d'usar la **taxonomia actual** i, si hi ha dubte, revisar Trello en directe.
 
-Cada **acció executable** té una sola targeta propietària. El cas d'ús i la fitxa funcional viuen al 02a/02b; la implementació general al 03, especialitzada als 04/06/07/09/10/11; la prova i l'evidència al 05; el document final al 08; la decisió i risc transversal al 01. A cada dimensió hi pot haver targeta pròpia quan representa un resultat diferent, sempre amb enllaços creuats i un identificador de cas/paquet estable. No comptar l'existència de targetes com a implementació ni prova.
+## Regla de propietat
 
-En particular: 03 = nucli fiscal/API compartida; 06 = panell, servidor i integració de pay.prisma.cat; 07 = cicle de pagament i conciliació Redsys; 09 = checkout/web fins a iniciar el pagament; 10 = migració/legacy; 11 = construcció i transmissió del registre AEAT; 08 = compliment documental; 05 = validació executable. No fer còpies de les mateixes tasques entre aquests taulers.
+Una mateixa feina no s'ha de copiar entre taulers només per fer-la visible. En canvi, **resultats diferents sí que mereixen targetes separades**.
 
-## Com revisar i actualitzar les targetes més endavant
+Exemple per un mateix UC:
 
-1. Llegir **totes les pàgines** de llistes/targetes obertes dels 12 Trellos en directe; per analitzar arxivaments, consultar també les targetes arxivades.
-2. Comparar per **ID de targeta**, no només títol: altes, canvi de llista, canvi de tauler, arxiu, compleció i duplicats semàntics. El títol repetit és una alerta, no prova de duplicat.
-3. Contrastar el resultat amb el codi real a `main`, branques encara obertes, fitxes funcionals, proves executables i evidències. Relacionar `UC/VT -> targeta propietària -> fitxer/commit/PR -> prova -> evidència -> documentació`.
-4. Proposar moviments abans de fer-los; moure la targeta existent quan correspon, sense clonar-la. No arxivar ni donar per finalitzada cap tasca només perquè hi ha una targeta anomenada de manera semblant en un altre tauler.
-5. Actualitzar **la data i recomptes per llista** al fitxer de cada tauler i anotar aquí els canvis estructurals i els bloquejos oberts. Les fotografies no es mantenen automàticament sincronitzades.
+- auditoria funcional;
+- actualització de fitxa;
+- diagrama de classes;
+- diagrama de seqüència;
+- diagrama d'activitats;
+- implementació backend;
+- migració BD;
+- prova unitària;
+- prova d'integració/E2E;
+- evidència CI/preproducció;
+- actualització de manual/documentació.
 
-## Format mínim d'una targeta que representi feina nova
+Són peces diferents i poden tenir targetes diferents, sempre amb referència UC/PR/commit quan existeixi.
 
-- Títol concret amb verb i objecte; un resultat per targeta.
-- Descripció: abast i no-abast, referència UC/VT si existeix, ruta o contracte afectat, criteri d'acceptació, dependències i enllaços a les altres dimensions.
-- Estat: identificar explícitament si és **definit**, **implementat**, **provat** o **desplegat**; no deduir-ho del simple fet que la targeta existeix.
-- Quan una tasca cobreix diversos casos, enllaçar-la des de tots en lloc de recrear-la per cadascun.
+## Targetes petites
 
-## Privacitat i fonts
+Per representar fidelment la feina feta, es prefereixen **targetes petites, concretes i verificables** davant d'una única targeta resum.
 
-**Aquest repositori de GitHub és públic**; els tres taulers nous són privats. Evitar-hi una còpia massiva de títols, descripcions, checklists, persones, identificadors privats o dades fiscals de targetes Trello. Els fitxers de registre guarden únicament estructura, recomptes i regles de seguiment; la font de targetes és Trello en directe. Per a la història de desenvolupament, el codi i els commits de GitHub continuen sent la font tècnica.
+Format recomanat:
 
-## Control de versions
+- títol amb verb + objecte;
+- UC o paquet afectat;
+- què s'ha fet;
+- criteri d'acceptació;
+- commit/PR/fitxer o evidència;
+- estat: documentat / implementat / provat / evidenciat / desplegat.
 
-| Data | Decisió |
-|---|---|
-| 2026-09-24 | Baseline complet dels 9 taulers existents, 3 taulers nous i nous fitxers de control. Pendent reconciliació semàntica targeta a targeta i traspàs sense duplicats. |
+## Auditoria i troballes
+
+Les revisions transversals, comparacions de branques, inconsistències documentals i troballes que generen accions han d'anar al tauler **15 · Auditories, troballes i evidències**.
+
+La correcció derivada d'una troballa s'ha de registrar també al tauler propietari de la feina si és una peça diferent.
+
+## Reconciliació amb GitHub
+
+Per revisar una feina:
+
+```text
+UC / troballa
+→ targeta
+→ branca / PR / commit
+→ fitxer o codi
+→ prova
+→ evidència
+→ documentació
+```
+
+No s'ha de marcar una targeta com a feta només perquè existeixi un fitxer amb nom semblant. Cal verificar el resultat.
+
+## Privacitat
+
+Aquest repositori és públic. No copiar-hi massivament descripcions, checklists, persones, identificadors privats, secrets ni dades fiscals de Trello. Aquest README conserva només regles de treball i estructura general.
+
+## Històric
+
+Els mapes i recomptes del 24/09/2026 es consideren **snapshot històric**. La font actual de targetes i taulers és Trello en directe.
