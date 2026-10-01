@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace Prisma\Sif\Tests\Integration;
 
+use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\PrismaStudentDiscountPolicy;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\CommercialOperationPartyRepository;
+use Prisma\Sif\Repository\CommercialOperationRepository;
+use Prisma\Sif\Repository\DiscountValidationRepository;
 use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
+use Prisma\Sif\Service\CommercialOfferService;
 use Prisma\Sif\Service\PrismaStudentCourseCheckoutService;
 use Prisma\Sif\Service\RedsysPaymentIntentService;
 use Prisma\Sif\Tests\Support\Assert;
@@ -19,7 +25,7 @@ final class PrismaStudentCourseCheckoutServiceTest
     public function testStagesValidationOperationAndIntentFromSingleAuthoritativeSnapshot(): void
     {
         $db = $this->fixture(true);
-        $service = $this->service();
+        $service = $this->service($db);
 
         $result = $service->stageAndCreateIntent(
             $db,
@@ -44,6 +50,8 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same('90.00', $result['amount']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation_party')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
 
         $operation = $db->query('SELECT * FROM commercial_operation')->fetch(\PDO::FETCH_ASSOC);
@@ -73,7 +81,7 @@ final class PrismaStudentCourseCheckoutServiceTest
     public function testEquivalentRetryReusesOperationValidationAndIntent(): void
     {
         $db = $this->fixture(true);
-        $service = $this->service();
+        $service = $this->service($db);
         $request = [
             'ds_order' => 'UC020ORDER2',
             'terminal' => '1',
@@ -93,13 +101,15 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same(true, $second['idempotency_reused']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation_party')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
     }
 
     public function testRetryWithAnotherDsOrderCannotReplaceLinkedIntent(): void
     {
         $db = $this->fixture(true);
-        $service = $this->service();
+        $service = $this->service($db);
 
         $service->stageAndCreateIntent(
             $db,
@@ -129,7 +139,7 @@ final class PrismaStudentCourseCheckoutServiceTest
     public function testIneligibleEnrollmentCreatesNoCommercialState(): void
     {
         $db = $this->fixture(false);
-        $service = $this->service();
+        $service = $this->service($db);
 
         $price = $this->price();
         Assert::throws(SifException::class, static function () use ($db, $service, $price): void {
@@ -151,7 +161,7 @@ final class PrismaStudentCourseCheckoutServiceTest
     public function testTrustedPriceMustMatchRealEnrollmentNet(): void
     {
         $db = $this->fixture(true);
-        $service = $this->service();
+        $service = $this->service($db);
         $price = $this->price();
         $price['net_amount'] = '89.00';
         $price['discount_amount'] = '31.00';
@@ -170,13 +180,30 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
     }
 
-    private function service(): PrismaStudentCourseCheckoutService
+    private function service(\PDO $db): PrismaStudentCourseCheckoutService
     {
+        $uuid = new UuidGenerator();
+        $transactions = new TransactionRunner($db);
+        $operations = new CommercialOperationRepository();
+        $intentRepository = new RedsysPaymentIntentRepository();
+        $intentService = new RedsysPaymentIntentService($intentRepository, $uuid);
+        $offers = new CommercialOfferService(
+            $transactions,
+            $operations,
+            new DiscountValidationRepository(),
+            new OperationalEventRepository($uuid),
+            $uuid,
+            new CommercialOperationPartyRepository()
+        );
+
         return new PrismaStudentCourseCheckoutService(
             new LegacyPrismaStudentHistoryRepository(),
             new PrismaStudentDiscountPolicy(),
-            new RedsysPaymentIntentService(new RedsysPaymentIntentRepository(), new UuidGenerator()),
-            new UuidGenerator()
+            $offers,
+            $operations,
+            $intentRepository,
+            $intentService,
+            $transactions
         );
     }
 
@@ -190,9 +217,11 @@ final class PrismaStudentCourseCheckoutServiceTest
                 ANY INT NOT NULL,
                 MES CHAR(2) NOT NULL,
                 CURS VARCHAR(20) NOT NULL,
+                DATA_INSC DATETIME NOT NULL,
                 NOM VARCHAR(80) NOT NULL,
                 COGNOMS VARCHAR(80) NOT NULL,
                 DNI VARCHAR(20) NOT NULL,
+                CORREU VARCHAR(180) NULL,
                 A_PAGAR DECIMAL(12,2) NOT NULL,
                 PAGAMENT DECIMAL(12,2) NOT NULL DEFAULT 0,
                 OBSERVACIONS VARCHAR(255) NULL,
@@ -204,17 +233,19 @@ final class PrismaStudentCourseCheckoutServiceTest
 
         $db->exec(
             "INSERT INTO inscripcions
-             (ID, IDPAG, ANY, MES, CURS, NOM, COGNOMS, DNI, A_PAGAR, PAGAMENT, GENERAT, `INSC CURS`)
+             (ID, IDPAG, ANY, MES, CURS, DATA_INSC, NOM, COGNOMS, DNI, CORREU, A_PAGAR, PAGAMENT, GENERAT, `INSC CURS`)
              VALUES
-             (200, 900, 2026, '10', 'ABC', 'Maria', 'Exemple', '12345678Z', 90.00, 0.00, 0, '1')"
+             (200, 900, 2026, '10', 'ABC', '2026-09-30 10:00:00', 'Maria', 'Exemple',
+              '12345678Z', 'maria@example.invalid', 90.00, 0.00, 0, '1')"
         );
 
         if ($withEligibleHistory) {
             $db->exec(
                 "INSERT INTO inscripcions
-                 (ID, IDPAG, ANY, MES, CURS, NOM, COGNOMS, DNI, A_PAGAR, PAGAMENT, GENERAT, `INSC CURS`)
+                 (ID, IDPAG, ANY, MES, CURS, DATA_INSC, NOM, COGNOMS, DNI, CORREU, A_PAGAR, PAGAMENT, GENERAT, `INSC CURS`)
                  VALUES
-                 (100, 700, 2025, '09', 'OLD', 'Maria', 'Exemple', '12345678Z', 120.00, 120.00, 0, '1')"
+                 (100, 700, 2025, '09', 'OLD', '2025-08-20 10:00:00', 'Maria', 'Exemple',
+                  '12345678Z', 'maria@example.invalid', 120.00, 120.00, 0, '1')"
             );
         }
 
