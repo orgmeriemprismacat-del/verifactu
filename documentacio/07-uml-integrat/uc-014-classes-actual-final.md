@@ -1,6 +1,6 @@
 # UC-014 — Diagrames de classes ACTUAL i FINAL
 
-**Data d'auditoria:** 29/09/2026  
+**Data d'auditoria/revalidació:** 02/10/2026  
 **Abast:** compra d'un curs ordinari per Redsys. UC-014a (taller) i UC-014b (jornada) continuen separats.  
 **Regla d'evidència:** ACTUAL = lectura estàtica del codi disponible al repositori; no acredita desplegament productiu. FINAL = codi SIF existent quan es marca `EXISTENT`; `DISSENY/PENDENT` quan encara no hi ha integració executable completa.
 
@@ -50,8 +50,31 @@ class RealitzaPagamentAutomatic {
 class PaginaEfectuarPagamentAutomatic {
   <<script PHP>>
   +rep POST del navegador
-  +crea DS_ORDER amb time()
+  +JasomNovicePaymentGate::assertCanPrepare()
+  +crea DS_ORDER amb time() [fallback]
   +crea formulari Redsys
+}
+class JasomNovicePaymentGate {
+  <<PHP servidor>>
+  +assertCanPrepare(db,post) array
+  +authorizeEnrollment(enrollment,post) array
+}
+class JsConfirmacio {
+  <<JavaScript>>
+  +AJAX mostrar_confirmacio_inscripcio_automatic
+  +valida UX
+  +submit frm
+}
+class JsPagament {
+  <<JavaScript>>
+  +AJAX mostrar_pagina_pagament_automatic
+  +valida UX
+  +submit frm
+}
+class JsEfectuar {
+  <<JavaScript>>
+  +confirma/cancel·la
+  +submit frm
 }
 
 class FacturesLegacy {
@@ -89,9 +112,14 @@ class CursLegacy {
   DATAF
 }
 
+JsConfirmacio --> PagamentCursAutomatic : AJAX/PHP
+JsPagament --> PagamentCursAutomatic : AJAX/PHP
+JsEfectuar --> PaginaEfectuarPagamentAutomatic : DOM/form
 PagamentCursAutomatic --> ConnexioBBDDSTMT
 PagamentCursAutomatic --> InscripcionsLegacy
 PagamentCursAutomatic --> CursLegacy
+PaginaEfectuarPagamentAutomatic --> JasomNovicePaymentGate : autorització servidor
+JasomNovicePaymentGate --> InscripcionsLegacy : saldo/fraccionament/estat
 PaginaEfectuarPagamentAutomatic --> RedsysAPI
 RealitzaPagamentAutomatic --> RedsysAPI
 RealitzaPagamentAutomatic --> ConnexioBBDDSTMT
@@ -105,7 +133,7 @@ RealitzaPagamentAutomatic --> CursLegacy
 - El callback llegat concentra validació bancària, facturació, actualització de la inscripció i correus.
 - La numeració fiscal es calcula amb patrons `SELECT últim + 1`.
 - `idPag`, `order`, `import` i altres dades funcionals viatgen a la MerchantURL.
-- A la còpia revisada es calcula una signatura de notificació Redsys, però no s'ha localitzat la comparació posterior amb la signatura rebuda.
+- A la base `main` prèvia a aquesta auditoria el fallback no acreditava la comparació efectiva de signatura/order/import. La branca 02/10 ho endureix abans de qualsevol efecte; el risc arquitectònic restant és que el fallback encara factura fora del SIF fins al cutover.
 - El flux actual usa camps acumulatius de la inscripció per representar cobrament/fraccionament.
 
 ## 2. Classes i components FINAL — implementats o previstos
@@ -192,9 +220,10 @@ class CoursePaymentReturnStatus {
   +uc014RenderPaymentReturn(browserReturn)
 }
 
-class EnrollmentFundMovementRepository {
-  <<DISSENY/PENDENT UC-014>>
-  +append(db,movement) string
+class PaymentRepository {
+  <<EXISTENT>>
+  +create(db,payload) array
+  +createAllocation(db,uuidPayment,allocation)
 }
 
 SifRedsysCourseIntentClient --> RedsysCoursePaymentIntentService : POST HMAC
@@ -210,7 +239,8 @@ CoursePaymentNotificationService --> NotificationOutboxRepository : enqueue idem
 CoursePaymentReturnStatus --> SifRedsysCourseStatusClient
 SifRedsysCourseStatusClient --> RedsysCoursePaymentStatusService : POST HMAC read-only
 RedsysCoursePaymentStatusService --> RedsysPaymentIntentService : correlació per DS_ORDER/IDPAG
-RedsysCallbackWorker ..> EnrollmentFundMovementRepository : atribució quantitativa [pendent d'acreditar]
+InvoiceService --> PaymentRepository : CHARGE + payment_allocation
+CourseLegacyPaymentSyncService --> PaymentRepository : suma CONFIRMED per IDPAG
 ```
 ## 3. Correspondència ACTUAL → FINAL
 
@@ -231,6 +261,9 @@ RedsysCallbackWorker ..> EnrollmentFundMovementRepository : atribució quantitat
 ## 4. Estat
 
 **DOCUMENTAT:** ACTUAL i FINAL.  
-**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS i retorn navegador read-only contra estat SIF. L'atribució quantitativa addicional per inscripció continua pendent d'acreditar dins UC-014.  
+**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS, retorn navegador read-only i hardening del fallback a la branca 02/10. Per UC-014 ordinari, la traça `INSCRIPCIO(ID)` + `payment_transaction.IDPAG` + `payment_allocation` cobreix l'atribució econòmica.  
 **VERIFICAT:** CI amb E2E intern simulat incloent `notification_outbox` CURS, duplicat i parcial→complet, retorn autoritatiu i boundaries de preproducció; lectura estàtica del pont candidat.  
-**PENDENT:** desplegament/preproducció real, activació de MerchantURL SIF i retirada del callback fiscal llegat després de l'evidència.
+**PENDENT:** CI de la branca 02/10, desplegament/preproducció Redsys real, activació de MerchantURL SIF/cutover, rotació de secrets històrics, delivery UC-58 i retirada del callback fiscal llegat després de l'evidència.
+
+
+**Traça detallada de codi:** [inventari PHP/JS ACTUAL, pont candidat i SIF 02/10](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md).
