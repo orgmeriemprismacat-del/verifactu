@@ -104,4 +104,5 @@ final class PackPaymentPrivacyBoundaryTest
             "htmlspecialchars(\$view['email'], ENT_QUOTES, 'UTF-8')",
             $shared
         );
-    }}
+    }
+}
