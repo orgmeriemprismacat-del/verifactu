@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace Prisma\Sif\Tests\Integration;
 
+use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\PrismaStudentDiscountPolicy;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\CommercialOperationPartyRepository;
+use Prisma\Sif\Repository\CommercialOperationRepository;
+use Prisma\Sif\Repository\DiscountValidationRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
+use Prisma\Sif\Service\CommercialOfferService;
 use Prisma\Sif\Service\LegacyPrismaStudentPriceSnapshotResolver;
 use Prisma\Sif\Service\PrismaStudentCourseCheckoutService;
 use Prisma\Sif\Service\RedsysCoursePaymentIntentService;
@@ -24,7 +30,7 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
     {
         $db = $this->fixture(false);
 
-        $result = $this->service()->create($db, $db, [
+        $result = $this->service($db)->create($db, $db, [
             'idpag' => 900,
             'requested_amount' => '90.00',
             'terminal' => '1',
@@ -36,6 +42,8 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
         Assert::same('INTENT_CREATED', $result['status']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation_party')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
 
         $operation = $db->query('SELECT * FROM commercial_operation')->fetch(\PDO::FETCH_ASSOC);
@@ -59,7 +67,7 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
         $db = $this->fixture(true);
 
         Assert::throws(SifException::class, function () use ($db): void {
-            $this->service()->create($db, $db, [
+            $this->service($db)->create($db, $db, [
                 'idpag' => 900,
                 'requested_amount' => '45.00',
                 'terminal' => '1',
@@ -81,7 +89,7 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
         );
 
         Assert::throws(SifException::class, function () use ($db): void {
-            $this->service()->create($db, $db, [
+            $this->service($db)->create($db, $db, [
                 'idpag' => 900,
                 'requested_amount' => '90.00',
                 'terminal' => '1',
@@ -92,11 +100,20 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
     }
 
-    private function service(): RedsysCoursePaymentIntentService
+    private function service(\PDO $db): RedsysCoursePaymentIntentService
     {
-        $intentService = new RedsysPaymentIntentService(
-            new RedsysPaymentIntentRepository(),
-            new UuidGenerator()
+        $uuid = new UuidGenerator();
+        $transactions = new TransactionRunner($db);
+        $operations = new CommercialOperationRepository();
+        $intentRepository = new RedsysPaymentIntentRepository();
+        $intentService = new RedsysPaymentIntentService($intentRepository, $uuid);
+        $offers = new CommercialOfferService(
+            $transactions,
+            $operations,
+            new DiscountValidationRepository(),
+            new OperationalEventRepository($uuid),
+            $uuid,
+            new CommercialOperationPartyRepository()
         );
 
         return new RedsysCoursePaymentIntentService(
@@ -106,8 +123,11 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
             new PrismaStudentCourseCheckoutService(
                 new LegacyPrismaStudentHistoryRepository(),
                 new PrismaStudentDiscountPolicy(),
+                $offers,
+                $operations,
+                $intentRepository,
                 $intentService,
-                new UuidGenerator()
+                $transactions
             ),
             new LegacyPrismaStudentPriceSnapshotResolver()
         );
