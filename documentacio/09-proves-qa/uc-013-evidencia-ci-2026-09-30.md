@@ -284,3 +284,16 @@ El preflight exigeix ara:
 - llistat explícit dels env vars necessaris d'intranet i SIF.
 
 Això tanca la validació estàtica/CI del preflight. Encara cal executar-lo amb la **configuració real de preproducció** i conservar-ne el JSON d'evidència.
+
+
+## Revalidació documental 02/10/2026
+
+**Main inspeccionat:** `06ac56b9f87429ec6c8ccd78ef0377c372308787`.
+
+Els components UC-013 documentats continuen presents al main actual per inspecció estàtica. GitHub no retorna cap workflow associat directament a aquest SHA, de manera que aquest document manté les execucions positives anteriors com a **evidència versionada dels commits UC-013 corresponents**, però no afirma una nova suite completa executada sobre el main del 02/10.
+
+Per tancar l'evidència d'execució actualitzada falten:
+1. una nova suite CI sobre el main/branch actual;
+2. preflight real de preproducció;
+3. E2E navegador → intranet → API SIF → persistència;
+4. execució fiscal/econòmica de lifecycle quan aquesta capa existeixi.
