@@ -12,6 +12,7 @@ use Prisma\Sif\Repository\CommercialEntitlementRepository;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Service\GiftEnrollmentStager;
+use Prisma\Sif\Service\GiftRedemptionOrchestrator;
 use Prisma\Sif\Service\GiftRedemptionService;
 use Prisma\Sif\Service\GiftRedemptionTrustedContextResolver;
 use Prisma\Sif\Service\InternalApiAuthenticator;
@@ -68,51 +69,25 @@ try {
 
     $legacyDb = ConnectionFactory::makeLegacy($config);
     $entitlements = new CommercialEntitlementRepository(new UuidGenerator());
-    $trustedContext = (new GiftRedemptionTrustedContextResolver(
-        $entitlements
-    ))->resolve(
-        $db,
-        $legacyDb,
-        $enrollmentId,
-        $giftCode
-    );
-    $holderPartyKey = (string) $trustedContext['holder_party_key'];
-    $trustedPrice = (array) $trustedContext['trusted_price_snapshot'];
-
-    $stage = (new GiftEnrollmentStager(
-        new UuidGenerator(),
-        $entitlements
-    ))->stage(
+    $execution = (new GiftRedemptionOrchestrator(
+        new GiftRedemptionTrustedContextResolver($entitlements),
+        new GiftEnrollmentStager(new UuidGenerator(), $entitlements),
+        new GiftRedemptionService(
+            $entitlements,
+            new EnrollmentFundMovementRepository(new UuidGenerator())
+        ),
+        new LegacyGiftUsageReconciler()
+    ))->execute(
         $db,
         $legacyDb,
         $enrollmentId,
         $giftCode,
-        $holderPartyKey,
-        $trustedPrice,
-        'WEB'
+        'WEB',
+        (string) ($actor['request_id'] ?? ''),
+        (string) ($actor['actor_id'] ?? '')
     );
 
-    $result = (new GiftRedemptionService(
-        $entitlements,
-        new EnrollmentFundMovementRepository(new UuidGenerator())
-    ))->redeem(
-        $db,
-        [
-            'code' => $giftCode,
-            'holder_party_key' => $holderPartyKey,
-            'destination_operation_uuid' => (string) $stage['uuid_operation'],
-            'idempotency_key' => (string) $stage['redemption_idempotency_key'],
-            'correlation_id' => (string) ($actor['request_id'] ?? ''),
-            'actor_id' => (string) ($actor['actor_id'] ?? ''),
-        ]
-    );
-
-    $legacyReconciliation = (new LegacyGiftUsageReconciler())->reconcile(
-        $legacyDb,
-        $giftCode,
-        $enrollmentId
-    );
-
+    $stage = (array) $execution['stage'];
     JsonResponse::send([
         'ok' => true,
         'stage' => [
@@ -122,8 +97,8 @@ try {
             'status' => (string) $stage['status'],
             'idempotency_reused' => (bool) $stage['idempotency_reused'],
         ],
-        'redemption' => $result,
-        'legacy_reconciliation' => $legacyReconciliation,
+        'redemption' => $execution['redemption'],
+        'legacy_reconciliation' => $execution['legacy_reconciliation'],
     ]);
 } catch (\Throwable $exception) {
     JsonResponse::fromThrowable($exception);
