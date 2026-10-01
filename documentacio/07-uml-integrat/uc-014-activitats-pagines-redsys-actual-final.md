@@ -12,7 +12,7 @@
 | P-CUR-03 | `pagina_efectuar_pagament_automatic.php` | A POST; B DS_ORDER; C imports; D formulari Redsys; E cancel·lar/confirmar |
 | P-CUR-04 | Redsys + `realitzaPagamentAutomatic.php` | A recepció; B validació; C factura; D cobrament/fracció; E correus/estat |
 | P-CUR-05 | `respostaOkPagamentAutomatic.php` / `respostaKoPagamentAutomatic.php` | A retorn navegador; B missatge; C consulta estat real FINAL |
-| P-CUR-06 | SIF asíncron | A intenció; B callback; C cua; D worker; E factura/cobrament; F sync |
+| P-CUR-06 | SIF asíncron | A intenció; B callback; C cua; D worker; E factura/cobrament; F atribució quantitativa; G sync/outbox |
 
 ## 1. P-CUR-01 — Confirmació d'inscripció
 
@@ -302,6 +302,13 @@ else (No)
   :Crear factura/línies/registre/cua AEAT;
   :Crear payment_transaction/allocation;
 endif
+:CourseEnrollmentFundAllocationService valida CHARGE/factura/línia/import;
+:Crear/reutilitzar enrollment_fund_movement EXTERNAL_ALLOCATION per DS_ORDER + ID_INSC;
+if (Falla atribució quantitativa?) then (Sí)
+  :Retry/incidència sense projectar pagament al llegat;
+  :No crear segona factura ni segon CHARGE;
+  stop
+endif
 :CourseLegacyPaymentSyncService projecta PAGAMENT/DATA PAG/M→1;
 if (Falla sync llegada?) then (Sí)
   :Registrar incidència/retry sense refacturar;
@@ -334,8 +341,8 @@ start
 :Validar import nou > 0 i <= pendent;
 :Crear intenció pel tram;
 :Callback validat crea un CHARGE immutable;
-:Assignar el CHARGE a la inscripció;
-:Recalcular estat PAID/PARTIALLY_PAID;
+:Crear/reutilitzar `EXTERNAL_ALLOCATION` a `enrollment_fund_movement` per DS_ORDER + ID_INSC;
+:Recalcular estat PAID/PARTIALLY_PAID des dels moviments confirmats;
 :No sobreescriure l'històric de cobraments;
 stop
 @enduml
@@ -377,6 +384,8 @@ endif
 stop
 @enduml
 ```
+
+**Evidència A14-17 — 02/10/2026:** `CourseEnrollmentFundAllocationServiceTest` cobreix alta/reús, trams parcials i mismatch fail-closed; `RedsysCourseEndToEndSimulatedTest` exigeix un únic moviment al complet/duplicat i dos moviments amb suma 120,00 al parcial→complet. Suites SIF: **841 passed / 0 failed**.
 
 ## 8. Cobertura i límits
 
