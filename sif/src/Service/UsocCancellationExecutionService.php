@@ -110,6 +110,16 @@ final class UsocCancellationExecutionService
             );
         }
 
+        $requiresFollowUp = false;
+        foreach ($payerResults as $payerResult) {
+            if (
+                in_array($payerResult['fiscal_action'], ['DEFER_FISCAL'], true)
+                || in_array($payerResult['economic_action'], ['DEFER_REFUND'], true)
+            ) {
+                $requiresFollowUp = true;
+            }
+        }
+
         $result = [
             'ok' => true,
             'request_id' => $requestId,
@@ -117,6 +127,7 @@ final class UsocCancellationExecutionService
             'idpag' => $idpag,
             'operation' => 'cancellation',
             'reason_code' => $request['reason_code'],
+            'requires_follow_up' => $requiresFollowUp,
             'payers' => $payerResults,
             'idempotency_reused' => false,
         ];
@@ -243,7 +254,10 @@ final class UsocCancellationExecutionService
             'uuid_payment' => $result['uuid_refund_payment'],
             'fiscal_impact' => $rectified ? 'RECTIFICATION' : 'NONE',
             'economic_impact' => $refunded ? 'REFUND' : 'NONE',
-            'status' => 'COMPLETED',
+            'status' => (
+                $decision['fiscal_action'] === 'DEFER_FISCAL'
+                || $decision['economic_action'] === 'DEFER_REFUND'
+            ) ? 'COMPLETED_WITH_PENDING' : 'COMPLETED',
             'reason_code' => $request['reason_code'],
             'before_snapshot' => $plan,
             'after_snapshot' => $result,
@@ -365,12 +379,12 @@ final class UsocCancellationExecutionService
         }
 
         $fiscalAction = strtoupper(trim((string) ($value['fiscal_action'] ?? '')));
-        if (!in_array($fiscalAction, ['RECTIFY', 'NO_FISCAL_EFFECT'], true)) {
+        if (!in_array($fiscalAction, ['RECTIFY', 'NO_FISCAL_EFFECT', 'DEFER_FISCAL'], true)) {
             throw SifException::validation('Invalid USOC fiscal action for ' . $role);
         }
 
         $economicAction = strtoupper(trim((string) ($value['economic_action'] ?? '')));
-        if (!in_array($economicAction, ['REFUND', 'NO_REFUND'], true)) {
+        if (!in_array($economicAction, ['REFUND', 'NO_REFUND', 'DEFER_REFUND'], true)) {
             throw SifException::validation('Invalid USOC economic action for ' . $role);
         }
 
