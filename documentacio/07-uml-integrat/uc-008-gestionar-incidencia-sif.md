@@ -625,4 +625,7 @@ D --> E[Resolució només al SIF]
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
-**Estat de tancament tècnic:** backend + UI + seguretat + idempotència + concurrència + preflight + E2E tècnic + deep-links + gate d'evidències implementats i verificats en CI (baseline UC-008 **677/0**; regressió completa de l'últim tall SIF verificat **740/0**). Pendents només configuració/desplegament de preproducció, E2E real i alta/configuració del menú de BD si encara no existeix.
+**Estat de tancament tècnic:** backend + UI + seguretat + idempotència + concurrència + preflight + E2E tècnic + deep-links + gate d'evidències implementats i verificats en CI (baseline UC-008 **677/0**; regressió completa de l'últim tall SIF verificat **740/0**). Pendents només configuració/desplegament de preproducció, alta/configuració del menú de BD si encara no existeix i generació de les tres evidències reals: preproduction read-only, menú intranet i E2E gestor.
+
+
+[Evidència E2E gestor](08-evidencia-gestor-uc-008.md)
