@@ -58,6 +58,7 @@ final class IncidentPanelEvidenceValidationScriptTest
                 'scope' => 'uc-008-preproduction-verification',
                 'environment' => 'preproduction',
                 'production_authorized' => false,
+                'checks' => ['preflight_ok' => true, 'e2e_ok' => true],
             ],
             [
                 'ok' => true,
@@ -96,6 +97,7 @@ final class IncidentPanelEvidenceValidationScriptTest
                 'scope' => 'uc-008-preproduction-verification',
                 'environment' => 'preproduction',
                 'production_authorized' => false,
+                'checks' => ['preflight_ok' => true, 'e2e_ok' => true],
                 'panel_secret' => 'must-not-be-stored',
             ],
             [
@@ -133,6 +135,7 @@ final class IncidentPanelEvidenceValidationScriptTest
                 'scope' => 'uc-008-preproduction-verification',
                 'environment' => 'test',
                 'production_authorized' => false,
+                'checks' => ['preflight_ok' => true, 'e2e_ok' => true],
             ],
             [
                 'ok' => true,
@@ -162,6 +165,45 @@ final class IncidentPanelEvidenceValidationScriptTest
         }
     }
 
+    public function testTopLevelOkWithoutGreenChildChecksCannotCloseEnvironmentGate(): void
+    {
+        [$preproduction, $menu] = $this->evidenceFiles(
+            [
+                'ok' => true,
+                'scope' => 'uc-008-preproduction-verification',
+                'environment' => 'preproduction',
+                'production_authorized' => false,
+                'checks' => [],
+            ],
+            [
+                'ok' => true,
+                'scope' => 'uc-008-intranet-menu-discovery',
+                'read_only' => true,
+                'target_url' => '/sif-verifactu.php',
+                'existing_target_count' => 1,
+                'status' => 'ALREADY_PRESENT',
+            ]
+        );
+
+        try {
+            $result = ScriptRunner::run(
+                'scripts/validate-uc008-evidence.php',
+                [],
+                [$preproduction, $menu]
+            );
+
+            Assert::same(1, $result['exit_code']);
+            $json = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
+
+            Assert::same(false, $json['ok']);
+            Assert::same(false, $json['checks']['preproduction_preflight_ok']);
+            Assert::same(false, $json['checks']['preproduction_e2e_ok']);
+        } finally {
+            @unlink($preproduction);
+            @unlink($menu);
+        }
+    }
+
     public function testWrongMenuScopeCannotCloseEnvironmentGate(): void
     {
         [$preproduction, $menu] = $this->evidenceFiles(
@@ -170,6 +212,7 @@ final class IncidentPanelEvidenceValidationScriptTest
                 'scope' => 'uc-008-preproduction-verification',
                 'environment' => 'preproduction',
                 'production_authorized' => false,
+                'checks' => ['preflight_ok' => true, 'e2e_ok' => true],
             ],
             [
                 'ok' => true,
@@ -209,6 +252,9 @@ final class IncidentPanelEvidenceValidationScriptTest
         Assert::stringContainsString('uc-008-evidence-validation', $source);
         Assert::stringContainsString('preproduction_no_secrets', $source);
         Assert::stringContainsString('preproduction_environment_valid', $source);
+        Assert::stringContainsString('preproduction_preflight_ok', $source);
+        Assert::stringContainsString('preproduction_e2e_ok', $source);
+        Assert::stringContainsString('menu_ok', $source);
         Assert::stringContainsString('menu_scope_valid', $source);
         Assert::stringContainsString('menu_already_present', $source);
         Assert::stringContainsString("'production_authorized' => false", $source);
