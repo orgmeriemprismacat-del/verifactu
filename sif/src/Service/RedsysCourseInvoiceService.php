@@ -18,7 +18,8 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         private ?NovicePromotionGrantService $noviceGrants = null,
         private ?NovicePromotionCodePreparationService $noviceCodes = null,
         private string $noviceWrappingKeyHex = '',
-        private string $noviceKeyVersion = 'v1'
+        private string $noviceKeyVersion = 'v1',
+        private ?CourseEnrollmentFundAllocationService $fundAllocations = null
     ) {
     }
 
@@ -34,7 +35,7 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
 
         $invoice = $this->invoices->issueInvoice($payload);
 
-        return $this->afterCommittedCourseInvoice($sifDb, $snapshot, $invoice);
+        return $this->afterCommittedCourseInvoice($sifDb, $dsOrder, $snapshot, $invoice);
     }
 
     public function issueFromValidatedNotification(
@@ -56,7 +57,7 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
         $result = $this->invoices->issueInvoice($payload);
-        $result = $this->afterCommittedCourseInvoice($sifDb, $snapshot, $result);
+        $result = $this->afterCommittedCourseInvoice($sifDb, $dsOrder, $snapshot, $result);
         $result['legacy_sync'] = [
             'relations' => $payload['relations'] ?? [],
             'estat_cobrament' => isset($payload['payment']) ? 'PAID' : 'PENDING',
@@ -73,8 +74,21 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
      * NOT_STAGED must be monitored: we refuse to infer secretary approval or
      * invent a canonical identity from a callback snapshot.
      */
-    private function afterCommittedCourseInvoice(\PDO $sifDb, array $snapshot, array $invoiceResult): array
-    {
+    private function afterCommittedCourseInvoice(
+        \PDO $sifDb,
+        string $dsOrder,
+        array $snapshot,
+        array $invoiceResult
+    ): array {
+        if ($this->fundAllocations !== null) {
+            $invoiceResult['fund_allocations'] = $this->fundAllocations->allocate(
+                $sifDb,
+                $dsOrder,
+                $snapshot,
+                $invoiceResult
+            );
+        }
+
         if ($this->noviceLinks === null || $this->noviceGrants === null) {
             return $invoiceResult;
         }

@@ -2,7 +2,7 @@
 
 **Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat actual (2026-09-30):** backend, UI, preflight, E2E tècnic read-only, deduplicació, concurrència, deep-links i gate final d'evidències **IMPLEMENTATS I VERIFICATS EN CI**. El run `36664788129` ha passat amb **677/0**; `Intranet AO batch checks` run `36647777483` continua en **success**. Només resten l'execució real de preproducció amb secrets/rols reals i l'alta/configuració del menú a BD si el preflight indica que encara falta.
+**Estat actual:** backend, UI, preflight, E2E tècnic read-only, deduplicació, concurrència, deep-links, gate final de tres evidències i tooling E2E gestor **IMPLEMENTATS I VERIFICATS EN CI**. El tall `902b1c793687c77b3c089c8c5096708b5341de89`, run `36942641296`, ha passat amb **837/0**; `Intranet AO batch checks` continua en **success**. Només resten les execucions reals de preproducció, la comprovació/alta del menú i la generació de les tres evidències d'entorn.
 
 **Auditoria vigent:** [04b · auditoria detallada UC-008 · 2026-09-30](04b-auditoria-detallada-uc-008-2026-09-30.md).
 
@@ -594,7 +594,7 @@ D --> E[Resolució només al SIF]
 - `RedsysCallbackWorkerTest::testFifthTechnicalFailureBecomesIncident`.
 - `PayloadIdempotencyFlowTest` per `FISCAL_PAYLOAD_CONFLICT`.
 
-**Verificació CI:** el baseline específic UC-008 és el run **36664788129** amb **677 passed / 0 failed**. La regressió completa posterior sobre l'últim tall de codi SIF verificat `e2fd82215dc9dbd1a6938014c19985adceebd3ed`, run **36732555122**, també és verda amb **740 passed / 0 failed** i inclou 61 PASS relacionats amb incidències/UC-008. L'E2E contra preproducció real i la configuració productiva continuen pendents.
+**Verificació CI:** baseline UC-008 **677/0** (`36664788129`), regressió transversal posterior **740/0** (`36732555122`) i tall actual del closure gate **837/0** (`36942641296`). Aquest últim inclou el gate de tres evidències, el preparador sintètic E2E gestor i el verificador read-only del lifecycle gestor. L'execució contra preproducció real continua pendent.
 
 ## 12. Gaps pendents
 
@@ -625,7 +625,7 @@ D --> E[Resolució només al SIF]
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
-**Estat de tancament tècnic:** backend + UI + seguretat + idempotència + concurrència + preflight + E2E tècnic + deep-links + gate d'evidències implementats i verificats en CI (baseline UC-008 **677/0**; regressió completa de l'últim tall SIF verificat **740/0**). Pendents només configuració/desplegament de preproducció, alta/configuració del menú de BD si encara no existeix i generació de les tres evidències reals: preproduction read-only, menú intranet i E2E gestor.
+**Estat de tancament tècnic:** backend + UI + seguretat + idempotència + concurrència + rollback + preflight + E2E tècnic + deep-links + gate de tres evidències + preparador/verificador E2E gestor implementats i verificats en CI (**837/0**, run `36942641296`). Pendents només configuració/desplegament de preproducció, alta/configuració del menú de BD si encara no existeix i generació de les tres evidències reals: preproduction read-only, menú intranet i E2E gestor.
 
 
 [Evidència E2E gestor](08-evidencia-gestor-uc-008.md)
