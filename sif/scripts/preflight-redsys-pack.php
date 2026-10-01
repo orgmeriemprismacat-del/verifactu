@@ -143,20 +143,12 @@ function secureUrl(string $url): bool
 
 function redsysPaymentUrl(string $url): bool
 {
-    if ($url === '') {
-        return false;
-    }
-
-    $parts = parse_url($url);
-    if (!is_array($parts)) {
-        return false;
-    }
-
-    return strtolower((string) ($parts['scheme'] ?? '')) === 'https'
-        && in_array(
-            strtolower((string) ($parts['host'] ?? '')),
-            ['sis.redsys.es', 'sis-t.redsys.es'],
-            true
-        )
-        && (string) ($parts['path'] ?? '') === '/sis/realizarPago';
+    return in_array(
+        $url,
+        [
+            'https://sis.redsys.es/sis/realizarPago',
+            'https://sis-t.redsys.es:25443/sis/realizarPago',
+        ],
+        true
+    );
 }
