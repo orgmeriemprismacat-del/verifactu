@@ -13,6 +13,21 @@ use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class GiftRedemptionConcurrencyTest
 {
+    public function __destruct()
+    {
+        try {
+            $config = require dirname(__DIR__, 2) . '/config/sif.php';
+            $legacy = ConnectionFactory::makeLegacy($config);
+            $database = (string) $legacy->query('SELECT DATABASE()')->fetchColumn();
+            if (preg_match('/^sif_legacy_test(?:_[a-z0-9_]+)?$/D', $database)) {
+                $legacy->exec('DROP TABLE IF EXISTS inscripcions');
+                $legacy->exec('DROP TABLE IF EXISTS regal');
+            }
+        } catch (\Throwable) {
+            // Cleanup is best-effort; the test assertions remain authoritative.
+        }
+    }
+
     public function testTwoProcessesRedeemingSameEnrollmentReuseSingleSaga(): void
     {
         [$db, $legacy, $code] = $this->fixture(false);
