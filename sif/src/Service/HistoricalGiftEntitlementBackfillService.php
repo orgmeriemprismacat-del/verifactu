@@ -58,6 +58,7 @@ final class HistoricalGiftEntitlementBackfillService
             'entitlement_present' => 0,
             'ready_to_backfill' => 0,
             'historical_used_no_backfill' => 0,
+            'unpaid_no_right' => 0,
             'needs_review' => 0,
             'blocking_unused' => 0,
         ];
@@ -71,6 +72,8 @@ final class HistoricalGiftEntitlementBackfillService
                 $summary['blocking_unused']++;
             } elseif ($status === 'HISTORICAL_USED_NO_BACKFILL') {
                 $summary['historical_used_no_backfill']++;
+            } elseif ($status === 'UNPAID_LEGACY_GIFT_NO_RIGHT') {
+                $summary['unpaid_no_right']++;
             } else {
                 $summary['needs_review']++;
                 if (($item['legacy_used'] ?? true) === false) {
@@ -168,11 +171,13 @@ final class HistoricalGiftEntitlementBackfillService
         $course = strtoupper(trim((string) ($gift['CCURS'] ?? '')));
         $legacyUsedBy = $this->nullablePositiveInt($gift['USAT'] ?? null);
         $legacyUsed = $legacyUsedBy !== null;
+        $legacyFactRel = $this->nullablePositiveInt($gift['FACT_REL'] ?? null);
 
         $base = [
             'gift_id' => $giftId,
             'legacy_used' => $legacyUsed,
             'legacy_used_enrollment_id' => $legacyUsedBy,
+            'legacy_fact_rel' => $legacyFactRel,
             'code_hash' => $code === '' ? null : hash('sha256', $code),
         ];
 
@@ -255,9 +260,24 @@ final class HistoricalGiftEntitlementBackfillService
 
         $invoiceEvidence = $this->invoiceEvidence($sifDb, $giftId);
         if (count($invoiceEvidence) === 0) {
+            if ($legacyFactRel === null) {
+                return $base + [
+                    'status' => 'UNPAID_LEGACY_GIFT_NO_RIGHT',
+                    'reason' => 'Legacy gift has no confirmed invoice/payment marker.',
+                ];
+            }
+
             return $base + [
                 'status' => 'MISSING_SIF_INVOICE',
-                'reason' => 'No SIF invoice relation exists for this unused gift.',
+                'reason' => 'Paid legacy gift has no SIF invoice relation.',
+            ];
+        }
+
+        if ($legacyFactRel === null) {
+            return $base + [
+                'status' => 'LEGACY_PAYMENT_MARKER_MISSING_REVIEW',
+                'reason' => 'SIF invoice evidence exists but legacy FACT_REL is not confirmed.',
+                'invoice_count' => count($invoiceEvidence),
             ];
         }
 
@@ -272,6 +292,7 @@ final class HistoricalGiftEntitlementBackfillService
         $invoice = $invoiceEvidence[0];
         $invoiceTotal = $this->moneyOrNull($invoice['TOTAL'] ?? null);
         if ($invoiceTotal !== $amount
+            || (int) ($invoice['FACTURA_RELACIONADA'] ?? 0) !== $legacyFactRel
             || strtoupper((string) ($invoice['ESTAT_COBRAMENT'] ?? '')) !== 'PAID'
             || strtoupper((string) ($invoice['ESTAT_FACTURA'] ?? '')) !== 'ISSUED'
         ) {
@@ -336,7 +357,8 @@ final class HistoricalGiftEntitlementBackfillService
     {
         $statement = $db->prepare(
             "SELECT DISTINCT f.UUID_FACTURA, f.TOTAL, f.ESTAT_COBRAMENT,
-                    f.ESTAT_FACTURA, f.SOURCE_CHANNEL, f.CREATED_AT
+                    f.ESTAT_FACTURA, f.SOURCE_CHANNEL, f.CREATED_AT,
+                    fr.FACTURA_RELACIONADA
              FROM fact_rels fr
              INNER JOIN factura f ON f.UUID_FACTURA = fr.UUID_FACTURA
              WHERE fr.SOURCE_TYPE = 'REGAL' AND fr.SOURCE_ID = ?
