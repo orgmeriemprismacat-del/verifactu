@@ -79,6 +79,7 @@ fi
   echo "  RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing"
   echo "  PackCheckoutBoundaryTest::testPackCheckoutUsesServerAuthoritativeHolderAndEscapesPostedHtml"
   echo "  RedsysPackWorkerEndToEndTest::testPackWorkerReplayKeepsFiscalEconomicAndOutboxEffectsIdempotent"
+  echo "  PackEnrollmentTransportBoundaryTest::testPackEnrollmentMutationUsesPostAndDoesNotReadGetParameters"
   echo
   echo "== Checkout PHP lint =="
   "${PHP_BIN}" -l codi-drive/web-actual/inc/PackPaymentGate.php
