@@ -93,6 +93,19 @@ if ($execute) {
     $numVisible = trim((string) ($process['json']['num_visible'] ?? ''));
     $result['checks']['process_has_invoice_identity'] = $uuidFactura !== '' && $numVisible !== '';
 
+    $fundAllocations = $process['json']['fund_allocations'] ?? null;
+    $fundMovements = is_array($fundAllocations) ? ($fundAllocations['movements'] ?? null) : null;
+    $firstFundMovement = is_array($fundMovements) ? ($fundMovements[0] ?? null) : null;
+    $result['checks']['fund_allocation_present'] = is_array($fundAllocations);
+    $result['checks']['fund_allocation_count_one'] = is_array($fundAllocations)
+        && (int) ($fundAllocations['count'] ?? 0) === 1;
+    $result['checks']['fund_allocation_amount_positive'] = is_array($fundAllocations)
+        && is_numeric($fundAllocations['amount'] ?? null)
+        && (float) $fundAllocations['amount'] > 0.0;
+    $result['checks']['fund_allocation_has_identity'] = is_array($firstFundMovement)
+        && trim((string) ($firstFundMovement['uuid_movement'] ?? '')) !== ''
+        && (int) ($firstFundMovement['id_insc'] ?? 0) > 0;
+
     if ($syncLegacy) {
         $result['checks']['legacy_sync_executed'] = ($process['json']['legacy_sync_executed'] ?? false) === true;
         $legacyPaymentSync = $process['json']['legacy_payment_sync'] ?? null;

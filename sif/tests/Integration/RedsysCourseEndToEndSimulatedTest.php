@@ -3,6 +3,7 @@
 namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\IncidentRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacySyncRepository;
@@ -10,6 +11,7 @@ use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
+use Prisma\Sif\Service\CourseEnrollmentFundAllocationService;
 use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\CoursePaymentNotificationService;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
@@ -49,6 +51,20 @@ final class RedsysCourseEndToEndSimulatedTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same(1, $first['fund_allocations']['count']);
+        Assert::same('95.50', $first['fund_allocations']['amount']);
+        Assert::same(false, $first['fund_allocations']['movements'][0]['idempotency_reused']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+        $fund = $db->query(
+            "SELECT IDEMPOTENCY_KEY, MOVEMENT_TYPE, ID_INSC_DESTI, IMPORT, UUID_PAYMENT, UUID_FACTURA
+             FROM enrollment_fund_movement"
+        )->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('FUND|CURS|ORDER:E2EFULL00001|INSC:410', $fund['IDEMPOTENCY_KEY']);
+        Assert::same('EXTERNAL_ALLOCATION', $fund['MOVEMENT_TYPE']);
+        Assert::same(410, (int) $fund['ID_INSC_DESTI']);
+        Assert::same('95.50', $fund['IMPORT']);
+        Assert::same($first['uuid_payment'], $fund['UUID_PAYMENT']);
+        Assert::same($first['uuid_factura'], $fund['UUID_FACTURA']);
         Assert::same('PENDING', $first['notification_outbox']['status']);
         Assert::same(false, $first['notification_outbox']['idempotency_reused']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
@@ -74,6 +90,10 @@ final class RedsysCourseEndToEndSimulatedTest
         Assert::same(null, $worker->runOne($db, 'e2e-worker', new \DateTimeImmutable('2030-06-19 10:01:00')));
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+        Assert::same('95.50', (string) $db->query(
+            'SELECT IMPORT FROM enrollment_fund_movement WHERE ID_INSC_DESTI = 410'
+        )->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
         Assert::same('95.50', $legacy->payment);
     }
@@ -92,6 +112,10 @@ final class RedsysCourseEndToEndSimulatedTest
         Assert::same('50.00', $legacy->payment);
         Assert::same('0', $legacy->courseStatus);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+        Assert::same('50.00', (string) $db->query(
+            'SELECT IMPORT FROM enrollment_fund_movement WHERE ID_INSC_DESTI = 410'
+        )->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
         $partialPayload = json_decode(
             (string) $db->query('SELECT PAYLOAD_JSON FROM notification_outbox ORDER BY ID LIMIT 1')->fetchColumn(),
@@ -109,6 +133,18 @@ final class RedsysCourseEndToEndSimulatedTest
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+        Assert::same(
+            '120.00',
+            number_format(
+                (float) $db->query(
+                    'SELECT SUM(IMPORT) FROM enrollment_fund_movement WHERE ID_INSC_DESTI = 410'
+                )->fetchColumn(),
+                2,
+                '.',
+                ''
+            )
+        );
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
         $completePayload = json_decode(
             (string) $db->query('SELECT PAYLOAD_JSON FROM notification_outbox ORDER BY ID DESC LIMIT 1')->fetchColumn(),
@@ -134,7 +170,15 @@ final class RedsysCourseEndToEndSimulatedTest
             new LegacyCourseSnapshotRepository(),
             new LegacyCourseInvoicePayloadBuilder(),
             new RedsysInvoicePayloadBuilder($notifications),
-            IssueInvoiceTest::serviceFor($db)
+            IssueInvoiceTest::serviceFor($db),
+            null,
+            null,
+            null,
+            '',
+            'v1',
+            new CourseEnrollmentFundAllocationService(
+                new EnrollmentFundMovementRepository(new UuidGenerator())
+            )
         );
 
         $processor = new RedsysLegacySyncingProcessor(

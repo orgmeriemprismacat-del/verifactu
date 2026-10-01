@@ -87,6 +87,10 @@ final class RedsysCoursePreproductionBoundaryTest
             "['PARTIALLY_PAID', 'PAID']",
             $source
         );
+        Assert::stringContainsString('fund_allocation_present', $source);
+        Assert::stringContainsString('fund_allocation_count_one', $source);
+        Assert::stringContainsString('fund_allocation_amount_positive', $source);
+        Assert::stringContainsString('fund_allocation_has_identity', $source);
 
         Assert::stringContainsString(
             'CourseLegacyPaymentSyncService',
@@ -126,6 +130,7 @@ final class RedsysCoursePreproductionBoundaryTest
 
         foreach ([
             'payment_allocation_table',
+            'enrollment_fund_movement_table',
             'notification_outbox_table',
             'redsys_payment_intent_table',
             'redsys_callback_queue_table',
