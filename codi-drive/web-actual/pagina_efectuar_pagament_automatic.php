@@ -126,9 +126,11 @@ try {
       $miObj = new RedsysAPI;
 
       // Valores de entrada
-      $fuc="11250743";
-      $terminal="1";
-		// $terminal="001";
+      $fuc = trim((string) getenv('REDSYS_MERCHANT_CODE'));
+      if ($fuc === '') {
+         throw new RuntimeException('REDSYS_MERCHANT_CODE_NOT_CONFIGURED');
+      }
+      $terminal = trim((string) (getenv('REDSYS_TERMINAL') ?: '1'));
       $moneda="978";
       $trans="0";
       $id=time();
@@ -159,8 +161,10 @@ try {
 
       //Datos de configuración
       $version="HMAC_SHA256_V1";
-		$kc = 'N5LhVEkBj0Btcimodf7F+6Pj6ZJTydPb';//Clave recuperada de CANALES
-		// $kc = 'sq7HjrUOBfKmC576ILgskD5srU870gJ7';//Clave recuperada de CANALES prova
+      $kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
+      if ($kc === '') {
+         throw new RuntimeException('REDSYS_MERCHANT_KEY_NOT_CONFIGURED');
+      }
 
       // Se generan los parámetros de la petición
       $request = "";
