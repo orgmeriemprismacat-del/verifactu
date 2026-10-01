@@ -7,29 +7,14 @@
 	include("./MailSMTP.php");
 	include("./Mail.php");
 
-	$cursPag = $_GET['codiCurs'];
-	$dniTitularPag = $_GET['dni'];
-	$importPag = floatval($_GET['import']);
-	$frac = intval($_GET['frac']);
-	$idPag = $_GET['idPag'];
-	$order = $_GET['order'];
+	$cursPag = (string) ($_GET['codiCurs'] ?? '');
+	$dniTitularPag = (string) ($_GET['dni'] ?? '');
+	$importPag = floatval($_GET['import'] ?? 0);
+	$frac = intval($_GET['frac'] ?? 0);
+	$idPag = trim((string) ($_GET['idPag'] ?? ''));
+	$order = trim((string) ($_GET['order'] ?? ''));
 
 	include('inc/analitics.html');
-
-	$nomMe = 'Meriem';
-	$correuMe = "meriem.prisma.cat@gmail.com";
-	$subjectMe = "pagament automatic ".$order;
-	$missatge = "<p>DNI: ".$dniTitularPag."</p>
-	<p>IMPORT: ".$importPag."</p>
-	<p>FRAC: ".$frac."</p>
-	<p>IDPAG: ".$idPag."</p>
-	<p>ORDER: ".$order."</p>";
-	$mailMe = new Mail();
-	$mailMe->addHeaders($nomMe, $correuMe, $correuMe);
-	$mailMe->addSubject($subjectMe);
-	$mailMe->addTo($correuMe);
-	$mailMe->addMissatgeTiquet("<p>Hola</p>", $missatge, '');
-	$mailMe->sendMessage();
 
 	include("./Template.php");
 	$templates = new Template();
@@ -43,7 +28,10 @@
 		$signatureRecibida = $_POST["Ds_Signature"];
 
 		$decodec = $miObj->decodeMerchantParameters($datos);
-		$kc = 'sq7HjrUOBfKmC576ILgskD5srU870gJ7'; //Clave recuperada de CANALES
+		$kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
+		if ($kc === '') {
+			throw new RuntimeException('REDSYS_MERCHANT_KEY_NOT_CONFIGURED');
+		}
 		$firma = $miObj->createMerchantSignatureNotif($kc,$datos);
 
 	   $ordre = $miObj->getParameter('Ds_Order');
@@ -51,6 +39,22 @@
 		$horaComanda = $miObj->getParameter('Ds_Hour');
 		$preu = $miObj->getParameter('Ds_Amount');
 	   $codiResposta = $miObj->getParameter("Ds_Response");
+
+		// UC-014: cap efecte econòmic, fiscal o de notificació abans de validar Redsys.
+		$normalizeSignature = static function (string $value): string {
+			return rtrim(strtr(trim($value), '-_', '+/'), '=');
+		};
+		if ($version !== 'HMAC_SHA256_V1'
+			|| !hash_equals($normalizeSignature((string) $firma), $normalizeSignature((string) $signatureRecibida))
+		) {
+			throw new RuntimeException('INVALID_REDSYS_SIGNATURE');
+		}
+		if ((string) $ordre !== (string) $order) {
+			throw new RuntimeException('REDSYS_ORDER_MISMATCH');
+		}
+		if (!is_numeric($preu) || (int) $preu !== (int) round(((float) $importPag) * 100)) {
+			throw new RuntimeException('REDSYS_AMOUNT_MISMATCH');
+		}
 
 		if (intval($codiResposta)>=0 && intval($codiResposta)<=99) {
 			$tipusError =  "Transacció autoritzada per a pagaments i preautoritzacions";
@@ -120,7 +124,7 @@
 			<p><strong>Concepte: </strong> ".$dniTitularPag." | ".$titol."</p>
 			<p><strong>Import: </strong> ".$importPag." €</p>
 			<p><strong>Resultat: </strong> ".$codiResposta."</p>";
-			echo $missatge."<br />";
+			// No expose payment or participant data in the callback response.
 
 			$fracc = intval($frac);
 			$pendentPagar = 0;
@@ -511,7 +515,7 @@
 			<p>Per a qualsevol consulta, no dubtis a posar-te en contacte amb nosaltres.</p>
 
 			<p>Salutacions ben cordials,</p>";
-			echo $missatge."<br />";
+			// No expose payment or participant data in the callback response.
 
 			$subject = "Confirmació matrícula ".$titol." | ".$ordre." | ".$dataPag;
 
@@ -551,7 +555,7 @@
 					<p><strong>Resultat:</strong> Acceptat</p>
 					<p><strong>Data i hora pagament:</strong> ".$dataPagNewFormat."</p>
 				</div>";
-				echo $missatge."<br />";
+				// No expose payment or participant data in the callback response.
 
 				$subject = "Pagament deutor ".$dniTitularPag." | ".$titol." | ".$ordre." | ".$dataPag;
 
@@ -762,7 +766,7 @@
 			<p><strong>Concepte: </strong> ".$dniTitularPag." | ".$titol."</p>
 			<p><strong>Import: </strong> ".$importPag." €</p>
 			<p><strong>Resultat: </strong> ".$tipusError." (".$codiResposta.")</p>";
-			echo $missatge."<br />";
+			// No expose payment or participant data in the callback response.
 
 			$cnsParam = "SELECT VALOR FROM params WHERE TIPUS=? AND DATAI<=CURRENT_TIMESTAMP
 							 AND (DATAF IS NULL OR DATAF>=CURRENT_TIMESTAMP)";
@@ -861,7 +865,7 @@
 			<p>Per a qualsevol consulta, no dubtis a posar-te en contacte amb nosaltres.</p>
 
 			<p>Salutacions ben cordials,</p>";
-			echo $missatge."<br />";
+			// No expose payment or participant data in the callback response.
 
 			$subject = "Pagament denegat - ".$codiCurs." - ".$ordre;
 
