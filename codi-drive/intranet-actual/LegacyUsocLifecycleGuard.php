@@ -68,6 +68,60 @@ final class LegacyUsocLifecycleGuard
         return $guard;
     }
 
+    public function plan(
+        object $user,
+        int $idInsc,
+        string $operation
+    ): array {
+        if (!in_array($operation, ['course_change', 'cancellation'], true)) {
+            throw new InvalidArgumentException('Invalid USOC lifecycle operation');
+        }
+
+        $enrollment = $this->legacyLookup->enrollment($idInsc);
+        if ((int) $enrollment['TIPUS_DESC'] !== 4) {
+            return [
+                'tracked_usoc' => false,
+                'requires_usoc_orchestration' => false,
+                'operation' => $operation,
+                'id_insc' => $idInsc,
+            ];
+        }
+
+        $idpag = (int) ($enrollment['IDPAG'] ?? 0);
+        if ($idpag <= 0) {
+            throw new RuntimeException(
+                'La inscripció USOC no té un IDPAG vàlid i no es pot planificar.',
+                409
+            );
+        }
+
+        [$actorId, $roles] = SifAuthenticatedActor::fromUser($user);
+        $this->sifClient ??= new SifInternalUsocClient();
+        $response = $this->sifClient->lifecyclePlan(
+            $actorId,
+            $roles,
+            $idInsc,
+            $idpag,
+            $operation
+        );
+
+        $status = (int) ($response['_http_status'] ?? 0);
+        if ($status < 200 || $status >= 300 || ($response['ok'] ?? false) !== true) {
+            throw new RuntimeException(
+                'No s’ha pogut obtenir el pla fiscal USOC abans de continuar.',
+                503
+            );
+        }
+
+        $plan = $response['plan'] ?? null;
+        if (!is_array($plan)) {
+            throw new RuntimeException('Resposta de pla USOC no vàlida.', 502);
+        }
+
+        $plan['tracked_usoc'] = true;
+        return $plan;
+    }
+
     public function completedCancellationExecution(
         object $user,
         int $idInsc,
