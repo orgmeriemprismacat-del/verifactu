@@ -105,6 +105,34 @@ final class CommercialOperationRepository
         }
     }
 
+    public function transitionStatus(
+        \PDO $db,
+        string $uuidOperation,
+        string $expectedStatus,
+        string $newStatus
+    ): void {
+        $stmt = $db->prepare(
+            'UPDATE commercial_operation
+             SET STATUS = ?
+             WHERE UUID_OPERATION = ? AND STATUS = ?'
+        );
+        $stmt->execute([$newStatus, $uuidOperation, $expectedStatus]);
+
+        if ($stmt->rowCount() === 1) {
+            return;
+        }
+
+        $current = $this->findByUuid($db, $uuidOperation, true);
+        if ($current === null) {
+            throw SifException::notFound('Commercial operation not found');
+        }
+        if ((string) $current['STATUS'] === $newStatus) {
+            return;
+        }
+
+        throw SifException::conflict('Commercial operation status changed concurrently');
+    }
+
     private function findOne(\PDO $db, string $sql, array $params, bool $forUpdate): ?array
     {
         if ($forUpdate) {
