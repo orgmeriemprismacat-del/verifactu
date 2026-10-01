@@ -70,12 +70,13 @@ try {
     $uuid = new UuidGenerator();
     $transactions = new TransactionRunner($sifDb);
     $operations = new CommercialOperationRepository();
+    $discounts = new DiscountValidationRepository();
     $intentRepository = new RedsysPaymentIntentRepository();
     $intentService = new RedsysPaymentIntentService($intentRepository, $uuid);
     $offers = new CommercialOfferService(
         $transactions,
         $operations,
-        new DiscountValidationRepository(),
+        $discounts,
         new OperationalEventRepository($uuid),
         $uuid,
         new CommercialOperationPartyRepository()
@@ -90,6 +91,7 @@ try {
             new PrismaStudentDiscountPolicy(),
             $offers,
             $operations,
+            $discounts,
             $intentRepository,
             $intentService,
             $transactions
