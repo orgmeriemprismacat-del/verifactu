@@ -245,6 +245,7 @@ final class UsocCancellationExecutionService
         $rectified = $result['uuid_rectifying_invoice'] !== null;
         $refunded = $result['uuid_refund_payment'] !== null;
         $occurredAt = $request['effective_at'];
+        $decision = $request[$role];
 
         $eventUuid = $this->operationalEvents->append($db, [
             'operation_type' => 'USOC_CANCELLATION_' . strtoupper($role),
@@ -269,7 +270,6 @@ final class UsocCancellationExecutionService
             'occurred_at' => $occurredAt,
         ]);
 
-        $decision = $request[$role];
         $this->cancellations->append($db, [
             'uuid_operational_event' => $eventUuid,
             'enrollment_id' => $idInsc,
@@ -278,9 +278,11 @@ final class UsocCancellationExecutionService
             'economic_decision' => $decision['economic_action'],
             'return_amount' => $decision['refund_amount'],
             'credit_amount' => '0.00',
-            'non_return_reason' => $decision['economic_action'] === 'NO_REFUND'
-                ? $decision['economic_reason']
-                : null,
+            'non_return_reason' => in_array(
+                $decision['economic_action'],
+                ['NO_REFUND', 'DEFER_REFUND'],
+                true
+            ) ? $decision['economic_reason'] : null,
             'fiscal_decision' => $decision['fiscal_action'],
             'uuid_rectifying_invoice' => $result['uuid_rectifying_invoice'],
             'uuid_refund_payment' => $result['uuid_refund_payment'],
