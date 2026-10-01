@@ -1,6 +1,6 @@
 # UC-013 · Diagrames d'activitat ACTUAL / FINAL per pàgina i apartat
 
-**Data d'auditoria:** 29/09/2026 · **Revalidació main:** 02/10/2026 (`22d47a294...`)  
+**Data d'auditoria:** 29/09/2026 · **Revalidació main:** 02/10/2026 (`434be933e...`)  
 **Abast:** RM-037 — pàgina per pàgina i apartat per apartat.  
 **Regla:** ACTUAL = comportament contrastat al codi. FINAL = comportament objectiu del SIF. No confondre cap diagrama FINAL amb implementació ja desplegada.
 
@@ -413,3 +413,25 @@ flowchart TD
 ```
 
 **Pendent:** evidència CI del SHA actual i E2E preproducció. El canvi de curs continua només amb guard + planner.
+
+
+### UI ACTUAL de baixa
+
+```mermaid
+flowchart TD
+    A[Usuari prem baixa] --> B[JS lifecycle preview]
+    B --> C[POST sifUsocLifecyclePreview.php]
+    C --> D{Guard permet legacy?}
+    D -- Sí --> E[Continuar baixa legacy]
+    D -- No, requereix USOC --> F[Mostrar modal alumne + entitat]
+    F --> G[Decidir RECTIFY/DEFER/NO fiscal]
+    F --> H[Decidir REFUND/DEFER/NO refund]
+    G --> I[POST execute_cancellation]
+    H --> I
+    I --> J{Execution ok?}
+    J -- No --> F
+    J -- Sí --> K[Marcar context completed]
+    K --> L[Tornar a disparar baixa]
+    L --> M[Guard comprova checkpoint COMPLETED]
+    M --> E
+```
