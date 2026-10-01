@@ -93,6 +93,18 @@ try {
                 $idpag,
                 $input
             );
+
+            if (
+                ($response['ok'] ?? false) === true
+                && is_array($response['execution'] ?? null)
+                && strtolower((string) ($response['execution']['operation'] ?? '')) === 'cancellation'
+            ) {
+                if (!isset($_SESSION['usoc_cancellation_execution'])
+                    || !is_array($_SESSION['usoc_cancellation_execution'])) {
+                    $_SESSION['usoc_cancellation_execution'] = [];
+                }
+                $_SESSION['usoc_cancellation_execution'][$idInsc] = $requestId;
+            }
         } elseif ($action === 'reconcile') {
             $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid enrollment id');
             $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid IDPAG');
