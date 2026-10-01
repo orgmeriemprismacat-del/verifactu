@@ -396,3 +396,8 @@ Nou servei `RedsysPackEvidenceVerifier` i CLI `verify-redsys-pack-evidence.php`.
 - `PAGAMENT=A_PAGAR`, `DATA PAG` i marcador UUID de factura a les inscripcions legacy.
 
 La sortida no inclou email, DNI/NIF, adreces ni `SNAPSHOT_JSON`. Si falta qualsevol baula, `ok=false` i el procés retorna codi 2. En producció queda bloquejat per defecte i requereix `SIF_UC015_EVIDENCE_ALLOW_PRODUCTION=1`.
+
+
+## 20. Hardening del checkout Redsys — 2026-10-01
+
+S'ha detectat que el flux PACK ja era autoritatiu per import/snapshot però encara reutilitzava `dni` i `nom-titular` del navegador per al formulari Redsys. S'ha corregit perquè el PACK substitueixi DNI/NIF, nom i email pels valors de `snapshot.billing` validats al servidor i falli tancat si falten. També s'han escapat els valors POST mostrats als camps ocults per eliminar la superfície XSS. La regressió queda coberta per `PackCheckoutBoundaryTest` sobre les dues còpies de `pagina_efectuar_pagament_grup_automatic.php`.
