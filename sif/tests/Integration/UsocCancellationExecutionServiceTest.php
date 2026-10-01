@@ -139,6 +139,51 @@ final class UsocCancellationExecutionServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM usoc_lifecycle_execution')->fetchColumn());
     }
 
+    public function testCancellationCanDeferFiscalAndRefundWithExplicitReasons(): void
+    {
+        [$db] = $this->caseWithStudentPaidAndEntityPartiallyPaid();
+        $input = $this->executionInput();
+
+        foreach (['student', 'entity'] as $role) {
+            $input[$role]['fiscal_action'] = 'DEFER_FISCAL';
+            $input[$role]['rectification_amount'] = '0.00';
+            $input[$role]['rectification_mode'] = null;
+            $input[$role]['rectification_reason'] = null;
+            $input[$role]['fiscal_reason'] = 'Pendent revisio fiscal posterior a la baixa';
+            $input[$role]['economic_action'] = 'DEFER_REFUND';
+            $input[$role]['refund_amount'] = '0.00';
+            $input[$role]['refund_movement_date'] = null;
+            $input[$role]['refund_reference'] = null;
+            $input[$role]['economic_reason'] = 'Pendent executar retorn bancari';
+        }
+
+        $result = $this->service($db)->execute(
+            $db,
+            880,
+            980,
+            'uc013-cancel-880-deferred',
+            'secretaria-test',
+            ['ADMIN'],
+            $input
+        );
+
+        Assert::same(true, $result['ok']);
+        Assert::same(true, $result['requires_follow_up']);
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura_rectificacio')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM usoc_lifecycle_execution')->fetchColumn());
+        Assert::same('COMPLETED', (string) $db->query(
+            'SELECT STATE FROM usoc_lifecycle_execution'
+        )->fetchColumn());
+        Assert::same(2, (int) $db->query(
+            "SELECT COUNT(*) FROM operational_event WHERE STATUS = 'COMPLETED_WITH_PENDING'"
+        )->fetchColumn());
+        Assert::same(2, (int) $db->query(
+            "SELECT COUNT(*) FROM enrollment_cancellation_event WHERE ECONOMIC_DECISION = 'DEFER_REFUND'"
+        )->fetchColumn());
+    }
+
     private function caseWithStudentPaidAndEntityPartiallyPaid(): array
     {
         $db = TestDatabase::fresh();
