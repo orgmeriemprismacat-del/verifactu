@@ -287,8 +287,12 @@ if ($validatedPackCheckout !== null) {
       }
 
       $url="https://www.prisma.cat/realitzaPagamentGrupAutomatic.php?idPag=".$idPag."&dni=".$dniTitularPag."&order=".$order."&import=".$importPagare."&tipusInsc=".$tipusInsc;
-      $urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php?email=".rawurlencode($email);
-      $urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php?email=".rawurlencode($email);
+      $urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php";
+      $urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php";
+      if ($validatedPackCheckout === null) {
+         $urlOK .= "?email=".rawurlencode($email);
+         $urlKO .= "?email=".rawurlencode($email);
+      }
 
       if ( $tipusInsc == 'G' )
          $url="https://www.prisma.cat/realitzaPagamentGrupAutomatic.php?idPag=".$idPag."&dni=".$dniTitularPag."&order=".$order."&import=".$importPagare."&tipusInsc=".$tipusInsc;
@@ -310,7 +314,14 @@ if ($validatedPackCheckout !== null) {
 
       $name='Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
 
-      $producto=$dniTitularPag." | ".stripslashes($titolPag);
+      if ($validatedPackCheckout !== null) {
+         $producto = 'Pack P' . (string) $validatedPackCheckout['pack_id'];
+         $redsysTitular = trim($nomTitularPag);
+      }
+      else {
+         $producto = $dniTitularPag." | ".stripslashes($titolPag);
+         $redsysTitular = $dniTitularPag;
+      }
 
       // Se Rellenan los campos
       $miObj->setParameter("DS_MERCHANT_AMOUNT",$amount);
@@ -318,7 +329,7 @@ if ($validatedPackCheckout !== null) {
       $miObj->setParameter("DS_MERCHANT_MERCHANTCODE",$fuc);
       $miObj->setParameter("DS_MERCHANT_CURRENCY",$moneda);
       $miObj->setParameter("DS_MERCHANT_PRODUCTDESCRIPTION",$producto);
-      $miObj->setParameter("DS_MERCHANT_TITULAR",$dniTitularPag);
+      $miObj->setParameter("DS_MERCHANT_TITULAR",$redsysTitular);
       $miObj->setParameter("DS_MERCHANT_TRANSACTIONTYPE",$trans);
       $miObj->setParameter("DS_MERCHANT_TERMINAL",$terminal);
       $miObj->setParameter("DS_MERCHANT_MERCHANTURL",$url);
