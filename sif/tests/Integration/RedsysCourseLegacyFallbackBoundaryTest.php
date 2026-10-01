@@ -14,7 +14,7 @@ final class RedsysCourseLegacyFallbackBoundaryTest
         Assert::stringContainsString('i.FRACCIONAT', $gate);
         Assert::stringContainsString("'fractional' => (int) $fractional", $gate);
         Assert::stringContainsString('if (!$fractional && $requested !== $pending)', $gate);
-        Assert::stringContainsString("$validatedCheckout['fractional'] ? '1' : '0'", $checkout);
+        Assert::stringContainsString("\$validatedCheckout['fractional'] ? '1' : '0'", $checkout);
         Assert::stringContainsString("REDSYS_MERCHANT_CODE_NOT_CONFIGURED", $checkout);
         Assert::stringContainsString("REDSYS_MERCHANT_KEY_NOT_CONFIGURED", $checkout);
 
