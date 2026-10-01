@@ -269,3 +269,4 @@ Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts 
 ## Preproducció canònica
 
 Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only i el processor manual injecta ledger/outbox i pot fer la sincronització legacy completa amb `--sync-legacy`. Per tant, ja no s'utilitza una reconstrucció legacy diferent del flux productiu per validar preproducció.
+\n\n## Evidència E2E reproduïble\n\nLa verificació final d'un PACK ja es pot executar amb `php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>`. El verificador contrasta la cadena completa SIF i la sincronització legacy sense imprimir PII. Vegeu [plantilla d'evidència de preproducció](uc-015-plantilla-evidencia-preproduccio.md).\n
