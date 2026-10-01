@@ -18,7 +18,8 @@ final class UsocValidationDecisionReconcileScriptTest
         }
 
         Assert::stringContainsString("PHP_SAPI !== 'cli'", $script);
-        Assert::stringContainsString("SIF_ENV=production", $script);
+        Assert::stringContainsString("--confirm-production", $script);
+        Assert::stringContainsString("production reconciliation without explicit --confirm-production", $script);
         Assert::stringContainsString('findRequested', $script);
         Assert::stringContainsString('->complete(', $script);
         Assert::stringContainsString("'state' => 'ERROR'", $script);
@@ -28,5 +29,22 @@ final class UsocValidationDecisionReconcileScriptTest
 
         Assert::stringContainsString("WHERE STATE = 'REQUESTED'", $repository);
         Assert::stringContainsString('ORDER BY REQUESTED_AT ASC, ID ASC', $repository);
+    }
+
+    public function testProductionReconciliationRequiresExplicitConfirmation(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $script = file_get_contents($root . '/sif/scripts/reconcile-usoc-validation-decisions.php');
+
+        if ($script === false) {
+            Assert::fail('Could not read USOC validation reconciliation script');
+        }
+
+        Assert::stringContainsString("in_array('--confirm-production', \$args, true)", $script);
+        Assert::stringContainsString(
+            "if ((\$config['env'] ?? 'local') === 'production' && !\$allowProduction)",
+            $script
+        );
+        Assert::stringContainsString("parseLimit(\$args)", $script);
     }
 }
