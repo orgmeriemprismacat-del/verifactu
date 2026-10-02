@@ -78,8 +78,8 @@ La branca d'auditoria:
 - clau Redsys via entorn, sense literal al fitxer;
 - verifica versió/signatura amb `hash_equals`;
 - recupera `Ds_MerchantData` signat i exigeix el context `UC014I<IDPAG>A<AMOUNT_CENTS>F<FRAC>` creat al checkout;
-- deriva `IDPAG`, import i fraccionament del context signat; si el query-string de compatibilitat discrepa, falla tancat;
-- usa `Ds_Order` i `Ds_Amount` signats i rellegeix curs/DNI de la BD llegada;
+- deriva `IDPAG`, import i fraccionament exclusivament del context signat; el callback no llegeix `$_GET`;
+- usa `Ds_Order` i `Ds_Amount` signats, exigeix exactament una inscripció per `IDPAG` i rellegeix curs/DNI de la BD llegada;
 - no envia notificació de depuració abans de validar;
 - falla amb HTTP 400 davant callback invàlid;
 - usa `DS_ORDER` de 12 dígits en el fallback i MerchantURL sense query funcional.
