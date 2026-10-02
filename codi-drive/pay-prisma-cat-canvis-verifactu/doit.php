@@ -71,6 +71,7 @@
 		$currency = trim((string) $miObj->getParameter('Ds_Currency'));
 		$callbackTerminal = trim((string) $miObj->getParameter('Ds_Terminal'));
 		$callbackMerchantCode = trim((string) $miObj->getParameter('Ds_MerchantCode'));
+		$transactionType = trim((string) $miObj->getParameter('Ds_TransactionType'));
 
 		// UC-014: cap efecte econòmic/fiscal abans de validar la notificació.
 		$normalizeSignature = static function (string $value): string {
@@ -100,6 +101,9 @@
 		$expectedMerchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
 		if ($expectedMerchantCode === '' || $callbackMerchantCode !== $expectedMerchantCode) {
 			throw new RuntimeException('REDSYS_MERCHANT_CODE_MISMATCH');
+		}
+		if ($transactionType !== '0') {
+			throw new RuntimeException('REDSYS_TRANSACTION_TYPE_MISMATCH');
 		}
 		$responseCode = trim((string) $codiResposta);
 		if ($responseCode === '' || !ctype_digit($responseCode) || strlen($responseCode) > 4) {
