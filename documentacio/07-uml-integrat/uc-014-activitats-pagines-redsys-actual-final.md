@@ -134,7 +134,7 @@ if (No autoritzat?) then (Sí)
   stop
 endif
 :Usar import/fraccionament autoritatius;
-:Crear DS_ORDER = time() [fallback ACTUAL];
+:Crear DS_ORDER aleatori de 12 dígits [fallback ACTUAL];
 :Crear MerchantURL llegat sense query funcional;
 :Crear MerchantData signat amb IDPAG/import-cèntims/fraccionament;
 :Crear URL OK/KO;
@@ -172,7 +172,7 @@ if (Mateix DS_ORDER amb payload diferent?) then (Sí)
   stop
 endif
 :Construir petició Redsys des de la intenció;
-:MerchantURL identifica el callback sense transportar import negociable;
+:MerchantURL identifica el callback sense transportar context funcional; IDPAG/import/frac viatgen dins MerchantData signat.
 :Redirigir a Redsys;
 stop
 @enduml
@@ -193,7 +193,7 @@ start
 :Carregar clau Redsys des d'entorn [branca 02/10];
 :Calcular i comparar signatura amb hash_equals;
 :Extreure IDPAG/import/frac de Ds_MerchantData signat;
-:Comparar Ds_Order i Ds_Amount signats;
+:Usar Ds_Order signat i comparar Ds_Amount amb l'import-cèntims de MerchantData;
 :Rebutjar divergència amb IDPAG/order del query legacy si existeix;
 if (Validació falla?) then (Sí)
   :HTTP 400 sense factura ni correu;
