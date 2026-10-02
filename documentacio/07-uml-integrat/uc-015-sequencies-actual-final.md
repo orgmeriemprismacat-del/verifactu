@@ -35,7 +35,7 @@ JS-->>U: redirecció confirmació
 
 ### Riscos ACTUAL residuals
 
-- l'alta ja és POST i no transporta imports comercials des del navegador; queda pendent decidir/implantar una protecció anti-abús/origen específica del formulari públic;
+- l'alta és POST, no transporta imports comercials des del navegador i exigeix same-origin AJAX via `PublicWebMutationAuthorization`; només resta valorar rate limiting/anti-bot com a hardening operatiu;
 - l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
 - `PACK_ORDINAL` queda determinat pel mateix ordre estable de presentació `DATAI, ID_CURS`; resta decidir si negoci requereix una posició explícita separada;
 - el callback fiscal legacy conserva codi històric però està desactivat per defecte.
