@@ -1,6 +1,6 @@
 # UC-015 · Seqüències ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-09-30
+**Data d'auditoria:** 2026-09-29 · **Revalidació final:** 2026-10-02
 
 ## 1. ACTUAL — alta del pack al web
 
@@ -11,6 +11,7 @@ actor U as Alumne
 participant JS as mostrarInscripcioPack.min.js
 participant Price as obtenirPreusPack.php
 participant Alta as enviarInscripcioPack.php
+participant Auth as PublicWebMutationAuthorization
 participant DB as BD legacy
 participant Mail as Correu
 
@@ -21,8 +22,15 @@ Price-->>JS: preu original | preu pack
 JS-->>U: mostra preu
 U->>JS: confirma formulari
 JS->>JS: generar/reutilitzar REQUEST_ID UUID v4 a sessionStorage
-JS->>Alta: POST dades + idPack + REQUEST_ID
-Alta->>DB: GET_LOCK prisma_pack_req_<hash>
+JS->>Alta: POST dades + idPack + REQUEST_ID + X-Requested-With
+Alta->>Auth: assertSameOriginAjax()
+Auth->>Auth: WEB_ALLOWED_ORIGINS + Origin/Referer + XMLHttpRequest
+alt origen/AJAX no autoritzat
+ Auth-->>Alta: 403
+ Alta-->>JS: Error petició no autoritzada
+else frontera autoritzada
+ Alta->>Alta: validar Sec-Fetch-Site
+ Alta->>DB: GET_LOCK prisma_pack_req_<hash>
 Alta->>DB: buscar RID + RH1 a inscripcions
 alt mateix REQUEST_ID + mateix payload hash
  Alta-->>JS: hash de confirmació d'una inscripció existent
@@ -49,6 +57,7 @@ else request nou
  Alta->>Mail: correus/auxiliars postcommit
  Note over Alta,Mail: una fallada auxiliar es loga i no converteix l'alta commitada en error
 end
+end
 JS->>JS: netejar REQUEST_ID només en èxit determinista
 JS-->>U: redirecció confirmació
 ```
@@ -56,7 +65,7 @@ JS-->>U: redirecció confirmació
 ### Riscos ACTUAL residuals
 
 - les N inscripcions ja es persisteixen atòmicament; en excepció es fa rollback i el lock `IDPAG` s'allibera per `finally`;
-- l'alta pública és POST-only amb comprovació same-site/origin i idempotència server-side `REQUEST_ID`+payload hash; una alta nova exigeix totes les edicions obertes i un reintent equivalent reutilitza l'alta abans de rellegir disponibilitat/pack actual; resta E2E navegador/preproducció i valorar controls anti-abús addicionals;
+- l'alta pública és POST-only i la frontera es resol abans del payload amb `PublicWebMutationAuthorization`: `WEB_ALLOWED_ORIGINS`, Origin/Referer i `X-Requested-With`, més `Sec-Fetch-Site` a l'endpoint; després s'aplica idempotència server-side `REQUEST_ID`+payload hash. Una alta nova exigeix totes les edicions obertes i un reintent equivalent reutilitza l'alta abans de rellegir disponibilitat/pack actual; rate limiting/anti-bot és hardening operatiu separat;
 - l'allocator `IDPAG` continua sent legacy `MAX+1`, però queda serialitzat amb named lock i no és un bloqueig de tancament UC-015;
 - `PACK_ORDINAL` queda determinat pel contracte comercial v1 `DATAI, ID_CURS`; qualsevol reordenació manual futura requerirà un canvi de model explícit i no reinterpretarà snapshots històrics;
 - els callbacks fiscals legacy productius han estat eliminats físicament; només queda un harness de prova fail-closed i no autoritatiu.
@@ -164,4 +173,4 @@ end
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
 - Outbox: implementat i cablejat al worker.
-- Codi/doc intern UC-015: tancat. Pendent d'acceptació: executar el verificador/PK-01..PK-11 en preproducció i mantenir la CI final verda; UC-58 cobreix el lliurament efectiu de notificacions.
+- Codi/doc intern UC-015: tancat, inclosa la frontera pública configurable. Pendent d'acceptació: executar el verificador/PK-01..PK-11 en preproducció i mantenir la CI final verda; UC-58 cobreix el lliurament efectiu de notificacions.
