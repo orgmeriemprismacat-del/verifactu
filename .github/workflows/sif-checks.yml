@@ -26,6 +26,9 @@ on:
       - "codi-drive/web-actual/ajax/enviarInscripcioAfiliat.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/realitzaPagamentPackAutomatic.php"
+      - "codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentPackAutomatic.php"
       - "codi-drive/web-actual/pagina_inscripcio_pack.php"
       - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
       - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
@@ -119,6 +122,9 @@ jobs:
           php -l codi-drive/web-actual/Pack.php
           php -l codi-drive/web-actual/inc/buscantPacksDisponibles.php
           php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
+          php -l codi-drive/web-actual/realitzaPagamentPackAutomatic.php
+          php -l codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentPackAutomatic.php
           php -l codi-drive/web-actual/pagina_inscripcio_pack.php
           php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
           node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
