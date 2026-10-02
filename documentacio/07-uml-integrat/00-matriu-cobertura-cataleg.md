@@ -50,7 +50,7 @@ Per a cadascuna de les 185 targetes mare i les 192 pantalles/estats, conservar r
 | UC-01 | Emetre o reutilitzar factura | `[BASE]` | [uc-001.md](../06-fitxes-funcionals/uc-001.md) | [Fitxa i diagrames](uc-001-emetre-o-reutilitzar-factura.md) |
 | UC-02 | Registrar pagament sobre factura | `[BASE]` | [uc-002.md](../06-fitxes-funcionals/uc-002.md) | [Fitxa i diagrames](uc-002-registrar-cobrament-factura.md) |
 | UC-03 | Processar cobrament Redsys asíncron | `[ASYNC]` | [uc-003.md](../06-fitxes-funcionals/uc-003.md) | [Fitxa i diagrames](uc-003-processar-cobrament-redsys-asincron.md) |
-| UC-04 | Emetre factura abans de cobrar | `[PARCIAL]` | [uc-004.md](../06-fitxes-funcionals/uc-004.md) | [Fitxa i diagrames](uc-004-emetre-factura-abans-cobrar.md) |
+| UC-04 | Emetre factura abans de cobrar | `[PARCIAL · BACKEND SIF IMPLEMENTAT · UI/DOC PENDENTS]` | [uc-004.md](../06-fitxes-funcionals/uc-004.md) | [Fitxa i diagrames](uc-004-emetre-factura-abans-cobrar.md) · [Auditoria](uc-004-auditoria-tracabilitat-mancances.md) · [Inventari](uc-004-inventari-artefactes.md) |
 | UC-05 | Crear rectificativa | `[PARCIAL]` | [uc-005.md](../06-fitxes-funcionals/uc-005.md) | [Fitxa i diagrames](uc-005-rectificar-factura.md) |
 | UC-06 | Registrar devolució, saldo o compensació | `[PARCIAL]` | [uc-006.md](../06-fitxes-funcionals/uc-006.md) | [Fitxa i diagrames](uc-006-devolucio-saldo-compensacio.md) |
 | UC-07 | Consultar factura, estat i document | `[DISSENY]` | [uc-007.md](../06-fitxes-funcionals/uc-007.md) | [Fitxa i diagrames](uc-007-consultar-factura-estat-document.md) |
