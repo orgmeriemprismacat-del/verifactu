@@ -7,12 +7,14 @@
 	include("./MailSMTP.php");
 	include("./Mail.php");
 
+	$urlIdPag = trim((string) ($_GET['idPag'] ?? ''));
+	$urlOrder = trim((string) ($_GET['order'] ?? ''));
 	$cursPag = (string) ($_GET['codiCurs'] ?? '');
 	$dniTitularPag = (string) ($_GET['dni'] ?? '');
-	$importPag = floatval($_GET['import'] ?? 0);
-	$frac = intval($_GET['frac'] ?? 0);
-	$idPag = trim((string) ($_GET['idPag'] ?? ''));
-	$order = trim((string) ($_GET['order'] ?? ''));
+	$importPag = '0.00';
+	$frac = 0;
+	$idPag = 0;
+	$order = '';
 
 	include('inc/analitics.html');
 
@@ -40,6 +42,7 @@
 		$dateComanda = $miObj->getParameter('Ds_Date');
 		$horaComanda = $miObj->getParameter('Ds_Hour');
 		$preu = $miObj->getParameter('Ds_Amount');
+		$merchantData = trim((string) $miObj->getParameter('Ds_MerchantData'));
 	   $codiResposta = $miObj->getParameter("Ds_Response");
 
 		// UC-014: cap efecte econòmic, fiscal o de notificació abans de validar Redsys.
@@ -51,12 +54,23 @@
 		) {
 			throw new RuntimeException('INVALID_REDSYS_SIGNATURE');
 		}
-		if ((string) $ordre !== (string) $order) {
+		if (!preg_match('/^UC014I([1-9][0-9]*)A([1-9][0-9]*)F([01])$/D', $merchantData, $context)) {
+			throw new RuntimeException('INVALID_REDSYS_MERCHANT_CONTEXT');
+		}
+		$idPag = (int) $context[1];
+		$expectedAmountCents = (int) $context[2];
+		$frac = (int) $context[3];
+		if ($urlIdPag !== '' && (!ctype_digit($urlIdPag) || (int) $urlIdPag !== $idPag)) {
+			throw new RuntimeException('REDSYS_IDPAG_MISMATCH');
+		}
+		if ($urlOrder !== '' && (string) $ordre !== $urlOrder) {
 			throw new RuntimeException('REDSYS_ORDER_MISMATCH');
 		}
-		if (!is_numeric($preu) || (int) $preu !== (int) round(((float) $importPag) * 100)) {
+		if (!ctype_digit((string) $preu) || (int) $preu !== $expectedAmountCents) {
 			throw new RuntimeException('REDSYS_AMOUNT_MISMATCH');
 		}
+		$order = (string) $ordre;
+		$importPag = number_format($expectedAmountCents / 100, 2, '.', '');
 
 		if (intval($codiResposta)>=0 && intval($codiResposta)<=99) {
 			$tipusError =  "Transacció autoritzada per a pagaments i preautoritzacions";
