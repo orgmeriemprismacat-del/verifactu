@@ -1,173 +1,80 @@
 # UC-018 · Classes ACTUAL/FINAL — Bescanviar regal
 
-## 1. Objectiu de l'auditoria
+## 1. Estat auditat — 2026-10-02
 
-Aquest document separa estrictament les classes i responsabilitats **existents al codi** de les necessàries per completar UC-018. No es considera implementació el fet que una taula SQL o una classe de disseny aparegui en un UML.
+L'arquitectura FINAL definida durant l'auditoria ja té implementació executable per al flux aprovat de **bescanvi a valor exacte**. Les variants amb diferència de preu continuen bloquejades de manera fail-closed fins que existeixi una decisió funcional específica.
 
-## 2. ACTUAL — codi acreditat a `main`
-
-```mermaid
-classDiagram
-direction LR
-
-class RedsysGiftInvoiceService {
-  <<IMPLEMENTAT · UC-017>>
-  +sourceType() string
-  +issueFromIntentSnapshot(PDO, dsOrder, snapshot) array
-  +issueByGiftIdFromValidatedNotification(...) array
-  +issueByGiftCodeFromValidatedNotification(...) array
-}
-
-class LegacyGiftSnapshotRepository {
-  <<IMPLEMENTAT · UC-017>>
-  +loadById(PDO, giftId) array
-  +loadByCode(PDO, code) array
-}
-
-class LegacyGiftInvoicePayloadBuilder {
-  <<IMPLEMENTAT · UC-017>>
-  +build(snapshot) array
-}
-
-class InvoiceService {
-  <<IMPLEMENTAT · fiscal>>
-  +issueInvoice(payload) array
-}
-
-class NovicePromotionGrantService {
-  <<IMPLEMENTAT · UC-111, NO UC-018>>
-  +issueForOperation(PDO, uuidOperation, now) array
-}
-
-class commercial_entitlement {
-  <<ESQUEMA SQL>>
-}
-
-class commercial_entitlement_event {
-  <<ESQUEMA SQL>>
-}
-
-RedsysGiftInvoiceService --> LegacyGiftSnapshotRepository : carrega compra/regal legacy
-RedsysGiftInvoiceService --> LegacyGiftInvoicePayloadBuilder : construeix factura compra
-RedsysGiftInvoiceService --> InvoiceService : factura + CHARGE
-NovicePromotionGrantService --> commercial_entitlement : ús específic FUTURE_DISCOUNT
-NovicePromotionGrantService --> commercial_entitlement_event : ISSUE específic UC-111
-```
-
-### 2.1. Lectura funcional
-
-- `RedsysGiftInvoiceService`, `LegacyGiftSnapshotRepository` i `LegacyGiftInvoicePayloadBuilder` cobreixen **la compra del regal (UC-017)**.
-- `commercial_entitlement` i `commercial_entitlement_event` existeixen com a **estructura de persistència**, però no tenen un repository genèric acreditat.
-- `NovicePromotionGrantService` demostra que l'esquema d'entitlements s'utilitza, però només per **UC-111/FUTURE_DISCOUNT**. No valida, reserva ni consumeix drets `GIFT`.
-- No s'ha localitzat cap classe executable equivalent a `GiftRedemptionService`, cap adapter d'inscripció i cap API/UI de bescanvi.
-
-## 3. FINAL — arquitectura mínima necessària
+## 2. ACTUAL — codi executable
 
 ```mermaid
 classDiagram
 direction LR
-
-class GiftRedemptionService {
-  <<PENDENT>>
-  +preview(command) GiftRedemptionPreview
-  +redeem(command) GiftRedemptionResult
-}
-
-class CommercialEntitlementRepository {
-  <<PENDENT>>
-  +findByCodeHash(hash) entitlement
-  +lockByCodeHash(PDO, hash) entitlement
-  +reserve(...)
-  +consume(...)
-  +release(...)
-  +appendEvent(...)
-}
-
-class GiftPurchaseRepository {
-  <<PENDENT/ADAPTADOR>>
-  +resolvePaidOrigin(entitlement) GiftOrigin
-}
-
-class EnrollmentGateway {
-  <<PENDENT>>
-  +previewEnrollment(...)
-  +createOrReuseEnrollment(...)
-}
-
-class EnrollmentFundMovementRepository {
-  <<IMPLEMENTAT PARCIALMENT EN ALTRES UC>>
-  +append(...)
-}
-
-class IncidentLifecycleService {
-  <<REUTILITZABLE>>
-  +open/append/resolve
-}
-
-class GiftRedemptionController {
-  <<PENDENT>>
-  +preview()
-  +redeem()
-}
-
-GiftRedemptionController --> GiftRedemptionService
+class RedsysGiftInvoiceService
+class GiftEntitlementIssuerService
+class CommercialEntitlementRepository
+class GiftRedemptionTrustedContextResolver
+class GiftEnrollmentStager
+class GiftRedemptionService
+class EnrollmentFundMovementRepository
+class LegacyGiftUsageReconciler
+class GiftRedemptionOrchestrator
+class GiftRedemptionNotificationBundleService
+class NotificationOutboxDeliveryService
+class SifGiftRedemptionClient
+RedsysGiftInvoiceService --> GiftEntitlementIssuerService
+GiftEntitlementIssuerService --> CommercialEntitlementRepository
+GiftRedemptionOrchestrator --> GiftRedemptionTrustedContextResolver
+GiftRedemptionOrchestrator --> GiftEnrollmentStager
+GiftRedemptionOrchestrator --> GiftRedemptionService
 GiftRedemptionService --> CommercialEntitlementRepository
-GiftRedemptionService --> GiftPurchaseRepository
-GiftRedemptionService --> EnrollmentGateway
 GiftRedemptionService --> EnrollmentFundMovementRepository
-GiftRedemptionService --> IncidentLifecycleService
+GiftRedemptionOrchestrator --> LegacyGiftUsageReconciler
+GiftRedemptionOrchestrator --> GiftRedemptionNotificationBundleService
+GiftRedemptionNotificationBundleService --> NotificationOutboxDeliveryService
+SifGiftRedemptionClient --> GiftRedemptionOrchestrator
 ```
 
-## 4. Contractes obligatoris
+## 3. Responsabilitats verificades
 
-### 4.1. `GiftRedemptionService`
+- **UC-017 / origen monetari:** `RedsysGiftInvoiceService` conserva factura i `CHARGE` originals i materialitza el dret GIFT.
+- **Dret:** `CommercialEntitlementRepository` governa holder, lock, `CLAIM`, `RESERVE`, `CONSUME`, `RELEASE` i events append-only.
+- **Context autoritatiu:** `GiftRedemptionTrustedContextResolver` deriva participant i snapshot des de dades persistides; el caller no declara `holder_party_key` ni `trusted_price_snapshot`.
+- **Alta acadèmica:** `GiftEnrollmentStager` crea/reutilitza l'operació `INSCRIPCIO` contra una inscripció legacy ja compromesa.
+- **Economia:** `GiftRedemptionService` registra una única `COMPENSATION_ALLOCATION` contra el `UUID_PAYMENT` original i no crea un segon `CHARGE`.
+- **Reconciliació:** `LegacyGiftUsageReconciler` fa compare-and-set de `regal.USAT`.
+- **Orquestració/replay:** `GiftRedemptionOrchestrator` convergeix sobre el mateix resultat després de timeout o resposta perduda.
+- **Notificacions:** sis efectes SMTP legacy es representen com sis outbox idempotents, reclamables individualment després del redeem/reconciliació.
+- **Frontera web→SIF:** `SifGiftRedemptionClient` usa POST/HMAC i no posa el codi regal a URL.
 
-Ha de:
+## 4. ACTUAL vs FINAL
 
-1. acceptar un codi només per canal protegit i convertir-lo a hash abans de consultar persistència;
-2. resoldre el dret `ENTITLEMENT_TYPE=GIFT`;
-3. validar estat, vigència, titular/beneficiari i origen pagat;
-4. separar `preview` de `redeem`;
-5. usar idempotència i lock per evitar doble consum;
-6. crear o reutilitzar una única inscripció;
-7. registrar l'aplicació del valor del regal sense crear un `CHARGE` fictici;
-8. consumir o alliberar el dret amb event append-only;
-9. obrir incidència si l'alta acadèmica i el consum queden inconsistents.
+| Component | Documentat | Implementat | Verificació |
+| --- | --- | --- | --- |
+| Compra pagada UC-017 | Sí | Sí | CI UC-017 |
+| Emissió dret GIFT | Sí | Sí | Integració |
+| Repository entitlement | Sí | Sí | Integració |
+| Context autoritatiu | Sí | Sí | Integració |
+| Staging inscripció | Sí | Sí | Integració |
+| Bescanvi idempotent | Sí | Sí | Integració/replay |
+| Aplicació de fons | Sí | Sí | 1 `COMPENSATION_ALLOCATION`, 0 `CHARGE` nous |
+| Reconciliació `regal.USAT` | Sí | Sí | Integració |
+| Recovery resposta perduda | Sí | Sí | Test integrat al PR de tancament |
+| Concurrència multiprocés | Sí | Sí | Test integrat al PR de tancament |
+| Govern SMTP/outbox | Sí | Sí | Tests bundle/boundary al PR de tancament |
+| Preflight/preproducció | Sí | Sí | Boundary automatitzat; execució real és gate d'entorn |
+| Diferències de preu | Sí | Bloqueig explícit | Fora abast UC-018 base fins decisió |
 
-### 4.2. `CommercialEntitlementRepository`
-
-No pot ser un CRUD lliure. Les transicions permeses per UC-018 són, com a mínim:
+## 5. Invariant de tancament
 
 ```text
-ACTIVE/ISSUED -> RESERVED -> CONSUMED
-                     \-> ACTIVE/ISSUED (RELEASE)
-EXPIRED/CANCELLED/CONSUMED -> cap segon consum
+1 compra pagada
+1 dret GIFT
+1 inscripció
+1 COMPENSATION_ALLOCATION
+1 consum
+0 CHARGE addicionals
+0 factures addicionals
+replay idempotent
 ```
 
-Cada transició ha de generar `commercial_entitlement_event`.
-
-### 4.3. `EnrollmentGateway`
-
-Ha d'aïllar l'escriptura al llegat. UC-018 no queda complet fins que existeixi una frontera única que:
-
-- creï o recuperi la mateixa inscripció per reintent equivalent;
-- no escrigui `PAGAMENT` ni inventi `IDPAG`;
-- retorni un identificador estable de matrícula;
-- permeti reconciliar una alta parcial.
-
-## 5. Estat de completitud
-
-| Component | Documentat | Implementat | Verificat | Pendent |
-| --- | --- | --- | --- | --- |
-| Compra/factura regal UC-017 | Sí | Sí | Tests UC-017 | — |
-| Taules entitlement | Sí | Sí (schema) | Migració present | Aplicació a entorn |
-| Repository generic entitlement | Sí (disseny) | No | No | Sí |
-| Servei bescanvi | Sí (disseny) | No | No | Sí |
-| Gateway inscripció | Sí (disseny) | No | No | Sí |
-| Ledger aplicació valor regal→inscripció | Sí | Parcial en altres UC | No UC-018 | Sí |
-| API/UI bescanvi | Sí (disseny) | No | No | Sí |
-| Incidència/reconciliació | Sí | Infra genèrica existent | No UC-018 | Integració |
-
-## 6. Criteri de tancament
-
-UC-018 no es pot marcar `IMPLEMENTED` fins que les classes FINAL deixin de ser només disseny i existeixi una prova d'integració que demostri **un únic consum, una única inscripció i cap segon cobrament pel valor ja pagat del regal**.
+La prova de preproducció real continua sent un **gate d'execució d'entorn**, no una absència de codi o documentació.
