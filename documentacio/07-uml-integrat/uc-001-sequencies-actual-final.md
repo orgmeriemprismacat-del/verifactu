@@ -20,10 +20,11 @@ A-->>API: actor_id + rols
 API->>R: resolve(actor)
 R-->>API: scope issue
 API->>P: prepare(payload,actor)
-P-->>API: created_by autenticat / issuer servidor
+P-->>API: actor + emissor + SistemaInformatico server-side
 API->>S: issueInvoice(payload)
 S->>V: validate(payload)
 V-->>S: estructura + sumes coherents
+S->>S: si PREPROD/PROD, exigir aeat_fields
 S->>DB: BEGIN + lock idempotència
 alt factura existent equivalent
  S->>DB: recuperar factura
