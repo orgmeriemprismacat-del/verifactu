@@ -1,7 +1,7 @@
 # UC-014 — Inventari executable PHP/JS ACTUAL, pont candidat i SIF
 
 **Data d'auditoria:** 02/10/2026  
-**Base inicial:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd` · **revalidada després de sincronitzar:** `main@5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`  
+**Base inicial:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd` · **revalidada després de sincronitzar:** `main@f7fa0822f82be96e842d9f2d031e643ab07f617c`  
 **Objectiu:** demostrar quines superfícies, scripts PHP/JS, serveis SIF i proves intervenen realment en «Comprar curs normal per Redsys», separant **ACTUAL**, **PONT CANDIDAT**, **FINAL SIF**, **VERIFICAT** i **PENDENT**.
 
 > Aquest inventari complementa la fitxa funcional i els UML. No acredita desplegament ni una transacció Redsys real de preproducció.
@@ -65,7 +65,9 @@ La branca d'auditoria:
 - `RedsysCoursePaymentIntentService` rellegeix saldo i `FRACCIONAT`;
 - obté `DS_ORDER`/import de la intenció SIF;
 - només usa MerchantURL SIF amb `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i URL HTTPS;
-- amb cutover inactiu conserva fallback explícit per rollback.
+- amb cutover inactiu conserva fallback explícit per rollback;
+- el gateway Redsys deixa d'estar hardcodejat: `REDSYS_GATEWAY_URL` és obligatòria i ha de ser HTTPS;
+- `SIF_INTERNAL_REDSYS_COURSE_INTENT_SIGNED_PATH` queda declarat explícitament i el preflight comprova que els paths HMAC de course-intent/status coincideixen amb els clients del pont.
 
 ## 4. Callback i autoritat fiscal
 
