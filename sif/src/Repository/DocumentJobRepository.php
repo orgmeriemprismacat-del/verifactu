@@ -145,35 +145,6 @@ final class DocumentJobRepository
         return $recovered + $terminal->rowCount();
     }
 
-    public function recoverStaleLocks(
-        \PDO $db,
-        \DateTimeImmutable $now,
-        int $olderThanSeconds = 900
-    ): int {
-        if ($olderThanSeconds < 60) {
-            throw SifException::validation('Document stale-lock threshold must be at least 60 seconds');
-        }
-
-        $lockedBefore = $now
-            ->modify('-' . $olderThanSeconds . ' seconds')
-            ->format('Y-m-d H:i:s.u');
-        $availableAt = $now->format('Y-m-d H:i:s.u');
-
-        $stmt = $db->prepare(
-            "UPDATE document_job
-             SET STATUS = 'RETRY',
-                 LOCKED_AT = NULL,
-                 NEXT_ATTEMPT_AT = ?,
-                 LAST_ERROR = 'Recovered stale document worker lock'
-             WHERE STATUS = 'PROCESSING'
-               AND LOCKED_AT IS NOT NULL
-               AND LOCKED_AT < ?"
-        );
-        $stmt->execute([$availableAt, $lockedBefore]);
-
-        return $stmt->rowCount();
-    }
-
     public function claimNext(\PDO $db, ?\DateTimeImmutable $now = null): ?array
     {
         $now ??= new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid'));
