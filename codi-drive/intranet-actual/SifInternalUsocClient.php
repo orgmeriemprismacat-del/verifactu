@@ -105,6 +105,46 @@ final class SifInternalUsocClient
         ]);
     }
 
+    public function prepareCourseChange(
+        string $actorId,
+        array $roles,
+        int $idInsc,
+        int $idpag,
+        string $requestId,
+        array $target
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'prepare_course_change',
+            'id_insc' => $idInsc,
+            'idpag' => $idpag,
+            'request_id' => $requestId,
+            'target' => $target,
+        ]);
+    }
+
+    public function bindCourseChangeDestination(
+        string $actorId,
+        array $roles,
+        string $requestId,
+        int $sourceIdInsc,
+        int $sourceIdpag,
+        int $destinationIdInsc,
+        int $destinationIdpag,
+        string $reservationMarker,
+        string $targetStudentTotal
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'bind_course_change_destination',
+            'request_id' => $requestId,
+            'source_id_insc' => $sourceIdInsc,
+            'source_idpag' => $sourceIdpag,
+            'destination_id_insc' => $destinationIdInsc,
+            'destination_idpag' => $destinationIdpag,
+            'reservation_marker' => $reservationMarker,
+            'target_student_total' => $targetStudentTotal,
+        ]);
+    }
+
     public function beginValidationDecision(
         string $actorId,
         array $roles,
