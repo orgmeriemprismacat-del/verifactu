@@ -28,6 +28,9 @@ final class InvoiceBeforePaymentHttpEndpointTest
         Assert::stringContainsString("(string) \$actor['actor_id']", $source);
         Assert::stringContainsString('new InvoiceBeforePaymentCoverageRepository()', $source);
         Assert::stringContainsString('new OperationalEventRepository(new UuidGenerator())', $source);
+        Assert::stringContainsString('InvoiceBeforePaymentDocumentQueueService', $source);
+        Assert::stringContainsString('new DocumentJobRepository()', $source);
+        Assert::stringContainsString("documentsConfig['generator_version']", $source);
 
         if (str_contains($source, "payload['created_by']")) {
             Assert::fail('HTTP endpoint must not trust created_by from the request payload.');
