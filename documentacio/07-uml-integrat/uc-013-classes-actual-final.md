@@ -228,8 +228,12 @@ class UsocCourseChangeFundPlanService {
   <<IMPLEMENTAT>>
   +plan(lifecyclePlan,target)
 }
+class UsocCourseChangeExecutionPreparationService {
+  <<IMPLEMENTAT>>
+  +prepare(db,idInsc,idpag,requestId,actor,roles,target)
+}
 class UsocCourseChangeExecutionService {
-  <<PENDENT>>
+  <<PENDENT EFECTES>>
   +executeCourseChange(plan)
   +rectifySourceInvoices()
   +issueTargetInvoices()
@@ -267,6 +271,8 @@ LegacyUsocCourseChangePricingResolver --> UsocCourseChangePreviewService : via A
 UsocCourseChangeTargetResolver --> UsocLifecyclePlanService
 UsocCourseChangeFundPlanService --> UsocLifecyclePlanService
 UsocCourseChangeFundPlanService --> UsocCourseChangeTargetResolver
+UsocCourseChangeExecutionPreparationService --> UsocCourseChangePreviewService
+UsocCourseChangeExecutionPreparationService --> UsocLifecycleExecutionRepository
 UsocCourseChangeExecutionService --> UsocLifecyclePlanService
 UsocCourseChangeExecutionService --> UsocCourseChangeTargetResolver
 UsocCourseChangeExecutionService --> UsocCourseChangeFundPlanService
@@ -285,7 +291,7 @@ UsocCourseChangeExecutionService --> CreditBalanceService
 | Validació legacy↔SIF | Implementada en dues fases | Provar configuració real |
 | UI USOC | Implementada al repositori | Desplegament/rols/secrets/preflight real |
 | Baixa | Guard + planner + executor implementats | Acreditar CI actual i preproducció |
-| Canvi de curs | Guard + planner + pricing server-side + resolver + fund planner + preview API/UI implementats | Falta executor d'efectes, reemissió, materialització de compensacions i handoff |
+| Canvi de curs | Guard + planner + pricing server-side + resolver + fund planner + preview API/UI + checkpoint REQUESTED implementats | Falta executor d'efectes, COMPLETED, reemissió, materialització de compensacions i handoff |
 | Alumne=0 | Bloquejat fail-closed | Decisió funcional/fiscal |
 | Regla 20/25 % | No hardcoded al SIF | Decisió comercial fora del nucli |
 | IVA | EXEMPT/E1 al builder | Validació fiscal de totes les variants |
