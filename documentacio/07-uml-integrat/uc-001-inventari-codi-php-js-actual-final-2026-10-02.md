@@ -5,9 +5,10 @@
 | Fitxer | Responsabilitat ACTUAL | Estat |
 | --- | --- | --- |
 | `sif/public/api/factures/issue.php` | Entrada genèrica interna; POST signat, rol, policy i error 500 genèric. | Endurit a branca |
+| `sif/scripts/preflight-invoice-issue.php` | Readiness del generic endpoint: HMAC, rols, path, emissor no-placeholder, anti-replay i taules requerides; no mostra secrets ni muta dades. | Nou |
 | `sif/src/Service/InternalApiAuthenticator.php` | HMAC, timestamp, actor/rol i anti-replay. | Main |
 | `sif/src/Service/InternalInvoiceIssueScopeResolver.php` | Rol d'escriptura UC-001. | Nou |
-| `sif/src/Service/InternalInvoiceIssuePayloadPolicy.php` | Actor servidor, no Redsys/no UC-004, emissor servidor si AEAT. | Nou |
+| `sif/src/Service/InternalInvoiceIssuePayloadPolicy.php` | Actor servidor, no Redsys/no UC-004, emissor servidor no-placeholder si AEAT. | Nou |
 | `sif/src/Service/InvoicePayloadValidator.php` | Estructura, exempció, idempotència i coherència monetària. | Endurit |
 | `sif/src/Service/InvoiceService.php` | Idempotència, transacció, numeració, factura/reús i payment inicial. | Main |
 | `sif/src/Repository/InvoiceRepository.php` | Factura/línies/registre/cua/relacions i vincle relació↔línia unívoc. | Endurit |
