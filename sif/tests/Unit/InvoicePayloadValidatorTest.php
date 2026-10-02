@@ -224,6 +224,63 @@ final class InvoicePayloadValidatorTest
         Assert::same('Invoice iva_import does not match line totals', $exception->getMessage());
     }
 
+
+    public function testRejectsWhitespaceBillingIdentity(): void
+    {
+        $payload = $this->validPayload();
+        $payload['billing']['nif'] = '   ';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Missing billing field nif', $exception->getMessage());
+    }
+
+    public function testNormalizesBillingIdentityAndLineConcept(): void
+    {
+        $payload = $this->validPayload();
+        $payload['billing']['name'] = '  Client Exemple  ';
+        $payload['billing']['nif'] = '  12345678Z  ';
+        $payload['lines'][0]['concept'] = '  Curs individual  ';
+
+        $validated = (new InvoicePayloadValidator())->validate($payload);
+
+        Assert::same('Client Exemple', $validated['billing']['name']);
+        Assert::same('12345678Z', $validated['billing']['nif']);
+        Assert::same('Curs individual', $validated['lines'][0]['concept']);
+    }
+
+    public function testRejectsBlankLineConcept(): void
+    {
+        $payload = $this->validPayload();
+        $payload['lines'][0]['concept'] = '   ';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Invalid invoice line concept 0', $exception->getMessage());
+    }
+
+    public function testRejectsHeaderDiscountThatDoesNotMatchLines(): void
+    {
+        $payload = $this->validPayload();
+        $payload['totals']['discount'] = '10.00';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Invoice discount does not match line totals', $exception->getMessage());
+    }
+
     private function validPayload(): array
     {
         return [
