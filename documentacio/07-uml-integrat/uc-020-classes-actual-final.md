@@ -1,8 +1,8 @@
 # UC-020 — Diagrames de classes ACTUAL i FINAL
 
-**Data d'auditoria:** 30/09/2026  
+**Data d'auditoria:** 30/09/2026 · reconciliació runtime 02/10/2026  
 **Abast:** aplicació del descompte «Alumne PrisMa» en alta web, preparació de pagament i futura facturació SIF.  
-**Regla d'evidència:** ACTUAL = executable llegat inspeccionat. FINAL = codi existent a la branca quan s'indica `IMPLEMENTAT`; `PENDENT` quan encara falta integració runtime.
+**Regla d'evidència:** ACTUAL = executable llegat inspeccionat. FINAL = codi existent a `main`/branca de reconciliació quan s'indica `IMPLEMENTAT`; `PENDENT` quan encara falta integració runtime.
 
 ## 1. Classes/components ACTUALS
 
@@ -70,7 +70,7 @@ EnviarInscripcioPHP --> InscripcionsLegacy : INSERT
 - la consulta redueix l'evidència a un booleà i perd la inscripció que acredita el dret;
 - preview i confirmació no comparteixen una oferta servidor immutable.
 
-## 2. Classes FINAL — implementades en aquesta branca i pendents
+## 2. Classes FINAL — estat runtime reconciliat
 
 ```mermaid
 classDiagram
@@ -87,20 +87,39 @@ class LegacyPrismaStudentHistoryRepository {
   +findByDocument(db,document) array
 }
 
-class DiscountDecisionService {
-  <<PENDENT>>
-  +evaluate(type,context) DiscountDecision
+class CommercialOfferService {
+  <<IMPLEMENTAT BASE>>
+  +createOrReuse(input) array
 }
 
 class DiscountValidationRepository {
-  <<PENDENT runtime>>
-  +append(decision) uuid
+  <<IMPLEMENTAT>>
+  +findByIdempotencyKey(db,key,forUpdate) array
+  +insert(db,validation) array
 }
 
 class CommercialOperationRepository {
-  <<PENDENT runtime>>
-  +stage(operation) uuid
-  +attachIntent(operation,intent)
+  <<IMPLEMENTAT>>
+  +findByIdempotencyKey(db,key,forUpdate) array
+  +insert(db,operation) array
+  +linkIntent(db,operation,intent) void
+  +updateStatus(db,operation,status) void
+}
+
+class CommercialOperationPartyRepository {
+  <<IMPLEMENTAT>>
+  +insert(db,party) array
+  +find(db,operation,party,role,forUpdate) array
+}
+
+class PrismaStudentCourseCheckoutService {
+  <<IMPLEMENTAT + CONNECTAT PAGAMENT>>
+  +stageAndCreateIntent(...) array
+}
+
+class RedsysCoursePaymentIntentService {
+  <<IMPLEMENTAT + ACTIU>>
+  +create(sifDb,legacyDb,input) array
 }
 
 class CourseIntentSnapshotValidator {
@@ -135,10 +154,15 @@ class InvoiceService {
 }
 
 LegacyPrismaStudentHistoryRepository --> PrismaStudentDiscountPolicy : fets legacy
-PrismaStudentDiscountPolicy --> DiscountDecisionService : decisio normalitzada
-DiscountDecisionService --> DiscountValidationRepository : regla/evidencia
-DiscountDecisionService --> CommercialOperationRepository : oferta comercial
-CommercialOperationRepository --> RedsysPaymentIntentService : snapshot pagable
+PrismaStudentCourseCheckoutService --> LegacyPrismaStudentHistoryRepository
+PrismaStudentCourseCheckoutService --> PrismaStudentDiscountPolicy
+PrismaStudentCourseCheckoutService --> CommercialOperationRepository : operació
+PrismaStudentCourseCheckoutService --> CommercialOperationPartyRepository : participant
+PrismaStudentCourseCheckoutService --> DiscountValidationRepository : regla/evidència
+PrismaStudentCourseCheckoutService --> RedsysPaymentIntentService : snapshot pagable
+RedsysCoursePaymentIntentService --> PrismaStudentCourseCheckoutService : TIPUS_DESC=1
+CommercialOfferService --> CommercialOperationRepository
+CommercialOfferService --> DiscountValidationRepository
 RedsysPaymentIntentService --> CourseIntentSnapshotValidator : SOURCE_TYPE=CURS
 RedsysPaymentIntentService --> RedsysPaymentIntentRepository : persistencia
 RedsysCourseInvoiceService --> LegacyCourseInvoicePayloadBuilder : snapshot congelat
@@ -151,9 +175,12 @@ RedsysCourseInvoiceService --> InvoiceService : factura + cobrament
 | --- | --- | --- |
 | `LegacyPrismaStudentHistoryRepository` | Recuperar fets d'historial sense decidir la política | IMPLEMENTAT |
 | `PrismaStudentDiscountPolicy` | Reproduir explícitament la regla web legacy sota versió `ALUMNE_PRISMA_LEGACY_V1` | IMPLEMENTAT |
-| `DiscountDecisionService` | Motor comú de decisió per UC-020/020a/020b/020c/020d | PENDENT |
-| `discount_validation` | Persistència de regla/evidència | DDL EXISTENT, writer PENDENT |
-| `commercial_operation` | Oferta comercial immutable | DDL EXISTENT, writer PENDENT |
+| `CommercialOfferService` | Servei genèric d'oferta comercial per altres canals/casos | IMPLEMENTAT BASE |
+| `DiscountValidationRepository` | Persistència idempotent de regla/evidència | IMPLEMENTAT |
+| `CommercialOperationRepository` | Persistència i vincle d'intent de l'operació | IMPLEMENTAT |
+| `CommercialOperationPartyRepository` | Persistència del participant de l'operació | IMPLEMENTAT EN AQUESTA RECONCILIACIÓ |
+| `PrismaStudentCourseCheckoutService` | Orquestració AP atòmica fins intenció | IMPLEMENTAT I CONNECTAT AL PAGAMENT CURS |
+| `RedsysCoursePaymentIntentService` | Entrada autoritativa del checkout de curs | IMPLEMENTAT I ACTIU |
 | `CourseIntentSnapshotValidator` | Blindar coherència CURS abans del TPV | IMPLEMENTAT |
 | `RedsysPaymentIntentService` | Crear/reutilitzar intenció | IMPLEMENTAT |
 | `LegacyCourseInvoicePayloadBuilder` | Transformar snapshot en payload fiscal | IMPLEMENTAT |
