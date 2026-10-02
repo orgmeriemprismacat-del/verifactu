@@ -69,8 +69,6 @@
    <header></header>
    <?php
 
-   $email = $_GET['email'];
-
    $mostrar = "<div id='contingut' class='prisma-container container separacio-peu' role='main'>
       <div class='container' id='notfound'>
          <div class='col-md-12'>
@@ -78,8 +76,7 @@
                <h1>El pagament s'ha registrat correctament</h1>
                <p class='mb-4'>El pagament s'ha registrat correctament.
                Consulta la safata d'entrada o el correu brossa (<em>spam</em>)
-               de l'adreça <span class='font-weight-bold email'>".$email."</span>
-               per comprovar que has rebut el missatge de confirmació del pagament.</p>
+               per comprovar si has rebut el missatge de confirmació del pagament.</p>
             </div>
          </div>
       </div>
