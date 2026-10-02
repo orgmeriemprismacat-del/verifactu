@@ -98,7 +98,7 @@ JS localitzat:
 | A14-16 | Sync inscripció | barrejat al callback | `CourseLegacyPaymentSyncService` post-SIF | IMPLEMENTAT/VERIFICAT intern |
 | A14-17 | Atribució inscripció | `IDPAG` + fila llegada | `CourseEnrollmentFundAllocationService` → `enrollment_fund_movement.EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC`, vinculat a `UUID_PAYMENT`/`UUID_FACTURA` | **IMPLEMENTAT I VERIFICAT CI al PR #95** |
 | A14-18 | Outbox | no existeix al llegat | `CoursePaymentNotificationService` | IMPLEMENTAT; transport pendent |
-| A14-19 | Cutover | no aplicable a l'ACTUAL | flag explícit + callback llegat 410 al candidat | IMPLEMENTAT/VERIFICAT boundary |
+| A14-19 | Cutover/drain | no aplicable a l'ACTUAL | tall en dues fases: `cutover=1/drain=0` pausa nous checkouts i manté callbacks en vol; `cutover=1/drain=1` activa SIF i retira llegat | IMPLEMENTAT; boundary CI pendent del head actual |
 | A14-20 | Secrets | literals històrics trobats | candidat/fallback usen entorn | CODI CORREGIT; **rotació P0 pendent** |
 | A14-21 | Configuració de tall | endpoints/config dispersos | `REDSYS_GATEWAY_URL`, callback HTTPS, API HMAC i paths signats validats per preflight | IMPLEMENTAT EN PR #105; CI DEL NOU HEAD PENDENT |
 
@@ -153,7 +153,7 @@ Aquests punts existeixen al repositori i tenen proves. El que falta és principa
 1. Rotar qualsevol secret Redsys històric que pogués haver quedat exposat al repositori/historial.
 2. Configurar secrets/URLs/rol intern en preproducció sense fallback insegur.
 3. Executar una transacció Redsys real controlada i conservar evidència.
-4. Activar cutover només després de preflights verds; comprovar 410/retirada del callback fiscal llegat.
+4. Executar el drain de sessions llegades abans del cutover definitiu: pausa de nous checkouts, drenatge de callbacks en vol i només després 410/retirada del callback fiscal llegat.
 5. No declarar producció fins que factura/cobrament/sync/retorn siguin verificats al runtime desplegat.
 
 ### P1
@@ -205,3 +205,12 @@ UC-014 pot passar a **TANCAT AMB EVIDÈNCIA** només quan, sobre un commit ident
 **IMPLEMENTAT:** nucli SIF, pont candidat, `EXTERNAL_ALLOCATION` per inscripció, outbox, retorn autoritatiu i hardening del fallback a la branca.  
 **VERIFICAT:** circuit intern anterior per CI PR #79, fund allocation per CI PR #95 (841/0 + quatre workflows verds) i hardening ACTUAL per CI PR #105 (`SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` verds al head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`).  
 **PENDENT:** Redsys real de preproducció, desplegament/cutover, rotació/configuració de secrets i delivery UC-58.
+
+
+### Tall en dues fases detectat a la segona passada
+
+S'ha eliminat el risc de perdre callbacks d'una sessió TPV oberta abans del canvi de MerchantURL. El circuit usa ara `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED`:
+
+- `cutover=1, drain=0`: cap nou checkout; callbacks legacy preexistents continuen autoritzats;
+- `cutover=1, drain=1`: callback SIF actiu i checkout/callback legacy retirats;
+- el preflight exigeix `legacy_drain_confirmed_if_cutover` abans de donar verd al tall final.
