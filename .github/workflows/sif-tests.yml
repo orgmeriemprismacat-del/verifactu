@@ -15,6 +15,8 @@ on:
       - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
       - "codi-drive/web-actual/inc/PackPaymentGate.php"
       - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/respostaOkPagamentAutomatic.php"
+      - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
@@ -44,6 +46,8 @@ on:
       - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
       - "codi-drive/web-actual/inc/PackPaymentGate.php"
       - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/respostaOkPagamentAutomatic.php"
+      - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
@@ -113,6 +117,10 @@ jobs:
           php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
           php -l codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php
           php -l codi-drive/web-actual/pagina_inscripcio_pack.php
+          php -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
+          php -l codi-drive/web-actual/respostaOkPagamentAutomatic.php
+          php -l codi-drive/web-actual/respostaKoPagamentAutomatic.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
           php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
           node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
           php -l codi-drive/web-actual/inc/PackPaymentGate.php
