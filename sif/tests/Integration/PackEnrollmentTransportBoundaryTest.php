@@ -30,6 +30,8 @@ final class PackEnrollmentTransportBoundaryTest
         );
 
         Assert::stringContainsString("REQUEST_METHOD", $endpoint);
+        Assert::stringContainsString("PublicWebMutationAuthorization.php", $endpoint);
+        Assert::stringContainsString("PublicWebMutationAuthorization::assertSameOriginAjax()", $endpoint);
         Assert::stringContainsString("!== 'POST'", $endpoint);
         Assert::stringContainsString("header('Allow: POST')", $endpoint);
         Assert::stringContainsString('http_response_code(405)', $endpoint);
