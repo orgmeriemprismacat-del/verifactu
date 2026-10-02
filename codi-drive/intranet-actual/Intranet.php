@@ -8643,18 +8643,10 @@ class Intranet
 		$textMotiuBaixaBD = $motiuBaixa.$motiuCanvi." (Passa a ".$anyC.$cursC.$mesC."A) ".$textCanviBD;
 
 		/* ######################## Generem el nou IDPAG ######################## */
+		$idPagLockReserved = false;
 		if ( $idpag == 0 ) {
-			// Busquem l'últim id pag
-			if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["buscarIdPagInsc"] ) ) {
-				$stmt->execute();
-				$stmt->bind_result($lastIdPag);
-				$stmt->fetch();
-				$conWeb->closeStmt();
-			}
-			else
-				throw new Exception('',4042);
-
-			$idPagBD = $lastIdPag+1;
+			$idPagBD = $conWeb->reserveIdPag();
+			$idPagLockReserved = true;
 		}
 		else {
 			$idPagBD = $idpag;
@@ -8781,6 +8773,10 @@ class Intranet
 			$stmt->execute();
 			$idInserit = $conWeb->lastInsertId();
 			$conWeb->closeStmt();
+			if ( $idPagLockReserved ) {
+				$conWeb->releaseIdPag();
+				$idPagLockReserved = false;
+			}
 		}
 		else
 			throw new Exception('',4043);

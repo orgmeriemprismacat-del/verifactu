@@ -152,7 +152,7 @@ Això acredita:
 - circuit funcional/fiscal del curs gratuït USOC amb part alumne 0,00 €;
 - decisió de negoci sobre 20 % públic vs 25 % històric;
 - confirmació fiscal que la classificació EXEMPT del builder és correcta per totes les variants;
-- canvi/baixa/rectificativa E2E amb dos pagadors.
+- **canvi de curs** E2E amb dos pagadors i reemissió de destí; per **baixa**, l'executor SIF ja està provat i resta l'acreditació del handoff navegador/legacy en CI i preproducció.
 
 
 ## Lifecycle USOC · snapshot separat per pagador
@@ -284,3 +284,41 @@ El preflight exigeix ara:
 - llistat explícit dels env vars necessaris d'intranet i SIF.
 
 Això tanca la validació estàtica/CI del preflight. Encara cal executar-lo amb la **configuració real de preproducció** i conservar-ne el JSON d'evidència.
+
+## Baixa USOC amb dos pagadors
+
+**Run de servei:** `36942709607`  
+**Resultat:** **838 passed / 0 failed · SUCCESS**
+
+Proves específiques PASS:
+
+- `UsocCancellationExecutionServiceTest::testCancellationExecutesPerPayerAndRetryDoesNotDuplicateFiscalOrEconomicEffects`;
+- `testCancellationRejectsRefundBeyondEntityRealFundsBeforeAnyMutation`;
+- `testCancellationRequiresReasonWhenRealFundsAreExplicitlyNotRefunded`;
+- `testCancellationCanDeferFiscalAndRefundWithExplicitReasons`.
+
+Aquest bloc acredita:
+
+- `usoc_lifecycle_execution` com a comanda durable amb `requestId`, hash, request i pla congelat;
+- retry equivalent sense duplicar rectificatives ni refunds;
+- alumne i entitat executats independentment;
+- refund limitat a `net_paid` real del pagador;
+- rectificativa separada per factura;
+- suport de `DEFER_FISCAL` / `DEFER_REFUND` sense crear moviments ficticis;
+- persistència a `operational_event` i `enrollment_cancellation_event` per pagador.
+
+El handoff navegador → API SIF → checkpoint de sessió → endpoint legacy també està implementat. El contracte final del handoff està acreditat al run `36943206570` (**838 passed / 0 failed**). L'E2E de navegador/preproducció real continua pendent.
+
+### Enduriment final de la baixa
+
+**Run d'enduriment final:** `36943292835`  
+**Resultat:** **839 passed / 0 failed · SUCCESS**
+
+Inclou PASS de:
+
+- `testCancellationRejectsInvalidReasonCodeAndTimestampBeforeCheckpoint`;
+- validació estricta de `reason_code` estructurat;
+- `effective_at` obligatori en format `Y-m-d H:i:s`;
+- absència de checkpoint davant entrada invàlida.
+
+El run `36943206570` acredita també el contracte API, handoff de sessió, retry del tram legacy i preflight de `usoc_lifecycle_execution` amb **838 passed / 0 failed**.
