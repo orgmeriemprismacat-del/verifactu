@@ -84,6 +84,7 @@ Fitxers:
 - `sif/tests/Integration/RedsysPaymentIntentTest.php`
 - `sif/tests/Integration/RedsysPackPreflightScriptTest.php`
 - `sif/tests/Integration/RedsysPackPreproductionScriptTest.php`
+- `sif/tests/Integration/RedsysPackPreproductionBoundaryTest.php`
 - `sif/scripts/test-uc015-local.sh`
 - `sif/scripts/test-uc015-local.ps1`
 
@@ -347,6 +348,26 @@ La revalidació ha detectat tres desalineacions relacionades:
 
 **Estat:** implementat i cobert per prova automatitzada; resta E2E de dates límit/preproducció.
 
+### F-20 · Faltava un verificador canònic E2E de preproducció per PACK — corregit
+
+CURS disposava de `verify-redsys-course-preproduction.php`, però PACK només tenia peces separades de `preflight`, `preview` i `process`. Això obligava a executar-les manualment i feia més fàcil conservar evidència incompleta o saltar-se una porta de seguretat.
+
+**Correcció aplicada:**
+- nou `sif/scripts/verify-redsys-pack-preproduction.php`;
+- només accepta `SIF_ENV=test|preproduction`;
+- executa `preflight-redsys-pack.php` i `preflight-redsys-callback-queue.php`;
+- exigeix un `DS_ORDER`;
+- sempre executa el preview read-only;
+- no muta res tret que s'indiqui explícitament `--execute`;
+- `--sync-legacy` només s'aplica dins el bloc d'execució;
+- en execució exigeix identitat de factura i payment, almenys dues atribucions de fons, identitat de tots els moviments, suma del ledger igual al total del preview i una fila d'outbox amb identitat;
+- si se sol·licita sync legacy, exigeix `legacy_sync_executed=true`;
+- la sortida d'evidència **no copia el payload fiscal complet del preview**: només conserva DS_ORDER, IDPAG i totals;
+- `preflight-redsys-pack.php` comprova ara callback, endpoint d'intenció, worker, preview, processor, preflight de cua i el mateix verificador;
+- `RedsysPackPreproductionBoundaryTest` blinda fail-closed, `--execute` explícit, evidència econòmica/outbox i sanitització.
+
+**Estat:** eina i proves implementades. **Pendent:** executar-la contra un `DS_ORDER` Redsys real de preproducció i conservar el JSON d'evidència.
+
 ## 6. UML i traçabilitat
 
 ### Classes
@@ -424,7 +445,7 @@ Per tant:
 
 ### Pendent
 
-1. Executar PK-01..PK-11 en preproducció amb DS_ORDER real, incloent alta POST, rebuig GET/cross-site, doble clic, replay del mateix `REQUEST_ID` i un pack amb un component fora de finestra.
+1. Executar `verify-redsys-pack-preproduction.php <DS_ORDER>` amb un DS_ORDER real de preproducció; després completar PK-01..PK-11 de navegador, incloent alta POST, rebuig GET/cross-site, doble clic, replay del mateix `REQUEST_ID` i un pack amb un component fora de finestra.
 2. Tancar decisió de negoci sobre ordre comercial explícit vs `DATAI, ID_CURS`.
 3. Eliminar físicament callback fiscal PACK legacy després de la finestra de rollback.
 4. Validar lliurament real de notificació (UC-58), no només enqueue.
@@ -444,7 +465,8 @@ Per tant:
 - suma comercial de components validada en cèntims contra el preu PACK abans del commit;
 - idempotència server-side de l'alta amb `REQUEST_ID`, `RID/RH1`, named lock i replay/conflicte;
 - cache-bust del bundle d'inscripció a `ver=7.5`;
-- disponibilitat corregida: dates amb signe i exigència de tots els components oberts al llistat, fitxa i POST.
+- disponibilitat corregida: dates amb signe i exigència de tots els components oberts al llistat, fitxa i POST;
+- verificador de preproducció PACK creat amb preflight, preview, execució opt-in, ledger/outbox i evidència sense payload fiscal complet.
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
 - creació d'aquest registre de revalidació 02/10.
