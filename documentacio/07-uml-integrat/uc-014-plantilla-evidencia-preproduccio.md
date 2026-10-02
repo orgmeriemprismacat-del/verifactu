@@ -18,6 +18,7 @@
 - UUID_NOTIFICATION:
 - NOTIFICATION_STATUS:
 - SIF_REDSYS_COURSE_CUTOVER_ENABLED: 0 / 1
+- SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED: 0 / 1
 - SIF_REDSYS_CALLBACK_URL configurada amb HTTPS: SÍ / NO (no copiar secrets ni query sensible)
 - REDSYS_GATEWAY_URL configurada amb HTTPS i corresponent a l'entorn: SÍ / NO
 - SIF_INTERNAL_API_KEY_ID / SECRET configurats: SÍ / NO (no copiar els valors)
@@ -149,7 +150,9 @@ Adjuntar només evidència sense secrets:
 - [ ] `REDSYS_GATEWAY_URL` configurada amb HTTPS i sense endpoint hardcoded al codi
 - [ ] API interna configurada (`SIF_INTERNAL_API_KEY_ID`/`SECRET`) i paths HMAC coherents
 - [ ] clau Redsys del pont i clau del callback SIF corresponen al mateix comerç/entorn
-- [ ] `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` només a preproducció durant la prova
+- [ ] fase DRAIN provada (`cutover=1`, `drain=0`): nous checkouts bloquejats i callbacks antics encara acceptats
+- [ ] evidència que no queden sessions legacy en vol
+- [ ] fase CUTOVER provada (`cutover=1`, `drain=1`): candidat→SIF i llegat→410
 - [ ] `doit.php` retorna 410 amb cutover actiu
 - [ ] `realitzaPagamentAutomatic.php` retorna 410 amb cutover actiu
 - [ ] rollback (`cutover=0`) documentat abans de retirada definitiva
