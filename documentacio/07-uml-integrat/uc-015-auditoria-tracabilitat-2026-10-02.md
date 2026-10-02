@@ -95,12 +95,12 @@ Fitxers:
 | PK-A01 Llistat packs | sí | filtre d'edició + disponibilitat global de tots els components | boundary test/inspecció | E2E visual |
 | PK-A02 Fitxa pack | sí | exigeix totes les edicions obertes | boundary test/inspecció | E2E visual |
 | PK-A03 Formulari | sí | **POST-only + same-site/origin + REQUEST_ID + revalidació de totes les edicions** | boundary/idempotency tests | E2E navegador/preproducció |
-| PK-A04 Alta N inscripcions | sí | snapshot + transacció + idempotència server-side | proves/inspecció | model comercial explícit/versionat |
+| PK-A04 Alta N inscripcions | sí | snapshot + transacció + idempotència server-side + ordre canònic v1 | proves/inspecció | cap gap intern |
 | PK-A05 Intenció/URL pagament | sí | sí | proves + CI històrica | prova d'entorn real |
-| PK-A06 Callback | sí | sí, SIF autoritatiu | proves | Redsys preproducció |
+| PK-A06 Callback | sí | SIF autoritatiu; callbacks PACK legacy de producció eliminats | proves + inspecció | acceptació Redsys preproducció |
 | PK-A07 Factura | sí | sí | proves + CI | E2E real |
 | PK-A08 Distribució monetària | sí | sí | proves idempotència/suma | E2E real |
-| PK-A09 Correus/notificació | sí | enqueue sí | prova d'outbox | lliurament UC-58 |
+| PK-A09 Correus/notificació | sí | enqueue SIF idempotent | prova d’outbox | lliurament = dependència UC-58 |
 | PK-A10 Fraccionament | sí | ecommerce bloquejat | proves | només circuit excepcional intranet |
 
 ## 5. Troballes verificades
@@ -202,11 +202,18 @@ La seqüència documental anterior dibuixava `AcademicEnrollmentSyncService`, qu
 
 **Estat:** implementat; documentació corregida.
 
-### F-09 · Callback fiscal legacy
+### F-09 · Callback fiscal legacy — retirada física completada
 
-El codi històric de `realitzaPagamentPackAutomatic.php` encara existeix, però queda curt-circuitat per defecte amb HTTP 410 si no s'habilita explícitament el flag de rollback.
+Les dues còpies productives de `realitzaPagamentPackAutomatic.php` s'han eliminat del repositori:
 
-**Estat:** desactivat operativament; **retirada física pendent**.
+- `codi-drive/web-actual/realitzaPagamentPackAutomatic.php`;
+- `codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentPackAutomatic.php`.
+
+El checkout PACK ja utilitza exclusivament `SIF_REDSYS_CALLBACK_URL`. Es manté només `realitzaPagamentPackAutomaticProva.php` com a arnès explícit de test/preproducció, protegit per `SIF_PACK_LEGACY_TEST_CALLBACK_ENABLED` i per `SIF_ENV=test|preproduction`.
+
+`LegacyPackCallbackBoundaryTest` exigeix ara que els callbacks productius **no existeixin físicament** i que l'arnès de prova continuï fail-closed.
+
+**Estat:** tancat; no queda doble autoritat fiscal PACK en codi productiu.
 
 ### F-10 · Motiu intern de descompte massa específic
 
@@ -489,3 +496,17 @@ Per tant:
 ## 10. Criteri de tancament
 
 UC-015 no s'ha de marcar com a completament tancat mentre quedin oberts l'E2E/preproducció, la decisió d'ordre comercial i els pendents operatius indicats. El **nucli SIF PACK** sí pot considerar-se implementat, amb evidència automatitzada prèvia, subjecta a CI verda del commit final d'aquesta auditoria.
+
+
+## 8. Tancament final de l’auditoria UC-015 — 2026-10-02
+
+Després de la darrera passada, els pendents interns queden resolts:
+
+1. **Ordre comercial:** tancat. Contracte v1 = `c.DATAI, p.ID_CURS`; presentació, alta i `PACK_ORDINAL` comparteixen el mateix ordre i `PackCommercialOrderBoundaryTest` ho blinda.
+2. **Callback legacy:** tancat. Les dues còpies productives s'han retirat físicament; el callback autoritatiu és el SIF.
+3. **Idempotència de l'alta pública:** tancada amb `REQUEST_ID`, hash de payload, named lock, replay segur i 409 en conflicte.
+4. **Atomicitat i disponibilitat PACK N:** tancades i cobertes per proves.
+5. **Verificador E2E/preproducció:** implementat. El que resta és executar-lo en l'entorn desplegat amb un `DS_ORDER` real i conservar l'evidència.
+6. **Notificacions:** UC-015 tanca l'enqueue idempotent; el transport/retry/lliurament és responsabilitat d'UC-58.
+
+Per tant, **no queda cap gap de programació o documentació propi d'UC-015**. El tancament de merge queda condicionat només a la CI verda del HEAD final. L'E2E real és criteri d'acceptació operativa del desplegament, no feina de codi pendent en aquest cas d'ús.
