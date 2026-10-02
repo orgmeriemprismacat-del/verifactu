@@ -19,6 +19,8 @@ ob_start();
 require_once $root . '/inc/comprovarSessio.php';
 ob_end_clean();
 
+require_once $root . '/ConnexioWeb.php';
+require_once $root . '/ConnexioIntranet.php';
 require_once $root . '/LegacyInvoiceMutationAuthorization.php';
 require_once $root . '/LegacyUsocCourseChangePricingSourceInterface.php';
 require_once $root . '/LegacyUsocCourseChangePricingMysqlSource.php';
