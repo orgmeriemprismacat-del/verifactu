@@ -15,8 +15,8 @@ UC-004 té **dos circuits diferents** que no s'han de fusionar documentalment:
 Per tant, l'estat correcte del cas és:
 
 - **Documentat:** SÍ, ara amb ACTUAL/FINAL i activitats separades.
-- **Implementat ACTUAL:** SÍ, circuit llegat.
-- **Implementat backend FINAL SIF:** SÍ per command intern, autenticació, preview/confirmació, emissió, cobertura i auditoria operacional en aquesta branca.
+- **Circuit ACTUAL llegat:** LOCALITZAT però **RETIRAT COM A ENTRADA FISCAL** en aquesta branca.
+- **Implementat backend FINAL SIF:** SÍ per command intern, autenticació, preview/confirmació, emissió, cobertura i auditoria operacional.
 - **Integrat pantalla → FINAL:** **SÍ al codi versionat**: JS → `sifFacturaAbansPagar.php` → HMAC → endpoint SIF. **No verificat encara en preproducció/producció.**
 - **Verificat estàticament:** SÍ.
 - **Proves executades en aquesta auditoria:** NO.
@@ -280,15 +280,15 @@ El fitxer existent `uc-004-emetre-factura-abans-cobrar.md` continua sent una bon
 ## 10. Ordre recomanat d'implementació
 
 1. **FET AL MAIN:** bridge intranet + endpoint UC-004 amb sessió/rol, CSRF, HMAC, anti-replay, request ID i resposta JSON.
-2. **FET AL MAIN:** Selection/Billing/Pricing preflight amb `InvoiceBeforePaymentSelectionRepository`, `InvoiceBeforePaymentBillingPartyRepository`, `InvoiceBeforePaymentServerPayloadAssembler` i `InvoiceBeforePaymentLegacyPreparationService`; pendent substituir el circuit llegat de pantalla.
-3. **Guard de cobertura UC-004:** implementat amb validació del builder + taula/UNIQUE específica; aplicar-lo en test/preproducció. Afegir separadament el classificador de cobertura transversal entre canals/pagadors.
-4. Connectar la pantalla al **command intern ja existent** i eliminar la numeració/inserció fiscal llegada del camí d'escriptura.
+2. **FET AL MAIN:** Selection/Billing/Pricing preflight amb `InvoiceBeforePaymentSelectionRepository`, `InvoiceBeforePaymentBillingPartyRepository`, `InvoiceBeforePaymentServerPayloadAssembler` i `InvoiceBeforePaymentLegacyPreparationService`.
+3. **FET EN AQUESTA BRANCA:** el preview consulta coverage UC-004 abans de retornar una confirmació; el confirm manté el guard UNIQUE transaccional i els retries idempotents reutilitzen UUID.
+4. **FET AL CODI VERSIONAT:** pantalla connectada al command intern i mutador fiscal llegat retirat amb `410 Gone`.
 5. **FET EN AQUESTA BRANCA:** auditoria operacional atòmica de l'emissió.
-6. Sincronització llegada post-commit, si encara és necessària, idempotent i observable.
+6. **DECIDIT:** no crear factura shadow ni sentinel a `FACTURA_RELACIONADA`; adaptar read-models llegats a SIF quan calgui.
 7. **FET PARCIALMENT:** cua PDF per UUID/versió i estat PENDING, sense `unlink(filename)`; pendent generar/custodiar bytes i completar job.
-7. Connectar cobrament posterior al UUID, sense reemetre.
-8. Executar proves i preflight/preproducció; conservar evidències.
-9. La fitxa funcional ja està consolidada en versió 2.0; marcar UC-004 com verificat només després de l'E2E.
+8. Connectar cobrament posterior al UUID, sense reemetre.
+9. Executar proves i preflight/preproducció; conservar evidències.
+10. La fitxa funcional està consolidada; marcar UC-004 com verificat només després de l'E2E.
 
 ## 11. Artefactes relacionats
 
