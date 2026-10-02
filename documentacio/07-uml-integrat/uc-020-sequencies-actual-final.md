@@ -40,7 +40,7 @@ actor A as Alumne
 participant Web as Checkout servidor
 participant Hist as LegacyPrismaStudentHistoryRepository
 participant Policy as PrismaStudentDiscountPolicy
-participant Decision as DiscountDecisionService [PENDENT]
+participant Decision as PrismaStudentDiscountPolicy [IMPLEMENTAT]
 participant DV as discount_validation
 participant CO as commercial_operation
 participant IV as CourseIntentSnapshotValidator
@@ -109,7 +109,9 @@ Abans de crear la intenció:
 
 ## 5. Pendent
 
-- orquestrador de checkout que creï `discount_validation` i `commercial_operation`;
-- vinculació runtime `UUID_OPERATION ↔ UUID_INTENT`;
-- substitució de la confiança en imports del navegador;
-- test E2E complet des d'historial fins a factura.
+- alta/preview web i resolució intranet sobre una oferta servidor immutable;
+- integració canònica de `payment_link` amb el canal AP;
+- decisions de negoci pendents de la policy;
+- test E2E complet des d'historial fins a callback/factura i preproducció.
+
+El **checkout de targeta actiu** ja crea operació/validació/intenció i vincula `UUID_OPERATION ↔ UUID_INTENT` via `course-intent`; la confiança en imports del navegador queda encara com a problema de l'alta/preview llegat, no del pas final cap a Redsys.
