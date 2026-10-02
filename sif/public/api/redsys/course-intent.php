@@ -83,7 +83,7 @@ try {
         'intent' => $service->create($sifDb, $legacyDb, [
             'idpag' => $payload['idpag'] ?? null,
             'requested_amount' => $payload['requested_amount'] ?? null,
-            'terminal' => $payload['terminal'] ?? '1',
+            'terminal' => $payload['terminal'] ?? null,
             'created_by' => (string) ($actor['actor_id'] ?? 'pay-prisma-cat'),
         ]),
     ]);
