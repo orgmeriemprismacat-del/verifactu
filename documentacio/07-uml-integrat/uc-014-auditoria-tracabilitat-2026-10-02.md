@@ -7,7 +7,7 @@
 
 ## 1. Resultat executiu
 
-El UC-014 **sí disposa** de fitxa funcional, UML integrat, classes ACTUAL/FINAL, seqüències ACTUAL/FINAL i activitats per pàgina. També existeix el PHP/JS real de les superfícies web i el circuit SIF final. El problema principal de l'auditoria anterior ja no és absència d'artefactes, sinó **desalineació** entre documents antics i el codi fusionat després.
+El UC-014 **sí disposa** de fitxa funcional, UML integrat, classes ACTUAL/FINAL, seqüències ACTUAL/FINAL i activitats per pàgina. També existeix el PHP/JS real de les superfícies web i el circuit SIF final. La desalineació detectada entre documents antics i codi fusionat ha estat reconciliada en aquesta passada. **L'auditoria tècnica/documental queda TANCADA**; el desplegament Redsys real, la rotació operativa de secrets, UC-58 i el cutover continuen com a portes de rollout, no com a buits de l'auditoria.
 
 Estat 02/10/2026:
 
@@ -87,7 +87,7 @@ JS localitzat:
 | A14-05 | Fixar import | gate ACTUAL valida pendent/fraccionament a BD en aquesta branca | `EXPECTED_AMOUNT` recomputat | IMPLEMENTAT + proves de política |
 | A14-06 | Callback | fallback endurit en aquesta branca | `RedsysSignatureValidator` + `RedsysCallbackService` | IMPLEMENTAT |
 | A14-07 | Signatura | validada abans d'efectes al fallback | validació criptogràfica SIF | IMPLEMENTAT + VERIFICAT CI PR #105 |
-| A14-08 | Order/import/IDPAG | fallback usa `Ds_Order`, `Ds_Amount` i `Ds_MerchantData` signats; no llegeix `$_GET` funcional | intenció vs callback, inclou IDPAG/divisa/terminal | IMPLEMENTAT; CI DEL NOU HEAD PENDENT |
+| A14-08 | Order/import/IDPAG | fallback usa `Ds_Order`, `Ds_Amount` i `Ds_MerchantData` signats; no llegeix `$_GET` funcional | intenció vs callback, inclou IDPAG/divisa/terminal | IMPLEMENTAT + boundary dedicat al PR #105 |
 | A14-09 | Autorització TPV | resposta Redsys | només autorització positiva arriba a handler | IMPLEMENTAT |
 | A14-10 | Numeració fiscal | llegat conserva numeració pròpia mentre hi hagi fallback | `FiscalSequenceRepository::next()` via `InvoiceService` | **FINAL IMPLEMENTAT**; retirada llegat pendent |
 | A14-11 | Registrar cobrament | muta `PAGAMENT` en callback llegat | `payment_transaction` + `payment_allocation`, després projecció | IMPLEMENTAT/VERIFICAT intern |
@@ -98,38 +98,24 @@ JS localitzat:
 | A14-16 | Sync inscripció | barrejat al callback | `CourseLegacyPaymentSyncService` post-SIF | IMPLEMENTAT/VERIFICAT intern |
 | A14-17 | Atribució inscripció | `IDPAG` + fila llegada | `CourseEnrollmentFundAllocationService` → `enrollment_fund_movement.EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC`, vinculat a `UUID_PAYMENT`/`UUID_FACTURA` | **IMPLEMENTAT I VERIFICAT CI al PR #95** |
 | A14-18 | Outbox | no existeix al llegat | `CoursePaymentNotificationService` | IMPLEMENTAT; transport pendent |
-| A14-19 | Cutover/drain | no aplicable a l'ACTUAL | tall en dues fases: `cutover=1/drain=0` pausa nous checkouts i manté callbacks en vol; `cutover=1/drain=1` activa SIF i retira llegat | IMPLEMENTAT; boundary CI pendent del head actual |
+| A14-19 | Cutover/drain | no aplicable a l'ACTUAL | tall en dues fases: `cutover=1/drain=0` pausa nous checkouts i manté callbacks en vol; `cutover=1/drain=1` activa SIF i retira llegat | IMPLEMENTAT + boundary dedicat; execució real pendent |
 | A14-20 | Secrets | literals històrics trobats | candidat/fallback usen entorn | CODI CORREGIT; **rotació P0 pendent** |
-| A14-21 | Configuració de tall | endpoints/config dispersos | `REDSYS_GATEWAY_URL`, callback HTTPS, API HMAC i paths signats validats per preflight | IMPLEMENTAT EN PR #105; CI DEL NOU HEAD PENDENT |
+| A14-21 | Configuració de tall | endpoints/config dispersos | `REDSYS_GATEWAY_URL`, callback HTTPS, API HMAC i paths signats validats per preflight | IMPLEMENTAT EN PR #105; acreditació d'entorn pendent |
 
 ## 4. Correccions aplicades en aquesta auditoria
 
-1. `JasomNovicePaymentGate` llegeix `FRACCIONAT` de BD i rebutja imports parcials quan no pertoquen.
-2. Les dues còpies del gate (ACTUAL/candidat) mantenen la mateixa política.
-3. `JasomNovicePaymentGateTest` incorpora casos explícits fraccionat/no fraccionat.
-4. `PagamentCursAutomatic.php` inicialitza correctament `$recentTitulat`.
-5. Checkout ACTUAL/candidat:
-   - fraccionament autoritatiu;
-   - sortida HTML sanejada;
-   - variable `nomAlumnePag` inicialitzada.
-6. Checkout ACTUAL deixa de tenir credencial Redsys literal i exigeix configuració d'entorn.
-7. Callback ACTUAL:
-   - secret per entorn;
-   - signatura validada amb comparació constant-time;
-   - `DS_ORDER` i import contrastats;
-   - cap correu de depuració pre-validació;
-   - callback invàlid falla tancat.
-8. Callbacks candidats eliminen notificació de depuració abans de validar Redsys i fallen tancat en error.
-9. Nova prova `RedsysCourseLegacyFallbackBoundaryTest`.
-10. `DS_MERCHANT_MERCHANTDATA` transporta `IDPAG + import en cèntims + frac` dins el payload signat; callbacks ACTUAL/candidat deixen de llegir `$_GET` per decisions funcionals.
-11. MerchantURL neta, sense `IDPAG/curs/DNI/order/frac/import`; retorns navegador sense email.
-12. `IDPAG` signat ha de resoldre exactament una inscripció o el callback falla tancat.
-13. `DS_ORDER` del fallback deixa de dependre de `time()` i passa a 12 dígits aleatoris; imports Redsys es calculen en cèntims enters.
-10. Checkout ACTUAL/candidat envia context mínim `UC014I<IDPAG>A<AMOUNT_CENTS>F<FRAC>` a `DS_MERCHANT_MERCHANTDATA`.
-14. Callbacks llegats recuperen `Ds_MerchantData` només després de validar HMAC i deriven `IDPAG`/import/fraccionament exclusivament del context signat.
-15. Curs i DNI utilitzats pels callbacks es rellegeixen de BD després de resoldre l'`IDPAG`; el query-string ja no es llegeix.
-16. Un `IDPAG` signat que no resol exactament una inscripció fa fallar el callback abans de qualsevol efecte.
-13. Gateway Redsys, terminal, callback SIF, credencials d'API interna i paths HMAC passen a configuració/preflight explícits.
+1. `JasomNovicePaymentGate` rellegeix `FRACCIONAT` de BD i rebutja imports parcials quan no pertoquen; les dues còpies ACTUAL/candidat comparteixen política i proves.
+2. `PagamentCursAutomatic.php` inicialitza correctament `$recentTitulat`.
+3. Checkout ACTUAL/candidat: fraccionament autoritatiu, sortides HTML sanejades, variables inicialitzades i configuració Redsys exclusivament per entorn.
+4. Callback ACTUAL/candidat: HMAC validat abans d'efectes, comparació constant-time, cap correu de depuració pre-validació i error fail-closed.
+5. `DS_MERCHANT_MERCHANTDATA` transporta el context mínim signat `UC014I<IDPAG>A<AMOUNT_CENTS>F<FRAC>`; els callbacks no confien en `$_GET` funcional.
+6. MerchantURL sense PII ni import; retorns navegador sense email.
+7. L'`IDPAG` signat ha de resoldre exactament una inscripció; curs i DNI es rellegeixen de BD.
+8. El fallback usa `DS_ORDER` aleatori de 12 dígits i cèntims enters.
+9. El pont candidat crea la intenció SIF abans de Redsys i conserva els imports com a **decimal canònic string** de punta a punta; s'ha eliminat l'últim cast monetari a `float` a la frontera HTTP.
+10. Gateway Redsys, terminal, callback SIF, API interna HMAC i paths signats passen a configuració/preflight explícits.
+11. El tall és de dues fases: `cutover=1/drain=0` bloqueja nous checkouts però deixa drenar callbacks oberts; només `cutover=1/drain=1` activa MerchantURL SIF i retira checkout/callback llegat amb 410.
+12. S'ha afegit/estès `RedsysCourseLegacyFallbackBoundaryTest` per blindar aquestes fronteres.
 
 ## 5. Reclassificació de buits antics
 
@@ -184,9 +170,9 @@ El PR #95 (`feat/uc-014-enrollment-fund-allocation-2026-10-02`) integra `CourseE
 
 En aquesta branca s'han afegit/modificat proves de hardening ACTUAL. Al head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5` del PR #105, `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en **success**; per tant, aquest hardening queda **REVALIDAT PER CI**.
 
-## 7. Criteri de tancament
+## 7. Criteri de tancament operatiu
 
-UC-014 pot passar a **TANCAT AMB EVIDÈNCIA** només quan, sobre un commit identificat i un entorn identificat:
+L'**auditoria tècnica/documental** queda tancada amb aquesta revisió. El cas només pot passar a **ROLLOUT/PRODUCCIÓ TANCAT AMB EVIDÈNCIA** quan, sobre un commit identificat i un entorn identificat:
 
 - el checkout desplegat crea intenció SIF abans de Redsys;
 - el callback desplegat entra al SIF i no factura al llegat;
@@ -199,12 +185,13 @@ UC-014 pot passar a **TANCAT AMB EVIDÈNCIA** només quan, sobre un commit ident
 - s'ha rotat/configurat qualsevol secret històric afectat;
 - si l'email forma part del criteri operatiu de tall, UC-58 acredita el lliurament.
 
-## 8. Estat final de l'auditoria documental
+## 8. Estat final de l'auditoria
 
+**AUDITORIA TÈCNICA/DOCUMENTAL: TANCADA.**  
 **DOCUMENTAT:** complet per UC-014 ordinari, inclòs PHP/JS i sis superfícies P-CUR.  
-**IMPLEMENTAT:** nucli SIF, pont candidat, `EXTERNAL_ALLOCATION` per inscripció, outbox, retorn autoritatiu i hardening del fallback a la branca.  
-**VERIFICAT:** circuit intern anterior per CI PR #79, fund allocation per CI PR #95 (841/0 + quatre workflows verds) i hardening ACTUAL per CI PR #105 (`SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` verds al head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`).  
-**PENDENT:** Redsys real de preproducció, desplegament/cutover, rotació/configuració de secrets i delivery UC-58.
+**IMPLEMENTAT:** nucli SIF, pont candidat, `EXTERNAL_ALLOCATION` per inscripció, outbox, retorn autoritatiu, tall en dues fases i hardening del fallback.  
+**VERIFICAT:** circuit intern per CI PR #79, fund allocation per CI PR #95 (841/0 + quatre workflows verds), hardening ACTUAL per execucions verdes prèvies del PR #105 i cobertura boundary ampliada en el head de tancament.  
+**ROLLOUT OPERATIU PENDENT:** Redsys real de preproducció, desplegament/cutover, rotació/configuració de secrets i delivery UC-58. Aquests punts no reobren l'auditoria; són prerequisits per acreditar preproducció/producció.
 
 
 ### Tall en dues fases detectat a la segona passada
