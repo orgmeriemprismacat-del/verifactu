@@ -4,7 +4,7 @@
 
 Auditoria executada contra `main` a:
 
-- commit: `47f8f834ab3ee44db64d8e8987f8b371766329f9`;
+- commit: `f7fa0822f82be96e842d9f2d031e643ab07f617c`;
 - cas: **UC-015 · Comprar pack**;
 - objectiu: contrastar fitxa funcional, PHP/JS real, UML de classes, seqüències i activitats ACTUAL/FINAL, proves i traçabilitat;
 - criteri d'estat: separar **documentat**, **implementat**, **verificat** i **pendent**.
@@ -237,20 +237,25 @@ Això és evidència de CI del bloc UC-015 després dels enduriments de 30/09.
 
 ### HEAD auditat
 
-Entre `41d6968...` i `47f8f83...` hi ha 222 commits. No s'han modificat els fitxers web/fitxes/core PACK; les dues dependències compartides rellevants han canviat així:
+Entre `41d6968...` i `f7fa082...` hi ha 261 commits. No s'han modificat els fitxers web/fitxes/core PACK; les dues dependències compartides rellevants han canviat així:
 
 - `RedsysPaymentIntentService`: s'ha afegit validació específica de `CURS`; la branca `PACK` continua cridant la mateixa `validatePackSnapshot()`;
 - `process-redsys-callback-queue.php`: s'ha afegit notificació de curs; la injecció del handler PACK continua intacta.
 
-A l'hora de l'auditoria, el workflow complet del HEAD `47f8f83...` es troba encara **queued**:
+La revisió de codi del PR a `0b32fa270325501e648fe31dbf51768f048fe0d7` va completar correctament els quatre workflows:
 
-- run: https://github.com/orgmeriemprismacat-del/verifactu/actions/runs/36943292835
+- `SIF checks`: success · run `36943484797`;
+- `SIF PHP MySQL tests`: success · run `36943484891`;
+- `UC-004 SIF secure flow checks`: success · run `36943484800`;
+- `UC-111 integration verification`: success · run `36943484841`.
+
+Després s'ha resincronitzat la branca amb `main`; per criteri de merge, el HEAD final ha de tornar a mantenir aquests checks verds.
 
 Per tant:
 
-- **verificació de codi al HEAD:** sí;
-- **CI específica del darrer paquet UC-015:** sí;
-- **CI completa del HEAD actual:** pendent de finalització;
+- **verificació de codi UC-015:** sí;
+- **CI de la revisió de codi del PR:** sí;
+- **CI del HEAD final després de qualsevol resincronització:** obligatòria abans del merge;
 - **E2E navegador + Redsys preproducció:** pendent.
 
 ## 8. Estat final per categoria
@@ -267,10 +272,10 @@ Per tant:
 
 ### Verificat
 
-- inspecció directa contra `main@9da7549...`: sí;
+- inspecció directa contra `main@f7fa082...`: sí;
 - proves unitàries/integració del paquet UC-015: sí, CI verda a `41d6968...`;
-- regressió nova del motiu de descompte: escrita en aquesta branca;
-- CI de la branca/HEAD després d'aquesta auditoria: pendent;
+- regressió nova del motiu de descompte: escrita i coberta per la suite verda del PR a `0b32fa2...`;
+- qualsevol HEAD posterior per resincronització amb `main` requereix nova CI verda abans del merge;
 - E2E real: pendent.
 
 ### Pendent
