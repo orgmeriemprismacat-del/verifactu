@@ -46,7 +46,8 @@ final class InternalInvoiceIssuePayloadPolicy
         }
 
         $payload['created_by'] = $actorId;
-        $payload['request_id'] = trim((string) ($actor['request_id'] ?? '')) ?: $payload['idempotency_key'];
+        $fallbackRequestId = trim((string) ($payload['idempotency_key'] ?? ''));
+        $payload['request_id'] = trim((string) ($actor['request_id'] ?? '')) ?: $fallbackRequestId;
         $payload['correlation_id'] = trim((string) ($payload['correlation_id'] ?? ''))
             ?: $payload['request_id'];
         $roles = $actor['roles'] ?? [];
