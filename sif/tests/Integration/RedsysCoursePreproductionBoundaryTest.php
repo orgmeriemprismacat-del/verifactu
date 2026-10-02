@@ -131,6 +131,8 @@ final class RedsysCoursePreproductionBoundaryTest
         foreach ([
             'environment_is_test_or_preproduction',
             'bridge_redsys_merchant_code_configured',
+            'sif_redsys_merchant_code_configured',
+            'bridge_and_sif_redsys_merchant_codes_match',
             'bridge_redsys_merchant_key_configured',
             'bridge_redsys_terminal_configured',
             'bridge_and_sif_redsys_keys_match',
@@ -155,6 +157,18 @@ final class RedsysCoursePreproductionBoundaryTest
         ] as $check) {
             Assert::stringContainsString("'" . $check . "'", $source);
         }
+    }
+
+    public function testSifCallbackRequiresExpectedMerchantCode(): void
+    {
+        $config = $this->read('sif/config/sif.php');
+        $callback = $this->read('sif/public/api/redsys/callback.php');
+
+        Assert::stringContainsString("SIF_REDSYS_MERCHANT_CODE", $config);
+        Assert::stringContainsString("REDSYS_MERCHANT_CODE", $config);
+        Assert::stringContainsString("SIF_REDSYS_MERCHANT_CODE_NOT_CONFIGURED", $callback);
+        Assert::stringContainsString("$merchantCode", $callback);
+        Assert::stringContainsString("new RedsysSignatureValidator(", $callback);
     }
 
     public function testCourseIntentSignedPathIsExplicitlyConfigured(): void
