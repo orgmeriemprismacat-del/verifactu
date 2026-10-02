@@ -46,3 +46,8 @@ Són gates de desplegament o tasques transversals ja identificades; no són inc�
 ## 6. Criteri de verificació final
 
 El commit de tancament ha de mantenir el PR mergeable i les comprovacions automàtiques han d'acabar correctament. Si GitHub Actions no arrenca, la manca d'execució es registra com a **bloqueig d'infraestructura de verificació**, mai com a prova passada.
+## 7. Decisió sobre el PR alternatiu #97
+
+El PR #97 ha estat revisat abans del tancament. Aporta una abstracció interessant: `PrismaStudentCourseCheckoutService` delega la persistència comercial a `CommercialOfferService`. No s'ha portat tal qual perquè `TransactionRunner` no admet transacció ja activa i el flux #97 separa oferta, intenció i vincle en commits diferents.
+
+Per UC-020 preval l'atomicitat del tall final de #112. Un futur refactor cap a `CommercialOfferService` haurà de permetre participar en la mateixa transacció/unit of work abans de substituir el writer actual.

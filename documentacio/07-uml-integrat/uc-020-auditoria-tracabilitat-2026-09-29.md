@@ -307,3 +307,10 @@ Totes sis queden tancades a la fitxa v1.5 i materialitzades on afecten el runtim
 **AUDIT_CLOSED** a 02/10/2026.
 
 El tancament acredita exhaustivitat documental/codi per UC-020 i resolució o transferència explícita de totes les troballes. No substitueix el gate de desplegament: cal conservar una execució E2E navegador → callback Redsys → pagament → factura sobre entorn controlat abans de considerar el rollout productiu verificat.
+### 11.4. Reconciliació de la branca alternativa PR #97
+
+| ID | Troballa | Resolució |
+| --- | --- | --- |
+| UC020-93 | El PR #97 centralitza operació/participant/validació a `CommercialOfferService`, però `TransactionRunner::run()` sempre obre i commiteja una transacció pròpia. En aquell tall, l'oferta es confirma abans de crear la intenció i el vincle/estat es confirma en una transacció posterior. | **NO PORTAR AS-IS / TRANSFERIT REFACTOR**. #112 es manté canònic perquè conserva l'atomicitat operació → validació → intenció → vincle. Si es vol eliminar el writer específic d'UC-020, primer cal fer `CommercialOfferService` transaction-aware o introduir una unit of work compartida i revalidar concurrència/idempotència. |
+
+Això no deixa una incògnita oberta d'UC-020: deixa una decisió arquitectònica explícita. El codi de #97 és una referència útil per al refactor, però no és segur fusionar-lo sobre el runtime final només per reduir duplicació.
