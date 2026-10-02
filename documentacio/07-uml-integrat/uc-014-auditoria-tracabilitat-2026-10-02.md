@@ -87,7 +87,7 @@ JS localitzat:
 | A14-05 | Fixar import | gate ACTUAL valida pendent/fraccionament a BD en aquesta branca | `EXPECTED_AMOUNT` recomputat | IMPLEMENTAT + proves de política |
 | A14-06 | Callback | fallback endurit en aquesta branca | `RedsysSignatureValidator` + `RedsysCallbackService` | IMPLEMENTAT |
 | A14-07 | Signatura | validada abans d'efectes al fallback | validació criptogràfica SIF | IMPLEMENTAT + VERIFICAT CI PR #105 |
-| A14-08 | Order/import/IDPAG + identitat TPV | fallback usa `Ds_Order`, `Ds_Amount` i `Ds_MerchantData` signats; no llegeix `$_GET` funcional; valida també `Ds_Currency`, `Ds_Terminal`, `Ds_MerchantCode` i format numèric de `Ds_Response` | intenció vs callback, inclou IDPAG/import/divisa/terminal i identitat de comerç | IMPLEMENTAT + boundary dedicat al PR #105 |
+| A14-08 | Order/import/IDPAG + identitat TPV | fallback usa `Ds_Order`, `Ds_Amount` i `Ds_MerchantData` signats; no llegeix `$_GET` funcional; valida també `Ds_Currency`, `Ds_Terminal`, `Ds_MerchantCode` i format numèric de `Ds_Response` | intenció vs callback; `RedsysSignatureValidator` contrasta també el `Ds_MerchantCode` signat amb `SIF_REDSYS_MERCHANT_CODE`/`REDSYS_MERCHANT_CODE` abans de cua | IMPLEMENTAT + boundary/unit dedicats al PR #105 |
 | A14-09 | Autorització TPV | resposta Redsys | només autorització positiva arriba a handler | IMPLEMENTAT |
 | A14-10 | Numeració fiscal | llegat conserva numeració pròpia mentre hi hagi fallback | `FiscalSequenceRepository::next()` via `InvoiceService` | **FINAL IMPLEMENTAT**; retirada llegat pendent |
 | A14-11 | Registrar cobrament | muta `PAGAMENT` en callback llegat | `payment_transaction` + `payment_allocation`, després projecció | IMPLEMENTAT/VERIFICAT intern |
@@ -117,6 +117,7 @@ JS localitzat:
 11. El tall és de dues fases: `cutover=1/drain=0` bloqueja nous checkouts però deixa drenar callbacks oberts; només `cutover=1/drain=1` activa MerchantURL SIF i retira checkout/callback llegat amb 410.
 12. S'ha afegit/estès `RedsysCourseLegacyFallbackBoundaryTest` per blindar aquestes fronteres.
 13. Els callbacks fallback rebutgen `Ds_Response` buit/no numèric abans de classificar una autorització i exigeixen moneda `978`, terminal i merchant code coincidents amb la configuració d'entorn; s'elimina així el fals positiu que podia produir `intval()` sobre una resposta no numèrica.
+14. El callback SIF FINAL exigeix merchant code configurat i `RedsysSignatureValidator` contrasta el `Ds_MerchantCode` inclòs en el payload signat; el preflight exigeix configuració al pont/SIF i coincidència entre ambdós.
 
 ## 5. Reclassificació de buits antics
 
