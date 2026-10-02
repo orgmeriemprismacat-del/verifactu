@@ -78,6 +78,19 @@ final class InvoicePayloadValidatorTest
         Assert::same('Invoice requires at least one line', $exception->getMessage());
     }
 
+
+    public function testNormalizesIdempotencyKeyAndSourceChannel(): void
+    {
+        $payload = $this->validPayload();
+        $payload['idempotency_key'] = '  INTRANET|UC001|NORMALIZE  ';
+        $payload['source_channel'] = ' intranet ';
+
+        $validated = (new InvoicePayloadValidator())->validate($payload);
+
+        Assert::same('INTRANET|UC001|NORMALIZE', $validated['idempotency_key']);
+        Assert::same('INTRANET', $validated['source_channel']);
+    }
+
     public function testRejectsBlankIdempotencyKey(): void
     {
         $payload = $this->validPayload();
