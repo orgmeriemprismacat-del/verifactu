@@ -87,6 +87,75 @@ final class FiscalDocumentJobProcessorTest
         }
     }
 
+    public function testRecoversStaleProcessingLeaseAndCompletesSameJob(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'TEST|DOCUMENT-WORKER|STALE',
+            ])
+        );
+
+        $queued = (new InvoiceBeforePaymentDocumentQueueService(
+            new TransactionRunner($db),
+            new DocumentJobRepository(),
+            'uc004-fiscal-pdf-v1'
+        ))->ensurePdf(
+            $invoice['uuid_factura'],
+            'INTRANET|FACTURA_ABANS_COBRAR|REF:WORKER-STALE'
+        );
+
+        $db->prepare(
+            "UPDATE document_job
+             SET STATUS = 'PROCESSING', ATTEMPTS = 1, LOCKED_AT = ?
+             WHERE ID = ?"
+        )->execute(['2026-01-01 00:00:00.000000', $queued['document_job_id']]);
+
+        $root = $this->temporaryDirectory();
+
+        try {
+            $renderer = new class implements FiscalDocumentRendererInterface {
+                public function render(\PDO $db, array $job): array
+                {
+                    return [
+                        'contents' => '%PDF-1.4 recovered-' . $job['UUID_JOB'],
+                        'extension' => 'pdf',
+                    ];
+                }
+            };
+
+            $processor = new FiscalDocumentJobProcessor(
+                $db,
+                new TransactionRunner($db),
+                new DocumentJobRepository(),
+                $renderer,
+                new PrivateDocumentWriter($root),
+                new DocumentRepository(),
+                1,
+                10,
+                60
+            );
+
+            $result = $processor->processNext();
+
+            Assert::same(true, $result['ok']);
+            Assert::same('COMPLETED', $result['status']);
+
+            $job = $db->query(
+                'SELECT STATUS, ATTEMPTS, LAST_ERROR, FACTURA_DOCUMENT_ID
+                 FROM document_job'
+            )->fetch(\PDO::FETCH_ASSOC);
+
+            Assert::same('COMPLETED', $job['STATUS']);
+            Assert::same(2, (int) $job['ATTEMPTS']);
+            Assert::same(null, $job['LAST_ERROR']);
+            Assert::same(true, (int) $job['FACTURA_DOCUMENT_ID'] > 0);
+            Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_documents')->fetchColumn());
+        } finally {
+            $this->removeDirectory($root);
+        }
+    }
+
     public function testRendererFailureSchedulesRetryWithoutTouchingInvoice(): void
     {
         $db = TestDatabase::fresh();
