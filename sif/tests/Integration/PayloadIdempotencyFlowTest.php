@@ -28,6 +28,36 @@ final class PayloadIdempotencyFlowTest
         Assert::same(1, (int) $db->query('SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID = 1')->fetchColumn());
     }
 
+    public function testInvoiceRetryCanUseNewRequestTraceMetadataWithoutChangingBusinessIdentity(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|TRACE|RETRY',
+            'source_channel' => 'INTRANET',
+            'request_id' => '11111111-1111-4111-8111-111111111111',
+            'correlation_id' => 'TRACE-CORR-FIRST',
+            'actor_role' => 'FACTURACIO',
+            'actor_type' => 'SYSTEM',
+        ]);
+
+        $first = $service->issueInvoice($payload);
+        $payload['request_id'] = '22222222-2222-4222-8222-222222222222';
+        $payload['correlation_id'] = 'TRACE-CORR-SECOND';
+        $payload['actor_role'] = 'ADMINISTRACIO';
+        $second = $service->issueInvoice($payload);
+
+        Assert::same($first['uuid_factura'], $second['uuid_factura']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same('TRACE-CORR-FIRST', $first['correlation_id']);
+        Assert::same('TRACE-CORR-SECOND', $second['correlation_id']);
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM sif_audit_event')->fetchColumn());
+        Assert::same(
+            '22222222-2222-4222-8222-222222222222',
+            (string) $db->query('SELECT REQUEST_ID FROM sif_audit_event ORDER BY ID DESC LIMIT 1')->fetchColumn()
+        );
+    }
+
     public function testRetryCannotAddAnInitialPaymentToAnAlreadyIssuedInvoice(): void
     {
         $db = TestDatabase::fresh();
