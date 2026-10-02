@@ -394,3 +394,6 @@ flowchart TD
 `sifCanviCursPreview.php` consulta `LegacyUsocLifecycleGuard` abans de permetre el preview/confirmació genèric. Quan existeix un expedient USOC amb dues parts, el canvi legacy queda bloquejat. `UsocLifecyclePlanService` pot descriure accions separades per alumne i entitat, però encara no existeix l'executor equivalent al de baixa que rectifiqui/reemeti les factures de curs destí i resolgui diners per pagador.
 
 Això és **protecció implementada**, no un canvi de curs USOC complet.
+
+
+**Contracte FINAL del canvi de curs:** [UC-013 canvi de curs USOC](uc-013-canvi-curs-usoc-contracte-final.md).
