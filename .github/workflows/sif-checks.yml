@@ -23,6 +23,8 @@ on:
       - "codi-drive/web-actual/ajax/enviarInscripcioAfiliat.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
+      - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioTaller.php"
       - "documentacio/05-governanca-operacio/**"
       - "documentacio/06-fitxes-funcionals/**"
@@ -105,6 +107,13 @@ jobs:
         run: |
           node --check codi-drive/intranet-actual/js/alumnes-usoc-financament.js
           node --check codi-drive/intranet-actual/js/alumnes-validar-descomptes.js
+
+      - name: PHP and JavaScript syntax UC-015 PACK web
+        run: |
+          php -l codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
+          php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
+          node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
 
       - name: SIF test suite
         run: php sif/tests/run-tests.php
