@@ -80,6 +80,7 @@ final class RedsysCourseLegacyFallbackBoundaryTest
         foreach ([
             'REDSYS_MERCHANT_KEY_NOT_CONFIGURED',
             'INVALID_REDSYS_SIGNATURE',
+            'INVALID_REDSYS_ORDER',
             'REDSYS_AMOUNT_MISMATCH',
             'REDSYS_CURRENCY_MISMATCH',
             'REDSYS_TERMINAL_MISMATCH',
@@ -133,6 +134,7 @@ final class RedsysCourseLegacyFallbackBoundaryTest
             Assert::stringContainsString('SIF_REDSYS_COURSE_CUTOVER_ENABLED', $callback);
             Assert::stringContainsString("getParameter('Ds_MerchantData')", $callback);
             Assert::stringContainsString('INVALID_REDSYS_MERCHANT_CONTEXT', $callback);
+            Assert::stringContainsString('INVALID_REDSYS_ORDER', $callback);
             Assert::stringContainsString('REDSYS_CURRENCY_MISMATCH', $callback);
             Assert::stringContainsString('REDSYS_TERMINAL_MISMATCH', $callback);
             Assert::stringContainsString('REDSYS_MERCHANT_CODE_MISMATCH', $callback);
