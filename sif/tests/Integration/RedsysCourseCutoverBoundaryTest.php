@@ -25,6 +25,22 @@ final class RedsysCourseCutoverBoundaryTest
         }
     }
 
+    public function testCheckoutRequiresConfiguredHttpsRedsysGateway(): void
+    {
+        $source = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php'
+        );
+
+        Assert::stringContainsString("getenv('REDSYS_GATEWAY_URL')", $source);
+        Assert::stringContainsString('REDSYS_GATEWAY_URL_NOT_CONFIGURED', $source);
+        Assert::stringContainsString('REDSYS_GATEWAY_URL_MUST_USE_HTTPS', $source);
+        Assert::stringContainsString('htmlspecialchars($gatewayUrl', $source);
+
+        if (preg_match('/<form[^>]+action=[\"\']https:\/\/sis(?:-t)?\.redsys\.es/i', $source) === 1) {
+            Assert::fail('Redsys gateway must not be hardcoded in the candidate checkout.');
+        }
+    }
+
     public function testLegacyCallbacksFailClosedBeforeAnyDependencyOrSideEffectDuringCutover(): void
     {
         foreach ([
