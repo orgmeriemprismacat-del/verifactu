@@ -1,4 +1,19 @@
 <?php
+	/* UC-015: harness legacy només per entorns de prova explícits.
+	 * Producció i accés accidental queden fail-closed.
+	 */
+	$sifEnv = strtolower(trim((string) (getenv('SIF_ENV') ?: 'production')));
+	$legacyPackTestEnabled = filter_var(
+		getenv('SIF_PACK_LEGACY_TEST_CALLBACK_ENABLED') ?: '0',
+		FILTER_VALIDATE_BOOLEAN
+	);
+	if (!in_array($sifEnv, ['test', 'preproduction'], true) || !$legacyPackTestEnabled) {
+		http_response_code(410);
+		header('Content-Type: text/plain; charset=utf-8');
+		exit('Harness legacy PACK desactivat.');
+	}
+
+
 	include("./ConnexioBBDD_PreparedStatment.php");
 	include("./inc/apiRedsys.php");
 	include("./Text.php");
