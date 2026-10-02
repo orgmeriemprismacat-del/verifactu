@@ -1,4 +1,9 @@
 <?php
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('Referrer-Policy: no-referrer');
+header('X-Content-Type-Options: nosniff');
+
 // UC-111: authoritative payment gate BEFORE rendering or building Redsys data.
 // This legacy bridge reads the enrollment and secretary decision, never the
 // course/amount/approval from the POST form as its source of truth.
