@@ -51,7 +51,7 @@ try {
         new InvoiceBeforePaymentPayloadBuilder(),
         $invoiceService,
         new InvoiceBeforePaymentDocumentQueueService(
-            new TransactionRunner($db),
+            new TransactionRunner($sifDb),
             new DocumentJobRepository(),
             (string) ($documentsConfig['generator_version'] ?? '')
         )
