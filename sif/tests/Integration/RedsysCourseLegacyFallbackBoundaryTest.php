@@ -55,6 +55,10 @@ final class RedsysCourseLegacyFallbackBoundaryTest
             'REDSYS_MERCHANT_KEY_NOT_CONFIGURED',
             'INVALID_REDSYS_SIGNATURE',
             'REDSYS_AMOUNT_MISMATCH',
+            'REDSYS_CURRENCY_MISMATCH',
+            'REDSYS_TERMINAL_MISMATCH',
+            'REDSYS_MERCHANT_CODE_MISMATCH',
+            'INVALID_REDSYS_RESPONSE_CODE',
             'INVALID_REDSYS_MERCHANT_CONTEXT',
             'REDSYS_IDPAG_NOT_UNIQUE_OR_MISSING',
             "getParameter('Ds_MerchantData')",
@@ -77,6 +81,9 @@ final class RedsysCourseLegacyFallbackBoundaryTest
         if (str_contains($callback, '$_GET[')) {
             Assert::fail('UC-014 legacy callback must not trust functional context from query string.');
         }
+        if (str_contains($callback, 'intval($codiResposta)>=0')) {
+            Assert::fail('UC-014 legacy callback must validate Ds_Response as numeric before authorization.');
+        }
     }
 
     public function testCandidateCallbacksDoNotNotifyBeforeRedsysValidation(): void
@@ -94,8 +101,15 @@ final class RedsysCourseLegacyFallbackBoundaryTest
             Assert::stringContainsString('SIF_REDSYS_COURSE_CUTOVER_ENABLED', $callback);
             Assert::stringContainsString("getParameter('Ds_MerchantData')", $callback);
             Assert::stringContainsString('INVALID_REDSYS_MERCHANT_CONTEXT', $callback);
+            Assert::stringContainsString('REDSYS_CURRENCY_MISMATCH', $callback);
+            Assert::stringContainsString('REDSYS_TERMINAL_MISMATCH', $callback);
+            Assert::stringContainsString('REDSYS_MERCHANT_CODE_MISMATCH', $callback);
+            Assert::stringContainsString('INVALID_REDSYS_RESPONSE_CODE', $callback);
             if (str_contains($callback, '$_GET[')) {
                 Assert::fail('Candidate legacy callback must not trust functional context from query string.');
+            }
+            if (str_contains($callback, 'intval($codiResposta)>=0')) {
+                Assert::fail('Candidate callback must validate Ds_Response as numeric before authorization.');
             }
         }
     }
