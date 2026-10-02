@@ -21,6 +21,10 @@ final class InvoiceIssuePreflightScriptTest
         Assert::stringContainsString('invoice_issue_write_roles_configured', $source);
         Assert::stringContainsString('issuer_nif_configured', $source);
         Assert::stringContainsString('issuer_name_configured', $source);
+        Assert::stringContainsString('aeat_system_name_configured', $source);
+        Assert::stringContainsString('aeat_system_id_configured', $source);
+        Assert::stringContainsString('aeat_system_version_configured', $source);
+        Assert::stringContainsString('aeat_installation_id_configured', $source);
         Assert::stringContainsString('internal_api_request_table', $source);
         Assert::stringContainsString('sif_audit_event_table', $source);
         Assert::stringContainsString('operational_event_table', $source);
