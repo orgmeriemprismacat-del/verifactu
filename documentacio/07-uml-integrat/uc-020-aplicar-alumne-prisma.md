@@ -642,7 +642,7 @@ El model FINAL ja té dues peces complementàries implementades:
 - **infraestructura comercial general:** repositoris de `commercial_operation`, `discount_validation`, `payment_link`, `CommercialOfferService` i `PaymentLinkService`;
 - **flux específic Alumne PrisMa:** `PrismaStudentDiscountPolicy`, `LegacyPrismaStudentHistoryRepository`, `CourseIntentSnapshotValidator`, `LegacyPrismaStudentPriceSnapshotResolver` i `PrismaStudentCourseCheckoutService`.
 
-La policy és deliberadament una regla de **compatibilitat legacy versionada** (`ALUMNE_PRISMA_LEGACY_V1`). No converteix les decisions pendents de negoci en decisions tancades.
+La policy és deliberadament una regla de **compatibilitat legacy versionada** (`ALUMNE_PRISMA_WEB_LEGACY_V2`). No converteix les decisions pendents de negoci en decisions tancades.
 
 ## 20. Seqüència implementada del nucli UC-020
 
@@ -707,3 +707,8 @@ Client-->>Pay: amount + DS_ORDER
 ```
 
 La pantalla de pagament utilitza l'import retornat per SIF per construir `DS_MERCHANT_AMOUNT`; per tant el **pagament AP actiu** ja no depèn de l'import POST com a font de veritat. Això no tanca encara el problema anterior d'alta/preview: `enviarInscripcio.php` continua sent un front llegat a migrar cap a una oferta servidor immutable.
+
+
+## Reconciliació de tancament — 02/10/2026
+
+L'auditoria UC-020 queda **tancada**. El runtime AP de targeta és server-authoritative, l'alta llegada revalida AP abans de persistir, la policy v2 exclou autoacreditació i historial futur, i la resolució d'intranet s'ha reconciliat amb el codi actual POST/CSRF/permís/requestId. `payment_link`, transferència i E2E/preproducció es mantenen com a backlog/gates de migració, no com a preguntes obertes sobre el comportament AP actual.
