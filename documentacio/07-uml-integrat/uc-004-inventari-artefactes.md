@@ -133,7 +133,7 @@ No s'ha aplicat una UNIQUE global sobre `fact_rels`, perquè podria interferir a
 | C-07 | Preview servidor amb fingerprint/versió abans de confirmar | **IMPLEMENTAT EN CLI + HTTP + UI** · en aquesta branca comprova també coverage UC-004 abans de retornar preview |
 | C-08 | Registre `operational_event` / auditoria dins del flux UC-004 | **IMPLEMENTAT EN AQUESTA BRANCA dins la mateixa transacció** |
 | C-09 | Compatibilitat llegada post-COMMIT | **DECIDIT:** no crear factura shadow ni sentinel a `FACTURA_RELACIONADA`; adaptar lectures a SIF/read-model. Projeccions futures només no fiscals, idempotents i recuperables |
-| C-10 | Document PDF/QR per UUID/snapshot i estat READY/PENDING/ERROR | **PARCIAL** · `DocumentJobRepository` + `InvoiceBeforePaymentDocumentQueueService` encolen PDF idempotent/versionat i retornen PENDING; worker/renderitzat/storage pendents |
+| C-10 | Document PDF/QR per UUID/snapshot i estat READY/PENDING/ERROR | **PARCIAL AVANÇAT** · cua, `FiscalDocumentJobProcessor`, stale recovery/lease, `InvoiceDocumentSnapshotRepository`, `PrivateDocumentWriter`, hash i `factura_documents READY` implementats; renderer fiscal concret pendent |
 | C-11 | Endpoint HTTP UC-004 segur | **IMPLEMENTAT AL MAIN** · `public/api/factures/before-payment.php` |
 | C-12 | E2E pantalla → SIF → document → cobrament posterior | **FALTA PROVA** |
 | C-13 | Validar backfill de cobertura UC-004 en dades de preproducció i resoldre duplicats històrics, si n'hi ha | **FALTA EXECUCIÓ** |
