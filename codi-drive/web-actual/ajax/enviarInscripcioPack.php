@@ -352,6 +352,59 @@ try {
 	}
 
 	/* ######################################################################### */
+	/* Disponibilitat autoritativa: totes les edicions han de continuar obertes. */
+	$diesInscripcioPerHores = [];
+	$cnsDiesInscripcio = "SELECT VALOR FROM params
+		WHERE TIPUS=? AND DATAI<=CURRENT_TIME AND (DATAF IS NULL OR CURRENT_TIME<=DATAF)
+		ORDER BY VALOR";
+	if ( $stmtDies = $connexio->prepare($cnsDiesInscripcio) ) {
+		$tipusDies = 'dies-inscriu-cursos';
+		$stmtDies->bind_param("s", $tipusDies);
+		$stmtDies->execute();
+		$stmtDies->bind_result($valorDies);
+
+		while ($stmtDies->fetch()) {
+			$partsDies = explode('|', (string) $valorDies);
+			if (count($partsDies) !== 2 || !is_numeric($partsDies[0]) || !is_numeric($partsDies[1])) {
+				$stmtDies->close();
+				throw new Exception('',2912);
+			}
+
+			$horesConfigurades = (int) $partsDies[0];
+			$diesConfigurats = (int) $partsDies[1];
+			if (!isset($diesInscripcioPerHores[$horesConfigurades])) {
+				$diesInscripcioPerHores[$horesConfigurades] = [];
+			}
+			if (!in_array($diesConfigurats, $diesInscripcioPerHores[$horesConfigurades], true)) {
+				$diesInscripcioPerHores[$horesConfigurades][] = $diesConfigurats;
+			}
+		}
+		$stmtDies->close();
+	}
+	else {
+		throw new Exception('',2912);
+	}
+
+	foreach ($edicions as $edicioDisponibilitat) {
+		$horesEdicio = (int) $edicioDisponibilitat->obtenirHores()->obtenirNumero();
+		if (!isset($diesInscripcioPerHores[$horesEdicio])) {
+			throw new Exception('',2624);
+		}
+
+		$edicioOberta = false;
+		foreach ($diesInscripcioPerHores[$horesEdicio] as $diesOberts) {
+			if ($edicioDisponibilitat->inscripcioOberta($diesOberts) > 0) {
+				$edicioOberta = true;
+				break;
+			}
+		}
+
+		if (!$edicioOberta) {
+			throw new Exception('',2624);
+		}
+	}
+
+	/* ######################################################################### */
 	/* Preus autoritatius del pack: mai confiar en preuPack/preuCursos del client. */
 	$cnsPreuServidor = "SELECT IMPORT FROM preu
 		WHERE ID=? AND DATAI<=CURRENT_TIME AND (CURRENT_TIME<=DATAF OR DATAF IS NULL)
