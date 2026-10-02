@@ -64,9 +64,11 @@ try {
     }
 
     $issuer = $config['issuer'] ?? [];
+    $environment = strtoupper(trim((string) ($config['env'] ?? 'local')));
     $payload = (new InternalInvoiceIssuePayloadPolicy(
         (string) ($issuer['nif'] ?? ''),
-        (string) ($issuer['name'] ?? '')
+        (string) ($issuer['name'] ?? ''),
+        in_array($environment, ['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION'], true)
     ))->prepare($payload, $actor);
 
     $service = new InvoiceService(
