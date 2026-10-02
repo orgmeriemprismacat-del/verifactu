@@ -76,6 +76,7 @@ Fitxers:
 - `sif/tests/Integration/RedsysPackInvoiceServiceTest.php`
 - `sif/tests/Integration/PackCommercialOrderBoundaryTest.php`
 - `sif/tests/Integration/PackPublicEnrollmentBoundaryTest.php`
+- `sif/tests/Integration/PackMultiCourseCommunicationBoundaryTest.php`
 - `sif/tests/Integration/LegacyPackCallbackBoundaryTest.php`
 - `sif/tests/Integration/RedsysPaymentIntentTest.php`
 - `sif/tests/Integration/RedsysPackPreflightScriptTest.php`
@@ -209,6 +210,30 @@ El codi històric de `realitzaPagamentPackAutomatic.php` encara existeix, però 
 
 **Correcció aplicada en aquesta auditoria:** motiu neutral basat en el snapshot comercial + regressió en `LegacyPackInvoicePayloadBuilderTest`.
 
+### F-11 · `pagFrac` era una entrada client inexistent — corregit
+
+El PHP llegia `pagFrac` del request encara que el JS del pack no l'enviava. A més, la regla vigent de UC-015 estableix que l'ecommerce no permet fraccionament.
+
+**Correcció aplicada:**
+- `pagFrac` ja no forma part del contracte d'entrada;
+- el servidor fixa `new Text('No')`;
+- el contracte JS/PHP queda alineat: tots els camps consumits pel PHP són realment enviats pel JS;
+- el boundary test comprova que `pagFrac` no torna a ser controlable pel client.
+
+**Estat:** implementat i cobert per prova.
+
+### F-12 · Correu d'alta limitat a dos cursos — corregit per PACK N
+
+El nucli de pack admet N components, però el correu d'alta utilitzava `$titols[0]`, `$titols[1]`, `[TITOL1]` i `[TITOL2]`. Un pack amb més de dos components s'inscrivia/facturava amb N línies però la comunicació només descrivia els dos primers.
+
+**Correcció aplicada:**
+- el correu usa ara `[CURSOS_PACK]`;
+- reutilitza `$datesRealitzacioCursos`, generat en bucle per tots els components;
+- s'elimina la dependència de `$edicions[1]` i `$titols[0/1]` del correu;
+- `PackMultiCourseCommunicationBoundaryTest` blinda que la plantilla no torni a dos cursos fixos.
+
+**Estat:** implementat i cobert per prova; E2E de correu pendent.
+
 ## 6. UML i traçabilitat
 
 ### Classes
@@ -298,6 +323,8 @@ Per tant:
 - correcció del diagrama de seqüència FINAL;
 - detecció i correcció del transport GET: POST-only + frontera same-site/origin + boundary test;
 - correcció del text fiscal intern de descompte perquè no pressuposi «segon curs»;
+- eliminació de `pagFrac` com a entrada client i fixació server-side de no fraccionament;
+- correu d'alta generalitzat de 2 cursos fixos a PACK N;
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
 - creació d'aquest registre de revalidació 02/10.
