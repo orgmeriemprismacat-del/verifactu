@@ -4,11 +4,14 @@ namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Contract\PayloadIdempotencyValidatorInterface;
 use Prisma\Sif\Database\TransactionRunner;
+use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Repository\SifAuditEventRepository;
 
 final class InvoiceService
 {
@@ -20,9 +23,13 @@ final class InvoiceService
         private ?PaymentPayloadValidator $paymentValidator = null,
         private ?PaymentRepository $payments = null,
         private ?PayloadIdempotencyValidatorInterface $idempotency = null,
-        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null
+        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null,
+        private ?OperationalEventRepository $operationalEvents = null,
+        private ?SifAuditEventRepository $auditEvents = null
     ) {
         $this->idempotency ??= new PayloadIdempotencyValidator();
+        $this->operationalEvents ??= new OperationalEventRepository(new UuidGenerator());
+        $this->auditEvents ??= new SifAuditEventRepository(new UuidGenerator());
     }
 
     public function issueInvoice(array $payload): array
@@ -87,7 +94,9 @@ final class InvoiceService
                 $result['uuid_payment'] = $payment['uuid_payment'];
             }
 
-            return $this->withStatusProjection($db, $result);
+            $result = $this->withStatusProjection($db, $result);
+
+            return $this->appendIssueAudit($db, $payload, $result, false);
         });
     }
 
@@ -160,7 +169,9 @@ final class InvoiceService
         $result = $this->existingResult($existing);
 
         if (!array_key_exists('payment', $payload) || $payload['payment'] === null) {
-            return $this->withStatusProjection($db, $result);
+            $result = $this->withStatusProjection($db, $result);
+
+            return $this->appendIssueAudit($db, $payload, $result, true);
         }
 
         if (!is_array($payload['payment'])) {
@@ -191,7 +202,9 @@ final class InvoiceService
 
         $result['uuid_payment'] = $payment['UUID_PAYMENT'];
 
-        return $this->withStatusProjection($db, $result);
+        $result = $this->withStatusProjection($db, $result);
+
+        return $this->appendIssueAudit($db, $payload, $result, true);
     }
 
     private function withStatusProjection(\PDO $db, array $result): array
@@ -210,6 +223,118 @@ final class InvoiceService
         return $result;
     }
 
+
+    private function appendIssueAudit(
+        \PDO $db,
+        array $payload,
+        array $result,
+        bool $reused
+    ): array {
+        $requestId = $this->contextId($payload['request_id'] ?? null, (string) $payload['idempotency_key']);
+        $correlationId = $this->contextId($payload['correlation_id'] ?? null, $requestId);
+        $occurredAt = (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid')))
+            ->format('Y-m-d H:i:s.u');
+        $firstRelation = $payload['relations'][0] ?? [];
+        $sourceType = strtoupper(trim((string) (
+            $payload['source_type'] ?? $firstRelation['source_type'] ?? 'INVOICE'
+        )));
+        if ($sourceType === '') {
+            $sourceType = 'INVOICE';
+        }
+        $sourceId = $firstRelation['source_id'] ?? $payload['source_id'] ?? null;
+        $actorType = strtoupper(trim((string) ($payload['actor_type'] ?? 'SYSTEM')));
+        if (!in_array($actorType, ['HUMAN', 'SYSTEM', 'PROCESS'], true)) {
+            $actorType = 'SYSTEM';
+        }
+        $actorId = $this->nullableContextString($payload['created_by'] ?? null);
+        $actorRole = $this->nullableContextString($payload['actor_role'] ?? null);
+        $reasonCode = $reused ? 'INVOICE_IDEMPOTENCY_REUSED' : 'INVOICE_ISSUED';
+        $afterSnapshot = [
+            'uuid_factura' => $result['uuid_factura'],
+            'num_visible' => $result['num_visible'],
+            'uuid_payment' => $result['uuid_payment'] ?? null,
+            'status' => $result['status'] ?? [],
+            'fiscal_order' => $result['fiscal_order'] ?? null,
+            'idempotency_reused' => $reused,
+        ];
+
+        $this->operationalEvents->append($db, [
+            'operation_type' => 'ISSUE_INVOICE',
+            'source_type' => $sourceType,
+            'source_id' => $sourceId === null ? null : (string) $sourceId,
+            'uuid_factura' => (string) $result['uuid_factura'],
+            'uuid_payment' => isset($result['uuid_payment']) ? (string) $result['uuid_payment'] : null,
+            'fiscal_impact' => 'INVOICE_ISSUED',
+            'economic_impact' => isset($result['uuid_payment']) ? 'PAYMENT_RECORDED' : 'NONE',
+            'status' => 'COMPLETED',
+            'reason_code' => $reasonCode,
+            'before_snapshot' => null,
+            'after_snapshot' => $afterSnapshot,
+            'actor_type' => $actorType,
+            'actor_id' => $actorId,
+            'actor_role' => $actorRole,
+            'source_channel' => (string) $payload['source_channel'],
+            'correlation_id' => $correlationId,
+            'occurred_at' => $occurredAt,
+        ]);
+
+        $afterJson = json_encode(
+            $afterSnapshot,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        );
+        $this->auditEvents->append($db, [
+            'request_id' => $requestId,
+            'correlation_id' => $correlationId,
+            'action' => 'ISSUE_INVOICE',
+            'result' => $reused ? 'REUSED' : 'SUCCEEDED',
+            'resource_type' => 'FACTURA',
+            'resource_id' => (string) $result['uuid_factura'],
+            'source_environment' => $this->sourceEnvironment(),
+            'source_channel' => (string) $payload['source_channel'],
+            'actor_type' => $actorType,
+            'actor_id' => $actorId,
+            'actor_role' => $actorRole,
+            'reason_code' => $reasonCode,
+            'before_hash' => null,
+            'after_hash' => hash('sha256', $afterJson),
+            'changeset' => [
+                'idempotency_key' => (string) $payload['idempotency_key'],
+                'status' => $result['status'] ?? [],
+                'fiscal_order' => $result['fiscal_order'] ?? null,
+                'idempotency_reused' => $reused,
+            ],
+            'occurred_at' => $occurredAt,
+        ]);
+
+        $result['correlation_id'] = $correlationId;
+
+        return $result;
+    }
+
+    private function contextId(mixed $value, string $fallback): string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value === '' ? $fallback : mb_substr($value, 0, 120, 'UTF-8');
+    }
+
+    private function nullableContextString(mixed $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value === '' ? null : $value;
+    }
+
+    private function sourceEnvironment(): string
+    {
+        return match (strtoupper(trim((string) (getenv('SIF_ENV') ?: 'DEVELOPMENT')))) {
+            'PROD', 'PRODUCTION' => 'PRODUCTION',
+            'PREPROD', 'PREPRODUCTION' => 'PREPRODUCTION',
+            'TEST', 'TESTING' => 'TEST',
+            'MIGRATION' => 'MIGRATION',
+            default => 'DEVELOPMENT',
+        };
+    }
 
     private function assertInitialPaymentStillMatches(
         \PDO $db,
