@@ -431,7 +431,7 @@ Cobertura nova preparada:
 
 Segons el contracte públic de Redsys, `DS_MERCHANT_TITULAR` representa nom i cognoms del titular i `DS_MERCHANT_PRODUCTDESCRIPTION` és una descripció visible del producte; per tant, retirar el DNI d'aquests camps és coherent amb la semàntica del TPV.
 
-**Residual no resolt en aquesta passada:** l'alta és un formulari públic no autenticat. POST evita PII en URL i mutacions via GET, però no substitueix un control anti-abús/origen. Cal tractar-ho com a hardening del formulari públic (token, comprovació d'origen i/o rate limiting) sense barrejar-lo amb la seguretat HMAC server-to-server del SIF.
+**Hardening posterior:** l'alta pública ja exigeix same-origin AJAX mitjançant `PublicWebMutationAuthorization` i `WEB_ALLOWED_ORIGINS`. Això tanca la frontera d'origen/CSRF cross-site bàsica sense introduir sessió. Resta només valorar rate limiting/anti-bot segons risc operatiu; és independent de la seguretat HMAC server-to-server del SIF.
 
 
 ## 23. Evidència CI del paquet complet abans de consolidar sobre main — 2026-10-01
