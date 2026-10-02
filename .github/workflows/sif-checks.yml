@@ -30,6 +30,10 @@ on:
       - "codi-drive/web-actual/pagina_inscripcio_pack.php"
       - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
       - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
+      - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/respostaOkPagamentAutomatic.php"
+      - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioTaller.php"
       - "documentacio/05-governanca-operacio/**"
       - "documentacio/06-fitxes-funcionals/**"
@@ -122,6 +126,10 @@ jobs:
           php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
           php -l codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php
           php -l codi-drive/web-actual/pagina_inscripcio_pack.php
+          php -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
+          php -l codi-drive/web-actual/respostaOkPagamentAutomatic.php
+          php -l codi-drive/web-actual/respostaKoPagamentAutomatic.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
           php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
           node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
 
