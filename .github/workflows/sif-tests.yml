@@ -10,6 +10,10 @@ on:
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
       - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangePricingSourceInterface.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangePricingMysqlSource.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangePricingResolver.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifUsocCourseChangePreview.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
       - "codi-drive/intranet-actual/alumnes-mostrar-alumne.php"
@@ -97,6 +101,10 @@ jobs:
         run: |
           php -l codi-drive/intranet-actual/LegacyDiscountValidationLookup.php
           php -l codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangePricingSourceInterface.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangePricingMysqlSource.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangePricingResolver.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sifUsocCourseChangePreview.php
           php -l codi-drive/intranet-actual/SifAuthenticatedActor.php
           php -l codi-drive/intranet-actual/SifInternalUsocClient.php
           php -l codi-drive/intranet-actual/alumnes-mostrar-alumne.php
