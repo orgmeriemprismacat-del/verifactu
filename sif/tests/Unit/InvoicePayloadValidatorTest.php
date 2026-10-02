@@ -293,6 +293,36 @@ final class InvoicePayloadValidatorTest
         );
     }
 
+    public function testRejectsOversizedOrNonCanonicalTraceMetadata(): void
+    {
+        foreach ([
+            ['request_id', str_repeat('R', 121)],
+            ['correlation_id', ' CORR '],
+            ['actor_role', str_repeat('A', 81)],
+            ['actor_type', 'human'],
+        ] as [$field, $value]) {
+            $payload = $this->validPayload();
+            $payload[$field] = $value;
+
+            Assert::throws(
+                SifException::class,
+                static fn () => (new InvoicePayloadValidator())->validate($payload),
+                422
+            );
+        }
+    }
+
+    public function testAcceptsCanonicalTraceMetadata(): void
+    {
+        $payload = $this->validPayload();
+        $payload['request_id'] = '11111111-1111-4111-8111-111111111111';
+        $payload['correlation_id'] = 'UC001-TRACE-OK';
+        $payload['actor_role'] = 'FACTURACIO';
+        $payload['actor_type'] = 'SYSTEM';
+
+        Assert::same($payload, (new InvoicePayloadValidator())->validate($payload));
+    }
+
     private function validPayload(): array
     {
         return [
