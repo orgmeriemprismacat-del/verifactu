@@ -115,3 +115,11 @@ El checkout PACK és fail-closed i no reutilitza imports, titular, correu ni end
 - `php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>`: verificació read-only de la cadena persistent completa UC-015 després de l'execució.
 - En producció el verificador d'evidència queda bloquejat per defecte; només es pot habilitar explícitament amb `SIF_UC015_EVIDENCE_ALLOW_PRODUCTION=1`.
 - La sortida d'evidència no inclou PII, signatures ni snapshots comercials complets.
+
+
+### Frontera pública d'alta PACK
+
+- `WEB_ALLOWED_ORIGINS`: orígens web autoritzats per a mutacions públiques AJAX, separats per `;` o `,`.
+- Default UC-015: `https://www.prisma.cat;https://prisma.cat`.
+- `enviarInscripcioPack.php` exigeix POST, `X-Requested-With: XMLHttpRequest`, allowlist d'origen/referer i conserva també la comprovació `Sec-Fetch-Site` com a defensa addicional.
+- Aquest control redueix CSRF cross-site i peticions directes no-AJAX; no substitueix rate limiting o controls anti-bot.
