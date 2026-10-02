@@ -296,7 +296,9 @@ final class DocumentJobRepository
                  LOCKED_AT = NULL,
                  NEXT_ATTEMPT_AT = ?,
                  FINISHED_AT = ?
-             WHERE ID = ? AND STATUS = \'PROCESSING\''
+             WHERE ID = ?
+               AND STATUS = \'PROCESSING\'
+               AND ATTEMPTS = ?'
         );
         $stmt->execute([
             $status,
@@ -304,6 +306,7 @@ final class DocumentJobRepository
             $nextAttempt,
             $terminal ? $now->format('Y-m-d H:i:s.u') : null,
             $jobId,
+            $expectedAttempt,
         ]);
 
         if ($stmt->rowCount() !== 1) {
