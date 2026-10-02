@@ -127,7 +127,9 @@ try {
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $exception) {
     $code = (int) $exception->getCode();
-    $status = $code >= 400 && $code <= 599 ? $code : 500;
+    $status = $exception instanceof InvalidArgumentException
+        ? 422
+        : ($code >= 400 && $code <= 599 ? $code : 500);
     http_response_code($status);
 
     echo json_encode([
