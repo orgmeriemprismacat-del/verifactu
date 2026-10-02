@@ -19,6 +19,7 @@ use Prisma\Sif\Repository\UsocFinancingCaseRepository;
 use Prisma\Sif\Repository\UsocStudentInvoiceLinkRepository;
 use Prisma\Sif\Repository\UsocValidationDecisionRepository;
 use Prisma\Sif\Repository\EnrollmentCancellationEventRepository;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\RectificationRepository;
 use Prisma\Sif\Repository\UsocLifecycleExecutionRepository;
@@ -44,6 +45,10 @@ use Prisma\Sif\Service\UsocCancellationExecutionService;
 use Prisma\Sif\Service\UsocCourseChangePreviewService;
 use Prisma\Sif\Service\UsocCourseChangeTargetResolver;
 use Prisma\Sif\Service\UsocCourseChangeFundPlanService;
+use Prisma\Sif\Service\UsocCourseChangeExecutionPreparationService;
+use Prisma\Sif\Service\UsocCourseChangeExecutionService;
+use Prisma\Sif\Service\UsocCourseChangeIdempotency;
+use Prisma\Sif\Service\UsocCourseChangeInvoicePayloadBuilder;
 use Prisma\Sif\Service\UsocCourseChangeExecutionPreparationService;
 use Prisma\Sif\Service\UsocCourseChangeDestinationBindingService;
 
@@ -253,6 +258,120 @@ try {
                 $destinationIdpag,
                 $reservationMarker,
                 $targetStudentTotal
+            ),
+        ]);
+        return;
+    }
+
+    if ($action === 'course_change_prepare') {
+        $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
+        $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
+        $target = $payload['target'] ?? null;
+        if (!is_array($target)) {
+            throw SifException::validation('Invalid USOC course change target input');
+        }
+
+        $guard = new UsocLifecycleGuardService($cases);
+        $preview = new UsocCourseChangePreviewService(
+            new UsocLifecyclePlanService($cases, $guard),
+            new UsocCourseChangeTargetResolver(),
+            new UsocCourseChangeFundPlanService()
+        );
+        $service = new UsocCourseChangeExecutionPreparationService(
+            $preview,
+            new UsocLifecycleExecutionRepository(new UuidGenerator())
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'preparation' => $service->prepare(
+                $db,
+                $idInsc,
+                $idpag,
+                requiredRequestId($payload['request_id'] ?? null),
+                (string) ($actor['actor_id'] ?? ''),
+                (array) ($actor['roles'] ?? []),
+                $target
+            ),
+        ]);
+        return;
+    }
+
+    if ($action === 'course_change_execution_status') {
+        $requestId = requiredRequestId($payload['request_id'] ?? null);
+        $execution = (new UsocLifecycleExecutionRepository(new UuidGenerator()))
+            ->findByRequestId($db, $requestId);
+
+        if ($execution === null || (string) ($execution['OPERATION'] ?? '') !== 'COURSE_CHANGE') {
+            throw SifException::conflict('USOC course change execution not found');
+        }
+        if ((string) $execution['ACTOR_ID'] !== (string) ($actor['actor_id'] ?? '')) {
+            throw SifException::forbidden('USOC course change execution belongs to another actor');
+        }
+
+        JsonResponse::send([
+            'ok' => true,
+            'execution' => $execution,
+        ]);
+        return;
+    }
+
+    if ($action === 'execute_course_change') {
+        $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
+        $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
+        $targetIdInsc = positiveInt(
+            $payload['target_id_insc'] ?? null,
+            'Invalid USOC destination inscription ID'
+        );
+        $input = $payload['input'] ?? null;
+        if (!is_array($input)) {
+            throw SifException::validation('Invalid USOC course change execution input');
+        }
+
+        $configuredBilling = $usocConfig['entity_billing'] ?? null;
+        if (
+            !isset($input['entity_billing'])
+            && is_array($configuredBilling)
+            && trim((string) ($configuredBilling['name'] ?? '')) !== ''
+            && trim((string) ($configuredBilling['nif'] ?? '')) !== ''
+        ) {
+            $input['entity_billing'] = $configuredBilling;
+        }
+
+        $keys = new UsocCourseChangeIdempotency();
+        $service = new UsocCourseChangeExecutionService(
+            new UsocLifecycleExecutionRepository(new UuidGenerator()),
+            new ManualPaymentInvoiceRepository(),
+            new ManualRectificationService(
+                new ManualPaymentInvoiceRepository(),
+                new RectificationRepository(),
+                new ManualRectificationPayloadBuilder(),
+                buildInvoiceService($db)
+            ),
+            new UsocCourseChangeInvoicePayloadBuilder($keys),
+            buildInvoiceService($db),
+            new PaymentService(
+                new TransactionRunner($db),
+                new PaymentPayloadValidator(),
+                new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+            ),
+            new EnrollmentFundMovementRepository(new UuidGenerator()),
+            $cases,
+            new OperationalEventRepository(new UuidGenerator()),
+            $keys
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'execution' => $service->execute(
+                $db,
+                $idInsc,
+                $idpag,
+                requiredRequestId($payload['request_id'] ?? null),
+                (string) ($actor['actor_id'] ?? ''),
+                (array) ($actor['roles'] ?? []),
+                $targetIdInsc,
+                $input
             ),
         ]);
         return;
