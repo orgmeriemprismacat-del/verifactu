@@ -123,6 +123,29 @@ final class IssueInvoiceTest
         Assert::same('INVOICE_PAYMENT', $allocation['TIPUS_ASSIGNACIO']);
     }
 
+    public function testIssueInvoicePersistsLineExemptionReason(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->makeService($db);
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|EXEMPTION|UC001',
+            'source_channel' => 'INTRANET',
+            'totals' => [
+                'exemption_reason' => 'E1',
+            ],
+            'lines' => [[
+                'exemption_reason' => 'E1',
+            ]],
+        ]);
+
+        $service->issueInvoice($payload);
+
+        Assert::same(
+            'E1',
+            (string) $db->query('SELECT CAUSA_EXEMPCIO_NO_SUBJECTA FROM factura_linia LIMIT 1')->fetchColumn()
+        );
+    }
+
     public static function serviceFor(\PDO $db): InvoiceService
     {
         return new InvoiceService(
