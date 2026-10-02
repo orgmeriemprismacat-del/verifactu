@@ -17,6 +17,29 @@ final class PayloadIdempotencyValidatorTest
         $validator->assertMatches($second, $validator->calculateHash($first));
     }
 
+    public function testTraceMetadataDoesNotChangeBusinessIdempotencyHash(): void
+    {
+        $validator = new PayloadIdempotencyValidator();
+        $first = [
+            'idempotency_key' => 'INVOICE|TRACE|1',
+            'amount' => '72.00',
+            'request_id' => '11111111-1111-4111-8111-111111111111',
+            'correlation_id' => 'CORR-A',
+            'actor_role' => 'FACTURACIO',
+            'actor_type' => 'SYSTEM',
+        ];
+        $second = $first;
+        $second['request_id'] = '22222222-2222-4222-8222-222222222222';
+        $second['correlation_id'] = 'CORR-B';
+        $second['actor_role'] = 'ADMINISTRACIO';
+
+        Assert::same(
+            $validator->calculateHash($first),
+            $validator->calculateHash($second)
+        );
+        $validator->assertMatches($second, $validator->calculateHash($first));
+    }
+
     public function testChangingMoneyOrListOrderIsConflict(): void
     {
         $validator = new PayloadIdempotencyValidator();
