@@ -21,11 +21,13 @@ final class FiscalDocumentJobProcessor
         private DocumentRepository $documents,
         private int $baseRetrySeconds = 60,
         private int $maxRetrySeconds = 3600,
-        private int $leaseSeconds = 900
+        private int $leaseSeconds = 900,
+        private ?InvoiceDocumentSnapshotRepository $snapshots = null
     ) {
         $this->baseRetrySeconds = max(1, $this->baseRetrySeconds);
         $this->maxRetrySeconds = max($this->baseRetrySeconds, $this->maxRetrySeconds);
         $this->leaseSeconds = max(60, $this->leaseSeconds);
+        $this->snapshots ??= new InvoiceDocumentSnapshotRepository();
     }
 
     public function processNext(): ?array
