@@ -188,7 +188,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | `operational_event` UC-004 | Sí | **IMPLEMENTAT EN AQUESTA BRANCA dins la mateixa transacció** | Sí | No | executar suite i inspeccionar event |
 | Cobrament posterior separat | Sí | Sí, serveis SIF | Sí | No | integrar canal |
 | Preview segur abans d'emetre | Sí FINAL | **Implementat en CLI i endpoint HTTP intern** amb fingerprint + relectura | Sí | No | connectar pantalla / executar E2E |
-| Document per UUID | Sí FINAL | infraestructura SIF a revisar | parcial | No | integrar UC-004 |
+| Document per UUID | Sí FINAL | **PARCIAL EN AQUESTA BRANCA:** `document_job` PDF idempotent/versionat encolat després de l'emissió | Sí estàtic | No | worker/renderitzador/storage + `factura_documents` READY |
 | Sincronització llegada post-commit | Sí FINAL | processador UC-004 diu que no la fa | Sí | No | decidir/implementar |
 | Preproducció | Sí | scripts disponibles | estàtic | No | **executar i evidenciar** |
 
@@ -234,7 +234,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | UC004-GAP-029 | Text d'exempció IVA codificat al PDF llegat | el document FINAL ha de sortir del snapshot fiscal |
 | UC004-GAP-030 | `generaFactura()` reinicialitza `$mostrar` després de preparar l'obertura HTML de descàrrega | revisar generació documental llegada abans de donar-la per estable |
 | UC004-GAP-031 | E_FACT llegat es posa a 1 mentre `InvoiceRepository` SIF insereix E_FACT=0 | cal documentar la semàntica/mapeig, no copiar flags a cegues |
-| UC004-GAP-032 | Estat documental després de COMMIT no està integrat a la pantalla | cal READY/PENDING/ERROR sense reemetre |
+| UC004-GAP-032 | **PARCIALMENT TANCAT:** estat documental post-COMMIT | la pantalla ja rep/mostra `document_status=PENDING` i el SIF crea/reutilitza un `document_job`; falten worker/renderitzat/storage i estats finals READY/ERROR |
 
 ### P2 — evidència i tancament
 
@@ -285,7 +285,7 @@ El fitxer existent `uc-004-emetre-factura-abans-cobrar.md` continua sent una bon
 4. Connectar la pantalla al **command intern ja existent** i eliminar la numeració/inserció fiscal llegada del camí d'escriptura.
 5. **FET EN AQUESTA BRANCA:** auditoria operacional atòmica de l'emissió.
 6. Sincronització llegada post-commit, si encara és necessària, idempotent i observable.
-7. Document per UUID/snapshot, sense `unlink(filename)` exposat.
+7. **FET PARCIALMENT:** cua PDF per UUID/versió i estat PENDING, sense `unlink(filename)`; pendent generar/custodiar bytes i completar job.
 7. Connectar cobrament posterior al UUID, sense reemetre.
 8. Executar proves i preflight/preproducció; conservar evidències.
 9. La fitxa funcional ja està consolidada en versió 2.0; marcar UC-004 com verificat només després de l'E2E.
