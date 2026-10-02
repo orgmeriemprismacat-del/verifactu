@@ -34,6 +34,8 @@ final class RedsysCourseCutoverBoundaryTest
         Assert::stringContainsString("getenv('REDSYS_GATEWAY_URL')", $source);
         Assert::stringContainsString('REDSYS_GATEWAY_URL_NOT_CONFIGURED', $source);
         Assert::stringContainsString('REDSYS_GATEWAY_URL_MUST_USE_HTTPS', $source);
+        Assert::stringContainsString("getenv('REDSYS_TERMINAL')", $source);
+        Assert::stringContainsString('REDSYS_TERMINAL_NOT_CONFIGURED', $source);
         Assert::stringContainsString('htmlspecialchars($gatewayUrl', $source);
 
         if (preg_match('/<form[^>]+action=[\"\']https:\/\/sis(?:-t)?\.redsys\.es/i', $source) === 1) {
