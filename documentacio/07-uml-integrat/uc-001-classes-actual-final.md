@@ -22,6 +22,8 @@ class RecordHash { +calculate(type,record) string }
 class HashCalculator { +calculate(payload,previousHash) string }
 class PaymentPayloadValidator { +validate(payload) array }
 class PaymentRepository { +createPayment(db,payload) array }
+class OperationalEventRepository { +append(db,event) string }
+class SifAuditEventRepository { +append(db,event) string }
 
 InternalApiAuthenticator --> InternalInvoiceIssueScopeResolver
 InternalInvoiceIssueScopeResolver --> InternalInvoiceIssuePayloadPolicy
@@ -31,13 +33,15 @@ InvoiceService --> FiscalSequenceRepository
 InvoiceService --> InvoiceRepository
 InvoiceService --> PaymentPayloadValidator
 InvoiceService --> PaymentRepository
+InvoiceService --> OperationalEventRepository
+InvoiceService --> SifAuditEventRepository
 InvoiceRepository --> RegistrationSnapshot
 RegistrationSnapshot --> RecordFactory
 RecordFactory --> RecordHash
 InvoiceRepository --> HashCalculator
 ```
 
-**Límits ACTUAL:** l'autenticador acredita petició interna i anti-replay; el resolver comprova rol; la policy impedeix bypass Redsys/UC-004 i fixa actor/emissor servidor al generic endpoint. `HashCalculator` i `RecordHash` són empremtes diferents.
+**Límits ACTUAL:** l'autenticador acredita petició interna i anti-replay; el resolver comprova rol; la policy impedeix bypass Redsys/UC-004 i fixa actor/emissor servidor al generic endpoint. `InvoiceService` retorna projecció d’estats i persisteix `operational_event` + `sif_audit_event`; `InvoiceRepository` persisteix també `factura_registre_control` per l’ALTA. `HashCalculator` i `RecordHash` són empremtes diferents.
 
 ## 2. FINAL pendent
 
@@ -48,8 +52,6 @@ class CommercialOperationCoverageGuard { <<PENDENT>>
 +assertIssueAllowed(operation,payload) }
 class ServerFiscalSnapshotAssembler { <<PENDENT>>
 +build(operation,issuerConfig) array }
-class FunctionalAuditWriter { <<PENDENT>>
-+appendCommandAndResult(actor,request,result) }
 class CommercialOperationRepository { <<PARCIAL esquema existent>> }
 class OperationLineInvoiceLinkRepository { <<PENDENT writer UC-001>> }
 class InvoiceService
@@ -57,7 +59,6 @@ class InvoiceRepository
 
 CommercialOperationCoverageGuard --> InvoiceService : abans de numerar
 ServerFiscalSnapshotAssembler --> InvoiceService : snapshot oficial
-InvoiceService --> FunctionalAuditWriter : comanda/resultat
 InvoiceService --> CommercialOperationRepository : operació origen
 InvoiceRepository --> OperationLineInvoiceLinkRepository : línia comercial↔fiscal
 ```
