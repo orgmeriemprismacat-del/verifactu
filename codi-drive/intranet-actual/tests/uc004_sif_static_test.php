@@ -33,6 +33,7 @@ foreach ([
     'sifFacturaAbansPagar.php',
     'expected_fingerprint',
     'X-CSRF-Token',
+    'document_status',
 ] as $required) {
     assertTrue(str_contains($js, $required), "Missing secure UC-004 JS token: {$required}");
 }
@@ -73,6 +74,8 @@ foreach ([
     'InternalInvoiceBeforePaymentScopeResolver',
     'InvoiceBeforePaymentCommandService',
     'InvoiceBeforePaymentCoverageRepository',
+    'InvoiceBeforePaymentDocumentQueueService',
+    'DocumentJobRepository',
 ] as $required) {
     assertTrue(str_contains($sifEndpoint, $required), "Missing SIF UC-004 endpoint control: {$required}");
 }
