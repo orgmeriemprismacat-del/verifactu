@@ -52,6 +52,11 @@ final class RedsysCoursePaymentIntentService
         if ($dsOrder === '') {
             $dsOrder = $this->orders->generate();
         }
+        if (!preg_match('/^[0-9]{4}[A-Za-z0-9]{0,8}$/D', $dsOrder)) {
+            throw SifException::validation(
+                'Redsys course DS_ORDER must be 4-12 alphanumeric characters and start with four digits'
+            );
+        }
 
         if ((int) ($inscription['TIPUS_DESC'] ?? 0) === 1) {
             if ($this->prismaStudentCheckout === null || $this->prismaStudentPrices === null) {
