@@ -16,6 +16,7 @@ final class InvoicePayloadValidator
 
         $this->assertIdempotencyKey($payload['idempotency_key']);
         $this->assertSourceChannel($payload['source_channel']);
+        $this->assertTraceMetadata($payload);
         $payload['idempotency_key'] = trim((string) $payload['idempotency_key']);
         $payload['source_channel'] = strtoupper(trim((string) $payload['source_channel']));
 
@@ -112,6 +113,38 @@ final class InvoicePayloadValidator
         $channel = trim($value);
         if ($channel === '' || $channel !== $value || strlen($channel) > 30) {
             throw SifException::validation('Invalid invoice source channel');
+        }
+    }
+
+    private function assertTraceMetadata(array $payload): void
+    {
+        foreach (['request_id' => 120, 'correlation_id' => 120, 'actor_role' => 80] as $field => $maxLength) {
+            if (!array_key_exists($field, $payload) || $payload[$field] === null || $payload[$field] === '') {
+                continue;
+            }
+            if (!is_string($payload[$field])) {
+                throw SifException::validation("Invalid invoice trace field {$field}");
+            }
+
+            $value = trim($payload[$field]);
+            if ($value === '' || $value !== $payload[$field] || mb_strlen($value, 'UTF-8') > $maxLength) {
+                throw SifException::validation("Invalid invoice trace field {$field}");
+            }
+        }
+
+        if (array_key_exists('actor_type', $payload)
+            && $payload['actor_type'] !== null
+            && $payload['actor_type'] !== ''
+        ) {
+            if (!is_string($payload['actor_type'])) {
+                throw SifException::validation('Invalid invoice trace field actor_type');
+            }
+            $actorType = strtoupper(trim($payload['actor_type']));
+            if ($actorType !== $payload['actor_type']
+                || !in_array($actorType, ['HUMAN', 'SYSTEM', 'PROCESS'], true)
+            ) {
+                throw SifException::validation('Invalid invoice trace field actor_type');
+            }
         }
     }
 
