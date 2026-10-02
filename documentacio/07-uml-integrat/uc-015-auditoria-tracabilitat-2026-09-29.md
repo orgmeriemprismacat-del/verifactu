@@ -432,3 +432,23 @@ Cobertura nova preparada:
 Segons el contracte públic de Redsys, `DS_MERCHANT_TITULAR` representa nom i cognoms del titular i `DS_MERCHANT_PRODUCTDESCRIPTION` és una descripció visible del producte; per tant, retirar el DNI d'aquests camps és coherent amb la semàntica del TPV.
 
 **Residual no resolt en aquesta passada:** l'alta és un formulari públic no autenticat. POST evita PII en URL i mutacions via GET, però no substitueix un control anti-abús/origen. Cal tractar-ho com a hardening del formulari públic (token, comprovació d'origen i/o rate limiting) sense barrejar-lo amb la seguretat HMAC server-to-server del SIF.
+
+
+## 23. Evidència CI del paquet complet abans de consolidar sobre main — 2026-10-01
+
+GitHub Actions `SIF PHP MySQL tests`, run `36942464934`, commit `bd4c276b28688d877b45cb3efb1e3317dcc9725b`: **839 passed / 0 failed**.
+
+PASS explícits del bloc nou:
+- `PackCheckoutBoundaryTest::testPackCheckoutUsesServerAuthoritativeHolderAndEscapesPostedHtml`;
+- `PackEnrollmentTransportBoundaryTest::testPackEnrollmentMutationUsesPostAndDoesNotReadGetParameters`;
+- `PackPaymentPrivacyBoundaryTest::testPackRedsysPayloadUsesNameNotDniAndOmitsEmailFromReturnUrls`;
+- `PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesTreatEmailAsOptionalEscapedHint`;
+- `RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData`;
+- `RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing`;
+- `RedsysPackWorkerEndToEndTest::testPackWorkerReplayKeepsFiscalEconomicAndOutboxEffectsIdempotent`;
+- `RedsysPackPreflightScriptTest::testPreflightChecksRedsysPackReadinessWithoutIssuingInvoices`;
+- suite existent de `RedsysPackInvoiceServiceTest`, `PackCommercialOrderBoundaryTest` i `PackPaymentGateTest`.
+
+Els quatre workflows del mateix head van finalitzar en verd: `SIF PHP MySQL tests`, `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks`.
+
+Aquesta evidència correspon al contingut funcional/documental consolidat al PR anterior. La branca neta creada sobre el `main` posterior s'ha de tornar a validar amb CI abans del merge; aquesta secció no substitueix aquesta revalidació.
