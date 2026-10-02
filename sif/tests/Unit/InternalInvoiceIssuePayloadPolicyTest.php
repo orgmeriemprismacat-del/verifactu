@@ -51,6 +51,25 @@ final class InternalInvoiceIssuePayloadPolicyTest
         Assert::same('SYSTEM', $prepared['actor_type']);
     }
 
+    public function testRequiresOfficialAeatSnapshotInQualifiedEnvironment(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new InternalInvoiceIssuePayloadPolicy(
+                'G12345678',
+                'Associacio PrisMa',
+                true
+            ))->prepare([
+                'idempotency_key' => 'INTRANET|AEAT|required',
+                'source_channel' => 'INTRANET',
+            ], [
+                'actor_id' => 'gestio-test',
+                'roles' => ['FACTURACIO'],
+                'invoice_issue_role' => 'FACTURACIO',
+                'request_id' => '11111111-1111-4111-8111-111111111111',
+            ]);
+        }, 422);
+    }
+
     public function testRejectsOfficialAeatPayloadWithPlaceholderIssuer(): void
     {
         Assert::throws(\RuntimeException::class, function (): void {
