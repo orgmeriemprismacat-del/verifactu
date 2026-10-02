@@ -25,6 +25,11 @@ final class InvoicePayloadValidator
             throw SifException::validation('Invalid invoice type');
         }
 
+        $ordinary = in_array($payload['type'], ['F1', 'F2'], true);
+        if (($payload['series'] === 'A') !== $ordinary) {
+            throw SifException::validation('Invoice series does not match invoice type');
+        }
+
         if (!is_array($payload['billing'])) {
             throw SifException::validation('Invalid billing block');
         }
