@@ -368,6 +368,20 @@ CURS disposava de `verify-redsys-course-preproduction.php`, però PACK només te
 
 **Estat:** eina i proves implementades. **Pendent:** executar-la contra un `DS_ORDER` Redsys real de preproducció i conservar el JSON d'evidència.
 
+### F-21 · Una segona còpia del callback fiscal legacy continuava executable — corregit
+
+La primera auditoria havia acreditat el guard 410 a `codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentPackAutomatic.php`, però la còpia `codi-drive/web-actual/realitzaPagamentPackAutomatic.php` continuava contenint el flux legacy sense el mateix tall inicial. El checkout PACK nou ja assigna `DS_MERCHANT_MERCHANTURL` a `SIF_REDSYS_CALLBACK_URL`, però una URL antiga o invocació directa no havia de conservar una segona autoritat fiscal executable.
+
+També s'ha revisat `realitzaPagamentPackAutomaticProva.php`, una superfície legacy de prova situada sota la web.
+
+**Correcció aplicada:**
+- les dues còpies productives de `realitzaPagamentPackAutomatic.php` exigeixen `SIF_PACK_LEGACY_CALLBACK_ENABLED=1`; per defecte responen HTTP 410 **abans** de signatura, correus, BD o `INSERT INTO factures`;
+- el harness `realitzaPagamentPackAutomaticProva.php` només pot superar el guard en `SIF_ENV=test|preproduction` i amb `SIF_PACK_LEGACY_TEST_CALLBACK_ENABLED=1`;
+- `LegacyPackCallbackBoundaryTest` comprova les dues còpies productives i el harness;
+- els tres fitxers entren ara als triggers i al lint dels workflows generals SIF.
+
+**Estat:** totes les superfícies legacy conegudes queden fail-closed per defecte. **Pendent:** eliminar físicament aquest codi quan es tanqui formalment la finestra de rollback.
+
 ## 6. UML i traçabilitat
 
 ### Classes
@@ -466,7 +480,8 @@ Per tant:
 - idempotència server-side de l'alta amb `REQUEST_ID`, `RID/RH1`, named lock i replay/conflicte;
 - cache-bust del bundle d'inscripció a `ver=7.5`;
 - disponibilitat corregida: dates amb signe i exigència de tots els components oberts al llistat, fitxa i POST;
-- verificador de preproducció PACK creat amb preflight, preview, execució opt-in, ledger/outbox i evidència sense payload fiscal complet.
+- verificador de preproducció PACK creat amb preflight, preview, execució opt-in, ledger/outbox i evidència sense payload fiscal complet;
+- segona còpia de callback legacy i harness de prova detectats i tancats abans de qualsevol mutació.
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
 - creació d'aquest registre de revalidació 02/10.
