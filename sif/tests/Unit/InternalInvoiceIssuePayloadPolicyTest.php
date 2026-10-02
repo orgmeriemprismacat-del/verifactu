@@ -39,7 +39,8 @@ final class InternalInvoiceIssuePayloadPolicyTest
             'correlation_id' => 'BUSINESS-CORRELATION-1',
         ], [
             'actor_id' => 'gestio-test',
-            'roles' => ['FACTURACIO', 'ALTRES'],
+            'roles' => ['ALTRES', 'FACTURACIO'],
+            'invoice_issue_role' => 'FACTURACIO',
             'request_id' => '11111111-1111-4111-8111-111111111111',
         ]);
 
