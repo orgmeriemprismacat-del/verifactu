@@ -39,6 +39,21 @@ final class LegacyPackCallbackBoundaryTest
         Assert::same(true, $legacyInvoiceInsert !== false);
         Assert::same(true, $guard < $firstMail);
         Assert::same(true, $guard < $legacyInvoiceInsert);
+
+        foreach ([
+            'SIF_PACK_LEGACY_TEST_RECIPIENT',
+            'SIF_PACK_LEGACY_TEST_DNI',
+            'SIF_PACK_LEGACY_TEST_AMOUNT',
+            'SIF_PACK_LEGACY_TEST_IDPAG',
+            'SIF_PACK_LEGACY_TEST_ORDER',
+        ] as $envKey) {
+            Assert::stringContainsString($envKey, $source);
+        }
+
+        Assert::same(
+            false,
+            preg_match('/->addTo\\((["\\\'])[^"\\\']+@[^"\\\']+\\1\\)/', $source) === 1
+        );
     }
 
     private function read(string $relativePath): string
