@@ -1,6 +1,6 @@
 # UC-015 · Activitats per pàgina i apartat ACTUAL / FINAL
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-09-30  
+**Data d'auditoria:** 2026-09-29 · **Revalidació final:** 2026-10-02  
 **Objectiu:** cobrir RM-037 per a les pantalles i processos implicats en la compra d'un pack.
 
 ## Inventari
@@ -9,13 +9,13 @@
 |---|---|---|---|
 | PK-A01 | Llistat de packs | filtre d'edició + tots els components oberts | conservar catàleg, sense efecte fiscal |
 | PK-A02 | Fitxa de pack | valida totes les edicions obertes | oferta versionada |
-| PK-A03 | Formulari inscripció | **POST + REQUEST_ID + revalidació de totes les edicions; preu backend autoritatiu** | acreditar E2E/replay navegador-preproducció |
-| PK-A04 | Alta N inscripcions | snapshot + transacció atòmica + suma exacta + replay idempotent implementats | model comercial explícit/versionat encara pendent |
+| PK-A03 | Formulari inscripció | **POST + `PublicWebMutationAuthorization` (`WEB_ALLOWED_ORIGINS`, X-Requested-With) + Sec-Fetch-Site + REQUEST_ID + revalidació de totes les edicions** | acceptació E2E/replay navegador-preproducció |
+| PK-A04 | Alta N inscripcions | snapshot + transacció atòmica + suma exacta + replay idempotent + ordre v1 `DATAI, ID_CURS` implementats | evolució a posició manual/versionada només si negoci ho demana |
 | PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | verificador CLI preparat; falta DS_ORDER real |
 | PK-A06 | Callback Redsys | **callback SIF únic autoritatiu; callbacks productius legacy eliminats** | preflight/preview/process/verifier preparats; falta execució real |
-| PK-A07 | Factura pack | **InvoiceService al flux SIF; emissió legacy desactivada per defecte** | eliminar codi rollback |
+| PK-A07 | Factura pack | **InvoiceService al flux SIF; callbacks productius d'emissió PACK legacy eliminats** | evidència runtime |
 | PK-A08 | Distribució per inscripció | **ledger implementat** | evidència runtime |
-| PK-A09 | Confirmació/correu | **enqueue a outbox SIF implementat; worker/transport de lliurament UC-58 pendent; correu legacy inaccessible per defecte** | implementar/acreditar lliurament UC-58 i eliminar codi rollback |
+| PK-A09 | Confirmació/correu | **enqueue de confirmació a outbox SIF implementat; correu inicial d'alta encara directe al web legacy** | lliurament/retries de l'outbox = UC-58; migració del correu inicial és millora separada |
 | PK-A10 | Variant fraccionada | ecommerce PACK força pagament complet | excepció només intranet/reconciliació |
 
 ## PK-A01 · Llistat de packs
@@ -78,26 +78,34 @@ D --> E[JS obté preus]
 E --> F[Mostra preu]
 F --> G[Usuari omple dades]
 G --> H[Genera o reutilitza REQUEST_ID a sessionStorage]
-H --> I[POST enviarInscripcioPack.php + requestId]
+H --> I[POST + X-Requested-With a enviarInscripcioPack.php]
+I --> J[PublicWebMutationAuthorization]
+J --> K{Origin/Referer a WEB_ALLOWED_ORIGINS?}
+K -- no --> L[403 sense processar payload]
+K -- sí --> M[Sec-Fetch-Site + REQUEST_ID]
 ```
 
 ### FINAL
 ```mermaid
 flowchart TD
 A[Formulari] --> B[Usuari envia dades]
-B --> C[POST + same-site/origin + REQUEST_ID]
-C --> D[Named lock del request]
-D --> E{RID ja persistent?}
-E -- mateix hash --> F[REUSED: retornar confirmació existent]
-E -- hash diferent/inconsistent --> G[409 sense mutació]
-E -- no --> H[Validar formulari i rellegir oferta]
-H --> I[Backend calcula preu]
-I --> J[Valida receptor]
-J --> K[Congela snapshot + RID/RH1]
-K --> L[Crea operació/IDPAG]
+B --> C[POST + X-Requested-With]
+C --> D[PublicWebMutationAuthorization]
+D --> E{WEB_ALLOWED_ORIGINS autoritza Origin/Referer?}
+E -- no --> F[403 sense mutació]
+E -- sí --> G[Sec-Fetch-Site + REQUEST_ID]
+G --> H[Named lock del request]
+H --> I{RID ja persistent?}
+I -- mateix hash --> J[REUSED: retornar confirmació existent]
+I -- hash diferent/inconsistent --> K[409 sense mutació]
+I -- no --> L[Validar formulari i rellegir oferta]
+L --> M[Backend calcula preu]
+M --> N[Valida receptor]
+N --> O[Congela snapshot + RID/RH1]
+O --> P[Crea IDPAG / operació]
 ```
 
-**Correcció aplicada 02/10:** `mostrarInscripcioPack.min.js` envia POST + `REQUEST_ID`; l'endpoint resol primer `RID/RH1` i, només per una alta nova, revalida al servidor que totes les edicions segueixin obertes segons `dies-inscriu-cursos`, abans de preus o `IDPAG`. Mateix request+hash reutilitza l'alta; mateixa clau amb payload diferent retorna 409. `pagina_inscripcio_pack.php` força `ver=7.4`.
+**Correcció aplicada 02/10:** `mostrarInscripcioPack.min.js` envia POST + `X-Requested-With` + `REQUEST_ID`. Abans de processar el payload, `PublicWebMutationAuthorization` exigeix Origin/Referer dins `WEB_ALLOWED_ORIGINS`; l'endpoint conserva `Sec-Fetch-Site`. Després resol `RID/RH1` i, només per una alta nova, revalida que totes les edicions segueixin obertes abans de preus o `IDPAG`. Mateix request+hash reutilitza l'alta; mateixa clau amb payload diferent retorna 409.
 
 ## PK-A04 · Alta de components
 
@@ -160,17 +168,18 @@ E --> F[TPV]
 ### ACTUAL
 ```mermaid
 flowchart TD
-A[POST Redsys legacy] --> B[realitzaPagamentPackAutomatic]
-B --> C{SIF_PACK_LEGACY_CALLBACK_ENABLED?}
-C -- no --> D[HTTP 410 · cap mutació]
-C -- sí --> E[rollback explícit]
-E --> F[decodifica Ds_*]
-F --> G{Response 0..99?}
-G -- no --> H[Correu/error]
-G -- sí --> I[Consulta IDPAG]
-I --> J[Factura legacy només rollback]
-J --> K[UPDATE inscripcions]
+A[Callback Redsys SIF] --> B[RedsysCallbackService]
+B --> C[Validar signatura]
+C --> D[Buscar intenció DS_ORDER]
+D --> E[Comparar import/moneda/terminal]
+E --> F{coherent?}
+F -- no --> G[Rebuig/incidència · cap mutació fiscal]
+F -- sí --> H[Registrar notificació VALIDATED]
+H --> I[Encolar redsys_callback_queue]
+I --> J[Worker PACK]
 ```
+
+> Els dos callbacks productius `realitzaPagamentPackAutomatic.php` s'han eliminat físicament. El fitxer `realitzaPagamentPackAutomaticProva.php` és només un harness de test/preproducció fail-closed.
 
 ### FINAL
 ```mermaid
@@ -189,10 +198,12 @@ G --> H[Encolar worker]
 ### ACTUAL
 ```mermaid
 flowchart TD
-A[Callback autoritzat] --> B[SELECT últim ordre]
-B --> C[ordre + 1]
-C --> D[INSERT factures]
-D --> E[concepte pack agregat]
+A[Worker PACK] --> B[RedsysPackInvoiceService]
+B --> C[Builder N línies]
+C --> D[Validar total = import Redsys]
+D --> E[InvoiceService]
+E --> F[seqüència fiscal central]
+F --> G[factura + línies + registre + CHARGE]
 ```
 
 ### FINAL
@@ -241,7 +252,7 @@ A[Factura/payment SIF] --> B[PackPaymentNotificationService]
 B --> C[NotificationOutboxRepository]
 C --> D[1 event idempotent PENDING]
 D --> E[UC-58 worker/transport pendent]
-A --> F[Camí legacy només rollback explícit]
+A --> F[Correu inicial d'alta web: flux separat i directe]
 ```
 
 ### FINAL
@@ -280,7 +291,7 @@ E --> F[Classificació fiscal explícita]
 
 ### Codi/documentació — complert
 - els deu blocs tenen correspondència codi → UC → prova;
-- alta POST + `REQUEST_ID` + replay/conflicte estan implementats;
+- alta POST + frontera `PublicWebMutationAuthorization` + `REQUEST_ID` + replay/conflicte estan implementats;
 - disponibilitat de tots els components i ordre v1 `DATAI, ID_CURS` estan congelats;
 - callbacks productius legacy eliminats;
 - verificador canònic PACK de preproducció implementat.
