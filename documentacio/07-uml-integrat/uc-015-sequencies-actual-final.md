@@ -59,36 +59,13 @@ JS-->>U: redirecció confirmació
 - l'alta pública és POST-only amb comprovació same-site/origin i idempotència server-side `REQUEST_ID`+payload hash; una alta nova exigeix totes les edicions obertes i un reintent equivalent reutilitza l'alta abans de rellegir disponibilitat/pack actual; resta E2E navegador/preproducció i valorar controls anti-abús addicionals;
 - l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
 - `PACK_ORDINAL` queda determinat pel mateix ordre estable de presentació `DATAI, ID_CURS`; resta decidir si negoci requereix una posició explícita separada;
-- el callback fiscal legacy conserva codi històric però està desactivat per defecte.
+- els callbacks fiscals legacy productius han estat eliminats físicament; només queda un harness de prova fail-closed i no autoritatiu.
 
-## 2. ACTUAL — cobrament pack al callback llegat
+## 2. HISTÒRIC — callback PACK legacy retirat
 
-```mermaid
-sequenceDiagram
-autonumber
-actor R as Redsys
-participant CB as realitzaPagamentPackAutomatic.php
-participant DB as BD legacy
-participant Mail as Correus
+Les dues còpies productives de `realitzaPagamentPackAutomatic.php` han estat **eliminades físicament** el 02/10. No existeix ja una seqüència ACTUAL de cobrament PACK al callback legacy.
 
-R->>CB: POST Ds_* + URL amb GET idPag/import/order
-CB->>CB: comprovar SIF_PACK_LEGACY_CALLBACK_ENABLED
-alt desactivat per defecte
- CB-->>R: HTTP 410
-else rollback explicit
- CB->>CB: valida signatura + DS_ORDER + import
- CB->>DB: cerca inscripcions IDPAG
-CB->>DB: calcula factura_relacionada / ordre fiscal
-CB->>DB: INSERT factures
-loop per A_PAGAR DESC
- CB->>DB: UPDATE PAGAMENT / FACTURA_RELACIONADA
-end
-CB->>DB: UPDATE FRACCIO si correspon
-CB->>Mail: confirmacions
-end
-```
-
-**Revalidació 30/09:** el callback legacy queda desactivat per defecte amb HTTP 410 abans de qualsevol escriptura. El codi intern només queda disponible per rollback explícit.
+El flux històric del 29–30/09 es conserva únicament a l'historial Git/documentació d'auditoria. `LegacyPackCallbackBoundaryTest` comprova ara que aquests endpoints productius no existeixin. El fitxer `realitzaPagamentPackAutomaticProva.php` és un harness de test/preproducció explícit i no forma part del flux productiu.
 
 ## 3. FINAL — intenció, callback i emissió SIF
 
@@ -181,10 +158,10 @@ end
 ## 6. Estat
 
 - Seqüència ACTUAL web: documentada.
-- Seqüència ACTUAL callback: documentada.
+- Seqüència callback legacy: **retirada del sistema productiu**; l'històric queda preservat a Git/auditoria.
 - Seqüència FINAL: **majoritàriament implementada** al flux PACK asíncron.
 - Control total factura/import Redsys: implementat.
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
 - Outbox: implementat i cablejat al worker.
-- Pendent: eliminar el codi legacy després del rollback, decidir si cal una posició comercial explícita independent de l'ordre cronològic estable i executar proves d'entorn, incloent la nova frontera POST de l'alta pública.
+- Codi/doc intern UC-015: tancat. Pendent d'acceptació: executar el verificador/PK-01..PK-11 en preproducció i mantenir la CI final verda; UC-58 cobreix el lliurament efectiu de notificacions.
