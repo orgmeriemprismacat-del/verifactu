@@ -179,3 +179,14 @@ Pont candidat:
 | Redsys preproducció real | PENDENT |
 | Cutover productiu | PENDENT |
 | Lliurament email UC-58 | PENDENT |
+
+
+## 10. Minimització de PII al TPV i callback
+
+La branca d'auditoria redueix dades no necessàries:
+- product description Redsys: curs/codi, sense DNI;
+- titular Redsys: nom del titular, no document identificatiu;
+- MerchantData: només context tècnic mínim signat;
+- MerchantURL: sense dades funcionals;
+- retorns navegador: sense email;
+- callback servidor-a-servidor: sense renderitzar blocs de dades de negoci al cos HTTP.
