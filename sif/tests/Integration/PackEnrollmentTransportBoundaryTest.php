@@ -32,6 +32,9 @@ final class PackEnrollmentTransportBoundaryTest
         Assert::stringContainsString("REQUEST_METHOD", $endpoint);
         Assert::stringContainsString("PublicWebMutationAuthorization.php", $endpoint);
         Assert::stringContainsString("PublicWebMutationAuthorization::assertSameOriginAjax()", $endpoint);
+        if (str_contains($endpoint, '$allowedHosts')) {
+            Assert::fail('PACK endpoint must not duplicate WEB_ALLOWED_ORIGINS with a fixed host list.');
+        }
         Assert::stringContainsString("!== 'POST'", $endpoint);
         Assert::stringContainsString("header('Allow: POST')", $endpoint);
         Assert::stringContainsString('http_response_code(405)', $endpoint);
