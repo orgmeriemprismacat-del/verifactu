@@ -4,22 +4,26 @@
 
 Auditoria de la fitxa funcional, codi PHP/JS real, persistència, UML, proves, traçabilitat i mancances del cas **UC-018 · Bescanviar regal** sobre `main`.
 
-## 2. Veredicte per capa
+## 2. Veredicte per capa — reconciliat 2026-10-02
 
-| Capa | Estat | Evidència / lectura |
+| Capa | Estat actual | Evidència / lectura |
 | --- | --- | --- |
-| Fitxa funcional | DOCUMENTADA, genèrica | `documentacio/06-fitxes-funcionals/uc-018.md` |
-| UML integrat | DOCUMENTAT | `uc-018-bescanviar-regal.md`; contracte OBJECTIU |
-| Classes ACTUAL/FINAL | CREAT en aquesta auditoria | separa UC-017/UC-111 del bescanvi |
-| Seqüències ACTUAL/FINAL | CREAT en aquesta auditoria | compra actual vs bescanvi final |
-| Activitats per superfície | CREAT en aquesta auditoria | no hi ha UI UC-018 actual |
-| Esquema entitlement | IMPLEMENTAT EN SQL | `commercial_entitlement`, `commercial_entitlement_event` |
-| Compra de regal | IMPLEMENTADA | `RedsysGiftInvoiceService`, `LegacyGiftSnapshotRepository`, `LegacyGiftInvoicePayloadBuilder` |
-| Bescanvi de regal | NO IMPLEMENTAT | no hi ha service/repository/controller/gateway específics |
-| JS/UI bescanvi | NO LOCALITZAT | cap superfície acreditada |
-| Proves UC-018 | NO | les proves de gift existents cobreixen UC-017 |
-| E2E/preproducció | NO | no hi ha flux executable a provar |
+| Fitxa funcional | AUDIT_CLOSED | `documentacio/06-fitxes-funcionals/uc-018.md` v1.3 |
+| UML integrat | RECONCILIAT | classes, seqüències i activitats ACTUAL/FINAL actualitzades |
+| Repository GIFT | IMPLEMENTAT | lock, claim, reserve, consume, release i events |
+| Compra/origen UC-017 | IMPLEMENTAT | factura + `CHARGE` original + emissió dret GIFT |
+| Context autoritatiu | IMPLEMENTAT | holder/preu resolts al SIF |
+| Staging inscripció | IMPLEMENTAT | get-or-create i operació `INSCRIPCIO` no facturable |
+| Bescanvi | IMPLEMENTAT | `GiftRedemptionService` + orchestrator |
+| Aplicació econòmica | IMPLEMENTAT | `COMPENSATION_ALLOCATION`; cap segon `CHARGE` |
+| Reconciliació legacy | IMPLEMENTAT | compare-and-set de `regal.USAT` |
+| Recovery/replay | IMPLEMENTAT | mateixa operació/moviment després de resposta perduda |
+| Concurrència | IMPLEMENTAT | prova multiprocés integrada al PR de tancament |
+| Notificacions | IMPLEMENTAT | sis outbox idempotents post-SIF + claim/complete |
+| E2E intern | IMPLEMENTAT | UC-017 → GIFT → inscripció → consum → replay |
+| Preflight/preproducció | IMPLEMENTAT EN CODI | execució real condicionada a entorn/dades controlades |
 
+Les seccions històriques posteriors documenten l'evolució de l'auditoria; aquest veredicte és el tall autoritatiu actual.
 ## 3. Fitxa funcional — troballes
 
 La fitxa original defineix correctament que el bescanvi:
@@ -211,49 +215,51 @@ Mínim abans de considerar-lo implementat:
 - diferència de preu;
 - rollback/reconciliació.
 
-## 13. Estat final de l'auditoria
+## 13. Estat final de l'auditoria — actualitzat 2026-10-02
 
 ### DOCUMENTAT
 
-Sí: fitxa base, UML integrat, regles de fiscalitat/economia, relació UC-017/18a/119 i, després d'aquesta auditoria, classes/seqüències/activitats ACTUAL/FINAL.
+Fitxa funcional, classes, seqüències, activitats per superfície, matriu de proves, invariants econòmics/fiscals, recovery, concurrència, notificacions i preproducció estan traçats.
 
 ### IMPLEMENTAT
 
-Parcial i adjacent:
-
-- compra UC-017: sí;
-- esquema entitlement: sí;
-- infraestructura de fons/incidències: parcial reutilitzable;
-- bescanvi UC-018: **no**.
+- emissió/reutilització del dret GIFT;
+- context autoritatiu i claim del holder;
+- staging de la inscripció;
+- redeem idempotent;
+- `COMPENSATION_ALLOCATION` sobre el pagament original;
+- reconciliació `regal.USAT`;
+- recovery/replay;
+- concurrència multiprocés;
+- sis notificacions idempotents post-SIF;
+- preflight/verificador de preproducció.
 
 ### VERIFICAT
 
-- proves existents de `RedsysGiftInvoiceService` verifiquen compra UC-017;
-- no hi ha proves que acreditin UC-018.
+- proves d'integració existents del nucli;
+- E2E intern incorporat al PR de tancament;
+- concurrència multiprocés incorporada al PR de tancament;
+- recovery després de resposta perduda incorporat al PR de tancament;
+- boundaries de notificació i preproducció incorporats al PR de tancament;
+- **CI final del PR de tancament: pendent de resultat en aquest punt documental**.
 
-### PENDENT
+### PENDENT D'ENTORN, NO D'AUDITORIA
 
-- repository de dret GIFT;
-- service de preview/redeem;
-- frontera d'inscripció;
-- API/UI;
-- events de reserva/consum/release;
-- aplicació del valor a la inscripció;
-- tests unitaris/integració/concurrència;
-- E2E/preproducció;
-- decisions comercials de variants.
+- executar el verificador amb `--execute` en preproducció configurada;
+- conservar l'evidència de l'execució real i del transport SMTP desplegat.
 
-## 14. Classificació recomanada
+### VARIANTS BLOQUEJADES PER POLÍTICA
+
+Les diferències de valor regal/curs no formen part del flux base tancat. Continuen fail-closed fins a decisió funcional sobre complement de cobrament, romanent, saldo, devolució o consum parcial.
+
+## 14. Classificació actual
 
 ```text
-Estat documental: REVIEWED_CASE_SPECIFIC
-Estat implementació: DESIGN_ONLY_WITH_ADJACENT_FOUNDATIONS
-Producció UC-018: NO-GO
+Estat documental: AUDIT_CLOSED
+Estat implementació: IMPLEMENTED_AND_AUTOMATED_VERIFICATION_CANDIDATE
+Code GO: pendent CI final del PR de tancament
+Environment GO: pendent preproducció
 ```
-
-La compra de regal pot estar implementada sense que el bescanvi ho estigui; són casos diferents.
-
-
 ## 15. Addenda d'implementació posterior a l'auditoria
 
 Després del tall documental inicial s'ha implementat una primera fase executable:
@@ -284,3 +290,39 @@ Això tanca el buit «aplicació de fons explícita» sense crear una factura no
 S'ha implementat `GiftEnrollmentStager` com a pont post-commit entre `enviarInscripcioBescanvia.php` i el SIF. El contracte observat del llegat queda verificat (`A_PAGAR=0`, `FACTURA_RELACIONADA=FACT_REL`, codi a `pag_observacions`, curs regal i `USAT` no contradictori). El stager crea/reutilitza una operació `ENROLLMENT/INSCRIPCIO` no facturable, reserva el dret dins la mateixa transacció i impedeix un segon destí concurrent.
 
 També existeix l'endpoint intern POST `/api/gifts/redemption/redeem.php`, protegit amb HMAC/anti-replay i rol explícit. Orquestra staging + redeem sense persistir el codi en snapshots ni retornar-lo. La mutació final de `regal.USAT` continua separada fins implementar compare-and-set/reconciliació legacy.
+
+
+## 18. Tancament integral UC-018 — 2026-10-02
+
+### 18.1. Invariant executable
+
+```text
+1 compra pagada
+1 dret GIFT
+1 inscripció
+1 COMPENSATION_ALLOCATION
+1 consum
+0 CHARGE addicionals
+0 factures addicionals
+replay idempotent
+```
+
+### 18.2. Concurrència
+
+La prova multiprocés usa dos processos PHP independents i connexions MySQL separades. Amb el mateix `ID_INSC`, tots dos convergeixen sobre una sola saga; amb destins diferents, un únic procés guanya i l'altre obté conflicte.
+
+### 18.3. Recovery
+
+Si el SIF completa la saga però el caller perd la resposta, un segon `execute()` amb la mateixa inscripció i codi recupera la mateixa operació, el mateix moviment de fons i la mateixa reconciliació sense duplicar diners ni factura.
+
+### 18.4. Correu
+
+Els sis correus legacy es creen com sis notificacions durables independents. Cada correu requereix `claim`; un estat `SENDING` ambigu no es reclama de nou automàticament. Els enviaments només es produeixen després de l'èxit SIF.
+
+### 18.5. Preproducció
+
+`preflight-gift-redemption.php` és read-only. `verify-gift-redemption-preproduction.php` és dry-run per defecte i només muta amb `--execute`, en entorn `test/preproduction` i amb dades de prova aportades per variables d'entorn.
+
+### 18.6. Conclusió
+
+L'auditoria tècnica queda tancada quan el CI final del PR de tancament és verd. El desplegament continua separat i subjecte al gate de preproducció.
