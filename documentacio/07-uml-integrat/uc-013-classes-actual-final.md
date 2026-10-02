@@ -281,7 +281,7 @@ UsocCourseChangeExecutionService --> CreditBalanceService
 ## 6. Estat
 
 - **Documentat:** sí, ara també amb classes ACTUAL/FINAL separades.
-- **Implementat:** nucli de doble facturació, cobrament, checkpoint, conciliació, validació durable, UI i planner.
+- **Implementat:** nucli de doble facturació, cobrament, checkpoint, conciliació, validació durable, UI, lifecycle planner, resolver d'imports destí i pla econòmic pur del canvi de curs.
 - **Verificat:** inspecció estàtica contra `main@f7fa0822f...`.
 - **Provat:** existeix evidència CI específica en commits previs del UC-013; no hi ha workflow associat al SHA actual de main en aquesta auditoria.
 - **Pendent:** preproducció/navegador, configuració real, executor específic de canvi de curs, curs gratuït i validacions comercials/fiscals. La baixa ja disposa d'executor SIF per pagador.
