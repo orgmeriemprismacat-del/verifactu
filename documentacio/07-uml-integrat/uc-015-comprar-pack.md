@@ -2,9 +2,9 @@
 
 **Objectiu:** facturar i cobrar una **operació de pack** amb múltiples inscripcions, cadascuna amb curs, edició, import i descompte que li correspon. Un pagament del pack no és N cobraments bancaris independents, i la factura global no significa que es pugui perdre el detall de quantitat atribuïda a cada inscripció.
 
-**Estat (revalidat 2026-10-02):** flux fiscal/econòmic principal PACK implementat al SIF. L'alta pública és POST-only, no envia PII a la query string, aplica frontera same-site/origin i disposa d'idempotència server-side amb `REQUEST_ID` persistent, fingerprint SHA-256 i replay `RID/RH1`; per una alta nova el servidor exigeix també que totes les edicions del pack continuïn dins la finestra d'inscripció abans de recalcular el preu. Continuen pendents l'E2E real de preproducció, decidir si l'ordre comercial ha de ser independent de `DATAI`, la retirada física del codi callback legacy i el lliurament efectiu de notificacions (UC-58). Les dues còpies productives del callback legacy ja són 410 per defecte. L'ordre operatiu actual és determinista: `ORDER BY c.DATAI, p.ID_CURS`.
+**Estat (revalidat 2026-10-02):** codi i documentació UC-015 tancats. L'alta pública és POST-only, no envia PII a la query string, exigeix `PublicWebMutationAuthorization` (`WEB_ALLOWED_ORIGINS` + `X-Requested-With`) i conserva `Sec-Fetch-Site`; disposa d'idempotència server-side amb `REQUEST_ID`, fingerprint SHA-256 i replay `RID/RH1`. Totes les edicions es revaliden al servidor. L'ordre comercial v1 queda tancat com `ORDER BY c.DATAI, p.ID_CURS` i es congela a `PACK_ORDINAL`. Els dos callbacks fiscals PACK legacy productius han estat eliminats físicament. Resten només l'acceptació E2E real de preproducció i el lliurament/retries de notificacions sota UC-58.
 
-**Codi consultat:** `RedsysPackInvoiceService`, `LegacyPackInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService` i la infraestructura UC-63/03. El builder actual **requereix almenys dues línies** i associa `PACK` i cada `INSCRIPCIO` a la factura. Les comprovacions de la composició comercial del pack i l'accés/inscripció final dels cursos continuen pendents d'acreditar al canal.
+**Codi consultat:** `PublicWebMutationAuthorization`, `enviarInscripcioPack.php`, `PackPaymentGate`, `SifPaymentIntentClient`, `RedsysPaymentIntentService`, `RedsysPackInvoiceService`, `LegacyPackInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService`, ledger/outbox i infraestructura UC-63/03. El builder exigeix almenys dues línies i associa `PACK` i cada `INSCRIPCIO` a la factura. La composició, imports, receptor, ordinal i disponibilitat ja es validen al canal; el pendent és acreditar-ho en l'entorn real de preproducció.
 
 ## 1. Fitxa del cas d'ús
 
@@ -20,7 +20,7 @@
 
 ### 1.1. Flux principal asíncron
 
-1. L'alta pública envia POST + `REQUEST_ID`. El servidor serialitza la clau amb named lock i busca `RID/RH1`: un reintent equivalent reutilitza l'alta i una variant contradictòria retorna 409; només una clau nova valida el formulari, revalida que **tots els components** estiguin oberts segons hores+dias configurats, rellegeix preus, reserva `IDPAG` i crea atòmicament N inscripcions. Després, el **checkout de pagament** rellegeix BD amb `PackPaymentGate`, valida composició, preu/descomptes, receptor i ordinal, i crea una intenció SIF `PACK` amb `DS_ORDER`, import total i snapshot. No s'emet factura per una intenció sense cobrament.
+1. L'alta pública envia POST + `X-Requested-With` + `REQUEST_ID`. Abans de processar dades, `PublicWebMutationAuthorization` valida `Origin`/`Referer` contra `WEB_ALLOWED_ORIGINS`; l'endpoint conserva `Sec-Fetch-Site`. Després el servidor serialitza la clau amb named lock i busca `RID/RH1`: un reintent equivalent reutilitza l'alta i una variant contradictòria retorna 409; només una clau nova valida el formulari, revalida que **tots els components** estiguin oberts, rellegeix preus, reserva `IDPAG` i crea atòmicament N inscripcions. El **checkout de pagament** rellegeix BD amb `PackPaymentGate`, valida composició, preu/descomptes, receptor i ordinal, i crea una intenció SIF `PACK` amb `DS_ORDER`, import total i snapshot. No s'emet factura per una intenció sense cobrament.
 2. Redsys comunica resultat signat; el callback UC-03 valida ordre i import, desa notificació i encua job només si autoritzat.
 3. El worker selecciona `RedsysPackInvoiceService` mitjançant `SOURCE_TYPE=PACK` i li lliura `SNAPSHOT_JSON`.
 4. `LegacyPackInvoicePayloadBuilder::build()` valida l'ID del pack i les inscripcions, genera les línies i totals, relacions `PACK` i `INSCRIPCIO` i congela els descomptes.
@@ -56,7 +56,7 @@
 
 **P-COBRAMENT — diferenciar IDPAG, DS_ORDER i fons:** IDPAG vincula les dues inscripcions i la intenció comercial del pack; cada DS_ORDER identifica un intent Redsys i pot correspondre a una fracció real diferent. No deduplicar tots els cobraments del pack únicament per IDPAG. Si es cobra un sol DS_ORDER, el resultat objectiu és una factura amb una línia per curs i un únic CHARGE. Si s'aplica un canvi/baixa a només un curs, no retornar l'import del pack complet ni recalcular silenciosament el descompte de l'altre: cal preservar la part atribuïda i classificar els efectes comercials i fiscals (UC-71/72).
 
-### 1.4. Proves de negoci específiques del pack (no executades)
+### 1.4. Escenaris d'acceptació runtime específics del pack
 
 | ID | Escenari | Resultat exigible |
 | --- | --- | --- |
@@ -67,13 +67,15 @@
 | PK-05 | Intranet accepta dos pagaments reals en variant dividida | Parts i línies aprovades, dues operacions/factures només segons contracte excepcional; mai dividir un sol DS_ORDER. |
 | PK-06 | Mateix IDPAG amb dos DS_ORDER diferents validats | No fusionar dos cobraments legítims ni repetir la mateixa factura/part de servei. |
 | PK-07 | Baixa d'un únic curs del pack | Analitzar descompte/part atribuïda al curs i factura afectada; altres inscripcions intactes. |
-### 1.5. Comprovació bloquejant de l'ordre del pack abans d'emetre
+### 1.5. Ordre comercial v1 — contracte tancat
 
-**Estat actual de l'ordinal.** La consulta legacy de `LegacyPackSnapshotRepository` encara retorna files en ordre `A_PAGAR DESC, ID`, però extreu `PACK_ORDINAL`, `PACK_BASE`, `PACK_DISCOUNT`, `PACK_DISCOUNT_PCT` i `PACK_TOTAL` del snapshot comercial gravat a l'alta. `LegacyPackInvoicePayloadBuilder` reordena pels ordinals quan són presents, exigeix seqüència contigua i imports/descomptes explícits coherents; ja no reconstrueix automàticament un 25 %. Les compres noves PACK congelen l'ordinal des del mateix ordre determinista de presentació `DATAI, ID_CURS`. El pendent funcional és decidir si aquest ordre cronològic estable és el contracte comercial definitiu o si cal una posició explícita independent de dates.
+Les compres noves PACK utilitzen un únic ordre determinista de presentació i alta: `ORDER BY c.DATAI, p.ID_CURS`. El bucle d'alta congela aquesta posició a `PACK_ORDINAL`; el repository/builder fiscal consumeix l'ordinal congelat, l'ordena i exigeix una seqüència contigua.
 
-**Contracte del canal comercial pendent.** Abans de `issueInvoice()`, el checkout ha de proporcionar una llista **ordenada i versionada** de components amb `ID_INSC`, curs/edició, ordinal de l'oferta, import base, regla/descompte efectiu i total, i una identitat fiscal **confirmada** independent del resultat del `ORDER BY`. La composició s'ha de contrastar amb la font comercial del pack i l'import cobrat per Redsys; si només es disposa de saldos `A_PAGAR` o no és possible establir l'ordinal original, l'operació resta en incidència abans d'emetre, no es reconstrueix per conjectura. Una correcció posterior de component o una nova oferta es tracta per UC-122/71, **no** reordenant les línies de la factura ja emesa.
+Això resol el problema històric d'intentar inferir l'ordre a partir de `A_PAGAR DESC, ID`: el saldo no decideix l'ordre comercial. Una futura necessitat de reordenació manual haurà d'introduir una posició comercial explícita/versionada per a **noves** ofertes, sense reinterpretar snapshots ni factures existents.
 
-### 1.6. Proves de regressió de l'ordinal (no executades)
+El checkout continua obligat a contrastar `ID_INSC`, curs/edició, ordinal, base, descompte, total, receptor i import cobrat abans de crear la intenció/emissió.
+
+### 1.6. Escenaris de regressió/acceptació de l'ordinal
 
 | ID | Escenari | Resultat exigible |
 | --- | --- | --- |
@@ -174,10 +176,31 @@ class PackPaymentNotificationService {
  <<IMPLEMENTAT · ENQUEUE>>
  +enqueue(db,dsOrder,snapshot,invoiceResult) array
 }
+class PublicWebMutationAuthorization {
+ <<IMPLEMENTAT>>
+ +assertSameOriginAjax()
+}
+class EnviarInscripcioPack {
+ <<IMPLEMENTAT>>
+ +POST + REQUEST_ID
+ +atomicitat PACK N
+}
+class PackPaymentGate {
+ <<IMPLEMENTAT>>
+ +assertCanPrepare(db,post) array
+}
+class SifPaymentIntentClient {
+ <<IMPLEMENTAT>>
+ +create(payload) array
+}
 class NotificationOutboxRepository {
  <<IMPLEMENTAT · ENQUEUE>>
  +enqueue(db,message) array
 }
+EnviarInscripcioPack --> PublicWebMutationAuthorization : WEB_ALLOWED_ORIGINS
+EnviarInscripcioPack --> PackPaymentGate : IDPAG/snapshot
+PackPaymentGate --> SifPaymentIntentClient : intent HMAC
+SifPaymentIntentClient --> RedsysPackInvoiceService : via callback/worker
 RedsysPackInvoiceService ..|> RedsysIntentHandler
 RedsysPackInvoiceService --> LegacyPackInvoicePayloadBuilder : N línies
 RedsysPackInvoiceService --> RedsysInvoicePayloadBuilder : cobrament validat
@@ -190,6 +213,10 @@ InvoiceService --> PaymentRepository : CHARGE inicial si payment
 ```
 
 `EnrollmentFundMovementRepository` està implementat i és invocat per `PackEnrollmentFundAllocationService` des del handler PACK; no depèn d'`InvoiceService` perquè l'atribució econòmica es fa després d'obtenir `UUID_FACTURA` i `UUID_PAYMENT`.
+
+### 3.1. Frontera pública de l'alta PACK
+
+`PublicWebMutationAuthorization` és l'única font d'autoritat per Origin/Referer i llegeix `WEB_ALLOWED_ORIGINS`; exigeix `X-Requested-With: XMLHttpRequest`. `enviarInscripcioPack.php` conserva `Sec-Fetch-Site` com a defensa complementària. No existeix una segona allowlist fixa a l'endpoint.
 
 ## 4. Diagrama de seqüència — pack pagat, factura i distribució
 
