@@ -177,7 +177,6 @@ try {
 			$edicio->setInfo();
 			$datesRealitzacioCursos .= "<li style='margin-top: 8px; line-height: 24px;'>".$edicio->mostrarEdicioInscripcioPack()."</li>";
 			$edicions[$i] = $edicio;
-			$titols[$i] = $idTitol;
 			$i++;
 		}
 		$datesRealitzacioCursos .= "</ul>";
@@ -331,65 +330,6 @@ try {
 		$comentaris = $textComentaris->obtenirText();
 
 	/* ######################################################################### */
-	$datai1 = $edicions[0]->obtenirDataInici()->obtenirText();
-	$dataf1 = $edicions[0]->obtenirDataFi()->obtenirText();
-
-	$datai2 = $edicions[1]->obtenirDataInici()->obtenirText();
-	$dataf2 = $edicions[1]->obtenirDataFi()->obtenirText();
-
-	$objDataI1 = new Date($datai1);
-	$objDataF1 = new Date($dataf1);
-	$objDataI2 = new Date($datai2);
-	$objDataF2 = new Date($dataf2);
-
-	//primer curs
-	if ( $objDataI1->getAny() != $objDataF1->getAny() ) {
-		//De l'1 de desembre de 2021 al 15 de febrer de 2022
-		//De l'1 de desembre de 2021 a l'11 de febrer de 2022
-		//Del 2 de desembre de 2021 al 15 de febrer de 2022
-		//Del 2 de desembre de 2021 a l'11 de febrer de 2022
-		$textDates1 = $objDataI1->getPronomDel()."".$objDataI1->getDataLlarga()."
-		".$objDataF1->getPronomAl()."".$objDataF1->getDataLlarga()."";
-	}
-	else {
-		if ( $objDataI1->getMes() != $objDataF1->getMes() ) {
-			//Del 4 d'abril a l'11 de maig de 2022
-			$textDates1 = $objDataI1->getPronomDel()."".intval($objDataI1->getDia())."
-			".$objDataI1->getNomMesArticle()."
-			".$objDataF1->getPronomAl()."".$objDataF1->getDataLlarga()."";
-		}
-		else {
-			//Del 4 al 31 de juliol de 2022
-			$textDates1 = $objDataI1->getPronomDel()."".intval($objDataI1->getDia())."
-			".$objDataF1->getPronomAl()."".$objDataF1->getDataLlarga()."";
-		}
-	}
-
-	//segon curs
-	if ( $objDataI2->getAny() != $objDataF2->getAny() ) {
-		//De l'1 de desembre de 2021 al 15 de febrer de 2022
-		//De l'1 de desembre de 2021 a l'11 de febrer de 2022
-		//Del 2 de desembre de 2021 al 15 de febrer de 2022
-		//Del 2 de desembre de 2021 a l'11 de febrer de 2022
-		$textDates2 = $objDataI2->getPronomDel()."".$objDataI2->getDataLlarga()."
-		".$objDataF2->getPronomAl()."".$objDataF2->getDataLlarga()."";
-	}
-	else {
-		if ( $objDataI2->getMes() != $objDataF2->getMes() ) {
-			//Del 4 d'abril a l'11 de maig de 2022
-			$textDates2 = $objDataI2->getPronomDel()."".intval($objDataI2->getDia())."
-			".$objDataI2->getNomMesArticle()."
-			".$objDataF2->getPronomAl()."".$objDataF2->getDataLlarga()."";
-		}
-		else {
-			//Del 4 al 31 de juliol de 2022
-			$textDates2 = $objDataI2->getPronomDel()."".intval($objDataI2->getDia())."
-			".$objDataF2->getPronomAl()."".$objDataF2->getDataLlarga()."";
-		}
-	}
-
-	$datesRealitzacioCurs1 = $textDates1;
-	$datesRealitzacioCurs2 = $textDates2;
 
 	/* ######################################################################### */
 	$msg = $templates->getTemplate_Dades_RequadreDadesPersonals(1);
@@ -400,11 +340,11 @@ try {
 
 	$msg = $templates->getTemplate_Inscripcions_EnviamentPack($pagFrac, $titolDocencia,
 	$esAlumne, $datai, $mailing, $textTitulacioEstudiant);
-	$names_template = array("[NOM_ALUMNE]", "[TITOL]", "[TITOL1]", "[DATAI_DATAF1]",
-	"[TITOL2]", "[DATAI_DATAF2]", "[DATAF_LLARGA]", "[PAY_ORIG_ALUMNE]", "[PAY_PACK_ALUMNE]",
+	$names_template = array("[NOM_ALUMNE]", "[TITOL]", "[CURSOS_PACK]",
+	"[DATAF_LLARGA]", "[PAY_ORIG_ALUMNE]", "[PAY_PACK_ALUMNE]",
 	"[TEXT_DADES_ALUMNE]", "[TEXT_DESC_ALUMNE]", "[TEXT_MANERES_PAGAR]");
-	$names_function   = array($nom, $titolPack, $titols[0], $datesRealitzacioCurs1,
-		$titols[1], $datesRealitzacioCurs2, $dataFiLlarga, $preuCursos, $preuPack,
+	$names_function   = array($nom, $titolPack, $datesRealitzacioCursos,
+		$dataFiLlarga, $preuCursos, $preuPack,
 		$reqDadesAlumne, '', $textManeresPagar);
 	$missatge = str_replace($names_template, $names_function, $msg);
 
