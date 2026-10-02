@@ -12,7 +12,7 @@
 | P-CUR-03 | `pagina_efectuar_pagament_automatic.php` + `JasomNovicePaymentGate` + `mostrarEfectuarPagamentAutomatic.js` | A POST; B gate autoritatiu; C DS_ORDER fallback / intenció candidat; D imports; E formulari Redsys; F cancel·lar/confirmar |
 | P-CUR-04 | Redsys + `realitzaPagamentAutomatic.php` | A recepció; B validació; C factura; D cobrament/fracció; E correus/estat |
 | P-CUR-05 | `respostaOkPagamentAutomatic.php` / `respostaKoPagamentAutomatic.php` + JS OK/KO | A retorn navegador; B missatge; C consulta estat real FINAL; D JS només presentacional |
-| P-CUR-06 | SIF asíncron | A intenció; B callback; C cua; D worker; E factura/cobrament; F sync |
+| P-CUR-06 | SIF asíncron | A intenció; B callback; C cua; D worker; E factura/cobrament; F `EXTERNAL_ALLOCATION`; G sync/outbox |
 
 ## 1. P-CUR-01 — Confirmació d'inscripció
 
@@ -313,6 +313,12 @@ else (No)
   :Crear factura/línies/registre/cua AEAT;
   :Crear payment_transaction/allocation;
 endif
+:CourseEnrollmentFundAllocationService valida CHARGE/factura/línia/import;
+:Crear/reutilitzar enrollment_fund_movement EXTERNAL_ALLOCATION per DS_ORDER + ID_INSC;
+if (Falla atribució quantitativa?) then (Sí)
+  :Retry/incidència sense projectar pagament al llegat;
+  stop
+endif
 :CourseLegacyPaymentSyncService projecta PAGAMENT/DATA PAG/M→1;
 if (Falla sync llegada?) then (Sí)
   :Registrar incidència/retry sense refacturar;
@@ -346,6 +352,7 @@ start
 :Crear intenció pel tram;
 :Callback validat crea un CHARGE immutable;
 :Persistir CHARGE amb IDPAG + `payment_allocation` a factura + relació INSCRIPCIO(ID);
+:Crear/reutilitzar `EXTERNAL_ALLOCATION` a `enrollment_fund_movement` per DS_ORDER + ID_INSC;
 :Recalcular estat PAID/PARTIALLY_PAID;
 :No sobreescriure l'històric de cobraments;
 stop
@@ -361,8 +368,8 @@ start
 :Arriba callback DS_ORDER X;
 :Buscar notificació/intenció;
 if (Equivalent?) then (Sí)
-  :Reutilitzar notificació/job/factura/pagament;
-  :No crear segon ingrés;
+  :Reutilitzar notificació/job/factura/pagament/EXTERNAL_ALLOCATION;
+  :No crear segon ingrés ni segon moviment de fons;
 else (No)
   :CONFLICT + incidència;
 endif
@@ -389,6 +396,8 @@ stop
 @enduml
 ```
 
+**Evidència A14-17 — 02/10/2026:** `CourseEnrollmentFundAllocationServiceTest` cobreix alta/reús, trams parcials i mismatch fail-closed; `RedsysCourseEndToEndSimulatedTest` exigeix un únic moviment al complet/duplicat i dos moviments amb suma contractual al parcial→complet. El PR #95 té `SIF PHP MySQL tests` **841 passed / 0 failed** i `SIF checks`, `UC-111` i `UC-004` verds.
+
 ## 8. Cobertura i límits
 
 - Els JS de confirmació, pagament, efectuar pagament i retorn OK/KO **s'han localitzat i contrastat** a `codi-drive/web-actual/js1619773569/`; la traça JS deixa de ser pendent.
@@ -400,8 +409,8 @@ stop
 ## 9. Estat 02/10/2026
 
 - **DOCUMENTAT:** P-CUR-01..06 ACTUAL/FINAL, inclosos AJAX i JS reals.
-- **IMPLEMENTAT:** PHP/JS ACTUAL, gate autoritatiu, pont candidat, SIF asíncron, sync, outbox i retorn autoritatiu; hardening del fallback en aquesta branca.
-- **VERIFICAT:** E2E intern/cutover/retorn/outbox al PR #79; proves noves de hardening pendents de CI de la branca.
+- **IMPLEMENTAT:** PHP/JS ACTUAL, gate autoritatiu, pont candidat, SIF asíncron, `EXTERNAL_ALLOCATION` per inscripció, sync, outbox i retorn autoritatiu; hardening del fallback en aquesta branca.
+- **VERIFICAT:** E2E intern/cutover/retorn/outbox al PR #79 i fund allocation al PR #95 (841/0 + quatre workflows verds); proves noves de hardening pendents de CI de la branca.
 - **PENDENT:** Redsys real de preproducció, rotació/configuració de secrets, cutover i delivery UC-58.
 
 Vegeu [inventari executable PHP/JS](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md) i [auditoria exhaustiva 02/10](uc-014-auditoria-tracabilitat-2026-10-02.md).
