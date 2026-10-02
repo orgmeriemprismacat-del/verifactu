@@ -65,6 +65,8 @@ foreach ([
     'X-SIF-Actor-Roles',
     'previewInvoiceBeforePayment',
     'confirmInvoiceBeforePayment',
+    'UC004-V1',
+    'contract_version',
 ] as $required) {
     assertTrue(str_contains($client, $required), "Missing internal API client control: {$required}");
 }
@@ -76,6 +78,8 @@ foreach ([
     'InvoiceBeforePaymentCoverageRepository',
     'InvoiceBeforePaymentDocumentQueueService',
     'DocumentJobRepository',
+    'UC004-V1',
+    'contract_version',
 ] as $required) {
     assertTrue(str_contains($sifEndpoint, $required), "Missing SIF UC-004 endpoint control: {$required}");
 }
