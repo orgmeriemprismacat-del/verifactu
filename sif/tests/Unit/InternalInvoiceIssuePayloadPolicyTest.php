@@ -28,6 +28,28 @@ final class InternalInvoiceIssuePayloadPolicyTest
     }
 
 
+    public function testPropagatesAuthenticatedRequestContextWithoutChangingBusinessFields(): void
+    {
+        $prepared = (new InternalInvoiceIssuePayloadPolicy(
+            'G12345678',
+            'Associacio PrisMa'
+        ))->prepare([
+            'idempotency_key' => 'INTRANET|TRACE|POLICY',
+            'source_channel' => 'INTRANET',
+            'correlation_id' => 'BUSINESS-CORRELATION-1',
+        ], [
+            'actor_id' => 'gestio-test',
+            'roles' => ['FACTURACIO', 'ALTRES'],
+            'request_id' => '11111111-1111-4111-8111-111111111111',
+        ]);
+
+        Assert::same('gestio-test', $prepared['created_by']);
+        Assert::same('11111111-1111-4111-8111-111111111111', $prepared['request_id']);
+        Assert::same('BUSINESS-CORRELATION-1', $prepared['correlation_id']);
+        Assert::same('FACTURACIO', $prepared['actor_role']);
+        Assert::same('SYSTEM', $prepared['actor_type']);
+    }
+
     public function testRejectsOfficialAeatPayloadWithPlaceholderIssuer(): void
     {
         Assert::throws(\RuntimeException::class, function (): void {
