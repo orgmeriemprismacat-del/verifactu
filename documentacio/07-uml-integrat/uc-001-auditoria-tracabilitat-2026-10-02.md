@@ -1,10 +1,10 @@
 # UC-001 · Auditoria i traçabilitat — 2026-10-02
 
-**Base de reconciliació:** `main` `549d7ef9280df3cd5249340e3785a4bf23a14b78`. Els 10 commits nous des de `f7fa0822f82be96e842d9f2d031e643ab07f617c` només afecten documentació/índex d’UC-008 i no canvien cap superfície d’UC-001.
+**Base de reconciliació:** `main` `b0e8ff7150c5a8b415cc109d298d82f0db1f68df`. El `main` ha avançat amb canvis Redsys, pack, configuració i workflows; les superfícies que intersequen UC-001 s’han revalidat i el PR es manté mergeable.
 
 ## 1. Resultat executiu
 
-**Estat de l’auditoria:** `TANCADA_AMB_EXCEPCIO_EXECUCIO_CI_BLOQUEJADA_EXTERNAMENT`. Totes les troballes de la revisió tenen resolució implementada o classificació explícita. Els elements marcats com a pendents a la taula són deutes d’implementació transversal/entorn i **no són zones no auditades**.
+**Estat de l’auditoria:** `TANCADA_FINAL_CI_GATE_REQUIRED`. Totes les troballes de la revisió tenen resolució implementada o classificació explícita. Els elements marcats com a pendents a la taula són deutes d’implementació transversal/entorn i **no són zones no auditades**.
 
 | Bloc | Documentat | Implementat després d'aquesta branca | Inspecció | Execució |
 | --- | --- | --- | --- | --- |
@@ -75,21 +75,16 @@ L'auditoria UC-001 es considera tancada quan el head de codi d'aquesta revisió 
 - [x] Frontera HTTP autenticada i autoritzada.
 - [x] Coherència monetària i persistència d'exempció revisades.
 - [x] Troballes restants classificades per frontera.
-- [!] Gate CI del head de codi — **BLOQUEJAT EXTERNAMENT**: 1.027 runs del repositori constaven `queued` en la comprovació final del 02/10/2026; els quatre workflows del head UC-001 no havien començat.
+- [ ] Gate CI del head final — **OBLIGATORI**: validar els checks del PR #114 sobre el merge sintètic amb el `main` vigent.
 
 ### 5.2. No bloqueja el tancament de l'auditoria, però sí altres fases
 
 La integració obligatòria de `commercial_operation`, l’assembler AEAT complet i la configuració/preproducció continuen oberts com a **deute implementatiu o operatiu explícit**. El fencing i la gestió d’incertesa/reconciliació AEAT ja estan implementats i no es mantenen com a fals pendent. No s'han silenciat ni declarat implementats.
 
 
-### 5.3. Excepció de tancament — execució CI
+### 5.3. Evidència d’execució CI
 
-A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al repositori. Els workflows del head UC-001 (`SIF checks`, `SIF PHP MySQL tests`, `UC-004 SIF secure flow checks` i `UC-111 integration verification`) estan en cua i no han produït cap conclusió. Per tant:
-
-- l’auditoria de codi/documentació es tanca perquè l’abast és complet i les troballes estan resoltes o classificades;
-- **no** es declara la suite executada ni verda;
-- el PR queda obert i mergeable a nivell Git, però la decisió de merge queda condicionada a evidència d’execució posterior;
-- qualsevol fallada futura del CI reobre només la troballa/prova afectada, no converteix retroactivament l’evidència pendent en evidència verda.
+La cua global que havia bloquejat GitHub Actions s’ha resolt. L’evidència vàlida és ara el resultat dels workflows associats al **head final** del PR #114 contra el merge sintètic amb `main`. No es considera suficient un run d’un head anterior. Qualsevol fallada reobre la troballa afectada abans del merge.
 
 ## 6. Matriu detallada de troballes 51–100
 
@@ -163,7 +158,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 
 ## 8. Criteri de tancament funcional/productiu posterior
 
-L’**auditoria** queda tancada segons §5, amb l’excepció d’execució CI documentada a §5.3. El **cas d’ús com a capacitat productiva final** no s’ha de marcar com a complet només perquè el hardening d’aquesta branca sigui mergeable. Aquest segon tancament exigeix, com a mínim:
+L’**auditoria** queda tancada segons §5; el merge resta condicionat al gate CI del head final documentat a §5.3. El **cas d’ús com a capacitat productiva final** no s’ha de marcar com a complet només perquè el hardening d’aquesta branca sigui mergeable. Aquest segon tancament exigeix, com a mínim:
 
 1. CI/suite MySQL verda per les correccions incorporades;
 2. adaptadors reals connectats als endpoints dedicats;
@@ -172,4 +167,4 @@ L’**auditoria** queda tancada segons §5, amb l’excepció d’execució CI d
 5. snapshot AEAT oficial server-side en l'entorn qualificat;
 6. decisió i prova de l'any fiscal.
 
-Fins aleshores, l’estat d’implementació continua **CORE_HARDENED_CROSSCUTTING_AND_ENVIRONMENT_PENDING**. Això és compatible amb tenir l’**AUDITORIA TANCADA AMB EXCEPCIÓ D’EXECUCIÓ** mentre la cua global impedeixi obtenir el gate; només passarà a **VERIFICADA EN EXECUCIÓ** quan existeixi un run efectiu satisfactori.
+Fins aleshores, l’estat d’implementació continua **CORE_HARDENED_CROSSCUTTING_AND_ENVIRONMENT_PENDING**. Això és compatible amb tenir l’**AUDITORIA TANCADA** mentre el merge continua condicionat al **CI del head final** i a les validacions de preproducció que corresponguin.
