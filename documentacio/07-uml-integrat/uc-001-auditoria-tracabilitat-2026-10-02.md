@@ -92,7 +92,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 - el PR queda obert i mergeable a nivell Git, però la decisió de merge queda condicionada a evidència d’execució posterior;
 - qualsevol fallada futura del CI reobre només la troballa/prova afectada, no converteix retroactivament l’evidència pendent en evidència verda.
 
-## 6. Matriu detallada de troballes 51–90
+## 6. Matriu detallada de troballes 51–92
 
 | ID | Troballa | Tractament a la branca | Estat |
 | --- | --- | --- | --- |
@@ -136,6 +136,8 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 | F-088 | Sèrie i tipus de factura podien arribar en una família incompatible. | `A` exigeix `F1/F2`; `R` exigeix `R1…R5`. | **Corregit per codi; pendent CI** |
 | F-089 | El descompte de capçalera no es contrastava amb les línies. | Suma en cèntims de `discount_amount` contra `totals.discount`. | **Corregit per codi; pendent CI** |
 | F-090 | Clau idempotent/canal amb espais perifèrics podien passar validació però persistir amb identitat diferent. | Es rebutgen valors no canònics amb whitespace perifèric. | **Corregit per codi; pendent CI** |
+| F-091 | La configuració per defecte podia conservar l’emissor placeholder `G00000000` en un payload AEAT oficial. | Policy i preflight exigeixen NIF no-placeholder; la policy normalitza caixa abans del guard. | **Corregit per codi; pendent CI/configuració real** |
+| F-092 | Faltava un gate operatiu de readiness del generic `invoice_issue`, i el primer preflight no comprovava explícitament la seqüència fiscal. | `preflight-invoice-issue.php` valida HMAC/rol/path/emissor, BD, taules de factura/pagament, `fiscal_sequence`, `fiscal_chain_state` i seed de cadena, sense mutació. | **Corregit per codi; pendent execució a entorn** |
 
 ## 7. Proves de tancament i deutes posteriors
 
