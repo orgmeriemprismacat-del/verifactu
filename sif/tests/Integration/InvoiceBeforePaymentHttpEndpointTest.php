@@ -26,8 +26,19 @@ final class InvoiceBeforePaymentHttpEndpointTest
         Assert::stringContainsString('$commands->preview(', $source);
         Assert::stringContainsString('$commands->confirm(', $source);
         Assert::stringContainsString("(string) \$actor['actor_id']", $source);
-        Assert::stringContainsString('new InvoiceBeforePaymentCoverageRepository()', $source);
+        Assert::stringContainsString('$coverage = new InvoiceBeforePaymentCoverageRepository();', $source);
         Assert::stringContainsString('new OperationalEventRepository(new UuidGenerator())', $source);
+        Assert::stringContainsString('$sifDb,\n        $coverage\n    );', $source);
+
+        $authStart = strpos($source, '))->authenticate(');
+        $authEnd = $authStart === false ? false : strpos($source, ');', $authStart);
+        if ($authStart === false || $authEnd === false) {
+            Assert::fail('Could not isolate InternalApiAuthenticator::authenticate() call.');
+        }
+        $authBlock = substr($source, $authStart, $authEnd - $authStart + 2);
+        if (str_contains($authBlock, '$coverage')) {
+            Assert::fail('Coverage repository must not be passed to InternalApiAuthenticator.');
+        }
         Assert::stringContainsString('InvoiceBeforePaymentDocumentQueueService', $source);
         Assert::stringContainsString('new DocumentJobRepository()', $source);
         Assert::stringContainsString("documentsConfig['generator_version']", $source);
