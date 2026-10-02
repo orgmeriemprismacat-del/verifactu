@@ -81,7 +81,8 @@ La branca d'auditoria:
 - deriva `IDPAG`, import i fraccionament del context signat; si el query-string de compatibilitat discrepa, falla tancat;
 - usa `Ds_Order` i `Ds_Amount` signats i rellegeix curs/DNI de la BD llegada;
 - no envia notificació de depuració abans de validar;
-- falla amb HTTP 400 davant callback invàlid.
+- falla amb HTTP 400 davant callback invàlid;
+- usa `DS_ORDER` de 12 dígits en el fallback i MerchantURL sense query funcional.
 
 Això redueix risc mentre existeixi fallback, però **no converteix el callback llegat en autoritat fiscal final**. La numeració/facturació directa s'ha de retirar del runtime quan el cutover SIF quedi acreditat.
 
