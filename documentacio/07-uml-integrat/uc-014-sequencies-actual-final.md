@@ -117,7 +117,7 @@ Note over Ret,Status: CONFIRMED només amb PROCESSED + UUID_FACTURA + UUID_PAYME
 Note over Web,C: el tall exigeix SIF_REDSYS_COURSE_CUTOVER_ENABLED=1 + URL SIF HTTPS; la URL sola no activa
 ```
 
-**Implementat i verificat per CI anterior:** intenció SIF, callback/cua/worker, factura+cobrament, `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, outbox CURS, consulta read-only d'estat i retorn OK/KO fail-closed. El PR #95 acredita fund allocation amb suites SIF 841/0 i quatre workflows verds. **Pendent d'entorn:** configurar MerchantURL/cutover, rotar secrets i executar Redsys/preproducció real. El hardening ACTUAL 02/10 queda pendent de revalidació CI d'aquesta branca.
+**Implementat i verificat per CI anterior:** intenció SIF, callback/cua/worker, factura+cobrament, `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, outbox CURS, consulta read-only d'estat i retorn OK/KO fail-closed. El PR #95 acredita fund allocation amb suites SIF 841/0 i quatre workflows verds. **Pendent d'entorn:** configurar MerchantURL/cutover, rotar secrets i executar Redsys/preproducció real. El hardening ACTUAL 02/10 ha estat revalidat al PR #105: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en verd sobre el head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`.
 ## 3. FINAL — callback duplicat
 
 ```mermaid
@@ -167,7 +167,7 @@ end
 **DOCUMENTAT:** seqüència ACTUAL, FINAL nominal, duplicat i conflicte.  
 **IMPLEMENTAT:** serveis SIF centrals, pont candidat d'intenció, callback/cua/worker, `CourseEnrollmentFundAllocationService` + `EnrollmentFundMovementRepository`, sync llegada, productor `notification_outbox` CURS i retorn autoritatiu OK/KO.  
 **VERIFICAT:** CI amb E2E intern simulat, `EXTERNAL_ALLOCATION` idempotent, mismatch fail-closed, duplicat, parcial→complet, boundaries de preproducció i tests del retorn autoritatiu; PR #95 amb 841 passed / 0 failed.  
-**PENDENT:** CI de la branca 02/10, lliurament/retries d'email UC-58, desplegament/preproducció amb Redsys real, rotació/configuració de secrets, activació del flag de cutover i retirada posterior de l'autoritat fiscal llegada.
+**PENDENT:** lliurament/retries d'email UC-58, desplegament/preproducció amb Redsys real, rotació/configuració de secrets, activació del flag de cutover i retirada posterior de l'autoritat fiscal llegada.
 
 
 **Inventari executable relacionat:** [PHP/JS ACTUAL, pont candidat i SIF — 02/10](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md).
