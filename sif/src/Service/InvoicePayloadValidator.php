@@ -83,6 +83,7 @@ final class InvoicePayloadValidator
             }
 
             $this->assertExemptionReason($line);
+            $this->assertOperationLineUuid($line);
         }
 
         $this->assertLineTotalsMatchHeader($payload);
@@ -148,6 +149,24 @@ final class InvoicePayloadValidator
         }
 
         return (int) round((float) $value * 100, 0, PHP_ROUND_HALF_UP);
+    }
+
+    private function assertOperationLineUuid(array $line): void
+    {
+        if (!array_key_exists('uuid_operation_line', $line)
+            || $line['uuid_operation_line'] === null
+            || $line['uuid_operation_line'] === ''
+        ) {
+            return;
+        }
+
+        $uuid = strtolower(trim((string) $line['uuid_operation_line']));
+        if (preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/D',
+            $uuid
+        ) !== 1) {
+            throw SifException::validation('Invalid commercial operation line UUID');
+        }
     }
 
     private function assertExemptionReason(array $block): void
