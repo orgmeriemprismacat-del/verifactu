@@ -279,6 +279,7 @@ Auditoria canònica: [uc-015-auditoria-tracabilitat-2026-10-02.md](uc-015-audito
 
 Punts nous incorporats:
 - el formulari d'alta pública s'ha migrat a POST-only amb frontera same-site/origin i prova de regressió;
+- les N inscripcions del pack es creen dins una única transacció, amb rollback en error i alliberament garantit del lock `IDPAG`;
 - `pagFrac` ja no és entrada client: l'ecommerce fixa no fraccionament al servidor;
 - el correu d'alta s'ha generalitzat a PACK N amb `[CURSOS_PACK]`;
 - la seqüència real de postcommit és `RedsysLegacySyncingProcessor → LegacySyncService`;
