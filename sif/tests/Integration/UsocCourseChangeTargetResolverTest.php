@@ -29,18 +29,15 @@ final class UsocCourseChangeTargetResolverTest
         Assert::same(true, $result['invariants']['never_cross_payer_funds']);
     }
 
-    public function testAcceptsZeroEntityDifferenceWithoutInventingEntityInvoice(): void
+    public function testRejectsZeroEntityDifferenceForValidatedUsocFinancing(): void
     {
-        $result = (new UsocCourseChangeTargetResolver())->resolve([
-            'target_standard_course_amount' => '75.00',
-            'target_student_course_amount' => '75.00',
-            'management_fee' => '0.00',
-        ]);
-
-        Assert::same('0.00', $result['target_entity_course_amount']);
-        Assert::same('75.00', $result['target_student_total']);
-        Assert::same('0.00', $result['target_entity_total']);
-        Assert::same(false, $result['entity_invoice_required']);
+        Assert::throws(SifException::class, static function (): void {
+            (new UsocCourseChangeTargetResolver())->resolve([
+                'target_standard_course_amount' => '75.00',
+                'target_student_course_amount' => '75.00',
+                'management_fee' => '0.00',
+            ]);
+        }, 422);
     }
 
     public function testNormalizesCommaDecimalsWithoutUsingFloats(): void
