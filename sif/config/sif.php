@@ -46,6 +46,12 @@ return [
         'root' => getenv('SIF_DOCUMENT_ROOT') ?: '',
         'max_bytes' => (int) (getenv('SIF_DOCUMENT_MAX_BYTES') ?: 20971520),
         'generator_version' => getenv('SIF_DOCUMENT_GENERATOR_VERSION') ?: 'uc004-fiscal-pdf-v1',
+        'verifactu_qr_base_url' => getenv('SIF_VERIFACTU_QR_BASE_URL') ?: (
+            (getenv('SIF_ENV') ?: 'local') === 'production'
+                ? 'https://www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQR'
+                : 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR'
+        ),
+        'qr_spec_version' => getenv('SIF_VERIFACTU_QR_SPEC_VERSION') ?: '0.5.0',
     ],
     'internal_api' => [
         'key_id' => getenv('SIF_INTERNAL_API_KEY_ID') ?: '',
