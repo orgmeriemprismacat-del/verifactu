@@ -6,27 +6,14 @@ use Prisma\Sif\Tests\Support\Assert;
 
 final class LegacyPackCallbackBoundaryTest
 {
-    public function testBothLegacyPackCallbacksAreDisabledByDefaultBeforeMutationCode(): void
+    public function testProductionLegacyPackCallbacksArePhysicallyRemoved(): void
     {
         foreach ([
             'codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentPackAutomatic.php',
             'codi-drive/web-actual/realitzaPagamentPackAutomatic.php',
         ] as $relativePath) {
-            $source = $this->read($relativePath);
-
-            Assert::stringContainsString('SIF_PACK_LEGACY_CALLBACK_ENABLED', $source);
-            Assert::stringContainsString(
-                "getenv('SIF_PACK_LEGACY_CALLBACK_ENABLED') ?: '0'",
-                $source
-            );
-            Assert::stringContainsString('http_response_code(410)', $source);
-
-            $guard = strpos($source, 'SIF_PACK_LEGACY_CALLBACK_ENABLED');
-            $legacyInvoiceInsert = strpos($source, 'INSERT INTO factures');
-
-            Assert::same(true, $guard !== false);
-            Assert::same(true, $legacyInvoiceInsert !== false);
-            Assert::same(true, $guard < $legacyInvoiceInsert);
+            $path = dirname(__DIR__, 3) . '/' . $relativePath;
+            Assert::same(false, is_file($path));
         }
     }
 
