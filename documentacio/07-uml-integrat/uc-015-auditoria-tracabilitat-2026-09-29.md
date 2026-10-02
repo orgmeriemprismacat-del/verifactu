@@ -17,7 +17,7 @@ Aquest registre diferencia:
 | Catàleg i fitxa pack | sí | sí | sí | proves navegador |
 | N inscripcions amb IDPAG comú | sí | sí | sí | substituir identitat concurrent |
 | Preu pack | sí | **sí, backend autoritatiu (30/09)** | sí | proves runtime |
-| Snapshot comercial | sí | **sí al checkout PACK** | sí | verificar origen canònic de l'ordinal |
+| Snapshot comercial | sí | **sí al checkout PACK** | sí | decidir si cal posició comercial explícita independent de `DATAI, ID_CURS` |
 | Intenció Redsys PACK | sí | **sí + checkout connectat (30/09)** | sí | evidència runtime |
 | Callback SIF | sí | sí | sí | evidència de desplegament/runtime |
 | Callback legacy | sí | **retirat per defecte (30/09)** | sí | eliminar codi mort quan acabi finestra rollback |
