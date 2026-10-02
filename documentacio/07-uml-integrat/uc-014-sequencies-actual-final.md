@@ -89,7 +89,7 @@ Intent-->>IC: DS_ORDER + import autoritatiu
 IC-->>Web: intenció creada/reutilitzada
 Web->>R: formulari TPV amb DS_ORDER de la intenció
 R->>C: callback signat a MerchantURL SIF [quan tall activat]
-C->>C: valida signatura + DS_ORDER + import + moneda + terminal
+C->>C: valida signatura + merchant code + DS_ORDER + import + moneda + terminal
 C->>Q: persisteix notificació i encola/reutilitza job
 C-->>R: HTTP tècnic sense factura
 W->>Q: claimNext()
