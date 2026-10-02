@@ -28,6 +28,26 @@ final class PaymentRepository
         return $row ?: null;
     }
 
+
+    public function findAllocationsForInvoice(
+        \PDO $db,
+        string $uuidPayment,
+        string $uuidFactura,
+        bool $forUpdate = false
+    ): array {
+        $sql = 'SELECT UUID_PAYMENT, UUID_FACTURA, IMPORT_ASSIGNAT, TIPUS_ASSIGNACIO
+                FROM payment_allocation
+                WHERE UUID_PAYMENT = ? AND UUID_FACTURA = ?';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$uuidPayment, $uuidFactura]);
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     public function createPayment(\PDO $db, array $payload): array
     {
         $uuid = $this->uuidGenerator->generate();
