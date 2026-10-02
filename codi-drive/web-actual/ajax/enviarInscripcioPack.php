@@ -256,7 +256,7 @@ try {
 				return;
 			}
 
-			if (!preg_match('/(?:^|\\s)REQUEST_HASH\\|([a-f0-9]{64})(?=\\s|$)/i', (string) $existingObservations, $hashMatch)) {
+			if (!preg_match('/(?:^|\\s)RH1\\|([a-f0-9]{64})(?=\\s|$)/i', (string) $existingObservations, $hashMatch)) {
 				http_response_code(409);
 				echo 'Error: REQUEST_ID PACK existent sense fingerprint vàlid';
 				$stmtExisting->close();
