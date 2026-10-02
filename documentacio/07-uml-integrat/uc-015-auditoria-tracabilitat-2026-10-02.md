@@ -251,6 +251,17 @@ L'alta legacy reservava un `IDPAG` amb `GET_LOCK` i executava N `INSERT INTO ins
 
 **Estat:** implementat i cobert per prova automatitzada; resta E2E amb fallada injectada en preproducció si es vol evidència runtime.
 
+### F-14 · CI no cobria tot el canal web PACK — corregit
+
+La CI específica de UC-015 lintava `PackPaymentGate.php` i la pàgina de pagament, però no tenia cobertura completa del formulari d'alta, la plantilla ni el JavaScript. `sif-checks.yml` sí incloïa part del PHP legacy, però els canvis només de JS/plantilla podien no disparar el workflow.
+
+**Correcció aplicada:**
+- `sif-tests.yml` dispara ara per canvis a la connexió legacy, endpoint d'alta, JS i plantilla PACK;
+- el pas de lint valida PHP de connexió/endpoint/plantilla i `node --check` del JS;
+- `sif-checks.yml` inclou JS/plantilla als paths i un pas sintàctic dedicat UC-015 PACK.
+
+**Estat:** implementat; el HEAD final del PR ha de demostrar la nova porta verda.
+
 ## 6. UML i traçabilitat
 
 ### Classes
@@ -343,6 +354,7 @@ Per tant:
 - eliminació de `pagFrac` com a entrada client i fixació server-side de no fraccionament;
 - correu d'alta generalitzat de 2 cursos fixos a PACK N;
 - alta N convertida en transacció atòmica amb rollback i lock `IDPAG` segur;
+- CI ampliada perquè endpoint, connexió, plantilla i JS PACK activin i passin lint.
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
 - creació d'aquest registre de revalidació 02/10.
