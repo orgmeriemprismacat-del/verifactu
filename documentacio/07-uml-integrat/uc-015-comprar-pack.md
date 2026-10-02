@@ -2,7 +2,7 @@
 
 **Objectiu:** facturar i cobrar una **operació de pack** amb múltiples inscripcions, cadascuna amb curs, edició, import i descompte que li correspon. Un pagament del pack no és N cobraments bancaris independents, i la factura global no significa que es pugui perdre el detall de quantitat atribuïda a cada inscripció.
 
-**Estat (revalidat 2026-10-02):** flux fiscal/econòmic principal PACK implementat al SIF. L'alta pública és POST-only, no envia PII a la query string, aplica frontera same-site/origin i disposa d'idempotència server-side amb `REQUEST_ID` persistent, fingerprint SHA-256 i replay `RID/RH1`; el preu es recalcula al servidor només per altes noves. Continuen pendents l'E2E de preproducció, decidir si l'ordre comercial ha de ser independent de `DATAI`, la retirada física del callback fiscal legacy i el lliurament efectiu de notificacions (UC-58). L'ordre operatiu actual és determinista: `ORDER BY c.DATAI, p.ID_CURS`.
+**Estat (revalidat 2026-10-02):** flux fiscal/econòmic principal PACK implementat al SIF. L'alta pública és POST-only, no envia PII a la query string, aplica frontera same-site/origin i disposa d'idempotència server-side amb `REQUEST_ID` persistent, fingerprint SHA-256 i replay `RID/RH1`; per una alta nova el servidor exigeix també que totes les edicions del pack continuïn dins la finestra d'inscripció abans de recalcular el preu. Continuen pendents l'E2E de preproducció, decidir si l'ordre comercial ha de ser independent de `DATAI`, la retirada física del callback fiscal legacy i el lliurament efectiu de notificacions (UC-58). L'ordre operatiu actual és determinista: `ORDER BY c.DATAI, p.ID_CURS`.
 
 **Codi consultat:** `RedsysPackInvoiceService`, `LegacyPackInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService` i la infraestructura UC-63/03. El builder actual **requereix almenys dues línies** i associa `PACK` i cada `INSCRIPCIO` a la factura. Les comprovacions de la composició comercial del pack i l'accés/inscripció final dels cursos continuen pendents d'acreditar al canal.
 
@@ -20,7 +20,7 @@
 
 ### 1.1. Flux principal asíncron
 
-1. L'alta pública envia POST + `REQUEST_ID`. El servidor serialitza la clau amb named lock i busca `RID/RH1`: un reintent equivalent reutilitza l'alta i una variant contradictòria retorna 409; només una clau nova valida el formulari, rellegeix preus, reserva `IDPAG` i crea atòmicament N inscripcions. Després, el **checkout de pagament** rellegeix BD amb `PackPaymentGate`, valida composició, preu/descomptes, receptor i ordinal, i crea una intenció SIF `PACK` amb `DS_ORDER`, import total i snapshot. No s'emet factura per una intenció sense cobrament.
+1. L'alta pública envia POST + `REQUEST_ID`. El servidor serialitza la clau amb named lock i busca `RID/RH1`: un reintent equivalent reutilitza l'alta i una variant contradictòria retorna 409; només una clau nova valida el formulari, revalida que **tots els components** estiguin oberts segons hores+dias configurats, rellegeix preus, reserva `IDPAG` i crea atòmicament N inscripcions. Després, el **checkout de pagament** rellegeix BD amb `PackPaymentGate`, valida composició, preu/descomptes, receptor i ordinal, i crea una intenció SIF `PACK` amb `DS_ORDER`, import total i snapshot. No s'emet factura per una intenció sense cobrament.
 2. Redsys comunica resultat signat; el callback UC-03 valida ordre i import, desa notificació i encua job només si autoritzat.
 3. El worker selecciona `RedsysPackInvoiceService` mitjançant `SOURCE_TYPE=PACK` i li lliura `SNAPSHOT_JSON`.
 4. `LegacyPackInvoicePayloadBuilder::build()` valida l'ID del pack i les inscripcions, genera les línies i totals, relacions `PACK` i `INSCRIPCIO` i congela els descomptes.
@@ -281,6 +281,7 @@ Punts nous incorporats:
 - el formulari d'alta pública s'ha migrat a POST-only amb frontera same-site/origin;
 - idempotència server-side implementada: UUID v4 persistent al navegador, named lock, `RID/RH1`, replay equivalent i 409 per payload divergent;
 - el bundle puja a `mostrarInscripcioPack.min.js?ver=7.4` per evitar caché del GET antic;
+- corregida la disponibilitat: `EdicioPack` compara una data límit amb signe real i llistat/fitxa/POST exigeixen tots els components oberts;
 - les N inscripcions del pack es creen dins una única transacció, amb rollback en error i alliberament garantit del lock `IDPAG`; abans del commit la suma dels imports congelats ha de coincidir exactament amb el preu PACK en cèntims;
 - `pagFrac` ja no és entrada client: l'ecommerce fixa no fraccionament al servidor;
 - el correu d'alta s'ha generalitzat a PACK N amb `[CURSOS_PACK]`;
