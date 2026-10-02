@@ -2,12 +2,14 @@
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Contract\InvoiceBeforePaymentDocumentQueueInterface;
+
 final class InvoiceBeforePaymentService
 {
     public function __construct(
         private InvoiceBeforePaymentPayloadBuilder $payloadBuilder,
         private InvoiceService $invoices,
-        private ?InvoiceBeforePaymentDocumentQueueService $documents = null
+        private ?InvoiceBeforePaymentDocumentQueueInterface $documents = null
     ) {
     }
 
