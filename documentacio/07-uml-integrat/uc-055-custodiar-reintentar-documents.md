@@ -2,7 +2,7 @@
 
 **Frontera funcional.** UC-36 defineix l'obtenció/generació funcional d'un PDF, QR o XML concret; UC-55 gestiona **la cua documental, els reintents, la versió del generador, la integritat i la custòdia**. UC-07 consulta factura i metadades; **UC-80 controla qui pot rebre els bytes i registra l'accés/denegació**. La factura fiscal, un cop emesa, no s'anul·la ni es reemet perquè falli el PDF.
 
-**Evidència actualitzada 02/10/2026:** `DocumentRepository::registerDocument()` registra metadada/hash; `InvoiceDocumentAccessService` + `PrivateDocumentStore` + endpoint HMAC implementen la lectura segura; i aquesta branca afegeix `DocumentJobRepository` + `InvoiceBeforePaymentDocumentQueueService`, que creen/reutilitzen un `document_job` PDF `PENDING` per factura/tipus/versió. **Continuen sense estar implementats el worker final, el renderitzador PDF/QR/XML i l'escriptor de storage privat**. Per tant, la cua i la consulta són executables, però el cicle de generació/custòdia completa continua **PARCIAL**.
+**Evidència actualitzada 02/10/2026:** `DocumentRepository::registerDocument()` registra metadada/hash/ID; `InvoiceDocumentAccessService` + `PrivateDocumentStore` implementen lectura segura; `DocumentJobRepository` + `InvoiceBeforePaymentDocumentQueueService` creen/reutilitzen jobs; i aquesta branca implementa `FiscalDocumentJobProcessor`, `PrivateDocumentWriter` i `InvoiceDocumentSnapshotRepository`. El worker recupera locks stale, usa `ATTEMPTS` com a generació de lease, verifica el snapshot fiscal contra `HASH_FACT`, publica bytes privats atòmicament, verifica SHA-256 i completa job + metadata `READY`. **Continua pendent el renderitzador concret PDF/QR/XML i el seu desplegament/validació normativa.**
 
 ## 1. Fitxa de cas d'ús
 
@@ -11,7 +11,7 @@
 | Actor | Procés documental i responsable tècnica amb permís d'operació; receptor/auditor accedeix posteriorment sota UC-07. |
 | Disparador | Factura/rectificativa confirmada, document absent, o recuperació d'un job fallit. |
 | Entrada immutable | UUID i snapshot fiscal de la factura, tipus documental, versió del generador i correlació; no consultar el preu mutable del curs per «reconstruir» el document anterior. |
-| Job definit al SQL | `document_job` té `UUID_JOB`, `UUID_FACTURA`, `DOCUMENT_TYPE`, `IDEMPOTENCY_KEY` única, `GENERATOR_VERSION`, `STATUS=PENDING`, intents/lock/resultat. **Writer de cua implementat en aquesta branca** amb `DocumentJobRepository::ensurePending()`; el worker que consumeix la cua continua pendent. |
+| Job definit al SQL | `document_job` té UUID, factura, tipus, K única, versió, estat, intents/lock/resultat. **Enqueue, claim, retry, stale recovery, ownership per intent i complete estan implementats** a `DocumentJobRepository`; `FiscalDocumentJobProcessor` consumeix la cua. |
 | Metadades implementades | `DocumentRepository::registerDocument(db,uuidFactura,type,path,contents)`: tipus `PDF/XML/QR`, SHA-256 i metadata `CREATED`. La funció **no desa els bytes** en storage ni prova que el path existeixi. |
 | Resultat objectiu | Fitxer privat verificat, metadades i hash coherents, feina acabada amb referència al document, i accés posterior autoritzat/auditat. |
 | Efecte fiscal/econòmic | Cap factura, registre AEAT o `CHARGE` nou com a efecte d'un reintent documental; la factura original continua emesa si el document falla. |
@@ -19,10 +19,10 @@
 ### 1.1. Flux objectiu de generació i custòdia
 
 1. Després del commit de factura UC-004, `InvoiceBeforePaymentDocumentQueueService` **ja encola/reutilitza** un job PDF idempotent identificat per UUID de factura, tipus i versió del generador, amb correlació estable.
-2. El worker **pendent** reclama un job i encarrega els bytes al generador versionat. Per al QR, llegenda i formats finals s'ha de verificar la regla oficial aplicable abans d'afirmar conformitat; `XmlCodec` de remissió AEAT no és per si sol un generador universal de documents de factura.
-3. Desa els bytes en storage privat, torna a llegir o verifica integritat i calcula SHA-256. Només aleshores crida el mètode **existent** `DocumentRepository::registerDocument()`; un `HASH_FITXER` a BD no prova per si sol que el fitxer estigui custodiat.
-4. El worker **proposat** enllaça `FACTURA_DOCUMENT_ID` i `STORAGE_KEY` al job i marca finalització, sense sobreescriure silenciosament un document de versió anterior.
-5. En error de generació, storage, hash o inserció, conserva `LAST_ERROR`, programa un reintent idempotent o obre incidència UC-08. **La política efectiva i el writer de retries encara no s'han acreditat al PHP.**
+2. El worker **implementat** reclama el job, recupera leases stale i exigeix un renderer versionat. Abans de renderitzar, `InvoiceDocumentSnapshotRepository` verifica la identitat i la cadena hash del `PAYLOAD_JSON` fiscal immutable. Per al QR, llegenda i formats finals s'ha de verificar la regla oficial aplicable abans d'afirmar conformitat; `XmlCodec` de remissió AEAT no és per si sol un generador universal de documents de factura.
+3. `PrivateDocumentWriter` desa els bytes en storage privat amb publicació atòmica, relectura i SHA-256. Només després `DocumentRepository::registerDocument(..., READY)` registra metadada i ID; un `HASH_FITXER` a BD no prova per si sol que el fitxer estigui custodiat.
+4. El worker **implementat** enllaça `FACTURA_DOCUMENT_ID`, `STORAGE_KEY` i `OUTPUT_HASH` al job i marca `COMPLETED`; una versió de generador diferent conserva un job/artefacte separat.
+5. En error de snapshot, render, storage, hash o inserció, `fail()` conserva `LAST_ERROR` i programa retry exponencial fins `MAX_ATTEMPTS`; stale jobs es recuperen o passen a `ERROR` si han esgotat intents. L'obertura automàtica d'incidència UC-08 en terminal encara és pendent.
 6. A la consulta, UC-07 mostra l'estat/metadades autoritzades i UC-80 revalida actor, rol, receptor i document, serveix des de storage privat i deixa traça `fiscal_document_access`. Aquest pas és pendent de servei de lectura/descàrrega.
 
 ### 1.2. Alternatives i invariants
