@@ -46,6 +46,26 @@ final class RedsysSignatureValidatorTest
         }, 422);
     }
 
+    public function testAmountNormalizationUsesIntegerCents(): void
+    {
+        $source = file_get_contents(dirname(__DIR__, 2) . '/src/Service/RedsysSignatureValidator.php');
+        if ($source === false) {
+            Assert::fail('Could not read RedsysSignatureValidator source');
+        }
+
+        Assert::stringContainsString('amountFromCents', $source);
+        Assert::stringContainsString('ctype_digit($raw)', $source);
+
+        $normalize = strstr($source, 'private function normalizeAmount');
+        if ($normalize === false) {
+            Assert::fail('normalizeAmount not found');
+        }
+        $normalize = strstr($normalize, 'private function base64Decode', true) ?: $normalize;
+        if (str_contains($normalize, '(float)')) {
+            Assert::fail('Redsys amount normalization must not use floating point arithmetic.');
+        }
+    }
+
     public function testSourceDoesNotHardcodeRedsysSecret(): void
     {
         $source = file_get_contents(dirname(__DIR__, 2) . '/src/Service/RedsysSignatureValidator.php');
