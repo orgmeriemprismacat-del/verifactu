@@ -399,6 +399,76 @@ final class FiscalDocumentJobProcessorTest
         }
     }
 
+    public function testExhaustedRendererFailureOpensIdempotentIncident(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'TEST|DOCUMENT-WORKER|INCIDENT',
+            ])
+        );
+
+        (new InvoiceBeforePaymentDocumentQueueService(
+            new TransactionRunner($db),
+            new DocumentJobRepository(),
+            'uc004-fiscal-pdf-v1'
+        ))->ensurePdf(
+            $invoice['uuid_factura'],
+            'INTRANET|FACTURA_ABANS_COBRAR|REF:WORKER-INCIDENT'
+        );
+        $db->exec('UPDATE document_job SET MAX_ATTEMPTS = 1');
+
+        $root = $this->temporaryDirectory();
+
+        try {
+            $renderer = new class implements FiscalDocumentRendererInterface {
+                public function render(array $snapshot, array $job): array
+                {
+                    throw new \RuntimeException('synthetic terminal renderer failure');
+                }
+            };
+
+            $processor = new FiscalDocumentJobProcessor(
+                $db,
+                new TransactionRunner($db),
+                new DocumentJobRepository(),
+                $renderer,
+                new PrivateDocumentWriter($root),
+                new DocumentRepository(),
+                1,
+                10
+            );
+
+            $result = $processor->processNext();
+
+            Assert::same(false, $result['ok']);
+            Assert::same('ERROR', $result['status']);
+            Assert::same(true, (int) $result['incident_id'] > 0);
+            Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
+
+            $incident = $db->query(
+                'SELECT UUID_FACTURA, RESOURCE_TYPE, RESOURCE_ID, TIPUS_INCIDENCIA,
+                        SEVERITY, IDEMPOTENCY_KEY, REASON_CODE, ESTAT
+                 FROM errors_verifactu'
+            )->fetch(\PDO::FETCH_ASSOC);
+            $job = $db->query('SELECT UUID_JOB, STATUS FROM document_job')->fetch(\PDO::FETCH_ASSOC);
+
+            Assert::same($invoice['uuid_factura'], $incident['UUID_FACTURA']);
+            Assert::same('DOCUMENT_JOB', $incident['RESOURCE_TYPE']);
+            Assert::same($job['UUID_JOB'], $incident['RESOURCE_ID']);
+            Assert::same('DOCUMENT_JOB_EXHAUSTED', $incident['TIPUS_INCIDENCIA']);
+            Assert::same('HIGH', $incident['SEVERITY']);
+            Assert::same('DOCUMENT_JOB_ERROR|' . $job['UUID_JOB'], $incident['IDEMPOTENCY_KEY']);
+            Assert::same('DOCUMENT_RETRIES_EXHAUSTED', $incident['REASON_CODE']);
+            Assert::same('OPEN', $incident['ESTAT']);
+            Assert::same('ERROR', $job['STATUS']);
+            Assert::same(null, $processor->processNext());
+            Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
+        } finally {
+            $this->removeDirectory($root);
+        }
+    }
+
     private function temporaryDirectory(): string
     {
         $root = sys_get_temp_dir()
