@@ -496,3 +496,4 @@ Per separar el model integrat dels diagrames de contrast:
 - [Seqüències ACTUAL/FINAL](uc-013-sequencies-actual-final.md)
 - [Activitats ACTUAL/FINAL per pàgina i apartat](uc-013-activitats-pagines-actual-final.md)
 - [Auditoria i traçabilitat](uc-013-auditoria-tracabilitat-2026-09-29.md)
+- [Contracte FINAL · canvi de curs USOC](uc-013-canvi-curs-usoc-contracte-final.md)
