@@ -115,8 +115,8 @@ final class RedsysCallbackService
 
         $amountCents = $this->decimalCents($payload['amount'], 'Invalid Redsys amount');
 
-        $responseCode = (string) $payload['response_code'];
-        if ($responseCode === '' || strlen($responseCode) > 10) {
+        $responseCode = trim((string) $payload['response_code']);
+        if ($responseCode === '' || !ctype_digit($responseCode) || strlen($responseCode) > 4) {
             throw SifException::validation('Invalid Redsys response code');
         }
 
