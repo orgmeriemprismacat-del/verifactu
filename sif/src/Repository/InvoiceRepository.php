@@ -64,11 +64,11 @@ final class InvoiceRepository
         $jsonPayload = $this->encodePayload($recordPayload);
 
         $this->insertInvoice($db, $payload, $uuid, $year, $seq, $numVisible, $issuedAt);
-        $this->insertLines($db, $payload, $uuid);
+        $lineIdsBySource = $this->insertLines($db, $payload, $uuid);
         $this->insertFiscalRecord($db, $uuid, $fiscalOrder, $hash, $previousHash, $jsonPayload);
         $this->updateChainState($db, $fiscalOrder, $hash);
         $this->insertFiscalQueue($db, $uuid, $payload['idempotency_key'], $jsonPayload);
-        $this->insertRelations($db, $payload, $uuid);
+        $this->insertRelations($db, $payload, $uuid, $lineIdsBySource);
 
         return [
             'uuid_factura' => $uuid,
@@ -125,45 +125,40 @@ final class InvoiceRepository
         ]);
     }
 
-    private function insertLines(\PDO $db, array $payload, string $uuid): void
+    private function insertLines(\PDO $db, array $payload, string $uuid): array
     {
         $stmt = $db->prepare(
             'INSERT INTO factura_linia (
                 UUID_FACTURA, ORDRE, CONCEPTE, DETALL, QUANTITAT, PREU_UNITARI,
                 IMPORT_BASE, DESC_ORIGEN, DESC_MODE, DESC_ID, DESC_CODI_PROMO,
                 DESC_PCT, DESC_IMPORT, DESC_TEXT_VISIBLE, DESC_MOTIU_INTERN,
-                BASE_IMPOSABLE, IVA_REGIM, IVA_PCT, IVA_IMPORT, CAUSA_EXEMPCIO_NO_SUBJECTA, TOTAL,
+                BASE_IMPOSABLE, IVA_REGIM, IVA_PCT, IVA_IMPORT, TOTAL,
                 SOURCE_TYPE, SOURCE_ID
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
+
+        $lineIdsBySource = [];
 
         foreach ($payload['lines'] as $index => $line) {
             $stmt->execute([
-                $uuid,
-                $index + 1,
-                $line['concept'],
-                $line['detail'] ?? null,
-                $line['quantity'],
-                $line['unit_price'],
-                $line['import_base'] ?? $line['base'],
-                $line['discount_origin'] ?? null,
-                $line['discount_mode'] ?? null,
-                $line['discount_id'] ?? null,
-                $line['discount_code'] ?? null,
-                $line['discount_pct'] ?? null,
-                $line['discount_amount'] ?? '0.00',
-                $line['discount_text'] ?? null,
-                $line['discount_internal_reason'] ?? null,
-                $line['taxable_base'] ?? $line['base'],
-                $line['iva_regim'] ?? 'EXEMPT',
-                $line['iva_pct'] ?? '0.00',
-                $line['iva_import'] ?? '0.00',
-                $line['exemption_reason'] ?? null,
-                $line['total'],
-                $line['source_type'] ?? null,
-                $line['source_id'] ?? null,
+                $uuid, $index + 1, $line['concept'], $line['detail'] ?? null,
+                $line['quantity'], $line['unit_price'], $line['import_base'] ?? $line['base'],
+                $line['discount_origin'] ?? null, $line['discount_mode'] ?? null,
+                $line['discount_id'] ?? null, $line['discount_code'] ?? null,
+                $line['discount_pct'] ?? null, $line['discount_amount'] ?? '0.00',
+                $line['discount_text'] ?? null, $line['discount_internal_reason'] ?? null,
+                $line['taxable_base'] ?? $line['base'], $line['iva_regim'] ?? 'EXEMPT',
+                $line['iva_pct'] ?? '0.00', $line['iva_import'] ?? '0.00', $line['total'],
+                $line['source_type'] ?? null, $line['source_id'] ?? null,
             ]);
+
+            $sourceKey = $this->sourceKey($line['source_type'] ?? null, $line['source_id'] ?? null);
+            if ($sourceKey !== null) {
+                $lineIdsBySource[$sourceKey][] = (int) $db->lastInsertId();
+            }
         }
+
+        return $lineIdsBySource;
     }
 
     private function insertFiscalRecord(
@@ -193,27 +188,44 @@ final class InvoiceRepository
             ->execute([$uuid, 'AEAT|' . $idempotencyKey, $jsonPayload]);
     }
 
-    private function insertRelations(\PDO $db, array $payload, string $uuid): void
-    {
+    private function insertRelations(
+        \PDO $db,
+        array $payload,
+        string $uuid,
+        array $lineIdsBySource = []
+    ): void {
         $stmt = $db->prepare(
             'INSERT INTO fact_rels (
-                UUID_FACTURA, FACTURA_RELACIONADA, SOURCE_TYPE, SOURCE_ID, RELATION_TYPE,
+                UUID_FACTURA, FACTURA_RELACIONADA, SOURCE_TYPE, SOURCE_ID, ID_FACTURA_LINIA, RELATION_TYPE,
                 IDPAG, DS_ORDER, VISIBLE_ALUMNE
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         foreach ($payload['relations'] ?? [] as $rel) {
+            $sourceKey = $this->sourceKey($rel['source_type'] ?? null, $rel['source_id'] ?? null);
+            $lineCandidates = $sourceKey === null ? [] : ($lineIdsBySource[$sourceKey] ?? []);
+            $lineId = count($lineCandidates) === 1 ? $lineCandidates[0] : null;
+
             $stmt->execute([
-                $uuid,
-                $rel['factura_relacionada'] ?? null,
-                $rel['source_type'],
-                $rel['source_id'] ?? null,
-                $rel['relation_type'] ?? 'ORIGIN',
-                $rel['idpag'] ?? null,
-                $rel['ds_order'] ?? null,
-                $rel['visible_alumne'] ?? 1,
+                $uuid, $rel['factura_relacionada'] ?? null, $rel['source_type'],
+                $rel['source_id'] ?? null, $lineId, $rel['relation_type'] ?? 'ORIGIN',
+                $rel['idpag'] ?? null, $rel['ds_order'] ?? null, $rel['visible_alumne'] ?? 1,
             ]);
         }
+    }
+
+    private function sourceKey(mixed $sourceType, mixed $sourceId): ?string
+    {
+        if ($sourceType === null || $sourceId === null || $sourceId === '') {
+            return null;
+        }
+
+        $type = strtoupper(trim((string) $sourceType));
+        if ($type === '') {
+            return null;
+        }
+
+        return $type . '|' . trim((string) $sourceId);
     }
 
     private function recordPayload(array $payload, string $uuid, string $numVisible, int $fiscalOrder): array
