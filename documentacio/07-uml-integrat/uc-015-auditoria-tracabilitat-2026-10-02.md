@@ -276,6 +276,21 @@ Això no converteix els correus legacy en outbox durable; només evita un fals e
 
 **Estat:** implementat i cobert per prova automatitzada; migració dels correus inicials a mecanisme durable continua fora d'aquest fix.
 
+### F-16 · Doble enviament de navegador sense guard explícit — mitigat
+
+El botó mostrava el modal de càrrega però no existia un estat explícit que impedís executar dues vegades `enviarInscripcio()` davant doble clic ràpid.
+
+**Correcció aplicada:**
+- flag `inscripcioPackEnviant`;
+- botó desactivat abans de l'AJAX;
+- reactivació només si la resposta funcional és error o falla la petició;
+- en èxit queda desactivat fins a la redirecció;
+- `PackPublicEnrollmentBoundaryTest` blinda el guard.
+
+**Límit:** això és protecció de client, no idempotència server-side. Una idempotència forta de l'alta pública requeriria `REQUEST_ID` persistent/reutilitzable i contracte de deduplicació; no s'ha inventat una heurística per DNI/temps perquè podria rebutjar altes legítimes.
+
+**Estat:** doble clic mitigat; idempotència server-side de l'alta pública continua **pendent arquitectònic**.
+
 ## 6. UML i traçabilitat
 
 ### Classes
@@ -353,12 +368,13 @@ Per tant:
 
 ### Pendent
 
-1. Executar PK-01..PK-11 en preproducció amb DS_ORDER real, incloent alta POST i rebuig GET/cross-site.
-2. Tancar decisió de negoci sobre ordre comercial explícit vs `DATAI, ID_CURS`.
-3. Eliminar físicament callback fiscal PACK legacy després de la finestra de rollback.
-4. Validar lliurament real de notificació (UC-58), no només enqueue.
-5. Validar CI del HEAD final del PR.
-6. Si es vol tancament formal, registrar evidències de variables d'entorn, worker i callback HTTPS de preproducció.
+1. Executar PK-01..PK-11 en preproducció amb DS_ORDER real, incloent alta POST, rebuig GET/cross-site i doble clic.
+2. Definir idempotència server-side de l'alta pública amb `REQUEST_ID` persistent si es vol eliminar també el risc de reintent HTTP/manual.
+3. Tancar decisió de negoci sobre ordre comercial explícit vs `DATAI, ID_CURS`.
+4. Eliminar físicament callback fiscal PACK legacy després de la finestra de rollback.
+5. Validar lliurament real de notificació (UC-58), no només enqueue.
+6. Validar CI del HEAD final del PR.
+7. Si es vol tancament formal, registrar evidències de variables d'entorn, worker i callback HTTPS de preproducció.
 
 ## 9. Canvis aplicats per aquesta auditoria
 
