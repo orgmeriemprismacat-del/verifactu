@@ -35,6 +35,10 @@ final class IssueInvoiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
+        Assert::same(
+            (int) $db->query('SELECT ID FROM factura_linia LIMIT 1')->fetchColumn(),
+            (int) $db->query('SELECT ID_FACTURA_LINIA FROM fact_rels LIMIT 1')->fetchColumn()
+        );
         Assert::same(1, (int) $db->query('SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID = 1')->fetchColumn());
 
         $recordPayload = (string) $db->query('SELECT PAYLOAD_JSON FROM factura_registres LIMIT 1')->fetchColumn();
