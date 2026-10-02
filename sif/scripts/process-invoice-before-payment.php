@@ -10,6 +10,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
 use Prisma\Sif\Service\InvoiceBeforePaymentService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
@@ -40,7 +41,8 @@ try {
         null,
         null,
         null,
-        new InvoiceBeforePaymentCoverageRepository()
+        new InvoiceBeforePaymentCoverageRepository(),
+        new OperationalEventRepository(new UuidGenerator())
     );
     $service = new InvoiceBeforePaymentService(
         new InvoiceBeforePaymentPayloadBuilder(),
