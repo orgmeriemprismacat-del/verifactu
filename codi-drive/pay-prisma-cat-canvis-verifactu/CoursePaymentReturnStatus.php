@@ -12,8 +12,13 @@ function uc014ResolvePaymentReturn(string $browserReturn): array
         getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
         FILTER_VALIDATE_BOOLEAN
     );
+    $legacyDrainConfirmed = filter_var(
+        getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+        FILTER_VALIDATE_BOOLEAN
+    );
     $sifCallbackUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
     $statusEnabled = $courseCutoverEnabled
+        && $legacyDrainConfirmed
         && $sifCallbackUrl !== ''
         && str_starts_with($sifCallbackUrl, 'https://');
 
