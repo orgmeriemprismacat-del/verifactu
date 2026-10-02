@@ -24,9 +24,11 @@ JS->>Alta: POST dades del formulari + idPack
 Alta->>DB: rellegir preu pack i preus components
 Alta->>DB: GET_LOCK allocator IDPAG
 Alta->>Alta: reservar MAX(IDPAG)+1 sota lock
+Alta->>DB: BEGIN transaction
 loop cada component
  Alta->>DB: INSERT TIPUS_INSC=P + PACK_ORDINAL/base/descompte/total
 end
+Alta->>DB: COMMIT transaction
 Alta->>DB: RELEASE_LOCK allocator IDPAG
 Alta->>Mail: correus alta
 Alta-->>JS: hash inscripció
@@ -35,6 +37,7 @@ JS-->>U: redirecció confirmació
 
 ### Riscos ACTUAL residuals
 
+- les N inscripcions ja es persisteixen atòmicament; en excepció es fa rollback i el lock `IDPAG` s'allibera per `finally`;
 - l'alta pública ja és POST-only amb comprovació same-site/origin quan els headers són presents; resta E2E navegador/preproducció i valorar controls anti-abús addicionals;
 - l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
 - `PACK_ORDINAL` queda determinat pel mateix ordre estable de presentació `DATAI, ID_CURS`; resta decidir si negoci requereix una posició explícita separada;
