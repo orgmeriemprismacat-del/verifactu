@@ -29,13 +29,15 @@ alt factura existent equivalent
  S->>DB: recuperar factura
  S-->>API: resultat reutilitzat
 else factura nova
- S->>DB: numeració + cadena + factura/línies/registre/cua/relacions
+ S->>DB: numeració + cadena + factura/línies/registre/control/cua/relacions
  Note over S,DB: ID_FACTURA_LINIA si origen unívoc
  opt payment inicial no Redsys
   S->>DB: payment_transaction + allocation
  end
+ S->>DB: projectar estats factura/cobrament/AEAT/cua/document
+ S->>DB: append operational_event + sif_audit_event
  S->>DB: COMMIT
- S-->>API: UUID_FACTURA / número / UUID_PAYMENT opcional
+ S-->>API: UUIDs + número + correlació + estats
 end
 API-->>I: JSON
 ```
@@ -94,7 +96,6 @@ participant G as CoverageGuard
 participant O as CommercialOperation
 participant F as FiscalSnapshotAssembler
 participant S as InvoiceService
-participant A as FunctionalAuditWriter
 C->>G: ordre + expected version
 G->>O: lock i cobertura
 alt equivalent
@@ -105,9 +106,8 @@ else facturable
  G->>F: snapshot fiscal servidor
  F->>S: payload immutable
  S->>S: emetre/reutilitzar
- S->>A: actor + correlació + resultat
  S-->>C: resultat amb estats
 end
 ```
 
-La seqüència FINAL continua pendent d'implementació completa.
+La seqüència FINAL continua pendent només en la cobertura comercial transversal i l’assembler fiscal servidor complet; la traça i la resposta d’estats ja formen part de l’ACTUAL.
