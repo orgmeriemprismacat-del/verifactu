@@ -23,6 +23,10 @@ $courseCutoverEnabled = filter_var(
     getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
     FILTER_VALIDATE_BOOLEAN
 );
+$legacyDrainConfirmed = filter_var(
+    getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
 $courseIntentPath = trim((string) ($internalApi['redsys_course_intent_signed_path'] ?? ''));
 $courseStatusPath = trim((string) ($internalApi['redsys_course_status_signed_path'] ?? ''));
 
@@ -45,6 +49,7 @@ $checks = [
     'redsys_gateway_url_https_configured' => $gatewayUrl !== '' && str_starts_with($gatewayUrl, 'https://'),
     'cutover_configuration_consistent' => !$courseCutoverEnabled
         || ($callbackUrl !== '' && str_starts_with($callbackUrl, 'https://')),
+    'legacy_drain_confirmed_if_cutover' => !$courseCutoverEnabled || $legacyDrainConfirmed,
     'legacy_db_configured' => (string) ($config['legacy_db']['dsn'] ?? '') !== '',
     'sif_database_connectivity' => false,
     'legacy_database_connectivity' => false,
