@@ -61,6 +61,13 @@ return [
         'usoc_signed_path' => getenv('SIF_INTERNAL_USOC_SIGNED_PATH') ?: '/api/usoc/manage.php',
         'novice_promotion_signed_path' => getenv('SIF_INTERNAL_NOVICE_PROMOTION_SIGNED_PATH') ?: '/api/novice-promotion/manage.php',
         'gift_redemption_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_SIGNED_PATH') ?: '/api/gifts/redemption/redeem.php',
+        'prisma_student_offer_signed_path' => getenv('SIF_INTERNAL_PRISMA_STUDENT_OFFER_SIGNED_PATH') ?: '/api/discounts/prisma-student/preview.php',
+    ],
+    'prisma_student_offer' => [
+        'preview_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_PRISMA_STUDENT_OFFER_PREVIEW_ROLES') ?: '')
+        ))),
     ],
     'course_change' => [
         'preview_roles' => array_values(array_filter(array_map(
