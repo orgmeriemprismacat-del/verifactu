@@ -22,6 +22,8 @@ on:
       - "codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php"
       - "codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js"
       - "codi-drive/intranet-actual/js/alumnes-mostrar-alumne.min.js"
+      - "codi-drive/intranet-actual/js/alumnes-usoc-lifecycle-preview.js"
+      - "codi-drive/intranet-actual/js/alumnes-canvi-curs-sif.js"
       - ".github/workflows/sif-tests.yml"
   push:
     branches:
@@ -113,6 +115,8 @@ jobs:
           php -l codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php
           node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js
           node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.min.js
+          node --check codi-drive/intranet-actual/js/alumnes-canvi-curs-sif.js
+          node --check codi-drive/intranet-actual/js/alumnes-usoc-lifecycle-preview.js
 
       - name: Executar suite SIF
         run: php sif/tests/run-tests.php
