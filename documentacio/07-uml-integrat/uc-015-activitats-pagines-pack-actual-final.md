@@ -9,8 +9,8 @@
 |---|---|---|---|
 | PK-A01 | Llistat de packs | codi legacy | conservar catàleg, sense efecte fiscal |
 | PK-A02 | Fitxa de pack | codi legacy | oferta versionada |
-| PK-A03 | Formulari inscripció | **POST-only + same-site/origin; preu backend autoritatiu** | acreditar E2E navegador/preproducció |
-| PK-A04 | Alta N inscripcions | snapshot + transacció atòmica + suma exacta PACK implementats | model comercial explícit/versionat encara pendent |
+| PK-A03 | Formulari inscripció | **POST-only + same-site/origin + REQUEST_ID; preu backend autoritatiu** | acreditar E2E/replay navegador-preproducció |
+| PK-A04 | Alta N inscripcions | snapshot + transacció atòmica + suma exacta + replay idempotent implementats | model comercial explícit/versionat encara pendent |
 | PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | evidència runtime |
 | PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | eliminar codi rollback |
 | PK-A07 | Factura pack | **InvoiceService al flux SIF; emissió legacy desactivada per defecte** | eliminar codi rollback |
@@ -77,36 +77,46 @@ C --> D[JS obté ID_PREU]
 D --> E[JS obté preus]
 E --> F[Mostra preu]
 F --> G[Usuari omple dades]
-G --> H[POST enviarInscripcioPack.php]
+G --> H[Genera o reutilitza REQUEST_ID a sessionStorage]
+H --> I[POST enviarInscripcioPack.php + requestId]
 ```
 
 ### FINAL
 ```mermaid
 flowchart TD
 A[Formulari] --> B[Usuari envia dades]
-B --> C[POST + frontera same-site/origin]
-C --> D[Backend rellegeix oferta]
-D --> E[Backend calcula preu]
-E --> F[Valida receptor]
-F --> G[Congela snapshot]
-G --> H[Crea operació/intenció]
+B --> C[POST + same-site/origin + REQUEST_ID]
+C --> D[Named lock del request]
+D --> E{RID ja persistent?}
+E -- mateix hash --> F[REUSED: retornar confirmació existent]
+E -- hash diferent/inconsistent --> G[409 sense mutació]
+E -- no --> H[Validar formulari i rellegir oferta]
+H --> I[Backend calcula preu]
+I --> J[Valida receptor]
+J --> K[Congela snapshot + RID/RH1]
+K --> L[Crea operació/IDPAG]
 ```
 
-**Correcció aplicada 02/10:** `mostrarInscripcioPack.min.js` envia ara l'alta amb `method: "POST"`; `enviarInscripcioPack.php` és POST-only, usa `$_POST`, aplica `Cache-Control: no-store` i rebutja cross-site quan `Sec-Fetch-Site`, `Origin` o `Referer` ho identifiquen. El preu continua recalculant-se des de BD. La PII ja no viatja a la query string; resta acreditar aquesta frontera en navegador/preproducció.
+**Correcció aplicada 02/10:** `mostrarInscripcioPack.min.js` envia l'alta amb POST i `REQUEST_ID` UUID v4 persistent a `sessionStorage`; `enviarInscripcioPack.php` és POST-only, aplica frontera same-site/origin i resol el replay per `RID/RH1` abans dels validators legacy i de rellegir l'oferta. Mateix request+hash reutilitza l'alta; mateixa clau amb payload diferent retorna 409. `pagina_inscripcio_pack.php` força `ver=7.4` per evitar caché del contracte GET antic.
 
 ## PK-A04 · Alta de components
 
 ### ACTUAL
 ```mermaid
 flowchart TD
-A[enviarInscripcioPack.php] --> B[Rellegir preus servidor]
+A[REQUEST_ID nou] --> B[Rellegir preus servidor]
 B --> C[GET_LOCK allocator IDPAG]
 C --> D[MAX IDPAG + 1 sota lock]
-D --> E{per cada edició}
-E --> F[calcular base/descompte/total]
-F --> G[INSERT inscripcions + PACK_ORDINAL + snapshot]
-G --> E
-E -->|fi| H[RELEASE_LOCK i retornar hash]
+D --> E[BEGIN]
+E --> F{per cada edició}
+F --> G[calcular base/descompte/total]
+G --> H[INSERT inscripcions + PACK_ORDINAL + RID/RH1]
+H --> F
+F -->|fi| I{sum línies = preu PACK?}
+I -- no --> J[ROLLBACK]
+I -- sí --> K[COMMIT]
+K --> L[RELEASE IDPAG + REQUEST locks]
+L --> M[retornar hash]
 ```
 
 ### FINAL
@@ -120,7 +130,7 @@ E --> F[Crear intenció Redsys]
 ```
 
 
-**Revalidació 02/10:** les N insercions es fan dins una única transacció legacy. Una fallada intermèdia provoca rollback i `releaseIdPag()` queda garantit en la via d'error; abans del commit s'exigeix també `suma(A_PAGAR)=preu PACK` i restant zero en cèntims. `PackEnrollmentAtomicityBoundaryTest` blinda aquests guards.
+**Revalidació 02/10:** les N insercions es fan dins una única transacció legacy. Una fallada intermèdia provoca rollback; abans del commit s'exigeix `suma(A_PAGAR)=preu PACK` i restant zero en cèntims. El `REQUEST_ID` queda congelat com `RID/RH1`, de manera que un reintent equivalent no entra en aquest bloc sinó que retorna el resultat existent. `PackEnrollmentAtomicityBoundaryTest` i `PackEnrollmentIdempotencyBoundaryTest` blinden els dos contractes.
 
 ## PK-A05 · Intenció de pagament
 
@@ -270,7 +280,7 @@ E --> F[Classificació fiscal explícita]
 
 No declarar UC-015 tancat fins que:
 1. els deu blocs anteriors tinguin correspondència codi → UC → prova;
-2. s'acrediti en runtime que l'alta POST rebutja GET/cross-site i manté el flux de confirmació;
+2. s'acrediti en runtime que l'alta POST rebutja GET/cross-site, reutilitza el mateix `REQUEST_ID` després d'una resposta perduda i manté el flux de confirmació;
 3. s'acrediti en runtime el checkout web amb snapshot backend i callback SIF;
 4. el callback legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
 5. es mantingui el contracte estable `DATAI, ID_CURS` i es decideixi si cal una posició comercial explícita separada;
