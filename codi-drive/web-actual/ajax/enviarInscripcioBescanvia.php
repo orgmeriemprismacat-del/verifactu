@@ -426,39 +426,8 @@ try {
 
 	/* ######################################################################### */
 
-	$nomFromHead = 'Secretaria PrisMa';
-	$correuFromHead = 'inscripcions@prisma.cat';
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = 'Secretaria PrisMa';
-	$correuTo = 'inscripcions@prisma.cat';
-
-	$mailCopiaInsc = new MailSMTPComvive($usernameInsc, $passwordInsc, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subjectMailInsc, $msgInsc);
-
-	$nomFromHead = 'Secretaria PrisMa';
-	$correuFromHead = 'secretaria@prisma.cat';
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
-
-	$nomTo = "PrisMa Secretaria";
-	$correuTo = "resguard.secretaria@prisma.cat";
-
 	$subject = "Inscripció al curs regal ".$titolCurs;
 	$subject2 = "Inscripció al curs regal ".$titolCurs." ".$dataInsc;
-
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject2, $missatge);
-
-	$nomTo = 'Secretaria PrisMa';
-	$correuTo = 'inscripcions@prisma.cat';
-
-	$mailCopiaSecre = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject, $missatge);
 
 	/* ######################################################################### */
 	// FACT_REL i USAT es llegeixen sota FOR UPDATE just abans de crear/reutilitzar la inscripció.
@@ -657,26 +626,162 @@ try {
 
 	// Frontera servidor→SIF: només ID compromès + codi. Holder i preu es
 	// resolen dins del SIF i el reintent reutilitza la mateixa ID_INSC.
-	$sifGiftRedemption = (new SifGiftRedemptionClient())->redeemCommittedEnrollment([
+	$sifGiftClient = new SifGiftRedemptionClient();
+	$sifGiftRedemption = $sifGiftClient->redeemCommittedEnrollment([
 		'enrollment_id' => (int) $idInserit,
 		'gift_code' => $codiRegalBD,
 	]);
 
+	$notificationBundle = $sifGiftRedemption['notification_bundle'] ?? null;
+	$notificationItems = is_array($notificationBundle)
+		? ($notificationBundle['notifications'] ?? null)
+		: null;
+	if (!is_array($notificationItems) || count($notificationItems) !== 6) {
+		throw new RuntimeException('El SIF no ha retornat els sis correus UC-018', 500);
+	}
+
+	$giftMailNotifications = [];
+	foreach ($notificationItems as $notificationItem) {
+		if (!is_array($notificationItem)) {
+			throw new RuntimeException('Bundle de correus UC-018 invàlid', 500);
+		}
+		$messageCode = trim((string) ($notificationItem['message_code'] ?? ''));
+		$uuidNotification = trim((string) ($notificationItem['uuid_notification'] ?? ''));
+		if ($messageCode === '' || $uuidNotification === '') {
+			throw new RuntimeException('Identitat de correu UC-018 incompleta', 500);
+		}
+		$giftMailNotifications[$messageCode] = $uuidNotification;
+	}
+	if (count($giftMailNotifications) !== 6) {
+		throw new RuntimeException('Codis de correu UC-018 duplicats o incomplets', 500);
+	}
+
+	$giftMailIssues = [];
+	$sendGovernedGiftMail = static function(
+		string $messageCode,
+		callable $factory
+	) use ($sifGiftClient, $giftMailNotifications, &$giftMailIssues): void {
+		$uuidNotification = $giftMailNotifications[$messageCode] ?? null;
+		if (!is_string($uuidNotification) || trim($uuidNotification) === '') {
+			$giftMailIssues[] = $messageCode.':MISSING_NOTIFICATION';
+			return;
+		}
+
+		$claim = $sifGiftClient->claimNotificationBundle($uuidNotification);
+		if (($claim['should_send'] ?? false) !== true) {
+			if (strtoupper((string) ($claim['status'] ?? '')) !== 'SENT') {
+				$giftMailIssues[] = $messageCode.':'.(string) ($claim['reason'] ?? 'NOT_SENDABLE');
+			}
+			return;
+		}
+
+		$uuidAttempt = trim((string) ($claim['uuid_delivery_attempt'] ?? ''));
+		if ($uuidAttempt === '') {
+			$giftMailIssues[] = $messageCode.':MISSING_ATTEMPT';
+			return;
+		}
+
+		try {
+			$mailer = $factory();
+			$accepted = $mailer instanceof MailSMTPComvive && $mailer->enviat();
+			$sifGiftClient->completeNotificationBundle(
+				$uuidNotification,
+				$uuidAttempt,
+				$accepted
+			);
+			if (!$accepted) {
+				$giftMailIssues[] = $messageCode.':SMTP_SEND_FAILED';
+			}
+		}
+		catch(Throwable $mailException) {
+			// El claim queda SENDING: és ambigu i no es reenvia automàticament.
+			$giftMailIssues[] = $messageCode.':AMBIGUOUS_SENDING';
+		}
+	};
+
 	$hashIdInserit = $encryptEnrollmentId($idInserit);
 
-	echo $hashIdInserit;
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_INTERNAL_DETAIL_PRIMARY',
+		static function() use (
+			$usernameInsc, $passwordInsc, $nomCognoms, $email,
+			$subjectMailInsc, $msgInsc
+		) {
+			return new MailSMTPComvive(
+				$usernameInsc,
+				$passwordInsc,
+				'Secretaria PrisMa',
+				'inscripcions@prisma.cat',
+				$nomCognoms,
+				$email,
+				'Secretaria PrisMa',
+				'inscripcions@prisma.cat',
+				$subjectMailInsc,
+				$msgInsc
+			);
+		}
+	);
 
-	$nomFromHead = $nameUser;
-	$correuFromHead = $username;
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_RESGUARD_PRIMARY',
+		static function() use (
+			$username, $password, $nomCognoms, $email, $subject2, $missatge
+		) {
+			return new MailSMTPComvive(
+				$username,
+				$password,
+				'Secretaria PrisMa',
+				'secretaria@prisma.cat',
+				$nomCognoms,
+				$email,
+				'PrisMa Secretaria',
+				'resguard.secretaria@prisma.cat',
+				$subject2,
+				$missatge
+			);
+		}
+	);
 
-	$nomTo = "Inscripcions PrisMa";
-	$correuTo = "inscripcions.prisma@gmail.com";
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_SECRETARY_CONFIRMATION',
+		static function() use (
+			$username, $password, $nomCognoms, $email, $subject, $missatge
+		) {
+			return new MailSMTPComvive(
+				$username,
+				$password,
+				'Secretaria PrisMa',
+				'secretaria@prisma.cat',
+				$nomCognoms,
+				$email,
+				'Secretaria PrisMa',
+				'inscripcions@prisma.cat',
+				$subject,
+				$missatge
+			);
+		}
+	);
 
-	$mailCopia = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subjectMailInsc, $msgInsc);
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_INTERNAL_DETAIL_GMAIL',
+		static function() use (
+			$username, $password, $nameUser, $nomCognoms, $email,
+			$subjectMailInsc, $msgInsc
+		) {
+			return new MailSMTPComvive(
+				$username,
+				$password,
+				$nameUser,
+				$username,
+				$nomCognoms,
+				$email,
+				'Inscripcions PrisMa',
+				'inscripcions.prisma@gmail.com',
+				$subjectMailInsc,
+				$msgInsc
+			);
+		}
+	);
 
 	if ($mailingBD == '1') {
 		$cnsMailing = "SELECT ID FROM mailing WHERE MAIL=?";
@@ -731,28 +836,60 @@ try {
 	$subject = "Inscripció al curs regal ".$titolCurs;
 	$subject2 = "Inscripció al curs regal ".$titolCurs." ".$dataInsc;
 
-	$nomFromHead = $nameUser;
-	$correuFromHead = $username;
-	$nomReplyHead = $nomCognoms;
-	$correuReplyHead = $email;
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_RESGUARD_SECONDARY',
+		static function() use (
+			$username, $password, $nameUser, $nomCognoms, $email,
+			$subject2, $missatge
+		) {
+			return new MailSMTPComvive(
+				$username,
+				$password,
+				$nameUser,
+				$username,
+				$nomCognoms,
+				$email,
+				'PrisMa Secretaria',
+				'resguard.secretaria@prisma.cat',
+				$subject2,
+				$missatge
+			);
+		}
+	);
 
-	$nomTo = "PrisMa Secretaria";
-	$correuTo = "resguard.secretaria@prisma.cat";
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_STUDENT_CONFIRMATION',
+		static function() use (
+			$username, $password, $nameUser, $nomCognoms, $email,
+			$subject, $missatge
+		) {
+			return new MailSMTPComvive(
+				$username,
+				$password,
+				$nameUser,
+				$username,
+				$nomCognoms,
+				$email,
+				$nomCognoms,
+				$email,
+				$subject,
+				$missatge
+			);
+		}
+	);
 
-	$mailCopia = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject2, $missatge);
-
-	$nomTo = $nomCognoms;
-	$correuTo = $email;
-
-	$mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-										$subject, $missatge);
+	if ($giftMailIssues !== []) {
+		throw new RuntimeException(
+			'Un o més correus UC-018 requereixen reconciliació abans de confirmar la resposta',
+			500
+		);
+	}
 
 	/* ######################################################################### */
 
 	// regal.USAT ja ha estat reconciliat pel SIF amb compare-and-set.
+
+	echo $hashIdInserit;
 
 	$connexio->desconectarBD();
 }
