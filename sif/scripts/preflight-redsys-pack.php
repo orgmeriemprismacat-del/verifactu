@@ -17,6 +17,7 @@ $allowProductionWorker = filter_var(
 );
 $callbackUrl = trim((string) (getenv('SIF_REDSYS_CALLBACK_URL') ?: ''));
 $intentApiUrl = trim((string) (getenv('SIF_REDSYS_INTENT_API_URL') ?: ''));
+$paymentUrl = trim((string) (getenv('SIF_REDSYS_PAYMENT_URL') ?: ''));
 
 $checks = [
     'environment_safe_for_worker' => $env !== 'production' || $allowProductionWorker,
@@ -26,6 +27,7 @@ $checks = [
     'intent_create_roles_configured' => (array) ($config['redsys']['intent_create_roles'] ?? []) !== [],
     'callback_url_secure' => secureUrl($callbackUrl),
     'intent_api_url_secure' => secureUrl($intentApiUrl),
+    'redsys_payment_url_allowed' => redsysPaymentUrl($paymentUrl),
     'checkout_actor_roles_configured' => trim((string) (getenv('SIF_REDSYS_INTENT_ACTOR_ROLES') ?: '')) !== '',
     'legacy_db_configured' => (string) ($config['legacy_db']['dsn'] ?? '') !== '',
     'sif_database_connectivity' => false,
@@ -143,4 +145,17 @@ function secureUrl(string $url): bool
     return $allowLocalHttp
         && $scheme === 'http'
         && in_array($host, ['127.0.0.1', 'localhost', '::1'], true);
+}
+
+
+function redsysPaymentUrl(string $url): bool
+{
+    return in_array(
+        $url,
+        [
+            'https://sis.redsys.es/sis/realizarPago',
+            'https://sis-t.redsys.es:25443/sis/realizarPago',
+        ],
+        true
+    );
 }
