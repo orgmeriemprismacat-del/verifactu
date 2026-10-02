@@ -11,8 +11,10 @@ final class InvoiceRepository
     private const REGISTER_CONTROL_GENERATOR_VERSION = 'invoice-repository-v1';
     public function __construct(
         private UuidGenerator $uuidGenerator,
-        private HashCalculator $hashCalculator
+        private HashCalculator $hashCalculator,
+        private ?OperationLineInvoiceLinkRepository $operationLineLinks = null
     ) {
+        $this->operationLineLinks ??= new OperationLineInvoiceLinkRepository();
     }
 
     public function findByIdempotencyKey(\PDO $db, string $key, bool $forUpdate = false): ?array
@@ -211,9 +213,20 @@ final class InvoiceRepository
                 $line['source_type'] ?? null, $line['source_id'] ?? null,
             ]);
 
+            $invoiceLineId = (int) $db->lastInsertId();
             $sourceKey = $this->sourceKey($line['source_type'] ?? null, $line['source_id'] ?? null);
             if ($sourceKey !== null) {
-                $lineIdsBySource[$sourceKey][] = (int) $db->lastInsertId();
+                $lineIdsBySource[$sourceKey][] = $invoiceLineId;
+            }
+
+            $uuidOperationLine = trim((string) ($line['uuid_operation_line'] ?? ''));
+            if ($uuidOperationLine !== '') {
+                $this->operationLineLinks->link(
+                    $db,
+                    $uuidOperationLine,
+                    $invoiceLineId,
+                    (string) $line['total']
+                );
             }
         }
 
