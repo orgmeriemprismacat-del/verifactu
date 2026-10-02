@@ -8,6 +8,7 @@ use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\DocumentJobRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentBillingPartyRepository;
@@ -18,6 +19,7 @@ use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\InternalInvoiceBeforePaymentScopeResolver;
 use Prisma\Sif\Service\InvoiceBeforePaymentCommandService;
+use Prisma\Sif\Service\InvoiceBeforePaymentDocumentQueueService;
 use Prisma\Sif\Service\InvoiceBeforePaymentLegacyPreparationService;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
 use Prisma\Sif\Service\InvoiceBeforePaymentServerPayloadAssembler;
@@ -113,13 +115,19 @@ try {
         new OperationalEventRepository(new UuidGenerator())
     );
 
+    $documentsConfig = $config['documents'] ?? [];
     $commands = new InvoiceBeforePaymentCommandService(
         $legacyWebDb,
         $legacyIntranetDb,
         $preparation,
         new InvoiceBeforePaymentService(
             new InvoiceBeforePaymentPayloadBuilder(),
-            $invoiceService
+            $invoiceService,
+            new InvoiceBeforePaymentDocumentQueueService(
+                new TransactionRunner($sifDb),
+                new DocumentJobRepository(),
+                (string) ($documentsConfig['generator_version'] ?? '')
+            )
         )
     );
 
