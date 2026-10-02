@@ -31,7 +31,7 @@ G->>DB: rellegeix saldo, FRACCIONAT i estat JASOM
 DB-->>G: context autoritatiu
 G-->>E: import/fraccionament autoritzats
 E->>E: DS_ORDER = time() [fallback]
-E->>R: formulari TPV amb amount/order/MerchantURL + MerchantData signat
+E->>R: formulari TPV amb amount/order + MerchantData signat (IDPAG/import/frac) + MerchantData signat
 R->>C: POST notificació; query legacy només compatibilitat
 C->>C: valida HMAC_SHA256_V1
 C->>C: extreu IDPAG/import/frac de Ds_MerchantData signat
