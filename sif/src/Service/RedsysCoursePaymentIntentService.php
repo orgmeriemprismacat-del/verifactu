@@ -19,6 +19,11 @@ final class RedsysCoursePaymentIntentService
     public function create(\PDO $sifDb, \PDO $legacyDb, array $input): array
     {
         $idpag = $this->positiveInt($input['idpag'] ?? null, 'IDPAG');
+        $terminal = trim((string) ($input['terminal'] ?? ''));
+        if (!preg_match('/^[0-9]{1,3}$/D', $terminal)) {
+            throw SifException::validation('Invalid Redsys course terminal');
+        }
+
         $context = $this->legacySnapshots->loadCourseContextByIdpag($legacyDb, $idpag);
         $inscription = $context['inscription'];
 
@@ -85,7 +90,7 @@ final class RedsysCoursePaymentIntentService
                 $trustedPrice,
                 [
                     'ds_order' => $dsOrder,
-                    'terminal' => trim((string) ($input['terminal'] ?? '1')),
+                    'terminal' => $terminal,
                     'created_by' => trim((string) ($input['created_by'] ?? 'pay-prisma-cat')),
                     'expires_at' => isset($input['expires_at']) ? trim((string) $input['expires_at']) : null,
                 ]
@@ -97,7 +102,7 @@ final class RedsysCoursePaymentIntentService
                 'amount' => $trustedPrice['net_amount'],
                 'pending_before' => $pending,
                 'currency' => 'EUR',
-                'terminal' => trim((string) ($input['terminal'] ?? '1')),
+                'terminal' => $terminal,
             ];
         }
 
@@ -118,7 +123,7 @@ final class RedsysCoursePaymentIntentService
             'source_id' => (string) $this->positiveInt($inscription['ID'] ?? null, 'inscription.ID'),
             'expected_amount' => $requested,
             'currency' => 'EUR',
-            'terminal' => trim((string) ($input['terminal'] ?? '1')),
+            'terminal' => $terminal,
             'snapshot' => $snapshot,
             'created_by' => trim((string) ($input['created_by'] ?? 'pay-prisma-cat')),
             'expires_at' => isset($input['expires_at']) ? trim((string) $input['expires_at']) : null,
@@ -130,7 +135,7 @@ final class RedsysCoursePaymentIntentService
             'amount' => $requested,
             'pending_before' => $pending,
             'currency' => 'EUR',
-            'terminal' => trim((string) ($input['terminal'] ?? '1')),
+            'terminal' => $terminal,
         ];
     }
 
