@@ -197,6 +197,12 @@ endif
 :Enviar tipusDescompte=tipusPreuAplicat;
 :Enviar preuDescompte=preuInscripcio;
 :Enviar promocions globals;
+if (tipusDescompte == 1?) then (Sí)
+ :Servidor revalida historial AP;
+ :Servidor rellegeix tarifa base/AP vigent;
+ :Rebutja tarifa ambigua o AP + promoció;
+ :Sobreescriu import client amb tarifa servidor;
+endif
 :INSERT inscripcions;
 stop
 @enduml
@@ -402,20 +408,28 @@ stop
 @enduml
 ```
 
-### 5.2. P05-B — ACTUAL · comanda
+### 5.2. P05-B — ACTUAL · comanda reconciliada 02/10
 
 ```plantuml
 @startuml
-title P05-B | ACTUAL | resolució per GET
+title P05-B | ACTUAL | resolució protegida
 start
 :Secretaria prem ENVIA;
-:JS envia GET idInsc/verificat;
-:Endpoint session_start i unserialize;
-note right
-  No inclou comprovarSessio.php.
-  No s'ha localitzat CSRF explícit.
-end note
+:JS genera requestId;
+:JS envia POST idInsc/verificat/CSRF/requestId;
+:Endpoint valida sessió i objectes;
+:Validar CSRF amb hash_equals;
+:Validar permís de /alumnes/validar-descomptes/;
+:Validar idInsc, verificat i requestId;
+if (requestId ja vist a sessió?) then (Sí)
+ :Reutilitzar resultat idempotent;
+ stop
+endif
 :Delegar a Intranet::sendMsgValidatCurosDescomptes();
+if (USOC?) then (Sí)
+ :begin/complete decisió SIF;
+endif
+:Guardar resultat per requestId;
 stop
 @enduml
 ```
@@ -588,9 +602,9 @@ stop
 
 ### 4.5. Estat d'implementació del FINAL
 
-- `CommercialOfferService::createOrReuse()`: **implementat**; encara no governa l'alta/preview web ni la resolució intranet.
+- `CommercialOfferService::createOrReuse()`: **implementat**; l'alta AP llegada encara no crea `offer_id`, però `enviarInscripcio.php` ja revalida AP al servidor abans de persistir.
 - `PaymentLinkService::issue()/resolve()/revoke()`: **implementat**; encara no és la ruta canònica d'aquest checkout AP.
-- Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_LEGACY_V1`; decisions de negoci futures pendents.
+- Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_WEB_LEGACY_V2`; decisions UC20-DEC-001…006 tancades a la fitxa v1.5.
 - Connexió AP de pagament → `RedsysPaymentIntentService`: **IMPLEMENTADA** via `SifRedsysCourseIntentClient` / `course-intent` / `PrismaStudentCourseCheckoutService`. La coordinació específica amb `payment_link` continua pendent.
 
 ## 7. Matriu ACTUAL → FINAL
@@ -603,15 +617,15 @@ stop
 | P03 confirmació | `VALID_DESC` + camps llegats | estat d'operació + ledger |
 | P04 targeta | `VALID_DESC==1` | `PAYABLE` + link actiu |
 | P04 transferència | comprovació diferent de targeta | mateixa autorització que qualsevol cobrament |
-| P05 resolució | GET, sessió, estat llegat | POST/comanda, permís, CSRF, idempotència, versió |
+| P05 resolució | POST + sessió + permís + CSRF + requestId idempotent | control persistent d'estat/versió i outbox com a evolució |
 | P05 alternativa AP | `TIPUS_DESC=1, VALID_DESC=2` | decisió original REJECTED + decisió AP ACCEPTED |
 | P06 canvi curs | política històrica específica | mateixa política versionada amb `evaluation_at` explícit |
 
-## 8. Decisions pendents que afecten els diagrames FINAL
+## 8. Decisions canòniques que afecten els diagrames FINAL
 
-1. `GENERAT=1` és antecedent admès?
-2. Factura emesa sense cobrament acredita AP?
-3. La inscripció actual pot autoacreditar el dret?
+1. `GENERAT=1`: **sí**, compatibilitat executable.
+2. Factura emesa sense cobrament: **no**, per si sola no acredita AP.
+3. Inscripció actual: **no**, s'exclou de l'historial; tampoc compta historial posterior a `DATA_INSC`.
 4. Quin `evaluation_at` s'utilitza en alta i canvi de curs?
 5. Prioritat/compatibilitat AP vs promocions/descomptes/packs.
 6. Vigència temporal de l'oferta abans de confirmar/cobrar.
@@ -635,3 +649,8 @@ Aquest dossier cobreix totes les superfícies identificades del UC-020. Si apare
 - o reconstrueix el descompte per facturar,
 
 s'ha d'afegir com a pàgina/apartat nou i vincular-lo a la matriu d'auditoria.
+
+
+## 9. Reconciliació de tancament — 02/10/2026
+
+Per UC-020, P02 continua sent llegat en transport i UX, però ja no és autoritatiu monetàriament quan aplica AP: la persistència torna a calcular elegibilitat i preu. P05 també queda reclassificat: les notes històriques de GET/sense CSRF són superades pel codi actual POST/CSRF/permís/requestId.
