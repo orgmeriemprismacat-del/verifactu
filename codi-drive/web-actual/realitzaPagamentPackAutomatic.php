@@ -1,4 +1,19 @@
 <?php
+	/* UC-015: callback PACK legacy no autoritatiu.
+	 * El checkout nou envia Redsys a SIF_REDSYS_CALLBACK_URL.
+	 * Aquesta còpia es conserva temporalment només per rollback explícit.
+	 */
+	$legacyPackCallbackEnabled = filter_var(
+		getenv('SIF_PACK_LEGACY_CALLBACK_ENABLED') ?: '0',
+		FILTER_VALIDATE_BOOLEAN
+	);
+	if (!$legacyPackCallbackEnabled) {
+		http_response_code(410);
+		header('Content-Type: text/plain; charset=utf-8');
+		exit('Callback de pack retirat. El pagament es processa pel SIF.');
+	}
+
+
 	include("./ConnexioBBDD_PreparedStatment.php");
 	include("./inc/apiRedsys.php");
 	include("./Text.php");
