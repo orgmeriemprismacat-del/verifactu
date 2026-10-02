@@ -3,6 +3,7 @@
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 
 final class InvoiceBeforePaymentCommandService
 {
@@ -10,7 +11,9 @@ final class InvoiceBeforePaymentCommandService
         private \PDO $legacyWebDb,
         private \PDO $legacyIntranetDb,
         private InvoiceBeforePaymentLegacyPreparationService $preparation,
-        private ?InvoiceBeforePaymentService $issuer = null
+        private ?InvoiceBeforePaymentService $issuer = null,
+        private ?\PDO $sifDb = null,
+        private ?InvoiceBeforePaymentCoverageRepository $coverage = null
     ) {
     }
 
@@ -35,6 +38,8 @@ final class InvoiceBeforePaymentCommandService
             $context
         );
 
+        $this->assertPreviewCoverageAvailable($prepared['payload']['relations'] ?? []);
+
         return [
             'ok' => true,
             'action' => 'preview',
@@ -46,6 +51,22 @@ final class InvoiceBeforePaymentCommandService
             'context' => $prepared['payload']['uc004_context'] ?? [],
             'payload' => $prepared['payload'],
         ];
+    }
+
+    private function assertPreviewCoverageAvailable(array $relations): void
+    {
+        if ($this->sifDb === null || $this->coverage === null) {
+            return;
+        }
+
+        $claims = $this->coverage->findClaims($this->sifDb, $relations);
+        if ($claims === []) {
+            return;
+        }
+
+        throw SifException::conflict(
+            'One or more selected inscriptions are already claimed by an existing invoice-before-payment operation'
+        );
     }
 
     public function confirm(
