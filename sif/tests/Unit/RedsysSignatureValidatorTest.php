@@ -29,6 +29,22 @@ final class RedsysSignatureValidatorTest
         Assert::same(false, array_key_exists('idpag', $payload));
     }
 
+    public function testExpectedMerchantCodeIsRequiredWhenConfigured(): void
+    {
+        $validator = new RedsysSignatureValidator(
+            'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3',
+            '999008881'
+        );
+
+        Assert::throws(SifException::class, function () use ($validator): void {
+            $validator->decodeAndVerify([
+                'Ds_SignatureVersion' => 'HMAC_SHA256_V1',
+                'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19DdXJyZW5jeSI6Ijk3OCIsIkRzX1Rlcm1pbmFsIjoiMSIsIkRzX0RhdGUiOiIwNi8wNi8yMDI2IiwiRHNfSG91ciI6IjEwOjMwIn0=',
+                'Ds_Signature' => 'Sf9vai8reepW5G-M5aE8DEs6Z6UAfeRIhYh8oXS6110=',
+            ]);
+        }, 422);
+    }
+
     public function testMissingMerchantKeyRejectsNotificationBeforeTrustingPayload(): void
     {
         $validator = new RedsysSignatureValidator('');
