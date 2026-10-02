@@ -7,10 +7,12 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\DocumentJobRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
+use Prisma\Sif\Service\InvoiceBeforePaymentDocumentQueueService;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
 use Prisma\Sif\Service\InvoiceBeforePaymentService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
@@ -44,9 +46,15 @@ try {
         new InvoiceBeforePaymentCoverageRepository(),
         new OperationalEventRepository(new UuidGenerator())
     );
+    $documentsConfig = $config['documents'] ?? [];
     $service = new InvoiceBeforePaymentService(
         new InvoiceBeforePaymentPayloadBuilder(),
-        $invoiceService
+        $invoiceService,
+        new InvoiceBeforePaymentDocumentQueueService(
+            new TransactionRunner($db),
+            new DocumentJobRepository(),
+            (string) ($documentsConfig['generator_version'] ?? '')
+        )
     );
 
     $result = $service->issueBeforePayment($payload);
