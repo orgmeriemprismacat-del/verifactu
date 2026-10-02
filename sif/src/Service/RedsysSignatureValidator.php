@@ -6,8 +6,11 @@ use Prisma\Sif\Exception\SifException;
 
 final class RedsysSignatureValidator
 {
-    public function __construct(private string $merchantKey)
-    {
+    public function __construct(
+        private string $merchantKey,
+        private string $expectedMerchantCode = ''
+    ) {
+        $this->expectedMerchantCode = trim($this->expectedMerchantCode);
     }
 
     public function decodeAndVerify(array $request, array $context = []): array
@@ -106,6 +109,13 @@ final class RedsysSignatureValidator
         $order = $this->field($decoded, 'Ds_Order');
         $amount = $this->field($decoded, 'Ds_Amount');
         $responseCode = $this->field($decoded, 'Ds_Response');
+        $merchantCode = trim((string) $this->field($decoded, 'Ds_MerchantCode'));
+        if ($this->expectedMerchantCode !== ''
+            && ($merchantCode === '' || !hash_equals($this->expectedMerchantCode, $merchantCode))
+        ) {
+            throw SifException::validation('Unexpected Redsys merchant code');
+        }
+
         $currencyCode = $this->field($decoded, 'Ds_Currency');
         if ($currencyCode !== '978') {
             throw SifException::validation('Unsupported Redsys currency');
@@ -120,6 +130,7 @@ final class RedsysSignatureValidator
             'ds_order' => $order,
             'amount' => $this->normalizeAmount($amount),
             'response_code' => $responseCode,
+            'merchant_code' => $merchantCode === '' ? null : $merchantCode,
             'currency_code' => $currencyCode,
             'currency' => 'EUR',
             'terminal' => $terminal,
