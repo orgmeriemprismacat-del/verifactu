@@ -44,6 +44,8 @@ $checks = [
     'fiscal_chain_state_table' => false,
     'fiscal_queue_table' => false,
     'fact_rels_table' => false,
+    'commercial_operation_line_table' => false,
+    'operation_line_invoice_link_table' => false,
     'payment_transaction_table' => false,
     'payment_allocation_table' => false,
     'fiscal_chain_state_seeded' => false,
@@ -67,6 +69,8 @@ try {
         'fiscal_chain_state',
         'fiscal_queue',
         'fact_rels',
+        'commercial_operation_line',
+        'operation_line_invoice_link',
         'payment_transaction',
         'payment_allocation',
     ] as $table) {
