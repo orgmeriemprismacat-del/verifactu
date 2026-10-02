@@ -8,7 +8,8 @@ final class InternalInvoiceIssuePayloadPolicy
 {
     public function __construct(
         private string $issuerNif,
-        private string $issuerName
+        private string $issuerName,
+        private bool $requireOfficialAeatSnapshot = false
     ) {
         $this->issuerNif = strtoupper(trim($this->issuerNif));
         $this->issuerName = trim($this->issuerName);
@@ -56,6 +57,12 @@ final class InternalInvoiceIssuePayloadPolicy
             ? $matchedRole
             : (is_array($roles) && $roles !== [] ? (string) reset($roles) : null);
         $payload['actor_type'] = 'SYSTEM';
+
+        if ($this->requireOfficialAeatSnapshot && !array_key_exists('aeat_fields', $payload)) {
+            throw SifException::validation(
+                'Official AEAT snapshot is required for invoice issue in this environment'
+            );
+        }
 
         if (array_key_exists('aeat_fields', $payload)) {
             if ($this->issuerNif === '' || $this->issuerName === '' || $this->issuerNif === 'G00000000') {
