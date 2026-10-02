@@ -49,7 +49,6 @@ use Prisma\Sif\Service\UsocCourseChangeExecutionPreparationService;
 use Prisma\Sif\Service\UsocCourseChangeExecutionService;
 use Prisma\Sif\Service\UsocCourseChangeIdempotency;
 use Prisma\Sif\Service\UsocCourseChangeInvoicePayloadBuilder;
-use Prisma\Sif\Service\UsocCourseChangeExecutionPreparationService;
 use Prisma\Sif\Service\UsocCourseChangeDestinationBindingService;
 
 header('Cache-Control: private, no-store, max-age=0');
