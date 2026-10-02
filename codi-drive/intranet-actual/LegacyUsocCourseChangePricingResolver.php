@@ -93,18 +93,24 @@ final class LegacyUsocCourseChangePricingResolver
             );
         }
 
-        $sourceEdition = $this->source->edition(
-            trim((string) ($enrollment['year'] ?? '')),
-            trim((string) ($enrollment['month'] ?? '')),
-            trim((string) ($enrollment['course'] ?? ''))
-        );
-
+        $sourceHours = null;
         $managementFee = 0;
         if ($changeNumber === 4) {
+            $sourceEdition = $this->source->edition(
+                trim((string) ($enrollment['year'] ?? '')),
+                trim((string) ($enrollment['month'] ?? '')),
+                trim((string) ($enrollment['course'] ?? ''))
+            );
+            $sourceHours = trim((string) ($sourceEdition['hours'] ?? ''));
+            if ($sourceHours === '') {
+                throw new RuntimeException(
+                    'USOC source edition has no hours for management fee',
+                    409
+                );
+            }
+
             $managementFee = $this->money(
-                $this->source->managementFee(
-                    trim((string) ($sourceEdition['hours'] ?? ''))
-                ),
+                $this->source->managementFee($sourceHours),
                 'management fee',
                 true
             );
@@ -118,7 +124,7 @@ final class LegacyUsocCourseChangePricingResolver
                 'year' => (string) $enrollment['year'],
                 'month' => (string) $enrollment['month'],
                 'course' => (string) $enrollment['course'],
-                'hours' => (string) $sourceEdition['hours'],
+                'hours' => $sourceHours,
                 'pricing_effective_date' => $effectiveDate,
             ],
             'target' => [
