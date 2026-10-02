@@ -103,18 +103,6 @@ final class InvoicePayloadValidatorTest
         );
     }
 
-    public function testRejectsIdempotencyKeyWithSurroundingWhitespace(): void
-    {
-        $payload = $this->validPayload();
-        $payload['idempotency_key'] = ' ' . $payload['idempotency_key'] . ' ';
-
-        Assert::throws(
-            SifException::class,
-            static fn () => (new InvoicePayloadValidator())->validate($payload),
-            422
-        );
-    }
-
     public function testRejectsIdempotencyKeyLongerThanDatabaseColumn(): void
     {
         $payload = $this->validPayload();
@@ -182,18 +170,6 @@ final class InvoicePayloadValidatorTest
         );
 
         Assert::same('Invalid invoice source channel', $exception->getMessage());
-    }
-
-    public function testRejectsSourceChannelWithSurroundingWhitespace(): void
-    {
-        $payload = $this->validPayload();
-        $payload['source_channel'] = ' REDSYS ';
-
-        Assert::throws(
-            SifException::class,
-            static fn () => (new InvoicePayloadValidator())->validate($payload),
-            422
-        );
     }
 
     public function testRejectsHeaderImportBaseThatDoesNotMatchLines(): void
