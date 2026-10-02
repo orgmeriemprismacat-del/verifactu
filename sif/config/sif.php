@@ -104,7 +104,7 @@ return [
     ],
     'redsys' => [
         'merchant_key' => getenv('SIF_REDSYS_MERCHANT_KEY') ?: '',
-        'merchant_code' => getenv('REDSYS_MERCHANT_CODE') ?: '',
+        'merchant_code' => getenv('SIF_REDSYS_MERCHANT_CODE') ?: getenv('REDSYS_MERCHANT_CODE') ?: '',
         'intent_create_roles' => array_values(array_filter(array_map(
             'trim',
             explode(',', getenv('SIF_REDSYS_INTENT_CREATE_ROLES') ?: '')
