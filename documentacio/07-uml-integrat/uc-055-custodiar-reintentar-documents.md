@@ -2,7 +2,7 @@
 
 **Frontera funcional.** UC-36 defineix l'obtenció/generació funcional d'un PDF, QR o XML concret; UC-55 gestiona **la cua documental, els reintents, la versió del generador, la integritat i la custòdia**. UC-07 consulta factura i metadades; **UC-80 controla qui pot rebre els bytes i registra l'accés/denegació**. La factura fiscal, un cop emesa, no s'anul·la ni es reemet perquè falli el PDF.
 
-**Evidència revisada:** `DocumentRepository::registerDocument()` existeix i registra a `factura_documents` tipus, path i SHA-256 dels bytes **rebuts**; `document_job` i `fiscal_document_access` estan definits en una migració SQL. **No s'ha identificat el generador final de PDF/QR/XML, el worker de `document_job`, el gestor d'emmagatzematge privat ni l'endpoint autoritzat de descàrrega** com a implementacions PHP completes. Per tant, el cicle complet dibuixat a continuació és **DISSENY/PARCIAL**, no prova de desplegament.
+**Evidència actualitzada 02/10/2026:** `DocumentRepository::registerDocument()` registra metadada/hash; `InvoiceDocumentAccessService` + `PrivateDocumentStore` + endpoint HMAC implementen la lectura segura; i aquesta branca afegeix `DocumentJobRepository` + `InvoiceBeforePaymentDocumentQueueService`, que creen/reutilitzen un `document_job` PDF `PENDING` per factura/tipus/versió. **Continuen sense estar implementats el worker final, el renderitzador PDF/QR/XML i l'escriptor de storage privat**. Per tant, la cua i la consulta són executables, però el cicle de generació/custòdia completa continua **PARCIAL**.
 
 ## 1. Fitxa de cas d'ús
 
@@ -11,14 +11,14 @@
 | Actor | Procés documental i responsable tècnica amb permís d'operació; receptor/auditor accedeix posteriorment sota UC-07. |
 | Disparador | Factura/rectificativa confirmada, document absent, o recuperació d'un job fallit. |
 | Entrada immutable | UUID i snapshot fiscal de la factura, tipus documental, versió del generador i correlació; no consultar el preu mutable del curs per «reconstruir» el document anterior. |
-| Job definit al SQL | `document_job` té `UUID_JOB`, `UUID_FACTURA`, `DOCUMENT_TYPE`, `IDEMPOTENCY_KEY` única, `GENERATOR_VERSION`, `STATUS=PENDING`, `ATTEMPTS`, `MAX_ATTEMPTS=5` per defecte, lock, reintent, `FACTURA_DOCUMENT_ID`, `STORAGE_KEY`, `OUTPUT_HASH`, `LAST_ERROR` i `CORRELATION_ID`. **No és un worker ja implementat.** |
+| Job definit al SQL | `document_job` té `UUID_JOB`, `UUID_FACTURA`, `DOCUMENT_TYPE`, `IDEMPOTENCY_KEY` única, `GENERATOR_VERSION`, `STATUS=PENDING`, intents/lock/resultat. **Writer de cua implementat en aquesta branca** amb `DocumentJobRepository::ensurePending()`; el worker que consumeix la cua continua pendent. |
 | Metadades implementades | `DocumentRepository::registerDocument(db,uuidFactura,type,path,contents)`: tipus `PDF/XML/QR`, SHA-256 i metadata `CREATED`. La funció **no desa els bytes** en storage ni prova que el path existeixi. |
 | Resultat objectiu | Fitxer privat verificat, metadades i hash coherents, feina acabada amb referència al document, i accés posterior autoritzat/auditat. |
 | Efecte fiscal/econòmic | Cap factura, registre AEAT o `CHARGE` nou com a efecte d'un reintent documental; la factura original continua emesa si el document falla. |
 
 ### 1.1. Flux objectiu de generació i custòdia
 
-1. Després del commit de factura, l'orquestrador **proposat** encola un job idempotent identificat per factura, tipus i versió, conservant font fiscal congelada i correlació.
+1. Després del commit de factura UC-004, `InvoiceBeforePaymentDocumentQueueService` **ja encola/reutilitza** un job PDF idempotent identificat per UUID de factura, tipus i versió del generador, amb correlació estable.
 2. El worker **pendent** reclama un job i encarrega els bytes al generador versionat. Per al QR, llegenda i formats finals s'ha de verificar la regla oficial aplicable abans d'afirmar conformitat; `XmlCodec` de remissió AEAT no és per si sol un generador universal de documents de factura.
 3. Desa els bytes en storage privat, torna a llegir o verifica integritat i calcula SHA-256. Només aleshores crida el mètode **existent** `DocumentRepository::registerDocument()`; un `HASH_FITXER` a BD no prova per si sol que el fitxer estigui custodiat.
 4. El worker **proposat** enllaça `FACTURA_DOCUMENT_ID` i `STORAGE_KEY` al job i marca finalització, sense sobreescriure silenciosament un document de versió anterior.
@@ -30,7 +30,7 @@
 | Escenari | Resposta |
 | --- | --- |
 | PDF falla després d'emetre factura | Factura fiscal intacta; job pendent/incidència i posterior generació, **sense un altre número de factura**. |
-| Mateixa petició repetida | Reutilitzar el job/document quan coincideixen UUID, tipus, versió i bytes; la clau SQL única no acredita el writer idempotent fins que s'implementi. |
+| Mateixa petició repetida | **Implementat per l'encolat:** mateixa factura + tipus + versió reutilitza el mateix `UUID_JOB`; una versió nova crea un job nou. La reutilització de bytes/document complet encara depèn del worker pendent. |
 | Fitxer desat però falla l'INSERT de metadata | Detectar fitxer orfe i reprendre sense perdre hash/versió; no mostrar `CREATED` fals. |
 | Metadata `CREATED` sense bytes o amb SHA-256 diferent | Bloquejar descàrrega, incidència de custòdia i recerca de la còpia correcta. |
 | Canvi de plantilla/versió | Preservar la còpia històrica i justificar una nova representació; no modificar factura ni hash anterior. |
@@ -38,7 +38,7 @@
 | Grup/empresa | UC-07 restringeix la consulta segons receptor i visibilitat: disposar d'un UUID o d'un path no concedeix accés. |
 | Error de QR/XML | Verificar que el resultat correspon al snapshot correcte i al tipus documental, sense confondre XML de remissió amb XML lliurable. |
 
-**Proves detectades, no executades:** `DocumentsAndIncidentsTest` comprova metadades i hash de `DocumentRepository`, però no el cicle de storage, reintents, permisos o generació real del PDF/QR.
+**Proves definides:** `DocumentsAndIncidentsTest` cobreix metadada/hash; `InvoiceBeforePaymentDocumentQueueServiceTest` cobreix reús del job i nova versió de generador; `InvoiceBeforePaymentServiceTest` cobreix un únic job en retry/conflicte. Encara no hi ha prova de renderitzat/storage perquè aquests components no estan implementats.
 
 ### 1.3. Prioritat del document de factura prèvia i coherència amb el correu
 
@@ -154,7 +154,7 @@ InvoiceDocumentAccessService --> PrivateDocumentStore : lectura autoritzada
 sequenceDiagram
 autonumber
 participant Inv as Factura SIF ja emesa
-participant J as DocumentJobRepository [DISSENY]
+participant J as DocumentJobRepository [PHP IMPLEMENTAT]
 participant W as DocumentWorker [DISSENY]
 participant G as FiscalDocumentGenerator [DISSENY]
 participant Store as PrivateDocumentStore [DISSENY]
@@ -213,7 +213,7 @@ else Autoritzat
 end
 ~~~
 
-### 5.1. Acció independent: encolar un document després de confirmar la factura — DISSENY
+### 5.1. Acció independent: encolar un document després de confirmar la factura — IMPLEMENTAT PER UC-004
 
 **Disparador:** `InvoiceService` ja ha confirmat la factura o s'ha autoritzat generar una representació que no existeix. **Actor:** procés documental; el client o el worker no pot crear un nou número fiscal per aconseguir un PDF. **Entrades:** `UUID_FACTURA`, `DOCUMENT_TYPE`, `GENERATOR_VERSION`, referència a la font fiscal congelada, `REQUEST_ID` i correlació. **Postcondició:** exactament un job pendent per la **mateixa petició lògica** o recuperació del job preexistent; no s'afirma disponibilitat dels bytes ni acceptació AEAT. `document_job.IDEMPOTENCY_KEY` és única al SQL, però la taula **no imposa** `UNIQUE(UUID_FACTURA,DOCUMENT_TYPE,GENERATOR_VERSION)`: la política de versió i la clau del productor han de determinar si dues peticions són equivalents o dues representacions diferents.
 
@@ -257,7 +257,7 @@ else Factura existent
   DB-->>J: CONFLICT
   J-->>A: Incidència, no reutilitzar resultat aliè
  else Clau nova amb petició legitimada
-  J->>DB: INSERT document_job STATUS=PENDING [OBJECTIU]
+  J->>DB: INSERT document_job STATUS=PENDING
   DB-->>J: UUID_JOB
   J-->>A: Job acceptat, document encara no disponible
  end
@@ -267,7 +267,7 @@ Note over A,DB: El SQL té clau única de job, no s'ha acreditat productor/enque
 
 ### 5.2. Acció independent: recuperar un job amb resultat incert després d'escriure els bytes — DISSENY
 
-**Límit addicional del codi i esquema:** `DocumentRepository::registerDocument()` retorna `ok` i `hash`, **no retorna `factura_documents.ID`**. La taula `factura_documents` tampoc no té una columna de versió ni un `UNIQUE(UUID_FACTURA,TIPUS,PATH_FITXER,HASH_FITXER)`; el workflow ha de recuperar i contrastar de manera inequívoca el registre creat i conservar la versió/identitat del `document_job` abans de marcar-lo complet. **No** deduir l'ID de document d'un mètode que no el proporciona.
+**Límit que continua obert després de l'encolat:** `DocumentRepository::registerDocument()` retorna `ok` i `hash`, **no retorna `factura_documents.ID`**. La taula `factura_documents` tampoc no té una columna de versió ni un `UNIQUE(UUID_FACTURA,TIPUS,PATH_FITXER,HASH_FITXER)`; el workflow ha de recuperar i contrastar de manera inequívoca el registre creat i conservar la versió/identitat del `document_job` abans de marcar-lo complet. **No** deduir l'ID de document d'un mètode que no el proporciona.
 
 **Disparador:** el worker cau entre l'escriptura en storage privat, l'alta de `factura_documents` i el marcatge `document_job.STATUS=COMPLETED`. **Precondició:** mateixa factura, tipus, versió i `UUID_JOB` originals. **Postcondició:** reconciliar el fitxer real, `HASH_FITXER`, `FACTURA_DOCUMENT_ID` i `OUTPUT_HASH`; si ja hi ha document idèntic, recuperar-lo en lloc de generar-ne un altre, i si hi ha dues representacions divergents, bloquejar la publicació i registrar incidència. Un `UNIQUE(IDEMPOTENCY_KEY)` del job **no** protegeix per si sol de dobles `INSERT factura_documents`, ja que `DocumentRepository::registerDocument()` insereix un registre nou per cada crida i no cerca `UUID_JOB` ni un document equivalent.
 
