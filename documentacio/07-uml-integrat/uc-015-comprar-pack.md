@@ -304,7 +304,7 @@ La verificació final d'un PACK ja es pot executar amb `php sif/scripts/verify-r
 
 ## Frontera HTTP i privacitat del checkout
 
-L'alta pública de PACK utilitza POST; imports i mode de fraccionament no són autoritatius des del navegador. El formulari Redsys usa el titular del snapshot servidor, una descripció de producte sense DNI i, per PACK, URL OK/KO sense email. L'endpoint de pagament Redsys és configurable per entorn amb allowlist HTTPS. La protecció anti-abús/CSRF del formulari públic queda com a control web separat a decidir abans del tancament operatiu.
+L'alta pública de PACK utilitza POST; imports i mode de fraccionament no són autoritatius des del navegador. El formulari Redsys usa el titular del snapshot servidor, una descripció de producte sense DNI i, per PACK, URL OK/KO sense email. L'endpoint de pagament Redsys és configurable per entorn amb allowlist HTTPS. La mutació pública exigeix ara same-origin AJAX amb `WEB_ALLOWED_ORIGINS`; resta només valorar rate limiting/anti-bot com a hardening operatiu separat.
 
 
 ## 6. Verificació E2E i frontera HTTP — actualització 2026-10-01
