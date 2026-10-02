@@ -28,10 +28,14 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("complete_validation_decision", $api);
         Assert::stringContainsString("lifecycle_guard", $api);
         Assert::stringContainsString("lifecycle_plan", $api);
+        Assert::stringContainsString("course_change_preview", $api);
         Assert::stringContainsString("execute_cancellation", $api);
         Assert::stringContainsString("cancellation_execution_status", $api);
         Assert::stringContainsString("UsocLifecycleGuardService", $api);
         Assert::stringContainsString("UsocLifecyclePlanService", $api);
+        Assert::stringContainsString("UsocCourseChangePreviewService", $api);
+        Assert::stringContainsString("UsocCourseChangeTargetResolver", $api);
+        Assert::stringContainsString("UsocCourseChangeFundPlanService", $api);
         Assert::stringContainsString("UsocCancellationExecutionService", $api);
         Assert::stringContainsString("UsocLifecycleExecutionRepository", $api);
         Assert::stringContainsString("UsocValidationDecisionService", $api);
@@ -49,6 +53,7 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("public function completeValidationDecision", $client);
         Assert::stringContainsString("public function lifecycleGuard", $client);
         Assert::stringContainsString("public function lifecyclePlan", $client);
+        Assert::stringContainsString("public function courseChangePreview", $client);
         Assert::stringContainsString("public function executeCancellation", $client);
         Assert::stringContainsString("public function cancellationExecutionStatus", $client);
 
