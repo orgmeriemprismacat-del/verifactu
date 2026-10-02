@@ -22,17 +22,33 @@
 	include("./MailSMTP.php");
 	include("./Mail.php");
 
-	$dniTitularPag = "77922662L";
-	$importPag = 2;
-	$idPag = 178295;
-	$order = 1;
-	$tipusInsc = "P";
+	$testRecipient = trim((string) (getenv('SIF_PACK_LEGACY_TEST_RECIPIENT') ?: ''));
+	$dniTitularPag = trim((string) (getenv('SIF_PACK_LEGACY_TEST_DNI') ?: ''));
+	$amountRaw = trim((string) (getenv('SIF_PACK_LEGACY_TEST_AMOUNT') ?: ''));
+	$idPagRaw = trim((string) (getenv('SIF_PACK_LEGACY_TEST_IDPAG') ?: ''));
+	$order = trim((string) (getenv('SIF_PACK_LEGACY_TEST_ORDER') ?: ''));
+
+	if (!filter_var($testRecipient, FILTER_VALIDATE_EMAIL)
+		|| $dniTitularPag === ''
+		|| !is_numeric($amountRaw)
+		|| (float) $amountRaw <= 0
+		|| !ctype_digit($idPagRaw)
+		|| (int) $idPagRaw <= 0
+		|| !preg_match('/^\\d{1,20}$/D', $order)
+	) {
+		http_response_code(422);
+		exit('Configuració de prova PACK incompleta o invàlida.');
+	}
+
+	$importPag = (float) $amountRaw;
+	$idPag = (int) $idPagRaw;
+	$tipusInsc = 'P';
 	$frac = 0;
 
 	include('inc/analitics.html');
 
-	$nomMe = 'Meriem';
-	$correuMe = "meriem.prisma.cat@gmail.com";
+	$nomMe = 'UC-015 Test';
+	$correuMe = $testRecipient;
 	$subjectMe = "pagament automatic ".$order;
 	$missatge = "<p>DNI: ".$dniTitularPag."</p>
 	<p>IMPORT: ".$importPag."</p>
@@ -196,7 +212,7 @@
 		$mailProves = new Mail();
 		$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
 		$mailProves->addSubject("d");
-		$mailProves->addTo("merimari051094@gmail.com");
+		$mailProves->addTo($testRecipient);
 		$mailProves->addMissatgeTiquet("hola", 'd', '');
 		$mailProves->sendMessage();
 
@@ -234,7 +250,7 @@
 			$mailProves = new Mail();
 			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
 			$mailProves->addSubject("idpag");
-			$mailProves->addTo("merimari051094@gmail.com");
+			$mailProves->addTo($testRecipient);
 			$mailProves->addMissatgeTiquet("hola", $idPag, '');
 			$mailProves->sendMessage();
 
@@ -328,7 +344,7 @@
 			$mailProves = new Mail();
 			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
 			$mailProves->addSubject("dates");
-			$mailProves->addTo("merimari051094@gmail.com");
+			$mailProves->addTo($testRecipient);
 			$mailProves->addMissatgeTiquet("hola", $datai.$dataf, '');
 			$mailProves->sendMessage();
 
@@ -389,7 +405,7 @@
 			$mailProves = new Mail();
 			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
 			$mailProves->addSubject("dates");
-			$mailProves->addTo("merimari051094@gmail.com");
+			$mailProves->addTo($testRecipient);
 			$mailProves->addMissatgeTiquet("hola", $missatge, '');
 			$mailProves->sendMessage();
 
@@ -439,7 +455,7 @@
 			$mailProves = new Mail();
 			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
 			$mailProves->addSubject("factura");
-			$mailProves->addTo("merimari051094@gmail.com");
+			$mailProves->addTo($testRecipient);
 			$mailProves->addMissatgeTiquet("hola", $factura, '');
 			$mailProves->sendMessage();
 
@@ -475,7 +491,7 @@
 			$mailProves = new Mail();
 			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);
 			$mailProves->addSubject("ordre");
-			$mailProves->addTo("merimari051094@gmail.com");
+			$mailProves->addTo($testRecipient);
 			$mailProves->addMissatgeTiquet("hola", $ordreFact, '');
 			$mailProves->sendMessage();
 
@@ -514,7 +530,7 @@
 
 			$mailProves = new Mail();
 			$mailProves->addHeaders($nomFromProves, $correuFromProves, $correuReplyProves);$mailProves->addSubject("pack");
-			$mailProves->addTo("merimari051094@gmail.com");
+			$mailProves->addTo($testRecipient);
 			$mailProves->addMissatgeTiquet("hola", $concepte1." ".$concepte2." ".$entitat." ".$codiPack, '');
 			$mailProves->sendMessage();
 
