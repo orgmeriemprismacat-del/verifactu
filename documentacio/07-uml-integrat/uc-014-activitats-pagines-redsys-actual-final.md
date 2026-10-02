@@ -417,3 +417,28 @@ stop
 - **PENDENT:** Redsys real de preproducció, rotació/configuració de secrets, cutover i delivery UC-58.
 
 Vegeu [inventari executable PHP/JS](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md) i [auditoria exhaustiva 02/10](uc-014-auditoria-tracabilitat-2026-10-02.md).
+
+
+## 10. Activitat transversal — drain i cutover
+
+```plantuml
+@startuml
+title UC-014 | Drain de sessions TPV abans del cutover
+start
+if (cutover=0?) then (Sí)
+  :Flux normal / rollback disponible;
+  stop
+endif
+if (drain confirmat?) then (No)
+  :Bloquejar nous checkouts;
+  :Mantenir callback legacy pels pagaments en vol;
+  :Verificar que no queden sessions pendents;
+  stop
+else (Sí)
+  :Checkout candidat usa MerchantURL SIF;
+  :Checkout ACTUAL -> 410;
+  :Callbacks legacy -> 410;
+  stop
+endif
+@enduml
+```
