@@ -149,6 +149,21 @@ Aquests punts existeixen al repositori i tenen proves. El que falta és principa
 2. Revalidar variants comercials fora del curs ordinari.
 3. Verificar qualsevol efecte acadèmic addicional fora de `PAGAMENT / DATA PAG / M→1`, si aplica al curs concret. L'atribució quantitativa del cobrament ja no és P1: queda implementada pel PR #95.
 
+## 5.1 Contrast amb protocol Redsys vigent
+
+Contrast extern efectuat el 02/10/2026 contra la documentació oficial de Redsys per integració per redirecció:
+
+- `Ds_MerchantCode`, `Ds_Terminal`, `Ds_Currency` i `Ds_Response` formen part de la resposta signada;
+- `Ds_Response` té longitud màxima 4 i és numèric;
+- per pagaments/preautoritzacions, `0000..0099` identifica transaccions autoritzades;
+- la validació de la firma de resposta és obligatòria abans de confiar en el contingut.
+
+Fonts:
+- https://pagosonline.redsys.es/desarrolladores-inicio/integrate-con-nosotros/parametros-de-entrada-y-salida/
+- https://pagosonline.redsys.es/download/1735/
+
+Aquest contrast justifica que el fallback rebutgi respostes no numèriques i exigeixi coherència de comerç, terminal i divisa abans de qualsevol efecte.
+
 ## 6. Proves i evidència
 
 El cap del PR #79 (`3569fffcf6a7579bec8452390f8d998eb1a09c9c`) té:
