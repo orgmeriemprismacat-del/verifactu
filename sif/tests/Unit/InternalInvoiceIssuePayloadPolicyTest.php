@@ -27,6 +27,20 @@ final class InternalInvoiceIssuePayloadPolicyTest
         Assert::same('Associacio PrisMa', $prepared['aeat_header']['ObligadoEmision']['NombreRazon']);
     }
 
+
+    public function testRejectsOfficialAeatPayloadWithPlaceholderIssuer(): void
+    {
+        Assert::throws(\RuntimeException::class, function (): void {
+            (new InternalInvoiceIssuePayloadPolicy(
+                'G00000000',
+                'Associacio PrisMa'
+            ))->prepare([
+                'source_channel' => 'INTRANET',
+                'aeat_fields' => ['SistemaInformatico' => ['TipoUsoPosibleSoloVerifactu' => 'S']],
+            ], ['actor_id' => 'adam']);
+        });
+    }
+
     public function testRejectsRedsysInvoiceThroughGenericInternalEndpoint(): void
     {
         Assert::throws(SifException::class, function (): void {
