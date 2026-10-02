@@ -17,6 +17,9 @@ final class SifRedsysCourseIntentClient
         if ($baseUrl === '' || $keyId === '' || $secret === '') {
             throw new RuntimeException('SIF internal API is not configured');
         }
+        if (!str_starts_with($baseUrl, 'https://')) {
+            throw new RuntimeException('SIF internal API must use HTTPS');
+        }
 
         $body = json_encode([
             'idpag' => $idPag,
@@ -53,6 +56,8 @@ final class SifRedsysCourseIntentClient
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_TIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
                 'X-SIF-Key-Id: ' . $keyId,
