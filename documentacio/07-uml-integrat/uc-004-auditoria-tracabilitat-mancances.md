@@ -228,7 +228,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | UC004-GAP-021 | **TANCAT AL BACKEND / PENDENT UI:** concepte de convocatòria determinista | assembler genera `Convocatòria <mes> <any>` sense AJAX |
 | UC004-GAP-022 | **TANCAT AL BACKEND / PENDENT UI:** entitat resolta per ID | repositori nou no usa `RAO LIKE`; exigeix responsable actiu |
 | UC004-GAP-023 | **TANCAT A LA FRONTERA SIF / PENDENT UI:** resposta JSON tipificada | `before-payment.php` retorna JSON; la pantalla llegada continua esperant HTML i encara no s'ha migrat |
-| UC004-GAP-024 | **PARCIALMENT TANCAT AL SIF:** request i correlació | `InternalApiAuthenticator` registra `request_id`; l'event operacional usa la clau idempotent com a correlació estable. Continua pendent versionar explícitament el command/bridge si es considera necessari |
+| UC004-GAP-024 | **PARCIALMENT TANCAT AL SIF:** request i correlació | `InternalApiAuthenticator` registra `request_id`; l'event operacional usa `UC004:sha256(idempotency_key)` com a correlació estable i conserva la clau original dins l'snapshot. Continua pendent versionar explícitament el command/bridge si es considera necessari |
 | UC004-GAP-025 | Sincronització llegada posterior al COMMIT SIF no implementada al processador UC-004 | el script ho evita explícitament |
 | UC004-GAP-026 | PDF llegat es regenera des de dades vives | no és custòdia immutable per snapshot/UUID |
 | UC004-GAP-027 | Descàrrega marca `GENERAT` com a efecte lateral | lectura/descàrrega no hauria de redefinir estat fiscal |
