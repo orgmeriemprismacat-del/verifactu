@@ -4,11 +4,11 @@
 
 | ID | Superfície | ACTUAL | FINAL / límit |
 | --- | --- | --- | --- |
-| P-UC001-01 | `/api/factures/issue.php` | POST intern signat, rol, actor servidor, no Redsys/no UC-004. | Operació comercial, audit writer i resposta d'estats completa. |
+| P-UC001-01 | `/api/factures/issue.php` | POST intern signat, rol, actor servidor, no Redsys/no UC-004; resposta d’estats i traça append-only. | Operació comercial transversal i snapshot fiscal servidor complet. |
 | P-UC001-02 | `/api/factures/before-payment.php` | UC-004 amb auth, rol, selecció servidor i coverage. | No saltar-lo via P-UC001-01. |
 | P-UC001-03 | Worker Redsys | Handlers especialitzats després de callback/intenció validats. | Coherència intent↔snapshot i fencing. |
 | P-UC001-04 | Serveis manuals | Builders + idempotència del nucli. | Identificador d'operació comercial independent. |
-| P-UC001-05 | Cua/worker AEAT | Procés postcommit separat. | Historial per intent i reconciliació remota incerta. |
+| P-UC001-05 | Cua/worker AEAT | Procés postcommit separat, `aeat_submission_attempt`, fencing `CLAIM_TOKEN`, `REVIEW` i reconciliació sense reenviament cec. | Resolució operativa dels casos realment `UNCERTAIN`. |
 
 ## 2. Activitat ACTUAL del generic endpoint
 
@@ -50,4 +50,4 @@ J --> K[AEAT document sync correus]
 K --> L[Resposta amb estats independents]
 ```
 
-El FINAL no es marca com a implementat.
+El FINAL continua parcial: audit writer i projecció d’estats ja són ACTUAL; resten cobertura comercial transversal, links d’operació↔línia i assembler fiscal servidor complet.
