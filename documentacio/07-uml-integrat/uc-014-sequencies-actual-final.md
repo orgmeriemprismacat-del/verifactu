@@ -173,3 +173,28 @@ end
 
 
 **Inventari executable relacionat:** [PHP/JS ACTUAL, pont candidat i SIF — 02/10](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md).
+
+
+## 6. CUTOVER — drenatge segur de sessions legacy
+
+```mermaid
+sequenceDiagram
+autonumber
+participant O as Operador
+participant WebA as Checkout ACTUAL
+participant WebC as Checkout candidat
+participant Legacy as Callback legacy
+participant SIF as Callback SIF
+
+O->>WebA: cutover=1, drain=0
+WebA-->>O: 503 / no crea nova sessió
+WebC-->>O: fail-closed / drain no confirmat
+Legacy->>Legacy: encara processa callbacks ja en vol
+O->>O: comprova que no queden sessions TPV llegades
+O->>WebC: cutover=1, drain=1
+WebC->>SIF: MerchantURL SIF
+WebA-->>O: 410
+Legacy-->>O: 410
+```
+
+**Invariant:** no es retira el callback llegat fins haver aturat nous checkouts i drenat les sessions ja iniciades.
