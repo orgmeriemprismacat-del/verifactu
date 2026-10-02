@@ -19,6 +19,7 @@ final class InternalInvoiceIssueScopeResolverTest
         Assert::same('gestio-test', $resolved['actor_id']);
         Assert::same(['ALTRES', 'FACTURACIO'], $resolved['roles']);
         Assert::same(true, $resolved['invoice_issue_scope']['issue']);
+        Assert::same('FACTURACIO', $resolved['invoice_issue_role']);
         Assert::same('INTERNAL_ROLE', $resolved['invoice_issue_scope_source']);
     }
 
