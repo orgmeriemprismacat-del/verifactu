@@ -56,7 +56,10 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same('UC004_CONFIRMED', $event['REASON_CODE']);
         Assert::same('gestio-factura-abans-cobrar', $event['ACTOR_ID']);
         Assert::same('INTRANET', $event['SOURCE_CHANNEL']);
-        Assert::same('INTRANET|FACTURA_ABANS_COBRAR|REF:PRE900', $event['CORRELATION_ID']);
+        Assert::same(
+            'UC004:' . hash('sha256', 'INTRANET|FACTURA_ABANS_COBRAR|REF:PRE900'),
+            $event['CORRELATION_ID']
+        );
     }
 
     public function testBuilderDerivesIdempotencyAndForcesInvoiceBeforePaymentFlags(): void
