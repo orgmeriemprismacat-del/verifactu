@@ -148,3 +148,46 @@ El run `36730189405` acaba **SUCCESS, 730 passed / 0 failed** i incorpora:
 - `testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined`: 0,00 € per la part alumne es rebutja amb validació fins que existeixi un circuit funcional/fiscal específic.
 
 Per tant, la discrepància 20 %/25 % queda com a decisió de negoci, no com a constant tècnica del SIF.
+
+
+## Canvi de curs USOC · mancança executable revalidada 02/10/2026
+
+**ID:** `UC13-GAP-COURSE-EXEC`
+
+El canvi de curs USOC està protegit, però no és encara executable end-to-end.
+
+### Implementat
+
+- `LegacyUsocLifecycleGuard` detecta `TIPUS_DESC=4`.
+- `lifecycle_guard` i `lifecycle_plan` separen alumne i entitat.
+- `UsocLifecyclePlanService` retorna `RECTIFY_BEFORE_REISSUE` per cada factura existent.
+- `CourseChangePreviewService` i `CourseChangeImpactClassifier` existeixen per al canvi de curs genèric.
+- `realitzarCanviCurs_CanviCurs.php` és POST + CSRF + same-origin + permís.
+- El flux USOC queda fail-closed abans de mutar legacy quan existeix un expedient amb dues parts.
+
+### No implementat
+
+No existeix cap servei equivalent a `UsocCancellationExecutionService` per a `course_change`.
+
+Falten, com a mínim:
+
+1. contracte d'entrada per congelar curs origen i curs destí;
+2. import destí separat per **alumne** i **entitat USOC**;
+3. regla sobre manteniment/recalcul del finançament USOC al curs destí;
+4. rectificació de cada factura origen per separat;
+5. reemissió de cada factura destí amb receptor i import propis;
+6. tractament separat de diferències a cobrar, excessos i refunds per pagador;
+7. checkpoint idempotent `OPERATION=COURSE_CHANGE`;
+8. handoff cap a la mutació legacy només quan l'execució SIF sigui coherent;
+9. reconciliació posterior del nou expedient i relacions origen/destí;
+10. proves de retry, fallada parcial, factura entitat no emesa, entitat parcialment cobrada i imports destí diferents.
+
+### Bloqueig funcional necessari abans d'implementar
+
+El repositori no defineix encara si el canvi de curs:
+- conserva exactament la mateixa aportació USOC;
+- recalcula el percentatge/import USOC sobre el nou curs;
+- requereix nova validació de l'entitat;
+- o pot deixar part de l'import com a saldo/pendent independent.
+
+Aquesta decisió afecta directament les dues factures noves. Per tant el comportament actual correcte és **bloquejar la mutació legacy** i no inventar una reemissió automàtica.
