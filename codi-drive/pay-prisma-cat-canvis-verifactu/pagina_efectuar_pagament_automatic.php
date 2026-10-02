@@ -158,12 +158,8 @@ try {
       $importPagare = (string) $intent['amount'];
       $id = $order;
 
-      $legacyMerchantUrl="https://pay.prisma.cat/doit.php?idPag=".rawurlencode((string) $idPag)
-         ."&codiCurs=".rawurlencode((string) $cursPag)
-         ."&dni=".rawurlencode((string) $dniTitularPag)
-         ."&order=".rawurlencode((string) $order)
-         ."&frac=".rawurlencode((string) $frac)
-         ."&import=".rawurlencode($importPagare);
+      // El fallback rep la correlació dins MerchantData signat. No posem PII ni import al callback URL.
+      $legacyMerchantUrl="https://pay.prisma.cat/doit.php";
 
       // UC-014: el tall de MerchantURL és explícit. Configurar una URL SIF
       // per si sola no canvia el callback; cal habilitar també el flag de cutover.
@@ -185,7 +181,6 @@ try {
       }
 
       $returnQuery = http_build_query([
-         'email' => $email,
          'order' => $order,
          'idPag' => (int) $idPag,
       ], '', '&', PHP_QUERY_RFC3986);
