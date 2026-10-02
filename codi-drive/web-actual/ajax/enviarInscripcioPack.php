@@ -115,76 +115,6 @@ $packRequestLockName = 'prisma_pack_req_' . substr(hash('sha256', $requestId), 0
 try {
 	$requestHash = uc015PackRequestHash($request);
 
-	$textNom = new Text($request['nom']);
-	$textCog = new Text($request['cog']);
-	$textDocumentacio = new Text($request['dni']);
-	$numTelf = new Numero($request['telf']);
-	$textEmail = new Text($request['email']);
-	$textAdreca = new Text($request['adreca']);
-	$textCodiPostal = new Text($request['codiPostal']);
-	$textPoblacio = new Text($request['poblacio']);
-	$textPerfil = new Text($request['perfil']);
-	if ( $request['perfil'] == "Altres")
-		$textPerfilAltres = new Text($request['perfilAltres']);
-	else
-		$textPerfilAltres = null;
-	if ( $request['titulacio'] == "Altres") {
-		$textTitulacio = new Text($request['titulacio']);
-		$textTitulacioAltres = new Text($request['titulacioAltres']);
-		$textTitulacioSecundaria = null;
-		$textTitulacioEstudiant = null;
-	}
-	else if ( $request['titulacio'] == "Prof. Ed. Secundària") {
-		$textTitulacio = new Text('Ed. Secundària');
-		$textTitulacioAltres = null;
-		$textTitulacioSecundaria = new Text($request['titulacioSecundaria']);
-		$textTitulacioEstudiant = null;
-	}
-	else if ( $request['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
-		$textTitulacio = new Text('Estudiant');
-		$textTitulacioAltres = null;
-		$textTitulacioSecundaria = null;
-		$textTitulacioEstudiant = new Text($request['titulacioEstudiant']);
-	}
-	else {
-		$textTitulacio = new Text($request['titulacio']);
-		$textTitulacioAltres = null;
-		$textTitulacioSecundaria = null;
-		$textTitulacioEstudiant = null;
-	}
-	if ( $request['tbTitulacio'] != '')
-		$textTbTitulacio = new Text($request['tbTitulacio']);
-	else
-		$textTbTitulacio = null;
-	// UC-015: l'ecommerce de packs no permet fraccionament; no acceptar aquesta decisió del client.
-	$textPagFrac = new Text('No');
-	$textConegut = new Text($request['conegut']);
-	if ( $request['comentaris'] != '')
-		$textComentaris = new Text($request['comentaris']);
-	else
-		$textComentaris = null;
-	$textMailing = new Text($request['mailing']);
-	// Els imports rebuts del navegador no són autoritatius. Es recalculen des de BD.
-	$textIdPack = new Text($request['idPack']);
-
-	$textNom->arreglarParaulaBD('noms');
-	$textCog->arreglarParaulaBD('noms');
-	$textDocumentacio->arreglarParaulaBD('text_maj');
-	$textEmail->arreglarParaulaBD('email');
-	$textAdreca->arreglarParaulaBD('text');
-	$textCodiPostal->arreglarParaulaBD('text_maj');
-	$textPoblacio->arreglarParaulaBD('noms');
-	$textPerfil->arreglarParaulaBD('text_no_mod');
-	$textTitulacio->arreglarParaulaBD('text_no_mod');
-	$textPagFrac->arreglarParaulaBD('text');
-	$textConegut->arreglarParaulaBD('text_no_mod');
-	if ($textComentaris != null) $textComentaris->arreglarParaulaBD('text');
-	$textMailing->arreglarParaulaBD('text');
-
-	$dataInsc = date('d')."-".date('m')."-".date('Y')." ".date('H').":".date('i');
-
-	$templates = new Template();
-
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
 
@@ -291,6 +221,78 @@ try {
 		$connexio->desconectarBD();
 		return;
 	}
+
+	/* ######################################################################### */
+	/* Només una alta nova valida i normalitza el formulari legacy. */
+	$textNom = new Text($request['nom']);
+	$textCog = new Text($request['cog']);
+	$textDocumentacio = new Text($request['dni']);
+	$numTelf = new Numero($request['telf']);
+	$textEmail = new Text($request['email']);
+	$textAdreca = new Text($request['adreca']);
+	$textCodiPostal = new Text($request['codiPostal']);
+	$textPoblacio = new Text($request['poblacio']);
+	$textPerfil = new Text($request['perfil']);
+	if ( $request['perfil'] == "Altres")
+		$textPerfilAltres = new Text($request['perfilAltres']);
+	else
+		$textPerfilAltres = null;
+	if ( $request['titulacio'] == "Altres") {
+		$textTitulacio = new Text($request['titulacio']);
+		$textTitulacioAltres = new Text($request['titulacioAltres']);
+		$textTitulacioSecundaria = null;
+		$textTitulacioEstudiant = null;
+	}
+	else if ( $request['titulacio'] == "Prof. Ed. Secundària") {
+		$textTitulacio = new Text('Ed. Secundària');
+		$textTitulacioAltres = null;
+		$textTitulacioSecundaria = new Text($request['titulacioSecundaria']);
+		$textTitulacioEstudiant = null;
+	}
+	else if ( $request['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
+		$textTitulacio = new Text('Estudiant');
+		$textTitulacioAltres = null;
+		$textTitulacioSecundaria = null;
+		$textTitulacioEstudiant = new Text($request['titulacioEstudiant']);
+	}
+	else {
+		$textTitulacio = new Text($request['titulacio']);
+		$textTitulacioAltres = null;
+		$textTitulacioSecundaria = null;
+		$textTitulacioEstudiant = null;
+	}
+	if ( $request['tbTitulacio'] != '')
+		$textTbTitulacio = new Text($request['tbTitulacio']);
+	else
+		$textTbTitulacio = null;
+	// UC-015: l'ecommerce de packs no permet fraccionament; no acceptar aquesta decisió del client.
+	$textPagFrac = new Text('No');
+	$textConegut = new Text($request['conegut']);
+	if ( $request['comentaris'] != '')
+		$textComentaris = new Text($request['comentaris']);
+	else
+		$textComentaris = null;
+	$textMailing = new Text($request['mailing']);
+	// Els imports rebuts del navegador no són autoritatius. Es recalculen des de BD.
+	$textIdPack = new Text($request['idPack']);
+
+	$textNom->arreglarParaulaBD('noms');
+	$textCog->arreglarParaulaBD('noms');
+	$textDocumentacio->arreglarParaulaBD('text_maj');
+	$textEmail->arreglarParaulaBD('email');
+	$textAdreca->arreglarParaulaBD('text');
+	$textCodiPostal->arreglarParaulaBD('text_maj');
+	$textPoblacio->arreglarParaulaBD('noms');
+	$textPerfil->arreglarParaulaBD('text_no_mod');
+	$textTitulacio->arreglarParaulaBD('text_no_mod');
+	$textPagFrac->arreglarParaulaBD('text');
+	$textConegut->arreglarParaulaBD('text_no_mod');
+	if ($textComentaris != null) $textComentaris->arreglarParaulaBD('text');
+	$textMailing->arreglarParaulaBD('text');
+
+	$dataInsc = date('d')."-".date('m')."-".date('Y')." ".date('H').":".date('i');
+
+	$templates = new Template();
 
 	/* ######################################################################### */
 	/* Només una alta nova depèn de l'estat comercial actual del pack. */
