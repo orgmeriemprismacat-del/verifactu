@@ -410,7 +410,7 @@ stop
 
 - **DOCUMENTAT:** P-CUR-01..06 ACTUAL/FINAL, inclosos AJAX i JS reals.
 - **IMPLEMENTAT:** PHP/JS ACTUAL, gate autoritatiu, pont candidat, SIF asíncron, `EXTERNAL_ALLOCATION` per inscripció, sync, outbox i retorn autoritatiu; hardening del fallback en aquesta branca.
-- **VERIFICAT:** E2E intern/cutover/retorn/outbox al PR #79 i fund allocation al PR #95 (841/0 + quatre workflows verds); proves noves de hardening pendents de CI de la branca.
+- **VERIFICAT:** E2E intern/cutover/retorn/outbox al PR #79, fund allocation al PR #95 (841/0 + quatre workflows verds) i hardening ACTUAL al PR #105 amb `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` verds sobre `56d32d600d26d39d94b8a7227e4d732f07d35ce5`.
 - **PENDENT:** Redsys real de preproducció, rotació/configuració de secrets, cutover i delivery UC-58.
 
 Vegeu [inventari executable PHP/JS](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md) i [auditoria exhaustiva 02/10](uc-014-auditoria-tracabilitat-2026-10-02.md).
