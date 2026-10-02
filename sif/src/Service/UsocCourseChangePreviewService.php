@@ -44,7 +44,7 @@ final class UsocCourseChangePreviewService
             'target' => $target,
             'fund_plan' => $fundPlan,
             'can_execute' => false,
-            'execution_status' => 'EXECUTOR_NOT_IMPLEMENTED',
+            'execution_status' => 'PREVIEW_ONLY_REQUIRES_PREPARATION',
             'invariants' => [
                 'preview_has_no_fiscal_effect' => true,
                 'preview_has_no_economic_effect' => true,
