@@ -41,6 +41,9 @@ use Prisma\Sif\Service\ManualRectificationService;
 use Prisma\Sif\Service\ManualRefundPayloadBuilder;
 use Prisma\Sif\Service\ManualRefundService;
 use Prisma\Sif\Service\UsocCancellationExecutionService;
+use Prisma\Sif\Service\UsocCourseChangePreviewService;
+use Prisma\Sif\Service\UsocCourseChangeTargetResolver;
+use Prisma\Sif\Service\UsocCourseChangeFundPlanService;
 
 header('Cache-Control: private, no-store, max-age=0');
 header('Pragma: no-cache');
@@ -145,6 +148,33 @@ try {
                 $idInsc,
                 $idpag,
                 $operation
+            ),
+        ]);
+        return;
+    }
+
+    if ($action === 'course_change_preview') {
+        $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
+        $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
+        $target = $payload['target'] ?? null;
+        if (!is_array($target)) {
+            throw SifException::validation('Invalid USOC course change target input');
+        }
+
+        $guard = new UsocLifecycleGuardService($cases);
+        $service = new UsocCourseChangePreviewService(
+            new UsocLifecyclePlanService($cases, $guard),
+            new UsocCourseChangeTargetResolver(),
+            new UsocCourseChangeFundPlanService()
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'preview' => $service->preview(
+                $db,
+                $idInsc,
+                $idpag,
+                $target
             ),
         ]);
         return;
