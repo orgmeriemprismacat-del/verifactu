@@ -16,8 +16,9 @@ final class UsocCourseChangeDestinationBindingService
         \PDO $db,
         string $requestId,
         int $sourceIdInsc,
-        int $idpag,
+        int $sourceIdpag,
         int $destinationIdInsc,
+        int $destinationIdpag,
         string $reservationMarker,
         string $targetStudentTotal
     ): array {
@@ -28,8 +29,10 @@ final class UsocCourseChangeDestinationBindingService
         if (
             $requestId === ''
             || $sourceIdInsc <= 0
-            || $idpag <= 0
+            || $sourceIdpag <= 0
             || $destinationIdInsc <= 0
+            || $destinationIdpag <= 0
+            || $destinationIdpag === $sourceIdpag
             || preg_match('/^SIF-USOC-CC:[a-f0-9]{32}$/D', $reservationMarker) !== 1
         ) {
             throw SifException::validation(
@@ -54,7 +57,7 @@ final class UsocCourseChangeDestinationBindingService
                 (string) $execution['OPERATION'] !== 'COURSE_CHANGE'
                 || (string) $execution['STATE'] !== 'REQUESTED'
                 || (int) $execution['ID_INSC'] !== $sourceIdInsc
-                || (int) $execution['IDPAG'] !== $idpag
+                || (int) $execution['IDPAG'] !== $sourceIdpag
             ) {
                 throw SifException::conflict(
                     'USOC course change destination does not match checkpoint identity'
@@ -79,7 +82,8 @@ final class UsocCourseChangeDestinationBindingService
                 'phase' => 'DESTINATION_RESERVED',
                 'source_id_insc' => $sourceIdInsc,
                 'destination_id_insc' => $destinationIdInsc,
-                'idpag' => $idpag,
+                'source_idpag' => $sourceIdpag,
+                'destination_idpag' => $destinationIdpag,
                 'reservation_marker' => $reservationMarker,
                 'target_student_total' => $targetStudentTotal,
                 'effects_applied' => false,
