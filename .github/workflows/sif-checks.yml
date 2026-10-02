@@ -18,6 +18,8 @@ on:
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
       - "codi-drive/intranet-actual/js/alumnes-validar-descomptes.js"
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
+      - "codi-drive/web-actual/EdicioPack.php"
+      - "codi-drive/web-actual/Pack.php"
       - "codi-drive/web-actual/ajax/enviarInscripcio.php"
       - "codi-drive/web-actual/ajax/enviarInscripcio2.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioAfiliat.php"
@@ -112,6 +114,8 @@ jobs:
       - name: PHP and JavaScript syntax UC-015 PACK web
         run: |
           php -l codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php
+          php -l codi-drive/web-actual/EdicioPack.php
+          php -l codi-drive/web-actual/Pack.php
           php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
           php -l codi-drive/web-actual/pagina_inscripcio_pack.php
           php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
