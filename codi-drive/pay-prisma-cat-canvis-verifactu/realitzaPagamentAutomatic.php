@@ -39,16 +39,21 @@
 		// Se crea Objeto
 		$miObj = new RedsysAPI;
 
-		$version = $_POST["Ds_SignatureVersion"];
-		$datos = $_POST["Ds_MerchantParameters"];
-		$signatureRecibida = $_POST["Ds_Signature"];
+		$version = trim((string) ($_POST["Ds_SignatureVersion"] ?? ''));
+		$datos = (string) ($_POST["Ds_MerchantParameters"] ?? '');
+		$signatureRecibida = (string) ($_POST["Ds_Signature"] ?? '');
+		if (!in_array($version, ['HMAC_SHA512_V2', 'HMAC_SHA256_V1'], true)
+			|| $datos === '' || $signatureRecibida === ''
+		) {
+			throw new RuntimeException('INVALID_REDSYS_SIGNATURE_ENVELOPE');
+		}
 
 		$decodec = $miObj->decodeMerchantParameters($datos);
 		$kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
 		if ($kc === '') {
 			throw new RuntimeException('REDSYS_MERCHANT_KEY_NOT_CONFIGURED');
 		}
-		$firma = $miObj->createMerchantSignatureNotif($kc,$datos);
+		$firma = $miObj->createMerchantSignatureNotifForVersion($kc, $datos, $version);
 
 	   $ordre = $miObj->getParameter('Ds_Order');
 		$dateComanda = $miObj->getParameter('Ds_Date');
@@ -65,9 +70,7 @@
 		$normalizeSignature = static function (string $value): string {
 			return rtrim(strtr(trim($value), '-_', '+/'), '=');
 		};
-		if ($version !== 'HMAC_SHA256_V1'
-			|| !hash_equals($normalizeSignature((string) $firma), $normalizeSignature((string) $signatureRecibida))
-		) {
+		if (!hash_equals($normalizeSignature((string) $firma), $normalizeSignature((string) $signatureRecibida))) {
 			throw new RuntimeException('INVALID_REDSYS_SIGNATURE');
 		}
 		if (!preg_match('/^UC014I([1-9][0-9]*)A([1-9][0-9]*)F([01])$/D', $merchantData, $context)) {
