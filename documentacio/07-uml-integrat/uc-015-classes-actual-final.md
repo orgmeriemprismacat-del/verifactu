@@ -32,6 +32,7 @@ class EnviarInscripcioPack {
   +valida metode/origen same-site
   +recalcula preu des de BD
   +crea IDPAG
+  +begin/commit/rollback transaccio
   +insereix N inscripcions + snapshot
   +genera URL pagament
   +envia correus
@@ -56,7 +57,7 @@ RealitzaPagamentPackAutomatic --> EnviarInscripcioPack : usa IDPAG creat
 - `Pack.php`: carrega la definició del pack, components, disponibilitat i metadades.
 - `EdicioPack.php`: resol edició, curs, dates, preu i obertura.
 - `InscripcioPack.php`: genera el formulari.
-- `enviarInscripcioPack.php`: rep dades per **POST**, rebutja mètodes diferents, aplica comprovacions `Sec-Fetch-Site`/`Origin`/`Referer` quan estan disponibles, recalcula imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial. Les dades personals ja no viatgen a la query string.
+- `enviarInscripcioPack.php`: rep dades per **POST**, rebutja mètodes diferents, aplica comprovacions `Sec-Fetch-Site`/`Origin`/`Referer` quan estan disponibles, recalcula imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial dins una **transacció única**. En error fa rollback i garanteix l'alliberament del named lock `IDPAG`.
 - `realitzaPagamentPackAutomatic.php`: conserva el codi històric, però està bloquejat per defecte amb HTTP 410 abans de qualsevol mutació.
 
 ## 2. Classes ACTUAL — SIF ja implementat
@@ -195,7 +196,7 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 |---|---|---|
 | Preu definitiu | **Backend autoritatiu implementat** | Mantenir snapshot versionat i provar runtime |
 | Transport alta pública | **POST-only + same-site/origin implementat** | E2E navegador/preproducció i controls anti-abús si la política els exigeix |
-| Identitat operació | `MAX(IDPAG)+1` sota `GET_LOCK` | Seqüència pròpia si es decideix eliminar deute legacy |
+| Identitat operació | `MAX(IDPAG)+1` sota `GET_LOCK`; N inserts transaccionals | Seqüència pròpia si es decideix eliminar deute legacy |
 | Ordinal components | `PACK_ORDINAL` congelat i consumit | Ordre actual `DATAI, ID_CURS`; decidir si cal posició comercial explícita |
 | Receptor fiscal | **Validació fail-closed entre tots els components** | Mantenir receptor explícit al snapshot |
 | Callback | Legacy desactivat per defecte; SIF autoritatiu | Eliminar codi històric després de rollback |
