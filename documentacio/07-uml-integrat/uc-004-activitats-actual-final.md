@@ -2,7 +2,7 @@
 
 **Cas d'ús:** UC-004 — Emetre factura abans de cobrar  
 **Pantalla actual:** `/alumnes/genera-factura-abans-pagar/`  
-**Data d'auditoria estàtica:** 2026-09-29  
+**Data d'auditoria estàtica:** 2026-09-29 · **reconciliada amb `main`/cutover:** 2026-10-02  
 **Cobertura RM-037:** pàgina completa + sis apartats funcionals; cada apartat té ACTUAL i FINAL.
 
 ## 1. Matriu de pàgina i apartats
@@ -14,7 +14,7 @@
 | A004-P02 | Cerca, afegir i treure inscripcions | `mostrarInformacioInscripcio_generaFactura.php`, JS, `Intranet` | 2 diagrames |
 | A004-P03 | Validar selecció i preparar imports/conceptes | JS UC-004, `calcularTextData.php` | 2 diagrames |
 | A004-P04 | Receptor/entitat i dades de factura | vista `__mostrarPage_Alumnes_GeneraFacturaAbansPagar`, JS, BD intranet | 2 diagrames |
-| A004-P05 | Emetre factura abans de cobrar | endpoint llegat + `Intranet::generarFacturaElectronica_Alumnes`; FINAL SIF | 2 diagrames |
+| A004-P05 | Emetre factura abans de cobrar | ACTUAL històric: endpoint llegat + `Intranet::generarFacturaElectronica_Alumnes`; FINAL actual: bridge intranet + SIF | 2 diagrames |
 | A004-P06 | Resultat, previsualització i document | endpoints de dades/preview/download/delete, `generaFactura` | 2 diagrames |
 
 Total: **14 diagrames d'activitat**.
@@ -24,6 +24,8 @@ Total: **14 diagrames d'activitat**.
 ## 2. A004-P00 · PÀGINA COMPLETA
 
 ### A004-P00 — ACTUAL
+
+> **Traça històrica:** aquest diagrama conserva el comportament llegat auditat. Al tall actual, el JS ja usa el bridge SIF i `generaFacturaElectronica_Factures.php` queda retirat amb `410 Gone` en aquesta branca.
 
 ```plantuml
 @startuml
@@ -525,6 +527,6 @@ stop
 ## 10. Estat
 
 - **ACTUAL:** reconstruït estàticament des del codi versionat.
-- **FINAL:** selecció per IDs, receptor per entityId, línies/total des de servidor, fingerprint preview→confirm i claim concurrent UC-004 ja estan implementats a la branca en serveis/CLI. Continuen pendents el classificador transversal, autorització/CSRF i l'adaptador HTTP de la pantalla.
-- **Execució de proves:** no feta en aquesta auditoria documental.
-- **Integració pantalla UC-004 → SIF:** pendent; **integració CLI no productiva BDs llegades → preparació → SIF:** implementada a la branca, no executada aquí.
+- **FINAL:** selecció per IDs, receptor per `entityId`, línies/total servidor, sessió/rol, CSRF, bridge HTTP, HMAC, anti-replay, fingerprint preview→confirm, claim concurrent UC-004 i `operational_event` ja estan implementats al codi versionat; en aquesta branca el mutador fiscal llegat queda 410. Continuen pendents el classificador transversal, document per UUID i sync llegada post-COMMIT si s'ha de conservar.
+- **Execució de proves:** el PR #111 tenia els quatre checks verds abans del darrer cutover; cal conservar el rerun de la punta actual com a evidència final.
+- **Integració pantalla UC-004 → SIF:** **IMPLEMENTADA AL CODI**; pendent E2E/preproducció.
