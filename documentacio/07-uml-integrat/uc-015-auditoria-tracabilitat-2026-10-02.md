@@ -78,6 +78,7 @@ Fitxers:
 - `sif/tests/Integration/PackPublicEnrollmentBoundaryTest.php`
 - `sif/tests/Integration/PackMultiCourseCommunicationBoundaryTest.php`
 - `sif/tests/Integration/PackEnrollmentAtomicityBoundaryTest.php`
+- `sif/tests/Integration/PackEnrollmentIdempotencyBoundaryTest.php`
 - `sif/tests/Integration/LegacyPackCallbackBoundaryTest.php`
 - `sif/tests/Integration/RedsysPaymentIntentTest.php`
 - `sif/tests/Integration/RedsysPackPreflightScriptTest.php`
@@ -91,8 +92,8 @@ Fitxers:
 |---|---|---|---|---|
 | PK-A01 Llistat packs | sí | sí, legacy | inspecció | E2E visual |
 | PK-A02 Fitxa pack | sí | sí, legacy | inspecció | E2E visual |
-| PK-A03 Formulari | sí | **POST-only + same-site/origin implementat** | inspecció + boundary test | E2E navegador/preproducció |
-| PK-A04 Alta N inscripcions | sí | sí, snapshot legacy | proves/inspecció | model comercial explícit/versionat |
+| PK-A03 Formulari | sí | **POST-only + same-site/origin + REQUEST_ID implementats** | inspecció + boundary/idempotency tests | E2E navegador/preproducció |
+| PK-A04 Alta N inscripcions | sí | snapshot + transacció + idempotència server-side | proves/inspecció | model comercial explícit/versionat |
 | PK-A05 Intenció/URL pagament | sí | sí | proves + CI històrica | prova d'entorn real |
 | PK-A06 Callback | sí | sí, SIF autoritatiu | proves | Redsys preproducció |
 | PK-A07 Factura | sí | sí | proves + CI | E2E real |
@@ -276,7 +277,7 @@ Això no converteix els correus legacy en outbox durable; només evita un fals e
 
 **Estat:** implementat i cobert per prova automatitzada; migració dels correus inicials a mecanisme durable continua fora d'aquest fix.
 
-### F-16 · Doble enviament de navegador sense guard explícit — mitigat
+### F-16 · Doble enviament de navegador sense guard explícit — corregit en dues capes
 
 El botó mostrava el modal de càrrega però no existia un estat explícit que impedís executar dues vegades `enviarInscripcio()` davant doble clic ràpid.
 
@@ -285,11 +286,9 @@ El botó mostrava el modal de càrrega però no existia un estat explícit que i
 - botó desactivat abans de l'AJAX;
 - reactivació només si la resposta funcional és error o falla la petició;
 - en èxit queda desactivat fins a la redirecció;
-- `PackPublicEnrollmentBoundaryTest` blinda el guard.
+- a més, F-18 incorpora idempotència server-side amb `REQUEST_ID`, de manera que un segon HTTP equivalent reutilitza l'alta encara que el guard de client no sigui suficient.
 
-**Límit:** això és protecció de client, no idempotència server-side. Una idempotència forta de l'alta pública requeriria `REQUEST_ID` persistent/reutilitzable i contracte de deduplicació; no s'ha inventat una heurística per DNI/temps perquè podria rebutjar altes legítimes.
-
-**Estat:** doble clic mitigat; idempotència server-side de l'alta pública continua **pendent arquitectònic**.
+**Estat:** doble clic mitigat al client i deduplicació forta implementada al servidor.
 
 ### F-17 · L'alta no comprovava que la suma congelada fos exactament el preu PACK — corregit
 
@@ -304,6 +303,30 @@ El repartiment legacy consumeix el preu del pack sobre els components ordenats a
 - `PackEnrollmentAtomicityBoundaryTest` blinda que el guard s'executi abans del commit.
 
 **Estat:** implementat i cobert per prova automatitzada; el checkout/SIF conserva a més els seus guards independents de reconciliació.
+
+### F-18 · Idempotència server-side de l'alta pública — implementada
+
+L'alta pública ja no depèn només del guard de doble clic. El navegador genera un UUID v4 i el conserva a `sessionStorage` mentre el resultat és incert. El servidor calcula un fingerprint SHA-256 sobre els 19 camps funcionals del formulari i serialitza l'operació per `REQUEST_ID`.
+
+**Contracte implementat:**
+- el JS envia `requestId` a cada intent;
+- en error de xarxa/5xx es conserva el mateix identificador per poder recuperar un commit amb resposta perduda;
+- en èxit es neteja el `REQUEST_ID`;
+- el PHP valida UUID v4 abans de qualsevol mutació;
+- un named lock `prisma_pack_req_<hash>` serialitza dos intents del mateix request;
+- el lookup de reintents s'executa **abans** dels validators legacy i abans de rellegir l'estat comercial actual del pack;
+- cada línia persisteix `RID|<uuid>` i `RH1|<sha256>` junt amb el snapshot comercial;
+- mateix RID + mateix hash + ordinals coherents → retorna una nova confirmació del mateix `IDPAG` sense reservar un altre IDPAG, inserir files ni reenviar correus;
+- mateix RID + payload diferent → HTTP 409;
+- fingerprints/IDPAG/ordinals interns inconsistents → HTTP 409 fail-closed;
+- el lock de request s'allibera immediatament després del commit, abans de tasques SMTP;
+- `mostrarInscripcioPack.min.js` puja a `ver=7.4` per evitar clients cachejats amb el contracte GET antic;
+- `LegacyPackSnapshotRepositoryTest` acredita que els marcadors `RID/RH1` són ignorats pel parser fiscal;
+- `PackEnrollmentIdempotencyBoundaryTest` blinda persistència, ordre del replay, conflicte i persistència del request al navegador.
+
+El fingerprint és deliberadament conservador: diferències literals del formulari es consideren payload diferent, de la mateixa manera que el contracte transversal SIF no reutilitza una clau amb entrada contradictòria.
+
+**Estat:** implementat i cobert per proves automatitzades; resta E2E de navegador/preproducció amb resposta perduda/reintent concurrent.
 
 ## 6. UML i traçabilitat
 
@@ -370,7 +393,7 @@ Per tant:
 
 **SÍ, per al nucli fiscal/econòmic:** snapshot, gate de pagament, intenció SIF, callback/worker, factura, payment, ledger per inscripció, enqueue outbox i sync legacy.
 
-**SÍ, per al transport del canal web inicial:** POST-only, sense PII a query string i amb frontera same-site/origin. Continua sent un formulari anònim i resta E2E.
+**SÍ, per al canal web inicial:** POST-only, sense PII a query string, frontera same-site/origin i idempotència server-side amb `REQUEST_ID`+payload hash. Continua sent un formulari anònim i resta E2E.
 
 ### Verificat
 
@@ -382,13 +405,12 @@ Per tant:
 
 ### Pendent
 
-1. Executar PK-01..PK-11 en preproducció amb DS_ORDER real, incloent alta POST, rebuig GET/cross-site i doble clic.
-2. Definir idempotència server-side de l'alta pública amb `REQUEST_ID` persistent si es vol eliminar també el risc de reintent HTTP/manual.
-3. Tancar decisió de negoci sobre ordre comercial explícit vs `DATAI, ID_CURS`.
-4. Eliminar físicament callback fiscal PACK legacy després de la finestra de rollback.
-5. Validar lliurament real de notificació (UC-58), no només enqueue.
-6. Validar CI del HEAD final del PR.
-7. Si es vol tancament formal, registrar evidències de variables d'entorn, worker i callback HTTPS de preproducció.
+1. Executar PK-01..PK-11 en preproducció amb DS_ORDER real, incloent alta POST, rebuig GET/cross-site, doble clic i replay del mateix `REQUEST_ID` després de resposta perduda.
+2. Tancar decisió de negoci sobre ordre comercial explícit vs `DATAI, ID_CURS`.
+3. Eliminar físicament callback fiscal PACK legacy després de la finestra de rollback.
+4. Validar lliurament real de notificació (UC-58), no només enqueue.
+5. Validar CI del HEAD final del PR.
+6. Si es vol tancament formal, registrar evidències de variables d'entorn, worker i callback HTTPS de preproducció.
 
 ## 9. Canvis aplicats per aquesta auditoria
 
@@ -400,7 +422,9 @@ Per tant:
 - alta N convertida en transacció atòmica amb rollback i lock `IDPAG` segur;
 - CI ampliada perquè endpoint, connexió, plantilla i JS PACK activin i passin lint;
 - resposta post-commit desacoblada de fallades auxiliars per evitar falsos errors i reintents;
-- suma comercial de components validada en cèntims contra el preu PACK abans del commit.
+- suma comercial de components validada en cèntims contra el preu PACK abans del commit;
+- idempotència server-side de l'alta amb `REQUEST_ID`, `RID/RH1`, named lock i replay/conflicte;
+- cache-bust del bundle d'inscripció a `ver=7.4`.
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
 - creació d'aquest registre de revalidació 02/10.
