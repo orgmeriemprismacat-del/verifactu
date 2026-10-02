@@ -1,6 +1,6 @@
 # UC-008 · Proves executades i pendents
 
-Aquest document separa la **suite automatitzada ja executada** de les proves que encara depenen de l'entorn real. L'evidència específica del bloc UC-008 continua sent el run `36664788129` amb **677 passed, 0 failed**. A més, la regressió completa de l'últim tall de codi SIF verificat `e2fd82215dc9dbd1a6938014c19985adceebd3ed`, run `36732555122`, ha finalitzat amb **740 passed, 0 failed** i inclou 61 proves PASS relacionades amb incidències/UC-008. `Intranet AO batch checks` run `36647777483` continua en **success**. La concurrència, preflight, deep-links i gate d'evidències ja estan coberts per tests; el pendent és executar-los amb configuració real de preproducció i conservar-ne les evidències.
+Aquest document separa la **suite automatitzada ja executada** de l'acceptació que encara depèn de l'entorn real. L'auditoria de codi queda tancada: el tall executable `5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`, run `36943995075`, ha finalitzat amb **844 passed, 0 failed** i inclou **74 proves PASS relacionades amb incidències/UC-008**. La comparació fins al `main` observat `f7fa0822f82be96e842d9f2d031e643ab07f617c` només afegeix documentació d'altres UC, sense canvis executables UC-008. `Intranet AO batch checks` run `36647777483` continua com a evidència històrica en **success**. La concurrència, preflight, deep-links i gate d'evidències estan coberts per tests; el pendent és exclusivament d'acceptació real de preproducció i conservació de les evidències.
 
 ## 1. Suite PHP/MySQL
 
@@ -181,7 +181,7 @@ Per marcar UC-008 com PROVAT conservar:
 - prova de tancament amb evidència;
 - resultat preproducció.
 
-**Estat actual:** baseline específica UC-008 **677/0** (run `36664788129`) + regressió completa anterior **740/0** (run `36732555122`) + gate de tancament actualitzat **837/0** al commit `902b1c793687c77b3c089c8c5096708b5341de89`, run `36942641296` + INTRANET AO **SUCCESS**. El codi-side del UC-008 queda tancat; resta executar els controls reals d'entorn, completar l'alta de menú si cal, exercitar el flux gestor sobre la incidència sintètica i validar les tres evidències amb `validate-uc008-evidence.php`.
+**Estat actual (02/10/2026): AUDITORIA/CODI TANCATS.** Darrer tall executable aplicable `5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`, run `36943995075`: **844/0**, amb **74 PASS relacionats amb incidències/UC-008**. Resta executar únicament els controls reals d'acceptació d'entorn, completar l'alta de menú si cal, exercitar el flux gestor sobre la incidència sintètica i validar les tres evidències amb `validate-uc008-evidence.php`. Aquests passos condicionen `ENVIRONMENT-CLOSED`, no `AUDIT-CLOSED`.
 
 
 ## 13. Evidència CI
@@ -197,13 +197,14 @@ Per marcar UC-008 com PROVAT conservar:
 - Run **36647777483** · Intranet AO batch checks: **success**.
 - Run **36732555122** · regressió completa sobre `main` `e2fd82215...`: **740 passed, 0 failed**; 61 PASS relacionats amb incidències/UC-008.
 - Run **36942641296** · gate UC-008 de tres evidències + preparador/verificador E2E gestor: **837 passed, 0 failed**. Inclou 8 proves del validador final, 5 del preparador sintètic i 3 del verificador read-only del gestor.
+- Run **36943995075** · revalidació posterior al fix del journal multirol i regressió del tall executable aplicable a `main`: **844 passed, 0 failed**; **74 PASS relacionats amb incidències/UC-008**.
 ## 14. CI automatitzada
 
 S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-tests.php` amb PHP 8.4 i MySQL 8.4 en pull requests, canvis a `main` que afectin `sif/**` i execució manual (`workflow_dispatch`).
 
 La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
-**Estat actual:** baseline UC-008 **677/0** + regressió completa del tall SIF verificat **740/0** (run `36732555122`) + INTRANET AO SUCCESS; backend/UI/preflight/E2E tècnic/concurrència/readiness/deep-links/evidence-gate VERIFICATS / EXECUCIÓ REAL DE PREPRODUCCIÓ + CONFIGURACIÓ MENÚ BD PENDENTS.
+**Estat actual:** `AUDIT_CLOSED + CODE_COMPLETE + CI_844_0`. Backend/UI/preflight/E2E tècnic/concurrència/readiness/deep-links/evidence-gate estan verificats al repositori. `ENVIRONMENT_ACCEPTANCE_PENDING`: execució real de preproducció, configuració/comprovació del menú BD i tres evidències reals.
 
 
 Vegeu també [Evidència E2E del flux gestor](08-evidencia-gestor-uc-008.md).
