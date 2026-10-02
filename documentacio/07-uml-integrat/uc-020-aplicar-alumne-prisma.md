@@ -316,7 +316,7 @@ DiscountValidationRepository --> discount_validation
 PaymentLinkService --> CommercialOperationRepository
 PaymentLinkService --> PaymentLinkRepository
 PaymentLinkRepository --> payment_link
-CommercialOperationRepository ..> RedsysPaymentIntentService : link UUID_INTENT [ORQUESTRACIÓ PENDENT]
+PrismaStudentCourseCheckoutService --> CommercialOperationRepository : link UUID_INTENT
 RedsysCourseInvoiceService --> LegacyCourseInvoicePayloadBuilder
 PrismaStudentCourseCheckoutService --> LegacyPrismaStudentHistoryRepository
 PrismaStudentCourseCheckoutService --> PrismaStudentDiscountPolicy
@@ -324,7 +324,7 @@ PrismaStudentCourseCheckoutService --> RedsysPaymentIntentService
 RedsysPaymentIntentService --> CourseIntentSnapshotValidator : SOURCE_TYPE=CURS
 ```
 
-**Estat actual de runtime:** `main` ja aporta la persistència idempotent d'oferta i link (`CommercialOfferService`, repositoris comercials i `PaymentLinkService`). El tall UC-020 aporta a més `PrismaStudentDiscountPolicy` sota `ALUMNE_PRISMA_LEGACY_V1`, historial, validació del snapshot CURS i `PrismaStudentCourseCheckoutService`, que crea/reutilitza operació i validació, crea la intenció i vincula `UUID_OPERATION ↔ UUID_INTENT`. **Continua pendent connectar aquest nucli al checkout web/intranet llegat i definir/ratificar la política futura de negoci.**
+**Estat actual de runtime (02/10/2026):** la infraestructura comercial genèrica (`CommercialOfferService`, repositoris comercials i `PaymentLinkService`) i el nucli específic AP estan implementats. A més, el **pagament real de curs ja està connectat**: `pay.prisma.cat` → `SifRedsysCourseIntentClient` → `/api/redsys/course-intent.php` → `RedsysCoursePaymentIntentService` → `PrismaStudentCourseCheckoutService` per `TIPUS_DESC=1`. Continuen pendents la generació/acceptació d'oferta web/intranet, la coordinació amb `payment_link` i les decisions futures de negoci.
 
 ## 7. Seqüència ACTUAL — web d'inscripció
 
@@ -459,7 +459,7 @@ sequenceDiagram
     UI->>Policy: evaluate(subject,product,evaluationAt,currentEnrollment)
     Policy-->>UI: decisió + regla + imports
 
-    Note over UI,Policy: Policy i adaptador legacy encara PENDENTS
+    Note over UI,Policy: Policy AP i adaptador de pagament CURS implementats; oferta web/intranet encara llegada
 
     UI->>Offer: createOrReuse(imports,snapshots,discount,actor,correlation)
     Offer->>CO: INSERT o reutilitzar per IDEMPOTENCY_KEY
@@ -487,7 +487,7 @@ sequenceDiagram
     end
 ```
 
-**Tall d'implementació:** fins a `PaymentLinkService::resolve()` hi ha codi nou en aquesta branca; des de la creació de la intenció Redsys continua faltant l'adaptador que consumeixi l'operació/link i congeli el mateix snapshot comercial a `RedsysPaymentIntentService`.
+**Tall d'implementació actual:** la creació d'intenció Redsys CURS/AP ja disposa d'adaptador real i snapshot autoritatiu. `RedsysCoursePaymentIntentService` deriva `TIPUS_DESC=1` al resolver de tarifa + `PrismaStudentCourseCheckoutService`, i aquest crea/reutilitza la intenció amb el mateix snapshot. **El que continua pendent és fer que `payment_link` governi les rutes actives, si es manté aquest disseny final, i substituir l'oferta/alta llegades.**
 
 ## 11. Seqüència FINAL — factura posterior
 
@@ -574,7 +574,7 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 | Operació comercial | `commercial_operation` | `CommercialOperationRepository` + `CommercialOfferService` + `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI |
 | Parts de l'operació | `commercial_operation_party` | `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_UC020 |
 | Decisió de descompte | `discount_validation` | `DiscountValidationRepository` + `CommercialOfferService` + `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI |
-| Link pagament | `payment_link` | No | PENDENT |
+| Link pagament | `payment_link` | `PaymentLinkRepository` + `PaymentLinkService` | IMPLEMENTAT_BASE · NO CONNECTAT A RUTES ACTIVES |
 | Event operatiu | `operational_event` | `OperationalEventRepository` | IMPLEMENTAT, integració UC-20 pendent |
 | Intenció Redsys | `redsys_payment_intent` | repositori + servei | IMPLEMENTAT |
 | Snapshot factura curs | factura/línia | builder + servei | IMPLEMENTAT |
@@ -649,7 +649,7 @@ La policy és deliberadament una regla de **compatibilitat legacy versionada** (
 ```mermaid
 sequenceDiagram
 autonumber
-actor UI as Checkout/Adaptador [pendent]
+actor UI as pay.prisma.cat / course-intent [IMPLEMENTAT]
 participant C as PrismaStudentCourseCheckoutService
 participant H as LegacyPrismaStudentHistoryRepository
 participant P as PrismaStudentDiscountPolicy
@@ -671,4 +671,47 @@ C->>CO: vincular UUID_OPERATION ↔ UUID_INTENT
 C-->>UI: operació + intenció
 ```
 
-**Pendent de tancament:** l'adaptador web/intranet que invoca aquest servei, la retirada del camí llegat autoritatiu basat en imports del navegador, l'E2E navegador → Redsys → factura i la validació de preproducció.
+**Pendent de tancament:** l'adaptador **d'oferta/alta** web-intranet (no el de pagament, que ja existeix), la retirada del camí llegat autoritatiu basat en imports del navegador durant l'alta, la coordinació amb `payment_link`, l'E2E navegador → Redsys → factura i la validació de preproducció.
+
+
+## 21. Reconciliació del canal de pagament — 02/10/2026
+
+El flux executable real queda acreditat així:
+
+```mermaid
+sequenceDiagram
+autonumber
+actor U as Persona
+participant Pay as pay.prisma.cat
+participant Client as SifRedsysCourseIntentClient
+participant API as /api/redsys/course-intent.php
+participant Course as RedsysCoursePaymentIntentService
+participant Price as LegacyPrismaStudentPriceSnapshotResolver
+participant AP as PrismaStudentCourseCheckoutService
+participant Intent as RedsysPaymentIntentService
+participant Bank as Redsys
+
+U->>Pay: Continuar amb targeta
+Pay->>Client: create(IDPAG, requestedAmount)
+Client->>API: POST signat
+API->>Course: create(sifDb,legacyDb,input)
+Course->>Course: rellegir A_PAGAR/PAGAMENT/TIPUS_DESC/VALID_DESC
+alt TIPUS_DESC = 1
+  Course->>Price: resolve(context)
+  Price-->>Course: gross/discount/net històrics validats
+  Course->>AP: stageAndCreateIntent(...)
+  AP->>AP: historial + policy + operació + validation
+  AP->>Intent: create(CURS,snapshot AP)
+  Intent-->>AP: UUID_INTENT
+  AP-->>Course: operació + intenció
+else no AP
+  Course->>Intent: create(CURS,snapshot curs)
+  Intent-->>Course: UUID_INTENT
+end
+Course-->>API: intent autoritatiu
+API-->>Client: amount + DS_ORDER
+Client-->>Pay: import autoritatiu
+Pay->>Bank: DS_MERCHANT_AMOUNT del resultat SIF
+```
+
+Això tanca el buit anterior de l'adaptador **pagament CURS → SIF → intent**. No tanca encara el preview/alta de l'oferta comercial ni la substitució de les rutes llegades per `payment_link`.
