@@ -37,7 +37,7 @@ final class FiscalDocumentJobProcessorTest
 
         try {
             $renderer = new class implements FiscalDocumentRendererInterface {
-                public function render(\PDO $db, array $job): array
+                public function render(array $snapshot, array $job): array
                 {
                     return [
                         'contents' => '%PDF-1.4 rendered-for-' . $job['UUID_FACTURA'],
@@ -115,7 +115,7 @@ final class FiscalDocumentJobProcessorTest
 
         try {
             $renderer = new class implements FiscalDocumentRendererInterface {
-                public function render(\PDO $db, array $job): array
+                public function render(array $snapshot, array $job): array
                 {
                     return [
                         'contents' => '%PDF-1.4 recovered-' . $job['UUID_JOB'],
@@ -185,10 +185,10 @@ final class FiscalDocumentJobProcessorTest
 
         $secondNow = $firstNow->modify('+20 minutes');
         $recovered = (new TransactionRunner($db))->run(
-            fn (\PDO $connection): int => $jobs->recoverStaleLocks(
+            fn (\PDO $connection): int => $jobs->recoverStaleProcessing(
                 $connection,
-                $secondNow,
-                60
+                60,
+                $secondNow
             )
         );
         Assert::same(1, $recovered);
@@ -278,7 +278,7 @@ final class FiscalDocumentJobProcessorTest
 
         try {
             $renderer = new class implements FiscalDocumentRendererInterface {
-                public function render(\PDO $db, array $job): array
+                public function render(array $snapshot, array $job): array
                 {
                     throw new \RuntimeException('synthetic renderer failure');
                 }
