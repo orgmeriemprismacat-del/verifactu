@@ -45,6 +45,7 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
 
         $operation = $db->query('SELECT * FROM commercial_operation')->fetch(\PDO::FETCH_ASSOC);
         Assert::same('ALUMNE_PRISMA_VALIDATED', $operation['CLASSIFICATION_REASON']);
@@ -94,6 +95,7 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
     }
 
     public function testRetryWithAnotherDsOrderCannotReplaceLinkedIntent(): void
