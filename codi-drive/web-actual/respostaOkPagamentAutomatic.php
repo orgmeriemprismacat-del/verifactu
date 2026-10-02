@@ -73,10 +73,10 @@
       <div class='container' id='notfound'>
          <div class='col-md-12'>
             <div class='page-error-content text-center'>
-               <h1>El pagament s'ha registrat correctament</h1>
-               <p class='mb-4'>El pagament s'ha registrat correctament.
-               Consulta la safata d'entrada o el correu brossa (<em>spam</em>)
-               per comprovar si has rebut el missatge de confirmació del pagament.</p>
+               <h1>Pagament pendent de confirmació</h1>
+               <p class='mb-4'>El TPV ha retornat al web, però aquest retorn no confirma per si sol
+               que el pagament s'hagi registrat. No repeteixis el pagament mentre no tinguis
+               la confirmació del sistema o de secretaria.</p>
             </div>
          </div>
       </div>
