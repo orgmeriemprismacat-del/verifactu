@@ -129,6 +129,14 @@ final class RedsysCoursePreproductionBoundaryTest
         $source = $this->read('sif/scripts/preflight-redsys-course.php');
 
         foreach ([
+            'environment_is_test_or_preproduction',
+            'internal_api_key_id_configured',
+            'internal_api_secret_configured',
+            'course_intent_signed_path_matches_bridge',
+            'course_status_signed_path_matches_bridge',
+            'redsys_callback_url_https_configured',
+            'redsys_gateway_url_https_configured',
+            'cutover_configuration_consistent',
             'payment_allocation_table',
             'enrollment_fund_movement_table',
             'notification_outbox_table',
@@ -141,6 +149,15 @@ final class RedsysCoursePreproductionBoundaryTest
         ] as $check) {
             Assert::stringContainsString("'" . $check . "'", $source);
         }
+    }
+
+    public function testCourseIntentSignedPathIsExplicitlyConfigured(): void
+    {
+        $config = $this->read('sif/config/sif.php');
+        Assert::stringContainsString(
+            "'redsys_course_intent_signed_path' => getenv('SIF_INTERNAL_REDSYS_COURSE_INTENT_SIGNED_PATH') ?: '/api/redsys/course-intent.php'",
+            $config
+        );
     }
 
     private function read(string $relativePath): string
