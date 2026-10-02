@@ -284,3 +284,18 @@ Això tanca el buit «aplicació de fons explícita» sense crear una factura no
 S'ha implementat `GiftEnrollmentStager` com a pont post-commit entre `enviarInscripcioBescanvia.php` i el SIF. El contracte observat del llegat queda verificat (`A_PAGAR=0`, `FACTURA_RELACIONADA=FACT_REL`, codi a `pag_observacions`, curs regal i `USAT` no contradictori). El stager crea/reutilitza una operació `ENROLLMENT/INSCRIPCIO` no facturable, reserva el dret dins la mateixa transacció i impedeix un segon destí concurrent.
 
 També existeix l'endpoint intern POST `/api/gifts/redemption/redeem.php`, protegit amb HMAC/anti-replay i rol explícit. Orquestra staging + redeem sense persistir el codi en snapshots ni retornar-lo. La mutació final de `regal.USAT` continua separada fins implementar compare-and-set/reconciliació legacy.
+
+
+## 18. Addenda — concurrència multiprocés verificada (2026-10-02)
+
+El pendent de concurrència real queda verificat amb `GiftRedemptionConcurrencyTest` i dos workers PHP independents. La prova no és una simulació seqüencial: usa `proc_open`, barrera compartida, connexions MySQL diferents i les BDs de prova `sif_test` / `sif_legacy_test`.
+
+Resultats acreditats:
+
+- mateix regal + mateix `ID_INSC`: una sola saga; el segon procés reutilitza el resultat;
+- mateix regal + dos `ID_INSC`: un únic guanyador i conflicte 409 per l'altre;
+- un únic `RESERVE`, `CONSUME` i `COMPENSATION_ALLOCATION`;
+- un únic `CHARGE` d'origen;
+- `regal.USAT` coincideix amb la inscripció guanyadora.
+
+Evidència CI: GitHub Actions run `36942440699`, **834 passed · 0 failed**. La concurrència multiprocés ja no és motiu de NO-GO; continuen sent-ho els pendents funcionals/comercials, el govern dels correus laterals, el gate històric quan tingui bloquejos i l'E2E/preproducció.
