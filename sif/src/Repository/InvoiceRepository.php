@@ -28,6 +28,54 @@ final class InvoiceRepository
         return $row ?: null;
     }
 
+    public function statusProjection(\PDO $db, string $uuidFactura): array
+    {
+        $stmt = $db->prepare(
+            'SELECT f.ESTAT_FACTURA, f.ESTAT_COBRAMENT, f.ESTAT_AEAT,
+                    (SELECT fr.FISCAL_ORDER
+                     FROM factura_registres fr
+                     WHERE fr.UUID_FACTURA = f.UUID_FACTURA
+                     ORDER BY fr.FISCAL_ORDER DESC
+                     LIMIT 1) AS FISCAL_ORDER,
+                    (SELECT fq.STATUS
+                     FROM fiscal_queue fq
+                     WHERE fq.UUID_FACTURA = f.UUID_FACTURA
+                     ORDER BY fq.ID DESC
+                     LIMIT 1) AS FISCAL_QUEUE_STATUS,
+                    (SELECT fd.ESTAT
+                     FROM factura_documents fd
+                     WHERE fd.UUID_FACTURA = f.UUID_FACTURA
+                     ORDER BY fd.CREATED_AT DESC, fd.ID DESC
+                     LIMIT 1) AS DOCUMENT_STATUS,
+                    (SELECT fd.TIPUS
+                     FROM factura_documents fd
+                     WHERE fd.UUID_FACTURA = f.UUID_FACTURA
+                     ORDER BY fd.CREATED_AT DESC, fd.ID DESC
+                     LIMIT 1) AS DOCUMENT_TYPE
+             FROM factura f
+             WHERE f.UUID_FACTURA = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$uuidFactura]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if ($row === false) {
+            throw new \RuntimeException('Invoice status projection could not be loaded.');
+        }
+
+        return [
+            'invoice_status' => (string) $row['ESTAT_FACTURA'],
+            'payment_status' => (string) $row['ESTAT_COBRAMENT'],
+            'aeat_status' => (string) $row['ESTAT_AEAT'],
+            'fiscal_order' => $row['FISCAL_ORDER'] === null ? null : (int) $row['FISCAL_ORDER'],
+            'fiscal_queue_status' => $row['FISCAL_QUEUE_STATUS'] === null
+                ? null
+                : (string) $row['FISCAL_QUEUE_STATUS'],
+            'document_status' => $row['DOCUMENT_STATUS'] === null ? null : (string) $row['DOCUMENT_STATUS'],
+            'document_type' => $row['DOCUMENT_TYPE'] === null ? null : (string) $row['DOCUMENT_TYPE'],
+        ];
+    }
+
     public function lockChainState(\PDO $db): array
     {
         $row = $db->query('SELECT * FROM fiscal_chain_state WHERE ID = 1 FOR UPDATE')->fetch(\PDO::FETCH_ASSOC);
