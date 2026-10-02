@@ -46,18 +46,49 @@ class RedsysAPI{
 
 	/******  3DES Function  ******/
 	function encrypt_3DES($message, $key){
-		// Se establece un IV por defecto
-		$bytes = array(0,0,0,0,0,0,0,0); //byte [] IV = {0, 0, 0, 0, 0, 0, 0, 0}
-		$iv = implode(array_map("chr", $bytes)); //PHP 4 >= 4.0.2
+		// Compatibilitat HMAC_SHA256_V1 per callbacks ja iniciats abans del tall.
+		$remainder = strlen($message) % 8;
+		if ($remainder !== 0) {
+			$message .= str_repeat("\0", 8 - $remainder);
+		}
+		$ciphertext = openssl_encrypt(
+			$message,
+			'des-ede3-cbc',
+			$key,
+			OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING,
+			str_repeat("\0", 8)
+		);
+		if ($ciphertext === false) {
+			throw new RuntimeException('REDSYS_3DES_SIGNATURE_ERROR');
+		}
+		return $ciphertext;
+	}
 
-		// Se cifra
-		$ciphertext = mcrypt_encrypt(MCRYPT_3DES, $key, $message, MCRYPT_MODE_CBC, $iv); //PHP 4 >= 4.0.2
+	/****** AES-CBC Function for HMAC_SHA512_V2 ******/
+	function encrypt_AES_V2($message, $key){
+		$key = substr((string) $key, 0, 16);
+		if (strlen($key) < 16) {
+			$key = str_pad($key, 16, '0', STR_PAD_RIGHT);
+		}
+		$ciphertext = openssl_encrypt(
+			$message,
+			'aes-128-cbc',
+			$key,
+			OPENSSL_RAW_DATA,
+			str_repeat("\0", 16)
+		);
+		if ($ciphertext === false) {
+			throw new RuntimeException('REDSYS_AES_SIGNATURE_ERROR');
+		}
 		return $ciphertext;
 	}
 
 	/******  Base64 Functions  ******/
 	function base64_url_encode($input){
 		return strtr(base64_encode($input), '+/', '-_');
+	}
+	function base64_url_encode_safe($input){
+		return rtrim(strtr(base64_encode($input), '+/', '-_'), '=');
 	}
 	function encodeBase64($data){
 		$data = base64_encode($data);
@@ -75,6 +106,9 @@ class RedsysAPI{
 	function mac256($ent,$key){
 		$res = hash_hmac('sha256', $ent, $key, true);//(PHP 5 >= 5.1.2)
 		return $res;
+	}
+	function mac512($ent,$key){
+		return hash_hmac('sha512', $ent, $key, true);
 	}
 
 	
@@ -118,6 +152,18 @@ class RedsysAPI{
 		return $this->encodeBase64($res);
 	}
 	
+
+	/****** HMAC_SHA512_V2 - Redsys Redirecció v4.1 ******/
+	function createMerchantParametersV2(){
+		$json = $this->arrayToJson();
+		return $this->base64_url_encode_safe($json);
+	}
+	function createMerchantSignatureV2($key){
+		$ent = $this->createMerchantParametersV2();
+		$derivedKey = $this->encodeBase64($this->encrypt_AES_V2($this->getOrder(), $key));
+		$res = $this->mac512($ent, $derivedKey);
+		return $this->base64_url_encode_safe($res);
+	}
 
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -176,6 +222,22 @@ class RedsysAPI{
 		$res = $this->mac256($datos, $key);
 		// Se codifican los datos Base64
 		return $this->base64_url_encode($res);	
+	}
+	function createMerchantSignatureNotifV2($key, $datos){
+		$decodec = $this->base64_url_decode($datos);
+		$this->stringToArray($decodec);
+		$derivedKey = $this->encodeBase64($this->encrypt_AES_V2($this->getOrderNotif(), $key));
+		$res = $this->mac512($datos, $derivedKey);
+		return $this->base64_url_encode_safe($res);
+	}
+	function createMerchantSignatureNotifForVersion($key, $datos, $version){
+		if ($version === 'HMAC_SHA512_V2') {
+			return $this->createMerchantSignatureNotifV2($key, $datos);
+		}
+		if ($version === 'HMAC_SHA256_V1') {
+			return $this->createMerchantSignatureNotif($key, $datos);
+		}
+		throw new RuntimeException('UNSUPPORTED_REDSYS_SIGNATURE_VERSION');
 	}
 	/******  Notificaciones SOAP ENTRADA ******/
 	function createMerchantSignatureNotifSOAPRequest($key, $datos){
