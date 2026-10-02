@@ -77,6 +77,7 @@ Fitxers:
 - `sif/tests/Integration/PackCommercialOrderBoundaryTest.php`
 - `sif/tests/Integration/PackPublicEnrollmentBoundaryTest.php`
 - `sif/tests/Integration/PackMultiCourseCommunicationBoundaryTest.php`
+- `sif/tests/Integration/PackEnrollmentAtomicityBoundaryTest.php`
 - `sif/tests/Integration/LegacyPackCallbackBoundaryTest.php`
 - `sif/tests/Integration/RedsysPaymentIntentTest.php`
 - `sif/tests/Integration/RedsysPackPreflightScriptTest.php`
@@ -234,6 +235,22 @@ El nucli de pack admet N components, però el correu d'alta utilitzava `$titols[
 
 **Estat:** implementat i cobert per prova; E2E de correu pendent.
 
+### F-13 · Alta N no atòmica i lock només alliberat en èxit — corregit
+
+L'alta legacy reservava un `IDPAG` amb `GET_LOCK` i executava N `INSERT INTO inscripcions` sense transacció. Si una inserció intermèdia fallava, les anteriors podien quedar persistides i `releaseIdPag()` només apareixia al camí d'èxit.
+
+**Correcció aplicada:**
+- `ConnexioBBDDSTMT` incorpora `beginTransaction()`, `commitTransaction()` i `rollbackTransaction()`;
+- després de reservar `IDPAG`, totes les insercions del pack es fan dins una única transacció;
+- cada consulta de preu i cada insert es valida;
+- `lastInsertId()` es captura abans del commit;
+- el commit precedeix `releaseIdPag()`;
+- qualsevol `Exception` fa rollback;
+- `finally` garanteix rollback/alliberament si el flux surt abans de completar-se;
+- `PackEnrollmentAtomicityBoundaryTest` blinda l'ordre transaccional i la via d'error.
+
+**Estat:** implementat i cobert per prova automatitzada; resta E2E amb fallada injectada en preproducció si es vol evidència runtime.
+
 ## 6. UML i traçabilitat
 
 ### Classes
@@ -325,6 +342,7 @@ Per tant:
 - correcció del text fiscal intern de descompte perquè no pressuposi «segon curs»;
 - eliminació de `pagFrac` com a entrada client i fixació server-side de no fraccionament;
 - correu d'alta generalitzat de 2 cursos fixos a PACK N;
+- alta N convertida en transacció atòmica amb rollback i lock `IDPAG` segur;
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
 - creació d'aquest registre de revalidació 02/10.
