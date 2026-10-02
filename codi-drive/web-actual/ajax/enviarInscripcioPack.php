@@ -687,9 +687,13 @@ try {
 				$codiCursEd = $edicio->obtenirCodiCurs()->obtenirText();
 
 				/* Busco el preu original del curs */
-				$stmt2->execute();
+				if (!$stmt2->execute()) {
+					throw new RuntimeException('Error: no s’ha pogut consultar el preu del component del pack.', 500);
+				}
 				$stmt2->bind_result($preuCursOriginal);
-				$stmt2->fetch();
+				if (!$stmt2->fetch() || !is_numeric($preuCursOriginal)) {
+					throw new RuntimeException('Error: preu del component del pack no vàlid.', 409);
+				}
 
 				$preuCursOriginal = round((float) $preuCursOriginal, 2);
 				$preuCurs = round(min($aux, $preuCursOriginal), 2);
