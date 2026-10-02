@@ -20,7 +20,7 @@
 | Cobertura entre claus diferents | Sí | Parcial UC-004; no general | Sí | Pendent |
 | `commercial_operation` obligatòria | Sí/esquema | No al nucli UC-001 | Sí | Pendent |
 | Events d'auditoria funcionals | Sí | Sí (`operational_event` + `sif_audit_event`) | Sí | Proves incorporades; execució CI pendent |
-| Snapshot AEAT oficial automàtic | Sí | No a tots els canals | Sí | Pendent |
+| Snapshot AEAT oficial automàtic | Sí | Parcial: identitat emissor/SIF server-owned + fail-closed global en entorn qualificat; desglossament complet encara depèn del builder | Sí | Pendent completar builders i execució |
 | Historial AEAT per intent | Sí | Sí (`aeat_submission_attempt`) | Sí | Cobert per suite CI existent; revalidació PR pendent |
 | Resposta amb estats fiscal/econòmic/documental | Sí | Sí | Sí | Proves incorporades; execució CI pendent |
 
@@ -44,7 +44,7 @@ No s'han modificat sense contracte suficient:
 
 - any fiscal de curs/pack/grup versus any acadèmic;
 - combinacions exactes de sèrie/tipus per cada variant;
-- generació completa d'`aeat_fields` pels builders comercials i transició de cadena interna a oficial;
+- generació completa del desglossament `aeat_fields` pels builders comercials; en entorns qualificats el nucli ja rebutja qualsevol emissió que no en disposi i el generic endpoint força emissor/SistemaInformatico server-side;
 - cobertura comercial general entre dues claus diferents;
 - `commercial_operation` i `operation_line_invoice_link` obligatoris;
 - el fencing de la cua AEAT, `aeat_submission_attempt` i el tractament de resultat remot incert **ja existeixen** (`CLAIM_TOKEN`, estat `REVIEW`, intent `UNCERTAIN` i reconciliació sense reenviament); no són pendents d’UC-001;
@@ -91,7 +91,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 - el PR queda obert i mergeable a nivell Git, però la decisió de merge queda condicionada a evidència d’execució posterior;
 - qualsevol fallada futura del CI reobre només la troballa/prova afectada, no converteix retroactivament l’evidència pendent en evidència verda.
 
-## 6. Matriu detallada de troballes 51–98
+## 6. Matriu detallada de troballes 51–100
 
 | ID | Troballa | Tractament a la branca | Estat |
 | --- | --- | --- | --- |
@@ -143,6 +143,8 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 | F-096 | El resultat no diferenciava estats locals, econòmics, AEAT, cua i document. | Projecció read-only afegida al resultat de creació i reús. | **Corregit per codi; pendent CI** |
 | F-097 | Existia l’esquema `operation_line_invoice_link` però UC-001 no tenia writer. | Nou `OperationLineInvoiceLinkRepository`; `InvoiceRepository` materialitza el link si la línia aporta `uuid_operation_line`, amb validació i prova d’integració. | **Corregit tècnicament; propagació als builders pendent** |
 | F-098 | Metadades de traça massa llargues podien fallar tard a BD o truncar correlacions. | `InvoicePayloadValidator` valida longitud/canonicitat i s’elimina el truncament silenciós. | **Corregit per codi; pendent CI** |
+| F-099 | `SistemaInformatico` podia ser aportat/suplantat pel payload al generic endpoint. | La policy substitueix el bloc per identitat server-side del SIF/productor intern i flags VERI*FACTU `S/N/N`. | **Corregit per codi; pendent configuració real/CI** |
+| F-100 | Callers directes d’`InvoiceService` podien evitar el guard AEAT de l’endpoint i crear registre prototip en producció. | Guard transversal al nucli: `PREPRODUCTION/PRODUCTION` requereix `aeat_fields` abans de numerar o persistir. | **Corregit per codi; pendent CI** |
 
 ## 7. Proves de tancament i deutes posteriors
 
