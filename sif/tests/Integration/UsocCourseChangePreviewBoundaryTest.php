@@ -21,8 +21,21 @@ final class UsocCourseChangePreviewBoundaryTest
         $client = file_get_contents(
             $root . '/codi-drive/intranet-actual/SifInternalUsocClient.php'
         );
+        $genericJs = file_get_contents(
+            $root . '/codi-drive/intranet-actual/js/alumnes-canvi-curs-sif.js'
+        );
+        $usocJs = file_get_contents(
+            $root . '/codi-drive/intranet-actual/js/alumnes-usoc-lifecycle-preview.js'
+        );
 
-        if ($endpoint === false || $pricing === false || $mysql === false || $client === false) {
+        if (
+            $endpoint === false
+            || $pricing === false
+            || $mysql === false
+            || $client === false
+            || $genericJs === false
+            || $usocJs === false
+        ) {
             Assert::fail('Could not read USOC course change preview boundary files');
         }
 
@@ -69,6 +82,18 @@ final class UsocCourseChangePreviewBoundaryTest
         Assert::stringContainsString(
             "'action' => 'course_change_preview'",
             $client
+        );
+
+        Assert::stringContainsString('function isValidatedUsoc()', $genericJs);
+        Assert::stringContainsString('if (isValidatedUsoc())', $genericJs);
+
+        Assert::stringContainsString('function courseChangeIdentity()', $usocJs);
+        Assert::stringContainsString('sifUsocCourseChangePreview.php', $usocJs);
+        Assert::stringContainsString('#modalCanviCurs .save-result', $usocJs);
+        Assert::stringContainsString('event.stopImmediatePropagation()', $usocJs);
+        Assert::stringContainsString(
+            'Encara no s’executarà el canvi',
+            $usocJs
         );
     }
 }
