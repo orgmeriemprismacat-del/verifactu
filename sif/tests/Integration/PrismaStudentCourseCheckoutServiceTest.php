@@ -148,6 +148,7 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
     }
 
     public function testTrustedPriceMustMatchRealEnrollmentNet(): void
@@ -170,6 +171,7 @@ final class PrismaStudentCourseCheckoutServiceTest
         }, 409);
 
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
     }
 
     private function service(): PrismaStudentCourseCheckoutService
