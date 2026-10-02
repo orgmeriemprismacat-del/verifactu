@@ -63,6 +63,7 @@ try {
         $payload['uuid_notification'] ?? null
     );
     $service = new NotificationOutboxDeliveryService(new UuidGenerator());
+    assertGiftNotificationScope($db, $uuidNotification);
 
     if ($action === 'claim') {
         JsonResponse::send([
@@ -123,6 +124,29 @@ function assertGiftNotificationRole(array $actor, array $allowedRoles): void
     if ($allowed === [] || array_intersect($actorRoles, $allowed) === []) {
         throw SifException::forbidden(
             'Gift notification delivery role is not authorized'
+        );
+    }
+}
+
+function assertGiftNotificationScope(\PDO $db, string $uuidNotification): void
+{
+    $statement = $db->prepare(
+        'SELECT TEMPLATE_CODE
+         FROM notification_outbox
+         WHERE UUID_NOTIFICATION = ?'
+    );
+    $statement->execute([$uuidNotification]);
+    $templateCode = $statement->fetchColumn();
+
+    if ($templateCode === false) {
+        throw SifException::notFound('Notification outbox row not found');
+    }
+    if (!str_starts_with(
+        strtoupper(trim((string) $templateCode)),
+        'GIFT_REDEEM_'
+    )) {
+        throw SifException::forbidden(
+            'Notification is outside gift redemption scope'
         );
     }
 }
