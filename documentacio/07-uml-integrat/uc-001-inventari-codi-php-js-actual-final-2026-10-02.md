@@ -10,12 +10,14 @@
 | `sif/src/Service/InternalInvoiceIssueScopeResolver.php` | Rol d'escriptura UC-001. | Nou |
 | `sif/src/Service/InternalInvoiceIssuePayloadPolicy.php` | Actor servidor, no Redsys/no UC-004, emissor servidor no-placeholder si AEAT. | Nou |
 | `sif/src/Service/InvoicePayloadValidator.php` | Estructura, exempció, idempotència i coherència monetària. | Endurit |
-| `sif/src/Service/InvoiceService.php` | Idempotència, transacció, numeració, factura/reús i payment inicial. | Main |
-| `sif/src/Repository/InvoiceRepository.php` | Factura/línies/registre/cua/relacions i vincle relació↔línia unívoc. | Endurit |
+| `sif/src/Service/InvoiceService.php` | Idempotència, transacció, numeració, factura/reús, payment inicial, projecció d’estats i traça `operational_event`/`sif_audit_event`. | Endurit a branca |
+| `sif/src/Repository/InvoiceRepository.php` | Factura/línies/registre/control/cua/relacions, projecció d’estats i vincle relació↔línia unívoc. | Endurit |
 | `sif/src/Repository/FiscalSequenceRepository.php` | Numeració per sèrie/any. | Main |
 | `sif/src/Aeat/RegistrationSnapshot.php` | Snapshot AEAT condicional. | Parcial |
 | `sif/src/Aeat/RecordFactory.php`, `RecordHash.php`, `XmlCodec.php` | Freeze, huella i XML/XSD. | Implementat; qualificació pendent |
 | `sif/src/Repository/PaymentRepository.php` | Ledger i estat de cobrament. | Main |
+| `sif/src/Repository/OperationalEventRepository.php` | Event funcional append-only de l’emissió/reús. | Integrat UC-001 |
+| `sif/src/Repository/SifAuditEventRepository.php` | Auditoria tècnica `request_id/correlation_id`, actor, resultat i hash de sortida. | Nou |
 
 ## 2. Vies especialitzades que reutilitzen UC-001
 
@@ -38,6 +40,4 @@
 
 - guard general de cobertura comercial entre claus diferents;
 - writer d'`operation_line_invoice_link` des del flux canònic;
-- audit writer amb `request_id/correlation_id` independent del fingerprint fiscal;
-- assembler servidor del snapshot AEAT complet;
-- projector de resultat amb estats AEAT, cobrament i document.
+- assembler servidor del snapshot AEAT complet.
