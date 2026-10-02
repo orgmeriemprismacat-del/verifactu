@@ -19,7 +19,7 @@
 | Reús amb payment original desaparegut | Sí per postcondició econòmica | Fail-closed 409 | Sí | Pendent CI |
 | Cobertura entre claus diferents | Sí | Parcial UC-004; no general | Sí | Pendent |
 | `commercial_operation` obligatòria | Sí/esquema | No al nucli UC-001 | Sí | Pendent |
-| Events d'auditoria funcionals | Sí | No complet | Sí | Pendent |
+| Events d'auditoria funcionals | Sí | Sí (`operational_event` + `sif_audit_event`) | Sí | Proves incorporades; execució CI pendent |
 | Snapshot AEAT oficial automàtic | Sí | No a tots els canals | Sí | Pendent |
 | Historial AEAT per intent | Sí | Sí (`aeat_submission_attempt`) | Sí | Cobert per suite CI existent; revalidació PR pendent |
 | Resposta amb estats fiscal/econòmic/documental | Sí | No completa | Sí | Pendent |
@@ -47,10 +47,8 @@ No s'han modificat sense contracte suficient:
 - generació completa d'`aeat_fields` pels builders comercials i transició de cadena interna a oficial;
 - cobertura comercial general entre dues claus diferents;
 - `commercial_operation` i `operation_line_invoice_link` obligatoris;
-- `operational_event`, `sif_audit_event`, `factura_registre_control` i correlació;
 - el fencing de la cua AEAT, `aeat_submission_attempt` i el tractament de resultat remot incert **ja existeixen** (`CLAIM_TOKEN`, estat `REVIEW`, intent `UNCERTAIN` i reconciliació sense reenviament); no són pendents d’UC-001;
 - reparació/reconciliació operativa d'una dada inconsistent quan falta el `payment` original; el reús ja falla tancat i no la maquilla com a èxit;
-- resposta enriquida amb estats AEAT/cobrament/document.
 
 ## 4. Proves incorporades
 
@@ -81,7 +79,7 @@ L'auditoria UC-001 es considera tancada quan el head de codi d'aquesta revisió 
 
 ### 5.2. No bloqueja el tancament de l'auditoria, però sí altres fases
 
-La integració obligatòria de `commercial_operation`, els events funcionals propis de l’emissió, l’assembler AEAT complet, el resultat enriquit i la configuració/preproducció continuen oberts com a **deute implementatiu o operatiu explícit**. El fencing i la gestió d’incertesa/reconciliació AEAT ja estan implementats i no es mantenen com a fals pendent. No s'han silenciat ni declarat implementats.
+La integració obligatòria de `commercial_operation`, l’assembler AEAT complet i la configuració/preproducció continuen oberts com a **deute implementatiu o operatiu explícit**. El fencing i la gestió d’incertesa/reconciliació AEAT ja estan implementats i no es mantenen com a fals pendent. No s'han silenciat ni declarat implementats.
 
 
 ### 5.3. Excepció de tancament — execució CI
@@ -93,7 +91,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 - el PR queda obert i mergeable a nivell Git, però la decisió de merge queda condicionada a evidència d’execució posterior;
 - qualsevol fallada futura del CI reobre només la troballa/prova afectada, no converteix retroactivament l’evidència pendent en evidència verda.
 
-## 6. Matriu detallada de troballes 51–92
+## 6. Matriu detallada de troballes 51–96
 
 | ID | Troballa | Tractament a la branca | Estat |
 | --- | --- | --- | --- |
@@ -101,7 +99,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 | F-052 | USOC pot tenir obligacions alumne/entitat sobre la mateixa inscripció. | No s'aplica una unicitat «1 inscripció = 1 factura». | **Pendent guard comercial específic** |
 | F-053 | `student_invoice_uuid` pot canviar la clau de la part entitat USOC. | Fora del nucli UC-001. | **Pendent UC-019b** |
 | F-054 | Worker Redsys sense fencing per propietari del lock. | No modificat des d'UC-001. | **Pendent transversal** |
-| F-055 | Falta integrar tota la traça `operational_event/sif_audit_event/factura_registre_control`. | Reflectit al FINAL, sense writer nou inventat. | **Pendent** |
+| F-055 | Faltava integrar tota la traça `operational_event/sif_audit_event/factura_registre_control`. | Writer append-only integrat a `InvoiceService`; ALTA crea `factura_registre_control` en la mateixa transacció. | **Corregit per codi; pendent CI** |
 | F-056 | Rectificativa pot heretar any de l'original. | No es modifica sense decisió fiscal. | **Pendent decisió/prova** |
 | F-057 | Reús amb `payment` original absent o inconsistent podia presentar una postcondició econòmica incompleta. | `InvoiceService` exigeix moviment existent, fingerprint/camps originals i una única assignació coherent a la mateixa factura; divergència = CONFLICT. | **Corregit per codi; reparació de dades continua operativa** |
 | F-058 | Cal decisió comuna de cobertura/cobrament abans d'emetre. | Incorporada a activitats/seqüència FINAL. | **Documentat; no implementat complet** |
@@ -120,7 +118,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 | F-071 | Intent Redsys i snapshot comercial necessiten coherència d'identitat. | Generic endpoint separat; no resol handler específic. | **Pendent Redsys** |
 | F-072 | Emissor AEAT al generic endpoint podia venir del payload. | Policy força emissor de configuració servidor. | **Corregit per codi; pendent CI** |
 | F-073 | `emesa_abans_cobrament` es podia saltar fora del builder UC-004. | Generic endpoint rebutja bypass UC-004. | **Corregit al generic; pendent CI** |
-| F-074 | Resposta d'`InvoiceService` no inclou tots els estats de la fitxa. | No s'inventa projector parcial. | **Pendent contracte de resposta** |
+| F-074 | Resposta d'`InvoiceService` no incloïa tots els estats de la fitxa. | Projector retorna factura, cobrament, AEAT, cua fiscal, document/tipus, `fiscal_order` i correlació. | **Corregit per codi; pendent CI** |
 | F-075 | Codi utilitzable de regal pot formar part del detall fiscal. | Es manté com a risc UC-017/018. | **Pendent custòdia/presentació** |
 | F-076 | Idempotència manual derivada de contingut pot col·lapsar dues vendes legítimes equivalents. | Es vincula al pendent de `UUID_OPERATION`. | **Pendent operació comercial** |
 | F-077 | `commercial_operation*` existeix a esquema però no és obligatori a UC-001. | Incorporat al model FINAL. | **Pendent writer/coverage guard** |
@@ -138,7 +136,11 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 | F-089 | El descompte de capçalera no es contrastava amb les línies. | Suma en cèntims de `discount_amount` contra `totals.discount`. | **Corregit per codi; pendent CI** |
 | F-090 | Clau idempotent/canal amb espais perifèrics podien passar validació però persistir amb identitat diferent. | Es rebutgen valors no canònics amb whitespace perifèric. | **Corregit per codi; pendent CI** |
 | F-091 | La configuració per defecte podia conservar l’emissor placeholder `G00000000` en un payload AEAT oficial. | Policy i preflight exigeixen NIF no-placeholder; la policy normalitza caixa abans del guard. | **Corregit per codi; pendent CI/configuració real** |
-| F-092 | Faltava un gate operatiu de readiness del generic `invoice_issue`, i el primer preflight no comprovava explícitament la seqüència fiscal. | `preflight-invoice-issue.php` valida HMAC/rol/path/emissor, BD, taules de factura/pagament, `fiscal_sequence`, `fiscal_chain_state` i seed de cadena, sense mutació. | **Corregit per codi; pendent execució a entorn** |
+| F-092 | Faltava un gate operatiu de readiness del generic `invoice_issue`, i el primer preflight no comprovava explícitament la seqüència fiscal. | `preflight-invoice-issue.php` valida HMAC/rol/path/emissor, BD, taules de factura/pagament/auditoria, `fiscal_sequence`, `fiscal_chain_state`, `factura_registre_control` i seed de cadena, sense mutació. | **Corregit per codi; pendent execució a entorn** |
+| F-093 | La traça de request podia contaminar el fingerprint idempotent i convertir un reintent legítim en 409. | `request_id`, `correlation_id`, `actor_role` i `actor_type` s’exclouen del hash de negoci; prova de reintent amb request nou. | **Corregit per codi; pendent CI** |
+| F-094 | L’emissió/reús no persistia un event funcional i un audit event correlacionats. | `InvoiceService` append `operational_event` + `sif_audit_event` dins la transacció. | **Corregit per codi; pendent CI** |
+| F-095 | L’ALTA inicial no creava `factura_registre_control`. | `InvoiceRepository` crea control 1:1 i enllaça `PREVIOUS_REGISTRE_ID` amb el registre fiscal global anterior. | **Corregit per codi; pendent CI** |
+| F-096 | El resultat no diferenciava estats locals, econòmics, AEAT, cua i document. | Projecció read-only afegida al resultat de creació i reús. | **Corregit per codi; pendent CI** |
 
 ## 7. Proves de tancament i deutes posteriors
 
@@ -163,9 +165,7 @@ L’**auditoria** queda tancada segons §5, amb l’excepció d’execució CI d
 2. adaptadors reals connectats als endpoints dedicats;
 3. cobertura comercial entre claus diferents;
 4. traçabilitat `commercial_operation -> operation_line -> factura_linia`;
-5. audit writer persistent amb actor/request/correlació/resultat;
-6. snapshot AEAT oficial server-side en l'entorn qualificat;
-7. decisió i prova de l'any fiscal;
-8. resposta amb estats d'emissió local, cobrament, document i AEAT diferenciats.
+5. snapshot AEAT oficial server-side en l'entorn qualificat;
+6. decisió i prova de l'any fiscal.
 
 Fins aleshores, l’estat d’implementació continua **CORE_HARDENED_CROSSCUTTING_AND_ENVIRONMENT_PENDING**. Això és compatible amb tenir l’**AUDITORIA TANCADA AMB EXCEPCIÓ D’EXECUCIÓ** mentre la cua global impedeixi obtenir el gate; només passarà a **VERIFICADA EN EXECUCIÓ** quan existeixi un run efectiu satisfactori.
