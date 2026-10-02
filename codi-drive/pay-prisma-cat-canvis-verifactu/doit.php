@@ -64,6 +64,7 @@
 		$dateComanda = $miObj->getParameter('Ds_Date');
 		$horaComanda = $miObj->getParameter('Ds_Hour');
 		$preu = $miObj->getParameter('Ds_Amount');
+		$merchantData = trim((string) $miObj->getParameter('Ds_MerchantData'));
 	  $codiResposta = $miObj->getParameter("Ds_Response");
 
 		// UC-014: cap efecte econòmic/fiscal abans de validar la notificació.
