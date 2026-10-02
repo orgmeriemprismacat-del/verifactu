@@ -54,6 +54,8 @@ final class GiftRedemptionLegacyMailBoundaryTest
         Assert::same(true, str_contains($source, 'InternalApiAuthenticator'));
         Assert::same(true, str_contains($source, "action === 'claim'"));
         Assert::same(true, str_contains($source, "action === 'complete'"));
+        Assert::same(true, str_contains($source, 'assertGiftNotificationScope'));
+        Assert::same(true, str_contains($source, "'GIFT_REDEEM_'"));
         Assert::same(false, str_contains($source, "action === 'retry'"));
         Assert::same(false, str_contains($source, '$_GET'));
     }
