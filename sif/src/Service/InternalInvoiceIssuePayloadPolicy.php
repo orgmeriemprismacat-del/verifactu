@@ -48,8 +48,8 @@ final class InternalInvoiceIssuePayloadPolicy
         $payload['created_by'] = $actorId;
 
         if (array_key_exists('aeat_fields', $payload)) {
-            if ($this->issuerNif === '' || $this->issuerName === '') {
-                throw new \RuntimeException('Configured SIF issuer is required for official AEAT payloads');
+            if ($this->issuerNif === '' || $this->issuerName === '' || $this->issuerNif === 'G00000000') {
+                throw new \RuntimeException('Configured non-placeholder SIF issuer is required for official AEAT payloads');
             }
 
             $header = $payload['aeat_header'] ?? [];
