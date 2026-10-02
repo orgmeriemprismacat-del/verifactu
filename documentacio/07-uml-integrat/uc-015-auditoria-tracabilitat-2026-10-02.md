@@ -560,3 +560,12 @@ L'alta PACK:
 `PublicWebMutationAuthorizationTest`, `PackEnrollmentTransportBoundaryTest` i `PackPublicEnrollmentBoundaryTest` cobreixen la frontera.
 
 **Estat:** implementat i cobert per proves; rate limiting/anti-bot queda com a control operatiu opcional i no com a gap de correcció funcional d'UC-015.
+
+
+### F-21 · Doble allowlist pública després d'integrar el guard configurable — corregit
+
+En revisar la incorporació de `PublicWebMutationAuthorization` es va detectar que `enviarInscripcioPack.php` mantenia també una segona allowlist fixa de hosts. El resultat era incoherent: `WEB_ALLOWED_ORIGINS` podia autoritzar un origen nou però l'endpoint el rebutjava igualment.
+
+S'ha eliminat la llista fixa de l'endpoint. Origin/Referer depenen ara exclusivament de `WEB_ALLOWED_ORIGINS`; `Sec-Fetch-Site` i `X-Requested-With` continuen com a defenses complementàries. `PublicWebMutationAuthorizationTest` comprova un origen addicional configurat i `PackEnrollmentTransportBoundaryTest` prohibeix reintroduir `$allowedHosts`.
+
+**Estat:** implementat i cobert per prova; cap gap intern.
