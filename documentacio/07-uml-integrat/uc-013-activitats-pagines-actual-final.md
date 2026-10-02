@@ -397,3 +397,21 @@ Això és **protecció implementada**, no un canvi de curs USOC complet.
 
 
 **Contracte FINAL del canvi de curs:** [UC-013 canvi de curs USOC](uc-013-canvi-curs-usoc-contracte-final.md).
+
+
+## Preview USOC server-side · IMPLEMENTAT
+
+Per al canvi de curs amb `TIPUS_DESC=4 / VALID_DESC=1`:
+
+1. el JS genèric de canvi de curs cedeix el control al mòdul USOC;
+2. `sifUsocCourseChangePreview.php` exigeix POST + sessió + same-origin + permís + CSRF;
+3. `LegacyUsocCourseChangePricingResolver` resol els imports al servidor:
+   - preu base destí;
+   - preu USOC destí;
+   - despeses només si `change_number=4`, basades en hores origen;
+4. `SifInternalUsocClient::courseChangePreview()` envia el snapshot per HMAC;
+5. `UsocCourseChangePreviewService` crea target split + fund plan;
+6. la UI mostra alumne/entitat, compensable, pendent i excés;
+7. **no es desencadena el handler legacy de canvi de curs**.
+
+Aquesta activitat és preview executable i fail-closed; encara no és l'executor fiscal/econòmic.
