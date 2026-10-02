@@ -14,6 +14,7 @@ use Prisma\Sif\Repository\InvoiceBeforePaymentBillingPartyRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentSelectionRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\InternalInvoiceBeforePaymentScopeResolver;
 use Prisma\Sif\Service\InvoiceBeforePaymentCommandService;
@@ -108,7 +109,8 @@ try {
         null,
         null,
         $fingerprints,
-        new InvoiceBeforePaymentCoverageRepository()
+        new InvoiceBeforePaymentCoverageRepository(),
+        new OperationalEventRepository(new UuidGenerator())
     );
 
     $commands = new InvoiceBeforePaymentCommandService(
