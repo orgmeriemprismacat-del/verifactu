@@ -333,6 +333,6 @@ Mateix `requestId` + payload divergent → `CONFLICT`.
 ## 13. Estat
 
 - **DOCUMENTAT:** sí.
-- **IMPLEMENTAT:** guard, payer snapshot, planner, preu legacy destí, `UsocCourseChangeTargetResolver` i infraestructura de compensació existeixen. El resolver calcula el split destí amb aritmètica en cèntims i no mou diners.
+- **IMPLEMENTAT:** guard, payer snapshot, planner, preu legacy destí, `UsocCourseChangeTargetResolver`, `UsocCourseChangeFundPlanService` i infraestructura de compensació existeixen. El resolver calcula el split destí amb aritmètica en cèntims; el fund planner calcula per pagador compensable, pendent i excés sense moure diners.
 - **VERIFICAT:** contrast estàtic contra codi real.
-- **PENDENT D'IMPLEMENTAR:** selecció/snapshot de la regla comercial destí, executor `COURSE_CHANGE`, reemissió coordinada, compensació per pagador, handoff legacy i E2E complet.
+- **PENDENT D'IMPLEMENTAR:** selecció/snapshot server-side de la regla comercial destí, executor `COURSE_CHANGE`, reemissió coordinada, materialització de `COMPENSATION_ALLOCATION`/resolució d'excessos, handoff legacy i E2E complet.
