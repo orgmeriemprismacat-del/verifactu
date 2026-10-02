@@ -22,7 +22,7 @@
 2. El worker **implementat** reclama el job, recupera leases stale i exigeix un renderer versionat. Abans de renderitzar, `InvoiceDocumentSnapshotRepository` verifica la identitat i la cadena hash del `PAYLOAD_JSON` fiscal immutable. Per al QR, llegenda i formats finals s'ha de verificar la regla oficial aplicable abans d'afirmar conformitat; `XmlCodec` de remissió AEAT no és per si sol un generador universal de documents de factura.
 3. `PrivateDocumentWriter` desa els bytes en storage privat amb publicació atòmica, relectura i SHA-256. Només després `DocumentRepository::registerDocument(..., READY)` registra metadada i ID; un `HASH_FITXER` a BD no prova per si sol que el fitxer estigui custodiat.
 4. El worker **implementat** enllaça `FACTURA_DOCUMENT_ID`, `STORAGE_KEY` i `OUTPUT_HASH` al job i marca `COMPLETED`; una versió de generador diferent conserva un job/artefacte separat.
-5. En error de snapshot, render, storage, hash o inserció, `fail()` conserva `LAST_ERROR` i programa retry exponencial fins `MAX_ATTEMPTS`; stale jobs es recuperen o passen a `ERROR` si han esgotat intents. L'obertura automàtica d'incidència UC-08 en terminal encara és pendent.
+5. En error de snapshot, render, storage, hash o inserció, `fail()` conserva `LAST_ERROR` i programa retry exponencial fins `MAX_ATTEMPTS`; stale jobs es recuperen o passen a `ERROR` si han esgotat intents. `FiscalDocumentJobProcessor` reconcilia errors terminals sense incidència i obre idempotentment `DOCUMENT_JOB_EXHAUSTED` vinculada a factura/job, inclòs el cas d'un lease stale que arriba a `ERROR` sense passar pel `catch` normal.
 6. A la consulta, UC-07 mostra l'estat/metadades autoritzades i UC-80 revalida actor, rol, receptor i document, serveix des de storage privat i deixa traça `fiscal_document_access`. Aquest pas és pendent de servei de lectura/descàrrega.
 
 ### 1.2. Alternatives i invariants
@@ -385,7 +385,7 @@ Note over V,Store: DocumentRepository només desa metadata i hash dels bytes reb
 | --- | --- | --- |
 | DC-55-01 | Dos encolats mateixa factura/tipus/versió i petició equivalent | Un UUID_JOB; cap doble representació atribuïda al reintent. |
 | DC-55-02 | Job escrit en storage, metadades inserides, crash abans de marcar COMPLETED | Reprendre amb mateix document i hash; cap segon `factura_documents`. |
-| DC-55-03 | Dos workers recuperen el mateix job parcial en paral·lel | Una única finalització i referència, amb incidència si divergeix el contingut. |
+| DC-55-03 | Dos workers recuperen el mateix job parcial en paral·lel | **Cobert al codi/prova:** `ATTEMPTS` és generació de lease; un worker antic no pot `complete/fail` després d'un reclaim. |
 | DC-55-04 | Metadata `CREATED` però fitxer no existeix | `PENDING/ERROR` verificable, sense accés al document, encara que el PDF sigui urgent. |
 | DC-55-05 | Fitxer físic present amb bytes diferents del `HASH_FITXER` | Denegar publicació/descàrrega, conservar evidència i obrir incidència; no substituir silenciosament. |
 | DC-55-06 | Factura prèvia amb document correcte però receptor empresa no autoritzat al canal | Document íntegre **sense entrega** fins que UC-80 autoritzi l'actor. |
