@@ -73,6 +73,34 @@ final class RedsysCourseLegacyFallbackBoundaryTest
         }
     }
 
+    public function testCourseCheckoutUsesSha512V2AndLegacyCallbacksKeepV1DrainCompatibility(): void
+    {
+        foreach ([
+            'codi-drive/web-actual/pagina_efectuar_pagament_automatic.php',
+            'codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php',
+        ] as $path) {
+            $checkout = $this->read($path);
+            Assert::stringContainsString('HMAC_SHA512_V2', $checkout);
+            Assert::stringContainsString('createMerchantParametersV2()', $checkout);
+            Assert::stringContainsString('createMerchantSignatureV2($kc)', $checkout);
+            if (str_contains($checkout, '$version="HMAC_SHA256_V1"')) {
+                Assert::fail('UC-014 must not create new Redsys requests with HMAC_SHA256_V1.');
+            }
+        }
+
+        foreach ([
+            'codi-drive/web-actual/realitzaPagamentAutomatic.php',
+            'codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentAutomatic.php',
+            'codi-drive/pay-prisma-cat-canvis-verifactu/doit.php',
+        ] as $path) {
+            $callback = $this->read($path);
+            Assert::stringContainsString('HMAC_SHA512_V2', $callback);
+            Assert::stringContainsString('HMAC_SHA256_V1', $callback);
+            Assert::stringContainsString('createMerchantSignatureNotifForVersion', $callback);
+            Assert::stringContainsString('INVALID_REDSYS_SIGNATURE_ENVELOPE', $callback);
+        }
+    }
+
     public function testCurrentLegacyCallbackValidatesRedsysBeforeFiscalOrNotificationEffects(): void
     {
         $callback = $this->read('codi-drive/web-actual/realitzaPagamentAutomatic.php');
