@@ -77,6 +77,24 @@ final class UsocCourseChangeExecutionService
             throw SifException::conflict('Stored USOC course change plan is incomplete');
         }
 
+        $destination = $this->decode(
+            (string) ($execution['RESULT_JSON'] ?? ''),
+            'bound USOC course change destination'
+        );
+        $targetIdpag = (int) ($destination['destination_idpag'] ?? 0);
+        if (
+            (string) ($destination['phase'] ?? '') !== 'DESTINATION_RESERVED'
+            || (int) ($destination['source_id_insc'] ?? 0) !== $idInsc
+            || (int) ($destination['source_idpag'] ?? 0) !== $idpag
+            || (int) ($destination['destination_id_insc'] ?? 0) !== $targetIdInsc
+            || $targetIdpag <= 0
+            || $targetIdpag === $idpag
+        ) {
+            throw SifException::conflict(
+                'USOC course change destination must be durably bound before execution'
+            );
+        }
+
         $effectiveAt = $this->dateTime($input['effective_at'] ?? null);
         $sourceStudent = $this->payerAction($lifecycle, 'student');
         $sourceEntity = $this->payerAction($lifecycle, 'entity');
@@ -108,23 +126,6 @@ final class UsocCourseChangeExecutionService
             $fundPlan['entity'] ?? []
         );
 
-        $binding = [
-            'phase' => 'EFFECTS_BOUND',
-            'target_id_insc' => $targetIdInsc,
-            'effective_at' => $effectiveAt,
-            'entity_billing' => $entityBilling,
-        ];
-        $db->beginTransaction();
-        try {
-            $this->executions->recordRequestedResult($db, $requestId, $binding);
-            $db->commit();
-        } catch (\Throwable $exception) {
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
-            throw $exception;
-        }
-
         $studentRectification = $this->rectifySource(
             $db,
             $requestId,
@@ -140,7 +141,7 @@ final class UsocCourseChangeExecutionService
             $this->payloads->student(
                 $requestId,
                 $targetIdInsc,
-                $idpag,
+                $targetIdpag,
                 $targetMeta,
                 $target,
                 $studentSourceInvoice,
@@ -151,7 +152,7 @@ final class UsocCourseChangeExecutionService
             $this->payloads->entity(
                 $requestId,
                 $targetIdInsc,
-                $idpag,
+                $targetIdpag,
                 $targetMeta,
                 $target,
                 $entityBilling,
@@ -164,7 +165,7 @@ final class UsocCourseChangeExecutionService
         $this->cases->recordStudentInvoice(
             $db,
             $targetIdInsc,
-            $idpag,
+            $targetIdpag,
             (string) $studentInvoice['uuid_factura'],
             $studentAmount,
             $entityAmount,
@@ -173,7 +174,7 @@ final class UsocCourseChangeExecutionService
         $this->cases->recordEntityInvoice(
             $db,
             $targetIdInsc,
-            $idpag,
+            $targetIdpag,
             (string) $studentInvoice['uuid_factura'],
             (string) $entityInvoice['uuid_factura'],
             $studentAmount,
@@ -220,7 +221,8 @@ final class UsocCourseChangeExecutionService
             'request_id' => $requestId,
             'source_id_insc' => $idInsc,
             'target_id_insc' => $targetIdInsc,
-            'idpag' => $idpag,
+            'source_idpag' => $idpag,
+            'target_idpag' => $targetIdpag,
             'state' => 'COMPLETED',
             'student' => [
                 'source_invoice_uuid' => (string) $sourceStudent['invoice_uuid'],
@@ -243,7 +245,7 @@ final class UsocCourseChangeExecutionService
             'follow_up_reason' => $requiresFollowUp
                 ? 'EXCESS_REQUIRES_EXPLICIT_CREDIT_OR_REFUND'
                 : null,
-            'legacy_handoff_allowed' => true,
+            'legacy_handoff_completed' => true,
             'idempotency_reused' => false,
         ];
 
@@ -252,7 +254,7 @@ final class UsocCourseChangeExecutionService
             $this->cases->updateReconciliation(
                 $db,
                 $targetIdInsc,
-                $idpag,
+                $targetIdpag,
                 $studentStatus,
                 $entityStatus,
                 $caseStatus
