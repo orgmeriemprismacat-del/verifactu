@@ -23,6 +23,13 @@ $writeRoles = array_values(array_filter(
 ));
 $issuerNif = strtoupper(trim((string) ($issuer['nif'] ?? '')));
 $issuerName = trim((string) ($issuer['name'] ?? ''));
+$environment = strtoupper(trim((string) ($config['env'] ?? 'local')));
+$qualifiedEnvironment = in_array(
+    $environment,
+    ['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION'],
+    true
+);
+$aeat = $config['aeat'] ?? [];
 
 $checks = [
     'php_openssl' => extension_loaded('openssl'),
@@ -32,6 +39,14 @@ $checks = [
     'invoice_issue_write_roles_configured' => $writeRoles !== [],
     'issuer_nif_configured' => $issuerNif !== '' && $issuerNif !== 'G00000000',
     'issuer_name_configured' => $issuerName !== '',
+    'aeat_system_name_configured' => !$qualifiedEnvironment
+        || trim((string) ($aeat['system_name'] ?? '')) !== '',
+    'aeat_system_id_configured' => !$qualifiedEnvironment
+        || trim((string) ($aeat['system_id'] ?? '')) !== '',
+    'aeat_system_version_configured' => !$qualifiedEnvironment
+        || trim((string) ($aeat['system_version'] ?? '')) !== '',
+    'aeat_installation_id_configured' => !$qualifiedEnvironment
+        || trim((string) ($aeat['installation_id'] ?? '')) !== '',
     'sif_database_connectivity' => false,
     'internal_api_request_table' => false,
     'sif_audit_event_table' => false,
