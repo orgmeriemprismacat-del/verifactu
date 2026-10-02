@@ -2,6 +2,9 @@
     'use strict';
 
     var allowLegacyCancellationClick = false;
+    var allowLegacyCourseChangeSaveClick = false;
+    var allowLegacyCourseChangeConfirmClick = false;
+    var courseChangeContext = null;
     var cancellationContext = null;
     var executionModalId = 'uc013-usoc-cancellation-execution';
 
@@ -65,6 +68,20 @@
         });
     }
 
+    function requestCourseChangePrepare(payload) {
+        return $.ajax({
+            url: path + 'alumnes/sifUsocCourseChangePrepare.php',
+            method: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json',
+            global: false,
+            headers: {
+                'X-CSRF-Token': csrfToken()
+            },
+            data: JSON.stringify(payload)
+        });
+    }
+
     function payerPreviewRow(label, payer) {
         payer = payer || {};
         return '<div class="card mb-2"><div class="card-body py-2">'
@@ -105,8 +122,9 @@
             .addClass('text-success')
             .append(
                 $('<div>', {'class': 'alert alert-warning'})
-                    .text('Preview USOC calculat al servidor. Encara no s’executarà el canvi: '
-                        + 'falta l’executor fiscal/econòmic COURSE_CHANGE.'),
+                    .text('Preview USOC calculat al servidor. Encara no s’ha aplicat cap efecte. '
+                        + 'En continuar, la confirmació final reservarà un destí idempotent i '
+                        + 'vincularà el checkpoint SIF abans del canvi legacy.'),
                 $('<div>', {'class': 'fw-bold mb-2'}).text('Canvi de curs USOC · dos pagadors'),
                 $('<div>').text(
                     'Curs destí: '
@@ -121,8 +139,25 @@
                     + payerPreviewRow('Entitat USOC', payers.entity)
                 ),
                 $('<div>', {'class': 'small text-muted mt-2'})
-                    .text('No s’ha emès cap rectificativa, factura, cobrament, refund ni compensació.')
+                    .text('No s’ha emès cap rectificativa, factura, cobrament, refund ni compensació.'),
+                $('<button>', {
+                    type: 'button',
+                    id: 'uc013-course-change-continue',
+                    'class': 'btn btn-primary mt-3'
+                }).text('Continuar a la confirmació del canvi')
             );
+
+        $('#uc013-course-change-continue')
+            .off('click.uc013-course-change')
+            .on('click.uc013-course-change', function () {
+                if (!courseChangeContext || !courseChangeContext.button) {
+                    showCourseChangePreviewError('El preview USOC ja no és vigent. Torna a calcular-lo.');
+                    return;
+                }
+
+                allowLegacyCourseChangeSaveClick = true;
+                $(courseChangeContext.button).trigger('click');
+            });
     }
 
     function showCourseChangePreviewError(message) {
@@ -553,6 +588,11 @@
             return;
         }
 
+        if (allowLegacyCourseChangeSaveClick) {
+            allowLegacyCourseChangeSaveClick = false;
+            return;
+        }
+
         var identity = courseChangeIdentity();
 
         event.preventDefault();
@@ -582,6 +622,11 @@
                     return;
                 }
 
+                courseChangeContext = {
+                    identity: identity,
+                    response: response,
+                    button: button
+                };
                 renderCourseChangePreview(response);
             })
             .fail(function (xhr) {
@@ -593,6 +638,74 @@
                     ? xhr.responseJSON.error
                     : 'No s’ha pogut calcular el preview USOC del canvi de curs.';
                 showCourseChangePreviewError(message);
+            });
+    }, true);
+
+    document.addEventListener('click', function (event) {
+        var button = event.target.closest('#modalConfirmacioCanvi #confirmar-canvi');
+        if (!button || !courseChangeContext || !isValidatedUsocCourseChange()) {
+            return;
+        }
+
+        if (allowLegacyCourseChangeConfirmClick) {
+            allowLegacyCourseChangeConfirmClick = false;
+            return;
+        }
+
+        var identity = courseChangeContext.identity;
+        if (!identity) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        if (typeof mostrarModalLoading === 'function') {
+            mostrarModalLoading();
+        }
+
+        requestCourseChangePrepare(identity)
+            .done(function (response) {
+                if (
+                    !response
+                    || response.ok !== true
+                    || !response.preparation
+                    || !response.reservation
+                    || !response.binding
+                    || String(response.preparation.state || '') !== 'REQUESTED'
+                ) {
+                    if (typeof amagarLoadingModal === 'function') {
+                        amagarLoadingModal();
+                    }
+                    showCourseChangePreviewError(
+                        (response && response.error)
+                            || 'No s’ha pogut reservar i vincular el destí USOC.'
+                    );
+                    return;
+                }
+
+                courseChangeContext.preparation = response;
+                allowLegacyCourseChangeConfirmClick = true;
+                $(button).trigger('click');
+            })
+            .fail(function (xhr) {
+                if (typeof amagarLoadingModal === 'function') {
+                    amagarLoadingModal();
+                }
+
+                var message = xhr && xhr.responseJSON && xhr.responseJSON.error
+                    ? xhr.responseJSON.error
+                    : 'No s’ha pogut preparar el checkpoint final del canvi USOC.';
+                showCourseChangePreviewError(message);
+
+                var legacyModal = document.getElementById('modalConfirmacioCanvi');
+                var editModal = document.getElementById('modalCanviCurs');
+                if (legacyModal && window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(legacyModal).hide();
+                }
+                if (editModal && window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(editModal).show();
+                }
             });
     }, true);
 
