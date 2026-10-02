@@ -30,6 +30,13 @@ final class IssueInvoiceTest
         Assert::same(false, $result['idempotency_reused']);
         Assert::same('A2026/000001', $result['num_visible']);
         Assert::matchesRegularExpression('/^[0-9a-f-]{36}$/', $result['uuid_factura']);
+        Assert::same('ISSUED', $result['status']['invoice']);
+        Assert::same('PENDING', $result['status']['payment']);
+        Assert::same('PENDING', $result['status']['aeat']);
+        Assert::same('PENDING', $result['status']['fiscal_queue']);
+        Assert::same(null, $result['status']['document']);
+        Assert::same(null, $result['status']['document_type']);
+        Assert::same(1, $result['fiscal_order']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
@@ -64,6 +71,8 @@ final class IssueInvoiceTest
         Assert::same(true, $second['idempotency_reused']);
         Assert::same($first['uuid_factura'], $second['uuid_factura']);
         Assert::same($first['num_visible'], $second['num_visible']);
+        Assert::same($first['status'], $second['status']);
+        Assert::same(1, $second['fiscal_order']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
@@ -104,6 +113,10 @@ final class IssueInvoiceTest
         Assert::matchesRegularExpression('/^[0-9a-f-]{36}$/', $result['uuid_payment']);
         Assert::same(true, $second['idempotency_reused']);
         Assert::same($result['uuid_payment'], $second['uuid_payment']);
+        Assert::same('PAID', $result['status']['payment']);
+        Assert::same('PAID', $second['status']['payment']);
+        Assert::same('PENDING', $result['status']['aeat']);
+        Assert::same('PENDING', $result['status']['fiscal_queue']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
