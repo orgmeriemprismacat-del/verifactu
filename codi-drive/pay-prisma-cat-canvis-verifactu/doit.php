@@ -19,10 +19,8 @@
 	include("./MailSMTP.php");
 	include("./Mail.php");
 
-	$urlIdPag = trim((string) ($_GET['idPag'] ?? ''));
-	$urlOrder = trim((string) ($_GET['order'] ?? ''));
-	$cursPag = (string) ($_GET['codiCurs'] ?? '');
-	$dniTitularPag = (string) ($_GET['dni'] ?? '');
+	$cursPag = '';
+	$dniTitularPag = '';
 	$importPag = '0.00';
 	$frac = 0;
 	$idPag = 0;
@@ -82,12 +80,6 @@
 		$idPag = (int) $context[1];
 		$expectedAmountCents = (int) $context[2];
 		$frac = (int) $context[3];
-		if ($urlIdPag !== '' && (!ctype_digit($urlIdPag) || (int) $urlIdPag !== $idPag)) {
-			throw new RuntimeException('REDSYS_IDPAG_MISMATCH');
-		}
-		if ($urlOrder !== '' && (string) $ordre !== $urlOrder) {
-			throw new RuntimeException('REDSYS_ORDER_MISMATCH');
-		}
 		if (!ctype_digit((string) $preu) || (int) $preu !== $expectedAmountCents) {
 			throw new RuntimeException('REDSYS_AMOUNT_MISMATCH');
 		}
