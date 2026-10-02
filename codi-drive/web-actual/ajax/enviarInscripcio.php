@@ -225,6 +225,13 @@ try {
 	 * legacy no és executable amb "!= NULL" i, per tant, no concedeix el dret.
 	 */
 	if ($tipusDescompte == 1) {
+		if ($promocioATrobadaplicada != '' || $promocioAplicada != '') {
+			http_response_code(409);
+			$connexio->desconectarBD();
+			echo "Error: Alumne PrisMa no es pot combinar amb un codi promocional en la mateixa oferta. Recalcula el preu.";
+			return;
+		}
+
 		$cnsApHistoric = "SELECT ID FROM inscripcions
 			WHERE DNI=? AND (
 				(A_PAGAR>0 AND PAGAMENT>0)
