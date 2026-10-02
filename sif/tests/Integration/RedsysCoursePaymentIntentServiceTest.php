@@ -99,6 +99,22 @@ final class RedsysCoursePaymentIntentServiceTest
         }, 422);
     }
 
+    public function testRejectsCourseOrderThatDoesNotMatchRedsysContract(): void
+    {
+        $sifDb = TestDatabase::fresh();
+
+        foreach (['ABC000000001', '7000000000001', '12-INVALID'] as $invalidOrder) {
+            Assert::throws(SifException::class, function () use ($sifDb, $invalidOrder): void {
+                $this->service()->create($sifDb, $this->legacyDb(false), [
+                    'idpag' => 700,
+                    'requested_amount' => '100.00',
+                    'terminal' => '1',
+                    'ds_order' => $invalidOrder,
+                ]);
+            }, 422);
+        }
+    }
+
     public function testRejectsAmountAboveAuthoritativePendingBalance(): void
     {
         $sifDb = TestDatabase::fresh();
