@@ -40,6 +40,8 @@ final class IssueInvoiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registre_control')->fetchColumn());
+        Assert::same('ALTA', (string) $db->query('SELECT RECORD_ACTION FROM factura_registre_control LIMIT 1')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
@@ -225,6 +227,38 @@ final class IssueInvoiceTest
 
         $lineId = $db->query('SELECT ID_FACTURA_LINIA FROM fact_rels LIMIT 1')->fetchColumn();
         Assert::same(null, $lineId === false ? null : $lineId);
+    }
+
+    public function testFiscalRegisterControlLinksPreviousGlobalRecord(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->makeService($db);
+
+        $first = $service->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|CONTROL|FIRST',
+            'source_channel' => 'INTRANET',
+            'correlation_id' => 'UC001-CONTROL-FIRST',
+        ]));
+        $second = $service->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|CONTROL|SECOND',
+            'source_channel' => 'INTRANET',
+            'correlation_id' => 'UC001-CONTROL-SECOND',
+        ]));
+
+        Assert::notSame($first['uuid_factura'], $second['uuid_factura']);
+        $rows = $db->query(
+            'SELECT frc.FACTURA_REGISTRE_ID, frc.PREVIOUS_REGISTRE_ID,
+                    frc.RECORD_ACTION, frc.GENERATOR_VERSION, frc.CORRELATION_ID
+             FROM factura_registre_control frc
+             ORDER BY frc.ID'
+        )->fetchAll(\PDO::FETCH_ASSOC);
+
+        Assert::same(2, count($rows));
+        Assert::same(null, $rows[0]['PREVIOUS_REGISTRE_ID']);
+        Assert::same((int) $rows[0]['FACTURA_REGISTRE_ID'], (int) $rows[1]['PREVIOUS_REGISTRE_ID']);
+        Assert::same('ALTA', $rows[1]['RECORD_ACTION']);
+        Assert::same('invoice-repository-v1', $rows[1]['GENERATOR_VERSION']);
+        Assert::same('UC001-CONTROL-SECOND', $rows[1]['CORRELATION_ID']);
     }
 
     public static function serviceFor(\PDO $db): InvoiceService
