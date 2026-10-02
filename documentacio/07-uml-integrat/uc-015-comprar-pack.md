@@ -48,6 +48,8 @@
 
 **Composició habitual (no universal):** PrisMa descriu packs de **dos cursos**, amb **dues inscripcions independents** relacionades pel mateix `IDPAG`, i preu total provinent de la taula de preus vinculada a packs. El descompte comercial de pack del 25 % es posa en **el segon curs**, no es reparteix per defecte entre les dues inscripcions. Abans d'emetre, cal validar el snapshot del pack real (ID_PACK, preu, dues inscripcions, imports base, descompte del segon curs i suma final) contra la lògica comercial corresponent; un builder fiscal no substitueix aquesta comprovació.
 
+**P-COMUNICACIÓ PACK N — estat actual:** el correu d'alta ja no pressuposa exactament dos cursos: la plantilla usa `[CURSOS_PACK]` i el PHP hi injecta la llista dinàmica de totes les edicions. El contracte queda cobert per `PackMultiCourseCommunicationBoundaryTest`.
+
 **P-DESCOMPTE — estat actual:** `LegacyPackInvoicePayloadBuilder` ja exigeix imports/descomptes explícits per línia i rebutja snapshots incomplets o inconsistents. La política comercial concreta continua sent responsabilitat del snapshot de checkout, no del builder fiscal. El motiu intern de la línia s'ha neutralitzat en la revalidació 02/10 perquè el builder no afirmi que qualsevol descompte correspon necessàriament al «segon curs» quan el model admet PACK N.
 
 **P-EXCEPCIÓ — divisió de pagament només per intranet:** el xat original confirma que el client no escull fraccionar el pack a ecommerce; excepcionalment la gestió pot acceptar diversos pagaments reals i històricament hi pot haver **més d'una factura**. La documentació del flux final també preveu, en aquesta variant excepcional, **una factura per cada pagament real amb línies/imports aprovats**, i exigeix no dividir un mateix DS_ORDER en factures diferents. Aquest circuit no és el mateix que UC-23 (diversos pagaments sobre **una factura ja emesa**). Abans de desenvolupar-lo s'ha de decidir i documentar quina part del pack es factura en cada pas, com es reflecteix el descompte del segon curs, i com es relacionen les factures/inscripcions originals, sense facturar dues vegades el mateix servei. La fitxa no dona aquesta variant per executada ni n'estableix automàticament la qualificació fiscal.
@@ -277,6 +279,8 @@ Auditoria canònica: [uc-015-auditoria-tracabilitat-2026-10-02.md](uc-015-audito
 
 Punts nous incorporats:
 - el formulari d'alta pública s'ha migrat a POST-only amb frontera same-site/origin i prova de regressió;
+- `pagFrac` ja no és entrada client: l'ecommerce fixa no fraccionament al servidor;
+- el correu d'alta s'ha generalitzat a PACK N amb `[CURSOS_PACK]`;
 - la seqüència real de postcommit és `RedsysLegacySyncingProcessor → LegacySyncService`;
 - `AcademicEnrollmentSyncService` no forma part del flux executable UC-015;
 - el text intern del descompte fiscal ja no pressuposa una línia/ordinal concreta;
