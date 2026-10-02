@@ -241,7 +241,7 @@ Fitxa funcional, classes, seqüències, activitats per superfície, matriu de pr
 - concurrència multiprocés incorporada al PR de tancament;
 - recovery després de resposta perduda incorporat al PR de tancament;
 - boundaries de notificació i preproducció incorporats al PR de tancament;
-- **CI final del PR de tancament: pendent de resultat en aquest punt documental**.
+- **CI final del PR de tancament: VERD — 858 passed / 0 failed; 49 PASS GIFT/UC-018; 4/4 workflows aplicables en SUCCESS**.
 
 ### PENDENT D'ENTORN, NO D'AUDITORIA
 
@@ -256,8 +256,8 @@ Les diferències de valor regal/curs no formen part del flux base tancat. Contin
 
 ```text
 Estat documental: AUDIT_CLOSED
-Estat implementació: IMPLEMENTED_AND_AUTOMATED_VERIFICATION_CANDIDATE
-Code GO: pendent CI final del PR de tancament
+Estat implementació: IMPLEMENTED_AND_CI_VERIFIED
+Code GO: VERIFIED / CI_GREEN
 Environment GO: pendent preproducció
 ```
 ## 15. Addenda d'implementació posterior a l'auditoria
@@ -325,4 +325,9 @@ Els sis correus legacy es creen com sis notificacions durables independents. Cad
 
 ### 18.6. Conclusió
 
-L'auditoria tècnica queda tancada quan el CI final del PR de tancament és verd. El desplegament continua separat i subjecte al gate de preproducció.
+L'auditoria tècnica queda **TANCADA**: el CI final del PR #115 ha finalitzat amb 858 passed / 0 failed i 4/4 workflows aplicables en `SUCCESS`. El desplegament continua separat i subjecte al gate de preproducció.
+
+
+## 19. Referència de tancament final
+
+L'evidència consolidada de tancament, runs de CI i frontera d'entorn queda registrada a `10-tancament-auditoria-uc-018-2026-10-02.md`.
