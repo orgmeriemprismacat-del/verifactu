@@ -17,7 +17,7 @@ final class PackEnrollmentIdempotencyBoundaryTest
         }
 
         foreach ([
-            "$_POST['requestId']",
+            "\$_POST['requestId']",
             'PACK_REQ|',
             'PACK_REQH|',
             'GET_LOCK(?, 10)',
@@ -33,13 +33,25 @@ final class PackEnrollmentIdempotencyBoundaryTest
         }
 
         Assert::stringContainsString(
-            "if (!$stmt->execute())",
+            "if (!\$stmt->execute())",
             $endpoint
         );
         Assert::stringContainsString(
-            "if (!$stmt2->execute())",
+            "\$preusCursosServidor = []",
             $endpoint
         );
+        Assert::stringContainsString(
+            "\$preuCursOriginal = \$preusCursosServidor[\$i] ?? null",
+            $endpoint
+        );
+        Assert::stringContainsString(
+            "\$packRequestLockName = 'prisma_pack_' . \$packRequestToken",
+            $endpoint
+        );
+
+        if (str_contains($endpoint, '$connexio2 = new ConnexioBBDDSTMT()')) {
+            Assert::fail('PACK insert must not reopen a second price connection after freezing prices.');
+        }
     }
 
     public function testBrowserReusesRequestIdAndBlocksConcurrentSubmit(): void
