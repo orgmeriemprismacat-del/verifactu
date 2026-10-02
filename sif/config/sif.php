@@ -82,6 +82,16 @@ return [
             'trim',
             explode(',', getenv('SIF_USOC_MANAGE_ROLES') ?: '')
         ))),
+        'entity_billing' => [
+            'name' => getenv('SIF_USOC_ENTITY_NAME') ?: '',
+            'nif' => getenv('SIF_USOC_ENTITY_NIF') ?: '',
+            'address' => getenv('SIF_USOC_ENTITY_ADDRESS') ?: null,
+            'cp' => getenv('SIF_USOC_ENTITY_CP') ?: null,
+            'city' => getenv('SIF_USOC_ENTITY_CITY') ?: null,
+            'province' => getenv('SIF_USOC_ENTITY_PROVINCE') ?: null,
+            'country' => getenv('SIF_USOC_ENTITY_COUNTRY') ?: 'ES',
+            'email' => getenv('SIF_USOC_ENTITY_EMAIL') ?: null,
+        ],
     ],
     'incidents' => [
         'read_roles' => array_values(array_filter(array_map(
