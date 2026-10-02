@@ -38,9 +38,27 @@ final class RedsysCourseReturnBoundaryTest
         Assert::stringContainsString("if (\$status === 'CONFIRMED')", $helper);
         Assert::stringContainsString("uc014RenderPaymentReturn('OK')", $ok);
         Assert::stringContainsString("uc014RenderPaymentReturn('KO')", $ko);
+        foreach ([$ok, $ko] as $returnPage) {
+            Assert::stringContainsString("Cache-Control: private, no-store, max-age=0", $returnPage);
+            Assert::stringContainsString("Referrer-Policy: no-referrer", $returnPage);
+            Assert::stringContainsString("X-Content-Type-Options: nosniff", $returnPage);
+        }
 
         if (str_contains($ok, "El pagament s'ha registrat correctament")) {
             Assert::fail('OK return must not claim success from browser redirect alone');
+        }
+
+        foreach ([
+            'InvoiceService',
+            'PaymentRepository',
+            'issueInvoice',
+            'INSERT INTO',
+            'UPDATE ',
+            'DELETE FROM',
+        ] as $forbidden) {
+            if (str_contains($helper, $forbidden)) {
+                Assert::fail('Return helper must remain read-only: ' . $forbidden);
+            }
         }
     }
 
