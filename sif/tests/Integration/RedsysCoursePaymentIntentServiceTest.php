@@ -99,6 +99,25 @@ final class RedsysCoursePaymentIntentServiceTest
         }, 422);
     }
 
+    public function testRejectsMissingOrInvalidTerminal(): void
+    {
+        $sifDb = TestDatabase::fresh();
+
+        foreach ([null, '', '1234', 'A'] as $terminal) {
+            Assert::throws(SifException::class, function () use ($sifDb, $terminal): void {
+                $input = [
+                    'idpag' => 700,
+                    'requested_amount' => '100.00',
+                    'ds_order' => '700000000099',
+                ];
+                if ($terminal !== null) {
+                    $input['terminal'] = $terminal;
+                }
+                $this->service()->create($sifDb, $this->legacyDb(false), $input);
+            }, 422);
+        }
+    }
+
     public function testRejectsCourseOrderThatDoesNotMatchRedsysContract(): void
     {
         $sifDb = TestDatabase::fresh();
