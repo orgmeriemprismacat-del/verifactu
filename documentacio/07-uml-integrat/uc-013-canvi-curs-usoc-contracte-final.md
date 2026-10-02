@@ -119,7 +119,7 @@ Abans de permetre qualsevol efecte fiscal:
 target_standard_course_amount > 0
 target_student_course_amount > 0
 management_fee >= 0
-target_entity_course_amount >= 0
+target_entity_course_amount > 0
 
 target_entity_course_amount
   = target_standard_course_amount
@@ -138,7 +138,7 @@ target_combined_total
 
 Si aquestes igualtats no quadren al cèntim → `REVIEW_REQUIRED`.
 
-El resolver actual rebutja explícitament `target_student_course_amount=0`: la variant de curs gratuït USOC continua fail-closed fins que s'aprovi `UC13-GAP-07`.
+El resolver actual rebutja explícitament `target_student_course_amount=0`: la variant de curs gratuït USOC continua fail-closed fins que s'aprovi `UC13-GAP-07`. El resolver també rebutja `target_student_course_amount == target_standard_course_amount`, perquè això deixaria `target_entity_course_amount=0` i contradiria el contracte USOC actual, que exigeix una part entitat positiva.
 
 ## 5. Regla de validació USOC al destí
 
