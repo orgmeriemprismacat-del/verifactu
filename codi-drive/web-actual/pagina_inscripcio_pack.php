@@ -79,7 +79,7 @@
 			$('head').append(footerCSS);
 		</script>
 		<link rel='stylesheet' href='https://www.prisma.cat/css1619773569/inscripcio.min.css?ver=5.0' />
-		<script async src="https://www.prisma.cat/js1619773569/mostrarInscripcioPack.min.js?ver=7.4"></script>
+		<script async src="https://www.prisma.cat/js1619773569/mostrarInscripcioPack.min.js?ver=7.5"></script>
 		<script async src="https://www.prisma.cat/js1619773569/lazysizes.min.js?ver=1.0"></script>
 		<script async src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
 	</body>
