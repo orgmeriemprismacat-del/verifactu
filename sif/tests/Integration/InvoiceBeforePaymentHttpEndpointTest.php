@@ -20,6 +20,8 @@ final class InvoiceBeforePaymentHttpEndpointTest
         Assert::stringContainsString('InternalApiRequestRepository', $source);
         Assert::stringContainsString('InternalInvoiceBeforePaymentScopeResolver', $source);
         Assert::stringContainsString('invoice_before_payment_signed_path', $source);
+        Assert::stringContainsString("contract_version", $source);
+        Assert::stringContainsString("UC004-V1", $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacyIntranet($config)', $source);
         Assert::stringContainsString('InvoiceBeforePaymentCommandService', $source);
