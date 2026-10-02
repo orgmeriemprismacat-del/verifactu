@@ -43,6 +43,37 @@ final class RedsysCourseCutoverBoundaryTest
         }
     }
 
+    public function testMerchantUrlCarriesNoUnsignedFunctionalContext(): void
+    {
+        foreach ([
+            'codi-drive/web-actual/pagina_efectuar_pagament_automatic.php',
+            'codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php',
+        ] as $relativePath) {
+            $source = $this->read($relativePath);
+            Assert::stringContainsString('DS_MERCHANT_MERCHANTDATA', $source);
+            Assert::stringContainsString("'UC014I' . (int) \$idPag", $source);
+
+            if (preg_match('/MERCHANTURL[^\n]*\?(?:idPag|codiCurs|dni|order|frac|import)=/i', $source) === 1
+                || str_contains($source, 'doit.php?idPag=')
+                || str_contains($source, 'realitzaPagamentAutomatic.php?idPag=')
+            ) {
+                Assert::fail('MerchantURL must not carry unsigned UC-014 functional context.');
+            }
+        }
+
+        $actual = $this->read('codi-drive/web-actual/pagina_efectuar_pagament_automatic.php');
+        if (str_contains($actual, 'respostaOkPagamentAutomatic.php?email=')
+            || str_contains($actual, 'respostaKoPagamentAutomatic.php?email=')
+        ) {
+            Assert::fail('Browser return URLs must not expose participant email.');
+        }
+
+        $candidate = $this->read('codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php');
+        if (str_contains($candidate, "'email' => \$email")) {
+            Assert::fail('Candidate browser return query must not contain email.');
+        }
+    }
+
     public function testLegacyCallbacksFailClosedBeforeAnyDependencyOrSideEffectDuringCutover(): void
     {
         foreach ([
