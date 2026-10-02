@@ -280,7 +280,7 @@ Auditoria canònica: [uc-015-auditoria-tracabilitat-2026-10-02.md](uc-015-audito
 Punts nous incorporats:
 - el formulari d'alta pública s'ha migrat a POST-only amb frontera same-site/origin;
 - idempotència server-side implementada: UUID v4 persistent al navegador, named lock, `RID/RH1`, replay equivalent i 409 per payload divergent;
-- el bundle puja a `mostrarInscripcioPack.min.js?ver=7.4` per evitar caché del GET antic;
+- el bundle puja a `mostrarInscripcioPack.min.js?ver=7.5` per evitar caché del GET antic;
 - corregida la disponibilitat: `EdicioPack` compara una data límit amb signe real i llistat/fitxa/POST exigeixen tots els components oberts;
 - les N inscripcions del pack es creen dins una única transacció, amb rollback en error i alliberament garantit del lock `IDPAG`; abans del commit la suma dels imports congelats ha de coincidir exactament amb el preu PACK en cèntims;
 - `pagFrac` ja no és entrada client: l'ecommerce fixa no fraccionament al servidor;
