@@ -126,6 +126,7 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 - `documentacio/07-uml-integrat/uc-013-orquestrar-doble-facturacio-usoc.md`
 - `documentacio/07-uml-integrat/uc-013-classes-actual-final.md`
 - `documentacio/07-uml-integrat/uc-013-sequencies-actual-final.md`
+- `documentacio/07-uml-integrat/uc-013-canvi-curs-usoc-contracte-final.md`
 - `documentacio/07-uml-integrat/uc-013-activitats-pagines-actual-final.md`
 - `documentacio/07-uml-integrat/uc-013-auditoria-tracabilitat-2026-09-29.md`
 
@@ -191,3 +192,18 @@ El repositori no defineix encara si el canvi de curs:
 - o pot deixar part de l'import com a saldo/pendent independent.
 
 Aquesta decisió afecta directament les dues factures noves. Per tant el comportament actual correcte és **bloquejar la mutació legacy** i no inventar una reemissió automàtica.
+
+
+## Canvi de curs USOC · REGLA DESTÍ REVALIDADA 02/10/2026
+
+El contrast amb `Intranet.php` i el builder SIF permet tancar part de la incertesa de `UC13-GAP-COURSE-EXEC`:
+
+- **VALID_DESC:** el legacy el conserva al nou registre.
+- **TIPUS_DESC:** el legacy el conserva; USOC continua essent tipus 4.
+- **Preu destí:** es recalcula contra la regla de descompte del nou curs/edició.
+- **Part entitat:** al model SIF existent `entity_amount` és la diferència/descompte aplicada a la línia alumne.
+- **Despeses de gestió:** s'afegeixen a la part alumne.
+- **Fons reals:** no es poden copiar des de `PAGAMENT`; existeix infraestructura `COMPENSATION_ALLOCATION` per atribuir un CHARGE confirmat a la inscripció destí.
+- **Excessos:** poden requerir refund o `credit_balance`, sempre per pagador.
+
+Això redueix el pendent del canvi de curs a la implementació del resolver destí + executor + handoff, no a una decisió oberta sobre si s'ha de conservar l'import antic.
