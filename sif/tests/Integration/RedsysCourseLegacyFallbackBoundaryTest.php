@@ -30,6 +30,23 @@ final class RedsysCourseLegacyFallbackBoundaryTest
         }
     }
 
+    public function testCandidateIntentBridgeKeepsMoneyAsCanonicalDecimalString(): void
+    {
+        $checkout = $this->read('codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php');
+        $client = $this->read('codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysCourseIntentClient.php');
+
+        Assert::stringContainsString("$importPagare = (string) $validatedCheckout['payment_amount'];", $checkout);
+        Assert::stringContainsString('public function create(int $idPag, string $requestedAmount', $client);
+        Assert::stringContainsString("'requested_amount' => $requestedAmount", $client);
+
+        if (str_contains($checkout, '(float) $importPagare')) {
+            Assert::fail('UC-014 candidate bridge must not cast authoritative money to float.');
+        }
+        if (str_contains($client, 'number_format($requestedAmount')) {
+            Assert::fail('UC-014 SIF intent client must not round a float at the HTTP boundary.');
+        }
+    }
+
     public function testCurrentLegacyCallbackValidatesRedsysBeforeFiscalOrNotificationEffects(): void
     {
         $callback = $this->read('codi-drive/web-actual/realitzaPagamentAutomatic.php');
