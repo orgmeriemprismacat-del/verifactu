@@ -20,6 +20,7 @@ class Intranet
 	private $googleClient;
 	private $diesOberturaAules1;
 	private $diesOberturaAules2;
+	private $darrerIdCanviCurs;
 
 	/*********************************** FUNCIONS CONSTRUCTORS ***********************************/
 
@@ -36,6 +37,7 @@ class Intranet
 		];
 		$this->diesOberturaAules1 = 4; //Dies obertura d'aula si el curs comença un dilluns o un dimarts
 		$this->diesOberturaAules2 = 2; //Dies obertura d'aula si el curs no comença un dilluns o un dimarts
+		$this->darrerIdCanviCurs = null;
 		$this->consultesBD_Intra = [
 			"buscarListParam" 	=> "SELECT TIPUS, VALOR FROM params WHERE PARAM = ?
 											AND DATAI <= CURRENT_TIMESTAMP AND
@@ -8520,6 +8522,7 @@ class Intranet
 	public function realitzarCanviCurs_modalCanviCurs($idInsc, $anyC, $mesC,
 	$cursC, $numeroCanvi, $apagarC, $pagatC, $pendentC, $despesesC, $obsCanvi,
 	$motiuCanvi, $noEnviarCoreu, $tipusDesc, $validDesc) {
+		$this->darrerIdCanviCurs = null;
 		$conWeb = new ConnexioWeb();
 		$conWeb->connectarBD();
 		$conIntra = new ConnexioIntranet();
@@ -8772,6 +8775,7 @@ class Intranet
 			$apagarC2 = $apagarC + $despesesC;
 			$stmt->execute();
 			$idInserit = $conWeb->lastInsertId();
+			$this->darrerIdCanviCurs = (int) $idInserit;
 			$conWeb->closeStmt();
 			if ( $idPagLockReserved ) {
 				$conWeb->releaseIdPag();
@@ -9107,6 +9111,15 @@ class Intranet
    * @brief Mostra el contingut de donar de baixa d'una inscripció em el modal d'inscripcio
    * @return Mostra el contingut de donar de baixa d'una inscripció em el modal d'inscripcio
    */
+	/**
+	 * @brief Retorna l'ID_INSC creat per l'últim canvi de curs executat en aquesta sessió.
+	 * @return int|null ID de la nova inscripció, o null si encara no s'ha creat.
+	 */
+	public function getDarrerIdCanviCurs() {
+		return $this->darrerIdCanviCurs;
+	}
+
+
 	public function modalDonarBaixa_resultatCerca( $idInsc) {
 		$conWeb = new ConnexioWeb();
 		$conWeb->connectarBD();
