@@ -225,6 +225,16 @@ class PaymentRepository {
   +create(db,payload) array
   +createAllocation(db,uuidPayment,allocation)
 }
+class CourseEnrollmentFundAllocationService {
+  <<EXISTENT>>
+  +allocate(db,dsOrder,snapshot,invoiceResult) array
+}
+class EnrollmentFundMovementRepository {
+  <<EXISTENT>>
+  +lockPayment(db,uuidPayment) array
+  +findInvoiceLineForInscription(db,uuidFactura,idInsc) array
+  +insertOrReuseExternalAllocation(db,input) array
+}
 
 SifRedsysCourseIntentClient --> RedsysCoursePaymentIntentService : POST HMAC
 RedsysCoursePaymentIntentService --> RedsysPaymentIntentService
@@ -240,6 +250,8 @@ CoursePaymentReturnStatus --> SifRedsysCourseStatusClient
 SifRedsysCourseStatusClient --> RedsysCoursePaymentStatusService : POST HMAC read-only
 RedsysCoursePaymentStatusService --> RedsysPaymentIntentService : correlació per DS_ORDER/IDPAG
 InvoiceService --> PaymentRepository : CHARGE + payment_allocation
+RedsysCourseInvoiceService --> CourseEnrollmentFundAllocationService : postcommit idempotent
+CourseEnrollmentFundAllocationService --> EnrollmentFundMovementRepository : EXTERNAL_ALLOCATION
 CourseLegacyPaymentSyncService --> PaymentRepository : suma CONFIRMED per IDPAG
 ```
 ## 3. Correspondència ACTUAL → FINAL
@@ -252,6 +264,7 @@ CourseLegacyPaymentSyncService --> PaymentRepository : suma CONFIRMED per IDPAG
 | Validar callback | `RedsysAPI` dins script monolític | `RedsysCallbackService` |
 | Facturar | `INSERT factures` al callback | `InvoiceService` |
 | Registrar cobrament | camps `PAGAMENT/FRACCIO` | `payment_transaction/payment_allocation` |
+| Assignar a inscripció | implícit per `IDPAG` | `CourseEnrollmentFundAllocationService` → `enrollment_fund_movement.EXTERNAL_ALLOCATION` idempotent per `DS_ORDER + ID_INSC` |
 | Assignar a inscripció | implícit per `IDPAG` | relació + moviment quantitatiu per inscripció |
 | Numeració fiscal | càlcul al canal web | seqüència central SIF |
 | Reintents | no acreditats | idempotència per intenció/notificació/factura/pagament |
@@ -261,8 +274,8 @@ CourseLegacyPaymentSyncService --> PaymentRepository : suma CONFIRMED per IDPAG
 ## 4. Estat
 
 **DOCUMENTAT:** ACTUAL i FINAL.  
-**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS, retorn navegador read-only i hardening del fallback a la branca 02/10. Per UC-014 ordinari, la traça `INSCRIPCIO(ID)` + `payment_transaction.IDPAG` + `payment_allocation` cobreix l'atribució econòmica.  
-**VERIFICAT:** CI amb E2E intern simulat incloent `notification_outbox` CURS, duplicat i parcial→complet, retorn autoritatiu i boundaries de preproducció; lectura estàtica del pont candidat.  
+**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS, retorn navegador read-only, atribució quantitativa `EXTERNAL_ALLOCATION` amb `CourseEnrollmentFundAllocationService` / `EnrollmentFundMovementRepository` i hardening del fallback a la branca 02/10.  
+**VERIFICAT:** CI amb E2E intern simulat incloent `notification_outbox` CURS, `EXTERNAL_ALLOCATION` per inscripció, duplicat i parcial→complet, retorn autoritatiu i boundaries de preproducció; PR #95 amb `CourseEnrollmentFundAllocationServiceTest`, suites SIF **841 passed / 0 failed** i quatre workflows verds.  
 **PENDENT:** CI de la branca 02/10, desplegament/preproducció Redsys real, activació de MerchantURL SIF/cutover, rotació de secrets històrics, delivery UC-58 i retirada del callback fiscal llegat després de l'evidència.
 
 
