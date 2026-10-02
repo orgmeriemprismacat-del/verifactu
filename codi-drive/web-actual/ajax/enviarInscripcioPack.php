@@ -217,6 +217,7 @@ try {
 		$connexio->closeStmt();
 
 		$preuCursos = 0.0;
+		$preusCursosServidor = [];
 		foreach ($edicions as $edicioPreu) {
 			if ( $stmtPreuServidor = $connexio->prepare($cnsPreuServidor) ) {
 				$idPreuServidor = $edicioPreu->obtenirIdPreu()->obtenirNumero();
@@ -227,7 +228,9 @@ try {
 					$connexio->closeStmt();
 					throw new Exception('',2907);
 				}
-				$preuCursos += floatval($preuCursServidor);
+				$preuCursServidor = round((float) $preuCursServidor, 2);
+				$preuCursos += $preuCursServidor;
+				$preusCursosServidor[] = $preuCursServidor;
 				$connexio->closeStmt();
 			}
 			else {
@@ -264,7 +267,7 @@ try {
 		throw new RuntimeException('Error: no s’ha pogut preparar la petició.', 500);
 	}
 	$packRequestFingerprint = hash('sha256', $packRequestFingerprintJson);
-	$packRequestLockName = 'prisma_pack_request_' . hash('sha256', $packRequestId);
+	$packRequestLockName = 'prisma_pack_' . substr(hash('sha256', $packRequestId), 0, 48);
 
 	$stmtPackRequestLock = $connexio->connexio->prepare('SELECT GET_LOCK(?, 10)');
 	if (!$stmtPackRequestLock) {
@@ -649,19 +652,11 @@ try {
 
 	$perenne = 'X';
 
-	$connexio2 = new ConnexioBBDDSTMT();
-	$connexio2->connectarBD();
-
-	$cnsPreu = "SELECT IMPORT FROM preu WHERE ID=? AND DATAI<=CURRENT_TIME AND
-					(CURRENT_TIME<=DATAF OR DATAF IS NULL)";
-
 	$insertBD = "INSERT INTO inscripcions (ANY, MES, CURS, DATA_INSC, NOM, COGNOMS,
 					 CORREU, DNI, ADRECA, Codi_Postal, POBLACIO, PERFIL, TITULACIO,
 					 TELEFON, COMENTARIS, FRACCIONAT, INSC_MAILING,
 					 A_PAGAR, USUARI, IDPAG, PERENNE, CONEGUT, TIPUS_INSC, OBSERVACIONS)
 					 VALUES (?,?,?,CURRENT_TIME,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-	if ( $stmt2 = $connexio2->prepare($cnsPreu) ) {
-		$stmt2->bind_param("d", $idPreuEd);
 
 		if (!$connexio->connexio->begin_transaction()) {
 			throw new RuntimeException('Error: no s’ha pogut iniciar la transacció del pack.', 500);
@@ -686,15 +681,11 @@ try {
 
 				$codiCursEd = $edicio->obtenirCodiCurs()->obtenirText();
 
-				/* Busco el preu original del curs */
-				if (!$stmt2->execute()) {
-					throw new RuntimeException('Error: no s’ha pogut consultar el preu del component del pack.', 500);
+				/* Reutilitzo exactament el snapshot de preus validat abans del lock/insert. */
+				$preuCursOriginal = $preusCursosServidor[$i] ?? null;
+				if (!is_numeric($preuCursOriginal)) {
+					throw new RuntimeException('Error: snapshot de preu del component no disponible.', 409);
 				}
-				$stmt2->bind_result($preuCursOriginal);
-				if (!$stmt2->fetch() || !is_numeric($preuCursOriginal)) {
-					throw new RuntimeException('Error: preu del component del pack no vàlid.', 409);
-				}
-
 				$preuCursOriginal = round((float) $preuCursOriginal, 2);
 				$preuCurs = round(min($aux, $preuCursOriginal), 2);
 				$aux = round(max(0, $aux - $preuCurs), 2);
@@ -742,12 +733,6 @@ try {
 		else {
 			throw new Exception('',2915);
 		}
-	}
-	else {
-		throw new Exception('',2916);
-	}
-
-	$connexio2->desconectarBD();
 
 	$idInserit = $connexio->lastInsertId();
 
