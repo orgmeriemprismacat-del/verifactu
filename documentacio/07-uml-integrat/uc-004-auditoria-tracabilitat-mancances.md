@@ -9,8 +9,8 @@
 
 UC-004 té **dos circuits diferents** que no s'han de fusionar documentalment:
 
-1. **ACTUAL llegat, implementat:** la pantalla `/alumnes/genera-factura-abans-pagar/` treballa amb JS + endpoints AJAX + `Intranet.php` + BD llegada. Genera la factura directament al model antic, assigna un número amb “últim + 1”, actualitza inscripcions i construeix/descarrega el PDF des del circuit llegat.
-2. **FINAL SIF, implementació avançada:** a més del nucli fiscal, el `main` actual ja conté `InvoiceBeforePaymentCommandService`, preparació autoritativa des de les dues BDs llegades, endpoint `public/api/factures/before-payment.php`, autenticació HMAC, anti-replay de `request_id`, resolució de rol d'escriptura, preview/confirmació amb fingerprint i cobertura UC-004. Aquesta branca hi afegeix `operational_event` atòmic. **La pantalla real encara no està connectada a aquest endpoint i continua emetent pel circuit llegat.**
+1. **ACTUAL històric llegat:** el codi antic emetia via JS + `generaFacturaElectronica_Factures.php` + `Intranet.php`, amb numeració “últim + 1”, escriptura a `factures` llegades i PDF temporal.
+2. **FINAL SIF al codi versionat actual:** la pantalla ja usa `sifFacturaAbansPagar.php` amb sessió/permís/CSRF; `SifInternalApiClient` signa HMAC servidor-servidor; el SIF rellegeix selecció/receptor, fa preview/confirmació amb fingerprint, idempotència, cobertura UC-004 i `operational_event`. En aquesta branca, l'endpoint fiscal llegat retorna `410 Gone` i ja no pot emetre.
 
 Per tant, l'estat correcte del cas és:
 
@@ -187,7 +187,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | `fact_rels` | Sí | Sí | Sí | No | **UC-004 ja exigeix relations INSCRIPCIO/ORIGIN; falta executar proves** |
 | `operational_event` UC-004 | Sí | **IMPLEMENTAT EN AQUESTA BRANCA dins la mateixa transacció** | Sí | No | executar suite i inspeccionar event |
 | Cobrament posterior separat | Sí | Sí, serveis SIF | Sí | No | integrar canal |
-| Preview segur abans d'emetre | Sí FINAL | **Implementat en CLI i endpoint HTTP intern** amb fingerprint + relectura | Sí | No | connectar pantalla / executar E2E |
+| Preview segur abans d'emetre | Sí FINAL | **Implementat en CLI + HTTP + pantalla** amb fingerprint, relectura i comprovació prèvia de coverage UC-004 | Sí | No | executar E2E |
 | Document per UUID | Sí FINAL | **PARCIAL EN AQUESTA BRANCA:** `document_job` PDF idempotent/versionat encolat després de l'emissió | Sí estàtic | No | worker/renderitzador/storage + `factura_documents` READY |
 | Sincronització llegada post-commit | Sí FINAL | processador UC-004 diu que no la fa | Sí | No | decidir/implementar |
 | Preproducció | Sí | scripts disponibles | estàtic | No | **executar i evidenciar** |
@@ -207,7 +207,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | UC004-GAP-007 | `idsInsc` pot conservar valors entre recorreguts | global; no s'ha observat reset al pas de recomputació |
 | UC004-GAP-008 | **TANCAT AL BACKEND:** deduplicació d'IDs | `InvoiceBeforePaymentSelectionRepository` rebutja IDs duplicats abans de consultar |
 | UC004-GAP-009 | **TANCAT AL BACKEND:** mateix curs/edició revalidat | `InvoiceBeforePaymentServerPayloadAssembler` rebutja seleccions mixtes; pendent integrar UI |
-| UC004-GAP-010 | **TANCAT PER DOBLE EMISSIÓ UC-004:** guard entre claus idempotents diferents | `invoice_before_payment_coverage` + `InvoiceBeforePaymentCoverageRepository` + UNIQUE `uq_invoice_before_payment_source`; la cobertura transversal contra factures d'altres canals continua oberta |
+| UC004-GAP-010 | **TANCAT PER DOBLE EMISSIÓ UC-004:** preview + guard transaccional | `preview` consulta `invoice_before_payment_coverage` i falla 409 si ja hi ha claim; `confirm` manté UNIQUE `uq_invoice_before_payment_source` dins la transacció. Un retry de la mateixa K reutilitza UUID; la cobertura transversal contra altres canals continua oberta |
 | UC004-GAP-011 | Numeració llegada amb “últim + 1” | risc concurrent; s'ha de substituir per seqüència SIF |
 | UC004-GAP-012 | ID de factura llegada amb “últim + 1” | risc concurrent independent del número fiscal |
 | UC004-GAP-013 | INSERT factura + UPDATEs d'inscripcions no formen una transacció observada | possible estat parcial |
@@ -227,7 +227,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | UC004-GAP-022 | **TANCAT AL CODI:** entitat resolta per ID | `sifFacturaAbansPagarEntitats.php` carrega IDs interns i el repositori SIF valida entitat/responsable |
 | UC004-GAP-023 | **TANCAT AL CODI:** resposta JSON tipificada | la pantalla consumeix JSON del bridge i renderitza el resultat SIF amb UUID/número/PENDING |
 | UC004-GAP-024 | **PARCIALMENT TANCAT AL SIF:** request i correlació | `InternalApiAuthenticator` registra `request_id`; l'event operacional usa `UC004:sha256(idempotency_key)` com a correlació estable i conserva la clau original dins l'snapshot. Continua pendent versionar explícitament el command/bridge si es considera necessari |
-| UC004-GAP-025 | Sincronització llegada posterior al COMMIT SIF no implementada al processador UC-004 | el script ho evita explícitament |
+| UC004-GAP-025 | **DECISIÓ TANCADA:** no crear factura shadow llegada ni falsificar `FACTURA_RELACIONADA` | `FACTURA_RELACIONADA` és un ID enter de `factures` llegades; representar-hi un UUID/sentinel reintroduiria doble autoritat. Les lectures que encara ho necessitin s'han d'adaptar a SIF/read-model; només projeccions no fiscals i idempotents són admissibles |
 | UC004-GAP-026 | PDF llegat es regenera des de dades vives | no és custòdia immutable per snapshot/UUID |
 | UC004-GAP-027 | Descàrrega marca `GENERAT` com a efecte lateral | lectura/descàrrega no hauria de redefinir estat fiscal |
 | UC004-GAP-028 | Eliminació de fitxer per `unlink(filename)` rebut per GET | cal eliminar aquesta superfície o restringir-la estrictament |
