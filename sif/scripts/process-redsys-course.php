@@ -35,8 +35,9 @@ if (PHP_SAPI !== 'cli') {
 
 $config = require dirname(__DIR__) . '/config/sif.php';
 
-if (($config['env'] ?? 'local') === 'production') {
-    fwrite(STDERR, "Refusing to process Redsys course invoices with SIF_ENV=production.\n");
+$environment = (string) ($config['env'] ?? 'local');
+if (!in_array($environment, ['test', 'preproduction'], true)) {
+    fwrite(STDERR, "Redsys course processing is allowed only with SIF_ENV=test or preproduction.\n");
     exit(1);
 }
 
