@@ -92,6 +92,7 @@ final class PayloadIdempotencyFlowTest
         ]);
 
         $service->issueInvoice($payload);
+        $db->exec('DELETE FROM operational_event');
         $db->exec('DELETE FROM payment_allocation');
         $db->exec('DELETE FROM payment_transaction');
 
