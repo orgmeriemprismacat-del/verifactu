@@ -463,7 +463,7 @@ Correcció:
 - bloqueig de submit concurrent al JS;
 - `GET_LOCK` específic per request;
 - fingerprint determinista del formulari;
-- `PACK_REQUEST` i `PACK_REQUEST_HASH` persistits a `OBSERVACIONS`;
+- `PACK_REQ` i `PACK_REQH` persistits a `OBSERVACIONS`;
 - replay idèntic retorna la mateixa alta;
 - replay amb payload diferent falla tancat;
 - `begin_transaction/commit/rollback` envolten els N inserts;
