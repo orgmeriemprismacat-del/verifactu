@@ -526,3 +526,21 @@ Després de la darrera passada, els pendents interns queden resolts:
 6. **Notificacions:** UC-015 tanca l'enqueue idempotent; el transport/retry/lliurament és responsabilitat d'UC-58.
 
 Per tant, **no queda cap gap de programació o documentació propi d'UC-015**. El tancament de merge queda condicionat només a la CI verda del HEAD final. L'E2E real és criteri d'acceptació operativa del desplegament, no feina de codi pendent en aquest cas d'ús.
+
+
+## 9. Reconciliació del PR #85 — 2026-10-02
+
+La branca antiga d'evidència E2E no s'ha descartat sense revisió. S'han portat selectivament les peces que no existien encara al tancament actual:
+
+- verificador persistent `RedsysPackEvidenceVerifier` i CLI `verify-redsys-pack-evidence.php`;
+- prova E2E del worker amb replay idempotent;
+- boundaries de checkout autoritatiu, transport POST i privacitat Redsys;
+- plantilla d'evidència de preproducció;
+- allowlist de `SIF_REDSYS_PAYMENT_URL`;
+- titular/imports/correu derivats del snapshot servidor;
+- eliminació de PII del producte Redsys i de les return URLs PACK;
+- sanejament dels retorns OK/KO legacy.
+
+No s'han reintroduït les versions antigues de l'alta pública ni de la documentació que havien quedat superades per la idempotència `REQUEST_ID`, atomicitat, disponibilitat global i retirada física del callback productiu.
+
+**Resultat:** la feina útil del PR #85 queda absorbida funcionalment al PR #102; el tancament definitiu del #85 es farà després de validar CI del HEAD final.
