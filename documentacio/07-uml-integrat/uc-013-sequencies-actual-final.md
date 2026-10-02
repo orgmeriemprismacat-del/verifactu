@@ -236,7 +236,7 @@ Actualment el builder rebutja `student_amount=0`; no s'inventa una factura o cob
 ## 10. Estat
 
 - **Documentat:** seqüències principals ACTUAL/FINAL separades.
-- **Implementat:** sol·licitud, validació durable, factura/cobrament alumne, checkpoint, factura/cobrament entitat, conciliació, guard i planner.
+- **Implementat:** sol·licitud, validació durable, factura/cobrament alumne, checkpoint, factura/cobrament entitat, conciliació, guard, planner, resolver d'imports destí i pla econòmic pur per pagador.
 - **Verificat:** inspecció estàtica sobre el main indicat.
 - **Provat:** evidència CI prèvia específica del UC-013 cobreix E2E de servei, idempotència, parcial/complet, validació durable, UI contracts i lifecycle planner.
 - **Pendent:** E2E navegador/preproducció sobre configuració real i executor fiscal/econòmic del canvi de curs. La baixa ja està implementada al repositori.
