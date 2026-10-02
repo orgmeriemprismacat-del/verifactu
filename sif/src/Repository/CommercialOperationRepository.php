@@ -109,7 +109,7 @@ final class CommercialOperationRepository
     {
         $stmt = $db->prepare(
             'UPDATE commercial_operation
-             SET STATUS = ?
+             SET STATUS = ?, UPDATED_AT = CURRENT_TIMESTAMP
              WHERE UUID_OPERATION = ?'
         );
         $stmt->execute([$status, $uuidOperation]);

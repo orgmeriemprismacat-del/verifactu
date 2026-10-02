@@ -259,7 +259,7 @@ try {
 			WHERE ID=? AND DATAI<=CURRENT_TIMESTAMP
 			AND (DATAF IS NULL OR CURRENT_TIMESTAMP<=DATAF)";
 		$stmtBaseServidor = $connexio->prepare($cnsBaseServidor);
-		$stmtBaseServidor->bind_param("d", $idPreuServidor);
+		$stmtBaseServidor->bind_param("i", $idPreuServidor);
 		$stmtBaseServidor->execute();
 		$stmtBaseServidor->store_result();
 		if ($stmtBaseServidor->num_rows() !== 1) {
@@ -280,7 +280,7 @@ try {
 			AND (CURS='TOTS' OR CURS=? OR CURS=?)
 			AND (MES='TOTS' OR MES=?)";
 		$stmtApServidor = $connexio->prepare($cnsApServidor);
-		$stmtApServidor->bind_param("dsss", $idPreuServidor, $codiCurs, $hores, $edicio);
+		$stmtApServidor->bind_param("isss", $idPreuServidor, $codiCurs, $hores, $edicio);
 		$stmtApServidor->execute();
 		$stmtApServidor->store_result();
 		if ($stmtApServidor->num_rows() !== 1) {
