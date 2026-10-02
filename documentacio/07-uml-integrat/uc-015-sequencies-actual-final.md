@@ -57,8 +57,8 @@ JS-->>U: redirecció confirmació
 
 - les N inscripcions ja es persisteixen atòmicament; en excepció es fa rollback i el lock `IDPAG` s'allibera per `finally`;
 - l'alta pública és POST-only amb comprovació same-site/origin i idempotència server-side `REQUEST_ID`+payload hash; una alta nova exigeix totes les edicions obertes i un reintent equivalent reutilitza l'alta abans de rellegir disponibilitat/pack actual; resta E2E navegador/preproducció i valorar controls anti-abús addicionals;
-- l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
-- `PACK_ORDINAL` queda determinat pel mateix ordre estable de presentació `DATAI, ID_CURS`; resta decidir si negoci requereix una posició explícita separada;
+- l'allocator `IDPAG` continua sent legacy `MAX+1`, però queda serialitzat amb named lock i no és un bloqueig de tancament UC-015;
+- `PACK_ORDINAL` queda determinat pel contracte comercial v1 `DATAI, ID_CURS`; qualsevol reordenació manual futura requerirà un canvi de model explícit i no reinterpretarà snapshots històrics;
 - els callbacks fiscals legacy productius han estat eliminats físicament; només queda un harness de prova fail-closed i no autoritatiu.
 
 ## 2. HISTÒRIC — callback PACK legacy retirat
