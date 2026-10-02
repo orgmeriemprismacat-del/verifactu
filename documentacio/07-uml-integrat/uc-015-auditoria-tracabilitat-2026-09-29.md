@@ -452,3 +452,21 @@ PASS explícits del bloc nou:
 Els quatre workflows del mateix head van finalitzar en verd: `SIF PHP MySQL tests`, `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks`.
 
 Aquesta evidència correspon al contingut funcional/documental consolidat al PR anterior. La branca neta creada sobre el `main` posterior s'ha de tornar a validar amb CI abans del merge; aquesta secció no substitueix aquesta revalidació.
+
+
+## 24. Atomicitat i idempotència de l'alta PACK — 2026-10-02
+
+Troballa: `reserveIdPag()` serialitzava l'assignació d'`IDPAG`, però els N inserts no estaven dins una transacció i el JS no bloquejava doble submit. Això permetia pack parcial davant error intermig i duplicació davant reintent/doble clic.
+
+Correcció:
+- `requestId` estable amb `sessionStorage`;
+- bloqueig de submit concurrent al JS;
+- `GET_LOCK` específic per request;
+- fingerprint determinista del formulari;
+- `PACK_REQUEST` i `PACK_REQUEST_HASH` persistits a `OBSERVACIONS`;
+- replay idèntic retorna la mateixa alta;
+- replay amb payload diferent falla tancat;
+- `begin_transaction/commit/rollback` envolten els N inserts;
+- lectures de preu i inserts fallen tancat si qualsevol operació retorna error.
+
+Cobertura: `PackEnrollmentIdempotencyBoundaryTest` + `PackEnrollmentTransportBoundaryTest`.
