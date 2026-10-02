@@ -59,7 +59,7 @@ else {
 <?php } ?>
 <?php if (getenv('SIF_USOC_UI_ENABLED') === '1') { ?>
 		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne-usoc.js?ver=1.0"></script>
-		<script src="https://intranet.prisma.cat/js/alumnes-usoc-lifecycle-preview.js?ver=1.1"></script>
+		<script src="https://intranet.prisma.cat/js/alumnes-usoc-lifecycle-preview.js?ver=1.2"></script>
 <?php } ?>
 
 <?php if (getenv('SIF_NOVICE_PROMOTION_UI_ENABLED') === '1') { ?>
