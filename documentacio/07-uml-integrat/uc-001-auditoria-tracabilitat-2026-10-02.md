@@ -36,6 +36,7 @@
 8. `fact_rels.ID_FACTURA_LINIA` s'emplena quan l'origen identifica una única línia.
 9. El validador imposa coherència de família sèrie-tipus (`A` amb `F1/F2`; `R` amb `R1…R5`) sense pretendre decidir el tipus rectificatiu concret.
 10. El payload AEAT oficial rebutja l'emissor placeholder `G00000000`; `preflight-invoice-issue.php` exposa només booleans de readiness i comprova auth/rol/emissor/anti-replay/taules abans del desplegament.
+11. El validador normalitza clau idempotent i canal, exigeix receptor/concepte no buits després de `trim()` i reconcilia també el descompte de capçalera amb les línies.
 
 ## 3. Deutes classificats després de l’auditoria — no són feina d’auditoria desconeguda
 
@@ -59,7 +60,7 @@ No s'han modificat sense contracte suficient:
 - `InvoiceIssueHttpEndpointTest`: body cru signat i frontera interna.
 - `InvoiceIssuePreflightScriptTest`: preflight CLI, HMAC/rol/emissor real, taules necessàries, cap mutació ni exposició del secret.
 - `IssueInvoiceTest`: `fact_rels.ID_FACTURA_LINIA` coincideix amb la línia fiscal d'origen i queda `NULL` quan l'origen és ambigu.
-- `PayloadIdempotencyFlowTest`: reús amb `payment` original desaparegut falla tancat amb CONFLICT.
+- `PayloadIdempotencyFlowTest`: reús amb `payment` original desaparegut, moviment manipulat o assignació desviada a una altra factura falla tancat amb CONFLICT.
 
 ## 5. Criteri de tancament
 
@@ -102,7 +103,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 | F-054 | Worker Redsys sense fencing per propietari del lock. | No modificat des d'UC-001. | **Pendent transversal** |
 | F-055 | Falta integrar tota la traça `operational_event/sif_audit_event/factura_registre_control`. | Reflectit al FINAL, sense writer nou inventat. | **Pendent** |
 | F-056 | Rectificativa pot heretar any de l'original. | No es modifica sense decisió fiscal. | **Pendent decisió/prova** |
-| F-057 | Reús amb `payment` original i moviment desaparegut podia retornar sense `uuid_payment`. | `InvoiceService` ara falla tancat amb CONFLICT; test específic afegit. | **Corregit per codi; reparació de dades continua operativa** |
+| F-057 | Reús amb `payment` original absent o inconsistent podia presentar una postcondició econòmica incompleta. | `InvoiceService` exigeix moviment existent, fingerprint/camps originals i una única assignació coherent a la mateixa factura; divergència = CONFLICT. | **Corregit per codi; reparació de dades continua operativa** |
 | F-058 | Cal decisió comuna de cobertura/cobrament abans d'emetre. | Incorporada a activitats/seqüència FINAL. | **Documentat; no implementat complet** |
 | F-059 | Cal distingir documentat/implementat/inspeccionat/executat. | Aquesta fitxa ho centralitza. | **Corregit documentalment** |
 | F-060 | Registre intern no congela explícitament tots els camps fora del bloc AEAT. | No es duplica estructura sense model aprovat. | **Pendent snapshot final** |
