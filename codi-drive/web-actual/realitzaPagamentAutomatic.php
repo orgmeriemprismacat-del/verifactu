@@ -74,6 +74,10 @@ if ($courseCutoverEnabled && $legacyDrainConfirmed) {
 		if (!preg_match('/^UC014I([1-9][0-9]*)A([1-9][0-9]*)F([01])$/D', $merchantData, $context)) {
 			throw new RuntimeException('INVALID_REDSYS_MERCHANT_CONTEXT');
 		}
+		$order = trim((string) $ordre);
+		if ($order === '' || strlen($order) > 12 || !ctype_alnum($order)) {
+			throw new RuntimeException('INVALID_REDSYS_ORDER');
+		}
 		$idPag = (int) $context[1];
 		$expectedAmountCents = (int) $context[2];
 		$frac = (int) $context[3];
@@ -98,7 +102,6 @@ if ($courseCutoverEnabled && $legacyDrainConfirmed) {
 		if ($responseCode === '' || !ctype_digit($responseCode) || strlen($responseCode) > 4) {
 			throw new RuntimeException('INVALID_REDSYS_RESPONSE_CODE');
 		}
-		$order = (string) $ordre;
 		$importPag = number_format($expectedAmountCents / 100, 2, '.', '');
 
 		if ((int) $responseCode <= 99) {
