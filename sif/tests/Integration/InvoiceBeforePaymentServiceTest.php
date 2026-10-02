@@ -218,6 +218,70 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
     }
 
+    public function testDocumentQueueFailureKeepsInvoiceCommittedAndRetryReusesIt(): void
+    {
+        $db = TestDatabase::fresh();
+        $db->exec(
+            "CREATE TRIGGER test_uc004_document_job_fail
+             BEFORE INSERT ON document_job
+             FOR EACH ROW
+             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'forced document queue failure'"
+        );
+
+        $service = $this->serviceWithDocuments($db);
+        $input = Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|REF:DOC-RECOVERY',
+            'source_channel' => 'INTRANET',
+            'created_by' => 'gestio-doc-recovery',
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 902,
+                'factura_relacionada' => 902,
+            ]],
+            'lines' => [[
+                'concept' => 'Curs recuperacio document',
+                'detail' => 'Factura emesa amb cua documental temporalment fallida',
+                'quantity' => '1.00',
+                'unit_price' => '120.00',
+                'base' => '120.00',
+                'import_base' => '120.00',
+                'discount_amount' => '0.00',
+                'taxable_base' => '120.00',
+                'iva_regim' => 'EXEMPT',
+                'iva_pct' => '0.00',
+                'iva_import' => '0.00',
+                'total' => '120.00',
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 902,
+            ]],
+        ]);
+
+        try {
+            $first = $service->issueBeforePayment($input);
+        } finally {
+            $db->exec('DROP TRIGGER IF EXISTS test_uc004_document_job_fail');
+        }
+
+        Assert::same(true, $first['ok']);
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same('ERROR', $first['document_status']);
+        Assert::same('DOCUMENT_QUEUE_FAILED', $first['document_error_code']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM document_job')->fetchColumn());
+
+        $retry = $service->issueBeforePayment($input);
+
+        Assert::same(true, $retry['ok']);
+        Assert::same(true, $retry['idempotency_reused']);
+        Assert::same($first['uuid_factura'], $retry['uuid_factura']);
+        Assert::same('PENDING', $retry['document_status']);
+        Assert::same(false, $retry['document_job']['reused']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM document_job')->fetchColumn());
+    }
+
     public function testDifferentIdempotencyKeyCannotCoverSameInscriptionTwice(): void
     {
         $db = TestDatabase::fresh();
