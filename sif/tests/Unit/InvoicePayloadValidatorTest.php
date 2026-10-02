@@ -97,6 +97,49 @@ final class InvoicePayloadValidatorTest
         Assert::same('Invoice taxable_base does not match line totals', $exception->getMessage());
     }
 
+
+    public function testRejectsBlankSourceChannel(): void
+    {
+        $payload = $this->validPayload();
+        $payload['source_channel'] = '   ';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Invalid invoice source channel', $exception->getMessage());
+    }
+
+    public function testRejectsHeaderImportBaseThatDoesNotMatchLines(): void
+    {
+        $payload = $this->validPayload();
+        $payload['totals']['import_base'] = '119.00';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Invoice import_base does not match line totals', $exception->getMessage());
+    }
+
+    public function testRejectsHeaderVatThatDoesNotMatchLines(): void
+    {
+        $payload = $this->validPayload();
+        $payload['totals']['iva_import'] = '1.00';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Invoice iva_import does not match line totals', $exception->getMessage());
+    }
+
     private function validPayload(): array
     {
         return [
