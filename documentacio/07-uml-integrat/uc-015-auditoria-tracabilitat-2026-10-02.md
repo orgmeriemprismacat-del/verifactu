@@ -79,6 +79,7 @@ Fitxers:
 - `sif/tests/Integration/PackMultiCourseCommunicationBoundaryTest.php`
 - `sif/tests/Integration/PackEnrollmentAtomicityBoundaryTest.php`
 - `sif/tests/Integration/PackEnrollmentIdempotencyBoundaryTest.php`
+- `sif/tests/Integration/PackComponentAvailabilityBoundaryTest.php`
 - `sif/tests/Integration/LegacyPackCallbackBoundaryTest.php`
 - `sif/tests/Integration/RedsysPaymentIntentTest.php`
 - `sif/tests/Integration/RedsysPackPreflightScriptTest.php`
@@ -90,9 +91,9 @@ Fitxers:
 
 | Bloc | Documentat | Implementat | Verificat | Pendent |
 |---|---|---|---|---|
-| PK-A01 Llistat packs | sí | sí, legacy | inspecció | E2E visual |
-| PK-A02 Fitxa pack | sí | sí, legacy | inspecció | E2E visual |
-| PK-A03 Formulari | sí | **POST-only + same-site/origin + REQUEST_ID implementats** | inspecció + boundary/idempotency tests | E2E navegador/preproducció |
+| PK-A01 Llistat packs | sí | filtre d'edició + disponibilitat global de tots els components | boundary test/inspecció | E2E visual |
+| PK-A02 Fitxa pack | sí | exigeix totes les edicions obertes | boundary test/inspecció | E2E visual |
+| PK-A03 Formulari | sí | **POST-only + same-site/origin + REQUEST_ID + revalidació de totes les edicions** | boundary/idempotency tests | E2E navegador/preproducció |
 | PK-A04 Alta N inscripcions | sí | snapshot + transacció + idempotència server-side | proves/inspecció | model comercial explícit/versionat |
 | PK-A05 Intenció/URL pagament | sí | sí | proves + CI històrica | prova d'entorn real |
 | PK-A06 Callback | sí | sí, SIF autoritatiu | proves | Redsys preproducció |
@@ -328,6 +329,24 @@ El fingerprint és deliberadament conservador: diferències literals del formula
 
 **Estat:** implementat i cobert per proves automatitzades; resta E2E de navegador/preproducció amb resposta perduda/reintent concurrent.
 
+### F-19 · Disponibilitat del pack validada només parcialment — corregit
+
+La revalidació ha detectat tres desalineacions relacionades:
+
+1. `EdicioPack::inscripcioOberta()` calculava `DateTime::diff()->days`, un valor absolut; per tant no distingia correctament si la data límit era passada o futura. Tampoc suportava correctament configuracions amb dies negatius.
+2. `Pack.php` comprovava només `$this->edicions[0]` i, a més, comparava el retorn `0/1` amb `< 0`, de manera que el bloqueig no podia actuar com estava documentat.
+3. `enviarInscripcioPack.php` confiava en `PUBLIC/ESTAT` i en la UI, però no revalidava la finestra d'inscripció de cadascun dels N components abans de crear les files.
+
+**Correcció aplicada:**
+- `EdicioPack::inscripcioOberta()` calcula `data_inici + dies_configurats` amb signe i exigeix `dataLimit > avui`, igual que la regla utilitzada al llistat;
+- `Pack.php` carrega les regles `dies-inscriu-cursos` per hores i exigeix que **cada edició** tingui almenys una regla encara oberta;
+- el POST d'alta repeteix aquesta validació server-side per tots els components abans de calcular preus, reservar `IDPAG` o iniciar la transacció;
+- un replay idempotent ja commitat es resol abans d'aquesta revalidació, de manera que un canvi posterior de disponibilitat no impedeix recuperar una resposta perduda;
+- `buscantPacksDisponibles.php` separa el filtre «conté l'edició seleccionada» de la disponibilitat global i només llista packs amb almenys dos components i **tots oberts**;
+- `PackComponentAvailabilityBoundaryTest` blinda dates amb signe, validació de tots els components, ordre abans de preu/IDPAG i independència del replay.
+
+**Estat:** implementat i cobert per prova automatitzada; resta E2E de dates límit/preproducció.
+
 ## 6. UML i traçabilitat
 
 ### Classes
@@ -405,7 +424,7 @@ Per tant:
 
 ### Pendent
 
-1. Executar PK-01..PK-11 en preproducció amb DS_ORDER real, incloent alta POST, rebuig GET/cross-site, doble clic i replay del mateix `REQUEST_ID` després de resposta perduda.
+1. Executar PK-01..PK-11 en preproducció amb DS_ORDER real, incloent alta POST, rebuig GET/cross-site, doble clic, replay del mateix `REQUEST_ID` i un pack amb un component fora de finestra.
 2. Tancar decisió de negoci sobre ordre comercial explícit vs `DATAI, ID_CURS`.
 3. Eliminar físicament callback fiscal PACK legacy després de la finestra de rollback.
 4. Validar lliurament real de notificació (UC-58), no només enqueue.
@@ -424,7 +443,8 @@ Per tant:
 - resposta post-commit desacoblada de fallades auxiliars per evitar falsos errors i reintents;
 - suma comercial de components validada en cèntims contra el preu PACK abans del commit;
 - idempotència server-side de l'alta amb `REQUEST_ID`, `RID/RH1`, named lock i replay/conflicte;
-- cache-bust del bundle d'inscripció a `ver=7.4`.
+- cache-bust del bundle d'inscripció a `ver=7.4`;
+- disponibilitat corregida: dates amb signe i exigència de tots els components oberts al llistat, fitxa i POST.
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
 - creació d'aquest registre de revalidació 02/10.
