@@ -417,7 +417,7 @@ Això cobreix explícitament:
 
 Després d'aquest tall, el `main` ha avançat per altres UC. Al punt de control `47f8f834ab3ee44db64d8e8987f8b371766329f9`, la comparació des de `902b1c7...` conté **17 commits / 10 fitxers** i cap canvi funcional en les dependències UC-008; només s'han modificat documents UC-008 d'aquesta mateixa auditoria.
 
-**Estat tècnic consolidat:** `CODE_COMPLETE + DOC_RECONCILED + CLOSURE_GATE_HARDENED + MANAGER_E2E_PREPARED + CI_837_0`.
+**Estat tècnic consolidat al tancament de l'auditoria (02/10/2026):** `AUDIT_CLOSED + CODE_COMPLETE + DOC_RECONCILED + CLOSURE_GATE_HARDENED + MANAGER_E2E_PREPARED + CI_844_0`. El tall executable `5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`, run `36943995075`, ha passat **844/0**, amb **74 PASS relacionats amb incidències/UC-008**.
 
 ### 7.1. Pendents obligatoris d'entorn
 
@@ -429,7 +429,7 @@ Després d'aquest tall, el `main` ha avançat per altres UC. Al punt de control 
    `php preflight-sif-verifactu-menu.php`
 4. Si `/sif-verifactu.php` no existeix a `apartats`, confirmar pare, nivell, rols, ordre i icona abans de fer l'alta.
 5. Tornar a executar el preflight del menú fins obtenir `ALREADY_PRESENT`.
-6. Validar el parell:
+6. Validar el trio d'evidències:
    `php sif/scripts/validate-uc008-evidence.php uc-008-preproduction-evidence.json uc-008-menu-evidence.json uc-008-manager-e2e-evidence.json`
 7. Conservar `uc-008-closure-validation.json` amb `ok=true`.
 8. Fer una passada de navegador amb:
@@ -487,19 +487,32 @@ No cal afegir un `RepairRouter` genèric ni una reparació automàtica massiva. 
 
 ## 9. Canvis aplicats en aquesta auditoria
 
-1. Actualitzada `documentacio/06-fitxes-funcionals/uc-008.md` a versió 1.3.
-2. Reconciliat l'estat del cas: codi complet/verificat al repositori, entorn pendent.
+1. Actualitzada `documentacio/06-fitxes-funcionals/uc-008.md` a versió 1.4 i marcada com `AUDIT_CLOSED_CODE_COMPLETE_ENVIRONMENT_ACCEPTANCE_PENDING`.
+2. Reconciliat l'estat del cas: auditoria i codi tancats/verificats al repositori; acceptació d'entorn separada i pendent.
 3. Creat aquest document com a auditoria vigent del 2026-09-30.
 4. No s'ha modificat PHP/JS perquè l'auditoria no ha detectat un buit de codi justificat que calgui corregir ara.
 
 ## 10. Criteri de tancament
 
-El UC-008 es pot considerar **CODE-COMPLETE**.
+El UC-008 es considera **AUDIT-CLOSED + CODE-COMPLETE + DOCUMENTATION-RECONCILED + CI-GREEN**.
 
-No s'ha de considerar **ENVIRONMENT-CLOSED / PRODUCTION-VERIFIED** fins que:
+Això tanca l'auditoria del cas d'ús. Separadament, no s'ha de considerar **ENVIRONMENT-CLOSED / PRODUCTION-VERIFIED** fins que:
 
 - preproduction verifier → `ok=true`;
 - menu preflight → `ALREADY_PRESENT`;
 - evidence validator → `ok=true`;
 - passada funcional real amb rols autoritzats/read-only → satisfactòria.
 
+
+## 11. Revalidació final de tancament · 02/10/2026
+
+S'ha revalidat l'estat del UC-008 contra el `main` observat `f7fa0822f82be96e842d9f2d031e643ab07f617c`.
+
+- El darrer tall que modifica codi executable aplicable al UC-008 és `5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`.
+- El workflow **SIF PHP MySQL tests** run `36943995075` ha finalitzat en **success** amb **844 passed / 0 failed**.
+- Dins del mateix run s'han identificat **74 PASS** relacionats amb incidències/UC-008: esquema, lifecycle, HMAC/anti-replay, permisos read/manage, journal de rol gestor efectiu, idempotència, concurrència, panell, CSRF, E2E read-only, preflight, menú, gate de tres evidències, preparació/verificació E2E gestor, Redsys i AEAT.
+- La comparació `5cc041...main` conté **10 commits** i només modifica documentació UC-014 i el registre mestre; no modifica cap dependència executable UC-008. Per tant, el run 844/0 és aplicable al codi UC-008 present al `main` observat.
+- No s'ha detectat cap fitxa, diagrama de classes, seqüència, activitat, PHP, JS, migració, contracte ni prova obligatòria absent dins l'abast de l'auditoria.
+- No s'han fabricat evidències de preproducció: els tres JSON reals i el closure JSON només es poden obtenir sobre l'entorn corresponent.
+
+**Veredicte de l'auditoria:** `AUDIT_CLOSED`. El que queda és una **acceptació operativa d'entorn** i no una mancança de codi o documentació UC-008. El registre final queda resumit a [09-tancament-auditoria-uc-008-2026-10-02.md](09-tancament-auditoria-uc-008-2026-10-02.md).
