@@ -47,6 +47,32 @@ final class RedsysCourseLegacyFallbackBoundaryTest
         }
     }
 
+    public function testCheckoutMinimisesPiiSentToRedsys(): void
+    {
+        foreach ([
+            'codi-drive/web-actual/pagina_efectuar_pagament_automatic.php',
+            'codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_automatic.php',
+        ] as $path) {
+            $checkout = $this->read($path);
+
+            Assert::stringContainsString(
+                "\$producto='Curs ' . \$cursPag . ' | ' . stripslashes(\$titolPag);",
+                $checkout
+            );
+            Assert::stringContainsString(
+                'setParameter("DS_MERCHANT_TITULAR",$nomTitularPag)',
+                $checkout
+            );
+
+            if (str_contains($checkout, '$producto=$dniTitularPag')) {
+                Assert::fail('UC-014 product description must not include DNI.');
+            }
+            if (str_contains($checkout, 'setParameter("DS_MERCHANT_TITULAR",$dniTitularPag)')) {
+                Assert::fail('UC-014 Redsys titular must not use DNI as the holder name.');
+            }
+        }
+    }
+
     public function testCurrentLegacyCallbackValidatesRedsysBeforeFiscalOrNotificationEffects(): void
     {
         $callback = $this->read('codi-drive/web-actual/realitzaPagamentAutomatic.php');
@@ -80,6 +106,11 @@ final class RedsysCourseLegacyFallbackBoundaryTest
         }
         if (str_contains($callback, '$_GET[')) {
             Assert::fail('UC-014 legacy callback must not trust functional context from query string.');
+        }
+        if (str_contains($callback, 'echo $textDadesComanda')
+            || str_contains($callback, 'echo $textManeresPagar')
+        ) {
+            Assert::fail('UC-014 server callback must not expose business/payment details in HTTP body.');
         }
         if (str_contains($callback, 'intval($codiResposta)>=0')) {
             Assert::fail('UC-014 legacy callback must validate Ds_Response as numeric before authorization.');
