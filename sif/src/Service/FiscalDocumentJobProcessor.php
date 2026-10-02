@@ -68,8 +68,9 @@ final class FiscalDocumentJobProcessor
                 if ($current === null
                     || strtoupper((string) $current['STATUS']) !== 'PROCESSING'
                     || (string) $current['UUID_JOB'] !== (string) $job['UUID_JOB']
+                    || (int) $current['ATTEMPTS'] !== (int) $job['ATTEMPTS']
                 ) {
-                    throw SifException::conflict('Document job ownership changed before completion');
+                    throw SifException::conflict('Document job lease changed before completion');
                 }
 
                 $registered = $this->documents->registerDocument(
@@ -90,6 +91,7 @@ final class FiscalDocumentJobProcessor
                 $row = $this->jobs->complete(
                     $db,
                     $jobId,
+                    (int) $job['ATTEMPTS'],
                     (int) $registered['document_id'],
                     (string) $stored['storage_key'],
                     (string) $stored['hash']
@@ -121,10 +123,24 @@ final class FiscalDocumentJobProcessor
                     fn (\PDO $db): array => $this->jobs->fail(
                         $db,
                         $jobId,
+                        (int) $job['ATTEMPTS'],
                         $this->safeError($exception),
                         $retrySeconds
                     )
                 );
+            } catch (SifException $failureRecordingException) {
+                if ((int) $failureRecordingException->getCode() === 409) {
+                    return [
+                        'ok' => false,
+                        'status' => 'STALE',
+                        'job_id' => $jobId,
+                        'uuid_job' => (string) $job['UUID_JOB'],
+                        'uuid_factura' => (string) $job['UUID_FACTURA'],
+                        'error_code' => 'DOCUMENT_JOB_LEASE_LOST',
+                    ];
+                }
+
+                throw $failureRecordingException;
             } catch (\Throwable $failureRecordingException) {
                 throw new \RuntimeException(
                     'Document processing failed and the job failure could not be recorded',
