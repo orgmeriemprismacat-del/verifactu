@@ -78,6 +78,8 @@ La branca d'auditoria:
 - clau Redsys via entorn, sense literal al fitxer;
 - verifica versió/signatura amb `hash_equals`;
 - recupera `Ds_MerchantData` signat i exigeix el context `UC014I<IDPAG>A<AMOUNT_CENTS>F<FRAC>` creat al checkout;
+- valida `Ds_Currency=978`, `Ds_Terminal` i `Ds_MerchantCode` contra la configuració d'entorn;
+- exigeix `Ds_Response` numèric abans de classificar `0..99` com a autoritzat, evitant que una resposta textual es converteixi implícitament en `0`;
 - deriva `IDPAG`, import i fraccionament exclusivament del context signat; el callback no llegeix `$_GET`;
 - usa `Ds_Order` i `Ds_Amount` signats, exigeix exactament una inscripció per `IDPAG` i rellegeix curs/DNI de la BD llegada;
 - no envia notificació de depuració abans de validar;
@@ -148,7 +150,7 @@ Pont candidat:
 
 ### Hardening ACTUAL afegit en aquesta auditoria
 - `JasomNovicePaymentGateTest`: inclou ara no-fraccionat parcial rebutjat i fraccionat parcial admès.
-- `RedsysCourseLegacyFallbackBoundaryTest`: comprova gate, escaping, configuració externa, signatura/order/import abans d'efectes i inicialització JASOM.
+- `RedsysCourseLegacyFallbackBoundaryTest`: comprova gate, escaping, configuració externa, signatura/order/import, `MerchantData`, moneda/terminal/merchant code i `Ds_Response` estricte abans d'efectes, a més de la inicialització JASOM.
 
 **Evidència anterior:** el cap del PR #79 (`3569fffc…`) va completar amb èxit `SIF PHP MySQL tests`, `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks`. El PR #95 (`3fa6377e…`) va tornar a deixar els quatre workflows verds i les suites SIF en **841 passed / 0 failed**, incorporant `EXTERNAL_ALLOCATION`.  
 **Evidència d'aquesta branca:** el hardening ACTUAL ha quedat revalidat al PR #105 sobre el head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en success.
