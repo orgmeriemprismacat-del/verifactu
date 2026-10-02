@@ -158,6 +158,28 @@ final class RedsysCallbackTest
         Assert::same('QUEUED', $result['queue_status']);
     }
 
+    public function testSmallCentAmountIsPersistedExactly(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->createIntent($db, 'CENT00000001', 'CURS', '0.10');
+        $service = $this->callbackService();
+
+        $service->receiveCallback($db, [
+            'ds_order' => 'CENT00000001',
+            'amount' => '0.10',
+            'response_code' => '0000',
+            'currency' => 'EUR',
+            'currency_code' => '978',
+            'terminal' => '1',
+            'signature_version' => 'HMAC_SHA256_V1',
+            'payload_hash' => str_repeat('7', 64),
+        ], true);
+
+        $stored = $db->query("SELECT IMPORT FROM redsys_notifications WHERE DS_ORDER='CENT00000001'")
+            ->fetchColumn();
+        Assert::same('0.10', number_format((float) $stored, 2, '.', ''));
+    }
+
     public function testDuplicateDsOrderDoesNotCreateSecondNotification(): void
     {
         $db = TestDatabase::fresh();
@@ -221,6 +243,29 @@ final class RedsysCallbackTest
 
         Assert::same('VALIDATED', $row['STATUS']);
         Assert::same(1, (int) $row['SIGNATURE_VALID']);
+    }
+
+    public function testMalformedResponseCodeIsRejectedBeforeRecording(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->createIntent($db, 'ORDERBADCODE1', 'CURS', '60.00');
+        $service = $this->callbackService();
+
+        Assert::throws(SifException::class, static function () use ($db, $service): void {
+            $service->receiveCallback($db, [
+                'ds_order' => 'ORDERBADCODE1',
+                'amount' => '60.00',
+                'response_code' => 'ABCD',
+                'currency' => 'EUR',
+                'currency_code' => '978',
+                'terminal' => '1',
+                'signature_version' => 'HMAC_SHA256_V1',
+                'payload_hash' => str_repeat('9', 64),
+            ], true);
+        }, 422);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_notifications')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_callback_queue')->fetchColumn());
     }
 
     public function testDeniedCallbackRecordsErrorWithoutFiscalOrPaymentEffects(): void

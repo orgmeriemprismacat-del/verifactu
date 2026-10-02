@@ -11,9 +11,50 @@ if (PHP_SAPI !== 'cli') {
 
 $config = require dirname(__DIR__) . '/config/sif.php';
 $env = (string) ($config['env'] ?? 'local');
+$internalApi = (array) ($config['internal_api'] ?? []);
+$callbackUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
+$gatewayUrl = trim((string) getenv('REDSYS_GATEWAY_URL'));
+$internalApiBaseUrl = rtrim(trim((string) getenv('SIF_INTERNAL_API_BASE_URL')), '/');
+$merchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
+$sifMerchantCode = trim((string) ($config['redsys']['merchant_code'] ?? ''));
+$bridgeMerchantKey = trim((string) getenv('REDSYS_MERCHANT_KEY'));
+$sifMerchantKey = trim((string) ($config['redsys']['merchant_key'] ?? ''));
+$terminal = trim((string) getenv('REDSYS_TERMINAL'));
+$courseCutoverEnabled = filter_var(
+    getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+$legacyDrainConfirmed = filter_var(
+    getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+$courseIntentPath = trim((string) ($internalApi['redsys_course_intent_signed_path'] ?? ''));
+$courseStatusPath = trim((string) ($internalApi['redsys_course_status_signed_path'] ?? ''));
+
 $checks = [
-    'environment_not_production' => $env !== 'production',
-    'redsys_merchant_key_configured' => (string) ($config['redsys']['merchant_key'] ?? '') !== '',
+    'environment_is_test_or_preproduction' => in_array($env, ['test', 'preproduction'], true),
+    'redsys_merchant_key_configured' => $sifMerchantKey !== '',
+    'bridge_redsys_merchant_code_configured' => $merchantCode !== '',
+    'sif_redsys_merchant_code_configured' => $sifMerchantCode !== '',
+    'bridge_and_sif_redsys_merchant_codes_match' => $merchantCode !== ''
+        && $sifMerchantCode !== ''
+        && hash_equals($merchantCode, $sifMerchantCode),
+    'bridge_redsys_merchant_key_configured' => $bridgeMerchantKey !== '',
+    'bridge_redsys_terminal_configured' => $terminal !== '',
+    'bridge_and_sif_redsys_keys_match' => $bridgeMerchantKey !== ''
+        && $sifMerchantKey !== ''
+        && hash_equals(hash('sha256', $sifMerchantKey), hash('sha256', $bridgeMerchantKey)),
+    'internal_api_base_url_https_configured' => $internalApiBaseUrl !== ''
+        && str_starts_with($internalApiBaseUrl, 'https://'),
+    'internal_api_key_id_configured' => trim((string) ($internalApi['key_id'] ?? '')) !== '',
+    'internal_api_secret_configured' => trim((string) ($internalApi['secret'] ?? '')) !== '',
+    'course_intent_signed_path_matches_bridge' => $courseIntentPath === '/api/redsys/course-intent.php',
+    'course_status_signed_path_matches_bridge' => $courseStatusPath === '/api/redsys/course-status.php',
+    'redsys_callback_url_https_configured' => $callbackUrl !== '' && str_starts_with($callbackUrl, 'https://'),
+    'redsys_gateway_url_https_configured' => $gatewayUrl !== '' && str_starts_with($gatewayUrl, 'https://'),
+    'cutover_configuration_consistent' => !$courseCutoverEnabled
+        || ($callbackUrl !== '' && str_starts_with($callbackUrl, 'https://')),
+    'legacy_drain_confirmed_if_cutover' => !$courseCutoverEnabled || $legacyDrainConfirmed,
     'legacy_db_configured' => (string) ($config['legacy_db']['dsn'] ?? '') !== '',
     'sif_database_connectivity' => false,
     'legacy_database_connectivity' => false,

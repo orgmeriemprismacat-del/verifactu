@@ -27,7 +27,9 @@ final class CourseLegacyPaymentSyncService
              WHERE IDPAG = ? AND ESTAT = 'CONFIRMED'"
         );
         $stmt->execute([$idpag]);
-        $confirmed = number_format(max(0.0, (float) $stmt->fetchColumn()), 2, '.', '');
+        $confirmedRaw = $stmt->fetchColumn();
+        $confirmedCents = max(0, $this->signedCents($confirmedRaw, 'confirmed payment total'));
+        $confirmed = $this->amount($confirmedCents);
 
         $legacy = $legacyDb->prepare(
             'SELECT A_PAGAR, PAGAMENT, FRACCIO, `INSC CURS`
@@ -39,13 +41,14 @@ final class CourseLegacyPaymentSyncService
             throw SifException::conflict('Legacy inscription not found during SIF payment sync');
         }
 
-        $contractTotal = number_format((float) ($row['A_PAGAR'] ?? 0), 2, '.', '');
-        if ((float) $contractTotal <= 0) {
+        $contractTotalCents = $this->signedCents($row['A_PAGAR'] ?? 0, 'legacy contract total');
+        if ($contractTotalCents <= 0) {
             throw SifException::conflict('Legacy inscription has invalid contract total');
         }
 
-        $projected = number_format(min((float) $contractTotal, (float) $confirmed), 2, '.', '');
-        $paid = (float) $projected + 0.009 >= (float) $contractTotal;
+        $projectedCents = min($contractTotalCents, $confirmedCents);
+        $projected = $this->amount($projectedCents);
+        $paid = $projectedCents >= $contractTotalCents;
         $timestamp = date('Y-m-d H:i:s');
         $noteToken = 'SIF_PAYMENT ' . $uuidFactura;
 
@@ -84,5 +87,33 @@ final class CourseLegacyPaymentSyncService
             'projected_payment' => $projected,
             'status' => $paid ? 'PAID' : 'PARTIALLY_PAID',
         ];
+    }
+
+    private function signedCents(mixed $value, string $label): int
+    {
+        $raw = trim(str_replace(',', '.', (string) $value));
+        if (!preg_match('/^-?\d{1,10}(?:\.\d{1,2})?$/D', $raw)) {
+            throw SifException::validation("Invalid {$label}");
+        }
+
+        $negative = str_starts_with($raw, '-');
+        if ($negative) {
+            $raw = substr($raw, 1);
+        }
+        [$euros, $decimals] = array_pad(explode('.', $raw, 2), 2, '');
+        $cents = (int) $euros * 100 + (int) str_pad($decimals, 2, '0');
+
+        return $negative ? -$cents : $cents;
+    }
+
+    private function amount(int $cents): string
+    {
+        if ($cents < 0) {
+            return '-' . $this->amount(-$cents);
+        }
+
+        return intdiv($cents, 100)
+            . '.'
+            . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 }

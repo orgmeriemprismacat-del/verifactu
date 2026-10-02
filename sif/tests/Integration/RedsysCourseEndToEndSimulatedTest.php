@@ -154,6 +154,51 @@ final class RedsysCourseEndToEndSimulatedTest
         Assert::same('0.00', $completePayload['remaining_after']);
     }
 
+    public function testDecimalCentsRemainExactThroughPartialThenCompleteFlow(): void
+    {
+        $db = TestDatabase::fresh();
+        $legacy = new RedsysCourseE2ELegacyPdo('0.30', '0');
+        [$callback, $worker] = $this->circuit($db, $legacy);
+
+        $this->createIntent($db, 'E2ECENTS0001', '0.10', '0.30', true);
+        $callback->receiveCallback($db, $this->callbackPayload('E2ECENTS0001', '0.10'), true);
+        $partial = $worker->runOne($db, 'e2e-worker', new \DateTimeImmutable('2030-06-19 12:00:00'));
+
+        Assert::same('0.10', $partial['legacy_payment_sync']['confirmed_amount']);
+        Assert::same('0.10', $partial['legacy_payment_sync']['projected_payment']);
+        Assert::same('PARTIALLY_PAID', $partial['legacy_payment_sync']['status']);
+        $partialPayload = json_decode(
+            (string) $db->query('SELECT PAYLOAD_JSON FROM notification_outbox ORDER BY ID DESC LIMIT 1')->fetchColumn(),
+            true
+        );
+        Assert::same('0.20', $partialPayload['remaining_after']);
+
+        $this->createIntent($db, 'E2ECENTS0002', '0.20', '0.30', true);
+        $callback->receiveCallback($db, $this->callbackPayload('E2ECENTS0002', '0.20'), true);
+        $complete = $worker->runOne($db, 'e2e-worker', new \DateTimeImmutable('2030-06-19 12:10:00'));
+
+        Assert::same('0.30', $complete['legacy_payment_sync']['confirmed_amount']);
+        Assert::same('0.30', $complete['legacy_payment_sync']['projected_payment']);
+        Assert::same('PAID', $complete['legacy_payment_sync']['status']);
+        Assert::same('0.30', $legacy->payment);
+        Assert::same(
+            '0.30',
+            number_format(
+                (float) $db->query(
+                    'SELECT SUM(IMPORT) FROM enrollment_fund_movement WHERE ID_INSC_DESTI = 410'
+                )->fetchColumn(),
+                2,
+                '.',
+                ''
+            )
+        );
+        $completePayload = json_decode(
+            (string) $db->query('SELECT PAYLOAD_JSON FROM notification_outbox ORDER BY ID DESC LIMIT 1')->fetchColumn(),
+            true
+        );
+        Assert::same('0.00', $completePayload['remaining_after']);
+    }
+
     private function circuit(\PDO $db, RedsysCourseE2ELegacyPdo $legacy): array
     {
         $notifications = new RedsysNotificationRepository();

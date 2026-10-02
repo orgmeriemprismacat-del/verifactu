@@ -102,6 +102,38 @@ final class RedsysCourseInvoiceServiceTest
         Assert::same(400, (int) $payment['IDPAG']);
     }
 
+    public function testValidatedNotificationKeepsSmallAmountExact(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $inscription = $this->legacyInscription();
+        $inscription['A_PAGAR'] = '0.10';
+        $legacyDb = new RedsysCourseLegacySpyPdo([
+            $inscription,
+            $this->legacyCourse(),
+        ]);
+        $notifications = new RedsysNotificationRepository();
+        $service = $this->service($notifications, $sifDb);
+
+        $notifications->recordReceived(
+            $sifDb,
+            'CENTCOURSE01',
+            400,
+            '0.10',
+            '0000',
+            true,
+            ['source' => 'exact-cent-test'],
+            'VALIDATED'
+        );
+
+        $result = $service->issueFromValidatedNotification($sifDb, $legacyDb, 'CENTCOURSE01');
+        Assert::same(true, $result['ok']);
+
+        $invoice = $sifDb->query('SELECT TOTAL FROM factura')->fetchColumn();
+        $payment = $sifDb->query('SELECT IMPORT FROM payment_transaction')->fetchColumn();
+        Assert::same('0.10', (string) $invoice);
+        Assert::same('0.10', (string) $payment);
+    }
+
     public function testIssuesCourseInvoiceWithExplicitPromotionalDiscountSnapshot(): void
     {
         $sifDb = TestDatabase::fresh();

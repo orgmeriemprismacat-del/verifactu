@@ -100,7 +100,7 @@ final class RedsysNotificationRepository
         return [
             'ds_order' => $dsOrder,
             'idpag' => $idpag,
-            'amount' => number_format((float) $amount, 2, '.', ''),
+            'amount' => $this->amount($amount),
             'currency_code' => $rawPayload['currency_code'] ?? null,
             'terminal' => $rawPayload['terminal'] ?? null,
             'response_code' => $responseCode,
@@ -111,9 +111,24 @@ final class RedsysNotificationRepository
         ];
     }
 
+    private function amount(mixed $value): string
+    {
+        $raw = trim(str_replace(',', '.', (string) $value));
+        if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $raw)) {
+            throw SifException::validation('Invalid Redsys notification amount');
+        }
+
+        [$euros, $decimals] = array_pad(explode('.', $raw, 2), 2, '');
+        $cents = (int) $euros * 100 + (int) str_pad($decimals, 2, '0');
+
+        return intdiv($cents, 100)
+            . '.'
+            . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
+    }
+
     private function sameNotification(array $existing, array $candidate): bool
     {
-        return number_format((float) $existing['IMPORT'], 2, '.', '') === $candidate['amount']
+        return $this->amount($existing['IMPORT']) === $candidate['amount']
             && (string) $existing['RESPONSE_CODE'] === $candidate['response_code']
             && (string) $existing['CURRENCY_CODE'] === (string) $candidate['currency_code']
             && (string) $existing['TERMINAL'] === (string) $candidate['terminal']

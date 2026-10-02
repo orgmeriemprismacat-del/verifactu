@@ -1,18 +1,18 @@
 # UC-014 — Diagrames d'activitat ACTUAL i FINAL per pàgina i apartat
 
-**Data d'auditoria:** 29/09/2026  
+**Data d'auditoria/revalidació:** 02/10/2026  
 **Compliment RM-037:** aquest document separa pàgines, apartats i processos servidor. Les capçaleres, cookies i components comuns no es reclasifiquen com UC-014.
 
 ## 0. Superfícies i apartats
 
 | ID | Pàgina/procés | Apartats UC-014 |
 | --- | --- | --- |
-| P-CUR-01 | `pagina_confirmacio_inscripcio_automatic.php` + `PagamentCursAutomatic::mostrarPaginaConfirmacio()` | A càrrega; B estat/preu; C targeta/transferència; D variants/descompte compartides |
-| P-CUR-02 | `pagina_pagament_automatic.php` + `PagamentCursAutomatic::mostrar()` | A dades curs; B pendent; C targeta; D transferència; E fraccionat |
-| P-CUR-03 | `pagina_efectuar_pagament_automatic.php` | A POST; B DS_ORDER; C imports; D formulari Redsys; E cancel·lar/confirmar |
+| P-CUR-01 | `pagina_confirmacio_inscripcio_automatic.php` + AJAX + `PagamentCursAutomatic::mostrarPaginaConfirmacio()` + `mostrarConfirmacioInscripcioAutomatic.min.js` | A càrrega/AJAX; B estat/preu; C validació UX; D targeta/transferència; E variants/descompte compartides |
+| P-CUR-02 | `pagina_pagament_automatic.php` + AJAX + `PagamentCursAutomatic::mostrar()` + `mostrarPagamentAutomatic.min.js` | A dades curs; B pendent; C validació UX; D targeta; E transferència; F fraccionat |
+| P-CUR-03 | `pagina_efectuar_pagament_automatic.php` + `JasomNovicePaymentGate` + `mostrarEfectuarPagamentAutomatic.js` | A POST; B gate autoritatiu; C DS_ORDER fallback / intenció candidat; D imports; E formulari Redsys; F cancel·lar/confirmar |
 | P-CUR-04 | Redsys + `realitzaPagamentAutomatic.php` | A recepció; B validació; C factura; D cobrament/fracció; E correus/estat |
-| P-CUR-05 | `respostaOkPagamentAutomatic.php` / `respostaKoPagamentAutomatic.php` | A retorn navegador; B missatge; C consulta estat real FINAL |
-| P-CUR-06 | SIF asíncron | A intenció; B callback; C cua; D worker; E factura/cobrament; F atribució quantitativa; G sync/outbox |
+| P-CUR-05 | `respostaOkPagamentAutomatic.php` / `respostaKoPagamentAutomatic.php` + JS OK/KO | A retorn navegador; B missatge; C consulta estat real FINAL; D JS només presentacional |
+| P-CUR-06 | SIF asíncron | A intenció; B callback; C cua; D worker; E factura/cobrament; F `EXTERNAL_ALLOCATION`; G sync/outbox |
 
 ## 1. P-CUR-01 — Confirmació d'inscripció
 
@@ -23,7 +23,7 @@
 title P-CUR-01 ACTUAL | Confirmació d'inscripció
 start
 :Carregar pàgina;
-:JS extern omple el contenidor de confirmació;
+:`mostrarConfirmacioInscripcioAutomatic.min.js` carrega l'AJAX i omple el contenidor;
 :PagamentCursAutomatic recupera inscripció per IDPAG;
 :Recupera curs/edició;
 :Calcula A_PAGAR - PAGAMENT;
@@ -31,7 +31,8 @@ if (Curs JASOM?) then (Sí)
   :Consulta recent_titulat;
   note right
     UC-111 comparteix aquesta pantalla.
-    Existeix una inicialització escrita com comparació ==.
+    La branca 02/10 corregeix la inicialització
+    recentTitulat (=0, no ==0).
   end note
 endif
 if (Import pendent?) then (Sí)
@@ -52,7 +53,7 @@ title P-CUR-01 FINAL | Confirmació basada en estat servidor
 start
 :Resoldre inscripció i actor al servidor;
 :Revalidar curs/edició/places/estat comercial;
-:Calcular import pendent des del ledger i snapshot vigent;
+:Calcular import pendent des de moviments SIF/snapshot vigent;
 if (Acció de pagament permesa?) then (Sí)
   :Mostrar import i opcions habilitades;
 else (No)
@@ -125,14 +126,23 @@ stop
 @startuml
 title P-CUR-03 ACTUAL | Preparar Redsys
 start
-:Rebre POST idPag, curs, titular, email, imports, frac;
-:Convertir importPagare;
-:Crear DS_ORDER = time();
-:Crear MerchantURL amb idPag/curs/dni/order/frac/import;
+:Rebre POST idPag, curs, titular, email i import sol·licitat;
+:JasomNovicePaymentGate rellegeix inscripció;
+:Validar saldo, FRACCIONAT, curs i estat JASOM al servidor;
+if (No autoritzat?) then (Sí)
+  :HTTP 409 sense formulari;
+  stop
+endif
+:Usar import/fraccionament autoritatius;
+:Crear DS_ORDER aleatori de 12 dígits [fallback ACTUAL];
+:Crear MerchantURL llegat sense query funcional;
+:Crear MerchantData signat amb IDPAG/import-cèntims/fraccionament;
 :Crear URL OK/KO;
-:Crear DS_MERCHANT_AMOUNT = importPagare * 100;
+:Crear DS_MERCHANT_AMOUNT en cèntims deterministes;
+:Crear DS_MERCHANT_MERCHANTDATA amb IDPAG/import/frac autoritatius;
+:Carregar merchant code/key/terminal/gateway des d'entorn [branca 02/10];
 :Signar petició Redsys;
-:Renderitzar formulari;
+:Renderitzar formulari sanejat;
 if (Usuari confirma?) then (Sí)
   :POST a Redsys;
 else (No)
@@ -162,13 +172,13 @@ if (Mateix DS_ORDER amb payload diferent?) then (Sí)
   stop
 endif
 :Construir petició Redsys des de la intenció;
-:MerchantURL identifica el callback sense transportar import negociable;
+:MerchantURL identifica el callback sense transportar context funcional; IDPAG/import/frac viatgen dins MerchantData signat.
 :Redirigir a Redsys;
 stop
 @enduml
 ```
 
-**Implementació al repositori:** el pont candidat ja crea/reutilitza la intenció mitjançant `SifRedsysCourseIntentClient`. La MerchantURL SIF exigeix `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i `SIF_REDSYS_CALLBACK_URL` HTTPS; la URL sola no activa el tall i amb el flag a `0` es conserva el callback llegat com a transició/rollback. El tall d'entorn continua **PENDENT D'ACREDITAR**.
+**Implementació al repositori:** el pont candidat ja crea/reutilitza la intenció mitjançant `SifRedsysCourseIntentClient`. La MerchantURL SIF exigeix `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1`, `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=1` i `SIF_REDSYS_CALLBACK_URL` HTTPS. Amb `cutover=1/drain=0` es bloquegen nous checkouts però es mantenen callbacks llegats en vol; amb `cutover=0/drain=0` es conserva el circuit de transició/rollback. El tall d'entorn continua **PENDENT D'ACREDITAR**.
 
 ## 4. P-CUR-04 — Callback servidor
 
@@ -178,14 +188,20 @@ stop
 @startuml
 title P-CUR-04 ACTUAL | Callback monolític
 start
-:Rebre GET funcional + POST Redsys;
+:Rebre només POST Redsys signat;
 :Decodificar MerchantParameters;
-:Calcular signatura de notificació;
-note right
-  A la còpia auditada no s'ha localitzat
-  la comparació posterior firma rebuda/calculada.
-end note
-:Llegir Ds_Order, Ds_Amount, Ds_Response;
+:Carregar clau Redsys des d'entorn [branca 02/10];
+:Calcular i comparar signatura amb hash_equals;
+:Extreure IDPAG/import/frac de Ds_MerchantData signat;
+:Usar Ds_Order signat i comparar Ds_Amount amb l'import-cèntims de MerchantData;
+:Validar Ds_Currency=978, Ds_Terminal i Ds_MerchantCode contra entorn;
+:Validar Ds_Response com a codi numèric abans de classificar-lo;
+:Rebutjar divergència amb IDPAG/order del query legacy si existeix;
+if (Validació falla?) then (Sí)
+  :HTTP 400 sense factura ni correu;
+  stop
+endif
+:Llegir Ds_Response;
 if (Ds_Response autoritzat?) then (Sí)
   :SELECT inscripció per IDPAG;
   :SELECT curs;
@@ -306,7 +322,6 @@ endif
 :Crear/reutilitzar enrollment_fund_movement EXTERNAL_ALLOCATION per DS_ORDER + ID_INSC;
 if (Falla atribució quantitativa?) then (Sí)
   :Retry/incidència sense projectar pagament al llegat;
-  :No crear segona factura ni segon CHARGE;
   stop
 endif
 :CourseLegacyPaymentSyncService projecta PAGAMENT/DATA PAG/M→1;
@@ -336,13 +351,14 @@ stop
 @startuml
 title UC-014 | Fraccionament FINAL
 start
-:Llegir total contractual i suma d'assignacions efectives;
+:Llegir total contractual i suma de `payment_transaction` CONFIRMED per IDPAG;
 :Calcular pendent;
 :Validar import nou > 0 i <= pendent;
 :Crear intenció pel tram;
 :Callback validat crea un CHARGE immutable;
+:Persistir CHARGE amb IDPAG + `payment_allocation` a factura + relació INSCRIPCIO(ID);
 :Crear/reutilitzar `EXTERNAL_ALLOCATION` a `enrollment_fund_movement` per DS_ORDER + ID_INSC;
-:Recalcular estat PAID/PARTIALLY_PAID des dels moviments confirmats;
+:Recalcular estat PAID/PARTIALLY_PAID;
 :No sobreescriure l'històric de cobraments;
 stop
 @enduml
@@ -357,8 +373,8 @@ start
 :Arriba callback DS_ORDER X;
 :Buscar notificació/intenció;
 if (Equivalent?) then (Sí)
-  :Reutilitzar notificació/job/factura/pagament;
-  :No crear segon ingrés;
+  :Reutilitzar notificació/job/factura/pagament/EXTERNAL_ALLOCATION;
+  :No crear segon ingrés ni segon moviment de fons;
 else (No)
   :CONFLICT + incidència;
 endif
@@ -385,11 +401,46 @@ stop
 @enduml
 ```
 
-**Evidència A14-17 — 02/10/2026:** `CourseEnrollmentFundAllocationServiceTest` cobreix alta/reús, trams parcials i mismatch fail-closed; `RedsysCourseEndToEndSimulatedTest` exigeix un únic moviment al complet/duplicat i dos moviments amb suma 120,00 al parcial→complet. Suites SIF: **841 passed / 0 failed**.
+**Evidència A14-17 — 02/10/2026:** `CourseEnrollmentFundAllocationServiceTest` cobreix alta/reús, trams parcials i mismatch fail-closed; `RedsysCourseEndToEndSimulatedTest` exigeix un únic moviment al complet/duplicat i dos moviments amb suma contractual al parcial→complet. El PR #95 té `SIF PHP MySQL tests` **841 passed / 0 failed** i `SIF checks`, `UC-111` i `UC-004` verds.
 
 ## 8. Cobertura i límits
 
-- Els JS externs referenciats per les pàgines actuals no s'han localitzat en la mateixa còpia auditada; la traça JS continua **PENDENT**.
-- El runtime productiu no s'ha inspeccionat.
+- Els JS de confirmació, pagament, efectuar pagament i retorn OK/KO **s'han localitzat i contrastat** a `codi-drive/web-actual/js1619773569/`; la traça JS deixa de ser pendent.
+- El runtime productiu no s'ha inspeccionat; les correccions 02/10 són de repositori i necessiten CI + desplegament/evidència d'entorn.
 - UC-111 comparteix branques de la pantalla de pagament; aquesta fitxa només en deixa la dependència, no redefineix les seves regles.
 - Taller i jornada continuen a UC-014a/014b.
+
+
+## 9. Estat 02/10/2026
+
+- **DOCUMENTAT:** P-CUR-01..06 ACTUAL/FINAL, inclosos AJAX i JS reals.
+- **IMPLEMENTAT:** PHP/JS ACTUAL, gate autoritatiu, pont candidat, SIF asíncron, `EXTERNAL_ALLOCATION` per inscripció, sync, outbox i retorn autoritatiu; hardening del fallback en aquesta branca.
+- **VERIFICAT:** E2E intern/cutover/retorn/outbox al PR #79, fund allocation al PR #95 (841/0 + quatre workflows verds) i hardening ACTUAL al PR #105 amb `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` verds sobre `56d32d600d26d39d94b8a7227e4d732f07d35ce5`.
+- **PENDENT:** Redsys real de preproducció, rotació/configuració de secrets, cutover i delivery UC-58.
+
+Vegeu [inventari executable PHP/JS](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md) i [auditoria exhaustiva 02/10](uc-014-auditoria-tracabilitat-2026-10-02.md).
+
+
+## 10. Activitat transversal — drain i cutover
+
+```plantuml
+@startuml
+title UC-014 | Drain de sessions TPV abans del cutover
+start
+if (cutover=0?) then (Sí)
+  :Flux normal / rollback disponible;
+  stop
+endif
+if (drain confirmat?) then (No)
+  :Bloquejar nous checkouts;
+  :Mantenir callback legacy pels pagaments en vol;
+  :Verificar que no queden sessions pendents;
+  stop
+else (Sí)
+  :Checkout candidat usa MerchantURL SIF;
+  :Checkout ACTUAL -> 410;
+  :Callbacks legacy -> 410;
+  stop
+endif
+@enduml
+```

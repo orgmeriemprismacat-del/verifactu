@@ -271,7 +271,7 @@ class PagamentCursAutomatic {
       $preuPagat = floatval($this->obtenirPreuPagat()->obtenirNumero());
       $faltaPagar = $preuAPagar - $preuPagat;
 
-      $recentTitulat == 0;
+      $recentTitulat = 0;
       if  ( $this->obtenirCodi()->obtenirText() == 'JASOM' ) {
         //validar si es un professor novell
         $connexio = new ConnexioBBDDSTMT();
@@ -336,7 +336,7 @@ class PagamentCursAutomatic {
 
       $titolPagina = "Confirmació de la inscripció";
       $rebutConfirmacio = "el missatge de confirmació de la inscripció";
-      $recentTitulat == 0;
+      $recentTitulat = 0;
       if  ( $this->obtenirCodi()->obtenirText() == 'JASOM' ) {
          //validar si es un professor novell
          $connexio = new ConnexioBBDDSTMT();

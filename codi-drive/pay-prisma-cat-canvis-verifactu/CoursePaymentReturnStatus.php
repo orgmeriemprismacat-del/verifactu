@@ -5,17 +5,20 @@ require_once __DIR__ . '/SifRedsysCourseStatusClient.php';
 function uc014ResolvePaymentReturn(string $browserReturn): array
 {
     $browserReturn = strtoupper(trim($browserReturn));
-    $email = trim((string) ($_GET['email'] ?? ''));
     $dsOrder = trim((string) ($_GET['order'] ?? ''));
     $idPagRaw = trim((string) ($_GET['idPag'] ?? ''));
 
-    $safeEmail = filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '';
     $courseCutoverEnabled = filter_var(
         getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
         FILTER_VALIDATE_BOOLEAN
     );
+    $legacyDrainConfirmed = filter_var(
+        getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+        FILTER_VALIDATE_BOOLEAN
+    );
     $sifCallbackUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
     $statusEnabled = $courseCutoverEnabled
+        && $legacyDrainConfirmed
         && $sifCallbackUrl !== ''
         && str_starts_with($sifCallbackUrl, 'https://');
 
@@ -40,7 +43,6 @@ function uc014ResolvePaymentReturn(string $browserReturn): array
             'message' => 'El pagament consta confirmat i processat correctament.',
             'status' => 'CONFIRMED',
             'authoritative' => true,
-            'email' => $safeEmail,
         ];
     }
 
@@ -50,7 +52,6 @@ function uc014ResolvePaymentReturn(string $browserReturn): array
             'message' => 'El pagament no consta autoritzat. Pots tornar-ho a provar o contactar amb el teu banc.',
             'status' => 'REJECTED',
             'authoritative' => true,
-            'email' => $safeEmail,
         ];
     }
 
@@ -60,7 +61,6 @@ function uc014ResolvePaymentReturn(string $browserReturn): array
             'message' => 'La notificació s’ha rebut però necessita revisió. No facis un segon pagament fins que es resolgui.',
             'status' => 'REVIEW',
             'authoritative' => true,
-            'email' => $safeEmail,
         ];
     }
 
@@ -75,7 +75,6 @@ function uc014ResolvePaymentReturn(string $browserReturn): array
         'message' => $message,
         'status' => $authoritative ? $status : 'UNVERIFIED',
         'authoritative' => $authoritative,
-        'email' => $safeEmail,
     ];
 }
 
@@ -84,18 +83,12 @@ function uc014RenderPaymentReturn(string $browserReturn): void
     $view = uc014ResolvePaymentReturn($browserReturn);
     $title = htmlspecialchars($view['title'], ENT_QUOTES, 'UTF-8');
     $message = htmlspecialchars($view['message'], ENT_QUOTES, 'UTF-8');
-    $email = htmlspecialchars($view['email'], ENT_QUOTES, 'UTF-8');
-    $emailText = $email === ''
-        ? ''
-        : '<p>Revisa també la safata d’entrada i el correu brossa de <strong>' . $email . '</strong>.</p>';
-
     echo "<div id='contingut' class='prisma-container container separacio-peu' role='main'>
         <div class='container' id='notfound'>
             <div class='col-md-12'>
                 <div class='page-error-content text-center'>
                     <h1>{$title}</h1>
                     <p class='mb-4'>{$message}</p>
-                    {$emailText}
                 </div>
             </div>
         </div>

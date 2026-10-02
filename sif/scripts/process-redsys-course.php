@@ -35,8 +35,9 @@ if (PHP_SAPI !== 'cli') {
 
 $config = require dirname(__DIR__) . '/config/sif.php';
 
-if (($config['env'] ?? 'local') === 'production') {
-    fwrite(STDERR, "Refusing to process Redsys course invoices with SIF_ENV=production.\n");
+$environment = (string) ($config['env'] ?? 'local');
+if (!in_array($environment, ['test', 'preproduction'], true)) {
+    fwrite(STDERR, "Redsys course processing is allowed only with SIF_ENV=test or preproduction.\n");
     exit(1);
 }
 
@@ -128,12 +129,17 @@ try {
             (string) $result['num_visible']
         );
 
-        $amount = is_array($notification) && is_numeric($notification['IMPORT'] ?? null)
-            ? number_format((float) $notification['IMPORT'], 2, '.', '')
+        $rawAmount = is_array($notification)
+            ? trim(str_replace(',', '.', (string) ($notification['IMPORT'] ?? '')))
             : '';
-        if ($amount === '') {
+        if (!preg_match('/^\\d{1,10}(?:\\.\\d{1,2})?$/D', $rawAmount)) {
             throw SifException::conflict('Could not resolve course amount for notification outbox');
         }
+        [$euros, $decimals] = array_pad(explode('.', $rawAmount, 2), 2, '');
+        $amountCents = (int) $euros * 100 + (int) str_pad($decimals, 2, '0');
+        $amount = intdiv($amountCents, 100)
+            . '.'
+            . str_pad((string) ($amountCents % 100), 2, '0', STR_PAD_LEFT);
         $notificationSnapshot = $legacySnapshots->loadByIdpag($legacyDb, $idpag, $amount);
         $result['notification_outbox'] = (new CoursePaymentNotificationService(
             new NotificationOutboxRepository(new UuidGenerator())

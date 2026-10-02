@@ -1,4 +1,8 @@
 <?php
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('Referrer-Policy: no-referrer');
+header('X-Content-Type-Options: nosniff');
 require_once __DIR__ . '/CoursePaymentReturnStatus.php';
 ?><!DOCTYPE html>
 <html lang="ca">

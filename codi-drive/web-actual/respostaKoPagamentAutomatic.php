@@ -1,3 +1,9 @@
+<?php
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('Referrer-Policy: no-referrer');
+header('X-Content-Type-Options: nosniff');
+?>
 <!DOCTYPE HTML PUBLIC "-/W3C/DTD HTML 4.01/EN" "http:/www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http:/ogp.me/ns# fb: http:/ogp.me/ns/fb# video: http:/ogp.me/ns/video#">
 <head>
@@ -69,17 +75,6 @@
    <header></header>
    <?php
 
-   $emailRaw = trim((string) ($_GET['email'] ?? ''));
-   $email = filter_var($emailRaw, FILTER_VALIDATE_EMAIL)
-      ? htmlspecialchars($emailRaw, ENT_QUOTES, 'UTF-8')
-      : '';
-   $emailHint = $email !== ''
-      ? " de l'adreça <span class='font-weight-bold email'>".$email."</span>"
-      : '';
-
-   $missatgePantallaLlarg = "<p class='mb-4'>Hi ha hagut un error a l'hora de fer el pagament.</p>
-   <p>Contacta amb el banc indicant l'<strong>error ".$codiResposta."</strong> per solucionar l'error. </p>";
-
    $mostrar = "<div id='contingut' class='prisma-container container separacio-peu' role='main'>
       <div class='container' id='notfound'>
          <div class='col-md-12'>
@@ -87,8 +82,8 @@
                <img src='https://www.prisma.cat/img/error-pagament.png' alt='Error en el pagament amb targeta'/>
                <h1>Pagament denegat</h1>
                <p class='mb-4'>Hi ha hagut un error a l'hora de fer el pagament.
-               Consulta la safata d'entrada o el correu brossa (<em>spam</em>)".$emailHint
-               per tenir més informació de l'error de pagament.</p>
+               Consulta la safata d'entrada o el correu brossa (<em>spam</em>)
+               per comprovar si has rebut més informació del pagament.</p>
             </div>
          </div>
       </div>

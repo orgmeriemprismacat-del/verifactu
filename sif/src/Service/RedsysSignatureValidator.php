@@ -6,14 +6,17 @@ use Prisma\Sif\Exception\SifException;
 
 final class RedsysSignatureValidator
 {
-    public function __construct(private string $merchantKey)
-    {
+    public function __construct(
+        private string $merchantKey,
+        private string $expectedMerchantCode = ''
+    ) {
+        $this->expectedMerchantCode = trim($this->expectedMerchantCode);
     }
 
     public function decodeAndVerify(array $request, array $context = []): array
     {
         $signatureVersion = $this->field($request, 'Ds_SignatureVersion');
-        if ($signatureVersion !== 'HMAC_SHA256_V1') {
+        if (!in_array($signatureVersion, ['HMAC_SHA512_V2', 'HMAC_SHA256_V1'], true)) {
             throw SifException::validation('Unsupported Redsys signature version');
         }
 
@@ -29,7 +32,11 @@ final class RedsysSignatureValidator
         }
 
         $decoded = $this->decodeMerchantParameters($merchantParameters);
-        $expectedSignature = $this->createNotificationSignature($merchantParameters, $decoded);
+        $expectedSignature = $this->createNotificationSignature(
+            $merchantParameters,
+            $decoded,
+            $signatureVersion
+        );
 
         if (!hash_equals($this->normalizeSignature($expectedSignature), $this->normalizeSignature($receivedSignature))) {
             throw SifException::validation('Invalid Redsys signature');
@@ -56,16 +63,45 @@ final class RedsysSignatureValidator
         return $decoded;
     }
 
-    private function createNotificationSignature(string $merchantParameters, array $decoded): string
-    {
+    private function createNotificationSignature(
+        string $merchantParameters,
+        array $decoded,
+        string $signatureVersion
+    ): string {
+        $order = trim((string) $this->field($decoded, 'Ds_Order'));
+        if ($order === '' || strlen($order) > 12 || !ctype_alnum($order)) {
+            throw SifException::validation('Invalid Redsys order');
+        }
+
+        if ($signatureVersion === 'HMAC_SHA512_V2') {
+            $key = substr(trim($this->merchantKey), 0, 16);
+            if ($key === '') {
+                throw SifException::validation('Missing Redsys merchant key');
+            }
+            if (strlen($key) < 16) {
+                $key = str_pad($key, 16, '0', STR_PAD_RIGHT);
+            }
+
+            $derived = openssl_encrypt(
+                $order,
+                'aes-128-cbc',
+                $key,
+                OPENSSL_RAW_DATA,
+                str_repeat("\0", 16)
+            );
+            if ($derived === false) {
+                throw SifException::validation('Could not verify Redsys signature');
+            }
+
+            $derivedKey = base64_encode($derived);
+            $mac = hash_hmac('sha512', $merchantParameters, $derivedKey, true);
+
+            return rtrim(strtr(base64_encode($mac), '+/', '-_'), '=');
+        }
+
         $key = base64_decode($this->merchantKey, true);
         if ($key === false || $key === '') {
             throw SifException::validation('Missing Redsys merchant key');
-        }
-
-        $order = $this->field($decoded, 'Ds_Order');
-        if ($order === null || $order === '') {
-            throw SifException::validation('Missing Redsys order');
         }
 
         $derivedKey = $this->encrypt3DesZeroPadded($order, $key);
@@ -105,7 +141,23 @@ final class RedsysSignatureValidator
     {
         $order = $this->field($decoded, 'Ds_Order');
         $amount = $this->field($decoded, 'Ds_Amount');
-        $responseCode = $this->field($decoded, 'Ds_Response');
+        $responseCode = trim((string) $this->field($decoded, 'Ds_Response'));
+        if ($responseCode === '' || !ctype_digit($responseCode) || strlen($responseCode) > 4) {
+            throw SifException::validation('Invalid Redsys response code');
+        }
+
+        $transactionType = trim((string) $this->field($decoded, 'Ds_TransactionType'));
+        if ($transactionType !== '0') {
+            throw SifException::validation('Unexpected Redsys transaction type');
+        }
+
+        $merchantCode = trim((string) $this->field($decoded, 'Ds_MerchantCode'));
+        if ($this->expectedMerchantCode !== ''
+            && ($merchantCode === '' || !hash_equals($this->expectedMerchantCode, $merchantCode))
+        ) {
+            throw SifException::validation('Unexpected Redsys merchant code');
+        }
+
         $currencyCode = $this->field($decoded, 'Ds_Currency');
         if ($currencyCode !== '978') {
             throw SifException::validation('Unsupported Redsys currency');
@@ -120,6 +172,8 @@ final class RedsysSignatureValidator
             'ds_order' => $order,
             'amount' => $this->normalizeAmount($amount),
             'response_code' => $responseCode,
+            'merchant_code' => $merchantCode === '' ? null : $merchantCode,
+            'transaction_type' => $transactionType,
             'currency_code' => $currencyCode,
             'currency' => 'EUR',
             'terminal' => $terminal,
@@ -135,15 +189,36 @@ final class RedsysSignatureValidator
 
     private function normalizeAmount(?string $amount): string
     {
-        if ($amount === null || $amount === '' || !is_numeric($amount)) {
+        $raw = trim(str_replace(',', '.', (string) $amount));
+        if ($raw === '') {
             throw SifException::validation('Invalid Redsys amount');
         }
 
-        if (str_contains($amount, '.') || str_contains($amount, ',')) {
-            return number_format((float) str_replace(',', '.', $amount), 2, '.', '');
+        // Redsys envia Ds_Amount en la unitat fraccionària mínima (cèntims per EUR).
+        if (ctype_digit($raw)) {
+            if (strlen($raw) > 12) {
+                throw SifException::validation('Invalid Redsys amount');
+            }
+
+            return $this->amountFromCents((int) $raw);
         }
 
-        return number_format(((int) $amount) / 100, 2, '.', '');
+        // Compatibilitat defensiva per payloads de proves ja normalitzats.
+        if (!preg_match('/^\d{1,10}\.\d{1,2}$/D', $raw)) {
+            throw SifException::validation('Invalid Redsys amount');
+        }
+
+        [$euros, $decimals] = array_pad(explode('.', $raw, 2), 2, '');
+        $cents = (int) $euros * 100 + (int) str_pad($decimals, 2, '0');
+
+        return $this->amountFromCents($cents);
+    }
+
+    private function amountFromCents(int $cents): string
+    {
+        return intdiv($cents, 100)
+            . '.'
+            . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 
     private function normalizeSignature(string $signature): string

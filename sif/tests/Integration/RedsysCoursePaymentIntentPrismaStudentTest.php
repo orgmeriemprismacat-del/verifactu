@@ -28,7 +28,7 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
             'idpag' => 900,
             'requested_amount' => '90.00',
             'terminal' => '1',
-            'ds_order' => 'UC020REAL001',
+            'ds_order' => '720000000001',
             'created_by' => 'pay-prisma-cat',
         ]);
 
@@ -44,7 +44,7 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
         Assert::same('90.00', (string) $operation['NET_AMOUNT']);
         Assert::same('INTENT_CREATED', $operation['STATUS']);
 
-        $intent = $db->query("SELECT * FROM redsys_payment_intent WHERE DS_ORDER='UC020REAL001'")
+        $intent = $db->query("SELECT * FROM redsys_payment_intent WHERE DS_ORDER='720000000001'")
             ->fetch(\PDO::FETCH_ASSOC);
         $snapshot = json_decode((string) $intent['SNAPSHOT_JSON'], true);
         Assert::same('ALUMNE_PRISMA', $snapshot['discount']['origin']);
@@ -63,7 +63,7 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
                 'idpag' => 900,
                 'requested_amount' => '45.00',
                 'terminal' => '1',
-                'ds_order' => 'UC020REAL002',
+                'ds_order' => '720000000002',
             ]);
         }, 409);
 
@@ -85,7 +85,7 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
                 'idpag' => 900,
                 'requested_amount' => '90.00',
                 'terminal' => '1',
-                'ds_order' => 'UC020REAL003',
+                'ds_order' => '720000000003',
             ]);
         }, 409);
 

@@ -171,7 +171,7 @@ final class RedsysPaymentIntentService
         return $this->nullableInt($existing['IDPAG']) === $intent['idpag']
             && (string) $existing['SOURCE_TYPE'] === $intent['source_type']
             && $this->nullableString($existing['SOURCE_ID']) === $intent['source_id']
-            && number_format((float) $existing['EXPECTED_AMOUNT'], 2, '.', '') === $intent['expected_amount']
+            && $this->amount($existing['EXPECTED_AMOUNT']) === $intent['expected_amount']
             && (string) $existing['CURRENCY'] === $intent['currency']
             && $this->nullableString($existing['TERMINAL']) === $intent['terminal']
             && $this->canonicalJson($existingSnapshot) === $this->canonicalJson($candidateSnapshot)
@@ -229,11 +229,20 @@ final class RedsysPaymentIntentService
 
     private function amount(mixed $value): string
     {
-        if (!is_numeric($value) || (float) $value <= 0) {
+        $raw = trim(str_replace(',', '.', (string) $value));
+        if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $raw)) {
             throw SifException::validation('Redsys payment intent amount must be positive');
         }
 
-        return number_format((float) $value, 2, '.', '');
+        [$euros, $decimals] = array_pad(explode('.', $raw, 2), 2, '');
+        $cents = (int) $euros * 100 + (int) str_pad($decimals, 2, '0');
+        if ($cents <= 0) {
+            throw SifException::validation('Redsys payment intent amount must be positive');
+        }
+
+        return intdiv($cents, 100)
+            . '.'
+            . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 
     private function dsOrder(mixed $value): string
