@@ -51,6 +51,75 @@ final class InternalInvoiceIssuePayloadPolicyTest
         Assert::same('SYSTEM', $prepared['actor_type']);
     }
 
+    public function testUsesServerOwnedSistemaInformatico(): void
+    {
+        $prepared = (new InternalInvoiceIssuePayloadPolicy(
+            'G17881988',
+            'Associacio PrisMa',
+            true,
+            [
+                'system_name' => 'SIF PrisMa',
+                'system_id' => 'PRISMA-SIF',
+                'system_version' => '1.0.0',
+                'installation_id' => 'PAY-PRISMA-01',
+            ]
+        ))->prepare([
+            'idempotency_key' => 'INTRANET|AEAT|SYSTEM',
+            'source_channel' => 'INTRANET',
+            'aeat_fields' => [
+                'SistemaInformatico' => [
+                    'NombreRazon' => 'SPOOF',
+                    'NIF' => '00000000T',
+                    'NombreSistemaInformatico' => 'CLIENT',
+                    'IdSistemaInformatico' => 'CLIENT',
+                    'Version' => '0',
+                    'NumeroInstalacion' => 'CLIENT',
+                    'TipoUsoPosibleSoloVerifactu' => 'N',
+                    'TipoUsoPosibleMultiOT' => 'S',
+                    'IndicadorMultiplesOT' => 'S',
+                ],
+            ],
+        ], [
+            'actor_id' => 'gestio-test',
+            'roles' => ['FACTURACIO'],
+            'invoice_issue_role' => 'FACTURACIO',
+            'request_id' => '11111111-1111-4111-8111-111111111111',
+        ]);
+
+        Assert::same([
+            'NombreRazon' => 'Associacio PrisMa',
+            'NIF' => 'G17881988',
+            'NombreSistemaInformatico' => 'SIF PrisMa',
+            'IdSistemaInformatico' => 'PRISMA-SIF',
+            'Version' => '1.0.0',
+            'NumeroInstalacion' => 'PAY-PRISMA-01',
+            'TipoUsoPosibleSoloVerifactu' => 'S',
+            'TipoUsoPosibleMultiOT' => 'N',
+            'IndicadorMultiplesOT' => 'N',
+        ], $prepared['aeat_fields']['SistemaInformatico']);
+    }
+
+    public function testQualifiedEnvironmentRejectsIncompleteServerSystemIdentity(): void
+    {
+        Assert::throws(\RuntimeException::class, function (): void {
+            (new InternalInvoiceIssuePayloadPolicy(
+                'G17881988',
+                'Associacio PrisMa',
+                true,
+                ['system_id' => 'PRISMA-SIF']
+            ))->prepare([
+                'idempotency_key' => 'INTRANET|AEAT|INCOMPLETE-SYSTEM',
+                'source_channel' => 'INTRANET',
+                'aeat_fields' => [],
+            ], [
+                'actor_id' => 'gestio-test',
+                'roles' => ['FACTURACIO'],
+                'invoice_issue_role' => 'FACTURACIO',
+                'request_id' => '11111111-1111-4111-8111-111111111111',
+            ]);
+        });
+    }
+
     public function testRequiresOfficialAeatSnapshotInQualifiedEnvironment(): void
     {
         Assert::throws(SifException::class, function (): void {
