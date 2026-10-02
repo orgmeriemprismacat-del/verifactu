@@ -29,18 +29,35 @@ final class RedsysSignatureValidatorTest
         Assert::same(false, array_key_exists('idpag', $payload));
     }
 
-    public function testExpectedMerchantCodeIsRequiredWhenConfigured(): void
+    public function testExpectedMerchantCodeAcceptsMatchingSignedPayload(): void
     {
         $validator = new RedsysSignatureValidator(
             'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3',
             '999008881'
         );
 
+        $payload = $validator->decodeAndVerify([
+            'Ds_SignatureVersion' => 'HMAC_SHA256_V1',
+            'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19NZXJjaGFudENvZGUiOiI5OTkwMDg4ODEiLCJEc19DdXJyZW5jeSI6Ijk3OCIsIkRzX1Rlcm1pbmFsIjoiMSIsIkRzX0RhdGUiOiIwNi8wNi8yMDI2IiwiRHNfSG91ciI6IjEwOjMwIn0=',
+            'Ds_Signature' => 'TnZ4Ce3qhzrUl6lFKJnbG06I0A6N8FlFjCMmJdGCttk=',
+        ]);
+
+        Assert::same('999008881', $payload['merchant_code']);
+        Assert::same('0000', $payload['response_code']);
+    }
+
+    public function testExpectedMerchantCodeRejectsDifferentSignedMerchant(): void
+    {
+        $validator = new RedsysSignatureValidator(
+            'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3',
+            '111111111'
+        );
+
         Assert::throws(SifException::class, function () use ($validator): void {
             $validator->decodeAndVerify([
                 'Ds_SignatureVersion' => 'HMAC_SHA256_V1',
-                'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19DdXJyZW5jeSI6Ijk3OCIsIkRzX1Rlcm1pbmFsIjoiMSIsIkRzX0RhdGUiOiIwNi8wNi8yMDI2IiwiRHNfSG91ciI6IjEwOjMwIn0=',
-                'Ds_Signature' => 'Sf9vai8reepW5G-M5aE8DEs6Z6UAfeRIhYh8oXS6110=',
+                'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19NZXJjaGFudENvZGUiOiI5OTkwMDg4ODEiLCJEc19DdXJyZW5jeSI6Ijk3OCIsIkRzX1Rlcm1pbmFsIjoiMSIsIkRzX0RhdGUiOiIwNi8wNi8yMDI2IiwiRHNfSG91ciI6IjEwOjMwIn0=',
+                'Ds_Signature' => 'TnZ4Ce3qhzrUl6lFKJnbG06I0A6N8FlFjCMmJdGCttk=',
             ]);
         }, 422);
     }
