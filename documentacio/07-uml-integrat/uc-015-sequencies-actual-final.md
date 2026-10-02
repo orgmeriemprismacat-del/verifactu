@@ -29,9 +29,11 @@ loop cada component
  Alta->>DB: INSERT TIPUS_INSC=P + PACK_ORDINAL/base/descompte/total
 end
 Alta->>DB: COMMIT transaction
+Alta->>Alta: marca enrollment committed
 Alta->>DB: RELEASE_LOCK allocator IDPAG
-Alta->>Mail: correus alta
 Alta-->>JS: hash inscripció
+Alta->>Mail: correus/auxiliars postcommit
+Note over Alta,Mail: una fallada auxiliar es loga i no converteix l'alta commitada en error
 JS-->>U: redirecció confirmació
 ```
 
