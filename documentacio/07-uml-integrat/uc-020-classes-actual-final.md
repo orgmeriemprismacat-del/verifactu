@@ -70,7 +70,7 @@ EnviarInscripcioPHP --> InscripcionsLegacy : INSERT
 - la consulta redueix l'evidència a un booleà i perd la inscripció que acredita el dret;
 - preview i confirmació no comparteixen una oferta servidor immutable.
 
-## 2. Classes FINAL — implementades en aquesta branca i pendents
+## 2. Classes FINAL — estat integrat al `main`
 
 ```mermaid
 classDiagram
@@ -88,17 +88,17 @@ class LegacyPrismaStudentHistoryRepository {
 }
 
 class DiscountDecisionService {
-  <<PENDENT>>
+  <<PENDENT TRANSVERSAL>>
   +evaluate(type,context) DiscountDecision
 }
 
 class DiscountValidationRepository {
-  <<PENDENT runtime>>
+  <<IMPLEMENTAT>>
   +append(decision) uuid
 }
 
 class CommercialOperationRepository {
-  <<PENDENT runtime>>
+  <<IMPLEMENTAT>>
   +stage(operation) uuid
   +attachIntent(operation,intent)
 }
@@ -151,9 +151,9 @@ RedsysCourseInvoiceService --> InvoiceService : factura + cobrament
 | --- | --- | --- |
 | `LegacyPrismaStudentHistoryRepository` | Recuperar fets d'historial sense decidir la política | IMPLEMENTAT |
 | `PrismaStudentDiscountPolicy` | Reproduir explícitament la regla web legacy sota versió `ALUMNE_PRISMA_LEGACY_V1` | IMPLEMENTAT |
-| `DiscountDecisionService` | Motor comú de decisió per UC-020/020a/020b/020c/020d | PENDENT |
-| `discount_validation` | Persistència de regla/evidència | DDL EXISTENT, writer PENDENT |
-| `commercial_operation` | Oferta comercial immutable | DDL EXISTENT, writer PENDENT |
+| `DiscountDecisionService` | Motor comú transversal per UC-020/020a/020b/020c/020d | PENDENT TRANSVERSAL; UC-020 ja usa `PrismaStudentDiscountPolicy` |
+| `discount_validation` | Persistència de regla/evidència | IMPLEMENTAT via `DiscountValidationRepository` / `CommercialOfferService` / checkout AP |
+| `commercial_operation` | Oferta comercial immutable | IMPLEMENTAT via `CommercialOperationRepository` / `CommercialOfferService` / checkout AP |
 | `CourseIntentSnapshotValidator` | Blindar coherència CURS abans del TPV | IMPLEMENTAT |
 | `RedsysPaymentIntentService` | Crear/reutilitzar intenció | IMPLEMENTAT |
 | `LegacyCourseInvoicePayloadBuilder` | Transformar snapshot en payload fiscal | IMPLEMENTAT |
@@ -169,3 +169,10 @@ La policy implementada **no declara resoltes** les decisions de negoci sobre pag
 - [Seqüències ACTUAL/FINAL](uc-020-sequencies-actual-final.md)
 - [Activitats ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md)
 - [Auditoria i traçabilitat](uc-020-auditoria-tracabilitat-2026-09-29.md)
+
+## 6. Reconciliació 02/10/2026
+
+- `PrismaStudentCourseCheckoutService` ja no es considera només disseny/nucli: forma part del pagament AP actiu via `course-intent`.
+- Aquesta revisió fa que l'orquestrador reutilitzi `CommercialOperationRepository` i `DiscountValidationRepository` dins de la seva transacció.
+- `DiscountDecisionService` continua sent una abstracció transversal possible; no bloqueja UC-020 perquè la policy específica ja existeix i està versionada.
+- `PaymentLinkService` és infraestructura implementada però encara no és la ruta canònica del pagament AP actiu.
