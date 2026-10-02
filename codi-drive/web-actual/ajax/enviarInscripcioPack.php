@@ -104,7 +104,7 @@ if (preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9
 	http_response_code(422);
 	exit('Error: identificador de petició PACK invàlid');
 }
-$requestHash = uc015PackRequestHash($request);
+$requestHash = null;
 
 $idPagReserved = false;
 $packTransactionStarted = false;
@@ -113,6 +113,8 @@ $packRequestLockReserved = false;
 $packRequestLockName = 'prisma_pack_req_' . substr(hash('sha256', $requestId), 0, 48);
 
 try {
+	$requestHash = uc015PackRequestHash($request);
+
 	$textNom = new Text($request['nom']);
 	$textCog = new Text($request['cog']);
 	$textDocumentacio = new Text($request['dni']);
@@ -726,6 +728,8 @@ try {
 			$packEnrollmentCommitted = true;
 			$connexio->releaseIdPag();
 			$idPagReserved = false;
+			$connexio->releaseNamedLock($packRequestLockName);
+			$packRequestLockReserved = false;
 		}
 		else {
 			throw new Exception('',2915);
