@@ -176,9 +176,13 @@ final class InvoiceService
         );
         $payment = $this->payments->findByIdempotencyKey($db, $paymentPayload['idempotency_key'], true);
 
-        if ($payment !== null) {
-            $result['uuid_payment'] = $payment['UUID_PAYMENT'];
+        if ($payment === null) {
+            throw SifException::conflict(
+                'Invoice retry expected the original initial payment, but the payment record is missing'
+            );
         }
+
+        $result['uuid_payment'] = $payment['UUID_PAYMENT'];
 
         return $result;
     }
