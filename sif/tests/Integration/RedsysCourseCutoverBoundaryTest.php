@@ -76,6 +76,19 @@ final class RedsysCourseCutoverBoundaryTest
         }
     }
 
+    public function testInternalSifClientsRequireHttpsAtRuntime(): void
+    {
+        foreach ([
+            'codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysCourseIntentClient.php',
+            'codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysCourseStatusClient.php',
+        ] as $relativePath) {
+            $source = $this->read($relativePath);
+            Assert::stringContainsString("str_starts_with(\$baseUrl, 'https://')", $source);
+            Assert::stringContainsString('CURLOPT_SSL_VERIFYPEER => true', $source);
+            Assert::stringContainsString('CURLOPT_SSL_VERIFYHOST => 2', $source);
+        }
+    }
+
     public function testLegacyCallbacksFailClosedBeforeAnyDependencyOrSideEffectDuringCutover(): void
     {
         foreach ([
