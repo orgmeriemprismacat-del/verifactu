@@ -270,7 +270,7 @@ Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts 
 
 ## Preproducció canònica
 
-Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only i el processor manual injecta ledger/outbox i pot fer la sincronització legacy completa amb `--sync-legacy`. Per tant, ja no s'utilitza una reconstrucció legacy diferent del flux productiu per validar preproducció.
+Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only i el processor manual injecta ledger/outbox i pot fer la sincronització legacy completa amb `--sync-legacy`. `verify-redsys-pack-preproduction.php` és l'orquestrador canònic: preflight PACK + preflight de cua + preview, i només processa amb `--execute`; comprova identitat de factura/payment, N atribucions, suma del ledger, outbox i, si es demana, sync legacy. La seva evidència resumeix totals sense copiar el payload fiscal complet. Continua pendent executar-lo contra un `DS_ORDER` real de preproducció.
 
 
 ## Revalidació 2026-10-02
@@ -288,4 +288,5 @@ Punts nous incorporats:
 - la seqüència real de postcommit és `RedsysLegacySyncingProcessor → LegacySyncService`;
 - `AcademicEnrollmentSyncService` no forma part del flux executable UC-015;
 - el text intern del descompte fiscal ja no pressuposa una línia/ordinal concreta;
-- el nucli PACK conserva evidència CI històrica i el HEAD final d'aquesta auditoria ha de tornar a passar la CI després dels enduriments web/idempotència.
+- el verificador canònic `verify-redsys-pack-preproduction.php` ja està implementat; resta executar-lo amb un `DS_ORDER` real;
+- el nucli PACK conserva evidència CI històrica i el HEAD final d'aquesta auditoria ha de tornar a passar la CI després dels enduriments web/idempotència/preproducció.
