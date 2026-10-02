@@ -69,11 +69,6 @@
    <header></header>
    <?php
 
-   $email = $_GET['email'];
-
-   $missatgePantallaLlarg = "<p class='mb-4'>Hi ha hagut un error a l'hora de fer el pagament.</p>
-   <p>Contacta amb el banc indicant l'<strong>error ".$codiResposta."</strong> per solucionar l'error. </p>";
-
    $mostrar = "<div id='contingut' class='prisma-container container separacio-peu' role='main'>
       <div class='container' id='notfound'>
          <div class='col-md-12'>
@@ -82,8 +77,7 @@
                <h1>Pagament denegat</h1>
                <p class='mb-4'>Hi ha hagut un error a l'hora de fer el pagament.
                Consulta la safata d'entrada o el correu brossa (<em>spam</em>)
-               de l'adreça <span class='font-weight-bold email'>".$email."</span>
-               per tenir més informació de l'error de pagament.</p>
+               per comprovar si has rebut més informació del pagament.</p>
             </div>
          </div>
       </div>
