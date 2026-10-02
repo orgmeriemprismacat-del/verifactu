@@ -155,7 +155,7 @@ try {
          exit('No podem preparar el pagament en aquest moment. Torna-ho a provar més tard o contacta amb secretaria.');
       }
       $order = (string) $intent['ds_order'];
-      $importPagare = (float) $intent['amount'];
+      $importPagare = (string) $intent['amount'];
       $id = $order;
 
       $legacyMerchantUrl="https://pay.prisma.cat/doit.php?idPag=".rawurlencode((string) $idPag)
@@ -163,7 +163,7 @@ try {
          ."&dni=".rawurlencode((string) $dniTitularPag)
          ."&order=".rawurlencode((string) $order)
          ."&frac=".rawurlencode((string) $frac)
-         ."&import=".rawurlencode(number_format((float) $importPagare, 2, '.', ''));
+         ."&import=".rawurlencode($importPagare);
 
       // UC-014: el tall de MerchantURL és explícit. Configurar una URL SIF
       // per si sola no canvia el callback; cal habilitar també el flag de cutover.
@@ -192,7 +192,12 @@ try {
       $urlOK="https://pay.prisma.cat/respostaOkPagamentAutomatic.php?".$returnQuery;
       $urlKO="https://pay.prisma.cat/respostaKoPagamentAutomatic.php?".$returnQuery;
 
-      $amount=$importPagare * 100;
+      if (!preg_match('/^\d{1,10}\.\d{2}$/D', $importPagare)) {
+         throw new RuntimeException('INVALID_SIF_PAYMENT_AMOUNT');
+      }
+      [$amountEuros, $amountDecimals] = explode('.', $importPagare, 2);
+      $amount = ((int) $amountEuros * 100) + (int) $amountDecimals;
+      $merchantData = 'UC014I' . (int) $idPag . 'A' . $amount . 'F' . ($frac === '1' ? '1' : '0');
 
       $name='Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
 
@@ -201,6 +206,7 @@ try {
       // Se Rellenan los campos
       $miObj->setParameter("DS_MERCHANT_AMOUNT",$amount);
       $miObj->setParameter("DS_MERCHANT_ORDER",$order);
+      $miObj->setParameter("DS_MERCHANT_MERCHANTDATA",$merchantData);
       $miObj->setParameter("DS_MERCHANT_MERCHANTCODE",$fuc);
       $miObj->setParameter("DS_MERCHANT_CURRENCY",$moneda);
       $miObj->setParameter("DS_MERCHANT_PRODUCTDESCRIPTION",$producto);
