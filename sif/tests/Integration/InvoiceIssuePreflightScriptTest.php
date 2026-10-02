@@ -27,6 +27,7 @@ final class InvoiceIssuePreflightScriptTest
         Assert::stringContainsString('factura_table', $source);
         Assert::stringContainsString('factura_linia_table', $source);
         Assert::stringContainsString('factura_registres_table', $source);
+        Assert::stringContainsString('factura_registre_control_table', $source);
         Assert::stringContainsString('fiscal_sequence_table', $source);
         Assert::stringContainsString('fiscal_chain_state_table', $source);
         Assert::stringContainsString('fiscal_queue_table', $source);
