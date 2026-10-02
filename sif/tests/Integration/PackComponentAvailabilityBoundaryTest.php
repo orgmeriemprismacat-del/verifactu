@@ -77,4 +77,33 @@ final class PackComponentAvailabilityBoundaryTest
         Assert::same(true, $availability !== false);
         Assert::same(true, $replay < $availability);
     }
+
+    public function testPackListingSeparatesEditionFilterFromGlobalAvailability(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $source = file_get_contents(
+            $root . '/codi-drive/web-actual/inc/buscantPacksDisponibles.php'
+        );
+
+        if (!is_string($source)) {
+            Assert::fail('Could not load PACK listing availability policy');
+        }
+
+        Assert::stringContainsString('$packsAmbEdicioSeleccionadaOberta = [];', $source);
+        Assert::stringContainsString('$packsAmbTotsComponentsOberts = [];', $source);
+        Assert::stringContainsString('$componentsPerPack[$idPackComponent]++', $source);
+        Assert::stringContainsString('$componentsObertsPerPack[$idPackComponent]++', $source);
+        Assert::stringContainsString('$compleixDisponibilitat =', $source);
+        Assert::stringContainsString('isset($packsAmbTotsComponentsOberts[$idPack])', $source);
+        Assert::stringContainsString('$compleixEdicio &&', $source);
+        Assert::stringContainsString('$compleixDisponibilitat &&', $source);
+
+        $globalCheck = strpos($source, '12B. DISPONIBILITAT GLOBAL DEL PACK');
+        $finalFilters = strpos($source, '13. APLICACIÓ DELS FILTRES');
+
+        Assert::same(true, $globalCheck !== false);
+        Assert::same(true, $finalFilters !== false);
+        Assert::same(true, $globalCheck < $finalFilters);
+    }
+
 }
