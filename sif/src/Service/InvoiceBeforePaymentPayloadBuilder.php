@@ -23,9 +23,36 @@ final class InvoiceBeforePaymentPayloadBuilder
         $payload['emesa_abans_cobrament'] = 1;
         $payload['uc004_invoice_before_payment'] = 1;
         $payload['relations'] = $this->originRelations($input);
+        $this->assertUc004ExemptionClassification($payload);
         unset($payload['payment']);
 
         return $payload;
+    }
+
+    private function assertUc004ExemptionClassification(array $payload): void
+    {
+        $blocks = [];
+        if (isset($payload['totals']) && is_array($payload['totals'])) {
+            $blocks['totals'] = $payload['totals'];
+        }
+        foreach ($payload['lines'] ?? [] as $index => $line) {
+            if (is_array($line)) {
+                $blocks['line ' . $index] = $line;
+            }
+        }
+
+        foreach ($blocks as $label => $block) {
+            if (strtoupper(trim((string) ($block['iva_regim'] ?? ''))) !== 'EXEMPT') {
+                continue;
+            }
+
+            if (strtoupper(trim((string) ($block['exemption_reason'] ?? ''))) !== 'E1') {
+                throw SifException::validation(
+                    'Invoice before payment exempt ' . $label
+                    . ' requires exemption_reason E1 for the current training-course flow'
+                );
+            }
+        }
     }
 
     private function originRelations(array $input): array
