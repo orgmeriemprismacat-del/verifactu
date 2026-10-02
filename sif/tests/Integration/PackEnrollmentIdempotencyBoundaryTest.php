@@ -18,8 +18,8 @@ final class PackEnrollmentIdempotencyBoundaryTest
 
         foreach ([
             "$_POST['requestId']",
-            'PACK_REQUEST|',
-            'PACK_REQUEST_HASH|',
+            'PACK_REQ|',
+            'PACK_REQH|',
             'GET_LOCK(?, 10)',
             'LOCATE(?, OBSERVACIONS)',
             'begin_transaction()',
