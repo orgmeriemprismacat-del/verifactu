@@ -212,11 +212,26 @@ class UsocCancellationExecutionService {
   <<IMPLEMENTAT>>
   +execute(db,idInsc,idpag,requestId,actor,roles,input)
 }
+class UsocCourseChangeTargetResolver {
+  <<PENDENT>>
+  +resolveTargetSplit()
+  +validateTargetUsocRule()
+}
 class UsocCourseChangeExecutionService {
   <<PENDENT>>
   +executeCourseChange(plan)
-  +issueCorrectiveDocuments()
-  +executeRefundsByPayer()
+  +rectifySourceInvoices()
+  +issueTargetInvoices()
+  +compensateFundsByPayer()
+}
+class EnrollmentFundMovementRepository {
+  <<IMPLEMENTAT>>
+  +insertOrReuseCompensationAllocation()
+}
+class CreditBalanceService {
+  <<IMPLEMENTAT>>
+  +createCredit()
+  +applyCreditByUuid()
 }
 class UsocPreproductionEvidence {
   <<PENDENT ENTORN>>
@@ -234,7 +249,11 @@ class UsocFiscalClassificationPolicy {
 UsocCancellationExecutionService --> UsocLifecyclePlanService
 UsocCancellationExecutionService --> InvoiceService
 UsocCancellationExecutionService --> PaymentService
+UsocCourseChangeTargetResolver --> UsocLifecyclePlanService
 UsocCourseChangeExecutionService --> UsocLifecyclePlanService
+UsocCourseChangeExecutionService --> UsocCourseChangeTargetResolver
+UsocCourseChangeExecutionService --> EnrollmentFundMovementRepository
+UsocCourseChangeExecutionService --> CreditBalanceService
 ```
 
 ## 5. Diferències ACTUAL → FINAL
@@ -260,3 +279,12 @@ UsocCourseChangeExecutionService --> UsocLifecyclePlanService
 - **Verificat:** inspecció estàtica contra `main@f7fa0822f...`.
 - **Provat:** existeix evidència CI específica en commits previs del UC-013; no hi ha workflow associat al SHA actual de main en aquesta auditoria.
 - **Pendent:** preproducció/navegador, configuració real, executor específic de canvi de curs, curs gratuït i validacions comercials/fiscals. La baixa ja disposa d'executor SIF per pagador.
+
+
+## 7. Contracte FINAL del canvi de curs
+
+El detall d'imports, compensacions, idempotència i casos límit queda fixat a:
+
+- [Contracte FINAL · canvi de curs USOC](uc-013-canvi-curs-usoc-contracte-final.md)
+
+La diferència principal respecte del legacy és que el FINAL **no copia `PAGAMENT`**. Els fons reals s'han de compensar per pagador mitjançant moviments auditables.
