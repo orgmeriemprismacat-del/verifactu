@@ -121,6 +121,10 @@ JS localitzat:
    - callback invàlid falla tancat.
 8. Callbacks candidats eliminen notificació de depuració abans de validar Redsys i fallen tancat en error.
 9. Nova prova `RedsysCourseLegacyFallbackBoundaryTest`.
+10. `DS_MERCHANT_MERCHANTDATA` transporta `IDPAG + import en cèntims + frac` dins el payload signat; callbacks ACTUAL/candidat deixen de llegir `$_GET` per decisions funcionals.
+11. MerchantURL neta, sense `IDPAG/curs/DNI/order/frac/import`; retorns navegador sense email.
+12. `IDPAG` signat ha de resoldre exactament una inscripció o el callback falla tancat.
+13. `DS_ORDER` del fallback deixa de dependre de `time()` i passa a 12 dígits aleatoris; imports Redsys es calculen en cèntims enters.
 10. Checkout ACTUAL/candidat envia context mínim `UC014I<IDPAG>A<AMOUNT_CENTS>F<FRAC>` a `DS_MERCHANT_MERCHANTDATA`.
 11. Callbacks llegats recuperen `Ds_MerchantData` només després de validar HMAC, deriven `IDPAG`/import/fraccionament del context signat i rebutgen divergència amb query-string.
 12. Curs i DNI utilitzats pels callbacks es rellegeixen de BD després de resoldre l'`IDPAG`; el query-string deixa de ser font d'autoritat funcional.
