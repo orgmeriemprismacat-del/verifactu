@@ -61,7 +61,7 @@ final class UsocCourseChangeContractTest
             $builder
         );
         Assert::stringContainsString(
-            "'discount_origin' => 'USOC'",
+            "$line['discount_origin'] = 'USOC';",
             $builder
         );
     }
