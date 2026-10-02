@@ -99,7 +99,7 @@ final class InvoicePayloadValidator
         }
 
         $key = trim($value);
-        if ($key === '' || $key !== $value || strlen($key) > 100) {
+        if ($key === '' || strlen($key) > 100) {
             throw SifException::validation('Invalid invoice idempotency key');
         }
     }
@@ -111,7 +111,7 @@ final class InvoicePayloadValidator
         }
 
         $channel = trim($value);
-        if ($channel === '' || $channel !== $value || strlen($channel) > 30) {
+        if ($channel === '' || strlen($channel) > 30) {
             throw SifException::validation('Invalid invoice source channel');
         }
     }
