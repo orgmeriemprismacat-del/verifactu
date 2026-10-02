@@ -36,13 +36,55 @@ final class PackPaymentPrivacyBoundaryTest
                 'if ($validatedPackCheckout === null)',
                 $source
             );
+
+            $returnUrlBase = strpos(
+                $source,
+                '$urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php";'
+            );
+            $legacyReturnGuard = strpos(
+                $source,
+                'if ($validatedPackCheckout === null)',
+                $returnUrlBase === false ? 0 : $returnUrlBase
+            );
+            $emailOk = strpos(
+                $source,
+                '$urlOK .= "?email=".rawurlencode($email)',
+                $legacyReturnGuard === false ? 0 : $legacyReturnGuard
+            );
+            $emailKo = strpos(
+                $source,
+                '$urlKO .= "?email=".rawurlencode($email)',
+                $legacyReturnGuard === false ? 0 : $legacyReturnGuard
+            );
+            $packCallbackBranch = strpos(
+                $source,
+                "if ( $tipusInsc == 'P' )",
+                $legacyReturnGuard === false ? 0 : $legacyReturnGuard
+            );
+
+            Assert::same(true, $returnUrlBase !== false);
+            Assert::same(true, $legacyReturnGuard !== false);
+            Assert::same(true, $emailOk !== false);
+            Assert::same(true, $emailKo !== false);
+            Assert::same(true, $packCallbackBranch !== false);
+            Assert::same(true, $returnUrlBase < $legacyReturnGuard);
+            Assert::same(true, $legacyReturnGuard < $emailOk);
+            Assert::same(true, $legacyReturnGuard < $emailKo);
+            Assert::same(true, $emailOk < $packCallbackBranch);
+            Assert::same(true, $emailKo < $packCallbackBranch);
+
+            $guardSlice = substr(
+                $source,
+                (int) $legacyReturnGuard,
+                (int) $packCallbackBranch - (int) $legacyReturnGuard
+            );
             Assert::stringContainsString(
                 '$urlOK .= "?email=".rawurlencode($email)',
-                $source
+                $guardSlice
             );
             Assert::stringContainsString(
                 '$urlKO .= "?email=".rawurlencode($email)',
-                $source
+                $guardSlice
             );
         }
     }
