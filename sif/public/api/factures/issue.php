@@ -65,10 +65,17 @@ try {
 
     $issuer = $config['issuer'] ?? [];
     $environment = strtoupper(trim((string) ($config['env'] ?? 'local')));
+    $aeatConfig = $config['aeat'] ?? [];
     $payload = (new InternalInvoiceIssuePayloadPolicy(
         (string) ($issuer['nif'] ?? ''),
         (string) ($issuer['name'] ?? ''),
-        in_array($environment, ['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION'], true)
+        in_array($environment, ['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION'], true),
+        [
+            'system_name' => (string) ($aeatConfig['system_name'] ?? ''),
+            'system_id' => (string) ($aeatConfig['system_id'] ?? ''),
+            'system_version' => (string) ($aeatConfig['system_version'] ?? ''),
+            'installation_id' => (string) ($aeatConfig['installation_id'] ?? ''),
+        ]
     ))->prepare($payload, $actor);
 
     $service = new InvoiceService(
