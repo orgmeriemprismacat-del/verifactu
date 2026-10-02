@@ -313,11 +313,11 @@ La prova multiprocés usa dos processos PHP independents i connexions MySQL sepa
 
 ### 18.3. Recovery
 
-Si el SIF completa la saga però el caller perd la resposta, un segon `execute()` amb la mateixa inscripció i codi recupera la mateixa operació, el mateix moviment de fons i la mateixa reconciliació sense duplicar diners ni factura.
+Si el SIF completa la saga però el caller perd la resposta, el writer reutilitza la mateixa `ID_INSC` i torna a entrar al SIF. Un segon `execute()` recupera la mateixa operació, el mateix moviment de fons i la mateixa reconciliació sense duplicar diners ni factura, i permet reconstruir/reutilitzar l'outbox si el primer intent es va tallar abans de completar-lo.
 
 ### 18.4. Correu
 
-Els sis correus legacy es creen com sis notificacions durables independents. Cada correu requereix `claim`; un estat `SENDING` ambigu no es reclama de nou automàticament. Els enviaments només es produeixen després de l'èxit SIF.
+Els sis correus legacy es creen com sis notificacions durables independents. Cada correu requereix `claim`; un estat `SENDING` ambigu no es reclama de nou automàticament. Els enviaments només es produeixen després de l'èxit SIF. L'endpoint UC-018 valida a més que el `TEMPLATE_CODE` pertanyi al prefix `GIFT_REDEEM_`, de manera que el rol GIFT no pot operar sobre files d'outbox d'altres dominis.
 
 ### 18.5. Preproducció
 
