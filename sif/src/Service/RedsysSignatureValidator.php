@@ -113,6 +113,11 @@ final class RedsysSignatureValidator
             throw SifException::validation('Invalid Redsys response code');
         }
 
+        $transactionType = trim((string) $this->field($decoded, 'Ds_TransactionType'));
+        if ($transactionType !== '0') {
+            throw SifException::validation('Unexpected Redsys transaction type');
+        }
+
         $merchantCode = trim((string) $this->field($decoded, 'Ds_MerchantCode'));
         if ($this->expectedMerchantCode !== ''
             && ($merchantCode === '' || !hash_equals($this->expectedMerchantCode, $merchantCode))
@@ -135,6 +140,7 @@ final class RedsysSignatureValidator
             'amount' => $this->normalizeAmount($amount),
             'response_code' => $responseCode,
             'merchant_code' => $merchantCode === '' ? null : $merchantCode,
+            'transaction_type' => $transactionType,
             'currency_code' => $currencyCode,
             'currency' => 'EUR',
             'terminal' => $terminal,
