@@ -87,7 +87,7 @@ JS localitzat:
 | A14-05 | Fixar import | gate ACTUAL valida pendent/fraccionament a BD en aquesta branca | `EXPECTED_AMOUNT` recomputat | IMPLEMENTAT + proves de política |
 | A14-06 | Callback | fallback endurit en aquesta branca | `RedsysSignatureValidator` + `RedsysCallbackService` | IMPLEMENTAT |
 | A14-07 | Signatura | validada abans d'efectes al fallback | validació criptogràfica SIF | IMPLEMENTAT + VERIFICAT CI PR #105 |
-| A14-08 | Order/import/IDPAG | fallback usa `Ds_Order`, `Ds_Amount` i `Ds_MerchantData` signats; no llegeix `$_GET` funcional | intenció vs callback, inclou IDPAG/divisa/terminal | IMPLEMENTAT + boundary dedicat al PR #105 |
+| A14-08 | Order/import/IDPAG + identitat TPV | fallback usa `Ds_Order`, `Ds_Amount` i `Ds_MerchantData` signats; no llegeix `$_GET` funcional; valida també `Ds_Currency`, `Ds_Terminal`, `Ds_MerchantCode` i format numèric de `Ds_Response` | intenció vs callback, inclou IDPAG/import/divisa/terminal i identitat de comerç | IMPLEMENTAT + boundary dedicat al PR #105 |
 | A14-09 | Autorització TPV | resposta Redsys | només autorització positiva arriba a handler | IMPLEMENTAT |
 | A14-10 | Numeració fiscal | llegat conserva numeració pròpia mentre hi hagi fallback | `FiscalSequenceRepository::next()` via `InvoiceService` | **FINAL IMPLEMENTAT**; retirada llegat pendent |
 | A14-11 | Registrar cobrament | muta `PAGAMENT` en callback llegat | `payment_transaction` + `payment_allocation`, després projecció | IMPLEMENTAT/VERIFICAT intern |
@@ -116,6 +116,7 @@ JS localitzat:
 10. Gateway Redsys, terminal, callback SIF, API interna HMAC i paths signats passen a configuració/preflight explícits.
 11. El tall és de dues fases: `cutover=1/drain=0` bloqueja nous checkouts però deixa drenar callbacks oberts; només `cutover=1/drain=1` activa MerchantURL SIF i retira checkout/callback llegat amb 410.
 12. S'ha afegit/estès `RedsysCourseLegacyFallbackBoundaryTest` per blindar aquestes fronteres.
+13. Els callbacks fallback rebutgen `Ds_Response` buit/no numèric abans de classificar una autorització i exigeixen moneda `978`, terminal i merchant code coincidents amb la configuració d'entorn; s'elimina així el fals positiu que podia produir `intval()` sobre una resposta no numèrica.
 
 ## 5. Reclassificació de buits antics
 
@@ -123,7 +124,7 @@ JS localitzat:
 
 - crear intenció SIF;
 - validar criptografia al circuit SIF/candidat;
-- comparar order/import/divisa/terminal;
+- comparar order/import/divisa/terminal/merchant code i validar estrictament `Ds_Response`;
 - idempotència del circuit SIF;
 - atribució quantitativa `EXTERNAL_ALLOCATION` per inscripció;
 - seqüència fiscal central;
