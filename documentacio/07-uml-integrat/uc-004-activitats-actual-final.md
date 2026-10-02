@@ -501,7 +501,11 @@ start
 :Mostrar número, receptor snapshot, línies, total;
 :Mostrar ESTAT_COBRAMENT=PENDING;
 :Mostrar ESTAT_AEAT independent;
-:Consultar estat documental per UUID;
+:Consultar `document_job` per UUID;
+if (Job PDF encara no existeix?) then (Sí)
+  :Crear/reutilitzar job idempotent per UUID + versió;
+endif
+:Mostrar estat PENDING/ERROR del job;
 if (Document READY?) then (Sí)
   :Servir document custodiat/versionat amb autorització;
 else (No)
@@ -527,6 +531,6 @@ stop
 ## 10. Estat
 
 - **ACTUAL:** reconstruït estàticament des del codi versionat.
-- **FINAL:** selecció per IDs, receptor per `entityId`, línies/total servidor, sessió/rol, CSRF, bridge HTTP, HMAC, anti-replay, fingerprint preview→confirm, claim concurrent UC-004 i `operational_event` ja estan implementats al codi versionat; en aquesta branca el mutador fiscal llegat queda 410. Continuen pendents el classificador transversal, document per UUID i sync llegada post-COMMIT si s'ha de conservar.
+- **FINAL:** selecció/receptor/imports autoritatius, sessió/rol, CSRF, bridge HTTP, HMAC, anti-replay, fingerprint, claim UC-004, `operational_event` i **encolat PDF idempotent/versionat amb estat PENDING/ERROR** ja estan implementats al codi versionat; el mutador fiscal llegat queda 410. Continuen pendents el classificador transversal, worker/renderitzat/storage documental i sync llegada post-COMMIT si s'ha de conservar.
 - **Execució de proves:** el PR #111 tenia els quatre checks verds abans del darrer cutover; cal conservar el rerun de la punta actual com a evidència final.
 - **Integració pantalla UC-004 → SIF:** **IMPLEMENTADA AL CODI**; pendent E2E/preproducció.
