@@ -30,8 +30,8 @@ E->>G: assertCanPrepare(DB, POST)
 G->>DB: rellegeix saldo, FRACCIONAT i estat JASOM
 DB-->>G: context autoritatiu
 G-->>E: import/fraccionament autoritzats
-E->>E: DS_ORDER = time() [fallback]
-E->>R: formulari TPV amb amount/order + MerchantData signat (IDPAG/import/frac) + MerchantData signat
+E->>E: DS_ORDER = random_int(12 dígits) [fallback]
+E->>R: formulari TPV amb amount/order + MerchantData signat (IDPAG/import/frac)
 R->>C: POST notificació; query legacy només compatibilitat
 C->>C: valida HMAC_SHA256_V1
 C->>C: extreu IDPAG/import/frac de Ds_MerchantData signat
@@ -51,7 +51,7 @@ OK-->>A: missatge visual
 
 ### Punts que el diagrama ACTUAL encara no resol arquitectònicament
 
-1. La branca 02/10 endureix signatura, ordre, import, `IDPAG`, secrets i fraccionament del fallback —inclòs `Ds_MerchantData` signat—, però `DS_ORDER` i la factura encara neixen fora del SIF mentre aquest fallback sigui actiu.
+1. La branca 02/10 endureix signatura, import, `IDPAG`, secrets i fraccionament del fallback mitjançant `Ds_MerchantData` signat; la MerchantURL ja no porta context funcional. Tot i així, `DS_ORDER` i la factura encara neixen fora del SIF mentre aquest fallback sigui actiu.
 2. La numeració/facturació del callback llegat no és idempotent com el nucli SIF i s'ha de retirar després del cutover.
 3. El retorn OK/KO del navegador llegat no és prova suficient de persistència fiscal/econòmica; el pont candidat sí consulta estat SIF.
 4. La rotació de credencials històriques i l'evidència del runtime desplegat continuen pendents.
