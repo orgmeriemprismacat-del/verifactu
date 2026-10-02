@@ -29,7 +29,8 @@ final class InternalInvoiceIssueScopeResolver
         }
 
         $roles = $this->normalizeRoles($roles);
-        if (array_intersect($roles, $this->writeRoles) === []) {
+        $matchedRoles = array_values(array_intersect($roles, $this->writeRoles));
+        if ($matchedRoles === []) {
             throw SifException::forbidden('Invoice issue role is not authorized');
         }
 
@@ -37,6 +38,7 @@ final class InternalInvoiceIssueScopeResolver
         $resolved['actor_id'] = $actorId;
         $resolved['roles'] = $roles;
         $resolved['invoice_issue_scope'] = ['issue' => true];
+        $resolved['invoice_issue_role'] = $matchedRoles[0];
         $resolved['invoice_issue_scope_source'] = 'INTERNAL_ROLE';
 
         return $resolved;
