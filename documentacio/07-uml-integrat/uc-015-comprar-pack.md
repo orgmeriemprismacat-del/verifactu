@@ -2,7 +2,7 @@
 
 **Objectiu:** facturar i cobrar una **operació de pack** amb múltiples inscripcions, cadascuna amb curs, edició, import i descompte que li correspon. Un pagament del pack no és N cobraments bancaris independents, i la factura global no significa que es pugui perdre el detall de quantitat atribuïda a cada inscripció.
 
-**Estat (revalidat 2026-10-02):** flux fiscal/econòmic principal PACK implementat al SIF. L'alta pública inicial ja és POST-only, no envia PII a la query string i aplica comprovació same-site/origin quan el navegador aporta els headers; el preu es recalcula al servidor. Continuen pendents l'E2E de preproducció, decidir si l'ordre comercial ha de ser independent de `DATAI`, la retirada física del callback fiscal legacy i el lliurament efectiu de notificacions (UC-58). L'ordre operatiu actual és determinista: `ORDER BY c.DATAI, p.ID_CURS`.
+**Estat (revalidat 2026-10-02):** flux fiscal/econòmic principal PACK implementat al SIF. L'alta pública és POST-only, no envia PII a la query string, aplica frontera same-site/origin i disposa d'idempotència server-side amb `REQUEST_ID` persistent, fingerprint SHA-256 i replay `RID/RH1`; el preu es recalcula al servidor només per altes noves. Continuen pendents l'E2E de preproducció, decidir si l'ordre comercial ha de ser independent de `DATAI`, la retirada física del callback fiscal legacy i el lliurament efectiu de notificacions (UC-58). L'ordre operatiu actual és determinista: `ORDER BY c.DATAI, p.ID_CURS`.
 
 **Codi consultat:** `RedsysPackInvoiceService`, `LegacyPackInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService` i la infraestructura UC-63/03. El builder actual **requereix almenys dues línies** i associa `PACK` i cada `INSCRIPCIO` a la factura. Les comprovacions de la composició comercial del pack i l'accés/inscripció final dels cursos continuen pendents d'acreditar al canal.
 
@@ -12,7 +12,7 @@
 | --- | --- |
 | Actors | Alumne/pagador via ecommerce, Redsys i worker SIF. |
 | Entrada de producte | `pack.ID_PACK` positiu, títol de pack i `items` amb almenys dues entrades, cadascuna amb `inscription` i `course`; cada inscripció té identificador propi. |
-| Identitat de l'operació | `IDPAG` de l'operació global; clau base `LEGACY|PACK|IDPAG:<IDPAG>`, substituïda en el flux Redsys per clau d'origen/IDPAG/DS_ORDER. |
+| Identitat de l'operació | Alta web: `REQUEST_ID` UUID v4 persistent + `RID/RH1` + `IDPAG`. Fiscal/pagament: clau base `LEGACY|PACK|IDPAG:<IDPAG>` i, al flux Redsys, clau d'origen/IDPAG/DS_ORDER. |
 | Factura | Una factura de pack amb **una línia per inscripció**, `source_type=INSCRIPCIO`, `source_id=ID`; relació principal `PACK` i relacions de cadascuna de les inscripcions; `visible_alumne=1` al constructor revisat. |
 | Descompte de pack al builder actual | Amb base/descompte explícits, es conserva informació aportada i es valida que el descompte no sigui negatiu. El builder exigeix base, descompte, percentatge i total explícits per cada línia; si manca qualsevol dada o no quadra `base - descompte = total`, rebutja l'emissió. Ja no reconstrueix automàticament un 25 %. |
 | Pagament | Una notificació Redsys `VALIDATED` aporta el **cobrament únic** del pack i l'assignació a factura, amb import total real de `DS_ORDER`. |
@@ -20,7 +20,7 @@
 
 ### 1.1. Flux principal asíncron
 
-1. Després de l'alta pública POST de les N inscripcions, el **checkout de pagament** rellegeix BD amb `PackPaymentGate`, valida composició, preu/descomptes, receptor i ordinal, i crea una intenció SIF amb tipus `PACK`, `DS_ORDER`, import total i snapshot amb totes les inscripcions. L'alta inicial és POST-only amb frontera same-site/origin; el checkout posterior és backend-authoritative. No s'emet factura per una intenció sense cobrament.
+1. L'alta pública envia POST + `REQUEST_ID`. El servidor serialitza la clau amb named lock i busca `RID/RH1`: un reintent equivalent reutilitza l'alta i una variant contradictòria retorna 409; només una clau nova valida el formulari, rellegeix preus, reserva `IDPAG` i crea atòmicament N inscripcions. Després, el **checkout de pagament** rellegeix BD amb `PackPaymentGate`, valida composició, preu/descomptes, receptor i ordinal, i crea una intenció SIF `PACK` amb `DS_ORDER`, import total i snapshot. No s'emet factura per una intenció sense cobrament.
 2. Redsys comunica resultat signat; el callback UC-03 valida ordre i import, desa notificació i encua job només si autoritzat.
 3. El worker selecciona `RedsysPackInvoiceService` mitjançant `SOURCE_TYPE=PACK` i li lliura `SNAPSHOT_JSON`.
 4. `LegacyPackInvoicePayloadBuilder::build()` valida l'ID del pack i les inscripcions, genera les línies i totals, relacions `PACK` i `INSCRIPCIO` i congela els descomptes.
@@ -278,11 +278,13 @@ Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `S
 Auditoria canònica: [uc-015-auditoria-tracabilitat-2026-10-02.md](uc-015-auditoria-tracabilitat-2026-10-02.md).
 
 Punts nous incorporats:
-- el formulari d'alta pública s'ha migrat a POST-only amb frontera same-site/origin i prova de regressió;
+- el formulari d'alta pública s'ha migrat a POST-only amb frontera same-site/origin;
+- idempotència server-side implementada: UUID v4 persistent al navegador, named lock, `RID/RH1`, replay equivalent i 409 per payload divergent;
+- el bundle puja a `mostrarInscripcioPack.min.js?ver=7.4` per evitar caché del GET antic;
 - les N inscripcions del pack es creen dins una única transacció, amb rollback en error i alliberament garantit del lock `IDPAG`; abans del commit la suma dels imports congelats ha de coincidir exactament amb el preu PACK en cèntims;
 - `pagFrac` ja no és entrada client: l'ecommerce fixa no fraccionament al servidor;
 - el correu d'alta s'ha generalitzat a PACK N amb `[CURSOS_PACK]`;
 - la seqüència real de postcommit és `RedsysLegacySyncingProcessor → LegacySyncService`;
 - `AcademicEnrollmentSyncService` no forma part del flux executable UC-015;
 - el text intern del descompte fiscal ja no pressuposa una línia/ordinal concreta;
-- el nucli PACK conserva evidència CI verda a la fusió específica `41d6968...`, mentre que la CI del HEAD auditat estava pendent de finalització.
+- el nucli PACK conserva evidència CI històrica i el HEAD final d'aquesta auditoria ha de tornar a passar la CI després dels enduriments web/idempotència.
