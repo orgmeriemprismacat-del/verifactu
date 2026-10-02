@@ -13,6 +13,60 @@ include("../Template.php");
 include("../MailSMTPComvive.php");
 include("../MailSMTP.php");
 
+function uc015PackRequestPayload(array $request) {
+	$fields = [
+		'nom', 'cog', 'dni', 'telf', 'email', 'adreca', 'codiPostal', 'poblacio',
+		'perfil', 'perfilAltres', 'titulacio', 'titulacioAltres', 'titulacioSecundaria',
+		'titulacioEstudiant', 'tbTitulacio', 'conegut', 'comentaris', 'mailing', 'idPack'
+	];
+
+	$payload = [];
+	foreach ($fields as $field) {
+		$value = trim((string) ($request[$field] ?? ''));
+		$payload[$field] = str_replace(["\r\n", "\r"], "\n", $value);
+	}
+	ksort($payload);
+
+	return $payload;
+}
+
+function uc015PackRequestHash(array $request) {
+	$json = json_encode(
+		uc015PackRequestPayload($request),
+		JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+	);
+	if (!is_string($json)) {
+		throw new Exception('No es pot calcular el hash idempotent del pack');
+	}
+
+	return hash('sha256', $json);
+}
+
+function uc015PackConfirmationHash($idInscripcio, $keyEncr) {
+	$idInscripcio = (int) $idInscripcio;
+	if ($idInscripcio <= 0) {
+		throw new Exception('ID d\'inscripció invàlid');
+	}
+
+	$cipher = 'AES-128-CBC';
+	$ivlen = openssl_cipher_iv_length($cipher);
+	$iv = random_bytes($ivlen);
+	$ciphertextRaw = openssl_encrypt(
+		(string) $idInscripcio,
+		$cipher,
+		$keyEncr,
+		OPENSSL_RAW_DATA,
+		$iv
+	);
+	if ($ciphertextRaw === false) {
+		throw new Exception('No es pot generar la confirmació de la inscripció');
+	}
+
+	$hmac = hash_hmac('sha256', $ciphertextRaw, $keyEncr, true);
+
+	return base64_encode($iv.$hmac.$ciphertextRaw);
+}
+
 header('Cache-Control: no-store, max-age=0');
 header('Pragma: no-cache');
 header('X-Content-Type-Options: nosniff');
@@ -45,9 +99,18 @@ foreach (['HTTP_ORIGIN', 'HTTP_REFERER'] as $headerName) {
 
 $request = $_POST;
 
+$requestId = strtolower(trim((string) ($request['requestId'] ?? '')));
+if (preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/D', $requestId) !== 1) {
+	http_response_code(422);
+	exit('Error: identificador de petició PACK invàlid');
+}
+$requestHash = uc015PackRequestHash($request);
+
 $idPagReserved = false;
 $packTransactionStarted = false;
 $packEnrollmentCommitted = false;
+$packRequestLockReserved = false;
+$packRequestLockName = 'prisma_pack_req_' . substr(hash('sha256', $requestId), 0, 48);
 
 try {
 	$textNom = new Text($request['nom']);
@@ -157,6 +220,92 @@ try {
 	}
 
 	$cipher = "AES-128-CBC";
+
+	/* ######################################################################### */
+	/* Idempotència de l'alta pública: REQUEST_ID + hash de payload. */
+	$connexio->reserveNamedLock($packRequestLockName);
+	$packRequestLockReserved = true;
+
+	$existingPattern = '%REQUEST_ID|' . $requestId . '%';
+	$cnsExistingRequest = "SELECT ID, IDPAG, OBSERVACIONS
+		FROM inscripcions
+		WHERE TIPUS_INSC='P' AND OBSERVACIONS LIKE ?
+		ORDER BY ID";
+	$existingId = null;
+	$existingIdPag = null;
+	$existingHash = null;
+	$existingOrdinals = [];
+
+	if ( $stmtExisting = $connexio->prepare($cnsExistingRequest) ) {
+		$stmtExisting->bind_param("s", $existingPattern);
+		$stmtExisting->execute();
+		$stmtExisting->bind_result($existingRowId, $existingRowIdPag, $existingObservations);
+
+		while ($stmtExisting->fetch()) {
+			$existingId = (int) $existingRowId;
+
+			if ($existingIdPag === null) {
+				$existingIdPag = (int) $existingRowIdPag;
+			}
+			else if ($existingIdPag !== (int) $existingRowIdPag) {
+				http_response_code(409);
+				echo 'Error: REQUEST_ID PACK associat a més d\'un IDPAG';
+				$stmtExisting->close();
+				return;
+			}
+
+			if (!preg_match('/(?:^|\\s)REQUEST_HASH\\|([a-f0-9]{64})(?=\\s|$)/i', (string) $existingObservations, $hashMatch)) {
+				http_response_code(409);
+				echo 'Error: REQUEST_ID PACK existent sense fingerprint vàlid';
+				$stmtExisting->close();
+				return;
+			}
+			$currentHash = strtolower($hashMatch[1]);
+			if ($existingHash === null) {
+				$existingHash = $currentHash;
+			}
+			else if (!hash_equals($existingHash, $currentHash)) {
+				http_response_code(409);
+				echo 'Error: REQUEST_ID PACK existent amb fingerprints interns diferents';
+				$stmtExisting->close();
+				return;
+			}
+
+			if (!preg_match('/(?:^|\\s)PACK_ORDINAL\\|([1-9][0-9]*)(?=\\s|$)/i', (string) $existingObservations, $ordinalMatch)) {
+				http_response_code(409);
+				echo 'Error: REQUEST_ID PACK existent sense ordinal comercial';
+				$stmtExisting->close();
+				return;
+			}
+			$existingOrdinals[] = (int) $ordinalMatch[1];
+		}
+		$stmtExisting->close();
+	}
+	else {
+		throw new Exception('',2915);
+	}
+
+	if ($existingId !== null) {
+		if ($existingHash === null || !hash_equals($existingHash, $requestHash)) {
+			http_response_code(409);
+			echo 'Error: REQUEST_ID PACK reutilitzat amb un payload diferent';
+			return;
+		}
+
+		sort($existingOrdinals);
+		$expectedOrdinals = range(1, count($existingOrdinals));
+		if (count($existingOrdinals) < 2 || $existingOrdinals !== $expectedOrdinals) {
+			http_response_code(409);
+			echo 'Error: REQUEST_ID PACK existent amb snapshot incomplet';
+			return;
+		}
+
+		echo uc015PackConfirmationHash($existingId, $keyEncr);
+		$connexio->releaseNamedLock($packRequestLockName);
+		$packRequestLockReserved = false;
+		$connexio->desconectarBD();
+		return;
+	}
 
 	/* ######################################################################### */
 
@@ -549,13 +698,15 @@ try {
 
 				/* Snapshot comercial mínim per no reconstruir ordre/imports després del cobrament. */
 				$observacions = sprintf(
-					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f',
+					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f REQUEST_ID|%s REQUEST_HASH_V|1 REQUEST_HASH|%s',
 					$idPack,
 					$i + 1,
 					$preuCursOriginal,
 					$descompteCurs,
 					$descomptePct,
-					$preuCurs
+					$preuCurs,
+					$requestId,
+					$requestHash
 				);
 
 				/* Executo el insert */
@@ -586,11 +737,7 @@ try {
 
 	$connexio2->desconectarBD();
 
-	$ivlen = openssl_cipher_iv_length($cipher);
-	$iv = openssl_random_pseudo_bytes($ivlen);
-	$ciphertext_raw = openssl_encrypt($idInserit, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
-	$hmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, $as_binary=true);
-	$hashIdInserit = base64_encode( $iv.$hmac.$ciphertext_raw );
+	$hashIdInserit = uc015PackConfirmationHash($idInserit, $keyEncr);
 
 	echo $hashIdInserit;
 
@@ -719,6 +866,9 @@ finally {
 	}
 	if ($idPagReserved && isset($connexio)) {
 		$connexio->releaseIdPag();
+	}
+	if ($packRequestLockReserved && isset($connexio)) {
+		$connexio->releaseNamedLock($packRequestLockName);
 	}
 }
 
