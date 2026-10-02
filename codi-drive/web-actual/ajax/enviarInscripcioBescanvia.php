@@ -131,40 +131,10 @@ try {
 	$connexio->closeStmt();
 
 	/* ######################################################################### */
-	// Replay segur: si el SIF ja ha reconciliat el regal, reutilitzem la mateixa
-	// inscripció i no repetim els efectes laterals del writer.
-	$codiRegalReplay = $textCodiRegal->obtenirText();
-	$documentacioReplay = $textDocumentacio->convertirMaj();
-	$cnsGiftReplay = "SELECT r.USAT, i.CURS, i.DNI, i.pag_observacions
-		FROM regal r
-		LEFT JOIN inscripcions i ON i.ID=r.USAT
-		WHERE r.CODI=?";
-	$stmt=$connexio->prepare($cnsGiftReplay);
-	$stmt->bind_param("s", $codiRegalReplay);
-	$stmt->execute();
-	$stmt->bind_result($usatReplay, $cursReplay, $dniReplay, $codiReplay);
-	$hasGiftReplay = $stmt->fetch();
-	$connexio->closeStmt();
-
-	if ($hasGiftReplay && (int) $usatReplay > 0) {
-		$normalizeIdentity = static function($value) {
-			$value = strtoupper(trim((string) $value));
-			$value = preg_replace('/[^A-Z0-9]/', '', $value);
-			return is_string($value) ? $value : '';
-		};
-		if (strtoupper(trim((string) $cursReplay)) !== strtoupper(trim((string) $codiCurs))
-			|| $normalizeIdentity($dniReplay) !== $normalizeIdentity($documentacioReplay)
-			|| trim((string) $codiReplay) !== trim((string) $codiRegalReplay)
-		) {
-			throw new Exception('El regal ja està reconciliat amb una altra inscripció', 409);
-		}
-
-		echo $encryptEnrollmentId((int) $usatReplay);
-		$connexio->desconectarBD();
-		return;
-	}
-
-	/* ######################################################################### */
+	// El replay no retorna aquí. La secció transaccional posterior reutilitza
+	// `regal.USAT`/la mateixa ID_INSC i torna a entrar al SIF. Això permet
+	// reconstruir o reutilitzar l'outbox idempotent si la resposta anterior es
+	// va perdre després del CONSUME/reconciliació però abans de completar correus.
 	$textCursReconegut = "<p>Aquest curs està reconegut pel Departament d'Educació
 	de la Generalitat de Catalunya i té una durada lectiva de <strong>".$hores." hores</strong>.</p>";
 
