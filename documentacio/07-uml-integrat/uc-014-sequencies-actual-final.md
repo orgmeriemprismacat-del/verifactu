@@ -71,6 +71,7 @@ participant W as RedsysCallbackWorker
 participant D as RedsysCallbackDispatcher
 participant H as RedsysCourseInvoiceService
 participant I as InvoiceService
+participant Fund as CourseEnrollmentFundAllocationService / EnrollmentFundMovementRepository
 participant Sync as RedsysLegacySyncingProcessor / CourseLegacyPaymentSyncService
 participant Outbox as CoursePaymentNotificationService / notification_outbox
 participant Ret as respostaOk/KoPagamentAutomatic.php
@@ -95,7 +96,10 @@ Sync->>D: dispatcher.process(job)
 D->>H: issueFromIntentSnapshot()
 H->>I: issueInvoice(payload + CHARGE)
 I-->>H: UUID_FACTURA + UUID_PAYMENT + reused?
-H-->>D: resultat fiscal/econòmic
+H->>Fund: allocate(DS_ORDER, snapshot, invoiceResult)
+Fund->>Fund: valida CHARGE + factura + línia + import
+Fund-->>H: EXTERNAL_ALLOCATION idempotent + UUID_MOVEMENT
+H-->>D: resultat fiscal/econòmic + fund_allocations
 D-->>Sync: resultat
 Sync->>Sync: CourseLegacyPaymentSyncService.sync()
 Sync->>Outbox: enqueue COURSE_PAYMENT_CONFIRMED
@@ -113,7 +117,7 @@ Note over Ret,Status: CONFIRMED només amb PROCESSED + UUID_FACTURA + UUID_PAYME
 Note over Web,C: el tall exigeix SIF_REDSYS_COURSE_CUTOVER_ENABLED=1 + URL SIF HTTPS; la URL sola no activa
 ```
 
-**Implementat i verificat per CI anterior:** intenció SIF, callback/cua/worker, factura+cobrament, projecció llegada, outbox CURS, consulta read-only d'estat i retorn OK/KO fail-closed. **Pendent d'entorn:** configurar MerchantURL/cutover, rotar secrets i executar Redsys/preproducció real. El hardening ACTUAL 02/10 queda pendent de revalidació CI d'aquesta branca.
+**Implementat i verificat per CI anterior:** intenció SIF, callback/cua/worker, factura+cobrament, `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, outbox CURS, consulta read-only d'estat i retorn OK/KO fail-closed. El PR #95 acredita fund allocation amb suites SIF 841/0 i quatre workflows verds. **Pendent d'entorn:** configurar MerchantURL/cutover, rotar secrets i executar Redsys/preproducció real. El hardening ACTUAL 02/10 queda pendent de revalidació CI d'aquesta branca.
 ## 3. FINAL — callback duplicat
 
 ```mermaid
@@ -124,6 +128,7 @@ participant C as RedsysCallbackService
 participant Q as Queue/Notification repos
 participant W as Worker
 participant I as InvoiceService
+participant Fund as CourseEnrollmentFundAllocationService
 
 R->>C: callback DS_ORDER X
 C->>Q: insert/reuse notificació compatible
@@ -133,7 +138,8 @@ C->>Q: reuse o CONFLICT si payload incompatible
 W->>Q: claim job únic
 W->>I: issueInvoice(idempotency_key estable)
 I-->>W: factura/pagament creats o reutilitzats
-Note over C,I: cap segon ingrés, factura o assignació monetària
+W->>Fund: allocate() crea/reutilitza mateix EXTERNAL_ALLOCATION
+Note over C,Fund: cap segona factura, CHARGE, payment_allocation ni EXTERNAL_ALLOCATION
 ```
 
 ## 4. FINAL — import o payload incompatible
@@ -159,8 +165,8 @@ end
 ## 5. Estat
 
 **DOCUMENTAT:** seqüència ACTUAL, FINAL nominal, duplicat i conflicte.  
-**IMPLEMENTAT:** serveis SIF centrals, pont candidat d'intenció, callback/cua/worker, sync llegada, productor `notification_outbox` CURS i retorn autoritatiu OK/KO.  
-**VERIFICAT:** CI amb E2E intern simulat, idempotència, parcial→complet, boundaries de preproducció i tests del retorn autoritatiu.  
+**IMPLEMENTAT:** serveis SIF centrals, pont candidat d'intenció, callback/cua/worker, `CourseEnrollmentFundAllocationService` + `EnrollmentFundMovementRepository`, sync llegada, productor `notification_outbox` CURS i retorn autoritatiu OK/KO.  
+**VERIFICAT:** CI amb E2E intern simulat, `EXTERNAL_ALLOCATION` idempotent, mismatch fail-closed, duplicat, parcial→complet, boundaries de preproducció i tests del retorn autoritatiu; PR #95 amb 841 passed / 0 failed.  
 **PENDENT:** CI de la branca 02/10, lliurament/retries d'email UC-58, desplegament/preproducció amb Redsys real, rotació/configuració de secrets, activació del flag de cutover i retirada posterior de l'autoritat fiscal llegada.
 
 
