@@ -16,6 +16,8 @@ final class InvoicePayloadValidator
 
         $this->assertIdempotencyKey($payload['idempotency_key']);
         $this->assertSourceChannel($payload['source_channel']);
+        $payload['idempotency_key'] = trim((string) $payload['idempotency_key']);
+        $payload['source_channel'] = strtoupper(trim((string) $payload['source_channel']));
 
         if (!in_array($payload['series'], ['A', 'R'], true)) {
             throw SifException::validation('Invalid invoice series');
