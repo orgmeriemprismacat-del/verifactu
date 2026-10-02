@@ -23,6 +23,9 @@ final class InvoiceBeforePaymentPreproductionScriptTest
         Assert::stringContainsString('new InvoiceBeforePaymentPayloadBuilder()', $source);
         Assert::stringContainsString('new InvoiceBeforePaymentCoverageRepository()', $source);
         Assert::stringContainsString('new OperationalEventRepository(new UuidGenerator())', $source);
+        Assert::stringContainsString('InvoiceBeforePaymentDocumentQueueService', $source);
+        Assert::stringContainsString('new DocumentJobRepository()', $source);
+        Assert::stringContainsString("documentsConfig['generator_version']", $source);
         Assert::stringContainsString('issueBeforePayment($payload)', $source);
         Assert::stringContainsString('--payload-file=', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
