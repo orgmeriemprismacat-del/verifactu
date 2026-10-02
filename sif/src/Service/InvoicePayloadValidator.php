@@ -37,9 +37,11 @@ final class InvoicePayloadValidator
         }
 
         foreach (['name', 'nif'] as $key) {
-            if (empty($payload['billing'][$key])) {
+            if (!isset($payload['billing'][$key]) || !is_string($payload['billing'][$key])
+                || trim($payload['billing'][$key]) === '') {
                 throw SifException::validation("Missing billing field {$key}");
             }
+            $payload['billing'][$key] = trim($payload['billing'][$key]);
         }
 
         if (!is_array($payload['totals'])) {
@@ -68,6 +70,11 @@ final class InvoicePayloadValidator
                     throw SifException::validation("Missing invoice line field {$key}");
                 }
             }
+
+            if (!is_string($line['concept']) || trim($line['concept']) === '') {
+                throw SifException::validation("Invalid invoice line concept {$index}");
+            }
+            $payload['lines'][$index]['concept'] = trim($line['concept']);
 
             foreach (['quantity', 'unit_price', 'base', 'total'] as $key) {
                 if (!is_numeric($line[$key])) {
