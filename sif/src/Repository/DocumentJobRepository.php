@@ -145,6 +145,35 @@ final class DocumentJobRepository
         return $recovered + $terminal->rowCount();
     }
 
+    public function recoverStaleLocks(
+        \PDO $db,
+        \DateTimeImmutable $now,
+        int $olderThanSeconds = 900
+    ): int {
+        if ($olderThanSeconds < 60) {
+            throw SifException::validation('Document stale-lock threshold must be at least 60 seconds');
+        }
+
+        $lockedBefore = $now
+            ->modify('-' . $olderThanSeconds . ' seconds')
+            ->format('Y-m-d H:i:s.u');
+        $availableAt = $now->format('Y-m-d H:i:s.u');
+
+        $stmt = $db->prepare(
+            "UPDATE document_job
+             SET STATUS = 'RETRY',
+                 LOCKED_AT = NULL,
+                 NEXT_ATTEMPT_AT = ?,
+                 LAST_ERROR = 'Recovered stale document worker lock'
+             WHERE STATUS = 'PROCESSING'
+               AND LOCKED_AT IS NOT NULL
+               AND LOCKED_AT < ?"
+        );
+        $stmt->execute([$availableAt, $lockedBefore]);
+
+        return $stmt->rowCount();
+    }
+
     public function claimNext(\PDO $db, ?\DateTimeImmutable $now = null): ?array
     {
         $now ??= new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid'));
@@ -192,12 +221,13 @@ final class DocumentJobRepository
     public function complete(
         \PDO $db,
         int $jobId,
+        int $expectedAttempt,
         int $documentId,
         string $storageKey,
         string $outputHash,
         ?\DateTimeImmutable $finishedAt = null
     ): array {
-        if ($jobId < 1 || $documentId < 1) {
+        if ($jobId < 1 || $expectedAttempt < 1 || $documentId < 1) {
             throw SifException::validation('Invalid document completion identifiers');
         }
 
@@ -222,7 +252,9 @@ final class DocumentJobRepository
                  LOCKED_AT = NULL,
                  NEXT_ATTEMPT_AT = NULL,
                  FINISHED_AT = ?
-             WHERE ID = ? AND STATUS = 'PROCESSING'"
+             WHERE ID = ?
+               AND STATUS = 'PROCESSING'
+               AND ATTEMPTS = ?"
         );
         $stmt->execute([
             $documentId,
@@ -230,10 +262,11 @@ final class DocumentJobRepository
             $outputHash,
             $finishedAt->format('Y-m-d H:i:s.u'),
             $jobId,
+            $expectedAttempt,
         ]);
 
         if ($stmt->rowCount() !== 1) {
-            throw SifException::conflict('Document job is not in PROCESSING state');
+            throw SifException::conflict('Document job lease was lost before completion');
         }
 
         $row = $this->findById($db, $jobId, false);
@@ -247,12 +280,13 @@ final class DocumentJobRepository
     public function fail(
         \PDO $db,
         int $jobId,
+        int $expectedAttempt,
         string $error,
         int $retrySeconds = 60,
         ?\DateTimeImmutable $now = null
     ): array {
-        if ($jobId < 1) {
-            throw SifException::validation('Invalid document job id');
+        if ($jobId < 1 || $expectedAttempt < 1) {
+            throw SifException::validation('Invalid document job lease');
         }
 
         $error = trim($error);
@@ -267,8 +301,11 @@ final class DocumentJobRepository
         if ($job === null) {
             throw SifException::notFound('Document job not found');
         }
-        if (strtoupper((string) $job['STATUS']) !== 'PROCESSING') {
-            throw SifException::conflict('Document job is not in PROCESSING state');
+        if (
+            strtoupper((string) $job['STATUS']) !== 'PROCESSING'
+            || (int) $job['ATTEMPTS'] !== $expectedAttempt
+        ) {
+            throw SifException::conflict('Document job lease was lost before failure handling');
         }
 
         $attempts = (int) $job['ATTEMPTS'];
@@ -299,7 +336,7 @@ final class DocumentJobRepository
         ]);
 
         if ($stmt->rowCount() !== 1) {
-            throw SifException::conflict('Document job failure could not be recorded');
+            throw SifException::conflict('Document job lease was lost before failure recording');
         }
 
         $updated = $this->findById($db, $jobId, false);
