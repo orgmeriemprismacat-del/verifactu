@@ -136,9 +136,10 @@ try {
       $id=time();
       $order = strval($id);
 
-      $url="https://www.prisma.cat/realitzaPagamentAutomatic.php?idPag=".$idPag."&codiCurs=".$cursPag."&dni=".$dniTitularPag."&order=".$order."&frac=".$frac."&import=".$importPagare;
-      $urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php?email=".$email;
-      $urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php?email=".$email;
+      // El context funcional viatja dins DS_MERCHANT_MERCHANTDATA signat, no al query-string.
+      $url="https://www.prisma.cat/realitzaPagamentAutomatic.php";
+      $urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php";
+      $urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php";
 
       if (!preg_match('/^\d{1,10}\.\d{2}$/D', $importPagare)) {
          throw new RuntimeException('INVALID_AUTHORISED_PAYMENT_AMOUNT');
