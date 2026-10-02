@@ -418,6 +418,7 @@ try {
 		$connexio->closeStmt();
 
 		$preuCursos = 0.0;
+		$preusCursosServidor = [];
 		foreach ($edicions as $edicioPreu) {
 			if ( $stmtPreuServidor = $connexio->prepare($cnsPreuServidor) ) {
 				$idPreuServidor = $edicioPreu->obtenirIdPreu()->obtenirNumero();
@@ -428,7 +429,9 @@ try {
 					$connexio->closeStmt();
 					throw new Exception('',2907);
 				}
-				$preuCursos += floatval($preuCursServidor);
+				$preuCursServidor = round((float) $preuCursServidor, 2);
+				$preuCursos += $preuCursServidor;
+				$preusCursosServidor[] = $preuCursServidor;
 				$connexio->closeStmt();
 			}
 			else {
@@ -698,12 +701,6 @@ try {
 
 	$perenne = 'X';
 
-	$connexio2 = new ConnexioBBDDSTMT();
-	$connexio2->connectarBD();
-
-	$cnsPreu = "SELECT IMPORT FROM preu WHERE ID=? AND DATAI<=CURRENT_TIME AND
-					(CURRENT_TIME<=DATAF OR DATAF IS NULL)";
-
 	$insertBD = "INSERT INTO inscripcions (ANY, MES, CURS, DATA_INSC, NOM, COGNOMS,
 					 CORREU, DNI, ADRECA, Codi_Postal, POBLACIO, PERFIL, TITULACIO,
 					 TELEFON, COMENTARIS, FRACCIONAT, INSC_MAILING,
@@ -712,88 +709,77 @@ try {
 	$connexio->beginTransaction();
 	$packTransactionStarted = true;
 
-	if ( $stmt2 = $connexio2->prepare($cnsPreu) ) {
-		$stmt2->bind_param("d", $idPreuEd);
+	if ( $stmt=$connexio->prepare($insertBD) ) {
+		$stmt->bind_param("dsssssssssssdsdsdddssss", $anyEd, $mesEd, $codiCursEd,
+			$nomBD, $cogBD, $emailBD, $documentacioBD, $adrecaBD, $codiPostalBD, $poblacioBD,
+			$perfilsBD, $titulacionsBD, $telfBD, $comentarisBD, $pagFraccBD, $mailingBD,
+			$preuCurs, $usuariBD, $idPag, $perenne, $conegutBD, $tipusInsc, $observacions);
 
-		if ( $stmt=$connexio->prepare($insertBD) ) {
-			$stmt->bind_param("dsssssssssssdsdsdddssss", $anyEd, $mesEd, $codiCursEd,
-				$nomBD, $cogBD, $emailBD, $documentacioBD, $adrecaBD, $codiPostalBD, $poblacioBD,
-				$perfilsBD, $titulacionsBD, $telfBD, $comentarisBD, $pagFraccBD, $mailingBD,
-				$preuCurs, $usuariBD, $idPag, $perenne, $conegutBD, $tipusInsc, $observacions);
+		$aux = round((float) $preuPack, 2);
+		$totalPackLinesCents = 0;
+		$tipusInsc = 'P';
+		for ( $i=0; $i<count($edicions); $i++ ) {
+			$edicio = $edicions[$i];
 
-			$aux = round((float) $preuPack, 2);
-			$totalPackLinesCents = 0;
-			$tipusInsc = 'P';
-			for ( $i=0; $i<count($edicions); $i++ ) {
-				$edicio = $edicions[$i];
+			/* Omplo les dades necessaries obtenides de l'edicio */
+			$anyEd = $edicio->obtenirAny()->obtenirNumero();
+			$mesEd = $edicio->obtenirMes()->obtenirText();
+			$codiCursEd = $edicio->obtenirCodiCurs()->obtenirText();
 
-				/* Omplo les dades necessaries obtenides de l'edicio*/
-				$anyEd = $edicio->obtenirAny()->obtenirNumero();
-				$mesEd = $edicio->obtenirMes()->obtenirText();
-				$idPreuEd = $edicio->obtenirIdPreu()->obtenirNumero();
-
-				$codiCursEd = $edicio->obtenirCodiCurs()->obtenirText();
-
-				/* Busco el preu original del curs */
-				if (!$stmt2->execute()) {
-					throw new Exception('',2916);
-				}
-				$stmt2->bind_result($preuCursOriginal);
-				if (!$stmt2->fetch() || !is_numeric($preuCursOriginal)) {
-					throw new Exception('',2916);
-				}
-
-				$preuCursOriginal = round((float) $preuCursOriginal, 2);
-				$preuCurs = round(min($aux, $preuCursOriginal), 2);
-				$aux = round(max(0, $aux - $preuCurs), 2);
-				$totalPackLinesCents += (int) round($preuCurs * 100);
-				$descompteCurs = round(max(0, $preuCursOriginal - $preuCurs), 2);
-				$descomptePct = $preuCursOriginal > 0
-					? round(($descompteCurs / $preuCursOriginal) * 100, 2)
-					: 0.0;
-
-				/* Snapshot comercial mínim per no reconstruir ordre/imports després del cobrament. */
-				$observacions = sprintf(
-					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f RID|%s RH1|%s',
-					$idPack,
-					$i + 1,
-					$preuCursOriginal,
-					$descompteCurs,
-					$descomptePct,
-					$preuCurs,
-					$requestId,
-					$requestHash
-				);
-
-				/* Executo el insert */
-				if (!$stmt->execute()) {
-					throw new Exception('',2915);
-				}
+			/*
+			 * Reutilitzo exactament el snapshot autoritatiu de preus validat
+			 * abans d'iniciar la transacció. No es rellegeix la taula preu
+			 * entre la validació comercial i la persistència del PACK.
+			 */
+			$preuCursOriginal = $preusCursosServidor[$i] ?? null;
+			if (!is_numeric($preuCursOriginal)) {
+				throw new Exception('',2916);
 			}
+			$preuCursOriginal = round((float) $preuCursOriginal, 2);
 
-			if ((int) round($aux * 100) !== 0 || $totalPackLinesCents !== $preuPackCents) {
+			$preuCurs = round(min($aux, $preuCursOriginal), 2);
+			$aux = round(max(0, $aux - $preuCurs), 2);
+			$totalPackLinesCents += (int) round($preuCurs * 100);
+			$descompteCurs = round(max(0, $preuCursOriginal - $preuCurs), 2);
+			$descomptePct = $preuCursOriginal > 0
+				? round(($descompteCurs / $preuCursOriginal) * 100, 2)
+				: 0.0;
+
+			/* Snapshot comercial mínim per no reconstruir ordre/imports després del cobrament. */
+			$observacions = sprintf(
+				'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f RID|%s RH1|%s',
+				$idPack,
+				$i + 1,
+				$preuCursOriginal,
+				$descompteCurs,
+				$descomptePct,
+				$preuCurs,
+				$requestId,
+				$requestHash
+			);
+
+			if (!$stmt->execute()) {
 				throw new Exception('',2915);
 			}
-
-			$idInserit = $connexio->lastInsertId();
-			$connexio->closeStmt();
-			$connexio->commitTransaction();
-			$packTransactionStarted = false;
-			$packEnrollmentCommitted = true;
-			$connexio->releaseIdPag();
-			$idPagReserved = false;
-			$connexio->releaseNamedLock($packRequestLockName);
-			$packRequestLockReserved = false;
 		}
-		else {
+
+		if ((int) round($aux * 100) !== 0 || $totalPackLinesCents !== $preuPackCents) {
 			throw new Exception('',2915);
 		}
+
+		$idInserit = $connexio->lastInsertId();
+		$connexio->closeStmt();
+		$connexio->commitTransaction();
+		$packTransactionStarted = false;
+		$packEnrollmentCommitted = true;
+		$connexio->releaseIdPag();
+		$idPagReserved = false;
+		$connexio->releaseNamedLock($packRequestLockName);
+		$packRequestLockReserved = false;
 	}
 	else {
-		throw new Exception('',2916);
+		throw new Exception('',2915);
 	}
-
-	$connexio2->desconectarBD();
 
 	$hashIdInserit = uc015PackConfirmationHash($idInserit, $keyEncr);
 
