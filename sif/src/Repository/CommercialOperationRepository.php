@@ -105,6 +105,20 @@ final class CommercialOperationRepository
         }
     }
 
+    public function updateStatus(\PDO $db, string $uuidOperation, string $status): void
+    {
+        $stmt = $db->prepare(
+            'UPDATE commercial_operation
+             SET STATUS = ?
+             WHERE UUID_OPERATION = ?'
+        );
+        $stmt->execute([$status, $uuidOperation]);
+
+        if ($stmt->rowCount() > 1) {
+            throw new \RuntimeException('Commercial operation status update affected multiple rows');
+        }
+    }
+
     private function findOne(\PDO $db, string $sql, array $params, bool $forUpdate): ?array
     {
         if ($forUpdate) {
