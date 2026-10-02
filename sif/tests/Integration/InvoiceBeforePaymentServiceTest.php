@@ -2,7 +2,10 @@
 
 namespace Prisma\Sif\Tests\Integration;
 
+use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\DocumentJobRepository;
+use Prisma\Sif\Service\InvoiceBeforePaymentDocumentQueueService;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
 use Prisma\Sif\Service\InvoiceBeforePaymentService;
 use Prisma\Sif\Tests\Support\Assert;
@@ -14,10 +17,7 @@ final class InvoiceBeforePaymentServiceTest
     public function testIssuesInvoiceBeforePaymentWithoutCreatingPayment(): void
     {
         $db = TestDatabase::fresh();
-        $service = new InvoiceBeforePaymentService(
-            new InvoiceBeforePaymentPayloadBuilder(),
-            IssueInvoiceTest::serviceFor($db)
-        );
+        $service = $this->serviceWithDocuments($db);
         $input = Fixtures::invoicePayload([
             'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|REF:PRE900',
             'source_channel' => 'INTRANET',
@@ -31,6 +31,11 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same(false, $first['idempotency_reused']);
         Assert::same(true, $second['idempotency_reused']);
         Assert::same($first['uuid_factura'], $second['uuid_factura']);
+        Assert::same('PENDING', $first['document_status']);
+        Assert::same('PENDING', $second['document_status']);
+        Assert::same(false, $first['document_job']['reused']);
+        Assert::same(true, $second['document_job']['reused']);
+        Assert::same($first['document_job']['uuid_job'], $second['document_job']['uuid_job']);
         Assert::same(1, (int) $db->query('SELECT EMESA_ABANS_COBRAMENT FROM factura')->fetchColumn());
         Assert::same('PENDING', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
         Assert::same('INTRANET', (string) $db->query('SELECT SOURCE_CHANNEL FROM factura')->fetchColumn());
@@ -41,6 +46,7 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM document_job')->fetchColumn());
 
         $event = $db->query(
             'SELECT OPERATION_TYPE, UUID_FACTURA, FISCAL_IMPACT, ECONOMIC_IMPACT,
@@ -215,10 +221,7 @@ final class InvoiceBeforePaymentServiceTest
     public function testDifferentIdempotencyKeyCannotCoverSameInscriptionTwice(): void
     {
         $db = TestDatabase::fresh();
-        $service = new InvoiceBeforePaymentService(
-            new InvoiceBeforePaymentPayloadBuilder(),
-            IssueInvoiceTest::serviceFor($db)
-        );
+        $service = $this->serviceWithDocuments($db);
 
         $first = $service->issueBeforePayment(Fixtures::invoicePayload([
             'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|REF:COVERAGE-1',
@@ -281,8 +284,21 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM document_job')->fetchColumn());
         Assert::same(1, (int) $db->query(
             'SELECT LAST_NUM FROM fiscal_sequence WHERE TIPUS_SERIE = "A" AND ANY_FACT = 2026'
         )->fetchColumn());
+    }
+    private function serviceWithDocuments(\PDO $db): InvoiceBeforePaymentService
+    {
+        return new InvoiceBeforePaymentService(
+            new InvoiceBeforePaymentPayloadBuilder(),
+            IssueInvoiceTest::serviceFor($db),
+            new InvoiceBeforePaymentDocumentQueueService(
+                new TransactionRunner($db),
+                new DocumentJobRepository(),
+                'uc004-fiscal-pdf-v1'
+            )
+        );
     }
 }
