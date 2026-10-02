@@ -137,7 +137,10 @@ try {
       if ($fuc === '') {
          throw new RuntimeException('REDSYS_MERCHANT_CODE_NOT_CONFIGURED');
       }
-      $terminal = trim((string) (getenv('REDSYS_TERMINAL') ?: '1'));
+      $terminal = trim((string) getenv('REDSYS_TERMINAL'));
+      if ($terminal === '') {
+         throw new RuntimeException('REDSYS_TERMINAL_NOT_CONFIGURED');
+      }
       $moneda="978";
       $trans="0";
 
