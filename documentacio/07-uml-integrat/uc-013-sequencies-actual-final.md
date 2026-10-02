@@ -240,3 +240,53 @@ Actualment el builder rebutja `student_amount=0`; no s'inventa una factura o cob
 - **Verificat:** inspecció estàtica sobre el main indicat.
 - **Provat:** evidència CI prèvia específica del UC-013 cobreix E2E de servei, idempotència, parcial/complet, validació durable, UI contracts i lifecycle planner.
 - **Pendent:** E2E navegador/preproducció sobre configuració real i executor fiscal/econòmic del canvi de curs. La baixa ja està implementada al repositori.
+
+
+## 11. FINAL — canvi de curs USOC executable
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant UI as Intranet canvi curs
+participant Guard as LegacyUsocLifecycleGuard
+participant API as API USOC
+participant Plan as UsocLifecyclePlanService
+participant Target as UsocCourseChangeTargetResolver
+participant Exec as UsocCourseChangeExecutionService
+participant Rect as ManualRectificationService
+participant Inv as InvoiceService
+participant Funds as EnrollmentFundMovementRepository
+participant Credit as CreditBalanceService
+participant Legacy as Legacy canvi curs
+
+G->>UI: confirmar curs destí
+UI->>Guard: inspect(course_change)
+Guard->>API: lifecycle_guard / lifecycle_plan
+API->>Plan: snapshot separat student/entity
+Plan-->>UI: origen congelat + max_refundable
+UI->>Target: preu estàndard + preu USOC destí + fee
+Target->>Target: entity = standard - student
+Target->>Target: validar invariants i regla USOC destí
+alt incoherent o regla absent
+ Target-->>UI: REVIEW_REQUIRED
+else coherent
+ UI->>Exec: execute(requestId, origen, destí)
+ loop alumne / entitat
+  Exec->>Rect: rectificar factura origen si existeix
+ end
+ Exec->>Inv: emetre factura alumne destí
+ Exec->>Inv: emetre factura entitat destí si import > 0
+ loop alumne / entitat
+  Exec->>Funds: compensar només fons reals del mateix pagador
+  opt excés
+   Exec->>Credit: crear saldo o aplicar decisió explícita
+  end
+ end
+ Exec-->>UI: COMPLETED + handoff token/checkpoint
+ UI->>Legacy: crear/mutar inscripció destí
+ Legacy-->>UI: OK
+end
+```
+
+**Invariant:** mai usar fons de l'alumne per saldar la part USOC ni a l'inrevés. El detall complet és a [contracte FINAL de canvi de curs](uc-013-canvi-curs-usoc-contracte-final.md).
