@@ -62,6 +62,12 @@ final class UsocCourseChangeExecutionPreparationService
                 );
             }
 
+            if ((string) $execution['STATE'] !== 'REQUESTED') {
+                throw SifException::conflict(
+                    'USOC course change execution is no longer in preparation state'
+                );
+            }
+
             return $this->result($execution, $storedPlan, true);
         }
 
