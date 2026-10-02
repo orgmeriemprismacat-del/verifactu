@@ -138,6 +138,7 @@ return [
         'certificate_path' => getenv('SIF_AEAT_CERT_PATH') ?: '',
         'certificate_password' => getenv('SIF_AEAT_CERT_PASSWORD') ?: '',
         'issuer_nif' => getenv('SIF_ISSUER_NIF') ?: '',
+        'system_name' => getenv('SIF_AEAT_SYSTEM_NAME') ?: '',
         'system_id' => getenv('SIF_AEAT_SYSTEM_ID') ?: '',
         'system_version' => getenv('SIF_AEAT_SYSTEM_VERSION') ?: '',
         'installation_id' => getenv('SIF_AEAT_INSTALLATION_ID') ?: '',
