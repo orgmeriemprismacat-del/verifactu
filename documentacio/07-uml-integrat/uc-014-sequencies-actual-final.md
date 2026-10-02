@@ -116,7 +116,7 @@ Status-->>SC: PENDING/PROCESSING/CONFIRMED/REJECTED/REVIEW
 SC-->>Ret: estat read-only
 Ret-->>A: mostra estat autoritatiu
 Note over Ret,Status: CONFIRMED només amb PROCESSED + UUID_FACTURA + UUID_PAYMENT
-Note over Web,C: el tall exigeix SIF_REDSYS_COURSE_CUTOVER_ENABLED=1 + URL SIF HTTPS; la URL sola no activa
+Note over Web,C: el tall final exigeix cutover=1 + drain=1 + URL SIF HTTPS; cutover=1/drain=0 només bloqueja nous checkouts i drena callbacks llegats
 ```
 
 **Implementat i verificat per CI anterior:** intenció SIF, callback/cua/worker, factura+cobrament, `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, outbox CURS, consulta read-only d'estat i retorn OK/KO fail-closed. El PR #95 acredita fund allocation amb suites SIF 841/0 i quatre workflows verds. **Pendent d'entorn:** configurar MerchantURL/cutover, rotar secrets i executar Redsys/preproducció real. El hardening ACTUAL 02/10 ha estat revalidat al PR #105: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en verd sobre el head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`.
