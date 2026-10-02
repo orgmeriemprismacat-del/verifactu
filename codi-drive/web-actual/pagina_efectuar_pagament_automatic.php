@@ -136,8 +136,8 @@ try {
       }
       $moneda="978";
       $trans="0";
-      $id=time();
-      $order = strval($id);
+      $order = (string) random_int(100000000000, 999999999999);
+      $id = $order;
 
       // El context funcional viatja dins DS_MERCHANT_MERCHANTDATA signat, no al query-string.
       $url="https://www.prisma.cat/realitzaPagamentAutomatic.php";
@@ -211,7 +211,6 @@ try {
             ?>
          </div>
          <form id='frm' name='frm' action="<?php echo htmlspecialchars($gatewayUrl, ENT_QUOTES, 'UTF-8'); ?>" method='post'>
-   		<!-- <form id='frm' name='frm' action='https://sis-t.redsys.es:25443/sis/realizarPago' method='post'> -->
    		   <input type="hidden" name="producto" value="<?php echo htmlspecialchars($producto, ENT_QUOTES, 'UTF-8'); ?>"/>
             <input type="hidden" name="rebut" value="<?php echo $id; ?>"/>
             <input type="hidden" name="Ds_SignatureVersion" value="<?php echo $version; ?>"/>
