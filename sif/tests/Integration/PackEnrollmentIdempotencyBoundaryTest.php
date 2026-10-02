@@ -131,6 +131,10 @@ final class PackEnrollmentIdempotencyBoundaryTest
         Assert::same(false, str_contains($source, '$cnsPreu = "SELECT IMPORT FROM preu'));
 
         Assert::stringContainsString(
+            "if (!\$stmtExisting->execute())",
+            $source
+        );
+        Assert::stringContainsString(
             "'prisma_pack_req_' . substr(hash('sha256', $requestId), 0, 48)",
             $source
         );

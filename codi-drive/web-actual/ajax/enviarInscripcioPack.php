@@ -148,7 +148,10 @@ try {
 
 	if ( $stmtExisting = $connexio->prepare($cnsExistingRequest) ) {
 		$stmtExisting->bind_param("s", $existingPattern);
-		$stmtExisting->execute();
+		if (!$stmtExisting->execute()) {
+			$stmtExisting->close();
+			throw new Exception('',2915);
+		}
 		$stmtExisting->bind_result($existingRowId, $existingRowIdPag, $existingObservations);
 
 		while ($stmtExisting->fetch()) {

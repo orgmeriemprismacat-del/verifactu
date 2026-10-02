@@ -569,3 +569,15 @@ En revisar la incorporació de `PublicWebMutationAuthorization` es va detectar q
 S'ha eliminat la llista fixa de l'endpoint. Origin/Referer depenen ara exclusivament de `WEB_ALLOWED_ORIGINS`; `Sec-Fetch-Site` i `X-Requested-With` continuen com a defenses complementàries. `PublicWebMutationAuthorizationTest` comprova un origen addicional configurat i `PackEnrollmentTransportBoundaryTest` prohibeix reintroduir `$allowedHosts`.
 
 **Estat:** implementat i cobert per prova; cap gap intern.
+
+
+## 10. Snapshot únic de preus i replay fail-closed — 2026-10-02
+
+La comparació final amb el PR #113 ha detectat dos punts de concurrència que s'han resolt al PR canònic:
+
+1. **TOCTOU de preus:** abans es validaven preus i es tornaven a consultar dins la transacció. Ara `$preusCursosServidor` es captura una sola vegada i és l'única font usada pels inserts i per `PACK_BASE`.
+2. **Replay davant error SQL:** `$stmtExisting->execute()` es comprova explícitament. Si falla, el flux s'atura; mai es tracta una fallada de consulta com si no existís una petició anterior.
+
+El lock idempotent actual té 63 caràcters i és vàlid per MySQL. Es conserven el UUID i SHA-256 complets als marcadors `RID`/`RH1`, amb més entropia que la variant compactada.
+
+**Estat:** implementat i cobert per `PackEnrollmentIdempotencyBoundaryTest`. No queda cap diferència tècnica necessària del PR #113 pendent d'absorbir.
