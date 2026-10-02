@@ -52,7 +52,7 @@ final class PackPublicEnrollmentBoundaryTest
         $methodGuard = strpos($source, 'REQUEST_METHOD');
         $siteGuard = strpos($source, 'HTTP_SEC_FETCH_SITE');
         $request = strpos($source, '$request = $_POST;');
-        $firstInput = strpos($source, "new Text($request['nom'])");
+        $firstInput = strpos($source, "new Text(\$request['nom'])");
 
         Assert::same(true, $methodGuard !== false);
         Assert::same(true, $siteGuard !== false);
