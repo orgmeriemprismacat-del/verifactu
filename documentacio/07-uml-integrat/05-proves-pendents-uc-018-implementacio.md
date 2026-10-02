@@ -16,10 +16,10 @@ Aquest document és el backlog verificable del bescanvi de regal. Cap prova de c
 
 ## 2. Persistència i concurrència
 
-- [ ] lock `FOR UPDATE` sobre el dret.
-- [ ] dues peticions concurrents produeixen un únic consum.
-- [ ] event `RESERVE` append-only.
-- [ ] event `CONSUME` append-only.
+- [x] lock `FOR UPDATE` sobre el dret.
+- [x] dues peticions concurrents produeixen un únic consum.
+- [x] event `RESERVE` append-only.
+- [x] event `CONSUME` append-only.
 - [ ] event `RELEASE` quan falla l'alta abans del consum.
 - [ ] cap update/delete d'events.
 - [ ] replay equivalent recupera la mateixa operació/inscripció.
@@ -60,7 +60,7 @@ Aquest document és el backlog verificable del bescanvi de regal. Cap prova de c
 ## 7. API/UI
 
 - [ ] preview i confirmació són endpoints/accions diferents.
-- [ ] doble clic reutilitza resultat.
+- [x] doble clic/reintent equivalent reutilitza resultat.
 - [ ] errors mostren estat operatiu, no detalls sensibles.
 - [ ] estat pendent/reconciliació no es presenta com a èxit.
 - [ ] suport/intranet veu timeline sense poder editar estat directament.
@@ -75,7 +75,7 @@ Aquest document és el backlog verificable del bescanvi de regal. Cap prova de c
 - [ ] no hi ha segon `payment_transaction CHARGE`.
 - [ ] timeline i correlació reconstruïbles.
 - [ ] replay complet no duplica res.
-- [ ] prova concurrent real amb dos processos/requests.
+- [x] prova concurrent real amb dos processos/requests.
 
 ## 9. Criteri GO
 
@@ -90,3 +90,11 @@ Només GO quan el flux complet pugui demostrar:
 0 factures duplicades
 traça completa
 ```
+
+
+## 10. Evidència tancada de concurrència — 2026-10-02
+
+- `GiftRedemptionConcurrencyTest::testTwoProcessesRedeemingSameEnrollmentReuseSingleSaga`: PASS.
+- `GiftRedemptionConcurrencyTest::testTwoProcessesWithDifferentEnrollmentsAllowOnlyOneDestination`: PASS.
+- GitHub Actions `36942440699`: **834 passed · 0 failed**.
+- S'ha verificat que no apareixen segon `CHARGE`, segon `CONSUME`, segona compensació ni dues operacions destí per un únic regal.
