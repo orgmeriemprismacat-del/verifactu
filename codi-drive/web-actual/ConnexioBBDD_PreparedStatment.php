@@ -67,6 +67,36 @@ class ConnexioBBDDSTMT {
    }
 
    /*
+   * @brief Inicia una transacció explícita sobre la connexió legacy.
+   */
+   function beginTransaction()
+   {
+      if (!$this->connexio->begin_transaction()) {
+         throw new Exception('No es pot iniciar la transacció');
+      }
+   }
+
+   /*
+   * @brief Confirma la transacció activa.
+   */
+   function commitTransaction()
+   {
+      if (!$this->connexio->commit()) {
+         throw new Exception('No es pot confirmar la transacció');
+      }
+   }
+
+   /*
+   * @brief Reverteix la transacció activa. S'utilitza també en vies d'error.
+   */
+   function rollbackTransaction()
+   {
+      if (isset($this->connexio) && $this->connexio) {
+         $this->connexio->rollback();
+      }
+   }
+
+   /*
    * @brief Reserva de manera serialitzada el següent IDPAG de les inscripcions.
    * @return Retorna el següent IDPAG mantenint un named lock fins a releaseIdPag().
    */
