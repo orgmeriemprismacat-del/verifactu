@@ -44,6 +44,8 @@ use Prisma\Sif\Service\UsocCancellationExecutionService;
 use Prisma\Sif\Service\UsocCourseChangePreviewService;
 use Prisma\Sif\Service\UsocCourseChangeTargetResolver;
 use Prisma\Sif\Service\UsocCourseChangeFundPlanService;
+use Prisma\Sif\Service\UsocCourseChangeExecutionPreparationService;
+use Prisma\Sif\Service\UsocCourseChangeDestinationBindingService;
 
 header('Cache-Control: private, no-store, max-age=0');
 header('Pragma: no-cache');
@@ -175,6 +177,82 @@ try {
                 $idInsc,
                 $idpag,
                 $target
+            ),
+        ]);
+        return;
+    }
+
+    if ($action === 'prepare_course_change') {
+        $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
+        $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
+        $requestId = requiredString($payload['request_id'] ?? null, 'Missing USOC course change request id');
+        $target = $payload['target'] ?? null;
+        if (!is_array($target)) {
+            throw SifException::validation('Invalid USOC course change target input');
+        }
+
+        $guard = new UsocLifecycleGuardService($cases);
+        $preview = new UsocCourseChangePreviewService(
+            new UsocLifecyclePlanService($cases, $guard),
+            new UsocCourseChangeTargetResolver(),
+            new UsocCourseChangeFundPlanService()
+        );
+        $service = new UsocCourseChangeExecutionPreparationService(
+            $preview,
+            new UsocLifecycleExecutionRepository(new UuidGenerator())
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'preparation' => $service->prepare(
+                $db,
+                $idInsc,
+                $idpag,
+                $requestId,
+                $actorId,
+                $roles,
+                $target
+            ),
+        ]);
+        return;
+    }
+
+    if ($action === 'bind_course_change_destination') {
+        $requestId = requiredString($payload['request_id'] ?? null, 'Missing USOC course change request id');
+        $sourceIdInsc = positiveInt($payload['source_id_insc'] ?? null, 'Invalid USOC source inscription ID');
+        $sourceIdpag = positiveInt($payload['source_idpag'] ?? null, 'Invalid USOC source IDPAG');
+        $destinationIdInsc = positiveInt(
+            $payload['destination_id_insc'] ?? null,
+            'Invalid USOC destination inscription ID'
+        );
+        $destinationIdpag = positiveInt(
+            $payload['destination_idpag'] ?? null,
+            'Invalid USOC destination IDPAG'
+        );
+        $reservationMarker = requiredString(
+            $payload['reservation_marker'] ?? null,
+            'Missing USOC destination reservation marker'
+        );
+        $targetStudentTotal = requiredString(
+            $payload['target_student_total'] ?? null,
+            'Missing USOC destination student total'
+        );
+
+        $service = new UsocCourseChangeDestinationBindingService(
+            new UsocLifecycleExecutionRepository(new UuidGenerator())
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'binding' => $service->bind(
+                $db,
+                $requestId,
+                $sourceIdInsc,
+                $sourceIdpag,
+                $destinationIdInsc,
+                $destinationIdpag,
+                $reservationMarker,
+                $targetStudentTotal
             ),
         ]);
         return;
