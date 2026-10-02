@@ -151,6 +151,55 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
     }
 
+
+    public function testCurrentEnrollmentCannotSelfAccreditEvenWhenGenerated(): void
+    {
+        $db = $this->fixture(false);
+        $db->exec('UPDATE inscripcions SET GENERAT = 1 WHERE ID = 200');
+        $service = $this->service();
+        $price = $this->price();
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $price): void {
+            $service->stageAndCreateIntent(
+                $db,
+                $db,
+                200,
+                'student:canonical:12345678Z',
+                $price,
+                ['ds_order' => 'UC020SELF01', 'terminal' => '1']
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
+    }
+
+    public function testHistoryAfterEnrollmentTimestampCannotAccreditRetroactively(): void
+    {
+        $db = $this->fixture(false);
+        $db->exec(
+            "INSERT INTO inscripcions
+             (ID, IDPAG, ANY, MES, CURS, DATA_INSC, NOM, COGNOMS, DNI, A_PAGAR, PAGAMENT, GENERAT, `INSC CURS`)
+             VALUES
+             (300, 901, 2026, '11', 'FUTURE', '2026-10-01 10:00:00', 'Maria', 'Exemple',
+              '12345678Z', 120.00, 120.00, 0, '1')"
+        );
+        $service = $this->service();
+        $price = $this->price();
+
+        Assert::throws(SifException::class, static function () use ($db, $service, $price): void {
+            $service->stageAndCreateIntent(
+                $db,
+                $db,
+                200,
+                'student:canonical:12345678Z',
+                $price,
+                ['ds_order' => 'UC020FUTURE1', 'terminal' => '1']
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
+    }
+
     public function testTrustedPriceMustMatchRealEnrollmentNet(): void
     {
         $db = $this->fixture(true);
@@ -194,6 +243,7 @@ final class PrismaStudentCourseCheckoutServiceTest
                 ANY INT NOT NULL,
                 MES CHAR(2) NOT NULL,
                 CURS VARCHAR(20) NOT NULL,
+                DATA_INSC DATETIME NOT NULL,
                 NOM VARCHAR(80) NOT NULL,
                 COGNOMS VARCHAR(80) NOT NULL,
                 DNI VARCHAR(20) NOT NULL,
@@ -208,17 +258,17 @@ final class PrismaStudentCourseCheckoutServiceTest
 
         $db->exec(
             "INSERT INTO inscripcions
-             (ID, IDPAG, ANY, MES, CURS, NOM, COGNOMS, DNI, A_PAGAR, PAGAMENT, GENERAT, `INSC CURS`)
+             (ID, IDPAG, ANY, MES, CURS, DATA_INSC, NOM, COGNOMS, DNI, A_PAGAR, PAGAMENT, GENERAT, `INSC CURS`)
              VALUES
-             (200, 900, 2026, '10', 'ABC', 'Maria', 'Exemple', '12345678Z', 90.00, 0.00, 0, '1')"
+             (200, 900, 2026, '10', 'ABC', '2026-09-30 10:00:00', 'Maria', 'Exemple', '12345678Z', 90.00, 0.00, 0, '1')"
         );
 
         if ($withEligibleHistory) {
             $db->exec(
                 "INSERT INTO inscripcions
-                 (ID, IDPAG, ANY, MES, CURS, NOM, COGNOMS, DNI, A_PAGAR, PAGAMENT, GENERAT, `INSC CURS`)
+                 (ID, IDPAG, ANY, MES, CURS, DATA_INSC, NOM, COGNOMS, DNI, A_PAGAR, PAGAMENT, GENERAT, `INSC CURS`)
                  VALUES
-                 (100, 700, 2025, '09', 'OLD', 'Maria', 'Exemple', '12345678Z', 120.00, 120.00, 0, '1')"
+                 (100, 700, 2025, '09', 'OLD', '2025-08-20 10:00:00', 'Maria', 'Exemple', '12345678Z', 120.00, 120.00, 0, '1')"
             );
         }
 

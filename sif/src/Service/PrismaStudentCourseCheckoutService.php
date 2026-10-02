@@ -7,10 +7,12 @@ namespace Prisma\Sif\Service;
 use Prisma\Sif\Domain\PrismaStudentDiscountPolicy;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\CommercialOperationPartyRepository;
 use Prisma\Sif\Repository\CommercialOperationRepository;
 use Prisma\Sif\Repository\DiscountValidationRepository;
 use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
+use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 
 /**
  * Trusted server-side UC-020 bridge.
@@ -22,7 +24,9 @@ use Prisma\Sif\Repository\OperationalEventRepository;
 final class PrismaStudentCourseCheckoutService
 {
     private CommercialOperationRepository $operations;
+    private CommercialOperationPartyRepository $operationParties;
     private DiscountValidationRepository $discounts;
+    private RedsysPaymentIntentRepository $intentRecords;
     private OperationalEventRepository $events;
 
     public function __construct(
@@ -32,10 +36,14 @@ final class PrismaStudentCourseCheckoutService
         private UuidGenerator $uuids,
         ?CommercialOperationRepository $operations = null,
         ?DiscountValidationRepository $discounts = null,
-        ?OperationalEventRepository $events = null
+        ?OperationalEventRepository $events = null,
+        ?CommercialOperationPartyRepository $operationParties = null,
+        ?RedsysPaymentIntentRepository $intentRecords = null
     ) {
         $this->operations = $operations ?? new CommercialOperationRepository();
+        $this->operationParties = $operationParties ?? new CommercialOperationPartyRepository();
         $this->discounts = $discounts ?? new DiscountValidationRepository();
+        $this->intentRecords = $intentRecords ?? new RedsysPaymentIntentRepository();
         $this->events = $events ?? new OperationalEventRepository($this->uuids);
     }
 
@@ -59,7 +67,12 @@ final class PrismaStudentCourseCheckoutService
         }
 
         $enrollment = $this->enrollment($legacyDb, $enrollmentId);
-        $history = $this->history->findByDocument($legacyDb, (string) $enrollment['DNI']);
+        $history = $this->history->findByDocument(
+            $legacyDb,
+            (string) $enrollment['DNI'],
+            $enrollmentId,
+            (string) $enrollment['DATA_INSC']
+        );
         $decision = $this->policy->evaluate($history);
         if (($decision['eligible'] ?? false) !== true) {
             throw SifException::conflict('Enrollment is not eligible for Alumne PrisMa under the selected rule version.');
@@ -86,10 +99,10 @@ final class PrismaStudentCourseCheckoutService
 
                 $linkedIntent = trim((string) ($existing['UUID_INTENT'] ?? ''));
                 if ($linkedIntent !== '') {
-                    $linkedOrder = $this->one(
+                    $linkedOrder = $this->intentRecords->findByUuid(
                         $sifDb,
-                        'SELECT DS_ORDER FROM redsys_payment_intent WHERE UUID_INTENT = ? FOR UPDATE',
-                        [$linkedIntent]
+                        $linkedIntent,
+                        true
                     );
                     if ($linkedOrder === null
                         || trim((string) ($intentRequest['ds_order'] ?? '')) !== (string) $linkedOrder['DS_ORDER']
@@ -127,27 +140,22 @@ final class PrismaStudentCourseCheckoutService
                 ]);
 
                 $name = trim((string) $enrollment['NOM'] . ' ' . (string) ($enrollment['COGNOMS'] ?? ''));
-                $this->execute(
-                    $sifDb,
-                    'INSERT INTO commercial_operation_party
-                     (UUID_OPERATION, PARTY_KEY, PARTY_ROLE, NIF_CIF, NOM_RAO,
-                      PRODUCT_CODE, PRODUCT_EDITION, LINE_AMOUNT, SNAPSHOT_JSON)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    [
-                        $uuidOperation,
-                        $canonicalPartyKey,
-                        'PARTICIPANT',
-                        (string) $enrollment['DNI'],
-                        $name,
-                        (string) $enrollment['CURS'],
-                        (string) $enrollment['ANY'] . '/' . (string) $enrollment['MES'],
-                        $price['net'],
-                        json_encode([
-                            'source' => 'legacy_inscription',
-                            'source_id' => $enrollmentId,
-                        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-                    ]
-                );
+                $this->operationParties->insert($sifDb, [
+                    'uuid_operation' => $uuidOperation,
+                    'party_key' => $canonicalPartyKey,
+                    'party_role' => 'PARTICIPANT',
+                    'legacy_person_id' => null,
+                    'nif_cif' => (string) $enrollment['DNI'],
+                    'nom_rao' => $name,
+                    'email' => null,
+                    'product_code' => (string) $enrollment['CURS'],
+                    'product_edition' => (string) $enrollment['ANY'] . '/' . (string) $enrollment['MES'],
+                    'line_amount' => $price['net'],
+                    'snapshot_json' => json_encode([
+                        'source' => 'legacy_inscription',
+                        'source_id' => $enrollmentId,
+                    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+                ]);
             }
 
             $validation = $this->discounts->findByIdempotencyKey($sifDb, $validationKey, true);
@@ -235,13 +243,7 @@ final class PrismaStudentCourseCheckoutService
                 (string) $intent['uuid_intent'],
                 $linkedIntent !== '' ? $linkedIntent : null
             );
-            $this->execute(
-                $sifDb,
-                'UPDATE commercial_operation
-                 SET STATUS = ?, UPDATED_AT = CURRENT_TIMESTAMP
-                 WHERE UUID_OPERATION = ?',
-                ['INTENT_CREATED', $uuidOperation]
-            );
+            $this->operations->updateStatus($sifDb, $uuidOperation, 'INTENT_CREATED');
 
             if ($createdOperation) {
                 $this->events->append($sifDb, [
@@ -297,7 +299,7 @@ final class PrismaStudentCourseCheckoutService
     {
         $row = $this->one(
             $legacyDb,
-            'SELECT ID, IDPAG, ANY, MES, CURS, NOM, COGNOMS, DNI, A_PAGAR
+            'SELECT ID, IDPAG, ANY, MES, CURS, DATA_INSC, NOM, COGNOMS, DNI, A_PAGAR
              FROM inscripcions WHERE ID = ?',
             [$enrollmentId]
         );
