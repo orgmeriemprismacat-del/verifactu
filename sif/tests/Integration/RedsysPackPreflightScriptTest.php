@@ -24,6 +24,7 @@ final class RedsysPackPreflightScriptTest
         Assert::stringContainsString('intent_create_roles_configured', $source);
         Assert::stringContainsString('callback_url_secure', $source);
         Assert::stringContainsString('intent_api_url_secure', $source);
+        Assert::stringContainsString('redsys_payment_url_allowed', $source);
         Assert::stringContainsString('checkout_actor_roles_configured', $source);
         Assert::stringContainsString('legacy_db_configured', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
@@ -39,6 +40,9 @@ final class RedsysPackPreflightScriptTest
         Assert::stringContainsString('inscripcions', $source);
         Assert::stringContainsString('curs', $source);
         Assert::stringContainsString('info_pack', $source);
+        Assert::stringContainsString('SIF_REDSYS_PAYMENT_URL', $source);
+        Assert::stringContainsString('https://sis.redsys.es/sis/realizarPago', $source);
+        Assert::stringContainsString('https://sis-t.redsys.es:25443/sis/realizarPago', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
         Assert::stringContainsString('exit(count($failed) === 0 ? 0 : 1)', $source);
 
