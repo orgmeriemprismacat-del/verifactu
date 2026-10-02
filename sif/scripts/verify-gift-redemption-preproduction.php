@@ -162,10 +162,13 @@ $result['checks']['replay_same_operation'] =
 $result['checks']['replay_reused'] =
     ($replayStage['idempotency_reused'] ?? false) === true
     && ($replayRedemption['idempotency_reused'] ?? false) === true;
+$firstNotifications = notificationMap($firstBundle);
+$secondNotifications = notificationMap($secondBundle);
+$result['checks']['notification_bundle_has_six_messages'] =
+    count($firstNotifications) === 6;
 $result['checks']['notification_bundle_reused'] =
-    (string) ($firstBundle['uuid_notification'] ?? '') !== ''
-    && (string) ($firstBundle['uuid_notification'] ?? '')
-        === (string) ($secondBundle['uuid_notification'] ?? '')
+    count($firstNotifications) === 6
+    && $firstNotifications === $secondNotifications
     && ($secondBundle['idempotency_reused'] ?? false) === true;
 
 if ($uuidOperation !== '' && $uuidEntitlement !== '') {
@@ -231,7 +234,11 @@ $result['evidence'] = [
     'enrollment_id' => $enrollmentId,
     'uuid_operation' => $uuidOperation,
     'uuid_entitlement' => $uuidEntitlement,
-    'uuid_notification' => (string) ($firstBundle['uuid_notification'] ?? ''),
+    'notification_count' => count($firstNotifications),
+    'notification_bundle_hash' => hash(
+        'sha256',
+        (string) json_encode($firstNotifications, JSON_UNESCAPED_SLASHES)
+    ),
     'invoice_count_before' => $invoiceCountBefore,
     'invoice_count_after' => scalarInt($sifDb, 'SELECT COUNT(*) FROM factura'),
     'charge_count_before' => $chargeCountBefore,
@@ -249,6 +256,25 @@ if ($failed !== []) {
 }
 
 output($result, $result['ok'] ? 0 : 1);
+
+function notificationMap(array $bundle): array
+{
+    $map = [];
+    foreach ((array) ($bundle['notifications'] ?? []) as $notification) {
+        if (!is_array($notification)) {
+            continue;
+        }
+        $messageCode = trim((string) ($notification['message_code'] ?? ''));
+        $uuidNotification = trim((string) ($notification['uuid_notification'] ?? ''));
+        if ($messageCode === '' || $uuidNotification === '') {
+            continue;
+        }
+        $map[$messageCode] = $uuidNotification;
+    }
+    ksort($map, SORT_STRING);
+
+    return $map;
+}
 
 function failedChecks(array $checks): array
 {
