@@ -339,6 +339,90 @@ final class FiscalDocumentJobProcessorTest
         }
     }
 
+    public function testStaleLeaseAtMaxAttemptsBecomesErrorAndOpensIncidentWithoutRendering(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'TEST|DOCUMENT-WORKER|STALE-TERMINAL',
+            ])
+        );
+
+        $queued = (new InvoiceBeforePaymentDocumentQueueService(
+            new TransactionRunner($db),
+            new DocumentJobRepository(),
+            'uc004-fiscal-pdf-v1'
+        ))->ensurePdf(
+            $invoice['uuid_factura'],
+            'INTRANET|FACTURA_ABANS_COBRAR|REF:WORKER-STALE-TERMINAL'
+        );
+
+        $db->prepare(
+            "UPDATE document_job
+             SET STATUS = 'PROCESSING', ATTEMPTS = MAX_ATTEMPTS, LOCKED_AT = ?
+             WHERE ID = ?"
+        )->execute(['2026-01-01 00:00:00.000000', $queued['document_job_id']]);
+
+        $root = $this->temporaryDirectory();
+
+        try {
+            $renderer = new class implements FiscalDocumentRendererInterface {
+                public bool $called = false;
+
+                public function render(array $snapshot, array $job): array
+                {
+                    $this->called = true;
+
+                    return [
+                        'contents' => '%PDF-1.4 should-not-render',
+                        'extension' => 'pdf',
+                    ];
+                }
+            };
+
+            $processor = new FiscalDocumentJobProcessor(
+                $db,
+                new TransactionRunner($db),
+                new DocumentJobRepository(),
+                $renderer,
+                new PrivateDocumentWriter($root),
+                new DocumentRepository(),
+                1,
+                10,
+                60
+            );
+
+            Assert::same(null, $processor->processNext());
+            Assert::same(false, $renderer->called);
+
+            $job = $db->query(
+                'SELECT UUID_JOB, STATUS, LAST_ERROR, FINISHED_AT
+                 FROM document_job'
+            )->fetch(\PDO::FETCH_ASSOC);
+            Assert::same('ERROR', $job['STATUS']);
+            Assert::same(true, $job['FINISHED_AT'] !== null);
+            Assert::stringContainsString(
+                'Stale PROCESSING lease exhausted attempts',
+                (string) $job['LAST_ERROR']
+            );
+
+            $incident = $db->query(
+                'SELECT RESOURCE_TYPE, RESOURCE_ID, TIPUS_INCIDENCIA, ESTAT
+                 FROM errors_verifactu'
+            )->fetch(\PDO::FETCH_ASSOC);
+            Assert::same('DOCUMENT_JOB', $incident['RESOURCE_TYPE']);
+            Assert::same($job['UUID_JOB'], $incident['RESOURCE_ID']);
+            Assert::same('DOCUMENT_JOB_EXHAUSTED', $incident['TIPUS_INCIDENCIA']);
+            Assert::same('OPEN', $incident['ESTAT']);
+            Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
+
+            Assert::same(null, $processor->processNext());
+            Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM errors_verifactu')->fetchColumn());
+        } finally {
+            $this->removeDirectory($root);
+        }
+    }
+
     public function testRendererFailureSchedulesRetryWithoutTouchingInvoice(): void
     {
         $db = TestDatabase::fresh();
