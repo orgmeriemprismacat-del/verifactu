@@ -86,24 +86,10 @@ try {
 	exit('Error: petició no autoritzada');
 }
 
-$allowedHosts = ['www.prisma.cat', 'prisma.cat'];
 $fetchSite = strtolower(trim((string) ($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '')));
 if ($fetchSite !== '' && !in_array($fetchSite, ['same-origin', 'same-site', 'none'], true)) {
 	http_response_code(403);
 	exit('Error: origen no permès');
-}
-
-foreach (['HTTP_ORIGIN', 'HTTP_REFERER'] as $headerName) {
-	$headerValue = trim((string) ($_SERVER[$headerName] ?? ''));
-	if ($headerValue === '') {
-		continue;
-	}
-
-	$host = strtolower((string) parse_url($headerValue, PHP_URL_HOST));
-	if ($host === '' || !in_array($host, $allowedHosts, true)) {
-		http_response_code(403);
-		exit('Error: origen no permès');
-	}
 }
 
 $request = $_POST;
