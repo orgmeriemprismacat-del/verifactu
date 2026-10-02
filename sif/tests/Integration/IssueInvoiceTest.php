@@ -19,6 +19,34 @@ use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class IssueInvoiceTest
 {
+    public function testQualifiedEnvironmentRejectsInvoiceWithoutOfficialAeatSnapshot(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->makeService($db);
+        $previous = getenv('SIF_ENV');
+
+        try {
+            putenv('SIF_ENV=preproduction');
+
+            Assert::throws(
+                \Prisma\Sif\Exception\SifException::class,
+                fn () => $service->issueInvoice(Fixtures::invoicePayload([
+                    'idempotency_key' => 'INTRANET|AEAT-GUARD|UC001',
+                    'source_channel' => 'INTRANET',
+                ])),
+                422
+            );
+            Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+            Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM fiscal_sequence')->fetchColumn());
+        } finally {
+            if ($previous === false) {
+                putenv('SIF_ENV');
+            } else {
+                putenv('SIF_ENV=' . $previous);
+            }
+        }
+    }
+
     public function testIssueInvoiceCreatesFiscalRecordAndQueue(): void
     {
         $db = TestDatabase::fresh();
