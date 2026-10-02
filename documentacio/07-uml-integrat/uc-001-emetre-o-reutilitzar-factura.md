@@ -73,7 +73,7 @@ A main, InvoiceService rep opcionalment PayloadIdempotencyValidatorInterface i l
 
 **Canvi explícit respecte a la branca documental anterior:** el subtítol 4.2 i les seves frases que diuen que el PHP actual pot reutilitzar K sense comparar el payload només descrivien la versió anterior i **no són certs a main**. El guard contra dos identificadors comercials diferents per una mateixa inscripció, l'autenticació de l'adaptador i la comprovació de cobertura fiscal entre claus **continuen pendents**. El hash de petició d'InvoiceService no és HASH_FACT de la cadena fiscal ni PAYLOAD_HASH de la notificació Redsys.
 
-**Hardening incorporat a la branca UC-001:** una petició idèntica que originalment contenia `payment` ha de recuperar el moviment inicial per la seva clau idempotent. Si el moviment no existeix, `InvoiceService::existingResultWithPaymentIfPresent()` retorna **CONFLICT** i no presenta la factura com a reús econòmic correcte. El servei tampoc recrea silenciosament el CHARGE que falta. Reintentar una factura inicialment emesa sense `payment` amb la mateixa clau però afegint-ne un de nou continua produint CONFLICT per payload diferent; un ingrés real posterior correspon a UC-02.
+**Hardening incorporat a la branca UC-001:** una petició idèntica que originalment contenia `payment` ha de recuperar el moviment inicial per la seva clau idempotent. Si el moviment no existeix, `InvoiceService::existingResultWithPaymentIfPresent()` retorna **CONFLICT** i no presenta la factura com a reús econòmic correcte. Si existeix, també es contrasta el fingerprint del payload econòmic, els camps materials del `payment_transaction`, l'estat `CONFIRMED` i que hi hagi exactament una assignació a la mateixa `UUID_FACTURA` amb import i tipus originals. Qualsevol divergència falla tancada; el servei no recrea silenciosament el CHARGE. Reintentar una factura inicialment emesa sense `payment` amb la mateixa clau però afegint-ne un de nou continua produint CONFLICT per payload diferent; un ingrés real posterior correspon a UC-02.
 
 | Prova v2 localitzada a main o pendent | Expectativa |
 | --- | --- |
@@ -81,6 +81,8 @@ A main, InvoiceService rep opcionalment PayloadIdempotencyValidatorInterface i l
 | PayloadIdempotencyFlowTest::testRetryCannotAddAnInitialPaymentToAnAlreadyIssuedInvoice | Reintent que intenta afegir payment al payload original, rebutjat [prova definida, no executada aquí]. |
 | PayloadIdempotencyFlowTest::testOriginalInvoiceWithoutFingerprintFailsClosed | Factura pre-migració sense hash complet no accepta un reús no verificable [prova definida, no executada aquí]. |
 | PayloadIdempotencyFlowTest::testRetryWithOriginalPaymentFailsClosedWhenPaymentRecordIsMissing | Mateix payload i clau amb `payment` original absent a BD: CONFLICT, cap `uuid_payment` inventat ni recreació silenciosa [prova definida; pendent CI]. |
+| PayloadIdempotencyFlowTest::testRetryWithOriginalPaymentFailsClosedWhenPaymentTransactionWasTampered | El moviment existeix però els camps materials divergeixen del payload original: CONFLICT [prova definida; pendent CI]. |
+| PayloadIdempotencyFlowTest::testRetryWithOriginalPaymentFailsClosedWhenAllocationTargetsAnotherInvoice | El moviment existeix però l'assignació ja no apunta a la factura original: CONFLICT [prova definida; pendent CI]. |
 
 ## 2. Diagrama UML de casos d'ús
 
@@ -240,7 +242,7 @@ end
 
 ### 4.1. Acció independent: consultar l'estat de reús d'una factura amb possible cobrament posterior — PHP existent i contracte de canal pendent
 
-**Actor/disparador:** un adaptador de venda intenta afegir a `issueInvoice(K)` un bloc `payment` posterior que no figurava a la petició inicial; cal rebutjar el canvi de petició i tramitar l'ingrés per UC-02 sobre la factura existent. **Precondicions de negoci objectiu:** contrastar el payload fiscal original, la seva cobertura d'inscripcions/receptor i la identitat bancària de l'entrada nova; si la factura ja està emesa, una entrada real posterior correspon a **UC-02** i no a una segona emissió. **Postcondició PHP main:** amb `payment` nou, `assertMatches()` detecta payload diferent i retorna `CONFLICT`, sense reutilització ni cobrament nou. Amb petició **idèntica** que ja contenia un bloc `payment`, el reús retorna identificador fiscal i `uuid_payment` **només si el moviment inicial amb aquella clau existeix**; `ok=true` no prova per si sol la correspondència econòmica dels trams.
+**Actor/disparador:** un adaptador de venda intenta afegir a `issueInvoice(K)` un bloc `payment` posterior que no figurava a la petició inicial; cal rebutjar el canvi de petició i tramitar l'ingrés per UC-02 sobre la factura existent. **Precondicions de negoci objectiu:** contrastar el payload fiscal original, la seva cobertura d'inscripcions/receptor i la identitat bancària de l'entrada nova; si la factura ja està emesa, una entrada real posterior correspon a **UC-02** i no a una segona emissió. **Postcondició de la branca hardening:** amb `payment` nou, `assertMatches()` detecta payload diferent i retorna `CONFLICT`, sense reutilització ni cobrament nou. Amb petició **idèntica** que ja contenia un bloc `payment`, el reús retorna `uuid_payment` només després de comprovar fingerprint, camps del moviment i assignació exacta a la factura original. Si falta o divergeix qualsevol peça, retorna `CONFLICT`.
 
 ```plantuml
 @startuml
@@ -313,7 +315,7 @@ C->>S: issueInvoice(K, payload original F sense payment) [reintent equivalent]
 S->>H: assertMatches(F,hashOriginal)
 H-->>S: Coincidència
 S-->>C: UUID_FACTURA F1, idempotency_reused=true
-Note over S,P: Només un reús exactament equivalent que ja incloïa payment pot recuperar-ne UUID_PAYMENT si existeix; el reús no crea CHARGE nou.
+Note over S,P: El reús amb payment exigeix moviment i assignació originals coherents; qualsevol absència/divergència és CONFLICT. El reús no crea CHARGE nou.
 ```
 
 ### 4.2. Acció independent: rebutjar un reintent d'emissió amb mateix identificador però contingut fiscal diferent — PHP main amb guard de petició completa; cobertura comercial entre claus pendent
@@ -386,7 +388,7 @@ Note over G,S: Comparació de petició completa per K és PHP main. El guard com
 | EI-07 | F1 emesa sense payment, posteriorment `issueInvoice(K,payment=P2)` amb la mateixa K | **PHP main: conflicte 409 pel payload complet diferent**; el nou ingrés real s'ha de tractar per UC-02 sobre F1, no afegir payment a la mateixa petició fiscal. |
 | EI-08 | F1 emesa amb `paymentKey=P1`; reús de K amb `paymentKey=P2` inexistent | **PHP main: conflicte 409 per petició diferent**, sense crear P2 ni segona factura; UC-02 si es tracta d'un cobrament real posterior. |
 | EI-09 | Mateixa K però receptor/total/línies/inscripcions diferents | **PHP main: assertMatches() rebutja la petició diferent** (o hash històric absent); el control de cobertura entre claus diferents i la classificació UC-74/05 continuen pendents. |
-| EI-10 | Un `paymentKey` preexistent apunta a un pagament d'una altra factura | Reús fiscal/econòmic no s'ha de declarar equivalent fins a comprovar `payment_allocation.UUID_FACTURA`, import i titular; guard pendent. |
+| EI-10 | Un `paymentKey` preexistent apunta a un pagament/assignació incompatible amb la factura | **Branca hardening:** fingerprint i camps materials del moviment + una única `payment_allocation` a la `UUID_FACTURA` original amb import/tipus esperats; divergència = CONFLICT. |
 
 ## 5. Traçabilitat
 
