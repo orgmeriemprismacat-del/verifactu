@@ -30,6 +30,8 @@ class EnviarInscripcioPack {
   <<script PHP>>
   +rep alta publica per POST [PUBLIC]
   +valida metode/origen same-site
+  +valida REQUEST_ID + payload hash
+  +named lock + replay/conflicte
   +recalcula preu des de BD
   +crea IDPAG
   +begin/commit/rollback transaccio
@@ -57,7 +59,7 @@ RealitzaPagamentPackAutomatic --> EnviarInscripcioPack : usa IDPAG creat
 - `Pack.php`: carrega la definició del pack, components, disponibilitat i metadades.
 - `EdicioPack.php`: resol edició, curs, dates, preu i obertura.
 - `InscripcioPack.php`: genera el formulari.
-- `enviarInscripcioPack.php`: rep dades per **POST**, rebutja mètodes diferents, aplica comprovacions `Sec-Fetch-Site`/`Origin`/`Referer` quan estan disponibles, recalcula imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial dins una **transacció única**. En error fa rollback i garanteix l'alliberament del named lock `IDPAG`.
+- `enviarInscripcioPack.php`: rep dades per **POST**, rebutja mètodes diferents i cross-site detectables, valida `REQUEST_ID` UUID v4 i fingerprint SHA-256, serialitza reintents amb named lock i resol `REUSED/409` **abans** dels validators legacy i de rellegir el pack actual. Per una alta nova recalcula imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial + `RID/RH1` dins una **transacció única**. En error fa rollback i garanteix l'alliberament dels locks.
 - `realitzaPagamentPackAutomatic.php`: conserva el codi històric, però està bloquejat per defecte amb HTTP 410 abans de qualsevol mutació.
 
 ## 2. Classes ACTUAL — SIF ja implementat
@@ -195,8 +197,8 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 | Responsabilitat | ACTUAL | FINAL |
 |---|---|---|
 | Preu definitiu | **Backend autoritatiu implementat** | Mantenir snapshot versionat i provar runtime |
-| Transport alta pública | **POST-only + same-site/origin implementat** | E2E navegador/preproducció i controls anti-abús si la política els exigeix |
-| Identitat operació | `MAX(IDPAG)+1` sota `GET_LOCK`; N inserts transaccionals | Seqüència pròpia si es decideix eliminar deute legacy |
+| Transport alta pública | **POST-only + same-site/origin + REQUEST_ID idempotent implementat** | E2E navegador/preproducció, inclòs replay de resposta perduda |
+| Identitat operació | `REQUEST_ID` persistent (`RID/RH1`) + `IDPAG`; named lock per request i `GET_LOCK` per allocator; N inserts transaccionals | Migració futura a identificador/taula dedicada si es vol retirar el deute legacy |
 | Ordinal components | `PACK_ORDINAL` congelat i consumit | Ordre actual `DATAI, ID_CURS`; decidir si cal posició comercial explícita |
 | Receptor fiscal | **Validació fail-closed entre tots els components** | Mantenir receptor explícit al snapshot |
 | Callback | Legacy desactivat per defecte; SIF autoritatiu | Eliminar codi històric després de rollback |
@@ -217,4 +219,4 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 - No falta el diagrama de classes ACTUAL/FINAL: aquest fitxer existeix i cobreix web legacy, SIF i responsabilitats residuals.
 - El flux fiscal/econòmic PACK no ha canviat des de la fusió específica `41d6968...`; els canvis posteriors de `RedsysPaymentIntentService` afecten la validació de `CURS`, i el canvi del worker afegeix notificació de curs sense alterar la injecció PACK.
 - La classe/servei `AcademicEnrollmentSyncService` **no forma part** del UC-015 executable. La sincronització correcta és `RedsysLegacySyncingProcessor` → `LegacySyncService`.
-- L'alta pública ha quedat endurida a POST-only amb validació same-site/origin; continua sent un formulari anònim i resta acreditar-la en E2E/preproducció.
+- L'alta pública ha quedat endurida a POST-only amb validació same-site/origin i idempotència server-side `REQUEST_ID` + payload hash. Continua sent un formulari anònim i resta acreditar replay/conflicte en E2E/preproducció.
