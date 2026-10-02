@@ -1,6 +1,6 @@
 # UC-78 · Generar i custodiar PDF, QR i XML fiscals
 
-**Objectiu del catàleg:** job de generació, versió, fitxer privat, hash, estat i incidència. **Estat [PARCIAL AVANÇAT]:** aquesta branca implementa enqueue, worker, stale recovery/lease, verificació del snapshot fiscal immutable, escriptura privada atòmica, relectura/hash i finalització `READY`. Continua pendent el **renderer fiscal concret** que produeixi PDF/QR/XML vàlids i la seva validació normativa/visual.
+**Objectiu del catàleg:** job de generació, versió, fitxer privat, hash, estat i incidència. **Estat [PARCIAL AVANÇAT]:** aquesta branca implementa enqueue, worker, stale recovery/lease, ownership per número d'intent, verificació del snapshot fiscal immutable, escriptura privada atòmica, relectura/hash, finalització `READY` i incidència idempotent `DOCUMENT_JOB_EXHAUSTED` en error terminal. Continua pendent el **renderer fiscal concret** que produeixi PDF/QR/XML vàlids i la seva validació normativa/visual.
 
 ## 1. Fonts i separació d'artefactes
 
