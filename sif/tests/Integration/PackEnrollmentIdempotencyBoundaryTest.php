@@ -18,7 +18,7 @@ final class PackEnrollmentIdempotencyBoundaryTest
 
         Assert::stringContainsString('function uc015PackRequestHash(array $request)', $endpoint);
         Assert::stringContainsString("hash('sha256', \$json)", $endpoint);
-        Assert::stringContainsString("REQUEST_ID|%s REQUEST_HASH_V|1 REQUEST_HASH|%s", $endpoint);
+        Assert::stringContainsString("RID|%s RH1|%s", $endpoint);
         Assert::stringContainsString('function reserveNamedLock($lockName', $connection);
         Assert::stringContainsString('function releaseNamedLock($lockName)', $connection);
         Assert::stringContainsString('$connexio->reserveNamedLock($packRequestLockName);', $endpoint);
