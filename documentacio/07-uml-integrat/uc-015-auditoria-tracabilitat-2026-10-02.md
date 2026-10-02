@@ -291,6 +291,20 @@ El botó mostrava el modal de càrrega però no existia un estat explícit que i
 
 **Estat:** doble clic mitigat; idempotència server-side de l'alta pública continua **pendent arquitectònic**.
 
+### F-17 · L'alta no comprovava que la suma congelada fos exactament el preu PACK — corregit
+
+El repartiment legacy consumeix el preu del pack sobre els components ordenats amb `min($aux, $preuCursOriginal)`. Abans de la revalidació no existia un guard final que demostrés que s'havia consumit el 100 % del preu del pack. Una configuració incoherent —per exemple, preu PACK superior a la suma dels cursos— podia deixar `A_PAGAR` agregat per sota del preu comercial.
+
+**Correcció aplicada:**
+- conversió del preu PACK i suma de cursos a cèntims;
+- bloqueig si `preuPack > sumaCursos` o hi ha imports negatius;
+- acumulació explícita de `totalPackLinesCents`;
+- abans del commit s'exigeix `aux == 0` cèntims i `totalPackLinesCents == preuPackCents`;
+- qualsevol divergència llança error dins la transacció i provoca rollback;
+- `PackEnrollmentAtomicityBoundaryTest` blinda que el guard s'executi abans del commit.
+
+**Estat:** implementat i cobert per prova automatitzada; el checkout/SIF conserva a més els seus guards independents de reconciliació.
+
 ## 6. UML i traçabilitat
 
 ### Classes
@@ -385,7 +399,8 @@ Per tant:
 - correu d'alta generalitzat de 2 cursos fixos a PACK N;
 - alta N convertida en transacció atòmica amb rollback i lock `IDPAG` segur;
 - CI ampliada perquè endpoint, connexió, plantilla i JS PACK activin i passin lint;
-- resposta post-commit desacoblada de fallades auxiliars per evitar falsos errors i reintents.
+- resposta post-commit desacoblada de fallades auxiliars per evitar falsos errors i reintents;
+- suma comercial de components validada en cèntims contra el preu PACK abans del commit.
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
 - creació d'aquest registre de revalidació 02/10.
