@@ -1,7 +1,7 @@
 # UC-014 — Auditoria exhaustiva i matriu de traçabilitat
 
 **Data:** 02/10/2026  
-**Base inicial:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd` · **revalidada després de sincronitzar:** `main@5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`  
+**Base inicial:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd` · **revalidada després de sincronitzar:** `main@f7fa0822f82be96e842d9f2d031e643ab07f617c`  
 **Auditoria anterior:** [29/09/2026](uc-014-auditoria-tracabilitat-2026-09-29.md)  
 **Inventari executable actualitzat:** [PHP/JS ACTUAL, pont candidat i SIF](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md)
 
@@ -86,7 +86,7 @@ JS localitzat:
 | A14-04 | Generar ordre | fallback usa ordre llegada | `RedsysDsOrderGenerator` + intent persistent | IMPLEMENTAT al candidat/SIF |
 | A14-05 | Fixar import | gate ACTUAL valida pendent/fraccionament a BD en aquesta branca | `EXPECTED_AMOUNT` recomputat | IMPLEMENTAT + proves de política |
 | A14-06 | Callback | fallback endurit en aquesta branca | `RedsysSignatureValidator` + `RedsysCallbackService` | IMPLEMENTAT |
-| A14-07 | Signatura | ara validada abans d'efectes al fallback de branca | validació criptogràfica SIF | IMPLEMENTAT; CI branca pendent |
+| A14-07 | Signatura | validada abans d'efectes al fallback | validació criptogràfica SIF | IMPLEMENTAT + VERIFICAT CI PR #105 |
 | A14-08 | Order/import | ara comparats al fallback de branca | intenció vs callback, inclou divisa/terminal | IMPLEMENTAT |
 | A14-09 | Autorització TPV | resposta Redsys | només autorització positiva arriba a handler | IMPLEMENTAT |
 | A14-10 | Numeració fiscal | llegat conserva numeració pròpia mentre hi hagi fallback | `FiscalSequenceRepository::next()` via `InvoiceService` | **FINAL IMPLEMENTAT**; retirada llegat pendent |
@@ -99,7 +99,8 @@ JS localitzat:
 | A14-17 | Atribució inscripció | `IDPAG` + fila llegada | `CourseEnrollmentFundAllocationService` → `enrollment_fund_movement.EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC`, vinculat a `UUID_PAYMENT`/`UUID_FACTURA` | **IMPLEMENTAT I VERIFICAT CI al PR #95** |
 | A14-18 | Outbox | no existeix al llegat | `CoursePaymentNotificationService` | IMPLEMENTAT; transport pendent |
 | A14-19 | Cutover | no aplicable a l'ACTUAL | flag explícit + callback llegat 410 al candidat | IMPLEMENTAT/VERIFICAT boundary |
-| A14-20 | Secrets | literals històrics trobats | candidat usa entorn; fallback s'externalitza en aquesta branca | CODI CORREGIT; **rotació P0 pendent** |
+| A14-20 | Secrets | literals històrics trobats | candidat/fallback usen entorn | CODI CORREGIT; **rotació P0 pendent** |
+| A14-21 | Configuració de tall | endpoints/config dispersos | `REDSYS_GATEWAY_URL`, callback HTTPS, API HMAC i paths signats validats per preflight | IMPLEMENTAT EN PR #105; CI DEL NOU HEAD PENDENT |
 
 ## 4. Correccions aplicades en aquesta auditoria
 
