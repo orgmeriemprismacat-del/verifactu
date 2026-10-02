@@ -6,6 +6,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 	exit('Error: mètode no permès.');
 }
 
+require_once __DIR__ . '/../inc/PublicWebMutationAuthorization.php';
+try {
+	PublicWebMutationAuthorization::assertSameOriginAjax();
+} catch (Throwable $exception) {
+	$code = (int) $exception->getCode();
+	http_response_code($code >= 400 && $code <= 599 ? $code : 403);
+	exit('Error: petició no autoritzada.');
+}
+
 
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
