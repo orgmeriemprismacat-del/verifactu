@@ -64,7 +64,7 @@ final class LegacyUsocCourseChangeDestinationReservationService
                     $marker
                 );
 
-                return $this->result($existing, $sourceId, true);
+                return $this->result($existing, $source, $sourceId, true);
             }
 
             $created = $this->store->insertFromSource(
@@ -85,7 +85,7 @@ final class LegacyUsocCourseChangeDestinationReservationService
                 $marker
             );
 
-            return $this->result($created, $sourceId, false);
+            return $this->result($created, $source, $sourceId, false);
         } finally {
             $this->store->release($lock);
         }
@@ -118,7 +118,8 @@ final class LegacyUsocCourseChangeDestinationReservationService
     ): void {
         if (
             (int) ($row['id'] ?? 0) <= 0
-            || (int) ($row['idpag'] ?? 0) !== (int) $source['idpag']
+            || (int) ($row['idpag'] ?? 0) <= 0
+            || (int) ($row['idpag'] ?? 0) === (int) $source['idpag']
             || (string) ($row['year'] ?? '') !== $year
             || (string) ($row['month'] ?? '') !== $month
             || (string) ($row['course'] ?? '') !== $course
@@ -136,13 +137,19 @@ final class LegacyUsocCourseChangeDestinationReservationService
         }
     }
 
-    private function result(array $row, int $sourceId, bool $reused): array
+    private function result(
+        array $row,
+        array $source,
+        int $sourceId,
+        bool $reused
+    ): array
     {
         return [
             'ok' => true,
             'source_id_insc' => $sourceId,
             'destination_id_insc' => (int) $row['id'],
-            'idpag' => (int) $row['idpag'],
+            'source_idpag' => (int) $source['idpag'],
+            'destination_idpag' => (int) $row['idpag'],
             'target_student_total' => (string) $row['a_pagar'],
             'legacy_payment' => (string) $row['pagament'],
             'legacy_status' => (string) $row['status'],
