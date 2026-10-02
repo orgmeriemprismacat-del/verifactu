@@ -65,7 +65,7 @@ El canvi legacy calcula:
 A_PAGAR nou = preu curs destí + despeses gestió
 ```
 
-Les despeses no formen part de la diferència USOC observada. En el contracte FINAL:
+Les despeses no formen part de la diferència USOC observada. La `management_fee` **no es resol sobre el curs destí**: el legacy la calcula a partir de les hores de l'edició **origen** i només quan el número de canvi és `4` (`Despeses gestió`). Per als altres números de canvi és `0.00`. En el contracte FINAL:
 
 ```text
 target_student_total =
@@ -335,6 +335,6 @@ Mateix `requestId` + payload divergent → `CONFLICT`.
 ## 13. Estat
 
 - **DOCUMENTAT:** sí.
-- **IMPLEMENTAT:** guard, payer snapshot, planner, preu legacy destí, `UsocCourseChangeTargetResolver`, `UsocCourseChangeFundPlanService` i infraestructura de compensació existeixen. El resolver calcula el split destí amb aritmètica en cèntims; el fund planner calcula per pagador compensable, pendent i excés sense moure diners.
+- **IMPLEMENTAT:** guard, payer snapshot, planner, `LegacyUsocCourseChangePricingResolver` server-side, `UsocCourseChangeTargetResolver`, `UsocCourseChangeFundPlanService`, `UsocCourseChangePreviewService`, endpoint/UI de preview i infraestructura de compensació. El pricing resolver fixa preu base + USOC i, si `change_number=4`, calcula les despeses amb les hores de l'origen; el preview no mou diners ni emet documents.
 - **VERIFICAT:** contrast estàtic contra codi real.
-- **PENDENT D'IMPLEMENTAR:** selecció/snapshot server-side de la regla comercial destí, executor `COURSE_CHANGE`, reemissió coordinada, materialització de `COMPENSATION_ALLOCATION`/resolució d'excessos, handoff legacy i E2E complet.
+- **PENDENT D'IMPLEMENTAR:** executor d'efectes `COURSE_CHANGE`, reemissió coordinada, materialització de `COMPENSATION_ALLOCATION`/resolució d'excessos, checkpoint/handoff legacy i E2E d'execució. El preview server-side ja queda implementat.
