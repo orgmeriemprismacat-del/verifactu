@@ -266,8 +266,9 @@ try {
 	if ($packRequestFingerprintJson === false) {
 		throw new RuntimeException('Error: no s’ha pogut preparar la petició.', 500);
 	}
-	$packRequestFingerprint = hash('sha256', $packRequestFingerprintJson);
-	$packRequestLockName = 'prisma_pack_' . substr(hash('sha256', $packRequestId), 0, 48);
+	$packRequestFingerprint = substr(hash('sha256', $packRequestFingerprintJson), 0, 32);
+	$packRequestToken = substr(hash('sha256', $packRequestId), 0, 32);
+	$packRequestLockName = 'prisma_pack_' . $packRequestToken;
 
 	$stmtPackRequestLock = $connexio->connexio->prepare('SELECT GET_LOCK(?, 10)');
 	if (!$stmtPackRequestLock) {
@@ -283,7 +284,7 @@ try {
 	}
 	$packRequestLockHeld = true;
 
-	$packRequestNeedle = 'PACK_REQUEST|' . $packRequestId . ' ';
+	$packRequestNeedle = 'PACK_REQ|' . $packRequestToken . ' ';
 	$stmtExistingRequest = $connexio->connexio->prepare(
 		"SELECT ID, IDPAG, OBSERVACIONS
 		 FROM inscripcions
@@ -696,14 +697,14 @@ try {
 
 				/* Snapshot comercial mínim per no reconstruir ordre/imports després del cobrament. */
 				$observacions = sprintf(
-					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f PACK_REQUEST|%s PACK_REQUEST_HASH|%s',
+					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f PACK_REQ|%s PACK_REQH|%s',
 					$idPack,
 					$i + 1,
 					$preuCursOriginal,
 					$descompteCurs,
 					$descomptePct,
 					$preuCurs,
-					$packRequestId,
+					$packRequestToken,
 					$packRequestFingerprint
 				);
 
