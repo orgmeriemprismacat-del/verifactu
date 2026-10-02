@@ -1,4 +1,24 @@
 <?php
+$courseCutoverEnabled = filter_var(
+    getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+$legacyDrainConfirmed = filter_var(
+    getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+
+if ($courseCutoverEnabled && $legacyDrainConfirmed) {
+    http_response_code(410);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit('Checkout legacy de curs retirat. El pagament es prepara pel circuit SIF.');
+}
+if ($courseCutoverEnabled && !$legacyDrainConfirmed) {
+    http_response_code(503);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit('Tall SIF en preparació. No es creen noves sessions TPV fins confirmar el drenatge legacy.');
+}
+
 // UC-111: authoritative payment gate BEFORE rendering or building Redsys data.
 // This legacy bridge reads the enrollment and secretary decision, never the
 // course/amount/approval from the POST form as its source of truth.
