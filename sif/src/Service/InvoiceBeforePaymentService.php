@@ -21,10 +21,21 @@ final class InvoiceBeforePaymentService
             return $result;
         }
 
-        $job = $this->documents->ensurePdf(
-            (string) $result['uuid_factura'],
-            (string) $payload['idempotency_key']
-        );
+        try {
+            $job = $this->documents->ensurePdf(
+                (string) $result['uuid_factura'],
+                (string) $payload['idempotency_key']
+            );
+        } catch (\Throwable) {
+            // The fiscal invoice is already committed at this point. A
+            // document-queue failure must never turn into a second invoice on
+            // retry. Surface the document failure independently and let the
+            // caller retry the same idempotent UC-004 command.
+            $result['document_status'] = 'ERROR';
+            $result['document_error_code'] = 'DOCUMENT_QUEUE_FAILED';
+
+            return $result;
+        }
 
         $result['document_status'] = (string) $job['status'];
         $result['document_job'] = [
