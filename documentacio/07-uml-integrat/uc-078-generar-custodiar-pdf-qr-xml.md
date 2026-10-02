@@ -1,12 +1,12 @@
 # UC-78 · Generar i custodiar PDF, QR i XML fiscals
 
-**Objectiu del catàleg:** job de generació, versió, fitxer privat, hash, estat i incidència. **Estat [PARCIAL/DISSENY]:** existeix repositori PHP de **metadades** del document, no s'ha acreditat un generador/custodi complet que escrigui i verifiqui els bytes de PDF, QR i XML a partir del registre fiscal.
+**Objectiu del catàleg:** job de generació, versió, fitxer privat, hash, estat i incidència. **Estat [PARCIAL IMPLEMENTAT]:** aquesta branca implementa l'encolat idempotent/versionat de PDF (`DocumentJobRepository` + `InvoiceBeforePaymentDocumentQueueService`) i la consulta segura ja disposa de storage-reader. Continua pendent el generador/custodi que produeixi, escrigui i verifiqui els bytes PDF/QR/XML a partir del snapshot fiscal.
 
 ## 1. Fonts i separació d'artefactes
 
 `DocumentRepository::registerDocument(PDO,uuidFactura,type,path,contents)` admet els tipus `PDF`, `XML` o `QR`, calcula `sha256(contents)` i insereix `UUID_FACTURA,TIPUS,PATH_FITXER,HASH_FITXER,ESTAT='CREATED'` a `factura_documents`. **No escriu cap fitxer a `path`** ni comprova l'existència, permisos o integritat del fitxer allà emmagatzemat. Per tant, una fila `CREATED` és només metadada, **no prova que existeixi el PDF/QR/XML llegible**.
 
-La migració d'auditoria defineix `document_job` amb `UUID_FACTURA`, `DOCUMENT_TYPE`, `IDEMPOTENCY_KEY`, `GENERATOR_VERSION`, `STATUS/ATTEMPTS/MAX_ATTEMPTS`, lock, `FACTURA_DOCUMENT_ID`, `STORAGE_KEY`, `OUTPUT_HASH` i correlació. **No s'ha acreditat** un worker PHP de `document_job`, ni versió de plantilles i validació final d'aquests artefactes. `EvidenceStore` de `sif/src/Aeat` sí que desa **fitxers privats de petició/resposta de transport AEAT**, però això **no equival** a la custòdia del PDF/QR/ XML fiscal destinat al receptor.
+La migració defineix `document_job` amb UUID, tipus, idempotència, versió, estat, intents, lock i resultat. **En aquesta branca ja s'ha acreditat el productor de jobs `PENDING` i la seva política de reús/versionat**. Encara no hi ha worker PHP que reclami el job, generi els bytes i el completi. `EvidenceStore` de `sif/src/Aeat` sí que desa **fitxers privats de petició/resposta de transport AEAT**, però això **no equival** a la custòdia del PDF/QR/ XML fiscal destinat al receptor.
 
 ## 2. Fitxa funcional específica
 
@@ -22,7 +22,7 @@ La migració d'auditoria defineix `document_job` amb `UUID_FACTURA`, `DOCUMENT_T
 
 ### Flux objectiu
 
-1. Després de persistir factura i registre, programar un `document_job` idempotent amb tipus/versió i payload basat en **la factura emesa**, no en `A_PAGAR` actual de l'inscrit.
+1. **Implementat per UC-004:** després de persistir/reutilitzar la factura, programar/reutilitzar un `document_job` PDF idempotent per UUID + versió, sense tornar a llegir `A_PAGAR` per generar una altra factura.
 2. El worker **pendent** reclama job i llegeix snapshot/registre. Genera cada artefacte segons plantilla i regla aprovades, i valida renderitzat, dades, hash i relació de QR/XML amb el registre fiscal.
 3. Escriu els bytes fora de l'àrea pública, comprova que el fitxer es pot tornar a llegir i compara SHA-256, aleshores crida `DocumentRepository::registerDocument()` amb el contingut real, `PATH_FITXER` opac i referència de job.
 4. Marca `document_job` complet **només després de verificar bytes i metadada**. Si només existeix fila a `factura_documents` però ha fallat la persistència real, conservar error/reintent; no presentar «document llest».
@@ -99,7 +99,7 @@ flowchart LR
   uc_5 -.->|extend| uc_0
 ```
 
-## 4. UML de classes — metadada PHP i worker pendent
+## 4. UML de classes — cua PHP implementada i worker pendent
 
 ```mermaid
 classDiagram
