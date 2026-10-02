@@ -90,6 +90,21 @@ final class SifInternalUsocClient
         ]);
     }
 
+    public function courseChangePreview(
+        string $actorId,
+        array $roles,
+        int $idInsc,
+        int $idpag,
+        array $target
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'course_change_preview',
+            'id_insc' => $idInsc,
+            'idpag' => $idpag,
+            'target' => $target,
+        ]);
+    }
+
     public function beginValidationDecision(
         string $actorId,
         array $roles,
