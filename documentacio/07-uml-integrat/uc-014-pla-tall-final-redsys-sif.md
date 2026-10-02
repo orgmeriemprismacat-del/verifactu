@@ -176,4 +176,4 @@ La branca d'auditoria 02/10 afegeix una protecció temporal del fallback mentre 
 - cap correu de depuració pre-validació;
 - `RedsysCourseLegacyFallbackBoundaryTest`.
 
-Aquesta protecció **no substitueix el cutover SIF**. Abans d'usar-la en un entorn, cal CI verd de la branca i configuració dels secrets requerits.
+Aquesta protecció **no substitueix el cutover SIF**. El hardening ha quedat revalidat al PR #105 sobre el head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`, amb `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` en verd. Abans d'usar-la en un entorn, continua sent obligatòria la configuració correcta dels secrets requerits.
