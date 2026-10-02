@@ -82,7 +82,7 @@ final class PackEnrollmentIdempotencyBoundaryTest
         Assert::stringContainsString('requestId: requestId', $js);
         Assert::stringContainsString('if (jqXHRMailing.status === 422)', $js);
         Assert::stringContainsString('netejarRequestIdPack();', $js);
-        Assert::stringContainsString('mostrarInscripcioPack.min.js?ver=7.4', $page);
+        Assert::stringContainsString('mostrarInscripcioPack.min.js?ver=7.5', $page);
 
         $fail = strpos($js, 'sendInscr.fail(function');
         $networkComment = strpos($js, 'En error de xarxa/5xx es conserva REQUEST_ID', $fail);
