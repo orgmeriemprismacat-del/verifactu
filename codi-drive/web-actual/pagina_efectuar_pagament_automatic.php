@@ -115,7 +115,7 @@ try {
       $nomTitularPag = (string) ($_POST['nom-titular'] ?? '');
       $email = (string) ($_POST['email'] ?? '');
       $importAPagar = (float) $validatedCheckout['total_amount'];
-      $importPagare = (float) $validatedCheckout['payment_amount'];
+      $importPagare = (string) $validatedCheckout['payment_amount'];
       $importPagat = (float) $validatedCheckout['already_paid_amount'];
       $frac = $validatedCheckout['fractional'] ? '1' : '0';
 
@@ -140,7 +140,12 @@ try {
       $urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php?email=".$email;
       $urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php?email=".$email;
 
-      $amount=$importPagare * 100;
+      if (!preg_match('/^\d{1,10}\.\d{2}$/D', $importPagare)) {
+         throw new RuntimeException('INVALID_AUTHORISED_PAYMENT_AMOUNT');
+      }
+      [$amountEuros, $amountDecimals] = explode('.', $importPagare, 2);
+      $amount = ((int) $amountEuros * 100) + (int) $amountDecimals;
+      $merchantData = 'UC014I' . (int) $idPag . 'A' . $amount . 'F' . ($frac === '1' ? '1' : '0');
 
       $name='Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
 
@@ -149,6 +154,7 @@ try {
       // Se Rellenan los campos
       $miObj->setParameter("DS_MERCHANT_AMOUNT",$amount);
       $miObj->setParameter("DS_MERCHANT_ORDER",$order);
+      $miObj->setParameter("DS_MERCHANT_MERCHANTDATA",$merchantData);
       $miObj->setParameter("DS_MERCHANT_MERCHANTCODE",$fuc);
       $miObj->setParameter("DS_MERCHANT_CURRENCY",$moneda);
       $miObj->setParameter("DS_MERCHANT_PRODUCTDESCRIPTION",$producto);
