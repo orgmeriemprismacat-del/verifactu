@@ -42,6 +42,7 @@ final class UsocCourseChangeDestinationBindingServiceTest
             895,
             995,
             1895,
+            1995,
             'SIF-USOC-CC:' . str_repeat('a', 32),
             '95.00'
         );
@@ -50,6 +51,8 @@ final class UsocCourseChangeDestinationBindingServiceTest
         Assert::same('REQUESTED', $result['state']);
         Assert::same('course_change', $result['operation']);
         Assert::same(1895, $result['destination']['destination_id_insc']);
+        Assert::same(995, $result['destination']['source_idpag']);
+        Assert::same(1995, $result['destination']['destination_idpag']);
         Assert::same('DESTINATION_RESERVED', $result['destination']['phase']);
         Assert::same(false, $result['destination']['effects_applied']);
         Assert::same(false, $result['destination']['source_closed']);
@@ -64,6 +67,8 @@ final class UsocCourseChangeDestinationBindingServiceTest
 
         Assert::same('REQUESTED', $row['STATE']);
         Assert::same(1895, $stored['destination_id_insc']);
+        Assert::same(995, $stored['source_idpag']);
+        Assert::same(1995, $stored['destination_idpag']);
         Assert::same('95.00', $stored['target_student_total']);
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
@@ -92,6 +97,7 @@ final class UsocCourseChangeDestinationBindingServiceTest
             896,
             996,
             1896,
+            1996,
             'SIF-USOC-CC:' . str_repeat('b', 32),
             '95.00'
         );
@@ -136,6 +142,7 @@ final class UsocCourseChangeDestinationBindingServiceTest
             897,
             997,
             1897,
+            1997,
             'SIF-USOC-CC:' . str_repeat('c', 32),
             '95.00'
         );
@@ -147,6 +154,7 @@ final class UsocCourseChangeDestinationBindingServiceTest
                 897,
                 997,
                 2897,
+                1997,
                 'SIF-USOC-CC:' . str_repeat('c', 32),
                 '95.00'
             );
@@ -178,6 +186,7 @@ final class UsocCourseChangeDestinationBindingServiceTest
                 898,
                 998,
                 1898,
+                1998,
                 'SIF-USOC-CC:' . str_repeat('d', 32),
                 '94.00'
             );
