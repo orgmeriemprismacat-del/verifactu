@@ -23,36 +23,58 @@ final class InvoiceBeforePaymentPayloadBuilder
         $payload['emesa_abans_cobrament'] = 1;
         $payload['uc004_invoice_before_payment'] = 1;
         $payload['relations'] = $this->originRelations($input);
-        $this->assertUc004ExemptionClassification($payload);
+        $payload = $this->applyUc004ExemptionClassification($payload);
         unset($payload['payment']);
 
         return $payload;
     }
 
-    private function assertUc004ExemptionClassification(array $payload): void
+    private function applyUc004ExemptionClassification(array $payload): array
     {
-        $blocks = [];
         if (isset($payload['totals']) && is_array($payload['totals'])) {
-            $blocks['totals'] = $payload['totals'];
-        }
-        foreach ($payload['lines'] ?? [] as $index => $line) {
-            if (is_array($line)) {
-                $blocks['line ' . $index] = $line;
-            }
+            $payload['totals'] = $this->applyUc004ExemptionToBlock(
+                $payload['totals'],
+                'totals'
+            );
         }
 
-        foreach ($blocks as $label => $block) {
-            if (strtoupper(trim((string) ($block['iva_regim'] ?? ''))) !== 'EXEMPT') {
+        foreach ($payload['lines'] ?? [] as $index => $line) {
+            if (!is_array($line)) {
                 continue;
             }
 
-            if (strtoupper(trim((string) ($block['exemption_reason'] ?? ''))) !== 'E1') {
-                throw SifException::validation(
-                    'Invoice before payment exempt ' . $label
-                    . ' requires exemption_reason E1 for the current training-course flow'
-                );
-            }
+            $payload['lines'][$index] = $this->applyUc004ExemptionToBlock(
+                $line,
+                'line ' . $index
+            );
         }
+
+        return $payload;
+    }
+
+    private function applyUc004ExemptionToBlock(array $block, string $label): array
+    {
+        if (strtoupper(trim((string) ($block['iva_regim'] ?? ''))) !== 'EXEMPT') {
+            return $block;
+        }
+
+        $reason = strtoupper(trim((string) ($block['exemption_reason'] ?? '')));
+        if ($reason === '') {
+            $block['exemption_reason'] = 'E1';
+
+            return $block;
+        }
+
+        if ($reason !== 'E1') {
+            throw SifException::validation(
+                'Invoice before payment exempt ' . $label
+                . ' requires exemption_reason E1 for the current training-course flow'
+            );
+        }
+
+        $block['exemption_reason'] = 'E1';
+
+        return $block;
     }
 
     private function originRelations(array $input): array
