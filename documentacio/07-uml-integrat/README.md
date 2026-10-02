@@ -51,7 +51,7 @@ Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un 
 | UC-11 | Importar factura històrica | [Fitxa i UML](uc-011-importar-factura-historica.md) | `[BASE]` |
 | UC-12 | Gestionar el cicle de morositat i reclamació | [Fitxa i UML](uc-012-morositat-reclamacio.md) | `[PARCIAL]` |
 | UC-13 | Orquestrar la doble facturació USOC | [Fitxa i UML](uc-013-orquestrar-doble-facturacio-usoc.md) | `[PARCIAL]` |
-| UC-14 | Comprar curs normal per Redsys | [Fitxa i UML](uc-014-comprar-curs-redsys.md) · [classes A/F](uc-014-classes-actual-final.md) · [seqüències A/F](uc-014-sequencies-actual-final.md) · [activitats RM-037](uc-014-activitats-pagines-redsys-actual-final.md) · [auditoria](uc-014-auditoria-tracabilitat-2026-09-29.md) | `[SIF/PONT CANDIDAT IMPLEMENTAT · CI VERD · PREPROD PENDENT 30/09]` |
+| UC-14 | Comprar curs normal per Redsys | [Fitxa i UML](uc-014-comprar-curs-redsys.md) · [classes A/F](uc-014-classes-actual-final.md) · [seqüències A/F](uc-014-sequencies-actual-final.md) · [activitats RM-037](uc-014-activitats-pagines-redsys-actual-final.md) · [auditoria 02/10](uc-014-auditoria-tracabilitat-2026-10-02.md) · [inventari PHP/JS](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md) | `[SIF/PONT IMPLEMENTAT · JS TRAÇAT · CI PR79 VERD · HARDENING 02/10 PENDENT CI · PREPROD PENDENT]` |
 | UC-14a | Comprar taller | [Fitxa i UML](uc-014a-comprar-taller.md) | `[PARCIAL]` |
 | UC-14b | Comprar jornada | [Fitxa i UML](uc-014b-comprar-jornada.md) | `[PARCIAL]` |
 | UC-15 | Comprar pack | [Fitxa i UML](uc-015-comprar-pack.md) | `[BASE/ASYNC/PARCIAL]` |
