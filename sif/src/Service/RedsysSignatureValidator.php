@@ -108,7 +108,11 @@ final class RedsysSignatureValidator
     {
         $order = $this->field($decoded, 'Ds_Order');
         $amount = $this->field($decoded, 'Ds_Amount');
-        $responseCode = $this->field($decoded, 'Ds_Response');
+        $responseCode = trim((string) $this->field($decoded, 'Ds_Response'));
+        if ($responseCode === '' || !ctype_digit($responseCode) || strlen($responseCode) > 4) {
+            throw SifException::validation('Invalid Redsys response code');
+        }
+
         $merchantCode = trim((string) $this->field($decoded, 'Ds_MerchantCode'));
         if ($this->expectedMerchantCode !== ''
             && ($merchantCode === '' || !hash_equals($this->expectedMerchantCode, $merchantCode))
