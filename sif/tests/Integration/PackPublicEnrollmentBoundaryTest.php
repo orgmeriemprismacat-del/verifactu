@@ -33,6 +33,12 @@ final class PackPublicEnrollmentBoundaryTest
         Assert::same(false, str_contains($php, '$_GET'));
         Assert::same(false, str_contains($php, "\$request['pagFrac']"));
         Assert::stringContainsString("new Text('No')", $php);
+
+        Assert::stringContainsString('inscripcioPackEnviant = false', $js);
+        Assert::stringContainsString('if (inscripcioPackEnviant)', $js);
+        Assert::stringContainsString('inscripcioPackEnviant = true', $js);
+        Assert::stringContainsString('$("#form_enviar_dades").prop("disabled", true)', $js);
+        Assert::stringContainsString('$("#form_enviar_dades").prop("disabled", false)', $js);
     }
 
     public function testPublicPackEnrollmentHasSameSiteRequestBoundaryBeforeInputProcessing(): void
