@@ -51,6 +51,10 @@ try {
     $lines.Add('PackEnrollmentTransportBoundaryTest::testPackEnrollmentMutationUsesPostAndDoesNotReadGetParameters')
     $lines.Add('PackPaymentPrivacyBoundaryTest::testPackRedsysPayloadUsesNameNotDniAndOmitsEmailFromReturnUrls')
     $lines.Add('PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesTreatEmailAsOptionalEscapedHint')
+    $lines.Add('PublicWebMutationAuthorizationTest::testAllowsConfiguredSameOriginAjaxRequest')
+    $lines.Add('PublicWebMutationAuthorizationTest::testRejectsCrossOriginRequest')
+    $lines.Add('PublicWebMutationAuthorizationTest::testRejectsNonAjaxRequest')
+    $lines.Add('PublicWebMutationAuthorizationTest::testAllowsConfiguredRefererFallback')
 
     if ($exitCode -ne 0) {
         $lines.Add('RESULT=FAIL')
