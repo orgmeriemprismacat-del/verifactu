@@ -75,6 +75,7 @@ Fitxers:
 - `sif/tests/Integration/LegacyPackInvoicePayloadBuilderTest.php`
 - `sif/tests/Integration/RedsysPackInvoiceServiceTest.php`
 - `sif/tests/Integration/PackCommercialOrderBoundaryTest.php`
+- `sif/tests/Integration/PackPublicEnrollmentBoundaryTest.php`
 - `sif/tests/Integration/LegacyPackCallbackBoundaryTest.php`
 - `sif/tests/Integration/RedsysPaymentIntentTest.php`
 - `sif/tests/Integration/RedsysPackPreflightScriptTest.php`
@@ -88,7 +89,7 @@ Fitxers:
 |---|---|---|---|---|
 | PK-A01 Llistat packs | sí | sí, legacy | inspecció | E2E visual |
 | PK-A02 Fitxa pack | sí | sí, legacy | inspecció | E2E visual |
-| PK-A03 Formulari | sí | **parcial FINAL** | inspecció directa JS/PHP | **GET → POST/proteccions de canal** |
+| PK-A03 Formulari | sí | **POST-only + same-site/origin implementat** | inspecció + boundary test | E2E navegador/preproducció |
 | PK-A04 Alta N inscripcions | sí | sí, snapshot legacy | proves/inspecció | model comercial explícit/versionat |
 | PK-A05 Intenció/URL pagament | sí | sí | proves + CI històrica | prova d'entorn real |
 | PK-A06 Callback | sí | sí, SIF autoritatiu | proves | Redsys preproducció |
@@ -99,16 +100,21 @@ Fitxers:
 
 ## 5. Troballes verificades
 
-### F-01 · L'alta pública continua sent GET
+### F-01 · Alta pública POST i frontera same-site — corregit
 
-`mostrarInscripcioPack.min.js` envia `enviarInscripcioPack.php` amb `method: "GET"`. El PHP llegeix `$_GET` per nom, cognoms, DNI, telèfon, correu, adreça i altres camps.
+L'auditoria va detectar que `mostrarInscripcioPack.min.js` enviava dades personals per GET a `enviarInscripcioPack.php`. Aquesta troballa s'ha corregit a la mateixa branca:
 
-**Estat:** implementat legacy, **no** implementat FINAL.
+- el JS usa `method: "POST"`;
+- el PHP accepta només POST i respon 405 a altres mètodes;
+- les dades s'obtenen exclusivament de `$_POST`;
+- `Cache-Control: no-store` evita cachejar la resposta;
+- `Sec-Fetch-Site`, `Origin` i `Referer` bloquegen orígens cross-site quan aquests headers estan presents;
+- la PII deixa de formar part de la query string;
+- `PackPublicEnrollmentBoundaryTest` blinda el contracte.
 
-El preu sí que ha estat endurit: `enviarInscripcioPack.php` ignora imports del client i els recalcula des de BD. Per tant cal separar dues afirmacions:
+El formulari continua sent públic/anònim i no s'ha introduït una sessió artificial només per afegir un token CSRF. Resta validar en E2E navegador/preproducció i valorar controls anti-abús addicionals si la política operativa els exigeix.
 
-- **preu backend-authoritative:** implementat;
-- **transport segur/definitiu de l'alta:** pendent.
+**Estat:** implementat en codi; prova automatitzada escrita; E2E pendent.
 
 ### F-02 · Snapshot comercial servidor
 
@@ -207,7 +213,7 @@ El codi històric de `realitzaPagamentPackAutomatic.php` encara existeix, però 
 
 ### Classes
 
-El diagrama existeix i diferencia legacy, checkout i SIF. S'ha afegit explícitament que `EnviarInscripcioPack` rep avui l'alta per GET i que aquest canal no representa l'estat FINAL.
+El diagrama existeix i diferencia web públic, checkout i SIF. `EnviarInscripcioPack` queda actualitzat com a POST-only amb frontera same-site/origin.
 
 ### Seqüències
 
@@ -219,8 +225,8 @@ La seqüència FINAL s'ha alineat amb la cadena executable:
 
 Els 10 blocs PK-A01..PK-A10 existeixen. PK-A03 queda ara classificat correctament com:
 
-- ACTUAL: GET legacy + preu servidor;
-- FINAL: POST/proteccions de canal + snapshot/operació.
+- ACTUAL: POST-only + same-site/origin + preu servidor;
+- FINAL residual: acreditar navegador/preproducció i controls anti-abús si pertoquen.
 
 ## 7. Verificació i CI
 
@@ -268,7 +274,7 @@ Per tant:
 
 **SÍ, per al nucli fiscal/econòmic:** snapshot, gate de pagament, intenció SIF, callback/worker, factura, payment, ledger per inscripció, enqueue outbox i sync legacy.
 
-**PARCIAL, per al canal web inicial:** l'alta segueix sent GET legacy.
+**SÍ, per al transport del canal web inicial:** POST-only, sense PII a query string i amb frontera same-site/origin. Continua sent un formulari anònim i resta E2E.
 
 ### Verificat
 
@@ -280,18 +286,17 @@ Per tant:
 
 ### Pendent
 
-1. Migrar `enviarInscripcioPack.php` + JS d'alta a POST i definir/provar les proteccions definitives del canal.
-2. Executar PK-01..PK-11 en preproducció amb DS_ORDER real i conservar evidència.
-3. Tancar decisió de negoci sobre ordre comercial explícit vs `DATAI, ID_CURS`.
-4. Eliminar físicament callback fiscal PACK legacy després de la finestra de rollback.
-5. Validar lliurament real de notificació (UC-58), no només enqueue.
-6. Esperar/validar CI del HEAD/PR actual.
-7. Si es vol tancament formal, registrar evidències de variables d'entorn, worker i callback HTTPS de preproducció.
+1. Executar PK-01..PK-11 en preproducció amb DS_ORDER real, incloent alta POST i rebuig GET/cross-site.
+2. Tancar decisió de negoci sobre ordre comercial explícit vs `DATAI, ID_CURS`.
+3. Eliminar físicament callback fiscal PACK legacy després de la finestra de rollback.
+4. Validar lliurament real de notificació (UC-58), no només enqueue.
+5. Validar CI del HEAD final del PR.
+6. Si es vol tancament formal, registrar evidències de variables d'entorn, worker i callback HTTPS de preproducció.
 
 ## 9. Canvis aplicats per aquesta auditoria
 
 - correcció del diagrama de seqüència FINAL;
-- anotació explícita del gap GET a classes i activitats;
+- detecció i correcció del transport GET: POST-only + frontera same-site/origin + boundary test;
 - correcció del text fiscal intern de descompte perquè no pressuposi «segon curs»;
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
@@ -299,4 +304,4 @@ Per tant:
 
 ## 10. Criteri de tancament
 
-UC-015 no s'ha de marcar com a completament tancat mentre quedin oberts el transport GET de l'alta i l'E2E/preproducció. El **nucli SIF PACK** sí pot considerar-se implementat, amb evidència automatitzada prèvia, subjecta a CI verda del commit final d'aquesta auditoria.
+UC-015 no s'ha de marcar com a completament tancat mentre quedin oberts l'E2E/preproducció, la decisió d'ordre comercial i els pendents operatius indicats. El **nucli SIF PACK** sí pot considerar-se implementat, amb evidència automatitzada prèvia, subjecta a CI verda del commit final d'aquesta auditoria.
