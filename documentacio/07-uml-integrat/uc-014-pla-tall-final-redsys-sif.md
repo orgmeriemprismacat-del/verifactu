@@ -27,7 +27,7 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
 
 ## Pas 1 — preproducció
 
-1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Configurar `SIF_REDSYS_CALLBACK_URL` amb la URL HTTPS del callback SIF i `REDSYS_GATEWAY_URL` amb l'endpoint HTTPS Redsys de l'entorn; mantenir `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0` fins que els preflights siguin verds.
+1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Configurar `SIF_REDSYS_CALLBACK_URL` amb la URL HTTPS del callback SIF i `REDSYS_GATEWAY_URL` amb l'endpoint HTTPS Redsys de l'entorn; mantenir `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0` i `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=0` fins que els preflights siguin verds.
 2. Rotar qualsevol credencial Redsys històrica potencialment exposada i configurar credencials exclusivament via secret store/entorn: `REDSYS_MERCHANT_CODE`, `REDSYS_MERCHANT_KEY`, `REDSYS_TERMINAL`, `SIF_REDSYS_MERCHANT_KEY`, `SIF_INTERNAL_API_KEY_ID` i `SIF_INTERNAL_API_SECRET`. Les claus Redsys del pont i del callback SIF han de correspondre al mateix comerç/entorn, sense registrar-ne el valor. Verificar que el codi desplegat no conté literals.
 3. Crear una intenció de curs ordinari.
 4. Comprovar:
@@ -56,7 +56,10 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
    - payload/import/order incompatible;
    - alumne morós `M -> 1` només quan queda totalment pagat.
 10. Reexecutar el worker/sync i confirmar idempotència.
-11. Amb `SIF_REDSYS_CALLBACK_URL` ja configurada, activar `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` només a preproducció. Si la URL és buida o no HTTPS, el checkout ha de fallar tancat.
+11. Iniciar el tall en dues fases. Primer posar `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i mantenir `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=0`: no s'han de crear nous checkouts, però els callbacks llegats ja iniciats han de continuar entrant.
+12. Confirmar que no queda cap sessió TPV llegada en vol (finestra definida operativament + revisió de logs/DS_ORDER pendents). Llavors posar `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=1`: el checkout candidat passa a MerchantURL SIF i els checkouts/callbacks llegats responen 410.
+13. Fer un pagament Redsys de proves i comprovar el retorn navegador: primer pot mostrar `PROCESSING`, però només ha de mostrar `CONFIRMED` quan la cua sigui `PROCESSED` i existeixin `UUID_FACTURA` + `UUID_PAYMENT`.
+14. Comprovar també el retorn `REJECTED` i un cas `REVIEW`; una fallada de consulta no pot mostrar èxit.
 12. Fer un pagament Redsys de proves i comprovar el retorn navegador: primer pot mostrar `PROCESSING`, però només ha de mostrar `CONFIRMED` quan la cua sigui `PROCESSED` i existeixin `UUID_FACTURA` + `UUID_PAYMENT`.
 13. Comprovar també el retorn `REJECTED` i un cas `REVIEW`; una fallada de consulta no pot mostrar èxit.
 
@@ -177,3 +180,15 @@ La branca d'auditoria 02/10 afegeix una protecció temporal del fallback mentre 
 - `RedsysCourseLegacyFallbackBoundaryTest`.
 
 Aquesta protecció **no substitueix el cutover SIF**. El hardening ha quedat revalidat al PR #105. En la segona passada del 02/10, el pont candidat deixa també d'hardcodejar el gateway Redsys, el path HMAC de `course-intent` queda declarat explícitament i `preflight-redsys-course.php` exigeix entorn test/preproduction, callback/gateway HTTPS, clau/secret de l'API interna i paths signats coherents amb els clients del pont.
+
+
+## Tall en dues fases i drenatge de sessions legacy
+
+El canvi de MerchantURL no s'ha de fer de forma atòmica mentre hi pugui haver un TPV llegat obert al navegador.
+
+1. **NORMAL:** `cutover=0`, `drain=0`. Flux antic/candidat de rollback disponible.
+2. **DRAIN:** `cutover=1`, `drain=0`. Es bloquegen nous checkouts (503), però els callbacks llegats en vol encara es processen.
+3. **CUTOVER CONFIRMAT:** `cutover=1`, `drain=1`. El candidat utilitza callback SIF i checkout/callback llegats queden retirats (410).
+4. **ROLLBACK abans de retirada definitiva:** tornar `cutover=0` i `drain=0` només si s'ha verificat que la configuració i les sessions en vol ho permeten.
+
+Aquesta seqüència evita que un pagament iniciat abans del canvi rebi un 410 abans de ser reconciliat.
