@@ -21,7 +21,7 @@ Ja està integrat a `main`:
 - cutover explícit amb `SIF_REDSYS_COURSE_CUTOVER_ENABLED` i prova `RedsysCourseCutoverBoundaryTest`; quan és `1`, la MerchantURL SIF és obligatòria i HTTPS, i `doit.php` / `realitzaPagamentAutomatic.php` responen 410 abans de qualsevol efecte;
 - retorn navegador read-only via `RedsysCoursePaymentStatusService`, `course-status.php` i client HMAC del pont candidat;
 - proves `RedsysCoursePaymentStatusServiceTest` i `RedsysCourseReturnBoundaryTest`, que impedeixen convertir URLOK/URLKO en autoritat de pagament;
-- CI verd del wiring, E2E intern i boundaries de preproducció UC-014: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification`.
+- CI verd del wiring, E2E intern, fund allocation i boundaries de preproducció UC-014: PR #95 amb `SIF PHP MySQL tests` **841 passed / 0 failed**, `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks` verds.
 
 Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecció llegada controlada i el **tooling de preproducció fail-closed**. **No acredita encara** una transacció contra Redsys/preproducció real ni el tall productiu.
 
@@ -43,14 +43,15 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
 8. Verificar:
    - una sola factura;
    - un sol `CHARGE`;
-   - una sola assignació;
+   - una sola `payment_allocation`;
+   - un sol `enrollment_fund_movement` `EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC`, amb el mateix import del tram i UUIDs de factura/pagament;
    - job `PROCESSED`;
    - projecció llegada coherent a `inscripcions.PAGAMENT`;
    - una ordre `notification_outbox` `COURSE_PAYMENT_CONFIRMED` amb `UUID_NOTIFICATION`, sense email/DNI/nom al payload.
 9. Repetir amb:
    - pagament parcial;
    - pagament complet;
-   - callback duplicat, comprovant que no crea una segona ordre d'outbox;
+   - callback duplicat, comprovant que no crea una segona factura, `CHARGE`, `payment_allocation`, `EXTERNAL_ALLOCATION` ni ordre d'outbox;
    - reintent de worker;
    - payload/import/order incompatible;
    - alumne morós `M -> 1` només quan queda totalment pagat.
@@ -115,6 +116,7 @@ UC-014 només passa a **TANCAT AMB EVIDÈNCIA** quan:
 - la MerchantURL apunta al callback SIF a l'entorn objectiu;
 - callback i worker processen `CURS`;
 - parcial/complet són coherents;
+- cada tram confirmat té exactament un `EXTERNAL_ALLOCATION` coherent amb factura, línia i `CHARGE`, i el parcial→complet suma l'import contractual esperat;
 - callback duplicat no duplica factura ni cobrament;
 - la sincronització llegada és idempotent;
 - el productor de notificació deixa una única ordre durable per `DS_ORDER` i el preflight acredita `notification_outbox`;
