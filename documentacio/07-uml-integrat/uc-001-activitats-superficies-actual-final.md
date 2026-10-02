@@ -4,7 +4,7 @@
 
 | ID | Superfície | ACTUAL | FINAL / límit |
 | --- | --- | --- | --- |
-| P-UC001-01 | `/api/factures/issue.php` | POST intern signat, rol, actor servidor, no Redsys/no UC-004; resposta d’estats i traça append-only. | Operació comercial transversal i snapshot fiscal servidor complet. |
+| P-UC001-01 | `/api/factures/issue.php` | POST intern signat, rol, actor servidor, no Redsys/no UC-004; emissor/SistemaInformatico server-owned, resposta d’estats i traça append-only. | Operació comercial transversal i desglossament fiscal complet generat pels builders. |
 | P-UC001-02 | `/api/factures/before-payment.php` | UC-004 amb auth, rol, selecció servidor i coverage. | No saltar-lo via P-UC001-01. |
 | P-UC001-03 | Worker Redsys | Handlers especialitzats després de callback/intenció validats. | Coherència intent↔snapshot i fencing. |
 | P-UC001-04 | Serveis manuals | Builders + idempotència del nucli. | Identificador d'operació comercial independent. |
@@ -22,8 +22,10 @@ C -- Sí --> D[Decodificar JSON]
 D --> E{REDSYS o invoice-before-payment?}
 E -- Sí --> Z[422: flux dedicat]
 E -- No --> F[Actor autenticat + emissor servidor si AEAT]
-F --> G[Validar clau estructura i sumes]
-G --> H{Clau existent?}
+F --> G[Validar clau estructura sumes i traça]
+G --> G2{PREPROD/PROD amb aeat_fields?}
+G2 -- No --> Z2[422 fail-closed]
+G2 -- Sí / entorn no qualificat --> H{Clau existent?}
 H -- Sí --> I[Comparar fingerprint i reutilitzar]
 H -- No --> J[Numeració + cadena]
 J --> K[Factura línies registre cua relacions]
