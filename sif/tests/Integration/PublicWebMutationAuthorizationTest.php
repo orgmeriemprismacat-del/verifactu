@@ -18,6 +18,19 @@ final class PublicWebMutationAuthorizationTest
         );
     }
 
+    public function testAllowsAdditionalConfiguredOrigin(): void
+    {
+        $this->withGuardEnvironment(
+            'https://checkout.prisma.cat',
+            '',
+            'XMLHttpRequest',
+            static function (): void {
+                \PublicWebMutationAuthorization::assertSameOriginAjax();
+            },
+            'https://www.prisma.cat;https://prisma.cat;https://checkout.prisma.cat'
+        );
+    }
+
     public function testRejectsCrossOriginRequest(): void
     {
         $this->expect403(
@@ -72,7 +85,8 @@ final class PublicWebMutationAuthorizationTest
         string $origin,
         string $referer,
         string $requestedWith,
-        callable $callback
+        callable $callback,
+        string $allowedOrigins = 'https://www.prisma.cat;https://prisma.cat'
     ): void {
         require_once dirname(__DIR__, 3)
             . '/codi-drive/web-actual/inc/PublicWebMutationAuthorization.php';
@@ -82,7 +96,7 @@ final class PublicWebMutationAuthorizationTest
         $oldReferer = $_SERVER['HTTP_REFERER'] ?? null;
         $oldRequested = $_SERVER['HTTP_X_REQUESTED_WITH'] ?? null;
 
-        putenv('WEB_ALLOWED_ORIGINS=https://www.prisma.cat;https://prisma.cat');
+        putenv('WEB_ALLOWED_ORIGINS=' . $allowedOrigins);
         $this->setServer('HTTP_ORIGIN', $origin);
         $this->setServer('HTTP_REFERER', $referer);
         $this->setServer('HTTP_X_REQUESTED_WITH', $requestedWith);
