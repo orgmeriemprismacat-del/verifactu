@@ -244,3 +244,28 @@ Proves afegides a `UsocCourseChangeTargetResolverTest` per split 80/20 + fee, de
 - no emet factures, no crea refunds i no mou diners.
 
 Proves afegides a `UsocCourseChangeFundPlanServiceTest` per parcial, excés separat per pagador, entitat origen sense factura/cobrament i rebuig d'un pla que no sigui `course_change`.
+
+
+## Delta implementació 02/10/2026 · preview server-side canvi de curs
+
+**IMPLEMENTAT:**
+
+- `LegacyUsocCourseChangePricingResolver` + font MySQL:
+  - exigeix origen `TIPUS_DESC=4 / VALID_DESC=1`;
+  - exigeix un únic curs/jornada destí;
+  - exigeix un únic preu estàndard actiu;
+  - exigeix una única regla USOC tipus 4;
+  - rebutja alumne=0 i entitat=0;
+  - les despeses de gestió només s'apliquen a `change_number=4` i es calculen sobre les **hores de l'edició origen**.
+- `UsocCourseChangePreviewService`:
+  - combina lifecycle plan + target resolver + fund planner;
+  - no crea factures, rectificatives, payments, refunds ni compensacions.
+- API USOC signada:
+  - nova acció `course_change_preview`.
+- Intranet:
+  - `sifUsocCourseChangePreview.php` resol pricing server-side i crida l'API signada;
+  - el JS genèric cedeix els USOC validats;
+  - `alumnes-usoc-lifecycle-preview.js` mostra alumne/entitat, compensable, pendent i excés;
+  - el clic queda bloquejat després del preview: encara no hi ha handoff a legacy.
+
+**PENDENT:** executor d'efectes, reemissió destí, materialització de compensacions/excessos i checkpoint que habiliti el legacy.
