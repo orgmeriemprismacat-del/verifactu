@@ -544,3 +544,19 @@ La branca antiga d'evidència E2E no s'ha descartat sense revisió. S'han portat
 No s'han reintroduït les versions antigues de l'alta pública ni de la documentació que havien quedat superades per la idempotència `REQUEST_ID`, atomicitat, disponibilitat global i retirada física del callback productiu.
 
 **Resultat:** la feina útil del PR #85 queda absorbida funcionalment al PR #102; el tancament definitiu del #85 es farà després de validar CI del HEAD final.
+
+
+### F-22 · Frontera pública configurable i AJAX — tancat
+
+La revalidació del PR #113 ha aportat una peça que no estava encara centralitzada: `PublicWebMutationAuthorization`.
+
+L'alta PACK:
+- exigeix POST;
+- exigeix `X-Requested-With: XMLHttpRequest`;
+- valida `Origin` o `Referer` contra `WEB_ALLOWED_ORIGINS`;
+- conserva el guard `Sec-Fetch-Site` existent com a defensa en profunditat;
+- executa aquests controls abans de llegir/processar el payload funcional.
+
+`PublicWebMutationAuthorizationTest`, `PackEnrollmentTransportBoundaryTest` i `PackPublicEnrollmentBoundaryTest` cobreixen la frontera.
+
+**Estat:** implementat i cobert per proves; rate limiting/anti-bot queda com a control operatiu opcional i no com a gap de correcció funcional d'UC-015.
