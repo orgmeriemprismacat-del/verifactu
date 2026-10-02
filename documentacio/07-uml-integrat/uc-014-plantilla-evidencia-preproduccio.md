@@ -81,6 +81,7 @@ Comprovar i anotar:
 - `factura`: UUID i NUM_VISIBLE;
 - `payment_transaction`: UUID, import, DS_ORDER, IDPAG;
 - `payment_allocation`: assignació;
+- `enrollment_fund_movement`: exactament un `EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC`, amb `UUID_PAYMENT`, `UUID_FACTURA`, `ID_INSC_DESTI` i import coherent;
 - `fiscal_queue`: registre pendent/enviat segons l'entorn;
 - `notification_outbox`: una fila `COURSE_PAYMENT_CONFIRMED` per `DS_ORDER`, amb UUID i estat; verificar que `PAYLOAD_JSON` no conté email, DNI, nom ni adreça.
 
@@ -105,6 +106,7 @@ Comprovar:
 - resultat:
 - factura continua sent única:
 - cobrament continua sent únic:
+- `EXTERNAL_ALLOCATION` continua sent únic per `DS_ORDER + ID_INSC`:
 - notificació outbox continua sent única:
 - job duplicat/no duplicat:
 
@@ -148,6 +150,7 @@ Adjuntar només evidència sense secrets:
 - [ ] E2E real de preproducció complet
 - [ ] duplicat validat
 - [ ] parcial/complet validat
+- [ ] `EXTERNAL_ALLOCATION` present, idempotent i coherent amb factura/CHARGE/inscripció
 - [ ] reintent validat
 - [ ] sync llegada idempotent
 - [ ] outbox CURS creada/reutilitzada idempotentment
