@@ -29,7 +29,9 @@ final class RedsysCourseReturnBoundaryTest
 
         Assert::stringContainsString('SIF_REDSYS_COURSE_CUTOVER_ENABLED', $helper);
         Assert::stringContainsString('SIF_REDSYS_CALLBACK_URL', $helper);
+        Assert::stringContainsString('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED', $helper);
         Assert::stringContainsString('$statusEnabled = $courseCutoverEnabled', $helper);
+        Assert::stringContainsString('&& $legacyDrainConfirmed', $helper);
         Assert::stringContainsString("'UNVERIFIED'", $helper);
         if (str_contains($helper, "\$_GET['email']")) {
             Assert::fail('Authoritative return helper must not consume email from query string.');
