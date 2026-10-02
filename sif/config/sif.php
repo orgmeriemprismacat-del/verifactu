@@ -61,6 +61,7 @@ return [
         'usoc_signed_path' => getenv('SIF_INTERNAL_USOC_SIGNED_PATH') ?: '/api/usoc/manage.php',
         'novice_promotion_signed_path' => getenv('SIF_INTERNAL_NOVICE_PROMOTION_SIGNED_PATH') ?: '/api/novice-promotion/manage.php',
         'gift_redemption_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_SIGNED_PATH') ?: '/api/gifts/redemption/redeem.php',
+        'gift_redemption_notification_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_NOTIFICATION_SIGNED_PATH') ?: '/api/gifts/redemption/notifications.php',
     ],
     'course_change' => [
         'preview_roles' => array_values(array_filter(array_map(
