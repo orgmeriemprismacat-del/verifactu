@@ -9,7 +9,8 @@ final class InternalInvoiceIssuePayloadPolicy
     public function __construct(
         private string $issuerNif,
         private string $issuerName,
-        private bool $requireOfficialAeatSnapshot = false
+        private bool $requireOfficialAeatSnapshot = false,
+        private array $systemInformation = []
     ) {
         $this->issuerNif = strtoupper(trim($this->issuerNif));
         $this->issuerName = trim($this->issuerName);
@@ -79,8 +80,46 @@ final class InternalInvoiceIssuePayloadPolicy
                 'NombreRazon' => $this->issuerName,
             ];
             $payload['aeat_header'] = $header;
+
+            $serverSystem = $this->serverSystemInformation();
+            if ($serverSystem !== null) {
+                if (!is_array($payload['aeat_fields'])) {
+                    throw SifException::validation('Invalid AEAT fields');
+                }
+                $payload['aeat_fields']['SistemaInformatico'] = $serverSystem;
+            }
         }
 
         return $payload;
+    }
+
+    private function serverSystemInformation(): ?array
+    {
+        $systemName = trim((string) ($this->systemInformation['system_name'] ?? ''));
+        $systemId = trim((string) ($this->systemInformation['system_id'] ?? ''));
+        $systemVersion = trim((string) ($this->systemInformation['system_version'] ?? ''));
+        $installationId = trim((string) ($this->systemInformation['installation_id'] ?? ''));
+
+        $configured = $systemName !== '' || $systemId !== '' || $systemVersion !== '' || $installationId !== '';
+        if (!$configured && !$this->requireOfficialAeatSnapshot) {
+            return null;
+        }
+        if ($systemName === '' || $systemId === '' || $systemVersion === '' || $installationId === '') {
+            throw new \RuntimeException(
+                'Complete server-side SIF identity is required for official AEAT payloads'
+            );
+        }
+
+        return [
+            'NombreRazon' => $this->issuerName,
+            'NIF' => $this->issuerNif,
+            'NombreSistemaInformatico' => $systemName,
+            'IdSistemaInformatico' => $systemId,
+            'Version' => $systemVersion,
+            'NumeroInstalacion' => $installationId,
+            'TipoUsoPosibleSoloVerifactu' => 'S',
+            'TipoUsoPosibleMultiOT' => 'N',
+            'IndicadorMultiplesOT' => 'N',
+        ];
     }
 }
