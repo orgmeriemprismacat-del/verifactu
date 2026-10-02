@@ -91,6 +91,60 @@ final class DocumentJobRepository
         ];
     }
 
+    public function recoverStaleProcessing(
+        \PDO $db,
+        int $leaseSeconds = 900,
+        ?\DateTimeImmutable $now = null
+    ): int {
+        $leaseSeconds = max(60, $leaseSeconds);
+        $now ??= new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid'));
+        $staleBefore = $now->modify('-' . $leaseSeconds . ' seconds');
+
+        $retry = $db->prepare(
+            "UPDATE document_job
+             SET STATUS = 'RETRY',
+                 LOCKED_AT = NULL,
+                 NEXT_ATTEMPT_AT = ?,
+                 LAST_ERROR = CASE
+                     WHEN LAST_ERROR IS NULL OR LAST_ERROR = ''
+                     THEN 'Recovered stale PROCESSING lease'
+                     ELSE CONCAT(LAST_ERROR, '\nRecovered stale PROCESSING lease')
+                 END
+             WHERE STATUS = 'PROCESSING'
+               AND LOCKED_AT IS NOT NULL
+               AND LOCKED_AT < ?
+               AND ATTEMPTS < MAX_ATTEMPTS"
+        );
+        $retry->execute([
+            $now->format('Y-m-d H:i:s.u'),
+            $staleBefore->format('Y-m-d H:i:s.u'),
+        ]);
+        $recovered = $retry->rowCount();
+
+        $terminal = $db->prepare(
+            "UPDATE document_job
+             SET STATUS = 'ERROR',
+                 LOCKED_AT = NULL,
+                 NEXT_ATTEMPT_AT = NULL,
+                 FINISHED_AT = ?,
+                 LAST_ERROR = CASE
+                     WHEN LAST_ERROR IS NULL OR LAST_ERROR = ''
+                     THEN 'Stale PROCESSING lease exhausted attempts'
+                     ELSE CONCAT(LAST_ERROR, '\nStale PROCESSING lease exhausted attempts')
+                 END
+             WHERE STATUS = 'PROCESSING'
+               AND LOCKED_AT IS NOT NULL
+               AND LOCKED_AT < ?
+               AND ATTEMPTS >= MAX_ATTEMPTS"
+        );
+        $terminal->execute([
+            $now->format('Y-m-d H:i:s.u'),
+            $staleBefore->format('Y-m-d H:i:s.u'),
+        ]);
+
+        return $recovered + $terminal->rowCount();
+    }
+
     public function claimNext(\PDO $db, ?\DateTimeImmutable $now = null): ?array
     {
         $now ??= new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid'));
