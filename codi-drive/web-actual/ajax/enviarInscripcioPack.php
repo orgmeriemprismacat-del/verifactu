@@ -228,7 +228,7 @@ try {
 	$connexio->reserveNamedLock($packRequestLockName);
 	$packRequestLockReserved = true;
 
-	$existingPattern = '%REQUEST_ID|' . $requestId . '%';
+	$existingPattern = '%RID|' . $requestId . '%';
 	$cnsExistingRequest = "SELECT ID, IDPAG, OBSERVACIONS
 		FROM inscripcions
 		WHERE TIPUS_INSC='P' AND OBSERVACIONS LIKE ?
@@ -700,7 +700,7 @@ try {
 
 				/* Snapshot comercial mínim per no reconstruir ordre/imports després del cobrament. */
 				$observacions = sprintf(
-					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f REQUEST_ID|%s REQUEST_HASH_V|1 REQUEST_HASH|%s',
+					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f RID|%s RH1|%s',
 					$idPack,
 					$i + 1,
 					$preuCursOriginal,
