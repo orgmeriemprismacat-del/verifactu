@@ -316,3 +316,15 @@ L'alta pública de PACK utilitza POST; imports i mode de fraccionament no són a
 - Per PACK, les URL OK/KO no transporten email.
 - `RedsysPackWorkerEndToEndTest` força replay del job i comprova que factura, payment, ledger i outbox continuen idempotents.
 - `RedsysPackEvidenceVerifier` permet acreditar el mateix flux per `DS_ORDER` en preproducció sense exposar PII.
+
+
+## Alta comercial idempotent
+
+La creació de les N inscripcions del pack ja és atòmica i idempotent per petició:
+- `requestId` estable al navegador durant reintents;
+- named lock per request;
+- fingerprint del payload;
+- `PACK_REQUEST` / `PACK_REQUEST_HASH` persistits al snapshot;
+- replay idèntic reutilitza l'alta existent;
+- replay divergent falla amb 409;
+- transacció única pels N inserts i rollback complet davant error.
