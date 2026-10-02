@@ -98,8 +98,9 @@ stop
 title UC-004 · A004-P00 · PÀGINA COMPLETA — FINAL
 start
 :Obrir pantalla UC-004;
-:Autenticar sessió i actor al servidor;
-:Autoritzar lectura i acció d'emissió per rol/abast;
+:Autenticar sessió a la intranet;
+:Autoritzar visualització local;
+:Bridge servidor signa command intern HMAC amb actor/rol/request_id;
 if (Autoritzat?) then (Sí)
   :Carregar pantalla sense dades fiscals manipulables com a autoritat;
   repeat
@@ -108,7 +109,9 @@ if (Autoritzat?) then (Sí)
     :Seleccionar o retirar inscripcions;
   repeat while (Cal ajustar selecció?) is (Sí)
 
-  :Enviar IDs seleccionats per obtenir PREVISUALITZACIÓ;
+  :Enviar IDs seleccionats al bridge per obtenir PREVISUALITZACIÓ;
+  :Endpoint intern autentica HMAC, timestamp i request_id;
+  :ScopeResolver valida rol d'escriptura;
   :Servidor deduplica IDs i rellegeix estat actual;
   :Validar curs/edició/regles de cobertura;
   :Resoldre receptor per ID intern i congelar snapshot;
@@ -116,8 +119,10 @@ if (Autoritzat?) then (Sí)
   :Mostrar preview amb fingerprint/versió;
 
   if (Operador confirma?) then (Sí)
-    :Enviar command + request/correlation/idempotency key;
-    :Revalidar autorització, versió, selecció i cobertura;
+    :Enviar confirmació amb expected_fingerprint via bridge signat;
+    :Registrar request_id anti-replay;
+    :Revalidar actor/rol, selecció, receptor i fingerprint;
+    :Classificador transversal de cobertura encara pendent;
     if (Conflicte o dades canviades?) then (Sí)
       :Retornar CONFLICT / NEEDS_REVIEW sense mutació fiscal;
     else (No)
@@ -175,16 +180,18 @@ stop
 @startuml
 title UC-004 · A004-P01 · Accés i permisos — FINAL
 start
-:Autenticar sessió;
+:Autenticar sessió intranet;
 :Resoldre actor estable;
-:Autoritzar visualització UC-004 al servidor;
+:Autoritzar visualització UC-004 al servidor intranet;
 if (Pot visualitzar?) then (Sí)
   :Carregar pantalla;
-  :Autoritzar capacitat ISSUE_INVOICE_BEFORE_PAYMENT;
-  :Enviar capacitats de UI com a informació;
+  :Mostrar capacitat d'emissió com a informació de UI;
+  :En PREVIEW/CONFIRM el bridge crea request_id i headers HMAC;
+  :InternalApiAuthenticator valida actor/rol/cos/timestamp;
+  :InternalInvoiceBeforePaymentScopeResolver exigeix rol d'escriptura;
   note right
-    El backend torna a validar el permís
-    en cada command d'escriptura.
+    El secret intern no arriba al navegador.
+    Cada command es valida de nou al SIF.
   end note
 else (No)
   :HTTP/JSON denegat sense dades del cas;
@@ -392,9 +399,10 @@ stop
 @startuml
 title UC-004 · A004-P05 · Emissió — FINAL
 start
-:Rebre command de confirmació;
-:Autoritzar actor al servidor;
-:Comprovar request_id, correlation_id, versió i idempotency_key;
+:Rebre POST action=confirm a before-payment.php;
+:Validar HMAC, timestamp, actor, rols i request_id;
+:Claim request_id anti-replay;
+:Exigir rol UC-004 d'escriptura;
 :Rellegir inscripcions per ID + receptor per entityId;
 :Reconstruir línies/total al servidor;
 :Calcular fingerprint actual;
@@ -402,11 +410,12 @@ if (Fingerprint diferent del preview?) then (Sí)
   :Retornar CONFLICT i exigir nou preview;
   stop
 endif
-:Classificar cobertura transversal existent per SOURCE_ID/receptor;
-if (Ja existeix cobertura incompatible?) then (Sí)
-  :Retornar CONFLICT/NEEDS_REVIEW;
-else (No)
-  :Preparar input sense bloc payment;
+:Classificador transversal de cobertura entre canals;
+note right
+  PENDENT d'implementar.
+  El guard específic UC-004 sí existeix.
+end note
+:Preparar input sense bloc payment;
   :InvoiceBeforePaymentPayloadBuilder::build();
   :Forçar INTRANET i EMESA_ABANS_COBRAMENT=1;
   :InvoiceService::issueInvoice();
@@ -431,10 +440,14 @@ else (No)
       :Retornar CONFLICT;
       stop
     endif
+    :Append operational_event ISSUE_INVOICE_BEFORE_PAYMENT;
   endif
   :COMMIT;
   :Retornar CREATED o REUSED amb UUID/número;
-endif
+  note right
+    Document UUID i sync llegada
+    encara són post-COMMIT pendents.
+  end note
 stop
 @enduml
 ```
