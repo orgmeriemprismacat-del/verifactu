@@ -667,55 +667,87 @@ try {
 
 	$hashIdInserit = $encryptEnrollmentId($idInserit);
 
-	if ($giftMailShouldSend) {
-		$nomFromHead = 'Secretaria PrisMa';
-		$correuFromHead = 'inscripcions@prisma.cat';
-		$nomReplyHead = $nomCognoms;
-		$correuReplyHead = $email;
-		$nomTo = 'Secretaria PrisMa';
-		$correuTo = 'inscripcions@prisma.cat';
-		$mailCopiaInsc = new MailSMTPComvive(
-			$usernameInsc, $passwordInsc, $nomFromHead, $correuFromHead,
-			$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_INTERNAL_DETAIL_PRIMARY',
+		static function() use (
+			$usernameInsc, $passwordInsc, $nomCognoms, $email,
 			$subjectMailInsc, $msgInsc
-		);
-		$giftMailAccepted = $giftMailAccepted && $mailCopiaInsc->enviat();
+		) {
+			return new MailSMTPComvive(
+				$usernameInsc,
+				$passwordInsc,
+				'Secretaria PrisMa',
+				'inscripcions@prisma.cat',
+				$nomCognoms,
+				$email,
+				'Secretaria PrisMa',
+				'inscripcions@prisma.cat',
+				$subjectMailInsc,
+				$msgInsc
+			);
+		}
+	);
 
-		$nomFromHead = 'Secretaria PrisMa';
-		$correuFromHead = 'secretaria@prisma.cat';
-		$nomReplyHead = $nomCognoms;
-		$correuReplyHead = $email;
-		$nomTo = "PrisMa Secretaria";
-		$correuTo = "resguard.secretaria@prisma.cat";
-		$mailCopiaSecre = new MailSMTPComvive(
-			$username, $password, $nomFromHead, $correuFromHead,
-			$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-			$subject2, $missatge
-		);
-		$giftMailAccepted = $giftMailAccepted && $mailCopiaSecre->enviat();
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_RESGUARD_PRIMARY',
+		static function() use (
+			$username, $password, $nomCognoms, $email, $subject2, $missatge
+		) {
+			return new MailSMTPComvive(
+				$username,
+				$password,
+				'Secretaria PrisMa',
+				'secretaria@prisma.cat',
+				$nomCognoms,
+				$email,
+				'PrisMa Secretaria',
+				'resguard.secretaria@prisma.cat',
+				$subject2,
+				$missatge
+			);
+		}
+	);
 
-		$nomTo = 'Secretaria PrisMa';
-		$correuTo = 'inscripcions@prisma.cat';
-		$mailCopiaSecre = new MailSMTPComvive(
-			$username, $password, $nomFromHead, $correuFromHead,
-			$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-			$subject, $missatge
-		);
-		$giftMailAccepted = $giftMailAccepted && $mailCopiaSecre->enviat();
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_SECRETARY_CONFIRMATION',
+		static function() use (
+			$username, $password, $nomCognoms, $email, $subject, $missatge
+		) {
+			return new MailSMTPComvive(
+				$username,
+				$password,
+				'Secretaria PrisMa',
+				'secretaria@prisma.cat',
+				$nomCognoms,
+				$email,
+				'Secretaria PrisMa',
+				'inscripcions@prisma.cat',
+				$subject,
+				$missatge
+			);
+		}
+	);
 
-		$nomFromHead = $nameUser;
-		$correuFromHead = $username;
-		$nomReplyHead = $nomCognoms;
-		$correuReplyHead = $email;
-		$nomTo = "Inscripcions PrisMa";
-		$correuTo = "inscripcions.prisma@gmail.com";
-		$mailCopia = new MailSMTPComvive(
-			$username, $password, $nomFromHead, $correuFromHead,
-			$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_INTERNAL_DETAIL_GMAIL',
+		static function() use (
+			$username, $password, $nameUser, $nomCognoms, $email,
 			$subjectMailInsc, $msgInsc
-		);
-		$giftMailAccepted = $giftMailAccepted && $mailCopia->enviat();
-	}
+		) {
+			return new MailSMTPComvive(
+				$username,
+				$password,
+				$nameUser,
+				$username,
+				$nomCognoms,
+				$email,
+				'Inscripcions PrisMa',
+				'inscripcions.prisma@gmail.com',
+				$subjectMailInsc,
+				$msgInsc
+			);
+		}
+	);
 
 	if ($mailingBD == '1') {
 		$cnsMailing = "SELECT ID FROM mailing WHERE MAIL=?";
@@ -770,34 +802,52 @@ try {
 	$subject = "Inscripció al curs regal ".$titolCurs;
 	$subject2 = "Inscripció al curs regal ".$titolCurs." ".$dataInsc;
 
-	if ($giftMailShouldSend) {
-		$nomFromHead = $nameUser;
-		$correuFromHead = $username;
-		$nomReplyHead = $nomCognoms;
-		$correuReplyHead = $email;
-
-		$nomTo = "PrisMa Secretaria";
-		$correuTo = "resguard.secretaria@prisma.cat";
-		$mailCopia = new MailSMTPComvive(
-			$username, $password, $nomFromHead, $correuFromHead,
-			$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_RESGUARD_SECONDARY',
+		static function() use (
+			$username, $password, $nameUser, $nomCognoms, $email,
 			$subject2, $missatge
-		);
-		$giftMailAccepted = $giftMailAccepted && $mailCopia->enviat();
+		) {
+			return new MailSMTPComvive(
+				$username,
+				$password,
+				$nameUser,
+				$username,
+				$nomCognoms,
+				$email,
+				'PrisMa Secretaria',
+				'resguard.secretaria@prisma.cat',
+				$subject2,
+				$missatge
+			);
+		}
+	);
 
-		$nomTo = $nomCognoms;
-		$correuTo = $email;
-		$mailAlumne = new MailSMTPComvive(
-			$username, $password, $nomFromHead, $correuFromHead,
-			$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+	$sendGovernedGiftMail(
+		'GIFT_REDEEM_STUDENT_CONFIRMATION',
+		static function() use (
+			$username, $password, $nameUser, $nomCognoms, $email,
 			$subject, $missatge
-		);
-		$giftMailAccepted = $giftMailAccepted && $mailAlumne->enviat();
+		) {
+			return new MailSMTPComvive(
+				$username,
+				$password,
+				$nameUser,
+				$username,
+				$nomCognoms,
+				$email,
+				$nomCognoms,
+				$email,
+				$subject,
+				$missatge
+			);
+		}
+	);
 
-		$sifGiftClient->completeNotificationBundle(
-			(string) $notificationBundle['uuid_notification'],
-			(string) $giftMailClaim['uuid_delivery_attempt'],
-			$giftMailAccepted
+	if ($giftMailIssues !== []) {
+		throw new RuntimeException(
+			'Un o més correus UC-018 requereixen reconciliació abans de confirmar la resposta',
+			500
 		);
 	}
 
