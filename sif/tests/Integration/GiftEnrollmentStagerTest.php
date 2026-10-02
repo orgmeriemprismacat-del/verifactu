@@ -9,6 +9,9 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CommercialEntitlementRepository;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Service\GiftEnrollmentStager;
+use Prisma\Sif\Service\GiftRedemptionOrchestrator;
+use Prisma\Sif\Service\GiftRedemptionTrustedContextResolver;
+use Prisma\Sif\Service\LegacyGiftUsageReconciler;
 use Prisma\Sif\Service\GiftRedemptionService;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\Fixtures;
@@ -288,6 +291,91 @@ final class GiftEnrollmentStagerTest
         )->fetchColumn());
         Assert::same(1, (int) $db->query(
             "SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='RESERVE'"
+        )->fetchColumn());
+    }
+
+    public function testLostResponseRetryReusesCompletedRedemptionWithoutDuplicateMoney(): void
+    {
+        [$db, $code] = $this->fixture();
+        $codeHash = hash('sha256', $code);
+        $unclaimed = CommercialEntitlementRepository::unclaimedGiftHolderKey($codeHash);
+        $db->prepare(
+            'UPDATE commercial_entitlement SET HOLDER_PARTY_KEY = ?'
+        )->execute([$unclaimed]);
+
+        $entitlements = new CommercialEntitlementRepository(new UuidGenerator());
+        $orchestrator = new GiftRedemptionOrchestrator(
+            new GiftRedemptionTrustedContextResolver($entitlements),
+            new GiftEnrollmentStager(new UuidGenerator(), $entitlements),
+            new GiftRedemptionService(
+                $entitlements,
+                new EnrollmentFundMovementRepository(new UuidGenerator())
+            ),
+            new LegacyGiftUsageReconciler()
+        );
+
+        $chargesBefore = (int) $db->query(
+            "SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT='CHARGE'"
+        )->fetchColumn();
+        $invoicesBefore = (int) $db->query(
+            'SELECT COUNT(*) FROM factura'
+        )->fetchColumn();
+
+        $first = $orchestrator->execute(
+            $db,
+            $db,
+            501,
+            $code,
+            'WEB',
+            'UC018-LOST-RESPONSE-FIRST',
+            'gift-redemption-web'
+        );
+
+        $second = $orchestrator->execute(
+            $db,
+            $db,
+            501,
+            $code,
+            'WEB',
+            'UC018-LOST-RESPONSE-RETRY',
+            'gift-redemption-recovery'
+        );
+
+        Assert::same(
+            $first['stage']['uuid_operation'],
+            $second['stage']['uuid_operation']
+        );
+        Assert::same(
+            $first['redemption']['fund_movement_uuid'],
+            $second['redemption']['fund_movement_uuid']
+        );
+        Assert::same(true, $second['stage']['idempotency_reused']);
+        Assert::same(true, $second['redemption']['idempotency_reused']);
+        Assert::same(true, $second['legacy_reconciliation']['idempotency_reused']);
+        Assert::same('CONSUMED', $second['redemption']['status']);
+        Assert::same(501, (int) $db->query(
+            "SELECT USAT FROM regal WHERE CODI='GIFT-STAGE-SECRET-001'"
+        )->fetchColumn());
+
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_operation
+             WHERE SOURCE_TYPE='INSCRIPCIO' AND SOURCE_ID='501'"
+        )->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM enrollment_fund_movement
+             WHERE MOVEMENT_TYPE='COMPENSATION_ALLOCATION'"
+        )->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='CLAIM'"
+        )->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_entitlement_event WHERE ACTION='CONSUME'"
+        )->fetchColumn());
+        Assert::same($chargesBefore, (int) $db->query(
+            "SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT='CHARGE'"
+        )->fetchColumn());
+        Assert::same($invoicesBefore, (int) $db->query(
+            'SELECT COUNT(*) FROM factura'
         )->fetchColumn());
     }
 
