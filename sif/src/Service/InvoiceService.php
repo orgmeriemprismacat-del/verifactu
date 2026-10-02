@@ -36,6 +36,12 @@ final class InvoiceService
     {
         $payload = $this->validator->validate($payload);
 
+        if ($this->requiresOfficialAeatSnapshot() && !array_key_exists('aeat_fields', $payload)) {
+            throw SifException::validation(
+                'Official AEAT snapshot is required for invoice issue in this environment'
+            );
+        }
+
         if ($this->requiresBeforePaymentCoverage($payload) && $this->beforePaymentCoverage === null) {
             throw new \RuntimeException(
                 'Invoice-before-payment payload requires the UC-004 coverage repository.'
@@ -323,6 +329,15 @@ final class InvoiceService
         $value = trim((string) ($value ?? ''));
 
         return $value === '' ? null : $value;
+    }
+
+    private function requiresOfficialAeatSnapshot(): bool
+    {
+        return in_array(
+            strtoupper(trim((string) (getenv('SIF_ENV') ?: 'DEVELOPMENT'))),
+            ['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION'],
+            true
+        );
     }
 
     private function sourceEnvironment(): string
