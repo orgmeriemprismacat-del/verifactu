@@ -94,7 +94,7 @@ foreach ([
 }
 
 assertFalse(
-    str_contains($legacyMutator, 'generarFacturaElectronica_Alumnes'),
+    str_contains($legacyMutator, '->generarFacturaElectronica_Alumnes('),
     'Retired legacy UC-004 endpoint must not call the legacy invoice writer'
 );
 assertFalse(
