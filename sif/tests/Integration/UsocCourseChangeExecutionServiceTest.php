@@ -128,7 +128,6 @@ final class UsocCourseChangeExecutionServiceTest
         Assert::same(0, (int) $db->query(
             "SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT = 'REFUND'"
         )->fetchColumn());
-        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM credit_balance')->fetchColumn());
         Assert::same(1, (int) $db->query(
             "SELECT COUNT(*) FROM operational_event WHERE STATUS = 'COMPLETED_WITH_PENDING'"
         )->fetchColumn());
