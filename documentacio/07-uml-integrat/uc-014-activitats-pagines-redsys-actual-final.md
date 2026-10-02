@@ -135,7 +135,8 @@ if (No autoritzat?) then (Sí)
 endif
 :Usar import/fraccionament autoritatius;
 :Crear DS_ORDER = time() [fallback ACTUAL];
-:Crear MerchantURL llegat;
+:Crear MerchantURL llegat sense query funcional;
+:Crear MerchantData signat amb IDPAG/import-cèntims/fraccionament;
 :Crear URL OK/KO;
 :Crear DS_MERCHANT_AMOUNT en cèntims deterministes;
 :Crear DS_MERCHANT_MERCHANTDATA amb IDPAG/import/frac autoritatius;
@@ -187,7 +188,7 @@ stop
 @startuml
 title P-CUR-04 ACTUAL | Callback monolític
 start
-:Rebre GET funcional + POST Redsys;
+:Rebre només POST Redsys signat;
 :Decodificar MerchantParameters;
 :Carregar clau Redsys des d'entorn [branca 02/10];
 :Calcular i comparar signatura amb hash_equals;
