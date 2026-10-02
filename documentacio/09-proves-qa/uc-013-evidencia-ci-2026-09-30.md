@@ -307,4 +307,18 @@ Aquest bloc acredita:
 - suport de `DEFER_FISCAL` / `DEFER_REFUND` sense crear moviments ficticis;
 - persistència a `operational_event` i `enrollment_cancellation_event` per pagador.
 
-El handoff navegador → API SIF → checkpoint de sessió → endpoint legacy també està implementat. En aquesta evidència encara queda **pendent d'acreditar el run del contracte final** abans de marcar l'E2E de navegador com PROVAT.
+El handoff navegador → API SIF → checkpoint de sessió → endpoint legacy també està implementat. El contracte final del handoff està acreditat al run `36943206570` (**838 passed / 0 failed**). L'E2E de navegador/preproducció real continua pendent.
+
+### Enduriment final de la baixa
+
+**Run d'enduriment final:** `36943292835`  
+**Resultat:** **839 passed / 0 failed · SUCCESS**
+
+Inclou PASS de:
+
+- `testCancellationRejectsInvalidReasonCodeAndTimestampBeforeCheckpoint`;
+- validació estricta de `reason_code` estructurat;
+- `effective_at` obligatori en format `Y-m-d H:i:s`;
+- absència de checkpoint davant entrada invàlida.
+
+El run `36943206570` acredita també el contracte API, handoff de sessió, retry del tram legacy i preflight de `usoc_lifecycle_execution` amb **838 passed / 0 failed**.
