@@ -2,9 +2,9 @@
 
 **Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat actual:** backend, UI, preflight, E2E tècnic read-only, deduplicació, concurrència, deep-links, gate final de tres evidències i tooling E2E gestor **IMPLEMENTATS I VERIFICATS EN CI**. El tall `902b1c793687c77b3c089c8c5096708b5341de89`, run `36942641296`, ha passat amb **837/0**; `Intranet AO batch checks` continua en **success**. Només resten les execucions reals de preproducció, la comprovació/alta del menú i la generació de les tres evidències d'entorn.
+**Estat actual (02/10/2026): AUDITORIA TANCADA / CODI COMPLET.** Backend, UI, preflight, E2E tècnic read-only, deduplicació, concurrència, deep-links, gate final de tres evidències i tooling E2E gestor estan **IMPLEMENTATS I VERIFICATS EN CI**. El darrer tall executable aplicable `5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`, run `36943995075`, ha passat amb **844/0** i **74 PASS relacionats amb incidències/UC-008**. El `main` posterior observat `f7fa0822f82be96e842d9f2d031e643ab07f617c` només afegeix canvis documentals d'altres UC respecte d'aquest tall. Només resta l'acceptació real de preproducció, la comprovació/alta del menú i la generació de les tres evidències d'entorn.
 
-**Auditoria vigent:** [04b · auditoria detallada UC-008 · 2026-09-30](04b-auditoria-detallada-uc-008-2026-09-30.md).
+**Auditoria vigent:** [04b · auditoria detallada UC-008 · 2026-09-30](04b-auditoria-detallada-uc-008-2026-09-30.md) · [tancament d'auditoria · 2026-10-02](09-tancament-auditoria-uc-008-2026-10-02.md).
 
 **Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
@@ -594,7 +594,7 @@ D --> E[Resolució només al SIF]
 - `RedsysCallbackWorkerTest::testFifthTechnicalFailureBecomesIncident`.
 - `PayloadIdempotencyFlowTest` per `FISCAL_PAYLOAD_CONFLICT`.
 
-**Verificació CI:** baseline UC-008 **677/0** (`36664788129`), regressió transversal posterior **740/0** (`36732555122`) i tall actual del closure gate **837/0** (`36942641296`). Aquest últim inclou el gate de tres evidències, el preparador sintètic E2E gestor i el verificador read-only del lifecycle gestor. L'execució contra preproducció real continua pendent.
+**Verificació CI:** baseline UC-008 **677/0** (`36664788129`), regressió transversal **740/0** (`36732555122`), closure gate **837/0** (`36942641296`) i revalidació final del tall executable aplicable **844/0** (`36943995075`), amb **74 PASS relacionats amb incidències/UC-008**. Aquesta última revalidació inclou el fix del rol gestor efectiu al journal multirol. L'execució contra preproducció real continua pendent com a acceptació d'entorn.
 
 ## 12. Gaps pendents
 
@@ -625,7 +625,7 @@ D --> E[Resolució només al SIF]
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
-**Estat de tancament tècnic:** backend + UI + seguretat + idempotència + concurrència + rollback + preflight + E2E tècnic + deep-links + gate de tres evidències + preparador/verificador E2E gestor implementats i verificats en CI (**837/0**, run `36942641296`). Pendents només configuració/desplegament de preproducció, alta/configuració del menú de BD si encara no existeix i generació de les tres evidències reals: preproduction read-only, menú intranet i E2E gestor.
+**Estat de tancament tècnic:** `AUDIT_CLOSED + CODE_COMPLETE + DOC_RECONCILED + CI_844_0`. Backend + UI + seguretat + idempotència + concurrència + rollback + preflight + E2E tècnic + deep-links + gate de tres evidències + preparador/verificador E2E gestor estan implementats i verificats en CI (**844/0**, run `36943995075`; **74 PASS UC-008/incidències**). Pendents només d'acceptació d'entorn: configuració/desplegament de preproducció, alta/configuració del menú de BD si encara no existeix i generació de les tres evidències reals: preproduction read-only, menú intranet i E2E gestor.
 
 
 [Evidència E2E gestor](08-evidencia-gestor-uc-008.md)
