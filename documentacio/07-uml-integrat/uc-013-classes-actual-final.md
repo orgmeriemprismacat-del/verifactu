@@ -216,6 +216,10 @@ class UsocCourseChangeTargetResolver {
   <<IMPLEMENTAT>>
   +resolve(input)
 }
+class UsocCourseChangeFundPlanService {
+  <<IMPLEMENTAT>>
+  +plan(lifecyclePlan,target)
+}
 class UsocCourseChangeExecutionService {
   <<PENDENT>>
   +executeCourseChange(plan)
@@ -249,8 +253,11 @@ UsocCancellationExecutionService --> UsocLifecyclePlanService
 UsocCancellationExecutionService --> InvoiceService
 UsocCancellationExecutionService --> PaymentService
 UsocCourseChangeTargetResolver --> UsocLifecyclePlanService
+UsocCourseChangeFundPlanService --> UsocLifecyclePlanService
+UsocCourseChangeFundPlanService --> UsocCourseChangeTargetResolver
 UsocCourseChangeExecutionService --> UsocLifecyclePlanService
 UsocCourseChangeExecutionService --> UsocCourseChangeTargetResolver
+UsocCourseChangeExecutionService --> UsocCourseChangeFundPlanService
 UsocCourseChangeExecutionService --> EnrollmentFundMovementRepository
 UsocCourseChangeExecutionService --> CreditBalanceService
 ```
@@ -266,7 +273,7 @@ UsocCourseChangeExecutionService --> CreditBalanceService
 | Validació legacy↔SIF | Implementada en dues fases | Provar configuració real |
 | UI USOC | Implementada al repositori | Desplegament/rols/secrets/preflight real |
 | Baixa | Guard + planner + executor implementats | Acreditar CI actual i preproducció |
-| Canvi de curs | Guard + planner + resolver d'imports destí implementats | Falta executor fiscal/econòmic, reemissió, compensació i handoff |
+| Canvi de curs | Guard + planner + resolver d'imports + pla econòmic per pagador implementats | Falta executor d'efectes, reemissió, materialització de compensacions i handoff |
 | Alumne=0 | Bloquejat fail-closed | Decisió funcional/fiscal |
 | Regla 20/25 % | No hardcoded al SIF | Decisió comercial fora del nucli |
 | IVA | EXEMPT/E1 al builder | Validació fiscal de totes les variants |
