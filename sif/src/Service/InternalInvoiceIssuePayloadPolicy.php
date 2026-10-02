@@ -10,7 +10,7 @@ final class InternalInvoiceIssuePayloadPolicy
         private string $issuerNif,
         private string $issuerName
     ) {
-        $this->issuerNif = trim($this->issuerNif);
+        $this->issuerNif = strtoupper(trim($this->issuerNif));
         $this->issuerName = trim($this->issuerName);
     }
 
