@@ -15,6 +15,8 @@
 | Evitar CHARGE Redsys fabricat al generic endpoint | Sí per arquitectura | Sí | Sí | Pendent CI |
 | Coherència capçalera↔línies | Sí | Sí | Sí | Pendent CI |
 | `fact_rels.ID_FACTURA_LINIA` | Esquema sí | Sí si origen unívoc | Sí | Pendent CI |
+| Sèrie ordinària/rectificativa | Sí (`A` ordinària, `R` rectificativa) | Sí (`A+F1/F2`, `R+R1–R5`) | Sí | Pendent CI |
+| Reús amb payment original desaparegut | Sí per postcondició econòmica | Fail-closed 409 | Sí | Pendent CI |
 | Cobertura entre claus diferents | Sí | Parcial UC-004; no general | Sí | Pendent |
 | `commercial_operation` obligatòria | Sí/esquema | No al nucli UC-001 | Sí | Pendent |
 | Events d'auditoria funcionals | Sí | No complet | Sí | Pendent |
