@@ -69,7 +69,13 @@
    <header></header>
    <?php
 
-   $email = $_GET['email'];
+   $emailRaw = trim((string) ($_GET['email'] ?? ''));
+   $email = filter_var($emailRaw, FILTER_VALIDATE_EMAIL)
+      ? htmlspecialchars($emailRaw, ENT_QUOTES, 'UTF-8')
+      : '';
+   $emailHint = $email !== ''
+      ? " de l'adreça <span class='font-weight-bold email'>".$email."</span>"
+      : '';
 
    $missatgePantallaLlarg = "<p class='mb-4'>Hi ha hagut un error a l'hora de fer el pagament.</p>
    <p>Contacta amb el banc indicant l'<strong>error ".$codiResposta."</strong> per solucionar l'error. </p>";
@@ -81,8 +87,7 @@
                <img src='https://www.prisma.cat/img/error-pagament.png' alt='Error en el pagament amb targeta'/>
                <h1>Pagament denegat</h1>
                <p class='mb-4'>Hi ha hagut un error a l'hora de fer el pagament.
-               Consulta la safata d'entrada o el correu brossa (<em>spam</em>)
-               de l'adreça <span class='font-weight-bold email'>".$email."</span>
+               Consulta la safata d'entrada o el correu brossa (<em>spam</em>)".$emailHint
                per tenir més informació de l'error de pagament.</p>
             </div>
          </div>
