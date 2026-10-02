@@ -57,6 +57,9 @@ if ($courseCutoverEnabled && $legacyDrainConfirmed) {
 		$preu = $miObj->getParameter('Ds_Amount');
 		$merchantData = trim((string) $miObj->getParameter('Ds_MerchantData'));
 	   $codiResposta = $miObj->getParameter("Ds_Response");
+		$currency = trim((string) $miObj->getParameter('Ds_Currency'));
+		$callbackTerminal = trim((string) $miObj->getParameter('Ds_Terminal'));
+		$callbackMerchantCode = trim((string) $miObj->getParameter('Ds_MerchantCode'));
 
 		// UC-014: cap efecte econòmic, fiscal o de notificació abans de validar Redsys.
 		$normalizeSignature = static function (string $value): string {
@@ -76,10 +79,25 @@ if ($courseCutoverEnabled && $legacyDrainConfirmed) {
 		if (!ctype_digit((string) $preu) || (int) $preu !== $expectedAmountCents) {
 			throw new RuntimeException('REDSYS_AMOUNT_MISMATCH');
 		}
+		if ($currency !== '978') {
+			throw new RuntimeException('REDSYS_CURRENCY_MISMATCH');
+		}
+		$expectedTerminal = trim((string) getenv('REDSYS_TERMINAL'));
+		if ($expectedTerminal === '' || $callbackTerminal !== $expectedTerminal) {
+			throw new RuntimeException('REDSYS_TERMINAL_MISMATCH');
+		}
+		$expectedMerchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
+		if ($expectedMerchantCode === '' || $callbackMerchantCode !== $expectedMerchantCode) {
+			throw new RuntimeException('REDSYS_MERCHANT_CODE_MISMATCH');
+		}
+		$responseCode = trim((string) $codiResposta);
+		if ($responseCode === '' || !ctype_digit($responseCode) || strlen($responseCode) > 4) {
+			throw new RuntimeException('INVALID_REDSYS_RESPONSE_CODE');
+		}
 		$order = (string) $ordre;
 		$importPag = number_format($expectedAmountCents / 100, 2, '.', '');
 
-		if (intval($codiResposta)>=0 && intval($codiResposta)<=99) {
+		if ((int) $responseCode <= 99) {
 			$tipusError =  "Transacció autoritzada per a pagaments i preautoritzacions";
 
 			require_once 'ConnexioBBDD_PreparedStatment.php';
