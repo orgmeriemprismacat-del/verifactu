@@ -16,8 +16,15 @@ final class RedsysCoursePreflightScriptTest
 
         Assert::stringContainsString('/src/autoload.php', $source);
         Assert::stringContainsString('PHP_SAPI !== \'cli\'', $source);
-        Assert::stringContainsString('environment_not_production', $source);
+        Assert::stringContainsString('environment_is_test_or_preproduction', $source);
         Assert::stringContainsString('redsys_merchant_key_configured', $source);
+        Assert::stringContainsString('bridge_redsys_merchant_code_configured', $source);
+        Assert::stringContainsString('bridge_redsys_merchant_key_configured', $source);
+        Assert::stringContainsString('bridge_redsys_terminal_configured', $source);
+        Assert::stringContainsString('bridge_and_sif_redsys_keys_match', $source);
+        Assert::stringContainsString('internal_api_base_url_https_configured', $source);
+        Assert::stringContainsString('redsys_callback_url_https_configured', $source);
+        Assert::stringContainsString('redsys_gateway_url_https_configured', $source);
         Assert::stringContainsString('legacy_db_configured', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);

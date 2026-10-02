@@ -1,4 +1,9 @@
 <?php
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('Referrer-Policy: no-referrer');
+header('X-Content-Type-Options: nosniff');
+
 // UC-111: authoritative payment gate BEFORE rendering or building Redsys data.
 // This legacy bridge reads the enrollment and secretary decision, never the
 // course/amount/approval from the POST form as its source of truth.
@@ -96,14 +101,14 @@ try {
 
    <div id='cnt-pagament' class="prisma-container container separacio-peu" role="main">
       <div id='codiCurs' style='display:none'><?php echo htmlspecialchars($validatedCheckout['course_code'], ENT_QUOTES, 'UTF-8'); ?></div>
-      <div id='titol' style='display:none'><?php echo $_POST['titol']?></div>
-      <div id='dni' style='display:none'><?php echo $_POST['dni']?></div>
-      <div id='nom-titular' style='display:none'><?php echo $_POST['nom-titular']?></div>
-      <div id='nom-alumne' style='display:none'><?php echo $_POST['nom-alumne']?></div>
+      <div id='titol' style='display:none'><?php echo htmlspecialchars((string) ($_POST['titol'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='dni' style='display:none'><?php echo htmlspecialchars((string) ($_POST['dni'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='nom-titular' style='display:none'><?php echo htmlspecialchars((string) ($_POST['nom-titular'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='nom-alumne' style='display:none'><?php echo htmlspecialchars((string) ($_POST['nom-alumne'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
       <div id='import' style='display:none'><?php echo htmlspecialchars($validatedCheckout['total_amount'], ENT_QUOTES, 'UTF-8'); ?></div>
       <div id='importPagat' style='display:none'><?php echo htmlspecialchars($validatedCheckout['already_paid_amount'], ENT_QUOTES, 'UTF-8'); ?></div>
-      <div id='frac' style='display:none'><?php echo $_POST['frac']?></div>
-      <div id='email' style='display:none'><?php echo $_POST['email']?></div>
+      <div id='frac' style='display:none'><?php echo $validatedCheckout['fractional'] ? '1' : '0'; ?></div>
+      <div id='email' style='display:none'><?php echo htmlspecialchars((string) ($_POST['email'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
 
       <?php
       include_once("./ConnexioBBDD_PreparedStatment.php");
@@ -114,15 +119,16 @@ try {
 
       $idPag = $validatedCheckout['idpag'];
       $cursPag = $validatedCheckout['course_code'];
-      $titolPag = $_POST['titol'];
-      $dniTitularPag = trim($_POST['dni']);//
-      $nomTitularPag = $_POST['nom-titular'];
-      $email = $_POST['email'];
+      $titolPag = (string) ($_POST['titol'] ?? '');
+      $dniTitularPag = trim((string) ($_POST['dni'] ?? ''));
+      $nomTitularPag = (string) ($_POST['nom-titular'] ?? '');
+      $email = (string) ($_POST['email'] ?? '');
       $importAPagar = (float) $validatedCheckout['total_amount'];
-      $importPagare = (float) $validatedCheckout['payment_amount'];
+      $importPagare = (string) $validatedCheckout['payment_amount'];
       $importPagat = (float) $validatedCheckout['already_paid_amount'];
-      $frac = $_POST['frac'];
+      $frac = $validatedCheckout['fractional'] ? '1' : '0';
 
+      $nomAlumnePag = (string) ($_POST['nom-alumne'] ?? '');
       $titular=stripslashes($nomTitularPag);
       $alumn=stripslashes($nomAlumnePag);
 
@@ -136,14 +142,17 @@ try {
       if ($fuc === '') {
          throw new RuntimeException('REDSYS_MERCHANT_CODE_NOT_CONFIGURED');
       }
-      $terminal = trim((string) (getenv('REDSYS_TERMINAL') ?: '1'));
+      $terminal = trim((string) getenv('REDSYS_TERMINAL'));
+      if ($terminal === '') {
+         throw new RuntimeException('REDSYS_TERMINAL_NOT_CONFIGURED');
+      }
       $moneda="978";
       $trans="0";
 
       try {
          $intent = (new SifRedsysCourseIntentClient())->create(
             (int) $idPag,
-            (float) $importPagare,
+            $importPagare,
             $terminal
          );
       } catch (Throwable $exception) {
@@ -151,15 +160,11 @@ try {
          exit('No podem preparar el pagament en aquest moment. Torna-ho a provar més tard o contacta amb secretaria.');
       }
       $order = (string) $intent['ds_order'];
-      $importPagare = (float) $intent['amount'];
+      $importPagare = (string) $intent['amount'];
       $id = $order;
 
-      $legacyMerchantUrl="https://pay.prisma.cat/doit.php?idPag=".rawurlencode((string) $idPag)
-         ."&codiCurs=".rawurlencode((string) $cursPag)
-         ."&dni=".rawurlencode((string) $dniTitularPag)
-         ."&order=".rawurlencode((string) $order)
-         ."&frac=".rawurlencode((string) $frac)
-         ."&import=".rawurlencode(number_format((float) $importPagare, 2, '.', ''));
+      // El fallback rep la correlació dins MerchantData signat. No posem PII ni import al callback URL.
+      $legacyMerchantUrl="https://pay.prisma.cat/doit.php";
 
       // UC-014: el tall de MerchantURL és explícit. Configurar una URL SIF
       // per si sola no canvia el callback; cal habilitar també el flag de cutover.
@@ -167,7 +172,14 @@ try {
          getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
          FILTER_VALIDATE_BOOLEAN
       );
+      $legacyDrainConfirmed = filter_var(
+         getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
       $sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
+      if ($courseCutoverEnabled && !$legacyDrainConfirmed) {
+         throw new RuntimeException('SIF_REDSYS_LEGACY_DRAIN_NOT_CONFIRMED');
+      }
       if ($courseCutoverEnabled) {
          if ($sifMerchantUrl === '') {
             throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER');
@@ -181,26 +193,31 @@ try {
       }
 
       $returnQuery = http_build_query([
-         'email' => $email,
          'order' => $order,
          'idPag' => (int) $idPag,
       ], '', '&', PHP_QUERY_RFC3986);
       $urlOK="https://pay.prisma.cat/respostaOkPagamentAutomatic.php?".$returnQuery;
       $urlKO="https://pay.prisma.cat/respostaKoPagamentAutomatic.php?".$returnQuery;
 
-      $amount=$importPagare * 100;
+      if (!preg_match('/^\d{1,10}\.\d{2}$/D', $importPagare)) {
+         throw new RuntimeException('INVALID_SIF_PAYMENT_AMOUNT');
+      }
+      [$amountEuros, $amountDecimals] = explode('.', $importPagare, 2);
+      $amount = ((int) $amountEuros * 100) + (int) $amountDecimals;
+      $merchantData = 'UC014I' . (int) $idPag . 'A' . $amount . 'F' . ($frac === '1' ? '1' : '0');
 
       $name='Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
 
-      $producto=$dniTitularPag." | ".stripslashes($titolPag);
+      $producto='Curs ' . $cursPag . ' | ' . stripslashes($titolPag);
 
       // Se Rellenan los campos
       $miObj->setParameter("DS_MERCHANT_AMOUNT",$amount);
       $miObj->setParameter("DS_MERCHANT_ORDER",$order);
+      $miObj->setParameter("DS_MERCHANT_MERCHANTDATA",$merchantData);
       $miObj->setParameter("DS_MERCHANT_MERCHANTCODE",$fuc);
       $miObj->setParameter("DS_MERCHANT_CURRENCY",$moneda);
       $miObj->setParameter("DS_MERCHANT_PRODUCTDESCRIPTION",$producto);
-      $miObj->setParameter("DS_MERCHANT_TITULAR",$dniTitularPag);
+      $miObj->setParameter("DS_MERCHANT_TITULAR",$nomTitularPag);
       $miObj->setParameter("DS_MERCHANT_TRANSACTIONTYPE",$trans);
       $miObj->setParameter("DS_MERCHANT_TERMINAL",$terminal);
       $miObj->setParameter("DS_MERCHANT_MERCHANTURL",$url);
@@ -208,7 +225,15 @@ try {
       $miObj->setParameter("DS_MERCHANT_URLKO",$urlKO);
 
       // Datos de configuració: cap secret Redsys queda al codi.
-      $version="HMAC_SHA256_V1";
+      $gatewayUrl = trim((string) getenv('REDSYS_GATEWAY_URL'));
+      if ($gatewayUrl === '') {
+         throw new RuntimeException('REDSYS_GATEWAY_URL_NOT_CONFIGURED');
+      }
+      if (!str_starts_with($gatewayUrl, 'https://')) {
+         throw new RuntimeException('REDSYS_GATEWAY_URL_MUST_USE_HTTPS');
+      }
+
+      $version="HMAC_SHA512_V2";
       $kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
       if ($kc === '') {
          throw new RuntimeException('REDSYS_MERCHANT_KEY_NOT_CONFIGURED');
@@ -216,15 +241,15 @@ try {
 
       // Se generan los parámetros de la petición
       $request = "";
-      $params = $miObj->createMerchantParameters();
-      $signature = $miObj->createMerchantSignature($kc);
+      $params = $miObj->createMerchantParametersV2();
+      $signature = $miObj->createMerchantSignatureV2($kc);
 
       ?>
       <h1>Pagament amb targeta</h1>
       <div class='d-flex flex-column tota-pagina'><div class='container'><div class='row'>
          <div class='d-flex flex-column cnt_enviar_dades border-0 align-items-center w-100 mb-4'>
-            <p><span class='font-weight-bold'>Titular de la targeta: </span><?php echo $nomTitularPag; ?></p>
-            <p><span class='font-weight-bold'>DNI: </span><?php echo $dniTitularPag; ?></p>
+            <p><span class='font-weight-bold'>Titular de la targeta: </span><?php echo htmlspecialchars($nomTitularPag, ENT_QUOTES, 'UTF-8'); ?></p>
+            <p><span class='font-weight-bold'>DNI: </span><?php echo htmlspecialchars($dniTitularPag, ENT_QUOTES, 'UTF-8'); ?></p>
             <?php
                if ($frac=='0') {
             ?>
@@ -240,11 +265,10 @@ try {
                }
             ?>
          </div>
-         <!-- <form id='frm' name='frm' action='https://sis.redsys.es/sis/realizarPago' method='post'> -->
-   			<form id='frm' name='frm' action='https://sis-t.redsys.es:25443/sis/realizarPago' method='post'>
+         <form id='frm' name='frm' action="<?php echo htmlspecialchars($gatewayUrl, ENT_QUOTES, 'UTF-8'); ?>" method='post'>
 
 					<!-- cal afegir tots els camps per confirmar les dades de facturació -->
-				 <input type="hidden" name="producto" value="<?php echo $producto; ?>"/>
+				 <input type="hidden" name="producto" value="<?php echo htmlspecialchars($producto, ENT_QUOTES, 'UTF-8'); ?>"/>
             <input type="hidden" name="rebut" value="<?php echo $id; ?>"/>
             <input type="hidden" name="Ds_SignatureVersion" value="<?php echo $version; ?>"/>
             <input type="hidden" name="Ds_MerchantParameters" value="<?php echo $params; ?>"/>

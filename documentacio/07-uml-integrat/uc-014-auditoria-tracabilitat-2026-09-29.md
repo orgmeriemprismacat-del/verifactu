@@ -1,6 +1,8 @@
 # UC-014 — Auditoria detallada i matriu de traçabilitat
 
 **Data:** 29/09/2026  
+
+> **SUPERSEDIDA COM A ESTAT VIGENT:** aquesta auditoria es conserva com a fotografia del tall del 29/09. Per l'estat actual i el hardening PHP/JS 02/10, useu [l'auditoria exhaustiva del 02/10/2026](uc-014-auditoria-tracabilitat-2026-10-02.md) i [l'inventari PHP/JS](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md). La reconciliació A14-17 del PR #106 es manté dins aquest document històric perquè no es perdi l'evidència posterior.
 **Branca d'auditoria:** `audit/uc-014-completa-2026-09-29`  
 **Estat global:** **DOC AMPLIADA / IMP SIF AVANÇADA / E2E INTERN + TOOLING PREPRODUCCIÓ VERIFICATS PER CI / E2E REDSYS-PREPRODUCCIÓ I TALL PRODUCTIU PENDENTS**.
 

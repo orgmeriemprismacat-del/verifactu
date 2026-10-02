@@ -15,7 +15,14 @@ use Prisma\Sif\Service\RedsysSignatureValidator;
 try {
     $config = require dirname(__DIR__, 3) . '/config/sif.php';
     $db = ConnectionFactory::make($config);
-    $validator = new RedsysSignatureValidator((string) ($config['redsys']['merchant_key'] ?? ''));
+    $merchantCode = trim((string) ($config['redsys']['merchant_code'] ?? ''));
+    if ($merchantCode === '') {
+        throw new \RuntimeException('SIF_REDSYS_MERCHANT_CODE_NOT_CONFIGURED');
+    }
+    $validator = new RedsysSignatureValidator(
+        (string) ($config['redsys']['merchant_key'] ?? ''),
+        $merchantCode
+    );
     $service = new RedsysCallbackService(
         new RedsysPaymentIntentRepository(),
         new RedsysNotificationRepository(),

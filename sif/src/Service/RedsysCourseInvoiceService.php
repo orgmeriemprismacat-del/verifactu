@@ -166,10 +166,20 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
 
     private function amount(array $notification): string
     {
-        if (!array_key_exists('IMPORT', $notification) || !is_numeric($notification['IMPORT'])) {
+        if (!array_key_exists('IMPORT', $notification)) {
             throw SifException::validation('Invalid Redsys course amount');
         }
 
-        return number_format((float) $notification['IMPORT'], 2, '.', '');
+        $raw = trim(str_replace(',', '.', (string) $notification['IMPORT']));
+        if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $raw)) {
+            throw SifException::validation('Invalid Redsys course amount');
+        }
+
+        [$euros, $decimals] = array_pad(explode('.', $raw, 2), 2, '');
+        $cents = (int) $euros * 100 + (int) str_pad($decimals, 2, '0');
+
+        return intdiv($cents, 100)
+            . '.'
+            . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 }

@@ -5,7 +5,11 @@
 		getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
 		FILTER_VALIDATE_BOOLEAN
 	);
-	if ($courseCutoverEnabled) {
+	$legacyDrainConfirmed = filter_var(
+		getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+		FILTER_VALIDATE_BOOLEAN
+	);
+	if ($courseCutoverEnabled && $legacyDrainConfirmed) {
 		http_response_code(410);
 		header('Content-Type: text/plain; charset=utf-8');
 		exit('Callback legacy de curs retirat. El pagament es processa pel SIF.');
@@ -19,14 +23,12 @@
 	include("./MailSMTP.php");
 	include("./Mail.php");
 
-	$idPag = $_GET['idPag'];
-
-	$order = $_GET['order'];
-
-	$cursPag = $_GET['codiCurs'];
-	$dniTitularPag = $_GET['dni'];
-	$importPag = floatval($_GET['import']);
-	$frac = intval($_GET['frac']);
+	$cursPag = '';
+	$dniTitularPag = '';
+	$importPag = '0.00';
+	$frac = 0;
+	$idPag = 0;
+	$order = '';
 
 	/* obtenir dades de facturació */
 	$dadesFact = [];
@@ -40,20 +42,8 @@
 
 	include('inc/analitics.html');
 
-	$nomMe = 'Meriem';
-	$correuMe = "meriem.prisma.cat@gmail.com";
-	$subjectMe = "pagament automatic ".$order;
-	$missatge = "<p>DNI: ".$dniTitularPag."</p>
-	<p>IMPORT: ".$importPag."</p>
-	<p>FRAC: ".$frac."</p>
-	<p>IDPAG: ".$idPag."</p>
-	<p>ORDER: ".$order."</p>";
-	$mailMe = new Mail();
-	$mailMe->addHeaders($nomMe, $correuMe, $correuMe);
-	$mailMe->addSubject($subjectMe);
-	$mailMe->addTo($correuMe);
-	$mailMe->addMissatgeTiquet("<p>Hola</p>", $missatge, '');
-	$mailMe->sendMessage();
+	$mostrar = '';
+	// UC-014: cap notificació de depuració abans de validar la signatura Redsys.
 
 	/* enviem intent de pagament */
 
@@ -61,40 +51,74 @@
 		// Se crea Objeto
 		$miObj = new RedsysAPI;
 
-		$version = $_POST["Ds_SignatureVersion"];
-		$datos = $_POST["Ds_MerchantParameters"];
-		$signatureRecibida = $_POST["Ds_Signature"];
+		$version = trim((string) ($_POST["Ds_SignatureVersion"] ?? ''));
+		$datos = (string) ($_POST["Ds_MerchantParameters"] ?? '');
+		$signatureRecibida = (string) ($_POST["Ds_Signature"] ?? '');
+		if (!in_array($version, ['HMAC_SHA512_V2', 'HMAC_SHA256_V1'], true)
+			|| $datos === '' || $signatureRecibida === ''
+		) {
+			throw new RuntimeException('INVALID_REDSYS_SIGNATURE_ENVELOPE');
+		}
 
 		$decodec = $miObj->decodeMerchantParameters($datos);
 		$kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
 		if ($kc === '') {
 			throw new RuntimeException('REDSYS_MERCHANT_KEY_NOT_CONFIGURED');
 		}
-		$firma = $miObj->createMerchantSignatureNotif($kc,$datos);
+		$firma = $miObj->createMerchantSignatureNotifForVersion($kc, $datos, $version);
 
 	  $ordre = $miObj->getParameter('Ds_Order');
 		$dateComanda = $miObj->getParameter('Ds_Date');
 		$horaComanda = $miObj->getParameter('Ds_Hour');
 		$preu = $miObj->getParameter('Ds_Amount');
+		$merchantData = trim((string) $miObj->getParameter('Ds_MerchantData'));
 	  $codiResposta = $miObj->getParameter("Ds_Response");
+		$currency = trim((string) $miObj->getParameter('Ds_Currency'));
+		$callbackTerminal = trim((string) $miObj->getParameter('Ds_Terminal'));
+		$callbackMerchantCode = trim((string) $miObj->getParameter('Ds_MerchantCode'));
+		$transactionType = trim((string) $miObj->getParameter('Ds_TransactionType'));
 
 		// UC-014: cap efecte econòmic/fiscal abans de validar la notificació.
 		$normalizeSignature = static function (string $value): string {
 			return rtrim(strtr(trim($value), '-_', '+/'), '=');
 		};
-		if ($version !== 'HMAC_SHA256_V1'
-			|| !hash_equals($normalizeSignature((string) $firma), $normalizeSignature((string) $signatureRecibida))
-		) {
+		if (!hash_equals($normalizeSignature((string) $firma), $normalizeSignature((string) $signatureRecibida))) {
 			throw new RuntimeException('INVALID_REDSYS_SIGNATURE');
 		}
-		if ((string) $ordre !== (string) $order) {
-			throw new RuntimeException('REDSYS_ORDER_MISMATCH');
+		if (!preg_match('/^UC014I([1-9][0-9]*)A([1-9][0-9]*)F([01])$/D', $merchantData, $context)) {
+			throw new RuntimeException('INVALID_REDSYS_MERCHANT_CONTEXT');
 		}
-		if (!is_numeric($preu) || (int) $preu !== (int) round(((float) $importPag) * 100)) {
+		$order = trim((string) $ordre);
+		if ($order === '' || strlen($order) > 12 || !ctype_alnum($order)) {
+			throw new RuntimeException('INVALID_REDSYS_ORDER');
+		}
+		$idPag = (int) $context[1];
+		$expectedAmountCents = (int) $context[2];
+		$frac = (int) $context[3];
+		if (!ctype_digit((string) $preu) || (int) $preu !== $expectedAmountCents) {
 			throw new RuntimeException('REDSYS_AMOUNT_MISMATCH');
 		}
+		if ($currency !== '978') {
+			throw new RuntimeException('REDSYS_CURRENCY_MISMATCH');
+		}
+		$expectedTerminal = trim((string) getenv('REDSYS_TERMINAL'));
+		if ($expectedTerminal === '' || $callbackTerminal !== $expectedTerminal) {
+			throw new RuntimeException('REDSYS_TERMINAL_MISMATCH');
+		}
+		$expectedMerchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
+		if ($expectedMerchantCode === '' || $callbackMerchantCode !== $expectedMerchantCode) {
+			throw new RuntimeException('REDSYS_MERCHANT_CODE_MISMATCH');
+		}
+		if ($transactionType !== '0') {
+			throw new RuntimeException('REDSYS_TRANSACTION_TYPE_MISMATCH');
+		}
+		$responseCode = trim((string) $codiResposta);
+		if ($responseCode === '' || !ctype_digit($responseCode) || strlen($responseCode) > 4) {
+			throw new RuntimeException('INVALID_REDSYS_RESPONSE_CODE');
+		}
+		$importPag = number_format($expectedAmountCents / 100, 2, '.', '');
 
-		if (intval($codiResposta)>=0 && intval($codiResposta)<=99) {
+		if ((int) $responseCode <= 99) {
 			$tipusError =  "Transacció autoritzada per a pagaments i preautoritzacions";
 
 			require_once 'ConnexioBBDD_PreparedStatment.php';
@@ -110,9 +134,15 @@
 			if ( $stmtRegal=$connexio->prepare($cnsInsc) ) {
 				$stmtRegal->bind_param("d", $idPag);
 				$stmtRegal->execute();
+				$stmtRegal->store_result();
+				if ($stmtRegal->num_rows !== 1) {
+					throw new RuntimeException('REDSYS_IDPAG_NOT_UNIQUE_OR_MISSING');
+				}
 				$stmtRegal->bind_result($idInsc, $any, $mes, $codiCurs, $nom, $cognoms, $dni,
 				$email, $adreca, $cp, $poble, $factRel, $apagar, $inscrit, $importPagat, $fraccio);
 				$stmtRegal->fetch();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 				$connexio->closeStmt();
 			}
 			else {
@@ -767,9 +797,15 @@
 			if ( $stmtInsc=$connexio->prepare($cnsInsc) ) {
 				$stmtInsc->bind_param("d", $idPag);
 				$stmtInsc->execute();
+				$stmtInsc->store_result();
+				if ($stmtInsc->num_rows !== 1) {
+					throw new RuntimeException('REDSYS_IDPAG_NOT_UNIQUE_OR_MISSING');
+				}
 				$stmtInsc->bind_result($any, $mes, $codiCurs, $nom, $cognoms, $dni,
 				$email, $adreca, $cp, $poble, $factRel, $apagar, $inscrit, $importPagat, $pagObs);
 				$stmtInsc->fetch();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 				$connexio->closeStmt();
 			}
 			else {
@@ -964,13 +1000,9 @@
 			$connexio->desconectarBD();
 	   }
 	}
-	catch(Exception $e) {
-		$mailMe = new Mail();
-		$mailMe->addHeaders($nomMe, $correuMe, $correuMe);
-		$mailMe->addSubject("Error ".$ordre);
-		$mailMe->addTo($correuMe);
-		$mailMe->addMissatgeTiquet("<p>Hola</p>", "Error ".$e->getCode().$e->getMessage(), '');
-		$mailMe->sendMessage();
+	catch (\Throwable $e) {
+		http_response_code(400);
+		error_log('UC-014 Redsys legacy callback rejected: ' . get_class($e));
 	}
 	echo $mostrar;
 

@@ -113,18 +113,16 @@ final class RedsysCallbackService
             throw SifException::validation('Invalid Redsys DS_ORDER');
         }
 
-        if (!is_numeric($payload['amount'])) {
-            throw SifException::validation('Invalid Redsys amount');
-        }
+        $amountCents = $this->decimalCents($payload['amount'], 'Invalid Redsys amount');
 
-        $responseCode = (string) $payload['response_code'];
-        if ($responseCode === '' || strlen($responseCode) > 10) {
+        $responseCode = trim((string) $payload['response_code']);
+        if ($responseCode === '' || !ctype_digit($responseCode) || strlen($responseCode) > 4) {
             throw SifException::validation('Invalid Redsys response code');
         }
 
         return [
             'ds_order' => $dsOrder,
-            'amount' => number_format((float) $payload['amount'], 2, '.', ''),
+            'amount' => $this->amount($amountCents),
             'response_code' => $responseCode,
             'currency' => strtoupper(trim((string) $payload['currency'])),
             'terminal' => trim((string) $payload['terminal']),
@@ -133,13 +131,33 @@ final class RedsysCallbackService
 
     private function assertMatchesIntent(array $intent, array $payload): void
     {
-        $matches = number_format((float) $intent['EXPECTED_AMOUNT'], 2, '.', '') === $payload['amount']
+        $matches = $this->decimalCents($intent['EXPECTED_AMOUNT'], 'Invalid Redsys intent amount')
+                === $this->decimalCents($payload['amount'], 'Invalid Redsys callback amount')
             && (string) $intent['CURRENCY'] === $payload['currency']
             && (string) $intent['TERMINAL'] === $payload['terminal'];
 
         if (!$matches) {
             throw SifException::validation('Redsys callback does not match payment intent');
         }
+    }
+
+    private function decimalCents(mixed $value, string $message): int
+    {
+        $raw = trim(str_replace(',', '.', (string) $value));
+        if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $raw)) {
+            throw SifException::validation($message);
+        }
+
+        [$euros, $decimals] = array_pad(explode('.', $raw, 2), 2, '');
+
+        return (int) $euros * 100 + (int) str_pad($decimals, 2, '0');
+    }
+
+    private function amount(int $cents): string
+    {
+        return intdiv($cents, 100)
+            . '.'
+            . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 
     private function statusForResponseCode(string $responseCode): string

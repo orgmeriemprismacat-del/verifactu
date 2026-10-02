@@ -60,38 +60,39 @@ final class CoursePaymentNotificationService
             throw SifException::conflict('Course notification lacks persisted invoice/payment identity');
         }
 
-        $paymentAmount = $this->money(
+        $paymentAmountCents = $this->cents(
             $payment['amount'] ?? null,
             'Missing course notification payment amount'
         );
-        $contractTotal = $this->money(
+        $contractTotalCents = $this->cents(
             $inscription['A_PAGAR'] ?? $payment['contract_total'] ?? null,
             'Missing course notification contract total'
         );
-        $projectedPayment = $this->money(
+        $projectedPaymentCents = $this->cents(
             $legacyPaymentSync['projected_payment'] ?? null,
             'Missing course notification projected payment'
         );
-        $confirmedAmount = $this->money(
+        $confirmedAmountCents = $this->cents(
             $legacyPaymentSync['confirmed_amount'] ?? null,
             'Missing course notification confirmed amount'
         );
+
+        $paymentAmount = $this->amount($paymentAmountCents);
+        $contractTotal = $this->amount($contractTotalCents);
+        $projectedPayment = $this->amount($projectedPaymentCents);
+        $confirmedAmount = $this->amount($confirmedAmountCents);
 
         $paymentStatus = strtoupper(trim((string) ($legacyPaymentSync['status'] ?? '')));
         if (!in_array($paymentStatus, ['PARTIALLY_PAID', 'PAID'], true)) {
             throw SifException::validation('Invalid course notification payment status');
         }
 
-        $remainingAfter = number_format(
-            max(0.0, (float) $contractTotal - (float) $projectedPayment),
-            2,
-            '.',
-            ''
-        );
-        if ($paymentStatus === 'PAID' && (float) $remainingAfter > 0.009) {
+        $remainingAfterCents = max(0, $contractTotalCents - $projectedPaymentCents);
+        $remainingAfter = $this->amount($remainingAfterCents);
+        if ($paymentStatus === 'PAID' && $remainingAfterCents !== 0) {
             throw SifException::conflict('Course notification PAID status conflicts with projected balance');
         }
-        if ($paymentStatus === 'PARTIALLY_PAID' && (float) $remainingAfter <= 0.009) {
+        if ($paymentStatus === 'PARTIALLY_PAID' && $remainingAfterCents === 0) {
             throw SifException::conflict('Course notification partial status conflicts with projected balance');
         }
 
@@ -138,12 +139,22 @@ final class CoursePaymentNotificationService
         return (int) $value;
     }
 
-    private function money(mixed $value, string $message): string
+    private function cents(mixed $value, string $message): int
     {
-        if (!is_numeric($value) || (float) $value < 0.0) {
+        $raw = trim(str_replace(',', '.', (string) $value));
+        if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $raw)) {
             throw SifException::validation($message);
         }
 
-        return number_format((float) $value, 2, '.', '');
+        [$euros, $decimals] = array_pad(explode('.', $raw, 2), 2, '');
+
+        return (int) $euros * 100 + (int) str_pad($decimals, 2, '0');
+    }
+
+    private function amount(int $cents): string
+    {
+        return intdiv($cents, 100)
+            . '.'
+            . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 }

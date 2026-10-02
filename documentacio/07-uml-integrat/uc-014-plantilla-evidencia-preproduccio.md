@@ -18,7 +18,12 @@
 - UUID_NOTIFICATION:
 - NOTIFICATION_STATUS:
 - SIF_REDSYS_COURSE_CUTOVER_ENABLED: 0 / 1
-- SIF_REDSYS_CALLBACK_URL configurada: SÍ / NO (no copiar secrets ni query sensible)
+- SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED: 0 / 1
+- SIF_REDSYS_CALLBACK_URL configurada amb HTTPS: SÍ / NO (no copiar secrets ni query sensible)
+- REDSYS_GATEWAY_URL configurada amb HTTPS i corresponent a l'entorn: SÍ / NO
+- SIF_INTERNAL_API_KEY_ID / SECRET configurats: SÍ / NO (no copiar els valors)
+- Paths HMAC `course-intent` i `course-status` coherents amb el pont: SÍ / NO
+- Credencial Redsys rotada/configurada via secret store o entorn: SÍ / NO (no copiar el valor)
 
 ## 2. Preflight
 
@@ -80,6 +85,7 @@ Comprovar i anotar:
 - `factura`: UUID i NUM_VISIBLE;
 - `payment_transaction`: UUID, import, DS_ORDER, IDPAG;
 - `payment_allocation`: assignació;
+- `enrollment_fund_movement`: exactament un `EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC`, amb `UUID_PAYMENT`, `UUID_FACTURA`, `ID_INSC_DESTI` i import coherent;
 - `fiscal_queue`: registre pendent/enviat segons l'entorn;
 - `notification_outbox`: una fila `COURSE_PAYMENT_CONFIRMED` per `DS_ORDER`, amb UUID i estat; verificar que `PAYLOAD_JSON` no conté email, DNI, nom ni adreça.
 
@@ -104,6 +110,7 @@ Comprovar:
 - resultat:
 - factura continua sent única:
 - cobrament continua sent únic:
+- `EXTERNAL_ALLOCATION` continua sent únic per `DS_ORDER + ID_INSC`:
 - notificació outbox continua sent única:
 - job duplicat/no duplicat:
 
@@ -140,18 +147,26 @@ Adjuntar només evidència sense secrets:
 ## 9. Decisió de tall
 
 - [ ] `SIF_REDSYS_CALLBACK_URL` configurada amb HTTPS
-- [ ] `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` només a preproducció durant la prova
+- [ ] `REDSYS_GATEWAY_URL` configurada amb HTTPS i sense endpoint hardcoded al codi
+- [ ] API interna configurada (`SIF_INTERNAL_API_KEY_ID`/`SECRET`) i paths HMAC coherents
+- [ ] clau Redsys del pont i clau del callback SIF corresponen al mateix comerç/entorn
+- [ ] fase DRAIN provada (`cutover=1`, `drain=0`): nous checkouts bloquejats i callbacks antics encara acceptats
+- [ ] evidència que no queden sessions legacy en vol
+- [ ] fase CUTOVER provada (`cutover=1`, `drain=1`): candidat→SIF i llegat→410
 - [ ] `doit.php` retorna 410 amb cutover actiu
 - [ ] `realitzaPagamentAutomatic.php` retorna 410 amb cutover actiu
 - [ ] rollback (`cutover=0`) documentat abans de retirada definitiva
 - [ ] E2E real de preproducció complet
 - [ ] duplicat validat
 - [ ] parcial/complet validat
+- [ ] `EXTERNAL_ALLOCATION` present, idempotent i coherent amb factura/CHARGE/inscripció
 - [ ] reintent validat
 - [ ] sync llegada idempotent
 - [ ] outbox CURS creada/reutilitzada idempotentment
 - [ ] `PAYLOAD_JSON` de notificació sense PII directa
 - [ ] estat del lliurament UC-58 documentat (no marcar enviat si només és `PENDING`)
+- [ ] credencial històrica Redsys rotada si correspon
+- [ ] checkout/callback desplegats sense secrets literals
 - [ ] cap secret a evidències
 - [ ] MerchantURL preparada per apuntar al callback SIF
 - [ ] retirada d'autoritat fiscal llegada planificada

@@ -2,9 +2,10 @@
 
 final class SifRedsysCourseIntentClient
 {
-    public function create(int $idPag, float $requestedAmount, string $terminal = '1'): array
+    public function create(int $idPag, string $requestedAmount, string $terminal): array
     {
-        if ($idPag < 1 || $requestedAmount <= 0) {
+        $requestedAmount = trim(str_replace(',', '.', $requestedAmount));
+        if ($idPag < 1 || !preg_match('/^\\d{1,10}\\.\\d{2}$/D', $requestedAmount) || $requestedAmount === '0.00') {
             throw new RuntimeException('Invalid Redsys course intent input');
         }
 
@@ -16,10 +17,13 @@ final class SifRedsysCourseIntentClient
         if ($baseUrl === '' || $keyId === '' || $secret === '') {
             throw new RuntimeException('SIF internal API is not configured');
         }
+        if (!str_starts_with($baseUrl, 'https://')) {
+            throw new RuntimeException('SIF internal API must use HTTPS');
+        }
 
         $body = json_encode([
             'idpag' => $idPag,
-            'requested_amount' => number_format($requestedAmount, 2, '.', ''),
+            'requested_amount' => $requestedAmount,
             'terminal' => $terminal,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($body === false) {
@@ -52,6 +56,8 @@ final class SifRedsysCourseIntentClient
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_TIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
                 'X-SIF-Key-Id: ' . $keyId,
@@ -79,9 +85,13 @@ final class SifRedsysCourseIntentClient
         }
 
         $intent = $response['intent'] ?? null;
-        if (!is_array($intent)
-            || trim((string) ($intent['ds_order'] ?? '')) === ''
-            || !is_numeric($intent['amount'] ?? null)
+        if (!is_array($intent)) {
+            throw new RuntimeException('SIF course intent response is incomplete');
+        }
+
+        $responseAmount = trim((string) ($intent['amount'] ?? ''));
+        if (trim((string) ($intent['ds_order'] ?? '')) === ''
+            || !preg_match('/^\\d{1,10}\\.\\d{2}$/D', $responseAmount)
         ) {
             throw new RuntimeException('SIF course intent response is incomplete');
         }

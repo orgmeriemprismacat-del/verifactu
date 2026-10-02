@@ -75,6 +75,65 @@ final class RedsysCoursePaymentIntentServiceTest
         Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
     }
 
+    public function testUsesExactCentsForDecimalPendingBalance(): void
+    {
+        $sifDb = TestDatabase::fresh();
+
+        $result = $this->service()->create($sifDb, $this->legacyDb(true, '0.30', '0.10'), [
+            'idpag' => 700,
+            'requested_amount' => '0.20',
+            'terminal' => '1',
+            'ds_order' => '700000000005',
+        ]);
+
+        Assert::same('0.20', $result['amount']);
+        Assert::same('0.20', $result['pending_before']);
+
+        Assert::throws(SifException::class, function () use ($sifDb): void {
+            $this->service()->create($sifDb, $this->legacyDb(true, '0.30', '0.10'), [
+                'idpag' => 700,
+                'requested_amount' => '0.21',
+                'terminal' => '1',
+                'ds_order' => '700000000006',
+            ]);
+        }, 422);
+    }
+
+    public function testRejectsMissingOrInvalidTerminal(): void
+    {
+        $sifDb = TestDatabase::fresh();
+
+        foreach ([null, '', '1234', 'A'] as $terminal) {
+            Assert::throws(SifException::class, function () use ($sifDb, $terminal): void {
+                $input = [
+                    'idpag' => 700,
+                    'requested_amount' => '100.00',
+                    'ds_order' => '700000000099',
+                ];
+                if ($terminal !== null) {
+                    $input['terminal'] = $terminal;
+                }
+                $this->service()->create($sifDb, $this->legacyDb(false), $input);
+            }, 422);
+        }
+    }
+
+    public function testRejectsCourseOrderThatDoesNotMatchRedsysContract(): void
+    {
+        $sifDb = TestDatabase::fresh();
+
+        foreach (['ABC000000001', '7000000000001', '12-INVALID'] as $invalidOrder) {
+            Assert::throws(SifException::class, function () use ($sifDb, $invalidOrder): void {
+                $this->service()->create($sifDb, $this->legacyDb(false), [
+                    'idpag' => 700,
+                    'requested_amount' => '100.00',
+                    'terminal' => '1',
+                    'ds_order' => $invalidOrder,
+                ]);
+            }, 422);
+        }
+    }
+
     public function testRejectsAmountAboveAuthoritativePendingBalance(): void
     {
         $sifDb = TestDatabase::fresh();
@@ -101,8 +160,11 @@ final class RedsysCoursePaymentIntentServiceTest
         );
     }
 
-    private function legacyDb(bool $fractional): RedsysCourseIntentLegacySpyPdo
-    {
+    private function legacyDb(
+        bool $fractional,
+        string $contractTotal = '120.00',
+        string $alreadyPaid = '20.00'
+    ): RedsysCourseIntentLegacySpyPdo {
         return new RedsysCourseIntentLegacySpyPdo([
             [
                 'ID' => 710,
@@ -117,9 +179,9 @@ final class RedsysCoursePaymentIntentServiceTest
                 'Codi_Postal' => '17000',
                 'Poblacio' => 'Girona',
                 'FACTURA_RELACIONADA' => null,
-                'A_PAGAR' => '120.00',
+                'A_PAGAR' => $contractTotal,
                 'INSC CURS' => '0',
-                'PAGAMENT' => '20.00',
+                'PAGAMENT' => $alreadyPaid,
                 'FRACCIONAT' => $fractional ? 1 : 0,
                 'FRACCIO' => '',
             ],
