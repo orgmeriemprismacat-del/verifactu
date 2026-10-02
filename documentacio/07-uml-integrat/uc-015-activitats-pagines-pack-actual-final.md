@@ -277,4 +277,4 @@ No declarar UC-015 tancat fins que:
 
 El 2026-09-30 la suite SIF ha finalitzat amb **706 passed / 0 failed** al commit `c961f193...`. Aquesta evidència cobreix el contracte de checkout, snapshot, factura, conciliació, ledger i outbox del UC-015. Resta la validació visual/navegador i Redsys de preproducció.
 
-**Revalidació 02/10:** el paquet UC-015 final es va fusionar a `41d6968...` i el workflow `SIF PHP MySQL tests` d'aquell commit també va acabar en **success** (run `36741186555`). El `main` auditat `47f8f83...` té el workflow complet actual encara en cua; la CI anterior acredita el bloc UC-015 en el seu punt de fusió, però no substitueix la CI del HEAD actual.
+**Revalidació 02/10:** el paquet UC-015 final es va fusionar a `41d6968...` i el workflow `SIF PHP MySQL tests` d'aquell commit també va acabar en **success** (run `36741186555`). La revisió de codi del PR a `0b32fa2...` va passar els quatre workflows, inclòs `SIF PHP MySQL tests` (run `36943484891`). El criteri de merge continua sent que el HEAD final del PR mantingui la CI verda després de qualsevol resincronització amb `main`.
