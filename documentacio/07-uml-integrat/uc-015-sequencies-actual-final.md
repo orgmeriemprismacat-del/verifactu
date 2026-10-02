@@ -20,27 +20,41 @@ Price->>DB: consulta info_pack/packs/preu
 Price-->>JS: preu original | preu pack
 JS-->>U: mostra preu
 U->>JS: confirma formulari
-JS->>Alta: POST dades del formulari + idPack
-Alta->>DB: rellegir preu pack i preus components
-Alta->>DB: GET_LOCK allocator IDPAG
-Alta->>Alta: reservar MAX(IDPAG)+1 sota lock
-Alta->>DB: BEGIN transaction
-loop cada component
- Alta->>DB: INSERT TIPUS_INSC=P + PACK_ORDINAL/base/descompte/total
+JS->>JS: generar/reutilitzar REQUEST_ID UUID v4 a sessionStorage
+JS->>Alta: POST dades + idPack + REQUEST_ID
+Alta->>DB: GET_LOCK prisma_pack_req_<hash>
+Alta->>DB: buscar RID + RH1 a inscripcions
+alt mateix REQUEST_ID + mateix payload hash
+ Alta-->>JS: hash de confirmació d'una inscripció existent
+ Alta->>DB: RELEASE_LOCK request
+else mateix REQUEST_ID + payload diferent/inconsistent
+ Alta-->>JS: HTTP 409 sense mutació
+else request nou
+ Alta->>Alta: validar/normalitzar formulari
+ Alta->>DB: rellegir preu pack i preus components
+ Alta->>DB: GET_LOCK allocator IDPAG
+ Alta->>Alta: reservar MAX(IDPAG)+1 sota lock
+ Alta->>DB: BEGIN transaction
+ loop cada component
+  Alta->>DB: INSERT TIPUS_INSC=P + snapshot + RID/RH1
+ end
+ Alta->>DB: validar suma línies = preu PACK
+ Alta->>DB: COMMIT transaction
+ Alta->>Alta: marca enrollment committed
+ Alta->>DB: RELEASE_LOCK allocator IDPAG
+ Alta->>DB: RELEASE_LOCK request
+ Alta-->>JS: hash inscripció
+ Alta->>Mail: correus/auxiliars postcommit
+ Note over Alta,Mail: una fallada auxiliar es loga i no converteix l'alta commitada en error
 end
-Alta->>DB: COMMIT transaction
-Alta->>Alta: marca enrollment committed
-Alta->>DB: RELEASE_LOCK allocator IDPAG
-Alta-->>JS: hash inscripció
-Alta->>Mail: correus/auxiliars postcommit
-Note over Alta,Mail: una fallada auxiliar es loga i no converteix l'alta commitada en error
+JS->>JS: netejar REQUEST_ID només en èxit determinista
 JS-->>U: redirecció confirmació
 ```
 
 ### Riscos ACTUAL residuals
 
 - les N inscripcions ja es persisteixen atòmicament; en excepció es fa rollback i el lock `IDPAG` s'allibera per `finally`;
-- l'alta pública ja és POST-only amb comprovació same-site/origin quan els headers són presents; resta E2E navegador/preproducció i valorar controls anti-abús addicionals;
+- l'alta pública és POST-only amb comprovació same-site/origin i idempotència server-side `REQUEST_ID`+payload hash; un reintent equivalent reutilitza l'alta abans de rellegir el pack actual; resta E2E navegador/preproducció i valorar controls anti-abús addicionals;
 - l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
 - `PACK_ORDINAL` queda determinat pel mateix ordre estable de presentació `DATAI, ID_CURS`; resta decidir si negoci requereix una posició explícita separada;
 - el callback fiscal legacy conserva codi històric però està desactivat per defecte.
