@@ -51,9 +51,10 @@ final class InternalInvoiceIssuePayloadPolicy
         $payload['correlation_id'] = trim((string) ($payload['correlation_id'] ?? ''))
             ?: $payload['request_id'];
         $roles = $actor['roles'] ?? [];
-        $payload['actor_role'] = is_array($roles) && $roles !== []
-            ? (string) reset($roles)
-            : null;
+        $matchedRole = trim((string) ($actor['invoice_issue_role'] ?? ''));
+        $payload['actor_role'] = $matchedRole !== ''
+            ? $matchedRole
+            : (is_array($roles) && $roles !== [] ? (string) reset($roles) : null);
         $payload['actor_type'] = 'SYSTEM';
 
         if (array_key_exists('aeat_fields', $payload)) {
