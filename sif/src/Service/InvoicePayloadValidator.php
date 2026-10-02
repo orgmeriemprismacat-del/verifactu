@@ -107,10 +107,11 @@ final class InvoicePayloadValidator
 
     private function assertLineTotalsMatchHeader(array $payload): void
     {
-        $sums = ['import_base' => 0, 'taxable_base' => 0, 'iva_import' => 0, 'total' => 0];
+        $sums = ['import_base' => 0, 'discount' => 0, 'taxable_base' => 0, 'iva_import' => 0, 'total' => 0];
 
         foreach ($payload['lines'] as $line) {
             $sums['import_base'] += $this->toCents($line['import_base'] ?? $line['base']);
+            $sums['discount'] += $this->toCents($line['discount_amount'] ?? '0.00');
             $sums['taxable_base'] += $this->toCents($line['taxable_base'] ?? $line['base']);
             $sums['iva_import'] += $this->toCents($line['iva_import'] ?? '0.00');
             $sums['total'] += $this->toCents($line['total']);
@@ -118,6 +119,7 @@ final class InvoicePayloadValidator
 
         $expected = [
             'import_base' => $this->toCents($payload['totals']['import_base']),
+            'discount' => $this->toCents($payload['totals']['discount'] ?? '0.00'),
             'taxable_base' => $this->toCents($payload['totals']['taxable_base']),
             'iva_import' => $this->toCents($payload['totals']['iva_import'] ?? '0.00'),
             'total' => $this->toCents($payload['totals']['total']),
