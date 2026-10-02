@@ -130,7 +130,10 @@ try {
       if ($fuc === '') {
          throw new RuntimeException('REDSYS_MERCHANT_CODE_NOT_CONFIGURED');
       }
-      $terminal = trim((string) (getenv('REDSYS_TERMINAL') ?: '1'));
+      $terminal = trim((string) getenv('REDSYS_TERMINAL'));
+      if ($terminal === '') {
+         throw new RuntimeException('REDSYS_TERMINAL_NOT_CONFIGURED');
+      }
       $moneda="978";
       $trans="0";
       $id=time();
@@ -166,6 +169,14 @@ try {
       $miObj->setParameter("DS_MERCHANT_URLOK",$urlOK);
       $miObj->setParameter("DS_MERCHANT_URLKO",$urlKO);
 
+      $gatewayUrl = trim((string) getenv('REDSYS_GATEWAY_URL'));
+      if ($gatewayUrl === '') {
+         throw new RuntimeException('REDSYS_GATEWAY_URL_NOT_CONFIGURED');
+      }
+      if (!str_starts_with($gatewayUrl, 'https://')) {
+         throw new RuntimeException('REDSYS_GATEWAY_URL_MUST_USE_HTTPS');
+      }
+
       //Datos de configuración
       $version="HMAC_SHA256_V1";
       $kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
@@ -199,7 +210,7 @@ try {
                }
             ?>
          </div>
-         <form id='frm' name='frm' action='https://sis.redsys.es/sis/realizarPago' method='post'>
+         <form id='frm' name='frm' action="<?php echo htmlspecialchars($gatewayUrl, ENT_QUOTES, 'UTF-8'); ?>" method='post'>
    		<!-- <form id='frm' name='frm' action='https://sis-t.redsys.es:25443/sis/realizarPago' method='post'> -->
    		   <input type="hidden" name="producto" value="<?php echo htmlspecialchars($producto, ENT_QUOTES, 'UTF-8'); ?>"/>
             <input type="hidden" name="rebut" value="<?php echo $id; ?>"/>
