@@ -30,6 +30,25 @@ final class RedsysSignatureValidatorTest
         Assert::same(false, array_key_exists('idpag', $payload));
     }
 
+    public function testValidSha512V2NotificationIsVerifiedAndNormalized(): void
+    {
+        $validator = new RedsysSignatureValidator(
+            'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3',
+            '999008881'
+        );
+
+        $payload = $validator->decodeAndVerify([
+            'Ds_SignatureVersion' => 'HMAC_SHA512_V2',
+            'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19UcmFuc2FjdGlvblR5cGUiOiIwIiwiRHNfTWVyY2hhbnRDb2RlIjoiOTk5MDA4ODgxIiwiRHNfQ3VycmVuY3kiOiI5NzgiLCJEc19UZXJtaW5hbCI6IjEiLCJEc19EYXRlIjoiMDYvMDYvMjAyNiIsIkRzX0hvdXIiOiIxMDozMCJ9',
+            'Ds_Signature' => '9ZjKtSes8jN3xgG3uft2On93DzHrAFItWO6cvQvymSI6luDsCHqQKbHPXOxQ5_w97F5NejwiEYMxEFEdn4BMhg',
+        ]);
+
+        Assert::same('HMAC_SHA512_V2', $payload['signature_version']);
+        Assert::same('999008881', $payload['merchant_code']);
+        Assert::same('0', $payload['transaction_type']);
+        Assert::same('120.00', $payload['amount']);
+    }
+
     public function testExpectedMerchantCodeAcceptsMatchingSignedPayload(): void
     {
         $validator = new RedsysSignatureValidator(
