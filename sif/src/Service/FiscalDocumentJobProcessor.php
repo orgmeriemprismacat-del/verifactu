@@ -8,6 +8,7 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\DocumentJobRepository;
 use Prisma\Sif\Repository\DocumentRepository;
+use Prisma\Sif\Repository\InvoiceDocumentSnapshotRepository;
 
 final class FiscalDocumentJobProcessor
 {
@@ -42,7 +43,11 @@ final class FiscalDocumentJobProcessor
         $jobId = (int) $job['ID'];
 
         try {
-            $rendered = $this->renderer->render($this->db, $job);
+            $snapshot = $this->snapshots->loadFrozen(
+                $this->db,
+                (string) $job['UUID_FACTURA']
+            );
+            $rendered = $this->renderer->render($snapshot, $job);
             $contents = $rendered['contents'] ?? null;
             $extension = strtolower(trim((string) ($rendered['extension'] ?? '')));
 
