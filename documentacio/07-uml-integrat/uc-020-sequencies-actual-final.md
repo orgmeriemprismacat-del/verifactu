@@ -107,11 +107,15 @@ Abans de crear la intenció:
 - si existeix `discount`, exigeix `origin` i `mode`;
 - `discount.base - discount.amount == payment.amount`.
 
-## 5. Pendent
+## 5. Estat de tancament
 
-- alta/preview web i resolució intranet sobre una oferta servidor immutable;
-- integració canònica de `payment_link` amb el canal AP;
-- decisions de negoci pendents de la policy;
-- test E2E complet des d'historial fins a callback/factura i preproducció.
+- l'alta AP llegada encara no crea una oferta SIF nativa, però **revalida al servidor** historial i tarifa abans de persistir;
+- la resolució d'intranet actual ja és POST + sessió + permís + CSRF + `requestId`;
+- les decisions UC20-DEC-001…006 queden tancades a `ALUMNE_PRISMA_WEB_LEGACY_V2`;
+- `payment_link`, transferència i l'E2E navegador → callback → factura es mantenen com a gates de migració/rollout.
 
-El **checkout de targeta actiu** ja crea operació/validació/intenció i vincula `UUID_OPERATION ↔ UUID_INTENT` via `course-intent`; la confiança en imports del navegador queda encara com a problema de l'alta/preview llegat, no del pas final cap a Redsys.
+El **checkout de targeta actiu** crea operació/validació/intenció i vincula `UUID_OPERATION ↔ UUID_INTENT` via `course-intent`. El navegador pot continuar mostrant un preview llegat, però ja no pot fixar l'import AP persistit ni el que s'envia finalment a Redsys.
+
+### 5.1. Tall temporal de l'elegibilitat
+
+Abans de crear la intenció, `PrismaStudentCourseCheckoutService` exclou la matrícula actual de l'historial i només admet antecedents amb `DATA_INSC <= DATA_INSC` de la matrícula tarifada. Això elimina autoacreditació i elegibilitat retroactiva.
