@@ -130,11 +130,13 @@ L --> M[retornar hash]
 ### FINAL
 ```mermaid
 flowchart TD
-A[Snapshot validat] --> B[Crear commercial_operation]
-B --> C[Generar components amb ordinal estable]
-C --> D[Crear/relacionar ID_INSC]
-D --> E[Persistir imports base/descompte/total]
-E --> F[Crear intenció Redsys]
+A[Request autoritzat i idempotent] --> B[Rellegir oferta/preus servidor]
+B --> C[Generar N components amb ordre v1 estable]
+C --> D[BEGIN + inserir N ID_INSC amb snapshot]
+D --> E{sum línies = preu PACK?}
+E -- no --> F[ROLLBACK]
+E -- sí --> G[COMMIT + IDPAG]
+G --> H[Checkout crea intenció Redsys SIF]
 ```
 
 
