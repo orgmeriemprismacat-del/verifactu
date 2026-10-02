@@ -2,7 +2,7 @@
 
 **Objectiu:** facturar i cobrar una **operació de pack** amb múltiples inscripcions, cadascuna amb curs, edició, import i descompte que li correspon. Un pagament del pack no és N cobraments bancaris independents, i la factura global no significa que es pugui perdre el detall de quantitat atribuïda a cada inscripció.
 
-**Estat (revalidat 2026-10-02):** flux fiscal/econòmic principal PACK implementat al SIF. L'alta pública és POST-only, no envia PII a la query string, aplica frontera same-site/origin i disposa d'idempotència server-side amb `REQUEST_ID` persistent, fingerprint SHA-256 i replay `RID/RH1`; per una alta nova el servidor exigeix també que totes les edicions del pack continuïn dins la finestra d'inscripció abans de recalcular el preu. Continuen pendents l'E2E de preproducció, decidir si l'ordre comercial ha de ser independent de `DATAI`, la retirada física del callback fiscal legacy i el lliurament efectiu de notificacions (UC-58). L'ordre operatiu actual és determinista: `ORDER BY c.DATAI, p.ID_CURS`.
+**Estat (revalidat 2026-10-02):** flux fiscal/econòmic principal PACK implementat al SIF. L'alta pública és POST-only, no envia PII a la query string, aplica frontera same-site/origin i disposa d'idempotència server-side amb `REQUEST_ID` persistent, fingerprint SHA-256 i replay `RID/RH1`; per una alta nova el servidor exigeix també que totes les edicions del pack continuïn dins la finestra d'inscripció abans de recalcular el preu. Continuen pendents l'E2E real de preproducció, decidir si l'ordre comercial ha de ser independent de `DATAI`, la retirada física del codi callback legacy i el lliurament efectiu de notificacions (UC-58). Les dues còpies productives del callback legacy ja són 410 per defecte. L'ordre operatiu actual és determinista: `ORDER BY c.DATAI, p.ID_CURS`.
 
 **Codi consultat:** `RedsysPackInvoiceService`, `LegacyPackInvoicePayloadBuilder`, `RedsysInvoicePayloadBuilder`, `InvoiceService` i la infraestructura UC-63/03. El builder actual **requereix almenys dues línies** i associa `PACK` i cada `INSCRIPCIO` a la factura. Les comprovacions de la composició comercial del pack i l'accés/inscripció final dels cursos continuen pendents d'acreditar al canal.
 
@@ -289,4 +289,5 @@ Punts nous incorporats:
 - `AcademicEnrollmentSyncService` no forma part del flux executable UC-015;
 - el text intern del descompte fiscal ja no pressuposa una línia/ordinal concreta;
 - el verificador canònic `verify-redsys-pack-preproduction.php` ja està implementat; resta executar-lo amb un `DS_ORDER` real;
+- les dues còpies productives del callback legacy estan fail-closed amb 410 abans de mutar; el harness `Prova` requereix test/preproduction + flag explícit;
 - el nucli PACK conserva evidència CI històrica i el HEAD final d'aquesta auditoria ha de tornar a passar la CI després dels enduriments web/idempotència/preproducció.
