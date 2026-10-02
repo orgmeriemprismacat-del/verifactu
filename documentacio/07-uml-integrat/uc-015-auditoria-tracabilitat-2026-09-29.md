@@ -1,5 +1,7 @@
 # UC-015 · Auditoria detallada i traçabilitat — 2026-09-29
 
+> **Revalidació posterior:** l'estat vigent del cas després de revisar `main@47f8f83...` el 2026-10-02 és [uc-015-auditoria-tracabilitat-2026-10-02.md](uc-015-auditoria-tracabilitat-2026-10-02.md). Aquest document es conserva com a evidència històrica de l'auditoria 29–30/09.
+
 ## 1. Resultat
 
 **Estat global:** FLUX FISCAL/ECONÒMIC PRINCIPAL IMPLEMENTAT I VERIFICAT EN CI / DOCUMENTACIÓ COMPLETADA / E2E D'ENTORN PENDENT.

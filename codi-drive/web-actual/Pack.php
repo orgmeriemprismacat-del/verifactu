@@ -214,9 +214,8 @@ class Pack {
 
                if ( $idTemes == '' ) throw new Exception('',2708);
 
-               // si existeixen edicions. busco la primera edicio i comprovo si l'edicio està oberta. si no, envio msg de pack no disponible
-
-               $horesPrimeraEdicio = $this->edicions[0]->obtenirHores()->obtenirNumero();
+               // El pack només és inscriptible si TOTES les edicions incloses continuen obertes.
+               $diesInscripcioPerHores = [];
 
                $cnsParam="SELECT VALOR FROM params WHERE TIPUS LIKE ? AND
                      DATAI<=CURRENT_TIME AND (DATAF IS NULL OR CURRENT_TIME<=DATAF) ORDER BY ?";
@@ -233,13 +232,20 @@ class Pack {
                   $orderBy='VALOR';
                   $stmt->execute();
                   $stmt->bind_result($valor);
-                  $diesOberts=0;
                   while ($stmt->fetch()) {
-                     $valors = explode('|',$valor);
-                     if (count($valors) != 2)
+                     $valors = explode('|', $valor);
+                     if (count($valors) !== 2 || !is_numeric($valors[0]) || !is_numeric($valors[1])) {
                         throw new Exception('',2615);
-                     else if (intval($valors[0])>=0 && $valors[0]== $horesPrimeraEdicio) //si el valor és un numero i les hores son iguals al curs
-                        $diesOberts = $valors[1];
+                     }
+
+                     $horesConfigurades = (int) $valors[0];
+                     $diesConfigurats = (int) $valors[1];
+                     if (!isset($diesInscripcioPerHores[$horesConfigurades])) {
+                        $diesInscripcioPerHores[$horesConfigurades] = [];
+                     }
+                     if (!in_array($diesConfigurats, $diesInscripcioPerHores[$horesConfigurades], true)) {
+                        $diesInscripcioPerHores[$horesConfigurades][] = $diesConfigurats;
+                     }
                   }
 
                   $connexio->closeStmt();
@@ -248,11 +254,23 @@ class Pack {
                   throw new Exception('',2611);
                }
 
-               if ( $diesOberts == 0 )
-                  throw new Exception('',2616);
+               foreach ($this->edicions as $edicioPack) {
+                  $horesEdicio = (int) $edicioPack->obtenirHores()->obtenirNumero();
+                  if (!isset($diesInscripcioPerHores[$horesEdicio])) {
+                     throw new Exception('',2616);
+                  }
 
-               if ( $this->edicions[0]->inscripcioOberta($diesOberts) < 0 ) {
-                  throw new Exception('',2624);
+                  $edicioOberta = false;
+                  foreach ($diesInscripcioPerHores[$horesEdicio] as $diesOberts) {
+                     if ($edicioPack->inscripcioOberta($diesOberts) > 0) {
+                        $edicioOberta = true;
+                        break;
+                     }
+                  }
+
+                  if (!$edicioOberta) {
+                     throw new Exception('',2624);
+                  }
                }
 
                /* Es busca els nivells i els cursos relacionats de la info del pack */

@@ -69,7 +69,13 @@
    <header></header>
    <?php
 
-   $email = $_GET['email'];
+   $emailRaw = trim((string) ($_GET['email'] ?? ''));
+   $email = filter_var($emailRaw, FILTER_VALIDATE_EMAIL)
+      ? htmlspecialchars($emailRaw, ENT_QUOTES, 'UTF-8')
+      : '';
+   $emailHint = $email !== ''
+      ? " de l'adreça <span class='font-weight-bold email'>".$email."</span>"
+      : '';
 
    $mostrar = "<div id='contingut' class='prisma-container container separacio-peu' role='main'>
       <div class='container' id='notfound'>
@@ -77,8 +83,7 @@
             <div class='page-error-content text-center'>
                <h1>El pagament s'ha registrat correctament</h1>
                <p class='mb-4'>El pagament s'ha registrat correctament.
-               Consulta la safata d'entrada o el correu brossa (<em>spam</em>)
-               de l'adreça <span class='font-weight-bold email'>".$email."</span>
+               Consulta la safata d'entrada o el correu brossa (<em>spam</em>)".$emailHint
                per comprovar que has rebut el missatge de confirmació del pagament.</p>
             </div>
          </div>

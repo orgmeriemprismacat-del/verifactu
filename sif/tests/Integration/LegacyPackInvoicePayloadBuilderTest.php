@@ -49,6 +49,10 @@ final class LegacyPackInvoicePayloadBuilderTest
         Assert::same('25.00', $payload['lines'][1]['discount_pct']);
         Assert::same('30.00', $payload['lines'][1]['discount_amount']);
         Assert::same('Descompte pack 25%', $payload['lines'][1]['discount_text']);
+        Assert::same(
+            'Descompte pack aplicat al component segons el snapshot comercial',
+            $payload['lines'][1]['discount_internal_reason']
+        );
         Assert::same('120.00', $payload['lines'][1]['import_base']);
         Assert::same('90.00', $payload['lines'][1]['taxable_base']);
         Assert::same('90.00', $payload['lines'][1]['total']);

@@ -72,12 +72,29 @@ fi
   echo "  RedsysPackInvoiceServiceTest::testIntentSnapshotCreatesOneDurableNotificationAcrossRetry"
   echo "  RedsysPackInvoiceServiceTest::testRejectsLegacyPackWithoutCompleteCommercialSnapshot"
   echo "  LegacyPackInvoicePayloadBuilderTest::testRejectsPackLineWithoutExplicitCommercialAmounts"
-  echo "  LegacyPackCallbackBoundaryTest::testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode"
+  echo "  LegacyPackCallbackBoundaryTest::testProductionLegacyPackCallbacksArePhysicallyRemoved"
   echo "  PackCommercialOrderBoundaryTest::testPackPresentationAndEnrollmentUseSameDeterministicOrder"
   echo "  PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop"
+  echo "  PackPublicEnrollmentBoundaryTest"
+  echo "  PackEnrollmentAtomicityBoundaryTest"
+  echo "  PackEnrollmentIdempotencyBoundaryTest"
+  echo "  PackComponentAvailabilityBoundaryTest"
+  echo "  RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData"
+  echo "  RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing"
+  echo "  PackCheckoutBoundaryTest::testPackCheckoutUsesServerAuthoritativeHolderAndEscapesPostedHtml"
+  echo "  RedsysPackWorkerEndToEndTest::testPackWorkerReplayKeepsFiscalEconomicAndOutboxEffectsIdempotent"
+  echo "  PackEnrollmentTransportBoundaryTest::testPackEnrollmentMutationUsesPostAndDoesNotReadGetParameters"
+  echo "  PackPaymentPrivacyBoundaryTest::testPackRedsysPayloadUsesNameNotDniAndOmitsEmailFromReturnUrls"
+  echo "  PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesTreatEmailAsOptionalEscapedHint"
+  echo "  PublicWebMutationAuthorizationTest::testAllowsConfiguredSameOriginAjaxRequest"
+  echo "  PublicWebMutationAuthorizationTest::testRejectsCrossOriginRequest"
+  echo "  PublicWebMutationAuthorizationTest::testRejectsNonAjaxRequest"
+  echo "  PublicWebMutationAuthorizationTest::testAllowsConfiguredRefererFallback"
   echo
   echo "== Checkout PHP lint =="
   "${PHP_BIN}" -l codi-drive/web-actual/inc/PackPaymentGate.php
+  "${PHP_BIN}" -l codi-drive/web-actual/inc/PublicWebMutationAuthorization.php
+  "${PHP_BIN}" -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
   "${PHP_BIN}" -l codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php
   "${PHP_BIN}" -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
   "${PHP_BIN}" -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php

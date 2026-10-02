@@ -1,6 +1,6 @@
 # UC-015 · Seqüències ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-09-30
+**Data d'auditoria:** 2026-09-29 · **Revalidació final:** 2026-10-02
 
 ## 1. ACTUAL — alta del pack al web
 
@@ -11,6 +11,7 @@ actor U as Alumne
 participant JS as mostrarInscripcioPack.min.js
 participant Price as obtenirPreusPack.php
 participant Alta as enviarInscripcioPack.php
+participant Auth as PublicWebMutationAuthorization
 participant DB as BD legacy
 participant Mail as Correu
 
@@ -20,53 +21,60 @@ Price->>DB: consulta info_pack/packs/preu
 Price-->>JS: preu original | preu pack
 JS-->>U: mostra preu
 U->>JS: confirma formulari
-JS->>Alta: GET dades del formulari + idPack
-Alta->>DB: rellegir preu pack i preus components
-Alta->>DB: GET_LOCK allocator IDPAG
-Alta->>Alta: reservar MAX(IDPAG)+1 sota lock
-loop cada component
- Alta->>DB: INSERT TIPUS_INSC=P + PACK_ORDINAL/base/descompte/total
+JS->>JS: generar/reutilitzar REQUEST_ID UUID v4 a sessionStorage
+JS->>Alta: POST dades + idPack + REQUEST_ID + X-Requested-With
+Alta->>Auth: assertSameOriginAjax()
+Auth->>Auth: WEB_ALLOWED_ORIGINS + Origin/Referer + XMLHttpRequest
+alt origen/AJAX no autoritzat
+ Auth-->>Alta: 403
+ Alta-->>JS: Error petició no autoritzada
+else frontera autoritzada
+ Alta->>Alta: validar Sec-Fetch-Site
+ Alta->>DB: GET_LOCK prisma_pack_req_<hash>
+Alta->>DB: buscar RID + RH1 a inscripcions
+alt mateix REQUEST_ID + mateix payload hash
+ Alta-->>JS: hash de confirmació d'una inscripció existent
+ Alta->>DB: RELEASE_LOCK request
+else mateix REQUEST_ID + payload diferent/inconsistent
+ Alta-->>JS: HTTP 409 sense mutació
+else request nou
+ Alta->>Alta: validar/normalitzar formulari
+ Alta->>DB: carregar N components + regles dies-inscriu-cursos
+ Alta->>Alta: exigir totes les edicions obertes
+ Alta->>DB: rellegir preu pack i preus components
+ Alta->>DB: GET_LOCK allocator IDPAG
+ Alta->>Alta: reservar MAX(IDPAG)+1 sota lock
+ Alta->>DB: BEGIN transaction
+ loop cada component
+  Alta->>DB: INSERT TIPUS_INSC=P + snapshot + RID/RH1
+ end
+ Alta->>DB: validar suma línies = preu PACK
+ Alta->>DB: COMMIT transaction
+ Alta->>Alta: marca enrollment committed
+ Alta->>DB: RELEASE_LOCK allocator IDPAG
+ Alta->>DB: RELEASE_LOCK request
+ Alta-->>JS: hash inscripció
+ Alta->>Mail: correus/auxiliars postcommit
+ Note over Alta,Mail: una fallada auxiliar es loga i no converteix l'alta commitada en error
 end
-Alta->>DB: RELEASE_LOCK allocator IDPAG
-Alta->>Mail: correus alta
-Alta-->>JS: hash inscripció
+end
+JS->>JS: netejar REQUEST_ID només en èxit determinista
 JS-->>U: redirecció confirmació
 ```
 
 ### Riscos ACTUAL residuals
 
-- l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
-- `PACK_ORDINAL` queda determinat pel mateix ordre estable de presentació `DATAI, ID_CURS`; resta decidir si negoci requereix una posició explícita separada;
-- el callback fiscal legacy conserva codi històric però està desactivat per defecte.
+- les N inscripcions ja es persisteixen atòmicament; en excepció es fa rollback i el lock `IDPAG` s'allibera per `finally`;
+- l'alta pública és POST-only i la frontera es resol abans del payload amb `PublicWebMutationAuthorization`: `WEB_ALLOWED_ORIGINS`, Origin/Referer i `X-Requested-With`, més `Sec-Fetch-Site` a l'endpoint; després s'aplica idempotència server-side `REQUEST_ID`+payload hash. Una alta nova exigeix totes les edicions obertes i un reintent equivalent reutilitza l'alta abans de rellegir disponibilitat/pack actual; rate limiting/anti-bot és hardening operatiu separat;
+- l'allocator `IDPAG` continua sent legacy `MAX+1`, però queda serialitzat amb named lock i no és un bloqueig de tancament UC-015;
+- `PACK_ORDINAL` queda determinat pel contracte comercial v1 `DATAI, ID_CURS`; qualsevol reordenació manual futura requerirà un canvi de model explícit i no reinterpretarà snapshots històrics;
+- els callbacks fiscals legacy productius han estat eliminats físicament; només queda un harness de prova fail-closed i no autoritatiu.
 
-## 2. ACTUAL — cobrament pack al callback llegat
+## 2. HISTÒRIC — callback PACK legacy retirat
 
-```mermaid
-sequenceDiagram
-autonumber
-actor R as Redsys
-participant CB as realitzaPagamentPackAutomatic.php
-participant DB as BD legacy
-participant Mail as Correus
+Les dues còpies productives de `realitzaPagamentPackAutomatic.php` han estat **eliminades físicament** el 02/10. No existeix ja una seqüència ACTUAL de cobrament PACK al callback legacy.
 
-R->>CB: POST Ds_* + URL amb GET idPag/import/order
-CB->>CB: comprovar SIF_PACK_LEGACY_CALLBACK_ENABLED
-alt desactivat per defecte
- CB-->>R: HTTP 410
-else rollback explicit
- CB->>CB: valida signatura + DS_ORDER + import
- CB->>DB: cerca inscripcions IDPAG
-CB->>DB: calcula factura_relacionada / ordre fiscal
-CB->>DB: INSERT factures
-loop per A_PAGAR DESC
- CB->>DB: UPDATE PAGAMENT / FACTURA_RELACIONADA
-end
-CB->>DB: UPDATE FRACCIO si correspon
-CB->>Mail: confirmacions
-end
-```
-
-**Revalidació 30/09:** el callback legacy queda desactivat per defecte amb HTTP 410 abans de qualsevol escriptura. El codi intern només queda disponible per rollback explícit.
+El flux històric del 29–30/09 es conserva únicament a l'historial Git/documentació d'auditoria. `LegacyPackCallbackBoundaryTest` comprova ara que aquests endpoints productius no existeixin. El fitxer `realitzaPagamentPackAutomaticProva.php` és un harness de test/preproducció explícit i no forma part del flux productiu.
 
 ## 3. FINAL — intenció, callback i emissió SIF
 
@@ -81,12 +89,13 @@ participant R as Redsys
 participant CB as RedsysCallbackService
 participant Q as CallbackQueue
 participant W as RedsysCallbackWorker
+participant SyncProc as RedsysLegacySyncingProcessor
 participant D as RedsysCallbackDispatcher
 participant P as RedsysPackInvoiceService
 participant I as InvoiceService
-participant L as EnrollmentFundMovementRepository
-participant Sync as AcademicEnrollmentSyncService
+participant L as PackEnrollmentFundAllocationService
 participant Outbox as PackPaymentNotificationService
+participant Legacy as LegacySyncService
 
 U->>Gate: confirmar pagament pack
 Gate->>Gate: rellegir BD i validar composició/preu/receptor/ordinal
@@ -98,20 +107,25 @@ R->>CB: callback signat
 CB->>CB: validar signatura + intent + import + moneda + terminal
 CB->>Q: enqueue
 W->>Q: claim
-W->>D: process(job)
+W->>SyncProc: process(job)
+SyncProc->>D: process(job)
 D->>P: issueFromIntentSnapshot()
-P->>P: construir N línies
-P->>P: validar total factura = import Redsys
+P->>P: construir N línies i validar total = import Redsys
 P->>I: issueInvoice()
 I-->>P: UUID_FACTURA + UUID_PAYMENT
-loop cada component
- P->>L: atribució UUID_PAYMENT → ID_INSC
-end
-P->>Sync: sincronitzar postcommit
-P->>Outbox: notificacions postcommit
-P-->>W: resultat
+P->>L: allocate(UUID_PAYMENT, N ID_INSC)
+L-->>P: N atribucions idempotents
+P->>Outbox: enqueue(PACK_PAYMENT_CONFIRMED)
+Outbox-->>P: event idempotent
+P-->>D: resultat + legacy_sync=PACK_FULL_PAYMENT
+D-->>SyncProc: resultat
+SyncProc->>Legacy: syncAfterSifSuccess()
+SyncProc->>Legacy: syncPackFullPayment()
+SyncProc-->>W: resultat + legacy_sync_executed
 W->>Q: PROCESSED
 ```
+
+**Revalidació 02/10:** el wrapper real del worker és `RedsysLegacySyncingProcessor`; no existeix cap `AcademicEnrollmentSyncService` en aquest flux. La sincronització legacy s'executa només després que el handler PACK hagi retornat una emissió SIF correcta.
 
 ## 4. FINAL — callback duplicat
 
@@ -153,10 +167,10 @@ end
 ## 6. Estat
 
 - Seqüència ACTUAL web: documentada.
-- Seqüència ACTUAL callback: documentada.
+- Seqüència callback legacy: **retirada del sistema productiu**; l'històric queda preservat a Git/auditoria.
 - Seqüència FINAL: **majoritàriament implementada** al flux PACK asíncron.
 - Control total factura/import Redsys: implementat.
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
 - Outbox: implementat i cablejat al worker.
-- Pendent: eliminar el codi legacy després del rollback, decidir si cal una posició comercial explícita independent de l'ordre cronològic estable i executar proves d'entorn.
+- Codi/doc intern UC-015: tancat, inclosa la frontera pública configurable. Pendent d'acceptació: executar el verificador/PK-01..PK-11 en preproducció i mantenir la CI final verda; UC-58 cobreix el lliurament efectiu de notificacions.

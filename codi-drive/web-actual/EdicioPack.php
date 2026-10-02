@@ -139,17 +139,14 @@ class EdicioPack {
    * @return Les hores del curs
    */
    public function inscripcioOberta($diesOberts) {
-      $date1 = new DateTime($this->datai->obtenirText());
-      $date1->add(new DateInterval('P'.$diesOberts.'D'));
-      $date2 = new DateTime("now");
-		$diff = $date1->diff($date2);
+      $diesOberts = (int) $diesOberts;
+      $dataLimit = new DateTime($this->datai->obtenirText());
+      $dataLimit->setTime(0, 0, 0);
+      $dataLimit->modify(($diesOberts >= 0 ? '+' : '').$diesOberts.' days');
 
-      if ( $diff->days > 0 ) {
-         return 1;
-      }
-      else {
-         return 0;
-      }
+      $avui = new DateTime('today');
+
+      return $dataLimit > $avui ? 1 : 0;
    }
 
    /*

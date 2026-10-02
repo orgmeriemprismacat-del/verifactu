@@ -4,8 +4,20 @@ on:
   pull_request:
     paths:
       - "sif/**"
+      - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
+      - "codi-drive/web-actual/EdicioPack.php"
+      - "codi-drive/web-actual/Pack.php"
+      - "codi-drive/web-actual/inc/buscantPacksDisponibles.php"
+      - "codi-drive/web-actual/inc/PublicWebMutationAuthorization.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php"
+      - "codi-drive/web-actual/pagina_inscripcio_pack.php"
+      - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
+      - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
       - "codi-drive/web-actual/inc/PackPaymentGate.php"
       - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/respostaOkPagamentAutomatic.php"
+      - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
@@ -24,8 +36,20 @@ on:
       - main
     paths:
       - "sif/**"
+      - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
+      - "codi-drive/web-actual/EdicioPack.php"
+      - "codi-drive/web-actual/Pack.php"
+      - "codi-drive/web-actual/inc/buscantPacksDisponibles.php"
+      - "codi-drive/web-actual/inc/PublicWebMutationAuthorization.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php"
+      - "codi-drive/web-actual/pagina_inscripcio_pack.php"
+      - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
+      - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
       - "codi-drive/web-actual/inc/PackPaymentGate.php"
       - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/respostaOkPagamentAutomatic.php"
+      - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
@@ -86,8 +110,22 @@ jobs:
         run: |
           mysql -h 127.0.0.1 -P 3306 -uroot -proot             -e "CREATE DATABASE IF NOT EXISTS sif_legacy_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-      - name: Lint UC-015 pack checkout
+      - name: Lint UC-015 pack web flow
         run: |
+          php -l codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php
+          php -l codi-drive/web-actual/EdicioPack.php
+          php -l codi-drive/web-actual/Pack.php
+          php -l codi-drive/web-actual/inc/buscantPacksDisponibles.php
+          php -l codi-drive/web-actual/inc/PublicWebMutationAuthorization.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
+          php -l codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php
+          php -l codi-drive/web-actual/pagina_inscripcio_pack.php
+          php -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
+          php -l codi-drive/web-actual/respostaOkPagamentAutomatic.php
+          php -l codi-drive/web-actual/respostaKoPagamentAutomatic.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
+          php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
+          node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
           php -l codi-drive/web-actual/inc/PackPaymentGate.php
           php -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php

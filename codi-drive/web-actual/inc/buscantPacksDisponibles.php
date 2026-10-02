@@ -29,7 +29,8 @@ $packsCandidats = [];
 $nivellsPerPack = [];
 $temesPerPack = [];
 $perfilsPerPack = [];
-$packsAmbInscripcioOberta = [];
+$packsAmbEdicioSeleccionadaOberta = [];
+$packsAmbTotsComponentsOberts = [];
 
 $llistatCursosPacks = [];
 
@@ -537,64 +538,66 @@ if ((int) $nousCursos === 1) {
 
 $diesInscripcioPerHores = [];
 
-if (!$qualsevolEdicio) {
-    $cnsDiesInscripcio = "
-        SELECT VALOR
-        FROM params
-        WHERE TIPUS = ?
-          AND DATAI <= NOW()
-          AND (
-                DATAF IS NULL
-                OR DATAF >= NOW()
-          )
-        ORDER BY VALOR
-    ";
+$cnsDiesInscripcio = "
+    SELECT VALOR
+    FROM params
+    WHERE TIPUS = ?
+      AND DATAI <= NOW()
+      AND (
+            DATAF IS NULL
+            OR DATAF >= NOW()
+      )
+    ORDER BY VALOR
+";
 
-    if (!$stmtDies = $connexio->prepare($cnsDiesInscripcio)) {
-        throw new Exception('', 2611);
-    }
-
-    $tipusDies = 'dies-inscriu-cursos';
-
-    $stmtDies->bind_param(
-        's',
-        $tipusDies
-    );
-
-    $stmtDies->execute();
-    $stmtDies->bind_result($valorDies);
-
-    while ($stmtDies->fetch()) {
-        $parts = explode('|', $valorDies);
-
-        if (count($parts) !== 2) {
-            continue;
-        }
-
-        $horesConfigurades = (int) $parts[0];
-        $diesOberts = (int) $parts[1];
-
-        if (!isset(
-            $diesInscripcioPerHores[$horesConfigurades]
-        )) {
-            $diesInscripcioPerHores[
-                $horesConfigurades
-            ] = [];
-        }
-
-        if (!in_array(
-            $diesOberts,
-            $diesInscripcioPerHores[$horesConfigurades],
-            true
-        )) {
-            $diesInscripcioPerHores[
-                $horesConfigurades
-            ][] = $diesOberts;
-        }
-    }
-
-    $connexio->closeStmt();
+if (!$stmtDies = $connexio->prepare($cnsDiesInscripcio)) {
+    throw new Exception('', 2611);
 }
+
+$tipusDies = 'dies-inscriu-cursos';
+
+$stmtDies->bind_param(
+    's',
+    $tipusDies
+);
+
+$stmtDies->execute();
+$stmtDies->bind_result($valorDies);
+
+while ($stmtDies->fetch()) {
+    $parts = explode('|', $valorDies);
+
+    if (
+        count($parts) !== 2 ||
+        !is_numeric($parts[0]) ||
+        !is_numeric($parts[1])
+    ) {
+        continue;
+    }
+
+    $horesConfigurades = (int) $parts[0];
+    $diesOberts = (int) $parts[1];
+
+    if (!isset(
+        $diesInscripcioPerHores[$horesConfigurades]
+    )) {
+        $diesInscripcioPerHores[
+            $horesConfigurades
+        ] = [];
+    }
+
+    if (!in_array(
+        $diesOberts,
+        $diesInscripcioPerHores[$horesConfigurades],
+        true
+    )) {
+        $diesInscripcioPerHores[
+            $horesConfigurades
+        ][] = $diesOberts;
+    }
+}
+
+$connexio->closeStmt();
 
 
 /* =========================================================
@@ -705,7 +708,7 @@ if (
             );
 
             if ($dataLimit > $avui) {
-                $packsAmbInscripcioOberta[
+                $packsAmbEdicioSeleccionadaOberta[
                     $idPackInscripcio
                 ] = true;
 
@@ -719,6 +722,102 @@ if (
 
 
 /* =========================================================
+ * 12B. DISPONIBILITAT GLOBAL DEL PACK
+ *
+ * El filtre d'edició anterior només respon si el pack conté
+ * l'edició seleccionada. Per poder oferir la compra, TOTS els
+ * components públics del pack han de continuar inscriptibles.
+ * ========================================================= */
+
+if (!empty($packsCandidats)) {
+    $componentsPerPack = [];
+    $componentsObertsPerPack = [];
+
+    $cnsComponentsPack = "
+        SELECT DISTINCT
+            p.ID_PACK,
+            p.ID_CURS,
+            c.HORES,
+            c.DATAI
+        FROM packs AS p
+        INNER JOIN curs AS c
+            ON c.ID_CURS = p.ID_CURS
+        INNER JOIN informacio AS i
+            ON i.CODI_CURS = c.CURS
+        WHERE p.PUBLIC = 1
+          AND c.PUBLIC = 1
+          AND c.CURS != 'PROVA'
+          AND c.CURS NOT LIKE '%0%'
+          AND c.CURS NOT LIKE '%JOR%'
+          AND c.ESTAT != '0'
+          AND i.ESTAT = 1
+    ";
+
+    if (!$stmtComponents = $connexio->prepare($cnsComponentsPack)) {
+        throw new Exception('', 2702);
+    }
+
+    $stmtComponents->execute();
+    $stmtComponents->bind_result(
+        $idPackComponent,
+        $idCursComponent,
+        $horesComponent,
+        $dataIniciComponent
+    );
+
+    $avuiDisponibilitat = new DateTime('today');
+
+    while ($stmtComponents->fetch()) {
+        $idPackComponent = (string) $idPackComponent;
+        if (!isset($packsCandidats[$idPackComponent])) {
+            continue;
+        }
+
+        if (!isset($componentsPerPack[$idPackComponent])) {
+            $componentsPerPack[$idPackComponent] = 0;
+            $componentsObertsPerPack[$idPackComponent] = 0;
+        }
+        $componentsPerPack[$idPackComponent]++;
+
+        $horesComponent = (int) $horesComponent;
+        if (!isset($diesInscripcioPerHores[$horesComponent])) {
+            continue;
+        }
+
+        $componentObert = false;
+        foreach ($diesInscripcioPerHores[$horesComponent] as $diesOberts) {
+            $dataLimit = new DateTime($dataIniciComponent);
+            $dataLimit->modify(
+                ($diesOberts >= 0 ? '+' : '').
+                $diesOberts.
+                ' days'
+            );
+
+            if ($dataLimit > $avuiDisponibilitat) {
+                $componentObert = true;
+                break;
+            }
+        }
+
+        if ($componentObert) {
+            $componentsObertsPerPack[$idPackComponent]++;
+        }
+    }
+
+    $connexio->closeStmt();
+
+    foreach ($componentsPerPack as $idPackComponent => $totalComponents) {
+        if (
+            $totalComponents >= 2 &&
+            ($componentsObertsPerPack[$idPackComponent] ?? 0) === $totalComponents
+        ) {
+            $packsAmbTotsComponentsOberts[$idPackComponent] = true;
+        }
+    }
+}
+
+
+/* =========================================================
  * 13. APLICACIÓ DELS FILTRES
  * ========================================================= */
 
@@ -728,7 +827,10 @@ foreach ($packsCandidats as $idPack => $dadesPack) {
      */
     $compleixEdicio =
         $qualsevolEdicio ||
-        isset($packsAmbInscripcioOberta[$idPack]);
+        isset($packsAmbEdicioSeleccionadaOberta[$idPack]);
+
+    $compleixDisponibilitat =
+        isset($packsAmbTotsComponentsOberts[$idPack]);
 
     /*
      * Nivells
@@ -808,6 +910,7 @@ foreach ($packsCandidats as $idPack => $dadesPack) {
      */
     if (
         $compleixEdicio &&
+        $compleixDisponibilitat &&
         $compleixNivell &&
         $compleixTema &&
         $compleixPerfil &&

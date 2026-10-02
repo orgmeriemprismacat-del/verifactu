@@ -13,57 +13,266 @@ include("../Template.php");
 include("../MailSMTPComvive.php");
 include("../MailSMTP.php");
 
+function uc015PackRequestPayload(array $request) {
+	$fields = [
+		'nom', 'cog', 'dni', 'telf', 'email', 'adreca', 'codiPostal', 'poblacio',
+		'perfil', 'perfilAltres', 'titulacio', 'titulacioAltres', 'titulacioSecundaria',
+		'titulacioEstudiant', 'tbTitulacio', 'conegut', 'comentaris', 'mailing', 'idPack'
+	];
+
+	$payload = [];
+	foreach ($fields as $field) {
+		$value = trim((string) ($request[$field] ?? ''));
+		$payload[$field] = str_replace(["\r\n", "\r"], "\n", $value);
+	}
+	ksort($payload);
+
+	return $payload;
+}
+
+function uc015PackRequestHash(array $request) {
+	$json = json_encode(
+		uc015PackRequestPayload($request),
+		JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+	);
+	if (!is_string($json)) {
+		throw new Exception('No es pot calcular el hash idempotent del pack');
+	}
+
+	return hash('sha256', $json);
+}
+
+function uc015PackConfirmationHash($idInscripcio, $keyEncr) {
+	$idInscripcio = (int) $idInscripcio;
+	if ($idInscripcio <= 0) {
+		throw new Exception('ID d\'inscripció invàlid');
+	}
+
+	$cipher = 'AES-128-CBC';
+	$ivlen = openssl_cipher_iv_length($cipher);
+	$iv = random_bytes($ivlen);
+	$ciphertextRaw = openssl_encrypt(
+		(string) $idInscripcio,
+		$cipher,
+		$keyEncr,
+		OPENSSL_RAW_DATA,
+		$iv
+	);
+	if ($ciphertextRaw === false) {
+		throw new Exception('No es pot generar la confirmació de la inscripció');
+	}
+
+	$hmac = hash_hmac('sha256', $ciphertextRaw, $keyEncr, true);
+
+	return base64_encode($iv.$hmac.$ciphertextRaw);
+}
+
+header('Cache-Control: no-store, max-age=0');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
+
+if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
+	header('Allow: POST');
+	http_response_code(405);
+	exit('Error: mètode no permès');
+}
+
+require_once __DIR__ . '/../inc/PublicWebMutationAuthorization.php';
 try {
-	$textNom = new Text($_GET['nom']);
-	$textCog = new Text($_GET['cog']);
-	$textDocumentacio = new Text($_GET['dni']);
-	$numTelf = new Numero($_GET['telf']);
-	$textEmail = new Text($_GET['email']);
-	$textAdreca = new Text($_GET['adreca']);
-	$textCodiPostal = new Text($_GET['codiPostal']);
-	$textPoblacio = new Text($_GET['poblacio']);
-	$textPerfil = new Text($_GET['perfil']);
-	if ( $_GET['perfil'] == "Altres")
-		$textPerfilAltres = new Text($_GET['perfilAltres']);
+	PublicWebMutationAuthorization::assertSameOriginAjax();
+} catch (Throwable $exception) {
+	$code = (int) $exception->getCode();
+	http_response_code($code >= 400 && $code <= 599 ? $code : 403);
+	exit('Error: petició no autoritzada');
+}
+
+$fetchSite = strtolower(trim((string) ($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '')));
+if ($fetchSite !== '' && !in_array($fetchSite, ['same-origin', 'same-site', 'none'], true)) {
+	http_response_code(403);
+	exit('Error: origen no permès');
+}
+
+$request = $_POST;
+
+$requestId = strtolower(trim((string) ($request['requestId'] ?? '')));
+if (preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/D', $requestId) !== 1) {
+	http_response_code(422);
+	exit('Error: identificador de petició PACK invàlid');
+}
+$requestHash = null;
+
+$idPagReserved = false;
+$packTransactionStarted = false;
+$packEnrollmentCommitted = false;
+$packRequestLockReserved = false;
+$packRequestLockName = 'prisma_pack_req_' . substr(hash('sha256', $requestId), 0, 48);
+
+try {
+	$requestHash = uc015PackRequestHash($request);
+
+	$connexio = new ConnexioBBDDSTMT();
+	$connexio->connectarBD();
+
+	/* ######################################################################### */
+	//consulta per buscar la key de prisma $key
+	$cnsParam = "SELECT VALOR FROM params WHERE TIPUS=? AND DATAI<=CURRENT_TIMESTAMP
+					AND (DATAF IS NULL OR DATAF>=CURRENT_TIMESTAMP)";
+	if ( $stmt=$connexio->prepare($cnsParam) ) {
+		$stmt->bind_param("s", $tipusParam);
+		$tipusParam = 'keyEncriptar';
+		$stmt->execute();
+		$stmt->bind_result($keyEncr);
+		$stmt->fetch();
+		$connexio->closeStmt();
+	}
+	else {
+		throw new Exception('',2911);
+	}
+
+	$cipher = "AES-128-CBC";
+
+	/* ######################################################################### */
+	/* Idempotència de l'alta pública: REQUEST_ID + hash de payload. */
+	$connexio->reserveNamedLock($packRequestLockName);
+	$packRequestLockReserved = true;
+
+	$existingPattern = '%RID|' . $requestId . '%';
+	$cnsExistingRequest = "SELECT ID, IDPAG, OBSERVACIONS
+		FROM inscripcions
+		WHERE TIPUS_INSC='P' AND OBSERVACIONS LIKE ?
+		ORDER BY ID";
+	$existingId = null;
+	$existingIdPag = null;
+	$existingHash = null;
+	$existingOrdinals = [];
+
+	if ( $stmtExisting = $connexio->prepare($cnsExistingRequest) ) {
+		$stmtExisting->bind_param("s", $existingPattern);
+		if (!$stmtExisting->execute()) {
+			$stmtExisting->close();
+			throw new Exception('',2915);
+		}
+		$stmtExisting->bind_result($existingRowId, $existingRowIdPag, $existingObservations);
+
+		while ($stmtExisting->fetch()) {
+			$existingId = (int) $existingRowId;
+
+			if ($existingIdPag === null) {
+				$existingIdPag = (int) $existingRowIdPag;
+			}
+			else if ($existingIdPag !== (int) $existingRowIdPag) {
+				http_response_code(409);
+				echo 'Error: REQUEST_ID PACK associat a més d\'un IDPAG';
+				$stmtExisting->close();
+				return;
+			}
+
+			if (!preg_match('/(?:^|\\s)RH1\\|([a-f0-9]{64})(?=\\s|$)/i', (string) $existingObservations, $hashMatch)) {
+				http_response_code(409);
+				echo 'Error: REQUEST_ID PACK existent sense fingerprint vàlid';
+				$stmtExisting->close();
+				return;
+			}
+			$currentHash = strtolower($hashMatch[1]);
+			if ($existingHash === null) {
+				$existingHash = $currentHash;
+			}
+			else if (!hash_equals($existingHash, $currentHash)) {
+				http_response_code(409);
+				echo 'Error: REQUEST_ID PACK existent amb fingerprints interns diferents';
+				$stmtExisting->close();
+				return;
+			}
+
+			if (!preg_match('/(?:^|\\s)PACK_ORDINAL\\|([1-9][0-9]*)(?=\\s|$)/i', (string) $existingObservations, $ordinalMatch)) {
+				http_response_code(409);
+				echo 'Error: REQUEST_ID PACK existent sense ordinal comercial';
+				$stmtExisting->close();
+				return;
+			}
+			$existingOrdinals[] = (int) $ordinalMatch[1];
+		}
+		$stmtExisting->close();
+	}
+	else {
+		throw new Exception('',2915);
+	}
+
+	if ($existingId !== null) {
+		if ($existingHash === null || !hash_equals($existingHash, $requestHash)) {
+			http_response_code(409);
+			echo 'Error: REQUEST_ID PACK reutilitzat amb un payload diferent';
+			return;
+		}
+
+		sort($existingOrdinals);
+		$expectedOrdinals = range(1, count($existingOrdinals));
+		if (count($existingOrdinals) < 2 || $existingOrdinals !== $expectedOrdinals) {
+			http_response_code(409);
+			echo 'Error: REQUEST_ID PACK existent amb snapshot incomplet';
+			return;
+		}
+
+		echo uc015PackConfirmationHash($existingId, $keyEncr);
+		$connexio->releaseNamedLock($packRequestLockName);
+		$packRequestLockReserved = false;
+		$connexio->desconectarBD();
+		return;
+	}
+
+	/* ######################################################################### */
+	/* Només una alta nova valida i normalitza el formulari legacy. */
+	$textNom = new Text($request['nom']);
+	$textCog = new Text($request['cog']);
+	$textDocumentacio = new Text($request['dni']);
+	$numTelf = new Numero($request['telf']);
+	$textEmail = new Text($request['email']);
+	$textAdreca = new Text($request['adreca']);
+	$textCodiPostal = new Text($request['codiPostal']);
+	$textPoblacio = new Text($request['poblacio']);
+	$textPerfil = new Text($request['perfil']);
+	if ( $request['perfil'] == "Altres")
+		$textPerfilAltres = new Text($request['perfilAltres']);
 	else
 		$textPerfilAltres = null;
-	if ( $_GET['titulacio'] == "Altres") {
-		$textTitulacio = new Text($_GET['titulacio']);
-		$textTitulacioAltres = new Text($_GET['titulacioAltres']);
+	if ( $request['titulacio'] == "Altres") {
+		$textTitulacio = new Text($request['titulacio']);
+		$textTitulacioAltres = new Text($request['titulacioAltres']);
 		$textTitulacioSecundaria = null;
 		$textTitulacioEstudiant = null;
 	}
-	else if ( $_GET['titulacio'] == "Prof. Ed. Secundària") {
+	else if ( $request['titulacio'] == "Prof. Ed. Secundària") {
 		$textTitulacio = new Text('Ed. Secundària');
 		$textTitulacioAltres = null;
-		$textTitulacioSecundaria = new Text($_GET['titulacioSecundaria']);
+		$textTitulacioSecundaria = new Text($request['titulacioSecundaria']);
 		$textTitulacioEstudiant = null;
 	}
-	else if ( $_GET['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
+	else if ( $request['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
 		$textTitulacio = new Text('Estudiant');
 		$textTitulacioAltres = null;
 		$textTitulacioSecundaria = null;
-		$textTitulacioEstudiant = new Text($_GET['titulacioEstudiant']);
+		$textTitulacioEstudiant = new Text($request['titulacioEstudiant']);
 	}
 	else {
-		$textTitulacio = new Text($_GET['titulacio']);
+		$textTitulacio = new Text($request['titulacio']);
 		$textTitulacioAltres = null;
 		$textTitulacioSecundaria = null;
 		$textTitulacioEstudiant = null;
 	}
-	if ( $_GET['tbTitulacio'] != '')
-		$textTbTitulacio = new Text($_GET['tbTitulacio']);
+	if ( $request['tbTitulacio'] != '')
+		$textTbTitulacio = new Text($request['tbTitulacio']);
 	else
 		$textTbTitulacio = null;
-	$textPagFrac = new Text($_GET['pagFrac']);
-	$textConegut = new Text($_GET['conegut']);
-	if ( $_GET['comentaris'] != '')
-		$textComentaris = new Text($_GET['comentaris']);
+	// UC-015: l'ecommerce de packs no permet fraccionament; no acceptar aquesta decisió del client.
+	$textPagFrac = new Text('No');
+	$textConegut = new Text($request['conegut']);
+	if ( $request['comentaris'] != '')
+		$textComentaris = new Text($request['comentaris']);
 	else
 		$textComentaris = null;
-	$textMailing = new Text($_GET['mailing']);
+	$textMailing = new Text($request['mailing']);
 	// Els imports rebuts del navegador no són autoritatius. Es recalculen des de BD.
-	$textIdPack = new Text($_GET['idPack']);
+	$textIdPack = new Text($request['idPack']);
 
 	$textNom->arreglarParaulaBD('noms');
 	$textCog->arreglarParaulaBD('noms');
@@ -83,17 +292,18 @@ try {
 
 	$templates = new Template();
 
-	$connexio = new ConnexioBBDDSTMT();
-	$connexio->connectarBD();
-
 	/* ######################################################################### */
+	/* Només una alta nova depèn de l'estat comercial actual del pack. */
 	$cnsInfo = "SELECT TITOL, ID_PREU FROM info_pack WHERE ID_PACK=? AND ESTAT=1";
 	if ( $stmt=$connexio->prepare($cnsInfo) ) {
 		$stmt->bind_param("s", $idPack);
 		$idPack = $textIdPack->obtenirText();
 		$stmt->execute();
 		$stmt->bind_result($titol, $idPreuPack);
-		$stmt->fetch();
+		if (!$stmt->fetch()) {
+			$connexio->closeStmt();
+			throw new Exception('',2910);
+		}
 		$connexio->closeStmt();
 	}
 	else {
@@ -102,24 +312,6 @@ try {
 
 	$textTitolCurs = new Text($titol);
 	$textTitolCurs->arreglarParaulaBD('text_no_mod');
-
-	/* ######################################################################### */
-	//consulta per buscar la key de prisma $key
-	$cnsParam = "SELECT VALOR FROM params WHERE TIPUS=? AND DATAI<=CURRENT_TIMESTAMP
-					AND (DATAF IS NULL OR DATAF>=CURRENT_TIMESTAMP)";
-	if ( $stmt=$connexio->prepare($cnsParam) ) {
-		$stmt->bind_param("s", $tipusParam);
-		$tipusParam = 'keyEncriptar';
-		$stmt->execute();
-		$stmt->bind_result($keyEncr);
-		$stmt->fetch();
-		$connexio->closeStmt();
-	}
-	else {
-		throw new Exception('',2911);
-	}
-
-	$cipher = "AES-128-CBC";
 
 	/* ######################################################################### */
 
@@ -144,7 +336,6 @@ try {
 			$edicio->setInfo();
 			$datesRealitzacioCursos .= "<li style='margin-top: 8px; line-height: 24px;'>".$edicio->mostrarEdicioInscripcioPack()."</li>";
 			$edicions[$i] = $edicio;
-			$titols[$i] = $idTitol;
 			$i++;
 		}
 		$datesRealitzacioCursos .= "</ul>";
@@ -156,6 +347,59 @@ try {
 
 	if (count($edicions) < 2) {
 		throw new Exception('',2912);
+	}
+
+	/* ######################################################################### */
+	/* Disponibilitat autoritativa: totes les edicions han de continuar obertes. */
+	$diesInscripcioPerHores = [];
+	$cnsDiesInscripcio = "SELECT VALOR FROM params
+		WHERE TIPUS=? AND DATAI<=CURRENT_TIME AND (DATAF IS NULL OR CURRENT_TIME<=DATAF)
+		ORDER BY VALOR";
+	if ( $stmtDies = $connexio->prepare($cnsDiesInscripcio) ) {
+		$tipusDies = 'dies-inscriu-cursos';
+		$stmtDies->bind_param("s", $tipusDies);
+		$stmtDies->execute();
+		$stmtDies->bind_result($valorDies);
+
+		while ($stmtDies->fetch()) {
+			$partsDies = explode('|', (string) $valorDies);
+			if (count($partsDies) !== 2 || !is_numeric($partsDies[0]) || !is_numeric($partsDies[1])) {
+				$stmtDies->close();
+				throw new Exception('',2912);
+			}
+
+			$horesConfigurades = (int) $partsDies[0];
+			$diesConfigurats = (int) $partsDies[1];
+			if (!isset($diesInscripcioPerHores[$horesConfigurades])) {
+				$diesInscripcioPerHores[$horesConfigurades] = [];
+			}
+			if (!in_array($diesConfigurats, $diesInscripcioPerHores[$horesConfigurades], true)) {
+				$diesInscripcioPerHores[$horesConfigurades][] = $diesConfigurats;
+			}
+		}
+		$stmtDies->close();
+	}
+	else {
+		throw new Exception('',2912);
+	}
+
+	foreach ($edicions as $edicioDisponibilitat) {
+		$horesEdicio = (int) $edicioDisponibilitat->obtenirHores()->obtenirNumero();
+		if (!isset($diesInscripcioPerHores[$horesEdicio])) {
+			throw new Exception('',2624);
+		}
+
+		$edicioOberta = false;
+		foreach ($diesInscripcioPerHores[$horesEdicio] as $diesOberts) {
+			if ($edicioDisponibilitat->inscripcioOberta($diesOberts) > 0) {
+				$edicioOberta = true;
+				break;
+			}
+		}
+
+		if (!$edicioOberta) {
+			throw new Exception('',2624);
+		}
 	}
 
 	/* ######################################################################### */
@@ -177,6 +421,7 @@ try {
 		$connexio->closeStmt();
 
 		$preuCursos = 0.0;
+		$preusCursosServidor = [];
 		foreach ($edicions as $edicioPreu) {
 			if ( $stmtPreuServidor = $connexio->prepare($cnsPreuServidor) ) {
 				$idPreuServidor = $edicioPreu->obtenirIdPreu()->obtenirNumero();
@@ -187,7 +432,9 @@ try {
 					$connexio->closeStmt();
 					throw new Exception('',2907);
 				}
-				$preuCursos += floatval($preuCursServidor);
+				$preuCursServidor = round((float) $preuCursServidor, 2);
+				$preuCursos += $preuCursServidor;
+				$preusCursosServidor[] = $preuCursServidor;
 				$connexio->closeStmt();
 			}
 			else {
@@ -197,6 +444,12 @@ try {
 	}
 	else {
 		throw new Exception('',2916);
+	}
+
+	$preuPackCents = (int) round($preuPack * 100);
+	$preuCursosCents = (int) round($preuCursos * 100);
+	if ($preuPackCents < 0 || $preuCursosCents < 0 || $preuPackCents > $preuCursosCents) {
+		throw new Exception('',2906);
 	}
 
 	$datai = $edicions[0]->obtenirDataInici()->obtenirText();
@@ -238,6 +491,7 @@ try {
 
 	/* ######################################################################### */
 	$idPag = $connexio->reserveIdPag();
+	$idPagReserved = true;
 
 	$ivlen = openssl_cipher_iv_length($cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
@@ -298,65 +552,6 @@ try {
 		$comentaris = $textComentaris->obtenirText();
 
 	/* ######################################################################### */
-	$datai1 = $edicions[0]->obtenirDataInici()->obtenirText();
-	$dataf1 = $edicions[0]->obtenirDataFi()->obtenirText();
-
-	$datai2 = $edicions[1]->obtenirDataInici()->obtenirText();
-	$dataf2 = $edicions[1]->obtenirDataFi()->obtenirText();
-
-	$objDataI1 = new Date($datai1);
-	$objDataF1 = new Date($dataf1);
-	$objDataI2 = new Date($datai2);
-	$objDataF2 = new Date($dataf2);
-
-	//primer curs
-	if ( $objDataI1->getAny() != $objDataF1->getAny() ) {
-		//De l'1 de desembre de 2021 al 15 de febrer de 2022
-		//De l'1 de desembre de 2021 a l'11 de febrer de 2022
-		//Del 2 de desembre de 2021 al 15 de febrer de 2022
-		//Del 2 de desembre de 2021 a l'11 de febrer de 2022
-		$textDates1 = $objDataI1->getPronomDel()."".$objDataI1->getDataLlarga()."
-		".$objDataF1->getPronomAl()."".$objDataF1->getDataLlarga()."";
-	}
-	else {
-		if ( $objDataI1->getMes() != $objDataF1->getMes() ) {
-			//Del 4 d'abril a l'11 de maig de 2022
-			$textDates1 = $objDataI1->getPronomDel()."".intval($objDataI1->getDia())."
-			".$objDataI1->getNomMesArticle()."
-			".$objDataF1->getPronomAl()."".$objDataF1->getDataLlarga()."";
-		}
-		else {
-			//Del 4 al 31 de juliol de 2022
-			$textDates1 = $objDataI1->getPronomDel()."".intval($objDataI1->getDia())."
-			".$objDataF1->getPronomAl()."".$objDataF1->getDataLlarga()."";
-		}
-	}
-
-	//segon curs
-	if ( $objDataI2->getAny() != $objDataF2->getAny() ) {
-		//De l'1 de desembre de 2021 al 15 de febrer de 2022
-		//De l'1 de desembre de 2021 a l'11 de febrer de 2022
-		//Del 2 de desembre de 2021 al 15 de febrer de 2022
-		//Del 2 de desembre de 2021 a l'11 de febrer de 2022
-		$textDates2 = $objDataI2->getPronomDel()."".$objDataI2->getDataLlarga()."
-		".$objDataF2->getPronomAl()."".$objDataF2->getDataLlarga()."";
-	}
-	else {
-		if ( $objDataI2->getMes() != $objDataF2->getMes() ) {
-			//Del 4 d'abril a l'11 de maig de 2022
-			$textDates2 = $objDataI2->getPronomDel()."".intval($objDataI2->getDia())."
-			".$objDataI2->getNomMesArticle()."
-			".$objDataF2->getPronomAl()."".$objDataF2->getDataLlarga()."";
-		}
-		else {
-			//Del 4 al 31 de juliol de 2022
-			$textDates2 = $objDataI2->getPronomDel()."".intval($objDataI2->getDia())."
-			".$objDataF2->getPronomAl()."".$objDataF2->getDataLlarga()."";
-		}
-	}
-
-	$datesRealitzacioCurs1 = $textDates1;
-	$datesRealitzacioCurs2 = $textDates2;
 
 	/* ######################################################################### */
 	$msg = $templates->getTemplate_Dades_RequadreDadesPersonals(1);
@@ -367,11 +562,11 @@ try {
 
 	$msg = $templates->getTemplate_Inscripcions_EnviamentPack($pagFrac, $titolDocencia,
 	$esAlumne, $datai, $mailing, $textTitulacioEstudiant);
-	$names_template = array("[NOM_ALUMNE]", "[TITOL]", "[TITOL1]", "[DATAI_DATAF1]",
-	"[TITOL2]", "[DATAI_DATAF2]", "[DATAF_LLARGA]", "[PAY_ORIG_ALUMNE]", "[PAY_PACK_ALUMNE]",
+	$names_template = array("[NOM_ALUMNE]", "[TITOL]", "[CURSOS_PACK]",
+	"[DATAF_LLARGA]", "[PAY_ORIG_ALUMNE]", "[PAY_PACK_ALUMNE]",
 	"[TEXT_DADES_ALUMNE]", "[TEXT_DESC_ALUMNE]", "[TEXT_MANERES_PAGAR]");
-	$names_function   = array($nom, $titolPack, $titols[0], $datesRealitzacioCurs1,
-		$titols[1], $datesRealitzacioCurs2, $dataFiLlarga, $preuCursos, $preuPack,
+	$names_function   = array($nom, $titolPack, $datesRealitzacioCursos,
+		$dataFiLlarga, $preuCursos, $preuPack,
 		$reqDadesAlumne, '', $textManeresPagar);
 	$missatge = str_replace($names_template, $names_function, $msg);
 
@@ -509,85 +704,87 @@ try {
 
 	$perenne = 'X';
 
-	$connexio2 = new ConnexioBBDDSTMT();
-	$connexio2->connectarBD();
-
-	$cnsPreu = "SELECT IMPORT FROM preu WHERE ID=? AND DATAI<=CURRENT_TIME AND
-					(CURRENT_TIME<=DATAF OR DATAF IS NULL)";
-
 	$insertBD = "INSERT INTO inscripcions (ANY, MES, CURS, DATA_INSC, NOM, COGNOMS,
 					 CORREU, DNI, ADRECA, Codi_Postal, POBLACIO, PERFIL, TITULACIO,
 					 TELEFON, COMENTARIS, FRACCIONAT, INSC_MAILING,
 					 A_PAGAR, USUARI, IDPAG, PERENNE, CONEGUT, TIPUS_INSC, OBSERVACIONS)
 					 VALUES (?,?,?,CURRENT_TIME,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-	if ( $stmt2 = $connexio2->prepare($cnsPreu) ) {
-		$stmt2->bind_param("d", $idPreuEd);
+	$connexio->beginTransaction();
+	$packTransactionStarted = true;
 
-		if ( $stmt=$connexio->prepare($insertBD) ) {
-			$stmt->bind_param("dsssssssssssdsdsdddssss", $anyEd, $mesEd, $codiCursEd,
-				$nomBD, $cogBD, $emailBD, $documentacioBD, $adrecaBD, $codiPostalBD, $poblacioBD,
-				$perfilsBD, $titulacionsBD, $telfBD, $comentarisBD, $pagFraccBD, $mailingBD,
-				$preuCurs, $usuariBD, $idPag, $perenne, $conegutBD, $tipusInsc, $observacions);
+	if ( $stmt=$connexio->prepare($insertBD) ) {
+		$stmt->bind_param("dsssssssssssdsdsdddssss", $anyEd, $mesEd, $codiCursEd,
+			$nomBD, $cogBD, $emailBD, $documentacioBD, $adrecaBD, $codiPostalBD, $poblacioBD,
+			$perfilsBD, $titulacionsBD, $telfBD, $comentarisBD, $pagFraccBD, $mailingBD,
+			$preuCurs, $usuariBD, $idPag, $perenne, $conegutBD, $tipusInsc, $observacions);
 
-			$aux = round((float) $preuPack, 2);
-			$tipusInsc = 'P';
-			for ( $i=0; $i<count($edicions); $i++ ) {
-				$edicio = $edicions[$i];
+		$aux = round((float) $preuPack, 2);
+		$totalPackLinesCents = 0;
+		$tipusInsc = 'P';
+		for ( $i=0; $i<count($edicions); $i++ ) {
+			$edicio = $edicions[$i];
 
-				/* Omplo les dades necessaries obtenides de l'edicio*/
-				$anyEd = $edicio->obtenirAny()->obtenirNumero();
-				$mesEd = $edicio->obtenirMes()->obtenirText();
-				$idPreuEd = $edicio->obtenirIdPreu()->obtenirNumero();
+			/* Omplo les dades necessaries obtenides de l'edicio */
+			$anyEd = $edicio->obtenirAny()->obtenirNumero();
+			$mesEd = $edicio->obtenirMes()->obtenirText();
+			$codiCursEd = $edicio->obtenirCodiCurs()->obtenirText();
 
-				$codiCursEd = $edicio->obtenirCodiCurs()->obtenirText();
-
-				/* Busco el preu original del curs */
-				$stmt2->execute();
-				$stmt2->bind_result($preuCursOriginal);
-				$stmt2->fetch();
-
-				$preuCursOriginal = round((float) $preuCursOriginal, 2);
-				$preuCurs = round(min($aux, $preuCursOriginal), 2);
-				$aux = round(max(0, $aux - $preuCurs), 2);
-				$descompteCurs = round(max(0, $preuCursOriginal - $preuCurs), 2);
-				$descomptePct = $preuCursOriginal > 0
-					? round(($descompteCurs / $preuCursOriginal) * 100, 2)
-					: 0.0;
-
-				/* Snapshot comercial mínim per no reconstruir ordre/imports després del cobrament. */
-				$observacions = sprintf(
-					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f',
-					$idPack,
-					$i + 1,
-					$preuCursOriginal,
-					$descompteCurs,
-					$descomptePct,
-					$preuCurs
-				);
-
-				/* Executo el insert */
-				$stmt->execute();
+			/*
+			 * Reutilitzo exactament el snapshot autoritatiu de preus validat
+			 * abans d'iniciar la transacció. No es rellegeix la taula preu
+			 * entre la validació comercial i la persistència del PACK.
+			 */
+			$preuCursOriginal = $preusCursosServidor[$i] ?? null;
+			if (!is_numeric($preuCursOriginal)) {
+				throw new Exception('',2916);
 			}
-			$connexio->closeStmt();
-			$connexio->releaseIdPag();
+			$preuCursOriginal = round((float) $preuCursOriginal, 2);
+
+			$preuCurs = round(min($aux, $preuCursOriginal), 2);
+			$aux = round(max(0, $aux - $preuCurs), 2);
+			$totalPackLinesCents += (int) round($preuCurs * 100);
+			$descompteCurs = round(max(0, $preuCursOriginal - $preuCurs), 2);
+			$descomptePct = $preuCursOriginal > 0
+				? round(($descompteCurs / $preuCursOriginal) * 100, 2)
+				: 0.0;
+
+			/* Snapshot comercial mínim per no reconstruir ordre/imports després del cobrament. */
+			$observacions = sprintf(
+				'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f RID|%s RH1|%s',
+				$idPack,
+				$i + 1,
+				$preuCursOriginal,
+				$descompteCurs,
+				$descomptePct,
+				$preuCurs,
+				$requestId,
+				$requestHash
+			);
+
+			if (!$stmt->execute()) {
+				throw new Exception('',2915);
+			}
 		}
-		else {
+
+		if ((int) round($aux * 100) !== 0 || $totalPackLinesCents !== $preuPackCents) {
 			throw new Exception('',2915);
 		}
+
+		$idInserit = $connexio->lastInsertId();
+		$connexio->closeStmt();
+		$connexio->commitTransaction();
+		$packTransactionStarted = false;
+		$packEnrollmentCommitted = true;
+		$connexio->releaseIdPag();
+		$idPagReserved = false;
+		$connexio->releaseNamedLock($packRequestLockName);
+		$packRequestLockReserved = false;
 	}
 	else {
-		throw new Exception('',2916);
+		throw new Exception('',2915);
 	}
 
-	$connexio2->desconectarBD();
-
-	$idInserit = $connexio->lastInsertId();
-
-	$ivlen = openssl_cipher_iv_length($cipher);
-	$iv = openssl_random_pseudo_bytes($ivlen);
-	$ciphertext_raw = openssl_encrypt($idInserit, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
-	$hmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, $as_binary=true);
-	$hashIdInserit = base64_encode( $iv.$hmac.$ciphertext_raw );
+	$hashIdInserit = uc015PackConfirmationHash($idInserit, $keyEncr);
 
 	echo $hashIdInserit;
 
@@ -695,10 +892,31 @@ try {
 
 }
 catch(Exception $e) {
-	if ($e->getCode()==404)
+	if ($packTransactionStarted && isset($connexio)) {
+		$connexio->rollbackTransaction();
+		$packTransactionStarted = false;
+	}
+
+	if ($packEnrollmentCommitted) {
+		// La inscripció principal ja és persistent: no convertir una fallada auxiliar
+		// (mailing, poblacions, credencials o correu) en un fals error de navegador.
+		error_log('UC-015 PACK post-commit auxiliary failure; code=' . (int) $e->getCode());
+	}
+	else if ($e->getCode()==404)
       echo mostrarPagina404();
    else
       echo missatgeError($e->getCode());
+}
+finally {
+	if ($packTransactionStarted && isset($connexio)) {
+		$connexio->rollbackTransaction();
+	}
+	if ($idPagReserved && isset($connexio)) {
+		$connexio->releaseIdPag();
+	}
+	if ($packRequestLockReserved && isset($connexio)) {
+		$connexio->releaseNamedLock($packRequestLockName);
+	}
 }
 
 ?>

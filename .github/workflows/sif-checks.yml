@@ -18,11 +18,23 @@ on:
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
       - "codi-drive/intranet-actual/js/alumnes-validar-descomptes.js"
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
+      - "codi-drive/web-actual/EdicioPack.php"
+      - "codi-drive/web-actual/Pack.php"
+      - "codi-drive/web-actual/inc/buscantPacksDisponibles.php"
+      - "codi-drive/web-actual/inc/PublicWebMutationAuthorization.php"
       - "codi-drive/web-actual/ajax/enviarInscripcio.php"
       - "codi-drive/web-actual/ajax/enviarInscripcio2.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioAfiliat.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php"
+      - "codi-drive/web-actual/pagina_inscripcio_pack.php"
+      - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
+      - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
+      - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/respostaOkPagamentAutomatic.php"
+      - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioTaller.php"
       - "documentacio/05-governanca-operacio/**"
       - "documentacio/06-fitxes-funcionals/**"
@@ -105,6 +117,23 @@ jobs:
         run: |
           node --check codi-drive/intranet-actual/js/alumnes-usoc-financament.js
           node --check codi-drive/intranet-actual/js/alumnes-validar-descomptes.js
+
+      - name: PHP and JavaScript syntax UC-015 PACK web
+        run: |
+          php -l codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php
+          php -l codi-drive/web-actual/EdicioPack.php
+          php -l codi-drive/web-actual/Pack.php
+          php -l codi-drive/web-actual/inc/buscantPacksDisponibles.php
+          php -l codi-drive/web-actual/inc/PublicWebMutationAuthorization.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
+          php -l codi-drive/web-actual/realitzaPagamentPackAutomaticProva.php
+          php -l codi-drive/web-actual/pagina_inscripcio_pack.php
+          php -l codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php
+          php -l codi-drive/web-actual/respostaOkPagamentAutomatic.php
+          php -l codi-drive/web-actual/respostaKoPagamentAutomatic.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
+          php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
+          node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
 
       - name: SIF test suite
         run: php sif/tests/run-tests.php
