@@ -52,6 +52,13 @@ final class PackEnrollmentIdempotencyBoundaryTest
         Assert::same(true, $sameHash < $replay);
         Assert::same(true, $replay < $idpag);
 
+        $legacyValidation = strpos($source, "new Text(\$request['nom'])");
+        $packLookup = strpos($source, 'SELECT TITOL, ID_PREU FROM info_pack');
+        Assert::same(true, $legacyValidation !== false);
+        Assert::same(true, $packLookup !== false);
+        Assert::same(true, $replay < $legacyValidation);
+        Assert::same(true, $replay < $packLookup);
+
         Assert::stringContainsString(
             "Error: REQUEST_ID PACK reutilitzat amb un payload diferent",
             $source
