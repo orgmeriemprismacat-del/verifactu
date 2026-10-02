@@ -2,7 +2,7 @@
 
 final class SifRedsysCourseIntentClient
 {
-    public function create(int $idPag, string $requestedAmount, string $terminal = '1'): array
+    public function create(int $idPag, string $requestedAmount, string $terminal): array
     {
         $requestedAmount = trim(str_replace(',', '.', $requestedAmount));
         if ($idPag < 1 || !preg_match('/^\\d{1,10}\\.\\d{2}$/D', $requestedAmount) || $requestedAmount === '0.00') {
