@@ -78,25 +78,22 @@
 | A14-14 | Correu | callback | enviament immediat | `CoursePaymentNotificationService` → `notification_outbox` després de sync llegada | PRODUCTOR DURABLE IMPLEMENTAT; worker/transport/lliurament UC-58 PENDENT |
 | A14-15 | Retorn OK/KO | `CoursePaymentReturnStatus` + `SifRedsysCourseStatusClient` + endpoint `course-status.php` | l'ACTUAL assumeix resultat del navegador | consulta read-only de la intenció/notificació/cua SIF | IMPLEMENTAT EN CÒPIA CANDIDATA + VERIFICAT CI; DESPLEGAMENT NO ACREDITAT |
 | A14-16 | Sync acadèmica | barrejat/parcial | `CourseLegacyPaymentSyncService` posterior al SIF | PAGAMENT / DATA PAG / M→1 IMPLEMENTATS; altres efectes acadèmics independents pendents si aplica |
-| A14-17 | Atribució per inscripció | implícita per IDPAG | sense moviment quantitatiu explícit | moviment EXTERNAL→INSCRIPCIÓ | DISSENY/PENDENT |
+| A14-17 | Atribució per inscripció | `CourseEnrollmentFundAllocationService` + `EnrollmentFundMovementRepository` | l'ACTUAL només correlaciona implícitament per IDPAG | `enrollment_fund_movement` amb `EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC` | IMPLEMENTAT I VERIFICAT CI; valida CHARGE, factura, línia, import i reús idempotent |
 
 ## 3. Mancances prioritzades
 
-### P0 — abans de considerar el flux apte
-1. Integrar ecommerce amb `RedsysPaymentIntentService`.
-2. No confiar en import/curs/order funcionals transportats des del client o MerchantURL.
-3. Verificar criptogràficament la notificació Redsys abans de qualsevol efecte.
-4. Comparar DS_ORDER/import/moneda/terminal amb la intenció persistida.
-5. Retirar la generació directa de factura i numeració del callback web.
-6. Garantir idempotència de callback/job/factura/pagament.
-7. Externalitzar secrets Redsys del codi.
-8. Executar i conservar evidència de proves d'integració.
+### P0 — abans del tall operatiu
+1. Desplegar el pont candidat en preproducció amb configuració SIF/Redsys de proves i `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0` fins que els preflights siguin verds.
+2. Executar una transacció Redsys real de proves i conservar evidència de signatura validada, `DS_ORDER`, cua, worker, factura, `CHARGE`, `payment_allocation`, `enrollment_fund_movement` i projecció llegada.
+3. Validar en l'entorn objectiu callback duplicat, reintent de worker, parcial→complet i payload/import/order incompatible sense duplicar efectes.
+4. Activar el cutover només després de l'evidència anterior i retirar l'autoritat fiscal dels callbacks llegats quan el rollback controlat ja no sigui necessari.
+5. Verificar/rotar qualsevol credencial Redsys històrica que encara pugui estar activa.
 
 ### P1
-1. Completar atribució monetària explícita per inscripció.
-2. Migrar fraccionament a moviments immutables.
-3. Separar sincronització acadèmica de l'emissió fiscal.
-4. Incorporar o materialitzar el JS necessari per completar traçabilitat.
+1. Completar UC-58 per al lliurament/reintents de les notificacions que UC-014 ja deixa a `notification_outbox`.
+2. Verificar en navegador de preproducció els retorns OK/KO autoritatius contra l'estat SIF.
+3. Verificar qualsevol efecte acadèmic addicional que no sigui `PAGAMENT / DATA PAG / M→1`, si aplica al curs concret.
+4. Completar la traçabilitat dels JS externs que no siguin presents a la còpia auditada.
 
 ## 4. Estat independent
 
@@ -109,8 +106,8 @@
 | Codi llegat | Contrastat estàticament |
 | Codi SIF Redsys | Implementació real localitzada |
 | Adaptador ecommerce | IMPLEMENTAT EN CÒPIA CANDIDATA; DESPLEGAMENT NO ACREDITAT |
-| Ledger per inscripció | IMPLEMENTAT PER `payment_transaction/allocation`; projecció llegada connectada |
-| Tests | EXECUTATS EN CI; E2E CURS amb outbox, duplicat i parcial→complet verd; `SIF PHP MySQL tests` = 767 passed / 0 failed i workflows SIF/UC-111/UC-004 verds |
+| Ledger per inscripció | IMPLEMENTAT: `payment_transaction/payment_allocation` + `enrollment_fund_movement.EXTERNAL_ALLOCATION` idempotent per `DS_ORDER + ID_INSC`; projecció llegada connectada |
+| Tests | EXECUTATS EN CI; E2E CURS amb outbox, fund allocation, duplicat i parcial→complet verd; `SIF PHP MySQL tests` = 841 passed / 0 failed i workflows SIF/UC-111/UC-004 verds |
 | Preproducció | TOOLING PREPARAT I FAIL-CLOSED VERIFICAT; EXECUCIÓ REDSYS REAL NO ACREDITADA |
 | Producció | NO ACREDITADA |
 
@@ -121,7 +118,7 @@ No marcar **TANCAT AMB EVIDÈNCIA** fins que:
 - callback i worker final s'usen en l'entorn objectiu;
 - callback duplicat i payload incompatible s'han provat;
 - pagament parcial/complet i reintent són reproduïbles;
-- factura, registre fiscal, CHARGE, assignació i sync acadèmica tenen traça;
+- factura, registre fiscal, CHARGE, `payment_allocation`, `EXTERNAL_ALLOCATION` per inscripció i sync acadèmica tenen traça;
 - les pantalles de retorn reflecteixen l'estat real;
 - s'adjunta evidència de prova amb commit, BD, entorn, data i resultat.
 
@@ -135,5 +132,7 @@ Durant l'auditoria s'han observat secrets Redsys literals en còpies de codi del
 El wiring de sincronització de curs al worker Redsys ha estat integrat a `main` i verificat per CI. El PR #55 afegeix també el retorn navegador basat en estat autoritatiu: `RedsysCoursePaymentStatusService` deriva `PENDING/PROCESSING/CONFIRMED/REJECTED/REVIEW` des de la intenció, notificació i cua; `CONFIRMED` exigeix job `PROCESSED` amb `UUID_FACTURA` i `UUID_PAYMENT`; si la consulta falla o la MerchantURL SIF no està activada, el retorn queda `UNVERIFIED/PENDING` i mai converteix l'URL OK del navegador en prova de cobrament. `SIF_REDSYS_CALLBACK_URL` defineix la destinació SIF, però **no activa per si sola el tall**. El tall exigeix `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1`; en aquest estat la URL SIF és obligatòria i HTTPS i els callbacks llegats candidats responen 410 abans de qualsevol efecte. Amb el flag a `0`, la còpia candidata manté el callback llegat com a via de transició/rollback.
 
 `RedsysCourseEndToEndSimulatedTest` cobreix de forma integrada: intenció → callback validat → cua → worker → factura → `payment_transaction`/`payment_allocation` → projecció llegada; inclou callback duplicat i parcial→complet. A més, `RedsysCourseCutoverBoundaryTest` blinda l'activació explícita de MerchantURL, el 410 pre-efecte dels callbacks llegats i el rollback per flag mentre el llegat encara existeix. El nou productor `CoursePaymentNotificationService` s'executa després de `CourseLegacyPaymentSyncService`, crea una sola ordre `COURSE_PAYMENT_CONFIRMED` per `DS_ORDER` i evita PII directa al `PAYLOAD_JSON`; el lliurament real continua fora d'UC-014 i pendent a UC-58. L'E2E verificat per CI comprova una sola fila davant callback duplicat, una fila per cada `DS_ORDER` en parcial→complet i absència d'email/DNI al `PAYLOAD_JSON`. `RedsysCoursePreproductionBoundaryTest` verifica que el verificador falla tancat fora de `test/preproduction`, que la mutació queda darrere de `--execute`, que `--sync-legacy` exigeix evidència de projecció econòmica i que la sortida sanititza secrets/signatures/raw payloads. Els workflows `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en verd tant per als boundaries de preproducció com per als tests del retorn autoritatiu (`RedsysCoursePaymentStatusServiceTest` i `RedsysCourseReturnBoundaryTest`). Això acredita l'E2E **intern simulat**, el **tooling de preproducció** i el **retorn autoritatiu al repositori**, però **no** una execució contra Redsys/preproducció real ni el desplegament del pont candidat.
+
+El PR #95 integra també l'atribució quantitativa de fons del curs: `CourseEnrollmentFundAllocationService` crea/reutilitza exactament un `EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC`, validant `CHARGE` confirmat, import, factura i línia `INSCRIPCIO`. `CourseEnrollmentFundAllocationServiceTest` i `RedsysCourseEndToEndSimulatedTest` acrediten reús idempotent, mismatch fail-closed i parcial→complet. Sobre el head reconciliat, `SIF PHP MySQL tests`, `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks` han quedat verds; les suites SIF han registrat **841 passed / 0 failed**.
 
 El procediment de tall operatiu queda definit a [UC-014 — Pla de tall final Redsys cap al SIF](uc-014-pla-tall-final-redsys-sif.md).

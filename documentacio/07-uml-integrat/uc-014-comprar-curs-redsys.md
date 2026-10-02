@@ -85,7 +85,7 @@ flowchart LR
   uc_2 -.->|include| uc_4
 ```
 
-## 3. Subdiagrama de classes reals i atribució objectiu
+## 3. Subdiagrama de classes reals i atribució quantitativa
 
 ```mermaid
 classDiagram
@@ -119,9 +119,13 @@ class RedsysInvoicePayloadBuilder {
 class InvoiceService {
  +issueInvoice(payload) array
 }
+class CourseEnrollmentFundAllocationService {
+ +allocate(db,dsOrder,snapshot,invoiceResult) array
+}
 class EnrollmentFundMovementRepository {
- <<PROPOSTA>>
- +append(db,movement) string
+ +lockPayment(db,uuidPayment) array
+ +findInvoiceLineForInscription(db,uuidFactura,idInsc) array
+ +insertOrReuseExternalAllocation(db,input) array
 }
 RedsysCallbackWorker --> RedsysCallbackDispatcher : processa job
 RedsysCallbackDispatcher --> RedsysIntentHandler : selecciona CURS
@@ -129,6 +133,8 @@ RedsysCourseInvoiceService ..|> RedsysIntentHandler
 RedsysCourseInvoiceService --> LegacyCourseInvoicePayloadBuilder : línia inscripció
 RedsysCourseInvoiceService --> RedsysInvoicePayloadBuilder : notificació
 RedsysCourseInvoiceService --> InvoiceService : factura+CHARGE
+RedsysCourseInvoiceService --> CourseEnrollmentFundAllocationService : atribució postcommit
+CourseEnrollmentFundAllocationService --> EnrollmentFundMovementRepository : EXTERNAL_ALLOCATION idempotent
 ```
 
 `RedsysPaymentIntentService`, `RedsysCallbackService` i `RedsysCallbackWorker` pertanyen a fases separades; la seva col·locació al mateix diagrama **no** implica crides directes entre elles.
@@ -150,7 +156,8 @@ participant H as RedsysCourseInvoiceService
 participant Builder as LegacyCourseInvoicePayloadBuilder
 participant R as RedsysInvoicePayloadBuilder
 participant I as InvoiceService
-participant L as EnrollmentFundMovementRepository [PROPOSTA]
+participant Fund as CourseEnrollmentFundAllocationService
+participant L as EnrollmentFundMovementRepository
 A->>Web: Confirmar curs, edició i pagament
 Web->>Intent: client HMAC crea/reutilitza intenció CURS
 Intent-->>Web: UUID_INTENT pendent
@@ -167,17 +174,18 @@ H->>R: buildFromValidatedNotification()
 R-->>H: Payload amb CHARGE
 H->>I: issueInvoice(payload)
 I-->>H: UUID_FACTURA i UUID_PAYMENT
-H-->>W: Resultat
+H->>Fund: allocate(DS_ORDER, snapshot, invoiceResult)
+Fund->>L: valida CHARGE/factura/línia i insertOrReuseExternalAllocation()
+L-->>Fund: UUID_MOVEMENT + reused?
+Fund-->>H: moviment EXTERNAL_ALLOCATION
+H-->>W: Resultat + fund_allocations
 W->>Q: markProcessed(job,result)
-opt Atribució quantitativa per inscripció [DISSENY]
- W->>L: append(EXTERNAL→ID_INSC, import, UUID_PAYMENT)
-end
-Note over W,L: No es dona per acreditada la coordinació transaccional del ledger proposat amb el nucli ja existent
+Note over H,L: 1 moviment idempotent per DS_ORDER + ID_INSC; un mismatch falla tancat abans de la projecció llegada
 ```
 
 ## 5. Traçabilitat
 
-[Fitxa original UC-14](../06-fitxes-funcionals/uc-014.md) · [UC-63](uc-063-crear-intencio-redsys.md) · [UC-03](uc-003-processar-cobrament-redsys-asincron.md) · [UC-01](uc-001-emetre-o-reutilitzar-factura.md) · [Revisió dels fons](00-revisio-moviments-inscripcions.md) · [RedsysCourseInvoiceService](../../sif/src/Service/RedsysCourseInvoiceService.php) · [LegacyCourseInvoicePayloadBuilder](../../sif/src/Service/LegacyCourseInvoicePayloadBuilder.php) · [RedsysInvoicePayloadBuilder](../../sif/src/Service/RedsysInvoicePayloadBuilder.php) · [RedsysCourseInvoiceServiceTest](../../sif/tests/Integration/RedsysCourseInvoiceServiceTest.php).
+[Fitxa original UC-14](../06-fitxes-funcionals/uc-014.md) · [UC-63](uc-063-crear-intencio-redsys.md) · [UC-03](uc-003-processar-cobrament-redsys-asincron.md) · [UC-01](uc-001-emetre-o-reutilitzar-factura.md) · [Revisió dels fons](00-revisio-moviments-inscripcions.md) · [RedsysCourseInvoiceService](../../sif/src/Service/RedsysCourseInvoiceService.php) · [LegacyCourseInvoicePayloadBuilder](../../sif/src/Service/LegacyCourseInvoicePayloadBuilder.php) · [RedsysInvoicePayloadBuilder](../../sif/src/Service/RedsysInvoicePayloadBuilder.php) · [CourseEnrollmentFundAllocationService](../../sif/src/Service/CourseEnrollmentFundAllocationService.php) · [EnrollmentFundMovementRepository](../../sif/src/Repository/EnrollmentFundMovementRepository.php) · [CourseEnrollmentFundAllocationServiceTest](../../sif/tests/Integration/CourseEnrollmentFundAllocationServiceTest.php) · [RedsysCourseInvoiceServiceTest](../../sif/tests/Integration/RedsysCourseInvoiceServiceTest.php).
 
 
 ## 6. Lliurables detallats ACTUAL/FINAL — revisió 29/09/2026
@@ -192,6 +200,6 @@ Aquest document principal conserva el model integrat del cas. La cobertura exhau
 ### Estat
 
 - **DOCUMENTAT:** fitxa, casos d'ús, classes ACTUAL/FINAL, seqüències ACTUAL/FINAL i activitats per superfícies principals.
-- **IMPLEMENTAT:** nucli SIF Redsys, handler CURS, pont candidat d'intenció, projecció llegada i retorn navegador autoritatiu; el circuit llegat continua com a fallback fins al tall.
-- **VERIFICAT:** CI amb E2E intern simulat, duplicats, parcial→complet, boundaries de preproducció i retorn OK/KO read-only.
-- **PENDENT:** Redsys/preproducció real, activació de `SIF_REDSYS_CALLBACK_URL`, retirada de l'autoritat fiscal llegada i pendents independents d'outbox/postprocessat sense evidència pròpia.
+- **IMPLEMENTAT:** nucli SIF Redsys, handler CURS, pont candidat d'intenció, atribució quantitativa `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, productor outbox i retorn navegador autoritatiu; el circuit llegat continua com a fallback fins al tall.
+- **VERIFICAT:** CI amb E2E intern simulat, fund allocation idempotent, mismatch fail-closed, duplicats, parcial→complet, boundaries de preproducció i retorn OK/KO read-only; suites SIF 841 passed / 0 failed.
+- **PENDENT:** Redsys/preproducció real, activació controlada del cutover, retirada de l'autoritat fiscal llegada i lliurament/retries d'email d'UC-58.

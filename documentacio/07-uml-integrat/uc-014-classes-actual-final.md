@@ -192,6 +192,9 @@ class CoursePaymentReturnStatus {
   +uc014RenderPaymentReturn(browserReturn)
 }
 
+class CourseEnrollmentFundAllocationService {
+ +allocate(db,dsOrder,snapshot,invoiceResult) array
+}
 class EnrollmentFundMovementRepository {
   <<DISSENY/PENDENT UC-014>>
   +append(db,movement) string
@@ -210,7 +213,8 @@ CoursePaymentNotificationService --> NotificationOutboxRepository : enqueue idem
 CoursePaymentReturnStatus --> SifRedsysCourseStatusClient
 SifRedsysCourseStatusClient --> RedsysCoursePaymentStatusService : POST HMAC read-only
 RedsysCoursePaymentStatusService --> RedsysPaymentIntentService : correlació per DS_ORDER/IDPAG
-RedsysCallbackWorker ..> EnrollmentFundMovementRepository : atribució quantitativa [pendent d'acreditar]
+RedsysCourseInvoiceService --> CourseEnrollmentFundAllocationService : postcommit idempotent
+CourseEnrollmentFundAllocationService --> EnrollmentFundMovementRepository : EXTERNAL_ALLOCATION
 ```
 ## 3. Correspondència ACTUAL → FINAL
 
@@ -222,7 +226,7 @@ RedsysCallbackWorker ..> EnrollmentFundMovementRepository : atribució quantitat
 | Validar callback | `RedsysAPI` dins script monolític | `RedsysCallbackService` |
 | Facturar | `INSERT factures` al callback | `InvoiceService` |
 | Registrar cobrament | camps `PAGAMENT/FRACCIO` | `payment_transaction/payment_allocation` |
-| Assignar a inscripció | implícit per `IDPAG` | relació + moviment quantitatiu per inscripció |
+| Assignar a inscripció | implícit per `IDPAG` | `CourseEnrollmentFundAllocationService` → `enrollment_fund_movement.EXTERNAL_ALLOCATION` idempotent per `DS_ORDER + ID_INSC` |
 | Numeració fiscal | càlcul al canal web | seqüència central SIF |
 | Reintents | no acreditats | idempotència per intenció/notificació/factura/pagament |
 | Postprocessat acadèmic | barrejat amb callback | `RedsysLegacySyncingProcessor` / `CourseLegacyPaymentSyncService` posterior al SIF |
@@ -231,6 +235,6 @@ RedsysCallbackWorker ..> EnrollmentFundMovementRepository : atribució quantitat
 ## 4. Estat
 
 **DOCUMENTAT:** ACTUAL i FINAL.  
-**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS i retorn navegador read-only contra estat SIF. L'atribució quantitativa addicional per inscripció continua pendent d'acreditar dins UC-014.  
-**VERIFICAT:** CI amb E2E intern simulat incloent `notification_outbox` CURS, duplicat i parcial→complet, retorn autoritatiu i boundaries de preproducció; lectura estàtica del pont candidat.  
+**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS, retorn navegador read-only contra estat SIF i atribució quantitativa per inscripció amb `CourseEnrollmentFundAllocationService` / `EnrollmentFundMovementRepository`.  
+**VERIFICAT:** CI amb E2E intern simulat incloent `notification_outbox` CURS, `EXTERNAL_ALLOCATION` per inscripció, duplicat i parcial→complet, retorn autoritatiu i boundaries de preproducció; `CourseEnrollmentFundAllocationServiceTest` i suites SIF amb 841 passed / 0 failed.  
 **PENDENT:** desplegament/preproducció real, activació de MerchantURL SIF i retirada del callback fiscal llegat després de l'evidència.

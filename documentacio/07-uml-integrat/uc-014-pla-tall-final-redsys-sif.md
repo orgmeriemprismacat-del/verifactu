@@ -11,6 +11,7 @@ Ja està integrat a `main`:
 - validació reforçada de signatura, ordre i import als callbacks candidats;
 - callback SIF, cua i worker;
 - emissió via `RedsysCourseInvoiceService` + `InvoiceService`;
+- `CourseEnrollmentFundAllocationService` + `EnrollmentFundMovementRepository` amb `EXTERNAL_ALLOCATION` idempotent per `DS_ORDER + ID_INSC`;
 - `CourseLegacyPaymentSyncService`;
 - productor durable `CoursePaymentNotificationService` → `notification_outbox` per cobrament CURS, idempotent per `DS_ORDER`;
 - wiring de `CourseLegacyPaymentSyncService` dins `RedsysLegacySyncingProcessor`;
@@ -21,7 +22,7 @@ Ja està integrat a `main`:
 - cutover explícit amb `SIF_REDSYS_COURSE_CUTOVER_ENABLED` i prova `RedsysCourseCutoverBoundaryTest`; quan és `1`, la MerchantURL SIF és obligatòria i HTTPS, i `doit.php` / `realitzaPagamentAutomatic.php` responen 410 abans de qualsevol efecte;
 - retorn navegador read-only via `RedsysCoursePaymentStatusService`, `course-status.php` i client HMAC del pont candidat;
 - proves `RedsysCoursePaymentStatusServiceTest` i `RedsysCourseReturnBoundaryTest`, que impedeixen convertir URLOK/URLKO en autoritat de pagament;
-- CI verd del wiring, E2E intern i boundaries de preproducció UC-014: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification`.
+- CI verd del wiring, E2E intern, fund allocation i boundaries de preproducció UC-014: `SIF PHP MySQL tests`, `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks`; suites SIF **841 passed / 0 failed**.
 
 Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecció llegada controlada i el **tooling de preproducció fail-closed**. **No acredita encara** una transacció contra Redsys/preproducció real ni el tall productiu.
 
@@ -43,14 +44,15 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
 8. Verificar:
    - una sola factura;
    - un sol `CHARGE`;
-   - una sola assignació;
+   - una sola `payment_allocation`;
+   - un sol `enrollment_fund_movement` de tipus `EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC`, amb el mateix import del tram i UUIDs de factura/pagament;
    - job `PROCESSED`;
    - projecció llegada coherent a `inscripcions.PAGAMENT`;
    - una ordre `notification_outbox` `COURSE_PAYMENT_CONFIRMED` amb `UUID_NOTIFICATION`, sense email/DNI/nom al payload.
 9. Repetir amb:
    - pagament parcial;
    - pagament complet;
-   - callback duplicat, comprovant que no crea una segona ordre d'outbox;
+   - callback duplicat, comprovant que no crea una segona factura, `CHARGE`, `payment_allocation`, `EXTERNAL_ALLOCATION` ni ordre d'outbox;
    - reintent de worker;
    - payload/import/order incompatible;
    - alumne morós `M -> 1` només quan queda totalment pagat.
@@ -78,6 +80,10 @@ worker
         ↓
 InvoiceService + payment_transaction
         ↓
+CourseEnrollmentFundAllocationService
+        ↓
+enrollment_fund_movement
+        ↓
 RedsysLegacySyncingProcessor
         ↓
 CourseLegacyPaymentSyncService
@@ -103,6 +109,8 @@ Per cada prova conservar:
 - UUID de la intenció;
 - UUID de factura;
 - UUID de pagament;
+- UUID del moviment `enrollment_fund_movement`;
+- `ID_INSC_DESTI`, import i clau idempotent del `EXTERNAL_ALLOCATION`;
 - estat del job;
 - files afectades a `inscripcions`;
 - resultat esperat / resultat obtingut;
@@ -114,7 +122,8 @@ UC-014 només passa a **TANCAT AMB EVIDÈNCIA** quan:
 - la MerchantURL apunta al callback SIF a l'entorn objectiu;
 - callback i worker processen `CURS`;
 - parcial/complet són coherents;
-- callback duplicat no duplica factura ni cobrament;
+- callback duplicat no duplica factura, cobrament ni moviment quantitatiu;
+- cada tram confirmat té exactament un `EXTERNAL_ALLOCATION` coherent amb factura, línia i `CHARGE`, i el parcial→complet suma l'import contractual esperat;
 - la sincronització llegada és idempotent;
 - el productor de notificació deixa una única ordre durable per `DS_ORDER` i el preflight acredita `notification_outbox`;
 - abans del tall productiu s'ha decidit/implementat la política UC-58 de lliurament dels correus que deixa d'enviar el callback llegat;
@@ -139,6 +148,8 @@ php sif/scripts/verify-redsys-course-preproduction.php <DS_ORDER>
 ```
 
 Això només fa **dry-run**.
+
+Quan s'utilitza `--execute`, el verificador també exigeix `fund_allocation_present`, `fund_allocation_count_one`, `fund_allocation_amount_positive` i `fund_allocation_has_identity` abans de considerar l'execució correcta.
 
 Per executar emissió/cobrament a `test` o `preproduction`:
 

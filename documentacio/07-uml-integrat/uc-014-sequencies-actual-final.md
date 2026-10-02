@@ -64,6 +64,8 @@ participant W as RedsysCallbackWorker
 participant D as RedsysCallbackDispatcher
 participant H as RedsysCourseInvoiceService
 participant I as InvoiceService
+participant Fund as CourseEnrollmentFundAllocationService
+participant Ledger as EnrollmentFundMovementRepository
 participant Sync as RedsysLegacySyncingProcessor / CourseLegacyPaymentSyncService
 participant Outbox as CoursePaymentNotificationService / notification_outbox
 participant Ret as respostaOk/KoPagamentAutomatic.php
@@ -88,7 +90,11 @@ Sync->>D: dispatcher.process(job)
 D->>H: issueFromIntentSnapshot()
 H->>I: issueInvoice(payload + CHARGE)
 I-->>H: UUID_FACTURA + UUID_PAYMENT + reused?
-H-->>D: resultat fiscal/econòmic
+H->>Fund: allocate(DS_ORDER, snapshot, invoiceResult)
+Fund->>Ledger: valida CHARGE/factura/línia i insertOrReuseExternalAllocation()
+Ledger-->>Fund: UUID_MOVEMENT + reused?
+Fund-->>H: fund_allocations
+H-->>D: resultat fiscal/econòmic + moviment
 D-->>Sync: resultat
 Sync->>Sync: CourseLegacyPaymentSyncService.sync()
 Sync->>Outbox: enqueue COURSE_PAYMENT_CONFIRMED
@@ -106,7 +112,7 @@ Note over Ret,Status: CONFIRMED només amb PROCESSED + UUID_FACTURA + UUID_PAYME
 Note over Web,C: el tall exigeix SIF_REDSYS_COURSE_CUTOVER_ENABLED=1 + URL SIF HTTPS; la URL sola no activa
 ```
 
-**Implementat i verificat per CI:** intenció SIF, callback/cua/worker, factura+cobrament, projecció llegada, consulta read-only d'estat i retorn OK/KO fail-closed. **Pendent d'entorn:** configurar la MerchantURL SIF i executar Redsys/preproducció real.
+**Implementat i verificat per CI:** intenció SIF, callback/cua/worker, factura+cobrament, `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, consulta read-only d'estat i retorn OK/KO fail-closed. **Pendent d'entorn:** configurar la MerchantURL SIF i executar Redsys/preproducció real.
 ## 3. FINAL — callback duplicat
 
 ```mermaid
@@ -152,6 +158,6 @@ end
 ## 5. Estat
 
 **DOCUMENTAT:** seqüència ACTUAL, FINAL nominal, duplicat i conflicte.  
-**IMPLEMENTAT:** serveis SIF centrals, pont candidat d'intenció, callback/cua/worker, sync llegada, productor `notification_outbox` CURS i retorn autoritatiu OK/KO.  
-**VERIFICAT:** CI amb E2E intern simulat, idempotència, parcial→complet, boundaries de preproducció i tests del retorn autoritatiu.  
+**IMPLEMENTAT:** serveis SIF centrals, pont candidat d'intenció, callback/cua/worker, `CourseEnrollmentFundAllocationService`, sync llegada, productor `notification_outbox` CURS i retorn autoritatiu OK/KO.  
+**VERIFICAT:** CI amb E2E intern simulat, idempotència del moviment per `DS_ORDER + ID_INSC`, mismatch fail-closed, parcial→complet, boundaries de preproducció i tests del retorn autoritatiu; suites SIF 841 passed / 0 failed.  
 **PENDENT:** lliurament/retries d'email UC-58, desplegament/preproducció amb Redsys real, activació del flag de cutover i retirada posterior de l'autoritat fiscal llegada.
