@@ -46,6 +46,14 @@ final class InternalInvoiceIssuePayloadPolicy
         }
 
         $payload['created_by'] = $actorId;
+        $payload['request_id'] = trim((string) ($actor['request_id'] ?? '')) ?: $payload['idempotency_key'];
+        $payload['correlation_id'] = trim((string) ($payload['correlation_id'] ?? ''))
+            ?: $payload['request_id'];
+        $roles = $actor['roles'] ?? [];
+        $payload['actor_role'] = is_array($roles) && $roles !== []
+            ? (string) reset($roles)
+            : null;
+        $payload['actor_type'] = 'SYSTEM';
 
         if (array_key_exists('aeat_fields', $payload)) {
             if ($this->issuerNif === '' || $this->issuerName === '' || $this->issuerNif === 'G00000000') {
