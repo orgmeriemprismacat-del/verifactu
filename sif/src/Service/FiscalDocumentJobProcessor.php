@@ -9,6 +9,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\DocumentJobRepository;
 use Prisma\Sif\Repository\DocumentRepository;
 use Prisma\Sif\Repository\InvoiceDocumentSnapshotRepository;
+use Prisma\Sif\Repository\IncidentRepository;
 
 final class FiscalDocumentJobProcessor
 {
@@ -22,12 +23,14 @@ final class FiscalDocumentJobProcessor
         private int $baseRetrySeconds = 60,
         private int $maxRetrySeconds = 3600,
         private int $leaseSeconds = 900,
-        private ?InvoiceDocumentSnapshotRepository $snapshots = null
+        private ?InvoiceDocumentSnapshotRepository $snapshots = null,
+        private ?IncidentRepository $incidents = null
     ) {
         $this->baseRetrySeconds = max(1, $this->baseRetrySeconds);
         $this->maxRetrySeconds = max($this->baseRetrySeconds, $this->maxRetrySeconds);
         $this->leaseSeconds = max(60, $this->leaseSeconds);
         $this->snapshots ??= new InvoiceDocumentSnapshotRepository();
+        $this->incidents ??= new IncidentRepository();
     }
 
     public function processNext(): ?array
@@ -156,12 +159,34 @@ final class FiscalDocumentJobProcessor
                 );
             }
 
+            $incident = null;
+            if (strtoupper((string) $failed['STATUS']) === 'ERROR') {
+                $incident = $this->transactions->run(
+                    fn (\PDO $db): array => $this->incidents->openDetailed($db, [
+                        'uuid_factura' => (string) $job['UUID_FACTURA'],
+                        'resource_type' => 'DOCUMENT_JOB',
+                        'resource_id' => (string) $job['UUID_JOB'],
+                        'source_type' => 'DOCUMENT_WORKER',
+                        'source_id' => (string) $job['UUID_JOB'],
+                        'type' => 'DOCUMENT_JOB_EXHAUSTED',
+                        'message' => 'Document job exhausted retry attempts: '
+                            . $this->safeError($exception),
+                        'severity' => 'HIGH',
+                        'correlation_id' => 'DOCUMENT_JOB:' . (string) $job['UUID_JOB'],
+                        'idempotency_key' => 'DOCUMENT_JOB_ERROR|' . (string) $job['UUID_JOB'],
+                        'reason_code' => 'DOCUMENT_RETRIES_EXHAUSTED',
+                    ])
+                );
+            }
+
             return [
                 'ok' => false,
                 'status' => (string) $failed['STATUS'],
                 'job_id' => $jobId,
                 'uuid_job' => (string) $job['UUID_JOB'],
                 'uuid_factura' => (string) $job['UUID_FACTURA'],
+                'incident_id' => is_array($incident) ? $incident['incident_id'] : null,
+                'uuid_incident' => is_array($incident) ? $incident['uuid_incident'] : null,
                 'error_code' => 'DOCUMENT_PROCESSING_FAILED',
             ];
         }
