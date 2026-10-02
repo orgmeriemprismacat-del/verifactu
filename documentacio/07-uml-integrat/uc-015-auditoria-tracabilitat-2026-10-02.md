@@ -581,3 +581,18 @@ La comparació final amb el PR #113 ha detectat dos punts de concurrència que s
 El lock idempotent actual té 63 caràcters i és vàlid per MySQL. Es conserven el UUID i SHA-256 complets als marcadors `RID`/`RH1`, amb més entropia que la variant compactada.
 
 **Estat:** implementat i cobert per `PackEnrollmentIdempotencyBoundaryTest`. No queda cap diferència tècnica necessària del PR #113 pendent d'absorbir.
+
+
+### F-22 · UML posterior al guard públic i retirada legacy — corregit
+
+Després d'integrar `PublicWebMutationAuthorization` es va detectar que classes, seqüències, activitats i UML integrat encara descrivien la frontera antiga i, en alguns punts, callbacks productius legacy ja eliminats o una decisió d'ordre comercial encara pendent.
+
+Correcció:
+- classes ACTUAL inclouen `PublicWebMutationAuthorization` i la seva dependència des de `EnviarInscripcioPack`;
+- seqüència ACTUAL mostra `WEB_ALLOWED_ORIGINS`, `X-Requested-With`, 403 i `Sec-Fetch-Site` abans d'idempotència/payload;
+- activitats PK-A03 representen el guard públic; PK-A06 representa el callback SIF actual, no el legacy eliminat;
+- PK-A04 FINAL ja no inventa `commercial_operation` com a requisit pendent;
+- classes/activitats reflecteixen callback productiu físicament retirat, ordre comercial v1 tancat i UC-58 com a dependència de lliurament;
+- UML integrat incorpora la frontera pública i elimina els pendents ja resolts.
+
+**Estat:** les quatre famílies UML queden reconciliades amb el HEAD de codi actual.
