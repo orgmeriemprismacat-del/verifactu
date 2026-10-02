@@ -86,3 +86,32 @@ La previsualització del canvi de curs és server-to-server, signada amb HMAC i 
 - `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1`: abans d'executar el canvi llegat, recalcula el preu estàndard al servidor, rellegeix origen/pagat i torna a validar la decisió al SIF.
 
 El preview no emet rectificatives, no registra cobraments i no executa devolucions. La confirmació final continua sotmesa a POST, CSRF, same-origin, permisos i guards de lifecycle de l'endpoint actual.
+
+
+## Redsys PACK — UC-015
+
+El checkout PACK és fail-closed i no reutilitza imports, titular, correu ni endpoint Redsys aportats pel navegador com a dades autoritatives.
+
+### Web / ecommerce
+
+- `SIF_REDSYS_INTENT_API_URL`: endpoint HTTPS server-to-server de creació d'intencions Redsys.
+- `SIF_INTERNAL_REDSYS_INTENT_SIGNED_PATH`: path canònic HMAC de la creació d'intenció.
+- `SIF_INTERNAL_API_KEY_ID` / `SIF_INTERNAL_API_SECRET`: credencial HMAC compartida.
+- `SIF_REDSYS_INTENT_ACTOR_ID`: actor tècnic del checkout.
+- `SIF_REDSYS_INTENT_ACTOR_ROLES`: rols signats; no hi ha fallback permissiu.
+- `SIF_REDSYS_CALLBACK_URL`: MerchantURL HTTPS del callback SIF.
+- `SIF_REDSYS_PAYMENT_URL`: URL del formulari Redsys. Només s'accepten:
+  - producció: `https://sis.redsys.es/sis/realizarPago`;
+  - preproducció/sandbox: `https://sis-t.redsys.es:25443/sis/realizarPago`.
+- `REDSYS_MERCHANT_CODE`: FUC.
+- `REDSYS_TERMINAL`: terminal.
+- `SIF_REDSYS_MERCHANT_KEY`: secret Redsys; mai al repositori.
+
+`preflight-redsys-pack.php` comprova URL de callback, API d'intenció, endpoint de pagament Redsys, rols, secrets, connectivitat i taules necessàries. L'endpoint de pagament només és vàlid si coincideix exactament amb una de les dues URLs admeses.
+
+### Evidència
+
+- `php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER>`: orquestració de preflight/preview i execució controlada.
+- `php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>`: verificació read-only de la cadena persistent completa UC-015 després de l'execució.
+- En producció el verificador d'evidència queda bloquejat per defecte; només es pot habilitar explícitament amb `SIF_UC015_EVIDENCE_ALLOW_PRODUCTION=1`.
+- La sortida d'evidència no inclou PII, signatures ni snapshots comercials complets.
