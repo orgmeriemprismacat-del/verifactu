@@ -146,7 +146,7 @@ Pont candidat:
 - `RedsysCourseLegacyFallbackBoundaryTest`: comprova gate, escaping, configuració externa, signatura/order/import abans d'efectes i inicialització JASOM.
 
 **Evidència anterior:** el cap del PR #79 (`3569fffc…`) va completar amb èxit `SIF PHP MySQL tests`, `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks`. El PR #95 (`3fa6377e…`) va tornar a deixar els quatre workflows verds i les suites SIF en **841 passed / 0 failed**, incorporant `EXTERNAL_ALLOCATION`.  
-**Evidència d'aquesta branca:** les proves específiques de hardening ACTUAL queden pendents del CI del PR #105.
+**Evidència d'aquesta branca:** el hardening ACTUAL ha quedat revalidat al PR #105 sobre el head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en success.
 
 ## 8. Pendent real després d'aquesta auditoria
 
@@ -170,7 +170,7 @@ Pont candidat:
 | SIF final | IMPLEMENTAT al repositori |
 | Pont candidat | IMPLEMENTAT al repositori |
 | Atribució quantitativa per inscripció | IMPLEMENTADA + VERIFICADA al PR #95 (`EXTERNAL_ALLOCATION`) |
-| E2E intern | VERIFICAT al PR #79 i ampliat/verificat al PR #95 amb fund allocation; hardening de PR #105 pendent de CI |
+| E2E intern | VERIFICAT al PR #79 i ampliat/verificat al PR #95 amb fund allocation; hardening ACTUAL també VERIFICAT per CI al PR #105 |
 | Redsys preproducció real | PENDENT |
 | Cutover productiu | PENDENT |
 | Lliurament email UC-58 | PENDENT |
