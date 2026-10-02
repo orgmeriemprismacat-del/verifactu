@@ -13,13 +13,14 @@ class Pack {
   +__construct(idPack, dispositiu, modeLlistat)
   +obtenirPreu()
   +obtenirEdicions()
+  +valida totes les edicions obertes
 }
 class EdicioPack {
   +obtenirIdPreu()
   +obtenirAny()
   +obtenirMes()
   +obtenirCodiCurs()
-  +inscripcioOberta(dies)
+  +inscripcioOberta(dies) signed-cutoff
 }
 class InscripcioPack {
   +mostrar()
@@ -56,10 +57,10 @@ RealitzaPagamentPackAutomatic --> EnviarInscripcioPack : usa IDPAG creat
 
 ### Responsabilitats observades
 
-- `Pack.php`: carrega la definició del pack, components, disponibilitat i metadades.
-- `EdicioPack.php`: resol edició, curs, dates, preu i obertura.
+- `Pack.php`: carrega la definició del pack, components i metadades; en vista completa exigeix que totes les edicions tinguin una finestra d'inscripció oberta segons les regles per hores.
+- `EdicioPack.php`: resol edició, curs, dates, preu i obertura; `inscripcioOberta()` usa ara una data límit amb signe (`data_inici + dies`) i comparació real contra avui.
 - `InscripcioPack.php`: genera el formulari.
-- `enviarInscripcioPack.php`: rep dades per **POST**, rebutja mètodes diferents i cross-site detectables, valida `REQUEST_ID` UUID v4 i fingerprint SHA-256, serialitza reintents amb named lock i resol `REUSED/409` **abans** dels validators legacy i de rellegir el pack actual. Per una alta nova recalcula imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial + `RID/RH1` dins una **transacció única**. En error fa rollback i garanteix l'alliberament dels locks.
+- `enviarInscripcioPack.php`: rep dades per **POST**, rebutja mètodes diferents i cross-site detectables, valida `REQUEST_ID` UUID v4 i fingerprint SHA-256, serialitza reintents amb named lock i resol `REUSED/409` abans dels validators legacy i de rellegir el pack actual. Per una alta nova exigeix que **totes les edicions** continuïn obertes, recalcula imports des de BD, genera `IDPAG` i crea N files `inscripcions` amb snapshot comercial + `RID/RH1` dins una transacció única. En error fa rollback i garanteix l'alliberament dels locks.
 - `realitzaPagamentPackAutomatic.php`: conserva el codi històric, però està bloquejat per defecte amb HTTP 410 abans de qualsevol mutació.
 
 ## 2. Classes ACTUAL — SIF ja implementat
@@ -197,7 +198,7 @@ LegacyPackFiscalCallback ..> RedsysPackInvoiceService : substituir per flux SIF
 | Responsabilitat | ACTUAL | FINAL |
 |---|---|---|
 | Preu definitiu | **Backend autoritatiu implementat** | Mantenir snapshot versionat i provar runtime |
-| Transport alta pública | **POST-only + same-site/origin + REQUEST_ID idempotent implementat** | E2E navegador/preproducció, inclòs replay de resposta perduda |
+| Transport/eligibilitat alta pública | **POST-only + same-site/origin + REQUEST_ID + tots els components oberts** | E2E navegador/preproducció, inclòs replay i component tancat |
 | Identitat operació | `REQUEST_ID` persistent (`RID/RH1`) + `IDPAG`; named lock per request i `GET_LOCK` per allocator; N inserts transaccionals | Migració futura a identificador/taula dedicada si es vol retirar el deute legacy |
 | Ordinal components | `PACK_ORDINAL` congelat i consumit | Ordre actual `DATAI, ID_CURS`; decidir si cal posició comercial explícita |
 | Receptor fiscal | **Validació fail-closed entre tots els components** | Mantenir receptor explícit al snapshot |
