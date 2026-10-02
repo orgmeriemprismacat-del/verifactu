@@ -47,6 +47,7 @@ final class LegacyUsocCourseChangePricingResolverTest
 
         Assert::same('0.00', $result['target']['management_fee']);
         Assert::same(null, $source->managementFeeHours);
+        Assert::same(1, $source->editionCalls);
     }
 
     public function testRejectsUnvalidatedUsocSource(): void
@@ -109,6 +110,7 @@ final class LegacyUsocCourseChangePricingFakeSource
 
     public string $studentPrice = '75.00';
     public ?string $managementFeeHours = null;
+    public int $editionCalls = 0;
 
     public function enrollment(int $idInsc): array
     {
@@ -117,6 +119,8 @@ final class LegacyUsocCourseChangePricingFakeSource
 
     public function edition(string $year, string $month, string $course): array
     {
+        $this->editionCalls++;
+
         if ($course === 'CURS-A') {
             return [
                 'kind' => 'COURSE',
