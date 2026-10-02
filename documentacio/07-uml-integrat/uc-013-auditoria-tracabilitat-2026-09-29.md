@@ -207,3 +207,18 @@ El contrast amb `Intranet.php` i el builder SIF permet tancar part de la incerte
 - **Excessos:** poden requerir refund o `credit_balance`, sempre per pagador.
 
 Això redueix el pendent del canvi de curs a la implementació del resolver destí + executor + handoff, no a una decisió oberta sobre si s'ha de conservar l'import antic.
+
+
+## Delta implementació 02/10/2026 · resolver d'imports de canvi de curs
+
+`UsocCourseChangeTargetResolver` — **IMPLEMENTAT**:
+
+- rep preu estàndard destí, preu USOC/alumne destí i despeses de gestió;
+- calcula en cèntims, sense floats;
+- `entity = standard - student`;
+- `student_total = student + management_fee`;
+- valida `student <= standard`;
+- determina si cal factura entitat;
+- no emet factures ni mou diners.
+
+Proves afegides a `UsocCourseChangeTargetResolverTest` per split 80/20 + fee, entitat 0, decimals amb coma, import alumne superior al base i imports malformats.
