@@ -22,24 +22,29 @@ final class RedsysCoursePaymentIntentService
         $context = $this->legacySnapshots->loadCourseContextByIdpag($legacyDb, $idpag);
         $inscription = $context['inscription'];
 
-        $total = $this->money($inscription['A_PAGAR'] ?? null, 'A_PAGAR');
-        $paid = $this->money($inscription['PAGAMENT'] ?? 0, 'PAGAMENT');
-        $pending = $this->money(max(0.0, (float) $total - (float) $paid), 'pending amount');
+        $totalCents = $this->cents($inscription['A_PAGAR'] ?? null, 'A_PAGAR');
+        $paidCents = $this->cents($inscription['PAGAMENT'] ?? 0, 'PAGAMENT');
+        $pendingCents = max(0, $totalCents - $paidCents);
 
-        if ((float) $pending <= 0.0) {
+        if ($pendingCents <= 0) {
             throw SifException::conflict('Course inscription is already fully paid');
         }
 
-        $requested = array_key_exists('requested_amount', $input)
-            ? $this->money($input['requested_amount'], 'requested amount')
-            : $pending;
+        $requestedCents = array_key_exists('requested_amount', $input)
+            ? $this->cents($input['requested_amount'], 'requested amount')
+            : $pendingCents;
 
-        if ((float) $requested <= 0.0 || (float) $requested - (float) $pending > 0.009) {
+        if ($requestedCents <= 0 || $requestedCents > $pendingCents) {
             throw SifException::validation('Requested course payment amount is outside the pending balance');
         }
 
+        $total = $this->amount($totalCents);
+        $paid = $this->amount($paidCents);
+        $pending = $this->amount($pendingCents);
+        $requested = $this->amount($requestedCents);
+
         $fractional = (int) ($inscription['FRACCIONAT'] ?? 0) === 1;
-        if (!$fractional && $requested !== $pending) {
+        if (!$fractional && $requestedCents !== $pendingCents) {
             throw SifException::conflict('Partial payment is not enabled for this course inscription');
         }
 
@@ -55,7 +60,7 @@ final class RedsysCoursePaymentIntentService
             if ((int) ($inscription['VALID_DESC'] ?? 0) !== 1) {
                 throw SifException::conflict('Alumne PrisMa discount is not in a payable state.');
             }
-            if ($fractional || (float) $paid > 0.0 || $requested !== $pending) {
+            if ($fractional || $paidCents > 0 || $requestedCents !== $pendingCents) {
                 throw SifException::conflict(
                     'Alumne PrisMa fractional or resumed payment requires an explicit fiscal checkout model.'
                 );
@@ -134,12 +139,22 @@ final class RedsysCoursePaymentIntentService
         return (int) $raw;
     }
 
-    private function money(mixed $value, string $label): string
+    private function cents(mixed $value, string $label): int
     {
-        if (!is_numeric($value)) {
+        $raw = trim(str_replace(',', '.', (string) $value));
+        if (!preg_match('/^\d{1,10}(?:\.\d{1,2})?$/D', $raw)) {
             throw SifException::validation("Invalid {$label}");
         }
 
-        return number_format((float) $value, 2, '.', '');
+        [$euros, $decimals] = array_pad(explode('.', $raw, 2), 2, '');
+
+        return (int) $euros * 100 + (int) str_pad($decimals, 2, '0');
+    }
+
+    private function amount(int $cents): string
+    {
+        return intdiv($cents, 100)
+            . '.'
+            . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 }
