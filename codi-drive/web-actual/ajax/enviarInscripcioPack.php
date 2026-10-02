@@ -87,7 +87,8 @@ try {
 		$textTbTitulacio = new Text($request['tbTitulacio']);
 	else
 		$textTbTitulacio = null;
-	$textPagFrac = new Text($request['pagFrac']);
+	// UC-015: l'ecommerce de packs no permet fraccionament; no acceptar aquesta decisió del client.
+	$textPagFrac = new Text('No');
 	$textConegut = new Text($request['conegut']);
 	if ( $request['comentaris'] != '')
 		$textComentaris = new Text($request['comentaris']);
