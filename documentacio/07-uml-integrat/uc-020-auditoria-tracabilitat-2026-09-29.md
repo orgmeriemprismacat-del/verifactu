@@ -201,7 +201,7 @@ Aquests tests estan **creats però no es declaren verificats** fins que s'execut
 
 ### 7.3. Buits que continuen oberts
 
-1. `PrismaStudentDiscountPolicy` ja existeix sota `ALUMNE_PRISMA_LEGACY_V1`; continuen pendents de ratificació `UC20-DEC-001…006` i qualsevol canvi requerirà una nova versió.
+1. `PrismaStudentDiscountPolicy` ja existeix sota `ALUMNE_PRISMA_WEB_LEGACY_V2`; continuen pendents de ratificació `UC20-DEC-001…006` i qualsevol canvi requerirà una nova versió.
 2. Alta/preview web i resolució intranet → oferta servidor canònica (`CommercialOfferService` o equivalent); el checkout de targeta actiu ja deriva a `PrismaStudentCourseCheckoutService` via `course-intent`.
 3. Substitució de les rutes llegades de confirmació/pagament per `PaymentLinkService` i/o operació servidor autoritativa.
 4. El nucli `PrismaStudentCourseCheckoutService → RedsysPaymentIntentService → commercial_operation.UUID_INTENT` està implementat **i integrat al canal de targeta actiu**; resta coordinar-lo amb `payment_link` i amb l'oferta creada en alta/preview.
@@ -215,7 +215,7 @@ Aquests tests estan **creats però no es declaren verificats** fins que s'execut
 
 | Peça | Estat | Finalitat |
 | --- | --- | --- |
-| `PrismaStudentDiscountPolicy` | IMPLEMENTAT_COMPATIBILITAT | Reprodueix la regla web sota `ALUMNE_PRISMA_LEGACY_V1` i retorna evidència concreta sense tancar decisions futures. |
+| `PrismaStudentDiscountPolicy` | IMPLEMENTAT_COMPATIBILITAT | Reprodueix la regla web sota `ALUMNE_PRISMA_WEB_LEGACY_V2` i retorna evidència concreta sense tancar decisions futures. |
 | `LegacyPrismaStudentHistoryRepository` | IMPLEMENTAT | Recupera fets d'historial per document sense decidir elegibilitat. |
 | `CourseIntentSnapshotValidator` | IMPLEMENTAT | Valida source, inscripció, IDPAG, import i coherència del descompte per intencions CURS. |
 | `LegacyPrismaStudentPriceSnapshotResolver` | IMPLEMENTAT | Obté snapshot de preu autoritatiu des de dades llegades. |
@@ -281,3 +281,29 @@ Continua obert el problema d'autoritat al **moment d'alta/preview** del llegat, 
 `PrismaStudentCourseCheckoutService` reutilitza ara `CommercialOperationRepository` i `DiscountValidationRepository` dins de la mateixa transacció que crea la intenció. No es delega directament a `CommercialOfferService` perquè aquest servei té el seu propi `TransactionRunner`; fer-ho així trencaria l'atomicitat operació/validació/intenció.
 
 Continuen directes només les operacions específiques encara sense repository dedicat en aquest flux (p. ex. `commercial_operation_party` i transició d'estat), candidats a una refactorització posterior no bloquejant.
+
+## 11. Passada final de tancament — 02/10/2026
+
+### 11.1. Noves troballes i resolució
+
+| ID | Troballa | Resolució |
+| --- | --- | --- |
+| UC020-84 | P05 encara es documentava com GET/sense CSRF, però el runtime havia evolucionat. | **TANCAT DOCUMENTACIÓ**: POST, sessió, permís, CSRF i `requestId` idempotent confirmats i UML reconciliat. |
+| UC020-85 | L'orquestrador AP podia incloure matrícula actual i historial posterior. | **TANCAT CODI + TEST**: exclou `ID` actual i filtra `DATA_INSC <= evaluation_at`. |
+| UC020-86 | La policy interpretava factura relacionada no nul·la com a elegible, però el SQL públic executable `!= NULL` no ho feia. | **TANCAT CODI + TEST**: `ALUMNE_PRISMA_WEB_LEGACY_V2`; factura només emesa no acredita. |
+| UC020-87 | `enviarInscripcio.php` persistia AP i `A_PAGAR` provinents del navegador. | **TANCAT PER AP**: revalidació servidor d'historial i tarifes abans de l'INSERT. |
+| UC020-88 | Promoció podia coexistir amb un estat client AP. | **TANCAT FAIL-CLOSED**: AP + promoció retorna 409. |
+| UC020-89 | `calcularPreu.php` podia usar la llista de descomptes sense inicialitzar. | **TANCAT CODI**: inicialització i fallback segur. |
+| UC020-90 | #112 havia preservat `operational_event` però reintroduït SQL directe ja encapsulat a #110. | **TANCAT CODI**: repositoris de party/intenció/estat recuperats. |
+| UC020-91 | L'alta llegada completa continua sent GET amb PII i descomptes no-AP fora d'oferta SIF nativa. | **TRANSFERIT TRANSVERSAL**: hardening general de l'alta; ja no permet manipular AP després d'UC020-87. |
+| UC020-92 | `payment_link` encara no és l'entrada canònica del checkout AP actiu. | **TRANSFERIT MIGRACIÓ**: el canal targeta actiu ja és server-authoritative via `course-intent`. |
+
+### 11.2. Decisions UC20-DEC-001…006
+
+Totes sis queden tancades a la fitxa v1.5 i materialitzades on afecten el runtime: `GENERAT=1` sí; factura només emesa no; no autoacreditació; `evaluation_at=DATA_INSC` per matrícula llegada; AP no acumulable amb promocions; snapshot AP persistit vàlid mentre la matrícula sigui pagable, amb caducitat del link separada.
+
+### 11.3. Estat final de l'auditoria
+
+**AUDIT_CLOSED** a 02/10/2026.
+
+El tancament acredita exhaustivitat documental/codi per UC-020 i resolució o transferència explícita de totes les troballes. No substitueix el gate de desplegament: cal conservar una execució E2E navegador → callback Redsys → pagament → factura sobre entorn controlat abans de considerar el rollout productiu verificat.
