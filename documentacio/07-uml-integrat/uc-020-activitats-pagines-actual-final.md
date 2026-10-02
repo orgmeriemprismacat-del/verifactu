@@ -373,7 +373,7 @@ if (Operació PAYABLE?) then (Sí)
  :Habilitar només mètodes autoritzats;
  :Crear/reutilitzar intenció Redsys des de snapshot;
 note right
-  PENDENT en aquesta branca: adaptador
+  IMPLEMENTAT per pagament targeta AP via course-intent; pendent per payment_link/altres canals
   payment_link/commercial_operation -> RedsysPaymentIntentService
 end note
 else (No)
@@ -588,10 +588,10 @@ stop
 
 ### 4.5. Estat d'implementació del FINAL
 
-- `CommercialOfferService::createOrReuse()`: **implementat en aquesta branca**; encara no cridat pel web/intranet llegat.
-- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat en aquesta branca**; encara no substitueix les rutes llegades `/confirmacio/` i `/pagament/`.
-- Política `PrismaStudentDiscountPolicy`: **pendent de decisions de negoci i implementació**.
-- Adaptador `UUID_OPERATION/payment_link → RedsysPaymentIntentService`: **pendent**.
+- `CommercialOfferService::createOrReuse()`: **implementat**; encara no governa l'alta/preview web ni la resolució intranet.
+- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat**; encara no és la ruta canònica d'aquest checkout AP.
+- Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_LEGACY_V1`; decisions de negoci futures pendents.
+- Connexió AP de pagament → `RedsysPaymentIntentService`: **IMPLEMENTADA** via `SifRedsysCourseIntentClient` / `course-intent` / `PrismaStudentCourseCheckoutService`. La coordinació específica amb `payment_link` continua pendent.
 
 ## 7. Matriu ACTUAL → FINAL
 
