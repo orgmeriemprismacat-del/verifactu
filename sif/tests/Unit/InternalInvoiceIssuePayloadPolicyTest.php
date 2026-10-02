@@ -41,6 +41,19 @@ final class InternalInvoiceIssuePayloadPolicyTest
         });
     }
 
+    public function testRejectsLowercasePlaceholderIssuerToo(): void
+    {
+        Assert::throws(\RuntimeException::class, function (): void {
+            (new InternalInvoiceIssuePayloadPolicy(
+                'g00000000',
+                'Associacio PrisMa'
+            ))->prepare([
+                'source_channel' => 'INTRANET',
+                'aeat_fields' => ['SistemaInformatico' => ['TipoUsoPosibleSoloVerifactu' => 'S']],
+            ], ['actor_id' => 'adam']);
+        });
+    }
+
     public function testRejectsRedsysInvoiceThroughGenericInternalEndpoint(): void
     {
         Assert::throws(SifException::class, function (): void {
