@@ -97,6 +97,54 @@ class ConnexioBBDDSTMT {
    }
 
    /*
+   * @brief Reserva un named lock MySQL per serialitzar una operació legacy.
+   */
+   function reserveNamedLock($lockName, $timeoutSeconds = 10)
+   {
+      $lockName = (string) $lockName;
+      if ($lockName === '' || strlen($lockName) > 64) {
+         throw new Exception('Nom de lock invàlid');
+      }
+
+      $stmt = $this->connexio->prepare('SELECT GET_LOCK(?, ?)');
+      if (!$stmt) {
+         throw new Exception('No es pot preparar el named lock');
+      }
+      $stmt->bind_param('si', $lockName, $timeoutSeconds);
+      $stmt->execute();
+      $stmt->bind_result($locked);
+      $stmt->fetch();
+      $stmt->close();
+
+      if ((int) $locked !== 1) {
+         throw new Exception('No s\'ha pogut reservar el named lock');
+      }
+   }
+
+   /*
+   * @brief Allibera un named lock MySQL reservat a la connexió actual.
+   */
+   function releaseNamedLock($lockName)
+   {
+      if (!isset($this->connexio) || !$this->connexio) {
+         return;
+      }
+
+      $lockName = (string) $lockName;
+      if ($lockName === '' || strlen($lockName) > 64) {
+         return;
+      }
+
+      $stmt = $this->connexio->prepare('SELECT RELEASE_LOCK(?)');
+      if (!$stmt) {
+         return;
+      }
+      $stmt->bind_param('s', $lockName);
+      $stmt->execute();
+      $stmt->close();
+   }
+
+   /*
    * @brief Reserva de manera serialitzada el següent IDPAG de les inscripcions.
    * @return Retorna el següent IDPAG mantenint un named lock fins a releaseIdPag().
    */
