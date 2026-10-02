@@ -52,6 +52,9 @@ final class UsocCourseChangeExecutionService
 
         if ((string) $execution['STATE'] === 'COMPLETED') {
             $result = $this->decode((string) ($execution['RESULT_JSON'] ?? ''), 'completed course change result');
+            if ((int) ($result['target_id_insc'] ?? 0) !== $targetIdInsc) {
+                throw SifException::conflict('USOC course change request is already bound to another target enrollment');
+            }
             $result['idempotency_reused'] = true;
             return $result;
         }
@@ -93,6 +96,17 @@ final class UsocCourseChangeExecutionService
             : $this->payloads->normalizeBilling(
                 is_array($input['entity_billing'] ?? null) ? $input['entity_billing'] : []
             );
+
+        $this->assertSourceFundsStillMatchPlan(
+            $db,
+            (string) $sourceStudent['invoice_uuid'],
+            $fundPlan['student'] ?? []
+        );
+        $this->assertSourceFundsStillMatchPlan(
+            $db,
+            $entitySourceUuid,
+            $fundPlan['entity'] ?? []
+        );
 
         $binding = [
             'phase' => 'EFFECTS_BOUND',
@@ -449,6 +463,49 @@ final class UsocCourseChangeExecutionService
         }
 
         return $result;
+    }
+
+    private function assertSourceFundsStillMatchPlan(
+        \PDO $db,
+        string $invoiceUuid,
+        array $plan
+    ): void {
+        $expected = $this->money($plan['source_net_paid'] ?? '0.00');
+        if ($invoiceUuid === '') {
+            if ($expected !== '0.00') {
+                throw SifException::conflict('USOC plan contains funds without a source invoice');
+            }
+            return;
+        }
+
+        $stmt = $db->prepare(
+            "SELECT
+                COALESCE(SUM(CASE
+                    WHEN pt.ESTAT = 'CONFIRMED'
+                     AND pt.TIPUS_MOVIMENT IN ('CHARGE', 'COMPENSATION')
+                    THEN pa.IMPORT_ASSIGNAT ELSE 0 END), 0) AS CHARGED,
+                COALESCE(SUM(CASE
+                    WHEN pt.ESTAT = 'CONFIRMED'
+                     AND pt.TIPUS_MOVIMENT = 'REFUND'
+                    THEN pa.IMPORT_ASSIGNAT ELSE 0 END), 0) AS REFUNDED
+             FROM payment_allocation pa
+             INNER JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
+             WHERE pa.UUID_FACTURA = ?"
+        );
+        $stmt->execute([$invoiceUuid]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC) ?: [];
+        $current = number_format(
+            max(0.0, (float) ($row['CHARGED'] ?? 0) - (float) ($row['REFUNDED'] ?? 0)),
+            2,
+            '.',
+            ''
+        );
+
+        if ($current !== $expected) {
+            throw SifException::conflict(
+                'USOC source funds changed after course change preparation'
+            );
+        }
     }
 
     private function appendEvent(
