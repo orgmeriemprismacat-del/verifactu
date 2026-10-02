@@ -86,6 +86,8 @@ fi
   echo "  PublicWebMutationAuthorizationTest::testRejectsCrossOriginRequest"
   echo "  PublicWebMutationAuthorizationTest::testRejectsNonAjaxRequest"
   echo "  PublicWebMutationAuthorizationTest::testAllowsConfiguredRefererFallback"
+  echo "  PackEnrollmentIdempotencyBoundaryTest::testServerUsesRequestLockFingerprintAndAtomicPackInsert"
+  echo "  PackEnrollmentIdempotencyBoundaryTest::testBrowserReusesRequestIdAndBlocksConcurrentSubmit"
   echo
   echo "== Checkout PHP lint =="
   "${PHP_BIN}" -l codi-drive/web-actual/inc/PackPaymentGate.php
