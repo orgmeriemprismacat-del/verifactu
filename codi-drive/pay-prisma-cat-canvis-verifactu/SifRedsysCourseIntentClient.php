@@ -80,9 +80,12 @@ final class SifRedsysCourseIntentClient
         }
 
         $intent = $response['intent'] ?? null;
+        if (!is_array($intent)) {
+            throw new RuntimeException('SIF course intent response is incomplete');
+        }
+
         $responseAmount = trim((string) ($intent['amount'] ?? ''));
-        if (!is_array($intent)
-            || trim((string) ($intent['ds_order'] ?? '')) === ''
+        if (trim((string) ($intent['ds_order'] ?? '')) === ''
             || !preg_match('/^\\d{1,10}\\.\\d{2}$/D', $responseAmount)
         ) {
             throw new RuntimeException('SIF course intent response is incomplete');
