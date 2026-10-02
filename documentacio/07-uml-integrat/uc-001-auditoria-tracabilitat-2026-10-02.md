@@ -94,7 +94,7 @@ La integració obligatòria de `commercial_operation`, els events funcionals pro
 | F-058 | Cal decisió comuna de cobertura/cobrament abans d'emetre. | Incorporada a activitats/seqüència FINAL. | **Documentat; no implementat complet** |
 | F-059 | Cal distingir documentat/implementat/inspeccionat/executat. | Aquesta fitxa ho centralitza. | **Corregit documentalment** |
 | F-060 | Registre intern no congela explícitament tots els camps fora del bloc AEAT. | No es duplica estructura sense model aprovat. | **Pendent snapshot final** |
-| F-061 | Head AEAT revisable pot bloquejar posteriors. | Es manté ordre global; no se salta automàticament. | **Pendent operació/reconciliació** |
+| F-061 | Head AEAT revisable pot bloquejar posteriors. | Ordre global fail-closed + estat `REVIEW`; `AeatReviewReconciliationService` reconcilia resultats terminals persistits sense segon enviament i rebutja intents `UNCERTAIN`. | **Implementat; revalidació CI del PR pendent** |
 | F-062 | Signe/import no classificat globalment per tipus F/R/refund. | No s'endureix sense regla per variant. | **Pendent classificació** |
 | F-063 | Numeració llegada depèn de `TIPUS='A'` amb insercions antigues potencialment implícites. | No es toca llegat des d'UC-001. | **Pendent retirada/esquema llegat** |
 | F-064 | Columnes fiscals noves poden existir sense writer individual complet. | Documentat als límits. | **Pendent model final** |
@@ -121,22 +121,22 @@ La integració obligatòria de `commercial_operation`, els events funcionals pro
 | F-085 | Capçalera podia no quadrar amb línies. | Sumes en cèntims de base/import base/IVA/total. | **Corregit per codi; pendent CI** |
 | F-086 | Curs/pack/grup acoblen `inscription.ANY` a l'any fiscal. | No es canvia sense decisió funcional/fiscal. | **Pendent decisió + prova any creuat** |
 
-## 7. Proves addicionals necessàries abans de tancar
+## 7. Proves de tancament i deutes posteriors
 
 | ID | Escenari | Resultat esperat |
 | --- | --- | --- |
-| UC001-VAL-04 | `import_base` de capçalera diferent de la suma de línies | 422 abans de numerar |
-| UC001-VAL-05 | `iva_import` de capçalera diferent de la suma de línies | 422 abans de numerar |
-| UC001-VAL-06 | `source_channel` buit | 422 abans de numerar |
-| UC001-REL-02 | dues línies comparteixen el mateix origen d'una única `fact_rel` | `ID_FACTURA_LINIA=NULL`, mai assignació arbitrària |
+| UC001-VAL-04 | `import_base` de capçalera diferent de la suma de línies | **Implementat en test**: 422 abans de numerar |
+| UC001-VAL-05 | `iva_import` de capçalera diferent de la suma de línies | **Implementat en test**: 422 abans de numerar |
+| UC001-VAL-06 | `source_channel` buit | **Implementat en test**: 422 abans de numerar |
+| UC001-REL-02 | dues línies comparteixen el mateix origen d'una única `fact_rel` | **Implementat en test**: `ID_FACTURA_LINIA=NULL`, mai assignació arbitrària |
 | UC001-YEAR-01 | edició d'any anterior emesa l'any actual | expected pendent de decisió funcional/fiscal |
 | UC001-COV-01 | mateixa obligació comercial amb dues claus diferents | no duplicar factura; guard pendent |
 | UC001-TRACE-01 | reconstruir actor, request, correlació, comanda i resultat | pendent audit writer |
 | UC001-AEAT-02 | emissor del payload diferent de la configuració servidor al generic endpoint | configuració servidor preval o petició rebutjada segons policy |
 
-## 8. Criteri de tancament
+## 8. Criteri de tancament funcional/productiu posterior
 
-UC-001 no s'ha de marcar com a **TANCAT** només perquè el hardening d'aquesta branca sigui mergeable. El tancament funcional exigeix, com a mínim:
+L’**auditoria** es tanca amb el gate CI definit a §5. El **cas d’ús com a capacitat productiva final** no s’ha de marcar com a complet només perquè el hardening d’aquesta branca sigui mergeable. Aquest segon tancament exigeix, com a mínim:
 
 1. CI/suite MySQL verda per les correccions incorporades;
 2. adaptadors reals connectats als endpoints dedicats;
@@ -147,4 +147,4 @@ UC-001 no s'ha de marcar com a **TANCAT** només perquè el hardening d'aquesta 
 7. decisió i prova de l'any fiscal;
 8. resposta amb estats d'emissió local, cobrament, document i AEAT diferenciats.
 
-Fins aleshores: **PARTIAL_CODE_AVAILABLE / AUDITAT AMB HARDENING PARCIAL**.
+Fins aleshores, l’estat d’implementació continua **CORE_HARDENED_CROSSCUTTING_AND_ENVIRONMENT_PENDING**. Això és compatible amb tenir l’**AUDITORIA TANCADA** un cop el gate CI sigui verd.
