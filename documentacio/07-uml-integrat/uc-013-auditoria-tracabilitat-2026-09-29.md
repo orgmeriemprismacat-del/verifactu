@@ -223,7 +223,7 @@ Això va reduir el pendent a resolver + executor + handoff. En aquesta mateixa b
 - determina si cal factura entitat;
 - no emet factures ni mou diners.
 
-Proves afegides a `UsocCourseChangeTargetResolverTest` per split 80/20 + fee, entitat 0, decimals amb coma, import alumne superior al base, imports malformats i `target_student_course_amount=0`; aquest últim continua bloquejat fins a definir la política de curs gratuït.
+Proves afegides a `UsocCourseChangeTargetResolverTest` per split 80/20 + fee, decimals amb coma, import alumne superior/al mateix nivell que el base, imports malformats i `target_student_course_amount=0`. Tant alumne=0 com entitat=0 continuen fail-closed perquè no formen part del contracte USOC executiu actual.
 
 
 ## Delta implementació 02/10/2026 · pla econòmic de canvi de curs
