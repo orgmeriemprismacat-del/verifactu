@@ -21,6 +21,12 @@ final class UsocCourseChangeTargetResolver
             'management_fee'
         );
 
+        if ($studentCourse <= 0) {
+            throw SifException::validation(
+                'USOC target student amount must be positive until free-course policy is implemented'
+            );
+        }
+
         if ($studentCourse > $standard) {
             throw SifException::validation(
                 'USOC target student amount cannot exceed standard target amount'
