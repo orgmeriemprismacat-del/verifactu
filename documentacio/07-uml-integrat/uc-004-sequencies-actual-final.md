@@ -260,11 +260,19 @@ else fingerprint coincideix
   end
   TR->>DB: COMMIT
   IS-->>IBP: CREATED/REUSED + UUID + número
-  IBP-->>CMD: resultat
-  CMD-->>HTTP: JSON factura PENDING
+  IBP->>IBP: ensurePdf(UUID,K) després del COMMIT fiscal
+  IBP->>DB: INSERT/REUSE document_job PDF PENDING
+  alt cua documental disponible
+    DB-->>IBP: UUID_JOB + PENDING
+    IBP-->>CMD: factura + document_status=PENDING
+  else cua documental falla
+    IBP-->>CMD: mateixa factura + document_status=ERROR
+    Note over IBP,DB: El retry reutilitza la factura; no reemet.
+  end
+  CMD-->>HTTP: JSON factura PENDING + estat documental
   HTTP-->>BRG: resultat
-  BRG-->>UI: número/UUID/estat
-  Note over UI,DB: Document per UUID i sincronització llegada post-COMMIT continuen pendents.
+  BRG-->>UI: número/UUID/estat + Document PENDING/ERROR
+  Note over UI,DB: Worker/renderitzat/storage i sync llegada continuen pendents.
 end
 ```
 
@@ -318,13 +326,14 @@ else fingerprint coincideix
   IS->>DB: transacció fiscal + claim UC-004
   DB-->>IS: CREATED o REUSED
   IS-->>IBP: UUID + número
-  IBP-->>C: resultat
-  C-->>Op: factura PENDING, sense payment
+  IBP->>DB: ensure/reuse document_job PDF PENDING
+  IBP-->>C: factura + estat documental
+  C-->>Op: factura PENDING, sense payment; document PENDING/ERROR
 end
 ```
 
 **Implementat:** lectura per IDs, entityId, mateix curs/edició, total des de `A_PAGAR`, receptor fiscal, fingerprint i relectura abans de confirmar.  
-**Implementat també a la pantalla real:** sessió/rol vigent, CSRF, bridge servidor, HMAC, anti-replay, preview i confirmació. **Encara pendent:** classificador de cobertura transversal, document per UUID i sincronització llegada post-COMMIT si cal. L'auditoria operacional s'integra en aquesta branca i el mutador llegat queda 410.
+**Implementat també a la pantalla real:** sessió/rol vigent, CSRF, bridge servidor, HMAC, anti-replay, preview i confirmació. **Encara pendent:** classificador de cobertura transversal, worker/renderitzat/storage del document per UUID i sincronització llegada post-COMMIT si cal. L'auditoria operacional s'integra en aquesta branca i el mutador llegat queda 410.
 
 ## 5. Seqüència FINAL — col·lisió concurrent de la mateixa clau
 
@@ -429,7 +438,7 @@ Per tancar UC-004 cal un adaptador explícit o un endpoint específic que invoqu
 ## 8. Estat de verificació
 
 - **Documentat:** sí, ACTUAL i FINAL separats.
-- **Implementat:** circuit llegat ACTUAL i nucli SIF d'emissió/idempotència.
-- **Integrat:** **no acreditat** per a pantalla UC-004 → `InvoiceBeforePaymentService`.
-- **Proves:** existeixen proves d'integració del servei, però **no s'han executat en aquesta auditoria**.
+- **Implementat:** circuit FINAL pantalla→bridge→SIF, emissió/idempotència/cobertura/auditoria i encolat PDF `PENDING` idempotent/versionat. El circuit llegat es conserva només com a traça ACTUAL i el mutador queda 410 en aquesta branca.
+- **Integrat:** **SÍ al codi versionat** per pantalla UC-004 → `InvoiceBeforePaymentService`; pendent E2E/preproducció.
+- **Proves:** ampliades per cua/retry documental; cal validar el rerun CI de la punta actual.
 - **Producció/preproducció:** no verificada.
