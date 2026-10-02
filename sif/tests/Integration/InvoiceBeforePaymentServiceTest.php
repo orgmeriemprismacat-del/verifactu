@@ -91,6 +91,21 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same('INSCRIPCIO', $payload['relations'][0]['source_type']);
         Assert::same(900, $payload['relations'][0]['source_id']);
         Assert::same('ORIGIN', $payload['relations'][0]['relation_type']);
+        Assert::same('E1', $payload['totals']['exemption_reason']);
+        Assert::same('E1', $payload['lines'][0]['exemption_reason']);
+    }
+
+    public function testRejectsDifferentExemptionReasonForCurrentTrainingFlow(): void
+    {
+        $builder = new InvoiceBeforePaymentPayloadBuilder();
+
+        Assert::throws(SifException::class, function () use ($builder): void {
+            $builder->build(Fixtures::invoicePayload([
+                'totals' => [
+                    'exemption_reason' => 'E6',
+                ],
+            ]));
+        }, 422);
     }
 
     public function testRejectsPaymentBlockBeforeIssuingInvoice(): void
