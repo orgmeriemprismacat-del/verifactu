@@ -239,7 +239,7 @@ Actualment el builder rebutja `student_amount=0`; no s'inventa una factura o cob
 - **Implementat:** sol·licitud, validació durable, factura/cobrament alumne, checkpoint, factura/cobrament entitat, conciliació, guard, planner, resolver d'imports destí i pla econòmic pur per pagador.
 - **Verificat:** inspecció estàtica sobre el main indicat.
 - **Provat:** evidència CI prèvia específica del UC-013 cobreix E2E de servei, idempotència, parcial/complet, validació durable, UI contracts i lifecycle planner.
-- **Pendent:** E2E navegador/preproducció sobre configuració real i executor fiscal/econòmic del canvi de curs. La baixa ja està implementada al repositori.
+- **Pendent:** E2E navegador/preproducció sobre configuració real i executor d'efectes del canvi de curs. El preview USOC server-side ja està implementat; la baixa ja està implementada al repositori.
 
 
 ## 11. FINAL — canvi de curs USOC executable
@@ -290,3 +290,39 @@ end
 ```
 
 **Invariant:** mai usar fons de l'alumne per saldar la part USOC ni a l'inrevés. El detall complet és a [contracte FINAL de canvi de curs](uc-013-canvi-curs-usoc-contracte-final.md).
+
+
+## 12. ACTUAL — preview server-side del canvi de curs USOC
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant UI as alumnes-usoc-lifecycle-preview.js
+participant EP as sifUsocCourseChangePreview.php
+participant Price as LegacyUsocCourseChangePricingResolver
+participant API as API USOC signada
+participant Prev as UsocCourseChangePreviewService
+participant Life as UsocLifecyclePlanService
+participant Target as UsocCourseChangeTargetResolver
+participant Funds as UsocCourseChangeFundPlanService
+
+G->>UI: clic Guardar canvi USOC
+UI->>EP: POST + CSRF + id/edició/número canvi
+EP->>Price: resolve()
+Price->>Price: validar USOC origen
+Price->>Price: preu base + preu USOC destí
+Price->>Price: fee=origen si canvi 4, altrament 0
+Price-->>EP: pricing snapshot server-side
+EP->>API: course_change_preview HMAC
+API->>Prev: preview()
+Prev->>Life: lifecycle plan course_change
+Prev->>Target: split student/entity/fee
+Prev->>Funds: compensable/pendent/excés per pagador
+Funds-->>Prev: fund plan
+Prev-->>EP: preview sense efectes
+EP-->>UI: pricing + target + fund plan
+UI-->>G: mostrar preview; no continuar al legacy
+```
+
+**Invariant:** el preview no confia en `apagar`, `pagat` ni `despeses` editables del navegador per determinar el contracte USOC.
