@@ -324,7 +324,7 @@ La creació de les N inscripcions del pack ja és atòmica i idempotent per peti
 - `requestId` estable al navegador durant reintents;
 - named lock per request;
 - fingerprint del payload;
-- `PACK_REQUEST` / `PACK_REQUEST_HASH` persistits al snapshot;
+- `PACK_REQ` / `PACK_REQH` persistits al snapshot;
 - replay idèntic reutilitza l'alta existent;
 - replay divergent falla amb 409;
 - transacció única pels N inserts i rollback complet davant error.
