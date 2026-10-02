@@ -42,6 +42,14 @@ final class IssueInvoiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM sif_audit_event')->fetchColumn());
+        Assert::same($result['correlation_id'], (string) $db->query(
+            'SELECT CORRELATION_ID FROM operational_event LIMIT 1'
+        )->fetchColumn());
+        Assert::same('SUCCEEDED', (string) $db->query(
+            'SELECT RESULT FROM sif_audit_event LIMIT 1'
+        )->fetchColumn());
         Assert::same(
             (int) $db->query('SELECT ID FROM factura_linia LIMIT 1')->fetchColumn(),
             (int) $db->query('SELECT ID_FACTURA_LINIA FROM fact_rels LIMIT 1')->fetchColumn()
@@ -76,6 +84,11 @@ final class IssueInvoiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM sif_audit_event')->fetchColumn());
+        Assert::same('REUSED', (string) $db->query(
+            'SELECT RESULT FROM sif_audit_event ORDER BY ID DESC LIMIT 1'
+        )->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT LAST_NUM FROM fiscal_sequence WHERE TIPUS_SERIE = "A" AND ANY_FACT = 2026')->fetchColumn());
     }
 
