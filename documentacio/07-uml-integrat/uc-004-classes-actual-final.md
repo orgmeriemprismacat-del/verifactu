@@ -396,10 +396,32 @@ class LegacySync {
   +syncAfterSifCommit(result)
 }
 
-class InvoiceDocumentService {
+class InvoiceBeforePaymentDocumentQueueService {
+  <<EXISTEIX EN AQUESTA BRANCA>>
+  +ensurePdf(uuidFactura, invoiceIdempotencyKey)
+}
+
+class DocumentJobRepository {
+  <<EXISTEIX EN AQUESTA BRANCA>>
+  +ensurePending(db, uuidFactura, type, version, correlation)
+  +findByInvoiceAndType(db, uuidFactura, type)
+}
+
+class DocumentJob {
+  <<SIF DB>>
+  +UUID_JOB
+  +UUID_FACTURA
+  +DOCUMENT_TYPE
+  +GENERATOR_VERSION
+  +STATUS
+  +FACTURA_DOCUMENT_ID
+}
+
+class FiscalDocumentWorker {
   <<PROPOSAT>>
-  +ensureDocument(uuidFactura)
-  +getDocumentStatus(uuidFactura)
+  +claimPending()
+  +renderAndStore()
+  +completeOrRetry()
 }
 
 BrowserUc004Js --> SifFacturaAbansPagarProxy : JSON + X-CSRF-Token
@@ -421,6 +443,9 @@ InvoiceBeforePaymentLegacyPreparationService --> PayloadIdempotencyValidator
 
 InvoiceBeforePaymentService --> InvoiceBeforePaymentPayloadBuilder
 InvoiceBeforePaymentService --> InvoiceService
+InvoiceBeforePaymentService --> InvoiceBeforePaymentDocumentQueueService : després d'issue/reuse
+InvoiceBeforePaymentDocumentQueueService --> DocumentJobRepository
+DocumentJobRepository --> DocumentJob : PENDING idempotent/versionat
 InvoiceService --> InvoicePayloadValidator
 InvoiceService --> PayloadIdempotencyValidator
 InvoiceService --> TransactionRunner
@@ -438,7 +463,7 @@ InvoiceRepository --> FacturaRegistres
 InvoiceRepository --> FiscalQueue
 
 InvoiceBeforePaymentCommandService ..> LegacySync : PENDENT post-COMMIT
-InvoiceBeforePaymentCommandService ..> InvoiceDocumentService : PENDENT document per UUID
+DocumentJobRepository ..> FiscalDocumentWorker : PENDENT consum/renderitzat/storage
 ```
 
 ## 5. Responsabilitats que NO s'han de confondre
@@ -448,9 +473,10 @@ InvoiceBeforePaymentCommandService ..> InvoiceDocumentService : PENDENT document
 - `InvoiceBeforePaymentSelectionRepository`, `InvoiceBeforePaymentBillingPartyRepository`, `InvoiceBeforePaymentServerPayloadAssembler`, `InvoiceBeforePaymentLegacyPreparationService` i `InvoiceBeforePaymentCommandService` **ja existeixen al main** i eliminen del payload autoritatiu el total/receptor/conceptes construïts al navegador. El bridge de pantalla també existeix i el JS ja l'utilitza.
 - `InvoicePayloadValidator` valida camps estructurals bàsics; no acredita tota la validació fiscal, comercial, de cobertura ni d'autorització necessària per UC-004.
 - `PayloadIdempotencyValidator` protegeix la repetició de **la mateixa clau** comparant el hash complet. `InvoiceBeforePaymentCoverageRepository` impedeix que dues operacions UC-004 amb claus diferents reclamin el mateix origen. Encara falta el classificador de cobertura **transversal** entre altres canals/pagadors, perquè no tota doble relació d'una inscripció és necessàriament il·legítima.
-- `OperationalEventRepository` s'integra en aquesta branca dins la mateixa transacció UC-004; un retry idempotent no ha de crear un segon event.
+- `OperationalEventRepository` s'integra en aquesta branca dins la mateixa transacció UC-004; un retry idempotent no crea un segon event.
+- `InvoiceBeforePaymentDocumentQueueService` s'executa **després** de l'emissió fiscal i crea/reutilitza un únic job PDF `PENDING` per UUID+versió. Una fallada de cua es retorna com `document_status=ERROR` sense convertir la factura ja emesa en error fiscal. El worker/renderitzador/storage continuen pendents.
 - `PaymentService` no forma part de l'emissió inicial UC-004. El cobrament posterior és UC-002/UC-022 segons canal.
 
 ## 6. Criteri de tancament del diagrama FINAL
 
-El camí principal `pantalla intranet → sessió/rol + CSRF → bridge HMAC → endpoint SIF → preparació autoritativa → fingerprint preview/confirm → InvoiceBeforePaymentService → InvoiceService → claim UC-004 + operational_event + COMMIT SIF → resposta JSON` ja està **implementat al codi versionat**. L'estat global continua **PARCIAL** fins executar E2E/preproducció i completar els elements que encara són realment pendents: classificador de cobertura transversal, document per UUID i sync llegada post-COMMIT si s'ha de conservar.
+El camí principal `pantalla intranet → sessió/rol + CSRF → bridge HMAC → endpoint SIF → preparació autoritativa → fingerprint preview/confirm → InvoiceBeforePaymentService → InvoiceService → claim UC-004 + operational_event + COMMIT SIF → resposta JSON` ja està **implementat al codi versionat**. L'estat global continua **PARCIAL** fins executar E2E/preproducció i completar els elements que encara són realment pendents: classificador de cobertura transversal, worker/renderitzat/storage del document per UUID i sync llegada post-COMMIT si s'ha de conservar.
