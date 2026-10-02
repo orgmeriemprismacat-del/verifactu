@@ -19,17 +19,21 @@ final class FiscalDocumentJobProcessor
         private DocumentStorageWriterInterface $storage,
         private DocumentRepository $documents,
         private int $baseRetrySeconds = 60,
-        private int $maxRetrySeconds = 3600
+        private int $maxRetrySeconds = 3600,
+        private int $leaseSeconds = 900
     ) {
         $this->baseRetrySeconds = max(1, $this->baseRetrySeconds);
         $this->maxRetrySeconds = max($this->baseRetrySeconds, $this->maxRetrySeconds);
+        $this->leaseSeconds = max(60, $this->leaseSeconds);
     }
 
     public function processNext(): ?array
     {
-        $job = $this->transactions->run(
-            fn (\PDO $db): ?array => $this->jobs->claimNext($db)
-        );
+        $job = $this->transactions->run(function (\PDO $db): ?array {
+            $this->jobs->recoverStaleProcessing($db, $this->leaseSeconds);
+
+            return $this->jobs->claimNext($db);
+        });
 
         if ($job === null) {
             return null;
