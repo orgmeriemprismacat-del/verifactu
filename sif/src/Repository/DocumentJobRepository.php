@@ -321,6 +321,24 @@ final class DocumentJobRepository
         return $updated;
     }
 
+    public function findTerminalErrorsWithoutIncident(\PDO $db, int $limit = 20): array
+    {
+        $limit = max(1, min(100, $limit));
+
+        $rows = $db->query(
+            "SELECT j.*
+             FROM document_job j
+             LEFT JOIN errors_verifactu e
+               ON e.IDEMPOTENCY_KEY = CONCAT('DOCUMENT_JOB_ERROR|', j.UUID_JOB)
+             WHERE j.STATUS = 'ERROR'
+               AND e.ID IS NULL
+             ORDER BY j.FINISHED_AT ASC, j.ID ASC
+             LIMIT " . $limit
+        )->fetchAll(\PDO::FETCH_ASSOC);
+
+        return is_array($rows) ? $rows : [];
+    }
+
     public function findById(\PDO $db, int $jobId, bool $forUpdate = false): ?array
     {
         if ($jobId < 1) {
