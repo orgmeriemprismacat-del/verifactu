@@ -34,6 +34,8 @@ $checks = [
     'issuer_name_configured' => $issuerName !== '',
     'sif_database_connectivity' => false,
     'internal_api_request_table' => false,
+    'sif_audit_event_table' => false,
+    'operational_event_table' => false,
     'factura_table' => false,
     'factura_linia_table' => false,
     'factura_registres_table' => false,
@@ -54,6 +56,8 @@ try {
 
     foreach ([
         'internal_api_request',
+        'sif_audit_event',
+        'operational_event',
         'factura',
         'factura_linia',
         'factura_registres',
