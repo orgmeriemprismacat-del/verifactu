@@ -72,4 +72,33 @@ final class PackEnrollmentAtomicityBoundaryTest
         Assert::same(true, $finally < $rollback);
         Assert::same(true, $rollback < $release);
     }
+
+    public function testCommittedEnrollmentKeepsSuccessResponseWhenAuxiliaryWorkFails(): void
+    {
+        $path = dirname(__DIR__, 3)
+            . '/codi-drive/web-actual/ajax/enviarInscripcioPack.php';
+
+        $source = file_get_contents($path);
+        if (!is_string($source)) {
+            Assert::fail('Could not load PACK enrollment endpoint');
+        }
+
+        Assert::stringContainsString('$packEnrollmentCommitted = false;', $source);
+        Assert::stringContainsString('$packEnrollmentCommitted = true;', $source);
+        Assert::stringContainsString("error_log('UC-015 PACK post-commit auxiliary failure; code='", $source);
+
+        $commit = strpos($source, '$connexio->commitTransaction()');
+        $committed = strpos($source, '$packEnrollmentCommitted = true;');
+        $success = strpos($source, 'echo $hashIdInserit;');
+        $postCommitGuard = strpos($source, 'if ($packEnrollmentCommitted)');
+
+        Assert::same(true, $commit !== false);
+        Assert::same(true, $committed !== false);
+        Assert::same(true, $success !== false);
+        Assert::same(true, $postCommitGuard !== false);
+        Assert::same(true, $commit < $committed);
+        Assert::same(true, $committed < $success);
+        Assert::same(true, $success < $postCommitGuard);
+    }
+
 }
