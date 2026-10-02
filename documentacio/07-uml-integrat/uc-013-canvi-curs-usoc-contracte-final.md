@@ -335,6 +335,6 @@ Mateix `requestId` + payload divergent → `CONFLICT`.
 ## 13. Estat
 
 - **DOCUMENTAT:** sí.
-- **IMPLEMENTAT:** guard, payer snapshot, planner, `LegacyUsocCourseChangePricingResolver` server-side, `UsocCourseChangeTargetResolver`, `UsocCourseChangeFundPlanService`, `UsocCourseChangePreviewService`, endpoint/UI de preview i infraestructura de compensació. El pricing resolver fixa preu base + USOC i, si `change_number=4`, calcula les despeses amb les hores de l'origen; el preview no mou diners ni emet documents.
+- **IMPLEMENTAT:** guard, payer snapshot, planner, `LegacyUsocCourseChangePricingResolver` server-side, `UsocCourseChangeTargetResolver`, `UsocCourseChangeFundPlanService`, `UsocCourseChangePreviewService`, endpoint/UI de preview, `UsocCourseChangeExecutionPreparationService` i infraestructura de compensació. El preview no mou diners ni emet documents; la preparació persisteix `REQUESTED` amb request/plan congelats i tampoc aplica efectes.
 - **VERIFICAT:** contrast estàtic contra codi real.
-- **PENDENT D'IMPLEMENTAR:** executor d'efectes `COURSE_CHANGE`, reemissió coordinada, materialització de `COMPENSATION_ALLOCATION`/resolució d'excessos, checkpoint/handoff legacy i E2E d'execució. El preview server-side ja queda implementat.
+- **PENDENT D'IMPLEMENTAR:** executor d'efectes `COURSE_CHANGE`, reemissió coordinada, materialització de `COMPENSATION_ALLOCATION`/resolució d'excessos, transició del checkpoint a `COMPLETED`, handoff legacy i E2E d'execució. Preview i checkpoint `REQUESTED` ja queden implementats.
