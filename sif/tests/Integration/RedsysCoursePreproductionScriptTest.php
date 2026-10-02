@@ -16,7 +16,8 @@ final class RedsysCoursePreproductionScriptTest
 
         Assert::stringContainsString('/src/autoload.php', $source);
         Assert::stringContainsString('PHP_SAPI !== \'cli\'', $source);
-        Assert::stringContainsString('SIF_ENV=production', $source);
+        Assert::stringContainsString("in_array(\$environment, ['test', 'preproduction'], true)", $source);
+        Assert::stringContainsString('allowed only with SIF_ENV=test or preproduction', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('new RedsysCourseInvoiceService(', $source);
