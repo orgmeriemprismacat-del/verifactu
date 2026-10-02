@@ -12,7 +12,7 @@
 | PK-A03 | Formulari inscripció | **POST + REQUEST_ID + revalidació de totes les edicions; preu backend autoritatiu** | acreditar E2E/replay navegador-preproducció |
 | PK-A04 | Alta N inscripcions | snapshot + transacció atòmica + suma exacta + replay idempotent implementats | model comercial explícit/versionat encara pendent |
 | PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | verificador CLI preparat; falta DS_ORDER real |
-| PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | preflight/preview/process/verifier preparats; falta execució real i eliminar rollback |
+| PK-A06 | Callback Redsys | **callback SIF únic autoritatiu; callbacks productius legacy eliminats** | preflight/preview/process/verifier preparats; falta execució real |
 | PK-A07 | Factura pack | **InvoiceService al flux SIF; emissió legacy desactivada per defecte** | eliminar codi rollback |
 | PK-A08 | Distribució per inscripció | **ledger implementat** | evidència runtime |
 | PK-A09 | Confirmació/correu | **enqueue a outbox SIF implementat; worker/transport de lliurament UC-58 pendent; correu legacy inaccessible per defecte** | implementar/acreditar lliurament UC-58 i eliminar codi rollback |
@@ -278,13 +278,19 @@ E --> F[Classificació fiscal explícita]
 
 ## Criteri de tancament RM-037 per UC-015
 
-No declarar UC-015 tancat fins que:
-1. els deu blocs anteriors tinguin correspondència codi → UC → prova;
-2. s'acrediti en runtime que l'alta POST rebutja GET/cross-site, bloqueja un pack amb qualsevol component fora de finestra, reutilitza el mateix `REQUEST_ID` després d'una resposta perduda i manté el flux de confirmació;
-3. s'executi `verify-redsys-pack-preproduction.php` sobre un `DS_ORDER` real i s'acrediti factura/payment + N moviments + outbox + sync legacy quan correspongui;
-4. el callback legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
-5. es mantingui el contracte estable `DATAI, ID_CURS` i es decideixi si cal una posició comercial explícita separada;
-6. les proves end-to-end PK-01..PK-11 s'hagin executat en preproducció; la capa unitària/integració disposa d'evidència CI verda del paquet UC-015.
+### Codi/documentació — complert
+- els deu blocs tenen correspondència codi → UC → prova;
+- alta POST + `REQUEST_ID` + replay/conflicte estan implementats;
+- disponibilitat de tots els components i ordre v1 `DATAI, ID_CURS` estan congelats;
+- callbacks productius legacy eliminats;
+- verificador canònic PACK de preproducció implementat.
+
+### Acceptació runtime — pendent
+1. executar `verify-redsys-pack-preproduction.php` amb un `DS_ORDER` real i conservar factura/payment + N moviments + outbox + sync legacy quan correspongui;
+2. executar PK-01..PK-11 de navegador/preproducció, incloent GET/cross-site, doble clic, replay `REQUEST_ID` i component fora de finestra;
+3. mantenir CI verda al HEAD final.
+
+El transport/retry/lliurament de notificacions queda a UC-58 i no reobre el codi UC-015.
 
 ## Evidència de proves automatitzades
 
