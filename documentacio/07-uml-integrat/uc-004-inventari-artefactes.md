@@ -130,9 +130,9 @@ No s'ha aplicat una UNIQUE global sobre `fact_rels`, perquè podria interferir a
 | C-04b | Classificador de cobertura transversal entre canals/pagadors | **FALTA; el guard actual és només UC-004** |
 | C-05 | Resolver de receptor per ID intern i snapshot fiscal | **IMPLEMENTAT A LA BRANCA** · `InvoiceBeforePaymentBillingPartyRepository` |
 | C-06 | Recalculador servidor de línies i total autoritatiu | **IMPLEMENTAT PARCIALMENT A LA BRANCA** · `InvoiceBeforePaymentServerPayloadAssembler`; usa `A_PAGAR` i IVA exempt del contracte vigent, però el classificador comercial/fiscal transversal de descomptes continua pendent |
-| C-07 | Preview servidor amb fingerprint/versió abans de confirmar | **IMPLEMENTAT AL MAIN EN CLI I HTTP** · pendent connexió UI |
+| C-07 | Preview servidor amb fingerprint/versió abans de confirmar | **IMPLEMENTAT EN CLI + HTTP + UI** · en aquesta branca comprova també coverage UC-004 abans de retornar preview |
 | C-08 | Registre `operational_event` / auditoria dins del flux UC-004 | **IMPLEMENTAT EN AQUESTA BRANCA dins la mateixa transacció** |
-| C-09 | Sincronització llegada idempotent després del COMMIT SIF | **FALTA / CAL DECIDIR** |
+| C-09 | Compatibilitat llegada post-COMMIT | **DECIDIT:** no crear factura shadow ni sentinel a `FACTURA_RELACIONADA`; adaptar lectures a SIF/read-model. Projeccions futures només no fiscals, idempotents i recuperables |
 | C-10 | Document PDF/QR per UUID/snapshot i estat READY/PENDING/ERROR | **PARCIAL** · `DocumentJobRepository` + `InvoiceBeforePaymentDocumentQueueService` encolen PDF idempotent/versionat i retornen PENDING; worker/renderitzat/storage pendents |
 | C-11 | Endpoint HTTP UC-004 segur | **IMPLEMENTAT AL MAIN** · `public/api/factures/before-payment.php` |
 | C-12 | E2E pantalla → SIF → document → cobrament posterior | **FALTA PROVA** |
@@ -162,7 +162,7 @@ La frontera és servidor-servidor, no browser-direct:
 **Diagrames exigits:** COMPLETS.  
 **Codi llegat:** LOCALITZAT.  
 **Backend SIF UC-004:** IMPLEMENTAT per autenticació interna, preview/confirmació, preparació autoritativa, emissió i cobertura; aquesta branca afegeix auditoria operacional atòmica.  
-**Integració de la pantalla real:** **IMPLEMENTADA AL CODI VERSIONAT · PENDENT E2E/PREPRODUCCIÓ.**  
+**Integració de la pantalla real:** **IMPLEMENTADA AL CODI VERSIONAT · preview amb coverage inclòs · PENDENT E2E/PREPRODUCCIÓ.**  
 **Tests al repositori:** DEFINITS/AMPLIATS.  
 **Tests executats:** els checks anteriors del PR #111 havien passat abans del cutover 410; **la revisió final d'aquesta nova punta de branca queda pendent del rerun CI**.  
 **Producció:** NO MODIFICADA / NO VERIFICADA.
