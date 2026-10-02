@@ -43,6 +43,33 @@ final class PayloadIdempotencyFlowTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
     }
 
+    public function testRetryWithOriginalPaymentFailsClosedWhenPaymentRecordIsMissing(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+        $payload = Fixtures::invoicePayload([
+            'payment' => [
+                'idempotency_key' => 'PAYMENT|MISSING_ON_RETRY',
+                'movement_type' => 'CHARGE',
+                'method' => 'REDSYS',
+                'source_channel' => 'REDSYS',
+                'amount' => '120.00',
+                'movement_date' => '2026-06-02 10:00:00',
+                'provider_ref' => 'ORDER-MISSING-PAYMENT',
+                'ds_order' => 'ORDER-MISSING-PAYMENT',
+                'idpag' => 123,
+            ],
+        ]);
+
+        $service->issueInvoice($payload);
+        $db->exec('DELETE FROM payment_allocation');
+        $db->exec('DELETE FROM payment_transaction');
+
+        Assert::throws(SifException::class, fn () => $service->issueInvoice($payload), 409);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     public function testOriginalInvoiceWithoutFingerprintFailsClosed(): void
     {
         $db = TestDatabase::fresh();
