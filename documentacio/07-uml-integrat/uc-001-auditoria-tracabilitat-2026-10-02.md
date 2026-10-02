@@ -35,6 +35,7 @@
 7. Es validen suma d'import base, base imposable, IVA i total entre capçalera i línies.
 8. `fact_rels.ID_FACTURA_LINIA` s'emplena quan l'origen identifica una única línia.
 9. El validador imposa coherència de família sèrie-tipus (`A` amb `F1/F2`; `R` amb `R1…R5`) sense pretendre decidir el tipus rectificatiu concret.
+10. El payload AEAT oficial rebutja l'emissor placeholder `G00000000`; `preflight-invoice-issue.php` exposa només booleans de readiness i comprova auth/rol/emissor/anti-replay/taules abans del desplegament.
 
 ## 3. Deutes classificats després de l’auditoria — no són feina d’auditoria desconeguda
 
@@ -56,6 +57,7 @@ No s'han modificat sense contracte suficient:
 - `InternalInvoiceIssueScopeResolverTest`: rol permès, denegat i fail-closed.
 - `InternalInvoiceIssuePayloadPolicyTest`: actor/emissor servidor, bloqueig Redsys i UC-004.
 - `InvoiceIssueHttpEndpointTest`: body cru signat i frontera interna.
+- `InvoiceIssuePreflightScriptTest`: preflight CLI, HMAC/rol/emissor real, taules necessàries, cap mutació ni exposició del secret.
 - `IssueInvoiceTest`: `fact_rels.ID_FACTURA_LINIA` coincideix amb la línia fiscal d'origen i queda `NULL` quan l'origen és ambigu.
 - `PayloadIdempotencyFlowTest`: reús amb `payment` original desaparegut falla tancat amb CONFLICT.
 
