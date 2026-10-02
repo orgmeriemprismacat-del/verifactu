@@ -324,7 +324,7 @@ PrismaStudentCourseCheckoutService --> RedsysPaymentIntentService
 RedsysPaymentIntentService --> CourseIntentSnapshotValidator : SOURCE_TYPE=CURS
 ```
 
-**Estat actual de runtime:** `main` ja aporta la persistència idempotent d'oferta i link (`CommercialOfferService`, repositoris comercials i `PaymentLinkService`). El tall UC-020 aporta a més `PrismaStudentDiscountPolicy` sota `ALUMNE_PRISMA_LEGACY_V1`, historial, validació del snapshot CURS i `PrismaStudentCourseCheckoutService`, que crea/reutilitza operació i validació, crea la intenció i vincula `UUID_OPERATION ↔ UUID_INTENT`. **Continua pendent connectar aquest nucli al checkout web/intranet llegat i definir/ratificar la política futura de negoci.**
+**Estat actual de runtime (02/10/2026):** `main` aporta la persistència idempotent d'oferta/link i el flux específic AP. El checkout de targeta actiu de `pay.prisma.cat` crida `SifRedsysCourseIntentClient` → `/api/redsys/course-intent.php`; si `TIPUS_DESC=1`, `RedsysCoursePaymentIntentService` deriva a `PrismaStudentCourseCheckoutService`, que crea/reutilitza operació i validació, congela el snapshot, crea la intenció i vincula `UUID_OPERATION ↔ UUID_INTENT`. **Continuen pendents l'alta/preview/intranet sobre oferta servidor, `payment_link` com a ruta canònica i la ratificació de la política futura.**
 
 ## 7. Seqüència ACTUAL — web d'inscripció
 
@@ -574,7 +574,7 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 | Operació comercial | `commercial_operation` | `CommercialOperationRepository` + `CommercialOfferService` + `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI |
 | Parts de l'operació | `commercial_operation_party` | `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_UC020 |
 | Decisió de descompte | `discount_validation` | `DiscountValidationRepository` + `CommercialOfferService` + `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI |
-| Link pagament | `payment_link` | No | PENDENT |
+| Link pagament | `payment_link` | `PaymentLinkRepository` + `PaymentLinkService` | IMPLEMENTAT_INFRAESTRUCTURA · NO_INTEGRAT_CANAL_AP |
 | Event operatiu | `operational_event` | `OperationalEventRepository` | IMPLEMENTAT, integració UC-20 pendent |
 | Intenció Redsys | `redsys_payment_intent` | repositori + servei | IMPLEMENTAT |
 | Snapshot factura curs | factura/línia | builder + servei | IMPLEMENTAT |
@@ -649,7 +649,7 @@ La policy és deliberadament una regla de **compatibilitat legacy versionada** (
 ```mermaid
 sequenceDiagram
 autonumber
-actor UI as Checkout/Adaptador [pendent]
+actor UI as pay.prisma.cat / course-intent [IMPLEMENTAT]
 participant C as PrismaStudentCourseCheckoutService
 participant H as LegacyPrismaStudentHistoryRepository
 participant P as PrismaStudentDiscountPolicy
@@ -671,4 +671,39 @@ C->>CO: vincular UUID_OPERATION ↔ UUID_INTENT
 C-->>UI: operació + intenció
 ```
 
-**Pendent de tancament:** l'adaptador web/intranet que invoca aquest servei, la retirada del camí llegat autoritatiu basat en imports del navegador, l'E2E navegador → Redsys → factura i la validació de preproducció.
+**Pendent de tancament:** l'alta/preview web i la resolució intranet encara no comparteixen l'oferta servidor canònica; `payment_link` no governa encara aquest canal; falten decisions de negoci, E2E navegador → Redsys → factura i validació de preproducció. El checkout de targeta actiu sí que invoca aquest nucli via `course-intent`.
+
+## 21. Reconciliació del canal de pagament actiu — 02/10/2026
+
+```mermaid
+sequenceDiagram
+autonumber
+participant Pay as pagina_efectuar_pagament_automatic.php
+participant Client as SifRedsysCourseIntentClient
+participant API as /api/redsys/course-intent.php
+participant C as RedsysCoursePaymentIntentService
+participant AP as PrismaStudentCourseCheckoutService
+participant Price as LegacyPrismaStudentPriceSnapshotResolver
+participant Intent as RedsysPaymentIntentService
+
+Pay->>Client: create(IDPAG, requestedAmount)
+Client->>API: POST signat
+API->>C: create(sifDb, legacyDb, input)
+C->>C: rellegir inscripció / saldo
+alt TIPUS_DESC = 1
+    C->>Price: resolve(context)
+    Price-->>C: gross/discount/net històrics coherents
+    C->>AP: stageAndCreateIntent(...)
+    AP->>Intent: create(CURS, snapshot autoritatiu)
+    Intent-->>AP: UUID_INTENT
+    AP-->>C: operació + intenció
+else altres tarifes
+    C->>Intent: create(CURS, snapshot curs)
+    Intent-->>C: intenció
+end
+C-->>API: intent
+API-->>Client: JSON autenticat
+Client-->>Pay: amount + DS_ORDER
+```
+
+La pantalla de pagament utilitza l'import retornat per SIF per construir `DS_MERCHANT_AMOUNT`; per tant el **pagament AP actiu** ja no depèn de l'import POST com a font de veritat. Això no tanca encara el problema anterior d'alta/preview: `enviarInscripcio.php` continua sent un front llegat a migrar cap a una oferta servidor immutable.
