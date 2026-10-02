@@ -1,6 +1,6 @@
 # UC-015 · Seqüències ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-10-01
+**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-10-02
 
 ## 1. ACTUAL — alta del pack al web
 
