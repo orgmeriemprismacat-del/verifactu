@@ -45,6 +45,58 @@ final class InvoicePayloadValidatorTest
         Assert::same('Invoice requires at least one line', $exception->getMessage());
     }
 
+    public function testRejectsBlankIdempotencyKey(): void
+    {
+        $payload = $this->validPayload();
+        $payload['idempotency_key'] = '   ';
+
+        Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+    }
+
+    public function testRejectsIdempotencyKeyLongerThanDatabaseColumn(): void
+    {
+        $payload = $this->validPayload();
+        $payload['idempotency_key'] = str_repeat('K', 101);
+
+        Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+    }
+
+    public function testRejectsHeaderTotalThatDoesNotMatchLines(): void
+    {
+        $payload = $this->validPayload();
+        $payload['totals']['total'] = '121.00';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Invoice total does not match line totals', $exception->getMessage());
+    }
+
+    public function testRejectsHeaderTaxableBaseThatDoesNotMatchLines(): void
+    {
+        $payload = $this->validPayload();
+        $payload['totals']['taxable_base'] = '119.00';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Invoice taxable_base does not match line totals', $exception->getMessage());
+    }
+
     private function validPayload(): array
     {
         return [
