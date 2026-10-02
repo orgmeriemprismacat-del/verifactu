@@ -124,6 +124,8 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 
 - `documentacio/06-fitxes-funcionals/uc-013.md`
 - `documentacio/07-uml-integrat/uc-013-orquestrar-doble-facturacio-usoc.md`
+- `documentacio/07-uml-integrat/uc-013-classes-actual-final.md`
+- `documentacio/07-uml-integrat/uc-013-sequencies-actual-final.md`
 - `documentacio/07-uml-integrat/uc-013-activitats-pagines-actual-final.md`
 - `documentacio/07-uml-integrat/uc-013-auditoria-tracabilitat-2026-09-29.md`
 
