@@ -116,8 +116,8 @@ Ha de persistir dins `usoc_lifecycle_execution.REQUEST_JSON/PLAN_JSON` com a mí
 Abans de permetre qualsevol efecte fiscal:
 
 ```text
-target_standard_course_amount >= 0
-target_student_course_amount >= 0
+target_standard_course_amount > 0
+target_student_course_amount > 0
 management_fee >= 0
 target_entity_course_amount >= 0
 
@@ -137,6 +137,8 @@ target_combined_total
 ```
 
 Si aquestes igualtats no quadren al cèntim → `REVIEW_REQUIRED`.
+
+El resolver actual rebutja explícitament `target_student_course_amount=0`: la variant de curs gratuït USOC continua fail-closed fins que s'aprovi `UC13-GAP-07`.
 
 ## 5. Regla de validació USOC al destí
 
