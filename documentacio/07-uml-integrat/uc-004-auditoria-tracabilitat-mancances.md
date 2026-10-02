@@ -188,7 +188,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | `operational_event` UC-004 | Sí | **IMPLEMENTAT EN AQUESTA BRANCA dins la mateixa transacció** | Sí | No | executar suite i inspeccionar event |
 | Cobrament posterior separat | Sí | Sí, serveis SIF | Sí | No | integrar canal |
 | Preview segur abans d'emetre | Sí FINAL | **Implementat en CLI + HTTP + pantalla** amb fingerprint, relectura i comprovació prèvia de coverage UC-004 | Sí | No | executar E2E |
-| Document per UUID | Sí FINAL | **PARCIAL EN AQUESTA BRANCA:** `document_job` PDF idempotent/versionat encolat després de l'emissió | Sí estàtic | No | worker/renderitzador/storage + `factura_documents` READY |
+| Document per UUID | Sí FINAL | **PARCIAL AVANÇAT:** cua + worker + stale recovery + lease per intent + snapshot fiscal verificat + storage privat + `factura_documents READY` | Sí estàtic | No | renderer fiscal concret PDF/QR/XML + execució/E2E |
 | Sincronització llegada post-commit | Sí FINAL | processador UC-004 diu que no la fa | Sí | No | decidir/implementar |
 | Preproducció | Sí | scripts disponibles | estàtic | No | **executar i evidenciar** |
 
@@ -234,7 +234,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | UC004-GAP-029 | Text d'exempció IVA codificat al PDF llegat | el document FINAL ha de sortir del snapshot fiscal |
 | UC004-GAP-030 | `generaFactura()` reinicialitza `$mostrar` després de preparar l'obertura HTML de descàrrega | revisar generació documental llegada abans de donar-la per estable |
 | UC004-GAP-031 | E_FACT llegat es posa a 1 mentre `InvoiceRepository` SIF insereix E_FACT=0 | cal documentar la semàntica/mapeig, no copiar flags a cegues |
-| UC004-GAP-032 | **PARCIALMENT TANCAT:** estat documental post-COMMIT | la pantalla ja rep/mostra `document_status=PENDING` i el SIF crea/reutilitza un `document_job`; falten worker/renderitzat/storage i estats finals READY/ERROR |
+| UC004-GAP-032 | **PARCIALMENT TANCAT / INFRAESTRUCTURA IMPLEMENTADA:** estat documental post-COMMIT | `document_job`, worker, retries, stale recovery, ownership per intent, snapshot immutable, storage verificat i `READY/ERROR` estan implementats; falta renderer fiscal concret i E2E real |
 
 ### P2 — evidència i tancament
 
@@ -285,7 +285,7 @@ El fitxer existent `uc-004-emetre-factura-abans-cobrar.md` continua sent una bon
 4. **FET AL CODI VERSIONAT:** pantalla connectada al command intern i mutador fiscal llegat retirat amb `410 Gone`.
 5. **FET EN AQUESTA BRANCA:** auditoria operacional atòmica de l'emissió.
 6. **DECIDIT:** no crear factura shadow ni sentinel a `FACTURA_RELACIONADA`; adaptar read-models llegats a SIF quan calgui.
-7. **FET PARCIALMENT:** cua PDF per UUID/versió i estat PENDING, sense `unlink(filename)`; pendent generar/custodiar bytes i completar job.
+7. **FET PARCIALMENT:** cua + worker + custòdia privada verificada + metadata READY implementats; pendent renderer fiscal concret PDF/QR/XML i validació final.
 8. Connectar cobrament posterior al UUID, sense reemetre.
 9. Executar proves i preflight/preproducció; conservar evidències.
 10. La fitxa funcional està consolidada; marcar UC-004 com verificat només després de l'E2E.
