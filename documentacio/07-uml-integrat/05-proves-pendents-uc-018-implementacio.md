@@ -43,6 +43,7 @@
 - [x] holder i snapshot resolts al servidor.
 - [x] secrets/codis sanititzats a la verificació de preproducció.
 - [x] dades sensibles no persistides en clar a l'outbox UC-018.
+- [x] l'endpoint GIFT només pot claim/complete files amb `TEMPLATE_CODE` prefix `GIFT_REDEEM_`.
 
 ## 6. Notificacions
 
