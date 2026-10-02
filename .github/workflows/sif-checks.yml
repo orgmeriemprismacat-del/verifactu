@@ -21,6 +21,8 @@ on:
       - "codi-drive/intranet-actual/alumnes-validar-descomptes.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
       - "codi-drive/intranet-actual/js/alumnes-validar-descomptes.js"
+      - "codi-drive/intranet-actual/js/alumnes-usoc-lifecycle-preview.js"
+      - "codi-drive/intranet-actual/js/alumnes-canvi-curs-sif.js"
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
       - "codi-drive/web-actual/ajax/enviarInscripcio.php"
       - "codi-drive/web-actual/ajax/enviarInscripcio2.php"
@@ -113,6 +115,8 @@ jobs:
         run: |
           node --check codi-drive/intranet-actual/js/alumnes-usoc-financament.js
           node --check codi-drive/intranet-actual/js/alumnes-validar-descomptes.js
+          node --check codi-drive/intranet-actual/js/alumnes-canvi-curs-sif.js
+          node --check codi-drive/intranet-actual/js/alumnes-usoc-lifecycle-preview.js
 
       - name: SIF test suite
         run: php sif/tests/run-tests.php
