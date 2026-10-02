@@ -545,7 +545,7 @@ if ($courseCutoverEnabled && $legacyDrainConfirmed) {
 				$dniTitularPag." | ".$titol, $titol, $email, "curs", $urlPagament,
 				$importPag, $pendentPagar, $apagar);
 			$textDadesComanda = str_replace($names_template, $names_function, $msg);
-			echo $textDadesComanda."<br />";
+			// UC-014: callback servidor-a-servidor sense dades de negoci al cos HTTP.
 
 
 			$missatge = "<p>Benvolgut/da ".$nom.",</p>
@@ -891,13 +891,13 @@ if ($courseCutoverEnabled && $legacyDrainConfirmed) {
 			$names_template = array("[URL_PAGAMENT]", "[TITOL]", "[CODI_CURS]", "[MES]");
 			$names_function   = array($urlPagament, $titol, $codiCurs, $mes);
 			$textManeresPagar = str_replace($names_template, $names_function, $msg);
-			echo $textManeresPagar."<br />";
+			// UC-014: callback servidor-a-servidor sense instruccions de pagament al cos HTTP.
 
 			$msg = $templates->getTemplate_Dades_RequadreDadesComandaNoPagat();
 			$names_template = array("[TITOL]", "[EDICIO]", "[IMPORT]", "[DATETIME_COMANDA]", "[NU_COMANDA]", "[CODE_RES]");
 			$names_function   = array($titol, $mesLletra, $importPag, $dataPagNewFormat, $ordre, $codiResposta);
 			$textDadesComanda = str_replace($names_template, $names_function, $msg);
-			echo $textDadesComanda."<br />";
+			// UC-014: callback servidor-a-servidor sense dades de negoci al cos HTTP.
 
 			$missatge = "<p>Benvolgut/da ".$nom.",</p>
 
