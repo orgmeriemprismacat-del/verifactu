@@ -13,6 +13,9 @@ on:
       - "codi-drive/intranet-actual/LegacyUsocCourseChangePricingSourceInterface.php"
       - "codi-drive/intranet-actual/LegacyUsocCourseChangePricingMysqlSource.php"
       - "codi-drive/intranet-actual/LegacyUsocCourseChangePricingResolver.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationReservationService.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationMysqlStore.php"
+      - "codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationStoreInterface.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sifUsocCourseChangePreview.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
@@ -106,6 +109,9 @@ jobs:
           php -l codi-drive/intranet-actual/LegacyUsocCourseChangePricingSourceInterface.php
           php -l codi-drive/intranet-actual/LegacyUsocCourseChangePricingMysqlSource.php
           php -l codi-drive/intranet-actual/LegacyUsocCourseChangePricingResolver.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationReservationService.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationMysqlStore.php
+          php -l codi-drive/intranet-actual/LegacyUsocCourseChangeDestinationStoreInterface.php
           php -l codi-drive/intranet-actual/ajax/alumnes/sifUsocCourseChangePreview.php
           php -l codi-drive/intranet-actual/SifAuthenticatedActor.php
           php -l codi-drive/intranet-actual/SifInternalUsocClient.php
