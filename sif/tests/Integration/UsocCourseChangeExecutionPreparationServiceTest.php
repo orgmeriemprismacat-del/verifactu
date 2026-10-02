@@ -55,7 +55,7 @@ final class UsocCourseChangeExecutionPreparationServiceTest
         Assert::same('120.00', $request['target']['target_standard_course_amount']);
         Assert::same('90.00', $request['target']['target_student_course_amount']);
         Assert::same(false, $plan['can_execute']);
-        Assert::same('EXECUTOR_NOT_IMPLEMENTED', $plan['execution_status']);
+        Assert::same('PREVIEW_ONLY_REQUIRES_PREPARATION', $plan['execution_status']);
 
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
