@@ -78,7 +78,7 @@ direction LR
 
 class PrismaStudentDiscountPolicy {
   <<IMPLEMENTAT>>
-  +RULE_VERSION ALUMNE_PRISMA_LEGACY_V1
+  +RULE_VERSION ALUMNE_PRISMA_WEB_LEGACY_V2
   +evaluate(history) array
 }
 
@@ -150,7 +150,7 @@ RedsysCourseInvoiceService --> InvoiceService : factura + cobrament
 | Component | Responsabilitat | Estat |
 | --- | --- | --- |
 | `LegacyPrismaStudentHistoryRepository` | Recuperar fets d'historial sense decidir la política | IMPLEMENTAT |
-| `PrismaStudentDiscountPolicy` | Reproduir explícitament la regla web legacy sota versió `ALUMNE_PRISMA_LEGACY_V1` | IMPLEMENTAT |
+| `PrismaStudentDiscountPolicy` | Reproduir explícitament la regla web legacy sota versió `ALUMNE_PRISMA_WEB_LEGACY_V2` | IMPLEMENTAT |
 | `DiscountDecisionService` | Motor comú transversal per UC-020/020a/020b/020c/020d | PENDENT TRANSVERSAL; UC-020 ja usa `PrismaStudentDiscountPolicy` |
 | `discount_validation` | Persistència de regla/evidència | IMPLEMENTAT via `DiscountValidationRepository` / `CommercialOfferService` / checkout AP |
 | `commercial_operation` | Oferta comercial immutable | IMPLEMENTAT via `CommercialOperationRepository` / `CommercialOfferService` / checkout AP |
@@ -176,3 +176,12 @@ La policy implementada **no declara resoltes** les decisions de negoci sobre pag
 - Aquesta revisió fa que l'orquestrador reutilitzi `CommercialOperationRepository` i `DiscountValidationRepository` dins de la seva transacció.
 - `DiscountDecisionService` continua sent una abstracció transversal possible; no bloqueja UC-020 perquè la policy específica ja existeix i està versionada.
 - `PaymentLinkService` és infraestructura implementada però encara no és la ruta canònica del pagament AP actiu.
+
+
+## 11. Reconciliació final de classes — 02/10/2026
+
+- `CommercialOperationPartyRepository` torna a formar part del checkout UC-020.
+- `CommercialOperationRepository` concentra també l'actualització d'estat.
+- `RedsysPaymentIntentRepository` resol intencions per UUID per validar reintents.
+- `LegacyPrismaStudentHistoryRepository` aplica exclusió de matrícula actual i tall temporal.
+- `PrismaStudentCourseCheckoutService` conserva `OperationalEventRepository` de #112 i elimina SQL directe que ja havia estat encapsulat a #110.
