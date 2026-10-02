@@ -182,9 +182,109 @@ final class InvoiceService
             );
         }
 
+        $this->assertInitialPaymentStillMatches(
+            $db,
+            $paymentPayload,
+            $payment,
+            (string) $existing['UUID_FACTURA']
+        );
+
         $result['uuid_payment'] = $payment['UUID_PAYMENT'];
 
         return $result;
+    }
+
+
+    private function assertInitialPaymentStillMatches(
+        \PDO $db,
+        array $paymentPayload,
+        array $payment,
+        string $uuidFactura
+    ): void {
+        $storedHash = (string) ($payment['PAYLOAD_HASH'] ?? '');
+        $hashVersion = (int) ($payment['PAYLOAD_HASH_VERSION'] ?? 1);
+
+        if ($hashVersion === 1) {
+            try {
+                $legacyPayload = json_encode(
+                    $paymentPayload,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                        | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR
+                );
+            } catch (\JsonException $exception) {
+                throw SifException::validation('Invalid payment payload encoding');
+            }
+            $this->idempotency->assertMatches($legacyPayload, $storedHash);
+        } elseif ($hashVersion === 2) {
+            $this->idempotency->assertMatches($paymentPayload, $storedHash);
+        } else {
+            throw SifException::conflict('Unknown payment idempotency hash version');
+        }
+
+        $sameTransaction = (string) ($payment['TIPUS_MOVIMENT'] ?? '') === (string) $paymentPayload['movement_type']
+            && (string) ($payment['METODE'] ?? '') === (string) $paymentPayload['method']
+            && (string) ($payment['SOURCE_CHANNEL'] ?? '') === (string) $paymentPayload['source_channel']
+            && $this->moneyEquals($payment['IMPORT'] ?? null, $paymentPayload['amount'])
+            && (string) ($payment['DATA_MOVIMENT'] ?? '') === (string) $paymentPayload['movement_date']
+            && $this->nullableString($payment['PROVIDER_REF'] ?? null)
+                === $this->nullableString($paymentPayload['provider_ref'] ?? null)
+            && $this->nullableString($payment['DS_ORDER'] ?? null)
+                === $this->nullableString($paymentPayload['ds_order'] ?? null)
+            && $this->nullableInt($payment['IDPAG'] ?? null)
+                === $this->nullableInt($paymentPayload['idpag'] ?? null)
+            && $this->nullableString($payment['REFERENCIA_BANCARIA'] ?? null)
+                === $this->nullableString($paymentPayload['reference'] ?? null)
+            && $this->nullableString($payment['NOTES'] ?? null)
+                === $this->nullableString($paymentPayload['notes'] ?? null)
+            && (string) ($payment['ESTAT'] ?? '') === 'CONFIRMED';
+
+        if (!$sameTransaction) {
+            throw SifException::conflict(
+                'Invoice retry initial payment no longer matches the recorded payment transaction'
+            );
+        }
+
+        $allocations = $this->payments->findAllocationsForInvoice(
+            $db,
+            (string) $payment['UUID_PAYMENT'],
+            $uuidFactura,
+            true
+        );
+        $expectedAllocation = $paymentPayload['allocations'][0] ?? null;
+
+        if (count($allocations) !== 1 || !is_array($expectedAllocation)) {
+            throw SifException::conflict(
+                'Invoice retry initial payment allocation is missing or ambiguous'
+            );
+        }
+
+        $allocation = $allocations[0];
+        if (!$this->moneyEquals($allocation['IMPORT_ASSIGNAT'] ?? null, $expectedAllocation['amount'] ?? null)
+            || (string) ($allocation['TIPUS_ASSIGNACIO'] ?? '')
+                !== (string) ($expectedAllocation['allocation_type'] ?? '')) {
+            throw SifException::conflict(
+                'Invoice retry initial payment allocation no longer matches the original invoice'
+            );
+        }
+    }
+
+    private function moneyEquals(mixed $left, mixed $right): bool
+    {
+        if (!is_numeric($left) || !is_numeric($right)) {
+            return false;
+        }
+
+        return number_format((float) $left, 2, '.', '') === number_format((float) $right, 2, '.', '');
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        return $value === null || $value === '' ? null : (string) $value;
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        return $value === null || $value === '' ? null : (int) $value;
     }
 
     private function existingResult(array $existing): array
