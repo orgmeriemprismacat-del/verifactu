@@ -176,7 +176,7 @@ final class LegacyUsocCourseChangeDestinationMysqlStore
                 NULL, '0', TIPUS_INSC,
                 OBSERVACIONS, COMENTARIS, ?,
                 0, usuari, INSC_MAILING, CONEGUT,
-                IDPAG, 4, 1
+                ?, 4, 1
              FROM inscripcions
              WHERE ID = ?
                AND TIPUS_DESC = 4
@@ -191,32 +191,39 @@ final class LegacyUsocCourseChangeDestinationMysqlStore
         }
 
         $year = (int) $targetYear;
-        $stmt->bind_param(
-            'issssi',
-            $year,
-            $targetMonth,
-            $targetCourse,
-            $targetStudentTotal,
-            $marker,
-            $sourceId
-        );
-        $stmt->execute();
-        $affected = (int) $stmt->affected_rows;
-        $this->db->closeStmt();
+        $targetIdpag = $this->db->reserveIdPag();
 
-        if ($affected !== 1) {
-            throw new RuntimeException(
-                'USOC destination reservation source changed before insert',
-                409
+        try {
+            $stmt->bind_param(
+                'issssii',
+                $year,
+                $targetMonth,
+                $targetCourse,
+                $targetStudentTotal,
+                $marker,
+                $targetIdpag,
+                $sourceId
             );
-        }
+            $stmt->execute();
+            $affected = (int) $stmt->affected_rows;
+            $this->db->closeStmt();
 
-        $id = (int) $this->db->lastInsertId();
-        if ($id <= 0) {
-            throw new RuntimeException(
-                'USOC destination reservation did not return an enrollment id',
-                409
-            );
+            if ($affected !== 1) {
+                throw new RuntimeException(
+                    'USOC destination reservation source changed before insert',
+                    409
+                );
+            }
+
+            $id = (int) $this->db->lastInsertId();
+            if ($id <= 0) {
+                throw new RuntimeException(
+                    'USOC destination reservation did not return an enrollment id',
+                    409
+                );
+            }
+        } finally {
+            $this->db->releaseIdPag();
         }
 
         return $this->findByMarker($marker)
