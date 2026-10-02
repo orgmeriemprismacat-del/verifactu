@@ -19,7 +19,7 @@
 | `commercial_operation` obligatòria | Sí/esquema | No al nucli UC-001 | Sí | Pendent |
 | Events d'auditoria funcionals | Sí | No complet | Sí | Pendent |
 | Snapshot AEAT oficial automàtic | Sí | No a tots els canals | Sí | Pendent |
-| Historial AEAT per intent | Sí | Parcial/transversal | Sí | Pendent |
+| Historial AEAT per intent | Sí | Sí (`aeat_submission_attempt`) | Sí | Cobert per suite CI existent; revalidació PR pendent |
 | Resposta amb estats fiscal/econòmic/documental | Sí | No completa | Sí | Pendent |
 
 ## 2. Resoltes o endurides en aquesta branca
@@ -43,7 +43,7 @@ No s'han modificat sense contracte suficient:
 - cobertura comercial general entre dues claus diferents;
 - `commercial_operation` i `operation_line_invoice_link` obligatoris;
 - `operational_event`, `sif_audit_event`, `factura_registre_control` i correlació;
-- fencing de workers, resultat remot AEAT incert i `aeat_submission_attempt`;
+- el fencing de la cua AEAT, `aeat_submission_attempt` i el tractament de resultat remot incert **ja existeixen** (`CLAIM_TOKEN`, estat `REVIEW`, intent `UNCERTAIN` i reconciliació sense reenviament); no són pendents d’UC-001;
 - postcondició econòmica del reús quan falta el payment que figurava a la petició original;
 - resposta enriquida amb estats AEAT/cobrament/document.
 
@@ -74,7 +74,7 @@ L'auditoria UC-001 es considera tancada quan el head de codi d'aquesta revisió 
 
 ### 5.2. No bloqueja el tancament de l'auditoria, però sí altres fases
 
-La integració obligatòria de `commercial_operation`, els events funcionals, l'assembler AEAT complet, el resultat enriquit, el fencing/reconciliació AEAT i la configuració/preproducció continuen oberts com a **deute implementatiu o operatiu explícit**. No s'han silenciat ni declarat implementats.
+La integració obligatòria de `commercial_operation`, els events funcionals propis de l’emissió, l’assembler AEAT complet, el resultat enriquit i la configuració/preproducció continuen oberts com a **deute implementatiu o operatiu explícit**. El fencing i la gestió d’incertesa/reconciliació AEAT ja estan implementats i no es mantenen com a fals pendent. No s'han silenciat ni declarat implementats.
 
 
 ## 6. Matriu detallada de troballes 51–86
