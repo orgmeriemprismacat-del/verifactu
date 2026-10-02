@@ -2,9 +2,10 @@
 
 final class SifRedsysCourseIntentClient
 {
-    public function create(int $idPag, float $requestedAmount, string $terminal = '1'): array
+    public function create(int $idPag, string $requestedAmount, string $terminal = '1'): array
     {
-        if ($idPag < 1 || $requestedAmount <= 0) {
+        $requestedAmount = trim(str_replace(',', '.', $requestedAmount));
+        if ($idPag < 1 || !preg_match('/^\\d{1,10}\\.\\d{2}$/D', $requestedAmount) || $requestedAmount === '0.00') {
             throw new RuntimeException('Invalid Redsys course intent input');
         }
 
@@ -19,7 +20,7 @@ final class SifRedsysCourseIntentClient
 
         $body = json_encode([
             'idpag' => $idPag,
-            'requested_amount' => number_format($requestedAmount, 2, '.', ''),
+            'requested_amount' => $requestedAmount,
             'terminal' => $terminal,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($body === false) {
