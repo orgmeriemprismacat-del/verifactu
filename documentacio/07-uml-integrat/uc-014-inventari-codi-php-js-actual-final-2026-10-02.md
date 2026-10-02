@@ -67,6 +67,7 @@ La branca d'auditoria:
 - només usa MerchantURL SIF amb `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i URL HTTPS;
 - amb cutover inactiu conserva fallback explícit per rollback;
 - el gateway Redsys deixa d'estar hardcodejat: `REDSYS_GATEWAY_URL` és obligatòria i ha de ser HTTPS;
+- `REDSYS_TERMINAL` és obligatori al pont candidat; el preflight comprova també merchant code/key, que la clau del pont i la del callback SIF coincideixin sense exposar-les, i que `SIF_INTERNAL_API_BASE_URL` sigui HTTPS;
 - `SIF_INTERNAL_REDSYS_COURSE_INTENT_SIGNED_PATH` queda declarat explícitament i el preflight comprova que els paths HMAC de course-intent/status coincideixen amb els clients del pont.
 
 ## 4. Callback i autoritat fiscal
@@ -76,8 +77,9 @@ La branca d'auditoria:
 `codi-drive/web-actual/realitzaPagamentAutomatic.php`:
 - clau Redsys via entorn, sense literal al fitxer;
 - verifica versió/signatura amb `hash_equals`;
-- compara `Ds_Order` amb l'ordre esperada;
-- compara `Ds_Amount` amb l'import esperat;
+- recupera `Ds_MerchantData` signat i exigeix el context `UC014I<IDPAG>A<AMOUNT_CENTS>F<FRAC>` creat al checkout;
+- deriva `IDPAG`, import i fraccionament del context signat; si el query-string de compatibilitat discrepa, falla tancat;
+- usa `Ds_Order` i `Ds_Amount` signats i rellegeix curs/DNI de la BD llegada;
 - no envia notificació de depuració abans de validar;
 - falla amb HTTP 400 davant callback invàlid.
 
