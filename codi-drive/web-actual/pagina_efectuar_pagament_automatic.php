@@ -203,7 +203,7 @@ try {
       }
 
       //Datos de configuración
-      $version="HMAC_SHA256_V1";
+      $version="HMAC_SHA512_V2";
       $kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
       if ($kc === '') {
          throw new RuntimeException('REDSYS_MERCHANT_KEY_NOT_CONFIGURED');
@@ -211,8 +211,8 @@ try {
 
       // Se generan los parámetros de la petición
       $request = "";
-      $params = $miObj->createMerchantParameters();
-      $signature = $miObj->createMerchantSignature($kc);
+      $params = $miObj->createMerchantParametersV2();
+      $signature = $miObj->createMerchantSignatureV2($kc);
 
       ?>
       <h1>Pagament amb targeta</h1>
