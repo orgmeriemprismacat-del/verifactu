@@ -60,7 +60,7 @@ final class RedsysSignatureValidatorTest
         if ($normalize === false) {
             Assert::fail('normalizeAmount not found');
         }
-        $normalize = strstr($normalize, 'private function base64Decode', true) ?: $normalize;
+        $normalize = strstr($normalize, 'private function amountFromCents', true) ?: $normalize;
         if (str_contains($normalize, '(float)')) {
             Assert::fail('Redsys amount normalization must not use floating point arithmetic.');
         }
