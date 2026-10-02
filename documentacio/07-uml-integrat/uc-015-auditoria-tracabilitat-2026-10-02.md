@@ -375,19 +375,34 @@ CURS disposava de `verify-redsys-course-preproduction.php`, però PACK només te
 
 **Estat:** eina i proves implementades. **Pendent:** executar-la contra un `DS_ORDER` Redsys real de preproducció i conservar el JSON d'evidència.
 
-### F-21 · Una segona còpia del callback fiscal legacy continuava executable — corregit
+### F-21 · Segona còpia del callback fiscal legacy detectada i callbacks productius retirats — corregit
 
-La primera auditoria havia acreditat el guard 410 a `codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentPackAutomatic.php`, però la còpia `codi-drive/web-actual/realitzaPagamentPackAutomatic.php` continuava contenint el flux legacy sense el mateix tall inicial. El checkout PACK nou ja assigna `DS_MERCHANT_MERCHANTURL` a `SIF_REDSYS_CALLBACK_URL`, però una URL antiga o invocació directa no havia de conservar una segona autoritat fiscal executable.
+La revalidació va detectar que, a més de la còpia de `pay-prisma-cat-canvis-verifactu`, existia `codi-drive/web-actual/realitzaPagamentPackAutomatic.php` amb el flux fiscal legacy. El checkout PACK nou ja utilitza `SIF_REDSYS_CALLBACK_URL`, de manera que mantenir aquests endpoints productius només preservava una segona autoritat fiscal potencial.
 
-També s'ha revisat `realitzaPagamentPackAutomaticProva.php`, una superfície legacy de prova situada sota la web.
+**Estat final aplicat:**
+- `codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentPackAutomatic.php`: **eliminat físicament**;
+- `codi-drive/web-actual/realitzaPagamentPackAutomatic.php`: **eliminat físicament**;
+- `LegacyPackCallbackBoundaryTest` exigeix que ambdós fitxers productius no existeixin;
+- `realitzaPagamentPackAutomaticProva.php` es conserva només com a harness legacy, fail-closed fora de `test|preproduction` i d'un flag explícit;
+- el harness exigeix recipient, DNI de prova, import, IDPAG i ordre per variables d'entorn, sense destinataris personals hardcodats;
+- la CI només linta la superfície de prova que realment continua existint.
+
+**Estat:** tancat. El callback autoritatiu PACK és exclusivament el SIF.
+
+### F-22 · Harness legacy de prova contenia dades/destinataris hardcodats — corregit
+
+Tot i quedar bloquejat per defecte, `realitzaPagamentPackAutomaticProva.php` encara contenia valors personals/de prova i destinataris literals.
 
 **Correcció aplicada:**
-- les dues còpies productives de `realitzaPagamentPackAutomatic.php` exigeixen `SIF_PACK_LEGACY_CALLBACK_ENABLED=1`; per defecte responen HTTP 410 **abans** de signatura, correus, BD o `INSERT INTO factures`;
-- el harness `realitzaPagamentPackAutomaticProva.php` només pot superar el guard en `SIF_ENV=test|preproduction` i amb `SIF_PACK_LEGACY_TEST_CALLBACK_ENABLED=1`;
-- `LegacyPackCallbackBoundaryTest` comprova les dues còpies productives i el harness;
-- els tres fitxers entren ara als triggers i al lint dels workflows generals SIF.
+- `SIF_PACK_LEGACY_TEST_RECIPIENT`;
+- `SIF_PACK_LEGACY_TEST_DNI`;
+- `SIF_PACK_LEGACY_TEST_AMOUNT`;
+- `SIF_PACK_LEGACY_TEST_IDPAG`;
+- `SIF_PACK_LEGACY_TEST_ORDER`;
+- validació fail-closed 422 si la configuració és incompleta;
+- cap `addTo()` conserva una adreça literal.
 
-**Estat:** totes les superfícies legacy conegudes queden fail-closed per defecte. **Pendent:** eliminar físicament aquest codi quan es tanqui formalment la finestra de rollback.
+**Estat:** corregit i cobert per `LegacyPackCallbackBoundaryTest`.
 
 ## 6. UML i traçabilitat
 
@@ -464,14 +479,14 @@ Per tant:
 - qualsevol HEAD posterior per resincronització amb `main` requereix nova CI verda abans del merge;
 - E2E real: pendent.
 
-### Pendent
+### Pendent d'acceptació / dependències externes
 
-1. Executar `verify-redsys-pack-preproduction.php <DS_ORDER>` amb un DS_ORDER real de preproducció; després completar PK-01..PK-11 de navegador, incloent alta POST, rebuig GET/cross-site, doble clic, replay del mateix `REQUEST_ID` i un pack amb un component fora de finestra.
-2. Tancar decisió de negoci sobre ordre comercial explícit vs `DATAI, ID_CURS`.
-3. Eliminar físicament callback fiscal PACK legacy després de la finestra de rollback.
-4. Validar lliurament real de notificació (UC-58), no només enqueue.
-5. Validar CI del HEAD final del PR.
-6. Si es vol tancament formal, registrar evidències de variables d'entorn, worker i callback HTTPS de preproducció.
+1. Executar `verify-redsys-pack-preproduction.php <DS_ORDER>` amb un `DS_ORDER` real de preproducció i conservar-ne l'evidència; completar PK-01..PK-11 de navegador.
+2. UC-58: acreditar transport/retry/lliurament real de les notificacions; l'enqueue idempotent de PACK ja és responsabilitat complerta d'UC-015.
+3. Validar CI del HEAD final del PR.
+4. Conservar evidència de variables d'entorn, worker i callback HTTPS en el dossier de desplegament.
+
+**Tancats en aquesta auditoria:** ordre comercial v1 `DATAI, ID_CURS`, callbacks productius legacy, idempotència pública, atomicitat, disponibilitat PACK N i verificador canònic de preproducció.
 
 ## 9. Canvis aplicats per aquesta auditoria
 
@@ -495,8 +510,9 @@ Per tant:
 
 ## 10. Criteri de tancament
 
-UC-015 no s'ha de marcar com a completament tancat mentre quedin oberts l'E2E/preproducció, la decisió d'ordre comercial i els pendents operatius indicats. El **nucli SIF PACK** sí pot considerar-se implementat, amb evidència automatitzada prèvia, subjecta a CI verda del commit final d'aquesta auditoria.
+**Codi i documentació UC-015: tancats.** No queda cap gap intern de programació identificat en aquesta auditoria.
 
+El **merge** continua condicionat a CI verda del HEAD final. L'**acceptació operativa del desplegament** continua condicionada a executar el verificador PACK i PK-01..PK-11 amb un `DS_ORDER` real de preproducció. El transport/retry de notificacions és dependència transversal d'UC-58.
 
 ## 8. Tancament final de l’auditoria UC-015 — 2026-10-02
 
