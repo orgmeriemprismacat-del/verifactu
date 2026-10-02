@@ -87,7 +87,7 @@ final class InvoiceService
                 $result['uuid_payment'] = $payment['uuid_payment'];
             }
 
-            return $result;
+            return $this->withStatusProjection($db, $result);
         });
     }
 
@@ -160,7 +160,7 @@ final class InvoiceService
         $result = $this->existingResult($existing);
 
         if (!array_key_exists('payment', $payload) || $payload['payment'] === null) {
-            return $result;
+            return $this->withStatusProjection($db, $result);
         }
 
         if (!is_array($payload['payment'])) {
@@ -190,6 +190,22 @@ final class InvoiceService
         );
 
         $result['uuid_payment'] = $payment['UUID_PAYMENT'];
+
+        return $this->withStatusProjection($db, $result);
+    }
+
+    private function withStatusProjection(\PDO $db, array $result): array
+    {
+        $projection = $this->invoices->statusProjection($db, (string) $result['uuid_factura']);
+        $result['status'] = [
+            'invoice' => $projection['invoice_status'],
+            'payment' => $projection['payment_status'],
+            'aeat' => $projection['aeat_status'],
+            'fiscal_queue' => $projection['fiscal_queue_status'],
+            'document' => $projection['document_status'],
+            'document_type' => $projection['document_type'],
+        ];
+        $result['fiscal_order'] = $projection['fiscal_order'];
 
         return $result;
     }
