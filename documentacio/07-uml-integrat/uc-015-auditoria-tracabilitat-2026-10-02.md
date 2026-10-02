@@ -321,7 +321,7 @@ L'alta pública ja no depèn només del guard de doble clic. El navegador genera
 - mateix RID + payload diferent → HTTP 409;
 - fingerprints/IDPAG/ordinals interns inconsistents → HTTP 409 fail-closed;
 - el lock de request s'allibera immediatament després del commit, abans de tasques SMTP;
-- `mostrarInscripcioPack.min.js` puja a `ver=7.4` per evitar clients cachejats amb el contracte GET antic;
+- `mostrarInscripcioPack.min.js` puja a `ver=7.5` per evitar clients cachejats amb el contracte GET antic;
 - `LegacyPackSnapshotRepositoryTest` acredita que els marcadors `RID/RH1` són ignorats pel parser fiscal;
 - `PackEnrollmentIdempotencyBoundaryTest` blinda persistència, ordre del replay, conflicte i persistència del request al navegador.
 
@@ -443,7 +443,7 @@ Per tant:
 - resposta post-commit desacoblada de fallades auxiliars per evitar falsos errors i reintents;
 - suma comercial de components validada en cèntims contra el preu PACK abans del commit;
 - idempotència server-side de l'alta amb `REQUEST_ID`, `RID/RH1`, named lock i replay/conflicte;
-- cache-bust del bundle d'inscripció a `ver=7.4`;
+- cache-bust del bundle d'inscripció a `ver=7.5`;
 - disponibilitat corregida: dates amb signe i exigència de tots els components oberts al llistat, fitxa i POST.
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
