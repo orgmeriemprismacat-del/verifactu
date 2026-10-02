@@ -17,6 +17,8 @@ final class RedsysCourseLegacyFallbackBoundaryTest
         Assert::stringContainsString("\$validatedCheckout['fractional'] ? '1' : '0'", $checkout);
         Assert::stringContainsString("REDSYS_MERCHANT_CODE_NOT_CONFIGURED", $checkout);
         Assert::stringContainsString("REDSYS_MERCHANT_KEY_NOT_CONFIGURED", $checkout);
+        Assert::stringContainsString("REDSYS_GATEWAY_URL_NOT_CONFIGURED", $checkout);
+        Assert::stringContainsString("REDSYS_TERMINAL_NOT_CONFIGURED", $checkout);
         Assert::stringContainsString('DS_MERCHANT_MERCHANTDATA', $checkout);
         Assert::stringContainsString("'UC014I' . (int) \$idPag", $checkout);
 
@@ -37,6 +39,7 @@ final class RedsysCourseLegacyFallbackBoundaryTest
             'INVALID_REDSYS_SIGNATURE',
             'REDSYS_AMOUNT_MISMATCH',
             'INVALID_REDSYS_MERCHANT_CONTEXT',
+            'REDSYS_IDPAG_NOT_UNIQUE_OR_MISSING',
             "getParameter('Ds_MerchantData')",
             'hash_equals',
         ] as $needle) {
