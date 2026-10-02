@@ -1,7 +1,7 @@
 # UC-014 — Auditoria exhaustiva i matriu de traçabilitat
 
 **Data:** 02/10/2026  
-**Base auditada:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd`  
+**Base inicial:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd` · **revalidada després de sincronitzar:** `main@5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`  
 **Auditoria anterior:** [29/09/2026](uc-014-auditoria-tracabilitat-2026-09-29.md)  
 **Inventari executable actualitzat:** [PHP/JS ACTUAL, pont candidat i SIF](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md)
 
@@ -18,6 +18,7 @@ Estat 02/10/2026:
 | Intenció SIF | Sí | Sí | CI PR #79 i proves dedicades | preproducció real |
 | Callback/cua/worker | Sí | Sí | CI intern | Redsys real |
 | Factura/cobrament SIF | Sí | Sí | E2E intern | evidència preprod |
+| Atribució quantitativa per inscripció | Sí | Sí: `EXTERNAL_ALLOCATION` | PR #95: 841/0 + 4 workflows verds | evidència Redsys real |
 | Sync llegat | Sí | Sí | E2E intern | evidència preprod |
 | Retorn navegador autoritatiu | Sí | Sí al pont candidat | proves boundary/status | desplegament |
 | Outbox CURS | Sí | productor sí | E2E intern | delivery UC-58 |
@@ -95,7 +96,7 @@ JS localitzat:
 | A14-14 | Notificació | correu immediat en fallback | `notification_outbox` post-sync | productor IMPLEMENTAT; delivery UC-58 PENDENT |
 | A14-15 | Retorn OK/KO | actual llegat no és prova fiscal | status SIF read-only | IMPLEMENTAT/VERIFICAT al candidat |
 | A14-16 | Sync inscripció | barrejat al callback | `CourseLegacyPaymentSyncService` post-SIF | IMPLEMENTAT/VERIFICAT intern |
-| A14-17 | Atribució inscripció | `IDPAG` + fila llegada | relació `INSCRIPCIO(ID)` + `payment_transaction.IDPAG` + allocation factura | **IMPLEMENTAT per UC-014 ordinari** |
+| A14-17 | Atribució inscripció | `IDPAG` + fila llegada | `CourseEnrollmentFundAllocationService` → `enrollment_fund_movement.EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC`, vinculat a `UUID_PAYMENT`/`UUID_FACTURA` | **IMPLEMENTAT I VERIFICAT CI al PR #95** |
 | A14-18 | Outbox | no existeix al llegat | `CoursePaymentNotificationService` | IMPLEMENTAT; transport pendent |
 | A14-19 | Cutover | no aplicable a l'ACTUAL | flag explícit + callback llegat 410 al candidat | IMPLEMENTAT/VERIFICAT boundary |
 | A14-20 | Secrets | literals històrics trobats | candidat usa entorn; fallback s'externalitza en aquesta branca | CODI CORREGIT; **rotació P0 pendent** |
@@ -128,6 +129,7 @@ JS localitzat:
 - validar criptografia al circuit SIF/candidat;
 - comparar order/import/divisa/terminal;
 - idempotència del circuit SIF;
+- atribució quantitativa `EXTERNAL_ALLOCATION` per inscripció;
 - seqüència fiscal central;
 - sync CURS post-SIF;
 - retorn navegador autoritatiu;
@@ -148,7 +150,7 @@ Aquests punts existeixen al repositori i tenen proves. El que falta és principa
 
 1. Completar delivery UC-58 si el flux productiu ha de conservar email postpagament.
 2. Revalidar variants comercials fora del curs ordinari.
-3. Decidir si algun altre UC necessita distribució d'un cobrament entre múltiples inscripcions; **no és un bloqueig del UC-014 ordinari**.
+3. Verificar qualsevol efecte acadèmic addicional fora de `PAGAMENT / DATA PAG / M→1`, si aplica al curs concret. L'atribució quantitativa del cobrament ja no és P1: queda implementada pel PR #95.
 
 ## 6. Proves i evidència
 
@@ -160,7 +162,17 @@ El cap del PR #79 (`3569fffcf6a7579bec8452390f8d998eb1a09c9c`) té:
 
 Això verifica el circuit intern fusionat fins a outbox, no el runtime de preproducció Redsys.
 
-En aquesta branca s'han afegit/modificat proves de hardening. **Fins que GitHub Actions no les executi, s'han de marcar IMPLEMENTADES però NO REVALIDADES PER CI.**
+### Evidència addicional PR #95
+
+El PR #95 (`feat/uc-014-enrollment-fund-allocation-2026-10-02`) integra `CourseEnrollmentFundAllocationService` i `EnrollmentFundMovementRepository`. El seu head reconciliat (`3fa6377e…`) va completar amb èxit:
+- `SIF PHP MySQL tests`: **841 passed / 0 failed**;
+- `SIF checks`;
+- `UC-111 integration verification`;
+- `UC-004 SIF secure flow checks`.
+
+`CourseEnrollmentFundAllocationServiceTest` cobreix alta/reús, parcial per trams i mismatch fail-closed; `RedsysCourseEndToEndSimulatedTest` exigeix moviment únic davant duplicat i suma correcta al parcial→complet.
+
+En aquesta branca s'han afegit/modificat proves de hardening ACTUAL. **Fins que GitHub Actions no les executi, s'han de marcar IMPLEMENTADES però NO REVALIDADES PER CI.**
 
 ## 7. Criteri de tancament
 
@@ -180,6 +192,6 @@ UC-014 pot passar a **TANCAT AMB EVIDÈNCIA** només quan, sobre un commit ident
 ## 8. Estat final de l'auditoria documental
 
 **DOCUMENTAT:** complet per UC-014 ordinari, inclòs PHP/JS i sis superfícies P-CUR.  
-**IMPLEMENTAT:** nucli SIF, pont candidat, outbox, retorn autoritatiu i hardening del fallback a la branca.  
-**VERIFICAT:** circuit intern anterior per CI PR #79; proves noves de la branca pendents de CI en el moment de redactar aquesta versió.  
+**IMPLEMENTAT:** nucli SIF, pont candidat, `EXTERNAL_ALLOCATION` per inscripció, outbox, retorn autoritatiu i hardening del fallback a la branca.  
+**VERIFICAT:** circuit intern anterior per CI PR #79 i fund allocation per CI PR #95 (841/0 + quatre workflows verds); proves noves de hardening de la branca pendents de CI en el moment de redactar aquesta versió.  
 **PENDENT:** Redsys real de preproducció, desplegament/cutover, rotació/configuració de secrets i delivery UC-58.
