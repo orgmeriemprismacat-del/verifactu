@@ -275,7 +275,10 @@ try {
 		throw new RuntimeException('Error: no s’ha pogut bloquejar la petició.', 503);
 	}
 	$stmtPackRequestLock->bind_param('s', $packRequestLockName);
-	$stmtPackRequestLock->execute();
+	if (!$stmtPackRequestLock->execute()) {
+		$stmtPackRequestLock->close();
+		throw new RuntimeException('Error: no s’ha pogut bloquejar la petició.', 503);
+	}
 	$stmtPackRequestLock->bind_result($packRequestLocked);
 	$stmtPackRequestLock->fetch();
 	$stmtPackRequestLock->close();
@@ -295,7 +298,10 @@ try {
 		throw new RuntimeException('Error: no s’ha pogut verificar la petició.', 500);
 	}
 	$stmtExistingRequest->bind_param('s', $packRequestNeedle);
-	$stmtExistingRequest->execute();
+	if (!$stmtExistingRequest->execute()) {
+		$stmtExistingRequest->close();
+		throw new RuntimeException('Error: no s’ha pogut verificar la petició.', 500);
+	}
 	$stmtExistingRequest->bind_result($existingRequestId, $existingRequestIdPag, $existingRequestObservations);
 	$existingRequestRows = [];
 	while ($stmtExistingRequest->fetch()) {
