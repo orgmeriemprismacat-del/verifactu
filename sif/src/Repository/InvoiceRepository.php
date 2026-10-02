@@ -8,6 +8,7 @@ use Prisma\Sif\Service\PayloadIdempotencyValidator;
 
 final class InvoiceRepository
 {
+    private const REGISTER_CONTROL_GENERATOR_VERSION = 'invoice-repository-v1';
     public function __construct(
         private UuidGenerator $uuidGenerator,
         private HashCalculator $hashCalculator
@@ -113,7 +114,15 @@ final class InvoiceRepository
 
         $this->insertInvoice($db, $payload, $uuid, $year, $seq, $numVisible, $issuedAt);
         $lineIdsBySource = $this->insertLines($db, $payload, $uuid);
-        $this->insertFiscalRecord($db, $uuid, $fiscalOrder, $hash, $previousHash, $jsonPayload);
+        $fiscalRecordId = $this->insertFiscalRecord(
+            $db,
+            $uuid,
+            $fiscalOrder,
+            $hash,
+            $previousHash,
+            $jsonPayload
+        );
+        $this->insertFiscalRecordControl($db, $fiscalRecordId, $chainState, $payload);
         $this->updateChainState($db, $fiscalOrder, $hash);
         $this->insertFiscalQueue($db, $uuid, $payload['idempotency_key'], $jsonPayload);
         $this->insertRelations($db, $payload, $uuid, $lineIdsBySource);
@@ -122,6 +131,7 @@ final class InvoiceRepository
             'uuid_factura' => $uuid,
             'num_visible' => $numVisible,
             'fiscal_order' => $fiscalOrder,
+            'fiscal_record_id' => $fiscalRecordId,
             'hash' => $hash,
         ];
     }
@@ -217,12 +227,55 @@ final class InvoiceRepository
         string $hash,
         ?string $previousHash,
         string $jsonPayload
-    ): void {
+    ): int {
         $db->prepare(
             'INSERT INTO factura_registres (
                 UUID_FACTURA, FISCAL_ORDER, TIPUS_REGISTRE, HASH_FACT, HASH_FACT_ANT, PAYLOAD_JSON
             ) VALUES (?, ?, ?, ?, ?, ?)'
         )->execute([$uuid, $fiscalOrder, 'ALTA', $hash, $previousHash, $jsonPayload]);
+
+        return (int) $db->lastInsertId();
+    }
+
+    private function insertFiscalRecordControl(
+        \PDO $db,
+        int $fiscalRecordId,
+        array $chainState,
+        array $payload
+    ): void {
+        $previousRecordId = null;
+        $previousOrder = (int) ($chainState['LAST_FISCAL_ORDER'] ?? 0);
+        if ($previousOrder > 0) {
+            $stmt = $db->prepare(
+                'SELECT ID FROM factura_registres WHERE FISCAL_ORDER = ? LIMIT 1'
+            );
+            $stmt->execute([$previousOrder]);
+            $previous = $stmt->fetchColumn();
+            if ($previous === false) {
+                throw new \RuntimeException('Previous fiscal registration record could not be resolved.');
+            }
+            $previousRecordId = (int) $previous;
+        }
+
+        $correlationId = trim((string) ($payload['correlation_id'] ?? ''));
+        if ($correlationId === '') {
+            $correlationId = (string) $payload['idempotency_key'];
+        }
+        $correlationId = mb_substr($correlationId, 0, 120, 'UTF-8');
+
+        $db->prepare(
+            'INSERT INTO factura_registre_control (
+                FACTURA_REGISTRE_ID, PREVIOUS_REGISTRE_ID, RECORD_ACTION,
+                CORRECTION_KIND, REJECTION_PREVIOUS, WITHOUT_PREVIOUS_RECORD,
+                XML_HASH, GENERATOR_VERSION, CORRELATION_ID
+            ) VALUES (?, ?, ?, NULL, 0, 0, NULL, ?, ?)'
+        )->execute([
+            $fiscalRecordId,
+            $previousRecordId,
+            'ALTA',
+            self::REGISTER_CONTROL_GENERATOR_VERSION,
+            $correlationId,
+        ]);
     }
 
     private function updateChainState(\PDO $db, int $fiscalOrder, string $hash): void
