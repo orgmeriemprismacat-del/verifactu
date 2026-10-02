@@ -162,6 +162,10 @@ class InvoiceRepository {
 class PaymentRepository {
  +createPayment(db,payload) array
 }
+class PackEnrollmentFundAllocationService {
+ <<IMPLEMENTAT>>
+ +allocate(db,dsOrder,snapshot,invoiceResult) array
+}
 class EnrollmentFundMovementRepository {
  <<IMPLEMENTAT>>
  +lockPayment(db,uuidPayment) array
@@ -176,15 +180,33 @@ class NotificationOutboxRepository {
  <<IMPLEMENTAT · ENQUEUE>>
  +enqueue(db,message) array
 }
+class RedsysLegacySyncingProcessor {
+ <<IMPLEMENTAT>>
+ +process(sifDb,job) array
+}
+class LegacySyncService {
+ <<IMPLEMENTAT>>
+ +syncAfterSifSuccess(legacyDb,relations,uuidFactura,numVisible,estatCobrament)
+ +syncPackFullPayment(legacyDb,relations,movementDate)
+}
+class RedsysPackEvidenceVerifier {
+ <<IMPLEMENTAT · READ ONLY>>
+ +verify(sifDb,legacyDb,dsOrder) array
+}
 RedsysPackInvoiceService ..|> RedsysIntentHandler
 RedsysPackInvoiceService --> LegacyPackInvoicePayloadBuilder : N línies
 RedsysPackInvoiceService --> RedsysInvoicePayloadBuilder : cobrament validat
 RedsysPackInvoiceService --> InvoiceService : factura de pack
-RedsysPackInvoiceService --> EnrollmentFundMovementRepository : N atribucions / mateix UUID_PAYMENT
+RedsysPackInvoiceService --> PackEnrollmentFundAllocationService : N atribucions / mateix UUID_PAYMENT
+PackEnrollmentFundAllocationService --> EnrollmentFundMovementRepository
 RedsysPackInvoiceService --> PackPaymentNotificationService : event postfactura
 PackPaymentNotificationService --> NotificationOutboxRepository
 InvoiceService --> InvoiceRepository : factura i relacions
 InvoiceService --> PaymentRepository : CHARGE inicial si payment
+RedsysLegacySyncingProcessor --> RedsysPackInvoiceService : via dispatcher
+RedsysLegacySyncingProcessor --> LegacySyncService : només després d'èxit SIF
+RedsysPackEvidenceVerifier ..> InvoiceService : verifica efectes persistits
+RedsysPackEvidenceVerifier ..> LegacySyncService : verifica resultat legacy
 ```
 
 `EnrollmentFundMovementRepository` està implementat i és invocat per `PackEnrollmentFundAllocationService` des del handler PACK; no depèn d'`InvoiceService` perquè l'atribució econòmica es fa després d'obtenir `UUID_FACTURA` i `UUID_PAYMENT`.
@@ -201,6 +223,7 @@ participant Bank as Redsys
 participant Callback as RedsysCallbackService
 participant Q as Cua callback
 participant W as RedsysCallbackWorker
+participant LP as RedsysLegacySyncingProcessor
 participant H as RedsysPackInvoiceService
 participant B as LegacyPackInvoicePayloadBuilder
 participant R as RedsysInvoicePayloadBuilder
@@ -214,7 +237,8 @@ Web->>Bank: TPV
 Bank->>Callback: Notificació signada
 Callback->>Q: Encolar job autoritzat
 W->>Q: Reclamar job PACK
-W->>H: issueFromIntentSnapshot(db,dsOrder,snapshot)
+W->>LP: process(db,job)
+LP->>H: via dispatcher / issueFromIntentSnapshot()
 H->>B: build(snapshot)
 loop Cada inscripció del pack
  B->>B: Línia, descompte i relació INSCRIPCIO
@@ -228,7 +252,9 @@ loop Cada inscripció i import congelat
  H->>L: insertOrReuseExternalAllocation(UUID_PAYMENT,ID_INSC,import_i)
 end
 H->>O: enqueue notificació idempotent
-H-->>W: Resultat + ledger + outbox
+H-->>LP: Resultat + ledger + outbox + legacy_sync
+LP->>LP: syncAfterSifSuccess + syncPackFullPayment
+LP-->>W: Resultat + legacy_sync_executed
 W->>Q: PROCESSED i UUIDs
 Note over H,O: Un pagament bancari, N atribucions internes. L'outbox queda PENDING fins al worker UC-58.
 ```
@@ -240,7 +266,7 @@ sequenceDiagram
 autonumber
 actor P as Pagador
 actor O as Gestió
-participant UI as Ecommerce/Intranet [adaptació pendent]
+participant UI as Ecommerce / Intranet excepcional
 participant Price as Preu i composició pack [llegat]
 participant Pay as Redsys/SIF [serveis parcials]
 participant Fiscal as Classificació parts fiscals [PENDENT]
@@ -269,3 +295,24 @@ Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts 
 ## Preproducció canònica
 
 Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only i el processor manual injecta ledger/outbox i pot fer la sincronització legacy completa amb `--sync-legacy`. Per tant, ja no s'utilitza una reconstrucció legacy diferent del flux productiu per validar preproducció.
+
+
+## Evidència E2E reproduïble
+
+La verificació final d'un PACK ja es pot executar amb `php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>`. El verificador contrasta la cadena completa SIF i la sincronització legacy sense imprimir PII. Vegeu [plantilla d'evidència de preproducció](uc-015-plantilla-evidencia-preproduccio.md).
+
+
+## Frontera HTTP i privacitat del checkout
+
+L'alta pública de PACK utilitza POST; imports i mode de fraccionament no són autoritatius des del navegador. El formulari Redsys usa el titular del snapshot servidor, una descripció de producte sense DNI i, per PACK, URL OK/KO sense email. L'endpoint de pagament Redsys és configurable per entorn amb allowlist HTTPS. La protecció anti-abús/CSRF del formulari públic queda com a control web separat a decidir abans del tancament operatiu.
+
+
+## 6. Verificació E2E i frontera HTTP — actualització 2026-10-01
+
+- L'alta pública del PACK usa `POST enviarInscripcioPack.php`; l'endpoint rebutja altres mètodes amb 405 i no llegeix PII ni dades de mutació des de `$_GET`.
+- Ecommerce no accepta `pagFrac` del client: el servidor fixa el mode no fraccionat.
+- El checkout rellegeix titular, email, imports, composició i ordinal des del snapshot autoritatiu.
+- `DS_MERCHANT_TITULAR` rep el nom del titular; la descripció PACK no incorpora DNI.
+- Per PACK, les URL OK/KO no transporten email.
+- `RedsysPackWorkerEndToEndTest` força replay del job i comprova que factura, payment, ledger i outbox continuen idempotents.
+- `RedsysPackEvidenceVerifier` permet acreditar el mateix flux per `DS_ORDER` en preproducció sense exposar PII.

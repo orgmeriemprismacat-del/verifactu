@@ -1,6 +1,6 @@
 # UC-015 · Activitats per pàgina i apartat ACTUAL / FINAL
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-09-30  
+**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-10-01  
 **Objectiu:** cobrir RM-037 per a les pantalles i processos implicats en la compra d'un pack.
 
 ## Inventari
@@ -77,14 +77,14 @@ C --> D[JS obté ID_PREU]
 D --> E[JS obté preus]
 E --> F[Mostra preu]
 F --> G[Usuari omple dades]
-G --> H[GET enviarInscripcioPack.php]
+G --> H[POST enviarInscripcioPack.php]
 ```
 
 ### FINAL
 ```mermaid
 flowchart TD
 A[Formulari] --> B[Usuari envia dades]
-B --> C[POST autenticat/CSRF segons canal]
+B --> C[POST mutació pública; validar servidor i aplicar control anti-abús/origen]
 C --> D[Backend rellegeix oferta]
 D --> E[Backend calcula preu]
 E --> F[Valida receptor]

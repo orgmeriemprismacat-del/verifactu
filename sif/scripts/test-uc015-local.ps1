@@ -40,6 +40,13 @@ try {
     $lines.Add('LegacyPackCallbackBoundaryTest::testLegacyPackCallbackIsDisabledByDefaultBeforeLegacyMutationCode')
     $lines.Add('PackCommercialOrderBoundaryTest::testPackPresentationAndEnrollmentUseSameDeterministicOrder')
     $lines.Add('PackCommercialOrderBoundaryTest::testPackOrdinalIsFrozenFromDeterministicComponentLoop')
+    $lines.Add('RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData')
+    $lines.Add('RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing')
+    $lines.Add('PackCheckoutBoundaryTest::testPackCheckoutUsesServerAuthoritativeHolderAndEscapesPostedHtml')
+    $lines.Add('RedsysPackWorkerEndToEndTest::testPackWorkerReplayKeepsFiscalEconomicAndOutboxEffectsIdempotent')
+    $lines.Add('PackEnrollmentTransportBoundaryTest::testPackEnrollmentMutationUsesPostAndDoesNotReadGetParameters')
+    $lines.Add('PackPaymentPrivacyBoundaryTest::testPackRedsysPayloadUsesNameNotDniAndOmitsEmailFromReturnUrls')
+    $lines.Add('PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesTreatEmailAsOptionalEscapedHint')
 
     if ($exitCode -ne 0) {
         $lines.Add('RESULT=FAIL')

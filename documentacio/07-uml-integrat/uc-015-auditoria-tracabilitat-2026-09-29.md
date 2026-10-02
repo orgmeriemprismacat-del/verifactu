@@ -320,7 +320,7 @@ El script `sif/scripts/process-redsys-pack.php` continua limitat a CLI i rebutja
 ### Mancances residuals prioritzades
 
 - **P0 entorn:** executar E2E real/preproducció amb Redsys i conservar evidència de callback, cua, factura, payment, ledger, outbox i sincronització legacy.
-- **P1 comercial:** acreditar formalment la font canònica de `PACK_ORDINAL`.
+- **P1 comercial:** decidir formalment si l'ordre estabilitzat `DATAI, ID_CURS` és el contracte comercial definitiu o si cal una posició explícita/versionada.
 - **P1 retirada:** eliminar físicament `realitzaPagamentPackAutomatic.php` com a callback fiscal quan acabi la finestra de rollback.
 - **P2 llegat:** substituir si es decideix l'allocator `MAX(IDPAG)+1` sota lock per una seqüència pròpia.
 
@@ -376,3 +376,59 @@ Ara:
 - els tests de scripts exigeixen explícitament aquestes dependències i impedeixen tornar a reconstruir el preview des de legacy.
 
 Aquesta correcció redueix el pendent E2E a **execució i evidència d'entorn**, no a divergència del codi de preproducció.
+
+
+## 19. Verificador d'evidència E2E — 2026-10-01
+
+Nou servei `RedsysPackEvidenceVerifier` i CLI `verify-redsys-pack-evidence.php`. Donat un `DS_ORDER`, comprova de forma read-only:
+- intenció `SOURCE_TYPE=PACK`;
+- notificació `VALIDATED` i signatura validada;
+- identitat IDPAG/import coherent;
+- job callback `PROCESSED`;
+- factura `ISSUED/PAID`;
+- un únic `CHARGE` Redsys;
+- N línies i relacions PACK/INSCRIPCIO;
+- una assignació payment→factura;
+- N moviments `EXTERNAL_ALLOCATION` i suma exacta;
+- una outbox `PACK_PAYMENT_CONFIRMED`;
+- registre i cua fiscal;
+- `legacy_sync_executed=true`;
+- `PAGAMENT=A_PAGAR`, `DATA PAG` i marcador UUID de factura a les inscripcions legacy.
+
+La sortida no inclou email, DNI/NIF, adreces ni `SNAPSHOT_JSON`. Si falta qualsevol baula, `ok=false` i el procés retorna codi 2. En producció queda bloquejat per defecte i requereix `SIF_UC015_EVIDENCE_ALLOW_PRODUCTION=1`.
+
+
+## 20. Hardening del checkout Redsys — 2026-10-01
+
+S'ha detectat que el flux PACK ja era autoritatiu per import/snapshot però encara reutilitzava `dni` i `nom-titular` del navegador per al formulari Redsys. S'ha corregit perquè el PACK substitueixi DNI/NIF, nom i email pels valors de `snapshot.billing` validats al servidor i falli tancat si falten. També s'han escapat els valors POST mostrats als camps ocults per eliminar la superfície XSS. La regressió queda coberta per `PackCheckoutBoundaryTest` sobre les dues còpies de `pagina_efectuar_pagament_grup_automatic.php`.
+
+
+## 21. Transport HTTP i privacitat de l'alta/TPV — 2026-10-01
+
+Troballes corregides:
+- `enviarInscripcioPack.php` era una mutació amb dades personals per GET; ara només admet POST i respon 405 a altres mètodes;
+- `pagFrac` ja no és una decisió enviada pel navegador: ecommerce fixa `No` i persisteix `FRACCIONAT=0`;
+- l'ajax concret d'alta PACK és POST, mentre les consultes de catàleg/preu continuen read-only;
+- `DS_MERCHANT_TITULAR` usa nom/cognoms del snapshot servidor;
+- `DS_MERCHANT_PRODUCTDESCRIPTION` de PACK ja no inclou DNI;
+- URL OK/KO del PACK ja no inclou email;
+- les pàgines de retorn validen/escapen qualsevol email legacy opcional;
+- `SIF_REDSYS_PAYMENT_URL` només accepta les dues URLs oficials exactes de Redsys: real i sandbox.
+
+Cobertura: `PackEnrollmentTransportBoundaryTest`, `PackCheckoutBoundaryTest`, `PackPaymentPrivacyBoundaryTest` i `RedsysPackPreflightScriptTest`.
+
+**Residual de seguretat del formulari públic:** POST evita PII a URL i mutacions GET, però no equival a una protecció anti-abús/CSRF. Abans del desplegament definitiu convé decidir un control compatible amb el formulari públic (token de formulari o comprovació d'origen + rate limiting) sense confondre'l amb l'autenticació HMAC del SIF.
+
+
+## 22. E2E worker, privacitat Redsys i frontera pública — 2026-10-01
+
+Cobertura nova preparada:
+- `RedsysPackWorkerEndToEndTest`: processa un PACK real pel worker, força un replay del mateix job i exigeix exactament 1 factura, 1 payment, N moviments de ledger i 1 outbox;
+- `PackEnrollmentTransportBoundaryTest`: blinda POST-only de l'alta i impedeix reintroduir `$_GET`/fraccionament controlat pel client;
+- `PackPaymentPrivacyBoundaryTest`: blinda que PACK no posi DNI a `DS_MERCHANT_PRODUCTDESCRIPTION`, que `DS_MERCHANT_TITULAR` provingui del nom servidor i que les URL OK/KO PACK no duguin email;
+- `PackCheckoutBoundaryTest`: manté titular/valors ocults derivats del snapshot servidor i escapats;
+- `RedsysPackPreflightScriptTest`: exigeix endpoint Redsys HTTPS amb allowlist d'host/path.
+
+Segons el contracte públic de Redsys, `DS_MERCHANT_TITULAR` representa nom i cognoms del titular i `DS_MERCHANT_PRODUCTDESCRIPTION` és una descripció visible del producte; per tant, retirar el DNI d'aquests camps és coherent amb la semàntica del TPV.
+
+**Residual no resolt en aquesta passada:** l'alta és un formulari públic no autenticat. POST evita PII en URL i mutacions via GET, però no substitueix un control anti-abús/origen. Cal tractar-ho com a hardening del formulari públic (token, comprovació d'origen i/o rate limiting) sense barrejar-lo amb la seguretat HMAC server-to-server del SIF.

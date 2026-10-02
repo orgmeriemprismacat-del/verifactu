@@ -7,6 +7,7 @@ $packCallbackUrl = null;
 $redsysMerchantKey = trim((string) getenv('SIF_REDSYS_MERCHANT_KEY'));
 $packMerchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
 $packTerminal = trim((string) (getenv('REDSYS_TERMINAL') ?: '1'));
+$packPaymentUrl = trim((string) (getenv('SIF_REDSYS_PAYMENT_URL') ?: ''));
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if ($redsysMerchantKey === '') {
@@ -42,7 +43,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $preflightDb->closeStmt();
 
             if (in_array('P', $preflightTypes, true)) {
-                if ($packMerchantCode === '' || $packTerminal === '') {
+                $paymentAllowed = in_array(
+                    $packPaymentUrl,
+                    [
+                        'https://sis.redsys.es/sis/realizarPago',
+                        'https://sis-t.redsys.es:25443/sis/realizarPago',
+                    ],
+                    true
+                );
+                if ($packMerchantCode === '' || $packTerminal === '' || !$paymentAllowed) {
                     throw new RuntimeException('REDSYS_PACK_CONFIGURATION_NOT_AVAILABLE');
                 }
                 if ($preflightTypes !== ['P']) {
@@ -103,6 +112,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
         $preflightDb->desconectarBD();
     }
+}
+$checkoutDisplayDni = (string) ($_POST['dni'] ?? '');
+$checkoutDisplayName = (string) ($_POST['nom-titular'] ?? '');
+$checkoutDisplayImport = (string) ($_POST['import'] ?? '');
+$checkoutDisplayPaid = (string) ($_POST['importPagat'] ?? '');
+$checkoutDisplayEmail = (string) ($_POST['email'] ?? '');
+
+if ($validatedPackCheckout !== null) {
+    $checkoutDisplayDni = (string) ($validatedPackCheckout['snapshot']['billing']['nif'] ?? '');
+    $checkoutDisplayName = (string) ($validatedPackCheckout['snapshot']['billing']['name'] ?? '');
+    $checkoutDisplayImport = (string) $validatedPackCheckout['total_amount'];
+    $checkoutDisplayPaid = (string) $validatedPackCheckout['already_paid_amount'];
+    $checkoutDisplayEmail = (string) ($validatedPackCheckout['snapshot']['billing']['email'] ?? '');
 }
 ?>
 <!DOCTYPE HTML PUBLIC "-/W3C/DTD HTML 4.01/EN" "http:/www.w3.org/TR/html4/strict.dtd">
@@ -177,11 +199,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
    <header></header>
 
    <div id='cnt-pagament' class="prisma-container container separacio-peu" role="main">
-      <div id='dni' style='display:none'><?php echo $_POST['dni']?></div>
-      <div id='nom-titular' style='display:none'><?php echo $_POST['nom-titular']?></div>
-      <div id='import' style='display:none'><?php echo $_POST['import']?></div>
-      <div id='importPagat' style='display:none'><?php echo $_POST['importPagat']?></div>
-      <div id='email' style='display:none'><?php echo $_POST['email']?></div>
+      <div id='dni' style='display:none'><?php echo htmlspecialchars($checkoutDisplayDni, ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='nom-titular' style='display:none'><?php echo htmlspecialchars($checkoutDisplayName, ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='import' style='display:none'><?php echo htmlspecialchars($checkoutDisplayImport, ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='importPagat' style='display:none'><?php echo htmlspecialchars($checkoutDisplayPaid, ENT_QUOTES, 'UTF-8'); ?></div>
+      <div id='email' style='display:none'><?php echo htmlspecialchars($checkoutDisplayEmail, ENT_QUOTES, 'UTF-8'); ?></div>
 
       <?php
       include("./ConnexioBBDD_PreparedStatment.php");
@@ -223,7 +245,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
          $tipusInsc = 'P';
          $cursPag = 'P' . (string) $validatedPackCheckout['pack_id'];
          $titolPag = (string) $validatedPackCheckout['pack_title'];
-         $email = (string) ($validatedPackCheckout['snapshot']['billing']['email'] ?? $email);
+         $dniTitularPag = trim((string) ($validatedPackCheckout['snapshot']['billing']['nif'] ?? ''));
+         $nomTitularPag = (string) ($validatedPackCheckout['snapshot']['billing']['name'] ?? '');
+         $email = (string) ($validatedPackCheckout['snapshot']['billing']['email'] ?? '');
+         if ($dniTitularPag === '' || trim($nomTitularPag) === '' || trim($email) === '') {
+            http_response_code(409);
+            exit('Aquest pagament de pack no està disponible.');
+         }
          $importAPagar = (string) $validatedPackCheckout['total_amount'];
          $importPagare = (float) $validatedPackCheckout['payment_amount'];
          $importPagat = (float) $validatedPackCheckout['already_paid_amount'];
@@ -254,8 +282,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
       }
 
       $url="https://www.prisma.cat/realitzaPagamentGrupAutomatic.php?idPag=".$idPag."&dni=".$dniTitularPag."&order=".$order."&import=".$importPagare."&tipusInsc=".$tipusInsc;
-      $urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php?email=".$email;
-      $urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php?email=".$email;
+      $urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php";
+      $urlKO="https://www.prisma.cat/respostaKoPagamentAutomatic.php";
+      if ($validatedPackCheckout === null) {
+         $urlOK .= "?email=".rawurlencode($email);
+         $urlKO .= "?email=".rawurlencode($email);
+      }
 
       if ( $tipusInsc == 'G' )
          $url="https://www.prisma.cat/realitzaPagamentGrupAutomatic.php?idPag=".$idPag."&dni=".$dniTitularPag."&order=".$order."&import=".$importPagare."&tipusInsc=".$tipusInsc;
@@ -271,9 +303,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
       $amount=$importPagare * 100;
 
+      $redsysPaymentUrl = $validatedPackCheckout !== null
+         ? $packPaymentUrl
+         : 'https://sis.redsys.es/sis/realizarPago';
+
       $name='Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
 
-      $producto=$dniTitularPag." | ".stripslashes($titolPag);
+      if ($validatedPackCheckout !== null) {
+         $producto = 'Pack P' . (string) $validatedPackCheckout['pack_id'];
+         $redsysTitular = trim($nomTitularPag);
+      }
+      else {
+         $producto = $dniTitularPag." | ".stripslashes($titolPag);
+         $redsysTitular = $dniTitularPag;
+      }
 
       // Se Rellenan los campos
       $miObj->setParameter("DS_MERCHANT_AMOUNT",$amount);
@@ -281,7 +324,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
       $miObj->setParameter("DS_MERCHANT_MERCHANTCODE",$fuc);
       $miObj->setParameter("DS_MERCHANT_CURRENCY",$moneda);
       $miObj->setParameter("DS_MERCHANT_PRODUCTDESCRIPTION",$producto);
-      $miObj->setParameter("DS_MERCHANT_TITULAR",$dniTitularPag);
+      $miObj->setParameter("DS_MERCHANT_TITULAR",$redsysTitular);
       $miObj->setParameter("DS_MERCHANT_TRANSACTIONTYPE",$trans);
       $miObj->setParameter("DS_MERCHANT_TERMINAL",$terminal);
       $miObj->setParameter("DS_MERCHANT_MERCHANTURL",$url);
@@ -311,8 +354,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                }
             ?>
          </div>
-         <form id='frm' name='frm' action='https://sis.redsys.es/sis/realizarPago' method='post'>
-   		<!-- <form id='frm' name='frm' action='https://sis-t.redsys.es:25443/sis/realizarPago' method='post'> -->
+         <form id='frm' name='frm' action='<?php echo htmlspecialchars($redsysPaymentUrl, ENT_QUOTES, 'UTF-8'); ?>' method='post'>
    		   <input type="hidden" name="producto" value="<?php echo $producto; ?>"/>
             <input type="hidden" name="rebut" value="<?php echo $id; ?>"/>
             <input type="hidden" name="Ds_SignatureVersion" value="<?php echo $version; ?>"/>
