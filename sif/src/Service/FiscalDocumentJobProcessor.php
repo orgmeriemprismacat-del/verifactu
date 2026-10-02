@@ -41,6 +41,8 @@ final class FiscalDocumentJobProcessor
             return $this->jobs->claimNext($db);
         });
 
+        $this->recordUnreportedTerminalIncidents();
+
         if ($job === null) {
             return null;
         }
@@ -162,20 +164,11 @@ final class FiscalDocumentJobProcessor
             $incident = null;
             if (strtoupper((string) $failed['STATUS']) === 'ERROR') {
                 $incident = $this->transactions->run(
-                    fn (\PDO $db): array => $this->incidents->openDetailed($db, [
-                        'uuid_factura' => (string) $job['UUID_FACTURA'],
-                        'resource_type' => 'DOCUMENT_JOB',
-                        'resource_id' => (string) $job['UUID_JOB'],
-                        'source_type' => 'DOCUMENT_WORKER',
-                        'source_id' => (string) $job['UUID_JOB'],
-                        'type' => 'DOCUMENT_JOB_EXHAUSTED',
-                        'message' => 'Document job exhausted retry attempts: '
-                            . $this->safeError($exception),
-                        'severity' => 'HIGH',
-                        'correlation_id' => 'DOCUMENT_JOB:' . (string) $job['UUID_JOB'],
-                        'idempotency_key' => 'DOCUMENT_JOB_ERROR|' . (string) $job['UUID_JOB'],
-                        'reason_code' => 'DOCUMENT_RETRIES_EXHAUSTED',
-                    ])
+                    fn (\PDO $db): array => $this->openTerminalIncident(
+                        $db,
+                        $failed,
+                        (string) ($failed['LAST_ERROR'] ?? $this->safeError($exception))
+                    )
                 );
             }
 
@@ -190,6 +183,36 @@ final class FiscalDocumentJobProcessor
                 'error_code' => 'DOCUMENT_PROCESSING_FAILED',
             ];
         }
+    }
+
+    private function recordUnreportedTerminalIncidents(): void
+    {
+        $this->transactions->run(function (\PDO $db): void {
+            foreach ($this->jobs->findTerminalErrorsWithoutIncident($db) as $terminalJob) {
+                $this->openTerminalIncident(
+                    $db,
+                    $terminalJob,
+                    (string) ($terminalJob['LAST_ERROR'] ?? 'Document job exhausted retry attempts')
+                );
+            }
+        });
+    }
+
+    private function openTerminalIncident(\PDO $db, array $job, string $error): array
+    {
+        return $this->incidents->openDetailed($db, [
+            'uuid_factura' => (string) $job['UUID_FACTURA'],
+            'resource_type' => 'DOCUMENT_JOB',
+            'resource_id' => (string) $job['UUID_JOB'],
+            'source_type' => 'DOCUMENT_WORKER',
+            'source_id' => (string) $job['UUID_JOB'],
+            'type' => 'DOCUMENT_JOB_EXHAUSTED',
+            'message' => 'Document job exhausted retry attempts: ' . trim($error),
+            'severity' => 'HIGH',
+            'correlation_id' => 'DOCUMENT_JOB:' . (string) $job['UUID_JOB'],
+            'idempotency_key' => 'DOCUMENT_JOB_ERROR|' . (string) $job['UUID_JOB'],
+            'reason_code' => 'DOCUMENT_RETRIES_EXHAUSTED',
+        ]);
     }
 
     private function storageKey(array $job, string $extension): string
