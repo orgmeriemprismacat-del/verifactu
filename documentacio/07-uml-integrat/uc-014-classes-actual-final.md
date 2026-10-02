@@ -275,8 +275,8 @@ CourseLegacyPaymentSyncService --> PaymentRepository : suma CONFIRMED per IDPAG
 
 **DOCUMENTAT:** ACTUAL i FINAL.  
 **IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS, retorn navegador read-only, atribució quantitativa `EXTERNAL_ALLOCATION` amb `CourseEnrollmentFundAllocationService` / `EnrollmentFundMovementRepository` i hardening del fallback a la branca 02/10.  
-**VERIFICAT:** CI amb E2E intern simulat incloent `notification_outbox` CURS, `EXTERNAL_ALLOCATION` per inscripció, duplicat i parcial→complet, retorn autoritatiu i boundaries de preproducció; PR #95 amb `CourseEnrollmentFundAllocationServiceTest`, suites SIF **841 passed / 0 failed** i quatre workflows verds.  
-**PENDENT:** CI de la branca 02/10, desplegament/preproducció Redsys real, activació de MerchantURL SIF/cutover, rotació de secrets històrics, delivery UC-58 i retirada del callback fiscal llegat després de l'evidència.
+**VERIFICAT:** CI amb E2E intern simulat incloent `notification_outbox` CURS, `EXTERNAL_ALLOCATION` per inscripció, duplicat i parcial→complet, retorn autoritatiu i boundaries de preproducció; PR #95 amb `CourseEnrollmentFundAllocationServiceTest`, suites SIF **841 passed / 0 failed** i quatre workflows verds. El hardening ACTUAL del PR #105 també ha passat `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` al head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`.  
+**PENDENT:** desplegament/preproducció Redsys real, activació de MerchantURL SIF/cutover, rotació de secrets històrics, delivery UC-58 i retirada del callback fiscal llegat després de l'evidència.
 
 
 **Traça detallada de codi:** [inventari PHP/JS ACTUAL, pont candidat i SIF 02/10](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md).
