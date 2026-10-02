@@ -7,6 +7,7 @@ on:
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
       - "codi-drive/web-actual/EdicioPack.php"
       - "codi-drive/web-actual/Pack.php"
+      - "codi-drive/web-actual/inc/buscantPacksDisponibles.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
       - "codi-drive/web-actual/pagina_inscripcio_pack.php"
       - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
@@ -34,6 +35,7 @@ on:
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
       - "codi-drive/web-actual/EdicioPack.php"
       - "codi-drive/web-actual/Pack.php"
+      - "codi-drive/web-actual/inc/buscantPacksDisponibles.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
       - "codi-drive/web-actual/pagina_inscripcio_pack.php"
       - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
@@ -105,6 +107,7 @@ jobs:
           php -l codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php
           php -l codi-drive/web-actual/EdicioPack.php
           php -l codi-drive/web-actual/Pack.php
+          php -l codi-drive/web-actual/inc/buscantPacksDisponibles.php
           php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
           php -l codi-drive/web-actual/pagina_inscripcio_pack.php
           php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
