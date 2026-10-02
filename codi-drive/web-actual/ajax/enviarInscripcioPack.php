@@ -45,6 +45,9 @@ foreach (['HTTP_ORIGIN', 'HTTP_REFERER'] as $headerName) {
 
 $request = $_POST;
 
+$idPagReserved = false;
+$packTransactionStarted = false;
+
 try {
 	$textNom = new Text($request['nom']);
 	$textCog = new Text($request['cog']);
@@ -270,6 +273,7 @@ try {
 
 	/* ######################################################################### */
 	$idPag = $connexio->reserveIdPag();
+	$idPagReserved = true;
 
 	$ivlen = openssl_cipher_iv_length($cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
@@ -493,6 +497,9 @@ try {
 					 TELEFON, COMENTARIS, FRACCIONAT, INSC_MAILING,
 					 A_PAGAR, USUARI, IDPAG, PERENNE, CONEGUT, TIPUS_INSC, OBSERVACIONS)
 					 VALUES (?,?,?,CURRENT_TIME,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+	$connexio->beginTransaction();
+	$packTransactionStarted = true;
+
 	if ( $stmt2 = $connexio2->prepare($cnsPreu) ) {
 		$stmt2->bind_param("d", $idPreuEd);
 
@@ -515,9 +522,13 @@ try {
 				$codiCursEd = $edicio->obtenirCodiCurs()->obtenirText();
 
 				/* Busco el preu original del curs */
-				$stmt2->execute();
+				if (!$stmt2->execute()) {
+					throw new Exception('',2916);
+				}
 				$stmt2->bind_result($preuCursOriginal);
-				$stmt2->fetch();
+				if (!$stmt2->fetch() || !is_numeric($preuCursOriginal)) {
+					throw new Exception('',2916);
+				}
 
 				$preuCursOriginal = round((float) $preuCursOriginal, 2);
 				$preuCurs = round(min($aux, $preuCursOriginal), 2);
@@ -539,10 +550,17 @@ try {
 				);
 
 				/* Executo el insert */
-				$stmt->execute();
+				if (!$stmt->execute()) {
+					throw new Exception('',2915);
+				}
 			}
+
+			$idInserit = $connexio->lastInsertId();
 			$connexio->closeStmt();
+			$connexio->commitTransaction();
+			$packTransactionStarted = false;
 			$connexio->releaseIdPag();
+			$idPagReserved = false;
 		}
 		else {
 			throw new Exception('',2915);
@@ -553,8 +571,6 @@ try {
 	}
 
 	$connexio2->desconectarBD();
-
-	$idInserit = $connexio->lastInsertId();
 
 	$ivlen = openssl_cipher_iv_length($cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
@@ -668,10 +684,23 @@ try {
 
 }
 catch(Exception $e) {
+	if ($packTransactionStarted && isset($connexio)) {
+		$connexio->rollbackTransaction();
+		$packTransactionStarted = false;
+	}
+
 	if ($e->getCode()==404)
       echo mostrarPagina404();
    else
       echo missatgeError($e->getCode());
+}
+finally {
+	if ($packTransactionStarted && isset($connexio)) {
+		$connexio->rollbackTransaction();
+	}
+	if ($idPagReserved && isset($connexio)) {
+		$connexio->releaseIdPag();
+	}
 }
 
 ?>
