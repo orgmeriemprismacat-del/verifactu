@@ -156,6 +156,106 @@ final class FiscalDocumentJobProcessorTest
         }
     }
 
+    public function testRecoveredJobRejectsCompletionAndFailureFromOlderAttempt(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'TEST|DOCUMENT-WORKER|LEASE',
+            ])
+        );
+
+        (new InvoiceBeforePaymentDocumentQueueService(
+            new TransactionRunner($db),
+            new DocumentJobRepository(),
+            'uc004-fiscal-pdf-v1'
+        ))->ensurePdf(
+            $invoice['uuid_factura'],
+            'INTRANET|FACTURA_ABANS_COBRAR|REF:WORKER-LEASE'
+        );
+
+        $jobs = new DocumentJobRepository();
+        $firstNow = new \DateTimeImmutable('2026-10-02 10:00:00', new \DateTimeZone('Europe/Madrid'));
+        $first = (new TransactionRunner($db))->run(
+            fn (\PDO $connection): ?array => $jobs->claimNext($connection, $firstNow)
+        );
+
+        Assert::same(1, (int) $first['ATTEMPTS']);
+        Assert::same('PROCESSING', $first['STATUS']);
+
+        $secondNow = $firstNow->modify('+20 minutes');
+        $recovered = (new TransactionRunner($db))->run(
+            fn (\PDO $connection): int => $jobs->recoverStaleLocks(
+                $connection,
+                $secondNow,
+                60
+            )
+        );
+        Assert::same(1, $recovered);
+
+        $second = (new TransactionRunner($db))->run(
+            fn (\PDO $connection): ?array => $jobs->claimNext($connection, $secondNow)
+        );
+
+        Assert::same(2, (int) $second['ATTEMPTS']);
+        Assert::same('PROCESSING', $second['STATUS']);
+        Assert::same($first['UUID_JOB'], $second['UUID_JOB']);
+
+        $document = (new DocumentRepository())->registerDocument(
+            $db,
+            $invoice['uuid_factura'],
+            'PDF',
+            'factures/lease-test.pdf',
+            '%PDF-1.4 lease-test',
+            'READY'
+        );
+
+        Assert::throws(\Prisma\Sif\Exception\SifException::class, function () use (
+            $db,
+            $jobs,
+            $first,
+            $document
+        ): void {
+            $jobs->complete(
+                $db,
+                (int) $first['ID'],
+                (int) $first['ATTEMPTS'],
+                (int) $document['document_id'],
+                'factures/lease-test.pdf',
+                (string) $document['hash']
+            );
+        }, 409);
+
+        Assert::throws(\Prisma\Sif\Exception\SifException::class, function () use (
+            $db,
+            $jobs,
+            $first
+        ): void {
+            $jobs->fail(
+                $db,
+                (int) $first['ID'],
+                (int) $first['ATTEMPTS'],
+                'stale worker must not mutate the current lease',
+                60
+            );
+        }, 409);
+
+        $current = $jobs->findById($db, (int) $second['ID']);
+        Assert::same('PROCESSING', $current['STATUS']);
+        Assert::same(2, (int) $current['ATTEMPTS']);
+
+        $failed = $jobs->fail(
+            $db,
+            (int) $second['ID'],
+            (int) $second['ATTEMPTS'],
+            'current worker retry',
+            60,
+            $secondNow
+        );
+        Assert::same('RETRY', $failed['STATUS']);
+        Assert::same(2, (int) $failed['ATTEMPTS']);
+    }
+
     public function testRendererFailureSchedulesRetryWithoutTouchingInvoice(): void
     {
         $db = TestDatabase::fresh();
