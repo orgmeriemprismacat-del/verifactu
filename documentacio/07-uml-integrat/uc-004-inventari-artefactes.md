@@ -4,7 +4,7 @@
 **Branca de continuació:** `feat/uc-004-adaptador-servidor-2026-10-02`
 
 Aquest inventari respon una pregunta concreta: **tenim totes les fitxes, tots els tipus de diagrama i el codi necessari per considerar UC-004 tancat?**  
-Resposta: **la cobertura documental és completa; el backend SIF UC-004 ja té command intern autenticat, preview/confirmació i cobertura; la integració de la pantalla intranet i el document final continuen pendents.**
+Resposta: **la cobertura documental és completa; el backend SIF i el bridge de la pantalla UC-004 ja estan implementats al codi versionat; en aquesta branca el mutador fiscal llegat queda retirat. Continuen pendents el document final per UUID, la classificació transversal, l'E2E/preproducció i la sync llegada si encara cal.**
 
 ## 1. Artefactes documentals
 
@@ -40,7 +40,7 @@ No cal crear més diagrames només per duplicar informació. Un nou fitxer nomé
 | Permisos UI | `codi-drive/intranet-actual/js/general.js` | EXISTEIX |
 | Càrrega main | `codi-drive/intranet-actual/ajax/mostrarMain.php` | EXISTEIX |
 | Cerca inscripcions | `ajax/alumnes/mostrarInformacioInscripcio_generaFactura.php` | EXISTEIX |
-| Emissió llegada | `ajax/alumnes/generaFacturaElectronica_Factures.php` | EXISTEIX |
+| Emissió llegada | `ajax/alumnes/generaFacturaElectronica_Factures.php` | **RETIRADA EN AQUESTA BRANCA · 410 Gone abans de dependències** |
 | Dades factura | `ajax/alumnes/mostraDadesFacturaElectronica_Factures.php` | EXISTEIX |
 | Inscripcions factura | `ajax/alumnes/mostraInscripcionsFacturaElectronica_Factures.php` | EXISTEIX |
 | Preview | `ajax/alumnes/mostraPrevFactura_Factures.php` | EXISTEIX |
@@ -122,10 +122,10 @@ No s'ha aplicat una UNIQUE global sobre `fact_rels`, perquè podria interferir a
 
 | ID | Peça necessària | Estat |
 | --- | --- | --- |
-| C-01 | Bridge de la pantalla intranet real cap a l'endpoint UC-004 SIF | **FALTA** |
+| C-01 | Bridge de la pantalla intranet real cap a l'endpoint UC-004 SIF | **IMPLEMENTAT AL MAIN** · JS + proxy + client HMAC |
 | C-02 | Autorització d'emissió al backend SIF | **IMPLEMENTADA AL MAIN** · HMAC + actor + rols |
 | C-03 | Contracte autenticat / anti-replay servidor-servidor | **IMPLEMENTAT AL MAIN** · timestamp + request UUID + HMAC + claim |
-| C-03b | Protecció de la pantalla intranet abans de signar/enviar el command | **FALTA CONNECTAR AL BRIDGE** |
+| C-03b | Protecció de la pantalla intranet abans de signar/enviar el command | **IMPLEMENTADA AL MAIN** · sessió/rol vigent + CSRF |
 | C-04 | Loader servidor per IDs d'inscripció i deduplicació contra BD llegada | **IMPLEMENTAT A LA BRANCA** · `InvoiceBeforePaymentSelectionRepository` |
 | C-04b | Classificador de cobertura transversal entre canals/pagadors | **FALTA; el guard actual és només UC-004** |
 | C-05 | Resolver de receptor per ID intern i snapshot fiscal | **IMPLEMENTAT A LA BRANCA** · `InvoiceBeforePaymentBillingPartyRepository` |
@@ -154,7 +154,7 @@ La frontera és servidor-servidor, no browser-direct:
 - no accepta `created_by` des del JSON de negoci;
 - no registra cap pagament inicial.
 
-**Pendent:** la pantalla llegada encara no usa aquest endpoint; cal un bridge servidor intranet que mantingui la sessió/permís local i signi la petició interna.
+**Implementat al `main`:** `alumnes-genera-factura-abans-pagar.js` consumeix `sifFacturaAbansPagar.php`; `SifInvoiceBeforePaymentAccess` valida sessió/permís/CSRF i `SifInternalApiClient` signa la petició interna. En aquesta branca, el mutador llegat queda explícitament retirat amb `410 Gone`.
 
 ## 7. Estat global
 
@@ -162,7 +162,7 @@ La frontera és servidor-servidor, no browser-direct:
 **Diagrames exigits:** COMPLETS.  
 **Codi llegat:** LOCALITZAT.  
 **Backend SIF UC-004:** IMPLEMENTAT per autenticació interna, preview/confirmació, preparació autoritativa, emissió i cobertura; aquesta branca afegeix auditoria operacional atòmica.  
-**Integració de la pantalla real:** PENDENT.  
+**Integració de la pantalla real:** **IMPLEMENTADA AL CODI VERSIONAT · PENDENT E2E/PREPRODUCCIÓ.**  
 **Tests al repositori:** DEFINITS/AMPLIATS.  
-**Tests executats:** PENDENT d'evidència.  
+**Tests executats:** els checks anteriors del PR #111 havien passat abans del cutover 410; **la revisió final d'aquesta nova punta de branca queda pendent del rerun CI**.  
 **Producció:** NO MODIFICADA / NO VERIFICADA.
