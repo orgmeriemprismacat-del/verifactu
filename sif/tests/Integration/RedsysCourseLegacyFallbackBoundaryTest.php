@@ -35,10 +35,8 @@ final class RedsysCourseLegacyFallbackBoundaryTest
         foreach ([
             'REDSYS_MERCHANT_KEY_NOT_CONFIGURED',
             'INVALID_REDSYS_SIGNATURE',
-            'REDSYS_ORDER_MISMATCH',
             'REDSYS_AMOUNT_MISMATCH',
             'INVALID_REDSYS_MERCHANT_CONTEXT',
-            'REDSYS_IDPAG_MISMATCH',
             "getParameter('Ds_MerchantData')",
             'hash_equals',
         ] as $needle) {
@@ -55,6 +53,9 @@ final class RedsysCourseLegacyFallbackBoundaryTest
 
         if (str_contains($callback, 'Clave recuperada de CANALES')) {
             Assert::fail('UC-014 callback must not embed Redsys credentials.');
+        }
+        if (str_contains($callback, '$_GET[')) {
+            Assert::fail('UC-014 legacy callback must not trust functional context from query string.');
         }
     }
 
@@ -73,7 +74,9 @@ final class RedsysCourseLegacyFallbackBoundaryTest
             Assert::stringContainsString('SIF_REDSYS_COURSE_CUTOVER_ENABLED', $callback);
             Assert::stringContainsString("getParameter('Ds_MerchantData')", $callback);
             Assert::stringContainsString('INVALID_REDSYS_MERCHANT_CONTEXT', $callback);
-            Assert::stringContainsString('REDSYS_IDPAG_MISMATCH', $callback);
+            if (str_contains($callback, '$_GET[')) {
+                Assert::fail('Candidate legacy callback must not trust functional context from query string.');
+            }
         }
     }
 
