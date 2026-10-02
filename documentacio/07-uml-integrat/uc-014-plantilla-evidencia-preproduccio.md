@@ -19,6 +19,7 @@
 - NOTIFICATION_STATUS:
 - SIF_REDSYS_COURSE_CUTOVER_ENABLED: 0 / 1
 - SIF_REDSYS_CALLBACK_URL configurada: SÍ / NO (no copiar secrets ni query sensible)
+- Credencial Redsys rotada/configurada via secret store o entorn: SÍ / NO (no copiar el valor)
 
 ## 2. Preflight
 
@@ -152,6 +153,8 @@ Adjuntar només evidència sense secrets:
 - [ ] outbox CURS creada/reutilitzada idempotentment
 - [ ] `PAYLOAD_JSON` de notificació sense PII directa
 - [ ] estat del lliurament UC-58 documentat (no marcar enviat si només és `PENDING`)
+- [ ] credencial històrica Redsys rotada si correspon
+- [ ] checkout/callback desplegats sense secrets literals
 - [ ] cap secret a evidències
 - [ ] MerchantURL preparada per apuntar al callback SIF
 - [ ] retirada d'autoritat fiscal llegada planificada
