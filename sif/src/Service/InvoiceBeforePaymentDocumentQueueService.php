@@ -2,10 +2,11 @@
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Contract\InvoiceBeforePaymentDocumentQueueInterface;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Repository\DocumentJobRepository;
 
-final class InvoiceBeforePaymentDocumentQueueService
+final class InvoiceBeforePaymentDocumentQueueService implements InvoiceBeforePaymentDocumentQueueInterface
 {
     public function __construct(
         private TransactionRunner $transactions,
