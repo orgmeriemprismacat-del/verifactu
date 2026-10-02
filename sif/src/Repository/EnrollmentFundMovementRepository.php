@@ -197,11 +197,11 @@ final class EnrollmentFundMovementRepository
         }
 
         $payment = $this->lockPayment($db, $normalized['uuid_payment']);
-        if ((string) $payment['TIPUS_MOVIMENT'] !== 'CHARGE'
+        if (!in_array((string) $payment['TIPUS_MOVIMENT'], ['CHARGE', 'COMPENSATION'], true)
             || (string) $payment['ESTAT'] !== 'CONFIRMED'
         ) {
             throw SifException::conflict(
-                'Compensation allocation requires a confirmed origin charge'
+                'Compensation allocation requires confirmed traceable origin funds'
             );
         }
 
