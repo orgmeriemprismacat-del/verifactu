@@ -130,6 +130,11 @@ final class RedsysCoursePreproductionBoundaryTest
 
         foreach ([
             'environment_is_test_or_preproduction',
+            'bridge_redsys_merchant_code_configured',
+            'bridge_redsys_merchant_key_configured',
+            'bridge_redsys_terminal_configured',
+            'bridge_and_sif_redsys_keys_match',
+            'internal_api_base_url_https_configured',
             'internal_api_key_id_configured',
             'internal_api_secret_configured',
             'course_intent_signed_path_matches_bridge',
