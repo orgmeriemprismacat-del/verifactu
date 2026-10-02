@@ -18,6 +18,7 @@
 | `sif/src/Repository/PaymentRepository.php` | Ledger i estat de cobrament. | Main |
 | `sif/src/Repository/OperationalEventRepository.php` | Event funcional append-only de l’emissió/reús. | Integrat UC-001 |
 | `sif/src/Repository/SifAuditEventRepository.php` | Auditoria tècnica `request_id/correlation_id`, actor, resultat i hash de sortida. | Nou |
+| `sif/src/Repository/OperationLineInvoiceLinkRepository.php` | Writer idempotent `commercial_operation_line -> factura_linia` quan el payload aporta `uuid_operation_line`. | Nou |
 
 ## 2. Vies especialitzades que reutilitzen UC-001
 
@@ -39,5 +40,5 @@
 ## 4. FINAL encara absent o incomplet
 
 - guard general de cobertura comercial entre claus diferents;
-- writer d'`operation_line_invoice_link` des del flux canònic;
+- propagació obligatòria de `uuid_operation_line` des de tots els builders i coverage guard comercial general;
 - assembler servidor del snapshot AEAT complet.
