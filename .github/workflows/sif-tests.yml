@@ -5,6 +5,8 @@ on:
     paths:
       - "sif/**"
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
+      - "codi-drive/web-actual/EdicioPack.php"
+      - "codi-drive/web-actual/Pack.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
       - "codi-drive/web-actual/pagina_inscripcio_pack.php"
       - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
@@ -30,6 +32,8 @@ on:
     paths:
       - "sif/**"
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
+      - "codi-drive/web-actual/EdicioPack.php"
+      - "codi-drive/web-actual/Pack.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
       - "codi-drive/web-actual/pagina_inscripcio_pack.php"
       - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
@@ -99,6 +103,8 @@ jobs:
       - name: Lint UC-015 pack web flow
         run: |
           php -l codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php
+          php -l codi-drive/web-actual/EdicioPack.php
+          php -l codi-drive/web-actual/Pack.php
           php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
           php -l codi-drive/web-actual/pagina_inscripcio_pack.php
           php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
