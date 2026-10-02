@@ -194,6 +194,8 @@ start
 :Calcular i comparar signatura amb hash_equals;
 :Extreure IDPAG/import/frac de Ds_MerchantData signat;
 :Usar Ds_Order signat i comparar Ds_Amount amb l'import-cèntims de MerchantData;
+:Validar Ds_Currency=978, Ds_Terminal i Ds_MerchantCode contra entorn;
+:Validar Ds_Response com a codi numèric abans de classificar-lo;
 :Rebutjar divergència amb IDPAG/order del query legacy si existeix;
 if (Validació falla?) then (Sí)
   :HTTP 400 sense factura ni correu;
