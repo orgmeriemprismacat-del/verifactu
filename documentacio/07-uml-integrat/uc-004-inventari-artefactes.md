@@ -4,7 +4,7 @@
 **Branca de continuació:** `feat/uc-004-adaptador-servidor-2026-10-02`
 
 Aquest inventari respon una pregunta concreta: **tenim totes les fitxes, tots els tipus de diagrama i el codi necessari per considerar UC-004 tancat?**  
-Resposta: **la cobertura documental és completa; el backend SIF i el bridge de la pantalla UC-004 ja estan implementats al codi versionat; en aquesta branca el mutador fiscal llegat queda retirat. Continuen pendents el document final per UUID, la classificació transversal, l'E2E/preproducció i la sync llegada si encara cal.**
+Resposta: **la cobertura documental és completa; el backend SIF i el bridge de la pantalla UC-004 ja estan implementats al codi versionat; en aquesta branca el mutador fiscal llegat queda retirat. Continuen pendents el **renderitzat/custòdia final** del document per UUID, la classificació transversal, l'E2E/preproducció i la sync llegada si encara cal.**
 
 ## 1. Artefactes documentals
 
@@ -133,7 +133,7 @@ No s'ha aplicat una UNIQUE global sobre `fact_rels`, perquè podria interferir a
 | C-07 | Preview servidor amb fingerprint/versió abans de confirmar | **IMPLEMENTAT AL MAIN EN CLI I HTTP** · pendent connexió UI |
 | C-08 | Registre `operational_event` / auditoria dins del flux UC-004 | **IMPLEMENTAT EN AQUESTA BRANCA dins la mateixa transacció** |
 | C-09 | Sincronització llegada idempotent després del COMMIT SIF | **FALTA / CAL DECIDIR** |
-| C-10 | Document PDF/QR per UUID/snapshot i estat READY/PENDING/ERROR | **FALTA INTEGRAR** |
+| C-10 | Document PDF/QR per UUID/snapshot i estat READY/PENDING/ERROR | **PARCIAL** · `DocumentJobRepository` + `InvoiceBeforePaymentDocumentQueueService` encolen PDF idempotent/versionat i retornen PENDING; worker/renderitzat/storage pendents |
 | C-11 | Endpoint HTTP UC-004 segur | **IMPLEMENTAT AL MAIN** · `public/api/factures/before-payment.php` |
 | C-12 | E2E pantalla → SIF → document → cobrament posterior | **FALTA PROVA** |
 | C-13 | Validar backfill de cobertura UC-004 en dades de preproducció i resoldre duplicats històrics, si n'hi ha | **FALTA EXECUCIÓ** |
