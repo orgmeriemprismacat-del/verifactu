@@ -261,6 +261,96 @@ final class IssueInvoiceTest
         Assert::same('UC001-CONTROL-SECOND', $rows[1]['CORRELATION_ID']);
     }
 
+    public function testMaterialisesCommercialOperationLineToInvoiceLineWhenProvided(): void
+    {
+        $db = TestDatabase::fresh();
+        $uuidOperation = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        $uuidLine = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+        $db->prepare(
+            'INSERT INTO commercial_operation (
+                UUID_OPERATION, IDEMPOTENCY_KEY, OPERATION_TYPE, SOURCE_CHANNEL,
+                SOURCE_TYPE, SOURCE_ID, PRODUCT_TYPE, PRODUCT_CODE, PRODUCT_EDITION,
+                CLASSIFICATION, CLASSIFICATION_REASON, STATUS, CURRENCY,
+                GROSS_AMOUNT, DISCOUNT_AMOUNT, NET_AMOUNT,
+                PRICE_SNAPSHOT_JSON, CAPACITY_SNAPSHOT_JSON, TAX_SNAPSHOT_JSON,
+                EXPIRES_AT, CREATED_BY
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?)'
+        )->execute([
+            $uuidOperation,
+            'COMMERCIAL|UC001|LINK',
+            'SALE',
+            'INTRANET',
+            'INSCRIPCIO',
+            '10',
+            'COURSE',
+            'TEST',
+            '2026',
+            'INVOICE',
+            'UC001_TEST',
+            'CONFIRMED',
+            'EUR',
+            '120.00',
+            '0.00',
+            '120.00',
+            '{}',
+            '{}',
+            'test-runner',
+        ]);
+
+        $db->prepare(
+            'INSERT INTO commercial_operation_line (
+                UUID_LINE, UUID_OPERATION, PARENT_UUID_LINE, LINE_TYPE, ORDRE,
+                PRODUCT_TYPE, PRODUCT_CODE, PRODUCT_EDITION, PARTICIPANT_PARTY_KEY,
+                DESCRIPTION, QUANTITY, UNIT_PRICE, GROSS_AMOUNT, DISCOUNT_AMOUNT,
+                NET_AMOUNT, TAX_REGIME, TAX_RATE, TAX_AMOUNT,
+                EXEMPTION_OR_NON_SUBJECT_REASON, PRICE_RULE_VERSION, SNAPSHOT_JSON, STATUS
+            ) VALUES (?, ?, NULL, ?, 1, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([
+            $uuidLine,
+            $uuidOperation,
+            'PRODUCT',
+            'COURSE',
+            'TEST',
+            '2026',
+            'Curs de prova',
+            '1.00',
+            '120.00',
+            '120.00',
+            '0.00',
+            '120.00',
+            'EXEMPT',
+            '0.00',
+            '0.00',
+            'E1',
+            'test-v1',
+            '{}',
+            'CONFIRMED',
+        ]);
+
+        $result = $this->makeService($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|COMMERCIAL-LINE|UC001',
+            'source_channel' => 'INTRANET',
+            'lines' => [[
+                'uuid_operation_line' => $uuidLine,
+            ]],
+        ]));
+
+        $link = $db->query(
+            'SELECT UUID_LINE, FACTURA_LINE_ID, LINK_TYPE, LINKED_AMOUNT
+             FROM operation_line_invoice_link LIMIT 1'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same($uuidLine, $link['UUID_LINE']);
+        Assert::same(
+            (int) $db->query('SELECT ID FROM factura_linia WHERE UUID_FACTURA = '
+                . $db->quote($result['uuid_factura']) . ' LIMIT 1')->fetchColumn(),
+            (int) $link['FACTURA_LINE_ID']
+        );
+        Assert::same('MATERIALISED_AS', $link['LINK_TYPE']);
+        Assert::same('120.00', $link['LINKED_AMOUNT']);
+    }
+
     public static function serviceFor(\PDO $db): InvoiceService
     {
         return new InvoiceService(
