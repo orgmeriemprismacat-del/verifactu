@@ -75,14 +75,14 @@ $preview = runJsonScript(
     [PHP_BINARY, $baseDir . '/scripts/preview-redsys-pack.php', $dsOrder],
     $baseDir
 );
-$result['preview'] = $preview['json'];
+$previewJson = $preview['json'];
 $result['checks']['preview_exit_zero'] = $preview['exit_code'] === 0;
-$result['checks']['preview_ok'] = ($preview['json']['ok'] ?? false) === true;
-$result['checks']['preview_is_dry_run'] = ($preview['json']['dry_run'] ?? false) === true;
-$result['checks']['preview_has_valid_idpag'] = is_numeric($preview['json']['idpag'] ?? null)
-    && (int) ($preview['json']['idpag'] ?? 0) > 0;
+$result['checks']['preview_ok'] = ($previewJson['ok'] ?? false) === true;
+$result['checks']['preview_is_dry_run'] = ($previewJson['dry_run'] ?? false) === true;
+$result['checks']['preview_has_valid_idpag'] = is_numeric($previewJson['idpag'] ?? null)
+    && (int) ($previewJson['idpag'] ?? 0) > 0;
 
-$previewPayload = $preview['json']['payload'] ?? null;
+$previewPayload = $previewJson['payload'] ?? null;
 $previewTotal = is_array($previewPayload)
     ? ($previewPayload['totals']['total'] ?? null)
     : null;
@@ -95,6 +95,15 @@ $result['checks']['preview_has_pack_totals'] = is_numeric($previewTotal)
 $result['checks']['preview_payment_matches_total'] = is_numeric($previewTotal)
     && is_numeric($previewPaymentAmount)
     && money($previewTotal) === money($previewPaymentAmount);
+
+$result['preview'] = [
+    'ok' => ($previewJson['ok'] ?? false) === true,
+    'dry_run' => ($previewJson['dry_run'] ?? false) === true,
+    'ds_order' => (string) ($previewJson['ds_order'] ?? $dsOrder),
+    'idpag' => is_numeric($previewJson['idpag'] ?? null) ? (int) $previewJson['idpag'] : null,
+    'invoice_total' => is_numeric($previewTotal) ? money($previewTotal) : null,
+    'payment_amount' => is_numeric($previewPaymentAmount) ? money($previewPaymentAmount) : null,
+];
 
 if ($execute) {
     $command = [PHP_BINARY, $baseDir . '/scripts/process-redsys-pack.php', $dsOrder];
