@@ -149,16 +149,20 @@ RM->>FS: unlink(filename)
 
 Aquest flux de document és llegat. No equival a custòdia immutable per UUID, versió i hash.
 
-## 4. Seqüència FINAL — frontera HTTP interna implementada + bridge de pantalla pendent
+**Tall de cutover d'aquesta branca:** `generaFacturaElectronica_Factures.php` ja no executa aquesta seqüència; retorna `410 Gone`. Es conserva el diagrama per traçabilitat històrica del comportament substituït.
 
-El `main` del 2026-10-02 ja implementa la frontera SIF completa de command. El navegador **no** ha de cridar directament l'endpoint intern: continua pendent un bridge a la intranet llegada que, després de validar la sessió/permís local, signi la petició HMAC.
+## 4. Seqüència FINAL — pantalla + bridge intranet + frontera HTTP SIF implementats
+
+El `main` del 2026-10-02 ja implementa el recorregut de command complet. El navegador **no** crida directament l'endpoint intern: `sifFacturaAbansPagar.php` valida sessió, permís i CSRF, i `SifInternalApiClient` signa la petició HMAC servidor-servidor. En aquesta branca, l'antic `generaFacturaElectronica_Factures.php` queda retirat amb `410 Gone`.
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor Op as Operador
 participant UI as Pantalla UC-004 llegada
-participant BRG as Bridge intranet [PENDENT]
+participant BRG as sifFacturaAbansPagar.php [IMPLEMENTAT]
+participant ACC as SifInvoiceBeforePaymentAccess
+participant CLI as SifInternalApiClient
 participant HTTP as before-payment.php
 participant AUTH as InternalApiAuthenticator
 participant SCOPE as InternalInvoiceBeforePaymentScopeResolver
@@ -182,9 +186,12 @@ participant OE as OperationalEventRepository
 participant DB as BD SIF
 
 Op->>UI: Seleccionar inscripcions + entityId
-UI->>BRG: preview(ids, entityId)
-BRG->>BRG: validar sessió/permís local + construir headers signats
-BRG->>HTTP: POST action=preview + HMAC + request_id
+UI->>BRG: preview(ids, entityId) + X-CSRF-Token
+BRG->>ACC: resolve(user,intranet) + assertCsrf()
+ACC-->>BRG: actor + rols
+BRG->>CLI: previewInvoiceBeforePayment(actor,roles,...)
+CLI->>CLI: request_id + HMAC sobre cos exacte
+CLI->>HTTP: POST action=preview + HMAC + request_id
 HTTP->>AUTH: authenticate(raw body, headers)
 AUTH->>DB: INSERT internal_api_request
 AUTH-->>HTTP: actor + rols + request_id
@@ -210,8 +217,11 @@ HTTP-->>BRG: JSON preview
 BRG-->>UI: mostrar preview final
 
 Op->>UI: Confirmar
-UI->>BRG: confirm(ids, entityId, expectedFingerprint)
-BRG->>HTTP: POST action=confirm + HMAC + request_id nou
+UI->>BRG: confirm(ids, entityId, expectedFingerprint) + X-CSRF-Token
+BRG->>ACC: resolve(...) + assertCsrf()
+ACC-->>BRG: actor + rols
+BRG->>CLI: confirmInvoiceBeforePayment(...)
+CLI->>HTTP: POST action=confirm + HMAC + request_id nou
 HTTP->>AUTH: authenticate(...)
 AUTH->>DB: claim request_id anti-replay
 HTTP->>SCOPE: resolve(actor)
@@ -314,7 +324,7 @@ end
 ```
 
 **Implementat:** lectura per IDs, entityId, mateix curs/edició, total des de `A_PAGAR`, receptor fiscal, fingerprint i relectura abans de confirmar.  
-**Implementat també via HTTP intern:** autenticació HMAC, anti-replay, rol, preview i confirmació. **Encara pendent:** bridge de la pantalla intranet, classificador de cobertura transversal, document per UUID i sincronització llegada post-COMMIT. L'auditoria operacional s'integra en aquesta branca.
+**Implementat també a la pantalla real:** sessió/rol vigent, CSRF, bridge servidor, HMAC, anti-replay, preview i confirmació. **Encara pendent:** classificador de cobertura transversal, document per UUID i sincronització llegada post-COMMIT si cal. L'auditoria operacional s'integra en aquesta branca i el mutador llegat queda 410.
 
 ## 5. Seqüència FINAL — col·lisió concurrent de la mateixa clau
 
