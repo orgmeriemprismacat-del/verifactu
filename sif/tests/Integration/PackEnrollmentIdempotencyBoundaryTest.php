@@ -110,4 +110,30 @@ final class PackEnrollmentIdempotencyBoundaryTest
         Assert::same(true, $connection !== false);
         Assert::same(true, $validation < $connection);
     }
+
+    public function testEnrollmentReusesSingleAuthoritativePriceSnapshot(): void
+    {
+        $path = dirname(__DIR__, 3)
+            . '/codi-drive/web-actual/ajax/enviarInscripcioPack.php';
+
+        $source = file_get_contents($path);
+        if (!is_string($source)) {
+            Assert::fail('Could not load PACK enrollment endpoint');
+        }
+
+        Assert::stringContainsString('$preusCursosServidor = [];', $source);
+        Assert::stringContainsString('$preusCursosServidor[] = $preuCursServidor;', $source);
+        Assert::stringContainsString(
+            '$preuCursOriginal = $preusCursosServidor[$i] ?? null;',
+            $source
+        );
+        Assert::same(false, str_contains($source, '$connexio2 = new ConnexioBBDDSTMT()'));
+        Assert::same(false, str_contains($source, '$cnsPreu = "SELECT IMPORT FROM preu'));
+
+        Assert::stringContainsString(
+            "'prisma_pack_req_' . substr(hash('sha256', $requestId), 0, 48)",
+            $source
+        );
+    }
+
 }
