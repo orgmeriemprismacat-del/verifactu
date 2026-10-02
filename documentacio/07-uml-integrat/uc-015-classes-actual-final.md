@@ -1,6 +1,6 @@
 # UC-015 · Classes ACTUAL / FINAL — Comprar pack
 
-**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-10-01  
+**Data d'auditoria:** 2026-09-29 · **Revalidació main:** 2026-10-02  
 **Abast:** ecommerce PrisMa, pay.prisma.cat, Redsys i SIF.  
 **Criteri:** separar estrictament classes i responsabilitats observades al codi actual de les responsabilitats objectiu.
 
