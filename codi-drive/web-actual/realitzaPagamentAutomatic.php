@@ -91,6 +91,8 @@
 				$stmtRegal->bind_result($idInsc, $any, $mes, $codiCurs, $nom, $cognoms, $dni,
 				$email, $adreca, $cp, $poble, $factRel, $apagar, $inscrit, $importPagat, $fraccio);
 				$stmtRegal->fetch();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 				$connexio->closeStmt();
 			}
 			else {
@@ -729,6 +731,8 @@
 				$stmtInsc->bind_result($any, $mes, $codiCurs, $nom, $cognoms, $dni,
 				$email, $adreca, $cp, $poble, $factRel, $apagar, $inscrit, $importPagat, $pagObs);
 				$stmtInsc->fetch();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 				$connexio->closeStmt();
 			}
 			else {
