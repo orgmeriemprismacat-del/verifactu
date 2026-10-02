@@ -222,3 +222,23 @@ Això redueix el pendent del canvi de curs a la implementació del resolver dest
 - no emet factures ni mou diners.
 
 Proves afegides a `UsocCourseChangeTargetResolverTest` per split 80/20 + fee, entitat 0, decimals amb coma, import alumne superior al base i imports malformats.
+
+
+## Delta implementació 02/10/2026 · pla econòmic de canvi de curs
+
+`UsocCourseChangeFundPlanService` — **IMPLEMENTAT**:
+
+- consumeix el `lifecycle_plan` separat alumne/entitat;
+- consumeix els totals destí resolts;
+- per cada pagador calcula:
+  - `source_net_paid`;
+  - `target_obligation`;
+  - `compensate_amount = min(net_paid, target)`;
+  - `amount_due`;
+  - `excess_amount`;
+- mai compensa més fons que els realment cobrats;
+- mai compensa més que l'obligació destí;
+- qualsevol excés queda marcat per resolució explícita;
+- no emet factures, no crea refunds i no mou diners.
+
+Proves afegides a `UsocCourseChangeFundPlanServiceTest` per parcial, excés separat per pagador, entitat origen sense factura/cobrament i rebuig d'un pla que no sigui `course_change`.
