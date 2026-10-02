@@ -18,11 +18,8 @@
 	include("./MailSMTPComvive.php");
 	include("./MailSMTP.php");
 	include("./Mail.php");
-
-	$urlIdPag = trim((string) ($_GET['idPag'] ?? ''));
-	$urlOrder = trim((string) ($_GET['order'] ?? ''));
-	$cursPag = (string) ($_GET['codiCurs'] ?? '');
-	$dniTitularPag = (string) ($_GET['dni'] ?? '');
+	$cursPag = '';
+	$dniTitularPag = '';
 	$importPag = '0.00';
 	$frac = 0;
 	$idPag = 0;
@@ -70,12 +67,6 @@
 		$idPag = (int) $context[1];
 		$expectedAmountCents = (int) $context[2];
 		$frac = (int) $context[3];
-		if ($urlIdPag !== '' && (!ctype_digit($urlIdPag) || (int) $urlIdPag !== $idPag)) {
-			throw new RuntimeException('REDSYS_IDPAG_MISMATCH');
-		}
-		if ($urlOrder !== '' && (string) $ordre !== $urlOrder) {
-			throw new RuntimeException('REDSYS_ORDER_MISMATCH');
-		}
 		if (!ctype_digit((string) $preu) || (int) $preu !== $expectedAmountCents) {
 			throw new RuntimeException('REDSYS_AMOUNT_MISMATCH');
 		}
@@ -104,6 +95,8 @@
 				$cursPag = (string) $codiCurs;
 				$dniTitularPag = (string) $dni;
 				$connexio->closeStmt();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 			}
 			else {
 				throw new Exception('',2000);
@@ -117,6 +110,8 @@
 				$stmtRegal->bind_result($titol, $datai, $dataf, $hores);
 				$stmtRegal->fetch();
 				$connexio->closeStmt();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 			}
 			else {
 				throw new Exception('',2001);
@@ -228,6 +223,8 @@
 					$ordreFact = 1;
 				}
 				$connexio->closeStmt();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 			}
 			else {
 				throw new Exception('',2003);
@@ -360,6 +357,8 @@
 				$stmt->bind_result($keyEncr);
 				$stmt->fetch();
 				$connexio->closeStmt();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 			}
 			else {
 				throw new Exception('',2007);
@@ -486,6 +485,8 @@
 				$password = $autentificacioInscripcio[1];
 				$nameUser = $autentificacioInscripcio[2];
 				$connexio->closeStmt();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 			}
 			else {
 				throw new Exception('',2008);
@@ -739,6 +740,8 @@
 				$cursPag = (string) $codiCurs;
 				$dniTitularPag = (string) $dni;
 				$connexio->closeStmt();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 			}
 			else {
 				throw new Exception('',2010);
@@ -751,6 +754,8 @@
 				$stmtRegal->bind_result($titol, $datai, $dataf, $hores);
 				$stmtRegal->fetch();
 				$connexio->closeStmt();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 			}
 			else {
 				throw new Exception('',2011);
@@ -801,6 +806,8 @@
 				$stmt->bind_result($keyEncr);
 				$stmt->fetch();
 				$connexio->closeStmt();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 			}
 			else {
 				throw new Exception('',2012);
@@ -832,6 +839,8 @@
 				$stmtUpdate->execute();
 				$stmtUpdate->fetch();
 				$connexio->closeStmt();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 			}
 			else {
 				throw new Exception('',2015);
@@ -853,6 +862,8 @@
 				$password = $autentificacioInscripcio[1];
 				$nameUser = $autentificacioInscripcio[2];
 				$connexio->closeStmt();
+				$cursPag = (string) $codiCurs;
+				$dniTitularPag = (string) $dni;
 			}
 			else {
 				throw new Exception('',2013);
