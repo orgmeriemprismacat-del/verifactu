@@ -20,7 +20,7 @@ Price->>DB: consulta info_pack/packs/preu
 Price-->>JS: preu original | preu pack
 JS-->>U: mostra preu
 U->>JS: confirma formulari
-JS->>Alta: GET dades del formulari + idPack
+JS->>Alta: POST dades del formulari + idPack
 Alta->>DB: rellegir preu pack i preus components
 Alta->>DB: GET_LOCK allocator IDPAG
 Alta->>Alta: reservar MAX(IDPAG)+1 sota lock
@@ -35,6 +35,7 @@ JS-->>U: redirecció confirmació
 
 ### Riscos ACTUAL residuals
 
+- l'alta pública ja és POST-only amb comprovació same-site/origin quan els headers són presents; resta E2E navegador/preproducció i valorar controls anti-abús addicionals;
 - l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
 - `PACK_ORDINAL` queda determinat pel mateix ordre estable de presentació `DATAI, ID_CURS`; resta decidir si negoci requereix una posició explícita separada;
 - el callback fiscal legacy conserva codi històric però està desactivat per defecte.
@@ -165,4 +166,4 @@ end
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
 - Outbox: implementat i cablejat al worker.
-- Pendent: eliminar el codi legacy després del rollback, decidir si cal una posició comercial explícita independent de l'ordre cronològic estable, migrar l'alta pública del pack de GET a un contracte POST adequat i executar proves d'entorn.
+- Pendent: eliminar el codi legacy després del rollback, decidir si cal una posició comercial explícita independent de l'ordre cronològic estable i executar proves d'entorn, incloent la nova frontera POST de l'alta pública.
