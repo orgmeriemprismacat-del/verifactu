@@ -49,7 +49,7 @@ final class UsocCourseChangeContractTest
         }
 
         Assert::stringContainsString(
-            "$entityAmount = $this->optional($snapshot['usoc'] ?? [], ['entity_amount', 'ENTITY_AMOUNT']);",
+            '$entityAmount = $this->optional($snapshot[\'usoc\'] ?? [], [\'entity_amount\', \'ENTITY_AMOUNT\']);',
             $builder
         );
         Assert::stringContainsString(
@@ -86,11 +86,11 @@ final class UsocCourseChangeContractTest
             $repository
         );
         Assert::stringContainsString(
-            "(string) $payment['TIPUS_MOVIMENT'] !== 'CHARGE'",
+            '(string) $payment[\'TIPUS_MOVIMENT\'] !== \'CHARGE\'',
             $repository
         );
         Assert::stringContainsString(
-            "(string) $payment['ESTAT'] !== 'CONFIRMED'",
+            '(string) $payment[\'ESTAT\'] !== \'CONFIRMED\'',
             $repository
         );
         Assert::stringContainsString(
