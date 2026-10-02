@@ -86,7 +86,7 @@ final class UsocCourseChangeContractTest
             $repository
         );
         Assert::stringContainsString(
-            '(string) $payment[\'TIPUS_MOVIMENT\'] !== \'CHARGE\'',
+            "in_array((string) $payment['TIPUS_MOVIMENT'], ['CHARGE', 'COMPENSATION'], true)",
             $repository
         );
         Assert::stringContainsString(
@@ -94,7 +94,7 @@ final class UsocCourseChangeContractTest
             $repository
         );
         Assert::stringContainsString(
-            'Compensation allocation requires a confirmed origin charge',
+            'Compensation allocation requires confirmed traceable origin funds',
             $repository
         );
     }
