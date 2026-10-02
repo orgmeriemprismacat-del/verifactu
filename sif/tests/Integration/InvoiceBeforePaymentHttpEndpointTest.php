@@ -28,7 +28,10 @@ final class InvoiceBeforePaymentHttpEndpointTest
         Assert::stringContainsString("(string) \$actor['actor_id']", $source);
         Assert::stringContainsString('$coverage = new InvoiceBeforePaymentCoverageRepository();', $source);
         Assert::stringContainsString('new OperationalEventRepository(new UuidGenerator())', $source);
-        Assert::stringContainsString('$sifDb,\n        $coverage\n    );', $source);
+        Assert::stringContainsString(
+            "\$sifDb,\n        \$coverage\n    );",
+            $source
+        );
 
         $authStart = strpos($source, '))->authenticate(');
         $authEnd = $authStart === false ? false : strpos($source, ');', $authStart);
