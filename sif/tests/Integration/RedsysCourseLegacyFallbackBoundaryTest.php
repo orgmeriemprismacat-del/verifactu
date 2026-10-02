@@ -84,6 +84,7 @@ final class RedsysCourseLegacyFallbackBoundaryTest
             'REDSYS_CURRENCY_MISMATCH',
             'REDSYS_TERMINAL_MISMATCH',
             'REDSYS_MERCHANT_CODE_MISMATCH',
+            'REDSYS_TRANSACTION_TYPE_MISMATCH',
             'INVALID_REDSYS_RESPONSE_CODE',
             'INVALID_REDSYS_MERCHANT_CONTEXT',
             'REDSYS_IDPAG_NOT_UNIQUE_OR_MISSING',
@@ -135,6 +136,7 @@ final class RedsysCourseLegacyFallbackBoundaryTest
             Assert::stringContainsString('REDSYS_CURRENCY_MISMATCH', $callback);
             Assert::stringContainsString('REDSYS_TERMINAL_MISMATCH', $callback);
             Assert::stringContainsString('REDSYS_MERCHANT_CODE_MISMATCH', $callback);
+            Assert::stringContainsString('REDSYS_TRANSACTION_TYPE_MISMATCH', $callback);
             Assert::stringContainsString('INVALID_REDSYS_RESPONSE_CODE', $callback);
             if (str_contains($callback, '$_GET[')) {
                 Assert::fail('Candidate legacy callback must not trust functional context from query string.');
