@@ -28,7 +28,8 @@ final class LegacyUsocCourseChangeDestinationReservationServiceTest
         Assert::same(true, $result['ok']);
         Assert::same(880, $result['source_id_insc']);
         Assert::same(1880, $result['destination_id_insc']);
-        Assert::same(980, $result['idpag']);
+        Assert::same(980, $result['source_idpag']);
+        Assert::same(1980, $result['destination_idpag']);
         Assert::same('95.00', $result['target_student_total']);
         Assert::same('0.00', $result['legacy_payment']);
         Assert::same('0', $result['legacy_status']);
@@ -167,7 +168,7 @@ final class LegacyUsocCourseChangeDestinationFakeStore
 
         $row = [
             'id' => 1000 + $sourceId,
-            'idpag' => $this->source['idpag'],
+            'idpag' => 1000 + $this->source['idpag'],
             'year' => $targetYear,
             'month' => $targetMonth,
             'course' => $targetCourse,
