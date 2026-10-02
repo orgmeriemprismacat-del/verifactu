@@ -17,6 +17,8 @@ final class RedsysCourseLegacyFallbackBoundaryTest
         Assert::stringContainsString("\$validatedCheckout['fractional'] ? '1' : '0'", $checkout);
         Assert::stringContainsString("REDSYS_MERCHANT_CODE_NOT_CONFIGURED", $checkout);
         Assert::stringContainsString("REDSYS_MERCHANT_KEY_NOT_CONFIGURED", $checkout);
+        Assert::stringContainsString('DS_MERCHANT_MERCHANTDATA', $checkout);
+        Assert::stringContainsString("'UC014I' . (int) \$idPag", $checkout);
 
         if (str_contains($checkout, 'echo $_POST[')) {
             Assert::fail('UC-014 checkout must not render raw POST values.');
@@ -35,6 +37,9 @@ final class RedsysCourseLegacyFallbackBoundaryTest
             'INVALID_REDSYS_SIGNATURE',
             'REDSYS_ORDER_MISMATCH',
             'REDSYS_AMOUNT_MISMATCH',
+            'INVALID_REDSYS_MERCHANT_CONTEXT',
+            'REDSYS_IDPAG_MISMATCH',
+            "getParameter('Ds_MerchantData')",
             'hash_equals',
         ] as $needle) {
             Assert::stringContainsString($needle, $callback);
@@ -66,6 +71,9 @@ final class RedsysCourseLegacyFallbackBoundaryTest
             Assert::same(true, $validation !== false);
             Assert::same(true, $firstMail === false || $validation < $firstMail);
             Assert::stringContainsString('SIF_REDSYS_COURSE_CUTOVER_ENABLED', $callback);
+            Assert::stringContainsString("getParameter('Ds_MerchantData')", $callback);
+            Assert::stringContainsString('INVALID_REDSYS_MERCHANT_CONTEXT', $callback);
+            Assert::stringContainsString('REDSYS_IDPAG_MISMATCH', $callback);
         }
     }
 
