@@ -9,7 +9,7 @@
 |---|---|---|---|
 | PK-A01 | Llistat de packs | codi legacy | conservar catàleg, sense efecte fiscal |
 | PK-A02 | Fitxa de pack | codi legacy | oferta versionada |
-| PK-A03 | Formulari inscripció | **GET legacy amb dades personals; preu backend autoritatiu** | migrar alta a POST i definir proteccions del canal |
+| PK-A03 | Formulari inscripció | **POST-only + same-site/origin; preu backend autoritatiu** | acreditar E2E navegador/preproducció |
 | PK-A04 | Alta N inscripcions | snapshot comercial implementat al legacy | model comercial explícit/versionat encara pendent |
 | PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | evidència runtime |
 | PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | eliminar codi rollback |
@@ -77,14 +77,14 @@ C --> D[JS obté ID_PREU]
 D --> E[JS obté preus]
 E --> F[Mostra preu]
 F --> G[Usuari omple dades]
-G --> H[GET enviarInscripcioPack.php]
+G --> H[POST enviarInscripcioPack.php]
 ```
 
 ### FINAL
 ```mermaid
 flowchart TD
 A[Formulari] --> B[Usuari envia dades]
-B --> C[POST autenticat/CSRF segons canal]
+B --> C[POST + frontera same-site/origin]
 C --> D[Backend rellegeix oferta]
 D --> E[Backend calcula preu]
 E --> F[Valida receptor]
@@ -92,7 +92,7 @@ F --> G[Congela snapshot]
 G --> H[Crea operació/intenció]
 ```
 
-**Desalineació ACTUAL → FINAL revalidada 02/10:** `mostrarInscripcioPack.min.js` envia l'alta a `ajax/enviarInscripcioPack.php` amb `method: "GET"`, i el PHP consumeix `$_GET`. El servidor ja no confia en els imports del navegador i recalcula el preu des de BD, però el transport de l'alta encara exposa dades personals a la query string i no implementa el contracte FINAL de POST. No es considera resolt per l'enduriment del checkout de pagament, que és un pas posterior.
+**Correcció aplicada 02/10:** `mostrarInscripcioPack.min.js` envia ara l'alta amb `method: "POST"`; `enviarInscripcioPack.php` és POST-only, usa `$_POST`, aplica `Cache-Control: no-store` i rebutja cross-site quan `Sec-Fetch-Site`, `Origin` o `Referer` ho identifiquen. El preu continua recalculant-se des de BD. La PII ja no viatja a la query string; resta acreditar aquesta frontera en navegador/preproducció.
 
 ## PK-A04 · Alta de components
 
@@ -267,7 +267,7 @@ E --> F[Classificació fiscal explícita]
 
 No declarar UC-015 tancat fins que:
 1. els deu blocs anteriors tinguin correspondència codi → UC → prova;
-2. l'alta pública del pack deixi d'enviar dades personals per GET i disposi del contracte POST/proteccions de canal definitives;
+2. s'acrediti en runtime que l'alta POST rebutja GET/cross-site i manté el flux de confirmació;
 3. s'acrediti en runtime el checkout web amb snapshot backend i callback SIF;
 4. el callback legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
 5. es mantingui el contracte estable `DATAI, ID_CURS` i es decideixi si cal una posició comercial explícita separada;
