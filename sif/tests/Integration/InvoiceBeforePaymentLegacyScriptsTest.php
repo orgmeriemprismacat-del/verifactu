@@ -53,6 +53,7 @@ final class InvoiceBeforePaymentLegacyScriptsTest
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacyIntranet($config)', $source);
         Assert::stringContainsString('new InvoiceBeforePaymentCoverageRepository()', $source);
+        Assert::stringContainsString('new OperationalEventRepository(new UuidGenerator())', $source);
         Assert::stringContainsString('issueBeforePayment($prepared[\'input\'])', $commandSource);
         Assert::stringContainsString('fingerprint_verified', $commandSource);
 
