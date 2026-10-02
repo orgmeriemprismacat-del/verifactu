@@ -167,7 +167,14 @@ try {
          getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
          FILTER_VALIDATE_BOOLEAN
       );
+      $legacyDrainConfirmed = filter_var(
+         getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
       $sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
+      if ($courseCutoverEnabled && !$legacyDrainConfirmed) {
+         throw new RuntimeException('SIF_REDSYS_LEGACY_DRAIN_NOT_CONFIRMED');
+      }
       if ($courseCutoverEnabled) {
          if ($sifMerchantUrl === '') {
             throw new RuntimeException('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER');
