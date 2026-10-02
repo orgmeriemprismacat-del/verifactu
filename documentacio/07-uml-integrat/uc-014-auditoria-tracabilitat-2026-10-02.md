@@ -87,7 +87,7 @@ JS localitzat:
 | A14-05 | Fixar import | gate ACTUAL valida pendent/fraccionament a BD en aquesta branca | `EXPECTED_AMOUNT` recomputat | IMPLEMENTAT + proves de política |
 | A14-06 | Callback | fallback endurit en aquesta branca | `RedsysSignatureValidator` + `RedsysCallbackService` | IMPLEMENTAT |
 | A14-07 | Signatura | validada abans d'efectes al fallback | validació criptogràfica SIF | IMPLEMENTAT + VERIFICAT CI PR #105 |
-| A14-08 | Order/import/IDPAG | fallback usa `Ds_Order`, `Ds_Amount` i `Ds_MerchantData` signats; GET queda només com a compatibilitat i si discrepa falla | intenció vs callback, inclou IDPAG/divisa/terminal | IMPLEMENTAT; CI DEL NOU HEAD PENDENT |
+| A14-08 | Order/import/IDPAG | fallback usa `Ds_Order`, `Ds_Amount` i `Ds_MerchantData` signats; no llegeix `$_GET` funcional | intenció vs callback, inclou IDPAG/divisa/terminal | IMPLEMENTAT; CI DEL NOU HEAD PENDENT |
 | A14-09 | Autorització TPV | resposta Redsys | només autorització positiva arriba a handler | IMPLEMENTAT |
 | A14-10 | Numeració fiscal | llegat conserva numeració pròpia mentre hi hagi fallback | `FiscalSequenceRepository::next()` via `InvoiceService` | **FINAL IMPLEMENTAT**; retirada llegat pendent |
 | A14-11 | Registrar cobrament | muta `PAGAMENT` en callback llegat | `payment_transaction` + `payment_allocation`, després projecció | IMPLEMENTAT/VERIFICAT intern |
@@ -126,8 +126,9 @@ JS localitzat:
 12. `IDPAG` signat ha de resoldre exactament una inscripció o el callback falla tancat.
 13. `DS_ORDER` del fallback deixa de dependre de `time()` i passa a 12 dígits aleatoris; imports Redsys es calculen en cèntims enters.
 10. Checkout ACTUAL/candidat envia context mínim `UC014I<IDPAG>A<AMOUNT_CENTS>F<FRAC>` a `DS_MERCHANT_MERCHANTDATA`.
-11. Callbacks llegats recuperen `Ds_MerchantData` només després de validar HMAC, deriven `IDPAG`/import/fraccionament del context signat i rebutgen divergència amb query-string.
-12. Curs i DNI utilitzats pels callbacks es rellegeixen de BD després de resoldre l'`IDPAG`; el query-string deixa de ser font d'autoritat funcional.
+14. Callbacks llegats recuperen `Ds_MerchantData` només després de validar HMAC i deriven `IDPAG`/import/fraccionament exclusivament del context signat.
+15. Curs i DNI utilitzats pels callbacks es rellegeixen de BD després de resoldre l'`IDPAG`; el query-string ja no es llegeix.
+16. Un `IDPAG` signat que no resol exactament una inscripció fa fallar el callback abans de qualsevol efecte.
 13. Gateway Redsys, terminal, callback SIF, credencials d'API interna i paths HMAC passen a configuració/preflight explícits.
 
 ## 5. Reclassificació de buits antics
