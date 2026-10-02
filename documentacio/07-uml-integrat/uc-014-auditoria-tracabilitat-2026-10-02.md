@@ -87,7 +87,7 @@ JS localitzat:
 | A14-05 | Fixar import | gate ACTUAL valida pendent/fraccionament a BD en aquesta branca | `EXPECTED_AMOUNT` recomputat | IMPLEMENTAT + proves de política |
 | A14-06 | Callback | fallback endurit en aquesta branca | `RedsysSignatureValidator` + `RedsysCallbackService` | IMPLEMENTAT |
 | A14-07 | Signatura | validada abans d'efectes al fallback | validació criptogràfica SIF | IMPLEMENTAT + VERIFICAT CI PR #105 |
-| A14-08 | Order/import | ara comparats al fallback de branca | intenció vs callback, inclou divisa/terminal | IMPLEMENTAT |
+| A14-08 | Order/import/IDPAG | fallback usa `Ds_Order`, `Ds_Amount` i `Ds_MerchantData` signats; GET queda només com a compatibilitat i si discrepa falla | intenció vs callback, inclou IDPAG/divisa/terminal | IMPLEMENTAT; CI DEL NOU HEAD PENDENT |
 | A14-09 | Autorització TPV | resposta Redsys | només autorització positiva arriba a handler | IMPLEMENTAT |
 | A14-10 | Numeració fiscal | llegat conserva numeració pròpia mentre hi hagi fallback | `FiscalSequenceRepository::next()` via `InvoiceService` | **FINAL IMPLEMENTAT**; retirada llegat pendent |
 | A14-11 | Registrar cobrament | muta `PAGAMENT` en callback llegat | `payment_transaction` + `payment_allocation`, després projecció | IMPLEMENTAT/VERIFICAT intern |
@@ -121,6 +121,10 @@ JS localitzat:
    - callback invàlid falla tancat.
 8. Callbacks candidats eliminen notificació de depuració abans de validar Redsys i fallen tancat en error.
 9. Nova prova `RedsysCourseLegacyFallbackBoundaryTest`.
+10. Checkout ACTUAL/candidat envia context mínim `UC014I<IDPAG>A<AMOUNT_CENTS>F<FRAC>` a `DS_MERCHANT_MERCHANTDATA`.
+11. Callbacks llegats recuperen `Ds_MerchantData` només després de validar HMAC, deriven `IDPAG`/import/fraccionament del context signat i rebutgen divergència amb query-string.
+12. Curs i DNI utilitzats pels callbacks es rellegeixen de BD després de resoldre l'`IDPAG`; el query-string deixa de ser font d'autoritat funcional.
+13. Gateway Redsys, terminal, callback SIF, credencials d'API interna i paths HMAC passen a configuració/preflight explícits.
 
 ## 5. Reclassificació de buits antics
 
