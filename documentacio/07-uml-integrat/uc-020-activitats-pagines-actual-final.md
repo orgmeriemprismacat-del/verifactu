@@ -373,8 +373,10 @@ if (Operació PAYABLE?) then (Sí)
  :Habilitar només mètodes autoritzats;
  :Crear/reutilitzar intenció Redsys des de snapshot;
 note right
-  PENDENT en aquesta branca: adaptador
-  payment_link/commercial_operation -> RedsysPaymentIntentService
+  El checkout CURS/AP -> RedsysPaymentIntentService
+  ja està implementat via /api/redsys/course-intent.php.
+  Pendent: fer que payment_link governi aquesta ruta,
+  si es manté aquesta arquitectura final.
 end note
 else (No)
  :No mostrar instruccions executables;
@@ -588,10 +590,10 @@ stop
 
 ### 4.5. Estat d'implementació del FINAL
 
-- `CommercialOfferService::createOrReuse()`: **implementat en aquesta branca**; encara no cridat pel web/intranet llegat.
-- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat en aquesta branca**; encara no substitueix les rutes llegades `/confirmacio/` i `/pagament/`.
-- Política `PrismaStudentDiscountPolicy`: **pendent de decisions de negoci i implementació**.
-- Adaptador `UUID_OPERATION/payment_link → RedsysPaymentIntentService`: **pendent**.
+- `CommercialOfferService::createOrReuse()`: **implementat**; encara no substitueix el preview/alta web-intranet llegats.
+- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat base**; encara no governa les rutes actives `/confirmacio/` i `/pagament/`.
+- Política `PrismaStudentDiscountPolicy`: **implementada com a compatibilitat `ALUMNE_PRISMA_LEGACY_V1`**; decisions futures de negoci encara pendents.
+- Adaptador de **pagament CURS/AP → RedsysPaymentIntentService**: **implementat** via `SifRedsysCourseIntentClient` + `/api/redsys/course-intent.php` + `RedsysCoursePaymentIntentService`. Coordinació amb `payment_link`: **pendent**.
 
 ## 7. Matriu ACTUAL → FINAL
 
@@ -635,3 +637,38 @@ Aquest dossier cobreix totes les superfícies identificades del UC-020. Si apare
 - o reconstrueix el descompte per facturar,
 
 s'ha d'afegir com a pàgina/apartat nou i vincular-lo a la matriu d'auditoria.
+
+
+## 11. Reconciliació del checkout de pagament — 02/10/2026
+
+### P04-R — ACTUAL executat · targeta CURS/AP
+
+```plantuml
+@startuml
+title P04-R | ACTUAL 02/10/2026 | pagament targeta amb intenció SIF
+start
+:pay.prisma.cat rellegeix checkout validat;
+:Cridar SifRedsysCourseIntentClient::create(IDPAG, requestedAmount);
+:POST signat /api/redsys/course-intent.php;
+:RedsysCoursePaymentIntentService rellegeix matrícula;
+if (TIPUS_DESC == 1?) then (Sí)
+ :Validar VALID_DESC=1;
+ :Rebutjar fracció/reanudació AP no modelada;
+ :LegacyPrismaStudentPriceSnapshotResolver;
+ :Reconstruir tarifa a DATA_INSC;
+ :Exigir net reconstruït == A_PAGAR;
+ :PrismaStudentCourseCheckoutService;
+ :Persistir/reutilitzar operació + validation;
+ :Crear snapshot ALUMNE_PRISMA;
+ :Crear/reutilitzar intenció CURS;
+ :Vincular UUID_OPERATION -> UUID_INTENT;
+else (No)
+ :Crear intenció CURS amb snapshot llegit del servidor;
+endif
+:Retornar amount + DS_ORDER autoritatius;
+:Construir formulari Redsys amb amount retornat per SIF;
+stop
+@enduml
+```
+
+Aquesta activitat tanca el buit anterior **checkout de pagament → intent Redsys**. No tanca P02 (preview/alta d'oferta), P05/P06 ni la substitució del token/rutes llegades per `payment_link`.
