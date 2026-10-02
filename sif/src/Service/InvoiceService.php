@@ -315,7 +315,7 @@ final class InvoiceService
     {
         $value = trim((string) ($value ?? ''));
 
-        return $value === '' ? $fallback : mb_substr($value, 0, 120, 'UTF-8');
+        return $value === '' ? $fallback : $value;
     }
 
     private function nullableContextString(mixed $value): ?string
