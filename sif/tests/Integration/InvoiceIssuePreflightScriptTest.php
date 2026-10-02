@@ -22,6 +22,8 @@ final class InvoiceIssuePreflightScriptTest
         Assert::stringContainsString('issuer_nif_configured', $source);
         Assert::stringContainsString('issuer_name_configured', $source);
         Assert::stringContainsString('internal_api_request_table', $source);
+        Assert::stringContainsString('sif_audit_event_table', $source);
+        Assert::stringContainsString('operational_event_table', $source);
         Assert::stringContainsString('factura_table', $source);
         Assert::stringContainsString('factura_linia_table', $source);
         Assert::stringContainsString('factura_registres_table', $source);
