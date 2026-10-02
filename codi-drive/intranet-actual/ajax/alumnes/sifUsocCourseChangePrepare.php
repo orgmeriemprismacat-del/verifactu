@@ -25,6 +25,9 @@ require_once $root . '/LegacyInvoiceMutationAuthorization.php';
 require_once $root . '/LegacyUsocCourseChangePricingSourceInterface.php';
 require_once $root . '/LegacyUsocCourseChangePricingMysqlSource.php';
 require_once $root . '/LegacyUsocCourseChangePricingResolver.php';
+require_once $root . '/LegacyUsocCourseChangeDestinationStoreInterface.php';
+require_once $root . '/LegacyUsocCourseChangeDestinationMysqlStore.php';
+require_once $root . '/LegacyUsocCourseChangeDestinationReservationService.php';
 require_once $root . '/SifAuthenticatedActor.php';
 require_once $root . '/SifInternalUsocClient.php';
 
@@ -71,8 +74,8 @@ try {
         FILTER_VALIDATE_INT,
         ['options' => ['min_range' => 0, 'max_range' => 4]]
     );
-    $target = $payload['target'] ?? null;
-    if ($idInsc === false || $changeNumber === false || !is_array($target)) {
+    $targetInput = $payload['target'] ?? null;
+    if ($idInsc === false || $changeNumber === false || !is_array($targetInput)) {
         throw new RuntimeException('Dades del canvi USOC no vàlides.', 422);
     }
 
@@ -80,50 +83,40 @@ try {
         new LegacyUsocCourseChangePricingMysqlSource()
     ))->resolve(
         (int) $idInsc,
-        (string) ($target['year'] ?? ''),
-        (string) ($target['month'] ?? ''),
-        (string) ($target['course'] ?? ''),
+        (string) ($targetInput['year'] ?? ''),
+        (string) ($targetInput['month'] ?? ''),
+        (string) ($targetInput['course'] ?? ''),
         (int) $changeNumber
     );
 
     [$actorId, $roles] = SifAuthenticatedActor::fromUser($usuariObject);
 
-    $fingerprint = [
+    $semantic = [
         'id_insc' => (int) $idInsc,
         'idpag' => (int) $pricing['idpag'],
         'change_number' => (int) $changeNumber,
         'year' => (string) ($pricing['target']['year'] ?? ''),
         'month' => (string) ($pricing['target']['month'] ?? ''),
         'course' => (string) ($pricing['target']['course'] ?? ''),
-        'actor_id' => $actorId,
+        'price_id' => (int) ($pricing['target']['price_id'] ?? 0),
+        'target_standard_course_amount' => (string) ($pricing['target']['target_standard_course_amount'] ?? ''),
+        'target_student_course_amount' => (string) ($pricing['target']['target_student_course_amount'] ?? ''),
+        'management_fee' => (string) ($pricing['target']['management_fee'] ?? ''),
     ];
+    $semanticJson = json_encode(
+        $semantic,
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+    );
+    $requestId = 'uc013-course-change-' . (int) $idInsc . '-'
+        . substr(hash('sha256', $semanticJson), 0, 32);
 
-    $context = is_array($_SESSION['sif_usoc_course_change'] ?? null)
-        ? $_SESSION['sif_usoc_course_change']
-        : [];
-    $sameContext = isset($context['fingerprint'])
-        && is_array($context['fingerprint'])
-        && hash_equals(
-            hash('sha256', json_encode($context['fingerprint'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
-            hash('sha256', json_encode($fingerprint, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
-        );
-
-    if (!$sameContext) {
-        $context = [
-            'request_id' => 'uc013-course-change-' . (int) $idInsc . '-' . bin2hex(random_bytes(16)),
-            'fingerprint' => $fingerprint,
-            'effective_at' => date('Y-m-d H:i:s'),
-            'target_id_insc' => null,
-            'legacy_completed' => false,
-        ];
-    }
-
-    $response = (new SifInternalUsocClient())->prepareCourseChange(
+    $client = new SifInternalUsocClient();
+    $response = $client->prepareCourseChange(
         $actorId,
         $roles,
-        (string) $context['request_id'],
         (int) $idInsc,
         (int) $pricing['idpag'],
+        $requestId,
         $pricing['target']
     );
 
@@ -144,16 +137,87 @@ try {
         throw new RuntimeException('Checkpoint USOC no vàlid.', 409);
     }
 
-    $context['pricing_target'] = $pricing['target'];
-    $_SESSION['sif_usoc_course_change'] = $context;
+    $previewTarget = $preparation['preview']['target'] ?? null;
+    if (!is_array($previewTarget)) {
+        throw new RuntimeException('El checkpoint USOC no conté els imports destí.', 409);
+    }
+    $targetStudentTotal = trim((string) ($previewTarget['target_student_total'] ?? ''));
+    if ($targetStudentTotal === '') {
+        throw new RuntimeException('El checkpoint USOC no conté el total alumne destí.', 409);
+    }
+
+    $reservation = (new LegacyUsocCourseChangeDestinationReservationService(
+        new LegacyUsocCourseChangeDestinationMysqlStore()
+    ))->reserve(
+        $requestId,
+        (int) $idInsc,
+        (string) ($pricing['target']['year'] ?? ''),
+        (string) ($pricing['target']['month'] ?? ''),
+        (string) ($pricing['target']['course'] ?? ''),
+        $targetStudentTotal
+    );
+
+    $bindingResponse = $client->bindCourseChangeDestination(
+        $actorId,
+        $roles,
+        $requestId,
+        (int) $idInsc,
+        (int) $pricing['idpag'],
+        (int) $reservation['destination_id_insc'],
+        (int) $reservation['destination_idpag'],
+        (string) $reservation['reservation_marker'],
+        $targetStudentTotal
+    );
+
+    $bindingStatus = (int) ($bindingResponse['_http_status'] ?? 0);
+    unset($bindingResponse['_http_status']);
+    if (
+        $bindingStatus < 200
+        || $bindingStatus >= 300
+        || ($bindingResponse['ok'] ?? false) !== true
+        || !is_array($bindingResponse['binding'] ?? null)
+    ) {
+        $error = trim((string) ($bindingResponse['error'] ?? ''));
+        throw new RuntimeException(
+            $bindingStatus >= 400 && $bindingStatus < 500 && $error !== ''
+                ? $error
+                : 'No s’ha pogut vincular el destí reservat al checkpoint USOC.',
+            $bindingStatus >= 400 && $bindingStatus <= 599 ? $bindingStatus : 503
+        );
+    }
+
+    $previous = is_array($_SESSION['sif_usoc_course_change'] ?? null)
+        ? $_SESSION['sif_usoc_course_change']
+        : [];
+    $sameRequest = (string) ($previous['request_id'] ?? '') === $requestId;
+
+    $_SESSION['sif_usoc_course_change'] = [
+        'request_id' => $requestId,
+        'actor_id' => $actorId,
+        'semantic' => $semantic,
+        'effective_at' => trim((string) ($preparation['created_at'] ?? '')) !== ''
+            ? (string) $preparation['created_at']
+            : date('Y-m-d H:i:s'),
+        'source_id_insc' => (int) $idInsc,
+        'source_idpag' => (int) $pricing['idpag'],
+        'destination_id_insc' => (int) $reservation['destination_id_insc'],
+        'destination_idpag' => (int) $reservation['destination_idpag'],
+        'reservation_marker' => (string) $reservation['reservation_marker'],
+        'target_student_total' => $targetStudentTotal,
+        'legacy_completed' => $sameRequest
+            ? (bool) ($previous['legacy_completed'] ?? false)
+            : false,
+    ];
 
     http_response_code(200);
     echo json_encode([
         'ok' => true,
-        'request_id' => $context['request_id'],
+        'request_id' => $requestId,
         'pricing' => $pricing,
         'preparation' => $preparation,
-        'resume_legacy' => (bool) ($context['legacy_completed'] ?? false),
+        'reservation' => $reservation,
+        'binding' => $bindingResponse['binding'],
+        'resume_legacy' => (bool) $_SESSION['sif_usoc_course_change']['legacy_completed'],
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $exception) {
     $code = (int) $exception->getCode();
@@ -161,6 +225,7 @@ try {
         ? 422
         : ($code >= 400 && $code <= 599 ? $code : 500);
     http_response_code($status);
+
     echo json_encode([
         'ok' => false,
         'error' => $status >= 500
