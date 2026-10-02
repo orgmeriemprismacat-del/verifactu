@@ -41,10 +41,7 @@
 	include('inc/analitics.html');
 
 	$mostrar = '';
-
-	$nomMe = 'Meriem';
-	$correuMe = "meriem.prisma.cat@gmail.com";
-	// UC-014: no enviar notificacions de depuració abans de validar la signatura Redsys.
+	// UC-014: cap notificació de depuració abans de validar la signatura Redsys.
 
 	/* enviem intent de pagament */
 
