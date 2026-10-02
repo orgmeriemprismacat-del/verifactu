@@ -35,6 +35,39 @@ final class InvoicePayloadValidatorTest
         Assert::same('Invalid invoice series', $exception->getMessage());
     }
 
+    public function testRejectsRectificationTypeInOrdinarySeries(): void
+    {
+        $payload = $this->validPayload();
+        $payload['type'] = 'R1';
+
+        Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+    }
+
+    public function testRejectsOrdinaryTypeInRectificationSeries(): void
+    {
+        $payload = $this->validPayload();
+        $payload['series'] = 'R';
+
+        Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+    }
+
+    public function testAcceptsRectificationTypeInRectificationSeries(): void
+    {
+        $payload = $this->validPayload();
+        $payload['series'] = 'R';
+        $payload['type'] = 'R1';
+
+        Assert::same($payload, (new InvoicePayloadValidator())->validate($payload));
+    }
+
     public function testInvoiceRequiresAtLeastOneLine(): void
     {
         $payload = $this->validPayload();
