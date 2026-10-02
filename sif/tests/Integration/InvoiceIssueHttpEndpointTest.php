@@ -18,6 +18,7 @@ final class InvoiceIssueHttpEndpointTest
         Assert::stringContainsString('InternalInvoiceIssueScopeResolver', $source);
         Assert::stringContainsString('InternalInvoiceIssuePayloadPolicy', $source);
         Assert::stringContainsString('invoice_issue_signed_path', $source);
+        Assert::stringContainsString("['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION']", $source);
         Assert::stringContainsString('REQUEST_METHOD', $source);
 
         if (str_contains($source, 'JsonResponse::fromInput()')) {
