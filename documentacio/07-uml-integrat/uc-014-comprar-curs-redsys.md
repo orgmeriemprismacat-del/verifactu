@@ -2,7 +2,7 @@
 
 **Objectiu:** convertir una compra de curs/edició pagada realment per Redsys en una factura SIF i un cobrament econòmic atribuït a la **inscripció correcta**. Una intenció pendent, un callback denegat i un cobrament confirmat **no són el mateix estat**. Aquest cas és de compra de **curs ordinari**; taller i jornada tenen variants UC-14a/14b que no es donen per cobertes per aquesta fitxa.
 
-**Codi contrastat:** `RedsysPaymentIntentService`/`RedsysCoursePaymentIntentService` (UC-63/UC-14), `RedsysCallbackService`/`RedsysCallbackWorker` (UC-03), `RedsysCourseInvoiceService`, `InvoiceService`, `CourseLegacyPaymentSyncService`, `CoursePaymentNotificationService`, `RedsysCoursePaymentStatusService`, PHP/JS ACTUAL i el pont candidat de `pay.prisma.cat`. **Revisió 02/10/2026:** intenció, callback, cua/worker, emissió, cobrament, projecció llegada, outbox i consulta read-only d'estat són implementats al repositori; Redsys real de preproducció i cutover continuen sense acreditar.
+**Codi contrastat:** `RedsysPaymentIntentService`/`RedsysCoursePaymentIntentService` (UC-63/UC-14), `RedsysCallbackService`/`RedsysCallbackWorker` (UC-03), `RedsysCourseInvoiceService`, `InvoiceService`, `CourseEnrollmentFundAllocationService`, `EnrollmentFundMovementRepository`, `CourseLegacyPaymentSyncService`, `CoursePaymentNotificationService`, `RedsysCoursePaymentStatusService`, PHP/JS ACTUAL i el pont candidat de `pay.prisma.cat`. **Revisió 02/10/2026:** intenció, callback, cua/worker, emissió, cobrament, atribució quantitativa per inscripció, projecció llegada, outbox i consulta read-only d'estat són implementats al repositori; Redsys real de preproducció i cutover continuen sense acreditar.
 
 ## 1. Fitxa del cas
 
@@ -13,7 +13,7 @@
 | Identitat fiscal de l'handler | `LegacyCourseInvoicePayloadBuilder` construeix `idempotency_key=LEGACY|CURS|INSCRIPCIO:<ID>` inicial; `RedsysInvoicePayloadBuilder` el substitueix per una clau de factura que conté tipus d'origen, `IDPAG` i `DS_ORDER`. |
 | Dades de línia | Línia `source_type=INSCRIPCIO`, `source_id=ID`, concepte i convocatòria, import base, descompte congelat si n'hi ha, import final. Relació `fact_rels` a inscripció amb `VISIBLE_ALUMNE=1` al builder ordinari. |
 | Import real cobrat | `RedsysInvoicePayloadBuilder` afegeix bloc `payment` a partir de notificació `VALIDATED`, amb `movement_type=CHARGE`, `method=REDSYS`, `DS_ORDER` i `IDPAG`. |
-| Resultat | Factura i pagament inicial en UC-01, `UUID_FACTURA`, `UUID_PAYMENT`, relació `INSCRIPCIO(ID)`, `payment_transaction.IDPAG` i `payment_allocation` a factura. Per UC-014 ordinari aquesta cadena acredita l'atribució econòmica a la inscripció; no cal un ledger addicional mentre `IDPAG` sigui únic per al cas. |
+| Resultat | Factura i pagament inicial en UC-01, `UUID_FACTURA`, `UUID_PAYMENT`, relació `INSCRIPCIO(ID)`, `payment_transaction.IDPAG`, `payment_allocation` a factura i `enrollment_fund_movement.EXTERNAL_ALLOCATION` cap a la inscripció destí. |
 
 ### 1.1. Flux principal asíncron
 
@@ -22,8 +22,8 @@
 3. El worker reclama el job i `RedsysCallbackDispatcher` selecciona `RedsysCourseInvoiceService` amb `sourceType=CURS` i `SNAPSHOT_JSON` de la intenció.
 4. `RedsysCourseInvoiceService::issueFromIntentSnapshot()` passa el snapshot a `LegacyCourseInvoicePayloadBuilder::build()` (inscripció, curs, import i dades fiscals). `RedsysInvoicePayloadBuilder::buildFromValidatedNotification()` exigeix notificació `VALIDATED` i incorpora `payment`, `DS_ORDER` i `IDPAG`.
 5. `InvoiceService::issueInvoice()` crea/reutilitza factura, registre fiscal, cadena, cua AEAT, relació d'inscripció i moviment de cobrament inicial en la transacció del nucli.
-6. El worker marca el job processat amb els UUIDs i el circuit de sync de curs projecta l'estat econòmic al llegat de forma idempotent. Altres efectes postpagament continuen sent fases separades i han de conservar correlació/recuperabilitat.
-7. `CourseLegacyPaymentSyncService` suma els moviments `CONFIRMED` per `IDPAG` i projecta `PAGAMENT/DATA PAG`; la factura i la línia conserven `source_type=INSCRIPCIO/source_id=ID`. Aquesta és l'atribució executable del curs ordinari.
+6. `CourseEnrollmentFundAllocationService` valida el `CHARGE` confirmat, factura, línia `INSCRIPCIO` i import i crea/reutilitza un `EXTERNAL_ALLOCATION` idempotent amb clau `FUND|CURS|ORDER:<DS_ORDER>|INSC:<ID_INSC>`, vinculat a `UUID_PAYMENT` i `UUID_FACTURA`.
+7. Només després d'aquesta atribució, `CourseLegacyPaymentSyncService` suma els moviments `CONFIRMED` per `IDPAG` i projecta `PAGAMENT/DATA PAG`; `CoursePaymentNotificationService` deixa l'avís durable a l'outbox i el job es marca processat.
 
 ### 1.2. Alternatives, errors i control dels imports
 
@@ -59,7 +59,7 @@ C ..> I : <<include>>
 R --> CB
 W --> CB
 CB ..> Inv : <<include>> (només autoritzat)
-CB ..> Alloc : <<include>> (OBJECTIU pendent)
+CB ..> Alloc : <<include>>
 @enduml
 ```
 
@@ -123,6 +123,14 @@ class PaymentRepository {
  +create(db,payload) array
  +createAllocation(db,uuidPayment,allocation)
 }
+class CourseEnrollmentFundAllocationService {
+ +allocate(db,dsOrder,snapshot,invoiceResult) array
+}
+class EnrollmentFundMovementRepository {
+ +lockPayment(db,uuidPayment) array
+ +findInvoiceLineForInscription(db,uuidFactura,idInsc) array
+ +insertOrReuseExternalAllocation(db,input) array
+}
 class CourseLegacyPaymentSyncService {
  +sync(sifDb,legacyDb,idpag,idInsc,date) array
 }
@@ -136,6 +144,8 @@ RedsysCourseInvoiceService --> LegacyCourseInvoicePayloadBuilder : línia inscri
 RedsysCourseInvoiceService --> RedsysInvoicePayloadBuilder : notificació
 RedsysCourseInvoiceService --> InvoiceService : factura+CHARGE
 InvoiceService --> PaymentRepository : payment_transaction + allocation
+RedsysCourseInvoiceService --> CourseEnrollmentFundAllocationService : atribució postcommit
+CourseEnrollmentFundAllocationService --> EnrollmentFundMovementRepository : EXTERNAL_ALLOCATION idempotent
 RedsysCallbackWorker --> CourseLegacyPaymentSyncService : projecció IDPAG
 RedsysCallbackWorker --> CoursePaymentNotificationService : outbox post-sync
 ```
@@ -159,6 +169,8 @@ participant H as RedsysCourseInvoiceService
 participant Builder as LegacyCourseInvoicePayloadBuilder
 participant R as RedsysInvoicePayloadBuilder
 participant I as InvoiceService
+participant Fund as CourseEnrollmentFundAllocationService
+participant L as EnrollmentFundMovementRepository
 participant Sync as CourseLegacyPaymentSyncService
 participant Outbox as CoursePaymentNotificationService
 A->>Web: Confirmar curs, edició i pagament
@@ -177,17 +189,21 @@ H->>R: buildFromValidatedNotification()
 R-->>H: Payload amb CHARGE
 H->>I: issueInvoice(payload)
 I-->>H: UUID_FACTURA i UUID_PAYMENT
-H-->>W: Resultat
+H->>Fund: allocate(DS_ORDER, snapshot, invoiceResult)
+Fund->>L: validar CHARGE/factura/línia i insertOrReuseExternalAllocation()
+L-->>Fund: UUID_MOVEMENT + reused?
+Fund-->>H: EXTERNAL_ALLOCATION
+H-->>W: Resultat + fund_allocations
 W->>Sync: sync(IDPAG, ID_INSC, data)
 Sync-->>W: confirmed_amount + projected_payment + PAID/PARTIALLY_PAID
 W->>Outbox: enqueue(COURSE_PAYMENT_CONFIRMED, DS_ORDER)
 W->>Q: markProcessed(job,result)
-Note over I,Outbox: Factura/CHARGE són autoritat SIF; sync i outbox són postprocessat idempotent i correlacionat
+Note over I,Outbox: Ordre final: factura/CHARGE → EXTERNAL_ALLOCATION → sync llegada → outbox → PROCESSED
 ```
 
 ## 5. Traçabilitat
 
-[Fitxa original UC-14](../06-fitxes-funcionals/uc-014.md) · [UC-63](uc-063-crear-intencio-redsys.md) · [UC-03](uc-003-processar-cobrament-redsys-asincron.md) · [UC-01](uc-001-emetre-o-reutilitzar-factura.md) · [Revisió dels fons](00-revisio-moviments-inscripcions.md) · [RedsysCourseInvoiceService](../../sif/src/Service/RedsysCourseInvoiceService.php) · [LegacyCourseInvoicePayloadBuilder](../../sif/src/Service/LegacyCourseInvoicePayloadBuilder.php) · [RedsysInvoicePayloadBuilder](../../sif/src/Service/RedsysInvoicePayloadBuilder.php) · [RedsysCourseInvoiceServiceTest](../../sif/tests/Integration/RedsysCourseInvoiceServiceTest.php).
+[Fitxa original UC-14](../06-fitxes-funcionals/uc-014.md) · [UC-63](uc-063-crear-intencio-redsys.md) · [UC-03](uc-003-processar-cobrament-redsys-asincron.md) · [UC-01](uc-001-emetre-o-reutilitzar-factura.md) · [Revisió dels fons](00-revisio-moviments-inscripcions.md) · [RedsysCourseInvoiceService](../../sif/src/Service/RedsysCourseInvoiceService.php) · [LegacyCourseInvoicePayloadBuilder](../../sif/src/Service/LegacyCourseInvoicePayloadBuilder.php) · [RedsysInvoicePayloadBuilder](../../sif/src/Service/RedsysInvoicePayloadBuilder.php) · [CourseEnrollmentFundAllocationService](../../sif/src/Service/CourseEnrollmentFundAllocationService.php) · [EnrollmentFundMovementRepository](../../sif/src/Repository/EnrollmentFundMovementRepository.php) · [CourseEnrollmentFundAllocationServiceTest](../../sif/tests/Integration/CourseEnrollmentFundAllocationServiceTest.php) · [RedsysCourseInvoiceServiceTest](../../sif/tests/Integration/RedsysCourseInvoiceServiceTest.php).
 
 
 ## 6. Lliurables detallats ACTUAL/FINAL — revalidació 02/10/2026
@@ -203,6 +219,6 @@ Aquest document principal conserva el model integrat del cas. La cobertura exhau
 ### Estat
 
 - **DOCUMENTAT:** fitxa, casos d'ús, classes ACTUAL/FINAL, seqüències ACTUAL/FINAL i activitats per superfícies principals.
-- **IMPLEMENTAT:** nucli SIF Redsys, handler CURS, pont candidat d'intenció, projecció llegada, productor outbox, retorn navegador autoritatiu i hardening del fallback en aquesta branca; el circuit llegat continua com a fallback fins al tall.
-- **VERIFICAT:** CI amb E2E intern simulat, duplicats, parcial→complet, boundaries de preproducció i retorn OK/KO read-only.
+- **IMPLEMENTAT:** nucli SIF Redsys, handler CURS, pont candidat d'intenció, `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, productor outbox, retorn navegador autoritatiu i hardening del fallback en aquesta branca; el circuit llegat continua com a fallback fins al tall.
+- **VERIFICAT:** CI amb E2E intern simulat, fund allocation idempotent, mismatch fail-closed, duplicats, parcial→complet, boundaries de preproducció i retorn OK/KO read-only; PR #95 amb suites SIF **841 passed / 0 failed** i quatre workflows verds.
 - **PENDENT:** Redsys/preproducció real, activació del cutover amb `SIF_REDSYS_CALLBACK_URL`, retirada de l'autoritat fiscal llegada, rotació/configuració de secrets i delivery/retries d'UC-58.
