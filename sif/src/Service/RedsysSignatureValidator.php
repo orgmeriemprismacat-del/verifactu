@@ -16,7 +16,7 @@ final class RedsysSignatureValidator
     public function decodeAndVerify(array $request, array $context = []): array
     {
         $signatureVersion = $this->field($request, 'Ds_SignatureVersion');
-        if ($signatureVersion !== 'HMAC_SHA256_V1') {
+        if (!in_array($signatureVersion, ['HMAC_SHA512_V2', 'HMAC_SHA256_V1'], true)) {
             throw SifException::validation('Unsupported Redsys signature version');
         }
 
@@ -32,7 +32,11 @@ final class RedsysSignatureValidator
         }
 
         $decoded = $this->decodeMerchantParameters($merchantParameters);
-        $expectedSignature = $this->createNotificationSignature($merchantParameters, $decoded);
+        $expectedSignature = $this->createNotificationSignature(
+            $merchantParameters,
+            $decoded,
+            $signatureVersion
+        );
 
         if (!hash_equals($this->normalizeSignature($expectedSignature), $this->normalizeSignature($receivedSignature))) {
             throw SifException::validation('Invalid Redsys signature');
@@ -59,16 +63,45 @@ final class RedsysSignatureValidator
         return $decoded;
     }
 
-    private function createNotificationSignature(string $merchantParameters, array $decoded): string
-    {
-        $key = base64_decode($this->merchantKey, true);
-        if ($key === false || $key === '') {
-            throw SifException::validation('Missing Redsys merchant key');
-        }
-
+    private function createNotificationSignature(
+        string $merchantParameters,
+        array $decoded,
+        string $signatureVersion
+    ): string {
         $order = trim((string) $this->field($decoded, 'Ds_Order'));
         if ($order === '' || strlen($order) > 12 || !ctype_alnum($order)) {
             throw SifException::validation('Invalid Redsys order');
+        }
+
+        if ($signatureVersion === 'HMAC_SHA512_V2') {
+            $key = substr(trim($this->merchantKey), 0, 16);
+            if ($key === '') {
+                throw SifException::validation('Missing Redsys merchant key');
+            }
+            if (strlen($key) < 16) {
+                $key = str_pad($key, 16, '0', STR_PAD_RIGHT);
+            }
+
+            $derived = openssl_encrypt(
+                $order,
+                'aes-128-cbc',
+                $key,
+                OPENSSL_RAW_DATA,
+                str_repeat("\0", 16)
+            );
+            if ($derived === false) {
+                throw SifException::validation('Could not verify Redsys signature');
+            }
+
+            $derivedKey = base64_encode($derived);
+            $mac = hash_hmac('sha512', $merchantParameters, $derivedKey, true);
+
+            return rtrim(strtr(base64_encode($mac), '+/', '-_'), '=');
+        }
+
+        $key = base64_decode($this->merchantKey, true);
+        if ($key === false || $key === '') {
+            throw SifException::validation('Missing Redsys merchant key');
         }
 
         $derivedKey = $this->encrypt3DesZeroPadded($order, $key);
