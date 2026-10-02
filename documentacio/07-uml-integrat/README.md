@@ -38,7 +38,7 @@ Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un 
 
 | ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
-| UC-01 | Emetre o reutilitzar factura | [Fitxa i UML](uc-001-emetre-o-reutilitzar-factura.md) | `[BASE]` |
+| UC-01 | Emetre o reutilitzar factura | [Fitxa i UML](uc-001-emetre-o-reutilitzar-factura.md) · [auditoria i traçabilitat](uc-001-auditoria-tracabilitat-2026-10-02.md) · [classes A/F](uc-001-classes-actual-final.md) · [seqüències A/F](uc-001-sequencies-actual-final.md) · [activitats A/F](uc-001-activitats-superficies-actual-final.md) | `[AUDITORIA TANCADA · EXECUCIÓ CI BLOQUEJADA PER CUA GLOBAL · PRODUCCIÓ/DEUTES TRANSVERSALS PENDENTS]` |
 | UC-02 | Registrar pagament sobre factura | [Fitxa i UML](uc-002-registrar-cobrament-factura.md) | `[BASE]` |
 | UC-03 | Processar cobrament Redsys asíncron | [Fitxa i UML](uc-003-processar-cobrament-redsys-asincron.md) | `[ASYNC]` |
 | UC-04 | Emetre factura abans de cobrar | [Fitxa i UML](uc-004-emetre-factura-abans-cobrar.md) | `[PARCIAL]` |
