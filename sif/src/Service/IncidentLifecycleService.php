@@ -441,6 +441,16 @@ final class IncidentLifecycleService
     private function primaryRole(array $actor): ?string
     {
         $roles = $this->normalizeRoles(is_array($actor['roles'] ?? null) ? $actor['roles'] : []);
+
+        // Mutating lifecycle operations are authorized through manageRoles.
+        // Persist the role that actually grants that authority instead of the
+        // first (possibly read-only) role received in a multi-role actor.
+        foreach ($roles as $role) {
+            if (in_array($role, $this->manageRoles, true)) {
+                return $role;
+            }
+        }
+
         return $roles[0] ?? null;
     }
 
