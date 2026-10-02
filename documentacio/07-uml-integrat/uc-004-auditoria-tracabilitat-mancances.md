@@ -1,8 +1,8 @@
 # UC-004 · Auditoria detallada, traçabilitat i mancances
 
 **Cas d'ús:** UC-004 — Emetre factura abans de cobrar  
-**Data de tall:** 2026-09-29  
-**Branca d'auditoria:** `docs/auditoria-uc-004-2026-09-29`  
+**Data de tall actualitzada:** 2026-10-02  
+**Branca de continuació:** `feat/uc-004-adaptador-servidor-2026-10-02`  
 **Tipus de verificació:** revisió estàtica del codi i documentació versionats. No s'han executat proves ni s'ha verificat preproducció/producció.
 
 ## 1. Conclusió de l'auditoria
@@ -10,14 +10,14 @@
 UC-004 té **dos circuits diferents** que no s'han de fusionar documentalment:
 
 1. **ACTUAL llegat, implementat:** la pantalla `/alumnes/genera-factura-abans-pagar/` treballa amb JS + endpoints AJAX + `Intranet.php` + BD llegada. Genera la factura directament al model antic, assigna un número amb “últim + 1”, actualitza inscripcions i construeix/descarrega el PDF des del circuit llegat.
-2. **FINAL SIF, parcialment implementat:** existeixen `InvoiceBeforePaymentService`, `InvoiceBeforePaymentPayloadBuilder`, `InvoiceService`, hash d'idempotència, seqüència fiscal, cadena, registre, cua, relacions, scripts CLI de preview/preflight/process i proves específiques. En aquesta branca s'han afegit validació obligatòria `INSCRIPCIO/ORIGIN` i un claim concurrent **específic d'UC-004** a `invoice_before_payment_coverage`. **No està acreditada la integració de la pantalla real amb aquest servei.**
+2. **FINAL SIF, implementació avançada:** a més del nucli fiscal, el `main` actual ja conté `InvoiceBeforePaymentCommandService`, preparació autoritativa des de les dues BDs llegades, endpoint `public/api/factures/before-payment.php`, autenticació HMAC, anti-replay de `request_id`, resolució de rol d'escriptura, preview/confirmació amb fingerprint i cobertura UC-004. Aquesta branca hi afegeix `operational_event` atòmic. **La pantalla real encara no està connectada a aquest endpoint i continua emetent pel circuit llegat.**
 
 Per tant, l'estat correcte del cas és:
 
 - **Documentat:** SÍ, ara amb ACTUAL/FINAL i activitats separades.
 - **Implementat ACTUAL:** SÍ, circuit llegat.
-- **Implementat nucli FINAL:** PARCIAL/SÍ per emissió SIF.
-- **Integrat pantalla → FINAL:** NO acreditat.
+- **Implementat backend FINAL SIF:** SÍ per command intern, autenticació, preview/confirmació, emissió, cobertura i auditoria operacional en aquesta branca.
+- **Integrat pantalla → FINAL:** NO; el bridge de la intranet llegada continua pendent.
 - **Verificat estàticament:** SÍ.
 - **Proves executades en aquesta auditoria:** NO.
 - **Preproducció/producció:** NO verificada.
@@ -42,9 +42,9 @@ Fitxer existent: `documentacio/06-fitxes-funcionals/uc-004.md`.
 3. No explicita la numeració llegada “últim + 1”.
 4. No explicita la manca de transacció observada entre INSERT de factura i UPDATE de totes les inscripcions.
 5. No separa prou “permís de visualització servidor” de “permís d'edició calculat al client”.
-6. `UC04-OUT-002` inclou `sif_audit_event` i `operational_event` com a persistència mínima, però el camí observat `InvoiceBeforePaymentService → InvoiceService → InvoiceRepository::createInvoiceGraph` no mostra la creació d'aquests dos events. Cal alinear fitxa o implementar el registre transversal.
+6. `operational_event` queda **implementat en aquesta branca** dins de la mateixa transacció de l'emissió UC-004. `sif_audit_event`, si es manté com a requisit separat, s'ha de justificar contra el model real perquè no s'ha localitzat com a taula/writer específic d'aquest flux.
 7. La fitxa funcional 2.0 d'aquesta branca ja incorpora els scripts UC-004 de preview/preflight/process, les proves de flow/preproducció i els nous guards de cobertura.
-8. La fitxa 2.0 també explicita que `sif/public/api/factures/issue.php` usa `InvoiceService` directament i no força el contracte d'`InvoiceBeforePaymentPayloadBuilder`; per això no es considera l'endpoint específic UC-004.
+8. L'endpoint genèric `issue.php` continua sense ser UC-004, però el `main` ja disposa de l'endpoint específic `sif/public/api/factures/before-payment.php`, que sí passa per `InvoiceBeforePaymentCommandService` i `InvoiceBeforePaymentService`.
 
 **Decisió documental d'aquesta branca:** no s'ha sobreescrit la fitxa existent; les correccions queden recollides en aquest dossier perquè es puguin revisar abans d'una consolidació posterior.
 
@@ -174,7 +174,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | --- | --- | --- | --- | --- | --- |
 | Pantalla real UC-004 | Sí | Llegat | Sí | No | migrar adaptador |
 | Permís de visualització | Sí | Sí | Sí | No | prova endpoint |
-| Autorització d'emissió al servidor | Sí | No acreditat | Sí, manca observada | No | **Sí** |
+| Autorització d'emissió al servidor | Sí | **Sí al SIF intern** · HMAC + anti-replay + rol | Sí | No | bridge intranet + execució de proves |
 | Cerca inscripcions | Sí | Llegat + **loader servidor nou a la branca** | Sí | No | connectar UI |
 | Deduplicació selecció | Sí FINAL | **Implementada al loader servidor** | Sí | No | connectar UI / executar tests |
 | Validació curs/edició al servidor | Sí FINAL | **Implementada a l'assembler servidor** | Sí | No | connectar UI / executar tests |
@@ -187,9 +187,9 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | Seqüència fiscal segura | Sí | Sí, SIF | Sí | No | usar SIF des UI |
 | Cadena / registre / cua | Sí | Sí, SIF | Sí | No | usar SIF des UI |
 | `fact_rels` | Sí | Sí | Sí | No | **UC-004 ja exigeix relations INSCRIPCIO/ORIGIN; falta executar proves** |
-| Audit events transversals | Fitxa diu Sí | No observats en aquest camí | Mismatch detectat | No | **Sí** |
+| `operational_event` UC-004 | Sí | **IMPLEMENTAT EN AQUESTA BRANCA dins la mateixa transacció** | Sí | No | executar suite i inspeccionar event |
 | Cobrament posterior separat | Sí | Sí, serveis SIF | Sí | No | integrar canal |
-| Preview segur abans d'emetre | Sí FINAL | **Implementat en CLI amb fingerprint + relectura abans de confirmar** | Sí | No | integrar UI/autenticació |
+| Preview segur abans d'emetre | Sí FINAL | **Implementat en CLI i endpoint HTTP intern** amb fingerprint + relectura | Sí | No | connectar pantalla / executar E2E |
 | Document per UUID | Sí FINAL | infraestructura SIF a revisar | parcial | No | integrar UC-004 |
 | Sincronització llegada post-commit | Sí FINAL | processador UC-004 diu que no la fa | Sí | No | decidir/implementar |
 | Preproducció | Sí | scripts disponibles | estàtic | No | **executar i evidenciar** |
@@ -201,8 +201,8 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | ID | Mancança | Evidència / impacte |
 | --- | --- | --- |
 | UC004-GAP-001 | Pantalla real no connectada a `InvoiceBeforePaymentService` | el POST actual entra a `Intranet::generarFacturaElectronica_Alumnes` |
-| UC004-GAP-002 | Autorització d'acció fiscal no acreditada al backend mutador | `tePermisEdicio` es calcula al navegador; l'endpoint de generació no mostra un assert de rol específic |
-| UC004-GAP-003 | No s'ha localitzat protecció CSRF específica als endpoints UC-004 revisats | POSTs basats en sessió sense token visible en els fitxers contrastats |
+| UC004-GAP-002 | **TANCAT A LA FRONTERA SIF / PENDENT BRIDGE UI:** autorització d'acció fiscal | `InternalApiAuthenticator` autentica actor i `InternalInvoiceBeforePaymentScopeResolver` exigeix rol d'escriptura; el POST llegat encara no usa aquesta frontera |
+| UC004-GAP-003 | **TANCAT COM A CONTRACTE INTERN SIF / PENDENT INTRANET:** el command no és browser-direct | HMAC sobre cos exacte + timestamp + request UUID + anti-replay substitueixen CSRF a la frontera servidor-servidor; cal que la pantalla passi per un bridge autenticat de la intranet |
 | UC004-GAP-004 | **TANCAT AL BACKEND / PENDENT UI:** receptor per `entityId` | `InvoiceBeforePaymentBillingPartyRepository::loadByEntityId()` resol entitat + responsable actiu; la pantalla actual encara envia text |
 | UC004-GAP-005 | **TANCAT AL BACKEND / PENDENT UI:** total reconstruït des del servidor | `InvoiceBeforePaymentServerPayloadAssembler` suma `inscripcions.A_PAGAR`; la pantalla llegada encara calcula `preuTotal` al DOM |
 | UC004-GAP-006 | **TANCAT AL BACKEND / PENDENT UI:** reconstrucció autoritativa | `InvoiceBeforePaymentSelectionRepository` rellegeix IDs + curs; assembler genera conceptes/línies al servidor |
@@ -217,7 +217,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | UC004-GAP-015 | El camí llegat no crea registre fiscal encadenat/cua SIF | bloqueja adopció FINAL |
 | UC004-GAP-016 | L'endpoint genèric SIF `issue.php` no força semàntica UC-004 | usa `InvoiceService` directament, no el builder UC-004 |
 | UC004-GAP-017 | **TANCAT PER AL SERVEI UC-004:** `InvoiceBeforePaymentPayloadBuilder` exigeix relations `INSCRIPCIO/ORIGIN` úniques | l'endpoint genèric `issue.php` continua sent genèric i no substitueix l'adaptador UC-004 |
-| UC004-GAP-018 | Fitxa exigeix audit events que el camí d'emissió observat no persisteix | mismatch documentació ↔ codi |
+| UC004-GAP-018 | **TANCAT EN AQUESTA BRANCA PER `operational_event`** | `InvoiceService` escriu `ISSUE_INVOICE_BEFORE_PAYMENT` dins la mateixa transacció; falta només executar proves/evidència i decidir si cal algun segon artefacte `sif_audit_event` separat |
 | UC004-GAP-019 | Validació fiscal definitiva no està tota a `InvoicePayloadValidator` | adreça/país/règims/causes/consistència de línies necessiten contracte final |
 | UC004-GAP-020 | Cobrament posterior encara no està connectat des de la pantalla UC-004 al UUID SIF | servei/prova existeixen, integració UI no acreditada |
 
@@ -227,8 +227,8 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | --- | --- | --- |
 | UC004-GAP-021 | **TANCAT AL BACKEND / PENDENT UI:** concepte de convocatòria determinista | assembler genera `Convocatòria <mes> <any>` sense AJAX |
 | UC004-GAP-022 | **TANCAT AL BACKEND / PENDENT UI:** entitat resolta per ID | repositori nou no usa `RAO LIKE`; exigeix responsable actiu |
-| UC004-GAP-023 | Resposta de generació és HTML | manca contracte tipificat CREATED/REUSED/CONFLICT/ERROR |
-| UC004-GAP-024 | Manca request/correlation/version en el flux real | dificulta reconstrucció i diagnòstic |
+| UC004-GAP-023 | **TANCAT A LA FRONTERA SIF / PENDENT UI:** resposta JSON tipificada | `before-payment.php` retorna JSON; la pantalla llegada continua esperant HTML i encara no s'ha migrat |
+| UC004-GAP-024 | **PARCIALMENT TANCAT AL SIF:** request i correlació | `InternalApiAuthenticator` registra `request_id`; l'event operacional usa la clau idempotent com a correlació estable. Continua pendent versionar explícitament el command/bridge si es considera necessari |
 | UC004-GAP-025 | Sincronització llegada posterior al COMMIT SIF no implementada al processador UC-004 | el script ho evita explícitament |
 | UC004-GAP-026 | PDF llegat es regenera des de dades vives | no és custòdia immutable per snapshot/UUID |
 | UC004-GAP-027 | Descàrrega marca `GENERAT` com a efecte lateral | lectura/descàrrega no hauria de redefinir estat fiscal |
@@ -281,12 +281,13 @@ El fitxer existent `uc-004-emetre-factura-abans-cobrar.md` continua sent una bon
 
 ## 10. Ordre recomanat d'implementació
 
-1. **Adaptador servidor UC-004** amb autorització, CSRF, request/correlation i resposta JSON.
-2. **Selection/Billing/Pricing preflight:** implementat a la branca amb `InvoiceBeforePaymentSelectionRepository`, `InvoiceBeforePaymentBillingPartyRepository`, `InvoiceBeforePaymentServerPayloadAssembler` i `InvoiceBeforePaymentLegacyPreparationService`; pendent connectar-lo a la pantalla autenticada.
+1. **FET AL MAIN A LA FRONTERA SIF:** endpoint UC-004 amb HMAC, anti-replay, rol, request ID i resposta JSON. **Pendent:** bridge servidor de la intranet real.
+2. **FET AL MAIN:** Selection/Billing/Pricing preflight amb `InvoiceBeforePaymentSelectionRepository`, `InvoiceBeforePaymentBillingPartyRepository`, `InvoiceBeforePaymentServerPayloadAssembler` i `InvoiceBeforePaymentLegacyPreparationService`; pendent substituir el circuit llegat de pantalla.
 3. **Guard de cobertura UC-004:** implementat amb validació del builder + taula/UNIQUE específica; aplicar-lo en test/preproducció. Afegir separadament el classificador de cobertura transversal entre canals/pagadors.
-4. Integrar **`InvoiceBeforePaymentService`** amb la pantalla i eliminar la numeració/inserció fiscal llegada del camí d'escriptura.
-5. Sincronització llegada post-commit, si encara és necessària, idempotent i observable.
-6. Document per UUID/snapshot, sense `unlink(filename)` exposat.
+4. Connectar la pantalla al **command intern ja existent** i eliminar la numeració/inserció fiscal llegada del camí d'escriptura.
+5. **FET EN AQUESTA BRANCA:** auditoria operacional atòmica de l'emissió.
+6. Sincronització llegada post-commit, si encara és necessària, idempotent i observable.
+7. Document per UUID/snapshot, sense `unlink(filename)` exposat.
 7. Connectar cobrament posterior al UUID, sense reemetre.
 8. Executar proves i preflight/preproducció; conservar evidències.
 9. La fitxa funcional ja està consolidada en versió 2.0; marcar UC-004 com verificat només després de l'E2E.
@@ -310,6 +311,12 @@ El fitxer existent `uc-004-emetre-factura-abans-cobrar.md` continua sent una bon
 - `sif/src/Repository/InvoiceBeforePaymentBillingPartyRepository.php`
 - `sif/src/Service/InvoiceBeforePaymentServerPayloadAssembler.php`
 - `sif/src/Service/InvoiceBeforePaymentLegacyPreparationService.php`
+- `sif/src/Service/InvoiceBeforePaymentCommandService.php`
+- `sif/src/Service/InternalApiAuthenticator.php`
+- `sif/src/Service/InternalInvoiceBeforePaymentScopeResolver.php`
+- `sif/src/Repository/InternalApiRequestRepository.php`
+- `sif/src/Repository/OperationalEventRepository.php`
+- `sif/public/api/factures/before-payment.php`
 - `sif/database/migrations/2026_09_29_000009_guard_uc004_inscription_coverage.sql`
 - `sif/scripts/preview-invoice-before-payment.php`
 - `sif/scripts/preflight-invoice-before-payment.php`
