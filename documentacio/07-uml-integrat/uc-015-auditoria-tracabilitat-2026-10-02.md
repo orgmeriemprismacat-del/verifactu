@@ -262,6 +262,20 @@ La CI específica de UC-015 lintava `PackPaymentGate.php` i la pàgina de pagame
 
 **Estat:** implementat; el HEAD final del PR ha de demostrar la nova porta verda.
 
+### F-15 · Èxit de navegador contaminat per errors auxiliars post-commit — corregit
+
+L'endpoint escrivia `$hashIdInserit` després de persistir les inscripcions, però després continuava executant mailing, poblacions, credencials i correus dins el mateix `try`. Si una d'aquestes tasques fallava, el `catch` afegia `missatgeError(...)` a la resposta. El JavaScript detecta qualsevol text amb «error» i mostrava fallada encara que el pack ja estigués commitat, afavorint reintents/duplicats.
+
+**Correcció aplicada:**
+- `$packEnrollmentCommitted` passa a `true` només després del commit de les N inscripcions;
+- un error anterior al commit continua retornant error al navegador;
+- un error posterior al commit es registra amb `error_log` i no contamina el hash d'èxit;
+- `PackEnrollmentAtomicityBoundaryTest` comprova l'ordre commit → committed → resposta i la branca post-commit.
+
+Això no converteix els correus legacy en outbox durable; només evita un fals error funcional després d'una alta ja persistent.
+
+**Estat:** implementat i cobert per prova automatitzada; migració dels correus inicials a mecanisme durable continua fora d'aquest fix.
+
 ## 6. UML i traçabilitat
 
 ### Classes
@@ -354,7 +368,8 @@ Per tant:
 - eliminació de `pagFrac` com a entrada client i fixació server-side de no fraccionament;
 - correu d'alta generalitzat de 2 cursos fixos a PACK N;
 - alta N convertida en transacció atòmica amb rollback i lock `IDPAG` segur;
-- CI ampliada perquè endpoint, connexió, plantilla i JS PACK activin i passin lint.
+- CI ampliada perquè endpoint, connexió, plantilla i JS PACK activin i passin lint;
+- resposta post-commit desacoblada de fallades auxiliars per evitar falsos errors i reintents.
 - prova de regressió associada;
 - actualització de la fitxa funcional i UML integrat;
 - creació d'aquest registre de revalidació 02/10.
