@@ -67,6 +67,17 @@ final class UsocCourseChangeTargetResolverTest
         }, 422);
     }
 
+    public function testRejectsZeroStudentUntilFreeCoursePolicyExists(): void
+    {
+        Assert::throws(SifException::class, static function (): void {
+            (new UsocCourseChangeTargetResolver())->resolve([
+                'target_standard_course_amount' => '100.00',
+                'target_student_course_amount' => '0.00',
+                'management_fee' => '0.00',
+            ]);
+        }, 422);
+    }
+
     public function testRejectsNegativeOrMalformedAmounts(): void
     {
         Assert::throws(SifException::class, static function (): void {
