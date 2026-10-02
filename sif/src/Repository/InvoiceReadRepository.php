@@ -108,8 +108,7 @@ final class InvoiceReadRepository
         $stmt = $db->prepare(
             'SELECT ID, UUID_JOB, UUID_FACTURA, DOCUMENT_TYPE, GENERATOR_VERSION,
                     STATUS, ATTEMPTS, MAX_ATTEMPTS, NEXT_ATTEMPT_AT,
-                    FACTURA_DOCUMENT_ID, OUTPUT_HASH, LAST_ERROR,
-                    CORRELATION_ID, CREATED_AT, FINISHED_AT
+                    FACTURA_DOCUMENT_ID, OUTPUT_HASH, CREATED_AT, FINISHED_AT
              FROM document_job
              WHERE UUID_FACTURA = ?
              ORDER BY CREATED_AT ASC, ID ASC'
