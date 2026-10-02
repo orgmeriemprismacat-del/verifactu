@@ -77,6 +77,15 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
 	exit('Error: mètode no permès');
 }
 
+require_once __DIR__ . '/../inc/PublicWebMutationAuthorization.php';
+try {
+	PublicWebMutationAuthorization::assertSameOriginAjax();
+} catch (Throwable $exception) {
+	$code = (int) $exception->getCode();
+	http_response_code($code >= 400 && $code <= 599 ? $code : 403);
+	exit('Error: petició no autoritzada');
+}
+
 $allowedHosts = ['www.prisma.cat', 'prisma.cat'];
 $fetchSite = strtolower(trim((string) ($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '')));
 if ($fetchSite !== '' && !in_array($fetchSite, ['same-origin', 'same-site', 'none'], true)) {
