@@ -12,6 +12,7 @@ use Prisma\Sif\Repository\UsocFinancingCaseRepository;
 use Prisma\Sif\Repository\UsocLifecycleExecutionRepository;
 use Prisma\Sif\Service\ManualRectificationPayloadBuilder;
 use Prisma\Sif\Service\ManualRectificationService;
+use Prisma\Sif\Service\UsocCourseChangeDestinationBindingService;
 use Prisma\Sif\Service\UsocCourseChangeExecutionPreparationService;
 use Prisma\Sif\Service\UsocCourseChangeExecutionService;
 use Prisma\Sif\Service\UsocCourseChangeFundPlanService;
@@ -37,6 +38,7 @@ final class UsocCourseChangeExecutionServiceTest
         $this->preparation($cases)->prepare(
             $db, 891, 991, $requestId, $actor, ['ADMIN'], $target
         );
+        $this->bind($db, $requestId, 891, 991, 892, 1991, '95.00', 'a');
 
         $service = $this->executor($db, $cases);
         $input = [
@@ -88,7 +90,8 @@ final class UsocCourseChangeExecutionServiceTest
             'SELECT STATE FROM usoc_lifecycle_execution WHERE REQUEST_ID = ' . $db->quote($requestId)
         )->fetchColumn());
 
-        $targetCase = $cases->findByInscriptionAndIdpag($db, 892, 991);
+        Assert::same(1991, $first['target_idpag']);
+        $targetCase = $cases->findByInscriptionAndIdpag($db, 892, 1991);
         Assert::same('COURSE_CHANGE_PENDING_COLLECTION', $targetCase['STATUS']);
         Assert::same($first['student']['target_invoice_uuid'], $targetCase['UUID_STUDENT_INVOICE']);
         Assert::same($first['entity']['target_invoice_uuid'], $targetCase['UUID_ENTITY_INVOICE']);
@@ -103,6 +106,7 @@ final class UsocCourseChangeExecutionServiceTest
         $this->preparation($cases)->prepare(
             $db, 891, 991, $requestId, 'secretaria-test', ['ADMIN'], $target
         );
+        $this->bind($db, $requestId, 891, 991, 893, 1992, '60.00', 'b');
 
         $result = $this->executor($db, $cases)->execute(
             $db,
@@ -138,6 +142,7 @@ final class UsocCourseChangeExecutionServiceTest
         $this->preparation($cases)->prepare(
             $db, 891, 991, $requestId, 'secretaria-test', ['ADMIN'], $target
         );
+        $this->bind($db, $requestId, 891, 991, 894, 1993, '75.00', 'c');
         $service = $this->executor($db, $cases);
         $input = [
             'effective_at' => '2026-10-02 18:20:00',
@@ -152,6 +157,30 @@ final class UsocCourseChangeExecutionServiceTest
                 $db, 891, 991, $requestId, 'secretaria-test', ['ADMIN'], 895, $input
             );
         }, 409);
+    }
+
+    private function bind(
+        \PDO $db,
+        string $requestId,
+        int $sourceIdInsc,
+        int $sourceIdpag,
+        int $targetIdInsc,
+        int $targetIdpag,
+        string $studentTotal,
+        string $markerChar
+    ): void {
+        (new UsocCourseChangeDestinationBindingService(
+            new UsocLifecycleExecutionRepository(new UuidGenerator())
+        ))->bind(
+            $db,
+            $requestId,
+            $sourceIdInsc,
+            $sourceIdpag,
+            $targetIdInsc,
+            $targetIdpag,
+            'SIF-USOC-CC:' . str_repeat($markerChar, 32),
+            $studentTotal
+        );
     }
 
     private function sourceCase(): array
