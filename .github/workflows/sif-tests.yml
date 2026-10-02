@@ -6,6 +6,7 @@ on:
       - "sif/**"
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/pagina_inscripcio_pack.php"
       - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
       - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
       - "codi-drive/web-actual/inc/PackPaymentGate.php"
@@ -30,6 +31,7 @@ on:
       - "sif/**"
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
       - "codi-drive/web-actual/ajax/enviarInscripcioPack.php"
+      - "codi-drive/web-actual/pagina_inscripcio_pack.php"
       - "codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js"
       - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
       - "codi-drive/web-actual/inc/PackPaymentGate.php"
@@ -98,6 +100,7 @@ jobs:
         run: |
           php -l codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php
           php -l codi-drive/web-actual/ajax/enviarInscripcioPack.php
+          php -l codi-drive/web-actual/pagina_inscripcio_pack.php
           php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
           node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
           php -l codi-drive/web-actual/inc/PackPaymentGate.php
