@@ -4,6 +4,8 @@
 
 ## 1. Resultat executiu
 
+**Estat de l’auditoria:** `TANCAMENT TÈCNIC PENDENT NOMÉS DEL GATE CI`. Totes les troballes de la revisió tenen resolució implementada o classificació explícita. Els elements marcats com a pendents a la taula són deutes d’implementació transversal/entorn i **no són zones no auditades**.
+
 | Bloc | Documentat | Implementat després d'aquesta branca | Inspecció | Execució |
 | --- | --- | --- | --- | --- |
 | Idempotència mateixa clau/payload | Sí | Sí | Sí | Pendent CI |
@@ -31,7 +33,7 @@
 7. Es validen suma d'import base, base imposable, IVA i total entre capçalera i línies.
 8. `fact_rels.ID_FACTURA_LINIA` s'emplena quan l'origen identifica una única línia.
 
-## 3. Pendents deliberadament
+## 3. Deutes classificats després de l’auditoria — no són feina d’auditoria desconeguda
 
 No s'han modificat sense contracte suficient:
 
@@ -55,7 +57,24 @@ No s'han modificat sense contracte suficient:
 
 ## 5. Criteri de tancament
 
-Les correccions només passen de **implementades/verificades per inspecció** a **verificades en execució** quan la suite MySQL i els checks del PR siguin verds.
+L'auditoria UC-001 es considera tancada quan el head de codi d'aquesta revisió passa CI. El tancament significa que l'abast ha estat inspeccionat, les troballes pròpies s'han corregit quan hi havia contracte suficient i la resta ha quedat classificada. **No significa** desplegament, homologació AEAT ni finalització dels UCs/transversals relacionats.
+
+### 5.1. Bloquejadors de l'auditoria
+
+- [x] Fitxa funcional reconciliada.
+- [x] Inventari PHP/JS.
+- [x] Classes ACTUAL/FINAL.
+- [x] Seqüències ACTUAL/FINAL.
+- [x] Activitats/superfícies ACTUAL/FINAL.
+- [x] Idempotència/payload contrastada.
+- [x] Frontera HTTP autenticada i autoritzada.
+- [x] Coherència monetària i persistència d'exempció revisades.
+- [x] Troballes restants classificades per frontera.
+- [ ] Gate CI del head de codi.
+
+### 5.2. No bloqueja el tancament de l'auditoria, però sí altres fases
+
+La integració obligatòria de `commercial_operation`, els events funcionals, l'assembler AEAT complet, el resultat enriquit, el fencing/reconciliació AEAT i la configuració/preproducció continuen oberts com a **deute implementatiu o operatiu explícit**. No s'han silenciat ni declarat implementats.
 
 
 ## 6. Matriu detallada de troballes 51–86
