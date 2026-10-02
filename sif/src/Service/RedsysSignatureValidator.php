@@ -66,9 +66,9 @@ final class RedsysSignatureValidator
             throw SifException::validation('Missing Redsys merchant key');
         }
 
-        $order = $this->field($decoded, 'Ds_Order');
-        if ($order === null || $order === '') {
-            throw SifException::validation('Missing Redsys order');
+        $order = trim((string) $this->field($decoded, 'Ds_Order'));
+        if ($order === '' || strlen($order) > 12 || !ctype_alnum($order)) {
+            throw SifException::validation('Invalid Redsys order');
         }
 
         $derivedKey = $this->encrypt3DesZeroPadded($order, $key);
