@@ -40,6 +40,23 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+
+        $event = $db->query(
+            'SELECT OPERATION_TYPE, UUID_FACTURA, FISCAL_IMPACT, ECONOMIC_IMPACT,
+                    STATUS, REASON_CODE, ACTOR_ID, SOURCE_CHANNEL, CORRELATION_ID
+             FROM operational_event'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('ISSUE_INVOICE_BEFORE_PAYMENT', $event['OPERATION_TYPE']);
+        Assert::same($first['uuid_factura'], $event['UUID_FACTURA']);
+        Assert::same('INVOICE_ISSUED', $event['FISCAL_IMPACT']);
+        Assert::same('PENDING_PAYMENT', $event['ECONOMIC_IMPACT']);
+        Assert::same('COMPLETED', $event['STATUS']);
+        Assert::same('UC004_CONFIRMED', $event['REASON_CODE']);
+        Assert::same('gestio-factura-abans-cobrar', $event['ACTOR_ID']);
+        Assert::same('INTRANET', $event['SOURCE_CHANNEL']);
+        Assert::same('INTRANET|FACTURA_ABANS_COBRAR|REF:PRE900', $event['CORRELATION_ID']);
     }
 
     public function testBuilderDerivesIdempotencyAndForcesInvoiceBeforePaymentFlags(): void
@@ -161,6 +178,37 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
     }
 
+    public function testFailsClosedWhenInvoiceServiceHasNoOperationalAuditRepository(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoiceService = new \Prisma\Sif\Service\InvoiceService(
+            new \Prisma\Sif\Database\TransactionRunner($db),
+            new \Prisma\Sif\Service\InvoicePayloadValidator(),
+            new \Prisma\Sif\Repository\FiscalSequenceRepository(),
+            new \Prisma\Sif\Repository\InvoiceRepository(
+                new \Prisma\Sif\Domain\UuidGenerator(),
+                new \Prisma\Sif\Domain\HashCalculator()
+            ),
+            null,
+            null,
+            null,
+            new \Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository()
+        );
+        $service = new InvoiceBeforePaymentService(
+            new InvoiceBeforePaymentPayloadBuilder(),
+            $invoiceService
+        );
+
+        Assert::throws(\RuntimeException::class, function () use ($service): void {
+            $service->issueBeforePayment(Fixtures::invoicePayload([
+                'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|REF:NO-AUDIT-REPO',
+            ]));
+        });
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
+    }
+
     public function testDifferentIdempotencyKeyCannotCoverSameInscriptionTwice(): void
     {
         $db = TestDatabase::fresh();
@@ -229,6 +277,7 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fact_rels')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
         Assert::same(1, (int) $db->query(
             'SELECT LAST_NUM FROM fiscal_sequence WHERE TIPUS_SERIE = "A" AND ANY_FACT = 2026'
         )->fetchColumn());
