@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Tests\Integration;
 
+use Prisma\Sif\Contract\InvoiceBeforePaymentDocumentQueueInterface;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\DocumentJobRepository;
@@ -221,14 +222,18 @@ final class InvoiceBeforePaymentServiceTest
     public function testDocumentQueueFailureKeepsInvoiceCommittedAndRetryReusesIt(): void
     {
         $db = TestDatabase::fresh();
-        $db->exec(
-            "CREATE TRIGGER test_uc004_document_job_fail
-             BEFORE INSERT ON document_job
-             FOR EACH ROW
-             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'forced document queue failure'"
-        );
+        $failingQueue = new class implements InvoiceBeforePaymentDocumentQueueInterface {
+            public function ensurePdf(string $uuidFactura, string $invoiceIdempotencyKey): array
+            {
+                throw new \RuntimeException('forced document queue failure');
+            }
+        };
 
-        $service = $this->serviceWithDocuments($db);
+        $service = new InvoiceBeforePaymentService(
+            new InvoiceBeforePaymentPayloadBuilder(),
+            IssueInvoiceTest::serviceFor($db),
+            $failingQueue
+        );
         $input = Fixtures::invoicePayload([
             'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|REF:DOC-RECOVERY',
             'source_channel' => 'INTRANET',
@@ -256,11 +261,7 @@ final class InvoiceBeforePaymentServiceTest
             ]],
         ]);
 
-        try {
-            $first = $service->issueBeforePayment($input);
-        } finally {
-            $db->exec('DROP TRIGGER IF EXISTS test_uc004_document_job_fail');
-        }
+        $first = $service->issueBeforePayment($input);
 
         Assert::same(true, $first['ok']);
         Assert::same(false, $first['idempotency_reused']);
@@ -269,7 +270,8 @@ final class InvoiceBeforePaymentServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM document_job')->fetchColumn());
 
-        $retry = $service->issueBeforePayment($input);
+        $retryService = $this->serviceWithDocuments($db);
+        $retry = $retryService->issueBeforePayment($input);
 
         Assert::same(true, $retry['ok']);
         Assert::same(true, $retry['idempotency_reused']);
