@@ -1,7 +1,7 @@
 # UC-014 — Inventari executable PHP/JS ACTUAL, pont candidat i SIF
 
 **Data d'auditoria:** 02/10/2026  
-**Base revisada:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd`  
+**Base inicial:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd` · **revalidada després de sincronitzar:** `main@5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`  
 **Objectiu:** demostrar quines superfícies, scripts PHP/JS, serveis SIF i proves intervenen realment en «Comprar curs normal per Redsys», separant **ACTUAL**, **PONT CANDIDAT**, **FINAL SIF**, **VERIFICAT** i **PENDENT**.
 
 > Aquest inventari complementa la fitxa funcional i els UML. No acredita desplegament ni una transacció Redsys real de preproducció.
@@ -22,7 +22,7 @@
 | P-CUR-03 | Confirmació TPV | `pagina_efectuar_pagament_automatic.php` | `js1619773569/mostrarEfectuarPagamentAutomatic.js` | ACTUAL prepara formulari Redsys; el JS només confirma/cancel·la i envia `#frm` | DOCUMENTAT + IMPLEMENTAT |
 | P-CUR-04 | Callback servidor | `realitzaPagamentAutomatic.php` | — | ACTUAL/fallback: valida Redsys abans d'efectes a la branca d'auditoria, però continua sent arquitectura llegada fins al cutover | DOCUMENTAT + IMPLEMENTAT A BRANCA |
 | P-CUR-05 | Retorn navegador | `respostaOkPagamentAutomatic.php`, `respostaKoPagamentAutomatic.php` | `mostrarRespostaOkPagamentAutomatic.min.js`, `mostrarRespostaKoPagamentAutomatic.min.js` | El JS és presentacional; en el pont candidat el resultat visible consulta estat SIF autoritatiu | DOCUMENTAT + IMPLEMENTAT |
-| P-CUR-06 | Processament asíncron SIF | API + serveis SIF | — | intenció → callback → cua → worker → factura/cobrament → projecció llegada → outbox | DOCUMENTAT + IMPLEMENTAT + CI PR #79 |
+| P-CUR-06 | Processament asíncron SIF | API + serveis SIF | — | intenció → callback → cua → worker → factura/CHARGE → `EXTERNAL_ALLOCATION` → projecció llegada → outbox | DOCUMENTAT + IMPLEMENTAT + CI PR #79/#95 |
 
 ### Conclusió JS
 
@@ -94,14 +94,25 @@ Això redueix risc mentre existeixi fallback, però **no converteix el callback 
 
 ## 5. Atribució econòmica a la inscripció
 
-Per UC-014 ordinari, la traça actual és:
-1. `fact_rels/source_type=INSCRIPCIO/source_id=ID`;
-2. línia fiscal amb `source_type=INSCRIPCIO/source_id=ID`;
-3. `payment_transaction.IDPAG` + `DS_ORDER`;
-4. `payment_allocation` a la factura;
-5. `CourseLegacyPaymentSyncService` suma moviments `CONFIRMED` per `IDPAG` i projecta la inscripció concreta.
+El `main` sincronitzat incorpora el **PR #95**, que tanca l'antic A14-17 amb una atribució quantitativa explícita:
 
-Per tant, un repositori addicional `EnrollmentFundMovementRepository` **no és prerequisit de tancament del UC-014 ordinari** mentre `IDPAG` identifiqui de manera única la inscripció d'aquest cas. Si es vol repartir un sol cobrament entre múltiples inscripcions/participants, això és un requisit diferent que sí requeriria un model explícit de distribució.
+- `CourseEnrollmentFundAllocationService`;
+- `EnrollmentFundMovementRepository`;
+- taula `enrollment_fund_movement`;
+- moviment `EXTERNAL_ALLOCATION`;
+- clau idempotent `FUND|CURS|ORDER:<DS_ORDER>|INSC:<ID_INSC>`;
+- enllaços a `UUID_PAYMENT`, `UUID_FACTURA` i `ID_INSC_DESTI`.
+
+Ordre executable FINAL:
+1. `InvoiceService` crea/reutilitza factura, `CHARGE` i `payment_allocation`.
+2. `CourseEnrollmentFundAllocationService` bloqueja/valida el `CHARGE` confirmat.
+3. Verifica import, factura i línia `INSCRIPCIO`.
+4. Crea/reutilitza exactament un `EXTERNAL_ALLOCATION` per `DS_ORDER + ID_INSC`.
+5. Només després continua la projecció llegada i l'outbox.
+
+La fase falla tancada davant mismatch i és idempotent davant replay. `CourseEnrollmentFundAllocationServiceTest` cobreix alta/reús, trams parcials i mismatch; l'E2E CURS comprova complet, duplicat i parcial→complet.
+
+**Evidència PR #95:** `SIF PHP MySQL tests` **841 passed / 0 failed**; `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks` verds.
 
 ## 6. Retorn navegador
 
@@ -134,8 +145,8 @@ Pont candidat:
 - `JasomNovicePaymentGateTest`: inclou ara no-fraccionat parcial rebutjat i fraccionat parcial admès.
 - `RedsysCourseLegacyFallbackBoundaryTest`: comprova gate, escaping, configuració externa, signatura/order/import abans d'efectes i inicialització JASOM.
 
-**Evidència anterior:** el cap del PR #79 (`3569fffc…`) va completar amb èxit `SIF PHP MySQL tests`, `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks`.  
-**Evidència d'aquesta branca:** pendent de CI fins a obrir/actualitzar el PR.
+**Evidència anterior:** el cap del PR #79 (`3569fffc…`) va completar amb èxit `SIF PHP MySQL tests`, `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks`. El PR #95 (`3fa6377e…`) va tornar a deixar els quatre workflows verds i les suites SIF en **841 passed / 0 failed**, incorporant `EXTERNAL_ALLOCATION`.  
+**Evidència d'aquesta branca:** les proves específiques de hardening ACTUAL queden pendents del CI del PR #105.
 
 ## 8. Pendent real després d'aquesta auditoria
 
@@ -158,7 +169,8 @@ Pont candidat:
 | Activitats per pàgina | EXISTEIXEN per P-CUR-01..06; JS incorporat |
 | SIF final | IMPLEMENTAT al repositori |
 | Pont candidat | IMPLEMENTAT al repositori |
-| E2E intern | VERIFICAT al PR #79; revalidació de branca pendent de CI |
+| Atribució quantitativa per inscripció | IMPLEMENTADA + VERIFICADA al PR #95 (`EXTERNAL_ALLOCATION`) |
+| E2E intern | VERIFICAT al PR #79 i ampliat/verificat al PR #95 amb fund allocation; hardening de PR #105 pendent de CI |
 | Redsys preproducció real | PENDENT |
 | Cutover productiu | PENDENT |
 | Lliurament email UC-58 | PENDENT |
