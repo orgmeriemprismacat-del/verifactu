@@ -33,6 +33,9 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("UsocCourseChangeExecutionPreparationService", $api);
         Assert::stringContainsString("bind_course_change_destination", $api);
         Assert::stringContainsString("prepare_course_change", $api);
+        Assert::stringContainsString("course_change_execution_status", $api);
+        Assert::stringContainsString("execute_course_change", $api);
+        Assert::stringContainsString("UsocCourseChangeExecutionService", $api);
         Assert::stringContainsString("execute_cancellation", $api);
         Assert::stringContainsString("cancellation_execution_status", $api);
         Assert::stringContainsString("UsocLifecycleGuardService", $api);
@@ -60,11 +63,15 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("public function courseChangePreview", $client);
         Assert::stringContainsString("public function prepareCourseChange", $client);
         Assert::stringContainsString("public function bindCourseChangeDestination", $client);
+        Assert::stringContainsString("public function courseChangeExecutionStatus", $client);
+        Assert::stringContainsString("public function executeCourseChange", $client);
         Assert::stringContainsString("public function executeCancellation", $client);
         Assert::stringContainsString("public function cancellationExecutionStatus", $client);
 
         Assert::stringContainsString("SIF_USOC_READ_ROLES", $config);
         Assert::stringContainsString("SIF_USOC_MANAGE_ROLES", $config);
+        Assert::stringContainsString("SIF_USOC_ENTITY_NAME", $config);
+        Assert::stringContainsString("SIF_USOC_ENTITY_NIF", $config);
         Assert::stringContainsString("SIF_INTERNAL_USOC_SIGNED_PATH", $config);
     }
 }
