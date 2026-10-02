@@ -101,4 +101,30 @@ final class PackEnrollmentAtomicityBoundaryTest
         Assert::same(true, $success < $postCommitGuard);
     }
 
+
+    public function testPackLineAllocationMustMatchPackPriceBeforeCommit(): void
+    {
+        $path = dirname(__DIR__, 3)
+            . '/codi-drive/web-actual/ajax/enviarInscripcioPack.php';
+
+        $source = file_get_contents($path);
+        if (!is_string($source)) {
+            Assert::fail('Could not load PACK enrollment endpoint');
+        }
+
+        Assert::stringContainsString('$preuPackCents = (int) round($preuPack * 100);', $source);
+        Assert::stringContainsString('$preuCursosCents = (int) round($preuCursos * 100);', $source);
+        Assert::stringContainsString('$preuPackCents > $preuCursosCents', $source);
+        Assert::stringContainsString('$totalPackLinesCents += (int) round($preuCurs * 100);', $source);
+        Assert::stringContainsString('$totalPackLinesCents !== $preuPackCents', $source);
+        Assert::stringContainsString('(int) round($aux * 100) !== 0', $source);
+
+        $allocationGuard = strpos($source, '$totalPackLinesCents !== $preuPackCents');
+        $commit = strpos($source, '$connexio->commitTransaction()');
+
+        Assert::same(true, $allocationGuard !== false);
+        Assert::same(true, $commit !== false);
+        Assert::same(true, $allocationGuard < $commit);
+    }
+
 }
