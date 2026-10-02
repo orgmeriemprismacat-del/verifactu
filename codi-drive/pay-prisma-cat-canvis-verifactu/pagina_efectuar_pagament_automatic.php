@@ -209,6 +209,14 @@ try {
       $miObj->setParameter("DS_MERCHANT_URLKO",$urlKO);
 
       // Datos de configuració: cap secret Redsys queda al codi.
+      $gatewayUrl = trim((string) getenv('REDSYS_GATEWAY_URL'));
+      if ($gatewayUrl === '') {
+         throw new RuntimeException('REDSYS_GATEWAY_URL_NOT_CONFIGURED');
+      }
+      if (!str_starts_with($gatewayUrl, 'https://')) {
+         throw new RuntimeException('REDSYS_GATEWAY_URL_MUST_USE_HTTPS');
+      }
+
       $version="HMAC_SHA256_V1";
       $kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
       if ($kc === '') {
@@ -241,8 +249,7 @@ try {
                }
             ?>
          </div>
-         <!-- <form id='frm' name='frm' action='https://sis.redsys.es/sis/realizarPago' method='post'> -->
-   			<form id='frm' name='frm' action='https://sis-t.redsys.es:25443/sis/realizarPago' method='post'>
+         <form id='frm' name='frm' action="<?php echo htmlspecialchars($gatewayUrl, ENT_QUOTES, 'UTF-8'); ?>" method='post'>
 
 					<!-- cal afegir tots els camps per confirmar les dades de facturació -->
 				 <input type="hidden" name="producto" value="<?php echo htmlspecialchars($producto, ENT_QUOTES, 'UTF-8'); ?>"/>
