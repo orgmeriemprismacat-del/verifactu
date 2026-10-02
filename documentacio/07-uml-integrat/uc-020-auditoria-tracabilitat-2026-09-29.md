@@ -237,6 +237,7 @@ Aquesta capa és **complementària**, no substitutiva, de la infraestructura com
 | UC020-80 | Manca orquestrador server-side d'operació/validació. | **IMPLEMENTAT I INTEGRAT AL PAGAMENT ACTIU** a `PrismaStudentCourseCheckoutService` via `/api/redsys/course-intent.php`; alta/preview/intranet pendents. |
 | UC020-81 | Manca vincle runtime `UUID_OPERATION ↔ UUID_INTENT`. | **IMPLEMENTAT_NUCLI**; integració de canal i política de múltiples intents pendents. |
 | UC020-82 | Invariant transversal factura vs cobrament. | **PENDENT TRANSVERSAL**; considerar fraccionaments. |
+| UC020-83 | El primer resolver històric AP filtrava `HORES` com a columna separada i no replicava el selector web `(CURS=codi OR CURS=hores OR TOTS)`. | **CORREGIT CODI + TEST**; el pagament AP reconstrueix ara amb la semàntica llegada coneguda i continua fallant tancat davant múltiples coincidències. |
 
 ### 8.3. Decisions que continuen pendents
 
@@ -267,7 +268,7 @@ Això reclassifica les troballes històriques que deien «adaptador de pagament 
 Per al pagament AP actiu:
 
 - SIF rellegeix matrícula i saldo;
-- la tarifa AP històrica es reconstrueix a `DATA_INSC`;
+- la tarifa AP històrica es reconstrueix a `DATA_INSC` replicant la selecció llegada `CURS=codi | hores | TOTS` i `MES=edicio`;
 - es rebutja una tarifa absent, ambigua o que no reprodueixi `A_PAGAR`;
 - el snapshot fixa base/descompte/net;
 - `CourseIntentSnapshotValidator` contrasta source, IDPAG i import;
