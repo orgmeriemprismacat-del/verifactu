@@ -1,6 +1,6 @@
 # UC-001 · Auditoria i traçabilitat — 2026-10-02
 
-**Base de reconciliació:** `main` `f7fa0822f82be96e842d9f2d031e643ab07f617c`.
+**Base de reconciliació:** `main` `549d7ef9280df3cd5249340e3785a4bf23a14b78`. Els 10 commits nous des de `f7fa0822f82be96e842d9f2d031e643ab07f617c` només afecten documentació/índex d’UC-008 i no canvien cap superfície d’UC-001.
 
 ## 1. Resultat executiu
 
@@ -92,7 +92,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 - el PR queda obert i mergeable a nivell Git, però la decisió de merge queda condicionada a evidència d’execució posterior;
 - qualsevol fallada futura del CI reobre només la troballa/prova afectada, no converteix retroactivament l’evidència pendent en evidència verda.
 
-## 6. Matriu detallada de troballes 51–86
+## 6. Matriu detallada de troballes 51–90
 
 | ID | Troballa | Tractament a la branca | Estat |
 | --- | --- | --- | --- |
@@ -144,6 +144,8 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 | UC001-VAL-04 | `import_base` de capçalera diferent de la suma de línies | **Implementat en test**: 422 abans de numerar |
 | UC001-VAL-05 | `iva_import` de capçalera diferent de la suma de línies | **Implementat en test**: 422 abans de numerar |
 | UC001-VAL-06 | `source_channel` buit | **Implementat en test**: 422 abans de numerar |
+| UC001-VAL-07 | `totals.discount` diferent de la suma de `line.discount_amount` | **Implementat en test**: 422 abans de numerar |
+| UC001-VAL-08 | clau idempotent o canal amb whitespace perifèric | **Implementat en test**: 422; no es persisteix una identitat no canònica |
 | UC001-REL-02 | dues línies comparteixen el mateix origen d'una única `fact_rel` | **Implementat en test**: `ID_FACTURA_LINIA=NULL`, mai assignació arbitrària |
 | UC001-YEAR-01 | edició d'any anterior emesa l'any actual | expected pendent de decisió funcional/fiscal |
 | UC001-COV-01 | mateixa obligació comercial amb dues claus diferents | no duplicar factura; guard pendent |
