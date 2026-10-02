@@ -263,40 +263,6 @@ try {
         return;
     }
 
-    if ($action === 'course_change_prepare') {
-        $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
-        $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
-        $target = $payload['target'] ?? null;
-        if (!is_array($target)) {
-            throw SifException::validation('Invalid USOC course change target input');
-        }
-
-        $guard = new UsocLifecycleGuardService($cases);
-        $preview = new UsocCourseChangePreviewService(
-            new UsocLifecyclePlanService($cases, $guard),
-            new UsocCourseChangeTargetResolver(),
-            new UsocCourseChangeFundPlanService()
-        );
-        $service = new UsocCourseChangeExecutionPreparationService(
-            $preview,
-            new UsocLifecycleExecutionRepository(new UuidGenerator())
-        );
-
-        JsonResponse::send([
-            'ok' => true,
-            'preparation' => $service->prepare(
-                $db,
-                $idInsc,
-                $idpag,
-                requiredRequestId($payload['request_id'] ?? null),
-                (string) ($actor['actor_id'] ?? ''),
-                (array) ($actor['roles'] ?? []),
-                $target
-            ),
-        ]);
-        return;
-    }
-
     if ($action === 'course_change_execution_status') {
         $requestId = requiredRequestId($payload['request_id'] ?? null);
         $execution = (new UsocLifecycleExecutionRepository(new UuidGenerator()))
