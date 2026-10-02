@@ -326,3 +326,33 @@ UI-->>G: mostrar preview; no continuar al legacy
 ```
 
 **Invariant:** el preview no confia en `apagar`, `pagat` ni `despeses` editables del navegador per determinar el contracte USOC.
+
+## 13. ACTUAL — preparació durable COURSE_CHANGE sense efectes
+
+```mermaid
+sequenceDiagram
+autonumber
+participant Caller as Futur executor/API
+participant Prep as UsocCourseChangeExecutionPreparationService
+participant Prev as UsocCourseChangePreviewService
+participant Repo as UsocLifecycleExecutionRepository
+participant DB as usoc_lifecycle_execution
+
+Caller->>Prep: prepare(requestId,idInsc,idpag,target)
+Prep->>Repo: findByRequestId()
+alt primer intent
+ Prep->>Prev: preview()
+ Prev-->>Prep: plan congelable, can_execute=false
+ Prep->>Repo: begin(OPERATION=COURSE_CHANGE)
+ Repo->>DB: INSERT STATE=REQUESTED + hashes + JSON
+ Repo-->>Prep: checkpoint
+ Prep-->>Caller: REQUESTED, effects_applied=false
+else retry mateix payload
+ Repo-->>Prep: mateix checkpoint REQUESTED
+ Prep-->>Caller: idempotency_reused=true
+else requestId + payload divergent
+ Repo-->>Prep: CONFLICT
+end
+```
+
+La migració `000033` amplia el CHECK de `usoc_lifecycle_execution.OPERATION` per admetre `COURSE_CHANGE`. Aquesta fase encara no pot marcar `COMPLETED`.
