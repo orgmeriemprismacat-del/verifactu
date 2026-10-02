@@ -47,6 +47,7 @@ $request = $_POST;
 
 $idPagReserved = false;
 $packTransactionStarted = false;
+$packEnrollmentCommitted = false;
 
 try {
 	$textNom = new Text($request['nom']);
@@ -559,6 +560,7 @@ try {
 			$connexio->closeStmt();
 			$connexio->commitTransaction();
 			$packTransactionStarted = false;
+			$packEnrollmentCommitted = true;
 			$connexio->releaseIdPag();
 			$idPagReserved = false;
 		}
@@ -689,7 +691,12 @@ catch(Exception $e) {
 		$packTransactionStarted = false;
 	}
 
-	if ($e->getCode()==404)
+	if ($packEnrollmentCommitted) {
+		// La inscripció principal ja és persistent: no convertir una fallada auxiliar
+		// (mailing, poblacions, credencials o correu) en un fals error de navegador.
+		error_log('UC-015 PACK post-commit auxiliary failure; code=' . (int) $e->getCode());
+	}
+	else if ($e->getCode()==404)
       echo mostrarPagina404();
    else
       echo missatgeError($e->getCode());
