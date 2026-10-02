@@ -137,8 +137,9 @@ endif
 :Crear DS_ORDER = time() [fallback ACTUAL];
 :Crear MerchantURL llegat;
 :Crear URL OK/KO;
-:Crear DS_MERCHANT_AMOUNT autoritatiu * 100;
-:Carregar merchant code/key des d'entorn [branca 02/10];
+:Crear DS_MERCHANT_AMOUNT en cèntims deterministes;
+:Crear DS_MERCHANT_MERCHANTDATA amb IDPAG/import/frac autoritatius;
+:Carregar merchant code/key/terminal/gateway des d'entorn [branca 02/10];
 :Signar petició Redsys;
 :Renderitzar formulari sanejat;
 if (Usuari confirma?) then (Sí)
@@ -190,8 +191,9 @@ start
 :Decodificar MerchantParameters;
 :Carregar clau Redsys des d'entorn [branca 02/10];
 :Calcular i comparar signatura amb hash_equals;
-:Comparar Ds_Order amb order esperada;
-:Comparar Ds_Amount amb import esperat;
+:Extreure IDPAG/import/frac de Ds_MerchantData signat;
+:Comparar Ds_Order i Ds_Amount signats;
+:Rebutjar divergència amb IDPAG/order del query legacy si existeix;
 if (Validació falla?) then (Sí)
   :HTTP 400 sense factura ni correu;
   stop
