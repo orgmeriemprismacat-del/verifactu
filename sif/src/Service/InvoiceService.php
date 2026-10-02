@@ -8,6 +8,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 
 final class InvoiceService
@@ -20,7 +21,8 @@ final class InvoiceService
         private ?PaymentPayloadValidator $paymentValidator = null,
         private ?PaymentRepository $payments = null,
         private ?PayloadIdempotencyValidatorInterface $idempotency = null,
-        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null
+        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null,
+        private ?OperationalEventRepository $operationalEvents = null
     ) {
         $this->idempotency ??= new PayloadIdempotencyValidator();
     }
@@ -32,6 +34,12 @@ final class InvoiceService
         if ($this->requiresBeforePaymentCoverage($payload) && $this->beforePaymentCoverage === null) {
             throw new \RuntimeException(
                 'Invoice-before-payment payload requires the UC-004 coverage repository.'
+            );
+        }
+
+        if ($this->requiresBeforePaymentCoverage($payload) && $this->operationalEvents === null) {
+            throw new \RuntimeException(
+                'Invoice-before-payment payload requires the UC-004 operational audit repository.'
             );
         }
 
@@ -72,6 +80,7 @@ final class InvoiceService
                     $created['uuid_factura'],
                     $payload['idempotency_key']
                 );
+                $this->appendBeforePaymentOperationalEvent($db, $payload, $created);
             }
 
             $payment = $this->createInitialPaymentIfPresent($db, $payload, $created['uuid_factura']);
@@ -191,6 +200,49 @@ final class InvoiceService
             'uuid_factura' => $existing['UUID_FACTURA'],
             'num_visible' => $existing['NUM_VISIBLE'],
         ];
+    }
+
+    private function appendBeforePaymentOperationalEvent(\PDO $db, array $payload, array $created): void
+    {
+        $relations = array_values(array_map(
+            static fn (array $relation): array => [
+                'source_type' => (string) ($relation['source_type'] ?? ''),
+                'source_id' => $relation['source_id'] ?? null,
+                'relation_type' => (string) ($relation['relation_type'] ?? 'ORIGIN'),
+            ],
+            array_values(array_filter(
+                $payload['relations'] ?? [],
+                static fn (mixed $relation): bool => is_array($relation)
+            ))
+        ));
+
+        $this->operationalEvents->append($db, [
+            'operation_type' => 'ISSUE_INVOICE_BEFORE_PAYMENT',
+            'source_type' => 'UC004_SELECTION',
+            'source_id' => (string) $payload['idempotency_key'],
+            'uuid_factura' => (string) $created['uuid_factura'],
+            'fiscal_impact' => 'INVOICE_ISSUED',
+            'economic_impact' => 'PENDING_PAYMENT',
+            'status' => 'COMPLETED',
+            'reason_code' => 'UC004_CONFIRMED',
+            'before_snapshot' => null,
+            'after_snapshot' => [
+                'uuid_factura' => (string) $created['uuid_factura'],
+                'num_visible' => (string) $created['num_visible'],
+                'billing_nif' => (string) ($payload['billing']['nif'] ?? ''),
+                'total' => (string) ($payload['totals']['total'] ?? ''),
+                'relations' => $relations,
+            ],
+            'actor_type' => 'INTERNAL_USER',
+            'actor_id' => $payload['created_by'] ?? null,
+            'actor_role' => null,
+            'source_channel' => (string) ($payload['source_channel'] ?? 'INTRANET'),
+            'correlation_id' => (string) $payload['idempotency_key'],
+            'occurred_at' => (new \DateTimeImmutable(
+                'now',
+                new \DateTimeZone('Europe/Madrid')
+            ))->format('Y-m-d H:i:s.u'),
+        ]);
     }
 
     private function requiresBeforePaymentCoverage(array $payload): bool
