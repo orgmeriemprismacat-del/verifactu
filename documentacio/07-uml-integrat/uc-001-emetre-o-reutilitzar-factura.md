@@ -9,7 +9,7 @@
 | Actors | Ecommerce, intranet o procés automàtic **a través d'un adaptador autoritzat**. L'endpoint genèric no demostra que tots els canals finals estiguin connectats. |
 | Disparador | Un canal demana emetre una factura per una operació facturable, o reintenta una emissió prèvia. |
 | Entrada mínima verificada al validador | `idempotency_key`, `series`, `type`, `source_channel`, `billing`, `totals`, `lines`; la branca de hardening rebutja clau idempotent buida/sobredimensionada, canal buit i totals de capçalera incompatibles amb les línies. |
-| Identificació fiscal verificada | `billing.name` i `billing.nif` no buits. El validador actual accepta sèries `A` i `R`, tipus `F1`, `F2`, `R1`…`R5`; **aquestes validacions no demostren per si soles conformitat fiscal completa**. |
+| Identificació fiscal verificada | `billing.name` i `billing.nif` no buits. El validador accepta sèries `A` i `R`, tipus `F1`, `F2`, `R1`…`R5` i exigeix coherència de família (`A` amb `F1/F2`; `R` amb `R1…R5`). **Això no decideix per si sol quin tipus rectificatiu concret correspon ni demostra conformitat fiscal completa**. |
 | Imports i línies verificats | `totals.import_base`, `taxable_base`, `total` numèrics; almenys una línia amb `concept`, `quantity`, `unit_price`, `base` i `total` i imports numèrics. |
 | Cobrament inicial opcional | Si hi ha bloc `payment`, el servei necessita `PaymentPayloadValidator` i `PaymentRepository`, i crea el moviment dins la mateixa transacció d'emissió. |
 | Resultat | `ok`, `uuid_factura`, `num_visible`, `idempotency_reused` i, si es registra un pagament inicial, `uuid_payment`. |
