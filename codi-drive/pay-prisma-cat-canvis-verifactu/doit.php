@@ -102,6 +102,10 @@
 			if ( $stmtRegal=$connexio->prepare($cnsInsc) ) {
 				$stmtRegal->bind_param("d", $idPag);
 				$stmtRegal->execute();
+				$stmtRegal->store_result();
+				if ($stmtRegal->num_rows !== 1) {
+					throw new RuntimeException('REDSYS_IDPAG_NOT_UNIQUE_OR_MISSING');
+				}
 				$stmtRegal->bind_result($idInsc, $any, $mes, $codiCurs, $nom, $cognoms, $dni,
 				$email, $adreca, $cp, $poble, $factRel, $apagar, $inscrit, $importPagat, $fraccio);
 				$stmtRegal->fetch();
@@ -761,6 +765,10 @@
 			if ( $stmtInsc=$connexio->prepare($cnsInsc) ) {
 				$stmtInsc->bind_param("d", $idPag);
 				$stmtInsc->execute();
+				$stmtInsc->store_result();
+				if ($stmtInsc->num_rows !== 1) {
+					throw new RuntimeException('REDSYS_IDPAG_NOT_UNIQUE_OR_MISSING');
+				}
 				$stmtInsc->bind_result($any, $mes, $codiCurs, $nom, $cognoms, $dni,
 				$email, $adreca, $cp, $poble, $factRel, $apagar, $inscrit, $importPagat, $pagObs);
 				$stmtInsc->fetch();
