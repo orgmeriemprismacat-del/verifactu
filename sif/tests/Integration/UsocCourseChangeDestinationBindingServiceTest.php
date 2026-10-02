@@ -107,6 +107,7 @@ final class UsocCourseChangeDestinationBindingServiceTest
             896,
             996,
             1896,
+            1996,
             'SIF-USOC-CC:' . str_repeat('b', 32),
             '95.00'
         );
@@ -156,6 +157,48 @@ final class UsocCourseChangeDestinationBindingServiceTest
                 2897,
                 1997,
                 'SIF-USOC-CC:' . str_repeat('c', 32),
+                '95.00'
+            );
+        }, 409);
+    }
+
+    public function testDifferentDestinationIdpagForSameCheckpointConflicts(): void
+    {
+        $db = TestDatabase::fresh();
+        $cases = $this->seedCase($db, 899, 999);
+        $repo = new UsocLifecycleExecutionRepository(new UuidGenerator());
+
+        $this->preparation($cases, $repo)->prepare(
+            $db,
+            899,
+            999,
+            'uc013-bind-899-1',
+            'operator-1',
+            ['GESTIO'],
+            $this->target()
+        );
+
+        $service = new UsocCourseChangeDestinationBindingService($repo);
+        $service->bind(
+            $db,
+            'uc013-bind-899-1',
+            899,
+            999,
+            1899,
+            1999,
+            'SIF-USOC-CC:' . str_repeat('e', 32),
+            '95.00'
+        );
+
+        Assert::throws(SifException::class, static function () use ($db, $service): void {
+            $service->bind(
+                $db,
+                'uc013-bind-899-1',
+                899,
+                999,
+                1899,
+                2999,
+                'SIF-USOC-CC:' . str_repeat('e', 32),
                 '95.00'
             );
         }, 409);
