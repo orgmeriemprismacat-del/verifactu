@@ -67,20 +67,20 @@ Vegeu [revisió i model proposat de moviments per inscripció](00-revisio-movime
 | EI-06 | Factura existent amb nou cobrament posterior i clau de factura repetida | UC-02 crea/reutilitza només el CHARGE real; UC-01 no crea un nou ingrés a la branca de reús. |
 
 
-### 1.6. Actualització v2 de main: el reús fiscal ja compara tota la petició, amb una excepció econòmica pendent
+### 1.6. Actualització v3: el reús fiscal compara tota la petició i falla tancat si falta el payment original
 
 A main, InvoiceService rep opcionalment PayloadIdempotencyValidatorInterface i l'inicialitza amb PayloadIdempotencyValidator. InvoiceRepository::insertInvoice() desa IDEMPOTENCY_PAYLOAD_HASH de la **petició completa validada**, inclòs el bloc payment quan hi és, i InvoiceService::existingResultWithPaymentIfPresent() crida assertMatches(payload,hashOriginal) **abans de retornar una factura existent**. La migració 2026_09_21_000007_add_idempotency_payload_hashes.sql incorpora aquesta columna nullable: les factures prèvies sense fingerprint original **fallaran tancat** en reús, perquè no és possible reconstruir tota la petició des del registre fiscal. Dues peticions amb la mateixa clau i receptor/import/línies/bloc payment diferents es rebutgen amb conflicte; no consumir una nova seqüència fiscal.
 
 **Canvi explícit respecte a la branca documental anterior:** el subtítol 4.2 i les seves frases que diuen que el PHP actual pot reutilitzar K sense comparar el payload només descrivien la versió anterior i **no són certs a main**. El guard contra dos identificadors comercials diferents per una mateixa inscripció, l'autenticació de l'adaptador i la comprovació de cobertura fiscal entre claus **continuen pendents**. El hash de petició d'InvoiceService no és HASH_FACT de la cadena fiscal ni PAYLOAD_HASH de la notificació Redsys.
 
-**Límit econòmic que es conserva a main:** una petició idèntica amb bloc payment sobre una factura preexistent només cerca el pagament inicial per idempotency_key i pot retornar la factura **sense uuid_payment** si aquella partida no existeix. El hash idèntic d'emissió per si sol **no comprova** que el CHARGE/assignació real existeixi ni el registra si falta; el canal ha de conciliar i passar pel cas UC-02 quan correspongui. Reintentar una factura inicialment emesa sense payment amb la mateixa clau però un bloc payment nou ara produeix CONFLICT per payload diferent, en comptes de completar el deute sobre UC-01.
+**Hardening incorporat a la branca UC-001:** una petició idèntica que originalment contenia `payment` ha de recuperar el moviment inicial per la seva clau idempotent. Si el moviment no existeix, `InvoiceService::existingResultWithPaymentIfPresent()` retorna **CONFLICT** i no presenta la factura com a reús econòmic correcte. El servei tampoc recrea silenciosament el CHARGE que falta. Reintentar una factura inicialment emesa sense `payment` amb la mateixa clau però afegint-ne un de nou continua produint CONFLICT per payload diferent; un ingrés real posterior correspon a UC-02.
 
 | Prova v2 localitzada a main o pendent | Expectativa |
 | --- | --- |
 | PayloadIdempotencyFlowTest::testInvoiceRetryComparesFullOriginalInputAndPreservesFiscalSequence | Mateixa clau amb payload diferent rebutjat, sense nou número fiscal [prova definida, no executada aquí]. |
 | PayloadIdempotencyFlowTest::testRetryCannotAddAnInitialPaymentToAnAlreadyIssuedInvoice | Reintent que intenta afegir payment al payload original, rebutjat [prova definida, no executada aquí]. |
 | PayloadIdempotencyFlowTest::testOriginalInvoiceWithoutFingerprintFailsClosed | Factura pre-migració sense hash complet no accepta un reús no verificable [prova definida, no executada aquí]. |
-| EI-11 [PENDENT] | Mateix payload fiscal, clau idèntica i payment inicial absent després d'una fallada/alteració històrica: no donar per cobrat només pel reús ni retornar uuid_payment inventat. |
+| PayloadIdempotencyFlowTest::testRetryWithOriginalPaymentFailsClosedWhenPaymentRecordIsMissing | Mateix payload i clau amb `payment` original absent a BD: CONFLICT, cap `uuid_payment` inventat ni recreació silenciosa [prova definida; pendent CI]. |
 
 ## 2. Diagrama UML de casos d'ús
 
@@ -259,8 +259,9 @@ Reuse ..> FindPay : <<include>> [si el payload inclou payment]
 B --> Charge
 C --> Charge
 note bottom of Charge
- Reutilitzar una factura sense uuid_payment
- no crea un cobrament posterior.
+ Si el payload original tenia payment però
+ el moviment falta, el reús falla amb CONFLICT.
+ Un cobrament posterior real correspon a UC-02.
 end note
 @enduml
 ```
