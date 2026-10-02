@@ -173,7 +173,7 @@ try {
 
       $name='Associaci&oacute; per al Desenvolupament Infantil i Familiar PrisMa';
 
-      $producto=$dniTitularPag." | ".stripslashes($titolPag);
+      $producto='Curs ' . $cursPag . ' | ' . stripslashes($titolPag);
 
       // Se Rellenan los campos
       $miObj->setParameter("DS_MERCHANT_AMOUNT",$amount);
@@ -182,7 +182,7 @@ try {
       $miObj->setParameter("DS_MERCHANT_MERCHANTCODE",$fuc);
       $miObj->setParameter("DS_MERCHANT_CURRENCY",$moneda);
       $miObj->setParameter("DS_MERCHANT_PRODUCTDESCRIPTION",$producto);
-      $miObj->setParameter("DS_MERCHANT_TITULAR",$dniTitularPag);
+      $miObj->setParameter("DS_MERCHANT_TITULAR",$nomTitularPag);
       $miObj->setParameter("DS_MERCHANT_TRANSACTIONTYPE",$trans);
       $miObj->setParameter("DS_MERCHANT_TERMINAL",$terminal);
       $miObj->setParameter("DS_MERCHANT_MERCHANTURL",$url);
