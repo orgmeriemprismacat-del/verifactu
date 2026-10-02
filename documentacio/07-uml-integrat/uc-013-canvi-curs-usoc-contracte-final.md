@@ -2,7 +2,7 @@
 
 **Data de revalidació:** 2026-10-02  
 **Main contrastat:** `f7fa0822f82be96e842d9f2d031e643ab07f617c`  
-**Estat:** CONTRACTE FUNCIONAL/TÈCNIC DOCUMENTAT · EXECUTOR PENDENT
+**Estat:** CONTRACTE DOCUMENTAT · RESOLVER D'IMPORTS IMPLEMENTAT · EXECUTOR PENDENT
 
 ## 1. Objectiu
 
@@ -333,6 +333,6 @@ Mateix `requestId` + payload divergent → `CONFLICT`.
 ## 13. Estat
 
 - **DOCUMENTAT:** sí.
-- **IMPLEMENTAT:** guard, payer snapshot, planner, preu legacy destí i infraestructura de compensació existeixen per separat.
+- **IMPLEMENTAT:** guard, payer snapshot, planner, preu legacy destí, `UsocCourseChangeTargetResolver` i infraestructura de compensació existeixen. El resolver calcula el split destí amb aritmètica en cèntims i no mou diners.
 - **VERIFICAT:** contrast estàtic contra codi real.
-- **PENDENT D'IMPLEMENTAR:** resolver/snapshot destí USOC, executor `COURSE_CHANGE`, reemissió coordinada, compensació per pagador, handoff legacy i proves d'integració/E2E.
+- **PENDENT D'IMPLEMENTAR:** selecció/snapshot de la regla comercial destí, executor `COURSE_CHANGE`, reemissió coordinada, compensació per pagador, handoff legacy i E2E complet.
