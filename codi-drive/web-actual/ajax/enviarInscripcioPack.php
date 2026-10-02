@@ -13,57 +13,89 @@ include("../Template.php");
 include("../MailSMTPComvive.php");
 include("../MailSMTP.php");
 
+header('Cache-Control: no-store, max-age=0');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
+
+if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
+	header('Allow: POST');
+	http_response_code(405);
+	exit('Error: mètode no permès');
+}
+
+$allowedHosts = ['www.prisma.cat', 'prisma.cat'];
+$fetchSite = strtolower(trim((string) ($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '')));
+if ($fetchSite !== '' && !in_array($fetchSite, ['same-origin', 'same-site', 'none'], true)) {
+	http_response_code(403);
+	exit('Error: origen no permès');
+}
+
+foreach (['HTTP_ORIGIN', 'HTTP_REFERER'] as $headerName) {
+	$headerValue = trim((string) ($_SERVER[$headerName] ?? ''));
+	if ($headerValue === '') {
+		continue;
+	}
+
+	$host = strtolower((string) parse_url($headerValue, PHP_URL_HOST));
+	if ($host === '' || !in_array($host, $allowedHosts, true)) {
+		http_response_code(403);
+		exit('Error: origen no permès');
+	}
+}
+
+$request = $_POST;
+
 try {
-	$textNom = new Text($_GET['nom']);
-	$textCog = new Text($_GET['cog']);
-	$textDocumentacio = new Text($_GET['dni']);
-	$numTelf = new Numero($_GET['telf']);
-	$textEmail = new Text($_GET['email']);
-	$textAdreca = new Text($_GET['adreca']);
-	$textCodiPostal = new Text($_GET['codiPostal']);
-	$textPoblacio = new Text($_GET['poblacio']);
-	$textPerfil = new Text($_GET['perfil']);
-	if ( $_GET['perfil'] == "Altres")
-		$textPerfilAltres = new Text($_GET['perfilAltres']);
+	$textNom = new Text($request['nom']);
+	$textCog = new Text($request['cog']);
+	$textDocumentacio = new Text($request['dni']);
+	$numTelf = new Numero($request['telf']);
+	$textEmail = new Text($request['email']);
+	$textAdreca = new Text($request['adreca']);
+	$textCodiPostal = new Text($request['codiPostal']);
+	$textPoblacio = new Text($request['poblacio']);
+	$textPerfil = new Text($request['perfil']);
+	if ( $request['perfil'] == "Altres")
+		$textPerfilAltres = new Text($request['perfilAltres']);
 	else
 		$textPerfilAltres = null;
-	if ( $_GET['titulacio'] == "Altres") {
-		$textTitulacio = new Text($_GET['titulacio']);
-		$textTitulacioAltres = new Text($_GET['titulacioAltres']);
+	if ( $request['titulacio'] == "Altres") {
+		$textTitulacio = new Text($request['titulacio']);
+		$textTitulacioAltres = new Text($request['titulacioAltres']);
 		$textTitulacioSecundaria = null;
 		$textTitulacioEstudiant = null;
 	}
-	else if ( $_GET['titulacio'] == "Prof. Ed. Secundària") {
+	else if ( $request['titulacio'] == "Prof. Ed. Secundària") {
 		$textTitulacio = new Text('Ed. Secundària');
 		$textTitulacioAltres = null;
-		$textTitulacioSecundaria = new Text($_GET['titulacioSecundaria']);
+		$textTitulacioSecundaria = new Text($request['titulacioSecundaria']);
 		$textTitulacioEstudiant = null;
 	}
-	else if ( $_GET['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
+	else if ( $request['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
 		$textTitulacio = new Text('Estudiant');
 		$textTitulacioAltres = null;
 		$textTitulacioSecundaria = null;
-		$textTitulacioEstudiant = new Text($_GET['titulacioEstudiant']);
+		$textTitulacioEstudiant = new Text($request['titulacioEstudiant']);
 	}
 	else {
-		$textTitulacio = new Text($_GET['titulacio']);
+		$textTitulacio = new Text($request['titulacio']);
 		$textTitulacioAltres = null;
 		$textTitulacioSecundaria = null;
 		$textTitulacioEstudiant = null;
 	}
-	if ( $_GET['tbTitulacio'] != '')
-		$textTbTitulacio = new Text($_GET['tbTitulacio']);
+	if ( $request['tbTitulacio'] != '')
+		$textTbTitulacio = new Text($request['tbTitulacio']);
 	else
 		$textTbTitulacio = null;
-	$textPagFrac = new Text($_GET['pagFrac']);
-	$textConegut = new Text($_GET['conegut']);
-	if ( $_GET['comentaris'] != '')
-		$textComentaris = new Text($_GET['comentaris']);
+	$textPagFrac = new Text($request['pagFrac']);
+	$textConegut = new Text($request['conegut']);
+	if ( $request['comentaris'] != '')
+		$textComentaris = new Text($request['comentaris']);
 	else
 		$textComentaris = null;
-	$textMailing = new Text($_GET['mailing']);
+	$textMailing = new Text($request['mailing']);
 	// Els imports rebuts del navegador no són autoritatius. Es recalculen des de BD.
-	$textIdPack = new Text($_GET['idPack']);
+	$textIdPack = new Text($request['idPack']);
 
 	$textNom->arreglarParaulaBD('noms');
 	$textCog->arreglarParaulaBD('noms');
