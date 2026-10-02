@@ -129,7 +129,8 @@ final class UsocCourseChangePreviewServiceTest
         Assert::same('10.00', $result['fund_plan']['payers']['entity']['compensate_amount']);
         Assert::same('20.00', $result['fund_plan']['payers']['entity']['amount_due']);
 
-        Assert::same(true, $result['can_execute']);
+        Assert::same(false, $result['can_execute']);
+        Assert::same('EXECUTOR_NOT_IMPLEMENTED', $result['execution_status']);
         Assert::same(true, $result['invariants']['preview_has_no_fiscal_effect']);
         Assert::same(true, $result['invariants']['preview_has_no_economic_effect']);
         Assert::same(true, $result['invariants']['target_prices_are_server_resolved']);
