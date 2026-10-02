@@ -14,6 +14,9 @@ final class InvoicePayloadValidator
             }
         }
 
+        $this->assertIdempotencyKey($payload['idempotency_key']);
+        $this->assertSourceChannel($payload['source_channel']);
+
         if (!in_array($payload['series'], ['A', 'R'], true)) {
             throw SifException::validation('Invalid invoice series');
         }
@@ -68,7 +71,67 @@ final class InvoicePayloadValidator
             $this->assertExemptionReason($line);
         }
 
+        $this->assertLineTotalsMatchHeader($payload);
+
         return $payload;
+    }
+
+    private function assertIdempotencyKey(mixed $value): void
+    {
+        if (!is_string($value)) {
+            throw SifException::validation('Invalid invoice idempotency key');
+        }
+
+        $key = trim($value);
+        if ($key === '' || strlen($key) > 100) {
+            throw SifException::validation('Invalid invoice idempotency key');
+        }
+    }
+
+    private function assertSourceChannel(mixed $value): void
+    {
+        if (!is_string($value)) {
+            throw SifException::validation('Invalid invoice source channel');
+        }
+
+        $channel = trim($value);
+        if ($channel === '' || strlen($channel) > 30) {
+            throw SifException::validation('Invalid invoice source channel');
+        }
+    }
+
+    private function assertLineTotalsMatchHeader(array $payload): void
+    {
+        $sums = ['import_base' => 0, 'taxable_base' => 0, 'iva_import' => 0, 'total' => 0];
+
+        foreach ($payload['lines'] as $line) {
+            $sums['import_base'] += $this->toCents($line['import_base'] ?? $line['base']);
+            $sums['taxable_base'] += $this->toCents($line['taxable_base'] ?? $line['base']);
+            $sums['iva_import'] += $this->toCents($line['iva_import'] ?? '0.00');
+            $sums['total'] += $this->toCents($line['total']);
+        }
+
+        $expected = [
+            'import_base' => $this->toCents($payload['totals']['import_base']),
+            'taxable_base' => $this->toCents($payload['totals']['taxable_base']),
+            'iva_import' => $this->toCents($payload['totals']['iva_import'] ?? '0.00'),
+            'total' => $this->toCents($payload['totals']['total']),
+        ];
+
+        foreach ($expected as $field => $value) {
+            if ($sums[$field] !== $value) {
+                throw SifException::validation("Invoice {$field} does not match line totals");
+            }
+        }
+    }
+
+    private function toCents(mixed $value): int
+    {
+        if (!is_numeric($value)) {
+            throw SifException::validation('Invalid invoice monetary value');
+        }
+
+        return (int) round((float) $value * 100, 0, PHP_ROUND_HALF_UP);
     }
 
     private function assertExemptionReason(array $block): void
