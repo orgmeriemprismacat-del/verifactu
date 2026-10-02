@@ -64,8 +64,8 @@ La branca d'auditoria:
 - usa `SifRedsysCourseIntentClient`;
 - `RedsysCoursePaymentIntentService` rellegeix saldo i `FRACCIONAT`;
 - obté `DS_ORDER`/import de la intenció SIF;
-- només usa MerchantURL SIF amb `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i URL HTTPS;
-- amb cutover inactiu conserva fallback explícit per rollback;
+- només usa MerchantURL SIF amb `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1`, `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=1` i URL HTTPS;
+- amb `cutover=1/drain=0` bloqueja nous checkouts i deixa drenar callbacks llegats ja oberts; amb `cutover=0/drain=0` conserva fallback explícit per rollback;
 - el gateway Redsys deixa d'estar hardcodejat: `REDSYS_GATEWAY_URL` és obligatòria i ha de ser HTTPS;
 - `REDSYS_TERMINAL` és obligatori al pont candidat; el preflight comprova també merchant code/key, que la clau del pont i la del callback SIF coincideixin sense exposar-les, i que `SIF_INTERNAL_API_BASE_URL` sigui HTTPS;
 - `SIF_INTERNAL_REDSYS_COURSE_INTENT_SIGNED_PATH` queda declarat explícitament i el preflight comprova que els paths HMAC de course-intent/status coincideixen amb els clients del pont.
