@@ -1,6 +1,6 @@
 # UC-01 · Emetre o reutilitzar una factura — fitxa i UML integrats
 
-**Estat:** nucli d'emissió contrastat als fitxers PHP de la branca documental `docs/uml-fitxes-integrades-2026-09-20`; l'ús des de cadascun dels canals, els permisos i el desplegament no queden acreditats per aquest fet. **Relacions:** UC-04 (abans de cobrar), UC-05 (rectificativa), UC-14/15/16/17 (orígens de venda), UC-02 (pagament sobre factura existent), UC-09/54/77 (remissió AEAT).
+**Estat:** nucli d'emissió reauditat sobre `main` el 2026-10-02. La branca de hardening afegeix autenticació/autorització al punt d'entrada genèric, coherència monetària i vincle origen→línia quan és unívoc; les garanties comercials/AEAT pendents continuen explicitades. **Relacions:** UC-04 (abans de cobrar), UC-05 (rectificativa), UC-14/15/16/17 (orígens de venda), UC-02 (pagament sobre factura existent), UC-09/54/77 (remissió AEAT).
 
 ## 1. Fitxa del cas d'ús
 
@@ -8,7 +8,7 @@
 | --- | --- |
 | Actors | Ecommerce, intranet o procés automàtic **a través d'un adaptador autoritzat**. L'endpoint genèric no demostra que tots els canals finals estiguin connectats. |
 | Disparador | Un canal demana emetre una factura per una operació facturable, o reintenta una emissió prèvia. |
-| Entrada mínima verificada al validador | `idempotency_key`, `series`, `type`, `source_channel`, `billing`, `totals`, `lines`. |
+| Entrada mínima verificada al validador | `idempotency_key`, `series`, `type`, `source_channel`, `billing`, `totals`, `lines`; la branca de hardening rebutja clau idempotent buida/sobredimensionada, canal buit i totals de capçalera incompatibles amb les línies. |
 | Identificació fiscal verificada | `billing.name` i `billing.nif` no buits. El validador actual accepta sèries `A` i `R`, tipus `F1`, `F2`, `R1`…`R5`; **aquestes validacions no demostren per si soles conformitat fiscal completa**. |
 | Imports i línies verificats | `totals.import_base`, `taxable_base`, `total` numèrics; almenys una línia amb `concept`, `quantity`, `unit_price`, `base` i `total` i imports numèrics. |
 | Cobrament inicial opcional | Si hi ha bloc `payment`, el servei necessita `PaymentPayloadValidator` i `PaymentRepository`, i crea el moviment dins la mateixa transacció d'emissió. |
@@ -392,3 +392,14 @@ Note over G,S: Comparació de petició completa per K és PHP main. El guard com
 [Catàleg UC-01](../04-estat-final/33-casos-us-sif.md) · [Model de classes](../04-estat-final/31-diagrames-classes-sif.md) · [Seqüències existents](../04-estat-final/32-diagrames-sequencia-sif.md) · [Fitxa base](../06-fitxes-funcionals/uc-001.md) · [InvoiceService](../../sif/src/Service/InvoiceService.php) · [InvoicePayloadValidator](../../sif/src/Service/InvoicePayloadValidator.php) · [InvoiceRepository](../../sif/src/Repository/InvoiceRepository.php) · [FiscalSequenceRepository](../../sif/src/Repository/FiscalSequenceRepository.php) · [IssueInvoiceTest](../../sif/tests/Integration/IssueInvoiceTest.php).
 
 **No acreditat:** execució de tests en aquest canvi documental, conformitat fiscal integral, integracions finals ni posada en producció.
+
+
+## 6. Paquet d'auditoria ACTUAL/FINAL 2026-10-02
+
+- [Classes ACTUAL/FINAL](uc-001-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-001-sequencies-actual-final.md)
+- [Activitats i superfícies ACTUAL/FINAL](uc-001-activitats-superficies-actual-final.md)
+- [Auditoria i traçabilitat](uc-001-auditoria-tracabilitat-2026-10-02.md)
+- [Inventari PHP/JS ACTUAL/FINAL](uc-001-inventari-codi-php-js-actual-final-2026-10-02.md)
+
+**Criteri:** ACTUAL només atribueix responsabilitats acreditades al PHP/SQL; FINAL mostra contracte objectiu i no és prova d'implementació.
