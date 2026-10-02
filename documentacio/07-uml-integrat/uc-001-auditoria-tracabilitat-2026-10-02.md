@@ -22,7 +22,7 @@
 | Events d'auditoria funcionals | Sí | Sí (`operational_event` + `sif_audit_event`) | Sí | Proves incorporades; execució CI pendent |
 | Snapshot AEAT oficial automàtic | Sí | No a tots els canals | Sí | Pendent |
 | Historial AEAT per intent | Sí | Sí (`aeat_submission_attempt`) | Sí | Cobert per suite CI existent; revalidació PR pendent |
-| Resposta amb estats fiscal/econòmic/documental | Sí | No completa | Sí | Pendent |
+| Resposta amb estats fiscal/econòmic/documental | Sí | Sí | Sí | Proves incorporades; execució CI pendent |
 
 ## 2. Resoltes o endurides en aquesta branca
 
@@ -91,7 +91,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 - el PR queda obert i mergeable a nivell Git, però la decisió de merge queda condicionada a evidència d’execució posterior;
 - qualsevol fallada futura del CI reobre només la troballa/prova afectada, no converteix retroactivament l’evidència pendent en evidència verda.
 
-## 6. Matriu detallada de troballes 51–96
+## 6. Matriu detallada de troballes 51–98
 
 | ID | Troballa | Tractament a la branca | Estat |
 | --- | --- | --- | --- |
@@ -121,7 +121,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 | F-074 | Resposta d'`InvoiceService` no incloïa tots els estats de la fitxa. | Projector retorna factura, cobrament, AEAT, cua fiscal, document/tipus, `fiscal_order` i correlació. | **Corregit per codi; pendent CI** |
 | F-075 | Codi utilitzable de regal pot formar part del detall fiscal. | Es manté com a risc UC-017/018. | **Pendent custòdia/presentació** |
 | F-076 | Idempotència manual derivada de contingut pot col·lapsar dues vendes legítimes equivalents. | Es vincula al pendent de `UUID_OPERATION`. | **Pendent operació comercial** |
-| F-077 | `commercial_operation*` existeix a esquema però no és obligatori a UC-001. | Incorporat al model FINAL. | **Pendent writer/coverage guard** |
+| F-077 | `commercial_operation*` existeix a esquema però no és obligatori a UC-001. | Writer `operation_line_invoice_link` implementat quan la línia aporta `uuid_operation_line`; continua pendent propagar identitat comercial a tots els builders i aplicar coverage guard general. | **Parcial: writer resolt; cobertura obligatòria pendent** |
 | F-078 | Classes no mostraven branca AEAT completa. | Nou diagrama ACTUAL/FINAL. | **Corregit documentalment** |
 | F-079 | Seqüència no mostrava branca AEAT/rollback. | Nou diagrama ACTUAL/FINAL. | **Corregit documentalment** |
 | F-080 | Faltava paquet de proves de hardening. | Tests de policy, scope, endpoint, validador i relació-línia. | **Implementat com a proves; pendent CI** |
@@ -141,6 +141,8 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 | F-094 | L’emissió/reús no persistia un event funcional i un audit event correlacionats. | `InvoiceService` append `operational_event` + `sif_audit_event` dins la transacció. | **Corregit per codi; pendent CI** |
 | F-095 | L’ALTA inicial no creava `factura_registre_control`. | `InvoiceRepository` crea control 1:1 i enllaça `PREVIOUS_REGISTRE_ID` amb el registre fiscal global anterior. | **Corregit per codi; pendent CI** |
 | F-096 | El resultat no diferenciava estats locals, econòmics, AEAT, cua i document. | Projecció read-only afegida al resultat de creació i reús. | **Corregit per codi; pendent CI** |
+| F-097 | Existia l’esquema `operation_line_invoice_link` però UC-001 no tenia writer. | Nou `OperationLineInvoiceLinkRepository`; `InvoiceRepository` materialitza el link si la línia aporta `uuid_operation_line`, amb validació i prova d’integració. | **Corregit tècnicament; propagació als builders pendent** |
+| F-098 | Metadades de traça massa llargues podien fallar tard a BD o truncar correlacions. | `InvoicePayloadValidator` valida longitud/canonicitat i s’elimina el truncament silenciós. | **Corregit per codi; pendent CI** |
 
 ## 7. Proves de tancament i deutes posteriors
 
@@ -154,7 +156,7 @@ A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al re
 | UC001-REL-02 | dues línies comparteixen el mateix origen d'una única `fact_rel` | **Implementat en test**: `ID_FACTURA_LINIA=NULL`, mai assignació arbitrària |
 | UC001-YEAR-01 | edició d'any anterior emesa l'any actual | expected pendent de decisió funcional/fiscal |
 | UC001-COV-01 | mateixa obligació comercial amb dues claus diferents | no duplicar factura; guard pendent |
-| UC001-TRACE-01 | reconstruir actor, request, correlació, comanda i resultat | pendent audit writer |
+| UC001-TRACE-01 | reconstruir actor, request, correlació, comanda i resultat | **Implementat en proves** amb `operational_event` + `sif_audit_event`; execució CI pendent |
 | UC001-AEAT-02 | emissor del payload diferent de la configuració servidor al generic endpoint | configuració servidor preval o petició rebutjada segons policy |
 
 ## 8. Criteri de tancament funcional/productiu posterior
