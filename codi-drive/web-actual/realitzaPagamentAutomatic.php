@@ -1,4 +1,19 @@
 <?php
+$courseCutoverEnabled = filter_var(
+    getenv('SIF_REDSYS_COURSE_CUTOVER_ENABLED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+$legacyDrainConfirmed = filter_var(
+    getenv('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED') ?: '0',
+    FILTER_VALIDATE_BOOLEAN
+);
+
+if ($courseCutoverEnabled && $legacyDrainConfirmed) {
+    http_response_code(410);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit('Callback legacy de curs retirat. El pagament es processa pel SIF.');
+}
+
 	include("./ConnexioBBDD_PreparedStatment.php");
 	include("./inc/apiRedsys.php");
 	include("./Text.php");
