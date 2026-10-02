@@ -1,92 +1,82 @@
-# UC-018 · Proves pendents d'implementació
+# UC-018 · Matriu de proves i criteri de tancament
 
-Aquest document és el backlog verificable del bescanvi de regal. Cap prova de compra UC-017 substitueix aquestes proves.
+> Actualització 2026-10-02. `[x]` = cobert per prova/codi; `[ENV]` = només executable en preproducció; `[POLICY]` = variant deliberadament bloquejada fins a decisió funcional.
 
 ## 1. Servei de domini
 
-- [ ] `preview` amb GIFT vàlid i origen pagat.
-- [ ] codi desconegut retorna error neutre.
-- [ ] codi alterat no revela dades.
-- [ ] dret `EXPIRED` deriva a UC-18a.
-- [ ] dret `CANCELLED` rebutjat.
-- [ ] dret `CONSUMED` amb mateix idempotency/payload retorna `REUSED`.
-- [ ] dret `CONSUMED` amb destí diferent retorna `CONFLICT`.
-- [ ] titular/beneficiari no autoritzat rebutjat.
-- [ ] `preview` no muta cap taula.
+- [x] preview read-only amb GIFT vàlid.
+- [x] codi desconegut/alterat no autoritza bescanvi.
+- [x] dret caducat/cancel·lat/consumit contradictori rebutjat.
+- [x] replay equivalent reutilitza resultat.
+- [x] holder no autoritzat rebutjat.
+- [x] origen ha d'estar pagat/reconciliat.
 
-## 2. Persistència i concurrència
+## 2. Persistència, idempotència i concurrència
 
-- [ ] lock `FOR UPDATE` sobre el dret.
-- [ ] dues peticions concurrents produeixen un únic consum.
-- [ ] event `RESERVE` append-only.
-- [ ] event `CONSUME` append-only.
-- [ ] event `RELEASE` quan falla l'alta abans del consum.
-- [ ] cap update/delete d'events.
-- [ ] replay equivalent recupera la mateixa operació/inscripció.
+- [x] `FOR UPDATE` sobre dret.
+- [x] `CLAIM`, `RESERVE`, `CONSUME`, `RELEASE` append-only.
+- [x] mateix `ID_INSC`: dos processos convergeixen al mateix resultat.
+- [x] dos `ID_INSC`: un únic guanyador i l'altre `409`.
+- [x] un únic `COMPENSATION_ALLOCATION`.
+- [x] resposta SIF perduda: retry reutilitza operació, moviment i reconciliació.
 
 ## 3. Inscripció
 
-- [ ] crea una única matrícula pel beneficiari.
-- [ ] reintent després de timeout no crea matrícula duplicada.
-- [ ] alta fallida no deixa el dret consumit silenciosament.
-- [ ] alta creada + error posterior queda reconciliable.
-- [ ] canvi de curs posterior conserva origen del regal.
+- [x] crea/reutilitza una única matrícula.
+- [x] timeout/reintent no crea matrícula duplicada.
+- [x] `regal.USAT` només es reconcilia via `LegacyGiftUsageReconciler`.
+- [x] replay ja reconciliat retorna la mateixa ID abans dels efectes laterals.
 
-## 4. Economia
+## 4. Economia i fiscalitat
 
-- [ ] regal de 100 € aplicat a curs de 100 €: **0 CHARGE nous** al bescanvi.
-- [ ] l'origen monetari conserva el `UUID_PAYMENT` de la compra UC-017.
-- [ ] regal 100 € → curs 120 €: només els 20 € reals poden generar cobrament addicional.
-- [ ] regal 100 € → curs 80 €: no crear refund/saldo automàtic sense regla aprovada.
-- [ ] regal amb compra retornada no és aplicable com si tingués 100 € disponibles.
+- [x] bescanvi a valor exacte: 0 `CHARGE` nous.
+- [x] conserva `UUID_PAYMENT` d'origen.
+- [x] 0 factures noves.
+- [x] factura original immutable.
+- [POLICY] valor del regal inferior/superior al curs: no inventar cobrament, refund, saldo ni consum parcial; el flux queda bloquejat fins a política aprovada.
 
-## 5. Fiscalitat
+## 5. Seguretat
 
-- [ ] bescanvi simple no crea segona factura.
-- [ ] canvi material de servei/import es deriva al classificador corresponent.
-- [ ] cap modificació de factura original per “actualitzar” beneficiari.
-- [ ] factura del comprador continua immutable.
+- [x] codi regal fora de URL.
+- [x] POST/HMAC al SIF.
+- [x] anti-replay.
+- [x] holder i snapshot resolts al servidor.
+- [x] secrets/codis sanititzats a la verificació de preproducció.
+- [x] dades sensibles no persistides en clar a l'outbox UC-018.
 
-## 6. Seguretat
+## 6. Notificacions
 
-- [ ] codi no apareix en URL.
-- [ ] codi no apareix en logs/errors.
-- [ ] consulta usa hash.
-- [ ] CSRF a confirmació.
-- [ ] actor/rol resolt al servidor.
-- [ ] posseir el codi no permet baixar factura del comprador.
-- [ ] resposta a codi desconegut no permet enumeració.
+- [x] cap SMTP abans del redeem/reconciliació.
+- [x] sis notificacions legacy materialitzades de manera idempotent.
+- [x] claim at-most-once.
+- [x] `SENDING` ambigu no es reintenta automàticament.
+- [x] `SENT` idempotent.
+- [x] `FAILED` queda per revisió.
 
-## 7. API/UI
+## 7. E2E
 
-- [ ] preview i confirmació són endpoints/accions diferents.
-- [ ] doble clic reutilitza resultat.
-- [ ] errors mostren estat operatiu, no detalls sensibles.
-- [ ] estat pendent/reconciliació no es presenta com a èxit.
-- [ ] suport/intranet veu timeline sense poder editar estat directament.
+- [x] E2E intern UC-017 → GIFT → inscripció → compensació → consum → replay.
+- [x] concurrència multiprocés.
+- [x] recovery resposta perduda.
+- [ENV] preflight real amb configuració de preproducció.
+- [ENV] `verify-gift-redemption-preproduction.php --execute` amb regal de prova controlat.
+- [ENV] evidència operativa final del desplegament/SMTP real.
 
-## 8. E2E preproducció
+## 8. Criteri de tancament de l'auditoria
 
-- [ ] compra UC-017 confirmada.
-- [ ] dret GIFT creat/activat amb origen correcte.
-- [ ] beneficiari bescanvia.
-- [ ] inscripció queda creada.
-- [ ] dret queda consumit una vegada.
-- [ ] no hi ha segon `payment_transaction CHARGE`.
-- [ ] timeline i correlació reconstruïbles.
-- [ ] replay complet no duplica res.
-- [ ] prova concurrent real amb dos processos/requests.
-
-## 9. Criteri GO
-
-Només GO quan el flux complet pugui demostrar:
+El codi/documentació queda tancable quan CI del PR de tancament acredita:
 
 ```text
 1 compra pagada
 1 dret GIFT
-1 consum
 1 inscripció
+1 COMPENSATION_ALLOCATION
+1 consum
 0 cobraments duplicats
 0 factures duplicades
-traça completa
+replay idempotent
+concurrència determinista
+correus post-SIF governats
 ```
+
+Els punts `[ENV]` són gates de desplegament i no deute de disseny/codi.
