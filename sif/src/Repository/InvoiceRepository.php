@@ -132,9 +132,9 @@ final class InvoiceRepository
                 UUID_FACTURA, ORDRE, CONCEPTE, DETALL, QUANTITAT, PREU_UNITARI,
                 IMPORT_BASE, DESC_ORIGEN, DESC_MODE, DESC_ID, DESC_CODI_PROMO,
                 DESC_PCT, DESC_IMPORT, DESC_TEXT_VISIBLE, DESC_MOTIU_INTERN,
-                BASE_IMPOSABLE, IVA_REGIM, IVA_PCT, IVA_IMPORT, TOTAL,
+                BASE_IMPOSABLE, IVA_REGIM, IVA_PCT, IVA_IMPORT, CAUSA_EXEMPCIO_NO_SUBJECTA, TOTAL,
                 SOURCE_TYPE, SOURCE_ID
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         $lineIdsBySource = [];
@@ -148,7 +148,8 @@ final class InvoiceRepository
                 $line['discount_pct'] ?? null, $line['discount_amount'] ?? '0.00',
                 $line['discount_text'] ?? null, $line['discount_internal_reason'] ?? null,
                 $line['taxable_base'] ?? $line['base'], $line['iva_regim'] ?? 'EXEMPT',
-                $line['iva_pct'] ?? '0.00', $line['iva_import'] ?? '0.00', $line['total'],
+                $line['iva_pct'] ?? '0.00', $line['iva_import'] ?? '0.00',
+                $line['exemption_reason'] ?? null, $line['total'],
                 $line['source_type'] ?? null, $line['source_id'] ?? null,
             ]);
 
