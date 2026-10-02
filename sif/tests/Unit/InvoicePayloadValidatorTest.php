@@ -281,6 +281,18 @@ final class InvoicePayloadValidatorTest
         Assert::same('Invoice discount does not match line totals', $exception->getMessage());
     }
 
+    public function testRejectsInvalidCommercialOperationLineUuid(): void
+    {
+        $payload = $this->validPayload();
+        $payload['lines'][0]['uuid_operation_line'] = 'not-a-uuid';
+
+        Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+    }
+
     private function validPayload(): array
     {
         return [
