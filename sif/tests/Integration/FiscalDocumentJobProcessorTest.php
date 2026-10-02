@@ -256,6 +256,89 @@ final class FiscalDocumentJobProcessorTest
         Assert::same(2, (int) $failed['ATTEMPTS']);
     }
 
+    public function testTamperedFiscalSnapshotIsRejectedBeforeRendererRuns(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'TEST|DOCUMENT-WORKER|TAMPERED-SNAPSHOT',
+            ])
+        );
+
+        (new InvoiceBeforePaymentDocumentQueueService(
+            new TransactionRunner($db),
+            new DocumentJobRepository(),
+            'uc004-fiscal-pdf-v1'
+        ))->ensurePdf(
+            $invoice['uuid_factura'],
+            'INTRANET|FACTURA_ABANS_COBRAR|REF:TAMPERED-SNAPSHOT'
+        );
+
+        $db->prepare(
+            "UPDATE factura_registres
+             SET PAYLOAD_JSON = ?
+             WHERE UUID_FACTURA = ? AND TIPUS_REGISTRE = 'ALTA'"
+        )->execute([
+            json_encode([
+                'uuid_factura' => $invoice['uuid_factura'],
+                'num_visible' => $invoice['num_visible'],
+                'tampered' => true,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $invoice['uuid_factura'],
+        ]);
+
+        $root = $this->temporaryDirectory();
+
+        try {
+            $renderer = new class implements FiscalDocumentRendererInterface {
+                public bool $called = false;
+
+                public function render(array $snapshot, array $job): array
+                {
+                    $this->called = true;
+
+                    return [
+                        'contents' => '%PDF-1.4 must-not-be-rendered',
+                        'extension' => 'pdf',
+                    ];
+                }
+            };
+
+            $processor = new FiscalDocumentJobProcessor(
+                $db,
+                new TransactionRunner($db),
+                new DocumentJobRepository(),
+                $renderer,
+                new PrivateDocumentWriter($root),
+                new DocumentRepository(),
+                1,
+                10
+            );
+
+            $result = $processor->processNext();
+
+            Assert::same(false, $result['ok']);
+            Assert::same('RETRY', $result['status']);
+            Assert::same(false, $renderer->called);
+            Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura_documents')->fetchColumn());
+            Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+
+            $job = $db->query(
+                'SELECT STATUS, ATTEMPTS, LAST_ERROR
+                 FROM document_job'
+            )->fetch(\PDO::FETCH_ASSOC);
+
+            Assert::same('RETRY', $job['STATUS']);
+            Assert::same(1, (int) $job['ATTEMPTS']);
+            Assert::stringContainsString(
+                'Immutable fiscal payload hash mismatch',
+                (string) $job['LAST_ERROR']
+            );
+        } finally {
+            $this->removeDirectory($root);
+        }
+    }
+
     public function testRendererFailureSchedulesRetryWithoutTouchingInvoice(): void
     {
         $db = TestDatabase::fresh();
