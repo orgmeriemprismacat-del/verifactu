@@ -269,3 +269,27 @@ Proves afegides a `UsocCourseChangeFundPlanServiceTest` per parcial, excés sepa
   - el clic queda bloquejat després del preview: encara no hi ha handoff a legacy.
 
 **PENDENT:** executor d'efectes, reemissió destí, materialització de compensacions/excessos i checkpoint que habiliti el legacy.
+
+## Delta implementació 02/10/2026 · checkpoint COURSE_CHANGE
+
+**IMPLEMENTAT EN BRANCA:**
+
+- migració `2026_10_02_000033_allow_usoc_course_change_execution.sql`:
+  - amplia `chk_usoc_lifecycle_operation`;
+  - admet `CANCELLATION` i `COURSE_CHANGE`.
+- `UsocCourseChangeExecutionPreparationService`:
+  - valida identitat/requestId;
+  - consumeix el preview server-side;
+  - congela target + lifecycle/target/fund plan;
+  - persisteix `usoc_lifecycle_execution.STATE=REQUESTED`;
+  - mateix `requestId` + mateix payload → reutilització;
+  - mateix `requestId` + payload diferent → `CONFLICT`;
+  - no reutilitza estats diferents de `REQUESTED`;
+  - `effects_applied=false`.
+- prova `UsocCourseChangeExecutionPreparationServiceTest`:
+  - checkpoint inicial;
+  - retry idempotent;
+  - conflicte de payload;
+  - cap factura/payment addicional.
+
+**PENDENT:** aplicar efectes i completar el checkpoint. No es declara encara cap `COURSE_CHANGE` com a `COMPLETED`.
