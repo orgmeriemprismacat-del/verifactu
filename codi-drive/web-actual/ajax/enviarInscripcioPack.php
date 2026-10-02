@@ -16,6 +16,11 @@ try {
 }
 
 
+$packIdPagReserved = false;
+$packRequestLockHeld = false;
+$packInsertTransactionStarted = false;
+$connexio = null;
+
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
@@ -30,6 +35,11 @@ include("../MailSMTPComvive.php");
 include("../MailSMTP.php");
 
 try {
+	$packRequestId = trim((string) ($_POST['requestId'] ?? ''));
+	if (!preg_match('/^[A-Za-z0-9-]{16,80}$/D', $packRequestId)) {
+		throw new RuntimeException('Error: identificador de petició no vàlid.', 422);
+	}
+
 	$textNom = new Text($_POST['nom']);
 	$textCog = new Text($_POST['cog']);
 	$textDocumentacio = new Text($_POST['dni']);
@@ -134,6 +144,22 @@ try {
 	}
 
 	$cipher = "AES-128-CBC";
+	$encodePackConfirmationId = static function (int $id) use ($cipher, $keyEncr): string {
+		$ivlen = openssl_cipher_iv_length($cipher);
+		$iv = openssl_random_pseudo_bytes($ivlen);
+		$ciphertextRaw = openssl_encrypt(
+			$id,
+			$cipher,
+			$keyEncr,
+			OPENSSL_RAW_DATA,
+			$iv
+		);
+		if ($ciphertextRaw === false) {
+			throw new RuntimeException('Error: no s’ha pogut generar la confirmació.', 500);
+		}
+		$hmac = hash_hmac('sha256', $ciphertextRaw, $keyEncr, true);
+		return base64_encode($iv.$hmac.$ciphertextRaw);
+	};
 
 	/* ######################################################################### */
 
@@ -213,6 +239,105 @@ try {
 		throw new Exception('',2916);
 	}
 
+	$packRequestFingerprintJson = json_encode([
+		'pack_id' => (string) $textIdPack->obtenirText(),
+		'nom' => (string) $textNom->obtenirText(),
+		'cog' => (string) $textCog->obtenirText(),
+		'dni' => (string) $textDocumentacio->obtenirText(),
+		'telf' => (string) $numTelf->obtenirNumero(),
+		'email' => (string) $textEmail->obtenirText(),
+		'adreca' => (string) $textAdreca->obtenirText(),
+		'codi_postal' => (string) $textCodiPostal->obtenirText(),
+		'poblacio' => (string) $textPoblacio->obtenirText(),
+		'perfil' => (string) $textPerfil->obtenirText(),
+		'perfil_altres' => $textPerfilAltres !== null ? (string) $textPerfilAltres->obtenirText() : '',
+		'titulacio' => (string) $textTitulacio->obtenirText(),
+		'titulacio_altres' => $textTitulacioAltres !== null ? (string) $textTitulacioAltres->obtenirText() : '',
+		'titulacio_secundaria' => $textTitulacioSecundaria !== null ? (string) $textTitulacioSecundaria->obtenirText() : '',
+		'titulacio_estudiant' => $textTitulacioEstudiant !== null ? (string) $textTitulacioEstudiant->obtenirText() : '',
+		'tb_titulacio' => $textTbTitulacio !== null ? (string) $textTbTitulacio->obtenirText() : '',
+		'conegut' => (string) $textConegut->obtenirText(),
+		'comentaris' => $textComentaris !== null ? (string) $textComentaris->obtenirText() : '',
+		'mailing' => (string) $textMailing->obtenirText(),
+	], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+	if ($packRequestFingerprintJson === false) {
+		throw new RuntimeException('Error: no s’ha pogut preparar la petició.', 500);
+	}
+	$packRequestFingerprint = hash('sha256', $packRequestFingerprintJson);
+	$packRequestLockName = 'prisma_pack_request_' . hash('sha256', $packRequestId);
+
+	$stmtPackRequestLock = $connexio->connexio->prepare('SELECT GET_LOCK(?, 10)');
+	if (!$stmtPackRequestLock) {
+		throw new RuntimeException('Error: no s’ha pogut bloquejar la petició.', 503);
+	}
+	$stmtPackRequestLock->bind_param('s', $packRequestLockName);
+	$stmtPackRequestLock->execute();
+	$stmtPackRequestLock->bind_result($packRequestLocked);
+	$stmtPackRequestLock->fetch();
+	$stmtPackRequestLock->close();
+	if ((int) $packRequestLocked !== 1) {
+		throw new RuntimeException('Error: la petició està sent processada. Torna-ho a provar.', 409);
+	}
+	$packRequestLockHeld = true;
+
+	$packRequestNeedle = 'PACK_REQUEST|' . $packRequestId . ' ';
+	$stmtExistingRequest = $connexio->connexio->prepare(
+		"SELECT ID, IDPAG, OBSERVACIONS
+		 FROM inscripcions
+		 WHERE TIPUS_INSC='P' AND LOCATE(?, OBSERVACIONS) > 0
+		 ORDER BY ID"
+	);
+	if (!$stmtExistingRequest) {
+		throw new RuntimeException('Error: no s’ha pogut verificar la petició.', 500);
+	}
+	$stmtExistingRequest->bind_param('s', $packRequestNeedle);
+	$stmtExistingRequest->execute();
+	$stmtExistingRequest->bind_result($existingRequestId, $existingRequestIdPag, $existingRequestObservations);
+	$existingRequestRows = [];
+	while ($stmtExistingRequest->fetch()) {
+		$existingRequestRows[] = [
+			'id' => (int) $existingRequestId,
+			'idpag' => (int) $existingRequestIdPag,
+			'observations' => (string) $existingRequestObservations,
+		];
+	}
+	$stmtExistingRequest->close();
+
+	if ($existingRequestRows !== []) {
+		$expectedIdPag = $existingRequestRows[0]['idpag'];
+		$lastExistingId = 0;
+		foreach ($existingRequestRows as $existingRow) {
+			if ($existingRow['idpag'] !== $expectedIdPag) {
+				throw new RuntimeException('Error: conflicte d’idempotència del pack.', 409);
+			}
+			if (!preg_match('/(?:^|\\s)PACK_REQUEST_HASH\\|([a-f0-9]{64})(?:\\s|$)/i', $existingRow['observations'], $hashMatch)
+				|| !hash_equals($packRequestFingerprint, strtolower($hashMatch[1]))) {
+				throw new RuntimeException('Error: la mateixa petició conté dades diferents.', 409);
+			}
+			if (!preg_match('/(?:^|\\s)PACK\\|([^\\s]+)(?:\\s|$)/', $existingRow['observations'], $packMatch)
+				|| (string) $packMatch[1] !== (string) $textIdPack->obtenirText()) {
+				throw new RuntimeException('Error: conflicte de pack en una petició repetida.', 409);
+			}
+			$lastExistingId = max($lastExistingId, $existingRow['id']);
+		}
+
+		if (count($existingRequestRows) !== count($edicions) || $lastExistingId <= 0) {
+			throw new RuntimeException('Error: la petició repetida té una alta incompleta.', 409);
+		}
+
+		$stmtReleaseRequest = $connexio->connexio->prepare('SELECT RELEASE_LOCK(?)');
+		if ($stmtReleaseRequest) {
+			$stmtReleaseRequest->bind_param('s', $packRequestLockName);
+			$stmtReleaseRequest->execute();
+			$stmtReleaseRequest->close();
+		}
+		$packRequestLockHeld = false;
+
+		echo $encodePackConfirmationId($lastExistingId);
+		$connexio->desconectarBD();
+		exit;
+	}
+
 	$datai = $edicions[0]->obtenirDataInici()->obtenirText();
 	$dataf = $edicions[count($edicions)-1]->obtenirDataFi()->obtenirText();
 
@@ -252,6 +377,7 @@ try {
 
 	/* ######################################################################### */
 	$idPag = $connexio->reserveIdPag();
+	$packIdPagReserved = true;
 
 	$ivlen = openssl_cipher_iv_length($cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
@@ -537,6 +663,11 @@ try {
 	if ( $stmt2 = $connexio2->prepare($cnsPreu) ) {
 		$stmt2->bind_param("d", $idPreuEd);
 
+		if (!$connexio->connexio->begin_transaction()) {
+			throw new RuntimeException('Error: no s’ha pogut iniciar la transacció del pack.', 500);
+		}
+		$packInsertTransactionStarted = true;
+
 		if ( $stmt=$connexio->prepare($insertBD) ) {
 			$stmt->bind_param("dsssssssssssdsdsdddssss", $anyEd, $mesEd, $codiCursEd,
 				$nomBD, $cogBD, $emailBD, $documentacioBD, $adrecaBD, $codiPostalBD, $poblacioBD,
@@ -570,20 +701,39 @@ try {
 
 				/* Snapshot comercial mínim per no reconstruir ordre/imports després del cobrament. */
 				$observacions = sprintf(
-					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f',
+					'PACK|%s PACK_ORDINAL|%d PACK_BASE|%.2f PACK_DISCOUNT|%.2f PACK_DISCOUNT_PCT|%.2f PACK_TOTAL|%.2f PACK_REQUEST|%s PACK_REQUEST_HASH|%s',
 					$idPack,
 					$i + 1,
 					$preuCursOriginal,
 					$descompteCurs,
 					$descomptePct,
-					$preuCurs
+					$preuCurs,
+					$packRequestId,
+					$packRequestFingerprint
 				);
 
 				/* Executo el insert */
-				$stmt->execute();
+				if (!$stmt->execute()) {
+					throw new RuntimeException('Error: no s’ha pogut crear totes les inscripcions del pack.', 500);
+				}
 			}
 			$connexio->closeStmt();
+
+			if (!$connexio->connexio->commit()) {
+				throw new RuntimeException('Error: no s’ha pogut confirmar l’alta del pack.', 500);
+			}
+			$packInsertTransactionStarted = false;
+
 			$connexio->releaseIdPag();
+			$packIdPagReserved = false;
+
+			$stmtReleaseRequest = $connexio->connexio->prepare('SELECT RELEASE_LOCK(?)');
+			if ($stmtReleaseRequest) {
+				$stmtReleaseRequest->bind_param('s', $packRequestLockName);
+				$stmtReleaseRequest->execute();
+				$stmtReleaseRequest->close();
+			}
+			$packRequestLockHeld = false;
 		}
 		else {
 			throw new Exception('',2915);
@@ -597,11 +747,7 @@ try {
 
 	$idInserit = $connexio->lastInsertId();
 
-	$ivlen = openssl_cipher_iv_length($cipher);
-	$iv = openssl_random_pseudo_bytes($ivlen);
-	$ciphertext_raw = openssl_encrypt($idInserit, $cipher, $keyEncr, $options=OPENSSL_RAW_DATA, $iv);
-	$hmac = hash_hmac('sha256', $ciphertext_raw, $keyEncr, $as_binary=true);
-	$hashIdInserit = base64_encode( $iv.$hmac.$ciphertext_raw );
+	$hashIdInserit = $encodePackConfirmationId((int) $idInserit);
 
 	echo $hashIdInserit;
 
@@ -708,11 +854,36 @@ try {
 	$connexio->desconectarBD();
 
 }
-catch(Exception $e) {
-	if ($e->getCode()==404)
-      echo mostrarPagina404();
-   else
-      echo missatgeError($e->getCode());
+catch(Throwable $e) {
+	if ($packInsertTransactionStarted && is_object($connexio) && isset($connexio->connexio)) {
+		$connexio->connexio->rollback();
+		$packInsertTransactionStarted = false;
+	}
+	if ($packIdPagReserved && is_object($connexio)) {
+		$connexio->releaseIdPag();
+		$packIdPagReserved = false;
+	}
+	if ($packRequestLockHeld && is_object($connexio) && isset($connexio->connexio)) {
+		$stmtReleaseRequest = $connexio->connexio->prepare('SELECT RELEASE_LOCK(?)');
+		if ($stmtReleaseRequest) {
+			$stmtReleaseRequest->bind_param('s', $packRequestLockName);
+			$stmtReleaseRequest->execute();
+			$stmtReleaseRequest->close();
+		}
+		$packRequestLockHeld = false;
+	}
+
+	$code = (int) $e->getCode();
+	if ($code >= 400 && $code <= 599) {
+		http_response_code($code);
+		echo $e->getMessage() !== '' ? $e->getMessage() : 'Error: no s’ha pogut completar l’alta del pack.';
+	}
+	else if ($code === 404) {
+		echo mostrarPagina404();
+	}
+	else {
+		echo missatgeError($code);
+	}
 }
 
 ?>
