@@ -57,7 +57,9 @@ try {
         (string) (
             $internalApi['invoice_before_payment_signed_path']
             ?? '/api/factures/before-payment.php'
-        )
+        ),
+        $sifDb,
+        $coverage
     );
 
     $writeConfig = $config['invoice_before_payment'] ?? [];
@@ -103,6 +105,8 @@ try {
         $fingerprints
     );
 
+    $coverage = new InvoiceBeforePaymentCoverageRepository();
+
     $invoiceService = new InvoiceService(
         new TransactionRunner($sifDb),
         new InvoicePayloadValidator(),
@@ -111,7 +115,7 @@ try {
         null,
         null,
         $fingerprints,
-        new InvoiceBeforePaymentCoverageRepository(),
+        $coverage,
         new OperationalEventRepository(new UuidGenerator())
     );
 
