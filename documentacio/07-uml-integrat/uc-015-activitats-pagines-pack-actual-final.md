@@ -11,8 +11,8 @@
 | PK-A02 | Fitxa de pack | valida totes les edicions obertes | oferta versionada |
 | PK-A03 | Formulari inscripció | **POST + REQUEST_ID + revalidació de totes les edicions; preu backend autoritatiu** | acreditar E2E/replay navegador-preproducció |
 | PK-A04 | Alta N inscripcions | snapshot + transacció atòmica + suma exacta + replay idempotent implementats | model comercial explícit/versionat encara pendent |
-| PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | evidència runtime |
-| PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | eliminar codi rollback |
+| PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | verificador CLI preparat; falta DS_ORDER real |
+| PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | preflight/preview/process/verifier preparats; falta execució real i eliminar rollback |
 | PK-A07 | Factura pack | **InvoiceService al flux SIF; emissió legacy desactivada per defecte** | eliminar codi rollback |
 | PK-A08 | Distribució per inscripció | **ledger implementat** | evidència runtime |
 | PK-A09 | Confirmació/correu | **enqueue a outbox SIF implementat; worker/transport de lliurament UC-58 pendent; correu legacy inaccessible per defecte** | implementar/acreditar lliurament UC-58 i eliminar codi rollback |
@@ -281,7 +281,7 @@ E --> F[Classificació fiscal explícita]
 No declarar UC-015 tancat fins que:
 1. els deu blocs anteriors tinguin correspondència codi → UC → prova;
 2. s'acrediti en runtime que l'alta POST rebutja GET/cross-site, bloqueja un pack amb qualsevol component fora de finestra, reutilitza el mateix `REQUEST_ID` després d'una resposta perduda i manté el flux de confirmació;
-3. s'acrediti en runtime el checkout web amb snapshot backend i callback SIF;
+3. s'executi `verify-redsys-pack-preproduction.php` sobre un `DS_ORDER` real i s'acrediti factura/payment + N moviments + outbox + sync legacy quan correspongui;
 4. el callback legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
 5. es mantingui el contracte estable `DATAI, ID_CURS` i es decideixi si cal una posició comercial explícita separada;
 6. les proves end-to-end PK-01..PK-11 s'hagin executat en preproducció; la capa unitària/integració disposa d'evidència CI verda del paquet UC-015.
