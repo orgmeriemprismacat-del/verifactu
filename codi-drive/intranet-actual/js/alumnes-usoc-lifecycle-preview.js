@@ -10,6 +10,132 @@
         return meta ? String(meta.getAttribute('content') || '') : '';
     }
 
+    function isValidatedUsocCourseChange() {
+        return String($('#tipusDesc-registre').text() || '').trim() === '4'
+            && String($('#validDesc-registre').text() || '').trim() === '1';
+    }
+
+    function courseChangeIdentity() {
+        if (!isValidatedUsocCourseChange()) {
+            return null;
+        }
+
+        var id = String($('#dades-curs-canvi #id-canvi-curs-actual').text() || '').trim();
+        var year = String($('#dades-canvi #dades-canvi-any .element-selected').text() || '').trim();
+        var month = String($('#dades-canvi #dades-canvi-mes .element-selected').text() || '').trim();
+        var course = String($('#dades-canvi #dades-canvi-curs .element-selected').text() || '').trim();
+        var changeNumber = typeof numeroCanvi !== 'undefined' ? Number(numeroCanvi) : -1;
+
+        if (
+            !/^\d+$/.test(id)
+            || Number(id) <= 0
+            || !/^20\d{2}$/.test(year)
+            || !month
+            || month.toLowerCase().indexOf('triar') !== -1
+            || !course
+            || !Number.isInteger(changeNumber)
+            || changeNumber < 0
+            || changeNumber > 4
+        ) {
+            return null;
+        }
+
+        return {
+            id_insc: Number(id),
+            change_number: changeNumber,
+            target: {
+                year: year,
+                month: month,
+                course: course
+            }
+        };
+    }
+
+    function requestCourseChangePreview(payload) {
+        return $.ajax({
+            url: path + 'alumnes/sifUsocCourseChangePreview.php',
+            method: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json',
+            global: false,
+            headers: {
+                'X-CSRF-Token': csrfToken()
+            },
+            data: JSON.stringify(payload)
+        });
+    }
+
+    function payerPreviewRow(label, payer) {
+        payer = payer || {};
+        return '<div class="card mb-2"><div class="card-body py-2">'
+            + '<strong>' + escapeHtml(label) + '</strong>'
+            + '<div class="row small mt-1">'
+            + '<div class="col-md-3">Origen net: <strong>' + escapeHtml(payer.source_net_paid || '0.00') + ' €</strong></div>'
+            + '<div class="col-md-3">Destí: <strong>' + escapeHtml(payer.target_obligation || '0.00') + ' €</strong></div>'
+            + '<div class="col-md-2">Compensable: <strong>' + escapeHtml(payer.compensate_amount || '0.00') + ' €</strong></div>'
+            + '<div class="col-md-2">Pendent: <strong>' + escapeHtml(payer.amount_due || '0.00') + ' €</strong></div>'
+            + '<div class="col-md-2">Excés: <strong>' + escapeHtml(payer.excess_amount || '0.00') + ' €</strong></div>'
+            + '</div></div></div>';
+    }
+
+    function renderCourseChangePreview(response) {
+        var pricing = response && response.pricing ? response.pricing : {};
+        var preview = response && response.preview ? response.preview : {};
+        var target = preview.target || {};
+        var fund = preview.fund_plan || {};
+        var payers = fund.payers || {};
+
+        var host = $('#uc071-preview-status');
+        if (!host.length) {
+            host = $('#apagar-nou-registre').closest('.form-group');
+            if (!host.length) {
+                host = $('#apagar-nou-registre').parent();
+            }
+
+            var block = $('<div>', {
+                id: 'uc013-course-change-preview',
+                'class': 'mt-3'
+            });
+            host.after(block);
+            host = block;
+        }
+
+        host.empty()
+            .removeClass('text-muted text-danger text-success')
+            .addClass('text-success')
+            .append(
+                $('<div>', {'class': 'alert alert-warning'})
+                    .text('Preview USOC calculat al servidor. Encara no s’executarà el canvi: '
+                        + 'falta l’executor fiscal/econòmic COURSE_CHANGE.'),
+                $('<div>', {'class': 'fw-bold mb-2'}).text('Canvi de curs USOC · dos pagadors'),
+                $('<div>').text(
+                    'Curs destí: '
+                    + String((pricing.target && pricing.target.title) || (pricing.target && pricing.target.course) || '—')
+                ),
+                $('<div>').text('Preu estàndard destí: ' + String(target.target_standard_course_amount || '—') + ' €'),
+                $('<div>').text('Part alumne curs: ' + String(target.target_student_course_amount || '—') + ' €'),
+                $('<div>').text('Part entitat USOC: ' + String(target.target_entity_course_amount || '—') + ' €'),
+                $('<div>').text('Despeses alumne: ' + String(target.management_fee || '0.00') + ' €'),
+                $('<div>', {'class': 'mt-2'}).html(
+                    payerPreviewRow('Alumne', payers.student)
+                    + payerPreviewRow('Entitat USOC', payers.entity)
+                ),
+                $('<div>', {'class': 'small text-muted mt-2'})
+                    .text('No s’ha emès cap rectificativa, factura, cobrament, refund ni compensació.')
+            );
+    }
+
+    function showCourseChangePreviewError(message) {
+        var host = $('#uc071-preview-status');
+        if (!host.length) {
+            host = $('#apagar-nou-registre').parent();
+        }
+        host.empty()
+            .removeClass('text-muted text-success')
+            .addClass('text-danger')
+            .text(message);
+    }
+
     function cancellationIdentity() {
         var id = String($('#dades-baixa-inscripcio #id-baixa').text() || '').trim();
         var reason = String($('#dades-baixa-motiu #motiu-baixa').val() || '').trim();
@@ -420,6 +546,55 @@
     function escapeAttr(value) {
         return escapeHtml(value).replace(/"/g, '&quot;');
     }
+
+    document.addEventListener('click', function (event) {
+        var button = event.target.closest('#modalCanviCurs .save-result');
+        if (!button || !isValidatedUsocCourseChange()) {
+            return;
+        }
+
+        var identity = courseChangeIdentity();
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        if (!identity) {
+            showCourseChangePreviewError(
+                'Cal completar correctament curs destí i número de canvi abans de calcular el preview USOC.'
+            );
+            return;
+        }
+
+        if (typeof mostrarModalLoading === 'function') {
+            mostrarModalLoading();
+        }
+
+        requestCourseChangePreview(identity)
+            .done(function (response) {
+                if (typeof amagarLoadingModal === 'function') {
+                    amagarLoadingModal();
+                }
+
+                if (!response || response.ok !== true || !response.preview) {
+                    showCourseChangePreviewError(
+                        'No s’ha pogut calcular el preview USOC del canvi de curs.'
+                    );
+                    return;
+                }
+
+                renderCourseChangePreview(response);
+            })
+            .fail(function (xhr) {
+                if (typeof amagarLoadingModal === 'function') {
+                    amagarLoadingModal();
+                }
+
+                var message = xhr && xhr.responseJSON && xhr.responseJSON.error
+                    ? xhr.responseJSON.error
+                    : 'No s’ha pogut calcular el preview USOC del canvi de curs.';
+                showCourseChangePreviewError(message);
+            });
+    }, true);
 
     document.addEventListener('click', function (event) {
         var button = event.target.closest('#modalDonarBaixa .confirma-baixa');
