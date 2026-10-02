@@ -204,6 +204,7 @@ final class InvoiceService
 
     private function appendBeforePaymentOperationalEvent(\PDO $db, array $payload, array $created): void
     {
+        $correlationId = 'UC004:' . hash('sha256', (string) $payload['idempotency_key']);
         $relations = array_values(array_map(
             static fn (array $relation): array => [
                 'source_type' => (string) ($relation['source_type'] ?? ''),
@@ -219,7 +220,7 @@ final class InvoiceService
         $this->operationalEvents->append($db, [
             'operation_type' => 'ISSUE_INVOICE_BEFORE_PAYMENT',
             'source_type' => 'UC004_SELECTION',
-            'source_id' => (string) $payload['idempotency_key'],
+            'source_id' => $correlationId,
             'uuid_factura' => (string) $created['uuid_factura'],
             'fiscal_impact' => 'INVOICE_ISSUED',
             'economic_impact' => 'PENDING_PAYMENT',
@@ -229,6 +230,7 @@ final class InvoiceService
             'after_snapshot' => [
                 'uuid_factura' => (string) $created['uuid_factura'],
                 'num_visible' => (string) $created['num_visible'],
+                'idempotency_key' => (string) $payload['idempotency_key'],
                 'billing_nif' => (string) ($payload['billing']['nif'] ?? ''),
                 'total' => (string) ($payload['totals']['total'] ?? ''),
                 'relations' => $relations,
@@ -237,7 +239,7 @@ final class InvoiceService
             'actor_id' => $payload['created_by'] ?? null,
             'actor_role' => null,
             'source_channel' => (string) ($payload['source_channel'] ?? 'INTRANET'),
-            'correlation_id' => (string) $payload['idempotency_key'],
+            'correlation_id' => $correlationId,
             'occurred_at' => (new \DateTimeImmutable(
                 'now',
                 new \DateTimeZone('Europe/Madrid')
