@@ -142,6 +142,7 @@ final class RedsysCoursePreproductionBoundaryTest
             'redsys_callback_url_https_configured',
             'redsys_gateway_url_https_configured',
             'cutover_configuration_consistent',
+            'legacy_drain_confirmed_if_cutover',
             'payment_allocation_table',
             'enrollment_fund_movement_table',
             'notification_outbox_table',
