@@ -51,6 +51,8 @@ try {
     $lines.Add('PublicWebMutationAuthorizationTest::testRejectsCrossOriginRequest')
     $lines.Add('PublicWebMutationAuthorizationTest::testRejectsNonAjaxRequest')
     $lines.Add('PublicWebMutationAuthorizationTest::testAllowsConfiguredRefererFallback')
+    $lines.Add('PackEnrollmentIdempotencyBoundaryTest::testServerUsesRequestLockFingerprintAndAtomicPackInsert')
+    $lines.Add('PackEnrollmentIdempotencyBoundaryTest::testBrowserReusesRequestIdAndBlocksConcurrentSubmit')
 
     if ($exitCode -ne 0) {
         $lines.Add('RESULT=FAIL')
