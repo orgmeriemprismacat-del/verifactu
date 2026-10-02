@@ -16,6 +16,7 @@ $callbackUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
 $gatewayUrl = trim((string) getenv('REDSYS_GATEWAY_URL'));
 $internalApiBaseUrl = rtrim(trim((string) getenv('SIF_INTERNAL_API_BASE_URL')), '/');
 $merchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
+$sifMerchantCode = trim((string) ($config['redsys']['merchant_code'] ?? ''));
 $bridgeMerchantKey = trim((string) getenv('REDSYS_MERCHANT_KEY'));
 $sifMerchantKey = trim((string) ($config['redsys']['merchant_key'] ?? ''));
 $terminal = trim((string) getenv('REDSYS_TERMINAL'));
@@ -34,6 +35,10 @@ $checks = [
     'environment_is_test_or_preproduction' => in_array($env, ['test', 'preproduction'], true),
     'redsys_merchant_key_configured' => $sifMerchantKey !== '',
     'bridge_redsys_merchant_code_configured' => $merchantCode !== '',
+    'sif_redsys_merchant_code_configured' => $sifMerchantCode !== '',
+    'bridge_and_sif_redsys_merchant_codes_match' => $merchantCode !== ''
+        && $sifMerchantCode !== ''
+        && hash_equals($merchantCode, $sifMerchantCode),
     'bridge_redsys_merchant_key_configured' => $bridgeMerchantKey !== '',
     'bridge_redsys_terminal_configured' => $terminal !== '',
     'bridge_and_sif_redsys_keys_match' => $bridgeMerchantKey !== ''
