@@ -18,7 +18,10 @@
 - UUID_NOTIFICATION:
 - NOTIFICATION_STATUS:
 - SIF_REDSYS_COURSE_CUTOVER_ENABLED: 0 / 1
-- SIF_REDSYS_CALLBACK_URL configurada: SÍ / NO (no copiar secrets ni query sensible)
+- SIF_REDSYS_CALLBACK_URL configurada amb HTTPS: SÍ / NO (no copiar secrets ni query sensible)
+- REDSYS_GATEWAY_URL configurada amb HTTPS i corresponent a l'entorn: SÍ / NO
+- SIF_INTERNAL_API_KEY_ID / SECRET configurats: SÍ / NO (no copiar els valors)
+- Paths HMAC `course-intent` i `course-status` coherents amb el pont: SÍ / NO
 - Credencial Redsys rotada/configurada via secret store o entorn: SÍ / NO (no copiar el valor)
 
 ## 2. Preflight
@@ -143,6 +146,9 @@ Adjuntar només evidència sense secrets:
 ## 9. Decisió de tall
 
 - [ ] `SIF_REDSYS_CALLBACK_URL` configurada amb HTTPS
+- [ ] `REDSYS_GATEWAY_URL` configurada amb HTTPS i sense endpoint hardcoded al codi
+- [ ] API interna configurada (`SIF_INTERNAL_API_KEY_ID`/`SECRET`) i paths HMAC coherents
+- [ ] clau Redsys del pont i clau del callback SIF corresponen al mateix comerç/entorn
 - [ ] `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` només a preproducció durant la prova
 - [ ] `doit.php` retorna 410 amb cutover actiu
 - [ ] `realitzaPagamentAutomatic.php` retorna 410 amb cutover actiu
