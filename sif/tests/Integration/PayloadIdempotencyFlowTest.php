@@ -70,6 +70,65 @@ final class PayloadIdempotencyFlowTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
     }
 
+
+    public function testRetryWithOriginalPaymentFailsClosedWhenPaymentTransactionWasTampered(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'REDSYS|CURS|IDPAG:123|ORDER:TAMPERED-PAYMENT',
+            'payment' => [
+                'idempotency_key' => 'PAYMENT|TAMPERED_ON_RETRY',
+                'movement_type' => 'CHARGE',
+                'method' => 'REDSYS',
+                'source_channel' => 'REDSYS',
+                'amount' => '120.00',
+                'movement_date' => '2026-06-02 10:00:00',
+                'provider_ref' => 'TAMPERED-PAYMENT',
+                'ds_order' => 'TAMPERED-PAYMENT',
+                'idpag' => 123,
+            ],
+        ]);
+
+        $service->issueInvoice($payload);
+        $db->exec("UPDATE payment_transaction SET IMPORT = '119.00'");
+
+        Assert::throws(SifException::class, fn () => $service->issueInvoice($payload), 409);
+    }
+
+    public function testRetryWithOriginalPaymentFailsClosedWhenAllocationTargetsAnotherInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'REDSYS|CURS|IDPAG:123|ORDER:WRONG-ALLOCATION',
+            'payment' => [
+                'idempotency_key' => 'PAYMENT|WRONG_ALLOCATION_ON_RETRY',
+                'movement_type' => 'CHARGE',
+                'method' => 'REDSYS',
+                'source_channel' => 'REDSYS',
+                'amount' => '120.00',
+                'movement_date' => '2026-06-02 10:00:00',
+                'provider_ref' => 'WRONG-ALLOCATION',
+                'ds_order' => 'WRONG-ALLOCATION',
+                'idpag' => 123,
+            ],
+        ]);
+
+        $first = $service->issueInvoice($payload);
+        $second = $service->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|UC001|SECOND-INVOICE-FOR-ALLOCATION',
+            'source_channel' => 'INTRANET',
+        ]));
+
+        $stmt = $db->prepare(
+            'UPDATE payment_allocation SET UUID_FACTURA = ? WHERE UUID_FACTURA = ?'
+        );
+        $stmt->execute([$second['uuid_factura'], $first['uuid_factura']]);
+
+        Assert::throws(SifException::class, fn () => $service->issueInvoice($payload), 409);
+    }
+
     public function testOriginalInvoiceWithoutFingerprintFailsClosed(): void
     {
         $db = TestDatabase::fresh();
