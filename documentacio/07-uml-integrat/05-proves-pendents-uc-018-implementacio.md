@@ -65,7 +65,7 @@
 
 ## 8. Criteri de tancament de l'auditoria
 
-El codi/documentació queda tancable quan CI del PR de tancament acredita:
+El codi/documentació queda **TANCAT** perquè el CI final del PR #115 acredita:
 
 ```text
 1 compra pagada
@@ -81,3 +81,15 @@ correus post-SIF governats
 ```
 
 Els punts `[ENV]` són gates de desplegament i no deute de disseny/codi.
+
+## 9. Evidència CI final
+
+- `SIF PHP MySQL tests` run `37051232707`: **858 passed / 0 failed**.
+- **49 PASS** relacionats amb GIFT/UC-018 dins del mateix run.
+- `SIF checks` run `37051232680`: **SUCCESS**.
+- `UC-111 integration verification` run `37051232657`: **SUCCESS**.
+- `UC-004 SIF secure flow checks` run `37051232695`: **SUCCESS**.
+- Snapshot UC-018 final: `7ba6cf0f982960a1164561e0d624b1f9e729af73`.
+- Merge a `main`: `66c63765254623e017cdfae8ad81ac72fafa8903`.
+
+Els punts `[ENV]` continuen sent acceptació de preproducció, no proves automatitzades pendents.
