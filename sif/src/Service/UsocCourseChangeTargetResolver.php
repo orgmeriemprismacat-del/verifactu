@@ -27,9 +27,9 @@ final class UsocCourseChangeTargetResolver
             );
         }
 
-        if ($studentCourse > $standard) {
+        if ($studentCourse >= $standard) {
             throw SifException::validation(
-                'USOC target student amount cannot exceed standard target amount'
+                'USOC target entity amount must remain positive for validated USOC financing'
             );
         }
 
