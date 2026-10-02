@@ -59,7 +59,7 @@ Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un 
 | UC-16a | Afegir participant després d'emetre | [Fitxa i UML](uc-016a-afegir-participant-grup-emes.md) | `[DISSENY]` |
 | UC-16b | Treure participant després d'emetre | [Fitxa i UML](uc-016b-treure-participant-grup-emes.md) | `[DISSENY]` |
 | UC-17 | Comprar regal | [Fitxa i UML](uc-017-comprar-regal.md) | `[BASE/ASYNC/PARCIAL]` |
-| UC-18 | Bescanviar regal | [Fitxa i UML](uc-018-bescanviar-regal.md) | `[DISSENY]` |
+| UC-18 | Bescanviar regal | [Fitxa i UML](uc-018-bescanviar-regal.md) · [classes A/F](uc-018-classes-actual-final.md) · [seqüències A/F](uc-018-sequencies-actual-final.md) · [activitats](uc-018-activitats-pagines-bescanvi-regal-actual-final.md) · [auditoria](04-auditoria-detallada-uc-018-bescanviar-regal-2026-09-30.md) · [proves](05-proves-pendents-uc-018-implementacio.md) | `[IMPLEMENTAT · AUDITORIA TANCADA · PREPROD PENDENT 02/10]` |
 | UC-18a | Gestionar regal caducat o duplicat | [Fitxa i UML](uc-018a-regal-caducat-duplicat.md) | `[DISSENY]` |
 | UC-19 | Validar afiliació USOC | [Fitxa i UML](uc-019-validar-afiliacio-usoc.md) | `[DISSENY]` |
 | UC-19a | Facturar part de l'alumne USOC | [Fitxa i UML](uc-019a-facturar-part-alumne-usoc.md) | `[BASE/ASYNC/PARCIAL]` |

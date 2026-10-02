@@ -34,6 +34,27 @@ $checks = [
     'historical_gift_entitlement_preflight_present' => is_file(
         $baseDir . '/scripts/preflight-historical-gift-entitlements.php'
     ),
+    'gift_redemption_preflight_present' => is_file(
+        $baseDir . '/scripts/preflight-gift-redemption.php'
+    ),
+    'gift_redemption_verifier_present' => is_file(
+        $baseDir . '/scripts/verify-gift-redemption-preproduction.php'
+    ),
+    'gift_redemption_circuit_present' => allFilesPresent($baseDir, [
+        'src/Service/GiftRedemptionTrustedContextResolver.php',
+        'src/Service/GiftEnrollmentStager.php',
+        'src/Service/GiftRedemptionService.php',
+        'src/Service/GiftRedemptionOrchestrator.php',
+        'src/Service/LegacyGiftUsageReconciler.php',
+        'src/Service/GiftRedemptionNotificationBundleService.php',
+        'src/Service/NotificationOutboxDeliveryService.php',
+        'public/api/gifts/redemption/redeem.php',
+        'public/api/gifts/redemption/notifications.php',
+    ]),
+    'gift_redemption_concurrency_evidence_present' => allFilesPresent($baseDir, [
+        'tests/Integration/GiftRedemptionConcurrencyTest.php',
+        'tests/Support/ConcurrentGiftRedemptionWorker.php',
+    ]),
     'historical_gift_entitlement_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/HistoricalGiftEntitlementBackfillService.php',
         'scripts/inventory-historical-gift-entitlements.php',
