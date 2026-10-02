@@ -599,8 +599,8 @@
 						}
 					}
 
-					$pagat2 = (real) number_format($pagat,2);
-					$aPagarMembre2 = (real) number_format($aPagarMembre,2);
+					$pagat2 = round((float) $pagat, 2);
+					$aPagarMembre2 = round((float) $aPagarMembre, 2);
 
 					if ( floatval($pagat2) >= floatval($aPagarMembre2) ) {
 						if ( $stmtUpdate=$connexio2->prepare($updDateInscr) ) {
