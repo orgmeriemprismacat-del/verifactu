@@ -116,6 +116,20 @@ final class InvoicePayloadValidatorTest
         Assert::same('Invoice total does not match line totals', $exception->getMessage());
     }
 
+    public function testRejectsHeaderDiscountThatDoesNotMatchLines(): void
+    {
+        $payload = $this->validPayload();
+        $payload['totals']['discount'] = '1.00';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Invoice discount does not match line totals', $exception->getMessage());
+    }
+
     public function testRejectsHeaderTaxableBaseThatDoesNotMatchLines(): void
     {
         $payload = $this->validPayload();
