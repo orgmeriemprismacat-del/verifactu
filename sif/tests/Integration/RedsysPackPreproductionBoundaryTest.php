@@ -110,6 +110,12 @@ final class RedsysPackPreproductionBoundaryTest
             $source
         );
         Assert::stringContainsString('sanitizeEvidence($json)', $source);
+        Assert::stringContainsString("'invoice_total' =>", $source);
+        Assert::stringContainsString("'payment_amount' =>", $source);
+        Assert::same(
+            false,
+            str_contains($source, "\$result['preview'] = \$preview['json'];")
+        );
     }
 
     public function testPackPreflightCoversAllRequiredExecutableSurfaces(): void
