@@ -183,15 +183,17 @@ Falten, com a mínim:
 9. reconciliació posterior del nou expedient i relacions origen/destí;
 10. proves de retry, fallada parcial, factura entitat no emesa, entitat parcialment cobrada i imports destí diferents.
 
-### Bloqueig funcional necessari abans d'implementar
+### Regla funcional revalidada
 
-El repositori no defineix encara si el canvi de curs:
-- conserva exactament la mateixa aportació USOC;
-- recalcula el percentatge/import USOC sobre el nou curs;
-- requereix nova validació de l'entitat;
-- o pot deixar part de l'import com a saldo/pendent independent.
+La incertesa inicial sobre conservar o recalcular l'aportació ha quedat **resolta pel contrast amb el legacy real**:
 
-Aquesta decisió afecta directament les dues factures noves. Per tant el comportament actual correcte és **bloquejar la mutació legacy** i no inventar una reemissió automàtica.
+- el canvi conserva `TIPUS_DESC=4` i `VALID_DESC=1`;
+- el preu USOC es **recalcula sobre el curs/edició destí**;
+- la part entitat és la diferència entre preu estàndard destí i preu USOC/alumne destí;
+- les despeses de gestió corresponen a l'alumne;
+- si la regla USOC destí és absent/ambigua o la variant és alumne=0, el cas queda `REVIEW_REQUIRED`.
+
+El que continua pendent no és la fórmula d'import, sinó la materialització segura dels efectes fiscals/econòmics i el handoff legacy.
 
 
 ## Canvi de curs USOC · REGLA DESTÍ REVALIDADA 02/10/2026
@@ -206,7 +208,7 @@ El contrast amb `Intranet.php` i el builder SIF permet tancar part de la incerte
 - **Fons reals:** no es poden copiar des de `PAGAMENT`; existeix infraestructura `COMPENSATION_ALLOCATION` per atribuir un CHARGE confirmat a la inscripció destí.
 - **Excessos:** poden requerir refund o `credit_balance`, sempre per pagador.
 
-Això redueix el pendent del canvi de curs a la implementació del resolver destí + executor + handoff, no a una decisió oberta sobre si s'ha de conservar l'import antic.
+Això va reduir el pendent a resolver + executor + handoff. En aquesta mateixa branca, el resolver d'imports i el pla econòmic pur ja han quedat implementats; resten els efectes, la selecció server-side de la regla destí i el handoff.
 
 
 ## Delta implementació 02/10/2026 · resolver d'imports de canvi de curs
