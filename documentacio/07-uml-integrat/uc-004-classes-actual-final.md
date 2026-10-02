@@ -193,25 +193,43 @@ EliminarArxiuEndpoint --> DompdfFilesystem : unlink(filename)
 
 ## 4. Classes FINAL — arquitectura objectiu UC-004
 
-El FINAL ha de reutilitzar el nucli SIF que ja existeix i afegir l'adaptador que falta. Les classes marcades **PROPOSAT** són responsabilitats de disseny; no es presenten com a codi existent.
+El `main` del 2026-10-02 ja implementa la frontera interna SIF, l'autorització, el command i la reconstrucció autoritativa. El principal adaptador encara **PROPOSAT** és el bridge de la pantalla intranet llegada cap a aquesta API interna. El classificador de cobertura transversal i la integració documental/post-COMMIT també continuen pendents.
 
 ```mermaid
 classDiagram
 direction LR
 
-class Uc004Controller {
-  <<PROPOSAT>>
-  +issueBeforePayment(command)
-  +getPreview(selection)
+class IntranetUc004Bridge {
+  <<PROPOSAT · PANTALLA REAL>>
+  +preview(selectionIds, entityId)
+  +confirm(selectionIds, entityId, fingerprint)
+  +signInternalRequest()
 }
 
-class Uc004Authorization {
-  <<PROPOSAT>>
-  +assertCanIssue(actor, scope)
+class BeforePaymentHttpEndpoint {
+  <<EXISTEIX AL MAIN>>
+  +POST action=preview
+  +POST action=confirm
+}
+
+class InternalApiAuthenticator {
+  <<EXISTEIX AL MAIN>>
+  +authenticate(server, rawBody, method, path)
+}
+
+class InternalInvoiceBeforePaymentScopeResolver {
+  <<EXISTEIX AL MAIN>>
+  +resolve(authenticatedActor)
+}
+
+class InvoiceBeforePaymentCommandService {
+  <<EXISTEIX AL MAIN>>
+  +preview(ids, entityId, actorId, context)
+  +confirm(ids, entityId, actorId, fingerprint, context)
 }
 
 class InvoiceBeforePaymentSelectionRepository {
-  <<EXISTEIX A LA BRANCA>>
+  <<EXISTEIX AL MAIN>>
   +loadByIds(legacyWebDb, ids)
 }
 
@@ -249,13 +267,29 @@ class InvoiceBeforePaymentCoverage {
   +IDEMPOTENCY_KEY
 }
 
+class OperationalEventRepository {
+  <<EXISTEIX · INTEGRAT EN AQUESTA BRANCA>>
+  +append(db, event)
+}
+
+class OperationalEvent {
+  <<SIF DB>>
+  +UUID_OPERATIONAL_EVENT
+  +OPERATION_TYPE
+  +UUID_FACTURA
+  +FISCAL_IMPACT
+  +ECONOMIC_IMPACT
+  +ACTOR_ID
+  +CORRELATION_ID
+}
+
 class InvoiceBeforePaymentPayloadBuilder {
   <<EXISTEIX>>
   +build(input) array
 }
 
 class InvoiceBeforePaymentService {
-  <<EXISTEIX · PENDENT INTEGRACIÓ>>
+  <<EXISTEIX AL MAIN>>
   +issueBeforePayment(input) array
 }
 
@@ -347,10 +381,13 @@ class InvoiceDocumentService {
   +getDocumentStatus(uuidFactura)
 }
 
-Uc004Controller --> Uc004Authorization
-Uc004Controller --> CrossChannelCoverageClassifier
-Uc004Controller --> InvoiceBeforePaymentLegacyPreparationService
-Uc004Controller --> InvoiceBeforePaymentService
+IntranetUc004Bridge --> BeforePaymentHttpEndpoint : HMAC server-server
+BeforePaymentHttpEndpoint --> InternalApiAuthenticator
+BeforePaymentHttpEndpoint --> InternalInvoiceBeforePaymentScopeResolver
+BeforePaymentHttpEndpoint --> InvoiceBeforePaymentCommandService
+InvoiceBeforePaymentCommandService --> CrossChannelCoverageClassifier : PENDENT
+InvoiceBeforePaymentCommandService --> InvoiceBeforePaymentLegacyPreparationService
+InvoiceBeforePaymentCommandService --> InvoiceBeforePaymentService
 
 InvoiceBeforePaymentLegacyPreparationService --> InvoiceBeforePaymentSelectionRepository
 InvoiceBeforePaymentLegacyPreparationService --> InvoiceBeforePaymentBillingPartyRepository
@@ -365,8 +402,10 @@ InvoiceService --> PayloadIdempotencyValidator
 InvoiceService --> TransactionRunner
 InvoiceService --> FiscalSequenceRepository
 InvoiceService --> InvoiceRepository
-InvoiceService --> InvoiceBeforePaymentCoverageRepository : només EMESA_ABANS_COBRAMENT
+InvoiceService --> InvoiceBeforePaymentCoverageRepository : només UC-004
 InvoiceBeforePaymentCoverageRepository --> InvoiceBeforePaymentCoverage : claim transaccional
+InvoiceService --> OperationalEventRepository : només UC-004
+OperationalEventRepository --> OperationalEvent : mateix COMMIT
 
 InvoiceRepository --> Factura
 InvoiceRepository --> FacturaLinia
@@ -374,17 +413,18 @@ InvoiceRepository --> FactRels
 InvoiceRepository --> FacturaRegistres
 InvoiceRepository --> FiscalQueue
 
-Uc004Controller --> LegacySync : només després del COMMIT SIF
-Uc004Controller --> InvoiceDocumentService : document per UUID
+InvoiceBeforePaymentCommandService ..> LegacySync : PENDENT post-COMMIT
+InvoiceBeforePaymentCommandService ..> InvoiceDocumentService : PENDENT document per UUID
 ```
 
 ## 5. Responsabilitats que NO s'han de confondre
 
-- `InvoiceBeforePaymentService` **existeix**, però la pantalla llegada UC-004 no l'invoca.
+- `InvoiceBeforePaymentService` **existeix i ja és invocat** pel command/endpoint intern SIF; la pantalla llegada encara no passa per aquesta frontera.
 - `sif/public/api/factures/issue.php` **existeix**, però instancia `InvoiceService` directament; per tant no acredita per si sol el contracte “abans de cobrar” ni l'ús de `InvoiceBeforePaymentPayloadBuilder`.
-- `InvoiceBeforePaymentSelectionRepository`, `InvoiceBeforePaymentBillingPartyRepository`, `InvoiceBeforePaymentServerPayloadAssembler` i `InvoiceBeforePaymentLegacyPreparationService` **ja existeixen a la branca** i eliminen del payload autoritatiu el total/receptor/conceptes construïts al navegador. Encara no estan connectats a la pantalla web.
+- `InvoiceBeforePaymentSelectionRepository`, `InvoiceBeforePaymentBillingPartyRepository`, `InvoiceBeforePaymentServerPayloadAssembler`, `InvoiceBeforePaymentLegacyPreparationService` i `InvoiceBeforePaymentCommandService` **ja existeixen al main** i eliminen del payload autoritatiu el total/receptor/conceptes construïts al navegador. El bridge de la pantalla és el que falta.
 - `InvoicePayloadValidator` valida camps estructurals bàsics; no acredita tota la validació fiscal, comercial, de cobertura ni d'autorització necessària per UC-004.
 - `PayloadIdempotencyValidator` protegeix la repetició de **la mateixa clau** comparant el hash complet. `InvoiceBeforePaymentCoverageRepository` impedeix que dues operacions UC-004 amb claus diferents reclamin el mateix origen. Encara falta el classificador de cobertura **transversal** entre altres canals/pagadors, perquè no tota doble relació d'una inscripció és necessàriament il·legítima.
+- `OperationalEventRepository` s'integra en aquesta branca dins la mateixa transacció UC-004; un retry idempotent no ha de crear un segon event.
 - `PaymentService` no forma part de l'emissió inicial UC-004. El cobrament posterior és UC-002/UC-022 segons canal.
 
 ## 6. Criteri de tancament del diagrama FINAL
