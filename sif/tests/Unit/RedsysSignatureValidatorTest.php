@@ -57,8 +57,8 @@ final class RedsysSignatureValidatorTest
         Assert::throws(SifException::class, function () use ($validator): void {
             $validator->decodeAndVerify([
                 'Ds_SignatureVersion' => 'HMAC_SHA256_V1',
-                'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19NZXJjaGFudENvZGUiOiI5OTkwMDg4ODEiLCJEc19DdXJyZW5jeSI6Ijk3OCIsIkRzX1Rlcm1pbmFsIjoiMSIsIkRzX0RhdGUiOiIwNi8wNi8yMDI2IiwiRHNfSG91ciI6IjEwOjMwIn0=',
-                'Ds_Signature' => 'TnZ4Ce3qhzrUl6lFKJnbG06I0A6N8FlFjCMmJdGCttk=',
+                'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19UcmFuc2FjdGlvblR5cGUiOiIwIiwiRHNfTWVyY2hhbnRDb2RlIjoiOTk5MDA4ODgxIiwiRHNfQ3VycmVuY3kiOiI5NzgiLCJEc19UZXJtaW5hbCI6IjEiLCJEc19EYXRlIjoiMDYvMDYvMjAyNiIsIkRzX0hvdXIiOiIxMDozMCJ9',
+                'Ds_Signature' => 'K6NDUVPU8CgaxQm7degre7H2dtCZNQhso1otiU-yfdw=',
             ]);
         }, 422);
     }
