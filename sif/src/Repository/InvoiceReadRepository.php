@@ -103,6 +103,23 @@ final class InvoiceReadRepository
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    public function findDocumentJobs(\PDO $db, string $uuidFactura): array
+    {
+        $stmt = $db->prepare(
+            'SELECT ID, UUID_JOB, UUID_FACTURA, DOCUMENT_TYPE, GENERATOR_VERSION,
+                    STATUS, ATTEMPTS, MAX_ATTEMPTS, NEXT_ATTEMPT_AT,
+                    FACTURA_DOCUMENT_ID, OUTPUT_HASH, LAST_ERROR,
+                    CORRELATION_ID, CREATED_AT, FINISHED_AT
+             FROM document_job
+             WHERE UUID_FACTURA = ?
+             ORDER BY CREATED_AT ASC, ID ASC'
+        );
+        $stmt->execute([$uuidFactura]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return is_array($rows) ? $rows : [];
+    }
+
     public function search(\PDO $db, array $criteria, int $limit = 50): array
     {
         $allowed = [
