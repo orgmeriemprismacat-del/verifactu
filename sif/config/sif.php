@@ -45,6 +45,7 @@ return [
     'documents' => [
         'root' => getenv('SIF_DOCUMENT_ROOT') ?: '',
         'max_bytes' => (int) (getenv('SIF_DOCUMENT_MAX_BYTES') ?: 20971520),
+        'generator_version' => getenv('SIF_DOCUMENT_GENERATOR_VERSION') ?: 'uc004-fiscal-pdf-v1',
     ],
     'internal_api' => [
         'key_id' => getenv('SIF_INTERNAL_API_KEY_ID') ?: '',
