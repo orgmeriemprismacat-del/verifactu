@@ -31,6 +31,8 @@ else mateix REQUEST_ID + payload diferent/inconsistent
  Alta-->>JS: HTTP 409 sense mutació
 else request nou
  Alta->>Alta: validar/normalitzar formulari
+ Alta->>DB: carregar N components + regles dies-inscriu-cursos
+ Alta->>Alta: exigir totes les edicions obertes
  Alta->>DB: rellegir preu pack i preus components
  Alta->>DB: GET_LOCK allocator IDPAG
  Alta->>Alta: reservar MAX(IDPAG)+1 sota lock
@@ -54,7 +56,7 @@ JS-->>U: redirecció confirmació
 ### Riscos ACTUAL residuals
 
 - les N inscripcions ja es persisteixen atòmicament; en excepció es fa rollback i el lock `IDPAG` s'allibera per `finally`;
-- l'alta pública és POST-only amb comprovació same-site/origin i idempotència server-side `REQUEST_ID`+payload hash; un reintent equivalent reutilitza l'alta abans de rellegir el pack actual; resta E2E navegador/preproducció i valorar controls anti-abús addicionals;
+- l'alta pública és POST-only amb comprovació same-site/origin i idempotència server-side `REQUEST_ID`+payload hash; una alta nova exigeix totes les edicions obertes i un reintent equivalent reutilitza l'alta abans de rellegir disponibilitat/pack actual; resta E2E navegador/preproducció i valorar controls anti-abús addicionals;
 - l'allocator `IDPAG` continua sent MAX+1, tot i estar serialitzat amb lock;
 - `PACK_ORDINAL` queda determinat pel mateix ordre estable de presentació `DATAI, ID_CURS`; resta decidir si negoci requereix una posició explícita separada;
 - el callback fiscal legacy conserva codi històric però està desactivat per defecte.
