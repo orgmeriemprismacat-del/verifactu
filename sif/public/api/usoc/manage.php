@@ -185,7 +185,7 @@ try {
     if ($action === 'prepare_course_change') {
         $idInsc = positiveInt($payload['id_insc'] ?? null, 'Invalid USOC inscription ID');
         $idpag = positiveInt($payload['idpag'] ?? null, 'Invalid USOC IDPAG');
-        $requestId = requiredString($payload['request_id'] ?? null, 'Missing USOC course change request id');
+        $requestId = requiredRequestId($payload['request_id'] ?? null);
         $target = $payload['target'] ?? null;
         if (!is_array($target)) {
             throw SifException::validation('Invalid USOC course change target input');
@@ -486,6 +486,16 @@ function requiredRequestId(mixed $value): string
     }
 
     return $requestId;
+}
+
+function requiredString(mixed $value, string $message): string
+{
+    $text = trim((string) $value);
+    if ($text === '') {
+        throw SifException::validation($message);
+    }
+
+    return $text;
 }
 
 function positiveInt(mixed $value, string $message): int
