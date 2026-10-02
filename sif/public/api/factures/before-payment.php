@@ -57,9 +57,7 @@ try {
         (string) (
             $internalApi['invoice_before_payment_signed_path']
             ?? '/api/factures/before-payment.php'
-        ),
-        $sifDb,
-        $coverage
+        )
     );
 
     $writeConfig = $config['invoice_before_payment'] ?? [];
@@ -132,7 +130,9 @@ try {
                 new DocumentJobRepository(),
                 (string) ($documentsConfig['generator_version'] ?? '')
             )
-        )
+        ),
+        $sifDb,
+        $coverage
     );
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
