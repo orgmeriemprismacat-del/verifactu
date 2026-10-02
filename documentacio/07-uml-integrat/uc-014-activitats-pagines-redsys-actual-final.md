@@ -178,7 +178,7 @@ stop
 @enduml
 ```
 
-**Implementació al repositori:** el pont candidat ja crea/reutilitza la intenció mitjançant `SifRedsysCourseIntentClient`. La MerchantURL SIF exigeix `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i `SIF_REDSYS_CALLBACK_URL` HTTPS; la URL sola no activa el tall i amb el flag a `0` es conserva el callback llegat com a transició/rollback. El tall d'entorn continua **PENDENT D'ACREDITAR**.
+**Implementació al repositori:** el pont candidat ja crea/reutilitza la intenció mitjançant `SifRedsysCourseIntentClient`. La MerchantURL SIF exigeix `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1`, `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=1` i `SIF_REDSYS_CALLBACK_URL` HTTPS. Amb `cutover=1/drain=0` es bloquegen nous checkouts però es mantenen callbacks llegats en vol; amb `cutover=0/drain=0` es conserva el circuit de transició/rollback. El tall d'entorn continua **PENDENT D'ACREDITAR**.
 
 ## 4. P-CUR-04 — Callback servidor
 
