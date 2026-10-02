@@ -314,7 +314,7 @@ try {
 			if ($existingRow['idpag'] !== $expectedIdPag) {
 				throw new RuntimeException('Error: conflicte d’idempotència del pack.', 409);
 			}
-			if (!preg_match('/(?:^|\\s)PACK_REQUEST_HASH\\|([a-f0-9]{64})(?:\\s|$)/i', $existingRow['observations'], $hashMatch)
+			if (!preg_match('/(?:^|\\s)PACK_REQH\\|([a-f0-9]{32})(?:\\s|$)/i', $existingRow['observations'], $hashMatch)
 				|| !hash_equals($packRequestFingerprint, strtolower($hashMatch[1]))) {
 				throw new RuntimeException('Error: la mateixa petició conté dades diferents.', 409);
 			}
