@@ -16,6 +16,8 @@ final class RedsysCourseCutoverBoundaryTest
         Assert::stringContainsString('SIF_REDSYS_CALLBACK_URL', $source);
         Assert::stringContainsString('SIF_REDSYS_CALLBACK_URL_REQUIRED_FOR_CUTOVER', $source);
         Assert::stringContainsString('SIF_REDSYS_CALLBACK_URL_MUST_USE_HTTPS', $source);
+        Assert::stringContainsString('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED', $source);
+        Assert::stringContainsString('SIF_REDSYS_LEGACY_DRAIN_NOT_CONFIRMED', $source);
         Assert::stringContainsString('if ($courseCutoverEnabled) {', $source);
         Assert::stringContainsString('$url = $sifMerchantUrl;', $source);
         Assert::stringContainsString('$url = $legacyMerchantUrl;', $source);
@@ -83,6 +85,8 @@ final class RedsysCourseCutoverBoundaryTest
             $source = $this->read($relativePath);
 
             Assert::stringContainsString('SIF_REDSYS_COURSE_CUTOVER_ENABLED', $source);
+            Assert::stringContainsString('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED', $source);
+            Assert::stringContainsString('if ($courseCutoverEnabled && $legacyDrainConfirmed)', $source);
             Assert::stringContainsString('http_response_code(410)', $source);
             Assert::stringContainsString('Callback legacy de curs retirat', $source);
 
@@ -100,6 +104,22 @@ final class RedsysCourseCutoverBoundaryTest
 
             Assert::same(true, $guard < $firstDependency);
         }
+    }
+
+    public function testActualCheckoutStopsCreatingLegacySessionsDuringDrain(): void
+    {
+        $source = $this->read(
+            'codi-drive/web-actual/pagina_efectuar_pagament_automatic.php'
+        );
+
+        Assert::stringContainsString('SIF_REDSYS_COURSE_CUTOVER_ENABLED', $source);
+        Assert::stringContainsString('SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED', $source);
+        Assert::stringContainsString('http_response_code(503)', $source);
+        Assert::stringContainsString('http_response_code(410)', $source);
+
+        $guard = strpos($source, 'SIF_REDSYS_COURSE_CUTOVER_ENABLED');
+        $gate = strpos($source, 'JasomNovicePaymentGate.php');
+        Assert::same(true, $guard !== false && $gate !== false && $guard < $gate);
     }
 
     public function testCutoverCanBeRolledBackByDisablingSingleFlagBeforePermanentLegacyRemoval(): void
