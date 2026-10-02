@@ -1,6 +1,6 @@
 # UC-014 — Pla de tall final Redsys cap al SIF
 
-**Data:** 30/09/2026  
+**Data inicial:** 30/09/2026 · **Revalidació:** 02/10/2026  
 **Objectiu:** retirar l'autoritat fiscal dels callbacks llegats `doit.php` / `realitzaPagamentAutomatic.php` sense perdre sincronització econòmica ni efectes acadèmics.
 
 ## Estat actual acreditat
@@ -28,7 +28,7 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
 ## Pas 1 — preproducció
 
 1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Configurar `SIF_REDSYS_CALLBACK_URL` amb la URL HTTPS del callback SIF, però mantenir `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0` fins que els preflights siguin verds.
-2. Configurar credencials Redsys de proves i secrets d'API interna.
+2. Rotar qualsevol credencial Redsys històrica potencialment exposada i configurar credencials de proves/secrets d'API interna exclusivament via secret store/entorn. Verificar que el codi desplegat no conté literals.
 3. Crear una intenció de curs ordinari.
 4. Comprovar:
    - una sola fila a `redsys_payment_intent`;
@@ -106,7 +106,8 @@ Per cada prova conservar:
 - estat del job;
 - files afectades a `inscripcions`;
 - resultat esperat / resultat obtingut;
-- logs o captures sense secrets.
+- logs o captures sense secrets;
+- evidència de rotació/configuració de credencials sense copiar-ne el valor.
 
 ## Criteri de tancament
 
@@ -160,3 +161,17 @@ L'evidència s'ha de conservar amb la plantilla [UC-014 — Plantilla d'evidènc
 ## Dependència operativa UC-58
 
 El tall fiscal ja no necessita que el callback llegat enviï correus, perquè UC-014 deixa el fet de notificació de pagament de curs a `notification_outbox`. Però **no hi ha encara worker/transport genèric acreditat que lliuri aquesta ordre**. Per tant, un GO de preproducció pot validar la creació durable de l'avís, però el GO productiu ha de mantenir-se condicionat a UC-58 si es vol conservar el correu operatiu a alumne/gestió sense regressió funcional.
+
+
+## Revalidació de hardening fallback 02/10
+
+La branca d'auditoria 02/10 afegeix una protecció temporal del fallback mentre encara existeixi:
+
+- `FRACCIONAT` rellegit al servidor i import parcial rebutjat quan no correspon;
+- outputs del checkout sanejats;
+- merchant code/key via entorn;
+- signatura, `Ds_Order` i `Ds_Amount` validats abans d'efectes;
+- cap correu de depuració pre-validació;
+- `RedsysCourseLegacyFallbackBoundaryTest`.
+
+Aquesta protecció **no substitueix el cutover SIF**. Abans d'usar-la en un entorn, cal CI verd de la branca i configuració dels secrets requerits.
