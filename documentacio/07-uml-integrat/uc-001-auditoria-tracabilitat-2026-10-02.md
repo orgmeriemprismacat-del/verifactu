@@ -4,7 +4,7 @@
 
 ## 1. Resultat executiu
 
-**Estat de l’auditoria:** `TANCAMENT TÈCNIC PENDENT NOMÉS DEL GATE CI`. Totes les troballes de la revisió tenen resolució implementada o classificació explícita. Els elements marcats com a pendents a la taula són deutes d’implementació transversal/entorn i **no són zones no auditades**.
+**Estat de l’auditoria:** `TANCADA_AMB_EXCEPCIO_EXECUCIO_CI_BLOQUEJADA_EXTERNAMENT`. Totes les troballes de la revisió tenen resolució implementada o classificació explícita. Els elements marcats com a pendents a la taula són deutes d’implementació transversal/entorn i **no són zones no auditades**.
 
 | Bloc | Documentat | Implementat després d'aquesta branca | Inspecció | Execució |
 | --- | --- | --- | --- | --- |
@@ -74,12 +74,21 @@ L'auditoria UC-001 es considera tancada quan el head de codi d'aquesta revisió 
 - [x] Frontera HTTP autenticada i autoritzada.
 - [x] Coherència monetària i persistència d'exempció revisades.
 - [x] Troballes restants classificades per frontera.
-- [ ] Gate CI del head de codi.
+- [!] Gate CI del head de codi — **BLOQUEJAT EXTERNAMENT**: 1.027 runs del repositori constaven `queued` en la comprovació final del 02/10/2026; els quatre workflows del head UC-001 no havien començat.
 
 ### 5.2. No bloqueja el tancament de l'auditoria, però sí altres fases
 
 La integració obligatòria de `commercial_operation`, els events funcionals propis de l’emissió, l’assembler AEAT complet, el resultat enriquit i la configuració/preproducció continuen oberts com a **deute implementatiu o operatiu explícit**. El fencing i la gestió d’incertesa/reconciliació AEAT ja estan implementats i no es mantenen com a fals pendent. No s'han silenciat ni declarat implementats.
 
+
+### 5.3. Excepció de tancament — execució CI
+
+A data 02/10/2026, GitHub Actions acumula **1.027 runs en estat `queued`** al repositori. Els workflows del head UC-001 (`SIF checks`, `SIF PHP MySQL tests`, `UC-004 SIF secure flow checks` i `UC-111 integration verification`) estan en cua i no han produït cap conclusió. Per tant:
+
+- l’auditoria de codi/documentació es tanca perquè l’abast és complet i les troballes estan resoltes o classificades;
+- **no** es declara la suite executada ni verda;
+- el PR queda obert i mergeable a nivell Git, però la decisió de merge queda condicionada a evidència d’execució posterior;
+- qualsevol fallada futura del CI reobre només la troballa/prova afectada, no converteix retroactivament l’evidència pendent en evidència verda.
 
 ## 6. Matriu detallada de troballes 51–86
 
@@ -141,7 +150,7 @@ La integració obligatòria de `commercial_operation`, els events funcionals pro
 
 ## 8. Criteri de tancament funcional/productiu posterior
 
-L’**auditoria** es tanca amb el gate CI definit a §5. El **cas d’ús com a capacitat productiva final** no s’ha de marcar com a complet només perquè el hardening d’aquesta branca sigui mergeable. Aquest segon tancament exigeix, com a mínim:
+L’**auditoria** queda tancada segons §5, amb l’excepció d’execució CI documentada a §5.3. El **cas d’ús com a capacitat productiva final** no s’ha de marcar com a complet només perquè el hardening d’aquesta branca sigui mergeable. Aquest segon tancament exigeix, com a mínim:
 
 1. CI/suite MySQL verda per les correccions incorporades;
 2. adaptadors reals connectats als endpoints dedicats;
@@ -152,4 +161,4 @@ L’**auditoria** es tanca amb el gate CI definit a §5. El **cas d’ús com a 
 7. decisió i prova de l'any fiscal;
 8. resposta amb estats d'emissió local, cobrament, document i AEAT diferenciats.
 
-Fins aleshores, l’estat d’implementació continua **CORE_HARDENED_CROSSCUTTING_AND_ENVIRONMENT_PENDING**. Això és compatible amb tenir l’**AUDITORIA TANCADA** un cop el gate CI sigui verd.
+Fins aleshores, l’estat d’implementació continua **CORE_HARDENED_CROSSCUTTING_AND_ENVIRONMENT_PENDING**. Això és compatible amb tenir l’**AUDITORIA TANCADA AMB EXCEPCIÓ D’EXECUCIÓ** mentre la cua global impedeixi obtenir el gate; només passarà a **VERIFICADA EN EXECUCIÓ** quan existeixi un run efectiu satisfactori.
