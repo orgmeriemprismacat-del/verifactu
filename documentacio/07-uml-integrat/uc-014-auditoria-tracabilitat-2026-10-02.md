@@ -201,3 +201,8 @@ S'ha eliminat el risc de perdre callbacks d'una sessió TPV oberta abans del can
 - `cutover=1, drain=0`: cap nou checkout; callbacks legacy preexistents continuen autoritzats;
 - `cutover=1, drain=1`: callback SIF actiu i checkout/callback legacy retirats;
 - el preflight exigeix `legacy_drain_confirmed_if_cutover` abans de donar verd al tall final.
+
+
+### Minimització de dades — segona passada 02/10
+
+S'ha eliminat el DNI de `DS_MERCHANT_PRODUCTDESCRIPTION` i de l'ús incorrecte com a `DS_MERCHANT_TITULAR`; el titular passa a ser el nom del pagador i el producte només identifica el curs. El callback llegat deixa també d'escriure dades/instruccions de pagament al cos HTTP. Els correus operatius no es retiren encara perquè el lliurament UC-58 continua pendent.
