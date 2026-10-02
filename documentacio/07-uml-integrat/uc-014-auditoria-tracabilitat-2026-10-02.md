@@ -14,7 +14,7 @@ Estat 02/10/2026:
 | Bloc | Documentat | Implementat | Verificat | Pendent |
 | --- | --- | --- | --- | --- |
 | Fitxa + UML | Sí | n/a | contrast de codi | validació operativa final |
-| PHP/JS ACTUAL | Sí | Sí | boundary/unit en aquesta branca | CI de la branca + desplegament |
+| PHP/JS ACTUAL | Sí | Sí | boundary/unit + CI PR #105 | desplegament/preproducció |
 | Intenció SIF | Sí | Sí | CI PR #79 i proves dedicades | preproducció real |
 | Callback/cua/worker | Sí | Sí | CI intern | Redsys real |
 | Factura/cobrament SIF | Sí | Sí | E2E intern | evidència preprod |
@@ -172,7 +172,7 @@ El PR #95 (`feat/uc-014-enrollment-fund-allocation-2026-10-02`) integra `CourseE
 
 `CourseEnrollmentFundAllocationServiceTest` cobreix alta/reús, parcial per trams i mismatch fail-closed; `RedsysCourseEndToEndSimulatedTest` exigeix moviment únic davant duplicat i suma correcta al parcial→complet.
 
-En aquesta branca s'han afegit/modificat proves de hardening ACTUAL. **Fins que GitHub Actions no les executi, s'han de marcar IMPLEMENTADES però NO REVALIDADES PER CI.**
+En aquesta branca s'han afegit/modificat proves de hardening ACTUAL. Al head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5` del PR #105, `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en **success**; per tant, aquest hardening queda **REVALIDAT PER CI**.
 
 ## 7. Criteri de tancament
 
@@ -193,5 +193,5 @@ UC-014 pot passar a **TANCAT AMB EVIDÈNCIA** només quan, sobre un commit ident
 
 **DOCUMENTAT:** complet per UC-014 ordinari, inclòs PHP/JS i sis superfícies P-CUR.  
 **IMPLEMENTAT:** nucli SIF, pont candidat, `EXTERNAL_ALLOCATION` per inscripció, outbox, retorn autoritatiu i hardening del fallback a la branca.  
-**VERIFICAT:** circuit intern anterior per CI PR #79 i fund allocation per CI PR #95 (841/0 + quatre workflows verds); proves noves de hardening de la branca pendents de CI en el moment de redactar aquesta versió.  
+**VERIFICAT:** circuit intern anterior per CI PR #79, fund allocation per CI PR #95 (841/0 + quatre workflows verds) i hardening ACTUAL per CI PR #105 (`SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` verds al head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`).  
 **PENDENT:** Redsys real de preproducció, desplegament/cutover, rotació/configuració de secrets i delivery UC-58.
