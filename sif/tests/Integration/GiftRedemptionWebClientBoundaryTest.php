@@ -60,7 +60,7 @@ final class GiftRedemptionWebClientBoundaryTest
         Assert::same(true, is_int($clientCall) && is_int($response) && $clientCall < $response);
     }
 
-    public function testCompletedGiftReplayReturnsExistingEnrollmentBeforeMailSideEffects(): void
+    public function testCompletedGiftReplayReentersSifAndReusesEnrollmentBeforeMailSideEffects(): void
     {
         $root = dirname(__DIR__, 3);
         $source = file_get_contents(
@@ -70,15 +70,25 @@ final class GiftRedemptionWebClientBoundaryTest
             Assert::fail('Could not read legacy gift enrollment writer');
         }
 
-        $replayLookup = strpos($source, 'SELECT r.USAT');
+        Assert::stringContainsString('SELECT FACT_REL, USAT FROM regal', $source);
+        Assert::stringContainsString('FROM inscripcions WHERE ID=? FOR UPDATE', $source);
+        Assert::stringContainsString('$idInserit = (int) $candidateId;', $source);
+
+        $redeem = strpos($source, 'redeemCommittedEnrollment');
         $firstMail = strpos($source, 'new MailSMTPComvive');
         Assert::same(
             true,
-            is_int($replayLookup) && is_int($firstMail) && $replayLookup < $firstMail
+            is_int($redeem) && is_int($firstMail) && $redeem < $firstMail
         );
+
+        Assert::same(false, str_contains(
+            $source,
+            'echo $encryptEnrollmentId((int) $usatReplay);'
+        ));
         Assert::stringContainsString(
-            'echo $encryptEnrollmentId((int) $usatReplay);',
+            "reconstruir o reutilitzar l'outbox idempotent",
             $source
         );
     }
+
 }
