@@ -120,6 +120,7 @@ final class UsocCourseChangeExecutionPreparationService
             'uuid_execution' => (string) $execution['UUID_EXECUTION'],
             'state' => (string) $execution['STATE'],
             'operation' => strtolower((string) $execution['OPERATION']),
+            'created_at' => (string) ($execution['CREATED_AT'] ?? ''),
             'preview' => $preview,
             'effects_applied' => false,
             'idempotency_reused' => $reused,
