@@ -31,6 +31,8 @@ final class PackPublicEnrollmentBoundaryTest
         Assert::stringContainsString("header('Allow: POST')", $php);
         Assert::stringContainsString('$request = $_POST;', $php);
         Assert::same(false, str_contains($php, '$_GET'));
+        Assert::same(false, str_contains($php, "\$request['pagFrac']"));
+        Assert::stringContainsString("new Text('No')", $php);
     }
 
     public function testPublicPackEnrollmentHasSameSiteRequestBoundaryBeforeInputProcessing(): void
