@@ -201,6 +201,56 @@ final class IssueInvoiceTest
         Assert::same(null, $lineId === false ? null : $lineId);
     }
 
+    public function testRelationDoesNotGuessInvoiceLineWhenSourceIsAmbiguous(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->makeService($db);
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|AMBIGUOUS-LINE|UC001',
+            'source_channel' => 'INTRANET',
+            'totals' => [
+                'import_base' => '240.00',
+                'taxable_base' => '240.00',
+                'total' => '240.00',
+            ],
+            'lines' => [
+                [
+                    'concept' => 'Tram 1',
+                    'quantity' => '1.00',
+                    'unit_price' => '120.00',
+                    'base' => '120.00',
+                    'import_base' => '120.00',
+                    'taxable_base' => '120.00',
+                    'total' => '120.00',
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 10,
+                ],
+                [
+                    'concept' => 'Tram 2',
+                    'quantity' => '1.00',
+                    'unit_price' => '120.00',
+                    'base' => '120.00',
+                    'import_base' => '120.00',
+                    'taxable_base' => '120.00',
+                    'iva_regim' => 'EXEMPT',
+                    'iva_pct' => '0.00',
+                    'iva_import' => '0.00',
+                    'total' => '120.00',
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 10,
+                ],
+            ],
+        ]);
+
+        $service->issueInvoice($payload);
+
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura_linia')->fetchColumn());
+        Assert::same(
+            null,
+            $db->query('SELECT ID_FACTURA_LINIA FROM fact_rels LIMIT 1')->fetchColumn()
+        );
+    }
+
     public static function serviceFor(\PDO $db): InvoiceService
     {
         return new InvoiceService(
