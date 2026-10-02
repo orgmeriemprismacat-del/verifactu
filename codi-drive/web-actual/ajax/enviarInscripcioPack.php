@@ -235,6 +235,12 @@ try {
 		throw new Exception('',2916);
 	}
 
+	$preuPackCents = (int) round($preuPack * 100);
+	$preuCursosCents = (int) round($preuCursos * 100);
+	if ($preuPackCents < 0 || $preuCursosCents < 0 || $preuPackCents > $preuCursosCents) {
+		throw new Exception('',2906);
+	}
+
 	$datai = $edicions[0]->obtenirDataInici()->obtenirText();
 	$dataf = $edicions[count($edicions)-1]->obtenirDataFi()->obtenirText();
 
@@ -511,6 +517,7 @@ try {
 				$preuCurs, $usuariBD, $idPag, $perenne, $conegutBD, $tipusInsc, $observacions);
 
 			$aux = round((float) $preuPack, 2);
+			$totalPackLinesCents = 0;
 			$tipusInsc = 'P';
 			for ( $i=0; $i<count($edicions); $i++ ) {
 				$edicio = $edicions[$i];
@@ -534,6 +541,7 @@ try {
 				$preuCursOriginal = round((float) $preuCursOriginal, 2);
 				$preuCurs = round(min($aux, $preuCursOriginal), 2);
 				$aux = round(max(0, $aux - $preuCurs), 2);
+				$totalPackLinesCents += (int) round($preuCurs * 100);
 				$descompteCurs = round(max(0, $preuCursOriginal - $preuCurs), 2);
 				$descomptePct = $preuCursOriginal > 0
 					? round(($descompteCurs / $preuCursOriginal) * 100, 2)
@@ -554,6 +562,10 @@ try {
 				if (!$stmt->execute()) {
 					throw new Exception('',2915);
 				}
+			}
+
+			if ((int) round($aux * 100) !== 0 || $totalPackLinesCents !== $preuPackCents) {
+				throw new Exception('',2915);
 			}
 
 			$idInserit = $connexio->lastInsertId();
