@@ -16,6 +16,7 @@ final class PayloadIdempotencyValidator implements PayloadIdempotencyValidatorIn
         }
 
         try {
+            $payload = $this->withoutTraceMetadata($payload);
             $json = json_encode(
                 $this->canonicalize($payload),
                 JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR
@@ -36,6 +37,15 @@ final class PayloadIdempotencyValidator implements PayloadIdempotencyValidatorIn
         if (!hash_equals($storedHash, $this->calculateHash($payload))) {
             throw SifException::conflict('Idempotency key already exists with different payload');
         }
+    }
+
+    private function withoutTraceMetadata(array $payload): array
+    {
+        foreach (['request_id', 'correlation_id', 'actor_role', 'actor_type'] as $field) {
+            unset($payload[$field]);
+        }
+
+        return $payload;
     }
 
     private function canonicalize(mixed $value): mixed
