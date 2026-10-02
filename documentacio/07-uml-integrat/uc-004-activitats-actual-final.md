@@ -128,10 +128,13 @@ if (Autoritzat?) then (Sí)
     else (No)
       :InvoiceBeforePaymentService::issueBeforePayment();
       :InvoiceService crea o reutilitza factura;
-      :COMMIT factura, línies, registre, cadena, cua i relacions;
-      :Només després del COMMIT sincronitzar llegat si cal;
-      :Generar/assegurar document per UUID de forma idempotent;
-      :Mostrar UUID, número, cobrament PENDING, AEAT/document READY o PENDING;
+      :Claim UC-004 + operational_event dins la mateixa transacció;
+      :COMMIT factura, línies, registre, cadena, cua, relacions, cobertura i auditoria;
+      :Mostrar UUID, número i cobrament PENDING;
+      note right
+        Document per UUID i sincronització llegada
+        post-COMMIT continuen pendents.
+      end note
     endif
   else (No)
     :No emetre factura;
