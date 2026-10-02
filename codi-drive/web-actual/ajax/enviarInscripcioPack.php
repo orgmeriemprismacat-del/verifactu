@@ -189,23 +189,6 @@ try {
 	$connexio->connectarBD();
 
 	/* ######################################################################### */
-	$cnsInfo = "SELECT TITOL, ID_PREU FROM info_pack WHERE ID_PACK=? AND ESTAT=1";
-	if ( $stmt=$connexio->prepare($cnsInfo) ) {
-		$stmt->bind_param("s", $idPack);
-		$idPack = $textIdPack->obtenirText();
-		$stmt->execute();
-		$stmt->bind_result($titol, $idPreuPack);
-		$stmt->fetch();
-		$connexio->closeStmt();
-	}
-	else {
-		throw new Exception('',2910);
-	}
-
-	$textTitolCurs = new Text($titol);
-	$textTitolCurs->arreglarParaulaBD('text_no_mod');
-
-	/* ######################################################################### */
 	//consulta per buscar la key de prisma $key
 	$cnsParam = "SELECT VALOR FROM params WHERE TIPUS=? AND DATAI<=CURRENT_TIMESTAMP
 					AND (DATAF IS NULL OR DATAF>=CURRENT_TIMESTAMP)";
@@ -308,6 +291,27 @@ try {
 		$connexio->desconectarBD();
 		return;
 	}
+
+	/* ######################################################################### */
+	/* Només una alta nova depèn de l'estat comercial actual del pack. */
+	$cnsInfo = "SELECT TITOL, ID_PREU FROM info_pack WHERE ID_PACK=? AND ESTAT=1";
+	if ( $stmt=$connexio->prepare($cnsInfo) ) {
+		$stmt->bind_param("s", $idPack);
+		$idPack = $textIdPack->obtenirText();
+		$stmt->execute();
+		$stmt->bind_result($titol, $idPreuPack);
+		if (!$stmt->fetch()) {
+			$connexio->closeStmt();
+			throw new Exception('',2910);
+		}
+		$connexio->closeStmt();
+	}
+	else {
+		throw new Exception('',2910);
+	}
+
+	$textTitolCurs = new Text($titol);
+	$textTitolCurs->arreglarParaulaBD('text_no_mod');
 
 	/* ######################################################################### */
 
