@@ -76,6 +76,7 @@ final class ResolvedInvoiceVisibilityPolicy implements InvoiceVisibilityPolicyIn
             'payments' => [],
             'fiscal_record' => null,
             'documents' => [],
+            'document_jobs' => [],
         ];
     }
 
