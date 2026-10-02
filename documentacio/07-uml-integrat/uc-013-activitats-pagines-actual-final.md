@@ -334,7 +334,14 @@ flowchart TD
     J --> K[UsocLifecyclePlanService separa alumne i entitat]
     K --> L[Calcular acció fiscal/econòmica per factura]
     L --> M[Limitar qualsevol retorn al net real cobrat]
-    M --> N[Derivar a futura execució fiscal UC-026/027]
+    M --> N{Operació?}
+    N -- Baixa --> O[Modal decisió alumne / entitat]
+    O --> P[execute_cancellation signat]
+    P --> Q[Congelar request + plan]
+    Q --> R[Rectificar / refund / diferir per pagador]
+    R --> S[COMPLETED + handoff sessió]
+    S --> T[Verificar checkpoint i executar baixa legacy]
+    N -- Canvi curs --> U[Execució fiscal de destí pendent]
 ```
 
 **Abast:** el guard evita una modificació silenciosa d'un expedient USOC fiscalitzat. `UsocLifecyclePlanService` genera ara un pla separat per pagador i limita el màxim retornable al `net_paid` real de cada factura. La pantalla USOC permet consultar aquest pla. Encara no executa rectificatives, reassignacions, devolucions o saldos.
@@ -368,7 +375,7 @@ flowchart TD
 | Factura entitat | Sí | Sí | Servei + pantalla autònoma + panell contextual implementats; desplegament/configuració pendent |
 | Cobrament entitat | Sí, dues UI + servei + script | Sí | UI autònoma + panell contextual implementats; menú fail-closed implementat; desplegament/configuració pendent |
 | Conciliació | Sí, servei/script | Sí | Implementada a la ruta específica USOC; script manual disponible |
-| Canvi/baixa | Sí, guard + planner | Sí | POST+CSRF + `UsocLifecycleGuardService` + `UsocLifecyclePlanService` + UI de preview; execució fiscal específica pendent |
+| Canvi/baixa | Sí | Parcial avançat | **Baixa:** guard + planner + modal de decisió + `UsocCancellationExecutionService` + checkpoint de sessió abans del legacy; servei PROVAT i handoff contract PASS; runs `36943292835` (**839/839**) i `36943206570` (**838/838**). **Canvi de curs:** guard + planner, executor encara pendent |
 
 ## 15. Pendents de codi derivats dels diagrames
 

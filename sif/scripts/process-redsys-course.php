@@ -8,6 +8,7 @@ use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
@@ -15,6 +16,7 @@ use Prisma\Sif\Repository\LegacySyncRepository;
 use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\CourseEnrollmentFundAllocationService;
 use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\CoursePaymentNotificationService;
 use Prisma\Sif\Service\DiscountSnapshotFileReader;
@@ -79,7 +81,15 @@ try {
         $legacySnapshots,
         new LegacyCourseInvoicePayloadBuilder(),
         new RedsysInvoicePayloadBuilder($notifications),
-        $invoiceService
+        $invoiceService,
+        null,
+        null,
+        null,
+        '',
+        'v1',
+        new CourseEnrollmentFundAllocationService(
+            new EnrollmentFundMovementRepository(new UuidGenerator())
+        )
     );
 
     $result = $service->issueFromValidatedNotification($sifDb, $legacyDb, $dsOrder, $discountSnapshot);

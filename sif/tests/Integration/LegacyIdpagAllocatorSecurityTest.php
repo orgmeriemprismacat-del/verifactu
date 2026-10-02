@@ -58,4 +58,55 @@ final class LegacyIdpagAllocatorSecurityTest
             }
         }
     }
+    public function testCourseChangeUsesLockedIntranetAllocator(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $connection = file_get_contents(
+            $root . '/codi-drive/intranet-actual/ConnexioWeb.php'
+        );
+        $intranet = file_get_contents(
+            $root . '/codi-drive/intranet-actual/Intranet.php'
+        );
+
+        if ($connection === false || $intranet === false) {
+            Assert::fail('Could not read intranet IDPAG allocator sources');
+        }
+
+        Assert::stringContainsString('function reserveIdPag', $connection);
+        Assert::stringContainsString('function releaseIdPag', $connection);
+        Assert::stringContainsString('SELECT GET_LOCK(?, ?)', $connection);
+        Assert::stringContainsString('SELECT RELEASE_LOCK(?)', $connection);
+        Assert::stringContainsString('prisma_inscripcions_idpag_allocator', $connection);
+
+        $methodStart = strpos($intranet, 'public function realitzarCanviCurs_modalCanviCurs');
+        $methodEnd = strpos($intranet, 'public function ', $methodStart + 20);
+        $method = $methodStart === false
+            ? ''
+            : substr(
+                $intranet,
+                $methodStart,
+                $methodEnd === false ? null : $methodEnd - $methodStart
+            );
+
+        Assert::stringContainsString('$conWeb->reserveIdPag()', $method);
+        Assert::stringContainsString('$conWeb->releaseIdPag()', $method);
+
+        if (str_contains($method, '$lastIdPag+1')) {
+            Assert::fail('Unsafe MAX+1 IDPAG allocation remains in course change');
+        }
+
+        $reserve = strpos($method, '$conWeb->reserveIdPag()');
+        $insert = strpos($method, 'insertRegInscCanvi');
+        $release = strpos($method, '$conWeb->releaseIdPag()');
+
+        if (
+            $reserve === false
+            || $insert === false
+            || $release === false
+            || !($reserve < $insert && $insert < $release)
+        ) {
+            Assert::fail('Course-change IDPAG lock must cover target enrollment INSERT');
+        }
+    }
+
 }

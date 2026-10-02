@@ -12,6 +12,7 @@ class ConnexioWeb {
 
    public $connexio; /**< string La connexio a la base de dades. Ex: $connexio = mysqli_connect('localhost',$usuari,$pw,$bbdd);  */
    public $sentencia; /**< string La consultat a la base de dades. Ex: $result_dates = mysqli_query ($connexio, "SELECT XXX");  */
+   private $idpagLockHeld = false;
 
    /*********************************** FUNCIONS CONSTRUCTORS /***********************************/
    /*
@@ -78,6 +79,70 @@ class ConnexioWeb {
    }
 
    /**
+   * @brief Reserva el següent IDPAG sota un named lock compartit.
+   * El lock es manté fins a releaseIdPag() o desconectarBD().
+   */
+   function reserveIdPag($timeoutSeconds = 10)
+   {
+      if (!isset($this->connexio) || !($this->connexio instanceof mysqli)) {
+         throw new Exception('Cal connectar la BD abans de reservar IDPAG');
+      }
+
+      $lockName = 'prisma_inscripcions_idpag_allocator';
+      $stmt = $this->connexio->prepare('SELECT GET_LOCK(?, ?)');
+      if (!$stmt) {
+         throw new Exception('No es pot preparar el lock IDPAG');
+      }
+      $stmt->bind_param('si', $lockName, $timeoutSeconds);
+      $stmt->execute();
+      $stmt->bind_result($acquired);
+      $stmt->fetch();
+      $stmt->close();
+
+      if ((int) $acquired !== 1) {
+         throw new Exception('No s\'ha pogut obtenir el lock IDPAG');
+      }
+
+      $this->idpagLockHeld = true;
+
+      $stmt = $this->connexio->prepare(
+         'SELECT COALESCE(MAX(IDPAG), 0) + 1 FROM inscripcions'
+      );
+      if (!$stmt) {
+         $this->releaseIdPag();
+         throw new Exception('No es pot calcular el següent IDPAG');
+      }
+      $stmt->execute();
+      $stmt->bind_result($nextIdPag);
+      $stmt->fetch();
+      $stmt->close();
+
+      if ((int) $nextIdPag <= 0) {
+         $this->releaseIdPag();
+         throw new Exception('IDPAG reservat no vàlid');
+      }
+
+      return (int) $nextIdPag;
+   }
+
+   function releaseIdPag()
+   {
+      if (!$this->idpagLockHeld || !isset($this->connexio) || !($this->connexio instanceof mysqli)) {
+         return;
+      }
+
+      $lockName = 'prisma_inscripcions_idpag_allocator';
+      $stmt = $this->connexio->prepare('SELECT RELEASE_LOCK(?)');
+      if ($stmt) {
+         $stmt->bind_param('s', $lockName);
+         $stmt->execute();
+         $stmt->close();
+      }
+
+      $this->idpagLockHeld = false;
+   }
+
+   /**
    * @brief Obté el nombre de files afectades en l'última operació MySQL
    * @return Un enter més gran que zero indica el nombre de files afectades o recuperades.
    * El zero indica que no hi ha registres en una actualització amb una sentència UPDATE,
@@ -107,6 +172,7 @@ class ConnexioWeb {
    */
    function desconectarBD()
    {
+      $this->releaseIdPag();
       $this->connexio->close();
    }
 }

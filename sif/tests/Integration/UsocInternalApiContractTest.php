@@ -29,6 +29,7 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("lifecycle_guard", $api);
         Assert::stringContainsString("lifecycle_plan", $api);
         Assert::stringContainsString("execute_cancellation", $api);
+        Assert::stringContainsString("cancellation_execution_status", $api);
         Assert::stringContainsString("UsocLifecycleGuardService", $api);
         Assert::stringContainsString("UsocLifecyclePlanService", $api);
         Assert::stringContainsString("UsocCancellationExecutionService", $api);
@@ -49,6 +50,7 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("public function lifecycleGuard", $client);
         Assert::stringContainsString("public function lifecyclePlan", $client);
         Assert::stringContainsString("public function executeCancellation", $client);
+        Assert::stringContainsString("public function cancellationExecutionStatus", $client);
 
         Assert::stringContainsString("SIF_USOC_READ_ROLES", $config);
         Assert::stringContainsString("SIF_USOC_MANAGE_ROLES", $config);

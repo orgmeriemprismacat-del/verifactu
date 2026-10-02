@@ -323,6 +323,7 @@ No consten al repositori ni als artifacts:
 
 - `uc-008-preproduction-evidence.json`;
 - `uc-008-menu-evidence.json`;
+- `uc-008-manager-e2e-evidence.json`;
 - `uc-008-closure-validation.json`.
 
 Per tant, el resultat **740/0** acredita regressió de codi i contractes automatitzats, però **no acredita l'execució real de preproducció ni el tancament de l'entorn**. No s'ha fabricat ni inferit cap evidència absent.
@@ -346,7 +347,77 @@ També s'ha unificat el nom de l'evidència del menú a `uc-008-menu-evidence.js
 
 Aquest enduriment no canvia el lifecycle ni la UI del UC-008; reforça exclusivament la qualitat i traçabilitat de l'evidència necessària per declarar l'entorn tancat.
 
-A més, el resultat `uc-008-closure-validation.json` incorpora ara `validated_at` i els **SHA-256** dels dos fitxers d'entrada (`preproduction_sha256` i `menu_sha256`). El gate exigeix hashes vàlids de 64 caràcters, de manera que el resultat final queda lligat als JSON exactes que s'han validat sense exposar-ne el path ni el contingut.
+A més, el resultat `uc-008-closure-validation.json` incorpora ara `validated_at` i els **SHA-256 dels tres fitxers d'entrada** (`preproduction_sha256`, `menu_sha256` i `manager_e2e_sha256`). El gate exigeix hashes vàlids de 64 caràcters, de manera que el resultat final queda lligat als JSON exactes que s'han validat sense exposar-ne el path ni el contingut.
+
+### 6 quater. Tancament del buit E2E de gestor — 02/10/2026
+
+La revisió del gate ha detectat que l'E2E automatitzat existent només acreditava un actor **read-only**, mentre que el criteri funcional de tancament també exigeix provar un gestor real.
+
+S'ha corregit així:
+
+- nou `sif/scripts/verify-incident-manager-evidence.php`, CLI-only i read-only;
+- exigeix una incidència sintètica `TIPUS_INCIDENCIA=UC008_E2E_MANAGER` i `SOURCE_TYPE=UC008_E2E`;
+- comprova estat final `RESOLVED`, assignee, `RESOLVED_AT`, notes i criteri de tancament;
+- comprova `ASSIGN`, `ADD_EVIDENCE` i `RESOLVE`;
+- comprova actor, rol gestor, correlació i evidència de les accions;
+- el gate final `validate-uc008-evidence.php` exigeix ara **tres** JSON: preproducció read-only, menú intranet i E2E gestor;
+- el closure JSON incorpora SHA-256 dels tres inputs.
+
+Per preparar la incidència sintètica sense improvisar SQL s'ha afegit també `sif/scripts/prepare-incident-manager-e2e.php`:
+
+- només `test/preproduction`;
+- confirmació explícita `SIF_UC008_MANAGER_E2E_PREPARE=YES`;
+- rol obligatòriament inclòs als `manage_roles`;
+- idempotent per `run_id`;
+- només crea/reutilitza la incidència sintètica;
+- no toca factura, pagament, Redsys ni cua fiscal.
+
+**Evidència CI del gate de tres fitxers:** run SIF del commit `7d7070f42c43d4461e68e1d141aefb2eb2ae1376` → **832 passed / 0 failed**.
+
+Després s'ha endurit encara més la traça interna del gestor (actor, correlació, camps de tancament i consulta BD) al commit `52ec4d8e6bb99ae4823d23c62da185feed8f1c52`; el seu run SIF també ha finalitzat en **success**, amb **832 passed / 0 failed**.
+
+Hi ha dos runs vermells intermedis esperables mentre el canvi es feia en commits successius:
+
+- `54d9078...`: el validador ja exigia el tercer fitxer però els tests encara passaven dos;
+- `848eb2b...`: el validador ja exigia la traça ampliada però el fixture de test encara no contenia tots els nous checks.
+
+Els commits posteriors corregeixen aquests desfasaments i els runs finals són verds.
+
+### 6 quinquies. Punt de control CI definitiu del bloc de tancament — 02/10/2026
+
+El tall `902b1c793687c77b3c089c8c5096708b5341de89` incorpora el gate final de tres evidències, el verificador read-only del gestor, el preparador sintètic idempotent i la protecció que exigeix que el rol gestor també disposi de lectura.
+
+**GitHub Actions · SIF PHP MySQL tests · run `36942641296`:**
+
+- **837 passed**
+- **0 failed**
+- conclusion: **success**
+
+Proves UC-008 específiques verificades dins del mateix run:
+
+- `IncidentPanelEvidenceValidationScriptTest`: 8 PASS;
+- `IncidentPanelManagerE2ePreparationScriptTest`: 5 PASS;
+- `IncidentPanelManagerEvidenceScriptTest`: 3 PASS.
+
+Això cobreix explícitament:
+
+- tancament vàlid només amb les tres evidències correctes;
+- bloqueig d'evidència de `test` per tancar preproducció;
+- bloqueig de scope de menú incorrecte;
+- bloqueig d'un `ok=true` superior sense preflight/E2E interns verds;
+- SHA-256 dels tres inputs;
+- preparació idempotent de la incidència sintètica;
+- ACK explícit abans de la mutació de prova;
+- bloqueig de producció;
+- rol gestor obligatòriament de gestió **i lectura**;
+- absència d'efectes sobre factures/pagaments;
+- verificació read-only del lifecycle gestor;
+- rebuig d'una incidència no sintètica;
+- `ASSIGN → ADD_EVIDENCE → RESOLVE` amb actor, rol, correlació i evidència.
+
+Després d'aquest tall, el `main` ha avançat per altres UC. Al punt de control `47f8f834ab3ee44db64d8e8987f8b371766329f9`, la comparació des de `902b1c7...` conté **17 commits / 10 fitxers** i cap canvi funcional en les dependències UC-008; només s'han modificat documents UC-008 d'aquesta mateixa auditoria.
+
+**Estat tècnic consolidat:** `CODE_COMPLETE + DOC_RECONCILED + CLOSURE_GATE_HARDENED + MANAGER_E2E_PREPARED + CI_837_0`.
 
 ### 7.1. Pendents obligatoris d'entorn
 
@@ -359,7 +430,7 @@ A més, el resultat `uc-008-closure-validation.json` incorpora ara `validated_at
 4. Si `/sif-verifactu.php` no existeix a `apartats`, confirmar pare, nivell, rols, ordre i icona abans de fer l'alta.
 5. Tornar a executar el preflight del menú fins obtenir `ALREADY_PRESENT`.
 6. Validar el parell:
-   `php sif/scripts/validate-uc008-evidence.php uc-008-preproduction-evidence.json uc-008-menu-evidence.json`
+   `php sif/scripts/validate-uc008-evidence.php uc-008-preproduction-evidence.json uc-008-menu-evidence.json uc-008-manager-e2e-evidence.json`
 7. Conservar `uc-008-closure-validation.json` amb `ok=true`.
 8. Fer una passada de navegador amb:
    - usuari read-only;

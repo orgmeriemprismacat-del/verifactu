@@ -21,6 +21,7 @@ use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
+use Prisma\Sif\Service\CourseEnrollmentFundAllocationService;
 use Prisma\Sif\Service\CourseLegacyPaymentSyncService;
 use Prisma\Sif\Service\CoursePaymentNotificationService;
 use Prisma\Sif\Service\InvoicePayloadValidator;
@@ -109,7 +110,10 @@ try {
             $noviceGrants,
             $noviceCodes,
             (string) ($noviceConfig['wrapping_key_hex'] ?? ''),
-            (string) ($noviceConfig['key_version'] ?? 'v1')
+            (string) ($noviceConfig['key_version'] ?? 'v1'),
+            new CourseEnrollmentFundAllocationService(
+                new EnrollmentFundMovementRepository(new UuidGenerator())
+            )
         ),
         new RedsysPackInvoiceService(
             $notifications,

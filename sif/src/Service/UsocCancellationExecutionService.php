@@ -110,6 +110,16 @@ final class UsocCancellationExecutionService
             );
         }
 
+        $requiresFollowUp = false;
+        foreach ($payerResults as $payerResult) {
+            if (
+                in_array($payerResult['fiscal_action'], ['DEFER_FISCAL'], true)
+                || in_array($payerResult['economic_action'], ['DEFER_REFUND'], true)
+            ) {
+                $requiresFollowUp = true;
+            }
+        }
+
         $result = [
             'ok' => true,
             'request_id' => $requestId,
@@ -117,6 +127,7 @@ final class UsocCancellationExecutionService
             'idpag' => $idpag,
             'operation' => 'cancellation',
             'reason_code' => $request['reason_code'],
+            'requires_follow_up' => $requiresFollowUp,
             'payers' => $payerResults,
             'idempotency_reused' => false,
         ];
@@ -234,6 +245,7 @@ final class UsocCancellationExecutionService
         $rectified = $result['uuid_rectifying_invoice'] !== null;
         $refunded = $result['uuid_refund_payment'] !== null;
         $occurredAt = $request['effective_at'];
+        $decision = $request[$role];
 
         $eventUuid = $this->operationalEvents->append($db, [
             'operation_type' => 'USOC_CANCELLATION_' . strtoupper($role),
@@ -243,7 +255,10 @@ final class UsocCancellationExecutionService
             'uuid_payment' => $result['uuid_refund_payment'],
             'fiscal_impact' => $rectified ? 'RECTIFICATION' : 'NONE',
             'economic_impact' => $refunded ? 'REFUND' : 'NONE',
-            'status' => 'COMPLETED',
+            'status' => (
+                $decision['fiscal_action'] === 'DEFER_FISCAL'
+                || $decision['economic_action'] === 'DEFER_REFUND'
+            ) ? 'COMPLETED_WITH_PENDING' : 'COMPLETED',
             'reason_code' => $request['reason_code'],
             'before_snapshot' => $plan,
             'after_snapshot' => $result,
@@ -255,18 +270,19 @@ final class UsocCancellationExecutionService
             'occurred_at' => $occurredAt,
         ]);
 
-        $decision = $request[$role];
         $this->cancellations->append($db, [
             'uuid_operational_event' => $eventUuid,
             'enrollment_id' => $idInsc,
-            'cancellation_reason' => $request['reason_code'] . '_' . strtoupper($role),
+            'cancellation_reason' => $request['reason_code'],
             'effective_at' => $occurredAt,
             'economic_decision' => $decision['economic_action'],
             'return_amount' => $decision['refund_amount'],
             'credit_amount' => '0.00',
-            'non_return_reason' => $decision['economic_action'] === 'NO_REFUND'
-                ? $decision['economic_reason']
-                : null,
+            'non_return_reason' => in_array(
+                $decision['economic_action'],
+                ['NO_REFUND', 'DEFER_REFUND'],
+                true
+            ) ? $decision['economic_reason'] : null,
             'fiscal_decision' => $decision['fiscal_action'],
             'uuid_rectifying_invoice' => $result['uuid_rectifying_invoice'],
             'uuid_refund_payment' => $result['uuid_refund_payment'],
@@ -346,8 +362,29 @@ final class UsocCancellationExecutionService
     {
         $reason = strtoupper(trim((string) ($input['reason_code'] ?? '')));
         $effectiveAt = trim((string) ($input['effective_at'] ?? ''));
-        if ($reason === '' || strlen($reason) > 80 || $effectiveAt === '') {
-            throw SifException::validation('USOC cancellation reason and effective_at are required');
+
+        if (
+            $reason === ''
+            || strlen($reason) > 80
+            || preg_match('/^[A-Z0-9_:-]+$/D', $reason) !== 1
+        ) {
+            throw SifException::validation('Invalid USOC cancellation reason code');
+        }
+
+        $date = \DateTimeImmutable::createFromFormat(
+            '!Y-m-d H:i:s',
+            $effectiveAt,
+            new \DateTimeZone('Europe/Madrid')
+        );
+        $dateErrors = \DateTimeImmutable::getLastErrors();
+        if (
+            $date === false
+            || ($dateErrors !== false
+                && (($dateErrors['warning_count'] ?? 0) > 0
+                    || ($dateErrors['error_count'] ?? 0) > 0))
+            || $date->format('Y-m-d H:i:s') !== $effectiveAt
+        ) {
+            throw SifException::validation('Invalid USOC cancellation effective_at');
         }
 
         return [
@@ -365,12 +402,12 @@ final class UsocCancellationExecutionService
         }
 
         $fiscalAction = strtoupper(trim((string) ($value['fiscal_action'] ?? '')));
-        if (!in_array($fiscalAction, ['RECTIFY', 'NO_FISCAL_EFFECT'], true)) {
+        if (!in_array($fiscalAction, ['RECTIFY', 'NO_FISCAL_EFFECT', 'DEFER_FISCAL'], true)) {
             throw SifException::validation('Invalid USOC fiscal action for ' . $role);
         }
 
         $economicAction = strtoupper(trim((string) ($value['economic_action'] ?? '')));
-        if (!in_array($economicAction, ['REFUND', 'NO_REFUND'], true)) {
+        if (!in_array($economicAction, ['REFUND', 'NO_REFUND', 'DEFER_REFUND'], true)) {
             throw SifException::validation('Invalid USOC economic action for ' . $role);
         }
 
