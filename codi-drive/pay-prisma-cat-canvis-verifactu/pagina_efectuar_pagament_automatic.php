@@ -119,7 +119,7 @@ try {
       $nomTitularPag = (string) ($_POST['nom-titular'] ?? '');
       $email = (string) ($_POST['email'] ?? '');
       $importAPagar = (float) $validatedCheckout['total_amount'];
-      $importPagare = (float) $validatedCheckout['payment_amount'];
+      $importPagare = (string) $validatedCheckout['payment_amount'];
       $importPagat = (float) $validatedCheckout['already_paid_amount'];
       $frac = $validatedCheckout['fractional'] ? '1' : '0';
 
@@ -147,7 +147,7 @@ try {
       try {
          $intent = (new SifRedsysCourseIntentClient())->create(
             (int) $idPag,
-            (float) $importPagare,
+            $importPagare,
             $terminal
          );
       } catch (Throwable $exception) {
