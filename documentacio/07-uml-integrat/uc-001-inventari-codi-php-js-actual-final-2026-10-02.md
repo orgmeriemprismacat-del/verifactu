@@ -8,9 +8,9 @@
 | `sif/scripts/preflight-invoice-issue.php` | Readiness del generic endpoint: HMAC, rols, path, emissor no-placeholder, anti-replay i taules requerides; no mostra secrets ni muta dades. | Nou |
 | `sif/src/Service/InternalApiAuthenticator.php` | HMAC, timestamp, actor/rol i anti-replay. | Main |
 | `sif/src/Service/InternalInvoiceIssueScopeResolver.php` | Rol d'escriptura UC-001. | Nou |
-| `sif/src/Service/InternalInvoiceIssuePayloadPolicy.php` | Actor servidor, no Redsys/no UC-004, emissor servidor no-placeholder si AEAT. | Nou |
+| `sif/src/Service/InternalInvoiceIssuePayloadPolicy.php` | Actor/rol servidor, no Redsys/no UC-004, emissor i `SistemaInformatico` server-owned; guard de snapshot oficial per entorn. | Nou |
 | `sif/src/Service/InvoicePayloadValidator.php` | Estructura, exempció, idempotència i coherència monetària. | Endurit |
-| `sif/src/Service/InvoiceService.php` | Idempotència, transacció, numeració, factura/reús, payment inicial, projecció d’estats i traça `operational_event`/`sif_audit_event`. | Endurit a branca |
+| `sif/src/Service/InvoiceService.php` | Idempotència, guard AEAT transversal en entorns qualificats, transacció, numeració, factura/reús, payment inicial, projecció d’estats i traça `operational_event`/`sif_audit_event`. | Endurit a branca |
 | `sif/src/Repository/InvoiceRepository.php` | Factura/línies/registre/control/cua/relacions, projecció d’estats i vincle relació↔línia unívoc. | Endurit |
 | `sif/src/Repository/FiscalSequenceRepository.php` | Numeració per sèrie/any. | Main |
 | `sif/src/Aeat/RegistrationSnapshot.php` | Snapshot AEAT condicional. | Parcial |
