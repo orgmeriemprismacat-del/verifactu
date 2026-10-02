@@ -7,9 +7,9 @@
 
 | ID | Pantalla / procés | ACTUAL | FINAL |
 |---|---|---|---|
-| PK-A01 | Llistat de packs | codi legacy | conservar catàleg, sense efecte fiscal |
-| PK-A02 | Fitxa de pack | codi legacy | oferta versionada |
-| PK-A03 | Formulari inscripció | **POST-only + same-site/origin + REQUEST_ID; preu backend autoritatiu** | acreditar E2E/replay navegador-preproducció |
+| PK-A01 | Llistat de packs | filtre d'edició + tots els components oberts | conservar catàleg, sense efecte fiscal |
+| PK-A02 | Fitxa de pack | valida totes les edicions obertes | oferta versionada |
+| PK-A03 | Formulari inscripció | **POST + REQUEST_ID + revalidació de totes les edicions; preu backend autoritatiu** | acreditar E2E/replay navegador-preproducció |
 | PK-A04 | Alta N inscripcions | snapshot + transacció atòmica + suma exacta + replay idempotent implementats | model comercial explícit/versionat encara pendent |
 | PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | evidència runtime |
 | PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | eliminar codi rollback |
@@ -26,8 +26,8 @@ flowchart TD
 A[Usuari obre /packs] --> B[mostrar_packs.php]
 B --> C[buscantPacksDisponibles]
 C --> D[Pack.php]
-D --> E{pack i cursos disponibles?}
-E -- no --> F[No mostrar / error]
+D --> E{tots els components oberts?}
+E -- no --> F[No llistar]
 E -- sí --> G[Mostrar pack i filtres]
 ```
 
@@ -97,7 +97,7 @@ J --> K[Congela snapshot + RID/RH1]
 K --> L[Crea operació/IDPAG]
 ```
 
-**Correcció aplicada 02/10:** `mostrarInscripcioPack.min.js` envia l'alta amb POST i `REQUEST_ID` UUID v4 persistent a `sessionStorage`; `enviarInscripcioPack.php` és POST-only, aplica frontera same-site/origin i resol el replay per `RID/RH1` abans dels validators legacy i de rellegir l'oferta. Mateix request+hash reutilitza l'alta; mateixa clau amb payload diferent retorna 409. `pagina_inscripcio_pack.php` força `ver=7.4` per evitar caché del contracte GET antic.
+**Correcció aplicada 02/10:** `mostrarInscripcioPack.min.js` envia POST + `REQUEST_ID`; l'endpoint resol primer `RID/RH1` i, només per una alta nova, revalida al servidor que totes les edicions segueixin obertes segons `dies-inscriu-cursos`, abans de preus o `IDPAG`. Mateix request+hash reutilitza l'alta; mateixa clau amb payload diferent retorna 409. `pagina_inscripcio_pack.php` força `ver=7.4`.
 
 ## PK-A04 · Alta de components
 
@@ -280,7 +280,7 @@ E --> F[Classificació fiscal explícita]
 
 No declarar UC-015 tancat fins que:
 1. els deu blocs anteriors tinguin correspondència codi → UC → prova;
-2. s'acrediti en runtime que l'alta POST rebutja GET/cross-site, reutilitza el mateix `REQUEST_ID` després d'una resposta perduda i manté el flux de confirmació;
+2. s'acrediti en runtime que l'alta POST rebutja GET/cross-site, bloqueja un pack amb qualsevol component fora de finestra, reutilitza el mateix `REQUEST_ID` després d'una resposta perduda i manté el flux de confirmació;
 3. s'acrediti en runtime el checkout web amb snapshot backend i callback SIF;
 4. el callback legacy continuï desactivat per defecte i s'elimini després de la finestra de rollback;
 5. es mantingui el contracte estable `DATAI, ID_CURS` i es decideixi si cal una posició comercial explícita separada;
