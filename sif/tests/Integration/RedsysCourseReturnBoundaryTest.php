@@ -16,6 +16,9 @@ final class RedsysCourseReturnBoundaryTest
         Assert::stringContainsString('respostaKoPagamentAutomatic.php?', $source);
         Assert::stringContainsString("'order' => \$order", $source);
         Assert::stringContainsString("'idPag' => (int) \$idPag", $source);
+        if (str_contains($source, "'email' => \$email")) {
+            Assert::fail('Browser return URL must not expose participant email.');
+        }
     }
 
     public function testReturnPagesNeverUpgradeBrowserReturnToConfirmedWithoutSif(): void
@@ -28,6 +31,9 @@ final class RedsysCourseReturnBoundaryTest
         Assert::stringContainsString('SIF_REDSYS_CALLBACK_URL', $helper);
         Assert::stringContainsString('$statusEnabled = $courseCutoverEnabled', $helper);
         Assert::stringContainsString("'UNVERIFIED'", $helper);
+        if (str_contains($helper, "\$_GET['email']")) {
+            Assert::fail('Authoritative return helper must not consume email from query string.');
+        }
         Assert::stringContainsString("'status' => \$authoritative ? \$status : 'UNVERIFIED'", $helper);
         Assert::stringContainsString("if (\$status === 'CONFIRMED')", $helper);
         Assert::stringContainsString("uc014RenderPaymentReturn('OK')", $ok);
