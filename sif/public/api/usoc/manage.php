@@ -206,17 +206,45 @@ try {
             new UsocLifecycleExecutionRepository(new UuidGenerator())
         );
 
+        $preparation = $service->prepare(
+            $db,
+            $idInsc,
+            $idpag,
+            $requestId,
+            $actorId,
+            $roles,
+            $target
+        );
+
+        $entityInvoicePresent = false;
+        foreach ((array) ($preparation['preview']['lifecycle_plan']['actions'] ?? []) as $payerAction) {
+            if (
+                is_array($payerAction)
+                && strtolower((string) ($payerAction['payer_role'] ?? '')) === 'entity'
+                && trim((string) ($payerAction['invoice_uuid'] ?? '')) !== ''
+            ) {
+                $entityInvoicePresent = true;
+                break;
+            }
+        }
+
+        $configuredBilling = $usocConfig['entity_billing'] ?? null;
+        if (
+            !$entityInvoicePresent
+            && (
+                !is_array($configuredBilling)
+                || trim((string) ($configuredBilling['name'] ?? '')) === ''
+                || trim((string) ($configuredBilling['nif'] ?? '')) === ''
+            )
+        ) {
+            throw SifException::conflict(
+                'USOC entity billing configuration is required before course change execution'
+            );
+        }
+
         JsonResponse::send([
             'ok' => true,
-            'preparation' => $service->prepare(
-                $db,
-                $idInsc,
-                $idpag,
-                $requestId,
-                $actorId,
-                $roles,
-                $target
-            ),
+            'preparation' => $preparation,
         ]);
         return;
     }
