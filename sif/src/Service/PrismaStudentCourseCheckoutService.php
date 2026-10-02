@@ -10,6 +10,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CommercialOperationRepository;
 use Prisma\Sif\Repository\DiscountValidationRepository;
 use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 
 /**
  * Trusted server-side UC-020 bridge.
@@ -22,6 +23,7 @@ final class PrismaStudentCourseCheckoutService
 {
     private CommercialOperationRepository $operations;
     private DiscountValidationRepository $discounts;
+    private OperationalEventRepository $events;
 
     public function __construct(
         private LegacyPrismaStudentHistoryRepository $history,
@@ -29,10 +31,12 @@ final class PrismaStudentCourseCheckoutService
         private RedsysPaymentIntentService $intents,
         private UuidGenerator $uuids,
         ?CommercialOperationRepository $operations = null,
-        ?DiscountValidationRepository $discounts = null
+        ?DiscountValidationRepository $discounts = null,
+        ?OperationalEventRepository $events = null
     ) {
         $this->operations = $operations ?? new CommercialOperationRepository();
         $this->discounts = $discounts ?? new DiscountValidationRepository();
+        $this->events = $events ?? new OperationalEventRepository($this->uuids);
     }
 
     public function stageAndCreateIntent(
@@ -70,6 +74,7 @@ final class PrismaStudentCourseCheckoutService
             $existing = $this->operations->findByIdempotencyKey($sifDb, $operationKey, true);
 
             $linkedIntent = '';
+            $createdOperation = false;
             if ($existing !== null) {
                 if ($this->moneyToCents((string) $existing['NET_AMOUNT']) !== $price['net_cents']
                     || $this->canonicalJson((string) $existing['PRICE_SNAPSHOT_JSON'])
@@ -95,6 +100,7 @@ final class PrismaStudentCourseCheckoutService
                     }
                 }
             } else {
+                $createdOperation = true;
                 $uuidOperation = $this->uuids->generate();
                 $this->operations->insert($sifDb, [
                     'uuid_operation' => $uuidOperation,
@@ -236,6 +242,36 @@ final class PrismaStudentCourseCheckoutService
                  WHERE UUID_OPERATION = ?',
                 ['INTENT_CREATED', $uuidOperation]
             );
+
+            if ($createdOperation) {
+                $this->events->append($sifDb, [
+                    'operation_type' => 'COMMERCIAL_OFFER',
+                    'source_type' => 'CURS',
+                    'source_id' => (string) $enrollmentId,
+                    'fiscal_impact' => 'NONE',
+                    'economic_impact' => 'COMMERCIAL_PRICE_ONLY',
+                    'status' => 'INTENT_CREATED',
+                    'reason_code' => 'ALUMNE_PRISMA_CHECKOUT_STAGED',
+                    'before_snapshot' => null,
+                    'after_snapshot' => [
+                        'uuid_operation' => $uuidOperation,
+                        'uuid_validation' => $uuidValidation,
+                        'uuid_intent' => (string) $intent['uuid_intent'],
+                        'rule_version' => (string) $decision['rule_version'],
+                        'decision_reason' => $decision['reason'] ?? null,
+                        'evidence' => $decision['evidence'] ?? null,
+                        'gross_amount' => $price['gross'],
+                        'discount_amount' => $price['discount'],
+                        'net_amount' => $price['net'],
+                    ],
+                    'actor_type' => 'SYSTEM',
+                    'actor_id' => trim((string) ($intentRequest['created_by'] ?? 'uc-020-checkout')),
+                    'actor_role' => 'PAYMENT_CHANNEL',
+                    'source_channel' => $sourceChannel,
+                    'correlation_id' => trim((string) ($intentRequest['correlation_id'] ?? $operationKey)),
+                    'occurred_at' => date('Y-m-d H:i:s'),
+                ]);
+            }
 
             $sifDb->commit();
 
