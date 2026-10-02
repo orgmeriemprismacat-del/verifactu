@@ -44,16 +44,17 @@ No s'han modificat sense contracte suficient:
 - `commercial_operation` i `operation_line_invoice_link` obligatoris;
 - `operational_event`, `sif_audit_event`, `factura_registre_control` i correlació;
 - el fencing de la cua AEAT, `aeat_submission_attempt` i el tractament de resultat remot incert **ja existeixen** (`CLAIM_TOKEN`, estat `REVIEW`, intent `UNCERTAIN` i reconciliació sense reenviament); no són pendents d’UC-001;
-- postcondició econòmica del reús quan falta el payment que figurava a la petició original;
+- reparació/reconciliació operativa d'una dada inconsistent quan falta el `payment` original; el reús ja falla tancat i no la maquilla com a èxit;
 - resposta enriquida amb estats AEAT/cobrament/document.
 
 ## 4. Proves incorporades
 
-- `InvoicePayloadValidatorTest`: clau buida, clau massa llarga i totals incoherents.
+- `InvoicePayloadValidatorTest`: clau buida, clau massa llarga, canal buit i incoherències d'import base/base imposable/IVA/total.
 - `InternalInvoiceIssueScopeResolverTest`: rol permès, denegat i fail-closed.
 - `InternalInvoiceIssuePayloadPolicyTest`: actor/emissor servidor, bloqueig Redsys i UC-004.
 - `InvoiceIssueHttpEndpointTest`: body cru signat i frontera interna.
-- `IssueInvoiceTest`: `fact_rels.ID_FACTURA_LINIA` coincideix amb la línia fiscal d'origen.
+- `IssueInvoiceTest`: `fact_rels.ID_FACTURA_LINIA` coincideix amb la línia fiscal d'origen i queda `NULL` quan l'origen és ambigu.
+- `PayloadIdempotencyFlowTest`: reús amb `payment` original desaparegut falla tancat amb CONFLICT.
 
 ## 5. Criteri de tancament
 
@@ -87,7 +88,7 @@ La integració obligatòria de `commercial_operation`, els events funcionals pro
 | F-054 | Worker Redsys sense fencing per propietari del lock. | No modificat des d'UC-001. | **Pendent transversal** |
 | F-055 | Falta integrar tota la traça `operational_event/sif_audit_event/factura_registre_control`. | Reflectit al FINAL, sense writer nou inventat. | **Pendent** |
 | F-056 | Rectificativa pot heretar any de l'original. | No es modifica sense decisió fiscal. | **Pendent decisió/prova** |
-| F-057 | Reús amb payment original pot retornar sense `uuid_payment` si falta el moviment. | Documentat com a postcondició econòmica. | **Pendent reconciliació** |
+| F-057 | Reús amb `payment` original i moviment desaparegut podia retornar sense `uuid_payment`. | `InvoiceService` ara falla tancat amb CONFLICT; test específic afegit. | **Corregit per codi; reparació de dades continua operativa** |
 | F-058 | Cal decisió comuna de cobertura/cobrament abans d'emetre. | Incorporada a activitats/seqüència FINAL. | **Documentat; no implementat complet** |
 | F-059 | Cal distingir documentat/implementat/inspeccionat/executat. | Aquesta fitxa ho centralitza. | **Corregit documentalment** |
 | F-060 | Registre intern no congela explícitament tots els camps fora del bloc AEAT. | No es duplica estructura sense model aprovat. | **Pendent snapshot final** |
