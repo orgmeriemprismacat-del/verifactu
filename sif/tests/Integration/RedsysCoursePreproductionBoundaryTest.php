@@ -167,7 +167,7 @@ final class RedsysCoursePreproductionBoundaryTest
         Assert::stringContainsString("SIF_REDSYS_MERCHANT_CODE", $config);
         Assert::stringContainsString("REDSYS_MERCHANT_CODE", $config);
         Assert::stringContainsString("SIF_REDSYS_MERCHANT_CODE_NOT_CONFIGURED", $callback);
-        Assert::stringContainsString("$merchantCode", $callback);
+        Assert::stringContainsString('$merchantCode', $callback);
         Assert::stringContainsString("new RedsysSignatureValidator(", $callback);
     }
 
