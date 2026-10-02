@@ -119,8 +119,12 @@ La integració obligatòria de `commercial_operation`, els events funcionals pro
 | F-082 | Generic endpoint podia fabricar `CHARGE REDSYS`. | Policy rebutja Redsys factura/pagament. | **Corregit per codi; pendent CI** |
 | F-083 | `created_by` podia ser aportat pel client. | Substituït per actor autenticat. | **Corregit per codi; pendent CI** |
 | F-084 | Clau idempotent podia ser buida o massa llarga. | Rebuig abans de BD. | **Corregit per codi; pendent CI** |
-| F-085 | Capçalera podia no quadrar amb línies. | Sumes en cèntims de base/import base/IVA/total. | **Corregit per codi; pendent CI** |
+| F-085 | Capçalera podia no quadrar amb línies. | Sumes en cèntims d'import base/descompte/base imposable/IVA/total. | **Corregit per codi; pendent CI** |
 | F-086 | Curs/pack/grup acoblen `inscription.ANY` a l'any fiscal. | No es canvia sense decisió funcional/fiscal. | **Pendent decisió + prova any creuat** |
+| F-087 | Un reintent podia trobar la factura però no el cobrament inicial esperat. | El reús falla tancat amb 409 si falta el `payment`; no recrea ni retorna èxit econòmic parcial. | **Corregit per codi; pendent CI** |
+| F-088 | Sèrie i tipus de factura podien arribar en una família incompatible. | `A` exigeix `F1/F2`; `R` exigeix `R1…R5`. | **Corregit per codi; pendent CI** |
+| F-089 | El descompte de capçalera no es contrastava amb les línies. | Suma en cèntims de `discount_amount` contra `totals.discount`. | **Corregit per codi; pendent CI** |
+| F-090 | Clau idempotent/canal amb espais perifèrics podien passar validació però persistir amb identitat diferent. | Es rebutgen valors no canònics amb whitespace perifèric. | **Corregit per codi; pendent CI** |
 
 ## 7. Proves de tancament i deutes posteriors
 
