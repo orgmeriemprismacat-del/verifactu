@@ -37,6 +37,10 @@ final class RedsysCoursePreproductionScriptTest
         Assert::stringContainsString('syncAfterSifSuccess(', $source);
         Assert::stringContainsString('legacy_sync_executed', $source);
         Assert::stringContainsString('JSON_PRETTY_PRINT', $source);
+        Assert::stringContainsString('$amountCents', $source);
+        if (str_contains($source, 'number_format((float) $notification')) {
+            Assert::fail('UC-014 manual processor must not round notification amounts through float.');
+        }
 
         if (str_contains($source, 'RedsysSignatureValidator')) {
             Assert::fail('Manual processor must consume an already validated notification, not re-parse Redsys POST.');
