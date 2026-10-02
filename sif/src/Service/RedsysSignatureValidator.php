@@ -135,15 +135,36 @@ final class RedsysSignatureValidator
 
     private function normalizeAmount(?string $amount): string
     {
-        if ($amount === null || $amount === '' || !is_numeric($amount)) {
+        $raw = trim(str_replace(',', '.', (string) $amount));
+        if ($raw === '') {
             throw SifException::validation('Invalid Redsys amount');
         }
 
-        if (str_contains($amount, '.') || str_contains($amount, ',')) {
-            return number_format((float) str_replace(',', '.', $amount), 2, '.', '');
+        // Redsys envia Ds_Amount en la unitat fraccionària mínima (cèntims per EUR).
+        if (ctype_digit($raw)) {
+            if (strlen($raw) > 12) {
+                throw SifException::validation('Invalid Redsys amount');
+            }
+
+            return $this->amountFromCents((int) $raw);
         }
 
-        return number_format(((int) $amount) / 100, 2, '.', '');
+        // Compatibilitat defensiva per payloads de proves ja normalitzats.
+        if (!preg_match('/^\d{1,10}\.\d{1,2}$/D', $raw)) {
+            throw SifException::validation('Invalid Redsys amount');
+        }
+
+        [$euros, $decimals] = array_pad(explode('.', $raw, 2), 2, '');
+        $cents = (int) $euros * 100 + (int) str_pad($decimals, 2, '0');
+
+        return $this->amountFromCents($cents);
+    }
+
+    private function amountFromCents(int $cents): string
+    {
+        return intdiv($cents, 100)
+            . '.'
+            . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 
     private function normalizeSignature(string $signature): string
