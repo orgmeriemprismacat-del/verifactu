@@ -10,7 +10,7 @@
 | PK-A01 | Llistat de packs | codi legacy | conservar catàleg, sense efecte fiscal |
 | PK-A02 | Fitxa de pack | codi legacy | oferta versionada |
 | PK-A03 | Formulari inscripció | **POST-only + same-site/origin; preu backend autoritatiu** | acreditar E2E navegador/preproducció |
-| PK-A04 | Alta N inscripcions | snapshot comercial + transacció atòmica implementats | model comercial explícit/versionat encara pendent |
+| PK-A04 | Alta N inscripcions | snapshot + transacció atòmica + suma exacta PACK implementats | model comercial explícit/versionat encara pendent |
 | PK-A05 | Creació URL/intenció | **intenció SIF implementada per PACK** | evidència runtime |
 | PK-A06 | Callback Redsys | **callback SIF autoritatiu; legacy HTTP 410 per defecte** | eliminar codi rollback |
 | PK-A07 | Factura pack | **InvoiceService al flux SIF; emissió legacy desactivada per defecte** | eliminar codi rollback |
@@ -120,7 +120,7 @@ E --> F[Crear intenció Redsys]
 ```
 
 
-**Revalidació 02/10:** les N insercions es fan dins una única transacció legacy. Una fallada intermèdia provoca rollback i `releaseIdPag()` queda garantit en la via d'error; `PackEnrollmentAtomicityBoundaryTest` blinda l'ordre reserve → begin → inserts → commit → release.
+**Revalidació 02/10:** les N insercions es fan dins una única transacció legacy. Una fallada intermèdia provoca rollback i `releaseIdPag()` queda garantit en la via d'error; abans del commit s'exigeix també `suma(A_PAGAR)=preu PACK` i restant zero en cèntims. `PackEnrollmentAtomicityBoundaryTest` blinda aquests guards.
 
 ## PK-A05 · Intenció de pagament
 
