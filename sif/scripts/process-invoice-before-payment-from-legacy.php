@@ -10,6 +10,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentBillingPartyRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentRedsysGuardRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentSelectionRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Service\InvoiceBeforePaymentCommandService;
@@ -71,7 +72,8 @@ try {
             null,
             null,
             $fingerprints,
-            new InvoiceBeforePaymentCoverageRepository()
+            new InvoiceBeforePaymentCoverageRepository(),
+            new InvoiceBeforePaymentRedsysGuardRepository()
         )
     );
 
