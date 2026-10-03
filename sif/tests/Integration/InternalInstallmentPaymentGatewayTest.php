@@ -43,9 +43,26 @@ final class InternalInstallmentPaymentGatewayTest
             'SELECT PROVIDER_REF FROM payment_transaction LIMIT 1'
         )->fetchColumn();
         Assert::same(
-            'FRACCIO|ID_INSC:10|USUARI:gestio-real|EVENT:MANUAL-EVENT-001',
+            'FRACCIO|ID_INSC:10|EVENT:MANUAL-EVENT-001',
             $providerRef
         );
+
+        $retry = $gateway->register(
+            $db,
+            ['actor_id' => 'gestio-segon', 'roles' => ['FACTURACIO']],
+            [
+                'uuid_factura' => $invoice['uuid_factura'],
+                'input' => [
+                    'amount' => '40.00',
+                    'movement_date' => '2026-06-12',
+                    'id_insc' => 10,
+                    'operation_id' => 'MANUAL-EVENT-001',
+                ],
+            ]
+        );
+        Assert::same(true, $retry['idempotency_reused']);
+        Assert::same($result['uuid_payment'], $retry['uuid_payment']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
     }
 
     public function testRejectsActorWithoutInstallmentRole(): void
