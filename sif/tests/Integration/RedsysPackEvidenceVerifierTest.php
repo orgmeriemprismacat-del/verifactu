@@ -31,11 +31,14 @@ final class RedsysPackEvidenceVerifierTest
         Assert::same(true, $evidence['ok']);
         Assert::same([], $evidence['failed']);
         Assert::same('210.00', $evidence['amount']);
+        Assert::same('22222222-2222-4222-8222-222222222222', $evidence['uuid_job']);
+        Assert::same('VALIDATED', $evidence['notification_status']);
         Assert::same('PROCESSED', $evidence['queue_status']);
         Assert::same('PENDING', $evidence['outbox_status']);
         Assert::same([501, 502], $evidence['inscription_ids']);
         Assert::same($result['uuid_factura'], $evidence['uuid_factura']);
         Assert::same($result['uuid_payment'], $evidence['uuid_payment']);
+        Assert::same(true, trim((string) $evidence['uuid_notification']) !== '');
 
         $encoded = json_encode($evidence);
         Assert::same(false, str_contains((string) $encoded, 'maria@example.test'));
