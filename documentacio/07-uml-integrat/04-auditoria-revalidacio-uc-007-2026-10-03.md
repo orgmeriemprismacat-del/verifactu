@@ -152,3 +152,10 @@ Això era una mutació de negoci causada per una operació de consulta/descàrre
 **Protecció de regressió:** `Uc007IntranetBoundaryTest::testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState` aïlla el mètode `generaFactura()`, confirma que continua generant el fitxer temporal i falla si reapareix `updGeneratFactura`.
 
 A partir d'aquesta correcció és coherent tractar la descàrrega com a **lectura**: el JS ja no exigeix `tePermisEdicio` per descarregar, mentre el backend continua revalidant sessió, `ROLS_VISUALITZAR`, origen/XHR i el guard de convivència SIF.
+
+
+### 11.1. Semàntica llegada de `GENERAT` i còpia
+
+Al generador llegat, `GENERAT` també es consulta per imprimir l'etiqueta «ÉS CÒPIA». Després de separar la lectura de la mutació, una descàrrega UC-007 ja no converteix per si mateixa una factura en “generada” ni en “còpia”. Els valors històrics ja existents es continuen llegint, però no es creen des del cas d'ús de consulta.
+
+Aquesta és una diferència deliberada respecte del comportament antic: la traça de consulta/descàrrega FINAL no s'ha de codificar alterant la factura, sinó en un registre d'accés (`fiscal_document_access`) quan el document és SIF/UC-080. Si algun flux de negoci llegat necessita marcar explícitament una emissió/generació, s'ha de modelar fora de l'UC-007.
