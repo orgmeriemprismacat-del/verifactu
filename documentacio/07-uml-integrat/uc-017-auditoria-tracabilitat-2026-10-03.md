@@ -176,3 +176,56 @@ UC-017 només podrà passar a **VERIFICAT/TANCAT** quan:
 5. el codi de regal no quedi exposat inadequadament;
 6. hi hagi prova E2E en preproducció amb evidència conservada;
 7. el callback duplicat i el retry entre factura i entitlement no dupliquin diners ni drets.
+
+
+## 9. Reconciliació d'implementació posterior a l'auditoria
+
+Després de la primera passada d'auditoria s'han implementat a la mateixa branca
+candidata els canvis descrits a
+`uc-017-implementacio-hardening-2026-10-03.md`.
+
+### 9.1. Estat de les troballes
+
+| Troballa | Estat després del hardening |
+| --- | --- |
+| F-017-01 numeració fiscal al llegat | **RESOLTA EN CAMÍ FINAL**: el callback SIF/worker emet via `InvoiceService`; el fallback llegat només existeix mentre `CUTOVER=0` |
+| F-017-02 escriptura directa de factura | **RESOLTA EN CAMÍ FINAL**; fallback transitori bloquejat amb `410` quan cutover+drain |
+| F-017-03 validació criptogràfica no demostrada | **CORREGIDA EN CANDIDAT**: `hash_equals` + validació context/import/terminal/merchant |
+| F-017-04 secret Redsys al codi | **CORREGIDA EN CANDIDAT**: variables d'entorn |
+| F-017-05 dades per GET | **CORREGIDA EN CANDIDAT**: context signat `MerchantData` i intenció SIF |
+| F-017-06 `DS_ORDER=time()` | **CORREGIDA EN CANDIDAT**: `RedsysDsOrderGenerator` |
+| F-017-07 import client/URL | **CORREGIDA EN CANDIDAT**: import autoritatiu rellegit pel SIF |
+| F-017-08 core SIF específic | IMPLEMENTAT |
+| F-017-09 dret de regal | IMPLEMENTAT |
+| F-017-10 dues transaccions consecutives | **MITIGADA**: retry del worker + idempotència de factura/entitlement/outbox; prova de frontera creada |
+| F-017-11 codi al detall de factura | **PENDENT DE DECISIÓ/DOCUMENT**: no s'ha eliminat encara del builder fiscal |
+| F-017-12 correus directes | **RESOLT EN CAMÍ FINAL** amb `GiftPaymentNotificationService`; transport final pendent de prova |
+
+### 9.2. Nous components
+
+- `RedsysGiftPaymentIntentService`
+- `/api/redsys/gift-intent.php`
+- `SifRedsysGiftIntentClient`
+- `RedsysGiftPaymentStatusService`
+- `/api/redsys/gift-status.php`
+- `SifRedsysGiftStatusClient`
+- `GiftPaymentReturnStatus`
+- `GiftPaymentNotificationService`
+
+### 9.3. Nou estat global
+
+**Documentat:** SÍ, paquet específic complet.
+
+**Implementat:** SÍ per al camí candidat SIF de compra/cobrament/factura/dret/outbox/estat;
+el fallback llegat es conserva només per rollback abans del tall.
+
+**Verificat:** PARCIAL. Hi ha proves automatitzades i workflows CI en execució/cua,
+però encara no hi ha evidència de preproducció amb Redsys real/sandbox i MySQL de
+l'entorn desplegat.
+
+**Pendent:** desplegar candidat, configurar secrets, executar preflight,
+prova E2E, callback duplicat, retry entre factura i entitlement/outbox, verificar
+transport d'outbox i aprovar retirada definitiva del fallback.
+
+Per tant, UC-017 **encara no és CLOSED**, però ja no és correcte descriure el seu
+camí FINAL com a “pendent de programar”.
