@@ -6,6 +6,7 @@ use Prisma\Sif\Contract\PayloadIdempotencyValidatorInterface;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\CommercialOperationRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
@@ -25,11 +26,13 @@ final class InvoiceService
         private ?PayloadIdempotencyValidatorInterface $idempotency = null,
         private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null,
         private ?OperationalEventRepository $operationalEvents = null,
-        private ?SifAuditEventRepository $auditEvents = null
+        private ?SifAuditEventRepository $auditEvents = null,
+        private ?CommercialOperationRepository $commercialOperations = null
     ) {
         $this->idempotency ??= new PayloadIdempotencyValidator();
         $this->operationalEvents ??= new OperationalEventRepository(new UuidGenerator());
         $this->auditEvents ??= new SifAuditEventRepository(new UuidGenerator());
+        $this->commercialOperations ??= new CommercialOperationRepository();
     }
 
     public function issueInvoice(array $payload): array
@@ -77,6 +80,7 @@ final class InvoiceService
             $seq = $this->sequences->next($db, $payload['series'], $year);
             $chainState = $this->invoices->lockChainState($db);
             $created = $this->invoices->createInvoiceGraph($db, $payload, $seq, $chainState);
+            $this->linkCommercialOperationIfPresent($db, $payload, $created['uuid_factura']);
 
             if ($this->requiresBeforePaymentCoverage($payload)) {
                 $this->beforePaymentCoverage->claim(
@@ -104,6 +108,24 @@ final class InvoiceService
 
             return $this->appendIssueAudit($db, $payload, $result, false);
         });
+    }
+
+
+    private function linkCommercialOperationIfPresent(
+        \PDO $db,
+        array $payload,
+        string $uuidFactura
+    ): void {
+        $uuidOperation = trim((string) ($payload['uuid_operation'] ?? ''));
+        if ($uuidOperation === '') {
+            return;
+        }
+
+        $this->commercialOperations->linkInvoice(
+            $db,
+            $uuidOperation,
+            $uuidFactura
+        );
     }
 
     private function createInitialPaymentIfPresent(\PDO $db, array $payload, string $uuidFactura): ?array
@@ -190,6 +212,7 @@ final class InvoiceService
         // Fail closed for pre-migration invoices: the complete original request
         // cannot be recovered from the fiscal payload (e.g. the payment block).
         $this->idempotency->assertMatches($payload, (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? ''));
+        $this->linkCommercialOperationIfPresent($db, $payload, (string) $existing['UUID_FACTURA']);
         $result = $this->existingResult($existing);
 
         if (!array_key_exists('payment', $payload) || $payload['payment'] === null) {
