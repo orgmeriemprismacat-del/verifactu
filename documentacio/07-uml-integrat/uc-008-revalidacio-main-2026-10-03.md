@@ -197,3 +197,24 @@ Aquests punts necessiten preproducció, rols/secrets reals i la BD real del men�
 - Les cinc fallades són exclusivament PACK/UC-015; no s'ha observat cap fallada UC-008.
 
 No hi ha reviews, threads ni comentaris oberts que bloquegin documentalment l'auditoria UC-008. La decisió de merge s'ha de separar de les cinc regressions globals PACK que continuen actives.
+
+
+## 11. Hardening addicional de l'acceptació operativa
+
+En continuar l'auditoria sobre el bloc `ENVIRONMENT_ACCEPTANCE_PENDING` s'han detectat tres mancances que no afectaven el lifecycle, però sí la fiabilitat de l'evidència de preproducció:
+
+1. l'E2E acceptava qualsevol URL HTTPS si el procés local declarava `SIF_ENV=preproduction`;
+2. l'evidència del menú no identificava l'entorn de la BD consultada;
+3. el runbook no enumerava al costat SIF `SIF_INTERNAL_API_KEY_ID/SECRET`, tot i que el preflight els exigeix.
+
+Correccions aplicades al PR #123:
+
+- `e2e-incidents-panel.php`: `SIF_E2E_INCIDENT_EXPECTED_HOST` obligatori en preproducció + bloqueig de `SIF_PRODUCTION_HOST`;
+- `preflight-sif-verifactu-menu.php`: camp `environment` derivat de `SIF_ENV` / `PRISMA_ENV`;
+- `validate-uc008-evidence.php`: `menu_environment_valid` exigeix `preproduction`;
+- noves proves fail-closed per host i evidència de menú;
+- runbook explícit per `pay-pre.prisma.cat` i `intranet-pre.prisma.cat`.
+
+Aquests canvis endureixen el **procés de tancament d'entorn** i no alteren cap mutació fiscal/econòmica ni el contracte funcional del lifecycle.
+
+Vegeu [10 · runbook d'acceptació operativa](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md).
