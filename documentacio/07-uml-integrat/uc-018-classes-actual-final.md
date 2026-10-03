@@ -22,7 +22,7 @@ class MostrarBescanviaJS {
   +enviar inscripcio()
 }
 class LegacyGiftAjax {
-  <<PHP POST-only>>
+  <<PHP legacy boundaries>>
   +codiRegalValid()
   +buscarCursRegalat()
   +inscripcioDuplicada()
@@ -70,7 +70,7 @@ GiftRedemptionNotificationBundleService --> NotificationOutboxDeliveryService
 
 - **Pàgina:** `pagina_bescanvia.php` referencia el bundle rastrejable `mostrarBescanvia.min.js?ver=6.0`.
 - **Browser:** les quatre crides que transporten codi regal o identitat personal són POST amb cos de petició.
-- **Legacy guard:** endpoints sensibles són POST-only; el lookup revalida el codi i el writer exigeix `FACT_REL > 0`.
+- **Legacy guard:** els tres endpoints exclusius UC-018 són POST-only; `inscripcioDuplicada.php` és compartit i UC-018 l'invoca per POST. El lookup revalida el codi i el writer exigeix `FACT_REL > 0`.
 - **Resposta pública:** `BescanviaRegal::codiRegalValid()` no diferencia públicament inexistent/pendent/consumit.
 - **UC-017 / origen monetari:** `RedsysGiftInvoiceService` + `GiftEntitlementIssuerService` conserven factura/`CHARGE` i creen/reutilitzen GIFT.
 - **Dret:** `CommercialEntitlementRepository` governa holder, lock, `CLAIM`, `RESERVE`, `CONSUME`, `RELEASE` i events append-only.
