@@ -40,6 +40,7 @@ UC022_PHP_FILES=(
   "sif/src/Service/ManualTransferCommandService.php"
   "sif/src/Service/GeneratedInvoiceLegacyPaymentSyncService.php"
   "sif/src/Service/ManualTransferLegacyProjectionService.php"
+  "sif/src/Service/ManualTransferNotificationService.php"
   "sif/public/api/payments/manual-transfer.php"
   "codi-drive/intranet-nova-canvis-verifactu/SifPaymentSessionGuard.php"
   "codi-drive/intranet-nova-canvis-verifactu/SifInternalApiClient.php"
@@ -90,6 +91,7 @@ UC022_PHP_FILES=(
     sif/tests/Integration/ManualTransferAuditedFlowTest.php \
     sif/tests/Integration/ManualTransferHttpEndpointTest.php \
     sif/tests/Integration/ManualTransferIntranetAdapterTest.php \
+    sif/tests/Integration/ManualTransferNotificationServiceTest.php \
     sif/tests/Unit/ManualPaymentPayloadBuilderTest.php \
     sif/tests/Unit/GeneratedInvoiceLegacyPaymentSyncServiceTest.php
   do
