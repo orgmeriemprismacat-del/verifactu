@@ -14,6 +14,7 @@
 | P-UC006-04 | CLI SIF | Preview/process manual refund | IMPLEMENTAT TÈCNIC, no UI productiva |
 | P-UC006-05 | CLI SIF | Preview/process credit balance | IMPLEMENTAT TÈCNIC, no UI productiva |
 | P-UC006-06 | CLI SIF | Preview/process credit compensation | IMPLEMENTAT TÈCNIC, no UI productiva |
+| P-UC006-07 | SIF intern | Atribució de cobrament a inscripció (`enrollment_fund_movement`) | IMPLEMENTAT PARCIAL · curs/pack |
 | P-UC006-F | Pantalla final UC-006 | Decisió econòmica i confirmació | PENDENT |
 
 ## 2. P-UC006-01 ACTUAL — baixa des de Consulta / Modifica alumne
@@ -212,6 +213,25 @@ flowchart TD
 ```
 
 **Mancança:** no s’acredita titularitat compatible.
+
+## 10.1. P-UC006-07 ACTUAL — atribució de cobrament a inscripció
+
+```mermaid
+flowchart TD
+  A[CHARGE confirmat + factura/línia] --> B[Course/PackEnrollmentFundAllocationService]
+  B --> C[Lock payment_transaction]
+  C --> D[Localitzar factura_linia per ID_INSC]
+  D --> E{Import payment = factura/línies?}
+  E -- No --> X[CONFLICT]
+  E -- Sí --> F[insertOrReuseExternalAllocation]
+  F --> G{IDEMPOTENCY_KEY existent?}
+  G -- Sí mateix payload --> H[REUSED]
+  G -- Sí payload diferent --> X
+  G -- No --> I[INSERT enrollment_fund_movement]
+  I --> J[EXTERNAL_ALLOCATION cap a ID_INSC_DESTI]
+```
+
+**Cobertura real:** atribució inicial de fons per curs i pack. **No cobreix encara** la sortida d'un refund ni la conversió/aplicació completa de saldo d'UC-006.
 
 ## 11. P-UC006-F FINAL — pantalla unificada
 
