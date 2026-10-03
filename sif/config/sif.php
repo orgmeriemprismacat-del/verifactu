@@ -32,6 +32,10 @@ return [
         ))),
     ],
     'rectification' => [
+        'enabled' => filter_var(
+            getenv('SIF_UC005_RECTIFICATION_ENABLED') ?: '0',
+            FILTER_VALIDATE_BOOL
+        ),
         'write_roles' => array_values(array_filter(array_map(
             'trim',
             explode(',', getenv('SIF_RECTIFICATION_WRITE_ROLES') ?: '')
