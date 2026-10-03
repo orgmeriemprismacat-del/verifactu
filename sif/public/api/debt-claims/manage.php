@@ -48,6 +48,8 @@ try {
     }
 
     $settings = $config['debt_claims'] ?? [];
+    $readRoles = (array) ($settings['read_roles'] ?? envRoles('SIF_DEBT_CLAIM_READ_ROLES'));
+    $manageRoles = (array) ($settings['manage_roles'] ?? envRoles('SIF_DEBT_CLAIM_MANAGE_ROLES'));
     $uuids = new UuidGenerator();
     $service = new DebtClaimCoordinator(
         $db,
@@ -56,8 +58,8 @@ try {
         new DebtClaimCaseRepository($uuids),
         new NotificationOutboxRepository($uuids),
         new OperationalEventRepository($uuids),
-        (array) ($settings['read_roles'] ?? []),
-        (array) ($settings['manage_roles'] ?? [])
+        $readRoles,
+        $manageRoles
     );
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
@@ -70,4 +72,18 @@ try {
     JsonResponse::send($result);
 } catch (\Throwable $exception) {
     JsonResponse::fromThrowable($exception);
+}
+
+
+function envRoles(string $name): array
+{
+    $raw = trim((string) (getenv($name) ?: ''));
+    if ($raw === '') {
+        return [];
+    }
+
+    return array_values(array_filter(array_map(
+        static fn (string $role): string => strtoupper(trim($role)),
+        explode(',', $raw)
+    )));
 }
