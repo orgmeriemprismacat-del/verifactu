@@ -610,7 +610,7 @@ stop
 
 - `CommercialOfferService::createOrReuse()`: **implementat**; l'alta AP llegada encara no crea `offer_id`, però `enviarInscripcio.php` ja revalida AP al servidor abans de persistir.
 - `PaymentLinkService::issue()/resolve()/revoke()`: **implementat**; encara no és la ruta canònica d'aquest checkout AP.
-- Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_WEB_LEGACY_V2`; decisions UC20-DEC-001…006 tancades a la fitxa v1.6.
+- Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_WEB_LEGACY_V2`; decisions UC20-DEC-001…006 tancades a la fitxa v1.7.
 - Connexió AP de pagament → `RedsysPaymentIntentService`: **IMPLEMENTADA** via `SifRedsysCourseIntentClient` / `course-intent` / `PrismaStudentCourseCheckoutService`. La coordinació específica amb `payment_link` continua pendent.
 
 ## 7. Matriu ACTUAL → FINAL
