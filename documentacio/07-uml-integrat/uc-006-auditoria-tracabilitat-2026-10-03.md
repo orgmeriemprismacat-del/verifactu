@@ -28,7 +28,7 @@ No existien peces dedicades UC-006 de classes ACTUAL/FINAL, seqüències ACTUAL/
 - **IMPLEMENTAT:** existeixen els serveis base UC-28/29/29a.
 - **VERIFICAT ESTÀTICAMENT:** contractes, wiring absent i proves existents han estat contrastats al repositori.
 - **PENDENT:** UC-006 com a orquestració de negoci i integració real.
-- **PENDENT BLOQUEJANT:** titularitat/dret, límit retornable, origen idempotent de saldo, evidència externa del REFUND, auditoria transversal i E2E.
+- **PENDENT BLOQUEJANT:** completar el dret/consum sobre el ledger d'inscripcions ja existent, titularitat, límit retornable, origen idempotent de saldo, evidència externa del REFUND, auditoria transversal i E2E.
 
 ## 3. Inventari documental abans/després
 
@@ -92,6 +92,37 @@ No existien peces dedicades UC-006 de classes ACTUAL/FINAL, seqüències ACTUAL/
 | `CreditBalanceServiceTest` | creació, parcial, total, límits | PROVES EXISTENTS |
 | idempotència creació saldo | no acreditada | PENDENT BLOQUEJANT |
 | titularitat saldo vs factura | no acreditada | PENDENT BLOQUEJANT |
+
+## 4.5. Troballa addicional — ledger executable per inscripció
+
+L'auditoria ampliada ha localitzat una base que redueix el gap de traçabilitat:
+
+- `sif/database/migrations/2026_09_30_000030_add_enrollment_fund_movement.sql`;
+- `sif/src/Repository/EnrollmentFundMovementRepository.php`;
+- `sif/src/Service/CourseEnrollmentFundAllocationService.php`;
+- `sif/src/Service/PackEnrollmentFundAllocationService.php`;
+- `sif/tests/Integration/CourseEnrollmentFundAllocationServiceTest.php`.
+
+### Què està implementat
+
+- moviment immutable identificat per UUID i `IDEMPOTENCY_KEY` UNIQUE;
+- `EXTERNAL_ALLOCATION` d'un `CHARGE` confirmat cap a `ID_INSC_DESTI`;
+- variant `COMPENSATION_ALLOCATION` al repositori;
+- `INTERNAL_TRANSFER` i `REVERSAL` previstos pel CHECK de la migració;
+- correlació amb factura/línia/pagament/operació;
+- reús idempotent amb verificació de payload;
+- allocadors reals per curs i pack.
+
+### Què continua faltant per UC-006
+
+- càlcul genèric de fons encara disponibles per inscripció;
+- sortida `REFUND` atribuïda a la inscripció origen;
+- creació de `credit_balance` consumint una atribució origen exactament una vegada;
+- referència de `UUID_CREDIT` dins el ledger o una relació equivalent;
+- wiring de `CreditBalanceService::applyCredit*()` amb `insertOrReuseCompensationAllocation()`;
+- orquestrador que eviti refund + saldo sobre el mateix tram.
+
+**Conclusió corregida:** el model quantitatiu per inscripció no és “inexistent”; és **parcialment implementat i encara no integrat amb UC-006**.
 
 ## 5. Contrast de la fitxa funcional antiga amb el codi
 
@@ -267,8 +298,8 @@ La fitxa antiga agrupava `sif_audit_event`, `operational_event`, `payment_action
 
 ### P0 — bloquejants abans d’operar diners
 
-1. **UC006-GAP-P0-01 · Dret econòmic únic per origen/inscripció.**  
-   Evitar que el mateix valor es transformi en refund i saldo, o dos saldos.
+1. **UC006-GAP-P0-01 · Completar el dret econòmic sobre `enrollment_fund_movement`.**  
+   La base de ledger ja existeix; falta calcular/lockar disponibilitat i evitar que el mateix tram es transformi en refund i saldo, o dos saldos.
 
 2. **UC006-GAP-P0-02 · Límit de devolució.**  
    `REFUND` no pot superar el que s’ha cobrat i continua disponible per retornar.
@@ -330,7 +361,9 @@ La fitxa antiga agrupava `sif_audit_event`, `operational_event`, `payment_action
 - **CREAT** `documentacio/07-uml-integrat/uc-006-sequencies-actual-final.md`
 - **CREAT** `documentacio/07-uml-integrat/uc-006-activitats-pagines-actual-final.md`
 - **CREAT** aquest document
-- **A ACTUALITZAR** índex UML i fitxa integrada amb enllaços d’auditoria
+- **CREAT** `uc-006-inventari-artefactes.md`
+- **MODIFICAT** `00-revisio-moviments-inscripcions.md` per reconciliar la migració/repositori ja existents
+- **ACTUALITZAT** índex UML i fitxa integrada amb enllaços d’auditoria
 
 ## 14. Decisió sobre canvis de codi
 
