@@ -182,3 +182,45 @@ stop
 
 
 **Estat nou P05:** endpoint SIF + HMAC + rols + `external_bank_event_id` implementats; caller intranet, CSRF local del navegador i sincronització llegat continuen pendents.
+
+
+## P07 — canal intranet segur implementat en branca
+
+```plantuml
+@startuml
+start
+:Usuari selecciona factura existent;
+if (efact == 1?) then (sí)
+  :Introduir import/data/banc;
+  :Introduir ID únic del moviment bancari;
+  if (banc == TPV/REDSYS?) then (sí)
+    :Bloquejar i derivar a Redsys;
+    stop
+  endif
+  :Obtenir CSRF autenticat;
+  :POST registrarTransferenciaSif.php;
+  :Refrescar rols vigents;
+  :Signar HMAC server-to-server;
+  :Anti-replay request UUID;
+  if (factura existeix al SIF?) then (sí)
+    :Registrar/reutilitzar payment;
+    :Escriure audit REQUESTED + terminal;
+    :Projectar acumulat SIF al llegat;
+    if (sync llegat OK?) then (sí)
+      :CREATED o REUSED;
+    else (no)
+      :PENDING_RETRY;
+      :Reintentar amb mateix ID bancari;
+    endif
+  else (no)
+    :Bloquejar;
+    :Enviar a migració/reconciliació;
+  endif
+else (no)
+  :Fora UC-022: flux d'emissió + cobrament;
+endif
+stop
+@enduml
+```
+
+**Estat P07:** implementat en la branca; execució E2E i desplegament encara no verificats.
