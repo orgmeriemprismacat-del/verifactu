@@ -52,6 +52,18 @@ final class NovicePromotionDecisionReconcilerTest
         Assert::same('PENDING', (string) $db->query('SELECT STATUS FROM discount_validation')->fetchColumn());
     }
 
+    public function testProjectsBackwardCompatibleStagedOperationWithoutValidationRow(): void
+    {
+        [$db] = $this->stage(1, false);
+        $result = $this->service()->run($db, $db, 'system:reconcile-test');
+
+        Assert::same(1, $result['candidates']);
+        Assert::same(1, $result['projected']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same('VALIDATED', (string) $db->query('SELECT STATUS FROM discount_validation')->fetchColumn());
+        Assert::same('READY_FOR_PAYMENT', (string) $db->query('SELECT STATUS FROM commercial_operation')->fetchColumn());
+    }
+
     public function testIdentityConflictIsReportedAndDoesNotOpenPayment(): void
     {
         [$db] = $this->stage(1);
@@ -72,7 +84,7 @@ final class NovicePromotionDecisionReconcilerTest
         );
     }
 
-    private function stage(int $legacyDecision): array
+    private function stage(int $legacyDecision, bool $withValidation = true): array
     {
         $db = TestDatabase::fresh();
         $db->exec('CREATE TEMPORARY TABLE inscripcions (ID INT PRIMARY KEY, CURS VARCHAR(12) NOT NULL, DNI VARCHAR(20) NOT NULL)');
@@ -101,17 +113,19 @@ final class NovicePromotionDecisionReconcilerTest
              VALUES (?, ?, ?, ?, ?, ?)'
         )->execute([$uuid, 'student:canonical:12345678Z', 'PARTICIPANT', '12345678Z', 'Persona de prova', '{}']);
 
-        $uuidValidation = (new UuidGenerator())->generate();
-        $db->prepare(
-            'INSERT INTO discount_validation
-             (UUID_VALIDATION, UUID_OPERATION, DISCOUNT_TYPE, SUBJECT_PARTY_KEY,
-              STATUS, RULE_VERSION, RULE_SNAPSHOT_JSON, REQUESTED_AT, IDEMPOTENCY_KEY)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        )->execute([
-            $uuidValidation, $uuid, 'NOVICE_TEACHER', 'student:canonical:12345678Z',
-            'PENDING', 'NOVICE_JASOM_V1', '{"source":"test"}',
-            '2026-09-22 07:00:00', 'NOVICE|RECONCILE|VALIDATION|' . $uuid,
-        ]);
+        if ($withValidation) {
+            $uuidValidation = (new UuidGenerator())->generate();
+            $db->prepare(
+                'INSERT INTO discount_validation
+                 (UUID_VALIDATION, UUID_OPERATION, DISCOUNT_TYPE, SUBJECT_PARTY_KEY,
+                  STATUS, RULE_VERSION, RULE_SNAPSHOT_JSON, REQUESTED_AT, IDEMPOTENCY_KEY)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            )->execute([
+                $uuidValidation, $uuid, 'NOVICE_TEACHER', 'student:canonical:12345678Z',
+                'PENDING', 'NOVICE_JASOM_V1', '{"source":"test"}',
+                '2026-09-22 07:00:00', 'NOVICE|RECONCILE|VALIDATION|' . $uuid,
+            ]);
+        }
 
         return [$db, $uuid];
     }
