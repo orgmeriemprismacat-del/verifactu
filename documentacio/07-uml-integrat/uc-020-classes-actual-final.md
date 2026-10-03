@@ -35,10 +35,11 @@ class BuscarAlumnePrisMaPHP {
 }
 
 class EnviarInscripcioPHP {
-  <<PHP legacy>>
-  +rep tipusDescompte
-  +rep preuCar
-  +rep preuDescompte
+  <<PHP legacy hardenitzat>>
+  +rep valors comercials proposats pel client
+  +revalida AP server-side si TIPUS_DESC=1
+  +deriva TIPUS_CURS de servidor
+  +substitueix preu AP per tarifa servidor
   +insereix inscripcio
 }
 
@@ -62,15 +63,15 @@ MostrarInscripcionsJS --> EnviarInscripcioPHP : confirma valors client
 EnviarInscripcioPHP --> InscripcionsLegacy : INSERT
 ```
 
-### Riscos ACTUALS
+### Riscos ACTUALS revalidats
 
-- el navegador manté import i tipus de descompte com a globals;
-- la confirmació envia aquests imports al backend;
-- la consulta antiga conté la branca SQL `FACTURA_RELACIONADA != NULL`;
-- la consulta redueix l'evidència a un booleà i perd la inscripció que acredita el dret;
-- preview i confirmació no comparteixen una oferta servidor immutable.
+- el navegador manté import i tipus de descompte com a globals i encara els envia al backend;
+- per a `TIPUS_DESC=1`, `enviarInscripcio.php` ja no els tracta com a autoritat: rellegeix historial, `TIPUS_CURS`, tarifa base i tarifa AP, i conserva el preu servidor fins a l'INSERT;
+- la drecera de `FACTURA_RELACIONADA != NULL` era una fotografia històrica i s'ha eliminat del preview amb UC020-98;
+- el preview continua reduint l'evidència a un booleà i no conserva la inscripció concreta que acredita el dret;
+- preview i confirmació continuen sense compartir una oferta servidor immutable/`offer_id`; aquesta és una migració transversal pendent.
 
-## 2. Classes FINAL — estat integrat al `main`
+## 2. Classes FINAL — estat executable a la branca de tancament
 
 ```mermaid
 classDiagram
@@ -169,6 +170,7 @@ La policy implementada materialitza les decisions UC20-DEC-001…006 sota la ver
 - [Seqüències ACTUAL/FINAL](uc-020-sequencies-actual-final.md)
 - [Activitats ACTUAL/FINAL](uc-020-activitats-pagines-actual-final.md)
 - [Auditoria i traçabilitat](uc-020-auditoria-tracabilitat-2026-09-29.md)
+- [Evidència CI 03/10/2026](uc-020-evidencia-ci-2026-10-03.md)
 
 ## 6. Reconciliació 02/10/2026
 
