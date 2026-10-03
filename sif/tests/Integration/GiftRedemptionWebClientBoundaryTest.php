@@ -150,6 +150,22 @@ final class GiftRedemptionWebClientBoundaryTest
             Assert::same(false, str_contains($source, '$_GET'));
         }
 
+        $lookup = file_get_contents(
+            $root . '/codi-drive/web-actual/ajax/buscarCursRegalat.php'
+        );
+        if (!is_string($lookup)) {
+            Assert::fail('Could not read gift course lookup endpoint');
+        }
+        Assert::stringContainsString('codiRegalValid($codiRegal)', $lookup);
+
+        $writer = file_get_contents(
+            $root . '/codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php'
+        );
+        if (!is_string($writer)) {
+            Assert::fail('Could not read gift redemption writer');
+        }
+        Assert::stringContainsString('if ((int) $factRel <= 0)', $writer);
+
         $legacyGift = file_get_contents(
             $root . '/codi-drive/web-actual/BescanviaRegal.php'
         );
