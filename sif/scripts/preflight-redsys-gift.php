@@ -74,6 +74,8 @@ $checks = [
     'gift_entitlement_service_present' => is_file($root . '/src/Service/GiftEntitlementIssuerService.php'),
     'fiscal_chain_state_seeded' => false,
     'legacy_regal_table' => false,
+    'legacy_regal_observacions_column' => false,
+    'legacy_gift_codes_unique' => false,
 ];
 $errors = [];
 
@@ -104,6 +106,14 @@ try {
     $legacyDb = ConnectionFactory::makeLegacy($config);
     $checks['legacy_database_connectivity'] = true;
     $checks['legacy_regal_table'] = tableExists($legacyDb, 'regal');
+    if ($checks['legacy_regal_table']) {
+        $checks['legacy_regal_observacions_column'] = columnExists(
+            $legacyDb,
+            'regal',
+            'OBSERVACIONS'
+        );
+        $checks['legacy_gift_codes_unique'] = duplicateGiftCodeCount($legacyDb) === 0;
+    }
 } catch (\Throwable $exception) {
     $errors['legacy_database'] = $exception->getMessage();
 }
@@ -140,4 +150,30 @@ function rowExists(\PDO $db, string $sql): bool
     $stmt = $db->query($sql);
 
     return $stmt !== false && (int) $stmt->fetchColumn() === 1;
+}
+
+
+function columnExists(\PDO $db, string $table, string $column): bool
+{
+    $stmt = $db->query(
+        'SHOW COLUMNS FROM ' . $table . ' LIKE ' . $db->quote($column)
+    );
+
+    return $stmt !== false && $stmt->fetchColumn() !== false;
+}
+
+function duplicateGiftCodeCount(\PDO $db): int
+{
+    $stmt = $db->query(
+        "SELECT COUNT(*)
+         FROM (
+             SELECT CODI
+             FROM regal
+             WHERE CODI IS NOT NULL AND TRIM(CODI) <> ''
+             GROUP BY CODI
+             HAVING COUNT(*) > 1
+         ) AS duplicated_gift_codes"
+    );
+
+    return $stmt === false ? -1 : (int) $stmt->fetchColumn();
 }
