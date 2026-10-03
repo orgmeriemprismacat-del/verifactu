@@ -145,6 +145,17 @@ final class SifInternalUsocClient
         ]);
     }
 
+    public function confirmCourseChangeLegacyHandoff(
+        string $actorId,
+        array $roles,
+        string $requestId
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'confirm_course_change_legacy_handoff',
+            'request_id' => trim($requestId),
+        ]);
+    }
+
     public function courseChangeExecutionStatus(
         string $actorId,
         array $roles,
