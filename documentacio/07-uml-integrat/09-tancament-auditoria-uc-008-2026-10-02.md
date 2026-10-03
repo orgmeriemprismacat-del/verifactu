@@ -102,3 +102,18 @@ Aquests passos necessiten l'entorn real, els rols reals i la BD real del menú. 
 **Documentació/UML: RECONCILIATS.**  
 **CI: VERD, 844/0.**  
 **Acceptació preproducció/producció: PENDENT D'ENTORN, no pendent de codi.**
+
+
+## 8. Addenda de revalidació · 03/10/2026
+
+Aquesta acta conserva correctament l'evidència **històrica de tancament del 02/10** (`844/0`). Després del tancament, `main` ha avançat fins a `b0e8ff7150c5a8b415cc109d298d82f0db1f68df` amb 44 commits addicionals i canvis executables compartits, principalment Redsys i altres UC.
+
+La revalidació del 03/10 estableix:
+
+- els documents, UML i el nucli PHP/JS UC-008 continuaven exactament iguals al merge PR #116;
+- les proves explícites UC-008 observades al HEAD del PR #118 continuen en **PASS**;
+- la suite global actual registra **917 passed / 6 failed**, de manera que l'etiqueta `CI_GREEN` d'aquesta acta s'ha d'interpretar com a estat del **baseline de tancament**, no com a estat global del `main` actual;
+- cinc fallades són PACK/UC-015 i una expectativa de hash Redsys compartida ha estat corregida a la branca de revalidació;
+- el criteri funcional no canvia: **AUDIT_CLOSED + CODE_COMPLETE + ENVIRONMENT_ACCEPTANCE_PENDING**.
+
+La font vigent per a l'estat posterior és [UC-008 · Revalidació exhaustiva contra main · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md).
