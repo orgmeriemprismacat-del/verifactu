@@ -22,6 +22,7 @@ final class DebtClaimIntranetBoundaryTest
         Assert::stringContainsString('SIF_DEBT_CLAIM_UI_ENABLED', $ajax);
         Assert::stringContainsString('REQUEST_METHOD', $ajax);
         Assert::stringContainsString('assertSameOrigin', $ajax);
+        Assert::stringContainsString('HTTP_X_REQUESTED_WITH', $ajax);
         Assert::stringContainsString('csrf_debt_claim', $context);
         Assert::stringContainsString('hash_equals', $ajax);
         Assert::stringContainsString('SifAuthenticatedActor::fromUser', $ajax);
@@ -29,6 +30,7 @@ final class DebtClaimIntranetBoundaryTest
         Assert::stringContainsString("'/facturacio/morosos/'", $ajax);
         Assert::stringContainsString('SifInternalDebtClaimClient', $ajax);
         Assert::stringContainsString('operation_id', $ajax);
+        Assert::stringContainsString('uuid_payment', $ajax);
         Assert::stringContainsString('DEBT_CLAIM|', $ajax);
         Assert::stringContainsString('uuid_factura', $ajax);
         Assert::stringContainsString('num_visible', $ajax);
