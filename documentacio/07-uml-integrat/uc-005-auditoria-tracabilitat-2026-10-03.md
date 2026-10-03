@@ -26,18 +26,18 @@ UC-005 **no estava sense codi**: existeix un nucli SIF executable per crear una 
 | Classificador fiscal UC-74 | Sí | No integrat | Sí | integrar |
 | Pantalla UC-005 SIF | Sí FINAL | No | Sí | implementar |
 | Auth/CSRF command UC-005 | Sí FINAL | No específic | Sí | implementar |
-| Atomicitat total | Sí FINAL | No | **Risc confirmat** | P0 |
+| Atomicitat total | Sí FINAL | **Implementada en aquesta branca per UC-005** | Revisada estàticament | executar prova de rollback/concurrència |
 | Lock original/concurrència | Sí FINAL | No en servei UC-005 | Sí | P0/P1 |
 | Audit event específic | Sí | No observat | Sí | implementar |
 | Prova fallada entre invoice/link/state | Sí necessària | No | Absència confirmada | implementar |
 
 ## 3. Troballes
 
-### UC005-F01 — P0 · operació no atòmica
+### UC005-F01 — TANCAT EN CODI / PENDENT EXECUCIÓ · atomicitat del nucli UC-005
 
-`InvoiceService::issueInvoice()` confirma la creació fiscal abans de `RectificationRepository::linkRectification()` i `markOriginalRectified()`. Una fallada després del COMMIT pot deixar factura R fiscalment creada però sense relació o sense canvi d'estat de l'original.
+La branca d'auditoria afegeix un hook `beforeCommit` opcional a `InvoiceService`. `ManualRectificationService` l'utilitza per bloquejar l'original amb `FOR UPDATE`, revalidar el snapshot, inserir `factura_rectificacio` i marcar l'original `RECTIFIED` **abans del COMMIT de la mateixa transacció**. També s'ha afegit una prova d'injecció de fallada que exigeix rollback de `factura`, línies, registre, cua i relacions.
 
-**Criteri de tancament:** una única unitat transaccional o un patró de saga/reconciliació explícit, provat amb fallades injectades.
+**Pendent per tancar evidència:** execució CI/MySQL verda de la nova prova i prova de concurrència específica sobre l'original.
 
 ### UC005-F02 — P0/P1 · fiscalitat massa rígida
 
@@ -81,4 +81,4 @@ UC-005 només es pot marcar tancat quan:
 **DOCUMENTAT:** sí, paquet estructural complet.  
 **IMPLEMENTAT:** nucli parcial + correcció d'alias.  
 **VERIFICAT:** revisió estàtica del codi i tests existents.  
-**PENDENT:** atomicitat, fiscalitat general, substitució real, classificador, UI/HTTP, proves executades i evidència de preproducció.
+**PENDENT:** evidència executada de la nova atomicitat, fiscalitat general, substitució real, classificador, UI/HTTP, concurrència específica i preproducció.
