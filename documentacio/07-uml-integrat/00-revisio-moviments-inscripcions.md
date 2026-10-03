@@ -1,6 +1,6 @@
 # Revisió transversal · Traçabilitat dels fons associats a cada inscripció
 
-**Estat:** revisió funcional i proposta d'arquitectura; **NO és una migració executada ni un ledger PHP implementat**. La necessitat d'aquesta peça s'ha detectat en revisar les fitxes UC-01…06, 21…24, 26…29a i les migracions/repositoris del repositori `main`. Les fitxes actuals no es consideren tancades fins que aquesta traçabilitat estigui resolta o s'acrediti una alternativa equivalent.
+**Estat reconciliat 2026-10-03:** la necessitat funcional continua sent transversal, però la base ja **no és només una proposta**. A `main` existeixen la migració `2026_09_30_000030_add_enrollment_fund_movement.sql`, `EnrollmentFundMovementRepository`, `CourseEnrollmentFundAllocationService` i `PackEnrollmentFundAllocationService`, amb proves d'integració per l'atribució inicial de fons. El que continua pendent és completar el ledger per a reassignació genèrica, sortida de devolució, creació/consum de saldo, titularitat i integració UC-006. Les seccions històriques/proposades d'aquest document s'han de llegir amb aquesta precisió.
 
 ## 1. Diagnòstic contrastat: què existeix i què falta
 
@@ -14,7 +14,7 @@
 | `credit_balance` + `CreditBalanceService` | Saldo original/disponible, titular, origen i consum per compensació. | La creació/consum canvia imports disponibles, però no deixa, per si sola, un assentament immutable per cada sortida des d'una inscripció i cada aplicació del saldo a una altra. |
 | `academic_economic_state_event` | Esquema de transicions acadèmiques/d'accés i una fotografia econòmica. | Un snapshot d'estat no reemplaça la traçabilitat quantitativa per cada moviment de fons. |
 
-**Conclusió documental:** per reconstruir què passa amb un import cobrat per una inscripció concreta falta un **registre persistent, immutable i consultable per inscripció, import, origen i destí**. El nom i els camps de la taula següent són **proposta nova**, no realitat del codi actual.
+**Conclusió reconciliada:** ja existeix un **registre persistent i immutable base** per atribució de fons per inscripció: `enrollment_fund_movement`. El repositori actual implementa `EXTERNAL_ALLOCATION` i `COMPENSATION_ALLOCATION`; els serveis de curs i pack l'usen per vincular un `CHARGE` confirmat amb una o diverses inscripcions. Encara no hi ha cobertura genèrica acreditada per `REFUND_EXIT`, creació de saldo des d'una inscripció, consum/reassignació completa del dret ni càlcul de disponibilitat per UC-006.
 
 ## 2. Separar tres fets que no són sinònims
 
@@ -24,7 +24,9 @@
 
 `inscripcions.PAGAMENT`, `FRACCIO`, `A_PAGAR` i altres valors del llegat poden servir com a **resums sincronitzats**, però no com a única evidència de moviments; qualsevol reconstrucció del saldo ha de tenir les entrades originals i la seva correlació.
 
-## 3. Proposta concreta de taula: `enrollment_fund_movement` (PENDENT DE DISSENY/IMPLEMENTACIÓ)
+## 3. `enrollment_fund_movement` — base IMPLEMENTADA i extensions encara pendents
+
+**Implementació executable localitzada:** la migració actual crea `UUID_MOVEMENT`, `IDEMPOTENCY_KEY`, `MOVEMENT_TYPE`, `ORDRE`, referències a pagament/factura/línia, inscripció origen/destí, import, moneda, operació, correlació i reversió. Els tipus acceptats avui són `EXTERNAL_ALLOCATION`, `INTERNAL_TRANSFER`, `REVERSAL` i `COMPENSATION_ALLOCATION`. `EnrollmentFundMovementRepository` implementa inserció/reús de les atribucions externes i de compensació; `CourseEnrollmentFundAllocationService` i `PackEnrollmentFundAllocationService` ja l'utilitzen. Per tant, els camps següents que no existeixen a aquesta migració s'han de continuar tractant com a **extensió de disseny**, no com a esquema actual.
 
 **Una fila representa un canvi d'atribució de fons identificable**: origen → destí, import positiu, tipus, responsable i referències. La mateixa operació es pot repartir en **diverses files** si afecta diverses inscripcions o destins. Per al traspàs A → B, es registra **una fila amb A com a origen i B com a destí** (no dos cobraments).
 
@@ -87,7 +89,7 @@ class OperationalEventRepository {
  +append(db,event) string
 }
 class EnrollmentFundMovement {
- <<PROPOSTA: entitat de domini>>
+ <<TAULA IMPLEMENTADA · MODEL PARCIAL>>
  +uuidMovement string
  +movementType string
  +originType string
@@ -99,7 +101,7 @@ class EnrollmentFundMovement {
  +uuidPaymentOrigin string
 }
 class EnrollmentFundMovementRepository {
- <<PROPOSTA: no implementada>>
+ <<IMPLEMENTAT PARCIAL>>
  +append(db,movement) string
  +balanceForEnrollment(db,enrollmentId) decimal
  +findByIdempotencyKey(db,key) array
@@ -120,7 +122,7 @@ EnrollmentFundMovementRepository --> EnrollmentFundMovement : emmagatzema
 PaymentService --> PaymentRepository : codi existent
 ```
 
-**Les tres classes marcades PROPOSTA no existeixen al PHP revisat.** Les taules actuals tampoc no es converteixen en classes automàticament. Aquest model s'ha de validar contra les pantalles, la BD de llegat, les relacions fiscals i els casos amb múltiples participants.
+**Precisió 03/10/2026:** `EnrollmentFundMovementRepository` sí existeix. No existeix l'`EnrollmentFundsOrchestrator` transversal del diagrama, i el model de domini ric mostrat continua sent objectiu. El repositori actual cobreix atribució inicial i una variant de compensació, però no totes les transicions descrites en aquest document.
 
 ## 6. Seqüència transversal proposada — traspàs entre cursos ja cobrats
 
