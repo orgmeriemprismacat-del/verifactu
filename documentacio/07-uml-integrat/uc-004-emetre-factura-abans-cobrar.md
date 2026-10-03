@@ -222,6 +222,7 @@ No es torna a executar UC-004 i no es crea un segon registre fiscal `ALTA`.
 - [Auditoria i mancances](uc-004-auditoria-tracabilitat-mancances.md)
 - [Inventari](uc-004-inventari-artefactes.md)
 - [Fitxa funcional](../06-fitxes-funcionals/uc-004.md)
+- [Tancament d'auditoria 2026-10-03](uc-004-tancament-auditoria-2026-10-03.md)
 
 ## 11. Criteri de tancament
 
