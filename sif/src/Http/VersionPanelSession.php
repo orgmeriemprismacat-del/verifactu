@@ -87,7 +87,22 @@ final class VersionPanelSession
 
     public function destroy(): void
     {
-        unset($_SESSION[self::ACTOR_KEY], $_SESSION[self::CSRF_KEY]);
+        $_SESSION = [];
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            if (ini_get('session.use_cookies')) {
+                $params = session_get_cookie_params();
+                setcookie(session_name(), '', [
+                    'expires' => time() - 42000,
+                    'path' => $params['path'] ?: '/sif/',
+                    'domain' => $params['domain'] ?? '',
+                    'secure' => (bool) ($params['secure'] ?? $this->isHttps()),
+                    'httponly' => true,
+                    'samesite' => 'Strict',
+                ]);
+            }
+            session_destroy();
+        }
     }
 
     private function isHttps(): bool
