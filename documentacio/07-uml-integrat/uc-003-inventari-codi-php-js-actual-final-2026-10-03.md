@@ -187,14 +187,18 @@ Serveis d'atribució localitzats:
   - **afegit 03/10:** resultat incomplet → incident;
   - **afegit 03/10:** worker antic no pot processed/retry/incident un job reclamat per un altre.
 
-## 11. Buit crític de negoci que el codi actual no resol de manera general
+## 11. Factura prèvia UC-004 — implementació CURS a la branca
 
-La ruta `issueFromIntentSnapshot()` dels handlers emet/reutilitza via clau Redsys. Això no acredita que, si la inscripció/operació ja té una factura fiscal prèvia emesa amb una altra clau, el sistema la localitzi i hi registri el cobrament en lloc d'emetre una segona factura.
+La ruta CURS ja no depèn exclusivament de la clau d'emissió Redsys. `RedsysCourseInvoiceService` consulta `RedsysCoveredInvoicePaymentService` abans d'emetre. Quan `invoice_before_payment_coverage` resol una única inscripció:
+1. valida que la factura sigui `ISSUED`, `EMESA_ABANS_COBRAMENT=1`, amb total contractual i línia d'inscripció coherents;
+2. registra/reutilitza el `CHARGE` `PAYMENT|REDSYS|ORDER:<DS_ORDER>` sobre el `UUID_FACTURA` existent;
+3. admet cobraments parcials fins al saldo pendent;
+4. rebutja sobrepagament o cobertura incompatible amb 409;
+5. si no existeix cobertura, `InvoiceService::issueInvoice(payload, true)` bloqueja/reconsulta l'origen abans de crear una nova factura.
 
-**Criteri de tancament:** buscar una factura prèvia única per la relació de negoci i:
-1. si existeix i és compatible → registrar/aplicar `UUID_PAYMENT` a aquella factura;
-2. si no existeix → emetre;
-3. si és ambigua/incompatible → conservar la traça del cobrament i obrir conciliació, sense emissió alternativa automàtica.
+El guard és un paràmetre de control fora del payload fiscal, de manera que no altera `IDEMPOTENCY_PAYLOAD_HASH` ni trenca reintents d'ordres Redsys creades abans del canvi.
+
+**Pendent de tancament:** verificació CI/preproducció de CURS, una prova concurrent de dues connexions per la cursa UC-004↔Redsys i decidir si PACK/GRUP/REGAL/USOC necessiten una regla equivalent segons el seu contracte propi.
 
 ## 12. Conclusió de l'inventari
 
