@@ -36,6 +36,26 @@ final class ManualPaymentPayloadBuilderTest
         (new PaymentPayloadValidator())->validate($payload);
     }
 
+    public function testPrioritizesImmutableBankEventIdOverFreeTextReference(): void
+    {
+        $payload = (new ManualPaymentPayloadBuilder())->forExistingInvoice(
+            '11111111-1111-4111-8111-111111111111',
+            [
+                'amount' => '120',
+                'movement_date' => '2026-10-03 10:30:00',
+                'external_bank_event_id' => 'BANK-EVENT-42',
+                'reference' => 'MATRICULA',
+                'bank' => 'CAIXA',
+            ]
+        );
+
+        Assert::same('TRANSFERENCIA|BANK_EVENT:BANK-EVENT-42', $payload['idempotency_key']);
+        Assert::same('BANK-EVENT-42', $payload['provider_ref']);
+        Assert::same('MATRICULA', $payload['reference']);
+
+        (new PaymentPayloadValidator())->validate($payload);
+    }
+
     public function testBuildsFallbackIdempotencyWhenReferenceIsMissing(): void
     {
         $payload = (new ManualPaymentPayloadBuilder())->forExistingInvoice(
