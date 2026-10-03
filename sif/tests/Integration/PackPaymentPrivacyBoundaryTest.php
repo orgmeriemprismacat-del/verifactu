@@ -83,7 +83,7 @@ final class PackPaymentPrivacyBoundaryTest
             );
             $packProductEnd = strpos(
                 $source,
-                '// Se Rellenan los campos',
+                '}\n      else {',
                 $packProductStart === false ? 0 : $packProductStart
             );
             Assert::same(true, $packProductStart !== false);
