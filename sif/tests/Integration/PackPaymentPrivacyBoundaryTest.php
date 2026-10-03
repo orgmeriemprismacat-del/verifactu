@@ -32,60 +32,30 @@ final class PackPaymentPrivacyBoundaryTest
                 'setParameter("DS_MERCHANT_TITULAR",$redsysTitular)',
                 $source
             );
-            Assert::stringContainsString(
-                'if ($validatedPackCheckout === null)',
-                $source
-            );
 
-            $returnUrlBase = strpos(
-                $source,
-                '$urlOK="https://www.prisma.cat/respostaOkPagamentAutomatic.php";'
-            );
-            $legacyReturnGuard = strpos(
-                $source,
-                'if ($validatedPackCheckout === null)',
-                $returnUrlBase === false ? 0 : $returnUrlBase
-            );
-            $emailOk = strpos(
-                $source,
-                '$urlOK .= "?email=".rawurlencode($email)',
-                $legacyReturnGuard === false ? 0 : $legacyReturnGuard
-            );
-            $emailKo = strpos(
-                $source,
-                '$urlKO .= "?email=".rawurlencode($email)',
-                $legacyReturnGuard === false ? 0 : $legacyReturnGuard
-            );
-            $packCallbackBranch = strpos(
-                $source,
-                "if ( $tipusInsc == 'P' )",
-                $legacyReturnGuard === false ? 0 : $legacyReturnGuard
-            );
+            $legacyGuardNeedle = 'if ($validatedPackCheckout === null) {'
+                . PHP_EOL
+                . '         $urlOK .= "?email=".rawurlencode($email);'
+                . PHP_EOL
+                . '         $urlKO .= "?email=".rawurlencode($email);'
+                . PHP_EOL
+                . '      }';
+            Assert::stringContainsString($legacyGuardNeedle, $source);
 
-            Assert::same(true, $returnUrlBase !== false);
-            Assert::same(true, $legacyReturnGuard !== false);
-            Assert::same(true, $emailOk !== false);
-            Assert::same(true, $emailKo !== false);
-            Assert::same(true, $packCallbackBranch !== false);
-            Assert::same(true, $returnUrlBase < $legacyReturnGuard);
-            Assert::same(true, $legacyReturnGuard < $emailOk);
-            Assert::same(true, $legacyReturnGuard < $emailKo);
-            Assert::same(true, $emailOk < $packCallbackBranch);
-            Assert::same(true, $emailKo < $packCallbackBranch);
+            $packBranchStart = strpos($source, "if ( \$tipusInsc == 'P' )");
+            $amountStart = strpos($source, '$amount=$importPagare * 100;', $packBranchStart === false ? 0 : $packBranchStart);
+            if ($packBranchStart === false || $amountStart === false || $amountStart <= $packBranchStart) {
+                Assert::fail('Could not isolate authoritative PACK callback branch: ' . $path);
+            }
 
-            $guardSlice = substr(
+            $packBranch = substr(
                 $source,
-                (int) $legacyReturnGuard,
-                (int) $packCallbackBranch - (int) $legacyReturnGuard
+                $packBranchStart,
+                $amountStart - $packBranchStart
             );
-            Assert::stringContainsString(
-                '$urlOK .= "?email=".rawurlencode($email)',
-                $guardSlice
-            );
-            Assert::stringContainsString(
-                '$urlKO .= "?email=".rawurlencode($email)',
-                $guardSlice
-            );
+            Assert::stringContainsString('$url = $packCallbackUrl;', $packBranch);
+            Assert::same(false, str_contains($packBranch, '?email='));
+            Assert::same(false, str_contains($packBranch, 'rawurlencode($email)'));
         }
     }
 
