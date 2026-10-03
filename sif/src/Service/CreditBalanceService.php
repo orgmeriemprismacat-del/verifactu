@@ -2,6 +2,7 @@
 
 namespace Prisma\Sif\Service;
 
+use Prisma\Sif\Contract\PayloadIdempotencyValidatorInterface;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\CreditBalanceRepository;
@@ -16,24 +17,122 @@ final class CreditBalanceService
         private ManualPaymentInvoiceRepository $invoices,
         private CreditBalancePayloadBuilder $builder,
         private PaymentPayloadValidator $paymentValidator,
-        private PaymentRepository $payments
+        private PaymentRepository $payments,
+        private ?PayloadIdempotencyValidatorInterface $idempotency = null
     ) {
+        $this->idempotency ??= new PayloadIdempotencyValidator();
     }
 
     public function createCredit(array $input): array
     {
         $payload = $this->builder->forCreditBalance($input);
+        $key = trim((string) ($payload['idempotency_key'] ?? ''));
 
+        if ($key === '') {
+            return $this->createCreditWithoutIdempotency($payload);
+        }
+
+        $payload['idempotency_key'] = $key;
+
+        try {
+            return $this->createOrReuseCredit($payload);
+        } catch (\PDOException $exception) {
+            if (!$this->isDuplicateKeyException($exception)) {
+                throw $exception;
+            }
+
+            return $this->reuseCreditAfterDuplicateKey($payload);
+        }
+    }
+
+    private function createCreditWithoutIdempotency(array $payload): array
+    {
         return $this->transactions->run(function (\PDO $db) use ($payload): array {
             $created = $this->credits->createCredit($db, $payload);
 
             return [
                 'ok' => true,
+                'idempotency_reused' => false,
                 'uuid_credit' => $created['uuid_credit'],
                 'import_disponible' => $created['import_disponible'],
                 'estat' => $created['estat'],
             ];
         });
+    }
+
+    private function createOrReuseCredit(array $payload): array
+    {
+        return $this->transactions->run(function (\PDO $db) use ($payload): array {
+            $existing = $this->credits->findByIdempotencyKey(
+                $db,
+                (string) $payload['idempotency_key'],
+                true
+            );
+            if ($existing !== null) {
+                $this->assertSameCreditPayload($payload, $existing);
+
+                return $this->existingCreditResult($existing, true);
+            }
+
+            $payload['idempotency_payload_hash'] = $this->idempotency->calculateHash(
+                $this->creditIdempotencyPayload($payload)
+            );
+            $created = $this->credits->createCredit($db, $payload);
+
+            return [
+                'ok' => true,
+                'idempotency_reused' => false,
+                'uuid_credit' => $created['uuid_credit'],
+                'import_disponible' => $created['import_disponible'],
+                'estat' => $created['estat'],
+            ];
+        });
+    }
+
+    private function reuseCreditAfterDuplicateKey(array $payload): array
+    {
+        return $this->transactions->run(function (\PDO $db) use ($payload): array {
+            $existing = $this->credits->findByIdempotencyKey(
+                $db,
+                (string) $payload['idempotency_key'],
+                true
+            );
+            if ($existing === null) {
+                throw new \RuntimeException(
+                    'Duplicate key detected, but existing credit balance could not be loaded.'
+                );
+            }
+
+            $this->assertSameCreditPayload($payload, $existing);
+
+            return $this->existingCreditResult($existing, true);
+        });
+    }
+
+    private function assertSameCreditPayload(array $payload, array $existing): void
+    {
+        $this->idempotency->assertMatches(
+            $this->creditIdempotencyPayload($payload),
+            (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? '')
+        );
+    }
+
+    private function creditIdempotencyPayload(array $payload): array
+    {
+        unset($payload['idempotency_payload_hash']);
+
+        return $payload;
+    }
+
+    private function existingCreditResult(array $existing, bool $reused): array
+    {
+        return [
+            'ok' => true,
+            'idempotency_reused' => $reused,
+            'uuid_credit' => (string) $existing['UUID_CREDIT'],
+            'import_disponible' => number_format((float) $existing['IMPORT_DISPONIBLE'], 2, '.', ''),
+            'estat' => (string) $existing['ESTAT'],
+        ];
     }
 
     public function applyCreditByUuid(string $uuidCredit, string $uuidFactura, array $input): array
