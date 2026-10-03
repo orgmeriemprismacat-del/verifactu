@@ -265,5 +265,5 @@ redsys_callback_queue --> errors_verifactu : error funcional/exhaurit
 
 **DOCUMENTAT:** classes ACTUAL i FINAL separades.  
 **IMPLEMENTAT:** callback SIF, validació criptogràfica, intenció/notificació/cua, worker, dispatcher, cinc handlers, factura+cobrament, incidències, sync i atribució CURS/PACK. L'enduriment de resultat complet i propietat del lock està implementat a la branca d'auditoria.  
-**VERIFICAT:** existeixen proves d'integració i unitàries específiques; la verificació CI del head d'aquesta auditoria queda pendent fins que s'executin els workflows del PR.  
+**VERIFICAT:** la suite específica `RedsysCallbackWorkerTest` passa al workflow SIF #1204, incloses les proves de resultat incomplet i fencing; el CI global conserva 6 fallades de baseline no introduïdes per UC-003.  
 **PENDENT:** cutover/preproducció Redsys real; resolució segura de factura preexistent amb clau diferent; evidència d'operació/cron; completar o justificar atribució quantitativa per les variants on sigui funcionalment necessària; JS candidat absent del snapshot.
