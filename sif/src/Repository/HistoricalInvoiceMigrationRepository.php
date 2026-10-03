@@ -287,47 +287,56 @@ final class HistoricalInvoiceMigrationRepository
                 'email' => $billing['email'] ?? null,
             ],
             'totals' => [
-                'import_base' => $totals['import_base'],
-                'discount' => $totals['discount'] ?? '0.00',
-                'taxable_base' => $totals['taxable_base'],
+                'import_base' => $this->decimalValue($totals['import_base']),
+                'discount' => $this->decimalValue($totals['discount'] ?? '0.00'),
+                'taxable_base' => $this->decimalValue($totals['taxable_base']),
                 'iva_regim' => $totals['iva_regim'] ?? 'EXEMPT',
-                'iva_pct' => $totals['iva_pct'] ?? '0.00',
-                'iva_import' => $totals['iva_import'] ?? '0.00',
+                'iva_pct' => $this->decimalValue($totals['iva_pct'] ?? '0.00'),
+                'iva_import' => $this->decimalValue($totals['iva_import'] ?? '0.00'),
                 'inversion_subjecte_passiu' => $totals['inversion_subjecte_passiu'] ?? 0,
                 'exemption_reason' => $totals['exemption_reason'] ?? null,
-                'rec_equivalence_pct' => $totals['rec_equivalence_pct'] ?? null,
-                'rec_equivalence_import' => $totals['rec_equivalence_import'] ?? null,
-                'total' => $totals['total'],
+                'rec_equivalence_pct' => $this->decimalValue($totals['rec_equivalence_pct'] ?? null),
+                'rec_equivalence_import' => $this->decimalValue($totals['rec_equivalence_import'] ?? null),
+                'total' => $this->decimalValue($totals['total']),
             ],
             'lines' => array_map(static fn (array $line): array => [
                 'concept' => $line['concept'],
                 'detail' => $line['detail'] ?? null,
-                'quantity' => $line['quantity'],
-                'unit_price' => $line['unit_price'],
-                'import_base' => $line['import_base'] ?? $line['base'],
+                'quantity' => $this->decimalValue($line['quantity']),
+                'unit_price' => $this->decimalValue($line['unit_price']),
+                'import_base' => $this->decimalValue($line['import_base'] ?? $line['base']),
                 'discount_origin' => $line['discount_origin'] ?? null,
                 'discount_mode' => $line['discount_mode'] ?? null,
                 'discount_id' => $line['discount_id'] ?? null,
                 'discount_code' => $line['discount_code'] ?? null,
-                'discount_pct' => $line['discount_pct'] ?? null,
-                'discount_amount' => $line['discount_amount'] ?? '0.00',
+                'discount_pct' => $this->decimalValue($line['discount_pct'] ?? null),
+                'discount_amount' => $this->decimalValue($line['discount_amount'] ?? '0.00'),
                 'discount_text' => $line['discount_text'] ?? null,
                 'discount_internal_reason' => $line['discount_internal_reason'] ?? null,
-                'taxable_base' => $line['taxable_base'] ?? $line['base'],
+                'taxable_base' => $this->decimalValue($line['taxable_base'] ?? $line['base']),
                 'iva_regim' => $line['iva_regim'] ?? 'EXEMPT',
-                'iva_pct' => $line['iva_pct'] ?? '0.00',
-                'iva_import' => $line['iva_import'] ?? '0.00',
+                'iva_pct' => $this->decimalValue($line['iva_pct'] ?? '0.00'),
+                'iva_import' => $this->decimalValue($line['iva_import'] ?? '0.00'),
                 'inversion_subjecte_passiu' => $line['inversion_subjecte_passiu'] ?? 0,
                 'exemption_reason' => $line['exemption_reason'] ?? null,
-                'rec_equivalence_pct' => $line['rec_equivalence_pct'] ?? null,
-                'rec_equivalence_import' => $line['rec_equivalence_import'] ?? null,
-                'total' => $line['total'],
+                'rec_equivalence_pct' => $this->decimalValue($line['rec_equivalence_pct'] ?? null),
+                'rec_equivalence_import' => $this->decimalValue($line['rec_equivalence_import'] ?? null),
+                'total' => $this->decimalValue($line['total']),
                 'source_type' => $line['source_type'] ?? null,
                 'source_id' => $line['source_id'] ?? null,
             ], $payload['lines']),
             'relations' => $relations,
             'document' => $document,
         ];
+    }
+
+    private function decimalValue(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return number_format((float) $value, 2, '.', '');
     }
 
     private function existingResult(array $existing): array
