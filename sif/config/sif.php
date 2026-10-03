@@ -133,6 +133,7 @@ return [
         'xsd_path' => getenv('SIF_AEAT_XSD_PATH') ?: '',
         'certificate_path' => getenv('SIF_AEAT_CERT_PATH') ?: '',
         'certificate_password' => getenv('SIF_AEAT_CERT_PASSWORD') ?: '',
+        'evidence_directory' => getenv('SIF_AEAT_EVIDENCE_DIR') ?: '',
         'issuer_nif' => getenv('SIF_ISSUER_NIF') ?: '',
         'system_id' => getenv('SIF_AEAT_SYSTEM_ID') ?: '',
         'system_version' => getenv('SIF_AEAT_SYSTEM_VERSION') ?: '',
