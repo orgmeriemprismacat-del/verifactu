@@ -1516,16 +1516,24 @@ class RegalCurs{
 
       // echo $html_digital;
 
-      //generar PDF
-      $options_digital = new \Dompdf\Options();
-      $options_digital->set('isRemoteEnabled', true);
-      $dompdf_digital = new \Dompdf\Dompdf($options_digital);
-      $dompdf_digital->set_paper("A4", "landscape");
-      $dompdf_digital->load_html($html_digital);
-      $dompdf_digital->render();
-      $pdf_digital = $dompdf_digital->output();
-      $filename_digital = "../targetes-regal/".$codiRegal."_targeta_regal_versio_digital.pdf";
-      file_put_contents($filename_digital, $pdf_digital);
+      // Compatibilitat llegat: el PDF públic només es pre-genera mentre
+      // UC-017 encara NO ha fet el tall SIF. En el camí final el document
+      // bescanviable s'ha de generar/servir després del cobrament confirmat.
+      $giftCutoverEnabled = filter_var(
+         getenv('SIF_REDSYS_GIFT_CUTOVER_ENABLED') ?: '0',
+         FILTER_VALIDATE_BOOLEAN
+      );
+      if (!$giftCutoverEnabled) {
+         $options_digital = new \Dompdf\Options();
+         $options_digital->set('isRemoteEnabled', true);
+         $dompdf_digital = new \Dompdf\Dompdf($options_digital);
+         $dompdf_digital->set_paper("A4", "landscape");
+         $dompdf_digital->load_html($html_digital);
+         $dompdf_digital->render();
+         $pdf_digital = $dompdf_digital->output();
+         $filename_digital = "../targetes-regal/".$codiRegal."_targeta_regal_versio_digital.pdf";
+         file_put_contents($filename_digital, $pdf_digital);
+      }
 
       $ivlen = openssl_cipher_iv_length($cipher);
    	$iv = openssl_random_pseudo_bytes($ivlen);
