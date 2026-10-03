@@ -1,107 +1,127 @@
 # UC-012 — Auditoria exhaustiva i matriu de traçabilitat
 
 **Data:** 03/10/2026  
-**Base:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`  
+**Base inicial:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`  
 **Branca:** `audit/uc-012-2026-10-03`
 
 ## 1. Resultat executiu
 
-UC-012 **té fitxa funcional, UML integrat i codi legacy real**, i el repositori també conté un circuit SIF provat per registrar un **cobrament real posterior a una reclamació**. El cas, però, **no està tancat end-to-end**: no existeix encara un orquestrador SIF acreditat per detectar deute, registrar l'expedient, escalar recordatoris/reclamacions, generar notificacions idempotents i tancar/reprogramar el cas.
+L’auditoria va començar amb un UC-012 parcial: pantalles i correus legacy reals, però només el cobrament posterior (`ClaimPaymentService`) estava cobert al SIF. Durant la mateixa auditoria s’ha implementat el nucli SIF de morositat i una frontera segura d’intranet.
+
+**Estat actual:** `AUDIT_COMPLETE / CORE_IMPLEMENTED_ON_BRANCH / CI_QUEUED / CUTOVER_PENDING / PREPRODUCTION_PENDING`.
 
 | Bloc | Documentat | Implementat | Verificat | Pendent |
 | --- | --- | --- | --- | --- |
-| Fitxa UC-012 | Sí | n/a | contrastada | — |
-| UML integrat | Sí | n/a | contrastat | — |
-| Classes ACTUAL/FINAL | Sí, creat en auditoria | ACTUAL sí | inspecció | FINAL |
-| Seqüències/activitats per pàgina | Sí, creat en auditoria | ACTUAL sí | inspecció | FINAL |
-| JS/PHP legacy | Sí, inventariat | Sí | inspecció estàtica | E2E |
-| Recordatori/primera/final/morosos | Sí | Sí legacy | no automatitzat | migració SIF |
-| Cobrament posterior | Sí | Sí SIF | tests existents | preproducció |
-| Expedient de reclamació SIF | Sí com a disseny | No acreditat | No | P0 |
-| Outbox idempotent UC-012 | Sí com a regla | No acreditat | No | P0 |
-| Autorització/CSRF frontera legacy | Sí com a requisit | no acreditat als handlers | No | P0 |
+| Fitxa + inventari + UML | Sí | n/a | contrast amb codi real | merge final |
+| P-MOR-01 saldo/receptor | Sí | Sí | tests escrits | CI; UC-096 per dates/pròrroga |
+| P-MOR-02 recordatori final | Sí | Sí | tests escrits | CI/delivery/cutover |
+| P-MOR-03 primera reclamació | Sí | Sí | tests escrits | CI/delivery/cutover |
+| P-MOR-04 reclamació final | Sí | Sí | tests escrits | CI/delivery/cutover |
+| P-MOR-05 regularització | Sí | Sí | ClaimPayment existent + tests nous | CI/preproducció |
+| Expedient durable | Sí | Sí | tests escrits | CI/preproducció |
+| Outbox idempotent | Sí | Sí | tests escrits | delivery UC-58 |
+| API HMAC | Sí | Sí | contract test | CI/config entorn |
+| Bridge intranet CSRF/rol | Sí | Sí, desactivat | boundary test | cutover |
+| Legacy POST antics | Sí | Sí | inspecció | substitució progressiva |
 
-## 2. Mapa P-MOR
+## 2. Mapa P-MOR reconciliat
 
-| ID | Acció | ACTUAL | FINAL | Estat |
-| --- | --- | --- | --- | --- |
-| P-MOR-01 | Detectar deute i pagador | SQL sobre inscripcions i curs | snapshot SIF factura+pagaments+devolucions+pròrroga | PARCIAL |
-| P-MOR-02 | Recordatori final | legacy UPDATE + SMTP | event + outbox idempotent | LEGACY |
-| P-MOR-03 | Primera reclamació | legacy UPDATE + URL IDPAG + SMTP | event + outbox + pagador revalidat | LEGACY |
-| P-MOR-04 | Reclamació final | legacy; acoblat a baixa en alguns fluxos | event; baixa deriva UC-72/95/96 | LEGACY |
-| P-MOR-05 | Regularitzar/tancar | camps legacy; circuit SIF separat | ClaimPaymentService + recalcul/tancament | PARCIAL SIF |
+| ID | ACTUAL legacy | FINAL a la branca | Estat |
+| --- | --- | --- | --- |
+| P-MOR-01 | SQL sobre `inscripcions`, `A_PAGAR-PAGAMENT` | `DebtSnapshotRepository`: factura + allocations + refunds + receptor fiscal | IMPLEMENTAT; dates/pròrroga UC-096 pendents |
+| P-MOR-02 | UPDATE + SMTP | `DebtClaimCoordinator` + event + outbox | IMPLEMENTAT A BRANCA |
+| P-MOR-03 | UPDATE + URL `IDPAG` + SMTP | event versionat + outbox idempotent | IMPLEMENTAT A BRANCA |
+| P-MOR-04 | reclamació/baixa acoblades | `FINAL_CLAIM`; baixa continua separada | IMPLEMENTAT A BRANCA |
+| P-MOR-05 | camps legacy + cobrament separat | `ClaimPaymentService` + `reconcileAfterPayment()` | IMPLEMENTAT A BRANCA |
 
-## 3. Fitxers inspeccionats
+## 3. Codi legacy contrastat
 
-### Documentació
-- `documentacio/06-fitxes-funcionals/uc-012.md`
-- `documentacio/07-uml-integrat/uc-012-morositat-reclamacio.md`
-- `documentacio/07-uml-integrat/uc-024-registrar-cobrament-reclamacio.md`
-- `documentacio/07-uml-integrat/uc-043-gestionar-notificacions-recordatoris.md`
+- `facturacio-recordatori-pagament-final.php` + JS + `updDadesRecordatoriPagament.php`.
+- `facturacio-primera-reclamacio-pagament.php` + JS + `updDadesPrimeraReclamacio.php`.
+- `facturacio-reclamacio-final.php` + JS + `updLastClaimPay.php`.
+- `facturacio-control-morosos.php` + JS + handlers d’entitat/alumne certificat/no certificat.
+- `Intranet.php`: `cnsCursosRecordarPag`, `cnsAlumnesRecordarPag`, `cnsCursosClaimBaixes`, `cnsAlumnClaimPag`, `cnsAlumnClaimEntMoros`, `cnsAlumnClaimAlumnNoCertMoros`, `cnsAlumnClaimAlumnCertMoros`, `cnsEntMoros`, i mutacions relacionades.
 
-### Intranet ACTUAL
-- quatre pàgines `facturacio-*.php`;
-- quatre JS principals;
-- AJAX de cerca/actualització;
-- `Intranet.php` i consultes/mutacions relacionades.
+Troballa: els POST legacy executen mutació + SMTP al mateix flux i treballen principalment amb `ID_INSC`/`A_PAGAR-PAGAMENT`. Continuen existint fins al cutover i no es consideren reescrits pel bridge nou.
 
-### SIF
-- `ClaimPaymentService.php`
-- `ClaimPaymentPayloadBuilder.php`
-- scripts `preflight/preview/process-claim-payment.php`
-- tests unit/integration de claim payment.
+## 4. Codi FINAL implementat durant l’auditoria
 
-## 4. Troballes
+### Persistència i domini
+- migració `2026_10_03_000033_add_debt_claim_case.sql`;
+- `DebtSnapshotRepository`;
+- `DebtClaimCaseRepository`;
+- `DebtClaimCoordinator`;
+- extensió de `NotificationOutboxRepository` i `NotificationOutboxDeliveryService`.
 
-### A. Deute i responsabilitat
-El llegat usa principalment `A_PAGAR-PAGAMENT` i estat d'inscripció. Això és útil per operació actual, però no és suficient com a font final quan existeixen factura d'empresa, devolucions, múltiples assignacions, cobrament pendent de processament o pròrroga.
+### Frontera SIF/intranet
+- `sif/public/api/debt-claims/manage.php` amb `InternalApiAuthenticator`;
+- `SifInternalDebtClaimClient.php`;
+- `LegacyDebtClaimContext.php`;
+- `ajax/facturacio/sifDebtClaim.php`;
+- `js/sif-debt-claim-bridge.js`;
+- les quatre pàgines legacy creen CSRF i carreguen el bridge, sense commutar encara les mutacions antigues.
 
-### B. Comunicacions
-Els mètodes inspeccionats actualitzen dades i envien SMTP en el mateix flux. No hi ha evidència específica d'un outbox UC-012 que faci el lliurament reintentable i idempotent.
-
-### C. Seguretat de frontera
-Els handlers POST inspeccionats llegeixen `$_POST['idInsc']` i deserialitzen sessió. No mostren, a la mateixa frontera, CSRF/idempotency-key/comprovació explícita de rol. Fins que s'acrediti una capa transversal, l'estat és **NO VERIFICAT**.
-
-### D. Separació fiscal/acadèmica
-El recordatori o la reclamació **no** és un fet fiscal. La baixa acadèmica tampoc implica automàticament anul·lació fiscal. Qualsevol rectificativa ha de passar pel classificador/UC corresponent.
-
-### E. Cobrament posterior
-`ClaimPaymentService` és la peça més madura: registra `CHARGE` i `CLAIM_PAYMENT` a la factura existent, és idempotent i té tests. No obstant això, és P-MOR-05, no tot UC-012.
+### Operació no productiva
+- `preflight-debt-claim.php`;
+- `preview-debt-claim.php`;
+- `process-debt-claim.php`.
 
 ## 5. Matriu de traçabilitat
 
-| Requisit | Document | Codi | Test/evidència | Estat |
-| --- | --- | --- | --- | --- |
-| No crear factura nova per reclamar | fitxa + UML | ClaimPaymentService no issueInvoice | ClaimPaymentServiceTest | VERIFICAT per cobrament |
-| Primera reclamació | UML + seqüència | legacy Intranet + AJAX | no localitzat | IMPLEMENTAT legacy |
-| Recordatori final | UML + seqüència | legacy Intranet + AJAX | no localitzat | IMPLEMENTAT legacy |
-| Reclamació final | UML + seqüència | legacy Intranet + AJAX | no localitzat | IMPLEMENTAT legacy |
-| Morosos entitat/alumne | inventari | handlers legacy | no localitzat | IMPLEMENTAT legacy |
-| Idempotència cobrament | UML | builder/payment service | tests unit/integration | VERIFICAT |
-| Idempotència notificacions | fitxa | no acreditat UC-012 | no | PENDENT |
-| Autorització servidor | fitxa | no acreditada a frontera inspeccionada | no | PENDENT |
-| CSRF | requisit de seguretat | no visible handlers | no | PENDENT |
-| Expedient de reclamació | disseny FINAL | no acreditat | no | PENDENT |
-| Pròrroga abans d'avís | UML | no coordinada per ClaimPaymentService | no | PENDENT |
-| Tancament després de pagament | UML | pagament sí; claim close no | parcial | PENDENT |
+| Requisit | Codi | Prova/evidència | Estat |
+| --- | --- | --- | --- |
+| Saldo des del ledger SIF | `DebtSnapshotRepository` | `DebtClaimCoordinatorSmokeTest`/reconciliació | IMPLEMENTAT; CI EN CUA |
+| Receptor fiscal, no alumne implícit | `BILLING_EMAIL` de `factura` | smoke + boundary | IMPLEMENTAT; CI EN CUA |
+| Expedient únic per factura | `debt_claim_case` | smoke | IMPLEMENTAT; CI EN CUA |
+| Events append-only | `debt_claim_event` | smoke/guards | IMPLEMENTAT; CI EN CUA |
+| Retry equivalent | payload hash + idempotency key | smoke | IMPLEMENTAT; CI EN CUA |
+| Payload contradictori | `PayloadIdempotencyValidator` | guards | IMPLEMENTAT; CI EN CUA |
+| No regressió d’etapa | rank FINAL_REMINDER/FIRST/FINAL | guards | IMPLEMENTAT; CI EN CUA |
+| Outbox post-commit | `NotificationOutboxRepository` | smoke | IMPLEMENTAT; CI EN CUA |
+| Cancel·lació d’avisos en saldo zero | `cancelPendingForInvoice()` | reconciliation + delivery test | IMPLEMENTAT; CI EN CUA |
+| Cobrament sense nova factura | `ClaimPaymentService` | tests existents | VERIFICAT AL REPOSITORI PREVI; revalidació CI actual pendent |
+| CSRF/mateix origen | bridge intranet | `DebtClaimIntranetBoundaryTest` | IMPLEMENTAT; CI EN CUA |
+| Rol/permís servidor | context + `assertCanEdit` + API roles | boundary/guards | IMPLEMENTAT; CI EN CUA |
+| HMAC/replay intern | client + `InternalApiAuthenticator` | contract test | IMPLEMENTAT; CI EN CUA |
+| Venciment/pròrroga | UC-096 | no hi ha model SIF complet | PENDENT / BLOQUEJA SCHEDULER |
+| Delivery real | UC-58 | no acreditat | PENDENT |
 
-## 6. Proves mínimes per tancar
+## 6. Proves afegides
 
-1. P-MOR-01: saldo zero, parcial, devolució, empresa/grup i pròrroga.
-2. P-MOR-02/03/04: retry idempotent; mateix payload → REUSED, diferent payload → CONFLICT.
-3. CSRF/rol denegat sense mutació ni email.
-4. Fallada de SMTP/transport no desfà el commit i es reintenta via outbox.
-5. Cobrament que arriba entre preview i confirmació → revalidació i NO_CHANGE.
-6. Callback/transferència duplicada → un sol `UUID_PAYMENT`.
-7. Pagament parcial → reclamació continua amb saldo nou.
-8. Pagament complet → cancel·la avisos pendents i tanca expedient.
-9. Baixa acadèmica després de morositat → cap anul·lació fiscal automàtica.
-10. Factura d'empresa → comunicació només al pagador/responsable autoritzat.
+- `DebtClaimCoordinatorSmokeTest`.
+- `DebtClaimCoordinatorReconciliationTest`.
+- `DebtClaimCoordinatorGuardsTest`.
+- `DebtClaimInternalApiContractTest`.
+- `DebtClaimIntranetBoundaryTest`.
+- `DebtClaimScriptsContractTest`.
+- `NotificationOutboxDeliveryServiceTest` ampliat per `CANCELLED`.
 
-## 7. Estat de tancament
+GitHub Actions continua `queued` en la darrera comprovació; per tant, aquestes proves són **existents però no encara acreditades com a verdes**.
 
-**DOCUMENTACIÓ D'AUDITORIA:** completada.  
-**ACTUAL LEGACY:** implementat però no verificat E2E en aquesta auditoria.  
-**P-MOR-05 SIF:** implementat i amb proves de repositori.  
-**UC-012 FINAL SIF:** pendent de programació i proves.  
-**Auditoria tècnica:** queda oberta com a `AUDIT_COMPLETE / IMPLEMENTATION_PARTIAL / OPERATIONAL_ACCEPTANCE_PENDING`.
+## 7. Decisions de seguretat
+
+1. El bridge és `SIF_DEBT_CLAIM_UI_ENABLED=0` per defecte.
+2. No es converteix automàticament `ID_INSC` en factura.
+3. Mutacions requereixen factura SIF explícita, CSRF, same-origin, rol i HMAC.
+4. Una reclamació té `fiscal_impact=NONE` i `economic_impact=NONE`.
+5. La baixa acadèmica continua en UC-72/95/96.
+6. No s’activa cap scheduler de morositat fins que UC-096 tingui venciment/pròrroga autoritatius.
+
+## 8. Pendent per acceptació operativa
+
+- CI MySQL/SIF verda;
+- preflight i proves sobre `sif_test*`/preproducció;
+- configurar URL, key/secret i rols de l’API interna;
+- plantilles/delivery UC-58;
+- pilot de cutover d’una pantalla i després les restants;
+- evidència de pagament parcial/complet, retry, rol denegat i CSRF invàlid;
+- UC-096 abans de qualsevol automatització temporal.
+
+## 9. Estat de tancament
+
+**Auditoria tècnica/documental: TANCADA.**  
+**Implementació del nucli: COMPLETA A LA BRANCA, no encara verificada per CI.**  
+**Legacy cutover: PENDENT.**  
+**Acceptació de preproducció/producció: PENDENT.**
+
+Vegeu també `uc-012-implementacio-sif-2026-10-03.md` i `uc-012-tancament-auditoria-2026-10-03.md`.
