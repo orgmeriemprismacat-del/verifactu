@@ -198,7 +198,31 @@ else nou
 end
 Note over CS,DB: El lock/consum és transaccional.
 Note over CS,IR: No es veu comprovació de titular del saldo contra factura.
+Note over CS,DB: EnrollmentFundMovementRepository té suport COMPENSATION_ALLOCATION, però aquest wiring no apareix en CreditBalanceService.
 ```
+
+## 6.1. ACTUAL — atribució de fons per inscripció ja implementada en curs/pack
+
+```mermaid
+sequenceDiagram
+autonumber
+participant R as Redsys invoice flow
+participant A as Course/PackEnrollmentFundAllocationService
+participant M as EnrollmentFundMovementRepository
+participant DB as BD SIF
+R->>A: allocate(db, dsOrder, snapshot, invoiceResult)
+A->>M: lockPayment(uuid_payment)
+M->>DB: SELECT payment_transaction FOR UPDATE
+A->>M: findInvoiceLineForInscription(...)
+M->>DB: SELECT factura_linia FOR UPDATE
+A->>M: insertOrReuseExternalAllocation(...)
+M->>DB: INSERT enrollment_fund_movement EXTERNAL_ALLOCATION
+DB-->>M: UUID_MOVEMENT / reús
+M-->>A: moviment atribuït a ID_INSC_DESTI
+A-->>R: count + amount + movements
+```
+
+**Lectura d'auditoria:** aquesta seqüència és executable i demostra que el sistema ja pot atribuir cobraments reals a inscripcions. El buit d'UC-006 és posterior: no s'ha localitzat una seqüència equivalent per treure fons via refund, convertir-los en saldo o lligar el consum d'un saldo al mateix ledger.
 
 ## 7. FINAL — preview de decisió UC-006
 
