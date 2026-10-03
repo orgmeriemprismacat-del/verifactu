@@ -74,3 +74,19 @@ Les cinc fallades restants són exactament les cinc de UC-015/PACK enumerades a 
 **UC-014:** CI propi reconciliat i verificat.  
 **Suite global:** continua vermella per cinc boundaries de UC-015/PACK.  
 **Conclusió:** aquests cinc vermells no reobren UC-014; s'han de resoldre dins l'auditoria/implementació UC-015.
+
+
+## 7. CI selectiu UC-014
+
+Per no confondre regressions d'altres UC amb el tancament d'aquest cas, el PR #119 afegeix:
+
+- `sif/tests/run-uc014-tests.php`;
+- `.github/workflows/uc014-sif-checks.yml`;
+- check GitHub Actions: **UC-014 SIF course checks**.
+
+La suite selectiva inclou els serveis/boundaries de curs Redsys, intent/callback, worker, factura, `EXTERNAL_ALLOCATION`, status, preflight/preproducció, retorn, cutover, JASOM i primitives Redsys compartides necessàries per UC-014.
+
+**Evidència del 03/10/2026:**  
+`UC-014 selective suite: 125 passed, 0 failed`.
+
+Aquesta és la comprovació canònica específica d'UC-014. La suite global continua sent necessària per detectar regressions transversals, però els seus cinc vermells actuals corresponen a UC-015/PACK i no invaliden aquest resultat.
