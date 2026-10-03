@@ -101,6 +101,18 @@ final class GiftRedemptionWebClientBoundaryTest
         if (!is_string($javascript)) {
             Assert::fail('Could not read public gift redemption JavaScript');
         }
+        $page = file_get_contents(
+            $root . '/codi-drive/web-actual/pagina_bescanvia.php'
+        );
+        if (!is_string($page)) {
+            Assert::fail('Could not read public gift redemption page');
+        }
+        Assert::stringContainsString(
+            'js1619773569/mostrarBescanvia.min.js?ver=6.0',
+            $page
+        );
+        Assert::same(false, str_contains($page, 'mostrarBescanvia_prova.min.js'));
+
 
         foreach ([
             'codiRegalValid.php',
