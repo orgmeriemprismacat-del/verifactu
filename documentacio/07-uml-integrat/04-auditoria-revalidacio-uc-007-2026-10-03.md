@@ -159,3 +159,44 @@ A partir d'aquesta correcció és coherent tractar la descàrrega com a **lectur
 Al generador llegat, `GENERAT` també es consulta per imprimir l'etiqueta «ÉS CÒPIA». Després de separar la lectura de la mutació, una descàrrega UC-007 ja no converteix per si mateixa una factura en “generada” ni en “còpia”. Els valors històrics ja existents es continuen llegint, però no es creen des del cas d'ús de consulta.
 
 Aquesta és una diferència deliberada respecte del comportament antic: la traça de consulta/descàrrega FINAL no s'ha de codificar alterant la factura, sinó en un registre d'accés (`fiscal_document_access`) quan el document és SIF/UC-080. Si algun flux de negoci llegat necessita marcar explícitament una emissió/generació, s'ha de modelar fora de l'UC-007.
+
+
+## 12. Reconciliació de troballes de l'auditoria 2026-09-29
+
+| Ref | Estat 2026-10-03 | Evidència / decisió |
+| --- | --- | --- |
+| AUTH-01 | CORREGIT | rol de pàgina separat del breadcrumb |
+| AUTH-02 | PARCIAL / DISSENY | el helper de rol no autoritza recurs; SIF sí aplica policy per factura, fallback només rol de pàgina |
+| AUTH-03 | CORREGIT PARCIAL | context llegat refrescat + SIF resource policy |
+| AUTH-04 | IMPLEMENTAT / RUNTIME PENDENT | `replaceRols()`; falta prova real de revocació |
+| F02-01 | **OBERT LLEGAT** | `$existeixCerca` no s'inicialitza dins `buscarUsuaris_Factures()`; convé corregir al blob gran quan l'escriptura sigui estable |
+| F02-02 | CORREGIT | escape de `=`, `%`, `_` + SQL `LIKE ... ESCAPE '='` |
+| F02-03 | MITIGAT | protocol `#|...` continua ad hoc, però el JS actual filtra entrades buides |
+| F02-04 | CORREGIT | control de volum usa longitud |
+| F02-05 | CORREGIT | abort de request anterior + generation guard |
+| F04-01 | CORREGIT | `buscarTotesFactId` usa `LEFT JOIN` |
+| F04-02 | CORREGIT | estat d'inscripció agregat amb `MAX(CASE...)` |
+| F04-03 | CORREGIT | ordenació PHP per any, sèrie i seqüència numèrica |
+| F05-01 | **OBERT LLEGAT** | `buscarInfoFactInsc2` agrupa per `IDPAG` però conserva camps no agregats; depèn del mode SQL/semàntica llegada |
+| F05-02 | CORREGIT | DNI i observacions tenen IDs HTML diferents |
+| F05-03 | **OBERT MENOR** | `E_FACT` es recupera però encara no es mostra al modal llegat |
+| F05-04 | CORREGIT AL WRAPPER | `guardarDadesFactura_Factures.php` recupera la relació actual i rebutja canvi de `FACTURA_RELACIONADA` |
+| F05-05 | MITIGAT | el wrapper valida existència abans d'UPDATE; `affectedRows=0` pot ser legítim si no hi ha canvi |
+| F06-01 | **OBERT LLEGAT** | preview parteix d'ID però reconstrueix per `FACTURA_RELACIONADA` |
+| F06-02 | **OBERT LLEGAT** | original i R poden aparèixer com pàgines d'una reconstrucció; el camí SIF els separa |
+| F07-01 | **CORREGIT EN BRANCA** | eliminat `updGeneratFactura` de `generaFactura(..., true)` |
+| F07-02 | CORREGIT | una sola generació per clic |
+| F07-03 | CORREGIT | prefix de filename derivat de la sèrie visible |
+| F07-04 | MITIGAT | `buscarInfoFactura` té ordre estable; el model per relació continua sent limitació llegada |
+| F07-05 | CORREGIT | `file_put_contents` es comprova |
+| PDF-01 | OBERT LLEGAT | emissor/text fiscal hardcoded; no forma part del FINAL SIF |
+| PDF-02 | OBERT LLEGAT | logo remot/reconstrucció viva; no és document immutable |
+| PDF-03 | OBERT LLEGAT | no acredita QR/UUID/hash/AEAT; UC-080 és el camí FINAL |
+| AL17-01 | CORREGIT | eliminada la segona substitució de `modal-body` |
+| AL18-01 | CORREGIT | font canònic carregat; ja no usa `resD` indefinit |
+| AL18-02 | CORREGIT PER FACTURA | endpoint de cleanup endurit; el document SIF no hi passa |
+| AL18-03 | CORREGIT | factura llegada no fa cleanup immediat; TTL CLI |
+
+### 12.1. Lectura de tancament
+
+Les mancances que continuen obertes són **del fallback llegat** (F02-01, F05-01/F05-03, F06-01/F06-02 i PDF-01..03). No bloquegen el model FINAL UC-007/080, però sí bloquegen afirmar que el circuit llegat és equivalent o completament sanejat. La retirada del fallback continua sent el criteri final.
