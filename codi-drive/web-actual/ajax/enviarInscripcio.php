@@ -13,8 +13,7 @@ include("../MailSMTPComvive.php");
 include("../MailSMTPFile.php");
 
 try {
-	// UC-020: el tipus de curs és autoritat del servidor, no del navegador.
-	$tipusCursClient = (string) ($_GET['tipusCurs'] ?? '');
+	// UC-020: `tipusCurs` es deriva d'informacio.TIPUS_CURS; el navegador no és autoritat.
 	$textNom = new Text($_GET['nom']);
 	$textCog = new Text($_GET['cog']);
 	$textDocumentacio = new Text($_GET['dni']);
