@@ -10,9 +10,9 @@
 | Estat factura/cobrament/AEAT separats | projection + UI | S2 | tests servei | IMPLEMENTAT |
 | Original/rectificativa separats | read repository rectifications | S2 | tests servei + runtime pendent | IMPLEMENTAT PARCIAL |
 | Metadata document sense path físic | findDocumentMetadata | classes/S5 | test servei | IMPLEMENTAT |
-| Bytes només via UC-080 | sifDocument + document endpoint/service | S5 | boundary + runtime pendent | IMPLEMENTAT PARCIAL |
-| Hash físic verificat abans stream | PrivateDocumentStore/InvoiceDocumentAccessService | S5 | runtime pendent | IMPLEMENTAT / NO VERIFICAT ENTORN |
-| Accés document auditat | FiscalDocumentAccessRepository | S5 | runtime pendent | IMPLEMENTAT |
+| Bytes només via UC-080 | sifDocument + document endpoint/service | S5 | boundary + `InvoiceDocumentAccessServiceTest` | IMPLEMENTAT / CI NOU PENDENT |
+| Hash físic verificat abans stream | PrivateDocumentStore/InvoiceDocumentAccessService | S5 | `InvoiceDocumentAccessServiceTest` (hash mismatch + bytes correctes) | IMPLEMENTAT / TEST D'INTEGRACIÓ; ENTORN REAL PENDENT |
+| Accés document auditat | FiscalDocumentAccessRepository | S5 | `InvoiceDocumentAccessServiceTest` ALLOWED/DENIED/FAILED | IMPLEMENTAT / TEST D'INTEGRACIÓ; ENTORN REAL PENDENT |
 | AL-16 deep link UUID | alumnes-mostrar-alumne.js + alumnes-factura.js | S3 | Uc007IntranetBoundaryTest | CORREGIT/PROTEGIT |
 | AL-17 modal SIF | alumnes-mostrar-alumne.js | S4 | boundary + E2E pendent | IMPLEMENTAT |
 | Fallback download POST | descarregaFactura.php + JS font | activitat fallback | boundary | CORREGIT; E2E pendent |
@@ -30,3 +30,5 @@
 - **VERIFICAT ESTÀTICAMENT:** s'ha contrastat el codi/asset que s'executa.
 - **VERIFICACIÓ CI PENDENT:** hi ha prova automatitzada però encara cal resultat del run del PR.
 - **RUNTIME PENDENT:** necessita BD/storage/rol/navegador de test/preproducció.
+
+**CI PR #135:** els tests UC-007 existents han passat. El conjunt del workflow falla per 6 tests PACK/Redsys aliens a aquesta branca i ja fallava al `main` base. El test UC-080 afegit després queda pendent del següent run.
