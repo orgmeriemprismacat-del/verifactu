@@ -24,7 +24,10 @@ if (($config['env'] ?? 'local') === 'production') {
 }
 
 $payload = parseArgs(array_slice($argv, 1));
-if (!isset($payload['action']) || (!isset($payload['uuid_factura']) && !isset($payload['num_visible']))) {
+$selectorCount = (isset($payload['uuid_factura']) ? 1 : 0)
+    + (isset($payload['num_visible']) ? 1 : 0)
+    + (isset($payload['id_insc']) ? 1 : 0);
+if (!isset($payload['action']) || $selectorCount !== 1) {
     usage();
 }
 
@@ -74,6 +77,7 @@ function parseArgs(array $args): array
         foreach ([
             '--uuid-factura=' => 'uuid_factura',
             '--num-visible=' => 'num_visible',
+            '--id-insc=' => 'id_insc',
             '--action=' => 'action',
             '--idempotency-key=' => 'idempotency_key',
             '--reason-code=' => 'reason_code',
@@ -95,7 +99,7 @@ function usage(): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/process-debt-claim.php (--uuid-factura=UUID|--num-visible=NUM) --action=FINAL_REMINDER|FIRST_CLAIM|FINAL_CLAIM|RECONCILE_AFTER_PAYMENT [--idempotency-key=KEY] [--reason-code=CODE] [--uuid-payment=UUID]\n"
+        "Usage: php sif/scripts/process-debt-claim.php (--uuid-factura=UUID|--num-visible=NUM|--id-insc=ID) --action=FINAL_REMINDER|FIRST_CLAIM|FINAL_CLAIM|RECONCILE_AFTER_PAYMENT [--idempotency-key=KEY] [--reason-code=CODE] [--uuid-payment=UUID]\n"
     );
     exit(1);
 }
