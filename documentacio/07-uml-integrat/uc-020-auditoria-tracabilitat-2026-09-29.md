@@ -300,7 +300,7 @@ Continuen directes només les operacions específiques encara sense repository d
 
 ### 11.2. Decisions UC20-DEC-001…006
 
-Totes sis queden tancades a la fitxa v1.5 i materialitzades on afecten el runtime: `GENERAT=1` sí; factura només emesa no; no autoacreditació; `evaluation_at=DATA_INSC` per matrícula llegada; AP no acumulable amb promocions; snapshot AP persistit vàlid mentre la matrícula sigui pagable, amb caducitat del link separada.
+Totes sis queden tancades a la fitxa v1.6 i materialitzades on afecten el runtime: `GENERAT=1` sí; factura només emesa no; no autoacreditació; `evaluation_at=DATA_INSC` per matrícula llegada; AP no acumulable amb promocions; snapshot AP persistit vàlid mentre la matrícula sigui pagable, amb caducitat del link separada.
 
 ### 11.3. Estat final de l'auditoria
 
@@ -327,7 +327,8 @@ La reauditoria confirma que UC-020 disposa de totes les peces documentals exigid
 | --- | --- | --- |
 | UC020-94 | `enviarInscripcio.php` revalidava historial/tarifa AP al servidor, però després tornava a carregar `$preuDescompte` des del valor client abans de l'INSERT. | **TANCAT CODI + TEST**. Eliminada la reassignació tardana; `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` impedeix regressió. |
 | UC020-95 | El `main` ha avançat 9 commits des de la base de #112, principalment en Redsys CURS/PACK, cutover, callback, worker, factura, sync i proves. | **REVALIDAT COMPATIBLE**. No altera la frontera AP: `RedsysCoursePaymentIntentService` continua derivant TIPUS_DESC=1 al checkout AP autoritatiu i el callback consumeix la intenció congelada. |
-| UC020-96 | La documentació mantenia simultàniament estats antics “PENDENT_NEGOCI”, GET/sense CSRF i les decisions posteriors tancades. | **TANCAT DOCUMENTACIÓ**. Fitxa v1.6 i UML marquen explícitament fotografies històriques vs estat vigent. |\n| UC020-97 | `tipusCurs` arribava del navegador i podia activar el branch `S` que força `A_PAGAR=0`, fins i tot després de revalidar AP. | **TANCAT CODI + TEST**. `TIPUS_CURS` es deriva de `informacio` al servidor i la prova de frontera impedeix recuperar l'autoritat client. |
+| UC020-96 | La documentació mantenia simultàniament estats antics “PENDENT_NEGOCI”, GET/sense CSRF i les decisions posteriors tancades. | **TANCAT DOCUMENTACIÓ**. Fitxa v1.6 i UML marquen explícitament fotografies històriques vs estat vigent. |
+| UC020-97 | `tipusCurs` arribava del navegador i podia activar el branch `S` que força `A_PAGAR=0`, fins i tot després de revalidar AP. | **TANCAT CODI + TEST**. `TIPUS_CURS` es deriva de `informacio` al servidor i la prova de frontera impedeix recuperar l'autoritat client. |
 | UC020-98 | El preview AP conservava una branca `FACTURA_RELACIONADA != NULL` morta però semànticament contrària a la policy v2. | **TANCAT CODI + TEST**. Eliminada la branca; el preview declara i executa els mateixos criteris d'elegibilitat v2 rellevants. |
 
 ### 12.3. Verificació
@@ -340,4 +341,4 @@ La reauditoria confirma que UC-020 disposa de totes les peces documentals exigid
 
 ### 12.4. Resultat
 
-`AUDIT_CLOSED_REVALIDATED_2026-10-03`. UC020-94 era una regressió funcional real que impedia considerar l'alta AP completament server-authoritative; queda corregida abans de la revalidació final.
+`AUDIT_CLOSED_REVALIDATED_2026-10-03`. UC020-94 i UC020-97 eren fronteres d'autoritat client que impedien considerar l'alta AP completament server-authoritative; UC020-98 era una divergència latent de preview. Totes tres queden corregides abans de la revalidació final.
