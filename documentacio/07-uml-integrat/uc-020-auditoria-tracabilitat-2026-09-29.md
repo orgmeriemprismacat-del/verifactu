@@ -373,3 +373,12 @@ La reauditoria confirma que UC-020 disposa de totes les peces documentals exigid
 | UC020-105 | Els guards de tarifa absent/futura no estaven demostrats al tall integrat `RedsysCoursePaymentIntentService → PrismaStudentCourseCheckoutService`. | TESTS INTEGRATS CREATS · PENDENT CI | `RedsysCoursePaymentIntentPrismaStudentTest` ampliat a `027787d`; comprova zero operacions/intencions si manca tarifa i ús del snapshot històric quan existeix una tarifa futura. |
 
 Aquesta ampliació no canvia la policy de negoci; converteix comportaments ja implementats en proves nominals i traçables.
+
+
+## 16. Evidència P05 — permisos i CSRF
+
+| ID | Troballa/acció | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-106 | AP-23/AP-82 encara figuraven pendents tot i existir un test del mateix endpoint que exigeix POST, sessió/permís i CSRF. | RECLASSIFICAT VERIFICAT_CI_FRONTERA | `LegacyUsocDiscountValidationSecurityTest` PASS al head `0c1825c`. |
+| UC020-107 | El contracte de decisió USOC de P05 persisteix REQUESTED abans de la mutació llegada i COMMITTED abans de memoitzar èxit. | VERIFICAT_CI_CONTRACTE | `UsocValidationDecisionBoundaryContractTest` 2/2 PASS al head `0c1825c`. |
+| UC020-108 | `requestId` de la comanda llegada continua memoitzat per sessió; això no és una clau persistent transversal entre sessions/operadors. | PENDENT TRANSVERSAL | AP-80/AP-81 continuen oberts per versió/idempotència persistent multioperador. |
