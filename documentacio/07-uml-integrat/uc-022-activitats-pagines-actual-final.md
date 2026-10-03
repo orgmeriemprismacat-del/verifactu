@@ -12,7 +12,7 @@
 | P02 | Resultats — import/data/banc i confirmació | ACTUAL |
 | P03 | `ajax/alumnes/efectuarPagament.php` | ACTUAL |
 | P04 | Servei manual SIF | IMPLEMENTAT però no connectat al canal |
-| P05 | Registre final una factura | FINAL |
+| P05 | Registre final una factura | FINAL / endpoint SIF parcialment implementat |
 | P06 | Registre final multifactura | FINAL / UC-105 |
 
 ## 1. P01 — Cerca ACTUAL
@@ -118,10 +118,11 @@ stop
 ```plantuml
 @startuml
 start
-:POST /payments/manual-transfer;
-:Validar sessió, rol, permís i CSRF;
-:Validar request_id/correlation_id/idempotency_key;
-:Resoldre external_bank_event_id;
+ :POST /api/payments/manual-transfer.php;
+:Validar HMAC, timestamp, request UUID, actor i rols;
+:Bloquejar replay a internal_api_request;
+ :Exigir external_bank_event_id del caller;
+:Font/resolució bancària real encara pendent a intranet;
 if (Entrada bancària no demostrada?) then (Sí)
  :REJECT/REVIEW;
  stop
@@ -178,3 +179,6 @@ stop
 | P04 servei SIF | sí | sí | sí | tests existents, no executats aquí |
 | P05 adaptador autoritzat | n/a | sí | no | no |
 | P06 multifactura | n/a | sí | no | no |
+
+
+**Estat nou P05:** endpoint SIF + HMAC + rols + `external_bank_event_id` implementats; caller intranet, CSRF local del navegador i sincronització llegat continuen pendents.
