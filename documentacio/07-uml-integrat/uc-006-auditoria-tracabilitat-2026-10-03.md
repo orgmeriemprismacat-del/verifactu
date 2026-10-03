@@ -298,6 +298,20 @@ En aquesta branca s'ha eliminat el buit tècnic de reintent de `CreditBalanceSer
 
 **Límit deliberat:** el servei **no deriva** la clau de `SOURCE_TYPE/SOURCE_ID`, perquè això podria fusionar dos drets legítims diferents. El caller/orquestrador UC-006 ha d'aportar una identitat estable del dret/tram econòmic, i encara falta consumir/bloquejar aquest mateix dret al ledger `enrollment_fund_movement`.
 
+## 7.3. Enduriment afegit — compensació no reutilitza payload contradictori
+
+`CreditBalanceService::applyCredit*` ja tenia una clau derivada de saldo + factura + import i evitava consumir dues vegades el saldo, però reutilitzava qualsevol moviment existent amb aquella K **sense comparar el payload**.
+
+Aquesta branca afegeix `assertSamePaymentPayload()`, compatible amb hash V1/V2, abans de qualsevol reús normal o recuperació després de duplicate key:
+
+- mateixa K + mateix payload → reús;
+- mateixa K + data/notes/allocation o altre payload diferent → 409/CONFLICT;
+- el saldo no es torna a consumir en cap dels dos casos.
+
+S'afegeix `CreditBalanceServiceTest::testRejectsSameCompensationKeyWithDifferentPayload()`.
+
+**Gap que queda:** dues compensacions **legítimes** del mateix import sobre el mateix saldo/factura continuen necessitant un identificador d'ordre diferent perquè la K actual no les pot representar com dues operacions noves.
+
 ## 8. Idempotència i concurrència
 
 ### Correcte/localitzat
