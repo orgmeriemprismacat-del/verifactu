@@ -48,7 +48,9 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM operational_event')->fetchColumn());
 
         $operation = $db->query('SELECT * FROM commercial_operation')->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('BILLABLE', $operation['CLASSIFICATION']);
         Assert::same('ALUMNE_PRISMA_VALIDATED', $operation['CLASSIFICATION_REASON']);
+        Assert::same('INTENT_CREATED', $operation['STATUS']);
         Assert::same('120.00', (string) $operation['GROSS_AMOUNT']);
         Assert::same('30.00', (string) $operation['DISCOUNT_AMOUNT']);
         Assert::same('90.00', (string) $operation['NET_AMOUNT']);
