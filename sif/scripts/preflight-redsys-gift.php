@@ -44,6 +44,9 @@ $checks = [
     'gift_intent_signed_path_matches_bridge' => (string) (
         $config['internal_api']['redsys_gift_intent_signed_path'] ?? ''
     ) === '/api/redsys/gift-intent.php',
+    'gift_status_signed_path_matches_bridge' => (string) (
+        $config['internal_api']['redsys_gift_status_signed_path'] ?? ''
+    ) === '/api/redsys/gift-status.php',
     'cutover_configuration_consistent' => !$legacyDrainConfirmed || $giftCutoverEnabled,
     'legacy_drain_confirmed_if_cutover' => !$giftCutoverEnabled || $legacyDrainConfirmed,
     'environment_not_production' => $env !== 'production',
@@ -64,6 +67,7 @@ $checks = [
     'commercial_entitlement_event_table' => false,
     'callback_endpoint_present' => is_file($root . '/public/api/redsys/callback.php'),
     'gift_intent_endpoint_present' => is_file($root . '/public/api/redsys/gift-intent.php'),
+    'gift_status_endpoint_present' => is_file($root . '/public/api/redsys/gift-status.php'),
     'worker_script_present' => is_file($root . '/scripts/process-redsys-callback-queue.php'),
     'gift_intent_service_present' => is_file($root . '/src/Service/RedsysGiftPaymentIntentService.php'),
     'gift_entitlement_service_present' => is_file($root . '/src/Service/GiftEntitlementIssuerService.php'),
