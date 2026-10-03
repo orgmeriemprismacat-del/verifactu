@@ -1,6 +1,7 @@
 # UC-008 — Diagrames de seqüència ACTUAL i FINAL
 
 **Data:** 30/09/2026  
+**Revalidació:** 03/10/2026 contra `main` `b0e8ff7150c5a8b415cc109d298d82f0db1f68df`; no s'ha detectat divergència del nucli UC-008. Vegeu [inventari PHP/JS ACTUAL/FINAL](uc-008-inventari-codi-php-js-actual-final-2026-10-03.md) i [revalidació de `main`](uc-008-revalidacio-main-2026-10-03.md).  
 **Regla:** ACTUAL descriu backend i UI executable al repositori; FINAL conserva els passos operatius que encara depenen de desplegament/configuració.
 
 Vegeu [classes](uc-008-classes-actual-final.md), [activitats](uc-008-activitats-pagines-incidencies-actual-final.md) i [auditoria vigent](04b-auditoria-detallada-uc-008-2026-09-30.md).
