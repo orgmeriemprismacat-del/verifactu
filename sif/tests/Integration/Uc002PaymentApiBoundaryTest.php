@@ -35,9 +35,9 @@ final class Uc002PaymentApiBoundaryTest
             Assert::fail('Could not load UC-002 payment registration API');
         }
 
-        Assert::stringContainsString("$result['actor_id'] = (string) ($actor['actor_id'] ?? '')", $source);
-        Assert::stringContainsString("$result['request_id'] = (string) ($actor['request_id'] ?? '')", $source);
-        Assert::same(false, str_contains($source, "$payload['actor_id']"));
+        Assert::stringContainsString("\$result['actor_id'] = (string) (\$actor['actor_id'] ?? '')", $source);
+        Assert::stringContainsString("\$result['request_id'] = (string) (\$actor['request_id'] ?? '')", $source);
+        Assert::same(false, str_contains($source, "\$payload['actor_id']"));
     }
 
     public function testPaymentRegistrationConfigurationIsFailClosedByDefault(): void
