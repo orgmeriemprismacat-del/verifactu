@@ -40,23 +40,27 @@ Per tant:
 | UC18-RV-010 | Les dues consultes legacy de codi usaven `LIKE ?`, permetent semàntica wildcard en crida directa. | PATCH APLICAT + PROVA |
 | UC18-RV-011 | UC-017 generava el secret bearer amb `base_convert(uniqid(), 16, 36)`, predictible respecte del temps. | PATCH CSPRNG + PROVA |
 | UC18-RV-012 | No s'ha localitzat throttle/rate-limit específic per intents de codi al repo. | ENV/SECURITY PENDENT |
+| UC18-RV-013 | `buscarSiHaRealitzatElCurs.php` continuava enviant DNI per query string (fins a dues crides) i `enviamentPubli.php` enviava correu per query string. | PATCH APLICAT + PROVA |
+| UC18-RV-014 | El SIF comparava sempre `regal.CCURS` amb `inscripcions.CURS`; això rebutjava la modalitat legacy «qualsevol curs de N hores», on `CCURS` és numèric. | PATCH RESOLVER + STAGER + PROVES |
 
 ## 4. Correccions de codi aplicades
 
 ### 4.1. Navegador → legacy
 
-Les quatre fronteres que transporten secret o PII passen a POST amb cos de petició:
+Totes les fronteres UC-018 que transporten secret o PII passen a POST amb cos de petició:
 
 - `codiRegalValid.php`;
 - `buscarCursRegalat.php`;
 - `inscripcioDuplicada.php`;
-- `enviarInscripcioBescanvia.php`.
+- `enviarInscripcioBescanvia.php`;
+- `buscarSiHaRealitzatElCurs.php` (fins a dues consultes en el flux);
+- `enviamentPubli.php`.
 
-El JS ja no construeix URLs amb `codiRegal` ni `dni`.
+El JS ja no construeix URLs amb `codiRegal`, DNI ni correu.
 
 ### 4.2. Endpoints legacy
 
-Els tres endpoints exclusius UC-018 (`codiRegalValid.php`, `buscarCursRegalat.php`, `enviarInscripcioBescanvia.php`) rebutgen mètodes diferents de POST amb 405, llegeixen `$_POST` i no llegeixen `$_GET`. `inscripcioDuplicada.php` és transversal: UC-018 l'invoca per POST, però conserva fallback GET per compatibilitat amb altres fluxos legacy.
+Els tres endpoints exclusius UC-018 (`codiRegalValid.php`, `buscarCursRegalat.php`, `enviarInscripcioBescanvia.php`) rebutgen mètodes diferents de POST amb 405, llegeixen `$_POST` i no llegeixen `$_GET`. `inscripcioDuplicada.php`, `buscarSiHaRealitzatElCurs.php` i `enviamentPubli.php` són transversals: UC-018 els invoca per POST, però conserven fallback GET per compatibilitat amb altres fluxos legacy.
 
 A més:
 
@@ -71,20 +75,29 @@ A més:
 
 `pagina_bescanvia.php` deixa de referenciar el bundle absent `mostrarBescanvia_prova.min.js` i carrega `mostrarBescanvia.min.js?ver=6.0`.
 
+### 4.5. Modalitat «qualsevol curs de N hores»
+
+El legacy de compra UC-017 desa `regal.CCURS` de dues maneres: codi de curs per a regal concret o número d'hores per al regal genèric. El SIF ara ho distingeix explícitament:
+
+- `CCURS` alfanumèric: ha de coincidir amb `inscripcions.CURS`;
+- `CCURS` numèric: es resol `curs.HORES` per `CURS + ANY + MES` de la matrícula compromesa i ha de coincidir exactament amb la categoria comprada;
+- la validació existeix tant a `GiftRedemptionTrustedContextResolver` com a `GiftEnrollmentStager` (defensa en profunditat);
+- categoria d'hores absent, ambigua o diferent: `CONFLICT 409`, sense consum.
+
 ## 5. Prova de regressió nova
 
 `GiftRedemptionWebClientBoundaryTest` cobreix ara també la frontera pública:
 
 - bundle rastrejable referenciat per la pàgina;
-- quatre AJAX sensibles via POST;
+- totes les AJAX amb codi regal, DNI o correu via POST;
 - `data: {}` en lloc de query string;
-- absència de `?codiRegal=`, `&codiRegal=`, `?dni=` i `&dni=`;
-- tres endpoints UC-018 POST-only i sense `$_GET`, més comprovació específica que el duplicat compartit rep POST des del bundle UC-018;
+- absència de `?codiRegal=`, `&codiRegal=`, `?dni=`, `&dni=`, `?doc=`, `&doc=`, `?mail=` i `&mail=`;
+- tres endpoints UC-018 POST-only i sense `$_GET`, més comprovació que duplicat, historial de curs i mailing compartits reben POST des del bundle UC-018;
 - revalidació server-side del lookup de curs;
 - bloqueig del writer per regal no pagat;
 - resposta pública neutra.
 
-Aquesta prova complementa, no substitueix, les proves ja existents de POST/HMAC servidor→SIF, idempotència, concurrència, recovery, outbox i E2E.
+Aquesta prova complementa, no substitueix, les proves ja existents de POST/HMAC servidor→SIF, idempotència, concurrència, recovery, outbox i E2E. A més, `GiftRedemptionTrustedContextResolverTest` i `GiftEnrollmentStagerTest` cobreixen ara acceptació de regal genèric quan `curs.HORES` coincideix i rebuig quan no coincideix.
 
 ## 6. Estat per capa
 
@@ -94,7 +107,8 @@ Aquesta prova complementa, no substitueix, les proves ja existents de POST/HMAC 
 | Staging/redeem/reconciliació | Sí | Sí | Integració/E2E | Sense canvi executable |
 | Concurrència/recovery | Sí | Sí | Verificat | Sense canvi executable |
 | Outbox/correus | Sí | Sí | Verificat | Sense canvi executable |
-| Navegador→legacy | Sí, però incorrectament descrit | Patch aplicat | No cobert | PROVA AFEGIDA; CI PENDENT |
+| Navegador→legacy | Sí, però incorrectament descrit | Patch aplicat, inclosos endpoints compartits | No cobert | PROVA AMPLIADA; CI PENDENT |
+| Regal genèric per hores | Incomplet | Patch resolver + stager | No cobert | PROVES MATCH/MISMATCH; CI PENDENT |
 | Bundle de pàgina | Parcial | Patch aplicat | No cobert | PROVA AFEGIDA; CI PENDENT |
 | Diferències de preu | Sí | Fail-closed | Verificat | POLICY PENDENT |
 | Preproducció real | Sí | Scripts disponibles | Boundary automatitzat | ENV PENDENT |
@@ -119,7 +133,7 @@ Aquesta és la semàntica que han de mostrar fitxa, seqüències i activitats.
 
 ### [CI]
 
-Cal que el CI de la branca/PR acrediti el patch nou de frontera pública.
+Cal que el CI de la branca/PR acrediti els patches nous de frontera pública i de `CCURS` numèric. El head anterior `64ae00b...` va arribar a 919 PASS / 6 FAIL; les 6 fallades observades eren de PACK/UC-015 i Redsys, no del flux GIFT/UC-018. Aquesta evidència no substitueix el CI del head actual.
 
 ### [ENV]
 
@@ -143,4 +157,4 @@ Continuen fora del flux base i fail-closed fins a decisió explícita:
 
 ## 9. Criteri de re-tancament
 
-UC-018 es pot tornar a marcar com `AUDIT_CLOSED + CODE_COMPLETE + CI_GREEN` quan el CI del patch públic sigui verd. El gate `ENVIRONMENT_GO_PENDING` continuarà separat fins a l'execució controlada de preproducció.
+UC-018 es pot tornar a marcar com `AUDIT_CLOSED + CODE_COMPLETE + CI_GREEN` quan el CI dels patches públics i de modalitat per hores sigui verd. El gate `ENVIRONMENT_GO_PENDING` continuarà separat fins a l'execució controlada de preproducció.
