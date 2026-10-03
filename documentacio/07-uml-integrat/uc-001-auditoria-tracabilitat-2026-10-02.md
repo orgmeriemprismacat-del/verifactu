@@ -197,11 +197,11 @@ A GitHub Actions del commit `88e5c922424b0cf573b1d1af08dc8713b7b8ea32` consten c
 
 ### F-106 — `commercial_operation` existeix però UC-001 no enllaça la factura
 
-**Estat:** PENDENT IMPLEMENTATIU.
+**Estat:** IMPLEMENTAT A PR #145 · CI/PREPRODUCCIÓ PENDENT.
 
-L'esquema `commercial_operation` disposa de `UUID_FACTURA` i FK cap a `factura(UUID_FACTURA)`, però `CommercialOperationRepository` només implementa lectura, alta i `linkIntent()`. No hi ha `linkInvoice()` ni una escriptura equivalent dins `InvoiceService`.
+`CommercialOperationRepository` incorpora `linkInvoice()` amb bloqueig `FOR UPDATE`, reutilització idempotent del mateix vincle i conflicte si l'operació ja apunta a una altra factura. `InvoicePayloadValidator` valida i normalitza `uuid_operation`, i `InvoiceService` materialitza el vincle dins la mateixa transacció que crea la factura; en reintents verifica/reutilitza el mateix vincle.
 
-Conseqüència: el model permet traçar operació comercial → factura, però UC-001 encara no garanteix aquesta traça per tots els callers.
+Evidència de prova afegida: `IssueInvoiceTest` comprova persistència i reutilització operació → factura, i `InvoicePayloadValidatorTest` comprova rebuig/normalització del UUID. Falta l'execució del CI actual i l'evidència de preproducció.
 
 ### F-107 — any fiscal separat només a UC-004
 
