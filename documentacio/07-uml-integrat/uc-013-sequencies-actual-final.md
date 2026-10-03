@@ -369,7 +369,9 @@ participant Pricing as Pricing server-side
 participant Prep as prepare_course_change
 participant Reserve as Reserva legacy destí
 participant Bind as bind_course_change_destination
+participant H as confirm_course_change_legacy_handoff
 participant Legacy as realitzarCanviCurs_modalCanviCurs
+participant DBL as BD legacy
 participant Exec as execute_course_change
 participant SIF as UsocCourseChangeExecutionService
 
@@ -382,23 +384,26 @@ UI->>Reserve: reservar ID_INSC + IDPAG destí
 Reserve-->>UI: destination + reservation_marker
 UI->>Bind: vincular reserva al checkpoint
 Bind-->>UI: DESTINATION_RESERVED
-G->>UI: confirma
-alt legacy_completed=false
- UI->>Legacy: crear exactament la inscripció reservada
- Legacy-->>UI: ID_INSC destí
- UI->>UI: legacy_completed=true en sessió
-else retry després d'error SIF
- UI->>UI: saltar mutació legacy
+UI->>H: confirmar estat legacy
+H->>DBL: origen + destí reservat
+alt origen encara actiu
+ H-->>UI: ready_for_legacy=true
+ UI->>Legacy: materialitzar exactament la reserva
+ Legacy->>DBL: destí complet + origen INSC CURS=C / PAGAMENT=0
+ UI->>H: reconfirmar
+else recovery després pèrdua sessió
+ H->>DBL: detectar origen C + destí coherent
 end
+H-->>UI: LEGACY_COMPLETED durable
 UI->>Exec: target ID_INSC + requestId
-Exec->>SIF: validar REQUESTED + DESTINATION_RESERVED
+Exec->>SIF: exigir REQUESTED + LEGACY_COMPLETED + source_closed
 SIF->>SIF: revalidar fons origen
 SIF->>SIF: rectificar factures origen
 SIF->>SIF: emetre factures destí alumne + entitat
 SIF->>SIF: compensar fons reals per pagador
 SIF->>SIF: reconciliar + events + COMPLETED
 SIF-->>UI: state=COMPLETED
-UI->>UI: eliminar checkpoint de sessió
+UI->>UI: eliminar context de sessió
 ```
 
-**Retry invariant:** si la mutació legacy ja s'ha completat però falla l'execució SIF, el context de sessió conserva `legacy_completed=true`; el següent intent no crea una segona inscripció i reprèn només l'execució SIF idempotent.
+**Retry invariant:** la sessió no és font d'autoritat. Una pèrdua de sessió es recupera des de la reserva legacy + checkpoint SIF. L'executor fiscal no pot arrencar amb només `DESTINATION_RESERVED`; exigeix `LEGACY_COMPLETED`. Un retry d'una operació ja `COMPLETED` es tracta com a èxit idempotent.
