@@ -28,6 +28,8 @@ final class ManualTransferHttpEndpointTest
         Assert::stringContainsString('SifAuditEventRepository', $source);
         Assert::stringContainsString('GeneratedInvoiceLegacyPaymentSyncService', $source);
         Assert::stringContainsString('ManualTransferLegacyProjectionService', $source);
+        Assert::stringContainsString('ManualTransferNotificationService', $source);
+        Assert::stringContainsString('NotificationOutboxRepository', $source);
         Assert::stringContainsString("PENDING_RETRY", $source);
         Assert::stringContainsString("CONFLICT", $source);
         Assert::stringContainsString("legacy_sync", $source);
