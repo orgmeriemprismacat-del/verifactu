@@ -73,3 +73,12 @@ Això és una **limitació de lectura del connector**, no evidència d'absència
 - `InternalApiAuthenticatorTest.php`
 - `Uc007IntranetBoundaryTest.php` (nou)
 - matriu runtime de `03-proves-pendents-uc-007-implementacio.md`
+
+
+## 8. Correcció de `Intranet::generaFactura()` — 2026-10-03
+
+La inspecció completa del blob d'`Intranet.php` ha acreditat que el camí de descàrrega llegat actualitzava `GENERAT` com a efecte lateral. La branca elimina aquesta escriptura del mètode de reconstrucció PDF.
+
+**ACTUAL corregit a la branca:** SELECT de dades → render Dompdf → fitxer temporal → retorn de filename, sense UPDATE de `GENERAT`.
+
+**FINAL:** el document SIF immutable es serveix per UC-080. Qualsevol marca d'emissió/generació de negoci, si encara és necessària en algun flux llegat, ha de tenir una comanda explícita separada i no estar acoblada a consultar o descarregar.
