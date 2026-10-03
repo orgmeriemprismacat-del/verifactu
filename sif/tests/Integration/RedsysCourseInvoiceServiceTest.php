@@ -3,6 +3,7 @@
 namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Service\LegacyCourseInvoicePayloadBuilder;
@@ -186,6 +187,86 @@ final class RedsysCourseInvoiceServiceTest
         Assert::same('30.00', $line['DESC_IMPORT']);
         Assert::same('Descompte promocional aplicat', $line['DESC_TEXT_VISIBLE']);
         Assert::same('90.00', $line['TOTAL']);
+    }
+
+    public function testLateCourseCallbackDoesNotCreateSecondInvoiceWhenUc021AlreadyCoversInscription(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $notifications = new RedsysNotificationRepository();
+
+        $beforePayment = new \Prisma\Sif\Service\InvoiceBeforePaymentService(
+            new \Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder(),
+            IssueInvoiceTest::serviceFor($sifDb)
+        );
+        $beforePayment->issueBeforePayment(\Prisma\Sif\Tests\Support\Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|FACTURA_ABANS_COBRAR|UC021:410',
+            'source_channel' => 'INTRANET',
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 410,
+                'relation_type' => 'ORIGIN',
+                'visible_alumne' => 0,
+            ]],
+            'lines' => [[
+                'concept' => 'Curs Llenguatge musical',
+                'detail' => 'Participant cobert per empresa',
+                'quantity' => '1.00',
+                'unit_price' => '95.50',
+                'base' => '95.50',
+                'import_base' => '95.50',
+                'discount_amount' => '0.00',
+                'taxable_base' => '95.50',
+                'iva_regim' => 'EXEMPT',
+                'iva_pct' => '0.00',
+                'iva_import' => '0.00',
+                'total' => '95.50',
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 410,
+            ]],
+            'totals' => [
+                'import_base' => '95.50',
+                'taxable_base' => '95.50',
+                'total' => '95.50',
+            ],
+        ]));
+
+        $notifications->recordReceived(
+            $sifDb,
+            'ORDERLATE410',
+            400,
+            '95.50',
+            '0000',
+            true,
+            ['source' => 'late-callback-test'],
+            'VALIDATED'
+        );
+
+        $service = new RedsysCourseInvoiceService(
+            $notifications,
+            new LegacyCourseSnapshotRepository(),
+            new LegacyCourseInvoicePayloadBuilder(),
+            new RedsysInvoicePayloadBuilder($notifications),
+            IssueInvoiceTest::serviceFor($sifDb),
+            null,
+            null,
+            null,
+            '',
+            'v1',
+            null,
+            new InvoiceBeforePaymentCoverageRepository()
+        );
+
+        Assert::throws(SifException::class, function () use ($service, $sifDb): void {
+            $service->issueFromIntentSnapshot($sifDb, 'ORDERLATE410', [
+                'inscription' => $this->legacyInscription(),
+                'course' => $this->legacyCourse(),
+                'payment' => ['idpag' => 400, 'amount' => '95.50'],
+            ]);
+        }, 409);
+
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $sifDb->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
     }
 
     public function testRejectsNonValidatedNotificationBeforeLoadingLegacySnapshot(): void
