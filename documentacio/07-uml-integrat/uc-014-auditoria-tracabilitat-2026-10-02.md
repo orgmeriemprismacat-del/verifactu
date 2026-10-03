@@ -1,7 +1,7 @@
 # UC-014 — Auditoria exhaustiva i matriu de traçabilitat
 
 **Data:** 02/10/2026  
-**Base inicial:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd` · **revalidada després de sincronitzar:** `main@f7fa0822f82be96e842d9f2d031e643ab07f617c`  
+**Base inicial:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd` · **tancament fusionat:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df` via PR #118 · **reconciliació CI:** PR #119  
 **Auditoria anterior:** [29/09/2026](uc-014-auditoria-tracabilitat-2026-09-29.md)  
 **Inventari executable actualitzat:** [PHP/JS ACTUAL, pont candidat i SIF](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md)
 
@@ -84,8 +84,8 @@ JS localitzat:
 | A14-02 | Mostrar saldo/opcions | `PagamentCursAutomatic` usa `A_PAGAR/PAGAMENT/FRACCIONAT` | intent rellegeix saldo i fraccionament | IMPLEMENTAT |
 | A14-03 | Preparar pagament | gate servidor abans del formulari; fallback encara no és intent SIF | `RedsysCoursePaymentIntentService` | IMPLEMENTAT; deploy candidat pendent |
 | A14-04 | Generar ordre | fallback usa ordre llegada | `RedsysDsOrderGenerator` + intent persistent | IMPLEMENTAT al candidat/SIF |
-| A14-05 | Fixar import | gate ACTUAL valida pendent/fraccionament a BD en aquesta branca | `EXPECTED_AMOUNT` recomputat | IMPLEMENTAT + proves de política |
-| A14-06 | Callback | fallback endurit en aquesta branca | `RedsysSignatureValidator` + `RedsysCallbackService` | IMPLEMENTAT |
+| A14-05 | Fixar import | gate ACTUAL valida pendent/fraccionament a BD al codi fusionat | `EXPECTED_AMOUNT` recomputat | IMPLEMENTAT + proves de política |
+| A14-06 | Callback | fallback endurit i fusionat via PR #118 | `RedsysSignatureValidator` + `RedsysCallbackService` | IMPLEMENTAT |
 | A14-07 | Signatura | validada abans d'efectes al fallback | validació criptogràfica SIF | IMPLEMENTAT + VERIFICAT CI PR #105 |
 | A14-08 | Order/import/IDPAG + identitat TPV | fallback usa `Ds_Order`, `Ds_Amount` i `Ds_MerchantData` signats; no llegeix `$_GET` funcional; valida també `Ds_Currency`, `Ds_Terminal`, `Ds_MerchantCode` i format numèric de `Ds_Response` | intenció vs callback; `RedsysSignatureValidator` contrasta també el `Ds_MerchantCode` signat amb `SIF_REDSYS_MERCHANT_CODE`/`REDSYS_MERCHANT_CODE` abans de cua | IMPLEMENTAT + boundary/unit dedicats al PR #105 |
 | A14-09 | Autorització TPV | resposta Redsys | només autorització positiva arriba a handler | IMPLEMENTAT |
@@ -185,7 +185,7 @@ El PR #95 (`feat/uc-014-enrollment-fund-allocation-2026-10-02`) integra `CourseE
 
 `CourseEnrollmentFundAllocationServiceTest` cobreix alta/reús, parcial per trams i mismatch fail-closed; `RedsysCourseEndToEndSimulatedTest` exigeix moviment únic davant duplicat i suma correcta al parcial→complet.
 
-En aquesta branca s'han afegit/modificat proves de hardening ACTUAL. Al head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5` del PR #105, `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en **success**; per tant, aquest hardening queda **REVALIDAT PER CI**.
+El paquet fusionat via PR #118 incorpora les proves de hardening ACTUAL. El PR #119 reconcilia el CI post-merge: els tests UC-014/Redsys afectats passen i la suite queda en **918 passed / 5 failed**, totes cinc fallades restants exclusivament UC-015/PACK.
 
 ## 7. Criteri de tancament operatiu
 
