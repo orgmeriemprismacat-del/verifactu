@@ -25,6 +25,18 @@ on:
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
       - "codi-drive/intranet-actual/alumnes-mostrar-alumne.php"
+      - "codi-drive/intranet-actual/alumnes-factura.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifFactures.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifDocument.php"
+      - "codi-drive/intranet-actual/SifInternalApiClient.php"
+      - "codi-drive/intranet-actual/SifInternalDocumentClient.php"
+      - "codi-drive/intranet-actual/js/alumnes-factura.js"
+      - "codi-drive/intranet-actual/alumnes-factura.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifFactures.php"
+      - "codi-drive/intranet-actual/ajax/alumnes/sifDocument.php"
+      - "codi-drive/intranet-actual/SifInternalApiClient.php"
+      - "codi-drive/intranet-actual/SifInternalDocumentClient.php"
+      - "codi-drive/intranet-actual/js/alumnes-factura.js"
       - "codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php"
       - "codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php"
       - "codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php"
@@ -138,6 +150,12 @@ jobs:
           php -l codi-drive/intranet-actual/SifAuthenticatedActor.php
           php -l codi-drive/intranet-actual/SifInternalUsocClient.php
           php -l codi-drive/intranet-actual/alumnes-mostrar-alumne.php
+          php -l codi-drive/intranet-actual/alumnes-factura.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sifFactures.php
+          php -l codi-drive/intranet-actual/ajax/alumnes/sifDocument.php
+          php -l codi-drive/intranet-actual/SifInternalApiClient.php
+          php -l codi-drive/intranet-actual/SifInternalDocumentClient.php
+          node --check codi-drive/intranet-actual/js/alumnes-factura.js
           php -l codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatCurosDescomptes.php
           php -l codi-drive/intranet-actual/ajax/alumnes/realitzarCanviCurs_CanviCurs.php
           php -l codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php
