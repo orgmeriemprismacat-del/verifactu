@@ -81,5 +81,17 @@ try {
 
     JsonResponse::send($service->register($db, $actor, $payload));
 } catch (\Throwable $exception) {
-    JsonResponse::fromThrowable($exception);
+    $code = $exception->getCode();
+    $httpStatus = is_int($code) && $code >= 400 && $code <= 599 ? $code : 500;
+    $status = match ($httpStatus) {
+        409 => 'CONFLICT',
+        503 => 'PENDING_RETRY',
+        default => 'ERROR',
+    };
+
+    JsonResponse::send([
+        'ok' => false,
+        'status' => $status,
+        'error' => $exception->getMessage(),
+    ], $httpStatus);
 }
