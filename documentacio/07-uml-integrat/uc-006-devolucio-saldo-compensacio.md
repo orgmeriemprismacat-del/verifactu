@@ -1,5 +1,7 @@
 # UC-06 · Escollir i registrar devolució, saldo o compensació — fitxa i UML integrats
 
+> **Auditoria exhaustiva 2026-10-03:** contrastada amb el PHP/JS real. Vegeu [classes ACTUAL/FINAL](uc-006-classes-actual-final.md), [seqüències ACTUAL/FINAL](uc-006-sequencies-actual-final.md), [activitats per pàgina ACTUAL/FINAL](uc-006-activitats-pagines-actual-final.md) i [auditoria/traçabilitat](uc-006-auditoria-tracabilitat-2026-10-03.md). Estat reconciliat: serveis base UC-28/29/29a implementats parcialment; orquestrador/UI UC-006, dret econòmic, titularitat, evidència externa del retorn i E2E continuen pendents.
+
 **Funció del cas mare:** representar una decisió de gestió entre tres **efectes econòmics diferents**. El catàleg original anomena aquest cas «Registrar devolució, saldo o compensació». En el codi revisat **no s'ha identificat una classe `Uc06Service` ni un orquestrador únic que prengui automàticament aquesta decisió**. El cas és una agrupació funcional, resolta pels casos concrets UC-28, UC-29 i UC-29a.
 
 **Fonts del projecte:** [catàleg general UC-06](../04-estat-final/33-casos-us-sif.md), [fitxa genèrica anterior](../06-fitxes-funcionals/uc-006.md) i els tres serveis/repositoris referenciats més avall. No assumir que la modalitat escollida queda automàticament autoritzada per la situació fiscal de l'operació.
