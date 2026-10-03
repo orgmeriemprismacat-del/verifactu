@@ -56,7 +56,7 @@ stop
 @enduml
 ```
 
-**Nota JS:** hi ha un handler antic per `#upd-baixes` que invoca una funció no definida; el flux útil es vincula a `#confirma-reclamacio`.
+**Nota de reconciliació:** a `main` hi havia un handler antic `#upd-baixes → confirmaReclamacio()` sense funció definida. Aquesta branca l’elimina; el flux útil queda a `#confirma-reclamacio → confirmaRecordatori()`.
 
 ## 3. P03 — Reclamació final / baixa
 
