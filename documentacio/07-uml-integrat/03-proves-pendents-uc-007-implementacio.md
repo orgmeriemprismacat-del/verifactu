@@ -102,3 +102,13 @@ Aquests checks són **estàtics**. La marca `[x]` no acredita navegador, BD, sto
 ### Evidència CI del PR #135
 
 El primer run del PR ha executat i aprovat `Uc007IntranetBoundaryTest`, `InvoiceQueryServiceTest`, `ResolvedInvoiceVisibilityPolicyTest`, `InternalApiAuthenticatorTest`, `InvoiceQueryScriptTest` i `DocumentsAndIncidentsTest`. La suite global continua vermella per 6 fallades alienes a UC-007 (PACK/Redsys), ja presents al `main` base. El nou `InvoiceDocumentAccessServiceTest` s'ha afegit després d'aquest run i queda pendent del següent resultat CI.
+
+
+## 8. F07 — zero mutació en descàrrega llegada
+
+- [x] `generaFactura(..., true)` ja no executa `updGeneratFactura`.
+- [x] La descàrrega llegada continua generant només el PDF temporal necessari per al fallback.
+- [x] El navegador no exigeix `tePermisEdicio` per una acció de lectura; el backend conserva autorització de consulta.
+- [x] Existeix regressió automatitzada `testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState`.
+- [ ] Executar aquesta regressió al CI del head final.
+- [ ] Verificar en preproducció que N previsualitzacions/descàrregues no alteren `GENERAT` ni cap altre camp de negoci.
