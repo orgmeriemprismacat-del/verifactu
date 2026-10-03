@@ -75,10 +75,23 @@
     function selector(invoice) {
         const uuid = String(invoice && invoice.uuid_factura || '').trim();
         const numVisible = String(invoice && invoice.num_visible || '').trim();
-        if ((uuid === '') === (numVisible === '')) {
-            throw new Error('Cal indicar exactament una factura SIF');
+        const idInsc = String(invoice && invoice.id_insc || '').trim();
+        const present = [uuid, numVisible, idInsc].filter(function (value) {
+            return value !== '';
+        }).length;
+        if (present !== 1) {
+            throw new Error('Cal indicar exactament UUID_FACTURA, NUM_VISIBLE o ID_INSC');
         }
-        return uuid !== '' ? {uuid_factura: uuid} : {num_visible: numVisible};
+        if (uuid !== '') {
+            return {uuid_factura: uuid};
+        }
+        if (numVisible !== '') {
+            return {num_visible: numVisible};
+        }
+        if (!/^[1-9][0-9]*$/.test(idInsc)) {
+            throw new Error('ID_INSC no vàlid');
+        }
+        return {id_insc: idInsc};
     }
 
     global.SifDebtClaimBridge = Object.freeze({
