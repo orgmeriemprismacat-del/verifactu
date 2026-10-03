@@ -356,7 +356,7 @@ S'ha tornat a auditar contra `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`. El
 ### 20.3. Correccions aplicades
 
 - quatre crides sensibles navegador→legacy passades a POST body;
-- quatre endpoints sensibles POST-only i sense `$_GET`;
+- tres endpoints exclusius UC-018 POST-only i sense `$_GET`; `inscripcioDuplicada.php` manté compatibilitat GET per altres UCs, però el caller UC-018 usa POST;
 - resposta pública de codi no bescanviable neutralitzada;
 - lookup de curs amb revalidació server-side;
 - writer amb bloqueig de regal no pagat;
