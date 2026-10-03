@@ -2,7 +2,7 @@
 
 **Objectiu:** consumir un saldo existent per cobrir, totalment o parcialment, l'import pendent d'una factura SIF, amb un moviment `COMPENSATION`. No es crea una factura nova ni es fa cap transferència bancària. Relacions: UC-29 (saldo previ), UC-02 (comptabilització del moviment), UC-06 (decisió econòmica), UC-05 (rectificació si el servei facturat canvia).
 
-**Estat:** servei, repositoris i proves disponibles; la comprovació de la titularitat creuada entre el saldo i la factura i la pantalla definitiva continuen pendents de contrast.
+**Estat reconciliat 2026-10-03:** servei, repositoris i proves disponibles. La branca UC-006 afegeix comparació de payload en reús idempotent de compensació: mateixa K amb payload diferent dona conflicte. La titularitat creuada, un identificador d'ordre que permeti dues aplicacions legítimes de mateix import, el ledger de destí i la pantalla definitiva continuen pendents.
 
 ## 1. Fitxa de cas d'ús
 
@@ -32,12 +32,12 @@
 | S1. Aplicació parcial | Es conserva el saldo restant i l'estat `ACTIVE`; la factura pot passar a `PARTIAL`. |
 | S2. Consum de tot el saldo | `IMPORT_DISPONIBLE=0.00` i estat `USED`; no implica que tota la factura estigui pagada si l'import pendent era superior. |
 | S3. Cobertura total de factura | `PaymentStatusCalculator` recalcula `PAID` quan el total net cobreix exactament el total. |
-| S4. Reintent mateix saldo/factura/import | La mateixa clau de compensació reutilitza el pagament; no torna a reduir el saldo. |
+| S4. Reintent mateix saldo/factura/import | La mateixa clau reutilitza el pagament **si el payload coincideix**; payload diferent amb la mateixa K retorna conflicte i no torna a reduir el saldo. |
 | E1. Saldo/factura desconegut o saldo no actiu | Rebuig. |
 | E2. Import superior al saldo disponible o al pendent de factura | Rebuig abans de crear moviment. |
 | E3. Error SQL duplicat concurrent | El servei obre una nova transacció i recupera el moviment per clau; no s'ha de consumir el saldo dues vegades. |
 | **P1. Titularitat** | No es veu en `assertCreditCanBeApplied()` cap comprovació d'identitat entre `HOLDER_ID`/`HOLDER_NIF_CIF` i el receptor/pagador de la factura. És una validació funcional i de permisos pendent. |
-| **P2. Idempotència de quantitats coincidents** | La clau es basa en saldo, factura i import; **dues aplicacions legítimes de la mateixa quantitat a la mateixa factura tenen la mateixa clau**. Cal decidir si es permeten i definir una referència d'operació diferenciada abans d'habilitar-les. |
+| **P2. Idempotència de quantitats coincidents** | La clau es basa en saldo, factura i import. Ara una segona petició amb mateixa K però payload diferent es rebutja (409), evitant reús silenciós; però **dues aplicacions legítimes de la mateixa quantitat** encara necessiten una referència d'operació diferenciada per poder coexistir. |
 | P3. Tipus d'assignació personalitzable | El builder permet `allocation_type` opcional; cal acotar al contracte funcional i no confiar en l'entrada del client sense autorització. |
 | P4. Origen fiscal del saldo | El servei no emet una rectificativa ni verifica automàticament que l'origen del crèdit estigui fiscalment resolt; correspon al procés que el va crear. |
 
@@ -208,49 +208,44 @@ else Context existent
 end
 ```
 
-### 4.1. Acció específica: repetir una compensació equivalent vs aplicar una segona quota real de mateix import
+### 4.1. Acció específica: reintent equivalent vs segona compensació real del mateix import
 
-**Contracte verificat:** `CreditBalancePayloadBuilder::forCompensation()` deriva la clau de `UUID_CREDIT`, número visible de factura i import. **No incorpora data de moviment, identificador independent de l'ordre ni `allocation_type`**. `CreditBalanceService::applyCredit()` consulta aquesta clau *abans* de `assertCreditCanBeApplied()` i, en trobar-la, retorna el `UUID_PAYMENT` existent sense consumir saldo. Això és correcte per a una petició idèntica repetida, però una **segona compensació legítima de mateix import al mateix document** queda fusionada amb la primera encara que hi hagi saldo i deute pendents. La sortida reutilitzada porta `IMPORT_DISPONIBLE` i `ESTAT` del **saldo actual**, no un snapshot del saldo després de l'aplicació històrica original.
+**Contracte reconciliat:** la clau continua derivant de `UUID_CREDIT + factura + import`. La branca UC-006 ara compara el payload emmagatzemat abans de reutilitzar el moviment:
+
+- reintent exactament equivalent → mateix `UUID_PAYMENT`, cap segon consum;
+- mateixa K però data/notes/assignació diferents → 409/CONFLICT;
+- una segona compensació real del mateix import continua sense una K nova possible amb el builder actual, i per tant necessita un identificador d'ordre explícit.
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor O as Operador
-participant UI as Intranet [integració pendent]
-participant S as CreditBalanceService [PHP]
-participant B as CreditBalancePayloadBuilder [PHP]
-participant CR as CreditBalanceRepository [PHP]
-participant PR as PaymentRepository [PHP]
-participant TR as TransactionRunner [PHP]
+participant S as CreditBalanceService
+participant B as CreditBalancePayloadBuilder
+participant PR as PaymentRepository
+participant H as PayloadIdempotencyValidator
 participant DB as BD SIF
-O->>UI: Aplicar 20 de saldo C a factura F (ordre real A)
-UI->>S: applyCreditByUuid(C,F,{amount:20,movement_date:D1})
-S->>TR: run(callback A)
-TR->>DB: BEGIN
-S->>CR: findByUuid(C,true)
+O->>S: Aplicar 20 a saldo C/factura F, data D1
 S->>B: forCompensation(C,F,20,D1)
-B-->>S: clau K = C + F + 20
+B-->>S: K = C + F + 20
 S->>PR: findByIdempotencyKey(K,true)
-PR-->>S: No trobat
-S->>CR: Comprovar saldo ACTIVE/available i pendent de F
-S->>PR: createPayment(COMPENSATION A, allocation F 20)
-PR->>DB: INSERT pagament i allocation
-S->>CR: updateAvailableAmount(C,restant)
-TR->>DB: COMMIT
-S-->>UI: UUID_PAYMENT_A, idempotency_reused=false
-O->>UI: Aplicar altres 20 reals sobre C i F (ordre B, data D2)
-UI->>S: applyCreditByUuid(C,F,{amount:20,movement_date:D2})
-S->>TR: run(callback B)
-TR->>DB: BEGIN
-S->>CR: findByUuid(C,true)
-S->>B: forCompensation(C,F,20,D2)
-B-->>S: mateixa clau K, data no inclosa
+PR-->>S: no existeix
+S->>PR: createPayment(payload A)
+PR->>DB: guarda PAYLOAD_HASH_VERSION=2
+S->>DB: consumeix saldo
+S-->>O: UUID_PAYMENT_A
+O->>S: Reintent exactament igual
 S->>PR: findByIdempotencyKey(K,true)
-PR-->>S: UUID_PAYMENT_A existent
-TR->>DB: COMMIT sense crear ni consumir B
-S-->>UI: idempotency_reused=true, UUID_PAYMENT_A
-UI-->>O: Segona ordre B no ha quedat registrada com a aplicació nova
-Note over S,DB: El PHP no compara payload de B amb l'original A ni disposa d'identificador d'ordre B.
+PR-->>S: A + hash
+S->>H: assertMatches(payload A,hash)
+H-->>S: OK
+S-->>O: UUID_PAYMENT_A, reused=true
+O->>S: Mateix C/F/20 però data D2 o notes diferents
+S->>PR: findByIdempotencyKey(K,true)
+PR-->>S: A + hash
+S->>H: assertMatches(payload B,hash)
+H--xO: 409 CONFLICT
+Note over S,DB: No hi ha segon consum. Per una ordre B legítima cal una identitat d'operació nova a la K.
 ```
 
 ### 4.2. Acció objectiu: confirmar aplicació nova i reusar només la mateixa ordre
