@@ -27,6 +27,24 @@ final class Uc007IntranetBoundaryTest
         Assert::stringContainsString('sifDocument.php', $js);
     }
 
+    public function testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState(): void
+    {
+        $source = $this->readIntranet('Intranet.php');
+        $start = strpos($source, 'public function generaFactura($factura, $descarrega)');
+        $end = strpos($source, '/* -------------------------- Consultar certificat', $start === false ? 0 : $start);
+
+        if ($start === false || $end === false || $end <= $start) {
+            Assert::fail('Could not isolate legacy generaFactura method.');
+        }
+
+        $fragment = substr($source, $start, $end - $start);
+        Assert::stringContainsString('file_put_contents($filename, $pdf)', $fragment);
+
+        if (str_contains($fragment, 'updGeneratFactura')) {
+            Assert::fail('UC-007 download must not mutate GENERAT while reconstructing a temporary PDF.');
+        }
+    }
+
     public function testLegacyInvoiceDownloadUsesReadBoundaryNotClientSideEditPermission(): void
     {
         $js = $this->readIntranet('js/alumnes-factura.js');
