@@ -1,6 +1,6 @@
 # UC-008 · Proves executades i pendents
 
-Aquest document separa la **suite automatitzada ja executada** de l'acceptació que encara depèn de l'entorn real. L'auditoria de codi queda tancada: el tall executable `5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`, run `36943995075`, ha finalitzat amb **844 passed, 0 failed** i inclou **74 proves PASS relacionades amb incidències/UC-008**. La comparació fins al `main` observat `f7fa0822f82be96e842d9f2d031e643ab07f617c` només afegeix documentació d'altres UC, sense canvis executables UC-008. `Intranet AO batch checks` run `36647777483` continua com a evidència històrica en **success**. La concurrència, preflight, deep-links i gate d'evidències estan coberts per tests; el pendent és exclusivament d'acceptació real de preproducció i conservació de les evidències.
+**Revalidació 03/10/2026:** el baseline de tancament UC-008 continua sent el run `36943995075` amb **844 passed / 0 failed** i 74 PASS relacionats amb incidències. El `main` actual `b0e8ff7150c5a8b415cc109d298d82f0db1f68df` ha avançat 44 commits i la suite del HEAD del PR #118 registra **917 passed / 6 failed**. Les proves explícites UC-008 continuen en **PASS**; cinc fallades són de PACK/UC-015 i una corresponia a un hash esperat obsolet del fixture `RedsysSignatureValidatorTest`, corregit a la branca de revalidació. Per tant, el cas continua auditat/code-complete, però no s'afirma que el `main` actual tingui CI global verd. El pendent propi UC-008 continua sent exclusivament l'acceptació real de preproducció i la conservació de les evidències.
 
 ## 1. Suite PHP/MySQL
 
@@ -198,13 +198,19 @@ Per marcar UC-008 com PROVAT conservar:
 - Run **36732555122** · regressió completa sobre `main` `e2fd82215...`: **740 passed, 0 failed**; 61 PASS relacionats amb incidències/UC-008.
 - Run **36942641296** · gate UC-008 de tres evidències + preparador/verificador E2E gestor: **837 passed, 0 failed**. Inclou 8 proves del validador final, 5 del preparador sintètic i 3 del verificador read-only del gestor.
 - Run **36943995075** · revalidació posterior al fix del journal multirol i regressió del tall executable aplicable a `main`: **844 passed, 0 failed**; **74 PASS relacionats amb incidències/UC-008**.
+- Run **37060976805** · HEAD PR #118 · **SIF PHP MySQL tests**: **917 passed / 6 failed**. Les proves d'incidències observades continuen en PASS; 5 fallades PACK + 1 assert Redsys de `payload_hash` desfasat.
+- Run **37060976877** · HEAD PR #118 · **SIF checks**: **917 passed / 6 failed**, mateix patró de fallades.
+- Branca `audit/uc-008-revalidacio-2026-10-03`: corregida l'expectativa `payload_hash` de `RedsysSignatureValidatorTest` al valor real `b585ea0d53cc71fc58e366ccde647457220e9e7732734c0b904a014f589813ff`. Les cinc fallades PACK restants són externes a UC-008.
 ## 14. CI automatitzada
 
 S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-tests.php` amb PHP 8.4 i MySQL 8.4 en pull requests, canvis a `main` que afectin `sif/**` i execució manual (`workflow_dispatch`).
 
 La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
-**Estat actual:** `AUDIT_CLOSED + CODE_COMPLETE + CI_844_0`. Backend/UI/preflight/E2E tècnic/concurrència/readiness/deep-links/evidence-gate estan verificats al repositori. `ENVIRONMENT_ACCEPTANCE_PENDING`: execució real de preproducció, configuració/comprovació del menú BD i tres evidències reals.
+**Estat actual (03/10/2026):** `AUDIT_CLOSED + CODE_COMPLETE + UC008_REGRESSION_PASS + GLOBAL_CI_RED_917_6 + ENVIRONMENT_ACCEPTANCE_PENDING`. El **844/0** és el baseline verd del tancament del 02/10; el `main` actual manté les proves UC-008 en PASS, però la suite global està vermella per incidències externes al cas. Resten per UC-008 únicament l'execució real de preproducció, la configuració/comprovació del menú BD i les evidències reals.
 
 
 Vegeu també [Evidència E2E del flux gestor](08-evidencia-gestor-uc-008.md).
+
+
+Vegeu també [Revalidació exhaustiva contra main · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md).
