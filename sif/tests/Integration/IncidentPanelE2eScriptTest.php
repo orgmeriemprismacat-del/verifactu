@@ -46,6 +46,30 @@ final class IncidentPanelE2eScriptTest
         Assert::same(false, $json['checks']['panel_url_https']);
     }
 
+    public function testPreproductionE2eRejectsProductionOrUnexpectedHostBeforeHttpCall(): void
+    {
+        TestDatabase::fresh();
+
+        $result = ScriptRunner::run('scripts/e2e-incidents-panel.php', [
+            'SIF_ENV' => 'preproduction',
+            'SIF_E2E_INCIDENT_PANEL_URL' => 'https://pay.prisma.cat/sif/incidencies/',
+            'SIF_E2E_INCIDENT_EXPECTED_HOST' => 'pay-pre.prisma.cat',
+            'SIF_PRODUCTION_HOST' => 'pay.prisma.cat',
+            'SIF_E2E_INCIDENT_READ_ROLE' => 'AUDITOR_FISCAL',
+            'SIF_PANEL_LAUNCH_KEY_ID' => 'panel-test-key',
+            'SIF_PANEL_LAUNCH_SECRET' => str_repeat('b', 40),
+        ]);
+
+        Assert::same(1, $result['exit_code']);
+        Assert::same('', $result['stderr']);
+        $json = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
+
+        Assert::same(false, $json['ok']);
+        Assert::same(true, $json['checks']['panel_expected_host_configured']);
+        Assert::same(false, $json['checks']['panel_host_matches_expected']);
+        Assert::same(false, $json['checks']['panel_host_not_production']);
+    }
+
     public function testE2eSourceIsStrictlyReadOnlyForIncidentLifecycle(): void
     {
         $source = file_get_contents(dirname(__DIR__, 2) . '/scripts/e2e-incidents-panel.php');
@@ -59,6 +83,9 @@ final class IncidentPanelE2eScriptTest
         Assert::stringContainsString('session_invalid_after_logout', $source);
         Assert::stringContainsString('read_only_actor_has_no_manage_controls', $source);
         Assert::stringContainsString('production_authorized', $source);
+        Assert::stringContainsString('SIF_E2E_INCIDENT_EXPECTED_HOST', $source);
+        Assert::stringContainsString('panel_host_matches_expected', $source);
+        Assert::stringContainsString('panel_host_not_production', $source);
 
         foreach (['assign', 'evidence', 'resolve', 'dismiss', 'reopen', 'open'] as $action) {
             if (str_contains($source, "'action' => '" . $action . "'")) {

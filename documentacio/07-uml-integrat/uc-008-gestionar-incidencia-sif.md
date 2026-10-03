@@ -2,9 +2,9 @@
 
 **Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat actual (02/10/2026): AUDITORIA TANCADA / CODI COMPLET.** Backend, UI, preflight, E2E tècnic read-only, deduplicació, concurrència, deep-links, gate final de tres evidències i tooling E2E gestor estan **IMPLEMENTATS I VERIFICATS EN CI**. El darrer tall executable aplicable `5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`, run `36943995075`, ha passat amb **844/0** i **74 PASS relacionats amb incidències/UC-008**. El `main` posterior observat `f7fa0822f82be96e842d9f2d031e643ab07f617c` només afegeix canvis documentals d'altres UC respecte d'aquest tall. Només resta l'acceptació real de preproducció, la comprovació/alta del menú i la generació de les tres evidències d'entorn.
+**Estat actual (03/10/2026): AUDITORIA TANCADA / CODI UC-008 COMPLET / REGRESSIÓ UC-008 PASS.** El nucli UC-008 i els seus UML parteixen del baseline tancat del PR #116. El PR #123 va corregir l'expectativa obsoleta del `payload_hash` Redsys i posteriorment va endurir el gate de preproducció. Els runs finals del HEAD executable auditat `37153699701` i `37153699719` registren **920 passed / 5 failed**; les proves explícites d'incidències, panell, HMAC/anti-replay, host de preproducció fail-closed, evidència de menú amb entorn i `RedsysCallbackWorker` continuen en **PASS**. Les cinc fallades restants corresponen a PACK/UC-015. El **844/0** del 02/10 continua sent baseline històric verd del tancament UC-008, però no s'utilitza per afirmar que la suite global actual és verda. Només resta l'acceptació real de preproducció, la comprovació/alta del menú i la generació de les evidències d'entorn; producció és rollout posterior.
 
-**Auditoria vigent:** [04b · auditoria detallada UC-008 · 2026-09-30](04b-auditoria-detallada-uc-008-2026-09-30.md) · [tancament d'auditoria · 2026-10-02](09-tancament-auditoria-uc-008-2026-10-02.md).
+**Auditoria vigent:** [04b · auditoria detallada UC-008 · 2026-09-30](04b-auditoria-detallada-uc-008-2026-09-30.md) · [tancament d'auditoria · 2026-10-02](09-tancament-auditoria-uc-008-2026-10-02.md) · [revalidació contra `main` · 2026-10-03](uc-008-revalidacio-main-2026-10-03.md).
 
 **Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
@@ -594,7 +594,7 @@ D --> E[Resolució només al SIF]
 - `RedsysCallbackWorkerTest::testFifthTechnicalFailureBecomesIncident`.
 - `PayloadIdempotencyFlowTest` per `FISCAL_PAYLOAD_CONFLICT`.
 
-**Verificació CI:** baseline UC-008 **677/0** (`36664788129`), regressió transversal **740/0** (`36732555122`), closure gate **837/0** (`36942641296`) i revalidació final del tall executable aplicable **844/0** (`36943995075`), amb **74 PASS relacionats amb incidències/UC-008**. Aquesta última revalidació inclou el fix del rol gestor efectiu al journal multirol. L'execució contra preproducció real continua pendent com a acceptació d'entorn.
+**Verificació CI:** baseline UC-008 **677/0** (`36664788129`), regressió transversal **740/0** (`36732555122`), closure gate **837/0** (`36942641296`) i baseline final de tancament **844/0** (`36943995075`, 74 PASS UC-008/incidències). A la revalidació del 03/10, els runs `37060976805` i `37060976877` del HEAD del PR #118 van donar **917/6**. Després del fix de l'assert Redsys compartit, el run PR #123 `37128490337` dona **918/5** i `RedsysSignatureValidatorTest` passa; les cinc fallades restants són PACK/UC-015, mentre les proves UC-008 continuen PASS. Preproducció real continua pendent.
 
 ## 12. Gaps pendents
 
@@ -623,9 +623,21 @@ D --> E[Resolució només al SIF]
 - [IncidentLifecycleTest](../../sif/tests/Integration/IncidentLifecycleTest.php)
 - [Estat final operació/incidències](../04-estat-final/18-estat-final-operacio-incidencies.md)
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
+- [Revalidació contra `main` · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md)
+- [Inventari PHP/JS ACTUAL/FINAL · 03/10/2026](uc-008-inventari-codi-php-js-actual-final-2026-10-03.md)
+- [Runbook acceptació operativa preproducció · 03/10/2026](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
-**Estat de tancament tècnic:** `AUDIT_CLOSED + CODE_COMPLETE + DOC_RECONCILED + CI_844_0`. Backend + UI + seguretat + idempotència + concurrència + rollback + preflight + E2E tècnic + deep-links + gate de tres evidències + preparador/verificador E2E gestor estan implementats i verificats en CI (**844/0**, run `36943995075`; **74 PASS UC-008/incidències**). Pendents només d'acceptació d'entorn: configuració/desplegament de preproducció, alta/configuració del menú de BD si encara no existeix i generació de les tres evidències reals: preproduction read-only, menú intranet i E2E gestor.
+**Estat de tancament tècnic (revalidat 03/10):** `AUDIT_CLOSED + CODE_COMPLETE + DOC_RECONCILED + UC008_REGRESSION_PASS + GLOBAL_CI_RED_920_5 + ENVIRONMENT_ACCEPTANCE_PENDING`. El baseline de tancament del 02/10 continua acreditat amb **844/0** (run `36943995075`, 74 PASS UC-008/incidències). Després del hardening, els runs `37153699701` i `37153699719` donen **920/5**; les cinc fallades són PACK/UC-015 i les proves específiques UC-008 passen. Pendents només d'acceptació real de preproducció: configuració de `pay-pre` / `intranet-pre`, menú de BD si encara no existeix i generació de les evidències reals.
 
 
 [Evidència E2E gestor](08-evidencia-gestor-uc-008.md)
+
+
+### Hardening d'acceptació 03/10/2026
+
+- E2E preproduction: host esperat obligatori i bloqueig explícit del host productiu.
+- Menú intranet: l'evidència incorpora entorn i el gate només accepta `preproduction`.
+- Runbook: superfícies `pay-pre.prisma.cat` / `intranet-pre.prisma.cat` separades de producció i variables API interna completes.
+
+Vegeu [runbook d'acceptació operativa](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md).

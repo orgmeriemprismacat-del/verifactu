@@ -1,6 +1,7 @@
 # UC-008 — Diagrames de classes ACTUAL i FINAL
 
 **Data d'auditoria:** 30/09/2026  
+**Revalidació:** 03/10/2026 contra `main` `b0e8ff7150c5a8b415cc109d298d82f0db1f68df`; no s'ha detectat divergència del nucli UC-008. Vegeu [inventari PHP/JS ACTUAL/FINAL](uc-008-inventari-codi-php-js-actual-final-2026-10-03.md) i [revalidació de `main`](uc-008-revalidacio-main-2026-10-03.md).  
 **Estat de referència:** integrat a `main` mitjançant el PR #18 (2026-09-30); aquesta fitxa descriu el backend existent després del merge.  
 **Regla:** ACTUAL = codi PHP/SQL/JS real integrat a `main`. FINAL = arquitectura objectiu després de la implementació; els components ja codificats es marquen com a existents i només el desplegament/configuració d'entorn queda pendent.
 
@@ -220,7 +221,7 @@ A nivell de codi, **ACTUAL i FINAL ja coincideixen en el nucli funcional**. El F
 - desplegament/configuració real;
 - rols i secrets reals;
 - alta/verificació del menú de la intranet;
-- E2E de navegador/preproducció;
+- E2E de navegador/preproducció amb host esperat explícit i bloqueig del host productiu;
 - SLA/notificacions només si s'aproven funcionalment.
 
 ## 4. Regla de frontera
@@ -230,9 +231,12 @@ No es crearà un segon `IncidentWorkflowService`. **UC-008 i UC-081 comparteixen
 ## 5. Pendent per tancar entorn
 
 - desplegament/configuració productiva del panell;
-- alta del menú VERI*FACTU a la BD de menú de la intranet;
+- alta/verificació del menú VERI*FACTU a la BD d'`intranet-pre`, amb evidència `environment=preproduction`;
 - política real de rols, severitats i SLA;
 - notificacions si s'aproven;
-- evidència E2E de preproducció/producció.
+- evidència E2E real de preproducció i gate final; producció queda fora del tancament d'entorn previ al go-live.
 
 **UI existent al repositori:** `PanelLaunchAuthenticator`, `IncidentPanelSession`, `sif/public/sif/incidencies/*`, `SifInternalIncidentClient`, `SifPanelLaunchToken` i `sif-verifactu.php`.
+
+
+**Nota d'arquitectura d'entorn:** el hardening del 03/10 no introdueix cap nova classe de domini. Les comprovacions de host i entorn resideixen als scripts de verificació/gate, perquè són responsabilitat d'acceptació operativa i no del `IncidentLifecycleService`.

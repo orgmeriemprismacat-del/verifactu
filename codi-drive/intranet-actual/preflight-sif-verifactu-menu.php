@@ -9,10 +9,17 @@ $root = __DIR__;
 chdir($root);
 require_once $root . '/ConnexioIntranet.php';
 
+$environment = strtolower(trim((string) (
+    getenv('SIF_ENV')
+        ?: getenv('PRISMA_ENV')
+        ?: 'unknown'
+)));
+
 $result = [
     'ok' => false,
     'scope' => 'uc-008-intranet-menu-discovery',
     'read_only' => true,
+    'environment' => $environment,
     'target_url' => '/sif-verifactu.php',
     'existing_target' => [],
     'candidates' => [],

@@ -31,6 +31,9 @@ if (!in_array($env, ['test', 'preproduction'], true)) {
 $result['checks']['environment_not_production'] = true;
 
 $panelUrl = trim((string) (getenv('SIF_E2E_INCIDENT_PANEL_URL') ?: ''));
+$expectedHost = strtolower(trim((string) (getenv('SIF_E2E_INCIDENT_EXPECTED_HOST') ?: '')));
+$productionHost = strtolower(trim((string) (getenv('SIF_PRODUCTION_HOST') ?: 'pay.prisma.cat')));
+$panelHost = urlHost($panelUrl);
 $actorId = trim((string) (getenv('SIF_E2E_INCIDENT_ACTOR_ID') ?: 'uc008-e2e-reader'));
 $readRole = strtoupper(trim((string) (getenv('SIF_E2E_INCIDENT_READ_ROLE') ?: '')));
 
@@ -47,6 +50,22 @@ if ($readRole === '') {
 
 $result['checks']['panel_url_configured'] = $panelUrl !== '';
 $result['checks']['panel_url_https'] = isHttpsUrl($panelUrl);
+$result['checks']['panel_expected_host_configured'] =
+    $env !== 'preproduction' || $expectedHost !== '';
+$result['checks']['panel_host_matches_expected'] =
+    $env !== 'preproduction'
+    || (
+        $panelHost !== ''
+        && $expectedHost !== ''
+        && hash_equals($expectedHost, $panelHost)
+    );
+$result['checks']['panel_host_not_production'] =
+    $env !== 'preproduction'
+    || (
+        $panelHost !== ''
+        && $productionHost !== ''
+        && !hash_equals($productionHost, $panelHost)
+    );
 $result['checks']['read_only_role_available'] = $readRole !== '';
 $result['checks']['launch_key_configured'] = trim((string) ($panel['launch_key_id'] ?? '')) !== '';
 $result['checks']['launch_secret_configured'] = strlen((string) ($panel['launch_secret'] ?? '')) >= 32;
@@ -236,6 +255,20 @@ function isHttpsUrl(string $url): bool
     }
     $parts = parse_url($url);
     return is_array($parts) && strtolower((string) ($parts['scheme'] ?? '')) === 'https';
+}
+
+function urlHost(string $url): string
+{
+    if ($url === '') {
+        return '';
+    }
+
+    $parts = parse_url($url);
+    if (!is_array($parts)) {
+        return '';
+    }
+
+    return strtolower(trim((string) ($parts['host'] ?? '')));
 }
 
 function failedChecks(array $checks): array

@@ -54,6 +54,7 @@ final class IncidentPanelEvidenceValidationScriptTest
             Assert::same(true, $json['checks']['manager_e2e_resolve_evidence_payload_present']);
             Assert::same(true, $json['checks']['manager_e2e_database_query_ok']);
             Assert::same(true, isset($json['validated_at']) && is_string($json['validated_at']));
+            Assert::same(true, $json['checks']['menu_environment_valid']);
             Assert::same(true, $json['checks']['menu_unique_target']);
             Assert::same(true, $json['checks']['menu_already_present']);
             Assert::same(true, $json['checks']['preproduction_no_secrets']);
@@ -262,6 +263,45 @@ final class IncidentPanelEvidenceValidationScriptTest
         }
     }
 
+    public function testMenuEvidenceFromProductionCannotCloseGate(): void
+    {
+        [$preproduction, $menu, $manager] = $this->evidenceFiles(
+            [
+                'ok' => true,
+                'scope' => 'uc-008-preproduction-verification',
+                'environment' => 'preproduction',
+                'production_authorized' => false,
+                'checks' => ['preflight_ok' => true, 'e2e_ok' => true],
+            ],
+            [
+                'ok' => true,
+                'scope' => 'uc-008-intranet-menu-discovery',
+                'environment' => 'production',
+                'read_only' => true,
+                'target_url' => '/sif-verifactu.php',
+                'existing_target_count' => 1,
+                'status' => 'ALREADY_PRESENT',
+            ]
+        );
+
+        try {
+            $result = ScriptRunner::run(
+                'scripts/validate-uc008-evidence.php',
+                [],
+                [$preproduction, $menu, $manager]
+            );
+
+            Assert::same(1, $result['exit_code']);
+            $json = json_decode($result['stdout'], true, 512, JSON_THROW_ON_ERROR);
+            Assert::same(false, $json['ok']);
+            Assert::same(false, $json['checks']['menu_environment_valid']);
+        } finally {
+            @unlink($preproduction);
+            @unlink($menu);
+            @unlink($manager);
+        }
+    }
+
     public function testManagerEvidenceFromTestEnvironmentCannotCloseGate(): void
     {
         [$preproduction, $menu, $manager] = $this->evidenceFiles(
@@ -327,6 +367,7 @@ final class IncidentPanelEvidenceValidationScriptTest
         Assert::stringContainsString('manager_e2e_environment_valid', $source);
         Assert::stringContainsString('menu_ok', $source);
         Assert::stringContainsString('menu_scope_valid', $source);
+        Assert::stringContainsString('menu_environment_valid', $source);
         Assert::stringContainsString('menu_already_present', $source);
         Assert::stringContainsString("'production_authorized' => false", $source);
 
@@ -348,6 +389,8 @@ final class IncidentPanelEvidenceValidationScriptTest
         array $menu,
         ?array $manager = null
     ): array {
+        $menu += ['environment' => 'preproduction'];
+
         $manager ??= [
             'ok' => true,
             'scope' => 'uc-008-manager-e2e-evidence',

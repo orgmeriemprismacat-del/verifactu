@@ -38,13 +38,17 @@ El menú només controla visibilitat. L'autorització efectiva continua sent del
 
 ## 3. Preflight read-only executable
 
-Al servidor de la intranet, des de l'arrel on existeix `parametres-connexio-intranet.php`:
+A **intranet-pre.prisma.cat**, des de l'arrel on existeix `parametres-connexio-intranet.php`:
 
 ```bash
 cd codi-drive/intranet-actual
+export SIF_ENV=preproduction
+
 php preflight-sif-verifactu-menu.php \
   | tee uc-008-menu-evidence.json
 ```
+
+Si l'entorn de la intranet utilitza `PRISMA_ENV` en lloc de `SIF_ENV`, també és acceptat pel preflight. Per al gate final, el JSON ha de declarar exactament `environment=preproduction`.
 
 El script:
 
@@ -54,6 +58,7 @@ El script:
 - busca exactament `/sif-verifactu.php`;
 - retorna `DUPLICATE_TARGET_URL` si ja hi ha més d'una fila;
 - retorna candidats de menú relacionats amb Facturació/SIF per poder confirmar pare, nivell, rols, ordre i icona;
+- incorpora `environment` a l'evidència a partir de `SIF_ENV` o `PRISMA_ENV`;
 - conserva el resultat en JSON com a evidència.
 
 Aquest preflight **no forma part del go/no-go SIF** perquè consulta una BD d'intranet separada.
@@ -224,6 +229,7 @@ Abans de poder tancar UC-008, `validate-uc008-evidence.php` exigeix que aquesta 
 
 - `ok=true`;
 - `scope=uc-008-intranet-menu-discovery`;
+- `environment=preproduction`;
 - `read_only=true`;
 - `target_url=/sif-verifactu.php`;
 - `existing_target_count=1`;
@@ -231,3 +237,14 @@ Abans de poder tancar UC-008, `validate-uc008-evidence.php` exigeix que aquesta 
 - absència de claus de secrets/passwords/signatures.
 
 L'estat `CONFIRM_PARENT_ROLES_ORDER_BEFORE_INSERT` és una descoberta vàlida però **no tanca l'entorn**. Després de l'alta s'ha de repetir el preflight i conservar el JSON que retorni `ALREADY_PRESENT`.
+
+
+## 11. Regla d'entorn
+
+L'evidència de menú utilitzada per tancar **preproducció** no pot provenir de la BD de producció. El preflight és read-only i es pot executar per diagnòstic en altres entorns, però `validate-uc008-evidence.php` només accepta el fitxer de tancament quan:
+
+- `environment=preproduction`;
+- `existing_target_count=1`;
+- `status=ALREADY_PRESENT`.
+
+Per tant, la seqüència correcta és: descobrir/configurar a **intranet-pre**, repetir el preflight a **intranet-pre**, conservar el JSON i només després passar-lo al gate final.

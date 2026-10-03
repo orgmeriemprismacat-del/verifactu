@@ -1,6 +1,7 @@
 # UC-008 — Diagrames de seqüència ACTUAL i FINAL
 
 **Data:** 30/09/2026  
+**Revalidació:** 03/10/2026 contra `main` `b0e8ff7150c5a8b415cc109d298d82f0db1f68df`; no s'ha detectat divergència del nucli UC-008. Vegeu [inventari PHP/JS ACTUAL/FINAL](uc-008-inventari-codi-php-js-actual-final-2026-10-03.md) i [revalidació de `main`](uc-008-revalidacio-main-2026-10-03.md).  
 **Regla:** ACTUAL descriu backend i UI executable al repositori; FINAL conserva els passos operatius que encara depenen de desplegament/configuració.
 
 Vegeu [classes](uc-008-classes-actual-final.md), [activitats](uc-008-activitats-pagines-incidencies-actual-final.md) i [auditoria vigent](04b-auditoria-detallada-uc-008-2026-09-30.md).
@@ -275,7 +276,49 @@ else SIF no disponible
 end
 ```
 
-## 9. Proves associades
+## 9. SEQ-008-FINAL-D · Acceptació segura de preproducció
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operadora
+participant PRE as pay-pre · scripts UC-008
+participant E2E as e2e-incidents-panel.php
+participant IPRE as intranet-pre
+participant MENU as preflight menú
+participant MGR as Gestor real
+participant V as validate-uc008-evidence.php
+
+O->>PRE: SIF_ENV=preproduction + rols/secrets preprod
+PRE->>PRE: preflight-incidents-panel.php
+PRE-->>O: ok=true
+
+O->>E2E: URL pay-pre + EXPECTED_HOST=pay-pre.prisma.cat
+E2E->>E2E: HTTPS + host esperat + host != pay.prisma.cat
+alt host incorrecte o producció
+  E2E-->>O: FAIL abans de fer HTTP
+else host correcte
+  E2E->>PRE: handoff read-only + summary/list/logout
+  PRE-->>E2E: PASS
+end
+
+O->>IPRE: SIF_ENV=preproduction
+IPRE->>MENU: consulta read-only apartats
+MENU-->>O: environment=preproduction + ALREADY_PRESENT
+
+O->>PRE: preparar incidència sintètica UC008_E2E
+O->>MGR: executar ASSIGN + ADD_EVIDENCE + RESOLVE via intranet-pre
+MGR->>PRE: lifecycle sobre incidència sintètica
+PRE-->>O: manager evidence read-only
+
+O->>V: preproduction.json + menu.json + manager.json
+V->>V: scopes + environment preproduction + no secrets + SHA-256
+V-->>O: closure-validation ok=true
+```
+
+**Regla fail-closed:** cap evidència de menú amb entorn diferent de `preproduction` ni cap E2E que apunti al host productiu pot tancar el gate.
+
+## 10. Proves associades
 
 - conflicte funcional Redsys → incidència sense retry;
 - cinquè error Redsys → incidència;
@@ -284,4 +327,6 @@ end
 - mateixa key + mateix payload → reuse;
 - mateixa key + payload divergent → 409;
 - retry assign/resolve després del canvi d'estat → reuse, no duplicat;
-- rol read-only → consulta sí, mutació no.
+- rol read-only → consulta sí, mutació no;
+- preproduction E2E amb host productiu/inesperat → fail abans d'HTTP;
+- menu evidence fora de `preproduction` → closure gate rebutjat.

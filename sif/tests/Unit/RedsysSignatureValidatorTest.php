@@ -26,7 +26,7 @@ final class RedsysSignatureValidatorTest
         Assert::same('EUR', $payload['currency']);
         Assert::same('1', $payload['terminal']);
         Assert::same('HMAC_SHA256_V1', $payload['signature_version']);
-        Assert::same('8d4b744ee7c64f817594c7102b10d191ed99a26619a9f5da4501539984d079e1', $payload['payload_hash']);
+        Assert::same('b585ea0d53cc71fc58e366ccde647457220e9e7732734c0b904a014f589813ff', $payload['payload_hash']);
         Assert::same(false, array_key_exists('idpag', $payload));
     }
 

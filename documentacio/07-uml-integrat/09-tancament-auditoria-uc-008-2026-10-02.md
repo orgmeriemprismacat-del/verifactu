@@ -16,7 +16,7 @@ L'auditoria del UC-008 queda **TANCADA** amb l'estat:
 Aquesta classificació separa dues coses que no s'han de confondre:
 
 - **auditoria del cas d'ús:** tancada;
-- **acceptació real de preproducció/producció:** pendent fins disposar de les evidències generades a l'entorn real.
+- **acceptació real de preproducció:** pendent fins disposar de les evidències generades a `pay-pre` / `intranet-pre`; el rollout a producció és una fase posterior.
 
 No queda cap buit PHP/JS, de model, UML o prova automatitzada obligatòria detectat dins l'abast auditat que impedeixi tancar l'auditoria.
 
@@ -101,4 +101,31 @@ Aquests passos necessiten l'entorn real, els rols reals i la BD real del menú. 
 **Codi UC-008: COMPLET segons l'abast auditat.**  
 **Documentació/UML: RECONCILIATS.**  
 **CI: VERD, 844/0.**  
-**Acceptació preproducció/producció: PENDENT D'ENTORN, no pendent de codi.**
+**Acceptació de preproducció: PENDENT D'ENTORN, no pendent de codi.**  
+**Rollout a producció:** posterior al gate de preproducció; no forma part de `ENVIRONMENT_CLOSED`.
+
+
+## 8. Addenda de revalidació · 03/10/2026
+
+Aquesta acta conserva correctament l'evidència **històrica de tancament del 02/10** (`844/0`). Després del tancament, `main` ha avançat fins a `b0e8ff7150c5a8b415cc109d298d82f0db1f68df` amb 44 commits addicionals i canvis executables compartits, principalment Redsys i altres UC.
+
+La revalidació del 03/10 estableix:
+
+- els documents, UML i el nucli PHP/JS UC-008 continuaven exactament iguals al merge PR #116;
+- les proves explícites UC-008 observades al HEAD del PR #118 continuen en **PASS**;
+- el HEAD del PR #118 havia registrat **917 passed / 6 failed**; després de corregir l'assert Redsys compartit, el run PR #123 `37128124387` registra **918 passed / 5 failed**. Per tant, l'etiqueta `CI_GREEN` d'aquesta acta s'ha d'interpretar com a estat del **baseline de tancament**, no com a estat global de la revalidació;
+- les cinc fallades restants són PACK/UC-015; la fallada Redsys compartida està resolta i passa en CI;
+- el criteri funcional no canvia: **AUDIT_CLOSED + CODE_COMPLETE + ENVIRONMENT_ACCEPTANCE_PENDING**.
+
+La font vigent per a l'estat posterior és [UC-008 · Revalidació exhaustiva contra main · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md).
+
+**CI vigent després del hardening:** runs `37153699701` i `37153699719` → **920 passed / 5 failed**. Les cinc fallades continuen sent PACK/UC-015 i les proves UC-008 passen.
+
+
+## 9. Addenda d'hardening d'entorn · 03/10/2026
+
+En continuar el bloc d'acceptació operativa s'han detectat i corregit riscos que podien permetre obtenir evidència des de l'entorn incorrecte. L'E2E de preproducció exigeix ara host esperat i bloqueja el host productiu; l'evidència del menú declara l'entorn i el gate exigeix `preproduction`.
+
+Això no reobre el lifecycle ni el tancament funcional; endureix el criteri per passar de `ENVIRONMENT_ACCEPTANCE_PENDING` a `ENVIRONMENT_CLOSED`.
+
+Vegeu [runbook d'acceptació operativa](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md).

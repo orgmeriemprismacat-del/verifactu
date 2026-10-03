@@ -4,17 +4,31 @@
 
 ## 1. Superfícies
 
+### Producció
+
 - Panell oficial SIF: `https://pay.prisma.cat/sif/incidencies/`
 - API interna: `https://pay.prisma.cat/api/incidents/manage.php`
 - Resum intranet: `https://intranet.prisma.cat/sif-verifactu.php`
+
+### Preproducció UC-008
+
+- Panell SIF: `https://pay-pre.prisma.cat/sif/incidencies/`
+- API interna: `https://pay-pre.prisma.cat/api/incidents/manage.php`
+- Resum intranet: `https://intranet-pre.prisma.cat/sif-verifactu.php`
 - Pont read-only intranet: `ajax/sif/sifIncidents.php`
 - Handoff signat intranet → SIF: `ajax/sif/sifPanelLaunch.php`
+
+**Regla:** les proves d'acceptació UC-008 s'han d'executar contra les superfícies de **preproducció**. No reutilitzar URLs de producció en els scripts E2E ni en els clients de la intranet-pre.
 
 La intranet no resol incidències. El botó «Obrir incidències SIF» genera un POST HMAC curt i d'un sol ús. El SIF valida signatura, timestamp i replay, crea una sessió pròpia i aplica CSRF a totes les accions del panell.
 
 ## 2. Variables SIF obligatòries
 
+Per a `pay-pre.prisma.cat`:
+
 ```text
+SIF_ENV=preproduction
+
 SIF_INCIDENT_READ_ROLES=AUDITOR_FISCAL,AEAT_READONLY,SIF_ADMIN,RESPONSABLE_TECNICA
 SIF_INCIDENT_MANAGE_ROLES=SIF_ADMIN,RESPONSABLE_TECNICA
 SIF_INCIDENT_QUERY_MAX_RESULTS=100
@@ -25,20 +39,30 @@ SIF_PANEL_INCIDENTS_PATH=/sif/incidencies/
 SIF_PANEL_LAUNCH_MAX_SKEW=120
 SIF_PANEL_SESSION_NAME=SIFPANELSESSID
 
+SIF_INTERNAL_API_KEY_ID=<id API interna dedicat a preproduccio>
+SIF_INTERNAL_API_SECRET=<secret API interna aleatori >=32>
 SIF_INTERNAL_INCIDENT_SIGNED_PATH=/api/incidents/manage.php
+
+SIF_E2E_INCIDENT_PANEL_URL=https://pay-pre.prisma.cat/sif/incidencies/
+SIF_E2E_INCIDENT_EXPECTED_HOST=pay-pre.prisma.cat
+SIF_PRODUCTION_HOST=pay.prisma.cat
 ```
 
 Els rols reals s'han d'ajustar als rols existents de PrisMa. Si les llistes de rols queden buides, el servei falla tancat.
 
 ## 3. Variables intranet obligatòries
 
+Per a `intranet-pre.prisma.cat`:
+
 ```text
-SIF_INTERNAL_INCIDENTS_URL=https://pay.prisma.cat/api/incidents/manage.php
+SIF_ENV=preproduction
+
+SIF_INTERNAL_INCIDENTS_URL=https://pay-pre.prisma.cat/api/incidents/manage.php
 SIF_INTERNAL_INCIDENT_SIGNED_PATH=/api/incidents/manage.php
 SIF_INTERNAL_API_KEY_ID=<id API interna>
 SIF_INTERNAL_API_SECRET=<secret API interna>
 
-SIF_PANEL_INCIDENTS_URL=https://pay.prisma.cat/sif/incidencies/
+SIF_PANEL_INCIDENTS_URL=https://pay-pre.prisma.cat/sif/incidencies/
 SIF_PANEL_INCIDENTS_PATH=/sif/incidencies/
 SIF_PANEL_LAUNCH_KEY_ID=<mateix id de launch configurat al SIF>
 SIF_PANEL_LAUNCH_SECRET=<mateix secret de launch configurat al SIF>
@@ -99,7 +123,9 @@ El go/no-go global incorpora també la presència/configuració bàsica del circ
 Després que el preflight i el go/no-go siguin verds, executar:
 
 ```bash
-export SIF_E2E_INCIDENT_PANEL_URL="https://<host-preproduccio>/sif/incidencies/"
+export SIF_E2E_INCIDENT_PANEL_URL="https://pay-pre.prisma.cat/sif/incidencies/"
+export SIF_E2E_INCIDENT_EXPECTED_HOST="pay-pre.prisma.cat"
+export SIF_PRODUCTION_HOST="pay.prisma.cat"
 export SIF_E2E_INCIDENT_ACTOR_ID="uc008-e2e-reader"
 export SIF_E2E_INCIDENT_READ_ROLE="<ROL_REAL_DE_LECTURA>"
 
@@ -110,13 +136,14 @@ El script:
 
 1. es nega a executar-se si `SIF_ENV=production`;
 2. exigeix URL HTTPS;
-3. genera handoff HMAC amb request-id únic;
-4. comprova `303` i cookie de sessió;
-5. obre el panell autenticat;
-6. comprova CSRF i que l'actor read-only no tingui controls de gestió;
-7. executa només `summary` i `list`;
-8. fa `logout`;
-9. comprova que la sessió queda invalidada.
+3. en `preproduction`, exigeix `SIF_E2E_INCIDENT_EXPECTED_HOST`, comprova que el host coincideix exactament i rebutja `SIF_PRODUCTION_HOST`;
+4. genera handoff HMAC amb request-id únic;
+5. comprova `303` i cookie de sessió;
+6. obre el panell autenticat;
+7. comprova CSRF i que l'actor read-only no tingui controls de gestió;
+8. executa només `summary` i `list`;
+9. fa `logout`;
+10. comprova que la sessió queda invalidada.
 
 El script **no** executa `open`, `assign`, `evidence`, `resolve`, `dismiss` ni `reopen`.
 
@@ -204,3 +231,17 @@ php sif/scripts/validate-uc008-evidence.php \
 ```
 
 El gate final exigeix `preproduction`, scopes correctes, menú `ALREADY_PRESENT`, flux gestor complet i SHA-256 vàlids dels tres inputs.
+
+
+## 11 bis. Separació obligatòria d'entorns
+
+Abans de generar qualsevol evidència de tancament:
+
+- `pay-pre.prisma.cat` ha de tenir `SIF_ENV=preproduction`;
+- `intranet-pre.prisma.cat` ha de generar el menú amb `SIF_ENV=preproduction` o `PRISMA_ENV=preproduction`;
+- el client intern de la intranet-pre ha d'apuntar a `https://pay-pre.prisma.cat`, mai a `https://pay.prisma.cat`;
+- `SIF_E2E_INCIDENT_EXPECTED_HOST=pay-pre.prisma.cat` és obligatori per a l'E2E de preproducció;
+- `SIF_PRODUCTION_HOST=pay.prisma.cat` permet al test fallar tancat si s'intenta provar accidentalment contra producció;
+- els secrets de preproducció i producció no s'han de reutilitzar.
+
+El gate final rebutja l'evidència del menú si no declara `environment=preproduction`.
