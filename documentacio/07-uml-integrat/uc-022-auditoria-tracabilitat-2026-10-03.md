@@ -213,3 +213,81 @@ Aquests fitxers **encara no estan connectats al JavaScript/endpoint llegat**. La
 - opcional `SIF_INTERNAL_MANUAL_TRANSFER_SIGNED_PATH`
 
 El secret no s'ha d'exposar mai al navegador ni persistir al repositori.
+
+
+## 11. Continuació executable del canal intranet
+
+### 11.1. Frontera funcional descoberta al llegat
+
+El mètode `Intranet::efectuarPagament(...)` barreja dos casos diferents:
+
+- `efact = 0`: calcula numeració, crea una factura nova al llegat i després aplica el cobrament. **No és UC-022** i no s'ha migrat dins aquest tall.
+- `efact = 1`: parteix d'una factura ja generada, actualitza el cobrament i les inscripcions relacionades. **Aquest és el tall UC-022**.
+
+El JavaScript nou només envia `efact=1` al canal SIF. El camí `efact=0` queda explícitament temporal i pendent del cas d'ús d'emissió corresponent.
+
+### 11.2. Defecte funcional del projector llegat
+
+En `efectuarPagamentFacturaGenerada()`, la consulta `updPayInscr` és:
+
+`UPDATE inscripcions SET PAGAMENT=?, FACTURA_RELACIONADA=? WHERE ID=?`
+
+i en el cas parcial el valor calculat pot ser només l'import del moviment actual. Per tant, un cobrament successiu pot sobreescriure el valor acumulat en lloc de projectar el total confirmat.
+
+Aquesta lògica **no es reutilitza** després del commit SIF.
+
+### 11.3. Projecció idempotent SIF → llegat
+
+S'ha afegit `GeneratedInvoiceLegacyPaymentSyncService`:
+
+1. calcula el total confirmat de la factura des de `payment_transaction + payment_allocation`;
+2. localitza `factura_relacionada` pel `NUM_VISIBLE`;
+3. bloqueja factura i inscripcions llegades;
+4. reparteix de manera determinista el total acumulat entre les inscripcions;
+5. escriu valors absoluts derivats del ledger SIF, no increments;
+6. limita la projecció al total contractual llegat;
+7. actualitza data/mètode de pagament de la projecció de factura;
+8. és segura davant reintents.
+
+Si el cobrament SIF queda confirmat però la projecció falla, l'endpoint respon `202 PENDING_RETRY`. El mateix `external_bank_event_id` es pot reenviar: el cobrament queda `REUSED` i només es reintenta la projecció.
+
+### 11.4. Seguretat navegador → intranet → SIF
+
+Implementat a `codi-drive/intranet-nova-canvis-verifactu`:
+
+- `SifPaymentSessionGuard.php`: sessió obligatòria, refresc dels rols vigents des de BD i CSRF amb comparació constant.
+- `ajax/alumnes/obtenirTokenPagamentSif.php`: obtenció del token CSRF, només lectura i `no-store`.
+- `ajax/alumnes/registrarTransferenciaSif.php`: només POST JSON; no accepta mutació GET; obté actor/rol de sessió i no del navegador.
+- `js/alumnes-pagaments.js`: per `efact=1` exigeix l'ID real del moviment bancari i usa el nou POST.
+- `SifInternalApiClient.php`: signatura HMAC server-to-server; el secret no passa al navegador.
+
+### 11.5. Separació transferència / TPV
+
+El canal UC-022 rebutja `TPV` i `REDSYS` tant a la intranet com al servei SIF. Aquests cobraments han d'entrar pel cicle Redsys corresponent.
+
+### 11.6. Factura històrica no present al SIF
+
+No s'autoemet cap factura substitutiva. El preparador existent de factura-abans-de-pagar construeix una nova factura fiscal des d'inscripcions i **no és un importador d'una factura històrica ja numerada**.
+
+Per tant:
+
+- factura present al SIF → UC-022 pot registrar el cobrament;
+- factura només al llegat → bloqueig i enviament a migració/reconciliació prèvia;
+- queda prohibit crear silenciosament una nova factura amb numeració diferent per poder cobrar.
+
+### 11.7. Estat després d'aquesta continuació
+
+| Bloc | Estat |
+|---|---|
+| Ledger SIF + idempotència | IMPLEMENTAT |
+| HMAC + anti-replay intranet→SIF | IMPLEMENTAT EN BRANCA |
+| Rol vigent + CSRF navegador→intranet | IMPLEMENTAT EN BRANCA |
+| external_bank_event_id | IMPLEMENTAT EN CONTRACTE I UI |
+| Exclusió TPV/Redsys | IMPLEMENTAT |
+| Auditoria REQUESTED/terminal del cobrament | IMPLEMENTAT EN BRANCA |
+| Projecció acumulada SIF→llegat | IMPLEMENTAT EN BRANCA |
+| PENDING_RETRY / reintent idempotent | IMPLEMENTAT EN BRANCA |
+| Correu/notificació equivalent al llegat | PENDENT DE DESACOBLAR / OUTBOX |
+| Migració de factures històriques absents al SIF | PENDENT FORA DEL FLUX UC-022 |
+| Execució MySQL / preproducció | PENDENT D'EVIDÈNCIA |
+| Desplegament intranet nova | NO VERIFICAT |
