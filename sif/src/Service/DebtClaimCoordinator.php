@@ -185,12 +185,25 @@ final class DebtClaimCoordinator
             $correlationId, $channel, $businessPayload
         ): array {
             $snapshot = $this->snapshot($db, $payload, true);
+            $uuidPayment = $this->optional($payload['uuid_payment'] ?? null, 36);
+            if ($uuidPayment !== null
+                && $this->snapshots->findConfirmedPaymentAllocation(
+                    $db,
+                    $uuidPayment,
+                    $snapshot['uuid_factura']
+                ) === null
+            ) {
+                throw SifException::validation(
+                    'Payment is not confirmed and allocated to the debt claim invoice'
+                );
+            }
             $claim = $this->claims->findByInvoice($db, $snapshot['uuid_factura'], true);
             if ($claim === null) {
                 return [
                     'ok' => true,
                     'status' => 'NO_CLAIM',
                     'uuid_factura' => $snapshot['uuid_factura'],
+                    'uuid_payment' => $uuidPayment,
                     'outstanding' => $snapshot['outstanding'],
                     'idempotency_reused' => false,
                 ];
@@ -204,6 +217,7 @@ final class DebtClaimCoordinator
                     'uuid_claim' => (string) $claim['UUID_CLAIM'],
                     'uuid_claim_event' => $reused['uuid_claim_event'],
                     'uuid_factura' => $snapshot['uuid_factura'],
+                    'uuid_payment' => $uuidPayment,
                     'stage' => (string) $claim['CURRENT_STAGE'],
                     'outstanding' => (string) $claim['OUTSTANDING_AMOUNT'],
                     'idempotency_reused' => true,
@@ -255,7 +269,21 @@ final class DebtClaimCoordinator
                 )
                 : 0;
 
-            $this->audit($db, $actor, $claim, $snapshot, (string) $claim['CURRENT_STAGE'], $targetStage, $reason, $channel, $correlationId, $at, 'DEBT_CLAIM_RECONCILE', $resolved ? 'RESOLVED' : 'RECORDED');
+            $this->audit(
+                $db,
+                $actor,
+                $claim,
+                $snapshot,
+                (string) $claim['CURRENT_STAGE'],
+                $targetStage,
+                $reason,
+                $channel,
+                $correlationId,
+                $at,
+                'DEBT_CLAIM_RECONCILE',
+                $resolved ? 'RESOLVED' : 'RECORDED',
+                $uuidPayment
+            );
 
             return [
                 'ok' => true,
@@ -263,6 +291,7 @@ final class DebtClaimCoordinator
                 'uuid_claim' => (string) $claim['UUID_CLAIM'],
                 'uuid_claim_event' => $event['uuid_claim_event'],
                 'uuid_factura' => $snapshot['uuid_factura'],
+                'uuid_payment' => $uuidPayment,
                 'stage' => $targetStage,
                 'outstanding' => $snapshot['outstanding'],
                 'cancelled_notifications' => $cancelled,
@@ -309,13 +338,15 @@ final class DebtClaimCoordinator
         \PDO $db, array $actor, array $claim, array $snapshot,
         string $beforeStage, string $afterStage, string $reason,
         string $channel, string $correlationId, string $at,
-        string $operationType = 'DEBT_CLAIM_NOTICE', string $status = 'RECORDED'
+        string $operationType = 'DEBT_CLAIM_NOTICE', string $status = 'RECORDED',
+        ?string $uuidPayment = null
     ): void {
         $this->operations->append($db, [
             'operation_type' => $operationType,
             'source_type' => 'DEBT_CLAIM',
             'source_id' => (string) $claim['UUID_CLAIM'],
             'uuid_factura' => $snapshot['uuid_factura'],
+            'uuid_payment' => $uuidPayment,
             'fiscal_impact' => 'NONE',
             'economic_impact' => 'NONE',
             'status' => $status,
@@ -372,6 +403,7 @@ final class DebtClaimCoordinator
             'action' => $action,
             'reason_code' => $reason,
             'notes' => $this->optional($payload['notes'] ?? null, 4000),
+            'uuid_payment' => $this->optional($payload['uuid_payment'] ?? null, 36),
             'actor_id' => $this->optional($actor['actor_id'] ?? null, 120),
             'source_channel' => $channel,
         ];
