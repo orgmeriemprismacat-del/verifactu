@@ -249,6 +249,21 @@ La fitxa antiga agrupava `sif_audit_event`, `operational_event`, `payment_action
 
 **Valoració:** no s’ha de presentar aquest endpoint per si sol com a endpoint final UC-006. La possible protecció externa del servidor/proxy no ha estat acreditada per aquesta auditoria de codi.
 
+## 7.1. Precedent reutilitzable al repositori — retorn aprovat ≠ retorn executat
+
+UC-111 ja implementa un patró que es pot generalitzar conceptualment per UC-006:
+
+- `NovicePromotionRootRefundPlanService` prepara un pla sense efectes laterals;
+- l'estat `APPROVED_WAITING_REFUND` conserva una aprovació final **sense afirmar que el banc ja ha retornat diners**;
+- `NovicePromotionOriginRefundEvidenceSourceInterface::confirmedOriginRefund()` exigeix una font autoritativa externa i explícitament **no inicia** el retorn;
+- `NovicePromotionRootRefundExecutionService` només executa conseqüències internes després de validar l'evidència i comprovar que CHARGE/REFUND reals quadren.
+
+Aquest codi és específic de promoció docent i **no s'ha de reutilitzar directament com a domini UC-006**, però demostra que el repositori ja ha adoptat la separació correcta entre:
+
+`PREVIEW/PLA → APROVACIÓ → WAITING_REFUND → EVIDÈNCIA EXTERNA → EXECUCIÓ INTERNA`.
+
+Per UC-006 convé extreure un contracte genèric equivalent (`RefundEvidenceSourceInterface` / estat pendent de retorn) en lloc de tornar a barrejar `A TORNAR` amb `REFUND` confirmat.
+
 ## 8. Idempotència i concurrència
 
 ### Correcte/localitzat
