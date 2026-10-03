@@ -17,7 +17,7 @@ final class HistoricalInvoicePayloadBuilder
         $payload['year'] = (int) ($this->optional($input, ['year', 'any_fact']) ?? $parsed['year']);
         $payload['num_seq'] = (int) ($this->optional($input, ['num_seq', 'numero', 'num']) ?? $parsed['num_seq']);
         $this->assertVisibleNumberConsistency($payload, $parsed);
-        $payload['type'] = $this->optionalString($input, ['type', 'tipus_factura'], 'F1');
+        $payload['type'] = strtoupper($this->optionalString($input, ['type', 'tipus_factura'], 'F1'));
         $this->assertInvoiceType($payload['type']);
         $payload['idempotency_key'] = $this->idempotencyKey($input, $numVisible);
         $payload['source_channel'] = 'MIGRACIO';
@@ -180,6 +180,15 @@ final class HistoricalInvoicePayloadBuilder
             $block,
             ['exemption_reason', 'causa_exempcio_no_subjecta']
         );
+        if ($block['exemption_reason'] !== null) {
+            $block['exemption_reason'] = strtoupper($block['exemption_reason']);
+            if (!in_array($block['exemption_reason'], ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8'], true)) {
+                throw SifException::validation('Invalid historical invoice exemption reason');
+            }
+            if (strtoupper(trim((string) ($block['iva_regim'] ?? ''))) !== 'EXEMPT') {
+                throw SifException::validation('Historical exemption reason requires EXEMPT IVA regime');
+            }
+        }
 
         foreach ([
             'rec_equivalence_pct' => ['rec_equivalence_pct', 'recarrec_equivalencia_pct'],
