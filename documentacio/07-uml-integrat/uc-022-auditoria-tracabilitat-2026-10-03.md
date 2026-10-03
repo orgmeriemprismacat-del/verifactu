@@ -291,3 +291,14 @@ Per tant:
 | Migració de factures històriques absents al SIF | PENDENT FORA DEL FLUX UC-022 |
 | Execució MySQL / preproducció | PENDENT D'EVIDÈNCIA |
 | Desplegament intranet nova | NO VERIFICAT |
+
+
+### 11.8. Auditoria de la projecció llegada
+
+La projecció post-commit ja no queda sense traça. `ManualTransferLegacyProjectionService` registra a `payment_action_event`:
+
+- `SYNC_LEGACY / REQUESTED` abans d'intentar la projecció;
+- `SYNC_LEGACY / SUCCEEDED` amb imports confirmat/projectat quan acaba;
+- `SYNC_LEGACY / FAILED` quan falla la projecció o la seva traça terminal.
+
+El resultat continua sent `PENDING_RETRY` si la projecció o la seva evidència obligatòria no queda completada. Això separa clarament el commit econòmic SIF de la projecció operativa llegada sense perdre correlació.
