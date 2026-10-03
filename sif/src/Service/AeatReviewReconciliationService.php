@@ -25,7 +25,7 @@ final class AeatReviewReconciliationService
         if ($queueId <= 0) {
             throw SifException::validation('Invalid AEAT queue id');
         }
-        if (preg_match('/^[0-9a-f-]{36}$/D', $attemptUuid) !== 1) {
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/D', $attemptUuid) !== 1) {
             throw SifException::validation('Invalid AEAT attempt uuid');
         }
         if ($actorId === '' || mb_strlen($actorId, 'UTF-8') > 120) {
