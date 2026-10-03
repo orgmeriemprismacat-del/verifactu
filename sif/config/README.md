@@ -150,4 +150,4 @@ UC-010 és **fail-closed**. El repositori pot contenir el codi del circuit, per�
 5. L'activació no desplega codi. Primer exigeix que la candidata coincideixi amb el runtime ja desplegat i verificat; després serialitza la decisió amb `sif_version_state` i escriu `sif_version_activation`.
 6. Cap canvi de versió modifica factures, registres fiscals, pagaments o cues existents. Un tall incompatible s'ha de resoldre amb els UC de desplegament/reconciliació corresponents.
 
-Els secrets poden participar en el fingerprint de configuració calculat en memòria, però **no es persisteix ni es retorna la configuració canònica**: només el SHA-256 final.
+Els secrets poden participar en el fingerprint de configuració calculat en memòria, però **no es persisteix ni es retorna la configuració canònica**: només el SHA-256 final. El fingerprint exclou `runtime_git_revision`, `release_manifest_path` i `activation_enabled`, perquè són metadades/gates del mateix procés d'evidència; Git i artefacte tenen camps propis i activar/desactivar temporalment el gate no ha de convertir-se en drift de la candidata.
