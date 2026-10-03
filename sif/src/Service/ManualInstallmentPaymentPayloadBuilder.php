@@ -69,12 +69,13 @@ final class ManualInstallmentPaymentPayloadBuilder
 
     private function providerRef(int $idInsc, string $user, ?string $operationId): string
     {
-        $ref = 'FRACCIO|ID_INSC:' . $idInsc . '|USUARI:' . $this->keyPart($user);
         if ($operationId !== null) {
-            $ref .= '|EVENT:' . $this->keyPart($operationId);
+            return 'FRACCIO|ID_INSC:' . $idInsc
+                . '|EVENT:' . $this->keyPart($operationId);
         }
 
-        return $ref;
+        return 'FRACCIO|ID_INSC:' . $idInsc
+            . '|USUARI:' . $this->keyPart($user);
     }
 
     private function amount(mixed $value): string
