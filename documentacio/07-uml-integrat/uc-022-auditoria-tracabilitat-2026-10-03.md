@@ -327,3 +327,20 @@ Les denegacions i validacions prèvies generen `payment_action_event` amb `ACCES
 Existeix infraestructura genèrica `notification_outbox`, però el servei de notificació de pagament actual està especialitzat en Redsys/curs (`DS_ORDER`, snapshot d'una inscripció). No s'ha reutilitzat artificialment per UC-022 perquè una factura manual pot agrupar diverses inscripcions i no té `DS_ORDER`.
 
 **Pendent real:** definir plantilla, destinatari/resolució de destinatari i payload canònic de confirmació de transferència manual, i encolar-lo post-commit de manera idempotent.
+
+
+## Via alternativa d'evidència UC-022
+
+Davant la cua persistent de GitHub Actions, s'ha afegit `sif/scripts/test-uc022-local.sh`.
+
+Garanties del runner:
+
+- només admet una BD amb nom `sif_test*`;
+- només admet MySQL a `127.0.0.1` o `localhost`;
+- fixa `SIF_ENV=test`;
+- executa `php -l` sobre els PHP que formen la superfície UC-022;
+- executa `sif/tests/run-tests.php` complet;
+- registra data, versió PHP, commit i branca quan s'executa des d'un checkout Git;
+- conserva l'evidència a `sif/test-results/uc022-<timestamp>.log`.
+
+La mera existència del runner **no compta com a verificació**: cal conservar un log `RESULT=PASS` generat sobre l'entorn de test/preproducció.
