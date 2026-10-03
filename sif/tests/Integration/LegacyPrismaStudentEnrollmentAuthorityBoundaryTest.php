@@ -68,6 +68,31 @@ final class LegacyPrismaStudentEnrollmentAuthorityBoundaryTest
         Assert::same(false, str_contains($source, 'FACTURA_RELACIONADA'));
     }
 
+    public function testPricePreviewHasSafeFallbackWhenNoDiscountCandidateExists(): void
+    {
+        $source = $this->read('codi-drive/web-actual/ajax/calcularPreu.php');
+
+        Assert::stringContainsString('$descomptes = [];', $source);
+        Assert::stringContainsString('$i = 0;', $source);
+        Assert::stringContainsString('while ($pos<$i && !$trobat)', $source);
+        Assert::stringContainsString("if (!\$trobat)\n      \$mostrar = '0|0|0|0';", $source);
+    }
+
+    public function testPricePreviewDoesNotMutateEnrollmentPaymentOrFiscalState(): void
+    {
+        $source = $this->read('codi-drive/web-actual/ajax/calcularPreu.php')
+            . "\n"
+            . $this->read('codi-drive/web-actual/inc/buscarAlumnePrisMa.php');
+
+        if (preg_match('/\\b(?:INSERT|UPDATE|DELETE|REPLACE)\\s+(?:INTO\\s+)?(?:inscripcions|factura|payment_transaction|commercial_operation|discount_validation)\\b/i', $source) === 1) {
+            Assert::fail('UC-020 price preview must remain read-only for commercial, payment and fiscal state.');
+        }
+
+        Assert::same(false, str_contains($source, 'InvoiceService'));
+        Assert::same(false, str_contains($source, 'registerPayment('));
+        Assert::same(false, str_contains($source, 'issueInvoice('));
+    }
+
     private function read(string $relativePath): string
     {
         $root = dirname(__DIR__, 3);
