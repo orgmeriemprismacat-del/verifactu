@@ -196,3 +196,14 @@ Note over C,DB: No es crea una nova factura ni registre AEAT per cobrar una recl
 ## 6. Traçabilitat
 
 [UC-12 original](../06-fitxes-funcionals/uc-012.md) · [UC-24 cobrament](uc-024-registrar-cobrament-reclamacio.md) · [UC-96 pròrroga original](../06-fitxes-funcionals/uc-096.md) · [UC-95 estat acadèmic original](../06-fitxes-funcionals/uc-095.md) · [UC-25 TPV](uc-025-analitzar-fitxer-tpv.md) · [UC-56 assignar](uc-056-cercar-assignar-cobrament.md) · [ClaimPaymentService](../../sif/src/Service/ClaimPaymentService.php) · [ClaimPaymentPayloadBuilder](../../sif/src/Service/ClaimPaymentPayloadBuilder.php) · [Fluxos de morositat](../03-canvis-pendents/04-fluxos-facturacio.md) · [Traça dels fons](00-revisio-moviments-inscripcions.md).
+
+
+## 7. Auditoria exhaustiva 03/10/2026
+
+La vista integrada anterior continua sent vàlida, però queda complementada per documents separats de **classes ACTUAL/FINAL**, **seqüències ACTUAL/FINAL**, **activitats per pàgina** i **inventari PHP/JS**. La revisió del codi confirma que el llegat executa P-MOR-02/03/04 i variants de control de morosos directament a `Intranet.php`, mentre que el SIF executable només cobreix P-MOR-05 quan ja existeix un ingrés real.
+
+Documents de control:
+- [Inventari PHP/JS ACTUAL/FINAL](uc-012-inventari-codi-php-js-actual-final-2026-10-03.md)
+- [Classes ACTUAL/FINAL](uc-012-classes-actual-final.md)
+- [Seqüències i activitats ACTUAL/FINAL](uc-012-sequencies-activitats-actual-final.md)
+- [Auditoria i traçabilitat](uc-012-auditoria-tracabilitat-2026-10-03.md)
