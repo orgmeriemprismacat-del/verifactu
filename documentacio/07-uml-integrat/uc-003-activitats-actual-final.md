@@ -190,5 +190,5 @@ flowchart TD
 
 **DOCUMENTAT:** 8 superfícies ACTUAL/FINAL.  
 **IMPLEMENTAT:** nucli FINAL i pont de cutover al repositori.  
-**VERIFICAT:** proves automatitzades específiques existents; CI del head de l'auditoria encara pendent.  
+**VERIFICAT:** totes les proves `RedsysCallbackWorkerTest`, incloses les noves, passen al workflow SIF #1204; el CI global continua bloquejat per 6 fallades de baseline alienes al patch UC-003.  
 **PENDENT:** JS candidat, preproducció Redsys, cron/supervisió, factura prèvia i retirada final dels callbacks llegats.
