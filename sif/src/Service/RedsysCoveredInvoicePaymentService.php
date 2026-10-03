@@ -59,6 +59,7 @@ final class RedsysCoveredInvoicePaymentService
             'uuid_factura' => $uuidFactura,
             'num_visible' => (string) $invoice['NUM_VISIBLE'],
             'uuid_payment' => (string) $payment['uuid_payment'],
+            'payment_status' => (string) $invoice['ESTAT_COBRAMENT'],
         ];
     }
 
