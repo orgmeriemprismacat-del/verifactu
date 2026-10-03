@@ -8,10 +8,11 @@
 
 ## 1. Motiu de la revalidació
 
-El tancament del 02/10 acreditava correctament el nucli SIF del bescanvi a valor exacte, però una revisió completa de la superfície web real ha detectat dues classes de divergència:
+El tancament del 02/10 acreditava correctament el baseline SIF del bescanvi a valor exacte, però la revalidació completa ha detectat tres classes de divergència:
 
 1. documentació integrada i apartats històrics que encara descrivien UC-018 com a disseny/no implementat;
-2. frontera navegador→legacy no coberta per les proves anteriors, amb codi regal i dades personals enviats per query string.
+2. frontera navegador→legacy no coberta per les proves anteriors, amb codi regal i dades personals enviats per query string;
+3. contracte SIF incomplet per a la modalitat legacy «qualsevol curs de N hores», perquè `regal.CCURS` numèric es comparava erròniament amb el codi del curs.
 
 A més, `pagina_bescanvia.php` referenciava `mostrarBescanvia_prova.min.js`, fitxer absent del repositori, mentre que el bundle rastrejable era `mostrarBescanvia.min.js`.
 
@@ -21,8 +22,8 @@ Entre el merge documental UC-018 del PR #117 i `main@b0e8ff...` hi ha dos commit
 
 Per tant:
 
-- el nucli SIF verificat al snapshot del 02/10 continua sent la base executable;
-- els canvis d'aquesta revalidació afecten la frontera pública legacy, les proves boundary i la reconciliació documental.
+- el snapshot del 02/10 continua sent la baseline verificada per idempotència, economia, concurrència, recovery i outbox;
+- la revalidació actual modifica la frontera pública legacy **i** dues peces SIF (`GiftRedemptionTrustedContextResolver` i `GiftEnrollmentStager`) per suportar correctament `CCURS` numèric; per tant, aquestes peces requereixen CI nou.
 
 ## 3. Troballes noves
 
@@ -103,8 +104,8 @@ Aquesta prova complementa, no substitueix, les proves ja existents de POST/HMAC 
 
 | Capa | Documentat | Implementat | Verificat abans del patch | Revalidació 03/10 |
 | --- | --- | --- | --- | --- |
-| Nucli GIFT/SIF | Sí | Sí | CI 858/0 del PR #115 | Sense canvi executable |
-| Staging/redeem/reconciliació | Sí | Sí | Integració/E2E | Sense canvi executable |
+| Nucli GIFT/SIF | Sí | Sí + patch `CCURS` | Baseline CI 858/0 del PR #115 | Resolver modificat + tests nous; CI PENDENT |
+| Staging/redeem/reconciliació | Sí | Sí + patch `CCURS` al stager | Baseline Integració/E2E | Stager modificat + tests nous; CI PENDENT |
 | Concurrència/recovery | Sí | Sí | Verificat | Sense canvi executable |
 | Outbox/correus | Sí | Sí | Verificat | Sense canvi executable |
 | Navegador→legacy | Sí, però incorrectament descrit | Patch aplicat, inclosos endpoints compartits | No cobert | PROVA AMPLIADA; CI PENDENT |
