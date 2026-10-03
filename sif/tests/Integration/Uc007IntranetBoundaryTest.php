@@ -27,6 +27,25 @@ final class Uc007IntranetBoundaryTest
         Assert::stringContainsString('sifDocument.php', $js);
     }
 
+    public function testLegacyInvoiceDownloadUsesReadBoundaryNotClientSideEditPermission(): void
+    {
+        $js = $this->readIntranet('js/alumnes-factura.js');
+        $start = strpos($js, "$('.download-factura').on('click'");
+        $end = strpos($js, "if ($('#factura-num-pagines'))", $start === false ? 0 : $start);
+
+        if ($start === false || $end === false || $end <= $start) {
+            Assert::fail('Could not locate legacy invoice download fragment.');
+        }
+
+        $fragment = substr($js, $start, $end - $start);
+        Assert::stringContainsString('alumnes/descarregaFactura.php', $fragment);
+        Assert::stringContainsString('method: "POST"', $fragment);
+
+        if (str_contains($fragment, 'tePermisEdicio')) {
+            Assert::fail('UC-007 legacy document download is a read action and must not depend on client-side edit permission.');
+        }
+    }
+
     public function testStudentPageExecutesUpdatedSourceInsteadOfStaleMinifiedAsset(): void
     {
         $page = $this->readIntranet('alumnes-mostrar-alumne.php');
