@@ -128,6 +128,13 @@ flowchart LR
 ```mermaid
 classDiagram
 direction LR
+class RedsysPaymentIntentService {
+ +create(db,input) array
+}
+class GroupIntentSnapshotValidator {
+ <<PHP afegit auditoria 2026-10-03>>
+ +validate(snapshot,idpag,sourceId,expectedAmount) void
+}
 class RedsysGroupInvoiceService {
  +sourceType() string
  +issueFromIntentSnapshot(db,dsOrder,snapshot) array
@@ -158,6 +165,7 @@ class EnrollmentFundMovementRepository {
  <<PROPOSTA>>
  +append(db,movement) string
 }
+RedsysPaymentIntentService --> GroupIntentSnapshotValidator : source=GRUP
 RedsysGroupInvoiceService ..|> RedsysIntentHandler
 RedsysGroupInvoiceService --> LegacyGroupSnapshotRepository : ruta legacy alternativa
 RedsysGroupInvoiceService --> LegacyGroupInvoicePayloadBuilder : N línies
@@ -259,4 +267,12 @@ Note over UI,F: La consulta comercial, els permisos i el classificador postemiss
 ```
 ## 6. Traçabilitat
 
-[Fitxa base UC-16](../06-fitxes-funcionals/uc-016.md) · [UC-21 factura a responsable](uc-021-empresa-responsable-paga-inscripcions.md) · [UC-07 consulta](uc-007-consultar-factura-estat-document.md) · [Revisió de fons](00-revisio-moviments-inscripcions.md) · [RedsysGroupInvoiceService](../../sif/src/Service/RedsysGroupInvoiceService.php) · [LegacyGroupInvoicePayloadBuilder](../../sif/src/Service/LegacyGroupInvoicePayloadBuilder.php) · [ManualGroupInvoiceService](../../sif/src/Service/ManualGroupInvoiceService.php) · [RedsysGroupInvoiceServiceTest](../../sif/tests/Integration/RedsysGroupInvoiceServiceTest.php).
+[Fitxa base UC-16](../06-fitxes-funcionals/uc-016.md) · [Activitats ACTUAL/FINAL per pàgina](uc-016-activitats-pagines-actual-final.md) · [Auditoria 2026-10-03](../../00-control/auditoria-uc-016-2026-10-03.md) · [UC-21 factura a responsable](uc-021-empresa-responsable-paga-inscripcions.md) · [UC-07 consulta](uc-007-consultar-factura-estat-document.md) · [Revisió de fons](00-revisio-moviments-inscripcions.md) · [RedsysGroupInvoiceService](../../sif/src/Service/RedsysGroupInvoiceService.php) · [LegacyGroupInvoicePayloadBuilder](../../sif/src/Service/LegacyGroupInvoicePayloadBuilder.php) · [ManualGroupInvoiceService](../../sif/src/Service/ManualGroupInvoiceService.php) · [RedsysGroupInvoiceServiceTest](../../sif/tests/Integration/RedsysGroupInvoiceServiceTest.php).
+
+
+## 7. Estat reconciliat després de l'auditoria 2026-10-03
+
+- **Documentat:** factura inicial de grup, Redsys, via manual, UC-016A/B, trams i activitats de preparació.
+- **Implementat:** nucli SIF d'emissió inicial, builder de N línies, relacions, pagament inicial i via manual. S'ha afegit validació de snapshot d'intenció GRUP i invariant aritmètic de línia.
+- **Verificat:** codi i proves existents revisats; s'han afegit proves de regressió. No es declara execució de les proves noves sense evidència de runner.
+- **Pendent:** `GroupPaymentGate` al canal web, migració del callback llegat, ledger quantitatiu per participant, coordinadors UC-016A/B i decisió fiscal de canvi de tram postemissió.
