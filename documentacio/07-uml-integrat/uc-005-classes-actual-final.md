@@ -1,20 +1,21 @@
 # UC-005 · Diagrames de classes ACTUAL / FINAL
 
-**Data:** 2026-10-03
+**Data:** 2026-10-03  
+**Tall:** branca `audit/uc-005-2026-10-03`
 
-## 1. ACTUAL — pantalla i llegat
+## 1. ACTUAL — intranet
 
 ```mermaid
 classDiagram
 direction LR
 class AlumnesFacturaPage { <<LLEGAT>> }
 class AlumnesFacturaJS { <<LLEGAT>> +search() +openInvoice() +edit() +cancel() }
-class AlumnesFacturaSifJS { <<PARCIAL>> +searchSif() +viewSifInvoice() }
+class AlumnesFacturaSifJS { <<SIF READ-ONLY>> +searchSif() +viewSifInvoice() }
 class GuardarDadesFacturaEndpoint { <<LLEGAT HARDENED>> +POST() }
 class AnularFacturaEndpoint { <<LLEGAT HARDENED>> +POST() }
 class SifLegacyInvoiceMutationGuard { <<EXISTEIX>> +assertLegacyMutationAllowed() }
 class LegacyInvoiceMutationAuthorization { <<EXISTEIX>> +assertSameOrigin() +assertCanEdit() }
-class Intranet { <<LLEGAT>> +guardarDadesFactura_Factures() +anularFactura() }
+class Intranet { <<LLEGAT>> }
 class LegacyDB { <<BD LLEGADA>> }
 
 AlumnesFacturaPage --> AlumnesFacturaJS
@@ -30,22 +31,44 @@ AnularFacturaEndpoint --> Intranet
 Intranet --> LegacyDB
 ```
 
-## 2. SIF existent
+La pantalla encara no disposa d'un adaptador UC-005; la consulta SIF és read-only.
+
+## 2. ACTUAL — backend UC-005 implementat a la branca
 
 ```mermaid
 classDiagram
 direction LR
-class ManualRectificationService { <<EXISTEIX>> +issueByUuid() +issueByNumVisible() -normalizeInput() }
-class ManualRectificationPayloadBuilder { <<EXISTEIX>> +forOriginalInvoice() }
-class ManualPaymentInvoiceRepository { <<EXISTEIX>> +findByUuid() +findByNumVisible() }
+class RectifyEndpoint { <<IMPLEMENTAT>> +POST preview/confirm }
+class InternalApiAuthenticator { <<EXISTEIX>> +authenticate() }
+class InternalRectificationScopeResolver { <<IMPLEMENTAT>> +resolve() }
+class FiscalCorrectionDecisionGuard { <<IMPLEMENTAT>> +assertRectification() }
+class RectificationCommandService { <<IMPLEMENTAT>> +preview() +confirm() }
+class ManualRectificationService { <<IMPLEMENTAT>> +issueByUuid() +issueByNumVisible() }
+class ManualRectificationPayloadBuilder { <<IMPLEMENTAT>> +forOriginalInvoice() }
+class ManualPaymentInvoiceRepository { <<EXISTEIX>> +findByUuid(forUpdate) }
 class RectificationRepository { <<EXISTEIX>> +linkRectification() +markOriginalRectified() }
-class InvoiceService { <<EXISTEIX>> +issueInvoice() }
+class InvoiceService { <<AMPLIAT>> +issueInvoice(payload,beforeCommit) }
 class InvoiceRepository { <<EXISTEIX>> +createInvoiceGraph() }
+class SifAuditEventRepository { <<IMPLEMENTAT>> +append() }
+class OperationalEventRepository { <<EXISTEIX>> +append() }
+class PayloadIdempotencyValidator { <<EXISTEIX>> +calculateHash() +assertMatches() }
 class Factura { <<SIF DB>> }
 class FacturaRectificacio { <<SIF DB>> }
 class FacturaRegistres { <<SIF DB>> }
 class FiscalQueue { <<SIF DB>> }
+class SifAuditEvent { <<SIF DB>> }
+class OperationalEvent { <<SIF DB>> }
 
+RectifyEndpoint --> InternalApiAuthenticator
+RectifyEndpoint --> InternalRectificationScopeResolver
+RectifyEndpoint --> RectificationCommandService
+RectificationCommandService --> FiscalCorrectionDecisionGuard
+RectificationCommandService --> PayloadIdempotencyValidator
+RectificationCommandService --> ManualPaymentInvoiceRepository
+RectificationCommandService --> ManualRectificationPayloadBuilder
+RectificationCommandService --> ManualRectificationService
+RectificationCommandService --> SifAuditEventRepository
+RectificationCommandService --> OperationalEventRepository
 ManualRectificationService --> ManualPaymentInvoiceRepository
 ManualRectificationService --> ManualRectificationPayloadBuilder
 ManualRectificationService --> InvoiceService
@@ -55,7 +78,8 @@ InvoiceRepository --> Factura
 InvoiceRepository --> FacturaRegistres
 InvoiceRepository --> FiscalQueue
 RectificationRepository --> FacturaRectificacio
-RectificationRepository --> Factura
+SifAuditEventRepository --> SifAuditEvent
+OperationalEventRepository --> OperationalEvent
 ```
 
 ## 3. FINAL objectiu
@@ -63,24 +87,33 @@ RectificationRepository --> Factura
 ```mermaid
 classDiagram
 direction LR
-class Uc005Controller { <<PROPOSAT>> +preview() +confirm() }
-class Uc005Authorization { <<PROPOSAT>> +assertCanRectify() }
-class FiscalCorrectionClassifier { <<PROPOSAT/UC-74>> +classify() }
-class RectificationSnapshotAssembler { <<PROPOSAT>> +fromOriginalAndCorrection() }
-class ManualRectificationService { <<EXISTEIX/PARCIAL>> }
-class RectificationTransactionService { <<RESPONSABILITAT COBERTA EN BRANCA>> +issueAndLinkAtomically() }
-class OperationalAudit { <<PROPOSAT>> +append() }
-class DocumentService { <<PROPOSAT/PARCIAL TRANSVERSAL>> +ensureFiscalDocument() }
+class IntranetRectificationProxy { <<PENDENT>> +preview() +confirm() +assertSession() +assertCsrf() }
+class AlumnesFacturaSifJS { <<AMPLIAR>> +openRectification() +renderPreview() +confirm() }
+class RectifyEndpoint { <<IMPLEMENTAT>> }
+class FiscalCorrectionClassifier { <<PENDENT/UC-74>> +classify() }
+class FiscalCorrectionDecisionGuard { <<IMPLEMENTAT>> }
+class RectificationCommandService { <<IMPLEMENTAT>> }
+class ManualRectificationService { <<IMPLEMENTAT>> }
+class AeatRectificationMapper { <<PENDENT>> +buildRectificationFields() }
+class DocumentService { <<TRANSVERSAL/PENDENT E2E>> +ensureFiscalDocument() }
 
-Uc005Controller --> Uc005Authorization
-Uc005Controller --> FiscalCorrectionClassifier
-FiscalCorrectionClassifier --> RectificationSnapshotAssembler
-RectificationSnapshotAssembler --> RectificationTransactionService
-RectificationTransactionService --> ManualRectificationService
-RectificationTransactionService --> OperationalAudit
-RectificationTransactionService --> DocumentService
+AlumnesFacturaSifJS --> IntranetRectificationProxy
+IntranetRectificationProxy --> FiscalCorrectionClassifier
+IntranetRectificationProxy --> RectifyEndpoint
+RectifyEndpoint --> FiscalCorrectionDecisionGuard
+RectifyEndpoint --> RectificationCommandService
+RectificationCommandService --> ManualRectificationService
+ManualRectificationService --> AeatRectificationMapper
+ManualRectificationService --> DocumentService
 ```
 
-## 4. Mismatch principal
+## 4. Estat reconciliat
 
-La branca d'auditoria modifica `InvoiceService` perquè UC-005 pugui executar una fase `beforeCommit` dins la mateixa transacció. `ManualRectificationService` hi bloqueja/revalida l'original, vincula `factura_rectificacio` i marca l'original. Queda pendent validar aquesta garantia amb CI/MySQL i concurrència real.
+- **Atomicitat:** implementada mitjançant el callback `beforeCommit` d'`InvoiceService`.
+- **Concurrència:** `FOR UPDATE` + revalidació del snapshot abans del COMMIT; pendent prova E2E amb sessions concurrents.
+- **Fiscalitat local:** fail-closed; IVA subjecte exigeix bloc fiscal explícit.
+- **SUBSTITUCIO:** receptor corregit congelat a la nova R; original immutable.
+- **Decisió fiscal:** guard UC-74 implementat; classificador UC-74 genèric pendent.
+- **Auditoria:** `sif_audit_event` + `operational_event` integrats al command.
+- **Canal web:** endpoint intern signat implementat; proxy/UI intranet pendent.
+- **AEAT/document:** mapping rectificativa i evidència XSD/protocol encara pendents.
