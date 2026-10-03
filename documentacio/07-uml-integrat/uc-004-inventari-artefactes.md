@@ -1,10 +1,11 @@
 # UC-004 · Inventari d'artefactes, diagrames i codi
 
-**Data de tall actualitzada:** 2026-10-02  
-**Branca de continuació:** `feat/uc-004-adaptador-servidor-2026-10-02`
+**Data de tall actualitzada:** 2026-10-03  
+**Branca reconciliada:** `audit/uc-004-reconciliacio-2026-10-03`  
+**Base:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`
 
 Aquest inventari respon una pregunta concreta: **tenim totes les fitxes, tots els tipus de diagrama i el codi necessari per considerar UC-004 tancat?**  
-Resposta: **la cobertura documental és completa; el backend SIF i el bridge de la pantalla UC-004 ja estan implementats al codi versionat; en aquesta branca el mutador fiscal llegat queda retirat. Continuen pendents el **renderitzat/custòdia final** del document per UUID, la classificació transversal, l'E2E/preproducció i la sync llegada si encara cal.**
+Resposta: **la cobertura documental és completa; el backend SIF i el bridge de la pantalla UC-004 ja estan implementats al codi versionat; en aquesta branca el mutador fiscal llegat queda retirat. Continuen pendents el **renderer fiscal concret i la seva validació visual/normativa**, la classificació transversal i l'E2E/preproducció. La cua, el worker, l'snapshot immutable, la custòdia privada i els estats documentals ja estan implementats.**
 
 ## 1. Artefactes documentals
 
@@ -118,7 +119,7 @@ No s'ha aplicat una UNIQUE global sobre `fact_rels`, perquè podria interferir a
 - dues claus diferents sobre la mateixa inscripció → 409;
 - verificació que el segon intent no deixa una segona factura, registre, cua o relació.
 
-## 5. Codi que ENCARA falta després del tall 2026-10-02
+## 5. Codi / evidència que ENCARA falta després del tall 2026-10-03
 
 | ID | Peça necessària | Estat |
 | --- | --- | --- |
