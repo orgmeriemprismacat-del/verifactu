@@ -3,6 +3,7 @@
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 
 final class RedsysCoursePaymentIntentService
@@ -12,7 +13,8 @@ final class RedsysCoursePaymentIntentService
         private RedsysPaymentIntentService $intents,
         private RedsysDsOrderGenerator $orders,
         private ?PrismaStudentCourseCheckoutService $prismaStudentCheckout = null,
-        private ?LegacyPrismaStudentPriceSnapshotResolver $prismaStudentPrices = null
+        private ?LegacyPrismaStudentPriceSnapshotResolver $prismaStudentPrices = null,
+        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null
     ) {
     }
 
@@ -26,6 +28,8 @@ final class RedsysCoursePaymentIntentService
 
         $context = $this->legacySnapshots->loadCourseContextByIdpag($legacyDb, $idpag);
         $inscription = $context['inscription'];
+        $sourceId = $this->positiveInt($inscription['ID'] ?? null, 'inscription.ID');
+        $this->assertNotClaimedByInvoiceBeforePayment($sifDb, $sourceId);
 
         $totalCents = $this->cents($inscription['A_PAGAR'] ?? null, 'A_PAGAR');
         $paidCents = $this->cents($inscription['PAGAMENT'] ?? 0, 'PAGAMENT');
@@ -98,7 +102,7 @@ final class RedsysCoursePaymentIntentService
 
             return $staged + [
                 'idpag' => $idpag,
-                'source_id' => (int) $inscription['ID'],
+                'source_id' => $sourceId,
                 'amount' => $trustedPrice['net_amount'],
                 'pending_before' => $pending,
                 'currency' => 'EUR',
@@ -120,7 +124,7 @@ final class RedsysCoursePaymentIntentService
             'ds_order' => $dsOrder,
             'idpag' => $idpag,
             'source_type' => 'CURS',
-            'source_id' => (string) $this->positiveInt($inscription['ID'] ?? null, 'inscription.ID'),
+            'source_id' => (string) $sourceId,
             'expected_amount' => $requested,
             'currency' => 'EUR',
             'terminal' => $terminal,
@@ -137,6 +141,25 @@ final class RedsysCoursePaymentIntentService
             'currency' => 'EUR',
             'terminal' => $terminal,
         ];
+    }
+
+    private function assertNotClaimedByInvoiceBeforePayment(\PDO $sifDb, int $sourceId): void
+    {
+        if ($this->beforePaymentCoverage === null) {
+            return;
+        }
+
+        $claims = $this->beforePaymentCoverage->findClaims($sifDb, [[
+            'source_type' => 'INSCRIPCIO',
+            'source_id' => $sourceId,
+            'relation_type' => 'ORIGIN',
+        ]]);
+
+        if ($claims !== []) {
+            throw SifException::conflict(
+                "Course inscription {$sourceId} is already covered by an invoice-before-payment operation"
+            );
+        }
     }
 
     private function positiveInt(mixed $value, string $label): int
