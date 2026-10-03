@@ -21,7 +21,7 @@
 4. L'implementació SOAP de proves genera XML amb `XmlCodec`, inspecciona el certificat amb `ClientCertificate`, crea evidència privada via `EvidenceStore`, envia amb cURL/mTLS i processa `ResponseParser`. El constructor rebutja qualsevol endpoint diferent de `TEST_ENDPOINT`.
 5. `ResponseParser` comprova el registre respost (identitat de factura i operació) i distingeix `ACCEPTED`, `ACCEPTED_WITH_ERRORS` i `REJECTED`, amb indicadors de duplicat i revisió. **Els tests amb transport simulat no proven que un endpoint real hagi acceptat una petició.**
 6. `FiscalQueueRepository::complete()` marca la cua `SENT`, desa XML i resposta al registre fiscal corresponent a `UUID_FACTURA` + `FISCAL_ORDER`, i actualitza `factura.ESTAT_AEAT` segons el resultat. La confirmació de la cua i dels estats de BD passa en una transacció **diferent** de l'enviament extern.
-7. Davant error, `failure()` programa `RETRY` amb retard exponencial limitat; en esgotar intents, `DEAD_LETTER`, `ERROR` al registre/factura i informació de l'error. `recoverStaleLocks()` reprèn jobs en `PROCESSING` massa antics.
+7. Davant error, `failure()` programa `RETRY` amb retard exponencial limitat; en esgotar intents, `DEAD_LETTER`, `ERROR` al registre/factura i informació de l'error. `recoverStaleLocks()` posa qualsevol `PROCESSING` massa antic en `REVIEW`, anul·la el retry automàtic i exigeix conciliació abans de qualsevol reenviament.
 
 ### 1.2. Alternatives, incidències i riscos identificats
 
@@ -44,7 +44,7 @@
 
 **Resposta amb errors o rebuig.** `FiscalQueueRepository::complete()` marca la cua `SENT` i desa la resposta de la línia sobre el registre del `FISCAL_ORDER` corresponent, també quan `ResponseParser` indica `ACCEPTED_WITH_ERRORS` o `REJECTED`. Aquesta situació requereix mostrar codi i detall de resposta i obrir revisió de l'operació, **no** tractar-la com un timeout que s'hagi de reenviar indefinidament ni modificar directament el document A/R inicial. El cas fiscal següent es classifica per UC-74/30/31 segons causa i evidència, no per la sola etiqueta `REJECTED`.
 
-**Resposta remota incerta.** El transport opera **fora** de la transacció que reclama el job; si AEAT ha rebut l'XML però el procés cau abans de confirmar `complete()`, el registre local pot continuar `PROCESSING` i després `RETRY`. Recuperar el lock no acredita que el servidor remot **no** hagi registrat la petició. La política objectiu és preservar payload/XML, identitat de registre i evidència de cada intent, investigar el resultat extern i autoritzar un eventual reenviament del **mateix registre**, mai emetre una altra factura amb un nou número per «recuperar» la remissió.
+**Resposta remota incerta.** El transport opera **fora** de la transacció que reclama el job; si AEAT ha rebut l'XML però el procés cau abans de confirmar `complete()`, el registre local pot continuar `PROCESSING`. La revalidació 03/10 elimina el reenviament cec: un `PROCESSING` caducat passa a `REVIEW`, sense `NEXT_RETRY_AT`, amb incidència `AEAT_STALE_PROCESSING`. Recuperar el lock no acredita que el servidor remot **no** hagi registrat la petició; qualsevol reenviament posterior exigeix conciliació explícita.
 
 **Preproducció i producció.** `SoapTransport` consultat restringeix el constructor a l'endpoint de proves. El panell pot mostrar mètriques locals i estats de transport, però ni un preflight local favorable ni un resultat amb transport simulat documenten recepció real ni disponibilitat productiva. Diferenciar clarament evidència de test, de resposta externa i de codi pendent d'adaptar abans de desplegar.
 
@@ -218,7 +218,7 @@ T-->>P: Acceptació externa [pot haver arribat]
 Note over P,DB: El procés pot fallar abans de guardar la resposta en BD
 P-xQ: Pèrdua de confirmació / caiguda
 Q->>DB: Job continua PROCESSING fins recuperació
-Q->>DB: recoverStaleLocks() → RETRY
+Q->>DB: recoverStaleLocks() → REVIEW\n+ CLAIM_TOKEN=NULL + NEXT_RETRY_AT=NULL
 Note over Q,T: Reenviament sense conciliació podria duplicar un intent extern, criteri de recuperació pendent de validar
 ```
 
@@ -432,3 +432,19 @@ Vegeu [UC-009 · Activitats ACTUAL/FINAL](./uc-009-activitats-actual-final.md). 
 - Paquet UML separat afegit: [classes ACTUAL/FINAL](./uc-009-classes-actual-final.md), [seqüències ACTUAL/FINAL](./uc-009-sequencies-actual-final.md) i [auditoria/traçabilitat](./uc-009-auditoria-tracabilitat-2026-10-03.md).
 - Evidència CI vigent de `main`: 917 passades / 6 fallades globals; els tests UC-009/AEAT del log passen. Les sis fallades corresponen a PACK/Redsys i impedeixen afirmar que la suite global actual és verda.
 - Continua pendent: desplegament real del panell/menú, rols/secrets d'entorn, certificat i enviament real AEAT de preproducció.
+
+
+### 8.1. Correcció crítica 2026-10-03 — stale worker sense reenviament cec
+
+La versió anterior de `FiscalQueueRepository::recoverStaleLocks()` convertia un `PROCESSING` antic en `RETRY`. Això era insuficient: el procés podia haver enviat el SOAP i morir abans del commit local.
+
+A la branca d'auditoria:
+- `PROCESSING` caducat → `REVIEW`, mai `RETRY`;
+- `CLAIM_TOKEN` i `LOCKED_AT` s'alliberen;
+- `NEXT_RETRY_AT=NULL`;
+- s'obre incidència idempotent `AEAT_STALE_PROCESSING`;
+- el worker retorna `HEAD_REQUIRES_REVIEW`;
+- el transport **no** es torna a invocar automàticament;
+- el panell exposa `LAST_ERROR` per facilitar la revisió.
+
+Aquesta correcció tanca el risc AE-09-04 de segon SOAP automàtic després d'una caiguda del worker.
