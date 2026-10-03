@@ -14,6 +14,8 @@ participant P as pagina_bescanvia.php
 participant JS as mostrarBescanvia.min.js
 participant V as codiRegalValid.php
 participant C as buscarCursRegalat.php
+participant H as buscarSiHaRealitzatElCurs.php
+participant M as enviamentPubli.php
 participant D as inscripcioDuplicada.php
 participant W as enviarInscripcioBescanvia.php
 
@@ -27,6 +29,11 @@ JS->>C: POST codiRegal
 C->>C: revalidar bescanviabilitat
 C-->>JS: curs/modalitat
 B->>JS: dades + edició
+JS->>M: POST correu
+M-->>JS: ja subscrit / demanar consentiment
+JS->>H: POST DNI + curs
+H-->>JS: curs previ / disponible
+Note over JS,H: si hi ha curs derivat, el lookup es pot repetir també per POST
 JS->>D: POST DNI + curs/edició
 D-->>JS: duplicada / disponible
 JS->>W: POST dades personals + codi
@@ -34,7 +41,7 @@ W->>W: lock regal + FACT_REL > 0
 W->>W: recuperar o crear una sola ID_INSC
 ```
 
-Cap d'aquestes quatre peticions sensibles posa `codiRegal` ni DNI a la query string.
+Cap petició UC-018 que transporta `codiRegal`, DNI o correu els posa a la query string.
 
 ## 3. ACTUAL — SIF i consum nominal
 
@@ -56,7 +63,9 @@ W->>C: enrollment_id + gift_code
 C->>API: POST/HMAC
 API->>O: execute
 O->>T: participant + snapshot autoritatiu
+T->>DB: validar CCURS exacte o categoria d'hores contra curs.HORES
 O->>S: claim holder + stage + RESERVE
+S->>DB: revalidar CCURS exacte o categoria d'hores
 O->>R: redeem
 R->>DB: COMPENSATION_ALLOCATION
 R->>DB: CONSUME
@@ -134,11 +143,11 @@ end
 
 ## 7. FINAL
 
-Per al flux base, FINAL = ACTUAL de la branca un cop el CI nou sigui verd. Resten fora:
+Per al flux base, FINAL = ACTUAL de la branca un cop el CI nou sigui verd. El FINAL admet tant regal d'un curs concret com regal genèric de N hores, sempre que l'edició escollida tingui exactament `curs.HORES=N`. Resten fora:
 
 - [ENV] execució real de preproducció/SMTP;
 - [POLICY] diferències de valor, romanent, cobrament complementari, devolució o consum parcial.
 
 ## 8. Verificació
 
-El nucli/SIF conserva el tall verificat del PR #115: 858/0, 49 PASS GIFT/UC-018. La prova boundary ampliada del 03/10 és la que ha d'acreditar la nova frontera pública.
+El nucli/SIF conserva el tall verificat del PR #115: 858/0, 49 PASS GIFT/UC-018. El 03/10 s'han ampliat la prova boundary pública i les proves de `GiftRedemptionTrustedContextResolver`/`GiftEnrollmentStager` per a `CCURS` numèric; el CI del nou head ha d'acreditar aquestes regressions.
