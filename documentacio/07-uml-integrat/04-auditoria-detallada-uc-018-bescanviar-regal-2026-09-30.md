@@ -1,5 +1,7 @@
 # Auditoria detallada UC-018 · Bescanviar regal · 2026-09-30
 
+> **REVALIDACIÓ 03/10/2026:** les seccions 3–17 conserven el rastre històric de com va evolucionar l'auditoria i contenen afirmacions que van quedar superades pels PR #115/#117. L'estat vigent és el de la secció 20 i de `11-revalidacio-auditoria-uc-018-2026-10-03.md`. No s'han d'interpretar els antics «no implementat/NO-GO» com a estat actual.
+
 ## 1. Abast
 
 Auditoria de la fitxa funcional, codi PHP/JS real, persistència, UML, proves, traçabilitat i mancances del cas **UC-018 · Bescanviar regal** sobre `main`.
@@ -8,7 +10,7 @@ Auditoria de la fitxa funcional, codi PHP/JS real, persistència, UML, proves, t
 
 | Capa | Estat actual | Evidència / lectura |
 | --- | --- | --- |
-| Fitxa funcional | AUDIT_CLOSED | `documentacio/06-fitxes-funcionals/uc-018.md` v1.3 |
+| Fitxa funcional | AUDIT_CLOSED | `documentacio/06-fitxes-funcionals/uc-018.md` v1.4 |
 | UML integrat | RECONCILIAT | classes, seqüències i activitats ACTUAL/FINAL actualitzades |
 | Repository GIFT | IMPLEMENTAT | lock, claim, reserve, consume, release i events |
 | Compra/origen UC-017 | IMPLEMENTAT | factura + `CHARGE` original + emissió dret GIFT |
@@ -23,7 +25,7 @@ Auditoria de la fitxa funcional, codi PHP/JS real, persistència, UML, proves, t
 | E2E intern | IMPLEMENTAT | UC-017 → GIFT → inscripció → consum → replay |
 | Preflight/preproducció | IMPLEMENTAT EN CODI | execució real condicionada a entorn/dades controlades |
 
-Les seccions històriques posteriors documenten l'evolució de l'auditoria; aquest veredicte és el tall autoritatiu actual.
+Les seccions 3–17 documenten l'evolució històrica. El tall autoritatiu més recent és la **revalidació 03/10** de la secció 20: nucli/SIF verificat; patch navegador→legacy aplicat i pendent de CI; preproducció real pendent d'entorn.
 ## 3. Fitxa funcional — troballes
 
 La fitxa original defineix correctament que el bescanvi:
@@ -331,3 +333,47 @@ L'auditoria tècnica queda **TANCADA**: el CI final del PR #115 ha finalitzat am
 ## 19. Referència de tancament final
 
 L'evidència consolidada de tancament, runs de CI i frontera d'entorn queda registrada a `10-tancament-auditoria-uc-018-2026-10-02.md`.
+
+
+## 20. Revalidació exhaustiva — 2026-10-03
+
+### 20.1. Base contrastada
+
+S'ha tornat a auditar contra `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`. Els commits posteriors al tancament documental del PR #117 no modifiquen executables UC-018; el nucli del PR #115 continua sent la base funcional.
+
+### 20.2. Divergències trobades
+
+1. `uc-018-bescanviar-regal.md` continuava descrivint serveis ja existents com a «DISSENY/no implementats».
+2. fitxa/activitats mantenien un replay antic amb retorn abans del SIF;
+3. el JS públic enviava codi regal, DNI i resta de PII en query string;
+4. els endpoints públics sensibles acceptaven `$_GET`;
+5. la validació pública enumerava si el codi era inexistent, pendent o ja utilitzat;
+6. el lookup de curs es podia invocar directament sense revalidar;
+7. el writer no imposava explícitament `FACT_REL > 0` abans de materialitzar legacy;
+8. `pagina_bescanvia.php` carregava `mostrarBescanvia_prova.min.js`, absent del repositori;
+9. les proves boundary només protegien la frontera interna servidor→SIF.
+
+### 20.3. Correccions aplicades
+
+- quatre crides sensibles navegador→legacy passades a POST body;
+- quatre endpoints sensibles POST-only i sense `$_GET`;
+- resposta pública de codi no bescanviable neutralitzada;
+- lookup de curs amb revalidació server-side;
+- writer amb bloqueig de regal no pagat;
+- pàgina cablejada al bundle rastrejable `mostrarBescanvia.min.js?ver=6.0`;
+- `GiftRedemptionWebClientBoundaryTest` ampliat;
+- fitxa funcional, UML integrat, classes, seqüències, activitats i matriu de proves reconciliats;
+- inventari PHP/JS i document de revalidació creats.
+
+### 20.4. Estat vigent
+
+```text
+DOCUMENTAT: re-reconciliat 03/10
+IMPLEMENTAT: flux base sí; hardening públic patchat
+VERIFICAT: nucli/SIF sí (858/0 del 02/10)
+VERIFICACIÓ NOVA: CI del patch públic pendent
+ENVIRONMENT: preproducció/SMTP pendent
+POLICY: diferències de valor fail-closed
+```
+
+La referència autoritativa d'aquesta passada és `11-revalidacio-auditoria-uc-018-2026-10-03.md`.
