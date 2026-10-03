@@ -39,6 +39,7 @@ final class UsocCourseChangeExecutionServiceTest
             $db, 891, 991, $requestId, $actor, ['ADMIN'], $target
         );
         $this->bind($db, $requestId, 891, 991, 892, 1991, '95.00', 'a');
+        $this->confirmLegacyCheckpoint($db, $requestId);
 
         $service = $this->executor($db, $cases);
         $input = [
@@ -107,6 +108,7 @@ final class UsocCourseChangeExecutionServiceTest
             $db, 891, 991, $requestId, 'secretaria-test', ['ADMIN'], $target
         );
         $this->bind($db, $requestId, 891, 991, 893, 1992, '60.00', 'b');
+        $this->confirmLegacyCheckpoint($db, $requestId);
 
         $result = $this->executor($db, $cases)->execute(
             $db,
@@ -133,6 +135,51 @@ final class UsocCourseChangeExecutionServiceTest
         )->fetchColumn());
     }
 
+    public function testRejectsExecutionBeforeDurableLegacyHandoff(): void
+    {
+        [$db, $cases] = $this->sourceCase();
+        $requestId = 'uc013-course-change-891-before-legacy';
+        $target = $this->target('100.00', '75.00', '0.00');
+
+        $this->preparation($cases)->prepare(
+            $db, 891, 991, $requestId, 'secretaria-test', ['ADMIN'], $target
+        );
+        $this->bind($db, $requestId, 891, 991, 896, 1995, '75.00', 'd');
+
+        $service = $this->executor($db, $cases);
+        Assert::throws(
+            SifException::class,
+            static function () use ($service, $db, $requestId): void {
+                $service->execute(
+                    $db,
+                    891,
+                    991,
+                    $requestId,
+                    'secretaria-test',
+                    ['ADMIN'],
+                    896,
+                    [
+                        'effective_at' => '2026-10-02 18:15:00',
+                        'entity_billing' => [
+                            'name' => 'USOC Test',
+                            'nif' => 'G12345678',
+                            'address' => 'Carrer Test 1',
+                            'postal_code' => '08001',
+                            'city' => 'Barcelona',
+                        ],
+                    ]
+                );
+            },
+            409
+        );
+
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura_rectificacio')->fetchColumn());
+        Assert::same('REQUESTED', (string) $db->query(
+            'SELECT STATE FROM usoc_lifecycle_execution WHERE REQUEST_ID = ' . $db->quote($requestId)
+        )->fetchColumn());
+    }
+
     public function testRejectsDifferentTargetOnCompletedRetry(): void
     {
         [$db, $cases] = $this->sourceCase();
@@ -142,6 +189,7 @@ final class UsocCourseChangeExecutionServiceTest
             $db, 891, 991, $requestId, 'secretaria-test', ['ADMIN'], $target
         );
         $this->bind($db, $requestId, 891, 991, 894, 1993, '75.00', 'c');
+        $this->confirmLegacyCheckpoint($db, $requestId);
         $service = $this->executor($db, $cases);
         $input = [
             'effective_at' => '2026-10-02 18:20:00',
@@ -180,6 +228,45 @@ final class UsocCourseChangeExecutionServiceTest
             'SIF-USOC-CC:' . str_repeat($markerChar, 32),
             $studentTotal
         );
+    }
+
+    private function confirmLegacyCheckpoint(
+        \PDO $db,
+        string $requestId
+    ): void {
+        $repository = new UsocLifecycleExecutionRepository(new UuidGenerator());
+        $execution = $repository->findByRequestId($db, $requestId);
+        if ($execution === null) {
+            Assert::fail('Course change checkpoint not found before legacy confirmation');
+        }
+
+        $result = json_decode((string) ($execution['RESULT_JSON'] ?? ''), true);
+        if (!is_array($result)) {
+            Assert::fail('Bound course change destination is not valid JSON');
+        }
+
+        $result['phase'] = 'LEGACY_COMPLETED';
+        $result['source_closed'] = true;
+        $result['legacy_handoff_completed'] = true;
+        $result['legacy_source_status'] = 'C';
+        $result['legacy_source_closed_at'] = '2026-10-02 17:55:00';
+        $result['effects_applied'] = false;
+
+        $db->beginTransaction();
+        try {
+            $repository->advanceRequestedResult(
+                $db,
+                $requestId,
+                'DESTINATION_RESERVED',
+                $result
+            );
+            $db->commit();
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $exception;
+        }
     }
 
     private function sourceCase(): array
