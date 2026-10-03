@@ -1,6 +1,6 @@
 # UC-011 · Diagrames d'activitat ACTUAL / FINAL
 
-**Objectiu:** separar activitats per punt d'entrada real. UC-011 no té una pàgina JS/intranet pròpia al tall 03/10/2026; les dues superfícies executables són scripts CLI.
+**Objectiu:** separar activitats per punt d'entrada real. UC-011 no té una pàgina JS/intranet que executi la migració al tall 03/10/2026; les dues superfícies d'importació són scripts CLI. La pàgina llegada `alumnes-factura` es modela separadament com a **origen/upstream** perquè pot consultar, editar, anul·lar i regenerar la factura abans del cut-over.
 
 ## 1. preview-historical-invoice-migration.php · ACTUAL
 
@@ -43,7 +43,9 @@ if (Components explícits coincideixen?) then (no)
   :Error 422;
   stop
 endif
-:Exigir issue_date original;
+:Exigir i validar issue_date original;
+:Validar billing/totals/línies/relacions;
+:Normalitzar emissor i camps fiscals;
 :Forçar source_channel=MIGRACIO;
 :Forçar invoice_status=HISTORICAL;
 :Forçar aeat_status=NO_VERIFACTU;
@@ -98,7 +100,8 @@ start
 :SELECT per IDEMPOTENCY_KEY FOR UPDATE;
 if (Clau existent?) then (sí)
   :Llegir IDEMPOTENCY_PAYLOAD_HASH;
-  :Calcular hash canònic del payload actual;
+  :Projectar dades materialment persistides;
+  :Calcular hash canònic material;
   if (Hash coincideix?) then (sí)
     :Reutilitzar UUID existent;
     :COMMIT sense nova factura;
@@ -107,9 +110,10 @@ if (Clau existent?) then (sí)
     :ROLLBACK;
   endif
 else (no)
-  :Calcular hash canònic;
-  :INSERT factura + hash;
-  :INSERT línies;
+  :Projectar dades materialment persistides;
+  :Calcular hash canònic material;
+  :INSERT factura + hash + emissor/descripció/fiscalitat;
+  :INSERT línies + fiscalitat de línia;
   :INSERT relacions amb visible=0 si absent;
   if (document metadata?) then (sí)
     :INSERT metadata;
@@ -126,23 +130,62 @@ stop
 @enduml
 ~~~
 
-## 5. Pàgina/intranet/JS · estat
+## 5. Pàgina/intranet/JS llegada · ACTUAL upstream
 
 ~~~plantuml
 @startuml
-title UC-011 | UI web/intranet | ESTAT AUDITAT
+title UC-011 | alumnes-factura | ORIGEN ACTUAL
 start
-:Buscar pàgina/endpoint/JS específic UC-011;
-if (Localitzat?) then (no)
-  :Cap superfície web específica acreditada;
-  :No dibuixar una UI fictícia;
+:Usuari obre alumnes-factura.php;
+:alumnes-factura.js construeix criteris;
+:Intentar consulta SIF via sifFactures.php;
+if (SIF retorna factura?) then (sí)
+  :Mostrar resultat SIF;
+else (no/fallback)
+  :Consultar factura llegada;
 endif
-:Canal actual = CLI de no-producció;
+
+if (Usuari vol editar/anul·lar/descarregar?) then (sí)
+  :Endpoint valida sessió/origen/permisos;
+  :Executar SifLegacyInvoiceMutationGuard;
+  if (Factura ja governada pel SIF i flags actius?) then (sí)
+    :Bloquejar amb 409;
+    stop
+  else (no)
+    if (Descàrrega?) then (sí)
+      :Intranet->generaFactura(id,true);
+      :Crear PDF temporal des de dades vives;
+      note right
+        Representació regenerada.
+        No prova de bytes originals.
+      end note
+    else (no)
+      :Modificar/anul·lar llegat;
+    endif
+  endif
+endif
 stop
 @enduml
 ~~~
 
-## 6. FINAL productiu requerit però pendent
+Aquest flux explica per què el cut-over forma part de la migració: si el guard no està actiu, la font pot continuar canviant després d'haver preparat el payload o fins i tot després de migrar.
+
+## 6. Pàgina d'execució UC-011 · estat
+
+~~~plantuml
+@startuml
+title UC-011 | UI d'importació | ESTAT AUDITAT
+start
+:Buscar pàgina/endpoint/JS que executi UC-011;
+if (Localitzat?) then (no)
+  :Cap superfície HTTP/JS d'importació acreditada;
+  :Canal actual = CLI de no-producció;
+endif
+stop
+@enduml
+~~~
+
+## 7. FINAL productiu requerit però pendent
 
 ~~~plantuml
 @startuml
@@ -157,6 +200,8 @@ if (Conflictes?) then (sí)
   stop
 endif
 :Preview determinista;
+:Congelar o protegir origen llegat;
+:Provar SIF_BLOCK_LEGACY_INVOICE_MUTATIONS + UC-007;
 :Autorització explícita del lot;
 :Import transaccional;
 :Registrar operational_event/audit;
@@ -172,6 +217,6 @@ stop
 @enduml
 ~~~
 
-## 7. Conclusió
+## 8. Conclusió
 
-La documentació anterior barrejava pantalla/gateway genèrics amb un cas que en realitat només té CLI. Aquesta separació evita atribuir al UC-011 autorització web, JavaScript, auditoria operativa o custòdia documental que encara no existeixen.
+La documentació anterior barrejava pantalla/gateway genèrics amb un cas que importa per CLI. L'auditoria afegeix la UI llegada només en el paper correcte: **font mutable/upstream**, no executor. Això evita atribuir a UC-011 una UI d'importació que no existeix i, alhora, documenta el risc real de modificar/regenerar la factura origen si el guard de cut-over no està actiu.
