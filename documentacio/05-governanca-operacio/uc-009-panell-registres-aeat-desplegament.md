@@ -41,6 +41,15 @@ Els rols reals s'han d'alinear amb els valors que ja utilitza la taula `apartats
 
 ## 3. Alta de la pàgina al menú d'intranet
 
+Abans de qualsevol INSERT, executar en preproducció el preflight read-only:
+
+```bash
+php codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php
+```
+
+El resultat ha de ser `ALREADY_PRESENT` amb un únic registre, o bé `CONFIRM_PARENT_ROLES_ORDER_BEFORE_INSERT` amb candidats revisables. `DUPLICATE_TARGET_URL` bloqueja l'alta fins resoldre el duplicat.
+
+
 El repositori no conté una migració executable de la BD de menú. No s'ha de hardcodejar `ID_NIVELL_PARE` perquè varia segons l'entorn.
 
 Abans d'executar res, identificar el registre pare de Facturació:
@@ -120,7 +129,7 @@ El servidor torna a validar totes aquestes condicions dins d'una transacció.
 Aquest panell no habilita l'enviament AEAT de producció. `SoapTransport` continua limitat a l'endpoint de proves fins a la qualificació corresponent.
 
 
-## 8. Evidència executada el 2026-09-30
+## 8. Evidència històrica executada el 2026-09-30
 
 Estat verificat a la PR #23:
 
@@ -169,8 +178,23 @@ Aquestes accions requereixen accés real a l'entorn i **no s'han de donar per fe
 
 ## 11. Criteri actual de tancament
 
-**Codi i proves automàtiques: VERIFICAT.**
+**Codi UC-009 i proves AEAT específiques: VERIFICATS al tall actual disponible.**
+
+**Suite global de `main`: NO VERDA al run 2026-10-02 (917 passades / 6 fallades alienes de PACK/Redsys).** L'evidència 558/0 anterior continua sent històrica del seu commit, no un estat global vigent.
 
 **Desplegament i operació real: PENDENT D'ENTORN.**
 
 UC-009 només podrà passar a tancament operatiu quan constin evidències del desplegament de preproducció, permisos, panell real, reconciliació controlada i prova AEAT corresponent.
+
+
+## 12. Revalidació 2026-10-03
+
+Canvis del paquet d'auditoria:
+
+- el workflow `SIF PHP MySQL tests` inclou ara els fitxers intranet UC-009 als triggers;
+- s'afegeix lint PHP/JS específic del panell;
+- s'afegeix `AeatIntranetUiContractTest` per validar sessió/CSRF/HMAC, separació d'estats i absència de secrets al browser;
+- s'afegeix el preflight read-only del menú;
+- la validació d'`attempt_uuid` de reconciliació exigeix estructura UUID 8-4-4-4-12.
+
+Aquests canvis milloren la garantia de regressió del codi versionat, però **no substitueixen** la prova real de desplegament, xarxa, certificat i AEAT de preproducció.
