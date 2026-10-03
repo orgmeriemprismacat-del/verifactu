@@ -17,6 +17,7 @@ use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
 use Prisma\Sif\Service\ManualPaymentService;
 use Prisma\Sif\Service\ManualTransferCommandService;
+use Prisma\Sif\Service\ManualTransferLegacyProjectionService;
 use Prisma\Sif\Service\PaymentActionGateway;
 use Prisma\Sif\Service\PaymentPayloadValidator;
 use Prisma\Sif\Service\PaymentService;
@@ -67,10 +68,11 @@ try {
         $paymentService
     );
 
+    $paymentEvents = new PaymentActionEventRepository(new UuidGenerator());
     $auditGateway = new PaymentActionGateway(
         $db,
         new TransactionRunner($db),
-        new PaymentActionEventRepository(new UuidGenerator())
+        $paymentEvents
     );
 
     $service = new ManualTransferCommandService(
@@ -96,13 +98,16 @@ try {
 
     try {
         $legacyDb = ConnectionFactory::makeLegacy($config);
-        $sync = (new GeneratedInvoiceLegacyPaymentSyncService())->sync(
+        $sync = (new ManualTransferLegacyProjectionService(
             $db,
+            $paymentEvents,
+            new GeneratedInvoiceLegacyPaymentSyncService(),
+            (string) ($config['env'] ?? 'development')
+        ))->project(
             $legacyDb,
-            (string) ($result['uuid_factura'] ?? ''),
-            (string) ($result['num_visible'] ?? ''),
-            trim((string) ($payload['movement_date'] ?? '')),
-            'TRANSFERENCIA'
+            $actor,
+            $payload,
+            $result
         );
 
         $result['legacy_sync'] = [
