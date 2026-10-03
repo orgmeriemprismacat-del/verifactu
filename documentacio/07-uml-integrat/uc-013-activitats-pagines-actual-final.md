@@ -385,3 +385,33 @@ flowchart TD
 4. Validar en preproducció la configuració HMAC, rols i DB legacy amb `preflight-usoc-intranet.php`.
 5. Evidència CI conservada a `documentacio/09-proves-qa/uc-013-evidencia-ci-2026-09-30.md`; run `36660979100` **SUCCESS, 646 passed / 0 failed**, incloent E2E de servei fins a `FINANCING_RECONCILED`. Resta validació navegador/desplegament/preproducció.
 6. Tractament definit per alumne=0/curs gratuït.
+
+
+## Canvi de curs USOC · precisió d'estat
+
+**`UC13-GAP-COURSE-EXEC`**: el flux actual és deliberadament fail-closed.
+
+`sifCanviCursPreview.php` consulta `LegacyUsocLifecycleGuard` abans de permetre el preview/confirmació genèric. Quan existeix un expedient USOC amb dues parts, el canvi legacy queda bloquejat. `UsocLifecyclePlanService` pot descriure accions separades per alumne i entitat, però encara no existeix l'executor equivalent al de baixa que rectifiqui/reemeti les factures de curs destí i resolgui diners per pagador.
+
+Això és **protecció implementada**, no un canvi de curs USOC complet.
+
+
+**Contracte FINAL del canvi de curs:** [UC-013 canvi de curs USOC](uc-013-canvi-curs-usoc-contracte-final.md).
+
+
+## Preview USOC server-side · IMPLEMENTAT
+
+Per al canvi de curs amb `TIPUS_DESC=4 / VALID_DESC=1`:
+
+1. el JS genèric de canvi de curs cedeix el control al mòdul USOC;
+2. `sifUsocCourseChangePreview.php` exigeix POST + sessió + same-origin + permís + CSRF;
+3. `LegacyUsocCourseChangePricingResolver` resol els imports al servidor:
+   - preu base destí;
+   - preu USOC destí;
+   - despeses només si `change_number=4`, basades en hores origen;
+4. `SifInternalUsocClient::courseChangePreview()` envia el snapshot per HMAC;
+5. `UsocCourseChangePreviewService` crea target split + fund plan;
+6. la UI mostra alumne/entitat, compensable, pendent i excés;
+7. **no es desencadena el handler legacy de canvi de curs**.
+
+Aquesta activitat és preview executable i fail-closed; encara no és l'executor fiscal/econòmic.

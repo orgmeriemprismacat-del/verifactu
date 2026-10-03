@@ -20,6 +20,7 @@ class Intranet
 	private $googleClient;
 	private $diesOberturaAules1;
 	private $diesOberturaAules2;
+	private $darrerIdCanviCurs;
 
 	/*********************************** FUNCIONS CONSTRUCTORS ***********************************/
 
@@ -36,6 +37,7 @@ class Intranet
 		];
 		$this->diesOberturaAules1 = 4; //Dies obertura d'aula si el curs comença un dilluns o un dimarts
 		$this->diesOberturaAules2 = 2; //Dies obertura d'aula si el curs no comença un dilluns o un dimarts
+		$this->darrerIdCanviCurs = null;
 		$this->consultesBD_Intra = [
 			"buscarListParam" 	=> "SELECT TIPUS, VALOR FROM params WHERE PARAM = ?
 											AND DATAI <= CURRENT_TIMESTAMP AND
@@ -8519,7 +8521,8 @@ class Intranet
    */
 	public function realitzarCanviCurs_modalCanviCurs($idInsc, $anyC, $mesC,
 	$cursC, $numeroCanvi, $apagarC, $pagatC, $pendentC, $despesesC, $obsCanvi,
-	$motiuCanvi, $noEnviarCoreu, $tipusDesc, $validDesc) {
+	$motiuCanvi, $noEnviarCoreu, $tipusDesc, $validDesc, $reservedDestination = null) {
+		$this->darrerIdCanviCurs = null;
 		$conWeb = new ConnexioWeb();
 		$conWeb->connectarBD();
 		$conIntra = new ConnexioIntranet();
@@ -8642,9 +8645,24 @@ class Intranet
 			$motiuBaixa .= " // ";
 		$textMotiuBaixaBD = $motiuBaixa.$motiuCanvi." (Passa a ".$anyC.$cursC.$mesC."A) ".$textCanviBD;
 
-		/* ######################## Generem el nou IDPAG ######################## */
+		/* ######################## Generem o reutilitzem el nou IDPAG ######################## */
 		$idPagLockReserved = false;
-		if ( $idpag == 0 ) {
+		$reservedIdInsc = null;
+		$reservedMarker = null;
+		if ( is_array($reservedDestination) ) {
+			$reservedIdInsc = (int) ($reservedDestination['destination_id_insc'] ?? 0);
+			$idPagBD = (int) ($reservedDestination['destination_idpag'] ?? 0);
+			$reservedMarker = trim((string) ($reservedDestination['reservation_marker'] ?? ''));
+			if (
+				$reservedIdInsc <= 0
+				|| $idPagBD <= 0
+				|| ($idpag > 0 && $idPagBD == $idpag)
+				|| preg_match('/^SIF-USOC-CC:[a-f0-9]{32}$/D', $reservedMarker) !== 1
+			) {
+				throw new RuntimeException('Reserva destí USOC no vàlida.', 409);
+			}
+		}
+		else if ( $idpag == 0 ) {
 			$idPagBD = $conWeb->reserveIdPag();
 			$idPagLockReserved = true;
 		}
@@ -8652,7 +8670,7 @@ class Intranet
 			$idPagBD = $idpag;
 		}
 
-		echo "<strong style='color: #e91e63'>###### Generem el nou IDPAG ######</strong>".$idPagBD."<br />";
+		echo "<strong style='color: #e91e63'>###### Generem/reutilitzem el nou IDPAG ######</strong>".$idPagBD."<br />";
 
 		//consulta per buscar la key d'encriptacio de prisma
 		if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["buscarParam"] ) ) {
@@ -8762,16 +8780,76 @@ class Intranet
 		".$pagatC."<br>".$dataPag."<br>".$factRel."<br>".$inscritNouReg."<br>".$textObsBD."<br>
 		".$comentaris."<br>".$obsPag."<br>".$faccionatBD."<br>".$usuari."<br>".$inscMailing."<br>
 		".$conegut."<br>".$idPagBD."<br />".$tipusDesc."<br>".$validDesc."<br />";
-		/* ######## Inserim el nou registre a la taula d'inscrpcions ######## */
-		if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["insertRegInscCanvi"] ) ) {
+		/* ######## Inserim o completem el registre destí ######## */
+		$apagarC2 = $apagarC + $despesesC;
+		if ( is_array($reservedDestination) ) {
+			$idInserit = $reservedIdInsc;
+			$updateReservedSql =
+				"UPDATE inscripcions
+				 SET OBSERVACIONS = ?,
+				     FRACCIONAT = ?,
+				     A_PAGAR = ?,
+				     PAGAMENT = 0,
+				     `DATA PAG` = NULL,
+				     FACTURA_RELACIONADA = NULL
+				 WHERE ID = ?
+				   AND IDPAG = ?
+				   AND pag_observacions = ?
+				   AND TIPUS_DESC = 4
+				   AND VALID_DESC = 1
+				   AND `INSC CURS` = '0'";
+			if ( $stmt=$conWeb->prepare($updateReservedSql) ) {
+				$stmt->bind_param(
+					"sidiis",
+					$textObsBD,
+					$faccionatBD,
+					$apagarC2,
+					$idInserit,
+					$idPagBD,
+					$reservedMarker
+				);
+				$stmt->execute();
+				$conWeb->closeStmt();
+			}
+			else {
+				throw new RuntimeException('No s’ha pogut completar la reserva destí USOC.', 409);
+			}
+
+			$verifyReservedSql =
+				"SELECT ID
+				 FROM inscripcions
+				 WHERE ID = ?
+				   AND IDPAG = ?
+				   AND pag_observacions = ?
+				   AND TIPUS_DESC = 4
+				   AND VALID_DESC = 1
+				   AND `INSC CURS` = '0'
+				 LIMIT 2";
+			if ( $stmt=$conWeb->prepare($verifyReservedSql) ) {
+				$stmt->bind_param("iis", $idInserit, $idPagBD, $reservedMarker);
+				$stmt->execute();
+				$stmt->store_result();
+				$validReservedRow = $stmt->num_rows === 1;
+				$conWeb->closeStmt();
+				if ( !$validReservedRow ) {
+					throw new RuntimeException('La reserva destí USOC ha canviat abans del handoff.', 409);
+				}
+			}
+			else {
+				throw new RuntimeException('No s’ha pogut verificar la reserva destí USOC.', 409);
+			}
+
+			$this->darrerIdCanviCurs = (int) $idInserit;
+		}
+		else if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["insertRegInscCanvi"] ) ) {
 			$stmt->bind_param("dssssssssssssddsdsdsssssddssddd", $anyC, $mesC, $cursC,
 			$dataInsc, $nom, $cognoms, $correu, $dni, $adreca, $cp, $poblacio,
 			$perfil, $titol, $telefon, $apagarC2, $comHaPagat, $pagatC, $dataPag,
 			$factRel, $inscritNouReg, $tipusInsc, $textObsBD, $comentaris, $obsPag, $faccionatBD,
 			$usuari, $inscMailing, $conegut, $idPagBD, $tipusDesc, $validDesc);
-			$apagarC2 = $apagarC + $despesesC;
 			$stmt->execute();
 			$idInserit = $conWeb->lastInsertId();
+			$this->darrerIdCanviCurs = (int) $idInserit;
 			$conWeb->closeStmt();
 			if ( $idPagLockReserved ) {
 				$conWeb->releaseIdPag();
@@ -9077,6 +9155,14 @@ class Intranet
 		$conWeb->desconectarBD();
 	}
 
+	/**
+	 * @brief Retorna l'ID_INSC creat per l'últim canvi de curs executat en aquesta sessió.
+	 * @return int|null ID de la nova inscripció, o null si encara no s'ha creat.
+	 */
+	public function getDarrerIdCanviCurs() {
+		return $this->darrerIdCanviCurs;
+	}
+
 	/* ---------------------------- Donar de baixa ----------------------------- */
 
 	/**
@@ -9107,6 +9193,7 @@ class Intranet
    * @brief Mostra el contingut de donar de baixa d'una inscripció em el modal d'inscripcio
    * @return Mostra el contingut de donar de baixa d'una inscripció em el modal d'inscripcio
    */
+
 	public function modalDonarBaixa_resultatCerca( $idInsc) {
 		$conWeb = new ConnexioWeb();
 		$conWeb->connectarBD();

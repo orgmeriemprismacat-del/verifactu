@@ -98,6 +98,73 @@ final class UsocLifecycleExecutionRepository
             ?? throw new \RuntimeException('USOC lifecycle execution could not be reloaded');
     }
 
+    public function recordRequestedResult(
+        \PDO $db,
+        string $requestId,
+        array $result
+    ): array {
+        $existing = $this->findByRequestId($db, $requestId, true);
+        if ($existing === null) {
+            throw SifException::conflict('USOC lifecycle execution not found');
+        }
+        if ((string) $existing['STATE'] !== 'REQUESTED') {
+            throw SifException::conflict(
+                'USOC lifecycle requested result can only be recorded while REQUESTED'
+            );
+        }
+
+        $resultJson = json_encode(
+            $result,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        );
+
+        $storedJson = trim((string) ($existing['RESULT_JSON'] ?? ''));
+        if ($storedJson !== '') {
+            $stored = json_decode($storedJson, true);
+            if (!is_array($stored) || $this->hash($stored) !== $this->hash($result)) {
+                throw SifException::conflict(
+                    'USOC lifecycle requested result already differs from payload'
+                );
+            }
+
+            return $existing;
+        }
+
+        $stmt = $db->prepare(
+            "UPDATE usoc_lifecycle_execution
+             SET RESULT_JSON = ?
+             WHERE REQUEST_ID = ?
+               AND STATE = 'REQUESTED'
+               AND RESULT_JSON IS NULL"
+        );
+        $stmt->execute([$resultJson, $requestId]);
+
+        if ($stmt->rowCount() !== 1) {
+            $raced = $this->findByRequestId($db, $requestId, true);
+            if (
+                $raced === null
+                || (string) $raced['STATE'] !== 'REQUESTED'
+                || trim((string) ($raced['RESULT_JSON'] ?? '')) === ''
+            ) {
+                throw SifException::conflict(
+                    'USOC lifecycle requested result changed during update'
+                );
+            }
+
+            $stored = json_decode((string) $raced['RESULT_JSON'], true);
+            if (!is_array($stored) || $this->hash($stored) !== $this->hash($result)) {
+                throw SifException::conflict(
+                    'USOC lifecycle requested result already differs from payload'
+                );
+            }
+
+            return $raced;
+        }
+
+        return $this->findByRequestId($db, $requestId, true)
+            ?? throw SifException::conflict('USOC lifecycle execution not found');
+    }
+
     public function complete(
         \PDO $db,
         string $requestId,

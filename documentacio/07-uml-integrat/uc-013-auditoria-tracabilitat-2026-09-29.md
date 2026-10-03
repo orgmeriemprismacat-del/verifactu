@@ -124,6 +124,9 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 
 - `documentacio/06-fitxes-funcionals/uc-013.md`
 - `documentacio/07-uml-integrat/uc-013-orquestrar-doble-facturacio-usoc.md`
+- `documentacio/07-uml-integrat/uc-013-classes-actual-final.md`
+- `documentacio/07-uml-integrat/uc-013-sequencies-actual-final.md`
+- `documentacio/07-uml-integrat/uc-013-canvi-curs-usoc-contracte-final.md`
 - `documentacio/07-uml-integrat/uc-013-activitats-pagines-actual-final.md`
 - `documentacio/07-uml-integrat/uc-013-auditoria-tracabilitat-2026-09-29.md`
 
@@ -146,3 +149,147 @@ El run `36730189405` acaba **SUCCESS, 730 passed / 0 failed** i incorpora:
 - `testRejectsZeroStudentAmountUntilFreeUsocCircuitIsDefined`: 0,00 € per la part alumne es rebutja amb validació fins que existeixi un circuit funcional/fiscal específic.
 
 Per tant, la discrepància 20 %/25 % queda com a decisió de negoci, no com a constant tècnica del SIF.
+
+
+## Canvi de curs USOC · mancança executable revalidada 02/10/2026
+
+**ID:** `UC13-GAP-COURSE-EXEC`
+
+El canvi de curs USOC està protegit, però no és encara executable end-to-end.
+
+### Implementat
+
+- `LegacyUsocLifecycleGuard` detecta `TIPUS_DESC=4`.
+- `lifecycle_guard` i `lifecycle_plan` separen alumne i entitat.
+- `UsocLifecyclePlanService` retorna `RECTIFY_BEFORE_REISSUE` per cada factura existent.
+- `CourseChangePreviewService` i `CourseChangeImpactClassifier` existeixen per al canvi de curs genèric.
+- `realitzarCanviCurs_CanviCurs.php` és POST + CSRF + same-origin + permís.
+- El flux USOC queda fail-closed abans de mutar legacy quan existeix un expedient amb dues parts.
+
+### No implementat
+
+No existeix cap servei equivalent a `UsocCancellationExecutionService` per a `course_change`.
+
+Falten, com a mínim:
+
+1. contracte d'entrada per congelar curs origen i curs destí;
+2. import destí separat per **alumne** i **entitat USOC**;
+3. regla sobre manteniment/recalcul del finançament USOC al curs destí;
+4. rectificació de cada factura origen per separat;
+5. reemissió de cada factura destí amb receptor i import propis;
+6. tractament separat de diferències a cobrar, excessos i refunds per pagador;
+7. checkpoint idempotent `OPERATION=COURSE_CHANGE`;
+8. handoff cap a la mutació legacy només quan l'execució SIF sigui coherent;
+9. reconciliació posterior del nou expedient i relacions origen/destí;
+10. proves de retry, fallada parcial, factura entitat no emesa, entitat parcialment cobrada i imports destí diferents.
+
+### Regla funcional revalidada
+
+La incertesa inicial sobre conservar o recalcular l'aportació ha quedat **resolta pel contrast amb el legacy real**:
+
+- el canvi conserva `TIPUS_DESC=4` i `VALID_DESC=1`;
+- el preu USOC es **recalcula sobre el curs/edició destí**;
+- la part entitat és la diferència entre preu estàndard destí i preu USOC/alumne destí;
+- les despeses de gestió corresponen a l'alumne;
+- si la regla USOC destí és absent/ambigua o la variant és alumne=0, el cas queda `REVIEW_REQUIRED`.
+
+El que continua pendent no és la fórmula d'import, sinó la materialització segura dels efectes fiscals/econòmics i el handoff legacy.
+
+
+## Canvi de curs USOC · REGLA DESTÍ REVALIDADA 02/10/2026
+
+El contrast amb `Intranet.php` i el builder SIF permet tancar part de la incertesa de `UC13-GAP-COURSE-EXEC`:
+
+- **VALID_DESC:** el legacy el conserva al nou registre.
+- **TIPUS_DESC:** el legacy el conserva; USOC continua essent tipus 4.
+- **Preu destí:** es recalcula contra la regla de descompte del nou curs/edició.
+- **Part entitat:** al model SIF existent `entity_amount` és la diferència/descompte aplicada a la línia alumne.
+- **Despeses de gestió:** s'afegeixen a la part alumne.
+- **Fons reals:** no es poden copiar des de `PAGAMENT`; existeix infraestructura `COMPENSATION_ALLOCATION` per atribuir un CHARGE confirmat a la inscripció destí.
+- **Excessos:** poden requerir refund o `credit_balance`, sempre per pagador.
+
+Això va reduir el pendent a resolver + executor + handoff. En aquesta mateixa branca, el resolver d'imports i el pla econòmic pur ja han quedat implementats; resten els efectes, la selecció server-side de la regla destí i el handoff.
+
+
+## Delta implementació 02/10/2026 · resolver d'imports de canvi de curs
+
+`UsocCourseChangeTargetResolver` — **IMPLEMENTAT**:
+
+- rep preu estàndard destí, preu USOC/alumne destí i despeses de gestió;
+- calcula en cèntims, sense floats;
+- `entity = standard - student`;
+- `student_total = student + management_fee`;
+- valida `student <= standard`;
+- determina si cal factura entitat;
+- no emet factures ni mou diners.
+
+Proves afegides a `UsocCourseChangeTargetResolverTest` per split 80/20 + fee, decimals amb coma, import alumne superior/al mateix nivell que el base, imports malformats i `target_student_course_amount=0`. Tant alumne=0 com entitat=0 continuen fail-closed perquè no formen part del contracte USOC executiu actual.
+
+
+## Delta implementació 02/10/2026 · pla econòmic de canvi de curs
+
+`UsocCourseChangeFundPlanService` — **IMPLEMENTAT**:
+
+- consumeix el `lifecycle_plan` separat alumne/entitat;
+- consumeix els totals destí resolts;
+- per cada pagador calcula:
+  - `source_net_paid`;
+  - `target_obligation`;
+  - `compensate_amount = min(net_paid, target)`;
+  - `amount_due`;
+  - `excess_amount`;
+- mai compensa més fons que els realment cobrats;
+- mai compensa més que l'obligació destí;
+- qualsevol excés queda marcat per resolució explícita;
+- no emet factures, no crea refunds i no mou diners.
+
+Proves afegides a `UsocCourseChangeFundPlanServiceTest` per parcial, excés separat per pagador, entitat origen sense factura/cobrament i rebuig d'un pla que no sigui `course_change`.
+
+
+## Delta implementació 02/10/2026 · preview server-side canvi de curs
+
+**IMPLEMENTAT:**
+
+- `LegacyUsocCourseChangePricingResolver` + font MySQL:
+  - exigeix origen `TIPUS_DESC=4 / VALID_DESC=1`;
+  - exigeix un únic curs/jornada destí;
+  - exigeix un únic preu estàndard actiu;
+  - exigeix una única regla USOC tipus 4;
+  - rebutja alumne=0 i entitat=0;
+  - les despeses de gestió només s'apliquen a `change_number=4` i es calculen sobre les **hores de l'edició origen**.
+- `UsocCourseChangePreviewService`:
+  - combina lifecycle plan + target resolver + fund planner;
+  - no crea factures, rectificatives, payments, refunds ni compensacions.
+- API USOC signada:
+  - nova acció `course_change_preview`.
+- Intranet:
+  - `sifUsocCourseChangePreview.php` resol pricing server-side i crida l'API signada;
+  - el JS genèric cedeix els USOC validats;
+  - `alumnes-usoc-lifecycle-preview.js` mostra alumne/entitat, compensable, pendent i excés;
+  - el clic queda bloquejat després del preview: encara no hi ha handoff a legacy.
+
+**PENDENT:** executor d'efectes, reemissió destí, materialització de compensacions/excessos i checkpoint que habiliti el legacy.
+
+## Delta implementació 02/10/2026 · checkpoint COURSE_CHANGE
+
+**IMPLEMENTAT EN BRANCA:**
+
+- migració `2026_10_02_000033_allow_usoc_course_change_execution.sql`:
+  - amplia `chk_usoc_lifecycle_operation`;
+  - admet `CANCELLATION` i `COURSE_CHANGE`.
+- `UsocCourseChangeExecutionPreparationService`:
+  - valida identitat/requestId;
+  - consumeix el preview server-side;
+  - congela target + lifecycle/target/fund plan;
+  - persisteix `usoc_lifecycle_execution.STATE=REQUESTED`;
+  - mateix `requestId` + mateix payload → reutilització;
+  - mateix `requestId` + payload diferent → `CONFLICT`;
+  - no reutilitza estats diferents de `REQUESTED`;
+  - `effects_applied=false`.
+- prova `UsocCourseChangeExecutionPreparationServiceTest`:
+  - checkpoint inicial;
+  - retry idempotent;
+  - conflicte de payload;
+  - cap factura/payment addicional.
+
+**PENDENT:** aplicar efectes i completar el checkpoint. No es declara encara cap `COURSE_CHANGE` com a `COMPLETED`.

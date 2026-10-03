@@ -487,3 +487,13 @@ Vegeu [auditoria i matriu UC-013](uc-013-auditoria-tracabilitat-2026-09-29.md).
 - VERIFICAT: estàticament contra codi.
 - TEST EXECUTAT: sí per nucli USOC i protocol durable; resta navegador/preproducció.
 - P0 estructurals IMPLEMENTATS EN REPOSITORI: identitat inequívoca `ID_INSC`, traça durable de validació `REQUESTED/COMMITTED/REVIEW_REQUIRED`, vinculació factura alumne↔ID_INSC/IDPAG/import, checkpoint financer, emissió entitat protegida, cobrament/reconciliació específica USOC, adaptadors d'intranet i planner lifecycle separat per pagador. Pendents: desplegament/preflight real, navegador/preproducció, execució fiscal específica de canvi/baixa i decisions funcionals.
+
+
+## Paquet UML específic del UC-013
+
+Per separar el model integrat dels diagrames de contrast:
+- [Classes ACTUAL/FINAL](uc-013-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-013-sequencies-actual-final.md)
+- [Activitats ACTUAL/FINAL per pàgina i apartat](uc-013-activitats-pagines-actual-final.md)
+- [Auditoria i traçabilitat](uc-013-auditoria-tracabilitat-2026-09-29.md)
+- [Contracte FINAL · canvi de curs USOC](uc-013-canvi-curs-usoc-contracte-final.md)

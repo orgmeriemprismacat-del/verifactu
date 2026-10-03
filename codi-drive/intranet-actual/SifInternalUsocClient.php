@@ -90,6 +90,91 @@ final class SifInternalUsocClient
         ]);
     }
 
+    public function courseChangePreview(
+        string $actorId,
+        array $roles,
+        int $idInsc,
+        int $idpag,
+        array $target
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'course_change_preview',
+            'id_insc' => $idInsc,
+            'idpag' => $idpag,
+            'target' => $target,
+        ]);
+    }
+
+    public function prepareCourseChange(
+        string $actorId,
+        array $roles,
+        int $idInsc,
+        int $idpag,
+        string $requestId,
+        array $target
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'prepare_course_change',
+            'id_insc' => $idInsc,
+            'idpag' => $idpag,
+            'request_id' => $requestId,
+            'target' => $target,
+        ]);
+    }
+
+    public function bindCourseChangeDestination(
+        string $actorId,
+        array $roles,
+        string $requestId,
+        int $sourceIdInsc,
+        int $sourceIdpag,
+        int $destinationIdInsc,
+        int $destinationIdpag,
+        string $reservationMarker,
+        string $targetStudentTotal
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'bind_course_change_destination',
+            'request_id' => $requestId,
+            'source_id_insc' => $sourceIdInsc,
+            'source_idpag' => $sourceIdpag,
+            'destination_id_insc' => $destinationIdInsc,
+            'destination_idpag' => $destinationIdpag,
+            'reservation_marker' => $reservationMarker,
+            'target_student_total' => $targetStudentTotal,
+        ]);
+    }
+
+    public function courseChangeExecutionStatus(
+        string $actorId,
+        array $roles,
+        string $requestId
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'course_change_execution_status',
+            'request_id' => trim($requestId),
+        ]);
+    }
+
+    public function executeCourseChange(
+        string $actorId,
+        array $roles,
+        string $requestId,
+        int $idInsc,
+        int $idpag,
+        int $targetIdInsc,
+        array $input
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'execute_course_change',
+            'request_id' => trim($requestId),
+            'id_insc' => $idInsc,
+            'idpag' => $idpag,
+            'target_id_insc' => $targetIdInsc,
+            'input' => $input,
+        ]);
+    }
+
     public function beginValidationDecision(
         string $actorId,
         array $roles,
