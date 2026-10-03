@@ -138,7 +138,7 @@ final class InvoiceService
             'method' => $payment['method'] ?? $payload['source_channel'],
             'source_channel' => $payment['source_channel'] ?? $payload['source_channel'],
             'amount' => $payment['amount'] ?? $payload['totals']['total'],
-            'movement_date' => $payment['movement_date'] ?? date('Y-m-d H:i:s'),
+            'movement_date' => $this->requiredInitialPaymentMovementDate($payment),
             'provider_ref' => $payment['provider_ref'] ?? null,
             'ds_order' => $payment['ds_order'] ?? ($firstRelation['ds_order'] ?? null),
             'idpag' => $payment['idpag'] ?? ($firstRelation['idpag'] ?? null),
@@ -150,6 +150,24 @@ final class InvoiceService
                 'allocation_type' => $payment['allocation_type'] ?? 'INVOICE_PAYMENT',
             ]],
         ];
+    }
+
+    private function requiredInitialPaymentMovementDate(array $payment): string
+    {
+        if (!array_key_exists('movement_date', $payment)) {
+            throw SifException::validation(
+                'Invoice initial payment requires movement_date for deterministic idempotency'
+            );
+        }
+
+        $movementDate = trim((string) $payment['movement_date']);
+        if ($movementDate === '') {
+            throw SifException::validation(
+                'Invoice initial payment requires a non-empty movement_date for deterministic idempotency'
+            );
+        }
+
+        return $movementDate;
     }
 
     private function reuseInvoiceAfterDuplicateKey(array $payload): array
