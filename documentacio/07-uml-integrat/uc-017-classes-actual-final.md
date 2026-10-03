@@ -61,3 +61,37 @@ classDiagram
 | Outbox compra regal | PENDENT |
 | Sync posterior llegat | PARCIAL/PENDENT |
 | Callback llegat | ACTIU EN CÒPIA, A RETIRAR |
+
+
+## Implementació FINAL reconciliada — 2026-10-03
+
+El diagrama FINAL deixa de ser exclusivament objectiu per als components següents,
+que ja existeixen a la branca candidata:
+
+```mermaid
+classDiagram
+  class SifRedsysGiftIntentClient
+  class RedsysGiftPaymentIntentService
+  class RedsysPaymentIntentService
+  class RedsysCallbackService
+  class RedsysCallbackWorker
+  class RedsysGiftInvoiceService
+  class InvoiceService
+  class GiftEntitlementIssuerService
+  class GiftPaymentNotificationService
+  class RedsysGiftPaymentStatusService
+  class SifRedsysGiftStatusClient
+  class GiftPaymentReturnStatus
+
+  SifRedsysGiftIntentClient --> RedsysGiftPaymentIntentService
+  RedsysGiftPaymentIntentService --> RedsysPaymentIntentService
+  RedsysCallbackService --> RedsysCallbackWorker
+  RedsysCallbackWorker --> RedsysGiftInvoiceService
+  RedsysGiftInvoiceService --> InvoiceService
+  RedsysGiftInvoiceService --> GiftEntitlementIssuerService
+  RedsysGiftInvoiceService --> GiftPaymentNotificationService
+  SifRedsysGiftStatusClient --> RedsysGiftPaymentStatusService
+  GiftPaymentReturnStatus --> SifRedsysGiftStatusClient
+```
+
+La seva existència al repositori no prova desplegament productiu.
