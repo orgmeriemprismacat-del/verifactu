@@ -2,9 +2,9 @@
 
 **Àmbit:** detectar, obrir, consultar i gestionar una incidència fiscal, econòmica, documental o de sincronització. **Una incidència no autoritza per si sola a modificar una factura emesa, repetir un cobrament o alterar la cadena fiscal.** La reparació material correspon sempre al cas d'ús específic.
 
-**Estat actual (02/10/2026): AUDITORIA TANCADA / CODI COMPLET.** Backend, UI, preflight, E2E tècnic read-only, deduplicació, concurrència, deep-links, gate final de tres evidències i tooling E2E gestor estan **IMPLEMENTATS I VERIFICATS EN CI**. El darrer tall executable aplicable `5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`, run `36943995075`, ha passat amb **844/0** i **74 PASS relacionats amb incidències/UC-008**. El `main` posterior observat `f7fa0822f82be96e842d9f2d031e643ab07f617c` només afegeix canvis documentals d'altres UC respecte d'aquest tall. Només resta l'acceptació real de preproducció, la comprovació/alta del menú i la generació de les tres evidències d'entorn.
+**Estat actual (03/10/2026): AUDITORIA TANCADA / CODI UC-008 COMPLET / REGRESSIÓ UC-008 PASS.** El nucli UC-008 i els seus UML continuen byte-a-byte iguals al baseline del PR #116. El `main` actual `b0e8ff7150c5a8b415cc109d298d82f0db1f68df` és 44 commits posterior i incorpora canvis Redsys compartits; al HEAD del PR #118 la suite SIF ha registrat **917 passed / 6 failed**, però les proves explícites d'incidències, panell, HMAC/anti-replay i `RedsysCallbackWorker` continuen en **PASS**. Cinc fallades corresponen a PACK/UC-015 i una era una expectativa obsoleta del `payload_hash` del fixture Redsys, corregida a la branca de revalidació. El **844/0** del 02/10 continua sent baseline històric verd del tancament UC-008, però ja no s'utilitza per afirmar que el `main` actual és globalment verd. Només resta l'acceptació real de preproducció, la comprovació/alta del menú i la generació de les evidències d'entorn.
 
-**Auditoria vigent:** [04b · auditoria detallada UC-008 · 2026-09-30](04b-auditoria-detallada-uc-008-2026-09-30.md) · [tancament d'auditoria · 2026-10-02](09-tancament-auditoria-uc-008-2026-10-02.md).
+**Auditoria vigent:** [04b · auditoria detallada UC-008 · 2026-09-30](04b-auditoria-detallada-uc-008-2026-09-30.md) · [tancament d'auditoria · 2026-10-02](09-tancament-auditoria-uc-008-2026-10-02.md) · [revalidació contra `main` · 2026-10-03](uc-008-revalidacio-main-2026-10-03.md).
 
 **Frontera UC-008 / UC-081:** UC-008 és el cas mare i punt d'entrada/consulta/gestió. [UC-081](uc-081-cicle-complet-incidencia.md) detalla el lifecycle intern. Tots dos comparteixen **una sola implementació**: `IncidentLifecycleService` + `IncidentActionRepository`.
 
@@ -623,9 +623,10 @@ D --> E[Resolució només al SIF]
 - [IncidentLifecycleTest](../../sif/tests/Integration/IncidentLifecycleTest.php)
 - [Estat final operació/incidències](../04-estat-final/18-estat-final-operacio-incidencies.md)
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
+- [Revalidació contra `main` · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
-**Estat de tancament tècnic:** `AUDIT_CLOSED + CODE_COMPLETE + DOC_RECONCILED + CI_844_0`. Backend + UI + seguretat + idempotència + concurrència + rollback + preflight + E2E tècnic + deep-links + gate de tres evidències + preparador/verificador E2E gestor estan implementats i verificats en CI (**844/0**, run `36943995075`; **74 PASS UC-008/incidències**). Pendents només d'acceptació d'entorn: configuració/desplegament de preproducció, alta/configuració del menú de BD si encara no existeix i generació de les tres evidències reals: preproduction read-only, menú intranet i E2E gestor.
+**Estat de tancament tècnic (revalidat 03/10):** `AUDIT_CLOSED + CODE_COMPLETE + DOC_RECONCILED + UC008_REGRESSION_PASS + GLOBAL_CI_RED_917_6`. El baseline de tancament del 02/10 continua acreditat amb **844/0** (run `36943995075`, 74 PASS UC-008/incidències), però el `main` actual té una suite global vermella per cinc contractes PACK i una expectativa Redsys compartida ja corregida a la branca de revalidació. Les proves específiques UC-008 continuen en PASS. Pendents només d'acceptació d'entorn: configuració/desplegament de preproducció, alta/configuració del menú de BD si encara no existeix i generació de les evidències reals.
 
 
 [Evidència E2E gestor](08-evidencia-gestor-uc-008.md)
