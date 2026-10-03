@@ -1,10 +1,10 @@
 # UC-020 — Diagrames d'activitat ACTUAL i FINAL per pàgina i apartat
 
-**Revisió:** 29/09/2026  
+**Revisió:** 03/10/2026  
 **Cas:** UC-20 · Aplicar Alumne PrisMa  
 **Objectiu:** cobrir totes les superfícies on la regla Alumne PrisMa es consulta, aplica, reutilitza o condiciona un pagament.  
 **Etiqueta ACTUAL:** lectura estàtica del repositori; no prova de desplegament.  
-**Etiqueta FINAL:** contracte objectiu; no implica implementació.
+**Etiqueta FINAL:** contracte objectiu; quan una peça ja és executable s'indica explícitament com a implementada/revalidada.
 
 ## 0. Índex de pàgines i apartats
 
@@ -202,6 +202,11 @@ if (tipusDescompte == 1?) then (Sí)
  :Servidor rellegeix tarifa base/AP vigent;
  :Rebutja tarifa ambigua o AP + promoció;
  :Sobreescriu import client amb tarifa servidor;
+:Conservar tarifa servidor fins a l'INSERT;
+note right
+  UC020-94 (03/10): corregit un overwrite tardà
+  que tornava a carregar preuDescompte del client.
+end note
 endif
 :INSERT inscripcions;
 stop
@@ -391,7 +396,7 @@ stop
 
 ## 5. P05 · Intranet «Validar descomptes»
 
-**Aquest flux comparteix pàgina i decisions amb UC-116.** UC-020 només desenvolupa la branca de tarifa alternativa Alumne PrisMa i les seves conseqüències.
+**Aquest flux comparteix pàgina i decisions amb UC-116.** UC-020 només desenvolupa la branca de tarifa alternativa Alumne PrisMa i les seves conseqüències. La comanda actual ha estat revalidada el 03/10/2026 com POST + sessió + permís + CSRF + `requestId`.
 
 ### 5.1. P05-A — ACTUAL · cua de pendents
 
@@ -469,7 +474,7 @@ else (No)
  :TIPUS_DESC=0;
  :A_PAGAR=preu ordinari;
 endif
-:UPDATE per ID sense estat/versió esperada;
+:UPDATE per ID sense lock persistent de versió/estat esperat;
 :Preparar correus;
 stop
 @enduml
@@ -654,3 +659,13 @@ s'ha d'afegir com a pàgina/apartat nou i vincular-lo a la matriu d'auditoria.
 ## 9. Reconciliació de tancament — 02/10/2026
 
 Per UC-020, P02 continua sent llegat en transport i UX, però ja no és autoritatiu monetàriament quan aplica AP: la persistència torna a calcular elegibilitat i preu. P05 també queda reclassificat: les notes històriques de GET/sense CSRF són superades pel codi actual POST/CSRF/permís/requestId.
+
+
+## 7. Revalidació transversal — 03/10/2026
+
+- **P01:** documentació pública localitzada; continua existint diferència entre text comercial ampli i criteri executable versionat.
+- **P02:** preview JS continua subjecte a concurrència, però l'alta AP revalida historial/tarifa al servidor i, després d'UC020-94, el preu servidor arriba intacte a `A_PAGAR`.
+- **P03/P04:** el canal de targeta actiu obté la intenció SIF i usa l'import retornat pel servidor; `payment_link` i transferència continuen pendents d'unificació.
+- **P05:** resolució revalidada com POST + sessió + permís + CSRF + `requestId`; queda deute de concurrència/idempotència persistent a BD.
+- **P06:** la lògica llegada de canvi de curs continua sent una superfície diferent; la seva convergència completa a la policy/oferta SIF és migració transversal.
+- **Callback/factura:** el `main` actual incorpora proves E2E simulades de callback → worker → pagament/factura/sync/outbox. No substitueixen el gate real de preproducció.
