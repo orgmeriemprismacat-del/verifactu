@@ -194,3 +194,22 @@ La `reference` lliure continua a `REFERENCIA_BANCARIA`, però ja no és la ident
 - `ManualPaymentServiceTest`: mateix `reference` amb payload/factura diferent retorna conflicte.
 
 Aquests tests continuen com **CREATS / PENDENTS DE RESULTAT** fins que finalitzi el workflow MySQL del PR.
+
+
+## 10. Preparació del caller d'intranet
+
+S'han afegit dos components a `codi-drive/intranet-nova-canvis-verifactu/`:
+
+- `SifInternalApiClient.php`: client genèric server-to-server que genera request UUID, normalitza rols, calcula el body hash, construeix la cadena canònica i signa amb HMAC SHA-256 exactament com espera `InternalApiAuthenticator`.
+- `SifManualTransferGateway.php`: adaptador UC-022 que envia `num_visible`, import, data, `external_bank_event_id`, referència, banc i notes a `POST /api/payments/manual-transfer.php`.
+
+Aquests fitxers **encara no estan connectats al JavaScript/endpoint llegat**. La raó és deliberada: el flux actual no disposa d'una font fiable d'`external_bank_event_id` ni d'un contracte CSRF local documentat. Connectar-lo inventant un identificador derivat de data/import/banc degradaria la garantia que acabem d'implementar.
+
+### 10.1. Configuració runtime requerida a la intranet
+
+- `SIF_INTERNAL_API_BASE_URL`
+- `SIF_INTERNAL_API_KEY_ID`
+- `SIF_INTERNAL_API_SECRET`
+- opcional `SIF_INTERNAL_MANUAL_TRANSFER_SIGNED_PATH`
+
+El secret no s'ha d'exposar mai al navegador ni persistir al repositori.
