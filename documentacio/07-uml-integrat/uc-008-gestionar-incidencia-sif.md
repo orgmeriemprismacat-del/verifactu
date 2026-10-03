@@ -624,6 +624,7 @@ D --> E[Resolució només al SIF]
 - [Estat final operació/incidències](../04-estat-final/18-estat-final-operacio-incidencies.md)
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
 - [Revalidació contra `main` · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md)
+- [Inventari PHP/JS ACTUAL/FINAL · 03/10/2026](uc-008-inventari-codi-php-js-actual-final-2026-10-03.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
 **Estat de tancament tècnic (revalidat 03/10):** `AUDIT_CLOSED + CODE_COMPLETE + DOC_RECONCILED + UC008_REGRESSION_PASS + GLOBAL_CI_RED_917_6`. El baseline de tancament del 02/10 continua acreditat amb **844/0** (run `36943995075`, 74 PASS UC-008/incidències), però el `main` actual té una suite global vermella per cinc contractes PACK i una expectativa Redsys compartida ja corregida a la branca de revalidació. Les proves específiques UC-008 continuen en PASS. Pendents només d'acceptació d'entorn: configuració/desplegament de preproducció, alta/configuració del menú de BD si encara no existeix i generació de les evidències reals.
