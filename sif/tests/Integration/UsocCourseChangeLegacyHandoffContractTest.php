@@ -36,6 +36,8 @@ final class UsocCourseChangeLegacyHandoffContractTest
         }
 
         Assert::stringContainsString('LegacyUsocCourseChangeDestinationReservationService', $prepare);
+        Assert::stringContainsString('courseChangeExecutionStatus(', $prepare);
+        Assert::stringContainsString("'already_completed'", $prepare);
         Assert::stringContainsString('bindCourseChangeDestination(', $prepare);
         Assert::stringContainsString("'destination_idpag'", $prepare);
         Assert::stringContainsString("'reservation_marker'", $prepare);
@@ -60,6 +62,8 @@ final class UsocCourseChangeLegacyHandoffContractTest
 
         Assert::stringContainsString('sifUsocCourseChangePrepare.php', $ui);
         Assert::stringContainsString('allowLegacyCourseChangeConfirmClick', $ui);
+        Assert::stringContainsString('already_completed', $ui);
+        Assert::stringContainsString('window.location.reload()', $ui);
         Assert::stringContainsString('uc013-course-change-continue', $ui);
         Assert::stringContainsString('#modalConfirmacioCanvi #confirmar-canvi', $ui);
     }
