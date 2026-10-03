@@ -2,7 +2,7 @@
 
 **Àmbit:** consulta autoritzada de l'estat fiscal, econòmic i dels documents d'una factura SIF. **No** equival a emetre, cobrar, rectificar, generar de nou un PDF, donar accés d'auditor ni exposar les dades de tots els inscrits d'una factura de grup.
 
-**Estat:** implementació parcial executable. Existeixen `InvoiceReadRepository`, `InvoiceQueryService`, `InvoiceVisibilityPolicyInterface`, `ResolvedInvoiceVisibilityPolicy`, endpoint intern HMAC `api/factures/query.php`, client servidor→servidor de la intranet i guard de convivència amb el llegat. UC-080 també disposa d'endpoint intern de download, `InvoiceDocumentAccessService`, `PrivateDocumentStore`, política FULL i writer `fiscal_document_access`. **Pendents:** configuració/desplegament per entorn i proves E2E/preproducció; el navegador no rep secrets ni paths interns.
+**Estat:** implementació executable en codi, amb revalidació estàtica 2026-10-03; runtime/preproducció pendent. Existeixen `InvoiceReadRepository`, `InvoiceQueryService`, `InvoiceVisibilityPolicyInterface`, `ResolvedInvoiceVisibilityPolicy`, endpoint intern HMAC `api/factures/query.php`, client servidor→servidor de la intranet i guard de convivència amb el llegat. UC-080 també disposa d'endpoint intern de download, `InvoiceDocumentAccessService`, `PrivateDocumentStore`, política FULL i writer `fiscal_document_access`. **Pendents:** configuració/desplegament per entorn i proves E2E/preproducció; el navegador no rep secrets ni paths interns.
 
 ## 1. Fitxa funcional
 
@@ -20,7 +20,7 @@
 2. Es localitza la factura i es resol el rol efectiu. La documentació existent exigeix que l'alumne vegi únicament factures que li siguin visibles per receptor i `fact_rels.VISIBLE_ALUMNE`; l'empresa/responsable veu les factures on és receptor o pagador autoritzat, sense exposar persones alienes.
 3. La consulta recupera per separat estat de factura, cobrament i resultat AEAT. **`ESTAT_COBRAMENT=PAID` no implica `ESTAT_AEAT=ACCEPTED`, ni al revés.**
 4. S'identifica el document registrat a `factura_documents` pel tipus i hash. `DocumentRepository::registerDocument()` **registra metadades d'un fitxer i hash**, no genera PDF ni concedeix accés per si sol.
-5. El servei de descàrrega objectiu comprova autorització de nou, registra un event d'accés a `fiscal_document_access` i serveix el document des de storage privat; **aquest servei no està acreditat en el codi consultat**.
+5. El servei de descàrrega comprova autorització de nou, registra un event d'accés a `fiscal_document_access` i serveix el document des de storage privat. **El codi existeix (`InvoiceDocumentAccessService` + endpoint intern), però storage, hash i permisos reals continuen pendents de verificació runtime/preproducció.**
 6. Si falta document, informa d'estat pendent/incidència i deriva a UC-36/55; no modifica la factura i no retorna una ruta privada com si fos una URL pública.
 
 ### 1.2. Alternatives i riscos
@@ -268,3 +268,17 @@ La matriu executable pendent és a l'auditoria detallada i inclou autorització 
 [Fitxa funcional UC-07](../06-fitxes-funcionals/uc-007.md) · [Auditoria detallada UC-007](02-auditoria-detallada-uc-007-consultar-factura-estat-document-2026-09-29.md) · [Catàleg i regles de visibilitat](../04-estat-final/33-casos-us-sif.md) · [UC-55 custòdia](uc-055-custodiar-reintentar-documents.md) · [UC-78 generació/custòdia](uc-078-generar-custodiar-pdf-qr-xml.md) · [UC-80 accés documental](uc-080-servir-registrar-acces-document-fiscal.md) · [DocumentRepository](../../sif/src/Repository/DocumentRepository.php) · [Test metadades](../../sif/tests/Integration/DocumentsAndIncidentsTest.php).
 
 **Estat final d'aquesta revisió:** DOCUMENTAT I IMPLEMENTAT PARCIALMENT: consulta interna signada, scope per rols, UI intranet, streaming privat UC-080 i bloqueig del llegat ja tenen codi. Pendents: desplegament/configuració per entorn i proves E2E ajornades.
+
+
+## 7. Paquet 1:1 revalidat — 2026-10-03
+
+A més del diagrama integrat, l'UC-007 disposa ara de peces separades per facilitar revisió i impressió:
+
+- [Inventari PHP/JS ACTUAL → FINAL](uc-007-inventari-codi-php-js-actual-final.md)
+- [Classes ACTUAL / FINAL](uc-007-classes-actual-final.md)
+- [Seqüències ACTUAL / FINAL](uc-007-sequencies-actual-final.md)
+- [Activitats per pàgina i apartat](uc-007-activitats-pagines-actual-final.md)
+- [Traçabilitat i estats](uc-007-tracabilitat-estats-2026-10-03.md)
+- [Revalidació exhaustiva 2026-10-03](04-auditoria-revalidacio-uc-007-2026-10-03.md)
+
+La revalidació també diferencia asset font d'asset real carregat. Les correccions de la branca no es consideren verificades en runtime fins que CI i preproducció aportin evidència.
