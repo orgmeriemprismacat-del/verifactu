@@ -123,3 +123,49 @@ El checkout PACK és fail-closed i no reutilitza imports, titular, correu ni end
 - Default UC-015: `https://www.prisma.cat;https://prisma.cat`.
 - `enviarInscripcioPack.php` exigeix POST, `X-Requested-With: XMLHttpRequest`, allowlist d'origen/referer i conserva també la comprovació `Sec-Fetch-Site` com a defensa addicional.
 - Aquest control redueix CSRF cross-site i peticions directes no-AJAX; no substitueix rate limiting o controls anti-bot.
+
+
+## Redsys CURS — UC-014 / UC-020
+
+El checkout de curs amb Alumne PrisMa reutilitza el tall Redsys de CURS i ha de quedar preparat abans d'activar el cutover. El codi de pagament actiu genera peticions amb `Ds_SignatureVersion=HMAC_SHA512_V2`; `HMAC_SHA256_V1` només es manté al validador com a compatibilitat per notificacions iniciades amb la versió antiga.
+
+### Web / pay.prisma.cat
+
+- `REDSYS_MERCHANT_CODE`: FUC del comerç.
+- `REDSYS_TERMINAL`: terminal Redsys.
+- `REDSYS_MERCHANT_KEY`: clau de signatura del terminal; secret d'entorn, mai al repositori.
+- `REDSYS_GATEWAY_URL`: URL HTTPS del TPV Redsys utilitzada pel checkout de curs.
+- `SIF_REDSYS_CALLBACK_URL`: MerchantURL HTTPS del callback SIF.
+- `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1`: envia el flux CURS al callback/intenció SIF.
+- `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=1`: confirma que no queden callbacks llegats de curs pendents abans de retirar el receptor antic.
+- `SIF_INTERNAL_API_BASE_URL`: base HTTPS de l'API server-to-server del SIF.
+- `SIF_INTERNAL_API_KEY_ID` / `SIF_INTERNAL_API_SECRET`: credencial HMAC compartida amb el SIF.
+
+### SIF
+
+- `SIF_REDSYS_MERCHANT_KEY`: mateixa clau de terminal que utilitza el bridge de pagament.
+- `SIF_REDSYS_MERCHANT_CODE`: mateix FUC; si no s'informa, `sif.php` pot llegir `REDSYS_MERCHANT_CODE`.
+- `SIF_INTERNAL_REDSYS_COURSE_INTENT_SIGNED_PATH`: default `/api/redsys/course-intent.php`.
+- `SIF_INTERNAL_REDSYS_COURSE_STATUS_SIGNED_PATH`: default `/api/redsys/course-status.php`.
+
+`preflight-redsys-course.php` falla tancat si falten claus/codis/terminal, si bridge i SIF no coincideixen, si les URLs server-to-server/callback/gateway no són HTTPS, si el cutover s'activa sense drain confirmat o si falten BD/taules/endpoints/workers necessaris.
+
+### Signatura i callback
+
+- Les peticions noves de curs es generen amb `HMAC_SHA512_V2`.
+- El callback SIF exigeix `SIF_REDSYS_MERCHANT_CODE`, valida signatura abans de qualsevol efecte i compara ordre, import, moneda i terminal amb la intenció persistent.
+- `PAYLOAD_HASH` de la notificació és SHA-256 sobre el valor exacte de `Ds_MerchantParameters` rebut i signat; no sobre el JSON descodificat.
+- No registrar ni exposar `REDSYS_MERCHANT_KEY`, signatures completes ni payloads sensibles a documentació, Trello o logs de suport.
+
+### Gate UC-020
+
+Abans de considerar desplegat el flux Alumne PrisMa cal conservar evidència de:
+
+1. `preflight-redsys-course.php` sense checks fallits a preproducció;
+2. alta AP amb import server-authoritative;
+3. creació d'intenció CURS;
+4. notificació Redsys signada `HMAC_SHA512_V2`;
+5. callback → cua → worker;
+6. cobrament/factura/sync legacy/outbox coherents;
+7. callback duplicat idempotent;
+8. cap fallback llegat inesperat després del cutover.
