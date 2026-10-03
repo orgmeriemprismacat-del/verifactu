@@ -398,12 +398,14 @@ El flux ja no es limita al bloqueig fail-closed. La ruta implementada és:
 3. preview i `prepare_course_change` → checkpoint `REQUESTED`;
 4. reserva durable de `ID_INSC/IDPAG` destí al legacy;
 5. `bind_course_change_destination` → `DESTINATION_RESERVED`;
-6. mutació legacy exacta sobre la reserva i checkpoint de sessió `legacy_completed`;
-7. `execute_course_change`;
-8. rectificació de factures origen, reemissió destí i compensacions separades per pagador;
-9. reconciliació, esdeveniments i `COMPLETED`.
+6. `confirm_course_change_legacy_handoff`: si l'origen encara és actiu, autoritza el tram legacy;
+7. mutació legacy exacta sobre la reserva; la sessió marca `legacy_completed` només com a protecció immediata;
+8. reconfirmació server-side de BD legacy → checkpoint SIF durable `LEGACY_COMPLETED`;
+9. `execute_course_change` només si `LEGACY_COMPLETED + source_closed`;
+10. rectificació de factures origen, reemissió destí i compensacions separades per pagador;
+11. reconciliació, esdeveniments i `COMPLETED`.
 
-**Pendent:** validació navegador/preproducció, configuració real i resolució operativa dels excessos que el servei deixa explícitament en follow-up.
+**Pendent:** validació navegador/preproducció, configuració real, resolució operativa dels excessos i validació fiscal `EXEMPT/E1`. El recovery després de pèrdua de sessió queda cobert per reserva legacy + `LEGACY_COMPLETED` durable.
 
 
 **Contracte FINAL del canvi de curs:** [UC-013 canvi de curs USOC](uc-013-canvi-curs-usoc-contracte-final.md).
