@@ -172,3 +172,8 @@ sequenceDiagram
 ```
 
 **Frontera:** `efact=0` continua sent emissió + cobrament i no forma part d'UC-022. Una factura absent del SIF es bloqueja i es deriva a migració/reconciliació; no s'autoemet cap substitut.
+
+
+### Triple auditoria del commit
+
+En el tram `ManualTransferCommandService → PaymentActionGateway`, el cobrament no es confirma fins que dins la mateixa transacció s'han escrit `operational_event` i `sif_audit_event`; després el gateway afegeix el terminal de `payment_action_event` i fa commit. Un 403/422 previ segueix un camí separat `ACCESS_DENIED|VALIDATION_REJECTED → REJECTED` sense `payment_transaction`.
