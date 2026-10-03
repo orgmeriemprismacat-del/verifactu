@@ -17,6 +17,7 @@ on:
       - "sif/config/sif.php"
       - "sif/tests/Integration/ManualRectification*Test.php"
       - "sif/tests/Integration/RectificationCommandServiceTest.php"
+      - "sif/tests/Integration/RectificationHttpEndpointTest.php"
       - "sif/tests/Unit/ManualRectificationPayloadBuilderTest.php"
       - "sif/tests/Unit/FiscalCorrectionDecisionGuardTest.php"
       - "sif/tests/Unit/InternalRectificationScopeResolverTest.php"
@@ -77,6 +78,7 @@ jobs:
           php -l sif/src/Repository/SifAuditEventRepository.php
           php -l sif/public/api/factures/rectify.php
           php -l sif/tests/Unit/AeatRectificationProtocolTest.php
+          php -l sif/tests/Integration/RectificationHttpEndpointTest.php
           php -l sif/tests/run-uc005-tests.php
 
       - name: UC-005 isolated MySQL suite
