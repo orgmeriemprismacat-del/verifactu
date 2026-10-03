@@ -1,5 +1,41 @@
 # UC-111 · Diagrames de seqüència ACTUAL / FINAL
 
+
+## Actualització post-merge · reconciliació de decisió · 03/10/2026
+
+```plantuml
+@startuml
+title UC-111 | Reconciliació després de fallada legacy -> SIF
+participant "reconcile-novice-decisions.php" as CLI
+participant NovicePromotionDecisionReconciler as Reconciler
+database "legacy recent_titulat" as Legacy
+database "SIF operation/validation" as SIF
+participant NovicePromotionSecretaryDecisionProjector as Projector
+
+CLI -> Reconciler : run(sifDb, legacyDb, actor, limit)
+Reconciler -> SIF : seleccionar JASOM PENDING_VALIDATION + NOVICE/PENDING
+loop cada candidat
+  Reconciler -> Legacy : llegir VALIDAT
+  alt VALIDAT = 0
+    Reconciler --> CLI : pending_legacy_decision++
+  else VALIDAT = 1 o 2
+    Reconciler -> Projector : projectDecision(...)
+    Projector -> Legacy : rellegir JASOM + DNI + VALIDAT
+    Projector -> SIF : lock participant + validation
+    alt identitat/estat coherent
+      Projector -> SIF : VALIDATED/REJECTED + READY_FOR_PAYMENT
+      Projector --> Reconciler : projected
+    else conflicte
+      Projector --> Reconciler : 409
+    end
+  end
+end
+@enduml
+```
+
+Aquesta seqüència cobreix el cas en què el commit legacy ja existeix però la projecció síncrona original no va arribar al SIF. No substitueix una decisió manual ni auto-denega expedients.
+
+
 **Objectiu:** representar l'ordre de missatges i persistència dels subfluxos UC-111 sense confondre el codi legacy amb els serveis SIF desenvolupats a la branca.
 
 ## 1. ACTUAL · seqüència completa contrastada
