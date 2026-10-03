@@ -21,8 +21,17 @@ final class UsocCourseChangeLegacyHandoffContractTest
         $ui = file_get_contents(
             $root . '/codi-drive/intranet-actual/js/alumnes-usoc-lifecycle-preview.js'
         );
+        $handoff = file_get_contents(
+            $root . '/sif/src/Service/UsocCourseChangeLegacyHandoffService.php'
+        );
 
-        if ($controller === false || $prepare === false || $intranet === false || $ui === false) {
+        if (
+            $controller === false
+            || $prepare === false
+            || $intranet === false
+            || $ui === false
+            || $handoff === false
+        ) {
             Assert::fail('Could not read UC-013 legacy handoff contract files');
         }
 
@@ -32,6 +41,7 @@ final class UsocCourseChangeLegacyHandoffContractTest
         Assert::stringContainsString("'reservation_marker'", $prepare);
 
         Assert::stringContainsString("'legacy_completed'", $controller);
+        Assert::stringContainsString('confirmCourseChangeLegacyHandoff(', $controller);
         Assert::stringContainsString('executeCourseChange(', $controller);
         Assert::stringContainsString('getDarrerIdCanviCurs()', $controller);
         Assert::stringContainsString("'destination_id_insc'", $controller);
@@ -41,6 +51,12 @@ final class UsocCourseChangeLegacyHandoffContractTest
         Assert::stringContainsString('pag_observacions = ?', $intranet);
         Assert::stringContainsString('PAGAMENT = 0', $intranet);
         Assert::stringContainsString('public function getDarrerIdCanviCurs()', $intranet);
+
+        Assert::stringContainsString("'LEGACY_COMPLETED'", $handoff);
+        Assert::stringContainsString("'legacy_handoff_completed'", $handoff);
+        Assert::stringContainsString("'source_closed'", $handoff);
+        Assert::stringContainsString("'REVIEW_REQUIRED'", $handoff);
+        Assert::stringContainsString("'DATA_BAIXA'", $handoff);
 
         Assert::stringContainsString('sifUsocCourseChangePrepare.php', $ui);
         Assert::stringContainsString('allowLegacyCourseChangeConfirmClick', $ui);
@@ -59,12 +75,13 @@ final class UsocCourseChangeLegacyHandoffContractTest
             Assert::fail('Could not read UC-013 course change executor');
         }
 
-        Assert::stringContainsString("'DESTINATION_RESERVED'", $executor);
+        Assert::stringContainsString("'LEGACY_COMPLETED'", $executor);
         Assert::stringContainsString("'destination_idpag'", $executor);
+        Assert::stringContainsString("'legacy_handoff_completed'", $executor);
+        Assert::stringContainsString("'source_closed'", $executor);
         Assert::stringContainsString(
-            'USOC course change destination must be durably bound before execution',
+            'USOC course change legacy handoff must be durably confirmed before execution',
             $executor
         );
-        Assert::stringContainsString("'legacy_handoff_completed' => true", $executor);
     }
 }
