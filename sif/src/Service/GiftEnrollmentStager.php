@@ -91,10 +91,20 @@ final class GiftEnrollmentStager
         }
 
         $legacyGiftProduct = strtoupper(trim((string) ($legacyGift['CCURS'] ?? '')));
-        if ($legacyGiftProduct !== '' && $legacyGiftProduct !== $legacyProduct) {
-            throw SifException::conflict(
-                'Legacy gift product does not match the enrollment product.'
-            );
+        if ($legacyGiftProduct !== '') {
+            if (preg_match('/^\\d+$/D', $legacyGiftProduct) === 1) {
+                $giftHours = (int) $legacyGiftProduct;
+                $courseHours = $this->legacyCourseHours($legacyDb, $legacyEnrollment);
+                if ($giftHours <= 0 || $courseHours !== $giftHours) {
+                    throw SifException::conflict(
+                        'Legacy gift course hours do not match the enrollment course.'
+                    );
+                }
+            } elseif ($legacyGiftProduct !== $legacyProduct) {
+                throw SifException::conflict(
+                    'Legacy gift product does not match the enrollment product.'
+                );
+            }
         }
 
         $legacyGiftAmount = $this->cents((string) $legacyGift['IMPORT']);
@@ -369,6 +379,37 @@ final class GiftEnrollmentStager
             }
             throw $exception;
         }
+    }
+
+    /**
+     * Generic legacy gifts store the purchased hour category in regal.CCURS.
+     * Resolve the committed destination edition server-side before staging it.
+     */
+    private function legacyCourseHours(\PDO $legacyDb, array $enrollment): int
+    {
+        $course = trim((string) ($enrollment['CURS'] ?? ''));
+        $year = trim((string) ($enrollment['ANY'] ?? ''));
+        $month = trim((string) ($enrollment['MES'] ?? ''));
+
+        if ($course === '' || $year === '' || $month === '') {
+            throw SifException::conflict(
+                'Legacy gift enrollment edition is incomplete.'
+            );
+        }
+
+        $rows = $this->many(
+            $legacyDb,
+            'SELECT DISTINCT HORES FROM curs WHERE CURS = ? AND ANY = ? AND MES = ?',
+            [$course, $year, $month]
+        );
+
+        if (count($rows) !== 1 || (int) ($rows[0]['HORES'] ?? 0) <= 0) {
+            throw SifException::conflict(
+                'Legacy gift course hours cannot be resolved authoritatively.'
+            );
+        }
+
+        return (int) $rows[0]['HORES'];
     }
 
     private function assertLegacyContract(
