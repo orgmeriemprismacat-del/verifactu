@@ -38,6 +38,8 @@ Per tant:
 | UC18-RV-008 | `pagina_bescanvia.php` carregava `mostrarBescanvia_prova.min.js`, absent del repositori. | PATCH APLICAT |
 | UC18-RV-009 | La suite comprovava POST/HMAC només al client intern servidor→SIF, no al navegador→legacy. | PROVA AFEGIDA |
 | UC18-RV-010 | Les dues consultes legacy de codi usaven `LIKE ?`, permetent semàntica wildcard en crida directa. | PATCH APLICAT + PROVA |
+| UC18-RV-011 | UC-017 generava el secret bearer amb `base_convert(uniqid(), 16, 36)`, predictible respecte del temps. | PATCH CSPRNG + PROVA |
+| UC18-RV-012 | No s'ha localitzat throttle/rate-limit específic per intents de codi al repo. | ENV/SECURITY PENDENT |
 
 ## 4. Correccions de codi aplicades
 
