@@ -56,7 +56,7 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 2. Classificador UC-74 integrat abans de decidir rectificativa/anul·lació/subsanació.
 3. Correcció de receptor/concepte amb snapshot nou; el builder actual reutilitza el receptor original.
 4. Tractament fiscal per IVA/règims diferents d'EXEMPT 0%.
-5. Estratègia transaccional que inclogui emissió R + `factura_rectificacio` + canvi d'estat de l'original en una mateixa unitat atòmica.
+5. **IMPLEMENTAT EN AQUESTA BRANCA:** emissió R + `factura_rectificacio` + canvi d'estat de l'original comparteixen la transacció d'`InvoiceService`; pendent evidència CI/concurrència.
 6. Concorrència/lock explícit sobre l'original.
 7. Auditoria operacional específica de l'ordre.
 8. E2E pantalla → classificació → rectificativa → document → consulta.
@@ -68,6 +68,6 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 - **Codi SIF de rectificació manual:** IMPLEMENTAT PARCIALMENT.
 - **Pantalla final UC-005:** PENDENT.
 - **Fiscalitat general:** PENDENT.
-- **Atomicitat completa:** PENDENT/BLOQUEJANT.
+- **Atomicitat del nucli UC-005:** IMPLEMENTADA EN BRANCA · pendent execució verda i prova de concurrència.
 - **Proves definides:** SÍ.
 - **Proves executades en aquesta auditoria:** NO acreditades.
