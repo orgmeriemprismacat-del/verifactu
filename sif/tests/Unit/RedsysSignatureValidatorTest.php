@@ -16,7 +16,7 @@ final class RedsysSignatureValidatorTest
         $payload = $validator->decodeAndVerify([
             'Ds_SignatureVersion' => 'HMAC_SHA256_V1',
             'Ds_MerchantParameters' => $merchantParameters,
-            'Ds_Signature' => 'KanI4nhDCZxf1ZsRKO06Wl4efSTMT_fc8CVdyr-QlhLw=',
+            'Ds_Signature' => 'KanI4nhDCZxf1ZsRKO06Wl4efSTMTfc8CVdyr-QlhLw=',
         ]);
 
         Assert::same('ORDER123', $payload['ds_order']);
