@@ -211,7 +211,59 @@ try {
 		$tipusDesc = '4';
 		$validDesc = '1';
 
-		if (!(bool) ($context['legacy_completed'] ?? false)) {
+		$confirmLegacyHandoff = static function () use (
+			$client,
+			$actorId,
+			$roles,
+			$requestId
+		): array {
+			$response = $client->confirmCourseChangeLegacyHandoff(
+				$actorId,
+				$roles,
+				$requestId
+			);
+			$status = (int) ($response['_http_status'] ?? 0);
+			unset($response['_http_status']);
+			$handoff = $response['handoff'] ?? null;
+
+			if (
+				$status < 200
+				|| $status >= 300
+				|| ($response['ok'] ?? false) !== true
+				|| !is_array($handoff)
+			) {
+				$error = trim((string) ($response['error'] ?? ''));
+				throw new RuntimeException(
+					$error !== ''
+						? 'Error: ' . $error
+						: 'Error: no s’ha pogut verificar el handoff legacy del canvi USOC.',
+					$status >= 400 && $status <= 599 ? $status : 503
+				);
+			}
+
+			return $handoff;
+		};
+
+		$handoff = $confirmLegacyHandoff();
+		if (($handoff['completed'] ?? false) === true) {
+			$context['legacy_completed'] = true;
+			$_SESSION['sif_usoc_course_change'] = $context;
+		}
+		else {
+			if (($handoff['ready_for_legacy'] ?? false) !== true) {
+				throw new RuntimeException(
+					'Error: el checkpoint USOC no permet executar el tram legacy.',
+					409
+				);
+			}
+
+			if ((bool) ($context['legacy_completed'] ?? false)) {
+				throw new RuntimeException(
+					'Error: la sessió indica un handoff legacy complet però la BD no ho confirma.',
+					409
+				);
+			}
+
 			$_SESSION['intranet']->realitzarCanviCurs_modalCanviCurs(
 				$idInsc,
 				$anyC,
@@ -242,8 +294,18 @@ try {
 				);
 			}
 
+			// Guardem primer l'estat de sessió per evitar repetir el tram legacy
+			// si la confirmació remota falla després d'haver mutat correctament la BD.
 			$context['legacy_completed'] = true;
 			$_SESSION['sif_usoc_course_change'] = $context;
+
+			$handoff = $confirmLegacyHandoff();
+			if (($handoff['completed'] ?? false) !== true) {
+				throw new RuntimeException(
+					'Error: la BD legacy no confirma durablement el canvi USOC.',
+					409
+				);
+			}
 		}
 
 		$effectiveAt = trim((string) ($context['effective_at'] ?? ''));
