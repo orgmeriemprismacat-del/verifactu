@@ -217,4 +217,6 @@ Correccions aplicades al PR #123:
 
 Aquests canvis endureixen el **procés de tancament d'entorn** i no alteren cap mutació fiscal/econòmica ni el contracte funcional del lifecycle.
 
+**CI del hardening:** `SIF PHP MySQL tests` run `37153443142` → **920 passed / 5 failed**. Passen `testPreproductionE2eRejectsProductionOrUnexpectedHostBeforeHttpCall`, `testMenuEvidenceFromProductionCannotCloseGate` i el contracte de menú amb `environment`; les cinc fallades restants són PACK/UC-015.
+
 Vegeu [10 · runbook d'acceptació operativa](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md).
