@@ -1,5 +1,40 @@
 # UC-111 · Diagrames d'activitat ACTUAL / FINAL
 
+
+## Actualització post-merge · recuperació de decisió · 03/10/2026
+
+```plantuml
+@startuml
+title UC-111 | Recuperar decisió legacy aplicada però SIF pendent
+start
+:Seleccionar operacions JASOM SIF
+PENDING_VALIDATION + validation PENDING;
+:Rellegir recent_titulat del legacy;
+if (VALIDAT = 0?) then (sí)
+  :No projectar;
+  :Mantenir pagament bloquejat;
+  stop
+endif
+if (VALIDAT = 1 o 2?) then (no)
+  :Registrar conflicte;
+  stop
+endif
+:Invocar projector amb actor de reconciliació;
+:Revalidar JASOM, participant i DNI;
+if (Identitat/estat coherent?) then (no)
+  :No obrir pagament;
+  :Registrar conflicte;
+  stop
+endif
+:Projectar VALIDATED o REJECTED;
+:Passar operació a READY_FOR_PAYMENT;
+stop
+@enduml
+```
+
+**Prova real:** els quatre casos del reconciliador (aprovat, denegat, pendent i conflicte d'identitat) passen en MySQL 8 dins de la suite UC-111 específica.
+
+
 **Objectiu:** tenir les activitats separades per pàgina/apartat i per estat ACTUAL/FINAL, en lloc de dependre només del document UML integrat.
 
 ## 1. Web d'inscripció JASOM · ACTUAL contrastat

@@ -48,8 +48,14 @@ fi
   export SIF_NOVICE_PROMO_WRAP_KEY_HEX="${SIF_NOVICE_PROMO_WRAP_KEY_HEX:-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}"
   export SIF_NOVICE_PROMO_KEY_VERSION="${SIF_NOVICE_PROMO_KEY_VERSION:-test-v1}"
 
-  echo "== Full SIF suite =="
-  "${PHP_BIN}" sif/tests/run-tests.php
+  echo "== UC-111 focused suite =="
+  "${PHP_BIN}" sif/tests/run-uc111-tests.php
+
+  if [[ "${SIF_TEST_RUN_FULL_SUITE:-0}" == "1" ]]; then
+    echo
+    echo "== Optional full SIF suite =="
+    "${PHP_BIN}" sif/tests/run-tests.php
+  fi
 
   echo
   echo "== UC-111 post-payment smoke assertions =="
