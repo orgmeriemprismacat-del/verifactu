@@ -143,7 +143,7 @@ final class RectificationCommandService
                         'uuid_factura' => $issued['uuid_factura'],
                         'fiscal_impact' => 'RECTIFICATION',
                         'economic_impact' => 'ADJUSTMENT',
-                        'status' => 'COMMITTED',
+                        'status' => ($issued['idempotency_reused'] ?? false) ? 'REUSED' : 'COMMITTED',
                         'reason_code' => $prepared['classification']['reason_code'],
                         'before_snapshot' => $this->invoiceSnapshot($lockedOriginal),
                         'after_snapshot' => $after,
