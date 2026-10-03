@@ -171,6 +171,23 @@ final class UsocCourseChangeDestinationBindingServiceTest
             throw $exception;
         }
 
+        $reordered = array_reverse($advanced, true);
+        $db->beginTransaction();
+        try {
+            $repo->advanceRequestedResult(
+                $db,
+                'uc013-bind-900-1',
+                'DESTINATION_RESERVED',
+                $reordered
+            );
+            $db->commit();
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $exception;
+        }
+
         $retry = $service->bind(
             $db,
             'uc013-bind-900-1',
