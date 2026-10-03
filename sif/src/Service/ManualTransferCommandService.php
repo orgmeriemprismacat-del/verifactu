@@ -31,6 +31,11 @@ final class ManualTransferCommandService
             throw SifException::validation('External bank event id is too long');
         }
 
+        $bank = strtoupper(trim((string) ($payload['bank'] ?? $payload['banc'] ?? '')));
+        if (in_array($bank, ['TPV', 'REDSYS'], true)) {
+            throw SifException::validation('Card payments cannot be registered as manual transfers');
+        }
+
         $uuidFactura = trim((string) ($payload['uuid_factura'] ?? ''));
         $numVisible = trim((string) ($payload['num_visible'] ?? ''));
         if (($uuidFactura === '') === ($numVisible === '')) {
