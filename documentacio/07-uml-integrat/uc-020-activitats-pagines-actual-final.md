@@ -373,8 +373,8 @@ if (Operació PAYABLE?) then (Sí)
  :Habilitar només mètodes autoritzats;
  :Crear/reutilitzar intenció Redsys des de snapshot;
 note right
-  PENDENT en aquesta branca: adaptador
-  payment_link/commercial_operation -> RedsysPaymentIntentService
+  IMPLEMENTAT en el camí de pagament real:
+  pay.prisma.cat -> course-intent -> PrismaStudentCourseCheckoutService -> RedsysPaymentIntentService
 end note
 else (No)
  :No mostrar instruccions executables;
@@ -590,8 +590,8 @@ stop
 
 - `CommercialOfferService::createOrReuse()`: **implementat en aquesta branca**; encara no cridat pel web/intranet llegat.
 - `PaymentLinkService::issue()/resolve()/revoke()`: **implementat en aquesta branca**; encara no substitueix les rutes llegades `/confirmacio/` i `/pagament/`.
-- Política `PrismaStudentDiscountPolicy`: **pendent de decisions de negoci i implementació**.
-- Adaptador `UUID_OPERATION/payment_link → RedsysPaymentIntentService`: **pendent**.
+- Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA com a compatibilitat `ALUMNE_PRISMA_LEGACY_V1`**; les decisions futures de negoci continuen pendents i exigeixen nova versió.
+- Adaptador de pagament CURS → `RedsysPaymentIntentService`: **IMPLEMENTAT via `/api/redsys/course-intent.php`**. `payment_link` és infraestructura disponible però no és requisit del camí directe actual.
 
 ## 7. Matriu ACTUAL → FINAL
 

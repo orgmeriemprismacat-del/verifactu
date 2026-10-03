@@ -2,7 +2,7 @@
 
 **Data d'auditoria:** 30/09/2026  
 **Abast:** aplicació del descompte «Alumne PrisMa» en alta web, preparació de pagament i futura facturació SIF.  
-**Regla d'evidència:** ACTUAL = executable llegat inspeccionat. FINAL = codi existent a la branca quan s'indica `IMPLEMENTAT`; `PENDENT` quan encara falta integració runtime.
+**Regla d'evidència:** ACTUAL = executable llegat inspeccionat. FINAL = codi existent a `main`/branca integrada quan s'indica `IMPLEMENTAT`; `PENDENT` només quan falta runtime o decisió real.
 
 ## 1. Classes/components ACTUALS
 
@@ -70,7 +70,7 @@ EnviarInscripcioPHP --> InscripcionsLegacy : INSERT
 - la consulta redueix l'evidència a un booleà i perd la inscripció que acredita el dret;
 - preview i confirmació no comparteixen una oferta servidor immutable.
 
-## 2. Classes FINAL — implementades en aquesta branca i pendents
+## 2. Classes FINAL — estat integrat
 
 ```mermaid
 classDiagram
@@ -87,18 +87,29 @@ class LegacyPrismaStudentHistoryRepository {
   +findByDocument(db,document) array
 }
 
-class DiscountDecisionService {
-  <<PENDENT>>
-  +evaluate(type,context) DiscountDecision
+class CommercialOfferService {
+  <<IMPLEMENTAT GENERIC>>
+  +createOrReuse(input) array
+}
+
+class PrismaStudentCourseCheckoutService {
+  <<IMPLEMENTAT PAGAMENT REAL>>
+  +stageAndCreateIntent(...) array
+}
+
+class CommercialOperationPartyRepository {
+  <<IMPLEMENTAT>>
+  +find(...) array?
+  +insert(db,party)
 }
 
 class DiscountValidationRepository {
-  <<PENDENT runtime>>
+  <<IMPLEMENTAT>>
   +append(decision) uuid
 }
 
 class CommercialOperationRepository {
-  <<PENDENT runtime>>
+  <<IMPLEMENTAT>>
   +stage(operation) uuid
   +attachIntent(operation,intent)
 }
@@ -135,10 +146,13 @@ class InvoiceService {
 }
 
 LegacyPrismaStudentHistoryRepository --> PrismaStudentDiscountPolicy : fets legacy
-PrismaStudentDiscountPolicy --> DiscountDecisionService : decisio normalitzada
-DiscountDecisionService --> DiscountValidationRepository : regla/evidencia
-DiscountDecisionService --> CommercialOperationRepository : oferta comercial
-CommercialOperationRepository --> RedsysPaymentIntentService : snapshot pagable
+PrismaStudentDiscountPolicy --> PrismaStudentCourseCheckoutService : decisio AP
+PrismaStudentCourseCheckoutService --> CommercialOperationRepository : operacio
+PrismaStudentCourseCheckoutService --> DiscountValidationRepository : regla/evidencia
+PrismaStudentCourseCheckoutService --> CommercialOperationPartyRepository : participant
+CommercialOfferService --> CommercialOperationRepository : oferta generica
+CommercialOfferService --> DiscountValidationRepository : validacio generica
+PrismaStudentCourseCheckoutService --> RedsysPaymentIntentService : snapshot pagable
 RedsysPaymentIntentService --> CourseIntentSnapshotValidator : SOURCE_TYPE=CURS
 RedsysPaymentIntentService --> RedsysPaymentIntentRepository : persistencia
 RedsysCourseInvoiceService --> LegacyCourseInvoicePayloadBuilder : snapshot congelat
@@ -151,9 +165,10 @@ RedsysCourseInvoiceService --> InvoiceService : factura + cobrament
 | --- | --- | --- |
 | `LegacyPrismaStudentHistoryRepository` | Recuperar fets d'historial sense decidir la política | IMPLEMENTAT |
 | `PrismaStudentDiscountPolicy` | Reproduir explícitament la regla web legacy sota versió `ALUMNE_PRISMA_LEGACY_V1` | IMPLEMENTAT |
-| `DiscountDecisionService` | Motor comú de decisió per UC-020/020a/020b/020c/020d | PENDENT |
-| `discount_validation` | Persistència de regla/evidència | DDL EXISTENT, writer PENDENT |
-| `commercial_operation` | Oferta comercial immutable | DDL EXISTENT, writer PENDENT |
+| `CommercialOfferService` | Runtime comercial genèric compartit | IMPLEMENTAT; no substitueix la policy específica AP |
+| `discount_validation` | Persistència de regla/evidència | IMPLEMENTAT via repository; UC-020 l'usa dins l'orquestrador |
+| `commercial_operation` | Oferta comercial immutable | IMPLEMENTAT via repository; UC-020 l'usa dins l'orquestrador |
+| `commercial_operation_party` | Participant/subjecte de l'operació | IMPLEMENTAT via `CommercialOperationPartyRepository` |
 | `CourseIntentSnapshotValidator` | Blindar coherència CURS abans del TPV | IMPLEMENTAT |
 | `RedsysPaymentIntentService` | Crear/reutilitzar intenció | IMPLEMENTAT |
 | `LegacyCourseInvoicePayloadBuilder` | Transformar snapshot en payload fiscal | IMPLEMENTAT |

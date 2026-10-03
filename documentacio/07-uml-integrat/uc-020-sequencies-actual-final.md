@@ -40,7 +40,7 @@ actor A as Alumne
 participant Web as Checkout servidor
 participant Hist as LegacyPrismaStudentHistoryRepository
 participant Policy as PrismaStudentDiscountPolicy
-participant Decision as DiscountDecisionService [PENDENT]
+participant Checkout as PrismaStudentCourseCheckoutService
 participant DV as discount_validation
 participant CO as commercial_operation
 participant IV as CourseIntentSnapshotValidator
@@ -53,11 +53,11 @@ Web->>Hist: findByDocument(DNI)
 Hist-->>Web: historial estructurat
 Web->>Policy: evaluate(historial)
 Policy-->>Web: eligible, rule_version, evidence
-Web->>Decision: calcular/autoritzar oferta
-Decision->>DV: persistir regla i evidencia
-Decision->>CO: persistir gross/discount/net + PRICE_SNAPSHOT
-CO-->>Web: UUID_OPERATION / oferta
-Web->>Intent: create(CURS, source_id, idpag, expected_amount, snapshot)
+Web->>Checkout: stageAndCreateIntent(...)
+Checkout->>DV: persistir/reutilitzar regla i evidencia
+Checkout->>CO: persistir/reutilitzar gross/discount/net + PRICE_SNAPSHOT
+CO-->>Checkout: UUID_OPERATION / oferta
+Checkout->>Intent: create(CURS, source_id, idpag, expected_amount, snapshot)
 Intent->>IV: validate(snapshot,idpag,sourceId,expectedAmount)
 IV-->>Intent: OK
 Intent->>DB: INSERT/reuse intent
@@ -107,9 +107,8 @@ Abans de crear la intenció:
 - si existeix `discount`, exigeix `origin` i `mode`;
 - `discount.base - discount.amount == payment.amount`.
 
-## 5. Pendent
+## 5. Estat de tancament
 
-- orquestrador de checkout que creï `discount_validation` i `commercial_operation`;
-- vinculació runtime `UUID_OPERATION ↔ UUID_INTENT`;
-- substitució de la confiança en imports del navegador;
-- test E2E complet des d'historial fins a factura.
+**Implementat al pagament real:** `pay.prisma.cat → SifRedsysCourseIntentClient → /api/redsys/course-intent.php → RedsysCoursePaymentIntentService → PrismaStudentCourseCheckoutService → RedsysPaymentIntentService`. L'operació, validació, participant, snapshot i `UUID_OPERATION ↔ UUID_INTENT` ja tenen runtime.
+
+**Pendent:** substituir l'autoritat del navegador en l'alta/preview de la inscripció; definir fraccionament/reanudació AP; executar E2E complet fins a factura i conservar evidència de preproducció.
