@@ -52,6 +52,7 @@ final class InvoiceBeforePaymentLegacyPreparationServiceTest
         Assert::same('Escola Exemple SL', $first['billing']['name']);
         Assert::same('B12345678', $first['billing']['nif']);
         Assert::same('200.00', $first['payload']['totals']['total']);
+        Assert::same('E1', $first['payload']['totals']['exemption_reason']);
         Assert::same('INTRANET', $first['payload']['source_channel']);
         Assert::same('gestio-test', $first['payload']['created_by']);
         Assert::same(1, $first['payload']['emesa_abans_cobrament']);
@@ -60,7 +61,9 @@ final class InvoiceBeforePaymentLegacyPreparationServiceTest
         Assert::same('ORIGIN', $first['payload']['relations'][0]['relation_type']);
         Assert::same('INSCRIPCIO', $first['payload']['lines'][0]['source_type']);
         Assert::same('80.00', $first['payload']['lines'][0]['total']);
+        Assert::same('E1', $first['payload']['lines'][0]['exemption_reason']);
         Assert::same('120.00', $first['payload']['lines'][1]['total']);
+        Assert::same('E1', $first['payload']['lines'][1]['exemption_reason']);
         Assert::same($first['fingerprint'], $second['fingerprint']);
         Assert::matchesRegularExpression('/^[a-f0-9]{64}$/', $first['fingerprint']);
         Assert::matchesRegularExpression(

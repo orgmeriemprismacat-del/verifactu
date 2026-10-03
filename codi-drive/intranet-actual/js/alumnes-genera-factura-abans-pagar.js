@@ -531,6 +531,7 @@ function renderUc004IssuedInvoice(response) {
     appendUc004Definition(list, 'UUID', response.uuid_factura || '');
     appendUc004Definition(list, 'Reutilitzada', response.idempotency_reused ? 'Sí' : 'No');
     appendUc004Definition(list, 'Cobrament', 'PENDING');
+    appendUc004Definition(list, 'Document', response.document_status || 'PENDING');
     appendUc004Definition(
         list,
         'Receptor',
@@ -551,7 +552,7 @@ function renderUc004IssuedInvoice(response) {
         $('<p>')
             .addClass('text-muted')
             .text(
-                'El document fiscal SIF s\'ha de servir pel circuit de documents per UUID; '
+                'El PDF fiscal s\'ha encolat de manera idempotent i es servirà pel circuit de documents per UUID; '
                 + 'aquesta pantalla ja no genera ni elimina PDFs temporals llegats.'
             )
     );

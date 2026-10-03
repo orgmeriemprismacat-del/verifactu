@@ -1,39 +1,25 @@
 <?php
 
-include ('../../ConnexioIntranet.php');
-include ('../../ConnexioWeb.php');
-include ('../../Text.php');
-include ('../../Date.php');
-include ('../../Usuari.php');
-include ('../../Intranet.php');
-include ('../../inc/missatgesError.php');
-session_start();
+// UC-004 cutover boundary.
+//
+// The invoice-before-payment screen now issues exclusively through the signed
+// SIF command bridge:
+//   browser -> sifFacturaAbansPagar.php -> SIF before-payment.php.
+//
+// Keep this legacy URL fail-closed so a stale client, bookmark or direct POST
+// cannot bypass server-side authorization, CSRF, idempotency, fiscal chaining
+// and the UC-004 coverage guard.
+//
+// The legacy Intranet::generarFacturaElectronica_Alumnes() implementation is
+// retained only as historical code until the broader legacy cleanup. It is no
+// longer an authorised fiscal entry point.
 
-try {
+http_response_code(410);
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store, max-age=0');
 
-	$_SESSION['usuari'] = unserialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = unserialize($_SESSION['intranet']);
-
-	$empresa 		= $_POST['empresa'];
-	$concepte1 		= $_POST['concepte1'];
-	$concepte2 		= $_POST['concepte2'];
-	$preu				= $_POST['preu'];
-	$cursos			= $_POST['cursos'];
-	$edicions		= $_POST['edicions'];
-	$inscripcions	= $_POST['inscripcions'];
-	$observacions	= $_POST['observacions'];
-
-	echo $_SESSION['intranet']->generarFacturaElectronica_Alumnes($empresa, $concepte1,
-	$concepte2, $preu, $cursos, $edicions, $inscripcions, $observacions);
-
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-
-}
-catch(Exception $e) {
-	echo missatgeError($e->getCode());
-	$_SESSION['usuari'] = serialize($_SESSION['usuari']);
-	$_SESSION['intranet'] = serialize($_SESSION['intranet']);
-}
-
-?>
+echo json_encode([
+    'ok' => false,
+    'error' => 'Flux llegat de factura abans de pagar retirat. Utilitza el circuit SIF.',
+    'code' => 'UC004_LEGACY_MUTATION_RETIRED',
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

@@ -3,11 +3,14 @@
 namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Contract\InvoiceVisibilityPolicyInterface;
+use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\DocumentJobRepository;
 use Prisma\Sif\Repository\DocumentRepository;
 use Prisma\Sif\Repository\InvoiceReadRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\RectificationRepository;
+use Prisma\Sif\Service\InvoiceBeforePaymentDocumentQueueService;
 use Prisma\Sif\Service\InvoiceQueryService;
 use Prisma\Sif\Service\ManualRectificationPayloadBuilder;
 use Prisma\Sif\Service\ManualRectificationService;
@@ -50,6 +53,53 @@ final class InvoiceQueryServiceTest
         Assert::same(1, count($result['documents']));
         Assert::same(false, array_key_exists('PATH_FITXER', $result['documents'][0]));
         Assert::same($before, $after);
+    }
+
+    public function testViewExposesPendingDocumentJobOnlyInFullProjection(): void
+    {
+        $db = TestDatabase::fresh();
+        $issued = IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'QUERY|DOC-JOB|PENDING',
+        ]));
+
+        (new InvoiceBeforePaymentDocumentQueueService(
+            new TransactionRunner($db),
+            new DocumentJobRepository(),
+            'uc004-fiscal-pdf-v1'
+        ))->ensurePdf(
+            $issued['uuid_factura'],
+            'INTRANET|FACTURA_ABANS_COBRAR|REF:QUERY-DOC'
+        );
+
+        $full = new InvoiceQueryService(
+            $db,
+            new InvoiceReadRepository(),
+            $this->allowAllPolicy()
+        );
+        $fullView = $full->view(['actor_id' => 'operator-test'], $issued['uuid_factura']);
+
+        Assert::same(1, count($fullView['document_jobs']));
+        Assert::same('PDF', $fullView['document_jobs'][0]['DOCUMENT_TYPE']);
+        Assert::same('PENDING', $fullView['document_jobs'][0]['STATUS']);
+        Assert::same('uc004-fiscal-pdf-v1', $fullView['document_jobs'][0]['GENERATOR_VERSION']);
+        Assert::same(false, array_key_exists('IDEMPOTENCY_KEY', $fullView['document_jobs'][0]));
+        Assert::same(false, array_key_exists('STORAGE_KEY', $fullView['document_jobs'][0]));
+
+        $minimal = new InvoiceQueryService(
+            $db,
+            new InvoiceReadRepository(),
+            new ResolvedInvoiceVisibilityPolicy()
+        );
+        $minimalView = $minimal->view([
+            'actor_id' => 'student-test',
+            'invoice_scope' => [
+                'invoices' => [
+                    $issued['uuid_factura'] => 'MINIMAL',
+                ],
+            ],
+        ], $issued['uuid_factura']);
+
+        Assert::same([], $minimalView['document_jobs']);
     }
 
     public function testViewFailsClosedWhenVisibilityPolicyDeniesInvoice(): void
@@ -176,6 +226,7 @@ final class InvoiceQueryServiceTest
         Assert::same(false, array_key_exists('billing', $result['invoice']));
         Assert::same(false, array_key_exists('totals', $result['invoice']));
         Assert::same([], $result['documents']);
+        Assert::same([], $result['document_jobs']);
         Assert::same([], $result['payments']);
     }
 

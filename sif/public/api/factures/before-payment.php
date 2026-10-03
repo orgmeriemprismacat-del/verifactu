@@ -8,15 +8,18 @@ use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\DocumentJobRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentBillingPartyRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentSelectionRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\InternalInvoiceBeforePaymentScopeResolver;
 use Prisma\Sif\Service\InvoiceBeforePaymentCommandService;
+use Prisma\Sif\Service\InvoiceBeforePaymentDocumentQueueService;
 use Prisma\Sif\Service\InvoiceBeforePaymentLegacyPreparationService;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
 use Prisma\Sif\Service\InvoiceBeforePaymentServerPayloadAssembler;
@@ -67,6 +70,11 @@ try {
         throw SifException::validation('Invalid JSON');
     }
 
+    $contractVersion = trim((string) ($payload['contract_version'] ?? ''));
+    if ($contractVersion !== 'UC004-V1') {
+        throw SifException::validation('Unsupported invoice-before-payment contract version');
+    }
+
     $inscriptionIds = $payload['inscription_ids'] ?? null;
     if (!is_array($inscriptionIds) || $inscriptionIds === []) {
         throw SifException::validation('Invoice before payment requires inscription_ids');
@@ -100,6 +108,8 @@ try {
         $fingerprints
     );
 
+    $coverage = new InvoiceBeforePaymentCoverageRepository();
+
     $invoiceService = new InvoiceService(
         new TransactionRunner($sifDb),
         new InvoicePayloadValidator(),
@@ -108,17 +118,26 @@ try {
         null,
         null,
         $fingerprints,
-        new InvoiceBeforePaymentCoverageRepository()
+        $coverage,
+        new OperationalEventRepository(new UuidGenerator())
     );
 
+    $documentsConfig = $config['documents'] ?? [];
     $commands = new InvoiceBeforePaymentCommandService(
         $legacyWebDb,
         $legacyIntranetDb,
         $preparation,
         new InvoiceBeforePaymentService(
             new InvoiceBeforePaymentPayloadBuilder(),
-            $invoiceService
-        )
+            $invoiceService,
+            new InvoiceBeforePaymentDocumentQueueService(
+                new TransactionRunner($sifDb),
+                new DocumentJobRepository(),
+                (string) ($documentsConfig['generator_version'] ?? '')
+            )
+        ),
+        $sifDb,
+        $coverage
     );
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
@@ -131,20 +150,21 @@ try {
             $context
         );
         unset($preview['payload']);
+        $preview['contract_version'] = $contractVersion;
         JsonResponse::send($preview);
         return;
     }
 
     if ($action === 'confirm') {
-        JsonResponse::send(
-            $commands->confirm(
-                $inscriptionIds,
-                $entityId,
-                (string) $actor['actor_id'],
-                (string) ($payload['expected_fingerprint'] ?? ''),
-                $context
-            )
+        $confirmed = $commands->confirm(
+            $inscriptionIds,
+            $entityId,
+            (string) $actor['actor_id'],
+            (string) ($payload['expected_fingerprint'] ?? ''),
+            $context
         );
+        $confirmed['contract_version'] = $contractVersion;
+        JsonResponse::send($confirmed);
         return;
     }
 

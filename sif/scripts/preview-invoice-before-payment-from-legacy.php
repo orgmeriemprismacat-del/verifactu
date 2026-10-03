@@ -5,6 +5,7 @@ require dirname(__DIR__) . '/src/autoload.php';
 use Prisma\Sif\Database\ConnectionFactory;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\InvoiceBeforePaymentBillingPartyRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentSelectionRepository;
 use Prisma\Sif\Service\InvoiceBeforePaymentCommandService;
 use Prisma\Sif\Service\InvoiceBeforePaymentLegacyPreparationService;
@@ -32,6 +33,7 @@ try {
     $actorId = requiredText(option($args, '--created-by='), 'Missing --created-by for invoice-before-payment preview');
     $context = context($args);
 
+    $sifDb = ConnectionFactory::make($config);
     $legacyWebDb = ConnectionFactory::makeLegacy($config);
     $legacyIntranetDb = ConnectionFactory::makeLegacyIntranet($config);
 
@@ -46,7 +48,10 @@ try {
     $commands = new InvoiceBeforePaymentCommandService(
         $legacyWebDb,
         $legacyIntranetDb,
-        $preparation
+        $preparation,
+        null,
+        $sifDb,
+        new InvoiceBeforePaymentCoverageRepository()
     );
 
     $result = $commands->preview(
