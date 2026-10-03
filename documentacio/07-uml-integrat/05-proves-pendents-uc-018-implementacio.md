@@ -105,7 +105,7 @@ PR #115 / snapshot `7ba6cf0f982960a1164561e0d624b1f9e729af73`:
 - `UC-111 integration verification` run `37051232657`: SUCCESS.
 - `UC-004 SIF secure flow checks` run `37051232695`: SUCCESS.
 
-Aquesta evidència continua sent vàlida per al nucli no modificat, però **no acredita per si sola els patches navegador→legacy i `CCURS` numèric del 03/10**. En un head intermedi del PR #127, la suite va arribar a 919 PASS / 6 FAIL; les 6 fallades observades corresponien a PACK/UC-015 i Redsys, no als tests GIFT/UC-018. Cal el CI del head actual.
+Aquesta evidència continua sent la **baseline** del flux abans de la revalidació, però **no acredita els patches navegador→legacy ni els canvis actuals de `GiftRedemptionTrustedContextResolver`/`GiftEnrollmentStager` per `CCURS` numèric**. En un head intermedi del PR #127, la suite va arribar a 919 PASS / 6 FAIL; les 6 fallades observades corresponien a PACK/UC-015 i Redsys, no als tests GIFT/UC-018. Cal el CI del head actual.
 
 ## 10. Criteri de re-tancament 03/10
 
