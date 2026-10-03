@@ -56,6 +56,63 @@ final class DebtSnapshotRepository
         return $this->snapshot($db, $invoice);
     }
 
+    public function findByEnrollmentId(
+        \PDO $db,
+        int $idInsc,
+        bool $forUpdate = false
+    ): ?array {
+        if ($idInsc <= 0) {
+            throw SifException::validation('Invalid debt claim enrollment id');
+        }
+
+        $sql = "SELECT DISTINCT f.UUID_FACTURA
+                FROM factura_linia fl
+                JOIN factura f ON f.UUID_FACTURA = fl.UUID_FACTURA
+                WHERE fl.SOURCE_TYPE = 'INSCRIPCIO'
+                  AND fl.SOURCE_ID = ?
+                  AND f.ESTAT_FACTURA = 'ISSUED'
+                ORDER BY f.DATA_EMISSIO DESC, f.ID DESC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$idInsc]);
+        $uuids = array_values(array_filter(array_map(
+            static fn (mixed $value): string => trim((string) $value),
+            $stmt->fetchAll(\PDO::FETCH_COLUMN)
+        )));
+
+        if ($uuids === []) {
+            return null;
+        }
+
+        $snapshots = [];
+        $outstanding = [];
+        foreach ($uuids as $uuid) {
+            $snapshot = $this->findByUuid($db, $uuid, $forUpdate);
+            if ($snapshot === null) {
+                continue;
+            }
+            $snapshots[] = $snapshot;
+            if ($snapshot['is_outstanding']) {
+                $outstanding[] = $snapshot;
+            }
+        }
+
+        if (count($outstanding) === 1) {
+            return $outstanding[0];
+        }
+        if (count($outstanding) > 1) {
+            throw SifException::conflict(
+                'Enrollment maps to multiple outstanding SIF invoices; explicit invoice is required'
+            );
+        }
+        if (count($snapshots) === 1) {
+            return $snapshots[0];
+        }
+
+        throw SifException::conflict(
+            'Enrollment maps to multiple SIF invoices without a unique outstanding invoice'
+        );
+    }
+
     public function findConfirmedPaymentAllocation(
         \PDO $db,
         string $uuidPayment,
