@@ -6,6 +6,7 @@ namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\DebtClaimCaseRepository;
 use Prisma\Sif\Repository\DebtSnapshotRepository;
 use Prisma\Sif\Repository\NotificationOutboxRepository;
@@ -74,6 +75,51 @@ final class DebtClaimCoordinatorReconciliationTest
         Assert::same($payment80['uuid_payment'], (string) $db->query(
             "SELECT UUID_PAYMENT FROM operational_event WHERE OPERATION_TYPE = 'DEBT_CLAIM_RECONCILE' ORDER BY ID DESC LIMIT 1"
         )->fetchColumn());
+    }
+
+    public function testRejectsPaymentAllocatedToAnotherInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoiceA = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC012|INVOICE|A',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+        $invoiceB = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC012|INVOICE|B',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $service = $this->service($db);
+        $actor = $this->actor();
+        $service->recordNotice($actor, [
+            'uuid_factura' => $invoiceA['uuid_factura'],
+            'action' => 'FIRST_CLAIM',
+            'idempotency_key' => 'CLAIM|NOTICE|A',
+            'reason_code' => 'DEBT_DUE',
+            'request_id' => 'REQ-NOTICE-A',
+            'correlation_id' => 'CORR-NOTICE-A',
+        ]);
+
+        $paymentB = $this->pay($db, $invoiceB['uuid_factura'], '20.00', 'CLAIM|PAY|B');
+
+        Assert::throws(
+            SifException::class,
+            fn () => $service->reconcileAfterPayment($actor, [
+                'uuid_factura' => $invoiceA['uuid_factura'],
+                'uuid_payment' => $paymentB['uuid_payment'],
+                'idempotency_key' => 'CLAIM|REC|WRONG-PAYMENT',
+                'reason_code' => 'PAYMENT_RECEIVED',
+                'request_id' => 'REQ-REC-WRONG',
+                'correlation_id' => 'CORR-REC-WRONG',
+            ]),
+            422
+        );
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM debt_claim_event')->fetchColumn());
     }
 
     private function pay(\PDO $db, string $uuid, string $amount, string $key): array
