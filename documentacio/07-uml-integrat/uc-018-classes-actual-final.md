@@ -26,6 +26,8 @@ class LegacyGiftAjax {
   +codiRegalValid()
   +buscarCursRegalat()
   +inscripcioDuplicada()
+  +buscarSiHaRealitzatElCurs()
+  +enviamentPubli()
   +enviarInscripcioBescanvia()
 }
 class BescanviaRegal {
@@ -41,8 +43,14 @@ class SifGiftRedemptionClient {
 }
 class GiftEntitlementIssuerService
 class CommercialEntitlementRepository
-class GiftRedemptionTrustedContextResolver
-class GiftEnrollmentStager
+class GiftRedemptionTrustedContextResolver {
+  +resolve participant/snapshot()
+  +validar CCURS concret o hores()
+}
+class GiftEnrollmentStager {
+  +stage enrollment()
+  +revalidar CCURS concret o hores()
+}
 class GiftRedemptionService
 class EnrollmentFundMovementRepository
 class LegacyGiftUsageReconciler
@@ -69,13 +77,13 @@ GiftRedemptionNotificationBundleService --> NotificationOutboxDeliveryService
 ## 3. Responsabilitats verificades
 
 - **Pàgina:** `pagina_bescanvia.php` referencia el bundle rastrejable `mostrarBescanvia.min.js?ver=6.0`.
-- **Browser:** les quatre crides que transporten codi regal o identitat personal són POST amb cos de petició.
-- **Legacy guard:** els tres endpoints exclusius UC-018 són POST-only; `inscripcioDuplicada.php` és compartit i UC-018 l'invoca per POST. El lookup revalida el codi i el writer exigeix `FACT_REL > 0`.
+- **Browser:** totes les crides que transporten codi regal, DNI o correu són POST amb cos de petició; `buscarSiHaRealitzatElCurs.php` pot executar-se dues vegades però mai posa el DNI a URL.
+- **Legacy guard:** els tres endpoints exclusius UC-018 són POST-only; `inscripcioDuplicada.php`, `buscarSiHaRealitzatElCurs.php` i `enviamentPubli.php` són compartits i UC-018 els invoca per POST. El lookup revalida el codi i el writer exigeix `FACT_REL > 0`.
 - **Resposta pública:** `BescanviaRegal::codiRegalValid()` no diferencia públicament inexistent/pendent/consumit.
 - **UC-017 / origen monetari:** `RedsysGiftInvoiceService` + `GiftEntitlementIssuerService` conserven factura/`CHARGE` i creen/reutilitzen GIFT.
 - **Dret:** `CommercialEntitlementRepository` governa holder, lock, `CLAIM`, `RESERVE`, `CONSUME`, `RELEASE` i events append-only.
-- **Context:** `GiftRedemptionTrustedContextResolver` deriva participant i snapshot des de dades persistides.
-- **Alta:** `GiftEnrollmentStager` crea/reutilitza l'operació `ENROLLMENT/INSCRIPCIO`.
+- **Context:** `GiftRedemptionTrustedContextResolver` deriva participant i snapshot des de dades persistides i interpreta `regal.CCURS`: codi exacte o categoria numèrica d'hores validada contra `curs.HORES` de l'edició.
+- **Alta:** `GiftEnrollmentStager` revalida el contracte de curs/hores i crea/reutilitza l'operació `ENROLLMENT/INSCRIPCIO`.
 - **Economia:** `GiftRedemptionService` registra un únic `COMPENSATION_ALLOCATION` sobre el `UUID_PAYMENT` original.
 - **Reconciliació:** `LegacyGiftUsageReconciler` fa compare-and-set de `regal.USAT`.
 - **Recovery:** `GiftRedemptionOrchestrator` convergeix sobre el mateix resultat després de timeout/resposta perduda.
@@ -87,7 +95,8 @@ GiftRedemptionNotificationBundleService --> NotificationOutboxDeliveryService
 | Component | Documentat | Implementat | Verificació |
 | --- | --- | --- | --- |
 | Pàgina + bundle real | Sí | Sí, patch 03/10 | CI patch pendent |
-| Browser→legacy POST | Sí | Sí, patch 03/10 | Boundary afegit; CI pendent |
+| Browser→legacy POST | Sí | Sí, patch 03/10 incloent DNI/correu en endpoints compartits | Boundary ampliat; CI pendent |
+| Regal genèric `CCURS=N hores` | Sí | Sí, resolver + stager | Tests match/mismatch afegits; CI pendent |
 | Resposta neutra / no enumeració | Sí | Sí, patch 03/10 | Boundary afegit; CI pendent |
 | Regal pagat abans del writer | Sí | Sí, `FACT_REL > 0` | Boundary afegit; CI pendent |
 | Compra pagada UC-017 | Sí | Sí | CI 02/10 |
@@ -116,6 +125,7 @@ GiftRedemptionNotificationBundleService --> NotificationOutboxDeliveryService
 0 factures addicionals
 replay idempotent
 secret/PII fora de query string
+CCURS concret o categoria d'hores validat autoritativament
 ```
 
 El FINAL de codi coincideix amb l'ACTUAL de la branca per al flux base; falta que el CI nou ho acrediti i, separadament, l'acceptació real de preproducció.
