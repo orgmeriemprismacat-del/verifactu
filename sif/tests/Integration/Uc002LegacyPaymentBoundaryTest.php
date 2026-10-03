@@ -24,7 +24,7 @@ final class Uc002LegacyPaymentBoundaryTest
         Assert::stringContainsString("REQUEST_METHOD", $endpoint);
         Assert::stringContainsString("!== 'POST'", $endpoint);
         Assert::stringContainsString("header('Allow: POST')", $endpoint);
-        Assert::stringContainsString("$_POST['pagament']", $endpoint);
+        Assert::stringContainsString("\$_POST['pagament']", $endpoint);
         Assert::same(false, str_contains($endpoint, '$_GET'));
     }
 
@@ -37,14 +37,14 @@ final class Uc002LegacyPaymentBoundaryTest
             Assert::fail('Could not load UC-002 payment endpoint');
         }
 
-        Assert::stringContainsString("isset($_SESSION['usuari'], $_SESSION['intranet'])", $endpoint);
+        Assert::stringContainsString("isset(\$_SESSION['usuari'], \$_SESSION['intranet'])", $endpoint);
         Assert::stringContainsString('HTTP_SEC_FETCH_SITE', $endpoint);
         Assert::stringContainsString('HTTP_ORIGIN', $endpoint);
         Assert::stringContainsString('HTTP_REFERER', $endpoint);
         Assert::stringContainsString('HTTP_X_REQUESTED_WITH', $endpoint);
         Assert::stringContainsString("consultaRolsEdiicio('/alumnes/pagaments/')", $endpoint);
         Assert::stringContainsString('tePermisVisualitzacio', $endpoint);
-        Assert::stringContainsString("(float) $pagament <= 0.0", $endpoint);
+        Assert::stringContainsString("(float) \$pagament <= 0.0", $endpoint);
         Assert::stringContainsString("Cache-Control: no-store", $endpoint);
     }
 
