@@ -96,12 +96,24 @@ final class GiftRedemptionTrustedContextResolver
 
         $productCode = strtoupper(trim((string) ($enrollment['CURS'] ?? '')));
         $giftProduct = strtoupper(trim((string) ($gift['CCURS'] ?? '')));
-        if ($productCode === ''
-            || ($giftProduct !== '' && $giftProduct !== $productCode)
-        ) {
-            throw SifException::conflict(
-                'Committed gift product does not match the purchased gift'
-            );
+        if ($productCode === '') {
+            throw SifException::conflict('Committed gift product is incomplete');
+        }
+
+        if ($giftProduct !== '') {
+            if (preg_match('/^\\d+$/D', $giftProduct) === 1) {
+                $giftHours = (int) $giftProduct;
+                $courseHours = $this->legacyCourseHours($legacyDb, $enrollment);
+                if ($giftHours <= 0 || $courseHours !== $giftHours) {
+                    throw SifException::conflict(
+                        'Committed gift course hours do not match the purchased gift category'
+                    );
+                }
+            } elseif ($giftProduct !== $productCode) {
+                throw SifException::conflict(
+                    'Committed gift product does not match the purchased gift'
+                );
+            }
         }
 
         $year = trim((string) ($enrollment['ANY'] ?? ''));
@@ -136,6 +148,36 @@ final class GiftRedemptionTrustedContextResolver
                 'holder_state' => $holder === $unclaimed ? 'UNCLAIMED' : 'CLAIMED',
             ],
         ];
+    }
+
+    /**
+     * Legacy stores a generic gift as the number of course hours in regal.CCURS.
+     * For that mode the selected course is authoritative only when its committed
+     * edition has exactly the purchased number of hours.
+     */
+    private function legacyCourseHours(\PDO $legacyDb, array $enrollment): int
+    {
+        $course = trim((string) ($enrollment['CURS'] ?? ''));
+        $year = trim((string) ($enrollment['ANY'] ?? ''));
+        $month = trim((string) ($enrollment['MES'] ?? ''));
+
+        if ($course === '' || $year === '' || $month === '') {
+            throw SifException::conflict('Committed gift edition is incomplete');
+        }
+
+        $statement = $legacyDb->prepare(
+            'SELECT DISTINCT HORES FROM curs WHERE CURS = ? AND ANY = ? AND MES = ?'
+        );
+        $statement->execute([$course, $year, $month]);
+        $rows = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+        if (count($rows) !== 1 || (int) ($rows[0]['HORES'] ?? 0) <= 0) {
+            throw SifException::conflict(
+                'Committed gift course hours cannot be resolved authoritatively'
+            );
+        }
+
+        return (int) $rows[0]['HORES'];
     }
 
     private function assertLegacyContract(
