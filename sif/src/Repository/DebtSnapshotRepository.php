@@ -56,6 +56,38 @@ final class DebtSnapshotRepository
         return $this->snapshot($db, $invoice);
     }
 
+    public function findConfirmedPaymentAllocation(
+        \PDO $db,
+        string $uuidPayment,
+        string $uuidFactura
+    ): ?array {
+        $uuidPayment = trim($uuidPayment);
+        $uuidFactura = trim($uuidFactura);
+        if ($uuidPayment === '' || $uuidFactura === '') {
+            throw SifException::validation('Missing payment allocation identity');
+        }
+
+        $stmt = $db->prepare(
+            "SELECT pt.UUID_PAYMENT, pt.TIPUS_MOVIMENT, pt.IMPORT, pt.DATA_MOVIMENT,
+                    COALESCE(SUM(pa.IMPORT_ASSIGNAT), 0) AS IMPORT_ASSIGNAT
+             FROM payment_transaction pt
+             JOIN payment_allocation pa ON pa.UUID_PAYMENT = pt.UUID_PAYMENT
+             WHERE pt.UUID_PAYMENT = ?
+               AND pa.UUID_FACTURA = ?
+               AND pt.ESTAT = 'CONFIRMED'
+             GROUP BY pt.UUID_PAYMENT, pt.TIPUS_MOVIMENT, pt.IMPORT, pt.DATA_MOVIMENT"
+        );
+        $stmt->execute([$uuidPayment, $uuidFactura]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return is_array($row) ? [
+            'uuid_payment' => (string) $row['UUID_PAYMENT'],
+            'movement_type' => (string) $row['TIPUS_MOVIMENT'],
+            'amount' => (string) $row['IMPORT'],
+            'allocated' => (string) $row['IMPORT_ASSIGNAT'],
+            'movement_date' => (string) $row['DATA_MOVIMENT'],
+        ] : null;
+    }
     private function snapshot(\PDO $db, array $invoice): array
     {
         $uuidFactura = (string) $invoice['UUID_FACTURA'];
