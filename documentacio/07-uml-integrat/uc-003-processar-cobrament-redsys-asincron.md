@@ -31,7 +31,7 @@
 **Fase C · Execució asíncrona.**
 
 6. `RedsysCallbackWorker::runOne()` recupera locks caducats i reclama un job amb estat `QUEUED` o `RETRY`, disponible segons `AVAILABLE_AT`. El repositori bloqueja el registre i passa l'estat a `PROCESSING`, incrementant `ATTEMPTS`.
-7. `RedsysCallbackDispatcher` llegeix `SOURCE_TYPE` i `SNAPSHOT_JSON` i invoca el handler implementat de curs, pack, grup, regal o USOC; el flux del curs, per exemple, construeix el payload des del snapshot i la notificació validada i crida `InvoiceService::issueInvoice()` amb cobrament inicial.
+7. `RedsysCallbackDispatcher` llegeix `SOURCE_TYPE` i `SNAPSHOT_JSON` i invoca el handler implementat de curs, pack, grup, regal o USOC. En CURS, la branca auditada resol primer una possible cobertura UC-004 i registra el CHARGE sobre la factura existent; només sense cobertura emet via `InvoiceService::issueInvoice(..., true)`.
 8. Si el processament retorna resultat, la cua marca `PROCESSED`, conserva `RESULT_JSON`, `UUID_FACTURA` i `UUID_PAYMENT`.
 9. Davant error funcional `409`/`422` o intents exhaurits, la cua marca `INCIDENT` i obre una incidència; altrament programa `RETRY` segons el retard definit al worker.
 
@@ -70,7 +70,7 @@ Per tant, la frase antiga "el nou ledger és disseny pendent" ja no és correcta
 
 **C-LEGACY — recorregut antic acreditat.** `realitzaPagamentAutomatic.php` rebia `Ds_MerchantParameters` i `Ds_Signature`, cercava la inscripció per `IDPAG`, creava una factura local `A{any}/{ordre}` amb `NUM_COMANDA=Ds_Order`, actualitzava `inscripcions.PAGAMENT`, `DATA PAG`, `FACTURA_RELACIONADA` i `FRACCIO`, i enviava correus de confirmació. El projecte indica que la signatura es calculava, però cal **verificar que el codi productiu la comparés abans de modificar BD**; no donar per segura la ruta antiga perquè en contingués el càlcul. El callback final del SIF valida signatura i ordre, persisteix notificació i encua, **sense generar numeració a l'endpoint HTTP**.
 
-**C-FACTURA — deute facturat abans de Redsys.** El contracte llegat exigeix: si ja hi ha una factura fiscal real per la inscripció o factura d'empresa, `registerPayment()` sobre aquesta; només si no hi ha cobertura i la venda és facturable, `issueInvoice()` amb pagament inicial. El handler actual `RedsysCourseInvoiceService::issueFromIntentSnapshot()` construeix payload i crida `InvoiceService::issueInvoice()`; en la ruta consultada **no hi ha un branch acreditat de consulta de factura prèvia per inscripció**. La reutilització per clau Redsys no resol una factura real prèvia emesa amb **una altra** clau. Integrar aquest control abans de posar en producció el circuit de factura prèvia pagada per TPV; si el callback arriba i no es pot determinar una factura única, conservar l'ingrés real i obrir conciliació, no emetre una segona factura alternativa.
+**C-FACTURA — deute facturat abans de Redsys, implementat per CURS/UC-004 a la branca.** `RedsysCourseInvoiceService::issueFromIntentSnapshot()` passa primer per `RedsysCoveredInvoicePaymentService`. Si `invoice_before_payment_coverage` resol una única factura UC-004 compatible, `PaymentService` crea/reutilitza el CHARGE sobre el `UUID_FACTURA` existent, inclosos parcials; si no hi ha cobertura, `InvoiceService::issueInvoice(payload, true)` aplica un guard abans d'emetre. El guard queda fora del payload/hash fiscal per conservar compatibilitat amb reintents antics. UC-004 i Redsys bloquegen l'origen indexat de `fact_rels`; UC-004 rebutja una inscripció que ja tingui factura Redsys `ISSUED`. Resta verificar aquesta ampliació al CI/preproducció i amb una cursa real a dues connexions.
 
 **C-FONS — estat del pagament vs estat de matrícula.** Una notificació autoritzada pot precedir a l'emissió pel worker; el resultat `VALIDATED` no equival encara a `UUID_FACTURA` ni a accés acadèmic. Quan el SIF confirma, l'adaptador sincronitza `PAGAMENT`, `DATA PAG`, `FRACCIO` i relacions del llegat **com a resum**, i tracta la concessió d'accés com a fase independent. Una fallada d'aquesta sincronització **no** reobre la venda fiscal ni autoritza un segon CHARGE. El correu de factura/PDF/QR s'envia quan el document corresponent està disponible i el receptor és autoritzat; si hi ha incidència documental, comunicar l'estat sense prometre un document encara inexistent.
 
@@ -94,7 +94,7 @@ El document Redsys v2 dibuixa RedsysCallbackController::handleNotification() com
 
 RedsysSignatureValidator genera payload_hash = SHA-256 dels bytes Ds_MerchantParameters **de la notificació entrant**, que RedsysNotificationRepository utilitza per contrastar una repetició del mateix DS_ORDER juntament amb import, codi de resposta, moneda, terminal i versió de signatura. No és el hash immutable de la intenció/compra UC-63; les peticions tenen continguts diferents i una comparació de hash complet entre les dues donaria un desacord legítim. PayloadIdempotencyValidatorInterface de main **no es crida** al servei de callback. El duplicat signat equivalent reutilitza notificació/job; el contradictori origina conflicte i el servei intenta obrir incidència. Un retorn HTTP correcte acredita recepció/encuat, no pagament/alta fiscal completats.
 
-El worker RedsysCallbackWorker::runOne() reclama el job; RedsysCallbackDispatcher tria el handler de producte i, segons el cas, InvoiceService::issueInvoice() amb pagament inicial crea el resultat fiscal/econòmic. **Aquí** és on InvoiceService i PaymentService de main utilitzen PayloadIdempotencyValidatorInterface per a la petició d'emissió/pagament que els correspon. Aquest hash **no** substitueix la validació del cobrament extern únic, la factura prèvia, la correspondència de UUID_PAYMENT amb la factura ni els controls pendents de propietat del job UC-52.
+El worker `RedsysCallbackWorker::runOne()` reclama el job i el dispatcher tria el handler. Per CURS, el handler pot reutilitzar una factura UC-004 existent i invocar `PaymentService`; sense cobertura emet via `InvoiceService`. La idempotència de factura i payment continua sent específica de cada petició i no substitueix la validació de saldo, cobertura, ordre o propietat del job.
 
 | Prova pendent v2 | Evidència exigible |
 | --- | --- |
@@ -375,9 +375,9 @@ Note over W,Q: si el lock ja pertany a un altre worker, la transició retorna 40
 | RA-03-07 · `ok=true` sense `uuid_payment` | **PASS SIF #1204** com `testIncompleteSuccessfulResultBecomesIncident` |
 | RA-03-08 · payment aliè a factura | encara requereix contrast de relació/ledger més profund; pendent específic |
 | RA-03-09 · worker A stale i B reclama | **PASS SIF #1204** com `testPreviousWorkerCannotFinalizeReclaimedJob` |
-| RA-03-10 · factura prèvia amb clau diferent | **P0 pendent**; no resolt per aquesta correcció |
+| RA-03-10 · factura prèvia amb clau diferent | **IMPLEMENTAT CURS/UC-004 · CI PENDENT** amb resolver, `PaymentService` i guard d'origen |
 
-**Límit:** exigir UUIDs evita un `PROCESSED` buit, però no substitueix la comprovació funcional de factura prèvia ni una reconciliació de `UUID_PAYMENT` contra una factura preexistent amb clau diferent.
+**Límit revalidat:** exigir UUIDs evita un `PROCESSED` buit; la factura prèvia CURS/UC-004 té ara un branch executable específic. Encara cal evidència CI/preproducció i no s'extrapola aquesta regla automàticament a PACK/GRUP/REGAL/USOC.
 
 ## 6. Traçabilitat i punts pendents
 
