@@ -526,8 +526,8 @@ Aquesta secció **actualitza la lectura de l'estat de CI**, sense reobrir el tan
 - El `main` és **44 commits** posterior al merge PR #116.
 - La fitxa, els UML de classes/seqüències/activitats i el nucli PHP/JS UC-008 mantenien exactament els mateixos blob SHA que al PR #116; no s'ha detectat cap regressió directa ni cap peça absent.
 - Les integracions Redsys compartides sí han evolucionat després del tancament, motiu pel qual s'ha revisat específicament la frontera `RedsysCallbackWorker → IncidentRepository`.
-- Als runs `37060976805` (SIF PHP MySQL tests) i `37060976877` (SIF checks), la suite acaba en **917 passed / 6 failed**. Les proves UC-008 explícites continuen en PASS, incloent seguretat API, launch/preflight del panell, E2E read-only, rollback d'incidència Redsys, redacció sensible i conversió a incidència després del cinquè error.
-- Cinc fallades són PACK/UC-015. La sisena és una expectativa de `payload_hash` obsoleta a `RedsysSignatureValidatorTest`; s'ha actualitzat al SHA-256 real del fixture actual, `b585ea0d53cc71fc58e366ccde647457220e9e7732734c0b904a014f589813ff`.
+- Als runs `37060976805` (SIF PHP MySQL tests) i `37060976877` (SIF checks), el HEAD del PR #118 acabava en **917 passed / 6 failed**. Les proves UC-008 explícites continuaven en PASS, incloent seguretat API, launch/preflight del panell, E2E read-only, rollback d'incidència Redsys, redacció sensible i conversió a incidència després del cinquè error.
+- La sisena fallada era una expectativa de `payload_hash` obsoleta a `RedsysSignatureValidatorTest`; actualitzada al SHA-256 real `b585ea0d53cc71fc58e366ccde647457220e9e7732734c0b904a014f589813ff`, el run PR #123 `37128124387` acredita **918 passed / 5 failed** i totes les proves `RedsysSignatureValidatorTest` passen. Les cinc fallades restants són exclusivament PACK/UC-015.
 
 Per tant, el criteri vigent és:
 
@@ -535,7 +535,7 @@ Per tant, el criteri vigent és:
 - **CODI UC-008:** complet dins l'abast auditat;
 - **DOCUMENTACIÓ/UML:** completa i reconciliada;
 - **REGRESSIÓ UC-008 AL MAIN ACTUAL:** PASS dins la suite observada;
-- **CI GLOBAL DEL MAIN ACTUAL:** no verd fins resoldre les fallades alienes a UC-008;
+- **CI GLOBAL DE LA REVALIDACIÓ:** `918/5`, no verd fins resoldre les cinc fallades PACK alienes a UC-008;
 - **ACCEPTACIÓ D'ENTORN UC-008:** pendent.
 
 Vegeu [UC-008 · Revalidació exhaustiva contra main · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md).
