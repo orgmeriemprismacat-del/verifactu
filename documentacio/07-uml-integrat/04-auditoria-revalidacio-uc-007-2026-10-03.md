@@ -136,3 +136,19 @@ S'han tancat tres mancances addicionals de prova/configuració:
 4. `InvoiceDocumentAccessServiceTest` cobreix també intent de sortir de `SIF_DOCUMENT_ROOT` → 403 + `PATH_OUTSIDE_STORAGE`.
 
 Aquestes proves continuen sent proves automatitzades sobre BD/storage de test; no substitueixen l'evidència de preproducció amb configuració real.
+
+
+## 11. F07-01 tancat en codi — descàrrega llegada sense mutació de `GENERAT`
+
+La relectura directa del blob complet de `codi-drive/intranet-actual/Intranet.php` ha permès verificar el cos real de `generaFactura($factura, $descarrega)`. Abans d'aquesta correcció, quan `$descarrega=true`, el mètode:
+1. reconstruïa el PDF temporal;
+2. escrivia el fitxer amb Dompdf;
+3. si `GENERAT` era buit, executava `updGeneratFactura`.
+
+Això era una mutació de negoci causada per una operació de consulta/descàrrega i violava l'invariant UC-007 de zero mutació.
+
+**Correcció aplicada a la branca:** s'ha eliminat l'UPDATE de `GENERAT` del camí `generaFactura(..., true)`. La descàrrega llegada pot continuar reconstruint un PDF temporal mentre existeixi el fallback, però ja no modifica aquest estat de negoci.
+
+**Protecció de regressió:** `Uc007IntranetBoundaryTest::testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState` aïlla el mètode `generaFactura()`, confirma que continua generant el fitxer temporal i falla si reapareix `updGeneratFactura`.
+
+A partir d'aquesta correcció és coherent tractar la descàrrega com a **lectura**: el JS ja no exigeix `tePermisEdicio` per descarregar, mentre el backend continua revalidant sessió, `ROLS_VISUALITZAR`, origen/XHR i el guard de convivència SIF.
