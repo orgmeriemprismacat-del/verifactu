@@ -104,3 +104,14 @@ Per tant, el vermell global del workflow **no és evidència d'una fallada funci
 ## 6. Criteri
 
 Una prova UC-020 només es marca com a `VERIFICAT_CI_*` quan el seu nom i resultat PASS consten al log del commit anterior. Els escenaris sense execució directa o que només tenen disseny/cobertura parcial continuen com a pendents.
+
+
+## 7. Revalidació posterior del test Redsys compartit
+
+La reexecució del head `0c1825c` va reproduir exactament **924 passades / 6 fallades**. Totes les proves UC-020/AP continuaven en PASS. Una de les sis fallades era `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload`.
+
+L'anàlisi mostra que el runtime retorna `payload_hash = SHA-256(Ds_MerchantParameters)`, és a dir, hash dels bytes exactes del camp signat. L'esperat antic `8d4b…` corresponia al fixture anterior sense `Ds_TransactionType`; el fixture actual incorpora aquest camp i, per tant, el hash canvia.
+
+El commit `635ffb484730424ff39c6ad09c714bb318be4f77` corregeix **només el test**: reutilitza la mateixa variable `$merchantParameters` que entra al validador i comprova `hash('sha256', $merchantParameters)`. No modifica `RedsysSignatureValidator`, callback, intencions ni lògica econòmica.
+
+**Estat d'aquesta correcció al moment de documentar-la:** workflows del nou commit en cua; no es marca encara com a CI PASS fins observar-ne el resultat.
