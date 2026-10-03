@@ -1,6 +1,19 @@
 <?php
 
 /**
+ * Resol la tarifa base activa d'un ID_PREU. El client mai n'és l'autoritat.
+ */
+function resoldrePreuBaseServidor($connexio, $idPreu) {
+   if (!is_numeric($idPreu) || (int) $idPreu <= 0) {
+      throw new Exception('ID_PREU invàlid', 409);
+   }
+
+   $preuBase = resoldrePreuBaseServidor($connexio, $idPreu);
+
+   return (float) $preuBase;
+}
+
+/**
  * Resol el preu Alumne PrisMa de manera autoritativa al servidor.
  *
  * Manté deliberadament la mateixa regla d'elegibilitat que la web legacy
