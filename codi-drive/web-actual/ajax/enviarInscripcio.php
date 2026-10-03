@@ -387,7 +387,9 @@ try {
 	$titolCurs = $textTitolCurs->obtenirText();
 	$dates = $textDates->obtenirText();
 	$conegut = $textConegut->obtenirText();
-	$preuDescompte = $numPreuDescompte->obtenirNumero();
+	// UC-020: no tornar a carregar preuDescompte del navegador en aquest punt.
+	// Si TIPUS_DESC=1, el valor ja ha estat substituït per la tarifa AP autoritativa
+	// rellegida al servidor. Per als altres tipus conserva el valor inicial validat.
 	$edicio = $textEdicio->obtenirText();
 	$comentaris = '';
 	if ($textComentaris != null)
