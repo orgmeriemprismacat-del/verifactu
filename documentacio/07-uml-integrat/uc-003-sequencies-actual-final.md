@@ -201,37 +201,43 @@ A-->>A: no transforma el job a incident/retry
 B->>Q: continua com a propietari vàlid
 ```
 
-## 8. Cas crític pendent — factura ja emesa abans del TPV
+## 8. FINAL implementat a la branca — factura UC-004 ja emesa abans del TPV
 
 ```mermaid
 sequenceDiagram
 autonumber
 participant W as Worker
 participant H as Handler CURS/variant
-participant F as Cercador factura prèvia
+participant F as RedsysCoveredInvoicePaymentService
+participant Cov as InvoiceBeforePaymentCoverageRepository
 participant Pay as PaymentService
 participant Inv as InvoiceService
 participant Inc as Reconciliació
 
 W->>H: job autoritzat
-H->>F: trobar factura fiscal única vinculada a l'operació
-alt factura existent i inequívoca
-  F-->>H: UUID_FACTURA
-  H->>Pay: registrar/aplicar cobrament a factura existent
-else no hi ha factura
-  F-->>H: none
-  H->>Inv: issueInvoice + CHARGE
-else ambigua/incompatible
-  F-->>H: conflicte
-  H->>Inc: conservar ingrés i obrir conciliació
+H->>F: registerIfCovered(order,snapshot,payload)
+F->>Cov: findClaims(INSCRIPCIO)
+alt factura UC-004 existent i compatible
+  Cov-->>F: UUID_FACTURA
+  F->>Pay: registerPaymentWithPrecondition(CHARGE → UUID_FACTURA)
+  Pay->>Cov: lock coverage + fact_rels origin
+  Pay-->>F: UUID_PAYMENT creat/reutilitzat
+  F-->>H: UUID_FACTURA existent + UUID_PAYMENT
+else no hi ha cobertura UC-004
+  Cov-->>F: none
+  H->>Inv: issueInvoice(payload, respectBeforePaymentCoverage=true)
+  Inv->>Cov: lock fact_rels origin + recheck coverage
+else cobertura/invoice/import incompatible
+  F-->>H: 409
+  H->>Inc: worker deriva a incidència
 end
 ```
 
-**Estat:** aquesta bifurcació no queda acreditada de manera general al handler actual. La idempotència per clau Redsys no evita per si sola duplicar una factura que ja existia amb una clau d'emissió diferent.
+**Estat de branca:** implementat per **CURS + cobertura UC-004**. La ruta valida una factura única, total contractual, línia d'inscripció i saldo pendent; admet parcials sense nova factura. `InvoiceService` rep el guard com a paràmetre fora del payload idempotent i UC-004/Redsys bloquegen el mateix origen de `fact_rels` per reduir la cursa entre emissió i cobrament.
 
 ## 9. Estat
 
 **DOCUMENTAT:** recorregut ACTUAL, candidat, recepció FINAL, worker, duplicat, errors, fencing i cas de factura prèvia.  
-**IMPLEMENTAT:** seqüències 3–7 al codi SIF, inclòs l'enduriment del worker d'aquesta auditoria.  
+**IMPLEMENTAT:** seqüències 3–8 al codi SIF per CURS/UC-004, inclosos hardening del worker, cobrament sobre factura prèvia, parcials i guard de concurrència d'origen.  
 **VERIFICAT:** cobertura existent + proves noves de resultat incomplet i worker caducat **PASS** al workflow SIF #1204; CI global vermell únicament per 6 fallades de baseline reproduïdes en un PR paral·lel.  
-**PENDENT:** seqüència 8 generalitzada, preproducció Redsys real, cutover, cron/monitoratge i evidència operativa.
+**PENDENT:** verificar la seqüència 8 al CI i a preproducció; generalitzar només si el contracte de PACK/GRUP/REGAL/USOC ho requereix; cutover, cron/monitoratge i evidència operativa.
