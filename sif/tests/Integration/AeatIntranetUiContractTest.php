@@ -14,6 +14,7 @@ final class AeatIntranetUiContractTest
         $bridge = $this->read($root . '/codi-drive/intranet-actual/ajax/sif/sifAeat.php');
         $client = $this->read($root . '/codi-drive/intranet-actual/SifInternalAeatClient.php');
         $api = $this->read($root . '/sif/public/api/aeat/operations.php');
+        $config = $this->read($root . '/sif/config/sif.php');
 
         Assert::stringContainsString('sif_aeat_csrf', $page);
         Assert::stringContainsString('random_bytes(32)', $page);
@@ -49,6 +50,7 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString("['aeat']['reconcile_roles']", $api);
         Assert::stringContainsString('AeatReviewReconciliationService', $api);
         Assert::stringContainsString('AeatPreflight', $api);
+        Assert::stringContainsString("'evidence_directory' => getenv('SIF_AEAT_EVIDENCE_DIR')", $config);
 
         foreach ([$page, $js] as $browserSource) {
             if (str_contains($browserSource, 'https://intranet.prisma.cat/')) {
