@@ -1,5 +1,31 @@
 # UC-111 · Diagrames de classes ACTUAL / FINAL
 
+
+## Actualització post-merge · 03/10/2026
+
+```plantuml
+@startuml
+title UC-111 | Recuperació de decisió legacy -> SIF
+class NovicePromotionDecisionReconciler
+class NovicePromotionSecretaryDecisionProjector
+database recent_titulat
+database inscripcions
+database commercial_operation
+database discount_validation
+
+NovicePromotionDecisionReconciler --> recent_titulat : llegir VALIDAT 0/1/2
+NovicePromotionDecisionReconciler --> inscripcions : exigir JASOM
+NovicePromotionDecisionReconciler --> commercial_operation : candidats PENDING_VALIDATION
+NovicePromotionDecisionReconciler --> discount_validation : candidats NOVICE_TEACHER/PENDING
+NovicePromotionDecisionReconciler --> NovicePromotionSecretaryDecisionProjector : només VALIDAT=1/2
+NovicePromotionSecretaryDecisionProjector --> commercial_operation : READY_FOR_PAYMENT
+NovicePromotionSecretaryDecisionProjector --> discount_validation : VALIDATED / REJECTED
+@enduml
+```
+
+**Estat verificat:** MySQL 8, suite UC-111 específica: **156 passades / 0 fallades**. El runner UC-111 comparteix el mateix advisory lock que la suite SIF global per evitar dues neteges simultànies sobre la mateixa sif_test*.
+
+
 **Objectiu:** separar les classes/peces observades al llegat de les classes implementades o modelades a la branca SIF. El diagrama general del SIF és [31-diagrames-classes-sif.md](../04-estat-final/31-diagrames-classes-sif.md); aquest document és el submodel específic UC-111.
 
 ## 1. ACTUAL · peces legacy observables
