@@ -71,6 +71,50 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
     }
 
+    public function testPrismaStudentCheckoutRejectsMissingHistoricalDiscountPrice(): void
+    {
+        $db = $this->fixture(false);
+        $db->exec('DELETE FROM descomptes');
+
+        Assert::throws(SifException::class, function () use ($db): void {
+            $this->service()->create($db, $db, [
+                'idpag' => 900,
+                'requested_amount' => '90.00',
+                'terminal' => '1',
+                'ds_order' => '720000000004',
+            ]);
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
+    public function testPrismaStudentCheckoutIgnoresFutureTariffAndUsesEnrollmentSnapshot(): void
+    {
+        $db = $this->fixture(false);
+        $db->exec(
+            "INSERT INTO descomptes
+             (ID_PREU, TIPUS, DATAI, DATAF, CURS, HORES, MES, PREU)
+             VALUES (5, 1, '2026-10-01 00:00:00', '2026-12-31', 'ABC', '30', '10', 80.00)"
+        );
+
+        $result = $this->service()->create($db, $db, [
+            'idpag' => 900,
+            'requested_amount' => '90.00',
+            'terminal' => '1',
+            'ds_order' => '720000000005',
+            'created_by' => 'pay-prisma-cat',
+        ]);
+
+        Assert::same('90.00', $result['amount']);
+        Assert::same('INTENT_CREATED', $result['status']);
+
+        $operation = $db->query('SELECT * FROM commercial_operation')->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('120.00', (string) $operation['GROSS_AMOUNT']);
+        Assert::same('30.00', (string) $operation['DISCOUNT_AMOUNT']);
+        Assert::same('90.00', (string) $operation['NET_AMOUNT']);
+    }
+
     public function testPrismaStudentCheckoutRejectsAmbiguousHistoricalDiscountPrice(): void
     {
         $db = $this->fixture(false);
