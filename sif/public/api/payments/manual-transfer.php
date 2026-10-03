@@ -10,8 +10,10 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Repository\SifAuditEventRepository;
 use Prisma\Sif\Service\GeneratedInvoiceLegacyPaymentSyncService;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
@@ -79,7 +81,9 @@ try {
         $manualService,
         (array) (($config['payments']['manual_transfer_roles'] ?? [])),
         $auditGateway,
-        (string) ($config['env'] ?? 'development')
+        (string) ($config['env'] ?? 'development'),
+        new OperationalEventRepository(new UuidGenerator()),
+        new SifAuditEventRepository(new UuidGenerator())
     );
 
     $result = $service->register($db, $actor, $payload);
