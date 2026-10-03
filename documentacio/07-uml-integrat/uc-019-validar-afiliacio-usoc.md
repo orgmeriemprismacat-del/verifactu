@@ -1,6 +1,6 @@
 # UC-19 · Validar afiliació USOC abans de la doble facturació
 
-**Finalitat:** decidir si una inscripció pot utilitzar el circuit de finançament USOC abans de preparar les factures a l'alumne (UC-19a) i a l'entitat (UC-19b). El catàleg original identifica `TIPUS_DESC=4` i `VALID_DESC` i indica que la **pantalla final és pendent**. **No** s'ha acreditat un servei PHP que verifiqui automàticament afiliació vigent, documentació aportada, consentiments ni autorització de l'entitat: les comprovacions del repositori fiscal llegat només llegeixen camps ja marcats.
+**Finalitat:** decidir si una inscripció pot utilitzar el circuit de finançament USOC abans de preparar les factures a l'alumne (UC-19a) i a l'entitat (UC-19b). Auditoria 2026-10-03: el repositori ja implementa la **persistència i conciliació de la decisió** mitjançant `UsocValidationDecisionService`, `UsocValidationDecisionRepository`, l'API interna signada i el pont de la intranet. Continua sense existir una comprovació automàtica de l'afiliació contra una font externa USOC: aquesta prova segueix sent una decisió humana/negoci que el sistema registra.
 
 ## 1. Fitxa específica i evidència
 
@@ -34,7 +34,7 @@
 | Canvi de curs abans del cobrament | Revalidar si la condició i la política comercial s'apliquen a la nova edició; qualsevol import preexistent del llegat no és diner ingressat. |
 | Canvi/baixa després de cobrar | Cal reconstruir les dues factures i **els dos orígens de pagament efectius**, no retornar a l'alumne la part d'entitat per defecte. |
 
-**No s'ha acreditat una prova de validació d'afiliació real.** Les proves d'emissió USOC exerciten el control dels marcadors, no la comprovació externa del dret.
+**S'ha acreditat per codi i proves de contracte la persistència segura de la decisió de validació**, inclosa la frontera `REQUESTED → mutació legacy → COMMITTED/REVIEW_REQUIRED`. **No s'ha acreditat una consulta automàtica externa a USOC ni una prova de preproducció en aquesta auditoria.**
 
 ### 1.3. Pantalla i estats de validació USOC al llegat
 
@@ -129,7 +129,7 @@ UsocEligibilityService --> UsocValidationRepository : decisió i prova
 LegacyUsocInvoicePayloadBuilder ..> LegacyUsocSnapshotRepository : dades del snapshot, NO crida PHP directa
 ```
 
-**Precisió:** la relació final del diagrama és **dependència funcional de dades, no una crida PHP directa**: el servei `RedsysUsocInvoiceService` o `UsocEntityInvoiceService` obté el snapshot abans d'invocar el builder. El validador d'afiliació i el seu writer **no estan acreditats**.
+**Precisió 2026-10-03:** la facturació continua depenent del snapshot validat. La capa de **decisió** sí està acreditada (`UsocValidationDecisionService` + `UsocValidationDecisionRepository`), però aquesta capa no substitueix la verificació externa del dret d'afiliació.
 
 ## 4. Seqüència — comprovació de la condició i ús posterior
 
@@ -271,3 +271,25 @@ Note over V,L: El PHP SIF comprova camps VALID_DESC/TIPUS_DESC, però no valida 
 ## 5. Traçabilitat
 
 [UC-19 original](../06-fitxes-funcionals/uc-019.md) · [UC-13 doble facturació](uc-013-orquestrar-doble-facturacio-usoc.md) · [UC-19a alumne](uc-019a-facturar-part-alumne-usoc.md) · [UC-19b entitat](uc-019b-facturar-part-entitat-usoc.md) · [LegacyUsocSnapshotRepository](../../sif/src/Repository/LegacyUsocSnapshotRepository.php) · [LegacyUsocInvoicePayloadBuilder](../../sif/src/Service/LegacyUsocInvoicePayloadBuilder.php) · [Diccionari](../05-governanca-operacio/24-diccionari-camps-i-valors.md) · [Revisió dels fons](00-revisio-moviments-inscripcions.md).
+
+
+## 6. Reconciliació de l'auditoria 2026-10-03
+
+La part del document que marcava la persistència de validació com a pur `DISSENY` queda superada per la implementació actual. Els diagrames canònics detallats passen a ser:
+
+- [Classes ACTUAL/FINAL](uc-019-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-019-sequencies-actual-final.md)
+- [Activitats/pàgines ACTUAL/FINAL](uc-019-activitats-pagines-actual-final.md)
+- [Informe d'auditoria](uc-019-auditoria-2026-10-03.md)
+
+### Estat reconciliat
+
+| Àrea | Estat |
+| --- | --- |
+| decisió USOC i idempotència | IMPLEMENTAT |
+| POST/CSRF/permís intranet | IMPLEMENTAT |
+| API interna HMAC i rol | IMPLEMENTAT |
+| REQUESTED/COMMITTED/REVIEW_REQUIRED | IMPLEMENTAT |
+| tests de servei/contracte | EXISTENTS; no executats en aquesta auditoria |
+| verificació externa d'afiliació | PENDENT de procediment/font de negoci |
+| evidència preproducció/MySQL | PENDENT |
