@@ -24,6 +24,8 @@ Inventariar les superfícies reals del cas d'ús **UC-018 · Bescanviar regal** 
 | `codi-drive/web-actual/ajax/buscarCursRegalat.php` | resol curs/modalitat legacy | ACTIU / POST-only + revalidació |
 | `codi-drive/web-actual/ajax/bescanviaUnCurs.php` | render de formulari per curs/edició | ACTIU; GET informatiu sense secret de regal |
 | `codi-drive/web-actual/ajax/inscripcioDuplicada.php` | comprovació de matrícula prèvia | ACTIU/transversal; POST en UC-018 per no posar DNI a URL |
+| `codi-drive/web-actual/ajax/buscarSiHaRealitzatElCurs.php` | comprova curs ja realitzat per DNI | ACTIU/transversal; POST en UC-018, fallback GET per compatibilitat externa |
+| `codi-drive/web-actual/ajax/enviamentPubli.php` | consulta estat mailing segons correu | ACTIU/transversal; POST en UC-018, fallback GET per compatibilitat externa |
 | `codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php` | writer legacy + crida SIF + govern de correus | ACTIU / POST-only |
 
 ## 3. Confirmació web
@@ -50,8 +52,8 @@ La confirmació pot mostrar el codi al propi destinatari com a part del resultat
 | --- | --- | --- |
 | `GiftEntitlementIssuerService` | emetre/reutilitzar dret GIFT des d'UC-017 | IMPLEMENTAT |
 | `CommercialEntitlementRepository` | lock, claim, reserve, consume, release, events | IMPLEMENTAT |
-| `GiftRedemptionTrustedContextResolver` | participant i snapshot autoritatiu | IMPLEMENTAT |
-| `GiftEnrollmentStager` | crear/reutilitzar operació ENROLLMENT/INSCRIPCIO | IMPLEMENTAT |
+| `GiftRedemptionTrustedContextResolver` | participant/snapshot autoritatiu + validació `CCURS` concret o categoria d'hores contra `curs.HORES` | IMPLEMENTAT / PATCH 03-10 |
+| `GiftEnrollmentStager` | revalidar `CCURS` concret/hores i crear/reutilitzar operació ENROLLMENT/INSCRIPCIO | IMPLEMENTAT / PATCH 03-10 |
 | `GiftRedemptionService` | aplicar dret, fons i consum idempotent | IMPLEMENTAT |
 | `EnrollmentFundMovementRepository` | `COMPENSATION_ALLOCATION` sobre pagament original | IMPLEMENTAT |
 | `LegacyGiftUsageReconciler` | compare-and-set de `regal.USAT` | IMPLEMENTAT |
@@ -86,7 +88,7 @@ Com a mínim:
 - `HistoricalGiftEntitlementPreflightScriptTest`;
 - `NotificationOutboxDeliveryServiceTest`.
 
-La revalidació 03/10 amplia `GiftRedemptionWebClientBoundaryTest` perquè el navegador→legacy també quedi governat.
+La revalidació 03/10 amplia `GiftRedemptionWebClientBoundaryTest` perquè tota la PII navegador→legacy quedi governada i amplia `GiftRedemptionTrustedContextResolverTest`/`GiftEnrollmentStagerTest` amb casos de regal genèric per hores.
 
 ## 8. Fitxers històrics/no canònics
 
@@ -114,4 +116,4 @@ No s'han d'utilitzar aquestes còpies per acreditar l'estat FINAL del cas.
 
 ## 10. Conclusió
 
-Sí que existeixen les peces principals de fitxa, codi PHP/JS, classes, seqüències, activitats, proves i scripts operatius. El problema detectat no era absència del nucli, sinó **desalineació documental i una frontera pública legacy no coberta per la suite anterior**. Aquesta branca corregeix ambdues coses i deixa l'acceptació final subjecta al CI nou i al gate real de preproducció.
+Sí que existeixen les peces principals de fitxa, codi PHP/JS, classes, seqüències, activitats, proves i scripts operatius. La revalidació ha localitzat dues mancances addicionals malgrat l'existència del nucli: **PII residual en query strings de dos endpoints transversals** i **una validació SIF incompatible amb els regals genèrics per hores**. Aquesta branca les corregeix i deixa l'acceptació final subjecta al CI nou i al gate real de preproducció.
