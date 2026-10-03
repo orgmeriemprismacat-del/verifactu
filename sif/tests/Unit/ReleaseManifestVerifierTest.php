@@ -68,6 +68,22 @@ final class ReleaseManifestVerifierTest
         Assert::same($fingerprint->hash($a), $fingerprint->hash($b));
         Assert::notSame($fingerprint->hash($a), $fingerprint->hash($c));
         Assert::same(64, strlen($fingerprint->hash($a)));
+
+        $gateOff = [
+            'env' => 'preproduction',
+            'version_governance' => [
+                'activation_enabled' => false,
+                'runtime_git_revision' => str_repeat('a', 40),
+                'release_manifest_path' => '/private/a.json',
+                'require_backup_evidence' => true,
+            ],
+        ];
+        $gateOn = $gateOff;
+        $gateOn['version_governance']['activation_enabled'] = true;
+        $gateOn['version_governance']['runtime_git_revision'] = str_repeat('b', 40);
+        $gateOn['version_governance']['release_manifest_path'] = '/private/b.json';
+
+        Assert::same($fingerprint->hash($gateOff), $fingerprint->hash($gateOn));
     }
 
     private function tempDir(): string
