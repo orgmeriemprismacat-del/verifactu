@@ -2,7 +2,7 @@
 
 **Cas d'ús:** UC-004 — Emetre factura abans de cobrar  
 **Pantalla actual:** `/alumnes/genera-factura-abans-pagar/`  
-**Data d'auditoria estàtica:** 2026-09-29 · **reconciliada amb `main`/cutover:** 2026-10-02  
+**Data d'auditoria reconciliada:** 2026-10-03 · **reconciliada amb `main`/cutover:** 2026-10-02  
 **Cobertura RM-037:** pàgina completa + sis apartats funcionals; cada apartat té ACTUAL i FINAL.
 
 ## 1. Matriu de pàgina i apartats
