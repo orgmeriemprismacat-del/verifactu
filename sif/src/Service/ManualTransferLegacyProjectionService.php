@@ -64,6 +64,26 @@ final class ManualTransferLegacyProjectionService
         }
     }
 
+    public function recordUnavailable(
+        array $actor,
+        array $payload,
+        array $paymentResult,
+        string $errorCode
+    ): void {
+        $context = $this->context($actor, $payload, $paymentResult);
+
+        $this->events->append($this->sifDb, array_merge($context, [
+            'result' => 'REQUESTED',
+            'is_terminal' => false,
+        ]));
+
+        $this->events->append($this->sifDb, array_merge($context, [
+            'result' => 'FAILED',
+            'is_terminal' => true,
+            'error_code' => strtoupper(trim($errorCode)),
+        ]));
+    }
+
     private function context(array $actor, array $payload, array $paymentResult): array
     {
         $requestId = trim((string) ($actor['request_id'] ?? ''));
