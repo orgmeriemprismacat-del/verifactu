@@ -32,6 +32,21 @@ final class PaymentActionGateway
         }
     }
 
+    public function reject(array $auditContext, \Throwable $exception): void
+    {
+        try {
+            $this->appendRequested($auditContext);
+            $this->events->append($this->db, array_merge($auditContext, [
+                'result' => 'REJECTED',
+                'is_terminal' => true,
+                'error_code' => $this->errorCode($exception),
+            ]));
+        } catch (\Throwable) {
+            // The business action remains rejected even if its rejection audit
+            // cannot be persisted. No mutation is allowed on this path.
+        }
+    }
+
     private function appendRequested(array $auditContext): void
     {
         $this->events->append($this->db, array_merge($auditContext, [
