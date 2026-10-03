@@ -138,4 +138,5 @@ final class PackPaymentPrivacyBoundaryTest
         Assert::same(false, str_contains($shared, "\$_GET['email']"));
         Assert::same(false, str_contains($shared, 'FILTER_VALIDATE_EMAIL'));
         Assert::stringContainsString("'authoritative' => true", $shared);
-    }}
+    }
+}
