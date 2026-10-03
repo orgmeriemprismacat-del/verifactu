@@ -18,9 +18,9 @@
 | Tests del servei manual | IMPLEMENTATS, NO EXECUTATS EN AQUESTA AUDITORIA | `ManualPaymentServiceTest` i `ManualPaymentPayloadBuilderTest` |
 | Pantalla intranet «Pagaments» | IMPLEMENTAT LLEGAT / VERIFICAT CODI | `codi-drive/intranet-actual/alumnes-pagaments.php` + JS |
 | Endpoint llegat de comanda | IMPLEMENTAT LLEGAT / VERIFICAT CODI | `ajax/alumnes/efectuarPagament.php` |
-| Adaptador intranet → ManualPaymentService | PENDENT | no localitzat al repositori |
+| Endpoint SIF intern → ManualPaymentService | **IMPLEMENTAT EN AQUESTA BRANCA** | `sif/public/api/payments/manual-transfer.php` + `ManualTransferCommandService` |
 | Autorització específica, CSRF i POST | PENDENT | el flux ACTUAL usa GET i sessió serialitzada |
-| Identitat bancària externa única | PENDENT | el builder només rep referència/banc/date/import |
+| Identitat bancària externa única | **IMPLEMENTADA AL CONTRACTE SIF** | `external_bank_event_id` → `PROVIDER_REF` + idempotència `BANK_EVENT` |
 | Conciliació transversal entre canals | PENDENT | no localitzat resolvedor bancari |
 | Una transferència → N factures | PENDENT UC-105 | builder manual crea una sola allocation |
 | Dossier classes ACTUAL/FINAL | CREAT EN AQUESTA AUDITORIA | `uc-022-classes-actual-final.md` |
@@ -120,10 +120,10 @@
 ## 6. Mancances prioritzades
 
 ### P0 — abans d'activar el canal
-1. Crear adaptador intranet server-side cap a `ManualPaymentService`.
+1. Connectar l'adaptador intranet server-side amb l'endpoint signat `POST /api/payments/manual-transfer.php` ja implementat.
 2. Substituir GET per POST i validar sessió, rol, permís específic i CSRF.
 3. No acceptar com autoritatius import/factura/estat només perquè els envia el client.
-4. Incorporar identitat externa de l'entrada bancària i política de col·lisions.
+4. Fer que la intranet subministri l'`external_bank_event_id` immutable exigit pel nou contracte; definir la font exacta d'aquest identificador en la conciliació bancària.
 5. Definir resposta JSON tipificada i gestió explícita de `CONFLICT`.
 6. Garantir que cap fallback escriu directament al llegat si falla el SIF.
 
@@ -138,7 +138,7 @@
 UC-022 no s'ha de marcar `COMPLETE` fins que:
 - la pantalla real cridi el contracte SIF;
 - la comanda sigui POST autoritzada i protegida;
-- la identitat del fet bancari sigui estable i no només una referència lliure;
+- la intranet aporti i conservi l'`external_bank_event_id` estable que el SIF ja exigeix;
 - els reintents equivalents reutilitzin i els contradictoris retornin conflicte;
 - parcial/complet/sobrepagament quedin demostrats;
 - la sincronització llegat no pugui duplicar el CHARGE;
@@ -154,3 +154,43 @@ UC-022 no s'ha de marcar `COMPLETE` fins que:
 - UC-002: registre de cobrament genèric.
 - UC-104: excés/saldo.
 - UC-105: una transferència repartida entre diverses factures.
+
+
+## 9. Implementació posterior dins la branca d'auditoria
+
+### 9.1. Endpoint intern signat
+
+S'ha incorporat `sif/public/api/payments/manual-transfer.php`, exclusivament **POST**, autenticat amb el mecanisme existent `InternalApiAuthenticator`. Això aporta:
+
+- HMAC SHA-256 sobre mètode, path, timestamp, request UUID, actor, rols i hash del body;
+- finestra temporal configurable;
+- anti-replay persistent amb `internal_api_request`;
+- identitat d'actor i rols procedents de la intranet/server caller;
+- resposta JSON SIF homogènia.
+
+### 9.2. Autorització de la comanda
+
+`ManualTransferCommandService` exigeix:
+- actor autenticat;
+- intersecció amb `SIF_MANUAL_TRANSFER_ROLES`;
+- exactament un selector de factura (`uuid_factura` o `num_visible`);
+- `external_bank_event_id` no buit;
+- mètode forçat a `TRANSFERENCIA`.
+
+### 9.3. Identitat de l'entrada bancària
+
+`ManualPaymentPayloadBuilder` ara prioritza:
+
+`TRANSFERENCIA|BANK_EVENT:<external_bank_event_id>`
+
+i persisteix aquest identificador a `payment_transaction.PROVIDER_REF`.
+
+La `reference` lliure continua a `REFERENCIA_BANCARIA`, però ja no és la identitat principal quan existeix l'event immutable.
+
+### 9.4. Tests nous
+
+- `ManualTransferCommandServiceTest`: rol autoritzat, rol denegat, event bancari obligatori i conflicte del mateix event sobre factura diferent.
+- `ManualPaymentPayloadBuilderTest`: prioritat de `external_bank_event_id` respecte de la referència lliure.
+- `ManualPaymentServiceTest`: mateix `reference` amb payload/factura diferent retorna conflicte.
+
+Aquests tests continuen com **CREATS / PENDENTS DE RESULTAT** fins que finalitzi el workflow MySQL del PR.
