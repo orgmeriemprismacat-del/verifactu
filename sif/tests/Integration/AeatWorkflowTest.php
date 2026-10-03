@@ -219,12 +219,18 @@ final class AeatWorkflowTest
             $release = $owner->prepare('SELECT RELEASE_LOCK(?)');
             $release->execute([$lock]);
         }
-        Assert::same('ACCEPTED', (new SerialWorker($db, $transport))->runOnce(true)['aeat_status']);
-        Assert::same(1, $transport->calls);
-        Assert::same(2, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
+        Assert::same('HEAD_REQUIRES_REVIEW', (new SerialWorker($db, $transport))->runOnce(true)['reason']);
+        Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same(0, $transport->calls);
+        Assert::same(1, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
+        Assert::same(
+            1,
+            (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_STALE_PROCESSING'")
+                ->fetchColumn()
+        );
     }
 
-    public function testRecoveredExhaustedAttemptBlocksFollowingRecordWithoutDelivery(): void
+    public function testRecoveredExhaustedAttemptRequiresReviewAndBlocksFollowingRecordWithoutDelivery(): void
     {
         $db = TestDatabase::fresh();
         IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload());
@@ -243,15 +249,16 @@ final class AeatWorkflowTest
         Assert::same('PROCESSING', $db->query('SELECT STATUS FROM fiscal_queue ORDER BY ID LIMIT 1')->fetchColumn());
         Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce(true)['reason']);
         $rows = $db->query('SELECT STATUS, ATTEMPTS, LOCKED_AT FROM fiscal_queue ORDER BY ID')->fetchAll(\PDO::FETCH_ASSOC);
-        Assert::same('DEAD_LETTER', $rows[0]['STATUS']);
+        Assert::same('REVIEW', $rows[0]['STATUS']);
         Assert::same(3, (int) $rows[0]['ATTEMPTS']);
         Assert::same(null, $rows[0]['LOCKED_AT']);
         Assert::same('PENDING', $rows[1]['STATUS']);
         Assert::same(0, (int) $rows[1]['ATTEMPTS']);
         Assert::same('HEAD_REQUIRES_REVIEW', $worker->runOnce(true)['reason']);
         Assert::same(0, $transport->calls);
-        Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DEAD_LETTER'")->fetchColumn());
-        Assert::same('ERROR', $db->query('SELECT ESTAT_AEAT FROM factura_registres ORDER BY FISCAL_ORDER LIMIT 1')->fetchColumn());
+        Assert::same(0, (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DEAD_LETTER'")->fetchColumn());
+        Assert::same(1, (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_STALE_PROCESSING'")->fetchColumn());
+        Assert::same('PENDING', $db->query('SELECT ESTAT_AEAT FROM factura_registres ORDER BY FISCAL_ORDER LIMIT 1')->fetchColumn());
     }
 
     public function testPersistsSubmissionAttemptBeforeAndAfterAcceptedDelivery(): void
