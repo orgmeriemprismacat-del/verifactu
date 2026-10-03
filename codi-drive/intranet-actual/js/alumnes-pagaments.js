@@ -1,5 +1,6 @@
 let urlPagina = window.location.pathname.split('?')[0];
 let path = "https://intranet.prisma.cat/ajax/";
+let csrfAlumnesPagaments = $('meta[name="csrf-alumnes-pagaments"]').attr('content') || '';
 
 /* Cada vegada que es faci una crida d'un ajax, s'executarà la funció mostrarModalLoading().
 Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoadingModal(). */
@@ -479,10 +480,22 @@ requestMain.done(function( message ) {
 
 	//S'envia el pagament
 	function aplicarPagament(idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, numFact, efact) {
+		var button = $('#upd-inscripcio-' + idTipus);
+		var operationId = button.data('payment-operation-id');
+		if (!operationId) {
+			if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+				operationId = window.crypto.randomUUID();
+			}
+			else {
+				operationId = 'manual-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+			}
+			button.data('payment-operation-id', operationId);
+		}
+
 		var sendPay = $.ajax({
 			url: path + "alumnes/efectuarPagament.php",
 			global: false,
-			method: "GET",
+			method: "POST",
 			data: {
 				id: idTipus,
 				numFact: numFact,
@@ -491,7 +504,9 @@ requestMain.done(function( message ) {
 				dataPag: dataPagInsc,
 				banc: bancInsc,
 				obs: obsInsc,
-				efact: efact
+				efact: efact,
+				operationId: operationId,
+				csrfToken: csrfAlumnesPagaments
 			},
 			dataType: "html"
 		});
