@@ -29,6 +29,7 @@ final class ManualInstallmentPaymentPayloadBuilderTest
         Assert::same('40.00', $payload['amount']);
         Assert::same('2026-06-12 10:30:00', $payload['movement_date']);
         Assert::same('FRACCIO|ID_INSC:77|USUARI:adam', $payload['provider_ref']);
+        Assert::same(77, $payload['inscription_id']);
         Assert::same('Primera fraccio', $payload['notes']);
         Assert::same('11111111-1111-4111-8111-111111111111', $payload['allocations'][0]['uuid_factura']);
         Assert::same('40.00', $payload['allocations'][0]['amount']);
