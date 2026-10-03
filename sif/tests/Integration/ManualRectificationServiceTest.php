@@ -79,6 +79,31 @@ final class ManualRectificationServiceTest
         Assert::same('SUBSTITUCIO', (string) $db->query('SELECT MODE_RECTIFICACIO FROM factura_rectificacio')->fetchColumn());
     }
 
+    public function testPersistsCatalanAliasesInRectificationLink(): void
+    {
+        $db = TestDatabase::fresh();
+        $original = IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'RECTIFICATION|ORIGINAL|ALIASES',
+        ]));
+
+        $result = $this->service($db)->issueByUuid($db, $original['uuid_factura'], [
+            'amount' => '-25.00',
+            'motiu' => 'AJUST_IMPORT',
+            'mode_rectificacio' => 'DIFERENCIES',
+            'detall' => 'Correccio amb aliases catalans',
+        ]);
+
+        Assert::same(true, $result['ok']);
+
+        $rectification = $db->query(
+            'SELECT MOTIU, MODE_RECTIFICACIO, DETAILS FROM factura_rectificacio'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('AJUST_IMPORT', $rectification['MOTIU']);
+        Assert::same('DIFERENCIES', $rectification['MODE_RECTIFICACIO']);
+        Assert::same('Correccio amb aliases catalans', $rectification['DETAILS']);
+    }
+
     public function testRejectsUnknownOriginalInvoiceBeforeIssuingRectification(): void
     {
         $db = TestDatabase::fresh();
