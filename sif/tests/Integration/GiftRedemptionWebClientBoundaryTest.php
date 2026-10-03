@@ -131,10 +131,31 @@ final class GiftRedemptionWebClientBoundaryTest
             Assert::stringContainsString('data: {', $snippet);
         }
 
+        foreach ([
+            'enviamentPubli.php' => 1,
+            'buscarSiHaRealitzatElCurs.php' => 2,
+        ] as $endpoint => $expectedCalls) {
+            $needle = 'url: "https://www.prisma.cat/ajax/' . $endpoint . '"';
+            $offset = 0;
+            $calls = 0;
+            while (($position = strpos($javascript, $needle, $offset)) !== false) {
+                $snippet = substr($javascript, $position, 700);
+                Assert::stringContainsString('type: "POST"', $snippet);
+                Assert::stringContainsString('data: {', $snippet);
+                $calls++;
+                $offset = $position + strlen($needle);
+            }
+            Assert::same($expectedCalls, $calls);
+        }
+
         Assert::same(false, str_contains($javascript, '?codiRegal='));
         Assert::same(false, str_contains($javascript, '&codiRegal='));
         Assert::same(false, str_contains($javascript, '?dni='));
         Assert::same(false, str_contains($javascript, '&dni='));
+        Assert::same(false, str_contains($javascript, '?doc='));
+        Assert::same(false, str_contains($javascript, '&doc='));
+        Assert::same(false, str_contains($javascript, '?mail='));
+        Assert::same(false, str_contains($javascript, '&mail='));
         Assert::same(
             false,
             str_contains($javascript, 'enviarInscripcioBescanvia.php?')
@@ -171,6 +192,22 @@ final class GiftRedemptionWebClientBoundaryTest
             "\$requestMethod === 'POST' ? \$_POST : \$_GET",
             $duplicate
         );
+
+        foreach ([
+            'buscarSiHaRealitzatElCurs.php',
+            'enviamentPubli.php',
+        ] as $sharedEndpoint) {
+            $shared = file_get_contents(
+                $root . '/codi-drive/web-actual/ajax/' . $sharedEndpoint
+            );
+            if (!is_string($shared)) {
+                Assert::fail('Could not read shared UC-018 endpoint: ' . $sharedEndpoint);
+            }
+            Assert::stringContainsString(
+                "\$requestMethod === 'POST' ? \$_POST : \$_GET",
+                $shared
+            );
+        }
 
         $lookup = file_get_contents(
             $root . '/codi-drive/web-actual/ajax/buscarCursRegalat.php'
