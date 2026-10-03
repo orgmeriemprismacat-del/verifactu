@@ -13,75 +13,103 @@ include("../MailSMTPComvive.php");
 include("../MailSMTPFile.php");
 require_once("../inc/resoldrePreuAlumnePrisMaServidor.php");
 
+header('Cache-Control: no-store, max-age=0');
+header('Pragma: no-cache');
+header('X-Content-Type-Options: nosniff');
+
+if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
+	header('Allow: POST');
+	http_response_code(405);
+	exit('Error: mètode no permès');
+}
+
+require_once __DIR__ . '/../inc/PublicWebMutationAuthorization.php';
 try {
-	$tipusCurs = $_GET['tipusCurs'];
-	$textNom = new Text($_GET['nom']);
-	$textCog = new Text($_GET['cog']);
-	$textDocumentacio = new Text($_GET['dni']);
-	$numTelf = new Numero($_GET['telf']);
-	$textEmail = new Text($_GET['email']);
-	$textAdreca = new Text($_GET['adreca']);
-	$textCodiPostal = new Text($_GET['codiPostal']);
-	$textPoblacio = new Text($_GET['poblacio']);
-	$textPerfil = new Text($_GET['perfil']);
-	if ( $_GET['perfil'] == "Altres")
-		$textPerfilAltres = new Text($_GET['perfilAltres']);
+	PublicWebMutationAuthorization::assertSameOriginAjax();
+}
+catch (Throwable $exception) {
+	$code = (int) $exception->getCode();
+	http_response_code($code >= 400 && $code <= 599 ? $code : 403);
+	exit('Error: petició no autoritzada');
+}
+
+$fetchSite = strtolower(trim((string) ($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '')));
+if ($fetchSite !== '' && !in_array($fetchSite, ['same-origin', 'same-site', 'none'], true)) {
+	http_response_code(403);
+	exit('Error: origen no permès');
+}
+
+$request = $_POST;
+
+try {
+	$tipusCurs = $request['tipusCurs'];
+	$textNom = new Text($request['nom']);
+	$textCog = new Text($request['cog']);
+	$textDocumentacio = new Text($request['dni']);
+	$numTelf = new Numero($request['telf']);
+	$textEmail = new Text($request['email']);
+	$textAdreca = new Text($request['adreca']);
+	$textCodiPostal = new Text($request['codiPostal']);
+	$textPoblacio = new Text($request['poblacio']);
+	$textPerfil = new Text($request['perfil']);
+	if ( $request['perfil'] == "Altres")
+		$textPerfilAltres = new Text($request['perfilAltres']);
 	else
 		$textPerfilAltres = null;
 
-	if ( $_GET['perfilCentre'] != '' )
-		$textPerfilCentre = new Text($_GET['perfilCentre']);
+	if ( $request['perfilCentre'] != '' )
+		$textPerfilCentre = new Text($request['perfilCentre']);
 	else
 		$textPerfilCentre = '';
 
-	if ( $_GET['titulacio'] == "Altres") {
-		$textTitulacio = new Text($_GET['titulacio']);
-		$textTitulacioAltres = new Text($_GET['titulacioAltres']);
+	if ( $request['titulacio'] == "Altres") {
+		$textTitulacio = new Text($request['titulacio']);
+		$textTitulacioAltres = new Text($request['titulacioAltres']);
 		$textTitulacioSecundaria = null;
 		$textTitulacioEstudiant = null;
 	}
-	else if ( $_GET['titulacio'] == "Prof. Ed. Secundària") {
+	else if ( $request['titulacio'] == "Prof. Ed. Secundària") {
 		$textTitulacio = new Text('Ed. Secundària');
 		$textTitulacioAltres = null;
-		$textTitulacioSecundaria = new Text($_GET['titulacioSecundaria']);
+		$textTitulacioSecundaria = new Text($request['titulacioSecundaria']);
 		$textTitulacioEstudiant = null;
 	}
-	else if ( $_GET['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
+	else if ( $request['titulacio'] == "Encara no tinc cap titulació, sóc estudiant de") {
 		$textTitulacio = new Text('Estudiant');
 		$textTitulacioAltres = null;
 		$textTitulacioSecundaria = null;
-		$textTitulacioEstudiant = new Text($_GET['titulacioEstudiant']);
+		$textTitulacioEstudiant = new Text($request['titulacioEstudiant']);
 	}
 	else {
-		$textTitulacio = new Text($_GET['titulacio']);
+		$textTitulacio = new Text($request['titulacio']);
 		$textTitulacioAltres = null;
 		$textTitulacioSecundaria = null;
 		$textTitulacioEstudiant = null;
 	}
-	if ( $_GET['tbTitulacio'] != '')
-		$textTbTitulacio = new Text($_GET['tbTitulacio']);
+	if ( $request['tbTitulacio'] != '')
+		$textTbTitulacio = new Text($request['tbTitulacio']);
 	else
 		$textTbTitulacio = null;
-	$numAny = new Numero($_GET['any']);
-	$textEdicio = new Text($_GET['edicio']);
-	$textPagFrac = new Text($_GET['pagFrac']);
-	$textNovell = new Text($_GET['novell']);
+	$numAny = new Numero($request['any']);
+	$textEdicio = new Text($request['edicio']);
+	$textPagFrac = new Text($request['pagFrac']);
+	$textNovell = new Text($request['novell']);
 	$novell = 0;
-	if ( $_GET['novell'] == 'yes' ) $novell = 1;
-	$textDates = new Text($_GET['dates']);
-	$textConegut = new Text($_GET['conegut']);
-	if ( $_GET['comentaris'] != '')
-		$textComentaris = new Text($_GET['comentaris']);
+	if ( $request['novell'] == 'yes' ) $novell = 1;
+	$textDates = new Text($request['dates']);
+	$textConegut = new Text($request['conegut']);
+	if ( $request['comentaris'] != '')
+		$textComentaris = new Text($request['comentaris']);
 	else
 		$textComentaris = null;
-	$textMailing = new Text($_GET['mailing']);
-	$numTipusDescompte = new Numero($_GET['tipusDescompte']);
-	$numPreuCar = new Numero($_GET['preuCar']);
-	$numPreuDescompte = new Numero($_GET['preuDescompte']);
-	$promocioATrobadaplicada = $_GET['promocioATrobadaplicada'];
-	$promocioAplicada = $_GET['promocioAplicada'];
-	$textCodiCurs = new Text($_GET['codiCurs']);
-	$textTitolCurs = new Text($_GET['titolCurs']);
+	$textMailing = new Text($request['mailing']);
+	$numTipusDescompte = new Numero($request['tipusDescompte']);
+	$numPreuCar = new Numero($request['preuCar']);
+	$numPreuDescompte = new Numero($request['preuDescompte']);
+	$promocioATrobadaplicada = $request['promocioATrobadaplicada'];
+	$promocioAplicada = $request['promocioAplicada'];
+	$textCodiCurs = new Text($request['codiCurs']);
+	$textTitolCurs = new Text($request['titolCurs']);
 
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
