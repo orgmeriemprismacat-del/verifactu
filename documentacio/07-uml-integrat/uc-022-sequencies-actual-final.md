@@ -132,3 +132,43 @@ UI-->>O: Resultat sense duplicar l'ingrés
 
 
 **Nota d'implementació:** el SIF ja exigeix `external_bank_event_id` i el persisteix com `PROVIDER_REF`; la resolució/obtenció d'aquest identificador des del banc encara pertany a la integració de la intranet.
+
+
+## FINAL implementat en branca — factura ja generada
+
+```mermaid
+sequenceDiagram
+    actor U as Usuari intranet
+    participant JS as alumnes-pagaments.js
+    participant I as registrarTransferenciaSif.php
+    participant G as SifPaymentSessionGuard
+    participant C as SifInternalApiClient
+    participant A as InternalApiAuthenticator
+    participant M as ManualTransferCommandService
+    participant PA as PaymentActionGateway
+    participant P as PaymentService
+    participant L as GeneratedInvoiceLegacyPaymentSyncService
+
+    U->>JS: confirma efact=1 + ID moviment bancari
+    JS->>I: POST JSON + CSRF
+    I->>G: sessió + rols vigents + CSRF
+    G-->>I: actor/roles
+    I->>C: comanda UC-022
+    C->>A: POST HMAC + request UUID
+    A-->>M: actor signat / anti-replay
+    M->>PA: CREATE / REQUESTED
+    PA->>P: registre dins transacció existent
+    P-->>PA: CREATED o REUSED
+    PA-->>M: event terminal atòmic
+    M-->>L: projectar total confirmat SIF
+    alt projecció OK
+        L-->>I: SYNCED
+        I-->>JS: CREATED/REUSED
+    else projecció falla
+        L--xI: error
+        I-->>JS: 202 PENDING_RETRY
+        Note over JS,I: mateix external_bank_event_id reintenta sense duplicar
+    end
+```
+
+**Frontera:** `efact=0` continua sent emissió + cobrament i no forma part d'UC-022. Una factura absent del SIF es bloqueja i es deriva a migració/reconciliació; no s'autoemet cap substitut.
