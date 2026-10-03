@@ -24,12 +24,17 @@ AP-->>P: boolea elegible
 P-->>JS: TIPUS|PREU|MISSATGES
 JS->>JS: Desa tipusPreuAplicat/preuInscripcio
 A->>JS: Confirmar
-JS->>E: tipusDescompte, preuCar, preuDescompte...
-E->>DB: INSERT inscripcio
+JS->>E: tipusDescompte, preuCar, preuDescompte... (proposta client)
+alt tipusDescompte = 1
+  E->>DB: Rellegir TIPUS_CURS, historial i tarifa base/AP
+  DB-->>E: metadades i tarifa servidor
+  E->>E: Rebutjar AP+promoció/incoherència i fixar preu AP servidor
+end
+E->>DB: INSERT inscripcio amb import autoritatiu per AP
 E-->>JS: resultat
 ```
 
-**Problema de frontera:** la confirmació confia en dades comercials mantingudes al navegador; no existeix una oferta servidor immutable entre preview i commit.
+**Problema de frontera revalidat:** el navegador encara transporta globals comercials, però per Alumne PrisMa la confirmació rellegeix i imposa l'autoritat monetària de servidor. El buit que resta és de model: preview i commit no comparteixen encara una oferta servidor immutable/`offer_id`, i la protecció equivalent no està generalitzada a tots els tipus de descompte.
 
 ## 2. Seqüència FINAL — decisió comercial i intenció
 
