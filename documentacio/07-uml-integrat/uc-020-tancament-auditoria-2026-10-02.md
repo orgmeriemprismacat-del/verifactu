@@ -1,7 +1,7 @@
 # UC-020 — Tancament d'auditoria
 
 **Data:** 02/10/2026  
-**Estat:** AUDIT_CLOSED  
+**Estat:** AUDIT_CLOSED_REVALIDATED_2026-10-03  
 **Branca:** `refactor/uc-020-reconcile-runtime-2026-10-02`
 
 ## 1. Abast tancat
@@ -51,3 +51,11 @@ El commit de tancament ha de mantenir el PR mergeable i les comprovacions autom�
 El PR #97 ha estat revisat abans del tancament. Aporta una abstracció interessant: `PrismaStudentCourseCheckoutService` delega la persistència comercial a `CommercialOfferService`. No s'ha portat tal qual perquè `TransactionRunner` no admet transacció ja activa i el flux #97 separa oferta, intenció i vincle en commits diferents.
 
 Per UC-020 preval l'atomicitat del tall final de #112. Un futur refactor cap a `CommercialOfferService` haurà de permetre participar en la mateixa transacció/unit of work abans de substituir el writer actual.
+
+## 8. Revalidació 03/10/2026
+
+La reauditoria contra el `main` vigent ha detectat i corregit **UC020-94**: a l'alta web AP, el preu rellegit al servidor era sobreescrit posteriorment per `preuDescompte` procedent del navegador abans de l'INSERT. La reassignació tardana s'ha eliminat i s'ha afegit `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest`.
+
+També s'ha reconciliat la documentació que encara conservava com a vigents decisions ja tancades i la fotografia antiga de la intranet GET/sense CSRF. Les peces documentals obligatòries queden completes: fitxa v1.6, UML integrat, classes, seqüències, activitats P01…P06, traçabilitat i matriu AP-01…AP-84.
+
+El `main` nou incorpora el tall Redsys CURS amb flags de cutover/drain i proves E2E simulades de callback → worker → pagament/factura/sync/outbox. Es manté com a **gate de rollout** l'E2E real/controlat de navegador → Redsys/callback → factura, més la migració a `payment_link` canònic i la unificació de transferència.
