@@ -3,7 +3,7 @@ include("inc/comprovarSessio.php");
 
 if (!$configOk) {
     ?>
-    <script>window.location.href = "https://intranet.prisma.cat/"</script>
+    <script>window.location.href = "/"</script>
     <?php
     return;
 }
