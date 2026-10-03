@@ -170,6 +170,8 @@ $checks = [
         'scripts/preflight-redsys-pack.php',
         'scripts/preview-redsys-pack.php',
         'scripts/process-redsys-pack.php',
+        'scripts/verify-redsys-pack-preproduction.php',
+        'scripts/verify-redsys-pack-evidence.php',
     ]),
     'manual_pack_circuit_present' => allFilesPresent($baseDir, [
         'src/Service/ManualPackInvoiceService.php',
