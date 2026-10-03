@@ -114,20 +114,31 @@ Note over C,X: mai anul·lar factura automàticament per impagament
 ```mermaid
 sequenceDiagram
 actor O as Operador
-participant C as ClaimPaymentService
+participant CP as ClaimPaymentService
 participant R as ManualPaymentInvoiceRepository
 participant B as ClaimPaymentPayloadBuilder
 participant P as PaymentService
+participant DC as DebtClaimCoordinator
+participant S as DebtSnapshotRepository
 participant CR as DebtClaimCaseRepository
-O->>C: ingrés real: UUID_FACTURA/import/data/ref
-C->>R: find invoice
-C->>B: build CLAIM_PAYMENT
-C->>P: registerPayment
-P-->>C: UUID_PAYMENT / reused
-C-->>O: resultat
-O->>CR: no accés directe
-C-->>O: UUID_PAYMENT
-O->>C: reconcileAfterPayment via DebtClaimCoordinator
+participant OX as NotificationOutbox
+O->>CP: ingrés real: UUID_FACTURA/import/data/ref
+CP->>R: find invoice
+CP->>B: build CLAIM_PAYMENT
+CP->>P: registerPayment
+P-->>CP: UUID_PAYMENT / reused
+CP-->>O: UUID_PAYMENT
+O->>DC: reconcileAfterPayment(UUID_FACTURA, UUID_PAYMENT)
+DC->>S: validar pagament CONFIRMED assignat a factura + recalcular saldo
+S-->>DC: saldo actual
+DC->>CR: append PAYMENT_PARTIAL_RECALCULATED o RESOLVED_AFTER_PAYMENT
+alt saldo = 0
+ DC->>CR: tancar expedient com RESOLVED
+ DC->>OX: cancel·lar avisos PENDING
+else saldo > 0
+ DC->>CR: mantenir expedient OPEN
+end
+DC-->>O: OPEN/CLOSED + saldo + UUID_PAYMENT
 ```
 
 ## 5. Activitats per superfície
