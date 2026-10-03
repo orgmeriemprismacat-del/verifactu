@@ -397,6 +397,12 @@ final class UsocCourseChangeLegacyHandoffService
         if (array_key_exists('any', $normalized)) {
             $normalized['year'] = $normalized['any'];
         }
+        if (array_key_exists('mes', $normalized)) {
+            $normalized['month'] = $normalized['mes'];
+        }
+        if (array_key_exists('curs', $normalized)) {
+            $normalized['course'] = $normalized['curs'];
+        }
         if (array_key_exists('pag_observacions', $normalized)) {
             $normalized['marker'] = $normalized['pag_observacions'];
         }
