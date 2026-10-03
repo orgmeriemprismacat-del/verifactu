@@ -180,3 +180,24 @@ classDiagram
 ```
 
 La notificació de confirmació queda separada de la projecció llegada i continua pendent de convertir-se en una operació post-commit/outbox.
+
+
+## Auditoria transversal implementada
+
+```mermaid
+classDiagram
+    class ManualTransferCommandService
+    class PaymentActionGateway
+    class PaymentActionEventRepository
+    class OperationalEventRepository
+    class SifAuditEventRepository
+    class PaymentService
+
+    ManualTransferCommandService --> PaymentActionGateway
+    PaymentActionGateway --> PaymentActionEventRepository : REQUESTED + terminal
+    ManualTransferCommandService --> OperationalEventRepository : mateix tx del payment
+    ManualTransferCommandService --> SifAuditEventRepository : mateix tx del payment
+    ManualTransferCommandService --> PaymentService
+```
+
+Els errors previs de permís/validació passen per `PaymentActionGateway::reject()` i queden com `REJECTED` sense obrir mutació de domini.
