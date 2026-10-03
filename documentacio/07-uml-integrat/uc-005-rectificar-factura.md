@@ -1,15 +1,15 @@
 # UC-05 · Rectificar una factura — fitxa i UML integrats
 
-**Estat documental:** nucli de rectificació manual existent; la branca d'auditoria reforça la transacció conjunta emissió+vincle+estat original, però **no s'acredita encara** la classificació fiscal, la pantalla final, la concurrència completa ni tots els escenaris de rectificació. **Casos relacionats:** UC-01 (emissió del nou document), UC-26/71 (canvi de curs), UC-27/72 (baixa), UC-28 (devolució econòmica), UC-30 (anul·lació de registre), UC-31 (subsanació) i UC-74 (classificació de correcció fiscal).
+**Estat documental:** backend UC-005 reconciliat amb atomicitat, preview/confirm, idempotència, fiscalitat local fail-closed, receptor substitutiu i auditoria; **no s'acredita encara** el classificador UC-74 genèric, el proxy/UI intranet, el mapper AEAT rectificatiu complet, la concurrència E2E ni preproducció. **Casos relacionats:** UC-01 (emissió del nou document), UC-26/71 (canvi de curs), UC-27/72 (baixa), UC-28 (devolució econòmica), UC-30 (anul·lació de registre), UC-31 (subsanació) i UC-74 (classificació de correcció fiscal).
 
 ## 1. Fitxa del cas d'ús
 
 | Camp | Especificació de l'operació |
 | --- | --- |
-| Actor principal | Operador autoritzat, a través d'una pantalla/adaptador amb control d'autorització pendent de verificació. |
+| Actor principal | Operador intern autenticat. El backend signat ja exigeix HMAC/replay guard i rol explícit; el proxy intranet amb sessió+CSRF continua pendent. |
 | Disparador | Una factura emesa requereix una rectificació per un motiu justificat i classificat. |
 | Precondicions implementades | Identificació de la factura original per `UUID_FACTURA` o `NUM_VISIBLE`; existència de l'original; import, motiu i mode vàlids. |
-| Entrades específiques | `amount`/`import` numèric no nul; `reason`/`motiu` no buit; `mode`/`mode_rectificacio` igual a `DIFERENCIES` o `SUBSTITUCIO`; `concept`, `detail`, `reference`, `created_by`, `year` i `type` opcionalment segons el constructor actual. |
+| Entrades específiques | `amount`/`import`, motiu i mode; bloc `fiscal` explícit quan l'original és subjecte a IVA; bloc `billing` només en `SUBSTITUCIO`; classificació upstream `source_uc=UC-74`, `decision=RECTIFICATION`, `reason_code`, `policy_version` i mode coherent; `expected_fingerprint` en confirmar. |
 | Resultat | Nova factura amb sèrie `R`; retorn de `uuid_factura` i `num_visible` nous, `uuid_factura_rectificada` i `num_visible_rectificada` de l'original, i indicador de reutilització. |
 | Límits | Emetre la rectificativa **no és** executar una devolució monetària, anul·lar un registre improcedent ni subsanar un registre fiscal. No confondre'ls en el diagrama. |
 
@@ -17,9 +17,9 @@
 
 1. `ManualRectificationService::issueByUuid()` o `issueByNumVisible()` valida que l'identificador no sigui buit i localitza la factura original mitjançant `ManualPaymentInvoiceRepository`.
 2. Si l'original no existeix, retorna error i no inicia la creació de la rectificativa.
-3. `ManualRectificationPayloadBuilder::forOriginalInvoice()` prepara el payload: sèrie `R`; any d'entrada o de l'original; tipus per defecte `R1`; dades del receptor recuperades de la factura original; imports i línia de rectificació; relació d'origen `RECTIFIES`.
+3. `ManualRectificationPayloadBuilder::forOriginalInvoice()` prepara el payload: sèrie `R`; tipus per defecte `R1`; receptor original o snapshot corregit només en `SUBSTITUCIO`; fiscalitat exempta preservada o bloc fiscal explícit quan hi ha IVA; línia i relació `RECTIFIES`.
 4. El constructor genera una clau idempotent pròpia per referència o, si no n'hi ha, a partir de número original, mode, motiu i import.
-5. `InvoiceService::issueInvoice()` crea o reutilitza la factura rectificativa; executa la persistència i el registre fiscal comuns a UC-01.
+5. `RectificationCommandService` fa preview/fingerprint i, en confirmar, `InvoiceService::issueInvoice()` crea o reutilitza la factura R; un reintent equivalent reutilitza el mateix UUID i queda auditat com `REUSED`.
 6. En aquesta branca, `InvoiceService::issueInvoice()` accepta una fase `beforeCommit`; UC-005 hi bloqueja l'original `FOR UPDATE`, revalida el snapshot, executa `RectificationRepository::linkRectification()` i `markOriginalRectified()` abans del COMMIT.
 7. El servei retorna identificadors de la rectificativa i de l'original.
 
@@ -29,17 +29,17 @@
 | --- | --- |
 | A1. Identificar per número visible | `issueByNumVisible()` busca la factura original per `NUM_VISIBLE` i reutilitza el mateix procés. |
 | A2. Rectificació per diferències | Mode `DIFERENCIES`. La prova d'integració cobreix un exemple d'import `-40.00` i motiu `DEVOLUCIO_PARCIAL`. Això **no equival** a registrar una transferència de devolució. |
-| A3. Rectificació per substitució | Mode `SUBSTITUCIO` admès pel constructor i cobert en una prova amb import negatiu; cal definir i validar el tractament fiscal de cada cas real. |
+| A3. Rectificació per substitució | `SUBSTITUCIO` admet un snapshot `billing` corregit a la R i manté l'original immutable. El tractament AEAT S i els imports substituïts continuen pendents del mapper oficial. |
 | A4. Reintent exacte | La clau idempotent permet que `InvoiceService` reutilitzi la rectificativa. La inserció de `factura_rectificacio` evita duplicats amb `ON DUPLICATE KEY UPDATE MOTIU = MOTIU`. |
 | E1. Original desconeguda | L'orquestrador rebutja la petició abans d'emetre. |
 | E2. Import zero, motiu absent o mode invàlid | El constructor rebutja la petició. |
 | **R1: atomicitat reforçada en branca** | UC-005 executa ara vincle i canvi d'estat dins el `beforeCommit` d'`InvoiceService`. La prova de rollback està escrita; falta evidència CI/MySQL verda i una prova de concurrència específica. |
-| **Risc R2: fiscalitat del constructor** | El constructor actual fixa `IVA_REGIM=EXEMPT`, `IVA_PCT=0` i `IVA_IMPORT=0` per defecte i recupera el receptor de l'original. **No s'ha acreditat** que aquesta simplificació sigui adequada per a totes les factures, tipus i motius possibles. |
-| **Risc R3: elecció de figura fiscal** | Els fluxos d'anul·lació de registre i subsanació són casos diferents i la seva elecció s'ha de classificar abans de cridar la rectificativa. La selecció automàtica completa no està acreditada en aquest servei. |
+| **R2: fiscalitat local reforçada** | Per originals exempts preserva règim, quota zero i causa d'exempció. Per originals subjectes a IVA, `amount` sol es rebutja com ambigu i cal bloc `fiscal` explícit coherent. El mapper AEAT R1-R5/desglose continua pendent. |
+| **R3: elecció de figura fiscal** | `FiscalCorrectionDecisionGuard` impedeix executar UC-005 sense una decisió `UC-74/RECTIFICATION` coherent. El classificador UC-74 que produeix aquesta decisió continua pendent i no pot ser substituït per dades enviades pel navegador. |
 
 **Resultats persistits:** nova `factura` sèrie `R`, les seves `factura_linia`, `factura_registres`, entrada `fiscal_queue`, `fact_rels` d'origen i `factura_rectificacio`; actualització de l'estat de la factura original. **No** es crea un moviment `payment_transaction` per aquest servei.
 
-**Proves localitzades / ampliades:** `ManualRectificationServiceTest::testIssuesRectificationInvoiceAndLinksOriginalInvoice`, `testIssuesRectificationByVisibleInvoiceNumber` i `testRejectsUnknownOriginalInvoiceBeforeIssuingRectification`. No demostren recuperació davant de fallada entre emissió, vinculació i actualització de l'original.
+**Proves localitzades / ampliades:** servei bàsic, aliases, `ManualRectificationAtomicityTest`, `ManualRectificationFiscalTest`, `RectificationCommandServiceTest`, guard UC-74, permisos i `AeatRectificationProtocolTest`. La suite aïllada UC-005 està definida a `run-uc005-tests.php`; l'evidència CI continua pendent perquè GitHub Actions roman en cua.
 
 ### 1.8. Revisió: correcció fiscal ≠ moviment intern o extern de fons — PENDENT
 
@@ -53,11 +53,11 @@ UC-05 conserva factura i registre originals i emet la rectificativa; **això no 
 
 **R-ANUL — botó antic ambigu.** `.anula-factura` obre `mostrarModalAnulaFactura_Factures.php`; `.confirma-baixa` recull `id`, `A TORNAR`, `DATA DEVOLUCIO` i observacions i acaba en `anularFactura_Factures.php`; en el tall revisat el 2026-10-03 l'endpoint mutador exigeix **POST**, sessió, autorització i `SifLegacyInvoiceMutationGuard`. El procediment històric `anularFactura()` genera una nova fila de factura **R negativa** i altera resums econòmics d'inscripcions; el xat original confirma les sèries separades A i R i que el llegat feia rectificatives negatives. **El nom del botó «anul·lar» no determina la figura del SIF**: distingir correcció d'import/concepte/receptor (UC-05), baixa d'inscripció (UC-27/72), devolució (UC-28), anul·lació de registre improcedent (UC-30) i subsanació de registre (UC-31), sense disparar-los tots per defecte.
 
-**R-RECEPTOR — dades fiscals canviades després d'emetre.** El xat confirma canvis de nom/CIF i expressa preferència per una rectificativa de valor zero o per substitució en aquests casos. Aquesta és la **necessitat de negoci comunicada**, no l'elecció fiscal validada de la modalitat: el classificador UC-74 ha de decidir tipus i dades que cal rectificar en funció del cas documentat abans d'invocar `ManualRectificationPayloadBuilder`. El constructor actual recupera el receptor de la factura original per defecte; **això no demostra que pugui corregir el receptor real en un sol pas** amb l'entrada actual. No etiquetar «canvi de CIF resolt» sense una prova del payload final, relació amb original i document generat.
+**R-RECEPTOR — dades fiscals canviades després d'emetre.** El xat confirma canvis de nom/CIF i expressa preferència per una rectificativa de valor zero o per substitució en aquests casos. Aquesta és la **necessitat de negoci comunicada**, no l'elecció fiscal validada de la modalitat: el classificador UC-74 ha de decidir tipus i dades que cal rectificar en funció del cas documentat abans d'invocar `ManualRectificationPayloadBuilder`. El constructor recupera el receptor original per defecte, però en `SUBSTITUCIO` ja accepta i congela un bloc `billing` corregit a la nova R; `DIFERENCIES` rebutja aquesta mutació. La decisió fiscal i el mapping AEAT continuen separats. No etiquetar «canvi de CIF resolt» sense una prova del payload final, relació amb original i document generat.
 
 **R-DIFERÈNCIA — servei i imports.** El xat confirma canvis de curs successius, canvis d'import després de pagar, descomptes excepcionals que històricament només alteraven el preu final, i canvis de curs amb **el mateix import però concepte diferent**. El procediment objectiu ha de congelar el concepte antic/nou i l'import original, demanar motiu, distingir diferència positiva/negativa i valorar també la correcció de concepte encara que el total sigui idèntic. No inventar un CHARGE o REFUND pel simple fet de registrar una rectificativa. Si la factura inclou diversos participants, cal identificar línia/part afectada: el builder manual genèric d'una línia no és un classificador de delta de grup.
 
-**R-CORRELACIÓ — rectificativa emesa, enllaç pendent.** En el servei actual `InvoiceService::issueInvoice()` confirma la nova factura abans de `RectificationRepository::linkRectification()` i `markOriginalRectified()`. El canal ha de conservar UUID de la rectificativa emesa si falla el vincle posterior, registrar incidència i recuperar l'enllaç idempotentment: mai tornar a emetre una segona factura R per reparar un error de sincronització. La parella original/rectificativa no es dedueix només del camp històric `FACTURA_RELACIONADA`, que pot agrupar diversos documents.
+**R-CORRELACIÓ — atomicitat i reintent.** A la branca actual, emissió R, `factura_rectificacio`, estat de l'original i auditoria terminal comparteixen el mateix COMMIT. Si falla la fase abans del COMMIT, la nova R fa rollback. Un reintent equivalent usa fingerprint fiscal immutable i idempotència per retornar el mateix UUID R com `REUSED`, sense crear una segona rectificativa.
 
 ### 1.4. Proves d'acceptació específiques de la pantalla i els motius (no executades)
 
@@ -69,7 +69,7 @@ UC-05 conserva factura i registre originals i emet la rectificativa; **això no 
 | RF-04 | Descompte excepcional posterior a factura | Import anterior, nou, motiu i línia afectada congelats; document corrector si correspongui. |
 | RF-05 | Modal antic «A TORNAR» després de baixa però retorn encara no fet | Rectificació i decisió econòmica separades; cap REFUND per una data declarada. |
 | RF-06 | Factura conjunta, baixa d'un participant | Rectificar només parts justificades, sense reconstruir la resta del document fiscal. |
-| RF-07 | Error d'enllaç `factura_rectificacio` després d'emetre R | Conservar UUID R i reprendre vinculació; no segona rectificativa. |
+| RF-07 | Error SQL en vincle/audit durant el commit UC-005 | Rollback complet de la nova R; original sense canvi i sense forat de cadena. |
 | RF-08 | Clic al botó històric «anul·lar» | Classificar primer UC-05/30/31/27/28 segons fet real, no mapatge directe pel text del botó. |
 ## 2. Diagrama UML de casos d'ús
 
@@ -123,7 +123,7 @@ flowchart LR
   a_0 --> u_5
 ```
 
-**Nota de traçabilitat:** la relació amb UC-74 representa una precondició del model **objectiu pendent**; `ManualRectificationService` no conté avui cap crida executable a un classificador fiscal complet.
+**Nota de traçabilitat:** UC-005 ja té un guard executable que exigeix una classificació UC-74 fiable abans del confirm; **no** existeix encara el classificador UC-74 genèric que genera aquesta decisió.
 
 ## 3. Subdiagrama UML de classes
 
@@ -163,7 +163,7 @@ InvoiceService --> InvoiceRepository : nova factura
 InvoiceService --> FiscalSequenceRepository : numeració
 ```
 
-El diagrama de classes omet deliberadament una classe `RectificationClassifier`: la seva existència executable no està acreditada en aquest camí.
+El diagrama de classes general anterior és històric. La vista reconciliada vigent és [uc-005-classes-actual-final.md](uc-005-classes-actual-final.md), que inclou `RectificationCommandService`, `FiscalCorrectionDecisionGuard`, permisos i auditoria.
 
 ## 4. Diagrama de seqüència — rectificació manual actual
 
@@ -443,20 +443,20 @@ S'ha afegit `ManualRectificationServiceTest::testPersistsCatalanAliasesInRectifi
 | RF-09 | `motiu` i `mode_rectificacio` sense `reason`/`mode` | **Cobert al codi de test; execució encara pendent d'evidència.** Un únic UUID R i relació íntegra. |
 | RF-10 | Rectificativa negativa fiscalment aprovada i retorn encara no executat | Factura R i relació documentades, **cap** moviment `REFUND` fictici. |
 | RF-11 | Rectificativa positiva fiscalment aprovada i pagament posterior | Un UUID R, cap `CHARGE` inicial; un ingrés efectiu posterior assignat sense nova factura. |
-| RF-12 | Error SQL en `linkRectification()` després de COMMIT fiscal | Registrar UUID R i incidència, recuperar la vinculació sense nou número ni registre fiscal duplicat. |
+| RF-12 | Reintent equivalent després d'un primer èxit | Mateix fingerprint fiscal, mateix UUID R, `idempotency_reused=true` i traça `REUSED`. |
 ## 5. Decisions pendents per completar l'operació
 
 1. Definir i implementar el criteri per escollir rectificativa, anul·lació de registre o subsanació a partir de la casuística real (UC-74/75/76).
-2. Garantir o compensar formalment la **unitat lògica** emissió + vinculació + estat original, sense alterar una factura fiscal ja emesa ni una cadena registrada.
-3. Verificar el càlcul d'imports, tipus fiscal, IVA i receptor per cada variant i contrastar el contracte del constructor amb el model fiscal final.
+2. **Implementat al backend:** unitat transaccional emissió R + vinculació + estat original + auditoria terminal; resta validar concurrència E2E i execució MySQL de la suite.
+3. Completar el mapper AEAT R1-R5: `TipoRectificativa`, `FacturasRectificadas`, `ImporteRectificacion` per S i `Desglose` oficial des de snapshots congelats.
 4. Determinar si i quan hi ha un moviment econòmic separat (UC-28) i com s'enllaça amb la rectificativa.
-5. Dissenyar permisos, pantalla, comprovacions d'estat, confirmació i proves de fallada entre cadascun dels passos del servei.
+5. Implementar el proxy/UI intranet amb sessió, permís, same-origin i CSRF, mantenint la classificació fiscal server-side.
 
 ## 6. Traçabilitat
 
 [Catàleg UC-05](../04-estat-final/33-casos-us-sif.md) · [Fitxa base UC-05](../06-fitxes-funcionals/uc-005.md) · [ManualRectificationService](../../sif/src/Service/ManualRectificationService.php) · [ManualRectificationPayloadBuilder](../../sif/src/Service/ManualRectificationPayloadBuilder.php) · [RectificationRepository](../../sif/src/Repository/RectificationRepository.php) · [InvoiceService](../../sif/src/Service/InvoiceService.php) · [ManualRectificationServiceTest](../../sif/tests/Integration/ManualRectificationServiceTest.php) · [Diagrames generals](../04-estat-final/31-diagrames-classes-sif.md) · [Seqüències existents](../04-estat-final/32-diagrames-sequencia-sif.md).
 
-**Límit:** no s'han executat les proves ni verificat el desplegament. L'existència del codi i de les proves no tanca les decisions fiscals ni els riscos d'atomicitat.
+**Límit:** la suite global anterior va arribar a 918 passats i 6 errors aliens a UC-005; la suite UC-005 aïllada actual continua en cua. No hi ha encara evidència de concurrència, preproducció ni enviament AEAT rectificatiu.
 
 
 ## 7. Artefactes detallats afegits el 2026-10-03
@@ -467,3 +467,29 @@ S'ha afegit `ManualRectificationServiceTest::testPersistsCatalanAliasesInRectifi
 - [Seqüències ACTUAL/FINAL](uc-005-sequencies-actual-final.md)
 - [Activitats per pàgina/apartat](uc-005-activitats-pagines-actual-final.md)
 - [Auditoria i traçabilitat](uc-005-auditoria-tracabilitat-2026-10-03.md)
+
+
+## 8. Reconciliació vigent del backend i VERI*FACTU — 2026-10-03
+
+Aquesta secció preval sobre els diagrames històrics d'aquest document quan hi hagi discrepància.
+
+### Implementat
+
+- `POST /api/factures/rectify.php` intern signat, amb protecció de replay i rol explícit.
+- `RectificationCommandService::preview()/confirm()` amb fingerprint canònic i doble revalidació.
+- `FOR UPDATE` de l'original i una sola transacció per R + vincle + estat original + audit terminal.
+- Reintents idempotents `REUSED`.
+- Fiscalitat local fail-closed i receptor corregit en `SUBSTITUCIO`.
+- Guard de confiança: només una decisió `source_uc=UC-74`, `decision=RECTIFICATION` pot arribar al confirm.
+- `RecordFactory` valida les regles AEAT bàsiques de rectificatives: R1-R5 exigeix S/I; S exigeix `ImporteRectificacion`; I el rebutja.
+- Proves dedicades de servei, atomicitat, fiscalitat, command, permisos, guard i protocol AEAT.
+
+### Pendent / bloquejant
+
+1. Classificador UC-74 genèric executable amb regles fiscals aprovades.
+2. Mapper AEAT UC-005 que recuperi el snapshot original de `factura_registres.PAYLOAD_JSON.aeat`, generi `FacturasRectificadas`, `ImporteRectificacion` quan S i un `Desglose` complet.
+3. Proxy intranet amb sessió/permís/same-origin/CSRF i modal preview/confirm.
+4. Casos de correcció sense variació monetària: el builder manté bloqueig de total zero fins que el criteri fiscal ho defineixi.
+5. Execució verda de la suite MySQL UC-005, prova de concurrència real, preproducció i evidència AEAT.
+
+Vegeu també [contrast AEAT de rectificatives](uc-005-aeat-rectificatives-contrast-2026-10-03.md).
