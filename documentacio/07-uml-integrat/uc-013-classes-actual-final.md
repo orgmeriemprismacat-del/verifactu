@@ -232,9 +232,17 @@ class UsocCourseChangeExecutionPreparationService {
   <<IMPLEMENTAT>>
   +prepare(db,idInsc,idpag,requestId,actor,roles,target)
 }
+class UsocCourseChangeDestinationBindingService {
+  <<IMPLEMENTAT>>
+  +bind(...)
+}
+class UsocCourseChangeLegacyHandoffService {
+  <<IMPLEMENTAT>>
+  +confirm(sifDb,legacyDb,requestId,actorId)
+}
 class UsocCourseChangeExecutionService {
-  <<PENDENT EFECTES>>
-  +executeCourseChange(plan)
+  <<IMPLEMENTAT>>
+  +execute(...)
   +rectifySourceInvoices()
   +issueTargetInvoices()
   +compensateFundsByPayer()
@@ -273,6 +281,9 @@ UsocCourseChangeFundPlanService --> UsocLifecyclePlanService
 UsocCourseChangeFundPlanService --> UsocCourseChangeTargetResolver
 UsocCourseChangeExecutionPreparationService --> UsocCourseChangePreviewService
 UsocCourseChangeExecutionPreparationService --> UsocLifecycleExecutionRepository
+UsocCourseChangeDestinationBindingService --> UsocLifecycleExecutionRepository
+UsocCourseChangeLegacyHandoffService --> UsocLifecycleExecutionRepository
+UsocCourseChangeLegacyHandoffService --> LegacyWebDB : verifica origen + desti
 UsocCourseChangeExecutionService --> UsocLifecyclePlanService
 UsocCourseChangeExecutionService --> UsocCourseChangeTargetResolver
 UsocCourseChangeExecutionService --> UsocCourseChangeFundPlanService
@@ -291,7 +302,7 @@ UsocCourseChangeExecutionService --> CreditBalanceService
 | Validació legacy↔SIF | Implementada en dues fases | Provar configuració real |
 | UI USOC | Implementada al repositori | Desplegament/rols/secrets/preflight real |
 | Baixa | Guard + planner + executor implementats | Acreditar CI actual i preproducció |
-| Canvi de curs | Guard + planner + pricing server-side + resolver + fund planner + preview + `prepare` + reserva destí + `bind` + executor + reemissió + compensacions + `COMPLETED` + handoff implementats | Resta preproducció/navegador, configuració real i resolució operativa d'excessos |
+| Canvi de curs | Guard + planner + pricing server-side + resolver + fund planner + preview + `prepare` + reserva destí + `bind` + verificació durable `LEGACY_COMPLETED` + executor + reemissió + compensacions + `COMPLETED` implementats | Resta preproducció/navegador, configuració real i resolució operativa d'excessos |
 | Alumne=0 | Bloquejat fail-closed | Decisió funcional/fiscal |
 | Regla 20/25 % | No hardcoded al SIF | Decisió comercial fora del nucli |
 | IVA | EXEMPT/E1 al builder | Validació fiscal de totes les variants |
@@ -299,7 +310,7 @@ UsocCourseChangeExecutionService --> CreditBalanceService
 ## 6. Estat
 
 - **Documentat:** sí, ara també amb classes ACTUAL/FINAL separades.
-- **Implementat:** nucli de doble facturació, cobrament, checkpoint, conciliació, validació durable, UI, lifecycle planner i flux complet de canvi de curs: pricing server-side, resolver, fund planner, preparation, reserva/binding de destí, executor, reemissió, compensacions, esdeveniments i handoff legacy.
+- **Implementat:** nucli de doble facturació, cobrament, checkpoint, conciliació, validació durable, UI, lifecycle planner i flux complet de canvi de curs: pricing server-side, resolver, fund planner, preparation, reserva/binding de destí, `UsocCourseChangeLegacyHandoffService`, checkpoint `LEGACY_COMPLETED`, executor, reemissió, compensacions i esdeveniments.
 - **Verificat:** inspecció estàtica sobre el PR #120 reconciliat amb `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`.
 - **Provat:** existeixen proves d'integració/contracte específiques per preparation, binding, executor, idempotència, preview, reserva legacy i handoff. L'acceptació definitiva correspon al CI del PR reconciliat i a preproducció.
 - **Pendent:** preproducció/navegador, configuració real, curs gratuït, resolució explícita d'excessos i validacions comercials/fiscals. Tant la baixa com el canvi de curs disposen d'executor SIF.
