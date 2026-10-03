@@ -56,15 +56,14 @@ final class ManualTransferAuditedFlowTest
         ]);
 
         Assert::same('CREATED', $result['status']);
-        Assert::same(
-            'TRANSFERENCIA|BANK_EVENT:BANK-EVENT-AUDIT-1',
-            $result['payment_idempotency_key']
-        );
+        $expectedKey = 'TRANSFERENCIA|BANK_EVENT_SHA256:' . hash('sha256', 'BANK-EVENT-AUDIT-1');
+        Assert::same($expectedKey, $result['payment_idempotency_key']);
 
-        $paymentCount = (int) $db->query(
-            "SELECT COUNT(*) FROM payment_transaction
-             WHERE IDEMPOTENCY_KEY = 'TRANSFERENCIA|BANK_EVENT:BANK-EVENT-AUDIT-1'"
-        )->fetchColumn();
+        $paymentStmt = $db->prepare(
+            'SELECT COUNT(*) FROM payment_transaction WHERE IDEMPOTENCY_KEY = ?'
+        );
+        $paymentStmt->execute([$expectedKey]);
+        $paymentCount = (int) $paymentStmt->fetchColumn();
         Assert::same(1, $paymentCount);
 
         $requestedCount = (int) $db->query(
@@ -144,13 +143,12 @@ final class ManualTransferAuditedFlowTest
         Assert::same('REUSED', $second['status']);
         Assert::same($first['uuid_payment'], $second['uuid_payment']);
 
-        Assert::same(
-            1,
-            (int) $db->query(
-                "SELECT COUNT(*) FROM payment_transaction
-                 WHERE IDEMPOTENCY_KEY = 'TRANSFERENCIA|BANK_EVENT:BANK-EVENT-AUDIT-REUSE'"
-            )->fetchColumn()
+        $reuseKey = 'TRANSFERENCIA|BANK_EVENT_SHA256:' . hash('sha256', 'BANK-EVENT-AUDIT-REUSE');
+        $reuseStmt = $db->prepare(
+            'SELECT COUNT(*) FROM payment_transaction WHERE IDEMPOTENCY_KEY = ?'
         );
+        $reuseStmt->execute([$reuseKey]);
+        Assert::same(1, (int) $reuseStmt->fetchColumn());
 
         Assert::same(
             1,
