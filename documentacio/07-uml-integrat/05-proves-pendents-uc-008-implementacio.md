@@ -1,6 +1,6 @@
 # UC-008 · Proves executades i pendents
 
-**Revalidació 03/10/2026:** el baseline de tancament UC-008 continua sent el run `36943995075` amb **844 passed / 0 failed** i 74 PASS relacionats amb incidències. El `main` actual `b0e8ff7150c5a8b415cc109d298d82f0db1f68df` ha avançat 44 commits i la suite del HEAD del PR #118 registra **917 passed / 6 failed**. Les proves explícites UC-008 continuen en **PASS**; cinc fallades són de PACK/UC-015 i una corresponia a un hash esperat obsolet del fixture `RedsysSignatureValidatorTest`, corregit a la branca de revalidació. Per tant, el cas continua auditat/code-complete, però no s'afirma que el `main` actual tingui CI global verd. El pendent propi UC-008 continua sent exclusivament l'acceptació real de preproducció i la conservació de les evidències.
+**Revalidació 03/10/2026:** el baseline de tancament UC-008 continua sent el run `36943995075` amb **844 passed / 0 failed** i 74 PASS relacionats amb incidències. El `main` actual `b0e8ff7150c5a8b415cc109d298d82f0db1f68df` ha avançat 44 commits. El HEAD del PR #118 havia registrat **917 passed / 6 failed**; corregit el hash esperat obsolet de `RedsysSignatureValidatorTest`, el run PR #123 `37128124387` acredita **918 passed / 5 failed**. Les proves explícites UC-008 continuen en **PASS** i les cinc fallades restants són de PACK/UC-015. Per tant, el cas continua auditat/code-complete, però no s'afirma que el `main` actual tingui CI global verd. El pendent propi UC-008 continua sent exclusivament l'acceptació real de preproducció i la conservació de les evidències.
 
 ## 1. Suite PHP/MySQL
 
@@ -201,13 +201,14 @@ Per marcar UC-008 com PROVAT conservar:
 - Run **37060976805** · HEAD PR #118 · **SIF PHP MySQL tests**: **917 passed / 6 failed**. Les proves d'incidències observades continuen en PASS; 5 fallades PACK + 1 assert Redsys de `payload_hash` desfasat.
 - Run **37060976877** · HEAD PR #118 · **SIF checks**: **917 passed / 6 failed**, mateix patró de fallades.
 - Branca `audit/uc-008-revalidacio-2026-10-03`: corregida l'expectativa `payload_hash` de `RedsysSignatureValidatorTest` al valor real `b585ea0d53cc71fc58e366ccde647457220e9e7732734c0b904a014f589813ff`. Les cinc fallades PACK restants són externes a UC-008.
+- Run **37128124387** · PR #123 després del fix Redsys: **918 passed / 5 failed**. `RedsysSignatureValidatorTest` passa complet; les cinc fallades restants són PACK/UC-015.
 ## 14. CI automatitzada
 
 S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-tests.php` amb PHP 8.4 i MySQL 8.4 en pull requests, canvis a `main` que afectin `sif/**` i execució manual (`workflow_dispatch`).
 
 La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
-**Estat actual (03/10/2026):** `AUDIT_CLOSED + CODE_COMPLETE + UC008_REGRESSION_PASS + GLOBAL_CI_RED_917_6 + ENVIRONMENT_ACCEPTANCE_PENDING`. El **844/0** és el baseline verd del tancament del 02/10; el `main` actual manté les proves UC-008 en PASS, però la suite global està vermella per incidències externes al cas. Resten per UC-008 únicament l'execució real de preproducció, la configuració/comprovació del menú BD i les evidències reals.
+**Estat actual (03/10/2026):** `AUDIT_CLOSED + CODE_COMPLETE + UC008_REGRESSION_PASS + GLOBAL_CI_RED_918_5 + ENVIRONMENT_ACCEPTANCE_PENDING`. El **844/0** és el baseline verd del tancament del 02/10; la revalidació del PR #123 manté les proves UC-008 en PASS i queda en **918/5**; les cinc fallades globals són externes al cas i corresponen a PACK/UC-015. Resten per UC-008 únicament l'execució real de preproducció, la configuració/comprovació del menú BD i les evidències reals.
 
 
 Vegeu també [Evidència E2E del flux gestor](08-evidencia-gestor-uc-008.md).
