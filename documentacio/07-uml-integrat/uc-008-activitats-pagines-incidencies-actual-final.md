@@ -3,7 +3,7 @@
 **Data:** 30/09/2026  
 **Objectiu:** aplicar el criteri RM-037 al UC-008. El diagrama ACTUAL representa el backend i les superfícies UI realment versionades; desplegament, configuració productiva i E2E real es mantenen separats i no es presenten com a verificats.
 
-Vegeu [classes](uc-008-classes-actual-final.md), [seqüències](uc-008-sequencies-actual-final.md) i [fitxa integrada](uc-008-gestionar-incidencia-sif.md).
+Vegeu [classes](uc-008-classes-actual-final.md), [seqüències](uc-008-sequencies-actual-final.md), [fitxa integrada](uc-008-gestionar-incidencia-sif.md) i [inventari PHP/JS ACTUAL/FINAL](uc-008-inventari-codi-php-js-actual-final-2026-10-03.md).
 
 ## 0. Inventari de pàgines/apartats
 
