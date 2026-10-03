@@ -327,7 +327,7 @@ La reauditoria confirma que UC-020 disposa de totes les peces documentals exigid
 | --- | --- | --- |
 | UC020-94 | `enviarInscripcio.php` revalidava historial/tarifa AP al servidor, però després tornava a carregar `$preuDescompte` des del valor client abans de l'INSERT. | **TANCAT CODI + TEST**. Eliminada la reassignació tardana; `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` impedeix regressió. |
 | UC020-95 | El `main` ha avançat 9 commits des de la base de #112, principalment en Redsys CURS/PACK, cutover, callback, worker, factura, sync i proves. | **REVALIDAT COMPATIBLE**. No altera la frontera AP: `RedsysCoursePaymentIntentService` continua derivant TIPUS_DESC=1 al checkout AP autoritatiu i el callback consumeix la intenció congelada. |
-| UC020-96 | La documentació mantenia simultàniament estats antics “PENDENT_NEGOCI”, GET/sense CSRF i les decisions posteriors tancades. | **TANCAT DOCUMENTACIÓ**. Fitxa v1.6 i UML marquen explícitament fotografies històriques vs estat vigent. |
+| UC020-96 | La documentació mantenia simultàniament estats antics “PENDENT_NEGOCI”, GET/sense CSRF i les decisions posteriors tancades. | **TANCAT DOCUMENTACIÓ**. Fitxa v1.6 i UML marquen explícitament fotografies històriques vs estat vigent. |\n| UC020-97 | `tipusCurs` arribava del navegador i podia activar el branch `S` que força `A_PAGAR=0`, fins i tot després de revalidar AP. | **TANCAT CODI + TEST**. `TIPUS_CURS` es deriva de `informacio` al servidor i la prova de frontera impedeix recuperar l'autoritat client. |
 
 ### 12.3. Verificació
 
