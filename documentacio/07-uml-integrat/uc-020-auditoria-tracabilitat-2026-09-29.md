@@ -406,3 +406,13 @@ Aquesta ampliació no canvia la policy de negoci; converteix comportaments ja im
 | UC020-118 | AP-36 continuava pendent tot i que `calcularPreu.php` ja té fallback segur sense candidats. | TEST NOU PENDENT CI | Prova de `$descomptes=[]`, límit `pos<i` i resposta `0|0|0|0`. |
 | UC020-119 | Faltava evidència explícita que el preview AP no muta estat comercial/econòmic/fiscal. | TEST NOU PENDENT CI | Prova read-only sobre `calcularPreu.php` i `buscarAlumnePrisMa.php`. |
 | UC020-120 | La immutabilitat del `PRICE_SNAPSHOT_JSON` estava implementada per comparació canònica però sense test nominal propi. | TEST INTEGRACIÓ NOU · PENDENT CI | `PrismaStudentCommercialSnapshotImmutabilityTest` creat a `fbfda4c`; segon snapshot incompatible ha de retornar 409 i conservar snapshot/intenció originals. |
+
+
+## 19. P06 · canvi de curs — continuació 03/10/2026
+
+| ID | Troballa/acció | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-121 | Amb `SIF_COURSE_CHANGE_PREVIEW_ENFORCED=1`, l'endpoint cridava `loadLegacyCourseChangeSource()` i `normalizeLegacyCourseChangeMoney()` sense definició local ni include que les aportés. | TANCAT CODI + TEST PENDENT CI | Helpers implementats a `realitzarCanviCurs_CanviCurs.php`; `LegacyPrismaStudentCourseChangeBoundaryTest`. |
+| UC020-122 | P06 rebia `TIPUS_DESC`, `VALID_DESC`, `A_PAGAR`, `PAGAT` i `PENDENT` des del navegador. | TANCAT PER AP | Tipus/estat es rellegeixen sempre de BD; per AP, tarifa/pagat/pendent es recalculen al servidor abans de preview i mutació. |
+| UC020-123 | La branca AP de `buscarPreuAPagar_modalCanviCurs` seleccionava `TIPUS=1` només per `ID_PREU`, sense curs/hores/mes ni unicitat. | TANCAT PER BYPASS AP AUTORITATIU | Nou resolver P06 filtra `ID_PREU + CURS/HORES + MES + vigència`, exigeix una fila i valida contra preu base. |
+| UC020-124 | L'elegibilitat llegada de canvi de curs exclou ID actual i historial posterior, però no compta `GENERAT=1`, a diferència de `ALUMNE_PRISMA_WEB_LEGACY_V2`. | PENDENT MIGRACIÓ POLICY | AP-73 continua obert; no s'ha canviat semàntica de negoci de P06 sense migració explícita. |
