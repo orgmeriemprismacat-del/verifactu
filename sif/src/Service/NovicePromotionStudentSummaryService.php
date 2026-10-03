@@ -28,14 +28,11 @@ final class NovicePromotionStudentSummaryService
                     e.STATUS AS ENTITLEMENT_STATUS,
                     e.ISSUED_AT,
                     e.EXPIRES_AT,
-                    e.RULE_VERSION,
                     g.ORIGINAL_CASH_AMOUNT,
                     g.AVAILABLE_AMOUNT,
-                    g.ORIGIN_UUID_OPERATION,
                     op.SOURCE_ID AS ORIGIN_ENROLLMENT_ID,
                     op.PRODUCT_CODE AS ORIGIN_PRODUCT_CODE,
                     op.PRODUCT_EDITION AS ORIGIN_PRODUCT_EDITION,
-                    v.STATUS AS VALIDATION_STATUS,
                     o.STATUS AS DELIVERY_STATUS
              FROM commercial_operation_party p
              JOIN novice_promotion_grant g ON g.HOLDER_PARTY_KEY = p.PARTY_KEY
@@ -54,10 +51,10 @@ final class NovicePromotionStudentSummaryService
             $uuid = (string) $right['UUID_ENTITLEMENT'];
             $applications = $this->many(
                 $db,
-                "SELECT a.UUID_APPLICATION, a.STATUS, a.AMOUNT,
+                "SELECT a.STATUS, a.AMOUNT,
                         a.RESERVED_AT, a.RESERVATION_EXPIRES_AT,
                         a.APPLIED_AT, a.RELEASED_AT, a.REVERSED_AT,
-                        a.REASON_CODE, a.UUID_DESTINATION_FACTURA,
+                        a.UUID_DESTINATION_FACTURA,
                         op.SOURCE_ID AS DESTINATION_ENROLLMENT_ID,
                         op.PRODUCT_CODE AS DESTINATION_PRODUCT_CODE,
                         op.PRODUCT_EDITION AS DESTINATION_PRODUCT_EDITION,
@@ -87,7 +84,6 @@ final class NovicePromotionStudentSummaryService
             $available = $this->cents((string) $right['AVAILABLE_AMOUNT']);
 
             $result[] = [
-                'uuid_entitlement' => $uuid,
                 'display_status' => $this->displayStatus(
                     (string) $right['ENTITLEMENT_STATUS'],
                     (string) ($right['DELIVERY_STATUS'] ?? ''),
@@ -96,8 +92,6 @@ final class NovicePromotionStudentSummaryService
                     $applied,
                     $reserved
                 ),
-                'entitlement_status' => (string) $right['ENTITLEMENT_STATUS'],
-                'validation_status' => (string) $right['VALIDATION_STATUS'],
                 'delivery_status' => $right['DELIVERY_STATUS'] === null ? null : (string) $right['DELIVERY_STATUS'],
                 'original_amount' => $this->money($original),
                 'applied_amount' => $this->money($applied),
@@ -105,16 +99,13 @@ final class NovicePromotionStudentSummaryService
                 'available_amount' => $this->money($available),
                 'issued_at' => (string) $right['ISSUED_AT'],
                 'expires_at' => (string) $right['EXPIRES_AT'],
-                'rule_version' => (string) $right['RULE_VERSION'],
                 'origin' => [
-                    'uuid_operation' => (string) $right['ORIGIN_UUID_OPERATION'],
                     'enrollment_id' => (string) $right['ORIGIN_ENROLLMENT_ID'],
                     'product_code' => (string) $right['ORIGIN_PRODUCT_CODE'],
                     'product_edition' => (string) $right['ORIGIN_PRODUCT_EDITION'],
                 ],
                 'applications' => array_map(
                     static fn (array $application): array => [
-                        'uuid_application' => (string) $application['UUID_APPLICATION'],
                         'status' => (string) $application['STATUS'],
                         'amount' => (string) $application['AMOUNT'],
                         'destination_enrollment_id' => (string) $application['DESTINATION_ENROLLMENT_ID'],
@@ -127,14 +118,13 @@ final class NovicePromotionStudentSummaryService
                         'applied_at' => $application['APPLIED_AT'] === null ? null : (string) $application['APPLIED_AT'],
                         'released_at' => $application['RELEASED_AT'] === null ? null : (string) $application['RELEASED_AT'],
                         'reversed_at' => $application['REVERSED_AT'] === null ? null : (string) $application['REVERSED_AT'],
-                        'reason_code' => $application['REASON_CODE'] === null ? null : (string) $application['REASON_CODE'],
                     ],
                     $applications
                 ),
             ];
         }
 
-        return ['identity' => $identity, 'rights' => $result];
+        return ['rights' => $result];
     }
 
     private function displayStatus(
