@@ -43,6 +43,7 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same('INTENT_CREATED', $result['status']);
         Assert::same('90.00', $result['amount']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation_party')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
 
@@ -52,6 +53,11 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same('30.00', (string) $operation['DISCOUNT_AMOUNT']);
         Assert::same('90.00', (string) $operation['NET_AMOUNT']);
         Assert::same($result['uuid_intent'], $operation['UUID_INTENT']);
+
+        $party = $db->query('SELECT * FROM commercial_operation_party')->fetch(\PDO::FETCH_ASSOC);
+        Assert::same('PARTICIPANT', $party['PARTY_ROLE']);
+        Assert::same('student:canonical:12345678Z', $party['PARTY_KEY']);
+        Assert::same('90.00', (string) $party['LINE_AMOUNT']);
 
         $validation = $db->query('SELECT * FROM discount_validation')->fetch(\PDO::FETCH_ASSOC);
         Assert::same('ALUMNE_PRISMA', $validation['DISCOUNT_TYPE']);
@@ -92,6 +98,7 @@ final class PrismaStudentCourseCheckoutServiceTest
         Assert::same($first['uuid_intent'], $second['uuid_intent']);
         Assert::same(true, $second['idempotency_reused']);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM commercial_operation_party')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
     }
