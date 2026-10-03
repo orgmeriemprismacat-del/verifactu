@@ -23,19 +23,19 @@ final class ManualInstallmentPaymentServiceTest
         $first = $service->registerByUuid($db, $invoice['uuid_factura'], [
             'amount' => '40.00',
             'movement_date' => '2026-06-12',
-            'id_insc' => 77,
+            'id_insc' => 10,
             'user' => 'adam',
         ]);
         $repeat = $service->registerByUuid($db, $invoice['uuid_factura'], [
             'amount' => '40.00',
             'movement_date' => '2026-06-12',
-            'id_insc' => 77,
+            'id_insc' => 10,
             'user' => 'adam',
         ]);
         $second = $service->registerByUuid($db, $invoice['uuid_factura'], [
             'amount' => '80.00',
             'movement_date' => '2026-06-20',
-            'id_insc' => 77,
+            'id_insc' => 10,
             'user' => 'adam',
         ]);
 
@@ -55,8 +55,8 @@ final class ManualInstallmentPaymentServiceTest
 
         $keys = $db->query('SELECT IDEMPOTENCY_KEY FROM payment_transaction ORDER BY DATA_MOVIMENT')
             ->fetchAll(\PDO::FETCH_COLUMN);
-        Assert::same('MANUAL|FRACCIO|ID_INSC:77|DATA:2026-06-12|IMPORT:40.00|USUARI:adam', $keys[0]);
-        Assert::same('MANUAL|FRACCIO|ID_INSC:77|DATA:2026-06-20|IMPORT:80.00|USUARI:adam', $keys[1]);
+        Assert::same('MANUAL|FRACCIO|ID_INSC:10|DATA:2026-06-12|IMPORT:40.00|USUARI:adam', $keys[0]);
+        Assert::same('MANUAL|FRACCIO|ID_INSC:10|DATA:2026-06-20|IMPORT:80.00|USUARI:adam', $keys[1]);
 
         $allocationType = (string) $db->query('SELECT DISTINCT TIPUS_ASSIGNACIO FROM payment_allocation')->fetchColumn();
         Assert::same('INSTALLMENT_PAYMENT', $allocationType);
@@ -73,21 +73,21 @@ final class ManualInstallmentPaymentServiceTest
         $first = $service->registerByUuid($db, $invoice['uuid_factura'], [
             'amount' => '40.00',
             'movement_date' => '2026-06-12',
-            'id_insc' => 77,
+            'id_insc' => 10,
             'user' => 'adam',
             'operation_id' => 'BANK-20260612-A',
         ]);
         $second = $service->registerByUuid($db, $invoice['uuid_factura'], [
             'amount' => '40.00',
             'movement_date' => '2026-06-12',
-            'id_insc' => 77,
+            'id_insc' => 10,
             'user' => 'adam',
             'operation_id' => 'BANK-20260612-B',
         ]);
         $repeat = $service->registerByUuid($db, $invoice['uuid_factura'], [
             'amount' => '40.00',
             'movement_date' => '2026-06-12',
-            'id_insc' => 77,
+            'id_insc' => 10,
             'user' => 'adam',
             'operation_id' => 'BANK-20260612-A',
         ]);
@@ -119,13 +119,66 @@ final class ManualInstallmentPaymentServiceTest
         $result = $this->service($db)->registerByNumVisible($db, $invoice['num_visible'], [
             'amount' => '60.00',
             'movement_date' => '2026-06-12',
-            'id_insc' => 88,
+            'id_insc' => 10,
             'user' => 'pablo',
         ]);
 
         Assert::same(true, $result['ok']);
         Assert::same($invoice['uuid_factura'], $result['uuid_factura']);
         Assert::same($invoice['num_visible'], $result['num_visible']);
+        Assert::same('PARTIAL', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
+    }
+
+    public function testRejectsInstallmentForInscriptionOutsideInvoiceCoverage(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload(['emesa_abans_cobrament' => 1])
+        );
+
+        Assert::throws(SifException::class, function () use ($db, $invoice): void {
+            $this->service($db)->registerByUuid($db, $invoice['uuid_factura'], [
+                'amount' => '40.00',
+                'movement_date' => '2026-06-12',
+                'id_insc' => 999,
+                'user' => 'adam',
+                'operation_id' => 'BANK-WRONG-INSCRIPTION',
+            ]);
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same('PENDING', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
+    }
+
+    public function testRejectsInstallmentAbovePendingInvoiceBalance(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload(['emesa_abans_cobrament' => 1])
+        );
+        $service = $this->service($db);
+
+        $service->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '100.00',
+            'movement_date' => '2026-06-12',
+            'id_insc' => 10,
+            'user' => 'adam',
+            'operation_id' => 'BANK-PARTIAL-100',
+        ]);
+
+        Assert::throws(SifException::class, function () use ($service, $db, $invoice): void {
+            $service->registerByUuid($db, $invoice['uuid_factura'], [
+                'amount' => '30.00',
+                'movement_date' => '2026-06-13',
+                'id_insc' => 10,
+                'user' => 'adam',
+                'operation_id' => 'BANK-OVERPAY-30',
+            ]);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
         Assert::same('PARTIAL', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
     }
 
@@ -137,7 +190,7 @@ final class ManualInstallmentPaymentServiceTest
             $this->service($db)->registerByUuid($db, 'missing-invoice', [
                 'amount' => '40.00',
                 'movement_date' => '2026-06-12',
-                'id_insc' => 77,
+                'id_insc' => 10,
                 'user' => 'adam',
             ]);
         }, 422);
