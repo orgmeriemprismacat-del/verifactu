@@ -145,6 +145,8 @@ final class GiftEnrollmentStager
                 );
             }
 
+            $this->assertImmutableGiftPurchaseSnapshot($entitlement, $legacyGift);
+
             $entitlementStatus = strtoupper((string) ($entitlement['STATUS'] ?? ''));
             if (!in_array(
                 $entitlementStatus,
@@ -378,6 +380,40 @@ final class GiftEnrollmentStager
                 $sifDb->rollBack();
             }
             throw $exception;
+        }
+    }
+
+    /**
+     * The entitlement snapshot binds this redemption to the original UC-017
+     * purchase. A mutable legacy regal row cannot broaden or change its scope.
+     */
+    private function assertImmutableGiftPurchaseSnapshot(
+        array $entitlement,
+        array $legacyGift
+    ): void {
+        $ruleSnapshot = json_decode(
+            (string) ($entitlement['RULE_SNAPSHOT_JSON'] ?? ''),
+            true
+        );
+        $snapshotGiftId = is_array($ruleSnapshot)
+            ? (int) ($ruleSnapshot['legacy_gift_id'] ?? 0)
+            : 0;
+        $snapshotTarget = is_array($ruleSnapshot)
+            ? strtoupper(trim((string) ($ruleSnapshot['legacy_course_code'] ?? '')))
+            : '';
+        $legacyGiftId = (int) ($legacyGift['ID'] ?? 0);
+        $legacyTarget = strtoupper(trim((string) ($legacyGift['CCURS'] ?? '')));
+
+        if (strtoupper((string) ($entitlement['RULE_VERSION'] ?? ''))
+                !== GiftEntitlementIssuerService::RULE_VERSION
+            || $snapshotGiftId <= 0
+            || $snapshotGiftId !== $legacyGiftId
+            || $snapshotTarget === ''
+            || $legacyTarget !== $snapshotTarget
+        ) {
+            throw SifException::conflict(
+                'Legacy gift target does not match the immutable SIF purchase snapshot.'
+            );
         }
     }
 
