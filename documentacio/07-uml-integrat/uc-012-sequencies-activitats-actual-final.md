@@ -25,15 +25,15 @@ A-->>JS: HTML/OK
 sequenceDiagram
 actor O as Operador
 participant UI as Intranet
-participant C as DebtClaimController
+participant C as API interna HMAC
 participant D as DebtClaimCoordinator
 participant R as DebtSnapshotRepository
-participant CR as ClaimCaseRepository
+participant CR as DebtClaimCaseRepository
 participant OX as NotificationOutbox
 O->>UI: confirmar P-MOR-02
 UI->>C: command + idempotency + csrf
 C->>D: execute
-D->>R: saldo/titular/pròrroga actuals
+D->>R: saldo/titular fiscals actuals
 R-->>D: snapshot
 D->>CR: append NOTICE_FINAL
 D->>OX: enqueueIdempotent
@@ -59,7 +59,7 @@ H --> I[Reload]
 ### FINAL
 ```mermaid
 flowchart TD
-A[Preview] --> B[Saldo SIF + titular + pròrroga + callbacks pendents]
+A[Preview] --> B[Saldo SIF + receptor fiscal]
 B --> C{Deute exigible?}
 C -- No --> D[NO_CHANGE / cancel·lar avís]
 C -- Sí --> E[Confirmar]
@@ -93,11 +93,11 @@ sequenceDiagram
 actor O as Operador
 participant C as DebtClaimCoordinator
 participant S as DebtSnapshotRepository
-participant CR as ClaimCaseRepository
+participant CR as DebtClaimCaseRepository
 participant X as UC-72/95/96
 participant OX as Outbox
 O->>C: FINAL_CLAIM
-C->>S: revalidar deute/pròrroga/pagador
+C->>S: revalidar saldo i receptor fiscal
 alt només reclamació
  C->>CR: append FINAL_CLAIM
  C->>OX: enqueue notice
@@ -118,33 +118,35 @@ participant C as ClaimPaymentService
 participant R as ManualPaymentInvoiceRepository
 participant B as ClaimPaymentPayloadBuilder
 participant P as PaymentService
-participant CR as ClaimCaseRepository
+participant CR as DebtClaimCaseRepository
 O->>C: ingrés real: UUID_FACTURA/import/data/ref
 C->>R: find invoice
 C->>B: build CLAIM_PAYMENT
 C->>P: registerPayment
 P-->>C: UUID_PAYMENT / reused
 C-->>O: resultat
-O->>CR: tancar o reprogramar segons saldo
+O->>CR: no accés directe
+C-->>O: UUID_PAYMENT
+O->>C: reconcileAfterPayment via DebtClaimCoordinator
 ```
 
 ## 5. Activitats per superfície
 
 ### `facturacio-recordatori-pagament-final.php`
 **ACTUAL:** llistar → marcar → POST → UPDATE + SMTP → recarregar.  
-**FINAL:** preview SIF → confirmar → append event → outbox → projecció.
+**FINAL (nucli implementat):** preview SIF → confirmar via bridge segur → append event → outbox. Projecció legacy només si es decideix al cutover.
 
 ### `facturacio-primera-reclamacio-pagament.php`
 **ACTUAL:** llistar → generar URL legacy → marcar reclamació → SMTP.  
-**FINAL:** resoldre pagador/via de pagament → FIRST_CLAIM idempotent → outbox.
+**FINAL (nucli implementat):** receptor fiscal de factura → FIRST_CLAIM idempotent → outbox. URL de pagament final encara no forma part del cutover.
 
 ### `facturacio-reclamacio-final.php`
 **ACTUAL:** llistar casos antics → reclamar/baixar en flux acoblat.  
-**FINAL:** FINAL_CLAIM i decisió acadèmica com ordres separades i correlacionades.
+**FINAL (nucli implementat):** FINAL_CLAIM al SIF; qualsevol baixa/pròrroga continua com a ordre separada d’UC-72/95/96.
 
 ### `facturacio-control-morosos.php`
 **ACTUAL:** quatre conjunts de deute segons entitat/certificat/estat legacy.  
-**FINAL:** una consulta de casos oberts amb filtres; el pagador i el saldo provenen del SIF.
+**FINAL:** saldo i receptor provenen del SIF; la UI de llista de casos oberts encara no ha substituït la taula legacy.
 
 ## 6. Controls transversals FINAL
 
@@ -157,3 +159,13 @@ Cada mutació ha d'acreditar:
 - recalcul de saldo abans del commit;
 - outbox després del commit;
 - cap moviment fiscal/monetari si només s'envia una reclamació.
+
+
+## 7. Estat d'implementació de les seqüències
+
+- P-MOR-02/03/04: **coordinador/event/outbox implementats a la branca**.
+- P-MOR-05: **cobrament existent + reconciliació/tancament implementats**.
+- Bridge intranet: **implementat i desactivat per feature flag**.
+- Venciment/pròrroga: **no forma part encara del snapshot perquè UC-096 continua en DISSENY**.
+- Proves: **escrites; Actions continua en cua**.
+- Cutover de les accions dels JS legacy: **pendent**.
