@@ -40,7 +40,7 @@ El flux real està format per:
 9. `SifGiftRedemptionClient.php`;
 10. pàgina/JS/endpoint de confirmació.
 
-La revalidació del 03/10 ha corregit la frontera pública perquè codi regal i PII no viatgin en query string. Les quatre operacions sensibles són POST-only.
+La revalidació del 03/10 ha corregit la frontera pública perquè codi regal i PII no viatgin en query string. Les quatre crides d'UC-018 són POST; els tres endpoints exclusius UC-018 són POST-only. `inscripcioDuplicada.php` és compartit i conserva compatibilitat GET per no trencar altres casos, però aquest UC ja no l'invoca així.
 
 ### 2.2. SIF
 
@@ -88,7 +88,7 @@ class BrowserGiftRedemption {
   +submitEnrollment()
 }
 class LegacyGiftEndpoints {
-  <<PHP POST-only>>
+  <<PHP legacy boundaries>>
   +validate()
   +lookupCourse()
   +checkDuplicate()
@@ -223,7 +223,7 @@ Per al flux base de valor exacte, ACTUAL i FINAL coincideixen en arquitectura. E
 ## 9. Seguretat revalidada
 
 - El navegador ja no posa `codiRegal` ni DNI a les URLs UC-018 sensibles.
-- Els endpoints de validació, lookup, duplicat i writer són POST-only.
+- Validació, lookup i writer UC-018 són POST-only. La comprovació de duplicat és compartida amb altres fluxos: UC-018 l'usa per POST, mantenint compatibilitat legacy fora d'aquest cas.
 - El lookup de curs revalida server-side la bescanviabilitat.
 - El writer bloqueja `FACT_REL <= 0` abans de materialitzar la inscripció.
 - La resposta pública de codi invàlid/no disponible és neutra.
