@@ -183,7 +183,7 @@ class BescanviaRegal {
 		$connexio = new ConnexioBBDDSTMT();
 		$connexio->connectarBD();
 
-		$cns = "SELECT CCURS FROM regal WHERE CODI LIKE ?";
+		$cns = "SELECT CCURS FROM regal WHERE CODI = ?";
       $stmt = $connexio->prepare($cns);
       $stmt->bind_param("s", $codiRegal);
       $stmt->execute();
@@ -210,7 +210,7 @@ class BescanviaRegal {
 		$connexio = new ConnexioBBDDSTMT();
 		$connexio->connectarBD();
 
-		$cns = "SELECT FACT_REL, USAT FROM regal WHERE CODI LIKE ?";
+		$cns = "SELECT FACT_REL, USAT FROM regal WHERE CODI = ?";
 		$stmt = $connexio->prepare($cns);
 		$stmt->bind_param("s", $codiRegal);
 		$stmt->execute();
