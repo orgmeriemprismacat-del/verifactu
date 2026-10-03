@@ -596,3 +596,32 @@ Correcció:
 - UML integrat incorpora la frontera pública i elimina els pendents ja resolts.
 
 **Estat:** les quatre famílies UML queden reconciliades amb el HEAD de codi actual.
+
+
+## 11. Reconciliació post-merge — 2026-10-03
+
+Després del merge del PR #102 (`8206d6b58fb1eb4d7455d02860a3846eb8600aea`) s'ha revalidat el conjunt UC-015 contra el `main` posterior. Els commits posteriors no han modificat codi ni documentació PACK.
+
+### Troballa documental
+
+`uc-015-comprar-pack.md` conservava un bloc anterior que encara presentava com a vigents:
+
+- «pack de dos cursos»;
+- «descompte només curs 2» / 25 % com a regla quasi estructural;
+- components «serveis parcials» / «adaptació pendent»;
+- una variant de múltiples cobraments com si fos FINAL pendent d'UC-015.
+
+Això contradia el contracte ja implementat i documentat a la fitxa principal: PACK N, imports explícits per component, pagament ecommerce complet i variant excepcional de gestió fora del flux nominal.
+
+### Correcció
+
+- secció comercial reescrita segons l'algoritme executable: ordre `DATAI, ID_CURS`, `PACK_ORDINAL`, distribució del preu i snapshot `BASE/DISCOUNT/PCT/TOTAL`;
+- escenaris PK-01..PK-07 generalitzats a PACK N;
+- PK-08..PK-11 reescrits sense dependència de «primer/segon curs»;
+- variant de diversos cobraments reclasificada com a cas de gestió separat, no pendent intern UC-015;
+- seqüència FINAL canviada de «majoritàriament implementada» a «implementada»;
+- `PackDocumentationConsistencyTest` evita reintroduir aquestes expressions obsoletes en la documentació vigent.
+
+**Impacte:** documental + prova de consistència; cap canvi de comportament productiu UC-015.
+
+**Estat post-merge:** codi UC-015 continua tancat. Resten l'acceptació runtime/preproducció amb `DS_ORDER` real i la dependència transversal UC-58.
