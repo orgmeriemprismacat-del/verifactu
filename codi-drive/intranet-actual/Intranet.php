@@ -36822,7 +36822,7 @@ echo "usuarisBD: ".$usuarisBD[4]."<BR>";*/
 			echo "<p style='color: #28a79f; font-weight: bold' >####################
 			MSG RESP ENTITAT ####################</p>";
 			$this->__sendMsgRespEntity_EntityClaimPayDefaulter($nom, $cognoms,
-			$correu, $titol, $dataf, $idpag, $tipusInsc, $entitat);
+			$correu, $nomCurs, $dataf, $idpag, $tipusInsc, $entitat);
 		}
 	}
 
@@ -37199,7 +37199,7 @@ echo "usuarisBD: ".$usuarisBD[4]."<BR>";*/
 			echo "<p style='color: #28a79f; font-weight: bold' >####################
 			MSG RESP ENTITAT ####################</p>";
 			$this->__sendMsgRespEntity_EntityClaimPayDefaulter($nom, $cognoms,
-			$correu, $titol, $dataf, $idpag, $tipusInsc, $entitat);
+			$correu, $nomCurs, $dataf, $idpag, $tipusInsc, $entitat);
 		}
 	}
 
