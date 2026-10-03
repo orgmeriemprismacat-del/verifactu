@@ -198,7 +198,7 @@ candidata els canvis descrits a
 | F-017-08 core SIF específic | IMPLEMENTAT |
 | F-017-09 dret de regal | IMPLEMENTAT |
 | F-017-10 dues transaccions consecutives | **MITIGADA**: retry del worker + idempotència de factura/entitlement/outbox; prova de frontera creada |
-| F-017-11 codi al detall de factura | **PENDENT DE DECISIÓ/DOCUMENT**: no s'ha eliminat encara del builder fiscal |
+| F-017-11 codi al detall de factura | **CORREGIDA EN CANDIDAT**: la línia fiscal usa `Val regal`; el codi queda fora del detall de factura |
 | F-017-12 correus directes | **RESOLT EN CAMÍ FINAL** amb `GiftPaymentNotificationService`; transport final pendent de prova |
 
 ### 9.2. Nous components
