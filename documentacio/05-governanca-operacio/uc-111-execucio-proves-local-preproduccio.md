@@ -1,6 +1,6 @@
 # Execució local/preproducció de proves UC-111
 
-Aquesta via és l'alternativa a GitHub Actions quan el repositori no genera `workflow run`.
+Aquesta via permet repetir la verificació UC-111 fora de GitHub Actions i separar-la de fallades d'altres UC a la suite global.
 
 ## Proteccions
 
@@ -40,14 +40,22 @@ Per defecte usa:
 
 1. crea `sif_test_uc111` si no existeix;
 2. exporta configuració SIF de test;
-3. executa `php sif/tests/run-tests.php`;
+3. executa `php sif/tests/run-uc111-tests.php`;
 4. la suite aplica/verifica migracions sobre la BD de test;
-5. executa totes les proves unitàries i d'integració, incloses:
+5. executa només les proves UC-111 i la porta JASOM, incloses:
    - `NovicePromotionPostPaymentFlowTest`;
    - `NovicePromotionStudentSummaryServiceTest`;
    - `NovicePromotionGrantServiceTest`;
    - `NovicePromotionInvoiceLinkServiceTest`;
 6. desa la sortida a `sif/test-results/uc111-YYYYMMDD-HHMMSS.log`.
+
+Per executar també la suite SIF global després de la suite UC-111:
+
+```bash
+SIF_TEST_RUN_FULL_SUITE=1 ./sif/scripts/test-uc111-local.sh
+```
+
+Una fallada de la suite global no invalida per si sola UC-111: cal identificar si la prova fallida pertany a aquest cas d'ús.
 
 ## Criteris UC-111 que han de quedar en PASS
 
@@ -78,3 +86,17 @@ No marcar les targetes Trello com a validades fins tenir:
 - nom de la BD `sif_test*`;
 - versió PHP/MySQL;
 - si hi ha fallada, stack/error i correcció associada.
+
+
+## Reconciliació de decisió de secretaria
+
+Si el legacy ja ha gravat `recent_titulat.VALIDAT=1/2` però la projecció síncrona al SIF ha fallat, no s'ha de repetir ni inventar la decisió. En una BD `sif_test*` es pot verificar la recuperació amb:
+
+```bash
+SIF_ENV=test \
+SIF_DB_DSN='mysql:host=127.0.0.1;dbname=sif_test_uc111;charset=utf8mb4' \
+SIF_LEGACY_DB_DSN='mysql:host=127.0.0.1;dbname=sif_legacy_test;charset=utf8mb4' \
+php sif/scripts/reconcile-novice-decisions.php --limit=100
+```
+
+El reconciliador només projecta decisions legacy explícites 1/2 sobre operacions JASOM que continuen `PENDING_VALIDATION`; si el legacy encara és 0, manté el pagament tancat. En aquesta fase el CLI continua restringit a `SIF_ENV=test` fins a l'aprovació de preproducció.
