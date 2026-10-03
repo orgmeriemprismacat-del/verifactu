@@ -2,7 +2,7 @@
 
 **Tall revalidat:** 2026-10-03  
 **Base:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`  
-**Estat:** `IMPLEMENTAT · CORE CI VERIFICAT 02/10 · PUBLIC EDGE PATCH 03/10 CI PENDENT · ENVIRONMENT GO PENDENT`
+**Estat:** `IMPLEMENTAT · CORE CI VERIFICAT 02/10 · PUBLIC EDGE + GENERIC HOURS PATCH 03/10 CI PENDENT · ENVIRONMENT GO PENDENT`
 
 ## 1. Objectiu i frontera funcional
 
@@ -36,11 +36,13 @@ El flux real està format per:
 5. `buscarCursRegalat.php`;
 6. `bescanviaUnCurs.php`;
 7. `inscripcioDuplicada.php`;
-8. `enviarInscripcioBescanvia.php`;
-9. `SifGiftRedemptionClient.php`;
-10. pàgina/JS/endpoint de confirmació.
+8. `buscarSiHaRealitzatElCurs.php`;
+9. `enviamentPubli.php`;
+10. `enviarInscripcioBescanvia.php`;
+11. `SifGiftRedemptionClient.php`;
+12. pàgina/JS/endpoint de confirmació.
 
-La revalidació del 03/10 ha corregit la frontera pública perquè codi regal i PII no viatgin en query string. Les quatre crides d'UC-018 són POST; els tres endpoints exclusius UC-018 són POST-only. `inscripcioDuplicada.php` és compartit i conserva compatibilitat GET per no trencar altres casos, però aquest UC ja no l'invoca així.
+La revalidació del 03/10 ha corregit la frontera pública perquè codi regal i PII no viatgin en query string. Tota crida UC-018 que transporta codi regal, DNI o correu usa POST. Els tres endpoints exclusius UC-018 són POST-only; `inscripcioDuplicada.php`, `buscarSiHaRealitzatElCurs.php` i `enviamentPubli.php` són compartits i conserven compatibilitat GET per altres casos, però aquest UC no els invoca així.
 
 ### 2.2. SIF
 
@@ -68,7 +70,8 @@ flowchart LR
   UI --> V["Validar codi<br/>POST"]
   V --> C["Resoldre curs/modalitat<br/>POST"]
   C --> F["Formulari inscripció"]
-  F --> D["Comprovar duplicada<br/>POST"]
+  F --> H["Històric curs + mailing<br/>POST"]
+  H --> D["Comprovar duplicada<br/>POST"]
   D --> W["Writer legacy<br/>POST"]
   W --> SIF["SIF redeem<br/>POST/HMAC"]
   SIF --> R["Reconciliació + outbox"]
@@ -91,6 +94,8 @@ class LegacyGiftEndpoints {
   <<PHP legacy boundaries>>
   +validate()
   +lookupCourse()
+  +checkPreviousCourse()
+  +checkMailing()
   +checkDuplicate()
   +writeEnrollment()
 }
@@ -100,8 +105,14 @@ class SifGiftRedemptionClient {
   +completeNotificationBundle()
 }
 class GiftRedemptionOrchestrator
-class GiftRedemptionTrustedContextResolver
-class GiftEnrollmentStager
+class GiftRedemptionTrustedContextResolver {
+  +resolveTrustedContext()
+  +validateExactCourseOrHourCategory()
+}
+class GiftEnrollmentStager {
+  +stage()
+  +revalidateExactCourseOrHourCategory()
+}
 class GiftRedemptionService
 class CommercialEntitlementRepository
 class EnrollmentFundMovementRepository
@@ -142,12 +153,13 @@ L-->>JS: vàlid / resposta neutra
 JS->>L: POST buscar curs
 L-->>JS: curs/modalitat
 B->>JS: dades + edició
+JS->>L: POST mailing + historial per DNI/curs
 JS->>L: POST comprovar duplicada
 JS->>W: POST dades + codi
 W->>W: lock regal + FACT_REL > 0 + get-or-create ID_INSC
 W->>C: enrollment_id + gift_code
 C->>O: POST/HMAC redeem
-O->>S: context + CLAIM/RESERVE
+O->>S: context + validar CCURS exacte o hores + CLAIM/RESERVE
 O->>S: COMPENSATION_ALLOCATION + CONSUME
 O->>S: compare-and-set regal.USAT
 O->>N: crear/reutilitzar 6 notificacions
@@ -210,7 +222,8 @@ Per al flux base de valor exacte, ACTUAL i FINAL coincideixen en arquitectura. E
 
 | Aspecte | ACTUAL | FINAL |
 | --- | --- | --- |
-| Codi/PII navegador→legacy | POST en patch 03/10 | POST, sense secrets a URL |
+| Codi/PII navegador→legacy | POST incloent endpoints compartits | POST, sense secrets/PII a URL |
+| Regal genèric per hores | `CCURS` numèric validat contra `curs.HORES` | Igual; conflict si categoria no coincideix |
 | Intern legacy→SIF | POST/HMAC | Igual |
 | Dret GIFT | Repository + events | Igual |
 | Aplicació econòmica | COMPENSATION_ALLOCATION | Igual |
@@ -222,8 +235,8 @@ Per al flux base de valor exacte, ACTUAL i FINAL coincideixen en arquitectura. E
 
 ## 9. Seguretat revalidada
 
-- El navegador ja no posa `codiRegal` ni DNI a les URLs UC-018 sensibles.
-- Validació, lookup i writer UC-018 són POST-only. La comprovació de duplicat és compartida amb altres fluxos: UC-018 l'usa per POST, mantenint compatibilitat legacy fora d'aquest cas.
+- El navegador ja no posa `codiRegal`, DNI ni correu a les URLs UC-018 sensibles.
+- Validació, lookup i writer UC-018 són POST-only. Duplicat, historial de curs i estat de mailing són compartits amb altres fluxos: UC-018 els usa per POST, mantenint compatibilitat legacy fora d'aquest cas.
 - El lookup de curs revalida server-side la bescanviabilitat.
 - El writer bloqueja `FACT_REL <= 0` abans de materialitzar la inscripció.
 - La resposta pública de codi invàlid/no disponible és neutra.
@@ -231,7 +244,7 @@ Per al flux base de valor exacte, ACTUAL i FINAL coincideixen en arquitectura. E
 - L'origen UC-017 genera els nous codis bearer amb CSPRNG (`random_int`) i manté 10 caràcters compatibles amb UC-018.
 - No s'ha localitzat un rate-limit específic al repo; és un gate [ENV/SECURITY] a acreditar a WAF/web server o implementar abans del GO públic.
 - El client servidor→SIF continua amb POST/HMAC, HTTPS i anti-replay.
-- Holder i snapshot econòmic es resolen dins del SIF.
+- Holder i snapshot econòmic es resolen dins del SIF. Si `regal.CCURS` és numèric, es tracta com a categoria d'hores i es valida `curs.HORES` de l'edició compromesa; si és alfanumèric, ha de coincidir amb el curs.
 - Els correus només s'autoritzen després del redeem/reconciliació.
 
 ## 10. Proves
@@ -242,7 +255,7 @@ La base anterior va acreditar al PR #115:
 - 49 PASS GIFT/UC-018;
 - E2E, concurrència, recovery, notificacions i boundaries SIF.
 
-La revalidació 03/10 amplia `GiftRedemptionWebClientBoundaryTest` per cobrir la frontera navegador→legacy i el bundle real de la pàgina. **El CI d'aquest patch és pendent fins que el PR nou l'acrediti.**
+La revalidació 03/10 amplia `GiftRedemptionWebClientBoundaryTest` per cobrir tota la PII navegador→legacy i afegeix casos de `CCURS` numèric a `GiftRedemptionTrustedContextResolverTest` i `GiftEnrollmentStagerTest`. **El CI d'aquest head és pendent fins que el PR l'acrediti.**
 
 ## 11. Traçabilitat
 
@@ -261,6 +274,6 @@ La revalidació 03/10 amplia `GiftRedemptionWebClientBoundaryTest` per cobrir la
 ```text
 DOCUMENTAT: SÍ, re-reconciliat 03/10
 IMPLEMENTAT: SÍ per al flux base de valor exacte
-VERIFICAT: nucli/SIF SÍ (02/10); patch frontera pública CI PENDENT
-PENDENT: CI del patch + preproducció real + variants POLICY
+VERIFICAT: nucli/SIF SÍ (02/10); patches frontera pública + regals per hores CI PENDENT
+PENDENT: CI del head actual + preproducció real + variants POLICY
 ```
