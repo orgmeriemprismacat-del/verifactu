@@ -160,7 +160,7 @@ RedsysCourseInvoiceService --> InvoiceService : factura + cobrament
 
 ## 4. Límits de la policy legacy
 
-La policy implementada **no declara resoltes** les decisions de negoci sobre pagament parcial, `GENERAT=1`, factura abans de cobrar o autoacreditació de la mateixa inscripció. Les reprodueix sota una versió explícita de compatibilitat. Quan negoci ratifiqui una regla diferent s'ha de publicar una nova `RULE_VERSION`.
+La policy implementada materialitza les decisions UC20-DEC-001…006 sota la versió explícita de compatibilitat `ALUMNE_PRISMA_WEB_LEGACY_V2`: pagament positiu acredita, `GENERAT=1` acredita, factura només emesa/no cobrada no acredita i la matrícula actual no s'autoacredita. Qualsevol canvi futur s'ha de publicar amb una nova `RULE_VERSION`.
 
 ## 5. Traçabilitat
 
@@ -178,7 +178,7 @@ La policy implementada **no declara resoltes** les decisions de negoci sobre pag
 - `PaymentLinkService` és infraestructura implementada però encara no és la ruta canònica del pagament AP actiu.
 
 
-## 11. Reconciliació final de classes — 02/10/2026
+## 7. Reconciliació final de classes — 02/10/2026
 
 - `CommercialOperationPartyRepository` torna a formar part del checkout UC-020.
 - `CommercialOperationRepository` concentra també l'actualització d'estat.
@@ -187,8 +187,8 @@ La policy implementada **no declara resoltes** les decisions de negoci sobre pag
 - `PrismaStudentCourseCheckoutService` conserva `OperationalEventRepository` de #112 i elimina SQL directe que ja havia estat encapsulat a #110.
 
 
-## 12. Revalidació de classes — 03/10/2026
+## 8. Revalidació de classes — 03/10/2026
 
 No apareix cap classe UC-020 principal absent. El `main` nou amplia sobretot el tall Redsys compartit (cutover, callback, worker, factura, sincronització llegada i notificació), sense canviar la responsabilitat de `PrismaStudentDiscountPolicy`, `LegacyPrismaStudentHistoryRepository`, `LegacyPrismaStudentPriceSnapshotResolver` ni `PrismaStudentCourseCheckoutService`.
 
-La nova prova `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` protegeix la frontera llegada d'alta: després de fixar `$preuDescompte = (float) $preuApServidor`, cap reassignació des del valor client pot aparèixer abans de l'INSERT.
+La nova prova `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` protegeix la frontera llegada d'alta: després de fixar `$preuDescompte = (float) $preuApServidor`, cap reassignació des del valor client pot aparèixer abans de l'INSERT, i `TIPUS_CURS` ha de provenir de `informacio` abans del branch que pot forçar preu zero.
