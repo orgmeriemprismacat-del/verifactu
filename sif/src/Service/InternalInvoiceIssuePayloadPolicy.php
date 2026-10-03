@@ -1,0 +1,125 @@
+<?php
+
+namespace Prisma\Sif\Service;
+
+use Prisma\Sif\Exception\SifException;
+
+final class InternalInvoiceIssuePayloadPolicy
+{
+    public function __construct(
+        private string $issuerNif,
+        private string $issuerName,
+        private bool $requireOfficialAeatSnapshot = false,
+        private array $systemInformation = []
+    ) {
+        $this->issuerNif = strtoupper(trim($this->issuerNif));
+        $this->issuerName = trim($this->issuerName);
+    }
+
+    public function prepare(array $payload, array $actor): array
+    {
+        $actorId = trim((string) ($actor['actor_id'] ?? ''));
+        if ($actorId === '') {
+            throw SifException::forbidden('Authenticated actor is required');
+        }
+
+        if (!empty($payload['emesa_abans_cobrament']) || !empty($payload['uc004_invoice_before_payment'])) {
+            throw SifException::validation(
+                'Invoice-before-payment operations must use the dedicated UC-004 endpoint'
+            );
+        }
+
+        $sourceChannel = strtoupper(trim((string) ($payload['source_channel'] ?? '')));
+        if ($sourceChannel === 'REDSYS') {
+            throw SifException::validation(
+                'Redsys invoices must be issued from the validated Redsys callback flow'
+            );
+        }
+
+        $payment = $payload['payment'] ?? null;
+        if (is_array($payment)) {
+            $method = strtoupper(trim((string) ($payment['method'] ?? '')));
+            $paymentChannel = strtoupper(trim((string) ($payment['source_channel'] ?? '')));
+            if ($method === 'REDSYS' || $paymentChannel === 'REDSYS') {
+                throw SifException::validation(
+                    'Redsys payments must be created from the validated Redsys callback flow'
+                );
+            }
+        }
+
+        $payload['created_by'] = $actorId;
+        $fallbackRequestId = trim((string) ($payload['idempotency_key'] ?? ''));
+        $payload['request_id'] = trim((string) ($actor['request_id'] ?? '')) ?: $fallbackRequestId;
+        $payload['correlation_id'] = trim((string) ($payload['correlation_id'] ?? ''))
+            ?: $payload['request_id'];
+        $roles = $actor['roles'] ?? [];
+        $matchedRole = trim((string) ($actor['invoice_issue_role'] ?? ''));
+        $payload['actor_role'] = $matchedRole !== ''
+            ? $matchedRole
+            : (is_array($roles) && $roles !== [] ? (string) reset($roles) : null);
+        $payload['actor_type'] = 'SYSTEM';
+
+        if ($this->requireOfficialAeatSnapshot && !array_key_exists('aeat_fields', $payload)) {
+            throw SifException::validation(
+                'Official AEAT snapshot is required for invoice issue in this environment'
+            );
+        }
+
+        if (array_key_exists('aeat_fields', $payload)) {
+            if ($this->issuerNif === '' || $this->issuerName === '' || $this->issuerNif === 'G00000000') {
+                throw new \RuntimeException('Configured non-placeholder SIF issuer is required for official AEAT payloads');
+            }
+
+            $header = $payload['aeat_header'] ?? [];
+            if (!is_array($header)) {
+                throw SifException::validation('Invalid AEAT header');
+            }
+
+            $header['ObligadoEmision'] = [
+                'NIF' => $this->issuerNif,
+                'NombreRazon' => $this->issuerName,
+            ];
+            $payload['aeat_header'] = $header;
+
+            $serverSystem = $this->serverSystemInformation();
+            if ($serverSystem !== null) {
+                if (!is_array($payload['aeat_fields'])) {
+                    throw SifException::validation('Invalid AEAT fields');
+                }
+                $payload['aeat_fields']['SistemaInformatico'] = $serverSystem;
+            }
+        }
+
+        return $payload;
+    }
+
+    private function serverSystemInformation(): ?array
+    {
+        $systemName = trim((string) ($this->systemInformation['system_name'] ?? ''));
+        $systemId = trim((string) ($this->systemInformation['system_id'] ?? ''));
+        $systemVersion = trim((string) ($this->systemInformation['system_version'] ?? ''));
+        $installationId = trim((string) ($this->systemInformation['installation_id'] ?? ''));
+
+        $configured = $systemName !== '' || $systemId !== '' || $systemVersion !== '' || $installationId !== '';
+        if (!$configured && !$this->requireOfficialAeatSnapshot) {
+            return null;
+        }
+        if ($systemName === '' || $systemId === '' || $systemVersion === '' || $installationId === '') {
+            throw new \RuntimeException(
+                'Complete server-side SIF identity is required for official AEAT payloads'
+            );
+        }
+
+        return [
+            'NombreRazon' => $this->issuerName,
+            'NIF' => $this->issuerNif,
+            'NombreSistemaInformatico' => $systemName,
+            'IdSistemaInformatico' => $systemId,
+            'Version' => $systemVersion,
+            'NumeroInstalacion' => $installationId,
+            'TipoUsoPosibleSoloVerifactu' => 'S',
+            'TipoUsoPosibleMultiOT' => 'N',
+            'IndicadorMultiplesOT' => 'N',
+        ];
+    }
+}
