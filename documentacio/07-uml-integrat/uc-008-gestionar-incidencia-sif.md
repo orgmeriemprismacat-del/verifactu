@@ -594,7 +594,7 @@ D --> E[Resolució només al SIF]
 - `RedsysCallbackWorkerTest::testFifthTechnicalFailureBecomesIncident`.
 - `PayloadIdempotencyFlowTest` per `FISCAL_PAYLOAD_CONFLICT`.
 
-**Verificació CI:** baseline UC-008 **677/0** (`36664788129`), regressió transversal **740/0** (`36732555122`), closure gate **837/0** (`36942641296`) i revalidació final del tall executable aplicable **844/0** (`36943995075`), amb **74 PASS relacionats amb incidències/UC-008**. Aquesta última revalidació inclou el fix del rol gestor efectiu al journal multirol. L'execució contra preproducció real continua pendent com a acceptació d'entorn.
+**Verificació CI:** baseline UC-008 **677/0** (`36664788129`), regressió transversal **740/0** (`36732555122`), closure gate **837/0** (`36942641296`) i baseline final de tancament **844/0** (`36943995075`, 74 PASS UC-008/incidències). A la revalidació del 03/10, els runs `37060976805` i `37060976877` del HEAD del PR #118 donen **917/6** global, mentre les proves explícites UC-008 continuen PASS. Cinc fallades són PACK/UC-015 i l'assert Redsys compartit desfasat s'ha corregit a la branca de revalidació. Preproducció real continua pendent.
 
 ## 12. Gaps pendents
 
