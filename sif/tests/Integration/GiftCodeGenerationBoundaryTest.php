@@ -19,7 +19,7 @@ final class GiftCodeGenerationBoundaryTest
         }
 
         Assert::stringContainsString(
-            "$alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';",
+            "\$alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';",
             $source
         );
         Assert::stringContainsString('random_int(0, $alphabetLength - 1)', $source);
