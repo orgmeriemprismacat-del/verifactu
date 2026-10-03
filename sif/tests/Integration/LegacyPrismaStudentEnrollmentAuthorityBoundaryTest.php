@@ -47,7 +47,7 @@ final class LegacyPrismaStudentEnrollmentAuthorityBoundaryTest
     {
         $source = $this->read('codi-drive/web-actual/ajax/enviarInscripcio.php');
 
-        Assert::same(false, str_contains($source, "$tipusCurs = $_GET['tipusCurs']"));
+        Assert::same(false, str_contains($source, '$tipusCurs = $_GET[\'tipusCurs\']'));
         Assert::stringContainsString('SELECT TITOL, TIPUS_CURS FROM informacio', $source);
         Assert::stringContainsString('$tipusCurs = (string) $tipusCursServidor;', $source);
 
