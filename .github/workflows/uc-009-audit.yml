@@ -10,6 +10,7 @@ on:
       - "sif/src/Repository/AeatSubmissionAttemptRepository.php"
       - "sif/src/Repository/FiscalQueueRepository.php"
       - "sif/public/api/aeat/**"
+      - "sif/config/sif.php"
       - "sif/scripts/*aeat*"
       - "sif/tests/**/*Aeat*Test.php"
       - "sif/tests/Integration/FiscalQueue*Test.php"
