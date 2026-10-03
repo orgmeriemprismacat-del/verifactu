@@ -11,6 +11,7 @@ include("../Template.php");
 include("../MailSMTP.php");
 include("../MailSMTPComvive.php");
 include("../MailSMTPFile.php");
+require_once("../inc/resoldrePreuAlumnePrisMaServidor.php");
 
 try {
 	$tipusCurs = $_GET['tipusCurs'];
@@ -139,14 +140,14 @@ try {
 	/* ######################################################################### */
 	$datesRealitzacio = $textDates->obtenirText();
 
-	$cnsDatesCurs = "SELECT DATAI, DATAF, HORES, DATA_RESOL FROM curs WHERE CURS=? AND ANY=? AND MES=?";
+	$cnsDatesCurs = "SELECT DATAI, DATAF, HORES, DATA_RESOL, ID_PREU FROM curs WHERE CURS=? AND ANY=? AND MES=?";
 	$stmt=$connexio->prepare($cnsDatesCurs);
 	$stmt->bind_param("sds", $codiCurs, $any, $mes);
 	$codiCurs = $textCodiCurs->obtenirText();
 	$any = $numAny->obtenirNumero();
 	$mes = $textEdicio->obtenirText();
 	$stmt->execute();
-	$stmt->bind_result($datai, $dataf, $hores, $data_resol);
+	$stmt->bind_result($datai, $dataf, $hores, $data_resol, $idPreuServidor);
 	$stmt->fetch();
 	$connexio->closeStmt();
 
@@ -202,6 +203,36 @@ try {
 		$textAlumne = ' (per haver utilitzat el codi promocional '.explode('|', $promocioAplicada)[0].")";
 	}
 
+	$edicio = $textEdicio->obtenirText();
+	$titolCurs = $textTitolCurs->obtenirText();
+	$pagFrac = $textPagFrac->obtenirText();
+	$preuDescompteClient = $numPreuDescompte->obtenirNumero();
+	$preuCarClient = $numPreuCar->obtenirNumero();
+	$preuDescompte = $preuDescompteClient;
+	$preuCar = $preuCarClient;
+	$mailing = $textMailing->obtenirText();
+
+	// UC-020: si el navegador pretén aplicar Alumne PrisMa, el servidor
+	// torna a validar dret i tarifa abans de persistir la matrícula.
+	if ( $tipusCurs != 'S' && $tipusDescompte == 1 ) {
+		$preuAutoritatiu = resoldrePreuAlumnePrisMaServidor(
+			$connexio,
+			$textDocumentacio->obtenirText(),
+			$idPreuServidor,
+			$codiCurs,
+			$hores,
+			$edicio
+		);
+
+		if ( abs((float)$preuCarClient - (float)$preuAutoritatiu['base']) > 0.009 ||
+			 abs((float)$preuDescompteClient - (float)$preuAutoritatiu['net']) > 0.009 ) {
+			throw new Exception('PRICE_CHANGED_ALUMNE_PRISMA', 409);
+		}
+
+		$preuCar = (float)$preuAutoritatiu['base'];
+		$preuDescompte = (float)$preuAutoritatiu['net'];
+	}
+
 	$idPag = $connexio->reserveIdPag();
 
 	$ivlen = openssl_cipher_iv_length($cipher);
@@ -211,13 +242,6 @@ try {
 	$hashIdPag = base64_encode( $iv.$hmac.$ciphertext_raw );
 
 	$urlIdPag = "https://www.prisma.cat/pagament/".$hashIdPag;
-
-	$edicio = $textEdicio->obtenirText();
-	$titolCurs = $textTitolCurs->obtenirText();
-	$pagFrac = $textPagFrac->obtenirText();
-	$preuDescompte = $numPreuDescompte->obtenirNumero();
-	$preuCar = $numPreuCar->obtenirNumero();
-	$mailing = $textMailing->obtenirText();
 
 	$msg = $templates->getTemplate_Inscripcions_Pagaments_MissatgeTextManeresPagar();
 	$names_template = array("[URL_PAGAMENT]", "[TITOL]", "[CODI_CURS]", "[MES]");
