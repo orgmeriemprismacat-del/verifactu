@@ -625,9 +625,19 @@ D --> E[Resolució només al SIF]
 - [Panell SIF](../04-estat-final/25-panell-sif-pay-prisma.md)
 - [Revalidació contra `main` · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md)
 - [Inventari PHP/JS ACTUAL/FINAL · 03/10/2026](uc-008-inventari-codi-php-js-actual-final-2026-10-03.md)
+- [Runbook acceptació operativa preproducció · 03/10/2026](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md)
 
 **Estat de tancament documental:** classes, seqüències i activitats ACTUAL/FINAL actualitzades.  
 **Estat de tancament tècnic (revalidat 03/10):** `AUDIT_CLOSED + CODE_COMPLETE + DOC_RECONCILED + UC008_REGRESSION_PASS + GLOBAL_CI_RED_918_5`. El baseline de tancament del 02/10 continua acreditat amb **844/0** (run `36943995075`, 74 PASS UC-008/incidències), però el `main` actual té una suite global vermella per cinc contractes PACK/UC-015; la fallada Redsys compartida ja està corregida i passa en CI. Les proves específiques UC-008 continuen en PASS. Pendents només d'acceptació d'entorn: configuració/desplegament de preproducció, alta/configuració del menú de BD si encara no existeix i generació de les evidències reals.
 
 
 [Evidència E2E gestor](08-evidencia-gestor-uc-008.md)
+
+
+### Hardening d'acceptació 03/10/2026
+
+- E2E preproduction: host esperat obligatori i bloqueig explícit del host productiu.
+- Menú intranet: l'evidència incorpora entorn i el gate només accepta `preproduction`.
+- Runbook: superfícies `pay-pre.prisma.cat` / `intranet-pre.prisma.cat` separades de producció i variables API interna completes.
+
+Vegeu [runbook d'acceptació operativa](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md).
