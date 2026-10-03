@@ -54,6 +54,7 @@ final class IncidentPanelEvidenceValidationScriptTest
             Assert::same(true, $json['checks']['manager_e2e_resolve_evidence_payload_present']);
             Assert::same(true, $json['checks']['manager_e2e_database_query_ok']);
             Assert::same(true, isset($json['validated_at']) && is_string($json['validated_at']));
+            Assert::same(true, $json['checks']['menu_environment_valid']);
             Assert::same(true, $json['checks']['menu_unique_target']);
             Assert::same(true, $json['checks']['menu_already_present']);
             Assert::same(true, $json['checks']['preproduction_no_secrets']);
