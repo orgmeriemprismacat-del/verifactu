@@ -1,10 +1,7 @@
 <?php
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-	http_response_code(405);
-	header('Allow: POST');
-	exit;
-}
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$input = $requestMethod === 'POST' ? $_POST : $_GET;
 
 include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
@@ -13,10 +10,10 @@ include("../Text.php");
 include("../Numero.php");
 
 try {
-	$documentacio = new Text($_POST['dni']);
-	$any = new Numero($_POST['any']);
-	$edicio = new Text($_POST['edicio']);
-	$codiCurs = new Text($_POST['codiCurs']);
+	$documentacio = new Text($input['dni']);
+	$any = new Numero($input['any']);
+	$edicio = new Text($input['edicio']);
+	$codiCurs = new Text($input['codiCurs']);
 
 	$connexio = new ConnexioBBDDSTMT();
 	$connexio->connectarBD();
