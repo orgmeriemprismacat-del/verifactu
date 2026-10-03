@@ -51,6 +51,22 @@ final class RedsysSignatureValidatorTest
         Assert::same('120.00', $payload['amount']);
     }
 
+    public function testInvalidSha512V2SignatureIsRejected(): void
+    {
+        $validator = new RedsysSignatureValidator(
+            'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3',
+            '999008881'
+        );
+
+        Assert::throws(SifException::class, static function () use ($validator): void {
+            $validator->decodeAndVerify([
+                'Ds_SignatureVersion' => 'HMAC_SHA512_V2',
+                'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19UcmFuc2FjdGlvblR5cGUiOiIwIiwiRHNfTWVyY2hhbnRDb2RlIjoiOTk5MDA4ODgxIiwiRHNfQ3VycmVuY3kiOiI5NzgiLCJEc19UZXJtaW5hbCI6IjEiLCJEc19EYXRlIjoiMDYvMDYvMjAyNiIsIkRzX0hvdXIiOiIxMDozMCJ9',
+                'Ds_Signature' => 'AZjKtSes8jN3xgG3uft2On93DzHrAFItWO6cvQvymSI6luDsCHqQKbHPXOxQ5_w97F5NejwiEYMxEFEdn4BMhg',
+            ]);
+        }, 422);
+    }
+
     public function testExpectedMerchantCodeAcceptsMatchingSignedPayload(): void
     {
         $validator = new RedsysSignatureValidator(
