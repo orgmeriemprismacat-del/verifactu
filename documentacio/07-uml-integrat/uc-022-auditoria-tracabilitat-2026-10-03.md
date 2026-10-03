@@ -20,7 +20,7 @@
 | Endpoint llegat de comanda | IMPLEMENTAT LLEGAT / VERIFICAT CODI | `ajax/alumnes/efectuarPagament.php` |
 | Endpoint SIF intern → ManualPaymentService | **IMPLEMENTAT EN AQUESTA BRANCA** | `sif/public/api/payments/manual-transfer.php` + `ManualTransferCommandService` |
 | Autorització específica, CSRF i POST | PENDENT | el flux ACTUAL usa GET i sessió serialitzada |
-| Identitat bancària externa única | **IMPLEMENTADA AL CONTRACTE SIF** | `external_bank_event_id` → `PROVIDER_REF` + idempotència `BANK_EVENT` |
+| Identitat bancària externa única | **IMPLEMENTADA AL CONTRACTE SIF** | `external_bank_event_id` → `PROVIDER_REF` + idempotència SHA-256 de l'event bancari |
 | Conciliació transversal entre canals | PENDENT | no localitzat resolvedor bancari |
 | Una transferència → N factures | PENDENT UC-105 | builder manual crea una sola allocation |
 | Dossier classes ACTUAL/FINAL | CREAT EN AQUESTA AUDITORIA | `uc-022-classes-actual-final.md` |
@@ -181,7 +181,7 @@ S'ha incorporat `sif/public/api/payments/manual-transfer.php`, exclusivament **P
 
 `ManualPaymentPayloadBuilder` ara prioritza:
 
-`TRANSFERENCIA|BANK_EVENT:<external_bank_event_id>`
+`TRANSFERENCIA|BANK_EVENT_SHA256:<sha256(external_bank_event_id)>`
 
 i persisteix aquest identificador a `payment_transaction.PROVIDER_REF`.
 
@@ -302,3 +302,6 @@ La projecció post-commit ja no queda sense traça. `ManualTransferLegacyProject
 - `SYNC_LEGACY / FAILED` quan falla la projecció o la seva traça terminal.
 
 El resultat continua sent `PENDING_RETRY` si la projecció o la seva evidència obligatòria no queda completada. Això separa clarament el commit econòmic SIF de la projecció operativa llegada sense perdre correlació.
+
+
+**Nota d'esquema UC-022:** `external_bank_event_id` es limita a **80 caràcters**, coherent amb `payment_transaction.PROVIDER_REF VARCHAR(80)`. `PROVIDER_REF` conserva l'identificador original; la clau idempotent n'utilitza el SHA-256 per evitar col·lisions per normalització i mantenir una longitud estable dins `IDEMPOTENCY_KEY VARCHAR(120)`.
