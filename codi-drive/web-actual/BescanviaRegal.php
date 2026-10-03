@@ -209,16 +209,21 @@ class BescanviaRegal {
 		$connexio = new ConnexioBBDDSTMT();
 		$connexio->connectarBD();
 
-		$cns = "SELECT FACT_REL, USAT FROM regal WHERE CODI LIKE ?";
+		$cns = "SELECT FACT_REL, USAT, OBSERVACIONS FROM regal WHERE CODI LIKE ?";
       $stmt = $connexio->prepare($cns);
       $stmt->bind_param("s", $codiRegal);
       $stmt->execute();
 		$stmt->store_result();
 		if ( $stmt->num_rows() > 0 ) {
-	      $stmt->bind_result($factura, $usat);
+	      $stmt->bind_result($factura, $usat, $observacions);
 			$stmt->fetch();
 
-			if ($factura==0) {
+			$sifPaid = preg_match(
+				'/(?:^|\\R)SIF\\s+\\S+\\s+PAID\\s+[0-9a-f-]{36}/i',
+				(string) $observacions
+			) === 1;
+
+			if ($factura==0 && !$sifPaid) {
 				$mostrar .= "<p>El codi <strong>".strtoupper($codiRegal)."</strong>
 				està reservat perquè està pendent de finalitzar la comanda.</p>";
 				$mostrar .= "<p>Per a qualsevol incidència, pots trucar al telèfon
