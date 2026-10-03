@@ -142,32 +142,80 @@ final class AeatWorkflowTest
 
     public function testFailedDeliveryRestartsGlobalWaitAndSurvivesWorkerRestart(): void
     {
-        foreach (['timeout', 'invalid_wait'] as $failure) {
-            $db = TestDatabase::fresh();
-            IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload());
-            $transport = new class($db, $failure) implements AeatTransport {
-                public int $calls = 0;
-                public function __construct(private \PDO $db, private string $failure) {}
-                public function send(array $payload): array {
-                    $this->calls++;
-                    // Simulate the initial deadline expiring during network I/O, without sleeping.
-                    $this->db->exec('UPDATE aeat_worker_state SET NEXT_SEND_AT = DATE_SUB(NOW(), INTERVAL 1 SECOND)');
-                    if ($this->failure === 'timeout') {
-                        throw new \RuntimeException('Synthetic timeout');
-                    }
-                    return ['status' => 'ACCEPTED', 'response' => ['flow_wait_seconds' => -1]];
-                }
-            };
-            $result = (new SerialWorker($db, $transport))->runOnce();
-            Assert::same('RETRY', $result['queue_status']);
-            Assert::same($failure === 'timeout' ? 'Synthetic timeout' : 'Invalid AEAT flow wait.', $result['error']);
-            Assert::same(1, (int) $db->query('SELECT NEXT_SEND_AT >= DATE_ADD(NOW(), INTERVAL 55 SECOND) FROM aeat_worker_state WHERE ID = 1')->fetchColumn());
-            // Make the per-record retry due: the persisted global wait must still stop it.
-            $db->exec('UPDATE fiscal_queue SET NEXT_RETRY_AT = NULL');
-            Assert::same('WAIT', (new SerialWorker($db, $transport))->runOnce()['reason']);
-            Assert::same(1, $transport->calls);
-            Assert::same(1, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
-        }
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload());
+        $transport = new class($db) implements AeatTransport {
+            public int $calls = 0;
+            public function __construct(private \PDO $db) {}
+            public function send(array $payload): array {
+                $this->calls++;
+                // Simulate the initial deadline expiring during network I/O, without sleeping.
+                $this->db->exec('UPDATE aeat_worker_state SET NEXT_SEND_AT = DATE_SUB(NOW(), INTERVAL 1 SECOND)');
+                throw new \RuntimeException('Synthetic timeout');
+            }
+        };
+
+        $result = (new SerialWorker($db, $transport))->runOnce();
+
+        Assert::same('RETRY', $result['queue_status']);
+        Assert::same('Synthetic timeout', $result['error']);
+        Assert::same(
+            1,
+            (int) $db->query(
+                'SELECT NEXT_SEND_AT >= DATE_ADD(NOW(), INTERVAL 55 SECOND) FROM aeat_worker_state WHERE ID = 1'
+            )->fetchColumn()
+        );
+        $db->exec('UPDATE fiscal_queue SET NEXT_RETRY_AT = NULL');
+        Assert::same('WAIT', (new SerialWorker($db, $transport))->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
+        Assert::same(1, (int) $db->query('SELECT ATTEMPTS FROM fiscal_queue')->fetchColumn());
+    }
+
+    public function testInvalidRemoteFlowWaitKeepsTerminalResultAndRequiresReviewWithoutResend(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload());
+        IssueInvoiceTest::serviceFor($db)->issueInvoice($this->payload('AEAT-FLOW-FOLLOWING'));
+        $transport = new class($db) implements AeatTransport {
+            public int $calls = 0;
+            public function __construct(private \PDO $db) {}
+            public function send(array $payload): array {
+                $this->calls++;
+                $this->db->exec('UPDATE aeat_worker_state SET NEXT_SEND_AT = DATE_SUB(NOW(), INTERVAL 1 SECOND)');
+                return [
+                    'status' => 'ACCEPTED',
+                    'response' => ['flow_wait_seconds' => -1],
+                    'request_xml' => (new XmlCodec())->request($payload['aeat']),
+                ];
+            }
+        };
+
+        $worker = new SerialWorker($db, $transport);
+        $result = $worker->runOnce();
+
+        Assert::same(true, $result['ok']);
+        Assert::same('ACCEPTED', $result['aeat_status']);
+        Assert::same(true, $result['requires_review']);
+        Assert::same('SENT', $db->query('SELECT STATUS FROM fiscal_queue ORDER BY ID LIMIT 1')->fetchColumn());
+        Assert::same(
+            'ACCEPTED',
+            $db->query('SELECT ESTAT_AEAT FROM factura_registres ORDER BY FISCAL_ORDER LIMIT 1')->fetchColumn()
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_REVIEW'"
+            )->fetchColumn()
+        );
+        Assert::same(
+            1,
+            (int) $db->query(
+                'SELECT NEXT_SEND_AT >= DATE_ADD(NOW(), INTERVAL 55 SECOND) FROM aeat_worker_state WHERE ID = 1'
+            )->fetchColumn()
+        );
+        Assert::same('WAIT', $worker->runOnce()['reason']);
+        Assert::same(1, $transport->calls);
+        Assert::same('PENDING', $db->query('SELECT STATUS FROM fiscal_queue ORDER BY ID DESC LIMIT 1')->fetchColumn());
     }
 
     public function testResponseProjectionKeepsFullUnicodeEvidenceInRecord(): void
