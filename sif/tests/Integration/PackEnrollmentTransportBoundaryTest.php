@@ -42,7 +42,9 @@ final class PackEnrollmentTransportBoundaryTest
         Assert::stringContainsString("\$request['dni']", $endpoint);
         Assert::stringContainsString("\$request['email']", $endpoint);
         Assert::stringContainsString("\$request['idPack']", $endpoint);
-        Assert::stringContainsString("\$pagFrac = 'No'", $endpoint);
+        Assert::stringContainsString("\$textPagFrac = new Text('No');", $endpoint);
+        Assert::stringContainsString("\$pagFrac = \$textPagFrac->obtenirText();", $endpoint);
+        Assert::same(false, str_contains($endpoint, "\$request['pagFrac']"));
 
         if (str_contains($endpoint, "\$_POST['pagFrac']")) {
             Assert::fail('PACK ecommerce must not accept client-controlled fractional-payment mode.');
