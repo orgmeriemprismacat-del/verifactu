@@ -79,6 +79,7 @@ function parseArgs(array $args): array
             '--reason-code=' => 'reason_code',
             '--request-id=' => 'request_id',
             '--correlation-id=' => 'correlation_id',
+            '--uuid-payment=' => 'uuid_payment',
             '--notes=' => 'notes',
         ] as $prefix => $key) {
             if (str_starts_with($arg, $prefix)) {
@@ -94,7 +95,7 @@ function usage(): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/process-debt-claim.php (--uuid-factura=UUID|--num-visible=NUM) --action=FINAL_REMINDER|FIRST_CLAIM|FINAL_CLAIM|RECONCILE_AFTER_PAYMENT [--idempotency-key=KEY] [--reason-code=CODE]\n"
+        "Usage: php sif/scripts/process-debt-claim.php (--uuid-factura=UUID|--num-visible=NUM) --action=FINAL_REMINDER|FIRST_CLAIM|FINAL_CLAIM|RECONCILE_AFTER_PAYMENT [--idempotency-key=KEY] [--reason-code=CODE] [--uuid-payment=UUID]\n"
     );
     exit(1);
 }
