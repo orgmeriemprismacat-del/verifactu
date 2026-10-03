@@ -16,7 +16,7 @@ L'auditoria del UC-008 queda **TANCADA** amb l'estat:
 Aquesta classificació separa dues coses que no s'han de confondre:
 
 - **auditoria del cas d'ús:** tancada;
-- **acceptació real de preproducció/producció:** pendent fins disposar de les evidències generades a l'entorn real.
+- **acceptació real de preproducció:** pendent fins disposar de les evidències generades a `pay-pre` / `intranet-pre`; el rollout a producció és una fase posterior.
 
 No queda cap buit PHP/JS, de model, UML o prova automatitzada obligatòria detectat dins l'abast auditat que impedeixi tancar l'auditoria.
 
@@ -101,7 +101,8 @@ Aquests passos necessiten l'entorn real, els rols reals i la BD real del menú. 
 **Codi UC-008: COMPLET segons l'abast auditat.**  
 **Documentació/UML: RECONCILIATS.**  
 **CI: VERD, 844/0.**  
-**Acceptació preproducció/producció: PENDENT D'ENTORN, no pendent de codi.**
+**Acceptació de preproducció: PENDENT D'ENTORN, no pendent de codi.**  
+**Rollout a producció:** posterior al gate de preproducció; no forma part de `ENVIRONMENT_CLOSED`.
 
 
 ## 8. Addenda de revalidació · 03/10/2026
@@ -117,6 +118,8 @@ La revalidació del 03/10 estableix:
 - el criteri funcional no canvia: **AUDIT_CLOSED + CODE_COMPLETE + ENVIRONMENT_ACCEPTANCE_PENDING**.
 
 La font vigent per a l'estat posterior és [UC-008 · Revalidació exhaustiva contra main · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md).
+
+**CI vigent després del hardening:** runs `37153699701` i `37153699719` → **920 passed / 5 failed**. Les cinc fallades continuen sent PACK/UC-015 i les proves UC-008 passen.
 
 
 ## 9. Addenda d'hardening d'entorn · 03/10/2026
