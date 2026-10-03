@@ -71,6 +71,58 @@ final class RectificationCommandServiceTest
         )->fetchColumn());
     }
 
+    public function testEquivalentRetryReusesSameRectificationAfterOriginalBecomesRectified(): void
+    {
+        $db = TestDatabase::fresh();
+        $original = IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'RECTIFICATION|COMMAND|RETRY',
+        ]));
+        $commands = $this->commands($db);
+        $input = $this->input();
+        $classification = $this->classification();
+
+        $firstPreview = $commands->preview(
+            $this->actor('55555555-5555-4555-8555-555555555555'),
+            $original['uuid_factura'],
+            $input,
+            $classification
+        );
+        $first = $commands->confirm(
+            $this->actor('66666666-6666-4666-8666-666666666666'),
+            $original['uuid_factura'],
+            $input,
+            $classification,
+            $firstPreview['fingerprint']
+        );
+
+        $retryPreview = $commands->preview(
+            $this->actor('77777777-7777-4777-8777-777777777777'),
+            $original['uuid_factura'],
+            $input,
+            $classification
+        );
+        Assert::same($firstPreview['fingerprint'], $retryPreview['fingerprint']);
+
+        $retry = $commands->confirm(
+            $this->actor('88888888-8888-4888-8888-888888888888'),
+            $original['uuid_factura'],
+            $input,
+            $classification,
+            $retryPreview['fingerprint']
+        );
+
+        Assert::same(true, $retry['idempotency_reused']);
+        Assert::same($first['uuid_factura'], $retry['uuid_factura']);
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_rectificacio')->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            'SELECT COUNT(*) FROM operational_event WHERE STATUS = "REUSED"'
+        )->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            'SELECT COUNT(*) FROM sif_audit_event WHERE ACTION = "RECTIFICATION_CONFIRM" AND RESULT = "REUSED"'
+        )->fetchColumn());
+    }
+
     public function testConfirmRejectsChangedPayloadBeforeIssuing(): void
     {
         $db = TestDatabase::fresh();
