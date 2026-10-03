@@ -95,16 +95,16 @@ No descriure AP ACTUAL com un percentatge fix. El codi usa `descomptes.PREU` com
 
 | Artefacte | Abans | Després |
 | --- | --- | --- |
-| Fitxa funcional UC-020 | existent, genèrica v1.1 | actualitzada v1.2 amb auditoria específica |
+| Fitxa funcional UC-020 | existent, genèrica v1.1 | actualitzada v1.5 amb runtime integrat i pendents reals |
 | UML integrat UC-020 | existent, sobretot FINAL/SIF | actualitzat amb ACTUAL + FINAL |
 | Classes UC-020 | parcials dins UML | `uc-020-classes-actual-final.md` + resum integrat |
 | Seqüències UC-020 | una seqüència mixta | `uc-020-sequencies-actual-final.md` + resum integrat |
 | Activitats per pàgina | **no existia dossier específic** | creat `uc-020-activitats-pagines-actual-final.md` |
 | Traçabilitat d'auditoria | dispersa | aquest document |
 | Matriu AP-01…AP-84 | dispersa/incompleta | creada `uc-020-matriu-proves-ap-01-84.md` |
-| Runtime `commercial_operation` | només DDL | repositori + `CommercialOfferService` en aquesta branca |
-| Runtime `discount_validation` | només DDL | repositori + persistència transaccional en aquesta branca |
-| Runtime `payment_link` | només DDL | repositori + `PaymentLinkService` en aquesta branca |
+| Runtime `commercial_operation` | només DDL | `CommercialOperationRepository` + `CommercialOfferService` + orquestrador UC-020 |
+| Runtime `discount_validation` | només DDL | `DiscountValidationRepository` + `CommercialOfferService` + orquestrador UC-020 |
+| Runtime `payment_link` | només DDL | `PaymentLinkRepository` + `PaymentLinkService`; infraestructura disponible, no obligatòria al camí directe `course-intent` |
 | Pàgina compartida UC-116 | contenia referència P01 incorrecta | corregida en aquesta branca |
 
 ## 4. Paquet de proves prioritzat
@@ -202,9 +202,9 @@ Aquests tests estan **creats però no es declaren verificats** fins que s'execut
 ### 7.3. Buits que continuen oberts
 
 1. `PrismaStudentDiscountPolicy` ja existeix sota `ALUMNE_PRISMA_LEGACY_V1`; continuen pendents de ratificació `UC20-DEC-001…006` i qualsevol canvi requerirà una nova versió.
-2. Adaptador web/intranet llegat → `CommercialOfferService` / `PrismaStudentCourseCheckoutService`.
-3. Substitució de les rutes llegades de confirmació/pagament per `PaymentLinkService` i/o operació servidor autoritativa.
-4. El nucli `PrismaStudentCourseCheckoutService → RedsysPaymentIntentService → commercial_operation.UUID_INTENT` està implementat; resta integrar-lo al canal real i coordinar-lo amb `payment_link`.
+2. El **pagament real** ja està integrat: `pay.prisma.cat → SifRedsysCourseIntentClient → /api/redsys/course-intent.php → RedsysCoursePaymentIntentService → PrismaStudentCourseCheckoutService`.
+3. Continua pendent que l'alta/preview web deixi de persistir `TIPUS_DESC/A_PAGAR` prenent els valors del navegador com a autoritat; el pagament posterior ara revalida preu/estat i falla tancat si no coincideix.
+4. `payment_link` és infraestructura disponible però no és requisit del camí directe de CURS actual; si s'incorpora al flux AP caldrà coordinar-ne revocació/substitució amb la política de múltiples intents.
 5. Política completa de múltiples intents Redsys sobre una mateixa operació i substitució/revocació de links.
 6. E2E historial → oferta/operació AP → intent → callback → factura i evidència de preproducció.
 
@@ -219,7 +219,7 @@ Aquests tests estan **creats però no es declaren verificats** fins que s'execut
 | `LegacyPrismaStudentHistoryRepository` | IMPLEMENTAT | Recupera fets d'historial per document sense decidir elegibilitat. |
 | `CourseIntentSnapshotValidator` | IMPLEMENTAT | Valida source, inscripció, IDPAG, import i coherència del descompte per intencions CURS. |
 | `LegacyPrismaStudentPriceSnapshotResolver` | IMPLEMENTAT | Obté snapshot de preu autoritatiu des de dades llegades. |
-| `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI | Orquestra historial → policy → operació/validació → snapshot → intenció → vincle d'intent. |
+| `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_PAGAMENT_REAL | Orquestra historial → policy → operació/validació/participant → snapshot → intenció → vincle d'intent i és invocat pel canal real de pagament. |
 | `RedsysCoursePaymentIntentService` / `RedsysPaymentIntentService` | MODIFICAT | Consumeixen i validen el contracte CURS/AP abans del TPV. |
 
 Aquesta capa és **complementària**, no substitutiva, de la infraestructura comercial general descrita a 7.1 (`CommercialOfferService`, repositoris comercials i `PaymentLinkService`).
@@ -234,8 +234,8 @@ Aquesta capa és **complementària**, no substitutiva, de la infraestructura com
 | UC020-77 | `EXPECTED_AMOUNT` no es contrastava amb l'import de pagament. | **CORREGIT CODI**. |
 | UC020-78 | Snapshot de descompte podia arribar sense origen/mode coherent. | **CORREGIT per al contracte CURS nou**; es mantenen fallbacks històrics on pertoqui. |
 | UC020-79 | Política AP no encapsulada ni versionada. | **PARCIALMENT TANCAT** amb policy + historial; negoci futur pendent. |
-| UC020-80 | Manca orquestrador server-side d'operació/validació. | **IMPLEMENTAT_NUCLI** a `PrismaStudentCourseCheckoutService`; adaptador web pendent. |
-| UC020-81 | Manca vincle runtime `UUID_OPERATION ↔ UUID_INTENT`. | **IMPLEMENTAT_NUCLI**; integració de canal i política de múltiples intents pendents. |
+| UC020-80 | Manca orquestrador server-side d'operació/validació. | **TANCAT EN PAGAMENT**: implementat i connectat a `course-intent`; continua pendent server-authority en alta/preview. |
+| UC020-81 | Manca vincle runtime `UUID_OPERATION ↔ UUID_INTENT`. | **TANCAT EN PAGAMENT**: el vincle s'escriu i es protegeix contra reassociació incompatible; política avançada de múltiples intents pendent. |
 | UC020-82 | Invariant transversal factura vs cobrament. | **PENDENT TRANSVERSAL**; considerar fraccionaments. |
 
 ### 8.3. Decisions que continuen pendents
@@ -247,3 +247,59 @@ La implementació no modifica silenciosament la política de negoci. Es mantenen
 El tall original del PR #54 havia passat els tres workflows i la suite MySQL amb **716 passed / 0 failed**. Aquesta evidència és històrica del commit anterior a l'actualització amb `main`.
 
 Després d'integrar el `main` actual, el criteri per autoritzar el merge és tornar a executar els workflows sobre el nou HEAD i exigir-los verds. L'E2E navegador → oferta/operació server-side → Redsys → factura i la preproducció continuen fora de l'abast d'aquesta evidència.
+
+
+## 10. Reconciliació sobre `main` — 03/10/2026
+
+### 10.1. Estat real del canal de pagament
+
+La revisió del `main` integrat confirma que el pagament de curs ja recorre:
+
+```text
+pay.prisma.cat
+  -> SifRedsysCourseIntentClient
+  -> POST signat /api/redsys/course-intent.php
+  -> RedsysCoursePaymentIntentService
+  -> [TIPUS_DESC=1] PrismaStudentCourseCheckoutService
+  -> LegacyPrismaStudentPriceSnapshotResolver
+  -> commercial_operation / discount_validation / commercial_operation_party
+  -> RedsysPaymentIntentService
+  -> redsys_payment_intent
+```
+
+Per tant, ja no és correcte etiquetar com a pendent la connexió de l'orquestrador AP amb el **checkout de pagament real**.
+
+### 10.2. Autoritat del navegador: pendent acotat
+
+La mancança de trust boundary continua existint **abans del pagament**, a l'alta/preview llegat: el navegador encara envia `tipusDescompte`, `preuCar` i `preuDescompte` a `enviarInscripcio.php`.
+
+El pagament AP posterior, però, ja no confia cegament en aquests imports: recupera `TIPUS_DESC/VALID_DESC`, reconstrueix la tarifa històrica aplicable a `DATA_INSC` i exigeix que el net autoritatiu coincideixi amb `A_PAGAR`. Una matrícula manipulada/incoherent queda **fail-closed** abans de crear la intenció.
+
+### 10.3. Refactor de persistència compartida
+
+`PrismaStudentCourseCheckoutService` mantenia SQL propi sobre les mateixes taules que ja disposaven de repositories genèrics. En aquest tall s'ha refactoritzat perquè reutilitzi:
+
+- `CommercialOperationRepository`;
+- `DiscountValidationRepository`;
+- nou `CommercialOperationPartyRepository`;
+- `CommercialOperationRepository::linkIntent()`;
+- `CommercialOperationRepository::updateStatus()`.
+
+Això preserva la transacció única UC-020 i evita usar `CommercialOfferService` dins d'una transacció ja oberta, cosa que provocaria transaccions niades amb el `TransactionRunner` actual.
+
+### 10.4. Baseline CI abans d'aquest tall
+
+El `main` base `b0e8ff7150c5a8b415cc109d298d82f0db1f68df` ja estava en vermell abans del refactor UC-020:
+
+- **SIF PHP MySQL tests #1250:** 917 passed / 6 failed.
+- **UC-111 integration verification #1143:** mateix conjunt de 6 fallades.
+
+Les 6 fallades observades són de límits PACK/privacitat i una expectativa de `RedsysSignatureValidatorTest`; els tests de `RedsysPaymentIntent` relacionats amb coherència CURS/import continuen passant. Per validar aquest tall cal exigir **cap fallada nova UC-020** respecte d'aquest baseline, encara que el repositori global continuï vermell per incidències alienes.
+
+### 10.5. Pendents reals després de la reconciliació
+
+1. Server-authority a l'alta/preview web abans de persistir la matrícula.
+2. Decisions de negoci `UC20-DEC-001…006` i nova `RULE_VERSION` quan es ratifiquin.
+3. Model explícit de fraccionament/reanudació per Alumne PrisMa; avui falla tancat.
+4. E2E historial → alta → pagament → callback → factura amb `DESC_ORIGEN=ALUMNE_PRISMA`.
+5. Evidència sobre `sif_test/sif_pre` i acceptació operativa.
