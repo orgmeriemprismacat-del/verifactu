@@ -15,6 +15,7 @@ Vegeu [classes](uc-008-classes-actual-final.md), [seqüències](uc-008-sequencie
 | P-INC-04 | Intranet · VERI*FACTU | indicador, resum, fallback i handoff | resum read-only + fallback de sessió + handoff implementats | desplegament + E2E real |
 | A-INC-05 | obertura automàtica | Redsys, AEAT integritat/dead-letter | implementat per les fonts auditades del UC-008 | ampliar només quan s'incorpori un nou detector |
 | A-INC-06 | reparació | derivació a UC específic | manual/orquestrada per cas | derivació explícita correlacionada |
+| A-INC-07 | acceptació d'entorn | pay-pre, intranet-pre, E2E, menú, gestor, gate | tooling implementat i fail-closed | evidència real `ok=true` |
 
 ## 1. P-INC-01 · Llistat
 
@@ -259,7 +260,7 @@ K -->|no| M[Mostrar indisponibilitat; mai fals 0]
 I --> N[Usuari prem Obrir incidències SIF]
 N --> O[sifPanelLaunch.php valida sessió + CSRF]
 O --> P[SifPanelLaunchToken crea handoff HMAC d'un sol ús]
-P --> Q[POST cap a pay.prisma.cat/sif/incidencies/]
+P --> Q[POST cap al SIF configurat per l'entorn]
 ```
 
 ### FINAL
@@ -271,13 +272,49 @@ B --> C{SIF disponible?}
 C -->|sí| D[Mostrar obertes crítiques i última actualització]
 D --> E[Enllaç al panell SIF]
 C -->|no| F[Mostrar indisponibilitat + últim resum vàlid]
-E --> G[Resolució només a pay.prisma.cat/sif]
+E --> G[Resolució al panell SIF del mateix entorn]
 ```
 
-## 10. Cobertura
+## 10. A-INC-07 · Acceptació d'entorn
+
+### ACTUAL
+
+```mermaid
+flowchart TD
+A[SIF_ENV=preproduction a pay-pre] --> B[preflight panell]
+B --> C{ok?}
+C -->|no| X[STOP]
+C -->|sí| D[E2E read-only]
+D --> E{HTTPS + expected host + no production host?}
+E -->|no| X
+E -->|sí| F[intranet-pre menu preflight]
+F --> G{environment=preproduction i ALREADY_PRESENT?}
+G -->|no| X
+G -->|sí| H[Preparar incidència sintètica gestor]
+H --> I[Gestor real: ASSIGN + ADD_EVIDENCE + RESOLVE]
+I --> J[Verificador gestor read-only]
+J --> K[validate-uc008-evidence.php]
+K --> L{3 evidències vàlides?}
+L -->|no| X
+L -->|sí| M[uc-008-closure-validation.json ok=true]
+```
+
+### FINAL
+
+```mermaid
+flowchart TD
+A[Acceptació a pay-pre + intranet-pre] --> B[Cap prova toca producció]
+B --> C[Host E2E lligat explícitament a pay-pre]
+C --> D[Menú acreditat com preproduction]
+D --> E[Lifecycle gestor sintètic complet]
+E --> F[Gate final amb SHA-256 i sense secrets]
+F --> G[ENVIRONMENT_CLOSED]
+```
+
+## 11. Cobertura
 
 **Pàgines/superfícies identificades:** 4.  
-**Accions transversals amb activitat pròpia:** 2.  
+**Accions transversals amb activitat pròpia:** 3.  
 **Parells ACTUAL/FINAL:** 10.  
-**UI implementada al repositori:** 4 de 4 superfícies; desplegament/runtime productiu encara no verificat.  
+**UI implementada al repositori:** 4 de 4 superfícies; acceptació real de preproducció encara pendent.  
 **No s'ha inventat cap pantalla com a implementada.**
