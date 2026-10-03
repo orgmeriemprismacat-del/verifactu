@@ -10,23 +10,36 @@ final class NovicePromotionIntranetBoundaryTest
     {
         $root = dirname(__DIR__, 3);
         $page = file_get_contents($root . '/codi-drive/intranet-actual/alumnes-mostrar-alumne.php');
+        $legacyJs = file_get_contents($root . '/codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js');
+        $legacyMinJs = file_get_contents($root . '/codi-drive/intranet-actual/js/alumnes-mostrar-alumne.min.js');
         $js = file_get_contents($root . '/codi-drive/intranet-actual/js/alumnes-mostrar-alumne-uc111.js');
         $endpoint = file_get_contents($root . '/codi-drive/intranet-actual/ajax/alumnes/mostrarPromocioDocentNovell.php');
         $context = file_get_contents($root . '/codi-drive/intranet-actual/LegacyNovicePromotionContext.php');
         $validationJs = file_get_contents($root . '/codi-drive/intranet-actual/js/alumnes-validar-descomptes.js');
         $decisionEndpoint = file_get_contents($root . '/codi-drive/intranet-actual/ajax/alumnes/sendMsgValidatProfessorNovell.php');
 
-        if ($page === false || $js === false || $endpoint === false || $context === false || $validationJs === false || $decisionEndpoint === false) {
+        if ($page === false || $legacyJs === false || $legacyMinJs === false || $js === false || $endpoint === false || $context === false || $validationJs === false || $decisionEndpoint === false) {
             Assert::fail('Could not read UC-111 intranet boundary files');
         }
 
         Assert::stringContainsString('SIF_NOVICE_PROMOTION_UI_ENABLED', $page);
         Assert::stringContainsString('alumnes-mostrar-alumne-uc111.js', $page);
         Assert::stringContainsString('csrf-token-alumnes-lifecycle', $page);
+        Assert::stringContainsString('FILTER_VALIDATE_BOOLEAN', $page);
+
+        Assert::same(false, str_contains($legacyJs, 'carregarPromocioDocentNovell'));
+        Assert::same(false, str_contains($legacyJs, 'mostrarPromocioDocentNovell.php'));
+        Assert::same(false, str_contains($legacyMinJs, 'carregarPromocioDocentNovell'));
+        Assert::same(false, str_contains($legacyMinJs, 'mostrarPromocioDocentNovell.php'));
 
         Assert::stringContainsString("method: 'POST'", $js);
         Assert::stringContainsString('csrfToken: csrfToken()', $js);
         Assert::stringContainsString('mostrarPromocioDocentNovell.php', $js);
+        Assert::stringContainsString('text-bg-secondary', $js);
+        Assert::stringContainsString('fw-semibold', $js);
+        Assert::stringContainsString('applicationDate(app)', $js);
+        Assert::same(false, str_contains($js, 'badge-secondary'));
+        Assert::same(false, str_contains($js, 'font-weight-bold'));
 
         Assert::stringContainsString('SIF_NOVICE_PROMOTION_UI_ENABLED', $endpoint);
         Assert::stringContainsString("!== 'POST'", $endpoint);
