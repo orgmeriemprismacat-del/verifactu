@@ -43,6 +43,19 @@ final class LegacyPrismaStudentEnrollmentAuthorityBoundaryTest
         Assert::stringContainsString('http_response_code(409)', $guardedFlow);
     }
 
+    public function testCourseTypeComesFromServerMetadataBeforeFreeCourseOverride(): void
+    {
+        $source = $this->read('codi-drive/web-actual/ajax/enviarInscripcio.php');
+
+        Assert::same(false, str_contains($source, "$tipusCurs = $_GET['tipusCurs']"));
+        Assert::stringContainsString('SELECT TITOL, TIPUS_CURS FROM informacio', $source);
+        Assert::stringContainsString('$tipusCurs = (string) $tipusCursServidor;', $source);
+
+        $serverAssignment = strpos($source, '$tipusCurs = (string) $tipusCursServidor;');
+        $freeOverride = strpos($source, "if ( $tipusCurs == 'S' ) $preuDescompte = 0;");
+        Assert::same(true, $serverAssignment !== false && $freeOverride !== false && $serverAssignment < $freeOverride);
+    }
+
     private function read(string $relativePath): string
     {
         $root = dirname(__DIR__, 3);
