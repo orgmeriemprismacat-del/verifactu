@@ -24,7 +24,7 @@ La política llegada no és única:
 2. **Denegació d'un altre descompte a intranet**: semblant però sense `GENERAT=1` i sense excloure la inscripció actual.
 3. **Canvi de curs**: pagament/regal, exclou la mateixa inscripció i limita antecedents a la data de la inscripció original.
 
-El tall AP vigent encapsula la compatibilitat pública en `ALUMNE_PRISMA_WEB_LEGACY_V2`, exclou la matrícula actual i l'historial posterior a `DATA_INSC`, persisteix la decisió comercial abans de crear la intenció Redsys i manté el callback independent de la reavaluació d'elegibilitat. La unificació completa d'alta/preview/intranet sobre oferta SIF nativa continua com a migració.
+El tall AP vigent encapsula la compatibilitat pública en `ALUMNE_PRISMA_WEB_LEGACY_V2`, exclou la matrícula actual i l'historial posterior a `DATA_INSC`, persisteix una operació `BILLABLE` abans de crear la intenció Redsys i manté el callback independent de la reavaluació d'elegibilitat. `PaymentLinkService` ja blinda classificació/estat pagable, però la unificació completa d'alta/preview/intranet/P03/P04 sobre oferta SIF nativa continua com a migració.
 
 ## 2. Decisions compartides ja acordades amb UC-116
 
@@ -672,7 +672,7 @@ C->>H: findByDocument(DNI)
 H-->>C: historial acreditable
 C->>P: evaluate(historial)
 P-->>C: decisió + evidence + RULE_VERSION
-C->>CO: crear/reutilitzar operació + validació
+C->>CO: crear/reutilitzar BILLABLE/READY_FOR_PAYMENT + validació
 C->>RI: create(CURS, snapshot autoritatiu)
 RI->>V: validate(source/idpag/import/discount)
 V-->>RI: OK
@@ -681,7 +681,7 @@ C->>CO: vincular UUID_OPERATION ↔ UUID_INTENT
 C-->>UI: operació + intenció
 ```
 
-**Pendent de migració/rollout:** l'alta/preview web i la resolució intranet encara no comparteixen l'oferta servidor canònica; `payment_link` no governa encara aquest canal; falten E2E navegador → Redsys → factura i validació de preproducció. Les decisions UC20-DEC-001…006 ja estan tancades. El checkout de targeta actiu sí que invoca aquest nucli via `course-intent`.
+**Pendent de migració/rollout:** l'alta/preview web, la resolució intranet i les pantalles P03/P04 encara no comparteixen l'oferta servidor canònica; el guard intern de `PaymentLinkService` ja està implementat però encara no governa aquestes rutes llegades. Falten E2E navegador → Redsys → factura i validació de preproducció. Les decisions UC20-DEC-001…006 ja estan tancades. El checkout de targeta actiu sí que invoca aquest nucli via `course-intent`.
 
 ## 21. Reconciliació del canal de pagament actiu — 02/10/2026
 
@@ -721,7 +721,7 @@ La pantalla de pagament utilitza l'import retornat per SIF per construir `DS_MER
 
 ## 22. Reconciliació de tancament — 02/10/2026
 
-L'auditoria UC-020 queda **tancada**. El runtime AP de targeta és server-authoritative, l'alta llegada revalida AP abans de persistir, la policy v2 exclou autoacreditació i historial futur, i la resolució d'intranet s'ha reconciliat amb el codi actual POST/CSRF/permís/requestId. `payment_link`, transferència i E2E/preproducció es mantenen com a backlog/gates de migració, no com a preguntes obertes sobre el comportament AP actual.
+L'auditoria UC-020 queda **tancada**. El runtime AP de targeta és server-authoritative, l'alta llegada revalida AP abans de persistir, la policy v2 exclou autoacreditació i historial futur, la resolució d'intranet s'ha reconciliat amb POST/CSRF/permís/requestId i la infraestructura `payment_link` ja bloqueja operacions no `BILLABLE` o no pagables. L'adopció canònica de `payment_link`, transferència i E2E/preproducció es mantenen com a backlog/gates de migració.
 
 
 ## 23. Revalidació 03/10/2026
@@ -732,3 +732,10 @@ L'auditoria UC-020 queda **tancada**. El runtime AP de targeta és server-author
 - **UC020-95 — compatible amb main:** els canvis nous de Redsys CURS/cutover/callback/worker/factura no reobren la policy AP ni l'autoritat del snapshot; el callback continua consumint la intenció congelada.
 - **Cobertura documental:** aquest UML integrat es complementa amb fitxa v1.7, classes, seqüències, activitats P01…P06, traçabilitat i matriu AP-01…AP-84.
 - **Pendent de rollout:** E2E real/controlat navegador → Redsys/callback → worker → factura, `payment_link` canònic i transferència sota la mateixa autorització comercial.
+
+## 24. Hardening comercial addicional — continuació 03/10/2026
+
+- `PrismaStudentCourseCheckoutService` persisteix `CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT` abans de crear/vincular la intenció; `INTENT_CREATED` és l'estat posterior.
+- `PaymentLinkService::issue/resolve` exigeixen `BILLABLE` i `READY_FOR_PAYMENT|PAYMENT_PENDING`; link actiu no implica autorització si l'operació deixa de ser pagable.
+- S'han afegit proves pendents de CI per token manipulat, operació no pagable, import AP client manipulat, ordre callback desconeguda, signatura V2 incorrecta, tarifa absent/futura, preview read-only i immutabilitat de `PRICE_SNAPSHOT_JSON`.
+- `PrismaStudentCommercialSnapshotImmutabilityTest` conserva el snapshot/intenció original davant un segon intent amb la mateixa operació i una versió de preu diferent.
