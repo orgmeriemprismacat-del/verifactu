@@ -99,7 +99,10 @@ final class InvoiceBeforePaymentServerPayloadAssembler
                 'source_type' => 'INSCRIPCIO',
                 'source_id' => $id,
                 'relation_type' => 'ORIGIN',
-                'visible_alumne' => 1,
+                // A joint invoice is addressed to the billing entity/responsible, not to each participant.
+                // Participant-level access to the full fiscal document must be granted explicitly by a separate
+                // authorization rule; the relation itself must not expose the joint invoice by default.
+                'visible_alumne' => 0,
             ];
 
             $idpag = $row['IDPAG'] ?? null;
