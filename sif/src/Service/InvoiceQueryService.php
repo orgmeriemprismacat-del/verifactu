@@ -90,6 +90,7 @@ final class InvoiceQueryService
             'payments' => $this->invoices->findPayments($this->db, $uuid),
             'fiscal_record' => $fiscalRecord,
             'documents' => $this->invoices->findDocumentMetadata($this->db, $uuid),
+            'document_jobs' => $this->invoices->findDocumentJobs($this->db, $uuid),
         ];
     }
 
