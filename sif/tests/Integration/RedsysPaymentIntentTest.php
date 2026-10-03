@@ -544,6 +544,52 @@ final class RedsysPaymentIntentTest
         }, 422);
     }
 
+    public function testCreatesGroupIntentWithFrozenCommercialSnapshot(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(new RedsysPaymentIntentRepository(), new UuidGenerator());
+
+        $created = $service->create($db, [
+            'ds_order' => 'ORDERGROUPINT700',
+            'idpag' => 700,
+            'source_type' => 'GRUP',
+            'source_id' => '700',
+            'expected_amount' => '200.00',
+            'currency' => 'EUR',
+            'terminal' => '1',
+            'snapshot' => $this->groupSnapshot(700, ['120.00', '80.00']),
+            'created_by' => 'test-group',
+        ]);
+
+        $loaded = (new RedsysPaymentIntentRepository())->findByDsOrder($db, 'ORDERGROUPINT700');
+
+        Assert::same(false, $created['idempotency_reused']);
+        Assert::same('GRUP', $loaded['SOURCE_TYPE']);
+        Assert::same('700', (string) $loaded['SOURCE_ID']);
+        Assert::same('200.00', number_format((float) $loaded['EXPECTED_AMOUNT'], 2, '.', ''));
+    }
+
+    public function testRejectsGroupIntentWhenSnapshotTotalDiffersFromExpectedAmount(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new RedsysPaymentIntentService(new RedsysPaymentIntentRepository(), new UuidGenerator());
+
+        Assert::throws(SifException::class, static function () use ($db, $service): void {
+            $service->create($db, [
+                'ds_order' => 'ORDERGROUPINT701',
+                'idpag' => 701,
+                'source_type' => 'GRUP',
+                'source_id' => '701',
+                'expected_amount' => '199.99',
+                'currency' => 'EUR',
+                'terminal' => '1',
+                'snapshot' => $this->groupSnapshot(701, ['120.00', '80.00']),
+            ]);
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
     private function intentInput(string $dsOrder): array
     {
         return [
@@ -556,6 +602,44 @@ final class RedsysPaymentIntentTest
             'terminal' => '1',
             'snapshot' => $this->courseSnapshot(700, 700, '120.00'),
             'created_by' => 'test',
+        ];
+    }
+
+    private function groupSnapshot(int $idpag, array $amounts): array
+    {
+        $items = [];
+        foreach ($amounts as $index => $amount) {
+            $items[] = [
+                'inscription' => [
+                    'ID' => 800 + $index,
+                    'IDPAG' => $idpag,
+                    'ANY' => 2026,
+                    'MES' => '10',
+                    'CURS' => 'GRP',
+                    'NOM' => 'Participant' . ($index + 1),
+                    'COGNOMS' => 'Prova',
+                    'DNI' => '0000000' . ($index + 1) . 'T',
+                    'A_PAGAR' => $amount,
+                    'TOTAL' => $amount,
+                ],
+                'course' => [
+                    'NOM_CURS' => 'Curs de grup',
+                ],
+            ];
+        }
+
+        return [
+            'responsible' => [
+                'NOM' => 'Responsable',
+                'COGNOMS' => 'Grup',
+                'DNI' => '44444444G',
+                'CORREU' => 'responsable@example.test',
+            ],
+            'items' => $items,
+            'payment' => [
+                'idpag' => $idpag,
+                'amount' => number_format(array_sum(array_map('floatval', $amounts)), 2, '.', ''),
+            ],
         ];
     }
 
