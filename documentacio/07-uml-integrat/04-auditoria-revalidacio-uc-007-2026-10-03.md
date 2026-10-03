@@ -124,3 +124,15 @@ L'UC-007 queda **DOCUMENTAT + IMPLEMENTAT EN CODI, PERÒ NO VERIFICAT RUNTIME**.
 El primer run del PR #135 ha passat totes les proves directament relacionades amb UC-007 que ja existien: frontera intranet, query read-only, política FULL/MINIMAL, HMAC/anti-replay i CLI query. També passen les proves de registre immutable de document. El workflow global queda en `failure` per sis tests PACK/Redsys no modificats per aquesta branca. El commit base `main` ja tenia workflows SIF en `failure`; no s’afirma que fossin exactament les mateixes sis assertions perquè els logs complets del baseline no s’han reextret de forma fiable. Per tant, no hi ha evidència que aquestes fallades globals siguin una regressió causada per l’UC-007.
 
 Després d'aquesta evidència s'ha afegit una prova específica d'UC-080 (`InvoiceDocumentAccessServiceTest`) per cobrir bytes verificats, scope MINIMAL denegat, hash mismatch i fitxer absent amb auditoria.
+
+
+## 10. Segona passada de cobertura — 2026-10-03
+
+S'han tancat tres mancances addicionals de prova/configuració:
+
+1. S'ha retirat de `alumnes-factura.php` i `alumnes-mostrar-alumne.php` el bloc buit `SIF_INVOICE_QUERY_UI_ENABLED`. Aquest flag ja no governava cap asset; el rollout real queda en `SIF_UC007_QUERY_ENABLED` i `SIF_UC080_DOCUMENT_ENABLED`.
+2. `InvoiceQueryServiceTest` cobreix ara `SOURCE_TYPE=INSCRIPCIO + source_ids`, múltiples factures relacionades amb una mateixa inscripció, combinació AND amb `NUM_VISIBLE` i errors de criteris incomplets/desconeguts.
+3. `InternalInvoiceScopeResolverTest` cobreix resolució FULL, MINIMAL i denegació fail-closed de rols no autoritzats/actor buit.
+4. `InvoiceDocumentAccessServiceTest` cobreix també intent de sortir de `SIF_DOCUMENT_ROOT` → 403 + `PATH_OUTSIDE_STORAGE`.
+
+Aquestes proves continuen sent proves automatitzades sobre BD/storage de test; no substitueixen l'evidència de preproducció amb configuració real.
