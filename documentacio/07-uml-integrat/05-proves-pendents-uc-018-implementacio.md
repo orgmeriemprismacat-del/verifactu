@@ -12,6 +12,7 @@
 - [CI] els tres endpoints exclusius UC-018 rebutgen mètodes diferents de POST; `inscripcioDuplicada.php` és compartit, conserva compatibilitat legacy i UC-018 el crida per POST.
 - [CI] validació, lookup i writer UC-018 no usen `$_GET`; el duplicat compartit pot llegir GET per compatibilitat d'altres casos, però UC-018 no envia el DNI per URL.
 - [CI] resposta pública neutra per codi no bescanviable.
+- [CI] validació/lookup fan match exacte del codi; cap `WHERE CODI LIKE ?`.
 - [CI] lookup del curs revalida server-side la bescanviabilitat.
 - [CI] writer bloqueja `FACT_REL <= 0` abans de materialitzar/reutilitzar la matrícula.
 
