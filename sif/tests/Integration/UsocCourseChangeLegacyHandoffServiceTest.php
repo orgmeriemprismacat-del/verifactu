@@ -28,9 +28,10 @@ final class UsocCourseChangeLegacyHandoffServiceTest
         Assert::same('DESTINATION_RESERVED', $result['phase']);
 
         $stored = $repository->findByRequestId($db, $requestId);
-        Assert::same('REQUESTED', $stored['STATE']);
+        Assert::same('REVIEW_REQUIRED', $stored['STATE']);
+        Assert::same('LEGACY_DESTINATION_MISMATCH', $stored['REVIEW_REASON']);
         $payload = json_decode((string) $stored['RESULT_JSON'], true);
-        Assert::same('DESTINATION_RESERVED', $payload['phase']);
+        Assert::same('LEGACY_REVIEW_REQUIRED', $payload['phase']);
         Assert::same(false, $payload['effects_applied']);
     }
 
