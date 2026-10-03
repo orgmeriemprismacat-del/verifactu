@@ -190,34 +190,40 @@ A GitHub Actions del commit `88e5c922424b0cf573b1d1af08dc8713b7b8ea32` consten c
 - **Documentat:** fitxa, UML integrat, classes, seqüències, activitats, inventari PHP/JS, auditoria i revalidació.
 - **Implementat:** nucli d’emissió/reús, numeració, cadena/cua, payment, audit events, status projection, endpoint/policy/scope, guard AEAT, writer operation-line i HARD-017.
 - **Verificat:** inspecció del PHP/JS/SQL, proves específiques UC-001 passades al run `88e5c922…` i HARD-017 passada al run de `276fb390…`. El job SIF d’aquest head queda **961 pass / 6 fail**, amb les sis fallades fora d’UC-001.
-- **Pendent:** coverage comercial entre claus, `commercial_operation` obligatòria, propagació universal de `uuid_operation_line`, assembler AEAT complet, any fiscal, R1–R5, cutover guards llegats, fencing Redsys, preproducció i **CI final de la PR #145**. La reconciliació amb `main` ja està resolta.
+- **Pendent:** cobertura comercial universal per callers que encara no creen operació, materialització de `commercial_operation_line` fora del flux Alumne PrisMa, assembler AEAT complet, migració de l'any fiscal, R1–R5, cutover guards llegats, fencing Redsys, preproducció i **CI final de la PR #145**. La reconciliació amb `main` ja està resolta.
 
 
 ## 9. Revalidació tècnica addicional post-reconciliació
 
-### F-106 — `commercial_operation` existeix però UC-001 no enllaça la factura
+### F-106 — traça `commercial_operation → factura`
 
-**Estat:** IMPLEMENTAT A PR #145 · CI/PREPRODUCCIÓ PENDENT.
+**Estat:** CORE IMPLEMENTAT · REDSYS ALUMNE PRISMA IMPLEMENTAT · ALTRES CALLERS PARCIALS · CI/PREPRODUCCIÓ PENDENT.
 
-`CommercialOperationRepository` incorpora `linkInvoice()` amb bloqueig `FOR UPDATE`, reutilització idempotent del mateix vincle i conflicte si l'operació ja apunta a una altra factura. `InvoicePayloadValidator` valida i normalitza `uuid_operation`, i `InvoiceService` materialitza el vincle dins la mateixa transacció que crea la factura; en reintents verifica/reutilitza el mateix vincle.
+`CommercialOperationRepository` incorpora `linkInvoice()` amb bloqueig `FOR UPDATE`, reutilització idempotent del mateix vincle i conflicte si l'operació ja apunta a una altra factura. `InvoicePayloadValidator` valida/normalitza `uuid_operation` i `InvoiceService` materialitza el vincle dins la mateixa transacció de factura.
 
-Evidència de prova afegida: `IssueInvoiceTest` comprova persistència i reutilització operació → factura, i `InvoicePayloadValidatorTest` comprova rebuig/normalització del UUID. Falta l'execució del CI actual i l'evidència de preproducció.
+A més, `RedsysInvoicePayloadBuilder` resol server-side `DS_ORDER → redsys_payment_intent.UUID_INTENT → commercial_operation.UUID_OPERATION`; no confia en un UUID aportat pel navegador. `PrismaStudentCourseCheckoutService` ja vincula l'operació a l'intent. Això deixa el flux Alumne PrisMa traçat fins a `UUID_FACTURA`. Els builders/callers que encara no creen una `commercial_operation` continuen fora d'aquesta cobertura.
 
-### F-107 — any fiscal separat només a UC-004
+Evidència afegida: `IssueInvoiceTest`, `InvoicePayloadValidatorTest`, `RedsysInvoicePayloadBuilderTest` i la prova end-to-end `RedsysCoursePaymentIntentPrismaStudentTest`. Falta executar el CI actual i conservar evidència de preproducció.
 
-**Estat:** PARCIAL.
+### F-107 — any fiscal separat de l'any acadèmic
 
-`InvoiceBeforePaymentServerPayloadAssembler` separa explícitament `fiscal_year` de l'any d'edició del curs. En canvi, els builders legacy de curs, pack, grup i USOC continuen obtenint `year` de `inscription.ANY`; regal usa `gift.ANY` amb fallback a l'any actual.
+**Estat:** DECISIÓ TÈCNICA FONAMENTADA · MIGRACIÓ TRANSVERSAL PENDENT.
 
-Conseqüència: la decisió “any fiscal vs any acadèmic” ja està resolta tècnicament per UC-004, però no transversalment.
+`InvoiceBeforePaymentServerPayloadAssembler` separa explícitament `fiscal_year` de l'any d'edició. Els builders legacy de curs, pack, grup i USOC encara obtenen `year` de `inscription.ANY`; regal usa `gift.ANY` amb fallback a l'any actual.
 
-### F-108 — writer `operation_line_invoice_link` sense propagació universal
+El Reglament de facturació exigeix numeració correlativa dins de cada sèrie i una data d'expedició de la factura; no defineix l'any acadèmic de la matrícula com a clau fiscal. Per tant, en aquest SIF `inscription.ANY` no s'ha d'usar implícitament per seleccionar `fiscal_sequence.ANY_FACT`. Referències: BOE, RD 1619/2012 art. 6.1.a (`https://www.boe.es/eli/es/rd/2012/11/30/1619`) i AEAT, emissió de factures VERI*FACTU (`https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/presentacion-declaraciones-ayuda-tecnica/aplicacion-gratuita-verifactu-aeat/emision-facturas.html`).
 
-**Estat:** PARCIAL.
+Conseqüència: la direcció tècnica queda decidida, però falta definir/aplicar el cutover d'històric i rectificatives abans de modificar tots els builders.
 
-`OperationLineInvoiceLinkRepository` i la materialització a `InvoiceRepository` existeixen i són idempotents, però els builders auditats de curs/pack/grup/regal/USOC, Redsys genèric i manual no aporten `uuid_operation_line` a les línies.
+### F-108 — persistència i materialització `commercial_operation_line → factura_linia`
 
-Conseqüència: la traça línia comercial → línia de factura només es crea quan un caller ja aporta explícitament el UUID comercial.
+**Estat:** ALUMNE PRISMA IMPLEMENTAT END-TO-END · RESTA DE FLUXOS PARCIAL · CI/PREPRODUCCIÓ PENDENT.
+
+La reauditoria ha confirmat que, abans d'aquest hardening, no hi havia cap writer productiu de `commercial_operation_line` als fluxos inspeccionats: el test d'`IssueInvoiceTest` sembrava la línia comercial manualment. Ara `PrismaStudentCourseCheckoutService` crea/reutilitza la línia comercial a partir del preu, participant, curs, edició, `price_rule_version` i `tax_snapshot` trusted; el seu UUID queda congelat a `snapshot.operation.line_uuid`.
+
+`LegacyCourseInvoicePayloadBuilder` propaga `uuid_operation` i `uuid_operation_line`; `InvoicePayloadValidator` valida aquest UUID i `InvoiceRepository` materialitza `operation_line_invoice_link` de forma idempotent. La prova `RedsysCoursePaymentIntentPrismaStudentTest` cobreix checkout → intent → callback validat → factura → operació → línia materialitzada.
+
+Conseqüència: el patró està executable per Alumne PrisMa, però encara s'ha d'estendre amb snapshots autoritatius equivalents a pack/grup/regal/USOC/manual i altres tipologies de descompte.
 
 ### F-109 — snapshot AEAT en fail-closed, assembler transversal encara absent
 
