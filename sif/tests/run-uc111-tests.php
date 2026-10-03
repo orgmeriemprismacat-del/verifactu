@@ -10,11 +10,11 @@ try {
     }
 
     $testLock = \Prisma\Sif\Tests\Support\TestDatabase::connect();
-    $lockName = 'sif_uc111_tests:' . $testLock->query('SELECT DATABASE()')->fetchColumn();
+    $lockName = 'sif_tests:' . $testLock->query('SELECT DATABASE()')->fetchColumn();
     $lock = $testLock->prepare('SELECT GET_LOCK(?, 0)');
     $lock->execute([$lockName]);
     if ((int) $lock->fetchColumn() !== 1) {
-        throw new RuntimeException('Another UC-111 test suite is using this database.');
+        throw new RuntimeException('Another SIF test suite is using this database.');
     }
 
     \Prisma\Sif\Tests\Support\TestDatabase::fresh();
