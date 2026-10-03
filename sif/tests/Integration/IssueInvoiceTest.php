@@ -383,19 +383,30 @@ final class IssueInvoiceTest
             'CONFIRMED',
         ]);
 
-        $result = $this->makeService($db)->issueInvoice(Fixtures::invoicePayload([
+        $payload = Fixtures::invoicePayload([
             'idempotency_key' => 'INTRANET|COMMERCIAL-LINE|UC001',
             'source_channel' => 'INTRANET',
+            'uuid_operation' => $uuidOperation,
             'lines' => [[
                 'uuid_operation_line' => $uuidLine,
             ]],
-        ]));
+        ]);
+        $service = $this->makeService($db);
+        $result = $service->issueInvoice($payload);
+        $second = $service->issueInvoice($payload);
 
         $link = $db->query(
             'SELECT UUID_LINE, FACTURA_LINE_ID, LINK_TYPE, LINKED_AMOUNT
              FROM operation_line_invoice_link LIMIT 1'
         )->fetch(\PDO::FETCH_ASSOC);
 
+        Assert::same(false, $result['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($result['uuid_factura'], $second['uuid_factura']);
+        Assert::same(
+            $result['uuid_factura'],
+            (string) $db->query('SELECT UUID_FACTURA FROM commercial_operation LIMIT 1')->fetchColumn()
+        );
         Assert::same($uuidLine, $link['UUID_LINE']);
         Assert::same(
             (int) $db->query('SELECT ID FROM factura_linia WHERE UUID_FACTURA = '

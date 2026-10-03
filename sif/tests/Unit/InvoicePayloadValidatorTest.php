@@ -255,6 +255,30 @@ final class InvoicePayloadValidatorTest
         );
     }
 
+    public function testRejectsInvalidCommercialOperationUuid(): void
+    {
+        $payload = $this->validPayload();
+        $payload['uuid_operation'] = 'not-a-uuid';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new InvoicePayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Invalid commercial operation UUID', $exception->getMessage());
+    }
+
+    public function testNormalizesCommercialOperationUuid(): void
+    {
+        $payload = $this->validPayload();
+        $payload['uuid_operation'] = 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA';
+
+        $validated = (new InvoicePayloadValidator())->validate($payload);
+
+        Assert::same('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', $validated['uuid_operation']);
+    }
+
     public function testRejectsOversizedOrNonCanonicalTraceMetadata(): void
     {
         foreach ([
