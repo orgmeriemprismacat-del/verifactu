@@ -161,9 +161,9 @@ No s’ha de convertir “fitxa + UML + tests del core” en “llest per produc
 
 ## 10. Troballes post-reconciliació de la PR #145
 
-- **F-106 · operació comercial:** **IMPLEMENTAT A #145 / CI PENDENT.** `CommercialOperationRepository::linkInvoice()` és transaccional i idempotent; `InvoiceService` el crida en alta i reutilització quan el payload conté `uuid_operation`; el validator comprova i normalitza el UUID. S'han afegit proves d'integració i unitàries.
-- **F-107 · any fiscal:** UC-004 ja usa `fiscal_year` separat de l'any d'edició; curs/pack/grup/USOC continuen derivant `year` de `inscription.ANY`, i regal usa `ANY`/any actual. Pendent transversal.
-- **F-108 · operation line:** el writer `operation_line_invoice_link` existeix, però els builders auditats no propaguen `uuid_operation_line`. Pendent de contracte comú de builder.
+- **F-106 · operació comercial:** **CORE + REDSYS ALUMNE PRISMA IMPLEMENTAT / ALTRES CALLERS PARCIAL / CI PENDENT.** `CommercialOperationRepository::linkInvoice()` és transaccional/idempotent; `InvoiceService` l'aplica en alta i reutilització; `RedsysInvoicePayloadBuilder` resol `uuid_operation` des de l'intent persistit. Els callers sense operació comercial explícita continuen pendents.
+- **F-107 · any fiscal:** **DECISIÓ TÈCNICA FONAMENTADA / MIGRACIÓ PENDENT.** UC-004 ja usa `fiscal_year` separat. BOE/AEAT exigeixen correlativitat per sèrie i data d'expedició; l'any acadèmic no és la clau fiscal. Curs/pack/grup/USOC/regal han de deixar de derivar implícitament `ANY_FACT` de la matrícula, amb pla específic per històric/rectificatives.
+- **F-108 · operation line:** **ALUMNE PRISMA IMPLEMENTAT END-TO-END / RESTA PARCIAL / CI PENDENT.** S'ha confirmat que no existia writer productiu general de `commercial_operation_line`. El checkout Alumne PrisMa ara crea/reutilitza la línia trusted, la congela a l'intent, el builder de curs la propaga i la factura crea `operation_line_invoice_link`. Pack/grup/regal/USOC/manual continuen pendents.
 - **F-109 · AEAT:** el core falla tancat en PREPRODUCTION/PRODUCTION si manca `aeat_fields`. És una protecció correcta, però evidencia que els builders legacy encara necessiten un assembler AEAT server-side complet.
 
 Aquestes troballes no reobren el hardening ja verificat; concreten els quatre deutes transversals que impedeixen declarar UC-001 preparat per producció.
@@ -172,3 +172,11 @@ Aquestes troballes no reobren el hardening ja verificat; concreten els quatre de
 ### Estat del gate CI
 
 En la comprovació del 03/10/2026, GitHub Actions mostrava **541 runs en cua** al repositori. Els quatre workflows del head UC-001 continuaven en `queued`, sense conclusió de fallada. Per tant, aquesta espera es classifica com a bloqueig d'infraestructura/capacitat d'Actions i no com a regressió demostrada del UC-001. No es declara PASS fins que els runs finalitzin.
+
+
+### Base de decisió F-107
+
+- BOE, RD 1619/2012, art. 6.1.a: numeració correlativa dins de cada sèrie i data d'expedició pròpia de la factura: `https://www.boe.es/eli/es/rd/2012/11/30/1619`.
+- AEAT, aplicació VERI*FACTU — emissió: gestió de sèrie/número consecutiu i data d'expedició: `https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/presentacion-declaraciones-ayuda-tecnica/aplicacion-gratuita-verifactu-aeat/emision-facturas.html`.
+
+Aquesta base justifica separar l'any fiscal de l'any acadèmic, però no fixa per si sola com migrar la convenció local `A{ANY}/NNNNNN`; aquesta decisió de cutover queda pendent de prova amb històric i rectificatives.
