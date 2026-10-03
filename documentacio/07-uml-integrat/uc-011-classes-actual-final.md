@@ -64,7 +64,50 @@ end note
 
 No hi ha dependència d'InvoiceService, FiscalSequenceRepository, factura_registres ni fiscal_queue. Això és coherent amb una importació històrica NO_VERIFACTU.
 
-## 3. FINAL implementat a la branca d'auditoria
+## 3. ACTUAL · pàgina llegada `alumnes-factura` com a sistema origen
+
+~~~plantuml
+@startuml
+title UC-011 | ACTUAL upstream | consulta i mutació del llegat
+class "alumnes-factura.php" as Page <<page>>
+class "alumnes-factura.js" as JS <<javascript>>
+class "consultaUsuarisFacturaRelacionada.php" as SearchLegacy <<ajax>>
+class "guardarDadesFactura_Factures.php" as SaveLegacy <<ajax>>
+class "anularFactura_Factures.php" as CancelLegacy <<ajax>>
+class "descarregaFactura.php" as DownloadLegacy <<ajax>>
+class LegacyInvoiceReadContext
+class LegacyInvoiceMutationAuthorization
+class SifLegacyInvoiceMutationGuard
+class SifInternalApiClient
+class Intranet
+database "web.factures" as Legacy
+database "SIF factura/fact_rels" as SIF
+
+Page --> JS
+JS --> SearchLegacy : fallback consulta llegada
+JS --> SaveLegacy : editar dades
+JS --> CancelLegacy : anul·lar
+JS --> DownloadLegacy : regenerar PDF
+SearchLegacy --> LegacyInvoiceReadContext
+SaveLegacy --> LegacyInvoiceMutationAuthorization
+SaveLegacy --> SifLegacyInvoiceMutationGuard
+CancelLegacy --> SifLegacyInvoiceMutationGuard
+DownloadLegacy --> SifLegacyInvoiceMutationGuard
+SifLegacyInvoiceMutationGuard --> SifInternalApiClient : searchInvoices()
+SifInternalApiClient --> SIF
+SearchLegacy --> Intranet
+SaveLegacy --> Intranet
+CancelLegacy --> Intranet
+DownloadLegacy --> Intranet : generaFactura(id,true)
+Intranet --> Legacy
+@enduml
+~~~
+
+Aquesta pàgina **no importa** factures al SIF. És la superfície upstream que pot canviar el llegat abans del cut-over. El guard pot bloquejar mutacions/regeneracions quan ja existeix una relació SIF `HISTORIC_WEB_FACTURES`, però depèn dels feature flags de protecció/consulta.
+
+El PDF retornat per `descarregaFactura.php` es genera temporalment amb `Intranet->generaFactura(..., true)`; no és per si sol evidència dels bytes originals emesos.
+
+## 4. FINAL implementat a la branca d'auditoria
 
 ~~~plantuml
 @startuml
@@ -87,7 +130,7 @@ HistoricalInvoiceMigrationService --> HistoricalInvoiceMigrationRepository
 HistoricalInvoiceMigrationRepository --> UuidGenerator
 HistoricalInvoiceMigrationRepository --> PayloadIdempotencyValidatorInterface
 PayloadIdempotencyValidator ..|> PayloadIdempotencyValidatorInterface
-HistoricalInvoiceMigrationRepository --> HashColumn : hash canònic
+HistoricalInvoiceMigrationRepository --> HashColumn : hash projecció material
 HistoricalInvoiceMigrationRepository --> factura_linia
 HistoricalInvoiceMigrationRepository --> fact_rels
 HistoricalInvoiceMigrationRepository --> factura_documents
@@ -98,17 +141,20 @@ note right of HistoricalInvoicePayloadBuilder
   - components de número coherents amb NUM_VISIBLE
   - invoice_status forçat a HISTORICAL
   - VISIBLE_ALUMNE per defecte = 0
+  - valida dates, billing/totals/línies/rels
+  - normalitza emissor i camps fiscals
 end note
 
 note right of PayloadIdempotencyValidator
-  Reintent equivalent -> reuse
-  Mateixa clau + payload diferent -> 409
+  Reintent material equivalent -> reuse
+  Aliases equivalents no creen fals conflicte
+  Dades persistides diferents -> 409
   Hash absent/antic -> fail closed
 end note
 @enduml
 ~~~
 
-## 4. FINAL requerit però encara pendent
+## 5. FINAL requerit però encara pendent
 
 ~~~plantuml
 @startuml
@@ -137,8 +183,9 @@ HistoricalInvoiceMigrationService ..> sif_audit_event : pendent
 - Custòdia dels bytes originals i verificació física del SHA-256.
 - Actor, rol, request/correlation IDs i events d'auditoria del procés.
 - Canal productiu autoritzat: els dos scripts actuals rebutgen explícitament SIF_ENV=production.
-- No hi ha JS ni pàgina d'intranet específica UC-011 al tall auditat.
+- No hi ha JS ni pàgina d'intranet que executi UC-011; sí hi ha la pàgina llegada `alumnes-factura` com a origen mutable.
+- Prova de cut-over dels guards llegats amb feature flags actius.
 
-## 5. Navegació
+## 6. Navegació
 
 [Fitxa funcional](../06-fitxes-funcionals/uc-011.md) · [UML integrat](uc-011-importar-factura-historica.md) · [Seqüències](uc-011-sequencies-actual-final.md) · [Activitats](uc-011-activitats-actual-final.md) · [Traçabilitat](uc-011-tracabilitat-implementacio.md)
