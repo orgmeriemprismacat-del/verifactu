@@ -2,18 +2,30 @@
 
 namespace Prisma\Sif\Repository;
 
+use Prisma\Sif\Contract\PayloadIdempotencyValidatorInterface;
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Service\PayloadIdempotencyValidator;
 
 final class HistoricalInvoiceMigrationRepository
 {
-    public function __construct(private UuidGenerator $uuidGenerator)
-    {
+    private PayloadIdempotencyValidatorInterface $idempotency;
+
+    public function __construct(
+        private UuidGenerator $uuidGenerator,
+        ?PayloadIdempotencyValidatorInterface $idempotency = null
+    ) {
+        $this->idempotency = $idempotency ?? new PayloadIdempotencyValidator();
     }
 
     public function importHistoricalInvoice(\PDO $db, array $payload): array
     {
         $existing = $this->findByIdempotencyKey($db, $payload['idempotency_key'], true);
         if ($existing !== null) {
+            $this->idempotency->assertMatches(
+                $payload,
+                (string) ($existing['IDEMPOTENCY_PAYLOAD_HASH'] ?? '')
+            );
+
             return $this->existingResult($existing);
         }
 
@@ -53,19 +65,20 @@ final class HistoricalInvoiceMigrationRepository
     {
         $stmt = $db->prepare(
             'INSERT INTO factura (
-                UUID_FACTURA, IDEMPOTENCY_KEY, TIPUS_SERIE, ANY_FACT, NUM_SEQ, NUM_VISIBLE,
+                UUID_FACTURA, IDEMPOTENCY_KEY, IDEMPOTENCY_PAYLOAD_HASH, TIPUS_SERIE, ANY_FACT, NUM_SEQ, NUM_VISIBLE,
                 TIPUS_FACTURA, DATA_EMISSIO, DATA_OPERACIO, DATA_PAGAMENT,
                 EMESA_ABANS_COBRAMENT, E_FACT, ESTAT_COBRAMENT, ESTAT_FACTURA, ESTAT_AEAT,
                 BILLING_NOM_RAO, BILLING_NIF_CIF, BILLING_ADRECA, BILLING_CP,
                 BILLING_POBLACIO, BILLING_PROVINCIA, BILLING_PAIS, BILLING_EMAIL,
                 IMPORT_BASE, DESC_IMPORT, BASE_IMPOSABLE, IVA_REGIM, IVA_PCT, IVA_IMPORT,
                 TOTAL, SOURCE_CHANNEL, CREATED_BY
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         $stmt->execute([
             $uuid,
             $payload['idempotency_key'],
+            $this->idempotency->calculateHash($payload),
             $payload['series'],
             $payload['year'],
             $payload['num_seq'],
@@ -155,7 +168,7 @@ final class HistoricalInvoiceMigrationRepository
                 $rel['relation_type'] ?? 'HISTORIC_LINK',
                 $rel['idpag'] ?? null,
                 $rel['ds_order'] ?? null,
-                $rel['visible_alumne'] ?? 1,
+                $rel['visible_alumne'] ?? 0,
             ]);
         }
     }
