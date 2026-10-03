@@ -69,6 +69,60 @@ final class LegacyUsocCourseChangeDestinationReservationServiceTest
         Assert::same(2, $store->releaseCalls);
     }
 
+    public function testRetryReusesReservedDestinationAfterSourceWasAlreadyClosed(): void
+    {
+        $store = new LegacyUsocCourseChangeDestinationFakeStore();
+        $service = new \LegacyUsocCourseChangeDestinationReservationService($store);
+
+        $first = $service->reserve(
+            'uc013-course-change-880-closed',
+            880,
+            '2027',
+            '01',
+            'CURS-B',
+            '95.00'
+        );
+
+        $store->source['status'] = 'C';
+
+        $second = $service->reserve(
+            'uc013-course-change-880-closed',
+            880,
+            '2027',
+            '01',
+            'CURS-B',
+            '95.00'
+        );
+
+        Assert::same($first['destination_id_insc'], $second['destination_id_insc']);
+        Assert::same($first['destination_idpag'], $second['destination_idpag']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same(1, $store->insertCalls);
+        Assert::same(2, $store->acquireCalls);
+        Assert::same(2, $store->releaseCalls);
+    }
+
+    public function testClosedSourceCannotCreateANewReservation(): void
+    {
+        $store = new LegacyUsocCourseChangeDestinationFakeStore();
+        $store->source['status'] = 'C';
+        $service = new \LegacyUsocCourseChangeDestinationReservationService($store);
+
+        Assert::throws(\RuntimeException::class, static function () use ($service): void {
+            $service->reserve(
+                'uc013-course-change-880-new-after-close',
+                880,
+                '2027',
+                '01',
+                'CURS-B',
+                '95.00'
+            );
+        }, 409);
+
+        Assert::same(0, $store->insertCalls);
+        Assert::same(1, $store->releaseCalls);
+    }
+
     public function testSameRequestWithDifferentTargetConflictsAndReleasesLock(): void
     {
         $store = new LegacyUsocCourseChangeDestinationFakeStore();
