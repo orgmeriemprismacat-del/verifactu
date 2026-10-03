@@ -208,7 +208,7 @@ S'ha afegit `.github/workflows/sif-tests.yml` per executar `php sif/tests/run-te
 
 La suite SIF i els checks d'intranet ja disposen d'evidència CI satisfactòria després de la implementació de la UI. Continuen pendents E2E/preproducció i configuració productiva abans de marcar el panell verificat en runtime.
 
-**Estat actual (03/10/2026):** `AUDIT_CLOSED + CODE_COMPLETE + UC008_REGRESSION_PASS + GLOBAL_CI_RED_918_5 + ENVIRONMENT_ACCEPTANCE_PENDING`. El **844/0** és el baseline verd del tancament del 02/10; la revalidació del PR #123 manté les proves UC-008 en PASS i queda en **918/5**; les cinc fallades globals són externes al cas i corresponen a PACK/UC-015. Resten per UC-008 únicament l'execució real de preproducció, la configuració/comprovació del menú BD i les evidències reals.
+**Estat actual (03/10/2026):** `AUDIT_CLOSED + CODE_COMPLETE + UC008_REGRESSION_PASS + GLOBAL_CI_RED_920_5 + ENVIRONMENT_ACCEPTANCE_PENDING`. El **844/0** és el baseline verd del tancament del 02/10; la revalidació del PR #123 manté les proves UC-008 en PASS i queda en **918/5**; les cinc fallades globals són externes al cas i corresponen a PACK/UC-015. Resten per UC-008 únicament l'execució real de preproducció, la configuració/comprovació del menú BD i les evidències reals.
 
 
 Vegeu també [Evidència E2E del flux gestor](08-evidencia-gestor-uc-008.md).
@@ -227,3 +227,5 @@ S'han afegit controls i proves per evitar evidències de l'entorn equivocat:
 - el validator final exigeix `menu_environment_valid=true`.
 
 El runbook executable és [10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md).
+
+- Run **37153443142** · hardening d'acceptació UC-008: **920 passed / 5 failed**. Passen els controls nous de host preproducció i `menu_environment_valid`; les cinc fallades restants són PACK/UC-015.
