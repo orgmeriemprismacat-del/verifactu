@@ -240,6 +240,15 @@ try {
 	$preuCar = $preuCarClient;
 	$mailing = $textMailing->obtenirText();
 
+	// La tarifa base no és mai autoritativa del navegador.
+	if ( $tipusCurs != 'S' ) {
+		$preuBaseServidor = resoldrePreuBaseServidor($connexio, $idPreuServidor);
+		if ( abs((float)$preuCarClient - (float)$preuBaseServidor) > 0.009 ) {
+			throw new Exception('PRICE_CHANGED_BASE', 409);
+		}
+		$preuCar = (float)$preuBaseServidor;
+	}
+
 	// UC-020: si el navegador pretén aplicar Alumne PrisMa, el servidor
 	// torna a validar dret i tarifa abans de persistir la matrícula.
 	if ( $tipusCurs != 'S' && $tipusDescompte == 1 ) {
