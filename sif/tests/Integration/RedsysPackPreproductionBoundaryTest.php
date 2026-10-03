@@ -64,7 +64,7 @@ final class RedsysPackPreproductionBoundaryTest
         $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
 
         Assert::stringContainsString(
-            "$verifyEvidence = in_array('--verify-evidence', $args, true);",
+            '$verifyEvidence = in_array(\'--verify-evidence\', $args, true);',
             $source
         );
         Assert::stringContainsString('if ($verifyEvidence) {', $source);
