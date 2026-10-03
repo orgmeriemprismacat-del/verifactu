@@ -326,22 +326,33 @@ final class UsocCourseChangeLegacyHandoffService
         array $target,
         string $expectedTotal
     ): void {
-        if (
-            (int) ($destination['id'] ?? 0) !== $idInsc
-            || (int) ($destination['idpag'] ?? 0) !== $idpag
-            || (string) ($destination['year'] ?? '') !== (string) ($target['year'] ?? '')
-            || (string) ($destination['month'] ?? '') !== (string) ($target['month'] ?? '')
-            || (string) ($destination['course'] ?? '') !== (string) ($target['course'] ?? '')
-            || $this->money($destination['a_pagar'] ?? null) !== $expectedTotal
-            || $this->money($destination['pagament'] ?? null) !== '0.00'
-            || (int) ($destination['tipus_desc'] ?? 0) !== 4
-            || (int) ($destination['valid_desc'] ?? 0) !== 1
-            || (string) ($destination['status'] ?? '') !== '0'
-            || (string) ($destination['marker'] ?? '') !== $marker
-        ) {
-            throw SifException::conflict(
-                'Legacy USOC destination no longer matches bound reservation'
-            );
+        $checks = [
+            'ID_INSC' => (int) ($destination['id'] ?? 0) === $idInsc,
+            'IDPAG' => (int) ($destination['idpag'] ?? 0) === $idpag,
+            'YEAR' => (string) ($destination['year'] ?? '')
+                === (string) ($target['year'] ?? ''),
+            'MONTH' => (string) ($destination['month'] ?? '')
+                === (string) ($target['month'] ?? ''),
+            'COURSE' => (string) ($destination['course'] ?? '')
+                === (string) ($target['course'] ?? ''),
+            'A_PAGAR' => $this->money($destination['a_pagar'] ?? null)
+                === $expectedTotal,
+            'PAGAMENT' => $this->money($destination['pagament'] ?? null)
+                === '0.00',
+            'TIPUS_DESC' => (int) ($destination['tipus_desc'] ?? 0) === 4,
+            'VALID_DESC' => (int) ($destination['valid_desc'] ?? 0) === 1,
+            'INSC_CURS' => (string) ($destination['status'] ?? '') === '0',
+            'RESERVATION_MARKER' => (string) ($destination['marker'] ?? '')
+                === $marker,
+        ];
+
+        foreach ($checks as $field => $matches) {
+            if (!$matches) {
+                throw SifException::conflict(
+                    'Legacy USOC destination no longer matches bound reservation: '
+                    . $field
+                );
+            }
         }
     }
 
