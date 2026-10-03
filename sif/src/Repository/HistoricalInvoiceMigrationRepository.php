@@ -299,7 +299,7 @@ final class HistoricalInvoiceMigrationRepository
                 'rec_equivalence_import' => $this->decimalValue($totals['rec_equivalence_import'] ?? null),
                 'total' => $this->decimalValue($totals['total']),
             ],
-            'lines' => array_map(static fn (array $line): array => [
+            'lines' => array_map(fn (array $line): array => [
                 'concept' => $line['concept'],
                 'detail' => $line['detail'] ?? null,
                 'quantity' => $this->decimalValue($line['quantity']),
