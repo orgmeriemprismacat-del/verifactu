@@ -34,6 +34,12 @@
 - integració UI a `alumnes-factura.js`
 - integració AL-16/17/18 a `alumnes-mostrar-alumne.js`
 
+## 1.1. Assets executables revalidats 2026-10-03
+
+- `/alumnes/factura/` ha de carregar **només** `js/alumnes-factura.js?ver=1.1` per UC-007.
+- `/alumnes/mostrar-alumne/` ha de carregar `js/alumnes-mostrar-alumne.js?ver=1.7`; no usar el minificat 1.6 obsolet ni el mòdul SIF duplicat.
+- Després de publicar, verificar a Network que el navegador rep les versions noves i no una còpia de cache.
+
 ## 2. Migració necessària abans d'activar
 
 Aplicar la migració:
@@ -92,11 +98,12 @@ El secret només viu al servidor de la intranet i al servidor SIF. No s'envia al
 2. Configurar secret HMAC i rols al SIF.
 3. Configurar URLs/secrets a la intranet.
 4. Configurar storage privat i documents existents.
-5. Activar `SIF_UC007_QUERY_ENABLED=1`.
-6. Verificar manualment que les factures SIF es mostren com **SIF · només lectura**.
-7. Activar `SIF_BLOCK_LEGACY_INVOICE_MUTATIONS=1`.
-8. Quan storage/hash estiguin preparats, activar `SIF_UC080_DOCUMENT_ENABLED=1`.
-9. Mantenir el fallback llegat només per factures no migrades.
+5. Publicar/verificar els assets UC-007 1.1/1.7 i confirmar que no s'executen els mòduls duplicats.
+6. Activar `SIF_UC007_QUERY_ENABLED=1`.
+7. Verificar manualment que les factures SIF es mostren com **SIF · només lectura** i que AL-16/AL-17 resolen UUID.
+8. Activar `SIF_BLOCK_LEGACY_INVOICE_MUTATIONS=1`.
+9. Quan storage/hash estiguin preparats, activar `SIF_UC080_DOCUMENT_ENABLED=1`.
+10. Mantenir el fallback llegat només per factures no migrades.
 
 ## 6. Comportament de fallback
 
