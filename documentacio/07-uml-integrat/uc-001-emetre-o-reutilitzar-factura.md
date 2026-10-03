@@ -411,3 +411,12 @@ Note over G,S: Comparació de petició completa per K és PHP main. El guard com
 ### 1.7. Contracte nou del payment inicial — 03/10/2026
 
 Un cobrament inicial forma part del mateix contracte idempotent que la factura. `movement_date` no pot ser implícita a partir de l’hora del servidor: el caller ha d’aportar la data real/estable del moviment. Si falta o és buida, UC-001 retorna 422 i la transacció es desfà. Redsys ja aporta `CREATED_AT`; els serveis manuals han de preservar la data real del cobrament.
+
+
+## Revalidació comercial PR #145 — 03/10/2026
+
+El nucli d'UC-001 accepta ara `uuid_operation` validat i el vincula transaccionalment a `commercial_operation.UUID_FACTURA`. En Redsys, el UUID no es pren del browser: `RedsysInvoicePayloadBuilder` resol `DS_ORDER → UUID_INTENT → UUID_OPERATION` des de persistència.
+
+Per al flux Alumne PrisMa, `PrismaStudentCourseCheckoutService` crea/reutilitza una `commercial_operation_line` a partir del snapshot trusted de preu/impost, congela `operation.line_uuid` a l'intent, `LegacyCourseInvoicePayloadBuilder` el propaga i `InvoiceRepository` crea `operation_line_invoice_link`. La prova d'integració cobreix la cadena checkout → intent → callback validat → factura → operació → línia de factura.
+
+Aquesta cobertura **no és encara universal**: pack, grup, regal, USOC, manual i altres fluxos que no creen una operació/línia comercial autoritativa continuen marcats com a FINAL pendent. Igualment, `aeat_fields` continua sent fail-closed en entorns qualificats però falta un assembler fiscal transversal server-side.
