@@ -136,3 +136,47 @@ ManualTransferCommandService --> LegacyPaymentSync : pendent
 
 
 **Tall nou:** l'endpoint `POST /api/payments/manual-transfer.php` i `ManualTransferCommandService` estan implementats en aquesta branca; la intranet que genera la signatura i l'event bancari continua pendent.
+
+
+## Components implementats en la continuació
+
+```mermaid
+classDiagram
+    class SifPaymentSessionGuard {
+      +actor()
+      +csrfToken()
+      +assertCsrf(token)
+    }
+    class SifInternalApiClient {
+      +post(path,payload,actorId,roles)
+    }
+    class SifManualTransferGateway {
+      +register(...)
+    }
+    class InternalApiAuthenticator {
+      +authenticate(...)
+    }
+    class ManualTransferCommandService {
+      +register(db,actor,payload)
+    }
+    class PaymentActionGateway {
+      +run(context,operation)
+    }
+    class PaymentService {
+      +registerPayment(payload)
+      +registerPaymentInTransaction(db,payload)
+    }
+    class GeneratedInvoiceLegacyPaymentSyncService {
+      +sync(sifDb,legacyDb,uuidFactura,numVisible,movementDate,method)
+    }
+
+    SifPaymentSessionGuard --> SifManualTransferGateway : actor + rols, CSRF validat
+    SifManualTransferGateway --> SifInternalApiClient
+    SifInternalApiClient --> InternalApiAuthenticator : HMAC / anti-replay
+    InternalApiAuthenticator --> ManualTransferCommandService
+    ManualTransferCommandService --> PaymentActionGateway
+    PaymentActionGateway --> PaymentService : transacció compartida
+    ManualTransferCommandService --> GeneratedInvoiceLegacyPaymentSyncService : post-commit
+```
+
+La notificació de confirmació queda separada de la projecció llegada i continua pendent de convertir-se en una operació post-commit/outbox.
