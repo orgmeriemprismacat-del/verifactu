@@ -111,3 +111,14 @@ Una fila només passarà a `CLOSED` quan s'acrediti:
 
 Fins a completar aquest control, el sistema continua `NO-GO` i el recompte de
 142 fitxes no és una declaració de completitud.
+
+
+## Revalidació específica UC-007 — 2026-10-03
+
+| Superfície executable | Estat abans revalidació | UC | Frontera FINAL | Observació |
+| --- | --- | --- | --- | --- |
+| `alumnes-factura.php` + `js/alumnes-factura.js` | `PARTIAL` amb JS SIF duplicat | UC-007 | una sola UI read-only → bridge SIF | duplicació eliminada a la branca |
+| `alumnes-mostrar-alumne.php` | `GAP EXECUTABLE`: carregava minificat 1.6 obsolet | UC-007 | font canònic amb AL-16/17/18 | corregit a asset 1.7 |
+| `ajax/alumnes/sifFactures.php` | `IMPLEMENTED` | UC-007 | actor de sessió + HMAC server-to-server | runtime pendent |
+| `ajax/alumnes/sifDocument.php` | `PARTIAL` | UC-007/080 | proxy bytes, no paths/secrets | storage/runtime pendent |
+| `descarregaFactura.php` | `LEGACY HARDENED` | UC-007 fallback | només factures no governades pel SIF | retirar en migració final |
