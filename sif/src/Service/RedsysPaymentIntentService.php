@@ -35,7 +35,7 @@ final class RedsysPaymentIntentService
         } elseif ($sourceType === 'PACK') {
             $this->validatePackSnapshot($snapshot, $idpag, $sourceId, $expectedAmount);
         } elseif ($sourceType === 'REGAL') {
-            $this->validateGiftSnapshot($snapshot, $sourceId, $expectedAmount);
+            $this->validateGiftSnapshot($db, $snapshot, $sourceId, $expectedAmount);
         }
 
         $snapshotJson = json_encode(
@@ -163,6 +163,7 @@ final class RedsysPaymentIntentService
     }
 
     private function validateGiftSnapshot(
+        \PDO $db,
         array $snapshot,
         string $sourceId,
         string $expectedAmount
@@ -190,6 +191,27 @@ final class RedsysPaymentIntentService
         $factRel = $gift['FACT_REL'] ?? $gift['fact_rel'] ?? null;
         if ($factRel !== null && $factRel !== '' && is_numeric($factRel) && (int) $factRel > 0) {
             throw SifException::conflict('Redsys gift snapshot is already invoiced');
+        }
+
+        $observations = (string) ($gift['OBSERVACIONS'] ?? $gift['observations'] ?? '');
+        if (preg_match(
+            '/(?:^|\\R)SIF\\s+\\S+\\s+PAID\\s+[0-9a-f-]{36}/i',
+            $observations
+        ) === 1) {
+            throw SifException::conflict('Redsys gift snapshot is already paid by SIF projection');
+        }
+
+        $statement = $db->prepare(
+            "SELECT COUNT(*)
+             FROM commercial_operation
+             WHERE OPERATION_TYPE = 'GIFT_PURCHASE'
+               AND SOURCE_TYPE = 'REGAL'
+               AND SOURCE_ID = ?
+               AND STATUS IN ('PAID', 'INVOICED', 'COMPLETED')"
+        );
+        $statement->execute([(string) (int) $giftId]);
+        if ((int) $statement->fetchColumn() > 0) {
+            throw SifException::conflict('Redsys gift is already paid in SIF');
         }
     }
 
