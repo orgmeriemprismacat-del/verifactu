@@ -574,7 +574,7 @@ final class RedsysPaymentIntentTest
         $db = TestDatabase::fresh();
         $service = new RedsysPaymentIntentService(new RedsysPaymentIntentRepository(), new UuidGenerator());
 
-        Assert::throws(SifException::class, static function () use ($db, $service): void {
+        Assert::throws(SifException::class, function () use ($db, $service): void {
             $service->create($db, [
                 'ds_order' => 'ORDERGROUPINT701',
                 'idpag' => 701,
