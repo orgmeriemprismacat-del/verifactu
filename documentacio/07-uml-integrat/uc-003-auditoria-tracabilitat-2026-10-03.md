@@ -26,9 +26,9 @@ Aquesta passada crea el paquet separat, reconcilia la fitxa amb el codi actual i
 | Activitats per superfície | sí, 8 superfícies | n/a | contrast estàtic | JS candidat/runtime |
 | Callback SIF | sí | sí | proves existents | preproducció Redsys |
 | Dedupe callback/job | sí | sí | proves existents | evidència preprod |
-| Worker/cua | sí | sí | proves existents + noves | CI del head + runtime |
-| Resultat terminal complet | sí | **sí, corregit 03/10** | prova nova escrita | CI |
-| Fencing `LOCKED_BY` | sí | **sí, corregit 03/10** | prova nova escrita | CI |
+| Worker/cua | sí | sí | **suite `RedsysCallbackWorkerTest` verda al run SIF #1204, incloses les 2 proves noves** | runtime/preproducció |
+| Resultat terminal complet | sí | **sí, corregit 03/10** | **`testIncompleteSuccessfulResultBecomesIncident` PASS** | preproducció |
+| Fencing `LOCKED_BY` | sí | **sí, corregit 03/10** | **`testPreviousWorkerCannotFinalizeReclaimedJob` PASS** | preproducció |
 | Handlers CURS/PACK/GRUP/REGAL/USOC | sí | sí | suites existents per diferents nivells | preprod per canal |
 | Fund allocation CURS/PACK | sí | sí | proves prèvies del projecte | evidència Redsys real |
 | JS web ACTUAL | sí | sí | lectura estàtica | n/a per callback |
@@ -143,7 +143,10 @@ Si falla, el cas es tracta com conflicte funcional i deriva a `INCIDENT`.
    - A intenta `markProcessed`, `markRetry` i `markIncident`;
    - expectativa: 409 en els tres casos i `LOCKED_BY=worker-b`.
 
-**Estat de verificació:** proves escrites; fins disposar del resultat del workflow del PR, el canvi és `IMPLEMENTAT / CI_PENDING`, no `VERIFICAT`.
+**Estat de verificació 03/10:** les dues proves noves i tota la classe `RedsysCallbackWorkerTest` han passat al workflow **SIF checks #1204**. El job global acaba vermell amb **919 passed / 6 failed**, però les sis fallades són de baseline i es reprodueixen idènticament al PR #136, que parteix del mateix SHA base i no incorpora aquests canvis UC-003:
+- 5 proves PACK de boundary/privacitat/transports;
+- `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload`, per un hash esperat desactualitzat/diferent.
+Per tant, el hardening UC-003 d'aquest PR queda **VERIFICAT EN PROVES ESPECÍFIQUES**; el CI global continua bloquejat per baseline i no es presenta com a verd.
 
 ## 7. Mancances per severitat
 
@@ -219,7 +222,7 @@ Requereix:
 
 **DOCUMENTAT:** paquet UC-003 completat en aquesta branca.  
 **IMPLEMENTAT:** nucli asíncron existent + dues correccions de consistència aplicades.  
-**VERIFICAT:** codi anterior té proves existents; correccions 03/10 pendents del CI del head.  
-**PENDENT:** factura preexistent, JS candidat, preproducció/runtime/cutover i evidència final.
+**VERIFICAT:** les correccions 03/10 passen la suite específica del worker al runner GitHub; el CI global manté 6 fallades de baseline reproduïdes fora d'aquest PR.  
+**PENDENT:** factura preexistent, JS candidat, preproducció/runtime/cutover, evidència final i sanejament del baseline CI compartit.
 
-**Classificació temporal:** `AUDIT_PACKAGE_COMPLETE / CODE_HARDENED / CI_PENDING / OPERATIONAL_PENDING`.
+**Classificació temporal:** `AUDIT_PACKAGE_COMPLETE / UC003_TESTS_PASS / BASELINE_CI_RED / OPERATIONAL_PENDING`.
