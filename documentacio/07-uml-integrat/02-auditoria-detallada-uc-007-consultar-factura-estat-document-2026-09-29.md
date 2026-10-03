@@ -646,3 +646,10 @@ Canvis de lectura importants:
 - aquesta deriva d'asset queda corregida a la branca de revalidació i protegida per `Uc007IntranetBoundaryTest`.
 
 Per tant, les files d'aquest document marcades “CORREGIT a main” s'han de llegir juntament amb la revalidació d'**asset real carregat**. Cap correcció queda acreditada en runtime fins a CI/preproducció.
+
+
+## 18. Actualització de la troballa F07-01 — 2026-10-03
+
+La troballa històrica **F07-01** queda **CORREGIDA EN LA BRANCA DE REVALIDACIÓ**. La inspecció completa de `Intranet::generaFactura()` va confirmar que la descàrrega executava `updGeneratFactura` quan `GENERAT` era buit. S'ha eliminat aquesta mutació del camí de descàrrega.
+
+La seqüència llegada corregida és ara: SELECT → reconstrucció HTML → Dompdf → fitxer temporal → filename. No hi ha UPDATE de `GENERAT` per consultar/descarregar. La verificació runtime/preproducció de zero mutació continua pendent fins executar la matriu E2E.
