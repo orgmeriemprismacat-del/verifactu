@@ -319,7 +319,7 @@ try {
 	$titolCurs = $textTitolCurs->obtenirText();
 	$dates = $textDates->obtenirText();
 	$conegut = $textConegut->obtenirText();
-	$preuDescompte = $numPreuDescompte->obtenirNumero();
+	// $preuDescompte ja s'ha resolt abans; en AP pot ser autoritatiu del servidor.
 	$edicio = $textEdicio->obtenirText();
 	$comentaris = '';
 	if ($textComentaris != null)
