@@ -162,8 +162,13 @@ final class NovicePromotionStudentSummaryServiceTest
         Assert::same('70.00', $right['applications'][0]['amount']);
         Assert::same('A-2026-9991', $right['applications'][0]['invoice_number']);
 
+        Assert::same(false, array_key_exists('identity', $summary));
+
         $serialized = json_encode($summary, JSON_THROW_ON_ERROR);
         Assert::same(false, str_contains($serialized, 'NOV-SECRET-NOT-EXPOSED'));
         Assert::same(false, str_contains($serialized, 'ciphertext-not-token'));
+        Assert::same(false, str_contains($serialized, $uuidOperation));
+        Assert::same(false, str_contains($serialized, $uuidEntitlement));
+        Assert::same(false, str_contains($serialized, $uuidApplication));
     }
 }
