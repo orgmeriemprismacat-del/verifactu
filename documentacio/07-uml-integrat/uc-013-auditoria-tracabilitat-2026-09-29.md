@@ -308,3 +308,27 @@ La branca anterior del UC-013 havia quedat 54 commits per darrere de `main`. El 
 - **HANDOFF:** el legacy es materialitza una sola vegada; si falla SIF després, `legacy_completed` permet reprendre sense duplicar la inscripció.
 - **FAIL-CLOSED:** alumne=0, entitat=0, pricing ambigu/incoherent, evidència fiscal incompleta i payload divergent.
 - **PENDENT OPERATIU:** CI final del PR reconciliat, preproducció/navegador, secrets/rols/configuració real, resolució d'excessos i validacions 20/25 % + EXEMPT/E1.
+
+
+## Preflight operatiu canvi de curs · 03/10/2026
+
+`sif/scripts/preflight-usoc-course-change.php` — **IMPLEMENTAT · READ-ONLY**.
+
+Comprova abans de provar el flux en preproducció:
+
+- entorn diferent de producció;
+- connectivitat SIF;
+- `usoc_financing_case`, `usoc_lifecycle_execution`, `enrollment_fund_movement`, factures, rectificatives, payments i `operational_event`;
+- que `usoc_lifecycle_execution.OPERATION` admeti `COURSE_CHANGE`;
+- `fiscal_chain_state` sembrat;
+- connectivitat i taules necessàries de la BD legacy web;
+- connectivitat i `params` de la BD legacy intranet;
+- HMAC/API interna USOC;
+- rols de gestió;
+- billing mínim de l'entitat USOC;
+- classes del resolver, fund planner, preview, preparation, binding i executor;
+- endpoints i fitxers de wiring intranet.
+
+La prova `UsocCourseChangePreflightScriptTest` força que el preflight es mantingui **sense efectes**: no pot emetre factura, registrar pagament ni executar la mutació legacy.
+
+**PENDENT D'EVIDÈNCIA:** executar-lo a l'entorn de preproducció real i conservar JSON, timestamp, SHA desplegat i configuració no secreta associada.
