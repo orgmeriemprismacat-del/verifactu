@@ -86,10 +86,8 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
             return $covered;
         }
 
-        $payload['respect_uc004_coverage'] = 1;
-
         try {
-            return $this->invoices->issueInvoice($payload);
+            return $this->invoices->issueInvoice($payload, true);
         } catch (SifException $exception) {
             if ($exception->getCode() !== 409) {
                 throw $exception;
