@@ -32,6 +32,18 @@ Abans d'aquesta auditoria, UC-005 tenia la fitxa funcional i una fitxa/UML integ
 - `sif/tests/Unit/ManualRectificationPayloadBuilderTest.php`
 - `sif/tests/Integration/ManualRectificationPreviewScriptTest.php`
 - `sif/tests/Integration/ManualRectificationPreproductionScriptTest.php`
+- `sif/src/Service/FiscalCorrectionDecisionGuard.php`
+- `sif/src/Service/InternalRectificationScopeResolver.php`
+- `sif/src/Service/RectificationCommandService.php`
+- `sif/src/Repository/SifAuditEventRepository.php`
+- `sif/public/api/factures/rectify.php`
+- `sif/tests/Integration/ManualRectificationAtomicityTest.php`
+- `sif/tests/Integration/ManualRectificationFiscalTest.php`
+- `sif/tests/Integration/RectificationCommandServiceTest.php`
+- `sif/tests/Unit/FiscalCorrectionDecisionGuardTest.php`
+- `sif/tests/Unit/InternalRectificationScopeResolverTest.php`
+- `sif/tests/run-uc005-tests.php`
+- `.github/workflows/uc005-rectification.yml`
 
 ## 3. Codi de pantalla/llegat localitzat
 
@@ -52,22 +64,24 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 
 ## 5. Peces que encara falten
 
-1. Comanda HTTP/intranet específica per crear rectificatives SIF des de la factura consultada.
-2. Classificador UC-74 integrat abans de decidir rectificativa/anul·lació/subsanació.
-3. Correcció de receptor/concepte amb snapshot nou; el builder actual reutilitza el receptor original.
-4. Tractament fiscal per IVA/règims diferents d'EXEMPT 0%.
-5. **IMPLEMENTAT EN AQUESTA BRANCA:** emissió R + `factura_rectificacio` + canvi d'estat de l'original comparteixen la transacció d'`InvoiceService`; pendent evidència CI/concurrència.
-6. Concorrència/lock explícit sobre l'original.
-7. Auditoria operacional específica de l'ordre.
-8. E2E pantalla → classificació → rectificativa → document → consulta.
-9. Evidència executada sobre MySQL `sif_test*`/preproducció.
+1. **PENDENT UI:** proxy/adaptador intranet amb sessió, permís i CSRF que signi i consumeixi `/api/factures/rectify.php`.
+2. **PENDENT UC-74:** classificador fiscal genèric executable. El guard d'entrada UC-005 ja està implementat, però no substitueix el classificador.
+3. **PENDENT AEAT:** mapping específic de rectificatives a `aeat_fields`, XSD/protocol i evidència d'enviament.
+4. **PENDENT DECISIÓ:** correccions sense variació d'import; el builder continua rebutjant total zero fins que el criteri fiscal ho defineixi.
+5. **IMPLEMENTAT:** emissió R + `factura_rectificacio` + estat original + audit terminal comparteixen la transacció d'`InvoiceService`.
+6. **IMPLEMENTAT:** `FOR UPDATE` i revalidació del snapshot original abans del COMMIT; falta prova de concurrència E2E amb dues sessions.
+7. **IMPLEMENTAT:** `sif_audit_event` i `operational_event` del command, amb `REQUESTED/SUCCEEDED/REUSED/FAILED`.
+8. **PENDENT E2E:** pantalla → UC-74 → preview → confirm → R → document → consulta.
+9. **PENDENT EVIDÈNCIA:** conclusió verda de la suite UC-005 i preproducció.
 
 ## 6. Estat global
 
 - **Documentació estructural:** COMPLETADA en aquesta auditoria.
 - **Codi SIF de rectificació manual:** IMPLEMENTAT PARCIALMENT.
 - **Pantalla final UC-005:** PENDENT.
-- **Fiscalitat general:** PENDENT.
+- **Fiscalitat local SIF:** IMPLEMENTADA EN MODE FAIL-CLOSED · AEAT específic pendent.
 - **Atomicitat del nucli UC-005:** IMPLEMENTADA EN BRANCA · pendent execució verda i prova de concurrència.
-- **Proves definides:** SÍ.
-- **Proves executades en aquesta auditoria:** NO acreditades.
+- **Command backend segur:** IMPLEMENTAT · endpoint intern signat, rols explícits i preview/confirm.
+- **Classificador UC-74:** PENDENT; només hi ha guard d'integració.
+- **Proves definides:** SÍ, inclosa suite aïllada UC-005.
+- **Proves executades:** suite global prèvia 918 passats/6 fallats aliens; execució aïllada UC-005 pendent de conclusió CI.
