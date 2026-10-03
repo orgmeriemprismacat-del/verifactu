@@ -28,8 +28,8 @@ Per tant:
 
 | ID | Troballa | Estat |
 | --- | --- | --- |
-| UC18-RV-001 | `uc-018-bescanviar-regal.md` encara marcava serveis reals com a DISSENY/no implementats i acabava en NO-GO. | CORREGIR DOCUMENTACIÓ |
-| UC18-RV-002 | Activitats i fitxa conservaven el replay antic amb retorn abans de reentrar al SIF. | CORREGIR DOCUMENTACIÓ |
+| UC18-RV-001 | `uc-018-bescanviar-regal.md` marcava serveis reals com a DISSENY/no implementats i acabava en NO-GO. | CORREGIT |
+| UC18-RV-002 | Activitats i fitxa conservaven el replay antic amb retorn abans de reentrar al SIF. | CORREGIT |
 | UC18-RV-003 | `mostrarBescanvia.min.js` enviava `codiRegal`, DNI i resta de dades de matrícula en URL amb GET. | PATCH APLICAT |
 | UC18-RV-004 | `codiRegalValid.php`, `buscarCursRegalat.php`, `inscripcioDuplicada.php` i `enviarInscripcioBescanvia.php` acceptaven `$_GET`. | PATCH APLICAT |
 | UC18-RV-005 | La resposta pública distingia codi inexistent, pendent i utilitzat, facilitant enumeració d'estat. | PATCH APLICAT |
@@ -53,11 +53,7 @@ El JS ja no construeix URLs amb `codiRegal` ni `dni`.
 
 ### 4.2. Endpoints legacy
 
-Els quatre endpoints:
-
-- rebutgen mètodes diferents de POST amb 405;
-- llegeixen `$_POST`;
-- no llegeixen `$_GET`.
+Els tres endpoints exclusius UC-018 (`codiRegalValid.php`, `buscarCursRegalat.php`, `enviarInscripcioBescanvia.php`) rebutgen mètodes diferents de POST amb 405, llegeixen `$_POST` i no llegeixen `$_GET`. `inscripcioDuplicada.php` és transversal: UC-018 l'invoca per POST, però conserva fallback GET per compatibilitat amb altres fluxos legacy.
 
 A més:
 
@@ -80,7 +76,7 @@ A més:
 - quatre AJAX sensibles via POST;
 - `data: {}` en lloc de query string;
 - absència de `?codiRegal=`, `&codiRegal=`, `?dni=` i `&dni=`;
-- endpoints POST-only i sense `$_GET`;
+- tres endpoints UC-018 POST-only i sense `$_GET`, més comprovació específica que el duplicat compartit rep POST des del bundle UC-018;
 - revalidació server-side del lookup de curs;
 - bloqueig del writer per regal no pagat;
 - resposta pública neutra.
