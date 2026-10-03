@@ -72,9 +72,9 @@
 
 | ID | Nivell | Escenari | Resultat esperat | Estat |
 | --- | --- | --- | --- | --- |
-| AP-36 | INT | Cap tarifa disponible i Carnet Jove marcat. | Resposta controlada; cap accés a arrays/índexs inexistents. | PENDENT_EXECUCIO |
+| AP-36 | INT | Cap tarifa disponible i Carnet Jove marcat. | Resposta controlada; cap accés a arrays/índexs inexistents. | TEST_NOU_PENDENT_CI_SAFE_PREVIEW |
 | AP-37 | INT | Persona AP aplica després un codi promocional. | Origen comercial, import cobrat i origen fiscal continuen alineats. | PENDENT_EXECUCIO |
-| AP-38 | INT | Simple consulta/previsualització de preu. | No crear factura, cobrament ni UUID fiscal. | PENDENT_EXECUCIO |
+| AP-38 | INT | Simple consulta/previsualització de preu. | No crear factura, cobrament ni UUID fiscal. | TEST_NOU_PENDENT_CI_READ_ONLY_PREVIEW |
 | AP-39 | INT | L'únic antecedent possible és la mateixa inscripció. | No autoacreditar AP. | COBERT_INTEGRACIO_CHECKOUT |
 | AP-40 | INT | Oferta AP d'una edició s'intenta usar en una altra. | Revalidació o conflicte segons política; mai trasllat silenciós. | PENDENT_EXECUCIO |
 | AP-41 | INT | Snapshot amb imports vàlids però origen comercial incorrecte. | Detectar contradicció abans de crear intenció o factura. | VERIFICAT_CI_INTENT_ORIGIN_GUARD_0c1825c |
@@ -91,11 +91,11 @@
 | ID | Nivell | Escenari | Resultat esperat | Estat |
 | --- | --- | --- | --- | --- |
 | AP-49 | INT | Descompte documental pendent a confirmació. | No oferir targeta ni transferència. | PENDENT_EXECUCIO |
-| AP-50 | SEC | Pendent documental + accés directe a link de pagament. | Link vàlid no autoritza cobrament si l'oferta no és pagable. | PENDENT_EXECUCIO |
+| AP-50 | SEC | Pendent documental + accés directe a link de pagament. | Link vàlid no autoritza cobrament si l'oferta no és pagable. | IMPLEMENTAT_PAYMENT_LINK_GATE · TEST_NOU_PENDENT_CI |
 | AP-51 | E2E | Denegació + AP elegible. | Nova oferta AP pagable coherent. | PENDENT_EXECUCIO |
 | AP-52 | E2E | Obrir el link enviat després de denegació + AP. | Correu i mètodes visibles no es contradiuen. | PENDENT_EXECUCIO |
-| AP-53 | SEC | Token de pagament manipulat. | Rebuig per integritat/hash. | PENDENT_EXECUCIO |
-| AP-54 | SEC | Token correcte però oferta no pagable. | Bloqueig comercial. | PENDENT_EXECUCIO |
+| AP-53 | SEC | Token de pagament manipulat. | Rebuig per integritat/hash. | TEST_NOU_PENDENT_CI_TOKEN_HASH |
+| AP-54 | SEC | Token correcte però oferta no pagable. | Bloqueig comercial. | IMPLEMENTAT_PAYMENT_LINK_GATE · TEST_NOU_PENDENT_CI |
 | AP-55 | CONC | Repetir resolució després de crear oferta alternativa. | Reutilització; cap segona decisió/notificació. | PENDENT_EXECUCIO |
 
 ## AP-56…AP-64 · operació comercial SIF
@@ -104,7 +104,7 @@
 | --- | --- | --- | --- | --- |
 | AP-56 | INT | Crear oferta AP. | Crear `commercial_operation` + `discount_validation` coherents. | VERIFICAT_CI_SERVEI_COMERCIAL_9a70516 |
 | AP-57 | CONC | Repetir exactament la mateixa creació. | Mateixa operació/validació per idempotència. | VERIFICAT_CI_SERVEI_COMERCIAL_9a70516 |
-| AP-58 | INT | Canviar tarifa després d'acceptar oferta. | `PRICE_SNAPSHOT_JSON` original roman immutable. | PENDENT_EXECUCIO |
+| AP-58 | INT | Canviar tarifa després d'acceptar oferta. | `PRICE_SNAPSHOT_JSON` original roman immutable. | TEST_NOU_PENDENT_CI_SNAPSHOT_IMMUTABLE |
 | AP-59 | INT | Revocar link i substituir oferta/link. | Link antic `REVOKED`; nou link separat. | VERIFICAT_CI_SERVEI_PAYMENT_LINK_9a70516 |
 | AP-60 | SEC | Utilitzar link revocat. | Rebuig abans de TPV. | VERIFICAT_CI_SERVEI_PAYMENT_LINK_9a70516 |
 | AP-61 | INT | `EXPECTED_AMOUNT` del link supera/incompleix l'operació. | Conflicte abans de crear cobrament. | VERIFICAT_CI_SERVEI_PAYMENT_LINK_9a70516 |
@@ -221,3 +221,13 @@ Proves noves creades i encara pendents de CI:
 - AP-32: import de pagament AP proposat pel client inferior al saldo autoritatiu → conflicte i zero estat comercial/intenció.
 - AP-33: `DS_ORDER` desconegut → cap notificació/cua/cobrament.
 - AP-34: signatura `HMAC_SHA512_V2` incorrecta → rebuig 422.
+
+
+## Reconciliació preview, payment_link i snapshot comercial
+
+- AP-36: el preview inicialitza `$descomptes=[]`, `$i=0`, no entra al bucle sense candidats i retorna `0|0|0|0`; prova de frontera creada.
+- AP-38: prova creada perquè `calcularPreu.php` + `buscarAlumnePrisMa.php` continuïn sense mutacions d'inscripció, cobrament o fiscalitat.
+- AP-50/AP-54: `PaymentLinkService` comprova ara `CLASSIFICATION=BILLABLE` i `STATUS in {READY_FOR_PAYMENT, PAYMENT_PENDING}` tant a `issue()` com a `resolve()`. Un link actiu deixa de resoldre si l'operació esdevé no pagable.
+- AP-53: el token només es conserva com SHA-256; prova nominal creada perquè un token manipulat no resolgui el link original.
+- AP-58: `PrismaStudentCommercialSnapshotImmutabilityTest` crea una oferta AP, intenta repetir-la amb un `price_rule_version` diferent i exigeix 409 conservant el snapshot i la intenció originals.
+- El checkout AP crea ara `CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT` abans de vincular la intenció.
