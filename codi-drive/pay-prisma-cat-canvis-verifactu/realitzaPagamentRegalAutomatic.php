@@ -1,4 +1,20 @@
 <?php
+	// UC-017: després del tall SIF i del drenatge explícit, el callback llegat
+	// queda desactivat abans de carregar dependències o produir efectes.
+	$giftCutoverEnabled = filter_var(
+		getenv('SIF_REDSYS_GIFT_CUTOVER_ENABLED') ?: '0',
+		FILTER_VALIDATE_BOOLEAN
+	);
+	$legacyDrainConfirmed = filter_var(
+		getenv('SIF_REDSYS_GIFT_LEGACY_DRAIN_CONFIRMED') ?: '0',
+		FILTER_VALIDATE_BOOLEAN
+	);
+	if ($giftCutoverEnabled && $legacyDrainConfirmed) {
+		http_response_code(410);
+		header('Content-Type: text/plain; charset=utf-8');
+		exit('Callback legacy de regal retirat. El pagament es processa pel SIF.');
+	}
+
 	include("./ConnexioBBDD_PreparedStatment.php");
 	include("./inc/apiRedsys.php");
 	include("./Text.php");
@@ -7,48 +23,87 @@
 	include("./MailSMTP.php");
 	include("./Mail.php");
 
-	$order = $_GET['order'];
-	$cursPag = $_GET['codiCurs'];
-	$codiRegal = $_GET['codiRegal'];
-	$dniTitularPag = $_GET['dni'];
-	$nomTitularPag = $_GET['nom'];
-	$importPag = floatval($_GET['import']);
+	$order = '';
+	$giftId = 0;
+	$cursPag = '';
+	$codiRegal = '';
+	$dniTitularPag = '';
+	$nomTitularPag = '';
+	$importPag = '0.00';
 
 	include('inc/analitics.html');
-
-	$nomMe = 'Meriem';
-	$correuMe = "meriem.prisma.cat@gmail.com";
-	$subjectMe = "pagament automatic ".$order;
-	$missatge = "<p>DNI: ".$dniTitularPag."</p>
-	<p>IMPORT: ".$importPag."</p>
-	<p>CODI REGAL: ".$codiRegal."</p>
-	<p>ORDER: ".$order."</p>";
-	$mailMe = new Mail();
-	$mailMe->addHeaders($nomMe, $correuMe, $correuMe);
-	$mailMe->addSubject($subjectMe);
-	$mailMe->addTo($correuMe);
-	$mailMe->addMissatgeTiquet("<p>Hola</p>", $missatge, '');
-	$mailMe->sendMessage();
 
 	try {
 		// Se crea Objeto
 		$miObj = new RedsysAPI;
 
-		$version = $_POST["Ds_SignatureVersion"];
-		$datos = $_POST["Ds_MerchantParameters"];
-		$signatureRecibida = $_POST["Ds_Signature"];
+		$version = trim((string) ($_POST["Ds_SignatureVersion"] ?? ''));
+		$datos = (string) ($_POST["Ds_MerchantParameters"] ?? '');
+		$signatureRecibida = (string) ($_POST["Ds_Signature"] ?? '');
+		if (!in_array($version, ['HMAC_SHA512_V2', 'HMAC_SHA256_V1'], true)
+			|| $datos === '' || $signatureRecibida === ''
+		) {
+			throw new RuntimeException('INVALID_REDSYS_SIGNATURE_ENVELOPE');
+		}
 
 		$decodec = $miObj->decodeMerchantParameters($datos);
-		$kc = 'sq7HjrUOBfKmC576ILgskD5srU870gJ7'; //Clave recuperada de CANALES
-		$firma = $miObj->createMerchantSignatureNotif($kc,$datos);
+		$kc = trim((string) getenv('REDSYS_MERCHANT_KEY'));
+		if ($kc === '') {
+			throw new RuntimeException('REDSYS_MERCHANT_KEY_NOT_CONFIGURED');
+		}
+		$firma = $miObj->createMerchantSignatureNotifForVersion($kc, $datos, $version);
 
 	   $ordre = $miObj->getParameter('Ds_Order');
 		$dateComanda = $miObj->getParameter('Ds_Date');
 		$horaComanda = $miObj->getParameter('Ds_Hour');
 		$preu = $miObj->getParameter('Ds_Amount');
+		$merchantData = trim((string) $miObj->getParameter('Ds_MerchantData'));
 	   $codiResposta = $miObj->getParameter("Ds_Response");
+		$currency = trim((string) $miObj->getParameter('Ds_Currency'));
+		$callbackTerminal = trim((string) $miObj->getParameter('Ds_Terminal'));
+		$callbackMerchantCode = trim((string) $miObj->getParameter('Ds_MerchantCode'));
+		$transactionType = trim((string) $miObj->getParameter('Ds_TransactionType'));
 
-		if (intval($codiResposta)>=0 && intval($codiResposta)<=99) {
+		$normalizeSignature = static function (string $value): string {
+			return rtrim(strtr(trim($value), '-_', '+/'), '=');
+		};
+		if (!hash_equals($normalizeSignature((string) $firma), $normalizeSignature($signatureRecibida))) {
+			throw new RuntimeException('INVALID_REDSYS_SIGNATURE');
+		}
+		if (!preg_match('/^UC017G([1-9][0-9]*)A([1-9][0-9]*)$/D', $merchantData, $context)) {
+			throw new RuntimeException('INVALID_REDSYS_MERCHANT_CONTEXT');
+		}
+
+		$order = trim((string) $ordre);
+		if ($order === '' || strlen($order) > 12 || !ctype_alnum($order)) {
+			throw new RuntimeException('INVALID_REDSYS_ORDER');
+		}
+		$giftId = (int) $context[1];
+		$expectedAmountCents = (int) $context[2];
+		if (!ctype_digit((string) $preu) || (int) $preu !== $expectedAmountCents) {
+			throw new RuntimeException('REDSYS_AMOUNT_MISMATCH');
+		}
+		if ($currency !== '978') {
+			throw new RuntimeException('REDSYS_CURRENCY_MISMATCH');
+		}
+		$expectedTerminal = trim((string) getenv('REDSYS_TERMINAL'));
+		if ($expectedTerminal === '' || $callbackTerminal !== $expectedTerminal) {
+			throw new RuntimeException('REDSYS_TERMINAL_MISMATCH');
+		}
+		$expectedMerchantCode = trim((string) getenv('REDSYS_MERCHANT_CODE'));
+		if ($expectedMerchantCode === '' || $callbackMerchantCode !== $expectedMerchantCode) {
+			throw new RuntimeException('REDSYS_MERCHANT_CODE_MISMATCH');
+		}
+		if ($transactionType !== '0') {
+			throw new RuntimeException('REDSYS_TRANSACTION_TYPE_MISMATCH');
+		}
+		$responseCode = trim((string) $codiResposta);
+		if ($responseCode === '' || !ctype_digit($responseCode) || strlen($responseCode) > 4) {
+			throw new RuntimeException('INVALID_REDSYS_RESPONSE_CODE');
+		}
+		$importPag = number_format($expectedAmountCents / 100, 2, '.', '');
+
+		if ((int) $responseCode >= 0 && (int) $responseCode <= 99) {
 			$tipusError =  "Transacció autoritzada per a pagaments i preautoritzacions";
 
 			require_once 'ConnexioBBDD_PreparedStatment.php';
@@ -56,12 +111,12 @@
 			$connexio->connectarBD();
 
 			// Busquem les dades de la inscripció del regal a partir del codi del regal
-			$cnsRegal = "SELECT NOM_CURS, CCURS, NOMC, NIFC, MAILC, ADRECAC,
-				POBLEC, CPC, FACT_REL FROM regal WHERE CODI=?";
+			$cnsRegal = "SELECT CODI, NOM_CURS, CCURS, NOMC, NIFC, MAILC, ADRECAC,
+				POBLEC, CPC, FACT_REL FROM regal WHERE ID=?";
 			$stmtRegal=$connexio->prepare($cnsRegal);
-			$stmtRegal->bind_param("s", $codiRegal);
+			$stmtRegal->bind_param("d", $giftId);
 			$stmtRegal->execute();
-			$stmtRegal->bind_result($nomCurs, $codiCurs, $nomC, $nifC,
+			$stmtRegal->bind_result($codiRegal, $nomCurs, $codiCurs, $nomC, $nifC,
 				$mailC, $adrecaC, $pobleC, $cpC, $factRel);
 			$stmtRegal->fetch();
 			$connexio->closeStmt();
@@ -347,12 +402,12 @@
 			$connexio = new ConnexioBBDDSTMT();
 			$connexio->connectarBD();
 
-			$cnsRegal = "SELECT NOM_CURS, CCURS, NOMC, NIFC, MAILC, ADRECAC,
-				POBLEC, CPC, FACT_REL FROM regal WHERE CODI=?";
+			$cnsRegal = "SELECT CODI, NOM_CURS, CCURS, NOMC, NIFC, MAILC, ADRECAC,
+				POBLEC, CPC, FACT_REL FROM regal WHERE ID=?";
 			$stmtRegal=$connexio->prepare($cnsRegal);
-			$stmtRegal->bind_param("s", $codiRegal);
+			$stmtRegal->bind_param("d", $giftId);
 			$stmtRegal->execute();
-			$stmtRegal->bind_result($nomCurs, $codiCurs, $nomC, $nifC,
+			$stmtRegal->bind_result($codiRegal, $nomCurs, $codiCurs, $nomC, $nifC,
 				$mailC, $adrecaC, $pobleC, $cpC, $factRel);
 			$stmtRegal->fetch();
 			$connexio->closeStmt();
@@ -435,13 +490,9 @@
 			$connexio->desconectarBD();
 	   }
 	}
-	catch(Exception $e) {
-		$mailMe = new Mail();
-		$mailMe->addHeaders($nomMe, $correuMe, $correuMe);
-		$mailMe->addSubject("Error ".$ordre);
-		$mailMe->addTo($correuMe);
-		$mailMe->addMissatgeTiquet("<p>Hola</p>", "Error ".$e->getCode().$e->getMessage(), '');
-		$mailMe->sendMessage();
+	catch(Throwable $e) {
+		http_response_code(400);
+		error_log('UC-017 Redsys legacy callback rejected: ' . get_class($e));
 	}
 	echo $mostrar;
 
