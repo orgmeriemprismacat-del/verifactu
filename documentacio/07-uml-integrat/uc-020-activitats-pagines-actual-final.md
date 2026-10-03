@@ -1,10 +1,10 @@
 # UC-020 — Diagrames d'activitat ACTUAL i FINAL per pàgina i apartat
 
-**Revisió:** 29/09/2026  
+**Revisió:** 03/10/2026  
 **Cas:** UC-20 · Aplicar Alumne PrisMa  
 **Objectiu:** cobrir totes les superfícies on la regla Alumne PrisMa es consulta, aplica, reutilitza o condiciona un pagament.  
 **Etiqueta ACTUAL:** lectura estàtica del repositori; no prova de desplegament.  
-**Etiqueta FINAL:** contracte objectiu; no implica implementació.
+**Etiqueta FINAL:** contracte objectiu; quan una peça ja és executable s'indica explícitament com a implementada/revalidada.
 
 ## 0. Índex de pàgines i apartats
 
@@ -197,6 +197,17 @@ endif
 :Enviar tipusDescompte=tipusPreuAplicat;
 :Enviar preuDescompte=preuInscripcio;
 :Enviar promocions globals;
+if (tipusDescompte == 1?) then (Sí)
+ :Servidor revalida historial AP;
+ :Servidor rellegeix tarifa base/AP vigent;
+ :Rebutja tarifa ambigua o AP + promoció;
+ :Sobreescriu import client amb tarifa servidor;
+:Conservar tarifa servidor fins a l'INSERT;
+note right
+  UC020-94 (03/10): corregit un overwrite tardà
+  que tornava a carregar preuDescompte del client.
+end note
+endif
 :INSERT inscripcions;
 stop
 @enduml
@@ -373,7 +384,7 @@ if (Operació PAYABLE?) then (Sí)
  :Habilitar només mètodes autoritzats;
  :Crear/reutilitzar intenció Redsys des de snapshot;
 note right
-  PENDENT en aquesta branca: adaptador
+  IMPLEMENTAT per pagament targeta AP via course-intent; pendent per payment_link/altres canals
   payment_link/commercial_operation -> RedsysPaymentIntentService
 end note
 else (No)
@@ -385,7 +396,7 @@ stop
 
 ## 5. P05 · Intranet «Validar descomptes»
 
-**Aquest flux comparteix pàgina i decisions amb UC-116.** UC-020 només desenvolupa la branca de tarifa alternativa Alumne PrisMa i les seves conseqüències.
+**Aquest flux comparteix pàgina i decisions amb UC-116.** UC-020 només desenvolupa la branca de tarifa alternativa Alumne PrisMa i les seves conseqüències. La comanda actual ha estat revalidada el 03/10/2026 com POST + sessió + permís + CSRF + `requestId`.
 
 ### 5.1. P05-A — ACTUAL · cua de pendents
 
@@ -402,20 +413,28 @@ stop
 @enduml
 ```
 
-### 5.2. P05-B — ACTUAL · comanda
+### 5.2. P05-B — ACTUAL · comanda reconciliada 02/10
 
 ```plantuml
 @startuml
-title P05-B | ACTUAL | resolució per GET
+title P05-B | ACTUAL | resolució protegida
 start
 :Secretaria prem ENVIA;
-:JS envia GET idInsc/verificat;
-:Endpoint session_start i unserialize;
-note right
-  No inclou comprovarSessio.php.
-  No s'ha localitzat CSRF explícit.
-end note
+:JS genera requestId;
+:JS envia POST idInsc/verificat/CSRF/requestId;
+:Endpoint valida sessió i objectes;
+:Validar CSRF amb hash_equals;
+:Validar permís de /alumnes/validar-descomptes/;
+:Validar idInsc, verificat i requestId;
+if (requestId ja vist a sessió?) then (Sí)
+ :Reutilitzar resultat idempotent;
+ stop
+endif
 :Delegar a Intranet::sendMsgValidatCurosDescomptes();
+if (USOC?) then (Sí)
+ :begin/complete decisió SIF;
+endif
+:Guardar resultat per requestId;
 stop
 @enduml
 ```
@@ -455,7 +474,7 @@ else (No)
  :TIPUS_DESC=0;
  :A_PAGAR=preu ordinari;
 endif
-:UPDATE per ID sense estat/versió esperada;
+:UPDATE per ID sense lock persistent de versió/estat esperat;
 :Preparar correus;
 stop
 @enduml
@@ -588,10 +607,10 @@ stop
 
 ### 4.5. Estat d'implementació del FINAL
 
-- `CommercialOfferService::createOrReuse()`: **implementat en aquesta branca**; encara no cridat pel web/intranet llegat.
-- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat en aquesta branca**; encara no substitueix les rutes llegades `/confirmacio/` i `/pagament/`.
-- Política `PrismaStudentDiscountPolicy`: **pendent de decisions de negoci i implementació**.
-- Adaptador `UUID_OPERATION/payment_link → RedsysPaymentIntentService`: **pendent**.
+- `CommercialOfferService::createOrReuse()`: **implementat**; l'alta AP llegada encara no crea `offer_id`, però `enviarInscripcio.php` ja revalida AP al servidor abans de persistir.
+- `PaymentLinkService::issue()/resolve()/revoke()`: **implementat**; encara no és la ruta canònica d'aquest checkout AP.
+- Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_WEB_LEGACY_V2`; decisions UC20-DEC-001…006 tancades a la fitxa v1.5.
+- Connexió AP de pagament → `RedsysPaymentIntentService`: **IMPLEMENTADA** via `SifRedsysCourseIntentClient` / `course-intent` / `PrismaStudentCourseCheckoutService`. La coordinació específica amb `payment_link` continua pendent.
 
 ## 7. Matriu ACTUAL → FINAL
 
@@ -603,15 +622,15 @@ stop
 | P03 confirmació | `VALID_DESC` + camps llegats | estat d'operació + ledger |
 | P04 targeta | `VALID_DESC==1` | `PAYABLE` + link actiu |
 | P04 transferència | comprovació diferent de targeta | mateixa autorització que qualsevol cobrament |
-| P05 resolució | GET, sessió, estat llegat | POST/comanda, permís, CSRF, idempotència, versió |
+| P05 resolució | POST + sessió + permís + CSRF + requestId idempotent | control persistent d'estat/versió i outbox com a evolució |
 | P05 alternativa AP | `TIPUS_DESC=1, VALID_DESC=2` | decisió original REJECTED + decisió AP ACCEPTED |
 | P06 canvi curs | política històrica específica | mateixa política versionada amb `evaluation_at` explícit |
 
-## 8. Decisions pendents que afecten els diagrames FINAL
+## 8. Decisions canòniques que afecten els diagrames FINAL
 
-1. `GENERAT=1` és antecedent admès?
-2. Factura emesa sense cobrament acredita AP?
-3. La inscripció actual pot autoacreditar el dret?
+1. `GENERAT=1`: **sí**, compatibilitat executable.
+2. Factura emesa sense cobrament: **no**, per si sola no acredita AP.
+3. Inscripció actual: **no**, s'exclou de l'historial; tampoc compta historial posterior a `DATA_INSC`.
 4. Quin `evaluation_at` s'utilitza en alta i canvi de curs?
 5. Prioritat/compatibilitat AP vs promocions/descomptes/packs.
 6. Vigència temporal de l'oferta abans de confirmar/cobrar.
@@ -635,3 +654,18 @@ Aquest dossier cobreix totes les superfícies identificades del UC-020. Si apare
 - o reconstrueix el descompte per facturar,
 
 s'ha d'afegir com a pàgina/apartat nou i vincular-lo a la matriu d'auditoria.
+
+
+## 9. Reconciliació de tancament — 02/10/2026
+
+Per UC-020, P02 continua sent llegat en transport i UX, però ja no és autoritatiu monetàriament quan aplica AP: la persistència torna a calcular elegibilitat i preu. P05 també queda reclassificat: les notes històriques de GET/sense CSRF són superades pel codi actual POST/CSRF/permís/requestId.
+
+
+## 7. Revalidació transversal — 03/10/2026
+
+- **P01:** documentació pública localitzada; continua existint diferència entre text comercial ampli i criteri executable versionat.
+- **P02:** preview JS continua subjecte a concurrència, però l'alta AP revalida historial/tarifa al servidor i, després d'UC020-94, el preu servidor arriba intacte a `A_PAGAR`.
+- **P03/P04:** el canal de targeta actiu obté la intenció SIF i usa l'import retornat pel servidor; `payment_link` i transferència continuen pendents d'unificació.
+- **P05:** resolució revalidada com POST + sessió + permís + CSRF + `requestId`; queda deute de concurrència/idempotència persistent a BD.
+- **P06:** la lògica llegada de canvi de curs continua sent una superfície diferent; la seva convergència completa a la policy/oferta SIF és migració transversal.
+- **Callback/factura:** el `main` actual incorpora proves E2E simulades de callback → worker → pagament/factura/sync/outbox. No substitueixen el gate real de preproducció.

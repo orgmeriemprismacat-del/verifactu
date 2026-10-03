@@ -56,8 +56,7 @@ final class LegacyPrismaStudentPriceSnapshotResolver
                AND TIPUS = 1
                AND DATAI <= ?
                AND (DATAF IS NULL OR DATAF >= ?)
-               AND (CURS = 'TOTS' OR CURS = ?)
-               AND (HORES = 'TOTS' OR HORES = ?)
+               AND (CURS = 'TOTS' OR CURS = ? OR CURS = ?)
                AND (MES = 'TOTS' OR MES = ?)",
             [
                 $idPreu,

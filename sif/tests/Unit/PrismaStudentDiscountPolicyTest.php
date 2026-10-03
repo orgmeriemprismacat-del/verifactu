@@ -54,7 +54,7 @@ final class PrismaStudentDiscountPolicyTest
         Assert::same('GENERATED', $result['reason']);
     }
 
-    public function testInvoiceBeforePaymentUsesRealNotNullSemantics(): void
+    public function testInvoiceBeforePaymentDoesNotGrantEligibilityUnderExecutableLegacyRule(): void
     {
         $result = (new PrismaStudentDiscountPolicy())->evaluate([[
             'ID' => 44,
@@ -66,8 +66,8 @@ final class PrismaStudentDiscountPolicyTest
             'INSC_CURS' => '1',
         ]]);
 
-        Assert::same(true, $result['eligible']);
-        Assert::same('INVOICED_BEFORE_PAYMENT', $result['reason']);
+        Assert::same(false, $result['eligible']);
+        Assert::same('NO_ELIGIBLE_HISTORY', $result['reason']);
     }
 
     public function testExcludedStatusesDoNotGrantEligibility(): void

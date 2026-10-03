@@ -139,14 +139,14 @@ try {
 	/* ######################################################################### */
 	$datesRealitzacio = $textDates->obtenirText();
 
-	$cnsDatesCurs = "SELECT DATAI, DATAF, HORES, DATA_RESOL FROM curs WHERE CURS=? AND ANY=? AND MES=?";
+	$cnsDatesCurs = "SELECT DATAI, DATAF, HORES, DATA_RESOL, ID_PREU FROM curs WHERE CURS=? AND ANY=? AND MES=?";
 	$stmt=$connexio->prepare($cnsDatesCurs);
 	$stmt->bind_param("sds", $codiCurs, $any, $mes);
 	$codiCurs = $textCodiCurs->obtenirText();
 	$any = $numAny->obtenirNumero();
 	$mes = $textEdicio->obtenirText();
 	$stmt->execute();
-	$stmt->bind_result($datai, $dataf, $hores, $data_resol);
+	$stmt->bind_result($datai, $dataf, $hores, $data_resol, $idPreuServidor);
 	$stmt->fetch();
 	$connexio->closeStmt();
 
@@ -217,6 +217,98 @@ try {
 	$pagFrac = $textPagFrac->obtenirText();
 	$preuDescompte = $numPreuDescompte->obtenirNumero();
 	$preuCar = $numPreuCar->obtenirNumero();
+
+	/*
+	 * UC-020: el navegador pot proposar Alumne PrisMa, però no és autoritat.
+	 * Abans de persistir TIPUS_DESC=1/A_PAGAR, tornem a acreditar historial
+	 * i tarifa amb dades de servidor. La branca FACTURA_RELACIONADA del SQL
+	 * legacy no és executable amb "!= NULL" i, per tant, no concedeix el dret.
+	 */
+	if ($tipusDescompte == 1) {
+		if ($promocioATrobadaplicada != '' || $promocioAplicada != '') {
+			http_response_code(409);
+			$connexio->desconectarBD();
+			echo "Error: Alumne PrisMa no es pot combinar amb un codi promocional en la mateixa oferta. Recalcula el preu.";
+			return;
+		}
+
+		$cnsApHistoric = "SELECT ID FROM inscripcions
+			WHERE DNI=? AND (
+				(A_PAGAR>0 AND PAGAMENT>0)
+				OR (A_PAGAR=0 AND OBSERVACIONS LIKE '%CURS REGAL%')
+				OR GENERAT=1
+			)
+			AND UPPER(`INSC CURS`)!='D'
+			AND UPPER(`INSC CURS`)!='M'
+			LIMIT 1";
+		$stmtApHistoric = $connexio->prepare($cnsApHistoric);
+		$stmtApHistoric->bind_param("s", $documentacio);
+		$stmtApHistoric->execute();
+		$stmtApHistoric->store_result();
+		$apEligibleServidor = $stmtApHistoric->num_rows() > 0;
+		$connexio->closeStmt();
+
+		if (!$apEligibleServidor) {
+			http_response_code(409);
+			$connexio->desconectarBD();
+			echo "Error: l'oferta Alumne PrisMa ja no és vàlida. Recalcula el preu abans de continuar.";
+			return;
+		}
+
+		$cnsBaseServidor = "SELECT IMPORT FROM preu
+			WHERE ID=? AND DATAI<=CURRENT_TIMESTAMP
+			AND (DATAF IS NULL OR CURRENT_TIMESTAMP<=DATAF)";
+		$stmtBaseServidor = $connexio->prepare($cnsBaseServidor);
+		$stmtBaseServidor->bind_param("i", $idPreuServidor);
+		$stmtBaseServidor->execute();
+		$stmtBaseServidor->store_result();
+		if ($stmtBaseServidor->num_rows() !== 1) {
+			$connexio->closeStmt();
+			http_response_code(409);
+			$connexio->desconectarBD();
+			echo "Error: no s'ha pogut determinar una tarifa base única per a la inscripció.";
+			return;
+		}
+		$stmtBaseServidor->bind_result($preuBaseServidor);
+		$stmtBaseServidor->fetch();
+		$connexio->closeStmt();
+
+		$cnsApServidor = "SELECT PREU FROM descomptes
+			WHERE ID_PREU=? AND TIPUS=1
+			AND DATAI<=CURRENT_TIMESTAMP
+			AND (DATAF IS NULL OR CURRENT_TIMESTAMP<=DATAF)
+			AND (CURS='TOTS' OR CURS=? OR CURS=?)
+			AND (MES='TOTS' OR MES=?)";
+		$stmtApServidor = $connexio->prepare($cnsApServidor);
+		$stmtApServidor->bind_param("isss", $idPreuServidor, $codiCurs, $hores, $edicio);
+		$stmtApServidor->execute();
+		$stmtApServidor->store_result();
+		if ($stmtApServidor->num_rows() !== 1) {
+			$connexio->closeStmt();
+			http_response_code(409);
+			$connexio->desconectarBD();
+			echo "Error: la tarifa Alumne PrisMa és inexistent o ambigua. Contacta amb secretaria.";
+			return;
+		}
+		$stmtApServidor->bind_result($preuApServidor);
+		$stmtApServidor->fetch();
+		$connexio->closeStmt();
+
+		if (!is_numeric($preuBaseServidor) || !is_numeric($preuApServidor)
+			|| (float) $preuBaseServidor <= 0
+			|| (float) $preuApServidor <= 0
+			|| (float) $preuApServidor >= (float) $preuBaseServidor
+		) {
+			http_response_code(409);
+			$connexio->desconectarBD();
+			echo "Error: la tarifa Alumne PrisMa no és coherent amb la tarifa base.";
+			return;
+		}
+
+		$preuCar = (float) $preuBaseServidor;
+		$preuDescompte = (float) $preuApServidor;
+	}
+
 	$mailing = $textMailing->obtenirText();
 
 	$msg = $templates->getTemplate_Inscripcions_Pagaments_MissatgeTextManeresPagar();
@@ -295,7 +387,9 @@ try {
 	$titolCurs = $textTitolCurs->obtenirText();
 	$dates = $textDates->obtenirText();
 	$conegut = $textConegut->obtenirText();
-	$preuDescompte = $numPreuDescompte->obtenirNumero();
+	// UC-020: no tornar a carregar preuDescompte del navegador en aquest punt.
+	// Si TIPUS_DESC=1, el valor ja ha estat substituït per la tarifa AP autoritativa
+	// rellegida al servidor. Per als altres tipus conserva el valor inicial validat.
 	$edicio = $textEdicio->obtenirText();
 	$comentaris = '';
 	if ($textComentaris != null)

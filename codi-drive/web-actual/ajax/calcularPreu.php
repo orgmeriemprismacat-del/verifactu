@@ -32,6 +32,8 @@ try {
    $connexio->closeStmt();
 
    //Busco els descomptes que poden tenir
+   $descomptes = [];
+   $i = 0;
    $consDesc = "SELECT TIPUS, MSG_INSC, MSG_INSC_MODAL, PREU
    				FROM descomptes WHERE DATAI<=CURRENT_TIMESTAMP AND
    				(CURRENT_TIMESTAMP<=DATAF OR DATAF IS NULL) AND ID_PREU=? AND
@@ -43,7 +45,6 @@ try {
    $stmtDesc->store_result();
    if ($stmtDesc->num_rows() > 0) {
       $stmtDesc->bind_result($tipus, $msgInsc, $msgInscModal, $preu);
-      $descomptes=[]; $i=0;
       while ($stmtDesc->fetch()) {
          $descomptes[$i]=[$tipus, $msgInsc, $msgInscModal, $preu];
          $i++;
@@ -142,7 +143,7 @@ try {
 
    $connexio->desconectarBD();
 
-   if (!$trobat && $checkCarnet==0)
+   if (!$trobat)
       $mostrar = '0|0|0|0';
    else {
       $objPreu = new Numero( $descomptes[$posApl][0] );

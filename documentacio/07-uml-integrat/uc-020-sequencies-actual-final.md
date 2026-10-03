@@ -40,7 +40,7 @@ actor A as Alumne
 participant Web as Checkout servidor
 participant Hist as LegacyPrismaStudentHistoryRepository
 participant Policy as PrismaStudentDiscountPolicy
-participant Decision as DiscountDecisionService [PENDENT]
+participant Decision as PrismaStudentDiscountPolicy [IMPLEMENTAT]
 participant DV as discount_validation
 participant CO as commercial_operation
 participant IV as CourseIntentSnapshotValidator
@@ -107,9 +107,24 @@ Abans de crear la intenció:
 - si existeix `discount`, exigeix `origin` i `mode`;
 - `discount.base - discount.amount == payment.amount`.
 
-## 5. Pendent
+## 5. Estat de tancament
 
-- orquestrador de checkout que creï `discount_validation` i `commercial_operation`;
-- vinculació runtime `UUID_OPERATION ↔ UUID_INTENT`;
-- substitució de la confiança en imports del navegador;
-- test E2E complet des d'historial fins a factura.
+- l'alta AP llegada encara no crea una oferta SIF nativa, però **revalida al servidor** historial i tarifa abans de persistir;
+- la resolució d'intranet actual ja és POST + sessió + permís + CSRF + `requestId`;
+- les decisions UC20-DEC-001…006 queden tancades a `ALUMNE_PRISMA_WEB_LEGACY_V2`;
+- `payment_link`, transferència i l'E2E navegador → callback → factura es mantenen com a gates de migració/rollout.
+
+El **checkout de targeta actiu** crea operació/validació/intenció i vincula `UUID_OPERATION ↔ UUID_INTENT` via `course-intent`. El navegador pot continuar mostrant un preview llegat, però ja no pot fixar l'import AP persistit ni el que s'envia finalment a Redsys.
+
+### 5.1. Tall temporal de l'elegibilitat
+
+Abans de crear la intenció, `PrismaStudentCourseCheckoutService` exclou la matrícula actual de l'historial i només admet antecedents amb `DATA_INSC <= DATA_INSC` de la matrícula tarifada. Això elimina autoacreditació i elegibilitat retroactiva.
+
+
+## 6. Revalidació de seqüències — 03/10/2026
+
+- **Alta web AP:** el navegador proposa TIPUS/import, però `enviarInscripcio.php` rellegeix historial i tarifa; UC020-94 garanteix que la tarifa servidor no torna a ser sobreescrita abans de persistir.
+- **Checkout targeta:** `SifRedsysCourseIntentClient` → `course-intent.php` → `RedsysCoursePaymentIntentService` → checkout AP → intenció autoritativa.
+- **Callback:** valida signatura/DS_ORDER/import/moneda/terminal contra la intenció i encola; no reavalua AP.
+- **Worker/factura:** el `main` vigent disposa de prova E2E simulada de callback → worker → pagament/factura/sync/outbox.
+- **Pendent:** E2E real navegador/Redsys/preproducció i migració de tots els canals a la mateixa oferta/`payment_link`.
