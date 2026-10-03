@@ -7,6 +7,46 @@ use Prisma\Sif\Tests\Support\Assert;
 
 final class PrismaStudentDiscountPolicyTest
 {
+    public function testEmptyHistoryIsNotEligible(): void
+    {
+        $result = (new PrismaStudentDiscountPolicy())->evaluate([]);
+
+        Assert::same(false, $result['eligible']);
+        Assert::same('NO_ELIGIBLE_HISTORY', $result['reason']);
+        Assert::same(PrismaStudentDiscountPolicy::RULE_VERSION, $result['rule_version']);
+    }
+
+    public function testEligibleNormalHistoryStillWinsWhenExcludedRowsArePresent(): void
+    {
+        $result = (new PrismaStudentDiscountPolicy())->evaluate([
+            [
+                'ID' => 40,
+                'A_PAGAR' => '120.00',
+                'PAGAMENT' => '120.00',
+                'GENERAT' => 0,
+                'INSC_CURS' => 'D',
+            ],
+            [
+                'ID' => 41,
+                'A_PAGAR' => '120.00',
+                'PAGAMENT' => '40.00',
+                'GENERAT' => 0,
+                'INSC_CURS' => '1',
+            ],
+            [
+                'ID' => 42,
+                'A_PAGAR' => '120.00',
+                'PAGAMENT' => '120.00',
+                'GENERAT' => 0,
+                'INSC_CURS' => 'M',
+            ],
+        ]);
+
+        Assert::same(true, $result['eligible']);
+        Assert::same('POSITIVE_PAYMENT', $result['reason']);
+        Assert::same(41, $result['evidence']['source_id']);
+    }
+
     public function testPaidHistoryIsEligibleAndPreservesEvidence(): void
     {
         $result = (new PrismaStudentDiscountPolicy())->evaluate([[
