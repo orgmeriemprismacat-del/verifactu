@@ -372,15 +372,32 @@ final class DebtClaimCoordinator
     {
         $uuid = trim((string) ($criteria['uuid_factura'] ?? ''));
         $num = trim((string) ($criteria['num_visible'] ?? ''));
-        if (($uuid === '') === ($num === '')) {
-            throw SifException::validation('Provide exactly one invoice identifier for debt claim');
+        $idInscRaw = trim((string) ($criteria['id_insc'] ?? ''));
+
+        $present = ($uuid !== '' ? 1 : 0)
+            + ($num !== '' ? 1 : 0)
+            + ($idInscRaw !== '' ? 1 : 0);
+        if ($present !== 1) {
+            throw SifException::validation(
+                'Provide exactly one debt claim selector: uuid_factura, num_visible or id_insc'
+            );
         }
-        $row = $uuid !== ''
-            ? $this->snapshots->findByUuid($db, $uuid, $lock)
-            : $this->snapshots->findByNumVisible($db, $num, $lock);
+
+        if ($uuid !== '') {
+            $row = $this->snapshots->findByUuid($db, $uuid, $lock);
+        } elseif ($num !== '') {
+            $row = $this->snapshots->findByNumVisible($db, $num, $lock);
+        } else {
+            if (!ctype_digit($idInscRaw) || (int) $idInscRaw <= 0) {
+                throw SifException::validation('Invalid debt claim enrollment id');
+            }
+            $row = $this->snapshots->findByEnrollmentId($db, (int) $idInscRaw, $lock);
+        }
+
         if ($row === null) {
             throw SifException::notFound('Debt claim invoice not found');
         }
+
         return $row;
     }
 
@@ -413,10 +430,28 @@ final class DebtClaimCoordinator
     {
         $uuid = trim((string) ($payload['uuid_factura'] ?? ''));
         $num = trim((string) ($payload['num_visible'] ?? ''));
-        if (($uuid === '') === ($num === '')) {
-            throw SifException::validation('Provide exactly one invoice identifier for debt claim');
+        $idInscRaw = trim((string) ($payload['id_insc'] ?? ''));
+
+        $present = ($uuid !== '' ? 1 : 0)
+            + ($num !== '' ? 1 : 0)
+            + ($idInscRaw !== '' ? 1 : 0);
+        if ($present !== 1) {
+            throw SifException::validation(
+                'Provide exactly one debt claim selector: uuid_factura, num_visible or id_insc'
+            );
         }
-        return $uuid !== '' ? 'UUID:' . $uuid : 'NUM:' . $num;
+
+        if ($uuid !== '') {
+            return 'UUID:' . $uuid;
+        }
+        if ($num !== '') {
+            return 'NUM:' . $num;
+        }
+        if (!ctype_digit($idInscRaw) || (int) $idInscRaw <= 0) {
+            throw SifException::validation('Invalid debt claim enrollment id');
+        }
+
+        return 'INSC:' . (int) $idInscRaw;
     }
 
     private function noChange(array $snapshot, string $reason, ?string $uuidClaim = null): array
