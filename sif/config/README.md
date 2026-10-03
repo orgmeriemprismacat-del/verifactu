@@ -138,7 +138,8 @@ UC-010 és **fail-closed**. El repositori pot contenir el codi del circuit, per�
 - `SIF_DECLARATION_ROOT`: directori privat que conté els documents de declaració responsable. La UI només referencia un `STORAGE_KEY`; no publica ni serveix el document.
 - `SIF_VERSION_ACTIVATION_ENABLED=1`: gate explícit d'activació. Per defecte és 0.
 - `SIF_VERSION_REQUIRE_BACKUP_EVIDENCE`: per defecte 1. Si és 1, l'activació exigeix una evidència UC-85 del mateix entorn amb estat i integritat satisfactoris.
-- `SIF_PANEL_VERSIONS_PATH`: path del panell; default `/sif/versions/`.
+- `SIF_PANEL_VERSIONS_PATH`: path del panell al SIF; default `/sif/versions/`.
+- A la **intranet**, `SIF_PANEL_VERSIONS_URL` defineix la URL HTTPS completa (default `https://pay.prisma.cat/sif/versions/`) i `SIF_PANEL_VERSIONS_PATH` ha de coincidir exactament amb el path signat.
 
 ### Contracte
 
