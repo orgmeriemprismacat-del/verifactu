@@ -606,11 +606,11 @@ stop
 @enduml
 ```
 
-### 4.5. Estat d'implementació del FINAL
+### 6.4. Estat d'implementació del FINAL
 
 - `CommercialOfferService::createOrReuse()`: **implementat**; l'alta AP llegada encara no crea `offer_id`, però `enviarInscripcio.php` ja revalida AP al servidor abans de persistir.
 - `PaymentLinkService::issue()/resolve()/revoke()`: **implementat**; encara no és la ruta canònica d'aquest checkout AP.
-- Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_WEB_LEGACY_V2`; decisions UC20-DEC-001…006 tancades a la fitxa v1.5.
+- Política `PrismaStudentDiscountPolicy`: **IMPLEMENTADA_COMPATIBILITAT** com `ALUMNE_PRISMA_WEB_LEGACY_V2`; decisions UC20-DEC-001…006 tancades a la fitxa v1.6.
 - Connexió AP de pagament → `RedsysPaymentIntentService`: **IMPLEMENTADA** via `SifRedsysCourseIntentClient` / `course-intent` / `PrismaStudentCourseCheckoutService`. La coordinació específica amb `payment_link` continua pendent.
 
 ## 7. Matriu ACTUAL → FINAL
@@ -632,9 +632,9 @@ stop
 1. `GENERAT=1`: **sí**, compatibilitat executable.
 2. Factura emesa sense cobrament: **no**, per si sola no acredita AP.
 3. Inscripció actual: **no**, s'exclou de l'historial; tampoc compta historial posterior a `DATA_INSC`.
-4. Quin `evaluation_at` s'utilitza en alta i canvi de curs?
-5. Prioritat/compatibilitat AP vs promocions/descomptes/packs.
-6. Vigència temporal de l'oferta abans de confirmar/cobrar.
+4. `evaluation_at`: en matrícula llegada és `DATA_INSC`; l'historial posterior no acredita retroactivament.
+5. AP + promoció: no acumulable en aquest tall i falla tancat; altres famílies continuen com a migració transversal.
+6. Snapshot AP: congelat mentre la matrícula sigui pagable; expiració de `payment_link` separada.
 
 ## 9. Relacions amb altres casos
 
@@ -657,12 +657,12 @@ Aquest dossier cobreix totes les superfícies identificades del UC-020. Si apare
 s'ha d'afegir com a pàgina/apartat nou i vincular-lo a la matriu d'auditoria.
 
 
-## 9. Reconciliació de tancament — 02/10/2026
+## 11. Reconciliació de tancament — 02/10/2026
 
 Per UC-020, P02 continua sent llegat en transport i UX, però ja no és autoritatiu monetàriament quan aplica AP: la persistència torna a calcular elegibilitat i preu. P05 també queda reclassificat: les notes històriques de GET/sense CSRF són superades pel codi actual POST/CSRF/permís/requestId.
 
 
-## 7. Revalidació transversal — 03/10/2026
+## 12. Revalidació transversal — 03/10/2026
 
 - **P01:** documentació pública localitzada; continua existint diferència entre text comercial ampli i criteri executable versionat.
 - **P02:** preview JS continua subjecte a concurrència, però l'alta AP revalida historial/tarifa al servidor i, després d'UC020-94, el preu servidor arriba intacte a `A_PAGAR`.
