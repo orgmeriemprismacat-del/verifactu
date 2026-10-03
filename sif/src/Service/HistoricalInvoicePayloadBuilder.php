@@ -16,15 +16,16 @@ final class HistoricalInvoicePayloadBuilder
         $payload['series'] = strtoupper($this->optionalString($input, ['series', 'tipus_serie'], $parsed['series']));
         $payload['year'] = (int) ($this->optional($input, ['year', 'any_fact']) ?? $parsed['year']);
         $payload['num_seq'] = (int) ($this->optional($input, ['num_seq', 'numero', 'num']) ?? $parsed['num_seq']);
+        $this->assertVisibleNumberConsistency($payload, $parsed);
         $payload['type'] = $this->optionalString($input, ['type', 'tipus_factura'], 'F1');
         $payload['idempotency_key'] = $this->idempotencyKey($input, $numVisible);
         $payload['source_channel'] = 'MIGRACIO';
         $payload['source_type'] = 'HISTORIC_WEB_FACTURES';
         $payload['created_by'] = $this->optionalString($input, ['created_by', 'user', 'usuari'], 'historic-migration');
-        $payload['invoice_status'] = $this->optionalString($input, ['invoice_status', 'estat_factura'], 'HISTORICAL');
+        $payload['invoice_status'] = 'HISTORICAL';
         $payload['aeat_status'] = 'NO_VERIFACTU';
         $payload['payment_status'] = $this->optionalString($input, ['payment_status', 'estat_cobrament'], 'UNKNOWN');
-        $payload['issue_date'] = $this->optionalString($input, ['issue_date', 'data_emissio'], date('Y-m-d H:i:s'));
+        $payload['issue_date'] = $this->requiredString($input, ['issue_date', 'data_emissio'], 'historical invoice issue date');
         $payload['operation_date'] = $this->optionalString($input, ['operation_date', 'data_operacio']);
         $payload['payment_date'] = $this->optionalString($input, ['payment_date', 'data_pagament']);
         $payload['billing'] = $this->requiredArray($input, ['billing'], 'historical invoice billing');
@@ -54,6 +55,16 @@ final class HistoricalInvoicePayloadBuilder
             'year' => (int) $matches[2],
             'num_seq' => (int) $matches[3],
         ];
+    }
+
+    private function assertVisibleNumberConsistency(array $payload, array $parsed): void
+    {
+        if ($payload['series'] !== $parsed['series']
+            || $payload['year'] !== $parsed['year']
+            || $payload['num_seq'] !== $parsed['num_seq']
+        ) {
+            throw SifException::validation('Historical invoice number components do not match num_visible');
+        }
     }
 
     private function idempotencyKey(array $input, string $numVisible): string
@@ -88,7 +99,7 @@ final class HistoricalInvoicePayloadBuilder
             'source_id' => $this->optionalInt($input, ['legacy_id', 'source_id', 'id_factura_web']),
             'relation_type' => 'HISTORIC_LINK',
             'factura_relacionada' => $this->optionalInt($input, ['factura_relacionada']),
-            'visible_alumne' => $this->optionalInt($input, ['visible_alumne']) ?? 1,
+            'visible_alumne' => $this->optionalInt($input, ['visible_alumne']) ?? 0,
         ]];
     }
 
