@@ -39,34 +39,47 @@
 | Cancel·lació d'un curs del pack | UC-72/27 i eventual UC-28/29/05 sobre la part identificada, conservant descompte de pack i política de retorn per validar. |
 | Diferència entre suma de línies congelades i import Redsys | **Implementat 2026-09-29:** `RedsysPackInvoiceService` rebutja amb conflicte abans d'emetre si el total fiscal i l'import Redsys validat no coincideixen. |
 | Duplicat de callback o worker | Reutilitzar factura, pagament i atribucions N, no registrar pagaments addicionals. |
-| Descompte del 25 % del builder | Verificar contra la política real i l'snapshot comercial: no reconstruir un descompte diferent si s'aporta explicitament, ni generalitzar el 25 % a tots els tipus d'oferta. |
+| Descompte comercial per component | El web congela `PACK_BASE`, `PACK_DISCOUNT`, `PACK_DISCOUNT_PCT` i `PACK_TOTAL` per cada ordinal. El builder fiscal exigeix aquestes dades explícites i coherents; no aplica ni reconstrueix cap percentatge fix. |
 | Una sola persona fa totes les inscripcions del pack | La factura pot ser una, però els `ID_INSC` de cada curs/edició continuen independents per permetre canvis, baixes i consulta. |
 
 **Proves localitzades:** `RedsysPackInvoiceServiceTest`, `PackPaymentGateTest`, `LegacyPackInvoicePayloadBuilderTest`, `LegacyPackCallbackBoundaryTest` i scripts de preflight/preview. El paquet UC-015 fusionat a `41d6968...` té `SIF PHP MySQL tests` en **success** (run `36741186555`). La revisió de codi del PR a `0b32fa2...` va passar els quatre workflows del repositori, inclòs `SIF PHP MySQL tests` (run `36943484891`). Qualsevol commit o resincronització posterior ha de tornar a passar CI abans del merge.
 
-### 1.3. Regles comercials reals i divisió excepcional del pack — contrast amb el xat original
+### 1.3. Regla comercial executable — PACK N
 
-**Composició habitual (no universal):** PrisMa descriu packs de **dos cursos**, amb **dues inscripcions independents** relacionades pel mateix `IDPAG`, i preu total provinent de la taula de preus vinculada a packs. El descompte comercial de pack del 25 % es posa en **el segon curs**, no es reparteix per defecte entre les dues inscripcions. Abans d'emetre, cal validar el snapshot del pack real (ID_PACK, preu, dues inscripcions, imports base, descompte del segon curs i suma final) contra la lògica comercial corresponent; un builder fiscal no substitueix aquesta comprovació.
+**Contracte vigent:** un PACK té **N components (N ≥ 2)**. Les edicions es presenten i processen en l'ordre canònic `c.DATAI, p.ID_CURS`, que es congela com `PACK_ORDINAL`. El servidor rellegeix el preu del pack i els preus base dels components abans de persistir l'alta.
 
-**P-COMUNICACIÓ PACK N — estat actual:** el correu d'alta ja no pressuposa exactament dos cursos: la plantilla usa `[CURSOS_PACK]` i el PHP hi injecta la llista dinàmica de totes les edicions. El contracte queda cobert per `PackMultiCourseCommunicationBoundaryTest`.
+La distribució legacy de l'import és determinista i queda congelada al moment de l'alta:
 
-**P-DESCOMPTE — estat actual:** `LegacyPackInvoicePayloadBuilder` ja exigeix imports/descomptes explícits per línia i rebutja snapshots incomplets o inconsistents. La política comercial concreta continua sent responsabilitat del snapshot de checkout, no del builder fiscal. El motiu intern de la línia s'ha neutralitzat en la revalidació 02/10 perquè el builder no afirmi que qualsevol descompte correspon necessàriament al «segon curs» quan el model admet PACK N.
+1. `aux = preuPack`;
+2. per cada component, en ordre `PACK_ORDINAL`, `PACK_TOTAL = min(aux, PACK_BASE)`;
+3. `PACK_DISCOUNT = PACK_BASE - PACK_TOTAL` i se'n deriva `PACK_DISCOUNT_PCT`;
+4. es resta `PACK_TOTAL` d'`aux`;
+5. abans del commit s'exigeix, en cèntims, `aux = 0` i `Σ PACK_TOTAL = preuPack`.
 
-**P-EXCEPCIÓ — divisió de pagament només per intranet:** el xat original confirma que el client no escull fraccionar el pack a ecommerce; excepcionalment la gestió pot acceptar diversos pagaments reals i històricament hi pot haver **més d'una factura**. La documentació del flux final també preveu, en aquesta variant excepcional, **una factura per cada pagament real amb línies/imports aprovats**, i exigeix no dividir un mateix DS_ORDER en factures diferents. Aquest circuit no és el mateix que UC-23 (diversos pagaments sobre **una factura ja emesa**). Abans de desenvolupar-lo s'ha de decidir i documentar quina part del pack es factura en cada pas, com es reflecteix el descompte del segon curs, i com es relacionen les factures/inscripcions originals, sense facturar dues vegades el mateix servei. La fitxa no dona aquesta variant per executada ni n'estableix automàticament la qualificació fiscal.
+Aquesta regla pot fer que, en ofertes històriques de dos cursos, el descompte quedi concentrat en el segon component; això és una **conseqüència del snapshot i de l'ordre comercial**, no una regla fiscal universal de «25 % al segon curs». Amb PACK N, el descompte pot afectar qualsevol component posterior segons el preu global pactat.
 
-**P-COBRAMENT — diferenciar IDPAG, DS_ORDER i fons:** IDPAG vincula les dues inscripcions i la intenció comercial del pack; cada DS_ORDER identifica un intent Redsys i pot correspondre a una fracció real diferent. No deduplicar tots els cobraments del pack únicament per IDPAG. Si es cobra un sol DS_ORDER, el resultat objectiu és una factura amb una línia per curs i un únic CHARGE. Si s'aplica un canvi/baixa a només un curs, no retornar l'import del pack complet ni recalcular silenciosament el descompte de l'altre: cal preservar la part atribuïda i classificar els efectes comercials i fiscals (UC-71/72).
+**Builder fiscal:** `LegacyPackInvoicePayloadBuilder` no redistribueix el preu ni inventa descomptes. Exigeix base, descompte, percentatge i total explícits de cada línia, comprova `base - descompte = total` i preserva el snapshot comercial.
 
-### 1.4. Escenaris d'acceptació runtime específics del pack
+**Comunicació PACK N:** el correu d'alta usa `[CURSOS_PACK]` i la llista dinàmica de totes les edicions; no pressuposa dos cursos.
+
+**Pagament ecommerce:** UC-015 només admet el pagament complet del pack al canal ecommerce. `FRACCIONAT=0` és server-side i `PackPaymentGate` bloqueja packs amb cobrament previ o import diferent del pendent complet.
+
+**Variant excepcional de gestió:** si en un procés intern es decideix dividir comercialment un pack en diversos cobraments/factures, aquesta decisió necessita un contracte propi de gestió/fiscalitat i no forma part del flux executable ecommerce UC-015. No és un pendent intern que impedeixi tancar aquest UC.
+
+**Identitats:** `IDPAG` agrupa les N inscripcions de la mateixa alta comercial. `DS_ORDER` identifica cada intent/cobrament Redsys. El flux nominal UC-015 exigeix un únic cobrament confirmat per l'import complet del pack i no deduplica conceptes diferents només perquè comparteixin `IDPAG`.
+
+### 1.4. Escenaris d'acceptació runtime específics del PACK N
 
 | ID | Escenari | Resultat exigible |
 | --- | --- | --- |
-| PK-01 | Pack habitual de dos cursos, un DS_ORDER acceptat | Dues inscripcions amb mateix IDPAG, una factura amb dues línies i un CHARGE. |
-| PK-02 | Descompte pack del segon curs | Línia 2 amb base/descompte explícits coherents amb preu del pack; no descompte automàtic a línia 1. |
-| PK-03 | Pack amb més de dues línies o descomptes diferents | Requereix regla comercial/snapshot per línia, no 25 % generalitzat a totes les posteriors. |
-| PK-04 | Compra ecommerce intenta triar fraccionament excepcional | No oferir ni aplicar l'opció sense autorització de gestió/intranet. |
-| PK-05 | Intranet accepta dos pagaments reals en variant dividida | Parts i línies aprovades, dues operacions/factures només segons contracte excepcional; mai dividir un sol DS_ORDER. |
-| PK-06 | Mateix IDPAG amb dos DS_ORDER diferents validats | No fusionar dos cobraments legítims ni repetir la mateixa factura/part de servei. |
-| PK-07 | Baixa d'un únic curs del pack | Analitzar descompte/part atribuïda al curs i factura afectada; altres inscripcions intactes. |
+| PK-01 | PACK de N components, un DS_ORDER acceptat | N inscripcions amb mateix IDPAG, una factura amb N línies, un CHARGE i N atribucions internes. |
+| PK-02 | Preu PACK inferior a la suma de bases | Cada línia conserva base/descompte/total explícits segons l'ordre congelat; suma de línies = preu PACK. |
+| PK-03 | PACK amb més de dues línies o percentatges diferents | Cap 25 % implícit: factura i ledger consumeixen exactament el snapshot comercial de cada component. |
+| PK-04 | Ecommerce intenta fraccionament o hi ha cobrament previ | Bloqueig fail-closed; no crear nova intenció PACK fins reconciliació/gestió fora del flux nominal. |
+| PK-05 | Callback Redsys duplicat | Mateixa factura/payment/ledger/outbox; cap duplicació. |
+| PK-06 | Reintent amb el mateix REQUEST_ID i mateix payload | Reutilitza l'alta existent; cap nova inscripció ni nou IDPAG. |
+| PK-07 | Mateix REQUEST_ID amb payload divergent | HTTP 409 i zero mutació. |
+
 ### 1.5. Ordre comercial v1 — contracte tancat
 
 Les compres noves PACK utilitzen un únic ordre determinista de presentació i alta: `ORDER BY c.DATAI, p.ID_CURS`. El bucle d'alta congela aquesta posició a `PACK_ORDINAL`; el repository/builder fiscal consumeix l'ordinal congelat, l'ordena i exigeix una seqüència contigua.
@@ -79,10 +92,10 @@ El checkout continua obligat a contrastar `ID_INSC`, curs/edició, ordinal, base
 
 | ID | Escenari | Resultat exigible |
 | --- | --- | --- |
-| PK-08 | Primer curs pactat 80 €, segon curs 120 € abans de descompte | Descompte al segon curs comercial, no necessàriament al component que la consulta col·loca segon per `A_PAGAR`. |
-| PK-09 | Un pagament parcial canvia `A_PAGAR` i inverteix `ORDER BY` | Snapshot original manté ordinal, imports i receptor; no nova factura amb preu/deute reconstruït. |
-| PK-10 | Dues inscripcions del mateix `IDPAG` porten dades de receptor diferents | Receptor fiscal seleccionat/confirmat per operació, no arbitràriament la primera fila recuperada. |
-| PK-11 | No es coneix la base comercial d'un component | Incidència i comprovació de preu real; no divisió automàtica per `0.75` sobre un saldo incert. |
+| PK-08 | Dos o més components comparteixen `DATAI` | Desempat estable per `ID_CURS`; `PACK_ORDINAL` 1..N sense duplicats ni buits. |
+| PK-09 | Després de l'alta canvien saldos o `A_PAGAR` legacy | Snapshot original manté ordinal, base, descompte i total; no es reordena ni es reconstrueix la factura. |
+| PK-10 | Components del mateix `IDPAG` presenten receptor fiscal divergent | Bloqueig abans d'emetre; el receptor fiscal de l'operació ha de ser coherent. |
+| PK-11 | Falta base/descompte/percentatge/total explícit d'un component | Conflicte i no emissió; el builder no infereix imports amb fórmules o percentatges implícits. |
 
 ## 2. Diagrama UML de casos d'ús
 
@@ -262,32 +275,30 @@ W->>Q: PROCESSED i UUIDs
 Note over H,O: Un pagament bancari, N atribucions internes. L'outbox queda PENDING fins al worker UC-58.
 ```
 
-### 4.1. Seqüència — pagament únic i alternativa excepcional d'intranet (OBJECTIU)
+### 4.1. Frontera del cas — variants de gestió fora del flux nominal
+
+El flux executable UC-015 ecommerce és **pagament complet únic del PACK**: N inscripcions, una intenció/cobrament Redsys, una factura amb N línies i N atribucions internes.
+
+Una eventual decisió interna de dividir un pack en diversos cobraments o factures no es representa com a «FINAL pendent» d'UC-015. Requereix un cas de gestió separat que defineixi parts de servei, imports, relacions i classificació fiscal abans d'executar cap cobrament. Aquesta variant no altera ni reinterpreta els snapshots UC-015 ja emesos.
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor P as Pagador
-actor O as Gestió
-participant UI as Ecommerce/Intranet [adaptació pendent]
-participant Price as Preu i composició pack [llegat]
-participant Pay as Redsys/SIF [serveis parcials]
-participant Fiscal as Classificació parts fiscals [PENDENT]
-P->>UI: Comprar pack de dos cursos
-UI->>Price: Validar ID_PACK, dues inscripcions, descompte només curs 2
-alt Pagament únic confirmat
- UI->>Pay: Processar un DS_ORDER acceptat
- Pay-->>UI: Un CHARGE i una factura amb dues línies
-else Gestió autoritza divisió excepcional
- O->>UI: Justificar imports i parts del pack
- UI->>Fiscal: Validar línies/servei de cada factura de la variant
- loop Cada cobrament real diferent
-  UI->>Pay: Processar DS_ORDER/transferència pròpia sense duplicats
-  Pay-->>UI: Factura/part assignada segons decisió aprovada
- end
+participant E as Ecommerce PACK
+participant S as SIF
+actor G as Gestió interna
+P->>E: Comprar PACK N
+E->>S: Intenció per l'import complet
+S-->>E: DS_ORDER / snapshot congelat
+E->>S: cobrament complet confirmat
+S-->>E: una factura + un CHARGE + N atribucions
+opt Gestió necessita una variant comercial diferent
+ G->>G: obrir cas de gestió separat
+ Note over G,S: Fora del flux nominal UC-015; no dividir ni reescriure la factura PACK existent.
 end
-Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts encara no està acreditat.
 ```
+
 ## 5. Traçabilitat
 
 **Auditoria específica:** [registre 2026-09-29](uc-015-auditoria-tracabilitat-2026-09-29.md) · [classes ACTUAL/FINAL](uc-015-classes-actual-final.md) · [seqüències ACTUAL/FINAL](uc-015-sequencies-actual-final.md) · [activitats ACTUAL/FINAL](uc-015-activitats-pagines-pack-actual-final.md).
@@ -316,5 +327,5 @@ Punts nous incorporats:
 - `AcademicEnrollmentSyncService` no forma part del flux executable UC-015;
 - el text intern del descompte fiscal ja no pressuposa una línia/ordinal concreta;
 - el verificador canònic `verify-redsys-pack-preproduction.php` ja està implementat; resta executar-lo amb un `DS_ORDER` real;
-- les dues còpies productives del callback legacy estan fail-closed amb 410 abans de mutar; el harness `Prova` requereix test/preproduction + flag explícit;
+- les dues còpies productives del callback legacy estan eliminades físicament; només queda el harness `Prova`, restringit a test/preproduction + flag explícit;
 - el nucli PACK conserva evidència CI històrica i el HEAD final d'aquesta auditoria ha de tornar a passar la CI després dels enduriments web/idempotència/preproducció.
