@@ -34,3 +34,17 @@ El PR #119 corregeix els dos punts UC-014 sense modificar la implementació prod
 Vegeu [UC-014 — Reconciliació del CI posterior al merge](uc-014-reconciliacio-ci-main-2026-10-03.md).
 
 Aquesta reconciliació manté l'estat **AUDITORIA TANCADA · IMPLEMENTACIÓ TANCADA · ACCEPTACIÓ OPERATIVA PENDENT** per UC-014. La suite global del repositori no es pot considerar verda fins que UC-015 resolgui els seus cinc boundaries.
+
+
+## 6. Check canònic UC-014 — 03/10/2026
+
+El PR #119 incorpora un workflow independent, `UC-014 SIF course checks`, per verificar el cas sense quedar bloquejat per regressions alienes de la suite global.
+
+Resultat verificat:
+
+- **125 passed / 0 failed**;
+- `RedsysSignatureValidatorTest`: PASS;
+- `RedsysCourseLegacyFallbackBoundaryTest`: PASS;
+- sense warning de `$fractional`.
+
+A partir d'aquest punt, aquest check és l'evidència CI directa per reobrir o mantenir tancat UC-014. Els cinc failures PACK de la suite general s'han de gestionar dins UC-015.
