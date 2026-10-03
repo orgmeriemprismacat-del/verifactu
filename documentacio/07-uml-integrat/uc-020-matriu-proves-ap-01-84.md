@@ -49,7 +49,7 @@
 | AP-20 | E2E | Es resol el dret després d'haver emès factura. | Preservar factura original i derivar l'ajust fiscal/rectificatiu que correspongui. | PENDENT_EXECUCIO |
 | AP-21 | INT | Historial amb antecedents anteriors i posteriors a `DATA_INSC`. | Excloure matrícula actual i historial posterior a `DATA_INSC`. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
 | AP-22 | CONC | Dues peticions comercials simultànies intenten actualitzar la mateixa oferta. | Una versió vàlida; l'altra reutilitza o rep conflicte, sense sobreescriptura desfasada. | PENDENT_EXECUCIO |
-| AP-23 | SEC | Usuari autenticat sense permís específic intenta resoldre el descompte. | Denegació al servidor i cap canvi econòmic. | PENDENT_EXECUCIO |
+| AP-23 | SEC | Usuari autenticat sense permís específic intenta resoldre el descompte. | Denegació al servidor i cap canvi econòmic. | VERIFICAT_CI_FRONTERA_P05_0c1825c |
 | AP-24 | INT | Snapshot monetàriament coherent però sense origen/regla AP. | No atribuir-lo arbitràriament a Alumne PrisMa ni a una promoció genèrica. | PENDENT_EXECUCIO |
 | AP-25 | E2E | Operació AP amb pagament fraccionat. | Separar preu net total, descompte i cadascun dels cobraments; cap fracció és el total de l'oferta. | PENDENT_EXECUCIO |
 
@@ -138,8 +138,8 @@
 | AP-79 | CONC | Confirmar mentre el preu es recalcula. | Bloqueig o acceptació per `offer_id` servidor vigent. | PENDENT_IMPLEMENTACIO |
 | AP-80 | CONC | Repetir mateixa resolució amb clau idempotent. | Una sola decisió i una sola notificació. | PENDENT_IMPLEMENTACIO |
 | AP-81 | CONC | Resolver sobre estat que ja no és pendent. | `ALREADY_APPLIED` o `VERSION_CONFLICT`; cap sobreescriptura. | PENDENT_IMPLEMENTACIO |
-| AP-82 | SEC | Sessió existent però sense permís específic. | 403/denegació equivalent i cap mutació. | PENDENT_IMPLEMENTACIO |
-| AP-83 | SEC | Comanda sense CSRF/origen autoritzat. | Rebuig de la comanda. | PENDENT_IMPLEMENTACIO |
+| AP-82 | SEC | Sessió existent però sense permís específic. | 403/denegació equivalent i cap mutació. | VERIFICAT_CI_FRONTERA_P05_0c1825c |
+| AP-83 | SEC | Comanda sense CSRF/origen autoritzat. | Rebuig de la comanda. | VERIFICAT_CI_CSRF_P05_0c1825c |
 | AP-84 | INT | Backend retorna error/estat estructurat. | UI interpreta el codi/estat, no la presència textual de la paraula «error». | PENDENT_IMPLEMENTACIO |
 
 ## Evidència mínima d'execució
@@ -193,3 +193,14 @@ S'han afegit proves explícites per evitar que escenaris ja suportats pel codi c
 - `RedsysCoursePaymentIntentPrismaStudentTest::testPrismaStudentCheckoutIgnoresFutureTariffAndUsesEnrollmentSnapshot` → tall temporal integrat.
 
 AP-02 i AP-06 es poden marcar ja com a `VERIFICAT_CI_*` perquè el checkout integrat i el resolver equivalent consten en PASS al log del head `0c1825c`. Les proves noves anteriors continuen `PENDENT_CI` fins observar-ne l'execució.
+
+
+## Reclassificació P05 — seguretat/intranet
+
+Al head `0c1825c` consten en PASS:
+
+- `LegacyUsocDiscountValidationSecurityTest::testLegacyDiscountValidationUsesPostCsrfAndEditPermission`;
+- `UsocValidationDecisionBoundaryContractTest::testLegacyMutationIsStrictlyBetweenRequestedAndCommittedSifPhases`;
+- `UsocValidationDecisionBoundaryContractTest::testSignedUsocApiExposesTwoPhaseValidationActionsAndRecoveryComponents`.
+
+Això permet reclassificar AP-23/AP-82/AP-83 com a verificats **a nivell de frontera de codi/contracte**. No equival a una prova navegador multioperador ni converteix la memoització de sessió per `requestId` en idempotència persistent; AP-80/AP-81 continuen oberts.
