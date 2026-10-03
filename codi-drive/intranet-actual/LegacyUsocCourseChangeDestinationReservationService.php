@@ -50,7 +50,7 @@ final class LegacyUsocCourseChangeDestinationReservationService
         $this->store->acquire($lock);
         try {
             $source = $this->store->source($sourceId);
-            $this->assertSource($source, $sourceId);
+            $this->assertSourceIdentity($source, $sourceId);
 
             $existing = $this->store->findByMarker($marker);
             if ($existing !== null) {
@@ -66,6 +66,8 @@ final class LegacyUsocCourseChangeDestinationReservationService
 
                 return $this->result($existing, $source, $sourceId, true);
             }
+
+            $this->assertSourceEligibleForNewReservation($source);
 
             $created = $this->store->insertFromSource(
                 $sourceId,
@@ -91,17 +93,26 @@ final class LegacyUsocCourseChangeDestinationReservationService
         }
     }
 
-    private function assertSource(array $source, int $sourceId): void
+    private function assertSourceIdentity(array $source, int $sourceId): void
     {
         if (
             (int) ($source['id'] ?? 0) !== $sourceId
             || (int) ($source['idpag'] ?? 0) <= 0
             || (int) ($source['tipus_desc'] ?? 0) !== 4
             || (int) ($source['valid_desc'] ?? 0) !== 1
-            || !in_array((string) ($source['status'] ?? ''), ['0', '1', 'M'], true)
         ) {
             throw new RuntimeException(
-                'USOC source enrollment is not eligible for destination reservation',
+                'USOC source enrollment does not match destination reservation identity',
+                409
+            );
+        }
+    }
+
+    private function assertSourceEligibleForNewReservation(array $source): void
+    {
+        if (!in_array((string) ($source['status'] ?? ''), ['0', '1', 'M'], true)) {
+            throw new RuntimeException(
+                'USOC source enrollment is not eligible for a new destination reservation',
                 409
             );
         }
