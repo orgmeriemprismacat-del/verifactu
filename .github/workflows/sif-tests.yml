@@ -5,6 +5,34 @@ on:
     paths:
       - "sif/**"
       - "codi-drive/web-actual/ConnexioBBDD_PreparedStatment.php"
+      - "codi-drive/web-actual/BescanviaRegal.php"
+      - "codi-drive/web-actual/RegalCurs.php"
+      - "codi-drive/web-actual/pagina_bescanvia.php"
+      - "codi-drive/web-actual/pagina_confirmacio_bescanvia.php"
+      - "codi-drive/web-actual/inc/SifGiftRedemptionClient.php"
+      - "codi-drive/web-actual/ajax/mostrar_pagina_bescanvia.php"
+      - "codi-drive/web-actual/ajax/codiRegalValid.php"
+      - "codi-drive/web-actual/ajax/buscarCursRegalat.php"
+      - "codi-drive/web-actual/ajax/bescanviaUnCurs.php"
+      - "codi-drive/web-actual/ajax/inscripcioDuplicada.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php"
+      - "codi-drive/web-actual/ajax/mostrar_confirmacio_bescanvia.php"
+      - "codi-drive/web-actual/js1619773569/mostrarBescanvia.min.js"
+      - "codi-drive/web-actual/js1619773569/mostrarConfirmacioBescanvia.min.js"
+      - "codi-drive/web-actual/BescanviaRegal.php"
+      - "codi-drive/web-actual/RegalCurs.php"
+      - "codi-drive/web-actual/pagina_bescanvia.php"
+      - "codi-drive/web-actual/pagina_confirmacio_bescanvia.php"
+      - "codi-drive/web-actual/inc/SifGiftRedemptionClient.php"
+      - "codi-drive/web-actual/ajax/mostrar_pagina_bescanvia.php"
+      - "codi-drive/web-actual/ajax/codiRegalValid.php"
+      - "codi-drive/web-actual/ajax/buscarCursRegalat.php"
+      - "codi-drive/web-actual/ajax/bescanviaUnCurs.php"
+      - "codi-drive/web-actual/ajax/inscripcioDuplicada.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php"
+      - "codi-drive/web-actual/ajax/mostrar_confirmacio_bescanvia.php"
+      - "codi-drive/web-actual/js1619773569/mostrarBescanvia.min.js"
+      - "codi-drive/web-actual/js1619773569/mostrarConfirmacioBescanvia.min.js"
       - "codi-drive/web-actual/EdicioPack.php"
       - "codi-drive/web-actual/Pack.php"
       - "codi-drive/web-actual/inc/buscantPacksDisponibles.php"
@@ -143,6 +171,23 @@ jobs:
           php -l codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php
           node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js
           node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.min.js
+
+      - name: Lint UC-018 gift redemption web flow
+        run: |
+          php -l codi-drive/web-actual/BescanviaRegal.php
+          php -l codi-drive/web-actual/RegalCurs.php
+          php -l codi-drive/web-actual/pagina_bescanvia.php
+          php -l codi-drive/web-actual/pagina_confirmacio_bescanvia.php
+          php -l codi-drive/web-actual/inc/SifGiftRedemptionClient.php
+          php -l codi-drive/web-actual/ajax/mostrar_pagina_bescanvia.php
+          php -l codi-drive/web-actual/ajax/codiRegalValid.php
+          php -l codi-drive/web-actual/ajax/buscarCursRegalat.php
+          php -l codi-drive/web-actual/ajax/bescanviaUnCurs.php
+          php -l codi-drive/web-actual/ajax/inscripcioDuplicada.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioBescanvia.php
+          php -l codi-drive/web-actual/ajax/mostrar_confirmacio_bescanvia.php
+          node --check codi-drive/web-actual/js1619773569/mostrarBescanvia.min.js
+          node --check codi-drive/web-actual/js1619773569/mostrarConfirmacioBescanvia.min.js
 
       - name: Executar suite SIF
         run: php sif/tests/run-tests.php
