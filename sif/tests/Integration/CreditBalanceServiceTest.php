@@ -177,6 +177,41 @@ final class CreditBalanceServiceTest
         Assert::same('CREDIT_COMPENSATION', $allocationType);
     }
 
+    public function testRejectsSameCompensationKeyWithDifferentPayload(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload(['emesa_abans_cobrament' => 1])
+        );
+        $service = $this->service($db);
+        $credit = $service->createCredit([
+            'holder_type' => 'STUDENT',
+            'holder_id' => 10,
+            'holder_name' => 'Client Exemple',
+            'amount' => '80.00',
+            'source_type' => 'CANVI_CURS',
+            'source_id' => 77,
+        ]);
+
+        $service->applyCreditByUuid($credit['uuid_credit'], $invoice['uuid_factura'], [
+            'amount' => '60.00',
+            'movement_date' => '2026-06-12',
+            'notes' => 'Aplicacio inicial',
+        ]);
+
+        Assert::throws(SifException::class, static function () use ($service, $credit, $invoice): void {
+            $service->applyCreditByUuid($credit['uuid_credit'], $invoice['uuid_factura'], [
+                'amount' => '60.00',
+                'movement_date' => '2026-06-13',
+                'notes' => 'Payload diferent amb la mateixa K derivada',
+            ]);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same('20.00', (string) $db->query('SELECT IMPORT_DISPONIBLE FROM credit_balance')->fetchColumn());
+    }
+
     public function testAppliesFullCreditByVisibleInvoiceNumberAndMarksCreditUsed(): void
     {
         $db = TestDatabase::fresh();
