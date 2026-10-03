@@ -1,15 +1,44 @@
 # UC-018 · Classes ACTUAL/FINAL — Bescanviar regal
 
-## 1. Estat auditat — 2026-10-02
+## 1. Tall revalidat — 2026-10-03
 
-L'arquitectura FINAL definida durant l'auditoria ja té implementació executable per al flux aprovat de **bescanvi a valor exacte**. Les variants amb diferència de preu continuen bloquejades de manera fail-closed fins que existeixi una decisió funcional específica.
+El flux base de **bescanvi a valor exacte** està implementat. El nucli SIF conserva l'evidència CI del 02/10; la revalidació 03/10 ha afegit hardening a la frontera navegador→legacy i una prova boundary nova, pendent del CI d'aquesta branca.
 
-## 2. ACTUAL — codi executable
+## 2. ACTUAL — components executables
 
 ```mermaid
 classDiagram
 direction LR
-class RedsysGiftInvoiceService
+
+class PaginaBescanvia {
+  <<PHP page>>
+  +carrega mostrarBescanvia.min.js
+}
+class MostrarBescanviaJS {
+  <<JavaScript>>
+  +validar codi()
+  +seleccionar curs()
+  +comprovar duplicat()
+  +enviar inscripcio()
+}
+class LegacyGiftAjax {
+  <<PHP POST-only>>
+  +codiRegalValid()
+  +buscarCursRegalat()
+  +inscripcioDuplicada()
+  +enviarInscripcioBescanvia()
+}
+class BescanviaRegal {
+  <<PHP legacy>>
+  +codiRegalValid()
+  +buscarCursRegalat()
+  +render formularis()
+}
+class SifGiftRedemptionClient {
+  +redeemCommittedEnrollment()
+  +claimNotificationBundle()
+  +completeNotificationBundle()
+}
 class GiftEntitlementIssuerService
 class CommercialEntitlementRepository
 class GiftRedemptionTrustedContextResolver
@@ -20,8 +49,12 @@ class LegacyGiftUsageReconciler
 class GiftRedemptionOrchestrator
 class GiftRedemptionNotificationBundleService
 class NotificationOutboxDeliveryService
-class SifGiftRedemptionClient
-RedsysGiftInvoiceService --> GiftEntitlementIssuerService
+
+PaginaBescanvia --> MostrarBescanviaJS
+MostrarBescanviaJS --> LegacyGiftAjax
+LegacyGiftAjax --> BescanviaRegal
+LegacyGiftAjax --> SifGiftRedemptionClient
+SifGiftRedemptionClient --> GiftRedemptionOrchestrator
 GiftEntitlementIssuerService --> CommercialEntitlementRepository
 GiftRedemptionOrchestrator --> GiftRedemptionTrustedContextResolver
 GiftRedemptionOrchestrator --> GiftEnrollmentStager
@@ -31,38 +64,45 @@ GiftRedemptionService --> EnrollmentFundMovementRepository
 GiftRedemptionOrchestrator --> LegacyGiftUsageReconciler
 GiftRedemptionOrchestrator --> GiftRedemptionNotificationBundleService
 GiftRedemptionNotificationBundleService --> NotificationOutboxDeliveryService
-SifGiftRedemptionClient --> GiftRedemptionOrchestrator
 ```
 
 ## 3. Responsabilitats verificades
 
-- **UC-017 / origen monetari:** `RedsysGiftInvoiceService` conserva factura i `CHARGE` originals i materialitza el dret GIFT.
+- **Pàgina:** `pagina_bescanvia.php` referencia el bundle rastrejable `mostrarBescanvia.min.js?ver=6.0`.
+- **Browser:** les quatre crides que transporten codi regal o identitat personal són POST amb cos de petició.
+- **Legacy guard:** endpoints sensibles són POST-only; el lookup revalida el codi i el writer exigeix `FACT_REL > 0`.
+- **Resposta pública:** `BescanviaRegal::codiRegalValid()` no diferencia públicament inexistent/pendent/consumit.
+- **UC-017 / origen monetari:** `RedsysGiftInvoiceService` + `GiftEntitlementIssuerService` conserven factura/`CHARGE` i creen/reutilitzen GIFT.
 - **Dret:** `CommercialEntitlementRepository` governa holder, lock, `CLAIM`, `RESERVE`, `CONSUME`, `RELEASE` i events append-only.
-- **Context autoritatiu:** `GiftRedemptionTrustedContextResolver` deriva participant i snapshot des de dades persistides; el caller no declara `holder_party_key` ni `trusted_price_snapshot`.
-- **Alta acadèmica:** `GiftEnrollmentStager` crea/reutilitza l'operació `INSCRIPCIO` contra una inscripció legacy ja compromesa.
-- **Economia:** `GiftRedemptionService` registra una única `COMPENSATION_ALLOCATION` contra el `UUID_PAYMENT` original i no crea un segon `CHARGE`.
+- **Context:** `GiftRedemptionTrustedContextResolver` deriva participant i snapshot des de dades persistides.
+- **Alta:** `GiftEnrollmentStager` crea/reutilitza l'operació `ENROLLMENT/INSCRIPCIO`.
+- **Economia:** `GiftRedemptionService` registra un únic `COMPENSATION_ALLOCATION` sobre el `UUID_PAYMENT` original.
 - **Reconciliació:** `LegacyGiftUsageReconciler` fa compare-and-set de `regal.USAT`.
-- **Orquestració/replay:** `GiftRedemptionOrchestrator` convergeix sobre el mateix resultat després de timeout o resposta perduda.
-- **Notificacions:** sis efectes SMTP legacy es representen com sis outbox idempotents, reclamables individualment després del redeem/reconciliació.
-- **Frontera web→SIF:** `SifGiftRedemptionClient` usa POST/HMAC i no posa el codi regal a URL.
+- **Recovery:** `GiftRedemptionOrchestrator` convergeix sobre el mateix resultat després de timeout/resposta perduda.
+- **Notificacions:** bundle de sis outbox + claim/complete independent.
+- **Frontera interna:** `SifGiftRedemptionClient` usa POST/HMAC i no posa el codi a URL.
 
 ## 4. ACTUAL vs FINAL
 
 | Component | Documentat | Implementat | Verificació |
 | --- | --- | --- | --- |
-| Compra pagada UC-017 | Sí | Sí | CI UC-017 |
+| Pàgina + bundle real | Sí | Sí, patch 03/10 | CI patch pendent |
+| Browser→legacy POST | Sí | Sí, patch 03/10 | Boundary afegit; CI pendent |
+| Resposta neutra / no enumeració | Sí | Sí, patch 03/10 | Boundary afegit; CI pendent |
+| Regal pagat abans del writer | Sí | Sí, `FACT_REL > 0` | Boundary afegit; CI pendent |
+| Compra pagada UC-017 | Sí | Sí | CI 02/10 |
 | Emissió dret GIFT | Sí | Sí | Integració |
 | Repository entitlement | Sí | Sí | Integració |
 | Context autoritatiu | Sí | Sí | Integració |
 | Staging inscripció | Sí | Sí | Integració |
 | Bescanvi idempotent | Sí | Sí | Integració/replay |
-| Aplicació de fons | Sí | Sí | 1 `COMPENSATION_ALLOCATION`, 0 `CHARGE` nous |
+| Aplicació de fons | Sí | Sí | 1 allocation, 0 CHARGE nous |
 | Reconciliació `regal.USAT` | Sí | Sí | Integració |
-| Recovery resposta perduda | Sí | Sí | Test integrat al PR de tancament |
-| Concurrència multiprocés | Sí | Sí | Test integrat al PR de tancament |
-| Govern SMTP/outbox | Sí | Sí | Tests bundle/boundary al PR de tancament |
-| Preflight/preproducció | Sí | Sí | Boundary automatitzat; execució real és gate d'entorn |
-| Diferències de preu | Sí | Bloqueig explícit | Fora abast UC-018 base fins decisió |
+| Recovery resposta perduda | Sí | Sí | Integració |
+| Concurrència multiprocés | Sí | Sí | Test 02/10 |
+| Govern SMTP/outbox | Sí | Sí | Tests 02/10 |
+| Preflight/preproducció | Sí | Codi sí | Execució real [ENV] |
+| Diferències de preu | Sí | Bloqueig explícit | [POLICY] |
 
 ## 5. Invariant de tancament
 
@@ -75,6 +115,7 @@ SifGiftRedemptionClient --> GiftRedemptionOrchestrator
 0 CHARGE addicionals
 0 factures addicionals
 replay idempotent
+secret/PII fora de query string
 ```
 
-La prova de preproducció real continua sent un **gate d'execució d'entorn**, no una absència de codi o documentació.
+El FINAL de codi coincideix amb l'ACTUAL de la branca per al flux base; falta que el CI nou ho acrediti i, separadament, l'acceptació real de preproducció.
