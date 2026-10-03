@@ -2,6 +2,7 @@
 
 class SifInternalApiClient
 {
+    private const UC004_CONTRACT_VERSION = 'UC004-V1';
     private string $url;
     private string $signedPath;
     private string $keyId;
@@ -65,6 +66,7 @@ class SifInternalApiClient
         string $observations = ''
     ): array {
         return $this->request($actorId, $roles, [
+            'contract_version' => self::UC004_CONTRACT_VERSION,
             'action' => 'preview',
             'inscription_ids' => array_values($inscriptionIds),
             'entity_id' => $entityId,
@@ -81,6 +83,7 @@ class SifInternalApiClient
         string $observations = ''
     ): array {
         return $this->request($actorId, $roles, [
+            'contract_version' => self::UC004_CONTRACT_VERSION,
             'action' => 'confirm',
             'inscription_ids' => array_values($inscriptionIds),
             'entity_id' => $entityId,
