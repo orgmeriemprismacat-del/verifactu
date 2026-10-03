@@ -1,5 +1,27 @@
 # UC-111 · Matriu de traçabilitat funcional, codi, UML i proves
 
+
+## Estat canònic post-merge · 03/10/2026
+
+Aquest bloc preval sobre les taules històriques que encara indiquen «MySQL pendent» o «IMPLEMENTAT_BRANCA».
+
+| Bloc | Implementat a main/branch actual | Prova MySQL actual | Observació |
+| --- | --- | --- | --- |
+| alta / staging JASOM | sí | PASS | no obre pagament mentre PENDING |
+| decisió secretaria | sí | PASS | POST, CSRF, same-origin, rol + API interna signada |
+| reconciliació decisió legacy→SIF | sí, nova branca 03/10 | PASS | recupera VALIDAT 1/2; no inventa decisió |
+| porta de pagament JASOM | sí | PASS | VALIDAT 0 bloqueja; 1/2 permet segons contracte |
+| factura/pagament→grant | sí | PASS | només després de cobrament complet |
+| idempotència callback/reintent | sí | PASS | un dret i una preparació de codi |
+| read model alumne | sí | PASS | no exposa token/ciphertext |
+| evidència privada SIF | sí | PASS unit/integration dins paquet | storage opac + hash + lifecycle |
+| suite UC-111 específica | sí | **156/156** | GitHub Actions/MySQL 8 |
+| suite SIF global | existent | **917 PASS / 6 FAIL** al main 02/10 | 5 pack + 1 RedsysSignatureValidator, fora UC-111 |
+| desplegament/validació visual | no acreditat | pendent | no confondre CI amb producció |
+
+**Separació de CI:** .github/workflows/uc111-integration.yml executa sif/tests/run-uc111-tests.php. La suite global continua a la seva pipeline pròpia i no es mascara.
+
+
 **Data de tall documental:** 29/09/2026.  
 **Branca contrastada:** `feat/uc-111-termini-i-auditoria-2026-09-22`.  
 **Regla:** "fitxer present" no equival a "provat" ni a "desplegat".
