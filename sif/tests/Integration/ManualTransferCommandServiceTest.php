@@ -37,7 +37,7 @@ final class ManualTransferCommandServiceTest
             'SELECT IDEMPOTENCY_KEY, PROVIDER_REF, REFERENCIA_BANCARIA FROM payment_transaction'
         )->fetch(\PDO::FETCH_ASSOC);
 
-        Assert::same('TRANSFERENCIA|BANK_EVENT_SHA256:' . hash('sha256', 'BANK-EVENT-20261003-0001'), $payment['IDEMPOTENCY_KEY']);
+        Assert::same('TRANSFERENCIA|BANK_EVENT_SHA256:' . hash('sha256', "BANC TEST\nBANK-EVENT-20261003-0001"), $payment['IDEMPOTENCY_KEY']);
         Assert::same('BANK-EVENT-20261003-0001', $payment['PROVIDER_REF']);
         Assert::same('MATRICULA', $payment['REFERENCIA_BANCARIA']);
     }
@@ -58,6 +58,20 @@ final class ManualTransferCommandServiceTest
                 'external_bank_event_id' => 'BANK-EVENT-DENIED',
             ]);
         }, 403);
+    }
+
+    public function testRequiresTransferBankNamespace(): void
+    {
+        $db = TestDatabase::fresh();
+
+        Assert::throws(SifException::class, function () use ($db): void {
+            $this->service($db)->register($db, $this->actor(), [
+                'uuid_factura' => '11111111-1111-4111-8111-111111111111',
+                'amount' => '10.00',
+                'movement_date' => '2026-10-03',
+                'external_bank_event_id' => 'BANK-EVENT-NO-BANK',
+            ]);
+        }, 422);
     }
 
     public function testRejectsBankEventIdLongerThanProviderRefColumn(): void
