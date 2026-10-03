@@ -95,26 +95,32 @@ final class RedsysCallbackQueueRepository
         }
     }
 
-    public function markProcessed(\PDO $db, int $id, array $result, \DateTimeImmutable $now): void
-    {
+    public function markProcessed(
+        \PDO $db,
+        int $id,
+        array $result,
+        \DateTimeImmutable $now,
+        ?string $workerId = null
+    ): void {
         $json = json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($json === false) {
             throw SifException::validation('Invalid Redsys callback result');
         }
 
+        [$ownershipSql, $ownershipParams] = $this->ownershipPredicate($workerId);
         $stmt = $db->prepare(
             "UPDATE redsys_callback_queue
              SET STATUS = 'PROCESSED', RESULT_JSON = ?, UUID_FACTURA = ?, UUID_PAYMENT = ?,
                  PROCESSED_AT = ?, LOCKED_AT = NULL, LOCKED_BY = NULL, LAST_ERROR = NULL
-             WHERE ID = ? AND STATUS = 'PROCESSING'"
+             WHERE ID = ? AND STATUS = 'PROCESSING'" . $ownershipSql
         );
-        $stmt->execute([
+        $stmt->execute(array_merge([
             $json,
             $result['uuid_factura'] ?? null,
             $result['uuid_payment'] ?? null,
             $now->format('Y-m-d H:i:s'),
             $id,
-        ]);
+        ], $ownershipParams));
 
         if ($stmt->rowCount() !== 1) {
             throw SifException::conflict('Redsys callback job is not owned by this worker');
@@ -125,33 +131,53 @@ final class RedsysCallbackQueueRepository
         \PDO $db,
         int $id,
         \DateTimeImmutable $availableAt,
-        string $error
+        string $error,
+        ?string $workerId = null
     ): void {
+        [$ownershipSql, $ownershipParams] = $this->ownershipPredicate($workerId);
         $stmt = $db->prepare(
             "UPDATE redsys_callback_queue
              SET STATUS = 'RETRY', AVAILABLE_AT = ?, LAST_ERROR = ?,
                  LOCKED_AT = NULL, LOCKED_BY = NULL
-             WHERE ID = ? AND STATUS = 'PROCESSING'"
+             WHERE ID = ? AND STATUS = 'PROCESSING'" . $ownershipSql
         );
-        $stmt->execute([$availableAt->format('Y-m-d H:i:s'), $error, $id]);
+        $stmt->execute(array_merge(
+            [$availableAt->format('Y-m-d H:i:s'), $error, $id],
+            $ownershipParams
+        ));
 
         if ($stmt->rowCount() !== 1) {
             throw SifException::conflict('Redsys callback job is not owned by this worker');
         }
     }
 
-    public function markIncident(\PDO $db, int $id, string $error): void
+    public function markIncident(\PDO $db, int $id, string $error, ?string $workerId = null): void
     {
+        [$ownershipSql, $ownershipParams] = $this->ownershipPredicate($workerId);
         $stmt = $db->prepare(
             "UPDATE redsys_callback_queue
              SET STATUS = 'INCIDENT', LAST_ERROR = ?, LOCKED_AT = NULL, LOCKED_BY = NULL
-             WHERE ID = ? AND STATUS = 'PROCESSING'"
+             WHERE ID = ? AND STATUS = 'PROCESSING'" . $ownershipSql
         );
-        $stmt->execute([$error, $id]);
+        $stmt->execute(array_merge([$error, $id], $ownershipParams));
 
         if ($stmt->rowCount() !== 1) {
             throw SifException::conflict('Redsys callback job is not owned by this worker');
         }
+    }
+
+    private function ownershipPredicate(?string $workerId): array
+    {
+        if ($workerId === null) {
+            return ['', []];
+        }
+
+        $workerId = trim($workerId);
+        if ($workerId === '') {
+            throw SifException::validation('Redsys callback worker ID is required');
+        }
+
+        return [' AND LOCKED_BY = ?', [$workerId]];
     }
 
     public function recoverStaleLocks(\PDO $db, \DateTimeImmutable $now): int
