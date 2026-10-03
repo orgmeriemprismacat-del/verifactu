@@ -36,6 +36,7 @@ final class DebtClaimScriptsContractTest
         Assert::stringContainsString('FIRST_CLAIM', $process);
         Assert::stringContainsString('FINAL_CLAIM', $process);
         Assert::stringContainsString('RECONCILE_AFTER_PAYMENT', $process);
+        Assert::stringContainsString('--uuid-payment=', $process);
         Assert::stringContainsString('->recordNotice(', $process);
         Assert::stringContainsString('->reconcileAfterPayment(', $process);
     }
