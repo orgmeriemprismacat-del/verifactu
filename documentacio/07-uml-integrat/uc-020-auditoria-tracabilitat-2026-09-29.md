@@ -24,7 +24,7 @@
 | UC020-26 | Generació llegada d'IDPAG requereix contrast d'atomicitat/concurrència. | RISC DEDUÏT | Cas pagament |
 | UC020-27 | Inscripció/càlcul llegats transporten dades personals per GET. | VERIFICAT | Seguretat/privacitat |
 | UC020-28 | Contracte textual d'errors de preu i validació comercial no independent. | VERIFICAT | P02 |
-| UC020-29 | Preparació llegada del pagament usa import enviat pel navegador en el circuit inspeccionat. | VERIFICAT | Cas pagament |
+| UC020-29 | La preparació llegada del pagament usava import transportat pel navegador en el circuit base inspeccionat. Per AP-targeta, el tall actual és server-authoritative via `course-intent`; altres canals llegats continuen pendents de migració. | HISTÒRIC_SUPERAT_AP_TARGETA / PENDENT_ALTRES_CANALS | Cas pagament |
 | UC020-30 | Circuit llegat i callback SIF nou tenen garanties diferents; no s'han de confondre. | VERIFICAT | Dependència Redsys |
 | UC020-31 | La fitxa anterior era massa genèrica i marcava requisits finals com si descrivissin el cas concret. | CORREGIT DOC | Fitxa v1.2 |
 | UC020-32 | Absència de descomptes + Carnet Jove pot entrar en branques amb arrays/índexs no inicialitzats. | VERIFICAT CODI | Errors/proves |
@@ -52,7 +52,7 @@
 | UC020-54 | `GENERAT=1` pot fer elegible web i no intranet. | VERIFICAT | Decisió negoci |
 | UC020-55 | Canvi de curs implementa elegibilitat històrica relativa a DATA_INSC original. | VERIFICAT | P06 |
 | UC020-56 | La frase pública és més ampla que la regla implementada. | VERIFICAT | P01 |
-| UC020-57 | `FACTURA_RELACIONADA != NULL` no és una prova SQL efectiva de no-nul·litat. | VERIFICAT | Regla pendent |
+| UC020-57 | `FACTURA_RELACIONADA != NULL` no és una prova SQL efectiva de no-nul·litat. La branca s'ha eliminat del preview amb UC020-98 i no forma part de la policy v2. | HISTÒRIC_RESOLT_UC020-98 | Policy/preview |
 | UC020-58 | Web, denegació i canvi de curs seleccionen tarifa AP amb filtres diferents. | VERIFICAT | P02/P05/P06 |
 | UC020-59 | Denegació pot veure tarifa futura perquè falta límit DATAI. | VERIFICAT | P05 |
 | UC020-60 | Elegible AP sense tarifa no queda tipificat de manera segura. | VERIFICAT | FINAL ELIGIBLE_NO_PRICE |
@@ -342,3 +342,13 @@ La reauditoria confirma que UC-020 disposa de totes les peces documentals exigid
 ### 12.4. Resultat
 
 `AUDIT_CLOSED_REVALIDATED_2026-10-03`. UC020-94 i UC020-97 eren fronteres d'autoritat client que impedien considerar l'alta AP completament server-authoritative; UC020-98 era una divergència latent de preview. Totes tres queden corregides abans de la revalidació final.
+
+
+## 13. Revalidació addicional — 03/10/2026
+
+| ID | Troballa | Estat | Evidència/destí |
+| --- | --- | --- | --- |
+| UC020-99 | La fitxa conservava una afirmació de CI corresponent a un head anterior. Al head `9a70516`, la suite global és vermella, però les proves UC-020 observades passen. | CORREGIT_DOC + VERIFICAT_CI_ESPECIFIC | [Evidència CI](uc-020-evidencia-ci-2026-10-03.md) |
+| UC020-100 | Els diagrames de classes i seqüència etiquetats com ACTUAL encara descrivien parcialment el comportament pre-hardening (client com autoritat i branca de factura no cobrada). | CORREGIT_DOC | classes/seqüències ACTUAL reescrites segons runtime 03/10 |
+
+**Conclusió de verificació:** el perímetre UC-020 té evidència CI positiva al commit `9a70516`. La suite compartida continua amb 6 fallades no atribuïdes a UC-020, de manera que l'auditoria funcional pot romandre tancada però el verd global del PR no està acreditat.
