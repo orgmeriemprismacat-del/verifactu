@@ -23,6 +23,7 @@
 | T24-16 | segona quota parcial E2 registrada correctament amb receipt diferent | contracte no ho permet de manera robusta | BLOQUEJAT |
 | T24-17 | E2E UI → SIF → DB → UI sobre sif_test/sif_pre | no acreditat | PENDENT |
 | T24-18 | concurrència real de dos intents del mateix rebut | no específica UC-024 | PENDENT |
+| T24-19 | handler JS llegat i variable de curs en correus morositat | `ClaimPaymentLegacyBoundaryTest` | IMPLEMENTADA, pendent execució branca |
 
 ## Evidència que s'ha de conservar per tancar
 
