@@ -250,6 +250,37 @@ JS->>JS: loadDetail(N)
 Note over JS: no executa reconcile automàticament
 ```
 
+## 7.1. SQ09-07b · Resposta terminal amb flow wait invàlid
+
+### ACTUAL corregit / FINAL
+
+```mermaid
+sequenceDiagram
+autonumber
+participant P as FiscalQueueProcessor
+participant F as FlowControlledTransport
+participant T as SoapTransport
+participant X as AEAT
+participant DB as aeat_worker_state
+participant Q as FiscalQueueRepository
+
+F->>DB: NEXT_SEND_AT = now + 60s abans de xarxa
+F->>T: send(snapshot)
+T->>X: SOAP/mTLS
+X-->>T: resposta terminal
+T-->>F: ACCEPTED/WITH_ERRORS/REJECTED + flow_wait_seconds
+alt flow_wait vàlid
+ F->>DB: persistir max(60, wait)
+else flow_wait invàlid
+ F->>F: fallback 60 + requires_review=true
+ F->>DB: mantenir/persistir espera conservadora
+end
+F-->>P: retornar resultat terminal
+P->>Q: complete()
+Q->>DB: fiscal_queue=SENT + ESTAT_AEAT terminal
+Note over P,Q: Mai RETRY només per una anomalia posterior al resultat remot
+```
+
 ## 8.1. SQ09-09 · Recuperar un `PROCESSING` caducat
 
 ### ACTUAL corregit / FINAL
@@ -291,6 +322,7 @@ Note over W,T: AeatTransport NO és invocat
 | SQ09-05 | sí | sí | — |
 | SQ09-06 | sí | sí | — |
 | SQ09-07 | sí | `AeatReviewReconciliationServiceTest` | UUID estricte + contracte UI |
+| SQ09-07b | sí | `AeatWorkflowTest::testInvalidRemoteFlowWaitKeepsTerminalResultAndRequiresReviewWithoutResend` | resultat terminal preservat |
 | SQ09-08 | sí | `IncidentPanelUiContractTest` | contracte UI UC-009 |
 | SQ09-09 | sí | tests stale de `FiscalQueueProcessorTest` i `AeatWorkflowTest` | `PROCESSING → REVIEW`, cap transport |
 
