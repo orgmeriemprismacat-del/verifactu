@@ -20,7 +20,7 @@ UC-20 no és «calcular un percentatge». El codi ACTUAL tracta Alumne PrisMa co
 
 La política llegada no és única:
 
-1. **Web d'inscripció**: historial per DNI amb pagament, curs regal, `GENERAT=1` i una branca de factura relacionada; exclou D/M.
+1. **Web d'inscripció vigent**: historial per DNI amb pagament positiu, curs regal o `GENERAT=1`; exclou D/M. La branca històrica de factura relacionada s'ha eliminat amb UC020-98.
 2. **Denegació d'un altre descompte a intranet**: semblant però sense `GENERAT=1` i sense excloure la inscripció actual.
 3. **Canvi de curs**: pagament/regal, exclou la mateixa inscripció i limita antecedents a la data de la inscripció original.
 
@@ -730,5 +730,5 @@ L'auditoria UC-020 queda **tancada**. El runtime AP de targeta és server-author
 - **UC020-97 — tancat:** `TIPUS_CURS` es deriva de `informacio` al servidor; el navegador ja no pot activar el branch subvencionat per alterar `A_PAGAR`.
 - **UC020-98 — tancat:** el preview AP elimina la branca morta de factura no cobrada i queda alineat explícitament amb `ALUMNE_PRISMA_WEB_LEGACY_V2`.
 - **UC020-95 — compatible amb main:** els canvis nous de Redsys CURS/cutover/callback/worker/factura no reobren la policy AP ni l'autoritat del snapshot; el callback continua consumint la intenció congelada.
-- **Cobertura documental:** aquest UML integrat es complementa amb fitxa v1.6, classes, seqüències, activitats P01…P06, traçabilitat i matriu AP-01…AP-84.
+- **Cobertura documental:** aquest UML integrat es complementa amb fitxa v1.7, classes, seqüències, activitats P01…P06, traçabilitat i matriu AP-01…AP-84.
 - **Pendent de rollout:** E2E real/controlat navegador → Redsys/callback → worker → factura, `payment_link` canònic i transferència sota la mateixa autorització comercial.
