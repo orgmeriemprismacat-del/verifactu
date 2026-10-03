@@ -13,9 +13,11 @@ final class RedsysPaymentIntentService
     public function __construct(
         private RedsysPaymentIntentRepository $intents,
         private UuidGenerator $uuidGenerator,
-        private ?CourseIntentSnapshotValidator $courseSnapshots = null
+        private ?CourseIntentSnapshotValidator $courseSnapshots = null,
+        private ?GroupIntentSnapshotValidator $groupSnapshots = null
     ) {
         $this->courseSnapshots ??= new CourseIntentSnapshotValidator();
+        $this->groupSnapshots ??= new GroupIntentSnapshotValidator();
     }
 
     public function create(\PDO $db, array $input): array
@@ -34,6 +36,8 @@ final class RedsysPaymentIntentService
             $this->courseSnapshots->validate($snapshot, $idpag, $sourceId, $expectedAmount);
         } elseif ($sourceType === 'PACK') {
             $this->validatePackSnapshot($snapshot, $idpag, $sourceId, $expectedAmount);
+        } elseif ($sourceType === 'GRUP') {
+            $this->groupSnapshots->validate($snapshot, $idpag, $sourceId, $expectedAmount);
         }
 
         $snapshotJson = json_encode(
