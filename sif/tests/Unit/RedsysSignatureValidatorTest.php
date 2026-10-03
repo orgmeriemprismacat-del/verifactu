@@ -11,10 +11,11 @@ final class RedsysSignatureValidatorTest
     public function testValidNotificationDecodesAndNormalizesSignedPayload(): void
     {
         $validator = new RedsysSignatureValidator('MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3');
+        $merchantParameters = 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19UcmFuc2FjdGlvblR5cGUiOiIwIiwiRHNfQ3VycmVuY3kiOiI5NzgiLCJEc19UZXJtaW5hbCI6IjEiLCJEc19EYXRlIjoiMDYvMDYvMjAyNiIsIkRzX0hvdXIiOiIxMDozMCJ9';
 
         $payload = $validator->decodeAndVerify([
             'Ds_SignatureVersion' => 'HMAC_SHA256_V1',
-            'Ds_MerchantParameters' => 'eyJEc19PcmRlciI6Ik9SREVSMTIzIiwiRHNfQW1vdW50IjoiMTIwMDAiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19UcmFuc2FjdGlvblR5cGUiOiIwIiwiRHNfQ3VycmVuY3kiOiI5NzgiLCJEc19UZXJtaW5hbCI6IjEiLCJEc19EYXRlIjoiMDYvMDYvMjAyNiIsIkRzX0hvdXIiOiIxMDozMCJ9',
+            'Ds_MerchantParameters' => $merchantParameters,
             'Ds_Signature' => 'KanI4nhDCZxf1ZsRKO06Wl4efSTMTfc8CVdyr-QlhLw=',
         ]);
 
@@ -26,7 +27,7 @@ final class RedsysSignatureValidatorTest
         Assert::same('EUR', $payload['currency']);
         Assert::same('1', $payload['terminal']);
         Assert::same('HMAC_SHA256_V1', $payload['signature_version']);
-        Assert::same('8d4b744ee7c64f817594c7102b10d191ed99a26619a9f5da4501539984d079e1', $payload['payload_hash']);
+        Assert::same(hash('sha256', $merchantParameters), $payload['payload_hash']);
         Assert::same(false, array_key_exists('idpag', $payload));
     }
 
