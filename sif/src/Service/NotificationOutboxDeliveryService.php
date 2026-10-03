@@ -67,6 +67,17 @@ final class NotificationOutboxDeliveryService
                 ];
             }
 
+            if ($status === 'CANCELLED') {
+                $db->commit();
+
+                return [
+                    'should_send' => false,
+                    'status' => 'CANCELLED',
+                    'reason' => 'CANCELLED',
+                    'uuid_notification' => $uuidNotification,
+                ];
+            }
+
             if ($status === 'SENDING') {
                 $db->commit();
 
