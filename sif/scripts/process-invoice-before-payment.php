@@ -9,6 +9,7 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentRedsysGuardRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Service\InvoiceBeforePaymentPayloadBuilder;
 use Prisma\Sif\Service\InvoiceBeforePaymentService;
@@ -40,7 +41,8 @@ try {
         null,
         null,
         null,
-        new InvoiceBeforePaymentCoverageRepository()
+        new InvoiceBeforePaymentCoverageRepository(),
+        new InvoiceBeforePaymentRedsysGuardRepository()
     );
     $service = new InvoiceBeforePaymentService(
         new InvoiceBeforePaymentPayloadBuilder(),
