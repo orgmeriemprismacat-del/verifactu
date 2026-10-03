@@ -7,6 +7,7 @@ use Prisma\Sif\Service\UsocCourseChangeDestinationBindingService;
 use Prisma\Sif\Service\UsocCourseChangeExecutionPreparationService;
 use Prisma\Sif\Service\UsocCourseChangeExecutionService;
 use Prisma\Sif\Service\UsocCourseChangeFundPlanService;
+use Prisma\Sif\Service\UsocCourseChangeLegacyHandoffService;
 use Prisma\Sif\Service\UsocCourseChangePreviewService;
 use Prisma\Sif\Service\UsocCourseChangeTargetResolver;
 
@@ -53,6 +54,7 @@ $checks = [
     'preview_service' => false,
     'preparation_service' => false,
     'destination_binding_service' => false,
+    'legacy_handoff_service' => false,
     'execution_service' => false,
     'usoc_api_endpoint_file' => false,
     'intranet_preview_endpoint_file' => false,
@@ -161,6 +163,8 @@ $checks['preparation_service'] =
     class_exists(UsocCourseChangeExecutionPreparationService::class);
 $checks['destination_binding_service'] =
     class_exists(UsocCourseChangeDestinationBindingService::class);
+$checks['legacy_handoff_service'] =
+    class_exists(UsocCourseChangeLegacyHandoffService::class);
 $checks['execution_service'] =
     class_exists(UsocCourseChangeExecutionService::class);
 
