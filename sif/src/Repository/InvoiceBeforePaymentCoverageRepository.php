@@ -30,18 +30,21 @@ final class InvoiceBeforePaymentCoverageRepository
         }
     }
 
-    public function findClaims(\PDO $db, array $relations): array
+    public function findClaims(\PDO $db, array $relations, bool $forUpdate = false): array
     {
         $origins = $this->inscriptionOrigins($relations);
         $placeholders = implode(',', array_fill(0, count($origins), '?'));
-
-        $stmt = $db->prepare(
+        $sql =
             'SELECT SOURCE_ID, UUID_FACTURA, IDEMPOTENCY_KEY
              FROM invoice_before_payment_coverage
              WHERE SOURCE_TYPE = ?
                AND SOURCE_ID IN (' . $placeholders . ')
-             ORDER BY SOURCE_ID'
-        );
+             ORDER BY SOURCE_ID';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
         $stmt->execute(array_merge(['INSCRIPCIO'], $origins));
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
