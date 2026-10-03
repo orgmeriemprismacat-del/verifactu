@@ -137,7 +137,7 @@ flowchart TD
   C -->|GRUP| F[RedsysGroupInvoiceService]
   C -->|REGAL| G[RedsysGiftInvoiceService]
   C -->|USOC_ALUMNE| H[RedsysUsocInvoiceService]
-  D --> I[InvoiceService + CHARGE]
+  D --> I[RedsysCoveredInvoicePaymentService o InvoiceService + CHARGE]
   E --> I
   F --> I
   G --> I
@@ -177,7 +177,7 @@ flowchart TD
 | Callback | script llegat monolític | endpoint curt + servei | implementat |
 | Signatura | RedsysAPI llegat endurit | `RedsysSignatureValidator` | implementat |
 | Dedupe | no autoritat central | notification + queue unique/reuse | implementat |
-| Factura | INSERT llegat | InvoiceService | implementat |
+| Factura | INSERT llegat | CURS: reutilitza UC-004 si existeix; altrament InvoiceService | implementat a branca / CI pendent |
 | Cobrament | camps acumulatius | payment_transaction/allocation | implementat |
 | Concurrència | no modelada | claim + LOCKED_BY + stale recovery | implementat; fencing reforçat |
 | Retry | no homogeni | 1/5/15/60 min | implementat |
@@ -191,4 +191,4 @@ flowchart TD
 **DOCUMENTAT:** 8 superfícies ACTUAL/FINAL.  
 **IMPLEMENTAT:** nucli FINAL i pont de cutover al repositori.  
 **VERIFICAT:** totes les proves `RedsysCallbackWorkerTest`, incloses les noves, passen al workflow SIF #1204; el CI global continua bloquejat per 6 fallades de baseline alienes al patch UC-003.  
-**PENDENT:** JS candidat, preproducció Redsys, cron/supervisió, factura prèvia i retirada final dels callbacks llegats.
+**PENDENT:** CI/preproducció de la ruta CURS amb factura UC-004 prèvia, prova concurrent UC-004↔Redsys, JS candidat, cron/supervisió i retirada final dels callbacks llegats.
