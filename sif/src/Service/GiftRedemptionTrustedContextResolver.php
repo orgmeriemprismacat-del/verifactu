@@ -95,13 +95,25 @@ final class GiftRedemptionTrustedContextResolver
         }
 
         $productCode = strtoupper(trim((string) ($enrollment['CURS'] ?? '')));
-        $giftProduct = strtoupper(trim((string) ($gift['CCURS'] ?? '')));
-        if ($productCode === ''
-            || ($giftProduct !== '' && $giftProduct !== $productCode)
-        ) {
-            throw SifException::conflict(
-                'Committed gift product does not match the purchased gift'
-            );
+        $giftProduct = $this->purchasedGiftTarget($entitlement, $gift);
+        if ($productCode === '') {
+            throw SifException::conflict('Committed gift product is incomplete');
+        }
+
+        if ($giftProduct !== '') {
+            if (preg_match('/^\\d+$/D', $giftProduct) === 1) {
+                $giftHours = (int) $giftProduct;
+                $courseHours = $this->legacyCourseHours($legacyDb, $enrollment);
+                if ($giftHours <= 0 || $courseHours !== $giftHours) {
+                    throw SifException::conflict(
+                        'Committed gift course hours do not match the purchased gift category'
+                    );
+                }
+            } elseif ($giftProduct !== $productCode) {
+                throw SifException::conflict(
+                    'Committed gift product does not match the purchased gift'
+                );
+            }
         }
 
         $year = trim((string) ($enrollment['ANY'] ?? ''));
@@ -136,6 +148,70 @@ final class GiftRedemptionTrustedContextResolver
                 'holder_state' => $holder === $unclaimed ? 'UNCLAIMED' : 'CLAIMED',
             ],
         ];
+    }
+
+    /**
+     * The entitlement snapshot is the immutable purchase contract. Legacy regal
+     * remains useful for reconciliation but cannot redefine course/hour scope.
+     */
+    private function purchasedGiftTarget(array $entitlement, array $gift): string
+    {
+        $ruleSnapshot = json_decode(
+            (string) ($entitlement['RULE_SNAPSHOT_JSON'] ?? ''),
+            true
+        );
+        $snapshotGiftId = is_array($ruleSnapshot)
+            ? (int) ($ruleSnapshot['legacy_gift_id'] ?? 0)
+            : 0;
+        $snapshotTarget = is_array($ruleSnapshot)
+            ? strtoupper(trim((string) ($ruleSnapshot['legacy_course_code'] ?? '')))
+            : '';
+        $legacyGiftId = (int) ($gift['ID'] ?? 0);
+        $legacyTarget = strtoupper(trim((string) ($gift['CCURS'] ?? '')));
+
+        if (strtoupper((string) ($entitlement['RULE_VERSION'] ?? ''))
+                !== GiftEntitlementIssuerService::RULE_VERSION
+            || $snapshotGiftId <= 0
+            || $snapshotGiftId !== $legacyGiftId
+            || $snapshotTarget === ''
+            || $legacyTarget !== $snapshotTarget
+        ) {
+            throw SifException::conflict(
+                'Legacy gift target does not match the immutable SIF purchase snapshot'
+            );
+        }
+
+        return $snapshotTarget;
+    }
+
+    /**
+     * Legacy stores a generic gift as the number of course hours in regal.CCURS.
+     * For that mode the selected course is authoritative only when its committed
+     * edition has exactly the purchased number of hours.
+     */
+    private function legacyCourseHours(\PDO $legacyDb, array $enrollment): int
+    {
+        $course = trim((string) ($enrollment['CURS'] ?? ''));
+        $year = trim((string) ($enrollment['ANY'] ?? ''));
+        $month = trim((string) ($enrollment['MES'] ?? ''));
+
+        if ($course === '' || $year === '' || $month === '') {
+            throw SifException::conflict('Committed gift edition is incomplete');
+        }
+
+        $statement = $legacyDb->prepare(
+            'SELECT DISTINCT HORES FROM curs WHERE CURS = ? AND ANY = ? AND MES = ?'
+        );
+        $statement->execute([$course, $year, $month]);
+        $rows = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+        if (count($rows) !== 1 || (int) ($rows[0]['HORES'] ?? 0) <= 0) {
+            throw SifException::conflict(
+                'Committed gift course hours cannot be resolved authoritatively'
+            );
+        }
+
+        return (int) $rows[0]['HORES'];
     }
 
     private function assertLegacyContract(

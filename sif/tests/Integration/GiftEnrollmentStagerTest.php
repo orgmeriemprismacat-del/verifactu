@@ -76,6 +76,50 @@ final class GiftEnrollmentStagerTest
         Assert::same(false, str_contains((string) $party['SNAPSHOT_JSON'], $code));
     }
 
+    public function testGenericHoursGiftStagesChosenCourseWhenEditionHoursMatch(): void
+    {
+        [$db, $code, $holder] = $this->fixture();
+        $this->createLegacyCourseEdition($db, 30);
+        $db->exec("UPDATE regal SET CCURS='30'");
+
+        $result = $this->stager()->stage(
+            $db,
+            $db,
+            501,
+            $code,
+            $holder,
+            $this->price()
+        );
+
+        Assert::same('RESERVED', $result['status']);
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_operation
+             WHERE SOURCE_TYPE='INSCRIPCIO' AND SOURCE_ID='501'"
+        )->fetchColumn());
+    }
+
+    public function testGenericHoursGiftRejectsChosenCourseWithDifferentEditionHours(): void
+    {
+        [$db, $code, $holder] = $this->fixture();
+        $this->createLegacyCourseEdition($db, 30);
+        $db->exec("UPDATE regal SET CCURS='40'");
+
+        Assert::throws(SifException::class, function () use ($db, $code, $holder): void {
+            $this->stager()->stage(
+                $db,
+                $db,
+                501,
+                $code,
+                $holder,
+                $this->price()
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query(
+            "SELECT COUNT(*) FROM commercial_operation WHERE SOURCE_TYPE='INSCRIPCIO'"
+        )->fetchColumn());
+    }
+
     public function testSecondEnrollmentCannotStageSameReservedGift(): void
     {
         [$db, $code, $holder] = $this->fixture();
@@ -377,6 +421,22 @@ final class GiftEnrollmentStagerTest
         Assert::same($invoicesBefore, (int) $db->query(
             'SELECT COUNT(*) FROM factura'
         )->fetchColumn());
+    }
+
+    private function createLegacyCourseEdition(\PDO $db, int $hours): void
+    {
+        $db->exec(
+            'CREATE TEMPORARY TABLE curs (
+                CURS VARCHAR(80) NOT NULL,
+                ANY INT NOT NULL,
+                MES VARCHAR(12) NOT NULL,
+                HORES INT NOT NULL
+            )'
+        );
+        $statement = $db->prepare(
+            'INSERT INTO curs (CURS, ANY, MES, HORES) VALUES (?, ?, ?, ?)'
+        );
+        $statement->execute(['COURSE-TEST', 2026, '09', $hours]);
     }
 
     private function stager(): GiftEnrollmentStager

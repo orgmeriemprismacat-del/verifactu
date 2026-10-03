@@ -91,10 +91,20 @@ final class GiftEnrollmentStager
         }
 
         $legacyGiftProduct = strtoupper(trim((string) ($legacyGift['CCURS'] ?? '')));
-        if ($legacyGiftProduct !== '' && $legacyGiftProduct !== $legacyProduct) {
-            throw SifException::conflict(
-                'Legacy gift product does not match the enrollment product.'
-            );
+        if ($legacyGiftProduct !== '') {
+            if (preg_match('/^\\d+$/D', $legacyGiftProduct) === 1) {
+                $giftHours = (int) $legacyGiftProduct;
+                $courseHours = $this->legacyCourseHours($legacyDb, $legacyEnrollment);
+                if ($giftHours <= 0 || $courseHours !== $giftHours) {
+                    throw SifException::conflict(
+                        'Legacy gift course hours do not match the enrollment course.'
+                    );
+                }
+            } elseif ($legacyGiftProduct !== $legacyProduct) {
+                throw SifException::conflict(
+                    'Legacy gift product does not match the enrollment product.'
+                );
+            }
         }
 
         $legacyGiftAmount = $this->cents((string) $legacyGift['IMPORT']);
@@ -134,6 +144,8 @@ final class GiftEnrollmentStager
                     'SIF gift entitlement does not match the committed gift value.'
                 );
             }
+
+            $this->assertImmutableGiftPurchaseSnapshot($entitlement, $legacyGift);
 
             $entitlementStatus = strtoupper((string) ($entitlement['STATUS'] ?? ''));
             if (!in_array(
@@ -369,6 +381,71 @@ final class GiftEnrollmentStager
             }
             throw $exception;
         }
+    }
+
+    /**
+     * The entitlement snapshot binds this redemption to the original UC-017
+     * purchase. A mutable legacy regal row cannot broaden or change its scope.
+     */
+    private function assertImmutableGiftPurchaseSnapshot(
+        array $entitlement,
+        array $legacyGift
+    ): void {
+        $ruleSnapshot = json_decode(
+            (string) ($entitlement['RULE_SNAPSHOT_JSON'] ?? ''),
+            true
+        );
+        $snapshotGiftId = is_array($ruleSnapshot)
+            ? (int) ($ruleSnapshot['legacy_gift_id'] ?? 0)
+            : 0;
+        $snapshotTarget = is_array($ruleSnapshot)
+            ? strtoupper(trim((string) ($ruleSnapshot['legacy_course_code'] ?? '')))
+            : '';
+        $legacyGiftId = (int) ($legacyGift['ID'] ?? 0);
+        $legacyTarget = strtoupper(trim((string) ($legacyGift['CCURS'] ?? '')));
+
+        if (strtoupper((string) ($entitlement['RULE_VERSION'] ?? ''))
+                !== GiftEntitlementIssuerService::RULE_VERSION
+            || $snapshotGiftId <= 0
+            || $snapshotGiftId !== $legacyGiftId
+            || $snapshotTarget === ''
+            || $legacyTarget !== $snapshotTarget
+        ) {
+            throw SifException::conflict(
+                'Legacy gift target does not match the immutable SIF purchase snapshot.'
+            );
+        }
+    }
+
+    /**
+     * Generic legacy gifts store the purchased hour category in regal.CCURS.
+     * Resolve the committed destination edition server-side before staging it.
+     */
+    private function legacyCourseHours(\PDO $legacyDb, array $enrollment): int
+    {
+        $course = trim((string) ($enrollment['CURS'] ?? ''));
+        $year = trim((string) ($enrollment['ANY'] ?? ''));
+        $month = trim((string) ($enrollment['MES'] ?? ''));
+
+        if ($course === '' || $year === '' || $month === '') {
+            throw SifException::conflict(
+                'Legacy gift enrollment edition is incomplete.'
+            );
+        }
+
+        $rows = $this->many(
+            $legacyDb,
+            'SELECT DISTINCT HORES FROM curs WHERE CURS = ? AND ANY = ? AND MES = ?',
+            [$course, $year, $month]
+        );
+
+        if (count($rows) !== 1 || (int) ($rows[0]['HORES'] ?? 0) <= 0) {
+            throw SifException::conflict(
+                'Legacy gift course hours cannot be resolved authoritatively.'
+            );
+        }
+
+        return (int) $rows[0]['HORES'];
     }
 
     private function assertLegacyContract(
