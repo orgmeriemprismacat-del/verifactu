@@ -7,6 +7,7 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentRedsysGuardRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 
@@ -20,7 +21,8 @@ final class InvoiceService
         private ?PaymentPayloadValidator $paymentValidator = null,
         private ?PaymentRepository $payments = null,
         private ?PayloadIdempotencyValidatorInterface $idempotency = null,
-        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null
+        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null,
+        private ?InvoiceBeforePaymentRedsysGuardRepository $beforePaymentRedsysGuard = null
     ) {
         $this->idempotency ??= new PayloadIdempotencyValidator();
     }
@@ -58,6 +60,14 @@ final class InvoiceService
             $existing = $this->invoices->findByIdempotencyKey($db, $payload['idempotency_key'], true);
             if ($existing !== null) {
                 return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
+            }
+
+            if ($this->requiresBeforePaymentCoverage($payload) && $this->beforePaymentRedsysGuard !== null) {
+                $this->beforePaymentRedsysGuard->assertNoBlockingCourseIntents(
+                    $db,
+                    $payload['relations'] ?? [],
+                    true
+                );
             }
 
             $year = (int) ($payload['year'] ?? date('Y'));
