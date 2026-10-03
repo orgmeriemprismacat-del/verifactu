@@ -475,3 +475,25 @@ Note over S,DB: No hi ha parella de UUIDs contradictòria a main quan el payload
 [Fitxa original UC-23](../06-fitxes-funcionals/uc-023.md) · [UC-02 revisada](uc-002-registrar-cobrament-factura.md) · [ManualInstallmentPaymentService](../../sif/src/Service/ManualInstallmentPaymentService.php) · [ManualInstallmentPaymentPayloadBuilder](../../sif/src/Service/ManualInstallmentPaymentPayloadBuilder.php) · [PaymentService](../../sif/src/Service/PaymentService.php) · [ManualInstallmentPaymentServiceTest](../../sif/tests/Integration/ManualInstallmentPaymentServiceTest.php).
 
 **No acreditat:** autorització, verificació de l'ingrés, validació d'import pendent o calendari de quotes i correspondència real inscripció/factura.
+
+
+## 6. Auditoria consolidada 03/10/2026
+
+Aquest document es complementa amb dossiers separats per no barrejar ACTUAL i FINAL:
+
+- [Auditoria i traçabilitat](uc-023-auditoria-tracabilitat-2026-10-03.md)
+- [Classes ACTUAL/FINAL](uc-023-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-023-sequencies-actual-final.md)
+- [Activitats per pàgina ACTUAL/FINAL](uc-023-activitats-pagines-actual-final.md)
+
+### Estat després de l'auditoria
+
+- **Documentat:** sí.
+- **Implementat:** nucli SIF parcial.
+- **Verificat per lectura de codi:** factura existent, CHARGE manual, assignació, idempotència/hash i estat de cobrament.
+- **Verificat per test existent:** casos bàsics descrits a la suite, però l'execució actual requereix evidència CI/preproducció.
+- **Pendent:** adaptador intranet real, POST/autorització/CSRF, relació inscripció-factura, saldo pendent, reconciliació cross-channel i E2E.
+
+### Canvi de compatibilitat de la branca d'auditoria
+
+`ManualInstallmentPaymentPayloadBuilder` accepta un identificador immutable opcional de fracció/event. Quan no es proporciona, manté exactament la clau històrica per evitar duplicar cobraments antics en reintents posteriors al desplegament.
