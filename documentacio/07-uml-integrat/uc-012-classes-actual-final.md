@@ -42,81 +42,95 @@ ConnexioWeb --> LegacyInscripcions
 ### Observacions ACTUAL
 
 - La pàgina/JS decideix quins registres enviar.
-- L'AJAX transmet `idInsc`.
-- `Intranet.php` concentra consulta, càlcul, UPDATE, generació d'URL i SMTP.
-- Estat administratiu, comunicació i eventual baixa queden fortament acoblats.
-- El saldo es deriva principalment de `A_PAGAR-PAGAMENT` al llegat.
+- L’AJAX transmet `idInsc` i el llegat concentra consulta, UPDATE, URL i SMTP.
+- El saldo es deriva principalment de `A_PAGAR-PAGAMENT`.
+- Els POST antics continuen actius fins al cutover; no es reclassifiquen com a segurs pel sol fet d’existir el bridge nou.
 
-## 2. FINAL — arquitectura requerida
+## 2. FINAL — arquitectura implementada a la branca d’auditoria
 
 ```mermaid
 classDiagram
 direction LR
-class DebtClaimController {
-  +preview(command) ClaimPreview
-  +execute(command) ClaimResult
+class SifDebtClaimBridge {
+  <<IMPLEMENTAT>>
+  +preview(invoice)
+  +recordNotice(invoice,stage,options)
+  +reconcileAfterPayment(invoice,options)
 }
-class DebtClaimAuthorization {
-  +assertAllowed(actor, action, scope)
+class DebtClaimInternalApi {
+  <<IMPLEMENTAT>>
+  +preview
+  +record_notice
+  +reconcile_after_payment
 }
 class DebtClaimCoordinator {
-  +evaluateDebt(invoice) DebtSnapshot
-  +recordDecision(command) ClaimCase
-  +scheduleNotice(claimCase) Notice
-  +resolveAfterPayment(uuidPayment)
+  <<IMPLEMENTAT>>
+  +preview(actor,criteria) array
+  +recordNotice(actor,payload) array
+  +reconcileAfterPayment(actor,payload) array
 }
-class ClaimCaseRepository {
-  +findOpenByInvoice()
+class DebtClaimCaseRepository {
+  <<IMPLEMENTAT>>
+  +findByInvoice()
+  +create()
+  +findReusableEvent()
   +appendEvent()
-  +closeOrReschedule()
+  +updateCase()
 }
 class DebtSnapshotRepository {
-  +loadInvoiceBalance()
-  +loadPayer()
-  +loadExtension()
+  <<IMPLEMENTAT>>
+  +findByUuid()
+  +findByNumVisible()
 }
 class NotificationOutboxRepository {
-  +enqueueIdempotent()
-  +cancelPending()
+  <<IMPLEMENTAT>>
+  +enqueue()
+  +cancelPendingForInvoice()
+}
+class OperationalEventRepository {
+  <<REUTILITZAT>>
+  +append()
 }
 class ClaimPaymentService {
+  <<IMPLEMENTAT>>
   +registerByUuid()
   +registerByNumVisible()
 }
 class PaymentService
-class OperationalEventRepository
-DebtClaimController --> DebtClaimAuthorization
-DebtClaimController --> DebtClaimCoordinator
-DebtClaimCoordinator --> ClaimCaseRepository
+SifDebtClaimBridge --> DebtClaimInternalApi : CSRF + HMAC client
+DebtClaimInternalApi --> DebtClaimCoordinator : actor + roles
+DebtClaimCoordinator --> DebtClaimCaseRepository
 DebtClaimCoordinator --> DebtSnapshotRepository
 DebtClaimCoordinator --> NotificationOutboxRepository
 DebtClaimCoordinator --> OperationalEventRepository
-DebtClaimCoordinator --> ClaimPaymentService : només si hi ha ingrés real
 ClaimPaymentService --> PaymentService
 ```
 
 ## 3. Responsabilitats FINAL
 
-### `DebtClaimController`
-Frontera autenticada. Valida CSRF/HMAC segons canal, request-id, idempotency-key, actor, rol i payload.
+### Frontera intranet
+`ajax/facturacio/sifDebtClaim.php` exigeix feature flag, POST, mateix origen, AJAX, CSRF, actor/rol i permís d’edició. No accepta `ID_INSC` com a autoritat fiscal: exigeix `UUID_FACTURA` o `NUM_VISIBLE`.
 
 ### `DebtClaimCoordinator`
-Única autoritat per P-MOR-01..05. No envia correus directament ni modifica factura fiscal pel fet de reclamar.
+Autoritat del cicle de reclamació per acció explícita d’operador. Revalida saldo abans del commit, evita regressions d’etapa, registra events idempotents i no crea cap efecte fiscal/monetari per un avís.
 
-### `ClaimCaseRepository`
-Persistència append-only o versionada de l'expedient: estat, actor, deute observat, destinatari, canal, dates, decisió i correlació.
+### `DebtClaimCaseRepository`
+Persistència versionada de `debt_claim_case` i historial append-only `debt_claim_event`, amb `IDEMPOTENCY_KEY`, `PAYLOAD_HASH`, actor, request/correlation IDs i saldo abans/després.
 
 ### `DebtSnapshotRepository`
-Construeix saldo real a partir de factura + pagaments + devolucions + assignacions + pròrrogues; evita confiar només en camps denormalitzats del llegat.
+Construeix saldo des de `factura` + `payment_allocation` + moviments `CHARGE/COMPENSATION/REFUND`. Resol el receptor fiscal de la factura. **No** inventa venciment/pròrroga: UC-096 continua pendent.
 
 ### `NotificationOutboxRepository`
-Crea una comunicació idempotent **després del commit** i permet cancel·lar/reprogramar avisos obsolets.
+Encola avisos idempotents i cancel·la els `PENDING` quan el deute queda a zero. `NotificationOutboxDeliveryService` tracta `CANCELLED` com a no enviable.
 
 ### `ClaimPaymentService`
-Ja existeix. Només s'invoca després d'acreditar un ingrés real; conserva la factura existent.
+Registra el cobrament real posterior contra la factura existent. La reconciliació del claim es fa després amb `DebtClaimCoordinator::reconcileAfterPayment()`.
 
 ## 4. Estat
 
-- Classes ACTUAL: **IMPLEMENTADES**, inspecció estàtica.
-- `ClaimPaymentService`: **IMPLEMENTAT + TESTS**.
-- Classes FINAL de coordinació: **DISSENYADES / PENDENTS D'IMPLEMENTAR**.
+- Classes ACTUAL: **IMPLEMENTADES LEGACY / inspecció estàtica**.
+- Nucli FINAL SIF: **IMPLEMENTAT A `audit/uc-012-2026-10-03`**.
+- Frontera segura intranet: **IMPLEMENTADA PERÒ DESACTIVADA PER FEATURE FLAG**.
+- Proves: **ESCRITES; GitHub Actions continua en cua**.
+- Automatització per dates: **BLOQUEJADA PER UC-096**.
+- Cutover/preproducció: **PENDENTS**.
