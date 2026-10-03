@@ -58,6 +58,66 @@ final class CreditBalanceServiceTest
         Assert::same('ACTIVE', $credit['ESTAT']);
     }
 
+    public function testCreatesCreditBalanceIdempotentlyWhenCallerProvidesAKey(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $input = [
+            'idempotency_key' => 'CREDIT|BAIXA|INSC:44|PART:1',
+            'holder_type' => 'STUDENT',
+            'holder_id' => 10,
+            'holder_nif_cif' => '12345678Z',
+            'holder_name' => 'Client Exemple',
+            'amount' => '80.00',
+            'source_type' => 'BAIXA',
+            'source_id' => 44,
+            'review_after' => '2031-06-12',
+        ];
+
+        $first = $service->createCredit($input);
+        $second = $service->createCredit($input);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['uuid_credit'], $second['uuid_credit']);
+        Assert::same('80.00', $second['import_disponible']);
+        Assert::same('ACTIVE', $second['estat']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM credit_balance')->fetchColumn());
+
+        $stored = $db->query(
+            'SELECT IDEMPOTENCY_KEY, IDEMPOTENCY_PAYLOAD_HASH FROM credit_balance'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('CREDIT|BAIXA|INSC:44|PART:1', $stored['IDEMPOTENCY_KEY']);
+        Assert::matchesRegularExpression('/^[a-f0-9]{64}$/', (string) $stored['IDEMPOTENCY_PAYLOAD_HASH']);
+    }
+
+    public function testRejectsSameCreditIdempotencyKeyWithDifferentPayload(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $base = [
+            'idempotency_key' => 'CREDIT|CANVI|INSC:77|PART:EXCESS',
+            'holder_type' => 'STUDENT',
+            'holder_id' => 10,
+            'holder_name' => 'Client Exemple',
+            'amount' => '40.00',
+            'source_type' => 'CANVI_CURS',
+            'source_id' => 77,
+        ];
+
+        $service->createCredit($base);
+
+        Assert::throws(SifException::class, static function () use ($service, $base): void {
+            $changed = $base;
+            $changed['amount'] = '50.00';
+            $service->createCredit($changed);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM credit_balance')->fetchColumn());
+        Assert::same('40.00', (string) $db->query('SELECT IMPORT_ORIGINAL FROM credit_balance')->fetchColumn());
+    }
+
     public function testAppliesCreditAsCompensationAndConsumesAvailableBalanceOnce(): void
     {
         $db = TestDatabase::fresh();
