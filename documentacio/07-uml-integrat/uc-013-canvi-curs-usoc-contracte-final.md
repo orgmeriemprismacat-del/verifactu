@@ -263,7 +263,14 @@ Si l'arquitectura final exigeix crear un `credit_balance` intermedi per a excede
 
 ## 10. Ordre d'execució ACTUAL/FINAL
 
-El codi implementat utilitza un handoff en dues fases perquè la inscripció destí continua essent una mutació legacy:
+El canvi de curs conserva una mutació legacy per a la matrícula, però la sessió **ja no és l'única prova de handoff**. El contracte executable separa:
+
+- reserva del destí legacy;
+- binding durable SIF;
+- materialització acadèmica legacy;
+- verificació directa de les files legacy;
+- checkpoint SIF `LEGACY_COMPLETED`;
+- efectes fiscals/econòmics només després d'aquest checkpoint.
 
 ```mermaid
 flowchart TD
@@ -274,27 +281,40 @@ flowchart TD
     E --> F[Reservar ID_INSC + IDPAG destí al legacy]
     F --> G[bind_course_change_destination]
     G --> H[DESTINATION_RESERVED al SIF]
-    H --> I{legacy_completed?}
-    I -- No --> J[Materialitzar canvi legacy exactament sobre la reserva]
-    J --> K[Validar ID_INSC creat == reservat]
-    K --> L[Guardar legacy_completed=true en sessió]
-    I -- Sí retry --> M[Saltar mutació legacy]
-    L --> N[execute_course_change]
-    M --> N
-    N --> O[Revalidar identitat, binding i fons origen]
-    O --> P[Rectificar factura alumne origen]
-    P --> Q[Rectificar factura entitat origen si existeix]
-    Q --> R[Emetre factura alumne destí]
-    R --> S[Emetre factura entitat destí]
-    S --> T[Compensar fons reals per pagador]
-    T --> U[Reconciliar nou expedient]
-    U --> V[Esdeveniments + execution COMPLETED]
-    V --> W[Eliminar checkpoint de sessió]
+    H --> I[confirm_course_change_legacy_handoff]
+    I --> J{Origen legacy ja C?}
+    J -- No --> K[Materialitzar canvi legacy sobre la reserva]
+    K --> L[Validar ID_INSC creat == reservat]
+    L --> M[Guardar legacy_completed=true en sessió]
+    M --> N[Reconfirmar handoff contra BD legacy]
+    J -- Sí recovery --> N
+    N --> O[Verificar origen C + PAGAMENT=0 + DATA_BAIXA]
+    O --> P[Verificar destí ID/IDPAG/marker/imports/USOC]
+    P --> Q[Persistir RESULT_JSON phase=LEGACY_COMPLETED]
+    Q --> R[execute_course_change]
+    R --> S[Exigir LEGACY_COMPLETED + source_closed=true]
+    S --> T[Revalidar fons origen]
+    T --> U[Rectificar factures origen]
+    U --> V[Emetre factures destí alumne + entitat]
+    V --> W[Compensar fons reals per pagador]
+    W --> X[Reconciliar + events + COMPLETED]
+    X --> Y[Eliminar context de sessió]
 ```
 
 ### Recuperació després de fallada parcial
 
-Si el legacy s'ha materialitzat però l'execució SIF falla, el context conserva `legacy_completed=true`. El retry no torna a crear la inscripció, reutilitza la mateixa reserva/binding i reprèn només l'execució SIF idempotent.
+La sessió és només un **accelerador de retry**. La prova durable és la combinació de:
+
+1. files legacy coherents;
+2. `usoc_lifecycle_execution.RESULT_JSON.phase=LEGACY_COMPLETED`;
+3. `legacy_handoff_completed=true`;
+4. `source_closed=true`.
+
+Si la sessió es perd després de materialitzar el legacy, la reserva existent es pot recuperar encara que l'origen ja estigui en `INSC CURS='C'`. El SIF torna a contrastar origen/destí i reconstrueix `LEGACY_COMPLETED` sense repetir correus, Moodle ni la mutació legacy.
+
+Si el SIF ja havia arribat a `COMPLETED` però es perd la resposta HTTP, el prepare tracta el mateix `requestId` com a èxit idempotent i la UI recarrega l'estat actual, sense repetir efectes.
+
+Si la BD legacy mostra un tancament parcial/incoherent, l'execució passa durablement a `REVIEW_REQUIRED` i **no** s'apliquen rectificatives, factures destí ni compensacions.
 
 ## 11. Idempotència
 
