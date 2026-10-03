@@ -299,14 +299,18 @@ start
 :Cridar PaymentLinkService::resolve(token);
 :Validar hash, ACTIVE i expiració;
 :Recuperar commercial_operation;
+if (CLASSIFICATION != BILLABLE?) then (Sí)
+ :Bloquejar amb conflicte comercial;
+ stop
+endif
+if (STATUS no és READY_FOR_PAYMENT/PAYMENT_PENDING?) then (Sí)
+ :Bloquejar; no retornar autorització de cobrament;
+ stop
+endif
 :Recuperar discount_validation vigent;
 :Recuperar ledger de pagaments/factura;
 :Calcular total, cobrat i pendent;
-if (Oferta PAYABLE i link ACTIVE?) then (Sí)
- :Mostrar mètodes autoritzats;
-else (No)
- :Mostrar PENDING/REVOKED/REQUIRES_ADJUSTMENT;
-endif
+:Mostrar només mètodes autoritzats;
 stop
 @enduml
 ```
@@ -379,18 +383,21 @@ title P04 | FINAL | autorització única de cobrament
 start
 :Cridar PaymentLinkService::resolve(token);
 :Recuperar UUID_OPERATION i EXPECTED_AMOUNT;
-:Comprovar ACTIVE, expiry i vigència de l'operació;
-:Calcular saldo des del ledger;
-if (Operació PAYABLE?) then (Sí)
- :Habilitar només mètodes autoritzats;
- :Crear/reutilitzar intenció Redsys des de snapshot;
-note right
-  IMPLEMENTAT per pagament targeta AP via course-intent; pendent per payment_link/altres canals
-  payment_link/commercial_operation -> RedsysPaymentIntentService
-end note
-else (No)
+:Comprovar token ACTIVE, expiry i vigència;
+:Exigir CLASSIFICATION=BILLABLE;
+:Exigir STATUS READY_FOR_PAYMENT o PAYMENT_PENDING;
+if (El servei rebutja?) then (Sí)
  :No mostrar instruccions executables;
+ stop
 endif
+:Calcular saldo des del ledger;
+:Habilitar només mètodes autoritzats;
+:Crear/reutilitzar intenció Redsys des de snapshot;
+note right
+  Guard payment_link IMPLEMENTAT.
+  Checkout targeta AP via course-intent IMPLEMENTAT.
+  Wiring de P03/P04 al payment_link encara PENDENT.
+end note
 stop
 @enduml
 ```
@@ -670,3 +677,8 @@ Per UC-020, P02 continua sent llegat en transport i UX, però ja no és autorita
 - **P05:** resolució revalidada com POST + sessió + permís + CSRF + `requestId`; queda deute de concurrència/idempotència persistent a BD.
 - **P06:** la lògica llegada de canvi de curs continua sent una superfície diferent; la seva convergència completa a la policy/oferta SIF és migració transversal.
 - **Callback/factura:** el `main` actual incorpora proves E2E simulades de callback → worker → pagament/factura/sync/outbox. No substitueixen el gate real de preproducció.
+
+
+### Reconciliació P03/P04 — continuació 03/10/2026
+
+La infraestructura `PaymentLinkService` ja no es limita a token/expiració/import: abans d'emetre o resoldre exigeix `commercial_operation.CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT|PAYMENT_PENDING`. Això tanca la mancança de guard d'AP-50/AP-54 a la capa SIF. Les pantalles ACTUALS continuen sent les rutes llegades descrites a P03/P04; la seva substitució pel flux canònic continua pendent.
