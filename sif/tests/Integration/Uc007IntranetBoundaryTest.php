@@ -12,6 +12,9 @@ final class Uc007IntranetBoundaryTest
         $js = $this->readIntranet('js/alumnes-factura.js');
 
         Assert::stringContainsString('js/alumnes-factura.js?ver=1.1', $page);
+        if (str_contains($page, 'SIF_INVOICE_QUERY_UI_ENABLED')) {
+            Assert::fail('Obsolete no-op UC-007 UI flag must not remain in the page template.');
+        }
         if (str_contains($page, 'alumnes-factura-sif.js')) {
             Assert::fail('UC-007 invoice page must not load the obsolete duplicate SIF module.');
         }
@@ -30,6 +33,9 @@ final class Uc007IntranetBoundaryTest
         $js = $this->readIntranet('js/alumnes-mostrar-alumne.js');
 
         Assert::stringContainsString('js/alumnes-mostrar-alumne.js?ver=1.7', $page);
+        if (str_contains($page, 'SIF_INVOICE_QUERY_UI_ENABLED')) {
+            Assert::fail('Obsolete no-op UC-007 UI flag must not remain in the student page template.');
+        }
         if (str_contains($page, 'alumnes-mostrar-alumne.min.js')) {
             Assert::fail('UC-007 student page must not execute the stale minified invoice flow.');
         }
