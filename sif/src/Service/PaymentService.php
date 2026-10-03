@@ -19,10 +19,15 @@ final class PaymentService
 
     public function registerPayment(array $payload): array
     {
+        return $this->registerPaymentWithPrecondition($payload, null);
+    }
+
+    public function registerPaymentWithPrecondition(array $payload, ?callable $beforeCreate): array
+    {
         $payload = $this->validator->validate($payload);
 
         try {
-            return $this->createOrReusePayment($payload);
+            return $this->createOrReusePayment($payload, $beforeCreate);
         } catch (\PDOException $exception) {
             if (!$this->isDuplicateKeyException($exception)) {
                 throw $exception;
@@ -32,13 +37,17 @@ final class PaymentService
         }
     }
 
-    private function createOrReusePayment(array $payload): array
+    private function createOrReusePayment(array $payload, ?callable $beforeCreate): array
     {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
+        return $this->transactions->run(function (\PDO $db) use ($payload, $beforeCreate): array {
             $existing = $this->payments->findByIdempotencyKey($db, $payload['idempotency_key'], true);
             if ($existing !== null) {
                 $this->assertSamePayload($payload, $existing);
                 return $this->existingResult($existing);
+            }
+
+            if ($beforeCreate !== null) {
+                $beforeCreate($db, $payload);
             }
 
             $created = $this->payments->createPayment($db, $payload);
