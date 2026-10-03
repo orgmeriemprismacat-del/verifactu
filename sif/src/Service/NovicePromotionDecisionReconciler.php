@@ -40,16 +40,22 @@ final class NovicePromotionDecisionReconciler
         }
 
         $stmt = $sifDb->prepare(
-            "SELECT op.UUID_OPERATION, op.SOURCE_ID
+            "SELECT DISTINCT op.UUID_OPERATION, op.SOURCE_ID
              FROM commercial_operation op
-             JOIN discount_validation validation
+             LEFT JOIN discount_validation validation
                ON validation.UUID_OPERATION = op.UUID_OPERATION
               AND validation.DISCOUNT_TYPE = 'NOVICE_TEACHER'
-              AND validation.STATUS = 'PENDING'
              WHERE op.SOURCE_TYPE = 'CURS'
                AND op.PRODUCT_TYPE = 'CURS'
                AND op.PRODUCT_CODE = 'JASOM'
                AND op.STATUS = 'PENDING_VALIDATION'
+               AND (
+                    validation.STATUS = 'PENDING'
+                    OR (
+                        validation.UUID_VALIDATION IS NULL
+                        AND op.CLASSIFICATION_REASON = 'NOVICE_REVIEW'
+                    )
+               )
              ORDER BY op.CREATED_AT, op.UUID_OPERATION
              LIMIT ?"
         );
