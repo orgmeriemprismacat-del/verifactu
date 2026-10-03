@@ -128,11 +128,37 @@ final class RecordFactory
                 throw new \InvalidArgumentException('AEAT totals require decimal strings with two places.');
             }
         }
-        if (str_starts_with($record['TipoFactura'] ?? '', 'R')
-            && !in_array($record['TipoRectificativa'] ?? '', ['S', 'I'], true)) {
-            throw new \InvalidArgumentException('Rectification method is required.');
+        $invoiceType = (string) ($record['TipoFactura'] ?? '');
+        $isRectification = preg_match('/^R[1-5]$/D', $invoiceType) === 1;
+
+        if ($isRectification) {
+            $method = (string) ($record['TipoRectificativa'] ?? '');
+            if (!in_array($method, ['S', 'I'], true)) {
+                throw new \InvalidArgumentException('Rectification method is required.');
+            }
+
+            if ($method === 'S' && empty($record['ImporteRectificacion'])) {
+                throw new \InvalidArgumentException(
+                    'Substitutive rectification requires ImporteRectificacion.'
+                );
+            }
+
+            if ($method === 'I' && array_key_exists('ImporteRectificacion', $record)) {
+                throw new \InvalidArgumentException(
+                    'Incremental rectification cannot include ImporteRectificacion.'
+                );
+            }
+        } elseif (
+            array_key_exists('TipoRectificativa', $record)
+            || array_key_exists('FacturasRectificadas', $record)
+            || array_key_exists('ImporteRectificacion', $record)
+        ) {
+            throw new \InvalidArgumentException(
+                'Rectification fields are only valid for invoice types R1 to R5.'
+            );
         }
-        if (($record['TipoFactura'] ?? '') === 'F1' && empty($record['Destinatarios'])) {
+
+        if ($invoiceType === 'F1' && empty($record['Destinatarios'])) {
             throw new \InvalidArgumentException('Complete invoice requires its recipient.');
         }
     }
