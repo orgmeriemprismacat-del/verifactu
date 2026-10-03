@@ -926,6 +926,7 @@ class RegalCurs{
    	$textAdreca = new Text($adreca);
    	$textCodiPostal = new Text($cp);
    	$textPoblacio = new Text($poblacio);
+      $textComentaris = null;
       if ($comentaris!='')
    	  $textComentaris = new Text($comentaris);
    	$textTitolCurs = new Text($nomCurs);
@@ -1047,15 +1048,109 @@ class RegalCurs{
    	}
    	$connexio->closeStmt();
 
-      /* ############################# ENVIAR MSG CURT ########################## */
-      $templates = new Template();
-
-      //envia un missatge curt a gestio i botiga
+      /* ######################## RESERVA AUTORITATIVA REGAL ##################### */
       $preuRealBD = $preuBD;
       if ($percentatgeBD>0) {
          $preuRealBD = $preuBD - ($preuBD*$percentatgeBD/100);
       }
 
+      $insertNomCursBD = '';
+      if (intval($codiCurs)!=0)
+         $insertNomCursBD = "Curs de ".$codiCurs." hores";
+      else
+         $insertNomCursBD = $nomCursBD;
+
+      // Serialitza dobles enviaments de la mateixa reserva de sessió.
+      $lockName = 'uc017_gift_' . $codiRegalBD;
+      $stmtLock = $connexio->prepare("SELECT GET_LOCK(?, 5)");
+      $stmtLock->bind_param("s", $lockName);
+      $stmtLock->execute();
+      $stmtLock->bind_result($lockAcquired);
+      $stmtLock->fetch();
+      $connexio->closeStmt();
+      if ((int) $lockAcquired !== 1) {
+         throw new RuntimeException('GIFT_RESERVATION_LOCK_TIMEOUT');
+      }
+
+      try {
+         $stmtExisting = $connexio->prepare(
+            "SELECT ID, NIFC, MAILC, CCURS, IMPORT FROM regal WHERE CODI=? LIMIT 1"
+         );
+         $stmtExisting->bind_param("s", $codiRegalBD);
+         $stmtExisting->execute();
+         $stmtExisting->store_result();
+
+         if ($stmtExisting->num_rows() > 0) {
+            $stmtExisting->bind_result(
+               $existingGiftId,
+               $existingNif,
+               $existingMail,
+               $existingCourse,
+               $existingAmount
+            );
+            $stmtExisting->fetch();
+            $connexio->closeStmt();
+
+            $sameReservation = strtoupper(trim((string) $existingNif)) === strtoupper(trim((string) $dniBD))
+               && strtolower(trim((string) $existingMail)) === strtolower(trim((string) $emailBD))
+               && strtoupper(trim((string) $existingCourse)) === strtoupper(trim((string) $codiCursH))
+               && number_format((float) $existingAmount, 2, '.', '')
+                  === number_format((float) $preuRealBD, 2, '.', '');
+
+            if (!$sameReservation) {
+               throw new RuntimeException('GIFT_CODE_ALREADY_BOUND_TO_DIFFERENT_RESERVATION');
+            }
+
+            $idInserit = (int) $existingGiftId;
+         }
+         else {
+            $connexio->closeStmt();
+
+            $insertBD = "INSERT INTO regal (NOMC, NIFC, TELC, MAILC, CPC, ADRECAC,
+                         POBLEC, DATA, CCURS, NOM_CURS, IMPORT, DESTI, DEDICATORIA,
+                         ORIGEN, CODI, ESTIL, OBSERVACIONS)
+                         VALUES (?,?,?,?,?,?,?,CURRENT_DATE,?,?,?,?,?,?,?,?,?)";
+            $stmtIns=$connexio->prepare($insertBD);
+            $stmtIns->bind_param(
+               "ssdssssssdssssds",
+               $nomCognoms,
+               $dniBD,
+               $telfBD,
+               $emailBD,
+               $cpBD,
+               $adrecaBD,
+               $pobleBD,
+               $codiCursH,
+               $insertNomCursBD,
+               $preuRealBD,
+               $destiBD,
+               $dedicatoriaBD,
+               $origenBD,
+               $codiRegalBD,
+               $estilBD,
+               $observacionsBD
+            );
+            $stmtIns->execute();
+            $idInserit = $connexio->lastInsertId();
+            $stmtIns->fetch();
+            $connexio->closeStmt();
+
+            if ((int) $idInserit <= 0) {
+               throw new RuntimeException('GIFT_RESERVATION_INSERT_FAILED');
+            }
+         }
+      }
+      finally {
+         $stmtUnlock = $connexio->prepare("SELECT RELEASE_LOCK(?)");
+         $stmtUnlock->bind_param("s", $lockName);
+         $stmtUnlock->execute();
+         $connexio->closeStmt();
+      }
+
+      /* ############################# ENVIAR MSG CURT ########################## */
+      $templates = new Template();
+
+      //envia un missatge curt a gestio i botiga
       $msg = $templates->getTemplate_Inscripcions_EnviamenRegalShort($codiCurs, $dedicatoria, $comentaris);
    	$names_template = array("[NOM_ALUMNE]", "[COG_ALUMNE]", "[DNI_ALUMNE]",
    		"[EMAIL_ALUMNE]",	"[TEL_ALUMNE]", "[ADRECA_ALUMNE]", "[CP_ALUMNE]",
@@ -1092,24 +1187,6 @@ class RegalCurs{
    	// $mailCurtWebMaster->addTo('meriem.prisma.cat@gmail.com');
    	$mailCurtWebMaster->addMissatge($msg);
    	$mailCurtWebMaster->sendMessage();
-
-      /* ############################ INSERT BD ################################ */
-
-      if (intval($codiCurs)!=0)
-   	  $insertNomCursBD .= "Curs de ".$codiCurs." hores";
-      else
-         $insertNomCursBD .= $nomCursBD;
-
-      $insertBD = "INSERT INTO regal (NOMC, NIFC, TELC, MAILC, CPC, ADRECAC,
-                   POBLEC, DATA, CCURS, NOM_CURS, IMPORT, DESTI, DEDICATORIA,
-         			 ORIGEN, CODI, ESTIL, OBSERVACIONS)
-   	 				 VALUES (?,?,?,?,?,?,?,CURRENT_DATE,?,?,?,?,?,?,?,?,?)";
-   	$stmtIns=$connexio->prepare($insertBD);
-   	$stmtIns->bind_param("ssdssssssdssssds", $nomCognoms, $dniBD, $telfBD, $emailBD, $cpBD, $adrecaBD, $pobleBD, $codiCursH, $insertNomCursBD, $preuRealBD, $destiBD, $dedicatoriaBD, $origenBD, $codiRegalBD, $estilBD, $observacionsBD);
-   	$stmtIns->execute();
-      $idInserit = $connexio->lastInsertId();
-   	$stmtIns->fetch();
-   	$connexio->closeStmt();
 
       /* ############### BUSCAR USERNME I PASSWORD AUTENTIFICACIÓ ############# */
 
