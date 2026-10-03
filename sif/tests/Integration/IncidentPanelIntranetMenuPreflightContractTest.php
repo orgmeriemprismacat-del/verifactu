@@ -24,7 +24,7 @@ final class IncidentPanelIntranetMenuPreflightContractTest
         Assert::stringContainsString('DUPLICATE_TARGET_URL', $source);
         Assert::stringContainsString('CONFIRM_PARENT_ROLES_ORDER_BEFORE_INSERT', $source);
         Assert::stringContainsString("'read_only' => true", $source);
-        Assert::stringContainsString("'environment' => $environment", $source);
+        Assert::stringContainsString("'environment' => \$environment", $source);
         Assert::stringContainsString("getenv('SIF_ENV')", $source);
 
         foreach ([
