@@ -175,4 +175,24 @@ final class AeatReviewReconciliationServiceTest
         Assert::same('REVIEW', $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
     }
 
+
+    public function testRejectsMalformedAttemptUuidBeforeDatabaseReconciliation(): void
+    {
+        $db = TestDatabase::fresh();
+
+        Assert::throws(
+            SifException::class,
+            fn () => (new AeatReviewReconciliationService(
+                new TransactionRunner($db),
+                new FiscalQueueRepository(),
+                new IncidentRepository()
+            ))->reconcile(
+                1,
+                '------------------------------------',
+                'tester'
+            ),
+            422
+        );
+    }
+
 }
