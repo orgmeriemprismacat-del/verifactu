@@ -105,6 +105,45 @@ final class CommercialOperationRepository
         }
     }
 
+
+    public function linkInvoice(
+        \PDO $db,
+        string $uuidOperation,
+        string $uuidFactura
+    ): void {
+        $operation = $this->findByUuid($db, $uuidOperation, true);
+        if ($operation === null) {
+            throw SifException::notFound('Commercial operation not found');
+        }
+
+        $current = $this->nullableString($operation['UUID_FACTURA'] ?? null);
+        if ($current === $uuidFactura) {
+            return;
+        }
+        if ($current !== null) {
+            throw SifException::conflict('Commercial operation is already linked to another invoice');
+        }
+
+        $stmt = $db->prepare(
+            'UPDATE commercial_operation
+             SET UUID_FACTURA = ?
+             WHERE UUID_OPERATION = ?
+               AND UUID_FACTURA IS NULL'
+        );
+        $stmt->execute([$uuidFactura, $uuidOperation]);
+
+        if ($stmt->rowCount() !== 1) {
+            $latest = $this->findByUuid($db, $uuidOperation, true);
+            if ($latest !== null
+                && $this->nullableString($latest['UUID_FACTURA'] ?? null) === $uuidFactura
+            ) {
+                return;
+            }
+
+            throw SifException::conflict('Commercial operation invoice link could not be updated');
+        }
+    }
+
     private function findOne(\PDO $db, string $sql, array $params, bool $forUpdate): ?array
     {
         if ($forUpdate) {
