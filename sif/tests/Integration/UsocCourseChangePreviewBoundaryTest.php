@@ -92,7 +92,11 @@ final class UsocCourseChangePreviewBoundaryTest
         Assert::stringContainsString('#modalCanviCurs .save-result', $usocJs);
         Assert::stringContainsString('event.stopImmediatePropagation()', $usocJs);
         Assert::stringContainsString(
-            'Encara no s’executarà el canvi',
+            'vincularà el checkpoint SIF abans del canvi legacy',
+            $usocJs
+        );
+        Assert::stringContainsString(
+            'sifUsocCourseChangePrepare.php',
             $usocJs
         );
     }
