@@ -77,6 +77,32 @@ final class InvoiceDocumentAccessServiceTest
         }
     }
 
+    public function testPathOutsidePrivateRootIsRejectedAndAudited(): void
+    {
+        [$db, $invoice, $id, $root, $bytes] = $this->fixture();
+        $outside = sys_get_temp_dir() . '/uc007-outside-' . bin2hex(random_bytes(8));
+        mkdir($outside, 0700, true);
+        file_put_contents($outside . '/outside.pdf', $bytes);
+
+        try {
+            $db->prepare('UPDATE factura_documents SET PATH_FITXER = ? WHERE ID = ?')
+                ->execute([$outside . '/outside.pdf', $id]);
+
+            Assert::throws(
+                SifException::class,
+                fn () => $this->service($db, $root)->download(
+                    $this->actor($invoice['uuid_factura'], 'FULL', 'uc007-path'),
+                    $id
+                ),
+                403
+            );
+            $this->assertLastAudit($db, 'FAILED', 'PATH_OUTSIDE_STORAGE');
+        } finally {
+            $this->cleanup($root);
+            $this->cleanup($outside);
+        }
+    }
+
     private function fixture(): array
     {
         $db = TestDatabase::fresh();
