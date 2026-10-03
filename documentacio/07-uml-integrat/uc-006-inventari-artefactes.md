@@ -55,7 +55,7 @@ No cal crear fitxers buits addicionals. El paquet documental objectiu queda cobe
 
 | Peça | Fitxer | Estat |
 | --- | --- | --- |
-| Servei | `CreditBalanceService.php` | IMPLEMENTAT PARCIAL · `createCredit()` idempotent quan el caller aporta clau |
+| Servei | `CreditBalanceService.php` | IMPLEMENTAT PARCIAL · `createCredit()` idempotent amb clau i reús de compensació protegit per hash de payload |
 | Builder | `CreditBalancePayloadBuilder.php` | IMPLEMENTAT |
 | Repositori | `CreditBalanceRepository.php` | IMPLEMENTAT |
 | Preview saldo | `preview-credit-balance.php` | IMPLEMENTAT NO PRODUCTIU |
@@ -145,6 +145,7 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 - saldo creat;
 - compensació parcial;
 - compensació completa;
+- mateixa K de compensació amb payload diferent → conflicte (**test afegit; CI pendent**);
 - compensació > saldo;
 - compensació > deute;
 - atribució inicial de curs per inscripció;
