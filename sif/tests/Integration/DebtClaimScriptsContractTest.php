@@ -29,6 +29,7 @@ final class DebtClaimScriptsContractTest
         Assert::stringContainsString('->preview(', $preview);
         Assert::stringContainsString('--uuid-factura=', $preview);
         Assert::stringContainsString('--num-visible=', $preview);
+        Assert::stringContainsString('--id-insc=', $preview);
 
         Assert::stringContainsString('SIF_ENV=production', $process);
         Assert::stringContainsString('new DebtClaimCoordinator(', $process);
@@ -37,6 +38,7 @@ final class DebtClaimScriptsContractTest
         Assert::stringContainsString('FINAL_CLAIM', $process);
         Assert::stringContainsString('RECONCILE_AFTER_PAYMENT', $process);
         Assert::stringContainsString('--uuid-payment=', $process);
+        Assert::stringContainsString('--id-insc=', $process);
         Assert::stringContainsString('->recordNotice(', $process);
         Assert::stringContainsString('->reconcileAfterPayment(', $process);
     }
