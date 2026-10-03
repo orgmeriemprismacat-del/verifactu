@@ -6,7 +6,7 @@ use Prisma\Sif\Tests\Support\Assert;
 
 final class PackPaymentPrivacyBoundaryTest
 {
-    public function testPackRedsysPayloadUsesNameNotDniAndOmitsEmailFromReturnUrls(): void
+    public function testPackRedsysPayloadUsesNameNotDniAndKeepsEmailOutOfPackReturnUrls(): void
     {
         $root = dirname(__DIR__, 3);
         $paths = [
@@ -32,10 +32,6 @@ final class PackPaymentPrivacyBoundaryTest
                 'setParameter("DS_MERCHANT_TITULAR",$redsysTitular)',
                 $source
             );
-            Assert::stringContainsString(
-                'if ($validatedPackCheckout === null)',
-                $source
-            );
 
             $returnUrlBase = strpos(
                 $source,
@@ -46,91 +42,84 @@ final class PackPaymentPrivacyBoundaryTest
                 'if ($validatedPackCheckout === null)',
                 $returnUrlBase === false ? 0 : $returnUrlBase
             );
-            $emailOk = strpos(
-                $source,
-                '$urlOK .= "?email=".rawurlencode($email)',
-                $legacyReturnGuard === false ? 0 : $legacyReturnGuard
-            );
-            $emailKo = strpos(
-                $source,
-                '$urlKO .= "?email=".rawurlencode($email)',
-                $legacyReturnGuard === false ? 0 : $legacyReturnGuard
-            );
             $packCallbackBranch = strpos(
                 $source,
-                "if ( $tipusInsc == 'P' )",
+                "if ( \$tipusInsc == 'P' )",
                 $legacyReturnGuard === false ? 0 : $legacyReturnGuard
             );
 
             Assert::same(true, $returnUrlBase !== false);
             Assert::same(true, $legacyReturnGuard !== false);
-            Assert::same(true, $emailOk !== false);
-            Assert::same(true, $emailKo !== false);
             Assert::same(true, $packCallbackBranch !== false);
             Assert::same(true, $returnUrlBase < $legacyReturnGuard);
-            Assert::same(true, $legacyReturnGuard < $emailOk);
-            Assert::same(true, $legacyReturnGuard < $emailKo);
-            Assert::same(true, $emailOk < $packCallbackBranch);
-            Assert::same(true, $emailKo < $packCallbackBranch);
+            Assert::same(true, $legacyReturnGuard < $packCallbackBranch);
 
-            $guardSlice = substr(
+            $legacyOnlyReturnSlice = substr(
                 $source,
                 (int) $legacyReturnGuard,
                 (int) $packCallbackBranch - (int) $legacyReturnGuard
             );
+
             Assert::stringContainsString(
                 '$urlOK .= "?email=".rawurlencode($email)',
-                $guardSlice
+                $legacyOnlyReturnSlice
             );
             Assert::stringContainsString(
                 '$urlKO .= "?email=".rawurlencode($email)',
-                $guardSlice
+                $legacyOnlyReturnSlice
             );
+            Assert::same(
+                1,
+                substr_count($source, '$urlOK .= "?email=".rawurlencode($email)')
+            );
+            Assert::same(
+                1,
+                substr_count($source, '$urlKO .= "?email=".rawurlencode($email)')
+            );
+
+            $packProductStart = strpos(
+                $source,
+                "\$producto = 'Pack P' . (string) \$validatedPackCheckout['pack_id']"
+            );
+            $packProductEnd = strpos(
+                $source,
+                '// Se Rellenan los campos',
+                $packProductStart === false ? 0 : $packProductStart
+            );
+            Assert::same(true, $packProductStart !== false);
+            Assert::same(true, $packProductEnd !== false);
+
+            $packProductSlice = substr(
+                $source,
+                (int) $packProductStart,
+                (int) $packProductEnd - (int) $packProductStart
+            );
+            Assert::same(false, str_contains($packProductSlice, '$dniTitularPag.'));
+            Assert::stringContainsString('$redsysTitular = trim($nomTitularPag)', $packProductSlice);
         }
     }
 
-    public function testPaymentResponsePagesTreatEmailAsOptionalEscapedHint(): void
+    public function testPaymentResponsePagesDoNotExposeEmailAndUseNoStoreHeaders(): void
     {
         $root = dirname(__DIR__, 3);
 
-        $legacyPages = [
+        $responsePages = [
             $root . '/codi-drive/web-actual/respostaOkPagamentAutomatic.php',
             $root . '/codi-drive/web-actual/respostaKoPagamentAutomatic.php',
+            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/respostaOkPagamentAutomatic.php',
+            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/respostaKoPagamentAutomatic.php',
         ];
-        foreach ($legacyPages as $path) {
+
+        foreach ($responsePages as $path) {
             $source = file_get_contents($path);
             if (!is_string($source)) {
                 Assert::fail('Could not load Redsys response page: ' . $path);
             }
 
-            Assert::stringContainsString("(\$_GET['email'] ?? '')", $source);
-            Assert::stringContainsString('FILTER_VALIDATE_EMAIL', $source);
-            Assert::stringContainsString(
-                "htmlspecialchars(\$emailRaw, ENT_QUOTES, 'UTF-8')",
-                $source
-            );
-            Assert::stringContainsString("\$emailHint = \$email !== ''", $source);
-
-            if (str_contains($source, "\$email = \$_GET['email'];")) {
-                Assert::fail('Redsys response page must not trust raw email query data.');
-            }
-        }
-
-        $payPages = [
-            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/respostaOkPagamentAutomatic.php',
-            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/respostaKoPagamentAutomatic.php',
-        ];
-        foreach ($payPages as $path) {
-            $source = file_get_contents($path);
-            if (!is_string($source)) {
-                Assert::fail('Could not load pay.prisma.cat Redsys response page: ' . $path);
-            }
-
-            Assert::stringContainsString(
-                "require_once __DIR__ . '/CoursePaymentReturnStatus.php'",
-                $source
-            );
-            Assert::stringContainsString('uc014RenderPaymentReturn(', $source);
+            Assert::stringContainsString('Cache-Control: private, no-store, max-age=0', $source);
+            Assert::stringContainsString('Referrer-Policy: no-referrer', $source);
+            Assert::same(false, str_contains($source, "\$_GET['email']"));
+            Assert::same(false, str_contains($source, 'FILTER_VALIDATE_EMAIL'));
         }
 
         $shared = file_get_contents(
@@ -140,11 +129,21 @@ final class PackPaymentPrivacyBoundaryTest
             Assert::fail('Could not load CoursePaymentReturnStatus.php');
         }
 
-        Assert::stringContainsString("(\$_GET['email'] ?? '')", $shared);
-        Assert::stringContainsString('FILTER_VALIDATE_EMAIL', $shared);
-        Assert::stringContainsString(
-            "htmlspecialchars(\$view['email'], ENT_QUOTES, 'UTF-8')",
-            $shared
-        );
+        Assert::stringContainsString("\$_GET['order']", $shared);
+        Assert::stringContainsString("\$_GET['idPag']", $shared);
+        Assert::same(false, str_contains($shared, "\$_GET['email']"));
+        Assert::same(false, str_contains($shared, 'FILTER_VALIDATE_EMAIL'));
+
+        foreach ([
+            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/respostaOkPagamentAutomatic.php',
+            $root . '/codi-drive/pay-prisma-cat-canvis-verifactu/respostaKoPagamentAutomatic.php',
+        ] as $path) {
+            $source = file_get_contents($path);
+            Assert::stringContainsString(
+                "require_once __DIR__ . '/CoursePaymentReturnStatus.php'",
+                $source
+            );
+            Assert::stringContainsString('uc014RenderPaymentReturn(', $source);
+        }
     }
 }
