@@ -36,7 +36,23 @@ final class LegacySyncService
         string $estatCobrament
     ): void {
         foreach ($relations as $relation) {
-            if (($relation['source_type'] ?? '') !== 'INSCRIPCIO' || !isset($relation['source_id'])) {
+            $sourceType = strtoupper(trim((string) ($relation['source_type'] ?? '')));
+            if (!isset($relation['source_id'])) {
+                continue;
+            }
+
+            if ($sourceType === 'REGAL') {
+                $this->repository->syncGiftSummary(
+                    $legacyDb,
+                    (int) $relation['source_id'],
+                    $uuidFactura,
+                    $numVisible,
+                    $estatCobrament
+                );
+                continue;
+            }
+
+            if ($sourceType !== 'INSCRIPCIO') {
                 continue;
             }
 
