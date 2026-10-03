@@ -100,6 +100,72 @@ final class ClaimPaymentServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
     }
 
+    public function testRejectsSecondDistinctPaymentWhenClaimReferenceIsReused(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|SECOND_PARTIAL|INVOICE',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+        $service = $this->service($db);
+
+        $service->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '40.00',
+            'movement_date' => '2026-10-03 10:00:00',
+            'claim_reference' => 'CLAIM-7',
+            'created_by' => 'admin-cobraments',
+        ]);
+
+        Assert::throws(SifException::class, function () use ($db, $invoice, $service): void {
+            $service->registerByUuid($db, $invoice['uuid_factura'], [
+                'amount' => '30.00',
+                'movement_date' => '2026-10-03 11:00:00',
+                'claim_reference' => 'CLAIM-7',
+                'created_by' => 'admin-cobraments',
+            ]);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same('PARTIAL', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
+    }
+
+    public function testRejectsSameClaimReferenceWhenItTargetsAnotherInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoiceService = IssueInvoiceTest::serviceFor($db);
+        $invoiceA = $invoiceService->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'UC024|CLAIM_REF|INVOICE_A',
+            'emesa_abans_cobrament' => 1,
+        ]));
+        $invoiceB = $invoiceService->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'UC024|CLAIM_REF|INVOICE_B',
+            'emesa_abans_cobrament' => 1,
+        ]));
+        $service = $this->service($db);
+
+        $service->registerByUuid($db, $invoiceA['uuid_factura'], [
+            'amount' => '30.00',
+            'movement_date' => '2026-10-03 10:00:00',
+            'claim_reference' => 'CLAIM-SHARED',
+            'created_by' => 'admin-cobraments',
+        ]);
+
+        Assert::throws(SifException::class, function () use ($db, $invoiceB, $service): void {
+            $service->registerByUuid($db, $invoiceB['uuid_factura'], [
+                'amount' => '30.00',
+                'movement_date' => '2026-10-03 10:00:00',
+                'claim_reference' => 'CLAIM-SHARED',
+                'created_by' => 'admin-cobraments',
+            ]);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+    }
+
     private function service(\PDO $db): ClaimPaymentService
     {
         return new ClaimPaymentService(
