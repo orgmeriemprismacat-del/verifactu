@@ -112,8 +112,8 @@ La revalidació del 03/10 estableix:
 
 - els documents, UML i el nucli PHP/JS UC-008 continuaven exactament iguals al merge PR #116;
 - les proves explícites UC-008 observades al HEAD del PR #118 continuen en **PASS**;
-- la suite global actual registra **917 passed / 6 failed**, de manera que l'etiqueta `CI_GREEN` d'aquesta acta s'ha d'interpretar com a estat del **baseline de tancament**, no com a estat global del `main` actual;
-- cinc fallades són PACK/UC-015 i una expectativa de hash Redsys compartida ha estat corregida a la branca de revalidació;
+- el HEAD del PR #118 havia registrat **917 passed / 6 failed**; després de corregir l'assert Redsys compartit, el run PR #123 `37128124387` registra **918 passed / 5 failed**. Per tant, l'etiqueta `CI_GREEN` d'aquesta acta s'ha d'interpretar com a estat del **baseline de tancament**, no com a estat global de la revalidació;
+- les cinc fallades restants són PACK/UC-015; la fallada Redsys compartida està resolta i passa en CI;
 - el criteri funcional no canvia: **AUDIT_CLOSED + CODE_COMPLETE + ENVIRONMENT_ACCEPTANCE_PENDING**.
 
 La font vigent per a l'estat posterior és [UC-008 · Revalidació exhaustiva contra main · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md).
