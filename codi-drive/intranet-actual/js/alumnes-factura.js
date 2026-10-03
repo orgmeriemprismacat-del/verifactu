@@ -13,6 +13,15 @@ if ( window.location.hash.split('#')[1]) {
 	hashUrl = window.location.hash.split('#')[1].split('/')[2];
 }
 
+/* Compatibilitat amb enllaços previs ?uuid_factura=...; el format canònic és #/uuid/... */
+if ((hashUrl == null || hashUrl === '') && typeof URLSearchParams !== 'undefined') {
+	var queryUuid = new URLSearchParams(window.location.search).get('uuid_factura');
+	if (queryUuid) {
+		tipusCerca = 'uuid';
+		hashUrl = queryUuid;
+	}
+}
+
 /* Cada vegada que es faci una crida d'un ajax, s'executarà la funció mostrarModalLoading().
 Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoadingModal(). */
 // $(document).bind("ajaxSend", function(){
