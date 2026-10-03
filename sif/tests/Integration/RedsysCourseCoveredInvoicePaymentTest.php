@@ -137,7 +137,6 @@ final class RedsysCourseCoveredInvoicePaymentTest
 
         $payload = Fixtures::invoicePayload();
         $payload['idempotency_key'] = 'REDSYS|CURS|IDPAG:400|ORDER:RACEGUARD001';
-        $payload['respect_uc004_coverage'] = 1;
         $payload['totals'] = $this->totals('95.50');
         $payload['lines'] = [$this->line('95.50')];
         $payload['relations'] = [[
@@ -150,7 +149,7 @@ final class RedsysCourseCoveredInvoicePaymentTest
         ]];
 
         Assert::throws(SifException::class, function () use ($db, $payload): void {
-            IssueInvoiceTest::serviceFor($db)->issueInvoice($payload);
+            IssueInvoiceTest::serviceFor($db)->issueInvoice($payload, true);
         }, 409);
 
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
