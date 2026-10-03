@@ -91,4 +91,80 @@ final class GiftRedemptionWebClientBoundaryTest
         );
     }
 
+
+    public function testPublicGiftRedemptionAjaxUsesPostAndDoesNotExposeGiftCodeOrPiiInUrls(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $javascript = file_get_contents(
+            $root . '/codi-drive/web-actual/js1619773569/mostrarBescanvia.min.js'
+        );
+        if (!is_string($javascript)) {
+            Assert::fail('Could not read public gift redemption JavaScript');
+        }
+
+        foreach ([
+            'codiRegalValid.php',
+            'buscarCursRegalat.php',
+            'inscripcioDuplicada.php',
+            'enviarInscripcioBescanvia.php',
+        ] as $endpoint) {
+            $needle = 'url: "https://www.prisma.cat/ajax/' . $endpoint . '"';
+            $position = strpos($javascript, $needle);
+            if ($position === false) {
+                Assert::fail('Missing UC-018 AJAX endpoint: ' . $endpoint);
+            }
+
+            $snippet = substr($javascript, $position, 700);
+            Assert::stringContainsString('type: "POST"', $snippet);
+            Assert::stringContainsString('data: {', $snippet);
+        }
+
+        Assert::same(false, str_contains($javascript, '?codiRegal='));
+        Assert::same(false, str_contains($javascript, '&codiRegal='));
+        Assert::same(false, str_contains($javascript, '?dni='));
+        Assert::same(false, str_contains($javascript, '&dni='));
+        Assert::same(
+            false,
+            str_contains($javascript, 'enviarInscripcioBescanvia.php?')
+        );
+
+        foreach ([
+            'codiRegalValid.php',
+            'buscarCursRegalat.php',
+            'inscripcioDuplicada.php',
+            'enviarInscripcioBescanvia.php',
+        ] as $endpoint) {
+            $source = file_get_contents(
+                $root . '/codi-drive/web-actual/ajax/' . $endpoint
+            );
+            if (!is_string($source)) {
+                Assert::fail('Could not read public UC-018 endpoint: ' . $endpoint);
+            }
+
+            Assert::stringContainsString(
+                "\$_SERVER['REQUEST_METHOD']",
+                $source
+            );
+            Assert::stringContainsString("!== 'POST'", $source);
+            Assert::stringContainsString('$_POST', $source);
+            Assert::same(false, str_contains($source, '$_GET'));
+        }
+
+        $legacyGift = file_get_contents(
+            $root . '/codi-drive/web-actual/BescanviaRegal.php'
+        );
+        if (!is_string($legacyGift)) {
+            Assert::fail('Could not read legacy gift validation service');
+        }
+
+        Assert::stringContainsString(
+            'El codi de regal no es pot utilitzar en aquest moment.',
+            $legacyGift
+        );
+        Assert::same(false, str_contains(
+            $legacyGift,
+            'El codi <strong>".strtoupper($codiRegal)."</strong>'
+        ));
+    }
+
 }
