@@ -149,120 +149,139 @@ RM->>FS: unlink(filename)
 
 Aquest flux de document és llegat. No equival a custòdia immutable per UUID, versió i hash.
 
-## 4. Seqüència FINAL — preparar i emetre UC-004 al SIF
+**Tall de cutover d'aquesta branca:** `generaFacturaElectronica_Factures.php` ja no executa aquesta seqüència; retorna `410 Gone`. Es conserva el diagrama per traçabilitat històrica del comportament substituït.
 
-Aquest diagrama manté la vista de l'arquitectura HTTP FINAL: `Uc004Controller`, `Authorization` i el classificador de cobertura transversal continuen pendents. La reconstrucció de selecció/receptor/imports i el fingerprint ja tenen implementació executable **CLI no productiva**, detallada a la seqüència 4.1.
+## 4. Seqüència FINAL — pantalla + bridge intranet + frontera HTTP SIF implementats
+
+El `main` del 2026-10-02 ja implementa el recorregut de command complet. El navegador **no** crida directament l'endpoint intern: `sifFacturaAbansPagar.php` valida sessió, permís i CSRF, i `SifInternalApiClient` signa la petició HMAC servidor-servidor. En aquesta branca, l'antic `generaFacturaElectronica_Factures.php` queda retirat amb `410 Gone`.
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor Op as Operador
-participant C as Uc004Controller [PROPOSAT]
-participant A as Authorization [PROPOSAT]
-participant SL as SelectionLoader [PROPOSAT]
-participant BR as BillingResolver [PROPOSAT]
-participant CG as CrossChannelCoverage [PROPOSAT]
-participant LC as LineCalculator [PROPOSAT]
+participant UI as Pantalla UC-004 llegada
+participant BRG as sifFacturaAbansPagar.php [IMPLEMENTAT]
+participant ACC as SifInvoiceBeforePaymentAccess
+participant CLI as SifInternalApiClient
+participant HTTP as before-payment.php
+participant AUTH as InternalApiAuthenticator
+participant SCOPE as InternalInvoiceBeforePaymentScopeResolver
+participant CMD as InvoiceBeforePaymentCommandService
+participant PREP as InvoiceBeforePaymentLegacyPreparationService
+participant SEL as InvoiceBeforePaymentSelectionRepository
+participant BILL as InvoiceBeforePaymentBillingPartyRepository
+participant ASM as InvoiceBeforePaymentServerPayloadAssembler
+participant FP as PayloadIdempotencyValidator
+participant WEB as BD web llegada
+participant INTRA as BD intranet llegada
 participant IBP as InvoiceBeforePaymentService
 participant PB as InvoiceBeforePaymentPayloadBuilder
 participant IS as InvoiceService
 participant V as InvoicePayloadValidator
-participant IV as PayloadIdempotencyValidator
 participant TR as TransactionRunner
 participant SEQ as FiscalSequenceRepository
 participant IR as InvoiceRepository
 participant BPC as InvoiceBeforePaymentCoverageRepository
+participant OE as OperationalEventRepository
 participant DB as BD SIF
-participant LS as LegacySync [PROPOSAT]
-participant DOC as DocumentService [PROPOSAT]
 
-Op->>C: Emetre factura abans de cobrar(selectionIds, billingEntityId, requestId)
-C->>A: assertCanIssue(actor, scope)
-A-->>C: autoritzat
+Op->>UI: Seleccionar inscripcions + entityId
+UI->>BRG: preview(ids, entityId) + X-CSRF-Token
+BRG->>ACC: resolve(user,intranet) + assertCsrf()
+ACC-->>BRG: actor + rols
+BRG->>CLI: previewInvoiceBeforePayment(actor,roles,...)
+CLI->>CLI: request_id + HMAC sobre cos exacte
+CLI->>HTTP: POST action=preview + HMAC + request_id
+HTTP->>AUTH: authenticate(raw body, headers)
+AUTH->>DB: INSERT internal_api_request
+AUTH-->>HTTP: actor + rols + request_id
+HTTP->>SCOPE: resolve(actor)
+SCOPE-->>HTTP: issue=true / preview=true
+HTTP->>CMD: preview(ids, entityId, actorId)
+CMD->>PREP: prepare(...)
+PREP->>SEL: loadByIds(ids)
+SEL->>WEB: SELECT inscripcions + curs per ID
+WEB-->>SEL: files autoritatives
+PREP->>BILL: loadByEntityId(entityId)
+BILL->>INTRA: SELECT entitat + responsable actiu
+INTRA-->>BILL: snapshot receptor
+PREP->>ASM: buildInput(selection,billing,context)
+ASM-->>PREP: línies + totals + relacions + K estable
+PREP->>PB: build(input)
+PB-->>PREP: payload UC-004 sense payment
+PREP->>FP: calculateHash(payload)
+FP-->>PREP: fingerprint
+PREP-->>CMD: preview autoritatiu
+CMD-->>HTTP: fingerprint + resum
+HTTP-->>BRG: JSON preview
+BRG-->>UI: mostrar preview final
 
-C->>SL: loadSelectedInscriptions(selectionIds)
-SL-->>C: snapshot real de les inscripcions
-C->>SL: deduplicate + assertSameAllowedContext()
-SL-->>C: selecció validada
-
-C->>BR: resolveByInternalId(billingEntityId)
-BR-->>C: snapshot fiscal del receptor
-
-C->>CG: findExistingCoverage(sourceIds)
-alt cobertura incompatible ja facturada
-  CG-->>C: CONFLICT amb factura existent
-  C-->>Op: conflicte, sense nova factura
-else cobertura admissible
-  CG-->>C: OK
-  C->>LC: buildLines + calculateTotals des de servidor
-  LC-->>C: lines + totals
-  C->>IBP: issueBeforePayment(input sense payment)
+Op->>UI: Confirmar
+UI->>BRG: confirm(ids, entityId, expectedFingerprint) + X-CSRF-Token
+BRG->>ACC: resolve(...) + assertCsrf()
+ACC-->>BRG: actor + rols
+BRG->>CLI: confirmInvoiceBeforePayment(...)
+CLI->>HTTP: POST action=confirm + HMAC + request_id nou
+HTTP->>AUTH: authenticate(...)
+AUTH->>DB: claim request_id anti-replay
+HTTP->>SCOPE: resolve(actor)
+HTTP->>CMD: confirm(ids, entityId, actorId, fingerprint)
+CMD->>PREP: prepare(...) de nou
+PREP->>WEB: rellegir selecció
+PREP->>INTRA: rellegir receptor
+PREP->>FP: fingerprint actual
+alt fingerprint ha canviat
+  CMD-->>HTTP: 409 nou preview obligatori
+  HTTP-->>BRG: CONFLICT
+  BRG-->>UI: dades canviades; tornar a previsualitzar
+else fingerprint coincideix
+  Note over CMD,IBP: Classificador de cobertura transversal entre canals encara PENDENT.
+  CMD->>IBP: issueBeforePayment(input reconstruït)
   IBP->>PB: build(input)
-  alt payment no nul o falta clau/referència
-    PB-->>C: VALIDATION_ERROR
-    C-->>Op: error validació
-  else payload preparat
-    PB-->>IBP: source=INTRANET, emesa_abans_cobrament=1
-    IBP->>IS: issueInvoice(payload)
-    IS->>V: validate(payload)
-    V-->>IS: payload estructural validat
-    IS->>TR: run()
-    TR->>DB: BEGIN
-    IS->>IR: findByIdempotencyKey(key, FOR UPDATE)
-    alt mateixa clau ja existeix
-      IR-->>IS: factura existent + hash
-      IS->>IV: assertMatches(payload, storedHash)
-      alt payload diferent o hash no demostrable
-        IV-->>IS: CONFLICT
-        IS-->>C: error
-      else equivalència exacta
-        IV-->>IS: OK
-        IS-->>TR: resultat REUSED
-      end
-    else nova clau
-      IS->>SEQ: next(series, year)
-      SEQ->>DB: reserva seqüència
-      IS->>IR: lockChainState()
-      IR->>DB: SELECT fiscal_chain_state FOR UPDATE
-      IS->>IR: createInvoiceGraph(...)
-      IR->>DB: INSERT factura
-      IR->>DB: INSERT factura_linia
-      IR->>DB: INSERT factura_registres
-      IR->>DB: UPDATE fiscal_chain_state
-      IR->>DB: INSERT fiscal_queue
-      IR->>DB: INSERT fact_rels
-      IR-->>IS: UUID + NUM_VISIBLE
-      IS->>BPC: claim(relations, UUID, idempotency_key)
-      BPC->>DB: INSERT invoice_before_payment_coverage
-      alt origen ja reclamat per una altra operació UC-004
-        DB-->>BPC: duplicate uq_invoice_before_payment_source
-        BPC-->>IS: PDOException
-        IS-->>TR: excepció
-        TR->>DB: ROLLBACK
-        IS-->>C: CONFLICT 409
-        C-->>Op: conflicte, cap segona factura confirmada
-      else claim acceptat
-        BPC-->>IS: OK
-        IS-->>TR: resultat CREATED
-        TR->>DB: COMMIT
-        TR-->>IS: resultat confirmat
-        IS-->>IBP: resultat
-        IBP-->>C: UUID + número + reused
-        C->>LS: syncAfterSifCommit(UUID) si cal
-        C->>DOC: ensureDocument(UUID)
-        C-->>Op: factura emesa / cobrament PENDING / document READY o PENDING
-      end
-    end
+  PB-->>IBP: uc004_invoice_before_payment=1
+  IBP->>IS: issueInvoice(payload)
+  IS->>V: validate(payload)
+  IS->>TR: run()
+  TR->>DB: BEGIN
+  IS->>IR: findByIdempotencyKey(key, FOR UPDATE)
+  alt mateixa K ja existeix
+    IR-->>IS: factura existent
+    IS->>FP: assertMatches(payload, storedHash)
+    FP-->>IS: equivalent o CONFLICT
+  else nova K
+    IS->>SEQ: next(series,year)
+    SEQ->>DB: lock + reserva
+    IS->>IR: createInvoiceGraph()
+    IR->>DB: factura + línies + registre + cadena + cua + fact_rels
+    IS->>BPC: claim(relations, UUID, K)
+    BPC->>DB: INSERT invoice_before_payment_coverage
+    IS->>OE: append(ISSUE_INVOICE_BEFORE_PAYMENT)
+    OE->>DB: INSERT operational_event
   end
+  TR->>DB: COMMIT
+  IS-->>IBP: CREATED/REUSED + UUID + número
+  IBP->>IBP: ensurePdf(UUID,K) després del COMMIT fiscal
+  IBP->>DB: INSERT/REUSE document_job PDF PENDING
+  alt cua documental disponible
+    DB-->>IBP: UUID_JOB + PENDING
+    IBP-->>CMD: factura + document_status=PENDING
+  else cua documental falla
+    IBP-->>CMD: mateixa factura + document_status=ERROR
+    Note over IBP,DB: El retry reutilitza la factura; no reemet.
+  end
+  CMD-->>HTTP: JSON factura PENDING + estat documental
+  HTTP-->>BRG: resultat
+  BRG-->>UI: número/UUID/estat + Document PENDING/ERROR
+  Note over UI,DB: Worker/renderitzat/storage i sync llegada continuen pendents.
 end
 ```
 
-## 4.1. Seqüència IMPLEMENTADA A LA BRANCA — preview i confirmació des de les BDs llegades
+## 4.1. Seqüència compartida — preview/confirmació autoritatius des de les BDs llegades
 
 ```mermaid
 sequenceDiagram
 autonumber
-actor Op as Operador tècnic / preproducció
+actor Op as Caller CLI o command HTTP
 participant P as preview-invoice-before-payment-from-legacy.php
 participant C as process-invoice-before-payment-from-legacy.php
 participant PREP as InvoiceBeforePaymentLegacyPreparationService
@@ -307,13 +326,14 @@ else fingerprint coincideix
   IS->>DB: transacció fiscal + claim UC-004
   DB-->>IS: CREATED o REUSED
   IS-->>IBP: UUID + número
-  IBP-->>C: resultat
-  C-->>Op: factura PENDING, sense payment
+  IBP->>DB: ensure/reuse document_job PDF PENDING
+  IBP-->>C: factura + estat documental
+  C-->>Op: factura PENDING, sense payment; document PENDING/ERROR
 end
 ```
 
 **Implementat:** lectura per IDs, entityId, mateix curs/edició, total des de `A_PAGAR`, receptor fiscal, fingerprint i relectura abans de confirmar.  
-**Encara pendent:** autenticació/autorització/CSRF de la pantalla, classificador de cobertura transversal, document per UUID, auditoria operacional i sincronització llegada post-COMMIT.
+**Implementat també a la pantalla real:** sessió/rol vigent, CSRF, bridge servidor, HMAC, anti-replay, preview i confirmació. **Encara pendent:** classificador de cobertura transversal, worker/renderitzat/storage del document per UUID i sincronització llegada post-COMMIT si cal. L'auditoria operacional s'integra en aquesta branca i el mutador llegat queda 410.
 
 ## 5. Seqüència FINAL — col·lisió concurrent de la mateixa clau
 
@@ -418,7 +438,7 @@ Per tancar UC-004 cal un adaptador explícit o un endpoint específic que invoqu
 ## 8. Estat de verificació
 
 - **Documentat:** sí, ACTUAL i FINAL separats.
-- **Implementat:** circuit llegat ACTUAL i nucli SIF d'emissió/idempotència.
-- **Integrat:** **no acreditat** per a pantalla UC-004 → `InvoiceBeforePaymentService`.
-- **Proves:** existeixen proves d'integració del servei, però **no s'han executat en aquesta auditoria**.
+- **Implementat:** circuit FINAL pantalla→bridge→SIF, emissió/idempotència/cobertura/auditoria i encolat PDF `PENDING` idempotent/versionat. El circuit llegat es conserva només com a traça ACTUAL i el mutador queda 410 en aquesta branca.
+- **Integrat:** **SÍ al codi versionat** per pantalla UC-004 → `InvoiceBeforePaymentService`; pendent E2E/preproducció.
+- **Proves:** ampliades per cua/retry documental; cal validar el rerun CI de la punta actual.
 - **Producció/preproducció:** no verificada.
