@@ -30,7 +30,8 @@ final class InternalRectificationScopeResolver
         }
 
         $roles = $this->normalizeRoles($roles);
-        if (array_intersect($roles, $this->writeRoles) === []) {
+        $matchedRoles = array_values(array_intersect($roles, $this->writeRoles));
+        if ($matchedRoles === []) {
             throw SifException::forbidden('Rectification write role is not authorized');
         }
 
@@ -42,6 +43,7 @@ final class InternalRectificationScopeResolver
             'issue' => true,
         ];
         $resolved['rectification_scope_source'] = 'INTERNAL_ROLE';
+        $resolved['rectification_role'] = $matchedRoles[0];
 
         return $resolved;
     }
