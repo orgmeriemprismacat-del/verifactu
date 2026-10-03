@@ -382,3 +382,15 @@ Aquesta ampliació no canvia la policy de negoci; converteix comportaments ja im
 | UC020-106 | AP-23/AP-82 encara figuraven pendents tot i existir un test del mateix endpoint que exigeix POST, sessió/permís i CSRF. | RECLASSIFICAT VERIFICAT_CI_FRONTERA | `LegacyUsocDiscountValidationSecurityTest` PASS al head `0c1825c`. |
 | UC020-107 | El contracte de decisió USOC de P05 persisteix REQUESTED abans de la mutació llegada i COMMITTED abans de memoitzar èxit. | VERIFICAT_CI_CONTRACTE | `UsocValidationDecisionBoundaryContractTest` 2/2 PASS al head `0c1825c`. |
 | UC020-108 | `requestId` de la comanda llegada continua memoitzat per sessió; això no és una clau persistent transversal entre sessions/operadors. | PENDENT TRANSVERSAL | AP-80/AP-81 continuen oberts per versió/idempotència persistent multioperador. |
+
+
+## 17. Guards Redsys i autoritat monetària — 03/10/2026
+
+| ID | Troballa/acció | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-109 | AP-24/AP-41 continuaven pendents malgrat existir guard que exigeix origen del descompte CURS. | VERIFICAT_CI | `RedsysPaymentIntentTest::testRejectsCourseDiscountSnapshotWithoutOrigin` PASS a `0c1825c`. |
+| UC020-110 | AP-33 ja tenia prova d'import callback diferent de la intenció; faltava ordre desconeguda nominal. | PARCIAL VERIFICAT + TEST NOU PENDENT CI | Import mismatch PASS a `0c1825c`; ordre desconeguda afegida a `RedsysCallbackTest`. |
+| UC020-111 | AP-34 tenia frontera unsigned PASS però faltava prova directa de signatura V2 incorrecta. | PARCIAL VERIFICAT + TEST NOU PENDENT CI | `testInvalidSha512V2SignatureIsRejected` afegida. |
+| UC020-112 | AP-35 ja queda protegit per vincle únic operació→intenció: una segona DS_ORDER incompatible retorna 409. | VERIFICAT_CI | `PrismaStudentCourseCheckoutServiceTest::testRetryWithAnotherDsOrderCannotReplaceLinkedIntent` PASS a `0c1825c`. |
+| UC020-113 | AP-32 necessitava prova nominal de manipulació d'import abans de crear intenció AP. | TEST NOU PENDENT CI | `testPrismaStudentCheckoutRejectsClientRequestedAmountBelowAuthoritativePendingBalance`; zero operació/validació/intenció. |
+| UC020-114 | El fraccionament AP no està modelat fiscalment encara. | PENDENT IMPLEMENTACIÓ · FAIL-CLOSED VERIFICAT | El checkout rebutja fraccionament/reanudació AP abans de crear estat comercial. |
