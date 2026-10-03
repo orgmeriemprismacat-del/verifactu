@@ -58,8 +58,19 @@ Branca: `fix/uc-014-main-ci-reconciliation-2026-10-03`
 
 No s'ha modificat la implementació productiva del validador ni cap flux PACK.
 
-## 5. Estat provisional
+## 5. Verificació posterior al PR #119
 
-**UC-014:** la causa vermella pròpia està corregida a la branca de reconciliació.  
-**Suite global:** pot continuar vermella fins que es resolguin els cinc boundaries de UC-015/PACK.  
-**Criteri:** el UC-014 només es considerarà novament reconciliat quan una execució CI posterior mostri que no queda cap fallada UC-014/Redsys atribuïble a aquests canvis.
+Sobre el head `bb5993eb6ac6457c99965f4b2589a8f2c915587c`:
+
+- `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload`: **PASS**;
+- `RedsysCourseLegacyFallbackBoundaryTest::testCurrentCheckoutUsesServerAuthoritativeFractionalStateAndEscapesPostOutput`: **PASS**;
+- no torna a aparèixer `Undefined variable $fractional`;
+- resultat global: **918 passed / 5 failed**.
+
+Les cinc fallades restants són exactament les cinc de UC-015/PACK enumerades a l'apartat 2. No queda cap fallada UC-014/Redsys en aquesta execució.
+
+## 6. Estat final
+
+**UC-014:** CI propi reconciliat i verificat.  
+**Suite global:** continua vermella per cinc boundaries de UC-015/PACK.  
+**Conclusió:** aquests cinc vermells no reobren UC-014; s'han de resoldre dins l'auditoria/implementació UC-015.
