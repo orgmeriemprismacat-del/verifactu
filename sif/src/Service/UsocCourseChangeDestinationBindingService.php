@@ -96,7 +96,9 @@ final class UsocCourseChangeDestinationBindingService
                     $storedJson,
                     'stored USOC course change destination'
                 );
-                if ($storedResult !== $result) {
+                // MySQL JSON may normalize object key order. Compare the
+                // associative payload by key/value, not insertion order.
+                if ($storedResult != $result) {
                     throw SifException::conflict(
                         'USOC course change destination is already bound to a different reservation'
                     );
