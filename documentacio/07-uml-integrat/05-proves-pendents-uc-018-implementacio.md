@@ -13,6 +13,8 @@
 - [CI] validació, lookup i writer UC-018 no usen `$_GET`; el duplicat compartit pot llegir GET per compatibilitat d'altres casos, però UC-018 no envia el DNI per URL.
 - [CI] resposta pública neutra per codi no bescanviable.
 - [CI] validació/lookup fan match exacte del codi; cap `WHERE CODI LIKE ?`.
+- [CI] generació de nous codis regal amb CSPRNG i longitud compatible de 10 caràcters.
+- [ENV/SECURITY] throttle/rate-limit d'intents de codi acreditat fora del repo o implementat abans del GO públic.
 - [CI] lookup del curs revalida server-side la bescanviabilitat.
 - [CI] writer bloqueja `FACT_REL <= 0` abans de materialitzar/reutilitzar la matrícula.
 
