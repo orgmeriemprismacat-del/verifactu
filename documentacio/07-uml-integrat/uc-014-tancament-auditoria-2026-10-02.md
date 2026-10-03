@@ -19,3 +19,18 @@ No són gaps de programació del UC-014: executar una compra real Redsys de prep
 ## 4. Resultat
 
 No queda cap fitxa, diagrama, inventari, traçabilitat, boundary o implementació coneguda pròpia del UC-014 pendent de crear al repositori. El cas surt del backlog de desenvolupament i resta únicament al checklist de preproducció/go-live.
+
+
+## 5. Reconciliació CI posterior al merge — 03/10/2026
+
+Els workflows `push` del merge del PR #118 van descobrir una inconsistència de test: la suite va quedar en **917 passed / 6 failed**. La revisió del log va separar:
+
+- **5 fallades UC-015/PACK**, alienes a aquest cas;
+- **1 expected desactualitzat** de `RedsysSignatureValidatorTest`, tot i que el valor retornat era el SHA-256 correcte del `Ds_MerchantParameters`;
+- un warning d'interpolació accidental de `$fractional` al boundary llegat.
+
+El PR #119 corregeix els dos punts UC-014 sense modificar la implementació productiva. La nova execució deixa **918 passed / 5 failed**, amb els tests Redsys/UC-014 afectats en **PASS** i sense el warning. Les cinc fallades restants són exclusivament UC-015/PACK.
+
+Vegeu [UC-014 — Reconciliació del CI posterior al merge](uc-014-reconciliacio-ci-main-2026-10-03.md).
+
+Aquesta reconciliació manté l'estat **AUDITORIA TANCADA · IMPLEMENTACIÓ TANCADA · ACCEPTACIÓ OPERATIVA PENDENT** per UC-014. La suite global del repositori no es pot considerar verda fins que UC-015 resolgui els seus cinc boundaries.
