@@ -308,3 +308,22 @@ El resultat continua sent `PENDING_RETRY` si la projecció o la seva evidència 
 
 
 **Namespace de la identitat bancària:** el banc és obligatori com a namespace del moviment. La unicitat efectiva del cobrament manual és `SHA-256(UPPER(TRIM(banc)) + "\n" + external_bank_event_id)`; així un identificador localment únic de BBVA no col·lideix amb el mateix text emès per un altre banc.
+
+
+### 11.9. Triple nivell d'auditoria
+
+La matriu funcional exigeix tres responsabilitats diferents i el canal UC-022 ja les materialitza en el camí d'èxit/reutilització:
+
+- `payment_action_event`: intent `REQUESTED` + resultat terminal `SUCCEEDED|REUSED`;
+- `operational_event`: `REGISTER_MANUAL_TRANSFER`, impacte fiscal `NONE`, impacte econòmic `PAYMENT`;
+- `sif_audit_event`: auditoria comuna de l'acció sensible sobre el recurs `PAYMENT`.
+
+`operational_event` i `sif_audit_event` s'escriuen dins la mateixa transacció que `payment_transaction/payment_allocation`; el terminal de `payment_action_event` també forma part d'aquell commit.
+
+Les denegacions i validacions prèvies generen `payment_action_event` amb `ACCESS_DENIED|VALIDATION_REJECTED` i resultat `REJECTED`, sense cap mutació econòmica.
+
+### 11.10. Notificació
+
+Existeix infraestructura genèrica `notification_outbox`, però el servei de notificació de pagament actual està especialitzat en Redsys/curs (`DS_ORDER`, snapshot d'una inscripció). No s'ha reutilitzat artificialment per UC-022 perquè una factura manual pot agrupar diverses inscripcions i no té `DS_ORDER`.
+
+**Pendent real:** definir plantilla, destinatari/resolució de destinatari i payload canònic de confirmació de transferència manual, i encolar-lo post-commit de manera idempotent.
