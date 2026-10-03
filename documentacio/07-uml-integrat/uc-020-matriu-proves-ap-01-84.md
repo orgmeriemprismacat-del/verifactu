@@ -117,7 +117,7 @@
 | AP-65 | INT | Únic antecedent `GENERAT=1`, sense cobrament. | És elegible sota rule v2. | COBERT_UNIT_POLICY |
 | AP-66 | INT | Única evidència = inscripció actual, encara que `GENERAT=1` o tingui estat favorable. | No autoacreditar. | COBERT_INTEGRACIO_CHECKOUT |
 | AP-67 | INT | Antecedent posterior a `DATA_INSC` de la matrícula tarifada. | No acreditar retroactivament. | COBERT_INTEGRACIO_CHECKOUT |
-| AP-68 | INT | Factura relacionada sense cobrament. | No acredita AP per si sola; no dependre de `!= NULL`. | COBERT_UNIT_POLICY |
+| AP-68 | INT | Factura relacionada sense cobrament. | No acredita AP per si sola; no dependre de `!= NULL`. | COBERT_UNIT_POLICY + PREVIEW_ALIGNED |
 | AP-69 | INT | Mateix `ID_PREU` amb tarifes AP específiques de curs/mes. | Tots els canals seleccionen la tarifa canònica exacta. | PENDENT_EXECUCIO |
 | AP-70 | INT | Tarifa AP actual + futura. | Només la vigent és seleccionable. | PENDENT_EXECUCIO |
 | AP-71 | INT | Elegible sense tarifa AP. | `ELIGIBLE_NO_PRICE`; no oferta pagable. | PENDENT_EXECUCIO |
@@ -167,5 +167,5 @@ Per donar qualsevol AP-* per verificat cal registrar:
 - `PrismaStudentCourseCheckoutServiceTest`: cobreix snapshot autoritatiu, idempotència, conflicte de segon DS_ORDER, ineligible, no autoacreditació, tall temporal a `DATA_INSC` i mismatch de preu.
 - `LegacyPrismaStudentPriceSnapshotResolverTest`: cobreix reconstrucció històrica, selector per hores, mismatch i tarifa ambigua.
 - `RedsysCoursePaymentIntentPrismaStudentTest` al `main`: cobreix staging AP abans de la intenció, snapshot de descompte i fail-closed del fraccionament AP sense model fiscal.
-- `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest`: cobreix UC020-94/97, impedint que el valor de preu del navegador sobreescrigui la tarifa AP servidor, comprovant el guard AP+promoció i exigint que `TIPUS_CURS` provingui de `informacio`.
+- `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest`: cobreix UC020-94/97/98, impedint que el valor de preu del navegador sobreescrigui la tarifa AP servidor, comprovant el guard AP+promoció, exigint que `TIPUS_CURS` provingui de `informacio` i evitant reintroduir la drecera de factura no cobrada al preview.
 - `RedsysCourseEndToEndSimulatedTest` al `main`: cobreix el circuit tècnic simulat callback → worker → pagament/factura/sync/outbox, incloent duplicats, parcials i exactitud de cèntims; no substitueix l'E2E real de navegador/Redsys.
