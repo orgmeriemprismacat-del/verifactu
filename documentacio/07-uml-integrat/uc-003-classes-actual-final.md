@@ -117,6 +117,19 @@ class RedsysIntentHandler {
 class RedsysCourseInvoiceService {
   <<EXISTENT CURS>>
 }
+class RedsysCoveredInvoicePaymentService {
+  <<EXISTENT UC-003/UC-004>>
+  +registerIfCovered(db,order,snapshot,payload) array
+}
+class PaymentService {
+  <<EXISTENT>>
+  +registerPaymentWithPrecondition(payload,guard) array
+}
+class InvoiceBeforePaymentCoverageRepository {
+  <<EXISTENT>>
+  +findClaims(db,relations,forUpdate) array
+  +lockOriginInvoiceRelations(db,relations) array
+}
 class RedsysPackInvoiceService {
   <<EXISTENT PACK>>
 }
@@ -164,6 +177,10 @@ RedsysIntentHandler <|.. RedsysGroupInvoiceService
 RedsysIntentHandler <|.. RedsysGiftInvoiceService
 RedsysIntentHandler <|.. RedsysUsocInvoiceService
 RedsysCourseInvoiceService --> InvoiceService
+RedsysCourseInvoiceService --> RedsysCoveredInvoicePaymentService
+RedsysCoveredInvoicePaymentService --> PaymentService
+RedsysCoveredInvoicePaymentService --> InvoiceBeforePaymentCoverageRepository
+InvoiceService --> InvoiceBeforePaymentCoverageRepository : guard Redsys/UC-004
 RedsysPackInvoiceService --> InvoiceService
 RedsysGroupInvoiceService --> InvoiceService
 RedsysGiftInvoiceService --> InvoiceService
@@ -255,7 +272,7 @@ redsys_callback_queue --> errors_verifactu : error funcional/exhaurit
 | Dedupe notificació | no acreditat globalment al llegat | `RedsysNotificationRepository` |
 | Desacoblar HTTP | no | `redsys_callback_queue` |
 | Exclusió entre workers | no | `claimNext()` + `LOCKED_BY`; endurit en aquesta auditoria també a transicions terminals |
-| Factura/cobrament | callback escriu directament | handlers → `InvoiceService` |
+| Factura/cobrament | callback escriu directament | CURS: cobertura UC-004 → `PaymentService`; sense cobertura → `InvoiceService` |
 | Resultat complet | implícit | worker exigeix `ok=true`, `uuid_factura` i `uuid_payment` abans de `PROCESSED` |
 | Retry/incidència | ad hoc | `RETRY`/backoff/`INCIDENT` |
 | Atribució per inscripció | camps acumulatius llegats | `enrollment_fund_movement` implementat per CURS i PACK |
@@ -264,6 +281,6 @@ redsys_callback_queue --> errors_verifactu : error funcional/exhaurit
 ## 5. Estat
 
 **DOCUMENTAT:** classes ACTUAL i FINAL separades.  
-**IMPLEMENTAT:** callback SIF, validació criptogràfica, intenció/notificació/cua, worker, dispatcher, cinc handlers, factura+cobrament, incidències, sync i atribució CURS/PACK. L'enduriment de resultat complet i propietat del lock està implementat a la branca d'auditoria.  
+**IMPLEMENTAT:** callback SIF, validació criptogràfica, intenció/notificació/cua, worker, dispatcher, cinc handlers, factura+cobrament, incidències, sync i atribució CURS/PACK. A més, CURS resol factura UC-004 prèvia via `RedsysCoveredInvoicePaymentService`, registra el CHARGE amb `PaymentService` i serialitza UC-004/Redsys sobre l'origen `fact_rels`.  
 **VERIFICAT:** la suite específica `RedsysCallbackWorkerTest` passa al workflow SIF #1204, incloses les proves de resultat incomplet i fencing; el CI global conserva 6 fallades de baseline no introduïdes per UC-003.  
-**PENDENT:** cutover/preproducció Redsys real; resolució segura de factura preexistent amb clau diferent; evidència d'operació/cron; completar o justificar atribució quantitativa per les variants on sigui funcionalment necessària; JS candidat absent del snapshot.
+**PENDENT:** verificació CI de la nova ruta UC-004→Redsys, cutover/preproducció Redsys real, evidència d'operació/cron, completar o justificar atribució quantitativa per les altres variants i JS candidat absent del snapshot.
