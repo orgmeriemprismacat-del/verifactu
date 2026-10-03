@@ -43,9 +43,8 @@ else {
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/alumnes-factura.css?ver=1.0"/>
 		<script src="https://intranet.prisma.cat/js/general.js?ver=1.0"></script>
 <?php if (getenv('SIF_INVOICE_QUERY_UI_ENABLED') === '1') { ?>
-		<script src="https://intranet.prisma.cat/js/alumnes-factura-sif.js?ver=1.0"></script>
 <?php } ?>
-		<script src="https://intranet.prisma.cat/js/alumnes-factura.js?ver=1.0"></script>
+		<script src="https://intranet.prisma.cat/js/alumnes-factura.js?ver=1.1"></script>
 	</body>
 </html>
 <?php } ?>
