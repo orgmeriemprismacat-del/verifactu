@@ -19,6 +19,7 @@ Resposta: **la cobertura documental és completa; el backend SIF i el bridge de 
 | Diagrames d'activitat | `uc-004-activitats-actual-final.md` | **CREAT · 14 diagrames** |
 | Traçabilitat/mancances | `uc-004-auditoria-tracabilitat-mancances.md` | **CREAT** |
 | Inventari mestre UC-004 | aquest fitxer | **CREAT** |
+| Acta de tancament 2026-10-03 | `uc-004-tancament-auditoria-2026-10-03.md` | **CREADA** |
 
 ### Cobertura d'activitats
 
