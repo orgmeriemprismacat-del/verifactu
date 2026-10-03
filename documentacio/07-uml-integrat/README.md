@@ -39,7 +39,7 @@ Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un 
 | ID | Cas d'ús | Fitxa integrada | Estat original |
 | --- | --- | --- | --- |
 | UC-01 | Emetre o reutilitzar factura | [Fitxa i UML](uc-001-emetre-o-reutilitzar-factura.md) | `[BASE]` |
-| UC-02 | Registrar pagament sobre factura | [Fitxa i UML](uc-002-registrar-cobrament-factura.md) | `[BASE]` |
+| UC-02 | Registrar pagament sobre factura | [Fitxa i UML](uc-002-registrar-cobrament-factura.md) · [classes A/F](uc-002-classes-actual-final.md) · [seqüències A/F](uc-002-sequencies-actual-final.md) · [activitats](uc-002-activitats-pagines-actual-final.md) · [inventari codi](uc-002-inventari-codi-php-js-actual-final-2026-10-03.md) · [auditoria 03/10](uc-002-auditoria-tracabilitat-2026-10-03.md) | `[NUCLI SIF IMPLEMENTAT · HARDENING 03/10 · INTEGRACIÓ/AUTH/AUDIT/PREPROD PENDENTS]` |
 | UC-03 | Processar cobrament Redsys asíncron | [Fitxa i UML](uc-003-processar-cobrament-redsys-asincron.md) | `[ASYNC]` |
 | UC-04 | Emetre factura abans de cobrar | [Fitxa i UML](uc-004-emetre-factura-abans-cobrar.md) | `[PARCIAL]` |
 | UC-05 | Crear rectificativa | [Fitxa i UML](uc-005-rectificar-factura.md) | `[PARCIAL]` |

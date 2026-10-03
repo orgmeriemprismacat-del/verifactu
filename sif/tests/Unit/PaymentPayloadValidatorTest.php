@@ -15,6 +15,25 @@ final class PaymentPayloadValidatorTest
         Assert::same($payload, (new PaymentPayloadValidator())->validate($payload));
     }
 
+    public function testSplitAllocationsEqualToMovementPass(): void
+    {
+        $payload = $this->validPayload();
+        $payload['allocations'] = [
+            [
+                'uuid_factura' => '11111111-1111-4111-8111-111111111111',
+                'amount' => '70.00',
+                'allocation_type' => 'INVOICE_PAYMENT',
+            ],
+            [
+                'uuid_factura' => '22222222-2222-4222-8222-222222222222',
+                'amount' => '50.00',
+                'allocation_type' => 'INVOICE_PAYMENT',
+            ],
+        ];
+
+        Assert::same($payload, (new PaymentPayloadValidator())->validate($payload));
+    }
+
     public function testMissingRequiredPaymentFieldThrowsValidationError(): void
     {
         $payload = $this->validPayload();
@@ -43,6 +62,66 @@ final class PaymentPayloadValidatorTest
         $exception = Assert::throws(SifException::class, static fn () => (new PaymentPayloadValidator())->validate($payload), 422);
 
         Assert::same('Payment requires at least one allocation', $exception->getMessage());
+    }
+
+    public function testZeroOrNegativePaymentAmountIsRejected(): void
+    {
+        foreach (['0', '0.00', '-1.00'] as $amount) {
+            $payload = $this->validPayload();
+            $payload['amount'] = $amount;
+
+            $exception = Assert::throws(
+                SifException::class,
+                static fn () => (new PaymentPayloadValidator())->validate($payload),
+                422
+            );
+
+            Assert::same('Invalid payment amount', $exception->getMessage());
+        }
+    }
+
+    public function testZeroOrNegativeAllocationAmountIsRejected(): void
+    {
+        foreach (['0', '0.00', '-1.00'] as $amount) {
+            $payload = $this->validPayload();
+            $payload['allocations'][0]['amount'] = $amount;
+
+            $exception = Assert::throws(
+                SifException::class,
+                static fn () => (new PaymentPayloadValidator())->validate($payload),
+                422
+            );
+
+            Assert::same('Invalid payment allocation amount', $exception->getMessage());
+        }
+    }
+
+    public function testAllocationSumMustEqualPaymentAmount(): void
+    {
+        $payload = $this->validPayload();
+        $payload['allocations'][0]['amount'] = '100.00';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new PaymentPayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Payment allocations must equal payment amount', $exception->getMessage());
+    }
+
+    public function testAmountsWithMoreThanTwoDecimalsAreRejected(): void
+    {
+        $payload = $this->validPayload();
+        $payload['amount'] = '120.001';
+
+        $exception = Assert::throws(
+            SifException::class,
+            static fn () => (new PaymentPayloadValidator())->validate($payload),
+            422
+        );
+
+        Assert::same('Invalid payment amount', $exception->getMessage());
     }
 
     private function validPayload(): array
