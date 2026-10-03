@@ -579,10 +579,16 @@ elseif (Descompte documental validat?) then (Sí)
 elseif (Carnet Jove?) then (Sí)
  :Buscar TIPUS=2 per ID_PREU;
 elseif (esExalumne?) then (Sí)
- :Buscar TIPUS=1 per ID_PREU;
+ :Endpoint rellegeix TIPUS_DESC/VALID_DESC de BD;
+ :Resoldre tarifa AP servidor per ID_PREU;
+ :Filtrar CURS=codi/hores/TOTS i MES=edició/TOTS;
+ :Exigir vigència i exactament una tarifa;
+ :Validar 0 < preu AP < preu base;
+ :Sobreescriure A_PAGAR/PAGAT/PENDENT client;
  note right
-  Aquesta consulta no incorpora
-  CURS ni MES.
+  Hardening UC-020/P06 03/10:
+  el selector antic només ID_PREU+TIPUS
+  queda bypassat per a AP abans de mutar.
  end note
 else
  :Buscar preu ordinari;
@@ -598,10 +604,12 @@ stop
 @startuml
 title P06 | FINAL | reavaluació versionada en canvi de curs
 start
-:Carregar operació/inscripció origen;
+:Carregar inscripció origen des de BD;
+:Rellegir TIPUS_DESC/VALID_DESC i imports;
 :Definir evaluation_at segons regla ratificada;
-:Executar la mateixa PrismaStudentDiscountPolicy;
+:Executar/migrar a la mateixa PrismaStudentDiscountPolicy;
 :Identificar nova edició i tarifa exacta;
+:Per AP, imposar tarifa servidor abans del preview/mutació;
 :Resoldre compatibilitat amb descompte preexistent;
 if (Factura/cobrament ja existent?) then (Sí)
  :Classificar ajust i preservar històric;
@@ -682,3 +690,14 @@ Per UC-020, P02 continua sent llegat en transport i UX, però ja no és autorita
 ### Reconciliació P03/P04 — continuació 03/10/2026
 
 La infraestructura `PaymentLinkService` ja no es limita a token/expiració/import: abans d'emetre o resoldre exigeix `commercial_operation.CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT|PAYMENT_PENDING`. Això tanca la mancança de guard d'AP-50/AP-54 a la capa SIF. Les pantalles ACTUALS continuen sent les rutes llegades descrites a P03/P04; la seva substitució pel flux canònic continua pendent.
+
+
+### 6.5. Revalidació P06 — continuació 03/10/2026
+
+- L'endpoint `realitzarCanviCurs_CanviCurs.php` és POST + sessió + same-origin + permís + CSRF.
+- Les funcions de suport de preview que abans es cridaven sense definició (`loadLegacyCourseChangeSource`, `normalizeLegacyCourseChangeMoney`) existeixen ara al mateix endpoint.
+- `TIPUS_DESC` i `VALID_DESC` ja no es llegeixen dels hidden inputs: es rellegeixen de la inscripció origen.
+- Si `TIPUS_DESC=1`, `A_PAGAR` del navegador no és autoritat: la tarifa destí es resol per `ID_PREU + curs/hores + mes + vigència` i exigeix una única fila coherent amb la tarifa base.
+- També es rellegeix el pagament origen i es recalcula el pendent abans del preview SIF i abans de `realitzarCanviCurs_modalCanviCurs()`.
+- El preview SIF continua permetent ajustos manuals per als altres casos només amb `manual_price_reason`; AP no entra en aquest bypass perquè el preu proposat ja s'ha substituït pel servidor.
+- **Pendent transversal:** la política d'elegibilitat llegada de P06 encara no compta `GENERAT=1`; per tant AP-73 (mateixa policy web/intranet) continua obert.
