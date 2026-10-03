@@ -102,5 +102,5 @@ El browser envia identificadors, entitat, observacions i fingerprint; no decidei
 
 - **Inspecció:** superfícies i guards revisats.
 - **Tests:** core, endpoint, UC-004 i callers Redsys/manuals PASS a `88e5c922…`.
-- **Corregit 03/10:** `movement_date` obligatòria; prova afegida a `276fb390…`.
+- **Corregit i verificat 03/10:** `movement_date` obligatòria; la prova nova és PASS a `276fb390…` (961/6 global; fallades alienes a UC-001).
 - **Pendent preprod:** flags llegats, HMAC/rol/emissor/SIF, builders AEAT, reconciliació amb `main`.

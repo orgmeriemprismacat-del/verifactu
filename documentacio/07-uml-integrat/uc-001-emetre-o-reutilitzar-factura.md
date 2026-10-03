@@ -37,7 +37,7 @@
 
 **Persistència principal:** `factura`, `factura_linia`, `factura_registres`, `fiscal_sequence`, `fiscal_chain_state`, `fiscal_queue`, `fact_rels` quan hi ha relacions; opcionalment `payment_transaction`, `payment_allocation` i actualització de l'estat de cobrament.
 
-**Proves localitzades i executades:** a GitHub Actions del commit `88e5c922…` passen `IssueInvoiceTest::testIssueInvoiceCreatesFiscalRecordAndQueue`, `testIssueInvoiceReusesExistingInvoiceForSameIdempotencyKey`, `testIssueInvoiceWithPaymentCreatesPaymentTransactionAndAllocation` i la resta de guards UC-001. El run global és 960/6 per fallades alienes a UC-001. Al commit `276fb390…` s’afegeix la prova que un payment inicial sense `movement_date` falla 422 i no deixa factura, registre, cobrament ni seqüència consumida.
+**Proves localitzades i executades:** a GitHub Actions del commit `88e5c922…` passen `IssueInvoiceTest::testIssueInvoiceCreatesFiscalRecordAndQueue`, `testIssueInvoiceReusesExistingInvoiceForSameIdempotencyKey`, `testIssueInvoiceWithPaymentCreatesPaymentTransactionAndAllocation` i la resta de guards UC-001. El run global és 960/6 per fallades alienes a UC-001. Al commit `276fb390…`, la prova que un payment inicial sense `movement_date` falla 422 i no deixa factura, registre, cobrament ni seqüència consumida és **PASS**. El job queda 961 pass / 6 fail; les sis fallades observades són alienes a UC-001.
 
 ### 1.3. Revisió de la traçabilitat dels fons per inscripció — PENDENT
 
@@ -394,7 +394,7 @@ Note over G,S: Comparació de petició completa per K és PHP main. El guard com
 
 [Catàleg UC-01](../04-estat-final/33-casos-us-sif.md) · [Model de classes](../04-estat-final/31-diagrames-classes-sif.md) · [Seqüències existents](../04-estat-final/32-diagrames-sequencia-sif.md) · [Fitxa base](../06-fitxes-funcionals/uc-001.md) · [InvoiceService](../../sif/src/Service/InvoiceService.php) · [InvoicePayloadValidator](../../sif/src/Service/InvoicePayloadValidator.php) · [InvoiceRepository](../../sif/src/Repository/InvoiceRepository.php) · [FiscalSequenceRepository](../../sif/src/Repository/FiscalSequenceRepository.php) · [IssueInvoiceTest](../../sif/tests/Integration/IssueInvoiceTest.php).
 
-**No acreditat:** conformitat fiscal integral de tots els builders, reconciliació final de la branca amb `main`, configuració/cutover de preproducció ni posada en producció. Sí hi ha evidència d’execució específica UC-001 al run `88e5c922…`; la correcció de `movement_date` incorporada a `276fb390…` requereix el seu run.
+**No acreditat:** conformitat fiscal integral de tots els builders, reconciliació final de la branca amb `main`, configuració/cutover de preproducció ni posada en producció. Sí hi ha evidència d’execució específica UC-001 als runs `88e5c922…` i `276fb390…`; HARD-017 passa al segon. El CI global continua vermell per sis fallades alienes.
 
 
 ## 6. Paquet d'auditoria ACTUAL/FINAL revalidat 2026-10-03

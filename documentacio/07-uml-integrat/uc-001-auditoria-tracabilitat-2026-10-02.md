@@ -179,7 +179,7 @@ A GitHub Actions del commit `88e5c922424b0cf573b1d1af08dc8713b7b8ea32` consten c
 
 | ID | Severitat | Troballa | Resolució / estat |
 | --- | --- | --- | --- |
-| F-101 | Alta | `InvoiceService` generava `movement_date=date(...)` quan un cobrament inicial no en portava; un reintent equivalent podia donar 409 fals. | **Corregit** a `7dceaf9…`: data obligatòria/no buida. Prova afegida a `276fb390…`; CI del fix necessari. |
+| F-101 | Alta | `InvoiceService` generava `movement_date=date(...)` quan un cobrament inicial no en portava; un reintent equivalent podia donar 409 fals. | **Corregit i verificat**: `7dceaf9…` exigeix data obligatòria/no buida; `IssueInvoiceTest::testInvoiceInitialPaymentRequiresStableMovementDateBeforeMutation` passa al run de `276fb390…`. |
 | F-102 | Documental | HARD-004 deia que els espais no canònics es rebutjaven, però el codi/prova demostren que es normalitzen. | **Corregit** a la fitxa 1.4. |
 | F-103 | Operativa | La pantalla de factura conserva edició/anul·lació llegada; el bloqueig SIF depèn de flags de cutover. | **Pendent configuració/prova preprod**. |
 | F-104 | Traçabilitat UI | `alumnes-factura-sif.js` i `alumnes-factura.js` defineixen `window.uc007SifSearch`; el segon queda com a definició global final. | **Classificat UC-007**; no bloqueja el core UC-001 però afecta l’evidència de pantalla. |
@@ -189,5 +189,5 @@ A GitHub Actions del commit `88e5c922424b0cf573b1d1af08dc8713b7b8ea32` consten c
 
 - **Documentat:** fitxa, UML integrat, classes, seqüències, activitats, inventari PHP/JS, auditoria i revalidació.
 - **Implementat:** nucli d’emissió/reús, numeració, cadena/cua, payment, audit events, status projection, endpoint/policy/scope, guard AEAT, writer operation-line i HARD-017.
-- **Verificat:** inspecció del PHP/JS/SQL i proves específiques UC-001 passades al run `88e5c922…`; la nova prova HARD-017 requereix el run del head `276fb390…`.
+- **Verificat:** inspecció del PHP/JS/SQL, proves específiques UC-001 passades al run `88e5c922…` i HARD-017 passada al run de `276fb390…`. El job SIF d’aquest head queda **961 pass / 6 fail**, amb les sis fallades fora d’UC-001.
 - **Pendent:** coverage comercial entre claus, `commercial_operation` obligatòria, propagació universal de `uuid_operation_line`, assembler AEAT complet, any fiscal, R1–R5, cutover guards llegats, fencing Redsys, preproducció i reconciliació/CI final.

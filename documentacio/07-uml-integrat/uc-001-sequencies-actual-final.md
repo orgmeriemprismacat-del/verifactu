@@ -178,4 +178,4 @@ La seqüència FINAL continua pendent només en la cobertura comercial transvers
 
 ## 7. Evidència 03/10
 
-Les seqüències del nucli, UC-004 i callers Redsys/manuals tenen proves específiques PASS a l’execució del commit `88e5c922…`. La nova validació de `movement_date` queda coberta per `IssueInvoiceTest::testInvoiceInitialPaymentRequiresStableMovementDateBeforeMutation` al commit `276fb390…` i necessita el seu run de CI.
+Les seqüències del nucli, UC-004 i callers Redsys/manuals tenen proves específiques PASS a l’execució del commit `88e5c922…`. La nova validació de `movement_date` queda coberta per `IssueInvoiceTest::testInvoiceInitialPaymentRequiresStableMovementDateBeforeMutation`, **PASS** al commit `276fb390…`; la suite queda 961 pass / 6 fail, amb les sis fallades observades fora d’UC-001.

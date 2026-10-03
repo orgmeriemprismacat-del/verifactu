@@ -85,7 +85,7 @@ Els `Redsys*InvoiceService` parteixen de notificacions/intencions/snapshots vali
 **Abans:** `InvoiceService::buildInitialPaymentPayload()` feia fallback a `date('Y-m-d H:i:s')`.  
 **Risc:** dos intents equivalents separats en el temps podien generar payloads econòmics materials diferents i un CONFLICT idempotent fals.  
 **Correcció:** commit `7dceaf9cff43566d3eac42108486c2f3d9ddc937` exigeix `movement_date` explícita i no buida.  
-**Prova:** commit `276fb390cd3f4ac7157f831bb544a60e6330d157`, `IssueInvoiceTest::testInvoiceInitialPaymentRequiresStableMovementDateBeforeMutation`, comprova 422 i zero factura/registre/payment/seqüència consumida.
+**Prova:** commit `276fb390cd3f4ac7157f831bb544a60e6330d157`, `IssueInvoiceTest::testInvoiceInitialPaymentRequiresStableMovementDateBeforeMutation`, **PASS**; comprova 422 i zero factura/registre/payment/seqüència consumida. El job queda 961 pass / 6 fail, amb les sis fallades fora d’UC-001.
 
 ## 5. Verificació executada
 
@@ -131,7 +131,7 @@ També s’han inspeccionat canvis de main en callers adjacents (`LegacyPackInvo
 | UC-004 | **IMPLEMENTAT / VERIFICAT** | Preview/fingerprint/confirmació |
 | Redsys callers | **IMPLEMENTAT / VERIFICAT específicament** | Proves de serveis passades |
 | Tests UC-001 pre-F101 | **VERIFICAT** | PASS a `88e5c922…` |
-| F-101 | **IMPLEMENTAT; CI DEL FIX PENDENT** | Prova afegida a `276fb390…` |
+| F-101 | **IMPLEMENTAT I VERIFICAT** | Prova PASS a `276fb390…`; suite 961/6, fallades alienes a UC-001 |
 | CI global | **NO VERD** | 6 fallades alienes observades |
 | Preproducció | **PENDENT** | Config, flags, HMAC, issuer/SIF, AEAT builders, evidència |
 | Producció | **PENDENT / BLOQUEJADA** | No declarar llest fins resoldre gaps i acceptació |
@@ -139,7 +139,7 @@ També s’han inspeccionat canvis de main en callers adjacents (`LegacyPackInvo
 ## 8. Pendents que bloquegen el tancament operatiu
 
 1. Reconciliar PR #114 amb el `main` vigent i revisar els fitxers solapats.
-2. Executar el CI del head que inclou F-101.
+2. Mantenir com a evidència el run `276fb390…` on HARD-017 passa; el CI global continua bloquejat per les sis fallades alienes i s’ha de resoldre/reclassificar abans del merge.
 3. Fer obligatòria o equivalent la cobertura comercial entre claus diferents abans de numerar.
 4. Propagar `uuid_operation_line`/identitat comercial des de tots els builders pertinents.
 5. Completar assembler fiscal server-side/`aeat_fields` per tots els fluxos qualificats.
@@ -153,7 +153,7 @@ També s’han inspeccionat canvis de main en callers adjacents (`LegacyPackInvo
 
 **Auditoria de cobertura:** revalidada.  
 **Core UC-001:** substancialment implementat i endurit.  
-**Verificació específica:** existent per la base anterior; F-101 necessita el seu run.  
+**Verificació específica:** existent i actualitzada; F-101 passa al run del head de codi `276fb390…`. El global continua 961/6 per fallades alienes.  
 **Acceptació operativa/producció:** pendent.
 
 No s’ha de convertir “fitxa + UML + tests del core” en “llest per producció”: els gaps fiscals/comercials i la configuració/cutover continuen explícits.

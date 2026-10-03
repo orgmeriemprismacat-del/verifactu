@@ -49,7 +49,7 @@
 - `main`: `b0e8ff7150c5a8b415cc109d298d82f0db1f68df`; head de codi després de HARD-017: `276fb390cd3f4ac7157f831bb544a60e6330d157`.
 - Compare: **150 ahead / 44 behind**, merge-base `549d7ef9280df3cd5249340e3785a4bf23a14b78`.
 - Solapament directe entre canvis de main i paquet UC-001: `sif/config/sif.php` i `documentacio/07-uml-integrat/README.md`. També s’han inspeccionat canvis adjacents de pack/Redsys perquè són callers.
-- La suite del head `88e5c922…` acredita PASS específic UC-001; el global 960/6 queda vermell per pack/UC-015 i una prova de signatura Redsys.
+- La suite del head `88e5c922…` acredita PASS específic UC-001 (960/6 global). Després de HARD-017, el head de codi `276fb390…` executa també la prova nova amb **PASS** i queda **961/6 global**, amb les mateixes cinc fallades pack/UC-015 i una de signatura Redsys.
 
 ## 6. Observacions de superfície
 
