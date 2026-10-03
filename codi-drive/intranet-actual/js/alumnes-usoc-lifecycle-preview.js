@@ -666,6 +666,16 @@
 
         requestCourseChangePrepare(identity)
             .done(function (response) {
+                if (response && response.ok === true && response.already_completed === true) {
+                    if (typeof amagarLoadingModal === 'function') {
+                        amagarLoadingModal();
+                    }
+
+                    courseChangeContext = null;
+                    window.location.reload();
+                    return;
+                }
+
                 if (
                     !response
                     || response.ok !== true
