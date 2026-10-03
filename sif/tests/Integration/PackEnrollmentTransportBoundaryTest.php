@@ -38,9 +38,10 @@ final class PackEnrollmentTransportBoundaryTest
         Assert::stringContainsString("!== 'POST'", $endpoint);
         Assert::stringContainsString("header('Allow: POST')", $endpoint);
         Assert::stringContainsString('http_response_code(405)', $endpoint);
-        Assert::stringContainsString("\$_POST['dni']", $endpoint);
-        Assert::stringContainsString("\$_POST['email']", $endpoint);
-        Assert::stringContainsString("\$_POST['idPack']", $endpoint);
+        Assert::stringContainsString('$request = $_POST;', $endpoint);
+        Assert::stringContainsString("\$request['dni']", $endpoint);
+        Assert::stringContainsString("\$request['email']", $endpoint);
+        Assert::stringContainsString("\$request['idPack']", $endpoint);
         Assert::stringContainsString("\$pagFrac = 'No'", $endpoint);
 
         if (str_contains($endpoint, "\$_POST['pagFrac']")) {
