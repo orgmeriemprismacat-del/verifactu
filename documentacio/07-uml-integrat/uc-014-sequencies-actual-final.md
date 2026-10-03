@@ -52,7 +52,7 @@ OK-->>A: missatge visual
 
 ### Punts que el diagrama ACTUAL encara no resol arquitectònicament
 
-1. La branca 02/10 endureix signatura, import, `IDPAG`, secrets, fraccionament, moneda, terminal, merchant code i `Ds_Response` del fallback mitjançant `Ds_MerchantData` signat i configuració d'entorn; la MerchantURL ja no porta context funcional. Tot i així, `DS_ORDER` i la factura encara neixen fora del SIF mentre aquest fallback sigui actiu.
+1. El paquet fusionat via PR #118 endureix signatura, import, `IDPAG`, secrets, fraccionament, moneda, terminal, merchant code i `Ds_Response` del fallback mitjançant `Ds_MerchantData` signat i configuració d'entorn; la MerchantURL ja no porta context funcional. Tot i així, `DS_ORDER` i la factura encara neixen fora del SIF mentre aquest fallback sigui actiu.
 2. La numeració/facturació del callback llegat no és idempotent com el nucli SIF i s'ha de retirar després del cutover.
 3. El retorn OK/KO del navegador llegat no és prova suficient de persistència fiscal/econòmica; el pont candidat sí consulta estat SIF.
 4. La rotació de credencials històriques i l'evidència del runtime desplegat continuen pendents.
@@ -120,7 +120,7 @@ Note over Ret,Status: CONFIRMED només amb PROCESSED + UUID_FACTURA + UUID_PAYME
 Note over Web,C: el tall final exigeix cutover=1 + drain=1 + URL SIF HTTPS; cutover=1/drain=0 només bloqueja nous checkouts i drena callbacks llegats
 ```
 
-**Implementat i verificat per CI anterior:** intenció SIF, callback/cua/worker, factura+cobrament, `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, outbox CURS, consulta read-only d'estat i retorn OK/KO fail-closed. El PR #95 acredita fund allocation amb suites SIF 841/0 i quatre workflows verds. **Pendent d'entorn:** configurar MerchantURL/cutover, rotar secrets i executar Redsys/preproducció real. El hardening ACTUAL 02/10 ha estat revalidat al PR #105: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en verd sobre el head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`.
+**Implementat i verificat per CI anterior:** intenció SIF, callback/cua/worker, factura+cobrament, `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, outbox CURS, consulta read-only d'estat i retorn OK/KO fail-closed. El PR #95 acredita fund allocation amb suites SIF 841/0 i quatre workflows verds. **Pendent d'entorn:** configurar MerchantURL/cutover, rotar secrets i executar Redsys/preproducció real. El hardening ACTUAL queda reconciliat post-merge al PR #119: els tests UC-014/Redsys afectats passen; la suite global resta vermella només pels cinc boundaries UC-015/PACK.
 ## 3. FINAL — callback duplicat
 
 ```mermaid
