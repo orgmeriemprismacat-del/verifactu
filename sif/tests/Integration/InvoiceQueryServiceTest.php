@@ -254,6 +254,33 @@ final class InvoiceQueryServiceTest
             ),
             422
         );
+
+        Assert::throws(
+            SifException::class,
+            static fn () => $service->search(
+                ['actor_id' => 'operator-test'],
+                ['source_ids' => [10]]
+            ),
+            422
+        );
+
+        Assert::throws(
+            SifException::class,
+            static fn () => $service->search(
+                ['actor_id' => 'operator-test'],
+                ['source_type' => 'INSCRIPCIO']
+            ),
+            422
+        );
+
+        Assert::throws(
+            SifException::class,
+            static fn () => $service->search(
+                ['actor_id' => 'operator-test'],
+                ['unexpected' => 'value']
+            ),
+            422
+        );
     }
 
     private function allowAllPolicy(): InvoiceVisibilityPolicyInterface
