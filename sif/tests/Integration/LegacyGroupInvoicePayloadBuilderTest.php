@@ -108,6 +108,19 @@ final class LegacyGroupInvoicePayloadBuilderTest
         Assert::same(0, (int) $participantRelation['VISIBLE_ALUMNE']);
     }
 
+    public function testRejectsInconsistentExplicitGroupLineAmounts(): void
+    {
+        $snapshot = $this->groupSnapshot();
+        $snapshot['items'][1]['inscription']['IMPORT_BASE'] = '100.00';
+        $snapshot['items'][1]['inscription']['DESC_IMPORT'] = '20.00';
+        $snapshot['items'][1]['inscription']['TOTAL'] = '90.00';
+        $snapshot['items'][1]['inscription']['A_PAGAR'] = '90.00';
+
+        Assert::throws(SifException::class, function () use ($snapshot): void {
+            (new LegacyGroupInvoicePayloadBuilder())->build($snapshot);
+        });
+    }
+
     public function testRequiresAtLeastOneParticipant(): void
     {
         $snapshot = $this->groupSnapshot();
