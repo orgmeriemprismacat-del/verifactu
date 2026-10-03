@@ -61,6 +61,9 @@ $csrf = htmlspecialchars($_SESSION['sif_verifactu_csrf'], ENT_QUOTES, 'UTF-8');
                     <button id="sif-open-incidents" class="btn btn-primary btn-sm" type="button">
                         <i class="fa-solid fa-triangle-exclamation me-1"></i> Obrir incidències SIF
                     </button>
+                    <button id="sif-open-versions" class="btn btn-outline-primary btn-sm" type="button">
+                        <i class="fa-solid fa-code-branch me-1"></i> Configuració i versions
+                    </button>
                     <button id="sif-verifactu-refresh" class="btn btn-outline-primary btn-sm" type="button">
                         <i class="fa-solid fa-rotate me-1"></i> Actualitzar
                     </button>
