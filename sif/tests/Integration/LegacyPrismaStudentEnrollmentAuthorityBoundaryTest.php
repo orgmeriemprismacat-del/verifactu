@@ -56,6 +56,18 @@ final class LegacyPrismaStudentEnrollmentAuthorityBoundaryTest
         Assert::same(true, $serverAssignment !== false && $freeOverride !== false && $serverAssignment < $freeOverride);
     }
 
+    public function testPreviewEligibilityMatchesPolicyV2AndDoesNotUseUnpaidInvoiceShortcut(): void
+    {
+        $source = $this->read('codi-drive/web-actual/inc/buscarAlumnePrisMa.php');
+
+        Assert::stringContainsString('(A_PAGAR>0 AND PAGAMENT>0)', $source);
+        Assert::stringContainsString("OBSERVACIONS LIKE '%CURS REGAL%'", $source);
+        Assert::stringContainsString('(GENERAT=1)', $source);
+        Assert::stringContainsString("UPPER(\`INSC CURS\`)!='D'", $source);
+        Assert::stringContainsString("UPPER(\`INSC CURS\`)!='M'", $source);
+        Assert::same(false, str_contains($source, 'FACTURA_RELACIONADA'));
+    }
+
     private function read(string $relativePath): string
     {
         $root = dirname(__DIR__, 3);
