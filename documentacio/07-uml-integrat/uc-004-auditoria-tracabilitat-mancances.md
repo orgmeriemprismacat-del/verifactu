@@ -1,9 +1,10 @@
 # UC-004 · Auditoria detallada, traçabilitat i mancances
 
 **Cas d'ús:** UC-004 — Emetre factura abans de cobrar  
-**Data de tall actualitzada:** 2026-10-02  
-**Branca de continuació:** `feat/uc-004-adaptador-servidor-2026-10-02`  
-**Tipus de verificació:** revisió estàtica del codi i documentació versionats. No s'han executat proves ni s'ha verificat preproducció/producció.
+**Data de tall actualitzada:** 2026-10-03  
+**Branca reconciliada:** `audit/uc-004-reconciliacio-2026-10-03`  
+**Base:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`  
+**Tipus de verificació:** auditoria estàtica exhaustiva + verificació automatitzada del HEAD reconciliat quan finalitzin els workflows. Preproducció/producció continua sent una evidència separada.
 
 ## 1. Conclusió de l'auditoria
 
@@ -19,7 +20,7 @@ Per tant, l'estat correcte del cas és:
 - **Implementat backend FINAL SIF:** SÍ per command intern, autenticació, preview/confirmació, emissió, cobertura i auditoria operacional.
 - **Integrat pantalla → FINAL:** **SÍ al codi versionat**: JS → `sifFacturaAbansPagar.php` → HMAC → endpoint SIF. **No verificat encara en preproducció/producció.**
 - **Verificat estàticament:** SÍ.
-- **Proves executades en aquesta auditoria:** NO.
+- **Proves automatitzades:** definides i llançades sobre el PR reconciliat; l'acta de tancament conserva el resultat del HEAD final.
 - **Preproducció/producció:** NO verificada.
 - **Tancable com a UC complet:** ENCARA NO.
 
@@ -170,21 +171,21 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 
 | Requisit / responsabilitat | Documentat | Implementat | Verificat estàtic | Prova executada | Pendent |
 | --- | --- | --- | --- | --- | --- |
-| Pantalla real UC-004 | Sí | Llegat | Sí | No | migrar adaptador |
+| Pantalla real UC-004 | Sí | **Sí, bridge SIF** | Sí | workflow específic | E2E/preproducció |
 | Permís de visualització | Sí | Sí | Sí | No | prova endpoint |
 | Autorització d'emissió al servidor | Sí | **Sí end-to-end al codi** · sessió/permís intranet + CSRF + HMAC + anti-replay + rol SIF | Sí | No | executar E2E/preproducció |
-| Cerca inscripcions | Sí | Llegat + **loader servidor nou a la branca** | Sí | No | connectar UI |
-| Deduplicació selecció | Sí FINAL | **Implementada al loader servidor** | Sí | No | connectar UI / executar tests |
-| Validació curs/edició al servidor | Sí FINAL | **Implementada a l'assembler servidor** | Sí | No | connectar UI / executar tests |
-| Receptor per ID intern | Sí FINAL | **Implementat a la branca** | Sí | No | connectar UI / executar tests |
-| Recalcular línies/total al servidor | Sí FINAL | **Implementat parcialment amb A_PAGAR autoritatiu** | Sí | No | classificador fiscal/comercial transversal + UI |
-| Emissió sense payment | Sí | Sí, SIF | Sí | No | integrar pantalla |
+| Cerca inscripcions | Sí | **UI + loader servidor per IDs** | Sí | workflow/tests | E2E/preproducció |
+| Deduplicació selecció | Sí FINAL | **Implementada al bridge + loader servidor** | Sí | tests definits | evidència E2E |
+| Validació curs/edició al servidor | Sí FINAL | **Implementada a l'assembler servidor** | Sí | tests definits | evidència E2E |
+| Receptor per ID intern | Sí FINAL | **Implementat i consumit per la UI** | Sí | tests definits | evidència E2E |
+| Recalcular línies/total al servidor | Sí FINAL | **Implementat amb `A_PAGAR` autoritatiu** | Sí | tests definits | classificador fiscal/comercial transversal |
+| Emissió sense payment | Sí | **Sí, SIF + pantalla integrada** | Sí | tests definits | E2E/preproducció |
 | Idempotència mateixa clau/payload | Sí | Sí, SIF | Sí | No | executar proves |
 | Conflicte mateixa clau/payload diferent | Sí | Sí, SIF | Sí | No | executar proves |
 | Cobertura entre claus UC-004 diferents | Sí FINAL | **Implementada en aquesta branca amb claim transaccional específic** | Sí | No | executar migració/proves; cobertura transversal entre canals continua pendent |
-| Seqüència fiscal segura | Sí | Sí, SIF | Sí | No | usar SIF des UI |
-| Cadena / registre / cua | Sí | Sí, SIF | Sí | No | usar SIF des UI |
-| `fact_rels` | Sí | Sí | Sí | No | **UC-004 ja exigeix relations INSCRIPCIO/ORIGIN; falta executar proves** |
+| Seqüència fiscal segura | Sí | **Sí, SIF usat des de la UI** | Sí | suite | preproducció |
+| Cadena / registre / cua | Sí | **Sí, SIF usat des de la UI** | Sí | suite | preproducció |
+| `fact_rels` | Sí | **Sí, `INSCRIPCIO/ORIGIN` obligatori** | Sí | tests definits | preproducció/backfill |
 | `operational_event` UC-004 | Sí | **IMPLEMENTAT EN AQUESTA BRANCA dins la mateixa transacció** | Sí | No | executar suite i inspeccionar event |
 | Cobrament posterior separat | Sí | Sí, serveis SIF | Sí | No | integrar canal |
 | Preview segur abans d'emetre | Sí FINAL | **Implementat en CLI + HTTP + pantalla** amb fingerprint, relectura i comprovació prèvia de coverage UC-004 | Sí | No | executar E2E |
