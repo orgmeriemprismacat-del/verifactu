@@ -42,7 +42,7 @@ Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un 
 | --- | --- | --- | --- |
 | UC-01 | Emetre o reutilitzar factura | [Fitxa i UML](uc-001-emetre-o-reutilitzar-factura.md) | `[BASE]` |
 | UC-02 | Registrar pagament sobre factura | [Fitxa i UML](uc-002-registrar-cobrament-factura.md) | `[BASE]` |
-| UC-03 | Processar cobrament Redsys asíncron | [Fitxa i UML](uc-003-processar-cobrament-redsys-asincron.md) · [classes A/F](uc-003-classes-actual-final.md) · [seqüències A/F](uc-003-sequencies-actual-final.md) · [activitats](uc-003-activitats-actual-final.md) · [inventari PHP/JS](uc-003-inventari-codi-php-js-actual-final-2026-10-03.md) · [auditoria 03/10](uc-003-auditoria-tracabilitat-2026-10-03.md) | `[ASYNC · PAQUET AUDITORIA COMPLET · CI/ROLLOUT PENDENTS]` |
+| UC-03 | Processar cobrament Redsys asíncron | [Fitxa i UML](uc-003-processar-cobrament-redsys-asincron.md) · [classes A/F](uc-003-classes-actual-final.md) · [seqüències A/F](uc-003-sequencies-actual-final.md) · [activitats](uc-003-activitats-actual-final.md) · [inventari PHP/JS](uc-003-inventari-codi-php-js-actual-final-2026-10-03.md) · [auditoria 03/10](uc-003-auditoria-tracabilitat-2026-10-03.md) | `[ASYNC · PAQUET AUDITORIA COMPLET · PROVES UC003 PASS · BASELINE CI RED · ROLLOUT PENDENT]` |
 | UC-04 | Emetre factura abans de cobrar | [Fitxa i UML](uc-004-emetre-factura-abans-cobrar.md) | `[PARCIAL]` |
 | UC-05 | Crear rectificativa | [Fitxa i UML](uc-005-rectificar-factura.md) | `[PARCIAL]` |
 | UC-06 | Registrar devolució, saldo o compensació | [Fitxa i UML](uc-006-devolucio-saldo-compensacio.md) | `[PARCIAL]` |
