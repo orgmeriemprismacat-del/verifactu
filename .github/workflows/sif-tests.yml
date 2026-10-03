@@ -20,6 +20,18 @@ on:
       - "codi-drive/web-actual/respostaKoPagamentAutomatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/inc/PackPaymentGate.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/intranet-actual/sif-registres-aeat.php"
+      - "codi-drive/intranet-actual/SifInternalAeatClient.php"
+      - "codi-drive/intranet-actual/ajax/sif/sifAeat.php"
+      - "codi-drive/intranet-actual/js/sif-registres-aeat.js"
+      - "codi-drive/intranet-actual/css/sif-registres-aeat.css"
+      - "codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php"
+      - "codi-drive/intranet-actual/sif-registres-aeat.php"
+      - "codi-drive/intranet-actual/SifInternalAeatClient.php"
+      - "codi-drive/intranet-actual/ajax/sif/sifAeat.php"
+      - "codi-drive/intranet-actual/js/sif-registres-aeat.js"
+      - "codi-drive/intranet-actual/css/sif-registres-aeat.css"
+      - "codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
       - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
@@ -143,6 +155,14 @@ jobs:
           php -l codi-drive/intranet-actual/ajax/alumnes/confirmacioBaixa_DonarBaixa.php
           node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.js
           node --check codi-drive/intranet-actual/js/alumnes-mostrar-alumne.min.js
+
+      - name: Lint UC-009 intranet AEAT
+        run: |
+          php -l codi-drive/intranet-actual/sif-registres-aeat.php
+          php -l codi-drive/intranet-actual/SifInternalAeatClient.php
+          php -l codi-drive/intranet-actual/ajax/sif/sifAeat.php
+          php -l codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php
+          node --check codi-drive/intranet-actual/js/sif-registres-aeat.js
 
       - name: Executar suite SIF
         run: php sif/tests/run-tests.php
