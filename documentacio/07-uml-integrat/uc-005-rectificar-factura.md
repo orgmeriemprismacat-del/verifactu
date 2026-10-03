@@ -49,9 +49,9 @@ UC-05 conserva factura i registre originals i emet la rectificativa; **això no 
 
 ### 1.3. Contrast de la pantalla «Consulta - Edita - Anul·la factura» i de les decisions del xat original
 
-**R-PANTALLA — flux històric real, no adaptador SIF acreditat.** A `/alumnes/factura/` es cerca per DNI/NIE, correu, `FACTURA_RELACIONADA` o número; un clic a `.cns-informacio` obre el modal de factura. El llapis `.editar-apartat` permet canviar `rao`, `cif`, adreça, `concepte1`, `concepte2`, observacions i identificació; `.save-result` crida `guardarDadesFactura_Factures.php` per **GET**, que delega a `guardarDadesFactura_Factures()` i a l'UPDATE `updDadesFact` del llegat. Aquesta edició directa és un comportament **antic** que s'ha de substituir per una acció amb motiu, snapshot de l'original i classificació fiscal; la pantalla SIF no pot presentar el mateix llapis com a modificació en lloc d'una factura emesa.
+**R-PANTALLA — flux històric real, no adaptador SIF acreditat.** A `/alumnes/factura/` es cerca per DNI/NIE, correu, `FACTURA_RELACIONADA` o número; un clic a `.cns-informacio` obre el modal de factura. El llapis `.editar-apartat` permet canviar `rao`, `cif`, adreça, `concepte1`, `concepte2`, observacions i identificació; `.save-result` acaba en `guardarDadesFactura_Factures.php`; en el tall revisat el 2026-10-03 l'endpoint exigeix **POST**, sessió, same-origin/permís i `SifLegacyInvoiceMutationGuard`, abans de delegar a `guardarDadesFactura_Factures()` i a la mutació llegada. Aquesta edició directa és un comportament **antic** que s'ha de substituir per una acció amb motiu, snapshot de l'original i classificació fiscal; la pantalla SIF no pot presentar el mateix llapis com a modificació en lloc d'una factura emesa.
 
-**R-ANUL — botó antic ambigu.** `.anula-factura` obre `mostrarModalAnulaFactura_Factures.php`; `.confirma-baixa` recull `id`, `A TORNAR`, `DATA DEVOLUCIO` i observacions i crida `anularFactura_Factures.php` per **GET**. El procediment històric `anularFactura()` genera una nova fila de factura **R negativa** i altera resums econòmics d'inscripcions; el xat original confirma les sèries separades A i R i que el llegat feia rectificatives negatives. **El nom del botó «anul·lar» no determina la figura del SIF**: distingir correcció d'import/concepte/receptor (UC-05), baixa d'inscripció (UC-27/72), devolució (UC-28), anul·lació de registre improcedent (UC-30) i subsanació de registre (UC-31), sense disparar-los tots per defecte.
+**R-ANUL — botó antic ambigu.** `.anula-factura` obre `mostrarModalAnulaFactura_Factures.php`; `.confirma-baixa` recull `id`, `A TORNAR`, `DATA DEVOLUCIO` i observacions i acaba en `anularFactura_Factures.php`; en el tall revisat el 2026-10-03 l'endpoint mutador exigeix **POST**, sessió, autorització i `SifLegacyInvoiceMutationGuard`. El procediment històric `anularFactura()` genera una nova fila de factura **R negativa** i altera resums econòmics d'inscripcions; el xat original confirma les sèries separades A i R i que el llegat feia rectificatives negatives. **El nom del botó «anul·lar» no determina la figura del SIF**: distingir correcció d'import/concepte/receptor (UC-05), baixa d'inscripció (UC-27/72), devolució (UC-28), anul·lació de registre improcedent (UC-30) i subsanació de registre (UC-31), sense disparar-los tots per defecte.
 
 **R-RECEPTOR — dades fiscals canviades després d'emetre.** El xat confirma canvis de nom/CIF i expressa preferència per una rectificativa de valor zero o per substitució en aquests casos. Aquesta és la **necessitat de negoci comunicada**, no l'elecció fiscal validada de la modalitat: el classificador UC-74 ha de decidir tipus i dades que cal rectificar en funció del cas documentat abans d'invocar `ManualRectificationPayloadBuilder`. El constructor actual recupera el receptor de la factura original per defecte; **això no demostra que pugui corregir el receptor real en un sol pas** amb l'entrada actual. No etiquetar «canvi de CIF resolt» sense una prova del payload final, relació amb original i document generat.
 
@@ -432,13 +432,15 @@ end
 Note over C,P: Vinculació de cobrament a la rectificativa, regles de saldo i impostos requereixen validació del contracte de negoci.
 ```
 
-### 4.5. Desajust d'àlies d'entrada entre builder i persistència — observat al PHP
+### 4.5. Àlies d'entrada builder/persistència — CORREGIT EN BRANCA 2026-10-03
 
-`ManualRectificationPayloadBuilder::forOriginalInvoice()` accepta `reason` **o** `motiu` i `mode` **o** `mode_rectificacio`. No obstant això, `RectificationRepository::linkRectification()` llegeix exclusivament `$input['reason']` i `$input['mode']` quan insereix la relació. Si el canal només envia els àlies catalans, el builder pot emetre i confirmar la factura R i **després** fallar o vincular incompletament la rectificació, depenent de com es gestionin els avisos PHP i les restriccions SQL del runtime. La fitxa no ha de representar els àlies com a equivalents end-to-end fins a normalitzar la petició abans d'emetre o corregir el repositori i provar les dues formes.
+El builder accepta `reason`/`motiu` i `mode`/`mode_rectificacio`. En el tall anterior el repositori de relació llegia només les claus angleses. La branca `audit/uc-005-2026-10-03` normalitza ara els alias a `ManualRectificationService` **abans** de construir el payload i abans de cridar `RectificationRepository`.
 
-| ID de prova pendent | Entrada i punt de fallada | Resultat exigible |
+S'ha afegit `ManualRectificationServiceTest::testPersistsCatalanAliasesInRectificationLink()` per exigir que `MOTIU`, `MODE_RECTIFICACIO` i `DETAILS` es persisteixin correctament amb els alias catalans.
+
+| ID de prova | Entrada / risc | Resultat exigible |
 | --- | --- | --- |
-| RF-09 | `motiu` i `mode_rectificacio` sense `reason`/`mode` | Normalització d'entrada end-to-end acreditada; un únic UUID R i relació íntegra, o rebuig **abans** de l'emissió. |
+| RF-09 | `motiu` i `mode_rectificacio` sense `reason`/`mode` | **Cobert al codi de test; execució encara pendent d'evidència.** Un únic UUID R i relació íntegra. |
 | RF-10 | Rectificativa negativa fiscalment aprovada i retorn encara no executat | Factura R i relació documentades, **cap** moviment `REFUND` fictici. |
 | RF-11 | Rectificativa positiva fiscalment aprovada i pagament posterior | Un UUID R, cap `CHARGE` inicial; un ingrés efectiu posterior assignat sense nova factura. |
 | RF-12 | Error SQL en `linkRectification()` després de COMMIT fiscal | Registrar UUID R i incidència, recuperar la vinculació sense nou número ni registre fiscal duplicat. |
@@ -455,3 +457,13 @@ Note over C,P: Vinculació de cobrament a la rectificativa, regles de saldo i im
 [Catàleg UC-05](../04-estat-final/33-casos-us-sif.md) · [Fitxa base UC-05](../06-fitxes-funcionals/uc-005.md) · [ManualRectificationService](../../sif/src/Service/ManualRectificationService.php) · [ManualRectificationPayloadBuilder](../../sif/src/Service/ManualRectificationPayloadBuilder.php) · [RectificationRepository](../../sif/src/Repository/RectificationRepository.php) · [InvoiceService](../../sif/src/Service/InvoiceService.php) · [ManualRectificationServiceTest](../../sif/tests/Integration/ManualRectificationServiceTest.php) · [Diagrames generals](../04-estat-final/31-diagrames-classes-sif.md) · [Seqüències existents](../04-estat-final/32-diagrames-sequencia-sif.md).
 
 **Límit:** no s'han executat les proves ni verificat el desplegament. L'existència del codi i de les proves no tanca les decisions fiscals ni els riscos d'atomicitat.
+
+
+## 7. Artefactes detallats afegits el 2026-10-03
+
+- [Inventari](uc-005-inventari-artefactes.md)
+- [Cas d'ús ACTUAL/FINAL](uc-005-cas-us-actual-final.md)
+- [Classes ACTUAL/FINAL](uc-005-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-005-sequencies-actual-final.md)
+- [Activitats per pàgina/apartat](uc-005-activitats-pagines-actual-final.md)
+- [Auditoria i traçabilitat](uc-005-auditoria-tracabilitat-2026-10-03.md)
