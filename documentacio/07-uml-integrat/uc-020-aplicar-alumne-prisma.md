@@ -1,9 +1,9 @@
 # UC-20 · Aplicar el descompte «Alumne PrisMa» — UML integrat ACTUAL / FINAL
 
-**Revisió específica:** 30/09/2026  
-**Estat:** auditoria estàtica completada; implementació FINAL parcial/no integrada.  
+**Revisió específica:** 03/10/2026  
+**Estat:** `AUDIT_CLOSED_REVALIDATED`; tall AP implementat i integrat al checkout de targeta, amb migracions transversals pendents.  
 **Abast:** elegibilitat, selecció de tarifa, alta web, alternativa després de denegació d'un altre descompte, canvi de curs, confirmació/pagament actiu i transport posterior del snapshot al SIF.  
-**No acredita:** desplegament productiu, dades reals, execució de proves o decisions de negoci pendents.
+**No acredita:** desplegament productiu ni E2E real de navegador/preproducció. Les proves automatitzades només es consideren verificades quan hi ha execució CI/evidència citada.
 
 ## 0. Llegenda
 
@@ -11,7 +11,8 @@
 - **IMPLEMENTAT SIF**: classe/taula existent al SIF, però no implica integració UC-20.
 - **DDL**: estructura definida per migració, sense servei runtime acreditat.
 - **DISSENY / FINAL**: responsabilitat objectiu encara no acreditada en runtime.
-- **PENDENT NEGOCI**: regla que el codi actual resol de manera inconsistent i necessita ratificació.
+- **HISTÒRIC / SUPERAT**: fotografia anterior conservada per traçabilitat però que no descriu el runtime vigent.
+- **PENDENT MIGRACIÓ/ROLLOUT**: integració transversal o verificació d'entorn encara no completada.
 
 ## 1. Resum funcional
 
@@ -23,7 +24,7 @@ La política llegada no és única:
 2. **Denegació d'un altre descompte a intranet**: semblant però sense `GENERAT=1` i sense excloure la inscripció actual.
 3. **Canvi de curs**: pagament/regal, exclou la mateixa inscripció i limita antecedents a la data de la inscripció original.
 
-El FINAL ha de convertir aquestes variants en una política versionada comuna i persistir la decisió comercial abans del cobrament/factura.
+El tall AP vigent encapsula la compatibilitat pública en `ALUMNE_PRISMA_WEB_LEGACY_V2`, exclou la matrícula actual i l'historial posterior a `DATA_INSC`, persisteix la decisió comercial abans de crear la intenció Redsys i manté el callback independent de la reavaluació d'elegibilitat. La unificació completa d'alta/preview/intranet sobre oferta SIF nativa continua com a migració.
 
 ## 2. Decisions compartides ja acordades amb UC-116
 
@@ -324,7 +325,7 @@ PrismaStudentCourseCheckoutService --> RedsysPaymentIntentService
 RedsysPaymentIntentService --> CourseIntentSnapshotValidator : SOURCE_TYPE=CURS
 ```
 
-**Estat actual de runtime (02/10/2026):** `main` aporta la persistència idempotent d'oferta/link i el flux específic AP. El checkout de targeta actiu de `pay.prisma.cat` crida `SifRedsysCourseIntentClient` → `/api/redsys/course-intent.php`; si `TIPUS_DESC=1`, `RedsysCoursePaymentIntentService` deriva a `PrismaStudentCourseCheckoutService`, que crea/reutilitza operació i validació, congela el snapshot, crea la intenció i vincula `UUID_OPERATION ↔ UUID_INTENT`. **Continuen pendents l'alta/preview/intranet sobre oferta servidor, `payment_link` com a ruta canònica i la ratificació de la política futura.**
+**Estat actual de runtime (03/10/2026):** el checkout de targeta actiu de `pay.prisma.cat` crida `SifRedsysCourseIntentClient` → `/api/redsys/course-intent.php`; si `TIPUS_DESC=1`, `RedsysCoursePaymentIntentService` deriva a `PrismaStudentCourseCheckoutService`, que crea/reutilitza operació i validació, congela el snapshot, crea la intenció i vincula `UUID_OPERATION ↔ UUID_INTENT`. L'alta AP llegada també revalida historial i tarifa al servidor i, després d'UC020-94, conserva aquest import fins a l'INSERT. **Continuen pendents** l'oferta SIF nativa a totes les superfícies, `payment_link` com a ruta canònica, la unificació de transferència i l'E2E real/preproducció.
 
 ## 7. Seqüència ACTUAL — web d'inscripció
 
@@ -359,13 +360,18 @@ sequenceDiagram
     JS->>JS: tipusPreuAplicat + preuInscripcio
     P->>JS: confirmar
     JS->>EI: GET dades + tipusDescompte + preuDescompte + promoció
-    EI->>DB: INSERT inscripcions
+    alt TIPUS_DESC=1
+        EI->>DB: rellegir historial AP + tarifa base/AP vigent
+        EI->>EI: rebutjar AP+promoció / tarifa absent o ambigua
+        EI->>EI: substituir import client per tarifa servidor
+    end
+    EI->>DB: INSERT inscripcions amb A_PAGAR autoritatiu per AP
 ```
 
 ### 7.1. Mancances ACTUALS d'aquest flux
 
-- Import i tipus final arriben des del navegador.
-- No hi ha una identitat d'oferta persistent entre càlcul i confirmació.
+- Import i tipus candidats arriben des del navegador; **per AP, l'import persistit ja no és autoritatiu del client** perquè `enviarInscripcio.php` rellegeix i conserva la tarifa servidor fins a l'INSERT.
+- No hi ha encara una identitat d'oferta SIF persistent entre càlcul i confirmació.
 - Peticions AJAX de preu poden quedar en vol simultàniament.
 - Una resposta antiga pot sobreescriure globals nous.
 - Codis promocionals modifiquen `preuInscripcio` sense garantir que `tipusPreuAplicat` canviï al mateix origen.
@@ -384,7 +390,9 @@ sequenceDiagram
     participant Mail as MailSMTPComvive
 
     S->>JS: NO + ENVIA
-    JS->>EP: GET idInsc, verificat=0
+    JS->>JS: generar requestId + llegir CSRF
+    JS->>EP: POST idInsc, verificat=0, csrfToken, requestId
+    EP->>EP: validar sessió + permís + CSRF + requestId
     EP->>I: sendMsgValidatCurosDescomptes(idInsc,0)
     I->>DB: llegir inscripció/preus
     I->>DB: buscar tarifa AP
@@ -459,7 +467,7 @@ sequenceDiagram
     UI->>Policy: evaluate(subject,product,evaluationAt,currentEnrollment)
     Policy-->>UI: decisió + regla + imports
 
-    Note over UI,Policy: Policy i adaptador legacy encara PENDENTS
+    Note over UI,Policy: Policy AP v2 IMPLEMENTADA; oferta SIF nativa a totes les superfícies encara PENDENT MIGRACIÓ
 
     UI->>Offer: createOrReuse(imports,snapshots,discount,actor,correlation)
     Offer->>CO: INSERT o reutilitzar per IDEMPOTENCY_KEY
@@ -478,7 +486,7 @@ sequenceDiagram
         Link->>CO: validar vigència de l'operació
         Link-->>UI: operació + import esperat
 
-        Note over UI,RI: PENDENT: orquestrador oferta/link → Redsys
+        Note over UI,RI: Checkout AP de targeta IMPLEMENTAT via course-intent; payment_link canònic PENDENT MIGRACIÓ
         UI->>RI: create(CURS,DS_ORDER,expectedAmount,snapshot)
         RI-->>UI: UUID_INTENT
         UI->>CO: linkIntent(UUID_OPERATION,UUID_INTENT,expected)
@@ -487,7 +495,7 @@ sequenceDiagram
     end
 ```
 
-**Tall d'implementació:** fins a `PaymentLinkService::resolve()` hi ha codi nou en aquesta branca; des de la creació de la intenció Redsys continua faltant l'adaptador que consumeixi l'operació/link i congeli el mateix snapshot comercial a `RedsysPaymentIntentService`.
+**Tall d'implementació vigent:** el checkout AP de targeta ja crea la intenció des del mateix snapshot autoritatiu i enllaça `UUID_OPERATION ↔ UUID_INTENT`. El que continua faltant és fer de `payment_link` l'entrada canònica del canal i reutilitzar la mateixa autorització comercial per transferència i la resta de superfícies.
 
 ## 11. Seqüència FINAL — factura posterior
 
@@ -575,11 +583,11 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 | Parts de l'operació | `commercial_operation_party` | `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_UC020 |
 | Decisió de descompte | `discount_validation` | `DiscountValidationRepository` + `CommercialOfferService` + `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_NUCLI |
 | Link pagament | `payment_link` | `PaymentLinkRepository` + `PaymentLinkService` | IMPLEMENTAT_INFRAESTRUCTURA · NO_INTEGRAT_CANAL_AP |
-| Event operatiu | `operational_event` | `OperationalEventRepository` | IMPLEMENTAT, integració UC-20 pendent |
+| Event operatiu | `operational_event` | `OperationalEventRepository` + `PrismaStudentCourseCheckoutService` | IMPLEMENTAT_UC020 per creació d'oferta/intenció |
 | Intenció Redsys | `redsys_payment_intent` | repositori + servei | IMPLEMENTAT |
 | Snapshot factura curs | factura/línia | builder + servei | IMPLEMENTAT |
 
-`redsys_payment_intent` no conté `UUID_OPERATION`. `commercial_operation.UUID_INTENT` existeix al DDL, però no s'ha identificat el codi que en faci l'enllaç.
+`redsys_payment_intent` no conté `UUID_OPERATION`, però `PrismaStudentCourseCheckoutService` enllaça explícitament la relació inversa mitjançant `commercial_operation.UUID_INTENT`; els reintents amb una intenció diferent fallen amb conflicte.
 
 ## 15. Concurrència i seguretat
 
@@ -593,21 +601,23 @@ Això justifica separar «estat de la sol·licitud original» d'«oferta actual 
 
 ### Intranet
 
-- resolució per GET amb efectes;
-- no s'ha localitzat CSRF explícit;
-- endpoint no reexecuta `comprovarSessio.php`;
-- no s'ha localitzat permís específic de comanda;
-- no hi ha clau idempotent ni versió esperada;
-- UI considera èxit l'absència de la paraula «error».
+- resolució actual per POST;
+- CSRF de sessió validat amb `hash_equals`;
+- comprovació explícita de sessió/objectes i permís de `/alumnes/validar-descomptes/`;
+- `requestId` amb reutilització de resultat a sessió;
+- continua pendent un lock/idempotència persistent de versió sobre la mutació llegada;
+- la UI continua interpretant una resposta textual i aquest contracte és candidat a JSON estructurat.
 
-## 16. Decisions pendents de negoci
+## 16. Decisions de negoci tancades per UC-020 v2
 
-1. `GENERAT=1` acredita AP?
-2. Una factura emesa sense cobrament acredita AP?
-3. La pròpia inscripció pot acreditar el dret?
-4. Quin instant d'avaluació és canònic?
-5. Quina compatibilitat/prioritat té AP amb promocions i altres descomptes?
-6. Quant dura una oferta AP abans de ser revalidada?
+1. `GENERAT=1` **sí** acredita AP per compatibilitat amb el comportament executable.
+2. Una factura emesa sense cobrament **no** acredita AP per si sola.
+3. La pròpia inscripció **no** pot autoacreditar el dret.
+4. En matrícula llegada, l'instant canònic és `DATA_INSC`; l'historial posterior queda exclòs.
+5. AP és **no acumulable amb promocions** en aquest tall; AP + promoció falla tancada.
+6. El snapshot AP queda congelat mentre la matrícula sigui pagable; la caducitat de `payment_link` és separada.
+
+Qualsevol canvi futur d'aquests criteris requereix una nova `RULE_VERSION`, no una mutació silenciosa de `ALUMNE_PRISMA_WEB_LEGACY_V2`.
 
 ## 17. Documents complementaris obligatoris
 
@@ -712,3 +722,11 @@ La pantalla de pagament utilitza l'import retornat per SIF per construir `DS_MER
 ## Reconciliació de tancament — 02/10/2026
 
 L'auditoria UC-020 queda **tancada**. El runtime AP de targeta és server-authoritative, l'alta llegada revalida AP abans de persistir, la policy v2 exclou autoacreditació i historial futur, i la resolució d'intranet s'ha reconciliat amb el codi actual POST/CSRF/permís/requestId. `payment_link`, transferència i E2E/preproducció es mantenen com a backlog/gates de migració, no com a preguntes obertes sobre el comportament AP actual.
+
+
+## 18. Revalidació 03/10/2026
+
+- **UC020-94 — tancat:** eliminat l'overwrite tardà de `preuDescompte` des del navegador després de la revalidació AP; prova de frontera afegida.
+- **UC020-95 — compatible amb main:** els canvis nous de Redsys CURS/cutover/callback/worker/factura no reobren la policy AP ni l'autoritat del snapshot; el callback continua consumint la intenció congelada.
+- **Cobertura documental:** aquest UML integrat es complementa amb fitxa v1.6, classes, seqüències, activitats P01…P06, traçabilitat i matriu AP-01…AP-84.
+- **Pendent de rollout:** E2E real/controlat navegador → Redsys/callback → worker → factura, `payment_link` canònic i transferència sota la mateixa autorització comercial.
