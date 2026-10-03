@@ -12,6 +12,10 @@ else {
 		$_SESSION['csrf_alumnes_lifecycle'] = bin2hex(random_bytes(32));
 	}
 	$csrfAlumnesLifecycle = $_SESSION['csrf_alumnes_lifecycle'];
+	$novicePromotionUiEnabled = filter_var(
+		getenv('SIF_NOVICE_PROMOTION_UI_ENABLED') ?: '0',
+		FILTER_VALIDATE_BOOLEAN
+	);
 ?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# video: http://ogp.me/ns/video#">
@@ -62,7 +66,7 @@ else {
 		<script src="https://intranet.prisma.cat/js/alumnes-usoc-lifecycle-preview.js?ver=1.0"></script>
 <?php } ?>
 
-<?php if (getenv('SIF_NOVICE_PROMOTION_UI_ENABLED') === '1') { ?>
+<?php if ($novicePromotionUiEnabled) { ?>
 		<script src="https://intranet.prisma.cat/js/alumnes-mostrar-alumne-uc111.js?ver=1.1"></script>
 <?php } ?>
 	</body>
