@@ -12,6 +12,7 @@ use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Service\GeneratedInvoiceLegacyPaymentSyncService;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
 use Prisma\Sif\Service\ManualPaymentService;
@@ -79,7 +80,45 @@ try {
         (string) ($config['env'] ?? 'development')
     );
 
-    JsonResponse::send($service->register($db, $actor, $payload));
+    $result = $service->register($db, $actor, $payload);
+
+    $legacyDbConfig = $config['legacy_db'] ?? [];
+    if (trim((string) ($legacyDbConfig['dsn'] ?? '')) === '') {
+        $result['payment_status'] = $result['status'] ?? null;
+        $result['status'] = 'PENDING_RETRY';
+        $result['legacy_sync'] = [
+            'status' => 'PENDING_RETRY',
+            'error' => 'Legacy DB is not configured for payment projection',
+        ];
+        JsonResponse::send($result, 202);
+        return;
+    }
+
+    try {
+        $legacyDb = ConnectionFactory::makeLegacy($config);
+        $sync = (new GeneratedInvoiceLegacyPaymentSyncService())->sync(
+            $db,
+            $legacyDb,
+            (string) ($result['uuid_factura'] ?? ''),
+            (string) ($result['num_visible'] ?? ''),
+            trim((string) ($payload['movement_date'] ?? '')),
+            'TRANSFERENCIA'
+        );
+
+        $result['legacy_sync'] = [
+            'status' => 'SYNCED',
+            'details' => $sync,
+        ];
+        JsonResponse::send($result);
+    } catch (\Throwable $syncException) {
+        $result['payment_status'] = $result['status'] ?? null;
+        $result['status'] = 'PENDING_RETRY';
+        $result['legacy_sync'] = [
+            'status' => 'PENDING_RETRY',
+            'error' => $syncException->getMessage(),
+        ];
+        JsonResponse::send($result, 202);
+    }
 } catch (\Throwable $exception) {
     $code = $exception->getCode();
     $httpStatus = is_int($code) && $code >= 400 && $code <= 599 ? $code : 500;
