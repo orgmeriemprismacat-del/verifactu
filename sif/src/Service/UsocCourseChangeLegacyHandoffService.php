@@ -144,7 +144,7 @@ final class UsocCourseChangeLegacyHandoffService
 
             try {
                 $source = $this->source($legacyDb, $sourceIdInsc);
-            } catch (\Throwable $exception) {
+            } catch (SifException $exception) {
                 $this->review(
                     $sifDb,
                     $requestId,
@@ -155,7 +155,7 @@ final class UsocCourseChangeLegacyHandoffService
 
             try {
                 $destination = $this->destination($legacyDb, $destinationIdInsc);
-            } catch (\Throwable $exception) {
+            } catch (SifException $exception) {
                 $this->review(
                     $sifDb,
                     $requestId,
@@ -170,7 +170,7 @@ final class UsocCourseChangeLegacyHandoffService
                     $sourceIdInsc,
                     $sourceIdpag
                 );
-            } catch (\Throwable $exception) {
+            } catch (SifException $exception) {
                 $this->review(
                     $sifDb,
                     $requestId,
@@ -188,7 +188,7 @@ final class UsocCourseChangeLegacyHandoffService
                     $targetMeta,
                     $expectedTotal
                 );
-            } catch (\Throwable $exception) {
+            } catch (SifException $exception) {
                 $this->review(
                     $sifDb,
                     $requestId,
