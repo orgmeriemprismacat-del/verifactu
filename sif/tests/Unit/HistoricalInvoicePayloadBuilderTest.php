@@ -61,6 +61,35 @@ final class HistoricalInvoicePayloadBuilderTest
         }, 422);
     }
 
+    public function testRequiresOriginalIssueDate(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'issue_date' => '',
+            ]));
+        }, 422);
+    }
+
+    public function testRejectsVisibleNumberComponentMismatch(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'num_visible' => 'A2024/000123',
+                'series' => 'R',
+            ]));
+        }, 422);
+    }
+
+    public function testForcesHistoricalStatusAndDefaultsVisibilityToPrivate(): void
+    {
+        $payload = (new HistoricalInvoicePayloadBuilder())->build($this->input([
+            'invoice_status' => 'ISSUED',
+        ]));
+
+        Assert::same('HISTORICAL', $payload['invoice_status']);
+        Assert::same(0, $payload['relations'][0]['visible_alumne']);
+    }
+
     private function input(array $overrides = []): array
     {
         return array_replace_recursive([
