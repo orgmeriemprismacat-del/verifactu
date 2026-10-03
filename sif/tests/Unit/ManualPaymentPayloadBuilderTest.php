@@ -49,7 +49,7 @@ final class ManualPaymentPayloadBuilderTest
             ]
         );
 
-        Assert::same('TRANSFERENCIA|BANK_EVENT_SHA256:' . hash('sha256', 'BANK-EVENT-42'), $payload['idempotency_key']);
+        Assert::same('TRANSFERENCIA|BANK_EVENT_SHA256:' . hash('sha256', "CAIXA\nBANK-EVENT-42"), $payload['idempotency_key']);
         Assert::same('BANK-EVENT-42', $payload['provider_ref']);
         Assert::same('MATRICULA', $payload['reference']);
 
