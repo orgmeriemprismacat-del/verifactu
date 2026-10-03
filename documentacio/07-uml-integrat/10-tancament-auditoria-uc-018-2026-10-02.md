@@ -1,5 +1,7 @@
 # UC-018 · Tancament de l'auditoria · 02/10/2026
 
+> **DOCUMENT HISTÒRIC DE TANCAMENT.** El 03/10/2026 una revalidació més profunda de la superfície navegador→legacy va detectar un gap no cobert per la suite d'aquest snapshot. El nucli/SIF i la seva evidència 858/0 continuen vigents, però l'estat global actual passa temporalment a `AUDIT_REOPENED_AND_PATCHED / CI_REVALIDATION_PENDING / ENVIRONMENT_GO_PENDING`. Vegeu `11-revalidacio-auditoria-uc-018-2026-10-03.md`.
+
 **Repositori:** `orgmeriemprismacat-del/verifactu`  
 **PR de tancament:** #115  
 **Head executable verificat:** `7ba6cf0f982960a1164561e0d624b1f9e729af73`  
@@ -20,7 +22,7 @@ Aquesta classificació separa:
 - **validació automatitzada:** verda;
 - **acceptació real de preproducció/producció:** pendent d'entorn.
 
-No queda cap buit PHP/JS, servei, repository, UML, recovery, concurrència o prova automatitzada obligatòria detectat dins l'abast base auditat que impedeixi tancar UC-018.
+En el tall del 02/10 no es va detectar cap buit addicional al nucli/SIF. La revalidació del 03/10 ha demostrat que aquesta afirmació no cobria completament la frontera navegador→legacy; el document es conserva com a evidència històrica del snapshot verificat.
 
 ## 2. Abast funcional tancat
 
@@ -150,10 +152,11 @@ Per declarar també `ENVIRONMENT_CLOSED`, falta executar en preproducció contro
 
 Aquestes comprovacions necessiten l'entorn real i no s'han de substituir per dades sintètiques de CI.
 
-## 9. Criteri final
+## 9. Criteri del tall 02/10 i estat posterior
 
-**Auditoria UC-018: TANCADA.**  
-**Codi UC-018 base: COMPLET segons l'abast auditat.**  
-**Documentació/UML: RECONCILIATS.**  
-**CI: VERD, 858/0; 49 PASS GIFT/UC-018; 4/4 workflows SUCCESS.**  
-**Acceptació preproducció/producció: PENDENT D'ENTORN, no pendent de codi.**
+**Tall 02/10:** nucli UC-018 verificat; CI 858/0; 49 PASS GIFT/UC-018; 4/4 workflows SUCCESS.  
+**Revalidació 03/10:** frontera pública patchada; CI nou pendent.  
+**Documentació/UML:** re-reconciliats a la branca de revalidació.  
+**Acceptació preproducció/producció:** continua pendent d'entorn.
+
+Aquest document ja no és l'última paraula sobre l'estat global; la continuació autoritativa és `11-revalidacio-auditoria-uc-018-2026-10-03.md`.
