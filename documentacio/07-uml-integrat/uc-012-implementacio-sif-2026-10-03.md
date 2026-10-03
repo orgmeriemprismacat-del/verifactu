@@ -112,3 +112,43 @@ El client signa la petició amb el mateix contracte HMAC de les altres APIs inte
 La mancança principal ja no és «no existeix coordinador». Ara és:
 
 **coordinador SIF implementat a branca; verificació CI, model de venciment/pròrroga i cutover dels handlers encara pendents.**
+
+
+## 6. Frontera segura d'intranet incorporada
+
+S'ha afegit una frontera nova, desactivada per defecte amb `SIF_DEBT_CLAIM_UI_ENABLED=0`:
+
+- `LegacyDebtClaimContext.php`: valida sessió i permís de lectura sobre `/facturacio/morosos/`;
+- `ajax/facturacio/sifDebtClaim.php`: només POST, mateix origen, AJAX obligatori, CSRF, actor/rol autenticat i permís d'edició;
+- `SifInternalDebtClaimClient.php`: HMAC cap a `/api/debt-claims/manage.php`;
+- `js/sif-debt-claim-bridge.js`: helper de navegador amb `operation_id` estable per retries;
+- les quatre pantalles de morositat creen `csrf_debt_claim` i exposen el meta `csrf-token-debt-claim`.
+
+El pont exigeix exactament `UUID_FACTURA` o `NUM_VISIBLE`. **No converteix automàticament `ID_INSC` en factura**, perquè una inscripció pot estar coberta per una factura d'empresa o per relacions que no siguin 1:1.
+
+Els endpoints antics `updDadesRecordatoriPagament.php`, `updDadesPrimeraReclamacio.php`, `updLastClaimPay.php` i variants de morosos continuen sense ser substituïts. Això és deliberat fins al cutover.
+
+## 7. Límit UC-096 — venciment i pròrroga
+
+La revisió de `uc-096.md` confirma `NOT_COMPLETE / DISSENY`. El llegat usa dates i camps administratius, però no s'ha localitzat una pròrroga SIF persistent i autoritativa.
+
+Conseqüència:
+
+- UC-012 pot calcular saldo, identificar el receptor fiscal i registrar/escalar una reclamació **per acció explícita d'un operador autoritzat**;
+- UC-012 **no** ha d'auto-seleccionar ni auto-enviar reclamacions per calendari mentre UC-096 no tingui persistència de venciment/pròrroga;
+- qualsevol scheduler de P-MOR queda bloquejat fins resoldre UC-096.
+
+## 8. Proves i controls nous
+
+A més dels tests del coordinador s'han afegit:
+
+- `DebtClaimIntranetBoundaryTest`: CSRF, same-origin, permís, HMAC i presència del bridge a les quatre pantalles;
+- `DebtClaimScriptsContractTest`: preflight/preview/process no productius;
+- extensió de `NotificationOutboxDeliveryServiceTest`: una notificació `CANCELLED` no pot ser reclamada ni generar intent de lliurament;
+- CI `SIF checks`: `php -l` explícit del pont PHP i `node --check` del JS.
+
+## 9. Estat després d'aquesta passada
+
+`CORE_IMPLEMENTED_ON_BRANCH / SAFE_BRIDGE_IMPLEMENTED_DISABLED / CI_QUEUED / LEGACY_CUTOVER_PENDING / UC096_BLOCKS_AUTOMATION / PREPRODUCTION_PENDING`.
+
+No s'ha activat cap canvi productiu ni s'ha redirigit cap POST legacy.
