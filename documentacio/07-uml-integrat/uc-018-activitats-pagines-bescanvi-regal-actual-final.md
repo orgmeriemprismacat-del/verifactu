@@ -1,75 +1,148 @@
 # UC-018 · Activitats ACTUAL/FINAL per pàgina i apartat
 
-## 1. Superfícies executables auditades
+## 1. Superfícies executables auditades — 2026-10-03
 
-| Superfície | ACTUAL | FINAL auditat |
+| Superfície | ACTUAL | FINAL |
 | --- | --- | --- |
-| Formulari web de bescanvi | Legacy existent | Captura dades; l'autoritat queda al servidor |
-| `enviarInscripcioBescanvia.php` | Writer legacy | Replay primer, lock, get-or-create i cap `UPDATE regal.USAT` directe |
-| `SifGiftRedemptionClient` | Client intern | Redeem + claim/complete de notificacions via POST/HMAC |
-| `/api/gifts/redemption/redeem.php` | Executable | Orquestració autoritativa |
-| `/api/gifts/redemption/notifications.php` | PR de tancament | Claim/complete at-most-once |
-| `preflight-gift-redemption.php` | PR de tancament | Read-only i fail-closed |
-| `verify-gift-redemption-preproduction.php` | PR de tancament | Dry-run per defecte; `--execute` explícit |
+| `pagina_bescanvia.php` | carrega `mostrarBescanvia.min.js?ver=6.0` | Igual |
+| `mostrarBescanvia.min.js` | controlador client; 4 peticions sensibles POST | Igual |
+| `mostrar_pagina_bescanvia.php` | render formulari codi | Igual |
+| `codiRegalValid.php` | POST-only; resposta neutra | Igual |
+| `buscarCursRegalat.php` | POST-only + revalidació server-side | Igual |
+| `bescanviaUnCurs.php` | render curs/edició | Igual |
+| `inscripcioDuplicada.php` | POST en UC-018 perquè DNI no vagi a URL | Igual |
+| `enviarInscripcioBescanvia.php` | POST-only; lock, FACT_REL>0, get-or-create, SIF, correus | Igual |
+| `SifGiftRedemptionClient` | POST/HMAC redeem + notificacions | Igual |
+| `redeem.php` | endpoint intern autoritatiu | Igual |
+| `notifications.php` | claim/complete at-most-once | Igual |
+| `pagina_confirmacio_bescanvia.php` + JS + AJAX | confirmació amb ID opaca | Igual |
+| preflight/verificador | codi implementat | execució [ENV] |
 
-## 2. ACTUAL/FINAL — flux web
+## 2. Activitat P-BES-01 · Introduir i validar codi
 
 ```mermaid
 flowchart TD
-A[Usuari confirma bescanvi] --> B[Validar dades legacy]
-B --> C[Lock regal]
-C --> D{USAT ja reconciliat?}
-D -- sí mateix curs/DNI/codi --> E[Retornar mateixa ID_INSC]
-D -- sí contradictori --> X[409 CONFLICT]
-D -- no --> F[Crear o reutilitzar inscripció candidata]
-F --> G[Commit legacy]
-G --> H[POST/HMAC redeem al SIF]
-H --> I[Resoldre context autoritatiu]
-I --> J[Claim holder + RESERVE]
-J --> K[COMPENSATION_ALLOCATION]
-K --> L[CONSUME]
-L --> M[Reconciliar regal.USAT]
-M --> N[Crear/reutilitzar 6 outbox]
-N --> O[Claim individual]
-O --> P[SMTP]
-P --> Q[Complete SENT/FAILED]
-Q --> R[Retornar ID_INSC]
+A[Obrir /bescanvia] --> B[Carregar bundle rastrejable]
+B --> C[Introduir codi]
+C --> D[POST codiRegalValid]
+D --> E{Bescanviable?}
+E -- no --> F[Missatge neutre]
+E -- sí --> G[POST buscarCursRegalat]
+G --> H[Revalidar server-side]
+H --> I[Curs/modalitat]
 ```
 
-## 3. Concurrència i recovery
+## 3. Activitat P-BES-02 · Seleccionar curs i edició
 
 ```mermaid
 flowchart TD
-A[Dos processos] --> B[Lock entitlement]
-B --> C{Mateix destí?}
-C -- sí --> D[1 crea / 1 reutilitza]
-C -- no --> E[1 guanya / 1 rep 409]
-D --> F[1 CLAIM + 1 RESERVE + 1 CONSUME]
+A[Curs/modalitat] --> B[Render bescanviaUnCurs]
+B --> C{Regal genèric?}
+C -- sí --> D[Escollir curs elegible]
+C -- no --> E[Usar curs regalat]
+D --> F[Escollir edició]
 E --> F
-F --> G[1 COMPENSATION_ALLOCATION]
-G --> H[0 CHARGE nous / 0 factures noves]
+F --> G[Omplir dades personals]
 ```
 
-## 4. Seguretat de superfície
+La política de canvi de curs posterior pertany a UC-26/71; UC-018 només ha de consumir una vegada el dret.
 
-- El codi regal no va a query string.
-- El caller no controla holder ni snapshot econòmic.
-- Les rutes internes usen HMAC i anti-replay.
-- Preflight/verificador no exposen secrets.
-- L'execució de preproducció pren el codi de variable d'entorn, no de CLI.
-- Els correus només s'autoritzen després de reconciliació SIF.
+## 4. Activitat P-BES-03 · Comprovar duplicat
 
-## 5. Estat per apartat
+```mermaid
+flowchart TD
+A[Dades validades al navegador] --> B[POST DNI + curs + any + edició]
+B --> C{Inscripció existent?}
+C -- sí --> D[No crear altra matrícula]
+C -- no --> E[Continuar]
+```
 
-| Apartat | Documentat | Implementat | Verificació |
+## 5. Activitat P-BES-04 · Writer legacy
+
+```mermaid
+flowchart TD
+A[POST dades + codi] --> B[Begin transaction]
+B --> C[SELECT regal FOR UPDATE]
+C --> D{Existeix i FACT_REL > 0?}
+D -- no --> X[Error / rollback]
+D -- sí --> E{USAT o candidata existent?}
+E -- sí --> F[Validar curs DNI import factura codi]
+E -- no --> G[Crear una única ID_INSC]
+F --> H[Reutilitzar ID_INSC]
+G --> I[Commit legacy]
+H --> I
+I --> J[POST/HMAC redeem al SIF]
+```
+
+## 6. Activitat P-BES-05 · Saga SIF
+
+```mermaid
+flowchart TD
+A[redeem] --> B[Context autoritatiu]
+B --> C[Claim holder + RESERVE]
+C --> D[COMPENSATION_ALLOCATION]
+D --> E[CONSUME]
+E --> F[Complete operation]
+F --> G[Reconciliar regal.USAT]
+G --> H[Crear/reutilitzar 6 outbox]
+```
+
+## 7. Activitat P-BES-06 · Replay/recovery
+
+```mermaid
+flowchart TD
+A[Reintent] --> B[Lock regal]
+B --> C{USAT mateixa ID?}
+C -- sí --> D[Validar coherència]
+C -- no --> E[Get-or-create normal]
+D --> F[Reentrar al SIF]
+E --> F
+F --> G[Reutilitzar saga/moviment/consum]
+G --> H[Recuperar o reutilitzar outbox]
+H --> I[Claim correus pendents]
+```
+
+**No** hi ha retorn prematur abans del SIF.
+
+## 8. Activitat P-BES-07 · Notificacions
+
+```mermaid
+flowchart TD
+A[Bundle de 6] --> B[Claim individual]
+B --> C{should_send?}
+C -- no SENT --> D[No reenviar]
+C -- sí --> E[SMTP]
+E --> F{Resultat}
+F -- ok --> G[Complete SENT]
+F -- error --> H[Complete FAILED]
+```
+
+`SENDING` ambigu no es reclama automàticament.
+
+## 9. Activitat P-BES-08 · Confirmació
+
+```mermaid
+flowchart TD
+A[Cap incidència de correu bloquejant resposta] --> B[Retornar ID_INSC xifrada]
+B --> C[Redirect /bescanvia/confirmacio/id-opac]
+C --> D[Carregar confirmació]
+D --> E[Mostrar matrícula resultant]
+```
+
+## 10. Estat per apartat
+
+| Apartat | Documentat | Implementat | Verificat |
 | --- | --- | --- | --- |
-| Emissió GIFT | Sí | Sí | CI/integració |
-| Alta/reutilització inscripció | Sí | Sí | Integració + recovery |
-| Context autoritatiu | Sí | Sí | Integració |
-| Bescanvi/consum | Sí | Sí | Integració |
-| Aplicació econòmica | Sí | Sí | Integració |
-| Reconciliació legacy | Sí | Sí | Integració |
-| Concurrència real | Sí | Sí | Test multiprocés al PR de tancament |
-| Correus idempotents | Sí | Sí | Bundle + boundary al PR de tancament |
-| Preflight | Sí | Sí | Boundary automatitzat + gate d'entorn |
-| Diferències de preu | Sí | Bloquejades | Fora abast fins decisió funcional |
+| Bundle/pàgina | Sí | Sí, patch 03/10 | CI pendent |
+| Transport codi/PII | Sí | POST, patch 03/10 | Boundary afegit; CI pendent |
+| No enumeració | Sí | Sí, patch 03/10 | Boundary afegit; CI pendent |
+| Alta/reutilització | Sí | Sí | Core CI 02/10 |
+| Context autoritatiu | Sí | Sí | Core CI 02/10 |
+| Bescanvi/consum | Sí | Sí | Core CI 02/10 |
+| Aplicació econòmica | Sí | Sí | Core CI 02/10 |
+| Reconciliació legacy | Sí | Sí | Core CI 02/10 |
+| Replay/outbox recovery | Sí | Sí | Core CI 02/10 |
+| Concurrència | Sí | Sí | Core CI 02/10 |
+| Correus idempotents | Sí | Sí | Core CI 02/10 |
+| Preproducció real | Sí | Scripts sí | [ENV] |
+| Diferències de preu | Sí | Fail-closed | [POLICY] |
