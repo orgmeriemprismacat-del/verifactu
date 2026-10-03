@@ -191,3 +191,38 @@ A GitHub Actions del commit `88e5c922424b0cf573b1d1af08dc8713b7b8ea32` consten c
 - **Implementat:** nucli d’emissió/reús, numeració, cadena/cua, payment, audit events, status projection, endpoint/policy/scope, guard AEAT, writer operation-line i HARD-017.
 - **Verificat:** inspecció del PHP/JS/SQL, proves específiques UC-001 passades al run `88e5c922…` i HARD-017 passada al run de `276fb390…`. El job SIF d’aquest head queda **961 pass / 6 fail**, amb les sis fallades fora d’UC-001.
 - **Pendent:** coverage comercial entre claus, `commercial_operation` obligatòria, propagació universal de `uuid_operation_line`, assembler AEAT complet, any fiscal, R1–R5, cutover guards llegats, fencing Redsys, preproducció i **CI final de la PR #145**. La reconciliació amb `main` ja està resolta.
+
+
+## 9. Revalidació tècnica addicional post-reconciliació
+
+### F-106 — `commercial_operation` existeix però UC-001 no enllaça la factura
+
+**Estat:** PENDENT IMPLEMENTATIU.
+
+L'esquema `commercial_operation` disposa de `UUID_FACTURA` i FK cap a `factura(UUID_FACTURA)`, però `CommercialOperationRepository` només implementa lectura, alta i `linkIntent()`. No hi ha `linkInvoice()` ni una escriptura equivalent dins `InvoiceService`.
+
+Conseqüència: el model permet traçar operació comercial → factura, però UC-001 encara no garanteix aquesta traça per tots els callers.
+
+### F-107 — any fiscal separat només a UC-004
+
+**Estat:** PARCIAL.
+
+`InvoiceBeforePaymentServerPayloadAssembler` separa explícitament `fiscal_year` de l'any d'edició del curs. En canvi, els builders legacy de curs, pack, grup i USOC continuen obtenint `year` de `inscription.ANY`; regal usa `gift.ANY` amb fallback a l'any actual.
+
+Conseqüència: la decisió “any fiscal vs any acadèmic” ja està resolta tècnicament per UC-004, però no transversalment.
+
+### F-108 — writer `operation_line_invoice_link` sense propagació universal
+
+**Estat:** PARCIAL.
+
+`OperationLineInvoiceLinkRepository` i la materialització a `InvoiceRepository` existeixen i són idempotents, però els builders auditats de curs/pack/grup/regal/USOC, Redsys genèric i manual no aporten `uuid_operation_line` a les línies.
+
+Conseqüència: la traça línia comercial → línia de factura només es crea quan un caller ja aporta explícitament el UUID comercial.
+
+### F-109 — snapshot AEAT en fail-closed, assembler transversal encara absent
+
+**Estat:** SEGUR PER DEFECTE / IMPLEMENTACIÓ INCOMPLETA.
+
+`InvoiceService` exigeix `aeat_fields` en PREPRODUCTION/PRODUCTION abans de numerar o persistir. Els builders legacy auditats no construeixen aquest bloc.
+
+Conseqüència: aquests fluxos no poden “colar” una factura incompleta en entorn qualificat, però tampoc estan preparats per producció fins disposar d'un assembler AEAT server-side comú i provat.
