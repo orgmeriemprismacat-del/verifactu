@@ -204,47 +204,30 @@ class BescanviaRegal {
    */
 	public function codiRegalValid($codiRegal) {
 		$mostrar = '';
+		$bescanviable = false;
 
 		require_once 'ConnexioBBDD_PreparedStatment.php';
 		$connexio = new ConnexioBBDDSTMT();
 		$connexio->connectarBD();
 
 		$cns = "SELECT FACT_REL, USAT FROM regal WHERE CODI LIKE ?";
-      $stmt = $connexio->prepare($cns);
-      $stmt->bind_param("s", $codiRegal);
-      $stmt->execute();
+		$stmt = $connexio->prepare($cns);
+		$stmt->bind_param("s", $codiRegal);
+		$stmt->execute();
 		$stmt->store_result();
-		if ( $stmt->num_rows() > 0 ) {
-	      $stmt->bind_result($factura, $usat);
+		if ($stmt->num_rows() > 0) {
+			$stmt->bind_result($factura, $usat);
 			$stmt->fetch();
-
-			if ($factura==0) {
-				$mostrar .= "<p>El codi <strong>".strtoupper($codiRegal)."</strong>
-				està reservat perquè està pendent de finalitzar la comanda.</p>";
-				$mostrar .= "<p>Per a qualsevol incidència, pots trucar al telèfon
-				<span class='font-weight-bold'>972 21 75 65</span> o contacta amb nosaltres
-				a través del <a class='font-weight-bold' href='https://www.prisma.cat/contacte'
-				title='Contacta amb PrisMa'>formulari de contacte</a>.</p>";
-			}
-			else {
-				if ($usat!=0) {
-					$mostrar .= "<p>El codi <strong>".strtoupper($codiRegal)."</strong>
-					ja ha estat utilitzat.</p>";
-					$mostrar .= "<p>Per a qualsevol incidència, pots trucar al telèfon
-					<span class='font-weight-bold'>972 21 75 65</span> o contacta amb nosaltres
-					a través del <a class='font-weight-bold' href='https://www.prisma.cat/contacte'
-					title='Contacta amb PrisMa'>formulari de contacte</a>.</p>";
-				}
-			}
+			$bescanviable = (int) $factura > 0 && (int) $usat === 0;
 		}
-		else {
-			$mostrar .= "<p>El codi <strong>".strtoupper($codiRegal)."</strong>
-			no existeix.</p>";
-			$mostrar .= "<p>Per a qualsevol incidència, pots trucar al telèfon
-			<span class='font-weight-bold'>972 21 75 65</span> o contacta amb nosaltres
+
+		if (!$bescanviable) {
+			$mostrar .= "<p>El codi de regal no es pot utilitzar en aquest moment.</p>";
+			$mostrar .= "<p>Revisa el codi introduït o, si necessites ajuda, contacta amb nosaltres
 			a través del <a class='font-weight-bold' href='https://www.prisma.cat/contacte'
 			title='Contacta amb PrisMa'>formulari de contacte</a>.</p>";
 		}
+
 		$connexio->closeStmt();
 		$connexio->desconectarBD();
 
