@@ -370,10 +370,11 @@ CURS disposava de `verify-redsys-course-preproduction.php`, però PACK només te
 - en execució exigeix identitat de factura i payment, almenys dues atribucions de fons, identitat de tots els moviments, suma del ledger igual al total del preview i una fila d'outbox amb identitat;
 - si se sol·licita sync legacy, exigeix `legacy_sync_executed=true`;
 - la sortida d'evidència **no copia el payload fiscal complet del preview**: només conserva DS_ORDER, IDPAG i totals;
-- `preflight-redsys-pack.php` comprova ara callback, endpoint d'intenció, worker, preview, processor, preflight de cua i el mateix verificador;
-- `RedsysPackPreproductionBoundaryTest` blinda fail-closed, `--execute` explícit, evidència econòmica/outbox i sanitització.
+- `preflight-redsys-pack.php` comprova callback, endpoint d'intenció, worker, preview, processor, preflight de cua, orquestrador i `verify-redsys-pack-evidence.php`;
+- l'orquestrador suporta `--verify-evidence` per executar el verificador persistent després del worker real, sense confondre el processor manual `--execute` amb l'acceptació productiva;
+- `RedsysPackPreproductionBoundaryTest` blinda fail-closed, `--execute` explícit, `--verify-evidence`, evidència econòmica/outbox i sanitització.
 
-**Estat:** eina i proves implementades. **Pendent:** executar-la contra un `DS_ORDER` Redsys real de preproducció i conservar el JSON d'evidència.
+**Estat:** eina i proves implementades. **Pendent:** executar callback+cua+worker amb un `DS_ORDER` Redsys real de preproducció i després `--verify-evidence`; el processor manual queda reservat a diagnòstic.
 
 ### F-21 · Segona còpia del callback fiscal legacy detectada i callbacks productius retirats — corregit
 
@@ -623,5 +624,15 @@ Això contradia el contracte ja implementat i documentat a la fitxa principal: P
 - `PackDocumentationConsistencyTest` evita reintroduir aquestes expressions obsoletes en la documentació vigent.
 
 **Impacte:** documental + prova de consistència; cap canvi de comportament productiu UC-015.
+
+### Troballa de tooling d'acceptació
+
+L'orquestrador de preproducció podia executar el processor manual amb `--execute`, però això no acreditava per si sol la fila `redsys_callback_queue` ni tots els checks persistents que exigeix `RedsysPackEvidenceVerifier`. S'ha separat explícitament:
+
+- **diagnòstic manual:** `--execute [--sync-legacy]`;
+- **acceptació productiva:** callback + worker real + `--verify-evidence`;
+- el preflight exigeix també la presència de `verify-redsys-pack-evidence.php`.
+
+Així un resultat verd del processor manual no es pot confondre amb una acceptació E2E completa.
 
 **Estat post-merge:** codi UC-015 continua tancat. Resten l'acceptació runtime/preproducció amb `DS_ORDER` real i la dependència transversal UC-58.
