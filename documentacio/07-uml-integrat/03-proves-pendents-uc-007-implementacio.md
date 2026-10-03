@@ -73,3 +73,27 @@
 Conservar les proves LEG-UC007 documentades a l'[auditoria detallada](02-auditoria-detallada-uc-007-consultar-factura-estat-document-2026-09-29.md): F01 rols pare/fill, F02 warnings/wildcards/volum/concurrència, F03 CIF/delimitadors, F04 JOIN/ordenació, F05 agrupació/escaping/affectedRows, F06 original+R, F07 doble GET/fitxer/nom, AL-17 multipàgina i AL-18 cleanup.
 
 **Estat:** PENDENT / AJORNAT. No bloqueja continuar desenvolupant, però sí bloqueja marcar UC-007 com a IMPLEMENTAT I PROVAT.
+
+
+## 7. Revalidació d'asset executable — afegit 2026-10-03
+
+### Verificació estàtica incorporada al runner
+
+- [x] La pàgina `alumnes-factura.php` queda amb una sola implementació UC-007 carregada.
+- [x] La pàgina `alumnes-mostrar-alumne.php` deixa d'executar el minificat 1.6 obsolet.
+- [x] El JS canònic de factura resol `#/uuid/<UUID>` i compatibilitat `?uuid_factura=<UUID>`.
+- [x] El fallback del modal no torna a substituir el DOM després de registrar les fletxes.
+- [x] El font canònic no usa `resD.toLowerCase()` al fallback de factura.
+- [x] Existeix `sif/tests/Integration/Uc007IntranetBoundaryTest.php`.
+
+Aquests checks són **estàtics**. La marca `[x]` no acredita navegador, BD, storage ni servidor desplegat.
+
+### Runtime/E2E que s'ha d'afegir a la passada de preproducció
+
+- [ ] AL-16: clic al número de factura SIF → `#/uuid/<UUID>` → detall correcte.
+- [ ] AL-17: modal SIF amb 1 factura.
+- [ ] AL-17: selector amb múltiples factures per una inscripció.
+- [ ] AL-17 llegat: 2+ pàgines, fletxes esquerra/dreta funcionals.
+- [ ] AL-18 llegat: download POST inicia un únic PDF sense `ReferenceError`.
+- [ ] Confirmar que no es carrega cap `alumnes-*-sif.js` duplicat a Network/DevTools.
+- [ ] Confirmar cache-busting dels assets 1.1/1.7 en preproducció.
