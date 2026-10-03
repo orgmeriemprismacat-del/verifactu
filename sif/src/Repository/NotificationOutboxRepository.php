@@ -102,6 +102,34 @@ final class NotificationOutboxRepository
         return $this->result($created, false);
     }
 
+    public function cancelPendingForInvoice(
+        \PDO $db,
+        string $uuidFactura,
+        array $templateCodes
+    ): int {
+        $uuidFactura = trim($uuidFactura);
+        $templates = array_values(array_unique(array_filter(array_map(
+            static fn (mixed $value): string => strtoupper(trim((string) $value)),
+            $templateCodes
+        ))));
+
+        if ($uuidFactura === '' || $templates === []) {
+            throw SifException::validation('Invalid notification cancellation criteria');
+        }
+
+        $marks = implode(', ', array_fill(0, count($templates), '?'));
+        $stmt = $db->prepare(
+            "UPDATE notification_outbox
+             SET STATUS = 'CANCELLED', NEXT_ATTEMPT_AT = NULL
+             WHERE UUID_FACTURA = ?
+               AND STATUS = 'PENDING'
+               AND TEMPLATE_CODE IN ({$marks})"
+        );
+        $stmt->execute(array_merge([$uuidFactura], $templates));
+
+        return $stmt->rowCount();
+    }
+
     public function findByIdempotencyKey(\PDO $db, string $key): ?array
     {
         $stmt = $db->prepare(
