@@ -30,7 +30,10 @@ final class LegacyGiftInvoicePayloadBuilderTest
 
         Assert::same(1, count($payload['lines']));
         Assert::same('Curs regal Comunicacio assertiva', $payload['lines'][0]['concept']);
-        Assert::same('Codi regal REGAL-77', $payload['lines'][0]['detail']);
+        Assert::same('Val regal', $payload['lines'][0]['detail']);
+        if (str_contains((string) $payload['lines'][0]['detail'], 'REGAL-77')) {
+            Assert::fail('Gift invoice line must not expose the redeemable gift code.');
+        }
         Assert::same('120.00', $payload['lines'][0]['import_base']);
         Assert::same('120.00', $payload['lines'][0]['total']);
         Assert::same('REGAL', $payload['lines'][0]['source_type']);
@@ -84,7 +87,7 @@ final class LegacyGiftInvoicePayloadBuilderTest
             ->fetch(\PDO::FETCH_ASSOC);
 
         Assert::same('Curs regal Comunicacio assertiva', $line['CONCEPTE']);
-        Assert::same('Codi regal REGAL-77', $line['DETALL']);
+        Assert::same('Val regal', $line['DETALL']);
         Assert::same('120.00', $line['TOTAL']);
         Assert::same('REGAL', $line['SOURCE_TYPE']);
         Assert::same(77, (int) $line['SOURCE_ID']);
