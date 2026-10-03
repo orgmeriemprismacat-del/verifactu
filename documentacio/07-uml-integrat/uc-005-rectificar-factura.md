@@ -1,6 +1,6 @@
 # UC-05 · Rectificar una factura — fitxa i UML integrats
 
-**Estat documental:** nucli de rectificació manual existent; **no s'acredita** que la classificació fiscal, la pantalla final, les garanties de transacció conjunta ni tots els escenaris de rectificació estiguin resolts. **Casos relacionats:** UC-01 (emissió del nou document), UC-26/71 (canvi de curs), UC-27/72 (baixa), UC-28 (devolució econòmica), UC-30 (anul·lació de registre), UC-31 (subsanació) i UC-74 (classificació de correcció fiscal).
+**Estat documental:** nucli de rectificació manual existent; la branca d'auditoria reforça la transacció conjunta emissió+vincle+estat original, però **no s'acredita encara** la classificació fiscal, la pantalla final, la concurrència completa ni tots els escenaris de rectificació. **Casos relacionats:** UC-01 (emissió del nou document), UC-26/71 (canvi de curs), UC-27/72 (baixa), UC-28 (devolució econòmica), UC-30 (anul·lació de registre), UC-31 (subsanació) i UC-74 (classificació de correcció fiscal).
 
 ## 1. Fitxa del cas d'ús
 
@@ -20,7 +20,7 @@
 3. `ManualRectificationPayloadBuilder::forOriginalInvoice()` prepara el payload: sèrie `R`; any d'entrada o de l'original; tipus per defecte `R1`; dades del receptor recuperades de la factura original; imports i línia de rectificació; relació d'origen `RECTIFIES`.
 4. El constructor genera una clau idempotent pròpia per referència o, si no n'hi ha, a partir de número original, mode, motiu i import.
 5. `InvoiceService::issueInvoice()` crea o reutilitza la factura rectificativa; executa la persistència i el registre fiscal comuns a UC-01.
-6. **Després del retorn d'aquest servei**, `RectificationRepository::linkRectification()` insereix la relació a `factura_rectificacio`, i `markOriginalRectified()` actualitza `factura.ESTAT_FACTURA` de l'original a `RECTIFIED`.
+6. En aquesta branca, `InvoiceService::issueInvoice()` accepta una fase `beforeCommit`; UC-005 hi bloqueja l'original `FOR UPDATE`, revalida el snapshot, executa `RectificationRepository::linkRectification()` i `markOriginalRectified()` abans del COMMIT.
 7. El servei retorna identificadors de la rectificativa i de l'original.
 
 ### 1.2. Variants, errors i qüestions específiques
@@ -33,13 +33,13 @@
 | A4. Reintent exacte | La clau idempotent permet que `InvoiceService` reutilitzi la rectificativa. La inserció de `factura_rectificacio` evita duplicats amb `ON DUPLICATE KEY UPDATE MOTIU = MOTIU`. |
 | E1. Original desconeguda | L'orquestrador rebutja la petició abans d'emetre. |
 | E2. Import zero, motiu absent o mode invàlid | El constructor rebutja la petició. |
-| **Risc R1: manca d'atomicitat de l'operació completa** | `issueInvoice()` confirma la transacció de la factura **abans** de la inserció de l'enllaç i de l'actualització de l'original. Aquestes darreres operacions usen el `PDO` rebut i no estan englobades per la mateixa transacció al servei consultat. Una fallada intermèdia podria deixar rectificativa emesa sense relació o sense original marcat com a rectificat. No representar el flux com una única transacció atòmica. |
+| **R1: atomicitat reforçada en branca** | UC-005 executa ara vincle i canvi d'estat dins el `beforeCommit` d'`InvoiceService`. La prova de rollback està escrita; falta evidència CI/MySQL verda i una prova de concurrència específica. |
 | **Risc R2: fiscalitat del constructor** | El constructor actual fixa `IVA_REGIM=EXEMPT`, `IVA_PCT=0` i `IVA_IMPORT=0` per defecte i recupera el receptor de l'original. **No s'ha acreditat** que aquesta simplificació sigui adequada per a totes les factures, tipus i motius possibles. |
 | **Risc R3: elecció de figura fiscal** | Els fluxos d'anul·lació de registre i subsanació són casos diferents i la seva elecció s'ha de classificar abans de cridar la rectificativa. La selecció automàtica completa no està acreditada en aquest servei. |
 
 **Resultats persistits:** nova `factura` sèrie `R`, les seves `factura_linia`, `factura_registres`, entrada `fiscal_queue`, `fact_rels` d'origen i `factura_rectificacio`; actualització de l'estat de la factura original. **No** es crea un moviment `payment_transaction` per aquest servei.
 
-**Proves localitzades (no executades en aquesta revisió):** `ManualRectificationServiceTest::testIssuesRectificationInvoiceAndLinksOriginalInvoice`, `testIssuesRectificationByVisibleInvoiceNumber` i `testRejectsUnknownOriginalInvoiceBeforeIssuingRectification`. No demostren recuperació davant de fallada entre emissió, vinculació i actualització de l'original.
+**Proves localitzades / ampliades:** `ManualRectificationServiceTest::testIssuesRectificationInvoiceAndLinksOriginalInvoice`, `testIssuesRectificationByVisibleInvoiceNumber` i `testRejectsUnknownOriginalInvoiceBeforeIssuingRectification`. No demostren recuperació davant de fallada entre emissió, vinculació i actualització de l'original.
 
 ### 1.8. Revisió: correcció fiscal ≠ moviment intern o extern de fons — PENDENT
 
