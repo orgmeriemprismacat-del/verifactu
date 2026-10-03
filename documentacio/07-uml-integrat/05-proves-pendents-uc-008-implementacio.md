@@ -1,6 +1,6 @@
 # UC-008 · Proves executades i pendents
 
-**Revalidació 03/10/2026:** el baseline de tancament UC-008 continua sent el run `36943995075` amb **844 passed / 0 failed** i 74 PASS relacionats amb incidències. El `main` actual `b0e8ff7150c5a8b415cc109d298d82f0db1f68df` ha avançat 44 commits. El HEAD del PR #118 havia registrat **917 passed / 6 failed**; corregit el hash esperat obsolet de `RedsysSignatureValidatorTest`, el run PR #123 `37128490337` acredita **918 passed / 5 failed**. Les proves explícites UC-008 continuen en **PASS** i les cinc fallades restants són de PACK/UC-015. Per tant, el cas continua auditat/code-complete, però no s'afirma que el `main` actual tingui CI global verd. El pendent propi UC-008 continua sent exclusivament l'acceptació real de preproducció i la conservació de les evidències.
+**Revalidació 03/10/2026:** el baseline de tancament UC-008 continua sent el run `36943995075` amb **844 passed / 0 failed** i 74 PASS relacionats amb incidències. El HEAD del PR #118 havia registrat **917/6**; corregit el hash Redsys, el PR #123 va passar a **918/5**. Després del hardening de preproducció, els runs finals `37153699701` i `37153699719` acrediten **920 passed / 5 failed**, i `37153699737` (Intranet AO batch) és **SUCCESS**. Les proves explícites UC-008 continuen en **PASS** i les cinc fallades restants són de PACK/UC-015. El pendent propi UC-008 continua sent exclusivament l'acceptació real de preproducció i la conservació de les evidències.
 
 ## 1. Suite PHP/MySQL
 
