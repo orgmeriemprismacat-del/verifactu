@@ -32,6 +32,9 @@ $intranet = null;
 try {
     [$user, $intranet] = LegacyDebtClaimContext::open();
     LegacyInvoiceMutationAuthorization::assertSameOrigin();
+    if (strcasecmp((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''), 'XMLHttpRequest') !== 0) {
+        throw new RuntimeException('Petició AJAX no vàlida', 403);
+    }
 
     $storedCsrf = LegacyDebtClaimContext::csrfToken();
     $receivedCsrf = trim((string) ($_POST['csrfToken'] ?? ''));
@@ -85,6 +88,13 @@ try {
             'reason_code' => debtClaimReason($_POST['reason_code'] ?? 'PAYMENT_RECONCILIATION'),
             'correlation_id' => 'INTRANET-DEBT-CLAIM|' . $operationId,
         ]);
+        $uuidPayment = trim((string) ($_POST['uuid_payment'] ?? ''));
+        if ($uuidPayment !== '') {
+            if (preg_match('/^[0-9a-fA-F-]{36}$/D', $uuidPayment) !== 1) {
+                throw new InvalidArgumentException('UUID de pagament no vàlid', 422);
+            }
+            $payload['uuid_payment'] = strtolower($uuidPayment);
+        }
 
         sendDebtClaimResult($client->reconcileAfterPayment($actorId, $roles, $payload));
         return;
