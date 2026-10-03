@@ -34,6 +34,8 @@ final class RedsysPaymentIntentService
             $this->courseSnapshots->validate($snapshot, $idpag, $sourceId, $expectedAmount);
         } elseif ($sourceType === 'PACK') {
             $this->validatePackSnapshot($snapshot, $idpag, $sourceId, $expectedAmount);
+        } elseif ($sourceType === 'REGAL') {
+            $this->validateGiftSnapshot($snapshot, $sourceId, $expectedAmount);
         }
 
         $snapshotJson = json_encode(
@@ -157,6 +159,37 @@ final class RedsysPaymentIntentService
 
         if (number_format($sum, 2, '.', '') !== $expectedAmount) {
             throw SifException::conflict('Redsys pack snapshot total does not match expected amount');
+        }
+    }
+
+    private function validateGiftSnapshot(
+        array $snapshot,
+        string $sourceId,
+        string $expectedAmount
+    ): void {
+        $gift = $snapshot['gift'] ?? null;
+        if (!is_array($gift)) {
+            throw SifException::validation('Redsys gift snapshot requires gift');
+        }
+
+        $giftId = $gift['ID'] ?? $gift['id'] ?? null;
+        if (!is_numeric($giftId) || (int) $giftId <= 0 || (int) $giftId !== (int) $sourceId) {
+            throw SifException::validation('Redsys gift snapshot source does not match gift ID');
+        }
+
+        $giftAmount = $gift['IMPORT'] ?? $gift['import'] ?? $gift['amount'] ?? null;
+        if ($this->amount($giftAmount) !== $expectedAmount) {
+            throw SifException::conflict('Redsys gift snapshot amount does not match expected amount');
+        }
+
+        $giftCode = trim((string) ($gift['CODI'] ?? $gift['code'] ?? $gift['codi'] ?? ''));
+        if ($giftCode === '') {
+            throw SifException::validation('Redsys gift snapshot code is required');
+        }
+
+        $factRel = $gift['FACT_REL'] ?? $gift['fact_rel'] ?? null;
+        if ($factRel !== null && $factRel !== '' && is_numeric($factRel) && (int) $factRel > 0) {
+            throw SifException::conflict('Redsys gift snapshot is already invoiced');
         }
     }
 
