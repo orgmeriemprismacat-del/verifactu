@@ -1,7 +1,7 @@
 # UC-009 · Diagrames d'activitat ACTUAL / FINAL — remetre registre fiscal a AEAT
 
-**Data d'auditoria:** 2026-09-29  
-**Branca:** `audit/uc-009-completar-implementacio-2026-09-29`  
+**Data d'auditoria:** 2026-10-03  
+**Branca:** `audit/uc-009-revalidacio-2026-10-03`  
 **Criteri:** cada superfície executable o prevista queda separada en ACTUAL i FINAL. Quan una pantalla no existeix, l'ACTUAL ho indica explícitament i el FINAL descriu el comportament que s'ha de construir.
 
 ## 1. Mapa de superfícies i apartats
@@ -17,8 +17,8 @@
 | A09-07 | Resultat remot incert | Abans es podia convertir en RETRY | Estat REVIEW, sense reenviament cec |
 | A09-08 | Stale lock / recuperació | Implementat | Claim token invalidat en recuperar |
 | A09-09 | Preflight | Implementat via CLI | També visible des del panell |
-| A09-10 | Panell `/sif/registres-aeat` | No localitzat / no executable | Llista, detall, incidents, intents i evidència |
-| A09-11 | Reconciliació manual | No hi ha UI específica | Acció protegida sobre un intent REVIEW |
+| A09-10 | Panell `/sif-registres-aeat.php` | Implementat a intranet | Mateix contracte + desplegament/rols verificats |
+| A09-11 | Reconciliació manual | Implementada al panell/API | Mantenir acció protegida només sobre intent terminal REVIEW |
 | A09-12 | Producció AEAT | Bloquejada per codi | Activació només després de qualificació i evidència |
 
 ---
@@ -75,7 +75,7 @@ flowchart TD
 
 El `WHERE ID` no acreditava que el procés que completava continués sent propietari del claim.
 
-### FINAL implementat a la branca
+### FINAL implementat a `main`
 
 ```mermaid
 flowchart TD
@@ -196,7 +196,7 @@ flowchart TD
     D --> E[Risc de reenviament cec]
 ```
 
-### FINAL implementat a la branca
+### FINAL implementat a `main`
 
 ```mermaid
 flowchart TD
@@ -251,9 +251,9 @@ El mateix resultat s'ha d'exposar al panell intern en mode lectura, sense revela
 
 ---
 
-## 11. A09-10 · Panell `pay.prisma.cat/sif/registres-aeat`
+## 11. A09-10 · Panell `intranet.prisma.cat/sif-registres-aeat.php`
 
-### ACTUAL implementat a la branca 2026-09-30
+### ACTUAL implementat i fusionat a `main`
 
 ```mermaid
 flowchart TD
@@ -307,7 +307,7 @@ No ha de mostrar:
 
 ## 12. A09-11 · Reconciliació de REVIEW
 
-### ACTUAL implementat a la branca 2026-09-30
+### ACTUAL implementat i fusionat a `main`
 
 La UI mostra «Conciliar sense reenviar» només per un job `REVIEW` amb intent terminal remot `ACCEPTED`, `ACCEPTED_WITH_ERRORS` o `REJECTED`. El backend torna a validar el mateix `FISCAL_QUEUE_ID`, bloqueja files amb `FOR UPDATE`, regenera l'XML des del snapshot fiscal immutable i persisteix el resultat original sense cap segon SOAP. Un intent `UNCERTAIN` continua en `REVIEW`.
 
@@ -367,14 +367,34 @@ flowchart TD
 | Evidència privada | `EvidenceStore` |
 | Preflight | `AeatPreflight`, `preflight-aeat-worker.php` |
 | Proves | `AeatWorkflowTest`, `FiscalQueueProcessorTest`, tests AEAT unit/integració |
-| Panell | Implementat a la branca 2026-09-30; alta al menú de l'entorn pendent |
+| Panell | Implementat a `main`; alta/configuració del menú de l'entorn pendent |
 
 ## 15. Estat de tancament
 
 - **Documentat:** sí, inclosos ACTUAL/FINAL.
-- **Implementat backend preproducció:** sí, amb fencing, ledger d'intents i REVIEW incorporats a la branca.
+- **Implementat backend preproducció:** sí, amb fencing, ledger d'intents i REVIEW fusionats a `main`.
 - **Panell web:** implementat; alta/configuració del menú de preproducció pendent.
 - **Proves escrites:** sí; ampliades per intents, resultat incert, fencing, consulta operativa i reconciliació REVIEW.
-- **Proves executades en entorn `sif_test*`:** ✅ CI 2026-09-30 — **558 passed, 0 failed**; lint PHP SIF/intranet UC-009 i sintaxi JS correctes.
+- **Proves UC-009 revalidades:** al run CI de `main` del 2026-10-02 els tests AEAT/UC-009 passen; la suite global queda en **917 passed / 6 failed** per fallades alienes de PACK/Redsys. L'evidència **558/0** del 30/09 es conserva com a històrica del seu commit.
 - **Enviament AEAT real de preproducció:** pendent d'evidència.
 - **Producció:** no habilitada.
+
+
+## 16. Revalidació per pàgina i apartat — 2026-10-03
+
+| ID | Pàgina/apartat | ACTUAL | FINAL / pendent |
+| --- | --- | --- | --- |
+| P-AEAT-01 | Shell `sif-registres-aeat.php` | sessió + CSRF + estructura panell | desplegar i validar accés real |
+| P-AEAT-02 | Resum | JS `summary` + API + mètriques | conservar projecció sense secrets |
+| P-AEAT-03 | Cua i filtre | JS `list` + filtre STATUS | validar volum/operació a preprod |
+| P-AEAT-04 | Detall registre | JS `detail` + registre/intents/incidències | mantenir separació SENT/ESTAT_AEAT |
+| P-AEAT-05 | Intents | attempt UUID/número/estat/CSV/timestamps | evidència protegida només amb control d'accés |
+| P-AEAT-06 | Reconciliació | CSRF + HMAC + rol + hash + latest attempt | prova controlada en preproducció |
+| P-AEAT-07 | Preflight modal | booleans segurs de `AeatPreflight` | incorporar al checklist release |
+| P-AEAT-08 | Bridge AJAX | POST + sessió; CSRF per mutació | mantenir secrets només servidor |
+| P-AEAT-09 | API operativa | read/reconcile roles fail-closed | configurar rols reals |
+| P-AEAT-10 | Worker CLI | preproduction + `--send-test` | planificació/operació d'entorn |
+| P-AEAT-11 | Menu `apartats` | no acreditat a l'entorn | preflight read-only + alta idempotent |
+| P-AEAT-12 | Producció | bloquejada per `SoapTransport` | habilitació explícita post-qualificació |
+
+Vegeu també [classes ACTUAL/FINAL](./uc-009-classes-actual-final.md), [seqüències ACTUAL/FINAL](./uc-009-sequencies-actual-final.md) i [auditoria/traçabilitat 03/10](./uc-009-auditoria-tracabilitat-2026-10-03.md).
