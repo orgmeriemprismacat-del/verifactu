@@ -2,7 +2,7 @@
 
 ## 1. Tall revalidat — 2026-10-03
 
-El flux base de **bescanvi a valor exacte** està implementat. El nucli SIF conserva l'evidència CI del 02/10; la revalidació 03/10 ha afegit hardening a la frontera navegador→legacy i una prova boundary nova, pendent del CI d'aquesta branca.
+El flux base de **bescanvi a valor exacte** està implementat. El PR #115 conserva l'evidència baseline del 02/10, però la revalidació 03/10 modifica tant la frontera navegador→legacy com `GiftRedemptionTrustedContextResolver` i `GiftEnrollmentStager` per a regals genèrics per hores; aquests canvis requereixen CI nou.
 
 ## 2. ACTUAL — components executables
 
@@ -128,4 +128,4 @@ secret/PII fora de query string
 CCURS concret o categoria d'hores validat autoritativament
 ```
 
-El FINAL de codi coincideix amb l'ACTUAL de la branca per al flux base; falta que el CI nou ho acrediti i, separadament, l'acceptació real de preproducció.
+El FINAL de codi coincideix amb l'ACTUAL de la branca per al flux base **si el CI del head actual acredita tant la frontera pública com el contracte `CCURS` concret/genèric**; separadament resta l'acceptació real de preproducció.
