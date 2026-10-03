@@ -10,6 +10,7 @@ use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
+use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
@@ -20,6 +21,7 @@ use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
 use Prisma\Sif\Service\ManualPaymentService;
 use Prisma\Sif\Service\ManualTransferCommandService;
 use Prisma\Sif\Service\ManualTransferLegacyProjectionService;
+use Prisma\Sif\Service\ManualTransferNotificationService;
 use Prisma\Sif\Service\PaymentActionGateway;
 use Prisma\Sif\Service\PaymentPayloadValidator;
 use Prisma\Sif\Service\PaymentService;
@@ -126,7 +128,45 @@ try {
             'status' => 'SYNCED',
             'details' => $sync,
         ];
-        JsonResponse::send($result);
+
+        try {
+            $legacyIntranetConfig = $config['legacy_intranet_db'] ?? [];
+            $legacyIntranetDb = trim((string) ($legacyIntranetConfig['dsn'] ?? '')) !== ''
+                ? ConnectionFactory::makeLegacyIntranet($config)
+                : null;
+
+            $notificationBundle = (new ManualTransferNotificationService(
+                new NotificationOutboxRepository(new UuidGenerator())
+            ))->enqueue(
+                $db,
+                $legacyDb,
+                $legacyIntranetDb,
+                $result,
+                $sync,
+                $payload
+            );
+
+            $result['notification_outbox'] = $notificationBundle;
+
+            if (($notificationBundle['responsible_skip_reason'] ?? null)
+                === 'LEGACY_INTRANET_DB_NOT_CONFIGURED'
+            ) {
+                $result['payment_status'] = $result['status'] ?? null;
+                $result['status'] = 'PENDING_RETRY';
+                JsonResponse::send($result, 202);
+                return;
+            }
+
+            JsonResponse::send($result);
+        } catch (\Throwable $notificationException) {
+            $result['payment_status'] = $result['status'] ?? null;
+            $result['status'] = 'PENDING_RETRY';
+            $result['notification_outbox'] = [
+                'status' => 'PENDING_RETRY',
+                'error' => $notificationException->getMessage(),
+            ];
+            JsonResponse::send($result, 202);
+        }
     } catch (\Throwable $syncException) {
         $result['payment_status'] = $result['status'] ?? null;
         $result['status'] = 'PENDING_RETRY';
