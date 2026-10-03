@@ -142,22 +142,60 @@ final class UsocCourseChangeLegacyHandoffService
                 );
             }
 
-            $source = $this->source($legacyDb, $sourceIdInsc);
-            $destination = $this->destination($legacyDb, $destinationIdInsc);
+            try {
+                $source = $this->source($legacyDb, $sourceIdInsc);
+            } catch (\Throwable $exception) {
+                $this->review(
+                    $sifDb,
+                    $requestId,
+                    'LEGACY_SOURCE_MISSING_OR_DUPLICATE',
+                    $bound
+                );
+            }
 
-            $this->assertSourceIdentity(
-                $source,
-                $sourceIdInsc,
-                $sourceIdpag
-            );
-            $this->assertDestination(
-                $destination,
-                $destinationIdInsc,
-                $destinationIdpag,
-                $marker,
-                $targetMeta,
-                $expectedTotal
-            );
+            try {
+                $destination = $this->destination($legacyDb, $destinationIdInsc);
+            } catch (\Throwable $exception) {
+                $this->review(
+                    $sifDb,
+                    $requestId,
+                    'LEGACY_DESTINATION_MISSING_OR_DUPLICATE',
+                    $bound
+                );
+            }
+
+            try {
+                $this->assertSourceIdentity(
+                    $source,
+                    $sourceIdInsc,
+                    $sourceIdpag
+                );
+            } catch (\Throwable $exception) {
+                $this->review(
+                    $sifDb,
+                    $requestId,
+                    'LEGACY_SOURCE_IDENTITY_MISMATCH',
+                    $bound
+                );
+            }
+
+            try {
+                $this->assertDestination(
+                    $destination,
+                    $destinationIdInsc,
+                    $destinationIdpag,
+                    $marker,
+                    $targetMeta,
+                    $expectedTotal
+                );
+            } catch (\Throwable $exception) {
+                $this->review(
+                    $sifDb,
+                    $requestId,
+                    'LEGACY_DESTINATION_MISMATCH',
+                    $bound
+                );
+            }
 
             $sourceStatus = strtoupper(trim((string) ($source['status'] ?? '')));
             if (in_array($sourceStatus, ['0', '1', 'M'], true)) {
