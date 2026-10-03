@@ -28,7 +28,7 @@ No existien peces dedicades UC-006 de classes ACTUAL/FINAL, seqüències ACTUAL/
 - **IMPLEMENTAT:** existeixen els serveis base UC-28/29/29a.
 - **VERIFICAT ESTÀTICAMENT:** contractes, wiring absent i proves existents han estat contrastats al repositori.
 - **PENDENT:** UC-006 com a orquestració de negoci i integració real.
-- **PENDENT BLOQUEJANT:** completar el dret/consum sobre el ledger d'inscripcions ja existent, titularitat, límit retornable, origen idempotent de saldo, evidència externa del REFUND, auditoria transversal i E2E.
+- **PENDENT BLOQUEJANT:** completar el dret/consum sobre el ledger d'inscripcions ja existent, titularitat, límit retornable, derivació obligatòria de la clau de saldo des del dret de negoci, evidència externa del REFUND, auditoria transversal i E2E.
 
 ## 3. Inventari documental abans/després
 
@@ -282,6 +282,22 @@ Aquest codi és específic de promoció docent i **no s'ha de reutilitzar direct
 
 Per UC-006 convé extreure un contracte genèric equivalent (`RefundEvidenceSourceInterface` / estat pendent de retorn) en lloc de tornar a barrejar `A TORNAR` amb `REFUND` confirmat.
 
+## 7.2. Implementació afegida — idempotència tècnica de `credit_balance`
+
+En aquesta branca s'ha eliminat el buit tècnic de reintent de `CreditBalanceService::createCredit()` **sense imposar una regla de negoci inventada**:
+
+- nova migració `2026_10_03_000033_add_credit_balance_idempotency.sql`;
+- `IDEMPOTENCY_KEY` nullable/UNIQUE i `IDEMPOTENCY_PAYLOAD_HASH` nullable a `credit_balance`;
+- el builder accepta `idempotency_key` opcional;
+- mateixa clau + mateix payload normalitzat → mateix `UUID_CREDIT`, `idempotency_reused=true`;
+- mateixa clau + payload diferent → 409/CONFLICT;
+- col·lisió concurrent UNIQUE → reload + comprovació de payload;
+- sense clau es conserva el comportament anterior per compatibilitat;
+- preview/process CLI accepten `--idempotency-key`;
+- `CreditBalanceServiceTest` incorpora reús i conflicte.
+
+**Límit deliberat:** el servei **no deriva** la clau de `SOURCE_TYPE/SOURCE_ID`, perquè això podria fusionar dos drets legítims diferents. El caller/orquestrador UC-006 ha d'aportar una identitat estable del dret/tram econòmic, i encara falta consumir/bloquejar aquest mateix dret al ledger `enrollment_fund_movement`.
+
 ## 8. Idempotència i concurrència
 
 ### Correcte/localitzat
@@ -343,8 +359,8 @@ Per UC-006 convé extreure un contracte genèric equivalent (`RefundEvidenceSour
 4. **UC006-GAP-P0-04 · Titularitat.**  
    Retorn i saldo han d’anar al titular econòmic correcte; compensació ha de validar compatibilitat.
 
-5. **UC006-GAP-P0-05 · Idempotència de creació de saldo.**  
-   Mateix origen/dret no pot crear dos `UUID_CREDIT`.
+5. **UC006-GAP-P0-05 · Clau de negoci obligatòria per crear saldo.**  
+   La idempotència tècnica ja existeix en aquesta branca; falta que l'orquestrador derivi/aporti una clau estable per dret/tram i el consumeixi una sola vegada.
 
 6. **UC006-GAP-P0-06 · Orquestrador/endpoint autoritzat.**  
    Cap superfície llegada ha de decidir diners només amb camps DOM/llegats.
@@ -375,7 +391,8 @@ Per UC-006 convé extreure un contracte genèric equivalent (`RefundEvidenceSour
 | UC006-T05 | mateix retorn registrat via Redsys i manual | un sol fet econòmic |
 | UC006-T06 | demanar 120 € amb només 100 € retornables | bloqueig |
 | UC006-T07 | factura grup, només una inscripció afectada | límit/traça per inscripció |
-| UC006-T08 | crear saldo dues vegades mateix origen | mateix saldo o conflicte, mai duplicat |
+| UC006-T08 | mateixa clau de saldo + mateix payload | mateix UUID_CREDIT (prova afegida; CI pendent) |
+| UC006-T08b | mateixa clau de saldo + payload diferent | 409/CONFLICT (prova afegida; CI pendent) |
 | UC006-T09 | aplicar saldo a factura d’altre titular | bloqueig/revisió |
 | UC006-T10 | compensació > saldo | bloqueig |
 | UC006-T11 | compensació > deute | bloqueig |
