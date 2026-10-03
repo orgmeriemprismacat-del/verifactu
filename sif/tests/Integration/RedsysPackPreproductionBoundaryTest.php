@@ -59,6 +59,21 @@ final class RedsysPackPreproductionBoundaryTest
         Assert::stringContainsString('--sync-legacy', $executeBlock);
     }
 
+    public function testVerifierCanRequirePersistedEndToEndEvidence(): void
+    {
+        $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
+
+        Assert::stringContainsString(
+            "$verifyEvidence = in_array('--verify-evidence', $args, true);",
+            $source
+        );
+        Assert::stringContainsString('if ($verifyEvidence) {', $source);
+        Assert::stringContainsString('/scripts/verify-redsys-pack-evidence.php', $source);
+        Assert::stringContainsString("'evidence_exit_zero'", $source);
+        Assert::stringContainsString("'evidence_ok'", $source);
+        Assert::stringContainsString('[--verify-evidence]', $source);
+    }
+
     public function testVerifierRequiresPackEconomicAndNotificationEvidence(): void
     {
         $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
@@ -130,12 +145,17 @@ final class RedsysPackPreproductionBoundaryTest
             'process_script_present',
             'queue_preflight_script_present',
             'verification_script_present',
+            'evidence_script_present',
         ] as $check) {
             Assert::stringContainsString("'" . $check . "'", $source);
         }
 
         Assert::stringContainsString(
             "/scripts/verify-redsys-pack-preproduction.php",
+            $source
+        );
+        Assert::stringContainsString(
+            "/scripts/verify-redsys-pack-evidence.php",
             $source
         );
     }
