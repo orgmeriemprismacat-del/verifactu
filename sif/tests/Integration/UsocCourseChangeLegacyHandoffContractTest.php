@@ -58,7 +58,7 @@ final class UsocCourseChangeLegacyHandoffContractTest
         Assert::stringContainsString("'legacy_handoff_completed'", $handoff);
         Assert::stringContainsString("'source_closed'", $handoff);
         Assert::stringContainsString("'REVIEW_REQUIRED'", $handoff);
-        Assert::stringContainsString("'DATA_BAIXA'", $handoff);
+        Assert::stringContainsString('DATA_BAIXA', $handoff);
 
         Assert::stringContainsString('sifUsocCourseChangePrepare.php', $ui);
         Assert::stringContainsString('allowLegacyCourseChangeConfirmClick', $ui);
