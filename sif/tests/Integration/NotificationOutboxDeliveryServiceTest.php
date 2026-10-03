@@ -61,6 +61,26 @@ final class NotificationOutboxDeliveryServiceTest
         );
     }
 
+    public function testCancelledNotificationIsNeverClaimedForDelivery(): void
+    {
+        $db = TestDatabase::fresh();
+        $notification = $this->enqueue($db, 'NOTIFY|TEST|CANCELLED');
+        $db->prepare(
+            "UPDATE notification_outbox SET STATUS = 'CANCELLED' WHERE UUID_NOTIFICATION = ?"
+        )->execute([$notification['uuid_notification']]);
+
+        $result = (new NotificationOutboxDeliveryService(new UuidGenerator()))
+            ->claim($db, $notification['uuid_notification']);
+
+        Assert::same(false, $result['should_send']);
+        Assert::same('CANCELLED', $result['status']);
+        Assert::same('CANCELLED', $result['reason']);
+        Assert::same(
+            0,
+            (int) $db->query('SELECT COUNT(*) FROM notification_delivery_attempt')->fetchColumn()
+        );
+    }
+
     public function testKnownFailureRequiresReviewAndIsNotAutomaticallyReclaimed(): void
     {
         $db = TestDatabase::fresh();
