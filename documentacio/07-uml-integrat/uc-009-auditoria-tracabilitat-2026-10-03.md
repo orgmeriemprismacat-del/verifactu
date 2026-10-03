@@ -139,6 +139,7 @@ Això implica:
 | GAP09-12 | cap evidència de xarxa/certificat/AEAT real | operativa | pendent preproducció |
 | GAP09-13 | alta `apartats` no acreditada | operativa | executar preflight + alta controlada |
 | GAP09-14 | pipeline global main vermell per 6 errors aliens | release | resoldre/baseline abans de considerar release global verd |
+| GAP09-15 | UI/AJAX/assets hardcodejats a `intranet.prisma.cat` | preproducció | canviats a rutes relatives same-origin + test de contracte |
 
 ## 7. Traçabilitat requisit → implementació → prova
 
