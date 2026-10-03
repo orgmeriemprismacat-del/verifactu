@@ -292,7 +292,7 @@ Proves afegides a `UsocCourseChangeFundPlanServiceTest` per parcial, excés sepa
   - conflicte de payload;
   - cap factura/payment addicional.
 
-**IMPLEMENTAT:** `UsocCourseChangeExecutionService` consumeix el checkpoint `REQUESTED` amb destí `DESTINATION_RESERVED`, aplica efectes idempotents i finalitza a `COMPLETED`; el retry d'un `COMPLETED` reutilitza el resultat i rebutja un destí divergent.
+**IMPLEMENTAT I ENDURIT 03/10/2026:** `UsocCourseChangeExecutionService` ja no accepta només `DESTINATION_RESERVED`. Abans de qualsevol efecte exigeix `REQUESTED + RESULT_JSON.phase=LEGACY_COMPLETED + legacy_handoff_completed=true + source_closed=true`. `UsocCourseChangeLegacyHandoffService` contrasta directament la BD legacy i persisteix aquesta fase; estat parcial/incoherent → `REVIEW_REQUIRED` durable.
 
 
 ## Revalidació 03/10/2026 · PR #120 reconciliat
@@ -305,7 +305,7 @@ La branca anterior del UC-013 havia quedat 54 commits per darrere de `main`. El 
 - **IMPLEMENTAT:** doble facturació, cobrament/reconciliació, validació durable, baixa executable i canvi de curs executable.
 - **CANVI DE CURS IMPLEMENTAT:** pricing server-side, target resolver, fund planner, preview, preparation REQUESTED, reserva legacy, binding SIF, mutació legacy reservada, executor, rectificatives origen, factures destí, compensacions, reconciliació i `COMPLETED`.
 - **IDEMPOTÈNCIA:** `requestId`, binding immutable de destí, claus estables per efecte i retry de `COMPLETED`.
-- **HANDOFF:** el legacy es materialitza una sola vegada; si falla SIF després, `legacy_completed` permet reprendre sense duplicar la inscripció.
+- **HANDOFF:** el legacy es materialitza una sola vegada. La sessió `legacy_completed` és només una protecció immediata; el recovery durable depèn de la reserva marcada a legacy i del checkpoint SIF `LEGACY_COMPLETED`, verificat contra origen `INSC CURS='C'`, `PAGAMENT=0`, `DATA_BAIXA` i destí coherent. Si es perd la sessió, es recupera sense repetir la mutació.
 - **FAIL-CLOSED:** alumne=0, entitat=0, pricing ambigu/incoherent, evidència fiscal incompleta i payload divergent.
 - **PENDENT OPERATIU:** CI final del PR reconciliat, preproducció/navegador, secrets/rols/configuració real, resolució d'excessos i validacions 20/25 % + EXEMPT/E1.
 
@@ -332,3 +332,22 @@ Comprova abans de provar el flux en preproducció:
 La prova `UsocCourseChangePreflightScriptTest` força que el preflight es mantingui **sense efectes**: no pot emetre factura, registrar pagament ni executar la mutació legacy.
 
 **PENDENT D'EVIDÈNCIA:** executar-lo a l'entorn de preproducció real i conservar JSON, timestamp, SHA desplegat i configuració no secreta associada.
+
+
+### Troballa d'auditoria · handoff només en sessió → TANCADA EN CODI 03/10/2026
+
+**Problema detectat:** el PR #120 reservava/bindava el destí de manera durable, però després de la mutació legacy només persistia `legacy_completed=true` a `$_SESSION`. Una pèrdua de sessió entre legacy i SIF podia impedir reconstruir de manera fiable que el tram acadèmic ja s'havia materialitzat; a més, l'executor acceptava `DESTINATION_RESERVED` sense verificar la BD legacy.
+
+**Correcció implementada:**
+
+- `UsocCourseChangeLegacyHandoffService` llegeix directament origen i destí legacy;
+- origen complet exigeix `INSC CURS='C'`, `PAGAMENT=0` i `DATA_BAIXA`;
+- destí exigeix ID/IDPAG/any/mes/curs/import/marker/TIPUS_DESC/VALID_DESC/status coherents;
+- persisteix `LEGACY_COMPLETED` dins `usoc_lifecycle_execution.RESULT_JSON`;
+- `UsocCourseChangeExecutionService` rebutja qualsevol efecte abans d'aquest checkpoint;
+- una reserva existent es pot recuperar encara que l'origen ja sigui `C`; una reserva nova no;
+- un rebind no degrada `LEGACY_COMPLETED` a `DESTINATION_RESERVED`;
+- `REVIEW_REQUIRED` es commiteja abans de retornar el conflicte;
+- retry d'un SIF ja `COMPLETED` → èxit idempotent, sense repetir legacy/fiscal.
+
+**Proves afegides/actualitzades:** servei de handoff, recuperació de reserva amb origen tancat, no executar abans del checkpoint, rebind després de `LEGACY_COMPLETED`, contracte API/UI i retry completat.
