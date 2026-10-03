@@ -5,12 +5,14 @@
 | Superfície | ACTUAL | FINAL |
 | --- | --- | --- |
 | `pagina_bescanvia.php` | carrega `mostrarBescanvia.min.js?ver=6.0` | Igual |
-| `mostrarBescanvia.min.js` | controlador client; 4 peticions sensibles POST | Igual |
+| `mostrarBescanvia.min.js` | controlador client; totes les peticions amb codi/DNI/correu van per POST | Igual |
 | `mostrar_pagina_bescanvia.php` | render formulari codi | Igual |
 | `codiRegalValid.php` | POST-only; resposta neutra | Igual |
 | `buscarCursRegalat.php` | POST-only + revalidació server-side | Igual |
 | `bescanviaUnCurs.php` | render curs/edició | Igual |
-| `inscripcioDuplicada.php` | POST en UC-018 perquè DNI no vagi a URL | Igual |
+| `inscripcioDuplicada.php` | compartit; POST en UC-018 perquè DNI no vagi a URL | Igual |
+| `buscarSiHaRealitzatElCurs.php` | compartit; POST en UC-018 perquè DNI/curs no vagin a URL | Igual |
+| `enviamentPubli.php` | compartit; POST en UC-018 perquè correu no vagi a URL | Igual |
 | `enviarInscripcioBescanvia.php` | POST-only; lock, FACT_REL>0, get-or-create, SIF, correus | Igual |
 | `SifGiftRedemptionClient` | POST/HMAC redeem + notificacions | Igual |
 | `redeem.php` | endpoint intern autoritatiu | Igual |
@@ -38,7 +40,7 @@ H --> I[Curs/modalitat]
 flowchart TD
 A[Curs/modalitat] --> B[Render bescanviaUnCurs]
 B --> C{Regal genèric?}
-C -- sí --> D[Escollir curs elegible]
+C -- sí --> D[Escollir curs de la mateixa categoria d'hores]
 C -- no --> E[Usar curs regalat]
 D --> F[Escollir edició]
 E --> F
@@ -47,15 +49,22 @@ F --> G[Omplir dades personals]
 
 La política de canvi de curs posterior pertany a UC-26/71; UC-018 només ha de consumir una vegada el dret.
 
-## 4. Activitat P-BES-03 · Comprovar duplicat
+## 4. Activitat P-BES-03 · Precomprovacions personals i duplicat
 
 ```mermaid
 flowchart TD
-A[Dades validades al navegador] --> B[POST DNI + curs + any + edició]
+A[Dades validades al navegador] --> M[POST correu a enviamentPubli]
+M --> H[POST DNI + curs a buscarSiHaRealitzatElCurs]
+H --> X{Curs derivat?}
+X -- sí --> H2[POST DNI + curs derivat]
+X -- no --> B[POST DNI + curs + any + edició]
+H2 --> B
 B --> C{Inscripció existent?}
 C -- sí --> D[No crear altra matrícula]
 C -- no --> E[Continuar]
 ```
+
+DNI i correu no apareixen en query string en cap d'aquestes comprovacions UC-018.
 
 ## 5. Activitat P-BES-04 · Writer legacy
 
@@ -79,7 +88,13 @@ I --> J[POST/HMAC redeem al SIF]
 ```mermaid
 flowchart TD
 A[redeem] --> B[Context autoritatiu]
-B --> C[Claim holder + RESERVE]
+B --> X{regal.CCURS numèric?}
+X -- no --> Y[Exigir CCURS = CURS compromès]
+X -- sí --> Z[Resoldre curs.HORES per CURS + ANY + MES]
+Z --> Q{HORES = CCURS?}
+Q -- no --> R[CONFLICT 409]
+Q -- sí --> C[Claim holder + RESERVE]
+Y --> C
 C --> D[COMPENSATION_ALLOCATION]
 D --> E[CONSUME]
 E --> F[Complete operation]
@@ -134,7 +149,8 @@ D --> E[Mostrar matrícula resultant]
 | Apartat | Documentat | Implementat | Verificat |
 | --- | --- | --- | --- |
 | Bundle/pàgina | Sí | Sí, patch 03/10 | CI pendent |
-| Transport codi/PII | Sí | POST, patch 03/10 | Boundary afegit; CI pendent |
+| Transport codi/PII | Sí | POST també a mailing i històric de curs | Boundary ampliat; CI pendent |
+| Regal genèric per hores | Sí | Resolver + stager validen `curs.HORES` | Tests match/mismatch afegits; CI pendent |
 | No enumeració | Sí | Sí, patch 03/10 | Boundary afegit; CI pendent |
 | Alta/reutilització | Sí | Sí | Core CI 02/10 |
 | Context autoritatiu | Sí | Sí | Core CI 02/10 |
