@@ -4,13 +4,14 @@
 **Branca de revisió:** `audit/uc-008-revalidacio-2026-10-03`  
 **Main revalidat:** `b0e8ff7150c5a8b415cc109d298d82f0db1f68df`  
 **Baseline de tancament anterior:** merge PR #116 `549d7ef9280df3cd5249340e3785a4bf23a14b78`  
-**Diferència entre baseline i main:** 44 commits.
+**Diferència entre baseline i main:** 44 commits.  
+**HEAD final revalidat del PR #123:** `216ab7fe406861eac13ebd5309bffd0c46351876`.
 
 ## 1. Conclusió
 
 L'UC-008 continua **AUDIT_CLOSED + CODE_COMPLETE**. No s'ha detectat cap fitxa, diagrama ACTUAL/FINAL, PHP, JS, API, repositori o prova específica d'incidències absent.
 
-El `main` actual no es pot descriure globalment com a `CI_GREEN`: el HEAD del PR #118 havia executat la suite SIF amb **917 passed / 6 failed**. Aquesta branca ha corregit l'expectativa antiga de `payload_hash` al test de signatura Redsys perquè el fixture actual inclou `Ds_TransactionType`; el SHA-256 de la cadena `Ds_MerchantParameters` actual és `b585ea0d53cc71fc58e366ccde647457220e9e7732734c0b904a014f589813ff`. El run PR #123 `37128124387` confirma la correcció amb **918 passed / 5 failed** i tots els tests `RedsysSignatureValidatorTest` en PASS. Les cinc fallades restants són contractes PACK/UC-015. No s'ha modificat la lògica de validació ni el lifecycle UC-008.
+El `main` actual no es pot descriure globalment com a `CI_GREEN`: el HEAD del PR #118 havia executat la suite SIF amb **917 passed / 6 failed**. Aquesta branca ha corregit l'expectativa antiga de `payload_hash` al test de signatura Redsys perquè el fixture actual inclou `Ds_TransactionType`; el SHA-256 de la cadena `Ds_MerchantParameters` actual és `b585ea0d53cc71fc58e366ccde647457220e9e7732734c0b904a014f589813ff`. El run PR #123 `37128490337` confirma la correcció amb **918 passed / 5 failed** i tots els tests `RedsysSignatureValidatorTest` en PASS. Les cinc fallades restants són contractes PACK/UC-015. No s'ha modificat la lògica de validació ni el lifecycle UC-008.
 
 ## 2. Paquet documental comprovat
 
@@ -134,8 +135,8 @@ Evidència de CI revalidada:
 
 - `37060976805` · HEAD PR #118 · **SIF PHP MySQL tests** → **917 passed / 6 failed**;
 - `37060976877` · HEAD PR #118 · **SIF checks** → **917 passed / 6 failed**;
-- `37128124387` · PR #123 després del fix Redsys → **918 passed / 5 failed**;
-- `37128124407` · **SIF checks** del mateix executable → **918 passed / 5 failed**.
+- `37128490337` · PR #123 després del fix Redsys → **918 passed / 5 failed**;
+- `37128490285` · **SIF checks** del mateix executable → **918 passed / 5 failed**.
 
 Les cinc fallades que **resten després de la correcció** són:
 
@@ -181,3 +182,18 @@ Aquests punts necessiten preproducció, rols/secrets reals i la BD real del men�
 - la salut específica UC-008, que continua verificada;
 - la salut global del repositori, actualment vermella per cinc fallades PACK alienes al cas;
 - l'acceptació operativa d'entorn, encara pendent.
+
+
+## 10. Estat final del PR #123
+
+- PR: **mergeable** i sense conflictes.
+- Comparació amb `main`: **0 commits per darrere** en el moment de la revalidació final.
+- Reviews: cap review oberta.
+- Review threads: cap fil pendent.
+- Comentaris de PR: cap comentari pendent.
+- HEAD revalidat: `216ab7fe406861eac13ebd5309bffd0c46351876`.
+- `SIF PHP MySQL tests` run `37128490337`: **918 passed / 5 failed**.
+- `SIF checks` run `37128490285`: **918 passed / 5 failed**.
+- Les cinc fallades són exclusivament PACK/UC-015; no s'ha observat cap fallada UC-008.
+
+No hi ha reviews, threads ni comentaris oberts que bloquegin documentalment l'auditoria UC-008. La decisió de merge s'ha de separar de les cinc regressions globals PACK que continuen actives.
