@@ -308,7 +308,7 @@ end
 
 ## Preproducció canònica
 
-Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only i el processor manual injecta ledger/outbox i pot fer la sincronització legacy completa amb `--sync-legacy`. `verify-redsys-pack-preproduction.php` és l'orquestrador canònic: preflight PACK + preflight de cua + preview, i només processa amb `--execute`; comprova identitat de factura/payment, N atribucions, suma del ledger, outbox i, si es demana, sync legacy. La seva evidència resumeix totals sense copiar el payload fiscal complet. Continua pendent executar-lo contra un `DS_ORDER` real de preproducció.
+Els scripts Redsys de PACK consumeixen el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only. L'acceptació productiva exigeix callback + `process-redsys-callback-queue.php` i, després, `verify-redsys-pack-preproduction.php <DS_ORDER> --verify-evidence`, que agrega preflight PACK, preflight de cua, preview i `RedsysPackEvidenceVerifier` sobre l'estat persistent. `--execute [--sync-legacy]` continua disponible com a processor manual de diagnòstic, però no substitueix l'evidència del worker/cua. La sortida es sanititza i no copia secrets ni el payload fiscal complet. Continua pendent executar aquest flux contra un `DS_ORDER` real de preproducció.
 
 
 ## Revalidació 2026-10-02
@@ -326,6 +326,6 @@ Punts nous incorporats:
 - la seqüència real de postcommit és `RedsysLegacySyncingProcessor → LegacySyncService`;
 - `AcademicEnrollmentSyncService` no forma part del flux executable UC-015;
 - el text intern del descompte fiscal ja no pressuposa una línia/ordinal concreta;
-- el verificador canònic `verify-redsys-pack-preproduction.php` ja està implementat; resta executar-lo amb un `DS_ORDER` real;
+- el verificador canònic `verify-redsys-pack-preproduction.php` ja suporta `--verify-evidence`; resta executar callback+worker real i aquesta verificació amb un `DS_ORDER` de preproducció;
 - les dues còpies productives del callback legacy estan eliminades físicament; només queda el harness `Prova`, restringit a test/preproduction + flag explícit;
 - el nucli PACK conserva evidència CI històrica i el HEAD final d'aquesta auditoria ha de tornar a passar la CI després dels enduriments web/idempotència/preproducció.
