@@ -631,8 +631,10 @@ L'orquestrador de preproducció podia executar el processor manual amb `--execut
 
 - **diagnòstic manual:** `--execute [--sync-legacy]`;
 - **acceptació productiva:** callback + worker real + `--verify-evidence`;
-- el preflight exigeix també la presència de `verify-redsys-pack-evidence.php`.
+- el preflight exigeix també la presència de `verify-redsys-pack-evidence.php`;
+- el `go-no-go-preproduction.php` considera complet el circuit PACK només si existeixen l'orquestrador i el verificador persistent, mentre el worker/cua continua cobert per `redsys_async_circuit_present`;
+- `sif/config/README.md` diferencia explícitament diagnòstic manual i acceptació post-worker.
 
-Així un resultat verd del processor manual no es pot confondre amb una acceptació E2E completa.
+Així un resultat verd del processor manual no es pot confondre amb una acceptació E2E completa ni el go/no-go pot donar per complet un circuit PACK sense les eines d'evidència.
 
 **Estat post-merge:** codi UC-015 continua tancat. Resten l'acceptació runtime/preproducció amb `DS_ORDER` real i la dependència transversal UC-58.
