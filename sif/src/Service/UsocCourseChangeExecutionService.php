@@ -83,7 +83,9 @@ final class UsocCourseChangeExecutionService
         );
         $targetIdpag = (int) ($destination['destination_idpag'] ?? 0);
         if (
-            (string) ($destination['phase'] ?? '') !== 'DESTINATION_RESERVED'
+            (string) ($destination['phase'] ?? '') !== 'LEGACY_COMPLETED'
+            || ($destination['legacy_handoff_completed'] ?? false) !== true
+            || ($destination['source_closed'] ?? false) !== true
             || (int) ($destination['source_id_insc'] ?? 0) !== $idInsc
             || (int) ($destination['source_idpag'] ?? 0) !== $idpag
             || (int) ($destination['destination_id_insc'] ?? 0) !== $targetIdInsc
@@ -91,7 +93,7 @@ final class UsocCourseChangeExecutionService
             || $targetIdpag === $idpag
         ) {
             throw SifException::conflict(
-                'USOC course change destination must be durably bound before execution'
+                'USOC course change legacy handoff must be durably confirmed before execution'
             );
         }
 
