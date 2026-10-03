@@ -26,16 +26,18 @@ final class HistoricalInvoicePayloadBuilder
         $payload['invoice_status'] = 'HISTORICAL';
         $payload['aeat_status'] = 'NO_VERIFACTU';
         $payload['payment_status'] = $this->optionalString($input, ['payment_status', 'estat_cobrament'], 'UNKNOWN');
-        $payload['issue_date'] = $this->requiredString($input, ['issue_date', 'data_emissio'], 'historical invoice issue date');
-        $this->assertDate($payload['issue_date'], 'historical invoice issue date');
-        $payload['operation_date'] = $this->optionalString($input, ['operation_date', 'data_operacio']);
-        if ($payload['operation_date'] !== null) {
-            $this->assertDate($payload['operation_date'], 'historical invoice operation date');
-        }
-        $payload['payment_date'] = $this->optionalString($input, ['payment_date', 'data_pagament']);
-        if ($payload['payment_date'] !== null) {
-            $this->assertDate($payload['payment_date'], 'historical invoice payment date');
-        }
+        $payload['issue_date'] = $this->normalizeDate(
+            $this->requiredString($input, ['issue_date', 'data_emissio'], 'historical invoice issue date'),
+            'historical invoice issue date'
+        );
+        $operationDate = $this->optionalString($input, ['operation_date', 'data_operacio']);
+        $payload['operation_date'] = $operationDate === null
+            ? null
+            : $this->normalizeDate($operationDate, 'historical invoice operation date');
+        $paymentDate = $this->optionalString($input, ['payment_date', 'data_pagament']);
+        $payload['payment_date'] = $paymentDate === null
+            ? null
+            : $this->normalizeDate($paymentDate, 'historical invoice payment date');
         $payload['issuer'] = $this->issuer($input);
         $payload['operation_description'] = $this->optionalString(
             $input,
@@ -105,6 +107,11 @@ final class HistoricalInvoicePayloadBuilder
             $this->requiredString($line, ['concept'], "historical invoice line {$index} concept");
             foreach (['quantity', 'unit_price', 'total'] as $field) {
                 $this->assertNumeric($line[$field] ?? null, "historical invoice line {$index} {$field}");
+            }
+            foreach (['discount_pct', 'discount_amount', 'iva_pct', 'iva_import'] as $field) {
+                if (array_key_exists($field, $line) && $line[$field] !== null && $line[$field] !== '') {
+                    $this->assertNumeric($line[$field], "historical invoice line {$index} {$field}");
+                }
             }
 
             $base = $line['import_base'] ?? $line['base'] ?? null;
@@ -220,7 +227,7 @@ final class HistoricalInvoicePayloadBuilder
         }
     }
 
-    private function assertDate(string $value, string $label): void
+    private function normalizeDate(string $value, string $label): string
     {
         foreach (['Y-m-d H:i:s', 'Y-m-d'] as $format) {
             $date = \DateTimeImmutable::createFromFormat('!' . $format, $value);
@@ -229,7 +236,7 @@ final class HistoricalInvoicePayloadBuilder
                 && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
                 && $date->format($format) === $value
             ) {
-                return;
+                return $date->format('Y-m-d H:i:s');
             }
         }
 
