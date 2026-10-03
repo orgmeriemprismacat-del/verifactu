@@ -9847,20 +9847,9 @@ class Intranet
 				throw new RuntimeException('No s’ha pogut escriure el PDF temporal', 500);
 			}
 
-			if ( $generada == null || $generada == '' ) {
-				if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["updGeneratFactura"] ) ) {
-					$date = new DateTime("now");
-					$dataGenerada = date_format($date, 'Y-m-d');
-					$idGenerat = (int) $id;
-					$stmt->bind_param("si", $dataGenerada, $idGenerat);
-					$stmt->execute();
-					$conWeb->closeStmt();
-				}
-				else {
-					unlink($filename);
-					throw new Exception('',4127);
-				}
-			}
+			/* UC-007: la descàrrega és una consulta i no pot mutar l'estat de negoci.
+			   GENERAT s'ha d'actualitzar només en un flux explícit d'emissió/generació,
+			   mai com a efecte lateral de reconstruir un PDF temporal. */
 
 			$mostrar = $filename;
 		}
