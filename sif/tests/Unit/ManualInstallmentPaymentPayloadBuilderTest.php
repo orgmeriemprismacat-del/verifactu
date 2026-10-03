@@ -52,7 +52,7 @@ final class ManualInstallmentPaymentPayloadBuilderTest
         );
 
         Assert::same('MANUAL|FRACCIO|EVENT:BANK-20260612-0001', $payload['idempotency_key']);
-        Assert::same('FRACCIO|ID_INSC:77|USUARI:adam|EVENT:BANK-20260612-0001', $payload['provider_ref']);
+        Assert::same('FRACCIO|ID_INSC:77|EVENT:BANK-20260612-0001', $payload['provider_ref']);
         (new PaymentPayloadValidator())->validate($payload);
     }
 
