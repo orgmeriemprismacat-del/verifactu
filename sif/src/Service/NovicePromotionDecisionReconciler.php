@@ -40,7 +40,7 @@ final class NovicePromotionDecisionReconciler
         }
 
         $stmt = $sifDb->prepare(
-            "SELECT DISTINCT op.UUID_OPERATION, op.SOURCE_ID
+            "SELECT DISTINCT op.UUID_OPERATION, op.SOURCE_ID, op.CREATED_AT
              FROM commercial_operation op
              LEFT JOIN discount_validation validation
                ON validation.UUID_OPERATION = op.UUID_OPERATION
