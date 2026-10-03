@@ -62,6 +62,50 @@ final class ManualInstallmentPaymentServiceTest
         Assert::same('INSTALLMENT_PAYMENT', $allocationType);
     }
 
+    public function testRegistersTwoEqualInstallmentsWhenTheyHaveDifferentEventIdentifiers(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload(['emesa_abans_cobrament' => 1, 'total' => '80.00'])
+        );
+        $service = $this->service($db);
+
+        $first = $service->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '40.00',
+            'movement_date' => '2026-06-12',
+            'id_insc' => 77,
+            'user' => 'adam',
+            'operation_id' => 'BANK-20260612-A',
+        ]);
+        $second = $service->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '40.00',
+            'movement_date' => '2026-06-12',
+            'id_insc' => 77,
+            'user' => 'adam',
+            'operation_id' => 'BANK-20260612-B',
+        ]);
+        $repeat = $service->registerByUuid($db, $invoice['uuid_factura'], [
+            'amount' => '40.00',
+            'movement_date' => '2026-06-12',
+            'id_insc' => 77,
+            'user' => 'adam',
+            'operation_id' => 'BANK-20260612-A',
+        ]);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(false, $second['idempotency_reused']);
+        Assert::same(true, $repeat['idempotency_reused']);
+        Assert::same($first['uuid_payment'], $repeat['uuid_payment']);
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same('PAID', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
+
+        $keys = $db->query('SELECT IDEMPOTENCY_KEY FROM payment_transaction ORDER BY IDEMPOTENCY_KEY')
+            ->fetchAll(\PDO::FETCH_COLUMN);
+        Assert::same('MANUAL|FRACCIO|EVENT:BANK-20260612-A', $keys[0]);
+        Assert::same('MANUAL|FRACCIO|EVENT:BANK-20260612-B', $keys[1]);
+    }
+
     public function testRegistersInstallmentByVisibleInvoiceNumber(): void
     {
         $db = TestDatabase::fresh();
