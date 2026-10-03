@@ -7,6 +7,7 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacyPrismaStudentHistoryRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
@@ -75,7 +76,8 @@ try {
             $intentService,
             new UuidGenerator()
         ),
-        new LegacyPrismaStudentPriceSnapshotResolver()
+        new LegacyPrismaStudentPriceSnapshotResolver(),
+        new InvoiceBeforePaymentCoverageRepository()
     );
 
     JsonResponse::send([
