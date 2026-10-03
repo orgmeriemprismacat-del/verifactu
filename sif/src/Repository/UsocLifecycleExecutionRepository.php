@@ -165,6 +165,77 @@ final class UsocLifecycleExecutionRepository
             ?? throw SifException::conflict('USOC lifecycle execution not found');
     }
 
+    public function advanceRequestedResult(
+        \PDO $db,
+        string $requestId,
+        string $expectedPhase,
+        array $result
+    ): array {
+        $existing = $this->findByRequestId($db, $requestId, true);
+        if ($existing === null) {
+            throw SifException::conflict('USOC lifecycle execution not found');
+        }
+        if ((string) $existing['STATE'] !== 'REQUESTED') {
+            throw SifException::conflict(
+                'USOC lifecycle requested result can only advance while REQUESTED'
+            );
+        }
+
+        $storedJson = trim((string) ($existing['RESULT_JSON'] ?? ''));
+        if ($storedJson === '') {
+            throw SifException::conflict(
+                'USOC lifecycle requested result has not been recorded'
+            );
+        }
+
+        $stored = json_decode($storedJson, true);
+        if (!is_array($stored)) {
+            throw SifException::conflict(
+                'USOC lifecycle requested result is invalid'
+            );
+        }
+
+        $expectedPhase = strtoupper(trim($expectedPhase));
+        $storedPhase = strtoupper(trim((string) ($stored['phase'] ?? '')));
+        $newPhase = strtoupper(trim((string) ($result['phase'] ?? '')));
+        if ($expectedPhase === '' || $newPhase === '') {
+            throw SifException::validation(
+                'USOC lifecycle requested result phase is required'
+            );
+        }
+
+        if ($storedPhase === $newPhase) {
+            if ($this->hash($stored) !== $this->hash($result)) {
+                throw SifException::conflict(
+                    'USOC lifecycle requested result already differs from advanced payload'
+                );
+            }
+            return $existing;
+        }
+
+        if ($storedPhase !== $expectedPhase) {
+            throw SifException::conflict(
+                'USOC lifecycle requested result is not in expected phase'
+            );
+        }
+
+        $resultJson = json_encode(
+            $result,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        );
+
+        $stmt = $db->prepare(
+            "UPDATE usoc_lifecycle_execution
+             SET RESULT_JSON = ?
+             WHERE REQUEST_ID = ?
+               AND STATE = 'REQUESTED'"
+        );
+        $stmt->execute([$resultJson, $requestId]);
+
+        return $this->findByRequestId($db, $requestId, true)
+            ?? throw SifException::conflict('USOC lifecycle execution not found');
+    }
+
     public function complete(
         \PDO $db,
         string $requestId,
