@@ -55,7 +55,7 @@ No cal crear fitxers buits addicionals. El paquet documental objectiu queda cobe
 
 | Peça | Fitxer | Estat |
 | --- | --- | --- |
-| Servei | `CreditBalanceService.php` | IMPLEMENTAT PARCIAL |
+| Servei | `CreditBalanceService.php` | IMPLEMENTAT PARCIAL · `createCredit()` idempotent quan el caller aporta clau |
 | Builder | `CreditBalancePayloadBuilder.php` | IMPLEMENTAT |
 | Repositori | `CreditBalanceRepository.php` | IMPLEMENTAT |
 | Preview saldo | `preview-credit-balance.php` | IMPLEMENTAT NO PRODUCTIU |
@@ -124,7 +124,7 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 | C-03 | Loader autoritatiu de dret econòmic per origen/inscripció | FALTA GENERALITZAR |
 | C-04 | Càlcul de disponibilitat a partir d'`enrollment_fund_movement` | FALTA |
 | C-05 | Sortida de refund vinculada a inscripció | FALTA |
-| C-06 | Creació idempotent de saldo des d'un dret/origen | FALTA |
+| C-06 | Idempotència tècnica de `createCredit()` | **IMPLEMENTADA A LA BRANCA** · falta derivar/obligar clau de dret de negoci |
 | C-07 | Traça del `UUID_CREDIT` al ledger per crear/aplicar saldo | FALTA MODELAR |
 | C-08 | Política de titularitat saldo/factura | FALTA |
 | C-09 | Evidència externa de refund i estat pending/confirmed | FALTA GENÈRIC |
@@ -153,7 +153,8 @@ La infraestructura no és el problema principal: el buit és la **integració ob
 
 ### Falten per tancament UC-006
 
-- saldo duplicat mateix dret/origen;
+- mateixa clau/payload de saldo reutilitza UUID i mateixa clau/payload diferent conflicta (**tests afegits; CI pendent**);
+- falta provar doble dret/origen amb claus de negoci derivades pel futur orquestrador;
 - refund superior al fons atribuït encara disponible;
 - refund de només una inscripció d'una factura conjunta;
 - refund Redsys/manual del mateix fet extern;
