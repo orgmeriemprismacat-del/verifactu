@@ -15749,21 +15749,38 @@ class Intranet
 			}
 		}
 		else {
-			$validDesc = 2;
-			//Buscar si és exalumne.
-			$tipus = 1;
-			$stmt->execute();
-			$stmt->bind_result($preuDescAlumne);
-			$stmt->fetch();
-			$alumnePrisma = 0;
+			/*
+			 * UC-020/P05: després de denegar el dret documental, Alumne PrisMa
+			 * es reavalua amb la policy de compatibilitat v2:
+			 * - no autoacreditar la matrícula actual;
+			 * - no usar historial posterior a DATA_INSC;
+			 * - pagament positiu, curs regal o GENERAT=1;
+			 * - D/M exclosos.
+			 *
+			 * El preu AP també es resol de manera autoritativa per
+			 * ID_PREU + curs/hores + mes + vigència i exigeix unicitat.
+			 */
 			$conWeb->closeStmt();
+			$validDesc = 2;
+			$tipus = 0;
+			$alumnePrisma = 0;
 
-			if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["cnsAlumnePrisMa"] ) ) {
-				$stmt->bind_param("s", $dni);
+			$cnsAlumnePrisMaV2 = "SELECT ID FROM inscripcions
+				WHERE DNI = ? AND ID <> ? AND DATA_INSC <= ?
+				AND (
+					(A_PAGAR > 0 AND PAGAMENT > 0)
+					OR (A_PAGAR = 0 AND OBSERVACIONS LIKE '%CURS REGAL%')
+					OR GENERAT = 1
+				)
+				AND UPPER(\`INSC CURS\`) != 'D'
+				AND UPPER(\`INSC CURS\`) != 'M'
+				LIMIT 1";
+			if ( $stmt=$conWeb->prepare($cnsAlumnePrisMaV2) ) {
+				$stmt->bind_param("sds", $dni, $idInsc, $dataInsc);
 				$stmt->execute();
 				$stmt->store_result();
 				if ($stmt->num_rows() > 0)
-				   $alumnePrisma = 1;
+					$alumnePrisma = 1;
 			}
 			else {
 				throw new Exception('',4583);
@@ -15771,14 +15788,51 @@ class Intranet
 			$conWeb->closeStmt();
 
 			if ( $alumnePrisma ) {
+				$cnsTarifaApV2 = "SELECT PREU FROM descomptes
+					WHERE ID_PREU = ? AND TIPUS = 1
+					AND DATAI <= CURRENT_TIMESTAMP
+					AND (DATAF IS NULL OR CURRENT_TIMESTAMP <= DATAF)
+					AND (CURS = 'TOTS' OR CURS = ? OR CURS = ?)
+					AND (MES = 'TOTS' OR MES = ?)";
+				if ( $stmt=$conWeb->prepare($cnsTarifaApV2) ) {
+					$horesSelector = (string) $hores;
+					$stmt->bind_param("dsss", $idPreu, $curs, $horesSelector, $mes);
+					$stmt->execute();
+					$stmt->store_result();
+					if ($stmt->num_rows() !== 1) {
+						$conWeb->closeStmt();
+						throw new RuntimeException(
+							'Error: tarifa Alumne PrisMa inexistent o ambigua després de la denegació.',
+							409
+						);
+					}
+					$stmt->bind_result($preuDescAlumne);
+					$stmt->fetch();
+				}
+				else {
+					throw new Exception('',4584);
+				}
+				$conWeb->closeStmt();
+
+				if (
+					!is_numeric($preuCar)
+					|| !is_numeric($preuDescAlumne)
+					|| (float) $preuCar <= 0
+					|| (float) $preuDescAlumne <= 0
+					|| (float) $preuDescAlumne >= (float) $preuCar
+				) {
+					throw new RuntimeException(
+						'Error: tarifa Alumne PrisMa incoherent amb la tarifa base.',
+						409
+					);
+				}
+
+				$tipus = 1;
 				$preuDescompte = $preuDescAlumne;
 				$textAlumne = " (per ser alumne/a de PrisMa)";
 			}
-			else {
-				$tipus = 0;
-			}
 
-			//update amb el nou preu
+			// update amb el nou preu autoritatiu
 			if ( $stmt=$conWeb->prepare( $this->consultesBD_Web["updValidDescByInscPreu"] ) ) {
 				$stmt->bind_param("dddd", $tipus, $validDesc, $preuDescompte, $idInsc);
 				$stmt->execute();
