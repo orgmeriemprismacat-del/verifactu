@@ -148,7 +148,9 @@ final class HistoricalInvoiceMigrationServiceTest
         $firstInput['lines'][0]['total'] = 100;
 
         $first = $service->importHistoricalInvoice($firstInput);
-        $second = $service->importHistoricalInvoice($this->input());
+        $secondInput = $this->input();
+        $secondInput['issue_date'] = '2024-03-15 00:00:00';
+        $second = $service->importHistoricalInvoice($secondInput);
 
         Assert::same(false, $first['idempotency_reused']);
         Assert::same(true, $second['idempotency_reused']);
