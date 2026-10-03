@@ -516,7 +516,7 @@ requestMain.done(function( message ) {
 				bankCell.after(
 					"<td id='bank-event-cell-"+idTipus+"'>" +
 					"<input id='bank-event-"+idTipus+"' type='text' class='form-control text-center' " +
-					"maxlength='190' autocomplete='off' placeholder='ID operació bancària' />" +
+					"maxlength='80' autocomplete='off' placeholder='ID operació bancària' />" +
 					"</td>"
 				);
 			}
