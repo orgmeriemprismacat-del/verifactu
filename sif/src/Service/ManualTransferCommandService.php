@@ -27,7 +27,7 @@ final class ManualTransferCommandService
         if ($externalEventId === '') {
             throw SifException::validation('Missing external bank event id');
         }
-        if (mb_strlen($externalEventId, 'UTF-8') > 190) {
+        if (mb_strlen($externalEventId, 'UTF-8') > 80) {
             throw SifException::validation('External bank event id is too long');
         }
 
