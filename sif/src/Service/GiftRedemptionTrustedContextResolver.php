@@ -95,7 +95,7 @@ final class GiftRedemptionTrustedContextResolver
         }
 
         $productCode = strtoupper(trim((string) ($enrollment['CURS'] ?? '')));
-        $giftProduct = strtoupper(trim((string) ($gift['CCURS'] ?? '')));
+        $giftProduct = $this->purchasedGiftTarget($entitlement, $gift);
         if ($productCode === '') {
             throw SifException::conflict('Committed gift product is incomplete');
         }
@@ -148,6 +148,40 @@ final class GiftRedemptionTrustedContextResolver
                 'holder_state' => $holder === $unclaimed ? 'UNCLAIMED' : 'CLAIMED',
             ],
         ];
+    }
+
+    /**
+     * The entitlement snapshot is the immutable purchase contract. Legacy regal
+     * remains useful for reconciliation but cannot redefine course/hour scope.
+     */
+    private function purchasedGiftTarget(array $entitlement, array $gift): string
+    {
+        $ruleSnapshot = json_decode(
+            (string) ($entitlement['RULE_SNAPSHOT_JSON'] ?? ''),
+            true
+        );
+        $snapshotGiftId = is_array($ruleSnapshot)
+            ? (int) ($ruleSnapshot['legacy_gift_id'] ?? 0)
+            : 0;
+        $snapshotTarget = is_array($ruleSnapshot)
+            ? strtoupper(trim((string) ($ruleSnapshot['legacy_course_code'] ?? '')))
+            : '';
+        $legacyGiftId = (int) ($gift['ID'] ?? 0);
+        $legacyTarget = strtoupper(trim((string) ($gift['CCURS'] ?? '')));
+
+        if (strtoupper((string) ($entitlement['RULE_VERSION'] ?? ''))
+                !== GiftEntitlementIssuerService::RULE_VERSION
+            || $snapshotGiftId <= 0
+            || $snapshotGiftId !== $legacyGiftId
+            || $snapshotTarget === ''
+            || $legacyTarget !== $snapshotTarget
+        ) {
+            throw SifException::conflict(
+                'Legacy gift target does not match the immutable SIF purchase snapshot'
+            );
+        }
+
+        return $snapshotTarget;
     }
 
     /**
