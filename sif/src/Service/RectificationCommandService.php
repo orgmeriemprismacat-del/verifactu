@@ -2,7 +2,6 @@
 
 namespace Prisma\Sif\Service;
 
-use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
@@ -217,7 +216,7 @@ final class RectificationCommandService
     private function fingerprint(array $invoice, array $payload, array $classification): string
     {
         return $this->fingerprints->calculateHash([
-            'original' => $this->invoiceSnapshot($invoice),
+            'original' => $this->fingerprintSnapshot($invoice),
             'payload' => $payload,
             'classification' => $classification,
         ]);
@@ -294,6 +293,39 @@ final class RectificationCommandService
         } catch (\Throwable) {
             // Preserve the original command failure.
         }
+    }
+
+    private function fingerprintSnapshot(array $invoice): array
+    {
+        $snapshot = [];
+
+        foreach ([
+            'UUID_FACTURA',
+            'NUM_VISIBLE',
+            'TIPUS_SERIE',
+            'ANY_FACT',
+            'TIPUS_FACTURA',
+            'DATA_EMISSIO',
+            'BILLING_NOM_RAO',
+            'BILLING_NIF_CIF',
+            'BILLING_ADRECA',
+            'BILLING_CP',
+            'BILLING_POBLACIO',
+            'BILLING_PROVINCIA',
+            'BILLING_PAIS',
+            'BILLING_EMAIL',
+            'IMPORT_BASE',
+            'BASE_IMPOSABLE',
+            'IVA_REGIM',
+            'IVA_PCT',
+            'IVA_IMPORT',
+            'CAUSA_EXEMPCIO_NO_SUBJECTA',
+            'TOTAL',
+        ] as $field) {
+            $snapshot[$field] = $invoice[$field] ?? null;
+        }
+
+        return $snapshot;
     }
 
     private function invoiceSnapshot(array $invoice): array
