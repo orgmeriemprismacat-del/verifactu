@@ -111,6 +111,91 @@ try {
         . substr(hash('sha256', $semanticJson), 0, 32);
 
     $client = new SifInternalUsocClient();
+
+    // A lost HTTP response after a successful execution must not turn a
+    // completed course change into a new legacy/fiscal attempt.
+    $statusResponse = $client->courseChangeExecutionStatus(
+        $actorId,
+        $roles,
+        $requestId
+    );
+    $executionStatusCode = (int) ($statusResponse['_http_status'] ?? 0);
+    unset($statusResponse['_http_status']);
+
+    if (
+        $executionStatusCode >= 200
+        && $executionStatusCode < 300
+        && ($statusResponse['ok'] ?? false) === true
+        && is_array($statusResponse['execution'] ?? null)
+    ) {
+        $existingExecution = $statusResponse['execution'];
+        if (
+            (int) ($existingExecution['ID_INSC'] ?? 0) !== (int) $idInsc
+            || (int) ($existingExecution['IDPAG'] ?? 0) !== (int) $pricing['idpag']
+            || (string) ($existingExecution['OPERATION'] ?? '') !== 'COURSE_CHANGE'
+        ) {
+            throw new RuntimeException(
+                'El checkpoint USOC existent no correspon a aquest canvi.',
+                409
+            );
+        }
+
+        $existingState = strtoupper(
+            trim((string) ($existingExecution['STATE'] ?? ''))
+        );
+        if ($existingState === 'COMPLETED') {
+            $completedResult = json_decode(
+                (string) ($existingExecution['RESULT_JSON'] ?? ''),
+                true
+            );
+            if (
+                !is_array($completedResult)
+                || (string) ($completedResult['request_id'] ?? '') !== $requestId
+                || (int) ($completedResult['source_id_insc'] ?? 0) !== (int) $idInsc
+                || (int) ($completedResult['source_idpag'] ?? 0) !== (int) $pricing['idpag']
+                || ($completedResult['legacy_handoff_completed'] ?? false) !== true
+            ) {
+                throw new RuntimeException(
+                    'El canvi USOC consta completat però la seva evidència és incoherent.',
+                    409
+                );
+            }
+
+            http_response_code(200);
+            echo json_encode([
+                'ok' => true,
+                'already_completed' => true,
+                'request_id' => $requestId,
+                'execution' => $completedResult,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        if ($existingState === 'REVIEW_REQUIRED') {
+            throw new RuntimeException(
+                'El canvi USOC requereix revisió abans de continuar.',
+                409
+            );
+        }
+
+        if ($existingState !== 'REQUESTED') {
+            throw new RuntimeException(
+                'El canvi USOC està en un estat que no permet continuar.',
+                409
+            );
+        }
+    } elseif ($executionStatusCode !== 409) {
+        $error = trim((string) ($statusResponse['error'] ?? ''));
+        throw new RuntimeException(
+            $executionStatusCode >= 400 && $executionStatusCode < 500 && $error !== ''
+                ? $error
+                : 'No s’ha pogut verificar l’estat del canvi de curs USOC.',
+            $executionStatusCode >= 400 && $executionStatusCode <= 599
+                ? $executionStatusCode
+                : 503
+        );
+    }
+
     $response = $client->prepareCourseChange(
         $actorId,
         $roles,
