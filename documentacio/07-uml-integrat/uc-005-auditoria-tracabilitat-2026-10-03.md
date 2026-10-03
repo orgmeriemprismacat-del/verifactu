@@ -11,7 +11,7 @@ UC-005 **no estava sense codi**: existeix un nucli SIF executable per crear una 
 | Localitzar original per UUID | Sí | Sí | Sí | executar prova |
 | Localitzar per número visible | Sí | Sí | Sí | executar prova |
 | Mode DIFERENCIES | Sí | Sí | Sí | fiscalitat completa |
-| Mode SUBSTITUCIO | Sí | Parcial | Sí | dades corregides completes |
+| Mode SUBSTITUCIO | Sí | **Sí al backend SIF** | Sí | validació fiscal/AEAT específica |
 | Clau idempotent | Sí | Sí | Sí | evidència MySQL |
 | Idempotència payload | Transversal | Sí via InvoiceService | Sí | prova executada |
 | Sèrie R i numeració SIF | Sí | Sí | Sí | evidència MySQL |
@@ -20,16 +20,16 @@ UC-005 **no estava sense codi**: existeix un nucli SIF executable per crear una 
 | `factura_rectificacio` | Sí | Sí | Sí | atomicitat |
 | Estat original RECTIFIED | Sí | Sí | Sí | política per variants |
 | Alias `motiu/mode_rectificacio` | Implícit | **Corregit en aquesta branca** | Sí | executar nova prova |
-| Receptor nou | Necessitat documentada | No | Buit confirmat | implementar |
-| IVA/règim heretat/correcte | Necessitat documentada | No general | Builder fixa EXEMPT 0 | implementar |
+| Receptor nou | Necessitat documentada | **Sí en SUBSTITUCIO** | Sí | UI + criteri fiscal/AEAT |
+| IVA/règim heretat/correcte | Necessitat documentada | **Fail-closed + bloc fiscal explícit** | Sí | mapping AEAT/XSD específic |
 | Import zero per canvi receptor/concepte | Necessitat possible | No | builder el rebutja | decidir regla |
-| Classificador fiscal UC-74 | Sí | No integrat | Sí | integrar |
-| Pantalla UC-005 SIF | Sí FINAL | No | Sí | implementar |
-| Auth/CSRF command UC-005 | Sí FINAL | No específic | Sí | implementar |
+| Classificador fiscal UC-74 | Sí | **Guard integrat; classificador genèric no** | Sí | implementar UC-74 executable |
+| Pantalla UC-005 SIF | Sí FINAL | No | Sí | implementar adaptador/proxy intranet |
+| Auth/CSRF command UC-005 | Sí FINAL | **HMAC/replay/rol backend sí** | Sí | sessió+CSRF al proxy intranet |
 | Atomicitat total | Sí FINAL | **Implementada en aquesta branca per UC-005** | Revisada estàticament | executar prova de rollback/concurrència |
-| Lock original/concurrència | Sí FINAL | No en servei UC-005 | Sí | P0/P1 |
-| Audit event específic | Sí | No observat | Sí | implementar |
-| Prova fallada entre invoice/link/state | Sí necessària | No | Absència confirmada | implementar |
+| Lock original/concurrència | Sí FINAL | **FOR UPDATE + revalidació** | Sí | concurrència E2E |
+| Audit event específic | Sí | **sif_audit_event + operational_event** | Sí | evidència CI/preprod |
+| Prova fallada entre invoice/link/state | Sí necessària | **Escrita** | Sí | executar CI/MySQL |
 
 ## 3. Troballes
 
@@ -39,21 +39,27 @@ La branca d'auditoria afegeix un hook `beforeCommit` opcional a `InvoiceService`
 
 **Pendent per tancar evidència:** execució CI/MySQL verda de la nova prova i prova de concurrència específica sobre l'original.
 
-### UC005-F02 — P0/P1 · fiscalitat massa rígida
+### UC005-F02 — TANCAT PARCIALMENT / AEAT PENDENT · fiscalitat local fail-closed
 
-`ManualRectificationPayloadBuilder` força `IVA_REGIM=EXEMPT`, `IVA_PCT=0`, `IVA_IMPORT=0`. No és una generalització segura per qualsevol factura original.
+`ManualRectificationPayloadBuilder` ja no força EXEMPT/0 a qualsevol cas. Per originals exempts preserva règim, tipus, quota i causa d'exempció. Per originals subjectes a IVA, `amount` sol es considera ambigu i es rebutja; cal un bloc `fiscal` explícit amb base, règim, percentatge, quota i total coherent.
 
-### UC005-F03 — P1 · substitució incompleta
+**Pendent:** camps AEAT específics de rectificativa, validació XSD/protocol i criteris fiscals addicionals (ISP, recàrrec, no-subjecció, etc.).
 
-El builder reutilitza `billing()` de la factura original. Per tant `SUBSTITUCIO` no acredita canvi efectiu de receptor.
+### UC005-F03 — TANCAT AL BACKEND / CRITERI AEAT PENDENT · substitució de receptor
+
+`SUBSTITUCIO` admet ara un bloc `billing` corregit i el congela només a la nova factura R. La factura original continua immutable. `DIFERENCIES` rebutja canvis de receptor.
+
+**Pendent:** decisió/classificació fiscal real UC-74, mapping AEAT específic i integració UI.
 
 ### UC005-F04 — P1 · import zero prohibit
 
 La validació rebutja imports amb valor absolut < 0,005. Cal decidir documentalment com representar correccions que no alteren total però sí receptor/concepte, sense inventar una figura fiscal.
 
-### UC005-F05 — P1 · falta classificador abans de mutar
+### UC005-F05 — GUARD IMPLEMENTAT / CLASSIFICADOR PENDENT · UC-74 abans de mutar
 
-El botó llegat “anul·lar” no pot mapar-se directament a UC-005. Cal passar per UC-74 i derivar UC-005, UC-30, UC-31, UC-27/72 o UC-28 segons el cas.
+El botó llegat “anul·lar” no pot mapar-se directament a UC-005. El nou `FiscalCorrectionDecisionGuard` impedeix confirmar UC-005 si la decisió no declara `source_uc=UC-74`, `decision=RECTIFICATION`, versió de política, reason code i mode coherent.
+
+Això **no equival a tenir UC-74 implementat**: el classificador genèric continua en `[DISSENY/BLOQUEJANT]`.
 
 ### UC005-F06 — TANCAT EN BRANCA · alias incoherents
 
@@ -62,6 +68,14 @@ El builder acceptava `motiu`/`mode_rectificacio`, però la persistència de `fac
 ### UC005-F07 — documentació antiga de GET desactualitzada
 
 Els endpoints `guardarDadesFactura_Factures.php` i `anularFactura_Factures.php` revisats actualment exigeixen POST, sessió, same-origin/permís i guard de mutació. La documentació que els descriu com GET s'ha de considerar històrica.
+
+### UC005-F08 — P0/P1 · mapping AEAT específic de rectificativa pendent
+
+El payload local SIF ja conserva una fiscalitat més segura, però UC-005 no construeix encara de manera acreditada els camps AEAT específics de factura rectificativa ni prova el registre contra XSD/protocol. Per tant no es pot declarar el flux productiu VERI*FACTU.
+
+### UC005-F09 — P1 · adaptador intranet pendent
+
+Existeix `POST /api/factures/rectify.php` com endpoint intern signat amb HMAC, replay guard i rol específic. La pantalla `/alumnes/factura/` encara no disposa del proxy servidor amb sessió/permís/CSRF ni del modal preview/confirm que consumeixi el command.
 
 ## 4. Criteris de tancament
 
@@ -79,6 +93,6 @@ UC-005 només es pot marcar tancat quan:
 ## 5. Estat final d'aquesta passada
 
 **DOCUMENTAT:** sí, paquet estructural complet.  
-**IMPLEMENTAT:** nucli parcial + correcció d'alias.  
-**VERIFICAT:** revisió estàtica del codi i tests existents.  
-**PENDENT:** evidència executada de la nova atomicitat, fiscalitat general, substitució real, classificador, UI/HTTP, concurrència específica i preproducció.
+**IMPLEMENTAT:** nucli rectificatiu, atomicitat, aliases, fiscalitat fail-closed, SUBSTITUCIO amb receptor, command intern signat, preview/confirm, guard UC-74, auditoria i suite UC-005 aïllada.  
+**VERIFICAT:** revisió estàtica i cobertura de proves escrita; la suite global prèvia va donar 918 passats i 6 errors aliens al UC-005.  
+**PENDENT:** resultat verd de la suite UC-005 aïllada, classificador UC-74 executable, mapping AEAT/XSD de rectificatives, proxy/UI intranet, concurrència E2E i preproducció.
