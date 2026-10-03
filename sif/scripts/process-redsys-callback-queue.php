@@ -11,6 +11,7 @@ use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\IncidentRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacyGiftSnapshotRepository;
 use Prisma\Sif\Repository\LegacyGroupSnapshotRepository;
@@ -33,11 +34,13 @@ use Prisma\Sif\Service\LegacyPackInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacyUsocInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacySyncService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
+use Prisma\Sif\Service\PaymentService;
 use Prisma\Sif\Service\PackEnrollmentFundAllocationService;
 use Prisma\Sif\Service\PackPaymentNotificationService;
 use Prisma\Sif\Service\RedsysCallbackDispatcher;
 use Prisma\Sif\Service\RedsysCallbackWorker;
 use Prisma\Sif\Service\RedsysCourseInvoiceService;
+use Prisma\Sif\Service\RedsysCoveredInvoicePaymentService;
 use Prisma\Sif\Service\NovicePromotionInvoiceLinkService;
 use Prisma\Sif\Service\NovicePromotionGrantService;
 use Prisma\Sif\Service\NovicePromotionCodePreparationService;
@@ -86,15 +89,27 @@ try {
     $db = ConnectionFactory::make($config);
     $legacyDb = ConnectionFactory::makeLegacy($config);
     $notifications = new RedsysNotificationRepository();
+    $beforePaymentCoverage = new InvoiceBeforePaymentCoverageRepository();
+    $paymentService = new PaymentService(
+        new TransactionRunner($db),
+        new PaymentPayloadValidator(),
+        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+    );
     $invoiceService = new InvoiceService(
         new TransactionRunner($db),
         new InvoicePayloadValidator(),
         new FiscalSequenceRepository(),
         new InvoiceRepository(new UuidGenerator(), new HashCalculator()),
         new PaymentPayloadValidator(),
-        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator()),
+        null,
+        $beforePaymentCoverage
     );
     $redsysPayloads = new RedsysInvoicePayloadBuilder($notifications);
+    $coveredInvoicePayments = new RedsysCoveredInvoicePaymentService(
+        $beforePaymentCoverage,
+        $paymentService
+    );
     $noviceLinks = new NovicePromotionInvoiceLinkService();
     $noviceGrants = new NovicePromotionGrantService(new UuidGenerator());
     $noviceCodes = new NovicePromotionCodePreparationService(new UuidGenerator());
@@ -113,7 +128,8 @@ try {
             (string) ($noviceConfig['key_version'] ?? 'v1'),
             new CourseEnrollmentFundAllocationService(
                 new EnrollmentFundMovementRepository(new UuidGenerator())
-            )
+            ),
+            $coveredInvoicePayments
         ),
         new RedsysPackInvoiceService(
             $notifications,
