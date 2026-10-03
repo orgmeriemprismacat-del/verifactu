@@ -22,9 +22,9 @@ $csrf = htmlspecialchars($_SESSION['sif_aeat_csrf'], ENT_QUOTES, 'UTF-8');
     <title>Registres AEAT | Intranet</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://intranet.prisma.cat/css/general.min.css?ver=1.0">
-    <link rel="stylesheet" href="https://intranet.prisma.cat/css/general_v5.min.css?ver=1.0">
-    <link rel="stylesheet" href="https://intranet.prisma.cat/css/sif-registres-aeat.css?ver=1.0">
+    <link rel="stylesheet" href="/css/general.min.css?ver=1.0">
+    <link rel="stylesheet" href="/css/general_v5.min.css?ver=1.0">
+    <link rel="stylesheet" href="/css/sif-registres-aeat.css?ver=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
             integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
@@ -59,7 +59,7 @@ $csrf = htmlspecialchars($_SESSION['sif_aeat_csrf'], ENT_QUOTES, 'UTF-8');
                     <p class="text-muted mb-0">Cua fiscal, resultat del registre, intents i incidències.</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="https://intranet.prisma.cat/sif-verifactu.php" class="btn btn-outline-secondary btn-sm">
+                    <a href="/sif-verifactu.php" class="btn btn-outline-secondary btn-sm">
                         <i class="fa-solid fa-shield-halved me-1"></i> VERI*FACTU
                     </a>
                     <button id="sif-aeat-preflight" class="btn btn-outline-secondary btn-sm" type="button">
@@ -152,7 +152,7 @@ $csrf = htmlspecialchars($_SESSION['sif_aeat_csrf'], ENT_QUOTES, 'UTF-8');
     </div>
 </div>
 
-<script src="https://intranet.prisma.cat/js/general_v5.js?ver=1.0"></script>
-<script src="https://intranet.prisma.cat/js/sif-registres-aeat.js?ver=1.0"></script>
+<script src="/js/general_v5.js?ver=1.0"></script>
+<script src="/js/sif-registres-aeat.js?ver=1.0"></script>
 </body>
 </html>
