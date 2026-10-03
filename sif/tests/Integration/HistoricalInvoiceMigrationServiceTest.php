@@ -131,6 +131,31 @@ final class HistoricalInvoiceMigrationServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
     }
 
+    public function testEquivalentPersistedFormatsReuseSameHistoricalInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $firstInput = $this->input();
+        $firstInput['issue_date'] = '2024-03-15';
+        $firstInput['totals']['import_base'] = 100;
+        $firstInput['totals']['taxable_base'] = 100;
+        $firstInput['totals']['total'] = 100;
+        $firstInput['lines'][0]['quantity'] = 1;
+        $firstInput['lines'][0]['unit_price'] = 100;
+        $firstInput['lines'][0]['base'] = 100;
+        $firstInput['lines'][0]['import_base'] = 100;
+        $firstInput['lines'][0]['taxable_base'] = 100;
+        $firstInput['lines'][0]['total'] = 100;
+
+        $first = $service->importHistoricalInvoice($firstInput);
+        $second = $service->importHistoricalInvoice($this->input());
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['uuid_factura'], $second['uuid_factura']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
     public function testPersistsIssuerOperationAndHistoricalFiscalFields(): void
     {
         $db = TestDatabase::fresh();
