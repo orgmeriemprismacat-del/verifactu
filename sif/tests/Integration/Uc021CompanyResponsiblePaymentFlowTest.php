@@ -87,6 +87,61 @@ final class Uc021CompanyResponsiblePaymentFlowTest
         )->fetchColumn(), 2, '.', ''));
     }
 
+    public function testActiveRedsysCourseIntentBlocksJointInvoiceBeforeFiscalNumber(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->createCourseIntent($db, '210000000011', 11, '80.00');
+
+        $invoiceService = new InvoiceBeforePaymentService(
+            new InvoiceBeforePaymentPayloadBuilder(),
+            IssueInvoiceTest::serviceFor($db)
+        );
+
+        Assert::throws(SifException::class, function () use ($invoiceService): void {
+            $invoiceService->issueBeforePayment($this->jointInvoicePayload());
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
+        Assert::same(0, (int) $db->query(
+            'SELECT COUNT(*) FROM fiscal_sequence WHERE TIPUS_SERIE = "A" AND ANY_FACT = 2026'
+        )->fetchColumn());
+    }
+
+    public function testRejectedRedsysCourseIntentDoesNotBlockJointInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->createCourseIntent($db, '210000000012', 11, '80.00');
+
+        (new \Prisma\Sif\Repository\RedsysNotificationRepository())->recordReceived(
+            $db,
+            '210000000012',
+            11,
+            '80.00',
+            '0190',
+            true,
+            [
+                'currency_code' => '978',
+                'terminal' => '1',
+                'signature_version' => 'HMAC_SHA256_V1',
+                'payload_hash' => hash('sha256', '210000000012'),
+            ],
+            'ERROR'
+        );
+
+        $invoiceService = new InvoiceBeforePaymentService(
+            new InvoiceBeforePaymentPayloadBuilder(),
+            IssueInvoiceTest::serviceFor($db)
+        );
+        $result = $invoiceService->issueBeforePayment($this->jointInvoicePayload());
+
+        Assert::same(true, $result['ok']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
+    }
+
     public function testSameIdempotencyKeyWithChangedBillingPartyIsRejected(): void
     {
         $db = TestDatabase::fresh();
@@ -111,6 +166,39 @@ final class Uc021CompanyResponsiblePaymentFlowTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM fiscal_queue')->fetchColumn());
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
+    }
+
+    private function createCourseIntent(\PDO $db, string $dsOrder, int $sourceId, string $amount): void
+    {
+        (new \Prisma\Sif\Service\RedsysPaymentIntentService(
+            new \Prisma\Sif\Repository\RedsysPaymentIntentRepository(),
+            new \Prisma\Sif\Domain\UuidGenerator()
+        ))->create($db, [
+            'ds_order' => $dsOrder,
+            'idpag' => $sourceId,
+            'source_type' => 'CURS',
+            'source_id' => (string) $sourceId,
+            'expected_amount' => $amount,
+            'currency' => 'EUR',
+            'terminal' => '1',
+            'snapshot' => [
+                'inscription' => [
+                    'ID' => $sourceId,
+                    'IDPAG' => $sourceId,
+                    'ANY' => 2026,
+                    'MES' => '10',
+                    'CURS' => 'UC21',
+                    'NOM' => 'Participant',
+                    'DNI' => '00000000T',
+                    'A_PAGAR' => $amount,
+                ],
+                'course' => ['NOM_CURS' => 'Curs compartit'],
+                'payment' => [
+                    'idpag' => $sourceId,
+                    'amount' => $amount,
+                ],
+            ],
+        ]);
     }
 
     private function jointInvoicePayload(): array
