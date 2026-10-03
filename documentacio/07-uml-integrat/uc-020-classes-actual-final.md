@@ -1,7 +1,7 @@
 # UC-020 — Diagrames de classes ACTUAL i FINAL
 
 **Data d'auditoria:** 30/09/2026  
-**Abast:** aplicació del descompte «Alumne PrisMa» en alta web, preparació de pagament i futura facturació SIF.  
+**Abast:** aplicació del descompte «Alumne PrisMa» en alta web, preparació de pagament i facturació SIF posterior. Revalidat contra `main` el 03/10/2026.  
 **Regla d'evidència:** ACTUAL = executable llegat inspeccionat. FINAL = codi existent a la branca quan s'indica `IMPLEMENTAT`; `PENDENT` quan encara falta integració runtime.
 
 ## 1. Classes/components ACTUALS
@@ -185,3 +185,10 @@ La policy implementada **no declara resoltes** les decisions de negoci sobre pag
 - `RedsysPaymentIntentRepository` resol intencions per UUID per validar reintents.
 - `LegacyPrismaStudentHistoryRepository` aplica exclusió de matrícula actual i tall temporal.
 - `PrismaStudentCourseCheckoutService` conserva `OperationalEventRepository` de #112 i elimina SQL directe que ja havia estat encapsulat a #110.
+
+
+## 12. Revalidació de classes — 03/10/2026
+
+No apareix cap classe UC-020 principal absent. El `main` nou amplia sobretot el tall Redsys compartit (cutover, callback, worker, factura, sincronització llegada i notificació), sense canviar la responsabilitat de `PrismaStudentDiscountPolicy`, `LegacyPrismaStudentHistoryRepository`, `LegacyPrismaStudentPriceSnapshotResolver` ni `PrismaStudentCourseCheckoutService`.
+
+La nova prova `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` protegeix la frontera llegada d'alta: després de fixar `$preuDescompte = (float) $preuApServidor`, cap reassignació des del valor client pot aparèixer abans de l'INSERT.
