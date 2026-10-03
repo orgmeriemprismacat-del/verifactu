@@ -168,7 +168,7 @@ end
 
 - Seqüència ACTUAL web: documentada.
 - Seqüència callback legacy: **retirada del sistema productiu**; l'històric queda preservat a Git/auditoria.
-- Seqüència FINAL: **majoritàriament implementada** al flux PACK asíncron.
+- Seqüència FINAL: **implementada** al flux PACK asíncron; el pendent és únicament d'acceptació runtime/preproducció.
 - Control total factura/import Redsys: implementat.
 - Checkout → intenció SIF: implementat.
 - Ledger per inscripció: implementat i cablejat al worker.
