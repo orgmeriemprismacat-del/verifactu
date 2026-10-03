@@ -30,6 +30,29 @@ final class LegacySyncRepository
         ]);
     }
 
+    public function syncGiftSummary(
+        \PDO $legacyDb,
+        int $giftId,
+        string $uuidFactura,
+        string $numVisible,
+        string $estatCobrament
+    ): void {
+        $marker = "\nSIF {$numVisible} {$estatCobrament} {$uuidFactura}";
+
+        $legacyDb->prepare(
+            'UPDATE regal
+             SET OBSERVACIONS = CASE
+                 WHEN LOCATE(?, COALESCE(OBSERVACIONS, \'\')) > 0 THEN OBSERVACIONS
+                 ELSE CONCAT(COALESCE(OBSERVACIONS, \'\'), ?)
+             END
+             WHERE ID = ?'
+        )->execute([
+            $uuidFactura,
+            $marker,
+            $giftId,
+        ]);
+    }
+
     public function syncPackFullPayment(
         \PDO $legacyDb,
         int $idInsc,
