@@ -61,14 +61,14 @@ M->>B: forOriginalInvoice()
 B-->>M: payload R
 M->>I: issueInvoice(payload)
 I->>DB: BEGIN + factura/línies/registre/cua/rels
-I->>DB: COMMIT
-I-->>M: rectificativa creada/reutilitzada
-M->>RR: linkRectification()
+I-->>M: rectificativa creada/reutilitzada dins transacció oberta
+M->>RR: linkRectification() abans del COMMIT
 RR->>DB: INSERT factura_rectificacio
 M->>RR: markOriginalRectified()
 RR->>DB: UPDATE original=RECTIFIED
+I->>DB: COMMIT
 M-->>C: resultat
-Note over I,RR: No és una única transacció atòmica.
+Note over I,RR: En aquesta branca, emissió + vincle + estat original comparteixen el mateix COMMIT.
 ```
 
 ## 4. FINAL — preview + classificació + commit atòmic
