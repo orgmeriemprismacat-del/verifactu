@@ -26,6 +26,7 @@ final class CreditBalancePayloadBuilder
         }
 
         foreach ([
+            'idempotency_key' => ['idempotency_key'],
             'holder_nif_cif' => ['holder_nif_cif', 'nif_cif', 'nif'],
             'uuid_factura_origen' => ['uuid_factura_origen', 'invoice_origin_uuid'],
             'uuid_factura_rectificativa' => ['uuid_factura_rectificativa', 'rectification_invoice_uuid'],
@@ -35,6 +36,10 @@ final class CreditBalancePayloadBuilder
             if ($value !== null) {
                 $payload[$key] = $value;
             }
+        }
+
+        if (isset($payload['idempotency_key']) && mb_strlen($payload['idempotency_key'], 'UTF-8') > 160) {
+            throw SifException::validation('Credit idempotency key is too long');
         }
 
         return $payload;
