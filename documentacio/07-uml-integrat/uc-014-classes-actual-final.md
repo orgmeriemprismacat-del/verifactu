@@ -133,7 +133,7 @@ RealitzaPagamentAutomatic --> CursLegacy
 - El callback llegat concentra validació bancària, facturació, actualització de la inscripció i correus.
 - La numeració fiscal es calcula amb patrons `SELECT últim + 1`.
 - `idPag`, `order`, `import` i altres dades funcionals viatgen a la MerchantURL.
-- A la base `main` prèvia a aquesta auditoria el fallback no acreditava la comparació efectiva de signatura/order/import. La branca 02/10 ho endureix abans de qualsevol efecte; el risc arquitectònic restant és que el fallback encara factura fora del SIF fins al cutover.
+- A la base `main` prèvia a aquesta auditoria el fallback no acreditava la comparació efectiva de signatura/order/import. El paquet fusionat via PR #118 ho endureix abans de qualsevol efecte; el risc arquitectònic restant és que el fallback encara factura fora del SIF fins al cutover.
 - El flux actual usa camps acumulatius de la inscripció per representar cobrament/fraccionament.
 
 ## 2. Classes i components FINAL — implementats o previstos
@@ -274,8 +274,8 @@ CourseLegacyPaymentSyncService --> PaymentRepository : suma CONFIRMED per IDPAG
 ## 4. Estat
 
 **DOCUMENTAT:** ACTUAL i FINAL.  
-**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS, retorn navegador read-only, atribució quantitativa `EXTERNAL_ALLOCATION` amb `CourseEnrollmentFundAllocationService` / `EnrollmentFundMovementRepository` i hardening del fallback a la branca 02/10.  
-**VERIFICAT:** CI amb E2E intern simulat incloent `notification_outbox` CURS, `EXTERNAL_ALLOCATION` per inscripció, duplicat i parcial→complet, retorn autoritatiu i boundaries de preproducció; PR #95 amb `CourseEnrollmentFundAllocationServiceTest`, suites SIF **841 passed / 0 failed** i quatre workflows verds. El hardening ACTUAL del PR #105 també ha passat `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` al head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`.  
+**IMPLEMENTAT:** nucli Redsys/SIF, pont candidat d'intenció, sync llegada de curs, productor durable d'outbox CURS, retorn navegador read-only, atribució quantitativa `EXTERNAL_ALLOCATION` amb `CourseEnrollmentFundAllocationService` / `EnrollmentFundMovementRepository` i hardening del fallback fusionat via PR #118.  
+**VERIFICAT:** CI amb E2E intern simulat incloent `notification_outbox` CURS, `EXTERNAL_ALLOCATION` per inscripció, duplicat i parcial→complet, retorn autoritatiu i boundaries de preproducció; PR #95 amb `CourseEnrollmentFundAllocationServiceTest`, suites SIF **841 passed / 0 failed** i quatre workflows verds. El PR #119 reconcilia el CI posterior al merge: els tests UC-014/Redsys afectats queden en PASS i les cinc fallades globals restants són UC-015/PACK.  
 **PENDENT:** desplegament/preproducció Redsys real, activació de MerchantURL SIF/cutover, rotació de secrets històrics, delivery UC-58 i retirada del callback fiscal llegat després de l'evidència.
 
 
