@@ -249,6 +249,24 @@ La fitxa antiga agrupava `sif_audit_event`, `operational_event`, `payment_action
 
 **Valoració:** no s’ha de presentar aquest endpoint per si sol com a endpoint final UC-006. La possible protecció externa del servidor/proxy no ha estat acreditada per aquesta auditoria de codi.
 
+## 7.0. Contracte ja estable de derivació des de canvi de curs
+
+`CourseChangeImpactClassifier` ja separa explícitament la decisió econòmica de la fiscal:
+
+- `NONE`: cap diferència econòmica a resoldre;
+- `AMOUNT_DUE`: el client encara deu import; deriva a cobrament, no a UC-006 de sortida;
+- `EXCESS_TO_RESOLVE`: hi ha import pagat per sobre del nou total i **s'ha de resoldre**, però el classificador no decideix refund ni saldo.
+
+`CourseChangePreviewService` reforça aquesta decisió amb dades SIF quan hi ha una factura única: usa línia d'inscripció i pagaments/assignacions reals en lloc dels imports del navegador. Amb múltiples factures força `REVIEW_REQUIRED` fiscal i impedeix confirmar el canvi llegat.
+
+La prova `testLowerManualPriceProducesExcessButNotAutomaticRefund()` confirma explícitament el contracte: una diferència a favor produeix `EXCESS_TO_RESOLVE`, **no un refund automàtic**.
+
+Per tant, la derivació segura queda definida sense inventar regles:
+
+`UC-026 preview → EXCESS_TO_RESOLVE(excess_amount) → UC-006 preview/decisió → REFUND o CREDIT o REVIEW`.
+
+El gap és el pas posterior al preview: `realitzarCanviCurs_CanviCurs.php` valida que la decisió no hagi canviat, però encara no executa ni persisteix una resolució UC-006.
+
 ## 7.1. Precedent reutilitzable al repositori — retorn aprovat ≠ retorn executat
 
 UC-111 ja implementa un patró que es pot generalitzar conceptualment per UC-006:
