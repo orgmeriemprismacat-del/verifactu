@@ -40,6 +40,54 @@ final class GiftRedemptionTrustedContextResolverTest
         );
     }
 
+    public function testGenericHoursGiftAllowsChosenCourseWithMatchingEditionHours(): void
+    {
+        [$db, $code] = $this->fixture();
+        $db->exec(
+            'CREATE TEMPORARY TABLE curs (
+                CURS VARCHAR(80) NOT NULL,
+                ANY INT NOT NULL,
+                MES VARCHAR(12) NOT NULL,
+                HORES INT NOT NULL
+            )'
+        );
+        $db->exec(
+            "INSERT INTO curs (CURS, ANY, MES, HORES)
+             VALUES ('COURSE-TEST', 2026, '09', 30)"
+        );
+        $db->exec("UPDATE regal SET CCURS='30'");
+
+        $context = (new GiftRedemptionTrustedContextResolver(
+            new CommercialEntitlementRepository(new UuidGenerator())
+        ))->resolve($db, $db, 501, $code);
+
+        Assert::same('COURSE-TEST', $context['trusted_price_snapshot']['product_code']);
+    }
+
+    public function testGenericHoursGiftRejectsChosenCourseWithDifferentEditionHours(): void
+    {
+        [$db, $code] = $this->fixture();
+        $db->exec(
+            'CREATE TEMPORARY TABLE curs (
+                CURS VARCHAR(80) NOT NULL,
+                ANY INT NOT NULL,
+                MES VARCHAR(12) NOT NULL,
+                HORES INT NOT NULL
+            )'
+        );
+        $db->exec(
+            "INSERT INTO curs (CURS, ANY, MES, HORES)
+             VALUES ('COURSE-TEST', 2026, '09', 30)"
+        );
+        $db->exec("UPDATE regal SET CCURS='40'");
+
+        Assert::throws(SifException::class, function () use ($db, $code): void {
+            (new GiftRedemptionTrustedContextResolver(
+                new CommercialEntitlementRepository(new UuidGenerator())
+            ))->resolve($db, $db, 501, $code);
+        }, 409);
+    }
+
     public function testRejectsGiftAlreadyClaimedByAnotherCanonicalParticipant(): void
     {
         [$db, $code] = $this->fixture();
