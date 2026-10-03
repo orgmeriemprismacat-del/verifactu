@@ -32,3 +32,11 @@
 - **RUNTIME PENDENT:** necessita BD/storage/rol/navegador de test/preproducció.
 
 **CI PR #135:** els tests UC-007 existents han passat. El conjunt del workflow falla per 6 tests PACK/Redsys aliens al diff d’aquesta branca; el `main` base ja tenia workflows SIF en `failure`, sense afirmar que fossin exactament les mateixes sis assertions. El test UC-080 afegit després queda pendent del següent run. Evidència detallada: [05-evidencia-ci-uc-007-pr135-2026-10-03.md](05-evidencia-ci-uc-007-pr135-2026-10-03.md).
+
+
+## Ampliació de cobertura
+
+- `InternalInvoiceScopeResolverTest`: FULL/MINIMAL/fail-closed.
+- `InvoiceQueryServiceTest`: cerca per inscripció, múltiples UUID i AND de criteris.
+- `InvoiceDocumentAccessServiceTest`: bytes/hash, fitxer absent, scope denegat i path fora del root.
+- `Uc007IntranetBoundaryTest`: també impedeix reintroduir el flag UI buit `SIF_INVOICE_QUERY_UI_ENABLED`.
