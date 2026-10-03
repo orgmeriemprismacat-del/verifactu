@@ -36,20 +36,32 @@ Mutacions/efectes:
 | `ManualPaymentInvoiceRepository` | resoldre factura per UUID/NUM_VISIBLE | Sí | cobert indirectament |
 | `PaymentService` | persistir moviment i assignació | Sí | suite pagaments |
 | scripts `preflight/preview/process-claim-payment.php` | operar cobrament de reclamació | Sí | tests d'integració dedicats |
+| `DebtSnapshotRepository` | saldo factura + allocations/refunds + receptor fiscal | **Sí, afegit en auditoria** | tests nous; CI en cua |
+| `DebtClaimCaseRepository` | expedient/event versionat i idempotent | **Sí, afegit en auditoria** | tests nous; CI en cua |
+| `DebtClaimCoordinator` | preview, escalat d'avisos i reconciliació | **Sí, afegit en auditoria** | tests nous; CI en cua |
+| `notification_outbox` UC-012 | avisos + cancel·lació a saldo zero | **Sí, afegit en auditoria** | tests nous; CI en cua |
+| API + bridge intranet | HMAC + CSRF + rol + factura explícita | **Sí, desactivat per flag** | boundary/contract tests; CI en cua |
 
-## 5. Allò que NO existeix com a circuit SIF complet
+## 5. Troballa inicial i correcció aplicada
 
-No s'ha localitzat un `DebtClaimCoordinator` o equivalent que executi P-MOR-01..05 de punta a punta. Tampoc queda acreditat per UC-012:
-- expedient durable de reclamació;
-- estat/versió de reclamació amb concurrència;
-- outbox idempotent específica;
-- política central de terminis;
-- revalidació de pròrroga abans d'enviar;
-- resolució canònica del pagador per factura/grup/empresa;
-- cancel·lació d'avisos pendents quan entra un cobrament;
-- adaptador intranet → SIF per les quatre pantalles legacy;
-- proves E2E del cicle complet.
+En la base inicial **no** existia un `DebtClaimCoordinator`. Aquesta mancança va ser confirmada per l’auditoria i corregida a la mateixa branca.
 
+Ja implementat:
+- expedient `debt_claim_case`;
+- events append-only `debt_claim_event`;
+- control de versió/idempotència/payload hash;
+- saldo SIF i receptor fiscal;
+- P-MOR-02/03/04 com events + outbox;
+- P-MOR-05 amb reconciliació i tancament;
+- cancel·lació d’avisos pendents;
+- API HMAC i bridge intranet amb CSRF/rol;
+- proves i scripts de preproducció.
+
+Encara no existeix o no està acreditat:
+- venciment/pròrroga canònics: UC-096 continua DISSENY;
+- delivery real de les tres plantilles: UC-58;
+- cutover dels handlers legacy;
+- evidència CI/preproducció.
 ## 6. Riscos de frontera legacy
 
 Els endpoints POST auditats consumeixen directament `idInsc` i invoquen mètodes de `Intranet`. En aquests fitxers no s'acredita explícitament:
@@ -64,6 +76,7 @@ Això no prova absència de controls globals en una altra capa, però impedeix m
 ## 7. Conclusió
 
 **ACTUAL:** implementació funcional legacy real i fragmentada.  
-**FINAL:** disseny documentat però orquestració SIF incompleta.  
-**COBRAMENT POST-RECLAMACIÓ:** implementat i amb proves.  
-**UC-012 E2E:** pendent.
+**FINAL:** nucli SIF i bridge segur implementats a la branca d’auditoria.  
+**COBRAMENT POST-RECLAMACIÓ:** implementat; reconciliació del claim també afegida.  
+**VERIFICACIÓ:** tests escrits, però Actions continua en cua.  
+**UC-012 E2E operatiu:** pendent de delivery, cutover i preproducció; scheduler bloquejat per UC-096.
