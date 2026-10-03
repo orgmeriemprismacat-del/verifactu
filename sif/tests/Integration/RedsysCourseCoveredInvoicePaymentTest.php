@@ -21,6 +21,39 @@ use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class RedsysCourseCoveredInvoicePaymentTest
 {
+    public function testUpgradeGuardReusesInvoiceCreatedBeforeCoveredResolverWasWired(): void
+    {
+        $db = TestDatabase::fresh();
+        $notifications = new RedsysNotificationRepository();
+        $this->notification($notifications, $db, 'UC003UPGRADE01', '95.50');
+        $snapshot = $this->snapshot('95.50', '95.50');
+
+        $legacyHandler = new RedsysCourseInvoiceService(
+            $notifications,
+            new LegacyCourseSnapshotRepository(),
+            new LegacyCourseInvoicePayloadBuilder(),
+            new RedsysInvoicePayloadBuilder($notifications),
+            IssueInvoiceTest::serviceFor($db)
+        );
+        $before = $legacyHandler->issueFromIntentSnapshot(
+            $db,
+            'UC003UPGRADE01',
+            $snapshot
+        );
+
+        $after = $this->service($db, $notifications)->issueFromIntentSnapshot(
+            $db,
+            'UC003UPGRADE01',
+            $snapshot
+        );
+
+        Assert::same($before['uuid_factura'], $after['uuid_factura']);
+        Assert::same($before['uuid_payment'], $after['uuid_payment']);
+        Assert::same(true, $after['idempotency_reused']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     public function testFullRedsysPaymentReusesUc004InvoiceAndIsIdempotent(): void
     {
         $db = TestDatabase::fresh();
