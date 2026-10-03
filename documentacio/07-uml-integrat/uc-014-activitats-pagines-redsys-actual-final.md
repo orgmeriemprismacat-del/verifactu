@@ -31,7 +31,7 @@ if (Curs JASOM?) then (Sí)
   :Consulta recent_titulat;
   note right
     UC-111 comparteix aquesta pantalla.
-    La branca 02/10 corregeix la inicialització
+    El codi fusionat via PR #118 corregeix la inicialització
     recentTitulat (=0, no ==0).
   end note
 endif
@@ -140,7 +140,7 @@ endif
 :Crear URL OK/KO;
 :Crear DS_MERCHANT_AMOUNT en cèntims deterministes;
 :Crear DS_MERCHANT_MERCHANTDATA amb IDPAG/import/frac autoritatius;
-:Carregar merchant code/key/terminal/gateway des d'entorn [branca 02/10];
+:Carregar merchant code/key/terminal/gateway des d'entorn [fusionat PR #118];
 :Signar petició Redsys;
 :Renderitzar formulari sanejat;
 if (Usuari confirma?) then (Sí)
@@ -190,7 +190,7 @@ title P-CUR-04 ACTUAL | Callback monolític
 start
 :Rebre només POST Redsys signat;
 :Decodificar MerchantParameters;
-:Carregar clau Redsys des d'entorn [branca 02/10];
+:Carregar clau Redsys des d'entorn [fusionat PR #118];
 :Calcular i comparar signatura amb hash_equals;
 :Extreure IDPAG/import/frac de Ds_MerchantData signat;
 :Usar Ds_Order signat i comparar Ds_Amount amb l'import-cèntims de MerchantData;
@@ -414,8 +414,8 @@ stop
 ## 9. Estat 02/10/2026
 
 - **DOCUMENTAT:** P-CUR-01..06 ACTUAL/FINAL, inclosos AJAX i JS reals.
-- **IMPLEMENTAT:** PHP/JS ACTUAL, gate autoritatiu, pont candidat, SIF asíncron, `EXTERNAL_ALLOCATION` per inscripció, sync, outbox i retorn autoritatiu; hardening del fallback en aquesta branca.
-- **VERIFICAT:** E2E intern/cutover/retorn/outbox al PR #79, fund allocation al PR #95 (841/0 + quatre workflows verds) i hardening ACTUAL al PR #105 amb `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` verds sobre `56d32d600d26d39d94b8a7227e4d732f07d35ce5`.
+- **IMPLEMENTAT:** PHP/JS ACTUAL, gate autoritatiu, pont candidat, SIF asíncron, `EXTERNAL_ALLOCATION` per inscripció, sync, outbox i retorn autoritatiu; hardening del fallback fusionat via PR #118.
+- **VERIFICAT:** E2E intern/cutover/retorn/outbox al PR #79, fund allocation al PR #95 (841/0 + quatre workflows verds) i hardening ACTUAL reconciliat al PR #119: tests UC-014/Redsys afectats en PASS; cinc fallades globals restants exclusivament UC-015/PACK.
 - **PENDENT:** Redsys real de preproducció, rotació/configuració de secrets, cutover i delivery UC-58.
 
 Vegeu [inventari executable PHP/JS](uc-014-inventari-codi-php-js-actual-final-2026-10-02.md) i [auditoria exhaustiva 02/10](uc-014-auditoria-tracabilitat-2026-10-02.md).
