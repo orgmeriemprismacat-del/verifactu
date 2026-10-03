@@ -25,6 +25,7 @@ final class ManualTransferHttpEndpointTest
         Assert::stringContainsString('PaymentActionGateway', $source);
         Assert::stringContainsString('PaymentActionEventRepository', $source);
         Assert::stringContainsString('GeneratedInvoiceLegacyPaymentSyncService', $source);
+        Assert::stringContainsString('ManualTransferLegacyProjectionService', $source);
         Assert::stringContainsString("PENDING_RETRY", $source);
         Assert::stringContainsString("CONFLICT", $source);
         Assert::stringContainsString("legacy_sync", $source);
