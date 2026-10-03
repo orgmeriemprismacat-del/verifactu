@@ -81,15 +81,15 @@ sequenceDiagram
 autonumber
 actor O as Operador
 participant UI as Pagaments
-participant Auth as Authorization/CSRF [PENDENT]
-participant Bank as BankReceiptResolver [PENDENT]
+participant Auth as InternalApiAuthenticator [IMPLEMENTAT]
+participant Bank as BankReceiptResolver [CANAL PENDENT]
 participant M as ManualPaymentService
 participant PS as PaymentService
 participant Audit as PaymentActionAudit [PENDENT]
 participant Sync as LegacySync [PENDENT]
 O->>UI: Selecciona entrada bancària i factura
-UI->>Auth: POST + idempotency + expected state
-Auth-->>UI: allowed
+UI->>Auth: POST signat HMAC + request UUID + actor/roles
+Auth-->>UI: actor autenticat + anti-replay
 UI->>Bank: resolve(external_bank_event_id)
 Bank-->>UI: import/titular/ref verificats
 UI->>M: registerByUuid(uuidFactura,input normalitzat)
@@ -129,3 +129,6 @@ PS-->>Multi: UUID_PAYMENT
 Multi-->>UI: CREATED/REUSED/CONFLICT
 UI-->>O: Resultat sense duplicar l'ingrés
 ```
+
+
+**Nota d'implementació:** el SIF ja exigeix `external_bank_event_id` i el persisteix com `PROVIDER_REF`; la resolució/obtenció d'aquest identificador des del banc encara pertany a la integració de la intranet.
