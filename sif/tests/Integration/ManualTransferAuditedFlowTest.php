@@ -119,6 +119,80 @@ final class ManualTransferAuditedFlowTest
         );
     }
 
+    public function testAuthorizationAndValidationRejectionsAreAudited(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = new ManualTransferCommandService(
+            new ManualPaymentService(
+                new ManualPaymentInvoiceRepository(),
+                new ManualPaymentPayloadBuilder(),
+                RegisterPaymentTest::paymentServiceFor($db)
+            ),
+            ['PAYMENT_WRITE'],
+            new PaymentActionGateway(
+                $db,
+                new TransactionRunner($db),
+                new PaymentActionEventRepository(new UuidGenerator())
+            ),
+            'test'
+        );
+
+        try {
+            $service->register($db, [
+                'actor_id' => 'reader@example.test',
+                'roles' => ['READ_ONLY'],
+                'request_id' => '55555555-5555-4555-8555-555555555555',
+            ], [
+                'uuid_factura' => '11111111-1111-4111-8111-111111111111',
+                'amount' => '10.00',
+                'movement_date' => '2026-10-03',
+                'external_bank_event_id' => 'DENIED-EVENT',
+                'bank' => 'BBVA',
+            ]);
+            Assert::fail('Expected forbidden manual transfer');
+        } catch (\Throwable $exception) {
+            Assert::same(403, $exception->getCode());
+        }
+
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM payment_action_event
+                 WHERE REQUEST_ID = '55555555-5555-4555-8555-555555555555'
+                   AND ACTION = 'ACCESS_DENIED'
+                   AND RESULT = 'REJECTED'"
+            )->fetchColumn()
+        );
+
+        try {
+            $service->register($db, [
+                'actor_id' => 'operator@example.test',
+                'roles' => ['PAYMENT_WRITE'],
+                'request_id' => '66666666-6666-4666-8666-666666666666',
+            ], [
+                'uuid_factura' => '11111111-1111-4111-8111-111111111111',
+                'amount' => '10.00',
+                'movement_date' => '2026-10-03',
+                'bank' => 'BBVA',
+            ]);
+            Assert::fail('Expected validation rejection');
+        } catch (\Throwable $exception) {
+            Assert::same(422, $exception->getCode());
+        }
+
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM payment_action_event
+                 WHERE REQUEST_ID = '66666666-6666-4666-8666-666666666666'
+                   AND ACTION = 'VALIDATION_REJECTED'
+                   AND RESULT = 'REJECTED'"
+            )->fetchColumn()
+        );
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     public function testIdempotentReuseIsAuditedAsReusedWithoutSecondPayment(): void
     {
         $db = TestDatabase::fresh();
