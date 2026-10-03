@@ -15,6 +15,7 @@
 - **CONC**: concurrència/idempotència.
 - **PENDENT_NEGOCI**: etiqueta històrica; no s'ha de mantenir per UC20-DEC-001…006 després del 02/10/2026.
 - **PENDENT_EXECUCIO**: especificat però no executat/acreditat.
+- **VERIFICAT_CI_***: escenari amb test executat en PASS al commit indicat; el sufix especifica si és unitat, integració, frontera de codi o servei compartit.
 
 ## AP-01…AP-16 · elegibilitat, preu i integritat bàsica
 
@@ -22,20 +23,20 @@
 | --- | --- | --- | --- | --- |
 | AP-01 | INT | Persona sense cap historial admissible. | No aplicar Alumne PrisMa; conservar tarifa ordinària o altra oferta vàlida. | PENDENT_EXECUCIO |
 | AP-02 | INT | Existeix una inscripció anterior pagada i una tarifa AP vigent. | Aplicar la tarifa AP definida per la política aprovada i conservar-ne origen/regla. | PENDENT_EXECUCIO |
-| AP-03 | INT | L'únic antecedent té un pagament parcial positiu. | És elegible sota `ALUMNE_PRISMA_WEB_LEGACY_V2` perquè `A_PAGAR>0 && PAGAMENT>0`. | COBERT_UNIT_POLICY |
-| AP-04 | INT | L'únic antecedent és un curs regal. | És elegible i conserva motiu/evidència `GIFT_COURSE`. | COBERT_UNIT_POLICY |
-| AP-05 | INT | L'historial disponible està en estat exclòs `INSC CURS=D/M`. | No usar aquests registres com a antecedent AP en coherència amb l'ACTUAL reconstruït. | PENDENT_EXECUCIO |
+| AP-03 | INT | L'únic antecedent té un pagament parcial positiu. | És elegible sota `ALUMNE_PRISMA_WEB_LEGACY_V2` perquè `A_PAGAR>0 && PAGAMENT>0`. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
+| AP-04 | INT | L'únic antecedent és un curs regal. | És elegible i conserva motiu/evidència `GIFT_COURSE`. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
+| AP-05 | INT | L'historial disponible està en estat exclòs `INSC CURS=D/M`. | No usar aquests registres com a antecedent AP en coherència amb l'ACTUAL reconstruït. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
 | AP-06 | INT | Historial admès + `TIPUS=1` vigent per curs/edició. | Retornar preu AP exacte i origen `ALUMNE_PRISMA`. | PENDENT_EXECUCIO |
-| AP-07 | INT | Cap registre de l'historial compleix les condicions. | No seleccionar `TIPUS=1`. | PENDENT_EXECUCIO |
-| AP-08 | INT | Antecedent amb `A_PAGAR>0` i `PAGAMENT>0` però no totalment cobrat. | És elegible segons la rule v2 de compatibilitat. | COBERT_UNIT_POLICY |
-| AP-09 | INT | Antecedent de curs regal i variant de factura relacionada sense pagament. | Curs regal acredita; factura només emesa/no cobrada no acredita. | COBERT_UNIT_POLICY_PER_BRANCH |
+| AP-07 | INT | Cap registre de l'historial compleix les condicions. | No seleccionar `TIPUS=1`. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
+| AP-08 | INT | Antecedent amb `A_PAGAR>0` i `PAGAMENT>0` però no totalment cobrat. | És elegible segons la rule v2 de compatibilitat. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
+| AP-09 | INT | Antecedent de curs regal i variant de factura relacionada sense pagament. | Curs regal acredita; factura només emesa/no cobrada no acredita. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
 | AP-10 | INT | Historial amb registres D/M i registres normals. | Només els antecedents admissibles poden justificar AP. | PENDENT_EXECUCIO |
 | AP-11 | INT | Persona elegible però no existeix cap tarifa AP aplicable. | Estat `ELIGIBLE_NO_PRICE`/incidència equivalent; cap import nul o inventat pagable. | PENDENT_EXECUCIO |
-| AP-12 | INT | Coincideixen AP i promoció. | AP + promoció falla tancat en l'alta AP; no s'acumulen silenciosament. | COBERT_PARCIALMENT_TEST_FRONTERA |
-| AP-13 | SEC | El client manipula `tipusDescompte`, `preuDescompte` o `tipusCurs`. | Per AP, el servidor rellegeix elegibilitat/tarifa i deriva `TIPUS_CURS` de metadades servidor; el navegador no és autoritat monetària. | COBERT_PARCIALMENT_TEST_FRONTERA |
+| AP-12 | INT | Coincideixen AP i promoció. | AP + promoció falla tancat en l'alta AP; no s'acumulen silenciosament. | VERIFICAT_CI_FRONTERA_CODI_9a70516 |
+| AP-13 | SEC | El client manipula `tipusDescompte`, `preuDescompte` o `tipusCurs`. | Per AP, el servidor rellegeix elegibilitat/tarifa i deriva `TIPUS_CURS` de metadades servidor; el navegador no és autoritat monetària. | VERIFICAT_CI_FRONTERA_CODI_9a70516 |
 | AP-14 | CONC | La tarifa canvia entre previsualització i confirmació. | Confirmar només una oferta servidor vigent o retornar conflicte; no acceptar TOCTOU silenciós. | PENDENT_EXECUCIO |
 | AP-15 | E2E | Oferta AP → cobrament → línia fiscal. | Base − descompte = net; import cobrat i línia fiscal són coherents amb el snapshot congelat. | PENDENT_EXECUCIO |
-| AP-16 | CONC | Reintent equivalent de la mateixa operació. | Reutilitzar decisió/operació; no duplicar descompte, cobrament ni factura. | PENDENT_EXECUCIO |
+| AP-16 | CONC | Reintent equivalent de la mateixa operació. | Reutilitzar decisió/operació; no duplicar descompte, cobrament ni factura. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
 
 ## AP-17…AP-25 · denegació, canvis posteriors i fiscalitat
 
@@ -45,7 +46,7 @@
 | AP-18 | INT | Persona elegible però el preu AP no es pot obtenir. | Bloquejar actualització/oferta i registrar incidència. | PENDENT_EXECUCIO |
 | AP-19 | E2E | Es denega el descompte original després d'un cobrament. | Conservar el moviment real i classificar l'ajust econòmic; no sobreescriure el passat. | PENDENT_EXECUCIO |
 | AP-20 | E2E | Es resol el dret després d'haver emès factura. | Preservar factura original i derivar l'ajust fiscal/rectificatiu que correspongui. | PENDENT_EXECUCIO |
-| AP-21 | INT | Historial amb antecedents anteriors i posteriors a `DATA_INSC`. | Excloure matrícula actual i historial posterior a `DATA_INSC`. | COBERT_INTEGRACIO_CHECKOUT |
+| AP-21 | INT | Historial amb antecedents anteriors i posteriors a `DATA_INSC`. | Excloure matrícula actual i historial posterior a `DATA_INSC`. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
 | AP-22 | CONC | Dues peticions comercials simultànies intenten actualitzar la mateixa oferta. | Una versió vàlida; l'altra reutilitza o rep conflicte, sense sobreescriptura desfasada. | PENDENT_EXECUCIO |
 | AP-23 | SEC | Usuari autenticat sense permís específic intenta resoldre el descompte. | Denegació al servidor i cap canvi econòmic. | PENDENT_EXECUCIO |
 | AP-24 | INT | Snapshot monetàriament coherent però sense origen/regla AP. | No atribuir-lo arbitràriament a Alumne PrisMa ni a una promoció genèrica. | PENDENT_EXECUCIO |
@@ -100,13 +101,13 @@
 
 | ID | Nivell | Escenari | Resultat esperat | Estat |
 | --- | --- | --- | --- | --- |
-| AP-56 | INT | Crear oferta AP. | Crear `commercial_operation` + `discount_validation` coherents. | COBERT_PARCIALMENT_PER_TEST_NOU |
-| AP-57 | CONC | Repetir exactament la mateixa creació. | Mateixa operació/validació per idempotència. | COBERT_PARCIALMENT_PER_TEST_NOU |
+| AP-56 | INT | Crear oferta AP. | Crear `commercial_operation` + `discount_validation` coherents. | VERIFICAT_CI_SERVEI_COMERCIAL_9a70516 |
+| AP-57 | CONC | Repetir exactament la mateixa creació. | Mateixa operació/validació per idempotència. | VERIFICAT_CI_SERVEI_COMERCIAL_9a70516 |
 | AP-58 | INT | Canviar tarifa després d'acceptar oferta. | `PRICE_SNAPSHOT_JSON` original roman immutable. | PENDENT_EXECUCIO |
-| AP-59 | INT | Revocar link i substituir oferta/link. | Link antic `REVOKED`; nou link separat. | COBERT_PARCIALMENT_PER_TEST_NOU |
-| AP-60 | SEC | Utilitzar link revocat. | Rebuig abans de TPV. | COBERT_PARCIALMENT_PER_TEST_NOU |
-| AP-61 | INT | `EXPECTED_AMOUNT` del link supera/incompleix l'operació. | Conflicte abans de crear cobrament. | COBERT_PARCIALMENT_PER_TEST_NOU |
-| AP-62 | INT | Crear intenció Redsys des d'operació. | `UUID_INTENT` queda vinculat explícitament a `UUID_OPERATION`. | COBERT_INTEGRACIO_CHECKOUT |
+| AP-59 | INT | Revocar link i substituir oferta/link. | Link antic `REVOKED`; nou link separat. | VERIFICAT_CI_SERVEI_PAYMENT_LINK_9a70516 |
+| AP-60 | SEC | Utilitzar link revocat. | Rebuig abans de TPV. | VERIFICAT_CI_SERVEI_PAYMENT_LINK_9a70516 |
+| AP-61 | INT | `EXPECTED_AMOUNT` del link supera/incompleix l'operació. | Conflicte abans de crear cobrament. | VERIFICAT_CI_SERVEI_PAYMENT_LINK_9a70516 |
+| AP-62 | INT | Crear intenció Redsys des d'operació. | `UUID_INTENT` queda vinculat explícitament a `UUID_OPERATION`. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
 | AP-63 | CONC | Mateix `DS_ORDER` amb snapshot comercial diferent. | Conflicte idempotent. | COBERT_PER_TEST_EXISTENT_REDSYS |
 | AP-64 | INT | Dret original REJECTED + AP ACCEPTED. | Dues decisions diferenciades; una única oferta actual. | PENDENT_IMPLEMENTACIO |
 
@@ -114,10 +115,10 @@
 
 | ID | Nivell | Escenari | Resultat esperat | Estat |
 | --- | --- | --- | --- | --- |
-| AP-65 | INT | Únic antecedent `GENERAT=1`, sense cobrament. | És elegible sota rule v2. | COBERT_UNIT_POLICY |
-| AP-66 | INT | Única evidència = inscripció actual, encara que `GENERAT=1` o tingui estat favorable. | No autoacreditar. | COBERT_INTEGRACIO_CHECKOUT |
-| AP-67 | INT | Antecedent posterior a `DATA_INSC` de la matrícula tarifada. | No acreditar retroactivament. | COBERT_INTEGRACIO_CHECKOUT |
-| AP-68 | INT | Factura relacionada sense cobrament. | No acredita AP per si sola; no dependre de `!= NULL`. | COBERT_UNIT_POLICY + PREVIEW_ALIGNED |
+| AP-65 | INT | Únic antecedent `GENERAT=1`, sense cobrament. | És elegible sota rule v2. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
+| AP-66 | INT | Única evidència = inscripció actual, encara que `GENERAT=1` o tingui estat favorable. | No autoacreditar. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
+| AP-67 | INT | Antecedent posterior a `DATA_INSC` de la matrícula tarifada. | No acreditar retroactivament. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
+| AP-68 | INT | Factura relacionada sense cobrament. | No acredita AP per si sola; no dependre de `!= NULL`. | VERIFICAT_CI_POLICY_I_FRONTERA_9a70516 |
 | AP-69 | INT | Mateix `ID_PREU` amb tarifes AP específiques de curs/mes. | Tots els canals seleccionen la tarifa canònica exacta. | PENDENT_EXECUCIO |
 | AP-70 | INT | Tarifa AP actual + futura. | Només la vigent és seleccionable. | PENDENT_EXECUCIO |
 | AP-71 | INT | Elegible sense tarifa AP. | `ELIGIBLE_NO_PRICE`; no oferta pagable. | PENDENT_EXECUCIO |
@@ -169,3 +170,10 @@ Per donar qualsevol AP-* per verificat cal registrar:
 - `RedsysCoursePaymentIntentPrismaStudentTest` al `main`: cobreix staging AP abans de la intenció, snapshot de descompte i fail-closed del fraccionament AP sense model fiscal.
 - `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest`: cobreix UC020-94/97/98, impedint que el valor de preu del navegador sobreescrigui la tarifa AP servidor, comprovant el guard AP+promoció, exigint que `TIPUS_CURS` provingui de `informacio` i evitant reintroduir la drecera de factura no cobrada al preview.
 - `RedsysCourseEndToEndSimulatedTest` al `main`: cobreix el circuit tècnic simulat callback → worker → pagament/factura/sync/outbox, incloent duplicats, parcials i exactitud de cèntims; no substitueix l'E2E real de navegador/Redsys.
+
+
+## Evidència CI exacta — commit `9a70516`
+
+La revalidació del 03/10/2026 permet promocionar a `VERIFICAT_CI_*` únicament els AP-* amb una correspondència directa amb tests observats en PASS. Vegeu [uc-020-evidencia-ci-2026-10-03.md](uc-020-evidencia-ci-2026-10-03.md).
+
+La suite compartida va acabar amb **924 passed / 6 failed**. Les 6 fallades registrades no són proves UC-020; per això no rebaixen els AP-* anteriors, però impedeixen descriure el PR com a globalment verd. Els E2E reals de navegador/Redsys/preproducció continuen `PENDENT_EXECUCIO`.
