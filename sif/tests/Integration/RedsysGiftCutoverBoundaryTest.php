@@ -31,7 +31,7 @@ final class RedsysGiftCutoverBoundaryTest
         Assert::stringContainsString("getenv('REDSYS_TERMINAL')", $source);
         Assert::stringContainsString("getenv('REDSYS_MERCHANT_KEY')", $source);
         Assert::stringContainsString("getenv('REDSYS_GATEWAY_URL')", $source);
-        Assert::stringContainsString("$importPag = (string) $intent['amount'];", $source);
+        Assert::stringContainsString("\$importPag = (string) \$intent['amount'];", $source);
 
         if (str_contains($source, '$id=time()')
             || str_contains($source, '$id = time()')
@@ -113,7 +113,7 @@ final class RedsysGiftCutoverBoundaryTest
             'codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftIntentClient.php'
         );
 
-        Assert::stringContainsString("str_starts_with($baseUrl, 'https://')", $source);
+        Assert::stringContainsString("str_starts_with(\$baseUrl, 'https://')", $source);
         Assert::stringContainsString('CURLOPT_SSL_VERIFYPEER => true', $source);
         Assert::stringContainsString('CURLOPT_SSL_VERIFYHOST => 2', $source);
         Assert::stringContainsString('/api/redsys/gift-intent.php', $source);
