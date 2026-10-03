@@ -233,5 +233,5 @@ end
 
 **DOCUMENTAT:** recorregut ACTUAL, candidat, recepció FINAL, worker, duplicat, errors, fencing i cas de factura prèvia.  
 **IMPLEMENTAT:** seqüències 3–7 al codi SIF, inclòs l'enduriment del worker d'aquesta auditoria.  
-**VERIFICAT:** cobertura de proves existent + proves noves de resultat incomplet i worker caducat; CI del head pendent.  
+**VERIFICAT:** cobertura existent + proves noves de resultat incomplet i worker caducat **PASS** al workflow SIF #1204; CI global vermell únicament per 6 fallades de baseline reproduïdes en un PR paral·lel.  
 **PENDENT:** seqüència 8 generalitzada, preproducció Redsys real, cutover, cron/monitoratge i evidència operativa.
