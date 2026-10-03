@@ -69,6 +69,8 @@ if ($menu !== null) {
     $result['checks']['menu_ok'] = ($menu['ok'] ?? false) === true;
     $result['checks']['menu_scope_valid'] =
         ($menu['scope'] ?? '') === 'uc-008-intranet-menu-discovery';
+    $result['checks']['menu_environment_valid'] =
+        ($menu['environment'] ?? '') === 'preproduction';
     $result['checks']['menu_read_only'] = ($menu['read_only'] ?? false) === true;
     $result['checks']['menu_target_url_valid'] =
         ($menu['target_url'] ?? '') === '/sif-verifactu.php';
@@ -78,6 +80,7 @@ if ($menu !== null) {
 } else {
     $result['checks']['menu_ok'] = false;
     $result['checks']['menu_scope_valid'] = false;
+    $result['checks']['menu_environment_valid'] = false;
     $result['checks']['menu_read_only'] = false;
     $result['checks']['menu_target_url_valid'] = false;
     $result['checks']['menu_unique_target'] = false;
