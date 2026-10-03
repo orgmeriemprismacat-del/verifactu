@@ -2645,9 +2645,6 @@ function mostrarModalConsultaFacturaLlegat(id) {
 
 	         });
 
-	         $("#modalConsultaFactura .modal-body").html(res);
-	         bootstrap.Modal.getOrCreateInstance(document.getElementById('modalConsultaFactura')).show();
-
 	         $('#modalConsultaFactura').on('click', '.btn-success', function() {
 	            bootstrap.Modal.getInstance(document.getElementById('modalConsultaFactura')).hide();
 	         });
