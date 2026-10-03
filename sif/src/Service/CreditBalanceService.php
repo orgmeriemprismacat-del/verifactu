@@ -168,6 +168,8 @@ final class CreditBalanceService
             $existing = $this->payments->findByIdempotencyKey($db, $payload['idempotency_key'], true);
 
             if ($existing !== null) {
+                $this->assertSamePaymentPayload($payload, $existing);
+
                 return $this->existingPaymentResult($existing, $credit, $invoice);
             }
 
@@ -264,6 +266,36 @@ final class CreditBalanceService
         $credit['ESTAT'] = $status;
 
         return $credit;
+    }
+
+    private function assertSamePaymentPayload(array $payload, array $existing): void
+    {
+        $version = (int) ($existing['PAYLOAD_HASH_VERSION'] ?? 1);
+        $hash = (string) ($existing['PAYLOAD_HASH'] ?? '');
+
+        if ($version === 1) {
+            try {
+                $legacy = json_encode(
+                    $payload,
+                    JSON_UNESCAPED_UNICODE
+                    | JSON_UNESCAPED_SLASHES
+                    | JSON_PRESERVE_ZERO_FRACTION
+                    | JSON_THROW_ON_ERROR
+                );
+            } catch (\JsonException $exception) {
+                throw SifException::validation('Invalid payment payload encoding');
+            }
+
+            $this->idempotency->assertMatches($legacy, $hash);
+
+            return;
+        }
+
+        if ($version !== 2) {
+            throw SifException::conflict('Unknown payment idempotency hash version');
+        }
+
+        $this->idempotency->assertMatches($payload, $hash);
     }
 
     private function existingPaymentResult(array $existing, array $credit, array $invoice): array
