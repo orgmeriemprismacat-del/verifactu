@@ -119,3 +119,12 @@ El **checkout de targeta actiu** crea operació/validació/intenció i vincula `
 ### 5.1. Tall temporal de l'elegibilitat
 
 Abans de crear la intenció, `PrismaStudentCourseCheckoutService` exclou la matrícula actual de l'historial i només admet antecedents amb `DATA_INSC <= DATA_INSC` de la matrícula tarifada. Això elimina autoacreditació i elegibilitat retroactiva.
+
+
+## 6. Revalidació de seqüències — 03/10/2026
+
+- **Alta web AP:** el navegador proposa TIPUS/import, però `enviarInscripcio.php` rellegeix historial i tarifa; UC020-94 garanteix que la tarifa servidor no torna a ser sobreescrita abans de persistir.
+- **Checkout targeta:** `SifRedsysCourseIntentClient` → `course-intent.php` → `RedsysCoursePaymentIntentService` → checkout AP → intenció autoritativa.
+- **Callback:** valida signatura/DS_ORDER/import/moneda/terminal contra la intenció i encola; no reavalua AP.
+- **Worker/factura:** el `main` vigent disposa de prova E2E simulada de callback → worker → pagament/factura/sync/outbox.
+- **Pendent:** E2E real navegador/Redsys/preproducció i migració de tots els canals a la mateixa oferta/`payment_link`.
