@@ -31,4 +31,4 @@
 - **VERIFICACIÓ CI PENDENT:** hi ha prova automatitzada però encara cal resultat del run del PR.
 - **RUNTIME PENDENT:** necessita BD/storage/rol/navegador de test/preproducció.
 
-**CI PR #135:** els tests UC-007 existents han passat. El conjunt del workflow falla per 6 tests PACK/Redsys aliens a aquesta branca i ja fallava al `main` base. El test UC-080 afegit després queda pendent del següent run.
+**CI PR #135:** els tests UC-007 existents han passat. El conjunt del workflow falla per 6 tests PACK/Redsys aliens al diff d’aquesta branca; el `main` base ja tenia workflows SIF en `failure`, sense afirmar que fossin exactament les mateixes sis assertions. El test UC-080 afegit després queda pendent del següent run. Evidència detallada: [05-evidencia-ci-uc-007-pr135-2026-10-03.md](05-evidencia-ci-uc-007-pr135-2026-10-03.md).
