@@ -120,6 +120,74 @@ final class UsocCourseChangeDestinationBindingServiceTest
         );
     }
 
+    public function testRetryAfterLegacyCompletedDoesNotDowngradeBinding(): void
+    {
+        $db = TestDatabase::fresh();
+        $cases = $this->seedCase($db, 900, 1000);
+        $repo = new UsocLifecycleExecutionRepository(new UuidGenerator());
+
+        $this->preparation($cases, $repo)->prepare(
+            $db,
+            900,
+            1000,
+            'uc013-bind-900-1',
+            'operator-1',
+            ['GESTIO'],
+            $this->target()
+        );
+
+        $service = new UsocCourseChangeDestinationBindingService($repo);
+        $first = $service->bind(
+            $db,
+            'uc013-bind-900-1',
+            900,
+            1000,
+            1900,
+            2000,
+            'SIF-USOC-CC:' . str_repeat('f', 32),
+            '95.00'
+        );
+
+        $advanced = $first['destination'];
+        $advanced['phase'] = 'LEGACY_COMPLETED';
+        $advanced['source_closed'] = true;
+        $advanced['legacy_handoff_completed'] = true;
+        $advanced['legacy_source_status'] = 'C';
+        $advanced['legacy_source_closed_at'] = '2026-10-03 15:00:00';
+
+        $db->beginTransaction();
+        try {
+            $repo->advanceRequestedResult(
+                $db,
+                'uc013-bind-900-1',
+                'DESTINATION_RESERVED',
+                $advanced
+            );
+            $db->commit();
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $exception;
+        }
+
+        $retry = $service->bind(
+            $db,
+            'uc013-bind-900-1',
+            900,
+            1000,
+            1900,
+            2000,
+            'SIF-USOC-CC:' . str_repeat('f', 32),
+            '95.00'
+        );
+
+        Assert::same(true, $retry['idempotency_reused']);
+        Assert::same('LEGACY_COMPLETED', $retry['destination']['phase']);
+        Assert::same(true, $retry['destination']['legacy_handoff_completed']);
+        Assert::same(true, $retry['destination']['source_closed']);
+    }
+
     public function testDifferentDestinationForSameCheckpointConflicts(): void
     {
         $db = TestDatabase::fresh();
