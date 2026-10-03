@@ -634,16 +634,15 @@ Qualsevol canvi futur d'aquests criteris requereix una nova `RULE_VERSION`, no u
 
 ## 18. Criteri de tancament
 
-UC-20 no es pot marcar com a COMPLET fins que:
+Per distingir **auditoria tancada** de **migració/rollout complet**, l'estat és:
 
-- la política AP canònica estigui ratificada;
-- alta, denegació i canvi de curs consumeixin la mateixa política/versionat;
-- la decisió es persisteixi a `discount_validation`;
-- l'oferta es persisteixi a `commercial_operation`;
-- links/intencions derivin de l'oferta servidor i no d'imports del navegador;
-- existeixi relació explícita `UUID_OPERATION ↔ UUID_INTENT`;
-- pagament/factura consumeixin el mateix snapshot;
-- s'executin els tests AP E2E i es conservi evidència.
+- política AP canònica versionada: **COMPLERT**;
+- persistència `discount_validation` + `commercial_operation` al checkout AP: **COMPLERT**;
+- relació explícita `UUID_OPERATION ↔ UUID_INTENT`: **COMPLERT**;
+- pagament/factura sobre snapshot congelat: **IMPLEMENTAT/PROVAT TÈCNICAMENT**;
+- alta, denegació i canvi de curs sobre una única oferta SIF nativa: **PENDENT MIGRACIÓ**;
+- `payment_link` canònic per tots els canals: **PENDENT MIGRACIÓ**;
+- E2E real/controlat navegador → Redsys → factura amb evidència: **PENDENT ROLLOUT**.
 
 
 ## 19. Tall executable integrat — 30/09/2026
@@ -682,7 +681,7 @@ C->>CO: vincular UUID_OPERATION ↔ UUID_INTENT
 C-->>UI: operació + intenció
 ```
 
-**Pendent de tancament:** l'alta/preview web i la resolució intranet encara no comparteixen l'oferta servidor canònica; `payment_link` no governa encara aquest canal; falten decisions de negoci, E2E navegador → Redsys → factura i validació de preproducció. El checkout de targeta actiu sí que invoca aquest nucli via `course-intent`.
+**Pendent de migració/rollout:** l'alta/preview web i la resolució intranet encara no comparteixen l'oferta servidor canònica; `payment_link` no governa encara aquest canal; falten E2E navegador → Redsys → factura i validació de preproducció. Les decisions UC20-DEC-001…006 ja estan tancades. El checkout de targeta actiu sí que invoca aquest nucli via `course-intent`.
 
 ## 21. Reconciliació del canal de pagament actiu — 02/10/2026
 
@@ -720,12 +719,12 @@ Client-->>Pay: amount + DS_ORDER
 La pantalla de pagament utilitza l'import retornat per SIF per construir `DS_MERCHANT_AMOUNT`; per tant el **pagament AP actiu** ja no depèn de l'import POST com a font de veritat. Això no tanca encara el problema anterior d'alta/preview: `enviarInscripcio.php` continua sent un front llegat a migrar cap a una oferta servidor immutable.
 
 
-## Reconciliació de tancament — 02/10/2026
+## 22. Reconciliació de tancament — 02/10/2026
 
 L'auditoria UC-020 queda **tancada**. El runtime AP de targeta és server-authoritative, l'alta llegada revalida AP abans de persistir, la policy v2 exclou autoacreditació i historial futur, i la resolució d'intranet s'ha reconciliat amb el codi actual POST/CSRF/permís/requestId. `payment_link`, transferència i E2E/preproducció es mantenen com a backlog/gates de migració, no com a preguntes obertes sobre el comportament AP actual.
 
 
-## 18. Revalidació 03/10/2026
+## 23. Revalidació 03/10/2026
 
 - **UC020-94 — tancat:** eliminat l'overwrite tardà de `preuDescompte` des del navegador després de la revalidació AP; prova de frontera afegida.
 - **UC020-97 — tancat:** `TIPUS_CURS` es deriva de `informacio` al servidor; el navegador ja no pot activar el branch subvencionat per alterar `A_PAGAR`.
