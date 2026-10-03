@@ -205,7 +205,9 @@ final class UsocLifecycleExecutionRepository
         }
 
         if ($storedPhase === $newPhase) {
-            if ($this->hash($stored) !== $this->hash($result)) {
+            // MySQL JSON may normalize object key order. Compare decoded
+            // associative payloads semantically instead of hashing insertion order.
+            if ($stored != $result) {
                 throw SifException::conflict(
                     'USOC lifecycle requested result already differs from advanced payload'
                 );
