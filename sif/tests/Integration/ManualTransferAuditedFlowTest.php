@@ -134,7 +134,9 @@ final class ManualTransferAuditedFlowTest
                 new TransactionRunner($db),
                 new PaymentActionEventRepository(new UuidGenerator())
             ),
-            'test'
+            'test',
+            new OperationalEventRepository(new UuidGenerator()),
+            new SifAuditEventRepository(new UuidGenerator())
         );
 
         try {
@@ -215,7 +217,9 @@ final class ManualTransferAuditedFlowTest
                 new TransactionRunner($db),
                 new PaymentActionEventRepository(new UuidGenerator())
             ),
-            'test'
+            'test',
+            new OperationalEventRepository(new UuidGenerator()),
+            new SifAuditEventRepository(new UuidGenerator())
         );
 
         $payload = [
@@ -255,6 +259,24 @@ final class ManualTransferAuditedFlowTest
             (int) $db->query(
                 "SELECT COUNT(*) FROM payment_action_event
                  WHERE REQUEST_ID = '44444444-4444-4444-8444-444444444444'
+                   AND RESULT = 'REUSED'"
+            )->fetchColumn()
+        );
+
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM operational_event
+                 WHERE UUID_PAYMENT = " . $db->quote($second['uuid_payment']) . "
+                   AND STATUS = 'REUSED'"
+            )->fetchColumn()
+        );
+
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM sif_audit_event
+                 WHERE RESOURCE_ID = " . $db->quote($second['uuid_payment']) . "
                    AND RESULT = 'REUSED'"
             )->fetchColumn()
         );
