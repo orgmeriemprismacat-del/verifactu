@@ -90,7 +90,31 @@ final class UsocCourseChangeDestinationBindingService
                 'source_closed' => false,
             ];
 
-            $wasBound = trim((string) ($execution['RESULT_JSON'] ?? '')) !== '';
+            $storedJson = trim((string) ($execution['RESULT_JSON'] ?? ''));
+            if ($storedJson !== '') {
+                $storedResult = $this->decodeObject(
+                    $storedJson,
+                    'stored USOC course change destination'
+                );
+                if ($storedResult !== $result) {
+                    throw SifException::conflict(
+                        'USOC course change destination is already bound to a different reservation'
+                    );
+                }
+
+                $db->commit();
+
+                return [
+                    'ok' => true,
+                    'request_id' => $requestId,
+                    'uuid_execution' => (string) $execution['UUID_EXECUTION'],
+                    'state' => (string) $execution['STATE'],
+                    'operation' => 'course_change',
+                    'destination' => $storedResult,
+                    'idempotency_reused' => true,
+                ];
+            }
+
             $stored = $this->executions->recordRequestedResult(
                 $db,
                 $requestId,
@@ -105,7 +129,7 @@ final class UsocCourseChangeDestinationBindingService
                 'state' => (string) $stored['STATE'],
                 'operation' => 'course_change',
                 'destination' => $result,
-                'idempotency_reused' => $wasBound,
+                'idempotency_reused' => false,
             ];
         } catch (\Throwable $exception) {
             if ($db->inTransaction()) {
