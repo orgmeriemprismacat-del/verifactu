@@ -2,7 +2,7 @@
 
 **Abast:** un pagador extern (empresa, escola o persona responsable) assumeix el cost d'una o més inscripcions, sovint necessita una factura **abans** de fer la transferència. Aquest cas determina **qui és el receptor fiscal, quines inscripcions queden cobertes i com s'assignarà el cobrament**; UC-04 és únicament el nucli reutilitzable d'emissió abans de cobrar i UC-02 el registre posterior del moviment.
 
-**Estat:** el nucli d'emissió sense pagament i el registre de cobrament sobre factura ja existeixen; el catàleg general marca UC-21 `[PARCIAL]`. El codi específic de grup (`ManualGroupInvoiceService`) existeix, però la seva ruta **genera factura i moviment inicial junts**: no es pot confondre amb el flux UC-21 en què la factura precedeix el pagament.
+**Estat:** `[PARCIAL]` però amb el flux intern d'emissió ja operatiu al codi: intranet segura → API interna signada → preview autoritatiu → fingerprint → confirmació → factura SIF pendent de cobrament. El cobrament posterior sobre la factura també existeix al nucli genèric. Continuen pendents el guard cross-channel amb Redsys, l'accés extern/documental, l'orquestració del cobrament d'empresa i l'atribució quantitativa per participant. `ManualGroupInvoiceService` continua sent un camí diferent perquè genera factura i moviment inicial junts.
 
 ## 1. Fitxa de cas d'ús
 
@@ -34,8 +34,8 @@
 | E3. Empresa que encara no ha pagat | L'emissió genera factura real amb número fiscal i registre; el pagament continua `PENDING`. La documentació explica que el tractament històric d'exportació/comptabilització podia considerar-la cobrada: el nou model ha de mostrar els dos estats separats. |
 | E4. Pagament parcial o transferència posterior | Registrar moviment i assignació sobre el mateix `uuid_factura`; el calculador econòmic determina `PARTIAL` o `PAID` segons la suma neta. |
 | E5. Factura ja emesa, participants/import modificats | No tornar a construir una factura amb les dades vives: cal registrar canvi i resoldre si la factura exigeix rectificació o altra acció fiscal validada. |
-| **P1. Assignació per participant** | El codi de factura de grup coneix `IDPAG`, responsable i inscripcions; **no s'ha acreditat** que UC-21 abans de cobrar tingui un orquestrador que congeli i autoritzi totes les relacions i imports per participant en aquest flux específic. |
-| **P2. Dades i permisos** | Cal confirmar qui pot veure la factura i els detalls de participants: pagador, receptor i alumne no sempre comparteixen drets d'accés. |
+| **P1. Assignació per participant** | La selecció, imports i relacions per participant **sí** es reconstrueixen al servidor amb `InvoiceBeforePaymentCommandService`/`LegacyPreparationService`/`ServerPayloadAssembler`. El que continua pendent és l'atribució quantitativa d'un cobrament global posterior a cada participant i el seu ledger econòmic. |
+| **P2. Dades i permisos** | L'operador intern ja està protegit per sessió, rol, CSRF i API interna signada. L'accés extern del pagador/receptor al document continua pendent; els participants no han de rebre visibilitat implícita sobre la factura conjunta. |
 | **P3. IDPAG i flux manual de grup** | `ManualGroupInvoiceService::issueFromLegacyGroupPayment()` demana import de pagament i `ManualGroupInvoicePayloadBuilder` adjunta un bloc de pagament inicial; **no s'ha de reutilitzar directament com si fos l'emissió abans de cobrar de UC-21**. |
 | **P4. Titular de saldos** | Si posteriorment hi ha retorn/saldo, la documentació exigeix determinar el titular econòmic quan pagava una empresa o responsable. UC-29 no ho valida per si sol. |
 | **P5. Pagament i receptor divergents** | L'endpoint genèric de pagaments no verifica en el servei de domini que el pagador de la transferència correspongui a l'obligació de la factura; control de gestió pendent d'integració. |
@@ -448,3 +448,154 @@ Note over P,L: El PHP actual no implementa una confirmació atòmica SIF+ledger 
 [Fitxa anterior UC-21](../06-fitxes-funcionals/uc-021.md) · [Catàleg de casos](../04-estat-final/33-casos-us-sif.md) · [Fluxos de factura abans de cobrar i grup](../03-canvis-pendents/04-fluxos-facturacio.md) · [UC-04 revisada](uc-004-emetre-factura-abans-cobrar.md) · [UC-02 revisada](uc-002-registrar-cobrament-factura.md) · [InvoiceBeforePaymentService](../../sif/src/Service/InvoiceBeforePaymentService.php) · [ManualGroupInvoiceService](../../sif/src/Service/ManualGroupInvoiceService.php) · [LegacyGroupSnapshotRepository](../../sif/src/Repository/LegacyGroupSnapshotRepository.php) · [InvoiceBeforePaymentServiceTest](../../sif/tests/Integration/InvoiceBeforePaymentServiceTest.php).
 
 **Pendent:** validació de receptor/pagador per cada cas real, congelació de participants i descomptes al flux previ, permisos d'empresa, prova d'extrem a extrem, enllaços segurs i conciliació del cobrament.
+
+
+## 6. Diagrames ACTUAL / FINAL reconciliats per pàgina i apartat
+
+### 6.1. Pàgina intranet `alumnes-genera-factura-abans-pagar.php` — ACTUAL
+
+```mermaid
+flowchart TD
+ A[Obrir pantalla amb sessió] --> B[JS carrega token CSRF i entitats autoritzades]
+ B --> C[Cercar NIF/NIE i seleccionar inscripcions]
+ C --> D[Escollir entity_id]
+ D --> E[POST preview al proxy intranet]
+ E --> F[API SIF rellegeix inscripcions, curs i receptor]
+ F --> G[Retorna línies, totals i fingerprint]
+ G --> H{Usuari confirma sense canvis?}
+ H -- no --> E
+ H -- sí --> I[POST confirm amb expected_fingerprint]
+ I --> J{Fingerprint i cobertura vàlids?}
+ J -- no --> K[409 + nou preview]
+ J -- sí --> L[Factura SIF real PENDING]
+```
+
+**Implementat:** cerca/selecció UI, receptor per ID intern, camps autoritatius read-only, preview, confirmació, control de 409 i presentació de UUID/número.  
+**Pendent:** servir PDF/document per UUID, accés extern i integració explícita del cobrament posterior.
+
+### 6.2. Proxy intranet `ajax/alumnes/sifFacturaAbansPagar.php` — ACTUAL
+
+```mermaid
+flowchart TD
+ A[POST JSON] --> B{Sessió vàlida?}
+ B -- no --> X1[401]
+ B -- sí --> C[Resoldre actor i rol de la pàgina]
+ C --> D{CSRF vàlid?}
+ D -- no --> X2[403]
+ D -- sí --> E[Normalitzar IDs, entity_id i observacions]
+ E --> F[SifInternalApiClient: petició signada]
+ F --> G{Resposta SIF}
+ G -- 401/0/5xx --> X3[502 fail closed]
+ G -- 4xx --> X4[Propagar estat funcional]
+ G -- 2xx --> H[Retornar JSON]
+```
+
+### 6.3. API SIF `public/api/factures/before-payment.php` — ACTUAL
+
+```mermaid
+flowchart TD
+ A[POST raw body] --> B[InternalApiAuthenticator]
+ B --> C[InternalInvoiceBeforePaymentScopeResolver]
+ C --> D[Construir repositoris legacy i SIF]
+ D --> E{action}
+ E -- preview --> F[CommandService.preview]
+ F --> G[LegacyPreparationService]
+ G --> H[SelectionRepository + BillingPartyRepository]
+ H --> I[ServerPayloadAssembler + PayloadBuilder]
+ I --> J[Retornar fingerprint, línies i totals]
+ E -- confirm --> K[CommandService.confirm]
+ K --> L[Repetir preparació autoritativa]
+ L --> M{hash_equals expected fingerprint?}
+ M -- no --> N[409 conflict]
+ M -- sí --> O[InvoiceBeforePaymentService]
+ O --> P[InvoiceService transaccional]
+ P --> Q[Factura + línies + registre + queue + fact_rels]
+ Q --> R[Claim invoice_before_payment_coverage]
+ R --> S[COMMIT i resposta UUID/num]
+```
+
+### 6.4. Flux FINAL objectiu UC-021
+
+```mermaid
+flowchart TD
+ A[Empresa/responsable demana assumir N inscripcions] --> B[Operador o portal autoritzat]
+ B --> C[Snapshot server-side de participants, receptor, imports i descomptes]
+ C --> D[Guard cross-channel: factures + coverage + pagaments + Redsys intents/callbacks]
+ D --> E{Conflicte o diner ja confirmat?}
+ E -- sí --> F[Conciliació/incidència; no emetre]
+ E -- no --> G[Preview + fingerprint]
+ G --> H[Confirmar]
+ H --> I[Factura fiscal única PENDING]
+ I --> J[Document per UUID amb ACL receptor/representant]
+ I --> K[Desactivar o bloquejar vies individuals incompatibles]
+ K --> L[Pagament real posterior]
+ L --> M[PaymentService sobre mateix UUID_FACTURA]
+ M --> N[PARTIAL o PAID]
+ N --> O[Distribució quantitativa immutable per ID_INSC]
+ O --> P[Notificacions separades receptor/participants]
+```
+
+## 7. Diagrama de classes ACTUAL reconciliat
+
+```mermaid
+classDiagram
+direction LR
+class IntranetPageJS
+class SifInvoiceBeforePaymentAccess
+class SifInternalApiClient
+class InternalApiAuthenticator
+class InternalInvoiceBeforePaymentScopeResolver
+class InvoiceBeforePaymentCommandService
+class InvoiceBeforePaymentLegacyPreparationService
+class InvoiceBeforePaymentSelectionRepository
+class InvoiceBeforePaymentBillingPartyRepository
+class InvoiceBeforePaymentServerPayloadAssembler
+class InvoiceBeforePaymentPayloadBuilder
+class InvoiceBeforePaymentService
+class InvoiceService
+class InvoiceBeforePaymentCoverageRepository
+class InvoiceRepository
+class PaymentService
+
+IntranetPageJS --> SifInvoiceBeforePaymentAccess : sessió/CSRF/rol
+IntranetPageJS --> SifInternalApiClient : preview/confirm via proxy
+SifInternalApiClient --> InternalApiAuthenticator : signatura API
+InternalApiAuthenticator --> InternalInvoiceBeforePaymentScopeResolver : actor/rol
+InternalInvoiceBeforePaymentScopeResolver --> InvoiceBeforePaymentCommandService
+InvoiceBeforePaymentCommandService --> InvoiceBeforePaymentLegacyPreparationService
+InvoiceBeforePaymentLegacyPreparationService --> InvoiceBeforePaymentSelectionRepository
+InvoiceBeforePaymentLegacyPreparationService --> InvoiceBeforePaymentBillingPartyRepository
+InvoiceBeforePaymentLegacyPreparationService --> InvoiceBeforePaymentServerPayloadAssembler
+InvoiceBeforePaymentLegacyPreparationService --> InvoiceBeforePaymentPayloadBuilder
+InvoiceBeforePaymentCommandService --> InvoiceBeforePaymentService : confirm
+InvoiceBeforePaymentService --> InvoiceService
+InvoiceService --> InvoiceRepository
+InvoiceService --> InvoiceBeforePaymentCoverageRepository
+PaymentService ..> InvoiceService : flux posterior independent
+```
+
+## 8. Activitat FINAL: cobrament posterior i protecció de participants
+
+```mermaid
+flowchart TD
+ A[Factura conjunta existent] --> B[Arriba transferència/TPV]
+ B --> C[Identificar UUID_FACTURA i pagador real]
+ C --> D[Comprovar idempotència i saldo pendent]
+ D --> E{Import admissible?}
+ E -- no --> F[Conflicte / incidència]
+ E -- sí --> G[Registrar payment_transaction]
+ G --> H[Registrar payment_allocation a la factura]
+ H --> I[Recalcular PENDING/PARTIAL/PAID]
+ I --> J[Distribuir import per ID_INSC segons decisió explícita]
+ J --> K[Persistir ledger individual immutable]
+ K --> L[Notificar receptor; participants només estat propi]
+```
+
+**Pendent d'implementació:** passos C/D específics d'empresa quan el canal no és manual, J/K i les ACL externes.
+
+## 9. Verificació i mancances després de l'auditoria
+
+- **Verificat per codi/tests:** selecció server-side, receptor per ID, construcció de línies per participant, totals, preview/fingerprint, confirmació, idempotència de payload, cobertura única UC-04, factura sense cobrament inicial, cobrament genèric posterior sense segon registre fiscal.
+- **Evidència CI:** el workflow `UC-004 SIF secure flow checks` té execucions verdes anteriors. El SHA actual de `main` (`b0e8ff7`) té la suite general `SIF PHP MySQL tests` fallida; això impedeix etiquetar el cas complet com a verificat en l'estat actual.
+- **Corregit en aquesta branca:** la factura conjunta deixa de marcar les relacions dels participants com `visible_alumne=1`; ara és `0` per defecte i hi ha assert de test.
+- **Pendent crític:** carrera amb Redsys individual/callback tardà, ACL/PDF extern, cobrament parcial d'empresa E2E, ledger per participant, prova en `sif_test`/preproducció i conciliació si falla la sincronització amb el legacy després del commit fiscal.
