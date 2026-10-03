@@ -1,8 +1,8 @@
 # UC-004 · Diagrames de classes ACTUAL / FINAL
 
 **Cas d'ús:** UC-004 — Emetre factura abans de cobrar  
-**Data d'auditoria estàtica:** 2026-09-29  
-**Estat:** documentació d'auditoria. ACTUAL = codi llegat observat. FINAL = arquitectura objectiu, distingint classes ja implementades de components encara pendents.
+**Data d'auditoria reconciliada:** 2026-10-03  
+**Estat:** ACTUAL històric = codi llegat observat; ACTUAL versionat = bridge + SIF implementats; FINAL operatiu = mateix contracte amb renderer/cobertura transversal/E2E pendents.
 
 ## 1. Fonts directes contrastades
 
@@ -260,12 +260,12 @@ class InvoiceBeforePaymentBillingPartyRepository {
 }
 
 class InvoiceBeforePaymentServerPayloadAssembler {
-  <<EXISTEIX A LA BRANCA>>
+  <<IMPLEMENTAT>>
   +buildInput(selection, billingParty, context)
 }
 
 class InvoiceBeforePaymentLegacyPreparationService {
-  <<EXISTEIX A LA BRANCA>>
+  <<IMPLEMENTAT>>
   +prepare(legacyWebDb, legacyIntranetDb, ids, entityId, context)
 }
 
@@ -276,7 +276,7 @@ class CrossChannelCoverageClassifier {
 }
 
 class InvoiceBeforePaymentCoverageRepository {
-  <<EXISTEIX A LA BRANCA>>
+  <<IMPLEMENTAT>>
   +claim(db, relations, uuidFactura, idempotencyKey)
 }
 
