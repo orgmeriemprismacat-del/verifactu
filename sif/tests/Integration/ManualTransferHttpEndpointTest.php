@@ -24,6 +24,8 @@ final class ManualTransferHttpEndpointTest
         Assert::stringContainsString('ManualTransferCommandService', $source);
         Assert::stringContainsString('PaymentActionGateway', $source);
         Assert::stringContainsString('PaymentActionEventRepository', $source);
+        Assert::stringContainsString('OperationalEventRepository', $source);
+        Assert::stringContainsString('SifAuditEventRepository', $source);
         Assert::stringContainsString('GeneratedInvoiceLegacyPaymentSyncService', $source);
         Assert::stringContainsString('ManualTransferLegacyProjectionService', $source);
         Assert::stringContainsString("PENDING_RETRY", $source);
