@@ -22,7 +22,7 @@ Objectiu per UC, quan aplica: fitxa funcional + fitxa integrada + classes A/F + 
 | --- | --- | --- | --- | --- |
 | UC-01 | Emetre o reutilitzar factura | facturació i registre fiscal | `[BASE]` | [uc-001.md](./uc-001.md) |
 | UC-02 | Registrar pagament sobre factura | pagaments i conciliació | `[BASE]` | [uc-002.md](./uc-002.md) |
-| UC-03 | Processar cobrament Redsys asíncron | pagaments i conciliació | `[ASYNC/AUDITAT 03-10 · CI/ROLLOUT PENDENTS]` | [uc-003.md](./uc-003.md) |
+| UC-03 | Processar cobrament Redsys asíncron | pagaments i conciliació | `[ASYNC/AUDITAT 03-10 · PROVES UC003 PASS · BASELINE CI RED · ROLLOUT PENDENT]` | [uc-003.md](./uc-003.md) |
 | UC-04 | Emetre factura abans de cobrar | facturació i registre fiscal | `[PARCIAL]` | [uc-004.md](./uc-004.md) |
 | UC-05 | Crear rectificativa | facturació i registre fiscal | `[PARCIAL]` | [uc-005.md](./uc-005.md) |
 | UC-06 | Registrar devolució, saldo o compensació | pagaments i conciliació | `[PARCIAL]` | [uc-006.md](./uc-006.md) |
