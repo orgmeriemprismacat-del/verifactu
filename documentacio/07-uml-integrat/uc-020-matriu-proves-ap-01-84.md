@@ -123,7 +123,7 @@
 | AP-69 | INT | Mateix `ID_PREU` amb tarifes AP específiques de curs/mes. | Tots els canals seleccionen la tarifa canònica exacta. | PENDENT_EXECUCIO |
 | AP-70 | INT | Tarifa AP actual + futura. | Només la vigent és seleccionable. | TEST_NOU_PENDENT_CI_TEMPORAL |
 | AP-71 | INT | Elegible sense tarifa AP. | `ELIGIBLE_NO_PRICE`; no oferta pagable. | COBERT_PARCIAL_TEST_NOU_PENDENT_CI |
-| AP-72 | INT | Canvi de curs amb tarifa específica per curs. | No recuperar una fila d'un altre curs per filtre incomplet. | PENDENT_EXECUCIO |
+| AP-72 | INT | Canvi de curs amb tarifa específica per curs. | No recuperar una fila d'un altre curs per filtre incomplet. | IMPLEMENTAT_P06 · TEST_NOU_PENDENT_CI |
 | AP-73 | E2E | Mateixa persona/operació per web i intranet. | Mateixa política versionada i mateixa justificació del dret. | PENDENT_IMPLEMENTACIO |
 
 ## AP-74…AP-84 · concurrència, seguretat i contractes
@@ -231,3 +231,10 @@ Proves noves creades i encara pendents de CI:
 - AP-53: el token només es conserva com SHA-256; prova nominal creada perquè un token manipulat no resolgui el link original.
 - AP-58: `PrismaStudentCommercialSnapshotImmutabilityTest` crea una oferta AP, intenta repetir-la amb un `price_rule_version` diferent i exigeix 409 conservant el snapshot i la intenció originals.
 - El checkout AP crea ara `CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT` abans de vincular la intenció.
+
+
+## Reconciliació P06 — canvi de curs
+
+AP-72 deixa de ser una mancança de codi: el canvi de curs AP ja no usa el selector genèric `ID_PREU + TIPUS`. `resolveLegacyPrismaStudentCourseChangePrice()` exigeix target únic, tarifa base única, tarifa AP única, vigència, curs o hores i mes de destí. `LegacyPrismaStudentCourseChangeBoundaryTest` protegeix també que `TIPUS_DESC/VALID_DESC` i els imports AP no tornin a quedar sota autoritat dels hidden inputs.
+
+Continua `PENDENT_CI` fins observar el nou test en PASS. AP-69/AP-73 continuen oberts perquè la unificació de selectors/policy **entre tots els canals** encara no està completada.
