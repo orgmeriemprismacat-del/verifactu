@@ -199,6 +199,9 @@ final class GiftRedemptionWebClientBoundaryTest
             'El codi de regal no es pot utilitzar en aquest moment.',
             $legacyGift
         );
+        Assert::same(2, substr_count($legacyGift, 'WHERE CODI = ?'));
+        Assert::same(false, str_contains($legacyGift, 'WHERE CODI LIKE ?'));
+
         Assert::same(false, str_contains(
             $legacyGift,
             'El codi <strong>".strtoupper($codiRegal)."</strong>'
