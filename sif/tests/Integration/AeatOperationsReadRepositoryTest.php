@@ -22,6 +22,7 @@ final class AeatOperationsReadRepositoryTest
         $list = $repository->listQueue($db, 'PENDING', 20);
         Assert::same(1, count($list));
         Assert::same('PENDING', $list[0]['STATUS']);
+        Assert::same(null, $list[0]['LAST_ERROR']);
 
         $detail = $repository->detail($db, (int) $list[0]['ID']);
         Assert::same($list[0]['UUID_FACTURA'], $detail['queue']['UUID_FACTURA']);
