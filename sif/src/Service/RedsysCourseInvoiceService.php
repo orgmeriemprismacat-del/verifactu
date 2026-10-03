@@ -60,7 +60,10 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         $result = $this->afterCommittedCourseInvoice($sifDb, $dsOrder, $snapshot, $result);
         $result['legacy_sync'] = [
             'relations' => $payload['relations'] ?? [],
-            'estat_cobrament' => isset($payload['payment']) ? 'PAID' : 'PENDING',
+            'estat_cobrament' => (string) (
+                $result['payment_status']
+                ?? (isset($payload['payment']) ? 'PAID' : 'PENDING')
+            ),
         ];
 
         return $result;
