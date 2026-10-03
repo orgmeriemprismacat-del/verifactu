@@ -25,28 +25,40 @@ final class ManualTransferCommandService
 
     public function register(\PDO $db, array $actor, array $payload): array
     {
-        $this->assertAuthorized($actor);
+        try {
+            $this->assertAuthorized($actor);
 
-        $externalEventId = trim((string) ($payload['external_bank_event_id'] ?? ''));
-        if ($externalEventId === '') {
-            throw SifException::validation('Missing external bank event id');
-        }
-        if (mb_strlen($externalEventId, 'UTF-8') > 80) {
-            throw SifException::validation('External bank event id is too long');
-        }
+            $externalEventId = trim((string) ($payload['external_bank_event_id'] ?? ''));
+            if ($externalEventId === '') {
+                throw SifException::validation('Missing external bank event id');
+            }
+            if (mb_strlen($externalEventId, 'UTF-8') > 80) {
+                throw SifException::validation('External bank event id is too long');
+            }
 
-        $bank = strtoupper(trim((string) ($payload['bank'] ?? $payload['banc'] ?? '')));
-        if ($bank === '') {
-            throw SifException::validation('Missing transfer bank');
-        }
-        if (in_array($bank, ['TPV', 'REDSYS'], true)) {
-            throw SifException::validation('Card payments cannot be registered as manual transfers');
-        }
+            $bank = strtoupper(trim((string) ($payload['bank'] ?? $payload['banc'] ?? '')));
+            if ($bank === '') {
+                throw SifException::validation('Missing transfer bank');
+            }
+            if (in_array($bank, ['TPV', 'REDSYS'], true)) {
+                throw SifException::validation('Card payments cannot be registered as manual transfers');
+            }
 
-        $uuidFactura = trim((string) ($payload['uuid_factura'] ?? ''));
-        $numVisible = trim((string) ($payload['num_visible'] ?? ''));
-        if (($uuidFactura === '') === ($numVisible === '')) {
-            throw SifException::validation('Provide exactly one invoice selector');
+            $uuidFactura = trim((string) ($payload['uuid_factura'] ?? ''));
+            $numVisible = trim((string) ($payload['num_visible'] ?? ''));
+            if (($uuidFactura === '') === ($numVisible === '')) {
+                throw SifException::validation('Provide exactly one invoice selector');
+            }
+        } catch (\Throwable $exception) {
+            if ($this->auditGateway !== null) {
+                $context = $this->auditContext($actor, $payload);
+                $context['action'] = in_array((int) $exception->getCode(), [401, 403], true)
+                    ? 'ACCESS_DENIED'
+                    : 'VALIDATION_REJECTED';
+                $this->auditGateway->reject($context, $exception);
+            }
+
+            throw $exception;
         }
 
         $input = $payload;
@@ -182,8 +194,12 @@ final class ManualTransferCommandService
             'source_environment' => $this->sourceEnvironment,
             'source_channel' => 'INTRANET',
             'actor_type' => 'HUMAN',
-            'actor_id' => trim((string) ($actor['actor_id'] ?? '')),
-            'actor_role' => $this->actorRole($actor),
+            'actor_id' => trim((string) ($actor['actor_id'] ?? '')) !== ''
+                ? trim((string) $actor['actor_id'])
+                : null,
+            'actor_role' => $this->actorRole($actor) !== 'UNKNOWN'
+                ? $this->actorRole($actor)
+                : null,
             'reason_code' => 'UC-022',
             'occurred_at' => (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Madrid')))
                 ->format('Y-m-d H:i:s.u'),
