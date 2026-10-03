@@ -109,6 +109,77 @@ final class HistoricalInvoiceMigrationServiceTest
         Assert::same(0, (int) $db->query('SELECT VISIBLE_ALUMNE FROM fact_rels')->fetchColumn());
     }
 
+    public function testEquivalentAliasPayloadReusesSameHistoricalInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $firstInput = $this->input();
+
+        $first = $service->importHistoricalInvoice($firstInput);
+
+        $aliasInput = $this->input();
+        $aliasInput['num_factura'] = $aliasInput['num_visible'];
+        unset($aliasInput['num_visible']);
+        $aliasInput['data_emissio'] = $aliasInput['issue_date'];
+        unset($aliasInput['issue_date']);
+
+        $second = $service->importHistoricalInvoice($aliasInput);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['uuid_factura'], $second['uuid_factura']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
+    public function testPersistsIssuerOperationAndHistoricalFiscalFields(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $input = $this->input();
+        $input['issuer'] = [
+            'nif' => 'B12345678',
+            'name' => 'Emissor Historic SL',
+        ];
+        $input['operation_description'] = 'Formació històrica amb recàrrec';
+        $input['totals']['iva_regim'] = 'GENERAL';
+        $input['totals']['iva_pct'] = '21.00';
+        $input['totals']['iva_import'] = '21.00';
+        $input['totals']['rec_equivalence_pct'] = '5.20';
+        $input['totals']['rec_equivalence_import'] = '5.20';
+        $input['totals']['total'] = '126.20';
+
+        $input['lines'][0]['iva_regim'] = 'GENERAL';
+        $input['lines'][0]['iva_pct'] = '21.00';
+        $input['lines'][0]['iva_import'] = '21.00';
+        $input['lines'][0]['rec_equivalence_pct'] = '5.20';
+        $input['lines'][0]['rec_equivalence_import'] = '5.20';
+        $input['lines'][0]['total'] = '126.20';
+
+        $service->importHistoricalInvoice($input);
+
+        $invoice = $db->query(
+            'SELECT EMISSOR_NIF, EMISSOR_NOM, DESCRIPCIO_OPERACIO,
+                    INVERSIO_SUBJECTE_PASSIU, RECARREC_EQUIVALENCIA_PCT,
+                    RECARREC_EQUIVALENCIA_IMPORT
+             FROM factura'
+        )->fetch(\PDO::FETCH_ASSOC);
+        $line = $db->query(
+            'SELECT INVERSIO_SUBJECTE_PASSIU, RECARREC_EQUIVALENCIA_PCT,
+                    RECARREC_EQUIVALENCIA_IMPORT
+             FROM factura_linia'
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        Assert::same('B12345678', $invoice['EMISSOR_NIF']);
+        Assert::same('Emissor Historic SL', $invoice['EMISSOR_NOM']);
+        Assert::same('Formació històrica amb recàrrec', $invoice['DESCRIPCIO_OPERACIO']);
+        Assert::same(0, (int) $invoice['INVERSIO_SUBJECTE_PASSIU']);
+        Assert::same('5.20', $invoice['RECARREC_EQUIVALENCIA_PCT']);
+        Assert::same('5.20', $invoice['RECARREC_EQUIVALENCIA_IMPORT']);
+        Assert::same(0, (int) $line['INVERSIO_SUBJECTE_PASSIU']);
+        Assert::same('5.20', $line['RECARREC_EQUIVALENCIA_PCT']);
+        Assert::same('5.20', $line['RECARREC_EQUIVALENCIA_IMPORT']);
+    }
+
     private function service(\PDO $db): HistoricalInvoiceMigrationService
     {
         return new HistoricalInvoiceMigrationService(
