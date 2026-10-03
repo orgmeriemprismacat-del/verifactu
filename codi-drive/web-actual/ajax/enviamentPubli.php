@@ -4,7 +4,9 @@ include("../ConnexioBBDD_PreparedStatment.php");
 include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
 
-$mail = $_GET['mail'];
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$input = $requestMethod === 'POST' ? $_POST : $_GET;
+$mail = $input['mail'] ?? '';
 
 if ($mail != '') {
 	$connexio = new ConnexioBBDDSTMT();
