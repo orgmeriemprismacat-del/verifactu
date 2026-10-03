@@ -35,9 +35,10 @@ final class DebtClaimCoordinatorReconciliationTest
             'correlation_id' => 'CORR-NOTICE',
         ]);
 
-        $this->pay($db, $invoice['uuid_factura'], '40.00', 'CLAIM|PAY|40');
+        $payment40 = $this->pay($db, $invoice['uuid_factura'], '40.00', 'CLAIM|PAY|40');
         $partial = $service->reconcileAfterPayment($actor, [
             'uuid_factura' => $invoice['uuid_factura'],
+            'uuid_payment' => $payment40['uuid_payment'],
             'idempotency_key' => 'CLAIM|REC|40',
             'reason_code' => 'PAYMENT_RECEIVED',
             'request_id' => 'REQ-REC-40',
@@ -46,10 +47,12 @@ final class DebtClaimCoordinatorReconciliationTest
         Assert::same('OPEN', $partial['status']);
         Assert::same('80.00', $partial['outstanding']);
         Assert::same(0, $partial['cancelled_notifications']);
+        Assert::same($payment40['uuid_payment'], $partial['uuid_payment']);
 
-        $this->pay($db, $invoice['uuid_factura'], '80.00', 'CLAIM|PAY|80');
+        $payment80 = $this->pay($db, $invoice['uuid_factura'], '80.00', 'CLAIM|PAY|80');
         $closed = $service->reconcileAfterPayment($actor, [
             'uuid_factura' => $invoice['uuid_factura'],
+            'uuid_payment' => $payment80['uuid_payment'],
             'idempotency_key' => 'CLAIM|REC|120',
             'reason_code' => 'PAYMENT_COMPLETED',
             'request_id' => 'REQ-REC-120',
@@ -59,6 +62,7 @@ final class DebtClaimCoordinatorReconciliationTest
         Assert::same('CLOSED', $closed['status']);
         Assert::same('RESOLVED', $closed['stage']);
         Assert::same('0.00', $closed['outstanding']);
+        Assert::same($payment80['uuid_payment'], $closed['uuid_payment']);
         Assert::same(1, $closed['cancelled_notifications']);
         Assert::same('CANCELLED', (string) $db->query(
             'SELECT STATUS FROM notification_outbox'
@@ -67,11 +71,14 @@ final class DebtClaimCoordinatorReconciliationTest
             'SELECT ESTAT_COBRAMENT FROM factura'
         )->fetchColumn());
         Assert::same(3, (int) $db->query('SELECT COUNT(*) FROM debt_claim_event')->fetchColumn());
+        Assert::same($payment80['uuid_payment'], (string) $db->query(
+            "SELECT UUID_PAYMENT FROM operational_event WHERE OPERATION_TYPE = 'DEBT_CLAIM_RECONCILE' ORDER BY ID DESC LIMIT 1"
+        )->fetchColumn());
     }
 
-    private function pay(\PDO $db, string $uuid, string $amount, string $key): void
+    private function pay(\PDO $db, string $uuid, string $amount, string $key): array
     {
-        RegisterPaymentTest::paymentServiceFor($db)->registerPayment([
+        return RegisterPaymentTest::paymentServiceFor($db)->registerPayment([
             'idempotency_key' => $key,
             'movement_type' => 'CHARGE',
             'method' => 'TRANSFERENCIA',
