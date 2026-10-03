@@ -143,7 +143,6 @@ final class GiftRedemptionWebClientBoundaryTest
         foreach ([
             'codiRegalValid.php',
             'buscarCursRegalat.php',
-            'inscripcioDuplicada.php',
             'enviarInscripcioBescanvia.php',
         ] as $endpoint) {
             $source = file_get_contents(
@@ -161,6 +160,17 @@ final class GiftRedemptionWebClientBoundaryTest
             Assert::stringContainsString('$_POST', $source);
             Assert::same(false, str_contains($source, '$_GET'));
         }
+
+        $duplicate = file_get_contents(
+            $root . '/codi-drive/web-actual/ajax/inscripcioDuplicada.php'
+        );
+        if (!is_string($duplicate)) {
+            Assert::fail('Could not read shared duplicate-enrollment endpoint');
+        }
+        Assert::stringContainsString(
+            "\$requestMethod === 'POST' ? \$_POST : \$_GET",
+            $duplicate
+        );
 
         $lookup = file_get_contents(
             $root . '/codi-drive/web-actual/ajax/buscarCursRegalat.php'
