@@ -50,6 +50,7 @@ use Prisma\Sif\Service\UsocCourseChangeExecutionService;
 use Prisma\Sif\Service\UsocCourseChangeIdempotency;
 use Prisma\Sif\Service\UsocCourseChangeInvoicePayloadBuilder;
 use Prisma\Sif\Service\UsocCourseChangeDestinationBindingService;
+use Prisma\Sif\Service\UsocCourseChangeLegacyHandoffService;
 
 header('Cache-Control: private, no-store, max-age=0');
 header('Pragma: no-cache');
@@ -285,6 +286,25 @@ try {
                 $destinationIdpag,
                 $reservationMarker,
                 $targetStudentTotal
+            ),
+        ]);
+        return;
+    }
+
+    if ($action === 'confirm_course_change_legacy_handoff') {
+        $requestId = requiredRequestId($payload['request_id'] ?? null);
+        $legacyDb = ConnectionFactory::makeLegacy($config);
+        $service = new UsocCourseChangeLegacyHandoffService(
+            new UsocLifecycleExecutionRepository(new UuidGenerator())
+        );
+
+        JsonResponse::send([
+            'ok' => true,
+            'handoff' => $service->confirm(
+                $db,
+                $legacyDb,
+                $requestId,
+                (string) ($actor['actor_id'] ?? '')
             ),
         ]);
         return;
