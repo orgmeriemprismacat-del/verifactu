@@ -54,6 +54,24 @@ final class RedsysCoursePaymentIntentPrismaStudentTest
         Assert::same(PrismaStudentDiscountPolicy::RULE_VERSION, $snapshot['discount']['rule_version']);
     }
 
+    public function testPrismaStudentCheckoutRejectsClientRequestedAmountBelowAuthoritativePendingBalance(): void
+    {
+        $db = $this->fixture(false);
+
+        Assert::throws(SifException::class, function () use ($db): void {
+            $this->service()->create($db, $db, [
+                'idpag' => 900,
+                'requested_amount' => '1.00',
+                'terminal' => '1',
+                'ds_order' => '720000000006',
+            ]);
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM commercial_operation')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM discount_validation')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
     public function testPrismaStudentFractionalPaymentFailsClosedUntilFiscalModelExists(): void
     {
         $db = $this->fixture(true);
