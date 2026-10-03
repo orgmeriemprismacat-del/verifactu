@@ -415,7 +415,7 @@ class RegalCurs{
                    $diesObets=0;
                 else if (intval($valors[0])>0 && $valors[0]==$hores) //si el valor és un numero i les hores son iguals al curs
                    $diesObets = $valors[1];
-                else if (intval($valors[0])<=0 && $valors[0]==$codi) //si el valor no és un numero i el codi és igual al curs
+                else if (intval($valors[0])<=0 && $valors[0]==$codiCurs) //si el valor no és un numero i el codi és igual al curs
                    $diesObets = $valors[1];
              }
              $connexio->closeStmt();
@@ -426,7 +426,7 @@ class RegalCurs{
                 AND (CURS NOT LIKE '%JOR%') AND (CURS NOT LIKE '%0%')
                 ORDER BY ANY, MES LIMIT 1";
              $stmtHoresPreu=$connexio->prepare($consultaHoresPreu);
-             $stmtHoresPreu->bind_param("ds", $diesObets, $codi);
+             $stmtHoresPreu->bind_param("ds", $diesObets, $codiCurs);
              $stmtHoresPreu->execute();
              $stmtHoresPreu->store_result();
              if ( $stmtHoresPreu->num_rows() > 0 ) {
@@ -656,9 +656,11 @@ class RegalCurs{
 
       //si $codiRegal=='', es genera el $codiRegal
       if ($codiRegal=='') {
-         $codi = base_convert(uniqid(), 16, 36);
-         $textCodiRegal = new Text($codi);
-         $codiRegal = $textCodiRegal->convertirMaj();
+         $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+         $codiRegal = '';
+         for ($i = 0; $i < 12; $i++) {
+            $codiRegal .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+         }
       }
 
       //buscar el nom del curs del codi $codiCurs
@@ -893,6 +895,28 @@ class RegalCurs{
    public function enviarInscripcioRegal($nom, $cog, $dni, $telf, $email, $adreca, $cp, $poblacio, $comentaris, $codiCurs, $nomCurs, $preu, $percentatge, $hores, $codiRegal, $estilRegal, $origen, $desti, $dedicatoria) {
       require_once 'Text.php';
       require_once 'Numero.php';
+
+      // UC-017: preu, percentatge, hores i títol no són autoritat del navegador.
+      $pricing = explode('|', $this->obtenirPreuHoresNomCursRegal($codiCurs));
+      if (count($pricing) !== 4
+          || !is_numeric($pricing[0])
+          || !is_numeric($pricing[1])
+          || trim((string) $pricing[2]) === ''
+          || !is_numeric($pricing[3])
+          || (float) $pricing[0] <= 0
+          || (int) $pricing[1] <= 0
+      ) {
+         throw new RuntimeException('INVALID_AUTHORITATIVE_GIFT_PRICING');
+      }
+      $preu = (string) $pricing[0];
+      $hores = (string) $pricing[1];
+      $nomCurs = trim((string) $pricing[2]);
+      $percentatge = (string) $pricing[3];
+
+      $codiRegal = strtoupper(trim((string) $codiRegal));
+      if (preg_match('/^[A-HJ-NP-Z2-9]{12}$/D', $codiRegal) !== 1) {
+         throw new RuntimeException('INVALID_SERVER_GIFT_CODE');
+      }
 
       $textNom = new Text($nom);
       $textCog = new Text($cog);
