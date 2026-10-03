@@ -60,7 +60,7 @@ Web->>Policy: evaluate(historial)
 Policy-->>Web: eligible, rule_version, evidence
 Web->>Decision: calcular/autoritzar oferta
 Decision->>DV: persistir regla i evidencia
-Decision->>CO: persistir gross/discount/net + PRICE_SNAPSHOT
+Decision->>CO: persistir BILLABLE / READY_FOR_PAYMENT + imports + PRICE_SNAPSHOT
 CO-->>Web: UUID_OPERATION / oferta
 Web->>Intent: create(CURS, source_id, idpag, expected_amount, snapshot)
 Intent->>IV: validate(snapshot,idpag,sourceId,expectedAmount)
@@ -69,6 +69,35 @@ Intent->>DB: INSERT/reuse intent
 Intent-->>Web: UUID_INTENT
 Web->>Bank: Redireccio pel mateix import congelat
 ```
+
+## 2.1. Seqüència FINAL canònica — payment_link (infra implementada, wiring pendent)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor A as Alumne
+participant Web as P03/P04 canònic
+participant Link as PaymentLinkService
+participant CO as commercial_operation
+participant Intent as RedsysPaymentIntentService
+participant Bank as Redsys
+
+A->>Web: Obrir token de pagament
+Web->>Link: resolve(token)
+Link->>CO: findByUuid(UUID_OPERATION)
+alt CLASSIFICATION != BILLABLE
+  Link-->>Web: 409 no billable
+else STATUS no és READY_FOR_PAYMENT/PAYMENT_PENDING
+  Link-->>Web: 409 no pagable
+else Operació pagable
+  Link-->>Web: UUID_OPERATION + EXPECTED_AMOUNT + estat
+  Web->>Intent: crear/reutilitzar intenció des del snapshot autoritatiu
+  Intent-->>Web: DS_ORDER / UUID_INTENT
+  Web->>Bank: redirecció
+end
+```
+
+**Estat:** el guard `PaymentLinkService → commercial_operation` és executable. L'entrada de les pantalles llegades P03/P04 encara no usa aquest servei com a ruta canònica; per això el wiring continua `PENDENT MIGRACIÓ`.
 
 ## 3. Seqüència FINAL — callback i factura
 
@@ -117,7 +146,7 @@ Abans de crear la intenció:
 - l'alta AP llegada encara no crea una oferta SIF nativa, però **revalida al servidor** historial i tarifa abans de persistir;
 - la resolució d'intranet actual ja és POST + sessió + permís + CSRF + `requestId`;
 - les decisions UC20-DEC-001…006 queden tancades a `ALUMNE_PRISMA_WEB_LEGACY_V2`;
-- `payment_link`, transferència i l'E2E navegador → callback → factura es mantenen com a gates de migració/rollout.
+- el guard de pagabilitat de `payment_link` ja està implementat; continuen pendents l'adopció canònica per P03/P04, la unificació de transferència i l'E2E navegador → callback → factura.
 
 El **checkout de targeta actiu** crea operació/validació/intenció i vincula `UUID_OPERATION ↔ UUID_INTENT` via `course-intent`. El navegador pot continuar mostrant un preview llegat, però ja no pot fixar l'import AP persistit ni el que s'envia finalment a Redsys.
 
@@ -130,6 +159,7 @@ Abans de crear la intenció, `PrismaStudentCourseCheckoutService` exclou la matr
 
 - **Alta web AP:** el navegador proposa TIPUS/import, però `enviarInscripcio.php` rellegeix historial i tarifa; UC020-94 garanteix que la tarifa servidor no torna a ser sobreescrita abans de persistir.
 - **Checkout targeta:** `SifRedsysCourseIntentClient` → `course-intent.php` → `RedsysCoursePaymentIntentService` → checkout AP → intenció autoritativa.
+- **Payment link:** `PaymentLinkService` ja bloqueja operacions que no siguin `BILLABLE` o que no estiguin `READY_FOR_PAYMENT/PAYMENT_PENDING`; les pantalles llegades encara no hi entren canònicament.
 - **Callback:** valida signatura/DS_ORDER/import/moneda/terminal contra la intenció i encola; no reavalua AP.
 - **Worker/factura:** el `main` vigent disposa de prova E2E simulada de callback → worker → pagament/factura/sync/outbox.
 - **Pendent:** E2E real navegador/Redsys/preproducció i migració de tots els canals a la mateixa oferta/`payment_link`.
