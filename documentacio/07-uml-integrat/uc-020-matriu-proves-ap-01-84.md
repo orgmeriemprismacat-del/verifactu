@@ -32,7 +32,7 @@
 | AP-10 | INT | Historial amb registres D/M i registres normals. | Només els antecedents admissibles poden justificar AP. | PENDENT_EXECUCIO |
 | AP-11 | INT | Persona elegible però no existeix cap tarifa AP aplicable. | Estat `ELIGIBLE_NO_PRICE`/incidència equivalent; cap import nul o inventat pagable. | PENDENT_EXECUCIO |
 | AP-12 | INT | Coincideixen AP i promoció. | AP + promoció falla tancat en l'alta AP; no s'acumulen silenciosament. | COBERT_PARCIALMENT_TEST_FRONTERA |
-| AP-13 | SEC | El client manipula `tipusDescompte` o `preuDescompte`. | El servidor rebutja/recalcula; els valors del navegador no són autoritat. | PENDENT_EXECUCIO |
+| AP-13 | SEC | El client manipula `tipusDescompte`, `preuDescompte` o `tipusCurs`. | Per AP, el servidor rellegeix elegibilitat/tarifa i deriva `TIPUS_CURS` de metadades servidor; el navegador no és autoritat monetària. | COBERT_PARCIALMENT_TEST_FRONTERA |
 | AP-14 | CONC | La tarifa canvia entre previsualització i confirmació. | Confirmar només una oferta servidor vigent o retornar conflicte; no acceptar TOCTOU silenciós. | PENDENT_EXECUCIO |
 | AP-15 | E2E | Oferta AP → cobrament → línia fiscal. | Base − descompte = net; import cobrat i línia fiscal són coherents amb el snapshot congelat. | PENDENT_EXECUCIO |
 | AP-16 | CONC | Reintent equivalent de la mateixa operació. | Reutilitzar decisió/operació; no duplicar descompte, cobrament ni factura. | PENDENT_EXECUCIO |
@@ -167,5 +167,5 @@ Per donar qualsevol AP-* per verificat cal registrar:
 - `PrismaStudentCourseCheckoutServiceTest`: cobreix snapshot autoritatiu, idempotència, conflicte de segon DS_ORDER, ineligible, no autoacreditació, tall temporal a `DATA_INSC` i mismatch de preu.
 - `LegacyPrismaStudentPriceSnapshotResolverTest`: cobreix reconstrucció històrica, selector per hores, mismatch i tarifa ambigua.
 - `RedsysCoursePaymentIntentPrismaStudentTest` al `main`: cobreix staging AP abans de la intenció, snapshot de descompte i fail-closed del fraccionament AP sense model fiscal.
-- `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest`: cobreix UC020-94, impedint que el valor de preu del navegador sobreescrigui la tarifa AP servidor abans de l'INSERT, i comprova el guard AP+promoció.
+- `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest`: cobreix UC020-94/97, impedint que el valor de preu del navegador sobreescrigui la tarifa AP servidor, comprovant el guard AP+promoció i exigint que `TIPUS_CURS` provingui de `informacio`.
 - `RedsysCourseEndToEndSimulatedTest` al `main`: cobreix el circuit tècnic simulat callback → worker → pagament/factura/sync/outbox, incloent duplicats, parcials i exactitud de cèntims; no substitueix l'E2E real de navegador/Redsys.
