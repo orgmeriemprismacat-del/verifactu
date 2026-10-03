@@ -59,3 +59,18 @@ flowchart TD
  K --> L[Outbox + lliurament]
  K --> M[Sync llegat posterior]
 ```
+
+
+## Estat candidat per pantalla — 2026-10-03
+
+| Pantalla/entrada | Candidat |
+| --- | --- |
+| wizard de regal | es manté; dades econòmiques deixen de ser autoritat |
+| pàgina de pagament | integrada amb `SifRedsysGiftIntentClient` |
+| MerchantURL | commutable a callback SIF amb flags |
+| callback llegat | validat i fail-closed; 410 després del cutover |
+| URL OK | consulta estat SIF; no afirma èxit pel retorn del navegador |
+| URL KO | consulta estat SIF; distingeix denegat/pending/review |
+| correu confirmació | substituït en camí final per outbox idempotent |
+
+Falta demostrar aquestes pantalles/entrades en el domini desplegat de preproducció.
