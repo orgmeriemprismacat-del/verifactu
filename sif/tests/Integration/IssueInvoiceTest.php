@@ -122,6 +122,33 @@ final class IssueInvoiceTest
         Assert::same(1, (int) $db->query('SELECT LAST_NUM FROM fiscal_sequence WHERE TIPUS_SERIE = "A" AND ANY_FACT = 2026')->fetchColumn());
     }
 
+    public function testInvoiceInitialPaymentRequiresStableMovementDateBeforeMutation(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->makeService($db);
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|UC001|PAYMENT-MOVEMENT-DATE-REQUIRED',
+            'source_channel' => 'INTRANET',
+            'payment' => [
+                'idempotency_key' => 'PAYMENT|UC001|MOVEMENT-DATE-REQUIRED',
+                'movement_type' => 'CHARGE',
+                'method' => 'MANUAL',
+                'source_channel' => 'INTRANET',
+                'amount' => '120.00',
+            ],
+        ]);
+
+        Assert::throws(
+            \Prisma\Sif\Exception\SifException::class,
+            fn () => $service->issueInvoice($payload),
+            422
+        );
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT LAST_NUM FROM fiscal_sequence WHERE TIPUS_SERIE = "A" AND ANY_FACT = 2026')->fetchColumn());
+    }
+
     public function testIssueInvoiceWithPaymentCreatesPaymentTransactionAndAllocation(): void
     {
         $db = TestDatabase::fresh();
