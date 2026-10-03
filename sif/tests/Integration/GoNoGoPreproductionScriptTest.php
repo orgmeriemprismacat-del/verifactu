@@ -90,6 +90,9 @@ final class GoNoGoPreproductionScriptTest
         Assert::stringContainsString('historical_migration_circuit_present', $source);
         Assert::stringContainsString('manual_gift_circuit_present', $source);
         Assert::stringContainsString('redsys_course_circuit_present', $source);
+        Assert::stringContainsString('redsys_pack_circuit_present', $source);
+        Assert::stringContainsString('verify-redsys-pack-preproduction.php', $source);
+        Assert::stringContainsString('verify-redsys-pack-evidence.php', $source);
         Assert::stringContainsString('credit_balance_circuit_present', $source);
         Assert::stringContainsString('manual_refund_circuit_present', $source);
         Assert::stringContainsString('redsys_usoc_circuit_present', $source);

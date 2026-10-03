@@ -202,11 +202,16 @@ final class RedsysPackEvidenceVerifier
             'ok' => $failed === [],
             'ds_order' => $dsOrder,
             'uuid_intent' => (string) ($intent['UUID_INTENT'] ?? ''),
+            'uuid_job' => (string) ($queue['UUID_JOB'] ?? ''),
             'uuid_factura' => $uuidFactura,
             'uuid_payment' => $uuidPayment,
+            'uuid_notification' => count($outbox) === 1
+                ? (string) ($outbox[0]['UUID_NOTIFICATION'] ?? '')
+                : '',
             'num_visible' => (string) ($invoice['NUM_VISIBLE'] ?? ''),
             'idpag' => (int) ($intent['IDPAG'] ?? 0),
             'amount' => $expectedAmount,
+            'notification_status' => (string) ($notification['STATUS'] ?? ''),
             'queue_status' => (string) ($queue['STATUS'] ?? ''),
             'outbox_status' => count($outbox) === 1 ? (string) $outbox[0]['STATUS'] : '',
             'inscription_ids' => $inscriptionIds,

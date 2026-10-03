@@ -370,10 +370,11 @@ CURS disposava de `verify-redsys-course-preproduction.php`, però PACK només te
 - en execució exigeix identitat de factura i payment, almenys dues atribucions de fons, identitat de tots els moviments, suma del ledger igual al total del preview i una fila d'outbox amb identitat;
 - si se sol·licita sync legacy, exigeix `legacy_sync_executed=true`;
 - la sortida d'evidència **no copia el payload fiscal complet del preview**: només conserva DS_ORDER, IDPAG i totals;
-- `preflight-redsys-pack.php` comprova ara callback, endpoint d'intenció, worker, preview, processor, preflight de cua i el mateix verificador;
-- `RedsysPackPreproductionBoundaryTest` blinda fail-closed, `--execute` explícit, evidència econòmica/outbox i sanitització.
+- `preflight-redsys-pack.php` comprova callback, endpoint d'intenció, worker, preview, processor, preflight de cua, orquestrador i `verify-redsys-pack-evidence.php`;
+- l'orquestrador suporta `--verify-evidence` per executar el verificador persistent després del worker real, sense confondre el processor manual `--execute` amb l'acceptació productiva;
+- `RedsysPackPreproductionBoundaryTest` blinda fail-closed, `--execute` explícit, `--verify-evidence`, evidència econòmica/outbox i sanitització.
 
-**Estat:** eina i proves implementades. **Pendent:** executar-la contra un `DS_ORDER` Redsys real de preproducció i conservar el JSON d'evidència.
+**Estat:** eina i proves implementades. **Pendent:** executar callback+cua+worker amb un `DS_ORDER` Redsys real de preproducció i després `--verify-evidence`; el processor manual queda reservat a diagnòstic.
 
 ### F-21 · Segona còpia del callback fiscal legacy detectada i callbacks productius retirats — corregit
 
@@ -596,3 +597,45 @@ Correcció:
 - UML integrat incorpora la frontera pública i elimina els pendents ja resolts.
 
 **Estat:** les quatre famílies UML queden reconciliades amb el HEAD de codi actual.
+
+
+## 11. Reconciliació post-merge — 2026-10-03
+
+Després del merge del PR #102 (`8206d6b58fb1eb4d7455d02860a3846eb8600aea`) s'ha revalidat el conjunt UC-015 contra el `main` posterior. Els commits posteriors no han modificat codi ni documentació PACK.
+
+### Troballa documental
+
+`uc-015-comprar-pack.md` conservava un bloc anterior que encara presentava com a vigents:
+
+- «pack de dos cursos»;
+- «descompte només curs 2» / 25 % com a regla quasi estructural;
+- components «serveis parcials» / «adaptació pendent»;
+- una variant de múltiples cobraments com si fos FINAL pendent d'UC-015.
+
+Això contradia el contracte ja implementat i documentat a la fitxa principal: PACK N, imports explícits per component, pagament ecommerce complet i variant excepcional de gestió fora del flux nominal.
+
+### Correcció
+
+- secció comercial reescrita segons l'algoritme executable: ordre `DATAI, ID_CURS`, `PACK_ORDINAL`, distribució del preu i snapshot `BASE/DISCOUNT/PCT/TOTAL`;
+- escenaris PK-01..PK-07 generalitzats a PACK N;
+- PK-08..PK-11 reescrits sense dependència de «primer/segon curs»;
+- variant de diversos cobraments reclasificada com a cas de gestió separat, no pendent intern UC-015;
+- seqüència FINAL canviada de «majoritàriament implementada» a «implementada»;
+- `PackDocumentationConsistencyTest` evita reintroduir aquestes expressions obsoletes en la documentació vigent.
+
+**Impacte:** documental + prova de consistència; cap canvi de comportament productiu UC-015.
+
+### Troballa de tooling d'acceptació
+
+L'orquestrador de preproducció podia executar el processor manual amb `--execute`, però això no acreditava per si sol la fila `redsys_callback_queue` ni tots els checks persistents que exigeix `RedsysPackEvidenceVerifier`. S'ha separat explícitament:
+
+- **diagnòstic manual:** `--execute [--sync-legacy]`;
+- **acceptació productiva:** callback + worker real + `--verify-evidence`;
+- el preflight exigeix també la presència de `verify-redsys-pack-evidence.php`;
+- el `go-no-go-preproduction.php` considera complet el circuit PACK només si existeixen l'orquestrador i el verificador persistent, mentre el worker/cua continua cobert per `redsys_async_circuit_present`;
+- `sif/config/README.md` diferencia explícitament diagnòstic manual i acceptació post-worker;
+- `RedsysPackEvidenceVerifier` retorna al JSON sanititzat les identitats `UUID_INTENT`, `UUID_JOB`, `UUID_FACTURA`, `UUID_PAYMENT` i `UUID_NOTIFICATION`, més els estats Redsys/cua/outbox, de manera que la plantilla no necessita una consulta manual de BD per identificar la prova.
+
+Així un resultat verd del processor manual no es pot confondre amb una acceptació E2E completa ni el go/no-go pot donar per complet un circuit PACK sense les eines d'evidència.
+
+**Estat post-merge:** codi UC-015 continua tancat. Resten l'acceptació runtime/preproducció amb `DS_ORDER` real i la dependència transversal UC-58.

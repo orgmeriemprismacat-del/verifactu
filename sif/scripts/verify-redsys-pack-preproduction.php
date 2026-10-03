@@ -14,6 +14,7 @@ $environment = (string) ($config['env'] ?? 'local');
 $args = array_slice($argv, 1);
 $execute = in_array('--execute', $args, true);
 $syncLegacy = in_array('--sync-legacy', $args, true);
+$verifyEvidence = in_array('--verify-evidence', $args, true);
 $dsOrder = '';
 
 foreach ($args as $arg) {
@@ -33,6 +34,7 @@ $result = [
     'php_version' => PHP_VERSION,
     'mode' => $execute ? 'execute' : 'dry-run',
     'sync_legacy_requested' => $syncLegacy,
+    'verify_evidence_requested' => $verifyEvidence,
     'checks' => [],
 ];
 
@@ -65,7 +67,7 @@ if ($dsOrder === '') {
         array_keys(array_filter($result['checks'], static fn ($ok): bool => $ok !== true)),
         ['ds_order_provided']
     )));
-    $result['usage'] = 'php sif/scripts/verify-redsys-pack-preproduction.php DS_ORDER [--execute] [--sync-legacy]';
+    $result['usage'] = 'php sif/scripts/verify-redsys-pack-preproduction.php DS_ORDER [--execute] [--sync-legacy] [--verify-evidence]';
     output($result, 1);
 }
 $result['checks']['ds_order_provided'] = true;
@@ -157,6 +159,16 @@ if ($execute) {
         $result['checks']['legacy_sync_executed'] =
             ($process['json']['legacy_sync_executed'] ?? false) === true;
     }
+}
+
+if ($verifyEvidence) {
+    $evidence = runJsonScript(
+        [PHP_BINARY, $baseDir . '/scripts/verify-redsys-pack-evidence.php', $dsOrder],
+        $baseDir
+    );
+    $result['evidence'] = $evidence['json'];
+    $result['checks']['evidence_exit_zero'] = $evidence['exit_code'] === 0;
+    $result['checks']['evidence_ok'] = ($evidence['json']['ok'] ?? false) === true;
 }
 
 $failed = array_keys(array_filter(

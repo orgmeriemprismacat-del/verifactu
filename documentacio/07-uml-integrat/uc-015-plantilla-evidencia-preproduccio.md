@@ -53,25 +53,41 @@ Comprovar:
 
 ## 4. Execució
 
-Flux productiu preferit:
+### Flux productiu d'acceptació
+
+El pagament real ha d'entrar pel callback SIF i ser processat per la cua/worker:
 
 ```bash
 php sif/scripts/process-redsys-callback-queue.php --limit=25 --worker-id=uc015-preproduction
 ```
 
-Processor manual controlat, només si cal diagnosticar un DS_ORDER ja validat:
+Aquest és el camí que pot acreditar `callback_processed`, `ATTEMPTS`, `RESULT_JSON`, identitats de factura/payment i sincronització legacy dins el contracte real del worker.
+
+### Processor manual — només diagnòstic
 
 ```bash
 php sif/scripts/process-redsys-pack.php <DS_ORDER> --sync-legacy
+# o bé, via orquestrador:
+php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER> --execute --sync-legacy
 ```
 
+El processor manual consumeix una notificació ja validada i és útil per diagnòstic controlat. **No és suficient per acceptar el flux productiu**, perquè no substitueix l'evidència de `redsys_callback_queue`/worker.
+
 ## 5. Verificació automàtica post-execució
+
+Després del callback + worker real, executar l'orquestrador amb evidència persistent:
+
+```bash
+php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER> --verify-evidence
+```
+
+Aquesta ordre executa preflight PACK, preflight de cua, preview read-only i `verify-redsys-pack-evidence.php`. També es pot executar directament el verificador persistent:
 
 ```bash
 php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>
 ```
 
-La sortida ha de tenir `ok=true` i tots els checks a `true`:
+La sortida d'evidència ha de tenir `ok=true` i tots els checks a `true`:
 
 - `intent_pack`;
 - `notification_validated`;
@@ -150,7 +166,7 @@ Per UC-015 és suficient acreditar l'**enqueue idempotent**.
 
 ## 8. Evidències a conservar
 
-- sortida JSON sanititzada de `verify-redsys-pack-evidence.php`;
+- sortida JSON sanititzada de `verify-redsys-pack-preproduction.php <DS_ORDER> --verify-evidence` (inclou l'evidència persistent) o de `verify-redsys-pack-evidence.php`;
 - identificadors tècnics de la prova;
 - run GitHub Actions del commit desplegat;
 - captures BD només si no inclouen PII/secrets;
@@ -165,7 +181,7 @@ Per UC-015 és suficient acreditar l'**enqueue idempotent**.
 - [ ] PK-E2E-03 PASS
 - [ ] PK-E2E-04 PASS
 - [ ] PK-E2E-05 PASS
-- [ ] verificador post-execució `ok=true`
+- [ ] `verify-redsys-pack-preproduction.php <DS_ORDER> --verify-evidence` amb `ok=true` i `evidence.ok=true`
 - [x] callbacks fiscals PACK legacy de producció retirats físicament
 - [x] ordre comercial v1 documentat: `DATAI, ID_CURS` → `PACK_ORDINAL`
 - [ ] estat UC-58 separat de l'enqueue UC-015

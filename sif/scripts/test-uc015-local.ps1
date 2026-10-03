@@ -44,6 +44,8 @@ try {
     $lines.Add('PackEnrollmentAtomicityBoundaryTest')
     $lines.Add('PackEnrollmentIdempotencyBoundaryTest')
     $lines.Add('PackComponentAvailabilityBoundaryTest')
+    $lines.Add('PackDocumentationConsistencyTest::testIntegratedPackDocumentationMatchesExecutablePackNContract')
+    $lines.Add('RedsysPackPreproductionBoundaryTest::testVerifierCanRequirePersistedEndToEndEvidence')
     $lines.Add('RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData')
     $lines.Add('RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing')
     $lines.Add('PackCheckoutBoundaryTest::testPackCheckoutUsesServerAuthoritativeHolderAndEscapesPostedHtml')

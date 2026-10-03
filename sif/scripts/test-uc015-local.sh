@@ -79,6 +79,8 @@ fi
   echo "  PackEnrollmentAtomicityBoundaryTest"
   echo "  PackEnrollmentIdempotencyBoundaryTest"
   echo "  PackComponentAvailabilityBoundaryTest"
+  echo "  PackDocumentationConsistencyTest::testIntegratedPackDocumentationMatchesExecutablePackNContract"
+  echo "  RedsysPackPreproductionBoundaryTest::testVerifierCanRequirePersistedEndToEndEvidence"
   echo "  RedsysPackEvidenceVerifierTest::testVerifiesCompletePackEvidenceWithoutExposingPersonalData"
   echo "  RedsysPackEvidenceVerifierTest::testFailsClosedWhenPackOutboxEvidenceIsMissing"
   echo "  PackCheckoutBoundaryTest::testPackCheckoutUsesServerAuthoritativeHolderAndEscapesPostedHtml"

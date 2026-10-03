@@ -111,8 +111,9 @@ El checkout PACK és fail-closed i no reutilitza imports, titular, correu ni end
 
 ### Evidència
 
-- `php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER>`: orquestració de preflight/preview i execució controlada.
-- `php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>`: verificació read-only de la cadena persistent completa UC-015 després de l'execució.
+- **Acceptació productiva de preproducció:** després que el callback i `process-redsys-callback-queue.php` hagin processat el `DS_ORDER`, executar `php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER> --verify-evidence`. L'orquestrador combina preflight PACK, preflight de cua, preview read-only i verificació persistent completa.
+- **Diagnòstic manual:** `php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER> --execute [--sync-legacy]` usa el processor manual PACK. És útil per diagnòstic controlat, però no substitueix l'evidència de callback/cua/worker.
+- `php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>`: verificació read-only directa de la cadena persistent completa UC-015.
 - En producció el verificador d'evidència queda bloquejat per defecte; només es pot habilitar explícitament amb `SIF_UC015_EVIDENCE_ALLOW_PRODUCTION=1`.
 - La sortida d'evidència no inclou PII, signatures ni snapshots comercials complets.
 
