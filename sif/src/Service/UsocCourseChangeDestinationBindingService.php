@@ -96,13 +96,14 @@ final class UsocCourseChangeDestinationBindingService
                     $storedJson,
                     'stored USOC course change destination'
                 );
-                // MySQL JSON may normalize object key order. Compare the
-                // associative payload by key/value, not insertion order.
-                if ($storedResult != $result) {
+                $storedPhase = strtoupper(trim((string) ($storedResult['phase'] ?? '')));
+                if (!in_array($storedPhase, ['DESTINATION_RESERVED', 'LEGACY_COMPLETED'], true)) {
                     throw SifException::conflict(
-                        'USOC course change destination is already bound to a different reservation'
+                        'USOC course change destination is already in an incompatible phase'
                     );
                 }
+
+                $this->assertSameReservation($storedResult, $result);
 
                 $db->commit();
 
@@ -138,6 +139,26 @@ final class UsocCourseChangeDestinationBindingService
                 $db->rollBack();
             }
             throw $exception;
+        }
+    }
+
+    private function assertSameReservation(
+        array $stored,
+        array $expected
+    ): void {
+        foreach ([
+            'source_id_insc',
+            'destination_id_insc',
+            'source_idpag',
+            'destination_idpag',
+            'reservation_marker',
+            'target_student_total',
+        ] as $field) {
+            if ((string) ($stored[$field] ?? '') !== (string) ($expected[$field] ?? '')) {
+                throw SifException::conflict(
+                    'USOC course change destination is already bound to a different reservation'
+                );
+            }
         }
     }
 
