@@ -117,9 +117,16 @@ function invoiceSelector(array $input): array
 {
     $uuid = trim((string) ($input['uuid_factura'] ?? ''));
     $num = trim((string) ($input['num_visible'] ?? ''));
+    $idInsc = trim((string) ($input['id_insc'] ?? ''));
 
-    if (($uuid === '') === ($num === '')) {
-        throw new InvalidArgumentException('Cal indicar exactament una factura SIF', 422);
+    $present = ($uuid !== '' ? 1 : 0)
+        + ($num !== '' ? 1 : 0)
+        + ($idInsc !== '' ? 1 : 0);
+    if ($present !== 1) {
+        throw new InvalidArgumentException(
+            'Cal indicar exactament UUID_FACTURA, NUM_VISIBLE o ID_INSC',
+            422
+        );
     }
 
     if ($uuid !== '') {
@@ -129,11 +136,18 @@ function invoiceSelector(array $input): array
         return ['uuid_factura' => strtolower($uuid)];
     }
 
-    if (strlen($num) > 30 || preg_match('/^[A-Za-z0-9\/_-]+$/D', $num) !== 1) {
-        throw new InvalidArgumentException('Número visible de factura no vàlid', 422);
+    if ($num !== '') {
+        if (strlen($num) > 30 || preg_match('/^[A-Za-z0-9\/_-]+$/D', $num) !== 1) {
+            throw new InvalidArgumentException('Número visible de factura no vàlid', 422);
+        }
+        return ['num_visible' => $num];
     }
 
-    return ['num_visible' => $num];
+    if (preg_match('/^[1-9][0-9]*$/D', $idInsc) !== 1) {
+        throw new InvalidArgumentException('ID_INSC no vàlid', 422);
+    }
+
+    return ['id_insc' => (string) ((int) $idInsc)];
 }
 
 function operationId(mixed $value): string
@@ -148,9 +162,13 @@ function operationId(mixed $value): string
 
 function debtClaimIdempotencyKey(string $action, array $selector, string $operationId): string
 {
-    $invoice = isset($selector['uuid_factura'])
-        ? 'UUID:' . $selector['uuid_factura']
-        : 'NUM:' . $selector['num_visible'];
+    if (isset($selector['uuid_factura'])) {
+        $invoice = 'UUID:' . $selector['uuid_factura'];
+    } elseif (isset($selector['num_visible'])) {
+        $invoice = 'NUM:' . $selector['num_visible'];
+    } else {
+        $invoice = 'INSC:' . $selector['id_insc'];
+    }
 
     return 'DEBT_CLAIM|' . $action . '|' . hash('sha256', $invoice . '|' . $operationId);
 }
