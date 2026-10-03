@@ -308,7 +308,7 @@ class payment_link {
   EXPIRES_AT
 }
 
-PrismaStudentDiscountPolicy --> CommercialOfferService : decisió + regla [INTEGRACIÓ PENDENT]
+PrismaStudentDiscountPolicy --> CommercialOfferService : migració oferta SIF nativa [PENDENT MIGRACIÓ]
 CommercialOfferService --> CommercialOperationRepository
 CommercialOfferService --> DiscountValidationRepository
 CommercialOfferService --> OperationalEventRepository
@@ -652,7 +652,7 @@ El model FINAL ja té dues peces complementàries implementades:
 - **infraestructura comercial general:** repositoris de `commercial_operation`, `discount_validation`, `payment_link`, `CommercialOfferService` i `PaymentLinkService`;
 - **flux específic Alumne PrisMa:** `PrismaStudentDiscountPolicy`, `LegacyPrismaStudentHistoryRepository`, `CourseIntentSnapshotValidator`, `LegacyPrismaStudentPriceSnapshotResolver` i `PrismaStudentCourseCheckoutService`.
 
-La policy és deliberadament una regla de **compatibilitat legacy versionada** (`ALUMNE_PRISMA_WEB_LEGACY_V2`). No converteix les decisions pendents de negoci en decisions tancades.
+La policy és deliberadament una regla de **compatibilitat legacy versionada** (`ALUMNE_PRISMA_WEB_LEGACY_V2`) i materialitza les decisions UC20-DEC-001…006 tancades el 02/10/2026. Qualsevol canvi futur exigeix una nova versió de regla.
 
 ## 20. Seqüència implementada del nucli UC-020
 
