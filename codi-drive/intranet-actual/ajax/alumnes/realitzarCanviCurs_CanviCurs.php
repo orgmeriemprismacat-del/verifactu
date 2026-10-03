@@ -15,6 +15,152 @@ include ('../../LegacyUsocLifecycleGuard.php');
 require_once ('../../SifInternalApiClient.php');
 session_start();
 
+function normalizeLegacyCourseChangeMoney(mixed $value, string $field): string
+{
+	if (!is_numeric($value)) {
+		throw new RuntimeException('Error: import no vàlid per a ' . $field . '.', 422);
+	}
+	$amount = (float) $value;
+	if ($amount < 0) {
+		throw new RuntimeException('Error: import negatiu no permès per a ' . $field . '.', 422);
+	}
+	return number_format($amount, 2, '.', '');
+}
+
+function loadLegacyCourseChangeSource(int $idInsc): array
+{
+	$conWeb = new ConnexioWeb();
+	$conWeb->connectarBD();
+
+	try {
+		$stmt = $conWeb->prepare(
+			"SELECT CURS, A_PAGAR, PAGAMENT, TIPUS_DESC, VALID_DESC
+			 FROM inscripcions WHERE ID = ? LIMIT 1"
+		);
+		$stmt->bind_param("i", $idInsc);
+		$stmt->execute();
+		$stmt->store_result();
+		if ($stmt->num_rows() !== 1) {
+			$conWeb->closeStmt();
+			throw new RuntimeException('Error: inscripció origen no trobada o ambigua.', 409);
+		}
+		$stmt->bind_result($course, $amount, $paid, $discountType, $discountStatus);
+		$stmt->fetch();
+		$conWeb->closeStmt();
+
+		return [
+			'course' => (string) $course,
+			'amount' => normalizeLegacyCourseChangeMoney($amount, 'preu origen'),
+			'paid' => normalizeLegacyCourseChangeMoney($paid, 'pagament origen'),
+			'discount_type' => (int) $discountType,
+			'discount_status' => (int) $discountStatus,
+		];
+	} finally {
+		$conWeb->desconectarBD();
+	}
+}
+
+function resolveLegacyPrismaStudentCourseChangePrice(
+	int $any,
+	string $mes,
+	string $curs
+): string {
+	$conWeb = new ConnexioWeb();
+	$conWeb->connectarBD();
+
+	try {
+		$idPreu = null;
+		$hores = null;
+
+		$stmt = $conWeb->prepare(
+			"SELECT HORES, ID_PREU FROM curs
+			 WHERE ANY = ? AND MES = ? AND CURS = ? LIMIT 2"
+		);
+		$stmt->bind_param("iss", $any, $mes, $curs);
+		$stmt->execute();
+		$stmt->store_result();
+		if ($stmt->num_rows() === 1) {
+			$stmt->bind_result($hores, $idPreu);
+			$stmt->fetch();
+			$conWeb->closeStmt();
+		} else {
+			$conWeb->closeStmt();
+			$stmt = $conWeb->prepare(
+				"SELECT HORES, ID_PREU FROM jornades
+				 WHERE ANY = ? AND MES = ? AND CODI_CURS = ? LIMIT 2"
+			);
+			$stmt->bind_param("iss", $any, $mes, $curs);
+			$stmt->execute();
+			$stmt->store_result();
+			if ($stmt->num_rows() !== 1) {
+				$conWeb->closeStmt();
+				throw new RuntimeException(
+					'Error: no s\'ha pogut determinar una edició única per al canvi de curs.',
+					409
+				);
+			}
+			$stmt->bind_result($hores, $idPreu);
+			$stmt->fetch();
+			$conWeb->closeStmt();
+		}
+
+		$stmt = $conWeb->prepare(
+			"SELECT IMPORT FROM preu
+			 WHERE ID = ? AND DATAI <= CURRENT_TIMESTAMP
+			   AND (DATAF IS NULL OR CURRENT_TIMESTAMP <= DATAF)"
+		);
+		$stmt->bind_param("i", $idPreu);
+		$stmt->execute();
+		$stmt->store_result();
+		if ($stmt->num_rows() !== 1) {
+			$conWeb->closeStmt();
+			throw new RuntimeException('Error: tarifa base inexistent o ambigua.', 409);
+		}
+		$stmt->bind_result($basePrice);
+		$stmt->fetch();
+		$conWeb->closeStmt();
+
+		$stmt = $conWeb->prepare(
+			"SELECT PREU FROM descomptes
+			 WHERE ID_PREU = ? AND TIPUS = 1
+			   AND DATAI <= CURRENT_TIMESTAMP
+			   AND (DATAF IS NULL OR CURRENT_TIMESTAMP <= DATAF)
+			   AND (CURS = 'TOTS' OR CURS = ? OR CURS = ?)
+			   AND (MES = 'TOTS' OR MES = ?)"
+		);
+		$horesSelector = (string) $hores;
+		$stmt->bind_param("isss", $idPreu, $curs, $horesSelector, $mes);
+		$stmt->execute();
+		$stmt->store_result();
+		if ($stmt->num_rows() !== 1) {
+			$conWeb->closeStmt();
+			throw new RuntimeException(
+				'Error: tarifa Alumne PrisMa inexistent o ambigua per al curs destí.',
+				409
+			);
+		}
+		$stmt->bind_result($discountPrice);
+		$stmt->fetch();
+		$conWeb->closeStmt();
+
+		$base = (float) normalizeLegacyCourseChangeMoney($basePrice, 'tarifa base destí');
+		$discount = (float) normalizeLegacyCourseChangeMoney(
+			$discountPrice,
+			'tarifa Alumne PrisMa destí'
+		);
+		if ($base <= 0 || $discount <= 0 || $discount >= $base) {
+			throw new RuntimeException(
+				'Error: tarifa Alumne PrisMa incoherent amb la tarifa base del curs destí.',
+				409
+			);
+		}
+
+		return number_format($discount, 2, '.', '');
+	} finally {
+		$conWeb->desconectarBD();
+	}
+}
+
 $usuariDeserialitzat = false;
 $intranetDeserialitzada = false;
 
@@ -78,8 +224,35 @@ try {
 	$obsCanvi = (string) ($_POST['obs'] ?? '');
 	$motiuCanvi = trim((string) ($_POST['motiu'] ?? ''));
 	$enviarCoreu = (string) ($_POST['enviarCoreu'] ?? '');
-	$tipusDesc = (string) ($_POST['tipusDesc'] ?? '');
-	$validDesc = (string) ($_POST['validDesc'] ?? '');
+
+	/*
+	 * UC-020/P06: TIPUS_DESC, VALID_DESC i imports AP no són autoritat del navegador.
+	 * La inscripció origen es rellegeix sempre de BD. Si és Alumne PrisMa,
+	 * la tarifa del curs destí es resol al servidor amb curs/hores/mes i unicitat.
+	 */
+	$source = loadLegacyCourseChangeSource($idInsc);
+	$tipusDesc = (string) $source['discount_type'];
+	$validDesc = (string) $source['discount_status'];
+
+	if ((int) $tipusDesc === 1) {
+		$apagarC = resolveLegacyPrismaStudentCourseChangePrice(
+			(int) $anyC,
+			$mesC,
+			$cursC
+		);
+		$pagatC = $source['paid'];
+		$despesesNormalitzades = normalizeLegacyCourseChangeMoney(
+			$despesesC,
+			'despeses de gestió'
+		);
+		$pendentC = number_format(
+			(float) $apagarC + (float) $despesesNormalitzades - (float) $pagatC,
+			2,
+			'.',
+			''
+		);
+		$despesesC = $despesesNormalitzades;
+	}
 
 	if ($motiuCanvi === '') {
 		http_response_code(422);
@@ -104,8 +277,9 @@ try {
 		$expectedFiscalDecision = trim((string) ($_POST['sif_expected_fiscal_decision'] ?? ''));
 		$expectedEconomicDecision = trim((string) ($_POST['sif_expected_economic_decision'] ?? ''));
 
-		$source = loadLegacyCourseChangeSource($idInsc);
-		$standardTargetRaw = $_SESSION['intranet']->buscarPreuAPagar_modalCanviCurs(
+		$standardTargetRaw = (int) $tipusDesc === 1
+			? $apagarC
+			: $_SESSION['intranet']->buscarPreuAPagar_modalCanviCurs(
 			$idInsc,
 			$anyC,
 			$mesC,
