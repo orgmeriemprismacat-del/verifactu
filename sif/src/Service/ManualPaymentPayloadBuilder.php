@@ -54,7 +54,7 @@ final class ManualPaymentPayloadBuilder
         ?string $externalBankEventId
     ): string {
         if ($externalBankEventId !== null) {
-            return $method . '|BANK_EVENT_SHA256:' . hash('sha256', $externalBankEventId);
+            return $method . '|BANK_EVENT_SHA256:' . hash('sha256', strtoupper(trim((string) ($bank ?? ''))) . "\n" . $externalBankEventId);
         }
 
         if ($reference !== null) {
