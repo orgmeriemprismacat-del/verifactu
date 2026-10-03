@@ -78,3 +78,25 @@ sequenceDiagram
   E-->>Q: mateix entitlement / idempotent
   Note over Q,E: Mai crear un segon CHARGE
 ```
+
+
+## 4. Estat d'implementació de la seqüència FINAL
+
+A la branca candidata ja hi ha implementació directa dels passos:
+
+```text
+checkout
+-> gift-intent signat
+-> redsys_payment_intent
+-> callback SIF validat
+-> redsys_callback_queue
+-> worker REGAL
+-> factura/payment
+-> entitlement
+-> notification_outbox
+-> gift-status
+-> retorn navegador autoritatiu
+```
+
+El punt encara no acreditat és el **desplegament i execució E2E en preproducció**,
+no l'absència dels components.
