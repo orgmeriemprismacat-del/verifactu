@@ -117,3 +117,12 @@ La revalidació del 03/10 estableix:
 - el criteri funcional no canvia: **AUDIT_CLOSED + CODE_COMPLETE + ENVIRONMENT_ACCEPTANCE_PENDING**.
 
 La font vigent per a l'estat posterior és [UC-008 · Revalidació exhaustiva contra main · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md).
+
+
+## 9. Addenda d'hardening d'entorn · 03/10/2026
+
+En continuar el bloc d'acceptació operativa s'han detectat i corregit riscos que podien permetre obtenir evidència des de l'entorn incorrecte. L'E2E de preproducció exigeix ara host esperat i bloqueja el host productiu; l'evidència del menú declara l'entorn i el gate exigeix `preproduction`.
+
+Això no reobre el lifecycle ni el tancament funcional; endureix el criteri per passar de `ENVIRONMENT_ACCEPTANCE_PENDING` a `ENVIRONMENT_CLOSED`.
+
+Vegeu [runbook d'acceptació operativa](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md).
