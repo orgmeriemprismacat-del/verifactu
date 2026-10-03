@@ -57,16 +57,16 @@
 
 ## 5. Documents — UC-080
 
-- [ ] READY + bytes/hash correctes → stream exacte.
-- [ ] Metadata sense bytes → unavailable.
-- [ ] Hash incorrecte → denegació + incidència.
-- [ ] Actor/grant/token revocat → denegació.
+- [x] READY/CREATED + bytes/hash correctes → stream exacte en test d'integració amb storage temporal.
+- [x] Metadata amb fitxer absent → unavailable (503) + audit `STORAGE_UNAVAILABLE` en test d'integració.
+- [x] Hash incorrecte → conflicte fail-closed (409) + audit `HASH_MISMATCH` en test d'integració.
+- [x] Scope `MINIMAL`/sense `FULL` → denegació 403 + audit `INVOICE_SCOPE` en test d'integració. Revocació runtime de rol/token continua pendent.
 - [ ] Original i rectificativa → dos documents independents.
 - [ ] Històric original vs reconstruït correctament etiquetat.
 - [ ] Cap document fiscal immutable passa per `eliminarArxiu.php`.
 - [ ] PDF/XML/QR mantenen MIME i extensió correctes.
 - [ ] Proxy intranet sense `X-Requested-With`/origen vàlid → denegació.
-- [ ] `fiscal_document_access` registra ALLOWED/DENIED/FAILED sense path ni secret.
+- [x] `fiscal_document_access` registra ALLOWED/DENIED/FAILED en test d'integració; validació runtime amb identitats/rols reals continua pendent.
 
 ## 6. Llegat pendent de regressió
 
@@ -85,6 +85,7 @@ Conservar les proves LEG-UC007 documentades a l'[auditoria detallada](02-auditor
 - [x] El fallback del modal no torna a substituir el DOM després de registrar les fletxes.
 - [x] El font canònic no usa `resD.toLowerCase()` al fallback de factura.
 - [x] Existeix `sif/tests/Integration/Uc007IntranetBoundaryTest.php`.
+- [x] Existeix `sif/tests/Integration/InvoiceDocumentAccessServiceTest.php` per integritat/hash/storage/auditoria UC-080.
 
 Aquests checks són **estàtics**. La marca `[x]` no acredita navegador, BD, storage ni servidor desplegat.
 
@@ -97,3 +98,7 @@ Aquests checks són **estàtics**. La marca `[x]` no acredita navegador, BD, sto
 - [ ] AL-18 llegat: download POST inicia un únic PDF sense `ReferenceError`.
 - [ ] Confirmar que no es carrega cap `alumnes-*-sif.js` duplicat a Network/DevTools.
 - [ ] Confirmar cache-busting dels assets 1.1/1.7 en preproducció.
+
+### Evidència CI del PR #135
+
+El primer run del PR ha executat i aprovat `Uc007IntranetBoundaryTest`, `InvoiceQueryServiceTest`, `ResolvedInvoiceVisibilityPolicyTest`, `InternalApiAuthenticatorTest`, `InvoiceQueryScriptTest` i `DocumentsAndIncidentsTest`. La suite global continua vermella per 6 fallades alienes a UC-007 (PACK/Redsys), ja presents al `main` base. El nou `InvoiceDocumentAccessServiceTest` s'ha afegit després d'aquest run i queda pendent del següent resultat CI.
