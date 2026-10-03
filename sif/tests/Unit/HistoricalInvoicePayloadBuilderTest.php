@@ -161,6 +161,27 @@ final class HistoricalInvoicePayloadBuilderTest
         }, 422);
     }
 
+    public function testValidatesHistoricalExemptionReason(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'totals' => [
+                    'iva_regim' => 'GENERAL',
+                    'exemption_reason' => 'E1',
+                ],
+            ]));
+        }, 422);
+
+        Assert::throws(SifException::class, function (): void {
+            (new HistoricalInvoicePayloadBuilder())->build($this->input([
+                'totals' => [
+                    'iva_regim' => 'EXEMPT',
+                    'exemption_reason' => 'INVALID',
+                ],
+            ]));
+        }, 422);
+    }
+
     private function input(array $overrides = []): array
     {
         return array_replace_recursive([
