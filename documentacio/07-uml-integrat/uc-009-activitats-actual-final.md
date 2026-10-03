@@ -219,13 +219,16 @@ flowchart TD
     A[PROCESSING antic] --> B{Lock global del worker disponible}
     B -- No --> C[No recuperar]
     B -- Sí --> D[recoverStaleLocks]
-    D --> E[RETRY]
+    D --> E[REVIEW]
     E --> F[LOCKED_AT=NULL]
     F --> G[CLAIM_TOKEN=NULL]
-    G --> H[Nou claim obté token nou]
+    G --> H[NEXT_RETRY_AT=NULL]
+    H --> I[Incidència AEAT_STALE_PROCESSING]
+    I --> J[HEAD_REQUIRES_REVIEW]
+    J --> K[Cap segon SOAP automàtic]
 ```
 
-Un procés antic no pot completar amb el token anterior.
+Un procés antic no pot completar amb el token anterior i, des de la correcció 03/10, tampoc no es crea automàticament un nou intent de xarxa després de recuperar el lock. La sortida segura és `REVIEW`.
 
 ---
 
