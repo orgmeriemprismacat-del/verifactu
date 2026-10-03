@@ -324,7 +324,7 @@ class EconomicRightsRepository {
   +reserveOrConsume(...)
 }
 class RefundEvidenceGuard {
-  <<PROPOSAT>>
+  <<PROPOSAT GENÈRIC · patró UC-111 existent>>
   +assertConfirmedExternalRefund(...)
   +findExistingExternalOperation(...)
 }
@@ -402,6 +402,8 @@ Uc006DecisionService --> IncidentService : REVIEW/conflicte
 - diferencia retorn aprovat/pending de retorn bancari real;
 - correlaciona Redsys/transferència/operació externa;
 - evita duplicat manual d’un retorn ja conciliat.
+
+- pot generalitzar el patró existent de `NovicePromotionOriginRefundEvidenceSourceInterface` i l'estat `APPROVED_WAITING_REFUND`, sense acoblar-se al domini UC-111;
 
 ### `CreditOwnershipPolicy`
 - evita usar un saldo d’un titular en una factura incompatible sense regla explícita.
