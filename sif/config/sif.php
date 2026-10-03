@@ -31,6 +31,12 @@ return [
             explode(',', getenv('SIF_INVOICE_BEFORE_PAYMENT_WRITE_ROLES') ?: '')
         ))),
     ],
+    'payment_register' => [
+        'write_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_PAYMENT_REGISTER_WRITE_ROLES') ?: '')
+        ))),
+    ],
     'installment_payment' => [
         'write_roles' => array_values(array_filter(array_map(
             'trim',
@@ -59,6 +65,7 @@ return [
         'signed_path' => getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php',
         'invoice_before_payment_signed_path' => getenv('SIF_INTERNAL_UC004_SIGNED_PATH') ?: '/api/factures/before-payment.php',
         'installment_payment_signed_path' => getenv('SIF_INTERNAL_INSTALLMENT_SIGNED_PATH') ?: '/api/payments/installment.php',
+        'payment_register_signed_path' => getenv('SIF_INTERNAL_PAYMENT_REGISTER_SIGNED_PATH') ?: '/api/payments/register.php',
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
         'course_change_signed_path' => getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php',
         'aeat_operations_signed_path' => getenv('SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH') ?: '/api/aeat/operations.php',
