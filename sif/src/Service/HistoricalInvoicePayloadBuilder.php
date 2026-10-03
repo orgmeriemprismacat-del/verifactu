@@ -231,7 +231,32 @@ final class HistoricalInvoicePayloadBuilder
     {
         $relations = $this->optional($input, ['relations']);
         if (is_array($relations) && $relations !== []) {
+            foreach ($relations as $index => $relation) {
+                if (!is_array($relation)) {
+                    throw SifException::validation("Invalid historical invoice relation {$index}");
+                }
+
+                $sourceType = $this->requiredString(
+                    $relation,
+                    ['source_type'],
+                    "historical invoice relation {$index} source type"
+                );
+                $visible = $this->optionalInt($relation, ['visible_alumne']) ?? 0;
+                if (!in_array($visible, [0, 1], true)) {
+                    throw SifException::validation("Invalid historical invoice relation {$index} visibility");
+                }
+
+                $relations[$index]['source_type'] = $sourceType;
+                $relations[$index]['source_id'] = $this->optionalInt($relation, ['source_id']);
+                $relations[$index]['factura_relacionada'] = $this->optionalInt($relation, ['factura_relacionada']);
+                $relations[$index]['idpag'] = $this->optionalInt($relation, ['idpag']);
+                $relations[$index]['visible_alumne'] = $visible;
+            }
+
             return $relations;
+        }
+        if ($relations !== null && !is_array($relations)) {
+            throw SifException::validation('Invalid historical invoice relations');
         }
 
         return [[
