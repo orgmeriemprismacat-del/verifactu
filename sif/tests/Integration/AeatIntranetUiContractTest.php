@@ -34,7 +34,7 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString('comprovarSessio.php', $bridge);
         Assert::stringContainsString('hash_equals', $bridge);
         Assert::stringContainsString('SifInternalAeatClient', $bridge);
-        Assert::stringContainsString("if ($action === 'reconcile')", $bridge);
+        Assert::stringContainsString("if (\$action === 'reconcile')", $bridge);
         Assert::stringContainsString('Cache-Control: private, no-store', $bridge);
 
         Assert::stringContainsString("hash_hmac('sha256'", $client);
