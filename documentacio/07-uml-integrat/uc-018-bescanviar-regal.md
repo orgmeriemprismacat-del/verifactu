@@ -1,227 +1,263 @@
-# UC-18 · Bescanviar un regal — fitxa i UML integrats
+# UC-018 · Bescanviar regal — Fitxa/UML integrada
 
-**Finalitat documentada al catàleg:** el destinatari bescanvia un regal per una inscripció, **sense una factura nova per defecte**. UC-17 és la compra/factura/cobrament del regal; UC-18a tracta codis caducats, duplicats o disputats; UC-119 coordina el cicle complet del dret comercial.
+**Tall revalidat:** 2026-10-03  
+**Base:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`  
+**Estat:** `IMPLEMENTAT · CORE CI VERIFICAT 02/10 · PUBLIC EDGE PATCH 03/10 CI PENDENT · ENVIRONMENT GO PENDENT`
 
-**Estat de codi (auditat 2026-09-30):** existeix el circuit PHP de **compra UC-017** `RedsysGiftInvoiceService`, `LegacyGiftSnapshotRepository`, `LegacyGiftInvoicePayloadBuilder` i l'esquema `commercial_entitlement`/`commercial_entitlement_event`. També existeix ús específic d'entitlement a UC-111, però **continua sense existir un servei/repository/controller de bescanvi GIFT acreditat**, ni UI/JS, ni gateway d'inscripció, ni proves UC-018. **Tot el flux de bescanvi següent continua sent contracte FINAL, no codi executable.**
+## 1. Objectiu i frontera funcional
 
-## 1. Fitxa funcional del bescanvi
+UC-018 converteix un dret comercial `GIFT` ja pagat a UC-017 en una única inscripció del beneficiari, sense crear una segona factura ni un segon `CHARGE` pel valor ja ingressat.
 
-| Camp | Regla i responsabilitat |
-| --- | --- |
-| Actor | Persona destinatària del regal; operador autoritzat si el bescanvi requereix suport. Qui el compra, qui el rep i qui està inscrit **poden ser persones diferents**. |
-| Identitat del dret | Codi del regal validat de manera segura i vinculat a la compra original `REGAL`; el catàleg preveu el dret a `commercial_entitlement` amb `ENTITLEMENT_TYPE=GIFT`, `CODE_HASH`, `HOLDER_PARTY_KEY`, import o condició, regla/versionat i estat. |
-| Estat i concurrència | El dret pot ser `ISSUED`, `ACTIVE`, `RESERVED`, `CONSUMED`, `EXPIRED`, `CANCELLED`, `REVERSED` o `INCIDENT` segons el diccionari. El bescanvi ha de comprovar **estat real**, vigència, identitat i no-consum amb bloqueig/idempotència. |
-| Entrada de destinació | Inscripció o proposta de curs/edició i import de servei al qual s'aplicarà el dret. La disponibilitat, els descomptes compatibles i les condicions de substitució **no** es dedueixen del codi de compra del regal. |
-| Resultat administratiu | Inscripció de la persona beneficiària vinculada al dret comercial **consumit una sola vegada**, conservant el vincle a compra original i correlació de l'operació. |
-| Resultat fiscal | Per defecte el catàleg diu «inscripció vinculada sense factura nova». Canvi real de servei, import o receptor després de la compra exigeix classificació fiscal explícita (UC-74 i, segons decisió, UC-05/30/31); el simple bescanvi no és justificació automàtica d'una altra factura. |
-| Resultat econòmic | **No crear `payment_transaction CHARGE` pel valor d'un regal ja cobrat.** Si cal una diferència real, tramitar un cobrament addicional independent sobre factura/obligació que correspongui; si sobra valor, decidir tractament de dret/saldo sense retorn fictici. |
+L'abast base tancat és el **bescanvi a valor exacte**:
 
-### 1.1. Flux principal OBJECTIU, no implementat al SIF consultat
-
-1. El destinatari introdueix el codi en un canal segur; el servidor obté `CODE_HASH`, identifica el dret de regal **sense exposar-lo** en logs, URLs públiques o factures accessibles a tercers.
-2. Es consulta el dret actual amb bloqueig i s'identifiquen compra original, import/dret, beneficiari, curs/edició elegibles i data de caducitat. El servidor comprova que no sigui consumit, cancel·lat, vençut o assignat a una altra persona sense autorització.
-3. Es previsualitza la destinació i el resultat: inscripció i curs, valor del dret, part aplicada, diferència pendent/possible, efecte acadèmic i fiscal. **No** reconstrueix el preu de la compra original des de dades vives.
-4. El sistema reserva dret/plaça amb un identificador d'operació idempotent, crea o vincula inscripció i confirma consum **una sola vegada**. La migració preveu `commercial_entitlement.CONSUMED_UUID_OPERATION`/`CONSUMED_AT` i events `RESERVE`, `CONSUME` i `RELEASE`, però falta el writer i la coordinació amb la BD llegada.
-5. Conserva traça **`REGAL → INSCRIPCIÓ` per la part de valor utilitzada** en el model de fons/entitlement proposat, referenciada al pagament real de la compra UC-17. **És reassignació d'un dret o valor ja ingressat, no entrada de caixa nova.**
-6. Si hi ha import addicional pagat realment, l'operació econòmica es registra separadament després de confirmació del TPV/transferència; si hi ha valor no aplicat, cal decidir-ne vigència, saldo o devolució segons titularitat i condicions.
-7. Es deixa constància `commercial_entitlement_event` amb estat anterior/nou, acció, resultat, actor, correlació i operació; els errors parcials no han de deixar un dret `CONSUMED` sense inscripció reconciliable.
-
-### 1.2. Variants que s'han de provar abans de tancar-lo
-
-| Cas | Resposta objectiu |
-| --- | --- |
-| Codi desconegut, alterat o robat | No revelar si existeix ni exposar dades del comprador. Registrar intent denegat quan pertoqui. |
-| Codi ja `CONSUMED` | No permetre segona matrícula ni nova factura; si és el mateix reintent, retornar inscripció existent per idempotència. |
-| Codi `EXPIRED` | Derivar a UC-18a; cap reactivació automàtica del dret ni de preu. |
-| Destinatari diferent del titular del dret | Exigir legitimació o autorització; no transmetre dades del comprador per un codi sense verificació. |
-| Mateix dret, dues peticions concurrents | Un únic consum i una única inscripció resultant; si l'efecte acadèmic falla després de consumir, expedient de conciliació i no «consum doble». |
-| Curs de destí sense plaça | Alliberar `RESERVED` si la reserva no es materialitza i conservar traça; no consumir per una matrícula impossible. |
-| Bescanvi amb import inferior/superior | Classificar diferencial, persona titular i fiscalitat; no generar automàticament un `CHARGE` addicional ni lliurar saldo sense decisió. |
-| Regal ja cobrat amb pagament parcial o retorn previ | Consultar diners disponibles/estat de la compra abans de reservar tot el valor nominal del codi. |
-
-**Evidència i buit:** `LegacyGiftInvoicePayloadBuilder` registra `REGAL` a la factura de compra i no una inscripció de bescanvi. `commercial_entitlement` és **estructura de BD definida**. No s'han executat proves de bescanvi ni s'ha acreditat cap `GiftRedemptionService` al SIF.
-
-### 1.3. Alta acadèmica diferida i canvi de curs d'un regal — contrast amb el xat original
-
-**B-ALTA — moment d'identificació:** en el circuit declarat, el comprador paga i rep un codi; només quan la persona beneficiària el bescanvia completa les seves dades i es registra a `inscripcions`. El servidor ha de vincular el codi/dret de compra a la inscripció creada o confirmada, conservant comprador/receptor fiscal original i identificador de regal, sense crear una segona factura per la mera matrícula. L'operació de bescanvi no pot assumir que a UC-17 existia una inscripció definitiva o NIF fiscal del beneficiari.
-
-**B-CURS — regal que s'aplica a un altre curs:** el xat indica que, en el procediment de gestió habitual, un regal no utilitza la baixa ordinària per escollir un altre curs, sinó el **canvi de curs**. Aquest és un escenari per UC-26/71 amb l'entitlement de regal com a origen; cal comprovar elegibilitat, preu nou, diferència si n'hi ha i qui està autoritzat a decidir el canvi. **No** consumir dues vegades el codi ni registrar una nova entrada CHARGE pel preu ja pagat; si es cobra una diferència real, fer una operació de cobrament diferenciada i classificar l'event fiscal que correspongui. El xat no estableix una regla universal de retorn o caducitat de tots els regals: consultar condicions vigents i UC-18a.
-
-**B-CODI — col·lisió amb l'estat acadèmic:** un mateix codi vàlid no pot obrir dues inscripcions per un doble clic, recàrrega o petició concurrent. Una inscripció ja creada però consum pendent és un estat incomplet a reconciliar, no autorització per crear una segona inscripció. No usar el text de dedicatòria o el NIF del comprador com a identificadors únics del beneficiari. L'accés de la persona destinatària a la inscripció pròpia és separat de l'accés a la factura fiscal del comprador.
-
-### 1.4. Proves addicionals del bescanvi (no executades)
-
-| ID | Escenari | Resultat exigible |
-| --- | --- | --- |
-| BS-01 | Comprar un regal sense ID_INSC definitiu i bescanviar-lo després | Crear/vincular una única inscripció quan el beneficiari aporta les seves dades, sense nova factura. |
-| BS-02 | Doble clic de bescanvi del mateix codi | Reutilitzar mateixa inscripció/operació i cap segon consum. |
-| BS-03 | Regalar i canviar de curs després del bescanvi | Nou event de canvi amb dret original i diferència explícita si existeix; cap segon CHARGE pel valor ja cobrat. |
-| BS-04 | Codi reservat però falla alta de l'alumne | Incident/reconciliació o alliberament segur; cap inscripció duplicada. |
-| BS-05 | Beneficiari consulta factura original del comprador | Permís denegat si no és receptor autoritzat; visibilitat de la seva inscripció separat. |
-## 2. Diagrama UML de casos d'ús
-
-```plantuml
-@startuml
-left to right direction
-actor "Destinatari del regal" as R
-actor "Operador autoritzat" as O
-rectangle "SIF · bescanvi de regal [OBJECTIU]" {
- usecase "UC-18\nBescanviar regal" as Main
- usecase "Validar dret, titular i vigència" as Validate
- usecase "Reservar dret i plaça" as Reserve
- usecase "Crear o vincular inscripció" as Enroll
- usecase "Consumir dret i deixar event" as Consume
- usecase "UC-18a\nTractar caducat o duplicat" as Exception
-}
-R --> Main
-O --> Exception
-Main ..> Validate : <<include>>
-Main ..> Reserve : <<include>>
-Main ..> Enroll : <<include>>
-Main ..> Consume : <<include>>
-Exception ..> Main : <<extend>> (dret invàlid)
-@enduml
+```text
+1 compra pagada
+1 dret GIFT
+1 inscripció
+1 COMPENSATION_ALLOCATION
+1 consum
+0 CHARGE addicionals
+0 factures addicionals
+replay idempotent
 ```
 
-### Vista de casos d’ús per a GitHub (Mermaid)
+Les diferències de valor regal/curs continuen fail-closed fins a política explícita.
+
+## 2. Estat ACTUAL revalidat
+
+### 2.1. Navegador i legacy
+
+El flux real està format per:
+
+1. `pagina_bescanvia.php`;
+2. `mostrarBescanvia.min.js`;
+3. `mostrar_pagina_bescanvia.php`;
+4. `codiRegalValid.php`;
+5. `buscarCursRegalat.php`;
+6. `bescanviaUnCurs.php`;
+7. `inscripcioDuplicada.php`;
+8. `enviarInscripcioBescanvia.php`;
+9. `SifGiftRedemptionClient.php`;
+10. pàgina/JS/endpoint de confirmació.
+
+La revalidació del 03/10 ha corregit la frontera pública perquè codi regal i PII no viatgin en query string. Les quatre operacions sensibles són POST-only.
+
+### 2.2. SIF
+
+Existeixen i estan integrats:
+
+- `GiftEntitlementIssuerService`;
+- `CommercialEntitlementRepository`;
+- `GiftRedemptionTrustedContextResolver`;
+- `GiftEnrollmentStager`;
+- `GiftRedemptionService`;
+- `EnrollmentFundMovementRepository`;
+- `LegacyGiftUsageReconciler`;
+- `GiftRedemptionOrchestrator`;
+- `GiftRedemptionNotificationBundleService`;
+- `NotificationOutboxDeliveryService`;
+- endpoints interns redeem/notifications POST/HMAC.
+
+Per tant, les antigues etiquetes «DISSENY», «writer pendent» i «NO-GO perquè no existeix el flux executable» queden **SUPERADES**.
+
+## 3. Cas d'ús ACTUAL
 
 ```mermaid
 flowchart LR
-  actor_0["Destinatari del regal"]
-  actor_1["Operador autoritzat"]
-  subgraph SIF_BOX["SIF · bescanvi de regal [OBJECTIU]"]
-    uc_0(["UC-18<br/>Bescanviar regal"])
-    uc_1(["Validar dret, titular i vigència"])
-    uc_2(["Reservar dret i plaça"])
-    uc_3(["Crear o vincular inscripció"])
-    uc_4(["Consumir dret i deixar event"])
-    uc_5(["UC-18a<br/>Tractar caducat o duplicat"])
-  end
-  actor_0 --> uc_0
-  actor_1 --> uc_5
-  uc_0 -.->|include| uc_1
-  uc_0 -.->|include| uc_2
-  uc_0 -.->|include| uc_3
-  uc_0 -.->|include| uc_4
-  uc_5 -.->|extend| uc_0
+  B["Beneficiari"] --> UI["pagina_bescanvia + mostrarBescanvia.min.js"]
+  UI --> V["Validar codi<br/>POST"]
+  V --> C["Resoldre curs/modalitat<br/>POST"]
+  C --> F["Formulari inscripció"]
+  F --> D["Comprovar duplicada<br/>POST"]
+  D --> W["Writer legacy<br/>POST"]
+  W --> SIF["SIF redeem<br/>POST/HMAC"]
+  SIF --> R["Reconciliació + outbox"]
+  R --> M["Claim/SMTP/complete"]
+  M --> OK["Confirmació"]
 ```
 
-## 3. Classes — compra existent vs bescanvi proposat
+## 4. Classes/components ACTUAL
 
 ```mermaid
 classDiagram
 direction LR
-class RedsysGiftInvoiceService {
- <<PHP existent: UC-17 compra>>
- +issueFromIntentSnapshot(db,dsOrder,snapshot) array
+class BrowserGiftRedemption {
+  <<JS>>
+  +validateGift()
+  +chooseCourse()
+  +submitEnrollment()
 }
-class LegacyGiftInvoicePayloadBuilder {
- <<PHP existent: UC-17 compra>>
- +build(snapshot) array
+class LegacyGiftEndpoints {
+  <<PHP POST-only>>
+  +validate()
+  +lookupCourse()
+  +checkDuplicate()
+  +writeEnrollment()
 }
-class GiftRedemptionService {
- <<DISSENY: no identificat al PHP>>
- +preview(codeHash,actor,course) result
- +redeem(command) result
+class SifGiftRedemptionClient {
+  +redeemCommittedEnrollment()
+  +claimNotificationBundle()
+  +completeNotificationBundle()
 }
-class CommercialEntitlementRepository {
- <<DISSENY: taules SQL definides, writer no acreditat>>
- +lockByCodeHash(db,hash) entitlement
- +consume(db,uuidEntitlement,uuidOperation) result
- +appendEvent(db,event) result
-}
-class EnrollmentGateway {
- <<DISSENY: integració llegat pendent>>
- +createOrLinkEnrollment(command) result
-}
-class EnrollmentFundMovementRepository {
- <<PROPOSTA: no implementada>>
- +append(db,movement) result
-}
-RedsysGiftInvoiceService --> LegacyGiftInvoicePayloadBuilder : factura de compra
-GiftRedemptionService --> CommercialEntitlementRepository : dret i event
-GiftRedemptionService --> EnrollmentGateway : alta/vinculació
-GiftRedemptionService --> EnrollmentFundMovementRepository : aplicar valor del regal
+class GiftRedemptionOrchestrator
+class GiftRedemptionTrustedContextResolver
+class GiftEnrollmentStager
+class GiftRedemptionService
+class CommercialEntitlementRepository
+class EnrollmentFundMovementRepository
+class LegacyGiftUsageReconciler
+class GiftRedemptionNotificationBundleService
+class NotificationOutboxDeliveryService
+
+BrowserGiftRedemption --> LegacyGiftEndpoints
+LegacyGiftEndpoints --> SifGiftRedemptionClient
+SifGiftRedemptionClient --> GiftRedemptionOrchestrator
+GiftRedemptionOrchestrator --> GiftRedemptionTrustedContextResolver
+GiftRedemptionOrchestrator --> GiftEnrollmentStager
+GiftRedemptionOrchestrator --> GiftRedemptionService
+GiftRedemptionService --> CommercialEntitlementRepository
+GiftRedemptionService --> EnrollmentFundMovementRepository
+GiftRedemptionOrchestrator --> LegacyGiftUsageReconciler
+GiftRedemptionOrchestrator --> GiftRedemptionNotificationBundleService
+GiftRedemptionNotificationBundleService --> NotificationOutboxDeliveryService
 ```
 
-**No** es dibuixa una crida de compra a bescanvi: són operacions i moments diferents.
-
-## 4. Seqüència — dret vàlid i matrícula (OBJECTIU)
-
-```mermaid
-sequenceDiagram
-autonumber
-actor R as Destinatari
-participant UI as Canal de bescanvi [pendent]
-participant S as GiftRedemptionService [DISSENY]
-participant E as CommercialEntitlementRepository [DISSENY]
-participant A as Inscripcions llegades [integració pendent]
-participant L as Ledger de fons [PROPOSTA]
-R->>UI: Introduir codi i curs/edició
-UI->>S: preview(hash i actor)
-S->>E: Buscar dret de regal i compra original
-E-->>S: Estat, titular, condicions, valor i compra
-S-->>UI: Previsualització de destinació i diferència
-R->>UI: Confirmar amb idempotency_key
-UI->>S: redeem(command)
-S->>E: lockByCodeHash()
-alt EXPIRED, CONSUMED aliè o titular invàlid
- E-->>S: Dret no aplicable
- S-->>UI: UC-18a o rebuig sense crear inscripció
-else Dret vigent i disponible
- S->>E: Reservar dret i registrar RESERVE
- S->>A: Crear o vincular matrícula idempotent
- alt Alta acadèmica falla
-  A--xS: Error
-  S->>E: RELEASE o marcar incidència reconciliable
-  S-->>UI: Bescanvi no complet
- else Alta acadèmica confirmada
-  A-->>S: ID_INSC
-  S->>L: Registrar REGAL→ID_INSC amb origen de la compra
-  S->>E: consume() i appendEvent(CONSUME)
-  S-->>UI: Mateix dret consumit una vegada, ID_INSC
- end
-end
-Note over S,L: Cap CHARGE nou pel valor ja cobrat a UC-17
-```
-
-### 4.1. Seqüència — bescanvi i eventual canvi de curs (OBJECTIU)
+## 5. Seqüència ACTUAL — bescanvi nominal
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor B as Beneficiari
-participant U as Portal de bescanvi [pendent]
-participant E as Dret de regal [esquema, writer pendent]
-participant I as Intranet/inscripcions [adaptació pendent]
-participant C as Canvi de curs UC-26/71 [orquestració pendent]
-B->>U: Codi i dades pròpies d'inscripció
-U->>E: Validar i reservar dret de compra ja pagat
-E-->>U: Compra/regal vàlids, factura del comprador conservada
-U->>I: Crear o recuperar inscripció del beneficiari
-I-->>U: ID_INSC únic
-U->>E: Consum únic i enllaç REGAL→INSCRIPCIO
-U-->>B: Inscripció confirmada, sense nova factura/CHARGE
-opt Després es demana un altre curs
- B->>C: Sol·licitar canvi amb referència al regal
- C->>C: Analitzar curs/preu/diferència i impacte fiscal
- C-->>B: Resultat o regularització pendent, sense consum duplicat
+participant JS as mostrarBescanvia.min.js
+participant L as Legacy POST endpoints
+participant W as enviarInscripcioBescanvia.php
+participant C as SifGiftRedemptionClient
+participant O as GiftRedemptionOrchestrator
+participant S as SIF
+participant N as Notification outbox
+
+B->>JS: codi regal
+JS->>L: POST validar codi
+L-->>JS: vàlid / resposta neutra
+JS->>L: POST buscar curs
+L-->>JS: curs/modalitat
+B->>JS: dades + edició
+JS->>L: POST comprovar duplicada
+JS->>W: POST dades + codi
+W->>W: lock regal + FACT_REL > 0 + get-or-create ID_INSC
+W->>C: enrollment_id + gift_code
+C->>O: POST/HMAC redeem
+O->>S: context + CLAIM/RESERVE
+O->>S: COMPENSATION_ALLOCATION + CONSUME
+O->>S: compare-and-set regal.USAT
+O->>N: crear/reutilitzar 6 notificacions
+O-->>C: CONSUMED + bundle
+C-->>W: resultat
+loop cada notificació
+ W->>C: claim
+ W->>W: SMTP autoritzat
+ W->>C: complete SENT/FAILED
 end
-Note over U,C: Bescanvi i coordinació del canvi encara no són codi SIF acreditat.
+W-->>JS: ID_INSC opaca
+JS-->>B: /bescanvia/confirmacio/<id-opac>
 ```
-## 5. Traçabilitat
 
-[UC-18 original](../06-fitxes-funcionals/uc-018.md) · [UC-18a original](../06-fitxes-funcionals/uc-018a.md) · [UC-17 compra](uc-017-comprar-regal.md) · [UC-119 complet original](../06-fitxes-funcionals/uc-119.md) · [Diccionari d'estats de dret comercial](../05-governanca-operacio/24-diccionari-camps-i-valors.md) · [Migració entitlement i events](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql) · [LegacyGiftInvoicePayloadBuilder](../../sif/src/Service/LegacyGiftInvoicePayloadBuilder.php) · [Revisió de fons](00-revisio-moviments-inscripcions.md).
+## 6. Replay/recovery ACTUAL
 
+El replay vigent no fa early-return abans del SIF.
 
-## 6. Paquet d'auditoria 2026-09-30
+```mermaid
+sequenceDiagram
+participant W as Writer legacy
+participant C as Client SIF
+participant O as Orchestrator
+participant DB as SIF + legacy
+W->>DB: lock regal / recuperar mateixa ID_INSC
+W->>C: redeemCommittedEnrollment(ID_INSC,codi)
+C->>O: execute
+O->>DB: rellegir dret/operació
+DB-->>O: mateix destí ja CONSUMED
+O->>DB: reutilitzar allocation/reconciliació/outbox
+O-->>W: REUSED + notification bundle
+Note over W,DB: cap matrícula, CHARGE, factura o consum duplicats
+```
 
-Per evitar confondre disseny amb implementació, aquest UC queda desglossat en:
+Aquest comportament és necessari per recuperar una resposta perduda després del consum però abans de completar els correus.
 
+## 7. Concurrència ACTUAL
+
+```mermaid
+sequenceDiagram
+participant A as Procés A
+participant B as Procés B
+participant E as Entitlement
+participant DB as SIF
+A->>E: SELECT ... FOR UPDATE
+B->>E: SELECT ... FOR UPDATE
+A->>DB: CLAIM/RESERVE/ALLOCATION/CONSUME
+A-->>B: commit
+B->>E: rellegir
+alt mateix destí
+ B-->>B: REUSED
+else destí diferent
+ B-->>B: CONFLICT 409
+end
+```
+
+## 8. ACTUAL vs FINAL
+
+Per al flux base de valor exacte, ACTUAL i FINAL coincideixen en arquitectura. El FINAL pendent és operatiu/polític, no una classe de domini absent.
+
+| Aspecte | ACTUAL | FINAL |
+| --- | --- | --- |
+| Codi/PII navegador→legacy | POST en patch 03/10 | POST, sense secrets a URL |
+| Intern legacy→SIF | POST/HMAC | Igual |
+| Dret GIFT | Repository + events | Igual |
+| Aplicació econòmica | COMPENSATION_ALLOCATION | Igual |
+| Consum | Idempotent | Igual |
+| Replay | Reentra al SIF | Igual |
+| Correus | Outbox + claim/complete | Igual |
+| Diferències de preu | Fail-closed | Política específica futura |
+| Preproducció | Scripts implementats | Execució real + evidència |
+
+## 9. Seguretat revalidada
+
+- El navegador ja no posa `codiRegal` ni DNI a les URLs UC-018 sensibles.
+- Els endpoints de validació, lookup, duplicat i writer són POST-only.
+- El lookup de curs revalida server-side la bescanviabilitat.
+- El writer bloqueja `FACT_REL <= 0` abans de materialitzar la inscripció.
+- La resposta pública de codi invàlid/no disponible és neutra.
+- El client servidor→SIF continua amb POST/HMAC, HTTPS i anti-replay.
+- Holder i snapshot econòmic es resolen dins del SIF.
+- Els correus només s'autoritzen després del redeem/reconciliació.
+
+## 10. Proves
+
+La base anterior va acreditar al PR #115:
+
+- 858 passed / 0 failed;
+- 49 PASS GIFT/UC-018;
+- E2E, concurrència, recovery, notificacions i boundaries SIF.
+
+La revalidació 03/10 amplia `GiftRedemptionWebClientBoundaryTest` per cobrir la frontera navegador→legacy i el bundle real de la pàgina. **El CI d'aquest patch és pendent fins que el PR nou l'acrediti.**
+
+## 11. Traçabilitat
+
+- [Fitxa funcional](../06-fitxes-funcionals/uc-018.md)
 - [Classes ACTUAL/FINAL](uc-018-classes-actual-final.md)
 - [Seqüències ACTUAL/FINAL](uc-018-sequencies-actual-final.md)
-- [Activitats ACTUAL/FINAL per superfície](uc-018-activitats-pagines-bescanvi-regal-actual-final.md)
+- [Activitats per pàgina](uc-018-activitats-pagines-bescanvi-regal-actual-final.md)
 - [Auditoria detallada](04-auditoria-detallada-uc-018-bescanviar-regal-2026-09-30.md)
-- [Proves pendents](05-proves-pendents-uc-018-implementacio.md)
+- [Matriu de proves](05-proves-pendents-uc-018-implementacio.md)
+- [Tancament 02/10](10-tancament-auditoria-uc-018-2026-10-02.md)
+- [Revalidació 03/10](11-revalidacio-auditoria-uc-018-2026-10-03.md)
+- [Inventari PHP/JS 03/10](12-inventari-codi-php-js-uc-018-2026-10-03.md)
 
-**Estat:** documentació específica revisada; implementació UC-018 = **NO-GO** fins que existeixi el flux executable de bescanvi i les proves associades.
+## 12. Estat
+
+```text
+DOCUMENTAT: SÍ, re-reconciliat 03/10
+IMPLEMENTAT: SÍ per al flux base de valor exacte
+VERIFICAT: nucli/SIF SÍ (02/10); patch frontera pública CI PENDENT
+PENDENT: CI del patch + preproducció real + variants POLICY
+```
