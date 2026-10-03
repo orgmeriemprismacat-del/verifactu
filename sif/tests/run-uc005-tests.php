@@ -32,6 +32,7 @@ $files = [
     __DIR__ . '/Unit/ManualRectificationPayloadBuilderTest.php',
     __DIR__ . '/Unit/FiscalCorrectionDecisionGuardTest.php',
     __DIR__ . '/Unit/InternalRectificationScopeResolverTest.php',
+    __DIR__ . '/Unit/AeatRectificationProtocolTest.php',
 ];
 
 foreach ($files as $file) {
@@ -51,6 +52,7 @@ $classes = [
     \Prisma\Sif\Tests\Unit\ManualRectificationPayloadBuilderTest::class,
     \Prisma\Sif\Tests\Unit\FiscalCorrectionDecisionGuardTest::class,
     \Prisma\Sif\Tests\Unit\InternalRectificationScopeResolverTest::class,
+    \Prisma\Sif\Tests\Unit\AeatRectificationProtocolTest::class,
 ];
 
 $passed = 0;
