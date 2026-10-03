@@ -51,7 +51,6 @@ final class SifDeclarationRepository
             'document_hash' => $documentHash,
             'storage_key' => $storageKey,
             'approved_by' => $approvedBy,
-            'approved_at' => $approvedAt,
         ];
 
         $existing = $this->findByIdempotencyKey($db, $idempotencyKey);
