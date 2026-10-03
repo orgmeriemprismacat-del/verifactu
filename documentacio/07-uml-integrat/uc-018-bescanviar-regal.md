@@ -228,6 +228,8 @@ Per al flux base de valor exacte, ACTUAL i FINAL coincideixen en arquitectura. E
 - El writer bloqueja `FACT_REL <= 0` abans de materialitzar la inscripció.
 - La resposta pública de codi invàlid/no disponible és neutra.
 - Validació i lookup legacy comparen el codi amb `CODI = ?`, no amb `LIKE`, per impedir comodins.
+- L'origen UC-017 genera els nous codis bearer amb CSPRNG (`random_int`) i manté 10 caràcters compatibles amb UC-018.
+- No s'ha localitzat un rate-limit específic al repo; és un gate [ENV/SECURITY] a acreditar a WAF/web server o implementar abans del GO públic.
 - El client servidor→SIF continua amb POST/HMAC, HTTPS i anti-replay.
 - Holder i snapshot econòmic es resolen dins del SIF.
 - Els correus només s'autoritzen després del redeem/reconciliació.
