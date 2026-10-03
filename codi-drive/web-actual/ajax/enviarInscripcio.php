@@ -13,7 +13,8 @@ include("../MailSMTPComvive.php");
 include("../MailSMTPFile.php");
 
 try {
-	$tipusCurs = $_GET['tipusCurs'];
+	// UC-020: el tipus de curs és autoritat del servidor, no del navegador.
+	$tipusCursClient = (string) ($_GET['tipusCurs'] ?? '');
 	$textNom = new Text($_GET['nom']);
 	$textCog = new Text($_GET['cog']);
 	$textDocumentacio = new Text($_GET['dni']);
@@ -110,13 +111,14 @@ try {
 	$templates = new Template();
 
 	/* ######################################################################### */
-	$cnsINFO = "SELECT TITOL FROM informacio WHERE CODI_CURS=? AND ESTAT=1";
+	$cnsINFO = "SELECT TITOL, TIPUS_CURS FROM informacio WHERE CODI_CURS=? AND ESTAT=1";
 	$stmt=$connexio->prepare($cnsINFO);
 	$stmt->bind_param("s", $codiCurs);
 	$codiCurs = $textCodiCurs->obtenirText();
 	$stmt->execute();
-	$stmt->bind_result($titol);
+	$stmt->bind_result($titol, $tipusCursServidor);
 	$stmt->fetch();
+	$tipusCurs = (string) $tipusCursServidor;
 	$connexio->closeStmt();
 
 	$textTitolCurs = new Text($titol);
