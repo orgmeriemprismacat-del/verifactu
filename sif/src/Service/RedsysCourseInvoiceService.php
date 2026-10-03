@@ -3,6 +3,7 @@
 namespace Prisma\Sif\Service;
 
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 
@@ -19,7 +20,8 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         private ?NovicePromotionCodePreparationService $noviceCodes = null,
         private string $noviceWrappingKeyHex = '',
         private string $noviceKeyVersion = 'v1',
-        private ?CourseEnrollmentFundAllocationService $fundAllocations = null
+        private ?CourseEnrollmentFundAllocationService $fundAllocations = null,
+        private ?InvoiceBeforePaymentCoverageRepository $beforePaymentCoverage = null
     ) {
     }
 
@@ -32,6 +34,7 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
     {
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
+        $this->assertNotClaimedByInvoiceBeforePayment($sifDb, $payload);
 
         $invoice = $this->invoices->issueInvoice($payload);
 
@@ -56,6 +59,7 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
 
         $basePayload = $this->legacyPayloads->build($snapshot);
         $payload = $this->redsysPayloads->buildFromValidatedNotification($sifDb, $dsOrder, $basePayload);
+        $this->assertNotClaimedByInvoiceBeforePayment($sifDb, $payload);
         $result = $this->invoices->issueInvoice($payload);
         $result = $this->afterCommittedCourseInvoice($sifDb, $dsOrder, $snapshot, $result);
         $result['legacy_sync'] = [
@@ -64,6 +68,34 @@ final class RedsysCourseInvoiceService implements RedsysIntentHandler
         ];
 
         return $result;
+    }
+
+    private function assertNotClaimedByInvoiceBeforePayment(\PDO $sifDb, array $payload): void
+    {
+        if ($this->beforePaymentCoverage === null) {
+            return;
+        }
+
+        $relations = $payload['relations'] ?? [];
+        if (!is_array($relations) || $relations === []) {
+            return;
+        }
+
+        $claims = $this->beforePaymentCoverage->findClaims($sifDb, $relations);
+        if ($claims === []) {
+            return;
+        }
+
+        $sourceIds = array_values(array_unique(array_map(
+            static fn (array $claim): int => (int) ($claim['SOURCE_ID'] ?? 0),
+            $claims
+        )));
+        $sourceIds = array_values(array_filter($sourceIds, static fn (int $id): bool => $id > 0));
+
+        throw SifException::conflict(
+            'Redsys course callback conflicts with an existing invoice-before-payment coverage'
+            . ($sourceIds === [] ? '' : ' for INSCRIPCIO ' . implode(',', $sourceIds))
+        );
     }
 
     /**
