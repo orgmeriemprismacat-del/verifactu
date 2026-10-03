@@ -8,9 +8,11 @@
 - [CI] validació del codi via POST body.
 - [CI] lookup del curs via POST body.
 - [CI] comprovació de duplicat via POST body; DNI fora de query string.
+- [CI] comprovació de curs ja realitzat via POST body; DNI fora de query string, inclòs el possible segon lookup de curs derivat.
+- [CI] consulta d'estat de mailing via POST body; correu fora de query string.
 - [CI] writer final via POST body; codi regal i PII fora de query string.
-- [CI] els tres endpoints exclusius UC-018 rebutgen mètodes diferents de POST; `inscripcioDuplicada.php` és compartit, conserva compatibilitat legacy i UC-018 el crida per POST.
-- [CI] validació, lookup i writer UC-018 no usen `$_GET`; el duplicat compartit pot llegir GET per compatibilitat d'altres casos, però UC-018 no envia el DNI per URL.
+- [CI] els tres endpoints exclusius UC-018 rebutgen mètodes diferents de POST; `inscripcioDuplicada.php`, `buscarSiHaRealitzatElCurs.php` i `enviamentPubli.php` són compartits, conserven compatibilitat legacy i UC-018 els crida per POST.
+- [CI] validació, lookup i writer UC-018 no usen `$_GET`; els tres endpoints compartits poden llegir GET per compatibilitat d'altres casos, però UC-018 no envia DNI/correu per URL.
 - [CI] resposta pública neutra per codi no bescanviable.
 - [CI] validació/lookup fan match exacte del codi; cap `WHERE CODI LIKE ?`.
 - [CI] generació de nous codis regal amb CSPRNG i longitud compatible de 10 caràcters.
@@ -18,7 +20,7 @@
 - [CI] lookup del curs revalida server-side la bescanviabilitat.
 - [CI] writer bloqueja `FACT_REL <= 0` abans de materialitzar/reutilitzar la matrícula.
 
-Cobertura: `GiftRedemptionWebClientBoundaryTest` ampliat el 03/10.
+Cobertura: `GiftRedemptionWebClientBoundaryTest` ampliat el 03/10 amb absència de `?doc=`, `&doc=`, `?mail=` i `&mail=` i comprovació POST de totes les invocacions sensibles.
 
 ## 2. Servei de domini
 
@@ -29,6 +31,11 @@ Cobertura: `GiftRedemptionWebClientBoundaryTest` ampliat el 03/10.
 - [x] holder no autoritzat rebutjat.
 - [x] origen pagat/reconciliat obligatori.
 - [x] caller no pot declarar holder ni snapshot econòmic.
+- [CI] regal concret: `CCURS` alfanumèric ha de coincidir amb `inscripcions.CURS`.
+- [CI] regal genèric: `CCURS` numèric s'interpreta com N hores i exigeix `curs.HORES=N` per `CURS+ANY+MES`.
+- [CI] categoria d'hores diferent/absent/ambigua falla tancat abans de consumir el dret.
+
+Cobertura: `GiftRedemptionTrustedContextResolverTest` i `GiftEnrollmentStagerTest` amb casos match/mismatch.
 
 ## 3. Persistència, idempotència i concurrència
 
@@ -82,7 +89,8 @@ Cobertura: `GiftRedemptionWebClientBoundaryTest` ampliat el 03/10.
 - [x] concurrència multiprocés.
 - [x] recovery després de resposta perduda.
 - [x] recovery d'outbox després de saga consumida.
-- [CI] boundary navegador→legacy afegit 03/10.
+- [CI] boundary navegador→legacy ampliat 03/10.
+- [CI] regressió modalitat «qualsevol curs de N hores» afegida 03/10.
 - [ENV] preflight real amb configuració de preproducció.
 - [ENV] `verify-gift-redemption-preproduction.php --execute` amb regal controlat.
 - [ENV] evidència operativa de les dues BD i SMTP desplegat.
@@ -97,14 +105,15 @@ PR #115 / snapshot `7ba6cf0f982960a1164561e0d624b1f9e729af73`:
 - `UC-111 integration verification` run `37051232657`: SUCCESS.
 - `UC-004 SIF secure flow checks` run `37051232695`: SUCCESS.
 
-Aquesta evidència continua sent vàlida per al nucli no modificat, però **no acredita per si sola el patch navegador→legacy del 03/10**.
+Aquesta evidència continua sent vàlida per al nucli no modificat, però **no acredita per si sola els patches navegador→legacy i `CCURS` numèric del 03/10**. En un head intermedi del PR #127, la suite va arribar a 919 PASS / 6 FAIL; les 6 fallades observades corresponien a PACK/UC-015 i Redsys, no als tests GIFT/UC-018. Cal el CI del head actual.
 
 ## 10. Criteri de re-tancament 03/10
 
 Per tornar a `AUDIT_CLOSED + CODE_COMPLETE + CI_GREEN`:
 
-1. CI del patch de revalidació en verd;
-2. prova boundary pública inclosa en el run;
-3. cap regressió al nucli GIFT/SIF.
+1. CI del head de revalidació en verd per a UC-018;
+2. prova boundary pública i proves de `CCURS` genèric incloses en el run;
+3. cap regressió al nucli GIFT/SIF;
+4. qualsevol fallada aliena a UC-018 queda identificada i separada abans del merge.
 
 Els punts `[ENV]` són gates de desplegament. Els `[POLICY]` no bloquegen el flux base de valor exacte.
