@@ -24,7 +24,7 @@
 - Persistència d'intents: `sif/src/Repository/AeatSubmissionAttemptRepository.php`.
 - Fencing de cua: `fiscal_queue.CLAIM_TOKEN`.
 
-## 3. Evidència automàtica
+## 3. Evidència automàtica històrica del tall 2026-09-30
 
 Resultat CI verificat abans del merge:
 - `SIF PHP MySQL tests`: PASS.
@@ -70,3 +70,26 @@ A partir d'aquest punt, qualsevol feina de codi del UC-009 només s'ha de reobri
 4. apareix un requisit funcional nou.
 
 La resta de passos són de desplegament, configuració i evidència d'entorn.
+
+
+## 7. Revalidació posterior — 2026-10-03
+
+Aquesta secció **no altera** l'evidència històrica anterior; documenta que el repositori ha evolucionat.
+
+Tall revalidat: `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`.
+
+Workflow `SIF PHP MySQL tests`, run `37061206441` del 2026-10-02:
+
+- resultat global: **917 passed / 6 failed**;
+- els tests UC-009/AEAT visibles al log passen;
+- les 6 fallades són de PACK/Redsys, no del worker/panell/reconciliació AEAT.
+
+Per tant:
+
+1. el **558/0** d'aquest document continua sent evidència correcta del tall 30/09;
+2. no s'ha d'utilitzar per afirmar que la suite global del `main` actual és verda;
+3. el UC-009 continua tenint evidència automàtica específica favorable dins el run actual;
+4. la branca `audit/uc-009-revalidacio-2026-10-03` amplia cobertura amb contracte del panell, lint/path de CI, preflight de menú i validació UUID estricta;
+5. la nova cobertura queda pendent del resultat CI de la branca/PR.
+
+No hi ha encara evidència versionada d'un enviament real al servei AEAT de preproducció.
