@@ -1,4 +1,10 @@
 <?php
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+	http_response_code(405);
+	header('Allow: POST');
+	exit;
+}
 include("../ConnexioBBDD_PreparedStatment.php");
 include('../Text.php');
 include('../Url.php');
@@ -7,8 +13,8 @@ include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
 
 try {
-	$codiRegal = $_GET['codiRegal'];
-	$dispositiu = $_GET['dispositiu'];
+	$codiRegal = $_POST['codiRegal'];
+	$dispositiu = $_POST['dispositiu'];
 
 	$bescanvia = new BescanviaRegal($dispositiu);
 	$mostrar = $bescanvia->buscarCursRegalat($codiRegal);
