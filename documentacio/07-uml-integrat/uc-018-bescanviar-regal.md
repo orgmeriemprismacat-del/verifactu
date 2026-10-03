@@ -227,6 +227,7 @@ Per al flux base de valor exacte, ACTUAL i FINAL coincideixen en arquitectura. E
 - El lookup de curs revalida server-side la bescanviabilitat.
 - El writer bloqueja `FACT_REL <= 0` abans de materialitzar la inscripció.
 - La resposta pública de codi invàlid/no disponible és neutra.
+- Validació i lookup legacy comparen el codi amb `CODI = ?`, no amb `LIKE`, per impedir comodins.
 - El client servidor→SIF continua amb POST/HMAC, HTTPS i anti-replay.
 - Holder i snapshot econòmic es resolen dins del SIF.
 - Els correus només s'autoritzen després del redeem/reconciliació.
