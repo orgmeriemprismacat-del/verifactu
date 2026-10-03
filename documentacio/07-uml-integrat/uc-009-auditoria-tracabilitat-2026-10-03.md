@@ -141,6 +141,7 @@ Això implica:
 | GAP09-14 | pipeline global main vermell per 6 errors aliens | release | resoldre/baseline abans de considerar release global verd |
 | GAP09-15 | UI/AJAX/assets hardcodejats a `intranet.prisma.cat` | preproducció | canviats a rutes relatives same-origin + test de contracte |
 | GAP09-16 | `recoverStaleLocks()` feia `PROCESSING → RETRY` i podia provocar segon SOAP després d'una caiguda | fiscal/crític | canviat a `REVIEW` + incidència idempotent + cap retry automàtic |
+| GAP09-17 | resultat remot terminal podia acabar en `RETRY` si fallava/era invàlid el flow wait | fiscal/crític | `FlowControlledTransport` preserva resultat terminal, fallback 60 s + `requires_review` |
 
 ## 7. Traçabilitat requisit → implementació → prova
 
