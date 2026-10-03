@@ -122,3 +122,8 @@ Això permet demostrar exactament quins tres fitxers van ser validats sense inco
 - gate final de tres evidències: **implementat**;
 - execució amb usuari gestor real de preproducció: **pendent d'entorn**;
 - `uc-008-manager-e2e-evidence.json`: **pendent de generar a preproducció**.
+
+
+## 8. Runbook operatiu
+
+Per a l'execució real, seguir [10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md). El flux gestor s'ha de fer des de `intranet-pre.prisma.cat` i el panell ha d'obrir `pay-pre.prisma.cat`; no s'accepta evidència generada contra producció.
