@@ -250,6 +250,36 @@ JS->>JS: loadDetail(N)
 Note over JS: no executa reconcile automàticament
 ```
 
+## 8.1. SQ09-09 · Recuperar un `PROCESSING` caducat
+
+### ACTUAL corregit / FINAL
+
+```mermaid
+sequenceDiagram
+autonumber
+participant W as SerialWorker
+participant P as FiscalQueueProcessor
+participant Q as FiscalQueueRepository
+participant I as IncidentRepository
+participant DB as BD SIF
+participant T as AeatTransport
+
+W->>P: recoverStaleLocks(900)
+P->>DB: SELECT stale PROCESSING FOR UPDATE
+DB-->>P: queue_id + UUID_FACTURA
+P->>Q: recoverStaleLocks()
+Q->>DB: PROCESSING -> REVIEW
+Q->>DB: LOCKED_AT=NULL, CLAIM_TOKEN=NULL, NEXT_RETRY_AT=NULL
+P->>I: openDetailed(AEAT_STALE_PROCESSING)
+I->>DB: INSERT/REUSE incidència idempotent
+W->>DB: llegir head
+DB-->>W: STATUS=REVIEW
+W-->>W: HEAD_REQUIRES_REVIEW
+Note over W,T: AeatTransport NO és invocat
+```
+
+**Invariant de seguretat:** un timeout de lock local no és evidència que AEAT no hagi rebut el SOAP. La recuperació només allibera ownership local; qualsevol nou enviament exigeix revisió/conciliació explícita.
+
 ## 9. Matriu de verificació
 
 | Seqüència | Codi localitzat | Prova existent abans | Cobertura afegida 03/10 |
@@ -262,6 +292,7 @@ Note over JS: no executa reconcile automàticament
 | SQ09-06 | sí | sí | — |
 | SQ09-07 | sí | `AeatReviewReconciliationServiceTest` | UUID estricte + contracte UI |
 | SQ09-08 | sí | `IncidentPanelUiContractTest` | contracte UI UC-009 |
+| SQ09-09 | sí | tests stale de `FiscalQueueProcessorTest` i `AeatWorkflowTest` | `PROCESSING → REVIEW`, cap transport |
 
 ## 10. Estat
 
