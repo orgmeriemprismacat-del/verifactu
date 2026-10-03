@@ -19,6 +19,10 @@
 | `sif/src/Repository/OperationalEventRepository.php` | Event funcional append-only de l’emissió/reús. | Integrat UC-001 |
 | `sif/src/Repository/SifAuditEventRepository.php` | Auditoria tècnica `request_id/correlation_id`, actor, resultat i hash de sortida. | Nou |
 | `sif/src/Repository/OperationLineInvoiceLinkRepository.php` | Writer idempotent `commercial_operation_line -> factura_linia` quan el payload aporta `uuid_operation_line`. | Nou |
+| `sif/src/Repository/CommercialOperationRepository.php` | Lookup d'operació, resolució per `UUID_INTENT` i `linkInvoice()` transaccional/idempotent cap a `UUID_FACTURA`. | Endurit UC-001 |
+| `sif/src/Service/PrismaStudentCourseCheckoutService.php` | En Alumne PrisMa crea/reutilitza operació, participant, validació, `commercial_operation_line` trusted i intent Redsys; congela `operation.uuid`/`line_uuid`. | Integrat UC-001/UC-020 |
+| `sif/src/Service/LegacyCourseInvoicePayloadBuilder.php` | Propaga opcionalment `operation.uuid` i `operation.line_uuid` del snapshot trusted a `uuid_operation`/`uuid_operation_line`. | Endurit UC-001 |
+| `sif/src/Service/RedsysInvoicePayloadBuilder.php` | Des de callback validat resol server-side `DS_ORDER → UUID_INTENT → UUID_OPERATION`; legacy sense operació continua compatible. | Endurit UC-001 |
 
 ## 2. Vies especialitzades que reutilitzen UC-001
 
@@ -41,15 +45,16 @@
 ## 4. FINAL encara absent o incomplet
 
 - guard general de cobertura comercial entre claus diferents;
-- propagació obligatòria de `uuid_operation_line` des de tots els builders i coverage guard comercial general;
+- extensió de `commercial_operation`/`commercial_operation_line` a pack, grup, regal, USOC, manual i altres descomptes; el flux Alumne PrisMa ja està materialitzat end-to-end;
+- coverage guard comercial general per callers que encara no creen una operació autoritativa;
 - assembler servidor del snapshot AEAT complet.
 
 ## 5. Reconciliació amb `main` i execució — 2026-10-03
 
-- `main`: `b0e8ff7150c5a8b415cc109d298d82f0db1f68df`; head de codi després de HARD-017: `276fb390cd3f4ac7157f831bb544a60e6330d157`.
-- Compare: **150 ahead / 44 behind**, merge-base `549d7ef9280df3cd5249340e3785a4bf23a14b78`.
-- Solapament directe entre canvis de main i paquet UC-001: `sif/config/sif.php` i `documentacio/07-uml-integrat/README.md`. També s’han inspeccionat canvis adjacents de pack/Redsys perquè són callers.
-- La suite del head `88e5c922…` acredita PASS específic UC-001 (960/6 global). Després de HARD-017, el head de codi `276fb390…` executa també la prova nova amb **PASS** i queda **961/6 global**, amb les mateixes cinc fallades pack/UC-015 i una de signatura Redsys.
+- PR canònica: **#145**, branca `audit/uc-001-reconciled-2026-10-03`, recreada directament des del `main` vigent del tall `b0e8ff7150c5a8b415cc109d298d82f0db1f68df`; l'antiga #114 queda supersedida i tancada sense merge.
+- Reconciliació comprovada: **behind 0**; dels 132 fitxers canviats a `main` des del merge-base antic, només `sif/config/sif.php` i `documentacio/07-uml-integrat/README.md` solapaven amb els 30 fitxers inicials UC-001, i tots dos es van fusionar manualment.
+- Evidència històrica: el head `88e5c922…` acreditava PASS específic UC-001; HARD-017 passava a `276fb390…` i la suite quedava 961 pass / 6 fail amb fallades alienes a UC-001.
+- Evidència nova pendent d'execució: #145 incorpora `linkInvoice`, resolució operació per intent, persistència de `commercial_operation_line` per Alumne PrisMa i prova end-to-end. GitHub Actions estava saturat amb 541 runs en cua; no es declara PASS del head actual fins que finalitzi.
 
 ## 6. Observacions de superfície
 
