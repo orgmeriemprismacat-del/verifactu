@@ -1,10 +1,10 @@
 # UC-020 — Matriu canònica de proves AP-01…AP-84
 
-**Data de consolidació:** 30/09/2026  
+**Data de consolidació:** 03/10/2026  
 **Abast:** UC-020 · Aplicar Alumne PrisMa, incloses dependències directes amb UC-116, canvi de curs, pagament i construcció fiscal.  
 **Estat:** pla de proves. Cap cas passa a VERIFICAT sense execució registrada sobre commit/entorn concret.
 
-> AP-01…AP-48 consoliden els escenaris recuperats de les diferents passades de l'auditoria. AP-49…AP-84 corresponen a la consolidació posterior ja registrada a l'auditoria UC-020. Quan un punt depèn d'una decisió de negoci encara no ratificada, el resultat esperat és «aplicar la política aprovada» i no s'inventa la decisió.
+> AP-01…AP-48 consoliden els escenaris recuperats de les diferents passades de l'auditoria. AP-49…AP-84 corresponen a la consolidació posterior. Les decisions UC20-DEC-001…006 estan tancades des del 02/10/2026; per això els antics `PENDENT_NEGOCI` es reclassifiquen com a cobertura de test o pendent d'execució/migració.
 
 ## Llegenda
 
@@ -13,7 +13,7 @@
 - **E2E**: recorregut transversal.
 - **SEC**: seguretat/autorització.
 - **CONC**: concurrència/idempotència.
-- **PENDENT_NEGOCI**: el test es pot preparar, però l'assert final depèn d'una decisió funcional ratificada.
+- **PENDENT_NEGOCI**: etiqueta històrica; no s'ha de mantenir per UC20-DEC-001…006 després del 02/10/2026.
 - **PENDENT_EXECUCIO**: especificat però no executat/acreditat.
 
 ## AP-01…AP-16 · elegibilitat, preu i integritat bàsica
@@ -22,16 +22,16 @@
 | --- | --- | --- | --- | --- |
 | AP-01 | INT | Persona sense cap historial admissible. | No aplicar Alumne PrisMa; conservar tarifa ordinària o altra oferta vàlida. | PENDENT_EXECUCIO |
 | AP-02 | INT | Existeix una inscripció anterior pagada i una tarifa AP vigent. | Aplicar la tarifa AP definida per la política aprovada i conservar-ne origen/regla. | PENDENT_EXECUCIO |
-| AP-03 | INT | L'únic antecedent té un pagament parcial. | Aplicar la decisió explícita de negoci sobre si un parcial acredita el dret; no assumir-ho per inferència. | PENDENT_NEGOCI |
-| AP-04 | INT | L'únic antecedent és un curs regal. | Aplicar la política aprovada sobre cursos regal i conservar l'evidència mínima de la decisió. | PENDENT_NEGOCI |
+| AP-03 | INT | L'únic antecedent té un pagament parcial positiu. | És elegible sota `ALUMNE_PRISMA_WEB_LEGACY_V2` perquè `A_PAGAR>0 && PAGAMENT>0`. | COBERT_UNIT_POLICY |
+| AP-04 | INT | L'únic antecedent és un curs regal. | És elegible i conserva motiu/evidència `GIFT_COURSE`. | COBERT_UNIT_POLICY |
 | AP-05 | INT | L'historial disponible està en estat exclòs `INSC CURS=D/M`. | No usar aquests registres com a antecedent AP en coherència amb l'ACTUAL reconstruït. | PENDENT_EXECUCIO |
 | AP-06 | INT | Historial admès + `TIPUS=1` vigent per curs/edició. | Retornar preu AP exacte i origen `ALUMNE_PRISMA`. | PENDENT_EXECUCIO |
 | AP-07 | INT | Cap registre de l'historial compleix les condicions. | No seleccionar `TIPUS=1`. | PENDENT_EXECUCIO |
-| AP-08 | INT | Antecedent amb `A_PAGAR>0` i `PAGAMENT>0` però no totalment cobrat. | Exercitar explícitament la branca SQL i comparar-la amb la política ratificada. | PENDENT_NEGOCI |
-| AP-09 | INT | Antecedent de curs regal i variant de factura relacionada sense pagament. | Curs regal segons política; factura relacionada només si es ratifica i es corregeix la semàntica de NULL. | PENDENT_NEGOCI |
+| AP-08 | INT | Antecedent amb `A_PAGAR>0` i `PAGAMENT>0` però no totalment cobrat. | És elegible segons la rule v2 de compatibilitat. | COBERT_UNIT_POLICY |
+| AP-09 | INT | Antecedent de curs regal i variant de factura relacionada sense pagament. | Curs regal acredita; factura només emesa/no cobrada no acredita. | COBERT_UNIT_POLICY_PER_BRANCH |
 | AP-10 | INT | Historial amb registres D/M i registres normals. | Només els antecedents admissibles poden justificar AP. | PENDENT_EXECUCIO |
 | AP-11 | INT | Persona elegible però no existeix cap tarifa AP aplicable. | Estat `ELIGIBLE_NO_PRICE`/incidència equivalent; cap import nul o inventat pagable. | PENDENT_EXECUCIO |
-| AP-12 | INT | Coincideixen AP i un altre descompte candidat. | Aplicar prioritat/compatibilitat versionada; mai acumular per efecte col·lateral del client. | PENDENT_NEGOCI |
+| AP-12 | INT | Coincideixen AP i promoció. | AP + promoció falla tancat en l'alta AP; no s'acumulen silenciosament. | COBERT_PARCIALMENT_TEST_FRONTERA |
 | AP-13 | SEC | El client manipula `tipusDescompte` o `preuDescompte`. | El servidor rebutja/recalcula; els valors del navegador no són autoritat. | PENDENT_EXECUCIO |
 | AP-14 | CONC | La tarifa canvia entre previsualització i confirmació. | Confirmar només una oferta servidor vigent o retornar conflicte; no acceptar TOCTOU silenciós. | PENDENT_EXECUCIO |
 | AP-15 | E2E | Oferta AP → cobrament → línia fiscal. | Base − descompte = net; import cobrat i línia fiscal són coherents amb el snapshot congelat. | PENDENT_EXECUCIO |
@@ -45,7 +45,7 @@
 | AP-18 | INT | Persona elegible però el preu AP no es pot obtenir. | Bloquejar actualització/oferta i registrar incidència. | PENDENT_EXECUCIO |
 | AP-19 | E2E | Es denega el descompte original després d'un cobrament. | Conservar el moviment real i classificar l'ajust econòmic; no sobreescriure el passat. | PENDENT_EXECUCIO |
 | AP-20 | E2E | Es resol el dret després d'haver emès factura. | Preservar factura original i derivar l'ajust fiscal/rectificatiu que correspongui. | PENDENT_EXECUCIO |
-| AP-21 | INT | Canvi de curs amb antecedents anteriors i posteriors a `DATA_INSC`. | Aplicar el criteri temporal ratificat i excloure la pròpia inscripció quan així ho exigeixi la política. | PENDENT_NEGOCI |
+| AP-21 | INT | Historial amb antecedents anteriors i posteriors a `DATA_INSC`. | Excloure matrícula actual i historial posterior a `DATA_INSC`. | COBERT_INTEGRACIO_CHECKOUT |
 | AP-22 | CONC | Dues peticions comercials simultànies intenten actualitzar la mateixa oferta. | Una versió vàlida; l'altra reutilitza o rep conflicte, sense sobreescriptura desfasada. | PENDENT_EXECUCIO |
 | AP-23 | SEC | Usuari autenticat sense permís específic intenta resoldre el descompte. | Denegació al servidor i cap canvi econòmic. | PENDENT_EXECUCIO |
 | AP-24 | INT | Snapshot monetàriament coherent però sense origen/regla AP. | No atribuir-lo arbitràriament a Alumne PrisMa ni a una promoció genèrica. | PENDENT_EXECUCIO |
@@ -73,10 +73,10 @@
 | AP-36 | INT | Cap tarifa disponible i Carnet Jove marcat. | Resposta controlada; cap accés a arrays/índexs inexistents. | PENDENT_EXECUCIO |
 | AP-37 | INT | Persona AP aplica després un codi promocional. | Origen comercial, import cobrat i origen fiscal continuen alineats. | PENDENT_EXECUCIO |
 | AP-38 | INT | Simple consulta/previsualització de preu. | No crear factura, cobrament ni UUID fiscal. | PENDENT_EXECUCIO |
-| AP-39 | INT | En denegar un altre descompte, l'únic antecedent possible és la mateixa inscripció. | Aplicar la decisió ratificada sobre autoacreditació; no comportament accidental. | PENDENT_NEGOCI |
+| AP-39 | INT | L'únic antecedent possible és la mateixa inscripció. | No autoacreditar AP. | COBERT_INTEGRACIO_CHECKOUT |
 | AP-40 | INT | Oferta AP d'una edició s'intenta usar en una altra. | Revalidació o conflicte segons política; mai trasllat silenciós. | PENDENT_EXECUCIO |
 | AP-41 | INT | Snapshot amb imports vàlids però origen comercial incorrecte. | Detectar contradicció abans de crear intenció o factura. | PENDENT_EXECUCIO |
-| AP-42 | INT | Secretaria aprova un descompte després que la tarifa hagi canviat. | Aplicar la regla de vigència aprovada i mantenir decisió/import/comunicació coherents. | PENDENT_NEGOCI |
+| AP-42 | INT | La tarifa canvia després d'haver congelat una oferta AP. | El snapshot comercial congelat no es reescriu; la migració completa de la intranet a oferta SIF continua pendent. | PENDENT_EXECUCIO_TRANSVERSAL |
 | AP-43 | E2E | Denegació documental + persona AP, sense pagaments previs. | Mateixa inscripció, nova oferta AP correcta i pagament habilitat. | PENDENT_EXECUCIO |
 | AP-44 | E2E | Mateix cas amb cobrament parcial previ. | Correu i UI distingeixen total/cobrat/pendent; cap cobrament duplicat pel total. | PENDENT_EXECUCIO |
 | AP-45 | CONC | Dos operadors resolen la mateixa sol·licitud de forma contradictòria. | Una sola resolució sobre la versió esperada; l'altra rep conflicte. | PENDENT_EXECUCIO |
@@ -106,7 +106,7 @@
 | AP-59 | INT | Revocar link i substituir oferta/link. | Link antic `REVOKED`; nou link separat. | COBERT_PARCIALMENT_PER_TEST_NOU |
 | AP-60 | SEC | Utilitzar link revocat. | Rebuig abans de TPV. | COBERT_PARCIALMENT_PER_TEST_NOU |
 | AP-61 | INT | `EXPECTED_AMOUNT` del link supera/incompleix l'operació. | Conflicte abans de crear cobrament. | COBERT_PARCIALMENT_PER_TEST_NOU |
-| AP-62 | INT | Crear intenció Redsys des d'operació. | `UUID_INTENT` queda vinculat explícitament a `UUID_OPERATION`. | PENDENT_IMPLEMENTACIO |
+| AP-62 | INT | Crear intenció Redsys des d'operació. | `UUID_INTENT` queda vinculat explícitament a `UUID_OPERATION`. | COBERT_INTEGRACIO_CHECKOUT |
 | AP-63 | CONC | Mateix `DS_ORDER` amb snapshot comercial diferent. | Conflicte idempotent. | COBERT_PER_TEST_EXISTENT_REDSYS |
 | AP-64 | INT | Dret original REJECTED + AP ACCEPTED. | Dues decisions diferenciades; una única oferta actual. | PENDENT_IMPLEMENTACIO |
 
@@ -114,10 +114,10 @@
 
 | ID | Nivell | Escenari | Resultat esperat | Estat |
 | --- | --- | --- | --- | --- |
-| AP-65 | INT | Únic antecedent `GENERAT=1`, sense cobrament. | Aplicar la decisió de negoci ratificada de manera igual a tots els canals. | PENDENT_NEGOCI |
-| AP-66 | INT | Única evidència = inscripció actual amb pagament parcial. | Aplicar política ratificada sobre autoacreditació. | PENDENT_NEGOCI |
-| AP-67 | INT | Antecedent posterior a la data original durant canvi de curs. | Aplicar `evaluation_at` ratificat. | PENDENT_NEGOCI |
-| AP-68 | INT | Factura relacionada sense cobrament. | Aplicar decisió ratificada i SQL correcte; no dependre de `!= NULL`. | PENDENT_NEGOCI |
+| AP-65 | INT | Únic antecedent `GENERAT=1`, sense cobrament. | És elegible sota rule v2. | COBERT_UNIT_POLICY |
+| AP-66 | INT | Única evidència = inscripció actual, encara que `GENERAT=1` o tingui estat favorable. | No autoacreditar. | COBERT_INTEGRACIO_CHECKOUT |
+| AP-67 | INT | Antecedent posterior a `DATA_INSC` de la matrícula tarifada. | No acreditar retroactivament. | COBERT_INTEGRACIO_CHECKOUT |
+| AP-68 | INT | Factura relacionada sense cobrament. | No acredita AP per si sola; no dependre de `!= NULL`. | COBERT_UNIT_POLICY |
 | AP-69 | INT | Mateix `ID_PREU` amb tarifes AP específiques de curs/mes. | Tots els canals seleccionen la tarifa canònica exacta. | PENDENT_EXECUCIO |
 | AP-70 | INT | Tarifa AP actual + futura. | Només la vigent és seleccionable. | PENDENT_EXECUCIO |
 | AP-71 | INT | Elegible sense tarifa AP. | `ELIGIBLE_NO_PRICE`; no oferta pagable. | PENDENT_EXECUCIO |
@@ -159,3 +159,13 @@ Per donar qualsevol AP-* per verificat cal registrar:
 - [Activitats per pàgina UC-020](uc-020-activitats-pagines-actual-final.md)
 - [Auditoria i traçabilitat UC-020](uc-020-auditoria-tracabilitat-2026-09-29.md)
 - [UC-116 compartit](uc-116-activitats-pagines-justificants-actual-final.md)
+
+
+## Actualització d'evidència — 03/10/2026
+
+- `PrismaStudentDiscountPolicyTest`: cobreix pagament positiu/parcial, curs regal, `GENERAT=1`, factura no cobrada i estats D/M.
+- `PrismaStudentCourseCheckoutServiceTest`: cobreix snapshot autoritatiu, idempotència, conflicte de segon DS_ORDER, ineligible, no autoacreditació, tall temporal a `DATA_INSC` i mismatch de preu.
+- `LegacyPrismaStudentPriceSnapshotResolverTest`: cobreix reconstrucció històrica, selector per hores, mismatch i tarifa ambigua.
+- `RedsysCoursePaymentIntentPrismaStudentTest` al `main`: cobreix staging AP abans de la intenció, snapshot de descompte i fail-closed del fraccionament AP sense model fiscal.
+- `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest`: cobreix UC020-94, impedint que el valor de preu del navegador sobreescrigui la tarifa AP servidor abans de l'INSERT, i comprova el guard AP+promoció.
+- `RedsysCourseEndToEndSimulatedTest` al `main`: cobreix el circuit tècnic simulat callback → worker → pagament/factura/sync/outbox, incloent duplicats, parcials i exactitud de cèntims; no substitueix l'E2E real de navegador/Redsys.
