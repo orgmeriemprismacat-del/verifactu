@@ -52,6 +52,7 @@ function parseCreditBalanceArgs(array $args): array
     ];
 
     foreach ([
+        'idempotency_key' => ['--idempotency-key='],
         'holder_type' => ['--holder-type=', '--tipus-titular='],
         'holder_id' => ['--holder-id=', '--id-titular='],
         'holder_nif_cif' => ['--holder-nif-cif=', '--nif-cif=', '--nif='],
@@ -112,7 +113,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-credit-balance.php AMOUNT --holder-type=STUDENT|ENTITY --holder-name=NAME --source-type=BAIXA|CANVI_CURS|RECTIFICATIVA [--holder-id=ID] [--holder-nif-cif=NIF] [--source-id=ID] [--uuid-factura-origen=UUID] [--uuid-factura-rectificativa=UUID] [--review-after=YYYY-MM-DD]\n"
+        "Usage: php sif/scripts/{$script}-credit-balance.php AMOUNT --holder-type=STUDENT|ENTITY --holder-name=NAME --source-type=BAIXA|CANVI_CURS|RECTIFICATIVA [--holder-id=ID] [--holder-nif-cif=NIF] [--source-id=ID] [--uuid-factura-origen=UUID] [--uuid-factura-rectificativa=UUID] [--review-after=YYYY-MM-DD] [--idempotency-key=KEY]\n"
     );
     exit(1);
 }
