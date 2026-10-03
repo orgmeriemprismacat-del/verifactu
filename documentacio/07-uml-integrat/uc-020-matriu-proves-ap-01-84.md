@@ -50,8 +50,8 @@
 | AP-21 | INT | Historial amb antecedents anteriors i posteriors a `DATA_INSC`. | Excloure matrícula actual i historial posterior a `DATA_INSC`. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
 | AP-22 | CONC | Dues peticions comercials simultànies intenten actualitzar la mateixa oferta. | Una versió vàlida; l'altra reutilitza o rep conflicte, sense sobreescriptura desfasada. | PENDENT_EXECUCIO |
 | AP-23 | SEC | Usuari autenticat sense permís específic intenta resoldre el descompte. | Denegació al servidor i cap canvi econòmic. | VERIFICAT_CI_FRONTERA_P05_0c1825c |
-| AP-24 | INT | Snapshot monetàriament coherent però sense origen/regla AP. | No atribuir-lo arbitràriament a Alumne PrisMa ni a una promoció genèrica. | PENDENT_EXECUCIO |
-| AP-25 | E2E | Operació AP amb pagament fraccionat. | Separar preu net total, descompte i cadascun dels cobraments; cap fracció és el total de l'oferta. | PENDENT_EXECUCIO |
+| AP-24 | INT | Snapshot monetàriament coherent però sense origen/regla AP. | No atribuir-lo arbitràriament a Alumne PrisMa ni a una promoció genèrica. | VERIFICAT_CI_INTENT_ORIGIN_GUARD_0c1825c |
+| AP-25 | E2E | Operació AP amb pagament fraccionat. | Separar preu net total, descompte i cadascun dels cobraments; cap fracció és el total de l'oferta. | PENDENT_IMPLEMENTACIO · FAIL_CLOSED_VERIFICAT_CI_0c1825c |
 
 ## AP-26…AP-35 · promocions, confirmació i circuit bancari
 
@@ -63,10 +63,10 @@
 | AP-29 | CONC | Dues altes simultànies requereixen nou `IDPAG`. | Identificadors inequívocs o migració a identificador segur; cap col·lisió. | PENDENT_EXECUCIO |
 | AP-30 | INT | Error tècnic durant el càlcul de preu. | Cap confirmació amb oferta indeterminada; resposta estructurada d'error. | PENDENT_EXECUCIO |
 | AP-31 | INT | Descompte pendent o denegat en obrir confirmació/pagament. | Pantalles mostren el mateix estat comercial i només mètodes autoritzats. | PENDENT_EXECUCIO |
-| AP-32 | SEC | Manipular l'import enviat al formulari de pagament. | El servidor usa import autoritzat/persistent, no el valor manipulat. | PENDENT_EXECUCIO |
-| AP-33 | E2E | Callback amb ordre o import diferent de la intenció. | Rebuig/incidència; cap cobrament atribuït incorrectament. | PENDENT_EXECUCIO |
-| AP-34 | SEC | Callback amb signatura invàlida. | Rebuig abans de registrar cobrament. | PENDENT_EXECUCIO |
-| AP-35 | CONC | Mateixa inscripció/oferta amb dues ordres bancàries. | Tractar intents sense duplicar benefici comercial ni factura; política de reintent explícita. | PENDENT_EXECUCIO |
+| AP-32 | SEC | Manipular l'import enviat al formulari de pagament. | El servidor usa import autoritzat/persistent, no el valor manipulat. | TEST_NOU_PENDENT_CI_AMOUNT_AUTHORITY |
+| AP-33 | E2E | Callback amb ordre o import diferent de la intenció. | Rebuig/incidència; cap cobrament atribuït incorrectament. | VERIFICAT_CI_AMOUNT_MISMATCH_0c1825c · TEST_ORDER_PENDENT_CI |
+| AP-34 | SEC | Callback amb signatura invàlida. | Rebuig abans de registrar cobrament. | VERIFICAT_CI_UNSIGNED_BOUNDARY_0c1825c · TEST_V2_INVALID_PENDENT_CI |
+| AP-35 | CONC | Mateixa inscripció/oferta amb dues ordres bancàries. | Tractar intents sense duplicar benefici comercial ni factura; política de reintent explícita. | VERIFICAT_CI_SECOND_DS_ORDER_CONFLICT_0c1825c |
 
 ## AP-36…AP-48 · errors de selector, notificacions i ajustos
 
@@ -77,7 +77,7 @@
 | AP-38 | INT | Simple consulta/previsualització de preu. | No crear factura, cobrament ni UUID fiscal. | PENDENT_EXECUCIO |
 | AP-39 | INT | L'únic antecedent possible és la mateixa inscripció. | No autoacreditar AP. | COBERT_INTEGRACIO_CHECKOUT |
 | AP-40 | INT | Oferta AP d'una edició s'intenta usar en una altra. | Revalidació o conflicte segons política; mai trasllat silenciós. | PENDENT_EXECUCIO |
-| AP-41 | INT | Snapshot amb imports vàlids però origen comercial incorrecte. | Detectar contradicció abans de crear intenció o factura. | PENDENT_EXECUCIO |
+| AP-41 | INT | Snapshot amb imports vàlids però origen comercial incorrecte. | Detectar contradicció abans de crear intenció o factura. | VERIFICAT_CI_INTENT_ORIGIN_GUARD_0c1825c |
 | AP-42 | INT | La tarifa canvia després d'haver congelat una oferta AP. | El snapshot comercial congelat no es reescriu; la migració completa de la intranet a oferta SIF continua pendent. | PENDENT_EXECUCIO_TRANSVERSAL |
 | AP-43 | E2E | Denegació documental + persona AP, sense pagaments previs. | Mateixa inscripció, nova oferta AP correcta i pagament habilitat. | PENDENT_EXECUCIO |
 | AP-44 | E2E | Mateix cas amb cobrament parcial previ. | Correu i UI distingeixen total/cobrat/pendent; cap cobrament duplicat pel total. | PENDENT_EXECUCIO |
@@ -204,3 +204,20 @@ Al head `0c1825c` consten en PASS:
 - `UsocValidationDecisionBoundaryContractTest::testSignedUsocApiExposesTwoPhaseValidationActionsAndRecoveryComponents`.
 
 Això permet reclassificar AP-23/AP-82/AP-83 com a verificats **a nivell de frontera de codi/contracte**. No equival a una prova navegador multioperador ni converteix la memoització de sessió per `requestId` en idempotència persistent; AP-80/AP-81 continuen oberts.
+
+
+## Reclassificació Redsys / autoritat monetària
+
+Evidència observada al head `0c1825c`:
+
+- AP-24/AP-41: `RedsysPaymentIntentTest::testRejectsCourseDiscountSnapshotWithoutOrigin` — PASS.
+- AP-33 (import): `RedsysCallbackTest::testMismatchedAmountRollsBackNotificationAndJob` — PASS.
+- AP-34 (frontera): `RedsysCallbackTest::testUnsignedCallbackIsRejectedBeforeRecording` — PASS.
+- AP-35: `PrismaStudentCourseCheckoutServiceTest::testRetryWithAnotherDsOrderCannotReplaceLinkedIntent` — PASS.
+- AP-25: `RedsysCoursePaymentIntentPrismaStudentTest::testPrismaStudentFractionalPaymentFailsClosedUntilFiscalModelExists` — PASS. Això **no implementa fraccionament AP**; acredita que queda bloquejat de manera segura.
+
+Proves noves creades i encara pendents de CI:
+
+- AP-32: import de pagament AP proposat pel client inferior al saldo autoritatiu → conflicte i zero estat comercial/intenció.
+- AP-33: `DS_ORDER` desconegut → cap notificació/cua/cobrament.
+- AP-34: signatura `HMAC_SHA512_V2` incorrecta → rebuig 422.
