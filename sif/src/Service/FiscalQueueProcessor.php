@@ -171,9 +171,37 @@ final class FiscalQueueProcessor
         $now ??= new \DateTimeImmutable('now');
         $lockedBefore = $now->modify('-' . $olderThanSeconds . ' seconds')->format('Y-m-d H:i:s');
 
-        return $this->transactions->run(
-            fn (\PDO $db): int => $this->queue->recoverStaleLocks($db, $lockedBefore)
-        );
+        return $this->transactions->run(function (\PDO $db) use ($lockedBefore): int {
+            $stmt = $db->prepare(
+                "SELECT ID, UUID_FACTURA
+                 FROM fiscal_queue
+                 WHERE STATUS = 'PROCESSING' AND LOCKED_AT IS NOT NULL AND LOCKED_AT < ?
+                 ORDER BY ID
+                 FOR UPDATE"
+            );
+            $stmt->execute([$lockedBefore]);
+            $stale = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            $recovered = $this->queue->recoverStaleLocks($db, $lockedBefore);
+            foreach ($stale as $item) {
+                (new IncidentRepository())->openDetailed($db, [
+                    'uuid_factura' => (string) $item['UUID_FACTURA'],
+                    'resource_type' => 'FISCAL_QUEUE',
+                    'resource_id' => (string) $item['ID'],
+                    'source_type' => 'AEAT_WORKER',
+                    'source_id' => (string) $item['ID'],
+                    'type' => 'AEAT_STALE_PROCESSING',
+                    'message' => 'Queue ID ' . $item['ID']
+                        . ': stale PROCESSING moved to REVIEW; delivery outcome must be reconciled before resend',
+                    'severity' => 'HIGH',
+                    'correlation_id' => 'FISCAL_QUEUE:' . $item['ID'],
+                    'idempotency_key' => 'AEAT_STALE_PROCESSING|QUEUE:' . $item['ID'],
+                    'reason_code' => 'STALE_DELIVERY_REQUIRES_REVIEW',
+                ]);
+            }
+
+            return $recovered;
+        });
     }
 
     private function integrityFailure(array $item, \Throwable $exception): array
