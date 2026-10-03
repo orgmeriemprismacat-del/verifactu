@@ -33,6 +33,8 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("UsocCourseChangeExecutionPreparationService", $api);
         Assert::stringContainsString("bind_course_change_destination", $api);
         Assert::stringContainsString("prepare_course_change", $api);
+        Assert::stringContainsString("confirm_course_change_legacy_handoff", $api);
+        Assert::stringContainsString("UsocCourseChangeLegacyHandoffService", $api);
         Assert::stringContainsString("course_change_execution_status", $api);
         Assert::stringContainsString("execute_course_change", $api);
         Assert::stringContainsString("UsocCourseChangeExecutionService", $api);
@@ -63,6 +65,7 @@ final class UsocInternalApiContractTest
         Assert::stringContainsString("public function courseChangePreview", $client);
         Assert::stringContainsString("public function prepareCourseChange", $client);
         Assert::stringContainsString("public function bindCourseChangeDestination", $client);
+        Assert::stringContainsString("public function confirmCourseChangeLegacyHandoff", $client);
         Assert::stringContainsString("public function courseChangeExecutionStatus", $client);
         Assert::stringContainsString("public function executeCourseChange", $client);
         Assert::stringContainsString("public function executeCancellation", $client);
