@@ -10,6 +10,7 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\IncidentRepository;
+use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
 use Prisma\Sif\Repository\LegacyCourseSnapshotRepository;
 use Prisma\Sif\Repository\LegacyGiftSnapshotRepository;
@@ -113,7 +114,8 @@ try {
             (string) ($noviceConfig['key_version'] ?? 'v1'),
             new CourseEnrollmentFundAllocationService(
                 new EnrollmentFundMovementRepository(new UuidGenerator())
-            )
+            ),
+            new InvoiceBeforePaymentCoverageRepository()
         ),
         new RedsysPackInvoiceService(
             $notifications,
