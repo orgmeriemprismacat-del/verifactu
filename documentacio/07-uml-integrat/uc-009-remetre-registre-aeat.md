@@ -448,3 +448,16 @@ A la branca d'auditoria:
 - el panell exposa `LAST_ERROR` per facilitar la revisió.
 
 Aquesta correcció tanca el risc AE-09-04 de segon SOAP automàtic després d'una caiguda del worker.
+
+
+### 8.2. Correcció crítica 2026-10-03 — resposta terminal + flow control invàlid
+
+La versió anterior de `FlowControlledTransport` podia rebre un resultat remot terminal i, si `flow_wait_seconds` era invàlid, llançar una excepció genèrica. `FiscalQueueProcessor` la tractava com a error retryable, amb risc de segon SOAP.
+
+Contracte corregit:
+- abans de xarxa es persisteix una espera conservadora de 60 s;
+- timeout/error abans d'obtenir resultat remot continua sent retryable;
+- després que el transport subjacent retorna un resultat, cap anomalia de flow control converteix el registre en `RETRY`;
+- un `flow_wait_seconds` invàlid usa fallback de 60 s i marca `requires_review=true`;
+- una fallada de persistència de l'espera posterior preserva el resultat remot i marca revisió;
+- el registre original queda `SENT` amb el seu `ESTAT_AEAT`, i el worker obre `AEAT_REVIEW`.
