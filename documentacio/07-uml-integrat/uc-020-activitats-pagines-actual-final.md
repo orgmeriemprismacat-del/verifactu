@@ -199,6 +199,7 @@ endif
 :Enviar promocions globals;
 if (tipusDescompte == 1?) then (Sí)
  :Servidor revalida historial AP;
+ :Servidor deriva TIPUS_CURS de `informacio`;
  :Servidor rellegeix tarifa base/AP vigent;
  :Rebutja tarifa ambigua o AP + promoció;
  :Sobreescriu import client amb tarifa servidor;
