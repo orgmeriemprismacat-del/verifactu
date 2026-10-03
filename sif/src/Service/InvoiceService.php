@@ -220,6 +220,13 @@ final class InvoiceService
             );
         }
 
+        // Lock the same indexed INSCRIPCIO origins used by UC-004.
+        // This serializes a concurrent UC-004 claim against this Redsys issue
+        // without turning the UC-004 coverage table into a global constraint.
+        $this->beforePaymentCoverage->lockOriginInvoiceRelations(
+            $db,
+            $payload['relations'] ?? []
+        );
         $claims = $this->beforePaymentCoverage->findClaims(
             $db,
             $payload['relations'] ?? [],
