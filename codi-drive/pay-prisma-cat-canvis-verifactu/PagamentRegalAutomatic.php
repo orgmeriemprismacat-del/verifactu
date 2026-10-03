@@ -10,6 +10,7 @@ class PagamentRegal {
    private $factrel; /** Numero El valor de la factura relacionada. ex. 90  */
    private $titol; /** Numero El titol del curs de la Inscripcio ex: Coaching per a Docents */
    private $email; /** Text El email de la Inscripcio ex: suport@prisma.cat */
+   private $sifPaid = false; /** Booleà Projecció no fiscal del cobrament SIF confirmat. */
 
    /*********************************** FUNCIONS CONSTRUCTORS ***********************************/
 
@@ -17,13 +18,13 @@ class PagamentRegal {
       $connexio = new ConnexioBBDDSTMT();
    	$connexio->connectarBD();
 
-      $cnsInsc = "SELECT IMPORT, NOM_CURS, MAILC, CODI, CCURS, FACT_REL FROM regal WHERE ID=?";
+      $cnsInsc = "SELECT IMPORT, NOM_CURS, MAILC, CODI, CCURS, FACT_REL, OBSERVACIONS FROM regal WHERE ID=?";
 		$stmt=$connexio->prepare($cnsInsc);
 		$stmt->bind_param("d", $idRegal);
 		$stmt->execute();
 		$stmt->store_result();
 		if ( $stmt->num_rows() == 1 ) {
-         $stmt->bind_result($import, $nomCurs, $correuCurs, $codiRegal, $codiCurs, $factrel);
+         $stmt->bind_result($import, $nomCurs, $correuCurs, $codiRegal, $codiCurs, $factrel, $observacions);
 			$stmt->fetch();
          require_once 'Text.php';
          require_once 'Numero.php';
@@ -32,6 +33,10 @@ class PagamentRegal {
          else
             $this->import;
          $this->factrel = $factrel;
+         $this->sifPaid = preg_match(
+            '/(?:^|\\R)SIF\\s+\\S+\\s+PAID\\s+[0-9a-f-]{36}/i',
+            (string) $observacions
+         ) === 1;
          if ($codiCurs!=null and $codiCurs!='')
             $this->codiCurs = new Text($codiCurs);
          else
@@ -124,6 +129,13 @@ class PagamentRegal {
       return $this->factrel;
    }
 
+   /**
+   * @brief Indica si el regal consta pagat al llegat o projectat com a PAID pel SIF.
+   */
+   private function estaPagat() {
+      return $this->sifPaid || (is_numeric($this->factrel) && intval($this->factrel) > 0);
+   }
+
    /*********************************** FUNCIONS MODIFICAR ATRIBUTS ***********************************/
 
    /*
@@ -142,7 +154,7 @@ class PagamentRegal {
 
          $mostrar .= "<p class='dades pt-3'>Curs regal: <span class='dada titol'>".$titol."</span></p>";
          $mostrar .= "<p class='dades'>Preu: <span class='dada'>".$preuAPagar." euros</span></p></div>";
-         if ($factura==0) {
+         if (!$this->estaPagat()) {
             $mostrar .= $this->__mostrarPagamentTargeta(1);
             $mostrar .= $this->__mostrarPagamentTransferencia(1);
             $mostrar .= $this->__modalError();
@@ -188,7 +200,7 @@ class PagamentRegal {
       $mostrar .= "<p>L'import a pagar és de <span class='font-weight-bold'>".$preuAPagar."</span> euros.</p>";
       $mostrar .= "</div></div>";
 
-      if ($factura==0) {
+      if (!$this->estaPagat()) {
          $mostrar .= $this->__mostrarPagamentTargeta(2);
          $mostrar .= $this->__modalError();
          $mostrar .= $this->__mostrarPagamentTransferencia(2);
