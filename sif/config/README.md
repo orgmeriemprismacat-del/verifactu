@@ -123,3 +123,31 @@ El checkout PACK és fail-closed i no reutilitza imports, titular, correu ni end
 - Default UC-015: `https://www.prisma.cat;https://prisma.cat`.
 - `enviarInscripcioPack.php` exigeix POST, `X-Requested-With: XMLHttpRequest`, allowlist d'origen/referer i conserva també la comprovació `Sec-Fetch-Site` com a defensa addicional.
 - Aquest control redueix CSRF cross-site i peticions directes no-AJAX; no substitueix rate limiting o controls anti-bot.
+
+
+## Governança de versió i declaració — UC-010
+
+UC-010 és **fail-closed**. El repositori pot contenir el codi del circuit, però cap versió queda activable fins que el runtime observat, els rols i l'emmagatzematge privat de declaracions estiguin configurats explícitament.
+
+### Variables de runtime
+
+- `SIF_VERSION_READ_ROLES`: rols que poden consultar runtime, candidates, declaracions i historial.
+- `SIF_VERSION_MANAGE_ROLES`: rols que poden registrar la candidata observada, aprovar/vincular la declaració i registrar l'activació. Els rols de gestió també poden llegir.
+- `SIF_RUNTIME_GIT_REVISION`: SHA-1 de 40 caràcters del commit executable desplegat. No es dedueix de la branca Git remota.
+- `SIF_RELEASE_MANIFEST_PATH`: JSON privat de manifest de release, fora del webroot. Cada entrada conté path relatiu dins de `sif/` i SHA-256 dels bytes desplegats.
+- `SIF_DECLARATION_ROOT`: directori privat que conté els documents de declaració responsable. La UI només referencia un `STORAGE_KEY`; no publica ni serveix el document.
+- `SIF_VERSION_ACTIVATION_ENABLED=1`: gate explícit d'activació. Per defecte és 0.
+- `SIF_VERSION_REQUIRE_BACKUP_EVIDENCE`: per defecte 1. Si és 1, l'activació exigeix una evidència UC-85 del mateix entorn amb estat i integritat satisfactoris.
+- `SIF_PANEL_VERSIONS_PATH`: path del panell al SIF; default `/sif/versions/`.
+- A la **intranet**, `SIF_PANEL_VERSIONS_URL` defineix la URL HTTPS completa (default `https://pay.prisma.cat/sif/versions/`) i `SIF_PANEL_VERSIONS_PATH` ha de coincidir exactament amb el path signat.
+
+### Contracte
+
+1. `build-release-manifest.php` genera un manifest determinista dels fitxers seleccionats del release.
+2. `RuntimeVersionInspector` verifica físicament cada hash, calcula `ARTIFACT_HASH`, calcula `CONFIG_HASH` en memòria i valida el ledger complet de migracions.
+3. `registerCurrentRuntime` **no accepta hashes del navegador**: registra exclusivament els valors observats pel servidor.
+4. La declaració només es vincula si el fitxer existeix sota `SIF_DECLARATION_ROOT`; el SHA-256 es calcula sobre els bytes reals.
+5. L'activació no desplega codi. Primer exigeix que la candidata coincideixi amb el runtime ja desplegat i verificat; després serialitza la decisió amb `sif_version_state` i escriu `sif_version_activation`.
+6. Cap canvi de versió modifica factures, registres fiscals, pagaments o cues existents. Un tall incompatible s'ha de resoldre amb els UC de desplegament/reconciliació corresponents.
+
+Els secrets poden participar en el fingerprint de configuració calculat en memòria, però **no es persisteix ni es retorna la configuració canònica**: només el SHA-256 final. El fingerprint exclou `runtime_git_revision`, `release_manifest_path` i `activation_enabled`, perquè són metadades/gates del mateix procés d'evidència; Git i artefacte tenen camps propis i activar/desactivar temporalment el gate no ha de convertir-se en drift de la candidata.
