@@ -34,12 +34,14 @@ final class DebtClaimIntranetBoundaryTest
         Assert::stringContainsString('DEBT_CLAIM|', $ajax);
         Assert::stringContainsString('uuid_factura', $ajax);
         Assert::stringContainsString('num_visible', $ajax);
+        Assert::stringContainsString('id_insc', $ajax);
 
         Assert::stringContainsString('X-Requested-With', $js);
         Assert::stringContainsString('csrf-token-debt-claim', $js);
         Assert::stringContainsString('credentials: \'same-origin\'', $js);
         Assert::stringContainsString('record_notice', $js);
         Assert::stringContainsString('reconcile_after_payment', $js);
+        Assert::stringContainsString('id_insc', $js);
     }
 
     public function testAllLegacyDebtPagesExposeCsrfWithoutChangingLegacyActions(): void
