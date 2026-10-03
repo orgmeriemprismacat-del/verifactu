@@ -120,6 +120,13 @@ class RedsysPaymentIntentRepository {
   +insert(db,intent) array
 }
 
+class PaymentLinkService {
+  <<IMPLEMENTAT INFRA>>
+  +issue(input) array
+  +resolve(token,accessedAt) array
+  -assertPayableOperation(operation) void
+}
+
 class RedsysCourseInvoiceService {
   <<IMPLEMENTAT>>
   +issueFromIntentSnapshot(db,dsOrder,snapshot) array
@@ -139,6 +146,7 @@ LegacyPrismaStudentHistoryRepository --> PrismaStudentDiscountPolicy : fets lega
 PrismaStudentDiscountPolicy --> DiscountDecisionService : decisio normalitzada
 DiscountDecisionService --> DiscountValidationRepository : regla/evidencia
 DiscountDecisionService --> CommercialOperationRepository : oferta comercial
+CommercialOperationRepository --> PaymentLinkService : BILLABLE + estat pagable
 CommercialOperationRepository --> RedsysPaymentIntentService : snapshot pagable
 RedsysPaymentIntentService --> CourseIntentSnapshotValidator : SOURCE_TYPE=CURS
 RedsysPaymentIntentService --> RedsysPaymentIntentRepository : persistencia
@@ -154,9 +162,10 @@ RedsysCourseInvoiceService --> InvoiceService : factura + cobrament
 | `PrismaStudentDiscountPolicy` | Reproduir explícitament la regla web legacy sota versió `ALUMNE_PRISMA_WEB_LEGACY_V2` | IMPLEMENTAT |
 | `DiscountDecisionService` | Motor comú transversal per UC-020/020a/020b/020c/020d | PENDENT TRANSVERSAL; UC-020 ja usa `PrismaStudentDiscountPolicy` |
 | `discount_validation` | Persistència de regla/evidència | IMPLEMENTAT via `DiscountValidationRepository` / `CommercialOfferService` / checkout AP |
-| `commercial_operation` | Oferta comercial immutable | IMPLEMENTAT via `CommercialOperationRepository` / `CommercialOfferService` / checkout AP |
+| `commercial_operation` | Oferta comercial immutable; AP usa `CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT` abans de crear la intenció | IMPLEMENTAT via `CommercialOperationRepository` / `CommercialOfferService` / checkout AP |
 | `CourseIntentSnapshotValidator` | Blindar coherència CURS abans del TPV | IMPLEMENTAT |
 | `RedsysPaymentIntentService` | Crear/reutilitzar intenció | IMPLEMENTAT |
+| `PaymentLinkService` | Emetre/resoldre token opac i bloquejar operacions no `BILLABLE` o fora de `READY_FOR_PAYMENT/PAYMENT_PENDING` | IMPLEMENTAT INFRA; ADOPCIÓ CANÒNICA UC-020 PENDENT |
 | `LegacyCourseInvoicePayloadBuilder` | Transformar snapshot en payload fiscal | IMPLEMENTAT |
 
 ## 4. Límits de la policy legacy
@@ -194,3 +203,8 @@ La policy implementada materialitza les decisions UC20-DEC-001…006 sota la ver
 No apareix cap classe UC-020 principal absent. El `main` nou amplia sobretot el tall Redsys compartit (cutover, callback, worker, factura, sincronització llegada i notificació), sense canviar la responsabilitat de `PrismaStudentDiscountPolicy`, `LegacyPrismaStudentHistoryRepository`, `LegacyPrismaStudentPriceSnapshotResolver` ni `PrismaStudentCourseCheckoutService`.
 
 La nova prova `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` protegeix la frontera llegada d'alta: després de fixar `$preuDescompte = (float) $preuApServidor`, cap reassignació des del valor client pot aparèixer abans de l'INSERT, i `TIPUS_CURS` ha de provenir de `informacio` abans del branch que pot forçar preu zero.
+
+
+## 9. Reconciliació de model comercial — continuació 03/10/2026
+
+El checkout AP crea `commercial_operation.CLASSIFICATION=BILLABLE` i `STATUS=READY_FOR_PAYMENT`, i després passa a `INTENT_CREATED` en vincular la intenció. `PaymentLinkService` valida també classificació i estat comercial a emissió i resolució. Això implementa el guard de pagabilitat de la infraestructura; la substitució efectiva de les rutes llegades P03/P04 pel `payment_link` continua pendent.
