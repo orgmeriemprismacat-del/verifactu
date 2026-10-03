@@ -70,6 +70,23 @@ C-->>J: èxit/error
 Note over C,I: economic_decision es valida al preview, però no es veu execució UC-28/29/29a en aquest endpoint.
 ```
 
+## 2.1. Contracte ACTUAL de `economic_decision` al canvi de curs
+
+```mermaid
+flowchart LR
+  P[CourseChangePreviewService] --> C[CourseChangeImpactClassifier]
+  C --> N[NONE]
+  C --> D[AMOUNT_DUE]
+  C --> E[EXCESS_TO_RESOLVE]
+  D --> Pay[UC-002 / cobrament pendent]
+  E --> U6[UC-006 · decidir destinació de l'excés]
+  U6 --> R[REFUND]
+  U6 --> S[CREDIT_BALANCE]
+  U6 --> V[REVIEW]
+```
+
+La part esquerra fins a `EXCESS_TO_RESOLVE` existeix i està provada. La derivació `EXCESS_TO_RESOLVE → UC-006` és el wiring que falta.
+
 ## 3. ACTUAL — “anul·lar factura” llegada amb A TORNAR
 
 ```mermaid
