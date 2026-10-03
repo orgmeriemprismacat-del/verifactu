@@ -25,7 +25,7 @@ if (($config['env'] ?? 'local') === 'production') {
 
 $criteria = selector(array_slice($argv, 1));
 if ($criteria === []) {
-    fwrite(STDERR, "Usage: php sif/scripts/preview-debt-claim.php (--uuid-factura=UUID|--num-visible=NUM)\n");
+    fwrite(STDERR, "Usage: php sif/scripts/preview-debt-claim.php (--uuid-factura=UUID|--num-visible=NUM|--id-insc=ID)\n");
     exit(1);
 }
 
@@ -60,10 +60,13 @@ function selector(array $args): array
 {
     foreach ($args as $arg) {
         if (str_starts_with((string) $arg, '--uuid-factura=')) {
-            return ['uuid_factura' => trim(substr((string) $arg, 15))];
+            return ['uuid_factura' => trim(substr((string) $arg, strlen('--uuid-factura=')))];
         }
         if (str_starts_with((string) $arg, '--num-visible=')) {
-            return ['num_visible' => trim(substr((string) $arg, 14))];
+            return ['num_visible' => trim(substr((string) $arg, strlen('--num-visible=')))];
+        }
+        if (str_starts_with((string) $arg, '--id-insc=')) {
+            return ['id_insc' => trim(substr((string) $arg, strlen('--id-insc=')))];
         }
     }
     return [];
