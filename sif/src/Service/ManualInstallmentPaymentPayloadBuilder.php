@@ -29,6 +29,7 @@ final class ManualInstallmentPaymentPayloadBuilder
             'amount' => $amount,
             'movement_date' => $movementDate,
             'provider_ref' => $this->providerRef($idInsc, $user, $operationId),
+            'inscription_id' => $idInsc,
             'allocations' => [[
                 'uuid_factura' => $uuidFactura,
                 'amount' => $amount,
