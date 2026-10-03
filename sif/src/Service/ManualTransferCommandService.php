@@ -32,6 +32,9 @@ final class ManualTransferCommandService
         }
 
         $bank = strtoupper(trim((string) ($payload['bank'] ?? $payload['banc'] ?? '')));
+        if ($bank === '') {
+            throw SifException::validation('Missing transfer bank');
+        }
         if (in_array($bank, ['TPV', 'REDSYS'], true)) {
             throw SifException::validation('Card payments cannot be registered as manual transfers');
         }
