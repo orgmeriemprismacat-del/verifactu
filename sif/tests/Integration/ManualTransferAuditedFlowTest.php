@@ -5,7 +5,9 @@ namespace Prisma\Sif\Tests\Integration;
 use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
+use Prisma\Sif\Repository\SifAuditEventRepository;
 use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
 use Prisma\Sif\Service\ManualPaymentService;
 use Prisma\Sif\Service\ManualTransferCommandService;
@@ -38,7 +40,9 @@ final class ManualTransferAuditedFlowTest
                 new TransactionRunner($db),
                 new PaymentActionEventRepository(new UuidGenerator())
             ),
-            'test'
+            'test',
+            new OperationalEventRepository(new UuidGenerator()),
+            new SifAuditEventRepository(new UuidGenerator())
         );
 
         $result = $service->register($db, [
@@ -91,6 +95,28 @@ final class ManualTransferAuditedFlowTest
         Assert::same('operator@example.test', $terminal['ACTOR_ID']);
         Assert::same('PAYMENT_WRITE', $terminal['ACTOR_ROLE']);
         Assert::same('UC-022', $terminal['REASON_CODE']);
+
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM operational_event
+                 WHERE UUID_PAYMENT = " . $db->quote($result['uuid_payment']) . "
+                   AND OPERATION_TYPE = 'REGISTER_MANUAL_TRANSFER'
+                   AND ECONOMIC_IMPACT = 'PAYMENT'
+                   AND FISCAL_IMPACT = 'NONE'"
+            )->fetchColumn()
+        );
+
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM sif_audit_event
+                 WHERE RESOURCE_ID = " . $db->quote($result['uuid_payment']) . "
+                   AND ACTION = 'REGISTER_MANUAL_TRANSFER'
+                   AND RESOURCE_TYPE = 'PAYMENT'
+                   AND RESULT = 'SUCCEEDED'"
+            )->fetchColumn()
+        );
     }
 
     public function testIdempotentReuseIsAuditedAsReusedWithoutSecondPayment(): void
