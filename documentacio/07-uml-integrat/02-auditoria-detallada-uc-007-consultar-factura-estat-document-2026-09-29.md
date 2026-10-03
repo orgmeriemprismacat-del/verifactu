@@ -631,3 +631,18 @@ Les proves noves i de regressió es mantenen **AJORNADES** a [03-proves-pendents
 - `maintenance/cleanupFacturaTemporals.php`: neteja CLI amb TTL només dels temporals `A<ANY>-<ORDRE>-<timestamp>.pdf` del generador llegat.
 - AL-18 llegat: ja no fa cleanup immediat després del clic de descàrrega; evita la cursa browser/unlink.
 - Les proves d'aquestes correccions continuen AJORNADES al document 03.
+
+
+## 17. Revalidació posterior — 2026-10-03
+
+Aquesta auditoria del 2026-09-29 es conserva com a evidència històrica, però la fotografia executable ha canviat. La revalidació nova és a [04-auditoria-revalidacio-uc-007-2026-10-03.md](04-auditoria-revalidacio-uc-007-2026-10-03.md).
+
+Canvis de lectura importants:
+- F02 ja disposa de cancel·lació/versionat de peticions al JS canònic.
+- el control de volum usa la longitud del resultat i no la comparació d'un array amb `2000`;
+- l'edició llegada ja protegeix `FACTURA_RELACIONADA` com a immutable al wrapper;
+- F07/AL-18 al **font canònic** usa POST i no cleanup immediat;
+- però el 2026-10-03 s'ha detectat que la fitxa alumne carregava encara un minificat 1.6 obsolet, de manera que les correccions del font no eren necessàriament les executades;
+- aquesta deriva d'asset queda corregida a la branca de revalidació i protegida per `Uc007IntranetBoundaryTest`.
+
+Per tant, les files d'aquest document marcades “CORREGIT a main” s'han de llegir juntament amb la revalidació d'**asset real carregat**. Cap correcció queda acreditada en runtime fins a CI/preproducció.
