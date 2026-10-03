@@ -46,6 +46,22 @@ final class GiftReservationBoundaryTest
         Assert::same(true, $insert !== false && $mail !== false && $insert < $mail);
     }
 
+    public function testCutoverStopsPrepaymentPublicGiftPdf(): void
+    {
+        $source = $this->read('codi-drive/web-actual/RegalCurs.php');
+        $start = strpos($source, 'public function enviarInscripcioRegal(');
+        $end = strpos($source, 'private function __mostrarClaseTamanyNomCurs', $start ?: 0);
+        $method = ($start !== false && $end !== false) ? substr($source, $start, $end - $start) : '';
+
+        Assert::stringContainsString('SIF_REDSYS_GIFT_CUTOVER_ENABLED', $method);
+        Assert::stringContainsString('if (!$giftCutoverEnabled)', $method);
+        Assert::stringContainsString('targetes-regal/', $method);
+
+        $guard = strpos($method, 'if (!$giftCutoverEnabled)');
+        $write = strpos($method, 'file_put_contents($filename_digital, $pdf_digital)');
+        Assert::same(true, $guard !== false && $write !== false && $guard < $write);
+    }
+
     public function testSifPaidProjectionIsAcceptedAtPaymentAndRedemptionBoundaries(): void
     {
         $payment = $this->read('codi-drive/pay-prisma-cat-canvis-verifactu/PagamentRegalAutomatic.php');
