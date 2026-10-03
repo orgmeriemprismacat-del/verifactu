@@ -42,6 +42,12 @@ if ($rawBody === false) {
 
 try {
     $config = require dirname(__DIR__, 3) . '/config/sif.php';
+    $rectificationConfig = $config['rectification'] ?? [];
+
+    if (($rectificationConfig['enabled'] ?? false) !== true) {
+        throw SifException::forbidden('UC-005 rectification execution is disabled');
+    }
+
     $db = ConnectionFactory::make($config);
 
     $internalApi = $config['internal_api'] ?? [];
@@ -61,7 +67,6 @@ try {
         )
     );
 
-    $rectificationConfig = $config['rectification'] ?? [];
     $actor = (new InternalRectificationScopeResolver(
         (array) ($rectificationConfig['write_roles'] ?? [])
     ))->resolve($actor);
