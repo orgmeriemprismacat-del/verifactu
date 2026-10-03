@@ -26,6 +26,27 @@ final class CommercialOperationRepository
         );
     }
 
+
+    public function findByIntentUuid(\PDO $db, string $uuidIntent, bool $forUpdate = false): ?array
+    {
+        $sql = 'SELECT * FROM commercial_operation WHERE UUID_INTENT = ? LIMIT 2';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$uuidIntent]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        if (!is_array($rows) || $rows === []) {
+            return null;
+        }
+        if (count($rows) > 1) {
+            throw SifException::conflict('Redsys intent is linked to multiple commercial operations');
+        }
+
+        return $rows[0];
+    }
+
     public function insert(\PDO $db, array $operation): array
     {
         $db->prepare(
