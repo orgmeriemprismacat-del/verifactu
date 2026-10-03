@@ -41,7 +41,7 @@ function resoldrePreuAlumnePrisMaServidor(
    $stmt->bind_param('s', $documentacio);
    $stmt->execute();
    $stmt->store_result();
-   $elegible = $stmt->num_rows() > 0;
+   $elegible = $stmt->num_rows > 0;
    $connexio->closeStmt();
 
    if (!$elegible) {
@@ -56,7 +56,7 @@ function resoldrePreuAlumnePrisMaServidor(
    $stmt->execute();
    $stmt->store_result();
 
-   if ($stmt->num_rows() !== 1) {
+   if ($stmt->num_rows !== 1) {
       $connexio->closeStmt();
       throw new Exception('Tarifa base no disponible o ambigua', 409);
    }
@@ -81,7 +81,7 @@ function resoldrePreuAlumnePrisMaServidor(
    $stmt->execute();
    $stmt->store_result();
 
-   if ($stmt->num_rows() <= 0) {
+   if ($stmt->num_rows <= 0) {
       $connexio->closeStmt();
       throw new Exception('Tarifa Alumne PrisMa no disponible', 409);
    }
