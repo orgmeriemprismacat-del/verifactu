@@ -210,6 +210,25 @@ flowchart TD
 
 ---
 
+## 8.1. A09-07b · Flow control després d'una resposta remota terminal
+
+### ACTUAL corregit / FINAL
+
+```mermaid
+flowchart TD
+    A[Resultat remot terminal] --> B{flow_wait_seconds vàlid?}
+    B -- Sí --> C[Persistir espera max 60 / valor AEAT]
+    B -- No --> D[Fallback 60 s]
+    D --> E[requires_review=true]
+    C --> F[Retornar resultat terminal]
+    E --> F
+    F --> G[SENT + ESTAT_AEAT terminal]
+    G --> H{requires_review?}
+    H -- Sí --> I[AEAT_REVIEW]
+    H -- No --> J[Finalitzar]
+    I --> K[Cap segon SOAP del mateix registre]
+```
+
 ## 9. A09-08 · Recuperació de stale lock
 
 ### ACTUAL corregit / FINAL
