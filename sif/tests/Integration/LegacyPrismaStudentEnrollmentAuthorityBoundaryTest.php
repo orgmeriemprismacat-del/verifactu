@@ -52,7 +52,7 @@ final class LegacyPrismaStudentEnrollmentAuthorityBoundaryTest
         Assert::stringContainsString('$tipusCurs = (string) $tipusCursServidor;', $source);
 
         $serverAssignment = strpos($source, '$tipusCurs = (string) $tipusCursServidor;');
-        $freeOverride = strpos($source, "if ( $tipusCurs == 'S' ) $preuDescompte = 0;");
+        $freeOverride = strpos($source, 'if ( $tipusCurs == \'S\' ) $preuDescompte = 0;');
         Assert::same(true, $serverAssignment !== false && $freeOverride !== false && $serverAssignment < $freeOverride);
     }
 
