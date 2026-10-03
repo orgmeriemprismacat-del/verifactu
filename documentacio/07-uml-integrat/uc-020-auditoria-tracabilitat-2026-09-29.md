@@ -362,3 +362,14 @@ La reauditoria confirma que UC-020 disposa de totes les peces documentals exigid
 | UC020-102 | El catàleg de configuració SIF no documentava el tall Redsys CURS/UC-020 ni els flags de cutover/drain tot i existir al preflight/runtime. | TANCAT DOCUMENTACIÓ | `sif/config/README.md` incorpora variables reals, contracte HMAC_SHA512_V2 i gate de preproducció. |
 
 **Contrast extern:** la documentació oficial Redsys vigent indica `HMAC_SHA512_V2` com a versió estàndard de signatura i especifica que la verificació ha de signar el valor de `Ds_MerchantParameters` tal com arriba, sense descodificar-lo abans del HMAC. La implementació SIF i l'helper llegat V2 segueixen aquest patró.
+
+
+## 15. Ampliació de proves AP — 03/10/2026
+
+| ID | Troballa/acció | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-103 | AP-01 i AP-10 no tenien test nominal propi per historial buit i historial mixt D/M + antecedent admissible. | TEST CREAT · PENDENT CI | `PrismaStudentDiscountPolicyTest` ampliat a `8b81276`. |
+| UC020-104 | AP-11/AP-17/AP-18/AP-70/AP-71 depenien de deducció del resolver però faltaven escenaris explícits de tarifa absent/futura. | TESTS CREATS · PENDENT CI | `LegacyPrismaStudentPriceSnapshotResolverTest` ampliat a `d7c13ec`. |
+| UC020-105 | Els guards de tarifa absent/futura no estaven demostrats al tall integrat `RedsysCoursePaymentIntentService → PrismaStudentCourseCheckoutService`. | TESTS INTEGRATS CREATS · PENDENT CI | `RedsysCoursePaymentIntentPrismaStudentTest` ampliat a `027787d`; comprova zero operacions/intencions si manca tarifa i ús del snapshot històric quan existeix una tarifa futura. |
+
+Aquesta ampliació no canvia la policy de negoci; converteix comportaments ja implementats en proves nominals i traçables.
