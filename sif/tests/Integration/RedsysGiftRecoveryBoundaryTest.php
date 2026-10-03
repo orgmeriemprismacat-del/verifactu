@@ -44,15 +44,15 @@ final class RedsysGiftRecoveryBoundaryTest
             $test
         );
         Assert::stringContainsString(
-            "Assert::same(true, $second['idempotency_reused']);",
+            "Assert::same(true, \$second['idempotency_reused']);",
             $test
         );
         Assert::stringContainsString(
-            "$first['gift_entitlement']['uuid_entitlement']",
+            "\$first['gift_entitlement']['uuid_entitlement']",
             $test
         );
         Assert::stringContainsString(
-            "$first['uuid_payment'], $second['uuid_payment']",
+            "\$first['uuid_payment'], \$second['uuid_payment']",
             $test
         );
     }
@@ -64,7 +64,7 @@ final class RedsysGiftRecoveryBoundaryTest
         Assert::stringContainsString("Assert::same(true, $second['idempotency_reused']);", $test);
         Assert::stringContainsString('SECRET-GIFT-CODE', $test);
         Assert::stringContainsString(
-            "str_contains((string) $row['PAYLOAD_JSON'], 'SECRET-GIFT-CODE')",
+            "str_contains((string) \$row['PAYLOAD_JSON'], 'SECRET-GIFT-CODE')",
             $test
         );
     }
