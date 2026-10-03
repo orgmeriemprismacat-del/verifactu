@@ -1068,50 +1068,45 @@ function mostrarModalPrevisualitzaFactura( id ) {
 			var nclick = 0;
 
 			$('.download-factura').on('click', function() {
-				if ( tePermisEdicio ) {
-					$("#modalPrevisualizaFactura").modal('hide');
-					var idFact = $('#modalPrevisualizaFactura #factura-relacionada-fact').html().trim();
-					var requestDown = $.ajax({
-						url: path + "alumnes/descarregaFactura.php",
-						method: "POST",
-						data: { id : idFact },
-						dataType: "html"
-					});
+				/* UC-007: la descàrrega és una operació de lectura.
+				   El backend revalida sessió, ROLS_VISUALITZAR, origen i guard SIF. */
+				$("#modalPrevisualizaFactura").modal('hide');
+				var idFact = $('#modalPrevisualizaFactura #factura-relacionada-fact').html().trim();
+				var requestDown = $.ajax({
+					url: path + "alumnes/descarregaFactura.php",
+					method: "POST",
+					data: { id : idFact },
+					dataType: "html"
+				});
 
-					requestDown.done(function( resD ) {
+				requestDown.done(function( resD ) {
+					resD = $.trim(resD);
+					if (resD !== '' && !resD.toLowerCase().includes("error")) {
+						var link = document.createElement('a');
+						link.setAttribute("id", "download-fact-" + nclick);
+						link.href = path + "alumnes/" + encodeURIComponent(resD);
+						link.download = resD;
+						document.body.appendChild(link);
+						link.click();
+						link.remove();
 
-						resD = $.trim(resD);
-						if (resD !== '' && !resD.toLowerCase().includes("error")) {
-							var link = document.createElement('a');
-							link.setAttribute("id", "download-fact-" + nclick);
-							link.href = path + "alumnes/" + encodeURIComponent(resD);
-							link.download = resD;
-							document.body.appendChild(link);
-							link.click();
-							link.remove();
+						afegirHeaderModalSuccess("Descarregada");
+						afegirTextModalSuccess("S'ha iniciat la descàrrega de la factura");
+						mostrarModalSuccess();
+						nclick++;
+					}
+					else {
+						afegirHeaderModalError("Hi ha hagut un error al generar la descarrega");
+						afegirTextModalError('');
+						mostrarModalError();
+						reloadUrl();
+					}
+				});
 
-							afegirHeaderModalSuccess("Descarregada");
-							afegirTextModalSuccess("S'ha iniciat la descàrrega de la factura");
-							mostrarModalSuccess();
-							nclick++;
-						}
-						else {
-							afegirHeaderModalError("Hi ha hagut un error al generar la descarrega");
-							afegirTextModalError('');
-							mostrarModalError();
-							reloadUrl();
-						}
-					});
-
-					requestDown.fail(function( jqXHRDown, textStatusDown, errorThrownDown ) {
-						errorFunction( jqXHRDown, textStatusDown, errorThrownDown,
-							"Hi ha hagut algun error a l'hora de descarregar la factura: " );
-					});
-				}
-				else {
-				   mostrarModalNoTensPermisos();
-				}
-
+				requestDown.fail(function( jqXHRDown, textStatusDown, errorThrownDown ) {
+					errorFunction( jqXHRDown, textStatusDown, errorThrownDown,
+						"Hi ha hagut algun error a l'hora de descarregar la factura: " );
+				});
 			});
 
 			if ($('#factura-num-pagines')) {
