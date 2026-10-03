@@ -35,6 +35,7 @@ SIF_INTERNAL_AEAT_URL=https://<host-sif>/api/aeat/operations.php
 SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH=/api/aeat/operations.php
 SIF_INTERNAL_API_KEY_ID=<id-clau>
 SIF_INTERNAL_API_SECRET=<secret>
+SIF_AEAT_EVIDENCE_DIR=<directori-privat-fora-del-webroot>
 ```
 
 Els rols reals s'han d'alinear amb els valors que ja utilitza la taula `apartats.ROLS_VISUALITZAR`.
@@ -198,3 +199,13 @@ Canvis del paquet d'auditoria:
 - la validació d'`attempt_uuid` de reconciliació exigeix estructura UUID 8-4-4-4-12.
 
 Aquests canvis milloren la garantia de regressió del codi versionat, però **no substitueixen** la prova real de desplegament, xarxa, certificat i AEAT de preproducció.
+
+
+## 13. Correccions de preproducció detectades el 2026-10-03
+
+1. **Same-origin intranet:** el panell, assets, AJAX i redirect utilitzen rutes relatives. Això evita que `intranet-pre.prisma.cat` carregui recursos o intenti autenticar-se contra `intranet.prisma.cat`.
+2. **Evidence store al preflight web:** `config/sif.php` inclou `SIF_AEAT_EVIDENCE_DIR`; el modal i el CLI comproven la mateixa ruta privada.
+3. **Stale worker:** un `PROCESSING` caducat queda en `REVIEW` amb incidència `AEAT_STALE_PROCESSING`. No torna a `RETRY` i no es fa cap segon SOAP automàtic.
+4. **Check focalitzat:** `UC-009 AEAT audit` executa lints i la suite pròpia del cas independentment de fallades alienes de PACK/Redsys.
+
+Aquestes quatre correccions són prerequisit abans de considerar una prova real a `intranet-pre`/SIF preproducció.
