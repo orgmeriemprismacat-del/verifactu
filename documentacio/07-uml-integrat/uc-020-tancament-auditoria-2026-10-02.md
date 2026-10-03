@@ -45,7 +45,7 @@ Són gates de desplegament o tasques transversals ja identificades; no són inc�
 
 ## 6. Criteri de verificació final
 
-El commit de tancament ha de mantenir el PR mergeable i les comprovacions automàtiques han d'acabar correctament. Si GitHub Actions no arrenca, la manca d'execució es registra com a **bloqueig d'infraestructura de verificació**, mai com a prova passada.
+El commit de tancament ha de mantenir el PR mergeable. La verificació es llegeix per perímetre: els tests UC-020 poden quedar `VERIFICAT_CI_ESPECIFIC` encara que una suite compartida falli per proves alienes, però el PR no es pot descriure com a globalment verd fins que el gate compartit passi. La manca d'execució o una fallada no atribuïda s'ha de registrar explícitament, mai convertir-la en prova passada.
 ## 7. Decisió sobre el PR alternatiu #97
 
 El PR #97 ha estat revisat abans del tancament. Aporta una abstracció interessant: `PrismaStudentCourseCheckoutService` delega la persistència comercial a `CommercialOfferService`. No s'ha portat tal qual perquè `TransactionRunner` no admet transacció ja activa i el flux #97 separa oferta, intenció i vincle en commits diferents.
@@ -59,3 +59,18 @@ La reauditoria contra el `main` vigent ha detectat i corregit **UC020-94**, **UC
 També s'ha reconciliat la documentació que encara conservava com a vigents decisions ja tancades i la fotografia antiga de la intranet GET/sense CSRF. Les peces documentals obligatòries queden completes: fitxa v1.6, UML integrat, classes, seqüències, activitats P01…P06, traçabilitat i matriu AP-01…AP-84.
 
 El `main` nou incorpora el tall Redsys CURS amb flags de cutover/drain i proves E2E simulades de callback → worker → pagament/factura/sync/outbox. Es manté com a **gate de rollout** l'E2E real/controlat de navegador → Redsys/callback → factura, més la migració a `payment_link` canònic i la unificació de transferència.
+
+
+## 9. Evidència CI final — 03/10/2026
+
+Al commit `9a70516ca27ee831b8ef78e61cea524c3c3ea5f6`:
+
+- les proves directes Alumne PrisMa/UC-020 observades al log passen;
+- les 3 proves E2E simulades CURS compartides passen;
+- `CommercialOfferServiceTest` i `PaymentLinkServiceTest` passen;
+- la suite global acaba amb **924 passed / 6 failed**;
+- les 6 fallades són de fronteres PACK/UC-015 i `RedsysSignatureValidatorTest`, no de UC-020.
+
+Per tant, el tancament queda en estat **AUDIT_CLOSED + VERIFICAT_CI_ESPECIFIC + GLOBAL_CI_BLOCKED_BY_UNRELATED_FAILURES**. L'evidència detallada és [uc-020-evidencia-ci-2026-10-03.md](uc-020-evidencia-ci-2026-10-03.md).
+
+Això no canvia els gates de rollout: continua pendent l'E2E real/controlat navegador → Redsys/callback → worker → factura a preproducció.
