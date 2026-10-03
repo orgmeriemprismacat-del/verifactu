@@ -99,7 +99,7 @@ La UI pot oferir intent de descàrrega per `CREATED|READY|ARCHIVED`. UC-080 torn
 
 - Execució real de la suite i E2E amb MySQL/preproducció.
 - Evidència de rols reals i revocació de sessió.
-- Storage privat UC-080, documents absents, hash incorrecte i audit d'accés.
+- Storage privat UC-080 amb configuració real d'entorn i rols reals. Els casos bytes correctes, fitxer absent, hash incorrecte i audit ALLOWED/DENIED/FAILED ja tenen prova d'integració amb storage temporal.
 - Casos d'empresa/grup i visibilitat per recurs dels canals externs.
 - Regressió de consultes llegades amb dades històriques complexes.
 - Retirada definitiva del fallback i dels artefactes JS obsolets un cop acabada la migració.
@@ -113,7 +113,14 @@ La UI pot oferir intent de descàrrega per `CREATED|READY|ARCHIVED`. UC-080 torn
 - `uc-007-activitats-pagines-actual-final.md`
 - `uc-007-tracabilitat-estats-2026-10-03.md`
 - `sif/tests/Integration/Uc007IntranetBoundaryTest.php`
+- `sif/tests/Integration/InvoiceDocumentAccessServiceTest.php`
 
 ## 8. Criteri de tancament
 
 L'UC-007 queda **DOCUMENTAT + IMPLEMENTAT EN CODI, PERÒ NO VERIFICAT RUNTIME**. El tancament “IMPLEMENTAT I PROVAT” requereix evidència reproduïble de CI/preproducció i les proves de [03-proves-pendents-uc-007-implementacio.md](03-proves-pendents-uc-007-implementacio.md).
+
+## 9. Evidència CI obtinguda en aquesta revalidació
+
+El primer run del PR #135 ha passat totes les proves directament relacionades amb UC-007 que ja existien: frontera intranet, query read-only, política FULL/MINIMAL, HMAC/anti-replay i CLI query. També passen les proves de registre immutable de document. El workflow global queda en `failure` per sis tests PACK/Redsys no modificats per aquesta branca i el `main` base ja tenia workflows fallant. Per tant, aquestes sis fallades no es comptabilitzen com a regressió UC-007.
+
+Després d'aquesta evidència s'ha afegit una prova específica d'UC-080 (`InvoiceDocumentAccessServiceTest`) per cobrir bytes verificats, scope MINIMAL denegat, hash mismatch i fitxer absent amb auditoria.
