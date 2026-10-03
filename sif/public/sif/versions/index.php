@@ -62,8 +62,29 @@ if (!is_array($actor)) {
     return;
 }
 
-$roles = array_map(static fn ($role): string => strtoupper(trim((string) $role)), (array) ($actor['roles'] ?? []));
-$manageRoles = array_map(static fn ($role): string => strtoupper(trim((string) $role)), (array) ($versionConfig['manage_roles'] ?? []));
+$roles = array_values(array_filter(array_map(
+    static fn ($role): string => strtoupper(trim((string) $role)),
+    (array) ($actor['roles'] ?? [])
+)));
+$readRoles = array_values(array_filter(array_map(
+    static fn ($role): string => strtoupper(trim((string) $role)),
+    (array) ($versionConfig['read_roles'] ?? [])
+)));
+$manageRoles = array_values(array_filter(array_map(
+    static fn ($role): string => strtoupper(trim((string) $role)),
+    (array) ($versionConfig['manage_roles'] ?? [])
+)));
+$allowedRoles = array_values(array_unique(array_merge($readRoles, $manageRoles)));
+if ($allowedRoles === [] || array_intersect($roles, $allowedRoles) === []) {
+    http_response_code(403);
+    ?><!doctype html>
+<html lang="ca"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Versions SIF</title><link rel="stylesheet" href="../incidencies/style.css"></head>
+<body><main class="shell"><section class="empty-state"><h1>Versions SIF</h1>
+<p>No tens permisos per consultar la governança de versions del SIF.</p>
+<p><a href="https://intranet.prisma.cat/sif-verifactu.php">Tornar a la intranet</a></p></section></main></body></html><?php
+    return;
+}
 $canManage = array_intersect($roles, $manageRoles) !== [];
 $csrf = $session->csrfToken();
 ?>
