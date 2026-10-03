@@ -180,9 +180,18 @@ final class FiscalQueueProcessorTest
 
         Assert::same(0, $notRecovered);
         Assert::same(1, $recovered);
-        Assert::same('RETRY', (string) $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
+        Assert::same('REVIEW', (string) $db->query('SELECT STATUS FROM fiscal_queue')->fetchColumn());
         Assert::same(null, $db->query('SELECT LOCKED_AT FROM fiscal_queue')->fetchColumn());
-        Assert::same('Recovered stale worker lock', (string) $db->query('SELECT LAST_ERROR FROM fiscal_queue')->fetchColumn());
+        Assert::same(null, $db->query('SELECT NEXT_RETRY_AT FROM fiscal_queue')->fetchColumn());
+        Assert::stringContainsString(
+            'delivery outcome requires review before resend',
+            (string) $db->query('SELECT LAST_ERROR FROM fiscal_queue')->fetchColumn()
+        );
+        Assert::same(
+            1,
+            (int) $db->query("SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_STALE_PROCESSING'")
+                ->fetchColumn()
+        );
     }
 
     public function testBatchStopsAfterFirstTransportFailure(): void
