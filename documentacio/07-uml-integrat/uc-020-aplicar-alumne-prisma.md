@@ -359,7 +359,8 @@ sequenceDiagram
 
     JS->>JS: tipusPreuAplicat + preuInscripcio
     P->>JS: confirmar
-    JS->>EI: GET dades + tipusDescompte + preuDescompte + promoció
+    JS->>EI: GET dades + tipusDescompte + preuDescompte + tipusCurs + promoció
+    EI->>DB: derivar TIPUS_CURS servidor des d'informacio
     alt TIPUS_DESC=1
         EI->>DB: rellegir historial AP + tarifa base/AP vigent
         EI->>EI: rebutjar AP+promoció / tarifa absent o ambigua
@@ -727,6 +728,7 @@ L'auditoria UC-020 queda **tancada**. El runtime AP de targeta és server-author
 ## 18. Revalidació 03/10/2026
 
 - **UC020-94 — tancat:** eliminat l'overwrite tardà de `preuDescompte` des del navegador després de la revalidació AP; prova de frontera afegida.
+- **UC020-97 — tancat:** `TIPUS_CURS` es deriva de `informacio` al servidor; el navegador ja no pot activar el branch subvencionat per alterar `A_PAGAR`.
 - **UC020-95 — compatible amb main:** els canvis nous de Redsys CURS/cutover/callback/worker/factura no reobren la policy AP ni l'autoritat del snapshot; el callback continua consumint la intenció congelada.
 - **Cobertura documental:** aquest UML integrat es complementa amb fitxa v1.6, classes, seqüències, activitats P01…P06, traçabilitat i matriu AP-01…AP-84.
 - **Pendent de rollout:** E2E real/controlat navegador → Redsys/callback → worker → factura, `payment_link` canònic i transferència sota la mateixa autorització comercial.
