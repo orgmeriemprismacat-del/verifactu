@@ -75,7 +75,7 @@ L'auditoria UC-001 es considera tancada quan el head de codi d'aquesta revisió 
 - [x] Frontera HTTP autenticada i autoritzada.
 - [x] Coherència monetària i persistència d'exempció revisades.
 - [x] Troballes restants classificades per frontera.
-- [ ] Gate CI del head final — **OBLIGATORI**: validar els checks del PR #114 sobre el merge sintètic amb el `main` vigent.
+- [ ] Gate CI del head final — **OBLIGATORI**: validar els checks del PR #145, recreat directament sobre el `main` vigent.
 
 ### 5.2. No bloqueja el tancament de l'auditoria, però sí altres fases
 
@@ -84,7 +84,7 @@ La integració obligatòria de `commercial_operation`, l’assembler AEAT comple
 
 ### 5.3. Evidència d’execució CI
 
-La cua global que havia bloquejat GitHub Actions s’ha resolt. L’evidència vàlida és ara el resultat dels workflows associats al **head final** del PR #114 contra el merge sintètic amb `main`. No es considera suficient un run d’un head anterior. Qualsevol fallada reobre la troballa afectada abans del merge.
+La reconciliació de branca s'ha resolt a la PR #145 (`behind 0`). L'evidència vàlida de tancament és el resultat dels workflows associats al **head final** de #145. Els runs de #114 continuen sent evidència històrica del hardening, però no substitueixen el gate de la branca reconciliada.
 
 ## 6. Matriu detallada de troballes 51–100
 
@@ -183,11 +183,11 @@ A GitHub Actions del commit `88e5c922424b0cf573b1d1af08dc8713b7b8ea32` consten c
 | F-102 | Documental | HARD-004 deia que els espais no canònics es rebutjaven, però el codi/prova demostren que es normalitzen. | **Corregit** a la fitxa 1.4. |
 | F-103 | Operativa | La pantalla de factura conserva edició/anul·lació llegada; el bloqueig SIF depèn de flags de cutover. | **Pendent configuració/prova preprod**. |
 | F-104 | Traçabilitat UI | `alumnes-factura-sif.js` i `alumnes-factura.js` defineixen `window.uc007SifSearch`; el segon queda com a definició global final. | **Classificat UC-007**; no bloqueja el core UC-001 però afecta l’evidència de pantalla. |
-| F-105 | Integració | PR #114: al tall 03/10, 150 commits ahead / 44 behind de `main`; solapament directe del diff en `sif/config/sif.php` i README. | **Pendent reconciliar amb main i executar gate resultant**. |
+| F-105 | Integració | La branca original #114 havia divergit 150/44 respecte de `main`. S'ha recreat el perímetre UC-001 sobre `main` actual a la PR #145, preservant els canvis concurrents de `sif/config/sif.php` i `README.md`. | **Reconciliat: behind 0; pendent CI del head #145**. |
 
 ### 8.3. Estat per categoria
 
 - **Documentat:** fitxa, UML integrat, classes, seqüències, activitats, inventari PHP/JS, auditoria i revalidació.
 - **Implementat:** nucli d’emissió/reús, numeració, cadena/cua, payment, audit events, status projection, endpoint/policy/scope, guard AEAT, writer operation-line i HARD-017.
 - **Verificat:** inspecció del PHP/JS/SQL, proves específiques UC-001 passades al run `88e5c922…` i HARD-017 passada al run de `276fb390…`. El job SIF d’aquest head queda **961 pass / 6 fail**, amb les sis fallades fora d’UC-001.
-- **Pendent:** coverage comercial entre claus, `commercial_operation` obligatòria, propagació universal de `uuid_operation_line`, assembler AEAT complet, any fiscal, R1–R5, cutover guards llegats, fencing Redsys, preproducció i reconciliació/CI final.
+- **Pendent:** coverage comercial entre claus, `commercial_operation` obligatòria, propagació universal de `uuid_operation_line`, assembler AEAT complet, any fiscal, R1–R5, cutover guards llegats, fencing Redsys, preproducció i **CI final de la PR #145**. La reconciliació amb `main` ja està resolta.
