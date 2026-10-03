@@ -10,9 +10,7 @@
 
 L'UC-008 continua **AUDIT_CLOSED + CODE_COMPLETE**. No s'ha detectat cap fitxa, diagrama ACTUAL/FINAL, PHP, JS, API, repositori o prova específica d'incidències absent.
 
-El `main` actual ja no es pot descriure globalment com a `CI_GREEN`: el HEAD del PR #118 va executar la suite SIF amb **917 passed / 6 failed**. Tanmateix, les proves explícites d'incidències i del worker Redsys que deriva errors a incidència continuen passant. Les sis fallades observades són cinc contractes PACK i una expectativa antiga de `payload_hash` al test de signatura Redsys.
-
-Aquesta branca corregeix aquesta expectativa Redsys perquè el fixture actual inclou `Ds_TransactionType`; el SHA-256 de la cadena `Ds_MerchantParameters` actual és `b585ea0d53cc71fc58e366ccde647457220e9e7732734c0b904a014f589813ff`. No es modifica la lògica de validació ni el lifecycle UC-008.
+El `main` actual no es pot descriure globalment com a `CI_GREEN`: el HEAD del PR #118 havia executat la suite SIF amb **917 passed / 6 failed**. Aquesta branca ha corregit l'expectativa antiga de `payload_hash` al test de signatura Redsys perquè el fixture actual inclou `Ds_TransactionType`; el SHA-256 de la cadena `Ds_MerchantParameters` actual és `b585ea0d53cc71fc58e366ccde647457220e9e7732734c0b904a014f589813ff`. El run PR #123 `37128124387` confirma la correcció amb **918 passed / 5 failed** i tots els tests `RedsysSignatureValidatorTest` en PASS. Les cinc fallades restants són contractes PACK/UC-015. No s'ha modificat la lògica de validació ni el lifecycle UC-008.
 
 ## 2. Paquet documental comprovat
 
@@ -132,27 +130,27 @@ Això manté acreditada la frontera UC-008 dins del `main` actual.
 
 ## 6. Estat de CI actual
 
-Runs del HEAD del PR #118:
+Evidència de CI revalidada:
 
-- `37060976805` · **SIF PHP MySQL tests** → failure;
-- `37060976877` · **SIF checks** → failure;
-- tots dos executen la suite amb **917 passed / 6 failed**.
+- `37060976805` · HEAD PR #118 · **SIF PHP MySQL tests** → **917 passed / 6 failed**;
+- `37060976877` · HEAD PR #118 · **SIF checks** → **917 passed / 6 failed**;
+- `37128124387` · PR #123 després del fix Redsys → **918 passed / 5 failed**;
+- `37128124407` · **SIF checks** del mateix executable → **918 passed / 5 failed**.
 
-Les sis fallades són:
+Les cinc fallades que **resten després de la correcció** són:
 
 1. `PackEnrollmentIdempotencyBoundaryTest::testEnrollmentReusesSingleAuthoritativePriceSnapshot`;
 2. `PackEnrollmentTransportBoundaryTest::testPackEnrollmentMutationUsesPostAndDoesNotReadGetParameters`;
 3. `PackPaymentPrivacyBoundaryTest::testPackRedsysPayloadUsesNameNotDniAndOmitsEmailFromReturnUrls`;
 4. `PackPaymentPrivacyBoundaryTest::testPaymentResponsePagesTreatEmailAsOptionalEscapedHint`;
-5. `PackPublicEnrollmentBoundaryTest::testPublicPackEnrollmentHasSameSiteRequestBoundaryBeforeInputProcessing`;
-6. `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload`.
+5. `PackPublicEnrollmentBoundaryTest::testPublicPackEnrollmentHasSameSiteRequestBoundaryBeforeInputProcessing`.
 
-Les cinc primeres corresponen a PACK/UC-015. La sisena és un assert de fixture Redsys desfasat i es corregeix en aquesta branca.
+Totes cinc corresponen a PACK/UC-015. `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload`, que era la sisena fallada al PR #118, ara passa.
 
 Per això l'estat correcte és:
 
 - **UC-008 regression:** PASS dins la suite actual;
-- **global SIF suite:** RED fins corregir els cinc contractes PACK restants;
+- **global SIF suite de la revalidació:** **918/5**, RED fins corregir els cinc contractes PACK restants;
 - **baseline 844/0 del 02/10:** evidència històrica vàlida, però no s'ha d'usar per afirmar que el `main` actual és globalment verd.
 
 ## 7. Classificació final
@@ -161,7 +159,7 @@ Per això l'estat correcte és:
 | --- | --- |
 | Documentat | **COMPLET** |
 | Implementat | **COMPLET dins l'abast UC-008** |
-| Verificat | **UC-008 REGRESSION PASS al main actual; suite global 917/6** |
+| Verificat | **UC-008 REGRESSION PASS; revalidació global 918/5, cinc fallades PACK** |
 | Pendent UC-008 | **Acceptació real de preproducció/producció** |
 | Pendent extern a UC-008 | **5 fallades PACK de la suite global** |
 
