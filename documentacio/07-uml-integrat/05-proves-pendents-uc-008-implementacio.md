@@ -181,7 +181,7 @@ Per marcar UC-008 com PROVAT conservar:
 - prova de tancament amb evidència;
 - resultat preproducció.
 
-**Estat actual (02/10/2026): AUDITORIA/CODI TANCATS.** Darrer tall executable aplicable `5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`, run `36943995075`: **844/0**, amb **74 PASS relacionats amb incidències/UC-008**. Resta executar únicament els controls reals d'acceptació d'entorn, completar l'alta de menú si cal, exercitar el flux gestor sobre la incidència sintètica i validar les tres evidències amb `validate-uc008-evidence.php`. Aquests passos condicionen `ENVIRONMENT-CLOSED`, no `AUDIT-CLOSED`.
+**Baseline de tancament (02/10/2026): AUDITORIA/CODI TANCATS.** Darrer tall executable aplicable `5cc0410018929bed53d0e2e2078f4b4c4f2bf6f7`, run `36943995075`: **844/0**, amb **74 PASS relacionats amb incidències/UC-008**. Resta executar únicament els controls reals d'acceptació d'entorn, completar l'alta de menú si cal, exercitar el flux gestor sobre la incidència sintètica i validar les tres evidències amb `validate-uc008-evidence.php`. Aquests passos condicionen `ENVIRONMENT-CLOSED`, no `AUDIT-CLOSED`.
 
 
 ## 13. Evidència CI
