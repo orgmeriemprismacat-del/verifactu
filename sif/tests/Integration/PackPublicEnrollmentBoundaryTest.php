@@ -43,30 +43,40 @@ final class PackPublicEnrollmentBoundaryTest
 
     public function testPublicPackEnrollmentHasSameSiteRequestBoundaryBeforeInputProcessing(): void
     {
-        $path = dirname(__DIR__, 3)
-            . '/codi-drive/web-actual/ajax/enviarInscripcioPack.php';
+        $root = dirname(__DIR__, 3);
+        $path = $root . '/codi-drive/web-actual/ajax/enviarInscripcioPack.php';
+        $authPath = $root . '/codi-drive/web-actual/inc/PublicWebMutationAuthorization.php';
 
         $source = file_get_contents($path);
-        if (!is_string($source)) {
-            Assert::fail('Could not load PACK public enrollment endpoint');
+        $authorization = file_get_contents($authPath);
+        if (!is_string($source) || !is_string($authorization)) {
+            Assert::fail('Could not load PACK public enrollment authorization boundary');
         }
 
+        Assert::stringContainsString('PublicWebMutationAuthorization.php', $source);
+        Assert::stringContainsString('PublicWebMutationAuthorization::assertSameOriginAjax()', $source);
         Assert::stringContainsString('HTTP_SEC_FETCH_SITE', $source);
-        Assert::stringContainsString('HTTP_ORIGIN', $source);
-        Assert::stringContainsString('HTTP_REFERER', $source);
-        Assert::stringContainsString("'www.prisma.cat', 'prisma.cat'", $source);
         Assert::stringContainsString("Cache-Control: no-store", $source);
 
+        Assert::stringContainsString('WEB_ALLOWED_ORIGINS', $authorization);
+        Assert::stringContainsString('HTTP_ORIGIN', $authorization);
+        Assert::stringContainsString('HTTP_REFERER', $authorization);
+        Assert::stringContainsString('https://www.prisma.cat;https://prisma.cat', $authorization);
+        Assert::stringContainsString('HTTP_X_REQUESTED_WITH', $authorization);
+
         $methodGuard = strpos($source, 'REQUEST_METHOD');
+        $authorizationCall = strpos($source, 'PublicWebMutationAuthorization::assertSameOriginAjax()');
         $siteGuard = strpos($source, 'HTTP_SEC_FETCH_SITE');
         $request = strpos($source, '$request = $_POST;');
         $firstInput = strpos($source, "new Text(\$request['nom'])");
 
         Assert::same(true, $methodGuard !== false);
+        Assert::same(true, $authorizationCall !== false);
         Assert::same(true, $siteGuard !== false);
         Assert::same(true, $request !== false);
         Assert::same(true, $firstInput !== false);
-        Assert::same(true, $methodGuard < $request);
+        Assert::same(true, $methodGuard < $authorizationCall);
+        Assert::same(true, $authorizationCall < $request);
         Assert::same(true, $siteGuard < $request);
         Assert::same(true, $request < $firstInput);
     }
