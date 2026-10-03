@@ -83,7 +83,7 @@ final class PackPaymentPrivacyBoundaryTest
             );
             $packProductEnd = strpos(
                 $source,
-                '}\n      else {',
+                "}\n      else {",
                 $packProductStart === false ? 0 : $packProductStart
             );
             Assert::same(true, $packProductStart !== false);
