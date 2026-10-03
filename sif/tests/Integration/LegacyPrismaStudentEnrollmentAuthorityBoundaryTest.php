@@ -38,7 +38,8 @@ final class LegacyPrismaStudentEnrollmentAuthorityBoundaryTest
         Assert::same(true, $serverGuard !== false && $insert !== false);
 
         $guardedFlow = substr($source, $serverGuard, $insert - $serverGuard);
-        Assert::stringContainsString("$promocioATrobadaplicada != '' || $promocioAplicada != ''", $guardedFlow);
+        Assert::stringContainsString('$promocioATrobadaplicada', $guardedFlow);
+        Assert::stringContainsString('$promocioAplicada', $guardedFlow);
         Assert::stringContainsString('http_response_code(409)', $guardedFlow);
     }
 
