@@ -28,6 +28,36 @@ final class PayloadIdempotencyFlowTest
         Assert::same(1, (int) $db->query('SELECT LAST_FISCAL_ORDER FROM fiscal_chain_state WHERE ID = 1')->fetchColumn());
     }
 
+    public function testInvoiceRetryCanUseNewRequestTraceMetadataWithoutChangingBusinessIdentity(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|TRACE|RETRY',
+            'source_channel' => 'INTRANET',
+            'request_id' => '11111111-1111-4111-8111-111111111111',
+            'correlation_id' => 'TRACE-CORR-FIRST',
+            'actor_role' => 'FACTURACIO',
+            'actor_type' => 'SYSTEM',
+        ]);
+
+        $first = $service->issueInvoice($payload);
+        $payload['request_id'] = '22222222-2222-4222-8222-222222222222';
+        $payload['correlation_id'] = 'TRACE-CORR-SECOND';
+        $payload['actor_role'] = 'ADMINISTRACIO';
+        $second = $service->issueInvoice($payload);
+
+        Assert::same($first['uuid_factura'], $second['uuid_factura']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same('TRACE-CORR-FIRST', $first['correlation_id']);
+        Assert::same('TRACE-CORR-SECOND', $second['correlation_id']);
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM sif_audit_event')->fetchColumn());
+        Assert::same(
+            '22222222-2222-4222-8222-222222222222',
+            (string) $db->query('SELECT REQUEST_ID FROM sif_audit_event ORDER BY ID DESC LIMIT 1')->fetchColumn()
+        );
+    }
+
     public function testRetryCannotAddAnInitialPaymentToAnAlreadyIssuedInvoice(): void
     {
         $db = TestDatabase::fresh();
@@ -41,6 +71,93 @@ final class PayloadIdempotencyFlowTest
         Assert::throws(SifException::class, fn () => $service->issueInvoice($payload), 409);
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
+    public function testRetryWithOriginalPaymentFailsClosedWhenPaymentRecordIsMissing(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+        $payload = Fixtures::invoicePayload([
+            'payment' => [
+                'idempotency_key' => 'PAYMENT|MISSING_ON_RETRY',
+                'movement_type' => 'CHARGE',
+                'method' => 'REDSYS',
+                'source_channel' => 'REDSYS',
+                'amount' => '120.00',
+                'movement_date' => '2026-06-02 10:00:00',
+                'provider_ref' => 'ORDER-MISSING-PAYMENT',
+                'ds_order' => 'ORDER-MISSING-PAYMENT',
+                'idpag' => 123,
+            ],
+        ]);
+
+        $service->issueInvoice($payload);
+        $db->exec('DELETE FROM operational_event');
+        $db->exec('DELETE FROM payment_allocation');
+        $db->exec('DELETE FROM payment_transaction');
+
+        Assert::throws(SifException::class, fn () => $service->issueInvoice($payload), 409);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
+
+    public function testRetryWithOriginalPaymentFailsClosedWhenPaymentTransactionWasTampered(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'REDSYS|CURS|IDPAG:123|ORDER:TAMPERED-PAYMENT',
+            'payment' => [
+                'idempotency_key' => 'PAYMENT|TAMPERED_ON_RETRY',
+                'movement_type' => 'CHARGE',
+                'method' => 'REDSYS',
+                'source_channel' => 'REDSYS',
+                'amount' => '120.00',
+                'movement_date' => '2026-06-02 10:00:00',
+                'provider_ref' => 'TAMPERED-PAYMENT',
+                'ds_order' => 'TAMPERED-PAYMENT',
+                'idpag' => 123,
+            ],
+        ]);
+
+        $service->issueInvoice($payload);
+        $db->exec("UPDATE payment_transaction SET IMPORT = '119.00'");
+
+        Assert::throws(SifException::class, fn () => $service->issueInvoice($payload), 409);
+    }
+
+    public function testRetryWithOriginalPaymentFailsClosedWhenAllocationTargetsAnotherInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+        $payload = Fixtures::invoicePayload([
+            'idempotency_key' => 'REDSYS|CURS|IDPAG:123|ORDER:WRONG-ALLOCATION',
+            'payment' => [
+                'idempotency_key' => 'PAYMENT|WRONG_ALLOCATION_ON_RETRY',
+                'movement_type' => 'CHARGE',
+                'method' => 'REDSYS',
+                'source_channel' => 'REDSYS',
+                'amount' => '120.00',
+                'movement_date' => '2026-06-02 10:00:00',
+                'provider_ref' => 'WRONG-ALLOCATION',
+                'ds_order' => 'WRONG-ALLOCATION',
+                'idpag' => 123,
+            ],
+        ]);
+
+        $first = $service->issueInvoice($payload);
+        $second = $service->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'INTRANET|UC001|SECOND-INVOICE-FOR-ALLOCATION',
+            'source_channel' => 'INTRANET',
+        ]));
+
+        $stmt = $db->prepare(
+            'UPDATE payment_allocation SET UUID_FACTURA = ? WHERE UUID_FACTURA = ?'
+        );
+        $stmt->execute([$second['uuid_factura'], $first['uuid_factura']]);
+
+        Assert::throws(SifException::class, fn () => $service->issueInvoice($payload), 409);
     }
 
     public function testOriginalInvoiceWithoutFingerprintFailsClosed(): void
