@@ -633,7 +633,8 @@ L'orquestrador de preproducció podia executar el processor manual amb `--execut
 - **acceptació productiva:** callback + worker real + `--verify-evidence`;
 - el preflight exigeix també la presència de `verify-redsys-pack-evidence.php`;
 - el `go-no-go-preproduction.php` considera complet el circuit PACK només si existeixen l'orquestrador i el verificador persistent, mentre el worker/cua continua cobert per `redsys_async_circuit_present`;
-- `sif/config/README.md` diferencia explícitament diagnòstic manual i acceptació post-worker.
+- `sif/config/README.md` diferencia explícitament diagnòstic manual i acceptació post-worker;
+- `RedsysPackEvidenceVerifier` retorna al JSON sanititzat les identitats `UUID_INTENT`, `UUID_JOB`, `UUID_FACTURA`, `UUID_PAYMENT` i `UUID_NOTIFICATION`, més els estats Redsys/cua/outbox, de manera que la plantilla no necessita una consulta manual de BD per identificar la prova.
 
 Així un resultat verd del processor manual no es pot confondre amb una acceptació E2E completa ni el go/no-go pot donar per complet un circuit PACK sense les eines d'evidència.
 
