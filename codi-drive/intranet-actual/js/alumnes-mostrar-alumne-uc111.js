@@ -60,9 +60,22 @@
 		return labels[status] || status || '—';
 	}
 
+	function applicationDate(app) {
+		switch (String(app.status || '')) {
+			case 'REVERSED':
+				return app.reversed_at || app.applied_at || app.reserved_at;
+			case 'RELEASED':
+				return app.released_at || app.reserved_at;
+			case 'APPLIED':
+				return app.applied_at || app.reserved_at;
+			default:
+				return app.reserved_at;
+		}
+	}
+
 	function amountCell(label, value) {
 		return "<div class='col-6 col-md-3 mb-2'><div class='small text-muted'>" +
-			escapeHtml(label) + "</div><div class='font-weight-bold'>" + escapeHtml(formatEuro(value)) + "</div></div>";
+			escapeHtml(label) + "</div><div class='fw-semibold'>" + escapeHtml(formatEuro(value)) + "</div></div>";
 	}
 
 	function renderRight(right, index) {
@@ -73,7 +86,7 @@
 		html += "<div class='text-muted small'>Origen: " +
 			escapeHtml((origin.product_code || 'JASOM') + ' ' + (origin.product_edition || '')) +
 			" · Inscripció #" + escapeHtml(origin.enrollment_id || '') + "</div></div>";
-		html += "<span class='badge badge-secondary'>" + escapeHtml(entitlementLabel(right.display_status)) + "</span></div>";
+		html += "<span class='badge text-bg-secondary'>" + escapeHtml(entitlementLabel(right.display_status)) + "</span></div>";
 
 		html += "<div class='row mt-3'>" +
 			amountCell('Concedit', right.original_amount) +
@@ -99,7 +112,7 @@
 					" <span class='text-muted'>#" + escapeHtml(app.destination_enrollment_id || '') + "</span></td>" +
 					"<td>" + escapeHtml(formatEuro(app.amount)) + "</td>" +
 					"<td>" + escapeHtml(app.invoice_number || '—') + "</td>" +
-					"<td>" + formatDate(app.applied_at || app.reserved_at) + "</td></tr>";
+					"<td>" + formatDate(applicationDate(app)) + "</td></tr>";
 			});
 			html += "</tbody></table></div>";
 		}
@@ -150,9 +163,15 @@
 		});
 	}
 
-	$(document).on('ajaxComplete.uc111', function (_event, _xhr, settings) {
+	$(document).on('ajaxComplete.uc111', function (_event, xhr, settings) {
 		var url = String((settings && settings.url) || '');
 		if (url.indexOf('alumnes/mostrarInformacioUsuari.php') === -1) return;
+
+		if (!xhr || xhr.status < 200 || xhr.status >= 300) {
+			$('#promocio-docent-novell').remove();
+			return;
+		}
+
 		var dniUser = normalizeRequestDni(settings.data);
 		if (dniUser.trim() !== '') loadPromotion(dniUser.trim());
 	});
