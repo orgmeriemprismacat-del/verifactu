@@ -125,7 +125,7 @@ final class PrismaStudentCourseCheckoutService
                     'product_type' => 'CURS',
                     'product_code' => (string) $enrollment['CURS'],
                     'product_edition' => (string) $enrollment['ANY'] . '/' . (string) $enrollment['MES'],
-                    'classification' => 'READY_FOR_PAYMENT',
+                    'classification' => 'BILLABLE',
                     'classification_reason' => 'ALUMNE_PRISMA_VALIDATED',
                     'status' => 'READY_FOR_PAYMENT',
                     'currency' => 'EUR',
