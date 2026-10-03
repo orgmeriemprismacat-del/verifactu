@@ -48,6 +48,45 @@ final class RedsysGiftIntentSnapshotValidationTest
         }, 409);
     }
 
+    public function testGenericIntentRejectsSifPaidProjectionMarker(): void
+    {
+        $db = TestDatabase::fresh();
+        $input = $this->input();
+        $input['snapshot']['gift']['OBSERVACIONS'] =
+            "Reserva\nSIF A2026/77 PAID 11111111-1111-4111-8111-111111111111";
+
+        Assert::throws(SifException::class, function () use ($db, $input): void {
+            $this->service()->create($db, $input);
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
+    public function testGenericIntentRejectsConfirmedGiftPurchaseAlreadyInSif(): void
+    {
+        $db = TestDatabase::fresh();
+        $db->prepare(
+            "INSERT INTO commercial_operation
+             (UUID_OPERATION, IDEMPOTENCY_KEY, OPERATION_TYPE, SOURCE_CHANNEL,
+              SOURCE_TYPE, SOURCE_ID, PRODUCT_TYPE, PRODUCT_CODE, CLASSIFICATION,
+              CLASSIFICATION_REASON, STATUS, CURRENCY, GROSS_AMOUNT,
+              DISCOUNT_AMOUNT, NET_AMOUNT, PRICE_SNAPSHOT_JSON, TAX_SNAPSHOT_JSON,
+              UUID_FACTURA, UUID_PAYMENT, CREATED_BY)
+             VALUES (?, ?, 'GIFT_PURCHASE', 'REDSYS', 'REGAL', '77', 'REGAL',
+                     'GIFT', 'BILLABLE', 'GIFT_PURCHASE', 'PAID', 'EUR',
+                     120.00, 0.00, 120.00, '{}', '{}', NULL, NULL, 'test')"
+        )->execute([
+            '44444444-4444-4444-8444-444444444444',
+            'GIFT|PURCHASE|REGAL:77',
+        ]);
+
+        Assert::throws(SifException::class, function () use ($db): void {
+            $this->service()->create($db, $this->input());
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM redsys_payment_intent')->fetchColumn());
+    }
+
     public function testGenericIntentAcceptsConsistentGiftSnapshot(): void
     {
         $db = TestDatabase::fresh();
