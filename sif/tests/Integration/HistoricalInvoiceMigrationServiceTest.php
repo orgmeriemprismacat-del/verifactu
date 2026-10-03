@@ -7,6 +7,7 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\HistoricalInvoiceMigrationRepository;
 use Prisma\Sif\Service\HistoricalInvoiceMigrationService;
 use Prisma\Sif\Service\HistoricalInvoicePayloadBuilder;
+use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\TestDatabase;
 
@@ -65,6 +66,47 @@ final class HistoricalInvoiceMigrationServiceTest
         Assert::same('/historic/factures/A2024-000123.pdf', $document['PATH_FITXER']);
         Assert::same(str_repeat('b', 64), $document['HASH_FITXER']);
         Assert::same('ARCHIVED', $document['ESTAT']);
+    }
+
+    public function testRejectsSameIdempotencyKeyWithDifferentPayload(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $input = $this->input();
+
+        $service->importHistoricalInvoice($input);
+
+        $conflicting = $input;
+        $conflicting['billing']['name'] = 'Client Historic Changed';
+
+        Assert::throws(SifException::class, function () use ($service, $conflicting): void {
+            $service->importHistoricalInvoice($conflicting);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+    }
+
+    public function testStoresIdempotencyPayloadHash(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+
+        $service->importHistoricalInvoice($this->input());
+
+        $hash = (string) $db->query('SELECT IDEMPOTENCY_PAYLOAD_HASH FROM factura')->fetchColumn();
+        Assert::matchesRegularExpression('/^[a-f0-9]{64}$/', $hash);
+    }
+
+    public function testDefaultsHistoricalRelationVisibilityToPrivate(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $input = $this->input();
+        unset($input['visible_alumne']);
+
+        $service->importHistoricalInvoice($input);
+
+        Assert::same(0, (int) $db->query('SELECT VISIBLE_ALUMNE FROM fact_rels')->fetchColumn());
     }
 
     private function service(\PDO $db): HistoricalInvoiceMigrationService
