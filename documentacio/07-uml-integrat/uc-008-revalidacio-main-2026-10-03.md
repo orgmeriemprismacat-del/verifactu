@@ -102,6 +102,21 @@ Entre PR #116 i el `main` actual s'han modificat peces Redsys compartides, entre
 
 En canvi, `RedsysCallbackWorker` i la seva suite específica d'incidències no han canviat.
 
+### 5.1. Configuració compartida `sif/config/sif.php`
+
+`sif/config/sif.php` sí ha evolucionat després del PR #116 per altres UC, però la revalidació línia a línia confirma que el bloc UC-008 es conserva funcionalment sense canvis:
+
+- `SIF_INCIDENT_READ_ROLES`;
+- `SIF_INCIDENT_MANAGE_ROLES`;
+- `SIF_INCIDENT_QUERY_MAX_RESULTS`;
+- `SIF_PANEL_LAUNCH_KEY_ID`;
+- `SIF_PANEL_LAUNCH_SECRET`;
+- `SIF_PANEL_INCIDENTS_PATH`;
+- `SIF_PANEL_LAUNCH_MAX_SKEW`;
+- `SIF_PANEL_SESSION_NAME`.
+
+El canvi visible immediatament posterior al bloc és l'addició de `merchant_code` a la configuració Redsys. No s'ha detectat cap eliminació, canvi de nom ni relaxació fail-open dels paràmetres d'incidències/panell.
+
 La suite actual mostra PASS per:
 
 - seguretat API interna d'incidències;
