@@ -482,6 +482,9 @@ try {
 		if (!$giftExists) {
 			throw new Exception('No s\'ha trobat el regal', 404);
 		}
+		if ((int) $factRel <= 0) {
+			throw new Exception('El regal no està disponible per al bescanvi', 409);
+		}
 
 		$idInserit = 0;
 		$candidateId = 0;
