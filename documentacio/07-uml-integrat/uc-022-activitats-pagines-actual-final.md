@@ -224,3 +224,12 @@ stop
 ```
 
 **Estat P07:** implementat en la branca; execució E2E i desplegament encara no verificats.
+
+
+### P07.1 — auditoria obligatòria del canal
+
+En el camí de cobrament confirmat/reutilitzat, el commit inclou:
+
+`payment_transaction/payment_allocation + operational_event + sif_audit_event + payment_action_event terminal`.
+
+Un permís denegat o una validació rebutjada genera `payment_action_event = REJECTED` i finalitza sense mutació econòmica. La projecció llegada té un segon cicle `SYNC_LEGACY REQUESTED → SUCCEEDED|FAILED`.
