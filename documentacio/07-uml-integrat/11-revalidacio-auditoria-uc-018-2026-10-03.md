@@ -37,6 +37,7 @@ Per tant:
 | UC18-RV-007 | El writer podia arribar a materialitzar legacy sense bloquejar explícitament `FACT_REL <= 0` abans del commit. | PATCH APLICAT |
 | UC18-RV-008 | `pagina_bescanvia.php` carregava `mostrarBescanvia_prova.min.js`, absent del repositori. | PATCH APLICAT |
 | UC18-RV-009 | La suite comprovava POST/HMAC només al client intern servidor→SIF, no al navegador→legacy. | PROVA AFEGIDA |
+| UC18-RV-010 | Les dues consultes legacy de codi usaven `LIKE ?`, permetent semàntica wildcard en crida directa. | PATCH APLICAT + PROVA |
 
 ## 4. Correccions de codi aplicades
 
