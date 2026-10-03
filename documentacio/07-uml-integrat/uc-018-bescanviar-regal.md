@@ -2,7 +2,7 @@
 
 **Tall revalidat:** 2026-10-03  
 **Base:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`  
-**Estat:** `IMPLEMENTAT · CORE CI VERIFICAT 02/10 · PUBLIC EDGE + GENERIC HOURS PATCH 03/10 CI PENDENT · ENVIRONMENT GO PENDENT`
+**Estat:** `IMPLEMENTAT · BASELINE CI VERIFICAT 02/10 · CURRENT HEAD PATCHES 03/10 CI PENDENT · ENVIRONMENT GO PENDENT`
 
 ## 1. Objectiu i frontera funcional
 
@@ -274,6 +274,6 @@ La revalidació 03/10 amplia `GiftRedemptionWebClientBoundaryTest` per cobrir to
 ```text
 DOCUMENTAT: SÍ, re-reconciliat 03/10
 IMPLEMENTAT: SÍ per al flux base de valor exacte
-VERIFICAT: nucli/SIF SÍ (02/10); patches frontera pública + regals per hores CI PENDENT
+VERIFICAT: baseline PR #115 SÍ (02/10); frontera pública + resolver/stager per hores del head actual CI PENDENT
 PENDENT: CI del head actual + preproducció real + variants POLICY
 ```
