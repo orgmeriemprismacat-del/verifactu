@@ -9,6 +9,7 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InvoiceBeforePaymentCoverageRepository;
 use Prisma\Sif\Repository\InvoiceRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Service\InvoicePayloadValidator;
 use Prisma\Sif\Service\InvoiceService;
@@ -129,7 +130,8 @@ final class IssueInvoiceTest
             new PaymentPayloadValidator(),
             new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator()),
             null,
-            new InvoiceBeforePaymentCoverageRepository()
+            new InvoiceBeforePaymentCoverageRepository(),
+            new OperationalEventRepository(new UuidGenerator())
         );
     }
 
