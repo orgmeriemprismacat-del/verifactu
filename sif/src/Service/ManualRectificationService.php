@@ -48,6 +48,7 @@ final class ManualRectificationService
 
     private function issueForInvoice(\PDO $sifDb, array $invoice, array $input): array
     {
+        $input = $this->normalizeInput($input);
         $payload = $this->builder->forOriginalInvoice($invoice, $input);
         $result = $this->invoiceService->issueInvoice($payload);
         $this->rectifications->linkRectification($sifDb, $result['uuid_factura'], $invoice['UUID_FACTURA'], $input);
@@ -56,5 +57,26 @@ final class ManualRectificationService
         $result['num_visible_rectificada'] = $invoice['NUM_VISIBLE'];
 
         return $result;
+    }
+
+    private function normalizeInput(array $input): array
+    {
+        if (!array_key_exists('reason', $input) && array_key_exists('motiu', $input)) {
+            $input['reason'] = $input['motiu'];
+        }
+
+        if (!array_key_exists('mode', $input) && array_key_exists('mode_rectificacio', $input)) {
+            $input['mode'] = $input['mode_rectificacio'];
+        }
+
+        if (!array_key_exists('detail', $input)) {
+            if (array_key_exists('details', $input)) {
+                $input['detail'] = $input['details'];
+            } elseif (array_key_exists('detall', $input)) {
+                $input['detail'] = $input['detall'];
+            }
+        }
+
+        return $input;
     }
 }
