@@ -157,3 +157,13 @@ També s’han inspeccionat canvis de main en callers adjacents (`LegacyPackInvo
 **Acceptació operativa/producció:** pendent.
 
 No s’ha de convertir “fitxa + UML + tests del core” en “llest per producció”: els gaps fiscals/comercials i la configuració/cutover continuen explícits.
+
+
+## 10. Troballes post-reconciliació de la PR #145
+
+- **F-106 · operació comercial:** `commercial_operation.UUID_FACTURA` existeix a BD, però `CommercialOperationRepository` no té cap `linkInvoice()` i `InvoiceService` no materialitza aquest vincle. Pendent.
+- **F-107 · any fiscal:** UC-004 ja usa `fiscal_year` separat de l'any d'edició; curs/pack/grup/USOC continuen derivant `year` de `inscription.ANY`, i regal usa `ANY`/any actual. Pendent transversal.
+- **F-108 · operation line:** el writer `operation_line_invoice_link` existeix, però els builders auditats no propaguen `uuid_operation_line`. Pendent de contracte comú de builder.
+- **F-109 · AEAT:** el core falla tancat en PREPRODUCTION/PRODUCTION si manca `aeat_fields`. És una protecció correcta, però evidencia que els builders legacy encara necessiten un assembler AEAT server-side complet.
+
+Aquestes troballes no reobren el hardening ja verificat; concreten els quatre deutes transversals que impedeixen declarar UC-001 preparat per producció.
