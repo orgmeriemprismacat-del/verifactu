@@ -11,7 +11,7 @@
 | Entrada mínima verificada al validador | `idempotency_key`, `series`, `type`, `source_channel`, `billing`, `totals`, `lines`; la branca de hardening rebutja clau idempotent buida/sobredimensionada, canal buit i totals de capçalera incompatibles amb les línies. |
 | Identificació fiscal verificada | `billing.name` i `billing.nif` no buits. El validador accepta sèries `A` i `R`, tipus `F1`, `F2`, `R1`…`R5` i exigeix coherència de família (`A` amb `F1/F2`; `R` amb `R1…R5`). **Això no decideix per si sol quin tipus rectificatiu concret correspon ni demostra conformitat fiscal completa**. |
 | Imports i línies verificats | `totals.import_base`, `taxable_base`, `total` numèrics; almenys una línia amb `concept`, `quantity`, `unit_price`, `base` i `total` i imports numèrics. |
-| Cobrament inicial opcional | Si hi ha bloc `payment`, el servei necessita `PaymentPayloadValidator` i `PaymentRepository`, i crea el moviment dins la mateixa transacció d'emissió. |
+| Cobrament inicial opcional | Si hi ha bloc `payment`, el servei necessita `PaymentPayloadValidator` i `PaymentRepository`, exigeix `movement_date` explícita/no buida i crea el moviment dins la mateixa transacció d'emissió. |
 | Resultat | `ok`, `uuid_factura`, `num_visible`, `idempotency_reused` i, si es registra un pagament inicial, `uuid_payment`. |
 
 ### 1.1. Flux principal executable
@@ -37,7 +37,7 @@
 
 **Persistència principal:** `factura`, `factura_linia`, `factura_registres`, `fiscal_sequence`, `fiscal_chain_state`, `fiscal_queue`, `fact_rels` quan hi ha relacions; opcionalment `payment_transaction`, `payment_allocation` i actualització de l'estat de cobrament.
 
-**Proves localitzades (no executades en aquesta revisió):** `IssueInvoiceTest::testIssueInvoiceCreatesFiscalRecordAndQueue`, `testIssueInvoiceReusesExistingInvoiceForSameIdempotencyKey`, `testIssueInvoiceWithPaymentCreatesPaymentTransactionAndAllocation`.
+**Proves localitzades i executades:** a GitHub Actions del commit `88e5c922…` passen `IssueInvoiceTest::testIssueInvoiceCreatesFiscalRecordAndQueue`, `testIssueInvoiceReusesExistingInvoiceForSameIdempotencyKey`, `testIssueInvoiceWithPaymentCreatesPaymentTransactionAndAllocation` i la resta de guards UC-001. El run global és 960/6 per fallades alienes a UC-001. Al commit `276fb390…` s’afegeix la prova que un payment inicial sense `movement_date` falla 422 i no deixa factura, registre, cobrament ni seqüència consumida.
 
 ### 1.3. Revisió de la traçabilitat dels fons per inscripció — PENDENT
 
@@ -77,12 +77,12 @@ A main, InvoiceService rep opcionalment PayloadIdempotencyValidatorInterface i l
 
 | Prova v2 localitzada a main o pendent | Expectativa |
 | --- | --- |
-| PayloadIdempotencyFlowTest::testInvoiceRetryComparesFullOriginalInputAndPreservesFiscalSequence | Mateixa clau amb payload diferent rebutjat, sense nou número fiscal [prova definida, no executada aquí]. |
-| PayloadIdempotencyFlowTest::testRetryCannotAddAnInitialPaymentToAnAlreadyIssuedInvoice | Reintent que intenta afegir payment al payload original, rebutjat [prova definida, no executada aquí]. |
-| PayloadIdempotencyFlowTest::testOriginalInvoiceWithoutFingerprintFailsClosed | Factura pre-migració sense hash complet no accepta un reús no verificable [prova definida, no executada aquí]. |
-| PayloadIdempotencyFlowTest::testRetryWithOriginalPaymentFailsClosedWhenPaymentRecordIsMissing | Mateix payload i clau amb `payment` original absent a BD: CONFLICT, cap `uuid_payment` inventat ni recreació silenciosa [prova definida; pendent CI]. |
-| PayloadIdempotencyFlowTest::testRetryWithOriginalPaymentFailsClosedWhenPaymentTransactionWasTampered | El moviment existeix però els camps materials divergeixen del payload original: CONFLICT [prova definida; pendent CI]. |
-| PayloadIdempotencyFlowTest::testRetryWithOriginalPaymentFailsClosedWhenAllocationTargetsAnotherInvoice | El moviment existeix però l'assignació ja no apunta a la factura original: CONFLICT [prova definida; pendent CI]. |
+| PayloadIdempotencyFlowTest::testInvoiceRetryComparesFullOriginalInputAndPreservesFiscalSequence | Mateixa clau amb payload diferent rebutjat, sense nou número fiscal [PASS al run UC-001 de `88e5c922…`]. |
+| PayloadIdempotencyFlowTest::testRetryCannotAddAnInitialPaymentToAnAlreadyIssuedInvoice | Reintent que intenta afegir payment al payload original, rebutjat [PASS al run UC-001 de `88e5c922…`]. |
+| PayloadIdempotencyFlowTest::testOriginalInvoiceWithoutFingerprintFailsClosed | Factura pre-migració sense hash complet no accepta un reús no verificable [PASS al run UC-001 de `88e5c922…`]. |
+| PayloadIdempotencyFlowTest::testRetryWithOriginalPaymentFailsClosedWhenPaymentRecordIsMissing | Mateix payload i clau amb `payment` original absent a BD: CONFLICT, cap `uuid_payment` inventat ni recreació silenciosa [PASS al run UC-001 de `88e5c922…`]. |
+| PayloadIdempotencyFlowTest::testRetryWithOriginalPaymentFailsClosedWhenPaymentTransactionWasTampered | El moviment existeix però els camps materials divergeixen del payload original: CONFLICT [PASS al run UC-001 de `88e5c922…`]. |
+| PayloadIdempotencyFlowTest::testRetryWithOriginalPaymentFailsClosedWhenAllocationTargetsAnotherInvoice | El moviment existeix però l'assignació ja no apunta a la factura original: CONFLICT [PASS al run UC-001 de `88e5c922…`]. |
 
 ## 2. Diagrama UML de casos d'ús
 
@@ -394,15 +394,20 @@ Note over G,S: Comparació de petició completa per K és PHP main. El guard com
 
 [Catàleg UC-01](../04-estat-final/33-casos-us-sif.md) · [Model de classes](../04-estat-final/31-diagrames-classes-sif.md) · [Seqüències existents](../04-estat-final/32-diagrames-sequencia-sif.md) · [Fitxa base](../06-fitxes-funcionals/uc-001.md) · [InvoiceService](../../sif/src/Service/InvoiceService.php) · [InvoicePayloadValidator](../../sif/src/Service/InvoicePayloadValidator.php) · [InvoiceRepository](../../sif/src/Repository/InvoiceRepository.php) · [FiscalSequenceRepository](../../sif/src/Repository/FiscalSequenceRepository.php) · [IssueInvoiceTest](../../sif/tests/Integration/IssueInvoiceTest.php).
 
-**No acreditat:** execució de tests en aquest canvi documental, conformitat fiscal integral, integracions finals ni posada en producció.
+**No acreditat:** conformitat fiscal integral de tots els builders, reconciliació final de la branca amb `main`, configuració/cutover de preproducció ni posada en producció. Sí hi ha evidència d’execució específica UC-001 al run `88e5c922…`; la correcció de `movement_date` incorporada a `276fb390…` requereix el seu run.
 
 
-## 6. Paquet d'auditoria ACTUAL/FINAL 2026-10-02
+## 6. Paquet d'auditoria ACTUAL/FINAL revalidat 2026-10-03
 
 - [Classes ACTUAL/FINAL](uc-001-classes-actual-final.md)
 - [Seqüències ACTUAL/FINAL](uc-001-sequencies-actual-final.md)
 - [Activitats i superfícies ACTUAL/FINAL](uc-001-activitats-superficies-actual-final.md)
 - [Auditoria i traçabilitat](uc-001-auditoria-tracabilitat-2026-10-02.md)
 - [Inventari PHP/JS ACTUAL/FINAL](uc-001-inventari-codi-php-js-actual-final-2026-10-02.md)
+- [Revalidació exhaustiva 03/10](uc-001-revalidacio-2026-10-03.md)
 
 **Criteri:** ACTUAL només atribueix responsabilitats acreditades al PHP/SQL; FINAL mostra contracte objectiu i no és prova d'implementació.
+
+### 1.7. Contracte nou del payment inicial — 03/10/2026
+
+Un cobrament inicial forma part del mateix contracte idempotent que la factura. `movement_date` no pot ser implícita a partir de l’hora del servidor: el caller ha d’aportar la data real/estable del moviment. Si falta o és buida, UC-001 retorna 422 i la transacció es desfà. Redsys ja aporta `CREATED_AT`; els serveis manuals han de preservar la data real del cobrament.

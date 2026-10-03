@@ -4,7 +4,7 @@
 
 ## 1. Resultat executiu
 
-**Estat de l’auditoria:** `TANCADA_FINAL_CI_GATE_REQUIRED`. Totes les troballes de la revisió tenen resolució implementada o classificació explícita. Els elements marcats com a pendents a la taula són deutes d’implementació transversal/entorn i **no són zones no auditades**.
+**Estat de l’auditoria:** `REVALIDADA_2026_10_03_UC001_SPECIFIC_TESTS_PASS_GLOBAL_CI_HAS_EXTERNAL_FAILURES`. Totes les troballes de la revisió tenen resolució implementada o classificació explícita. Els elements marcats com a pendents són deutes d’implementació transversal/entorn i **no són zones no auditades**.
 
 | Bloc | Documentat | Implementat després d'aquesta branca | Inspecció | Execució |
 | --- | --- | --- | --- | --- |
@@ -168,3 +168,26 @@ L’**auditoria** queda tancada segons §5; el merge resta condicionat al gate C
 6. decisió i prova de l'any fiscal.
 
 Fins aleshores, l’estat d’implementació continua **CORE_HARDENED_CROSSCUTTING_AND_ENVIRONMENT_PENDING**. Això és compatible amb tenir l’**AUDITORIA TANCADA** mentre el merge continua condicionat al **CI del head final** i a les validacions de preproducció que corresponguin.
+
+## 8. Revalidació exhaustiva 2026-10-03
+
+### 8.1. Evidència d’execució que sí correspon a UC-001
+
+A GitHub Actions del commit `88e5c922424b0cf573b1d1af08dc8713b7b8ea32` consten com a **PASS** l’endpoint signat/scope, preflight, `IssueInvoiceTest`, `PayloadIdempotencyFlowTest`, policies/scope/validators, UC-004 invoice-before-payment i callers Redsys/manuals. La mateixa execució acaba **960 pass / 6 fail**; les sis fallades són cinc contractes de pack/UC-015 i `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload`.
+
+### 8.2. Troballes noves
+
+| ID | Severitat | Troballa | Resolució / estat |
+| --- | --- | --- | --- |
+| F-101 | Alta | `InvoiceService` generava `movement_date=date(...)` quan un cobrament inicial no en portava; un reintent equivalent podia donar 409 fals. | **Corregit** a `7dceaf9…`: data obligatòria/no buida. Prova afegida a `276fb390…`; CI del fix necessari. |
+| F-102 | Documental | HARD-004 deia que els espais no canònics es rebutjaven, però el codi/prova demostren que es normalitzen. | **Corregit** a la fitxa 1.4. |
+| F-103 | Operativa | La pantalla de factura conserva edició/anul·lació llegada; el bloqueig SIF depèn de flags de cutover. | **Pendent configuració/prova preprod**. |
+| F-104 | Traçabilitat UI | `alumnes-factura-sif.js` i `alumnes-factura.js` defineixen `window.uc007SifSearch`; el segon queda com a definició global final. | **Classificat UC-007**; no bloqueja el core UC-001 però afecta l’evidència de pantalla. |
+| F-105 | Integració | PR #114: al tall 03/10, 150 commits ahead / 44 behind de `main`; solapament directe del diff en `sif/config/sif.php` i README. | **Pendent reconciliar amb main i executar gate resultant**. |
+
+### 8.3. Estat per categoria
+
+- **Documentat:** fitxa, UML integrat, classes, seqüències, activitats, inventari PHP/JS, auditoria i revalidació.
+- **Implementat:** nucli d’emissió/reús, numeració, cadena/cua, payment, audit events, status projection, endpoint/policy/scope, guard AEAT, writer operation-line i HARD-017.
+- **Verificat:** inspecció del PHP/JS/SQL i proves específiques UC-001 passades al run `88e5c922…`; la nova prova HARD-017 requereix el run del head `276fb390…`.
+- **Pendent:** coverage comercial entre claus, `commercial_operation` obligatòria, propagació universal de `uuid_operation_line`, assembler AEAT complet, any fiscal, R1–R5, cutover guards llegats, fencing Redsys, preproducció i reconciliació/CI final.

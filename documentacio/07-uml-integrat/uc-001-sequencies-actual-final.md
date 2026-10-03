@@ -33,7 +33,12 @@ else factura nova
  S->>DB: numeració + cadena + factura/línies/registre/control/cua/relacions
  Note over S,DB: ID_FACTURA_LINIA si origen unívoc
  opt payment inicial no Redsys
-  S->>DB: payment_transaction + allocation
+  S->>S: exigir movement_date explícita i estable
+  alt data absent/buida
+   S--xAPI: 422; TransactionRunner fa ROLLBACK
+  else data vàlida
+   S->>DB: payment_transaction + allocation
+  end
  end
  S->>DB: projectar estats factura/cobrament/AEAT/cua/document
  S->>DB: append operational_event + sif_audit_event
@@ -87,7 +92,65 @@ end
 IR->>DB: persistir registre + cua
 ```
 
-## 4. FINAL pendent
+## 4. ACTUAL — `alumnes-factura.php`: consulta SIF i mutació llegada protegida
+
+```mermaid
+sequenceDiagram
+autonumber
+actor U as Usuari intranet
+participant JS as alumnes-factura.js
+participant Q as sifFactures.php
+participant SIF as SIF internal API
+participant LEG as endpoint llegat
+participant G as SifLegacyInvoiceMutationGuard
+U->>JS: cercar factura
+JS->>Q: POST search/view
+Q->>Q: sessió + same-origin + actor
+Q->>SIF: consulta signada
+SIF-->>Q: resultats/VIEW
+Q-->>JS: dades SIF read-only
+alt fila llegada i usuari intenta editar/anul·lar
+ U->>JS: guardar/anul·lar
+ JS->>LEG: POST
+ LEG->>LEG: sessió + rol + same-origin
+ LEG->>G: comprovar cobertura SIF
+ alt factura governada pel SIF i guard activat
+  G--xLEG: 409
+  LEG-->>JS: bloqueig
+ else no coberta / guard no activat
+  LEG->>LEG: mutació llegada
+  LEG-->>JS: resultat
+ end
+end
+```
+
+## 5. ACTUAL — `alumnes-genera-factura-abans-pagar.php`: preview i confirmació UC-004
+
+```mermaid
+sequenceDiagram
+autonumber
+actor U as Usuari intranet
+participant JS as alumnes-genera-factura-abans-pagar.js
+participant P as sifFacturaAbansPagar.php
+participant API as /api/factures/before-payment.php
+participant C as UC-004 CommandService
+participant S as InvoiceService UC-001
+U->>JS: seleccionar inscripcions + entitat
+JS->>P: POST preview + CSRF
+P->>API: petició interna signada
+API->>C: reconstruir selecció/receptor/imports
+C-->>JS: preview + fingerprint
+U->>JS: confirmar
+JS->>P: POST confirm + expected_fingerprint
+P->>API: confirm signat
+API->>C: validar fingerprint/coverage
+C->>S: issueInvoice(payload autoritatiu, sense payment)
+S-->>C: UUID + número + cobrament PENDING
+C-->>JS: resultat
+JS-->>U: pas 3
+```
+
+## 6. FINAL pendent
 
 ```mermaid
 sequenceDiagram
@@ -112,3 +175,7 @@ end
 ```
 
 La seqüència FINAL continua pendent només en la cobertura comercial transversal i l’assembler fiscal servidor complet; la traça i la resposta d’estats ja formen part de l’ACTUAL.
+
+## 7. Evidència 03/10
+
+Les seqüències del nucli, UC-004 i callers Redsys/manuals tenen proves específiques PASS a l’execució del commit `88e5c922…`. La nova validació de `movement_date` queda coberta per `IssueInvoiceTest::testInvoiceInitialPaymentRequiresStableMovementDateBeforeMutation` al commit `276fb390…` i necessita el seu run de CI.
