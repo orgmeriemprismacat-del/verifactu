@@ -20,6 +20,7 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString('sif-registres-aeat.js', $page);
         Assert::stringContainsString('Control de remissió AEAT', $page);
 
+        Assert::stringContainsString("const endpoint = '/ajax/sif/sifAeat.php';", $js);
         Assert::stringContainsString("method: 'POST'", $js);
         foreach (["action: 'summary'", "action: 'list'", "action: 'detail'", "action: 'preflight'", "action: 'reconcile'"] as $action) {
             Assert::stringContainsString($action, $js);
@@ -48,6 +49,12 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString("['aeat']['reconcile_roles']", $api);
         Assert::stringContainsString('AeatReviewReconciliationService', $api);
         Assert::stringContainsString('AeatPreflight', $api);
+
+        foreach ([$page, $js] as $browserSource) {
+            if (str_contains($browserSource, 'https://intranet.prisma.cat/')) {
+                Assert::fail('UC-009 browser assets and AJAX must remain same-origin for preproduction.');
+            }
+        }
 
         if (str_contains($js, 'X-SIF-Signature') || str_contains($js, 'SIF_INTERNAL_API_SECRET')) {
             Assert::fail('AEAT browser code must never contain HMAC signing material.');
