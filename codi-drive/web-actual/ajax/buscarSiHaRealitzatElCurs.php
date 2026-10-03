@@ -5,8 +5,11 @@ include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
 include("../Text.php");
 
-$doc = $_GET['doc'];
-$curs = $_GET['curs'];
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$input = $requestMethod === 'POST' ? $_POST : $_GET;
+
+$doc = $input['doc'] ?? '';
+$curs = $input['curs'] ?? '';
 
 //Consulta ajax per comprovar si el usuari XXX ha realitzat el curs xxx (retornar l'edicio|any en que va fer-lo)
 
