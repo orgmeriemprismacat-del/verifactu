@@ -1,8 +1,8 @@
 # UC-001 · Revalidació exhaustiva — 2026-10-03
 
 **Repositori:** `orgmeriemprismacat-del/verifactu`  
-**PR:** #114 — `audit(UC-001): hardening de l’emissió i paquet ACTUAL/FINAL complet`  
-**Branca:** `audit/uc-001-hardening-2026-10-02`  
+**PR reconciliada:** #145 — `audit(UC-001): reconciliació neta sobre main actual`  
+**Branca:** `audit/uc-001-reconciled-2026-10-03`  
 **Main contrastat:** `b0e8ff7150c5a8b415cc109d298d82f0db1f68df`  
 **Head de codi després de la nova correcció:** `276fb390cd3f4ac7157f831bb544a60e6330d157`
 
@@ -112,13 +112,13 @@ Al run del head `88e5c922…` passen proves específiques de:
 
 ## 6. Divergència amb `main`
 
-Al tall 03/10, el compare `main=b0e8ff7…` vs `head=276fb390…` és **150 ahead / 44 behind**, merge-base `549d7ef9…`.
+La branca original #114 havia quedat **150 ahead / 44 behind**. El paquet UC-001 s'ha recreat selectivament sobre `main=b0e8ff7…` a la PR #145; el compare de la branca reconciliada és **ahead / behind 0** pel que fa a `behind`, amb merge-base al mateix `main`.
 
 Solapament directe entre canvis de main i diff UC-001:
 - `sif/config/sif.php`;
 - `documentacio/07-uml-integrat/README.md`.
 
-També s’han inspeccionat canvis de main en callers adjacents (`LegacyPackInvoicePayloadBuilder`, `RedsysCourseInvoiceService` i proves). La branca s’ha de reconciliar amb main abans del merge i tornar a executar el gate resultant.
+També s’han inspeccionat canvis de main en callers adjacents (`LegacyPackInvoicePayloadBuilder`, `RedsysCourseInvoiceService` i proves). La reconciliació de branca ja s'ha completat a #145, preservant els canvis concurrents; resta executar i validar el gate CI del head reconciliat.
 
 ## 7. Estat final per dimensió
 
@@ -138,7 +138,7 @@ També s’han inspeccionat canvis de main en callers adjacents (`LegacyPackInvo
 
 ## 8. Pendents que bloquegen el tancament operatiu
 
-1. Reconciliar PR #114 amb el `main` vigent i revisar els fitxers solapats.
+1. **RESOLT:** reconciliació amb `main` a la PR #145; `sif/config/sif.php` i `README.md` s'han fusionat preservant el treball concurrent.
 2. Mantenir com a evidència el run `276fb390…` on HARD-017 passa; el CI global continua bloquejat per les sis fallades alienes i s’ha de resoldre/reclassificar abans del merge.
 3. Fer obligatòria o equivalent la cobertura comercial entre claus diferents abans de numerar.
 4. Propagar `uuid_operation_line`/identitat comercial des de tots els builders pertinents.
