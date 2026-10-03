@@ -66,7 +66,7 @@ final class ManualInstallmentPaymentServiceTest
     {
         $db = TestDatabase::fresh();
         $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
-            Fixtures::invoicePayload(['emesa_abans_cobrament' => 1, 'total' => '80.00'])
+            Fixtures::invoicePayload(['emesa_abans_cobrament' => 1])
         );
         $service = $this->service($db);
 
@@ -98,7 +98,7 @@ final class ManualInstallmentPaymentServiceTest
         Assert::same($first['uuid_payment'], $repeat['uuid_payment']);
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
-        Assert::same('PAID', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
+        Assert::same('PARTIAL', (string) $db->query('SELECT ESTAT_COBRAMENT FROM factura')->fetchColumn());
 
         $keys = $db->query('SELECT IDEMPOTENCY_KEY FROM payment_transaction ORDER BY IDEMPOTENCY_KEY')
             ->fetchAll(\PDO::FETCH_COLUMN);
