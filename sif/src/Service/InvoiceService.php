@@ -25,7 +25,7 @@ final class InvoiceService
         $this->idempotency ??= new PayloadIdempotencyValidator();
     }
 
-    public function issueInvoice(array $payload): array
+    public function issueInvoice(array $payload, ?callable $beforeCommit = null): array
     {
         $payload = $this->validator->validate($payload);
 
@@ -36,7 +36,7 @@ final class InvoiceService
         }
 
         try {
-            return $this->createOrReuseInvoice($payload);
+            return $this->createOrReuseInvoice($payload, $beforeCommit);
         } catch (\PDOException $exception) {
             if (!$this->isDuplicateKeyException($exception)) {
                 throw $exception;
@@ -48,16 +48,19 @@ final class InvoiceService
                 );
             }
 
-            return $this->reuseInvoiceAfterDuplicateKey($payload);
+            return $this->reuseInvoiceAfterDuplicateKey($payload, $beforeCommit);
         }
     }
 
-    private function createOrReuseInvoice(array $payload): array
+    private function createOrReuseInvoice(array $payload, ?callable $beforeCommit = null): array
     {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
+        return $this->transactions->run(function (\PDO $db) use ($payload, $beforeCommit): array {
             $existing = $this->invoices->findByIdempotencyKey($db, $payload['idempotency_key'], true);
             if ($existing !== null) {
-                return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
+                $result = $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
+                $this->runBeforeCommit($beforeCommit, $db, $result);
+
+                return $result;
             }
 
             $year = (int) ($payload['year'] ?? date('Y'));
@@ -86,6 +89,8 @@ final class InvoiceService
             if ($payment !== null) {
                 $result['uuid_payment'] = $payment['uuid_payment'];
             }
+
+            $this->runBeforeCommit($beforeCommit, $db, $result);
 
             return $result;
         });
@@ -137,9 +142,9 @@ final class InvoiceService
         ];
     }
 
-    private function reuseInvoiceAfterDuplicateKey(array $payload): array
+    private function reuseInvoiceAfterDuplicateKey(array $payload, ?callable $beforeCommit = null): array
     {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
+        return $this->transactions->run(function (\PDO $db) use ($payload, $beforeCommit): array {
             $existing = $this->invoices->findByIdempotencyKey($db, $payload['idempotency_key'], true);
 
             if ($existing === null) {
@@ -148,8 +153,20 @@ final class InvoiceService
                 );
             }
 
-            return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
+            $result = $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
+            $this->runBeforeCommit($beforeCommit, $db, $result);
+
+            return $result;
         });
+    }
+
+    private function runBeforeCommit(?callable $beforeCommit, \PDO $db, array $result): void
+    {
+        if ($beforeCommit === null) {
+            return;
+        }
+
+        $beforeCommit($db, $result);
     }
 
     private function existingResultWithPaymentIfPresent(\PDO $db, array $payload, array $existing): array
