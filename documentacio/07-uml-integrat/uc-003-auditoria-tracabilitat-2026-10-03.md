@@ -121,6 +121,11 @@ Si falla, el cas es tracta com conflicte funcional i deriva a `INCIDENT`.
 
 **Compatibilitat:** el paràmetre del repositori és opcional per no trencar consumidors auxiliars existents; el camí productiu del worker sempre el passa.
 
+### UC03-FIX-03 — factura UC-004 prèvia + cobrament Redsys
+
+**Problema:** una clau idempotent Redsys no reutilitza una factura UC-004 emesa amb una altra clau.  
+**Correcció:** nou `RedsysCoveredInvoicePaymentService`, precondició transaccional de `PaymentService`, guard específic de `InvoiceService` i lock compartit per origen a `fact_rels`. El ledger CURS accepta ara pagaments parcials contra una factura completa existent, mantenint una sola factura fiscal.
+
 ## 6. Proves
 
 ### Ja existents i revisades
@@ -152,11 +157,18 @@ Per tant, el hardening UC-003 d'aquest PR queda **VERIFICAT EN PROVES ESPECÍFIQ
 
 ### P0 — abans de rollout d'escenaris afectats
 
-**GAP-003-P0-01 · factura fiscal preexistent.**  
-Els handlers emeten/reutilitzen amb clau derivada de Redsys. No queda acreditat un decisor general que busqui la factura ja emesa per la relació de negoci i registri el cobrament sobre ella. A PrisMa existeix el cas "factura abans de pagar"; per tant:
-- factura única compatible → registrar/aplicar cobrament;
-- cap factura → emetre + cobrar;
-- ambigua/incompatible → conciliació, no segona emissió automàtica.
+**GAP-003-P0-01 · factura fiscal preexistent — IMPLEMENTAT A BRANCA / CI PENDENT.**  
+Per CURS amb cobertura UC-004, `RedsysCoveredInvoicePaymentService`:
+- resol `invoice_before_payment_coverage` per `INSCRIPCIO`;
+- valida factura `ISSUED`, `EMESA_ABANS_COBRAMENT=1`, total contractual i línia única;
+- registra/reutilitza `PAYMENT|REDSYS|ORDER:<DS_ORDER>` sobre el `UUID_FACTURA` existent;
+- comprova saldo pendent sota lock i rebutja sobrepagament;
+- suporta 50+70 sobre una factura de 120 sense nova emissió;
+- deixa el guard de cobertura fora del payload/hash fiscal per compatibilitat amb reintents antics;
+- serialitza UC-004 i Redsys sobre l'origen indexat de `fact_rels`; UC-004 fa rollback si ja hi ha factura Redsys `ISSUED`.
+La generalització a altres variants continua sent una decisió específica de cada UC.
+
+### P0 restant
 
 **GAP-003-P0-02 · cutover real.**  
 Mentre `doit.php`/`realitzaPagamentAutomatic.php` estiguin actius, el llegat pot continuar escrivint factures i inscripcions. Cal executar i evidenciar pausa → drain → MerchantURL SIF → 410/retirada.
@@ -204,7 +216,7 @@ Es pot considerar tancada quan:
 
 ### Implementació funcional general
 No es considera tancada per al conjunt de casos Redsys mentre:
-- la factura preexistent no tingui decisió executable/evidència;
+- la ruta de factura preexistent no tingui CI/preproducció/evidència;
 - el JS candidat no estigui traçat si forma part del desplegament;
 - no hi hagi evidència dels variants requerits.
 
@@ -221,8 +233,8 @@ Requereix:
 ## 10. Estat al final d'aquesta passada
 
 **DOCUMENTAT:** paquet UC-003 completat en aquesta branca.  
-**IMPLEMENTAT:** nucli asíncron existent + dues correccions de consistència aplicades.  
+**IMPLEMENTAT:** nucli asíncron + fencing/resultat complet + ruta CURS de cobrament Redsys sobre factura UC-004 existent, inclosos parcials i serialització d'origen.  
 **VERIFICAT:** les correccions 03/10 passen la suite específica del worker al runner GitHub; el CI global manté 6 fallades de baseline reproduïdes fora d'aquest PR.  
-**PENDENT:** factura preexistent, JS candidat, preproducció/runtime/cutover, evidència final i sanejament del baseline CI compartit.
+**PENDENT:** CI/preproducció de la nova ruta de factura preexistent, JS candidat, runtime/cutover, evidència final i sanejament del baseline CI compartit.
 
 **Classificació temporal:** `AUDIT_PACKAGE_COMPLETE / UC003_TESTS_PASS / BASELINE_CI_RED / OPERATIONAL_PENDING`.
