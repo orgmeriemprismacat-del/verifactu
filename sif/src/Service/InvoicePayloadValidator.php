@@ -17,6 +17,10 @@ final class InvoicePayloadValidator
         $this->assertIdempotencyKey($payload['idempotency_key']);
         $this->assertSourceChannel($payload['source_channel']);
         $this->assertTraceMetadata($payload);
+        $this->assertOperationUuid($payload);
+        if (array_key_exists('uuid_operation', $payload) && $payload['uuid_operation'] !== null && $payload['uuid_operation'] !== '') {
+            $payload['uuid_operation'] = strtolower(trim((string) $payload['uuid_operation']));
+        }
         $payload['idempotency_key'] = trim((string) $payload['idempotency_key']);
         $payload['source_channel'] = strtoupper(trim((string) $payload['source_channel']));
 
@@ -145,6 +149,25 @@ final class InvoicePayloadValidator
             ) {
                 throw SifException::validation('Invalid invoice trace field actor_type');
             }
+        }
+    }
+
+
+    private function assertOperationUuid(array $payload): void
+    {
+        if (!array_key_exists('uuid_operation', $payload)
+            || $payload['uuid_operation'] === null
+            || $payload['uuid_operation'] === ''
+        ) {
+            return;
+        }
+
+        $uuid = strtolower(trim((string) $payload['uuid_operation']));
+        if (preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/D',
+            $uuid
+        ) !== 1) {
+            throw SifException::validation('Invalid commercial operation UUID');
         }
     }
 
