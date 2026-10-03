@@ -25,8 +25,10 @@ final class InvoiceService
         $this->idempotency ??= new PayloadIdempotencyValidator();
     }
 
-    public function issueInvoice(array $payload): array
-    {
+    public function issueInvoice(
+        array $payload,
+        bool $respectBeforePaymentCoverage = false
+    ): array {
         $payload = $this->validator->validate($payload);
 
         if ($this->requiresBeforePaymentCoverage($payload) && $this->beforePaymentCoverage === null) {
@@ -36,7 +38,7 @@ final class InvoiceService
         }
 
         try {
-            return $this->createOrReuseInvoice($payload);
+            return $this->createOrReuseInvoice($payload, $respectBeforePaymentCoverage);
         } catch (\PDOException $exception) {
             if (!$this->isDuplicateKeyException($exception)) {
                 throw $exception;
@@ -52,15 +54,22 @@ final class InvoiceService
         }
     }
 
-    private function createOrReuseInvoice(array $payload): array
-    {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
+    private function createOrReuseInvoice(
+        array $payload,
+        bool $respectBeforePaymentCoverage
+    ): array {
+        return $this->transactions->run(
+            function (\PDO $db) use ($payload, $respectBeforePaymentCoverage): array {
             $existing = $this->invoices->findByIdempotencyKey($db, $payload['idempotency_key'], true);
             if ($existing !== null) {
                 return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
             }
 
-            $this->assertNoCoveredInvoiceMustBeReused($db, $payload);
+            $this->assertNoCoveredInvoiceMustBeReused(
+                $db,
+                $payload,
+                $respectBeforePaymentCoverage
+            );
 
             $year = (int) ($payload['year'] ?? date('Y'));
             $seq = $this->sequences->next($db, $payload['series'], $year);
@@ -90,7 +99,8 @@ final class InvoiceService
             }
 
             return $result;
-        });
+            }
+        );
     }
 
     private function createInitialPaymentIfPresent(\PDO $db, array $payload, string $uuidFactura): ?array
@@ -195,9 +205,12 @@ final class InvoiceService
         ];
     }
 
-    private function assertNoCoveredInvoiceMustBeReused(\PDO $db, array $payload): void
-    {
-        if ((int) ($payload['respect_uc004_coverage'] ?? 0) !== 1) {
+    private function assertNoCoveredInvoiceMustBeReused(
+        \PDO $db,
+        array $payload,
+        bool $respectBeforePaymentCoverage
+    ): void {
+        if (!$respectBeforePaymentCoverage) {
             return;
         }
 
