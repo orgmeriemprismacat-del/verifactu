@@ -88,8 +88,21 @@ try {
 
     $result = $service->register($db, $actor, $payload);
 
+    $legacyProjection = new ManualTransferLegacyProjectionService(
+        $db,
+        $paymentEvents,
+        new GeneratedInvoiceLegacyPaymentSyncService(),
+        (string) ($config['env'] ?? 'development')
+    );
+
     $legacyDbConfig = $config['legacy_db'] ?? [];
     if (trim((string) ($legacyDbConfig['dsn'] ?? '')) === '') {
+        $legacyProjection->recordUnavailable(
+            $actor,
+            $payload,
+            $result,
+            'LEGACY_DB_NOT_CONFIGURED'
+        );
         $result['payment_status'] = $result['status'] ?? null;
         $result['status'] = 'PENDING_RETRY';
         $result['legacy_sync'] = [
@@ -102,12 +115,7 @@ try {
 
     try {
         $legacyDb = ConnectionFactory::makeLegacy($config);
-        $sync = (new ManualTransferLegacyProjectionService(
-            $db,
-            $paymentEvents,
-            new GeneratedInvoiceLegacyPaymentSyncService(),
-            (string) ($config['env'] ?? 'development')
-        ))->project(
+        $sync = $legacyProjection->project(
             $legacyDb,
             $actor,
             $payload,
