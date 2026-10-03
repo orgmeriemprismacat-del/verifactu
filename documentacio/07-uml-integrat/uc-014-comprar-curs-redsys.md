@@ -219,6 +219,6 @@ Aquest document principal conserva el model integrat del cas. La cobertura exhau
 ### Estat
 
 - **DOCUMENTAT:** fitxa, casos d'ús, classes ACTUAL/FINAL, seqüències ACTUAL/FINAL i activitats per superfícies principals.
-- **IMPLEMENTAT:** nucli SIF Redsys, handler CURS, pont candidat d'intenció, `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, productor outbox, retorn navegador autoritatiu i hardening del fallback en aquesta branca; el circuit llegat continua com a fallback fins al tall.
+- **IMPLEMENTAT:** nucli SIF Redsys, handler CURS, pont candidat d'intenció, `EXTERNAL_ALLOCATION` per inscripció, projecció llegada, productor outbox, retorn navegador autoritatiu i hardening del fallback fusionat via PR #118; el circuit llegat continua com a fallback fins al tall.
 - **VERIFICAT:** CI amb E2E intern simulat, fund allocation idempotent, mismatch fail-closed, duplicats, parcial→complet, boundaries de preproducció i retorn OK/KO read-only; PR #95 amb suites SIF **841 passed / 0 failed** i quatre workflows verds.
 - **PENDENT:** Redsys/preproducció real, activació del cutover amb `SIF_REDSYS_CALLBACK_URL`, retirada de l'autoritat fiscal llegada, rotació/configuració de secrets i delivery/retries d'UC-58.
