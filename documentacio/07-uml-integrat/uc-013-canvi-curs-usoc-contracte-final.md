@@ -1,8 +1,8 @@
 # UC-013 · Contracte FINAL — canvi de curs USOC amb dos pagadors
 
-**Data de revalidació:** 2026-10-02  
-**Main contrastat:** `f7fa0822f82be96e842d9f2d031e643ab07f617c`  
-**Estat:** CONTRACTE DOCUMENTAT · RESOLVER D'IMPORTS I PLA ECONÒMIC IMPLEMENTATS · EXECUTOR D'EFECTES PENDENT
+**Data de revalidació:** 2026-10-03  
+**Base reconciliada:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df` · PR #120  
+**Estat:** CONTRACTE DOCUMENTAT · FLUX EXECUTIU IMPLEMENTAT AL REPOSITORI · ACCEPTACIÓ OPERATIVA/PREPRODUCCIÓ PENDENT
 
 ## 1. Objectiu
 
@@ -77,7 +77,7 @@ target_entity_total =
 
 ## 3. Snapshot obligatori abans d'executar
 
-L'executor futur no pot treballar amb imports llegits de formulari sense congelar-los.
+L'executor implementat no treballa amb imports llegits del formulari sense congelar-los: `prepare_course_change` persisteix request/pla i el binding posterior fixa la destinació abans dels efectes.
 
 Ha de persistir dins `usoc_lifecycle_execution.REQUEST_JSON/PLAN_JSON` com a mínim:
 
@@ -261,30 +261,40 @@ Aquest mecanisme és preferible a copiar el valor legacy `PAGAMENT` perquè:
 
 Si l'arquitectura final exigeix crear un `credit_balance` intermedi per a excedents, s'ha d'usar `CreditBalanceService`, no un saldo implícit al legacy.
 
-## 10. Ordre transaccional FINAL
+## 10. Ordre d'execució ACTUAL/FINAL
+
+El codi implementat utilitza un handoff en dues fases perquè la inscripció destí continua essent una mutació legacy:
 
 ```mermaid
 flowchart TD
-    A[POST canvi curs + CSRF] --> B[Guard USOC]
-    B --> C[Congelar payer snapshot origen]
-    C --> D[Resoldre preu estàndard i USOC destí]
-    D --> E{Imports coherents?}
-    E -- No --> R[REVIEW_REQUIRED]
-    E -- Sí --> F[begin usoc_lifecycle_execution COURSE_CHANGE]
-    F --> G[Rectificar factura alumne origen]
-    G --> H[Rectificar factura entitat origen si existeix]
-    H --> I[Crear inscripció destí / obtenir ID_INSC destí de forma coordinada]
-    I --> J[Emetre factura alumne destí]
-    J --> K[Emetre factura entitat destí si amount > 0]
-    K --> L[Compensar fons alumne fins al seu target]
-    L --> M[Compensar fons entitat fins al seu target]
-    M --> N[Resoldre pendents/excessos per pagador]
-    N --> O[Reconciliar expedient USOC destí]
-    O --> P[Marcar execution COMPLETED]
-    P --> Q[Permetre handoff legacy]
+    A[POST preview canvi curs + CSRF] --> B[Guard + lifecycle plan]
+    B --> C[Pricing server-side destí]
+    C --> D[prepare_course_change]
+    D --> E[Checkpoint REQUESTED + pla congelat]
+    E --> F[Reservar ID_INSC + IDPAG destí al legacy]
+    F --> G[bind_course_change_destination]
+    G --> H[DESTINATION_RESERVED al SIF]
+    H --> I{legacy_completed?}
+    I -- No --> J[Materialitzar canvi legacy exactament sobre la reserva]
+    J --> K[Validar ID_INSC creat == reservat]
+    K --> L[Guardar legacy_completed=true en sessió]
+    I -- Sí retry --> M[Saltar mutació legacy]
+    L --> N[execute_course_change]
+    M --> N
+    N --> O[Revalidar identitat, binding i fons origen]
+    O --> P[Rectificar factura alumne origen]
+    P --> Q[Rectificar factura entitat origen si existeix]
+    Q --> R[Emetre factura alumne destí]
+    R --> S[Emetre factura entitat destí]
+    S --> T[Compensar fons reals per pagador]
+    T --> U[Reconciliar nou expedient]
+    U --> V[Esdeveniments + execution COMPLETED]
+    V --> W[Eliminar checkpoint de sessió]
 ```
 
-**Nota:** si la creació de la inscripció destí continua essent legacy, cal un protocol de handoff/reconciliació equivalent al de la baixa: cap efecte fiscal s'ha de repetir si falla el tram legacy posterior.
+### Recuperació després de fallada parcial
+
+Si el legacy s'ha materialitzat però l'execució SIF falla, el context conserva `legacy_completed=true`. El retry no torna a crear la inscripció, reutilitza la mateixa reserva/binding i reprèn només l'execució SIF idempotent.
 
 ## 11. Idempotència
 
@@ -337,4 +347,4 @@ Mateix `requestId` + payload divergent → `CONFLICT`.
 - **DOCUMENTAT:** sí.
 - **IMPLEMENTAT:** guard, payer snapshot, planner, `LegacyUsocCourseChangePricingResolver` server-side, `UsocCourseChangeTargetResolver`, `UsocCourseChangeFundPlanService`, `UsocCourseChangePreviewService`, endpoint/UI de preview, `UsocCourseChangeExecutionPreparationService` i infraestructura de compensació. El preview no mou diners ni emet documents; la preparació persisteix `REQUESTED` amb request/plan congelats i tampoc aplica efectes.
 - **VERIFICAT:** contrast estàtic contra codi real.
-- **PENDENT D'IMPLEMENTAR:** executor d'efectes `COURSE_CHANGE`, reemissió coordinada, materialització de `COMPENSATION_ALLOCATION`/resolució d'excessos, transició del checkpoint a `COMPLETED`, handoff legacy i E2E d'execució. Preview i checkpoint `REQUESTED` ja queden implementats.
+- **PENDENT OPERATIU/FUNCIONAL:** CI final del PR reconciliat, E2E navegador/preproducció amb configuració real, resolució explícita dels excessos (`credit_balance` o refund segons decisió), curs gratuït/alumne=0, entitat=0 fora del contracte actual i validacions comercials/fiscals 20/25 % + EXEMPT/E1.

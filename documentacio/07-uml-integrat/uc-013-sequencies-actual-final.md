@@ -211,7 +211,7 @@ end
 Exec-->>G: COMPLETED + requires_follow_up si hi ha diferits
 ```
 
-**ACTUAL:** la baixa ja té `UsocCancellationExecutionService`, amb idempotència per `requestId`, rectificatives/refunds separats i persistència d'esdeveniments. **PENDENT:** executor equivalent per al canvi de curs i evidència de preproducció.
+**ACTUAL:** la baixa té `UsocCancellationExecutionService`. El canvi de curs disposa també d'executor específic, però amb un handoff diferent: primer es prepara i reserva/binda el destí, després es materialitza exactament la mutació legacy i finalment s'executen els efectes SIF. Resta evidència operativa de preproducció.
 
 ## 9. FINAL — variant curs gratuït
 
@@ -236,13 +236,13 @@ Actualment el builder rebutja `student_amount=0`; no s'inventa una factura o cob
 ## 10. Estat
 
 - **Documentat:** seqüències principals ACTUAL/FINAL separades.
-- **Implementat:** sol·licitud, validació durable, factura/cobrament alumne, checkpoint, factura/cobrament entitat, conciliació, guard, planner, resolver d'imports destí i pla econòmic pur per pagador.
+- **Implementat:** sol·licitud, validació durable, factura/cobrament alumne, checkpoint, factura/cobrament entitat, conciliació, guard, planner i canvi de curs executable amb pricing, preparation, reserva/bind de destí, reemissió i compensacions per pagador.
 - **Verificat:** inspecció estàtica sobre el main indicat.
 - **Provat:** evidència CI prèvia específica del UC-013 cobreix E2E de servei, idempotència, parcial/complet, validació durable, UI contracts i lifecycle planner.
-- **Pendent:** E2E navegador/preproducció sobre configuració real i executor d'efectes del canvi de curs. El preview USOC server-side ja està implementat; la baixa ja està implementada al repositori.
+- **Pendent:** E2E navegador/preproducció sobre configuració real, operació dels excessos que requereixen follow-up i variants funcionals/fiscals encara fail-closed.
 
 
-## 11. FINAL — canvi de curs USOC executable
+## 11. FINAL — canvi de curs USOC executable (realitzat al repositori)
 
 ```mermaid
 sequenceDiagram
@@ -356,3 +356,49 @@ end
 ```
 
 La migració `000033` amplia el CHECK de `usoc_lifecycle_execution.OPERATION` per admetre `COURSE_CHANGE`. Aquesta fase encara no pot marcar `COMPLETED`.
+
+
+## 14. ACTUAL — handoff executable de canvi de curs USOC
+
+```mermaid
+sequenceDiagram
+autonumber
+actor G as Gestió
+participant UI as Intranet/JS
+participant Pricing as Pricing server-side
+participant Prep as prepare_course_change
+participant Reserve as Reserva legacy destí
+participant Bind as bind_course_change_destination
+participant Legacy as realitzarCanviCurs_modalCanviCurs
+participant Exec as execute_course_change
+participant SIF as UsocCourseChangeExecutionService
+
+G->>UI: selecciona curs destí
+UI->>Pricing: resoldre tarifa USOC destí
+Pricing-->>UI: standard/student/entity/fee
+UI->>Prep: requestId + target congelat
+Prep-->>UI: REQUESTED
+UI->>Reserve: reservar ID_INSC + IDPAG destí
+Reserve-->>UI: destination + reservation_marker
+UI->>Bind: vincular reserva al checkpoint
+Bind-->>UI: DESTINATION_RESERVED
+G->>UI: confirma
+alt legacy_completed=false
+ UI->>Legacy: crear exactament la inscripció reservada
+ Legacy-->>UI: ID_INSC destí
+ UI->>UI: legacy_completed=true en sessió
+else retry després d'error SIF
+ UI->>UI: saltar mutació legacy
+end
+UI->>Exec: target ID_INSC + requestId
+Exec->>SIF: validar REQUESTED + DESTINATION_RESERVED
+SIF->>SIF: revalidar fons origen
+SIF->>SIF: rectificar factures origen
+SIF->>SIF: emetre factures destí alumne + entitat
+SIF->>SIF: compensar fons reals per pagador
+SIF->>SIF: reconciliar + events + COMPLETED
+SIF-->>UI: state=COMPLETED
+UI->>UI: eliminar checkpoint de sessió
+```
+
+**Retry invariant:** si la mutació legacy ja s'ha completat però falla l'execució SIF, el context de sessió conserva `legacy_completed=true`; el següent intent no crea una segona inscripció i reprèn només l'execució SIF idempotent.

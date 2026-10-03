@@ -139,7 +139,7 @@ Aquesta peça està **IMPLEMENTADA I PROVADA EN CI** mitjançant `UsocValidation
 **PREPRODUCCIÓ:** no acreditada.  
 **PRODUCCIÓ:** no acreditada.
 
-Els P0 estructurals estan implementats. El run `36660979100` acredita l'E2E de doble facturació; la decisió durable `VALID_DESC` també està implementada/provada. Per la baixa USOC, el run `36942709607` acaba **SUCCESS, 838 passed / 0 failed** i acredita l'executor per pagador, límits de refund, retry idempotent i decisions diferides. El UC-013 encara no es marca TANCAT perquè falta acreditar el contracte final de handoff UI→SIF→legacy, provar-lo en preproducció/navegador, implementar l'execució de canvi de curs i resoldre decisions funcionals/fiscals pendents.
+Els P0 estructurals estan implementats. L'E2E històric acredita la doble facturació i la decisió durable `VALID_DESC`; la baixa USOC també disposa d'executor i handoff. El canvi de curs queda implementat en el PR #120 amb pricing server-side, preparation, reserva/binding, executor, reemissió, compensacions i handoff idempotent. El UC-013 no es considera acceptat operativament fins completar CI del PR reconciliat, preproducció/navegador i les decisions funcionals/fiscals explícitament pendents.
 
 
 ### Evidència addicional · regla comercial no codificada al SIF
@@ -168,7 +168,7 @@ El canvi de curs USOC està protegit, però no és encara executable end-to-end.
 
 ### No implementat
 
-No existeix cap servei equivalent a `UsocCancellationExecutionService` per a `course_change`.
+Existeix `UsocCourseChangeExecutionService`, complementat per `UsocCourseChangeExecutionPreparationService`, `UsocCourseChangeDestinationBindingService` i reserva durable legacy del destí.
 
 Falten, com a mínim:
 
@@ -193,7 +193,7 @@ La incertesa inicial sobre conservar o recalcular l'aportació ha quedat **resol
 - les despeses de gestió corresponen a l'alumne;
 - si la regla USOC destí és absent/ambigua o la variant és alumne=0, el cas queda `REVIEW_REQUIRED`.
 
-El que continua pendent no és la fórmula d'import, sinó la materialització segura dels efectes fiscals/econòmics i el handoff legacy.
+La fórmula, la materialització fiscal/econòmica i el handoff legacy ja estan implementats al PR #120. El pendent és operatiu: CI reconciliat, preproducció/navegador, configuració real i decisions de negoci/fiscals encara fail-closed.
 
 
 ## Canvi de curs USOC · REGLA DESTÍ REVALIDADA 02/10/2026
@@ -208,7 +208,7 @@ El contrast amb `Intranet.php` i el builder SIF permet tancar part de la incerte
 - **Fons reals:** no es poden copiar des de `PAGAMENT`; existeix infraestructura `COMPENSATION_ALLOCATION` per atribuir un CHARGE confirmat a la inscripció destí.
 - **Excessos:** poden requerir refund o `credit_balance`, sempre per pagador.
 
-Això va reduir el pendent a resolver + executor + handoff. En aquesta mateixa branca, el resolver d'imports i el pla econòmic pur ja han quedat implementats; resten els efectes, la selecció server-side de la regla destí i el handoff.
+Aquesta evolució ja ha culminat en el PR #120: resolver, fund planner, pricing server-side, preview, preparation, reserva/binding, executor d'efectes i handoff estan implementats.
 
 
 ## Delta implementació 02/10/2026 · resolver d'imports de canvi de curs
@@ -266,9 +266,9 @@ Proves afegides a `UsocCourseChangeFundPlanServiceTest` per parcial, excés sepa
   - `sifUsocCourseChangePreview.php` resol pricing server-side i crida l'API signada;
   - el JS genèric cedeix els USOC validats;
   - `alumnes-usoc-lifecycle-preview.js` mostra alumne/entitat, compensable, pendent i excés;
-  - el clic queda bloquejat després del preview: encara no hi ha handoff a legacy.
+  - després del preview, el flux prepara el checkpoint, reserva/binda el destí i només permet la mutació legacy exacta associada a aquell `requestId`.
 
-**PENDENT:** executor d'efectes, reemissió destí, materialització de compensacions/excessos i checkpoint que habiliti el legacy.
+**IMPLEMENTAT:** executor d'efectes, reemissió destí, materialització de compensacions, checkpoint/handoff i retry idempotent. Els excessos no es resolen automàticament: queden marcats per decisió explícita.
 
 ## Delta implementació 02/10/2026 · checkpoint COURSE_CHANGE
 
@@ -292,4 +292,19 @@ Proves afegides a `UsocCourseChangeFundPlanServiceTest` per parcial, excés sepa
   - conflicte de payload;
   - cap factura/payment addicional.
 
-**PENDENT:** aplicar efectes i completar el checkpoint. No es declara encara cap `COURSE_CHANGE` com a `COMPLETED`.
+**IMPLEMENTAT:** `UsocCourseChangeExecutionService` consumeix el checkpoint `REQUESTED` amb destí `DESTINATION_RESERVED`, aplica efectes idempotents i finalitza a `COMPLETED`; el retry d'un `COMPLETED` reutilitza el resultat i rebutja un destí divergent.
+
+
+## Revalidació 03/10/2026 · PR #120 reconciliat
+
+La branca anterior del UC-013 havia quedat 54 commits per darrere de `main`. El paquet s'ha reconstruït sobre `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df` en el **PR #120**, sense arrossegar la divergència històrica.
+
+### Estat contrastat
+
+- **DOCUMENTAT:** fitxa, UML integrat, classes, seqüències, activitats, contracte de canvi de curs i traçabilitat.
+- **IMPLEMENTAT:** doble facturació, cobrament/reconciliació, validació durable, baixa executable i canvi de curs executable.
+- **CANVI DE CURS IMPLEMENTAT:** pricing server-side, target resolver, fund planner, preview, preparation REQUESTED, reserva legacy, binding SIF, mutació legacy reservada, executor, rectificatives origen, factures destí, compensacions, reconciliació i `COMPLETED`.
+- **IDEMPOTÈNCIA:** `requestId`, binding immutable de destí, claus estables per efecte i retry de `COMPLETED`.
+- **HANDOFF:** el legacy es materialitza una sola vegada; si falla SIF després, `legacy_completed` permet reprendre sense duplicar la inscripció.
+- **FAIL-CLOSED:** alumne=0, entitat=0, pricing ambigu/incoherent, evidència fiscal incompleta i payload divergent.
+- **PENDENT OPERATIU:** CI final del PR reconciliat, preproducció/navegador, secrets/rols/configuració real, resolució d'excessos i validacions 20/25 % + EXEMPT/E1.

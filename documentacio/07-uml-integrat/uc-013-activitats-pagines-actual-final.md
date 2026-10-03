@@ -375,7 +375,7 @@ flowchart TD
 | Factura entitat | Sí | Sí | Servei + pantalla autònoma + panell contextual implementats; desplegament/configuració pendent |
 | Cobrament entitat | Sí, dues UI + servei + script | Sí | UI autònoma + panell contextual implementats; menú fail-closed implementat; desplegament/configuració pendent |
 | Conciliació | Sí, servei/script | Sí | Implementada a la ruta específica USOC; script manual disponible |
-| Canvi/baixa | Sí | Parcial avançat | **Baixa:** guard + planner + modal de decisió + `UsocCancellationExecutionService` + checkpoint de sessió abans del legacy; servei PROVAT i handoff contract PASS; runs `36943292835` (**839/839**) i `36943206570` (**838/838**). **Canvi de curs:** guard + planner, executor encara pendent |
+| Canvi/baixa | Sí | Sí al repositori | **Baixa:** guard + planner + executor + handoff. **Canvi de curs:** pricing server-side + preview + preparation REQUESTED + reserva/bind destí + mutació legacy reservada + `UsocCourseChangeExecutionService` + rectificació/reemissió + compensacions + `COMPLETED`; resta preproducció/navegador |
 
 ## 15. Pendents de codi derivats dels diagrames
 
@@ -389,11 +389,21 @@ flowchart TD
 
 ## Canvi de curs USOC · precisió d'estat
 
-**`UC13-GAP-COURSE-EXEC`**: el flux actual és deliberadament fail-closed.
+**`UC13-GAP-COURSE-EXEC` — TANCAT EN CODI DEL PR #120.**
 
-`sifCanviCursPreview.php` consulta `LegacyUsocLifecycleGuard` abans de permetre el preview/confirmació genèric. Quan existeix un expedient USOC amb dues parts, el canvi legacy queda bloquejat. `UsocLifecyclePlanService` pot descriure accions separades per alumne i entitat, però encara no existeix l'executor equivalent al de baixa que rectifiqui/reemeti les factures de curs destí i resolgui diners per pagador.
+El flux ja no es limita al bloqueig fail-closed. La ruta implementada és:
 
-Això és **protecció implementada**, no un canvi de curs USOC complet.
+1. guard + lifecycle plan;
+2. pricing server-side del curs destí;
+3. preview i `prepare_course_change` → checkpoint `REQUESTED`;
+4. reserva durable de `ID_INSC/IDPAG` destí al legacy;
+5. `bind_course_change_destination` → `DESTINATION_RESERVED`;
+6. mutació legacy exacta sobre la reserva i checkpoint de sessió `legacy_completed`;
+7. `execute_course_change`;
+8. rectificació de factures origen, reemissió destí i compensacions separades per pagador;
+9. reconciliació, esdeveniments i `COMPLETED`.
+
+**Pendent:** validació navegador/preproducció, configuració real i resolució operativa dels excessos que el servei deixa explícitament en follow-up.
 
 
 **Contracte FINAL del canvi de curs:** [UC-013 canvi de curs USOC](uc-013-canvi-curs-usoc-contracte-final.md).

@@ -291,7 +291,7 @@ UsocCourseChangeExecutionService --> CreditBalanceService
 | Validació legacy↔SIF | Implementada en dues fases | Provar configuració real |
 | UI USOC | Implementada al repositori | Desplegament/rols/secrets/preflight real |
 | Baixa | Guard + planner + executor implementats | Acreditar CI actual i preproducció |
-| Canvi de curs | Guard + planner + pricing server-side + resolver + fund planner + preview API/UI + checkpoint REQUESTED implementats | Falta executor d'efectes, COMPLETED, reemissió, materialització de compensacions i handoff |
+| Canvi de curs | Guard + planner + pricing server-side + resolver + fund planner + preview + `prepare` + reserva destí + `bind` + executor + reemissió + compensacions + `COMPLETED` + handoff implementats | Resta preproducció/navegador, configuració real i resolució operativa d'excessos |
 | Alumne=0 | Bloquejat fail-closed | Decisió funcional/fiscal |
 | Regla 20/25 % | No hardcoded al SIF | Decisió comercial fora del nucli |
 | IVA | EXEMPT/E1 al builder | Validació fiscal de totes les variants |
@@ -299,10 +299,10 @@ UsocCourseChangeExecutionService --> CreditBalanceService
 ## 6. Estat
 
 - **Documentat:** sí, ara també amb classes ACTUAL/FINAL separades.
-- **Implementat:** nucli de doble facturació, cobrament, checkpoint, conciliació, validació durable, UI, lifecycle planner, resolver d'imports destí i pla econòmic pur del canvi de curs.
-- **Verificat:** inspecció estàtica contra `main@f7fa0822f...`.
-- **Provat:** existeix evidència CI específica en commits previs del UC-013; no hi ha workflow associat al SHA actual de main en aquesta auditoria.
-- **Pendent:** preproducció/navegador, configuració real, executor específic de canvi de curs, curs gratuït i validacions comercials/fiscals. La baixa ja disposa d'executor SIF per pagador.
+- **Implementat:** nucli de doble facturació, cobrament, checkpoint, conciliació, validació durable, UI, lifecycle planner i flux complet de canvi de curs: pricing server-side, resolver, fund planner, preparation, reserva/binding de destí, executor, reemissió, compensacions, esdeveniments i handoff legacy.
+- **Verificat:** inspecció estàtica sobre el PR #120 reconciliat amb `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df`.
+- **Provat:** existeixen proves d'integració/contracte específiques per preparation, binding, executor, idempotència, preview, reserva legacy i handoff. L'acceptació definitiva correspon al CI del PR reconciliat i a preproducció.
+- **Pendent:** preproducció/navegador, configuració real, curs gratuït, resolució explícita d'excessos i validacions comercials/fiscals. Tant la baixa com el canvi de curs disposen d'executor SIF.
 
 
 ## 7. Contracte FINAL del canvi de curs
