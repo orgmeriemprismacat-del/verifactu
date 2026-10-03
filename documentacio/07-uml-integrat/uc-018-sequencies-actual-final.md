@@ -1,29 +1,47 @@
 # UC-018 · Seqüències ACTUAL/FINAL — Bescanviar regal
 
-## 1. ACTUAL — compra i emissió del dret
+## 1. Tall revalidat — 2026-10-03
 
-```mermaid
-sequenceDiagram
-autonumber
-actor C as Comprador
-participant R as Redsys
-participant G as RedsysGiftInvoiceService
-participant I as GiftEntitlementIssuerService
-participant DB as SIF
-C->>R: compra regal
-R->>G: pagament confirmat
-G->>DB: factura + CHARGE
-G->>I: emetre/reutilitzar dret GIFT
-I->>DB: GIFT_PURCHASE + entitlement + ISSUE
-```
+Aquest document mostra l'ACTUAL de la branca de revalidació. El canvi principal respecte del tall 02/10 és que també es governa la frontera **navegador→legacy**, no només la frontera interna legacy→SIF.
 
-## 2. ACTUAL — bescanvi nominal
+## 2. ACTUAL — entrada web, validació i alta
 
 ```mermaid
 sequenceDiagram
 autonumber
 actor B as Beneficiari
-participant W as Writer web legacy
+participant P as pagina_bescanvia.php
+participant JS as mostrarBescanvia.min.js
+participant V as codiRegalValid.php
+participant C as buscarCursRegalat.php
+participant D as inscripcioDuplicada.php
+participant W as enviarInscripcioBescanvia.php
+
+B->>P: obrir /bescanvia
+P-->>B: bundle rastrejable ver=6.0
+B->>JS: introduir codi
+JS->>V: POST codiRegal
+V->>V: validar sense enumerar estat públic
+V-->>JS: vàlid o resposta neutra
+JS->>C: POST codiRegal
+C->>C: revalidar bescanviabilitat
+C-->>JS: curs/modalitat
+B->>JS: dades + edició
+JS->>D: POST DNI + curs/edició
+D-->>JS: duplicada / disponible
+JS->>W: POST dades personals + codi
+W->>W: lock regal + FACT_REL > 0
+W->>W: recuperar o crear una sola ID_INSC
+```
+
+Cap d'aquestes quatre peticions sensibles posa `codiRegal` ni DNI a la query string.
+
+## 3. ACTUAL — SIF i consum nominal
+
+```mermaid
+sequenceDiagram
+autonumber
+participant W as Writer legacy
 participant C as SifGiftRedemptionClient
 participant API as redeem.php
 participant O as GiftRedemptionOrchestrator
@@ -33,45 +51,68 @@ participant R as GiftRedemptionService
 participant L as LegacyGiftUsageReconciler
 participant N as NotificationBundleService
 participant DB as SIF/legacy
-B->>W: confirmar inscripció amb regal
-W->>DB: lock regal + crear/reutilitzar ID_INSC
-W->>C: POST/HMAC enrollment_id + gift_code
-C->>API: redeem
+
+W->>C: enrollment_id + gift_code
+C->>API: POST/HMAC
 API->>O: execute
-O->>T: resoldre participant/preu autoritatiu
+O->>T: participant + snapshot autoritatiu
 O->>S: claim holder + stage + RESERVE
 O->>R: redeem
 R->>DB: COMPENSATION_ALLOCATION
 R->>DB: CONSUME
 O->>L: compare-and-set regal.USAT
 L->>DB: reconciliar legacy
-O->>N: enqueue 6 notificacions idempotents
-N->>DB: 6 notification_outbox
+O->>N: crear/reutilitzar 6 notificacions
+N->>DB: notification_outbox
 O-->>API: CONSUMED + bundle
 API-->>C: resultat
 C-->>W: resultat
-W->>C: claim notificació
-C-->>W: autorització at-most-once
-W->>W: SMTP legacy
-W->>C: complete SENT/FAILED
 ```
 
-## 3. Replay / resposta perduda
+## 4. ACTUAL — correus post-SIF
+
+```mermaid
+sequenceDiagram
+participant W as Writer legacy
+participant C as SifGiftRedemptionClient
+participant A as notifications.php
+participant O as Outbox
+participant M as SMTP legacy
+loop cadascun dels 6 correus
+ W->>C: claim(uuid_notification)
+ C->>A: POST/HMAC claim
+ A->>O: PENDING -> SENDING
+ O-->>W: should_send
+ alt autoritzat
+   W->>M: enviar
+   W->>C: complete(SENT/FAILED)
+ else SENT o estat no reclamable
+   W-->>W: no reenviar
+ end
+end
+```
+
+## 5. Replay / resposta perduda
 
 ```mermaid
 sequenceDiagram
 participant W as Web/recovery
+participant C as Client SIF
 participant O as GiftRedemptionOrchestrator
 participant DB as SIF + legacy
-W->>O: execute(ID_INSC, gift_code)
+W->>DB: lock regal
+DB-->>W: USAT = mateixa ID_INSC
+W->>W: validar curs/DNI/codi
+W->>C: redeemCommittedEnrollment(mateixa ID_INSC,codi)
+C->>O: execute
 O->>DB: rellegir operació/dret
-DB-->>O: mateix destí + mateix moviment + CONSUMED
-O->>DB: reconciliació ja aplicada
-O-->>W: REUSED
-Note over W,DB: cap alta nova, cap CHARGE, cap factura i cap segon CONSUME
+DB-->>O: mateix destí + CONSUMED
+O->>DB: reutilitzar allocation + reconciliació + outbox
+O-->>W: REUSED + bundle
+Note over W,DB: no hi ha early-return abans del SIF
 ```
 
-## 4. Concurrència multiprocés
+## 6. Concurrència multiprocés
 
 ```mermaid
 sequenceDiagram
@@ -85,21 +126,19 @@ A->>DB: CLAIM/RESERVE/ALLOCATION/CONSUME
 A-->>B: commit allibera lock
 B->>E: rellegir estat
 alt mateix ID_INSC
-B-->>B: REUSED
+ B-->>B: REUSED
 else ID_INSC diferent
-B-->>B: CONFLICT 409
+ B-->>B: CONFLICT 409
 end
 ```
 
-## 5. Notificació i fallada SMTP
+## 7. FINAL
 
-- Cap `MailSMTPComvive` s'executa abans d'un redeem/reconciliació SIF correcte.
-- Cada un dels sis correus té outbox i claim propis.
-- `PENDING → SENDING` és el punt d'autorització d'enviament.
-- `SENDING` ambigu no es reclama automàticament una segona vegada.
-- `SENT` és idempotent.
-- `FAILED` queda per revisió; no hi ha retry automàtic que pugui duplicar un enviament ja acceptat pel proveïdor.
+Per al flux base, FINAL = ACTUAL de la branca un cop el CI nou sigui verd. Resten fora:
 
-## 6. Diferències de preu
+- [ENV] execució real de preproducció/SMTP;
+- [POLICY] diferències de valor, romanent, cobrament complementari, devolució o consum parcial.
 
-El flux executable auditat exigeix valor exacte. Un curs de valor diferent **no** genera automàticament cobrament, saldo, devolució ni consum parcial. Es rebutja/falla tancat fins a una decisió funcional específica.
+## 8. Verificació
+
+El nucli/SIF conserva el tall verificat del PR #115: 858/0, 49 PASS GIFT/UC-018. La prova boundary ampliada del 03/10 és la que ha d'acreditar la nova frontera pública.
