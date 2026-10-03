@@ -121,6 +121,6 @@ L'UC-007 queda **DOCUMENTAT + IMPLEMENTAT EN CODI, PERÒ NO VERIFICAT RUNTIME**.
 
 ## 9. Evidència CI obtinguda en aquesta revalidació
 
-El primer run del PR #135 ha passat totes les proves directament relacionades amb UC-007 que ja existien: frontera intranet, query read-only, política FULL/MINIMAL, HMAC/anti-replay i CLI query. També passen les proves de registre immutable de document. El workflow global queda en `failure` per sis tests PACK/Redsys no modificats per aquesta branca i el `main` base ja tenia workflows fallant. Per tant, aquestes sis fallades no es comptabilitzen com a regressió UC-007.
+El primer run del PR #135 ha passat totes les proves directament relacionades amb UC-007 que ja existien: frontera intranet, query read-only, política FULL/MINIMAL, HMAC/anti-replay i CLI query. També passen les proves de registre immutable de document. El workflow global queda en `failure` per sis tests PACK/Redsys no modificats per aquesta branca. El commit base `main` ja tenia workflows SIF en `failure`; no s’afirma que fossin exactament les mateixes sis assertions perquè els logs complets del baseline no s’han reextret de forma fiable. Per tant, no hi ha evidència que aquestes fallades globals siguin una regressió causada per l’UC-007.
 
 Després d'aquesta evidència s'ha afegit una prova específica d'UC-080 (`InvoiceDocumentAccessServiceTest`) per cobrir bytes verificats, scope MINIMAL denegat, hash mismatch i fitxer absent amb auditoria.
