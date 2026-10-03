@@ -60,6 +60,8 @@ final class InvoiceService
                 return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
             }
 
+            $this->assertNoCoveredInvoiceMustBeReused($db, $payload);
+
             $year = (int) ($payload['year'] ?? date('Y'));
             $seq = $this->sequences->next($db, $payload['series'], $year);
             $chainState = $this->invoices->lockChainState($db);
@@ -191,6 +193,30 @@ final class InvoiceService
             'uuid_factura' => $existing['UUID_FACTURA'],
             'num_visible' => $existing['NUM_VISIBLE'],
         ];
+    }
+
+    private function assertNoCoveredInvoiceMustBeReused(\PDO $db, array $payload): void
+    {
+        if ((int) ($payload['respect_uc004_coverage'] ?? 0) !== 1) {
+            return;
+        }
+
+        if ($this->beforePaymentCoverage === null) {
+            throw new \RuntimeException(
+                'UC-004 coverage guard requires the invoice-before-payment repository.'
+            );
+        }
+
+        $claims = $this->beforePaymentCoverage->findClaims(
+            $db,
+            $payload['relations'] ?? [],
+            true
+        );
+        if ($claims !== []) {
+            throw SifException::conflict(
+                'Redsys course origin is already covered by an invoice-before-payment operation'
+            );
+        }
     }
 
     private function requiresBeforePaymentCoverage(array $payload): bool
