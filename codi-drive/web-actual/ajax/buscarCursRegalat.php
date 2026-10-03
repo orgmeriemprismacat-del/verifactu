@@ -17,6 +17,10 @@ try {
 	$dispositiu = $_POST['dispositiu'];
 
 	$bescanvia = new BescanviaRegal($dispositiu);
+	if ($bescanvia->codiRegalValid($codiRegal) !== '') {
+		http_response_code(409);
+		exit;
+	}
 	$mostrar = $bescanvia->buscarCursRegalat($codiRegal);
 
 	echo $mostrar;
