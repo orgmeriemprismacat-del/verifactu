@@ -18,6 +18,7 @@ final class HistoricalInvoicePayloadBuilder
         $payload['num_seq'] = (int) ($this->optional($input, ['num_seq', 'numero', 'num']) ?? $parsed['num_seq']);
         $this->assertVisibleNumberConsistency($payload, $parsed);
         $payload['type'] = $this->optionalString($input, ['type', 'tipus_factura'], 'F1');
+        $this->assertInvoiceType($payload['type']);
         $payload['idempotency_key'] = $this->idempotencyKey($input, $numVisible);
         $payload['source_channel'] = 'MIGRACIO';
         $payload['source_type'] = 'HISTORIC_WEB_FACTURES';
@@ -26,10 +27,22 @@ final class HistoricalInvoicePayloadBuilder
         $payload['aeat_status'] = 'NO_VERIFACTU';
         $payload['payment_status'] = $this->optionalString($input, ['payment_status', 'estat_cobrament'], 'UNKNOWN');
         $payload['issue_date'] = $this->requiredString($input, ['issue_date', 'data_emissio'], 'historical invoice issue date');
+        $this->assertDate($payload['issue_date'], 'historical invoice issue date');
         $payload['operation_date'] = $this->optionalString($input, ['operation_date', 'data_operacio']);
+        if ($payload['operation_date'] !== null) {
+            $this->assertDate($payload['operation_date'], 'historical invoice operation date');
+        }
         $payload['payment_date'] = $this->optionalString($input, ['payment_date', 'data_pagament']);
-        $payload['billing'] = $this->requiredArray($input, ['billing'], 'historical invoice billing');
-        $payload['totals'] = $this->requiredArray($input, ['totals'], 'historical invoice totals');
+        if ($payload['payment_date'] !== null) {
+            $this->assertDate($payload['payment_date'], 'historical invoice payment date');
+        }
+        $payload['issuer'] = $this->issuer($input);
+        $payload['operation_description'] = $this->optionalString(
+            $input,
+            ['operation_description', 'descripcio_operacio']
+        );
+        $payload['billing'] = $this->billing($input);
+        $payload['totals'] = $this->totals($input);
         $payload['lines'] = $this->lines($input);
         $payload['relations'] = $this->relations($input);
 
@@ -84,7 +97,134 @@ final class HistoricalInvoicePayloadBuilder
             throw SifException::validation('Historical invoice requires at least one line');
         }
 
+        foreach ($lines as $index => $line) {
+            if (!is_array($line)) {
+                throw SifException::validation("Invalid historical invoice line {$index}");
+            }
+
+            $this->requiredString($line, ['concept'], "historical invoice line {$index} concept");
+            foreach (['quantity', 'unit_price', 'total'] as $field) {
+                $this->assertNumeric($line[$field] ?? null, "historical invoice line {$index} {$field}");
+            }
+
+            $base = $line['import_base'] ?? $line['base'] ?? null;
+            $taxableBase = $line['taxable_base'] ?? $line['base'] ?? null;
+            $this->assertNumeric($base, "historical invoice line {$index} import base");
+            $this->assertNumeric($taxableBase, "historical invoice line {$index} taxable base");
+            $lines[$index] = $this->normalizeFiscalBlock($line);
+        }
+
         return $lines;
+    }
+
+    private function billing(array $input): array
+    {
+        $billing = $this->requiredArray($input, ['billing'], 'historical invoice billing');
+        $this->requiredString($billing, ['name'], 'historical invoice billing name');
+        $this->requiredString($billing, ['nif'], 'historical invoice billing nif');
+
+        return $billing;
+    }
+
+    private function totals(array $input): array
+    {
+        $totals = $this->requiredArray($input, ['totals'], 'historical invoice totals');
+        foreach (['import_base', 'taxable_base', 'total'] as $field) {
+            $this->assertNumeric($totals[$field] ?? null, "historical invoice total {$field}");
+        }
+
+        foreach (['discount', 'iva_pct', 'iva_import'] as $field) {
+            if (array_key_exists($field, $totals) && $totals[$field] !== null && $totals[$field] !== '') {
+                $this->assertNumeric($totals[$field], "historical invoice total {$field}");
+            }
+        }
+
+        return $this->normalizeFiscalBlock($totals);
+    }
+
+    private function issuer(array $input): ?array
+    {
+        $issuer = $this->optional($input, ['issuer']);
+        if ($issuer !== null) {
+            if (!is_array($issuer)) {
+                throw SifException::validation('Invalid historical invoice issuer');
+            }
+
+            return [
+                'nif' => $this->requiredString($issuer, ['nif'], 'historical invoice issuer nif'),
+                'name' => $this->optionalString($issuer, ['name']),
+            ];
+        }
+
+        $nif = $this->optionalString($input, ['issuer_nif', 'emissor_nif']);
+        $name = $this->optionalString($input, ['issuer_name', 'emissor_nom']);
+        if ($nif === null && $name === null) {
+            return null;
+        }
+        if ($nif === null) {
+            throw SifException::validation('Missing historical invoice issuer nif');
+        }
+
+        return ['nif' => $nif, 'name' => $name];
+    }
+
+    private function normalizeFiscalBlock(array $block): array
+    {
+        $inversion = $this->optional($block, ['inversion_subjecte_passiu', 'inversio_subjecte_passiu']);
+        if ($inversion !== null && !in_array($inversion, [0, 1, '0', '1', false, true], true)) {
+            throw SifException::validation('Invalid historical reverse-charge flag');
+        }
+        $block['inversion_subjecte_passiu'] = $inversion === null ? 0 : ((int) (bool) $inversion);
+
+        $block['exemption_reason'] = $this->optionalString(
+            $block,
+            ['exemption_reason', 'causa_exempcio_no_subjecta']
+        );
+
+        foreach ([
+            'rec_equivalence_pct' => ['rec_equivalence_pct', 'recarrec_equivalencia_pct'],
+            'rec_equivalence_import' => ['rec_equivalence_import', 'recarrec_equivalencia_import'],
+        ] as $canonical => $keys) {
+            $value = $this->optional($block, $keys);
+            if ($value !== null && $value !== '') {
+                $this->assertNumeric($value, "historical invoice {$canonical}");
+                $block[$canonical] = $value;
+            } else {
+                $block[$canonical] = null;
+            }
+        }
+
+        return $block;
+    }
+
+    private function assertNumeric(mixed $value, string $label): void
+    {
+        if ($value === null || $value === '' || !is_numeric($value)) {
+            throw SifException::validation("Invalid {$label}");
+        }
+    }
+
+    private function assertInvoiceType(string $type): void
+    {
+        if (!in_array(strtoupper($type), ['F1', 'F2', 'R1', 'R2', 'R3', 'R4', 'R5'], true)) {
+            throw SifException::validation('Invalid historical invoice type');
+        }
+    }
+
+    private function assertDate(string $value, string $label): void
+    {
+        foreach (['Y-m-d H:i:s', 'Y-m-d'] as $format) {
+            $date = \DateTimeImmutable::createFromFormat('!' . $format, $value);
+            $errors = \DateTimeImmutable::getLastErrors();
+            if ($date !== false
+                && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
+                && $date->format($format) === $value
+            ) {
+                return;
+            }
+        }
+
+        throw SifException::validation("Invalid {$label}");
     }
 
     private function relations(array $input): array
