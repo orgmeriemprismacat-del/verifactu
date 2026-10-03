@@ -181,7 +181,7 @@ S'ha incorporat `sif/public/api/payments/manual-transfer.php`, exclusivament **P
 
 `ManualPaymentPayloadBuilder` ara prioritza:
 
-`TRANSFERENCIA|BANK_EVENT_SHA256:<sha256(external_bank_event_id)>`
+`TRANSFERENCIA|BANK_EVENT_SHA256:<sha256(BANC + "\\n" + external_bank_event_id)>`
 
 i persisteix aquest identificador a `payment_transaction.PROVIDER_REF`.
 
@@ -304,4 +304,7 @@ La projecció post-commit ja no queda sense traça. `ManualTransferLegacyProject
 El resultat continua sent `PENDING_RETRY` si la projecció o la seva evidència obligatòria no queda completada. Això separa clarament el commit econòmic SIF de la projecció operativa llegada sense perdre correlació.
 
 
-**Nota d'esquema UC-022:** `external_bank_event_id` es limita a **80 caràcters**, coherent amb `payment_transaction.PROVIDER_REF VARCHAR(80)`. `PROVIDER_REF` conserva l'identificador original; la clau idempotent n'utilitza el SHA-256 per evitar col·lisions per normalització i mantenir una longitud estable dins `IDEMPOTENCY_KEY VARCHAR(120)`.
+**Nota d'esquema UC-022:** `external_bank_event_id` es limita a **80 caràcters**, coherent amb `payment_transaction.PROVIDER_REF VARCHAR(80)`. `PROVIDER_REF` conserva l'identificador original; la clau idempotent utilitza el SHA-256 del banc normalitzat + salt de línia + identificador per evitar col·lisions per normalització i mantenir una longitud estable dins `IDEMPOTENCY_KEY VARCHAR(120)`.
+
+
+**Namespace de la identitat bancària:** el banc és obligatori com a namespace del moviment. La unicitat efectiva del cobrament manual és `SHA-256(UPPER(TRIM(banc)) + "\n" + external_bank_event_id)`; així un identificador localment únic de BBVA no col·lideix amb el mateix text emès per un altre banc.
