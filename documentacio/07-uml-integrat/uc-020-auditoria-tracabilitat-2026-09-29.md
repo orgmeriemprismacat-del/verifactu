@@ -43,10 +43,10 @@
 | UC020-45 | El token tècnic de pagament es genera abans de saber si un dret documental serà aprovat. | VERIFICAT | P02/P04 |
 | UC020-46 | El correu inicial pendent no envia el link de pagament. | VERIFICAT POSITIU | UC-116/P05 |
 | UC020-47 | La incoherència principal apareix al correu posterior a la resolució/denegació. | VERIFICAT | P05→P04 |
-| UC020-48 | No s'ha localitzat runtime PHP per `commercial_operation`/`discount_validation`/`payment_link`. | VERIFICAT REPO | FINAL |
+| UC020-48 | No s'havia localitzat runtime PHP per `commercial_operation`/`discount_validation`/`payment_link` en el tall base. | HISTÒRIC_SUPERAT · vegeu §7–§12 | FINAL |
 | UC020-49 | Tests comercials actuals verifiquen sobretot esquema; no UC-20 E2E. | VERIFICAT | Proves |
 | UC020-50 | `payment_link` DDL ja modela import esperat, estat, expiració, revocació i substitució. | VERIFICAT DDL | FINAL |
-| UC020-51 | `redsys_payment_intent` no conté UUID_OPERATION; l'enllaç runtime no està acreditat. | VERIFICAT | FINAL |
+| UC020-51 | `redsys_payment_intent` no conté UUID_OPERATION; en el tall base l'enllaç runtime no estava acreditat. | HISTÒRIC_SUPERAT · vincle via `commercial_operation.UUID_INTENT` | FINAL |
 | UC020-52 | Token llegat pot continuar íntegre encara que l'oferta comercial hagi canviat. | VERIFICAT CONCEPTUAL | P04/FINAL |
 | UC020-53 | `commercial_operation.PRICE_SNAPSHOT_JSON` permet congelar el passat sense recalcular tarifa actual. | VERIFICAT DDL | FINAL |
 | UC020-54 | `GENERAT=1` pot fer elegible web i no intranet. | VERIFICAT | Decisió negoci |
@@ -64,9 +64,9 @@
 | UC020-66 | `preuInscripcio<=0` no és una precondició independent de confirmació. | VERIFICAT CODI | P02 |
 | UC020-67 | Promoció modifica import però no garanteix canvi de `tipusPreuAplicat`. | VERIFICAT CODI | P02 |
 | UC020-68 | AP/promoció poden deixar globals provinents de decisions diferents. | RISC DEDUÏT | P02/tests |
-| UC020-69 | Resolució intranet usa GET amb efectes persistents. | VERIFICAT | P05 |
-| UC020-70 | No s'ha localitzat protecció CSRF explícita per aquesta comanda. | VERIFICAT REPO | P05/seguretat |
-| UC020-71 | Endpoint de comanda no inclou `comprovarSessio.php`; confia en objectes de sessió existents. | VERIFICAT | P05 |
+| UC020-69 | Resolució intranet usava GET amb efectes persistents en el tall base. | HISTÒRIC_SUPERAT 02/10 · ara POST | P05 |
+| UC020-70 | No s'havia localitzat protecció CSRF explícita en el tall base. | HISTÒRIC_SUPERAT 02/10 · CSRF validat | P05/seguretat |
+| UC020-71 | El tall base no acreditava una protecció completa de comanda. | HISTÒRIC_SUPERAT 02/10 · sessió/objectes + permís específic revalidats | P05 |
 | UC020-72 | UPDATE no exigeix estat/versió esperada. | VERIFICAT | P05 |
 | UC020-73 | UI de resolució interpreta èxit per absència del text «error». | VERIFICAT | P05 |
 
@@ -233,7 +233,7 @@ Aquesta capa és **complementària**, no substitutiva, de la infraestructura com
 | UC020-76 | `IDPAG` no es contrastava amb el snapshot. | **CORREGIT CODI**. |
 | UC020-77 | `EXPECTED_AMOUNT` no es contrastava amb l'import de pagament. | **CORREGIT CODI**. |
 | UC020-78 | Snapshot de descompte podia arribar sense origen/mode coherent. | **CORREGIT per al contracte CURS nou**; es mantenen fallbacks històrics on pertoqui. |
-| UC020-79 | Política AP no encapsulada ni versionada. | **PARCIALMENT TANCAT** amb policy + historial; negoci futur pendent. |
+| UC020-79 | Política AP no encapsulada ni versionada. | **TANCAT per AP v2** amb policy + historial; qualsevol canvi futur requereix nova RULE_VERSION. |
 | UC020-80 | Manca orquestrador server-side d'operació/validació. | **IMPLEMENTAT I INTEGRAT AL PAGAMENT ACTIU** a `PrismaStudentCourseCheckoutService` via `/api/redsys/course-intent.php`; alta/preview/intranet pendents. |
 | UC020-81 | Manca vincle runtime `UUID_OPERATION ↔ UUID_INTENT`. | **IMPLEMENTAT_NUCLI**; integració de canal i política de múltiples intents pendents. |
 | UC020-82 | Invariant transversal factura vs cobrament. | **PENDENT TRANSVERSAL**; considerar fraccionaments. |
