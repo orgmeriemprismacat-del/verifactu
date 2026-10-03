@@ -1,7 +1,7 @@
 (() => {
     'use strict';
 
-    const endpoint = 'https://intranet.prisma.cat/ajax/sif/sifAeat.php';
+    const endpoint = '/ajax/sif/sifAeat.php';
     const app = document.getElementById('sif-aeat-app');
     if (!app) return;
 
