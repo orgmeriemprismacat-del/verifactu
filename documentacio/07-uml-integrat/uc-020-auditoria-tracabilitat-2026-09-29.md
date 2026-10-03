@@ -300,7 +300,7 @@ Continuen directes només les operacions específiques encara sense repository d
 
 ### 11.2. Decisions UC20-DEC-001…006
 
-Totes sis queden tancades a la fitxa v1.6 i materialitzades on afecten el runtime: `GENERAT=1` sí; factura només emesa no; no autoacreditació; `evaluation_at=DATA_INSC` per matrícula llegada; AP no acumulable amb promocions; snapshot AP persistit vàlid mentre la matrícula sigui pagable, amb caducitat del link separada.
+Totes sis queden tancades a la fitxa v1.7 i materialitzades on afecten el runtime: `GENERAT=1` sí; factura només emesa no; no autoacreditació; `evaluation_at=DATA_INSC` per matrícula llegada; AP no acumulable amb promocions; snapshot AP persistit vàlid mentre la matrícula sigui pagable, amb caducitat del link separada.
 
 ### 11.3. Estat final de l'auditoria
 
@@ -335,7 +335,7 @@ La reauditoria confirma que UC-020 disposa de totes les peces documentals exigid
 
 **Verificat per inspecció de codi:** policy v2, exclusió de matrícula actual, tall temporal d'historial, resolver històric fail-closed, alta AP revalidada, checkout AP server-authoritative, intenció/callback congelats, intranet POST+CSRF+permís+requestId.
 
-**Verificat per proves automatitzades existents:** policy, resolver, checkout AP, intent AP, callback/curs E2E simulat, idempotència i diverses fronteres de cutover. El head anterior de #112 tenia les suites de GitHub Actions en `success`.
+**Verificat per proves automatitzades existents:** policy, resolver, checkout AP, intent AP, callback/curs E2E simulat, idempotència i diverses fronteres de cutover. Al commit `9a70516`, les proves específiques UC-020 observades són PASS; la suite compartida acaba amb 924 passades i 6 fallades no UC-020. Vegeu `uc-020-evidencia-ci-2026-10-03.md`.
 
 **Pendent de verificació de rollout:** navegador real → pàgina de pagament → Redsys/callback → worker → factura en entorn controlat/preproducció; configuració efectiva de flags de cutover; migració canònica a `payment_link` i unificació de transferència.
 
