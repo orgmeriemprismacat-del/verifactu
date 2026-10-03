@@ -215,3 +215,15 @@ Vegeu també [Evidència E2E del flux gestor](08-evidencia-gestor-uc-008.md).
 
 
 Vegeu també [Revalidació exhaustiva contra main · 03/10/2026](uc-008-revalidacio-main-2026-10-03.md).
+
+
+### Hardening d'entorn 03/10/2026
+
+S'han afegit controls i proves per evitar evidències de l'entorn equivocat:
+
+- `IncidentPanelE2eScriptTest::testPreproductionE2eRejectsProductionOrUnexpectedHostBeforeHttpCall`;
+- `IncidentPanelEvidenceValidationScriptTest::testMenuEvidenceFromProductionCannotCloseGate`;
+- contracte de menú actualitzat perquè el JSON inclogui `environment`;
+- el validator final exigeix `menu_environment_valid=true`.
+
+El runbook executable és [10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md](10-acceptacio-operativa-uc-008-preproduccio-2026-10-03.md).
