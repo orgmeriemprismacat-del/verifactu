@@ -394,3 +394,15 @@ Aquesta ampliació no canvia la policy de negoci; converteix comportaments ja im
 | UC020-112 | AP-35 ja queda protegit per vincle únic operació→intenció: una segona DS_ORDER incompatible retorna 409. | VERIFICAT_CI | `PrismaStudentCourseCheckoutServiceTest::testRetryWithAnotherDsOrderCannotReplaceLinkedIntent` PASS a `0c1825c`. |
 | UC020-113 | AP-32 necessitava prova nominal de manipulació d'import abans de crear intenció AP. | TEST NOU PENDENT CI | `testPrismaStudentCheckoutRejectsClientRequestedAmountBelowAuthoritativePendingBalance`; zero operació/validació/intenció. |
 | UC020-114 | El fraccionament AP no està modelat fiscalment encara. | PENDENT IMPLEMENTACIÓ · FAIL-CLOSED VERIFICAT | El checkout rebutja fraccionament/reanudació AP abans de crear estat comercial. |
+
+
+## 18. Preview, payment_link i snapshot comercial — 03/10/2026
+
+| ID | Troballa/acció | Estat | Evidència |
+| --- | --- | --- | --- |
+| UC020-115 | `PrismaStudentCourseCheckoutService` usava `READY_FOR_PAYMENT` com a CLASSIFICATION i STATUS simultàniament, contrari al diccionari canònic. | TANCAT CODI + TEST PENDENT CI | CLASSIFICATION corregida a `BILLABLE`; STATUS conserva `READY_FOR_PAYMENT`; test AP exigeix després `BILLABLE/INTENT_CREATED`. |
+| UC020-116 | `PaymentLinkService::resolve` validava link/import/expiració però no l'estat/classificació comercial actual. | TANCAT CODI + TEST PENDENT CI | Gate nou `BILLABLE + READY_FOR_PAYMENT/PAYMENT_PENDING` a `issue/resolve`; cobreix AP-50/AP-54. |
+| UC020-117 | No hi havia prova nominal de token `payment_link` manipulat. | TEST NOU PENDENT CI | El servei busca només SHA-256 del token; token alterat retorna 404. |
+| UC020-118 | AP-36 continuava pendent tot i que `calcularPreu.php` ja té fallback segur sense candidats. | TEST NOU PENDENT CI | Prova de `$descomptes=[]`, límit `pos<i` i resposta `0|0|0|0`. |
+| UC020-119 | Faltava evidència explícita que el preview AP no muta estat comercial/econòmic/fiscal. | TEST NOU PENDENT CI | Prova read-only sobre `calcularPreu.php` i `buscarAlumnePrisMa.php`. |
+| UC020-120 | La immutabilitat del `PRICE_SNAPSHOT_JSON` estava implementada per comparació canònica però sense test nominal propi. | TEST INTEGRACIÓ NOU · PENDENT CI | `PrismaStudentCommercialSnapshotImmutabilityTest` creat a `fbfda4c`; segon snapshot incompatible ha de retornar 409 i conservar snapshot/intenció originals. |
