@@ -89,31 +89,23 @@ final class PackPaymentPrivacyBoundaryTest
         }
     }
 
-    public function testPaymentResponsePagesTreatEmailAsOptionalEscapedHint(): void
+    public function testPaymentResponsePagesDoNotExposeEmailHintsOrTrustBrowserReturn(): void
     {
         $root = dirname(__DIR__, 3);
 
-        $legacyPages = [
+        $webPages = [
             $root . '/codi-drive/web-actual/respostaOkPagamentAutomatic.php',
             $root . '/codi-drive/web-actual/respostaKoPagamentAutomatic.php',
         ];
-        foreach ($legacyPages as $path) {
+        foreach ($webPages as $path) {
             $source = file_get_contents($path);
             if (!is_string($source)) {
                 Assert::fail('Could not load Redsys response page: ' . $path);
             }
 
-            Assert::stringContainsString("(\$_GET['email'] ?? '')", $source);
-            Assert::stringContainsString('FILTER_VALIDATE_EMAIL', $source);
-            Assert::stringContainsString(
-                "htmlspecialchars(\$emailRaw, ENT_QUOTES, 'UTF-8')",
-                $source
-            );
-            Assert::stringContainsString("\$emailHint = \$email !== ''", $source);
-
-            if (str_contains($source, "\$email = \$_GET['email'];")) {
-                Assert::fail('Redsys response page must not trust raw email query data.');
-            }
+            Assert::stringContainsString("Referrer-Policy: no-referrer", $source);
+            Assert::same(false, str_contains($source, "\$_GET['email']"));
+            Assert::same(false, str_contains($source, 'FILTER_VALIDATE_EMAIL'));
         }
 
         $payPages = [
@@ -131,6 +123,7 @@ final class PackPaymentPrivacyBoundaryTest
                 $source
             );
             Assert::stringContainsString('uc014RenderPaymentReturn(', $source);
+            Assert::same(false, str_contains($source, "\$_GET['email']"));
         }
 
         $shared = file_get_contents(
@@ -140,11 +133,10 @@ final class PackPaymentPrivacyBoundaryTest
             Assert::fail('Could not load CoursePaymentReturnStatus.php');
         }
 
-        Assert::stringContainsString("(\$_GET['email'] ?? '')", $shared);
-        Assert::stringContainsString('FILTER_VALIDATE_EMAIL', $shared);
-        Assert::stringContainsString(
-            "htmlspecialchars(\$view['email'], ENT_QUOTES, 'UTF-8')",
-            $shared
-        );
+        Assert::stringContainsString("\$_GET['order']", $shared);
+        Assert::stringContainsString("\$_GET['idPag']", $shared);
+        Assert::same(false, str_contains($shared, "\$_GET['email']"));
+        Assert::same(false, str_contains($shared, 'FILTER_VALIDATE_EMAIL'));
+        Assert::stringContainsString("'authoritative' => true", $shared);
     }
 }
