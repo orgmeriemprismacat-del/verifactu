@@ -221,6 +221,11 @@ class PaymentActionGateway {
   <<EXISTEIX · NO WIRING UC006 ACREDITAT>>
   +run(auditContext,operation)
 }
+class PayloadIdempotencyValidator {
+  <<EXISTEIX · REUTILITZAT A LA BRANCA>>
+  +calculateHash(payload) string
+  +assertMatches(payload,storedHash) void
+}
 
 ManualRefundService --> ManualPaymentInvoiceRepository
 ManualRefundService --> ManualRefundPayloadBuilder
@@ -235,6 +240,7 @@ CreditBalanceService --> CreditBalanceRepository
 CreditBalanceService --> ManualPaymentInvoiceRepository
 CreditBalanceService --> PaymentPayloadValidator
 CreditBalanceService --> PaymentRepository
+CreditBalanceService --> PayloadIdempotencyValidator : createCredit + reús COMPENSATION
 
 PaymentActionGateway ..> PaymentService : possible FINAL, no camí observat
 PaymentActionGateway ..> CreditBalanceService : possible FINAL, no camí observat
