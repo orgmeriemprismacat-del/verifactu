@@ -119,6 +119,30 @@ final class RedsysGiftCutoverBoundaryTest
         Assert::stringContainsString('/api/redsys/gift-intent.php', $source);
     }
 
+    public function testGiftBrowserReturnUsesAuthoritativeSifStatus(): void
+    {
+        $helper = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/GiftPaymentReturnStatus.php'
+        );
+        $client = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftStatusClient.php'
+        );
+        $ok = $this->read(
+            'codi-drive/pay-prisma-cat-canvis-verifactu/respostaOkPagamentRegal.php'
+        );
+
+        Assert::stringContainsString('SifRedsysGiftStatusClient', $helper);
+        Assert::stringContainsString("status === 'CONFIRMED'", $helper);
+        Assert::stringContainsString('encara no està confirmat pel sistema autoritatiu', $helper);
+        Assert::stringContainsString('/api/redsys/gift-status.php', $client);
+        Assert::stringContainsString("str_starts_with(\$baseUrl, 'https://')", $client);
+        Assert::stringContainsString("uc017RenderPaymentReturn('OK')", $ok);
+
+        if (str_contains($ok, "\$_GET['email']")) {
+            Assert::fail('Gift success return must not trust or render buyer email from query string.');
+        }
+    }
+
     public function testGiftLegacyCallbackFailsClosedAfterCutoverDrain(): void
     {
         $source = $this->read(
