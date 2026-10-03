@@ -221,7 +221,7 @@ A nivell de codi, **ACTUAL i FINAL ja coincideixen en el nucli funcional**. El F
 - desplegament/configuració real;
 - rols i secrets reals;
 - alta/verificació del menú de la intranet;
-- E2E de navegador/preproducció;
+- E2E de navegador/preproducció amb host esperat explícit i bloqueig del host productiu;
 - SLA/notificacions només si s'aproven funcionalment.
 
 ## 4. Regla de frontera
@@ -231,9 +231,12 @@ No es crearà un segon `IncidentWorkflowService`. **UC-008 i UC-081 comparteixen
 ## 5. Pendent per tancar entorn
 
 - desplegament/configuració productiva del panell;
-- alta del menú VERI*FACTU a la BD de menú de la intranet;
+- alta/verificació del menú VERI*FACTU a la BD d'`intranet-pre`, amb evidència `environment=preproduction`;
 - política real de rols, severitats i SLA;
 - notificacions si s'aproven;
-- evidència E2E de preproducció/producció.
+- evidència E2E real de preproducció i gate final; producció queda fora del tancament d'entorn previ al go-live.
 
 **UI existent al repositori:** `PanelLaunchAuthenticator`, `IncidentPanelSession`, `sif/public/sif/incidencies/*`, `SifInternalIncidentClient`, `SifPanelLaunchToken` i `sif-verifactu.php`.
+
+
+**Nota d'arquitectura d'entorn:** el hardening del 03/10 no introdueix cap nova classe de domini. Les comprovacions de host i entorn resideixen als scripts de verificació/gate, perquè són responsabilitat d'acceptació operativa i no del `IncidentLifecycleService`.
