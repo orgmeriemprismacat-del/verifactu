@@ -79,17 +79,16 @@ PaymentRepository --> PaymentStatusCalculator
 ```mermaid
 classDiagram
 direction LR
-class TransferPaymentController {
- <<PENDENT>>
+class ManualTransferCommandService {
+ <<IMPLEMENTAT EN BRANCA>>
  +postRegister(request,user) JsonResponse
 }
-class PaymentCommandAuthorization {
- <<PENDENT>>
- +assertAllowed(user,scope)
- +assertCsrf(request)
+class InternalApiAuthenticator {
+ <<IMPLEMENTAT>>
+ +authenticate(server,rawBody,method,path)
 }
 class ExternalBankReceiptResolver {
- <<PENDENT>>
+ <<PENDENT FONT BANCÀRIA>>
  +resolve(externalEventId,reference,amount,bank,holder) BankReceipt
 }
 class ManualPaymentService {
@@ -115,14 +114,14 @@ class LegacyPaymentSync {
  <<PENDENT>>
  +enqueueAfterCommit(uuidPayment)
 }
-TransferPaymentController --> PaymentCommandAuthorization
-TransferPaymentController --> ExternalBankReceiptResolver
-TransferPaymentController --> ManualPaymentService
-TransferPaymentController --> MultiInvoiceTransferService
+ManualTransferCommandService --> ManualPaymentService
+InternalApiAuthenticator --> ManualTransferCommandService : actor signat + anti-replay
+ExternalBankReceiptResolver --> ManualTransferCommandService : external_bank_event_id [CANAL PENDENT]
+ManualTransferCommandService --> MultiInvoiceTransferService : UC-105 futur
 ManualPaymentService --> PaymentService
 MultiInvoiceTransferService --> PaymentService
-TransferPaymentController --> PaymentActionAudit
-TransferPaymentController --> LegacyPaymentSync
+ManualTransferCommandService --> PaymentActionAudit : pendent integració
+ManualTransferCommandService --> LegacyPaymentSync : pendent
 ```
 
 ## 4. Invariants FINAL
@@ -134,3 +133,6 @@ TransferPaymentController --> LegacyPaymentSync
 - sincronització llegada sempre després del commit SIF;
 - el navegador no decideix import fiscal/econòmic autoritatiu;
 - auditar actor, request/correlation id, factura/es, import, identitat externa i resultat.
+
+
+**Tall nou:** l'endpoint `POST /api/payments/manual-transfer.php` i `ManualTransferCommandService` estan implementats en aquesta branca; la intranet que genera la signatura i l'event bancari continua pendent.
