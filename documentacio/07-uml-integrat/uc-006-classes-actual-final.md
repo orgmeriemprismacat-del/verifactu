@@ -240,9 +240,51 @@ PaymentActionGateway ..> PaymentService : possible FINAL, no camí observat
 PaymentActionGateway ..> CreditBalanceService : possible FINAL, no camí observat
 ```
 
+## 5.1. Classes ACTUAL — ledger d'atribució per inscripció ja existent
+
+```mermaid
+classDiagram
+direction LR
+class EnrollmentFundMovementRepository {
+  <<EXISTEIX · PARCIAL>>
+  +lockPayment(db,uuidPayment)
+  +findInvoiceLineForInscription(db,uuidFactura,idInsc)
+  +insertOrReuseExternalAllocation(db,movement)
+  +insertOrReuseCompensationAllocation(db,movement)
+  +findByIdempotencyKey(db,key,forUpdate)
+}
+class CourseEnrollmentFundAllocationService {
+  <<EXISTEIX>>
+  +allocate(db,dsOrder,snapshot,invoiceResult)
+}
+class PackEnrollmentFundAllocationService {
+  <<EXISTEIX>>
+  +allocate(db,dsOrder,snapshot,invoiceResult)
+}
+class EnrollmentFundMovementTable {
+  <<SIF DB · EXISTEIX>>
+  +UUID_MOVEMENT
+  +IDEMPOTENCY_KEY
+  +MOVEMENT_TYPE
+  +UUID_PAYMENT
+  +UUID_FACTURA
+  +ID_FACTURA_LINIA
+  +ID_INSC_ORIGEN
+  +ID_INSC_DESTI
+  +IMPORT
+  +UUID_OPERATION
+  +CORRELATION_ID
+}
+CourseEnrollmentFundAllocationService --> EnrollmentFundMovementRepository
+PackEnrollmentFundAllocationService --> EnrollmentFundMovementRepository
+EnrollmentFundMovementRepository --> EnrollmentFundMovementTable
+```
+
+La migració admet `EXTERNAL_ALLOCATION`, `INTERNAL_TRANSFER`, `REVERSAL` i `COMPENSATION_ALLOCATION`. El repositori implementa inserció/reús d'atribució externa i de compensació. No s'ha localitzat, però, la integració d'aquest ledger amb `ManualRefundService` o `CreditBalanceService`.
+
 ## 6. Mancances del model ACTUAL
 
-1. **No hi ha orquestrador UC-006.**
+1. **No hi ha orquestrador UC-006**, tot i que ja existeix un ledger parcial per inscripció.
 2. **No hi ha command/controller UC-006** que obligui a triar una decisió econòmica única.
 3. `ManualRefundService` no acredita:
    - límit retornable;
@@ -276,7 +318,7 @@ class Uc006DecisionService {
   +execute(decision,context)
 }
 class EconomicRightsRepository {
-  <<PROPOSAT>>
+  <<PROPOSAT · pot evolucionar EnrollmentFundMovementRepository>>
   +loadOriginRights(...)
   +lockAvailableAmount(...)
   +reserveOrConsume(...)
