@@ -16,22 +16,23 @@
 - **PENDENT_NEGOCI**: etiqueta històrica; no s'ha de mantenir per UC20-DEC-001…006 després del 02/10/2026.
 - **PENDENT_EXECUCIO**: especificat però no executat/acreditat.
 - **VERIFICAT_CI_***: escenari amb test executat en PASS al commit indicat; el sufix especifica si és unitat, integració, frontera de codi o servei compartit.
+- **TEST_NOU_PENDENT_CI_***: prova explícita creada a la branca però encara sense execució CI observada; no equival a verificat.
 
 ## AP-01…AP-16 · elegibilitat, preu i integritat bàsica
 
 | ID | Nivell | Escenari | Resultat esperat | Estat |
 | --- | --- | --- | --- | --- |
-| AP-01 | INT | Persona sense cap historial admissible. | No aplicar Alumne PrisMa; conservar tarifa ordinària o altra oferta vàlida. | PENDENT_EXECUCIO |
-| AP-02 | INT | Existeix una inscripció anterior pagada i una tarifa AP vigent. | Aplicar la tarifa AP definida per la política aprovada i conservar-ne origen/regla. | PENDENT_EXECUCIO |
+| AP-01 | INT | Persona sense cap historial admissible. | No aplicar Alumne PrisMa; conservar tarifa ordinària o altra oferta vàlida. | TEST_NOU_PENDENT_CI_POLICY |
+| AP-02 | INT | Existeix una inscripció anterior pagada i una tarifa AP vigent. | Aplicar la tarifa AP definida per la política aprovada i conservar-ne origen/regla. | VERIFICAT_CI_CHECKOUT_0c1825c |
 | AP-03 | INT | L'únic antecedent té un pagament parcial positiu. | És elegible sota `ALUMNE_PRISMA_WEB_LEGACY_V2` perquè `A_PAGAR>0 && PAGAMENT>0`. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
 | AP-04 | INT | L'únic antecedent és un curs regal. | És elegible i conserva motiu/evidència `GIFT_COURSE`. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
 | AP-05 | INT | L'historial disponible està en estat exclòs `INSC CURS=D/M`. | No usar aquests registres com a antecedent AP en coherència amb l'ACTUAL reconstruït. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
-| AP-06 | INT | Historial admès + `TIPUS=1` vigent per curs/edició. | Retornar preu AP exacte i origen `ALUMNE_PRISMA`. | PENDENT_EXECUCIO |
+| AP-06 | INT | Historial admès + `TIPUS=1` vigent per curs/edició. | Retornar preu AP exacte i origen `ALUMNE_PRISMA`. | VERIFICAT_CI_CHECKOUT_I_RESOLVER_0c1825c |
 | AP-07 | INT | Cap registre de l'historial compleix les condicions. | No seleccionar `TIPUS=1`. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
 | AP-08 | INT | Antecedent amb `A_PAGAR>0` i `PAGAMENT>0` però no totalment cobrat. | És elegible segons la rule v2 de compatibilitat. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
 | AP-09 | INT | Antecedent de curs regal i variant de factura relacionada sense pagament. | Curs regal acredita; factura només emesa/no cobrada no acredita. | VERIFICAT_CI_UNIT_POLICY_9a70516 |
-| AP-10 | INT | Historial amb registres D/M i registres normals. | Només els antecedents admissibles poden justificar AP. | PENDENT_EXECUCIO |
-| AP-11 | INT | Persona elegible però no existeix cap tarifa AP aplicable. | Estat `ELIGIBLE_NO_PRICE`/incidència equivalent; cap import nul o inventat pagable. | PENDENT_EXECUCIO |
+| AP-10 | INT | Historial amb registres D/M i registres normals. | Només els antecedents admissibles poden justificar AP. | TEST_NOU_PENDENT_CI_POLICY |
+| AP-11 | INT | Persona elegible però no existeix cap tarifa AP aplicable. | Estat `ELIGIBLE_NO_PRICE`/incidència equivalent; cap import nul o inventat pagable. | TEST_NOU_PENDENT_CI_FAIL_CLOSED |
 | AP-12 | INT | Coincideixen AP i promoció. | AP + promoció falla tancat en l'alta AP; no s'acumulen silenciosament. | VERIFICAT_CI_FRONTERA_CODI_9a70516 |
 | AP-13 | SEC | El client manipula `tipusDescompte`, `preuDescompte` o `tipusCurs`. | Per AP, el servidor rellegeix elegibilitat/tarifa i deriva `TIPUS_CURS` de metadades servidor; el navegador no és autoritat monetària. | VERIFICAT_CI_FRONTERA_CODI_9a70516 |
 | AP-14 | CONC | La tarifa canvia entre previsualització i confirmació. | Confirmar només una oferta servidor vigent o retornar conflicte; no acceptar TOCTOU silenciós. | PENDENT_EXECUCIO |
@@ -42,8 +43,8 @@
 
 | ID | Nivell | Escenari | Resultat esperat | Estat |
 | --- | --- | --- | --- | --- |
-| AP-17 | INT | Hi ha tarifa AP futura i encara no vigent. | No seleccionar-la abans de `DATAI`. | PENDENT_EXECUCIO |
-| AP-18 | INT | Persona elegible però el preu AP no es pot obtenir. | Bloquejar actualització/oferta i registrar incidència. | PENDENT_EXECUCIO |
+| AP-17 | INT | Hi ha tarifa AP futura i encara no vigent. | No seleccionar-la abans de `DATAI`. | TEST_NOU_PENDENT_CI_TEMPORAL |
+| AP-18 | INT | Persona elegible però el preu AP no es pot obtenir. | Bloquejar actualització/oferta i registrar incidència. | TEST_NOU_PENDENT_CI_FAIL_CLOSED |
 | AP-19 | E2E | Es denega el descompte original després d'un cobrament. | Conservar el moviment real i classificar l'ajust econòmic; no sobreescriure el passat. | PENDENT_EXECUCIO |
 | AP-20 | E2E | Es resol el dret després d'haver emès factura. | Preservar factura original i derivar l'ajust fiscal/rectificatiu que correspongui. | PENDENT_EXECUCIO |
 | AP-21 | INT | Historial amb antecedents anteriors i posteriors a `DATA_INSC`. | Excloure matrícula actual i historial posterior a `DATA_INSC`. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
@@ -120,8 +121,8 @@
 | AP-67 | INT | Antecedent posterior a `DATA_INSC` de la matrícula tarifada. | No acreditar retroactivament. | VERIFICAT_CI_INTEGRACIO_CHECKOUT_9a70516 |
 | AP-68 | INT | Factura relacionada sense cobrament. | No acredita AP per si sola; no dependre de `!= NULL`. | VERIFICAT_CI_POLICY_I_FRONTERA_9a70516 |
 | AP-69 | INT | Mateix `ID_PREU` amb tarifes AP específiques de curs/mes. | Tots els canals seleccionen la tarifa canònica exacta. | PENDENT_EXECUCIO |
-| AP-70 | INT | Tarifa AP actual + futura. | Només la vigent és seleccionable. | PENDENT_EXECUCIO |
-| AP-71 | INT | Elegible sense tarifa AP. | `ELIGIBLE_NO_PRICE`; no oferta pagable. | PENDENT_EXECUCIO |
+| AP-70 | INT | Tarifa AP actual + futura. | Només la vigent és seleccionable. | TEST_NOU_PENDENT_CI_TEMPORAL |
+| AP-71 | INT | Elegible sense tarifa AP. | `ELIGIBLE_NO_PRICE`; no oferta pagable. | COBERT_PARCIAL_TEST_NOU_PENDENT_CI |
 | AP-72 | INT | Canvi de curs amb tarifa específica per curs. | No recuperar una fila d'un altre curs per filtre incomplet. | PENDENT_EXECUCIO |
 | AP-73 | E2E | Mateixa persona/operació per web i intranet. | Mateixa política versionada i mateixa justificació del dret. | PENDENT_IMPLEMENTACIO |
 
@@ -177,3 +178,18 @@ Per donar qualsevol AP-* per verificat cal registrar:
 La revalidació del 03/10/2026 permet promocionar a `VERIFICAT_CI_*` únicament els AP-* amb una correspondència directa amb tests observats en PASS. Vegeu [uc-020-evidencia-ci-2026-10-03.md](uc-020-evidencia-ci-2026-10-03.md).
 
 La suite compartida va acabar amb **924 passed / 6 failed**. Les 6 fallades registrades no són proves UC-020; per això no rebaixen els AP-* anteriors, però impedeixen descriure el PR com a globalment verd. Els E2E reals de navegador/Redsys/preproducció continuen `PENDENT_EXECUCIO`.
+
+
+## Ampliació de cobertura — continuació 03/10/2026
+
+S'han afegit proves explícites per evitar que escenaris ja suportats pel codi continuïn figurant només com a hipòtesis:
+
+- `PrismaStudentDiscountPolicyTest::testEmptyHistoryIsNotEligible` → AP-01.
+- `PrismaStudentDiscountPolicyTest::testEligibleNormalHistoryStillWinsWhenExcludedRowsArePresent` → AP-10.
+- `LegacyPrismaStudentPriceSnapshotResolverTest::testRejectsMissingHistoricalPrismaStudentTariff` → AP-11/AP-18/AP-71 parcial.
+- `LegacyPrismaStudentPriceSnapshotResolverTest::testIgnoresFuturePrismaStudentTariffAtEnrollmentTime` → AP-17/AP-70.
+- `LegacyPrismaStudentPriceSnapshotResolverTest::testUsesUniqueCourseAndEditionScopedTariff` → reforç AP-06.
+- `RedsysCoursePaymentIntentPrismaStudentTest::testPrismaStudentCheckoutRejectsMissingHistoricalDiscountPrice` → fail-closed integrat abans de crear operació/intenció.
+- `RedsysCoursePaymentIntentPrismaStudentTest::testPrismaStudentCheckoutIgnoresFutureTariffAndUsesEnrollmentSnapshot` → tall temporal integrat.
+
+AP-02 i AP-06 es poden marcar ja com a `VERIFICAT_CI_*` perquè el checkout integrat i el resolver equivalent consten en PASS al log del head `0c1825c`. Les proves noves anteriors continuen `PENDENT_CI` fins observar-ne l'execució.
