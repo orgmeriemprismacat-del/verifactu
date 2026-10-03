@@ -56,6 +56,7 @@ return [
         'course_change_signed_path' => getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php',
         'aeat_operations_signed_path' => getenv('SIF_INTERNAL_AEAT_OPERATIONS_SIGNED_PATH') ?: '/api/aeat/operations.php',
         'incident_signed_path' => getenv('SIF_INTERNAL_INCIDENT_SIGNED_PATH') ?: '/api/incidents/manage.php',
+        'manual_transfer_signed_path' => getenv('SIF_INTERNAL_MANUAL_TRANSFER_SIGNED_PATH') ?: '/api/payments/manual-transfer.php',
         'redsys_intent_signed_path' => getenv('SIF_INTERNAL_REDSYS_INTENT_SIGNED_PATH') ?: '/api/redsys/intents/create.php',
         'redsys_course_intent_signed_path' => getenv('SIF_INTERNAL_REDSYS_COURSE_INTENT_SIGNED_PATH') ?: '/api/redsys/course-intent.php',
         'redsys_course_status_signed_path' => getenv('SIF_INTERNAL_REDSYS_COURSE_STATUS_SIGNED_PATH') ?: '/api/redsys/course-status.php',
@@ -63,6 +64,12 @@ return [
         'novice_promotion_signed_path' => getenv('SIF_INTERNAL_NOVICE_PROMOTION_SIGNED_PATH') ?: '/api/novice-promotion/manage.php',
         'gift_redemption_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_SIGNED_PATH') ?: '/api/gifts/redemption/redeem.php',
         'gift_redemption_notification_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_NOTIFICATION_SIGNED_PATH') ?: '/api/gifts/redemption/notifications.php',
+    ],
+    'payments' => [
+        'manual_transfer_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_MANUAL_TRANSFER_ROLES') ?: '')
+        ))),
     ],
     'course_change' => [
         'preview_roles' => array_values(array_filter(array_map(
