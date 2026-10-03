@@ -1,15 +1,17 @@
 # UC-11 · Importar factura històrica sense reemetre-la
 
-**Objectiu del catàleg:** incorporar factures anteriors al SIF com a **històriques**, preservant número visible, dades de receptor, línies i referències llegades, sense crear artificialment registres VERI*FACTU nous. **Estat comprovat al codi:** `HistoricalInvoiceMigrationService`, `HistoricalInvoicePayloadBuilder` i `HistoricalInvoiceMigrationRepository` implementen un import local transaccional. **No acredita** que s'hagi migrat tot el llegat, ni que s'hagi reconciliat documentalment cada fitxer antic.
+**Objectiu del catàleg:** incorporar factures anteriors al SIF com a **històriques**, preservant número visible, dades de receptor, línies i referències llegades, sense crear artificialment registres VERI*FACTU nous. **Estat comprovat al codi:** `HistoricalInvoiceMigrationService`, `HistoricalInvoicePayloadBuilder` i `HistoricalInvoiceMigrationRepository` implementen un import local transaccional. **Revisió 03/10/2026:** la branca `audit/uc-011-2026-10-03` reforça data original obligatòria, coherència de numeració, estat HISTORICAL, visibilitat privada per defecte i idempotència per hash complet del payload. **No acredita** que s'hagi migrat tot el llegat, ni que s'hagi reconciliat documentalment cada fitxer antic.
+
+Paquet d'auditoria específic: [classes ACTUAL/FINAL](uc-011-classes-actual-final.md) · [seqüències ACTUAL/FINAL](uc-011-sequencies-actual-final.md) · [activitats ACTUAL/FINAL](uc-011-activitats-actual-final.md) · [traçabilitat](uc-011-tracabilitat-implementacio.md) · [auditoria 03/10](05-auditoria-detallada-uc-011-2026-10-03.md).
 
 ## 1. Fitxa específica
 
 | Element | Comportament verificat i condició |
 | --- | --- |
 | Actor | Procés de migració/operador amb permisos d'importació, no alumnat ni canal TPV ordinari. El servei PHP no és per si mateix una pantalla amb autorització de servidor. |
-| Identificador original | `num_visible`/`num_factura` amb patró `LLETRA+ANY(4)/NÚMERO`; la sèrie, any i seqüència es deriven del número si no s'aporten separadament. **Pendent:** validar consistència si es proporcionen valors diferents dels derivats. |
-| Dades mínimes | `billing`, `totals` i almenys una línia; `issue_date` per defecte és **la data actual** si no s'aporta. Per a una migració fidel cal exigir **data original explícita**, no acceptar silenciosament el default. |
-| Clau idempotent | `HISTORIC|FACT:<num_visible>` si no n'hi ha d'explícita. El repositori recupera un resultat si la clau ja existeix; **no compara el payload antic i el nou** quan la clau coincideix. |
+| Identificador original | `num_visible`/`num_factura` amb patró `LLETRA+ANY(4)/NÚMERO`; la sèrie, any i seqüència es deriven del número. **Branca 03/10:** si es proporcionen valors explícits diferents dels derivats, es rebutgen amb 422. |
+| Dades mínimes | `billing`, `totals`, almenys una línia i **`issue_date` original explícita**. La branca 03/10 elimina el default de data actual. |
+| Clau idempotent | `HISTORIC|FACT:<num_visible>` si no n'hi ha d'explícita. La branca 03/10 desa `IDEMPOTENCY_PAYLOAD_HASH` i exigeix coincidència del payload complet; mateixa clau amb dades diferents retorna conflicte 409. |
 | Persistència local | Insereix `factura` amb `SOURCE_CHANNEL=MIGRACIO`, `ESTAT_FACTURA=HISTORICAL` per defecte i `ESTAT_AEAT=NO_VERIFACTU`; insereix `factura_linia`, `fact_rels` i document opcional a `factura_documents`. |
 | Registre fiscal i pagament | Aquest servei **no** crida `InvoiceService`, no crea `factura_registres`, `fiscal_queue`, `payment_transaction` ni `payment_allocation`. `payment_status` importat és una dada històrica declarada, no prova d'un ingrés bancari nou. |
 | Document antic opcional | `type=PDF/XML/QR`, path fins a 255 caràcters, hash hexadecimal de 64 caràcters i estat `ARCHIVED` per defecte. El repositori registra metadades; **no copia físicament el document** al storage ni verifica el seu hash. |
@@ -19,7 +21,7 @@
 1. El procés prepara una factura antiga amb número visible, **data original**, receptor, import real, línies, relacions al llegat i document original quan existeixi. La preparació i extracció des del llegat **no estan implementades dins de `HistoricalInvoiceMigrationService`**.
 2. `HistoricalInvoicePayloadBuilder::build()` analitza número visible, normalitza sèrie/any/seqüència, fixa canal `MIGRACIO`, estat `HISTORICAL` i `NO_VERIFACTU`, comprova que hi ha `billing`, `totals` i una línia, i prepara relació per defecte `HISTORIC_WEB_FACTURES` amb `legacy_id` si no n'hi ha de pròpies.
 3. El servei obre una transacció amb `TransactionRunner`; `HistoricalInvoiceMigrationRepository::findByIdempotencyKey(...,true)` cerca una factura amb la mateixa clau.
-4. Si ja existeix, retorna `UUID_FACTURA`, `NUM_VISIBLE` i `idempotency_reused=true`. **Pendent important:** comparar `num_visible`, receptor, totals, línies i hash de document per detectar una mateixa clau amb dades contradictòries.
+4. Si ja existeix, la branca 03/10 compara el hash canònic del payload complet amb `IDEMPOTENCY_PAYLOAD_HASH`. Si coincideix retorna `UUID_FACTURA`, `NUM_VISIBLE` i `idempotency_reused=true`; si difereix o el hash antic no és usable, retorna conflicte 409 i rollback.
 5. Si no existeix, crea UUID nou i insereix **factura històrica, línies i relacions** dins la mateixa transacció; només si el payload porta `document`, insereix metadades del document antic.
 6. Confirma i retorna `aeat_status=NO_VERIFACTU`. L'import no consumeix una **nova** numeració fiscal ni afegeix aquest document retrospectivament a la cadena/registre AEAT del SIF.
 7. Un procés de reconciliació separat UC-53 comprova identificador històric, ruta/hash del document i correlació de cobrament/inscripció si aquestes dades existeixen. **No** tractar el simple estat històric `PAID` com a `CHARGE` registrat avui.
@@ -30,8 +32,8 @@
 | --- | --- |
 | Número visible amb patró invàlid | El builder rebutja; no crea factura. |
 | Número original duplicat amb una clau idempotent diferent | El repositori busca per **clau**; el SQL base imposa `UNIQUE(NUM_VISIBLE)` i `UNIQUE(TIPUS_SERIE,ANY_FACT,NUM_SEQ)` globalment sense emissor. Si l'import nou usa **una clau diferent** però el mateix número, l'`INSERT` falla per unicitat; si usa **la mateixa clau per defecte**, el repositori pot reutilitzar incorrectament la primera factura sense comparar contingut. Comprovar emissor i identitat històrica abans d'importar; mai renumerar, fusionar o declarar els dos documents importats silenciosament. |
-| Import idempotent amb payload diferent | Avui es recupera l'anterior sense comparar contingut; bloquejar en el flux final si les dades discrepen. |
-| Falta data d'emissió antiga | El builder pren `date('Y-m-d H:i:s')`: risc d'atribuir data de migració a la factura històrica; exigir-la al canal. |
+| Import idempotent amb payload diferent | **Corregit a la branca 03/10:** el hash canònic complet ha de coincidir; si discrepa, 409 i cap mutació. |
+| Falta data d'emissió antiga | **Corregit a la branca 03/10:** el builder exigeix `issue_date`/`data_emissio`; no inventa la data de migració. |
 | Fitxer PDF opcional amb ruta no accessible | Els camps de metadata poden importar-se, però el servei no comprova bytes ni custòdia. UC-55 ha de verificar integritat abans d'oferir el document. |
 | Factura històrica cobrada | `ESTAT_COBRAMENT` és una dada importada; sense evidència i model explícit no crear un ingrés nou fictici ni atribuir diners a inscripció. |
 | Factura històrica d'una empresa amb N inscripcions | Conservar `fact_rels` per participant quan la font ho acrediti; no suposar que una relació equival a un moviment econòmic individual. |
@@ -45,7 +47,7 @@
 
 **Separació entre importació de metadades i prova real.** `HistoricalInvoiceMigrationRepository::insertDocument()` només insereix `TIPUS`, `PATH_FITXER`, `HASH_FITXER` i `ESTAT`. No transfereix els bytes, no comprova el hash físic i no certifica que el PDF de `generaFactura($id,true)` conservi la representació original: el generador llegat pot utilitzar dades vives. Per cada factura, distingir «document antic verificat i custodiat», «metadades sense bytes verificats» i «document original no localitzat» com a **classificacions de l'informe**, no enums implementats. No generar un PDF actual i etiquetar-lo com a original històric immutable.
 
-**Visibilitat i camps que el model actual no recupera fidelment.** `HistoricalInvoiceMigrationRepository::insertRelations()` aplica `VISIBLE_ALUMNE=1` quan la relació importada no aporta el valor; una factura antiga d'empresa/grup **no** ha de passar a ser consultable íntegrament per un participant a causa d'aquest valor per defecte. Resoldre receptor i visibilitat explícits abans d'exposar la factura al portal (UC-80). `insertInvoice()` grava `EMESA_ABANS_COBRAMENT=0` i `E_FACT=0` per a tot l'històric: aquests valors de la migració **no demostren** que la factura antiga fos emesa després de cobrar o que mai no s'enviés electrònicament. Mostrar com a dades no recuperades quan la font no permet assegurar-ne l'estat original; no interpretar el zero importat com a història demostrada.
+**Visibilitat i camps que el model actual no recupera fidelment.** `HistoricalInvoiceMigrationRepository::insertRelations()` aplicava `VISIBLE_ALUMNE=1` quan la relació importada no aportava el valor. **Branca 03/10:** el default passa a `0`; qualsevol visibilitat per alumne s'ha d'acreditar explícitament i continuar sotmesa a la política de consulta. Resoldre receptor i visibilitat explícits abans d'exposar la factura al portal (UC-80). `insertInvoice()` grava `EMESA_ABANS_COBRAMENT=0` i `E_FACT=0` per a tot l'històric: aquests valors de la migració **no demostren** que la factura antiga fos emesa després de cobrar o que mai no s'enviés electrònicament. Mostrar com a dades no recuperades quan la font no permet assegurar-ne l'estat original; no interpretar el zero importat com a història demostrada.
 
 **Control agregat per lot abans del tancament.** La documentació del projecte exigeix informe per **any i sèrie**, primer/últim número, nombre de factures, imports i incidències. Afegir comprovació per **emissor jurídic i origen** quan existeixin diverses entitats, i relació de números duplicats, dates originals absents, factures A/R, imports negatius, pagaments de font no contrastada i documents sense bytes. Comparar el conjunt de `web.factures` seleccionat amb el conjunt realment importat per ID d'origen; no concloure «migració completa» a partir de l'èxit d'una única inserció o d'una prova PHP unitària. Una incidència no obliga a crear un nou registre VERI*FACTU retrospectiu.
 
@@ -58,7 +60,7 @@
 | HM-03 | Metadada PDF amb hash però bytes absents o reconstruïts des de BD viva | Estat d'evidència no verificat, sense afirmar que és l'original custodiat. |
 | HM-04 | Dues files d'origen/emissor diferent comparteixen número visible | Detectar col·lisió i classificar abans d'importar; no renumerar el llegat per silenciar-la. |
 | HM-05 | Històric emès abans de cobrar però `EMESA_ABANS_COBRAMENT=0` importat | No inferir el fet històric del zero forçat; conservar prova original separada si existeix. |
-| HM-06 | Reutilitzar clau històrica amb receptor o total diferent | Conflicte de contingut objectiu; la branca actual de reús no el detecta i cal control previ. |
+| HM-06 | Reutilitzar clau històrica amb receptor o total diferent | Conflicte 409 per hash de payload diferent; no reutilitzar la factura anterior. |
 | HM-07 | Lot amb una factura omesa i imports per sèrie que no coincideixen | Informe de conciliació incomplet i reprocessament només de la fila absent, sense duplicitat de les importades. |
 
 ## 2. Diagrama de casos d'ús
