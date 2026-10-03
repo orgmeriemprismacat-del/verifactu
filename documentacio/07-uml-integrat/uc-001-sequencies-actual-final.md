@@ -58,17 +58,39 @@ participant C as callback.php
 participant Q as redsys_callback_queue
 participant W as Worker
 participant H as Handler Redsys
+participant RB as RedsysInvoicePayloadBuilder
+participant PI as redsys_payment_intent
+participant CO as commercial_operation
 participant S as InvoiceService
+participant IR as InvoiceRepository
+participant OL as operation_line_invoice_link
 B->>C: callback signat
 C->>C: validar signatura/intent/import/moneda/terminal
 C->>Q: enqueue
 W->>Q: claim
 W->>H: snapshot validat
-H->>S: issueInvoice(payload REDSYS)
+H->>RB: buildFromValidatedNotification(DS_ORDER,snapshot)
+RB->>PI: findByDsOrder
+opt intent vinculat a operació comercial
+ PI-->>RB: UUID_INTENT
+ RB->>CO: findByIntentUuid
+ CO-->>RB: UUID_OPERATION
+end
+RB-->>H: payload Redsys + uuid_operation opcional
+H->>S: issueInvoice(payload)
+S->>IR: createInvoiceGraph
+opt snapshot aporta uuid_operation_line
+ IR->>OL: materialitzar línia comercial -> factura_linia
+end
+opt payload aporta uuid_operation
+ S->>CO: linkInvoice(UUID_OPERATION,UUID_FACTURA)
+end
 S-->>H: UUID_FACTURA + UUID_PAYMENT
 H-->>W: resultat
 W->>Q: PROCESSED
 ```
+
+**Cas Alumne PrisMa:** el checkout trusted crea/reutilitza `commercial_operation_line`, congela `operation.line_uuid` al snapshot de l'intent i el builder de curs el propaga fins a la línia de factura. Els intents legacy sense operació comercial continuen funcionant sense inventar-ne una.
 
 ## 3. ACTUAL — branca AEAT condicional
 
