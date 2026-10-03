@@ -100,6 +100,7 @@ return [
         'launch_key_id' => getenv('SIF_PANEL_LAUNCH_KEY_ID') ?: '',
         'launch_secret' => getenv('SIF_PANEL_LAUNCH_SECRET') ?: '',
         'launch_path' => getenv('SIF_PANEL_INCIDENTS_PATH') ?: '/sif/incidencies/',
+        'version_launch_path' => getenv('SIF_PANEL_VERSIONS_PATH') ?: '/sif/versions/',
         'max_clock_skew_seconds' => (int) (getenv('SIF_PANEL_LAUNCH_MAX_SKEW') ?: 120),
         'session_name' => getenv('SIF_PANEL_SESSION_NAME') ?: 'SIFPANELSESSID',
     ],
@@ -126,6 +127,27 @@ return [
             'trim',
             explode(',', getenv('SIF_NOVICE_PROMOTION_MANAGE_ROLES') ?: '')
         ))),
+    ],
+    'version_governance' => [
+        'read_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_VERSION_READ_ROLES') ?: '')
+        ))),
+        'manage_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_VERSION_MANAGE_ROLES') ?: '')
+        ))),
+        'runtime_git_revision' => getenv('SIF_RUNTIME_GIT_REVISION') ?: '',
+        'release_manifest_path' => getenv('SIF_RELEASE_MANIFEST_PATH') ?: '',
+        'declaration_root' => getenv('SIF_DECLARATION_ROOT') ?: '',
+        'activation_enabled' => filter_var(
+            getenv('SIF_VERSION_ACTIVATION_ENABLED') ?: '0',
+            FILTER_VALIDATE_BOOLEAN
+        ),
+        'require_backup_evidence' => filter_var(
+            getenv('SIF_VERSION_REQUIRE_BACKUP_EVIDENCE') ?: '1',
+            FILTER_VALIDATE_BOOLEAN
+        ),
     ],
     'aeat' => [
         'wsdl' => getenv('SIF_AEAT_WSDL') ?: '',
