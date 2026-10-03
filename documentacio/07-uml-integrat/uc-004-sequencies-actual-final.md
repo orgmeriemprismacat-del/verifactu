@@ -1,8 +1,8 @@
 # UC-004 · Diagrames de seqüència ACTUAL / FINAL
 
 **Cas d'ús:** UC-004 — Emetre factura abans de cobrar  
-**Data d'auditoria estàtica:** 2026-09-29  
-**Principi:** separar el flux que realment executa avui la intranet del flux FINAL SIF. Cap diagrama FINAL implica desplegament verificat.
+**Data d'auditoria reconciliada:** 2026-10-03  
+**Principi:** separar l'ACTUAL històric llegat del flux SIF versionat i del FINAL operatiu. Cap diagrama FINAL implica desplegament/preproducció verificats.
 
 ## 1. Seqüència ACTUAL — càrrega, permís de pàgina i selecció
 
@@ -333,7 +333,7 @@ end
 ```
 
 **Implementat:** lectura per IDs, entityId, mateix curs/edició, total des de `A_PAGAR`, receptor fiscal, fingerprint i relectura abans de confirmar.  
-**Implementat també a la pantalla real:** sessió/rol vigent, CSRF, bridge servidor, HMAC, anti-replay, preview i confirmació. **Encara pendent:** classificador de cobertura transversal, worker/renderitzat/storage del document per UUID i sincronització llegada post-COMMIT si cal. L'auditoria operacional s'integra en aquesta branca i el mutador llegat queda 410.
+**Implementat també a la pantalla real:** sessió/rol vigent, CSRF, bridge servidor, HMAC, anti-replay, preview i confirmació. **Implementat també per document:** cua, worker, lease/retry, stale recovery, snapshot immutable, storage privat i `READY/ERROR`. **Encara pendent:** classificador de cobertura transversal, renderer fiscal concret PDF/QR/XML i E2E/preproducció. L'auditoria operacional és atòmica i el mutador llegat queda 410.
 
 ## 5. Seqüència FINAL — col·lisió concurrent de la mateixa clau
 
