@@ -40,3 +40,11 @@
 - `InvoiceQueryServiceTest`: cerca per inscripció, múltiples UUID i AND de criteris.
 - `InvoiceDocumentAccessServiceTest`: bytes/hash, fitxer absent, scope denegat i path fora del root.
 - `Uc007IntranetBoundaryTest`: també impedeix reintroduir el flag UI buit `SIF_INVOICE_QUERY_UI_ENABLED`.
+
+
+## F07 — traçabilitat de zero mutació
+
+| Invariant | Codi | Prova | Estat |
+| --- | --- | --- | --- |
+| Descarregar no modifica `GENERAT` | `Intranet::generaFactura(..., true)` | `Uc007IntranetBoundaryTest::testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState` | CORREGIT EN BRANCA / CI HEAD FINAL PENDENT |
+| Download llegat és lectura, no edició | `alumnes-factura.js` + `descarregaFactura.php` | `testLegacyInvoiceDownloadUsesReadBoundaryNotClientSideEditPermission` | CORREGIT EN BRANCA / CI HEAD FINAL PENDENT |
