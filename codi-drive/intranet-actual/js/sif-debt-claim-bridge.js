@@ -106,7 +106,8 @@
             return request(Object.assign({
                 action: 'reconcile_after_payment',
                 operation_id: operationId,
-                reason_code: String(options.reason_code || 'PAYMENT_RECONCILIATION').trim()
+                reason_code: String(options.reason_code || 'PAYMENT_RECONCILIATION').trim(),
+                uuid_payment: String(options.uuid_payment || '').trim()
             }, selector(invoice)));
         }
     });
