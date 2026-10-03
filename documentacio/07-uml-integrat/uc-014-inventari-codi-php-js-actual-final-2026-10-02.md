@@ -1,7 +1,7 @@
 # UC-014 — Inventari executable PHP/JS ACTUAL, pont candidat i SIF
 
 **Data d'auditoria:** 02/10/2026  
-**Base inicial:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd` · **revalidada després de sincronitzar:** `main@f7fa0822f82be96e842d9f2d031e643ab07f617c`  
+**Base inicial:** `main@68c4534f31a6499a80f928e0e61bb816066b1fbd` · **tancament fusionat:** `main@b0e8ff7150c5a8b415cc109d298d82f0db1f68df` via PR #118 · **reconciliació CI:** PR #119  
 **Objectiu:** demostrar quines superfícies, scripts PHP/JS, serveis SIF i proves intervenen realment en «Comprar curs normal per Redsys», separant **ACTUAL**, **PONT CANDIDAT**, **FINAL SIF**, **VERIFICAT** i **PENDENT**.
 
 > Aquest inventari complementa la fitxa funcional i els UML. No acredita desplegament ni una transacció Redsys real de preproducció.
@@ -20,7 +20,7 @@
 | P-CUR-01 | Confirmació d'inscripció | `pagina_confirmacio_inscripcio_automatic.php`, `ajax/mostrar_confirmacio_inscripcio_automatic.php`, `PagamentCursAutomatic::mostrarPaginaConfirmacio()` | `js1619773569/mostrarConfirmacioInscripcioAutomatic.min.js` | El JS deriva `keyEncr`, carrega l'AJAX, valida camps al client i envia `#frm`; el PHP resol `IDPAG` i renderitza opcions | DOCUMENTAT + IMPLEMENTAT |
 | P-CUR-02 | Pàgina de pagament des d'enllaç | `pagina_pagament_automatic.php`, `ajax/mostrar_pagina_pagament_automatic.php`, `PagamentCursAutomatic::mostrar()` | `js1619773569/mostrarPagamentAutomatic.min.js` | Carrega estat per `IDPAG`, mostra pendent/fraccionament i envia formulari | DOCUMENTAT + IMPLEMENTAT |
 | P-CUR-03 | Confirmació TPV | `pagina_efectuar_pagament_automatic.php` | `js1619773569/mostrarEfectuarPagamentAutomatic.js` | ACTUAL prepara formulari Redsys; el JS només confirma/cancel·la i envia `#frm` | DOCUMENTAT + IMPLEMENTAT |
-| P-CUR-04 | Callback servidor | `realitzaPagamentAutomatic.php` | — | ACTUAL/fallback: valida Redsys abans d'efectes a la branca d'auditoria, però continua sent arquitectura llegada fins al cutover | DOCUMENTAT + IMPLEMENTAT A BRANCA |
+| P-CUR-04 | Callback servidor | `realitzaPagamentAutomatic.php` | — | ACTUAL/fallback: valida Redsys abans d'efectes al codi fusionat; continua sent arquitectura llegada fins al cutover | DOCUMENTAT + IMPLEMENTAT AL MAIN |
 | P-CUR-05 | Retorn navegador | `respostaOkPagamentAutomatic.php`, `respostaKoPagamentAutomatic.php` | `mostrarRespostaOkPagamentAutomatic.min.js`, `mostrarRespostaKoPagamentAutomatic.min.js` | El JS és presentacional; en el pont candidat el resultat visible consulta estat SIF autoritatiu | DOCUMENTAT + IMPLEMENTAT |
 | P-CUR-06 | Processament asíncron SIF | API + serveis SIF | — | intenció → callback → cua → worker → factura/CHARGE → `EXTERNAL_ALLOCATION` → projecció llegada → outbox | DOCUMENTAT + IMPLEMENTAT + CI PR #79/#95 |
 
@@ -34,7 +34,7 @@ La nota antiga «JS externs no localitzats» queda **invalidada**. Els cinc fitx
 
 - El constructor llegeix `inscripcions` per `IDPAG`, incloent `A_PAGAR`, `PAGAMENT`, `FRACCIONAT`, descompte i identitat.
 - `mostrar()` i `mostrarPaginaConfirmacio()` decideixen opcions i import visible.
-- La branca d'auditoria corregeix dues inicialitzacions `$recentTitulat == 0;` que eren comparacions sense efecte; ara són assignacions.
+- El codi fusionat via PR #118 corregeix dues inicialitzacions `$recentTitulat == 0;` que eren comparacions sense efecte; ara són assignacions.
 - La lògica visual JASOM continua sent **presentacional**. L'autorització definitiva de preparar la targeta passa pel gate servidor.
 
 ### 3.2 `JasomNovicePaymentGate`
@@ -43,7 +43,7 @@ Fitxers:
 - `codi-drive/web-actual/inc/JasomNovicePaymentGate.php`
 - `codi-drive/pay-prisma-cat-canvis-verifactu/inc/JasomNovicePaymentGate.php`
 
-La branca d'auditoria:
+El codi fusionat:
 - rellegeix `ID`, `CURS`, `A_PAGAR`, `PAGAMENT`, **`FRACCIONAT`** i decisió JASOM des de BD;
 - rebutja `IDPAG` no únic/no pagable;
 - rebutja pagament superior al pendent o sobre inscripció ja pagada;
@@ -55,7 +55,7 @@ La branca d'auditoria:
 
 **ACTUAL/fallback**:
 - segueix generant l'ordre Redsys fora del SIF i, per tant, no és l'arquitectura final;
-- a la branca d'auditoria usa el fraccionament retornat pel gate en lloc del POST;
+- al codi fusionat usa el fraccionament retornat pel gate en lloc del POST;
 - saneja les sortides HTML provinents del POST;
 - inicialitza `nom-alumne` abans d'usar-lo;
 - deixa d'incrustar credencials Redsys i exigeix configuració d'entorn.
@@ -72,7 +72,7 @@ La branca d'auditoria:
 
 ## 4. Callback i autoritat fiscal
 
-### ACTUAL/fallback endurit a la branca d'auditoria
+### ACTUAL/fallback endurit i fusionat
 
 `codi-drive/web-actual/realitzaPagamentAutomatic.php`:
 - clau Redsys via entorn, sense literal al fitxer;
@@ -153,7 +153,7 @@ Pont candidat:
 - `RedsysCourseLegacyFallbackBoundaryTest`: comprova gate, escaping, configuració externa, signatura/order/import, `MerchantData`, moneda/terminal/merchant code i `Ds_Response` estricte abans d'efectes, a més de la inicialització JASOM.
 
 **Evidència anterior:** el cap del PR #79 (`3569fffc…`) va completar amb èxit `SIF PHP MySQL tests`, `SIF checks`, `UC-111 integration verification` i `UC-004 SIF secure flow checks`. El PR #95 (`3fa6377e…`) va tornar a deixar els quatre workflows verds i les suites SIF en **841 passed / 0 failed**, incorporant `EXTERNAL_ALLOCATION`.  
-**Evidència d'aquesta branca:** el hardening ACTUAL ha quedat revalidat al PR #105 sobre el head de codi `56d32d600d26d39d94b8a7227e4d732f07d35ce5`: `SIF PHP MySQL tests`, `SIF checks` i `UC-111 integration verification` han acabat en success.
+**Evidència post-merge:** PR #119 deixa els tests UC-014/Redsys afectats en PASS; la suite global queda en **918 passed / 5 failed**, amb les cinc fallades restants exclusivament UC-015/PACK.
 
 ## 8. Pendent real després d'aquesta auditoria
 
@@ -168,8 +168,8 @@ Pont candidat:
 
 | Dimensió | Estat 02/10/2026 |
 | --- | --- |
-| Fitxa funcional | DOCUMENTADA; actualització 02/10 en aquesta branca |
-| PHP ACTUAL | INVENTARIAT; fallback endurit en aquesta branca |
+| Fitxa funcional | DOCUMENTADA i fusionada via PR #118 |
+| PHP ACTUAL | INVENTARIAT; fallback endurit i fusionat via PR #118 |
 | JS ACTUAL | LOCALITZAT I TRAÇAT |
 | Classes ACTUAL/FINAL | EXISTEIXEN; reconciliades en aquesta auditoria |
 | Seqüències ACTUAL/FINAL | EXISTEIXEN; reconciliades en aquesta auditoria |
@@ -185,7 +185,7 @@ Pont candidat:
 
 ## 10. Minimització de PII al TPV i callback
 
-La branca d'auditoria redueix dades no necessàries:
+El codi fusionat via PR #118 redueix dades no necessàries:
 - product description Redsys: curs/codi, sense DNI;
 - titular Redsys: nom del titular, no document identificatiu;
 - MerchantData: només context tècnic mínim signat;
