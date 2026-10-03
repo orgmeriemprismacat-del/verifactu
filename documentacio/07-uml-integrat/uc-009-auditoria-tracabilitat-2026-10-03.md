@@ -140,6 +140,7 @@ Això implica:
 | GAP09-13 | alta `apartats` no acreditada | operativa | executar preflight + alta controlada |
 | GAP09-14 | pipeline global main vermell per 6 errors aliens | release | resoldre/baseline abans de considerar release global verd |
 | GAP09-15 | UI/AJAX/assets hardcodejats a `intranet.prisma.cat` | preproducció | canviats a rutes relatives same-origin + test de contracte |
+| GAP09-16 | `recoverStaleLocks()` feia `PROCESSING → RETRY` i podia provocar segon SOAP després d'una caiguda | fiscal/crític | canviat a `REVIEW` + incidència idempotent + cap retry automàtic |
 
 ## 7. Traçabilitat requisit → implementació → prova
 
@@ -149,7 +150,7 @@ Això implica:
 | ordre serial emissor | `SerialWorker::GET_LOCK` | `AeatWorkflowTest::testCompetingWorkerCannotClaimOrRecoverWhileLockIsHeld` |
 | snapshot immutable | `assertImmutablePayload` | `PayloadIdempotencyFlowTest::testFiscalQueueTamperingIsQuarantinedWithoutSending` |
 | intent abans de xarxa | `AeatSubmissionAttemptRepository::begin` | `AeatWorkflowTest::testPersistsSubmissionAttemptBeforeAndAfterAcceptedDelivery` |
-| no retry cec | `REVIEW` | `testUncertainDeliveryMovesQueueToReviewAndNeverBlindlyRetries` |
+| no retry cec | `REVIEW`, inclòs stale worker | `testUncertainDeliveryMovesQueueToReviewAndNeverBlindlyRetries` + tests de stale recovery |
 | separar SENT/resultat fiscal | cua + `ESTAT_AEAT` | processor tests + panell |
 | no exposar payload/XML | read repository projection | `AeatOperationsReadRepositoryTest` |
 | HMAC/anti-replay | `InternalApiAuthenticator` | `InternalApiAuthenticatorTest` |
