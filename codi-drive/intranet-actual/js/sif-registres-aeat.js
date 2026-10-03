@@ -92,7 +92,7 @@
         const response = await call({action: 'list', status: status || null, limit: 100});
         const rows = Array.isArray(response.data) ? response.data : [];
         queueBody.innerHTML = rows.length ? rows.map(row => {
-            const error = row.AEAT_CSV || row.AEAT_ERROR_CODE || row.AEAT_ERROR_MESSAGE || '—';
+            const error = row.AEAT_CSV || row.AEAT_ERROR_CODE || row.AEAT_ERROR_MESSAGE || row.LAST_ERROR || '—';
             const date = row.SENT_AT || row.NEXT_RETRY_AT || row.LOCKED_AT || row.CREATED_AT || '—';
             return '<tr>' +
                 '<td>' + esc(row.ID) + '</td>' +
@@ -122,7 +122,8 @@
             ['Estat cua', badge(queue.STATUS), true],
             ['Ordre fiscal', queue.FISCAL_ORDER],
             ['Estat AEAT', badge(record.ESTAT_AEAT), true],
-            ['Hash registre', record.HASH_FACT]
+            ['Hash registre', record.HASH_FACT],
+            ['Error operatiu', queue.LAST_ERROR]
         ].map(([label, value, html]) =>
             '<div class="col-md-4"><div class="small text-muted">' + esc(label) + '</div><div>' +
             (html ? value : '<code>' + esc(value || '—') + '</code>') + '</div></div>'
