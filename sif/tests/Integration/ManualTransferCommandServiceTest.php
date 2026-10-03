@@ -60,6 +60,21 @@ final class ManualTransferCommandServiceTest
         }, 403);
     }
 
+    public function testRejectsTpvBankFromManualTransferFlow(): void
+    {
+        $db = TestDatabase::fresh();
+
+        Assert::throws(SifException::class, function () use ($db): void {
+            $this->service($db)->register($db, $this->actor(), [
+                'uuid_factura' => '11111111-1111-4111-8111-111111111111',
+                'amount' => '10.00',
+                'movement_date' => '2026-10-03',
+                'external_bank_event_id' => 'TPV-MUST-NOT-ENTER-UC022',
+                'bank' => 'tpv',
+            ]);
+        }, 422);
+    }
+
     public function testRequiresImmutableBankEventId(): void
     {
         $db = TestDatabase::fresh();
