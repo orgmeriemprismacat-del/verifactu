@@ -352,3 +352,13 @@ La reauditoria confirma que UC-020 disposa de totes les peces documentals exigid
 | UC020-100 | Els diagrames de classes i seqüència etiquetats com ACTUAL encara descrivien parcialment el comportament pre-hardening (client com autoritat i branca de factura no cobrada). | CORREGIT_DOC | classes/seqüències ACTUAL reescrites segons runtime 03/10 |
 
 **Conclusió de verificació:** el perímetre UC-020 té evidència CI positiva al commit `9a70516`. La suite compartida continua amb 6 fallades no atribuïdes a UC-020, de manera que l'auditoria funcional pot romandre tancada però el verd global del PR no està acreditat.
+
+
+## 14. Revalidació Redsys compartida — 03/10/2026
+
+| ID | Troballa | Estat | Evidència/destí |
+| --- | --- | --- | --- |
+| UC020-101 | `RedsysSignatureValidatorTest::testValidNotificationDecodesAndNormalizesSignedPayload` esperava un SHA-256 corresponent al fixture antic sense `Ds_TransactionType`. El runtime calculava correctament el hash sobre els `Ds_MerchantParameters` actuals i la signatura era acceptada. | TEST OBSOLET CORREGIT · CI NOU EN CUA | Commit `635ffb484730424ff39c6ad09c714bb318be4f77`; l'assert compara ara `hash('sha256', $merchantParameters)` amb `payload_hash`. |
+| UC020-102 | El catàleg de configuració SIF no documentava el tall Redsys CURS/UC-020 ni els flags de cutover/drain tot i existir al preflight/runtime. | TANCAT DOCUMENTACIÓ | `sif/config/README.md` incorpora variables reals, contracte HMAC_SHA512_V2 i gate de preproducció. |
+
+**Contrast extern:** la documentació oficial Redsys vigent indica `HMAC_SHA512_V2` com a versió estàndard de signatura i especifica que la verificació ha de signar el valor de `Ds_MerchantParameters` tal com arriba, sense descodificar-lo abans del HMAC. La implementació SIF i l'helper llegat V2 segueixen aquest patró.
