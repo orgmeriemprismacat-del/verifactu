@@ -127,6 +127,9 @@ final class ManualRectificationPayloadBuilder
             }
 
             $this->assertFiscalConsistency($totals);
+            if (abs((float) $totals['total']) < 0.005) {
+                throw SifException::validation('Invalid rectification amount');
+            }
 
             $requestedAmount = $this->optional($input, ['amount', 'import']);
             if ($requestedAmount !== null && $this->money($requestedAmount) !== $totals['total']) {
