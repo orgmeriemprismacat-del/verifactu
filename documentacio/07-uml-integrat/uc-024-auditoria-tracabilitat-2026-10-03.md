@@ -117,10 +117,11 @@ Les quatre superfícies de reclamació/morositat inspeccionades actualitzen camp
 
 Els mètodes llegats actualitzen camps de reclamació i creen directament `MailSMTPComvive`. No s'ha acreditat outbox transaccional. Una incidència SMTP pot deixar estat de negoci i comunicació sense una correlació robusta.
 
-### F-024-10 — Errors/bugs llegats localitzats — MITJANA
+### F-024-10 — Errors/bugs llegats localitzats i corregits en aquesta branca — RESOLT A BRANCA
 
-- El JS de `facturacio-recordatori-pagament-final.js` conserva un handler per `#upd-baixes` que intenta cridar `confirmaReclamacio()`, funció no definida al fitxer; el botó real generat és `#confirma-reclamacio`, de manera que el handler sembla codi mort.
-- Els mètodes de morositat per alumnat sense/amb certificat tenen una branca d'entitat/grup que passa `$titol` a la comunicació mentre el nom de curs carregat en aquests mètodes és `$nomCurs`. Cal corregir-ho en una intervenció del llegat amb proves de regressió.
+- S’ha eliminat de `facturacio-recordatori-pagament-final.js` el handler mort `#upd-baixes → confirmaReclamacio()`; el flux útil continua a `#confirma-reclamacio → confirmaRecordatori()`.
+- Les dues branques de morositat per alumnat sense/amb certificat que passaven `$titol` no definit ara passen `$nomCurs`, que és el valor realment carregat.
+- `ClaimPaymentLegacyBoundaryTest` protegeix ambdues correccions de regressions estàtiques.
 
 ## 5. Seguretat i límits
 
