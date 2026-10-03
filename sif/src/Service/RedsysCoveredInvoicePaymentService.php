@@ -176,7 +176,8 @@ final class RedsysCoveredInvoicePaymentService
                 ELSE 0 END), 0)
              FROM payment_allocation pa
              JOIN payment_transaction pt ON pt.UUID_PAYMENT = pa.UUID_PAYMENT
-             WHERE pa.UUID_FACTURA = ?"
+             WHERE pa.UUID_FACTURA = ?
+               AND pt.ESTAT = 'CONFIRMED'"
         );
         $stmt->execute([$uuidFactura]);
 
