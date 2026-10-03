@@ -18,9 +18,10 @@ final class ManualPaymentPayloadBuilder
         $method = $this->method($this->optionalString($input, ['method'], 'TRANSFERENCIA'));
         $reference = $this->optionalString($input, ['reference', 'referencia', 'referencia_bancaria']);
         $bank = $this->optionalString($input, ['bank', 'banc']);
+        $externalBankEventId = $this->optionalString($input, ['external_bank_event_id', 'bank_event_id', 'provider_ref']);
 
         $payload = [
-            'idempotency_key' => $this->idempotencyKey($method, $uuidFactura, $input, $amount, $movementDate, $reference, $bank),
+            'idempotency_key' => $this->idempotencyKey($method, $uuidFactura, $input, $amount, $movementDate, $reference, $bank, $externalBankEventId),
             'movement_type' => 'CHARGE',
             'method' => $method,
             'source_channel' => 'INTRANET',
@@ -33,7 +34,7 @@ final class ManualPaymentPayloadBuilder
             ]],
         ];
 
-        foreach (['reference' => $reference, 'bank' => $bank, 'notes' => $this->optionalString($input, ['notes', 'obs', 'observations'])] as $key => $value) {
+        foreach (['provider_ref' => $externalBankEventId, 'reference' => $reference, 'bank' => $bank, 'notes' => $this->optionalString($input, ['notes', 'obs', 'observations'])] as $key => $value) {
             if ($value !== null) {
                 $payload[$key] = $value;
             }
@@ -49,8 +50,13 @@ final class ManualPaymentPayloadBuilder
         string $amount,
         string $movementDate,
         ?string $reference,
-        ?string $bank
+        ?string $bank,
+        ?string $externalBankEventId
     ): string {
+        if ($externalBankEventId !== null) {
+            return $method . '|BANK_EVENT:' . $this->keyPart($externalBankEventId);
+        }
+
         if ($reference !== null) {
             return $method . '|REF:' . $this->keyPart($reference);
         }
