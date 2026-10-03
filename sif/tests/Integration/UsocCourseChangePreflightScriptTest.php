@@ -51,6 +51,7 @@ final class UsocCourseChangePreflightScriptTest
             'preview_service',
             'preparation_service',
             'destination_binding_service',
+            'legacy_handoff_service',
             'execution_service',
             'intranet_preview_endpoint_file',
             'intranet_prepare_endpoint_file',
