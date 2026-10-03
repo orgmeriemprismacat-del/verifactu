@@ -362,6 +362,12 @@ final class UsocCourseChangeLegacyHandoffService
             $result
         );
 
+        // REVIEW_REQUIRED is itself durable evidence. Commit it before
+        // surfacing the conflict so the outer error path cannot roll it back.
+        if ($db->inTransaction()) {
+            $db->commit();
+        }
+
         throw SifException::conflict(
             'USOC legacy course change requires review: ' . $reason
         );
