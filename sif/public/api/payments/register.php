@@ -11,12 +11,14 @@ use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
+use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Service\ExistingInvoiceEnrollmentFundAllocationService;
 use Prisma\Sif\Service\ExistingInvoiceLegacyProjectionService;
 use Prisma\Sif\Service\ExistingInvoicePaymentCommandService;
 use Prisma\Sif\Service\ExistingInvoicePaymentPreviewService;
+use Prisma\Sif\Service\ExistingInvoicePaymentNotificationService;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
 use Prisma\Sif\Service\ManualPaymentService;
@@ -148,6 +150,9 @@ try {
             new ExistingInvoiceLegacyProjectionService(),
             new ExistingInvoiceEnrollmentFundAllocationService(
                 new EnrollmentFundMovementRepository(new UuidGenerator())
+            ),
+            new ExistingInvoicePaymentNotificationService(
+                new NotificationOutboxRepository(new UuidGenerator())
             )
         );
 
