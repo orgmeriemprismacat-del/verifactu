@@ -30,7 +30,7 @@ final class PackConfirmationTokenBoundaryTest
         );
     }
 
-    public function testConfirmationConsumerReadsParsedQueryAndDelegatesCrypto(): void
+    public function testConfirmationConsumerReadsHttpOnlyCookieAndDelegatesCrypto(): void
     {
         $root = dirname(__DIR__, 3);
         $source = file_get_contents(
@@ -49,6 +49,7 @@ final class PackConfirmationTokenBoundaryTest
         Assert::stringContainsString('Cache-Control: private, no-store', $source);
         Assert::stringContainsString('Referrer-Policy: no-referrer', $source);
 
+        Assert::same(false, str_contains($source, "\$_GET['keyEncr']"));
         Assert::same(false, str_contains($source, 'REQUEST_URI'));
         Assert::same(false, str_contains($source, 'openssl_decrypt('));
         Assert::same(false, str_contains($source, 'hash_hmac('));
@@ -95,7 +96,7 @@ final class PackConfirmationTokenBoundaryTest
         Assert::same(true, $verify < $decrypt);
     }
 
-    public function testBrowserEncodesQueryTokenAndBumpsAssetVersion(): void
+    public function testBrowserPostsTokenAndUsesScopedHttpOnlyCookie(): void
     {
         $root = dirname(__DIR__, 3);
         $js = file_get_contents(
@@ -181,6 +182,13 @@ final class PackConfirmationTokenBoundaryTest
         Assert::stringContainsString(
             "header('Location: https://www.prisma.cat/packs/confirmacio/', true, 303)",
             $page
+        );
+        Assert::same(
+            true,
+            substr_count(
+                $page,
+                "header('Location: https://www.prisma.cat/packs/confirmacio/', true, 303)"
+            ) >= 2
         );
         Assert::stringContainsString('X-Robots-Tag: noindex', $page);
         Assert::stringContainsString("Content-Security-Policy: frame-ancestors 'none'", $page);
