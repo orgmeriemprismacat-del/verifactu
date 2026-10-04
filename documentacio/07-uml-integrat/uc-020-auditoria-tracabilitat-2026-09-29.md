@@ -472,3 +472,14 @@ AP-74…AP-79 queden implementats a la frontera UI/server llegada. `offer_id` co
 | UC020-135 | Transferència visible a la vista principal encara amb descompte no pagable. | **TANCAT WEB + PONT CANDIDAT + TEST PENDENT CI**: requereix `VALID_DESC=1`. |
 
 El moviment bancari posterior no es modela aquí: registrar/conciliar transferència continua sent responsabilitat d'UC-022.
+
+
+## 24. P03/P04 token i allocator d'alta
+
+| ID | Troballa | Estat |
+| --- | --- | --- |
+| UC020-136 | Token P03/P04 depenia de parseig manual de `REQUEST_URI`, cache-buster i desxifrava abans de comprovar MAC. | **TANCAT CODI + TEST PENDENT CI**: `LegacyPaymentToken`, base64 estricte, MAC abans de decrypt, identificador positiu. |
+| UC020-137 | AP-29 figurava com no implementat tot i existir allocator serialitzat `IDPAG`. | **RECLASSIFICAT**: `GET_LOCK/RELEASE_LOCK` + test existent. |
+| UC020-138 | El lock d'IDPAG no evita una doble matrícula semàntica. | **PENDENT TRANSVERSAL UC-107**: AP-28 continua obert. |
+
+Aquesta separació és obligatòria: **unicitat del número** i **idempotència de la matrícula** són problemes diferents.
