@@ -1,8 +1,8 @@
 # UC-004 · Diagrames de classes ACTUAL / FINAL
 
 **Cas d'ús:** UC-004 — Emetre factura abans de cobrar  
-**Data d'auditoria estàtica:** 2026-09-29  
-**Estat:** documentació d'auditoria. ACTUAL = codi llegat observat. FINAL = arquitectura objectiu, distingint classes ja implementades de components encara pendents.
+**Data d'auditoria reconciliada:** 2026-10-04  
+**Estat:** ACTUAL històric = codi llegat observat; ACTUAL versionat = bridge + SIF implementats; FINAL operatiu = mateix contracte amb `aeat_fields`, document UUID, cobertura transversal i E2E pendents.
 
 ## 1. Fonts directes contrastades
 
@@ -37,7 +37,7 @@
 
 ## 3. Classes ACTUAL — circuit llegat
 
-El circuit real continua sent navegador → AJAX llegat → `Intranet` → BD web/intranet. La pantalla no invoca `InvoiceBeforePaymentService`.
+Aquest apartat descriu exclusivament el **circuit ACTUAL històric/llegat** observat abans del cutover segur. El circuit executable versionat del 04/10/2026 ja no usa aquest mutador com a via fiscal i passa per bridge intranet → API interna SIF → `InvoiceBeforePaymentService`.
 
 ```mermaid
 classDiagram
@@ -193,40 +193,79 @@ EliminarArxiuEndpoint --> DompdfFilesystem : unlink(filename)
 
 ## 4. Classes FINAL — arquitectura objectiu UC-004
 
-El FINAL ha de reutilitzar el nucli SIF que ja existeix i afegir l'adaptador que falta. Les classes marcades **PROPOSAT** són responsabilitats de disseny; no es presenten com a codi existent.
+El `main` del 2026-10-04 ja implementa la frontera completa pantalla → bridge intranet → API interna SIF, amb sessió/rol, CSRF, HMAC, anti-replay, preview/confirmació i reconstrucció autoritativa. En aquesta branca, a més, el mutador fiscal llegat queda retirat amb `410 Gone` i l'auditoria operacional és atòmica. Continuen pendents l'assembler `aeat_fields` oficial per PREPROD/PROD, el classificador de cobertura transversal, la integració documental per UUID i la sincronització llegada post-COMMIT si encara és necessària.
 
 ```mermaid
 classDiagram
 direction LR
 
-class Uc004Controller {
-  <<PROPOSAT>>
-  +issueBeforePayment(command)
-  +getPreview(selection)
+class BrowserUc004Js {
+  <<EXISTEIX AL MAIN>>
+  +requestCsrfToken()
+  +loadBillingEntities()
+  +preview(ids, entityId)
+  +confirm(ids, entityId, fingerprint)
 }
 
-class Uc004Authorization {
-  <<PROPOSAT>>
-  +assertCanIssue(actor, scope)
+class SifFacturaAbansPagarProxy {
+  <<EXISTEIX AL MAIN>>
+  +POST preview
+  +POST confirm
+}
+
+class SifInvoiceBeforePaymentAccess {
+  <<EXISTEIX AL MAIN>>
+  +resolve(user, intranet)
+  +csrfToken()
+  +assertCsrf(server)
+}
+
+class SifInternalApiClient {
+  <<EXISTEIX AL MAIN>>
+  +previewInvoiceBeforePayment(...)
+  +confirmInvoiceBeforePayment(...)
+  +sign HMAC
+}
+
+class BeforePaymentHttpEndpoint {
+  <<EXISTEIX AL MAIN>>
+  +POST action=preview
+  +POST action=confirm
+}
+
+class InternalApiAuthenticator {
+  <<EXISTEIX AL MAIN>>
+  +authenticate(server, rawBody, method, path)
+}
+
+class InternalInvoiceBeforePaymentScopeResolver {
+  <<EXISTEIX AL MAIN>>
+  +resolve(authenticatedActor)
+}
+
+class InvoiceBeforePaymentCommandService {
+  <<EXISTEIX AL MAIN>>
+  +preview(ids, entityId, actorId, context)
+  +confirm(ids, entityId, actorId, fingerprint, context)
 }
 
 class InvoiceBeforePaymentSelectionRepository {
-  <<EXISTEIX A LA BRANCA>>
+  <<EXISTEIX AL MAIN>>
   +loadByIds(legacyWebDb, ids)
 }
 
 class InvoiceBeforePaymentBillingPartyRepository {
-  <<EXISTEIX A LA BRANCA>>
+  <<EXISTEIX AL MAIN>>
   +loadByEntityId(legacyIntranetDb, entityId)
 }
 
 class InvoiceBeforePaymentServerPayloadAssembler {
-  <<EXISTEIX A LA BRANCA>>
+  <<IMPLEMENTAT>>
   +buildInput(selection, billingParty, context)
 }
 
 class InvoiceBeforePaymentLegacyPreparationService {
-  <<EXISTEIX A LA BRANCA>>
+  <<IMPLEMENTAT>>
   +prepare(legacyWebDb, legacyIntranetDb, ids, entityId, context)
 }
 
@@ -237,7 +276,7 @@ class CrossChannelCoverageClassifier {
 }
 
 class InvoiceBeforePaymentCoverageRepository {
-  <<EXISTEIX A LA BRANCA>>
+  <<IMPLEMENTAT>>
   +claim(db, relations, uuidFactura, idempotencyKey)
 }
 
@@ -249,13 +288,29 @@ class InvoiceBeforePaymentCoverage {
   +IDEMPOTENCY_KEY
 }
 
+class OperationalEventRepository {
+  <<EXISTEIX AL MAIN · AUDITORIA GENÈRICA>>
+  +append(db, event)
+}
+
+class OperationalEvent {
+  <<SIF DB>>
+  +UUID_OPERATIONAL_EVENT
+  +OPERATION_TYPE
+  +UUID_FACTURA
+  +FISCAL_IMPACT
+  +ECONOMIC_IMPACT
+  +ACTOR_ID
+  +CORRELATION_ID
+}
+
 class InvoiceBeforePaymentPayloadBuilder {
   <<EXISTEIX>>
   +build(input) array
 }
 
 class InvoiceBeforePaymentService {
-  <<EXISTEIX · PENDENT INTEGRACIÓ>>
+  <<EXISTEIX AL MAIN>>
   +issueBeforePayment(input) array
 }
 
@@ -341,16 +396,44 @@ class LegacySync {
   +syncAfterSifCommit(result)
 }
 
-class InvoiceDocumentService {
-  <<PROPOSAT>>
-  +ensureDocument(uuidFactura)
-  +getDocumentStatus(uuidFactura)
+class InvoiceBeforePaymentDocumentQueueService {
+  <<VERSIONAT A #166 · NO WIRED>>
+  +ensurePdf(uuidFactura, invoiceIdempotencyKey)
 }
 
-Uc004Controller --> Uc004Authorization
-Uc004Controller --> CrossChannelCoverageClassifier
-Uc004Controller --> InvoiceBeforePaymentLegacyPreparationService
-Uc004Controller --> InvoiceBeforePaymentService
+class DocumentJobRepository {
+  <<VERSIONAT A #166 · NO AL MAIN>>
+  +ensurePending(db, uuidFactura, type, version, correlation)
+  +findByInvoiceAndType(db, uuidFactura, type)
+}
+
+class DocumentJob {
+  <<SIF DB · EXISTEIX AL MAIN>>
+  +UUID_JOB
+  +UUID_FACTURA
+  +DOCUMENT_TYPE
+  +GENERATOR_VERSION
+  +STATUS
+  +FACTURA_DOCUMENT_ID
+}
+
+class FiscalDocumentWorker {
+  <<PROCESSOR VERSIONAT A #166 · ENTRYPOINT PENDENT>>
+  +claimPending()
+  +renderAndStore()
+  +completeOrRetry()
+}
+
+BrowserUc004Js --> SifFacturaAbansPagarProxy : JSON + X-CSRF-Token
+SifFacturaAbansPagarProxy --> SifInvoiceBeforePaymentAccess
+SifFacturaAbansPagarProxy --> SifInternalApiClient
+SifInternalApiClient --> BeforePaymentHttpEndpoint : HMAC server-server
+BeforePaymentHttpEndpoint --> InternalApiAuthenticator
+BeforePaymentHttpEndpoint --> InternalInvoiceBeforePaymentScopeResolver
+BeforePaymentHttpEndpoint --> InvoiceBeforePaymentCommandService
+InvoiceBeforePaymentCommandService --> CrossChannelCoverageClassifier : PENDENT
+InvoiceBeforePaymentCommandService --> InvoiceBeforePaymentLegacyPreparationService
+InvoiceBeforePaymentCommandService --> InvoiceBeforePaymentService
 
 InvoiceBeforePaymentLegacyPreparationService --> InvoiceBeforePaymentSelectionRepository
 InvoiceBeforePaymentLegacyPreparationService --> InvoiceBeforePaymentBillingPartyRepository
@@ -360,13 +443,18 @@ InvoiceBeforePaymentLegacyPreparationService --> PayloadIdempotencyValidator
 
 InvoiceBeforePaymentService --> InvoiceBeforePaymentPayloadBuilder
 InvoiceBeforePaymentService --> InvoiceService
+InvoiceBeforePaymentService ..> InvoiceBeforePaymentDocumentQueueService : PENDENT post-COMMIT
+InvoiceBeforePaymentDocumentQueueService ..> DocumentJobRepository : PENDENT
+DocumentJobRepository ..> DocumentJob : repository PHP pendent; esquema SQL existent
 InvoiceService --> InvoicePayloadValidator
 InvoiceService --> PayloadIdempotencyValidator
 InvoiceService --> TransactionRunner
 InvoiceService --> FiscalSequenceRepository
 InvoiceService --> InvoiceRepository
-InvoiceService --> InvoiceBeforePaymentCoverageRepository : només EMESA_ABANS_COBRAMENT
+InvoiceService --> InvoiceBeforePaymentCoverageRepository : només UC-004
 InvoiceBeforePaymentCoverageRepository --> InvoiceBeforePaymentCoverage : claim transaccional
+InvoiceService --> OperationalEventRepository : emissió genèrica, inclou UC-004
+OperationalEventRepository --> OperationalEvent : mateix COMMIT
 
 InvoiceRepository --> Factura
 InvoiceRepository --> FacturaLinia
@@ -374,23 +462,21 @@ InvoiceRepository --> FactRels
 InvoiceRepository --> FacturaRegistres
 InvoiceRepository --> FiscalQueue
 
-Uc004Controller --> LegacySync : només després del COMMIT SIF
-Uc004Controller --> InvoiceDocumentService : document per UUID
+InvoiceBeforePaymentCommandService ..> LegacySync : PENDENT post-COMMIT
+DocumentJobRepository ..> FiscalDocumentWorker : PENDENT consum/renderitzat/storage
 ```
 
 ## 5. Responsabilitats que NO s'han de confondre
 
-- `InvoiceBeforePaymentService` **existeix**, però la pantalla llegada UC-004 no l'invoca.
+- `InvoiceBeforePaymentService` **existeix i ja és invocat** pel command/endpoint intern SIF; la pantalla llegada ja passa per `sifFacturaAbansPagar.php` i `SifInternalApiClient`.
 - `sif/public/api/factures/issue.php` **existeix**, però instancia `InvoiceService` directament; per tant no acredita per si sol el contracte “abans de cobrar” ni l'ús de `InvoiceBeforePaymentPayloadBuilder`.
-- `InvoiceBeforePaymentSelectionRepository`, `InvoiceBeforePaymentBillingPartyRepository`, `InvoiceBeforePaymentServerPayloadAssembler` i `InvoiceBeforePaymentLegacyPreparationService` **ja existeixen a la branca** i eliminen del payload autoritatiu el total/receptor/conceptes construïts al navegador. Encara no estan connectats a la pantalla web.
+- `InvoiceBeforePaymentSelectionRepository`, `InvoiceBeforePaymentBillingPartyRepository`, `InvoiceBeforePaymentServerPayloadAssembler`, `InvoiceBeforePaymentLegacyPreparationService` i `InvoiceBeforePaymentCommandService` **ja existeixen al main** i eliminen del payload autoritatiu el total/receptor/conceptes construïts al navegador. El bridge de pantalla també existeix i el JS ja l'utilitza.
 - `InvoicePayloadValidator` valida camps estructurals bàsics; no acredita tota la validació fiscal, comercial, de cobertura ni d'autorització necessària per UC-004.
 - `PayloadIdempotencyValidator` protegeix la repetició de **la mateixa clau** comparant el hash complet. `InvoiceBeforePaymentCoverageRepository` impedeix que dues operacions UC-004 amb claus diferents reclamin el mateix origen. Encara falta el classificador de cobertura **transversal** entre altres canals/pagadors, perquè no tota doble relació d'una inscripció és necessàriament il·legítima.
+- `OperationalEventRepository` i `SifAuditEventRepository` ja s'integren al `main` dins la mateixa transacció d'`InvoiceService`. Una emissió nova deixa `ISSUE_INVOICE/INVOICE_ISSUED`; un reús idempotent deixa un nou event d'auditoria `ISSUE_INVOICE/INVOICE_IDEMPOTENCY_REUSED`, sense duplicar factura ni registre fiscal.
+- L'**esquema** `document_job` sí és al `main` (`2026_09_15_000003_add_functional_audit_control.sql`) i `factura_documents` ja té lectura/descàrrega privada via UC-080. En #166 s'han recuperat `DocumentJobRepository`, `InvoiceDocumentSnapshotRepository`, `InvoiceBeforePaymentDocumentQueueService`, `FiscalDocumentJobProcessor` i `PrivateDocumentWriter`, però **no estan wired al runtime UC-004**. Continuen pendents el renderer concret, l'entrypoint/supervisió del worker i la connexió post-COMMIT.
 - `PaymentService` no forma part de l'emissió inicial UC-004. El cobrament posterior és UC-002/UC-022 segons canal.
 
 ## 6. Criteri de tancament del diagrama FINAL
 
-Aquest diagrama passarà de **FINAL proposat** a **FINAL implementat/verificat** quan existeixi i s'hagi provat el camí:
-
-`pantalla intranet → autorització servidor → InvoiceBeforePaymentLegacyPreparationService → fingerprint preview/confirm → classificador de cobertura transversal → InvoiceBeforePaymentService → InvoiceService → claim UC-004 + COMMIT SIF → sincronització llegada/document → resposta tipificada`.
-
-Fins llavors, el nucli SIF és implementat però la integració completa UC-004 continua **PARCIAL**.
+El camí principal `pantalla intranet → sessió/rol + CSRF → bridge HMAC → endpoint SIF → preparació autoritativa → fingerprint preview/confirm → InvoiceBeforePaymentService → InvoiceService → claim UC-004 + audit events + COMMIT SIF → resposta JSON` està **implementat al codi versionat per LOCAL/DEV/TEST**. L'estat global continua **PARCIAL**: abans de PREPROD/PROD cal construir `aeat_fields` oficials server-side; també falten document per UUID, classificador transversal, E2E/concurrència i sync llegada només si funcionalment continua necessària.

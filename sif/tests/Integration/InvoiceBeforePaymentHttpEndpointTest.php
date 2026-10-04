@@ -23,10 +23,20 @@ final class InvoiceBeforePaymentHttpEndpointTest
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacyIntranet($config)', $source);
         Assert::stringContainsString('InvoiceBeforePaymentCommandService', $source);
+        Assert::stringContainsString('InvoiceBeforePaymentAeatInputPolicy', $source);
+        Assert::stringContainsString("['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION']", $source);
+        Assert::stringContainsString('aeat_tax_code', $source);
+        Assert::stringContainsString('aeat_regime_key', $source);
+        Assert::stringContainsString('aeat_exemption_reason', $source);
         Assert::stringContainsString('$commands->preview(', $source);
         Assert::stringContainsString('$commands->confirm(', $source);
         Assert::stringContainsString("(string) \$actor['actor_id']", $source);
         Assert::stringContainsString('new InvoiceBeforePaymentCoverageRepository()', $source);
+        Assert::stringContainsString("['aeat_fields', 'aeat_header']", $source);
+        Assert::stringContainsString(
+            'Invoice-before-payment AEAT fields are server-owned',
+            $source
+        );
 
         if (str_contains($source, "payload['created_by']")) {
             Assert::fail('HTTP endpoint must not trust created_by from the request payload.');

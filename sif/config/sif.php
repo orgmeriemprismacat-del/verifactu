@@ -36,6 +36,11 @@ return [
             'trim',
             explode(',', getenv('SIF_INVOICE_BEFORE_PAYMENT_WRITE_ROLES') ?: '')
         ))),
+        // Legal/tax mapping is deliberately runtime configuration. Do not hard-code
+        // an exemption cause for UC-004 without fiscal validation.
+        'aeat_tax_code' => getenv('SIF_UC004_AEAT_TAX_CODE') ?: '',
+        'aeat_regime_key' => getenv('SIF_UC004_AEAT_REGIME_KEY') ?: '',
+        'aeat_exemption_reason' => getenv('SIF_UC004_AEAT_EXEMPTION_REASON') ?: '',
     ],
     'invoice_query' => [
         'full_read_roles' => array_values(array_filter(array_map(
