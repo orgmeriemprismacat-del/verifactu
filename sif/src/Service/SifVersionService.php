@@ -75,6 +75,15 @@ final class SifVersionService
         $operation = $this->operationInput($input, 'REGISTER_VERSION');
         $versionCode = trim((string) ($input['version_code'] ?? ''));
 
+        $existingReplay = $this->versions->findByIdempotencyKey(
+            $this->db,
+            $operation['idempotency_key']
+        );
+        if ($existingReplay !== null) {
+            $this->assertVersionRegistrationReplay($existingReplay, $versionCode, $actorId);
+            return ['ok' => true, 'reused' => true, 'version' => $existingReplay];
+        }
+
         $runtime = $this->runtimeInspector->inspect($this->db, $this->config);
         if (($runtime['complete'] ?? false) !== true) {
             throw SifException::unavailable('Current SIF runtime cannot be registered because its evidence is incomplete');
@@ -553,6 +562,23 @@ final class SifVersionService
             'request_id' => $requestId,
             'reason_code' => $reason,
         ];
+    }
+
+    private function assertVersionRegistrationReplay(
+        array $existing,
+        string $versionCode,
+        string $actorId
+    ): void {
+        $expected = [
+            'VERSION_CODE' => trim($versionCode),
+            'CREATED_BY' => trim($actorId),
+        ];
+
+        foreach ($expected as $column => $value) {
+            if ((string) ($existing[$column] ?? '') !== $value) {
+                throw SifException::conflict('Version idempotency key already exists with different payload');
+            }
+        }
     }
 
     private function assertDeclarationReplay(
