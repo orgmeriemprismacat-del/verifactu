@@ -234,7 +234,7 @@ Aquesta capa és **complementària**, no substitutiva, de la infraestructura com
 | UC020-77 | `EXPECTED_AMOUNT` no es contrastava amb l'import de pagament. | **CORREGIT CODI**. |
 | UC020-78 | Snapshot de descompte podia arribar sense origen/mode coherent. | **CORREGIT per al contracte CURS nou**; es mantenen fallbacks històrics on pertoqui. |
 | UC020-79 | Política AP no encapsulada ni versionada. | **PARCIALMENT TANCAT** amb policy + historial; negoci futur pendent. |
-| UC020-80 | Manca orquestrador server-side d'operació/validació. | **IMPLEMENTAT_NUCLI** a `PrismaStudentCourseCheckoutService`; adaptador web pendent. |
+| UC020-80 | Manca orquestrador server-side d'operació/validació. | **TANCAT RUNTIME CURS**: `PrismaStudentCourseCheckoutService` està implementat i connectat al checkout actiu via `course-intent`; altres canals continuen fora d'aquest tancament. |
 | UC020-81 | Manca vincle runtime `UUID_OPERATION ↔ UUID_INTENT`. | **IMPLEMENTAT_NUCLI**; integració de canal i política de múltiples intents pendents. |
 | UC020-82 | Invariant transversal factura vs cobrament. | **PENDENT TRANSVERSAL**; considerar fraccionaments. |
 
