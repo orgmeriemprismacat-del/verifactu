@@ -18,7 +18,7 @@ use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class DebtClaimCoordinatorGuardsTest
 {
-    public function testConflictingRetryAndStageRegressionAreRejected(): void
+    public function testConflictingRetryAndDuplicateNoticeTypeAreRejected(): void
     {
         $db = TestDatabase::fresh();
         $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(Fixtures::invoicePayload());

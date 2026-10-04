@@ -146,6 +146,42 @@ final class DebtClaimCoordinatorTest
         )->fetchColumn());
     }
 
+    public function testInitialNoticeTypesCanBeRecordedInEitherLegacyOrderBeforeFinalClaim(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload(['emesa_abans_cobrament' => 1])
+        );
+        $service = $this->service($db);
+        $actor = $this->manager();
+
+        $firstClaim = $service->recordNotice(
+            $actor,
+            $this->notice($invoice['uuid_factura'], 'FIRST_CLAIM', 'CLAIM|ORDER|FIRST')
+        );
+        $finalReminder = $service->recordNotice(
+            $actor,
+            $this->notice($invoice['uuid_factura'], 'FINAL_REMINDER', 'CLAIM|ORDER|REMINDER')
+        );
+
+        Assert::same('FIRST_CLAIM', $firstClaim['stage']);
+        Assert::same('FINAL_REMINDER', $finalReminder['stage']);
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM debt_claim_event')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM notification_outbox')->fetchColumn());
+        Assert::same('FINAL_REMINDER', (string) $db->query(
+            'SELECT CURRENT_STAGE FROM debt_claim_case'
+        )->fetchColumn());
+
+        Assert::throws(
+            SifException::class,
+            fn () => $service->recordNotice(
+                $actor,
+                $this->notice($invoice['uuid_factura'], 'FIRST_CLAIM', 'CLAIM|ORDER|FIRST-AGAIN')
+            ),
+            409
+        );
+    }
+
     public function testPartialThenFullPaymentRecalculatesAndClosesClaim(): void
     {
         $db = TestDatabase::fresh();

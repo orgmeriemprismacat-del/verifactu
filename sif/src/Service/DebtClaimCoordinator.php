@@ -112,15 +112,28 @@ final class DebtClaimCoordinator
                 throw SifException::conflict('Debt claim case is closed');
             }
             $currentStage = strtoupper((string) $claim['CURRENT_STAGE']);
-            $currentRank = $this->rank($currentStage);
-            $actionRank = $this->rank($action);
             $repeatableFinalClaim = $action === 'FINAL_CLAIM'
                 && $currentStage === 'FINAL_CLAIM';
 
-            if ($actionRank < $currentRank
-                || ($actionRank === $currentRank && !$repeatableFinalClaim)
+            // FINAL_REMINDER and FIRST_CLAIM originate from distinct legacy
+            // selection rules (DATAF vs DATAI/DATA_INSC). They are therefore
+            // one-shot event types, not a proven linear severity ordering.
+            if ($currentStage === 'FINAL_CLAIM' && !$repeatableFinalClaim) {
+                throw SifException::conflict(
+                    'Debt claim final stage is terminal for initial notice types'
+                );
+            }
+
+            if ($action !== 'FINAL_CLAIM'
+                && $this->claims->findLatestEventByType(
+                    $db,
+                    (string) $claim['UUID_CLAIM'],
+                    $action
+                ) !== null
             ) {
-                throw SifException::conflict('Debt claim notice would repeat or regress current stage');
+                throw SifException::conflict(
+                    'Debt claim notice type has already been recorded'
+                );
             }
 
             if ($repeatableFinalClaim) {
@@ -522,18 +535,6 @@ final class DebtClaimCoordinator
             'outstanding' => $snapshot['outstanding'],
             'idempotency_reused' => false,
         ];
-    }
-
-    private function rank(string $stage): int
-    {
-        return match (strtoupper($stage)) {
-            'DETECTED' => 0,
-            'FINAL_REMINDER' => 10,
-            'FIRST_CLAIM' => 20,
-            'FINAL_CLAIM' => 30,
-            'RESOLVED' => 100,
-            default => throw SifException::conflict('Unknown debt claim stage'),
-        };
     }
 
     private function notificationKey(string $key): string

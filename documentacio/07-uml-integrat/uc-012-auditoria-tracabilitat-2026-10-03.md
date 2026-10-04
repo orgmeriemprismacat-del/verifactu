@@ -76,7 +76,7 @@ Troballa: els POST legacy executen mutació + SMTP al mateix flux i treballen pr
 | Events append-only | `debt_claim_event` | smoke/guards | IMPLEMENTAT; CI EN CUA |
 | Retry equivalent | payload hash + idempotency key lligats a `UUID_FACTURA` resolta | smoke + enrollment resolver | IMPLEMENTAT; CI EN CUA |
 | Payload contradictori | `PayloadIdempotencyValidator` | guards | IMPLEMENTAT; CI EN CUA |
-| No regressió d’etapa | rank FINAL_REMINDER/FIRST/FINAL | guards | IMPLEMENTAT; CI EN CUA |
+| Regles d’etapa | FIRST_CLAIM/FINAL_REMINDER únics per tipus; FINAL_CLAIM terminal + follow-up 30 dies | guards + coordinator | IMPLEMENTAT; CI EN CUA |
 | Outbox post-commit | `NotificationOutboxRepository` | smoke | IMPLEMENTAT; CI EN CUA |
 | Cancel·lació d’avisos obsolets després de qualsevol cobrament confirmat | `cancelPendingForInvoice()` | reconciliation + delivery test | IMPLEMENTAT; CI EN CUA |
 | Cobrament sense nova factura | `ClaimPaymentService` | tests existents | VERIFICAT AL REPOSITORI PREVI; revalidació CI actual pendent |
@@ -161,3 +161,14 @@ Els subfluxos P-MOR defineixen l'estat canònic FINAL, però **no són una màqu
 ### Idempotència per factura canònica
 
 S'ha reforçat `DebtClaimCoordinator` perquè el selector d'entrada es resolgui dins la transacció i el hash idempotent utilitzi sempre `UUID_FACTURA`. Això bloqueja el cas en què `ID_INSC=10` apuntava inicialment a una factura A i, després de liquidar-la, passava a una factura B: reutilitzar la mateixa clau retorna conflicte `409` i no pot reaprofitar l'event de la factura A.
+
+
+### Regles d'etapa reconciliades amb el codi legacy
+
+La revisió de les consultes reals confirma que `cnsReclamacions` i `cnsAlumnesRecordarPag` no formen una seqüència lineal comuna: la primera depèn de `DATAI/DATA_INSC` i exigeix `reclamat` buit, mentre el recordatori de fi de curs depèn de `DATAF`. Per això el coordinador ja no usa un `rank()` entre `FIRST_CLAIM` i `FINAL_REMINDER`.
+
+Regla FINAL:
+- cada `FIRST_CLAIM` i `FINAL_REMINDER` només es pot registrar una vegada per expedient (els retries equivalents continuen reutilitzant la mateixa clau);
+- poden aparèixer en qualsevol ordre abans de l'escalat final;
+- `FINAL_CLAIM` bloqueja nous avisos inicials;
+- un nou `FINAL_CLAIM` només és possible com a seguiment després de la guarda mínima de 30 dies.
