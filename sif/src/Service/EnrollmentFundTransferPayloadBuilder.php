@@ -53,6 +53,46 @@ final class EnrollmentFundTransferPayloadBuilder
         ];
     }
 
+    public function buildReversal(array $input): array
+    {
+        $movementUuid = strtolower($this->requiredString(
+            $input,
+            ['movement_uuid', 'reverses_uuid_movement', 'transfer_uuid'],
+            'movement_uuid'
+        ));
+
+        if (preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D',
+            $movementUuid
+        ) !== 1) {
+            throw SifException::validation(
+                'Invalid enrollment fund transfer movement UUID'
+            );
+        }
+
+        $key = 'FUND|TRANSFER|REVERSAL|' . $movementUuid;
+        $correlationId = $this->optionalString($input, ['correlation_id']);
+        if ($correlationId === null) {
+            $correlationId = 'UC006|TRANSFER|REVERSAL|'
+                . substr(hash('sha256', $key), 0, 24);
+        }
+        if (mb_strlen($correlationId, 'UTF-8') > 120) {
+            throw SifException::validation(
+                'Enrollment fund transfer reversal correlation ID is too long'
+            );
+        }
+
+        return [
+            'idempotency_key' => $key,
+            'order' => $this->positiveInt($input['order'] ?? 1, 'order'),
+            'reverses_uuid_movement' => $movementUuid,
+            'currency' => 'EUR',
+            'uuid_operation' => $this->optionalString($input, ['uuid_operation']),
+            'correlation_id' => $correlationId,
+            'notes' => $this->optionalString($input, ['notes', 'obs', 'observations']),
+        ];
+    }
+
     private function amount(mixed $value): string
     {
         $text = trim(str_replace(',', '.', (string) $value));
