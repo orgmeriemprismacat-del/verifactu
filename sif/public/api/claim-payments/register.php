@@ -39,6 +39,9 @@ if ($rawBody === false) {
     return;
 }
 
+$sifPaymentPersisted = false;
+$persistedPaymentResult = null;
+
 try {
     $config = require dirname(__DIR__, 3) . '/config/sif.php';
     $db = ConnectionFactory::make($config);
@@ -263,6 +266,9 @@ try {
         }
     );
 
+    $sifPaymentPersisted = true;
+    $persistedPaymentResult = $result;
+
     $legacySyncContext = $result['_legacy_sync'] ?? null;
     unset($result['_legacy_sync']);
     if (!is_array($legacySyncContext)) {
@@ -356,6 +362,25 @@ try {
         'payment' => $result,
     ]);
 } catch (Throwable $exception) {
+    if ($sifPaymentPersisted) {
+        $payment = is_array($persistedPaymentResult) ? $persistedPaymentResult : [];
+        unset($payment['_legacy_sync']);
+        $payment['claim_case_id'] = $claimCaseId ?? null;
+        $payment['source_inscription_id'] = $sourceInscriptionId ?? null;
+        $payment['external_receipt_type'] = $externalReceiptType ?? null;
+        $payment['external_receipt_id'] = $externalReceiptId ?? null;
+
+        JsonResponse::send([
+            'ok' => false,
+            'error' => 'El cobrament ha quedat registrat al SIF, però falta completar o auditar la projecció legacy.',
+            'payment_persisted' => true,
+            'requires_reconciliation' => true,
+            'reconciliation_error_code' => claimPaymentErrorCode($exception),
+            'payment' => $payment,
+        ], 409);
+        return;
+    }
+
     JsonResponse::fromThrowable($exception);
 }
 
