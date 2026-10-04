@@ -29,6 +29,56 @@ final class PaymentRepository
         return $row ?: null;
     }
 
+    public function findByExternalReceipt(\PDO $db, array $payload, bool $forUpdate = false): ?array
+    {
+        $dsOrder = trim((string) ($payload['ds_order'] ?? ''));
+        $reference = trim((string) ($payload['reference'] ?? ''));
+
+        if ($dsOrder === '' && $reference === '') {
+            return null;
+        }
+
+        if ($dsOrder !== '') {
+            $sql = 'SELECT * FROM payment_transaction WHERE DS_ORDER = ? ORDER BY ID ASC LIMIT 1';
+            if ($forUpdate) {
+                $sql .= ' FOR UPDATE';
+            }
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$dsOrder]);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if ($row) {
+                return $row;
+            }
+        }
+
+        if ($reference !== '') {
+            $sql = 'SELECT * FROM payment_transaction WHERE REFERENCIA_BANCARIA = ? ORDER BY ID ASC LIMIT 1';
+            if ($forUpdate) {
+                $sql .= ' FOR UPDATE';
+            }
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$reference]);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            return $row ?: null;
+        }
+
+        return null;
+    }
+
+    public function findAllocations(\PDO $db, string $uuidPayment): array
+    {
+        $stmt = $db->prepare(
+            'SELECT UUID_FACTURA, IMPORT_ASSIGNAT, TIPUS_ASSIGNACIO
+             FROM payment_allocation
+             WHERE UUID_PAYMENT = ?
+             ORDER BY UUID_FACTURA, IMPORT_ASSIGNAT, TIPUS_ASSIGNACIO'
+        );
+        $stmt->execute([$uuidPayment]);
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     public function createPayment(\PDO $db, array $payload): array
     {
         $this->assertInstallmentAllocationsAllowed($db, $payload);
