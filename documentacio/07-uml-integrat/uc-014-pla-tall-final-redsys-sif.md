@@ -31,7 +31,7 @@ Configuració concreta de l'entorn: [UC-014 — Configuració segura de preprodu
 
 1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Configurar `SIF_REDSYS_EXPECTED_PAY_HOST` amb el host canònic de pagament/SIF de l'entorn; `SIF_REDSYS_CALLBACK_URL` amb la URL HTTPS del callback SIF del mateix host, `SIF_INTERNAL_API_BASE_URL` amb la base HTTPS del mateix host, `SIF_REDSYS_LEGACY_CALLBACK_URL` amb el callback legacy del **mateix host** mentre `cutover=0`, `SIF_REDSYS_RETURN_BASE_URL` amb la base HTTPS dels retorns OK/KO del **mateix host** i `REDSYS_GATEWAY_URL` amb l'endpoint Redsys de l'entorn; mantenir `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0` i `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=0` fins que els preflights siguin verds.
 2. Rotar qualsevol credencial Redsys històrica potencialment exposada i configurar credencials exclusivament via secret store/entorn: `REDSYS_MERCHANT_CODE`, `SIF_REDSYS_MERCHANT_CODE` (o fallback explícit al mateix `REDSYS_MERCHANT_CODE`), `REDSYS_MERCHANT_KEY`, `REDSYS_TERMINAL`, `SIF_REDSYS_MERCHANT_KEY`, `SIF_INTERNAL_API_KEY_ID` i `SIF_INTERNAL_API_SECRET`. Les claus Redsys del pont i del callback SIF han de correspondre al mateix comerç/entorn, sense registrar-ne el valor. Verificar que el codi desplegat no conté literals.
-3. Crear una intenció de curs ordinari.
+3. Crear una intenció de curs ordinari amb l'endpoint/script SIF de prova (no mitjançant un checkout NORMAL, que deliberadament no crea intencions SIF).
 4. Comprovar:
    - una sola fila a `redsys_payment_intent`;
    - `EXPECTED_AMOUNT` igual al saldo pendent autoritatiu;
@@ -186,7 +186,7 @@ Aquesta protecció **no substitueix el cutover SIF**. El hardening queda consoli
 
 El canvi de MerchantURL no s'ha de fer de forma atòmica mentre hi pugui haver un TPV llegat obert al navegador.
 
-1. **NORMAL:** `cutover=0`, `drain=0`. Flux antic/candidat de rollback disponible.
+1. **NORMAL:** `cutover=0`, `drain=0`. Flux legacy/rollback disponible; el checkout candidat **no crea intencions SIF** mentre la MerchantURL encara és llegada, evitant `PENDING` orfes.
 2. **DRAIN:** `cutover=1`, `drain=0`. Es bloquegen nous checkouts (503), però els callbacks llegats en vol encara es processen.
 3. **CUTOVER CONFIRMAT:** `cutover=1`, `drain=1`. El candidat utilitza callback SIF i checkout/callback llegats queden retirats (410).
 4. **ROLLBACK abans de retirada definitiva:** tornar `cutover=0` i `drain=0` només si s'ha verificat que la configuració i les sessions en vol ho permeten.
