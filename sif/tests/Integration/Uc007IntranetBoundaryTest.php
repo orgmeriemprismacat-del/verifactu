@@ -76,8 +76,7 @@ final class Uc007IntranetBoundaryTest
         }
 
         $fragment = substr($js, $start, $end - $start);
-        Assert::stringContainsString('alumnes/descarregaFactura.php', $fragment);
-        Assert::stringContainsString('method: "POST"', $fragment);
+        Assert::stringContainsString('uc007DescarregarFacturaLlegada(', $fragment);
 
         if (str_contains($fragment, 'tePermisEdicio')) {
             Assert::fail('UC-007 legacy document download is a read action and must not depend on client-side edit permission.');
