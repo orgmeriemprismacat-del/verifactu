@@ -461,3 +461,21 @@ Contracte corregit:
 - un `flow_wait_seconds` invàlid usa fallback de 60 s i marca `requires_review=true`;
 - una fallada de persistència de l'espera posterior preserva el resultat remot i marca revisió;
 - el registre original queda `SENT` amb el seu `ESTAT_AEAT`, i el worker obre `AEAT_REVIEW`.
+
+
+### 8.3. Extensió 2026-10-04 — recuperar UNCERTAIN des d'evidència íntegra
+
+La conciliació normal continua acceptant només intents terminals ja persistits. Addicionalment, un intent `UNCERTAIN` pot tancar-se sense reenviament quan existeix `EVIDENCE_ID` estructurat i únic.
+
+La via d'evidència exigeix simultàniament:
+1. queue en `REVIEW`;
+2. últim attempt del queue;
+3. attempt en `UNCERTAIN`;
+4. `EVIDENCE_ID` vàlid i associat a aquell attempt;
+5. evidence store privat configurat;
+6. `request.xml` i `response.xml` amb hashes íntegres;
+7. request d'evidència idèntic a l'XML regenerat des del snapshot immutable i al `REQUEST_HASH`;
+8. resposta validada per `ResponseParser` contra emissor, factura, operació i flags;
+9. estat terminal `ACCEPTED|ACCEPTED_WITH_ERRORS|REJECTED`.
+
+Si qualsevol comprovació falla, no es modifica l'intent, la cua continua `REVIEW` i no existeix cap fallback de reenviament.
