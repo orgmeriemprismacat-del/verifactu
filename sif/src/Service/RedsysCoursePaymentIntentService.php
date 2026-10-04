@@ -85,8 +85,7 @@ final class RedsysCoursePaymentIntentService
             $terms = $this->usocTerms->findByInscriptionAndIdpag(
                 $sifDb,
                 (int) $inscription['ID'],
-                $idpag,
-                true
+                $idpag
             );
             if ($terms === null) {
                 throw SifException::conflict(
