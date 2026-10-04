@@ -7,8 +7,11 @@ use Prisma\Sif\Repository\UsocFinancingTermsRepository;
 
 final class UsocFinancingTermsService
 {
-    public function __construct(private UsocFinancingTermsRepository $terms)
-    {
+    public function __construct(
+        private UsocFinancingTermsRepository $terms,
+        private ?UsocFinancingTermsStateHasher $stateHasher = null
+    ) {
+        $this->stateHasher ??= new UsocFinancingTermsStateHasher();
     }
 
     public function prepare(
@@ -66,7 +69,7 @@ final class UsocFinancingTermsService
                 $entity,
                 $actorId,
                 $roles,
-                $this->legacyHash($legacy)
+                $this->stateHasher->hash($legacy)
             );
             $sifDb->commit();
             return $result;
@@ -95,7 +98,7 @@ final class UsocFinancingTermsService
     private function legacyState(\PDO $legacyDb, int $idInsc, int $idpag): array
     {
         $stmt = $legacyDb->prepare(
-            'SELECT ID, IDPAG, TIPUS_DESC, VALID_DESC, A_PAGAR
+            'SELECT ID, IDPAG, `ANY`, MES, CURS, TIPUS_DESC, VALID_DESC, A_PAGAR
              FROM inscripcions
              WHERE ID = ? AND IDPAG = ?'
         );
@@ -129,16 +132,4 @@ final class UsocFinancingTermsService
             . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 
-    private function legacyHash(array $legacy): string
-    {
-        $canonical = json_encode([
-            'ID' => (int) $legacy['ID'],
-            'IDPAG' => (int) $legacy['IDPAG'],
-            'TIPUS_DESC' => (int) $legacy['TIPUS_DESC'],
-            'VALID_DESC' => (int) $legacy['VALID_DESC'],
-            'A_PAGAR' => number_format((float) $legacy['A_PAGAR'], 2, '.', ''),
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-
-        return hash('sha256', $canonical);
-    }
 }
