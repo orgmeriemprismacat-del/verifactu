@@ -18,6 +18,7 @@ final class CreditBalancePayloadBuilder
         foreach ([
             'holder_id' => ['holder_id', 'id_titular'],
             'source_id' => ['source_id', 'id_origen'],
+            'source_enrollment_id' => ['source_enrollment_id', 'id_insc_origin', 'id_insc_origen'],
         ] as $key => $keys) {
             $value = $this->optional($input, $keys);
             if ($value !== null && $value !== '') {
@@ -31,6 +32,8 @@ final class CreditBalancePayloadBuilder
             'uuid_factura_origen' => ['uuid_factura_origen', 'invoice_origin_uuid'],
             'uuid_factura_rectificativa' => ['uuid_factura_rectificativa', 'rectification_invoice_uuid'],
             'review_after' => ['review_after', 'revisar_despres'],
+            'correlation_id' => ['correlation_id'],
+            'uuid_operation' => ['uuid_operation'],
         ] as $key => $keys) {
             $value = $this->optionalString($input, $keys);
             if ($value !== null) {
@@ -40,6 +43,14 @@ final class CreditBalancePayloadBuilder
 
         if (isset($payload['idempotency_key']) && mb_strlen($payload['idempotency_key'], 'UTF-8') > 160) {
             throw SifException::validation('Credit idempotency key is too long');
+        }
+
+        if (isset($payload['source_enrollment_id']) && $payload['source_enrollment_id'] <= 0) {
+            throw SifException::validation('Invalid source enrollment ID for credit balance');
+        }
+
+        if (isset($payload['correlation_id']) && mb_strlen($payload['correlation_id'], 'UTF-8') > 120) {
+            throw SifException::validation('Credit correlation ID is too long');
         }
 
         return $payload;
