@@ -87,7 +87,6 @@ final class NovicePromotionStudentSummaryService
             $available = $this->cents((string) $right['AVAILABLE_AMOUNT']);
 
             $result[] = [
-                'uuid_entitlement' => $uuid,
                 'display_status' => $this->displayStatus(
                     (string) $right['ENTITLEMENT_STATUS'],
                     (string) ($right['DELIVERY_STATUS'] ?? ''),
@@ -96,8 +95,6 @@ final class NovicePromotionStudentSummaryService
                     $applied,
                     $reserved
                 ),
-                'entitlement_status' => (string) $right['ENTITLEMENT_STATUS'],
-                'validation_status' => (string) $right['VALIDATION_STATUS'],
                 'delivery_status' => $right['DELIVERY_STATUS'] === null ? null : (string) $right['DELIVERY_STATUS'],
                 'original_amount' => $this->money($original),
                 'applied_amount' => $this->money($applied),
@@ -105,16 +102,13 @@ final class NovicePromotionStudentSummaryService
                 'available_amount' => $this->money($available),
                 'issued_at' => (string) $right['ISSUED_AT'],
                 'expires_at' => (string) $right['EXPIRES_AT'],
-                'rule_version' => (string) $right['RULE_VERSION'],
                 'origin' => [
-                    'uuid_operation' => (string) $right['ORIGIN_UUID_OPERATION'],
                     'enrollment_id' => (string) $right['ORIGIN_ENROLLMENT_ID'],
                     'product_code' => (string) $right['ORIGIN_PRODUCT_CODE'],
                     'product_edition' => (string) $right['ORIGIN_PRODUCT_EDITION'],
                 ],
                 'applications' => array_map(
                     static fn (array $application): array => [
-                        'uuid_application' => (string) $application['UUID_APPLICATION'],
                         'status' => (string) $application['STATUS'],
                         'amount' => (string) $application['AMOUNT'],
                         'destination_enrollment_id' => (string) $application['DESTINATION_ENROLLMENT_ID'],
@@ -125,16 +119,13 @@ final class NovicePromotionStudentSummaryService
                             : (string) $application['DESTINATION_INVOICE_NUMBER'],
                         'reserved_at' => (string) $application['RESERVED_AT'],
                         'applied_at' => $application['APPLIED_AT'] === null ? null : (string) $application['APPLIED_AT'],
-                        'released_at' => $application['RELEASED_AT'] === null ? null : (string) $application['RELEASED_AT'],
-                        'reversed_at' => $application['REVERSED_AT'] === null ? null : (string) $application['REVERSED_AT'],
-                        'reason_code' => $application['REASON_CODE'] === null ? null : (string) $application['REASON_CODE'],
                     ],
                     $applications
                 ),
             ];
         }
 
-        return ['identity' => $identity, 'rights' => $result];
+        return ['rights' => $result];
     }
 
     private function displayStatus(
