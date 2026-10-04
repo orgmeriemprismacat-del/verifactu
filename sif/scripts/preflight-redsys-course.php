@@ -126,7 +126,7 @@ try {
         'SELECT COUNT(*) FROM fiscal_chain_state WHERE ID = 1'
     );
 } catch (\Throwable $exception) {
-    $errors['sif_database'] = $exception->getMessage();
+    $errors['sif_database'] = 'SIF_DATABASE_CONNECTIVITY_FAILED';
 }
 
 try {
@@ -135,7 +135,7 @@ try {
     $checks['legacy_inscripcions_table'] = tableExists($legacyDb, 'inscripcions');
     $checks['legacy_curs_table'] = tableExists($legacyDb, 'curs');
 } catch (\Throwable $exception) {
-    $errors['legacy_database'] = $exception->getMessage();
+    $errors['legacy_database'] = 'LEGACY_DATABASE_CONNECTIVITY_FAILED';
 }
 
 $failed = array_keys(array_filter($checks, static fn (bool $ok): bool => !$ok));
