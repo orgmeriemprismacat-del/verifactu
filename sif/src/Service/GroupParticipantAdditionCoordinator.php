@@ -13,7 +13,8 @@ final class GroupParticipantAdditionCoordinator
         private GroupParticipantAdditionDecisionService $decisionService,
         private GroupParticipantChangeFingerprint $fingerprints,
         private GroupParticipantChangeExecutionRepository $executions,
-        private GroupParticipantAcademicGatewayInterface $academic
+        private GroupParticipantAcademicGatewayInterface $academic,
+        private ?GroupParticipantSupplementalInvoiceService $supplementalInvoices = null
     ) {
     }
 
@@ -139,8 +140,40 @@ final class GroupParticipantAdditionCoordinator
                 continue;
             }
 
+            if ($type === 'SUPPLEMENTAL_INVOICE') {
+                if ($this->supplementalInvoices === null) {
+                    return $this->waitExternal(
+                        $sifDb,
+                        $uuidExecution,
+                        $type,
+                        $actualFingerprint,
+                        $plan,
+                        $results,
+                        'Supplemental participant invoice executor is not configured'
+                    );
+                }
+
+                $input = (array) ($action['input'] ?? []);
+                $results[$type] = $this->runStep(
+                    $sifDb,
+                    $uuidExecution,
+                    $type,
+                    $order++,
+                    $input,
+                    fn(): array => $this->supplementalInvoices->issue(
+                        $sifDb,
+                        $uuidFactura,
+                        $candidate,
+                        array_merge($context, [
+                            'operation_reference' => $input['reference'] ?? null,
+                            'uuid_execution' => $uuidExecution,
+                        ])
+                    )
+                );
+                continue;
+            }
+
             if (in_array($type, [
-                'SUPPLEMENTAL_INVOICE',
                 'GROUP_RECTIFICATION',
                 'REPRICE_EXISTING_GROUP',
             ], true)) {
@@ -151,7 +184,7 @@ final class GroupParticipantAdditionCoordinator
                     $actualFingerprint,
                     $plan,
                     $results,
-                    'Fiscal execution for post-issue group addition requires an approved dedicated executor'
+                    'Fiscal execution for group-wide repricing or rectification requires an approved dedicated executor'
                 );
             }
         }
