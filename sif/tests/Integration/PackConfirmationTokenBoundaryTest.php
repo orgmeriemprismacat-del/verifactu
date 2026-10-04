@@ -41,7 +41,7 @@ final class PackConfirmationTokenBoundaryTest
             Assert::fail('Could not read PACK confirmation consumer');
         }
 
-        Assert::stringContainsString("\$_GET['keyEncr']", $source);
+        Assert::stringContainsString("\$_COOKIE['uc015_pack_confirmation']", $source);
         Assert::stringContainsString(
             'PackConfirmationToken::decode($encr, $keyEncr)',
             $source
@@ -110,17 +110,11 @@ final class PackConfirmationTokenBoundaryTest
         }
 
         Assert::stringContainsString(
-            '?keyEncr=" + encodeURIComponent(keyEncr)',
+            'ajax/mostrar_pagina_confirmacio_pagament_grup_automatic.php',
             $js
         );
-        Assert::stringContainsString(
-            'window.location.hash',
-            $js
-        );
-        Assert::stringContainsString(
-            'decodeURIComponent(window.location.hash.substring(1))',
-            $js
-        );
+        Assert::same(false, str_contains($js, 'keyEncr'));
+        Assert::same(false, str_contains($js, 'window.location.hash'));
 
         $enrollmentJs = file_get_contents(
             $root
@@ -140,11 +134,23 @@ final class PackConfirmationTokenBoundaryTest
         }
 
         Assert::stringContainsString(
-            'https://www.prisma.cat/packs/confirmacio/#',
+            'formConfirmacio.method = "POST"',
             $enrollmentJs
         );
         Assert::stringContainsString(
-            'mostrarInscripcioPack.min.js?ver=7.6',
+            'formConfirmacio.action = "https://www.prisma.cat/packs/confirmacio/"',
+            $enrollmentJs
+        );
+        Assert::stringContainsString(
+            'inputTokenConfirmacio.name = "confirmationToken"',
+            $enrollmentJs
+        );
+        Assert::same(
+            false,
+            str_contains($enrollmentJs, 'packs/confirmacio/#')
+        );
+        Assert::stringContainsString(
+            'mostrarInscripcioPack.min.js?ver=7.7',
             $enrollmentPage
         );
         Assert::stringContainsString(
@@ -152,14 +158,42 @@ final class PackConfirmationTokenBoundaryTest
             $htaccess
         );
         Assert::stringContainsString(
-            'mostrarConfirmacioPagamentGrupAutomatic.min.js?ver=2.2',
+            'mostrarConfirmacioPagamentGrupAutomatic.min.js?ver=2.3',
             $page
         );
         Assert::stringContainsString('Referrer-Policy: no-referrer', $page);
         Assert::stringContainsString('Cache-Control: private, no-store', $page);
+        Assert::stringContainsString("'secure' => true", $page);
+        Assert::stringContainsString("'httponly' => true", $page);
+        Assert::stringContainsString("'samesite' => 'Strict'", $page);
+        Assert::stringContainsString(
+            "'/ajax/mostrar_pagina_confirmacio_pagament_grup_automatic.php'",
+            $page
+        );
+        Assert::stringContainsString(
+            "\$_POST['confirmationToken']",
+            $page
+        );
+        Assert::stringContainsString(
+            'uc015FragmentMigration',
+            $page
+        );
+        Assert::stringContainsString(
+            "header('Location: https://www.prisma.cat/packs/confirmacio/', true, 303)",
+            $page
+        );
         Assert::stringContainsString('X-Robots-Tag: noindex', $page);
         Assert::stringContainsString("Content-Security-Policy: frame-ancestors 'none'", $page);
         Assert::stringContainsString('X-Frame-Options: DENY', $page);
         Assert::stringContainsString("'send_page_view': false", $page);
+
+        $migration = strpos($page, 'uc015FragmentMigration');
+        $google = strpos($page, 'www.googletagmanager.com');
+        $jquery = strpos($page, 'cdnjs.cloudflare.com/ajax/libs/jquery');
+        Assert::same(true, $migration !== false);
+        Assert::same(true, $google !== false);
+        Assert::same(true, $jquery !== false);
+        Assert::same(true, $migration < $google);
+        Assert::same(true, $migration < $jquery);
     }
 }
