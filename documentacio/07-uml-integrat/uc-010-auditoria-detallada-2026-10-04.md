@@ -525,3 +525,22 @@ Aquests canvis mantenen el criteri de tancament: **CI final de la branca + E2E M
 - **IMPLEMENTAT:** circuit UC-010 complet en branca, inclosos controls addicionals d'integritat, idempotència, minimització i sessió.
 - **VERIFICAT:** proves específiques existeixen i l'evidència històrica del PR #139 és positiva per UC-010; el gate del head final continua pendent d'execució perquè GitHub Actions manté els jobs en cua.
 - **PENDENT D'ENTORN:** MySQL/preproducció, manifest real, declaració real, dependència UC-85 i decisió productiva.
+
+
+## 25. Via d'evidència de preproducció preparada
+
+S'ha incorporat `SifVersionEvidenceVerifier` i el CLI `sif/scripts/verify-version-governance-evidence.php UUID_VERSION`. És **read-only** i comprova de manera conjunta:
+
+- versió `ACTIVE` i singleton coherent;
+- exactament una versió `ACTIVE`;
+- journal `ACTIVATED` existent;
+- declaració `APPROVED`, hash físic i hash congelat al snapshot d'activació;
+- runtime actual complet i concordant amb Git/artefacte/config/BD de la versió i del journal;
+- backup present/acceptable quan la política el requereix;
+- traça `sif_audit_event` i `operational_event` d'activació;
+- sortida minimitzada, sense storage paths ni `EVIDENCE_JSON`;
+- `production_authorized=false` sempre.
+
+En producció el CLI falla tancat tret que s'habiliti explícitament `SIF_UC010_EVIDENCE_ALLOW_PRODUCTION=1`. Aquest script permet conservar un JSON d'evidència després de l'E2E de `sif_test*`/preproducció sense executar cap mutació addicional.
+
+**Estat del CI en aquest tall:** el PR #165 continua mergeable i `behind_by=0`, però GitHub Actions manté el gate UC-010 i les suites compartides en estat `queued`; encara no existeixen logs del head final que permetin marcar CI verd o vermell.
