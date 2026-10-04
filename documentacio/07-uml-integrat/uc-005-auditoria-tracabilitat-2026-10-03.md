@@ -96,3 +96,7 @@ UC-005 només es pot marcar tancat quan:
 **IMPLEMENTAT:** nucli rectificatiu, atomicitat, aliases, fiscalitat fail-closed, SUBSTITUCIO amb receptor, command intern signat, preview/confirm, guard UC-74, auditoria i suite UC-005 aïllada.  
 **VERIFICAT:** revisió estàtica, suite específica UC-005 verda 34/34 abans del reforç de decisió persistida, incloent atomicitat, fiscalitat local, command, permisos i protocol AEAT.  
 **PENDENT:** revalidació CI, productor/classificador UC-74 executable, perfils AEAT complexos, concurrència E2E, document E2E i preproducció. El consumidor UI/proxy preview/confirm ja està implementat.
+
+### UC005-F10 — P1 TRANSVERSAL · no hi ha productor/worker de documents fiscals
+
+La branca disposa de `DocumentRepository`, `PrivateDocumentStore`, `InvoiceDocumentAccessService`, descàrrega signada i auditoria `fiscal_document_access`. La migració crea `document_job`, però en el codi SIF revisat **no s'ha localitzat cap productor de `document_job` ni cap worker/generador que construeixi PDF/QR/XML després d'emetre la factura R**. `DocumentRepository::registerDocument()` només registra bytes ja generats. Per tant UC-005 no pot acreditar encara `R -> document immutable -> consulta/descàrrega`; és un bloqueig transversal del subsistema documental, no una raó per regenerar documents des de dades vives.
