@@ -60,6 +60,19 @@ try {
         throw new InvalidArgumentException('Indicador de factura electrònica no vàlid', 422);
     }
 
+    if (
+        $efact === '1'
+        && filter_var(
+            getenv('SIF_UC002_AUTHORITATIVE') ?: '0',
+            FILTER_VALIDATE_BOOLEAN
+        )
+    ) {
+        throw new RuntimeException(
+            'El cobrament d’una factura existent s’ha de registrar pel circuit SIF autoritatiu',
+            409
+        );
+    }
+
     echo $intranetObject->efectuarPagament(
         $idTipus,
         $tipus,
