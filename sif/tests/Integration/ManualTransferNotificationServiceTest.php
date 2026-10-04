@@ -8,6 +8,7 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Service\ManualTransferNotificationService;
 use Prisma\Sif\Tests\Support\Assert;
+use Prisma\Sif\Tests\Support\Fixtures;
 use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class ManualTransferNotificationServiceTest
@@ -26,11 +27,12 @@ final class ManualTransferNotificationServiceTest
             new NotificationOutboxRepository(new UuidGenerator())
         );
 
-        $payment = [
-            'uuid_factura' => '11111111-1111-4111-8111-111111111111',
-            'uuid_payment' => '22222222-2222-4222-8222-222222222222',
-            'num_visible' => 'A2026/100',
-        ];
+        $payment = $this->persistPaymentFixture(
+            $db,
+            'UC022|NOTIFY|INVOICE|RESPONSIBLE',
+            'UC022|NOTIFY|PAYMENT|RESPONSIBLE',
+            '120.00'
+        );
         $sync = [
             'status' => 'PARTIALLY_PAID',
             'confirmed_amount' => '120.00',
@@ -91,7 +93,7 @@ final class ManualTransferNotificationServiceTest
 
         foreach ($rows as $row) {
             $payload = json_decode((string) $row['PAYLOAD_JSON'], true);
-            Assert::same('A2026/100', $payload['num_visible']);
+            Assert::same($payment['num_visible'], $payload['num_visible']);
             Assert::same('20.00', $payload['movement_amount']);
             Assert::same('120.00', $payload['confirmed_amount']);
             Assert::same('PARTIALLY_PAID', $payload['payment_status']);
@@ -120,15 +122,18 @@ final class ManualTransferNotificationServiceTest
             new NotificationOutboxRepository(new UuidGenerator())
         );
 
+        $payment = $this->persistPaymentFixture(
+            $db,
+            'UC022|NOTIFY|INVOICE|NO-INTRANET',
+            'UC022|NOTIFY|PAYMENT|NO-INTRANET',
+            '150.00'
+        );
+
         $result = $service->enqueue(
             $db,
             new ManualTransferNotificationLegacyPdo(),
             null,
-            [
-                'uuid_factura' => '33333333-3333-4333-8333-333333333333',
-                'uuid_payment' => '44444444-4444-4444-8444-444444444444',
-                'num_visible' => 'A2026/101',
-            ],
+            $payment,
             [
                 'status' => 'PAID',
                 'confirmed_amount' => '150.00',
@@ -150,6 +155,53 @@ final class ManualTransferNotificationServiceTest
             'SELECT COUNT(*) FROM notification_outbox'
         )->fetchColumn());
     }
+    private function persistPaymentFixture(
+        \PDO $db,
+        string $invoiceIdempotencyKey,
+        string $paymentIdempotencyKey,
+        string $amount
+    ): array {
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => $invoiceIdempotencyKey,
+                'emesa_abans_cobrament' => 1,
+                'totals' => [
+                    'import_base' => $amount,
+                    'taxable_base' => $amount,
+                    'total' => $amount,
+                ],
+                'lines' => [[
+                    'unit_price' => $amount,
+                    'base' => $amount,
+                    'import_base' => $amount,
+                    'taxable_base' => $amount,
+                    'total' => $amount,
+                ]],
+            ])
+        );
+
+        $payment = RegisterPaymentTest::paymentServiceFor($db)->registerPayment([
+            'idempotency_key' => $paymentIdempotencyKey,
+            'movement_type' => 'CHARGE',
+            'method' => 'TRANSFERENCIA',
+            'source_channel' => 'INTRANET',
+            'amount' => $amount,
+            'movement_date' => '2026-10-03 18:00:00',
+            'provider_ref' => 'UC022-NOTIFY-FIXTURE',
+            'allocations' => [[
+                'uuid_factura' => $invoice['uuid_factura'],
+                'amount' => $amount,
+                'allocation_type' => 'INVOICE_PAYMENT',
+            ]],
+        ]);
+
+        return [
+            'uuid_factura' => $invoice['uuid_factura'],
+            'uuid_payment' => $payment['uuid_payment'],
+            'num_visible' => $invoice['num_visible'],
+        ];
+    }
+
 }
 
 final class ManualTransferNotificationLegacyPdo extends \PDO
