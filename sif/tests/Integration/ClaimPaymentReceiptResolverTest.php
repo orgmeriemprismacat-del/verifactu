@@ -40,7 +40,8 @@ final class ClaimPaymentReceiptResolverTest
             $db,
             'BANK_REFERENCE',
             'BANK-100',
-            $invoice['uuid_factura']
+            $invoice['uuid_factura'],
+            '30.00'
         );
 
         Assert::same($payment['uuid_payment'], $resolved['uuid_payment']);
@@ -86,7 +87,44 @@ final class ClaimPaymentReceiptResolverTest
                 $db,
                 'BANK_REFERENCE',
                 'BANK-DIFFERENT',
-                $invoiceB['uuid_factura']
+                $invoiceB['uuid_factura'],
+                '20.00'
+            );
+        }, 409);
+    }
+
+    public function testRejectsExistingReceiptWhenAmountDoesNotMatch(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|RECEIPT|AMOUNT_MISMATCH',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        RegisterPaymentTest::paymentServiceFor($db)->registerPayment([
+            'idempotency_key' => 'TRANSFERENCIA|REF:BANK-AMOUNT',
+            'movement_type' => 'CHARGE',
+            'method' => 'TRANSFERENCIA',
+            'source_channel' => 'INTRANET',
+            'amount' => '25.00',
+            'movement_date' => '2026-10-04 02:36:00',
+            'reference' => 'BANK-AMOUNT',
+            'allocations' => [[
+                'uuid_factura' => $invoice['uuid_factura'],
+                'amount' => '25.00',
+                'allocation_type' => 'INVOICE_PAYMENT',
+            ]],
+        ]);
+
+        Assert::throws(SifException::class, function () use ($db, $invoice): void {
+            $this->resolver()->resolveExisting(
+                $db,
+                'BANK_REFERENCE',
+                'BANK-AMOUNT',
+                $invoice['uuid_factura'],
+                '30.00'
             );
         }, 409);
     }
