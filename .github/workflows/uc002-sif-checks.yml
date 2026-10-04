@@ -36,6 +36,7 @@ on:
       - "codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php"
       - "codi-drive/intranet-actual/SifInternalApiClient.php"
       - "codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php"
+      - "codi-drive/intranet-actual/Uc002LegacyInvoiceSelectorResolver.php"
       - "codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php"
       - "codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/efectuarPagament.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php"
@@ -69,6 +70,7 @@ on:
       - "codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php"
       - "codi-drive/intranet-actual/SifInternalApiClient.php"
       - "codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php"
+      - "codi-drive/intranet-actual/Uc002LegacyInvoiceSelectorResolver.php"
       - "codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php"
       - "codi-drive/intranet-nova-canvis-verifactu/ajax/alumnes/efectuarPagament.php"
       - "codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php"
@@ -132,6 +134,7 @@ jobs:
           php -l codi-drive/intranet-actual/SifInternalApiClient.php
           php -l codi-drive/intranet-actual/SifExistingInvoicePaymentAccess.php
           php -l codi-drive/intranet-actual/Uc002LegacyPaymentProjectionApplier.php
+          php -l codi-drive/intranet-actual/Uc002LegacyInvoiceSelectorResolver.php
           php -l codi-drive/intranet-actual/ajax/alumnes/sifPagamentFacturaToken.php
           php -l codi-drive/intranet-actual/ajax/alumnes/sifPagamentFactura.php
           php -l codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php
