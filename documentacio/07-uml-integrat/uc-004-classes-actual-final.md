@@ -418,7 +418,7 @@ class DocumentJob {
 }
 
 class FiscalDocumentWorker {
-  <<PROPOSAT>>
+  <<PROCESSOR VERSIONAT A #166 · ENTRYPOINT PENDENT>>
   +claimPending()
   +renderAndStore()
   +completeOrRetry()
@@ -474,7 +474,7 @@ DocumentJobRepository ..> FiscalDocumentWorker : PENDENT consum/renderitzat/stor
 - `InvoicePayloadValidator` valida camps estructurals bàsics; no acredita tota la validació fiscal, comercial, de cobertura ni d'autorització necessària per UC-004.
 - `PayloadIdempotencyValidator` protegeix la repetició de **la mateixa clau** comparant el hash complet. `InvoiceBeforePaymentCoverageRepository` impedeix que dues operacions UC-004 amb claus diferents reclamin el mateix origen. Encara falta el classificador de cobertura **transversal** entre altres canals/pagadors, perquè no tota doble relació d'una inscripció és necessàriament il·legítima.
 - `OperationalEventRepository` i `SifAuditEventRepository` ja s'integren al `main` dins la mateixa transacció d'`InvoiceService`. Una emissió nova deixa `ISSUE_INVOICE/INVOICE_ISSUED`; un reús idempotent deixa un nou event d'auditoria `ISSUE_INVOICE/INVOICE_IDEMPOTENCY_REUSED`, sense duplicar factura ni registre fiscal.
-- L'**esquema** `document_job` sí és al `main` (`2026_09_15_000003_add_functional_audit_control.sql`) i `factura_documents` ja té lectura/descàrrega privada via UC-080. En #166 s'han recuperat `DocumentJobRepository`, `InvoiceDocumentSnapshotRepository` i `InvoiceBeforePaymentDocumentQueueService`, però **no estan wired al runtime UC-004**. Continuen pendents el processor/worker productor, storage writer, renderer concret i la connexió post-COMMIT.
+- L'**esquema** `document_job` sí és al `main` (`2026_09_15_000003_add_functional_audit_control.sql`) i `factura_documents` ja té lectura/descàrrega privada via UC-080. En #166 s'han recuperat `DocumentJobRepository`, `InvoiceDocumentSnapshotRepository`, `InvoiceBeforePaymentDocumentQueueService`, `FiscalDocumentJobProcessor` i `PrivateDocumentWriter`, però **no estan wired al runtime UC-004**. Continuen pendents el renderer concret, l'entrypoint/supervisió del worker i la connexió post-COMMIT.
 - `PaymentService` no forma part de l'emissió inicial UC-004. El cobrament posterior és UC-002/UC-022 segons canal.
 
 ## 6. Criteri de tancament del diagrama FINAL
