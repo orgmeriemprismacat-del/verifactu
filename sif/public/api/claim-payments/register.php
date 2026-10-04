@@ -42,7 +42,6 @@ if ($rawBody === false) {
 try {
     $config = require dirname(__DIR__, 3) . '/config/sif.php';
     $db = ConnectionFactory::make($config);
-    $legacyDb = ConnectionFactory::makeLegacy($config);
 
     $internalApi = $config['internal_api'] ?? [];
     $actor = (new InternalApiAuthenticator(
@@ -66,6 +65,8 @@ try {
     $claimConfig = $config['claim_payments'] ?? [];
     $manageRoles = (array) ($claimConfig['manage_roles'] ?? []);
     $actorRole = assertClaimPaymentRole($actor, $manageRoles);
+
+    $legacyDb = ConnectionFactory::makeLegacy($config);
 
     $uuidFactura = trim((string) ($payload['uuid_factura'] ?? ''));
     $numVisible = trim((string) ($payload['num_visible'] ?? ''));
