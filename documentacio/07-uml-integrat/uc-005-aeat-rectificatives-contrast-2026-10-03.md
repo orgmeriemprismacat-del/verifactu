@@ -2,7 +2,7 @@
 
 **Data de contrast:** 2026-10-03  
 **Àmbit:** VERI*FACTU / registre de facturació d'alta de factures rectificatives  
-**Estat:** contrast oficial completat; implementació AEAT UC-005 encara parcial
+**Estat:** contrast oficial completat; mapper AEAT UC-005 simple implementat en branca, casos complexos i evidència CI/preproducció pendents
 
 ## 1. Fonts oficials consultades
 
