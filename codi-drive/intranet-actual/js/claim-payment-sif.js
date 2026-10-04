@@ -68,9 +68,16 @@
 				'<form id="uc024-payment-form" novalidate>' +
 					'<input type="hidden" name="idInsc">' +
 					'<input type="hidden" name="requestId">' +
+					'<label>Tipus de referència externa' +
+						'<select name="externalReceiptType">' +
+							'<option value="BANK_REFERENCE">Referència bancària</option>' +
+							'<option value="DS_ORDER">DS_ORDER Redsys</option>' +
+							'<option value="PROVIDER_REF">Referència del proveïdor</option>' +
+						'</select>' +
+					'</label>' +
 					'<label>Referència externa del cobrament' +
 						'<input name="externalReceiptId" type="text" maxlength="120" required autocomplete="off" ' +
-						'placeholder="Referència bancària o identificador únic del rebut">' +
+						'placeholder="Identificador únic del rebut o operació">' +
 					'</label>' +
 					'<label>Import cobrat (€)' +
 						'<input name="amount" type="number" min="0.01" step="0.01" required inputmode="decimal">' +
@@ -178,6 +185,7 @@
 		[
 			'idInsc',
 			'requestId',
+			'externalReceiptType',
 			'externalReceiptId',
 			'amount',
 			'movementDate',
