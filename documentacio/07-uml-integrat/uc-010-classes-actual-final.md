@@ -1,7 +1,7 @@
 # UC-010 · Diagrama de classes ACTUAL / FINAL
 
 **ACTUAL** = baseline de `main` abans de l'auditoria del 2026-10-04.  
-**FINAL** = arquitectura implementada a la branca `audit/uc-010-governanca-versio-2026-10-04`.
+**FINAL** = arquitectura implementada a la branca `audit/uc-010-reconciliacio-2026-10-04`.
 
 ## 1. ACTUAL — persistència sense servei UC-010
 
@@ -89,25 +89,32 @@ class SifVersionService {
 }
 class RuntimeVersionInspector {
   +inspect(PDO,config) array
+  -uc010DatabaseHardeningChecks(PDO) array
 }
 class ReleaseManifestVerifier {
   +verify(baseDir,manifestPath) array
 }
 class RuntimeConfigFingerprint {
   +hash(config) string
+  -isSensitiveKey(key) bool
+  -secretPresence(value) string
 }
 class MigrationRunner {
   +inspect(PDO) array
 }
 class SifVersionRepository {
   +registerCandidate(PDO,input) array
+  +assertReplay(existing,input)
   +findByUuid(PDO,uuid,forUpdate) array
+  +state(PDO) array
+  +activeRows(PDO) array
   +lockState(PDO) array
   +activeRowsForUpdate(PDO) array
   +activate(PDO,uuid)
 }
 class SifDeclarationRepository {
   +appendApproved(PDO,input) array
+  +assertReplay(existing,input)
   +findLatestApprovedByVersion(PDO,uuid) array
 }
 class BackupRestoreEvidenceRepository {
@@ -116,8 +123,12 @@ class BackupRestoreEvidenceRepository {
 }
 class SifVersionActivationRepository {
   +append(PDO,input) array
+  +assertReplay(existing,input)
   +findByIdempotencyKey(PDO,key) array
   +listByVersion(PDO,uuid) array
+}
+class SifVersionEvidenceVerifier {
+  +verify(PDO,uuid) array
 }
 class SifAuditEventRepository {
   +append(PDO,event) string
@@ -158,6 +169,8 @@ SifVersionService --> SifDeclarationRepository
 SifVersionService --> BackupRestoreEvidenceRepository
 SifVersionService --> SifVersionActivationRepository
 SifVersionService --> SifAuditEventRepository
+SifVersionEvidenceVerifier --> RuntimeVersionInspector
+SifVersionEvidenceVerifier --> BackupRestoreEvidenceRepository
 SifVersionService --> OperationalEventRepository
 
 SifVersionRepository --> sif_version
@@ -249,3 +262,29 @@ erDiagram
 - `SifVersionService::activate()` serialitza primer amb `sif_version_state FOR UPDATE`; després fa la comprovació idempotent autoritativa i bloqueja candidata/ACTIVE rows.
 - `MigrationRunner::inspect()` acredita ledger, hashes de migració i presència de taules/columnes declarades; no acredita tots els índexs/constraints/tipus SQL.
 - `BackupRestoreEvidenceRepository` és només un reader del contracte persistent UC-85. UC-85 continua sense servei executable complet, per tant aquesta relació és una dependència pendent d'entorn/governança.
+
+
+## 6. Guards físics de persistència afegits
+
+```mermaid
+classDiagram
+class sif_version {
+  ACTIVE_UNIQUE_GUARD
+  CHECK STATUS
+  UNIQUE ACTIVE_UNIQUE_GUARD
+}
+class sif_version_state {
+  ID = 1
+  ACTIVE_UUID_VERSION
+  CHECK ID=1
+  trigger no-delete
+}
+class sif_version_activation {
+  STATUS=ACTIVATED
+  CHECK STATUS
+  trigger no-update
+  trigger no-delete
+}
+```
+
+Aquests guards complementen, però no substitueixen, els locks i validacions del servei.
