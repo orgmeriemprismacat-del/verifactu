@@ -255,6 +255,18 @@ final class GroupParticipantRemovalCoordinator
             );
         }
 
+        if (($plan['amounts']['undisposed_attributed_funds'] ?? '0.00') !== '0.00') {
+            return $this->waitExternal(
+                $sifDb,
+                $uuidExecution,
+                'ECONOMIC_DISPOSITION_PENDING',
+                $actualFingerprint,
+                $plan,
+                $results,
+                'Attributed participant funds remain without an explicit refund, credit or non-refundable disposition'
+            );
+        }
+
         $result = [
             'ok' => true,
             'action' => 'confirm',
