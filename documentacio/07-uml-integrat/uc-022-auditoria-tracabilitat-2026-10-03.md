@@ -344,3 +344,64 @@ Garanties del runner:
 - conserva l'evidència a `sif/test-results/uc022-<timestamp>.log`.
 
 La mera existència del runner **no compta com a verificació**: cal conservar un log `RESULT=PASS` generat sobre l'entorn de test/preproducció.
+
+
+## 11. Verificació CI i separació de regressions alienes
+
+Els workflows generals del PR han finalitzat amb resultat global vermell, però les proves específiques creades per UC-022 han passat:
+
+- `ManualPaymentServiceTest::testRejectsSameTransferReferenceForDifferentInvoicePayload` — PASS.
+- 4/4 proves de `ManualTransferCommandServiceTest` — PASS.
+- `ManualPaymentPayloadBuilderTest::testPrioritizesImmutableBankEventIdOverFreeTextReference` — PASS.
+
+Aquests PASS apareixen tant al job general `SIF checks` com al job `SIF PHP MySQL tests`.
+
+Les 6 fallades observades al conjunt complet no corresponen al UC-022:
+- 5 proves de límits/privacitat del flux de packs;
+- 1 prova de `RedsysSignatureValidatorTest`.
+
+Per evitar que aquestes regressions alienes ocultin l'evidència del UC-022, s'ha afegit:
+- `sif/tests/run-uc022-tests.php`;
+- workflow `.github/workflows/uc-022-manual-transfer.yml`.
+
+## 12. Descobriment crític sobre la sincronització llegada
+
+La inspecció de `Intranet::efectuarPagamentFacturaGenerada()` confirma que **no es pot reutilitzar després del SIF** perquè fa una actualització fiscal directa sobre la factura llegada:
+
+`UPDATE factures SET data_pagament=?, IMPORT=?, FORMA_PAGAMENT=? WHERE NUM=?`
+
+A més, actualitza inscripcions, fraccionament i envia notificacions.
+
+Per evitar doble escriptura fiscal s'ha creat `SifLegacyPaymentProjection`, que:
+
+- no actualitza mai `factures`;
+- projecta només el pagament operacional a `inscripcions`;
+- suma sobre `PAGAMENT` existent, sense sobrepassar `A_PAGAR`;
+- marca `DATA PAG` només quan la inscripció queda completament pagada;
+- és idempotent per `external_bank_event_id`;
+- retorna `PENDING_RETRY` des del caller si el SIF ja ha confirmat però la projecció llegada falla.
+
+La taula auxiliar està definida a:
+`codi-drive/intranet-nova-canvis-verifactu/sql/uc-022-sif-legacy-payment-projection.sql`.
+
+### 12.1. Estat actual del tancament
+
+**Verificat en CI**
+- registre manual SIF;
+- idempotència;
+- conflicte per event reutilitzat;
+- autorització de la comanda;
+- prioritat de l'identificador bancari immutable.
+
+**Implementat però encara no verificat en preproducció real**
+- POST navegador → intranet amb CSRF;
+- refresc de rols des de BD;
+- HMAC intranet → SIF;
+- projecció operacional llegada;
+- reintent `PENDING_RETRY`.
+
+**Encara pendent**
+- desplegar la taula auxiliar al DB llegat de preproducció;
+- configurar secrets/rols runtime;
+- executar el flux complet sobre `sif_test`/preproducció amb moviment real o fixture controlada;
+- decidir la font definitiva de l'`external_bank_event_id` (ID d'operació/export bancari), evitant identificadors inventats.
