@@ -14,13 +14,26 @@ include('../RegalCurs.php');
 include("../inc/buscarPaginaStmt.php");
 include("../inc/missatgesError.php");
 
+if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    echo '<p>Error: mètode no permès.</p>';
+    return;
+}
+
 try {
-    $codiCurs = strtoupper(trim((string) ($_GET['codi'] ?? '')));
-    $estil = trim((string) ($_GET['estil'] ?? ''));
-    $desti = trim((string) ($_GET['desti'] ?? ''));
-    $origen = trim((string) ($_GET['origen'] ?? ''));
-    $dedicatoria = trim((string) ($_GET['dedicatoria'] ?? ''));
-    $dispositiu = trim((string) ($_GET['dispositiu'] ?? 'ordinador'));
+    $csrf = trim((string) ($_POST['csrf'] ?? ''));
+    $sessionCsrf = (string) ($_SESSION['uc017_gift_csrf'] ?? '');
+    if ($csrf === '' || $sessionCsrf === '' || !hash_equals($sessionCsrf, $csrf)) {
+        throw new RuntimeException('INVALID_GIFT_PREVIEW_CSRF');
+    }
+
+    $codiCurs = strtoupper(trim((string) ($_POST['codi'] ?? '')));
+    $estil = trim((string) ($_POST['estil'] ?? ''));
+    $desti = trim((string) ($_POST['desti'] ?? ''));
+    $origen = trim((string) ($_POST['origen'] ?? ''));
+    $dedicatoria = trim((string) ($_POST['dedicatoria'] ?? ''));
+    $dispositiu = trim((string) ($_POST['dispositiu'] ?? 'ordinador'));
 
     if ($codiCurs === '' || preg_match('/^[A-Z0-9_-]{1,30}$/D', $codiCurs) !== 1) {
         throw new RuntimeException('INVALID_GIFT_COURSE');
