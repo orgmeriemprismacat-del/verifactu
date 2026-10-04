@@ -24,6 +24,8 @@ on:
       - "codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftStatusClient.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_regal_automatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentRegalAutomatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/ajax/efectuarPagamentRegalAutomatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/js/mostrarEfectuarPagamentRegal.min.js"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
       - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
@@ -60,6 +62,8 @@ on:
       - "codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftStatusClient.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_regal_automatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentRegalAutomatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/ajax/efectuarPagamentRegalAutomatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/js/mostrarEfectuarPagamentRegal.min.js"
       - "codi-drive/intranet-actual/LegacyDiscountValidationLookup.php"
       - "codi-drive/intranet-actual/LegacyUsocLifecycleGuard.php"
       - "codi-drive/intranet-actual/SifAuthenticatedActor.php"
@@ -136,6 +140,8 @@ jobs:
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftStatusClient.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_regal_automatic.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/realitzaPagamentRegalAutomatic.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/ajax/efectuarPagamentRegalAutomatic.php
+          node --check codi-drive/pay-prisma-cat-canvis-verifactu/js/mostrarEfectuarPagamentRegal.min.js
           php -l codi-drive/web-actual/templates/inscripcions/enviamentPack.php
           node --check codi-drive/web-actual/js1619773569/mostrarInscripcioPack.min.js
           php -l codi-drive/web-actual/inc/PackPaymentGate.php
