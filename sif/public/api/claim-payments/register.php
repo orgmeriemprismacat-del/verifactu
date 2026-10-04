@@ -294,14 +294,17 @@ try {
         );
         $legacyDb->commit();
 
-        $paymentAudit->append($db, $legacyAuditBase + [
-            'result' => 'SUCCEEDED',
-            'is_terminal' => true,
-            'changeset' => array_merge(
-                (array) ($legacyAuditBase['changeset'] ?? []),
-                ['legacy_sync_result' => $legacySync]
-            ),
-        ]);
+        $paymentAudit->append($db, array_merge(
+            $legacyAuditBase,
+            [
+                'result' => 'SUCCEEDED',
+                'is_terminal' => true,
+                'changeset' => array_merge(
+                    (array) ($legacyAuditBase['changeset'] ?? []),
+                    ['legacy_sync_result' => $legacySync]
+                ),
+            ]
+        ));
     } catch (Throwable $legacyException) {
         if ($legacyDb->inTransaction()) {
             $legacyDb->rollBack();
