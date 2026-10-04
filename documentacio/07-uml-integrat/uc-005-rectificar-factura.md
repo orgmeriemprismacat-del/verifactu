@@ -1,6 +1,6 @@
 # UC-05 · Rectificar una factura — fitxa i UML integrats
 
-**Estat documental:** backend UC-005 reconciliat amb atomicitat, preview/confirm, idempotència, fiscalitat local fail-closed, receptor substitutiu i auditoria; **no s'acredita encara** el classificador UC-74 genèric, el proxy/UI intranet, el mapper AEAT rectificatiu complet, la concurrència E2E ni preproducció. **Casos relacionats:** UC-01 (emissió del nou document), UC-26/71 (canvi de curs), UC-27/72 (baixa), UC-28 (devolució econòmica), UC-30 (anul·lació de registre), UC-31 (subsanació) i UC-74 (classificació de correcció fiscal).
+**Estat documental:** backend UC-005 reconciliat amb atomicitat, preview/confirm, idempotència, fiscalitat local fail-closed, receptor substitutiu, consum de decisió UC-74 persistida i mapper AEAT server-side per un únic desglossament; **no s'acredita encara** el classificador UC-74 genèric, el proxy/UI intranet, els perfils AEAT complexos, la concurrència E2E ni preproducció. **Casos relacionats:** UC-01 (emissió del nou document), UC-26/71 (canvi de curs), UC-27/72 (baixa), UC-28 (devolució econòmica), UC-30 (anul·lació de registre), UC-31 (subsanació) i UC-74 (classificació de correcció fiscal).
 
 ## 1. Fitxa del cas d'ús
 
@@ -29,12 +29,12 @@
 | --- | --- |
 | A1. Identificar per número visible | `issueByNumVisible()` busca la factura original per `NUM_VISIBLE` i reutilitza el mateix procés. |
 | A2. Rectificació per diferències | Mode `DIFERENCIES`. La prova d'integració cobreix un exemple d'import `-40.00` i motiu `DEVOLUCIO_PARCIAL`. Això **no equival** a registrar una transferència de devolució. |
-| A3. Rectificació per substitució | `SUBSTITUCIO` admet un snapshot `billing` corregit a la R i manté l'original immutable. El tractament AEAT S i els imports substituïts continuen pendents del mapper oficial. |
+| A3. Rectificació per substitució | `SUBSTITUCIO` admet `billing` corregit, manté l'original immutable i el mapper AEAT genera `TipoRectificativa=S` + `ImporteRectificacion` des del snapshot original en el perfil simple suportat. |
 | A4. Reintent exacte | La clau idempotent permet que `InvoiceService` reutilitzi la rectificativa. La inserció de `factura_rectificacio` evita duplicats amb `ON DUPLICATE KEY UPDATE MOTIU = MOTIU`. |
 | E1. Original desconeguda | L'orquestrador rebutja la petició abans d'emetre. |
 | E2. Import zero, motiu absent o mode invàlid | El constructor rebutja la petició. |
 | **R1: atomicitat reforçada en branca** | UC-005 executa ara vincle i canvi d'estat dins el `beforeCommit` d'`InvoiceService`. La prova de rollback està escrita; falta evidència CI/MySQL verda i una prova de concurrència específica. |
-| **R2: fiscalitat local reforçada** | Per originals exempts preserva règim, quota zero i causa d'exempció. Per originals subjectes a IVA, `amount` sol es rebutja com ambigu i cal bloc `fiscal` explícit coherent. El mapper AEAT R1-R5/desglose continua pendent. |
+| **R2: fiscalitat + AEAT fail-closed** | UC-74 aporta R1-R5; el caller no pot imposar `type` ni `aeat_fields`. El mapper recupera el snapshot oficial original, construeix S/I i el desglossament simple, i rebutja múltiples desglossaments, recàrrec o canvi de tipus no acreditat. |
 | **R3: elecció de figura fiscal** | `FiscalCorrectionDecisionGuard` impedeix executar UC-005 sense una decisió `UC-74/RECTIFICATION` coherent. El classificador UC-74 que produeix aquesta decisió continua pendent i no pot ser substituït per dades enviades pel navegador. |
 
 **Resultats persistits:** nova `factura` sèrie `R`, les seves `factura_linia`, `factura_registres`, entrada `fiscal_queue`, `fact_rels` d'origen i `factura_rectificacio`; actualització de l'estat de la factura original. **No** es crea un moviment `payment_transaction` per aquest servei.
@@ -448,7 +448,7 @@ S'ha afegit `ManualRectificationServiceTest::testPersistsCatalanAliasesInRectifi
 
 1. Definir i implementar el criteri per escollir rectificativa, anul·lació de registre o subsanació a partir de la casuística real (UC-74/75/76).
 2. **Implementat al backend:** unitat transaccional emissió R + vinculació + estat original + auditoria terminal; resta validar concurrència E2E i execució MySQL de la suite.
-3. Completar el mapper AEAT R1-R5: `TipoRectificativa`, `FacturasRectificadas`, `ImporteRectificacion` per S i `Desglose` oficial des de snapshots congelats.
+3. **Parcialment implementat:** mapper AEAT R1-R5 per un únic desglossament i perfil fiscal compatible; ampliar-lo només amb regles provades per múltiples desglossaments, recàrrec, ISP/no-subjecció o canvis de perfil.
 4. Determinar si i quan hi ha un moviment econòmic separat (UC-28) i com s'enllaça amb la rectificativa.
 5. Implementar el proxy/UI intranet amb sessió, permís, same-origin i CSRF, mantenint la classificació fiscal server-side.
 
