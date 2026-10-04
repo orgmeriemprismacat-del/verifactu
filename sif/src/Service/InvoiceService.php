@@ -35,8 +35,10 @@ final class InvoiceService
         $this->commercialOperations ??= new CommercialOperationRepository();
     }
 
-    public function issueInvoice(array $payload): array
-    {
+    public function issueInvoice(
+        array $payload,
+        bool $respectBeforePaymentCoverage = false
+    ): array {
         $payload = $this->validator->validate($payload);
 
         if ($this->requiresOfficialAeatSnapshot() && !array_key_exists('aeat_fields', $payload)) {
@@ -52,7 +54,7 @@ final class InvoiceService
         }
 
         try {
-            return $this->createOrReuseInvoice($payload);
+            return $this->createOrReuseInvoice($payload, $respectBeforePaymentCoverage);
         } catch (\PDOException $exception) {
             if (!$this->isDuplicateKeyException($exception)) {
                 throw $exception;
@@ -68,13 +70,22 @@ final class InvoiceService
         }
     }
 
-    private function createOrReuseInvoice(array $payload): array
-    {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
+    private function createOrReuseInvoice(
+        array $payload,
+        bool $respectBeforePaymentCoverage
+    ): array {
+        return $this->transactions->run(
+            function (\PDO $db) use ($payload, $respectBeforePaymentCoverage): array {
             $existing = $this->invoices->findByIdempotencyKey($db, $payload['idempotency_key'], true);
             if ($existing !== null) {
                 return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
             }
+
+            $this->assertNoCoveredInvoiceMustBeReused(
+                $db,
+                $payload,
+                $respectBeforePaymentCoverage
+            );
 
             $year = (int) ($payload['year'] ?? date('Y'));
             $seq = $this->sequences->next($db, $payload['series'], $year);
@@ -107,7 +118,8 @@ final class InvoiceService
             $result = $this->withStatusProjection($db, $result);
 
             return $this->appendIssueAudit($db, $payload, $result, false);
-        });
+            }
+        );
     }
 
 
@@ -492,6 +504,40 @@ final class InvoiceService
             'uuid_factura' => $existing['UUID_FACTURA'],
             'num_visible' => $existing['NUM_VISIBLE'],
         ];
+    }
+
+    private function assertNoCoveredInvoiceMustBeReused(
+        \PDO $db,
+        array $payload,
+        bool $respectBeforePaymentCoverage
+    ): void {
+        if (!$respectBeforePaymentCoverage) {
+            return;
+        }
+
+        if ($this->beforePaymentCoverage === null) {
+            throw new \RuntimeException(
+                'UC-004 coverage guard requires the invoice-before-payment repository.'
+            );
+        }
+
+        // Lock the same indexed INSCRIPCIO origins used by UC-004.
+        // This serializes a concurrent UC-004 claim against this Redsys issue
+        // without turning the UC-004 coverage table into a global constraint.
+        $this->beforePaymentCoverage->lockOriginInvoiceRelations(
+            $db,
+            $payload['relations'] ?? []
+        );
+        $claims = $this->beforePaymentCoverage->findClaims(
+            $db,
+            $payload['relations'] ?? [],
+            true
+        );
+        if ($claims !== []) {
+            throw SifException::conflict(
+                'Redsys course origin is already covered by an invoice-before-payment operation'
+            );
+        }
     }
 
     private function requiresBeforePaymentCoverage(array $payload): bool
