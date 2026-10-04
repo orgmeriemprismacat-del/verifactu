@@ -1061,6 +1061,8 @@ class RegalCurs{
          $insertNomCursBD = $nomCursBD;
 
       // Serialitza dobles enviaments de la mateixa reserva de sessió.
+      // Els efectes laterals (correus/PDF) només s'executen quan la fila neix ara.
+      $reservationCreated = false;
       $lockName = 'uc017_gift_' . $codiRegalBD;
       $stmtLock = $connexio->prepare("SELECT GET_LOCK(?, 5)");
       $stmtLock->bind_param("s", $lockName);
@@ -1138,6 +1140,7 @@ class RegalCurs{
             if ((int) $idInserit <= 0) {
                throw new RuntimeException('GIFT_RESERVATION_INSERT_FAILED');
             }
+            $reservationCreated = true;
          }
       }
       finally {
@@ -1170,7 +1173,7 @@ class RegalCurs{
       $mailCurtGestio->addTo('gestio@prisma.cat');
       // $mailCurtGestio->addTo('meriem.prisma.cat@gmail.com');
       $mailCurtGestio->addMissatge($msg);
-      $mailCurtGestio->sendMessage();
+      if ($reservationCreated) $mailCurtGestio->sendMessage();
 
       $mailCurtBotiga = new Mail();
    	$mailCurtBotiga->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
@@ -1178,7 +1181,7 @@ class RegalCurs{
    	$mailCurtBotiga->addTo('botiga@prisma.cat');
    	// $mailCurtBotiga->addTo('meriem.prisma.cat@gmail.com');
    	$mailCurtBotiga->addMissatge($msg);
-   	$mailCurtBotiga->sendMessage();
+   	if ($reservationCreated) $mailCurtBotiga->sendMessage();
 
       $mailCurtWebMaster = new Mail();
    	$mailCurtWebMaster->addHeaders('PrisMa Gestio', 'gestio@prisma.cat', $emailBD);
@@ -1186,7 +1189,7 @@ class RegalCurs{
    	$mailCurtWebMaster->addTo('webmaster@prisma.cat');
    	// $mailCurtWebMaster->addTo('meriem.prisma.cat@gmail.com');
    	$mailCurtWebMaster->addMissatge($msg);
-   	$mailCurtWebMaster->sendMessage();
+   	if ($reservationCreated) $mailCurtWebMaster->sendMessage();
 
       /* ############### BUSCAR USERNME I PASSWORD AUTENTIFICACIÓ ############# */
 
@@ -1239,16 +1242,18 @@ class RegalCurs{
          $textAlertaConfirmacioInscripcio, $textManeresPagar);
       $missatge = str_replace($names_template, $names_function, $msg);
 
-      $mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-    										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-    										$subject, $missatge);
+      if ($reservationCreated) {
+         $mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
+            $nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+            $subject, $missatge);
 
-      $nomTo = 'PrisMa Gestio';
-      $correuTo = 'gestio@prisma.cat';
-      // $correuTo = 'meriem.prisma.cat@gmail.com';
-   	$mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
-   										$nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
-   										$subject, $missatge);
+         $nomTo = 'PrisMa Gestio';
+         $correuTo = 'gestio@prisma.cat';
+         // $correuTo = 'meriem.prisma.cat@gmail.com';
+         $mailAlumne = new MailSMTPComvive($username, $password, $nomFromHead, $correuFromHead,
+            $nomReplyHead, $correuReplyHead, $nomTo, $correuTo,
+            $subject, $missatge);
+      }
 
       /* ######################## CREAR TARGETES REGAL ######################## */
 
