@@ -73,9 +73,10 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 5. **IMPLEMENTAT:** emissió R + `factura_rectificacio` + estat original + audit terminal comparteixen la transacció d'`InvoiceService`.
 6. **IMPLEMENTAT:** `FOR UPDATE` i revalidació del snapshot original abans del COMMIT; falta prova de concurrència E2E amb dues sessions.
 7. **IMPLEMENTAT:** `sif_audit_event` i `operational_event` del command, amb `REQUESTED/SUCCEEDED/REUSED/FAILED`.
-8. **PENDENT E2E:** productor UC-74 → read model/pantalla → preview → confirm → R → document → consulta.
-9. **PENDENT DOCUMENTS:** existeixen registre, storage privat, descàrrega i auditoria, i l'esquema `document_job`, però no s'ha localitzat productor/worker que generi PDF/QR/XML després d'emetre la R.
-10. **PENDENT EVIDÈNCIA:** conclusió verda de la suite UC-005 i preproducció.
+8. **CONCURRÈNCIA:** `ManualRectificationConcurrencyTest` + worker multiprocés implementats; pendent execució CI. Verifiquen una sola R sota dues connexions i reintent posterior idempotent.
+9. **PENDENT E2E:** productor UC-74 → read model/pantalla → preview → confirm → R → document → consulta.
+10. **PENDENT DOCUMENTS:** existeixen registre, storage privat, descàrrega i auditoria, i l'esquema `document_job`, però no s'ha localitzat productor/worker que generi PDF/QR/XML després d'emetre la R.
+11. **PENDENT EVIDÈNCIA:** conclusió verda de la suite UC-005 i preproducció.
 
 ## 6. Estat global
 
