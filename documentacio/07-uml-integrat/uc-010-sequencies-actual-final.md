@@ -139,8 +139,8 @@ else preflight GO i candidata DRAFT
     else estat consistent
       S->>I: tornar a inspeccionar sota lock
       S->>VR: SUPERSEDE old + ACTIVE candidate
-    S->>AR: append immutable activation
-    AR->>DB: runtime evidence + actor + correlation
+      S->>AR: append immutable activation
+      AR->>DB: runtime evidence + actor + correlation
       S->>DB: audit + operational_event
       S->>DB: COMMIT
       S-->>U: ACTIVATED
