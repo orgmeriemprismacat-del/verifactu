@@ -66,6 +66,44 @@ final class PackConfirmationTokenTest
         );
     }
 
+    public function testExpiredTokenIsRejected(): void
+    {
+        $now = 1800000000;
+        $token = \PackConfirmationToken::encode(
+            13579,
+            self::KEY,
+            $now - \PackConfirmationToken::TTL_SECONDS - 1
+        );
+
+        Assert::throws(
+            \RuntimeException::class,
+            fn (): int => \PackConfirmationToken::decode(
+                $token,
+                self::KEY,
+                $now
+            )
+        );
+    }
+
+    public function testFutureTokenBeyondClockSkewIsRejected(): void
+    {
+        $now = 1800000000;
+        $token = \PackConfirmationToken::encode(
+            13579,
+            self::KEY,
+            $now + \PackConfirmationToken::CLOCK_SKEW_SECONDS + 1
+        );
+
+        Assert::throws(
+            \RuntimeException::class,
+            fn (): int => \PackConfirmationToken::decode(
+                $token,
+                self::KEY,
+                $now
+            )
+        );
+    }
+
     public function testLegacyUnversionedTokenIsRejectedFailClosed(): void
     {
         $legacy = base64_encode(random_bytes(64));
