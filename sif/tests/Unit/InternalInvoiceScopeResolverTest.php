@@ -13,14 +13,15 @@ final class InternalInvoiceScopeResolverTest
         $resolver = new InternalInvoiceScopeResolver(['facturacio'], ['consulta']);
         $actor = $resolver->resolve([
             'actor_id' => 'operator-1',
-            'roles' => ['FACTURACIO'],
+            'roles' => ['SUPORT', 'FACTURACIO'],
         ]);
 
         Assert::same('operator-1', $actor['actor_id']);
-        Assert::same(['FACTURACIO'], $actor['roles']);
+        Assert::same(['SUPORT', 'FACTURACIO'], $actor['roles']);
         Assert::same(true, $actor['invoice_scope']['all']);
         Assert::same('FULL', $actor['invoice_scope']['projection']);
         Assert::same('INTERNAL_ROLE', $actor['invoice_scope_source']);
+        Assert::same('FACTURACIO', $actor['invoice_scope_role']);
     }
 
     public function testMinimalRoleResolvesMinimalProjection(): void
@@ -33,6 +34,7 @@ final class InternalInvoiceScopeResolverTest
 
         Assert::same(['SUPORT'], $actor['roles']);
         Assert::same('MINIMAL', $actor['invoice_scope']['projection']);
+        Assert::same('SUPORT', $actor['invoice_scope_role']);
     }
 
     public function testUnknownRoleAndMissingActorFailClosed(): void
