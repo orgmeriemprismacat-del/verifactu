@@ -529,16 +529,16 @@ final class AeatWorkflowTest
         IssueInvoiceTest::serviceFor($db)->issueInvoice(
             $this->payload('AEAT-REMOTE-RESULT-PERSISTENCE-FAIL')
         );
-        $evidenceId = '20261004T001500Z-abcdefabcdefabcdefabcdef';
-
-        $transport = new class($evidenceId) implements AeatTransport {
+        $transport = new class implements AeatTransport {
             public int $calls = 0;
-
-            public function __construct(private string $evidenceId) {}
+            public string $evidenceId = '';
 
             public function send(array $payload): array
             {
                 $this->calls++;
+                $this->evidenceId = (string) (
+                    $payload['_sif_submission_attempt']['evidence_id'] ?? ''
+                );
 
                 return [
                     'status' => 'ACCEPTED',
@@ -565,8 +565,12 @@ final class AeatWorkflowTest
             'UNCERTAIN',
             $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn()
         );
+        Assert::matchesRegularExpression(
+            '/^\d{8}T\d{6}Z-[a-f0-9]{24}$/',
+            $transport->evidenceId
+        );
         Assert::same(
-            $evidenceId,
+            $transport->evidenceId,
             $db->query('SELECT EVIDENCE_ID FROM aeat_submission_attempt')->fetchColumn()
         );
         Assert::same(
