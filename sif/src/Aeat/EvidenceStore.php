@@ -7,6 +7,12 @@ final class EvidenceStore
 {
     public function __construct(private string $directory)
     {
+        if (is_link($directory)) {
+            throw new \RuntimeException(
+                'Evidence directory must not be a symbolic link.'
+            );
+        }
+
         $real = realpath($directory);
         $repo = realpath(dirname(__DIR__, 3));
         if ($real === false || !is_dir($real) || !is_writable($real)
@@ -18,6 +24,14 @@ final class EvidenceStore
             throw new \RuntimeException(
                 'Evidence requires a private writable directory outside the repository/webroot.'
             );
+        }
+        if (PHP_OS_FAMILY !== 'Windows') {
+            $permissions = fileperms($real);
+            if ($permissions === false || (($permissions & 0x0007) !== 0)) {
+                throw new \RuntimeException(
+                    'Evidence directory must not be accessible to other OS users.'
+                );
+            }
         }
         $this->directory = $real;
     }
