@@ -68,6 +68,7 @@ try {
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
     $isReconcile = in_array($action, ['reconcile', 'reconcile_evidence'], true);
+    $canReconcile = $reconcileRoles !== [] && array_intersect($roles, $reconcileRoles) !== [];
     $requiredRoles = $isReconcile ? $reconcileRoles : $readRoles;
     if ($requiredRoles === [] || array_intersect($roles, $requiredRoles) === []) {
         throw SifException::forbidden(
@@ -93,6 +94,9 @@ try {
         JsonResponse::send([
             'ok' => true,
             'data' => $repository->detail($db, (int) ($payload['queue_id'] ?? 0)),
+            'capabilities' => [
+                'reconcile' => $canReconcile,
+            ],
         ]);
         return;
     }
