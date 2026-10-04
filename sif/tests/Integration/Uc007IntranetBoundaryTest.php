@@ -169,7 +169,7 @@ final class Uc007IntranetBoundaryTest
             $intranet
         );
         Assert::stringContainsString(
-            "if ( $marcaGenerada && ( $generada == null || $generada == '' ) )",
+            "if ( \$marcaGenerada && ( \$generada == null || \$generada == '' ) )",
             $intranet
         );
     }
