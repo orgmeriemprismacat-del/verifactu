@@ -26,6 +26,11 @@ try {
 }
 
 $relativeFiles = [
+    'Integration/LegacyCourseInvoicePayloadBuilderTest.php',
+    'Integration/PrismaStudentCourseCheckoutServiceTest.php',
+    'Integration/RedsysAsyncFlowTest.php',
+    'Integration/RedsysCallbackDispatcherTest.php',
+    'Integration/RedsysCallbackQueueScriptTest.php',
     'Integration/CourseEnrollmentFundAllocationServiceTest.php',
     'Integration/RedsysCallbackTest.php',
     'Integration/RedsysCallbackWorkerTest.php',
@@ -41,8 +46,11 @@ $relativeFiles = [
     'Integration/RedsysCoursePreproductionScriptTest.php',
     'Integration/RedsysCoursePreviewScriptTest.php',
     'Integration/RedsysCourseReturnBoundaryTest.php',
+    'Integration/RedsysInvoicePayloadBuilderTest.php',
     'Integration/RedsysPaymentIntentTest.php',
+    'Unit/CourseLegacyPaymentSyncServiceTest.php',
     'Unit/JasomNovicePaymentGateTest.php',
+    'Unit/LegacyCourseSnapshotRepositoryTest.php',
     'Unit/RedsysDsOrderGeneratorTest.php',
     'Unit/RedsysLegacyApiSha512V2Test.php',
     'Unit/RedsysLegacySyncingProcessorCourseTest.php',
