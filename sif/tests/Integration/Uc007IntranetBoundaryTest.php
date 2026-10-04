@@ -124,6 +124,40 @@ final class Uc007IntranetBoundaryTest
         }
     }
 
+    public function testLegacyInvoicePreviewAndPdfEscapeDatabaseValues(): void
+    {
+        $intranet = $this->readIntranet('Intranet.php');
+        $start = strpos($intranet, 'public function generaFactura(');
+        $end = strpos($intranet, '/* -------------------------- Consultar certificat', $start === false ? 0 : $start);
+
+        if ($start === false || $end === false || $end <= $start) {
+            Assert::fail('Could not isolate legacy generaFactura implementation.');
+        }
+
+        $fragment = substr($intranet, $start, $end - $start);
+        foreach ([
+            '$this->__escapeHtmlValue($num)',
+            '$this->__escapeHtmlValue($objRao->get())',
+            '$this->__escapeHtmlValue($objCif->get())',
+            '$this->__escapeHtmlValue($objAdreca->get())',
+            '$this->__escapeHtmlValue($objPobl->get())',
+            '$this->__escapeHtmlValue($concepte1)',
+            '$this->__escapeHtmlValue($concepte2)',
+            '$this->__escapeHtmlValue($import)',
+        ] as $escapedValue) {
+            Assert::stringContainsString($escapedValue, $fragment);
+        }
+
+        foreach ([
+            '<p>".$concepte1."</p>',
+            "<strong>".$objRao->get()."</strong>",
+        ] as $unsafePattern) {
+            if (str_contains($fragment, $unsafePattern)) {
+                Assert::fail('Legacy invoice HTML contains unescaped database value: ' . $unsafePattern);
+            }
+        }
+    }
+
     public function testLegacyDownloadDoesNotMutateGeneratedMarker(): void
     {
         $wrapper = $this->readIntranet('ajax/alumnes/descarregaFactura.php');
