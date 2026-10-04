@@ -1,6 +1,6 @@
 # Revisió transversal · Traçabilitat dels fons associats a cada inscripció
 
-**Estat reconciliat 2026-10-04:** la base és executable i la branca UC-006 l'amplia. A més de `EXTERNAL_ALLOCATION`, hi ha primitives per `INTERNAL_TRANSFER`, `REFUND_EXIT`, `CREDIT_CREATE` i `COMPENSATION_ALLOCATION`, amb disponibilitat per inscripció, idempotència i rollback. Continuen pendents l'orquestrador funcional, titularitat, autorització, audit gateway i E2E/preproducció.
+**Estat reconciliat 2026-10-04:** la base és executable i la branca UC-006 l'amplia. A més de `EXTERNAL_ALLOCATION`, hi ha primitives per `INTERNAL_TRANSFER`, `REFUND_EXIT`, `CREDIT_CREATE` i `COMPENSATION_ALLOCATION`, amb disponibilitat, idempotència i rollback. Transfer/reversal ja tenen wrapper de `PaymentActionGateway`; continuen pendents l'orquestrador funcional, titularitat, autorització, auditoria de la resta d'accions i E2E/preproducció.
 
 ## 1. Diagnòstic contrastat: què existeix i què falta
 
@@ -200,7 +200,7 @@ Note over UI,Fiscal: La correcció fiscal i el canvi de BD llegada necessiten co
 - [Esquema academic_economic_state_event](../../sif/database/migrations/2026_09_16_000005_add_operation_lifecycle_tables.sql).
 - [PaymentRepository: INSERT de moviment i assignació per factura](../../sif/src/Repository/PaymentRepository.php).
 - [PaymentPayloadValidator: camps mínims del moviment i les assignacions](../../sif/src/Service/PaymentPayloadValidator.php).
-- [PaymentActionGateway](../../sif/src/Service/PaymentActionGateway.php) i [PaymentActionEventRepository](../../sif/src/Repository/PaymentActionEventRepository.php): auditoria existent però no substitut de l'atribució monetària per inscripció.
+- [PaymentActionGateway](../../sif/src/Service/PaymentActionGateway.php) i [PaymentActionEventRepository](../../sif/src/Repository/PaymentActionEventRepository.php): auditoria existent; transfer/reversal ja l'utilitzen via `EnrollmentFundTransferActionService`, però continua sense substituir el ledger quantitatiu.
 - [CreditBalanceService](../../sif/src/Service/CreditBalanceService.php) i [OperationalEventRepository](../../sif/src/Repository/OperationalEventRepository.php).
 - [Diccionari de camps i valors](../05-governanca-operacio/24-diccionari-camps-i-valors.md), [fluxos de facturació](../03-canvis-pendents/04-fluxos-facturacio.md) i [matriu de transformació](../04-estat-final/38-matriu-transformacio-funcional-verifactu.md).
 
