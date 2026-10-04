@@ -263,3 +263,17 @@ No executa cap moviment. Rebutja plans on la disposició econòmica supera els f
 `EnrollmentFundDispositionService` aplica reversals parcials idempotents. S'ha corregit el càlcul del saldo perquè un reversal parcial resti el seu propi import i no l'import complet del moviment origen.
 
 La saga queda en `WAITING_EXTERNAL` quan el pla demana repricing dels membres restants o disposició comptable no-retornable encara no classificada.
+
+
+## 8. Execució implementada de la saga de baixa
+
+`GroupParticipantRemovalCoordinator` utilitza `group_participant_change_execution` i `group_participant_change_step` per reprendre sense repetir efectes irreversibles.
+
+Subprocessos implementats:
+- baixa acadèmica mitjançant gateway;
+- rectificativa via `ManualRectificationService`;
+- refund real via `ManualRefundService`;
+- saldo via `CreditBalanceService`;
+- baixa quantitativa dels fons via `EnrollmentFundDispositionService`.
+
+Una execució no queda `COMPLETED` si resta import atribuït sense disposició explícita. Els reversals parcials redueixen només el seu import real.
