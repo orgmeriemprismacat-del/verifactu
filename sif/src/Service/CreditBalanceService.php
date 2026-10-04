@@ -99,6 +99,11 @@ final class CreditBalanceService
                 $this->creditIdempotencyPayload($payload)
             );
             $created = $this->credits->createCredit($db, $payload);
+            $this->ensureCreditFundExit(
+                $db,
+                $payload,
+                (string) $created['uuid_credit']
+            );
 
             return [
                 'ok' => true,
