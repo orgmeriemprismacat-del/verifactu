@@ -20,7 +20,9 @@ Aquest complement tanca dues mancances detectades a l'auditoria principal sense 
 - Si `NUM_VISIBLE` o `TIPUS_SERIE+ANY_FACT+NUM_SEQ` ja pertanyen a una altra clau idempotent: **409 CONFLICT**.
 - Si la mateixa clau idempotent ja existeix: el preflight no bloqueja el reintent i el repository continua sent l'autoritat que compara `IDEMPOTENCY_PAYLOAD_HASH`.
 - Si existeix una fila de `fiscal_sequence` per sèrie/any i el número històric és superior a `LAST_NUM`: **409 CONFLICT**. No s'avança ni es modifica la seqüència.
+- Si no existeix cap fila de `fiscal_sequence` i l'any del document és l'any fiscal actual o futur: **409 CONFLICT fail-closed**. Una seqüència encara no iniciada no es considera compatible per defecte.
 - Si el número històric és igual o inferior a `LAST_NUM` i no està ocupat a `factura`: el preflight permet l'importació i conserva `LAST_NUM`.
+- Per anys anteriors sense checkpoint de seqüència, es permet l'import històric si la identitat/numeració no està ocupada; no s'obre una nova seqüència.
 
 Això no resol el model multiemissor; simplement falla de forma explícita abans d'una col·lisió SQL o d'una futura emissió incompatible.
 
@@ -88,8 +90,8 @@ end
 Continuen pendents i no s'han maquillat com a resolts:
 
 - model de persistència multiemissor;
-- inventari/reconciliació completa del lot llegat;
-- custòdia física i verificació real dels bytes originals;
+- **execució i evidència** de l'inventari/reconciliació sobre el lot real (el servei read-only ja està implementat);
+- **execució i evidència** de custòdia sobre originals reals controlats (servei/storage privat ja implementats en no-production);
 - canal productiu autenticat/autoritzat;
 - política definitiva sobre sèrie↔tipus i diferències històriques totals↔línies;
 - prova de cut-over en `sif_pre` amb bloqueig de mutacions llegades.
