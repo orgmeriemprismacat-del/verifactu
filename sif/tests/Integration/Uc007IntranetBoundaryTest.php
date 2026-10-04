@@ -355,6 +355,28 @@ final class Uc007IntranetBoundaryTest
         }
     }
 
+    public function testSessionRefreshReplacesRevokedRolesBeforeUc007Authorization(): void
+    {
+        $session = $this->readIntranet('inc/comprovarSessio.php');
+        $user = $this->readIntranet('Usuari.php');
+
+        Assert::stringContainsString('SELECT PASSWORD, ROLS, MENU_EXT FROM usuaris WHERE USUARI LIKE ?', $session);
+        Assert::stringContainsString('$_SESSION[\'usuari\']-> replaceRols($rols);', $session);
+
+        $start = strpos($user, 'function replaceRols(');
+        if ($start === false) {
+            Assert::fail('Could not locate Usuari::replaceRols().');
+        }
+
+        $fragment = substr($user, $start, 900);
+        Assert::stringContainsString('$this->rols = array();', $fragment);
+        Assert::stringContainsString('!in_array($rol, $this->rols, true)', $fragment);
+
+        if (str_contains($session, '$_SESSION[\'usuari\']-> setRols($rols);')) {
+            Assert::fail('UC-007 session refresh must replace roles, not accumulate stale roles.');
+        }
+    }
+
     public function testUc007BrowserBoundaryUsesAuthenticatedServerBridge(): void
     {
         $bridge = $this->readIntranet('ajax/alumnes/sifFactures.php');
