@@ -23,6 +23,7 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') {
 
 require_once $root . '/LegacyDebtClaimContext.php';
 require_once $root . '/LegacyInvoiceMutationAuthorization.php';
+require_once $root . '/LegacyDebtClaimProjection.php';
 require_once $root . '/SifAuthenticatedActor.php';
 require_once $root . '/SifInternalDebtClaimClient.php';
 
@@ -65,6 +66,26 @@ try {
         if (!in_array($stage, ['FINAL_REMINDER', 'FIRST_CLAIM', 'FINAL_CLAIM'], true)) {
             throw new InvalidArgumentException('Etapa de reclamació no vàlida', 422);
         }
+        assertDebtClaimSurfaceStage($surface, $stage);
+
+        $projectionEnabled = filter_var(
+            getenv('SIF_DEBT_CLAIM_LEGACY_PROJECTION_ENABLED') ?: '0',
+            FILTER_VALIDATE_BOOLEAN
+        );
+        if ($projectionEnabled) {
+            if (!LegacyDebtClaimProjection::isSupported($surface, $stage)) {
+                throw new RuntimeException(
+                    'La projecció legacy no està habilitada per aquesta superfície',
+                    409
+                );
+            }
+            if (!isset($selector['id_insc'])) {
+                throw new InvalidArgumentException(
+                    'El pilot amb projecció legacy requereix ID_INSC',
+                    422
+                );
+            }
+        }
 
         $operationId = operationId($_POST['operation_id'] ?? null);
         $payload = array_merge($selector, [
@@ -78,7 +99,19 @@ try {
             $payload['notes'] = $notes;
         }
 
-        sendDebtClaimResult($client->recordNotice($actorId, $roles, $payload));
+        $result = $client->recordNotice($actorId, $roles, $payload);
+        if ($projectionEnabled
+            && ($result['ok'] ?? false) === true
+            && (int) ($result['_http_status'] ?? 200) < 300
+        ) {
+            $result['legacy_projection'] = LegacyDebtClaimProjection::project(
+                (int) $selector['id_insc'],
+                $surface,
+                $stage
+            );
+        }
+
+        sendDebtClaimResult($result);
         return;
     }
 
@@ -149,6 +182,25 @@ function invoiceSelector(array $input): array
     }
 
     return ['id_insc' => (string) ((int) $idInsc)];
+}
+
+function assertDebtClaimSurfaceStage(string $surface, string $stage): void
+{
+    $allowed = [
+        'RECORDATORI' => ['FINAL_REMINDER'],
+        'PRIMERA_RECLAMACIO' => ['FIRST_CLAIM'],
+        'RECLAMACIO_FINAL' => ['FINAL_CLAIM'],
+        'MOROSOS' => ['FINAL_CLAIM'],
+    ];
+
+    $surface = strtoupper(trim($surface));
+    $stage = strtoupper(trim($stage));
+    if (!isset($allowed[$surface]) || !in_array($stage, $allowed[$surface], true)) {
+        throw new RuntimeException(
+            'L’etapa de reclamació no correspon a la superfície actual',
+            409
+        );
+    }
 }
 
 function operationId(mixed $value): string
