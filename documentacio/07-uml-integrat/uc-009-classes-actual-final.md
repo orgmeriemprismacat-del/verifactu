@@ -89,6 +89,7 @@ class AeatSubmissionAttemptRepository {
   +begin(db,item,payload) array
   +anchorEvidenceResponse(db,uuid,evidenceId,responseHash,httpStatus) void
   +complete(db,uuid,status,response) void
+  -assertTerminalEvidenceAnchored(db,uuid,evidenceId) void
   +fail(db,uuid,status,detail,evidenceId) void
   +markStartedUncertain(db,uuid,detail) void
   +completeUncertainFromEvidence(db,uuid,evidenceId,status,response) void
@@ -297,3 +298,17 @@ SoapTransport --> EvidenceStore : beginWithId(EVIDENCE_ID)
 - `EVIDENCE_HTTP_STATUS INT NULL`.
 
 Aquests camps són la referència independent usada per `AeatEvidenceReconciliationService`. El panell no els exposa: `AeatOperationsReadRepository` només projecta `EVIDENCE_RECONCILABLE=0|1`.
+
+
+## 8. Invariant terminal ancorat — 2026-10-04
+
+`AeatSubmissionAttemptRepository::complete()` ja no admet un resultat terminal només perquè el transport retorni `ACCEPTED|ACCEPTED_WITH_ERRORS|REJECTED`.
+
+Abans de `STARTED → terminal` exigeix:
+1. `EVIDENCE_ID` present a la resposta;
+2. coincidència exacta amb l'ID preassignat a l'intent;
+3. `EVIDENCE_RESPONSE_SHA256` vàlid ja ancorat a MySQL;
+4. `EVIDENCE_HTTP_STATUS = 200`;
+5. intent encara `STARTED`.
+
+Si qualsevol condició falla, el processador no consolida el resultat fiscal: passa a `REVIEW`, l'intent queda `UNCERTAIN` i el worker no torna a invocar el transport automàticament.
