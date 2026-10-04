@@ -200,3 +200,20 @@ Aquesta és una diferència deliberada respecte del comportament antic: la traç
 ### 12.1. Lectura de tancament
 
 Les mancances que continuen obertes són **del fallback llegat** (F02-01, F05-01/F05-03, F06-01/F06-02 i PDF-01..03). No bloquegen el model FINAL UC-007/080, però sí bloquegen afirmar que el circuit llegat és equivalent o completament sanejat. La retirada del fallback continua sent el criteri final.
+
+
+## 11. Troballa F07-L · `GENERAT` mutava en descarregar factura llegada — CORREGIT
+
+La inspecció directa del blob complet `Intranet.php` ha permès acreditar una mutació que les lectures parcials anteriors no mostraven:
+
+- `generaFactura($factura, true)` genera el PDF temporal;
+- si `GENERAT` era nul/buit, executava `updGeneratFactura`;
+- per tant, la descàrrega llegada no era estrictament read-only.
+
+A la branca:
+- `generaFactura()` passa a admetre `$marcaGenerada = true` per compatibilitat amb altres fluxos llegats;
+- `descarregaFactura.php`, que és la frontera de consulta UC-007, crida `generaFactura((int) $id, true, false)`;
+- l'UPDATE de `GENERAT` només s'executa si `$marcaGenerada` és `true`;
+- `Uc007IntranetBoundaryTest` fixa aquesta semàntica.
+
+Això preserva el comportament històric fora d'UC-007 i fa que **consultar/descarregar des d'UC-007 no modifiqui l'estat de la factura llegada**. La creació del PDF temporal continua sent una operació tècnica de sortida, no una mutació fiscal/econòmica de BD.
