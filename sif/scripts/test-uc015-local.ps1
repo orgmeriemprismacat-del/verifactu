@@ -33,6 +33,8 @@ try {
     $lines.Add('RedsysPaymentIntentTest::testRejectsPackIntentWhenSnapshotTotalDiffersFromExpectedAmount')
     $lines.Add('RedsysPaymentIntentTest::testRejectsPackIntentWithoutCommercialOrdinal')
     $lines.Add('LegacyPackInvoicePayloadBuilderTest::testUsesCommercialOrdinalWhenSnapshotItemsArriveOutOfOrder')
+    $lines.Add('NotificationOutboxDeliveryServiceTest::testClaimIsAtMostOnceAndSentCompletionIsIdempotent')
+    $lines.Add('NotificationOutboxDeliveryServiceTest::testKnownFailureRequiresReviewAndIsNotAutomaticallyReclaimed')
     $lines.Add('RedsysPackInvoiceServiceTest::testRejectsPackWhenValidatedRedsysAmountDiffersFromInvoiceLines')
     $lines.Add('RedsysPackInvoiceServiceTest::testIntentSnapshotCreatesOneDurableNotificationAcrossRetry')
     $lines.Add('RedsysPackInvoiceServiceTest::testRejectsLegacyPackWithoutCompleteCommercialSnapshot')
