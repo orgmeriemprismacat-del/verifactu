@@ -42,6 +42,22 @@ final class SifVersionServiceTest
             Assert::same(true, $replayed['reused']);
             Assert::same($uuid, $replayed['version']['UUID_VERSION']);
 
+            $registerTraceReplay = $registerInput;
+            $registerTraceReplay['request_id'] = 'REQ-REGISTER-TRACE-RETRY';
+            $registerTraceReplay['correlation_id'] = 'CORR-REGISTER-TRACE-RETRY';
+            Assert::same(
+                true,
+                $service->registerCurrentRuntime($actor, $registerTraceReplay)['reused']
+            );
+
+            $registerDifferentReason = $registerInput;
+            $registerDifferentReason['reason_code'] = 'RELEASE_RENAMED';
+            Assert::throws(
+                SifException::class,
+                fn () => $service->registerCurrentRuntime($actor, $registerDifferentReason),
+                409
+            );
+
             $declarationInput = $this->operation('DECL-1', 'DECLARATION_APPROVAL') + [
                 'declaration_version' => 'v1',
                 'storage_key' => 'declaracio-v1.pdf',
@@ -54,6 +70,22 @@ final class SifVersionServiceTest
 
             $declarationReplay = $service->attachDeclaration($actor, $uuid, $declarationInput);
             Assert::same(true, $declarationReplay['reused']);
+
+            $declarationTraceReplay = $declarationInput;
+            $declarationTraceReplay['request_id'] = 'REQ-DECL-TRACE-RETRY';
+            $declarationTraceReplay['correlation_id'] = 'CORR-DECL-TRACE-RETRY';
+            Assert::same(
+                true,
+                $service->attachDeclaration($actor, $uuid, $declarationTraceReplay)['reused']
+            );
+
+            $declarationDifferentReason = $declarationInput;
+            $declarationDifferentReason['reason_code'] = 'LEGAL_REAPPROVAL';
+            Assert::throws(
+                SifException::class,
+                fn () => $service->attachDeclaration($actor, $uuid, $declarationDifferentReason),
+                409
+            );
 
             $preflight = $service->preflight($actor, $uuid);
             Assert::same(true, $preflight['preflight']['ok']);
@@ -103,6 +135,22 @@ final class SifVersionServiceTest
 
             $activationReplay = $service->activate($actor, $uuid, $activationInput);
             Assert::same(true, $activationReplay['reused']);
+
+            $activationTraceReplay = $activationInput;
+            $activationTraceReplay['request_id'] = 'REQ-ACT-TRACE-RETRY';
+            $activationTraceReplay['correlation_id'] = 'CORR-ACT-TRACE-RETRY';
+            Assert::same(
+                true,
+                $service->activate($actor, $uuid, $activationTraceReplay)['reused']
+            );
+
+            $activationDifferentReason = $activationInput;
+            $activationDifferentReason['reason_code'] = 'EMERGENCY_APPROVAL';
+            Assert::throws(
+                SifException::class,
+                fn () => $service->activate($actor, $uuid, $activationDifferentReason),
+                409
+            );
 
             Assert::throws(
                 SifException::class,
