@@ -79,11 +79,11 @@ No es considera encara verificació operativa completa perquè el HEAD del PR #1
 
 ### P0 — `aeat_fields` en PREPROD/PROD
 
-`InvoiceService::issueInvoice()` exigeix snapshot oficial AEAT en entorns qualificats. El payload UC-004 actual encara no el construeix server-side. Per tant el flux està dissenyat per **fallar tancat** abans d'emetre en aquests entorns mentre aquesta peça no existeixi.
+`InvoiceService::issueInvoice()` exigeix snapshot oficial AEAT en entorns qualificats. El payload UC-004 actual encara no el construeix server-side. El endpoint, a més, rebutja explícitament qualsevol `aeat_fields` o `aeat_header` aportat pel caller. Per tant el flux està dissenyat per **fallar tancat** abans d'emetre mentre no existeixin el perfil fiscal UC-004 versionat i el builder server-side. Vegeu [contracte AEAT pendent](uc-004-contracte-aeat-pendent-2026-10-04.md).
 
 ### P0/P1 — document fiscal immutable per UUID
 
-El `main` ja disposa de l'esquema `document_job`, metadades `factura_documents`, auditoria d'accés i descàrrega privada signada. El que falta és completar el **pipeline productor UC-004**: queue post-COMMIT, snapshot fiscal verificat, repository/worker amb lease i retry, storage writer immutable i renderer PDF/QR/XML. El PR #134 conté una implementació candidata d'aquestes peces; el check específic UC-004 va passar i els 6 errors globals eren aliens al UC-004, però no es recuperarà el PR sencer a cegues.
+El `main` ja disposa de l'esquema `document_job`, metadades `factura_documents`, auditoria d'accés i descàrrega privada signada. Vegeu [pla de recuperació selectiva](uc-004-recuperacio-pipeline-documental-2026-10-04.md). El que falta és completar el **pipeline productor UC-004**: queue post-COMMIT, snapshot fiscal verificat, repository/worker amb lease i retry, storage writer immutable i renderer PDF/QR/XML. El PR #134 conté una implementació candidata d'aquestes peces; el check específic UC-004 va passar i els 6 errors globals eren aliens al UC-004, però no es recuperarà el PR sencer a cegues.
 
 ### P1 — cobertura transversal
 
