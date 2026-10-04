@@ -105,6 +105,50 @@ final class RedsysUsocInvoiceServiceTest
         Assert::same('PENDING', $case['ENTITY_PAYMENT_STATUS']);
     }
 
+    public function testRejectsValidatedRedsysAmountThatDiffersFromLegacyAPagarBeforeAnyFiscalEffect(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $legacyDb = new RedsysUsocLegacySpyPdo([
+            $this->inscriptionRow(),
+            $this->courseRow(),
+        ]);
+        $notifications = new RedsysNotificationRepository();
+        $service = $this->service($notifications, $sifDb);
+
+        $notifications->recordReceived(
+            $sifDb,
+            'ORDERUSOCAMOUNTDRIFT',
+            980,
+            '74.00',
+            '0000',
+            true,
+            ['source' => 'usoc-amount-drift-test'],
+            'VALIDATED'
+        );
+
+        $exception = Assert::throws(SifException::class, function () use (
+            $sifDb,
+            $legacyDb,
+            $service
+        ): void {
+            $service->issueStudentFromValidatedNotification(
+                $sifDb,
+                $legacyDb,
+                'ORDERUSOCAMOUNTDRIFT',
+                '25.00',
+                880
+            );
+        }, 409);
+
+        Assert::same(
+            'Validated Redsys USOC student amount does not match legacy A_PAGAR',
+            $exception->getMessage()
+        );
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(0, (int) $sifDb->query('SELECT COUNT(*) FROM usoc_financing_case')->fetchColumn());
+    }
+
     public function testRejectsMissingUsocEntityAmountBeforeLoadingLegacy(): void
     {
         $sifDb = TestDatabase::fresh();
