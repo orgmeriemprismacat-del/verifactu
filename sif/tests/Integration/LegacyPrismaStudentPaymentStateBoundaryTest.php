@@ -55,6 +55,21 @@ final class LegacyPrismaStudentPaymentStateBoundaryTest
         );
     }
 
+    public function testFractionalPrismaStudentHidesLegacyPaymentMethods(): void
+    {
+        foreach ([
+            'codi-drive/web-actual/PagamentCursAutomatic.php',
+            'codi-drive/pay-prisma-cat-canvis-verifactu/PagamentCursAutomatic.php',
+        ] as $relative) {
+            $source = $this->read($relative);
+
+            Assert::stringContainsString(
+                '!($this->tipusDesc == 1 && $this->obtenirFraccionat())',
+                $source
+            );
+        }
+    }
+
     public function testSifPrismaStudentCardIntentAlsoRequiresPayableState(): void
     {
         $source = $this->read('sif/src/Service/RedsysCoursePaymentIntentService.php');
