@@ -33,6 +33,16 @@ on:
       - "codi-drive/web-actual/templates/inscripcions/enviamentPack.php"
       - "codi-drive/web-actual/pagina_efectuar_pagament_grup_automatic.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php"
+      - "codi-drive/web-actual/pagina_regal.php"
+      - "codi-drive/web-actual/RegalCurs.php"
+      - "codi-drive/web-actual/BescanviaRegal.php"
+      - "codi-drive/web-actual/ajax/previsualitza_regal.php"
+      - "codi-drive/web-actual/ajax/enviarInscripcioRegal.php"
+      - "codi-drive/web-actual/js1619773569/mostrarRegal.min.js"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/GiftPaymentReturnStatus.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/PagamentRegalAutomatic.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/respostaOkPagamentRegal.php"
+      - "codi-drive/pay-prisma-cat-canvis-verifactu/respostaKoPagamentRegal.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftIntentClient.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftStatusClient.php"
       - "codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_regal_automatic.php"
@@ -138,6 +148,16 @@ jobs:
           php -l codi-drive/web-actual/respostaOkPagamentAutomatic.php
           php -l codi-drive/web-actual/respostaKoPagamentAutomatic.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_grup_automatic.php
+          php -l codi-drive/web-actual/pagina_regal.php
+          php -l codi-drive/web-actual/RegalCurs.php
+          php -l codi-drive/web-actual/BescanviaRegal.php
+          php -l codi-drive/web-actual/ajax/previsualitza_regal.php
+          php -l codi-drive/web-actual/ajax/enviarInscripcioRegal.php
+          node --check codi-drive/web-actual/js1619773569/mostrarRegal.min.js
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/GiftPaymentReturnStatus.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/PagamentRegalAutomatic.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/respostaOkPagamentRegal.php
+          php -l codi-drive/pay-prisma-cat-canvis-verifactu/respostaKoPagamentRegal.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftIntentClient.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/SifRedsysGiftStatusClient.php
           php -l codi-drive/pay-prisma-cat-canvis-verifactu/pagina_efectuar_pagament_regal_automatic.php
