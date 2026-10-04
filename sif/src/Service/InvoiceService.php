@@ -85,11 +85,28 @@ final class InvoiceService
             }
 
             if ($this->requiresBeforePaymentCoverage($payload) && $this->beforePaymentRedsysGuard !== null) {
+                $this->beforePaymentRedsysGuard->assertNoExistingSifInvoices(
+                    $db,
+                    $payload['relations'] ?? [],
+                    true
+                );
                 $this->beforePaymentRedsysGuard->assertNoBlockingCourseIntents(
                     $db,
                     $payload['relations'] ?? [],
                     true
                 );
+            }
+
+            if ($this->isRedsysCourseInvoice($payload) && $this->beforePaymentCoverage !== null) {
+                $claims = $this->beforePaymentCoverage->findClaims(
+                    $db,
+                    $payload['relations'] ?? []
+                );
+                if ($claims !== []) {
+                    throw SifException::conflict(
+                        'Redsys course invoice conflicts with an existing invoice-before-payment coverage'
+                    );
+                }
             }
 
             $year = (int) ($payload['year'] ?? date('Y'));
@@ -508,6 +525,15 @@ final class InvoiceService
             'uuid_factura' => $existing['UUID_FACTURA'],
             'num_visible' => $existing['NUM_VISIBLE'],
         ];
+    }
+
+    private function isRedsysCourseInvoice(array $payload): bool
+    {
+        return strtoupper(trim((string) ($payload['source_channel'] ?? ''))) === 'REDSYS'
+            && str_starts_with(
+                strtoupper(trim((string) ($payload['idempotency_key'] ?? ''))),
+                'REDSYS|CURS|'
+            );
     }
 
     private function hasInscriptionOrigins(array $payload): bool
