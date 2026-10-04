@@ -64,6 +64,25 @@ try {
     $origen = trim((string) ($_POST['origen'] ?? ''));
     $dedicatoria = trim((string) ($_POST['dedicatoria'] ?? ''));
 
+    uc017GiftRequiredText($nom, 80, 'nom');
+    uc017GiftRequiredText($cog, 120, 'cognoms');
+    uc017GiftRequiredText($dni, 30, 'documentacio');
+    uc017GiftRequiredText($telf, 30, 'telefon');
+    uc017GiftRequiredText($adreca, 150, 'adreca');
+    uc017GiftRequiredText($cp, 12, 'codi_postal');
+    uc017GiftRequiredText($poblacio, 100, 'poblacio');
+    uc017GiftOptionalText($comentaris, 2000, 'comentaris');
+    uc017GiftRequiredText($desti, 120, 'destinatari');
+    uc017GiftOptionalText($origen, 120, 'origen');
+    uc017GiftOptionalText($dedicatoria, 2000, 'dedicatoria');
+
+    if (strlen($email) > 254 || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+        throw new RuntimeException('INVALID_GIFT_EMAIL');
+    }
+    if (preg_match('/^estil-[1-9][0-9]?$/D', $estilRegal) !== 1) {
+        throw new RuntimeException('INVALID_GIFT_STYLE');
+    }
+
     $regal = new RegalCurs('ordinador');
 
     // Els quatre camps econòmics/descriptor ja no provenen del navegador.
@@ -96,4 +115,19 @@ catch(Throwable $e) {
     http_response_code(400);
     error_log('UC-017 gift reservation rejected: ' . get_class($e));
     echo '<p>Error en preparar la comanda del regal. Torna a iniciar el procés.</p>';
+}
+
+
+function uc017GiftRequiredText(string $value, int $maxLength, string $field): void
+{
+    if ($value === '' || mb_strlen($value, 'UTF-8') > $maxLength) {
+        throw new RuntimeException('INVALID_GIFT_FIELD_' . strtoupper($field));
+    }
+}
+
+function uc017GiftOptionalText(string $value, int $maxLength, string $field): void
+{
+    if (mb_strlen($value, 'UTF-8') > $maxLength) {
+        throw new RuntimeException('INVALID_GIFT_FIELD_' . strtoupper($field));
+    }
 }
