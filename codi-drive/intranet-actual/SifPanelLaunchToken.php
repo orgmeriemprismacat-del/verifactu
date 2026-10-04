@@ -29,6 +29,19 @@ final class SifPanelLaunchToken
         if (!is_array($parts) || strtolower((string) ($parts['scheme'] ?? '')) !== 'https') {
             throw new RuntimeException('SIF panel launch URL requires HTTPS');
         }
+
+        $host = strtolower(trim((string) ($parts['host'] ?? '')));
+        if ($host === '' || ($host !== 'prisma.cat' && !str_ends_with($host, '.prisma.cat'))) {
+            throw new RuntimeException('SIF panel launch URL host is not allowed');
+        }
+        if (isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
+            throw new RuntimeException('SIF panel launch URL must not contain credentials, query or fragment');
+        }
+
+        $urlPath = (string) ($parts['path'] ?? '');
+        if ($urlPath === '' || $urlPath !== $this->path || !str_starts_with($urlPath, '/sif/')) {
+            throw new RuntimeException('SIF panel launch URL path must match the signed SIF path');
+        }
     }
 
     public function create(string $actorId, array $roles): array
