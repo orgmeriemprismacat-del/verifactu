@@ -32,7 +32,7 @@ Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoad
 
 /* Consulta el codi del main */
 var requestMain = $.ajax({
-	url: "https://intranet.prisma.cat/ajax/mostrarMain.php",
+	url: path + "mostrarMain.php",
 	method: "GET",
 	data: { url : urlPagina },
 	dataType: "html"
