@@ -39,6 +39,38 @@ final class SifInternalUsocClient
         ]);
     }
 
+    public function viewFinancingTerms(
+        string $actorId,
+        array $roles,
+        int $idInsc,
+        int $idpag
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'view_financing_terms',
+            'id_insc' => $idInsc,
+            'idpag' => $idpag,
+        ]);
+    }
+
+    public function prepareFinancingTerms(
+        string $actorId,
+        array $roles,
+        string $requestId,
+        int $idInsc,
+        int $idpag,
+        string $studentAmount,
+        string $entityAmount
+    ): array {
+        return $this->request($actorId, $roles, [
+            'action' => 'prepare_financing_terms',
+            'request_id' => trim($requestId),
+            'id_insc' => $idInsc,
+            'idpag' => $idpag,
+            'student_amount' => $studentAmount,
+            'entity_amount' => $entityAmount,
+        ]);
+    }
+
     public function issueEntityInvoice(string $actorId, array $roles, array $input): array
     {
         return $this->request($actorId, $roles, [
