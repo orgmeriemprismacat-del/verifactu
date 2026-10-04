@@ -1,53 +1,68 @@
-# UC-007 · Matriu de traçabilitat i estats — 2026-10-03
+# UC-007 · Matriu de traçabilitat i estats — 2026-10-04
+
+## 1. Criteri d'estat
+
+- **DOCUMENTAT**: contracte/diagrama/traça presents.
+- **IMPLEMENTAT**: el codi existeix al head del PR #135.
+- **PASS CI INICIAL**: la prova constava PASS al primer head auditat `215aee90...`.
+- **CI HEAD FINAL PENDENT**: la prova/correcció s'ha afegit després i el run final encara no ha acabat.
+- **RUNTIME PENDENT**: requereix navegador, rols, BD/storage o feature flags de test/preproducció.
+- **PENDENT FINAL**: funcionalitat deliberadament fora del tall actual.
+
+## 2. Matriu requisit → codi → UML → evidència
 
 | Requisit / invariant | Codi | UML | Prova/evidència | Estat |
 | --- | --- | --- | --- | --- |
-| UUID és identitat canònica | validator/repository/query service + JS deep link | seq S1-S3 | InvoiceQueryServiceTest + boundary test | IMPLEMENTAT / VERIFICACIÓ CI PENDENT |
-| Consulta no muta fiscal/econòmic | InvoiceReadRepository/QueryService | classes + S2 | InvoiceQueryServiceTest | IMPLEMENTAT; runtime pendent |
-| Criteris whitelist/exactes | InvoiceQueryCriteriaValidator | S1 | tests query | IMPLEMENTAT |
-| Actor/rol no ve del navegador | Legacy read context + SifAuthenticatedActor + HMAC | S1 | InternalApiAuthenticatorTest + boundary | IMPLEMENTAT |
-| Scope FULL/MINIMAL fail-closed | resolver + visibility policy | classes/S1 | ResolvedInvoiceVisibilityPolicyTest | IMPLEMENTAT |
-| Estat factura/cobrament/AEAT separats | projection + UI | S2 | tests servei | IMPLEMENTAT |
-| Original/rectificativa separats | read repository rectifications | S2 | tests servei + runtime pendent | IMPLEMENTAT PARCIAL |
-| Metadata document sense path físic | findDocumentMetadata | classes/S5 | test servei | IMPLEMENTAT |
-| Bytes només via UC-080 | sifDocument + document endpoint/service | S5 | boundary + `InvoiceDocumentAccessServiceTest` | IMPLEMENTAT / CI NOU PENDENT |
-| Hash físic verificat abans stream | PrivateDocumentStore/InvoiceDocumentAccessService | S5 | `InvoiceDocumentAccessServiceTest` (hash mismatch + bytes correctes) | IMPLEMENTAT / TEST D'INTEGRACIÓ; ENTORN REAL PENDENT |
-| Accés document auditat | FiscalDocumentAccessRepository | S5 | `InvoiceDocumentAccessServiceTest` ALLOWED/DENIED/FAILED | IMPLEMENTAT / TEST D'INTEGRACIÓ; ENTORN REAL PENDENT |
-| AL-16 deep link UUID | alumnes-mostrar-alumne.js + alumnes-factura.js | S3 | Uc007IntranetBoundaryTest | CORREGIT/PROTEGIT |
-| AL-17 modal SIF | alumnes-mostrar-alumne.js | S4 | boundary + E2E pendent | IMPLEMENTAT |
-| Fallback download POST | descarregaFactura.php + JS font | activitat fallback | boundary | CORREGIT; E2E pendent |
-| Paginació fallback conserva handlers | JS font | activitat fallback | boundary | CORREGIT |
-| Una sola implementació JS per pàgina | includes PHP | inventari | boundary | CORREGIT |
-| Feature flags fail explicit | sifFactures/sifDocument | S1/S5 | runtime pendent | IMPLEMENTAT |
-| Bloqueig mutació llegada sobre SIF | SifLegacyInvoiceMutationGuard | fallback | runtime pendent | IMPLEMENTAT PARCIAL |
-| Canals externs alumne/empresa | UC-102/126 | FINAL classes | no | PENDENT |
-| Retirada fallback | n/a | FINAL activitats | no | PENDENT |
+| UUID és identitat canònica | validator/repository/query service + deep link | S1-S3, F02 | `InvoiceQueryServiceTest` + `Uc007IntranetBoundaryTest` | IMPLEMENTAT · PASS CI INICIAL |
+| Consulta SIF no muta fiscal/econòmic | `InvoiceReadRepository` + `InvoiceQueryService` | S2 | test de zero mutació | IMPLEMENTAT · PASS CI INICIAL |
+| Descàrrega llegada UC-007 no muta `generada` | `generaFactura(...,$marcaGenerada)` + `descarregaFactura.php` | S8, F07 | `testLegacyDownloadDoesNotMutateGeneratedMarker` | CORREGIT · CI HEAD FINAL PENDENT |
+| Criteris whitelist/exactes | `InvoiceQueryCriteriaValidator` | S1/F02 | query tests + source type/id errors | IMPLEMENTAT · PASS BASE + AMPLIACIÓ CI PENDENT |
+| Cerca per inscripció pot retornar múltiples UUID | repository/query service | S3/F02 | test múltiple `SOURCE_TYPE=INSCRIPCIO` | IMPLEMENTAT · CI HEAD FINAL PENDENT |
+| Actor/rol no ve del navegador | sessió refrescada + `SifAuthenticatedActor` + HMAC | classes/S1 | `InternalApiAuthenticatorTest` + boundary | IMPLEMENTAT · PASS CI INICIAL |
+| Rol intern resol FULL/MINIMAL fail-closed | `InternalInvoiceScopeResolver` | classes/S1 | `InternalInvoiceScopeResolverTest` | IMPLEMENTAT · CI HEAD FINAL PENDENT |
+| Projecció MINIMAL no exposa fiscal/document | `ResolvedInvoiceVisibilityPolicy` | classes/S2 | `ResolvedInvoiceVisibilityPolicyTest` | IMPLEMENTAT · PASS CI INICIAL |
+| Estat factura/cobrament/AEAT separat | read model | S2/F05 | query service tests | IMPLEMENTAT · PASS CI INICIAL |
+| Original/rectificativa i pagaments separats | read repository | S2 | `testViewKeepsPaymentsAndRectificationAsSeparateRelations` | IMPLEMENTAT · PASS CI INICIAL |
+| Metadata document no exposa path/hash físic | `findDocumentMetadata` | S2/S5 | service/boundary | IMPLEMENTAT · VERIFICAT ESTÀTICAMENT |
+| Bytes només via UC-080 | `sifDocument.php` + document endpoint/service | S5/F07 | `InvoiceDocumentAccessServiceTest` | IMPLEMENTAT · CI HEAD FINAL PENDENT |
+| Hash abans de stream | `PrivateDocumentStore::readVerified` | S5 | bytes correctes + hash mismatch | IMPLEMENTAT · CI HEAD FINAL PENDENT · ENTORN REAL PENDENT |
+| Path fora de `SIF_DOCUMENT_ROOT` denegat | `PrivateDocumentStore` | S5 | PATH_OUTSIDE_STORAGE | IMPLEMENTAT · CI HEAD FINAL PENDENT |
+| Accés document auditat | `FiscalDocumentAccessRepository` | S5 | ALLOWED/DENIED/FAILED | IMPLEMENTAT · CI HEAD FINAL PENDENT · ENTORN REAL PENDENT |
+| AL-16 deep link UUID | dos JS canònics | S3/AL-16 | boundary | CORREGIT · PASS CI INICIAL |
+| AL-17 modal SIF | `alumnes-mostrar-alumne.js` | S4/AL-17 | boundary | IMPLEMENTAT · E2E PENDENT |
+| AL-18 usa UC-080 quan és SIF | student JS + `sifDocument.php` | S9/AL-18 | boundary/static | IMPLEMENTAT · E2E PENDENT |
+| Una sola implementació UC-007 per pàgina | includes PHP | classes/inventari | boundary | CORREGIT · PASS CI INICIAL |
+| Flag UI buit eliminat | pàgines PHP | F01 | boundary | CORREGIT · CI HEAD FINAL PENDENT |
+| Fallback cerca no envia DNI/email per query string | JS + 3 wrappers legacy | S6/F02-F04 | boundary POST/same-origin | CORREGIT · CI HEAD FINAL PENDENT |
+| Fallback limita candidats i longituds | wrappers legacy | S6/F02-F04 | validació server-side | CORREGIT · CI HEAD FINAL PENDENT |
+| F02 inicialitza estat de cerca | `Intranet::buscarUsuaris_Factures` | F02 | boundary | CORREGIT · CI HEAD FINAL PENDENT |
+| F02 delimitador DNI/CIF estable | `buscarUsuaris_Factures` | F02/F03 | boundary | CORREGIT · CI HEAD FINAL PENDENT |
+| F04 títol de cerca escapat | `mostrarTotesFacturesUsuari_Factures` | F04 | boundary | CORREGIT · CI HEAD FINAL PENDENT |
+| F05 FACTURA_RELACIONADA immutable al wrapper | `guardarDadesFactura_Factures.php` | S7/F05 | inspecció + guard | IMPLEMENTAT · VERIFICAT ESTÀTICAMENT |
+| F06 preview/PDF escapa valors de BD | `Intranet::generaFactura` | S8/F06 | boundary escaping | CORREGIT · CI HEAD FINAL PENDENT |
+| F07 download és POST i lectura | JS + `descarregaFactura.php` | S8/F07 | boundary | CORREGIT · CI HEAD FINAL PENDENT |
+| Guard llegat bloqueja factura SIF quan UC-007 està actiu | `SifLegacyInvoiceMutationGuard` | S7/S8 | boundary | CORREGIT · CI HEAD FINAL PENDENT |
+| Paginació modal llegat conserva handlers | student JS | AL-17 | boundary | CORREGIT · PASS CI INICIAL |
+| Errors d'anul·lació apareixen al modal correcte i sense logs de dades | invoice JS | F04/F05 adjacent | inspecció JS | CORREGIT · CI HEAD FINAL PENDENT |
+| Feature flags fallen explícitament | bridges SIF | S1/S5 | static/runtime | IMPLEMENTAT · RUNTIME PENDENT |
+| Canals externs alumne/empresa | UC-102/126 | classes FINAL | — | PENDENT FINAL |
+| Retirada fallback llegat | — | FINAL activitats | — | PENDENT FINAL |
 
-## Lectura dels estats
+## 3. Evidència CI
 
-- **DOCUMENTAT:** contracte i traça presents.
-- **IMPLEMENTAT:** hi ha codi que satisfà el contracte estàticament.
-- **VERIFICAT ESTÀTICAMENT:** s'ha contrastat el codi/asset que s'executa.
-- **VERIFICACIÓ CI PENDENT:** hi ha prova automatitzada però encara cal resultat del run del PR.
-- **RUNTIME PENDENT:** necessita BD/storage/rol/navegador de test/preproducció.
+El primer run auditat del PR #135 va executar **921 tests PASS i 6 FAIL globals**. Les proves UC-007 que existien en aquell head —query read-only, policy FULL/MINIMAL, HMAC/anti-replay, CLI query i `Uc007IntranetBoundaryTest` inicial— consten PASS. Les sis fallades observades eren PACK/Redsys i no corresponien a fitxers modificats per aquell diff.
 
-**CI PR #135:** els tests UC-007 existents han passat. El conjunt del workflow falla per 6 tests PACK/Redsys aliens al diff d’aquesta branca; el `main` base ja tenia workflows SIF en `failure`, sense afirmar que fossin exactament les mateixes sis assertions. El test UC-080 afegit després queda pendent del següent run. Evidència detallada: [05-evidencia-ci-uc-007-pr135-2026-10-03.md](05-evidencia-ci-uc-007-pr135-2026-10-03.md).
+El `main` base ja tenia workflows SIF en `failure`; no s'afirma que fossin exactament les mateixes sis assertions. Evidència detallada: [05-evidencia-ci-uc-007-pr135-2026-10-03.md](05-evidencia-ci-uc-007-pr135-2026-10-03.md).
 
+Les correccions i proves incorporades després del primer run s'han de validar amb el **head final** abans de promocionar-les a PASS CI.
 
-## Ampliació de cobertura
+## 4. Runtime que continua pendent
 
-- `InternalInvoiceScopeResolverTest`: FULL/MINIMAL/fail-closed.
-- `InvoiceQueryServiceTest`: cerca per inscripció, múltiples UUID i AND de criteris.
-- `InvoiceDocumentAccessServiceTest`: bytes/hash, fitxer absent, scope denegat i path fora del root.
-- `Uc007IntranetBoundaryTest`: també impedeix reintroduir el flag UI buit `SIF_INVOICE_QUERY_UI_ENABLED`.
-
-
-## F07 — traçabilitat de zero mutació
-
-| Invariant | Codi | Prova | Estat |
-| --- | --- | --- | --- |
-| Descarregar no modifica `generada` | `Intranet::generaFactura(..., true)` | `Uc007IntranetBoundaryTest::testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState` | CORREGIT EN BRANCA / CI HEAD FINAL PENDENT |
-| Download llegat és lectura, no edició | `alumnes-factura.js` + `descarregaFactura.php` | `testLegacyInvoiceDownloadUsesReadBoundaryNotClientSideEditPermission` | CORREGIT EN BRANCA / CI HEAD FINAL PENDENT |
-
-
-| Descàrrega llegada no muta `generada` | `Intranet::generaFactura(...,$marcaGenerada)` + `descarregaFactura.php` | activitat fallback/F07 | `Uc007IntranetBoundaryTest::testLegacyDownloadDoesNotMutateGeneratedMarker` | CORREGIT / CI PENDENT HEAD FINAL |
+- rols reals FULL/MINIMAL i revocació de sessió;
+- AL-16/17/18 al navegador;
+- cache-busting dels assets canònics;
+- storage privat real, permisos de filesystem i hashes reals;
+- feature flags per entorn;
+- regressió amb dades històriques complexes;
+- comprovació que una factura llegada amb `generada IS NULL` continua NULL després d'una descàrrega UC-007;
+- retirada definitiva del fallback.
