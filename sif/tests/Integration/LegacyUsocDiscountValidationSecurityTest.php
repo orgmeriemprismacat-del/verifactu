@@ -38,7 +38,7 @@ final class LegacyUsocDiscountValidationSecurityTest
         Assert::stringContainsString("LegacyDiscountValidationLookup", $endpoint);
         Assert::stringContainsString('->isUsoc($idInsc)', $endpoint);
         Assert::stringContainsString("beginValidationDecision", $endpoint);
-        Assert::stringContainsString("('tracked' ?? false)", str_replace("[", "(", str_replace("]", ")", $endpoint)));
+        Assert::stringContainsString("(\$beginDecision['tracked'] ?? false) !== true", $endpoint);
         Assert::stringContainsString("classificació USOC ha canviat abans de registrar la decisió al SIF", $endpoint);
         Assert::stringContainsString("catch (Throwable", $endpoint);
         Assert::stringContainsString("completeValidationDecision", $endpoint);
