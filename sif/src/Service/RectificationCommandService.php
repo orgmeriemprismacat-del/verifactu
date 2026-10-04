@@ -223,7 +223,13 @@ final class RectificationCommandService
         }
 
         // Never trust AEAT fields or the fiscal invoice type from the caller.
-        unset($input['aeat_header'], $input['aeat_fields'], $input['type'], $input['tipus_factura']);
+        unset(
+            $input['aeat_header'],
+            $input['aeat_fields'],
+            $input['type'],
+            $input['tipus_factura'],
+            $input['year']
+        );
 
         $input['created_by'] = $actorId;
         $decision = $this->decisionGuard->assertRectification($classification, $input);
