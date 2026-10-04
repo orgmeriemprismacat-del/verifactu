@@ -149,6 +149,16 @@ REDSYS_GATEWAY_URL
 SIF_REDSYS_CALLBACK_URL
 SIF_REDSYS_GIFT_CUTOVER_ENABLED
 SIF_REDSYS_GIFT_LEGACY_DRAIN_CONFIRMED
+
+SIF_AEAT_SYSTEM_NAME
+SIF_AEAT_SYSTEM_ID
+SIF_AEAT_SYSTEM_VERSION
+SIF_AEAT_INSTALLATION_ID
+SIF_AEAT_PRODUCER_NAME
+SIF_AEAT_PRODUCER_NIF
+SIF_AEAT_GIFT_TAX_CODE
+SIF_AEAT_GIFT_REGIME_KEY
+SIF_AEAT_GIFT_EXEMPTION_CODE
 ```
 
 Els secrets no s'han de versionar.
@@ -156,13 +166,16 @@ Els secrets no s'han de versionar.
 ## 9. Preflight
 
 `sif/scripts/preflight-redsys-gift.php` comprova, entre d'altres:
-- entorn test/pre;
+- entorn test/preproduction;
 - coherència merchant code/clau;
 - terminal;
 - HTTPS de gateway/callback/internal API;
 - credencials internes;
 - paths signats d'intent i estat;
 - coherència cutover/drain;
+- configuració explícita AEAT del productor, sistema, impost, règim i exempció del regal;
+- NIF emissor coherent entre configuració SIF i registre AEAT;
+- cadena fiscal buida o compatible amb snapshot oficial AEAT;
 - connectivitat SIF/llegat;
 - taules de factura, payment, intenció, cua, entitlement i outbox;
 - endpoints i serveis requerits.
@@ -175,6 +188,9 @@ Els secrets no s'han de versionar.
 - `RedsysGiftPaymentStatusServiceTest`
 - `GiftPaymentNotificationServiceTest`
 - `RedsysGiftRecoveryBoundaryTest`
+- `RedsysGiftWorkerEndToEndTest`
+- `GiftAeatInvoicePayloadEnricherTest`
+- `RedsysGiftPreproductionVerificationTest`
 
 Es mantenen:
 - `RedsysGiftInvoiceServiceTest`
@@ -183,8 +199,8 @@ Es mantenen:
 ## 11. Passos de desplegament
 
 1. Desplegar SIF en `pay-test`/preproducció amb migracions existents.
-2. Configurar secrets i paths interns.
-3. Executar `preflight-redsys-gift.php`.
+2. Configurar secrets, paths interns i classificació AEAT de UC-017 validada per negoci/fiscalitat.
+3. Executar `preflight-redsys-gift.php` i exigir també `fiscal_chain_official_compatible=true`.
 4. Provar amb `CUTOVER=0` la creació d'intenció sense canviar callback.
 5. Confirmar que no hi ha intents llegats pendents que depenguin del callback antic.
 6. Activar `LEGACY_DRAIN_CONFIRMED=1`.
