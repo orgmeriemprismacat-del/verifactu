@@ -30,7 +30,8 @@ $user = null;
 $intranet = null;
 
 try {
-    [$user, $intranet] = LegacyDebtClaimContext::open();
+    $surface = strtoupper(trim((string) ($_POST['surface'] ?? '')));
+    [$user, $intranet, $contextRoot, $permissionPage] = LegacyDebtClaimContext::open($surface);
     LegacyInvoiceMutationAuthorization::assertSameOrigin();
     if (strcasecmp((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''), 'XMLHttpRequest') !== 0) {
         throw new RuntimeException('Petició AJAX no vàlida', 403);
@@ -56,7 +57,7 @@ try {
     LegacyInvoiceMutationAuthorization::assertCanEdit(
         $user,
         $intranet,
-        '/facturacio/morosos/'
+        $permissionPage
     );
 
     if ($action === 'record_notice') {
