@@ -114,6 +114,7 @@
         const data = response.data || {};
         const queue = data.queue || {};
         const record = data.record || {};
+        const canReconcile = response.capabilities?.reconcile === true;
         currentQueueId = Number(queueId);
 
         document.getElementById('sif-aeat-detail-summary').innerHTML = [
@@ -134,11 +135,13 @@
         document.getElementById('sif-aeat-attempts').innerHTML = attempts.length ? attempts.map(attempt => {
             const terminal = ['ACCEPTED', 'ACCEPTED_WITH_ERRORS', 'REJECTED'].includes(String(attempt.STATUS));
             const isLatest = Number(attempt.ATTEMPT_NO) === latestAttemptNo;
-            const reconcile = String(queue.STATUS) === 'REVIEW' && terminal && isLatest
+            const reconcile = canReconcile
+                && String(queue.STATUS) === 'REVIEW' && terminal && isLatest
                 ? '<button class="btn btn-sm btn-warning sif-aeat-reconcile" data-attempt="' +
                     esc(attempt.UUID_ATTEMPT) + '">Conciliar resultat guardat</button>'
                 : '';
-            const reconcileEvidence = String(queue.STATUS) === 'REVIEW'
+            const reconcileEvidence = canReconcile
+                && String(queue.STATUS) === 'REVIEW'
                 && String(attempt.STATUS) === 'UNCERTAIN'
                 && isLatest
                 && String(attempt.EVIDENCE_ID || '') !== ''
