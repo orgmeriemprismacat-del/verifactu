@@ -4,7 +4,7 @@
 
 - **Cas d'ús:** UC-004 — Emetre factura abans de cobrar.
 - **Base real revisada:** `main@6c8137ff1652ac89a1a81ad18cf79fc4689b1757`.
-- **Branca de correcció:** `audit/uc-004-revalidacio-2026-10-04`.
+- **Branca de correcció:** `audit/uc-004-revalidacio-v2-2026-10-04`.
 - **PR històric integrat de referència:** #70.
 - **PR històric NO integrat:** #134, divergit respecte del main i amb checks globals fallits.
 - **Criteri:** el que no és al main o no queda reaplicat explícitament en aquesta branca no es considera implementat.
