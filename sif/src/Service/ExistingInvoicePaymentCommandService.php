@@ -9,7 +9,8 @@ final class ExistingInvoicePaymentCommandService
     public function __construct(
         private ManualPaymentService $manualPayments,
         private ?ExistingInvoiceLegacyProjectionService $legacyProjection = null,
-        private ?ExistingInvoiceEnrollmentFundAllocationService $fundAllocation = null
+        private ?ExistingInvoiceEnrollmentFundAllocationService $fundAllocation = null,
+        private ?ExistingInvoicePaymentNotificationService $notifications = null
     ) {
     }
 
@@ -92,6 +93,17 @@ final class ExistingInvoicePaymentCommandService
                     240
                 );
             }
+        }
+
+        if ($this->notifications !== null) {
+            $result['notification_outbox'] = $this->notifications->enqueue(
+                $sifDb,
+                $result,
+                $payment,
+                is_array($result['legacy_projection'] ?? null)
+                    ? $result['legacy_projection']
+                    : null
+            );
         }
 
         return $result;
