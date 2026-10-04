@@ -80,6 +80,23 @@ final class ClaimPaymentPayloadBuilderTest
         Assert::same(false, array_key_exists('reference', $payload));
     }
 
+    public function testCarriesAuthoritativeIdpagIntoPaymentPayload(): void
+    {
+        $payload = (new ClaimPaymentPayloadBuilder())->forExistingInvoice(
+            '11111111-1111-4111-8111-111111111111',
+            [
+                'amount' => '20.00',
+                'movement_date' => '2026-10-04 02:55:00',
+                'external_receipt_type' => 'BANK_REFERENCE',
+                'external_receipt_id' => 'BANK-IDPAG-123',
+                'idpag' => 123,
+                'created_by' => 'gestio-test',
+            ]
+        );
+
+        Assert::same(123, $payload['idpag']);
+    }
+
     public function testExternalReceiptIdUsesDedicatedIdempotencyFamily(): void
     {
         $payload = (new ClaimPaymentPayloadBuilder())->forExistingInvoice(
