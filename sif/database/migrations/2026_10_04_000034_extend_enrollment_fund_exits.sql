@@ -35,9 +35,14 @@ ALTER TABLE enrollment_fund_movement
             AND ID_INSC_ORIGEN IS NULL
             AND ID_INSC_DESTI IS NOT NULL
             AND UUID_PAYMENT IS NOT NULL
-            AND UUID_CREDIT IS NOT NULL
-            AND UUID_FACTURA IS NOT NULL
-            AND ID_FACTURA_LINIA IS NOT NULL)
+            AND (
+                UUID_CREDIT IS NULL
+                OR (
+                    UUID_CREDIT IS NOT NULL
+                    AND UUID_FACTURA IS NOT NULL
+                    AND ID_FACTURA_LINIA IS NOT NULL
+                )
+            ))
         OR
         (MOVEMENT_TYPE = 'INTERNAL_TRANSFER'
             AND ID_INSC_ORIGEN IS NOT NULL
