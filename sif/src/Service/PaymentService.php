@@ -28,7 +28,7 @@ final class PaymentService
                 throw $exception;
             }
 
-            return $this->reusePaymentAfterDuplicateKey($payload);
+            return $this->reusePaymentAfterDuplicateConstraint($payload, $exception);
         }
     }
 
@@ -57,17 +57,29 @@ final class PaymentService
         });
     }
 
-    private function reusePaymentAfterDuplicateKey(array $payload): array
-    {
-        return $this->transactions->run(function (\PDO $db) use ($payload): array {
-            $existing = $this->payments->findByIdempotencyKey($db, $payload['idempotency_key'], true);
+    private function reusePaymentAfterDuplicateConstraint(
+        array $payload,
+        \PDOException $original
+    ): array {
+        return $this->transactions->run(function (\PDO $db) use ($payload, $original): array {
+            $existing = $this->payments->findByIdempotencyKey(
+                $db,
+                $payload['idempotency_key'],
+                true
+            );
 
-            if ($existing === null) {
-                throw new \RuntimeException('Duplicate key detected, but existing payment could not be loaded.');
+            if ($existing !== null) {
+                $this->assertSamePayload($payload, $existing);
+                return $this->existingResult($existing);
             }
 
-            $this->assertSamePayload($payload, $existing);
-            return $this->existingResult($existing);
+            $external = $this->payments->findByExternalReceipt($db, $payload, true);
+            if ($external !== null) {
+                $this->assertSameEconomicReceipt($db, $payload, $external);
+                return $this->existingResult($external, true);
+            }
+
+            throw $original;
         });
     }
 
