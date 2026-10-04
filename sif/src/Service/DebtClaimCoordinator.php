@@ -263,11 +263,16 @@ final class DebtClaimCoordinator
                 $correlationId, $at
             );
 
-            $cancelled = $resolved
-                ? $this->outbox->cancelPendingForInvoice(
-                    $db, $snapshot['uuid_factura'], array_values(self::TEMPLATES)
-                )
-                : 0;
+            // Any confirmed payment changes the authoritative balance.
+            // Pending notices carry the previous balance in their payload, so
+            // cancel them even on a partial payment instead of allowing a
+            // stale amount to be delivered later. Already-SENT messages are
+            // never touched.
+            $cancelled = $this->outbox->cancelPendingForInvoice(
+                $db,
+                $snapshot['uuid_factura'],
+                array_values(self::TEMPLATES)
+            );
 
             $this->audit(
                 $db,
