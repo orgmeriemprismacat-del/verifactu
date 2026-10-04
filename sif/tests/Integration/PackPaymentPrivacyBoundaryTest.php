@@ -58,7 +58,7 @@ final class PackPaymentPrivacyBoundaryTest
             );
             $packCallbackBranch = strpos(
                 $source,
-                "if ( $tipusInsc == 'P' )",
+                'if ( $tipusInsc == \'P\' )',
                 $legacyReturnGuard === false ? 0 : $legacyReturnGuard
             );
 
