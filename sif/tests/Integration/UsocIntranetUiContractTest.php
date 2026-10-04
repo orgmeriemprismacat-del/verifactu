@@ -28,6 +28,10 @@ final class UsocIntranetUiContractTest
         Assert::stringContainsString('random_bytes(32)', $page);
         Assert::stringContainsString('Finançament USOC', $page);
         Assert::stringContainsString('SIF_USOC_UI_ENABLED', $page);
+        Assert::stringContainsString('usoc-terms-student-amount', $page);
+        Assert::stringContainsString('usoc-terms-entity-amount', $page);
+        Assert::stringContainsString('usoc-terms-consultar', $page);
+        Assert::stringContainsString('usoc-terms-preparar', $page);
         Assert::stringContainsString('usoc-emetre-entitat', $page);
         Assert::stringContainsString('usoc-registrar-cobrament', $page);
         Assert::stringContainsString('usoc-lifecycle-plan', $page);
@@ -36,6 +40,10 @@ final class UsocIntranetUiContractTest
         Assert::stringContainsString("method: 'POST'", $js);
         Assert::stringContainsString('csrfToken: csrfToken()', $js);
         Assert::stringContainsString("post('view'", $js);
+        Assert::stringContainsString("post('view_terms'", $js);
+        Assert::stringContainsString("post('prepare_terms'", $js);
+        Assert::stringContainsString('window.sessionStorage.getItem', $js);
+        Assert::stringContainsString('window.sessionStorage.setItem', $js);
         Assert::stringContainsString("post('issue_entity_invoice'", $js);
         Assert::stringContainsString("post('register_entity_payment'", $js);
         Assert::stringContainsString("post('reconcile'", $js);
@@ -48,6 +56,8 @@ final class UsocIntranetUiContractTest
         Assert::stringContainsString('hash_equals', $controller);
         Assert::stringContainsString('SifInternalUsocClient', $controller);
         Assert::stringContainsString('SifAuthenticatedActor::fromUser', $controller);
+        Assert::stringContainsString('viewFinancingTerms', $controller);
+        Assert::stringContainsString('prepareFinancingTerms', $controller);
         Assert::stringContainsString('issueEntityInvoice', $controller);
         Assert::stringContainsString('registerEntityPayment', $controller);
         Assert::stringContainsString('lifecycle_plan', $controller);
