@@ -26,6 +26,7 @@ final class ClaimPaymentInvoiceLinkRepositoryTest
         $byNumber = $repository->assertNumVisibleMatches($db, $invoice['num_visible'], 10);
 
         Assert::same($invoice['uuid_factura'], $resolved['UUID_FACTURA']);
+        Assert::same(123, (int) $resolved['IDPAG']);
         Assert::same($invoice['uuid_factura'], $byUuid['UUID_FACTURA']);
         Assert::same($invoice['uuid_factura'], $byNumber['UUID_FACTURA']);
     }
