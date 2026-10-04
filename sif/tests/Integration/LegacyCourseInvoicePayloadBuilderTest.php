@@ -52,6 +52,28 @@ final class LegacyCourseInvoicePayloadBuilderTest
         Assert::same(1, $payload['relations'][0]['visible_alumne']);
     }
 
+
+    public function testPropagatesCommercialOperationContextFromTrustedSnapshot(): void
+    {
+        $snapshot = $this->courseSnapshot();
+        $snapshot['operation'] = [
+            'uuid' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            'line_uuid' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        ];
+
+        $payload = (new LegacyCourseInvoicePayloadBuilder())->build($snapshot);
+        $validated = (new InvoicePayloadValidator())->validate($payload);
+
+        Assert::same(
+            'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            $validated['uuid_operation']
+        );
+        Assert::same(
+            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            $validated['lines'][0]['uuid_operation_line']
+        );
+    }
+
     public function testComposesWithValidatedRedsysNotificationAndIssueInvoicePayment(): void
     {
         $db = TestDatabase::fresh();

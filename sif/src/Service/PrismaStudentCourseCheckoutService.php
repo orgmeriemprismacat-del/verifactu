@@ -167,6 +167,15 @@ final class PrismaStudentCourseCheckoutService
                 );
             }
 
+
+            $uuidOperationLine = $this->ensureOperationLine(
+                $sifDb,
+                $uuidOperation,
+                $canonicalPartyKey,
+                $enrollment,
+                $price
+            );
+
             $validation = $this->one(
                 $sifDb,
                 'SELECT UUID_VALIDATION, RULE_VERSION, STATUS, RESULT_DISCOUNT_AMOUNT, RULE_SNAPSHOT_JSON
@@ -213,7 +222,10 @@ final class PrismaStudentCourseCheckoutService
             }
 
             $snapshot = [
-                'operation' => ['uuid' => $uuidOperation],
+                'operation' => [
+                    'uuid' => $uuidOperation,
+                    'line_uuid' => $uuidOperationLine,
+                ],
                 'inscription' => [
                     'ID' => (int) $enrollment['ID'],
                     'IDPAG' => (int) $enrollment['IDPAG'],
@@ -264,6 +276,7 @@ final class PrismaStudentCourseCheckoutService
 
             return [
                 'uuid_operation' => $uuidOperation,
+                'uuid_operation_line' => $uuidOperationLine,
                 'uuid_validation' => $uuidValidation,
                 'uuid_intent' => (string) $intent['uuid_intent'],
                 'ds_order' => (string) $intent['ds_order'],
@@ -295,9 +308,89 @@ final class PrismaStudentCourseCheckoutService
         return $row;
     }
 
+
+    private function ensureOperationLine(
+        \PDO $db,
+        string $uuidOperation,
+        string $participantPartyKey,
+        array $enrollment,
+        array $price
+    ): string {
+        $existing = $this->one(
+            $db,
+            'SELECT UUID_LINE, PRODUCT_CODE, PARTICIPANT_PARTY_KEY, NET_AMOUNT, PRICE_RULE_VERSION
+             FROM commercial_operation_line
+             WHERE UUID_OPERATION = ? AND ORDRE = 1
+             FOR UPDATE',
+            [$uuidOperation]
+        );
+        if ($existing !== null) {
+            if ((string) $existing['PRODUCT_CODE'] !== (string) $enrollment['CURS']
+                || (string) $existing['PARTICIPANT_PARTY_KEY'] !== $participantPartyKey
+                || $this->moneyToCents((string) $existing['NET_AMOUNT']) !== $price['net_cents']
+                || (string) $existing['PRICE_RULE_VERSION'] !== $price['price_rule_version']
+            ) {
+                throw SifException::conflict(
+                    'Commercial operation line conflicts with the trusted checkout snapshot.'
+                );
+            }
+
+            return (string) $existing['UUID_LINE'];
+        }
+
+        $tax = $price['tax_snapshot'];
+        $taxRegime = strtoupper(trim((string) ($tax['regime'] ?? '')));
+        if ($taxRegime === '') {
+            throw SifException::validation('Trusted checkout tax regime is required.');
+        }
+        $taxRate = $this->centsToMoney(
+            $this->moneyToCents((string) ($tax['iva_pct'] ?? $tax['tax_rate'] ?? '0.00'))
+        );
+        $taxAmount = $this->centsToMoney(
+            $this->moneyToCents((string) ($tax['iva_import'] ?? $tax['tax'] ?? '0.00'))
+        );
+        $exemptionReason = trim((string) ($tax['exemption_reason'] ?? ''));
+        $uuidLine = $this->uuids->generate();
+
+        $this->execute(
+            $db,
+            'INSERT INTO commercial_operation_line (
+                UUID_LINE, UUID_OPERATION, PARENT_UUID_LINE, LINE_TYPE, ORDRE,
+                PRODUCT_TYPE, PRODUCT_CODE, PRODUCT_EDITION, PARTICIPANT_PARTY_KEY,
+                DESCRIPTION, QUANTITY, UNIT_PRICE, GROSS_AMOUNT, DISCOUNT_AMOUNT,
+                NET_AMOUNT, TAX_REGIME, TAX_RATE, TAX_AMOUNT,
+                EXEMPTION_OR_NON_SUBJECT_REASON, PRICE_RULE_VERSION, SNAPSHOT_JSON, STATUS
+            ) VALUES (?, ?, NULL, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                $uuidLine,
+                $uuidOperation,
+                'PRODUCT',
+                'CURS',
+                (string) $enrollment['CURS'],
+                (string) $enrollment['ANY'] . '/' . (string) $enrollment['MES'],
+                $participantPartyKey,
+                $price['course_title'],
+                '1.00',
+                $price['gross'],
+                $price['gross'],
+                $price['discount'],
+                $price['net'],
+                $taxRegime,
+                $taxRate,
+                $taxAmount,
+                $exemptionReason === '' ? null : $exemptionReason,
+                $price['price_rule_version'],
+                $price['price_json'],
+                'READY_FOR_PAYMENT',
+            ]
+        );
+
+        return $uuidLine;
+    }
+
     private function price(array $snapshot, string $legacyNet): array
     {
-        foreach (['gross_amount', 'discount_amount', 'net_amount', 'course_title', 'tax_snapshot'] as $required) {
+        foreach (['gross_amount', 'discount_amount', 'net_amount', 'course_title', 'price_rule_version', 'tax_snapshot'] as $required) {
             if (!array_key_exists($required, $snapshot)) {
                 throw SifException::validation('Trusted Alumne PrisMa price snapshot is incomplete.');
             }
@@ -326,6 +419,9 @@ final class PrismaStudentCourseCheckoutService
             'gross' => $this->centsToMoney($gross),
             'discount' => $this->centsToMoney($discount),
             'net' => $this->centsToMoney($net),
+            'course_title' => trim((string) $snapshot['course_title']),
+            'price_rule_version' => trim((string) $snapshot['price_rule_version']),
+            'tax_snapshot' => $snapshot['tax_snapshot'],
             'price_json' => $priceJson,
             'tax_json' => $taxJson,
         ];
