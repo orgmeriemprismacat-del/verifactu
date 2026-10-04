@@ -138,25 +138,25 @@ S'han tancat tres mancances addicionals de prova/configuració:
 Aquestes proves continuen sent proves automatitzades sobre BD/storage de test; no substitueixen l'evidència de preproducció amb configuració real.
 
 
-## 11. F07-01 tancat en codi — descàrrega llegada sense mutació de `GENERAT`
+## 11. F07-01 tancat en codi — descàrrega llegada sense mutació de `generada`
 
 La relectura directa del blob complet de `codi-drive/intranet-actual/Intranet.php` ha permès verificar el cos real de `generaFactura($factura, $descarrega)`. Abans d'aquesta correcció, quan `$descarrega=true`, el mètode:
 1. reconstruïa el PDF temporal;
 2. escrivia el fitxer amb Dompdf;
-3. si `GENERAT` era buit, executava `updGeneratFactura`.
+3. si `generada` era buit, executava `updGeneratFactura`.
 
 Això era una mutació de negoci causada per una operació de consulta/descàrrega i violava l'invariant UC-007 de zero mutació.
 
-**Correcció aplicada a la branca:** s'ha eliminat l'UPDATE de `GENERAT` del camí `generaFactura(..., true)`. La descàrrega llegada pot continuar reconstruint un PDF temporal mentre existeixi el fallback, però ja no modifica aquest estat de negoci.
+**Correcció aplicada a la branca:** s'ha eliminat l'UPDATE de `generada` del camí `generaFactura(..., true)`. La descàrrega llegada pot continuar reconstruint un PDF temporal mentre existeixi el fallback, però ja no modifica aquest estat de negoci.
 
 **Protecció de regressió:** `Uc007IntranetBoundaryTest::testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState` aïlla el mètode `generaFactura()`, confirma que continua generant el fitxer temporal i falla si reapareix `updGeneratFactura`.
 
 A partir d'aquesta correcció és coherent tractar la descàrrega com a **lectura**: el JS ja no exigeix `tePermisEdicio` per descarregar, mentre el backend continua revalidant sessió, `ROLS_VISUALITZAR`, origen/XHR i el guard de convivència SIF.
 
 
-### 11.1. Semàntica llegada de `GENERAT` i còpia
+### 11.1. Semàntica llegada de `generada` i còpia
 
-Al generador llegat, `GENERAT` també es consulta per imprimir l'etiqueta «ÉS CÒPIA». Després de separar la lectura de la mutació, una descàrrega UC-007 ja no converteix per si mateixa una factura en “generada” ni en “còpia”. Els valors històrics ja existents es continuen llegint, però no es creen des del cas d'ús de consulta.
+Al generador llegat, `generada` també es consulta per imprimir l'etiqueta «ÉS CÒPIA». Després de separar la lectura de la mutació, una descàrrega UC-007 ja no converteix per si mateixa una factura en “generada” ni en “còpia”. Els valors històrics ja existents es continuen llegint, però no es creen des del cas d'ús de consulta.
 
 Aquesta és una diferència deliberada respecte del comportament antic: la traça de consulta/descàrrega FINAL no s'ha de codificar alterant la factura, sinó en un registre d'accés (`fiscal_document_access`) quan el document és SIF/UC-080. Si algun flux de negoci llegat necessita marcar explícitament una emissió/generació, s'ha de modelar fora de l'UC-007.
 
@@ -202,18 +202,18 @@ Aquesta és una diferència deliberada respecte del comportament antic: la traç
 Les mancances que continuen obertes són **del fallback llegat** (F02-01, F05-01/F05-03, F06-01/F06-02 i PDF-01..03). No bloquegen el model FINAL UC-007/080, però sí bloquegen afirmar que el circuit llegat és equivalent o completament sanejat. La retirada del fallback continua sent el criteri final.
 
 
-## 11. Troballa F07-L · `GENERAT` mutava en descarregar factura llegada — CORREGIT
+## 11. Troballa F07-L · `generada` mutava en descarregar factura llegada — CORREGIT
 
 La inspecció directa del blob complet `Intranet.php` ha permès acreditar una mutació que les lectures parcials anteriors no mostraven:
 
 - `generaFactura($factura, true)` genera el PDF temporal;
-- si `GENERAT` era nul/buit, executava `updGeneratFactura`;
+- si `generada` era nul/buit, executava `updGeneratFactura`;
 - per tant, la descàrrega llegada no era estrictament read-only.
 
 A la branca:
 - `generaFactura()` passa a admetre `$marcaGenerada = true` per compatibilitat amb altres fluxos llegats;
 - `descarregaFactura.php`, que és la frontera de consulta UC-007, crida `generaFactura((int) $id, true, false)`;
-- l'UPDATE de `GENERAT` només s'executa si `$marcaGenerada` és `true`;
+- l'UPDATE de `generada` només s'executa si `$marcaGenerada` és `true`;
 - `Uc007IntranetBoundaryTest` fixa aquesta semàntica.
 
 Això preserva el comportament històric fora d'UC-007 i fa que **consultar/descarregar des d'UC-007 no modifiqui l'estat de la factura llegada**. La creació del PDF temporal continua sent una operació tècnica de sortida, no una mutació fiscal/econòmica de BD.
