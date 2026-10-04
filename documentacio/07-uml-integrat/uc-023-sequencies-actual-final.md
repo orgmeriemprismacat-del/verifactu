@@ -155,3 +155,56 @@ end
 - reconciliació global de l'event bancari;
 - atribució per inscripció;
 - evidència E2E.
+
+
+## 6. IMPLEMENTAT EN BRANCA — reconciliació cross-channel atòmica
+
+```mermaid
+sequenceDiagram
+autonumber
+actor O as Operador
+participant I as Intranet POST+CSRF
+participant API as /api/payments/installment.php
+participant PS as PaymentService
+participant PR as PaymentRepository
+participant C as payment_external_receipt_claim
+participant DB as payment_transaction/allocation
+
+O->>I: confirmar fracció amb operationId i referència/DS_ORDER quan existeix
+I->>API: HMAC + actor + rols + payload
+API->>PS: registerPayment(payload)
+PS->>PR: findByIdempotencyKey(K,true)
+alt mateixa K
+ PR-->>PS: moviment existent
+ PS-->>API: REUSED
+else K nova
+ PS->>PR: findByExternalReceipt(payload,true)
+ alt rebut extern ja reclamat/existent
+  PR->>C: resoldre claim
+  PR-->>PS: UUID_PAYMENT existent
+  PS->>PR: carregar assignacions
+  alt import + factura coincideixen
+   PS-->>API: REUSED reconciled_existing=true
+  else divergència econòmica
+   PS--xAPI: 409 CONFLICT
+  end
+ else rebut extern nou
+  PS->>PR: createPayment(payload)
+  PR->>DB: INSERT payment_transaction
+  PR->>C: INSERT claim únic DS_ORDER/BANK_REF
+  PR->>DB: INSERT allocation + recalcular factura
+  PR-->>PS: UUID_PAYMENT nou
+ end
+end
+API-->>I: resultat tipificat
+```
+
+La restricció única de `payment_external_receipt_claim` és la barrera de concurrència: dues peticions simultànies amb claus funcionals diferents no poden reclamar el mateix fet bancari com dos cobraments.
+
+## 7. Pendents després de la implementació
+
+- configurar URL/secrets/rols als entorns;
+- activar `SIF_INSTALLMENT_PAYMENT_ENFORCED=1` a test/pre;
+- conservar evidència E2E amb `verify-manual-installment-evidence.php`;
+- decidir quins fluxos manuals han d'exigir obligatòriament referència bancària o DS_ORDER, perquè un `operationId` generat per la UI identifica l'intent però no prova per si sol l'existència del moviment bancari;
+- retirar el fallback llegat quan el tall SIF estigui validat.
