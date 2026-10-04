@@ -73,8 +73,10 @@ final class CreditBalancePayloadBuilder
         $movementDate = $this->requiredString($input, ['movement_date', 'data_moviment', 'data'], 'movement_date');
         $invoiceRef = trim((string) ($invoice['NUM_VISIBLE'] ?? $uuidFactura));
 
+        $explicitIdempotencyKey = $this->optionalString($input, ['idempotency_key']);
         $payload = [
-            'idempotency_key' => 'COMPENSACIO|UUID_CREDIT:' . $uuidCredit . '|FACT:' . $invoiceRef . '|IMPORT:' . $amount,
+            'idempotency_key' => $explicitIdempotencyKey
+                ?? ('COMPENSACIO|UUID_CREDIT:' . $uuidCredit . '|FACT:' . $invoiceRef . '|IMPORT:' . $amount),
             'movement_type' => 'COMPENSATION',
             'method' => 'COMPENSACIO',
             'source_channel' => 'INTRANET',
@@ -112,6 +114,10 @@ final class CreditBalancePayloadBuilder
             if ($value !== null) {
                 $payload[$key] = $value;
             }
+        }
+
+        if (mb_strlen((string) $payload['idempotency_key'], 'UTF-8') > 160) {
+            throw SifException::validation('Compensation idempotency key is too long');
         }
 
         if (isset($payload['correlation_id'])
