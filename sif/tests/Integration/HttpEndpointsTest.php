@@ -23,18 +23,27 @@ final class HttpEndpointsTest
         Assert::stringContainsString('$service->issueInvoice($payload)', $source);
     }
 
-    public function testRegisterPaymentEndpointBuildsPaymentServiceFromJsonPayload(): void
+    public function testRegisterPaymentEndpointRequiresSignedInternalMutation(): void
     {
         $source = $this->readEndpoint('api/payments/register.php');
 
         Assert::stringContainsString('/src/autoload.php', $source);
-        Assert::stringContainsString('JsonResponse::fromInput()', $source);
+        Assert::stringContainsString("REQUEST_METHOD", $source);
+        Assert::stringContainsString("file_get_contents('php://input')", $source);
+        Assert::stringContainsString('InternalApiAuthenticator', $source);
+        Assert::stringContainsString('InternalApiRequestRepository', $source);
+        Assert::stringContainsString('payment_register_signed_path', $source);
+        Assert::stringContainsString('write_roles', $source);
         Assert::stringContainsString('ConnectionFactory::make($config)', $source);
         Assert::stringContainsString('new PaymentService(', $source);
         Assert::stringContainsString('new PaymentPayloadValidator()', $source);
         Assert::stringContainsString('new PaymentRepository(', $source);
         Assert::stringContainsString('new PaymentStatusCalculator()', $source);
         Assert::stringContainsString('$service->registerPayment($payload)', $source);
+
+        if (str_contains($source, 'JsonResponse::fromInput()')) {
+            Assert::fail('Payment register must authenticate the exact raw request body before decoding JSON');
+        }
     }
 
     public function testRedsysCallbackEndpointBuildsCallbackServiceWithRealSignatureValidator(): void
