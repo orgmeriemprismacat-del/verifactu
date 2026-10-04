@@ -3,6 +3,8 @@ header('Cache-Control: private, no-store, max-age=0');
 header('Pragma: no-cache');
 header('Referrer-Policy: no-referrer');
 header('X-Content-Type-Options: nosniff');
+header("Content-Security-Policy: frame-ancestors 'none'");
+header('X-Frame-Options: DENY');
 header('X-Robots-Tag: noindex, nofollow, noarchive');
 ?>
 <!DOCTYPE HTML PUBLIC "-/W3C/DTD HTML 4.01/EN" "http:/www.w3.org/TR/html4/strict.dtd">
