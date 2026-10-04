@@ -27,10 +27,11 @@ final class Uc007IntranetBoundaryTest
         Assert::stringContainsString('sifDocument.php', $js);
     }
 
-    public function testLegacyPdfReconstructionDoesNotMutateGeneratedBusinessState(): void
+    public function testLegacyPdfReconstructionHasExplicitReadOnlyMode(): void
     {
         $source = $this->readIntranet('Intranet.php');
-        $start = strpos($source, 'public function generaFactura($factura, $descarrega)');
+        $download = $this->readIntranet('ajax/alumnes/descarregaFactura.php');
+        $start = strpos($source, 'public function generaFactura(');
         $end = strpos($source, '/* -------------------------- Consultar certificat', $start === false ? 0 : $start);
 
         if ($start === false || $end === false || $end <= $start) {
@@ -38,11 +39,16 @@ final class Uc007IntranetBoundaryTest
         }
 
         $fragment = substr($source, $start, $end - $start);
+        Assert::stringContainsString(
+            'public function generaFactura($factura, $descarrega, $marcaGenerada = true)',
+            $fragment
+        );
         Assert::stringContainsString('file_put_contents($filename, $pdf)', $fragment);
-
-        if (str_contains($fragment, 'updGeneratFactura')) {
-            Assert::fail('UC-007 download must not mutate GENERAT while reconstructing a temporary PDF.');
-        }
+        Assert::stringContainsString(
+            "if ( $marcaGenerada && ( $generada == null || $generada == '' ) )",
+            $fragment
+        );
+        Assert::stringContainsString('generaFactura((int) $id, true, false)', $download);
     }
 
     public function testLegacyInvoiceDownloadDoesNotMarkInvoiceAsGenerated(): void
@@ -71,6 +77,38 @@ final class Uc007IntranetBoundaryTest
 
         if (str_contains($fragment, 'tePermisEdicio')) {
             Assert::fail('UC-007 legacy document download is a read action and must not depend on client-side edit permission.');
+        }
+    }
+
+    public function testLegacyInvoiceDownloadUsesBinaryPdfContractOnBothPages(): void
+    {
+        $wrapper = $this->readIntranet('ajax/alumnes/descarregaFactura.php');
+
+        Assert::stringContainsString("header('Content-Type: application/pdf')", $wrapper);
+        Assert::stringContainsString("header('Content-Disposition: attachment; filename=\"' . $filename . '\"')", $wrapper);
+        Assert::stringContainsString('echo $bytes;', $wrapper);
+
+        foreach ([
+            'js/alumnes-factura.js',
+            'js/alumnes-mostrar-alumne.js',
+        ] as $jsFile) {
+            $js = $this->readIntranet($jsFile);
+            $position = strpos($js, 'function uc007DescarregarFacturaLlegada(');
+            if ($position === false) {
+                Assert::fail('Missing binary legacy invoice download helper in ' . $jsFile);
+            }
+
+            $fragment = substr($js, $position, 4200);
+            Assert::stringContainsString('alumnes/descarregaFactura.php', $fragment);
+            Assert::stringContainsString('method: "POST"', $fragment);
+            Assert::stringContainsString('"X-Requested-With": "XMLHttpRequest"', $fragment);
+            Assert::stringContainsString('response.blob()', $fragment);
+            Assert::stringContainsString('Content-Disposition', $fragment);
+            Assert::stringContainsString('URL.createObjectURL(result.blob)', $fragment);
+
+            if (str_contains($fragment, 'dataType: "html"')) {
+                Assert::fail('Binary invoice response must not be parsed as HTML in ' . $jsFile);
+            }
         }
     }
 
