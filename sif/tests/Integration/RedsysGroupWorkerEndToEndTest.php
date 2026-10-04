@@ -11,6 +11,7 @@ use Prisma\Sif\Repository\RedsysCallbackQueueRepository;
 use Prisma\Sif\Repository\RedsysNotificationRepository;
 use Prisma\Sif\Repository\RedsysPaymentIntentRepository;
 use Prisma\Sif\Service\GroupEnrollmentFundAllocationService;
+use Prisma\Sif\Service\GroupParticipantRemovalPreviewService;
 use Prisma\Sif\Service\LegacyGroupInvoicePayloadBuilder;
 use Prisma\Sif\Service\LegacySyncService;
 use Prisma\Sif\Service\RedsysCallbackDispatcher;
@@ -87,6 +88,26 @@ final class RedsysGroupWorkerEndToEndTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM enrollment_fund_movement')->fetchColumn());
+
+        $preview = (new GroupParticipantRemovalPreviewService(
+            new EnrollmentFundMovementRepository(new UuidGenerator())
+        ))->preview($db, $first['uuid_factura'], 751);
+        Assert::same(751, $preview['participant']['id_insc']);
+        Assert::same('120.00', $preview['participant']['billed']);
+        Assert::same('120.00', $preview['participant']['funds_attributed']);
+        Assert::same('0.00', $preview['participant']['unpaid']);
+        Assert::same('120.00', $preview['participant']['max_refundable_before_policy']);
+        Assert::same(2, $preview['group']['participants_before']);
+        Assert::same(1, $preview['group']['participants_after']);
+        Assert::same(false, $preview['decision']['automatic_commit_allowed']);
+        Assert::same(true, $preview['decision']['repricing_policy_required']);
+        Assert::same(1, count($preview['fund_movements']));
+
+        Assert::throws(\Prisma\Sif\Exception\SifException::class, function () use ($db, $first): void {
+            (new GroupParticipantRemovalPreviewService(
+                new EnrollmentFundMovementRepository(new UuidGenerator())
+            ))->preview($db, $first['uuid_factura'], 999999);
+        }, 409);
 
         $db->prepare(
             "UPDATE redsys_callback_queue
