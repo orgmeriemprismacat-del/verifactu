@@ -67,3 +67,9 @@ Les correccions i proves incorporades després del primer run s'han de validar a
 - regressió amb dades històriques complexes;
 - comprovació que una factura llegada amb `generada IS NULL` continua NULL després d'una descàrrega UC-007;
 - retirada definitiva del fallback.
+
+### Auditoria del rol efectiu
+
+- `InternalInvoiceScopeResolver` conserva `invoice_scope_role`.
+- UC-080 grava aquest rol efectiu a `fiscal_document_access.ACTOR_ROLE`.
+- Un actor `SUPORT + FACTURACIO` amb FULL per `FACTURACIO` queda auditat com `FACTURACIO`.
