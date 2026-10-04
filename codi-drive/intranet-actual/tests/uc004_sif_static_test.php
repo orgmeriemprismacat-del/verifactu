@@ -67,6 +67,8 @@ foreach ([
     'confirmInvoiceBeforePayment',
     'UC004-V1',
     'contract_version',
+    "['aeat_fields', 'aeat_header']",
+    'Invoice-before-payment AEAT fields are server-owned',
 ] as $required) {
     assertTrue(str_contains($client, $required), "Missing internal API client control: {$required}");
 }
