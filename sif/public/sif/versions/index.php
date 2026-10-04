@@ -18,7 +18,10 @@ header('X-Frame-Options: DENY');
 header('Referrer-Policy: same-origin');
 header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
 
-$session = new VersionPanelSession((string) ($panelConfig['session_name'] ?? 'SIFPANELSESSID'));
+$session = new VersionPanelSession(
+    (string) ($panelConfig['session_name'] ?? 'SIFPANELSESSID'),
+    (int) ($panelConfig['version_session_ttl_seconds'] ?? 1800)
+);
 $session->start();
 $launchPath = (string) ($panelConfig['version_launch_path'] ?? '/sif/versions/');
 
