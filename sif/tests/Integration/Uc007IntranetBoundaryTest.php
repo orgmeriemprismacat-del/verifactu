@@ -187,6 +187,31 @@ final class Uc007IntranetBoundaryTest
         }
     }
 
+    public function testLegacyLikeEscapingMatchesSqlEscapeContract(): void
+    {
+        $intranet = $this->readIntranet('Intranet.php');
+        $queries = $this->readIntranet('IntranetProva.php');
+
+        $start = strpos($intranet, 'public function buscarUsuaris_Factures(');
+        $end = strpos($intranet, 'public function mostrarTotesFacturesUsuari_Factures(', $start === false ? 0 : $start);
+        if ($start === false || $end === false || $end <= $start) {
+            Assert::fail('Could not isolate UC-007 legacy search method.');
+        }
+
+        $fragment = substr($intranet, $start, $end - $start);
+        Assert::stringContainsString("'%' => '=%'", $fragment);
+        Assert::stringContainsString("'_' => '=_'", $fragment);
+
+        foreach ([
+            "CORREU LIKE ? ESCAPE '='",
+            "factura_relacionada LIKE ? ESCAPE '='",
+            "DNI LIKE ? ESCAPE '='",
+            "cif LIKE ? ESCAPE '='",
+        ] as $sqlContract) {
+            Assert::stringContainsString($sqlContract, $queries);
+        }
+    }
+
     public function testLegacySearchInitializesStateUsesStableDelimiterAndEscapesTitle(): void
     {
         $intranet = $this->readIntranet('Intranet.php');
