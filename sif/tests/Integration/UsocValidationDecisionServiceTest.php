@@ -105,6 +105,99 @@ final class UsocValidationDecisionServiceTest
         Assert::same('LEGACY_DECISION_CONFLICT', $result['review_reason']);
     }
 
+    public function testDeniedUsocCommitsAfterLegacyReclassifiesDiscountType(): void
+    {
+        $db = TestDatabase::fresh();
+        $legacy = $this->legacyDb(4, 0);
+        $service = $this->service();
+
+        $service->begin(
+            $db,
+            $legacy,
+            'req-usoc-denied-reclassified',
+            880,
+            2,
+            'secretaria-test',
+            ['ADMIN']
+        );
+
+        $legacy->exec('UPDATE inscripcions SET TIPUS_DESC = 1, VALID_DESC = 2 WHERE ID = 880');
+
+        $result = $service->complete(
+            $db,
+            $legacy,
+            'req-usoc-denied-reclassified',
+            'secretaria-test'
+        );
+
+        Assert::same('COMMITTED', $result['state']);
+        Assert::same(2, $result['legacy_valid_desc']);
+        Assert::same(false, $result['should_apply_legacy']);
+    }
+
+    public function testRetryOfDeniedUsocReconcilesExistingDecisionAfterLegacyReclassification(): void
+    {
+        $db = TestDatabase::fresh();
+        $legacy = $this->legacyDb(4, 0);
+        $service = $this->service();
+
+        $service->begin(
+            $db,
+            $legacy,
+            'req-usoc-denied-retry',
+            880,
+            2,
+            'secretaria-test',
+            ['ADMIN']
+        );
+
+        $legacy->exec('UPDATE inscripcions SET TIPUS_DESC = 0, VALID_DESC = 2 WHERE ID = 880');
+
+        $retry = $service->begin(
+            $db,
+            $legacy,
+            'req-usoc-denied-retry',
+            880,
+            2,
+            'secretaria-test',
+            ['ADMIN']
+        );
+
+        Assert::same(true, $retry['tracked']);
+        Assert::same('COMMITTED', $retry['state']);
+        Assert::same(2, $retry['legacy_valid_desc']);
+        Assert::same(false, $retry['should_apply_legacy']);
+    }
+
+    public function testApprovedUsocStillRequiresLegacyTypeToRemainUsoc(): void
+    {
+        $db = TestDatabase::fresh();
+        $legacy = $this->legacyDb(4, 0);
+        $service = $this->service();
+
+        $service->begin(
+            $db,
+            $legacy,
+            'req-usoc-approved-type-drift',
+            880,
+            1,
+            'secretaria-test',
+            ['ADMIN']
+        );
+
+        $legacy->exec('UPDATE inscripcions SET TIPUS_DESC = 0, VALID_DESC = 1 WHERE ID = 880');
+
+        $result = $service->complete(
+            $db,
+            $legacy,
+            'req-usoc-approved-type-drift',
+            'secretaria-test'
+        );
+
+        Assert::same('REVIEW_REQUIRED', $result['state']);
+        Assert::same('LEGACY_NO_LONGER_USOC', $result['review_reason']);
+    }
+
     public function testSameRequestIdCannotBeReusedForDifferentDecision(): void
     {
         $db = TestDatabase::fresh();
