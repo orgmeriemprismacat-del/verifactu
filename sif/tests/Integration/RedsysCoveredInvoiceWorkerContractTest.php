@@ -33,6 +33,7 @@ final class RedsysCoveredInvoiceWorkerContractTest
 
         foreach ([
             'invoice_before_payment_coverage',
+            'invoice_origin_guard',
             'factura',
             'payment_transaction',
             'payment_allocation',
