@@ -37,7 +37,7 @@
 
 ## 3. Classes ACTUAL — circuit llegat
 
-El circuit real continua sent navegador → AJAX llegat → `Intranet` → BD web/intranet. La pantalla no invoca `InvoiceBeforePaymentService`.
+Aquest apartat descriu exclusivament el **circuit ACTUAL històric/llegat** observat abans del cutover segur. El circuit executable versionat del 04/10/2026 ja no usa aquest mutador com a via fiscal i passa per bridge intranet → API interna SIF → `InvoiceBeforePaymentService`.
 
 ```mermaid
 classDiagram
@@ -402,7 +402,7 @@ class InvoiceBeforePaymentDocumentQueueService {
 }
 
 class DocumentJobRepository {
-  <<EXISTEIX EN AQUESTA BRANCA>>
+  <<PROPOSAT / NO AL MAIN NI EN AQUESTA BRANCA>>
   +ensurePending(db, uuidFactura, type, version, correlation)
   +findByInvoiceAndType(db, uuidFactura, type)
 }
@@ -445,7 +445,7 @@ InvoiceBeforePaymentService --> InvoiceBeforePaymentPayloadBuilder
 InvoiceBeforePaymentService --> InvoiceService
 InvoiceBeforePaymentService ..> InvoiceBeforePaymentDocumentQueueService : PENDENT post-COMMIT
 InvoiceBeforePaymentDocumentQueueService ..> DocumentJobRepository : PENDENT
-DocumentJobRepository ..> DocumentJob : FINAL proposat
+DocumentJobRepository ..> DocumentJob : FINAL pendent
 InvoiceService --> InvoicePayloadValidator
 InvoiceService --> PayloadIdempotencyValidator
 InvoiceService --> TransactionRunner
