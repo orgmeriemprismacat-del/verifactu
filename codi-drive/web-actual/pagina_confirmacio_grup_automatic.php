@@ -29,6 +29,8 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? '')) === 'POST') {
         && preg_match('/^v2\.[A-Za-z0-9_-]+$/D', $postedToken) === 1
     ) {
         $setUc015ConfirmationCookie($postedToken);
+        header('Location: https://www.prisma.cat/packs/confirmacio/', true, 303);
+        exit;
     }
     else {
         http_response_code(400);
