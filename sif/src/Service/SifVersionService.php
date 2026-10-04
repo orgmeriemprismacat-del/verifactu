@@ -88,7 +88,11 @@ final class SifVersionService
             $operation['idempotency_key']
         );
         if ($existingReplay !== null) {
-            $this->assertVersionRegistrationReplay($existingReplay, $versionCode, $actorId);
+            $this->versions->assertReplay($existingReplay, [
+                'version_code' => $versionCode,
+                'created_by' => $actorId,
+                'reason_code' => $operation['reason_code'],
+            ]);
             return ['ok' => true, 'reused' => true, 'version' => $this->versionOutput($existingReplay)];
         }
 
@@ -112,6 +116,7 @@ final class SifVersionService
                 'config_hash' => $runtime['config_hash'],
                 'database_version' => $runtime['database_version'],
                 'created_by' => $actorId,
+                'reason_code' => $operation['reason_code'],
                 'idempotency_key' => $operation['idempotency_key'],
             ]);
 
@@ -158,13 +163,13 @@ final class SifVersionService
             $operation['idempotency_key']
         );
         if ($existingReplay !== null) {
-            $this->assertDeclarationReplay(
-                $existingReplay,
-                $uuidVersion,
-                $declarationVersion,
-                $storageKey,
-                $actorId
-            );
+            $this->declarations->assertReplay($existingReplay, [
+                'uuid_version' => $uuidVersion,
+                'declaration_version' => $declarationVersion,
+                'storage_key' => $storageKey,
+                'approved_by' => $actorId,
+                'reason_code' => $operation['reason_code'],
+            ]);
             return ['ok' => true, 'reused' => true, 'declaration' => $this->declarationOutput($existingReplay)];
         }
 
@@ -201,13 +206,13 @@ final class SifVersionService
                 true
             );
             if ($existingReplay !== null) {
-                $this->assertDeclarationReplay(
-                    $existingReplay,
-                    $uuidVersion,
-                    $declarationVersion,
-                    $storageKey,
-                    $actorId
-                );
+                $this->declarations->assertReplay($existingReplay, [
+                    'uuid_version' => $uuidVersion,
+                    'declaration_version' => $declarationVersion,
+                    'storage_key' => $storageKey,
+                    'approved_by' => $actorId,
+                    'reason_code' => $operation['reason_code'],
+                ]);
                 return ['ok' => true, 'reused' => true, 'declaration' => $this->declarationOutput($existingReplay)];
             }
 
@@ -222,6 +227,7 @@ final class SifVersionService
                 'storage_key' => $storageKey,
                 'approved_by' => $actorId,
                 'approved_at' => $approvedAt,
+                'reason_code' => $operation['reason_code'],
                 'idempotency_key' => $operation['idempotency_key'],
             ]);
 
@@ -275,7 +281,14 @@ final class SifVersionService
 
         $existing = $this->activations->findByIdempotencyKey($this->db, $operation['idempotency_key']);
         if ($existing !== null) {
-            $this->assertActivationReplay($existing, $uuidVersion, $backupUuid, $actorId, $role, $operation);
+            $this->activations->assertReplay($existing, [
+                'uuid_version' => $uuidVersion,
+                'uuid_backup_evidence' => $backupUuid,
+                'actor_id' => $actorId,
+                'actor_role' => $role,
+                'reason_code' => $operation['reason_code'],
+                'correlation_id' => $operation['correlation_id'],
+            ]);
             return ['ok' => true, 'reused' => true, 'activation' => $this->activationOutput($existing)];
         }
 
@@ -301,7 +314,14 @@ final class SifVersionService
 
             $existing = $this->activations->findByIdempotencyKey($db, $operation['idempotency_key'], true);
             if ($existing !== null) {
-                $this->assertActivationReplay($existing, $uuidVersion, $backupUuid, $actorId, $role, $operation);
+                $this->activations->assertReplay($existing, [
+                    'uuid_version' => $uuidVersion,
+                    'uuid_backup_evidence' => $backupUuid,
+                    'actor_id' => $actorId,
+                    'actor_role' => $role,
+                    'reason_code' => $operation['reason_code'],
+                    'correlation_id' => $operation['correlation_id'],
+                ]);
                 return ['ok' => true, 'reused' => true, 'activation' => $this->activationOutput($existing)];
             }
 
@@ -668,70 +688,6 @@ final class SifVersionService
             'request_id' => $requestId,
             'reason_code' => $reason,
         ];
-    }
-
-    private function assertVersionRegistrationReplay(
-        array $existing,
-        string $versionCode,
-        string $actorId
-    ): void {
-        $expected = [
-            'VERSION_CODE' => trim($versionCode),
-            'CREATED_BY' => trim($actorId),
-        ];
-
-        foreach ($expected as $column => $value) {
-            if ((string) ($existing[$column] ?? '') !== $value) {
-                throw SifException::conflict('Version idempotency key already exists with different payload');
-            }
-        }
-    }
-
-    private function assertDeclarationReplay(
-        array $existing,
-        string $uuidVersion,
-        string $declarationVersion,
-        string $storageKey,
-        string $actorId
-    ): void {
-        $expected = [
-            'UUID_VERSION' => strtolower(trim($uuidVersion)),
-            'DECLARATION_VERSION' => trim($declarationVersion),
-            'STORAGE_KEY' => trim($storageKey),
-            'APPROVED_BY' => trim($actorId),
-            'STATUS' => 'APPROVED',
-        ];
-
-        foreach ($expected as $column => $value) {
-            if ((string) ($existing[$column] ?? '') !== $value) {
-                throw SifException::conflict('Declaration idempotency key already exists with different payload');
-            }
-        }
-    }
-
-    private function assertActivationReplay(
-        array $existing,
-        string $uuidVersion,
-        ?string $backupUuid,
-        string $actorId,
-        string $role,
-        array $operation
-    ): void {
-        $expected = [
-            'UUID_VERSION' => $uuidVersion,
-            'UUID_BACKUP_EVIDENCE' => $backupUuid,
-            'ACTOR_ID' => $actorId,
-            'ACTOR_ROLE' => $role,
-            'REASON_CODE' => $operation['reason_code'],
-            'CORRELATION_ID' => $operation['correlation_id'],
-        ];
-
-        foreach ($expected as $column => $value) {
-            $stored = $existing[$column] ?? null;
-            if (($stored === null ? null : (string) $stored) !== ($value === null ? null : (string) $value)) {
-                throw SifException::conflict('Activation idempotency key already exists with different payload');
-            }
-        }
     }
 
     private function assertRead(array $actor): string
