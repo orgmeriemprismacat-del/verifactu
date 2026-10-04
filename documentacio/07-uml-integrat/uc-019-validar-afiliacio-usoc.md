@@ -18,7 +18,7 @@
 
 1. L'usuari selecciona o demana el tractament USOC en una inscripció. El canal protegeix la identitat i recull el mínim necessari per verificar la condició, amb data, edició i responsable de la decisió.
 2. La persona autoritzada verifica la condició i, quan correspongui, evidència, vigència i condicions de l'entitat. **Aquests passos són un contracte objectiu, no mètodes PHP identificats al SIF.**
-3. La decisió s'associa a `ID_INSC` amb actor/motiu i es registra en el llegat o servei acordat; l'orquestració de BD llegat ↔ BD SIF és pendent. No marcar `VALID_DESC=1` per la simple selecció d'un descompte al formulari.
+3. La decisió s'associa a `ID_INSC` amb actor i `requestId`; l'orquestració BD llegat ↔ BD SIF ja està implementada en dues fases (`REQUESTED → mutació legacy → COMMITTED/REVIEW_REQUIRED`). Continua pendent documentar la font/evidència humana que sustenta la decisió. No marcar `VALID_DESC=1` per la simple selecció d'un descompte al formulari.
 4. Quan `TIPUS_DESC=4` i `VALID_DESC=1` estan confirmats i la informació comercial és coherent, `LegacyUsocSnapshotRepository::loadByIdpag()` **sí que comprova aquests valors** en recuperar el snapshot per a facturació. Rebutja inscrits sense la marca.
 5. La factura alumne UC-19a es prepara amb import alumne i import de l'entitat separats; la factura de l'entitat UC-19b s'emet amb dades fiscals específiques quan pertoqui. **No** inferir que l'entitat ja ha pagat perquè la condició estigui validada.
 6. Si la condició perd vigència o es descobreix un error **després** d'emetre, cal classificar correcció fiscal/econòmica i relacionar-la amb UC-05/71/72; no reescriure retrospectivament `factura_linia`.
@@ -42,7 +42,7 @@ La pantalla `/alumnes/validar-descomptes/` presenta les inscripcions pendents mi
 
 Gestió confirma manualment l'afiliació amb USOC i comunica el resultat a l'alumne. En una denegació, el canal recalcula el preu sense descompte **abans** de facturar o cobrar i invalida l'oferta anterior incompatible. El cas normal descrit indica descompte del 25 % i pagament inicial de 10 € per l'alumne; són dades del circuit recuperat, no valors universals que el builder hagi d'imposar. La variant «Curs gratuït USOC» vinculada a `anticipi-preu-usoc` requereix classificació separada (UC-13).
 
-### 1.4. Proves addicionals (no executades)
+### 1.4. Proves addicionals — CI parcialment acreditada; preproducció pendent
 
 | ID | Escenari | Resultat |
 | --- | --- | --- |
@@ -103,7 +103,9 @@ flowchart LR
   actor_1 --> uc_4
 ```
 
-## 3. Classes existents i classes de disseny separades
+## 3. HISTÒRIC/SUPERAT — classes del disseny anterior
+
+> Aquesta secció es conserva com a traça del disseny previ. **No descriu l'ACTUAL canònic.** La capa de decisió ja existeix com `UsocValidationDecisionService` + `UsocValidationDecisionRepository`, amb persistència `usoc_validation_decision`, exclusió concurrent per `ID_INSC` i API interna HMAC. La verificació externa de l'afiliació continua sent la part no automatitzada. Vegeu [Classes ACTUAL/FINAL](uc-019-classes-actual-final.md).
 
 ```mermaid
 classDiagram
@@ -131,7 +133,9 @@ LegacyUsocInvoicePayloadBuilder ..> LegacyUsocSnapshotRepository : dades del sna
 
 **Precisió 2026-10-03:** la facturació continua depenent del snapshot validat. La capa de **decisió** sí està acreditada (`UsocValidationDecisionService` + `UsocValidationDecisionRepository`), però aquesta capa no substitueix la verificació externa del dret d'afiliació.
 
-## 4. Seqüència — comprovació de la condició i ús posterior
+## 4. HISTÒRIC/SUPERAT — seqüència de disseny anterior
+
+> El diagrama següent es manté només com a rastre històric. La seqüència executable actual està documentada a [Seqüències ACTUAL/FINAL](uc-019-sequencies-actual-final.md): `POST+CSRF → begin_validation_decision → mutació legacy → complete_validation_decision`, amb idempotència, concurrència i reconciliació.
 
 ```mermaid
 sequenceDiagram
@@ -165,7 +169,7 @@ end
 Note over V,B: L'afiliació externa i les escriptures de validació són disseny pendent
 ```
 
-### 4.1. Acció independent: sol·licitar la condició USOC sense concedir-la — DISSENY/LEGAT
+### 4.1. HISTÒRIC — sol·licitud de condició USOC; evidència externa encara pendent
 
 **Actor/disparador:** persona inscrita o gestió registra una sol·licitud d'afiliació sobre un `ID_INSC` concret. **Precondició:** identitat i edició resoltes, evidència/canal legítims i absència d'una decisió recent incompatible. **Postcondició:** sol·licitud **pendent** (`VALID_DESC=0` al llegat quan correspongui) i prova/estat de revisió, **sense** passar a `VALID_DESC=1`, rebaixar l'import de la factura real o crear `CHARGE`. Una pantalla que permet triar «Afiliat USOC» no equival a verificar-ho amb l'entitat.
 
@@ -209,7 +213,7 @@ UI-->>A: Estat de sol·licitud, no factura ni descompte confirmat
 Note over UI,DB: La pantalla llegada i els camps són identificats, writer/auditoria completa d'evidències i identitat en SIF no acreditats.
 ```
 
-### 4.2. Acció independent: confirmar o denegar afiliació i revisar el preu ofert — DISSENY/LEGAT
+### 4.2. HISTÒRIC — decisió; persistència/orquestració ja implementades
 
 **Actor/disparador:** gestió ha contrastat l'afiliació amb la font acceptada i registra una decisió motivada. **Precondicions:** `ID_INSC`, proves vigents, data i actor, import acordat alumne/entitat i estat de la factura/intenció TPV. **Postcondicions separades:** si confirma, `VALID_DESC=1` i snapshot comercial USOC congelat quan pertoqui; si denega, `VALID_DESC=2` i preu nou **abans d'emissió**, sense corregir una factura fiscal ja emesa amb `UPDATE`. Les rutines llegades `updValidDescByInsc` i `updValidDescByInscPreu` són identificades; la seva disponibilitat **no** acredita connexió al control fiscal SIF ni una aprovació idempotent per versió.
 
@@ -290,6 +294,14 @@ La part del document que marcava la persistència de validació com a pur `DISSE
 | POST/CSRF/permís intranet | IMPLEMENTAT |
 | API interna HMAC i rol | IMPLEMENTAT |
 | REQUESTED/COMMITTED/REVIEW_REQUIRED | IMPLEMENTAT |
-| tests de servei/contracte | EXISTENTS; no executats en aquesta auditoria |
+| tests de servei/contracte | VERIFICATS EN CI per versions anteriors; últims canvis del head actual pendents de workflow |
 | verificació externa d'afiliació | PENDENT de procediment/font de negoci |
-| evidència preproducció/MySQL | PENDENT |
+| MySQL de CI | VERIFICAT en execucions anteriors |
+| evidència `sif_test` / `sif_pre` desplegada | PENDENT |
+
+
+### Documents de tancament actuals
+
+- [Matriu de tancament UC-019](uc-019-matriu-tancament.md)
+- [Pla de validació preproducció](uc-019-pla-validacio-preproduccio.md)
+- [Refactor pendent de notificacions/outbox](uc-019-refactor-notificacions-outbox.md)
