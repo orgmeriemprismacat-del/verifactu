@@ -246,8 +246,8 @@ S'ha afegit `GeneratedInvoiceLegacyPaymentSyncService`:
 4. reparteix de manera determinista el total acumulat entre les inscripcions;
 5. escriu valors absoluts derivats del ledger SIF, no increments;
 6. limita la projecció al total contractual llegat;
-7. actualitza data/mètode de pagament de la projecció de factura;
-8. és segura davant reintents.
+7. **no actualitza `factures`**: la factura fiscal llegada queda fora de la projecció;
+8. és segura davant reintents perquè deriva valors absoluts del ledger SIF.
 
 Si el cobrament SIF queda confirmat però la projecció falla, l'endpoint respon `202 PENDING_RETRY`. El mateix `external_bank_event_id` es pot reenviar: el cobrament queda `REUSED` i només es reintenta la projecció.
 
@@ -318,15 +318,15 @@ La matriu funcional exigeix tres responsabilitats diferents i el canal UC-022 ja
 - `operational_event`: `REGISTER_MANUAL_TRANSFER`, impacte fiscal `NONE`, impacte econòmic `PAYMENT`;
 - `sif_audit_event`: auditoria comuna de l'acció sensible sobre el recurs `PAYMENT`.
 
-`operational_event` i `sif_audit_event` s'escriuen dins la mateixa transacció que `payment_transaction/payment_allocation`; el terminal de `payment_action_event` també forma part d'aquell commit.
+`operational_event` i `sif_audit_event` s'escriuen dins la mateixa transacció que `payment_transaction/payment_allocation`; el terminal de `payment_action_event` també forma part d'aquell commit. La projecció posterior al legacy té els seus propis events `SYNC_LEGACY`.
 
 Les denegacions i validacions prèvies generen `payment_action_event` amb `ACCESS_DENIED|VALIDATION_REJECTED` i resultat `REJECTED`, sense cap mutació econòmica.
 
 ### 11.10. Notificació
 
-Existeix infraestructura genèrica `notification_outbox`, però el servei de notificació de pagament actual està especialitzat en Redsys/curs (`DS_ORDER`, snapshot d'una inscripció). No s'ha reutilitzat artificialment per UC-022 perquè una factura manual pot agrupar diverses inscripcions i no té `DS_ORDER`.
+S'ha implementat `ManualTransferNotificationService` sobre `notification_outbox`, separat de Redsys. El bundle és idempotent per `uuid_payment` i missatge, encola una notificació interna i, quan es pot resoldre el responsable de l'entitat a la BD d'intranet, una notificació al responsable. Si la BD d'intranet no està configurada o falla la preparació obligatòria del bundle, el canal queda en `PENDING_RETRY` sense duplicar el cobrament.
 
-**Pendent real:** definir plantilla, destinatari/resolució de destinatari i payload canònic de confirmació de transferència manual, i encolar-lo post-commit de manera idempotent.
+**Encara pendent de verificació real:** execució del worker/delivery de correu a test/preproducció i conservació de l'evidència.
 
 
 ## Via alternativa d'evidència UC-022
@@ -339,7 +339,7 @@ Garanties del runner:
 - només admet MySQL a `127.0.0.1` o `localhost`;
 - fixa `SIF_ENV=test`;
 - executa `php -l` sobre els PHP que formen la superfície UC-022;
-- executa `sif/tests/run-tests.php` complet;
+- executa `sif/tests/run-uc022-tests.php` per defecte; la suite global només s'executa amb `RUN_FULL_SIF_SUITE=1`;
 - registra data, versió PHP, commit i branca quan s'executa des d'un checkout Git;
 - conserva l'evidència a `sif/test-results/uc022-<timestamp>.log`.
 
@@ -364,44 +364,63 @@ Per evitar que aquestes regressions alienes ocultin l'evidència del UC-022, s'h
 - `sif/tests/run-uc022-tests.php`;
 - workflow `.github/workflows/uc-022-manual-transfer.yml`.
 
-## 12. Descobriment crític sobre la sincronització llegada
+## 12. Reconciliació final de la sincronització llegada
 
-La inspecció de `Intranet::efectuarPagamentFacturaGenerada()` confirma que **no es pot reutilitzar després del SIF** perquè fa una actualització fiscal directa sobre la factura llegada:
+La inspecció de `Intranet::efectuarPagamentFacturaGenerada()` confirma que **no es pot reutilitzar després del SIF** perquè fa una actualització directa de la factura llegada:
 
 `UPDATE factures SET data_pagament=?, IMPORT=?, FORMA_PAGAMENT=? WHERE NUM=?`
 
 A més, actualitza inscripcions, fraccionament i envia notificacions.
 
-Per evitar doble escriptura fiscal s'ha creat `SifLegacyPaymentProjection`, que:
+Durant l'auditoria es va detectar temporalment una segona projecció a la intranet. S'ha eliminat per evitar doble aplicació. L'arquitectura definitiva és:
 
-- no actualitza mai `factures`;
-- projecta només el pagament operacional a `inscripcions`;
-- suma sobre `PAGAMENT` existent, sense sobrepassar `A_PAGAR`;
-- marca `DATA PAG` només quan la inscripció queda completament pagada;
-- és idempotent per `external_bank_event_id`;
-- retorna `PENDING_RETRY` des del caller si el SIF ja ha confirmat però la projecció llegada falla.
+`intranet caller -> endpoint SIF -> payment ledger -> ManualTransferLegacyProjectionService -> GeneratedInvoiceLegacyPaymentSyncService`
 
-La taula auxiliar està definida a:
-`codi-drive/intranet-nova-canvis-verifactu/sql/uc-022-sif-legacy-payment-projection.sql`.
+Propietats definitives:
 
-### 12.1. Estat actual del tancament
+- **un únic propietari de la projecció: el SIF**;
+- la intranet no escriu el legacy després de la resposta SIF;
+- `GeneratedInvoiceLegacyPaymentSyncService` actualitza només `inscripcions`;
+- no executa cap `UPDATE factures`;
+- deriva la projecció del total confirmat del ledger SIF;
+- el reintent torna a calcular valors absoluts, de manera que és idempotent;
+- `SYNC_LEGACY REQUESTED/SUCCEEDED/FAILED` deixa traça al SIF;
+- `PENDING_RETRY` conserva el cobrament confirmat i permet repetir la mateixa comanda.
+
+No cal cap taula auxiliar de projecció a la BD legacy: l'idempotència autoritativa és la del payment SIF + la projecció derivada i auditada.
+
+### 12.1. Preparació de preproducció
+
+S'han afegit:
+
+- `sif/scripts/preflight-uc022-manual-transfer.php`;
+- `sif/scripts/verify-uc022-preproduction.php` — només lectura;
+- `documentacio/09-proves-qa/uc-022-runbook-preproduccio.md`;
+- `documentacio/09-evidencies/UC-022/plantilla-evidencia-preproduccio.md`.
+
+El verificador no publica l'identificador bancari ni el número visible en clar: en conserva hashes SHA-256.
+
+### 12.2. Estat actual del tancament
 
 **Verificat en CI**
 - registre manual SIF;
-- idempotència;
-- conflicte per event reutilitzat;
-- autorització de la comanda;
-- prioritat de l'identificador bancari immutable.
+- idempotència i conflicte;
+- autorització;
+- identitat bancària amb namespace del banc;
+- auditoria del cobrament;
+- contracte HTTP i intranet;
+- projecció acumulada;
+- contracte de notificació/outbox.
 
-**Implementat però encara no verificat en preproducció real**
+**Implementat però encara no acreditat a preproducció real**
 - POST navegador → intranet amb CSRF;
-- refresc de rols des de BD;
 - HMAC intranet → SIF;
-- projecció operacional llegada;
-- reintent `PENDING_RETRY`.
+- projecció SIF → legacy;
+- notificació/outbox;
+- recuperació `PENDING_RETRY`.
 
 **Encara pendent**
-- desplegar la taula auxiliar al DB llegat de preproducció;
-- configurar secrets/rols runtime;
-- executar el flux complet sobre `sif_test`/preproducció amb moviment real o fixture controlada;
-- decidir la font definitiva de l'`external_bank_event_id` (ID d'operació/export bancari), evitant identificadors inventats.
+- executar el preflight amb la configuració real;
+- executar i conservar T01–T06 del runbook;
+- decidir la font definitiva de l'`external_bank_event_id` des de l'operació/export bancari real;
+- conservar evidència del worker de notificacions.
