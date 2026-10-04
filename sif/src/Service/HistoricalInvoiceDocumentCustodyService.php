@@ -60,6 +60,8 @@ final class HistoricalInvoiceDocumentCustodyService
             throw SifException::unavailable('Historical document source bytes are unavailable');
         }
 
+        $this->assertSourceFormat($source, $type);
+
         $size = filesize($source);
         $hash = hash_file('sha256', $source);
         if ($size === false || $size < 1 || $size > $this->maxBytes || !is_string($hash)) {
@@ -240,6 +242,37 @@ final class HistoricalInvoiceDocumentCustodyService
         $stmt->execute([$uuidFactura, $type]);
 
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    private function assertSourceFormat(string $source, string $type): void
+    {
+        $handle = fopen($source, 'rb');
+        if ($handle === false) {
+            throw SifException::unavailable('Historical document source bytes are unavailable');
+        }
+
+        try {
+            $prefix = fread($handle, 512);
+        } finally {
+            fclose($handle);
+        }
+
+        if (!is_string($prefix) || $prefix === '') {
+            throw SifException::validation('Historical document source is empty or unreadable');
+        }
+
+        if ($type === 'PDF') {
+            if (!str_starts_with($prefix, '%PDF-')) {
+                throw SifException::validation('Historical PDF source does not have a PDF signature');
+            }
+            return;
+        }
+
+        $normalized = preg_replace('/^\xEF\xBB\xBF/', '', $prefix);
+        $normalized = ltrim((string) $normalized);
+        if (!str_starts_with($normalized, '<')) {
+            throw SifException::validation('Historical XML source does not have an XML-like document signature');
+        }
     }
 
     private function putPrivate(
