@@ -28,6 +28,7 @@ try {
 $relativeFiles = [
     'Integration/LegacyPackCallbackBoundaryTest.php',
     'Integration/LegacyPackInvoicePayloadBuilderTest.php',
+    'Integration/NotificationOutboxDeliveryServiceTest.php',
     'Integration/PackCheckoutBoundaryTest.php',
     'Integration/PackCommercialOrderBoundaryTest.php',
     'Integration/PackComponentAvailabilityBoundaryTest.php',
