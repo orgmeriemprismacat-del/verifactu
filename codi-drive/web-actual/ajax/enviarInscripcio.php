@@ -313,6 +313,17 @@ try {
 			return;
 		}
 
+		$clientBaseCents = (int) round(((float) $preuCar) * 100);
+		$clientApCents = (int) round(((float) $preuDescompte) * 100);
+		$serverBaseCents = (int) round(((float) $preuBaseServidor) * 100);
+		$serverApCents = (int) round(((float) $preuApServidor) * 100);
+		if ($clientBaseCents !== $serverBaseCents || $clientApCents !== $serverApCents) {
+			http_response_code(409);
+			$connexio->desconectarBD();
+			echo "Error: el preu del curs ha canviat. Torna a calcular el preu abans de confirmar la inscripció.";
+			return;
+		}
+
 		$preuCar = (float) $preuBaseServidor;
 		$preuDescompte = (float) $preuApServidor;
 	}
