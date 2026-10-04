@@ -11,8 +11,9 @@ final class DebtClaimInternalApiContractTest
         $root = dirname(__DIR__, 3);
         $api = file_get_contents($root . '/sif/public/api/debt-claims/manage.php');
         $client = file_get_contents($root . '/codi-drive/intranet-actual/SifInternalDebtClaimClient.php');
+        $config = file_get_contents($root . '/sif/config/sif.php');
 
-        if ($api === false || $client === false) {
+        if ($api === false || $client === false || $config === false) {
             Assert::fail('Could not read UC-012 internal API contract files');
         }
 
@@ -22,6 +23,11 @@ final class DebtClaimInternalApiContractTest
         Assert::stringContainsString('record_notice', $api);
         Assert::stringContainsString('reconcile_after_payment', $api);
         Assert::stringContainsString('DebtClaimCoordinator', $api);
+
+        Assert::stringContainsString("'debt_claim_signed_path'", $config);
+        Assert::stringContainsString("'debt_claims' => [", $config);
+        Assert::stringContainsString('SIF_DEBT_CLAIM_READ_ROLES', $config);
+        Assert::stringContainsString('SIF_DEBT_CLAIM_MANAGE_ROLES', $config);
 
         Assert::stringContainsString('SIF_INTERNAL_DEBT_CLAIM_URL', $client);
         Assert::stringContainsString('SIF_INTERNAL_DEBT_CLAIM_SIGNED_PATH', $client);

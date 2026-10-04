@@ -139,6 +139,83 @@ final class DebtClaimEnrollmentResolverTest
         Assert::same('120.00', $preview['snapshot']['outstanding']);
     }
 
+    public function testIdempotencyKeyCannotMoveFromHistoricalInvoiceToNewInvoiceForSameEnrollment(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = $this->service($db);
+        $actor = $this->actor();
+
+        $first = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC012|INSC|IDEMPOTENCY|A',
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 10,
+                    'factura_relacionada' => 701,
+                    'idpag' => 701,
+                    'ds_order' => '701701',
+                    'visible_alumne' => 1,
+                ]],
+            ])
+        );
+
+        $notice = [
+            'id_insc' => '10',
+            'action' => 'FINAL_REMINDER',
+            'idempotency_key' => 'CLAIM|INSC|10|STABLE-OPERATION',
+            'reason_code' => 'DEBT_DUE',
+            'request_id' => 'REQ-INSC-STABLE',
+            'correlation_id' => 'CORR-INSC-STABLE',
+        ];
+        $firstResult = $service->recordNotice($actor, $notice);
+        Assert::same($first['uuid_factura'], $firstResult['uuid_factura']);
+
+        RegisterPaymentTest::paymentServiceFor($db)->registerPayment([
+            'idempotency_key' => 'UC012|INSC|IDEMPOTENCY|PAY-A',
+            'movement_type' => 'CHARGE',
+            'method' => 'TRANSFERENCIA',
+            'source_channel' => 'INTRANET',
+            'amount' => '120.00',
+            'movement_date' => '2026-10-04 01:00:00',
+            'reference' => 'UC012-IDEMPOTENCY-A-PAID',
+            'allocations' => [[
+                'uuid_factura' => $first['uuid_factura'],
+                'amount' => '120.00',
+                'allocation_type' => 'CLAIM_PAYMENT',
+            ]],
+        ]);
+
+        $second = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC012|INSC|IDEMPOTENCY|B',
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 10,
+                    'factura_relacionada' => 702,
+                    'idpag' => 702,
+                    'ds_order' => '702702',
+                    'visible_alumne' => 1,
+                ]],
+            ])
+        );
+        Assert::notSame($first['uuid_factura'], $second['uuid_factura']);
+
+        Assert::throws(
+            SifException::class,
+            fn () => $service->recordNotice($actor, $notice),
+            409
+        );
+
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM debt_claim_event
+             WHERE IDEMPOTENCY_KEY = 'CLAIM|INSC|10|STABLE-OPERATION'"
+        )->fetchColumn());
+        Assert::same($first['uuid_factura'], (string) $db->query(
+            "SELECT UUID_FACTURA FROM debt_claim_event
+             WHERE IDEMPOTENCY_KEY = 'CLAIM|INSC|10|STABLE-OPERATION'"
+        )->fetchColumn());
+    }
+
     private function service(\PDO $db): DebtClaimCoordinator
     {
         $uuids = new UuidGenerator();

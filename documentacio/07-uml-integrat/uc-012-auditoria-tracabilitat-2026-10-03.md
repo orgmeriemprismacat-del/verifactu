@@ -74,11 +74,11 @@ Troballa: els POST legacy executen mutació + SMTP al mateix flux i treballen pr
 | Receptor fiscal, no alumne implícit | `BILLING_EMAIL` de `factura` | smoke + boundary | IMPLEMENTAT; CI EN CUA |
 | Expedient únic per factura | `debt_claim_case` | smoke | IMPLEMENTAT; CI EN CUA |
 | Events append-only | `debt_claim_event` | smoke/guards | IMPLEMENTAT; CI EN CUA |
-| Retry equivalent | payload hash + idempotency key | smoke | IMPLEMENTAT; CI EN CUA |
+| Retry equivalent | payload hash + idempotency key lligats a `UUID_FACTURA` resolta | smoke + enrollment resolver | IMPLEMENTAT; CI EN CUA |
 | Payload contradictori | `PayloadIdempotencyValidator` | guards | IMPLEMENTAT; CI EN CUA |
 | No regressió d’etapa | rank FINAL_REMINDER/FIRST/FINAL | guards | IMPLEMENTAT; CI EN CUA |
 | Outbox post-commit | `NotificationOutboxRepository` | smoke | IMPLEMENTAT; CI EN CUA |
-| Cancel·lació d’avisos en saldo zero | `cancelPendingForInvoice()` | reconciliation + delivery test | IMPLEMENTAT; CI EN CUA |
+| Cancel·lació d’avisos obsolets després de qualsevol cobrament confirmat | `cancelPendingForInvoice()` | reconciliation + delivery test | IMPLEMENTAT; CI EN CUA |
 | Cobrament sense nova factura | `ClaimPaymentService` | tests existents | VERIFICAT AL REPOSITORI PREVI; revalidació CI actual pendent |
 | CSRF/mateix origen | bridge intranet | `DebtClaimIntranetBoundaryTest` | IMPLEMENTAT; CI EN CUA |
 | Rol/permís servidor | context + `assertCanEdit` + API roles | boundary/guards | IMPLEMENTAT; CI EN CUA |
@@ -102,7 +102,7 @@ GitHub Actions continua `queued` en la darrera comprovació; per tant, aquestes 
 
 1. El bridge és `SIF_DEBT_CLAIM_UI_ENABLED=0` per defecte.
 2. `ID_INSC` es resol només server-side contra relacions SIF; si no hi ha una factura aplicable inequívoca, el flux falla tancat (inclòs `409` per múltiples pendents).
-3. Mutacions requereixen factura SIF explícita, CSRF, same-origin, rol i HMAC.
+3. Mutacions requereixen selector resoluble a una factura SIF inequívoca, CSRF, same-origin, rol i HMAC; la idempotència es calcula sobre la `UUID_FACTURA` resolta.
 4. Una reclamació té `fiscal_impact=NONE` i `economic_impact=NONE`.
 5. La baixa acadèmica continua en UC-72/95/96.
 6. No s’activa cap scheduler de morositat fins que UC-096 tingui venciment/pròrroga autoritatius.
@@ -152,3 +152,12 @@ El control legacy de morosos permet una nova reclamació quan han passat **30 di
 - `P-MOR-04` continua acoblat en el llegat a baixa acadèmica/Moodle; no es pot substituir directament per `FINAL_CLAIM` sense separar primer la baixa.
 - S'ha corregit a `Intranet.php` la projecció `reclamat` del recordatori final: `$reclamatM` ara s'inicialitza a partir del valor existent abans de `updClaimRecPag`.
 - Qualsevol pagament confirmat, també parcial, cancel·la avisos `PENDING` per evitar lliuraments amb saldo obsolet.
+
+
+### Correspondència P-MOR vs pantalles legacy
+
+Els subfluxos P-MOR defineixen l'estat canònic FINAL, però **no són una màquina d'estats derivada directament de les pantalles antigues**. La primera reclamació legacy filtra `reclamat IS NULL OR reclamat=''` i es regeix per `DATAI/DATA_INSC`; el recordatori de fi de curs usa `DATAF` i exclou qui ja té la marca «Reclamat fi de curs» a `pag_observacions`. Per tant, el pilot no ha de projectar artificialment P-MOR-02 → P-MOR-03 sobre una mateixa fila sense migrar primer les regles temporals/selecció.
+
+### Idempotència per factura canònica
+
+S'ha reforçat `DebtClaimCoordinator` perquè el selector d'entrada es resolgui dins la transacció i el hash idempotent utilitzi sempre `UUID_FACTURA`. Això bloqueja el cas en què `ID_INSC=10` apuntava inicialment a una factura A i, després de liquidar-la, passava a una factura B: reutilitzar la mateixa clau retorna conflicte `409` i no pot reaprofitar l'event de la factura A.

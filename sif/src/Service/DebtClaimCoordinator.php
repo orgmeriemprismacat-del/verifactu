@@ -73,15 +73,27 @@ final class DebtClaimCoordinator
         $requestId = $this->requestId($actor, $payload);
         $correlationId = $this->correlationId($actor, $payload);
         $channel = $this->channel($payload);
-        $businessPayload = $this->businessPayload($actor, $payload, $action, $reason, $channel);
+        // Validate that the caller supplied exactly one supported selector.
+        // The idempotency payload itself is canonicalized to UUID_FACTURA only
+        // after that selector has been resolved inside the transaction.
+        $this->invoiceIdentity($payload);
 
         $operation = function (\PDO $db) use (
             $actor, $payload, $action, $key, $reason, $requestId,
-            $correlationId, $channel, $businessPayload
+            $correlationId, $channel
         ): array {
             $snapshot = $this->snapshot($db, $payload, true);
+            $businessPayload = $this->businessPayload(
+                $actor,
+                $payload,
+                $action,
+                $reason,
+                $channel,
+                $snapshot['uuid_factura']
+            );
             $reused = $this->claims->findReusableEvent($db, $key, $businessPayload);
             if ($reused !== null) {
+                $this->assertReusableEventInvoice($reused, $snapshot);
                 return $this->reusedNotice($db, $reused, $snapshot);
             }
             if (!$snapshot['is_outstanding']) {
@@ -187,15 +199,21 @@ final class DebtClaimCoordinator
         $requestId = $this->requestId($actor, $payload);
         $correlationId = $this->correlationId($actor, $payload);
         $channel = $this->channel($payload);
-        $businessPayload = $this->businessPayload(
-            $actor, $payload, 'RECONCILE_AFTER_PAYMENT', $reason, $channel
-        );
+        $this->invoiceIdentity($payload);
 
         $operation = function (\PDO $db) use (
             $actor, $payload, $key, $reason, $requestId,
-            $correlationId, $channel, $businessPayload
+            $correlationId, $channel
         ): array {
             $snapshot = $this->snapshot($db, $payload, true);
+            $businessPayload = $this->businessPayload(
+                $actor,
+                $payload,
+                'RECONCILE_AFTER_PAYMENT',
+                $reason,
+                $channel,
+                $snapshot['uuid_factura']
+            );
             $uuidPayment = $this->optional($payload['uuid_payment'] ?? null, 36);
             if ($uuidPayment !== null
                 && $this->snapshots->findConfirmedPaymentAllocation(
@@ -222,6 +240,7 @@ final class DebtClaimCoordinator
 
             $reused = $this->claims->findReusableEvent($db, $key, $businessPayload);
             if ($reused !== null) {
+                $this->assertReusableEventInvoice($reused, $snapshot);
                 return [
                     'ok' => true,
                     'status' => (string) $claim['STATUS'],
@@ -429,10 +448,21 @@ final class DebtClaimCoordinator
         return ['type' => 'BILLING_PARTY', 'hash' => hash('sha256', $email)];
     }
 
-    private function businessPayload(array $actor, array $payload, string $action, string $reason, string $channel): array
-    {
+    private function businessPayload(
+        array $actor,
+        array $payload,
+        string $action,
+        string $reason,
+        string $channel,
+        string $uuidFactura
+    ): array {
+        $uuidFactura = trim($uuidFactura);
+        if ($uuidFactura === '') {
+            throw SifException::validation('Resolved debt claim invoice UUID is required');
+        }
+
         return [
-            'invoice' => $this->invoiceIdentity($payload),
+            'invoice' => 'UUID:' . strtolower($uuidFactura),
             'action' => $action,
             'reason_code' => $reason,
             'notes' => $this->optional($payload['notes'] ?? null, 4000),
@@ -468,6 +498,17 @@ final class DebtClaimCoordinator
         }
 
         return 'INSC:' . (int) $idInscRaw;
+    }
+
+    private function assertReusableEventInvoice(array $event, array $snapshot): void
+    {
+        $eventInvoice = strtolower(trim((string) ($event['uuid_factura'] ?? '')));
+        $snapshotInvoice = strtolower(trim((string) ($snapshot['uuid_factura'] ?? '')));
+        if ($eventInvoice === '' || $snapshotInvoice === '' || !hash_equals($eventInvoice, $snapshotInvoice)) {
+            throw SifException::conflict(
+                'Debt claim idempotency key belongs to a different SIF invoice'
+            );
+        }
     }
 
     private function noChange(array $snapshot, string $reason, ?string $uuidClaim = null): array

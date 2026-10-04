@@ -172,8 +172,8 @@ final class DebtClaimCoordinatorTest
         Assert::same('OPEN', $partial['status']);
         Assert::same('80.00', $partial['outstanding']);
         Assert::same('FIRST_CLAIM', $partial['stage']);
-        Assert::same(0, $partial['cancelled_notifications']);
-        Assert::same('PENDING', (string) $db->query(
+        Assert::same(1, $partial['cancelled_notifications']);
+        Assert::same('CANCELLED', (string) $db->query(
             'SELECT STATUS FROM notification_outbox'
         )->fetchColumn());
 
@@ -189,7 +189,7 @@ final class DebtClaimCoordinatorTest
         Assert::same('CLOSED', $closed['status']);
         Assert::same('0.00', $closed['outstanding']);
         Assert::same('RESOLVED', $closed['stage']);
-        Assert::same(1, $closed['cancelled_notifications']);
+        Assert::same(0, $closed['cancelled_notifications']);
         Assert::same('CANCELLED', (string) $db->query(
             'SELECT STATUS FROM notification_outbox'
         )->fetchColumn());
