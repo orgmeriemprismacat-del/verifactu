@@ -872,7 +872,7 @@ function mostrarModalConsultaInformacio( id ) {
 							htmlMsgError += "<i class='material-icons'>close</i></button>";
 							htmlMsgError += missatgeError + "</div>";
 
-							$('#modalConsultaInformacio #dades-factura').append(htmlMsgError);
+							$('#modalAnulaFactura #dades-factura').append(htmlMsgError);
 						}
 					}
 				}
@@ -953,15 +953,10 @@ function mostrarModalAnulaFactura( id ) {
 			$("#modalAnulaFactura").modal('show');
 
 			$('#modalAnulaFactura').on('click', '.confirma-baixa', function() {
-				console.log('confirma baixa');
 				let idAnul = $('#id-anula-fact').html().trim();
 				let tornarAnul = $('#import-anula-fact').val().trim();
 				let dataAnul = $('#data-pag-anula-fact').val().trim();
 				let obsAnul = $('#obs-anula-fact').val().trim();
-				console.log('idAnul ' + idAnul);
-				console.log('tornarAnul ' + tornarAnul);
-				console.log('dataAnul ' + dataAnul);
-				console.log('obsAnul ' + obsAnul);
 
 				if ( !campBuit(tornarAnul) && !campBuit(dataAnul) && validNumero(tornarAnul)
 				&& validData(dataAnul) ) {
@@ -1026,7 +1021,6 @@ function mostrarModalAnulaFactura( id ) {
 
 						$('#modalConsultaInformacio #dades-factura').append(htmlMsgError);
 					}
-					console.log(missatgeError);
 				}
 
 			});
