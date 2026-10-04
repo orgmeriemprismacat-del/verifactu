@@ -9700,11 +9700,11 @@ class Intranet
 						$dadesFacturaPrisma .= "<div style='vertical-align:bottom !important;
 						color: #597bb8; font-weight:bold;'>ÉS CÒPIA</div>";
 					}
-					$dadesFacturaPrisma .= "Número factura: ".$num."<br />";
+					$dadesFacturaPrisma .= "Número factura: ".$this->__escapeHtmlValue($num)."<br />";
 
 					$dataForm = date_create($data);
 					$dataForm = date_format($dataForm, 'd/m/Y');
-					$dadesFacturaPrisma .= "Data d'emissió: ".$dataForm."<br />";
+					$dadesFacturaPrisma .= "Data d'emissió: ".$this->__escapeHtmlValue($dataForm)."<br />";
 
 					/* Construim les dades del pagador */
 					$dadesFacturaPagador = "";
@@ -9712,23 +9712,23 @@ class Intranet
 					if ( $rao!= '' ) {
 						$objRao = new Text($rao);
 						$objRao->setMaj();
-						$dadesFacturaPagador .= "<strong>".$objRao->get()."</strong><br />";
+						$dadesFacturaPagador .= "<strong>".$this->__escapeHtmlValue($objRao->get())."</strong><br />";
 					}
 					if ( $cif!= '' ) {
 						$objCif = new Text($cif);
 						$objCif->setMaj();
-						$dadesFacturaPagador .= $objCif->get()."<br />";
+						$dadesFacturaPagador .= $this->__escapeHtmlValue($objCif->get())."<br />";
 					}
 					if ( $adreca!= '' ) {
 						$objAdreca = new Text($adreca);
 						$objAdreca->setMaj();
-						$dadesFacturaPagador .= $objAdreca->get()."<br />";
+						$dadesFacturaPagador .= $this->__escapeHtmlValue($objAdreca->get())."<br />";
 					}
 					if ( $cp!= '' or $poblacio!='' ) {
 						$cpPobl = $cp." ".$poblacio;
 						$objPobl = new Text($cp." ".$poblacio);
 						$objPobl->setMaj();
-						$dadesFacturaPagador .= $objPobl->get()."<br />";
+						$dadesFacturaPagador .= $this->__escapeHtmlValue($objPobl->get())."<br />";
 					}
 
 					$visible = "";
@@ -9770,14 +9770,14 @@ class Intranet
 									<td style='width:80%; height:300px; vertical-align:top !important;
 									border-left:1px solid #597bb8; border-right:1px solid #597bb8;
 									border-bottom:1px solid #597bb8; padding:50px 10px;'>
-										<p>".$concepte1."</p>
+										<p>".$this->__escapeHtmlValue($concepte1)."</p>
 
-										<p style='padding-top:50px;'>".$concepte2."</p>
+										<p style='padding-top:50px;'>".$this->__escapeHtmlValue($concepte2)."</p>
 
 									</td>
 									<td style='width:20%; vertical-align:top !important; padding:50px 10px;
 									border-right:1px solid #597bb8; border-bottom:1px solid #597bb8; text-align:center;'>
-										<p>".$import." €</p>
+										<p>".$this->__escapeHtmlValue($import)." €</p>
 									</td>
 								</tr>
 								<tr>
@@ -9795,7 +9795,7 @@ class Intranet
 									</td>
 									<td style='width:20%; padding:10px; border-right:1px solid #597bb8;
 									border-bottom:1px solid #597bb8; text-align:center;'>
-										".$import." €
+										".$this->__escapeHtmlValue($import)." €
 									</td>
 								</tr>
 								<tr>
