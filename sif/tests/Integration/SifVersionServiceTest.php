@@ -130,6 +130,87 @@ final class SifVersionServiceTest
         }
     }
 
+    public function testDatabaseGuardsSingleActiveAndImmutableActivationJournal(): void
+    {
+        $db = TestDatabase::fresh();
+        [$service, $dir] = $this->service($db);
+
+        try {
+            $actor = ['actor_id' => 'meriem', 'roles' => ['SIF_ADMIN'], 'source_channel' => 'TEST'];
+
+            $first = $service->registerCurrentRuntime(
+                $actor,
+                $this->operation('REGISTER-DB-GUARD-1', 'RELEASE_CANDIDATE') + [
+                    'version_code' => '2026.10.04-db-guard-1',
+                ]
+            );
+            $firstUuid = $first['version']['UUID_VERSION'];
+
+            $declaration = $service->attachDeclaration(
+                $actor,
+                $firstUuid,
+                $this->operation('DECL-DB-GUARD-1', 'DECLARATION_APPROVAL') + [
+                    'declaration_version' => 'v1',
+                    'storage_key' => 'declaracio-v1.pdf',
+                ]
+            );
+            $service->activate(
+                $actor,
+                $firstUuid,
+                $this->operation('ACT-DB-GUARD-1', 'APPROVED_RELEASE')
+            );
+
+            $second = $service->registerCurrentRuntime(
+                $actor,
+                $this->operation('REGISTER-DB-GUARD-2', 'RELEASE_CANDIDATE') + [
+                    'version_code' => '2026.10.04-db-guard-2',
+                ]
+            );
+            $secondUuid = $second['version']['UUID_VERSION'];
+
+            Assert::throws(
+                \PDOException::class,
+                fn () => $db->prepare(
+                    "UPDATE sif_version SET STATUS = 'ACTIVE', ACTIVATED_AT = NOW(6) WHERE UUID_VERSION = ?"
+                )->execute([$secondUuid])
+            );
+
+            $activationUuid = (string) $db->query(
+                "SELECT UUID_ACTIVATION FROM sif_version_activation ORDER BY ID DESC LIMIT 1"
+            )->fetchColumn();
+
+            Assert::throws(
+                \PDOException::class,
+                fn () => $db->prepare(
+                    "UPDATE sif_version_activation SET STATUS = 'CORRUPTED' WHERE UUID_ACTIVATION = ?"
+                )->execute([$activationUuid])
+            );
+
+            Assert::throws(
+                \PDOException::class,
+                fn () => $db->prepare(
+                    "DELETE FROM sif_version_activation WHERE UUID_ACTIVATION = ?"
+                )->execute([$activationUuid])
+            );
+
+            Assert::same('ACTIVE', (string) $db->query(
+                "SELECT STATUS FROM sif_version WHERE UUID_VERSION = " . $db->quote($firstUuid)
+            )->fetchColumn());
+            Assert::same('DRAFT', (string) $db->query(
+                "SELECT STATUS FROM sif_version WHERE UUID_VERSION = " . $db->quote($secondUuid)
+            )->fetchColumn());
+            Assert::same(
+                $declaration['declaration']['UUID_DECLARATION'],
+                (string) $db->query(
+                    "SELECT UUID_DECLARATION FROM sif_version_activation WHERE UUID_ACTIVATION = " . $db->quote($activationUuid)
+                )->fetchColumn()
+            );
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($dir . '-evidence');
+        }
+    }
+
     public function testActivationFailsClosedWhenDeployedBytesDrift(): void
     {
         $db = TestDatabase::fresh();
