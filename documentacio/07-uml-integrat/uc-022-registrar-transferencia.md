@@ -302,3 +302,15 @@ Note over R,A: El resolvedor de fet bancari i l'assignació de moviment existent
 [Fitxa anterior UC-22](../06-fitxes-funcionals/uc-022.md) · [UC-02 pagament](uc-002-registrar-cobrament-factura.md) · [ManualPaymentService](../../sif/src/Service/ManualPaymentService.php) · [ManualPaymentPayloadBuilder](../../sif/src/Service/ManualPaymentPayloadBuilder.php) · [PaymentRepository](../../sif/src/Repository/PaymentRepository.php) · [ManualPaymentServiceTest](../../sif/tests/Integration/ManualPaymentServiceTest.php).
 
 **Pendent:** conciliació bancària, permisos, política de referències, comprovació de peticions idempotents contradictòries i assignacions múltiples.
+
+
+## 6. Auditoria ACTUAL/FINAL — 03/10/2026
+
+A partir d'aquesta revisió, el present UML integrat es complementa amb dossiers separats per evitar barrejar codi executable i arquitectura objectiu:
+
+- [Auditoria i traçabilitat](uc-022-auditoria-tracabilitat-2026-10-03.md)
+- [Classes/components ACTUAL/FINAL](uc-022-classes-actual-final.md)
+- [Seqüències ACTUAL/FINAL](uc-022-sequencies-actual-final.md)
+- [Activitats per pàgina/apartat](uc-022-activitats-pagines-actual-final.md)
+
+**Estat:** el nucli SIF manual és parcialment executable; la pantalla real continua en el circuit llegat GET i no hi ha adaptador intranet → `ManualPaymentService` acreditat. Les proves del nucli existeixen, però aquesta auditoria no les marca com executades.
