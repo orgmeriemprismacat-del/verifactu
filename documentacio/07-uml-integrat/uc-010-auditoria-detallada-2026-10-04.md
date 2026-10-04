@@ -495,3 +495,15 @@ Decisió aplicada: crear `audit/uc-010-reconciliacio-2026-10-04` des del `main` 
 - **PENDENT:** CI final, MySQL/preproducció, evidència real de declaració, contracte UC-85, decisions de seguretat/governança i producció.
 
 **UC-010 no es considera tancat en producció.** El codi/documentació sí queden preparats per a una nova validació sobre la base actual del repositori.
+
+
+## 23. Continuació de l'auditoria · hardening addicional
+
+| ID | Severitat | Troballa | Correcció |
+| --- | --- | --- | --- |
+| UC010-AUD-09 | Alta | Es podia afegir una nova declaració APPROVED a una versió ja ACTIVE/SUPERSEDED, fent que el detall mostrés una declaració diferent de la usada a l'activació | `attachDeclaration()` exigeix `DRAFT` abans i dins la transacció; prova de regressió després d'activar |
+| UC010-AUD-10 | Alta | El manifest validava files llistats però no detectava un fitxer nou introduït després del build | inventari exhaustiu de roots governats + `UNEXPECTED_FILE`; prova específica |
+| UC010-AUD-11 | Alta | Els symlinks podien quedar fora del manifest del builder | builder falla davant symlink i verifier els marca `SYMLINK_NOT_ALLOWED`/`UNEXPECTED_SYMLINK` |
+| UC010-AUD-12 | Mitjana | El preflight retornava la fila completa `backup_restore_evidence` al rol lector | projecció mínima; s'eliminen `EVIDENCE_JSON`, `BACKUP_REFERENCE`, `EXECUTED_BY` i camps no necessaris |
+
+Aquests canvis mantenen el criteri de tancament: **CI final de la branca + E2E MySQL/preproducció continuen pendents**.
