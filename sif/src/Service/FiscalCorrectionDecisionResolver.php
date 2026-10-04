@@ -9,8 +9,10 @@ final class FiscalCorrectionDecisionResolver
 {
     public function __construct(
         private FiscalCorrectionDecisionRepository $decisions,
-        private FiscalCorrectionDecisionGuard $guard
+        private FiscalCorrectionDecisionGuard $guard,
+        private ?RectificationDecisionFingerprint $correctionFingerprints = null
     ) {
+        $this->correctionFingerprints ??= new RectificationDecisionFingerprint();
     }
 
     public function resolve(
@@ -53,7 +55,24 @@ final class FiscalCorrectionDecisionResolver
             throw SifException::conflict('UC-74 classification event has no immutable classification payload');
         }
 
+        $expectedCorrectionFingerprint = strtolower(trim((string) (
+            $changeset['correction_fingerprint'] ?? ''
+        )));
+        if (preg_match('/^[a-f0-9]{64}$/D', $expectedCorrectionFingerprint) !== 1) {
+            throw SifException::conflict(
+                'UC-74 classification event has no valid correction fingerprint'
+            );
+        }
+
+        $actualCorrectionFingerprint = $this->correctionFingerprints->calculate($input);
+        if (!hash_equals($expectedCorrectionFingerprint, $actualCorrectionFingerprint)) {
+            throw SifException::conflict(
+                'Rectification request differs from the correction classified by UC-74'
+            );
+        }
+
         $resolved = $this->guard->assertRectification($classification, $input);
+        $resolved['correction_fingerprint'] = $expectedCorrectionFingerprint;
 
         $eventReason = strtoupper(trim((string) ($event['REASON_CODE'] ?? '')));
         if ($eventReason === '' || !hash_equals($resolved['reason_code'], $eventReason)) {
