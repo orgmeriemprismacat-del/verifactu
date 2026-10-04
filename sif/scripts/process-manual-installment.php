@@ -9,6 +9,11 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Repository\SifAuditEventRepository;
+use Prisma\Sif\Repository\PaymentActionEventRepository;
+use Prisma\Sif\Repository\OperationalEventRepository;
+use Prisma\Sif\Service\InstallmentPaymentAuditTrail;
+use Prisma\Sif\Service\InternalInstallmentPaymentGateway;
 use Prisma\Sif\Service\ManualInstallmentPaymentPayloadBuilder;
 use Prisma\Sif\Service\ManualInstallmentPaymentService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
@@ -33,30 +38,52 @@ if ($selector === null) {
 
 try {
     $sifDb = ConnectionFactory::make($config);
+    $uuids = new UuidGenerator();
     $paymentService = new PaymentService(
         new TransactionRunner($sifDb),
         new PaymentPayloadValidator(),
-        new PaymentRepository(new UuidGenerator(), new PaymentStatusCalculator())
+        new PaymentRepository($uuids, new PaymentStatusCalculator())
     );
-    $service = new ManualInstallmentPaymentService(
-        new ManualPaymentInvoiceRepository(),
-        new ManualInstallmentPaymentPayloadBuilder(),
-        $paymentService
+    $gateway = new InternalInstallmentPaymentGateway(
+        new ManualInstallmentPaymentService(
+            new ManualPaymentInvoiceRepository(),
+            new ManualInstallmentPaymentPayloadBuilder(),
+            $paymentService
+        ),
+        ['ADMIN_TOOL'],
+        new InstallmentPaymentAuditTrail(
+            new PaymentActionEventRepository($uuids),
+            new OperationalEventRepository($uuids),
+            new SifAuditEventRepository($uuids),
+            (string) ($config['env'] ?? 'local')
+        )
     );
 
-    if (($selector['type'] ?? '') === 'uuid') {
-        $result = $service->registerByUuid(
-            $sifDb,
-            (string) ($selector['value'] ?? ''),
-            $input
-        );
-    } else {
-        $result = $service->registerByNumVisible(
-            $sifDb,
-            (string) ($selector['value'] ?? ''),
-            $input
-        );
+    $user = trim((string) ($input['user'] ?? ''));
+    if ($user === '') {
+        throw SifException::validation('Manual installment CLI requires --user');
     }
+
+    $requestId = strtolower($uuids->generate());
+    $payload = ['input' => $input];
+    if (($selector['type'] ?? '') === 'uuid') {
+        $payload['uuid_factura'] = (string) ($selector['value'] ?? '');
+    } else {
+        $payload['num_visible'] = (string) ($selector['value'] ?? '');
+    }
+
+    $result = $gateway->register(
+        $sifDb,
+        [
+            'actor_id' => $user,
+            'roles' => ['ADMIN_TOOL'],
+            'request_id' => $requestId,
+            'actor_type' => 'HUMAN',
+            'audit_source_channel' => 'CLI',
+        ],
+        $payload
+    );
+    $result['request_id'] = $requestId;
 
     echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
     exit(0);
