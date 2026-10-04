@@ -11,6 +11,7 @@
 | `/sif/versions/app.js` | No existia | UX read/manage |
 | `build-release-manifest.php` | No existia | Build evidence |
 | `preflight-version-governance.php` | No existia | Gate read-only |
+| `verify-version-governance-evidence.php` | No existia | Evidència post-activació read-only |
 
 ## 2. Intranet · botó “Configuració i versions”
 
@@ -35,10 +36,12 @@ B -->|Configuració i versions| D[panel=versions]
 D --> E[POST sifPanelLaunch.php + CSRF]
 E --> F{target allowlisted?}
 F -->|No| G[422]
-F -->|Sí| H[Crear token HMAC path /sif/versions/]
-H --> I[POST autoform cap a pay.prisma.cat]
-I --> J[PanelLaunchAuthenticator anti-replay]
-J --> K[Sessió SIF de versions]
+F -->|Sí| H{HTTPS + host prisma.cat + URL path = signed path?}
+H -->|No| G
+H -->|Sí| I[Crear token HMAC UUIDv4 path /sif/versions/]
+I --> I2[POST autoform cap a pay*.prisma.cat]
+I2 --> J[PanelLaunchAuthenticator signatura + UUIDv4 + anti-replay]
+J --> K[Sessió SIF de versions amb TTL]
 ```
 
 ## 3. Panell · Runtime observat
@@ -49,10 +52,11 @@ J --> K[Sessió SIF de versions]
 flowchart TD
 A[Carregar pàgina] --> B[POST action=runtime]
 B --> C[Comprovar rol read/manage]
-C --> D[Verificar manifest contra bytes]
-D --> E[Calcular config hash]
-E --> F[MigrationRunner inspect]
-F --> G{Tot complet?}
+C --> D[Verificar inventari + bytes + artifact_hash manifest]
+D --> E[Calcular config hash sense valors secrets]
+E --> F[MigrationRunner ledger/taules/columnes]
+F --> F2[Verificar índex únic + CHECKs + triggers UC-010]
+F2 --> G{Tot complet?}
 G -->|Sí| H[Mostrar Git / artifact / config / BD]
 G -->|No| I[Mostrar evidència incompleta]
 ```
@@ -67,7 +71,9 @@ A[Usuari introdueix VERSION_CODE] --> B[JS genera request/correlation/idempotenc
 B --> C[POST register_current]
 C --> D{rol manage?}
 D -->|No| E[403]
-D -->|Sí| F[Servidor inspecciona runtime]
+D -->|Sí| D2{replay semàntic existent?}
+D2 -->|Sí| K[Retornar DTO candidata reused=true]
+D2 -->|No| F[Servidor inspecciona runtime]
 F --> G{complete?}
 G -->|No| H[503]
 G -->|Sí| I[INSERT DRAFT]
@@ -91,9 +97,9 @@ flowchart TD
 A[action=list] --> B[versions ordenades per CREATED_AT]
 B --> C[Seleccionar fila]
 C --> D[action=view UUID]
-D --> E[Versió]
-D --> F[Última declaració APPROVED]
-D --> G[Journal activacions]
+D --> E[DTO versió sense metadades internes]
+D --> F[DTO última declaració APPROVED]
+D --> G[DTO journal sense idempotency/evidence JSON]
 E --> H[Render detall]
 F --> H
 G --> H
@@ -106,7 +112,9 @@ flowchart TD
 A[declaration_version + storage_key] --> B[POST attach_declaration]
 B --> C{manage?}
 C -->|No| D[403]
-C -->|Sí| E[Validar candidata]
+C -->|Sí| C2{replay semàntic existent?}
+C2 -->|Sí| K[Retornar DTO declaració reused=true]
+C2 -->|No| E[Validar candidata DRAFT]
 E --> F[Resoldre storage_key dins private root]
 F --> G{path segur i fitxer existeix?}
 G -->|No| H[404/422]
@@ -123,12 +131,13 @@ No hi ha upload de fitxer en aquest cas d'ús.
 flowchart TD
 A[Preflight UUID] --> B[activation_enabled?]
 B --> B2[candidata DRAFT?]
-B2 --> C[runtime complete?]
+B2 --> B3[singleton present + ACTIVE coherent?]
+B3 --> C[runtime complete?]
 C --> D[Git matches?]
 D --> E[Artifact matches?]
 E --> F[Config matches?]
 F --> G[DB version matches?]
-G --> H[Schema verified?]
+G --> H[Schema + guards UC-010 verified?]
 H --> I[Declaració APPROVED?]
 I --> J[Hash document físic matches?]
 J --> K{Backup obligatori?}
@@ -177,7 +186,8 @@ C -->|Sí i fora de tot l'arbre sif| E[Recórrer roots release]
 E --> F[SHA-256 de cada fitxer]
 F --> G[Ordenar paths]
 G --> H[artifact_hash mapa canònic]
-H --> I[escriptura temporal]
+H --> H2[Persistir files + artifact_hash autoconsistent]
+H2 --> I[escriptura temporal]
 I --> J[rename atòmic + chmod 0640]
 J --> K[JSON resum]
 ```
@@ -201,34 +211,53 @@ I --> J
 
 El camp `production_authorized=false` és intencional: un preflight tècnic no substitueix una decisió productiva.
 
-## 11. Errors i recuperació per apartat
+## 13. Script · verify-version-governance-evidence.php
+
+```mermaid
+flowchart TD
+A[CLI read-only UUID_VERSION] --> B{production?}
+B -->|Sí i no opt-in| C[exit 1]
+B -->|No / opt-in explícit| D[Consultar ACTIVE + singleton + journal]
+D --> E[Revalidar declaració física]
+E --> F[RuntimeVersionInspector]
+F --> G[Backup gate si requerit]
+G --> H[Audit + operational trace]
+H --> I{tots checks true?}
+I -->|Sí| J[JSON ok=true]
+I -->|No| K[JSON ok=false + failed]
+J --> L[production_authorized=false]
+K --> L
+```
+
+## 14. Errors i recuperació per apartat
 
 | Apartat | Error | Resposta |
 | --- | --- | --- |
-| Launch | target no allowlisted | 422 |
-| Launch | replay/signatura/caducitat | 401/409 |
-| Sessió | no autenticada | 401 |
+| Launch | target/host/path no allowlisted | 422/launch rebutjat |
+| Launch | replay/signatura/caducitat/UUID invàlid | 401/409 |
+| Sessió | no autenticada o TTL expirat | 401 |
 | Mutació | CSRF | 403 |
 | Lectura | rol no configurat/no permès | 403 |
 | Candidata | runtime incomplet | 503 |
 | Declaració | path traversal | 422 |
 | Declaració | fitxer absent | 404 |
-| Preflight | drift runtime | NO-GO |
-| Activació | payload idempotent diferent | 409 |
+| Preflight | drift runtime / guard BD absent / pointer incoherent | NO-GO |
+| Activació | payload semàntic diferent | 409 |
 | Activació | múltiples ACTIVE | 409 |
 | Activació | pointer incoherent | 409 |
 | Activació | canvi d'evidència sota lock | 409/rollback |
+| Evidència | ACTIVE/journal/declaració/runtime/trace incoherent | JSON ok=false |
 
-
-## 12. Estat per superfície després de la reconciliació
+## 15. Estat per superfície després de la reconciliació
 
 | Superfície | Documentat | Implementat en branca | Verificat automàtic | Verificat entorn |
 | --- | --- | --- | --- | --- |
-| Launch intranet | Sí | Sí | contracte testejat al PR antecedent; reexecució pendent | No |
-| Runtime/list/detail | Sí | Sí | tests UC-010 existents | No |
-| Registrar candidata | Sí | Sí | integració existent | No |
-| Declaració | Sí | Sí | integració + traversal | No |
-| Preflight | Sí | Sí | integració | No |
-| Activació | Sí | Sí, amb DRAFT + lock corregits | nova CI pendent | No |
-| Manifest CLI | Sí | Sí, amb ubicació externa obligatòria | nova CI pendent | No |
+| Launch intranet/HMAC | Sí | Sí | tests nous preparats; CI final queued | No |
+| Runtime/list/detail DTO | Sí | Sí | tests d'integració preparats | No |
+| Registrar candidata | Sí | Sí | replay/trace/reason coberts | No |
+| Declaració | Sí | Sí | replay/DRAFT/traversal coberts | No |
+| Preflight | Sí | Sí | state/schema guards coberts | No |
+| Activació | Sí | Sí, lock + guards BD | tests preparats; CI queued | No |
+| Manifest CLI | Sí | Sí, inventari + artifact hash | unit tests preparats | No |
+| Evidència CLI | Sí | Sí read-only | contracte/integració preparats | No |
 | Backup gate UC-85 | Sí com a dependència | reader sí | parcial | No; UC-85 no està tancat |
