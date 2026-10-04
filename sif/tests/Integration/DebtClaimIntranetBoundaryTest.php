@@ -63,4 +63,44 @@ final class DebtClaimIntranetBoundaryTest
             Assert::stringContainsString('sif-debt-claim-bridge.js', $page);
         }
     }
+
+    public function testLegacyReminderInitializesClaimMarkerBeforeUpdatingProjection(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $intranet = file_get_contents($root . '/codi-drive/intranet-actual/Intranet.php');
+        if ($intranet === false) {
+            Assert::fail('Could not read legacy Intranet.php');
+        }
+
+        $methodStart = strpos($intranet, 'public function updateSendMsg_Facturacio_Recordatori_Pagament');
+        $methodEnd = strpos($intranet, '/* ############################## RECLAMACIÓ FINAL', $methodStart);
+        if ($methodStart === false || $methodEnd === false) {
+            Assert::fail('Could not isolate UC-012 legacy reminder method');
+        }
+
+        $method = substr($intranet, $methodStart, $methodEnd - $methodStart);
+        Assert::stringContainsString('$reclamatM = $reclamat;', $method);
+        Assert::stringContainsString('$reclamatM .= "Reclamat fi de curs";', $method);
+        Assert::stringContainsString('bind_param("ssd", $pagObsM, $reclamatM, $id)', $method);
+    }
+
+    public function testFinalClaimLegacyStillContainsAcademicOffboardingAndMustNotBeBlindlyCutOver(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $intranet = file_get_contents($root . '/codi-drive/intranet-actual/Intranet.php');
+        if ($intranet === false) {
+            Assert::fail('Could not read legacy Intranet.php');
+        }
+
+        $start = strpos($intranet, 'public function updateSendMsg_LastClaimPay');
+        if ($start === false) {
+            Assert::fail('Could not locate legacy final-claim flow');
+        }
+        $section = substr($intranet, $start, 45000);
+
+        Assert::stringContainsString('updateSendMsg_LastClaimPay_noApprove', $section);
+        Assert::stringContainsString('__donarBaixaMoodleNou', $section);
+        Assert::stringContainsString('updCampInscripcioBaixaMorosBD', $section);
+    }
+
 }
