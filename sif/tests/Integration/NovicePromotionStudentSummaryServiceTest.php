@@ -165,5 +165,14 @@ final class NovicePromotionStudentSummaryServiceTest
         $serialized = json_encode($summary, JSON_THROW_ON_ERROR);
         Assert::same(false, str_contains($serialized, 'NOV-SECRET-NOT-EXPOSED'));
         Assert::same(false, str_contains($serialized, 'ciphertext-not-token'));
+
+        // Browser projection minimization: internal correlation IDs stay server-side.
+        Assert::same(false, array_key_exists('identity', $summary));
+        Assert::same(false, array_key_exists('uuid_entitlement', $right));
+        Assert::same(false, array_key_exists('uuid_operation', $right['origin']));
+        Assert::same(false, array_key_exists('uuid_application', $right['applications'][0]));
+        Assert::same(false, str_contains($serialized, $uuidEntitlement));
+        Assert::same(false, str_contains($serialized, $uuidOperation));
+        Assert::same(false, str_contains($serialized, $uuidApplication));
     }
 }
