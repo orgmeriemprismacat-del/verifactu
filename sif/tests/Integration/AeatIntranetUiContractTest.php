@@ -47,6 +47,7 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString('csrf_token: csrf', $js);
         Assert::stringContainsString('Conciliar resultat guardat', $js);
         Assert::stringContainsString('Validar evidència i conciliar', $js);
+        Assert::stringContainsString('EVIDENCE_RECONCILABLE', $js);
         Assert::stringContainsString(
             'const canReconcile = response.capabilities?.reconcile === true;',
             $js
