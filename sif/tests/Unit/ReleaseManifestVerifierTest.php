@@ -137,13 +137,24 @@ final class ReleaseManifestVerifierTest
         $dir = $this->tempDir();
         $evidenceDir = $this->tempDir();
         try {
+            $files = ['../secret' => str_repeat('a', 64)];
+            $artifactHash = hash(
+                'sha256',
+                json_encode($files, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+            );
             $manifest = $evidenceDir . '/manifest.json';
             file_put_contents($manifest, json_encode([
                 'schema' => 1,
-                'files' => ['../secret' => str_repeat('a', 64)],
+                'artifact_hash' => $artifactHash,
+                'files' => $files,
             ], JSON_THROW_ON_ERROR));
 
-            Assert::throws(SifException::class, fn () => (new ReleaseManifestVerifier())->verify($dir, $manifest), 422);
+            $exception = Assert::throws(
+                SifException::class,
+                fn () => (new ReleaseManifestVerifier())->verify($dir, $manifest),
+                422
+            );
+            Assert::stringContainsString('manifest entry', $exception->getMessage());
         } finally {
             $this->removeTree($dir);
             $this->removeTree($evidenceDir);
