@@ -25,6 +25,12 @@ return [
         'invoice' => getenv('SIF_SERIES_INVOICE') ?: 'A',
         'rectification' => getenv('SIF_SERIES_RECTIFICATION') ?: 'R',
     ],
+    'invoice_issue' => [
+        'write_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', getenv('SIF_INVOICE_ISSUE_WRITE_ROLES') ?: '')
+        ))),
+    ],
     'invoice_before_payment' => [
         'write_roles' => array_values(array_filter(array_map(
             'trim',
@@ -61,6 +67,7 @@ return [
         'secret' => getenv('SIF_INTERNAL_API_SECRET') ?: '',
         'max_clock_skew_seconds' => (int) (getenv('SIF_INTERNAL_API_MAX_SKEW') ?: 300),
         'signed_path' => getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php',
+        'invoice_issue_signed_path' => getenv('SIF_INTERNAL_INVOICE_ISSUE_SIGNED_PATH') ?: '/api/factures/issue.php',
         'invoice_before_payment_signed_path' => getenv('SIF_INTERNAL_UC004_SIGNED_PATH') ?: '/api/factures/before-payment.php',
         'rectification_signed_path' => getenv('SIF_INTERNAL_RECTIFICATION_SIGNED_PATH') ?: '/api/factures/rectify.php',
         'document_signed_path' => getenv('SIF_INTERNAL_DOCUMENT_SIGNED_PATH') ?: '/api/documents/download.php',
@@ -145,6 +152,7 @@ return [
         'certificate_path' => getenv('SIF_AEAT_CERT_PATH') ?: '',
         'certificate_password' => getenv('SIF_AEAT_CERT_PASSWORD') ?: '',
         'issuer_nif' => getenv('SIF_ISSUER_NIF') ?: '',
+        'system_name' => getenv('SIF_AEAT_SYSTEM_NAME') ?: '',
         'system_id' => getenv('SIF_AEAT_SYSTEM_ID') ?: '',
         'system_version' => getenv('SIF_AEAT_SYSTEM_VERSION') ?: '',
         'installation_id' => getenv('SIF_AEAT_INSTALLATION_ID') ?: '',
