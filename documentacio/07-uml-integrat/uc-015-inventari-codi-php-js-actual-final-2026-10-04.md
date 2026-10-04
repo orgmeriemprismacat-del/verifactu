@@ -10,7 +10,7 @@ La família documental d'UC-015 ja existeix: fitxa funcional, UML integrat, clas
 
 Aquesta passada afegeix l'inventari que faltava per poder respondre de manera directa a «quin PHP/JS real implementa cada bloc?».
 
-**Conclusió de codi:** no s'ha detectat cap nou gap P0/P1 de programació propi d'UC-015. El flux executable actual conserva POST-only, frontera pública, idempotència, atomicitat, snapshot comercial, intenció SIF, callback/cua/worker, factura, un únic cobrament, atribució monetària per inscripció, outbox i sincronització legacy post-SIF.
+**Conclusió de codi actualitzada:** la primera passada no va trobar un gap P0/P1 al nucli fiscal/econòmic, però la continuació pàgina per pàgina sí ha detectat **SEC-015-01** a la frontera de confirmació legacy: IV AES-CBC no autenticat, decrypt abans de MAC i token al path. El gap queda corregit al PR #171 amb `PackConfirmationToken` v2; la verificació CI d'aquest nou codi continua pendent.
 
 ## 2. PK-A01 · Llistat de packs
 
@@ -82,6 +82,36 @@ Contracte observat:
 El comportament FINAL ja està implementat. `MAX(IDPAG)+1` sota lock continua sent deute legacy substituïble per una seqüència dedicada, però no és un gap de correcció/concurrència actual.
 
 **Estat:** DOCUMENTAT / IMPLEMENTAT / VERIFICAT PER BOUNDARY TESTS; E2E D'ENTORN PENDENT.
+
+## 5b. PK-A04b · Confirmació d'alta i continuació al pagament
+
+### ACTUAL observat a main abans del fix
+- `codi-drive/web-actual/pagina_confirmacio_grup_automatic.php`
+- `codi-drive/web-actual/js1619773569/mostrarConfirmacioPagamentGrupAutomatic.min.js`
+- `codi-drive/web-actual/ajax/mostrar_pagina_confirmacio_pagament_grup_automatic.php`
+- regla `.htaccess` de `/packs/confirmacio/TOKEN`.
+
+Troballa:
+- token `IV + HMAC(ciphertext) + ciphertext`;
+- HMAC no cobria IV;
+- decrypt abans de verificar;
+- parsing de `REQUEST_URI` amb longitud màgica;
+- token al path;
+- pageview analytics potencial sobre una URL amb credencial opaca.
+
+### FINAL implementat al PR #171
+- `codi-drive/web-actual/inc/PackConfirmationToken.php`;
+- token `v2.` Base64URL;
+- AES-256-CBC + clau derivada;
+- MAC amb clau separada sobre domini + IV + ciphertext;
+- verificació MAC abans de decrypt;
+- `ID_INSC|issued_at` i TTL de 24 h;
+- fragment `#TOKEN` als clients nous;
+- no-store/no-referrer/noindex i `send_page_view=false`;
+- endpoint amb `$_GET['keyEncr']` i `encodeURIComponent`;
+- fallback temporal només per token **v2** al path.
+
+**Estat:** DOCUMENTAT / IMPLEMENTAT AL PR #171 / VERIFICAT PER INSPECCIÓ / CI I E2E PENDENTS.
 
 ## 6. PK-A05 · Intenció i TPV Redsys
 
@@ -203,7 +233,7 @@ El PR #149 va alinear cinc proves desfasades amb el codi actual. El seu HEAD `88
 1. Executar un PACK real en preproducció i conservar evidència de DS_ORDER, callback, cua, factura, payment, ledger, outbox i sync legacy.
 2. Executar PK-01..PK-11 de navegador amb configuració real d'entorn.
 3. Acreditar el drenatge/transport real de l'outbox PACK i el seu cutover operatiu.
-4. Mantenir el gate selectiu UC-015 verd en qualsevol canvi que afecti el circuit.
+4. Validar en navegador/preproducció la confirmació v2: token correcte, IV/ciphertext manipulat, caducat, fragment URL i fallback v2 de desplegament.\n5. Mantenir el gate selectiu UC-015 verd en qualsevol canvi que afecti el circuit.
 
 
 ## 15. Paritat de desplegament web / pay
