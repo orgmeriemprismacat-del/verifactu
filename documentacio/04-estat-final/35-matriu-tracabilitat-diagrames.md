@@ -343,7 +343,7 @@ Paquet de traçabilitat reconciliat el 2026-10-03:
 
 | Peça | Fitxer | Estat |
 | --- | --- | --- |
-| Fitxa funcional | `../06-fitxes-funcionals/uc-017.md` | revisada · implementació parcial |
+| Fitxa funcional | `../06-fitxes-funcionals/uc-017.md` | revisada · candidat implementat · preproducció pendent |
 | UML integrat base | `../07-uml-integrat/uc-017-comprar-regal.md` | actualitzat |
 | Auditoria detallada | `../07-uml-integrat/uc-017-auditoria-tracabilitat-2026-10-03.md` | creada |
 | Classes ACTUAL/FINAL | `../07-uml-integrat/uc-017-classes-actual-final.md` | creada |
@@ -351,4 +351,4 @@ Paquet de traçabilitat reconciliat el 2026-10-03:
 | Activitats per pàgina ACTUAL/FINAL | `../07-uml-integrat/uc-017-activitats-pagines-actual-final.md` | creada |
 | Inventari PHP/JS | `../07-uml-integrat/uc-017-inventari-codi-php-js-actual-final-2026-10-03.md` | creat |
 
-**Resultat de traçabilitat:** el core SIF de factura/cobrament i dret GIFT existeix, però el canal web llegat continua generant la request Redsys i facturant directament. Per tant, UC-017 és **PARCIAL** i no es pot marcar com a verificat fins al tall del canal, retirada de l'escriptura fiscal llegada i prova E2E de preproducció.
+**Resultat de traçabilitat:** la còpia ACTUAL documenta el circuit llegat, però la branca candidata implementa el tall complet cap al SIF: intenció REGAL, callback/cua/worker, factura+payment, entitlement, outbox, estat, sync posterior i snapshot AEAT fail-closed. UC-017 queda **CANDIDATE_IMPLEMENTED_NEEDS_PREPRODUCTION_EVIDENCE** i no es pot marcar `VERIFIED/CLOSED` fins al desplegament i prova E2E de preproducció amb configuració fiscal validada.
