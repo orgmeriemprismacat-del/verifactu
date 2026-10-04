@@ -50,6 +50,9 @@ else {
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/facturacio-primera-reclamacio-pagament.min.css?ver=1.0"/>
 		<script src="https://intranet.prisma.cat/js/general.js?ver=1.0"></script>
 		<script src="https://intranet.prisma.cat/js/facturacio-primera-reclamacio-pagament.js?ver=1.1"></script>
+<?php if (getenv('SIF_CLAIM_PAYMENT_UI_ENABLED') === '1') { ?>
+		<script src="https://intranet.prisma.cat/js/claim-payment-sif.js?ver=1.0"></script>
+<?php } ?>
 	</body>
 </html>
 <?php } ?>
