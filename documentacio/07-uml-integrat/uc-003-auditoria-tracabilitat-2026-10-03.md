@@ -192,8 +192,9 @@ Per CURS amb cobertura UC-004, `RedsysCoveredInvoicePaymentService`:
 - deixa el guard de cobertura fora del payload/hash fiscal per compatibilitat amb reintents antics;
 - valida de forma autònoma la identitat del cobrament (`DS_ORDER`, idempotency key, provider_ref, IDPAG, import i semàntica CHARGE/REDSYS/REDSYS);
 - exigeix `movement_date` determinista;
-- serialitza UC-004 i Redsys sobre `invoice_origin_guard`, amb adquisició canònica de locks, i després revalida cobertura/`fact_rels`; UC-004 fa rollback si ja hi ha factura Redsys `ISSUED`;
-- inclou prova de dues connexions MySQL a `READ COMMITTED` perquè la garantia no depengui de gap locks.
+- serialitza UC-004 i Redsys sobre `invoice_origin_guard`, amb adquisició canònica de locks, i després revalida cobertura/`fact_rels`; UC-004 adquireix el mutex abans de seqüència/cadena fiscal per evitar l'ordre invers de locks, i fa rollback si ja hi ha factura Redsys `ISSUED`;
+- inclou prova de dues connexions MySQL a `READ COMMITTED` perquè la garantia no depengui de gap locks;
+- inclou un contract test que exigeix `origin mutex → fiscal sequence → chain` dins `InvoiceService`.
 La generalització a altres variants continua sent una decisió específica de cada UC.
 
 ### P0 restant
