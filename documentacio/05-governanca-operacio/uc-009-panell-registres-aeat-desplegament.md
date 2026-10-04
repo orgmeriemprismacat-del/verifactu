@@ -233,3 +233,24 @@ Abans d'usar `reconcile_evidence` a preproducció:
    - cap nova evidència/request de xarxa creada per la conciliació.
 
 No s'ha de copiar `request.xml` o `response.xml` al webroot ni mostrar-ne el contingut al panell.
+
+
+## 14. Permisos de filesystem per certificat i evidències
+
+Configuració recomanada a Linux/preproducció:
+
+```bash
+# Exemples: ajustar usuari/grup del procés PHP/worker.
+chmod 0600 /ruta/privada/aeat/certificat.p12
+chmod 0700 /ruta/privada/aeat/evidencies
+```
+
+El codi admet que el grup del procés tingui permisos si l'operació ho necessita, però **rebutja qualsevol permís per a `others`**. També rebutja que `SIF_AEAT_CERT_PATH` o `SIF_AEAT_EVIDENCE_DIR` siguin symlinks directes.
+
+Abans d'executar el worker:
+
+1. `SIF_AEAT_CERT_PATH` ha d'apuntar a un P12/PFX fora del repositori/webroot;
+2. el fitxer ha de ser llegible pel procés, no per altres usuaris del sistema;
+3. `SIF_AEAT_EVIDENCE_DIR` ha de ser un directori real, writable, fora del repositori/webroot i no world-accessible;
+4. el preflight ha de retornar `certificate_usable=true` i `evidence_directory_private=true`;
+5. no n'hi ha prou amb un `.htaccess Deny from all`: la custòdia es valida també a nivell de filesystem i ubicació real.
