@@ -7,8 +7,10 @@ use Prisma\Sif\Database\TransactionRunner;
 use Prisma\Sif\Domain\PaymentStatusCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\EnrollmentFundMovementRepository;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Service\JointInvoiceEnrollmentFundAllocationService;
 use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
 use Prisma\Sif\Service\ManualPaymentService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
@@ -41,7 +43,10 @@ try {
     $service = new ManualPaymentService(
         new ManualPaymentInvoiceRepository(),
         new ManualPaymentPayloadBuilder(),
-        $paymentService
+        $paymentService,
+        new JointInvoiceEnrollmentFundAllocationService(
+            new EnrollmentFundMovementRepository(new UuidGenerator())
+        )
     );
 
     if (($selector['type'] ?? '') === 'uuid') {
@@ -119,7 +124,44 @@ function parseManualPaymentArgs(array $args): array
         }
     }
 
+    $participantAllocations = optionValue($args, ['--participant-allocations=']);
+    if ($participantAllocations !== null) {
+        $input['participant_allocations'] = participantAllocations($participantAllocations);
+    }
+
     return [$selector, $input];
+}
+
+function participantAllocations(string $value): array
+{
+    $result = [];
+
+    foreach (explode(',', $value) as $item) {
+        $item = trim($item);
+        if ($item === '' || !str_contains($item, ':')) {
+            throw SifException::validation(
+                'Invalid participant allocation; expected ID_INSC:AMOUNT'
+            );
+        }
+
+        [$idRaw, $amountRaw] = array_map('trim', explode(':', $item, 2));
+        if (!ctype_digit($idRaw) || (int) $idRaw <= 0 || !is_numeric($amountRaw)) {
+            throw SifException::validation('Invalid participant allocation');
+        }
+
+        $amount = number_format((float) $amountRaw, 2, '.', '');
+        if ((float) $amount <= 0.0 || array_key_exists((int) $idRaw, $result)) {
+            throw SifException::validation('Invalid or duplicate participant allocation');
+        }
+
+        $result[(int) $idRaw] = $amount;
+    }
+
+    if ($result === []) {
+        throw SifException::validation('At least one participant allocation is required');
+    }
+
+    return $result;
 }
 
 function amount(mixed $value): string
@@ -168,7 +210,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-manual-payment.php (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE [--reference=REF] [--bank=BANK] [--method=TRANSFERENCIA|MANUAL] [--notes=TEXT]\n"
+        "Usage: php sif/scripts/{$script}-manual-payment.php (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE [--reference=REF] [--bank=BANK] [--method=TRANSFERENCIA|MANUAL] [--notes=TEXT] [--participant-allocations=ID_INSC:AMOUNT,ID_INSC:AMOUNT]\n"
     );
     exit(1);
 }
