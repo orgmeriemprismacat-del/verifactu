@@ -171,6 +171,12 @@ final class NovicePromotionStudentSummaryServiceTest
         Assert::same(false, array_key_exists('uuid_entitlement', $right));
         Assert::same(false, array_key_exists('uuid_operation', $right['origin']));
         Assert::same(false, array_key_exists('uuid_application', $right['applications'][0]));
+        Assert::same(false, array_key_exists('entitlement_status', $right));
+        Assert::same(false, array_key_exists('validation_status', $right));
+        Assert::same(false, array_key_exists('rule_version', $right));
+        Assert::same(false, array_key_exists('released_at', $right['applications'][0]));
+        Assert::same(false, array_key_exists('reversed_at', $right['applications'][0]));
+        Assert::same(false, array_key_exists('reason_code', $right['applications'][0]));
         Assert::same(false, str_contains($serialized, $uuidEntitlement));
         Assert::same(false, str_contains($serialized, $uuidOperation));
         Assert::same(false, str_contains($serialized, $uuidApplication));
