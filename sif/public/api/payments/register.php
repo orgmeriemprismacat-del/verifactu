@@ -9,8 +9,12 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
+use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\PaymentRepository;
+use Prisma\Sif\Service\ExistingInvoicePaymentCommandService;
 use Prisma\Sif\Service\InternalApiAuthenticator;
+use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
+use Prisma\Sif\Service\ManualPaymentService;
 use Prisma\Sif\Service\PaymentPayloadValidator;
 use Prisma\Sif\Service\PaymentService;
 
@@ -73,7 +77,22 @@ try {
         )
     );
 
-    $result = $service->registerPayment($payload);
+    $action = strtolower(trim((string) ($payload['action'] ?? '')));
+    if ($action === 'register_existing_invoice') {
+        $result = (new ExistingInvoicePaymentCommandService(
+            new ManualPaymentService(
+                new ManualPaymentInvoiceRepository(),
+                new ManualPaymentPayloadBuilder(),
+                $service
+            )
+        ))->register($db, $payload);
+    } elseif ($action === '') {
+        // Backwards-compatible low-level registration for trusted internal callers.
+        $result = $service->registerPayment($payload);
+    } else {
+        throw SifException::validation('Unknown payment registration action');
+    }
+
     $result['actor_id'] = (string) ($actor['actor_id'] ?? '');
     $result['request_id'] = (string) ($actor['request_id'] ?? '');
 
