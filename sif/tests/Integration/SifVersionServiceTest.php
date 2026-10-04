@@ -181,7 +181,7 @@ final class SifVersionServiceTest
     public function testPreflightReturnsOnlyMinimalBackupEvidenceProjection(): void
     {
         $db = TestDatabase::fresh();
-        [$service, $dir] = $this->service($db, true);
+        [$service, $dir, $config] = $this->service($db, true);
 
         try {
             $actor = ['actor_id' => 'meriem', 'roles' => ['SIF_ADMIN'], 'source_channel' => 'TEST'];
@@ -247,6 +247,18 @@ final class SifVersionServiceTest
             Assert::same($backupUuid, $activationEvidence['backup']['UUID_EVIDENCE']);
             Assert::same(false, array_key_exists('EVIDENCE_JSON', $activationEvidence['backup']));
             Assert::same(false, array_key_exists('BACKUP_REFERENCE', $activationEvidence['backup']));
+
+            $evidence = (new SifVersionEvidenceVerifier(
+                new RuntimeVersionInspector(
+                    $dir,
+                    new MigrationRunner(dirname(__DIR__, 2) . '/database')
+                ),
+                $config
+            ))->verify($db, $uuid);
+            Assert::same(true, $evidence['ok']);
+            Assert::same(true, $evidence['backup_required']);
+            Assert::same(true, $evidence['checks']['backup_evidence_required']);
+            Assert::same(true, $evidence['checks']['backup_evidence_acceptable']);
         } finally {
             $this->removeTree($dir);
             $this->removeTree($dir . '-evidence');
