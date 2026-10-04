@@ -98,6 +98,9 @@ try {
         null,
         null,
         null,
+        null,
+        null,
+        null,
         new EnrollmentPaymentFlowLockRepository()
     );
     $redsysPayloads = new RedsysInvoicePayloadBuilder($notifications);
