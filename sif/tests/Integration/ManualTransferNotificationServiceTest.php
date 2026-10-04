@@ -8,6 +8,7 @@ use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Repository\NotificationOutboxRepository;
 use Prisma\Sif\Service\ManualTransferNotificationService;
 use Prisma\Sif\Tests\Support\Assert;
+use Prisma\Sif\Tests\Support\Fixtures;
 use Prisma\Sif\Tests\Support\TestDatabase;
 
 final class ManualTransferNotificationServiceTest
@@ -26,11 +27,7 @@ final class ManualTransferNotificationServiceTest
             new NotificationOutboxRepository(new UuidGenerator())
         );
 
-        $payment = [
-            'uuid_factura' => '11111111-1111-4111-8111-111111111111',
-            'uuid_payment' => '22222222-2222-4222-8222-222222222222',
-            'num_visible' => 'A2026/100',
-        ];
+        $payment = $this->persistedPayment($db, 'NOTIFY-UC022-A');
         $sync = [
             'status' => 'PARTIALLY_PAID',
             'confirmed_amount' => '120.00',
@@ -124,11 +121,7 @@ final class ManualTransferNotificationServiceTest
             $db,
             new ManualTransferNotificationLegacyPdo(),
             null,
-            [
-                'uuid_factura' => '33333333-3333-4333-8333-333333333333',
-                'uuid_payment' => '44444444-4444-4444-8444-444444444444',
-                'num_visible' => 'A2026/101',
-            ],
+            $this->persistedPayment($db, 'NOTIFY-UC022-B'),
             [
                 'status' => 'PAID',
                 'confirmed_amount' => '150.00',
@@ -149,6 +142,36 @@ final class ManualTransferNotificationServiceTest
         Assert::same(1, (int) $db->query(
             'SELECT COUNT(*) FROM notification_outbox'
         )->fetchColumn());
+    }
+    private function persistedPayment(\PDO $db, string $suffix): array
+    {
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC022|NOTIFY|INV|' . $suffix,
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $payment = RegisterPaymentTest::paymentServiceFor($db)->registerPayment([
+            'idempotency_key' => 'TRANSFERENCIA|NOTIFY|' . $suffix,
+            'movement_type' => 'CHARGE',
+            'method' => 'TRANSFERENCIA',
+            'source_channel' => 'INTRANET',
+            'amount' => '120.00',
+            'movement_date' => '2026-10-03 18:30:00',
+            'reference' => $suffix,
+            'allocations' => [[
+                'uuid_factura' => $invoice['uuid_factura'],
+                'amount' => '120.00',
+                'allocation_type' => 'INVOICE_PAYMENT',
+            ]],
+        ]);
+
+        return [
+            'uuid_factura' => $invoice['uuid_factura'],
+            'uuid_payment' => $payment['uuid_payment'],
+            'num_visible' => $invoice['num_visible'],
+        ];
     }
 }
 
