@@ -36,6 +36,24 @@ final class RedsysPackPreproductionBoundaryTest
         }
     }
 
+    public function testVerifierRejectsExecuteAndDiagnosticModesTogetherBeforeMutation(): void
+    {
+        $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
+
+        Assert::stringContainsString('if ($execute && $diagnosticProcess)', $source);
+        Assert::stringContainsString("'execution_mode_is_unambiguous'", $source);
+
+        $modeGuard = strpos($source, 'if ($execute && $diagnosticProcess)');
+        $preflight = strpos($source, '$preflightPack = runJsonScript(');
+        $execute = strpos($source, 'if ($execute) {');
+
+        Assert::same(true, $modeGuard !== false);
+        Assert::same(true, $preflight !== false);
+        Assert::same(true, $execute !== false);
+        Assert::same(true, $modeGuard < $preflight);
+        Assert::same(true, $modeGuard < $execute);
+    }
+
     public function testVerifierStopsBeforeMutationWhenPreflightOrPreviewFails(): void
     {
         $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
