@@ -402,6 +402,32 @@ flowchart TD
 - **Producció:** no habilitada.
 
 
+## 15.1. A09-12 · Conciliació d'evidència privada
+
+```mermaid
+flowchart TD
+    A[Queue REVIEW] --> B{Últim attempt UNCERTAIN?}
+    B -- No --> Z[No conciliar]
+    B -- Sí --> C{EVIDENCE_ID estructurat?}
+    C -- No --> Z
+    C -- Sí --> D[Verificar parella privada]
+    D --> E{Integritat completa?}
+    E -- No --> Z
+    E -- Sí --> F[Regenerar request des snapshot]
+    F --> G{Byte exact + REQUEST_HASH?}
+    G -- No --> Z
+    G -- Sí --> H[Parsejar response amb ResponseParser]
+    H --> I{Resultat terminal vàlid?}
+    I -- No --> Z
+    I -- Sí --> J[UNCERTAIN -> terminal]
+    J --> K[REVIEW -> SENT]
+    K --> L[Resoldre incidències]
+    L --> M[Operational event]
+    M --> N[Sense segon SOAP]
+```
+
+**No aplica recuperació heurística:** un `STARTED` sense referència estructurada d'evidència continua `REVIEW`.
+
 ## 16. Revalidació per pàgina i apartat — 2026-10-03
 
 | ID | Pàgina/apartat | ACTUAL | FINAL / pendent |
