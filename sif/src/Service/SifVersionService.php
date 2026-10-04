@@ -260,7 +260,9 @@ final class SifVersionService
 
         return [
             'ok' => true,
-            'preflight' => $this->buildPreflight($uuidVersion, $backupEvidenceUuid),
+            'preflight' => $this->preflightOutput(
+                $this->buildPreflight($uuidVersion, $backupEvidenceUuid)
+            ),
         ];
     }
 
@@ -460,6 +462,27 @@ final class SifVersionService
             'declaration_error' => $declarationError,
             'backup_required' => $backupRequired,
             'backup' => $this->backupEvidenceSummary($backup),
+        ];
+    }
+
+    private function preflightOutput(array $preflight): array
+    {
+        return [
+            'ok' => (bool) ($preflight['ok'] ?? false),
+            'checks' => (array) ($preflight['checks'] ?? []),
+            'failed' => array_values((array) ($preflight['failed'] ?? [])),
+            'version' => isset($preflight['version']) && is_array($preflight['version'])
+                ? $this->versionOutput($preflight['version'])
+                : null,
+            'runtime' => (array) ($preflight['runtime'] ?? []),
+            'declaration' => isset($preflight['declaration']) && is_array($preflight['declaration'])
+                ? $this->declarationOutput($preflight['declaration'])
+                : null,
+            'declaration_error' => $preflight['declaration_error'] ?? null,
+            'backup_required' => (bool) ($preflight['backup_required'] ?? false),
+            'backup' => isset($preflight['backup']) && is_array($preflight['backup'])
+                ? $this->backupEvidenceSummary($preflight['backup'])
+                : null,
         ];
     }
 
