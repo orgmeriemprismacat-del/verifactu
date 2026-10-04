@@ -25,6 +25,7 @@ final class CreditCompensationPreviewScriptTest
         Assert::stringContainsString('--uuid-factura=', $source);
         Assert::stringContainsString('--num-visible=', $source);
         Assert::stringContainsString('forCompensation($credit[\'UUID_CREDIT\'], $invoice[\'UUID_FACTURA\'], $input, $invoice)', $source);
+        Assert::stringContainsString('--idempotency-key=', $source);
         Assert::stringContainsString('--target-enrollment-id=', $source);
         Assert::stringContainsString('--correlation-id=', $source);
         Assert::stringContainsString('--uuid-operation=', $source);
