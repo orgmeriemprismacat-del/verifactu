@@ -60,6 +60,9 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString("['aeat']['read_roles']", $api);
         Assert::stringContainsString("['aeat']['reconcile_roles']", $api);
         Assert::stringContainsString('AeatReviewReconciliationService', $api);
+        Assert::stringContainsString('reconciled_without_resend', $evidenceService);
+        Assert::stringContainsString('readVerifiedPair', $evidenceService);
+        Assert::stringContainsString('ResponseParser', $evidenceService);
         Assert::stringContainsString('AeatEvidenceReconciliationService', $api);
         Assert::stringContainsString('AeatPreflight', $api);
         Assert::stringContainsString("'evidence_directory' => getenv('SIF_AEAT_EVIDENCE_DIR')", $config);
@@ -89,7 +92,7 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString('FISCAL_ORDER', $js);
         Assert::stringContainsString('UUID_ATTEMPT', $js);
 
-        foreach (['XML_PAYLOAD', 'PAYLOAD_JSON'] as $protected) {
+        foreach (['XML_PAYLOAD', 'PAYLOAD_JSON', 'request.xml', 'response.xml'] as $protected) {
             if (str_contains($repository, "SELECT {$protected}") || str_contains($js, $protected)) {
                 Assert::fail('AEAT operational panel must not expose protected fiscal payload: ' . $protected);
             }
@@ -102,6 +105,9 @@ final class AeatIntranetUiContractTest
         $js = $this->read($root . '/codi-drive/intranet-actual/js/sif-registres-aeat.js');
         $api = $this->read($root . '/sif/public/api/aeat/operations.php');
         $service = $this->read($root . '/sif/src/Service/AeatReviewReconciliationService.php');
+        $evidenceService = $this->read(
+            $root . '/sif/src/Service/AeatEvidenceReconciliationService.php'
+        );
 
         Assert::stringContainsString('reconciled_without_resend', $service);
         Assert::stringContainsString('REQUEST_HASH', $service);
@@ -109,7 +115,11 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString('AeatReviewReconciliationService', $api);
 
         foreach (['SoapTransport', 'run-aeat-worker.php', '--send-test'] as $forbidden) {
-            if (str_contains($js, $forbidden) || str_contains($api, $forbidden) || str_contains($service, $forbidden)) {
+            if (str_contains($js, $forbidden)
+                || str_contains($api, $forbidden)
+                || str_contains($service, $forbidden)
+                || str_contains($evidenceService, $forbidden)
+            ) {
                 Assert::fail('REVIEW reconciliation must not expose or invoke a second AEAT transport: ' . $forbidden);
             }
         }
