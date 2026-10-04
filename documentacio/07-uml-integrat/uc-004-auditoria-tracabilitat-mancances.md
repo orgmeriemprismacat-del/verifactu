@@ -191,7 +191,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 | Preview segur abans d'emetre | Sí FINAL | **Implementat en CLI + HTTP + pantalla** amb fingerprint, relectura i comprovació prèvia de coverage UC-004 | Sí | No | executar E2E |
 | Document per UUID | Sí FINAL | **PARCIAL**: schema `document_job`, `factura_documents` i descàrrega privada sí; productor UC-004 no | Sí | lectura/UC-080 sí; generació UC-004 no | producer/queue + snapshot + worker + storage writer + renderer PDF/QR/XML + E2E |
 | Sincronització llegada post-commit | Sí FINAL | processador UC-004 diu que no la fa | Sí | No | decidir/implementar |
-| Preproducció | Sí | scripts disponibles, però `InvoiceService` exigeix `aeat_fields` en PREPROD/PROD | estàtic | No | **construir snapshot AEAT oficial + executar i evidenciar** |
+| Preproducció | Sí | builder AEAT server-side versionat; `InvoiceService` exigeix snapshot oficial en PREPROD/PROD | prova XSD versionada, CI pendent | No | **validar/configurar mapping fiscal + executar i evidenciar PREPROD/AEAT** |
 
 ## 7. Mancances prioritzades
 
@@ -253,7 +253,7 @@ Això augmenta la maduresa del nucli, però no acredita el flux de la pantalla p
 
 | ID | Mancança | Evidència / impacte |
 | --- | --- | --- |
-| UC004-GAP-040 | **`aeat_fields` oficials no construïts per UC-004** | `InvoiceService::issueInvoice()` falla tancat en PREPROD/PROD quan falta `aeat_fields`; l'assembler UC-004 actual no els afegeix. Bloqueja desplegament qualificat fins implementar un assembler AEAT server-side amb emissor/SistemaInformatico i desglossament fiscal oficial. |
+| UC004-GAP-040 | **Mapping fiscal AEAT real encara no validat/configurat** | `InvoiceBeforePaymentAeatInputPolicy` ja construeix server-side emissor, `SistemaInformatico`, `DescripcionOperacion` i `Desglose`, i les proves validen XSD. PREPROD/PROD continua fail-closed fins configurar `SIF_UC004_AEAT_TAX_CODE`, `SIF_UC004_AEAT_REGIME_KEY` i `SIF_UC004_AEAT_EXEMPTION_REASON` amb valors fiscalment validats. |
 
 ## 8. Fitxers UML revisats/creats
 
@@ -292,7 +292,7 @@ El fitxer existent `uc-004-emetre-factura-abans-cobrar.md` continua sent una bon
 4. **FET AL CODI VERSIONAT:** pantalla connectada al command intern i mutador fiscal llegat retirat amb `410 Gone`.
 5. **FET AL MAIN:** auditoria operacional + `sif_audit_event` atòmics de l'emissió.
 6. **DECIDIT:** no crear factura shadow ni sentinel a `FACTURA_RELACIONADA`; adaptar read-models llegats a SIF quan calgui.
-7. **P0 PENDENT:** construir `aeat_fields` oficials server-side per UC-004 abans de PREPROD/PROD.
+7. **P0 OPERATIU PENDENT:** validar/configurar el mapping fiscal real i acreditar el snapshot AEAT server-side en PREPROD/PROD.
 8. **PENDENT:** circuit documental SIF per UUID + renderer PDF/QR/XML.
 9. Connectar cobrament posterior al UUID, sense reemetre.
 10. Executar proves i preflight/preproducció; conservar evidències.
@@ -333,7 +333,7 @@ El fitxer existent `uc-004-emetre-factura-abans-cobrar.md` continua sent una bon
 - `sif/tests/Integration/InvoiceBeforePaymentPreflightScriptTest.php`
 - `sif/tests/Integration/InvoiceBeforePaymentPreproductionScriptTest.php`
 
-**Criteri final d'auditoria:** la pantalla ja usa la ruta SIF segura i, en aquesta branca, l'endpoint vell queda 410. UC-004 queda **documentalment auditat però no operativament verificat**: falta CI del HEAD 04/10, `aeat_fields` oficials per PREPROD/PROD, document SIF per UUID, E2E/concurrència i cobertura transversal/sync que correspongui.
+**Criteri final d'auditoria:** la pantalla ja usa la ruta SIF segura i l'endpoint vell queda 410. UC-004 queda **documentalment auditat però no operativament verificat**: falta CI del HEAD 04/10, mapping fiscal real + PREPROD/AEAT, completar renderer/wiring documental, E2E/concurrència i cobertura transversal/sync que correspongui.
 
 
 ## Annex de decisions 04/10
