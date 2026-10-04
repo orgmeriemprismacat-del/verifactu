@@ -62,7 +62,7 @@
 | AP-28 | CONC | Dues confirmacions simultànies de la mateixa inscripció. | No duplicar inscripció ni operació comercial. | PENDENT_EXECUCIO |
 | AP-29 | CONC | Dues altes simultànies requereixen nou `IDPAG`. | Identificadors inequívocs o migració a identificador segur; cap col·lisió. | PENDENT_EXECUCIO |
 | AP-30 | INT | Error tècnic durant el càlcul de preu. | Cap confirmació amb oferta indeterminada; resposta estructurada d'error. | PENDENT_EXECUCIO |
-| AP-31 | INT | Descompte pendent o denegat en obrir confirmació/pagament. | Pantalles mostren el mateix estat comercial i només mètodes autoritzats. | PENDENT_EXECUCIO |
+| AP-31 | INT | Descompte pendent o denegat en obrir confirmació/pagament. | Pantalles mostren el mateix estat comercial i només mètodes autoritzats. | IMPLEMENTAT_BOUNDARY_VALID_DESC · TEST_NOU_PENDENT_CI |
 | AP-32 | SEC | Manipular l'import enviat al formulari de pagament. | El servidor usa import autoritzat/persistent, no el valor manipulat. | TEST_NOU_PENDENT_CI_AMOUNT_AUTHORITY |
 | AP-33 | E2E | Callback amb ordre o import diferent de la intenció. | Rebuig/incidència; cap cobrament atribuït incorrectament. | VERIFICAT_CI_AMOUNT_MISMATCH_0c1825c · TEST_ORDER_PENDENT_CI |
 | AP-34 | SEC | Callback amb signatura invàlida. | Rebuig abans de registrar cobrament. | VERIFICAT_CI_UNSIGNED_BOUNDARY_0c1825c · TEST_V2_INVALID_PENDENT_CI |
@@ -79,11 +79,11 @@
 | AP-40 | INT | Oferta AP d'una edició s'intenta usar en una altra. | Revalidació o conflicte segons política; mai trasllat silenciós. | PENDENT_EXECUCIO |
 | AP-41 | INT | Snapshot amb imports vàlids però origen comercial incorrecte. | Detectar contradicció abans de crear intenció o factura. | VERIFICAT_CI_INTENT_ORIGIN_GUARD_0c1825c |
 | AP-42 | INT | La tarifa canvia després d'haver congelat una oferta AP. | El snapshot comercial congelat no es reescriu; la migració completa de la intranet a oferta SIF continua pendent. | PENDENT_EXECUCIO_TRANSVERSAL |
-| AP-43 | E2E | Denegació documental + persona AP, sense pagaments previs. | Mateixa inscripció, nova oferta AP correcta i pagament habilitat. | PENDENT_EXECUCIO |
+| AP-43 | E2E | Denegació documental + persona AP, sense pagaments previs. | Mateixa inscripció, tarifa AP i `VALID_DESC=1`; pagament habilitat. | IMPLEMENTAT_P05_BOUNDARY · TEST_NOU_PENDENT_CI · E2E_PENDENT |
 | AP-44 | E2E | Mateix cas amb cobrament parcial previ. | Correu i UI distingeixen total/cobrat/pendent; cap cobrament duplicat pel total. | PENDENT_EXECUCIO |
 | AP-45 | CONC | Dos operadors resolen la mateixa sol·licitud de forma contradictòria. | Una sola resolució sobre la versió esperada; l'altra rep conflicte. | PENDENT_EXECUCIO |
 | AP-46 | E2E | La decisió es desa però falla SMTP. | No repetir mutació comercial; notificació queda fallida/pendent de reintent. | PENDENT_EXECUCIO |
-| AP-47 | E2E | Denegació + AP i consulta de confirmació/pagament. | Mateixa autorització de cobrament a totes les pantalles i mètodes. | PENDENT_EXECUCIO |
+| AP-47 | E2E | Denegació + AP i consulta de confirmació/pagament. | Mateixa autorització `VALID_DESC=1` per targeta i transferència. | IMPLEMENTAT_BOUNDARY · TEST_NOU_PENDENT_CI · E2E_PENDENT |
 | AP-48 | E2E | La inscripció ja està facturada quan es denega/canvia el descompte. | No reescriure factura; derivar ajust econòmic/fiscal. | PENDENT_EXECUCIO |
 
 ## AP-49…AP-55 · estat de pagament i links
@@ -260,3 +260,15 @@ Aquests tests complementen AP-58/AP-63 i la idempotència del checkout: el snaps
 - `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` exigeix POST-only per `enviarInscripcio.php` i absència de `$_GET`/autoritat client de `tipusCurs`.
 
 Aquest hardening redueix el risc monetari de P02 abans de la migració a `offer_id`; no converteix encara la UI llegada en una oferta SIF immutable.
+
+
+## Reconciliació estat pagable i transferència — 04/10/2026
+
+`LegacyPrismaStudentPaymentStateBoundaryTest` exigeix:
+
+- AP alternatiu després de denegació → `VALID_DESC=1`;
+- transferència web → només amb `validDesc == 1`;
+- transferència del pont candidat → mateix gate;
+- intenció Redsys AP SIF → rebutja `VALID_DESC != 1`.
+
+La conciliació/registre efectiu d'una transferència és UC-022 i continua fora del commit comercial immediat d'UC-020.
