@@ -66,6 +66,8 @@ try {
 	$numFact = trim((string) ($_POST['numFact'] ?? ''));
 	$efact = (string) ($_POST['efact'] ?? '0');
 	$operationId = trim((string) ($_POST['operationId'] ?? ''));
+	$idInscSifRaw = $_POST['idInsc'] ?? null;
+	$externalReference = trim((string) ($_POST['externalReference'] ?? ''));
 
 	if ($tipus === '' || $numFact === '') {
 		http_response_code(422);
@@ -97,6 +99,20 @@ try {
 		FILTER_VALIDATE_BOOLEAN
 	);
 
+	$idInscSif = null;
+	if ($useSif) {
+		if (filter_var($idInscSifRaw, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+			http_response_code(422);
+			throw new RuntimeException('Error: identificador real d’inscripció no vàlid.');
+		}
+		$idInscSif = (int) $idInscSifRaw;
+
+		if ($externalReference === '' || strlen($externalReference) > 120) {
+			http_response_code(422);
+			throw new RuntimeException('Error: cal indicar una referència bancària o DS_ORDER vàlida.');
+		}
+	}
+
 	if ($useSif) {
 		$tipusNormalitzat = strtoupper(trim($tipus));
 		if (!in_array($tipusNormalitzat, ['I', 'INDIVIDUAL', 'INSCRIPCIO', 'INSCRIPCIÓ'], true)) {
@@ -107,19 +123,28 @@ try {
 		}
 
 		[$actorId, $actorRoles] = SifAuthenticatedActor::fromUser($_SESSION['usuari']);
+		$sifInput = [
+			'amount' => number_format((float) str_replace(',', '.', $pagament), 2, '.', ''),
+			'movement_date' => $dataPag,
+			'id_insc' => $idInscSif,
+			'bank' => $banc,
+			'notes' => $obs,
+			'operation_id' => $operationId,
+		];
+
+		if (strtoupper($banc) === 'TPV') {
+			$sifInput['ds_order'] = $externalReference;
+		}
+		else {
+			$sifInput['reference'] = $externalReference;
+		}
+
 		$response = (new SifInternalInstallmentClient())->register(
 			$actorId,
 			$actorRoles,
 			null,
 			$numFact,
-			[
-				'amount' => number_format((float) str_replace(',', '.', $pagament), 2, '.', ''),
-				'movement_date' => $dataPag,
-				'id_insc' => $idTipus,
-				'bank' => $banc,
-				'notes' => $obs,
-				'operation_id' => $operationId,
-			]
+			$sifInput
 		);
 
 		$status = (int) ($response['_http_status'] ?? 0);
