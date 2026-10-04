@@ -142,6 +142,132 @@ final class Uc021CompanyResponsiblePaymentFlowTest
         Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
     }
 
+    public function testExistingRedsysCourseInvoiceBlocksUc021BeforeSecondFiscalNumber(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+
+        $service->issueInvoice(Fixtures::invoicePayload([
+            'idempotency_key' => 'REDSYS|CURS|IDPAG:11|ORDER:210000000111',
+            'source_channel' => 'REDSYS',
+            'totals' => [
+                'import_base' => '80.00',
+                'taxable_base' => '80.00',
+                'total' => '80.00',
+            ],
+            'lines' => [[
+                'concept' => 'Curs individual',
+                'detail' => 'Participant 11',
+                'quantity' => '1.00',
+                'unit_price' => '80.00',
+                'base' => '80.00',
+                'import_base' => '80.00',
+                'discount_amount' => '0.00',
+                'taxable_base' => '80.00',
+                'iva_regim' => 'EXEMPT',
+                'iva_pct' => '0.00',
+                'iva_import' => '0.00',
+                'total' => '80.00',
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 11,
+            ]],
+            'relations' => [[
+                'source_type' => 'INSCRIPCIO',
+                'source_id' => 11,
+                'relation_type' => 'ORIGIN',
+                'idpag' => 11,
+                'ds_order' => '210000000111',
+                'visible_alumne' => 1,
+            ]],
+            'payment' => [
+                'idempotency_key' => 'PAYMENT|REDSYS|ORDER:210000000111',
+                'movement_type' => 'CHARGE',
+                'method' => 'REDSYS',
+                'source_channel' => 'REDSYS',
+                'amount' => '80.00',
+                'movement_date' => '2026-10-04 03:00:00',
+                'ds_order' => '210000000111',
+                'idpag' => 11,
+            ],
+        ]));
+
+        $beforePayment = new InvoiceBeforePaymentService(
+            new InvoiceBeforePaymentPayloadBuilder(),
+            $service
+        );
+
+        Assert::throws(SifException::class, function () use ($beforePayment): void {
+            $beforePayment->issueBeforePayment($this->jointInvoicePayload());
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
+    }
+
+    public function testUc021CoverageBlocksRedsysCourseInvoiceInsideInvoiceTransaction(): void
+    {
+        $db = TestDatabase::fresh();
+        $service = IssueInvoiceTest::serviceFor($db);
+
+        $beforePayment = new InvoiceBeforePaymentService(
+            new InvoiceBeforePaymentPayloadBuilder(),
+            $service
+        );
+        $beforePayment->issueBeforePayment($this->jointInvoicePayload());
+
+        Assert::throws(SifException::class, function () use ($service): void {
+            $service->issueInvoice(Fixtures::invoicePayload([
+                'idempotency_key' => 'REDSYS|CURS|IDPAG:11|ORDER:210000000112',
+                'source_channel' => 'REDSYS',
+                'totals' => [
+                    'import_base' => '80.00',
+                    'taxable_base' => '80.00',
+                    'total' => '80.00',
+                ],
+                'lines' => [[
+                    'concept' => 'Curs individual',
+                    'detail' => 'Participant 11',
+                    'quantity' => '1.00',
+                    'unit_price' => '80.00',
+                    'base' => '80.00',
+                    'import_base' => '80.00',
+                    'discount_amount' => '0.00',
+                    'taxable_base' => '80.00',
+                    'iva_regim' => 'EXEMPT',
+                    'iva_pct' => '0.00',
+                    'iva_import' => '0.00',
+                    'total' => '80.00',
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 11,
+                ]],
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 11,
+                    'relation_type' => 'ORIGIN',
+                    'idpag' => 11,
+                    'ds_order' => '210000000112',
+                    'visible_alumne' => 1,
+                ]],
+                'payment' => [
+                    'idempotency_key' => 'PAYMENT|REDSYS|ORDER:210000000112',
+                    'movement_type' => 'CHARGE',
+                    'method' => 'REDSYS',
+                    'source_channel' => 'REDSYS',
+                    'amount' => '80.00',
+                    'movement_date' => '2026-10-04 03:05:00',
+                    'ds_order' => '210000000112',
+                    'idpag' => 11,
+                ],
+            ]));
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura_registres')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(2, (int) $db->query('SELECT COUNT(*) FROM invoice_before_payment_coverage')->fetchColumn());
+    }
+
     public function testSameIdempotencyKeyWithChangedBillingPartyIsRejected(): void
     {
         $db = TestDatabase::fresh();
