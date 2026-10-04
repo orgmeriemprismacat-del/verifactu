@@ -134,6 +134,46 @@ final class UsocValidationDecisionServiceTest
         }, 409);
     }
 
+
+    public function testDifferentRequestCannotRaceSamePendingInscription(): void
+    {
+        $db = TestDatabase::fresh();
+        $legacy = $this->legacyDb(4, 0);
+        $service = $this->service();
+
+        $first = $service->begin(
+            $db,
+            $legacy,
+            'req-usoc-validation-race-a',
+            880,
+            1,
+            'secretaria-a',
+            ['ADMIN']
+        );
+
+        Assert::same('REQUESTED', $first['state']);
+
+        Assert::throws(SifException::class, function () use ($db, $legacy, $service): void {
+            $service->begin(
+                $db,
+                $legacy,
+                'req-usoc-validation-race-b',
+                880,
+                2,
+                'secretaria-b',
+                ['ADMIN']
+            );
+        }, 409);
+
+        Assert::same(
+            1,
+            (int) $db->query(
+                "SELECT COUNT(*) FROM usoc_validation_decision
+                 WHERE ID_INSC = 880 AND STATE = 'REQUESTED'"
+            )->fetchColumn()
+        );
+    }
+
     public function testNonUsocDiscountIsNotTrackedAndMayContinueLegacyFlow(): void
     {
         $db = TestDatabase::fresh();
