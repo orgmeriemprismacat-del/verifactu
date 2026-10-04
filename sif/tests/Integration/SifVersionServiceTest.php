@@ -141,6 +141,64 @@ final class SifVersionServiceTest
         }
     }
 
+    public function testPreflightReturnsOnlyMinimalBackupEvidenceProjection(): void
+    {
+        $db = TestDatabase::fresh();
+        [$service, $dir] = $this->service($db, true);
+
+        try {
+            $actor = ['actor_id' => 'meriem', 'roles' => ['SIF_ADMIN'], 'source_channel' => 'TEST'];
+            $created = $service->registerCurrentRuntime(
+                $actor,
+                $this->operation('REGISTER-BACKUP', 'RELEASE_CANDIDATE') + ['version_code' => '2026.10.04-backup']
+            );
+            $uuid = $created['version']['UUID_VERSION'];
+
+            $service->attachDeclaration(
+                $actor,
+                $uuid,
+                $this->operation('DECL-BACKUP', 'DECLARATION_APPROVAL') + [
+                    'declaration_version' => 'v1',
+                    'storage_key' => 'declaracio-v1.pdf',
+                ]
+            );
+
+            $backupUuid = '11111111-2222-4333-8444-555555555555';
+            $db->prepare(
+                'INSERT INTO backup_restore_evidence (
+                    UUID_EVIDENCE, OPERATION_TYPE, ENVIRONMENT, SCOPE_JSON,
+                    BACKUP_REFERENCE, BACKUP_HASH, STATUS, RPO_MINUTES, RTO_MINUTES,
+                    INTEGRITY_RESULT, EXECUTED_BY, CORRELATION_ID, STARTED_AT,
+                    FINISHED_AT, EVIDENCE_JSON
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(6), NOW(6), ?)'
+            )->execute([
+                $backupUuid,
+                'BACKUP',
+                'test',
+                '{"scope":"sif"}',
+                '/private/backups/sif.sql',
+                str_repeat('b', 64),
+                'SUCCESS',
+                10,
+                20,
+                'OK',
+                'operator',
+                'CORR-BACKUP',
+                '{"private_detail":"must-not-leak"}',
+            ]);
+
+            $preflight = $service->preflight($actor, $uuid, $backupUuid);
+            Assert::same(true, $preflight['preflight']['ok']);
+            Assert::same($backupUuid, $preflight['preflight']['backup']['UUID_EVIDENCE']);
+            Assert::same(false, array_key_exists('EVIDENCE_JSON', $preflight['preflight']['backup']));
+            Assert::same(false, array_key_exists('BACKUP_REFERENCE', $preflight['preflight']['backup']));
+            Assert::same(false, array_key_exists('EXECUTED_BY', $preflight['preflight']['backup']));
+        } finally {
+            $this->removeTree($dir);
+            $this->removeTree($dir . '-evidence');
+        }
+    }
+
     public function testManagePermissionAndDeclarationTraversalFailClosed(): void
     {
         $db = TestDatabase::fresh();
@@ -185,7 +243,7 @@ final class SifVersionServiceTest
         }
     }
 
-    private function service(\PDO $db): array
+    private function service(\PDO $db, bool $requireBackupEvidence = false): array
     {
         $dir = sys_get_temp_dir() . '/sif-uc010-integration-' . bin2hex(random_bytes(8));
         $evidenceDir = $dir . '-evidence';
@@ -209,7 +267,7 @@ final class SifVersionServiceTest
             'release_manifest_path' => $manifestPath,
             'declaration_root' => $dir . '/declarations',
             'activation_enabled' => true,
-            'require_backup_evidence' => false,
+            'require_backup_evidence' => $requireBackupEvidence,
         ];
 
         $service = new SifVersionService(
