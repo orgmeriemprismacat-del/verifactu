@@ -98,8 +98,8 @@ final class RedsysCourseCoveredInvoicePaymentTest
         );
 
         Assert::same($invoice['uuid_factura'], $partial['uuid_factura']);
-        Assert::same('PARTIALLY_PAID', $partial['payment_status']);
-        Assert::same('PARTIALLY_PAID', (string) $db->query(
+        Assert::same('PARTIAL', $partial['payment_status']);
+        Assert::same('PARTIAL', (string) $db->query(
             'SELECT ESTAT_COBRAMENT FROM factura'
         )->fetchColumn());
 
@@ -160,7 +160,7 @@ final class RedsysCourseCoveredInvoicePaymentTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
-        Assert::same('PARTIALLY_PAID', (string) $db->query(
+        Assert::same('PARTIAL', (string) $db->query(
             'SELECT ESTAT_COBRAMENT FROM factura'
         )->fetchColumn());
     }
