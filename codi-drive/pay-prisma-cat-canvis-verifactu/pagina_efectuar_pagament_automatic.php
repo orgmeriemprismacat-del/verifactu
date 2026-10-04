@@ -185,6 +185,7 @@ try {
       $sifMerchantUrl = trim((string) getenv('SIF_REDSYS_CALLBACK_URL'));
       $legacyMerchantUrl = trim((string) getenv('SIF_REDSYS_LEGACY_CALLBACK_URL'));
       $returnBaseUrl = rtrim(trim((string) getenv('SIF_REDSYS_RETURN_BASE_URL')), '/');
+      $expectedPayHost = strtolower(trim((string) getenv('SIF_REDSYS_EXPECTED_PAY_HOST')));
 
       // UC-014: el tall de MerchantURL és explícit. DRAIN (1/0) ja ha estat
       // aturat a l'inici del script abans de crear cap intent.
@@ -211,6 +212,21 @@ try {
       }
       if (!str_starts_with($returnBaseUrl, 'https://')) {
          throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_MUST_USE_HTTPS');
+      }
+      if ($expectedPayHost === '') {
+         throw new RuntimeException('SIF_REDSYS_EXPECTED_PAY_HOST_NOT_CONFIGURED');
+      }
+
+      $returnHost = strtolower((string) parse_url($returnBaseUrl, PHP_URL_HOST));
+      if ($returnHost === '' || !hash_equals($expectedPayHost, $returnHost)) {
+         throw new RuntimeException('SIF_REDSYS_RETURN_BASE_URL_HOST_MISMATCH');
+      }
+
+      if (!$courseCutoverEnabled) {
+         $legacyHost = strtolower((string) parse_url($legacyMerchantUrl, PHP_URL_HOST));
+         if ($legacyHost === '' || !hash_equals($expectedPayHost, $legacyHost)) {
+            throw new RuntimeException('SIF_REDSYS_LEGACY_CALLBACK_URL_HOST_MISMATCH');
+         }
       }
 
       $returnQuery = http_build_query([
