@@ -1,5 +1,7 @@
 # UC-014 — Plantilla d'evidència de preproducció Redsys
 
+Configuració de referència: [pay-pre.prisma.cat](uc-014-config-preproduccio-pay-pre-2026-10-04.md).
+
 **Data/hora:**  
 **Entorn:** test / preproduction  
 **Commit SHA:**  
