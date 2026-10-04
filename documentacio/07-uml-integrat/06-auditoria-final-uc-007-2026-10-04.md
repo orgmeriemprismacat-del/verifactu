@@ -268,3 +268,21 @@ Per fer-ho cal:
 3. evidència de storage/document;
 4. validació de rols/flags;
 5. decisió explícita sobre retirada del fallback.
+
+
+## 16. Reconciliació amb main — 2026-10-04
+
+La branca s'ha reconciliat contra el `main` vigent mitjançant comparació de tres vies des del merge-base `b0e8ff7150c5a8b415cc109d298d82f0db1f68df`.
+
+Resultat:
+- `main` havia avançat 92 commits;
+- la branca UC-007 contenia 105 commits respecte del merge-base;
+- **0 fitxers solapats** entre els canvis nous de `main` i els fitxers modificats per UC-007;
+- s'ha creat un merge commit net incorporant el `main` actual;
+- estat posterior: **behind = 0**, PR mergeable.
+
+Això permet atribuir el diff restant exclusivament al paquet UC-007/080 sense sobreescriure treball nou de `main`.
+
+### CI del head reconciliat
+
+El head reconciliat ha activat els workflows SIF/UC/intranet corresponents. En el moment d'aquesta evidència continuen en estat `queued`; per tant no es promou encara cap test afegit després del primer run a estat PASS final.
