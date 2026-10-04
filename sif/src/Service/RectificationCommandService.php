@@ -116,7 +116,28 @@ final class RectificationCommandService
                     $resolved,
                     &$terminal
                 ): void {
-                    $lockedPayload = $this->builder->forOriginalInvoice($lockedOriginal, $normalizedInput);
+                    $lockedInput = $normalizedInput;
+                    if ($this->aeatMapper !== null) {
+                        unset($lockedInput['aeat_header'], $lockedInput['aeat_fields']);
+                        $lockedInput['type'] = $prepared['classification']['invoice_type'];
+                        $provisionalPayload = $this->builder->forOriginalInvoice(
+                            $lockedOriginal,
+                            $lockedInput
+                        );
+                        $lockedAeat = $this->aeatMapper->map(
+                            $db,
+                            $lockedOriginal,
+                            $provisionalPayload,
+                            $prepared['classification'],
+                            true
+                        );
+                        if ($lockedAeat !== null) {
+                            $lockedInput['aeat_header'] = $lockedAeat['aeat_header'];
+                            $lockedInput['aeat_fields'] = $lockedAeat['aeat_fields'];
+                        }
+                    }
+
+                    $lockedPayload = $this->builder->forOriginalInvoice($lockedOriginal, $lockedInput);
                     $lockedFingerprint = $this->fingerprint(
                         $lockedOriginal,
                         $lockedPayload,
