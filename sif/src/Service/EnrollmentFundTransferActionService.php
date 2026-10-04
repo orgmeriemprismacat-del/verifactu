@@ -51,7 +51,11 @@ final class EnrollmentFundTransferActionService
 
         $value = trim((string) $value);
 
-        return $value === '' ? null : $value;
+        if ($value === '') {
+            return null;
+        }
+
+        return $this->auditKey($value);
     }
 
     private function reversalKey(array $input): ?string
@@ -66,9 +70,19 @@ final class EnrollmentFundTransferActionService
                 return null;
             }
 
-            return 'FUND|TRANSFER|REVERSAL|' . $value;
+            return $this->auditKey('FUND|TRANSFER|REVERSAL|' . $value);
         }
 
         return null;
     }
+
+    private function auditKey(string $value): string
+    {
+        if (mb_strlen($value, 'UTF-8') <= 120) {
+            return $value;
+        }
+
+        return 'FUNDKEY|SHA256:' . hash('sha256', $value);
+    }
+
 }
