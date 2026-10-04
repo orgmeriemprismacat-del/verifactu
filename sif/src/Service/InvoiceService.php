@@ -64,17 +64,16 @@ final class InvoiceService
                 return $this->existingResultWithPaymentIfPresent($db, $payload, $existing);
             }
 
-            if ($this->requiresBeforePaymentCoverage($payload)) {
-                if ($this->paymentFlowLocks !== null) {
-                    $this->paymentFlowLocks->lockRelations($db, $payload['relations'] ?? []);
-                }
-                if ($this->beforePaymentRedsysGuard !== null) {
-                    $this->beforePaymentRedsysGuard->assertNoBlockingCourseIntents(
-                        $db,
-                        $payload['relations'] ?? [],
-                        true
-                    );
-                }
+            if ($this->paymentFlowLocks !== null && $this->hasInscriptionOrigins($payload)) {
+                $this->paymentFlowLocks->lockRelations($db, $payload['relations'] ?? []);
+            }
+
+            if ($this->requiresBeforePaymentCoverage($payload) && $this->beforePaymentRedsysGuard !== null) {
+                $this->beforePaymentRedsysGuard->assertNoBlockingCourseIntents(
+                    $db,
+                    $payload['relations'] ?? [],
+                    true
+                );
             }
 
             $year = (int) ($payload['year'] ?? date('Y'));
@@ -208,6 +207,23 @@ final class InvoiceService
             'uuid_factura' => $existing['UUID_FACTURA'],
             'num_visible' => $existing['NUM_VISIBLE'],
         ];
+    }
+
+    private function hasInscriptionOrigins(array $payload): bool
+    {
+        foreach (($payload['relations'] ?? []) as $relation) {
+            if (!is_array($relation)) {
+                continue;
+            }
+            if (strtoupper(trim((string) ($relation['source_type'] ?? ''))) !== 'INSCRIPCIO') {
+                continue;
+            }
+            if (strtoupper(trim((string) ($relation['relation_type'] ?? 'ORIGIN'))) === 'ORIGIN') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function requiresBeforePaymentCoverage(array $payload): bool
