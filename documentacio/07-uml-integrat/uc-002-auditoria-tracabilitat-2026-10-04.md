@@ -6,7 +6,7 @@ UC-002 **no estava complet** a `main`. El repositori sí contenia el nucli SIF d
 
 L'auditoria ha recuperat i inspeccionat el `Intranet.php` real com a blob gran, ha separat el cobrament d'una factura existent (`efact=1`) de la facturació llegada durant el cobrament (`efact=0`) i ha corregit defectes de seguretat i consistència que podien afectar el cobrament.
 
-**Conclusió actualitzada:** el nucli SIF és sòlid i el pont Intranet → SIF autoritatiu ja està implementat darrere de `SIF_UC002_AUTHORITATIVE`, amb CSRF, HMAC, request UUID estable i sync llegat post-commit basat en projecció absoluta. UC-002 continua **PARCIAL / NO TANCAT** perquè falta validar-lo E2E/preproducció, acreditar l'evidència externa del cobrament i moure notificacions/correus a post-commit. El command autoritatiu ja està connectat a `payment_action_event` i al ledger per `ID_INSC`.
+**Conclusió actualitzada:** el nucli SIF és sòlid i el pont Intranet → SIF autoritatiu ja està implementat darrere de `SIF_UC002_AUTHORITATIVE`, amb CSRF, HMAC, request UUID estable i sync llegat post-commit basat en projecció absoluta. UC-002 continua **PARCIAL / NO TANCAT** perquè falta validar-lo E2E/preproducció, acreditar l'evidència externa del cobrament i validar el lliurament real de notificacions a preproducció. El command autoritatiu ja està connectat a `payment_action_event`, al ledger per `ID_INSC` i a `notification_outbox`.
 
 ## 1. Fonts revisades
 
@@ -216,7 +216,7 @@ Això permet sincronitzar el resum acadèmic/llegat sense sumar dues vegades, pe
 4. un error de sync retorna `202 PENDING_RETRY`, no crea un nou cobrament.
 
 **Estat sync:** **IMPLEMENTAT DARRERE FLAG / PENDENT E2E**.  
-**Encara pendent:** correus/notificacions post-commit; el vell mètode continua enviant correus quan el flag és desactivat.
+**Notificació:** el command autoritatiu encola `EXISTING_INVOICE_PAYMENT_CONFIRMED` a `notification_outbox` dins del mateix commit. Resta validar el worker/plantilla en preproducció; el vell mètode continua enviant correus quan el flag és desactivat.
 
 ---
 
@@ -260,7 +260,7 @@ Al tall:
 | R-16 | evidència externa | — genèric | — | PENDENT |
 | R-17 | intranet -> SIF | client HMAC + proxy + command | bridge boundary + command tests | IMPLEMENTAT FLAGGED |
 | R-18 | sync legacy post-commit | projection service + applier absolut | projection + boundary tests | IMPLEMENTAT FLAGGED / E2E PENDENT |
-| R-19 | mail post-commit | — | — | PENDENT |
+| R-19 | notificació post-commit | ExistingInvoicePaymentNotificationService + notification_outbox | creació + retry | IMPLEMENTAT / LLIURAMENT E2E PENDENT |
 | R-20 | E2E preproducció | entorn | evidència | PENDENT |
 
 ## 4. Matriu documentat / implementat / verificat / pendent
