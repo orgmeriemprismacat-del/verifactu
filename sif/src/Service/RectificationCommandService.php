@@ -18,7 +18,8 @@ final class RectificationCommandService
         private PayloadIdempotencyValidator $fingerprints,
         private SifAuditEventRepository $auditEvents,
         private OperationalEventRepository $operationalEvents,
-        private string $sourceEnvironment
+        private string $sourceEnvironment,
+        private ?AeatRectificationMapper $aeatMapper = null
     ) {
         $this->sourceEnvironment = strtoupper(trim($this->sourceEnvironment));
         if ($this->sourceEnvironment === '') {
@@ -200,9 +201,22 @@ final class RectificationCommandService
             throw SifException::validation('SIF invoice not found for rectification command');
         }
 
+        // Never trust AEAT fields or the fiscal invoice type from the caller.
+        unset($input['aeat_header'], $input['aeat_fields'], $input['type'], $input['tipus_factura']);
+
         $input['created_by'] = $actorId;
         $decision = $this->decisionGuard->assertRectification($classification, $input);
+        $input['type'] = $decision['invoice_type'];
         $payload = $this->builder->forOriginalInvoice($invoice, $input);
+
+        if ($this->aeatMapper !== null) {
+            $aeat = $this->aeatMapper->map($this->db, $invoice, $payload, $decision);
+            if ($aeat !== null) {
+                $input['aeat_header'] = $aeat['aeat_header'];
+                $input['aeat_fields'] = $aeat['aeat_fields'];
+                $payload = $this->builder->forOriginalInvoice($invoice, $input);
+            }
+        }
 
         return [
             'invoice' => $invoice,
