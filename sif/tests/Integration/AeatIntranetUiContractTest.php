@@ -11,6 +11,7 @@ final class AeatIntranetUiContractTest
         $root = dirname(__DIR__, 3);
         $page = $this->read($root . '/codi-drive/intranet-actual/sif-registres-aeat.php');
         $js = $this->read($root . '/codi-drive/intranet-actual/js/sif-registres-aeat.js');
+        $generalJs = $this->read($root . '/codi-drive/intranet-actual/js/general_v5.js');
         $bridge = $this->read($root . '/codi-drive/intranet-actual/ajax/sif/sifAeat.php');
         $client = $this->read($root . '/codi-drive/intranet-actual/SifInternalAeatClient.php');
         $api = $this->read($root . '/sif/public/api/aeat/operations.php');
@@ -82,7 +83,7 @@ final class AeatIntranetUiContractTest
         Assert::stringContainsString('AeatPreflight', $api);
         Assert::stringContainsString("'evidence_directory' => getenv('SIF_AEAT_EVIDENCE_DIR')", $config);
 
-        foreach ([$page, $js] as $browserSource) {
+        foreach ([$page, $js, $generalJs] as $browserSource) {
             if (str_contains($browserSource, 'https://intranet.prisma.cat/')) {
                 Assert::fail('UC-009 browser assets and AJAX must remain same-origin for preproduction.');
             }
