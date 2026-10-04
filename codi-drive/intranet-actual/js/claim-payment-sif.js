@@ -219,6 +219,27 @@
 				throw new Error('Resposta no vàlida del servidor.');
 			}
 
+			if (
+				payload
+				&& payload.payment_persisted === true
+				&& payload.requires_reconciliation === true
+				&& payload.payment
+			) {
+				const persistedUuid = payload.payment.uuid_payment
+					? ' UUID: ' + payload.payment.uuid_payment
+					: '';
+				errorBox.textContent =
+					errorText(
+						payload,
+						'El cobrament ja consta al SIF però falta completar la conciliació.'
+					)
+					+ persistedUuid
+					+ ' No registris un altre cobrament ni canviïs la referència externa. '
+					+ 'Reintenta aquest mateix rebut quan la incidència estigui resolta.';
+				errorBox.hidden = false;
+				return;
+			}
+
 			if (!response.ok || !payload || payload.ok !== true || !payload.payment) {
 				throw new Error(errorText(payload, 'No s’ha pogut registrar el cobrament.'));
 			}
