@@ -130,12 +130,12 @@
 
 | ID | Nivell | Escenari | Resultat esperat | Estat |
 | --- | --- | --- | --- | --- |
-| AP-74 | CONC | DNI A lent → DNI B ràpid. | Resposta A obsoleta no pot sobreescriure l'oferta B. | PENDENT_IMPLEMENTACIO |
-| AP-75 | CONC | Canviar edició amb càlcul pendent. | Només queda activa l'oferta de l'edició final. | PENDENT_IMPLEMENTACIO |
-| AP-76 | CONC | Marcar/desmarcar check de descompte ràpidament. | Cap combinació de tipus/import de moments diferents. | PENDENT_IMPLEMENTACIO |
-| AP-77 | INT | AP calculat → aplicar codi promocional. | L'oferta final té un únic origen coherent. | PENDENT_IMPLEMENTACIO |
-| AP-78 | CONC | Promoció aplicada → arriba resposta AP antiga. | La resposta obsoleta es descarta. | PENDENT_IMPLEMENTACIO |
-| AP-79 | CONC | Confirmar mentre el preu es recalcula. | Bloqueig o acceptació per `offer_id` servidor vigent. | PENDENT_IMPLEMENTACIO |
+| AP-74 | CONC | DNI A lent → DNI B ràpid. | Resposta A obsoleta no pot sobreescriure l'oferta B. | IMPLEMENTAT_UI_GENERATION_GUARD · TEST_NOU_PENDENT_CI |
+| AP-75 | CONC | Canviar edició amb càlcul pendent. | Només queda activa l'oferta de l'edició final. | IMPLEMENTAT_UI_GENERATION_GUARD · TEST_NOU_PENDENT_CI |
+| AP-76 | CONC | Marcar/desmarcar check de descompte ràpidament. | Cap combinació de tipus/import de moments diferents. | IMPLEMENTAT_UI_GENERATION_GUARD · TEST_NOU_PENDENT_CI |
+| AP-77 | INT | AP calculat → aplicar codi promocional. | L'oferta final té un únic origen coherent. | IMPLEMENTAT_UI_ORIGIN_EXCLUSIVE + SERVER_FAIL_CLOSED · TEST_NOU_PENDENT_CI |
+| AP-78 | CONC | Promoció aplicada → arriba resposta AP antiga. | La resposta obsoleta es descarta. | IMPLEMENTAT_UI_GENERATION_GUARD · TEST_NOU_PENDENT_CI |
+| AP-79 | CONC | Confirmar mentre el preu es recalcula. | La UI bloqueja la confirmació fins acabar el càlcul vigent; `offer_id` continua com a migració FINAL. | IMPLEMENTAT_UI_PENDING_GUARD · TEST_NOU_PENDENT_CI |
 | AP-80 | CONC | Repetir mateixa resolució amb clau idempotent. | Una sola decisió i una sola notificació. | PENDENT_IMPLEMENTACIO |
 | AP-81 | CONC | Resolver sobre estat que ja no és pendent. | `ALREADY_APPLIED` o `VERSION_CONFLICT`; cap sobreescriptura. | PENDENT_IMPLEMENTACIO |
 | AP-82 | SEC | Sessió existent però sense permís específic. | 403/denegació equivalent i cap mutació. | VERIFICAT_CI_FRONTERA_P05_0c1825c |
@@ -251,3 +251,12 @@ Aquesta ampliació no crea AP-85+: manté la matriu canònica AP-01…AP-84 i re
 | UC20-TEST-011 | Duplicar participant per rol o línia per `ORDRE`. | fail-closed, no reutilització ambigua. | GUARD IMPLEMENTAT · PENDENT CI HEAD |
 
 Aquests tests complementen AP-58/AP-63 i la idempotència del checkout: el snapshot comercial no es limita a import/preu/intenció; inclou també identitat del participant i línia de producte.
+
+
+## Hardening de concurrència P02 — 04/10/2026
+
+- `LegacyPrismaStudentPriceConcurrencyBoundaryTest` cobreix generació monotònica, descart de callbacks obsolets, bloqueig de submit, exclusivitat AP/promoció i neteja del fallback.
+- `LegacyEnrollmentCompletionPrecheckBoundaryTest` cobreix la cadena única curs actual → curs derivat i el handler namespaced de confirmació.
+- `LegacyPrismaStudentEnrollmentAuthorityBoundaryTest` exigeix POST-only per `enviarInscripcio.php` i absència de `$_GET`/autoritat client de `tipusCurs`.
+
+Aquest hardening redueix el risc monetari de P02 abans de la migració a `offer_id`; no converteix encara la UI llegada en una oferta SIF immutable.
