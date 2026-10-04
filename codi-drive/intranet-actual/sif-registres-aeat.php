@@ -52,11 +52,12 @@ $csrf = htmlspecialchars($_SESSION['sif_aeat_csrf'], ENT_QUOTES, 'UTF-8');
     <link rel="stylesheet" href="/css/general.min.css?ver=1.0">
     <link rel="stylesheet" href="/css/general_v5.min.css?ver=1.0">
     <link rel="stylesheet" href="/css/sif-registres-aeat.css?ver=1.0">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+            integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
             integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
             crossorigin="anonymous"></script>
-    <script src="https://kit.fontawesome.com/efc6febcf3.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <div class="contingut">
@@ -87,13 +88,13 @@ $csrf = htmlspecialchars($_SESSION['sif_aeat_csrf'], ENT_QUOTES, 'UTF-8');
                 </div>
                 <div class="d-flex gap-2">
                     <a href="/sif-verifactu.php" class="btn btn-outline-secondary btn-sm">
-                        <i class="fa-solid fa-shield-halved me-1"></i> VERI*FACTU
+                        <i class="material-icons me-1" aria-hidden="true">security</i> VERI*FACTU
                     </a>
                     <button id="sif-aeat-preflight" class="btn btn-outline-secondary btn-sm" type="button">
-                        <i class="fa-solid fa-shield-halved me-1"></i> Preflight
+                        <i class="material-icons me-1" aria-hidden="true">security</i> Preflight
                     </button>
                     <button id="sif-aeat-refresh" class="btn btn-primary btn-sm" type="button">
-                        <i class="fa-solid fa-rotate me-1"></i> Actualitzar
+                        <i class="material-icons me-1" aria-hidden="true">refresh</i> Actualitzar
                     </button>
                 </div>
             </div>
