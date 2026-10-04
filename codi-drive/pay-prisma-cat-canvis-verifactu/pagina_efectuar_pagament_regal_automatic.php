@@ -30,13 +30,6 @@
    <header></header>
    <?php include('inc/analitics.html'); ?>
    <div id='cnt-pagament' class="prisma-container container separacio-peu" role="main">
-		<div id='codiCurs' style='display:none'><?php echo htmlspecialchars((string) ($_POST['codiCurs'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-		<div id='codiRegal' style='display:none'><?php echo htmlspecialchars((string) ($_POST['codiRegal'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-		<div id='titol' style='display:none'><?php echo htmlspecialchars((string) ($_POST['titol'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-      <div id='nom-titular' style='display:none'><?php echo htmlspecialchars((string) ($_POST['nom-titular'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-		<div id='dni' style='display:none'><?php echo htmlspecialchars((string) ($_POST['dni'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-		<div id='import' style='display:none'><?php echo htmlspecialchars((string) ($importPag ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-
       <?php
 
       include("./ConnexioBBDD_PreparedStatment.php");
