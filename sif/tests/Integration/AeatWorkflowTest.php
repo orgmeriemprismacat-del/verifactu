@@ -544,6 +544,56 @@ final class AeatWorkflowTest
         Assert::same(1, $transport->calls);
     }
 
+    public function testAttemptRepositoryRejectsTerminalResponseThatDoesNotMatchAnchoredHash(): void
+    {
+        $db = TestDatabase::fresh();
+        IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->payload('AEAT-LEDGER-ANCHOR-MISMATCH')
+        );
+
+        $queue = $db->query('SELECT * FROM fiscal_queue LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $payload = json_decode((string) $queue['PAYLOAD_JSON'], true);
+        $attempts = new AeatSubmissionAttemptRepository();
+        $context = $attempts->begin($db, $queue, $payload);
+
+        $uuid = (string) $context['uuid_attempt'];
+        $evidenceId = (string) $context['evidence_id'];
+        $anchored = hash('sha256', 'anchored-response');
+        $different = hash('sha256', 'different-response');
+
+        $attempts->anchorEvidenceResponse(
+            $db,
+            $uuid,
+            $evidenceId,
+            $anchored,
+            200
+        );
+
+        Assert::throws(
+            \RuntimeException::class,
+            fn () => $attempts->complete(
+                $db,
+                $uuid,
+                'ACCEPTED',
+                [
+                    'csv' => 'MUST-NOT-COMMIT',
+                    'evidence_id' => $evidenceId,
+                    'response_sha256' => $different,
+                    'evidence_http_status' => 200,
+                ]
+            )
+        );
+
+        Assert::same(
+            'STARTED',
+            $db->query('SELECT STATUS FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            $anchored,
+            $db->query('SELECT EVIDENCE_RESPONSE_SHA256 FROM aeat_submission_attempt')->fetchColumn()
+        );
+    }
+
     public function testPersistsSubmissionAttemptBeforeAndAfterAcceptedDelivery(): void
     {
         $db = TestDatabase::fresh();
