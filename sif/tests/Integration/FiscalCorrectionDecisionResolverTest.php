@@ -90,7 +90,9 @@ final class FiscalCorrectionDecisionResolverTest
             'reason_code' => 'AMOUNT_DECREASE',
             'changeset' => [
                 'classification' => $this->classification(),
-                'correction_fingerprint' => (new RectificationDecisionFingerprint())->calculate($input),
+                'correction_fingerprint' => (new RectificationDecisionFingerprint())->calculate([
+                    'mode' => 'DIFERENCIES',
+                ]),
             ],
         ]);
 
@@ -121,6 +123,7 @@ final class FiscalCorrectionDecisionResolverTest
             'reason_code' => 'AMOUNT_DECREASE',
             'changeset' => [
                 'classification' => $this->classification(),
+                'correction_fingerprint' => (new RectificationDecisionFingerprint())->calculate($input),
             ],
         ]);
     }
