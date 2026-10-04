@@ -7,6 +7,10 @@ if (!$configOk) {
 	<?php
 }
 else {
+	if (empty($_SESSION['csrf_debt_claim'])) {
+		$_SESSION['csrf_debt_claim'] = bin2hex(random_bytes(32));
+	}
+	$csrfDebtClaim = (string) $_SESSION['csrf_debt_claim'];
 ?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html lang="ca" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# video: http://ogp.me/ns/video#">
@@ -14,6 +18,8 @@ else {
 		<meta charset="utf-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="csrf-token-debt-claim" content="<?php echo htmlspecialchars($csrfDebtClaim, ENT_QUOTES, 'UTF-8'); ?>">
+		<meta name="debt-claim-surface" content="PRIMERA_RECLAMACIO">
 
 		<title>1a Reclamació Pagament | Intranet</title>
 
@@ -43,6 +49,7 @@ else {
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/alerts.min.css?ver=1.0"/>
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/modals.min.css?ver=1.0"/>
 		<link rel="stylesheet" href="https://intranet.prisma.cat/css/facturacio-primera-reclamacio-pagament.min.css?ver=1.0"/>
+		<script src="https://intranet.prisma.cat/js/sif-debt-claim-bridge.js?ver=1.0"></script>
 		<script src="https://intranet.prisma.cat/js/general.js?ver=1.0"></script>
 		<script src="https://intranet.prisma.cat/js/facturacio-primera-reclamacio-pagament.js?ver=1.1"></script>
 	</body>
