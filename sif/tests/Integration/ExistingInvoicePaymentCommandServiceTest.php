@@ -45,6 +45,38 @@ final class ExistingInvoicePaymentCommandServiceTest
         Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
     }
 
+    public function testRegistersExistingInvoiceByLegacyRelatedInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC002|LEGACY-REL|INVOICE',
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 10,
+                    'factura_relacionada' => 777,
+                    'idpag' => 123,
+                    'ds_order' => null,
+                    'visible_alumne' => 1,
+                ]],
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $result = $this->service($db)->register($db, [
+            'selector' => ['legacy_factura_relacionada' => 777],
+            'payment' => [
+                'idempotency_key' => 'INTRANET|UC002|REQ:77777777-7777-4777-8777-777777777777',
+                'amount' => '120.00',
+                'movement_date' => '2026-10-04 04:20:00',
+                'bank' => 'CAIXA',
+            ],
+        ]);
+
+        Assert::same($invoice['uuid_factura'], $result['uuid_factura']);
+        Assert::same(false, $result['idempotency_reused']);
+    }
+
     public function testRejectsMissingExplicitIdempotencyKey(): void
     {
         $db = TestDatabase::fresh();
