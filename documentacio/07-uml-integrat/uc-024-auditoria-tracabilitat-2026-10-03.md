@@ -6,7 +6,7 @@
 
 ## 1. Veredicte executiu
 
-UC-024 **existeix parcialment** al SIF, però **no està tancat de punta a punta**.
+UC-024 disposa ara d’una implementació funcional completa en branca darrere feature flag, però **encara no està tancat de punta a punta** perquè manca executar el HEAD actual en CI/preproducció i conservar evidència E2E.
 
 | Àmbit | Documentat | Implementat | Verificat en codi | Verificat E2E/preproducció | Estat |
 | --- | --- | --- | --- | --- | --- |
@@ -14,11 +14,11 @@ UC-024 **existeix parcialment** al SIF, però **no està tancat de punta a punta
 | Idempotència dins de la mateixa clau | Sí | Sí | Sí | No | PARCIAL |
 | Cobrament parcial | Sí | Sí | Sí | No | PARCIAL |
 | Segon ingrés real de la mateixa reclamació | Sí | Resolució implementada en el contracte nou amb external_receipt_id diferent | Sí en proves de branca | No preproducció | PARCIAL |
-| Conciliació intercanal UC-022/UC-023/Redsys | Sí, objectiu | No | No | No | PENDENT |
-| Expedient de reclamació separat de la referència bancària | Sí, objectiu | No | Sí: avui estan barrejats | No | PENDENT |
-| Actor/auditoria transversal de la mutació | Sí | Implementat a la nova API signada de la branca | Sí: PaymentActionGateway + payment_action_event | No preproducció | PARCIAL |
-| Pantalles de reclamació → ClaimPaymentService | Sí, objectiu | No | Sí: continuen en llegat | No | PENDENT |
-| Autorització de mutació + CSRF als AJAX de reclamació | Sí, objectiu | No acreditat | Sí: no es veu guard propi als endpoints inspeccionats | No | PENDENT |
+| Conciliació intercanal UC-022/UC-023/Redsys | Sí | Sí: `BANK_REFERENCE`, `DS_ORDER`, `PROVIDER_REF` | Sí per inspecció/proves de branca | No | PARCIAL |
+| Expedient separat de la referència bancària | Sí | Sí al contracte/API/auditoria; sense taula `claim_case` dedicada | Sí | No | PARCIAL |
+| Actor/auditoria transversal de la mutació | Sí | Sí | Sí: `PaymentActionGateway` + `payment_action_event` + `SYNC_LEGACY` | No | PARCIAL |
+| Pantalles de reclamació → ClaimPaymentService | Sí | Sí, bridge + JS feature-flagged | Sí | No | PARCIAL |
+| Autorització de mutació + CSRF | Sí | Sí al bridge nou | Sí: POST, Same-Origin/AJAX, CSRF, permís d’edició, HMAC intern | No | PARCIAL |
 | Outbox per correus | Sí, objectiu | No en les pantalles llegades | Sí: SMTP síncron | No | PENDENT |
 | Proves unitàries/integració SIF | Sí | Sí | Sí, fitxers presents | pendent d'execució sobre el commit d'aquesta branca | PARCIAL |
 
@@ -85,21 +85,21 @@ Dos ingressos diferents E1/E2 d'una mateixa reclamació generen la mateixa clau 
 
 **Canvi de la branca:** `ClaimPaymentPayloadBuilder` prioritza `external_receipt_id` i deriva `CLAIM|RECEIPT:<id>`; dues entrades E1/E2 amb identificadors externs diferents es registren com dos moviments diferents encara que pertanyin al mateix expedient.
 
-### F-024-03 — Sense conciliació global del mateix fet econòmic — ALTA
+### F-024-03 — Conciliació global del mateix fet econòmic — RESOLT EN CONTRACTE NOU / PREPROD PENDENT
 
-Les famílies de claus `CLAIM|REF`, transferència, Redsys i fraccionaments no comparteixen necessàriament el mateix identificador. UC-024 no consulta un registre global del rebut extern abans de crear el `CHARGE`.
+`ClaimPaymentReceiptResolver` cerca el rebut extern a `payment_transaction` segons `BANK_REFERENCE`, `DS_ORDER` o `PROVIDER_REF`. Si ja existeix, exigeix mateixa factura, mateix `IDPAG` i mateix import abans de reutilitzar el `UUID_PAYMENT`. Per `DS_ORDER` i `PROVIDER_REF`, UC-024 no crea manualment el moviment si el canal autoritatiu encara no l’ha registrat.
 
-**Conseqüència:** un ingrés ja registrat per UC-022/UC-023/Redsys necessita un reconciliador explícit; la idempotència local de `PaymentService` no ho resol per si sola.
+**Conseqüència:** la deduplicació ja no depèn només de la família de clau local `CLAIM|*`; falta validar-la E2E amb dades controlades.
 
-### F-024-04 — El servei no valida saldo pendent abans del CHARGE — MITJANA/ALTA
+### F-024-04 — Saldo pendent / OVERPAID — RESOLT PER UC-024
 
-`ClaimPaymentService` localitza la factura però no calcula el deute pendent abans de registrar l'import. `PaymentStatusCalculator` contempla `OVERPAID`; és a dir, el ledger pot reflectir un sobrepagament en lloc de bloquejar-lo.
+`ClaimPaymentBalanceGuard` bloqueja un cobrament nou si la factura no té saldo pendent o si l’import excedeix el pendent calculat sobre `payment_allocation` i moviments confirmats.
 
-**Conseqüència:** cal decisió de negoci explícita: permetre i gestionar `OVERPAID` o impedir imports superiors al saldo pendent.
+**Conseqüència:** UC-024 adopta una política explícita de **no crear sobrepagaments nous**. Altres canals poden conservar la seva política pròpia.
 
-### F-024-05 — Lectura de factura fora de la transacció de PaymentService — MITJANA
+### F-024-05 — Lectura/lock transaccional — RESOLT A LA NOVA RUTA
 
-La factura es resol abans d'entrar a la transacció de `PaymentService` i `ClaimPaymentService` crida el repositori sense `FOR UPDATE`. El repositori de pagaments sí bloqueja la factura quan recalcula l'estat, però la precondició llegida pel servei no forma una decisió atòmica de saldo/estat.
+`PaymentService::registerPaymentInTransaction()` permet que `PaymentActionGateway` sigui propietari de la transacció; `ClaimPaymentService::registerByUuidInTransaction()` rellegeix la factura amb `FOR UPDATE`. El pagament i l’event terminal d’auditoria comparteixen commit/rollback.
 
 ### F-024-06 — created_by no era auditoria d'actor persistent — MITIGAT A NOVA API
 
@@ -109,15 +109,15 @@ El builder admet `created_by`, però `PaymentRepository::createPayment()` no el 
 
 **Canvi de la branca:** l’API signada obté actor/rol de `InternalApiAuthenticator` i escriu `REQUESTED` + terminal a `payment_action_event` mitjançant `PaymentActionGateway`. El pagament i l’event terminal comparteixen transacció.
 
-### F-024-07 — UI de reclamacions no invoca ClaimPaymentService — ALTA
+### F-024-07 — Bridge/UI de cobrament — IMPLEMENTAT DARRERE FEATURE FLAG
 
-Les quatre superfícies de reclamació/morositat inspeccionades actualitzen camps llegats i envien comunicacions. Els seus AJAX criden mètodes d'`Intranet.php`; no hi ha una crida a `ClaimPaymentService` per registrar l'ingrés.
+La branca incorpora `claim-payment-sif.js` i `ajax/facturacio/registerClaimPaymentSif.php`. Les files de les quatre superfícies exposen `data-id-insc`, però el navegador no controla factura, claim case ni actor. L’API SIF resol la factura d’origen des de `fact_rels`. La UI només es carrega amb `SIF_CLAIM_PAYMENT_UI_ENABLED=1`.
 
-**Conseqüència:** el servei SIF existeix, però no és encara el backend canònic de les pantalles de reclamació.
+**Conseqüència:** no altera l’operativa actual per defecte; falta desplegar-la i validar-la a preproducció.
 
-### F-024-08 — Autorització de visualització sí; autorització de mutació independent no acreditada — ALTA
+### F-024-08 — Autorització de mutació — RESOLT A LA NOVA FRONTERA
 
-`comprovarSessio.php` revalida la sessió de la pàgina i `mostrarMain*.php` comprova `tePermisVisualitzacio()`. En canvi, els endpoints AJAX de mutació inspeccionats fan `session_start()`, deserialitzen els objectes i executen la mutació; no inclouen el guard de pàgina, no s'hi ha localitzat comprovació específica de rol de mutació ni token CSRF.
+El bridge exigeix `POST`, sessió vàlida, `LegacyInvoiceMutationAuthorization::assertSameOrigin()`, token `csrf_claim_payment`, permís d’edició derivat de la pàgina/referer i `SifAuthenticatedActor`. El tram intranet→SIF utilitza HMAC, timestamp, request UUID i anti-replay via `InternalApiAuthenticator`.
 
 ### F-024-09 — Comunicació síncrona i estat llegat abans/després del correu — MITJANA
 
@@ -132,9 +132,9 @@ Els mètodes llegats actualitzen camps de reclamació i creen directament `MailS
 ## 5. Seguretat i límits
 
 **Documentat:** backend autenticat, rol, idempotència, correlació, outbox.  
-**Implementat a la pàgina:** revalidació de sessió i permís de visualització.  
-**Implementat al nucli SIF:** idempotència transaccional per clau/payload.  
-**No acreditat:** CSRF, permís específic de mutació, actor persistent del cobrament, correlació de la reclamació i l'ingrés extern, outbox en les pantalles llegades.
+**Implementat a la nova frontera:** sessió, Same-Origin/AJAX, CSRF, permís d’edició, actor/rol server-side, HMAC anti-replay, idempotència per rebut, relació factura↔inscripció, saldo pendent i auditoria.  
+**Implementat al nucli SIF:** transacció compartida amb `PaymentActionGateway`, conciliació intercanal, projecció legacy fail-closed i auditoria `SYNC_LEGACY`.  
+**Encara no acreditat en preproducció:** configuració real de rols/secrets/orígens, E2E navegador→intranet→SIF→legacy i retry operatiu. **Outbox:** continua pendent perquè els correus de reclamació segueixen el flux legacy separat.
 
 ## 6. Fiscalitat
 
@@ -145,18 +145,18 @@ El cobrament posterior a una factura existent **no crea** un registre fiscal nou
 | Element | Documentat | Implementat | Verificat per inspecció | Pendent |
 | --- | --- | --- | --- | --- |
 | Fitxa UC-024 | Sí | N/A | Sí | mantenir sincronitzada |
-| Servei de cobrament | Sí | Sí | Sí | integració UI |
-| Builder | Sí | Sí | Sí | separar identitats |
-| Idempotència payload | Sí | Sí | Sí | identitat global intercanal |
-| Cobrament parcial | Sí | Sí | Sí | E2 mateix expedient |
-| OVERPAID | Parcial | Sí | Sí | política de negoci |
-| Actor/auditoria | Sí | Sí a API interna nova; no a tots els canals legacy/CLI | Sí | desplegar i integrar UI |
+| Servei de cobrament | Sí | Sí | Sí | E2E preproducció |
+| Builder | Sí | Sí | Sí | compatibilitat legacy mantinguda |
+| Idempotència payload/rebut | Sí | Sí | Sí | E2E intercanal |
+| Cobrament parcial | Sí | Sí | Sí | E2E E1/E2 |
+| OVERPAID UC-024 | Sí | Bloqueig implementat | Sí | E2E límit de saldo |
+| Actor/auditoria | Sí | Sí a API interna nova | Sí | evidència preproducció |
 | Scripts preview/process | Sí | Sí | Sí | evidència preproducció |
-| Primera reclamació | Sí | Llegat | Sí | adaptador SIF |
-| Recordatori final | Sí | Llegat | Sí | adaptador SIF |
-| Reclamació final | Sí | Llegat | Sí | adaptador SIF |
-| Control morosos | Sí | Llegat | Sí | adaptador SIF |
-| CSRF mutacions | Sí per frontera navegador | API SIF usa HMAC anti-replay; AJAX llegat encara sense CSRF acreditat | Sí | implementar al bridge navegador→intranet |
+| Primera reclamació | Sí | Flux comunicació llegat + UI cobrament feature-flagged | Sí | desplegar/provar |
+| Recordatori final | Sí | Flux comunicació llegat + UI cobrament feature-flagged | Sí | desplegar/provar |
+| Reclamació final | Sí | Flux comunicació llegat + UI cobrament feature-flagged | Sí | desplegar/provar |
+| Control morosos | Sí | Flux comunicació llegat + UI cobrament feature-flagged | Sí | desplegar/provar |
+| CSRF/permís mutació | Sí | Sí al bridge UC-024 | Sí | prova negativa preprod |
 | Outbox | Sí, objectiu | No en llegat | Sí | implementar |
 | E2E real amb MySQL controlat | Sí | N/A | No | executar i guardar evidència |
 
@@ -164,13 +164,12 @@ El cobrament posterior a una factura existent **no crea** un registre fiscal nou
 
 UC-024 només es podrà marcar **TANCAT** quan:
 
-1. les pantalles de reclamacions quedin connectades a l’endpoint intern SIF signat;
-2. `claim_case_id` i l'identificador de cada ingrés real siguin diferents en el contracte i la traça; si es requereix consulta relacional d’expedient, afegir persistència dedicada;
-3. existeixi deduplicació/conciliació intercanal;
-4. el saldo pendent i la política d'`OVERPAID` estiguin definits i provats;
-5. les mutacions tinguin autenticació, permís específic, CSRF/idempotència i actor auditable;
-6. els correus siguin post-commit/outbox o tinguin una estratègia equivalent traçable;
-7. la suite SIF passi sobre el commit objectiu i hi hagi evidència de preproducció sobre `sif_test*`/`sif_pre`;
-8. els diagrames ACTUAL/FINAL i la matriu de proves continuïn alineats amb el codi.
+1. executar la suite sobre el HEAD objectiu i separar qualsevol fallada global no relacionada;
+2. configurar `intranet-pre` i `pay-pre` amb URL signada, secrets, rols i orígens;
+3. executar E2E nominal, reintent, E1/E2, intercanal, saldo excedit, CSRF/permís denegat i projecció legacy/retry;
+4. conservar evidència DB de `payment_transaction`, `payment_allocation`, `payment_action_event`, `factura.ESTAT_COBRAMENT` i `inscripcions.PAGAMENT`;
+5. decidir si el cicle de reclamació necessita una entitat persistent `claim_case` més enllà del `changeset` auditat;
+6. decidir si els correus de reclamació s’inclouen en UC-024 i, si és així, migrar-los a outbox post-commit;
+7. mantenir UML i matriu alineats amb el commit validat.
 
-**Estat al tall d'aquesta auditoria:** **NO TANCAT — implementació SIF parcial i integració llegat pendent**.
+**Estat al tall 04/10/2026:** **NO TANCAT — implementació preparada darrere feature flag; validació CI/E2E/preproducció pendent**.
