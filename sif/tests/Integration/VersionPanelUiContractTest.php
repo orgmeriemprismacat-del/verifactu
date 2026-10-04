@@ -45,6 +45,18 @@ final class VersionPanelUiContractTest
         Assert::stringContainsString('dataset.operationId', $app);
     }
 
+    public function testTechnicalPreflightRequiresPanelSecurityAndExternalStorage(): void
+    {
+        $script = $this->read('scripts/preflight-version-governance.php');
+
+        Assert::stringContainsString('panel_launch_key_id_configured', $script);
+        Assert::stringContainsString('panel_launch_secret_configured', $script);
+        Assert::stringContainsString('version_session_ttl_valid', $script);
+        Assert::stringContainsString("declarationRootConfig === ''", $script);
+        Assert::stringContainsString('outsideRelease', $script);
+        Assert::stringContainsString("'production_authorized' => false", $script);
+    }
+
     public function testEvidenceCliIsReadOnlyAndProductionGuarded(): void
     {
         $script = $this->read('scripts/verify-version-governance-evidence.php');
