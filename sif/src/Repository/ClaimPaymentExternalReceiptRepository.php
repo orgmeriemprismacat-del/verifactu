@@ -48,23 +48,26 @@ final class ClaimPaymentExternalReceiptRepository
         return $rows[0] ?? null;
     }
 
-    public function assertAllocatedToInvoice(
+    public function allocatedAmountForInvoice(
         \PDO $db,
         string $uuidPayment,
         string $uuidFactura
-    ): void {
+    ): string {
         $stmt = $db->prepare(
-            'SELECT COUNT(*)
+            'SELECT COALESCE(SUM(IMPORT_ASSIGNAT), 0)
              FROM payment_allocation
              WHERE UUID_PAYMENT = ?
                AND UUID_FACTURA = ?'
         );
         $stmt->execute([$uuidPayment, $uuidFactura]);
 
-        if ((int) $stmt->fetchColumn() < 1) {
+        $amount = number_format((float) $stmt->fetchColumn(), 2, '.', '');
+        if ($amount === '0.00') {
             throw SifException::conflict(
                 'External receipt is already linked to a different invoice'
             );
         }
+
+        return $amount;
     }
 }
