@@ -51,8 +51,10 @@ final class ExistingInvoicePaymentCommandService
                 );
                 $result['legacy_projection_status'] = 'READY';
             } catch (\Throwable $exception) {
-                // The SIF payment is already committed at this point. A projection
-                // failure must never turn the operation into a second CHARGE on retry.
+                // Payment registration is already successful at the domain level.
+                // When an outer audit transaction owns the commit, it will commit the
+                // CHARGE and terminal audit event after this method returns. A
+                // projection failure must never request a second CHARGE on retry.
                 $result['legacy_projection_status'] = 'PENDING_RETRY';
                 $result['legacy_projection_error'] = substr(
                     str_replace(["\r", "\n"], ' ', $exception->getMessage()),
