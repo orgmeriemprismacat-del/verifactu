@@ -76,8 +76,10 @@ final class RuntimeVersionInspector
             'uc010_single_active_unique_index' => false,
             'uc010_version_status_check' => false,
             'uc010_activation_status_check' => false,
+            'uc010_state_singleton_check' => false,
             'uc010_trigger_activation_no_update' => false,
             'uc010_trigger_activation_no_delete' => false,
+            'uc010_trigger_state_no_delete' => false,
         ];
 
         $index = $db->prepare(
@@ -102,6 +104,7 @@ final class RuntimeVersionInspector
         foreach ([
             ['uc010_version_status_check', 'sif_version', 'chk_sif_version_status_uc010'],
             ['uc010_activation_status_check', 'sif_version_activation', 'chk_sif_version_activation_status_uc010'],
+            ['uc010_state_singleton_check', 'sif_version_state', 'chk_sif_version_state_singleton_uc010'],
         ] as [$key, $table, $name]) {
             $constraint->execute([$table, $name, 'CHECK']);
             $checks[$key] = (int) $constraint->fetchColumn() > 0;
@@ -116,10 +119,11 @@ final class RuntimeVersionInspector
              LIMIT 1'
         );
         foreach ([
-            ['uc010_trigger_activation_no_update', 'trg_sif_version_activation_no_update', 'UPDATE'],
-            ['uc010_trigger_activation_no_delete', 'trg_sif_version_activation_no_delete', 'DELETE'],
-        ] as [$key, $name, $event]) {
-            $trigger->execute(['sif_version_activation', $name]);
+            ['uc010_trigger_activation_no_update', 'sif_version_activation', 'trg_sif_version_activation_no_update', 'UPDATE'],
+            ['uc010_trigger_activation_no_delete', 'sif_version_activation', 'trg_sif_version_activation_no_delete', 'DELETE'],
+            ['uc010_trigger_state_no_delete', 'sif_version_state', 'trg_sif_version_state_no_delete', 'DELETE'],
+        ] as [$key, $table, $name, $event]) {
+            $trigger->execute([$table, $name]);
             $row = $trigger->fetch(\PDO::FETCH_ASSOC);
             $checks[$key] = is_array($row)
                 && strtoupper((string) ($row['ACTION_TIMING'] ?? '')) === 'BEFORE'
