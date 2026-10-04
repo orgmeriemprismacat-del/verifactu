@@ -27,7 +27,7 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
 
 ## Pas 1 — preproducció
 
-1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Configurar `SIF_REDSYS_CALLBACK_URL` amb la URL HTTPS del callback SIF, `SIF_REDSYS_LEGACY_CALLBACK_URL` amb el callback legacy del **mateix entorn** mentre `cutover=0`, `SIF_REDSYS_RETURN_BASE_URL` amb la base HTTPS dels retorns OK/KO del **mateix entorn** i `REDSYS_GATEWAY_URL` amb l'endpoint Redsys de l'entorn; mantenir `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0` i `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=0` fins que els preflights siguin verds.
+1. Configurar `sif_test*` / preproducció amb BD SIF i legacy separades. Configurar `SIF_REDSYS_EXPECTED_PAY_HOST` amb el host de pagament de l'entorn; `SIF_REDSYS_CALLBACK_URL` amb la URL HTTPS del callback SIF, `SIF_REDSYS_LEGACY_CALLBACK_URL` amb el callback legacy del **mateix host** mentre `cutover=0`, `SIF_REDSYS_RETURN_BASE_URL` amb la base HTTPS dels retorns OK/KO del **mateix host** i `REDSYS_GATEWAY_URL` amb l'endpoint Redsys de l'entorn; mantenir `SIF_REDSYS_COURSE_CUTOVER_ENABLED=0` i `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=0` fins que els preflights siguin verds.
 2. Rotar qualsevol credencial Redsys històrica potencialment exposada i configurar credencials exclusivament via secret store/entorn: `REDSYS_MERCHANT_CODE`, `SIF_REDSYS_MERCHANT_CODE` (o fallback explícit al mateix `REDSYS_MERCHANT_CODE`), `REDSYS_MERCHANT_KEY`, `REDSYS_TERMINAL`, `SIF_REDSYS_MERCHANT_KEY`, `SIF_INTERNAL_API_KEY_ID` i `SIF_INTERNAL_API_SECRET`. Les claus Redsys del pont i del callback SIF han de correspondre al mateix comerç/entorn, sense registrar-ne el valor. Verificar que el codi desplegat no conté literals.
 3. Crear una intenció de curs ordinari.
 4. Comprovar:
@@ -63,7 +63,7 @@ Això acredita un **E2E intern simulat** amb MySQL SIF real de test, la projecci
 
 ## Pas 2 — tall de MerchantURL
 
-Només quan les proves anteriors siguin verdes i el retorn autoritatiu també hagi estat contrastat en preproducció. El tall final exigeix com a mínim: `REDSYS_GATEWAY_URL=<https://...>`, `SIF_REDSYS_CALLBACK_URL=<https://.../api/redsys/callback.php>` (segons document root), `SIF_REDSYS_RETURN_BASE_URL=<https://host-pay-entorn>`, `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=1`, a més de les credencials Redsys/API interna. Amb `cutover=0`, el candidat exigeix també `SIF_REDSYS_LEGACY_CALLBACK_URL`; cap d'aquestes URLs pot quedar implícitament hardcodejada a producció.
+Només quan les proves anteriors siguin verdes i el retorn autoritatiu també hagi estat contrastat en preproducció. El tall final exigeix com a mínim: `REDSYS_GATEWAY_URL=<https://...>`, `SIF_REDSYS_CALLBACK_URL=<https://.../api/redsys/callback.php>` (segons document root), `SIF_REDSYS_RETURN_BASE_URL=<https://host-pay-entorn>`, `SIF_REDSYS_EXPECTED_PAY_HOST=<host-pay-entorn>`, `SIF_REDSYS_COURSE_CUTOVER_ENABLED=1` i `SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED=1`, a més de les credencials Redsys/API interna. Amb `cutover=0`, el candidat exigeix també `SIF_REDSYS_LEGACY_CALLBACK_URL`; cap d'aquestes URLs pot quedar implícitament hardcodejada a producció.
 
 ```text
 pagina_efectuar_pagament_automatic.php
