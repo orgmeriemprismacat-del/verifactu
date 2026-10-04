@@ -63,6 +63,16 @@ final class RedsysCoursePaymentIntentService
             );
         }
 
+        if ((int) ($inscription['TIPUS_DESC'] ?? 0) === 4) {
+            if ((int) ($inscription['VALID_DESC'] ?? 0) !== 1) {
+                throw SifException::conflict('USOC discount is not in a payable state.');
+            }
+
+            throw SifException::conflict(
+                'USOC course payment requires a dedicated USOC_ALUMNE intent with explicit entity amount.'
+            );
+        }
+
         if ((int) ($inscription['TIPUS_DESC'] ?? 0) === 1) {
             if ($this->prismaStudentCheckout === null || $this->prismaStudentPrices === null) {
                 throw SifException::conflict('Alumne PrisMa checkout staging is not configured.');
