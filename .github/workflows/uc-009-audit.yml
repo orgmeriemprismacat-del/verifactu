@@ -24,6 +24,7 @@ on:
       - "codi-drive/intranet-actual/SifInternalAeatClient.php"
       - "codi-drive/intranet-actual/ajax/sif/sifAeat.php"
       - "codi-drive/intranet-actual/js/sif-registres-aeat.js"
+      - "codi-drive/intranet-actual/js/general_v5.js"
       - "codi-drive/intranet-actual/css/sif-registres-aeat.css"
       - "codi-drive/intranet-actual/preflight-sif-registres-aeat-menu.php"
       - "documentacio/06-fitxes-funcionals/uc-009.md"
@@ -89,6 +90,7 @@ jobs:
           php -l sif/src/Exception/AeatDeliveryUncertainException.php
           php -l sif/public/api/aeat/operations.php
           node --check codi-drive/intranet-actual/js/sif-registres-aeat.js
+          node --check codi-drive/intranet-actual/js/general_v5.js
 
       - name: Run UC-009 focused suite
         run: php sif/tests/run-uc009-tests.php
