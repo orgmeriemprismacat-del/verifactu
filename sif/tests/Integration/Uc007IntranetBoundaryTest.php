@@ -64,6 +64,35 @@ final class Uc007IntranetBoundaryTest
         }
     }
 
+    public function testLegacySearchKeepsPersonalDataOutOfUc007QueryStrings(): void
+    {
+        $js = $this->readIntranet('js/alumnes-factura.js');
+
+        foreach ([
+            'alumnes/consultaUsuarisFacturaRelacionada.php',
+            'alumnes/mostrarTaulaUsuaris2.php',
+            'alumnes/mostrarTotesFacturesUsuari_Factures.php',
+        ] as $endpoint) {
+            $position = strpos($js, $endpoint);
+            if ($position === false) {
+                Assert::fail('Could not locate UC-007 legacy endpoint: ' . $endpoint);
+            }
+
+            $fragment = substr($js, $position, 420);
+            Assert::stringContainsString('method: "POST"', $fragment);
+        }
+
+        foreach ([
+            'ajax/alumnes/consultaUsuarisFacturaRelacionada.php',
+            'ajax/alumnes/mostrarTaulaUsuaris2.php',
+            'ajax/alumnes/mostrarTotesFacturesUsuari_Factures.php',
+        ] as $wrapper) {
+            $source = $this->readIntranet($wrapper);
+            Assert::stringContainsString("LegacyInvoiceMutationAuthorization::assertSameOrigin()", $source);
+            Assert::stringContainsString("$request = $method === 'POST' ? $_POST : $_GET;", $source);
+        }
+    }
+
     public function testLegacySearchInitializesStateUsesStableDelimiterAndEscapesTitle(): void
     {
         $intranet = $this->readIntranet('Intranet.php');
