@@ -85,6 +85,22 @@ final class ClaimPaymentInvoiceLinkRepository
             );
         }
 
-        return $rows[0];
+        $row = $rows[0];
+        $originCount = $db->prepare(
+            "SELECT COUNT(DISTINCT SOURCE_ID)
+             FROM fact_rels
+             WHERE UUID_FACTURA = ?
+               AND SOURCE_TYPE = 'INSCRIPCIO'
+               AND RELATION_TYPE = 'ORIGIN'"
+        );
+        $originCount->execute([(string) $row['UUID_FACTURA']]);
+
+        if ((int) $originCount->fetchColumn() !== 1) {
+            throw SifException::conflict(
+                'Claim payment invoice has multiple inscription origins and requires explicit allocation'
+            );
+        }
+
+        return $row;
     }
 }
