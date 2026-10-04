@@ -67,6 +67,7 @@ final class AeatEvidenceReconciliationService
 
             $attempt = $db->prepare(
                 'SELECT UUID_ATTEMPT, FISCAL_QUEUE_ID, ATTEMPT_NO, REQUEST_HASH, EVIDENCE_ID,
+                        EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS,
                         RESPONSE_JSON, RESPONSE_CSV, RESPONSE_CODE, STATUS, ERROR_CODE, ERROR_DETAIL,
                         STARTED_AT, FINISHED_AT
                  FROM aeat_submission_attempt
@@ -132,9 +133,30 @@ final class AeatEvidenceReconciliationService
                 );
             }
 
-            if ((int) ($pair['response_http_status'] ?? 0) !== 200) {
+            $anchoredResponseHash = strtolower(trim((string) (
+                $row['EVIDENCE_RESPONSE_SHA256'] ?? ''
+            )));
+            $anchoredHttpStatus = $row['EVIDENCE_HTTP_STATUS'];
+            if (preg_match('/^[a-f0-9]{64}$/D', $anchoredResponseHash) !== 1
+                || $anchoredHttpStatus === null
+            ) {
                 throw SifException::conflict(
-                    'AEAT evidence HTTP status is not a successful delivery'
+                    'AEAT evidence response is not independently anchored in the submission ledger'
+                );
+            }
+            if ((int) $anchoredHttpStatus !== 200
+                || (int) ($pair['response_http_status'] ?? 0) !== 200
+            ) {
+                throw SifException::conflict(
+                    'AEAT evidence HTTP status is not a successful anchored delivery'
+                );
+            }
+            if (!hash_equals(
+                $anchoredResponseHash,
+                (string) ($pair['response_sha256'] ?? '')
+            )) {
+                throw SifException::conflict(
+                    'AEAT evidence response hash does not match the database anchor'
                 );
             }
 
