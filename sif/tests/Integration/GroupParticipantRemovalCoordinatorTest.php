@@ -117,6 +117,88 @@ final class GroupParticipantRemovalCoordinatorTest
         Assert::same(6, (int) $db->query('SELECT COUNT(*) FROM group_participant_change_step')->fetchColumn());
     }
 
+    public function testPartialRefundLeavesRemainingFundsAndExecutionWaiting(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoice = IssueInvoiceTest::serviceFor($db)->issueInvoice(
+            $this->groupInvoicePayload()
+        );
+
+        $fundRepository = new EnrollmentFundMovementRepository(new UuidGenerator());
+        (new GroupEnrollmentFundAllocationService($fundRepository))->allocate(
+            $db,
+            'ORDER-GROUP-REMOVE-1',
+            $this->snapshot(),
+            $invoice
+        );
+
+        $academic = new GroupParticipantAcademicSpy();
+        $coordinator = $this->coordinator($db, $fundRepository, $academic);
+        $preview = $coordinator->preview($db, $invoice['uuid_factura'], 751);
+
+        $decision = [
+            'repricing_policy' => 'KEEP_EXISTING_MEMBER_PRICES',
+            'fiscal_action' => 'RECTIFY_PARTICIPANT_ONLY',
+            'rectification_amount' => '-120.00',
+            'refund_amount' => '60.00',
+            'refund_reference' => 'RET-UC016B-751-PARTIAL',
+            'refund_movement_date' => '2030-10-02 12:00:00',
+            'credit_amount' => '0.00',
+            'non_refundable_amount' => '0.00',
+            'operation_reference' => 'UC016B-751-PARTIAL',
+        ];
+        $context = [
+            'actor_id' => 'meriem-test',
+            'correlation_id' => 'UC016B-CORR-751-PARTIAL',
+            'idempotency_key' => 'UC016B|REMOVE|FACT:GROUP1|INSC:751|PARTIAL',
+        ];
+
+        $first = $coordinator->confirm(
+            $db,
+            new GroupParticipantLegacyDummyPdo(),
+            $invoice['uuid_factura'],
+            751,
+            $preview['fingerprint'],
+            $decision,
+            $context
+        );
+
+        Assert::same(false, $first['ok']);
+        Assert::same('WAITING_EXTERNAL', $first['status']);
+        Assert::same('ECONOMIC_DISPOSITION_PENDING', $first['waiting_step']);
+        Assert::same('60.00', $fundRepository->attributedBalanceForEnrollment(
+            $db,
+            751,
+            $invoice['uuid_factura']
+        ));
+        Assert::same(1, $academic->removeCalls);
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT='REFUND'"
+        )->fetchColumn());
+
+        $second = $coordinator->confirm(
+            $db,
+            new GroupParticipantLegacyDummyPdo(),
+            $invoice['uuid_factura'],
+            751,
+            $preview['fingerprint'],
+            $decision,
+            $context
+        );
+
+        Assert::same(false, $second['ok']);
+        Assert::same('WAITING_EXTERNAL', $second['status']);
+        Assert::same('60.00', $fundRepository->attributedBalanceForEnrollment(
+            $db,
+            751,
+            $invoice['uuid_factura']
+        ));
+        Assert::same(1, $academic->removeCalls);
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM payment_transaction WHERE TIPUS_MOVIMENT='REFUND'"
+        )->fetchColumn());
+    }
+
     private function coordinator(
         \PDO $db,
         EnrollmentFundMovementRepository $funds,
