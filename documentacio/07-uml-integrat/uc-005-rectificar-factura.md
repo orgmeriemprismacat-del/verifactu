@@ -1,6 +1,6 @@
 # UC-05 · Rectificar una factura — fitxa i UML integrats
 
-**Estat documental:** backend UC-005 reconciliat amb atomicitat, preview/confirm, idempotència, fiscalitat local fail-closed, receptor substitutiu, consum de decisió UC-74 persistida, mapper AEAT server-side per un únic desglossament i proxy intranet segur; **no s'acredita encara** el productor/classificador UC-74 genèric, el modal/formulari fiscal final, els perfils AEAT complexos, la concurrència E2E ni preproducció. **Casos relacionats:** UC-01 (emissió del nou document), UC-26/71 (canvi de curs), UC-27/72 (baixa), UC-28 (devolució econòmica), UC-30 (anul·lació de registre), UC-31 (subsanació) i UC-74 (classificació de correcció fiscal).
+**Estat documental:** backend UC-005 reconciliat amb atomicitat, preview/confirm, idempotència, fiscalitat local fail-closed, receptor substitutiu, consum de decisió UC-74 persistida, mapper AEAT server-side per un únic desglossament i consumidor intranet segur; **no s'acredita encara** el productor/classificador UC-74 genèric, els perfils AEAT complexos, el generador/worker PDF/QR/XML, la concurrència E2E ni preproducció. **Casos relacionats:** UC-01 (emissió del nou document), UC-26/71 (canvi de curs), UC-27/72 (baixa), UC-28 (devolució econòmica), UC-30 (anul·lació de registre), UC-31 (subsanació) i UC-74 (classificació de correcció fiscal).
 
 ## 1. Fitxa del cas d'ús
 
@@ -450,7 +450,7 @@ S'ha afegit `ManualRectificationServiceTest::testPersistsCatalanAliasesInRectifi
 2. **Implementat al backend:** unitat transaccional emissió R + vinculació + estat original + auditoria terminal; resta validar concurrència E2E i execució MySQL de la suite.
 3. **Parcialment implementat:** mapper AEAT R1-R5 per un únic desglossament i perfil fiscal compatible; ampliar-lo només amb regles provades per múltiples desglossaments, recàrrec, ISP/no-subjecció o canvis de perfil.
 4. Determinar si i quan hi ha un moviment econòmic separat (UC-28) i com s'enllaça amb la rectificativa.
-5. Implementar el proxy/UI intranet amb sessió, permís, same-origin i CSRF, mantenint la classificació fiscal server-side.
+5. **Implementat:** proxy/UI consumidora amb sessió, permís, same-origin, CSRF i HMAC, mantenint la classificació fiscal server-side. Pendent productor UC-74 i E2E.
 
 ## 6. Traçabilitat
 
@@ -487,9 +487,9 @@ Aquesta secció preval sobre els diagrames històrics d'aquest document quan hi 
 ### Pendent / bloquejant
 
 1. Classificador UC-74 genèric executable amb regles fiscals aprovades.
-2. Mapper AEAT UC-005 que recuperi el snapshot original de `factura_registres.PAYLOAD_JSON.aeat`, generi `FacturasRectificadas`, `ImporteRectificacion` quan S i un `Desglose` complet.
+2. **Parcial:** `AeatRectificationMapper` recupera el snapshot original i genera `FacturasRectificadas`, S/I, `ImporteRectificacion` quan S i un `Desglose` per un únic perfil compatible. Pendents múltiples desglossaments, recàrrec, ISP/no-subjecció i canvis de perfil.
 3. Proxy intranet amb sessió/permís/same-origin/CSRF i modal preview/confirm.
 4. Casos de correcció sense variació monetària: el builder manté bloqueig de total zero fins que el criteri fiscal ho defineixi.
-5. Execució verda de la suite MySQL UC-005, prova de concurrència real, preproducció i evidència AEAT.
+5. Execució verda de la suite MySQL UC-005, prova de concurrència real, productor/worker documental, preproducció i evidència AEAT.
 
 Vegeu també [contrast AEAT de rectificatives](uc-005-aeat-rectificatives-contrast-2026-10-03.md).
