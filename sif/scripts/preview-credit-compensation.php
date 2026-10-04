@@ -93,6 +93,7 @@ function parseCreditCompensationArgs(array $args): array
     ];
 
     foreach ([
+        'idempotency_key' => ['--idempotency-key='],
         'notes' => ['--notes=', '--obs=', '--observations='],
         'allocation_type' => ['--allocation-type='],
         'target_enrollment_id' => ['--target-enrollment-id=', '--id-insc-dest=', '--id-insc-desti='],
@@ -180,7 +181,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-credit-compensation.php --uuid-credit=UUID (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE [--notes=TEXT] [--target-enrollment-id=ID] [--correlation-id=ID] [--uuid-operation=UUID]\n"
+        "Usage: php sif/scripts/{$script}-credit-compensation.php --uuid-credit=UUID (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE [--idempotency-key=KEY] [--notes=TEXT] [--target-enrollment-id=ID] [--correlation-id=ID] [--uuid-operation=UUID]\n"
     );
     exit(1);
 }
