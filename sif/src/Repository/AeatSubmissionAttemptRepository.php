@@ -239,7 +239,8 @@ final class AeatSubmissionAttemptRepository
             'UPDATE aeat_submission_attempt
              SET STATUS = ?, RESPONSE_CODE = ?, RESPONSE_CSV = ?, RESPONSE_JSON = ?,
                  ERROR_CODE = ?, ERROR_DETAIL = ?, FINISHED_AT = NOW(6)
-             WHERE UUID_ATTEMPT = ? AND STATUS = \'UNCERTAIN\' AND EVIDENCE_ID = ?'
+             WHERE UUID_ATTEMPT = ? AND STATUS = \'UNCERTAIN\' AND EVIDENCE_ID = ?
+               AND EVIDENCE_RESPONSE_SHA256 = ? AND EVIDENCE_HTTP_STATUS = ?'
         );
         $stmt->execute([
             $status,
