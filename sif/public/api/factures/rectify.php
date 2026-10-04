@@ -8,6 +8,7 @@ use Prisma\Sif\Domain\HashCalculator;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Http\JsonResponse;
+use Prisma\Sif\Repository\DocumentJobRepository;
 use Prisma\Sif\Repository\FiscalCorrectionDecisionRepository;
 use Prisma\Sif\Repository\FiscalSequenceRepository;
 use Prisma\Sif\Repository\InternalApiRequestRepository;
@@ -137,6 +138,7 @@ try {
         in_array($environment, ['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION'], true)
     );
 
+    $documents = $config['documents'] ?? [];
     $commands = new RectificationCommandService(
         $db,
         $rectificationInvoices,
@@ -147,7 +149,9 @@ try {
         new SifAuditEventRepository(new UuidGenerator()),
         new OperationalEventRepository(new UuidGenerator()),
         (string) ($config['env'] ?? 'unknown'),
-        $aeatMapper
+        $aeatMapper,
+        new DocumentJobRepository(new UuidGenerator()),
+        (string) ($documents['generator_version'] ?? 'invoice-documents-v1')
     );
 
     $context = [
