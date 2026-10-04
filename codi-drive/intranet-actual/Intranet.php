@@ -4677,6 +4677,7 @@ class Intranet
 		$i = 0;
 		$dniUsuaris = "";
 		$vectDniProvsional = "";
+		$existeixCerca = false;
 
 		$conWeb = new ConnexioWeb();
 		$conWeb->connectarBD();
@@ -14409,8 +14410,8 @@ class Intranet
 							$j++;
 						}
 						if ( !$trobat ) {
+							if ( count($dniDefinitius) > 0 ) $dniUsuaris .= "|";
 							$dniDefinitius[] = $dniRes;
-							if ( $i > 0 ) $dniUsuaris .= "|";
 							$dniUsuaris .= $dniRes;
 						}
 
@@ -14660,7 +14661,7 @@ class Intranet
 			<div class='d-flex flex-column justify-content-center align-items-center
 				w-100 text-center border-bottom card-header '>
 				<p class='title font-weight-bold text-center py-3 mb-0 align-items-center
-				justify-content-center d-flex'>".$cercaPer."</p>
+				justify-content-center d-flex'>".$this->__escapeHtmlValue($cercaPer)."</p>
 			</div>
 			<div class='card-body px-0'>
 				<div id='totes-factures' class='regCursos flex-column
