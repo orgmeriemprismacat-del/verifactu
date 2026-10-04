@@ -6,7 +6,7 @@ Data de revisió: 2026-10-04.
 | --- | --- | --- | --- | --- |
 | Fitxa funcional específica | Sí | — | Revisada | Evidència preproducció |
 | Pantalla `/alumnes/validar-descomptes/` | Sí | Sí | CI anterior + contract tests | Prova desplegada |
-| POST/CSRF/sessió/rol | Sí | Sí | CI anterior | Repetir en `sif_pre` |
+| POST/CSRF/sessió/rol | Sí | Sí; refresc de rols vigents abans de mutar | CI anterior + test nou pendent del head actual | Repetir en `sif_pre` i provar rol revocat |
 | `requestId` persistent navegador | Sí | Sí | Test de contracte pendent del darrer head | CI del head actual + preproducció |
 | Payload-bound idempotency en sessió | Sí | Sí | Test de contracte pendent del darrer head | CI del head actual |
 | HMAC intranet → SIF | Sí | Sí | CI anterior | Prova desplegada amb secret real |
@@ -35,7 +35,7 @@ Data de revisió: 2026-10-04.
 5. Repetir mateix `requestId` i provar payload divergent.
 6. Provar dues decisions concurrents sobre el mateix `ID_INSC`.
 7. Simular interrupció entre mutació llegada i `complete`, després executar reconciliador.
-8. Provar rol, CSRF, HMAC incorrecte i timestamp caducat.
+8. Provar rol autoritzat, rol revocat durant sessió, CSRF, HMAC incorrecte i timestamp caducat.
 9. Conservar evidència de BD abans/després.
 10. Documentar el procediment real amb què Gestió decideix “afiliació confirmada / no confirmada”.
 11. Executar prova controlada de fallada SMTP i registrar la incidència manual mentre no hi hagi outbox integrada.
