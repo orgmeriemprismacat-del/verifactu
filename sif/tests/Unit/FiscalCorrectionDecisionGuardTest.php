@@ -23,6 +23,7 @@ final class FiscalCorrectionDecisionGuardTest
 
         Assert::same('RECTIFICATION', $result['decision']);
         Assert::same('UC-74', $result['source_uc']);
+        Assert::same('R1', $result['invoice_type']);
         Assert::same('DIFERENCIES', $result['rectification_mode']);
     }
 
@@ -56,6 +57,21 @@ final class FiscalCorrectionDecisionGuardTest
         }, 422);
     }
 
+    public function testRejectsMissingRectificationInvoiceType(): void
+    {
+        Assert::throws(SifException::class, function (): void {
+            (new FiscalCorrectionDecisionGuard())->assertRectification([
+                'decision' => 'RECTIFICATION',
+                'source_uc' => 'UC-74',
+                'reason_code' => 'AMOUNT_DECREASE',
+                'policy_version' => '2026-10',
+                'rectification_mode' => 'DIFERENCIES',
+            ], [
+                'mode' => 'DIFERENCIES',
+            ]);
+        }, 422);
+    }
+
     public function testRejectsModeDifferentFromUc74Decision(): void
     {
         Assert::throws(SifException::class, function (): void {
@@ -64,6 +80,7 @@ final class FiscalCorrectionDecisionGuardTest
                 'source_uc' => 'UC-74',
                 'reason_code' => 'SERVICE_CHANGED',
                 'policy_version' => '2026-10',
+                'invoice_type' => 'R1',
                 'rectification_mode' => 'SUBSTITUCIO',
             ], [
                 'mode' => 'DIFERENCIES',
