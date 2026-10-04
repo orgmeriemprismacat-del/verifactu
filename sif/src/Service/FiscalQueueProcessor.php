@@ -76,7 +76,30 @@ final class FiscalQueueProcessor
         try {
             $transportResult = $this->transport->send($transportPayload);
         } catch (AeatDeliveryUncertainException $exception) {
-            return $this->reviewHold($item, $attemptUuid, $exception, 'AEAT_DELIVERY_UNCERTAIN', true);
+            $exceptionEvidenceId = $exception->evidenceId();
+            if ($attemptEvidenceId !== null
+                && $exceptionEvidenceId !== null
+                && !hash_equals($attemptEvidenceId, $exceptionEvidenceId)
+            ) {
+                return $this->reviewHold(
+                    $item,
+                    $attemptUuid,
+                    new \RuntimeException(
+                        'AEAT evidence reference differs from the preassigned submission attempt.'
+                    ),
+                    'AEAT_EVIDENCE_REFERENCE_MISMATCH',
+                    true,
+                    $attemptEvidenceId
+                );
+            }
+            return $this->reviewHold(
+                $item,
+                $attemptUuid,
+                $exception,
+                'AEAT_DELIVERY_UNCERTAIN',
+                true,
+                $attemptEvidenceId
+            );
         } catch (\Throwable $exception) {
             if ($attemptUuid !== null) {
                 try {
@@ -96,6 +119,22 @@ final class FiscalQueueProcessor
         $transportEvidenceId = is_array($transportResponse)
             ? ($transportResponse['evidence_id'] ?? null)
             : null;
+
+        if ($attemptEvidenceId !== null
+            && is_string($transportEvidenceId)
+            && !hash_equals($attemptEvidenceId, $transportEvidenceId)
+        ) {
+            return $this->reviewHold(
+                $item,
+                $attemptUuid,
+                new \RuntimeException(
+                    'AEAT evidence reference differs from the preassigned submission attempt.'
+                ),
+                'AEAT_EVIDENCE_REFERENCE_MISMATCH',
+                true,
+                $attemptEvidenceId
+            );
+        }
 
         $status = strtoupper((string) ($transportResult['status'] ?? ''));
         if (!in_array($status, ['ACCEPTED', 'ACCEPTED_WITH_ERRORS', 'REJECTED'], true)) {
@@ -133,9 +172,7 @@ final class FiscalQueueProcessor
                     $exception,
                     'AEAT_REMOTE_RESULT_NOT_PERSISTED',
                     true,
-                    is_string($response['evidence_id'] ?? null)
-                        ? (string) $response['evidence_id']
-                        : null
+                    $attemptEvidenceId
                 );
             }
         }
