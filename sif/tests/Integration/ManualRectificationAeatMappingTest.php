@@ -3,6 +3,7 @@
 namespace Prisma\Sif\Tests\Integration;
 
 use Prisma\Sif\Domain\UuidGenerator;
+use Prisma\Sif\Exception\SifException;
 use Prisma\Sif\Repository\ManualPaymentInvoiceRepository;
 use Prisma\Sif\Repository\OperationalEventRepository;
 use Prisma\Sif\Repository\RectificationRepository;
@@ -98,6 +99,61 @@ final class ManualRectificationAeatMappingTest
         Assert::same('21.00', $aeat['record']['ImporteRectificacion']['CuotaRectificada']);
         Assert::same('CLIENT RECTIFICAT', $aeat['record']['Destinatarios']['IDDestinatario'][0]['NombreRazon']);
         Assert::same('B12345678', $aeat['record']['Destinatarios']['IDDestinatario'][0]['NIF']);
+    }
+
+    public function testConfirmRejectsChangedOriginalAeatSnapshotAfterPreview(): void
+    {
+        $db = TestDatabase::fresh();
+        $original = $this->officialOriginal($db, 'AEAT|UC005|STALE');
+        $commands = $this->commands($db);
+        $input = $this->taxedInput('DIFERENCIES', '-50.00', '-10.50', '-60.50');
+        $classification = $this->classification('DIFERENCIES');
+
+        $preview = $commands->preview(
+            $this->actor('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'),
+            $original['uuid_factura'],
+            $input,
+            $classification
+        );
+
+        $stmt = $db->prepare(
+            'SELECT PAYLOAD_JSON FROM factura_registres WHERE UUID_FACTURA = ? ORDER BY FISCAL_ORDER DESC LIMIT 1'
+        );
+        $stmt->execute([$original['uuid_factura']]);
+        $payload = json_decode((string) $stmt->fetchColumn(), true, 512, JSON_THROW_ON_ERROR);
+        $payload['aeat']['record']['Desglose']['DetalleDesglose'][0]['ClaveRegimen'] = '02';
+
+        $db->prepare(
+            'INSERT INTO factura_registres (
+                UUID_FACTURA, FISCAL_ORDER, TIPUS_REGISTRE,
+                HASH_FACT, HASH_FACT_ANT, PAYLOAD_JSON, ESTAT_AEAT
+            ) VALUES (?, 900, ?, ?, NULL, ?, ?)'
+        )->execute([
+            $original['uuid_factura'],
+            'ALTA',
+            str_repeat('a', 64),
+            json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            'PENDING',
+        ]);
+
+        Assert::throws(SifException::class, function () use (
+            $commands,
+            $original,
+            $input,
+            $classification,
+            $preview
+        ): void {
+            $commands->confirm(
+                $this->actor('ffffffff-ffff-4fff-8fff-ffffffffffff'),
+                $original['uuid_factura'],
+                $input,
+                $classification,
+                $preview['fingerprint']
+            );
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM factura')->fetchColumn());
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM factura_rectificacio')->fetchColumn());
     }
 
     private function officialOriginal(\PDO $db, string $idempotencyKey): array
