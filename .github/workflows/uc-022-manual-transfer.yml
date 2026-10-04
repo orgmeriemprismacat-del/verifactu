@@ -1,0 +1,59 @@
+name: UC-022 manual transfer verification
+
+on:
+  pull_request:
+    paths:
+      - 'sif/src/Service/ManualPaymentService.php'
+      - 'sif/src/Service/ManualPaymentPayloadBuilder.php'
+      - 'sif/src/Service/ManualTransferCommandService.php'
+      - 'sif/public/api/payments/manual-transfer.php'
+      - 'sif/tests/Integration/ManualPaymentServiceTest.php'
+      - 'sif/tests/Integration/ManualTransferCommandServiceTest.php'
+      - 'sif/tests/Unit/ManualPaymentPayloadBuilderTest.php'
+      - 'sif/tests/run-uc022-tests.php'
+      - '.github/workflows/uc-022-manual-transfer.yml'
+  workflow_dispatch:
+
+jobs:
+  uc022:
+    runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sif_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      SIF_ENV: test
+      SIF_DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=sif_test;charset=utf8mb4
+      SIF_DB_USER: root
+      SIF_DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, openssl, mbstring
+
+      - name: PHP syntax UC-022
+        run: |
+          php -l sif/src/Service/ManualPaymentPayloadBuilder.php
+          php -l sif/src/Service/ManualTransferCommandService.php
+          php -l sif/public/api/payments/manual-transfer.php
+          php -l sif/tests/Integration/ManualPaymentServiceTest.php
+          php -l sif/tests/Integration/ManualTransferCommandServiceTest.php
+          php -l sif/tests/Unit/ManualPaymentPayloadBuilderTest.php
+          php -l sif/tests/run-uc022-tests.php
+
+      - name: Run UC-022 tests
+        run: php sif/tests/run-uc022-tests.php
