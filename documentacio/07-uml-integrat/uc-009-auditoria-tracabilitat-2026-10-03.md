@@ -142,6 +142,8 @@ Això implica:
 | GAP09-15 | UI/AJAX/assets hardcodejats a `intranet.prisma.cat` | preproducció | canviats a rutes relatives same-origin + test de contracte |
 | GAP09-16 | `recoverStaleLocks()` feia `PROCESSING → RETRY` i podia provocar segon SOAP després d'una caiguda | fiscal/crític | canviat a `REVIEW` + incidència idempotent + cap retry automàtic |
 | GAP09-17 | resultat remot terminal podia acabar en `RETRY` si fallava/era invàlid el flow wait | fiscal/crític | `FlowControlledTransport` preserva resultat terminal, fallback 60 s + `requires_review` |
+| GAP09-18 | `UNCERTAIN` només conservava l'evidence id dins text/error i no tenia reconciliació verificable | operatiu/fiscal | `EVIDENCE_ID` únic + `AeatEvidenceReconciliationService` + request/response íntegres + `ResponseParser` |
+| GAP09-19 | caiguda abrupta pot deixar `STARTED` sense `EVIDENCE_ID` estructurat | operatiu | **PENDENT FAIL-CLOSED**: queda `REVIEW`; no s'associa evidència per heurística ni es reenvia automàticament |
 
 ## 7. Traçabilitat requisit → implementació → prova
 
@@ -156,6 +158,8 @@ Això implica:
 | no exposar payload/XML | read repository projection | `AeatOperationsReadRepositoryTest` |
 | HMAC/anti-replay | `InternalApiAuthenticator` | `InternalApiAuthenticatorTest` |
 | reconcile sense resend | `AeatReviewReconciliationService` | `AeatReviewReconciliationServiceTest` |
+| reconcile `UNCERTAIN` des d'evidència | `AeatEvidenceReconciliationService` + `EvidenceVerifier::readVerifiedPair()` | `AeatEvidenceReconciliationServiceTest` |
+| evidència no reutilitzable | `aeat_submission_attempt.EVIDENCE_ID UNIQUE` | migració `2026_10_04_000033` |
 | boundary browser segur | bridge + client server-side | `AeatIntranetUiContractTest` (branca) |
 | certificat/evidència | `ClientCertificate`, `EvidenceStore` | unit tests; entorn real pendent |
 
@@ -184,3 +188,29 @@ Això implica:
 10. només després definir el mecanisme explícit d'habilitació de producció.
 
 **Conclusió:** UC-009 té el nucli funcional i operatiu de codi molt avançat i específicament provat, però no s'ha de marcar “producció llesta”. El que faltava principalment era el paquet d'auditoria separat, la cobertura CI de la frontera intranet i l'evidència d'entorn.
+
+
+## 9. Extensió d'auditoria 2026-10-04 — conciliació d'evidència privada
+
+### 9.1. Problema detectat
+
+Un intent `UNCERTAIN` podia conservar una referència d'evidència només dins el text de l'excepció, però la BD no tenia una relació estructurada i el panell no podia convertir una resposta privada vàlida en resultat terminal sense SQL/manualitat.
+
+### 9.2. Solució implementada a la branca
+
+- migració additiva `2026_10_04_000033_add_aeat_attempt_evidence_id.sql`;
+- `aeat_submission_attempt.EVIDENCE_ID` és nullable i **UNIQUE**;
+- `AeatDeliveryUncertainException` exposa l'identificador d'evidència de forma estructurada;
+- `AeatSubmissionAttemptRepository::fail()` el persisteix per `UNCERTAIN`;
+- `EvidenceVerifier::readVerifiedPair()` torna a verificar integritat i límits abans de llegir;
+- `AeatEvidenceReconciliationService` només accepta l'últim intent `UNCERTAIN` d'un job `REVIEW`;
+- el request de l'evidència ha de coincidir **byte a byte** amb l'XML regenerat des del snapshot immutable i amb `REQUEST_HASH`;
+- la resposta privada es valida amb `ResponseParser`, inclosa identitat de factura, operació, flags i estat de línia;
+- l'intent passa de `UNCERTAIN` a `ACCEPTED|ACCEPTED_WITH_ERRORS|REJECTED`;
+- la cua passa `REVIEW → SENT` sense invocar cap transport;
+- es resolen incidències del queue i es crea `operational_event` amb `AEAT_EVIDENCE_RECONCILED`;
+- el browser només rep `EVIDENCE_ID`, mai `request.xml` ni `response.xml`.
+
+### 9.3. Límit que es manté
+
+Un intent `STARTED` sense `EVIDENCE_ID` no es reconcilia automàticament. Encara que existeixi algun directori privat compatible, no es fa matching per hora, factura, hash parcial o ordre de fitxers. Sense una vinculació inequívoca, el job continua `REVIEW` i bloqueja reenviaments.
