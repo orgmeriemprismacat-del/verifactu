@@ -70,6 +70,7 @@ return [
         'novice_promotion_signed_path' => getenv('SIF_INTERNAL_NOVICE_PROMOTION_SIGNED_PATH') ?: '/api/novice-promotion/manage.php',
         'gift_redemption_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_SIGNED_PATH') ?: '/api/gifts/redemption/redeem.php',
         'gift_redemption_notification_signed_path' => getenv('SIF_INTERNAL_GIFT_REDEMPTION_NOTIFICATION_SIGNED_PATH') ?: '/api/gifts/redemption/notifications.php',
+        'group_participant_change_signed_path' => getenv('SIF_INTERNAL_GROUP_PARTICIPANT_CHANGE_SIGNED_PATH') ?: '/api/groups/participants.php',
     ],
     'course_change' => [
         'preview_roles' => array_values(array_filter(array_map(
@@ -78,6 +79,26 @@ return [
                 ',',
                 getenv('SIF_COURSE_CHANGE_PREVIEW_ROLES')
                     ?: getenv('SIF_INVOICE_FULL_READ_ROLES')
+                    ?: ''
+            )
+        ))),
+    ],
+    'group_participant_change' => [
+        'preview_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(
+                ',',
+                getenv('SIF_GROUP_PARTICIPANT_PREVIEW_ROLES')
+                    ?: getenv('SIF_INVOICE_FULL_READ_ROLES')
+                    ?: ''
+            )
+        ))),
+        'manage_roles' => array_values(array_filter(array_map(
+            'trim',
+            explode(
+                ',',
+                getenv('SIF_GROUP_PARTICIPANT_MANAGE_ROLES')
+                    ?: getenv('SIF_INVOICE_ISSUE_WRITE_ROLES')
                     ?: ''
             )
         ))),
