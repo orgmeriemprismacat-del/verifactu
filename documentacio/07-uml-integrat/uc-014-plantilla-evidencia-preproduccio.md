@@ -20,6 +20,8 @@
 - SIF_REDSYS_COURSE_CUTOVER_ENABLED: 0 / 1
 - SIF_REDSYS_COURSE_LEGACY_DRAIN_CONFIRMED: 0 / 1
 - SIF_REDSYS_CALLBACK_URL configurada amb HTTPS: SÍ / NO (no copiar secrets ni query sensible)
+- SIF_REDSYS_LEGACY_CALLBACK_URL configurada amb HTTPS i del mateix entorn quan `cutover=0`: SÍ / NO / N/A
+- SIF_REDSYS_RETURN_BASE_URL configurada amb HTTPS i del mateix entorn: SÍ / NO
 - REDSYS_GATEWAY_URL configurada amb HTTPS i corresponent a l'entorn: SÍ / NO
 - SIF_INTERNAL_API_KEY_ID / SECRET configurats: SÍ / NO (no copiar els valors)
 - Paths HMAC `course-intent` i `course-status` coherents amb el pont: SÍ / NO
@@ -147,10 +149,12 @@ Adjuntar només evidència sense secrets:
 ## 9. Decisió de tall
 
 - [ ] `SIF_REDSYS_CALLBACK_URL` configurada amb HTTPS
+- [ ] `SIF_REDSYS_LEGACY_CALLBACK_URL` configurada amb HTTPS i sense apuntar a producció quan `cutover=0`
+- [ ] `SIF_REDSYS_RETURN_BASE_URL` configurada amb HTTPS i amb retorns OK/KO del mateix entorn
 - [ ] `REDSYS_GATEWAY_URL` configurada amb HTTPS i sense endpoint hardcoded al codi
 - [ ] API interna configurada (`SIF_INTERNAL_API_KEY_ID`/`SECRET`) i paths HMAC coherents
 - [ ] clau Redsys del pont i clau del callback SIF corresponen al mateix comerç/entorn
-- [ ] fase DRAIN provada (`cutover=1`, `drain=0`): nous checkouts bloquejats i callbacks antics encara acceptats
+- [ ] fase DRAIN provada (`cutover=1`, `drain=0`): preflight identifica `cutover_phase=DRAIN`, nous checkouts queden bloquejats **abans de crear intenció SIF** i callbacks antics encara són acceptats
 - [ ] evidència que no queden sessions legacy en vol
 - [ ] fase CUTOVER provada (`cutover=1`, `drain=1`): candidat→SIF i llegat→410
 - [ ] `doit.php` retorna 410 amb cutover actiu
