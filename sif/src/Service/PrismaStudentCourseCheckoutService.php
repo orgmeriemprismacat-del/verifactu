@@ -7,6 +7,7 @@ namespace Prisma\Sif\Service;
 use Prisma\Sif\Domain\PrismaStudentDiscountPolicy;
 use Prisma\Sif\Domain\UuidGenerator;
 use Prisma\Sif\Exception\SifException;
+use Prisma\Sif\Repository\CommercialOperationLineRepository;
 use Prisma\Sif\Repository\CommercialOperationPartyRepository;
 use Prisma\Sif\Repository\CommercialOperationRepository;
 use Prisma\Sif\Repository\DiscountValidationRepository;
@@ -25,6 +26,7 @@ final class PrismaStudentCourseCheckoutService
 {
     private CommercialOperationRepository $operations;
     private CommercialOperationPartyRepository $operationParties;
+    private CommercialOperationLineRepository $operationLines;
     private DiscountValidationRepository $discounts;
     private RedsysPaymentIntentRepository $intentRecords;
     private OperationalEventRepository $events;
@@ -38,10 +40,12 @@ final class PrismaStudentCourseCheckoutService
         ?DiscountValidationRepository $discounts = null,
         ?OperationalEventRepository $events = null,
         ?CommercialOperationPartyRepository $operationParties = null,
+        ?CommercialOperationLineRepository $operationLines = null,
         ?RedsysPaymentIntentRepository $intentRecords = null
     ) {
         $this->operations = $operations ?? new CommercialOperationRepository();
         $this->operationParties = $operationParties ?? new CommercialOperationPartyRepository();
+        $this->operationLines = $operationLines ?? new CommercialOperationLineRepository();
         $this->discounts = $discounts ?? new DiscountValidationRepository();
         $this->intentRecords = $intentRecords ?? new RedsysPaymentIntentRepository();
         $this->events = $events ?? new OperationalEventRepository($this->uuids);
@@ -139,25 +143,15 @@ final class PrismaStudentCourseCheckoutService
                     'created_by' => trim((string) ($intentRequest['created_by'] ?? 'uc-020-checkout')),
                 ]);
 
-                $name = trim((string) $enrollment['NOM'] . ' ' . (string) ($enrollment['COGNOMS'] ?? ''));
-                $this->operationParties->insert($sifDb, [
-                    'uuid_operation' => $uuidOperation,
-                    'party_key' => $canonicalPartyKey,
-                    'party_role' => 'PARTICIPANT',
-                    'legacy_person_id' => null,
-                    'nif_cif' => (string) $enrollment['DNI'],
-                    'nom_rao' => $name,
-                    'email' => null,
-                    'product_code' => (string) $enrollment['CURS'],
-                    'product_edition' => (string) $enrollment['ANY'] . '/' . (string) $enrollment['MES'],
-                    'line_amount' => $price['net'],
-                    'snapshot_json' => json_encode([
-                        'source' => 'legacy_inscription',
-                        'source_id' => $enrollmentId,
-                    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-                ]);
             }
 
+            $this->ensureParticipant(
+                $sifDb,
+                $uuidOperation,
+                $canonicalPartyKey,
+                $enrollment,
+                $price
+            );
 
             $uuidOperationLine = $this->ensureOperationLine(
                 $sifDb,
@@ -324,6 +318,57 @@ final class PrismaStudentCourseCheckoutService
     }
 
 
+    private function ensureParticipant(
+        \PDO $db,
+        string $uuidOperation,
+        string $partyKey,
+        array $enrollment,
+        array $price
+    ): void {
+        $role = 'PARTICIPANT';
+        $existing = $this->operationParties->findByOperationAndRole(
+            $db,
+            $uuidOperation,
+            $role,
+            true
+        );
+        $name = trim((string) $enrollment['NOM'] . ' ' . (string) ($enrollment['COGNOMS'] ?? ''));
+        $edition = (string) $enrollment['ANY'] . '/' . (string) $enrollment['MES'];
+
+        if ($existing !== null) {
+            if ((string) $existing['PARTY_KEY'] !== $partyKey
+                || (string) $existing['NIF_CIF'] !== (string) $enrollment['DNI']
+                || (string) $existing['NOM_RAO'] !== $name
+                || (string) $existing['PRODUCT_CODE'] !== (string) $enrollment['CURS']
+                || (string) $existing['PRODUCT_EDITION'] !== $edition
+                || $this->moneyToCents((string) $existing['LINE_AMOUNT']) !== $price['net_cents']
+            ) {
+                throw SifException::conflict(
+                    'Commercial operation participant conflicts with the trusted checkout snapshot.'
+                );
+            }
+
+            return;
+        }
+
+        $this->operationParties->insert($db, [
+            'uuid_operation' => $uuidOperation,
+            'party_key' => $partyKey,
+            'party_role' => $role,
+            'legacy_person_id' => null,
+            'nif_cif' => (string) $enrollment['DNI'],
+            'nom_rao' => $name,
+            'email' => null,
+            'product_code' => (string) $enrollment['CURS'],
+            'product_edition' => $edition,
+            'line_amount' => $price['net'],
+            'snapshot_json' => json_encode([
+                'source' => 'legacy_inscription',
+                'source_id' => (int) $enrollment['ID'],
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+        ]);
+    }
+
     private function ensureOperationLine(
         \PDO $db,
         string $uuidOperation,
@@ -331,13 +376,11 @@ final class PrismaStudentCourseCheckoutService
         array $enrollment,
         array $price
     ): string {
-        $existing = $this->one(
+        $existing = $this->operationLines->findByOperationAndOrder(
             $db,
-            'SELECT UUID_LINE, PRODUCT_CODE, PARTICIPANT_PARTY_KEY, NET_AMOUNT, PRICE_RULE_VERSION
-             FROM commercial_operation_line
-             WHERE UUID_OPERATION = ? AND ORDRE = 1
-             FOR UPDATE',
-            [$uuidOperation]
+            $uuidOperation,
+            1,
+            true
         );
         if ($existing !== null) {
             if ((string) $existing['PRODUCT_CODE'] !== (string) $enrollment['CURS']
@@ -367,38 +410,30 @@ final class PrismaStudentCourseCheckoutService
         $exemptionReason = trim((string) ($tax['exemption_reason'] ?? ''));
         $uuidLine = $this->uuids->generate();
 
-        $this->execute(
-            $db,
-            'INSERT INTO commercial_operation_line (
-                UUID_LINE, UUID_OPERATION, PARENT_UUID_LINE, LINE_TYPE, ORDRE,
-                PRODUCT_TYPE, PRODUCT_CODE, PRODUCT_EDITION, PARTICIPANT_PARTY_KEY,
-                DESCRIPTION, QUANTITY, UNIT_PRICE, GROSS_AMOUNT, DISCOUNT_AMOUNT,
-                NET_AMOUNT, TAX_REGIME, TAX_RATE, TAX_AMOUNT,
-                EXEMPTION_OR_NON_SUBJECT_REASON, PRICE_RULE_VERSION, SNAPSHOT_JSON, STATUS
-            ) VALUES (?, ?, NULL, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [
-                $uuidLine,
-                $uuidOperation,
-                'PRODUCT',
-                'CURS',
-                (string) $enrollment['CURS'],
-                (string) $enrollment['ANY'] . '/' . (string) $enrollment['MES'],
-                $participantPartyKey,
-                $price['course_title'],
-                '1.00',
-                $price['gross'],
-                $price['gross'],
-                $price['discount'],
-                $price['net'],
-                $taxRegime,
-                $taxRate,
-                $taxAmount,
-                $exemptionReason === '' ? null : $exemptionReason,
-                $price['price_rule_version'],
-                $price['price_json'],
-                'READY_FOR_PAYMENT',
-            ]
-        );
+        $this->operationLines->insert($db, [
+            'uuid_line' => $uuidLine,
+            'uuid_operation' => $uuidOperation,
+            'parent_uuid_line' => null,
+            'line_type' => 'PRODUCT',
+            'order' => 1,
+            'product_type' => 'CURS',
+            'product_code' => (string) $enrollment['CURS'],
+            'product_edition' => (string) $enrollment['ANY'] . '/' . (string) $enrollment['MES'],
+            'participant_party_key' => $participantPartyKey,
+            'description' => $price['course_title'],
+            'quantity' => '1.00',
+            'unit_price' => $price['gross'],
+            'gross_amount' => $price['gross'],
+            'discount_amount' => $price['discount'],
+            'net_amount' => $price['net'],
+            'tax_regime' => $taxRegime,
+            'tax_rate' => $taxRate,
+            'tax_amount' => $taxAmount,
+            'exemption_reason' => $exemptionReason === '' ? null : $exemptionReason,
+            'price_rule_version' => $price['price_rule_version'],
+            'snapshot_json' => $price['price_json'],
+            'status' => 'READY_FOR_PAYMENT',
+        ]);
 
         return $uuidLine;
     }
