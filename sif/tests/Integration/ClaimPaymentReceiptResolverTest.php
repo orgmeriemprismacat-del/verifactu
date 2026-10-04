@@ -173,6 +173,93 @@ final class ClaimPaymentReceiptResolverTest
         }, 409);
     }
 
+    public function testSplitReceiptUsesAllocationAmountForTargetInvoice(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoiceService = IssueInvoiceTest::serviceFor($db);
+        $invoiceA = $invoiceService->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|RECEIPT|SPLIT_A',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+        $invoiceB = $invoiceService->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC024|RECEIPT|SPLIT_B',
+                'emesa_abans_cobrament' => 1,
+                'relations' => [[
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 11,
+                    'factura_relacionada' => 501,
+                    'idpag' => 123,
+                    'ds_order' => '999998',
+                    'visible_alumne' => 1,
+                ]],
+                'lines' => [[
+                    'concept' => 'Curs B',
+                    'detail' => 'Curs de prova B',
+                    'quantity' => '1.00',
+                    'unit_price' => '120.00',
+                    'base' => '120.00',
+                    'import_base' => '120.00',
+                    'discount_amount' => '0.00',
+                    'taxable_base' => '120.00',
+                    'iva_regim' => 'EXEMPT',
+                    'iva_pct' => '0.00',
+                    'iva_import' => '0.00',
+                    'total' => '120.00',
+                    'source_type' => 'INSCRIPCIO',
+                    'source_id' => 11,
+                ]],
+            ])
+        );
+
+        $payment = RegisterPaymentTest::paymentServiceFor($db)->registerPayment([
+            'idempotency_key' => 'TRANSFERENCIA|REF:BANK-SPLIT',
+            'movement_type' => 'CHARGE',
+            'method' => 'TRANSFERENCIA',
+            'source_channel' => 'INTRANET',
+            'amount' => '100.00',
+            'movement_date' => '2026-10-04 03:20:00',
+            'reference' => 'BANK-SPLIT',
+            'idpag' => 123,
+            'allocations' => [
+                [
+                    'uuid_factura' => $invoiceA['uuid_factura'],
+                    'amount' => '40.00',
+                    'allocation_type' => 'INVOICE_PAYMENT',
+                ],
+                [
+                    'uuid_factura' => $invoiceB['uuid_factura'],
+                    'amount' => '60.00',
+                    'allocation_type' => 'INVOICE_PAYMENT',
+                ],
+            ],
+        ]);
+
+        $resolved = $this->resolver()->resolveExisting(
+            $db,
+            'BANK_REFERENCE',
+            'BANK-SPLIT',
+            $invoiceA['uuid_factura'],
+            '40.00',
+            123
+        );
+
+        Assert::same($payment['uuid_payment'], $resolved['uuid_payment']);
+
+        Assert::throws(SifException::class, function () use ($db, $invoiceA): void {
+            $this->resolver()->resolveExisting(
+                $db,
+                'BANK_REFERENCE',
+                'BANK-SPLIT',
+                $invoiceA['uuid_factura'],
+                '100.00',
+                123
+            );
+        }, 409);
+    }
+
     public function testRedsysIdentityMustAlreadyExistBeforeClaimReconciliation(): void
     {
         $resolver = $this->resolver();
