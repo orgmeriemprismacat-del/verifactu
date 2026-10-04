@@ -1,4 +1,9 @@
 <?php
+header('Cache-Control: private, no-store, max-age=0');
+header('Pragma: no-cache');
+header('Referrer-Policy: no-referrer');
+header('X-Content-Type-Options: nosniff');
+
 session_set_cookie_params([
     'secure' => true,
     'httponly' => true,
