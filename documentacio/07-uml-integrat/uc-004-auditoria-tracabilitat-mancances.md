@@ -2,7 +2,7 @@
 
 **Cas d'ús:** UC-004 — Emetre factura abans de cobrar  
 **Data de tall actualitzada:** 2026-10-04  
-**Branca reconciliada:** `audit/uc-004-reconciliacio-2026-10-04`  
+**Branca reconciliada:** `audit/uc-004-revalidacio-v2-2026-10-04`  
 **Base:** `main@6c8137ff1652ac89a1a81ad18cf79fc4689b1757`  
 **Tipus de verificació:** auditoria estàtica exhaustiva sobre `main` + hardening en branca nova. Evidència CI històrica separada de la verificació del HEAD nou i de preproducció/producció.
 
@@ -47,7 +47,7 @@ Fitxer existent: `documentacio/06-fitxes-funcionals/uc-004.md`.
 7. La fitxa funcional 2.0 d'aquesta branca ja incorpora els scripts UC-004 de preview/preflight/process, les proves de flow/preproducció i els nous guards de cobertura.
 8. L'endpoint genèric `issue.php` continua sense ser UC-004, però el `main` ja disposa de l'endpoint específic `sif/public/api/factures/before-payment.php`, que sí passa per `InvoiceBeforePaymentCommandService` i `InvoiceBeforePaymentService`.
 
-**Decisió documental d'aquesta branca:** no s'ha sobreescrit la fitxa existent; les correccions queden recollides en aquest dossier perquè es puguin revisar abans d'una consolidació posterior.
+**Decisió documental d'aquesta branca:** la fitxa funcional s'ha reconciliat i actualitzat conjuntament amb aquest dossier perquè el conjunt documental sigui coherent amb el codi real del tall 04/10/2026.
 
 ## 3. Codi ACTUAL — evidència funcional
 
