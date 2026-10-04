@@ -20,7 +20,22 @@ final class HistoricalInvoiceMigrationPreflight
         }
 
         $lastSequence = $this->currentFiscalSequence($db, $payload);
-        if ($lastSequence !== null && (int) $payload['num_seq'] > $lastSequence) {
+        if ($lastSequence === null) {
+            $currentYear = (int) (new \DateTimeImmutable(
+                'now',
+                new \DateTimeZone('Europe/Madrid')
+            ))->format('Y');
+
+            if ((int) $payload['year'] >= $currentYear) {
+                throw SifException::conflict(
+                    'Historical invoice series/year has no fiscal sequence checkpoint; migration requires an explicit coexistence decision'
+                );
+            }
+
+            return;
+        }
+
+        if ((int) $payload['num_seq'] > $lastSequence) {
             throw SifException::conflict(
                 'Historical invoice number is ahead of the active fiscal sequence; migration requires an explicit coexistence decision'
             );
