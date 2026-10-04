@@ -14,6 +14,7 @@ use Prisma\Sif\Repository\PaymentActionEventRepository;
 use Prisma\Sif\Repository\PaymentRepository;
 use Prisma\Sif\Service\ExistingInvoiceLegacyProjectionService;
 use Prisma\Sif\Service\ExistingInvoicePaymentCommandService;
+use Prisma\Sif\Service\ExistingInvoicePaymentPreviewService;
 use Prisma\Sif\Service\InternalApiAuthenticator;
 use Prisma\Sif\Service\ManualPaymentPayloadBuilder;
 use Prisma\Sif\Service\ManualPaymentService;
@@ -81,7 +82,18 @@ try {
     );
 
     $action = strtolower(trim((string) ($payload['action'] ?? '')));
-    if ($action === 'register_existing_invoice') {
+
+    if ($action === 'preview_existing_invoice') {
+        $selector = $payload['selector'] ?? null;
+        if (!is_array($selector)) {
+            throw SifException::validation('Existing invoice preview requires selector object');
+        }
+
+        $result = (new ExistingInvoicePaymentPreviewService(
+            new ManualPaymentInvoiceRepository(),
+            new ExistingInvoiceLegacyProjectionService()
+        ))->preview($db, $selector);
+    } elseif ($action === 'register_existing_invoice') {
         $payment = $payload['payment'] ?? null;
         if (!is_array($payment)) {
             throw SifException::validation('Existing invoice payment requires payment object');
