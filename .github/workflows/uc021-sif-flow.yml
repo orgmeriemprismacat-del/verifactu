@@ -66,6 +66,7 @@ jobs:
         run: |
           php -l sif/src/Repository/EnrollmentPaymentFlowLockRepository.php
           php -l sif/src/Repository/InvoiceBeforePaymentRedsysGuardRepository.php
+          php -l sif/src/Service/InvoiceBeforePaymentAeatPayloadEnricher.php
           php -l sif/src/Service/JointInvoiceEnrollmentFundAllocationService.php
           php -l sif/src/Service/InvoiceService.php
           php -l sif/src/Service/RedsysCoursePaymentIntentService.php
