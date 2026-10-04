@@ -1,6 +1,6 @@
 <?php
-// UC-015: prepare PACK checkouts from server-side data and create the SIF intent
-// before building any Redsys merchant parameters.
+// UC-015 / UC-016: prepare PACK and GRUP checkouts from server-side data,
+// create the SIF intent, then build Redsys merchant parameters.
 $validatedPackCheckout = null;
 $validatedGroupCheckout = null;
 $packOrder = null;
