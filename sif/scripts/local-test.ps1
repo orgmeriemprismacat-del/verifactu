@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('Test','Migrate','Preflight','GoNoGo','Start','Stop')]
+    [ValidateSet('Test','TestUc015','Migrate','Preflight','GoNoGo','Start','Stop')]
     [string]$Action = 'Test'
 )
 $ErrorActionPreference = 'Stop'
@@ -29,6 +29,7 @@ try {
     }
     $relative = switch ($Action) {
         'Test' { 'sif/tests/run-tests.php' }
+        'TestUc015' { 'sif/tests/run-uc015-tests.php' }
         'Migrate' { 'sif/scripts/run-migrations.php' }
         'Preflight' { 'sif/scripts/preflight-sif.php' }
         'GoNoGo' { 'sif/scripts/go-no-go-preproduction.php' }
