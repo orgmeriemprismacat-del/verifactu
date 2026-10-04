@@ -74,6 +74,8 @@ final class RectificationIntranetProxyContractTest
         Assert::stringContainsString('classification_event_uuid', $javascript);
         Assert::stringContainsString('fiscal_correction_decision', $javascript);
         Assert::stringContainsString('ready_for_uc005_ui', $javascript);
+        Assert::stringContainsString('decision.executed === true', $javascript);
+        Assert::stringContainsString('ja s’ha executat', $javascript);
         Assert::stringContainsString('Previsualitzar rectificativa', $javascript);
         Assert::stringContainsString('Confirmar i emetre rectificativa', $javascript);
         Assert::stringContainsString('Pendent de classificació fiscal UC-74', $javascript);
