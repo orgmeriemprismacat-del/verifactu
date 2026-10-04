@@ -191,6 +191,13 @@ final class SifVersionEvidenceVerifier
             return false;
         }
 
+        $releaseRoot = realpath(dirname(__DIR__, 2));
+        if ($releaseRoot !== false
+            && ($root === $releaseRoot || str_starts_with($root, $releaseRoot . DIRECTORY_SEPARATOR))
+        ) {
+            return false;
+        }
+
         $storageKey = str_replace('\\', '/', trim((string) ($declaration['STORAGE_KEY'] ?? '')));
         if ($storageKey === '' || str_starts_with($storageKey, '/') || str_contains('/' . $storageKey . '/', '/../')) {
             return false;
