@@ -165,6 +165,37 @@ final class CreditBalanceServiceTest
         Assert::same('40.00', $available);
     }
 
+    public function testCreditRetryMayChangeCorrelationMetadataWithoutDuplicatingFundExit(): void
+    {
+        $db = TestDatabase::fresh();
+        $origin = $this->paidEnrollmentWithFunds($db, 'CREDIT-CORRELATION-001');
+        $service = $this->service($db);
+
+        $base = [
+            'idempotency_key' => 'CREDIT|UC006|CORRELATION|80',
+            'holder_type' => 'STUDENT',
+            'holder_id' => 10,
+            'holder_name' => 'Client Exemple',
+            'amount' => '80.00',
+            'source_type' => 'BAIXA',
+            'source_enrollment_id' => 10,
+            'uuid_factura_origen' => $origin['uuid_factura'],
+            'correlation_id' => 'REQUEST-A',
+        ];
+
+        $first = $service->createCredit($base);
+        $base['correlation_id'] = 'REQUEST-B';
+        $second = $service->createCredit($base);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['uuid_credit'], $second['uuid_credit']);
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM credit_balance')->fetchColumn());
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM enrollment_fund_movement WHERE MOVEMENT_TYPE = 'CREDIT_CREATE'"
+        )->fetchColumn());
+    }
+
     public function testRollsBackSecondCreditWhenEnrollmentFundsAreInsufficient(): void
     {
         $db = TestDatabase::fresh();
