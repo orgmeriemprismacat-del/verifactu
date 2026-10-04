@@ -29,6 +29,7 @@ $relativeFiles = [
     'Unit/ReleaseManifestVerifierTest.php',
     'Unit/VersionPanelSessionTest.php',
     'Integration/SifVersionServiceTest.php',
+    'Integration/PanelLaunchSecurityTest.php',
     'Integration/VersionPanelUiContractTest.php',
 ];
 
