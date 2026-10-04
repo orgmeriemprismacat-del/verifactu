@@ -8,6 +8,8 @@ class SifInternalApiClient
     private string $secret;
     private string $courseChangeUrl;
     private string $courseChangeSignedPath;
+    private string $paymentUrl;
+    private string $paymentSignedPath;
     private int $timeout;
 
     public function __construct(
@@ -17,7 +19,9 @@ class SifInternalApiClient
         ?string $secret = null,
         int $timeout = 10,
         ?string $courseChangeUrl = null,
-        ?string $courseChangeSignedPath = null
+        ?string $courseChangeSignedPath = null,
+        ?string $paymentUrl = null,
+        ?string $paymentSignedPath = null
     ) {
         $this->url = trim((string) ($url ?? getenv('SIF_INTERNAL_API_URL') ?: ''));
         $this->signedPath = trim((string) ($signedPath ?? getenv('SIF_INTERNAL_API_SIGNED_PATH') ?: '/api/factures/query.php'));
@@ -28,6 +32,8 @@ class SifInternalApiClient
         $this->secret = (string) $configuredSecret;
         $this->courseChangeUrl = trim((string) ($courseChangeUrl ?? getenv('SIF_COURSE_CHANGE_API_URL') ?: ''));
         $this->courseChangeSignedPath = trim((string) ($courseChangeSignedPath ?? getenv('SIF_INTERNAL_COURSE_CHANGE_SIGNED_PATH') ?: '/api/course-changes/preview.php'));
+        $this->paymentUrl = trim((string) ($paymentUrl ?? getenv('SIF_INTERNAL_PAYMENT_URL') ?: ''));
+        $this->paymentSignedPath = trim((string) ($paymentSignedPath ?? getenv('SIF_INTERNAL_PAYMENT_SIGNED_PATH') ?: '/api/payments/register.php'));
         $this->timeout = max(1, min(30, $timeout));
 
         if ($this->url === '' || $this->keyId === '' || $this->secret === '') {
@@ -37,6 +43,9 @@ class SifInternalApiClient
         $this->assertSecureUrl($this->url);
         if ($this->courseChangeUrl !== '') {
             $this->assertSecureUrl($this->courseChangeUrl);
+        }
+        if ($this->paymentUrl !== '') {
+            $this->assertSecureUrl($this->paymentUrl);
         }
     }
 
@@ -87,6 +96,29 @@ class SifInternalApiClient
             'expected_fingerprint' => strtolower(trim($expectedFingerprint)),
             'observations' => trim($observations),
         ]);
+    }
+
+    public function registerExistingInvoicePayment(
+        string $actorId,
+        array $roles,
+        array $selector,
+        array $payment
+    ): array {
+        if ($this->paymentUrl === '') {
+            throw new RuntimeException('SIF payment API is not configured');
+        }
+
+        return $this->requestTo(
+            $this->paymentUrl,
+            $this->paymentSignedPath,
+            $actorId,
+            $roles,
+            [
+                'action' => 'register_existing_invoice',
+                'selector' => $selector,
+                'payment' => $payment,
+            ]
+        );
     }
 
     public function previewCourseChange(string $actorId, array $roles, array $payload): array
