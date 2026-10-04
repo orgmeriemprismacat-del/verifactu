@@ -180,6 +180,18 @@ class PublicWebMutationAuthorization {
  <<IMPLEMENTAT>>
  +assertSameOriginAjax()
 }
+class PackConfirmationToken {
+ <<IMPLEMENTAT · V2>>
+ +encode(idInsc,key,issuedAt) token
+ +decode(token,key,now) idInsc
+}
+class ConfirmacioPackEndpoint {
+ <<IMPLEMENTAT · FAIL-CLOSED>>
+}
+class PagamentGrupAutomatic {
+ <<IMPLEMENTAT>>
+ +mostrarPaginaConfirmacio()
+}
 class EnviarInscripcioPack {
  <<IMPLEMENTAT>>
  +POST + REQUEST_ID
@@ -198,6 +210,10 @@ class NotificationOutboxRepository {
  +enqueue(db,message) array
 }
 EnviarInscripcioPack --> PublicWebMutationAuthorization : WEB_ALLOWED_ORIGINS
+EnviarInscripcioPack --> PackConfirmationToken : token temporal v2
+PackConfirmationToken --> ConfirmacioPackEndpoint : fragment + GET codificat
+ConfirmacioPackEndpoint --> PagamentGrupAutomatic : ID_INSC validat
+PagamentGrupAutomatic --> PackPaymentGate : continuacio checkout
 EnviarInscripcioPack --> PackPaymentGate : IDPAG/snapshot
 PackPaymentGate --> SifPaymentIntentClient : intent HMAC
 SifPaymentIntentClient --> RedsysPackInvoiceService : via callback/worker
@@ -218,6 +234,25 @@ InvoiceService --> PaymentRepository : CHARGE inicial si payment
 
 `PublicWebMutationAuthorization` és l'única font d'autoritat per Origin/Referer i llegeix `WEB_ALLOWED_ORIGINS`; exigeix `X-Requested-With: XMLHttpRequest`. `enviarInscripcioPack.php` conserva `Sec-Fetch-Site` com a defensa complementària. No existeix una segona allowlist fixa a l'endpoint.
 
+### 3.2. Frontera de confirmació PACK
+
+La continuació de l'auditoria del 04/10 ha identificat i corregit **SEC-015-01**. El token legacy autenticava només el ciphertext AES-CBC i deixava l'IV fora de la MAC; a més es desxifrava abans de verificar i el token quedava al path.
+
+Contracte FINAL implementat al PR #171:
+- `PackConfirmationToken v2`;
+- AES-256-CBC amb clau derivada;
+- HMAC SHA-256 amb clau separada sobre domini + IV + ciphertext;
+- MAC abans de decrypt;
+- Base64URL;
+- `ID_INSC|issued_at`, TTL 24 h;
+- redirect `/packs/confirmacio/#TOKEN`;
+- no-store/no-referrer/noindex;
+- `send_page_view=false`;
+- token legacy rebutjat fail-closed;
+- fallback temporal només per token v2 al path durant el desplegament.
+
+Vegeu [activitat PK-A04b](uc-015-activitats-pagines-pack-actual-final.md), [seqüències ACTUAL/FINAL](uc-015-sequencies-actual-final.md) i [reconciliació 04/10](uc-015-reconciliacio-main-2026-10-04.md).
+
 ## 4. Diagrama de seqüència — pack pagat, factura i distribució
 
 ```mermaid
@@ -225,6 +260,8 @@ sequenceDiagram
 autonumber
 actor A as Alumne/pagador
 participant Web as Ecommerce PACK
+participant Token as PackConfirmationToken
+participant Confirm as Confirmació PACK
 participant Intent as RedsysPaymentIntentService
 participant Bank as Redsys
 participant Callback as RedsysCallbackService
@@ -237,6 +274,14 @@ participant I as InvoiceService
 participant O as NotificationOutbox
 participant L as EnrollmentFundMovementRepository
 A->>Web: Comprar pack amb N inscripcions
+Web->>Token: encode(ID_INSC, key)
+Token-->>Web: token v2 temporal
+Web-->>A: /packs/confirmacio/#TOKEN
+A->>Confirm: obrir confirmació
+Confirm->>Token: decode + MAC + TTL
+Token-->>Confirm: ID_INSC validat
+Confirm-->>A: vista i continuació de pagament
+A->>Web: confirmar pagament
 Web->>Intent: create(PACK, DS_ORDER, import, snapshot N línies)
 Intent-->>Web: UUID_INTENT
 Web->>Bank: TPV
@@ -307,7 +352,7 @@ Auditoria canònica: [uc-015-auditoria-tracabilitat-2026-10-02.md](uc-015-audito
 Punts nous incorporats:
 - el formulari d'alta pública s'ha migrat a POST-only amb frontera same-site/origin;
 - idempotència server-side implementada: UUID v4 persistent al navegador, named lock, `RID/RH1`, replay equivalent i 409 per payload divergent;
-- el bundle puja a `mostrarInscripcioPack.min.js?ver=7.5` per evitar caché del GET antic;
+- el bundle puja a `mostrarInscripcioPack.min.js?ver=7.6` per evitar caché del GET antic;
 - corregida la disponibilitat: `EdicioPack` compara una data límit amb signe real i llistat/fitxa/POST exigeixen tots els components oberts;
 - les N inscripcions del pack es creen dins una única transacció, amb rollback en error i alliberament garantit del lock `IDPAG`; abans del commit la suma dels imports congelats ha de coincidir exactament amb el preu PACK en cèntims;
 - `pagFrac` ja no és entrada client: l'ecommerce fixa no fraccionament al servidor;
@@ -322,7 +367,7 @@ Punts nous incorporats:
 
 ## Reconciliació amb main — 2026-10-04
 
-La fitxa/UML integrada continua representant el flux executable de `main@6c8137f...`. No s'han detectat noves classes productives necessàries ni un segon callback fiscal PACK.
+La fitxa/UML integrada s'ha reconciliat amb `main@6c8137f...` i el PR #171. La continuació pàgina per pàgina sí ha detectat una nova classe/responsabilitat necessària per fer explícita la frontera de confirmació: `PackConfirmationToken`, incorporada arran de SEC-015-01. No reapareix cap segon callback fiscal PACK.
 
 Actualitzacions de governança:
 - [inventari PHP/JS ACTUAL/FINAL](uc-015-inventari-codi-php-js-actual-final-2026-10-04.md);
@@ -330,3 +375,8 @@ Actualitzacions de governança:
 - gate selectiu `sif/tests/run-uc015-tests.php` + `.github/workflows/uc015-sif-checks.yml`.
 
 Notificacions: enqueue PACK i gate genèric `NotificationOutboxDeliveryService` implementats; transport/cutover SMTP real encara pendent d'acceptació operativa.
+
+
+### Estat del fix SEC-015-01
+
+El baseline anterior al fix continua acreditat pel PR #149 amb **971 passed / 0 failed**. Aquesta xifra no s'utilitza com a prova del nou codi de confirmació. `PackConfirmationTokenTest` i `PackConfirmationTokenBoundaryTest` estan incorporats al gate selectiu, però la **CI del PR #171** continua pendent mentre GitHub Actions mantingui els jobs en cua.
