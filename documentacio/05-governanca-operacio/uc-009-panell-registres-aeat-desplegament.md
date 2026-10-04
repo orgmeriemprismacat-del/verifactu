@@ -254,3 +254,24 @@ Abans d'executar el worker:
 3. `SIF_AEAT_EVIDENCE_DIR` ha de ser un directori real, writable, fora del repositori/webroot i no world-accessible;
 4. el preflight ha de retornar `certificate_usable=true` i `evidence_directory_private=true`;
 5. no n'hi ha prou amb un `.htaccess Deny from all`: la custòdia es valida també a nivell de filesystem i ubicació real.
+
+
+## 15. Àncora MySQL de resposta per `reconcile_evidence`
+
+Aplicar també la migració:
+
+```
+2026_10_04_000034_anchor_aeat_evidence_response.sql
+```
+
+Abans d'habilitar la conciliació d'evidència a preproducció:
+
+1. confirmar les columnes `EVIDENCE_RESPONSE_SHA256` i `EVIDENCE_HTTP_STATUS`;
+2. generar un cas controlat on el transport hagi retornat resposta però la consolidació local posterior falli;
+3. comprovar que l'intent queda `UNCERTAIN` amb `EVIDENCE_ID`, hash de resposta i HTTP ancorats;
+4. confirmar que el detall només exposa `EVIDENCE_RECONCILABLE`, no el hash;
+5. confirmar que bundle vàlid sense àncora DB retorna 409;
+6. confirmar que hash DB diferent de `response.xml` retorna 409;
+7. confirmar que bundle+àncora+metadata+request+resposta coincidents permeten `REVIEW → SENT` sense segon SOAP.
+
+Una evidència local completa **no és suficient per si sola** per a una mutació fiscal automàtica.
