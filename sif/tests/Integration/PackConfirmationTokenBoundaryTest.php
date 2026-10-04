@@ -66,8 +66,19 @@ final class PackConfirmationTokenBoundaryTest
         }
 
         Assert::stringContainsString("const PREFIX = 'v2.'", $source);
+        Assert::stringContainsString("const CIPHER = 'AES-256-CBC'", $source);
         Assert::stringContainsString(
             'self::DOMAIN . $iv . $ciphertext',
+            $source
+        );
+        Assert::stringContainsString('self::encryptionKey($keyEncr)', $source);
+        Assert::stringContainsString('self::macKey($keyEncr)', $source);
+        Assert::stringContainsString(
+            'UC015_PACK_CONFIRMATION_V2_ENCRYPTION',
+            $source
+        );
+        Assert::stringContainsString(
+            'UC015_PACK_CONFIRMATION_V2_MAC',
             $source
         );
         Assert::stringContainsString('hash_equals($mac, $calculatedMac)', $source);
@@ -105,5 +116,9 @@ final class PackConfirmationTokenBoundaryTest
             'mostrarConfirmacioPagamentGrupAutomatic.min.js?ver=2.1',
             $page
         );
+        Assert::stringContainsString('Referrer-Policy: no-referrer', $page);
+        Assert::stringContainsString('Cache-Control: private, no-store', $page);
+        Assert::stringContainsString('X-Robots-Tag: noindex', $page);
+        Assert::stringContainsString("'send_page_view': false", $page);
     }
 }
