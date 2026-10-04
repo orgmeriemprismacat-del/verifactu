@@ -245,3 +245,29 @@ No hi ha evidència d'una classe `AeatPanelController` ni d'un `AeatProductionTr
 `aeat_submission_attempt` incorpora `EVIDENCE_ID VARCHAR(64) NULL UNIQUE`. La unicitat impedeix que una mateixa evidència privada quedi associada a més d'un intent, mantenint compatibilitat amb intents antics `NULL`.
 
 `AeatEvidenceReconciliationService` no depèn d'`AeatTransport` ni de `SoapTransport`: només llegeix una evidència privada ja existent, la verifica amb `EvidenceVerifier`, valida la resposta amb `ResponseParser` i aplica el resultat terminal mitjançant repositoris transaccionals.
+
+
+## 7. Preassignació i ownership d'evidència
+
+```mermaid
+classDiagram
+class AeatSubmissionAttemptRepository {
+  +begin(db,queue,payload) array
+  +complete(db,uuid,status,response)
+  +fail(db,uuid,status,detail,evidenceId)
+  +markStartedUncertain(db,uuid,detail)
+  +completeUncertainFromEvidence(db,uuid,evidenceId,status,response)
+}
+class EvidenceStore {
+  +generateId() string
+  +beginWithId(id,request,metadata) string
+}
+class FiscalQueueProcessor
+class SoapTransport
+
+FiscalQueueProcessor --> AeatSubmissionAttemptRepository : reserva UUID + EVIDENCE_ID
+FiscalQueueProcessor --> SoapTransport : context preassignat
+SoapTransport --> EvidenceStore : beginWithId(EVIDENCE_ID)
+```
+
+`EVIDENCE_ID` és `UNIQUE` a BD i immutable després de crear l'intent. `SoapTransport` rebutja enviaments sense context preassignat.
