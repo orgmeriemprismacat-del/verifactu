@@ -10,6 +10,8 @@ $proxy = readFileOrFail($root . '/ajax/alumnes/sifFacturaAbansPagar.php');
 $access = readFileOrFail($root . '/SifInvoiceBeforePaymentAccess.php');
 $client = readFileOrFail($root . '/SifInternalApiClient.php');
 $sifEndpoint = readFileOrFail($repo . '/sif/public/api/factures/before-payment.php');
+$commandService = readFileOrFail($repo . '/sif/src/Service/InvoiceBeforePaymentCommandService.php');
+$legacyMutator = readFileOrFail($root . '/ajax/alumnes/generaFacturaElectronica_Factures.php');
 
 foreach ([
     'generaFacturaElectronica_Factures.php',
@@ -63,6 +65,8 @@ foreach ([
     'X-SIF-Actor-Roles',
     'previewInvoiceBeforePayment',
     'confirmInvoiceBeforePayment',
+    'UC004-V1',
+    'contract_version',
 ] as $required) {
     assertTrue(str_contains($client, $required), "Missing internal API client control: {$required}");
 }
@@ -72,6 +76,8 @@ foreach ([
     'InternalInvoiceBeforePaymentScopeResolver',
     'InvoiceBeforePaymentCommandService',
     'InvoiceBeforePaymentCoverageRepository',
+    'UC004-V1',
+    'contract_version',
 ] as $required) {
     assertTrue(str_contains($sifEndpoint, $required), "Missing SIF UC-004 endpoint control: {$required}");
 }
@@ -81,7 +87,41 @@ assertFalse(
     'SIF UC-004 endpoint must derive created_by from the signed actor'
 );
 
-echo "PASS: UC-004 uses session role + CSRF + HMAC + authoritative SIF flow.\n";
+foreach ([
+    'findClaims',
+    'assertPreviewCoverageAvailable',
+    'already claimed by an existing invoice-before-payment operation',
+] as $required) {
+    assertTrue(
+        str_contains($commandService, $required),
+        "Missing UC-004 preview coverage guard: {$required}"
+    );
+}
+
+foreach ([
+    'http_response_code(410)',
+    'UC004_LEGACY_MUTATION_RETIRED',
+    'Flux llegat de factura abans de pagar retirat',
+] as $required) {
+    assertTrue(
+        str_contains($legacyMutator, $required),
+        "Legacy UC-004 mutator must fail closed: {$required}"
+    );
+}
+
+assertFalse(
+    str_contains($legacyMutator, '->generarFacturaElectronica_Alumnes('),
+    'Retired legacy UC-004 endpoint must not call the legacy invoice writer'
+);
+assertFalse(
+    str_contains($legacyMutator, 'include (')
+        || str_contains($legacyMutator, 'include(')
+        || str_contains($legacyMutator, 'require ')
+        || str_contains($legacyMutator, 'require('),
+    'Retired legacy UC-004 endpoint must reject before loading mutation dependencies'
+);
+
+echo "PASS: UC-004 uses session role + CSRF + HMAC + versioned authoritative SIF flow.\n";
 
 function readFileOrFail(string $path): string
 {
