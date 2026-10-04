@@ -70,11 +70,18 @@ G --> H[Retornar billing/totals/lines + fingerprint]
 ### INTRANET IMPLEMENTADA COM A CONSUMIDOR UC-005
 ```mermaid
 flowchart TD
-A[Modal de correcció] --> B[POST proxy amb sessió + CSRF]
-B --> C[Classificador server-side]
-C --> D[Cridar API SIF signada]
-D --> E[Mostrar abans/després]
-E --> F[Confirmació explícita]
+A[Detall factura SIF] --> B{fiscal_correction_decision?}
+B -- no --> C[Pendent UC-74; bloquejar UC-005]
+B -- sí --> D{ready_for_uc005_ui?}
+D -- no --> E[Decisió no rectificativa o sense correction snapshot]
+D -- sí --> F[Mostrar decisió i correction read-only]
+F --> G[Previsualitzar]
+G --> H[POST proxy sessió + permís + same-origin + CSRF]
+H --> I[POST SIF HMAC + classification_event_uuid]
+I --> J[Resolver event + fingerprint]
+J --> K[Retornar preview + expected fingerprint]
+K --> L[Confirmació explícita]
+L --> M[Confirm mateixa correction + event_uuid + fingerprint]
 ```
 
 ## P04 — Rectificació per diferències
