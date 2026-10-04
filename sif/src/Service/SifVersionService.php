@@ -136,6 +136,9 @@ final class SifVersionService
         if ($version === null) {
             throw SifException::notFound('SIF version not found');
         }
+        if (strtoupper((string) ($version['STATUS'] ?? '')) !== 'DRAFT') {
+            throw SifException::conflict('Declarations can only be attached to a DRAFT SIF version');
+        }
 
         $document = $this->inspectDeclarationFile($storageKey);
         $approvedAt = $this->now();
@@ -151,8 +154,12 @@ final class SifVersionService
             $document,
             $approvedAt
         ): array {
-            if ($this->versions->findByUuid($db, $uuidVersion, true) === null) {
+            $lockedVersion = $this->versions->findByUuid($db, $uuidVersion, true);
+            if ($lockedVersion === null) {
                 throw SifException::notFound('SIF version not found');
+            }
+            if (strtoupper((string) ($lockedVersion['STATUS'] ?? '')) !== 'DRAFT') {
+                throw SifException::conflict('Declarations can only be attached to a DRAFT SIF version');
             }
 
             $result = $this->declarations->appendApproved($db, [
