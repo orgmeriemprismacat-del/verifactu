@@ -144,6 +144,101 @@ final class EnrollmentFundTransferServiceTest
         )->fetchColumn());
     }
 
+    public function testReversesInternalTransferIdempotentlyWhenDestinationStillHasFunds(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->seedExternalFunds($db, 410, '100.00', 5);
+        $service = $this->service($db);
+
+        $transfer = $service->transfer([
+            'idempotency_key' => 'FUND|TRANSFER|UC006|REVERSAL|A-B|60',
+            'source_enrollment_id' => 410,
+            'target_enrollment_id' => 420,
+            'amount' => '60.00',
+        ]);
+
+        $reverse = [
+            'movement_uuid' => $transfer['uuid_movement'],
+            'correlation_id' => 'REVERSAL-A',
+        ];
+        $first = $service->reverseTransfer($reverse);
+        $reverse['correlation_id'] = 'REVERSAL-B';
+        $second = $service->reverseTransfer($reverse);
+
+        Assert::same(false, $first['idempotency_reused']);
+        Assert::same(true, $second['idempotency_reused']);
+        Assert::same($first['uuid_movement'], $second['uuid_movement']);
+        Assert::same($transfer['uuid_movement'], $first['reverses_uuid_movement']);
+
+        $funds = new EnrollmentFundMovementRepository(new UuidGenerator());
+        Assert::same('100.00', $funds->availableAmountForInscription($db, 410));
+        Assert::same('0.00', $funds->availableAmountForInscription($db, 420));
+        Assert::same(1, (int) $db->query(
+            "SELECT COUNT(*) FROM enrollment_fund_movement
+             WHERE MOVEMENT_TYPE = 'REVERSAL'"
+        )->fetchColumn());
+    }
+
+    public function testRejectsTransferReversalAfterDestinationSpentPartOfFunds(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->seedExternalFunds($db, 410, '100.00', 6);
+        $service = $this->service($db);
+
+        $transfer = $service->transfer([
+            'idempotency_key' => 'FUND|TRANSFER|UC006|REVERSAL|SPENT|A-B',
+            'source_enrollment_id' => 410,
+            'target_enrollment_id' => 420,
+            'amount' => '60.00',
+        ]);
+        $service->transfer([
+            'idempotency_key' => 'FUND|TRANSFER|UC006|REVERSAL|SPENT|B-C',
+            'source_enrollment_id' => 420,
+            'target_enrollment_id' => 430,
+            'amount' => '30.00',
+        ]);
+
+        Assert::throws(SifException::class, static function () use ($service, $transfer): void {
+            $service->reverseTransfer([
+                'movement_uuid' => $transfer['uuid_movement'],
+            ]);
+        }, 409);
+
+        $funds = new EnrollmentFundMovementRepository(new UuidGenerator());
+        Assert::same('40.00', $funds->availableAmountForInscription($db, 410));
+        Assert::same('30.00', $funds->availableAmountForInscription($db, 420));
+        Assert::same('30.00', $funds->availableAmountForInscription($db, 430));
+        Assert::same(0, (int) $db->query(
+            "SELECT COUNT(*) FROM enrollment_fund_movement
+             WHERE MOVEMENT_TYPE = 'REVERSAL'"
+        )->fetchColumn());
+    }
+
+    public function testRejectsReversingExternalAllocationWithTransferService(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->seedExternalFunds($db, 410, '100.00', 7);
+        $service = $this->service($db);
+
+        $externalUuid = (string) $db->query(
+            "SELECT UUID_MOVEMENT
+             FROM enrollment_fund_movement
+             WHERE MOVEMENT_TYPE = 'EXTERNAL_ALLOCATION'
+             LIMIT 1"
+        )->fetchColumn();
+
+        Assert::throws(SifException::class, static function () use ($service, $externalUuid): void {
+            $service->reverseTransfer([
+                'movement_uuid' => $externalUuid,
+            ]);
+        }, 409);
+
+        Assert::same(0, (int) $db->query(
+            "SELECT COUNT(*) FROM enrollment_fund_movement
+             WHERE MOVEMENT_TYPE = 'REVERSAL'"
+        )->fetchColumn());
+    }
+
     public function testRejectsTransferToSameEnrollment(): void
     {
         $db = TestDatabase::fresh();
