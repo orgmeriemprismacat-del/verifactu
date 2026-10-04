@@ -27,7 +27,7 @@ $result = [
     'checks' => [],
 ];
 
-if (!in_array($environment, ['test', 'preproduction', 'pre'], true)) {
+if (!in_array($environment, ['test', 'preproduction', 'preprod'], true)) {
     $result['checks']['environment_is_test_or_preproduction'] = false;
     $result['failed'] = ['environment_is_test_or_preproduction'];
     output($result, 1);
