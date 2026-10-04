@@ -22,6 +22,7 @@ final class RectificationDecisionFingerprint
             'aeat_fields',
             'type',
             'tipus_factura',
+            'year',
         ] as $field) {
             unset($candidate[$field]);
         }
