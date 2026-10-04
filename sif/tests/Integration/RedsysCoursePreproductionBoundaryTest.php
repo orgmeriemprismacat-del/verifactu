@@ -146,6 +146,8 @@ final class RedsysCoursePreproductionBoundaryTest
             'return_base_url_https_configured',
             'expected_pay_host_configured',
             'return_base_host_matches_expected',
+            'sif_callback_host_matches_expected',
+            'internal_api_host_matches_expected',
             'legacy_callback_host_matches_expected_if_not_cutover',
             'redsys_gateway_url_https_configured',
             'cutover_configuration_consistent',
