@@ -38,12 +38,12 @@ final class DebtClaimInternalApiContractTest
         Assert::stringContainsString('public function reconcileAfterPayment', $client);
 
         require_once $root . '/codi-drive/intranet-actual/SifInternalDebtClaimClient.php';
-        $instance = new \\SifInternalDebtClaimClient(
+        $instance = new \SifInternalDebtClaimClient(
             'https://sif.example.test/api/debt-claims/manage.php',
             '/api/debt-claims/manage.php',
             'test-key',
             'test-secret'
         );
-        Assert::same(true, $instance instanceof \\SifInternalDebtClaimClient);
+        Assert::same(true, $instance instanceof \SifInternalDebtClaimClient);
     }
 }
