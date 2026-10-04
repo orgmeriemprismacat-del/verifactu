@@ -516,6 +516,14 @@ final class AeatWorkflowTest
             $transport->evidenceId,
             $db->query('SELECT EVIDENCE_ID FROM aeat_submission_attempt')->fetchColumn()
         );
+        Assert::same(
+            hash('sha256', 'synthetic-remote-response'),
+            $db->query('SELECT EVIDENCE_RESPONSE_SHA256 FROM aeat_submission_attempt')->fetchColumn()
+        );
+        Assert::same(
+            200,
+            (int) $db->query('SELECT EVIDENCE_HTTP_STATUS FROM aeat_submission_attempt')->fetchColumn()
+        );
         Assert::same(1, (int) $db->query(
             "SELECT COUNT(*) FROM errors_verifactu WHERE TIPUS_INCIDENCIA = 'AEAT_DELIVERY_UNCERTAIN'"
         )->fetchColumn());
@@ -556,6 +564,8 @@ final class AeatWorkflowTest
                         'csv' => 'REMOTE-RESULT-EXISTS',
                         'flow_wait_seconds' => 60,
                         'evidence_id' => $this->evidenceId,
+                        'response_sha256' => hash('sha256', 'synthetic-remote-response'),
+                        'evidence_http_status' => 200,
                         // Deliberately invalid UTF-8: attempt JSON persistence fails
                         // after the remote result has already been returned.
                         'error_message' => "\xB1\x31",
