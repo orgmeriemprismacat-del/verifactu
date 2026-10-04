@@ -26,6 +26,7 @@ on:
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
       - "codi-drive/intranet-actual/SifInternalInstallmentClient.php"
       - "codi-drive/intranet-actual/alumnes-pagaments.php"
+      - "codi-drive/intranet-actual/Intranet.php"
       - "codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php"
       - "codi-drive/intranet-actual/js/alumnes-pagaments.js"
       - "codi-drive/intranet-actual/alumnes-mostrar-alumne.php"
@@ -62,6 +63,7 @@ on:
       - "codi-drive/intranet-actual/SifInternalUsocClient.php"
       - "codi-drive/intranet-actual/SifInternalInstallmentClient.php"
       - "codi-drive/intranet-actual/alumnes-pagaments.php"
+      - "codi-drive/intranet-actual/Intranet.php"
       - "codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php"
       - "codi-drive/intranet-actual/js/alumnes-pagaments.js"
       - "codi-drive/intranet-actual/alumnes-mostrar-alumne.php"
@@ -156,6 +158,7 @@ jobs:
         run: |
           php -l codi-drive/intranet-actual/SifInternalInstallmentClient.php
           php -l codi-drive/intranet-actual/alumnes-pagaments.php
+          php -l codi-drive/intranet-actual/Intranet.php
           php -l codi-drive/intranet-actual/ajax/alumnes/efectuarPagament.php
           php -l sif/public/api/payments/installment.php
           php -l sif/src/Service/InternalInstallmentPaymentGateway.php
