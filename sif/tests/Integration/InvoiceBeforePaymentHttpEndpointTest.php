@@ -23,6 +23,11 @@ final class InvoiceBeforePaymentHttpEndpointTest
         Assert::stringContainsString('ConnectionFactory::makeLegacy($config)', $source);
         Assert::stringContainsString('ConnectionFactory::makeLegacyIntranet($config)', $source);
         Assert::stringContainsString('InvoiceBeforePaymentCommandService', $source);
+        Assert::stringContainsString('InvoiceBeforePaymentAeatInputPolicy', $source);
+        Assert::stringContainsString("['PROD', 'PRODUCTION', 'PREPROD', 'PREPRODUCTION']", $source);
+        Assert::stringContainsString('aeat_tax_code', $source);
+        Assert::stringContainsString('aeat_regime_key', $source);
+        Assert::stringContainsString('aeat_exemption_reason', $source);
         Assert::stringContainsString('$commands->preview(', $source);
         Assert::stringContainsString('$commands->confirm(', $source);
         Assert::stringContainsString("(string) \$actor['actor_id']", $source);
