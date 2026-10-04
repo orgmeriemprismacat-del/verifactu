@@ -37,7 +37,7 @@ UC-005 **no estava sense codi**: existeix un nucli SIF executable per crear una 
 
 La branca d'auditoria afegeix un hook `beforeCommit` opcional a `InvoiceService`. `ManualRectificationService` l'utilitza per bloquejar l'original amb `FOR UPDATE`, revalidar el snapshot, inserir `factura_rectificacio` i marcar l'original `RECTIFIED` **abans del COMMIT de la mateixa transacció**. També s'ha afegit una prova d'injecció de fallada que exigeix rollback de `factura`, línies, registre, cua i relacions.
 
-**Evidència disponible:** la suite específica UC-005 va passar 34/34 incloent rollback transaccional. **Pendent:** concurrència específica sobre l'original i revalidació posterior al merge amb `main`.
+**Evidència disponible:** la suite específica UC-005 va passar 34/34 incloent rollback transaccional. A la branca s'ha afegit `ManualRectificationConcurrencyTest` + `ConcurrentRectificationWorker`, que força una transacció A a mantenir el lock mentre B intenta la mateixa correcció i exigeix una sola R; **pendent execució CI** de la nova prova i preproducció.
 
 ### UC005-F02 — TANCAT PARCIALMENT / AEAT SIMPLE IMPLEMENTAT · fiscalitat fail-closed
 
@@ -95,7 +95,7 @@ UC-005 només es pot marcar tancat quan:
 **DOCUMENTAT:** sí, paquet estructural complet.  
 **IMPLEMENTAT:** nucli rectificatiu, atomicitat, aliases, fiscalitat fail-closed, SUBSTITUCIO amb receptor, command intern signat, preview/confirm, guard UC-74, auditoria i suite UC-005 aïllada.  
 **VERIFICAT:** revisió estàtica, suite específica UC-005 verda 34/34 abans del reforç de decisió persistida, incloent atomicitat, fiscalitat local, command, permisos i protocol AEAT.  
-**PENDENT:** revalidació CI, productor/classificador UC-74 executable, perfils AEAT complexos, concurrència E2E, document E2E i preproducció. El consumidor UI/proxy preview/confirm ja està implementat.
+**PENDENT:** revalidació CI (inclosa concurrència multiprocés), productor/classificador UC-74 executable, perfils AEAT complexos, document E2E i preproducció. El consumidor UI/proxy preview/confirm ja està implementat.
 
 ### UC005-F10 — P1 TRANSVERSAL · no hi ha productor/worker de documents fiscals
 
