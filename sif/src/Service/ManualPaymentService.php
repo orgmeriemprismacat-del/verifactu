@@ -47,12 +47,7 @@ final class ManualPaymentService
 
     private function registerForInvoice(\PDO $sifDb, array $invoice, array $input): array
     {
-        $input['num_visible'] = $input['num_visible'] ?? ($invoice['NUM_VISIBLE'] ?? null);
-        $payload = $this->manualPayments->forExistingInvoice((string) $invoice['UUID_FACTURA'], $input);
-        $result = $this->payments->registerPayment($payload);
-        $result['uuid_factura'] = $invoice['UUID_FACTURA'];
-        $result['num_visible'] = $invoice['NUM_VISIBLE'];
-
+        $preparedParticipantAllocations = null;
         if (array_key_exists('participant_allocations', $input)) {
             if (!is_array($input['participant_allocations']) || $this->participantFunds === null) {
                 throw SifException::validation(
@@ -60,11 +55,24 @@ final class ManualPaymentService
                 );
             }
 
+            $preparedParticipantAllocations = $this->participantFunds->validateRequest(
+                $input['participant_allocations'],
+                $input['amount'] ?? null
+            );
+        }
+
+        $input['num_visible'] = $input['num_visible'] ?? ($invoice['NUM_VISIBLE'] ?? null);
+        $payload = $this->manualPayments->forExistingInvoice((string) $invoice['UUID_FACTURA'], $input);
+        $result = $this->payments->registerPayment($payload);
+        $result['uuid_factura'] = $invoice['UUID_FACTURA'];
+        $result['num_visible'] = $invoice['NUM_VISIBLE'];
+
+        if ($preparedParticipantAllocations !== null) {
             $result['participant_allocations'] = $this->participantFunds->allocate(
                 $sifDb,
                 (string) $result['uuid_payment'],
                 (string) $invoice['UUID_FACTURA'],
-                $input['participant_allocations'],
+                $preparedParticipantAllocations,
                 'MANUAL_PAYMENT|' . (string) $result['uuid_payment']
             );
         }
