@@ -112,6 +112,9 @@ function parseManualRefundArgs(array $args): array
         'method' => ['--method=', '--metode='],
         'notes' => ['--notes=', '--obs=', '--observations='],
         'allocation_type' => ['--allocation-type='],
+        'source_enrollment_id' => ['--source-enrollment-id=', '--id-insc-origin=', '--id-insc-origen='],
+        'correlation_id' => ['--correlation-id='],
+        'uuid_operation' => ['--uuid-operation='],
     ] as $key => $prefixes) {
         $value = optionValue($args, $prefixes);
         if ($value !== null) {
@@ -168,7 +171,7 @@ function usage(string $script): void
 {
     fwrite(
         STDERR,
-        "Usage: php sif/scripts/{$script}-manual-refund.php (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE [--reference=REF] [--bank=BANK] [--method=TRANSFERENCIA|MANUAL] [--notes=TEXT]\n"
+        "Usage: php sif/scripts/{$script}-manual-refund.php (--uuid-factura=UUID|--num-visible=NUM) AMOUNT MOVEMENT_DATE [--reference=REF] [--bank=BANK] [--method=TRANSFERENCIA|MANUAL] [--notes=TEXT] [--source-enrollment-id=ID] [--correlation-id=ID] [--uuid-operation=UUID]\n"
     );
     exit(1);
 }
