@@ -10,6 +10,7 @@ use Prisma\Sif\Repository\UsocFinancingTermsRepository;
 use Prisma\Sif\Service\RedsysCoursePaymentIntentService;
 use Prisma\Sif\Service\RedsysDsOrderGenerator;
 use Prisma\Sif\Service\RedsysPaymentIntentService;
+use Prisma\Sif\Service\UsocFinancingTermsStateHasher;
 use Prisma\Sif\Tests\Support\Assert;
 use Prisma\Sif\Tests\Support\TestDatabase;
 
@@ -135,7 +136,16 @@ final class RedsysCoursePaymentIntentServiceTest
             '25.00',
             'secretaria-test',
             ['ADMIN'],
-            str_repeat('a', 64)
+            (new UsocFinancingTermsStateHasher())->hash([
+                'ID' => 710,
+                'IDPAG' => 700,
+                'ANY' => 2026,
+                'MES' => '10',
+                'CURS' => 'ABC',
+                'TIPUS_DESC' => 4,
+                'VALID_DESC' => 1,
+                'A_PAGAR' => '75.00',
+            ])
         );
         $sifDb->commit();
 
@@ -169,6 +179,59 @@ final class RedsysCoursePaymentIntentServiceTest
         Assert::same((string) $prepared['UUID_TERMS'], (string) $snapshot['usoc']['terms_uuid']);
         Assert::same(4, (int) $snapshot['inscription']['TIPUS_DESC']);
         Assert::same(1, (int) $snapshot['inscription']['VALID_DESC']);
+    }
+
+    public function testRejectsPreparedUsocTermsAfterCourseIdentityChanges(): void
+    {
+        $sifDb = TestDatabase::fresh();
+        $terms = new UsocFinancingTermsRepository(new UuidGenerator());
+
+        $sifDb->beginTransaction();
+        $terms->prepare(
+            $sifDb,
+            'req-usoc-stale-terms',
+            710,
+            700,
+            '75.00',
+            '25.00',
+            'secretaria-test',
+            ['ADMIN'],
+            (new UsocFinancingTermsStateHasher())->hash([
+                'ID' => 710,
+                'IDPAG' => 700,
+                'ANY' => 2026,
+                'MES' => '09',
+                'CURS' => 'OLD',
+                'TIPUS_DESC' => 4,
+                'VALID_DESC' => 1,
+                'A_PAGAR' => '75.00',
+            ])
+        );
+        $sifDb->commit();
+
+        $exception = Assert::throws(SifException::class, function () use ($sifDb, $terms): void {
+            $this->service($terms)->create(
+                $sifDb,
+                $this->legacyDb(false, '75.00', '0.00', 4, 1),
+                [
+                    'idpag' => 700,
+                    'requested_amount' => '75.00',
+                    'terminal' => '1',
+                    'ds_order' => '700000000010',
+                ]
+            );
+        }, 409);
+
+        Assert::same(
+            'Prepared USOC financing terms no longer match the current course state.',
+            $exception->getMessage()
+        );
+        Assert::same(
+            0,
+            (int) $sifDb->query(
+                "SELECT COUNT(*) FROM redsys_payment_intent WHERE DS_ORDER='700000000010'"
+            )->fetchColumn()
+        );
     }
 
     public function testPendingUsocCannotStartPaymentBeforeValidation(): void
