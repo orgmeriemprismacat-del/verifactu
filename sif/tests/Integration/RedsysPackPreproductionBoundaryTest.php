@@ -36,7 +36,46 @@ final class RedsysPackPreproductionBoundaryTest
         }
     }
 
-    public function testVerifierRequiresExplicitExecuteBeforePackProcessor(): void
+    public function testVerifierRejectsExecuteAndDiagnosticModesTogetherBeforeMutation(): void
+    {
+        $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
+
+        Assert::stringContainsString('if ($execute && $diagnosticProcess)', $source);
+        Assert::stringContainsString("'execution_mode_is_unambiguous'", $source);
+
+        $modeGuard = strpos($source, 'if ($execute && $diagnosticProcess)');
+        $preflight = strpos($source, '$preflightPack = runJsonScript(');
+        $execute = strpos($source, 'if ($execute) {');
+
+        Assert::same(true, $modeGuard !== false);
+        Assert::same(true, $preflight !== false);
+        Assert::same(true, $execute !== false);
+        Assert::same(true, $modeGuard < $preflight);
+        Assert::same(true, $modeGuard < $execute);
+    }
+
+    public function testVerifierStopsBeforeMutationWhenPreflightOrPreviewFails(): void
+    {
+        $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
+
+        Assert::stringContainsString('$preExecutionFailures = array_keys(array_filter(', $source);
+        Assert::stringContainsString("'pre_execution_ready'", $source);
+        Assert::stringContainsString(
+            'if (($execute || $diagnosticProcess) && $preExecutionFailures !== [])',
+            $source
+        );
+
+        $guard = strpos(
+            $source,
+            'if (($execute || $diagnosticProcess) && $preExecutionFailures !== [])'
+        );
+        $execute = strpos($source, 'if ($execute) {');
+        Assert::same(true, $guard !== false);
+        Assert::same(true, $execute !== false);
+        Assert::same(true, $guard < $execute);
+    }
+
+    public function testVerifierExecutesTargetedProductionWorkerBeforeEvidenceVerification(): void
     {
         $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
 
@@ -45,18 +84,35 @@ final class RedsysPackPreproductionBoundaryTest
             $source
         );
         Assert::stringContainsString('if ($execute) {', $source);
+        Assert::stringContainsString('/scripts/process-redsys-callback-queue.php', $source);
+        Assert::stringContainsString("'--limit=1'", $source);
+        Assert::stringContainsString("'--ds-order=' . $dsOrder", $source);
+        Assert::stringContainsString('/scripts/verify-redsys-pack-evidence.php', $source);
+        Assert::stringContainsString("'worker_targeted'", $source);
+        Assert::stringContainsString("'worker_claimed_one'", $source);
+        Assert::stringContainsString("'worker_processed_one'", $source);
+        Assert::stringContainsString("'evidence_ok'", $source);
 
         $executePosition = strpos($source, 'if ($execute) {');
-        if ($executePosition === false) {
-            Assert::fail('Execute block not found');
-        }
+        $diagnosticPosition = strpos($source, 'if ($diagnosticProcess) {');
+        Assert::same(true, $executePosition !== false);
+        Assert::same(true, $diagnosticPosition !== false);
+        Assert::same(true, $executePosition < $diagnosticPosition);
 
-        $beforeExecute = substr($source, 0, $executePosition);
-        Assert::same(false, str_contains($beforeExecute, '/scripts/process-redsys-pack.php'));
+        $executeBlock = substr($source, $executePosition, $diagnosticPosition - $executePosition);
+        Assert::same(false, str_contains($executeBlock, '/scripts/process-redsys-pack.php'));
+    }
 
-        $executeBlock = substr($source, $executePosition);
-        Assert::stringContainsString('/scripts/process-redsys-pack.php', $executeBlock);
-        Assert::stringContainsString('--sync-legacy', $executeBlock);
+    public function testTargetedWorkerCliRejectsEmptyDsOrderFilter(): void
+    {
+        $source = $this->read('sif/scripts/process-redsys-callback-queue.php');
+
+        Assert::stringContainsString('$dsOrderFilterRequested = false;', $source);
+        Assert::stringContainsString('$dsOrderFilterRequested = true;', $source);
+        Assert::stringContainsString(
+            "($dsOrderFilterRequested && $dsOrder === '')",
+            $source
+        );
     }
 
     public function testVerifierRequiresPackEconomicAndNotificationEvidence(): void
@@ -64,27 +120,24 @@ final class RedsysPackPreproductionBoundaryTest
         $source = $this->read('sif/scripts/verify-redsys-pack-preproduction.php');
 
         foreach ([
-            'process_has_invoice_identity',
-            'process_has_payment_identity',
-            'fund_allocation_present',
-            'fund_allocation_has_multiple_components',
-            'fund_allocation_amount_positive',
-            'fund_allocation_matches_preview_total',
-            'fund_allocation_movements_have_identity',
-            'notification_outbox_present',
-            'notification_outbox_has_identity',
-            'legacy_sync_executed',
+            'worker_exit_zero',
+            'worker_ok',
+            'worker_targeted',
+            'worker_claimed_one',
+            'worker_processed_one',
+            'evidence_exit_zero',
+            'evidence_ok',
             'preview_payment_matches_total',
         ] as $check) {
             Assert::stringContainsString("'" . $check . "'", $source);
         }
 
         Assert::stringContainsString(
-            "count(\$fundMovements) === \$fundCount",
+            "'evidence_' . \$name",
             $source
         );
         Assert::stringContainsString(
-            "money(\$fundAmount) === money(\$previewTotal)",
+            "verify-redsys-pack-evidence.php",
             $source
         );
     }
@@ -130,6 +183,7 @@ final class RedsysPackPreproductionBoundaryTest
             'process_script_present',
             'queue_preflight_script_present',
             'verification_script_present',
+            'evidence_script_present',
         ] as $check) {
             Assert::stringContainsString("'" . $check . "'", $source);
         }

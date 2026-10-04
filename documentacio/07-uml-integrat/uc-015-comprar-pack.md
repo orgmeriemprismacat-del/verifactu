@@ -297,7 +297,9 @@ Note over UI,Fiscal: La variant dividida no és UC-23 i l'orquestrador de parts 
 
 ## Preproducció canònica
 
-Els scripts Redsys de PACK consumeixen ara el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only i el processor manual injecta ledger/outbox i pot fer la sincronització legacy completa amb `--sync-legacy`. `verify-redsys-pack-preproduction.php` és l'orquestrador canònic: preflight PACK + preflight de cua + preview, i només processa amb `--execute`; comprova identitat de factura/payment, N atribucions, suma del ledger, outbox i, si es demana, sync legacy. La seva evidència resumeix totals sense copiar el payload fiscal complet. Continua pendent executar-lo contra un `DS_ORDER` real de preproducció.
+Els scripts Redsys de PACK consumeixen el `SNAPSHOT_JSON` de la intenció `SOURCE_TYPE=PACK`. El preview és read-only. `verify-redsys-pack-preproduction.php` és l'orquestrador canònic: preflight PACK + preflight de cua + preview i, només amb `--execute`, executa el **worker real de la cua filtrat pel mateix `DS_ORDER`**. Després llança `verify-redsys-pack-evidence.php` i agrega la verificació persistent de callback processat, factura/payment, N atribucions, ledger, outbox, registre/cua fiscal i sync legacy.
+
+El processador `process-redsys-pack.php` es conserva només sota `--diagnostic-process`: comparteix serveis de domini però no substitueix l'evidència callback→queue→worker. La sortida d'evidència resumeix identificadors/totals i saneja secrets/payloads sensibles. Continua pendent executar el flux contra un `DS_ORDER` real de preproducció.
 
 
 ## Revalidació 2026-10-02

@@ -134,6 +134,98 @@ final class RedsysPackWorkerEndToEndTest
         Assert::same(8, count($legacyDb->preparedSql));
     }
 
+    public function testTargetedWorkerProcessesOnlyRequestedDsOrder(): void
+    {
+        $db = TestDatabase::fresh();
+        $snapshot = $this->snapshot();
+        $intentService = new RedsysPaymentIntentService(
+            new RedsysPaymentIntentRepository(),
+            new UuidGenerator()
+        );
+        $notifications = new RedsysNotificationRepository();
+        $queue = new RedsysCallbackQueueRepository(new UuidGenerator());
+
+        $orders = ['ORDERPACKTARGETA', 'ORDERPACKTARGETB'];
+        foreach ($orders as $order) {
+            $intent = $intentService->create($db, [
+                'ds_order' => $order,
+                'idpag' => 910,
+                'source_type' => 'PACK',
+                'source_id' => '77',
+                'expected_amount' => '210.00',
+                'currency' => 'EUR',
+                'terminal' => '1',
+                'snapshot' => $snapshot,
+            ]);
+
+            $notification = $notifications->recordReceived(
+                $db,
+                $order,
+                910,
+                '210.00',
+                '0000',
+                true,
+                [
+                    'source' => 'pack-worker-targeted',
+                    'currency_code' => '978',
+                    'terminal' => '1',
+                    'signature_version' => 'HMAC_SHA256_V1',
+                    'payload_hash' => hash('sha256', $order),
+                ],
+                'VALIDATED'
+            );
+
+            $queue->enqueue(
+                $db,
+                (int) $notification['notification_id'],
+                (string) $intent['uuid_intent']
+            );
+        }
+
+        $db->prepare(
+            "UPDATE redsys_callback_queue q
+             JOIN redsys_notifications n ON n.ID = q.NOTIFICATION_ID
+             SET q.STATUS = 'PROCESSING', q.ATTEMPTS = 1,
+                 q.LOCKED_AT = '2030-10-01 09:00:00',
+                 q.LOCKED_BY = 'other-worker'
+             WHERE n.DS_ORDER = ?"
+        )->execute([$orders[1]]);
+
+        $worker = $this->worker(
+            $db,
+            $notifications,
+            $queue,
+            new RedsysPackWorkerLegacyPdo()
+        );
+
+        $result = $worker->runOneForDsOrder(
+            $db,
+            $orders[0],
+            'uc015-targeted-worker',
+            new \DateTimeImmutable('2030-10-01 10:00:00')
+        );
+
+        Assert::same(true, $result['ok']);
+
+        $stmt = $db->prepare(
+            'SELECT n.DS_ORDER, q.STATUS, q.ATTEMPTS
+             FROM redsys_callback_queue q
+             JOIN redsys_notifications n ON n.ID = q.NOTIFICATION_ID
+             WHERE n.DS_ORDER IN (?, ?)
+             ORDER BY n.DS_ORDER'
+        );
+        $stmt->execute($orders);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        Assert::same(2, count($rows));
+        Assert::same($orders[0], $rows[0]['DS_ORDER']);
+        Assert::same('PROCESSED', $rows[0]['STATUS']);
+        Assert::same(1, (int) $rows[0]['ATTEMPTS']);
+        Assert::same($orders[1], $rows[1]['DS_ORDER']);
+        Assert::same('PROCESSING', $rows[1]['STATUS']);
+        Assert::same(1, (int) $rows[1]['ATTEMPTS']);
+    }
+
     private function worker(
         \PDO $db,
         RedsysNotificationRepository $notifications,

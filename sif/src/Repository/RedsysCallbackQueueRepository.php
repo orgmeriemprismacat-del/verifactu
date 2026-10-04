@@ -95,6 +95,64 @@ final class RedsysCallbackQueueRepository
         }
     }
 
+    public function claimByDsOrder(
+        \PDO $db,
+        string $dsOrder,
+        string $workerId,
+        \DateTimeImmutable $now
+    ): ?array {
+        $dsOrder = trim($dsOrder);
+        if ($dsOrder === '') {
+            throw SifException::validation('DS_ORDER is required');
+        }
+
+        $timestamp = $now->format('Y-m-d H:i:s');
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare(
+                "SELECT q.*, n.DS_ORDER, i.SOURCE_TYPE, i.SOURCE_ID, i.SNAPSHOT_JSON
+                 FROM redsys_callback_queue q
+                 JOIN redsys_notifications n ON n.ID = q.NOTIFICATION_ID
+                 JOIN redsys_payment_intent i ON i.UUID_INTENT = q.UUID_INTENT
+                 WHERE n.DS_ORDER = ?
+                   AND q.STATUS IN ('QUEUED', 'RETRY')
+                   AND q.AVAILABLE_AT <= ?
+                 LIMIT 1
+                 FOR UPDATE"
+            );
+            $stmt->execute([$dsOrder, $timestamp]);
+            $job = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$job) {
+                $db->commit();
+
+                return null;
+            }
+
+            $db->prepare(
+                "UPDATE redsys_callback_queue
+                 SET STATUS = 'PROCESSING', ATTEMPTS = ATTEMPTS + 1,
+                     LOCKED_AT = ?, LOCKED_BY = ?
+                 WHERE ID = ?"
+            )->execute([$timestamp, $workerId, $job['ID']]);
+            $db->commit();
+
+            $job['STATUS'] = 'PROCESSING';
+            $job['ATTEMPTS'] = (int) $job['ATTEMPTS'] + 1;
+            $job['LOCKED_AT'] = $timestamp;
+            $job['LOCKED_BY'] = $workerId;
+
+            return $job;
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
     public function markProcessed(\PDO $db, int $id, array $result, \DateTimeImmutable $now): void
     {
         $json = json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -152,6 +210,34 @@ final class RedsysCallbackQueueRepository
         if ($stmt->rowCount() !== 1) {
             throw SifException::conflict('Redsys callback job is not owned by this worker');
         }
+    }
+
+    public function recoverStaleLockByDsOrder(
+        \PDO $db,
+        string $dsOrder,
+        \DateTimeImmutable $now
+    ): int {
+        $dsOrder = trim($dsOrder);
+        if ($dsOrder === '') {
+            throw SifException::validation('DS_ORDER is required');
+        }
+
+        $stmt = $db->prepare(
+            "UPDATE redsys_callback_queue q
+             JOIN redsys_notifications n ON n.ID = q.NOTIFICATION_ID
+             SET q.STATUS = 'RETRY', q.AVAILABLE_AT = ?, q.LOCKED_AT = NULL,
+                 q.LOCKED_BY = NULL, q.LAST_ERROR = 'Recovered stale processing lock'
+             WHERE n.DS_ORDER = ?
+               AND q.STATUS = 'PROCESSING'
+               AND q.LOCKED_AT < ?"
+        );
+        $stmt->execute([
+            $now->format('Y-m-d H:i:s'),
+            $dsOrder,
+            $now->modify('-15 minutes')->format('Y-m-d H:i:s'),
+        ]);
+
+        return $stmt->rowCount();
     }
 
     public function recoverStaleLocks(\PDO $db, \DateTimeImmutable $now): int

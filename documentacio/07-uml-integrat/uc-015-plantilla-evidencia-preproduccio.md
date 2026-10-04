@@ -53,19 +53,34 @@ Comprovar:
 
 ## 4. Execució
 
-Flux productiu preferit:
+Flux d'acceptació canònic, dirigit només al DS_ORDER de la prova:
 
 ```bash
-php sif/scripts/process-redsys-callback-queue.php --limit=25 --worker-id=uc015-preproduction
+php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER> --execute
 ```
 
-Processor manual controlat, només si cal diagnosticar un DS_ORDER ja validat:
+Aquest comandament:
+- exigeix que **tots** els checks de preflight i preview siguin verds abans de qualsevol mutació;
+- executa el worker real de `redsys_callback_queue`;
+- el limita a `--ds-order=<DS_ORDER>`, de manera que no consumeix callbacks aliens;
+- exigeix exactament un job reclamat i processat;
+- executa després `verify-redsys-pack-evidence.php` i agrega tots els checks post-worker.
+
+Execució manual del worker, si cal operar fora del verificador:
 
 ```bash
-php sif/scripts/process-redsys-pack.php <DS_ORDER> --sync-legacy
+php sif/scripts/process-redsys-callback-queue.php --limit=1 --worker-id=uc015-preproduction --ds-order=<DS_ORDER>
+```
+
+Processor manual controlat, **només diagnòstic** i no vàlid com a substitut de l'E2E de cua:
+
+```bash
+php sif/scripts/verify-redsys-pack-preproduction.php <DS_ORDER> --diagnostic-process
 ```
 
 ## 5. Verificació automàtica post-execució
+
+El mode `--execute` ja llança aquesta verificació automàticament. També es pot repetir en read-only:
 
 ```bash
 php sif/scripts/verify-redsys-pack-evidence.php <DS_ORDER>
@@ -165,6 +180,7 @@ Per UC-015 és suficient acreditar l'**enqueue idempotent**.
 - [ ] PK-E2E-03 PASS
 - [ ] PK-E2E-04 PASS
 - [ ] PK-E2E-05 PASS
+- [ ] `verify-redsys-pack-preproduction.php <DS_ORDER> --execute` amb worker dirigit i `ok=true`
 - [ ] verificador post-execució `ok=true`
 - [x] callbacks fiscals PACK legacy de producció retirats físicament
 - [x] ordre comercial v1 documentat: `DATAI, ID_CURS` → `PACK_ORDINAL`

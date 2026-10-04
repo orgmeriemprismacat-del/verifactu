@@ -596,3 +596,21 @@ Correcció:
 - UML integrat incorpora la frontera pública i elimina els pendents ja resolts.
 
 **Estat:** les quatre famílies UML queden reconciliades amb el HEAD de codi actual.
+
+
+### F-23 · Verificador `--execute` no acreditava la cua/worker productius — corregit 04/10
+
+En revalidar el `main` posterior al PR #102 s'ha comprovat que `verify-redsys-pack-preproduction.php --execute` cridava `process-redsys-pack.php`. Aquest script reutilitza el servei PACK i és útil per diagnòstic, però evita `RedsysCallbackQueueRepository` i `RedsysCallbackWorker`; per tant, no podia considerar-se evidència completa de callback→queue→worker.
+
+**Correcció aplicada:**
+- claim dirigit per `DS_ORDER`;
+- recuperació de lock stale dirigida pel mateix `DS_ORDER`, sense modificar altres jobs;
+- worker productiu executable per `runOneForDsOrder()`;
+- CLI de cua amb `--ds-order=`;
+- `verify-redsys-pack-preproduction.php --execute` executa el worker real, exigeix un job reclamat/processat i després llança el verificador persistent;
+- `--execute` i `--diagnostic-process` es rebutgen si apareixen junts abans de qualsevol operació;
+- preflight + preview formen una porta fail-closed prèvia: si qualsevol check falla, no s'executa ni worker ni processador diagnòstic;
+- el processador manual queda sota `--diagnostic-process`;
+- prova amb dos callbacks en cua que acredita que el mode dirigit no consumeix el callback no objectiu.
+
+**Estat:** codi implementat a la branca de revalidació 04/10; subjecte a CI del HEAD i merge.

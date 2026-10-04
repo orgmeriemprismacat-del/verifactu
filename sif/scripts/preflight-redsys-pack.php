@@ -49,6 +49,7 @@ $checks = [
     'process_script_present' => is_file(dirname(__DIR__) . '/scripts/process-redsys-pack.php'),
     'queue_preflight_script_present' => is_file(dirname(__DIR__) . '/scripts/preflight-redsys-callback-queue.php'),
     'verification_script_present' => is_file(dirname(__DIR__) . '/scripts/verify-redsys-pack-preproduction.php'),
+    'evidence_script_present' => is_file(dirname(__DIR__) . '/scripts/verify-redsys-pack-evidence.php'),
     'fiscal_chain_state_seeded' => false,
     'legacy_inscripcions_table' => false,
     'legacy_curs_table' => false,
