@@ -114,3 +114,14 @@ SIF_DOCUMENT_ROOT
 I, quan s'activin els fluxos corresponents, Redsys, AEAT, rols, workers i paths específics de cada UC.
 
 Els valors reals i secrets no es versionen.
+
+## Plantilles de referència
+
+Les plantilles següents serveixen només com a inventari de variables; `sif/config/sif.php` no les carrega automàticament:
+
+- `environments/development.env.example`
+- `environments/test.env.example`
+- `environments/preproduction.env.example`
+- `environments/production.env.example`
+
+Cal traslladar els valors reals al mecanisme de configuració del hosting/runtime de cada domini.
