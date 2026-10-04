@@ -194,7 +194,73 @@ end
 
 Les metadades de traça no alteren el fingerprint v2.
 
-## 6. FINAL — intranet → SIF autoritatiu → sync llegat
+## 6. ACTUAL — mode autoritatiu darrere `SIF_UC002_AUTHORITATIVE`
+
+~~~mermaid
+sequenceDiagram
+autonumber
+actor Op as Operador
+participant UI as alumnes-pagaments.js
+participant Token as sifPagamentFacturaToken.php
+participant Proxy as sifPagamentFactura.php
+participant Access as SifExistingInvoicePaymentAccess
+participant Client as SifInternalApiClient
+participant API as /api/payments/register.php
+participant Cmd as ExistingInvoicePaymentCommandService
+participant Manual as ManualPaymentService
+participant PS as PaymentService
+participant Proj as ExistingInvoiceLegacyProjectionService
+participant Legacy as Uc002LegacyPaymentProjectionApplier
+
+UI->>Token: GET
+Token->>Access: resolve actor/rol + csrfToken()
+Token-->>UI: csrf_token + authoritative=true
+Op->>UI: confirma factura existent
+UI->>UI: obtenir/reutilitzar request UUID de sessionStorage
+UI->>Proxy: POST JSON + X-CSRF-Token
+Proxy->>Access: actor/rol + assertCsrf()
+alt banc = tpv
+  Proxy--xUI: 409 · usar flux Redsys
+else banc = Caixa/BBVA
+  Proxy->>Client: registerExistingInvoicePayment()
+  Client->>API: POST HMAC + actor/roles/request-id intern
+  API->>Cmd: register_existing_invoice
+  Cmd->>Manual: registerByNumVisible()
+  Manual->>PS: registerPayment(idempotency=INTRANET|UC002|REQ:...)
+  alt primer intent
+    PS-->>Cmd: UUID_PAYMENT nou
+  else retry equivalent
+    PS-->>Cmd: mateix UUID_PAYMENT · reused=true
+  end
+  Cmd->>Proj: build(UUID_FACTURA)
+  Proj-->>Cmd: imports absoluts per ID_INSC
+  Cmd-->>Proxy: payment_committed=true + projection
+  alt projecció READY
+    Proxy->>Legacy: apply(... FOR UPDATE, transacció)
+    alt sync ok
+      Legacy-->>Proxy: SYNCED
+      Proxy-->>UI: 200 · SYNCED
+      UI->>UI: elimina request UUID de sessionStorage
+    else sync falla
+      Legacy--xProxy: error
+      Proxy-->>UI: 202 · PENDING_RETRY
+      Note over UI,PS: el mateix request UUID reutilitza el CHARGE
+    end
+  else projecció pendent
+    Proxy-->>UI: 202 · PENDING_RETRY
+  end
+end
+~~~
+
+### Fail-closed del llegat
+
+Quan `SIF_UC002_AUTHORITATIVE=1`, una petició `efact=1` al vell `efectuarPagament.php` rep **409**. Per tant, una fallada d'inicialització JS/CSRF no pot fer caure silenciosament el cobrament al writer econòmic llegat.
+
+### Descoberta SIF-only encara pendent
+
+El command pot cobrar per `NUM_VISIBLE`, però la cerca visual llegada encara depèn del model antic. Per una factura SIF-only cal implementar un fallback de cerca+confirmació SIF complet abans d'activar el flag per aquest tipus de document.
+
+## 7. FINAL — intranet → SIF autoritatiu → sync llegat
 
 ~~~mermaid
 sequenceDiagram
@@ -239,7 +305,7 @@ Adapter->>Outbox: enqueue notificació post-commit
 Adapter-->>UI: JSON tipificat
 ~~~
 
-## 7. FINAL — pèrdua de resposta HTTP
+## 8. FINAL — pèrdua de resposta HTTP
 
 ~~~mermaid
 sequenceDiagram
@@ -260,7 +326,7 @@ API-->>UI: REUSED + UUID P
 
 No hi ha un segon moviment econòmic.
 
-## 8. FINAL — fallada de sync llegat o correu
+## 9. FINAL — fallada de sync llegat o correu
 
 ~~~mermaid
 sequenceDiagram
