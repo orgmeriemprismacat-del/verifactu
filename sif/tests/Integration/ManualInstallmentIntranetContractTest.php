@@ -27,6 +27,13 @@ final class ManualInstallmentIntranetContractTest
         Assert::stringContainsString("var button = $('#upd-insc-' + idTipus)", $js);
         Assert::stringContainsString("idInsc: idInscSif", $js);
         Assert::stringContainsString("externalReference: externalReference", $js);
+        Assert::stringContainsString(
+            'dataType: sifInstallmentEnforced ? "json" : "html"',
+            $js
+        );
+        Assert::stringContainsString("msg.status === 'REUSED'", $js);
+        Assert::stringContainsString("jqXHR.responseJSON.status", $js);
+        Assert::stringContainsString("typed === 'PENDING_RETRY'", $js);
 
         if (str_contains($js, "var button = $('#upd-inscripcio-' + idTipus)")) {
             Assert::fail('UC-023 retry identity must attach to the actual upd-insc-* element');
@@ -39,6 +46,9 @@ final class ManualInstallmentIntranetContractTest
         Assert::stringContainsString("$sifInput['ds_order'] = $externalReference", $endpoint);
         Assert::stringContainsString("$sifInput['reference'] = $externalReference", $endpoint);
         Assert::stringContainsString("SIF_INSTALLMENT_PAYMENT_ENFORCED", $endpoint);
+        Assert::stringContainsString("'status' => \$reused ? 'REUSED' : 'CREATED'", $endpoint);
+        Assert::stringContainsString("'CONFLICT'", $endpoint);
+        Assert::stringContainsString("'PENDING_RETRY'", $endpoint);
         Assert::stringContainsString(
             "cal emetre la factura abans de registrar el cobrament al SIF",
             $endpoint
