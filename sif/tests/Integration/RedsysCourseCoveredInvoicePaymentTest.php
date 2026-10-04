@@ -233,6 +233,75 @@ final class RedsysCourseCoveredInvoicePaymentTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
     }
 
+    public function testCoveredResolverRejectsNonCanonicalPaymentKey(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->issueBeforePayment($db, '95.50');
+        $resolver = new RedsysCoveredInvoicePaymentService(
+            new InvoiceBeforePaymentCoverageRepository(),
+            RegisterPaymentTest::paymentServiceFor($db)
+        );
+        $payload = $this->coveredPayload('UC003KEY0001', '95.50');
+        $payload['payment']['idempotency_key'] = 'PAYMENT|REDSYS|ORDER:OTHER';
+
+        Assert::throws(SifException::class, function () use ($db, $resolver, $payload): void {
+            $resolver->registerIfCovered(
+                $db,
+                'UC003KEY0001',
+                $this->snapshot('95.50', '95.50'),
+                $payload
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
+    public function testCoveredResolverRejectsProviderReferenceDifferentFromOrder(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->issueBeforePayment($db, '95.50');
+        $resolver = new RedsysCoveredInvoicePaymentService(
+            new InvoiceBeforePaymentCoverageRepository(),
+            RegisterPaymentTest::paymentServiceFor($db)
+        );
+        $payload = $this->coveredPayload('UC003REF0001', '95.50');
+        $payload['payment']['provider_ref'] = 'OTHER-ORDER';
+
+        Assert::throws(SifException::class, function () use ($db, $resolver, $payload): void {
+            $resolver->registerIfCovered(
+                $db,
+                'UC003REF0001',
+                $this->snapshot('95.50', '95.50'),
+                $payload
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
+    public function testCoveredResolverRejectsIdpagDifferentFromFrozenSnapshot(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->issueBeforePayment($db, '95.50');
+        $resolver = new RedsysCoveredInvoicePaymentService(
+            new InvoiceBeforePaymentCoverageRepository(),
+            RegisterPaymentTest::paymentServiceFor($db)
+        );
+        $payload = $this->coveredPayload('UC003IDP0001', '95.50');
+        $payload['payment']['idpag'] = 999;
+
+        Assert::throws(SifException::class, function () use ($db, $resolver, $payload): void {
+            $resolver->registerIfCovered(
+                $db,
+                'UC003IDP0001',
+                $this->snapshot('95.50', '95.50'),
+                $payload
+            );
+        }, 409);
+
+        Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+    }
+
     public function testOriginMutexSerializesUc004AndRedsysAtReadCommitted(): void
     {
         $dbA = TestDatabase::fresh();
