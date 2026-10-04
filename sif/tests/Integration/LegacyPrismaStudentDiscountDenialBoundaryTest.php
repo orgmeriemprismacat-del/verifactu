@@ -53,6 +53,21 @@ final class LegacyPrismaStudentDiscountDenialBoundaryTest
         Assert::stringContainsString('$preuDescompte = $preuDescAlumne;', $flow);
     }
 
+    public function testDeniedDocumentalDiscountPromotesEligiblePrismaStudentToPayableState(): void
+    {
+        $source = $this->readIntranet();
+        $marker = strpos($source, '$tipus = 1;');
+        Assert::same(true, $marker !== false);
+
+        $flow = substr($source, $marker, 900);
+        Assert::stringContainsString('$validDesc = 1;', $flow);
+        Assert::stringContainsString('$preuDescompte = $preuDescAlumne;', $flow);
+
+        $validPos = strpos($flow, '$validDesc = 1;');
+        $pricePos = strpos($flow, '$preuDescompte = $preuDescAlumne;');
+        Assert::same(true, $validPos !== false && $pricePos !== false && $validPos < $pricePos);
+    }
+
     private function readIntranet(): string
     {
         $root = dirname(__DIR__, 3);
