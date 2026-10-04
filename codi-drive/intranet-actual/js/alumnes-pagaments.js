@@ -1,6 +1,7 @@
 let urlPagina = window.location.pathname.split('?')[0];
 let path = "https://intranet.prisma.cat/ajax/";
 let csrfAlumnesPagaments = $('meta[name="csrf-alumnes-pagaments"]').attr('content') || '';
+let sifInstallmentEnforced = ($('meta[name="sif-installment-enforced"]').attr('content') || '0') === '1';
 
 /* Cada vegada que es faci una crida d'un ajax, s'executarà la funció mostrarModalLoading().
 Cada vegada que finalitza la crida d'un ajax, s'executarà la funció amagarLoadingModal(). */
@@ -215,17 +216,23 @@ requestMain.done(function( message ) {
 
 						var efactPagament = $('#efact-'+idTipus).html().trim();
 						var numeroFact = $('#numFact-'+idTipus).html().trim();
+						var idInscSif = $('#idInsc-' + idTipus).html().trim();
+						var externalReference = ($('#reference-' + idTipus).val() || '').trim();
+						var esValidReference = '';
+						if (sifInstallmentEnforced && externalReference == '') {
+							esValidReference = 'Cal indicar la referència bancària o DS_ORDER del cobrament.';
+						}
 
-						if ( esValidPagament == '' && esValidData == '' && esValidBanc == '' ) {
+						if ( esValidPagament == '' && esValidData == '' && esValidBanc == '' && esValidReference == '' ) {
 
 							if ( efactPagament == 1 ) {
 								console.log('previsualitzacio');
-								mostrarModalConfirmacioPagament(numeroFact, idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc);
+								mostrarModalConfirmacioPagament(numeroFact, idTipus, idInscSif, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, externalReference);
 							}
 							else {
 								console.log('enviar pagament');
 								mostrarModalLoading();
-								aplicarPagament(idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, numeroFact, 0);
+								aplicarPagament(idTipus, idInscSif, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, externalReference, numeroFact, 0);
 							}
 						}
 						else {
@@ -236,6 +243,9 @@ requestMain.done(function( message ) {
 
 							if ( msgError != '' && esValidBanc != '' ) msgError += "<br>" + esValidBanc;
 							else if ( msgError == '' && esValidBanc != '' ) msgError = esValidBanc;
+
+							if ( msgError != '' && esValidReference != '' ) msgError += "<br>" + esValidReference;
+							else if ( msgError == '' && esValidReference != '' ) msgError = esValidReference;
 
 							afegirHeaderModalError("Alerta!");
 							afegirTextModalError(msgError);
@@ -436,7 +446,7 @@ requestMain.done(function( message ) {
 	}
 
 	//Previsualització
-	function mostrarModalConfirmacioPagament(numFact, idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc) {
+	function mostrarModalConfirmacioPagament(numFact, idTipus, idInscSif, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, externalReference) {
 		var getModal = $.ajax({
 			url: path + "alumnes/mostrarModalConfPag.php",
 			global: false,
@@ -463,7 +473,7 @@ requestMain.done(function( message ) {
 
 					mostrarModalLoading();
 
-					aplicarPagament(idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, numFact, 1);
+					aplicarPagament(idTipus, idInscSif, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, externalReference, numFact, 1);
 				});
 			}
 			else {
@@ -479,8 +489,8 @@ requestMain.done(function( message ) {
 	}
 
 	//S'envia el pagament
-	function aplicarPagament(idTipus, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, numFact, efact) {
-		var button = $('#upd-inscripcio-' + idTipus);
+	function aplicarPagament(idTipus, idInscSif, tipusInsc, pagInsc, dataPagInsc, bancInsc, obsInsc, externalReference, numFact, efact) {
+		var button = $('#upd-insc-' + idTipus);
 		var operationId = button.data('payment-operation-id');
 		if (!operationId) {
 			if (window.crypto && typeof window.crypto.randomUUID === 'function') {
@@ -498,11 +508,13 @@ requestMain.done(function( message ) {
 			method: "POST",
 			data: {
 				id: idTipus,
+				idInsc: idInscSif,
 				numFact: numFact,
 				tipus: tipusInsc,
 				pagament: pagInsc,
 				dataPag: dataPagInsc,
 				banc: bancInsc,
+				externalReference: externalReference,
 				obs: obsInsc,
 				efact: efact,
 				operationId: operationId,
