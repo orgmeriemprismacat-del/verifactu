@@ -31,39 +31,49 @@ final class PaymentRepository
 
     public function findByExternalReceipt(\PDO $db, array $payload, bool $forUpdate = false): ?array
     {
-        $dsOrder = trim((string) ($payload['ds_order'] ?? ''));
-        $reference = trim((string) ($payload['reference'] ?? ''));
-
-        if ($dsOrder === '' && $reference === '') {
+        $receipt = $this->externalReceipt($payload);
+        if ($receipt === null) {
             return null;
         }
 
-        if ($dsOrder !== '') {
-            $sql = 'SELECT * FROM payment_transaction WHERE DS_ORDER = ? ORDER BY ID ASC LIMIT 1';
-            if ($forUpdate) {
-                $sql .= ' FOR UPDATE';
-            }
-            $stmt = $db->prepare($sql);
-            $stmt->execute([$dsOrder]);
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-            if ($row) {
-                return $row;
-            }
+        $sql = 'SELECT pt.*
+                FROM payment_external_receipt_claim c
+                INNER JOIN payment_transaction pt ON pt.UUID_PAYMENT = c.UUID_PAYMENT
+                WHERE c.RECEIPT_KEY = ?';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
         }
 
-        if ($reference !== '') {
-            $sql = 'SELECT * FROM payment_transaction WHERE REFERENCIA_BANCARIA = ? ORDER BY ID ASC LIMIT 1';
-            if ($forUpdate) {
-                $sql .= ' FOR UPDATE';
-            }
-            $stmt = $db->prepare($sql);
-            $stmt->execute([$reference]);
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-            return $row ?: null;
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$receipt['key']]);
+        $claimed = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($claimed) {
+            return $claimed;
         }
 
-        return null;
+        $column = $receipt['type'] === 'DS_ORDER' ? 'DS_ORDER' : 'REFERENCIA_BANCARIA';
+        $sql = "SELECT * FROM payment_transaction
+                WHERE {$column} = ?
+                ORDER BY ID ASC
+                LIMIT 2";
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$receipt['value']]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        if (count($rows) > 1) {
+            throw SifException::conflict('External receipt matches multiple existing payments');
+        }
+
+        $existing = $rows[0] ?? null;
+        if ($existing !== null) {
+            $this->claimExternalReceipt($db, $payload, (string) $existing['UUID_PAYMENT']);
+        }
+
+        return $existing;
     }
 
     public function findAllocations(\PDO $db, string $uuidPayment): array
@@ -105,6 +115,8 @@ final class PaymentRepository
             $this->hashPayload($payload),
             $payload['notes'] ?? null,
         ]);
+
+        $this->claimExternalReceipt($db, $payload, $uuid);
 
         foreach ($payload['allocations'] as $allocation) {
             $this->createAllocation($db, $uuid, $allocation);
@@ -160,6 +172,48 @@ final class PaymentRepository
         $stmt->execute(array_merge([$uuidFactura], $movementTypes));
 
         return number_format((float) $stmt->fetchColumn(), 2, '.', '');
+    }
+
+    private function claimExternalReceipt(\PDO $db, array $payload, string $uuidPayment): void
+    {
+        $receipt = $this->externalReceipt($payload);
+        if ($receipt === null) {
+            return;
+        }
+
+        $db->prepare(
+            'INSERT INTO payment_external_receipt_claim (
+                RECEIPT_KEY, RECEIPT_TYPE, RECEIPT_VALUE, UUID_PAYMENT
+            ) VALUES (?, ?, ?, ?)'
+        )->execute([
+            $receipt['key'],
+            $receipt['type'],
+            $receipt['value'],
+            $uuidPayment,
+        ]);
+    }
+
+    private function externalReceipt(array $payload): ?array
+    {
+        $dsOrder = trim((string) ($payload['ds_order'] ?? ''));
+        if ($dsOrder !== '') {
+            return [
+                'key' => 'DS_ORDER|' . $dsOrder,
+                'type' => 'DS_ORDER',
+                'value' => $dsOrder,
+            ];
+        }
+
+        $reference = trim((string) ($payload['reference'] ?? ''));
+        if ($reference !== '') {
+            return [
+                'key' => 'BANK_REF|' . $reference,
+                'type' => 'BANK_REF',
+                'value' => $reference,
+            ];
+        }
+
+        return null;
     }
 
     private function assertInstallmentAllocationsAllowed(\PDO $db, array $payload): void
