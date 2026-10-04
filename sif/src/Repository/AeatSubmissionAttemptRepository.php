@@ -111,6 +111,80 @@ final class AeatSubmissionAttemptRepository
 
 
 
+
+    public function anchorEvidenceResponse(
+        \PDO $db,
+        string $uuidAttempt,
+        string $evidenceId,
+        string $responseSha256,
+        int $httpStatus
+    ): void {
+        $evidenceId = $this->normalizeEvidenceId($evidenceId);
+        if ($evidenceId === null
+            || preg_match('/^[a-f0-9]{64}$/D', $responseSha256) !== 1
+            || $httpStatus < 0
+            || $httpStatus > 599
+        ) {
+            throw new \InvalidArgumentException('Invalid AEAT evidence response anchor.');
+        }
+
+        $stmt = $db->prepare(
+            'SELECT EVIDENCE_ID, EVIDENCE_RESPONSE_SHA256, EVIDENCE_HTTP_STATUS, STATUS
+             FROM aeat_submission_attempt
+             WHERE UUID_ATTEMPT = ?
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $stmt->execute([$uuidAttempt]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!is_array($row)
+            || !is_string($row['EVIDENCE_ID'])
+            || !hash_equals($row['EVIDENCE_ID'], $evidenceId)
+        ) {
+            throw new \RuntimeException(
+                'AEAT response anchor does not match the preassigned evidence.'
+            );
+        }
+
+        $currentHash = $row['EVIDENCE_RESPONSE_SHA256'];
+        $currentHttp = $row['EVIDENCE_HTTP_STATUS'];
+        if ($currentHash !== null || $currentHttp !== null) {
+            if (!is_string($currentHash)
+                || !hash_equals($currentHash, $responseSha256)
+                || (int) $currentHttp !== $httpStatus
+            ) {
+                throw new \RuntimeException(
+                    'AEAT evidence response anchor is immutable and does not match.'
+                );
+            }
+            return;
+        }
+
+        if (!in_array(strtoupper((string) $row['STATUS']), ['STARTED', 'UNCERTAIN'], true)) {
+            throw new \RuntimeException(
+                'AEAT evidence response can only be anchored on an open/review attempt.'
+            );
+        }
+
+        $update = $db->prepare(
+            'UPDATE aeat_submission_attempt
+             SET EVIDENCE_RESPONSE_SHA256 = ?, EVIDENCE_HTTP_STATUS = ?
+             WHERE UUID_ATTEMPT = ?
+               AND EVIDENCE_ID = ?
+               AND EVIDENCE_RESPONSE_SHA256 IS NULL
+               AND EVIDENCE_HTTP_STATUS IS NULL'
+        );
+        $update->execute([
+            $responseSha256,
+            $httpStatus,
+            $uuidAttempt,
+            $evidenceId,
+        ]);
+        if ($update->rowCount() !== 1) {
+            throw new \RuntimeException('AEAT evidence response anchor could not be persisted.');
+        }
+    }
+
     public function markStartedUncertain(\PDO $db, string $uuidAttempt, string $detail): void
     {
         $stmt = $db->prepare(
