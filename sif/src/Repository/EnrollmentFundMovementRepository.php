@@ -342,6 +342,128 @@ final class EnrollmentFundMovementRepository
         return $this->amount($cents);
     }
 
+    public function insertOrReuseInternalTransfer(
+        \PDO $db,
+        array $movement
+    ): array {
+        foreach ([
+            'idempotency_key',
+            'order',
+            'id_insc_origin',
+            'id_insc_destination',
+            'amount',
+            'correlation_id',
+        ] as $field) {
+            if (!array_key_exists($field, $movement)
+                || $movement[$field] === null
+                || $movement[$field] === ''
+            ) {
+                throw SifException::validation(
+                    'Missing internal-transfer enrollment fund movement field ' . $field
+                );
+            }
+        }
+
+        $normalized = [
+            'uuid_movement' => $this->uuidGenerator->generate(),
+            'idempotency_key' => trim((string) $movement['idempotency_key']),
+            'movement_type' => 'INTERNAL_TRANSFER',
+            'order' => (int) $movement['order'],
+            'id_insc_origin' => (int) $movement['id_insc_origin'],
+            'id_insc_destination' => (int) $movement['id_insc_destination'],
+            'amount' => $this->money($movement['amount']),
+            'currency' => strtoupper(trim((string) ($movement['currency'] ?? 'EUR'))),
+            'uuid_operation' => $this->optionalString($movement['uuid_operation'] ?? null),
+            'correlation_id' => trim((string) $movement['correlation_id']),
+            'notes' => $this->optionalString($movement['notes'] ?? null),
+        ];
+
+        if ($normalized['idempotency_key'] === ''
+            || strlen($normalized['idempotency_key']) > 160
+            || $normalized['order'] <= 0
+            || $normalized['id_insc_origin'] <= 0
+            || $normalized['id_insc_destination'] <= 0
+            || $normalized['id_insc_origin'] === $normalized['id_insc_destination']
+            || $this->cents($normalized['amount']) <= 0
+            || $normalized['correlation_id'] === ''
+            || strlen($normalized['correlation_id']) > 120
+            || $normalized['currency'] === ''
+        ) {
+            throw SifException::validation('Invalid internal-transfer enrollment fund movement values');
+        }
+
+        $existing = $this->findByIdempotencyKey(
+            $db,
+            $normalized['idempotency_key'],
+            true
+        );
+        if ($existing !== null) {
+            $this->assertInternalTransferMatches($existing, $normalized);
+
+            return $this->transferResult($existing, true);
+        }
+
+        $available = $this->availableAmountForInscription(
+            $db,
+            $normalized['id_insc_origin'],
+            true
+        );
+        $this->assertAvailable($available, $normalized['amount']);
+
+        try {
+            $db->prepare(
+                'INSERT INTO enrollment_fund_movement (
+                    UUID_MOVEMENT, IDEMPOTENCY_KEY, MOVEMENT_TYPE, ORDRE,
+                    UUID_PAYMENT, UUID_CREDIT, UUID_FACTURA, ID_FACTURA_LINIA,
+                    ID_INSC_ORIGEN, ID_INSC_DESTI, IMPORT, CURRENCY,
+                    UUID_OPERATION, CORRELATION_ID, NOTES
+                 ) VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?)'
+            )->execute([
+                $normalized['uuid_movement'],
+                $normalized['idempotency_key'],
+                $normalized['movement_type'],
+                $normalized['order'],
+                $normalized['id_insc_origin'],
+                $normalized['id_insc_destination'],
+                $normalized['amount'],
+                $normalized['currency'],
+                $normalized['uuid_operation'],
+                $normalized['correlation_id'],
+                $normalized['notes'],
+            ]);
+        } catch (\PDOException $exception) {
+            if ((string) $exception->getCode() !== '23000') {
+                throw $exception;
+            }
+
+            $existing = $this->findByIdempotencyKey(
+                $db,
+                $normalized['idempotency_key'],
+                true
+            );
+            if ($existing === null) {
+                throw $exception;
+            }
+
+            $this->assertInternalTransferMatches($existing, $normalized);
+
+            return $this->transferResult($existing, true);
+        }
+
+        $created = $this->findByIdempotencyKey(
+            $db,
+            $normalized['idempotency_key'],
+            true
+        );
+        if ($created === null) {
+            throw new \RuntimeException(
+                'Created internal enrollment fund transfer could not be loaded'
+            );
+        }
+
+        return $this->transferResult($created, false);
+    }
+
     public function insertOrReuseCreditCreate(
         \PDO $db,
         array $movement
@@ -629,6 +751,43 @@ final class EnrollmentFundMovementRepository
                 'Enrollment fund exit exceeds available amount'
             );
         }
+    }
+
+    private function assertInternalTransferMatches(
+        array $existing,
+        array $movement
+    ): void {
+        $matches =
+            (string) $existing['MOVEMENT_TYPE'] === 'INTERNAL_TRANSFER'
+            && (int) $existing['ORDRE'] === $movement['order']
+            && $existing['UUID_PAYMENT'] === null
+            && $existing['UUID_CREDIT'] === null
+            && $existing['UUID_FACTURA'] === null
+            && $existing['ID_FACTURA_LINIA'] === null
+            && (int) $existing['ID_INSC_ORIGEN'] === $movement['id_insc_origin']
+            && (int) $existing['ID_INSC_DESTI'] === $movement['id_insc_destination']
+            && $this->money($existing['IMPORT']) === $movement['amount']
+            && (string) $existing['CURRENCY'] === $movement['currency']
+            && (string) ($existing['UUID_OPERATION'] ?? '')
+                === (string) ($movement['uuid_operation'] ?? '');
+
+        if (!$matches) {
+            throw SifException::conflict(
+                'Internal-transfer fund idempotency key already exists with different payload'
+            );
+        }
+    }
+
+    private function transferResult(array $row, bool $reused): array
+    {
+        return [
+            'uuid_movement' => (string) $row['UUID_MOVEMENT'],
+            'id_insc_origin' => (int) $row['ID_INSC_ORIGEN'],
+            'id_insc_destination' => (int) $row['ID_INSC_DESTI'],
+            'amount' => $this->money($row['IMPORT']),
+            'movement_type' => (string) $row['MOVEMENT_TYPE'],
+            'idempotency_reused' => $reused,
+        ];
     }
 
     private function assertCreditCreateMatches(array $existing, array $movement): void
