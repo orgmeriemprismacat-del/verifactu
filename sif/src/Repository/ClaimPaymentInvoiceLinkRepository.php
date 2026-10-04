@@ -6,6 +6,18 @@ use Prisma\Sif\Exception\SifException;
 
 final class ClaimPaymentInvoiceLinkRepository
 {
+    public function resolveUniqueOriginForInscription(
+        \PDO $db,
+        int $inscriptionId
+    ): array {
+        return $this->assertMatches(
+            $db,
+            '1 = 1',
+            [],
+            $inscriptionId
+        );
+    }
+
     public function assertUuidMatches(
         \PDO $db,
         string $uuidFactura,
