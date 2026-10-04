@@ -88,6 +88,38 @@ final class EnrollmentFundTransferActionServiceTest
         )->fetchColumn());
     }
 
+    public function testLongLedgerKeyIsHashedForPaymentAuditField(): void
+    {
+        $db = TestDatabase::fresh();
+        $this->seedExternalFunds($db, 510, '100.00', 4);
+        $service = $this->service($db);
+
+        $key = 'FUND|TRANSFER|UC006|' . str_repeat('X', 130);
+
+        $service->transfer(
+            $this->audit('req-transfer-long-key', 'corr-transfer-long-key'),
+            [
+                'idempotency_key' => $key,
+                'source_enrollment_id' => 510,
+                'target_enrollment_id' => 520,
+                'amount' => '40.00',
+            ]
+        );
+
+        $auditKey = (string) $db->query(
+            "SELECT PAYMENT_IDEMPOTENCY_KEY
+             FROM payment_action_event
+             WHERE ACTION = 'REALLOCATE'
+             ORDER BY ID
+             LIMIT 1"
+        )->fetchColumn();
+
+        Assert::same(
+            'FUNDKEY|SHA256:' . hash('sha256', $key),
+            $auditKey
+        );
+    }
+
     public function testAuditedReversalUsesUnallocateAction(): void
     {
         $db = TestDatabase::fresh();
