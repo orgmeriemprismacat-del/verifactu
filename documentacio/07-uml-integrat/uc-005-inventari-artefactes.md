@@ -67,7 +67,7 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 ## 5. Peces que encara falten
 
 1. **PENDENT UI:** proxy/adaptador intranet amb sessió, permís i CSRF que signi i consumeixi `/api/factures/rectify.php`.
-2. **PENDENT UC-74:** productor/classificador fiscal genèric executable. UC-005 ja exigeix i resol una decisió UC-74 persistida; això no substitueix el component que la genera.
+2. **PENDENT UC-74:** productor/classificador fiscal genèric executable. UC-005 ja exigeix una decisió persistida vinculada per `correction_fingerprint`; vegeu `uc-005-contracte-uc074.md`.
 3. **PENDENT AEAT:** mapping específic de rectificatives a `aeat_fields`, XSD/protocol i evidència d'enviament.
 4. **PENDENT DECISIÓ:** correccions sense variació d'import; el builder continua rebutjant total zero fins que el criteri fiscal ho defineixi.
 5. **IMPLEMENTAT:** emissió R + `factura_rectificacio` + estat original + audit terminal comparteixen la transacció d'`InvoiceService`.
@@ -84,6 +84,7 @@ S'ha detectat una inconsistència real: el builder acceptava `motiu` i `mode_rec
 - **Fiscalitat local SIF:** IMPLEMENTADA EN MODE FAIL-CLOSED · AEAT específic pendent.
 - **Atomicitat del nucli UC-005:** IMPLEMENTADA I PASSADA A LA SUITE ESPECÍFICA · pendent concurrència/preproducció.
 - **Command backend segur:** IMPLEMENTAT · endpoint intern signat, rols explícits i preview/confirm.
-- **Classificador UC-74:** PENDENT com a productor; el consum de decisió persistida + guard ja està implementat.
+- **Classificador UC-74:** PENDENT com a productor; consum de decisió persistida, R1-R5 i fingerprint de la correcció ja implementats.
+- **Proxy intranet UC-005:** IMPLEMENTAT EN BRANCA (sessió, edit permission, same-origin, CSRF, HMAC, preview/confirm); modal/formulari final pendent.
 - **Proves definides:** SÍ, inclosa suite aïllada UC-005.
 - **Proves executades:** suite UC-005 verda 34/34 abans del resolver persistit; la nova passada amb `classification_event_uuid` està pendent. La suite global manté fallades alienes documentades.
