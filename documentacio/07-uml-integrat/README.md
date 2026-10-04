@@ -47,7 +47,7 @@ Quan una peça no aplica, s'ha de justificar explícitament en lloc de crear un 
 | UC-07 | Consultar factura, estat i document | [Fitxa i UML](uc-007-consultar-factura-estat-document.md) · [Auditoria detallada](02-auditoria-detallada-uc-007-consultar-factura-estat-document-2026-09-29.md) | `[DISSENY]` |
 | UC-08 | Gestionar incidència | [Fitxa i UML](uc-008-gestionar-incidencia-sif.md) · [tancament auditoria](09-tancament-auditoria-uc-008-2026-10-02.md) | `[AUDITORIA TANCADA · CODI/CI 844/0 · ACCEPTACIÓ PREPROD PENDENT]` |
 | UC-09 | Remetre registre a AEAT | [Fitxa i UML](uc-009-remetre-registre-aeat.md) | `[DISSENY]` |
-| UC-10 | Gestionar configuració i versió | [Fitxa i UML](uc-010-gestionar-configuracio-versio.md) | `[DISSENY]` |
+| UC-10 | Gestionar configuració i versió | [UML](uc-010-gestionar-configuracio-versio.md) · [classes A/F](uc-010-classes-actual-final.md) · [seqüències A/F](uc-010-sequencies-actual-final.md) · [activitats](uc-010-activitats-pagines-actual-final.md) · [auditoria](uc-010-auditoria-detallada-2026-10-04.md) | `[IMPLEMENTAT EN BRANCA · CI/E2E PENDENT]` |
 | UC-11 | Importar factura històrica | [Fitxa i UML](uc-011-importar-factura-historica.md) | `[BASE]` |
 | UC-12 | Gestionar el cicle de morositat i reclamació | [Fitxa i UML](uc-012-morositat-reclamacio.md) | `[PARCIAL]` |
 | UC-13 | Orquestrar la doble facturació USOC | [Fitxa i UML](uc-013-orquestrar-doble-facturacio-usoc.md) | `[PARCIAL]` |
