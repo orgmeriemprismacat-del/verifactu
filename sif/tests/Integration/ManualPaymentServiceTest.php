@@ -96,6 +96,46 @@ final class ManualPaymentServiceTest
         Assert::same(0, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
     }
 
+    public function testRejectsSameTransferReferenceForDifferentInvoicePayload(): void
+    {
+        $db = TestDatabase::fresh();
+        $invoiceService = IssueInvoiceTest::serviceFor($db);
+
+        $firstInvoice = $invoiceService->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC022|INVOICE|A',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+        $secondInvoice = $invoiceService->issueInvoice(
+            Fixtures::invoicePayload([
+                'idempotency_key' => 'UC022|INVOICE|B',
+                'emesa_abans_cobrament' => 1,
+            ])
+        );
+
+        $service = $this->service($db);
+        $input = [
+            'amount' => '60.00',
+            'movement_date' => '2026-10-03 10:00:00',
+            'reference' => 'UC022-SAME-REF',
+            'bank' => 'BANC TEST',
+        ];
+
+        $service->registerByUuid($db, $firstInvoice['uuid_factura'], $input);
+
+        Assert::throws(SifException::class, function () use ($service, $db, $secondInvoice, $input): void {
+            $service->registerByUuid($db, $secondInvoice['uuid_factura'], $input);
+        }, 409);
+
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_transaction')->fetchColumn());
+        Assert::same(1, (int) $db->query('SELECT COUNT(*) FROM payment_allocation')->fetchColumn());
+        Assert::same(
+            $firstInvoice['uuid_factura'],
+            (string) $db->query('SELECT UUID_FACTURA FROM payment_allocation')->fetchColumn()
+        );
+    }
+
     private function service(\PDO $db): ManualPaymentService
     {
         return new ManualPaymentService(
