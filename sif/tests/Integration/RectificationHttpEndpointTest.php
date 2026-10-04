@@ -25,6 +25,7 @@ final class RectificationHttpEndpointTest
         Assert::stringContainsString('FiscalCorrectionDecisionGuard', $endpoint);
         Assert::stringContainsString('FiscalCorrectionDecisionResolver', $endpoint);
         Assert::stringContainsString('FiscalCorrectionDecisionRepository', $endpoint);
+        Assert::stringContainsString('AeatRectificationMapper', $endpoint);
         Assert::stringContainsString("classification_event_uuid", $endpoint);
         Assert::stringContainsString('RectificationCommandService', $endpoint);
         Assert::stringContainsString('rectification_signed_path', $endpoint);
@@ -38,6 +39,11 @@ final class RectificationHttpEndpointTest
 
         if (str_contains($endpoint, "\$payload['classification']")) {
             Assert::fail('UC-005 endpoint must not trust inline fiscal classification from the request body');
+        }
+        if (str_contains($endpoint, "\$payload['aeat_fields']")
+            || str_contains($endpoint, "\$payload['aeat_header']")
+        ) {
+            Assert::fail('UC-005 endpoint must not trust inline AEAT fields from the request body');
         }
 
         if (str_contains($endpoint, "payload['created_by']")) {
