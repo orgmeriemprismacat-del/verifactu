@@ -107,6 +107,10 @@ final class RedsysCourseCutoverBoundaryTest
         Assert::stringContainsString('SIF_REDSYS_RETURN_BASE_URL_HOST_MISMATCH', $source);
         Assert::stringContainsString('SIF_REDSYS_LEGACY_CALLBACK_URL_HOST_MISMATCH', $source);
 
+        $configGuard = strpos($source, 'SIF_REDSYS_EXPECTED_PAY_HOST_NOT_CONFIGURED');
+        $client = strpos($source, 'SifRedsysCourseIntentClient.php');
+        Assert::same(true, $configGuard !== false && $client !== false && $configGuard < $client);
+
         if (str_contains($source, 'https://pay.prisma.cat/doit.php')
             || str_contains($source, 'https://pay.prisma.cat/respostaOkPagamentAutomatic.php')
             || str_contains($source, 'https://pay.prisma.cat/respostaKoPagamentAutomatic.php')
