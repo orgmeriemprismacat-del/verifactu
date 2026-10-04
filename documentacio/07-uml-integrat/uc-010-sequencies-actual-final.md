@@ -224,11 +224,6 @@ Note over Deploy,UC10: UC-010 NO executa FTP, checkout, rsync ni rollback físic
 Aquesta separació evita marcar ACTIVE una versió que només estava “prevista” però no realment servida.
 
 
-## 7. Nota de verificació 2026-10-04
-
-La seqüència FINAL representa el codi reconciliat, no el PR #139 original. El canvi d'ordre del lock/idempotència i el gate `DRAFT` són correccions derivades de l'auditoria de concurrència i traçabilitat.
-
-
 ## 7. FINAL F — launch HMAC de la intranet
 
 ```mermaid
