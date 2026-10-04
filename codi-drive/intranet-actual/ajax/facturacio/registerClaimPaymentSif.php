@@ -205,13 +205,13 @@ function claimPaymentPageContext(string $referer): array
     $path = (string) parse_url($referer, PHP_URL_PATH);
     $map = [
         '/facturacio/primera-reclamacio/' => ['/facturacio/primera-reclamacio/', 'FIRST'],
-        '/facturacio-primera-reclamacio-pagament.php' => ['/facturacio/primera-reclamacio/', 'FIRST'],
+        '/facturacio-primera-reclamacio-pagament.php' => ['/facturacio-primera-reclamacio-pagament.php', 'FIRST'],
         '/facturacio/recordatori-pagament/' => ['/facturacio/recordatori-pagament/', 'COURSE_END'],
-        '/facturacio-recordatori-pagament-final.php' => ['/facturacio/recordatori-pagament/', 'COURSE_END'],
+        '/facturacio-recordatori-pagament-final.php' => ['/facturacio-recordatori-pagament-final.php', 'COURSE_END'],
         '/facturacio/reclamacio-final/' => ['/facturacio/reclamacio-final/', 'FINAL'],
-        '/facturacio-reclamacio-final.php' => ['/facturacio/reclamacio-final/', 'FINAL'],
+        '/facturacio-reclamacio-final.php' => ['/facturacio-reclamacio-final.php', 'FINAL'],
         '/facturacio/morosos/' => ['/facturacio/morosos/', 'DEFAULTER'],
-        '/facturacio-control-morosos.php' => ['/facturacio/morosos/', 'DEFAULTER'],
+        '/facturacio-control-morosos.php' => ['/facturacio-control-morosos.php', 'DEFAULTER'],
     ];
 
     if (!isset($map[$path])) {
