@@ -4,6 +4,7 @@
 * @brief Conté tota la informació relacionada amb una InscripcioCurs.
 */
 class PagamentRegal {
+   private $idRegal;
    private $codiCurs; /** Text Curs del regal. ex. ACRE */
    private $codiRegal; /** Text Codi regal. ex. */
    private $import; /** Numero El valor que té pagar. ex. 90  */
@@ -15,6 +16,10 @@ class PagamentRegal {
    /*********************************** FUNCIONS CONSTRUCTORS ***********************************/
 
    public function __construct($idRegal) {
+      if (!is_numeric($idRegal) || (int) $idRegal <= 0) {
+         throw new Exception('',1702);
+      }
+      $this->idRegal = (int) $idRegal;
       $connexio = new ConnexioBBDDSTMT();
    	$connexio->connectarBD();
 
@@ -228,9 +233,8 @@ class PagamentRegal {
    private function __mostrarPagamentTargeta($tipus) {
       $aPagar = $this->obtenirPreuAPagar()->obtenirNumero();
       $codiCurs = $this->obtenirCodiCurs()->obtenirText();
-      $codiRegal = $this->obtenirCodiRegal()->obtenirText();
       $titol = $this->obtenirTitol()->obtenirText();
-      $correu = $this->obtenirCorreu()->obtenirText();
+      $giftId = (int) $this->idRegal;
 
       $mostrar = "<div class='form-dades'>";
       if ($tipus==2) {
@@ -298,7 +302,7 @@ class PagamentRegal {
          $mostrar .= "<p>L'import a pagar és de <span class='font-weight-bold'>";
          $mostrar .= "<span class='preu'>".$aPagar."</span> euros</span>.</p>";
       }
-      $mostrar .= "<input type='hidden' id='import' name='import' value='".$aPagar."'>";
+      // L'import mostrat és informatiu; el checkout rellegeix l'import autoritatiu al SIF.
 
       $mostrar .= "<div class='d-flex cnt_enviar_dades border-0 justify-content-center'>
                      <a id='form_enviar_dades' role='button' class='boto-blau
@@ -336,7 +340,7 @@ class PagamentRegal {
          $mostrar = "<div class='form-dades'><h3>Pagament per transferència o ingrés bancari</h3>";
       	$mostrar .= "<p>Si ho prefereixes, pots fer una TRANSFERÈNCIA o INGRÉS BANCARI, ";
       	$mostrar .= "indicant clarament el concepte <span class='font-weight-bold'>";
-      	$mostrar .= "«<span class='codiRegal'>".$this->obtenirCodiRegal()->obtenirText();
+      	$mostrar .= "«<span class='codiRegal'>REGAL-".(int) $this->idRegal;
       	$mostrar .= "</span>»</span> ";
       	$mostrar .= "en qualsevol dels comptes següents:</p>";
       	$mostrar .= "<ul>";
