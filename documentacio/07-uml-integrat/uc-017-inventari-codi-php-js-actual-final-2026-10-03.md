@@ -55,3 +55,26 @@ mostrarRegal.min.js
 ```
 
 Quan aquest tall sigui operatiu, `realitzaPagamentRegalAutomatic.php` no ha de crear factures.
+
+
+## 5. Candidat FINAL implementat — 2026-10-04
+
+| Fitxer/component | Responsabilitat | Estat |
+| --- | --- | --- |
+| `pay-prisma.../SifRedsysGiftIntentClient.php` | crea intenció signada contra SIF | IMPLEMENTAT |
+| `sif/public/api/redsys/gift-intent.php` | endpoint intern `PAYMENT_CHANNEL` | IMPLEMENTAT |
+| `RedsysGiftPaymentIntentService.php` | rellegeix `regal`, valida import/estat i congela snapshot | IMPLEMENTAT |
+| `pagina_efectuar_pagament_regal_automatic.php` candidat | DS_ORDER/import/secrets des del SIF/config | IMPLEMENTAT |
+| `sif/public/api/redsys/callback.php` + cua/worker | callback mínim, validació i processament asíncron | IMPLEMENTAT |
+| `RedsysGiftInvoiceService.php` | factura + payment + entitlement | IMPLEMENTAT |
+| `GiftAeatInvoicePayloadEnricher.php` | snapshot AEAT explícit en pre/prod | IMPLEMENTAT; VALORS REALS PENDENTS |
+| `GiftPaymentNotificationService.php` | outbox idempotent sense codi cru | IMPLEMENTAT |
+| `LegacySyncService.php` | projecció llegada després d'èxit SIF | IMPLEMENTAT |
+| `gift-status.php` + client/return status | estat autoritatiu navegador | IMPLEMENTAT |
+| `preflight-redsys-gift.php` | readiness específica UC-017 | IMPLEMENTAT |
+| `verify-redsys-gift-preproduction.php` | evidència E2E read-only | IMPLEMENTAT |
+| `go-no-go-preproduction.php` | NO-GO/GO tècnic sense autoritzar producció | IMPLEMENTAT |
+
+## 6. Estat resultant
+
+La còpia **ACTUAL** es conserva com a evidència del sistema llegat i del rollback. El **FINAL candidat ja no està pendent de programació coneguda**. Resten: CI finalitzat, configuració/rotació de secrets, valors AEAT confirmats, desplegament test/preproducció, compra controlada, callback duplicat/retry i evidència conservada.
